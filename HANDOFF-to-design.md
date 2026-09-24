@@ -5,7 +5,7 @@
 - **Live:** https://torrezhub.vercel.app (open it on a phone)
 - **Source:** github.com/esshaughn/torrezhub (`index.html`, `js/sparks.js`, `css/sparks.css`)
 - **Baseline:** `design_handoff_sparks_walktober_v2/Walktober App v2.dc.html` + its README, from "Spark Torrez - Full Site 2.zip"
-- **As of:** 2026-09-24 (after the first feature scrub and email sign-in)
+- **As of:** 2026-09-24 (feature scrub, email sign-in for leads, location suggestions)
 
 Everything in the v2 README is built as specified, except what's listed below. Where this doc and the v2 files disagree, **this doc is correct**.
 
@@ -61,8 +61,8 @@ The v2 README says to keep the live placeholders for loading, error and empty st
 ## 3. Behaviour added in the build (no visual change)
 
 - **Shareable links:** `#/ideas` (browse), `#/how`, `#/me` (profile), `#/idea/<id>`. The phone's back button moves between screens. The post flow and edit screen don't change the URL. Opening a link while the app is already open goes straight there, even for an idea posted after the page loaded (it briefly shows Home while it fetches).
-- **Photos** are shrunk to at most 1600px (JPEG) before upload, so a 5 MB phone photo becomes ~300 KB. They're stored in Supabase Storage and are public by link. Deleting an idea also deletes its photos if the lead deleting it is the one who posted them. A lead who took over someone else's idea can delete the idea, but the original poster's photo files stay in storage, unlinked.
-- **"You" vs names:** posters always show by name, including to themselves. Lead-only copy ("You're out front…") still says "you".
+- **Photos** are shrunk to at most 1600px (JPEG) before upload, so a 5 MB phone photo becomes ~300 KB. They're stored in Supabase Storage and are public by link. Deleting an idea also deletes its photos.
+- **"You" vs names:** posters always show by name, including to themselves. Lead-only copy ("You're out front, with a day, a place…" on a happening idea) still says "you".
 - **Changing your name** updates it everywhere it's shown: your ideas, the ones you lead, and your offers. RSVPs keep the name typed into the RSVP.
 - **Offer approval** applies to spots and days from anyone other than the lead. When the lead offers a spot or day, it applies straight away. "I can help with something" always posts straight away.
 - **Removing a date** someone picked keeps them on the RSVP list, just without that date, and they still count toward "N in".
@@ -79,11 +79,15 @@ The v2 `.dc.html` still contains screens that nothing in it can reach, and the b
 ## 5. Open questions for the next round
 
 1. **Telling the lead about new RSVPs and offers.** Nothing notifies them. They have to open the app. (Marked out of scope in v2.)
-2. **Spam and moderation.** Anyone with the link can post. Is there a report or hide action, or an admin view for Torrez staff? (Marked out of scope in v2.)
+2. **Spam and moderation.** Anyone who signs in with an email can post. Is there a report or hide action, or an admin view for Torrez staff? (Marked out of scope in v2.) Bot protection (Cloudflare Turnstile) is planned and invisible.
 3. **Adding date options once a day is set.** The design only offers "Add a date option" when no day is picked. So an idea posted with a date can't later put alternatives up for a vote unless the day is cleared, and nothing clears a day. Intended?
 4. **After Walktober.** The date pickers (posting and "Add a date option") only allow October 2026, per v2. From November, nobody can pick a date. Is Sparks Walktober-only, or should it carry on? If so, what happens to the Walktober hero card and the gold "Walktober" styling?
 5. **The lead's card now ends at the offer chips.** Removing the step-back paragraph left the lead with no line of their own in "How close this is". Does it want a short lead-facing note, or is it fine as is?
 6. **"Somebody out front" is always ticked** now that every idea has a lead, so every idea starts at "1 of 4 in place". Keep it as a reassurance, or drop it and count to 3?
+
+7. **Spark Hub, many groups.** The owner plans for this to become **Spark Hub**: one app with many groups (Torrez Fitness, neighbourhoods, PTAs, friend groups), one account across all of them. Sign-in and emails already say Spark Hub; the header eyebrow still says Torrez Fitness. How should the group name, group switching and the Spark Hub brand sit together? And should the Walktober hero become a per-group slot?
+8. **"Know a spot?" pop-up** still takes free text. Should it get the same place suggestions as the Location step?
+9. **Directions link** opens Google Maps for everyone (it works on iPhone too). Fine, or offer Apple Maps on iPhones?
 
 ## 6. Design tokens: unchanged
 
