@@ -1,11 +1,12 @@
--- Sparks — Torrez Fitness · Supabase schema
+-- Sparks — Torrez Fitness · initial schema (baseline migration)
 --
--- Run once in the Supabase dashboard: SQL Editor → New query → paste → Run.
+-- Applied to production 2026-09-23. Later changes go in new files in this folder;
+-- see CLAUDE.md → "Database changes".
 --
 -- Identity model: every visitor gets a Supabase *anonymous* session (no sign-up
 -- screen). That session's user id is what makes someone the poster / lead of a
 -- spark, and what keeps RSVP phone numbers visible only to the lead.
--- Requires: Authentication → Sign In / Providers → "Allow anonymous sign-ins" ON.
+-- Requires anonymous sign-ins (supabase/config.toml → [auth] enable_anonymous_sign_ins).
 
 -- ---------------------------------------------------------------------------
 -- Tables

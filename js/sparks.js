@@ -6,7 +6,7 @@
    Event handlers are registered per render and referenced by index via
    data-on / data-input / data-focus attributes.
 
-   Data: Supabase (see supabase/schema.sql). Every visitor gets an anonymous
+   Data: Supabase (see supabase/migrations/; js/config.js picks live vs test). Every visitor gets an anonymous
    session; row-level security decides who can edit a spark and who can see
    RSVP names and numbers (only the lead). */
 

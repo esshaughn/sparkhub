@@ -1,0 +1,40 @@
+# Keeps both Supabase projects awake.
+#
+# Supabase pauses free-plan projects after about a week without activity, and a
+# paused project makes the app show "Couldn't load ideas" until someone restores
+# it in the dashboard. A tiny daily API request counts as activity.
+#
+# The keys below are the same publishable (browser) keys shipped in js/config.js.
+# Row-level security means this request can't read any data. It just returns [].
+#
+# Note: GitHub turns off scheduled workflows in a repo after 60 days without any
+# commits, and emails you first. If that happens, re-enable it from the Actions tab.
+
+name: Keep Supabase awake
+
+on:
+  schedule:
+    - cron: "17 14 * * *"   # daily, 14:17 UTC
+  workflow_dispatch: {}      # lets you run it by hand from the Actions tab
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: live
+            url: https://xwrzfpgsazyrgieymtee.supabase.co
+            key: sb_publishable_NrnRB0SC3-dzeCJTU6vUjQ_328Q1BJC
+          - name: test
+            url: https://hroxgvxvafgikikviiud.supabase.co
+            key: sb_publishable_f7dwskaTS-TV42YC-p0lFw_9Pe8FY1O
+    steps:
+      - name: Ping ${{ matrix.name }}
+        run: |
+          code=$(curl -s -o /dev/null -w "%{http_code}" \
+            "${{ matrix.url }}/rest/v1/sparks?select=id&limit=1" \
+            -H "apikey: ${{ matrix.key }}")
+          echo "${{ matrix.name }}: HTTP $code"
+          test "$code" = "200"
