@@ -57,6 +57,18 @@ Ad-hoc reads: `supabase db query --linked [--project-ref …] "select …"`.
 - Database changes need the Supabase CLI plus a `SUPABASE_ACCESS_TOKEN` in the cloud environment's settings. Use `npx -y supabase@latest …` with the commands above. If the token isn't set, write the migration file and tell the user it still needs applying rather than skipping it.
 - Preview locally with `npx -y serve .` if you need to click through the app. Localhost uses the test database.
 
+## Feature inventory
+
+`FEATURES.md` numbers every feature with a status. When you add or remove a feature, update it in the same commit (add a row, or delete the row and renumber only if the user asks).
+
+## Security rules the code relies on
+
+- Clients can only UPDATE these `sparks` columns: text, hopes, spot, spot_open, day, basics, locked_date_id, vision, answers (column grants, `20260924140000_hardening.sql`). Anything else goes through a `security definer` function. A new editable column needs a new grant in a migration.
+- Photo paths must be `<uploader uid>/<uuid>.jpg`; the DB checks the shape and the insert policy checks the uid. `PHOTO_PATH` in sparks.js mirrors it. Don't build image URLs from unvalidated strings.
+- `vercel.json` sets the Content-Security-Policy. Adding any new external script, style, font, image or API host means adding it there first, or production breaks silently (check the browser console for "Refused to…").
+- `index.html` pins supabase-js with an `integrity` hash. When bumping the version, recompute: `curl -s <new url> | openssl dgst -sha384 -binary | openssl base64 -A`.
+- All user text is rendered through `esc()`. Never concatenate raw strings into HTML or `style` attributes.
+
 ## Other notes
 
 - Text-code sign-in (Supabase phone OTP) is built but off: `phoneSignIn` in `js/config.js`. Turn it on per database only after an SMS provider is configured in that Supabase project (Auth → Providers → Phone), and test the "link" path (profile) and the "signin + merge" path (name pop-up) on test first.

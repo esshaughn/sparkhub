@@ -26,7 +26,6 @@ textarea { font-family: inherit; }
 }
 
 input::placeholder, textarea::placeholder { color: #b9bcc4; font-weight: 400; font-style: italic; opacity: 1; }
-input[data-light]::placeholder { color: #9aa0aa; font-weight: 300; font-style: italic; }
 
 /* ---- Frame: full-bleed on phones, centred ~430px column on desktop ---- */
 :root { --nav-h: calc(73px + env(safe-area-inset-bottom, 0px)); }
@@ -56,7 +55,6 @@ input[data-light]::placeholder { color: #9aa0aa; font-weight: 300; font-style: i
 
 .scroller { position: absolute; inset: 0; overflow: auto; -webkit-overflow-scrolling: touch; }
 .overlay-screen { position: absolute; left: 0; right: 0; top: 0; bottom: var(--nav-h); background: #f1f2f5; overflow: auto; z-index: 5; }
-.nav-spacer { height: var(--nav-h); }
 
 .tabbar {
   position: absolute; left: 0; right: 0; bottom: 0; height: var(--nav-h);
@@ -82,13 +80,6 @@ input[data-light]::placeholder { color: #9aa0aa; font-weight: 300; font-style: i
 [data-on] { cursor: pointer; }
 [data-on]:focus-visible, button:focus-visible { outline: 2px solid #5b4ae8; outline-offset: 2px; }
 
-/* Number stepper: hide native spinners */
-input[type=number]::-webkit-outer-spin-button,
-input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-input[type=number] { -moz-appearance: textfield; }
-
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
-.hov-danger:hover { color: #9b1c31 !important; }
-.hov-tint:hover { background: #f3f1fe !important; }
