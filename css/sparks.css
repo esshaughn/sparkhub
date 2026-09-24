@@ -1,0 +1,92 @@
+/* Sparks — Torrez Fitness · Walktober
+   Most component styling is inline (ported 1:1 from the design file);
+   this sheet holds the frame, pseudo-states and anything inline styles can't express. */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  background: #e9eaee;
+  font-family: Figtree, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+a { color: #5b4ae8; text-decoration: none; }
+a:hover { color: #4a3ad4; }
+
+button { -webkit-appearance: none; appearance: none; }
+textarea { font-family: inherit; }
+
+@keyframes popIn {
+  from { opacity: 0; transform: translateY(10px) scale(.96); }
+  to   { opacity: 1; transform: none; }
+}
+
+input::placeholder, textarea::placeholder { color: #b9bcc4; font-weight: 400; font-style: italic; opacity: 1; }
+input[data-light]::placeholder { color: #9aa0aa; font-weight: 300; font-style: italic; }
+
+/* ---- Frame: full-bleed on phones, centred ~430px column on desktop ---- */
+:root { --nav-h: calc(73px + env(safe-area-inset-bottom, 0px)); }
+
+.app {
+  position: relative;
+  width: 100%;
+  max-width: 430px;
+  height: 100vh;
+  height: 100dvh;
+  margin: 0 auto;
+  overflow: hidden;
+  background: #f1f2f5;
+  font-family: Figtree, system-ui, sans-serif;
+}
+
+@media (min-width: 520px) and (min-height: 700px) {
+  .app {
+    height: calc(100dvh - 48px);
+    max-height: 932px;
+    margin: 24px auto;
+    border-radius: 30px;
+    box-shadow: 0 20px 60px rgba(15, 18, 25, .12);
+  }
+  :root { --nav-h: 73px; }
+}
+
+.scroller { position: absolute; inset: 0; overflow: auto; -webkit-overflow-scrolling: touch; }
+.overlay-screen { position: absolute; left: 0; right: 0; top: 0; bottom: var(--nav-h); background: #f1f2f5; overflow: auto; z-index: 5; }
+.nav-spacer { height: var(--nav-h); }
+
+.tabbar {
+  position: absolute; left: 0; right: 0; bottom: 0; height: var(--nav-h);
+  display: grid; grid-template-columns: repeat(5, 1fr); align-items: center; justify-items: center;
+  background: rgba(255, 255, 255, .94);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  border-top: 1px solid #e8eaef;
+  padding: 13px 8px calc(15px + env(safe-area-inset-bottom, 0px));
+  z-index: 10;
+}
+
+.modal-scrim {
+  position: absolute; inset: 0; background: rgba(15, 18, 25, .45);
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+
+/* ---- Pseudo-states from the design's style-hover / style-focus ---- */
+.hov-primary:hover { background: #4a3ad4 !important; }
+.hov-outline:hover { border-color: #5b4ae8 !important; color: #5b4ae8 !important; }
+.hov-dash:hover { border-color: #5b4ae8 !important; }
+.fld:focus { border-color: #5b4ae8 !important; }
+
+[data-on] { cursor: pointer; }
+[data-on]:focus-visible, button:focus-visible { outline: 2px solid #5b4ae8; outline-offset: 2px; }
+
+/* Number stepper: hide native spinners */
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+input[type=number] { -moz-appearance: textfield; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
