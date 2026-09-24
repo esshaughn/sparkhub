@@ -16,6 +16,17 @@ Static HTML/CSS/JS app (no build step), Supabase for data, deployed by Vercel on
 
 When the user says a design round has absorbed the doc ("design synced", a new .dc.html handoff arrives, etc.), reset it: make the new design file the **Baseline**, clear §1–§4, and keep only the §5 questions that are still open.
 
+## Branches and deploys
+
+- `main` is live at https://torrezhub.vercel.app; every push to it publishes.
+- `test` is the working branch. Commit day-to-day changes there, push, and share the Vercel preview link (`gh api repos/esshaughn/torrezhub/deployments` or `vercel ls`). Merge into `main` only when the user asks.
+
+## Working in a cloud session (e.g. started from the Claude mobile app)
+
+- `git push` is all a deploy needs. Vercel builds from GitHub, so no Vercel CLI or token is required.
+- Database changes need the Supabase CLI plus a `SUPABASE_ACCESS_TOKEN` in the cloud environment's settings. Run it as `npx -y supabase@latest db query --linked --project-ref xwrzfpgsazyrgieymtee -f <file>`. If the token isn't set, write the SQL into `supabase/` and tell the user it still needs applying rather than skipping it.
+- Preview locally with `npx -y serve .` if you need to click through the app.
+
 ## Working notes
 
 - Supabase project ref `xwrzfpgsazyrgieymtee`. Schema lives in `supabase/schema.sql`. Apply database changes with `supabase db query --linked --project-ref xwrzfpgsazyrgieymtee -f <file>` and keep `schema.sql` in sync.
