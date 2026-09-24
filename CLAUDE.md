@@ -61,7 +61,7 @@ Ad-hoc reads: `supabase db query --linked [--project-ref …] "select …"`.
 
 - `tests/` holds Playwright end-to-end tests (smoke, posting, two-member collaboration, database security). Run `cd tests && npx playwright test` before merging to `main`, and check the "End-to-end tests" workflow on GitHub is green.
 - New features get a test in the same commit; removed features lose theirs. Security rules (RLS, grants, storage policies) get an assertion in `e2e/security.spec.js`.
-- Tests create ideas titled `[E2E] …` and delete them in `finally`. Each simulated member is a new anonymous sign-in.
+- Tests create ideas titled `[E2E] …` and delete them in `finally`. Each simulated member is a new anonymous sign-in. Posting needs a signed-in lead, so `newLead()` signs in as `e2e-lead-1@example.com` / `e2e-lead-2@example.com` (password accounts on the TEST project only; password in git-ignored `tests/.env` and the `E2E_LEAD_PASSWORD` repo secret). The real email-code flow can't be automated (no inbox), so check it by hand on the preview after changing sign-in code.
 - The TEST project has a raised anonymous sign-in limit (1000/hour, pushed with a temp config; the repo's `config.toml` keeps live's 30/hour) and a nightly `e2e-cleanup` job (`supabase/test-only/nightly-cleanup.sql`) that removes old anonymous users and stray `[E2E]` ideas. Never apply `test-only/` SQL to live.
 
 ## Feature inventory
@@ -78,7 +78,8 @@ Ad-hoc reads: `supabase db query --linked [--project-ref …] "select …"`.
 
 ## Other notes
 
-- Text-code sign-in (Supabase phone OTP) is built but off: `phoneSignIn` in `js/config.js`. Turn it on per database only after an SMS provider is configured in that Supabase project (Auth → Providers → Phone), and test the "link" path (profile) and the "signin + merge" path (name pop-up) on test first.
+- Leads sign in with a 6-digit email code (Supabase email OTP). New email: `updateUser({ email })` + `verifyOtp({ type: 'email_change' })` links it to the anonymous session (same user id). Existing email: `signInWithOtp` + `verifyOtp({ type: 'email' })`, then `complete_merge` moves the anonymous session's activity across. The insert policy on `sparks` refuses anonymous sessions (`20260924170000_leads_sign_in.sql`).
+- Email goes out through Resend as custom SMTP (sender `sparks@mail.ericscott-creative.com`, name Spark Hub; DNS for `mail.ericscott-creative.com` is at Hostinger). The two templates are in `supabase/templates/` and use `{{ .Token }}`; they're pushed to TEST, and pasted into live by hand (Auth → Emails: "Magic Link" and "Change Email Address"). Keep the root MX/SPF of ericscott-creative.com alone: it serves Google Workspace mail.
 - Photos live in the public `spark-photos` bucket under `<user id>/<uuid>.jpg`. Storage policies only let people write, list or delete inside their own folder.
 - Bump the `?v=` query on script/style tags in `index.html` when their files change, so browsers don't serve stale copies.
 - `.vercelignore` keeps docs, `supabase/`, `scripts/`, `tests/` and `.github/` off the public site. New non-site files belong there too.

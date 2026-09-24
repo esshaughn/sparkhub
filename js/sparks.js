@@ -158,7 +158,7 @@
     rsvpOpen: false, rsvpDates: [], rsvpNone: false,
     rsvpName: prefs.rsvpName || '', rsvpPhone: prefs.rsvpPhone || '',
     myName: prefs.myName || '', nameAsk: null, nameText: '',
-    phone: '', loginStep: null, loginMode: 'link', loginPhone: '', loginCode: '', resent: false, mergeToken: null,
+    email: '', loginStep: null, loginMode: 'link', loginWhy: 'keep', loginThen: null, loginEmail: '', loginCode: '', resent: false, mergeToken: null,
     confirm: null, editText: '', editHopes: ['', '', ''],
     qi: 0, subjectId: null, adding: false, tag: null,
     me: null, loaded: false, error: null, toast: null, busy: false,
@@ -296,9 +296,9 @@
 
   const noteSession = (session) => {
     const u = session.user, meta = u.user_metadata || {};
-    const phone = !u.is_anonymous && u.phone ? u.phone : '';
-    if (u.id !== state.me || phone !== state.phone) {
-      setState({ me: u.id, phone, myName: (u.is_anonymous ? state.myName || meta.name : meta.name || state.myName) || '' });
+    const email = !u.is_anonymous && u.email ? u.email : '';
+    if (u.id !== state.me || email !== state.email) {
+      setState({ me: u.id, email, myName: (u.is_anonymous ? state.myName || meta.name : meta.name || state.myName) || '' });
     }
   };
 
@@ -433,7 +433,9 @@
     return { activity: '', hopes: ['', '', ''], photos: [], step: 'activity', locMode: 'specific', locText: '', whenMode: 'one', dateOne: '', timeOne: '', timeOn: false };
   };
 
-  const createDraft = () => withName(() => {
+  // Leads need an account: sign in first, then carry on posting the same draft
+  const createDraft = () => (state.email ? withName(postDraft) : openLogin('post', createDraft));
+  const postDraft = () => {
     const st = state;
     let id = null, paths = [];
     run(async () => {
@@ -452,7 +454,7 @@
         throw e;
       }
     }, () => Object.assign(composeReset(), { subjectId: id, qi: 0, adding: false, screen: 'detail', tag: 'It’s up' }));
-  });
+  };
 
   const answer = (key, value) => {
     const s = subject();
@@ -541,77 +543,76 @@
     }, { rsvpOpen: false, tag: st.rsvpNone ? 'The lead will reach out' : 'You’re on the list' });
   };
 
-  // ---- Text-code sign-in (Supabase phone OTP) --------------------------------
-  // 'link': attach a number to this browser's anonymous identity. Same user id,
+  // ---- Email sign-in (Supabase email OTP, a 6-digit code) -----------------------
+  // Everyone starts as an anonymous session, which is enough to browse, say
+  // you're interested, offer and RSVP. Posting an idea needs a real account
+  // (the database refuses anonymous posts), so "Put it up" asks for an email.
+  // 'link': attach the email to this browser's anonymous identity. Same user id,
   //         so nothing moves.
-  // 'signin': the number already has an account ("Been here before?"). Sign in
-  //           to it, then pull this browser's anonymous ideas across with a
-  //           one-time merge token.
+  // 'signin': the email already has an account. Sign in to it, then pull this
+  //           browser's anonymous activity across with a one-time merge token.
 
-  const PHONE_ON = !!CFG.phoneSignIn;
-  const toE164 = (raw) => {
-    const d = (raw || '').replace(/[^\d+]/g, '');
-    if (d.charAt(0) === '+') return d;
-    const digits = d.replace(/\D/g, '');
-    return digits.length === 10 ? '+1' + digits : digits.length === 11 && digits.charAt(0) === '1' ? '+' + digits : '+' + digits;
-  };
-  const fmtPhone = (p) => {
-    const d = (p || '').replace(/\D/g, '');
-    const us = d.length === 11 && d.charAt(0) === '1' ? d.slice(1) : d.length === 10 ? d : null;
-    return us ? '(' + us.slice(0, 3) + ') ' + us.slice(3, 6) + '-' + us.slice(6) : (p ? '+' + d : '');
-  };
+  const EMAIL_OK = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const tooSoon = (e) => !!e && (e.status === 429 || /security purposes|rate limit|after \d+ seconds/i.test(e.message || ''));
 
-  const openLogin = (mode) => setState({ loginStep: 'phone', loginMode: mode, loginCode: '', resent: false, nameAsk: null });
+  const openLogin = (why, then) => setState({ loginStep: 'email', loginWhy: why || 'keep', loginThen: then || null, loginMode: 'link', loginCode: '', resent: false, nameAsk: null });
+  const closeLogin = () => setState({ loginStep: null, loginCode: '', loginThen: null });
 
   const sendCode = async (again) => {
     const st = state;
-    const phone = toE164(st.loginPhone);
+    const email = st.loginEmail.trim().toLowerCase();
     setState({ busy: true });
     try {
       await ensureSession();
-      let mode = st.loginMode;
+      let mode = again ? st.loginMode : 'link';
       if (mode === 'link') {
-        const res = await sb.auth.updateUser({ phone });
-        if (res.error && /already|registered|exists|taken/i.test(res.error.message || '')) mode = 'signin';
+        const res = await sb.auth.updateUser({ email });
+        if (res.error && (res.error.code === 'email_exists' || /already|registered|exists|taken/i.test(res.error.message || ''))) mode = 'signin';
         else must(res);
       }
       if (mode === 'signin') {
         const token = st.mergeToken || must(await sb.rpc('prepare_merge')).data;
-        must(await sb.auth.signInWithOtp({ phone }));
         setState({ mergeToken: token });
+        must(await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: false } }));
       }
       setState({ busy: false, loginMode: mode, loginStep: 'code', loginCode: again ? st.loginCode : '', resent: !!again });
     } catch (e) {
       console.error(e);
       setState({ busy: false });
-      toast('Couldn’t send a code to that number. Check it and try again.');
+      toast(tooSoon(e) ? 'One code a minute. Wait a moment, then try again.' : 'Couldn’t send a code to that email. Check it and try again.');
     }
   };
 
   const verifyCode = async () => {
     const st = state;
-    const phone = toE164(st.loginPhone);
+    const email = st.loginEmail.trim().toLowerCase();
     setState({ busy: true });
     try {
-      const res = must(await sb.auth.verifyOtp({ phone, token: st.loginCode, type: st.loginMode === 'link' ? 'phone_change' : 'sms' }));
+      const res = must(await sb.auth.verifyOtp({ email, token: st.loginCode, type: st.loginMode === 'link' ? 'email_change' : 'email' }));
       if (st.loginMode === 'signin' && st.mergeToken) {
         await sb.rpc('complete_merge', { p_token: st.mergeToken });   // best effort: nothing to merge is fine
       }
-      noteSession(res.data.session || (await sb.auth.getSession()).data.session);
-      const meta = (res.data.user && res.data.user.user_metadata) || {};
+      // A linked account keeps the same session; refresh it so the token says "not anonymous"
+      const session = st.loginMode === 'link'
+        ? must(await sb.auth.refreshSession()).data.session
+        : res.data.session || (await sb.auth.getSession()).data.session;
+      noteSession(session);
+      const meta = (session.user && session.user.user_metadata) || {};
       if (!meta.name && state.myName) sb.auth.updateUser({ data: { name: state.myName } }).catch(() => {});
       await loadFresh();
-      setState({ busy: false, loginStep: null, loginCode: '', mergeToken: null, tag: 'Signed in' });
+      const then = st.loginThen;
+      setState({ busy: false, loginStep: null, loginCode: '', loginThen: null, mergeToken: null, tag: then ? null : 'Signed in' });
+      if (typeof then === 'function') then();
     } catch (e) {
       console.error(e);
       setState({ busy: false });
-      toast('That code didn’t work. Check it, or text it again.');
+      toast('That code didn’t work. Check it, or send it again.');
     }
   };
 
   const signOut = async () => {
     await sb.auth.signOut().catch(() => {});
-    setState({ phone: '' });
+    setState({ email: '' });
     await ensureSession(true);
     await loadFresh().catch(() => {});
   };
@@ -1340,24 +1341,21 @@
         '</div>' +
       '</header>' +
       '<div style="padding:16px 14px 26px;display:flex;flex-direction:column;gap:14px">' +
-        (PHONE_ON && !st.phone
+        (!st.email
           ? '<div style="' + CARD + ';padding:20px 18px;display:flex;flex-direction:column;gap:10px">' +
-              '<div style="' + EYEBROW + '">Keep your ideas</div>' +
-              '<div style="font-size:19px;line-height:1.25;font-weight:800;letter-spacing:-.3px;color:#0d1117;text-wrap:pretty">Right now, your ideas live on this phone.</div>' +
-              '<p style="margin:0;font-size:14.5px;line-height:1.45;font-weight:500;color:#5c6270">Clear your browser or switch phones and you lose the lead on anything you’ve started. Sign in with your number to keep it.</p>' +
-              '<button type="button" class="hov-primary" ' + on(() => openLogin('link')) + ' style="margin-top:4px;width:100%;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16px;font-weight:800;padding:16px;box-shadow:0 10px 24px rgba(91,74,232,.32);cursor:pointer">Sign in with your number</button>' +
+              '<div style="' + EYEBROW + '">Your account</div>' +
+              '<div style="font-size:19px;line-height:1.25;font-weight:800;letter-spacing:-.3px;color:#0d1117;text-wrap:pretty">Sign in to post and lead ideas.</div>' +
+              '<p style="margin:0;font-size:14.5px;line-height:1.45;font-weight:500;color:#5c6270">We’ll email you a 6-digit code. No password. Anything you lead follows your email to any phone.</p>' +
+              '<button type="button" class="hov-primary" ' + on(() => openLogin('keep')) + ' style="margin-top:4px;width:100%;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16px;font-weight:800;padding:16px;box-shadow:0 10px 24px rgba(91,74,232,.32);cursor:pointer">Sign in with email</button>' +
             '</div>'
-          : '') +
-        (st.phone
-          ? '<div style="' + CARD + ';padding:18px;display:flex;align-items:center;gap:14px">' +
+          : '<div style="' + CARD + ';padding:18px;display:flex;align-items:center;gap:14px">' +
               '<span style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#e8f6ee;display:flex;align-items:center;justify-content:center">' + CHECK(16, '#0f7a3c', 3) + '</span>' +
               '<div style="flex:1 1 auto;min-width:0">' +
-                '<div style="font-size:15.5px;font-weight:800;color:#0d1117">Signed in as ' + esc(fmtPhone(st.phone)) + '</div>' +
-                '<div style="margin-top:2px;font-size:13.5px;line-height:1.4;font-weight:500;color:#6b7280">Your ideas follow this number to any phone.</div>' +
+                '<div style="font-size:15.5px;font-weight:800;color:#0d1117;overflow-wrap:anywhere">Signed in as ' + esc(st.email) + '</div>' +
+                '<div style="margin-top:2px;font-size:13.5px;line-height:1.4;font-weight:500;color:#6b7280">Your ideas follow this email to any phone.</div>' +
               '</div>' +
               '<span ' + on(signOut) + ' style="flex:0 0 auto;min-height:36px;display:flex;align-items:center;font-size:14px;font-weight:800;color:#6b7280;cursor:pointer">Sign out</span>' +
-            '</div>'
-          : '') +
+            '</div>') +
         '<div style="' + CARD + ';padding:18px 18px 8px">' +
           '<div style="' + EYEBROW + '">Ideas you lead</div>' +
           (mine.length
@@ -1518,34 +1516,38 @@
           '<input class="fld" type="text" maxlength="30" autocomplete="given-name" aria-label="First name" placeholder="First name" value="' + esc(st.nameText) + '" ' +
             onInput(e => setState({ nameText: e.target.value.slice(0, 30) })) + ' style="width:100%;' + FIELD + ';border-radius:14px;padding:13px 16px">' +
           '<button type="button" ' + on(submit) + ' aria-disabled="' + !nameOk + '" style="' + primaryBtn(nameOk) + '">Continue</button>' +
-          (PHONE_ON && !st.myName && !st.phone
-            ? '<div style="display:flex;justify-content:center;flex-wrap:wrap;gap:4px;font-size:13.5px;font-weight:500;color:#6b7280"><span>Been here before?</span><span ' + on(() => openLogin('signin')) + ' style="font-weight:800;color:#5b4ae8;cursor:pointer">Sign in</span></div>'
+          (!st.myName && !st.email
+            ? '<div style="display:flex;justify-content:center;flex-wrap:wrap;gap:4px;font-size:13.5px;font-weight:500;color:#6b7280"><span>Been here before?</span><span ' + on(() => openLogin('keep')) + ' style="font-weight:800;color:#5b4ae8;cursor:pointer">Sign in</span></div>'
             : '') +
         '</div>' +
       '</div>';
     }
 
     if (st.loginStep) {
-      const close = () => setState({ loginStep: null, loginCode: '' });
-      const phoneOk = st.loginPhone.replace(/\D/g, '').length >= 7;
-      const codeOk = st.loginCode.length === 6;
+      const close = closeLogin;
+      const emailOk = EMAIL_OK.test(st.loginEmail.trim());
+      const codeOk = st.loginCode.length >= 6;
+      const forPost = st.loginWhy === 'post';
       out += '<div class="modal-scrim" style="z-index:32">' +
         '<div role="dialog" aria-modal="true" aria-labelledby="login-h" style="position:relative;width:100%;max-width:330px;background:#fff;border-radius:22px;padding:22px 20px;display:flex;flex-direction:column;gap:12px;box-shadow:0 24px 60px rgba(15,18,25,.3);animation:popIn 260ms cubic-bezier(.22,.9,.28,1) both">' +
           modalClose(close) +
-          (st.loginStep === 'phone'
-            ? '<h3 id="login-h" style="margin:0;padding-right:36px;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">Keep your ideas on any phone</h3>' +
-              '<p style="margin:0;font-size:14.5px;line-height:1.45;font-weight:500;color:#6b7280">We’ll text you a 6-digit code. Anything you lead follows your number, so a new phone doesn’t lose it.</p>' +
-              '<input class="fld" type="tel" maxlength="20" autocomplete="tel" aria-label="Phone number" placeholder="Phone number" value="' + esc(st.loginPhone) + '" ' +
-                onInput(e => setState({ loginPhone: e.target.value.slice(0, 20) })) + ' style="width:100%;' + FIELD + ';border-radius:14px;padding:13px 16px">' +
-              '<button type="button" ' + on(() => { if (phoneOk && !st.busy) sendCode(false); }) + ' aria-disabled="' + !(phoneOk && !st.busy) + '" style="' + primaryBtn(phoneOk && !st.busy) + '">' + (st.busy ? 'Sending…' : 'Text me a code') + '</button>' +
+          (st.loginStep === 'email'
+            ? '<h3 id="login-h" style="margin:0;padding-right:36px;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">' + (forPost ? 'Sign in to post' : 'Sign in') + '</h3>' +
+              '<p style="margin:0;font-size:14.5px;line-height:1.45;font-weight:500;color:#6b7280">' + (forPost
+                ? 'Whoever posts an idea leads it, so leads sign in. We’ll email you a 6-digit code. No password.'
+                : 'We’ll email you a 6-digit code. No password. Anything you lead follows your email to any phone.') + '</p>' +
+              '<input class="fld" type="email" maxlength="120" autocomplete="email" autocapitalize="off" spellcheck="false" aria-label="Email" placeholder="you@example.com" value="' + esc(st.loginEmail) + '" ' +
+                onInput(e => setState({ loginEmail: e.target.value.slice(0, 120) })) + ' style="width:100%;' + FIELD + ';border-radius:14px;padding:13px 16px">' +
+              '<button type="button" ' + on(() => { if (emailOk && !st.busy) sendCode(false); }) + ' aria-disabled="' + !(emailOk && !st.busy) + '" style="' + primaryBtn(emailOk && !st.busy) + '">' + (st.busy ? 'Sending…' : 'Email me a code') + '</button>' +
               '<p style="margin:0;font-size:13px;line-height:1.45;font-weight:500;color:#6b7280">Only used to sign you in. Nobody else sees it.</p>'
             : '<h3 id="login-h" style="margin:0;padding-right:36px;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">Enter the code</h3>' +
-              '<div style="display:flex;flex-wrap:wrap;gap:6px;font-size:14.5px;line-height:1.45;font-weight:500;color:#6b7280"><span>Sent to ' + esc(st.loginPhone) + '.</span><span ' + on(() => setState({ loginStep: 'phone' })) + ' style="font-weight:800;color:#5b4ae8;cursor:pointer">Change</span></div>' +
-              '<input class="fld" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" aria-label="6-digit code" placeholder="000000" value="' + esc(st.loginCode) + '" ' +
-                onInput(e => setState({ loginCode: e.target.value.replace(/\D/g, '').slice(0, 6) })) +
-                ' style="width:100%;background:#fff;border:2px solid #e6e7eb;border-radius:14px;padding:14px 16px;font-family:inherit;font-size:26px;font-weight:800;letter-spacing:10px;text-align:center;color:#0d1117;outline:none">' +
+              '<div style="display:flex;flex-wrap:wrap;gap:6px;font-size:14.5px;line-height:1.45;font-weight:500;color:#6b7280"><span style="overflow-wrap:anywhere">Sent to ' + esc(st.loginEmail.trim()) + '.</span><span ' + on(() => setState({ loginStep: 'email' })) + ' style="font-weight:800;color:#5b4ae8;cursor:pointer">Change</span></div>' +
+              '<input class="fld" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="8" aria-label="Code from the email" placeholder="000000" value="' + esc(st.loginCode) + '" ' +
+                onInput(e => setState({ loginCode: e.target.value.replace(/\D/g, '').slice(0, 8) })) +
+                ' style="width:100%;background:#fff;border:2px solid #e6e7eb;border-radius:14px;padding:14px 16px;font-family:inherit;font-size:26px;font-weight:800;letter-spacing:8px;text-align:center;color:#0d1117;outline:none">' +
               '<button type="button" ' + on(() => { if (codeOk && !st.busy) verifyCode(); }) + ' aria-disabled="' + !(codeOk && !st.busy) + '" style="' + primaryBtn(codeOk && !st.busy) + '">' + (st.busy ? 'Signing in…' : 'Sign in') + '</button>' +
-              '<span ' + on(() => { if (!st.busy) sendCode(true); }) + ' style="display:flex;justify-content:center;min-height:32px;align-items:center;font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">' + (st.resent ? 'Sent again' : 'Text it again') + '</span>') +
+              '<p style="margin:0;font-size:13px;line-height:1.45;font-weight:500;color:#6b7280;text-align:center">Not there? Check spam, or</p>' +
+              '<span ' + on(() => { if (!st.busy) sendCode(true); }) + ' style="margin-top:-10px;display:flex;justify-content:center;min-height:32px;align-items:center;font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">' + (st.resent ? 'Sent again' : 'Send it again') + '</span>') +
         '</div>' +
       '</div>';
     }
@@ -1698,7 +1700,7 @@
   root.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       if (state.confirm) return setState({ confirm: null });
-      if (state.loginStep) return setState({ loginStep: null, loginCode: '' });
+      if (state.loginStep) return closeLogin();
       if (state.nameAsk) return setState({ nameAsk: null, nameText: '' });
       if (state.offerKind) return setState({ offerKind: null, offerText: '' });
       if (state.rsvpOpen) return setState({ rsvpOpen: false });
@@ -1736,7 +1738,7 @@
   const followUrl = () => {
     const target = fromHash();
     if (target.screen === state.screen && target.subjectId === state.subjectId) return;
-    setState(Object.assign({ menu: null, offerKind: null, rsvpOpen: false, nameAsk: null, confirm: null, loginStep: null }, target));
+    setState(Object.assign({ menu: null, offerKind: null, rsvpOpen: false, nameAsk: null, confirm: null, loginStep: null, loginThen: null }, target));
     const sc = scroller();
     if (sc) sc.scrollTop = 0;
     // A link to an idea posted after this page loaded: fetch now rather than wait for the 30 s refresh

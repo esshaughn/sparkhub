@@ -37,6 +37,8 @@ jobs:
 
       - name: Run tests
         run: npx playwright test
+        env:
+          E2E_LEAD_PASSWORD: ${{ secrets.E2E_LEAD_PASSWORD }}
 
       - name: Keep the report if something failed
         if: failure()

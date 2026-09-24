@@ -71,7 +71,7 @@ As of 2026-09-24 (after the first scrub). Numbers are permanent: removed feature
 | 50 | Step 6: **Look good?** review with Edit links + "You'll be the Lead" note | Live | |
 | 51 | "Putting it up…" busy label | Live | |
 | 52 | **Your name** pop-up (first time you post, lead or offer) with the gold initial | Live | |
-| 53 | "Been here before? Sign in" link in that pop-up | Dormant | Hidden while sign-in is off (#61) |
+| 53 | "Been here before? Sign in" link in that pop-up | Live | Opens email sign-in (#61) |
 
 ## Editing
 
@@ -86,8 +86,8 @@ As of 2026-09-24 (after the first scrub). Numbers are permanent: removed feature
 |---|---|---|---|
 | 56 | Avatar + name, **Change name** / **Add your name** (renames you everywhere) | Live | |
 | 57 | **Ideas you lead** list with "N of 4 in place" / "Happening" | Live | Depends on #40 |
-| 58 | "Keep your ideas" card + **Sign in with your number** | Dormant | Hidden while sign-in is off |
-| 59 | "Signed in as (555)…" card + **Sign out** | Dormant | |
+| 58 | "Your account" card + **Sign in with email** | Live | |
+| 59 | "Signed in as you@…" card + **Sign out** | Live | |
 
 ## How this works
 
@@ -95,12 +95,12 @@ As of 2026-09-24 (after the first scrub). Numbers are permanent: removed feature
 |---|---|---|---|
 | 60 | Own screen (tab 2) with the same content as #5 | Placeholder | |
 
-## Sign-in (built, switched off)
+## Sign-in
 
 | # | Feature | Status | Notes |
 |---|---|---|---|
-| 61 | Text-code sign-in: phone → 6-digit code → "Text it again" / "Change" | Dormant | Needs an SMS provider; see BACKLOG.md for the email plan |
-| 62 | Account merge: this phone's ideas move into the signed-in account | Dormant | |
+| 61 | Email sign-in: email → 6-digit code → "Send it again" / "Change". Required to post (Put it up opens it, then posts the draft); not needed to browse, show interest, offer or RSVP | Live | Supabase email OTP via Resend (sender Spark Hub). The database refuses posts from anonymous sessions |
+| 62 | Account merge: signing in on a new phone moves that phone's anonymous activity into the account | Live | |
 
 ## Follow-up questions (legacy)
 
@@ -142,7 +142,7 @@ As of 2026-09-24 (after the first scrub). Numbers are permanent: removed feature
 | 81 | Design handoff doc kept current by Claude Code (CLAUDE.md rule) | Live | |
 | 82 | Vercel auto-deploy from `main`; preview links from `test` | Live | |
 | 83 | Security headers + CSP (vercel.json); pinned, integrity-checked Supabase script | Live | Added in the 2026-09-24 audit |
-| 84 | Automated end-to-end tests (9 tests: smoke, posting, two-member collaboration, sorting, database security) on every push | Live | `tests/`; GitHub "End-to-end tests" workflow |
+| 84 | Automated end-to-end tests (9 tests, leads sign in with two password test accounts on the test project: smoke, posting, two-member collaboration, sorting, database security) on every push | Live | `tests/`; GitHub "End-to-end tests" workflow |
 | 85 | Nightly cleanup of test-database leftovers | Live | Test project only |
 
 ## Removed

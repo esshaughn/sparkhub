@@ -1,17 +1,17 @@
 // Two members on one idea: dates, interest, offers that wait for the lead,
-// RSVP privacy, removing a date, stepping back, and someone else taking over.
+// RSVP privacy and removing a date. Posting needs a signed-in lead (see newLead).
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newMember, button, postIdea, openIdea, confirm, deleteIdea, asUser, answerNamePrompt } = require('./helpers');
+const { uniqueTitle, newMember, newLead, button, postIdea, openIdea, confirm, deleteIdea, asUser, answerNamePrompt } = require('./helpers');
 
 test('lead and member work on the same idea', async ({ browser }) => {
-  const lead = await newMember(browser);
+  const lead = await newLead(browser, 1, 'Lena');
   const member = await newMember(browser);
   const title = uniqueTitle('Laser tag');
   let id;
 
   try {
     // Lead posts with location and date left open, then puts two dates up for a vote
-    id = await postIdea(lead.page, { title, name: 'Lena' });
+    id = await postIdea(lead.page, { title });
     const L = lead.page;
     await expect(L.getByText('Location: we’ll decide together.')).toBeVisible();
     for (const when of ['2026-10-10T18:00', '2026-10-11T09:30']) {
@@ -112,13 +112,13 @@ test('lead and member work on the same idea', async ({ browser }) => {
 });
 
 test('"Most popular" puts the idea with the most interest first', async ({ browser }) => {
-  const poster = await newMember(browser);
+  const poster = await newLead(browser, 1, 'Pat');
   const fan = await newMember(browser);
   const older = uniqueTitle('Popular');
   const newer = uniqueTitle('Quiet');
   const ids = [];
   try {
-    ids.push(await postIdea(poster.page, { title: older, name: 'Pat' }));
+    ids.push(await postIdea(poster.page, { title: older }));
     ids.push(await postIdea(poster.page, { title: newer }));
 
     await openIdea(fan.page, ids[0]);
@@ -150,11 +150,11 @@ test('"Most popular" puts the idea with the most interest first', async ({ brows
 });
 
 test('changing your name renames you everywhere', async ({ browser }) => {
-  const me = await newMember(browser);
+  const me = await newLead(browser, 1, 'Sam');
   const title = uniqueTitle('Rename');
   let id;
   try {
-    id = await postIdea(me.page, { title, name: 'Sam' });
+    id = await postIdea(me.page, { title });
     await button(me.page, 'Profile').click();
     await button(me.page, 'Change name').click();
     await expect(me.page.getByRole('heading', { name: 'Change name' })).toBeVisible();

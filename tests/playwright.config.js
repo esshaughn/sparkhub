@@ -4,6 +4,14 @@ const { defineConfig, devices } = require('@playwright/test');
 
 const PORT = 4173;
 
+// Local secrets (git-ignored): E2E_LEAD_PASSWORD for the test project's lead accounts
+try {
+  for (const line of require('fs').readFileSync(require('path').join(__dirname, '.env'), 'utf8').split('\n')) {
+    const m = line.match(/^([A-Z0-9_]+)=(.*)$/);
+    if (m && !process.env[m[1]]) process.env[m[1]] = m[2];
+  }
+} catch (e) { /* no .env: CI passes it as a secret */ }
+
 module.exports = defineConfig({
   testDir: './e2e',
   timeout: 90_000,

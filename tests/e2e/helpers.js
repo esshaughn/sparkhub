@@ -21,6 +21,25 @@ async function newMember(browser) {
   return { context, page, errors };
 }
 
+// Signed-in lead: posting needs a real account. The test project has two
+// password accounts for this (the app itself only offers email codes; tests
+// can't read an inbox). Password comes from tests/.env or the CI secret.
+async function newLead(browser, n, name) {
+  const password = process.env.E2E_LEAD_PASSWORD;
+  if (!password) throw new Error('E2E_LEAD_PASSWORD is not set (tests/.env locally, a repo secret on CI)');
+  const m = await newMember(browser);
+  const err = await asUser(m.page, async (c, _C, { email, password, name }) => {
+    const r = await c.auth.signInWithPassword({ email, password });
+    if (r.error) return r.error.message;
+    const u = await c.auth.updateUser({ data: { name } });
+    return u.error ? u.error.message : null;
+  }, { email: `e2e-lead-${n}@example.com`, password, name });
+  if (err) throw new Error('Lead sign-in failed: ' + err);
+  await m.page.reload();
+  await expectConnected(m.page, m.errors);
+  return m;
+}
+
 // Collects console errors, uncaught exceptions and failed requests so a test can assert "no errors".
 // (security.spec.js makes forbidden calls on purpose, so it doesn't assert on these.)
 function trackErrors(page) {
@@ -141,4 +160,4 @@ async function asUser(page, fn, args) {
   }, { src: fn.toString(), args });
 }
 
-module.exports = { TAG, expectConnected, uniqueTitle, newMember, trackErrors, button, postIdea, answerNamePrompt, ideaIdFromUrl, openIdea, confirm, deleteIdea, asUser, PNG };
+module.exports = { TAG, expectConnected, uniqueTitle, newMember, newLead, trackErrors, button, postIdea, answerNamePrompt, ideaIdFromUrl, openIdea, confirm, deleteIdea, asUser, PNG };

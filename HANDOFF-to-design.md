@@ -5,7 +5,7 @@
 - **Live:** https://torrezhub.vercel.app (open it on a phone)
 - **Source:** github.com/esshaughn/torrezhub (`index.html`, `js/sparks.js`, `css/sparks.css`)
 - **Baseline:** `design_handoff_sparks_walktober_v2/Walktober App v2.dc.html` + its README, from "Spark Torrez - Full Site 2.zip"
-- **As of:** 2026-09-24 (after the first feature scrub)
+- **As of:** 2026-09-24 (after the first feature scrub and email sign-in)
 
 Everything in the v2 README is built as specified, except what's listed below. Where this doc and the v2 files disagree, **this doc is correct**.
 
@@ -19,6 +19,7 @@ Everything in the v2 README is built as specified, except what's listed below. W
 | 2 | **Card interest pill uses a person icon** instead of the bolt. The idea page's "I'm interested" button still uses the bolt | Bolt icon | Owner decision. Should the button match? |
 | 3 | **Every idea has a lead, always.** Posting makes you the lead, and there's no way to leave an idea leaderless. Gone: the "Needs a lead" card label and hero pill, "I'll take the lead on this", the "You're out front on this one" pop-up, "Step back from the lead", and the lead's paragraph about stepping back | Ideas could be leaderless; leads could step back and others take over | Owner decision; may return later |
 | 4 | **No minimum head count anywhere.** Gone: "Success is N or more, counting the lead", "· N short of N" on date rows, the "Enough to go" badge | Shown when a head count was set | Owner decision; will return later |
+| 5 | **Leads sign in with email; everyone else doesn't.** Browsing, "I'm interested", offering and RSVPing still need nothing but a name (and a phone number to RSVP). Tapping **Put it up** when not signed in opens a **"Sign in to post"** pop-up (email → 6-digit code), then posts the same draft. Profile shows **"Sign in with email"** or **"Signed in as you@…"** + Sign out. The name pop-up's "Been here before? Sign in" link is back | Text-code (phone) sign-in, optional, on the Profile | Owner decision; SMS costs money, and it keeps ideas tied to a real person |
 
 ## 2. Things the build had to invent (please design these properly)
 
@@ -35,7 +36,7 @@ The v2 README says to keep the live placeholders for loading, error and empty st
 - Dark pill above the tab bar for 3.5s. The copy is one of:
   - *That didn't go through. Try again in a moment.* (any failed save)
   - *That photo couldn't be read. Try a different one.* (a file the browser can't open, e.g. HEIC on some desktop browsers)
-  - *Couldn't send a code to that number. Check it and try again.* / *That code didn't work. Check it, or text it again.* (text sign-in, see §4)
+  - *Couldn't send a code to that email. Check it and try again.* / *One code a minute. Wait a moment, then try again.* / *That code didn't work. Check it, or send it again.* (email sign-in)
 - Styling: background `#0d1117`, white 14.5/700, radius 14.
 
 ### d. Busy button labels
@@ -45,6 +46,12 @@ The v2 README says to keep the live placeholders for loading, error and empty st
 ### e. Unknown idea link
 - A link to a deleted or wrong idea shows Home. There's no message yet.
 
+### Sign-in pop-up and email (invented; the design had a phone version)
+- **Step 1:** heading **"Sign in to post"** (from Put it up) or **"Sign in"** (Profile, name pop-up). Body: *Whoever posts an idea leads it, so leads sign in. We'll email you a 6-digit code. No password.* (or *…Anything you lead follows your email to any phone.*). Email field (placeholder `you@example.com`), **Email me a code** (purple pill, grey until the email looks valid), fine print *Only used to sign you in. Nobody else sees it.*
+- **Step 2:** **"Enter the code"**, *Sent to you@… · Change*, a big centred code field (26px, 800, letter-spaced), **Sign in**, *Not there? Check spam, or* **Send it again** (→ "Sent again").
+- **The email itself** (sender "Spark Hub", sparks@mail.ericscott-creative.com for now): white card on light grey, purple "SPARK HUB" eyebrow, heading "Your sign-in code" / "Confirm your email", the code at 36px, "It works for one hour. If you didn't ask for it, ignore this email." Source: `supabase/templates/`.
+- Platform-level copy says **Spark Hub**, not Torrez Fitness: one account will work across groups.
+
 ## 3. Behaviour added in the build (no visual change)
 
 - **Shareable links:** `#/ideas` (browse), `#/how`, `#/me` (profile), `#/idea/<id>`. The phone's back button moves between screens. The post flow and edit screen don't change the URL. Opening a link while the app is already open goes straight there, even for an idea posted after the page loaded (it briefly shows Home while it fetches).
@@ -53,11 +60,10 @@ The v2 README says to keep the live placeholders for loading, error and empty st
 - **Changing your name** updates it everywhere it's shown: your ideas, the ones you lead, and your offers. RSVPs keep the name typed into the RSVP.
 - **Offer approval** applies to spots and days from anyone other than the lead. When the lead offers a spot or day, it applies straight away. "I can help with something" always posts straight away.
 - **Removing a date** someone picked keeps them on the RSVP list, just without that date, and they still count toward "N in".
-- **Everything is shared** through the database and refreshes every 30 seconds. If someone's anonymous identity stops working mid-visit, a new one starts quietly. Without text sign-in (§4), lead status doesn't carry over.
+- **Everything is shared** through the database and refreshes every 30 seconds. If someone's anonymous identity stops working mid-visit, a new one starts quietly. Leads are signed in, so their ideas follow their email to any phone. Signing in on a new phone also moves that phone's anonymous activity (interest, offers, RSVPs) into the account.
 
 ## 4. Designed but not built or not working
 
-- **Text-code sign-in is built but switched off.** The Profile's "Keep your ideas" card and the name pop-up's "Been here before? Sign in" link are hidden until an SMS provider (e.g. Twilio) is connected to Supabase. That's an owner/billing decision, not a design one. Everything else on the Profile screen works.
 - **"How this works" body copy** is still placeholder Latin (the heading is final).
 
 ### Design file housekeeping

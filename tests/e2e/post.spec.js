@@ -1,16 +1,15 @@
 // One member: post an idea through all six steps, see it everywhere, edit it, delete it.
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, trackErrors, button, postIdea, openIdea, confirm } = require('./helpers');
+const { uniqueTitle, newLead, button, postIdea, openIdea, confirm } = require('./helpers');
 
-test('post → browse → profile → edit → delete', async ({ page }) => {
-  const errors = trackErrors(page);
+test('post → browse → profile → edit → delete', async ({ browser }) => {
+  const { page, errors, context } = await newLead(browser, 1, 'Tester');
   const title = uniqueTitle('Sunset hike');
-  await page.goto('/');
 
   // Post it
   const id = await postIdea(page, {
     title, location: 'Radnor Lake trailhead', date: '2026-10-17', time: '17:30',
-    hopes: ['tacos after', 'bring headlamps'], photo: true, name: 'Tester'
+    hopes: ['tacos after', 'bring headlamps'], photo: true
   });
 
   // Idea page
@@ -36,9 +35,10 @@ test('post → browse → profile → edit → delete', async ({ page }) => {
   await expect(card).toContainText('Sat, Oct 17, 5:30pm');
   await expect(card).toContainText('Tester');
 
-  // Profile lists it
+  // Profile lists it, and shows who's signed in
   await button(page, 'Profile').click();
   await expect(page.locator('[data-screen-label=Profile]')).toContainText(title);
+  await expect(page.locator('[data-screen-label=Profile]')).toContainText('Signed in as e2e-lead-1@example.com');
 
   // Edit
   await openIdea(page, id);
@@ -59,6 +59,7 @@ test('post → browse → profile → edit → delete', async ({ page }) => {
   await expect.poll(async () => (await page.request.get(photoUrl + '?t=' + Date.now())).status(), { timeout: 20_000 }).toBeGreaterThanOrEqual(400);
 
   expect(errors).toEqual([]);
+  await context.close();
 });
 
 test('post flow guards: required steps and going back', async ({ page }) => {
@@ -89,6 +90,19 @@ test('post flow guards: required steps and going back', async ({ page }) => {
   await expect(review).toContainText('Decide later');
   await expect(review).toContainText('Nothing yet');
   await expect(review).toContainText('None');
+  // Not signed in: "Put it up" asks for an email first, and closing keeps the draft
+  await button(page, 'Put it up').click();
+  const login = page.getByRole('dialog');
+  await expect(login.getByRole('heading', { name: 'Sign in to post' })).toBeVisible();
+  await expect(button(page, 'Email me a code')).toHaveAttribute('aria-disabled', 'true');
+  await login.getByLabel('Email').fill('not-an-email');
+  await expect(button(page, 'Email me a code')).toHaveAttribute('aria-disabled', 'true');
+  await login.getByLabel('Email').fill('someone@example.com');
+  await expect(button(page, 'Email me a code')).toHaveAttribute('aria-disabled', 'false');
+  await login.getByRole('button', { name: 'Close' }).click();
+  await expect(login).toBeHidden();
+  await expect(review).toContainText('Anything');
+
   await review.getByRole('button', { name: 'Edit' }).first().click();
   await expect(page.getByRole('heading', { name: 'What’s the event?' })).toBeVisible();
 

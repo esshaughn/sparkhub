@@ -1,16 +1,16 @@
 // The database rules hold even if someone skips the app and calls Supabase directly.
 // These call the API the way a curious member could, from their own session.
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newMember, postIdea, deleteIdea, asUser } = require('./helpers');
+const { uniqueTitle, newLead, postIdea, deleteIdea, asUser } = require('./helpers');
 
 test('database refuses what the app never allows', async ({ browser }) => {
-  const lead = await newMember(browser);
-  const other = await newMember(browser);
+  const lead = await newLead(browser, 1, 'Owner');
+  const other = await newLead(browser, 2, 'Other');   // a different signed-in lead
   const title = uniqueTitle('Security');
   let id;
 
   try {
-    id = await postIdea(lead.page, { title, name: 'Owner' });
+    id = await postIdea(lead.page, { title });
 
     // Add a date option and a pending spot offer so there's something to attack
     const dateId = await asUser(lead.page, async (c, _C, id) =>
@@ -63,6 +63,17 @@ test('database refuses what the app never allows', async ({ browser }) => {
       return { noLead: await tryInsert(null), someoneElse: await tryInsert(leadUid), yourself: await tryInsert(me) };
     }, { leadUid: await asUser(lead.page, async (c) => (await c.auth.getUser()).data.user.id) });
     expect(leadRule).toEqual({ noLead: 'refused', someoneElse: 'refused', yourself: 'ALLOWED' });
+
+    // --- Leads need an account: an anonymous session can't post, even as itself -------
+    const anonPost = await other.page.evaluate(async () => {
+      const C = window.SPARKS_CONFIG;
+      const c = window.supabase.createClient(C.supabaseUrl, C.supabaseKey, { auth: { persistSession: false, storageKey: 'e2e-anon' } });
+      const me = (await c.auth.signInAnonymously()).data.user.id;
+      const res = await c.from('sparks').insert({ author_name: 'Anon', text: '[E2E] anon post', lead_id: me, lead_name: 'Anon' }).select('id').single();
+      if (!res.error) await c.from('sparks').delete().eq('id', res.data.id);
+      return res.error ? 'refused' : 'ALLOWED';
+    });
+    expect(anonPost).toBe('refused');
 
     // --- A date from another idea can't be locked in ------------------------------
     const foreignLock = await asUser(other.page, async (c, _C, { leadDate }) => {
