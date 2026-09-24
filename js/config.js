@@ -21,7 +21,7 @@
   // "Continue with Google": turn on per database once Google is set up in that
   // Supabase project (Auth → Sign In / Providers → Google, plus "Allow manual
   // linking" and this site in Auth → URL Configuration → Redirect URLs).
-  var googleSignIn = { live: false, test: true };
+  var googleSignIn = { live: true, test: true };
 
   window.SPARKS_CONFIG = Object.assign({ env: env, places: places, googleSignIn: googleSignIn[env] }, projects[env]);
 })();

@@ -102,8 +102,8 @@ As of 2026-09-24 (after the first scrub). Numbers are permanent: removed feature
 | # | Feature | Status | Notes |
 |---|---|---|---|
 | 61 | Email sign-in: email → 6-digit code → "Send it again" / "Change". Required to post (Put it up opens it, then posts the draft); not needed to browse, show interest, offer or RSVP | Live | Supabase email OTP via Resend (sender Spark Hub). The database refuses posts from anonymous sessions |
-| 88 | **Continue with Google** in the sign-in pop-up (same account rules as email; a half-finished idea, photos included, survives the trip to Google and posts on return) | Live (test) | Supabase Google provider; switch per database in `js/config.js` (`googleSignIn`) |
-| 89 | **Privacy page** (`/privacy.html`), linked from the sign-in pop-up's fine print; required by Google to publish sign-in | Live (test) | Plain page, Spark Hub branded; contact eric@ericscott-creative.com |
+| 88 | **Continue with Google** in the sign-in pop-up (same account rules as email; a half-finished idea, photos included, survives the trip to Google and posts on return) | Live | Supabase Google provider; switch per database in `js/config.js` (`googleSignIn`) |
+| 89 | **Privacy page** (`/privacy.html`), linked from the sign-in pop-up's fine print; required by Google to publish sign-in | Live | Plain page, Spark Hub branded; contact eric@ericscott-creative.com |
 | 62 | Account merge: signing in on a new phone moves that phone's anonymous activity into the account | Live | |
 
 ## Follow-up questions (legacy)
