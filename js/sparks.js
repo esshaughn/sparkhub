@@ -48,7 +48,7 @@
   };
   const OPT_TINTS = ['#f0eeff', '#e7f6ec', '#fdeef0', '#fbf1e3'];
   const OPT_CHEV = ['#5b4ae8', '#149a4b', '#e2556b', '#c97a12'];
-  const SORTS = [['new', 'Newest'], ['old', 'Oldest'], ['lead', 'Needs a lead'], ['almost', 'Almost there']];
+  const SORTS = [['new', 'Newest'], ['old', 'Oldest'], ['popular', 'Most popular']];
   const OFFER_LINES = { spot: 'offered a spot: ', day: 'floated a day: ', help: 'can help: ' };
 
   // ---------------------------------------------------------------------------
@@ -135,6 +135,7 @@
   const ICON_PIN = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Z"/><circle cx="12" cy="10" r="2.3"/></svg>';
   const ICON_CAL = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5.5" width="16" height="14.5" rx="2.5"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/></svg>';
   const BOLT_SOLID = (size, color) => '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="' + (color || 'currentColor') + '" aria-hidden="true"><path d="M13.2 2.2 7.2 13.1l3.9-.35-.9 8.8 6.9-11.2-4.1.4z"/></svg>';
+  const ICON_PERSON = (size) => '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="3.6"/><path d="M4.8 20.5c.6-3.8 3.6-5.8 7.2-5.8s6.6 2 7.2 5.8"/></svg>';
   const ICON_EDIT = (size) => '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16.6 3.8l3.6 3.6L8.4 19.2 4 20.5l1.3-4.4L16.6 3.8Z"/></svg>';
   const ICON_TRASH = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9b1c31" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 7h15M9.5 7V4.8h5V7M6.5 7l.9 12.2h9.2l.9-12.2"/></svg>';
   const SHIELD = '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#5b4ae8" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 19px;margin-top:2px" aria-hidden="true"><path d="M12 3.2 5 6v5.4c0 4.2 2.9 7.4 7 9.4 4.1-2 7-5.2 7-9.4V6l-7-2.8Z"/></svg>';
@@ -153,7 +154,7 @@
     step: 'activity',
     activity: '', hopes: ['', '', ''], photos: [],
     locMode: 'specific', locText: '', whenMode: 'one', dateOne: '', timeOne: '', timeOn: false,
-    claim: false, offerKind: null, offerText: '',
+    offerKind: null, offerText: '',
     rsvpOpen: false, rsvpDates: [], rsvpNone: false,
     rsvpName: prefs.rsvpName || '', rsvpPhone: prefs.rsvpPhone || '',
     myName: prefs.myName || '', nameAsk: null, nameText: '',
@@ -222,8 +223,7 @@
     const byNew = (x, y) => hrsOf(x) - hrsOf(y);
     if (sort === 'new') out.sort(byNew);
     if (sort === 'old') out.sort((x, y) => hrsOf(y) - hrsOf(x));
-    if (sort === 'lead') out.sort((x, y) => (x.leadName ? 1 : 0) - (y.leadName ? 1 : 0) || byNew(x, y));
-    if (sort === 'almost') out.sort((x, y) => readyCount(y) - readyCount(x) || byNew(x, y));
+    if (sort === 'popular') out.sort((x, y) => y.interested - x.interested || byNew(x, y));   // most "I'm interested" first
     return out;
   };
 
@@ -245,7 +245,7 @@
     cat: row.cat, answers: row.answers || {},
     leadName: row.lead_id ? (row.lead_id === state.me ? 'You' : row.lead_name || 'Someone') : null,
     basics: row.basics, spot: row.spot, spotOpen: row.spot_open, day: row.day,
-    lockedDateId: row.locked_date_id, vision: row.vision, minPeople: row.min_people || 0,
+    lockedDateId: row.locked_date_id, vision: row.vision,
     photoPaths: (row.photos || []).filter(p => PHOTO_PATH.test(p)),
     photos: (row.photos || []).filter(p => PHOTO_PATH.test(p)).map(photoUrl),
     dates: dates.map(d => ({ id: d.id, label: d.label })),
@@ -482,9 +482,6 @@
 
   // ---- Idea page actions ------------------------------------------------------
 
-  const claimLead = (subj) => withName(() =>
-    run(async () => { must(await sb.rpc('claim_lead', { p_spark: subj.id, p_name: state.myName })); }, { claim: true }));
-
   const openOffer = (kind) => withName(() => setState({ offerKind: kind, offerText: '' }));
 
   const commitOffer = (subj) => {
@@ -516,13 +513,6 @@
     if (!n) { doIt(); return; }
     setState({ confirm: { title: 'Remove ' + d.label + '?', body: (n === 1 ? '1 person picked it.' : n + ' people picked it.') + ' They stay on the RSVP list, just not for this date.', cta: 'Remove it', keep: 'Keep it', run: doIt } });
   };
-
-  const askStepBack = (subj) => setState({ confirm: {
-    title: 'Step back from the lead?',
-    body: 'It goes back to the group as “needs a lead.” Dates, RSVPs and offers stay put, and whoever picks it up next sees the RSVP numbers.',
-    cta: 'Step back', keep: 'Keep leading',
-    run: () => run(async () => { must(await sb.rpc('step_back', { p_spark: subj.id })); }, { confirm: null, tag: 'Back with the group' })
-  } });
 
   const openEdit = (subj) => setState({ screen: 'edit', editText: subj.text, editHopes: [0, 1, 2].map(i => (subj.bits || [])[i] || '') });
   const saveEdit = (subj) => {
@@ -795,9 +785,8 @@
               '<span style="font-size:13.5px;font-weight:700;color:#454b55">' + esc(s.who) + '</span>' +
               '<span style="width:3px;height:3px;border-radius:999px;background:#9aa0ac"></span>' +
               '<span style="font-size:13.5px;font-weight:500;color:#6b7280">' + esc(whenOf(s)) + '</span>' +
-              '<span aria-label="' + s.interested + ' interested" style="margin-left:auto;display:flex;align-items:center;gap:4px;border-radius:999px;padding:4px 10px;font-size:13px;font-weight:800;background:' + (s.meIn ? '#fdf1d6' : '#f2f3f6') + ';color:' + (s.meIn ? '#8f6405' : '#5c6270') + '">' + BOLT_SOLID(13) + s.interested + '</span>' +
+              '<span aria-label="' + s.interested + ' interested" style="margin-left:auto;display:flex;align-items:center;gap:4px;border-radius:999px;padding:4px 10px;font-size:13px;font-weight:800;background:' + (s.meIn ? '#fdf1d6' : '#f2f3f6') + ';color:' + (s.meIn ? '#8f6405' : '#5c6270') + '">' + ICON_PERSON(13) + s.interested + '</span>' +
             '</div>' +
-            (s.leadName ? '' : '<span style="margin-top:-4px;font-size:12.5px;font-weight:800;letter-spacing:.2px;color:#6b7280">Needs a lead</span>') +
           '</div>' +
         '</div>' +
       '</div>';
@@ -876,7 +865,6 @@
       return line ? factRow(line, 7) : null;
     }).filter(Boolean);
     if (subj.spotOpen && !subj.spot) facts.push(factRow('Location: we’ll decide together.', 6));
-    if (subj.minPeople && !dates.length) facts.push(factRow('It’s a success with ' + subj.minPeople + ' or more.', 6));
 
     // Dates
     const counts = subj.counts || { going: 0, none_count: 0, dates: {} };
@@ -892,8 +880,7 @@
 
     const dateRows = counted.map((x, rank) => {
       const cnt = x.n, isLocked = lockedId === x.d.id, isTop = cnt > 0 && cnt === top;
-      const minP = subj.minPeople || 0, withLead = cnt + 1;
-      const countLabel = (cnt === 0 ? 'Nobody yet' : cnt === 1 ? '1 can make it' : cnt + ' can make it') + (minP && withLead < minP ? ' · ' + (minP - withLead) + ' short of ' + minP : '');
+      const countLabel = cnt === 0 ? 'Nobody yet' : cnt === 1 ? '1 can make it' : cnt + ' can make it';
       const barBg = isLocked ? '#0f7a3c' : isTop && !lockedId ? c.bar : '#c3c7cf';
       return '<div style="padding:12px;margin:0 -12px;border-radius:14px;background:' + (isLocked ? '#e8f6ee' : 'transparent') + '">' +
         '<div style="display:flex;align-items:center;gap:12px">' +
@@ -903,7 +890,6 @@
               '<span style="font-size:16px;font-weight:800;letter-spacing:-.2px;color:#0d1117">' + esc(x.d.label) + '</span>' +
               (!lockedId && isTop && !tied ? badge('#fdf1d6', '#8f6405', 'Most support') : '') +
               (!lockedId && isTop && tied ? badge('#f2f3f6', '#454b55', 'Tied') : '') +
-              (minP && withLead >= minP && !isLocked ? badge('#e8f6ee', '#0f7a3c', 'Enough to go') : '') +
               (isLocked ? badge('#0f7a3c', '#fff', 'Locked in') : '') +
             '</div>' +
             '<div style="margin-top:2px;font-size:13.5px;font-weight:600;color:#6b7280">' + countLabel + '</div>' +
@@ -923,32 +909,31 @@
     });
 
     // Readiness
-    const line = !subj.leadName
-      ? (n === 0 ? 'Still just an idea — nobody out front yet.' : 'Coming together, but it needs somebody out front.')
-      : (exec ? 'All four in place. This one’s happening.' : n + ' of 4 in place — ' + (youLead ? 'you’re' : subj.leadName + ' is') + ' working on the rest.');
+    const leadLabel = subj.leadName || 'The lead';
+    const line = exec ? 'All four in place. This one’s happening.' : n + ' of 4 in place — ' + (youLead ? 'you’re' : leadLabel + ' is') + ' working on the rest.';
 
     const rows = [
       { label: 'Somebody out front', met: met[0],
-        note: subj.leadName ? (youLead ? 'You’re leading this one.' : subj.leadName + ' is leading this one.') : 'Nobody’s taken it on yet.',
-        actionable: false, locked: false, act: null },
+        note: youLead ? 'You’re leading this one.' : leadLabel + ' is leading this one.',
+        actionable: false, act: null },
       { label: 'A place for it', met: spot,
         note: subj.spot ? subj.spot : (spot ? 'There’s a place in mind.' : 'No spot settled — open to suggestions.'),
-        actionable: !spot, locked: false, act: spot ? null : () => openOffer('spot') },
+        actionable: !spot, act: spot ? null : () => openOffer('spot') },
       { label: 'A day it happens', met: day,
         note: subj.day ? subj.day : (day ? 'There’s a day in mind.' : nDates ? nDates + (nDates === 1 ? ' date' : ' dates') + ' up for a vote — ' + (youLead ? 'lock one in when you’re ready.' : 'the lead locks one in.') : youLead ? 'Put up to three dates to vote on.' : 'No day yet — anybody can float one.'),
-        actionable: !day && !youLead, locked: false, act: day || youLead ? null : (nDates ? openRsvp : () => openOffer('day')) },
+        actionable: !day && !youLead, act: day || youLead ? null : (nDates ? openRsvp : () => openOffer('day')) },
       { label: 'Basics established', met: !!subj.basics,
-        note: subj.basics ? 'The lead says the essentials are covered.' : (subj.leadName ? (youLead ? 'Your call — mark it when the essentials are covered.' : 'The lead’s call, once the essentials are covered.') : 'Unlocks once somebody’s out front.'),
-        actionable: youLead && !subj.basics, locked: !subj.leadName,
+        note: subj.basics ? 'The lead says the essentials are covered.' : (youLead ? 'Your call — mark it when the essentials are covered.' : 'The lead’s call, once the essentials are covered.'),
+        actionable: youLead && !subj.basics,
         act: youLead && !subj.basics ? () => patch(subj.id, { basics: true }) : null }
     ];
 
     const checkpoints = rows.map(r => {
       const mark = r.met
         ? 'flex:0 0 20px;width:20px;height:20px;border-radius:999px;background:' + c.bar + ';display:flex;align-items:center;justify-content:center;margin-top:2px'
-        : 'flex:0 0 20px;width:20px;height:20px;border-radius:999px;border:1.5px ' + (r.locked ? 'solid' : 'dashed') + ' #cfd3db;background:' + (r.locked ? '#f2f3f6' : '#fff') + ';display:flex;align-items:center;justify-content:center;margin-top:2px';
-      return '<div ' + (r.actionable ? on(r.act) : '') + ' style="display:flex;align-items:flex-start;gap:12px;padding:11px 0;border-top:1px solid #f2f3f6;opacity:' + (r.locked ? .55 : 1) + ';cursor:' + (r.actionable ? 'pointer' : 'default') + '">' +
-        '<span style="' + mark + '">' + (r.met ? CHECK(12, '#fff', 3.2) : '') + (r.locked ? LOCK(11, '#9aa0ac', 2.2) : '') + '</span>' +
+        : 'flex:0 0 20px;width:20px;height:20px;border-radius:999px;border:1.5px dashed #cfd3db;background:#fff;display:flex;align-items:center;justify-content:center;margin-top:2px';
+      return '<div ' + (r.actionable ? on(r.act) : '') + ' style="display:flex;align-items:flex-start;gap:12px;padding:11px 0;border-top:1px solid #f2f3f6;cursor:' + (r.actionable ? 'pointer' : 'default') + '">' +
+        '<span style="' + mark + '">' + (r.met ? CHECK(12, '#fff', 3.2) : '') + '</span>' +
         '<div style="flex:1 1 auto">' +
           '<div style="font-size:15.5px;font-weight:800;letter-spacing:-.2px;color:' + (r.met ? '#0d1117' : '#2b303a') + '">' + r.label + '</div>' +
           '<div style="font-size:13.5px;line-height:1.4;font-weight:500;color:#6b7280">' + esc(r.note) + '</div>' +
@@ -962,7 +947,7 @@
     const offers = (subj.offers || []).map(o => Object.assign({ waiting: false }, o)).concat(
       youLead ? [] : pending.filter(p => p.byMe).map(p => ({
         who: 'You', line: OFFER_LINES[p.kind] + p.text, waiting: true,
-        note: subj.leadName ? 'waiting on ' + subj.leadName : 'waiting for a lead'
+        note: 'waiting on ' + (subj.leadName || 'the lead')
       })));
     const pill = (label) =>
       '<div style="margin-top:16px;display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.18);border-radius:999px;padding:9px 14px;width:fit-content">' +
@@ -993,7 +978,6 @@
           '<span style="font-size:13.5px;font-weight:500;color:rgba(255,255,255,.85)">' + esc(whenOf(subj)) + '</span>' +
         '</div>' +
         (exec ? pill('Deciding &amp; executing') : '') +
-        (!subj.leadName ? pill('Needs a lead') : '') +
       '</div>' +
 
       '<div style="padding:18px 16px 26px;display:flex;flex-direction:column;gap:14px">' +
@@ -1058,7 +1042,6 @@
                 '<div style="' + EYEBROW + '">' + (lockedId ? 'The date' : 'Dates on the table') + '</div>' +
                 '<div style="font-size:13px;font-weight:700;color:#6b7280">' + (going + noneCount === 0 ? 'No RSVPs yet' : going + ' in' + (noneCount ? ' · ' + noneCount + ' can’t make these' : '')) + '</div>' +
               '</div>' +
-              (subj.minPeople ? '<div style="margin-top:-4px;font-size:13.5px;font-weight:700;color:#454b55">Success is ' + subj.minPeople + ' or more, counting the lead</div>' : '') +
               dateRows.join('') +
               (noneCount
                 ? '<div style="border-top:1px solid #eff0f3;padding-top:12px;display:flex;flex-direction:column;gap:8px">' +
@@ -1126,16 +1109,6 @@
                 '<div style="margin-top:10px;font-size:15.5px;line-height:1.4;font-weight:700;letter-spacing:-.2px;color:#0d1117">' + esc(line) + '</div>' +
               '</div>' +
               '<div style="display:flex;flex-direction:column;gap:2px">' + checkpoints.join('') + '</div>' +
-              (!subj.leadName
-                ? '<div style="display:flex;flex-direction:column;gap:10px">' +
-                    '<button type="button" class="hov-primary" ' + on(() => claimLead(subj)) + ' style="' + PRIMARY + '">I’ll take the lead on this</button>' +
-                    '<p style="margin:0;font-size:14px;line-height:1.45;font-weight:500;color:#5c6270">Leading isn’t doing it all yourself. It means somebody’s out front, so the idea doesn’t sit and wait.</p>' +
-                  '</div>'
-                : '') +
-              (youLead
-                ? '<p style="margin:0;font-size:14px;line-height:1.45;font-weight:500;color:#5c6270">You’re out front on this one. If it stops being yours to carry, step back — it goes back to the group, not in the bin.</p>' +
-                  '<span ' + on(() => askStepBack(subj)) + ' style="margin-top:-4px;display:inline-flex;align-items:center;gap:6px;min-height:36px;width:fit-content;font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">Step back from the lead' + CHEV_R(14, '#5b4ae8', 2.4) + '</span>'
-                : '') +
               '<div style="display:flex;flex-wrap:wrap;gap:8px">' +
                 offerChip('Offer a spot', () => openOffer('spot')) +
                 (!youLead && nDates === 0 ? offerChip('Offer a day', () => openOffer('day')) : '') +
@@ -1467,26 +1440,6 @@
     const st = state;
     let out = '';
 
-    if (st.claim) {
-      const close = () => setState({ claim: false });
-      out += '<div class="modal-scrim" data-scrim="' + reg(close) + '" style="z-index:25">' +
-        '<div role="dialog" aria-modal="true" aria-labelledby="claim-h" style="position:relative;width:100%;max-width:330px;max-height:82%;overflow:auto;background:#fff;border-radius:22px;padding:24px 20px 22px;display:flex;flex-direction:column;gap:12px;box-shadow:0 24px 60px rgba(15,18,25,.3);animation:popIn 300ms cubic-bezier(.22,.9,.28,1) both">' +
-          modalClose(close) +
-          '<div style="display:flex;gap:6px">' +
-            '<span style="width:9px;height:9px;border-radius:2px;background:#e8a71c;transform:rotate(18deg)"></span>' +
-            '<span style="width:9px;height:9px;border-radius:2px;background:#5b4ae8;transform:rotate(-12deg)"></span>' +
-            '<span style="width:9px;height:9px;border-radius:2px;background:#149a4b;transform:rotate(24deg)"></span>' +
-            '<span style="width:9px;height:9px;border-radius:2px;background:#e2556b;transform:rotate(-20deg)"></span>' +
-          '</div>' +
-          '<h3 id="claim-h" style="margin:0;padding-right:36px;font-size:24px;line-height:1.1;font-weight:900;letter-spacing:-.6px;color:#0d1117">You’re out front on this one.</h3>' +
-          '<p style="margin:0;font-size:15.5px;line-height:1.45;font-weight:500;color:#454b55">Good on you. This one’s been sitting out here waiting for somebody, and now it isn’t.</p>' +
-          '<p style="margin:0;font-size:15.5px;line-height:1.45;font-weight:500;color:#454b55">It doesn’t mean you do it all yourself — plenty of hands will turn up. It does mean you’re the one carrying it: you say when, you say where, and when it comes down to a call, the call is yours.</p>' +
-          '<p style="margin:0;font-size:15.5px;line-height:1.45;font-weight:500;color:#454b55">Don’t go it alone, though. Find one person to think it through with — somebody who already likes this idea is the easiest ask you’ll make all week.</p>' +
-          '<button type="button" class="hov-primary" ' + on(close) + ' style="margin-top:4px;width:100%;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16.5px;font-weight:800;padding:16px;cursor:pointer">Alright, let’s get it going</button>' +
-        '</div>' +
-      '</div>';
-    }
-
     if (st.rsvpOpen && subj) {
       const phoneOk = st.rsvpPhone.replace(/\D/g, '').length >= 7;
       const rsvpReady = (st.rsvpDates.length > 0 || st.rsvpNone) && st.rsvpName.trim().length > 0 && phoneOk;
@@ -1749,7 +1702,6 @@
       if (state.nameAsk) return setState({ nameAsk: null, nameText: '' });
       if (state.offerKind) return setState({ offerKind: null, offerText: '' });
       if (state.rsvpOpen) return setState({ rsvpOpen: false });
-      if (state.claim) return setState({ claim: false });
       if (state.menu) return setState({ menu: null });
     }
     if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-on][role]') && !isField(e.target)) {
@@ -1784,7 +1736,7 @@
   const followUrl = () => {
     const target = fromHash();
     if (target.screen === state.screen && target.subjectId === state.subjectId) return;
-    setState(Object.assign({ menu: null, offerKind: null, rsvpOpen: false, claim: false, nameAsk: null, confirm: null, loginStep: null }, target));
+    setState(Object.assign({ menu: null, offerKind: null, rsvpOpen: false, nameAsk: null, confirm: null, loginStep: null }, target));
     const sc = scroller();
     if (sc) sc.scrollTop = 0;
     // A link to an idea posted after this page loaded: fetch now rather than wait for the 30 s refresh

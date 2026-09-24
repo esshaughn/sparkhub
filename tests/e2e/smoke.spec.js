@@ -45,11 +45,11 @@ test('tab bar and shareable links', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test('sort menu offers the four orders', async ({ page }) => {
+test('sort menu offers Newest, Oldest, Most popular', async ({ page }) => {
   await page.goto('/#/ideas');
   await page.getByRole('button', { name: /Newest/ }).click();
   const menu = page.locator('div[data-menu] > div[data-menu] > div[data-on]');
-  await expect(menu).toHaveText(['Newest', 'Oldest', 'Needs a lead', 'Almost there']);
-  await menu.filter({ hasText: 'Needs a lead' }).click();
-  await expect(page.getByRole('button', { name: /Needs a lead/ })).toBeVisible();
+  await expect(menu).toHaveText(['Newest', 'Oldest', 'Most popular']);
+  await menu.filter({ hasText: 'Most popular' }).click();
+  await expect(page.getByRole('button', { name: /Most popular/ })).toBeVisible();
 });

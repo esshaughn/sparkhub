@@ -117,14 +117,9 @@ async function confirm(page, cta) {
   await expect(dialog).toBeHidden();
 }
 
-// Delete an idea as its lead (cleanup). Takes the lead back first if needed.
+// Delete an idea as its lead (cleanup).
 async function deleteIdea(page, id) {
   await openIdea(page, id);
-  const take = button(page, 'I’ll take the lead on this');
-  if (await take.isVisible()) {
-    await take.click();
-    await button(page, 'Alright, let’s get it going').click();
-  }
   await button(page, 'Edit').click();
   await button(page, 'Delete this idea').click();
   await confirm(page, 'Delete it');

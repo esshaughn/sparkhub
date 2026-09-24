@@ -2,7 +2,7 @@
 
 Every function and feature in the build, numbered so you can say "scrub 27, 29, 37". Status: **Live** (works, visible), **Dormant** (code exists but can't be reached or is switched off), **Placeholder** (works, copy is Latin).
 
-As of 2026-09-24. Update this when features are added or removed.
+As of 2026-09-24 (after the first scrub). Numbers are permanent: removed features keep their number in **Removed** at the bottom.
 
 ## Home
 
@@ -20,14 +20,13 @@ As of 2026-09-24. Update this when features are added or removed.
 |---|---|---|---|
 | 6 | Header repeats the Home block, with a back arrow | Live | |
 | 7 | "N ideas so far" / "Loading ideas…" count | Live | |
-| 8 | Sort menu: Newest · Oldest · Needs a lead · Almost there | Live | "Almost there" depends on #40 |
+| 8 | Sort menu: Newest · Oldest · Most popular (most "I'm interested" first) | Live | |
 | 9 | Card cover photo + photo-count pill | Live | |
 | 10 | Card title | Live | |
 | 11 | Card location row (gold when set, grey "Location TBD") | Live | |
 | 12 | Card date row (gold when set, "Date TBD" or "Date TBD · N options") | Live | |
 | 13 | Card footer: poster initial + name · relative time | Live | |
-| 14 | Card interest pill (bolt + count, gold when you're interested) | Live | Depends on #22 |
-| 15 | "Needs a lead" label under the footer | Live | |
+| 14 | Card interest pill (person icon + count, gold when you're interested) | Live | Depends on #22 |
 | 16 | Gold bar down the card's left edge | Live | Colour comes from the idea's category (always Walktober) |
 | 17 | Empty state "No ideas yet." | Live | |
 
@@ -37,7 +36,7 @@ As of 2026-09-24. Update this when features are added or removed.
 |---|---|---|---|
 | 18 | Header with back arrow and **Edit** (lead only) | Live | Edit → #55–56 |
 | 19 | Gold hero: SPARK eyebrow, title, poster · time, "It's up" tag | Live | |
-| 20 | Hero pills: "Needs a lead" / "Deciding & executing" | Live | The second appears when all 4 checkpoints are met |
+| 20 | Hero pill "Deciding & executing" | Live | Appears when all 4 checkpoints are met |
 | 21 | Photo grid | Live | |
 | 22 | **I'm interested** toggle + "N interested" (non-leads); count card for the lead | Live | |
 | 23 | **Waiting on you** card: "Use this spot/day" · "Not this time" · "Replaces …" | Live | Lead approval of #43 offers |
@@ -46,7 +45,6 @@ As of 2026-09-24. Update this when features are added or removed.
 | 26 | **Hoping for** list (dream-version lines) | Live | |
 | 27 | "The vibe" line | Dormant | Vibe was removed from posting; only old data could show it |
 | 28 | **Dates on the table**: ranked date options, RSVP bars, badges (Most support / Tied / Locked in) | Live | |
-| 29 | "Success is N or more, counting the lead", "· N short of N", "Enough to go" badge | Dormant | Head count was removed from posting; `min_people` is never set now |
 | 30 | Lead on each date: names who picked it, **Lock this one in**, **Remove** (confirms if anyone picked it) | Live | |
 | 31 | "N interested, but none of these work" — lead sees names + tap-to-call numbers | Live | |
 | 32 | **RSVP** / **Change my RSVP** button (non-leads) | Live | No way to withdraw an RSVP |
@@ -57,9 +55,7 @@ As of 2026-09-24. Update this when features are added or removed.
 | 37 | **Add a little to this** → follow-up questions | Dormant | Only for non-Walktober categories, which can't be created |
 | 38 | **Everything's in place** card (all 4 checkpoints met) | Live | |
 | 39 | **How close this is** card: 4-segment bar + status line | Live | Depends on #40 |
-| 40 | Checkpoints: Somebody out front · A place for it · A day it happens · Basics established (tap to act; lead marks Basics) | Live | Feeds #8, #20, #38, #39, #60 |
-| 41 | **I'll take the lead on this** + "You're out front on this one" pop-up | Live | |
-| 42 | Lead copy + **Step back from the lead** (confirms) | Live | |
+| 40 | Checkpoints: Somebody out front · A place for it · A day it happens · Basics established (tap to act; lead marks Basics) | Live | Feeds #20, #38, #39, #57. "Somebody out front" is now always met |
 | 43 | Offer chips: **Offer a spot** · **Offer a day** · **I can help with something** | Live | Spot/day from non-leads go to #23; help posts immediately |
 | 44 | **Who's already in** list, including your own pending offers "· waiting on X" | Live | |
 
@@ -132,8 +128,8 @@ As of 2026-09-24. Update this when features are added or removed.
 | # | Feature | Status | Notes |
 |---|---|---|---|
 | 74 | Tables: sparks, date_options, rsvps, offers, interests, merge_tokens | Live | |
-| 75 | Functions: claim_lead, add_offer, resolve_offer, remove_date_option, step_back, rename_me, rsvp_counts, prepare_merge, complete_merge | Live | |
-| 76 | Legacy columns still stored: vibe, min_people, cat, answers | Dormant | Nothing writes them any more |
+| 75 | Functions: add_offer, resolve_offer, remove_date_option, rename_me, rsvp_counts, prepare_merge, complete_merge | Live | Posting requires you to be the lead |
+| 76 | Legacy columns still stored: vibe, min_people, cat, answers | Dormant | Nothing writes or shows them; kept so head count can return |
 | 77 | Photo bucket `spark-photos` (public URLs, 5 MB, JPEG/PNG/WebP, own-folder rules) | Live | |
 | 78 | Migrations folder; separate live and test projects | Live | |
 
@@ -146,5 +142,16 @@ As of 2026-09-24. Update this when features are added or removed.
 | 81 | Design handoff doc kept current by Claude Code (CLAUDE.md rule) | Live | |
 | 82 | Vercel auto-deploy from `main`; preview links from `test` | Live | |
 | 83 | Security headers + CSP (vercel.json); pinned, integrity-checked Supabase script | Live | Added in the 2026-09-24 audit |
-| 84 | Automated end-to-end tests (8 tests: smoke, posting, two-member collaboration, database security) on every push | Live | `tests/`; GitHub "End-to-end tests" workflow |
+| 84 | Automated end-to-end tests (9 tests: smoke, posting, two-member collaboration, sorting, database security) on every push | Live | `tests/`; GitHub "End-to-end tests" workflow |
 | 85 | Nightly cleanup of test-database leftovers | Live | Test project only |
+
+## Removed
+
+| # | Feature | Removed | Why |
+|---|---|---|---|
+| 8 (part) | "Needs a lead" and "Almost there" sorts | 2026-09-24 | Replaced by "Most popular" |
+| 15 | "Needs a lead" label on cards | 2026-09-24 | Every idea has a lead now |
+| 20 (part) | "Needs a lead" hero pill | 2026-09-24 | Every idea has a lead now |
+| 29 | "Success is N or more", "N short of N", "Enough to go" | 2026-09-24 | Minimum head count comes back later |
+| 41 | "I'll take the lead on this" + "You're out front on this one" pop-up | 2026-09-24 | Every idea has a lead now |
+| 42 | "Step back from the lead" + the lead's step-back paragraph | 2026-09-24 | Every idea has a lead now |

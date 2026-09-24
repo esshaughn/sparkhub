@@ -29,14 +29,14 @@ test('database refuses what the app never allows', async ({ browser }) => {
         delete: del.error ? 'refused' : del.data.length + ' rows',
         resolveOffer: (await c.rpc('resolve_offer', { p_offer: pending[0].id, p_accept: true })).error ? 'refused' : 'ALLOWED',
         removeDate: (await c.rpc('remove_date_option', { p_date: dateId })).error ? 'refused' : 'ALLOWED',
-        stepBack: (await c.rpc('step_back', { p_spark: id })).error ? 'refused' : 'ALLOWED',
-        claimTaken: (await c.rpc('claim_lead', { p_spark: id, p_name: 'Other' })).error ? 'refused' : 'ALLOWED',
+        stepBack: (await c.rpc('step_back', { p_spark: id })).error ? 'refused' : 'ALLOWED',        // function removed
+        claimLead: (await c.rpc('claim_lead', { p_spark: id, p_name: 'Other' })).error ? 'refused' : 'ALLOWED',  // function removed
         addDate: (await c.from('date_options').insert({ spark_id: id, label: 'x' })).error ? 'refused' : 'ALLOWED'
       };
     }, { id, dateId });
     expect(nonLead).toEqual({
       update: '0 rows', delete: '0 rows', resolveOffer: 'refused', removeDate: 'refused',
-      stepBack: 'refused', claimTaken: 'refused', addDate: 'refused'
+      stepBack: 'refused', claimLead: 'refused', addDate: 'refused'
     });
 
     // --- Even the lead can only edit the fields the app edits ------------------
@@ -51,6 +51,18 @@ test('database refuses what the app never allows', async ({ browser }) => {
       };
     }, id);
     expect(leadLimits).toEqual({ authorName: 'refused', createdBy: 'refused', photos: 'refused', leadId: 'refused', text: 'ALLOWED' });
+
+    // --- Every idea has a lead, and it's whoever posts it ---------------------------
+    const leadRule = await asUser(other.page, async (c, _C, { leadUid }) => {
+      const me = (await c.auth.getUser()).data.user.id;
+      const tryInsert = async (lead_id) => {
+        const res = await c.from('sparks').insert({ author_name: 'Other', text: '[E2E] lead rule', lead_id, lead_name: 'Other' }).select('id').single();
+        if (!res.error) await c.from('sparks').delete().eq('id', res.data.id);
+        return res.error ? 'refused' : 'ALLOWED';
+      };
+      return { noLead: await tryInsert(null), someoneElse: await tryInsert(leadUid), yourself: await tryInsert(me) };
+    }, { leadUid: await asUser(lead.page, async (c) => (await c.auth.getUser()).data.user.id) });
+    expect(leadRule).toEqual({ noLead: 'refused', someoneElse: 'refused', yourself: 'ALLOWED' });
 
     // --- A date from another idea can't be locked in ------------------------------
     const foreignLock = await asUser(other.page, async (c, _C, { leadDate }) => {

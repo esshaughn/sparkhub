@@ -87,35 +87,65 @@ test('lead and member work on the same idea', async ({ browser }) => {
     await expect(L.getByText('Sat, Oct 10, 6pm')).toHaveCount(0);
     await expect(L.getByText('1 in', { exact: true })).toBeVisible();
 
-    // Lead steps back; the lead-only view goes away
-    await button(L, 'Step back from the lead').click();
-    await confirm(L, 'Step back');
-    await expect(L.getByText('Back with the group')).toBeVisible();
-    await expect(button(L, 'Edit')).toHaveCount(0);
-    await expect(button(L, 'I’ll take the lead on this')).toBeVisible();
-    const leadAfter = await asUser(L, async (c, _C, id) => (await c.from('rsvps').select('phone').eq('spark_id', id)).data, id);
-    expect(leadAfter, 'phone numbers are hidden once you stop leading').toEqual([]);
+    // Every idea has a lead: no leaderless states, no taking over or stepping back
+    for (const P of [L, M]) {
+      await P.reload();
+      await expect(P.locator('[data-screen-label=Detail]')).toBeVisible();
+      await expect(P.getByText(/needs a lead|take the lead|step back|waiting for a lead/i)).toHaveCount(0);
+    }
+    // …and no minimum head count anywhere
+    await expect(L.getByText(/success is|short of|enough to go/i)).toHaveCount(0);
 
-    // The member takes it over and can now see the RSVP list and edit
-    await M.reload();
-    await button(M, 'I’ll take the lead on this').click();
-    await expect(M.getByRole('heading', { name: 'You’re out front on this one.' })).toBeVisible();
-    await button(M, 'Alright, let’s get it going').click();
-    await expect(button(M, 'Edit')).toBeVisible();
-
-    // Profile shows it under "Ideas you lead" for the new lead
+    // Profile lists it under "Ideas you lead" for the lead only
+    await button(L, 'Profile').click();
+    await expect(L.locator('[data-screen-label=Profile]')).toContainText(title);
     await button(M, 'Profile').click();
-    await expect(M.locator('[data-screen-label=Profile]')).toContainText(title);
+    await expect(M.locator('[data-screen-label=Profile]')).not.toContainText(title);
 
     expect(lead.errors).toEqual([]);
     expect(member.errors).toEqual([]);
   } finally {
-    // Clean up as whoever leads it now (member if the takeover happened, else the lead)
-    if (id) {
-      await deleteIdea(member.page, id).catch(() => deleteIdea(lead.page, id).catch(() => {}));
-    }
+    if (id) await deleteIdea(lead.page, id).catch(() => {});
     await lead.context.close();
     await member.context.close();
+  }
+});
+
+test('"Most popular" puts the idea with the most interest first', async ({ browser }) => {
+  const poster = await newMember(browser);
+  const fan = await newMember(browser);
+  const older = uniqueTitle('Popular');
+  const newer = uniqueTitle('Quiet');
+  const ids = [];
+  try {
+    ids.push(await postIdea(poster.page, { title: older, name: 'Pat' }));
+    ids.push(await postIdea(poster.page, { title: newer }));
+
+    await openIdea(fan.page, ids[0]);
+    await button(fan.page, 'I’m interested').click();
+    await expect(fan.page.getByText('1 interested')).toBeVisible();
+
+    const P = poster.page;
+    await P.goto('/#/ideas');
+    await P.reload();
+    const cards = P.locator('[data-screen-label=Browse] [data-on]').filter({ hasText: '[E2E]' });
+    const order = async () => (await cards.allTextContents()).filter(t => t.includes(older) || t.includes(newer)).map(t => (t.includes(older) ? 'older' : 'newer'));
+
+    await expect.poll(order).toEqual(['newer', 'older']);                       // Newest (waits for the list to load)
+    await P.getByRole('button', { name: /Newest/ }).click();
+    await P.locator('div[data-menu] > div[data-menu] > div[data-on]').filter({ hasText: 'Most popular' }).click();
+    await expect(P.getByRole('button', { name: /Most popular/ })).toBeVisible();
+    await expect.poll(order).toEqual(['older', 'newer']);                       // Most popular
+
+    // The card's interest pill uses the person icon, showing 1 for the popular one
+    const popularCard = cards.filter({ hasText: older });
+    await expect(popularCard.locator('[aria-label="1 interested"] circle')).toHaveCount(1);
+    expect(poster.errors).toEqual([]);
+    expect(fan.errors).toEqual([]);
+  } finally {
+    for (const id of ids) await deleteIdea(poster.page, id).catch(() => {});
+    await poster.context.close();
+    await fan.context.close();
   }
 });
 

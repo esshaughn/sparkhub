@@ -5,7 +5,7 @@
 - **Live:** https://torrezhub.vercel.app (open it on a phone)
 - **Source:** github.com/esshaughn/torrezhub (`index.html`, `js/sparks.js`, `css/sparks.css`)
 - **Baseline:** `design_handoff_sparks_walktober_v2/Walktober App v2.dc.html` + its README, from "Spark Torrez - Full Site 2.zip"
-- **As of:** 2026-09-24 (reviewed after the audit and tests)
+- **As of:** 2026-09-24 (after the first feature scrub)
 
 Everything in the v2 README is built as specified, except what's listed below. Where this doc and the v2 files disagree, **this doc is correct**.
 
@@ -15,7 +15,10 @@ Everything in the v2 README is built as specified, except what's listed below. W
 
 | # | Change | Design said | Why |
 |---|---|---|---|
-| — | *Nothing yet.* | | |
+| 1 | **Sort menu is Newest · Oldest · Most popular.** Most popular = most "I'm interested" first | Newest · Oldest · Needs a lead · Almost there | Owner decision |
+| 2 | **Card interest pill uses a person icon** instead of the bolt. The idea page's "I'm interested" button still uses the bolt | Bolt icon | Owner decision. Should the button match? |
+| 3 | **Every idea has a lead, always.** Posting makes you the lead, and there's no way to leave an idea leaderless. Gone: the "Needs a lead" card label and hero pill, "I'll take the lead on this", the "You're out front on this one" pop-up, "Step back from the lead", and the lead's paragraph about stepping back | Ideas could be leaderless; leads could step back and others take over | Owner decision; may return later |
+| 4 | **No minimum head count anywhere.** Gone: "Success is N or more, counting the lead", "· N short of N" on date rows, the "Enough to go" badge | Shown when a head count was set | Owner decision; will return later |
 
 ## 2. Things the build had to invent (please design these properly)
 
@@ -67,7 +70,10 @@ The v2 `.dc.html` still contains screens that nothing in it can reach, and the b
 2. **Spam and moderation.** Anyone with the link can post. Is there a report or hide action, or an admin view for Torrez staff? (Marked out of scope in v2.)
 3. **Adding date options once a day is set.** The design only offers "Add a date option" when no day is picked. So an idea posted with a date can't later put alternatives up for a vote unless the day is cleared, and nothing clears a day. Intended?
 4. **After Walktober.** The date pickers (posting and "Add a date option") only allow October 2026, per v2. From November, nobody can pick a date. Is Sparks Walktober-only, or should it carry on? If so, what happens to the Walktober hero card and the gold "Walktober" styling?
+5. **The lead's card now ends at the offer chips.** Removing the step-back paragraph left the lead with no line of their own in "How close this is". Does it want a short lead-facing note, or is it fine as is?
+6. **"Somebody out front" is always ticked** now that every idea has a lead, so every idea starts at "1 of 4 in place". Keep it as a reassurance, or drop it and count to 3?
 
 ## 6. Design tokens: unchanged
 
 As listed in the v2 README.
+

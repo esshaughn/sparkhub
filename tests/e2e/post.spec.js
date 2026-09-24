@@ -55,7 +55,8 @@ test('post → browse → profile → edit → delete', async ({ page }) => {
   await button(page, 'Delete this idea').click();
   await confirm(page, 'Delete it');
   await expect(page.locator('[data-screen-label=Browse]')).not.toContainText(title);
-  expect((await page.request.get(photoUrl + '?after-delete=1')).status()).toBeGreaterThanOrEqual(400);
+  // The file is removed just after the idea; give storage a moment
+  await expect.poll(async () => (await page.request.get(photoUrl + '?t=' + Date.now())).status(), { timeout: 20_000 }).toBeGreaterThanOrEqual(400);
 
   expect(errors).toEqual([]);
 });
