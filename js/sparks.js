@@ -569,6 +569,12 @@
         const res = await sb.auth.updateUser({ email });
         if (res.error && (res.error.code === 'email_exists' || /already|registered|exists|taken/i.test(res.error.message || ''))) mode = 'signin';
         else must(res);
+        // Projects with "Confirm email" off attach the email at once and send nothing
+        const u = res.data && res.data.user;
+        if (mode === 'link' && u && u.email === email && !u.new_email) {
+          await finishSignIn(st, must(await sb.auth.refreshSession()).data.session);
+          return;
+        }
       }
       if (mode === 'signin') {
         const token = st.mergeToken || must(await sb.rpc('prepare_merge')).data;
@@ -583,6 +589,16 @@
     }
   };
 
+  const finishSignIn = async (st, session) => {
+    noteSession(session);
+    const meta = (session.user && session.user.user_metadata) || {};
+    if (!meta.name && state.myName) sb.auth.updateUser({ data: { name: state.myName } }).catch(() => {});
+    await loadFresh();
+    const then = st.loginThen;
+    setState({ busy: false, loginStep: null, loginCode: '', loginThen: null, mergeToken: null, tag: then ? null : 'Signed in' });
+    if (typeof then === 'function') then();
+  };
+
   const verifyCode = async () => {
     const st = state;
     const email = st.loginEmail.trim().toLowerCase();
@@ -593,16 +609,9 @@
         await sb.rpc('complete_merge', { p_token: st.mergeToken });   // best effort: nothing to merge is fine
       }
       // A linked account keeps the same session; refresh it so the token says "not anonymous"
-      const session = st.loginMode === 'link'
+      await finishSignIn(st, st.loginMode === 'link'
         ? must(await sb.auth.refreshSession()).data.session
-        : res.data.session || (await sb.auth.getSession()).data.session;
-      noteSession(session);
-      const meta = (session.user && session.user.user_metadata) || {};
-      if (!meta.name && state.myName) sb.auth.updateUser({ data: { name: state.myName } }).catch(() => {});
-      await loadFresh();
-      const then = st.loginThen;
-      setState({ busy: false, loginStep: null, loginCode: '', loginThen: null, mergeToken: null, tag: then ? null : 'Signed in' });
-      if (typeof then === 'function') then();
+        : res.data.session || (await sb.auth.getSession()).data.session);
     } catch (e) {
       console.error(e);
       setState({ busy: false });
