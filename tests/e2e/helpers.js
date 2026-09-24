@@ -76,6 +76,7 @@ async function newLead(browser, n, name, path) {
   const torrez = await asUser(m.page, async (c) => (await c.from('groups').select('id').eq('name', 'Torrez Fitness').single()).data.id);
   await m.page.evaluate((id) => localStorage.setItem('spark-hub-prefs', JSON.stringify({ groupId: id })), torrez);
   await m.page.goto(path || '/');
+  await m.page.reload();   // a hash-only goto doesn't reload, and the group choice is read at start-up
   await expectConnected(m.page, m.errors);
   return m;
 }
