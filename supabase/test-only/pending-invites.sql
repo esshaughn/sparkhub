@@ -39,5 +39,8 @@ create trigger test_apply_pending_invites
 insert into public.test_pending_invites (email, group_name, role) values
   ('torrezfitness@gmail.com', 'Torrez Fitness', 'admin'),
   ('torrezfitness@gmail.com', 'Woodcliff Neighborhood', 'admin'),
-  ('torrezfitness@gmail.com', 'Hub on Hunters', 'member')
+  ('torrezfitness@gmail.com', 'Hub on Hunters', 'member'),
+  ('torrez.fitness@gmail.com', 'Torrez Fitness', 'admin'),
+  ('torrez.fitness@gmail.com', 'Woodcliff Neighborhood', 'admin'),
+  ('torrez.fitness@gmail.com', 'Hub on Hunters', 'member')
 on conflict (email, group_name) do update set role = excluded.role;
