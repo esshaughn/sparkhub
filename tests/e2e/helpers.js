@@ -47,7 +47,7 @@ async function newLead(browser, n, name) {
   const err = await asUser(m.page, async (c, _C, { email, password, name }) => {
     const r = await c.auth.signInWithPassword({ email, password });
     if (r.error) return r.error.message;
-    const u = await c.auth.updateUser({ data: { name } });
+    const u = await c.auth.updateUser({ data: { name, display_name: name } });
     return u.error ? u.error.message : null;
   }, { email: `e2e-lead-${n}@example.com`, password, name });
   if (err) throw new Error('Lead sign-in failed: ' + err);

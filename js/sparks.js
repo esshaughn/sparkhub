@@ -56,7 +56,17 @@
   // ---------------------------------------------------------------------------
 
   const CFG = window.SPARKS_CONFIG || {};
-  const sb = window.supabase && CFG.supabaseUrl ? window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseKey) : null;
+  // Read before the client starts: coming back from Google adds ?code=… or ?error=…
+  const AUTH_RETURN = (() => {
+    try {
+      const q = new URLSearchParams(location.search);
+      return { any: q.has('code') || q.has('error'), error: q.get('error'), errorCode: q.get('error_code') };
+    } catch (e) { return {}; }
+  })();
+  // PKCE keeps the Google round trip in the query string, clear of our #/ routes
+  const sb = window.supabase && CFG.supabaseUrl
+    ? window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseKey, { auth: { flowType: 'pkce' } })
+    : null;
 
   // Only conveniences live in the browser: your name and number, so you don't retype them
   const PREFS_KEY = 'sparks-torrez-prefs';
@@ -132,6 +142,7 @@
   const CHECK = (size, color, w) => '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="none" stroke="' + color + '" stroke-width="' + w + '" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"/></svg>';
   const LOCK = (size, color, w) => '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="none" stroke="' + color + '" stroke-width="' + w + '" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2.5"/><path d="M8.5 11V8.5a3.5 3.5 0 0 1 7 0V11"/></svg>';
   const ICON_PHOTO = (size, color, w) => '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="none" stroke="' + color + '" stroke-width="' + w + '" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5.5" width="17" height="13" rx="2.5"/><circle cx="9" cy="10.5" r="1.6"/><path d="M20.5 15.5l-4.5-4.5-7.5 7.5"/></svg>';
+  const G_LOGO = '<svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>';
   const ICON_PIN = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Z"/><circle cx="12" cy="10" r="2.3"/></svg>';
   const ICON_CAL = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5.5" width="16" height="14.5" rx="2.5"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/></svg>';
   const BOLT_SOLID = (size, color) => '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="' + (color || 'currentColor') + '" aria-hidden="true"><path d="M13.2 2.2 7.2 13.1l3.9-.35-.9 8.8 6.9-11.2-4.1.4z"/></svg>';
@@ -296,11 +307,15 @@
   // (A fresh session is a new identity, so lead status from the old one is lost,
   // which is unavoidable without real accounts.)
 
+  // Our name lives in display_name (Google overwrites `name` with the full name on every sign-in)
+  const metaName = (meta) => meta.display_name ||
+    (/google/.test(meta.iss || '') ? (meta.name || meta.full_name || '').trim().split(/\s+/)[0] : meta.name) || '';
+
   const noteSession = (session) => {
     const u = session.user, meta = u.user_metadata || {};
     const email = !u.is_anonymous && u.email ? u.email : '';
     if (u.id !== state.me || email !== state.email) {
-      setState({ me: u.id, email, myName: (u.is_anonymous ? state.myName || meta.name : meta.name || state.myName) || '' });
+      setState({ me: u.id, email, myName: (u.is_anonymous ? state.myName || metaName(meta) : metaName(meta) || state.myName).slice(0, 30) });
     }
   };
 
@@ -360,7 +375,7 @@
   const saveName = (name, renameEverywhere) => {
     setState({ myName: name });
     if (!sb) return;
-    sb.auth.updateUser({ data: { name } }).catch(() => {});
+    sb.auth.updateUser({ data: { name, display_name: name } }).catch(() => {});
     if (renameEverywhere) run(async () => { must(await sb.rpc('rename_me', { p_name: name })); });
   };
 
@@ -649,7 +664,7 @@
   const finishSignIn = async (st, session) => {
     noteSession(session);
     const meta = (session.user && session.user.user_metadata) || {};
-    if (!meta.name && state.myName) sb.auth.updateUser({ data: { name: state.myName } }).catch(() => {});
+    if (!meta.display_name && state.myName) sb.auth.updateUser({ data: { name: state.myName, display_name: state.myName } }).catch(() => {});
     await loadFresh();
     const then = st.loginThen;
     setState({ busy: false, loginStep: null, loginCode: '', loginThen: null, mergeToken: null, tag: then ? null : 'Signed in' });
@@ -674,6 +689,104 @@
       setState({ busy: false });
       toast('That code didn’t work. Check it, or send it again.');
     }
+  };
+
+  // ---- "Continue with Google" (Supabase OAuth, a full-page trip to Google) --------
+  // The page reloads on the way back, so anything in progress is parked in
+  // sessionStorage first: the draft (photos as data URLs), a merge token and the
+  // name. 'link' attaches Google to this anonymous identity. If that Google
+  // account already has an account, Supabase sends us back with
+  // identity_already_exists: sign in to it instead ('signin'), then merge.
+
+  const GOOGLE_ON = !!CFG.googleSignIn;
+  const RESUME_KEY = 'sparks-google-resume';
+  const DRAFT_KEYS = ['activity', 'hopes', 'locMode', 'locText', 'locPlace', 'whenMode', 'dateOne', 'timeOne', 'timeOn'];
+  const readResume = () => {
+    try {
+      const r = JSON.parse(sessionStorage.getItem(RESUME_KEY));
+      return r && Date.now() - r.at < 30 * 60 * 1000 ? r : null;   // a stale trip is ignored
+    } catch (e) { return null; }
+  };
+  const writeResume = (r) => sessionStorage.setItem(RESUME_KEY, JSON.stringify(r));
+  const clearResume = () => { try { sessionStorage.removeItem(RESUME_KEY); } catch (e) { /* ignore */ } };
+  const blobToDataUrl = (blob) => new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => resolve(fr.result);
+    fr.onerror = reject;
+    fr.readAsDataURL(blob);
+  });
+  const dataUrlToBlob = (url) => {
+    const bin = atob(url.slice(url.indexOf(',') + 1));
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new Blob([bytes], { type: 'image/jpeg' });
+  };
+  const backHere = () => location.origin + location.pathname;
+
+  const googleSignIn = async () => {
+    const st = state;
+    setState({ busy: true });
+    try {
+      await ensureSession();
+      const r = { at: Date.now(), stage: 'link', why: st.loginWhy, anonId: st.me, name: st.myName, draft: null };
+      if (st.loginWhy === 'post') {
+        r.draft = {};
+        DRAFT_KEYS.forEach(k => { r.draft[k] = st[k]; });
+        r.draft.photos = [];
+        for (const p of st.photos) r.draft.photos.push(await blobToDataUrl(p.blob));
+      }
+      r.mergeToken = must(await sb.rpc('prepare_merge')).data;
+      writeResume(r);
+      must(await sb.auth.linkIdentity({ provider: 'google', options: { redirectTo: backHere() } }));
+      // The browser is now leaving for Google
+    } catch (e) {
+      console.error(e);
+      clearResume();
+      setState({ busy: false });
+      toast('Couldn’t open Google sign-in. Try again, or use your email.');
+    }
+  };
+
+  const restoreDraft = (r) => {
+    if (!r.draft) return {};
+    const d = r.draft, out = {};
+    DRAFT_KEYS.forEach(k => { if (k in d) out[k] = d[k]; });
+    out.photos = (d.photos || []).map(u => { const blob = dataUrlToBlob(u); return { blob, url: URL.createObjectURL(blob) }; });
+    return Object.assign(out, { screen: 'compose', step: 'review' });
+  };
+
+  // Runs once at start-up, after the session is ready. Returns true if the page is leaving again.
+  const finishGoogle = async () => {
+    const r = readResume();
+    if (AUTH_RETURN.any) history.replaceState(null, '', backHere() + location.hash);
+    if (!r) return false;
+    if (AUTH_RETURN.errorCode === 'identity_already_exists' && r.stage === 'link') {
+      writeResume(Object.assign(r, { stage: 'signin', at: Date.now() }));
+      const res = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: backHere() } });
+      if (!res.error) return true;
+    }
+    clearResume();
+    const session = (await sb.auth.getSession()).data.session;
+    const draft = restoreDraft(r);
+    if (!session || session.user.is_anonymous) {
+      // Cancelled at Google, or it didn't finish: put them back where they were
+      setState(Object.assign(draft, r.why === 'post' ? {} : { screen: 'profile' }));
+      toast('Google sign-in didn’t finish. Try again, or use your email.');
+      return false;
+    }
+    if (r.stage === 'signin' && r.mergeToken && session.user.id !== r.anonId) {
+      await sb.rpc('complete_merge', { p_token: r.mergeToken }).catch(() => {});
+    }
+    const meta = session.user.user_metadata || {};
+    if (!meta.display_name) {
+      const name = (r.name || metaName(meta)).slice(0, 30);
+      if (name) { state.myName = name; sb.auth.updateUser({ data: { name, display_name: name } }).catch(() => {}); }
+    }
+    noteSession(session);
+    await loadFresh();
+    if (r.why === 'post') { setState(draft); createDraft(); }
+    else setState({ screen: 'profile', tag: 'Signed in' });
+    return false;
   };
 
   const signOut = async () => {
@@ -1624,8 +1737,12 @@
           (st.loginStep === 'email'
             ? '<h3 id="login-h" style="margin:0;padding-right:36px;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">' + (forPost ? 'Sign in to post' : 'Sign in') + '</h3>' +
               '<p style="margin:0;font-size:14.5px;line-height:1.45;font-weight:500;color:#6b7280">' + (forPost
-                ? 'Whoever posts an idea leads it, so leads sign in. We’ll email you a 6-digit code. No password.'
-                : 'We’ll email you a 6-digit code. No password. Anything you lead follows your email to any phone.') + '</p>' +
+                ? 'Whoever posts an idea leads it, so leads sign in. ' + (GOOGLE_ON ? 'Use Google, or we’ll email you a 6-digit code. No password.' : 'We’ll email you a 6-digit code. No password.')
+                : (GOOGLE_ON ? 'Use Google, or we’ll email you a 6-digit code. No password. ' : 'We’ll email you a 6-digit code. No password. ') + 'Anything you lead follows you to any phone.') + '</p>' +
+              (GOOGLE_ON
+                ? '<button type="button" class="hov-outline" ' + on(() => { if (!st.busy) googleSignIn(); }) + ' style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;border:2px solid #dcdfe6;border-radius:999px;padding:14px;font-family:inherit;font-size:16px;font-weight:800;color:#0d1117;cursor:pointer">' +
+                    G_LOGO + (st.busy ? 'Opening Google…' : 'Continue with Google') + '</button>' + orDivider()
+                : '') +
               '<input class="fld" type="email" maxlength="120" autocomplete="email" autocapitalize="off" spellcheck="false" aria-label="Email" placeholder="you@example.com" value="' + esc(st.loginEmail) + '" ' +
                 onInput(e => setState({ loginEmail: e.target.value.slice(0, 120) })) + ' style="width:100%;' + FIELD + ';border-radius:14px;padding:13px 16px">' +
               '<button type="button" ' + on(() => { if (emailOk && !st.busy) sendCode(false); }) + ' aria-disabled="' + !(emailOk && !st.busy) + '" style="' + primaryBtn(emailOk && !st.busy) + '">' + (st.busy ? 'Sending…' : 'Email me a code') + '</button>' +
@@ -1856,7 +1973,8 @@
     });
     try {
       await ensureSession();
-      await loadFresh();
+      if (await finishGoogle().catch(e => { console.error(e); return false; })) return;
+      if (!state.loaded) await loadFresh();
     } catch (e) {
       console.error(e);
       setState({ error: 'load', loaded: true });

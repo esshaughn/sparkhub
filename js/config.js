@@ -18,5 +18,10 @@
   // lat/lon/radius = the group's home area (Torrez Fitness: Austin, TX, 60 km).
   var places = { key: '4a3224242b3c4d8485453050591b8485', lat: 30.2672, lon: -97.7431, radius: 60000 };
 
-  window.SPARKS_CONFIG = Object.assign({ env: env, places: places }, projects[env]);
+  // "Continue with Google": turn on per database once Google is set up in that
+  // Supabase project (Auth → Sign In / Providers → Google, plus "Allow manual
+  // linking" and this site in Auth → URL Configuration → Redirect URLs).
+  var googleSignIn = { live: false, test: true };
+
+  window.SPARKS_CONFIG = Object.assign({ env: env, places: places, googleSignIn: googleSignIn[env] }, projects[env]);
 })();
