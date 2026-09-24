@@ -1,4 +1,6 @@
--- TEST PROJECT ONLY (torrezhub-test, hroxgvxvafgikikviiud). Never run this on live.
+-- Pre-arranged memberships for testers. Written for the test project; the owner
+-- asked for it on LIVE too, for now (2026-09-25), so Joseph's accounts work there.
+-- Remove from live with: drop trigger test_apply_pending_invites on auth.users;
 --
 -- Lets the owner pre-arrange group memberships for a tester who hasn't signed in
 -- yet: when an account gets a listed email (a new sign-up, or an anonymous visitor
