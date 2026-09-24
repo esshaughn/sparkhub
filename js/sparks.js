@@ -153,7 +153,7 @@
     screen: 'home', sort: 'new', menu: null,
     step: 'activity',
     activity: '', hopes: ['', '', ''], photos: [],
-    locMode: 'specific', locText: '', whenMode: 'one', dateOne: '', timeOne: '', timeOn: false,
+    locMode: 'specific', locText: '', locPlace: null, locSuggest: [], whenMode: 'one', dateOne: '', timeOne: '', timeOn: false,
     offerKind: null, offerText: '',
     rsvpOpen: false, rsvpDates: [], rsvpNone: false,
     rsvpName: prefs.rsvpName || '', rsvpPhone: prefs.rsvpPhone || '',
@@ -245,6 +245,8 @@
     cat: row.cat, answers: row.answers || {},
     leadName: row.lead_id ? (row.lead_id === state.me ? 'You' : row.lead_name || 'Someone') : null,
     basics: row.basics, spot: row.spot, spotOpen: row.spot_open, day: row.day,
+    spotAddress: row.spot_address || '',
+    spotPoint: Number.isFinite(row.spot_lat) && Number.isFinite(row.spot_lon) ? [row.spot_lat, row.spot_lon] : null,
     lockedDateId: row.locked_date_id, vision: row.vision,
     photoPaths: (row.photos || []).filter(p => PHOTO_PATH.test(p)),
     photos: (row.photos || []).filter(p => PHOTO_PATH.test(p)).map(photoUrl),
@@ -422,6 +424,59 @@
     if (own.length) sb.storage.from(PHOTO_BUCKET).remove(own).catch(() => {});
   };
 
+  // ---- Location suggestions (Geoapify autocomplete, OpenStreetMap data) ---------
+  // Suggestions only help: whatever is typed can still be posted as-is. Lookups
+  // start at 3 characters and wait for a pause in typing, so a location costs a
+  // few requests. If the service is down or over its daily limit, the list just
+  // doesn't appear.
+
+  const PLACES = CFG.places || null;   // { key, lat, lon, radius (m) }
+  let placeTimer = null, placeAbort = null;
+  const shortAddr = (a) => (a || '').replace(/,\s*United States( of America)?$/, '').slice(0, 200);
+  const toPlaces = (results) => {
+    const seen = {};
+    return (results || []).map(r => {
+      const name = cleanTitle(r.name || r.address_line1 || '').slice(0, 80);
+      return {
+        name,
+        sub: shortAddr(r.address_line2),
+        address: shortAddr(r.name ? r.address_line2 : r.formatted),
+        lat: +r.lat, lon: +r.lon
+      };
+    }).filter(p => {
+      const k = p.name + '|' + p.sub;
+      if (!p.name || seen[k] || !Number.isFinite(p.lat) || !Number.isFinite(p.lon)) return false;
+      return (seen[k] = true);
+    });
+  };
+
+  const findPlaces = (text) => {
+    clearTimeout(placeTimer);
+    if (placeAbort) { placeAbort.abort(); placeAbort = null; }
+    const q = text.trim();
+    if (!PLACES || q.length < 3) { if (state.locSuggest.length) setState({ locSuggest: [] }); return; }
+    placeTimer = setTimeout(async () => {
+      const ctrl = placeAbort = new AbortController();
+      const url = 'https://api.geoapify.com/v1/geocode/autocomplete?format=json&limit=5&lang=en' +
+        '&text=' + encodeURIComponent(q) +
+        '&filter=circle:' + PLACES.lon + ',' + PLACES.lat + ',' + PLACES.radius +
+        '&bias=proximity:' + PLACES.lon + ',' + PLACES.lat +
+        '&apiKey=' + encodeURIComponent(PLACES.key);
+      try {
+        const res = await fetch(url, { signal: ctrl.signal, referrerPolicy: 'origin' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        if (state.locText.trim() !== q || state.locPlace) return;   // typing moved on
+        setState({ locSuggest: toPlaces(data.results) });
+      } catch (e) {
+        if (e.name === 'AbortError') return;
+        console.warn('Location suggestions unavailable:', e.message);
+        setState({ locSuggest: [] });
+      }
+    }, 300);
+  };
+  const pickPlace = (p) => { clearTimeout(placeTimer); setState({ locText: p.name, locPlace: p, locSuggest: [], locMode: 'specific' }); };
+
   // ---- Posting ----------------------------------------------------------------
 
   const dayLabel = (st) => st.whenMode === 'one' && st.dateOne
@@ -430,13 +485,14 @@
 
   const composeReset = () => {
     state.photos.forEach(p => URL.revokeObjectURL(p.url));
-    return { activity: '', hopes: ['', '', ''], photos: [], step: 'activity', locMode: 'specific', locText: '', whenMode: 'one', dateOne: '', timeOne: '', timeOn: false };
+    return { activity: '', hopes: ['', '', ''], photos: [], step: 'activity', locMode: 'specific', locText: '', locPlace: null, locSuggest: [], whenMode: 'one', dateOne: '', timeOne: '', timeOn: false };
   };
 
   // Leads need an account: sign in first, then carry on posting the same draft
   const createDraft = () => (state.email ? withName(postDraft) : openLogin('post', createDraft));
   const postDraft = () => {
     const st = state;
+    const place = st.locMode === 'specific' && st.locPlace ? st.locPlace : null;
     let id = null, paths = [];
     run(async () => {
       paths = await uploadPhotos(st.photos);
@@ -445,6 +501,7 @@
         hopes: st.hopes.map(cleanTitle).filter(Boolean), photos: paths, cat: 'events', answers: {},
         lead_id: st.me, lead_name: st.myName,
         spot: st.locMode === 'specific' ? cleanTitle(st.locText) : null, spot_open: st.locMode === 'open',
+        spot_address: place ? place.address : null, spot_lat: place ? place.lat : null, spot_lon: place ? place.lon : null,
         day: dayLabel(st)
       };
       try {
@@ -867,10 +924,10 @@
     const openRsvp = () => setState({ rsvpOpen: true, rsvpDates: mine ? (mine.dateIds || []).slice() : [], rsvpNone: mine ? !!mine.none : false, rsvpName: mine ? mine.name : (st.rsvpName || st.myName), rsvpPhone: mine ? mine.phone : st.rsvpPhone });
 
     // Facts
-    const factRow = (line, dotTop) => ({ line, dotTop });
+    const factRow = (line, dotTop, sub) => ({ line, dotTop, sub });
     const facts = KEYS.map(k => {
       let line = (FACTS[k] || {})[subj.answers[k]];
-      if (k === 'place' && subj.spot) line = 'The spot: ' + subj.spot + '.';
+      if (k === 'place' && subj.spot) return factRow('The spot: ' + subj.spot + '.', 7, subj.spotAddress || subj.spotPoint ? subj : null);
       if (k === 'when' && subj.day) line = 'The day: ' + subj.day + '.';
       return line ? factRow(line, 7) : null;
     }).filter(Boolean);
@@ -1030,7 +1087,15 @@
               facts.map((f, i) =>
                 '<div style="display:flex;gap:12px;padding:14px 0' + (i < facts.length - 1 ? ';border-bottom:1px solid #eff0f3' : '') + '">' +
                   '<span style="flex:0 0 9px;width:9px;height:9px;border-radius:999px;background:' + c.bar + ';margin-top:' + f.dotTop + 'px"></span>' +
-                  '<span style="font-size:15.5px;line-height:1.45;font-weight:500;color:#0d1117">' + esc(f.line) + '</span>' +
+                  '<div style="min-width:0;font-size:15.5px;line-height:1.45;font-weight:500;color:#0d1117">' + esc(f.line) +
+                    (f.sub
+                      ? '<div style="margin-top:2px;font-size:13.5px;line-height:1.4;color:#6b7280">' + esc(f.sub.spotAddress) +
+                          (f.sub.spotPoint
+                            ? (f.sub.spotAddress ? ' · ' : '') + '<a href="https://www.google.com/maps/dir/?api=1&amp;destination=' + f.sub.spotPoint[0] + ',' + f.sub.spotPoint[1] + '" target="_blank" rel="noopener noreferrer" style="font-weight:800;color:#5b4ae8;text-decoration:none">Directions</a>'
+                            : '') +
+                        '</div>'
+                      : '') +
+                  '</div>' +
                 '</div>').join('') +
             '</div>'
           : '<div style="' + CARD + ';padding:18px;font-size:15.5px;line-height:1.45;font-weight:500;color:#454b55">Just the idea so far. That’s a perfectly good place for it to sit.</div>') +
@@ -1199,11 +1264,27 @@
       body = '<div style="padding:22px 20px 26px;display:flex;flex-direction:column;gap:12px">' +
         stepHead('Location') +
         '<input class="fld" type="text" maxlength="80" aria-label="Location" placeholder="Enter the location" value="' + esc(st.locText) + '" ' +
-          onInput(e => setState({ locText: e.target.value.slice(0, 80), locMode: 'specific' })) +
-          ' style="width:100%;background:#fff;border:2px solid #e6e7eb;border-radius:18px;padding:16px 18px;font-family:inherit;font-size:18px;font-weight:700;letter-spacing:-.2px;color:#0d1117;outline:none">' +
+          onInput(e => { const v = e.target.value.slice(0, 80); setState({ locText: v, locMode: 'specific', locPlace: null }); findPlaces(v); }) +
+          ' autocomplete="off" style="width:100%;background:#fff;border:2px solid #e6e7eb;border-radius:18px;padding:16px 18px;font-family:inherit;font-size:18px;font-weight:700;letter-spacing:-.2px;color:#0d1117;outline:none">' +
+        (st.locPlace
+          ? '<div style="display:flex;align-items:flex-start;gap:8px;margin-top:-4px;padding:0 4px;font-size:14px;line-height:1.4;font-weight:600;color:#5c6270">' +
+              '<span aria-hidden="true" style="flex:0 0 auto;margin-top:1px;color:#5b4ae8">' + ICON_PIN + '</span><span>' + esc(st.locPlace.address) + '</span></div>'
+          : '') +
+        (!st.locPlace && st.locSuggest.length
+          ? '<div role="group" aria-label="Suggested places" style="margin-top:-4px;background:#fff;border:2px solid #e6e7eb;border-radius:18px;overflow:hidden">' +
+              st.locSuggest.map((p, i) =>
+                '<div ' + on(() => pickPlace(p)) + ' class="hov-tint" style="display:flex;align-items:flex-start;gap:10px;padding:12px 16px;cursor:pointer' + (i ? ';border-top:1px solid #f0f1f4' : '') + '">' +
+                  '<span aria-hidden="true" style="flex:0 0 auto;margin-top:2px;color:#9aa0ac">' + ICON_PIN + '</span>' +
+                  '<span style="min-width:0"><span style="display:block;font-size:15.5px;line-height:1.3;font-weight:800;color:#0d1117">' + esc(p.name) + '</span>' +
+                  (p.sub ? '<span style="display:block;margin-top:1px;font-size:13.5px;line-height:1.35;font-weight:500;color:#6b7280">' + esc(p.sub) + '</span>' : '') +
+                  '</span></div>').join('') +
+              '<div style="padding:8px 16px 10px;border-top:1px solid #f0f1f4;font-size:11.5px;font-weight:500;color:#9aa0ac">' +
+                'Powered by <a href="https://www.geoapify.com/" target="_blank" rel="noopener noreferrer" style="color:inherit">Geoapify</a> · © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" style="color:inherit">OpenStreetMap</a> contributors</div>' +
+            '</div>'
+          : '') +
         '<button type="button" ' + on(() => { if (locReady) setState({ step: 'when', locMode: 'specific' }); }) + ' aria-disabled="' + !locReady + '" style="' + btn(locReady) + '">Next</button>' +
         orDivider() +
-        laterBtn('Decide location later', () => setState({ step: 'when', locMode: 'open', locText: '' })) +
+        laterBtn('Decide location later', () => { findPlaces(''); setState({ step: 'when', locMode: 'open', locText: '', locPlace: null, locSuggest: [] }); }) +
         backLink(to('activity')) +
       '</div>';
     }

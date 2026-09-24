@@ -47,10 +47,11 @@ test('database refuses what the app never allows', async ({ browser }) => {
         createdBy: await r(c.from('sparks').update({ created_by: null }).eq('id', id)),
         photos: await r(c.from('sparks').update({ photos: [] }).eq('id', id)),
         leadId: await r(c.from('sparks').update({ lead_id: null }).eq('id', id)),
+        spotAddress: await r(c.from('sparks').update({ spot_address: 'Somewhere else' }).eq('id', id)),
         text: await r(c.from('sparks').update({ text: 'Allowed edit' }).eq('id', id))
       };
     }, id);
-    expect(leadLimits).toEqual({ authorName: 'refused', createdBy: 'refused', photos: 'refused', leadId: 'refused', text: 'ALLOWED' });
+    expect(leadLimits).toEqual({ authorName: 'refused', createdBy: 'refused', photos: 'refused', leadId: 'refused', spotAddress: 'refused', text: 'ALLOWED' });
 
     // --- Every idea has a lead, and it's whoever posts it ---------------------------
     const leadRule = await asUser(other.page, async (c, _C, { leadUid }) => {

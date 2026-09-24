@@ -1,6 +1,6 @@
 // One member: post an idea through all six steps, see it everywhere, edit it, delete it.
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newLead, button, postIdea, openIdea, confirm } = require('./helpers');
+const { uniqueTitle, newLead, button, postIdea, openIdea, confirm, deleteIdea } = require('./helpers');
 
 test('post → browse → profile → edit → delete', async ({ browser }) => {
   const { page, errors, context } = await newLead(browser, 1, 'Tester');
@@ -60,6 +60,71 @@ test('post → browse → profile → edit → delete', async ({ browser }) => {
 
   expect(errors).toEqual([]);
   await context.close();
+});
+
+test('location suggestions: pick a place, see its address and directions', async ({ browser }) => {
+  const { page, errors, context } = await newLead(browser, 1, 'Tester');
+  const title = uniqueTitle('Picnic');
+  let id;
+  try {
+    await button(page, 'Post an idea').click();
+    await page.getByLabel('The event').fill(title);
+    await button(page, 'Next').click();
+
+    // Two letters: no lookup yet. Three: suggestions for the Austin area
+    await page.getByLabel('Location').fill('zi');
+    await page.waitForTimeout(600);
+    expect(context.placeRequests).toHaveLength(0);
+    await page.getByLabel('Location').fill('zilk');
+    const list = page.getByRole('group', { name: 'Suggested places' });
+    await expect(list).toContainText('Zilker Metropolitan Park');
+    await expect(list).toContainText('2100 Barton Springs Road, Austin, TX 78746');
+    await expect(list).not.toContainText('United States');
+    await expect(list).toContainText('OpenStreetMap');
+    const url = new URL(context.placeRequests[0]);
+    expect(url.searchParams.get('text')).toBe('zilk');
+    expect(url.searchParams.get('filter')).toBe('circle:-97.7431,30.2672,60000');
+
+    // Pick one: the name fills in, the address shows under it, the list closes
+    await list.getByRole('button', { name: /Zilker Metropolitan Park/ }).click();
+    await expect(page.getByLabel('Location')).toHaveValue('Zilker Metropolitan Park');
+    await expect(list).toBeHidden();
+    await expect(page.getByText('2100 Barton Springs Road, Austin, TX 78746')).toBeVisible();
+
+    await button(page, 'Next').click();
+    await button(page, 'Decide date later').click();
+    await button(page, 'Next').click();
+    await button(page, 'Skip photos').click();
+    await button(page, 'Put it up').click();
+    await expect(page.getByText('It’s up')).toBeVisible();
+    id = page.url().match(/#\/idea\/([0-9a-f-]{36})$/)[1];
+
+    // Idea page: spot, address and a directions link to that point
+    const detail = page.locator('[data-screen-label=Detail]');
+    await expect(detail.getByText('The spot: Zilker Metropolitan Park.')).toBeVisible();
+    await expect(detail).toContainText('2100 Barton Springs Road, Austin, TX 78746');
+    await expect(detail.getByRole('link', { name: 'Directions' })).toHaveAttribute('href', 'https://www.google.com/maps/dir/?api=1&destination=30.2669,-97.7729');
+    expect(errors).toEqual([]);
+  } finally {
+    if (id) await deleteIdea(page, id).catch(() => {});
+    await context.close();
+  }
+});
+
+test('typing a location and changing it drops the picked address', async ({ browser }) => {
+  const { page, context } = await newLead(browser, 1, 'Tester');
+  try {
+    await button(page, 'Post an idea').click();
+    await page.getByLabel('The event').fill('Anything');
+    await button(page, 'Next').click();
+    await page.getByLabel('Location').fill('congress');
+    await page.getByRole('group', { name: 'Suggested places' }).getByRole('button', { name: /1100 Congress Avenue/ }).click();
+    await expect(page.getByText('Austin, TX 78701')).toBeVisible();
+    await page.getByLabel('Location').fill('1100 Congress Avenue, the steps');
+    await expect(page.getByText('Austin, TX 78701')).toBeHidden();   // free text: no address
+  } finally {
+    await context.close();
+  }
 });
 
 test('post flow guards: required steps and going back', async ({ page }) => {

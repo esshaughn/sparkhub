@@ -11,9 +11,25 @@ const PNG = Buffer.from(
 const TAG = '[E2E]';
 const uniqueTitle = (label) => `${TAG} ${label} ${Date.now().toString(36)}`;
 
+// Location suggestions come from Geoapify. Tests never call the real service
+// (it has a daily limit); they get these two Austin places for any search.
+const FAKE_PLACES = [
+  { name: 'Zilker Metropolitan Park', address_line1: 'Zilker Metropolitan Park', address_line2: '2100 Barton Springs Road, Austin, TX 78746, United States of America', formatted: 'Zilker Metropolitan Park, 2100 Barton Springs Road, Austin, TX 78746, United States of America', lat: 30.2669, lon: -97.7729 },
+  { address_line1: '1100 Congress Avenue', address_line2: 'Austin, TX 78701, United States of America', formatted: '1100 Congress Avenue, Austin, TX 78701, United States of America', lat: 30.2747, lon: -97.7404 }
+];
+async function mockPlaces(target) {
+  const seen = [];
+  await target.route('https://api.geoapify.com/**', (route) => {
+    seen.push(route.request().url());
+    route.fulfill({ json: { results: FAKE_PLACES } });
+  });
+  return seen;
+}
+
 // Fresh member: new browser context = new localStorage = new anonymous identity.
 async function newMember(browser) {
   const context = await browser.newContext({ ...require('@playwright/test').devices['Pixel 7'] });
+  context.placeRequests = await mockPlaces(context);
   const page = await context.newPage();
   const errors = trackErrors(page);
   await page.goto('/');
@@ -160,4 +176,4 @@ async function asUser(page, fn, args) {
   }, { src: fn.toString(), args });
 }
 
-module.exports = { TAG, expectConnected, uniqueTitle, newMember, newLead, trackErrors, button, postIdea, answerNamePrompt, ideaIdFromUrl, openIdea, confirm, deleteIdea, asUser, PNG };
+module.exports = { mockPlaces, TAG, expectConnected, uniqueTitle, newMember, newLead, trackErrors, button, postIdea, answerNamePrompt, ideaIdFromUrl, openIdea, confirm, deleteIdea, asUser, PNG };

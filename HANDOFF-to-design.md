@@ -20,6 +20,7 @@ Everything in the v2 README is built as specified, except what's listed below. W
 | 3 | **Every idea has a lead, always.** Posting makes you the lead, and there's no way to leave an idea leaderless. Gone: the "Needs a lead" card label and hero pill, "I'll take the lead on this", the "You're out front on this one" pop-up, "Step back from the lead", and the lead's paragraph about stepping back | Ideas could be leaderless; leads could step back and others take over | Owner decision; may return later |
 | 4 | **No minimum head count anywhere.** Gone: "Success is N or more, counting the lead", "· N short of N" on date rows, the "Enough to go" badge | Shown when a head count was set | Owner decision; will return later |
 | 5 | **Leads sign in with email; everyone else doesn't.** Browsing, "I'm interested", offering and RSVPing still need nothing but a name (and a phone number to RSVP). Tapping **Put it up** when not signed in opens a **"Sign in to post"** pop-up (email → 6-digit code), then posts the same draft. Profile shows **"Sign in with email"** or **"Signed in as you@…"** + Sign out. The name pop-up's "Been here before? Sign in" link is back | Text-code (phone) sign-in, optional, on the Profile | Owner decision; SMS costs money, and it keeps ideas tied to a real person |
+| 6 | **Location step suggests places as you type** (after 3 letters): up to 5 places, businesses or addresses near Austin, each with a pin, the name in bold and the address in grey, plus a tiny "Powered by Geoapify · © OpenStreetMap contributors" line (required credit). Picking one fills the name and shows its address under the field; typing anything else still works. The idea page shows that address under "The spot" with a **Directions** link | Plain text field | Owner request |
 
 ## 2. Things the build had to invent (please design these properly)
 
@@ -45,6 +46,11 @@ The v2 README says to keep the live placeholders for loading, error and empty st
 
 ### e. Unknown idea link
 - A link to a deleted or wrong idea shows Home. There's no message yet.
+
+### Location suggestions (invented)
+- Suggestion list sits directly under the Location field: white, 2px #e6e7eb border, 18px radius, rows 12px/16px padding with hairline dividers. Pin icon (#9aa0ac), name 15.5px/800, address 13.5px/500 #6b7280. Credit line 11.5px #9aa0ac.
+- After a pick: purple pin + address (14px/600 #5c6270) under the field.
+- Idea page: address 13.5px #6b7280 under "The spot: …", then " · **Directions**" in purple 800.
 
 ### Sign-in pop-up and email (invented; the design had a phone version)
 - **Step 1:** heading **"Sign in to post"** (from Put it up) or **"Sign in"** (Profile, name pop-up). Body: *Whoever posts an idea leads it, so leads sign in. We'll email you a 6-digit code. No password.* (or *…Anything you lead follows your email to any phone.*). Email field (placeholder `you@example.com`), **Email me a code** (purple pill, grey until the email looks valid), fine print *Only used to sign you in. Nobody else sees it.*

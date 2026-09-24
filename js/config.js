@@ -13,5 +13,10 @@
   };
   var env = LIVE_HOSTS.indexOf(location.hostname) > -1 ? 'live' : 'test';
 
-  window.SPARKS_CONFIG = Object.assign({ env: env }, projects[env]);
+  // Location suggestions (Geoapify). The key is meant to be public: it's locked
+  // to our domains in the Geoapify dashboard. Free plan: 3,000 lookups a day.
+  // lat/lon/radius = the group's home area (Torrez Fitness: Austin, TX, 60 km).
+  var places = { key: '4a3224242b3c4d8485453050591b8485', lat: 30.2672, lon: -97.7431, radius: 60000 };
+
+  window.SPARKS_CONFIG = Object.assign({ env: env, places: places }, projects[env]);
 })();

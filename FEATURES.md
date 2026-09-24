@@ -65,6 +65,8 @@ As of 2026-09-24 (after the first scrub). Numbers are permanent: removed feature
 |---|---|---|---|
 | 45 | Step 1: **What's the event?** (80 chars) | Live | |
 | 46 | Step 2: **Location** + "Decide location later" | Live | |
+| 86 | Location suggestions while typing (places, businesses, addresses near Austin; name + address; free text still allowed) | Live (test) | Geoapify autocomplete, free 3,000 lookups/day; key and home area in `js/config.js` |
+| 87 | Idea page: the picked place's address under "The spot" + **Directions** (Google Maps link) | Live (test) | Cleared automatically if the spot changes later |
 | 47 | Step 3: **Date** (Oct 1–31 2026) + "Add time" (30-min steps) + "Decide date later" | Live | Date range hardcoded |
 | 48 | Step 4: **Paint the picture** (3 dream lines, 30 chars each) | Live | |
 | 49 | Step 5: **Add a photo** (up to 3, shrunk in the browser) + "Skip photos" | Live | |
@@ -142,7 +144,7 @@ As of 2026-09-24 (after the first scrub). Numbers are permanent: removed feature
 | 81 | Design handoff doc kept current by Claude Code (CLAUDE.md rule) | Live | |
 | 82 | Vercel auto-deploy from `main`; preview links from `test` | Live | |
 | 83 | Security headers + CSP (vercel.json); pinned, integrity-checked Supabase script | Live | Added in the 2026-09-24 audit |
-| 84 | Automated end-to-end tests (9 tests, leads sign in with two password test accounts on the test project: smoke, posting, two-member collaboration, sorting, database security) on every push | Live | `tests/`; GitHub "End-to-end tests" workflow |
+| 84 | Automated end-to-end tests (11 tests, leads sign in with two password test accounts on the test project: smoke, posting, two-member collaboration, sorting, database security) on every push | Live | `tests/`; GitHub "End-to-end tests" workflow |
 | 85 | Nightly cleanup of test-database leftovers | Live | Test project only |
 
 ## Removed
