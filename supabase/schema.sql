@@ -149,24 +149,25 @@ begin
   if p_kind = 'day'  then update sparks set day  = left(trim(p_body), 80) where id = p_spark; end if;
 end $$;
 
--- RSVP counts everyone may see, without exposing names or numbers
-create function public.rsvp_summary(p_spark uuid)
-returns jsonb language sql stable security definer set search_path = public as $$
-  select jsonb_build_object(
-    'going', count(*) filter (where not none_work),
-    'none',  count(*) filter (where none_work),
-    'dates', coalesce((
-      select jsonb_object_agg(d, c)
-        from (select unnest(date_ids) as d, count(*) as c
-                from rsvps where spark_id = p_spark group by 1) x
-    ), '{}'::jsonb)
-  )
-  from rsvps where spark_id = p_spark;
+-- RSVP counts everyone may see, without exposing names or numbers (one row per spark)
+create function public.rsvp_counts()
+returns table (spark_id uuid, going int, none_count int, dates jsonb)
+language sql stable security definer set search_path = public as $$
+  select r.spark_id,
+         (count(*) filter (where not r.none_work))::int,
+         (count(*) filter (where r.none_work))::int,
+         coalesce((
+           select jsonb_object_agg(x.d, x.c)
+             from (select unnest(r2.date_ids) as d, count(*) as c
+                     from rsvps r2 where r2.spark_id = r.spark_id group by 1) x
+         ), '{}'::jsonb)
+    from rsvps r
+   group by r.spark_id;
 $$;
 
 revoke execute on function public.claim_lead(uuid, text)             from public, anon;
 revoke execute on function public.add_offer(uuid, text, text, text)  from public, anon;
-revoke execute on function public.rsvp_summary(uuid)                from public, anon;
+revoke execute on function public.rsvp_counts()                     from public, anon;
 grant  execute on function public.claim_lead(uuid, text)             to authenticated;
 grant  execute on function public.add_offer(uuid, text, text, text)  to authenticated;
-grant  execute on function public.rsvp_summary(uuid)                 to authenticated;
+grant  execute on function public.rsvp_counts()                      to authenticated;

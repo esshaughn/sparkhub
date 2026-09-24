@@ -6,8 +6,9 @@
    Event handlers are registered per render and referenced by index via
    data-on / data-input / data-focus attributes.
 
-   Data: seeded with the design's sample sparks. Changes are saved to this
-   browser's localStorage only — there is no shared backend yet. */
+   Data: Supabase (see supabase/schema.sql). Every visitor gets an anonymous
+   session; row-level security decides who can edit a spark and who can see
+   RSVP names and numbers (only the lead). */
 
 (function () {
   'use strict';
@@ -55,52 +56,23 @@
   const OPT_TINTS = ['#f0eeff', '#e7f6ec', '#fdeef0', '#fbf1e3'];
   const OPT_CHEV = ['#5b4ae8', '#149a4b', '#e2556b', '#c97a12'];
   const SORTS = [['new', 'Newest'], ['old', 'Oldest'], ['rich', 'Most filled in'], ['crowd', 'Needs a crowd'], ['bare', 'Still just an idea']];
-  const LEADS = { w1: 'Rosa M.', w6: 'Kiran', w7: 'Curtis', w8: 'You' };
-  const BASICS = { w1: true };
-  const SEED_OFFERS = {
-    w2: [{ who: 'Dee', line: 'knows the manager at Blast Zone.' }, { who: 'Theo', line: 'is in, and bringing his cousin.' }],
-    w3: [{ who: 'Alma R.', line: 'can book a court for Saturday morning.' }]
-  };
-  const SEED = [
-    { id: 'w1', text: 'Sunrise loop around the lake before the 7am class', vibe: 'Quiet', bits: ['Coffee after for whoever wants it'], who: 'Rosa M.', when: '6 hours ago', hrs: 6, cat: 'events', answers: { shape: 'recurring', place: 'in-mind', when: 'a-day', people: 'handful' } },
-    { id: 'w2', text: 'Laser tag night', vibe: 'Competitive', bits: ['Teams by which class you take', 'Tacos after'], who: 'Darnell', when: 'yesterday', hrs: 26, cat: 'events', answers: { shape: 'once', people: 'crowd' } },
-    { id: 'w3', text: 'Pickleball at Garfield Park courts', vibe: 'High energy', bits: [], who: 'Hana K.', when: '2 days ago', hrs: 48, cat: 'events', answers: { place: 'in-mind', people: 'handful' } },
-    { id: 'w4', text: 'Stadium stair climb', vibe: '', bits: [], who: 'Theo', when: '3 days ago', hrs: 72, cat: 'events', answers: {} },
-    { id: 'w5', text: 'Sunday stroller walk and brunch', vibe: 'Cozy', bits: ['Keep it kid friendly'], who: 'June P.', when: '4 days ago', hrs: 96, cat: 'events', answers: { shape: 'recurring', place: 'looking', people: 'couple' } },
-    { id: 'w6', text: 'Headlamp night walk on the rail trail', vibe: 'Relaxed', bits: ['Someone brings a speaker'], who: 'Kiran', when: '5 days ago', hrs: 120, cat: 'events', answers: { place: 'in-mind', people: 'handful' }, minPeople: 4,
-      dates: [{ id: 'k1', label: 'Thu Oct 8, 7:30pm' }, { id: 'k2', label: 'Fri Oct 9, 8pm' }, { id: 'k3', label: 'Tue Oct 13, 7:30pm' }],
-      rsvps: [{ name: 'Dee', phone: '(555) 201-4410', dateIds: ['k1', 'k2'] }, { name: 'Theo', phone: '(555) 388-0192', dateIds: ['k2'] }, { name: 'Hana K.', phone: '(555) 640-7735', dateIds: ['k2', 'k3'] }, { name: 'Alma R.', phone: '(555) 912-3304', dateIds: ['k1'] }, { name: 'June P.', phone: '(555) 470-2268', none: true }] },
-    { id: 'w8', text: 'Walktober kickoff 5K around the reservoir', vibe: 'Relaxed', bits: ['Group photo at the finish'], who: 'You', when: '3 hours ago', hrs: 3, cat: 'events', answers: { place: 'in-mind', people: 'crowd' }, minPeople: 3,
-      dates: [{ id: 's1', label: 'Sat Oct 3, 8am' }, { id: 's2', label: 'Sun Oct 4, 9am' }],
-      rsvps: [{ name: 'Rosa M.', phone: '(555) 733-1180', dateIds: ['s1'] }, { name: 'Darnell', phone: '(555) 264-9021', dateIds: ['s2'] }, { name: 'Curtis', phone: '(555) 518-6647', dateIds: ['s1', 's2'] }, { name: 'Kiran', phone: '(555) 305-7719', none: true }, { name: 'Hana K.', phone: '(555) 640-7735', none: true }] },
-    { id: 'w7', text: 'Step-count bet — lowest total buys smoothies', vibe: 'Competitive', bits: [], who: 'Curtis', when: 'last week', hrs: 168, cat: 'events', answers: { shape: 'once', place: 'no', people: 'crowd' } }
-  ];
-
-  const seedSparks = () => SEED.map(s => ({
-    ...s, answers: { ...s.answers },
-    leadName: LEADS[s.id] || null,
-    basics: !!BASICS[s.id],
-    spot: null, day: null, lockedDateId: null,
-    dates: (s.dates || []).slice(), rsvps: (s.rsvps || []).slice(),
-    offers: (SEED_OFFERS[s.id] || []).slice()
-  }));
+  const OFFER_LINES = { spot: 'offered a spot: ', day: 'floated a day: ', help: 'can help: ' };
 
   // ---------------------------------------------------------------------------
-  // Persistence (this browser only)
+  // Supabase client + per-device prefs
   // ---------------------------------------------------------------------------
 
-  const STORE_KEY = 'sparks-torrez-v1';
-  const load = () => {
-    try {
-      const raw = localStorage.getItem(STORE_KEY);
-      const data = raw && JSON.parse(raw);
-      if (data && Array.isArray(data.sparks)) return data;
-    } catch (e) { /* storage blocked or corrupt — fall back to seed */ }
-    return null;
+  const CFG = window.SPARKS_CONFIG || {};
+  const sb = window.supabase && CFG.supabaseUrl ? window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseKey) : null;
+
+  // Only conveniences live in the browser: your name and number, so you don't retype them
+  const PREFS_KEY = 'sparks-torrez-prefs';
+  const loadPrefs = () => {
+    try { return JSON.parse(localStorage.getItem(PREFS_KEY)) || {}; } catch (e) { return {}; }
   };
-  const save = () => {
+  const savePrefs = () => {
     try {
-      localStorage.setItem(STORE_KEY, JSON.stringify({ sparks: state.sparks, rsvpName: state.rsvpName, rsvpPhone: state.rsvpPhone }));
+      localStorage.setItem(PREFS_KEY, JSON.stringify({ myName: state.myName, rsvpName: state.rsvpName, rsvpPhone: state.rsvpPhone }));
     } catch (e) { /* ignore */ }
   };
 
@@ -173,7 +145,7 @@
   // State
   // ---------------------------------------------------------------------------
 
-  const saved = load();
+  const prefs = loadPrefs();
   const state = {
     screen: 'home', cats: [], sort: 'new', menu: null,
     step: 'activity', leadInfo: false,
@@ -181,20 +153,43 @@
     locMode: 'specific', locText: '', whenMode: 'one', dateOne: '', timeOne: '', timeOn: false, minPeople: 0,
     claim: false, offerKind: null, offerText: '',
     rsvpOpen: false, rsvpDates: [], rsvpNone: false,
-    rsvpName: (saved && saved.rsvpName) || '', rsvpPhone: (saved && saved.rsvpPhone) || '',
+    rsvpName: prefs.rsvpName || '', rsvpPhone: prefs.rsvpPhone || '',
+    myName: prefs.myName || '', nameAsk: null, nameText: '',
     qi: 0, subjectId: null, adding: false, tag: null,
-    sparks: (saved && saved.sparks) || seedSparks()
+    me: null, loaded: false, error: null, toast: null, busy: false,
+    sparks: []
+  };
+
+  // ---- URL <-> screen, so ideas can be shared and the back button works -----
+
+  const ROUTES = { home: '', browse: '#/ideas', how: '#/how' };
+  const hashFor = () => state.screen === 'detail' && state.subjectId
+    ? '#/idea/' + state.subjectId
+    : (ROUTES[state.screen] != null ? ROUTES[state.screen] : null);
+  const syncHash = () => {
+    const h = hashFor();
+    if (h === null || (location.hash || '') === h) return;  // compose/questions keep the current URL
+    history.pushState(null, '', h || location.pathname + location.search);
+  };
+  const fromHash = () => {
+    const h = location.hash;
+    const m = h.match(/^#\/idea\/([0-9a-f-]{36})$/);
+    if (m) return { screen: 'detail', subjectId: m[1], tag: null };
+    if (h === '#/ideas') return { screen: 'browse' };
+    if (h === '#/how') return { screen: 'how' };
+    return { screen: 'home' };
   };
 
   const setState = (patch) => {
-    const prevStep = state.step, prevQi = state.qi;
+    const prevStep = state.step, prevQi = state.qi, prevScreen = state.screen, prevSubj = state.subjectId;
     Object.assign(state, patch);
-    save();
+    savePrefs();
     render();
     if (state.step !== prevStep || state.qi !== prevQi) {
       const ov = document.querySelector('.overlay-screen');
       if (ov) ov.scrollTop = 0;
     }
+    if (state.screen !== prevScreen || state.subjectId !== prevSubj) syncHash();
   };
 
   const scroller = () => document.querySelector('.scroller');
@@ -214,13 +209,7 @@
   const hasSpot = (s) => !!s.spot || s.answers.place === 'in-mind';
   const hasDay = (s) => !!s.day || s.answers.when === 'a-day';
   const ready = (s) => [!!s.leadName, hasSpot(s), hasDay(s), !!s.basics];
-  const readyCount = (s) => ready(s).filter(Boolean).length;
   const subject = () => state.sparks.find(s => s.id === state.subjectId) || null;
-
-  const patch = (id, fields, after) => {
-    const sparks = state.sparks.map(s => s.id === id ? { ...s, ...fields } : s);
-    setState(Object.assign({ sparks }, after || {}));
-  };
 
   const visible = () => {
     const { sparks, cats, sort } = state;
@@ -234,38 +223,115 @@
     return out;
   };
 
-  const createDraft = () => {
-    const id = 'n' + Date.now();
+  // ---------------------------------------------------------------------------
+  // Data: load + write
+  // ---------------------------------------------------------------------------
+
+  const toSpark = (row, dates, offers, counts, rsvps) => ({
+    id: row.id, text: row.text, vibe: row.vibe || '', bits: row.bits || [],
+    who: row.created_by === state.me ? 'You' : row.author_name,
+    created: Date.parse(row.created_at),
+    cat: row.cat, answers: row.answers || {},
+    leadName: row.lead_id ? (row.lead_id === state.me ? 'You' : row.lead_name || 'Someone') : null,
+    basics: row.basics, spot: row.spot, spotOpen: row.spot_open, day: row.day,
+    lockedDateId: row.locked_date_id, vision: row.vision, minPeople: row.min_people || 0,
+    dates: dates.map(d => ({ id: d.id, label: d.label })),
+    offers: offers.map(o => ({ who: o.user_id === state.me ? 'You' : o.who, line: OFFER_LINES[o.kind] + o.body })),
+    counts: counts || { going: 0, none_count: 0, dates: {} },
+    // RLS returns only your own RSVP — or every RSVP on sparks you lead
+    rsvps: rsvps.map(r => ({ name: r.name, phone: r.phone, dateIds: r.date_ids || [], none: r.none_work, mine: r.user_id === state.me }))
+  });
+
+  const loadAll = async () => {
+    const res = await Promise.all([
+      sb.from('sparks').select('*').order('created_at', { ascending: false }),
+      sb.from('date_options').select('*').order('created_at'),
+      sb.from('offers').select('*').order('created_at'),
+      sb.from('rsvps').select('*'),
+      sb.rpc('rsvp_counts')
+    ]);
+    const bad = res.find(r => r.error);
+    if (bad) throw bad.error;
+    const [sp, dt, of, rs, ct] = res.map(r => r.data || []);
+    const by = (rows, id) => rows.filter(r => r.spark_id === id);
+    const sparks = sp.map(row => toSpark(row, by(dt, row.id), by(of, row.id), ct.find(c => c.spark_id === row.id), by(rs, row.id)));
+    setState({ sparks, loaded: true, error: null });
+  };
+
+  let toastTimer = null;
+  const toast = (msg) => {
+    setState({ toast: msg });
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => setState({ toast: null }), 3500);
+  };
+
+  const must = (res) => { if (res.error) throw res.error; return res; };
+
+  // Run a write, reload, then apply `after` (object, or function evaluated after the write)
+  const run = async (work, after) => {
+    if (state.busy) return;
+    setState({ busy: true });
+    try {
+      await work();
+      await loadAll();
+      setState(Object.assign({ busy: false }, typeof after === 'function' ? after() : (after || {})));
+    } catch (e) {
+      console.error(e);
+      setState({ busy: false });
+      toast('That didn’t go through. Try again in a moment.');
+    }
+  };
+
+  // Posting, leading and offering show your name to others — ask once, then remember it
+  const withName = (fn) => {
+    if (state.myName) { fn(); return; }
+    setState({ nameAsk: fn, nameText: '' });
+  };
+  const saveName = (name) => {
+    setState({ myName: name });
+    if (sb) sb.auth.updateUser({ data: { name } }).catch(() => {});
+  };
+
+  const COLS = { basics: 'basics', lockedDateId: 'locked_date_id', day: 'day', vision: 'vision' };
+  const patch = (id, fields, after) => {
+    const row = {};
+    Object.keys(fields).forEach(k => { row[COLS[k] || k] = fields[k]; });
+    run(async () => { must(await sb.from('sparks').update(row).eq('id', id)); }, after);
+  };
+
+  const createDraft = () => withName(() => {
     const st = state;
-    const spark = {
-      id, text: cleanTitle(st.activity), vibe: cleanTitle(st.vibe),
-      bits: st.hopes.map(cleanTitle).filter(Boolean),
-      who: 'You', when: 'just now', hrs: 0, created: Date.now(), cat: 'events', answers: {}, draft: true,
-      leadName: 'You', basics: false, lockedDateId: null, rsvps: [], vision: null, offers: [],
-      spot: st.locMode === 'specific' ? cleanTitle(st.locText) : null, spotOpen: st.locMode === 'open',
+    const row = {
+      author_name: st.myName, text: cleanTitle(st.activity), vibe: cleanTitle(st.vibe) || null,
+      bits: st.hopes.map(cleanTitle).filter(Boolean), cat: 'events', answers: {},
+      lead_id: st.me, lead_name: st.myName,
+      spot: st.locMode === 'specific' ? cleanTitle(st.locText) : null, spot_open: st.locMode === 'open',
       day: st.whenMode === 'one'
         ? (st.timeOn && st.timeOne ? fmtDate(st.dateOne + 'T' + st.timeOne) : new Date(st.dateOne + 'T12:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }))
         : null,
-      dates: [],
-      minPeople: st.minPeople
+      min_people: st.minPeople
     };
-    setState({
-      sparks: st.sparks.concat([spark]), subjectId: id, qi: 0, adding: false, screen: flow(spark).length ? 'questions' : 'detail', tag: flow(spark).length ? null : 'It’s up',
-      activity: '', vibe: '', hopes: [], locMode: 'specific', locText: '', whenMode: 'one', dateOne: '', timeOne: '', timeOn: false, minPeople: 0
+    let id = null;
+    run(async () => { id = must(await sb.from('sparks').insert(row).select('id').single()).data.id; }, () => {
+      const hasQs = flow({ cat: row.cat }).length > 0;
+      return {
+        subjectId: id, qi: 0, adding: false, screen: hasQs ? 'questions' : 'detail', tag: hasQs ? null : 'It’s up',
+        activity: '', vibe: '', hopes: [], locMode: 'specific', locText: '', whenMode: 'one', dateOne: '', timeOne: '', timeOn: false, minPeople: 0
+      };
     });
-  };
+  });
 
   const answer = (key, value) => {
-    const sparks = state.sparks.map(s => s.id === state.subjectId
-      ? { ...s, answers: { ...s.answers, [key]: s.answers[key] === value ? undefined : value } }
-      : s);
-    setState({ sparks });
+    const s = subject();
+    if (!s) return;
+    const answers = { ...s.answers };
+    if (answers[key] === value) delete answers[key]; else answers[key] = value;
+    run(async () => { must(await sb.from('sparks').update({ answers }).eq('id', s.id)); });
   };
 
   const finish = () => {
     const adding = state.adding;
-    const sparks = state.sparks.map(s => s.id === state.subjectId ? { ...s, draft: false } : s);
-    setState({ sparks, screen: 'detail', qi: 0, step: 'activity', tag: adding ? 'Nice — added' : 'It’s up' });
+    setState({ screen: 'detail', qi: 0, step: 'activity', tag: adding ? 'Nice — added' : 'It’s up' });
     const sc = scroller();
     if (sc) sc.scrollTop = 0;
   };
@@ -281,15 +347,33 @@
     go('detail', { qi: 0, step: 'activity', activity: '', vibe: '', hopes: [], tag: 'It’s up' });
   };
 
+  const claimLead = (subj) => withName(() =>
+    run(async () => { must(await sb.rpc('claim_lead', { p_spark: subj.id, p_name: state.myName })); }, { claim: true }));
+
   const commitOffer = (subj) => {
     const kind = state.offerKind;
     const text = state.offerText.trim();
-    if (kind === 'date') { patch(subj.id, { dates: (subj.dates || []).concat([{ id: 'd' + Date.now(), label: fmtDate(text) }]) }, { offerKind: null, offerText: '' }); return; }
-    if (kind === 'vision') { patch(subj.id, { vision: text }, { offerKind: null, offerText: '' }); return; }
-    const fields = { offers: (subj.offers || []).concat([{ who: 'You', line: kind === 'spot' ? 'offered a spot: ' + text : kind === 'day' ? 'floated a day: ' + text : 'can help: ' + text }]) };
-    if (kind === 'spot') fields.spot = text;
-    if (kind === 'day') fields.day = text;
-    patch(subj.id, fields, { offerKind: null, offerText: '' });
+    const done = { offerKind: null, offerText: '' };
+    if (kind === 'date') {
+      run(async () => { must(await sb.from('date_options').insert({ spark_id: subj.id, label: fmtDate(text) })); }, done);
+      return;
+    }
+    if (kind === 'vision') { patch(subj.id, { vision: text }, done); return; }
+    withName(() => run(async () => {
+      must(await sb.rpc('add_offer', { p_spark: subj.id, p_kind: kind, p_body: text, p_who: state.myName }));
+    }, done));
+  };
+
+  const submitRsvp = (subj) => {
+    const st = state;
+    const name = cleanTitle(st.rsvpName);
+    if (!st.myName) saveName(name);
+    run(async () => {
+      must(await sb.from('rsvps').upsert({
+        spark_id: subj.id, user_id: st.me, name, phone: st.rsvpPhone.trim(),
+        date_ids: st.rsvpNone ? [] : st.rsvpDates.slice(), none_work: st.rsvpNone
+      }, { onConflict: 'spark_id,user_id' }));
+    }, { rsvpOpen: false, tag: st.rsvpNone ? 'The lead will reach out' : 'You’re on the list' });
   };
 
   // ---------------------------------------------------------------------------
@@ -412,6 +496,7 @@
   // ---------------------------------------------------------------------------
 
   function countEvents() {
+    if (!state.loaded) return 'Loading ideas…';
     const n = state.sparks.filter(s => s.cat === 'events').length;
     return n + (n === 1 ? ' idea' : ' ideas') + ' so far';
   }
@@ -496,7 +581,13 @@
       '</div>' +
       '<div style="padding:16px 14px 22px;display:flex;flex-direction:column;gap:14px">' +
         cards.join('') +
-        (cards.length === 0
+        (cards.length === 0 && state.loaded && state.sparks.length === 0
+          ? '<div style="' + CARD + ';padding:22px 18px">' +
+              '<div style="font-size:17px;font-weight:800;letter-spacing:-.2px;color:#0d1117">No ideas yet.</div>' +
+              '<p style="margin:6px 0 0;font-size:15px;line-height:1.45;font-weight:500;color:#5c6270">Be the first to put one up — rough is fine.</p>' +
+            '</div>'
+          : '') +
+        (cards.length === 0 && state.sparks.length > 0
           ? '<div style="' + CARD + ';padding:22px 18px">' +
               '<div style="font-size:17px;font-weight:800;letter-spacing:-.2px;color:#0d1117">' + (state.cats.length > 1 ? 'Nothing in these piles yet.' : 'Nothing in this pile yet.') + '</div>' +
               '<div ' + on(() => setState({ cats: [] })) + ' style="margin-top:14px;display:inline-flex;border:1.5px solid #dcdfe6;border-radius:999px;padding:11px 16px;font-size:15px;font-weight:800;color:#0d1117;cursor:pointer">Show everything</div>' +
@@ -544,17 +635,19 @@
     if (subj.minPeople && !dates.length) facts.push(factRow('It’s a success with ' + subj.minPeople + ' or more.', 6));
 
     // Dates
-    const counted = dates.map((d, i) => ({ d, i, people: rsvps.filter(r => (r.dateIds || []).indexOf(d.id) > -1) }));
-    counted.sort((a, b) => b.people.length - a.people.length || a.i - b.i);
-    const top = counted.length ? counted[0].people.length : 0;
-    const tied = top > 0 && counted.filter(x => x.people.length === top).length > 1;
+    const counts = subj.counts || { going: 0, none_count: 0, dates: {} };
+    const counted = dates.map((d, i) => ({ d, i, n: (counts.dates || {})[d.id] || 0, people: rsvps.filter(r => (r.dateIds || []).indexOf(d.id) > -1) }));
+    counted.sort((a, b) => b.n - a.n || a.i - b.i);
+    const top = counted.length ? counted[0].n : 0;
+    const tied = top > 0 && counted.filter(x => x.n === top).length > 1;
     const lockedId = subj.lockedDateId;
-    const none = rsvps.filter(r => r.none);
-    const going = rsvps.filter(r => !r.none).length;
+    const none = rsvps.filter(r => r.none);          // names: only populated for the lead
+    const noneCount = counts.none_count || 0;
+    const going = counts.going || 0;
     const badge = (bg, ink, label) => '<span style="border-radius:999px;padding:3px 9px;background:' + bg + ';color:' + ink + ';font-size:11.5px;font-weight:800;letter-spacing:.4px;text-transform:uppercase">' + label + '</span>';
 
     const dateRows = counted.map((x, rank) => {
-      const cnt = x.people.length, isLocked = lockedId === x.d.id, isTop = cnt > 0 && cnt === top;
+      const cnt = x.n, isLocked = lockedId === x.d.id, isTop = cnt > 0 && cnt === top;
       const minP = subj.minPeople || 0, withLead = cnt + 1;
       const countLabel = (cnt === 0 ? 'Nobody yet' : cnt === 1 ? '1 can make it' : cnt + ' can make it') + (minP && withLead < minP ? ' · ' + (minP - withLead) + ' short of ' + minP : '');
       const barBg = isLocked ? '#0f7a3c' : isTop && !lockedId ? c.bar : '#c3c7cf';
@@ -672,13 +765,13 @@
           ? '<div style="' + CARD + ';padding:18px;display:flex;flex-direction:column;gap:12px">' +
               '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px">' +
                 '<div style="' + EYEBROW + '">' + (lockedId ? 'The date' : 'Dates on the table') + '</div>' +
-                '<div style="font-size:13px;font-weight:700;color:#6b7280">' + (rsvps.length === 0 ? 'No RSVPs yet' : going + ' in' + (none.length ? ' · ' + none.length + ' can’t make these' : '')) + '</div>' +
+                '<div style="font-size:13px;font-weight:700;color:#6b7280">' + (going + noneCount === 0 ? 'No RSVPs yet' : going + ' in' + (noneCount ? ' · ' + noneCount + ' can’t make these' : '')) + '</div>' +
               '</div>' +
               (subj.minPeople ? '<div style="margin-top:-4px;font-size:13.5px;font-weight:700;color:#454b55">Success is ' + subj.minPeople + ' or more, counting the lead</div>' : '') +
               dateRows.join('') +
-              (none.length
+              (noneCount
                 ? '<div style="border-top:1px solid #eff0f3;padding-top:12px;display:flex;flex-direction:column;gap:8px">' +
-                    '<div style="font-size:15px;font-weight:800;letter-spacing:-.2px;color:#0d1117">' + (none.length === 1 ? '1 interested, but none of these work' : none.length + ' interested, but none of these work') + '</div>' +
+                    '<div style="font-size:15px;font-weight:800;letter-spacing:-.2px;color:#0d1117">' + (noneCount === 1 ? '1 interested, but none of these work' : noneCount + ' interested, but none of these work') + '</div>' +
                     (youLead
                       ? '<div style="display:flex;flex-direction:column;gap:6px">' +
                           none.map(r =>
@@ -744,7 +837,7 @@
               '<div style="display:flex;flex-direction:column;gap:2px">' + checkpoints.join('') + '</div>' +
               (!subj.leadName
                 ? '<div style="display:flex;flex-direction:column;gap:10px">' +
-                    '<button type="button" class="hov-primary" ' + on(() => patch(subj.id, { leadName: 'You' }, { claim: true })) + ' style="' + PRIMARY + '">I’ll take the lead on this</button>' +
+                    '<button type="button" class="hov-primary" ' + on(() => claimLead(subj)) + ' style="' + PRIMARY + '">I’ll take the lead on this</button>' +
                     '<p style="margin:0;font-size:14px;line-height:1.45;font-weight:500;color:#5c6270">Leading isn’t doing it all yourself. It means somebody’s out front, so the idea doesn’t sit and wait.</p>' +
                   '</div>'
                 : '') +
@@ -1037,12 +1130,7 @@
         ? 'flex:0 0 22px;width:22px;height:22px;border-radius:7px;background:#5b4ae8;display:flex;align-items:center;justify-content:center'
         : 'flex:0 0 22px;width:22px;height:22px;border-radius:7px;border:1.5px solid #cfd3db;background:#fff';
       const optRow = (isOn) => 'display:flex;align-items:center;gap:12px;min-height:52px;padding:12px 14px;border-radius:14px;border:1.5px solid ' + (isOn ? '#5b4ae8' : '#e6e7eb') + ';background:' + (isOn ? '#f3f1fe' : '#fff') + ';cursor:pointer';
-      const rsvps = subj.rsvps || [];
-      const submit = () => {
-        if (!rsvpReady) return;
-        const entry = { name: cleanTitle(st.rsvpName), phone: st.rsvpPhone.trim(), dateIds: st.rsvpNone ? [] : st.rsvpDates.slice(), none: st.rsvpNone, mine: true };
-        patch(subj.id, { rsvps: rsvps.filter(r => !r.mine).concat([entry]) }, { rsvpOpen: false, tag: st.rsvpNone ? 'The lead will reach out' : 'You’re on the list' });
-      };
+      const submit = () => { if (rsvpReady) submitRsvp(subj); };
       out += '<div class="modal-scrim" style="z-index:26">' +
         '<div role="dialog" aria-modal="true" aria-labelledby="rsvp-h" style="position:relative;width:100%;max-width:340px;max-height:100%;overflow-y:auto;background:#fff;border-radius:22px;padding:22px 20px;display:flex;flex-direction:column;gap:12px;box-shadow:0 24px 60px rgba(15,18,25,.3)">' +
           modalClose(() => setState({ rsvpOpen: false })) +
@@ -1107,7 +1195,43 @@
         '</div>' +
       '</div>';
     }
+
+    if (st.nameAsk) {
+      const nameOk = st.nameText.trim().length > 0;
+      const close = () => setState({ nameAsk: null, nameText: '' });
+      const submit = () => {
+        if (!nameOk) return;
+        const then = st.nameAsk;
+        saveName(cleanTitle(st.nameText).slice(0, 40));
+        setState({ nameAsk: null, nameText: '' });
+        then();
+      };
+      out += '<div class="modal-scrim" data-scrim="' + reg(close) + '" style="z-index:30">' +
+        '<div role="dialog" aria-modal="true" aria-labelledby="name-h" style="position:relative;width:100%;max-width:330px;background:#fff;border-radius:22px;padding:22px 20px;display:flex;flex-direction:column;gap:12px;box-shadow:0 24px 60px rgba(15,18,25,.3);animation:popIn 260ms cubic-bezier(.22,.9,.28,1) both">' +
+          modalClose(close) +
+          '<h3 id="name-h" style="margin:0;padding-right:36px;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">What should we call you?</h3>' +
+          '<p style="margin:0;font-size:14.5px;line-height:1.45;font-weight:500;color:#6b7280">First name is fine. It shows next to what you post and offer.</p>' +
+          '<input class="fld" type="text" maxlength="40" autocomplete="given-name" aria-label="Your name" placeholder="Your name" value="' + esc(st.nameText) + '" ' +
+            onInput(e => setState({ nameText: e.target.value.slice(0, 40) })) + ' style="width:100%;' + FIELD + ';border-radius:14px;padding:13px 16px">' +
+          '<button type="button" ' + on(submit) + ' aria-disabled="' + !nameOk + '" style="' + smallBtn(nameOk, false) + '">Continue</button>' +
+        '</div>' +
+      '</div>';
+    }
+
+    if (st.toast) {
+      out += '<div role="status" style="position:absolute;left:16px;right:16px;bottom:calc(var(--nav-h) + 12px);z-index:40;display:flex;justify-content:center;pointer-events:none">' +
+        '<div style="background:#0d1117;color:#fff;border-radius:14px;padding:12px 16px;font-size:14.5px;font-weight:700;box-shadow:0 12px 30px rgba(15,18,25,.3);animation:popIn 240ms cubic-bezier(.22,.9,.28,1) both">' + esc(st.toast) + '</div>' +
+      '</div>';
+    }
     return out;
+  }
+
+  function viewProblem() {
+    if (!state.error) return '';
+    const msg = state.error === 'config'
+      ? 'Sparks isn’t connected to its database yet.'
+      : 'Couldn’t load ideas. Check your connection, then refresh.';
+    return '<div role="alert" style="margin:12px 14px 0;background:#fdeef0;border:1.5px solid #f5c2cb;border-radius:14px;padding:12px 14px;font-size:14.5px;line-height:1.4;font-weight:700;color:#9b1c31">' + msg + '</div>';
   }
 
   function viewNav() {
@@ -1131,7 +1255,8 @@
     else if (screen === 'browse') main = viewBrowse();
     else if (screen === 'how') main = viewHow();
     else if (subj && screen === 'detail') main = viewDetail(subj);
-    return '<div class="scroller">' + main + '</div>' +
+    else if (screen === 'detail' && state.loaded) main = viewHome();
+    return '<div class="scroller">' + viewProblem() + main + '</div>' +
       (screen === 'compose' ? viewCompose() : '') +
       (screen === 'questions' && subj && flow(subj).length ? viewQuestions(subj) : '') +
       viewModals(subj) +
@@ -1224,6 +1349,7 @@
 
   root.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
+      if (state.nameAsk) return setState({ nameAsk: null, nameText: '' });
       if (state.offerKind) return setState({ offerKind: null, offerText: '' });
       if (state.rsvpOpen) return setState({ rsvpOpen: false });
       if (state.claim) return setState({ claim: false });
@@ -1254,8 +1380,39 @@
     if (fn) fn(e);
   });
 
-  // Refresh relative timestamps once a minute
-  setInterval(() => { if (!document.activeElement || !isField(document.activeElement)) render(); }, 60000);
+  // ---------------------------------------------------------------------------
+  // Boot
+  // ---------------------------------------------------------------------------
 
+  window.addEventListener('popstate', () => {
+    setState(Object.assign({ menu: null, offerKind: null, rsvpOpen: false, claim: false, leadInfo: false, nameAsk: null }, fromHash()));
+  });
+
+  const refresh = () => {
+    if (!state.me || state.busy || document.hidden) return;
+    loadAll().catch(e => console.error(e));
+  };
+  document.addEventListener('visibilitychange', refresh);
+  setInterval(refresh, 30000);   // picks up other people's posts and RSVPs; also ages "x minutes ago"
+
+  async function init() {
+    if (!sb) { setState({ error: 'config', loaded: true }); return; }
+    try {
+      let { data: { session } } = await sb.auth.getSession();
+      if (!session) {
+        const res = must(await sb.auth.signInAnonymously());
+        session = res.data.session;
+      }
+      const meta = session.user.user_metadata || {};
+      setState({ me: session.user.id, myName: state.myName || meta.name || '' });
+      await loadAll();
+    } catch (e) {
+      console.error(e);
+      setState({ error: 'load', loaded: true });
+    }
+  }
+
+  Object.assign(state, fromHash());
   render();
+  init();
 })();
