@@ -28,4 +28,6 @@ npx serve .
 
 ## Deploy
 
-Pushes to `main` deploy automatically through Vercel's GitHub integration.
+Live at **https://torrezhub.vercel.app**. Pushes to `main` deploy automatically through Vercel's GitHub integration.
+
+The Supabase project needs **Authentication → Sign In / Providers → Allow anonymous sign-ins** turned on.
