@@ -5,7 +5,7 @@
 - **Live:** https://torrezhub.vercel.app (open it on a phone)
 - **Source:** github.com/esshaughn/torrezhub (`index.html`, `js/sparks.js`, `css/sparks.css`)
 - **Baseline:** `design_handoff_sparks_walktober_v2/Walktober App v2.dc.html` + its README, from "Spark Torrez - Full Site 2.zip"
-- **As of:** 2026-09-24
+- **As of:** 2026-09-24 (reviewed after the audit and tests)
 
 Everything in the v2 README is built as specified, except what's listed below. Where this doc and the v2 files disagree, **this doc is correct**.
 
@@ -57,11 +57,16 @@ The v2 README says to keep the live placeholders for loading, error and empty st
 - **Text-code sign-in is built but switched off.** The Profile's "Keep your ideas" card and the name pop-up's "Been here before? Sign in" link are hidden until an SMS provider (e.g. Twilio) is connected to Supabase. That's an owner/billing decision, not a design one. Everything else on the Profile screen works.
 - **"How this works" body copy** is still placeholder Latin (the heading is final).
 
+### Design file housekeeping
+
+The v2 `.dc.html` still contains screens that nothing in it can reach, and the build has now deleted them: the **"A few quick ones"** follow-up questions screen, the **category filter** menu, and the **"Holding an idea"** pop-up (its link left in v2). Worth removing from the design file too, so they don't come back by accident.
+
 ## 5. Open questions for the next round
 
 1. **Telling the lead about new RSVPs and offers.** Nothing notifies them. They have to open the app. (Marked out of scope in v2.)
 2. **Spam and moderation.** Anyone with the link can post. Is there a report or hide action, or an admin view for Torrez staff? (Marked out of scope in v2.)
 3. **Adding date options once a day is set.** The design only offers "Add a date option" when no day is picked. So an idea posted with a date can't later put alternatives up for a vote unless the day is cleared, and nothing clears a day. Intended?
+4. **After Walktober.** The date pickers (posting and "Add a date option") only allow October 2026, per v2. From November, nobody can pick a date. Is Sparks Walktober-only, or should it carry on? If so, what happens to the Walktober hero card and the gold "Walktober" styling?
 
 ## 6. Design tokens: unchanged
 
