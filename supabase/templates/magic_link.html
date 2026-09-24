@@ -1,21 +1,29 @@
 <!doctype html>
 <html lang="en">
-  <head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Your Spark Hub sign-in code</title></head>
-  <body style="margin:0;padding:0;background:#f4f5f8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0d1117">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f5f8;padding:32px 16px">
-      <tr><td align="center">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:440px;background:#ffffff;border-radius:20px;padding:32px 28px">
-          <tr><td style="font-size:13px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#5b4ae8">Spark Hub</td></tr>
-          <tr><td style="padding-top:14px;font-size:24px;line-height:1.2;font-weight:900;color:#0d1117">Your sign-in code</td></tr>
-          <tr><td style="padding-top:12px;font-size:15px;line-height:1.55;color:#454b55">Hi there,</td></tr>
-          <tr><td style="padding-top:8px;font-size:15px;line-height:1.55;color:#454b55">You asked to sign in to Spark Hub. Type this code into the Spark Hub page you have open:</td></tr>
-          <tr><td style="padding:18px 0;font-size:36px;font-weight:900;letter-spacing:8px;color:#0d1117">{{ .Token }}</td></tr>
-          <tr><td style="font-size:15px;line-height:1.55;color:#454b55">The code works for one hour. There’s no password to remember: next time you sign in, we’ll send a new code.</td></tr>
-          <tr><td style="padding-top:12px;font-size:15px;line-height:1.55;color:#454b55">If you didn’t ask for this, you can ignore this email. Nobody can sign in without the code, and nothing changes on your account.</td></tr>
-          <tr><td style="padding-top:22px;border-bottom:1px solid #eceef2"></td></tr>
-          <tr><td style="padding-top:18px;font-size:12.5px;line-height:1.5;color:#8a909c">Spark Hub is where groups post and plan things to do together. You’re getting this one-time email because someone entered {{ .Email }} on Spark Hub to sign in. We only email you when you ask for a code.</td></tr>
-        </table>
-      </td></tr>
-    </table>
-  </body>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Your Spark Hub sign-in code</title></head>
+<body style="margin:0;padding:0;background:#f1f2f5;font-family:Figtree,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#454b55">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent">Your code is {{ .Token }}. Enter it in the app to finish signing in.</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f1f2f5;padding:36px 16px">
+<tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:544px">
+<tr><td style="background:#ffffff;border-radius:20px;padding:32px 30px 30px">
+<table role="presentation" cellpadding="0" cellspacing="0"><tr>
+<td style="padding-right:6px;font-size:16px;line-height:16px;color:#e8a71c">&#9889;</td>
+<td style="font-size:12.5px;font-weight:800;letter-spacing:1.3px;text-transform:uppercase;color:#5b4ae8">Spark Hub</td>
+</tr></table>
+<div style="margin-top:14px;font-size:28px;line-height:1.1;font-weight:900;letter-spacing:-.7px;color:#0d1117">Your sign-in code</div>
+<p style="margin:14px 0 0;font-size:16px;line-height:1.55;font-weight:500;color:#454b55">Hi there,</p>
+<p style="margin:8px 0 0;font-size:16px;line-height:1.55;font-weight:500;color:#454b55">Someone asked to sign in to Spark Hub with this email address. If that was you, enter this code in the app:</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:20px"><tr>
+<td align="center" style="background:#f3f1fe;border-radius:16px;padding:20px;font-size:36px;line-height:1;font-weight:900;letter-spacing:8px;color:#0d1117">{{ .Token }}</td>
+</tr></table>
+<p style="margin:20px 0 0;font-size:15px;line-height:1.55;font-weight:500;color:#454b55">There’s no password to remember. Each time you sign in, we send a fresh code.</p>
+<div style="margin-top:22px;padding-top:18px;border-top:1px solid #eceef2;font-size:14.5px;line-height:1.55;font-weight:500;color:#5c6270">Didn’t ask for this? You can ignore this email. Nobody can sign in without the code.</div>
+</td></tr>
+<tr><td style="padding:18px 8px 0;font-size:12.5px;line-height:1.55;font-weight:500;color:#6b7280">Spark Hub is where groups post ideas for things to do together and turn them into plans. We only email you when you ask for a sign-in code.</td></tr>
+<tr><td style="padding:6px 8px 0;font-size:12.5px;line-height:1.55;font-weight:500;color:#6b7280">Spark Hub &middot; <a href="{{ .SiteURL }}/privacy.html" style="color:#6b7280;text-decoration:underline">Privacy</a></td></tr>
+</table>
+</td></tr>
+</table>
+</body>
 </html>

@@ -1,15 +1,16 @@
-// Shared helpers for driving Sparks the way a member would.
-const { expect } = require('@playwright/test');
+// Shared helpers for driving Spark Hub the way a member would.
+const { expect, devices } = require('@playwright/test');
 
-// A 64×48 solid PNG, generated once. Enough for the app's resize-and-upload path.
+// A 64×48 solid PNG. Enough for the app's resize-and-upload path.
 const PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAEAAAAAwCAIAAAAuKetIAAAAZElEQVR4nO3PUQkAIBTAwBfE/lYzhiH8OITBAtzm7PV1wwUNaEEDWtCAFjSgBQ1oQQNa0IAWNKAFDWhBA1rQgBY0oAUNaEEDWtCAFjSgBQ1oQQNa0IAWNKAFDWhBA1rQgBY8dgFOWQUt++DHBwAAAABJRU5ErkJggg==',
   'base64'
 );
 
-// Every idea a test creates starts with this, so a failed run's leftovers are easy to spot and sweep.
+// Everything a test creates starts with this, so a failed run's leftovers are easy to sweep
 const TAG = '[E2E]';
 const uniqueTitle = (label) => `${TAG} ${label} ${Date.now().toString(36)}`;
+const TORREZ = 'TORREZ';   // the Torrez Fitness group's join code (test leads are members)
 
 // Location suggestions come from Geoapify. Tests never call the real service
 // (it has a daily limit); they get these two Austin places for any search.
@@ -26,38 +27,7 @@ async function mockPlaces(target) {
   return seen;
 }
 
-// Fresh member: new browser context = new localStorage = new anonymous identity.
-async function newMember(browser) {
-  const context = await browser.newContext({ ...require('@playwright/test').devices['Pixel 7'] });
-  context.placeRequests = await mockPlaces(context);
-  const page = await context.newPage();
-  const errors = trackErrors(page);
-  await page.goto('/');
-  await expectConnected(page, errors);
-  return { context, page, errors };
-}
-
-// Signed-in lead: posting needs a real account. The test project has two
-// password accounts for this (the app itself only offers email codes; tests
-// can't read an inbox). Password comes from tests/.env or the CI secret.
-async function newLead(browser, n, name) {
-  const password = process.env.E2E_LEAD_PASSWORD;
-  if (!password) throw new Error('E2E_LEAD_PASSWORD is not set (tests/.env locally, a repo secret on CI)');
-  const m = await newMember(browser);
-  const err = await asUser(m.page, async (c, _C, { email, password, name }) => {
-    const r = await c.auth.signInWithPassword({ email, password });
-    if (r.error) return r.error.message;
-    const u = await c.auth.updateUser({ data: { name, display_name: name } });
-    return u.error ? u.error.message : null;
-  }, { email: `e2e-lead-${n}@example.com`, password, name });
-  if (err) throw new Error('Lead sign-in failed: ' + err);
-  await m.page.reload();
-  await expectConnected(m.page, m.errors);
-  return m;
-}
-
 // Collects console errors, uncaught exceptions and failed requests so a test can assert "no errors".
-// (security.spec.js makes forbidden calls on purpose, so it doesn't assert on these.)
 function trackErrors(page) {
   const errors = [];
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
@@ -66,19 +36,55 @@ function trackErrors(page) {
   return errors;
 }
 
-// The app is up and talking to the TEST database (not just showing "0 ideas so far" offline).
+// The app has loaded its data from the TEST database, with no error banner
 async function expectConnected(page, errors) {
-  await expect(page.getByText(/\d+ ideas? so far/).first()).toBeVisible();
+  await expect(page.locator('html[data-loaded=true]')).toHaveCount(1);
   if (errors && errors.length) throw new Error('Page errors while loading: ' + errors.join(' | '));
-  await expect(page.getByRole('alert')).toHaveCount(0);
+  await expect(page.getByText('Couldn’t load ideas')).toHaveCount(0);
   expect(await page.evaluate(() => !!window.supabase && window.SPARKS_CONFIG.env)).toBe('test');
+}
+
+// Fresh visitor: new browser context = new localStorage = new anonymous identity
+async function newMember(browser, path) {
+  const context = await browser.newContext({ ...devices['Pixel 7'] });
+  context.placeRequests = await mockPlaces(context);
+  const page = await context.newPage();
+  const errors = trackErrors(page);
+  await page.goto(path || '/');
+  await expectConnected(page, errors);
+  return { context, page, errors };
+}
+
+// Signed-in lead. The test project has two password accounts for this (the app
+// itself only offers email codes and Google; tests can't read an inbox).
+// Password comes from tests/.env or the CI secret. Both are Torrez Fitness members.
+async function newLead(browser, n, name, path) {
+  const password = process.env.E2E_LEAD_PASSWORD;
+  if (!password) throw new Error('E2E_LEAD_PASSWORD is not set (tests/.env locally, a repo secret on CI)');
+  const m = await newMember(browser);
+  const err = await asUser(m.page, async (c, _C, { email, password, name }) => {
+    const r = await c.auth.signInWithPassword({ email, password });
+    if (r.error) return r.error.message;
+    const me = r.data.user.id;
+    const u = await c.auth.updateUser({ data: { name, display_name: name } });
+    if (u.error) return u.error.message;
+    const p = await c.rpc('rename_me', { p_name: name });
+    return p.error ? p.error.message : null;
+  }, { email: `e2e-lead-${n}@example.com`, password, name });
+  if (err) throw new Error('Lead sign-in failed: ' + err);
+  // Start each test in Torrez Fitness, the group every test lead belongs to
+  const torrez = await asUser(m.page, async (c) => (await c.from('groups').select('id').eq('name', 'Torrez Fitness').single()).data.id);
+  await m.page.evaluate((id) => localStorage.setItem('spark-hub-prefs', JSON.stringify({ groupId: id })), torrez);
+  await m.page.goto(path || '/');
+  await expectConnected(m.page, m.errors);
+  return m;
 }
 
 const button = (page, name) => page.getByRole('button', { name, exact: true });
 
-// Post an idea through the whole flow. Returns the new idea's id (from the URL).
-async function postIdea(page, { title, location, date, time, hopes = [], photo = false, name }) {
-  await button(page, 'Post an idea').click();
+// Post an idea through the whole flow into the current group. Returns its id.
+async function postIdea(page, { title, location, pick, date, time, basics = [], photo = false, name }) {
+  await page.getByRole('button', { name: 'Post an idea' }).click();
   await expect(page.getByRole('heading', { name: 'What’s the event?' })).toBeVisible();
   await page.getByLabel('The event').fill(title);
   await button(page, 'Next').click();
@@ -86,6 +92,7 @@ async function postIdea(page, { title, location, date, time, hopes = [], photo =
   await expect(page.getByRole('heading', { name: 'Location' })).toBeVisible();
   if (location) {
     await page.getByLabel('Location').fill(location);
+    if (pick) await page.getByRole('group', { name: 'Suggested places' }).getByRole('button', { name: new RegExp(pick) }).click();
     await button(page, 'Next').click();
   } else {
     await button(page, 'Decide location later').click();
@@ -95,7 +102,7 @@ async function postIdea(page, { title, location, date, time, hopes = [], photo =
   if (date) {
     await page.getByLabel('Date', { exact: true }).fill(date);
     if (time) {
-      await button(page, 'Add time').click();
+      await page.getByRole('button', { name: 'Add time' }).click();
       await page.getByLabel('Time', { exact: true }).selectOption(time);
     }
     await button(page, 'Next').click();
@@ -104,9 +111,7 @@ async function postIdea(page, { title, location, date, time, hopes = [], photo =
   }
 
   await expect(page.getByRole('heading', { name: 'Paint the picture' })).toBeVisible();
-  for (let i = 0; i < hopes.length; i++) {
-    await page.getByLabel(`Dream version, line ${i + 1}`).fill(hopes[i]);
-  }
+  for (let i = 0; i < basics.length; i++) await page.getByLabel(`The basics, line ${i + 1}`).fill(basics[i]);
   await button(page, 'Next').click();
 
   await expect(page.getByRole('heading', { name: 'Add a photo' })).toBeVisible();
@@ -122,7 +127,7 @@ async function postIdea(page, { title, location, date, time, hopes = [], photo =
   await button(page, 'Put it up').click();
   if (name) await answerNamePrompt(page, name);
 
-  await expect(page.locator('[data-screen-label=Detail]')).toBeVisible();
+  await expect(page.locator('[data-screen-label="Idea page"]')).toBeVisible();
   await expect(page.getByText('It’s up')).toBeVisible();
   return ideaIdFromUrl(page);
 }
@@ -133,6 +138,15 @@ async function answerNamePrompt(page, name) {
   await button(page, 'Continue').click();
 }
 
+async function answerGuestPrompt(page, name, phone) {
+  const d = page.getByRole('dialog', { name: 'Your info' });
+  await expect(d).toBeVisible();
+  await d.getByLabel('Your name').fill(name);
+  await d.getByLabel('Phone number').fill(phone);
+  await d.getByRole('button', { name: 'Continue', exact: true }).click();
+  await expect(d).toBeHidden();
+}
+
 function ideaIdFromUrl(page) {
   const m = page.url().match(/#\/idea\/([0-9a-f-]{36})$/);
   if (!m) throw new Error('Not on an idea page: ' + page.url());
@@ -141,7 +155,7 @@ function ideaIdFromUrl(page) {
 
 async function openIdea(page, id) {
   await page.goto('/#/idea/' + id);
-  await expect(page.locator('[data-screen-label=Detail]')).toBeVisible();
+  await expect(page.locator('[data-screen-label="Idea page"]')).toBeVisible();
 }
 
 // Confirm dialogs: click the action, then the confirm button in the dialog.
@@ -152,10 +166,10 @@ async function confirm(page, cta) {
   await expect(dialog).toBeHidden();
 }
 
-// Delete an idea as its lead (cleanup).
+// Delete an idea as its lead (cleanup)
 async function deleteIdea(page, id) {
   await openIdea(page, id);
-  await button(page, 'Edit').click();
+  await page.locator('[data-screen-label="Idea page"]').getByRole('button', { name: 'Edit' }).first().click();
   await button(page, 'Delete this idea').click();
   await confirm(page, 'Delete it');
   await expect(page.locator('[data-screen-label=Browse]')).toBeVisible();
@@ -176,4 +190,7 @@ async function asUser(page, fn, args) {
   }, { src: fn.toString(), args });
 }
 
-module.exports = { mockPlaces, TAG, expectConnected, uniqueTitle, newMember, newLead, trackErrors, button, postIdea, answerNamePrompt, ideaIdFromUrl, openIdea, confirm, deleteIdea, asUser, PNG };
+module.exports = {
+  TAG, TORREZ, PNG, uniqueTitle, mockPlaces, trackErrors, expectConnected, newMember, newLead, button,
+  postIdea, answerNamePrompt, answerGuestPrompt, ideaIdFromUrl, openIdea, confirm, deleteIdea, asUser
+};

@@ -1,4 +1,4 @@
-/* Sparks — Torrez Fitness · Walktober
+/* Spark Hub
    Most component styling is inline (ported 1:1 from the design file);
    this sheet holds the frame, pseudo-states and anything inline styles can't express. */
 
@@ -19,6 +19,8 @@ a:hover { color: #4a3ad4; }
 
 button { -webkit-appearance: none; appearance: none; }
 textarea { font-family: inherit; }
+
+@keyframes skPulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
 
 @keyframes popIn {
   from { opacity: 0; transform: translateY(10px) scale(.96); }
@@ -75,6 +77,9 @@ input::placeholder, textarea::placeholder { color: #b9bcc4; font-weight: 400; fo
 .hov-primary:hover { background: #4a3ad4 !important; }
 .hov-outline:hover { border-color: #5b4ae8 !important; color: #5b4ae8 !important; }
 .hov-dash:hover { border-color: #5b4ae8 !important; }
+.hov-tint:hover { background: #f3f1fe !important; }
+.hov-row:hover { background: #f7f7f9 !important; }
+.hov-grey:hover { border-color: #b9bcc4 !important; }
 .fld:focus { border-color: #5b4ae8 !important; }
 
 [data-on] { cursor: pointer; }

@@ -1,131 +1,152 @@
 // The database rules hold even if someone skips the app and calls Supabase directly.
-// These call the API the way a curious member could, from their own session.
+// These call the API the way a curious visitor or member could, from their own session.
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newLead, postIdea, deleteIdea, asUser } = require('./helpers');
+const { uniqueTitle, newMember, newLead, asUser } = require('./helpers');
 
-test('database refuses what the app never allows', async ({ browser }) => {
-  const lead = await newLead(browser, 1, 'Owner');
-  const other = await newLead(browser, 2, 'Other');   // a different signed-in lead
-  const title = uniqueTitle('Security');
-  let id;
+const uid = (page) => asUser(page, async (c) => (await c.auth.getUser()).data.user.id);
 
+test('groups, idea links, guests and leads: the database refuses what the app never allows', async ({ browser }) => {
+  const lead = await newLead(browser, 1, 'Owner');      // runs a private group
+  const other = await newLead(browser, 2, 'Other');     // signed in, but not in that group
+  const anon = await newMember(browser);                // a visitor
+  const L = lead.page, O = other.page, A = anon.page;
+  let group, sparkId;
   try {
-    id = await postIdea(lead.page, { title });
+    const leadUid = await uid(L), otherUid = await uid(O);
 
-    // Add a date option and a pending spot offer so there's something to attack
-    const dateId = await asUser(lead.page, async (c, _C, id) =>
-      (await c.from('date_options').insert({ spark_id: id, label: 'Sat, Oct 10, 6pm' }).select('id').single()).data.id, id);
-    const offerStatus = await asUser(other.page, async (c, _C, id) =>
-      (await c.rpc('add_offer', { p_spark: id, p_kind: 'spot', p_body: 'Somewhere', p_who: 'Other' })).data, id);
-    expect(offerStatus).toBe('pending');
+    // A private group with one idea in it
+    group = await asUser(L, async (c, _C, name) => (await c.rpc('create_group', { p_name: name })).data[0], uniqueTitle('private'));
+    expect(group.code).toMatch(/^[A-HJ-NP-Z2-9]{6}$/);
+    sparkId = await asUser(L, async (c, _C, { g, me }) => {
+      const r = await c.from('sparks').insert({ group_id: g, author_name: 'Owner', lead_name: 'Owner', lead_id: me, created_by: me, text: '[E2E] secret plan' }).select('id').single();
+      return r.error ? r.error.message : r.data.id;
+    }, { g: group.id, me: leadUid });
+    expect(sparkId).toMatch(/^[0-9a-f-]{36}$/);
 
-    // --- A non-lead can't take over or tamper -------------------------------
-    const nonLead = await asUser(other.page, async (c, _C, { id, dateId }) => {
-      const pending = (await c.from('offers').select('id').eq('spark_id', id).eq('status', 'pending')).data;
+    // --- Not in the group: nothing shows, nothing can be posted there -----------
+    const outsider = await asUser(O, async (c, _C, { g, id, me }) => ({
+      sparks: (await c.from('sparks').select('id').eq('id', id)).data.length,
+      groups: (await c.from('groups').select('id').eq('id', g)).data.length,
+      post: (await c.from('sparks').insert({ group_id: g, author_name: 'x', lead_name: 'x', lead_id: me, created_by: me, text: '[E2E] sneak' })).error ? 'refused' : 'ALLOWED',
+      selfJoin: (await c.from('memberships').insert({ group_id: g, user_id: me, role: 'admin' })).error ? 'refused' : 'ALLOWED',
+      code: (await c.rpc('group_code', { p_group: g })).data,
+      members: (await c.rpc('member_count', { p_group: g })).data,
+      offer: (await c.rpc('add_offer', { p_spark: id, p_kind: 'spot', p_body: 'x', p_who: 'x' })).error ? 'refused' : 'ALLOWED',
+      interest: (await c.from('interests').insert({ spark_id: id, user_id: me })).error ? 'refused' : 'ALLOWED'
+    }), { g: group.id, id: sparkId, me: otherUid });
+    expect(outsider).toEqual({ sparks: 0, groups: 0, post: 'refused', selfJoin: 'refused', code: null, members: null, offer: 'refused', interest: 'refused' });
+
+    // The admin gets the code and the head count
+    const admin = await asUser(L, async (c, _C, g) => ({
+      code: (await c.rpc('group_code', { p_group: g })).data,
+      members: (await c.rpc('member_count', { p_group: g })).data,
+      codeColumn: (await c.from('groups').select('code').eq('id', g)).error ? 'refused' : 'READABLE'
+    }), group.id);
+    expect(admin).toEqual({ code: group.code, members: 1, codeColumn: 'refused' });
+
+    // --- A visitor with no link sees nothing; with the idea's link, just that idea --
+    const before = await asUser(A, async (c, _C, id) => ({
+      sparks: (await c.from('sparks').select('id').eq('id', id)).data.length,
+      bogusLink: (await c.rpc('open_idea', { p_spark: '00000000-0000-0000-0000-000000000000' })).data
+    }), sparkId);
+    expect(before).toEqual({ sparks: 0, bogusLink: false });
+
+    const withLink = await asUser(A, async (c, _C, { id, g }) => {
+      const opened = (await c.rpc('open_idea', { p_spark: id })).data;
+      const me = (await c.auth.getUser()).data.user.id;
+      return {
+        opened,
+        idea: (await c.from('sparks').select('text').eq('id', id)).data.map(r => r.text),
+        otherIdeas: (await c.from('sparks').select('id').neq('id', id)).data.length,
+        group: (await c.from('groups').select('name').eq('id', g)).data.length,
+        post: (await c.from('sparks').insert({ group_id: g, author_name: 'x', lead_name: 'x', lead_id: me, created_by: me, text: '[E2E] anon' })).error ? 'refused' : 'ALLOWED',
+        joinGroup: (await c.rpc('join_group', { p_code: 'TORREZ' })).error ? 'refused' : 'ALLOWED',
+        startGroup: (await c.rpc('create_group', { p_name: '[E2E] anon group' })).error ? 'refused' : 'ALLOWED',
+        contact: (await c.from('guest_contacts').insert({ spark_id: id, user_id: me, name: 'Gus', phone: '512 555 0142' })).error ? 'refused' : 'saved',
+        shortPhone: (await c.from('guest_contacts').upsert({ spark_id: id, user_id: me, name: 'Gus', phone: '555' })).error ? 'refused' : 'ALLOWED'
+      };
+    }, { id: sparkId, g: group.id });
+    expect(withLink).toEqual({ opened: true, idea: ['[E2E] secret plan'], otherIdeas: 0, group: 1, post: 'refused', joinGroup: 'refused', startGroup: 'refused', contact: 'saved', shortPhone: 'refused' });
+
+    // Guest phone numbers: the lead sees them, other people don't
+    const leadSees = await asUser(L, async (c, _C, id) => (await c.from('guest_contacts').select('phone').eq('spark_id', id)).data.map(r => r.phone), sparkId);
+    expect(leadSees).toEqual(['512 555 0142']);
+    const anon2 = await newMember(browser);
+    const otherSees = await asUser(anon2.page, async (c, _C, id) => {
+      await c.rpc('open_idea', { p_spark: id });
+      return (await c.from('guest_contacts').select('phone').eq('spark_id', id)).data.length;
+    }, sparkId);
+    expect(otherSees).toBe(0);
+    await anon2.context.close();
+
+    // --- Someone who isn't the lead can't change or decide anything ----------------
+    const notLead = await asUser(A, async (c, _C, id) => {
+      await c.rpc('add_offer', { p_spark: id, p_kind: 'spot', p_body: 'Somewhere', p_who: 'Gus' });
+      const pending = (await c.from('offers').select('id,status').eq('spark_id', id)).data;
       const upd = await c.from('sparks').update({ text: 'hacked' }).eq('id', id).select();
       const del = await c.from('sparks').delete().eq('id', id).select();
       return {
+        offerStatus: pending.map(p => p.status),
         update: upd.error ? 'refused' : upd.data.length + ' rows',
         delete: del.error ? 'refused' : del.data.length + ' rows',
-        resolveOffer: (await c.rpc('resolve_offer', { p_offer: pending[0].id, p_accept: true })).error ? 'refused' : 'ALLOWED',
-        removeDate: (await c.rpc('remove_date_option', { p_date: dateId })).error ? 'refused' : 'ALLOWED',
-        stepBack: (await c.rpc('step_back', { p_spark: id })).error ? 'refused' : 'ALLOWED',        // function removed
-        claimLead: (await c.rpc('claim_lead', { p_spark: id, p_name: 'Other' })).error ? 'refused' : 'ALLOWED',  // function removed
-        addDate: (await c.from('date_options').insert({ spark_id: id, label: 'x' })).error ? 'refused' : 'ALLOWED'
+        resolve: (await c.rpc('resolve_offer', { p_offer: pending[0].id, p_accept: true })).error ? 'refused' : 'ALLOWED',
+        badDay: (await c.rpc('add_offer', { p_spark: id, p_kind: 'day', p_body: 'next tuesday', p_who: 'Gus' })).error ? 'refused' : 'ALLOWED',
+        applyDay: (await c.rpc('apply_day', { p_spark: id, p_body: '2026-10-10' })).error ? 'refused' : 'ALLOWED',
+        removed: (await c.rpc('rsvp_counts')).error && (await c.rpc('claim_lead', { p_spark: id, p_name: 'x' })).error ? 'gone' : 'STILL THERE'
       };
-    }, { id, dateId });
-    expect(nonLead).toEqual({
-      update: '0 rows', delete: '0 rows', resolveOffer: 'refused', removeDate: 'refused',
-      stepBack: 'refused', claimLead: 'refused', addDate: 'refused'
-    });
+    }, sparkId);
+    expect(notLead).toEqual({ offerStatus: ['pending'], update: '0 rows', delete: '0 rows', resolve: 'refused', badDay: 'refused', applyDay: 'refused', removed: 'gone' });
 
-    // --- Even the lead can only edit the fields the app edits ------------------
-    const leadLimits = await asUser(lead.page, async (c, _C, id) => {
+    // --- Even the lead can only edit what the app edits ------------------------------
+    const leadLimits = await asUser(L, async (c, _C, { id, otherUid }) => {
       const r = async (q) => ((await q).error ? 'refused' : 'ALLOWED');
       return {
         authorName: await r(c.from('sparks').update({ author_name: 'Impostor' }).eq('id', id)),
         createdBy: await r(c.from('sparks').update({ created_by: null }).eq('id', id)),
-        photos: await r(c.from('sparks').update({ photos: [] }).eq('id', id)),
         leadId: await r(c.from('sparks').update({ lead_id: null }).eq('id', id)),
-        spotAddress: await r(c.from('sparks').update({ spot_address: 'Somewhere else' }).eq('id', id)),
-        text: await r(c.from('sparks').update({ text: 'Allowed edit' }).eq('id', id))
+        group: await r(c.from('sparks').update({ group_id: '00000000-0000-0000-0000-000000000000' }).eq('id', id)),
+        photos: await r(c.from('sparks').update({ photos: [] }).eq('id', id)),
+        someoneElsesMood: await r(c.from('sparks').update({ mood: [otherUid + '/' + crypto.randomUUID() + '.jpg'] }).eq('id', id)),
+        oddMood: await r(c.from('sparks').update({ mood: ['x.jpg'] }).eq('id', id)),
+        text: await r(c.from('sparks').update({ text: '[E2E] secret plan, edited' }).eq('id', id)),
+        dayAndPlace: await r(c.from('sparks').update({ day_date: '2026-10-10', day_time: '09:00', spot: 'Zilker', spot_address: 'Austin, TX' }).eq('id', id))
       };
-    }, id);
-    expect(leadLimits).toEqual({ authorName: 'refused', createdBy: 'refused', photos: 'refused', leadId: 'refused', spotAddress: 'refused', text: 'ALLOWED' });
+    }, { id: sparkId, otherUid });
+    expect(leadLimits).toEqual({ authorName: 'refused', createdBy: 'refused', leadId: 'refused', group: 'refused', photos: 'refused', someoneElsesMood: 'refused', oddMood: 'refused', text: 'ALLOWED', dayAndPlace: 'ALLOWED' });
 
-    // --- Every idea has a lead, and it's whoever posts it ---------------------------
-    const leadRule = await asUser(other.page, async (c, _C, { leadUid }) => {
-      const me = (await c.auth.getUser()).data.user.id;
-      const tryInsert = async (lead_id) => {
-        const res = await c.from('sparks').insert({ author_name: 'Other', text: '[E2E] lead rule', lead_id, lead_name: 'Other' }).select('id').single();
-        if (!res.error) await c.from('sparks').delete().eq('id', res.data.id);
-        return res.error ? 'refused' : 'ALLOWED';
-      };
-      return { noLead: await tryInsert(null), someoneElse: await tryInsert(leadUid), yourself: await tryInsert(me) };
-    }, { leadUid: await asUser(lead.page, async (c) => (await c.auth.getUser()).data.user.id) });
-    expect(leadRule).toEqual({ noLead: 'refused', someoneElse: 'refused', yourself: 'ALLOWED' });
-
-    // --- Leads need an account: an anonymous session can't post, even as itself -------
-    const anonPost = await other.page.evaluate(async () => {
-      const C = window.SPARKS_CONFIG;
-      const c = window.supabase.createClient(C.supabaseUrl, C.supabaseKey, { auth: { persistSession: false, storageKey: 'e2e-anon' } });
-      const me = (await c.auth.signInAnonymously()).data.user.id;
-      const res = await c.from('sparks').insert({ author_name: 'Anon', text: '[E2E] anon post', lead_id: me, lead_name: 'Anon' }).select('id').single();
-      if (!res.error) await c.from('sparks').delete().eq('id', res.data.id);
-      return res.error ? 'refused' : 'ALLOWED';
-    });
-    expect(anonPost).toBe('refused');
-
-    // --- A date from another idea can't be locked in ------------------------------
-    const foreignLock = await asUser(other.page, async (c, _C, { leadDate }) => {
-      const me = (await c.auth.getUser()).data.user.id;
-      const mine = (await c.from('sparks').insert({ author_name: 'Other', text: '[E2E] other idea', lead_id: me, lead_name: 'Other' }).select('id').single()).data.id;
-      const res = await c.from('sparks').update({ locked_date_id: leadDate }).eq('id', mine);
-      await c.from('sparks').delete().eq('id', mine);
-      return res.error ? 'refused' : 'ALLOWED';
-    }, { leadDate: dateId });
-    expect(foreignLock).toBe('refused');
-
-    // --- Photos: only your own folder, only the app's path shape -----------------------
-    const photoRules = await asUser(other.page, async (c, _C, { leadUid }) => {
-      const me = (await c.auth.getUser()).data.user.id;
-      const u = () => crypto.randomUUID();
-      const base = { author_name: 'Other', text: '[E2E] photo rules', lead_id: me, lead_name: 'Other' };
-      const tryInsert = async (photos) => {
-        const res = await c.from('sparks').insert({ ...base, photos }).select('id').single();
-        if (!res.error) await c.from('sparks').delete().eq('id', res.data.id);
-        return res.error ? 'refused' : 'ALLOWED';
-      };
-      const upload = await c.storage.from('spark-photos').upload(leadUid + '/' + u() + '.jpg', new Blob(['x'], { type: 'image/jpeg' }));
+    // --- Memberships and profiles: only your own, only the safe parts ----------------
+    const own = await asUser(O, async (c, _C, { leadUid, me }) => {
+      const r = async (q) => { const x = await q; return x.error ? 'refused' : (x.data ? x.data.length + ' rows' : 'ok'); };
       return {
-        cssInjection: await tryInsert(["x') ; background:url(https://evil.example/"]),
-        someoneElsesFolder: await tryInsert([leadUid + '/' + u() + '.jpg']),
-        ownFolder: await tryInsert([me + '/' + u() + '.jpg']),
-        uploadIntoOthersFolder: upload.error ? 'refused' : 'ALLOWED'
+        promoteSelf: await r(c.from('memberships').update({ role: 'admin' }).eq('user_id', me)),
+        markSeen: await r(c.from('memberships').update({ last_seen_at: new Date().toISOString() }).eq('user_id', me).select()),
+        othersMemberships: (await c.from('memberships').select('user_id').neq('user_id', me)).data.length,
+        editOthersProfile: await r(c.from('profiles').update({ name: 'Hacked' }).eq('id', leadUid).select()),
+        avatarFromOthersFolder: await r(c.from('profiles').update({ avatar_path: leadUid + '/' + crypto.randomUUID() + '.jpg' }).eq('id', me)),
+        uploadIntoOthersFolder: (await c.storage.from('spark-photos').upload(leadUid + '/' + crypto.randomUUID() + '.jpg', new Blob(['x'], { type: 'image/jpeg' }))).error ? 'refused' : 'ALLOWED'
       };
-    }, { leadUid: await asUser(lead.page, async (c) => (await c.auth.getUser()).data.user.id) });
-    expect(photoRules).toEqual({ cssInjection: 'refused', someoneElsesFolder: 'refused', ownFolder: 'ALLOWED', uploadIntoOthersFolder: 'refused' });
+    }, { leadUid, me: otherUid });
+    expect(own.markSeen).toMatch(/^[1-9]\d* rows$/);   // one per group they're in
+    delete own.markSeen;
+    expect(own).toEqual({ promoteSelf: 'refused', othersMemberships: 0, editOthersProfile: '0 rows', avatarFromOthersFolder: 'refused', uploadIntoOthersFolder: 'refused' });
 
-    // --- No session at all: nothing is readable ------------------------------------
-    const anonymous = await other.page.evaluate(async () => {
+    // --- No session at all: nothing is readable -----------------------------------------
+    const nobody = await A.evaluate(async () => {
       const C = window.SPARKS_CONFIG;
       const c = window.supabase.createClient(C.supabaseUrl, C.supabaseKey, { auth: { persistSession: false, storageKey: 'e2e-nobody' } });
-      const counts = {};
-      for (const t of ['sparks', 'rsvps', 'offers', 'date_options', 'interests', 'merge_tokens']) {
+      const out = {};
+      for (const t of ['sparks', 'groups', 'memberships', 'offers', 'interests', 'profiles', 'guest_contacts', 'link_access', 'merge_tokens']) {
         const r = await c.from(t).select('*').limit(1);
-        counts[t] = r.error ? 'refused' : r.data.length;
+        out[t] = r.error ? 'refused' : r.data.length;
       }
-      counts.rsvp_counts = (await c.rpc('rsvp_counts')).error ? 'refused' : 'ALLOWED';
-      return counts;
+      return out;
     });
-    expect(anonymous).toEqual({ sparks: 0, rsvps: 0, offers: 0, date_options: 0, interests: 0, merge_tokens: 'refused', rsvp_counts: 'refused' });
-
-    // Merge tokens are never readable, even signed in
-    const tokens = await asUser(other.page, async (c) => { const r = await c.from('merge_tokens').select('*'); return r.error ? 'refused' : r.data.length; });
-    expect(tokens).toBe('refused');
+    for (const [t, v] of Object.entries(nobody)) expect([0, 'refused'], t).toContain(v);
+    expect(nobody.merge_tokens).toBe('refused');
   } finally {
-    if (id) await deleteIdea(lead.page, id).catch(() => {});
+    if (sparkId) await asUser(L, async (c, _C, id) => { await c.from('sparks').delete().eq('id', id); }, sparkId).catch(() => {});
     await lead.context.close();
     await other.context.close();
+    await anon.context.close();
   }
 });

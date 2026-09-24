@@ -1,161 +1,123 @@
 # Feature inventory
 
-Every function and feature in the build, numbered so you can say "scrub 27, 29, 37". Status: **Live** (works, visible), **Dormant** (code exists but can't be reached or is switched off), **Placeholder** (works, copy is Latin).
+Every function and feature in the build, numbered so you can say "scrub 27, 29, 37". Status: **Live** (works, visible), **Test** (built, on the `test` branch, not live yet), **Placeholder** (works, copy is Latin).
 
-As of 2026-09-24 (after the first scrub). Numbers are permanent: removed features keep their number in **Removed** at the bottom.
+As of 2026-09-25: the Spark Hub rebuild from the design handoff "Spark Torrez - Full Site 3". This rebuild restarted the numbering; the list for the old single-group app is in git history (`FEATURES.md` before this date).
 
-## Home
-
-| # | Feature | Status | Notes |
-|---|---|---|---|
-| 1 | Header: "Torrez Fitness" eyebrow, bolt + **Sparks**, "What should we get up to?", 2-step list | Live | |
-| 2 | **I have an idea** button (header, and again at the bottom of the How card) | Live | |
-| 3 | "More about how this works ↓" scroll link | Live | |
-| 4 | **Walktober 2026** hero photo card with "N ideas so far" → opens the list | Live | Hardcoded title and photo |
-| 5 | "How this works" card on Home | Placeholder | Heading is final, body is Latin |
-
-## Ideas list (Browse)
+## Welcome (signed out)
 
 | # | Feature | Status | Notes |
 |---|---|---|---|
-| 6 | Header repeats the Home block, with a back arrow | Live | |
-| 7 | "N ideas so far" / "Loading ideas…" count | Live | |
-| 8 | Sort menu: Newest · Oldest · Most popular (most "I'm interested" first) | Live | |
-| 9 | Card cover photo + photo-count pill | Live | |
-| 10 | Card title | Live | |
-| 11 | Card location row (gold when set, grey "Location TBD") | Live | |
-| 12 | Card date row (gold when set, "Date TBD" or "Date TBD · N options") | Live | |
-| 13 | Card footer: poster initial + name · relative time | Live | |
-| 14 | Card interest pill (person icon + count, gold when you're interested) | Live | Depends on #22 |
-| 16 | Gold bar down the card's left edge | Live | Colour comes from the idea's category (always Walktober) |
-| 17 | Empty state "No ideas yet." | Live | |
+| 1 | Photo header (picnic photo), logo, **Sign in**, "Small ideas. / Done together." | Test | Photo: `photos/welcome.jpg` |
+| 2 | **Enter a group code** card: 6-character code + **Join** (opens sign-in, then Join pre-filled) | Test | |
+| 3 | **Start your own group** (signs in, then creates the group) | Test | |
+| 4 | 1-2-3 steps row | Test | |
+
+## Home (signed in)
+
+| # | Feature | Status | Notes |
+|---|---|---|---|
+| 5 | Logo (goes Home) + group switcher | Test | |
+| 6 | "Got an idea? / Spark it." hero, steps, **I have an idea** | Test | Posts to the current group |
+| 7 | **Your groups**: first tile (the group you run, else current) with ADMIN chip and "N ideas" / "N new", other groups in a 2-column grid with new-idea badges | Test | Tapping switches group and opens All ideas |
+| 8 | **Join with a code** link | Test | |
+| 9 | **Coming up**: next 3 dated ideas across your groups, mini calendar | Test | Hidden when nothing is dated |
+| 10 | Not in a group yet: **Join with a code** / **Start a group** card | Test | Not designed; built to match |
+
+## Groups
+
+| # | Feature | Status | Notes |
+|---|---|---|---|
+| 11 | Group switcher menu: your groups, ADMIN chip, new-ideas badge, current one tinted, **+ Join a group** | Test | Badges clear when you open that group |
+| 12 | **Join a group** pop-up (code, "didn't match" error) | Test | Needs sign-in |
+| 13 | **Start a group** pop-up → "{Name} is ready" with code, link, **Copy invite link**, **Go to {Name}** | Test | Name saved in Title Case |
+| 14 | Invite links `/join/CODE` (and `#/join/CODE`): code filled in; Join opens for someone signed in | Test | Vercel rewrite in `vercel.json` |
+| 15 | **Group page** (admins): code, link, **Share invite link**, **Copy code**, Members count, Go to this group | Test | |
+| 16 | Group photo on Home tiles, All ideas header and as the fallback behind ideas without a photo | Test | Torrez uses the trail photo; new groups fall back to gold. No way to set one yet |
+
+## All ideas (per group)
+
+| # | Feature | Status | Notes |
+|---|---|---|---|
+| 17 | Photo header with group name, **All ideas**, overlapping **I have an idea** | Test | |
+| 18 | **View**: Cards · Grid · List, remembered on this device | Test | |
+| 19 | **Sort**: Most popular (default) · Newest · Oldest | Test | |
+| 20 | Card: photo (or blurred group photo), title, date · time, location, lead's face + "Led by", interest count | Test | "Date TBD" / "Location TBD" in grey |
+| 21 | Loading skeletons, "Couldn't load ideas" banner with **Try now**, "No ideas yet." | Test | |
 
 ## Idea page
 
 | # | Feature | Status | Notes |
 |---|---|---|---|
-| 18 | Header with back arrow and **Edit** (lead only) | Live | Edit → #55–56 |
-| 19 | Gold hero: SPARK eyebrow, title, poster · time, "It's up" tag | Live | |
-| 20 | Hero pill "Deciding & executing" | Live | Appears when all 4 checkpoints are met |
-| 21 | Photo grid | Live | |
-| 22 | **I'm interested** toggle + "N interested" (non-leads); count card for the lead | Live | |
-| 23 | **Waiting on you** card: "Use this spot/day" · "Not this time" · "Replaces …" | Live | Lead approval of #43 offers |
-| 24 | Facts card: "The spot: …", "The day: …", "Location: we'll decide together." | Live | |
-| 25 | "Just the idea so far" card when there are no facts | Live | |
-| 26 | **Hoping for** list (dream-version lines) | Live | |
-| 27 | "The vibe" line | Dormant | Vibe was removed from posting; only old data could show it |
-| 28 | **Dates on the table**: ranked date options, RSVP bars, badges (Most support / Tied / Locked in) | Live | |
-| 30 | Lead on each date: names who picked it, **Lock this one in**, **Remove** (confirms if anyone picked it) | Live | |
-| 31 | "N interested, but none of these work" — lead sees names + tap-to-call numbers | Live | |
-| 32 | **RSVP** / **Change my RSVP** button (non-leads) | Live | No way to withdraw an RSVP |
-| 33 | RSVP sheet: pick dates, "none of these dates work", name + phone, privacy note | Live | Phone visible to the lead only |
-| 34 | Lead: **Add a date option (N of 3)** with a date-time picker | Live | Picker limited to Oct 2026 |
-| 35 | Lead: "Pick a day" prompt card when there's no day and no options yet | Live | |
-| 36 | "What you're picturing" card + **Say more about what you're picturing** (lead) | Live | Free-text "vision" |
-| 37 | **Add a little to this** → follow-up questions | Dormant | Only for non-Walktober categories, which can't be created |
-| 38 | **Everything's in place** card (all 4 checkpoints met) | Live | |
-| 39 | **How close this is** card: 4-segment bar + status line | Live | Depends on #40 |
-| 40 | Checkpoints: Somebody out front · A place for it · A day it happens · Basics established (tap to act; lead marks Basics) | Live | Feeds #20, #38, #39, #57. "Somebody out front" is now always met |
-| 43 | Offer chips: **Offer a spot** · **Offer a day** · **I can help with something** | Live | Spot/day from non-leads go to #23; help posts immediately |
-| 44 | **Who's already in** list, including your own pending offers "· waiting on X" | Live | |
+| 22 | Photo header (or blurred group photo), back, group name, **Edit** (lead) | Test | |
+| 23 | Title sheet: lead's face, "Led by", **N interested** + face stack (+N) | Test | |
+| 24 | **I'm interested** / **You're interested** (not for the lead) | Test | Guests give name + phone first |
+| 25 | **Waiting on you** (lead): suggested locations/dates with **Use this location / Use this date** and **Not this time** | Test | |
+| 26 | Date & location card: date + time, location + address + **Directions**; **Suggest** (others) or **Set** (lead) while missing | Test | The lead's Set applies at once |
+| 27 | **The basics** (up to 3 lines) with lead/member empty states | Test | |
+| 28 | What the lead is picturing + **Say more about what you're picturing** | Test | |
+| 29 | **Who's pitching in** (accepted offers; your own waiting ones) | Test | |
+| 30 | **The vibe** mood board: up to 3 photos, lead adds/removes | Test | Members see it only with photos |
+| 31 | Rotated tag after actions ("It's up", "You're interested", "Sent to the lead", "Location set"…) | Test | |
+| 32 | Lead's **Who's interested** list with guests' phone numbers (tap the count) | Test | Not designed yet |
+| 33 | "That idea isn't up anymore" card for a dead link | Test | |
 
-## Posting an idea
+## Posting and editing
 
 | # | Feature | Status | Notes |
 |---|---|---|---|
-| 45 | Step 1: **What's the event?** (80 chars) | Live | |
-| 46 | Step 2: **Location** + "Decide location later" | Live | |
-| 86 | Location suggestions while typing (places, businesses, addresses near Austin; name + address; free text still allowed) | Live (test) | Geoapify autocomplete, free 3,000 lookups/day; key and home area in `js/config.js` |
-| 87 | Idea page: the picked place's address under "The spot" + **Directions** (Google Maps link) | Live (test) | Cleared automatically if the spot changes later |
-| 47 | Step 3: **Date** (Oct 1–31 2026) + "Add time" (30-min steps) + "Decide date later" | Live | Date range hardcoded |
-| 48 | Step 4: **Paint the picture** (3 dream lines, 30 chars each) | Live | |
-| 49 | Step 5: **Add a photo** (up to 3, shrunk in the browser) + "Skip photos" | Live | |
-| 50 | Step 6: **Look good?** review with Edit links + "You'll be the Lead" note | Live | |
-| 51 | "Putting it up…" busy label | Live | |
-| 52 | **Your name** pop-up (first time you post, lead or offer) with the gold initial | Live | |
-| 53 | "Been here before? Sign in" link in that pop-up | Live | Opens email sign-in (#61) |
+| 34 | Post flow: event → location → date (+ time) → the basics → photos (up to 3) → **Look good?** | Test | Into the current group |
+| 35 | Location suggestions while typing (Geoapify, near Austin), address saved with the pick | Test | Kept by owner decision; the design had removed them |
+| 36 | **Put it up** needs sign-in ("Sign in to post"), then a name if missing | Test | |
+| 37 | Edit idea: title + the basics; **Delete this idea** (removes its photos) | Test | |
 
-## Editing
+## Sign-in, guests, profile
 
 | # | Feature | Status | Notes |
 |---|---|---|---|
-| 54 | Edit screen: title + 3 dream lines, **Save changes** | Live | |
-| 55 | **Delete this idea** (confirms; removes photos you uploaded) | Live | |
+| 38 | Sign-in pop-up: **Continue with Google**, email → 6-digit code, **Send it again** (one a minute), per-entry copy (post / join / guest) | Test | |
+| 39 | Google cancelled: inline "didn't finish" alert; a half-finished idea survives the trip | Test | |
+| 40 | Guests: **Your info** pop-up (name + phone, once per visit) before interest or suggesting | Test | Phone visible to that idea's lead only |
+| 41 | Name pop-up (first time a signed-in person needs a name) | Test | |
+| 42 | Signing in on a new phone moves that phone's anonymous activity into the account | Test | |
+| 43 | Profile: photo, name, email, **Edit**; Your ideas; Your groups (ADMIN first); Join with a code; Start a group; **Sign out**; Privacy | Test | Signed-in only |
+| 44 | **Edit profile**: photo add/change/remove, name, email change with a code (email sign-ins) | Test | Google email is read-only |
 
-## Profile
-
-| # | Feature | Status | Notes |
-|---|---|---|---|
-| 56 | Avatar + name, **Change name** / **Add your name** (renames you everywhere) | Live | |
-| 57 | **Ideas you lead** list with "N of 4 in place" / "Happening" | Live | Depends on #40 |
-| 58 | "Your account" card + **Sign in with email** | Live | |
-| 59 | "Signed in as you@…" card + **Sign out** | Live | |
-
-## How this works
+## Pages and emails
 
 | # | Feature | Status | Notes |
 |---|---|---|---|
-| 60 | Own screen (tab 2) with the same content as #5 | Placeholder | |
+| 45 | How this works | Placeholder | Latin body, as designed |
+| 46 | Privacy page (`/privacy.html`), redesigned with who-sees-it chips | Test | |
+| 47 | Sign-in emails: code, and confirm email (first sign-in or email change) | Test | `supabase/templates/`, sender Spark Hub via Resend |
+| 48 | Toasts (errors red "!", confirmations green ✓) | Test | |
 
-## Sign-in
-
-| # | Feature | Status | Notes |
-|---|---|---|---|
-| 61 | Email sign-in: email → 6-digit code → "Send it again" / "Change". Required to post (Put it up opens it, then posts the draft); not needed to browse, show interest, offer or RSVP | Live | Supabase email OTP via Resend (sender Spark Hub). The database refuses posts from anonymous sessions |
-| 88 | **Continue with Google** in the sign-in pop-up (same account rules as email; a half-finished idea, photos included, survives the trip to Google and posts on return) | Live | Supabase Google provider; switch per database in `js/config.js` (`googleSignIn`) |
-| 89 | **Privacy page** (`/privacy.html`), linked from the sign-in pop-up's fine print; required by Google to publish sign-in | Live | Plain page, Spark Hub branded; contact eric@ericscott-creative.com |
-| 62 | Account merge: signing in on a new phone moves that phone's anonymous activity into the account | Live | |
-
-## Follow-up questions (legacy)
+## Data and security
 
 | # | Feature | Status | Notes |
 |---|---|---|---|
-| 63 | "A few quick ones" screen: spot / day / people / resource questions, progress dots, Skip, "That's enough for now" | Dormant | No reachable category has questions. ~170 lines of code + data |
-
-## Behaviour and plumbing
-
-| # | Feature | Status | Notes |
-|---|---|---|---|
-| 64 | Invisible identity per browser; quiet recovery if it breaks | Live | |
-| 65 | Shareable links (#/ideas, #/how, #/me, #/idea/…) and phone back button | Live | Links opened while the app is already open are followed, and fetch an idea posted since the page loaded |
-| 66 | Auto-refresh every 30 s and when you return to the tab | Live | |
-| 67 | "Couldn't load ideas" banner, "Loading ideas…", error toasts | Live | |
-| 68 | Your name, RSVP name and phone remembered on this device | Live | |
-| 69 | Live vs test database chosen by web address | Live | |
-| 70 | Relative times ("3 minutes ago") | Live | |
-| 71 | Tab bar: Home · How · **+** · All ideas · Profile | Live | |
-| 72 | Desktop frame: centred 430 px card | Live | |
-| 73 | Keyboard and screen-reader support (focus rings, Escape closes pop-ups, roles/labels) | Live | |
-
-## Database
-
-| # | Feature | Status | Notes |
-|---|---|---|---|
-| 74 | Tables: sparks, date_options, rsvps, offers, interests, merge_tokens | Live | |
-| 75 | Functions: add_offer, resolve_offer, remove_date_option, rename_me, rsvp_counts, prepare_merge, complete_merge | Live | Posting requires you to be the lead |
-| 76 | Legacy columns still stored: vibe, min_people, cat, answers | Dormant | Nothing writes or shows them; kept so head count can return |
-| 77 | Photo bucket `spark-photos` (public URLs, 5 MB, JPEG/PNG/WebP, own-folder rules) | Live | |
-| 78 | Migrations folder; separate live and test projects | Live | |
+| 49 | Tables: groups, memberships, sparks, offers, interests, profiles, guest_contacts, link_access, merge_tokens | Test | Migration `20260925000000_spark_hub_groups.sql` |
+| 50 | Members see their groups' ideas; an idea's link opens just that idea for anyone | Test | `open_idea()` |
+| 51 | Functions: create_group, join_group, group_code, member_count, add_offer, resolve_offer, rename_me, open_idea, prepare/complete_merge | Test | |
+| 52 | Photo bucket `spark-photos` (own-folder rules): idea photos, mood photos, avatars | Live | |
+| 53 | Live and test databases; migrations | Live | |
 
 ## Operations
 
 | # | Feature | Status | Notes |
 |---|---|---|---|
-| 79 | Daily keep-alive ping (GitHub Action) | Live | |
-| 80 | Weekly live backup on the Mac (launchd → ~/Backups/torrezhub) | Live | |
-| 81 | Design handoff doc kept current by Claude Code (CLAUDE.md rule) | Live | |
-| 82 | Vercel auto-deploy from `main`; preview links from `test` | Live | |
-| 83 | Security headers + CSP (vercel.json); pinned, integrity-checked Supabase script | Live | Added in the 2026-09-24 audit |
-| 84 | Automated end-to-end tests (16 tests, leads sign in with two password test accounts on the test project: smoke, posting, two-member collaboration, sorting, database security) on every push | Live | `tests/`; GitHub "End-to-end tests" workflow |
-| 85 | Nightly cleanup of test-database leftovers | Live | Test project only |
+| 54 | Daily keep-alive ping (GitHub Action) | Live | |
+| 55 | Weekly live backup on the Mac (launchd → ~/Backups/torrezhub) | Live | Needs updating for the new tables at launch |
+| 56 | Design handoff doc kept current by Claude Code | Live | |
+| 57 | Vercel auto-deploy from `main`; previews from `test` | Live | |
+| 58 | Security headers + CSP; pinned, integrity-checked Supabase script | Live | |
+| 59 | Automated end-to-end tests (15: smoke, posting, groups, collaboration, Google, database security) | Test | `tests/` |
+| 60 | Nightly cleanup of test-database leftovers ([E2E] ideas and groups, old anonymous users) | Live | Test project only |
 
-## Removed
+## Removed in this rebuild
 
-| # | Feature | Removed | Why |
-|---|---|---|---|
-| 8 (part) | "Needs a lead" and "Almost there" sorts | 2026-09-24 | Replaced by "Most popular" |
-| 15 | "Needs a lead" label on cards | 2026-09-24 | Every idea has a lead now |
-| 20 (part) | "Needs a lead" hero pill | 2026-09-24 | Every idea has a lead now |
-| 29 | "Success is N or more", "N short of N", "Enough to go" | 2026-09-24 | Minimum head count comes back later |
-| 41 | "I'll take the lead on this" + "You're out front on this one" pop-up | 2026-09-24 | Every idea has a lead now |
-| 42 | "Step back from the lead" + the lead's step-back paragraph | 2026-09-24 | Every idea has a lead now |
+- Date voting (date options, ranks, lock-in) and the RSVP pop-up.
+- The Walktober hero card, "What should we get up to?" Home, category filter, questions screen.
+- Progress / "N of 3 in place", checkpoints, "Everything's in place" card.
+- "I can help with something" and the offer chips at the bottom of the idea page.
+- "Signed in with" row and the lead-only sign-in copy on Profile.

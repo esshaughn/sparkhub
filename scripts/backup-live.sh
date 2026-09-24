@@ -1,11 +1,11 @@
 #!/bin/bash
-# Back up the LIVE Torrez Sparks database: every row, as JSON, one file per table.
+# Back up the LIVE Spark Hub database: every row, as JSON, one file per table.
 #
 # The schema isn't included because it lives in supabase/migrations/.
 # Restoring = apply the migrations to an empty project, then load these files
-# (ask Claude Code: "restore Sparks from ~/Backups/torrezhub/<folder>").
+# (ask Claude Code: "restore Spark Hub from ~/Backups/torrezhub/<folder>").
 #
-# The output holds members' names and phone numbers. It's written to
+# The output holds members' names, emails' user ids and guests' phone numbers. It's written to
 # ~/Backups/torrezhub (outside the repo, readable only by you). Never commit it.
 #
 # Uses your Supabase CLI login (`supabase login`), so there's no password here.
@@ -51,10 +51,12 @@ PY
 }
 
 echo "Backing up $REF → $DEST"
-dump sparks        "select * from public.sparks order by created_at"
-dump date_options  "select * from public.date_options order by created_at"
-dump offers        "select * from public.offers order by created_at"
-dump rsvps         "select * from public.rsvps order by created_at"
+# Every public table that exists (the list changes as migrations add and drop tables)
+dump _tables "select table_name from information_schema.tables where table_schema = 'public' and table_type = 'BASE TABLE' order by 1"
+for t in $(/usr/bin/python3 -c "import json,sys; print(' '.join(r['table_name'] for r in json.load(open(sys.argv[1]))))" "$DEST.partial/_tables.json"); do
+  [ "$t" = merge_tokens ] && continue    # one-time sign-in tokens: nothing worth keeping
+  dump "$t" "select * from public.$t"
+done
 dump users         "select id, created_at, is_anonymous, raw_user_meta_data from auth.users order by created_at"
 dump migrations    "select version, name from supabase_migrations.schema_migrations order by version"
 

@@ -1,6 +1,6 @@
-# Sparks — Torrez Fitness
+# Spark Hub
 
-A mobile-first web app where Torrez Fitness members post rough ideas ("laser tag night") and everyone else fills in the details until the idea becomes a plan. It was rebuilt from the Claude Design handoff `Walktober App.dc.html`.
+A mobile-first web app where a group (a gym, a neighbourhood, a PTA…) posts rough ideas ("laser tag night") and everyone else fills in the details until the idea becomes a plan. One account works across groups; Torrez Fitness is one group. Built from the Claude Design handoff "Spark Torrez - Full Site 3" (`Spark Hub App.dc.html`).
 
 ## Stack
 
@@ -14,9 +14,10 @@ A mobile-first web app where Torrez Fitness members post rough ideas ("laser tag
 index.html          app shell
 css/sparks.css      frame, pseudo-states (most styling is inline, ported 1:1 from the design)
 js/sparks.js        state, views, and a small DOM morph renderer
+privacy.html        the privacy page
 photos/             images
 js/config.js        picks the live or test database by hostname
-supabase/           migrations (tables, row-level security, RPC functions) + CLI config
+supabase/           migrations (tables, row-level security, RPC functions), sign-in email templates, CLI config
 scripts/            weekly backup of the live database (runs on the owner's Mac)
 .github/workflows/  daily ping that keeps the free Supabase projects from pausing
 ```

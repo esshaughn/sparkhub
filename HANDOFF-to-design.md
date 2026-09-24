@@ -1,13 +1,13 @@
-# Handoff: Sparks (Torrez Fitness) — live build → Claude Design
+# Handoff: Spark Hub — live build → Claude Design
 
-**Direction:** code → design. This describes what's **live now**, so the next design round starts from what shipped rather than from the design file.
+**Direction:** code → design. This describes what's built, so the next design round starts from what shipped rather than from the design file.
 
-- **Live:** https://torrezhub.vercel.app (open it on a phone)
-- **Source:** github.com/esshaughn/torrezhub (`index.html`, `js/sparks.js`, `css/sparks.css`)
-- **Baseline:** `design_handoff_sparks_walktober_v2/Walktober App v2.dc.html` + its README, from "Spark Torrez - Full Site 2.zip"
-- **As of:** 2026-09-24, end of day (feature scrub, email + Google sign-in for leads, location suggestions, privacy page). All of it is live.
+- **Built (test):** https://torrezhub-git-test-eric-5958s-projects.vercel.app · **Live:** https://torrezhub.vercel.app (moves to a Spark Hub address at launch)
+- **Source:** github.com/esshaughn/torrezhub (`index.html`, `js/sparks.js`, `css/sparks.css`, `privacy.html`, `supabase/templates/`)
+- **Baseline:** `design_handoff_spark_hub/Spark Hub App.dc.html` + its README, from "Spark Torrez - Full Site 3"
+- **As of:** 2026-09-25 (the Spark Hub rebuild, on the test branch)
 
-Everything in the v2 README is built as specified, except what's listed below. Where this doc and the v2 files disagree, **this doc is correct**.
+Everything in the Full Site 3 README is built as specified, except what's listed below. Where this doc and the design files disagree, **this doc is correct**.
 
 ---
 
@@ -15,86 +15,63 @@ Everything in the v2 README is built as specified, except what's listed below. W
 
 | # | Change | Design said | Why |
 |---|---|---|---|
-| 1 | **Sort menu is Newest · Oldest · Most popular.** Most popular = most "I'm interested" first | Newest · Oldest · Needs a lead · Almost there | Owner decision |
-| 2 | **Card interest pill uses a person icon** instead of the bolt. The idea page's "I'm interested" button still uses the bolt | Bolt icon | Owner decision. Should the button match? |
-| 3 | **Every idea has a lead, always.** Posting makes you the lead, and there's no way to leave an idea leaderless. Gone: the "Needs a lead" card label and hero pill, "I'll take the lead on this", the "You're out front on this one" pop-up, "Step back from the lead", and the lead's paragraph about stepping back | Ideas could be leaderless; leads could step back and others take over | Owner decision; may return later |
-| 4 | **No minimum head count anywhere.** Gone: "Success is N or more, counting the lead", "· N short of N" on date rows, the "Enough to go" badge | Shown when a head count was set | Owner decision; will return later |
-| 5 | **Leads sign in with email; everyone else doesn't.** Browsing, "I'm interested", offering and RSVPing still need nothing but a name (and a phone number to RSVP). Tapping **Put it up** when not signed in opens a **"Sign in to post"** pop-up (email → 6-digit code), then posts the same draft. Profile shows **"Sign in with email"** or **"Signed in as you@…"** + Sign out. The name pop-up's "Been here before? Sign in" link is back | Text-code (phone) sign-in, optional, on the Profile | Owner decision; SMS costs money, and it keeps ideas tied to a real person |
-| 6 | **Location step suggests places as you type** (after 3 letters): up to 5 places, businesses or addresses near Austin, each with a pin, the name in bold and the address in grey, plus a tiny "Powered by Geoapify · © OpenStreetMap contributors" line (required credit). Picking one fills the name and shows its address under the field; typing anything else still works. The idea page shows that address under "The spot" with a **Directions** link | Plain text field | Owner request |
-| 7 | **"Continue with Google"** sits at the top of the sign-in pop-up (white pill, 2px #dcdfe6 border, Google "G" logo, 16px/800 text; "Opening Google…" while busy), then an "or" divider, then the email option. Intro copy becomes *Use Google, or we'll email you a 6-digit code. No password.* Tapping it leaves for Google's page and comes back; a half-finished idea is kept and posts on return. If they cancel at Google: back where they were with *Google sign-in didn't finish. Try again, or use your email.* Google's screen names the Supabase address (…supabase.co) until Spark Hub has its own sign-in domain | Email or phone only | Owner request |
+| 1 | **Location suggestions stay.** The post flow's Location step suggests places near Austin as you type (Geoapify), and a pick saves the street address. The idea page shows that address under the location, followed by a purple **Directions** link (Google Maps). The lead's **Set** for a location uses the same suggestions. Suggestions to the lead ("Know a location?") stay plain text. The privacy page keeps its Geoapify row | Remove suggestions, the picked address and Directions; plain text | Owner decision |
+| 2 | **Welcome photo** is the owner's neighbourhood picnic photo (`photos/welcome.jpg`) | `trail-cleanup.png` | Owner request |
+| 3 | Welcome card heading reads **Enter a group code** | *Got a code from your group?* | Owner request |
+| 4 | Date pickers (posting, "Got a date & time in mind?", the lead's Set) allow **any date from today on** | October 2026 only | Many groups now, not just Walktober |
+| 5 | Wording: suggestion pop-ups say **Offer this location** / **Offer this date**; activity lines say "offered a location:" / "suggested a date:"; the lead's buttons say **Use this location** / **Use this date** | "Offer this spot", "floated a day", "Use this spot" | Matches the rows' "Location" and the README's leftover note |
 
 ## 2. Things the build had to invent (please design these properly)
 
-The v2 README says to keep the live placeholders for loading, error and empty states. These are the current placeholders, plus a few small states the design didn't cover.
+### a. Not in a group yet
+- Home (signed in, no groups) and All ideas show a white card: **You're not in a group yet.** / *Join one with a code from its organiser, or start your own.* with **Join with a code** (primary) and **Start a group** (secondary). The switcher reads **Your groups**.
+- "I have an idea" / the + tab with no group opens **Join a group**.
 
-### a. Loading
-- The idea count reads **"Loading ideas…"** until data arrives. There's no spinner or skeleton.
+### b. The lead's "Set" pop-ups
+- Date: **Set the date & time** / *It shows on the idea straight away.* / a date-and-time field / **Set it**.
+- Location: **Set the location** / same line / a location field with suggestions / **Set it**.
+- Tags after: "Date set", "Location set".
 
-### b. Couldn't load (offline, server down)
-- Pink banner at the top of the page: *Couldn't load ideas. Check your connection, then refresh.* It clears on its own once the app reconnects (it retries every 30s).
-- Styling: background `#fdeef0`, border `1.5px #f5c2cb`, text `#9b1c31` 14.5/700, radius 14.
+### c. Suggesting a date (non-lead)
+- **Got a date & time in mind?** / *Pick the day and time you're thinking of. The lead takes it from there.* / date-and-time field / **Offer this date**. (The design's hint was about rough dates, but the field is a picker.)
 
-### c. Couldn't save / small errors
-- Dark pill above the tab bar for 3.5s. The copy is one of:
-  - *That didn't go through. Try again in a moment.* (any failed save)
-  - *That photo couldn't be read. Try a different one.* (a file the browser can't open, e.g. HEIC on some desktop browsers)
-  - *Couldn't send a code to that email. Check it and try again.* / *One code a minute. Wait a moment, then try again.* / *That code didn't work. Check it, or send it again.* (email sign-in)
-- Styling: background `#0d1117`, white 14.5/700, radius 14.
+### d. Who's interested (lead only)
+- Tapping "**N** interested" on your own idea opens **Who's interested** / *Only you see phone numbers. They're from people who took part without an account.* Rows: face, name, and for guests their phone as a purple tap-to-call link.
+- Without this, the lead had no way to see the numbers guests leave.
 
-### d. Busy button labels
-- "Put it up" reads **"Putting it up…"** while photos upload (a few seconds on a phone connection).
-- The sign-in buttons read **"Sending…"** and **"Signing in…"**.
+### e. Group photos
+- New groups have no photo yet, so their tiles and All ideas header fall back to gold `#e8a71c`, and their ideas without a photo fall back to brown `#2b2413`. There's no way to set a group photo yet (see §4).
 
-### e. Unknown idea link
-- A link to a deleted or wrong idea shows Home. There's no message yet.
-
-### Location suggestions (invented)
-- Suggestion list sits directly under the Location field: white, 2px #e6e7eb border, 18px radius, rows 12px/16px padding with hairline dividers. Pin icon (#9aa0ac), name 15.5px/800, address 13.5px/500 #6b7280. Credit line 11.5px #9aa0ac.
-- After a pick: purple pin + address (14px/600 #5c6270) under the field.
-- Idea page: address 13.5px #6b7280 under "The spot: …", then " · **Directions**" in purple 800.
-
-### Sign-in pop-up and email (invented; the design had a phone version)
-- **Step 1:** heading **"Sign in to post"** (from Put it up) or **"Sign in"** (Profile, name pop-up). Body: *Whoever posts an idea leads it, so leads sign in. We'll email you a 6-digit code. No password.* (or *…Anything you lead follows your email to any phone.*). Email field (placeholder `you@example.com`), **Email me a code** (purple pill, grey until the email looks valid), fine print *Only used to sign you in. Nobody else sees it.*
-- **Step 2:** **"Enter the code"**, *Sent to you@… · Change*, a big centred code field (26px, 800, letter-spaced), **Sign in**, *Not there? Check spam, or* **Send it again** (→ "Sent again").
-- **The email itself** (sender "Spark Hub", sparks@mail.ericscott-creative.com for now; subjects "Your Spark Hub sign-in code" / "Confirm your email for Spark Hub"): white card on light grey, purple "SPARK HUB" eyebrow, heading "Your sign-in code" / "Confirm your email", a short "Hi there" explanation of why it was sent, the code at 36px, a no-password note, an "ignore this if it wasn't you" line, and a small grey footer saying what Spark Hub is and that we only email when you ask for a code. The extra plain text is there to keep it out of spam folders. Source: `supabase/templates/`.
-- Fine print ends with a purple **Privacy** link to `/privacy.html`: a plain white-card page (Spark Hub eyebrow, "Privacy" 32px/900, sections in 19px/800). It's the build's own placeholder design; please design it properly.
-- Platform-level copy says **Spark Hub**, not Torrez Fitness: one account will work across groups.
+### f. Small states
+- Busy labels added: **Joining…**, **Creating…**, **Saving…**, **Confirming…**.
+- Profile with no name reads **No name yet**.
+- All ideas shows *Loading ideas…* above the skeletons.
 
 ## 3. Behaviour added in the build (no visual change)
 
-- **Shareable links:** `#/ideas` (browse), `#/how`, `#/me` (profile), `#/idea/<id>`. The phone's back button moves between screens. The post flow and edit screen don't change the URL. Opening a link while the app is already open goes straight there, even for an idea posted after the page loaded (it briefly shows Home while it fetches).
-- **Photos** are shrunk to at most 1600px (JPEG) before upload, so a 5 MB phone photo becomes ~300 KB. They're stored in Supabase Storage and are public by link. Deleting an idea also deletes its photos.
-- **"You" vs names:** posters always show by name, including to themselves. Lead-only copy ("You're out front, with a day, a place…" on a happening idea) still says "you".
-- **Changing your name** updates it everywhere it's shown: your ideas, the ones you lead, and your offers. RSVPs keep the name typed into the RSVP.
-- **Offer approval** applies to spots and days from anyone other than the lead. When the lead offers a spot or day, it applies straight away. "I can help with something" always posts straight away.
-- **Removing a date** someone picked keeps them on the RSVP list, just without that date, and they still count toward "N in".
-- **Everything is shared** through the database and refreshes every 30 seconds. If someone's anonymous identity stops working mid-visit, a new one starts quietly. Leads are signed in, so their ideas follow their email to any phone. Signing in on a new phone also moves that phone's anonymous activity (interest, offers, RSVPs) into the account.
-- **Signing in with Google leaves the app and comes back** (a full-page trip to Google). A half-finished idea, photos included, is kept and posts automatically on return. Google's screen currently says "continue to xwrzfpgsazyrgieymtee.supabase.co"; showing "Spark Hub" there needs a custom sign-in domain later.
-- **Location suggestions** start at 3 letters (2 return nothing useful), look up about 0.15s after typing pauses, and take roughly 0.3–0.9s to arrive from Geoapify. Searches already made in the session show instantly. Up to 5 results, near Austin only. If the service is down, the list just doesn't appear and typing still works.
-- **One account across groups:** sign-in, emails and the privacy page say Spark Hub, not Torrez Fitness.
+- **Who sees what:** members see their groups' ideas. Opening an idea's link gives that visitor access to just that idea (and its group's name and photo), so guests can take part from a shared link. Join codes are visible only to admins (Group page).
+- **Guests** give name + phone once per visit (remembered on the device as a convenience). The number is saved per idea and only that idea's lead can see it. Taking interest back never asks.
+- **New-idea badges** count ideas posted by others since you last opened that group; opening it clears them.
+- **Invite links** are `/join/CODE`. Signed out: Welcome with the code filled in. Signed in: the Join pop-up opens pre-filled.
+- **Names** come from the profile; renaming updates every idea and offer you're named on.
+- **Signing in on a new phone** moves that phone's anonymous activity (interest, suggestions, guest info, opened links) into the account.
+- The confirm-email template serves both a first sign-in and a Profile email change, with different wording for each.
 
 ## 4. Designed but not built or not working
 
-- **"How this works" body copy** is still placeholder Latin (the heading is final).
-
-### Design file housekeeping
-
-The v2 `.dc.html` still contains screens that nothing in it can reach, and the build has now deleted them: the **"A few quick ones"** follow-up questions screen, the **category filter** menu, and the **"Holding an idea"** pop-up (its link left in v2). Worth removing from the design file too, so they don't come back by accident.
+- **"How this works" body copy** is still placeholder Latin (as designed).
 
 ## 5. Open questions for the next round
 
-1. **Telling the lead about new RSVPs and offers.** Nothing notifies them. They have to open the app. (Marked out of scope in v2.)
-2. **Spam and moderation.** Anyone who signs in with an email can post. Is there a report or hide action, or an admin view for Torrez staff? (Marked out of scope in v2.) Bot protection (Cloudflare Turnstile) is planned and invisible.
-3. **Adding date options once a day is set.** The design only offers "Add a date option" when no day is picked. So an idea posted with a date can't later put alternatives up for a vote unless the day is cleared, and nothing clears a day. Intended?
-4. **After Walktober.** The date pickers (posting and "Add a date option") only allow October 2026, per v2. From November, nobody can pick a date. Is Sparks Walktober-only, or should it carry on? If so, what happens to the Walktober hero card and the gold "Walktober" styling?
-5. **The lead's card now ends at the offer chips.** Removing the step-back paragraph left the lead with no line of their own in "How close this is". Does it want a short lead-facing note, or is it fine as is?
-6. **"Somebody out front" is always ticked** now that every idea has a lead, so every idea starts at "1 of 4 in place". Keep it as a reassurance, or drop it and count to 3?
-
-7. **Spark Hub, many groups.** The owner plans for this to become **Spark Hub**: one app with many groups (Torrez Fitness, neighbourhoods, PTAs, friend groups), one account across all of them. Sign-in and emails already say Spark Hub; the header eyebrow still says Torrez Fitness. How should the group name, group switching and the Spark Hub brand sit together? And should the Walktober hero become a per-group slot?
-8. **"Know a spot?" pop-up** still takes free text. Should it get the same place suggestions as the Location step?
-9. **Directions link** opens Google Maps for everyone (it works on iPhone too). Fine, or offer Apple Maps on iPhones?
+1. **Group settings** (from the design's open list): rename, regenerate the code, set the **group photo**, remove members, co-admins, leave a group.
+2. **Categories:** how they work; Walktober is meant to become one.
+3. **An empty new group's first-run view** (today: "No ideas yet." under a gold header).
+4. **Names:** first names or full names? (Google sign-ins show the first name.)
+5. **Suggest vs Offer** wording in pop-up titles and activity lines (§1 #5 is the build's interim choice).
+6. **Lead notifications:** still skipped.
+7. **Google's sign-in screen** says "continue to …supabase.co" until Spark Hub has its own sign-in domain.
+8. **Spark Hub address:** sparkhub.vercel.app is taken; a custom domain is under consideration.
 
 ## 6. Design tokens: unchanged
 
-As listed in the v2 README.
-
+As listed in the Full Site 3 README.
