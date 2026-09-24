@@ -441,12 +441,13 @@
 
   // ---- Location suggestions (Geoapify autocomplete, OpenStreetMap data) ---------
   // Suggestions only help: whatever is typed can still be posted as-is. Lookups
-  // start at 3 characters and wait for a pause in typing, so a location costs a
-  // few requests. If the service is down or over its daily limit, the list just
+  // start at 3 characters (2 return nothing useful), wait 150ms for a pause in
+  // typing, and are remembered, so a location costs a few requests. If the service is down or over its daily limit, the list just
   // doesn't appear.
 
   const PLACES = CFG.places || null;   // { key, lat, lon, radius (m) }
   let placeTimer = null, placeAbort = null;
+  const placeCache = new Map();   // query → results, so backspacing and retyping are instant
   const shortAddr = (a) => (a || '').replace(/,\s*United States( of America)?$/, '').slice(0, 200);
   const toPlaces = (results) => {
     const seen = {};
@@ -470,6 +471,8 @@
     if (placeAbort) { placeAbort.abort(); placeAbort = null; }
     const q = text.trim();
     if (!PLACES || q.length < 3) { if (state.locSuggest.length) setState({ locSuggest: [] }); return; }
+    const key = q.toLowerCase();
+    if (placeCache.has(key)) { setState({ locSuggest: placeCache.get(key) }); return; }
     placeTimer = setTimeout(async () => {
       const ctrl = placeAbort = new AbortController();
       const url = 'https://api.geoapify.com/v1/geocode/autocomplete?format=json&limit=5&lang=en' +
@@ -481,14 +484,17 @@
         const res = await fetch(url, { signal: ctrl.signal, referrerPolicy: 'origin' });
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
+        const found = toPlaces(data.results);
+        if (placeCache.size > 100) placeCache.clear();
+        placeCache.set(key, found);
         if (state.locText.trim() !== q || state.locPlace) return;   // typing moved on
-        setState({ locSuggest: toPlaces(data.results) });
+        setState({ locSuggest: found });
       } catch (e) {
         if (e.name === 'AbortError') return;
         console.warn('Location suggestions unavailable:', e.message);
         setState({ locSuggest: [] });
       }
-    }, 300);
+    }, 150);
   };
   const pickPlace = (p) => { clearTimeout(placeTimer); setState({ locText: p.name, locPlace: p, locSuggest: [], locMode: 'specific' }); };
 

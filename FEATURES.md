@@ -146,7 +146,7 @@ As of 2026-09-24 (after the first scrub). Numbers are permanent: removed feature
 | 81 | Design handoff doc kept current by Claude Code (CLAUDE.md rule) | Live | |
 | 82 | Vercel auto-deploy from `main`; preview links from `test` | Live | |
 | 83 | Security headers + CSP (vercel.json); pinned, integrity-checked Supabase script | Live | Added in the 2026-09-24 audit |
-| 84 | Automated end-to-end tests (15 tests, leads sign in with two password test accounts on the test project: smoke, posting, two-member collaboration, sorting, database security) on every push | Live | `tests/`; GitHub "End-to-end tests" workflow |
+| 84 | Automated end-to-end tests (16 tests, leads sign in with two password test accounts on the test project: smoke, posting, two-member collaboration, sorting, database security) on every push | Live | `tests/`; GitHub "End-to-end tests" workflow |
 | 85 | Nightly cleanup of test-database leftovers | Live | Test project only |
 
 ## Removed

@@ -111,6 +111,26 @@ test('location suggestions: pick a place, see its address and directions', async
   }
 });
 
+test('location suggestions: a search already made is answered instantly', async ({ browser }) => {
+  const { page, context } = await newLead(browser, 1, 'Tester');
+  try {
+    await button(page, 'Post an idea').click();
+    await page.getByLabel('The event').fill('Anything');
+    await button(page, 'Next').click();
+    const list = page.getByRole('group', { name: 'Suggested places' });
+    await page.getByLabel('Location').fill('zilk');
+    await expect(list).toBeVisible();
+    await page.getByLabel('Location').fill('zilker');
+    await expect.poll(() => context.placeRequests.length).toBe(2);
+    await page.getByLabel('Location').fill('zilk');          // backspaced: no new lookup
+    await expect(list).toBeVisible();
+    await page.waitForTimeout(400);
+    expect(context.placeRequests).toHaveLength(2);
+  } finally {
+    await context.close();
+  }
+});
+
 test('typing a location and changing it drops the picked address', async ({ browser }) => {
   const { page, context } = await newLead(browser, 1, 'Tester');
   try {
