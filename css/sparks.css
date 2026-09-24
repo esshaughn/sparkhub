@@ -90,3 +90,5 @@ input[type=number] { -moz-appearance: textfield; }
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
+.hov-danger:hover { color: #9b1c31 !important; }
+.hov-tint:hover { background: #f3f1fe !important; }

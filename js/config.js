@@ -12,5 +12,11 @@
     test: { supabaseUrl: 'https://hroxgvxvafgikikviiud.supabase.co', supabaseKey: 'sb_publishable_f7dwskaTS-TV42YC-p0lFw_9Pe8FY1O' }
   };
   var env = LIVE_HOSTS.indexOf(location.hostname) > -1 ? 'live' : 'test';
-  window.SPARKS_CONFIG = Object.assign({ env: env }, projects[env]);
+
+  // Text-code sign-in needs an SMS provider (e.g. Twilio) connected in the
+  // Supabase project's Auth → Providers → Phone. Until one is, keep this off:
+  // the "Sign in" entry points stay hidden and everything else works.
+  var phoneSignIn = { live: false, test: false };
+
+  window.SPARKS_CONFIG = Object.assign({ env: env, phoneSignIn: phoneSignIn[env] }, projects[env]);
 })();

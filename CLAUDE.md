@@ -59,5 +59,7 @@ Ad-hoc reads: `supabase db query --linked [--project-ref …] "select …"`.
 
 ## Other notes
 
+- Text-code sign-in (Supabase phone OTP) is built but off: `phoneSignIn` in `js/config.js`. Turn it on per database only after an SMS provider is configured in that Supabase project (Auth → Providers → Phone), and test the "link" path (profile) and the "signin + merge" path (name pop-up) on test first.
+- Photos live in the public `spark-photos` bucket under `<user id>/<uuid>.jpg`. Storage policies only let people write, list or delete inside their own folder.
 - Bump the `?v=` query on script/style tags in `index.html` when their files change, so browsers don't serve stale copies.
 - `.vercelignore` keeps docs, `supabase/`, `scripts/` and `.github/` off the public site. New non-site files belong there too.
