@@ -116,3 +116,19 @@ test('Google account that already has an account: sign in to it instead', async 
     await context.close();
   }
 });
+
+test('privacy page is public and linked from the sign-in pop-up', async ({ browser }) => {
+  const { page, context } = await newMember(browser);
+  try {
+    await button(page, 'Profile').click();
+    await button(page, 'Sign in with email').click();
+    const link = page.getByRole('dialog').getByRole('link', { name: 'Privacy' });
+    await expect(link).toHaveAttribute('href', 'privacy.html');
+    const res = await page.request.get('/privacy.html');
+    expect(res.status()).toBe(200);
+    const html = await res.text();
+    for (const must of ['Privacy', 'Google', 'Geoapify', 'Resend', 'eric@ericscott-creative.com']) expect(html).toContain(must);
+  } finally {
+    await context.close();
+  }
+});

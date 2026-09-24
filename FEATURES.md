@@ -103,6 +103,7 @@ As of 2026-09-24 (after the first scrub). Numbers are permanent: removed feature
 |---|---|---|---|
 | 61 | Email sign-in: email → 6-digit code → "Send it again" / "Change". Required to post (Put it up opens it, then posts the draft); not needed to browse, show interest, offer or RSVP | Live | Supabase email OTP via Resend (sender Spark Hub). The database refuses posts from anonymous sessions |
 | 88 | **Continue with Google** in the sign-in pop-up (same account rules as email; a half-finished idea, photos included, survives the trip to Google and posts on return) | Live (test) | Supabase Google provider; switch per database in `js/config.js` (`googleSignIn`) |
+| 89 | **Privacy page** (`/privacy.html`), linked from the sign-in pop-up's fine print; required by Google to publish sign-in | Live (test) | Plain page, Spark Hub branded; contact eric@ericscott-creative.com |
 | 62 | Account merge: signing in on a new phone moves that phone's anonymous activity into the account | Live | |
 
 ## Follow-up questions (legacy)
@@ -145,7 +146,7 @@ As of 2026-09-24 (after the first scrub). Numbers are permanent: removed feature
 | 81 | Design handoff doc kept current by Claude Code (CLAUDE.md rule) | Live | |
 | 82 | Vercel auto-deploy from `main`; preview links from `test` | Live | |
 | 83 | Security headers + CSP (vercel.json); pinned, integrity-checked Supabase script | Live | Added in the 2026-09-24 audit |
-| 84 | Automated end-to-end tests (14 tests, leads sign in with two password test accounts on the test project: smoke, posting, two-member collaboration, sorting, database security) on every push | Live | `tests/`; GitHub "End-to-end tests" workflow |
+| 84 | Automated end-to-end tests (15 tests, leads sign in with two password test accounts on the test project: smoke, posting, two-member collaboration, sorting, database security) on every push | Live | `tests/`; GitHub "End-to-end tests" workflow |
 | 85 | Nightly cleanup of test-database leftovers | Live | Test project only |
 
 ## Removed
