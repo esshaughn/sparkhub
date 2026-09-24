@@ -145,6 +145,7 @@ test('groups, idea links, guests and leads: the database refuses what the app ne
     expect(nobody.merge_tokens).toBe('refused');
   } finally {
     if (sparkId) await asUser(L, async (c, _C, id) => { await c.from('sparks').delete().eq('id', id); }, sparkId).catch(() => {});
+    if (group) await asUser(L, async (c, _C, g) => { await c.rpc('e2e_delete_group', { p_group: g }); }, group.id).catch(() => {});
     await lead.context.close();
     await other.context.close();
     await anon.context.close();

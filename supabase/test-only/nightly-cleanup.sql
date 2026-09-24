@@ -19,3 +19,16 @@ select cron.schedule('e2e-cleanup', '0 4 * * *', $job$
   delete from public.groups where name like '[E2E]%' and created_at < now() - interval '2 hours';
   delete from auth.users   where is_anonymous      and created_at < now() - interval '1 day';
 $job$);
+
+-- Tests delete the [E2E] groups they start (the app itself can't delete groups).
+-- Only the group's admin, and only groups named [E2E] …
+create or replace function public.e2e_delete_group(p_group uuid)
+returns boolean language sql security definer set search_path = public as $$
+  with gone as (
+    delete from groups g
+     where g.id = p_group and g.name like '[E2E]%' and public.is_admin(g.id)
+    returning 1
+  ) select exists (select 1 from gone);
+$$;
+revoke execute on function public.e2e_delete_group(uuid) from public, anon;
+grant  execute on function public.e2e_delete_group(uuid) to authenticated;

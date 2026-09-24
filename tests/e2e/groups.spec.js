@@ -1,6 +1,6 @@
 // Groups: start one, invite with a code or link, join, switch, "new ideas" badges, the admin page.
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newMember, newLead, button, postIdea, deleteIdea } = require('./helpers');
+const { uniqueTitle, newMember, newLead, button, postIdea, deleteIdea, asUser } = require('./helpers');
 
 test('start a group, invite someone, they join and post, the admin sees a badge', async ({ browser }) => {
   const admin = await newLead(browser, 1, 'Ada');
@@ -79,6 +79,11 @@ test('start a group, invite someone, they join and post, the admin sees a badge'
     expect(other.errors).toEqual([]);
   } finally {
     if (ideaId) await deleteIdea(B, ideaId).catch(() => {});
+    await asUser(A, async (c, _C, name) => {
+      // The test group's name ends in this run's unique suffix (the app title-cases it)
+      const g = (await c.from('groups').select('id').ilike('name', '%' + name.split(' ').pop())).data || [];
+      for (const x of g) await c.rpc('e2e_delete_group', { p_group: x.id });
+    }, name).catch(() => {});
     await admin.context.close();
     await other.context.close();
   }

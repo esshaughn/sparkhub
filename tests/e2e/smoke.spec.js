@@ -55,7 +55,7 @@ test('members: Home, group switcher, view and sort menus', async ({ browser }) =
     const home = page.locator('[data-screen-label=Home]');
     await expect(home.getByRole('heading', { name: /Got an idea\?\s*Spark it\./ })).toBeVisible();
     await expect(home.getByText('Your groups')).toBeVisible();
-    await expect(home.getByRole('button', { name: /Torrez Fitness/ })).toBeVisible();
+    await expect(home.getByRole('button', { name: /^Torrez Fitness/ })).toBeVisible();
 
     // The switcher lists your groups and "Join a group"
     await page.getByRole('button', { name: 'Switch group' }).click();
@@ -65,7 +65,7 @@ test('members: Home, group switcher, view and sort menus', async ({ browser }) =
     await expect(page.getByRole('button', { name: 'Join a group' })).toHaveCount(0);
 
     // Tapping the group tile opens its ideas
-    await home.getByRole('button', { name: /Torrez Fitness/ }).click();
+    await home.getByRole('button', { name: /^Torrez Fitness/ }).click();
     const browse = page.locator('[data-screen-label=Browse]');
     await expect(browse.getByRole('heading', { name: 'All ideas' })).toBeVisible();
     await expect(browse).toContainText('Torrez Fitness');
