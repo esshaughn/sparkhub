@@ -267,13 +267,55 @@
 
   const must = (res) => { if (res.error) throw res.error; return res; };
 
+  // ---- Session recovery ------------------------------------------------------
+  // The anonymous session can go bad mid-visit: site data cleared, refresh token
+  // revoked, user removed in Supabase. Supabase then falls back to the bare
+  // publishable key, so reads come back empty and rsvp_counts() is refused.
+  // Instead of failing every refresh, quietly start a fresh session and retry.
+  // (A fresh session is a new identity, so lead status from the old one is lost,
+  // which is unavoidable without real accounts.)
+
+  let reauthing = null;
+  const ensureSession = (force) => {
+    if (reauthing) return reauthing;
+    reauthing = (async () => {
+      let session = force ? null : (await sb.auth.getSession()).data.session;
+      if (!session) {
+        await sb.auth.signOut({ scope: 'local' }).catch(() => {});
+        session = must(await sb.auth.signInAnonymously()).data.session;
+      }
+      const meta = session.user.user_metadata || {};
+      if (session.user.id !== state.me) setState({ me: session.user.id, myName: state.myName || meta.name || '' });
+      return session;
+    })().finally(() => { reauthing = null; });
+    return reauthing;
+  };
+
+  // Only applied to reads. Writes can't use this test: an RLS rejection on a
+  // write has the same code (42501) and must not trigger a new identity.
+  const isAuthFailure = (e) => !!e && (
+    e.code === '42501' || e.code === 'PGRST301' || e.code === 'PGRST303' ||
+    e.status === 401 || /jwt|refresh token|session/i.test(e.message || ''));
+
+  const loadFresh = async () => {
+    try {
+      await loadAll();
+    } catch (e) {
+      if (!isAuthFailure(e)) throw e;
+      console.warn('Session lost; starting a new one', e);
+      await ensureSession(true);
+      await loadAll();
+    }
+  };
+
   // Run a write, reload, then apply `after` (object, or function evaluated after the write)
   const run = async (work, after) => {
     if (state.busy) return;
     setState({ busy: true });
     try {
+      await ensureSession();
       await work();
-      await loadAll();
+      await loadFresh();
       setState(Object.assign({ busy: false }, typeof after === 'function' ? after() : (after || {})));
     } catch (e) {
       console.error(e);
@@ -1390,22 +1432,24 @@
 
   const refresh = () => {
     if (!state.me || state.busy || document.hidden) return;
-    loadAll().catch(e => console.error(e));
+    loadFresh()
+      .then(() => { if (state.error === 'load') setState({ error: null }); })
+      .catch(e => console.error(e));
   };
   document.addEventListener('visibilitychange', refresh);
   setInterval(refresh, 30000);   // picks up other people's posts and RSVPs; also ages "x minutes ago"
 
   async function init() {
     if (!sb) { setState({ error: 'config', loaded: true }); return; }
-    try {
-      let { data: { session } } = await sb.auth.getSession();
-      if (!session) {
-        const res = must(await sb.auth.signInAnonymously());
-        session = res.data.session;
+    // Supabase signs the session out when a token refresh fails; replace it right away
+    sb.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT' && !reauthing) {
+        setTimeout(() => { ensureSession().then(() => loadAll()).catch(e => console.error(e)); }, 0);
       }
-      const meta = session.user.user_metadata || {};
-      setState({ me: session.user.id, myName: state.myName || meta.name || '' });
-      await loadAll();
+    });
+    try {
+      await ensureSession();
+      await loadFresh();
     } catch (e) {
       console.error(e);
       setState({ error: 'load', loaded: true });

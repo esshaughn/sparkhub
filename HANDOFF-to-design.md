@@ -52,6 +52,7 @@ RSVPs already ask for a name. If someone RSVPs before ever posting, that name is
 ### d. Couldn't load (offline, server down)
 
 - Pink banner at the top of the page: *Couldn't load ideas. Check your connection, then refresh.*
+- It disappears on its own once the app reconnects (it retries every 30 seconds), so people don't have to refresh.
 - Styling: background `#fdeef0`, border `1.5px #f5c2cb`, text `#9b1c31` 14.5/700, radius 14
 
 ### e. Couldn't save
@@ -69,6 +70,7 @@ RSVPs already ask for a name. If someone RSVPs before ever posting, that name is
 - **Everything is shared:** ideas, leads, offers, date options and RSVPs are saved to a shared database. The app refreshes every 30 seconds and when you return to the tab.
 - **Privacy (as designed, now enforced):** RSVP names and phone numbers are visible **only to that idea's lead**. Everyone else sees counts ("2 in · 1 can't make these").
 - **Who you are:** there's no sign-up. Each browser gets an invisible identity, and "You" means "this browser". **Clearing the browser or switching phones loses your lead status.** See the open question in section 5.
+- **Lost sign-in recovers quietly:** if that invisible identity stops working mid-visit (site data cleared, or removed in Supabase), the app starts a new one in the background and keeps going. There's no message. Like switching phones, the new identity doesn't keep the old one's lead status.
 - **Frame:** full-bleed on phones. On desktop it's a centered 430px column with a 30px radius and a 24px margin. The tab bar respects the iPhone home-indicator area.
 - **Times** are real ("3 minutes ago", "yesterday") instead of the design's fixed labels.
 - **Accessibility:** keyboard focus rings, Escape closes pop-ups, and screen-reader labels on the icon-only buttons.
