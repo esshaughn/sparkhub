@@ -1,14 +1,19 @@
 <!doctype html>
-<html>
+<html lang="en">
+  <head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Confirm your email for Spark Hub</title></head>
   <body style="margin:0;padding:0;background:#f4f5f8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0d1117">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f5f8;padding:32px 16px">
       <tr><td align="center">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:440px;background:#ffffff;border-radius:20px;padding:32px 28px">
           <tr><td style="font-size:13px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#5b4ae8">Spark Hub</td></tr>
           <tr><td style="padding-top:14px;font-size:24px;line-height:1.2;font-weight:900;color:#0d1117">Confirm your email</td></tr>
-          <tr><td style="padding-top:10px;font-size:15px;line-height:1.5;color:#5c6270">Enter this code in Spark Hub:</td></tr>
+          <tr><td style="padding-top:12px;font-size:15px;line-height:1.55;color:#454b55">Hi there,</td></tr>
+          <tr><td style="padding-top:8px;font-size:15px;line-height:1.55;color:#454b55">You’re signing in to Spark Hub to post an idea. Type this code into the Spark Hub page you have open:</td></tr>
           <tr><td style="padding:18px 0;font-size:36px;font-weight:900;letter-spacing:8px;color:#0d1117">{{ .Token }}</td></tr>
-          <tr><td style="font-size:13.5px;line-height:1.5;color:#6b7280">It works for one hour. If you didn’t ask for it, ignore this email and nothing happens.</td></tr>
+          <tr><td style="font-size:15px;line-height:1.55;color:#454b55">The code works for one hour. There’s no password to remember: next time you sign in, we’ll send a new code.</td></tr>
+          <tr><td style="padding-top:12px;font-size:15px;line-height:1.55;color:#454b55">If you didn’t ask for this, you can ignore this email. Nobody can sign in without the code, and nothing changes on your account.</td></tr>
+          <tr><td style="padding-top:22px;border-bottom:1px solid #eceef2"></td></tr>
+          <tr><td style="padding-top:18px;font-size:12.5px;line-height:1.5;color:#8a909c">Spark Hub is where groups post and plan things to do together. You’re getting this one-time email because someone entered {{ .NewEmail }} on Spark Hub to sign in. We only email you when you ask for a code.</td></tr>
         </table>
       </td></tr>
     </table>
