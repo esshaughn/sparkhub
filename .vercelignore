@@ -6,3 +6,4 @@ scripts/
 .github/
 BACKLOG.md
 FEATURES.md
+tests/

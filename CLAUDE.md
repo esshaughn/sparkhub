@@ -57,6 +57,13 @@ Ad-hoc reads: `supabase db query --linked [--project-ref …] "select …"`.
 - Database changes need the Supabase CLI plus a `SUPABASE_ACCESS_TOKEN` in the cloud environment's settings. Use `npx -y supabase@latest …` with the commands above. If the token isn't set, write the migration file and tell the user it still needs applying rather than skipping it.
 - Preview locally with `npx -y serve .` if you need to click through the app. Localhost uses the test database.
 
+## Tests
+
+- `tests/` holds Playwright end-to-end tests (smoke, posting, two-member collaboration, database security). Run `cd tests && npx playwright test` before merging to `main`, and check the "End-to-end tests" workflow on GitHub is green.
+- New features get a test in the same commit; removed features lose theirs. Security rules (RLS, grants, storage policies) get an assertion in `e2e/security.spec.js`.
+- Tests create ideas titled `[E2E] …` and delete them in `finally`. Each simulated member is a new anonymous sign-in.
+- The TEST project has a raised anonymous sign-in limit (1000/hour, pushed with a temp config; the repo's `config.toml` keeps live's 30/hour) and a nightly `e2e-cleanup` job (`supabase/test-only/nightly-cleanup.sql`) that removes old anonymous users and stray `[E2E]` ideas. Never apply `test-only/` SQL to live.
+
 ## Feature inventory
 
 `FEATURES.md` numbers every feature with a status. When you add or remove a feature, update it in the same commit (add a row, or delete the row and renumber only if the user asks).
@@ -74,4 +81,4 @@ Ad-hoc reads: `supabase db query --linked [--project-ref …] "select …"`.
 - Text-code sign-in (Supabase phone OTP) is built but off: `phoneSignIn` in `js/config.js`. Turn it on per database only after an SMS provider is configured in that Supabase project (Auth → Providers → Phone), and test the "link" path (profile) and the "signin + merge" path (name pop-up) on test first.
 - Photos live in the public `spark-photos` bucket under `<user id>/<uuid>.jpg`. Storage policies only let people write, list or delete inside their own folder.
 - Bump the `?v=` query on script/style tags in `index.html` when their files change, so browsers don't serve stale copies.
-- `.vercelignore` keeps docs, `supabase/`, `scripts/` and `.github/` off the public site. New non-site files belong there too.
+- `.vercelignore` keeps docs, `supabase/`, `scripts/`, `tests/` and `.github/` off the public site. New non-site files belong there too.

@@ -1,0 +1,49 @@
+# End-to-end tests: a real browser clicks through the app against the TEST database.
+# Runs on every push to test/main and on pull requests. A red ✗ on GitHub means don't merge.
+
+name: End-to-end tests
+
+on:
+  push:
+    branches: [test, main]
+  pull_request:
+  workflow_dispatch: {}
+
+# Runs share one test database, so never run two at once
+concurrency:
+  group: e2e
+  cancel-in-progress: false
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: tests
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tests/package-lock.json
+
+      - run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run tests
+        run: npx playwright test
+
+      - name: Keep the report if something failed
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            tests/playwright-report
+            tests/test-results
+          retention-days: 7

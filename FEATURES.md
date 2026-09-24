@@ -117,7 +117,7 @@ As of 2026-09-24. Update this when features are added or removed.
 | # | Feature | Status | Notes |
 |---|---|---|---|
 | 64 | Invisible identity per browser; quiet recovery if it breaks | Live | |
-| 65 | Shareable links (#/ideas, #/how, #/me, #/idea/…) and phone back button | Live | |
+| 65 | Shareable links (#/ideas, #/how, #/me, #/idea/…) and phone back button | Live | Links opened while the app is already open are followed, and fetch an idea posted since the page loaded |
 | 66 | Auto-refresh every 30 s and when you return to the tab | Live | |
 | 67 | "Couldn't load ideas" banner, "Loading ideas…", error toasts | Live | |
 | 68 | Your name, RSVP name and phone remembered on this device | Live | |
@@ -146,3 +146,5 @@ As of 2026-09-24. Update this when features are added or removed.
 | 81 | Design handoff doc kept current by Claude Code (CLAUDE.md rule) | Live | |
 | 82 | Vercel auto-deploy from `main`; preview links from `test` | Live | |
 | 83 | Security headers + CSP (vercel.json); pinned, integrity-checked Supabase script | Live | Added in the 2026-09-24 audit |
+| 84 | Automated end-to-end tests (8 tests: smoke, posting, two-member collaboration, database security) on every push | Live | `tests/`; GitHub "End-to-end tests" workflow |
+| 85 | Nightly cleanup of test-database leftovers | Live | Test project only |

@@ -29,6 +29,18 @@ Any static file server works. Locally the app uses the **test** database:
 npx serve .
 ```
 
+## Tests
+
+End-to-end tests in `tests/` drive a real browser through the app against the **test** database (localhost always uses test, never live). GitHub runs them on every push to `test` and `main`; a red ✗ on the commit means don't merge.
+
+Run them locally:
+
+```bash
+cd tests && npm install && npx playwright install chromium && npx playwright test
+```
+
+`npx playwright test --headed` shows the browser; `npx playwright show-report` opens the last results.
+
 ## Deploy
 
 Live at **https://torrezhub.vercel.app**. Pushes to `main` deploy automatically through Vercel's GitHub integration.

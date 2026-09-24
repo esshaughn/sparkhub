@@ -1780,9 +1780,18 @@
   // Boot
   // ---------------------------------------------------------------------------
 
-  window.addEventListener('popstate', () => {
-    setState(Object.assign({ menu: null, offerKind: null, rsvpOpen: false, claim: false, nameAsk: null, confirm: null, loginStep: null }, fromHash()));
-  });
+  // Back/forward buttons fire popstate; a link opened or pasted in the same tab only fires hashchange
+  const followUrl = () => {
+    const target = fromHash();
+    if (target.screen === state.screen && target.subjectId === state.subjectId) return;
+    setState(Object.assign({ menu: null, offerKind: null, rsvpOpen: false, claim: false, nameAsk: null, confirm: null, loginStep: null }, target));
+    const sc = scroller();
+    if (sc) sc.scrollTop = 0;
+    // A link to an idea posted after this page loaded: fetch now rather than wait for the 30 s refresh
+    if (target.subjectId && state.me && !subject()) loadFresh().catch(e => console.error(e));
+  };
+  window.addEventListener('popstate', followUrl);
+  window.addEventListener('hashchange', followUrl);
 
   const refresh = () => {
     if (!state.me || state.busy || document.hidden) return;

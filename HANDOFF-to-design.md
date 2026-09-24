@@ -44,7 +44,7 @@ The v2 README says to keep the live placeholders for loading, error and empty st
 
 ## 3. Behaviour added in the build (no visual change)
 
-- **Shareable links:** `#/ideas` (browse), `#/how`, `#/me` (profile), `#/idea/<id>`. The phone's back button moves between screens. The post flow and edit screen don't change the URL.
+- **Shareable links:** `#/ideas` (browse), `#/how`, `#/me` (profile), `#/idea/<id>`. The phone's back button moves between screens. The post flow and edit screen don't change the URL. Opening a link while the app is already open goes straight there, even for an idea posted after the page loaded (it briefly shows Home while it fetches).
 - **Photos** are shrunk to at most 1600px (JPEG) before upload, so a 5 MB phone photo becomes ~300 KB. They're stored in Supabase Storage and are public by link. Deleting an idea also deletes its photos if the lead deleting it is the one who posted them. A lead who took over someone else's idea can delete the idea, but the original poster's photo files stay in storage, unlinked.
 - **"You" vs names:** posters always show by name, including to themselves. Lead-only copy ("You're out front…") still says "you".
 - **Changing your name** updates it everywhere it's shown: your ideas, the ones you lead, and your offers. RSVPs keep the name typed into the RSVP.
