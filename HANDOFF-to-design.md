@@ -5,7 +5,7 @@
 - **Live:** https://torrezhub.vercel.app (open it on a phone)
 - **Source:** github.com/esshaughn/torrezhub (`index.html`, `js/sparks.js`, `css/sparks.css`)
 - **Baseline:** `design_handoff_sparks_walktober_v2/Walktober App v2.dc.html` + its README, from "Spark Torrez - Full Site 2.zip"
-- **As of:** 2026-09-24 (feature scrub, email sign-in for leads, location suggestions)
+- **As of:** 2026-09-24, end of day (feature scrub, email + Google sign-in for leads, location suggestions, privacy page). All of it is live.
 
 Everything in the v2 README is built as specified, except what's listed below. Where this doc and the v2 files disagree, **this doc is correct**.
 
@@ -69,6 +69,9 @@ The v2 README says to keep the live placeholders for loading, error and empty st
 - **Offer approval** applies to spots and days from anyone other than the lead. When the lead offers a spot or day, it applies straight away. "I can help with something" always posts straight away.
 - **Removing a date** someone picked keeps them on the RSVP list, just without that date, and they still count toward "N in".
 - **Everything is shared** through the database and refreshes every 30 seconds. If someone's anonymous identity stops working mid-visit, a new one starts quietly. Leads are signed in, so their ideas follow their email to any phone. Signing in on a new phone also moves that phone's anonymous activity (interest, offers, RSVPs) into the account.
+- **Signing in with Google leaves the app and comes back** (a full-page trip to Google). A half-finished idea, photos included, is kept and posts automatically on return. Google's screen currently says "continue to xwrzfpgsazyrgieymtee.supabase.co"; showing "Spark Hub" there needs a custom sign-in domain later.
+- **Location suggestions** start at 3 letters (2 return nothing useful), look up about 0.15s after typing pauses, and take roughly 0.3–0.9s to arrive from Geoapify. Searches already made in the session show instantly. Up to 5 results, near Austin only. If the service is down, the list just doesn't appear and typing still works.
+- **One account across groups:** sign-in, emails and the privacy page say Spark Hub, not Torrez Fitness.
 
 ## 4. Designed but not built or not working
 
