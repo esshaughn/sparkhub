@@ -21,7 +21,7 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 6 | "Turn your idea / into a plan.", the 1-2-3 steps as one plain row, **I have an idea** | Test | Posts to the current group |
 | 7 | **Your groups**: one swipeable row of 150×150 photo tiles (pinned first, then most recently opened), ADMIN/OWNER chip, a quiet **pin** (22px, faint until pinned; toast "Pinned to the front" / "Unpinned") | Test | Tapping switches group and opens All ideas |
 | 8 | **View all** → the **Your groups** bottom sheet (photo, name, chip, *Pinned*; **Join a group**) | Test | |
-| 9 | **Coming up**: next 3 dated ideas across your groups, mini calendar | Test | Hidden when nothing is dated |
+| 9 | **Coming up** with a **Show** menu: *You're leading* (default) or *You're interested* (also ideas you're interested in or pitched in to); dates from today, soonest first, up to 3; group eyebrow, title, *You're leading / You're in · time*; empty-state line | Test | Shows whenever you're in a group; the choice is remembered on this device |
 | 10 | Not in a group yet: **Join with a code** card | Test | Not designed |
 
 ## Groups

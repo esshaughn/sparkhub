@@ -56,6 +56,18 @@ test('members: Home, group switcher, view and sort menus', async ({ browser }) =
     await expect(home.getByRole('button', { name: 'Switch group' })).toHaveCount(0);   // Home spans all your groups
     await expect(home.getByRole('button', { name: /^Torrez Fitness/ })).toBeVisible();
 
+    // Coming up: "You're leading" by default, or "You're interested"; remembered after a reload
+    await expect(home.getByRole('button', { name: 'Show' })).toHaveText('You’re leading');
+    await home.getByRole('button', { name: 'Show' }).click();
+    const show = page.getByRole('menu', { name: 'Show' }).getByRole('button');
+    await expect(show).toHaveText(['You’re leading', 'You’re interested']);
+    await show.filter({ hasText: 'You’re interested' }).click();
+    await expect(home.getByRole('button', { name: 'Show' })).toHaveText('You’re interested');
+    await page.reload();
+    await expect(home.getByRole('button', { name: 'Show' })).toHaveText('You’re interested');
+    await home.getByRole('button', { name: 'Show' }).click();
+    await page.getByRole('menu', { name: 'Show' }).getByRole('button', { name: 'You’re leading' }).click();
+
     // Tapping the group tile opens its ideas
     await home.getByRole('button', { name: /^Torrez Fitness/ }).click();
     const browse = page.locator('[data-screen-label=Browse]');

@@ -4,7 +4,7 @@
 
 - **Built (test):** https://gosparkhub-git-test-eric-5958s-projects.vercel.app · **Live:** https://gosparkhub.vercel.app
 - **Source:** github.com/esshaughn/sparkhub (`index.html`, `js/sparks.js`, `css/sparks.css`, `privacy.html`, `supabase/templates/`)
-- **Baseline:** Claude Design's reply "Handoff: Spark Hub, design → live build (2026-09-25)" and its `Spark Hub App.dc.html`, which adopted everything in the previous version of this doc (§1–§3) and added Part B (no chips in group menus, quieter pin, 40-character titles, iPhone date fix, 30-minute time list). Full Site 4's spec is still in `design/spark-hub/` for reference.
+- **Baseline:** Claude Design's reply "Handoff: Spark Hub, design → live build (2026-09-25)" and its `Spark Hub App.dc.html`, which adopted everything in the previous version of this doc (§1–§3) and added Part B (no chips in group menus, quieter pin, 40-character titles, iPhone date fix, 30-minute time list, and the Coming up **Show** menu with its new rows). Full Site 4's spec is still in `design/spark-hub/` for reference.
 - **As of:** 2026-09-25, all of that reply is built (test branch)
 
 Everything in that reply is built as specified, except what's listed below. Where this doc and the design files disagree, **this doc is correct**.
@@ -29,6 +29,8 @@ Nothing yet.
 - **"How this works" body copy** is still placeholder Latin (as designed).
 
 ## 5. Open questions for the next round
+
+0. **Idea → Plan lifecycle** (parked by Design, brainstorm only): an idea is *gathering steam* until the lead sets a date and time, then it's a **Plan**. Open: what triggers the flip and whether the lead confirms, whether "I'm interested" becomes "I'm going", what happens if the date is cleared or passes, and where the phase shows.
 
 1. Everything in the README's **Open / not designed yet** list still stands (categories, first-run view for an empty group, removing members, leaving a group, lead notifications, Suggest vs Offer wording, first vs full names, group creation in the app, Welcome wording, the parked Lead note).
 2. **Invite link screens** (§2b is a stopgap).

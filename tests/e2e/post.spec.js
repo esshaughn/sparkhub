@@ -33,6 +33,13 @@ test('post → idea page → all three views → profile → edit → delete', a
     }, id);
     expect((await page.request.get(url)).status()).toBe(200);
 
+    // Home → Coming up (You're leading): group eyebrow, title, "You're leading · time"
+    await page.getByRole('button', { name: 'Home', exact: true }).click();
+    const coming = page.locator('[data-screen-label=Home]').getByRole('button', { name: new RegExp(Title.replace(/[[\]]/g, '\\$&')) });
+    await expect(coming).toContainText('Torrez Fitness');
+    await expect(coming).toContainText('You’re leading · 5:30pm');
+    await coming.click();
+
     // All ideas, in each view
     await page.getByRole('button', { name: 'All ideas' }).click();
     const browse = page.locator('[data-screen-label=Browse]');

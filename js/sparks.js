@@ -47,7 +47,7 @@
   };
   let lastPrefs = '';
   const savePrefs = () => {
-    const next = JSON.stringify({ groupId: state.groupId, view: state.view, sort: state.sort, guestName: state.guestName, guestPhone: state.guestPhone });
+    const next = JSON.stringify({ groupId: state.groupId, view: state.view, sort: state.sort, coming: state.coming, guestName: state.guestName, guestPhone: state.guestPhone });
     if (next === lastPrefs) return;
     lastPrefs = next;
     try { localStorage.setItem(PREFS_KEY, next); } catch (e) { /* storage blocked: conveniences only */ }
@@ -153,6 +153,7 @@
   const state = Object.assign({
     screen: 'home', menu: null, subjectId: null, gpId: null, tag: null, zoom: null, membersOpen: null, membersList: null,
     sort: SORTS.some(s => s[0] === prefs.sort) ? prefs.sort : 'popular',
+    coming: prefs.coming === 'interested' ? 'interested' : 'leading',
     view: VIEWS.indexOf(prefs.view) > -1 ? prefs.view : 'cards',
     groupId: prefs.groupId || null,
 
@@ -285,11 +286,16 @@
     return out;
   };
 
+  // Home → Coming up: "You're leading" (ideas you lead) or "You're interested" (those, plus ones
+  // you're interested in or pitched in to); dates from today on, soonest first, up to 3
+  const COMING = [['leading', 'You’re leading'], ['interested', 'You’re interested']];
+  const involved = (s) => s.interested.indexOf(state.me) > -1 || s.offers.concat(s.pending).some(o => o.userId === state.me);
   const comingUp = () => {
     const today = todayISO();
     const mine = new Set(myGroups().map(g => g.id));
+    const wanted = state.coming === 'interested' ? (s) => isLead(s) || involved(s) : isLead;
     return state.sparks
-      .filter(s => mine.has(s.groupId) && s.dayDate && s.dayDate >= today)
+      .filter(s => mine.has(s.groupId) && s.dayDate && s.dayDate >= today && wanted(s))
       .sort((a, b) => (a.dayDate + (a.dayTime || '')).localeCompare(b.dayDate + (b.dayTime || '')))
       .slice(0, 3);
   };
@@ -1311,6 +1317,23 @@
 
   const PIN = (fill, strokeColor) => '<svg width="11" height="11" viewBox="0 0 24 24" fill="' + fill + '" stroke="' + strokeColor + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6l-1 6 3 3v2H7v-2l3-3-1-6Z"/><path d="M12 14v7"/></svg>';
 
+  const comingMenu = () => {
+    const open = state.menu === 'coming', cur = COMING.find(c => c[0] === state.coming) || COMING[0];
+    return '<div data-menu style="position:relative">' +
+      '<div ' + on((e) => { stop(e); setState({ menu: open ? null : 'coming' }); }) + ' aria-label="Show" aria-expanded="' + open + '" style="display:flex;align-items:center;gap:5px;min-height:32px;padding:0 2px;cursor:pointer">' +
+        '<span style="font-size:14px;font-weight:700;color:#6b7280">' + cur[1] + '</span>' + I.chevD(12, '#6b7280', 2.8) +
+      '</div>' +
+      (open
+        ? '<div role="menu" aria-label="Show" style="position:absolute;top:calc(100% + 6px);right:0;z-index:4;min-width:220px;' + MENU + '">' + menuLabel('Show') +
+            COMING.map(([k, label]) => {
+              const onIt = k === state.coming;
+              return '<div ' + on((e) => { stop(e); setState({ coming: k, menu: null }); }) + ' style="display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;padding:9px 12px;border-radius:12px;background:' + (onIt ? '#f3f1fe' : 'transparent') + ';cursor:pointer">' +
+                '<span style="font-size:15px;font-weight:800;color:' + (onIt ? '#5b4ae8' : '#0d1117') + '">' + label + '</span>' + (onIt ? I.check(16, '#5b4ae8', 2.6) : '') + '</div>';
+            }).join('') + '</div>'
+        : '') +
+    '</div>';
+  };
+
   function viewHome() {
     const st = state, groups = groupsInOrder();
     const coming = comingUp();
@@ -1347,18 +1370,27 @@
               '</div>' +
             '</div>'
           : '<div><div style="padding:0 4px 8px;' + EYEBROW + '">Your groups</div>' + noGroupCard() + '</div>') +
-        (coming.length
+        (groups.length
           ? '<div>' +
-              '<div style="padding:0 4px 8px;' + EYEBROW + '">Coming up</div>' +
+              '<div style="display:flex;align-items:center;justify-content:space-between;padding:0 4px 8px">' +
+                '<span style="' + EYEBROW + '">Coming up</span>' + comingMenu() +
+              '</div>' +
               '<div style="' + CARD + ';overflow:hidden">' +
-                coming.map((s, k) => {
-                  const g = groupById(s.groupId);
-                  return '<div ' + on(() => go('detail', { subjectId: s.id, tag: null })) + ' class="hov-row" style="display:flex;align-items:center;gap:12px;padding:10px 14px;min-height:66px;border-top:' + (k ? '1px solid #f2f3f6' : '0') + ';cursor:pointer">' +
-                    '<span style="flex:0 0 46px;border-radius:11px;overflow:hidden;text-align:center;box-shadow:0 0 0 1px #eceef2"><span style="display:block;background:#e8a71c;color:#fff;font-size:10px;font-weight:900;padding:2px 0">' + MONTHS[+s.dayDate.slice(5, 7) - 1] + '</span><span style="display:block;font-size:18px;font-weight:900;color:#0d1117;padding:3px 0">' + (+s.dayDate.slice(8, 10)) + '</span></span>' +
-                    '<div style="flex:1 1 auto;min-width:0"><div style="font-size:15.5px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(s.text) + '</div><div style="font-size:13px;font-weight:600;color:#6b7280">' + esc((g ? g.name : '') + (s.dayTime ? ' · ' + fmtTime(s.dayTime) : '')) + '</div></div>' +
-                    I.chevR(16, '#9aa0ac', 2.4) +
-                  '</div>';
-                }).join('') +
+                (coming.length
+                  ? coming.map((s, k) => {
+                      const g = groupById(s.groupId);
+                      return '<div ' + on(() => go('detail', { subjectId: s.id, tag: null })) + ' class="hov-row" style="display:flex;align-items:center;gap:12px;padding:10px 14px;min-height:66px;border-top:' + (k ? '1px solid #f2f3f6' : '0') + ';cursor:pointer">' +
+                        '<span style="flex:0 0 46px;border-radius:11px;overflow:hidden;text-align:center;box-shadow:0 0 0 1px #eceef2"><span style="display:block;background:#e8a71c;color:#fff;font-size:10px;font-weight:900;padding:2px 0">' + MONTHS[+s.dayDate.slice(5, 7) - 1] + '</span><span style="display:block;font-size:18px;font-weight:900;color:#0d1117;padding:3px 0">' + (+s.dayDate.slice(8, 10)) + '</span></span>' +
+                        '<div style="flex:1 1 auto;min-width:0">' +
+                          '<div style="font-size:9.5px;font-weight:800;letter-spacing:.9px;text-transform:uppercase;color:#7b6ef0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(g ? g.name : '') + '</div>' +
+                          '<div style="font-size:15.5px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(s.text) + '</div>' +
+                          '<div style="font-size:13px;font-weight:600;color:#6b7280">' + (isLead(s) ? 'You’re leading' : 'You’re in') + esc(s.dayTime ? ' · ' + fmtTime(s.dayTime) : '') + '</div>' +
+                        '</div>' +
+                        I.chevR(16, '#9aa0ac', 2.4) +
+                      '</div>';
+                    }).join('')
+                  : '<div style="padding:16px;font-size:14.5px;line-height:1.45;font-weight:500;color:#6b7280">' +
+                      (st.coming === 'interested' ? 'Nothing coming up yet. Ideas you post or are interested in show here.' : 'Nothing you’ve posted has a date coming up.') + '</div>') +
               '</div>' +
             '</div>'
           : '') +
