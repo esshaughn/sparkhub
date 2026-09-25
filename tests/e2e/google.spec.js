@@ -35,7 +35,7 @@ test('leaving for Google saves the draft; cancelling brings it back with a note'
       route.fulfill({ json: { url: 'http://localhost:4173/fake-google' } });
     });
     await page.route('http://localhost:4173/fake-google', (route) => route.fulfill({ contentType: 'text/html', body: '<p>Google</p>' }));
-    await button(page, 'Continue with Google').click();
+    await page.getByRole('dialog', { name: 'Sign in' }).getByRole('button', { name: 'Continue with Google' }).click();
     await page.waitForURL('**/fake-google');
     expect(authorize.searchParams.get('provider')).toBe('google');
     expect(authorize.searchParams.get('redirect_to')).toBe('http://localhost:4173/');

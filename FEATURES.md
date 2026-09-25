@@ -8,10 +8,10 @@ As of 2026-09-25: the Spark Hub rebuild from the design handoff "Spark Torrez - 
 
 | # | Feature | Status | Notes |
 |---|---|---|---|
-| 1 | Photo header (picnic photo), logo, "Turn your idea / into a plan.", steps pill | Live | Photo: `photos/welcome.jpg` |
-| 2 | **Enter a group code** card: 6-character code + **Join** (opens sign-in, then Join pre-filled) | Test | |
-| 3 | **Start a group** (signs in, then creates the group); **How this works** link; "Already have an account? **Sign in**" | Live | |
-| 4 | 1-2-3 steps row | Test | |
+| 1 | Photo header (picnic photo), logo, "Turn your idea / into a plan.", the 1-2-3 steps as a list | Test | Photo: `photos/welcome.jpg` |
+| 2 | **Continue with Google** (straight to Google) and **Continue with email** (the email-code pop-up, no second Google button); "New here? Either one creates your account." | Test | |
+| 3 | An invite link (/join/CODE) adds "Sign in to join the group CODE"; after signing in, Join opens pre-filled | Test | |
+| 4 | (Removed) Group code card, Start a group, How this works link: now only after sign-in / in the tab bar | Test | |
 
 ## Home (signed in)
 

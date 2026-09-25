@@ -89,19 +89,13 @@ test('start a group, invite someone, they join and post, the admin sees a badge'
   }
 });
 
-test('an invite link for someone signed out: code filled in on Welcome, joining asks them to sign in', async ({ browser }) => {
+test('an invite link for someone signed out: Welcome names the code, signing in opens Join', async ({ browser }) => {
   const { page, context } = await newMember(browser, '/#/join/TORREZ');
   try {
-    await expect(page.locator('[data-screen-label=Welcome]')).toBeVisible();
-    await expect(page.getByLabel('Group code')).toHaveValue('TORREZ');
-    await button(page, 'Join').click();
-    const login = page.getByRole('dialog', { name: 'Sign in' });
-    await expect(login).toContainText('Sign in to join a group.');
-
-    // Starting a group also needs an account
-    await login.getByRole('button', { name: 'Close' }).click();
-    await button(page, 'Start a group').click();
-    await expect(page.getByRole('dialog', { name: 'Sign in' })).toBeVisible();
+    const welcome = page.locator('[data-screen-label=Welcome]');
+    await expect(welcome).toContainText('Sign in to join the group TORREZ');
+    await welcome.getByRole('button', { name: 'Continue with email' }).click();
+    await expect(page.getByRole('dialog', { name: 'Sign in' })).toContainText('Sign in to join a group.');
   } finally {
     await context.close();
   }

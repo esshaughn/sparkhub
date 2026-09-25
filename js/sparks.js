@@ -433,9 +433,9 @@
 
   const openLogin = (from, then) => setState({
     loginStep: 'email', loginFrom: from || 'default', loginThen: then || null, loginMode: 'link',
-    loginCode: '', resent: false, googleFailed: false, nameAsk: null, guestOpen: false, menu: null
+    loginCode: '', resent: false, googleFailed: false, loginEmailOnly: false, nameAsk: null, guestOpen: false, menu: null
   });
-  const closeLogin = () => setState({ loginStep: null, loginCode: '', loginThen: null, googleFailed: false, busy: null });
+  const closeLogin = () => setState({ loginStep: null, loginCode: '', loginThen: null, googleFailed: false, loginEmailOnly: false, busy: null });
 
   const needSignIn = (fn, from) => { if (state.email) fn(); else openLogin(from, fn); };
   const needName = (fn) => { if (state.myName) fn(); else setState({ nameAsk: fn, nameText: '' }); };
@@ -1111,7 +1111,7 @@
   // 1. Welcome (Home, signed out)
   // ---------------------------------------------------------------------------
 
-  // The 1-2-3 steps as one pill (Home and Welcome)
+  // The 1-2-3 steps as one pill (Home)
   const stepsPill = (dark) =>
     '<div style="display:flex;align-items:center;justify-content:space-between;gap:4px;background:' + (dark ? 'rgba(255,255,255,.1)' : '#f2f3f6') + ';border-radius:999px;padding:9px 11px">' +
       [['#e8a71c', '1', 'Post an idea'], ['#5b4ae8', '2', 'People pitch in'], ['#0f7a3c', '3', 'It happens']].map(([c, n, t], i) =>
@@ -1121,37 +1121,35 @@
     '</div>';
 
   function viewWelcome() {
-    const st = state, codeOk = st.joinCode.length === 6;
+    const st = state, busy = st.busy, from = st.joinCode ? 'join' : 'default';
+    const steps = [['#e8a71c', '1', 'Post an idea'], ['#5b4ae8', '2', 'People pitch in'], ['#0f7a3c', '3', 'It happens']];
+    // Google straight from here; email opens the sign-in pop-up without the Google button
+    const google = () => { if (busy) return; setState({ loginFrom: from, loginThen: null }); googleSignIn(); };
+    const email = () => { openLogin(from, st.joinCode ? () => openJoin(st.joinCode) : null); setState({ loginEmailOnly: true }); };
     return '<div data-screen-label="Welcome" style="position:relative;background:#0d1117;min-height:100%">' +
-      '<div aria-hidden="true" style="position:absolute;left:0;right:0;top:0;height:470px;background:' + bg('/photos/welcome.jpg', 'center') + '"></div>' +
-      '<div aria-hidden="true" style="position:absolute;left:0;right:0;top:0;height:471px;background:linear-gradient(to bottom, rgba(13,17,23,.42) 0%, rgba(13,17,23,.5) 35%, rgba(13,17,23,.82) 70%, #0d1117 100%)"></div>' +
+      '<div aria-hidden="true" style="position:absolute;left:0;right:0;top:0;height:560px;background:' + bg('/photos/welcome.jpg', 'center') + '"></div>' +
+      '<div aria-hidden="true" style="position:absolute;left:0;right:0;top:0;height:561px;background:linear-gradient(to bottom, rgba(13,17,23,.15) 0%, rgba(13,17,23,.25) 45%, rgba(13,17,23,.75) 78%, #0d1117 100%)"></div>' +
       '<div style="position:relative;padding:10.5px 16px 0">' +
         '<div aria-label="Spark Hub" style="display:flex;align-items:center;gap:6px;min-height:44px">' + I.bolt(24, '#f3c55a') + '<span style="font-size:18px;line-height:1;font-weight:900;letter-spacing:-.5px;color:#fff">Spark Hub</span></div>' +
-        '<div style="padding:160px 4px 0">' +
+        '<div style="padding:220px 4px 0">' +
           '<h1 style="margin:0;font-size:40px;line-height:1;font-weight:900;letter-spacing:-1.3px;color:#fff">Turn your idea<br><span style="color:#a99cff">into a plan.</span></h1>' +
           '<p style="margin:14px 0 0;font-size:16px;line-height:1.45;font-weight:500;color:#f1f2f5;text-wrap:pretty">Post an idea. Your group helps pick the day, find the place and make it happen.</p>' +
+          '<ol style="list-style:none;margin:20px 0 0;padding:0;display:flex;flex-direction:column;gap:12px">' +
+            steps.map(([c, n, t]) => '<li style="display:flex;align-items:center;gap:12px"><span aria-hidden="true" style="flex:0 0 28px;width:28px;height:28px;border-radius:999px;background:' + c + ';color:#fff;font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center">' + n + '</span>' +
+              '<span style="font-size:17px;font-weight:800;color:#fff">' + t + '</span></li>').join('') +
+          '</ol>' +
         '</div>' +
-        '<div style="margin-top:18px">' + stepsPill(true) + '</div>' +
       '</div>' +
-      '<div style="position:relative;padding:26px 16px 26px;display:flex;flex-direction:column;gap:12px">' +
+      '<div style="position:relative;padding:28px 16px 26px;display:flex;flex-direction:column;gap:12px">' +
         goneCard() +
-        '<div style="background:#fff;border-radius:20px;padding:18px;display:flex;flex-direction:column;gap:12px">' +
-          '<div style="font-size:17px;font-weight:900;letter-spacing:-.3px;color:#0d1117">Enter a group code</div>' +
-          '<div style="display:flex;gap:8px">' +
-            '<input class="fld" type="text" maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Group code" placeholder="ABC123" value="' + esc(st.joinCode) + '" ' +
-              onInput(e => { const v = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6); if (e.target.value !== v) e.target.value = v; setState({ joinCode: v, joinBad: false }); }) +
-              ' style="flex:1 1 auto;min-width:0;min-height:50px;border:2px solid #e6e7eb;border-radius:14px;padding:0 12px;font-family:inherit;font-size:20px;font-weight:800;letter-spacing:6px;text-align:center;text-transform:uppercase;color:#0d1117;outline:none">' +
-            '<button type="button" ' + on(() => { if (codeOk) openJoin(st.joinCode); }) + ' aria-disabled="' + !codeOk + '" style="flex:0 0 auto;min-height:50px;padding:0 18px;border:0;border-radius:14px;background:' + (codeOk ? '#5b4ae8' : '#b9bcc4') + ';color:#fff;font-family:inherit;font-size:15px;font-weight:800;cursor:' + (codeOk ? 'pointer' : 'not-allowed') + '">Join</button>' +
-          '</div>' +
-          '<div style="display:flex;align-items:center;gap:10px"><span style="flex:1;height:1px;background:#eceef2"></span><span style="font-size:12px;font-weight:800;color:#9aa0ac">OR</span><span style="flex:1;height:1px;background:#eceef2"></span></div>' +
-          '<button type="button" class="hov-tint2" ' + on(startGroup) + ' style="min-height:48px;background:#f3f1fe;border:0;border-radius:999px;font-family:inherit;font-size:15px;font-weight:800;color:#5b4ae8;cursor:pointer">Start a group</button>' +
-        '</div>' +
-        '<span ' + on(() => go('how')) + ' style="align-self:center;display:flex;align-items:center;gap:8px;min-height:44px;margin-top:10px;padding:0 10px;font-size:15px;font-weight:800;color:#dfe2e8;cursor:pointer">' +
-          svg(17, stroke('#dfe2e8', 1.9), '<path d="M12 6.5C10.5 5 8 4.3 4 4.5V18c4-.2 6.5.5 8 2 1.5-1.5 4-2.2 8-2V4.5c-4-.2-6.5.5-8 2Z"/><path d="M12 6.5V20"/>') + 'How this works</span>' +
-        '<div style="display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:4px 10px;margin-top:10px;font-size:15px;font-weight:600;color:#9aa0ac">' +
-          '<span>Already have an account?</span>' +
-          '<span ' + on(() => openLogin('default')) + ' style="display:flex;align-items:center;min-height:44px;font-size:15.5px;font-weight:800;color:#fff;cursor:pointer">Sign in</span>' +
-        '</div>' +
+        (st.joinCode ? '<div style="text-align:center;font-size:14.5px;font-weight:700;color:#dfe2e8">Sign in to join the group <strong style="font-weight:900;letter-spacing:1px;color:#fff">' + esc(st.joinCode) + '</strong></div>' : '') +
+        (GOOGLE_ON
+          ? '<button type="button" class="hov-grey" ' + on(google) + ' style="width:100%;min-height:54px;display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;border:0;border-radius:999px;font-family:inherit;font-size:16px;font-weight:800;color:#0d1117;cursor:' + (busy === 'google' ? 'wait' : 'pointer') + '">' +
+              I.google + (busy === 'google' ? 'Opening Google…' : 'Continue with Google') + '</button>'
+          : '') +
+        '<button type="button" ' + on(email) + ' style="width:100%;min-height:54px;display:flex;align-items:center;justify-content:center;gap:10px;background:transparent;border:1.5px solid #454b55;border-radius:999px;font-family:inherit;font-size:16px;font-weight:800;color:#fff;cursor:pointer">' +
+          svg(19, stroke('#fff', 1.9), '<rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m3.5 6.5 8.5 6.5 8.5-6.5"/>') + 'Continue with email</button>' +
+        '<p style="margin:10px 0 0;text-align:center;font-size:14.5px;font-weight:500;color:#9aa0ac">New here? Either one creates your account.</p>' +
       '</div>' +
       '<div style="height:var(--nav-h)"></div>' +
     '</div>';
@@ -1942,18 +1940,18 @@
   function viewLogin() {
     const st = state, busy = st.busy;
     if (st.loginStep === 'email') {
-      const emailOk = EMAIL_OK.test(st.loginEmail.trim());
+      const emailOk = EMAIL_OK.test(st.loginEmail.trim()), withGoogle = GOOGLE_ON && !st.loginEmailOnly;
       const lead = { post: 'Sign in to put your idea up. ', guest: 'Your name fills in, and everything you add is saved to your account. ', join: 'Sign in to join a group. ' }[st.loginFrom] ||
         'Your ideas, groups and name are saved to your account. ';
       return modal('Sign in', closeLogin,
         h3(st.loginFrom === 'post' ? 'Sign in to post' : 'Sign in') +
-        para(lead + (GOOGLE_ON ? 'Use Google, or we’ll email you a 6-digit code. No password.' : 'We’ll email you a 6-digit code. No password.')) +
+        para(lead + (withGoogle ? 'Use Google, or we’ll email you a 6-digit code. No password.' : 'We’ll email you a 6-digit code. No password.')) +
         (st.googleFailed
           ? '<div role="alert" style="display:flex;align-items:flex-start;gap:9px;background:#fdeef0;border:1.5px solid #f5c2cb;border-radius:14px;padding:11px 13px">' +
               '<span style="flex:0 0 18px;width:18px;height:18px;margin-top:1px;border-radius:999px;background:#9b1c31;color:#fff;font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center">!</span>' +
               '<span style="font-size:14px;line-height:1.4;font-weight:700;color:#9b1c31">Google sign-in didn’t finish. Try again, or use your email.</span></div>'
           : '') +
-        (GOOGLE_ON
+        (withGoogle
           ? '<button type="button" class="hov-grey" ' + on(googleSignIn) + ' style="width:100%;min-height:54px;display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;border:2px solid #dcdfe6;border-radius:999px;font-family:inherit;font-size:16px;font-weight:800;color:#0d1117;cursor:' + (busy === 'google' ? 'wait' : 'pointer') + ';opacity:' + (busy && busy !== 'google' ? '.5' : '1') + '">' +
               I.google + (busy === 'google' ? 'Opening Google…' : 'Continue with Google') + '</button>' + orDivider()
           : '') +

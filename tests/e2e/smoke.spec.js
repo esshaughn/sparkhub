@@ -7,19 +7,9 @@ test('visitors land on Welcome, and group screens ask them to join or sign in', 
   try {
     const welcome = page.locator('[data-screen-label=Welcome]');
     await expect(welcome.getByRole('heading', { name: /Turn your idea\s*into a plan\./ })).toBeVisible();
-    await expect(welcome.getByText('Already have an account?')).toBeVisible();
-
-    // "How this works" from Welcome
-    await welcome.getByRole('button', { name: 'How this works' }).click();
-    await expect(page.getByRole('heading', { name: 'Ideas come to life when we build them together' })).toBeVisible();
-    await page.getByRole('button', { name: 'Home' }).click();
-    await expect(welcome.getByText('Enter a group code')).toBeVisible();
-
-    // Join stays grey until the code has 6 characters; letters are uppercased
-    await expect(button(page, 'Join')).toHaveAttribute('aria-disabled', 'true');
-    await page.getByLabel('Group code').fill('abc12');
-    await expect(page.getByLabel('Group code')).toHaveValue('ABC12');
-    await expect(button(page, 'Join')).toHaveAttribute('aria-disabled', 'true');
+    await expect(welcome.getByText('New here? Either one creates your account.')).toBeVisible();
+    await expect(welcome.getByRole('listitem')).toHaveText(['1Post an idea', '2People pitch in', '3It happens']);
+    await expect(welcome.getByRole('button', { name: 'Continue with Google' })).toBeVisible();
 
     // All ideas without a group: join or start one
     await page.getByRole('button', { name: 'All ideas' }).click();
@@ -35,13 +25,18 @@ test('visitors land on Welcome, and group screens ask them to join or sign in', 
     await expect(page.getByRole('dialog', { name: 'Sign in' })).toBeVisible();
     await page.getByRole('dialog').getByRole('button', { name: 'Close' }).click();
 
-    // "Sign in" from Welcome
+    // "Continue with email" from Welcome: the email sign-in, without a second Google button
     await page.getByRole('button', { name: 'Home' }).click();
-    await page.locator('[data-screen-label=Welcome]').getByRole('button', { name: 'Sign in' }).click();
+    await welcome.getByRole('button', { name: 'Continue with email' }).click();
     const dialog = page.getByRole('dialog', { name: 'Sign in' });
-    await expect(dialog).toContainText('Your ideas, groups and name are saved to your account.');
-    await expect(dialog.getByRole('button', { name: 'Continue with Google' })).toBeVisible();
+    await expect(dialog).toContainText('Your ideas, groups and name are saved to your account. We’ll email you a 6-digit code.');
+    await expect(dialog.getByRole('button', { name: 'Continue with Google' })).toHaveCount(0);
     await expect(dialog.getByRole('link', { name: 'Privacy' })).toHaveAttribute('href', '/privacy.html');
+    await dialog.getByRole('button', { name: 'Close' }).click();
+
+    // Sign-in from elsewhere still offers Google
+    await page.getByRole('button', { name: 'Profile' }).click();
+    await expect(page.getByRole('dialog', { name: 'Sign in' }).getByRole('button', { name: 'Continue with Google' })).toBeVisible();
     expect(errors).toEqual([]);
   } finally {
     await context.close();
