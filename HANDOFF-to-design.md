@@ -5,7 +5,7 @@
 - **Built (test):** https://gosparkhub-git-test-eric-5958s-projects.vercel.app · **Live:** https://gosparkhub.vercel.app
 - **Source:** github.com/esshaughn/sparkhub (`index.html`, `js/sparks.js`, `css/sparks.css`, `privacy.html`, `supabase/templates/`)
 - **Baseline:** `design_handoff_spark_hub/Spark Hub App.dc.html` + its README, from "Spark Torrez - Full Site 3"
-- **As of:** 2026-09-25 (Spark Hub rebuild + Welcome v2, both live)
+- **As of:** 2026-09-25, evening: everything below is live (Welcome v2, group photos, admin editing, full-screen vibe photos, Happening soon, darker background)
 
 Everything in the Full Site 3 README is built as specified, except what's listed below. Where this doc and the design files disagree, **this doc is correct**.
 
@@ -68,6 +68,9 @@ Everything in the Full Site 3 README is built as specified, except what's listed
 - **Invite links** are `/join/CODE`. Signed out: Welcome names the code (§2f), and signing in either way opens Join pre-filled. Signed in: the Join pop-up opens pre-filled.
 - **Names** come from the profile; renaming updates every idea and offer you're named on.
 - **Signing in on a new phone** moves that phone's anonymous activity (interest, suggestions, guest info, opened links) into the account.
+- **Admins' powers:** an admin of a group can replace its photo, and edit (title, basics) or delete any idea in it. They can't set another lead's date/location, answer their offers or change their vibe photos. When an admin deletes someone else's idea, its photos stay in storage (only the uploader can delete files).
+- **Several admins per group** already exist (e.g. Hub on Hunters has three), set by the owner; there's no screen to add or remove admins yet (§5.1).
+- **Groups today (live):** Torrez Fitness, Hub on Hunters, Woodcliff Neighborhood, Walnut Creek Neighborhood, each with example ideas.
 - The confirm-email template serves both a first sign-in and a Profile email change, with different wording for each.
 
 ## 4. Designed but not built or not working
@@ -76,7 +79,7 @@ Everything in the Full Site 3 README is built as specified, except what's listed
 
 ## 5. Open questions for the next round
 
-1. **Group settings** (from the design's open list): rename, regenerate the code, remove members (the **group photo** is now built, §2e; a crop/position control is still open), co-admins, leave a group.
+1. **Group settings** (from the design's open list): rename, regenerate the code, remove members, add or remove co-admins (several admins already exist, §3), leave a group. The **group photo** is built (§2e); a crop/position control is still open.
 2. **Categories:** how they work; Walktober is meant to become one.
 3. **An empty new group's first-run view** (today: "No ideas yet." under a gold header).
 4. **Names:** first names or full names? (Google sign-ins show the first name.)
@@ -84,7 +87,8 @@ Everything in the Full Site 3 README is built as specified, except what's listed
 6. **Lead notifications:** still skipped.
 7. **Google's sign-in screen** says "continue to …supabase.co" until Spark Hub has its own sign-in domain.
 8. **Codes and new groups when signed out:** Welcome no longer has a code box or **Start a group** (owner's mockup), so a signed-out visitor with a code but no invite link signs in first, then uses **Join with a code** on Home. Is that fine, or should Welcome keep a small "Have a group code?" link?
-9. **Spark Hub address:** live at gosparkhub.vercel.app for now; a custom domain (e.g. sparkhub.group) may follow.
+9. **Video on the vibe board** (2 photos + 1 short clip) was discussed and parked by the owner: phone videos can't be shrunk in the browser, so it would need a length/size cap (≈20 s / 25 MB) and watching the free plan's bandwidth.
+10. **Spark Hub address:** live at gosparkhub.vercel.app for now; a custom domain (e.g. sparkhub.group) may follow.
 
 ## 6. Design tokens
 
