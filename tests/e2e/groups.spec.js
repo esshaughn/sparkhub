@@ -1,51 +1,64 @@
-// Groups: start one, invite with a code or link, join, switch, "new ideas" badges, the admin page.
+// Groups: Edit group (cover, rename, invite, members and roles, delete), joining, pins, admins editing ideas.
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newMember, newLead, button, postIdea, openIdea, deleteIdea, confirm, asUser } = require('./helpers');
+const { uniqueTitle, newMember, newLead, button, postIdea, openIdea, deleteIdea, confirm, asUser, PNG } = require('./helpers');
 
-test('start a group, invite someone, they join and post, the admin sees a badge', async ({ browser }) => {
+const rx = (t) => new RegExp(t.replace(/[[\]]/g, '\\$&'));
+
+test('a group end to end: edit group, cover, rename, invite, pin, admin edits, roles, delete', async ({ browser }) => {
   const admin = await newLead(browser, 1, 'Ada');
   const other = await newLead(browser, 2, 'Bo');
   const A = admin.page, B = other.page;
-  const name = uniqueTitle('runners');
+  let groupName = uniqueTitle('runners');
   let ideaId;
   try {
-    // Start a group from Profile
-    await A.getByRole('button', { name: 'Profile' }).click();
-    await A.getByRole('button', { name: 'Start a group' }).click();
-    const create = A.getByRole('dialog', { name: 'Start a group' });
-    await expect(create).toContainText('You’ll run it, and get a code to invite others.');
-    await expect(create.getByRole('button', { name: 'Create group' })).toHaveAttribute('aria-disabled', 'true');
-    await create.getByLabel('Group name').fill(name);
-    await create.getByRole('button', { name: 'Create group' }).click();
-    const groupName = '[E2E] Runners ' + name.split(' ').pop().charAt(0).toUpperCase() + name.split(' ').pop().slice(1);
-    await expect(create.getByRole('heading', { name: groupName + ' is ready' })).toBeVisible();
-    const code = (await create.locator('div', { hasText: /^Invite code/ }).locator('div').nth(1).textContent()).trim();
+    // Groups are started behind the scenes now; the starter is its owner
+    const g = await asUser(A, async (c, _C, n) => (await c.rpc('create_group', { p_name: n })).data[0], groupName);
+    const code = g.code;
     expect(code).toMatch(/^[A-HJ-NP-Z2-9]{6}$/);
-    await expect(create).toContainText('/join/' + code);
-    await create.getByRole('button', { name: 'Go to ' + groupName }).click();
-    const browse = A.locator('[data-screen-label=Browse]');
-    await expect(browse).toContainText(groupName);
-    await expect(browse).toContainText('No ideas yet.');
+    await A.reload();
 
-    // Admin page: code, members, copy
+    // Profile → Your groups → Edit group
     await A.getByRole('button', { name: 'Profile' }).click();
-    const row = A.locator('[data-screen-label=Profile]').getByRole('button', { name: new RegExp(groupName.replace(/[[\]]/g, '\\$&')) });
-    await expect(row).toContainText('Owner');   // starting a group makes you its owner
+    const row = A.locator('[data-screen-label=Profile]').getByRole('button', { name: rx(groupName) });
+    await expect(row).toContainText('Owner');
     await row.click();
-    const gp = A.locator('[data-screen-label="Group you run"]');
-    await expect(gp).toContainText('You’re an owner');
+    const gp = A.locator('[data-screen-label="Edit group"]');
+    await expect(gp).toContainText('You’re the owner');
     await expect(gp).toContainText(code);
-    await expect(gp.getByText('Members').locator('..')).toContainText('1');
-    await button(A, 'Copy code').click();
+    await expect(gp).toContainText('1 member');
+    await expect(gp).toContainText('/join/' + code);
+    await gp.getByRole('button', { name: 'Copy code' }).click();
     await expect(A.getByText('Code copied')).toBeVisible();
+    await gp.getByRole('button', { name: 'Copy invite link' }).click();
+    await expect(A.getByText('Invite link copied')).toBeVisible();
 
-    // Replace the group photo (admin page only)
-    const PNG = require('./helpers').PNG;
-    await gp.getByLabel('Replace group photo').setInputFiles({ name: 'group.png', mimeType: 'image/png', buffer: PNG });
-    await expect(A.getByText('Group photo updated')).toBeVisible();
-    const photoUrl = await gp.getByRole('img', { name: 'Group photo' }).evaluate(el => getComputedStyle(el).backgroundImage.match(/url\("([^"]+)"/)[1]);
-    expect(photoUrl).toContain('/storage/v1/object/public/spark-photos/');
-    expect((await A.request.get(photoUrl)).status()).toBe(200);
+    // Add a cover → the positioner → drag, zoom, save
+    await gp.getByLabel('Add a cover').setInputFiles({ name: 'group.png', mimeType: 'image/png', buffer: PNG });
+    const ph = A.getByRole('dialog', { name: 'Position photo' });
+    await expect(ph).toContainText('Header photo');
+    await expect(ph).toContainText('Drag the photo. This is exactly how it’ll show.');
+    const box = await ph.getByLabel('Drag to reposition the photo').boundingBox();
+    await A.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await A.mouse.down();
+    await A.mouse.move(box.x + box.width / 2 - 60, box.y + box.height / 2 + 20, { steps: 5 });
+    await A.mouse.up();
+    await ph.getByLabel('Zoom').fill('1.5');
+    await ph.getByRole('button', { name: 'Save' }).click();
+    await expect(A.getByText('Photo saved')).toBeVisible();
+    await expect(ph).toHaveCount(0);
+    const saved = await asUser(A, async (c, _C, id) => (await c.from('groups').select('photo,photo_pos').eq('id', id).single()).data, g.id);
+    expect(saved.photo).toMatch(/^[0-9a-f-]{36}\/[0-9a-f-]{36}\.jpg$/);
+    expect(saved.photo_pos.zoom).toBe(1.5);
+    expect(saved.photo_pos.x).toBeGreaterThan(50);            // dragged left → focal point moves right
+    await expect(gp.getByText('Change cover')).toBeVisible();
+
+    // Rename in place (owner): Enter saves
+    await gp.getByRole('button', { name: 'Rename group' }).click();
+    groupName = groupName + ' club';
+    await gp.getByLabel('Group name').fill(groupName);
+    await gp.getByLabel('Group name').press('Enter');
+    await expect(A.getByText('Group renamed')).toBeVisible();
+    await expect(gp).toContainText(groupName);
 
     // A wrong code, then the invite link
     await B.getByRole('button', { name: 'Profile' }).click();
@@ -55,35 +68,28 @@ test('start a group, invite someone, they join and post, the admin sees a badge'
     await join.getByRole('button', { name: 'Join' }).click();
     await expect(join).toContainText('That code didn’t match a group. Check it with your organiser.');
     await join.getByRole('button', { name: 'Close' }).click();
-
     await B.goto('/#/join/' + code);
     await expect(B.getByRole('dialog', { name: 'Join a group' }).getByLabel('Group code')).toHaveValue(code);
     await B.getByRole('dialog', { name: 'Join a group' }).getByRole('button', { name: 'Join' }).click();
     await expect(B.locator('[data-screen-label=Browse]')).toContainText(groupName);
 
-    // The admin switches back to Torrez Fitness
+    // Home: square tiles, pin to the front, View all
     await A.goto('/');
-    await A.getByRole('button', { name: 'Switch group' }).click();
-    await A.getByRole('menu', { name: 'Your groups' }).getByRole('button', { name: /^Torrez Fitness/ }).click();
-    await expect(A.getByRole('button', { name: 'Switch group' })).toContainText('Torrez Fitness');
-
-    // They post into the new group; the admin sees a "1 new" badge on it
-    ideaId = await postIdea(B, { title: uniqueTitle('Tempo run') });
+    const home = A.locator('[data-screen-label=Home]');
+    await home.getByRole('button', { name: 'Pin ' + groupName }).click();
+    await expect(A.getByText('Pinned to the front')).toBeVisible();
     await A.reload();
-    await A.getByRole('button', { name: 'Switch group' }).click();
-    const menu = A.getByRole('menu', { name: 'Your groups' });
-    await expect(menu.getByRole('button', { name: new RegExp(groupName.replace(/[[\]]/g, '\\$&')) })).toContainText('Owner');
-    await expect(menu.getByLabel('1 new ideas')).toBeVisible();
-    await menu.getByRole('button', { name: new RegExp(groupName.replace(/[[\]]/g, '\\$&')) }).click();
-    await expect(A.getByRole('button', { name: 'Switch group' })).toContainText(groupName);
+    await expect(home.getByRole('button', { name: 'Unpin ' + groupName })).toBeVisible();
+    await home.getByRole('button', { name: 'View all' }).click();
+    const sheet = A.getByRole('dialog', { name: 'All your groups' });
+    await expect(sheet.getByRole('button').first()).toContainText(groupName);
+    await expect(sheet.getByRole('button').first()).toContainText('Pinned');
+    await expect(sheet.getByRole('button', { name: 'Join a group' })).toBeVisible();
+    await sheet.getByRole('button').first().click();
+    await expect(A.locator('[data-screen-label=Browse]')).toContainText(groupName);
 
-    // Admin page counts both members
-    await A.goto('/');
-    await A.getByRole('button', { name: 'Profile' }).click();
-    await A.locator('[data-screen-label=Profile]').getByRole('button', { name: new RegExp(groupName.replace(/[[\]]/g, '\\$&')) }).click();
-    await expect(A.locator('[data-screen-label="Group you run"]').getByText('Members').locator('..')).toContainText('2');
-
-    // The admin can edit and delete Bo's idea (Bo stays the lead)
+    // Bo posts; the admin edits and deletes it (Bo stays the lead)
+    ideaId = await postIdea(B, { title: uniqueTitle('Tempo run') });
     await openIdea(A, ideaId);
     const detail = A.locator('[data-screen-label="Idea page"]');
     await detail.getByRole('button', { name: 'Edit' }).first().click();
@@ -98,53 +104,66 @@ test('start a group, invite someone, they join and post, the admin sees a badge'
     await expect(A.locator('[data-screen-label=Browse]')).not.toContainText('moved indoors');
     ideaId = null;
 
-    // Roles: the owner makes Bo an admin, then a second owner; Bo then removes Ada as owner
-    await A.goto('/');
-    await A.getByRole('button', { name: 'Profile' }).click();
-    await A.locator('[data-screen-label=Profile]').getByRole('button', { name: new RegExp(groupName.replace(/[[\]]/g, '\\$&')) }).click();
-    await A.getByRole('button', { name: /^Members and roles/ }).click();
+    // All ideas → Edit (admins) → Members: Bo becomes an admin, then a second owner
+    await A.locator('[data-screen-label=Browse]').getByRole('button', { name: 'Edit group' }).click();
+    await expect(gp).toContainText('2 members');
+    await gp.getByRole('button', { name: 'See all members' }).click();
     const members = A.getByRole('dialog', { name: 'Members' });
-    await expect(members).toContainText('Owners (up to two) choose who’s an admin.');
-    await expect(members.getByLabel('Role for Ada')).toHaveValue('owner');
-    await expect(members.getByLabel('Role for Bo')).toHaveValue('member');
-    await members.getByLabel('Role for Bo').selectOption('admin');
+    const bo = members.locator('[data-member="Bo"]');
+    await expect(members.locator('[data-member="Ada"]')).toContainText('(you)');
+    await bo.getByRole('button', { name: 'Make admin' }).click();
     await expect(A.getByText('Bo is now an admin')).toBeVisible();
-    await expect(members.getByLabel('Role for Bo')).toHaveValue('admin');
-    await members.getByLabel('Role for Bo').selectOption('owner');
+    await expect(bo).toContainText('Admin');
+    await bo.getByRole('button', { name: 'Make owner' }).click();
     await confirm(A, 'Make them an owner');
     await expect(A.getByText('Bo is now an owner')).toBeVisible();
-    await expect(members.getByLabel('Role for Bo')).toHaveValue('owner');
-    await expect(members).toContainText('This group has two owners, the most it can have.');
+    await members.getByLabel('Search members').fill('zz');
+    await expect(members).toContainText('No one by that name.');
+    await members.getByRole('button', { name: 'Close' }).click();
 
+    // Bo removes Ada as owner, then as admin
     await B.goto('/');
     await B.getByRole('button', { name: 'Profile' }).click();
-    const bRow = B.locator('[data-screen-label=Profile]').getByRole('button', { name: new RegExp(groupName.replace(/[[\]]/g, '\\$&')) });
+    const bRow = B.locator('[data-screen-label=Profile]').getByRole('button', { name: rx(groupName) });
     await expect(bRow).toContainText('Owner');
     await bRow.click();
-    await B.getByRole('button', { name: /^Members and roles/ }).click();
-    const bMembers = B.getByRole('dialog', { name: 'Members' });
-    await bMembers.getByLabel('Role for Ada').selectOption('member');
+    await B.getByRole('button', { name: 'See all members' }).click();
+    const ada = B.getByRole('dialog', { name: 'Members' }).locator('[data-member="Ada"]');
+    await ada.getByRole('button', { name: 'Remove' }).click();
     await confirm(B, 'Remove as owner');
-    await expect(B.getByText('Ada is now a member')).toBeVisible();
+    await expect(B.getByText('Ada is no longer an owner')).toBeVisible();
+    await ada.getByRole('button', { name: 'Remove' }).click();
+    await expect(B.getByText('Ada is no longer an admin')).toBeVisible();
 
-    // Ada is a plain member now: no admin page, no Edit on Bo's ideas
+    // Ada is a plain member now: no badge, no Edit link
     await A.goto('/');
     await A.getByRole('button', { name: 'Profile' }).click();
-    await expect(A.locator('[data-screen-label=Profile]').getByRole('button', { name: new RegExp(groupName.replace(/[[\]]/g, '\\$&')) })).not.toContainText(/Owner|Admin/);
+    await expect(A.locator('[data-screen-label=Profile]').getByRole('button', { name: rx(groupName) })).not.toContainText(/Owner|Admin/);
+
+    // Bo deletes the group: type DELETE
+    await B.getByRole('dialog', { name: 'Members' }).getByRole('button', { name: 'Close' }).click();
+    await B.locator('[data-screen-label="Edit group"]').getByRole('button', { name: 'Delete group' }).click();
+    const del = B.getByRole('dialog', { name: 'Delete group' });
+    await expect(del.getByRole('heading')).toHaveText('Delete ' + groupName + '?');
+    await expect(del).toContainText('for all 2 members');
+    await expect(del.getByRole('button', { name: 'Delete group' })).toHaveAttribute('aria-disabled', 'true');
+    await del.getByLabel('Type DELETE to confirm').fill('delete');
+    await expect(del.getByLabel('Type DELETE to confirm')).toHaveValue('DELETE');
+    await del.getByRole('button', { name: 'Delete group' }).click();
+    await expect(B.getByText(groupName + ' was deleted')).toBeVisible();
+    await expect(B.locator('[data-screen-label=Home]')).toBeVisible();
 
     expect(admin.errors).toEqual([]);
     expect(other.errors).toEqual([]);
   } finally {
     if (ideaId) await deleteIdea(B, ideaId).catch(() => {});
-    await asUser(A, async (c, _C, name) => {
-      // The test group's name ends in this run's unique suffix (the app title-cases it)
-      const g = (await c.from('groups').select('id').ilike('name', '%' + name.split(' ').pop())).data || [];
-      for (const x of g) await c.rpc('e2e_delete_group', { p_group: x.id });
-    }, name).catch(() => {});
-    await asUser(B, async (c, _C, name) => {   // Bo ends up the owner
-      const g = (await c.from('groups').select('id').ilike('name', '%' + name.split(' ').pop())).data || [];
-      for (const x of g) await c.rpc('e2e_delete_group', { p_group: x.id });
-    }, name).catch(() => {});
+    const suffix = groupName.split(' ')[2];
+    for (const P of [A, B]) {
+      await asUser(P, async (c, _C, suffix) => {
+        const g = (await c.from('groups').select('id').ilike('name', '%' + suffix + '%')).data || [];
+        for (const x of g) await c.rpc('e2e_delete_group', { p_group: x.id });
+      }, suffix).catch(() => {});
+    }
     await admin.context.close();
     await other.context.close();
   }

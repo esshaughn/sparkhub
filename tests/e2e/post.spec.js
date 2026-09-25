@@ -95,7 +95,6 @@ test('post flow guards, and "Put it up" asks visitors to sign in', async ({ brow
     await expect(review).toContainText('Decide later');
     await expect(review).toContainText('Nothing yet');
     await expect(review).toContainText('None');
-    await expect(review).toContainText('You’ll be the Lead of this event.');
 
     // Not signed in: "Sign in to post", and closing keeps the draft
     await button(page, 'Put it up').click();

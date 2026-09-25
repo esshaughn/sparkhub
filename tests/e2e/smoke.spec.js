@@ -25,18 +25,15 @@ test('visitors land on Welcome, and group screens ask them to join or sign in', 
     await expect(page.getByRole('dialog', { name: 'Sign in' })).toBeVisible();
     await page.getByRole('dialog').getByRole('button', { name: 'Close' }).click();
 
-    // "Continue with email" from Welcome: the email sign-in, without a second Google button
+    // "Continue with email" from Welcome: the sign-in pop-up with the email field focused
     await page.getByRole('button', { name: 'Home' }).click();
     await welcome.getByRole('button', { name: 'Continue with email' }).click();
     const dialog = page.getByRole('dialog', { name: 'Sign in' });
-    await expect(dialog).toContainText('Your ideas, groups and name are saved to your account. We’ll email you a 6-digit code.');
-    await expect(dialog.getByRole('button', { name: 'Continue with Google' })).toHaveCount(0);
+    await expect(dialog).toContainText('Your ideas, groups and name are saved to your account. Use Google, or we’ll email you a 6-digit code. No password.');
+    await expect(dialog.getByLabel('Email')).toBeFocused();
+    await expect(dialog.getByRole('button', { name: 'Continue with Google' })).toBeVisible();
     await expect(dialog.getByRole('link', { name: 'Privacy' })).toHaveAttribute('href', '/privacy.html');
     await dialog.getByRole('button', { name: 'Close' }).click();
-
-    // Sign-in from elsewhere still offers Google
-    await page.getByRole('button', { name: 'Profile' }).click();
-    await expect(page.getByRole('dialog', { name: 'Sign in' }).getByRole('button', { name: 'Continue with Google' })).toBeVisible();
     expect(errors).toEqual([]);
   } finally {
     await context.close();
@@ -56,20 +53,21 @@ test('members: Home, group switcher, view and sort menus', async ({ browser }) =
     const home = page.locator('[data-screen-label=Home]');
     await expect(home.getByRole('heading', { name: /Turn your idea\s*into a plan\./ })).toBeVisible();
     await expect(home.getByText('Your groups')).toBeVisible();
+    await expect(home.getByRole('button', { name: 'Switch group' })).toHaveCount(0);   // Home spans all your groups
     await expect(home.getByRole('button', { name: /^Torrez Fitness/ })).toBeVisible();
-
-    // The switcher lists your groups and "Join a group"
-    await page.getByRole('button', { name: 'Switch group' }).click();
-    await expect(page.getByRole('button', { name: /^Torrez Fitness/ }).first()).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Join a group' })).toBeVisible();
-    await page.mouse.click(5, 400);   // clicking away closes it
-    await expect(page.getByRole('button', { name: 'Join a group' })).toHaveCount(0);
 
     // Tapping the group tile opens its ideas
     await home.getByRole('button', { name: /^Torrez Fitness/ }).click();
     const browse = page.locator('[data-screen-label=Browse]');
     await expect(browse.getByRole('heading', { name: 'All ideas' })).toBeVisible();
     await expect(browse).toContainText('Torrez Fitness');
+
+    // The switcher (group screens) lists your groups and "Join a group"
+    await page.getByRole('button', { name: 'Switch group' }).click();
+    await expect(page.getByRole('menu', { name: 'Your groups' }).getByRole('button', { name: /^Torrez Fitness/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Join a group' })).toBeVisible();
+    await page.mouse.click(5, 600);   // clicking away closes it
+    await expect(page.getByRole('button', { name: 'Join a group' })).toHaveCount(0);
 
     // Sort: Most popular first by default, then Happening soon, Newest, Oldest
     await expect(page.getByRole('button', { name: 'Sort' })).toContainText('Most popular');

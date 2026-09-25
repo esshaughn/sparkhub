@@ -64,6 +64,24 @@ test('groups, idea links, guests and leads: the database refuses what the app ne
     }), { g: group.id, me: leadUid, them: otherUid });
     expect(ownerRoles).toEqual({ role: 'owner', stepDownAlone: 'refused', notInGroup: 'refused', badRole: 'refused', list: ['owner'] });
 
+    // Rename, delete, covers and pins: only the right person, only valid values
+    const outsiderGroup = await asUser(O, async (c, _C, { g, id, me }) => ({
+      rename: (await c.rpc('rename_group', { p_group: g, p_name: 'Hijacked' })).error ? 'refused' : 'ALLOWED',
+      remove: (await c.rpc('delete_group', { p_group: g })).error ? 'refused' : 'ALLOWED',
+      cover: (await c.rpc('set_idea_cover', { p_spark: id, p_photo: me + '/00000000-0000-4000-8000-000000000000.jpg', p_pos: null })).error ? 'refused' : 'ALLOWED'
+    }), { g: group.id, id: sparkId, me: otherUid });
+    expect(outsiderGroup).toEqual({ rename: 'refused', remove: 'refused', cover: 'refused' });
+    const ownerExtras = await asUser(L, async (c, _C, { g, id, me, them }) => ({
+      badPos: (await c.rpc('set_group_photo', { p_group: g, p_photo: null, p_pos: { x: 50, y: 40, zoom: 9 } })).error ? 'refused' : 'ALLOWED',
+      goodPos: (await c.rpc('set_group_photo', { p_group: g, p_photo: null, p_pos: { x: 20, y: 60, zoom: 1.2 } })).error?.message || 'ok',
+      coverFromOthers: (await c.rpc('set_idea_cover', { p_spark: id, p_photo: them + '/00000000-0000-4000-8000-000000000000.jpg', p_pos: null })).error ? 'refused' : 'ALLOWED',
+      coverPos: (await c.from('sparks').update({ cover_pos: { x: 10, y: 90, zoom: 2 } }).eq('id', id).select('id')).data?.length ? 'ok' : 'refused',
+      oddCoverPos: (await c.from('sparks').update({ cover_pos: { x: 'left' } }).eq('id', id)).error ? 'refused' : 'ALLOWED',
+      pin: (await c.from('memberships').update({ pinned: true }).eq('group_id', g).eq('user_id', me).select('pinned')).data?.[0]?.pinned === true ? 'ok' : 'refused',
+      shortName: (await c.rpc('rename_group', { p_group: g, p_name: ' x ' })).error ? 'refused' : 'ALLOWED'
+    }), { g: group.id, id: sparkId, me: leadUid, them: otherUid });
+    expect(ownerExtras).toEqual({ badPos: 'refused', goodPos: 'ok', coverFromOthers: 'refused', coverPos: 'ok', oddCoverPos: 'refused', pin: 'ok', shortName: 'refused' });
+
     // The admin gets the code and the head count
     const admin = await asUser(L, async (c, _C, g) => ({
       code: (await c.rpc('group_code', { p_group: g })).data,

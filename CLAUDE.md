@@ -4,6 +4,10 @@ One app, many groups (Torrez Fitness is one, code TORREZ). Static HTML/CSS/JS (n
 
 **Renamed 2026-09-25:** live address https://gosparkhub.vercel.app (the Vercel project is `gosparkhub`; the old torrezhub.vercel.app redirects), GitHub repo `esshaughn/sparkhub`, Supabase projects `sparkhub` / `sparkhub-test`, backups in `~/Backups/sparkhub` (launchd `com.sparkhub.backup`). Only this local folder is still called `sparks-torrez`.
 
+## Design files
+
+`design/spark-hub/` holds the current design spec (`README.md`, the decision log, and the clickable `Spark Hub App.dc.html` prototype; open it with `support.js` beside it). Photos, screenshots and explorations stay in the design zip. Where the README and `HANDOFF-to-design.md` disagree, the handoff records the owner's later decisions.
+
 ## Keep HANDOFF-to-design.md current
 
 `HANDOFF-to-design.md` tells Claude Design how the live app differs from the last design file. Update it **in the same commit** as any change a user could see or do differently: layout, copy, screens, flows, states (empty/loading/error), what data is shown and to whom.
@@ -73,8 +77,8 @@ Ad-hoc reads: `supabase db query --linked [--project-ref …] "select …"`.
 
 ## Security rules the code relies on
 
-- Clients can only UPDATE these `sparks` columns: text, hopes, spot, spot_open, day, day_date, day_time, spot_address, spot_lat, spot_lon, vision, mood (column grants, `20260925000000_spark_hub_groups.sql`). Anything else goes through a `security definer` function. A new editable column needs a new grant in a migration.
-- Groups: members see their groups' ideas; `open_idea()` records an idea link in `link_access`, which lets that visitor see that one idea. `groups.code` isn't a readable column (only `group_code()` for admins). Admins of a group can delete any of its ideas (policy) and edit their text/basics only through `admin_edit_spark()`. Group photos change only through `set_group_photo()` (admins, and only to a photo in their own storage folder). Memberships are created only by `create_group()` / `join_group()`, and members can update only their own `last_seen_at`. Joining, starting a group and posting require a signed-in (non-anonymous) account (`is_signed_in()`).
+- Clients can only UPDATE these `sparks` columns: text, hopes, spot, spot_open, day, day_date, day_time, spot_address, spot_lat, spot_lon, vision, mood, cover_pos (column grants, `20260925000000_spark_hub_groups.sql`). Anything else goes through a `security definer` function. A new editable column needs a new grant in a migration.
+- Groups: members see their groups' ideas; `open_idea()` records an idea link in `link_access`, which lets that visitor see that one idea. `groups.code` isn't a readable column (only `group_code()` for admins). Admins of a group can delete any of its ideas (policy) and edit their text/basics only through `admin_edit_spark()`. Group photos and their framing change only through `set_group_photo()` (admins, and only to a photo in their own storage folder); idea covers through `set_idea_cover()` (lead) or the lead's `cover_pos` update. Owners rename/delete groups with `rename_group()` / `delete_group()`. Members may update only their own `last_seen_at` and `pinned`. Memberships are created only by `create_group()` / `join_group()`. Joining, starting a group and posting require a signed-in (non-anonymous) account (`is_signed_in()`).
 - Roles are owner / admin / member (owners count as admins everywhere via `is_admin()`). In the app, owners change roles with `set_member_role()` (max two owners, never zero, enforced by a trigger and the function). By hand, admins are per database: set with `update public.memberships set role = 'admin' where user_id = (select id from auth.users where email = '…') and group_id = (select id from public.groups where code = 'TORREZ')`. On test, esshaughn@gmail.com runs Torrez Fitness.
 - Photo paths (idea photos, mood photos, avatars) must be `<uploader uid>/<uuid>.jpg`; the DB checks the shape and the insert policy checks the uid. `PHOTO_PATH` in sparks.js mirrors it. Don't build image URLs from unvalidated strings.
 - `vercel.json` sets the Content-Security-Policy. Adding any new external script, style, font, image or API host means adding it there first, or production breaks silently (check the browser console for "Refused to…").

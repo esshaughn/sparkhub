@@ -2,14 +2,14 @@
 
 Every function and feature in the build, numbered so you can say "scrub 27, 29, 37". Status: **Live** (works, visible), **Test** (built, on the `test` branch, not live yet), **Placeholder** (works, copy is Latin).
 
-As of 2026-09-25: the Spark Hub rebuild from the design handoff "Spark Torrez - Full Site 3". This rebuild restarted the numbering; the list for the old single-group app is in git history (`FEATURES.md` before this date).
+As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updated for "Full Site 4" (spec in `design/spark-hub/`). This rebuild restarted the numbering; the list for the old single-group app is in git history (`FEATURES.md` before this date).
 
 ## Welcome (signed out)
 
 | # | Feature | Status | Notes |
 |---|---|---|---|
-| 1 | Photo header (picnic photo), logo, "Turn your idea / into a plan.", the 1-2-3 steps as a list | Test | Photo: `photos/welcome.jpg` |
-| 2 | **Continue with Google** (straight to Google) and **Continue with email** (the email-code pop-up, no second Google button); "New here? Either one creates your account." | Test | |
+| 1 | Photo block (picnic photo, raised 70px, lighter scrim), logo, "Turn your idea / into a plan." (42px), the 1-2-3 steps as a list | Test | Photo: `photos/welcome.jpg` |
+| 2 | **Continue with Google** (opens sign-in straight into *Opening Google…*) and **Continue with email** (sign-in with the email field focused); "New here? Either one creates your account." | Test | |
 | 3 | An invite link (/join/CODE) adds "Sign in to join the group CODE"; after signing in, Join opens pre-filled | Test | |
 | 4 | (Removed) Group code card, Start a group, How this works link: now only after sign-in / in the tab bar | Test | |
 
@@ -17,30 +17,30 @@ As of 2026-09-25: the Spark Hub rebuild from the design handoff "Spark Torrez - 
 
 | # | Feature | Status | Notes |
 |---|---|---|---|
-| 5 | Logo (goes Home) + group switcher | Test | |
-| 6 | "Turn your idea / into a plan." hero, one-pill 1-2-3 steps, **I have an idea** | Live | Posts to the current group |
-| 7 | **Your groups**: first tile (the group you run, else current) with ADMIN chip and "N ideas" / "N new", other groups in a 2-column grid with new-idea badges | Test | Tapping switches group and opens All ideas |
-| 8 | **Join with a code** link | Test | |
+| 5 | Logo (goes Home); no group switcher on Home | Test | Home spans all your groups |
+| 6 | "Turn your idea / into a plan.", the 1-2-3 steps as one plain row, **I have an idea** | Test | Posts to the current group |
+| 7 | **Your groups**: one swipeable row of 150×150 photo tiles (pinned first, then most recently opened), ADMIN/OWNER chip, **pin** button (toast "Pinned to the front" / "Unpinned") | Test | Tapping switches group and opens All ideas |
+| 8 | **View all** → the **Your groups** bottom sheet (photo, name, chip, *Pinned*; **Join a group**) | Test | |
 | 9 | **Coming up**: next 3 dated ideas across your groups, mini calendar | Test | Hidden when nothing is dated |
-| 10 | Not in a group yet: **Join with a code** / **Start a group** card | Test | Not designed; built to match |
+| 10 | Not in a group yet: **Join with a code** card | Test | Not designed |
 
 ## Groups
 
 | # | Feature | Status | Notes |
 |---|---|---|---|
-| 11 | Group switcher menu: your groups, ADMIN chip, new-ideas badge, current one tinted, **+ Join a group** | Test | Badges clear when you open that group |
+| 11 | Group switcher menu (All ideas, How this works): your groups in Home's order, ADMIN/OWNER chip, current one tinted, **+ Join a group** | Test | No new-idea badges any more |
 | 12 | **Join a group** pop-up (code, "didn't match" error) | Test | Needs sign-in |
-| 13 | **Start a group** pop-up → "{Name} is ready" with code, link, **Copy invite link**, **Go to {Name}** | Test | Name saved in Title Case |
+| 13 | (Removed) Start a group: groups are created behind the scenes (Supabase) | Test | `create_group()` still exists for tests and by hand |
 | 14 | Invite links `/join/CODE` (and `#/join/CODE`): code filled in; Join opens for someone signed in | Test | Vercel rewrite in `vercel.json` |
-| 15 | **Group page** (admins): code, link, **Share invite link**, **Copy code**, Members count, Go to this group | Test | |
-| 15b | **Owners** (up to 2 per group; whoever starts a group): everything admins can do, plus **Members and roles** on the Group page to make anyone Owner / Admin / Member. Admins see the member list read-only. A group always keeps one owner | Test | Owner badge is purple, Admin gold |
-| 16 | Group photo on Home tiles, All ideas header and as the fallback behind ideas without a photo; admins replace it on the Group page (**Replace photo**) | Test | New groups fall back to gold until an admin sets one |
+| 15 | **Edit group** (owners and admins; Profile → Your groups or **Edit** on All ideas): cover with **Change cover** / **Add a cover**, group name (owners rename in place; admins see a lock), members card → Members sheet, invite code + link with **Copy**, **Delete group** (owners; type DELETE) | Test | Back returns where you came from |
+| 15b | **Owners** (up to 2 per group; whoever starts a group). Members sheet (search, *(you)* first): owners **Make admin**, **Make owner**, **Remove**, **Step down**; admins see it read-only. A group always keeps one owner | Test | Owner chip purple, Admin gold |
+| 16 | Group photo on Home tiles, the sheet, All ideas header and behind ideas without a photo, framed with the **Photo positioner** (drag, zoom 1–2.5×, Choose a different photo) | Test | New groups fall back to gold |
 
 ## All ideas (per group)
 
 | # | Feature | Status | Notes |
 |---|---|---|---|
-| 17 | Photo header with group name, **All ideas**, overlapping **I have an idea** | Test | |
+| 17 | Photo header with group name, **All ideas**, **Edit** link (admins), overlapping **I have an idea**; Sort on the left, View on the right | Test | |
 | 18 | **View**: Cards · Grid · List, remembered on this device | Test | |
 | 19 | **Sort**: Most popular (default) · Happening soon · Newest · Oldest | Test | Happening soon: upcoming dates (soonest first), then no date yet (newest first), then past dates |
 | 20 | Card: photo (or the group photo), title, date · time, location, lead's face + "Led by", interest count | Test | "Date TBD" / "Location TBD" in grey |
@@ -50,7 +50,7 @@ As of 2026-09-25: the Spark Hub rebuild from the design handoff "Spark Torrez - 
 
 | # | Feature | Status | Notes |
 |---|---|---|---|
-| 22 | Photo header (or the group photo), back, group name, **Edit** (lead, or an admin of the group: edit the idea and basics, delete it) | Test | |
+| 22 | Photo header (framed cover, or the group photo), back, group name, **Edit** (lead, or an admin of the group), **Photo** / **Add a photo** (lead → Photo positioner) | Test | |
 | 23 | Title sheet: lead's face, "Led by", **N interested** + face stack (+N) | Test | |
 | 24 | **I'm interested** / **You're interested** (not for the lead) | Test | Guests give name + phone first |
 | 25 | **Waiting on you** (lead): suggested locations/dates with **Use this location / Use this date** and **Not this time** | Test | |
@@ -67,7 +67,7 @@ As of 2026-09-25: the Spark Hub rebuild from the design handoff "Spark Torrez - 
 
 | # | Feature | Status | Notes |
 |---|---|---|---|
-| 34 | Post flow: event → location → date (+ time) → the basics → photos (up to 3) → **Look good?** | Test | Into the current group |
+| 34 | Post flow: event (+ **Post to** your group picker) → location → date (+ time) → the basics → photos (up to 3, **Position the cover**) → **Look good?** → **Put it up** | Test | Post to defaults to the switcher's group; the Lead note is parked |
 | 35 | Location suggestions while typing (Geoapify, near Austin), address saved with the pick | Test | Kept by owner decision; the design had removed them |
 | 36 | **Put it up** needs sign-in ("Sign in to post"), then a name if missing | Test | |
 | 37 | Edit idea: title + the basics; **Delete this idea** (removes its photos) | Test | |

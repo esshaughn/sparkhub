@@ -4,99 +4,74 @@
 
 - **Built (test):** https://gosparkhub-git-test-eric-5958s-projects.vercel.app · **Live:** https://gosparkhub.vercel.app
 - **Source:** github.com/esshaughn/sparkhub (`index.html`, `js/sparks.js`, `css/sparks.css`, `privacy.html`, `supabase/templates/`)
-- **Baseline:** `design_handoff_spark_hub/Spark Hub App.dc.html` + its README, from "Spark Torrez - Full Site 3"
-- **As of:** 2026-09-25, evening: everything below is live (Welcome v2, group photos, admin editing, full-screen vibe photos, Happening soon, darker background)
+- **Baseline:** `design/spark-hub/README.md` + `Spark Hub App.dc.html`, from "Spark Torrez - Full Site 4" (the spec and prototype are in the repo; photos, screenshots and explorations stayed in the zip)
+- **As of:** 2026-09-25 (Full Site 4 build, on the test branch)
 
-Everything in the Full Site 3 README is built as specified, except what's listed below. Where this doc and the design files disagree, **this doc is correct**.
+Everything in the Full Site 4 README is built as specified, except what's listed below. Where this doc and the design files disagree, **this doc is correct**.
 
 ---
 
 ## 1. What changed since the design
 
+These are the owner's decisions, made after the design round started (it was drawn from an older copy of this doc).
+
 | # | Change | Design said | Why |
 |---|---|---|---|
-| 1 | **Location suggestions stay.** The post flow's Location step suggests places near Austin as you type (Geoapify), and a pick saves the street address. The idea page shows that address under the location, followed by a purple **Directions** link (Google Maps). The lead's **Set** for a location uses the same suggestions. Suggestions to the lead ("Know a location?") stay plain text. The privacy page keeps its Geoapify row | Remove suggestions, the picked address and Directions; plain text | Owner decision |
-| 2 | **Welcome (signed out) rebuilt to the owner's second mockup:** the picnic photo (`photos/welcome.jpg`) fills the top, raised 90px (its top edge cropped) so the people sit above the headline, under a scrim (`.15` top → `.78` at 50% → `.93` at 70% → `#0d1117`) so the text reads clearly; logo only; *Turn your idea / into a plan.* (40px, line 2 `#a99cff`); the same line as Home; the 1-2-3 steps as a **vertical list** (28px circles `#e8a71c` / `#5b4ae8` / `#0f7a3c`, white 17px/800 labels); then two full-width 54px pill buttons: **Continue with Google** (white, Google logo) and **Continue with email** (outline `1.5px #454b55`, white text, envelope icon); under them *New here? Either one creates your account.* (`#9aa0ac`). No group-code card, no Start a group, no How this works link, no separate Sign in (the tab bar still has How this works) | Photo, "Small ideas. / Done together.", Sign in top right, **Start your own group** outline button, three step tiles | Owner's mockup |
-| 3 | Date pickers (posting, "Got a date & time in mind?", the lead's Set) allow **any date from today on** | October 2026 only | Many groups now, not just Walktober |
-| 4 | **Home (signed in) header:** *Turn your idea / into a plan.* (line 2 purple), then *Post an idea. Your group helps pick the day, find the place and make it happen.* The three steps are one grey `#f2f3f6` pill: 22px coloured number dots (gold `#e8a71c`, purple `#5b4ae8`, green `#0f7a3c`, white 12/900 numbers), labels 13.5/800 ink, grey chevrons between | *Got an idea? / Spark it.*, a longer line, three separate tinted tiles | Owner's mockup |
-| 5 | Wording: suggestion pop-ups say **Offer this location** / **Offer this date**; activity lines say "offered a location:" / "suggested a date:"; the lead's buttons say **Use this location** / **Use this date** | "Offer this spot", "floated a day", "Use this spot" | Matches the rows' "Location" and the README's leftover note |
-| 6 | **Sort** adds **Happening soon** (second, after Most popular): ideas with an upcoming date first, soonest on top; then ideas with no date yet (newest first); ideas whose date has passed go last | Most popular · Newest · Oldest | Owner's request |
-| 7 | Ideas without their own photo show the **group photo sharp** (no blur), under the same dark gradient, on cards, grid tiles and the idea page header | Group photo blurred (1.5px) behind photo-less ideas | Owner didn't like the blur |
+| 1 | **Location suggestions stay.** The post flow's Location step and the lead's **Set** suggest places near Austin as you type (Geoapify). A pick saves the street address, shown under the location on the idea page with a purple **Directions** link. The privacy page keeps its Geoapify row | Removed: plain text, no address picker, no Directions, no Geoapify row | Owner decision (kept twice) |
+| 2 | **Up to two owners.** Whoever starts a group is its owner; an owner can make one more owner. **Only owners** make or remove admins and owners; admins see the member list without actions | One owner per group; admins can also Make admin; only the owner removes admins | Owner's feature request |
+| 3 | **Admins edit and delete any idea in their group** (the idea and its basics; the lead stays the lead). The Edit pill shows for the lead and for the group's admins/owners | Edit pill for the lead only | Owner's request |
+| 4 | **Page background `#e8eaee`** (a step darker than `#f1f2f5`) behind lists, cards and overlay screens; `#dcdfe4` outside the app frame on desktop | `#f1f2f5` | Owner: "slightly darker gray" so white cards stand out |
+| 5 | **Sort** has **Happening soon** second: upcoming dates first (soonest on top), then no date yet (newest first), then past dates | Most popular · Newest · Oldest | Owner's request |
+| 6 | **Tapping a vibe photo opens it full screen** (see §2c) | Not specified | Owner's request |
 
 ## 2. Things the build had to invent (please design these properly)
 
-### a. Not in a group yet
-- Home (signed in, no groups) and All ideas show a white card: **You're not in a group yet.** / *Join one with a code from its organiser, or start your own.* with **Join with a code** (primary) and **Start a group** (secondary). The switcher reads **Your groups**.
-- "I have an idea" / the + tab with no group opens **Join a group**.
+### a. Owner controls in the Members sheet
+Rows keep the design's layout (40px face, name, *(you)*, chip). For **owners** only, the right side shows:
+- plain member → outline **Make admin** pill (as designed)
+- admin → outline **Make owner** pill (only while there's one owner) and grey **Remove** (back to member)
+- the other owner → grey **Remove** (back to admin); your own row, if there are two owners → grey **Step down**
+- The **OWNER** chip is purple (`#ece9fd` / `#4a3ad4`); **ADMIN** stays gold. Owner chips also show on Home tiles, the Your groups sheet, the switcher menu, Post to and Profile (`★ Owner`).
+- Confirmations (standard pop-up): **Make {first} an owner?** / *Owners can do everything admins can, and choose who the admins and owners are. They could also take the owner role away from you. A group can have two owners.* / **Make them an owner** · **Remove {first} as owner?** / *{first} will be an admin.* / red **Remove as owner** · **Step down as owner?** / *You'll be an admin and can't change roles any more.* / red **Step down**.
+- Toasts: *{first} is now an admin* · *{first} is now an owner* · *{first} is no longer an admin* · *{first} is no longer an owner* · *You're an admin now*.
+- Edit group's members card reads *You're the owner* for either owner.
 
-### b. The lead's "Set" pop-ups
-- Date: **Set the date & time** / *It shows on the idea straight away.* / a date-and-time field / **Set it**.
-- Location: **Set the location** / same line / a location field with suggestions / **Set it**.
-- Tags after: "Date set", "Location set".
+### b. Invite link, signed out (README → Open)
+- Welcome adds one centred line above the buttons: *Sign in to join the group* **CODE** (14.5/700 `#dfe2e8`, code white 900, 1px tracking). Signing in either way then opens the Join pop-up with the code filled in.
 
-### c. Suggesting a date (non-lead)
-- **Got a date & time in mind?** / *Pick the day and time you're thinking of. The lead takes it from there.* / date-and-time field / **Offer this date**. (The design's hint was about rough dates, but the field is a picker.)
+### c. Full-screen vibe photos
+- Tapping a vibe photo opens it over `rgba(0,0,0,.94)`, fitted; a 40px round ✕ top right (`rgba(255,255,255,.16)`); with 2–3 photos, 44px round ‹ › arrows and *2 / 3* at the bottom (13/700, 75% white). Tap outside, ✕ or Escape closes; arrow keys move between photos.
 
-### d. Who's interested (lead only)
-- Tapping "**N** interested" on your own idea opens **Who's interested** / *Only you see phone numbers. They're from people who took part without an account.* Rows: face, name, and for guests their phone as a purple tap-to-call link.
-- Without this, the lead had no way to see the numbers guests leave.
-
-### e. Group photos
-- New groups have no photo yet, so their tiles and All ideas header fall back to gold `#e8a71c`, and their ideas without a photo fall back to brown `#2b2413`.
-- **Admins replace the photo on the Group page** (Profile → Your groups → a group you run; the owner wanted it tucked away there, not on Home). A white card between *Invite people* and *Members*: eyebrow **Group photo**; a 120px preview (radius 14, the photo under a left-to-right dark scrim, the group name 18/900 white bottom-left, gold `#e8a71c` if none); a secondary **Replace photo** button (**Saving…** while uploading) that opens the photo picker; then *Shows on the group's tile and at the top of its ideas, for everyone in the group.* (13/500 grey). Toast: **Group photo updated**.
-
-### f. Sign-in from Welcome
-- **Continue with Google** on Welcome goes straight to Google (no pop-up first).
-- **Continue with email** opens the usual **Sign in** pop-up *without* its Google button: *Your ideas, groups and name are saved to your account. We'll email you a 6-digit code. No password.* / email field / **Email me a code** / Privacy line. Everywhere else (Profile, posting, joining) the pop-up still offers Google first.
-- **Invite link, signed out:** Welcome adds one centred line above the buttons: *Sign in to join the group* **CODE** (14.5px/700 `#dfe2e8`, the code white 900 with 1px letter-spacing). After sign-in (either way) the Join pop-up opens with the code filled in.
-
-### g. Admins edit any idea in their group
-- An admin of the idea's group gets the same **Edit** button as the lead, and the same Edit screen (the idea, the basics, **Delete this idea**). For an admin who isn't the lead, the note under the basics adds: *You're editing as an admin of {group}; {lead} still leads it.* The lead stays the lead; setting the date/location, the vibe photos and answering offers stay the lead's.
-
-### h. Full-screen vibe photos
-- Tapping a vibe photo opens it full screen: black `rgba(0,0,0,.94)`, the photo fitted, a 40px round ✕ top right (`rgba(255,255,255,.16)`), and with 2–3 photos 44px round ‹ › arrows at the sides plus *2 / 3* at the bottom (13/700, 75% white). Tap outside the photo or press Escape to close; arrow keys move between photos.
-
-### i. Owners and the member list
-- A third role above admin: **Owner** (whoever starts a group; up to two per group). Owners can do everything admins can, and set anyone's role. Badges: **OWNER** in purple (`#ece9fd` bg, `#4a3ad4` text) next to the gold **ADMIN** (switcher, Home tiles, Profile → Your groups). The Group page eyebrow reads *You're an owner* (purple) or *You're an admin* (gold).
-- On the Group page the **Members** row (now with a chevron; *Members and roles* for owners) opens a **Members** pop-up: face, name (*(you)* for yourself), and for owners a small role picker (Owner / Admin / Member; Owner greyed out once there are two). Admins see the role as a badge instead. Copy: owners *Owners (up to two) choose who's an admin. Admins can invite people, change the group photo, and edit or delete any idea.*; admins *Only the group's owners can change roles.*; with two owners *This group has two owners, the most it can have.*
-- Confirmations: **Make {name} an owner?** / *Owners can do everything admins can, and choose who the admins and owners are. They could also take the owner role away from you. A group can have two owners.* / **Make them an owner**. Removing an owner: **Remove {name} as owner?** (or **Step down as owner?** for yourself), red **Remove as owner** / **Step down**. Toasts: *{name} is now an owner / an admin / a member*.
-
-### j. Small states
-- Busy labels added: **Joining…**, **Creating…**, **Saving…**, **Confirming…**.
-- Profile with no name reads **No name yet**.
-- All ideas shows *Loading ideas…* above the skeletons.
+### d. Small states
+- Not in a group yet (Home and All ideas): **You're not in a group yet.** / *Join one with a code from its organiser.* / **Join with a code** (no Start a group).
+- Members sheet while loading: *Loading…*. Positioner Save while saving: **Saving…**. Delete group while deleting: **Deleting…**.
+- Deleting your only group: toast *You need to be in at least one group.*
+- Sort and View menus keep a purple ✓ on the selected row (the groups menus don't).
 
 ## 3. Behaviour added in the build (no visual change)
 
-- **Who sees what:** members see their groups' ideas. Opening an idea's link gives that visitor access to just that idea (and its group's name and photo), so guests can take part from a shared link. Join codes are visible only to admins (Group page).
-- **Guests** give name + phone once per visit (remembered on the device as a convenience). The number is saved per idea and only that idea's lead can see it. Taking interest back never asks.
-- **New-idea badges** count ideas posted by others since you last opened that group; opening it clears them.
-- **Invite links** are `/join/CODE`. Signed out: Welcome names the code (§2f), and signing in either way opens Join pre-filled. Signed in: the Join pop-up opens pre-filled.
-- **Names** come from the profile; renaming updates every idea and offer you're named on.
-- **Signing in on a new phone** moves that phone's anonymous activity (interest, suggestions, guest info, opened links) into the account.
-- **Admins' powers:** an admin of a group can replace its photo, and edit (title, basics) or delete any idea in it. They can't set another lead's date/location, answer their offers or change their vibe photos. When an admin deletes someone else's idea, its photos stay in storage (only the uploader can delete files).
-- **Roles:** owner > admin > member. The database allows at most two owners and never lets the last owner step down; only owners change roles (`set_member_role`).
+- **Photo framing** is stored as `{x, y, zoom}` (x/y 0–100 %, zoom 1–2.5) on `groups.photo_pos` and `sparks.cover_pos`, and rendered with the README's rule everywhere (full layer with zoom on headers and the positioner; the same focal point on tiles, cards and thumbnails). Choosing a different photo in the positioner uploads it on Save; the old file is deleted if you uploaded it.
+- **Pins and order:** `memberships.pinned`; "most recently visited" is `memberships.last_seen_at`, set whenever you open a group (tile, sheet, switcher, Post to doesn't count).
+- **Owners rename** (2–40 characters) **and delete** groups through database functions; deleting cascades its ideas and memberships (their photos stay in storage). Roles change only through `set_member_role` (max two owners, never zero).
+- **Admins' powers:** replace the group photo, edit (title, basics) or delete any idea in the group. They can't set a lead's date/location, answer their offers or change their vibe photos or cover.
+- **Who sees what:** members see their groups' ideas; an idea's link lets a visitor see just that idea. Join codes are visible only to admins and owners.
+- **Guests** give name + phone once per visit; only that idea's lead sees them. Signing in later moves a phone's anonymous activity into the account.
 - **Groups today (live):** Torrez Fitness, Hub on Hunters, Woodcliff Neighborhood, Walnut Creek Neighborhood, each with example ideas.
-- The confirm-email template serves both a first sign-in and a Profile email change, with different wording for each.
 
 ## 4. Designed but not built or not working
 
 - **"How this works" body copy** is still placeholder Latin (as designed).
+- The prototype's **Rename group pop-up** isn't used; the inline rename (2a/2b) is what's built, as the README specifies.
 
 ## 5. Open questions for the next round
 
-1. **Group settings** (from the design's open list): rename, regenerate the code, remove members, leave a group. (Roles are built: owners set admins, §2i.) The **group photo** is built (§2e); a crop/position control is still open.
-2. **Categories:** how they work; Walktober is meant to become one.
-3. **An empty new group's first-run view** (today: "No ideas yet." under a gold header).
-4. **Names:** first names or full names? (Google sign-ins show the first name.)
-5. **Suggest vs Offer** wording in pop-up titles and activity lines (§1 #5 is the build's interim choice).
-6. **Lead notifications:** still skipped.
-7. **Google's sign-in screen** says "continue to …supabase.co" until Spark Hub has its own sign-in domain.
-8. **Codes and new groups when signed out:** Welcome no longer has a code box or **Start a group** (owner's mockup), so a signed-out visitor with a code but no invite link signs in first, then uses **Join with a code** on Home. Is that fine, or should Welcome keep a small "Have a group code?" link?
-9. **Video on the vibe board** (2 photos + 1 short clip) was discussed and parked by the owner: phone videos can't be shrunk in the browser, so it would need a length/size cap (≈20 s / 25 MB) and watching the free plan's bandwidth.
-10. **Spark Hub address:** live at gosparkhub.vercel.app for now; a custom domain (e.g. sparkhub.group) may follow.
+1. Everything in the README's **Open / not designed yet** list still stands (categories, first-run view for an empty group, removing members, leaving a group, lead notifications, Suggest vs Offer wording, first vs full names, group creation in the app, Welcome wording, the parked Lead note).
+2. **Invite link screens** (§2b is a stopgap).
+3. **Owner controls** (§2a): is a pill + text button per row right at 393px, or should roles move into a per-row menu?
+4. **Google's sign-in screen** says "continue to …supabase.co" until Spark Hub has its own sign-in domain.
+5. **Video on the vibe board** (2 photos + 1 short clip) is parked: phone videos can't be shrunk in the browser, so it would need a ~20 s / 25 MB cap and watching the free plan's bandwidth.
+6. **Spark Hub address:** gosparkhub.vercel.app for now; a custom domain may follow.
 
 ## 6. Design tokens
 
-As listed in the Full Site 3 README, except:
-- **App background** (behind cards and lists, and overlay screens) is `#e8eaee`, a step darker than the README's `#f1f2f5`, so white cards stand out (owner's request). The page outside the app frame on desktop is `#dcdfe4`.
+As listed in the Full Site 4 README, except the page background (§1 #4) and the purple owner chip (§2a: `#ece9fd` / `#4a3ad4`).

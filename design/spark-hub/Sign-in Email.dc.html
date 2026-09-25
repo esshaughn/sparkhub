@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet" />
+<style>
+  body { margin: 0; background: #e9eaee; font-family: Figtree, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  *, *::before, *::after { box-sizing: border-box; }
+  a { color: #5b4ae8; text-decoration: none; }
+  a:hover { color: #4a3ad4; }
+</style>
+</helmet>
+<div style="padding:40px;display:flex;flex-direction:column;gap:22px">
+  <div>
+    <div style="font-size:13px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#5b4ae8">Spark Hub · sign-in emails</div>
+    <h1 style="margin:6px 0 0;font-size:32px;font-weight:900;letter-spacing:-.8px;color:#0d1117">Sign-in code &amp; confirm email</h1>
+    <p style="margin:8px 0 0;max-width:720px;font-size:15px;line-height:1.5;font-weight:500;color:#5c6270">From “Spark Hub” &lt;sparks@mail.ericscott-creative.com&gt;. The inbox row above each email shows the subject and preview text. Rebuild in <span style="font-family:ui-monospace,monospace;font-size:13.5px">supabase/templates/</span> with tables and inline styles; Figtree falls back to system fonts in most mail apps.</p>
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:32px;align-items:flex-start">
+
+    <div id="code" style="width:600px;display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;align-items:center;gap:8px"><span style="background:#0d1117;color:#fff;border-radius:999px;padding:4px 11px;font-size:12.5px;font-weight:800">A</span><span style="font-size:14px;font-weight:800;color:#0d1117">Sign-in code</span></div>
+      <div style="background:#fff;border-radius:14px;padding:12px 16px;display:flex;gap:12px;align-items:center;box-shadow:0 1px 3px rgba(15,18,25,.08)">
+        <span style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#5b4ae8;display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="#e8a71c"><path d="M13.2 2.2 7.2 13.1l3.9-.35-.9 8.8 6.9-11.2-4.1.4z" /></svg></span>
+        <div style="flex:1 1 auto;min-width:0">
+          <div style="display:flex;justify-content:space-between;gap:10px"><span style="font-size:14.5px;font-weight:800;color:#0d1117">Spark Hub</span><span style="font-size:12.5px;font-weight:600;color:#6b7280">9:41 AM</span></div>
+          <div style="font-size:14px;font-weight:700;color:#0d1117">Your Spark Hub sign-in code</div>
+          <div style="font-size:13.5px;font-weight:500;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Your code is 482 915. Enter it in the app to finish signing in.</div>
+        </div>
+      </div>
+      <div style="background:#f1f2f5;border-radius:16px;padding:36px 28px">
+        <div style="background:#fff;border-radius:20px;padding:32px 30px 30px">
+          <div style="display:flex;align-items:center;gap:6px"><svg width="16" height="16" viewBox="0 0 24 24" fill="#e8a71c"><path d="M13.2 2.2 7.2 13.1l3.9-.35-.9 8.8 6.9-11.2-4.1.4z" /></svg><span style="font-size:12.5px;font-weight:800;letter-spacing:1.3px;text-transform:uppercase;color:#5b4ae8">Spark Hub</span></div>
+          <h2 style="margin:14px 0 0;font-size:28px;line-height:1.1;font-weight:900;letter-spacing:-.7px;color:#0d1117">Your sign-in code</h2>
+          <p style="margin:14px 0 0;font-size:16px;line-height:1.55;font-weight:500;color:#454b55">Hi there,</p>
+          <p style="margin:8px 0 0;font-size:16px;line-height:1.55;font-weight:500;color:#454b55">Someone asked to sign in to Spark Hub with this email address. If that was you, enter this code in the app:</p>
+          <div style="margin:20px 0 0;background:#f3f1fe;border-radius:16px;padding:20px;text-align:center">
+            <div style="font-size:36px;line-height:1;font-weight:900;letter-spacing:8px;color:#0d1117;font-variant-numeric:tabular-nums">482915</div>
+          </div>
+          <p style="margin:20px 0 0;font-size:15px;line-height:1.55;font-weight:500;color:#454b55">There’s no password to remember. Each time you sign in, we send a fresh code.</p>
+          <div style="margin-top:22px;padding-top:18px;border-top:1px solid #eceef2;font-size:14.5px;line-height:1.55;font-weight:500;color:#5c6270">Didn’t ask for this? You can ignore this email. Nobody can sign in without the code.</div>
+        </div>
+        <p style="margin:18px 8px 0;font-size:12.5px;line-height:1.55;font-weight:500;color:#6b7280">Spark Hub is where groups post ideas for things to do together and turn them into plans. We only email you when you ask for a sign-in code.</p>
+        <p style="margin:6px 8px 0;font-size:12.5px;line-height:1.55;font-weight:500;color:#6b7280">Spark Hub · <a href="Privacy.dc.html" style="color:#6b7280;text-decoration:underline">Privacy</a></p>
+      </div>
+    </div>
+
+    <div id="confirm" style="width:600px;display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;align-items:center;gap:8px"><span style="background:#0d1117;color:#fff;border-radius:999px;padding:4px 11px;font-size:12.5px;font-weight:800">B</span><span style="font-size:14px;font-weight:800;color:#0d1117">Confirm email (first sign-in)</span></div>
+      <div style="background:#fff;border-radius:14px;padding:12px 16px;display:flex;gap:12px;align-items:center;box-shadow:0 1px 3px rgba(15,18,25,.08)">
+        <span style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#5b4ae8;display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="#e8a71c"><path d="M13.2 2.2 7.2 13.1l3.9-.35-.9 8.8 6.9-11.2-4.1.4z" /></svg></span>
+        <div style="flex:1 1 auto;min-width:0">
+          <div style="display:flex;justify-content:space-between;gap:10px"><span style="font-size:14.5px;font-weight:800;color:#0d1117">Spark Hub</span><span style="font-size:12.5px;font-weight:600;color:#6b7280">9:41 AM</span></div>
+          <div style="font-size:14px;font-weight:700;color:#0d1117">Confirm your email for Spark Hub</div>
+          <div style="font-size:13.5px;font-weight:500;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Your code is 482 915. Enter it to confirm this email and finish posting.</div>
+        </div>
+      </div>
+      <div style="background:#f1f2f5;border-radius:16px;padding:36px 28px">
+        <div style="background:#fff;border-radius:20px;padding:32px 30px 30px">
+          <div style="display:flex;align-items:center;gap:6px"><svg width="16" height="16" viewBox="0 0 24 24" fill="#e8a71c"><path d="M13.2 2.2 7.2 13.1l3.9-.35-.9 8.8 6.9-11.2-4.1.4z" /></svg><span style="font-size:12.5px;font-weight:800;letter-spacing:1.3px;text-transform:uppercase;color:#5b4ae8">Spark Hub</span></div>
+          <h2 style="margin:14px 0 0;font-size:28px;line-height:1.1;font-weight:900;letter-spacing:-.7px;color:#0d1117">Confirm your email</h2>
+          <p style="margin:14px 0 0;font-size:16px;line-height:1.55;font-weight:500;color:#454b55">Hi there,</p>
+          <p style="margin:8px 0 0;font-size:16px;line-height:1.55;font-weight:500;color:#454b55">This is the first time this email has been used on Spark Hub. Whoever posts an idea leads it, so we check the email is real. Enter this code in the app to confirm:</p>
+          <div style="margin:20px 0 0;background:#f3f1fe;border-radius:16px;padding:20px;text-align:center">
+            <div style="font-size:36px;line-height:1;font-weight:900;letter-spacing:8px;color:#0d1117;font-variant-numeric:tabular-nums">482915</div>
+          </div>
+          <p style="margin:20px 0 0;font-size:15px;line-height:1.55;font-weight:500;color:#454b55">There’s no password. Next time, you’ll get a sign-in code like this one.</p>
+          <div style="margin-top:22px;padding-top:18px;border-top:1px solid #eceef2;font-size:14.5px;line-height:1.55;font-weight:500;color:#5c6270">Didn’t ask for this? You can ignore this email. Nothing is set up without the code.</div>
+        </div>
+        <p style="margin:18px 8px 0;font-size:12.5px;line-height:1.55;font-weight:500;color:#6b7280">Spark Hub is where groups post ideas for things to do together and turn them into plans. We only email you when you ask for a sign-in code.</p>
+        <p style="margin:6px 8px 0;font-size:12.5px;line-height:1.55;font-weight:500;color:#6b7280">Spark Hub · <a href="Privacy.dc.html" style="color:#6b7280;text-decoration:underline">Privacy</a></p>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>
