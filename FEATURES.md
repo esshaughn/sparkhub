@@ -33,7 +33,7 @@ As of 2026-09-25: the Spark Hub rebuild from the design handoff "Spark Torrez - 
 | 13 | **Start a group** pop-up → "{Name} is ready" with code, link, **Copy invite link**, **Go to {Name}** | Test | Name saved in Title Case |
 | 14 | Invite links `/join/CODE` (and `#/join/CODE`): code filled in; Join opens for someone signed in | Test | Vercel rewrite in `vercel.json` |
 | 15 | **Group page** (admins): code, link, **Share invite link**, **Copy code**, Members count, Go to this group | Test | |
-| 16 | Group photo on Home tiles, All ideas header and as the fallback behind ideas without a photo | Test | Torrez uses the trail photo; new groups fall back to gold. No way to set one yet |
+| 16 | Group photo on Home tiles, All ideas header and as the fallback behind ideas without a photo; admins replace it on the Group page (**Replace photo**) | Test | New groups fall back to gold until an admin sets one |
 
 ## All ideas (per group)
 

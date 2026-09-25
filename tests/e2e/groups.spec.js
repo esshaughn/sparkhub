@@ -39,6 +39,14 @@ test('start a group, invite someone, they join and post, the admin sees a badge'
     await button(A, 'Copy code').click();
     await expect(A.getByText('Code copied')).toBeVisible();
 
+    // Replace the group photo (admin page only)
+    const PNG = require('./helpers').PNG;
+    await gp.getByLabel('Replace group photo').setInputFiles({ name: 'group.png', mimeType: 'image/png', buffer: PNG });
+    await expect(A.getByText('Group photo updated')).toBeVisible();
+    const photoUrl = await gp.getByRole('img', { name: 'Group photo' }).evaluate(el => getComputedStyle(el).backgroundImage.match(/url\("([^"]+)"/)[1]);
+    expect(photoUrl).toContain('/storage/v1/object/public/spark-photos/');
+    expect((await A.request.get(photoUrl)).status()).toBe(200);
+
     // A wrong code, then the invite link
     await B.getByRole('button', { name: 'Profile' }).click();
     await B.getByRole('button', { name: 'Join with a code' }).click();

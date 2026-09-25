@@ -774,6 +774,21 @@
     must(await sb.from('sparks').update({ mood: s.mood.filter(p => p !== path) }).eq('id', s.id));
   }).then(ok => { if (ok) deletePhotos([path]); });
 
+  // Admins: replace the group's header photo (Profile → Your groups → the group)
+  const setGroupPhoto = async (g, fileList) => {
+    const f = (fileList || [])[0];
+    if (!f || state.busy) return;
+    let blob;
+    try { blob = await shrinkImage(f); } catch (e) { toast(BAD_PHOTO); return; }
+    const old = g.photo;
+    let path = null;
+    const ok = await run(async () => {
+      path = await uploadBlob(blob);
+      try { must(await sb.rpc('set_group_photo', { p_group: g.id, p_photo: path })); } catch (e) { deletePhotos([path]); throw e; }
+    });
+    if (ok) { if (old) deletePhotos([old]); toast('Group photo updated', true); }
+  };
+
   // ---------------------------------------------------------------------------
   // Email sign-in (Supabase email OTP, a 6-digit code)
   // ---------------------------------------------------------------------------
@@ -1690,6 +1705,18 @@
           '</div>' +
           '<button type="button" class="hov-primary" ' + on(share) + ' style="' + primary(!!link) + ';box-shadow:0 10px 24px rgba(91,74,232,.32)">Share invite link</button>' +
           '<button type="button" class="hov-outline" ' + on(() => { if (st.gpCode) copy(st.gpCode, 'Code copied'); }) + ' style="' + SECONDARY + ';padding:14px;font-size:15.5px">Copy code</button>' +
+        '</div>' +
+        '<div style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:12px">' +
+          '<div style="' + EYEBROW + '">Group photo</div>' +
+          '<div role="img" aria-label="Group photo" style="position:relative;height:120px;border-radius:14px;overflow:hidden;background:' + (groupPhoto(g) ? bg(groupPhoto(g), '50% 40%') : '#e8a71c') + '">' +
+            '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to right, rgba(13,17,23,.75), rgba(13,17,23,.15))"></div>' +
+            '<div style="position:absolute;left:14px;bottom:12px;right:14px;font-size:18px;font-weight:900;letter-spacing:-.3px;color:#fff">' + esc(g.name) + '</div>' +
+          '</div>' +
+          '<label class="hov-outline" style="' + SECONDARY + ';padding:12px;font-size:15px;text-align:center;cursor:' + (st.busy ? 'wait' : 'pointer') + '">' +
+            (st.busy === 'save' ? 'Saving…' : 'Replace photo') +
+            '<input type="file" accept="image/*" aria-label="Replace group photo" ' + onInput(e => { if (e.type !== 'change') return; const f = Array.from(e.target.files || []); e.target.value = ''; setGroupPhoto(g, f); }) + ' style="display:none">' +
+          '</label>' +
+          '<div style="font-size:13px;line-height:1.45;font-weight:500;color:#6b7280">Shows on the group’s tile and at the top of its ideas, for everyone in the group.</div>' +
         '</div>' +
         '<div style="' + CARD + ';padding:0 16px">' +
           '<div style="display:flex;align-items:center;gap:10px;min-height:54px"><span style="flex:1 1 auto;font-size:15.5px;font-weight:700;color:#0d1117">Members</span><span style="font-size:15px;font-weight:600;color:#6b7280">' + (st.gpMembers == null ? '…' : st.gpMembers) + '</span></div>' +

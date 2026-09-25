@@ -1,5 +1,6 @@
 -- Pre-arranged memberships for testers. Written for the test project; the owner
--- asked for it on LIVE too, for now (2026-09-25), so Joseph's accounts work there.
+-- asked for it on LIVE too, for now (2026-09-25), so Joseph's accounts work there
+-- (and Stacy's and Auburn's, added the same day).
 -- Remove from live with: drop trigger test_apply_pending_invites on auth.users;
 --
 -- Lets the owner pre-arrange group memberships for a tester who hasn't signed in
@@ -44,5 +45,9 @@ insert into public.test_pending_invites (email, group_name, role) values
   ('torrezfitness@gmail.com', 'Hub on Hunters', 'member'),
   ('torrez.fitness@gmail.com', 'Torrez Fitness', 'admin'),
   ('torrez.fitness@gmail.com', 'Woodcliff Neighborhood', 'admin'),
-  ('torrez.fitness@gmail.com', 'Hub on Hunters', 'member')
+  ('torrez.fitness@gmail.com', 'Hub on Hunters', 'member'),
+  ('stacy.claye@gmail.com', 'Hub on Hunters', 'admin'),
+  ('stacy.claye@gmail.com', 'Walnut Creek Neighborhood', 'member'),
+  ('auburn.layman@gmail.com', 'Hub on Hunters', 'admin'),
+  ('auburn.layman@gmail.com', 'Walnut Creek Neighborhood', 'member')
 on conflict (email, group_name) do update set role = excluded.role;

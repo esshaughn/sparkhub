@@ -1,12 +1,13 @@
 """Example data: the design's five demo ideas in each of three groups.
 
-Adds the groups Hub on Hunters and Woodcliff Neighborhood (the owner is admin of
-all three), demo people (seed-*@example.com accounts), and the same five ideas
+Adds the groups Hub on Hunters, Woodcliff Neighborhood and Walnut Creek
+Neighborhood (the owner is admin of all of them), demo people (seed-*@example.com accounts), and the same five ideas
 in every group with photos, mood boards, interest and a suggestion waiting on the
 owner's "Sunrise loop". Photos are the JPEGs beside this script.
 
   Test (clears every idea first):  python3 scripts/demo/seed-demo.py
   Live (keeps existing ideas):     SEED_REF=xwrzfpgsazyrgieymtee SEED_CLEAR=0 python3 scripts/demo/seed-demo.py
+  Just one group's ideas:          SEED_ONLY='Walnut Creek Neighborhood' SEED_CLEAR=0 python3 scripts/demo/seed-demo.py
 
 Live use was the owner's call on 2026-09-25, "for now". To remove it later, delete
 the seed-*@example.com users (their ideas, offers and interest go with them) and
@@ -17,6 +18,7 @@ from datetime import datetime, timedelta, timezone
 
 REF = os.environ.get('SEED_REF', 'hroxgvxvafgikikviiud')
 CLEAR = os.environ.get('SEED_CLEAR', '1') == '1'
+ONLY = os.environ.get('SEED_ONLY')   # seed ideas into this group only (the others are left alone)
 BASE = f'https://{REF}.supabase.co'
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -103,10 +105,11 @@ IDEAS = [
          spot='Mueller Lake Park', addr='4550 Mueller Blvd, Austin, TX 78723', ll=(30.2983, -97.7055),
          basics=[], photos=['mine-4.jpg'], mood=['torrez-trail.jpg', 'mine-1.jpg', 'mine-5.jpg'], fans=2),
 ]
-group_ids = [torrez]
-# --- Two more groups the owner runs (seed people join them too) ---------------------------------------------------
+group_ids = [] if ONLY else [torrez]
+# --- More groups the owner runs (seed people join them too) ---------------------------------------------------
 ABC = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-for name, photo in [('Hub on Hunters', 'photos/hub-on-hunters.jpg'), ('Woodcliff Neighborhood', 'photos/woodcliff.jpg')]:
+for name, photo in [('Hub on Hunters', 'photos/hub-on-hunters.jpg'), ('Woodcliff Neighborhood', 'photos/woodcliff.jpg'),
+                    ('Walnut Creek Neighborhood', 'photos/walnut-creek.jpg')]:
     have = rest('GET', 'groups', query='?name=eq.' + urllib.parse.quote(name) + '&select=id')
     if have:
         gid = have[0]['id']
@@ -114,7 +117,8 @@ for name, photo in [('Hub on Hunters', 'photos/hub-on-hunters.jpg'), ('Woodcliff
         code = ''.join(random.choice(ABC) for _ in range(6))
         gid = rest('POST', 'groups', {'name': name, 'code': code, 'photo': photo, 'created_by': eric})[0]['id']
     call('POST', '/rest/v1/memberships', {'group_id': gid, 'user_id': eric, 'role': 'admin'}, {'Prefer': 'resolution=merge-duplicates'})
-    group_ids.append(gid)
+    if not ONLY or ONLY == name:
+        group_ids.append(gid)
     for uid in list(people.values()) + fans:
         call('POST', '/rest/v1/memberships', {'group_id': gid, 'user_id': uid}, {'Prefer': 'resolution=ignore-duplicates'})
     print(f'Group ready: {name}')

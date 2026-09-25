@@ -32,9 +32,20 @@ test('groups, idea links, guests and leads: the database refuses what the app ne
       code: (await c.rpc('group_code', { p_group: g })).data,
       members: (await c.rpc('member_count', { p_group: g })).data,
       offer: (await c.rpc('add_offer', { p_spark: id, p_kind: 'spot', p_body: 'x', p_who: 'x' })).error ? 'refused' : 'ALLOWED',
-      interest: (await c.from('interests').insert({ spark_id: id, user_id: me })).error ? 'refused' : 'ALLOWED'
+      interest: (await c.from('interests').insert({ spark_id: id, user_id: me })).error ? 'refused' : 'ALLOWED',
+      photo: (await c.rpc('set_group_photo', { p_group: g, p_photo: me + '/00000000-0000-4000-8000-000000000000.jpg' })).error ? 'refused' : 'ALLOWED',
+      photoDirect: (await c.from('groups').update({ photo: 'photos/welcome.jpg' }).eq('id', g).select('id')).data?.length ? 'ALLOWED' : 'refused'
     }), { g: group.id, id: sparkId, me: otherUid });
-    expect(outsider).toEqual({ sparks: 0, groups: 0, post: 'refused', selfJoin: 'refused', code: null, members: null, offer: 'refused', interest: 'refused' });
+    expect(outsider).toEqual({ sparks: 0, groups: 0, post: 'refused', selfJoin: 'refused', code: null, members: null, offer: 'refused', interest: 'refused', photo: 'refused', photoDirect: 'refused' });
+
+    // The admin can set a group photo only from their own uploads
+    const photos = await asUser(L, async (c, _C, { g, me, them }) => ({
+      someoneElses: (await c.rpc('set_group_photo', { p_group: g, p_photo: them + '/00000000-0000-4000-8000-000000000000.jpg' })).error ? 'refused' : 'ALLOWED',
+      notAPhoto: (await c.rpc('set_group_photo', { p_group: g, p_photo: 'https://example.com/x.jpg' })).error ? 'refused' : 'ALLOWED',
+      direct: (await c.from('groups').update({ photo: 'photos/welcome.jpg' }).eq('id', g).select('id')).data?.length ? 'ALLOWED' : 'refused',
+      own: (await c.rpc('set_group_photo', { p_group: g, p_photo: me + '/00000000-0000-4000-8000-000000000000.jpg' })).error?.message || 'ok'
+    }), { g: group.id, me: leadUid, them: otherUid });
+    expect(photos).toEqual({ someoneElses: 'refused', notAPhoto: 'refused', direct: 'refused', own: 'ok' });
 
     // The admin gets the code and the head count
     const admin = await asUser(L, async (c, _C, g) => ({

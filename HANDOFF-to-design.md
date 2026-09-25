@@ -40,7 +40,8 @@ Everything in the Full Site 3 README is built as specified, except what's listed
 - Without this, the lead had no way to see the numbers guests leave.
 
 ### e. Group photos
-- New groups have no photo yet, so their tiles and All ideas header fall back to gold `#e8a71c`, and their ideas without a photo fall back to brown `#2b2413`. There's no way to set a group photo yet (see §4).
+- New groups have no photo yet, so their tiles and All ideas header fall back to gold `#e8a71c`, and their ideas without a photo fall back to brown `#2b2413`.
+- **Admins replace the photo on the Group page** (Profile → Your groups → a group you run; the owner wanted it tucked away there, not on Home). A white card between *Invite people* and *Members*: eyebrow **Group photo**; a 120px preview (radius 14, the photo under a left-to-right dark scrim, the group name 18/900 white bottom-left, gold `#e8a71c` if none); a secondary **Replace photo** button (**Saving…** while uploading) that opens the photo picker; then *Shows on the group's tile and at the top of its ideas, for everyone in the group.* (13/500 grey). Toast: **Group photo updated**.
 
 ### f. Sign-in from Welcome
 - **Continue with Google** on Welcome goes straight to Google (no pop-up first).
@@ -68,7 +69,7 @@ Everything in the Full Site 3 README is built as specified, except what's listed
 
 ## 5. Open questions for the next round
 
-1. **Group settings** (from the design's open list): rename, regenerate the code, set the **group photo**, remove members, co-admins, leave a group.
+1. **Group settings** (from the design's open list): rename, regenerate the code, remove members (the **group photo** is now built, §2e; a crop/position control is still open), co-admins, leave a group.
 2. **Categories:** how they work; Walktober is meant to become one.
 3. **An empty new group's first-run view** (today: "No ideas yet." under a gold header).
 4. **Names:** first names or full names? (Google sign-ins show the first name.)
