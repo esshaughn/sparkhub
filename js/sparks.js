@@ -1272,7 +1272,8 @@
     const viewMenu = st.menu === 'view', sortMenu = st.menu === 'sort';
     const loading = !st.loaded;
 
-    const header = '<header style="position:relative;height:236px;background:#e8a71c">' +
+    // z-index 4: the group menu opens down over the sort row (z-index 3)
+    const header = '<header style="position:relative;z-index:4;height:236px;background:#e8a71c">' +
       (gPhoto ? '<div aria-hidden="true" style="position:absolute;inset:0;background:' + bg(gPhoto, '50% 40%') + '"></div>' : '') +
       '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to bottom, rgba(13,17,23,.85) 0%, rgba(13,17,23,.56) 30%, rgba(13,17,23,.52) 45%, rgba(13,17,23,.72) 62%, rgba(13,17,23,.96) 100%)"></div>' +
       switcher(true) +
