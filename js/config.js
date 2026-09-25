@@ -6,7 +6,7 @@
 // trying things out never touches real members' data.
 // Add any new production domain (e.g. a custom domain) to LIVE_HOSTS.
 (function () {
-  var LIVE_HOSTS = ['torrezhub.vercel.app'];
+  var LIVE_HOSTS = ['gosparkhub.vercel.app', 'torrezhub.vercel.app'];   // torrezhub = the old address, now a redirect
   var projects = {
     live: { supabaseUrl: 'https://xwrzfpgsazyrgieymtee.supabase.co', supabaseKey: 'sb_publishable_NrnRB0SC3-dzeCJTU6vUjQ_328Q1BJC' },
     test: { supabaseUrl: 'https://hroxgvxvafgikikviiud.supabase.co', supabaseKey: 'sb_publishable_f7dwskaTS-TV42YC-p0lFw_9Pe8FY1O' }

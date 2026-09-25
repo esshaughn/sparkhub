@@ -1,5 +1,5 @@
 {
-  "name": "sparks-torrez-tests",
+  "name": "sparkhub-tests",
   "private": true,
   "description": "End-to-end tests for Sparks. Kept out of the repo root so Vercel never treats the site as a Node project.",
   "scripts": {
