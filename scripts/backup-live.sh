@@ -3,10 +3,10 @@
 #
 # The schema isn't included because it lives in supabase/migrations/.
 # Restoring = apply the migrations to an empty project, then load these files
-# (ask Claude Code: "restore Spark Hub from ~/Backups/torrezhub/<folder>").
+# (ask Claude Code: "restore Spark Hub from ~/Backups/sparkhub/<folder>").
 #
 # The output holds members' names, emails' user ids and guests' phone numbers. It's written to
-# ~/Backups/torrezhub (outside the repo, readable only by you). Never commit it.
+# ~/Backups/sparkhub (outside the repo, readable only by you). Never commit it.
 #
 # Uses your Supabase CLI login (`supabase login`), so there's no password here.
 # Runs weekly via launchd (see scripts/install-backup.sh); run it by hand anytime.
@@ -15,7 +15,7 @@ set -euo pipefail
 
 REF="${SPARKS_LIVE_REF:-xwrzfpgsazyrgieymtee}"
 SUPABASE="${SUPABASE_BIN:-$HOME/.local/bin/supabase}"
-DEST_ROOT="${SPARKS_BACKUP_DIR:-$HOME/Backups/torrezhub}"
+DEST_ROOT="${SPARKS_BACKUP_DIR:-$HOME/Backups/sparkhub}"
 KEEP="${SPARKS_BACKUP_KEEP:-12}"          # how many backups to keep
 
 umask 077

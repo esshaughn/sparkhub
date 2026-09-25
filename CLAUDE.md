@@ -2,7 +2,7 @@
 
 One app, many groups (Torrez Fitness is one, code TORREZ). Static HTML/CSS/JS (no build step), Supabase for data, deployed by Vercel on every push to `main`. See README.md for structure.
 
-**Rename in progress:** the project is becoming Spark Hub everywhere. The repo, Vercel project, live address, Supabase display names, backup folder/launchd label and this folder still say torrezhub / sparks-torrez; they switch at the redesign launch, together (the owner chose that timing on 2026-09-24). sparkhub.vercel.app is taken by someone else; the new address is still to be chosen.
+**Renamed 2026-09-25:** live address https://gosparkhub.vercel.app (the Vercel project is `gosparkhub`; the old torrezhub.vercel.app redirects), GitHub repo `esshaughn/sparkhub`, Supabase projects `sparkhub` / `sparkhub-test`, backups in `~/Backups/sparkhub` (launchd `com.sparkhub.backup`). Only this local folder is still called `sparks-torrez`.
 
 ## Keep HANDOFF-to-design.md current
 
@@ -20,15 +20,15 @@ When the user says a design round has absorbed the doc ("design synced", a new .
 
 ## Branches and deploys
 
-- `main` is live at https://torrezhub.vercel.app; every push to it publishes.
-- `test` is the working branch. Commit day-to-day changes there, push, and share the Vercel preview link (`gh api repos/esshaughn/torrezhub/deployments` or `vercel ls`). Merge into `main` only when the user asks.
+- `main` is live at https://gosparkhub.vercel.app; every push to it publishes.
+- `test` is the working branch. Commit day-to-day changes there, push, and share the Vercel preview link (`gh api repos/esshaughn/sparkhub/deployments` or `vercel ls`). Merge into `main` only when the user asks.
 
 ## Two databases: live and test
 
 | | Supabase project | Ref | Used by |
 |---|---|---|---|
-| **live** | torrezhub | `xwrzfpgsazyrgieymtee` | https://torrezhub.vercel.app only |
-| **test** | torrezhub-test | `hroxgvxvafgikikviiud` | Vercel previews, localhost, everything else |
+| **live** | sparkhub | `xwrzfpgsazyrgieymtee` | https://gosparkhub.vercel.app (and the old torrezhub.vercel.app) |
+| **test** | sparkhub-test | `hroxgvxvafgikikviiud` | Vercel previews, localhost, everything else |
 
 `js/config.js` picks the database by hostname (`LIVE_HOSTS`). **Add any new production domain there**, or it'll silently use the test database.
 
@@ -50,7 +50,7 @@ Ad-hoc reads: `supabase db query --linked [--project-ref …] "select …"`.
 ## Keep-alive and backups
 
 - `.github/workflows/keep-supabase-awake.yml` pings both projects daily so the free plan doesn't pause them. It only runs from `main`, and GitHub disables it after 60 days without commits.
-- `scripts/backup-live.sh` dumps every live table to `~/Backups/torrezhub/<date>/` as JSON (keeps 12). It runs weekly on the user's Mac via launchd (`scripts/install-backup.sh`; rerun the installer after editing the script). Backups contain names and phone numbers: **never commit or upload them.**
+- `scripts/backup-live.sh` dumps every live table to `~/Backups/sparkhub/<date>/` as JSON (keeps 12). It runs weekly on the user's Mac via launchd (`scripts/install-backup.sh`; rerun the installer after editing the script). Backups contain names and phone numbers: **never commit or upload them.**
 - The backup saves every public table that exists (it lists them first), so it keeps working as migrations add and drop tables.
 - To restore: apply migrations to an empty project, recreate `auth.users` rows from `users.json`, then insert the table files in order: groups, memberships, profiles, sparks, offers, interests, guest_contacts, link_access. (Backups from before 2026-09-25 have date_options and rsvps instead of the group tables; those features no longer exist.)
 

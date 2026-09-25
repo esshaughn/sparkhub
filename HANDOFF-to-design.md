@@ -2,8 +2,8 @@
 
 **Direction:** code → design. This describes what's built, so the next design round starts from what shipped rather than from the design file.
 
-- **Built (test):** https://torrezhub-git-test-eric-5958s-projects.vercel.app · **Live:** https://torrezhub.vercel.app (moves to a Spark Hub address at launch)
-- **Source:** github.com/esshaughn/torrezhub (`index.html`, `js/sparks.js`, `css/sparks.css`, `privacy.html`, `supabase/templates/`)
+- **Built (test):** https://gosparkhub-git-test-eric-5958s-projects.vercel.app · **Live:** https://gosparkhub.vercel.app
+- **Source:** github.com/esshaughn/sparkhub (`index.html`, `js/sparks.js`, `css/sparks.css`, `privacy.html`, `supabase/templates/`)
 - **Baseline:** `design_handoff_spark_hub/Spark Hub App.dc.html` + its README, from "Spark Torrez - Full Site 3"
 - **As of:** 2026-09-25 (the Spark Hub rebuild, on the test branch)
 
@@ -70,7 +70,7 @@ Everything in the Full Site 3 README is built as specified, except what's listed
 5. **Suggest vs Offer** wording in pop-up titles and activity lines (§1 #5 is the build's interim choice).
 6. **Lead notifications:** still skipped.
 7. **Google's sign-in screen** says "continue to …supabase.co" until Spark Hub has its own sign-in domain.
-8. **Spark Hub address:** sparkhub.vercel.app is taken; a custom domain is under consideration.
+8. **Spark Hub address:** live at gosparkhub.vercel.app for now; a custom domain (e.g. sparkhub.group) may follow.
 
 ## 6. Design tokens: unchanged
 

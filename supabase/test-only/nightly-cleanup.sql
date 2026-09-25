@@ -1,4 +1,4 @@
--- TEST PROJECT ONLY (torrezhub-test, hroxgvxvafgikikviiud). Never run this on live:
+-- TEST PROJECT ONLY (sparkhub-test, hroxgvxvafgikikviiud). Never run this on live:
 -- on live, anonymous users are real members' identities.
 --
 -- The end-to-end tests delete the ideas they create, but every simulated member is a

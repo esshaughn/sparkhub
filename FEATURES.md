@@ -107,7 +107,7 @@ As of 2026-09-25: the Spark Hub rebuild from the design handoff "Spark Torrez - 
 | # | Feature | Status | Notes |
 |---|---|---|---|
 | 54 | Daily keep-alive ping (GitHub Action) | Live | |
-| 55 | Weekly live backup on the Mac (launchd → ~/Backups/torrezhub) | Live | Needs updating for the new tables at launch |
+| 55 | Weekly live backup on the Mac (launchd → ~/Backups/sparkhub) | Live | Saves every table that exists |
 | 56 | Design handoff doc kept current by Claude Code | Live | |
 | 57 | Vercel auto-deploy from `main`; previews from `test` | Live | |
 | 58 | Security headers + CSP; pinned, integrity-checked Supabase script | Live | |

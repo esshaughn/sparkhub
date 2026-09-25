@@ -2,20 +2,20 @@
 # Schedule scripts/backup-live.sh to run weekly on this Mac (Sundays 03:30).
 # If the Mac is asleep then, macOS runs it at the next wake.
 #
-# The script is copied to ~/.local/share/torrezhub/ because macOS doesn't let
+# The script is copied to ~/.local/share/sparkhub/ because macOS doesn't let
 # background jobs read from ~/Desktop. Rerun this installer after editing
 # backup-live.sh so the scheduled copy picks up the change.
 #
 # Uninstall:
-#   launchctl bootout gui/$(id -u)/com.torrezhub.backup
-#   rm ~/Library/LaunchAgents/com.torrezhub.backup.plist
+#   launchctl bootout gui/$(id -u)/com.sparkhub.backup
+#   rm ~/Library/LaunchAgents/com.sparkhub.backup.plist
 
 set -euo pipefail
 
-LABEL=com.torrezhub.backup
+LABEL=com.sparkhub.backup
 SRC="$(cd "$(dirname "$0")" && pwd)/backup-live.sh"
-DIR="$HOME/.local/share/torrezhub"
-LOGDIR="$HOME/Backups/torrezhub"
+DIR="$HOME/.local/share/sparkhub"
+LOGDIR="$HOME/Backups/sparkhub"
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
 
 mkdir -p "$DIR" "$LOGDIR" "$HOME/Library/LaunchAgents"

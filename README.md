@@ -44,6 +44,6 @@ cd tests && npm install && npx playwright install chromium && npx playwright tes
 
 ## Deploy
 
-Live at **https://torrezhub.vercel.app**. Pushes to `main` deploy automatically through Vercel's GitHub integration.
+Live at **https://gosparkhub.vercel.app**. Pushes to `main` deploy automatically through Vercel's GitHub integration.
 
 Both Supabase projects need anonymous sign-ins turned on (`supabase/config.toml`). Database changes, backups and the live/test split are described in [CLAUDE.md](CLAUDE.md).
