@@ -42,14 +42,14 @@ As of 2026-09-25: the Spark Hub rebuild from the design handoff "Spark Torrez - 
 | 17 | Photo header with group name, **All ideas**, overlapping **I have an idea** | Test | |
 | 18 | **View**: Cards · Grid · List, remembered on this device | Test | |
 | 19 | **Sort**: Most popular (default) · Happening soon · Newest · Oldest | Test | Happening soon: upcoming dates (soonest first), then no date yet (newest first), then past dates |
-| 20 | Card: photo (or blurred group photo), title, date · time, location, lead's face + "Led by", interest count | Test | "Date TBD" / "Location TBD" in grey |
+| 20 | Card: photo (or the group photo), title, date · time, location, lead's face + "Led by", interest count | Test | "Date TBD" / "Location TBD" in grey |
 | 21 | Loading skeletons, "Couldn't load ideas" banner with **Try now**, "No ideas yet." | Test | |
 
 ## Idea page
 
 | # | Feature | Status | Notes |
 |---|---|---|---|
-| 22 | Photo header (or blurred group photo), back, group name, **Edit** (lead, or an admin of the group: edit the idea and basics, delete it) | Test | |
+| 22 | Photo header (or the group photo), back, group name, **Edit** (lead, or an admin of the group: edit the idea and basics, delete it) | Test | |
 | 23 | Title sheet: lead's face, "Led by", **N interested** + face stack (+N) | Test | |
 | 24 | **I'm interested** / **You're interested** (not for the lead) | Test | Guests give name + phone first |
 | 25 | **Waiting on you** (lead): suggested locations/dates with **Use this location / Use this date** and **Not this time** | Test | |

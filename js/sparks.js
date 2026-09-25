@@ -1378,7 +1378,8 @@
       lead: nameOf(s.leadId, s.leadName)
     };
   };
-  const blurredGroup = (gPhoto, overlay) => '<div aria-hidden="true" style="position:absolute;inset:-4px;background:' + (gPhoto ? bg(gPhoto, '50% 40%') : '#2b2413') + ';filter:blur(1.5px);transform:scale(1.02)"></div>' +
+  // An idea without a photo shows its group's photo (sharp, under the same darkening)
+  const groupFallback = (gPhoto, overlay) => '<div aria-hidden="true" style="position:absolute;inset:0;background:' + (gPhoto ? bg(gPhoto, '50% 40%') : '#2b2413') + '"></div>' +
     '<div aria-hidden="true" style="position:absolute;inset:0;background:' + overlay + '"></div>';
   const openIdea = (s) => () => go('detail', { subjectId: s.id, tag: null });
 
@@ -1386,7 +1387,7 @@
     const b = cardBits(s);
     return '<div ' + on(openIdea(s)) + ' style="border-radius:20px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
       '<div style="position:relative;height:112px;overflow:hidden;background:' + (b.cover ? bg(b.cover) : '#2b2413') + '">' +
-        (b.cover ? '' : blurredGroup(gPhoto, 'rgba(13,17,23,.3)')) +
+        (b.cover ? '' : groupFallback(gPhoto, 'rgba(13,17,23,.3)')) +
       '</div>' +
       '<div style="position:relative;margin-top:-22px;background:#fff;border-radius:20px 20px 0 0;padding:16px 16px 14px;display:flex;flex-direction:column;gap:8px">' +
         '<div style="font-size:21px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117;text-wrap:pretty">' + esc(s.text) + '</div>' +
@@ -1407,7 +1408,7 @@
     const b = cardBits(s);
     return '<div ' + on(openIdea(s)) + ' style="border-radius:16px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer;display:flex;flex-direction:column">' +
       '<div style="position:relative;height:112px;overflow:hidden;background:' + (b.cover ? 'linear-gradient(to top, rgba(13,17,23,.85) 0%, rgba(13,17,23,.4) 55%, rgba(13,17,23,.08) 100%), ' + bg(b.cover) : '#2b2413') + '">' +
-        (b.cover ? '' : blurredGroup(gPhoto, 'linear-gradient(to top, rgba(13,17,23,.85) 0%, rgba(13,17,23,.55) 55%, rgba(13,17,23,.35) 100%)')) +
+        (b.cover ? '' : groupFallback(gPhoto, 'linear-gradient(to top, rgba(13,17,23,.85) 0%, rgba(13,17,23,.55) 55%, rgba(13,17,23,.35) 100%)')) +
         '<div style="position:absolute;z-index:1;left:11px;right:11px;bottom:9px;font-size:16px;line-height:1.18;font-weight:900;letter-spacing:-.3px;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.3);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">' + esc(s.text) + '</div>' +
       '</div>' +
       '<div style="padding:9px 11px 10px;display:flex;flex-direction:column;gap:5px;font-size:12.5px;font-weight:600">' +
@@ -1522,7 +1523,7 @@
 
     return '<div data-screen-label="Idea page">' +
       '<div style="position:relative;height:210px;overflow:hidden;background:' + (cover ? bg(cover) : '#2b2413') + '">' +
-        (cover ? '' : '<div aria-hidden="true" style="position:absolute;inset:-4px;background:' + (gPhoto ? bg(gPhoto, '50% 40%') : '#2b2413') + ';filter:blur(1.5px);transform:scale(1.02)"></div>') +
+        (cover ? '' : '<div aria-hidden="true" style="position:absolute;inset:0;background:' + (gPhoto ? bg(gPhoto, '50% 40%') : '#2b2413') + '"></div>') +
         '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to bottom, rgba(13,17,23,.68) 0%, rgba(13,17,23,.18) 40%, rgba(13,17,23,.18) 70%, rgba(13,17,23,.45) 100%)"></div>' +
         '<div style="position:absolute;top:12px;left:12px;right:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;z-index:1">' +
           '<span ' + on(() => go(g && g.role ? 'browse' : 'home', g && g.role ? { groupId: g.id } : {})) + ' aria-label="Back" style="flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.chevL(18, '#fff', 2.3) + '</span>' +

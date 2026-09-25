@@ -21,6 +21,7 @@ Everything in the Full Site 3 README is built as specified, except what's listed
 | 4 | **Home (signed in) header:** *Turn your idea / into a plan.* (line 2 purple), then *Post an idea. Your group helps pick the day, find the place and make it happen.* The three steps are one grey `#f2f3f6` pill: 22px coloured number dots (gold `#e8a71c`, purple `#5b4ae8`, green `#0f7a3c`, white 12/900 numbers), labels 13.5/800 ink, grey chevrons between | *Got an idea? / Spark it.*, a longer line, three separate tinted tiles | Owner's mockup |
 | 5 | Wording: suggestion pop-ups say **Offer this location** / **Offer this date**; activity lines say "offered a location:" / "suggested a date:"; the lead's buttons say **Use this location** / **Use this date** | "Offer this spot", "floated a day", "Use this spot" | Matches the rows' "Location" and the README's leftover note |
 | 6 | **Sort** adds **Happening soon** (second, after Most popular): ideas with an upcoming date first, soonest on top; then ideas with no date yet (newest first); ideas whose date has passed go last | Most popular · Newest · Oldest | Owner's request |
+| 7 | Ideas without their own photo show the **group photo sharp** (no blur), under the same dark gradient, on cards, grid tiles and the idea page header | Group photo blurred (1.5px) behind photo-less ideas | Owner didn't like the blur |
 
 ## 2. Things the build had to invent (please design these properly)
 
