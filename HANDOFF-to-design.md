@@ -5,7 +5,7 @@
 - **Built (test):** https://gosparkhub-git-test-eric-5958s-projects.vercel.app · **Live:** https://gosparkhub.vercel.app
 - **Source:** github.com/esshaughn/sparkhub (`index.html`, `js/sparks.js`, `css/sparks.css`, `privacy.html`, `supabase/templates/`)
 - **Baseline:** `design/spark-hub/README.md` + `Spark Hub App.dc.html`, from "Spark Torrez - Full Site 4" (the spec and prototype are in the repo; photos, screenshots and explorations stayed in the zip)
-- **As of:** 2026-09-25 (Full Site 4 build, on the test branch)
+- **As of:** 2026-09-25, Full Site 4 build **live** on gosparkhub.vercel.app
 
 Everything in the Full Site 4 README is built as specified, except what's listed below. Where this doc and the design files disagree, **this doc is correct**.
 
@@ -47,6 +47,8 @@ Rows keep the design's layout (40px face, name, *(you)*, chip). For **owners** o
 - Members sheet while loading: *Loading…*. Positioner Save while saving: **Saving…**. Delete group while deleting: **Deleting…**.
 - Deleting your only group: toast *You need to be in at least one group.*
 - Sort and View menus keep a purple ✓ on the selected row (the groups menus don't).
+- **Welcome** is built to Full Site 4 exactly (photo raised 70px, the lighter scrim). The owner had earlier asked for a darker scrim and a higher photo; flag it if the next round wants to revisit.
+- **Pin toast** shows straight away; the pin saves in the background and flips back with the error toast if it fails.
 
 ## 3. Behaviour added in the build (no visual change)
 
@@ -67,10 +69,11 @@ Rows keep the design's layout (40px face, name, *(you)*, chip). For **owners** o
 
 1. Everything in the README's **Open / not designed yet** list still stands (categories, first-run view for an empty group, removing members, leaving a group, lead notifications, Suggest vs Offer wording, first vs full names, group creation in the app, Welcome wording, the parked Lead note).
 2. **Invite link screens** (§2b is a stopgap).
-3. **Owner controls** (§2a): is a pill + text button per row right at 393px, or should roles move into a per-row menu?
-4. **Google's sign-in screen** says "continue to …supabase.co" until Spark Hub has its own sign-in domain.
-5. **Video on the vibe board** (2 photos + 1 short clip) is parked: phone videos can't be shrunk in the browser, so it would need a ~20 s / 25 MB cap and watching the free plan's bandwidth.
-6. **Spark Hub address:** gosparkhub.vercel.app for now; a custom domain may follow.
+3. **A second owner by hand:** Joseph (torrez.fitness@gmail.com) is already a co-owner of Torrez Fitness, so the two-owner states (Remove / Step down) are reachable on live.
+4. **Owner controls** (§2a): is a pill + text button per row right at 393px, or should roles move into a per-row menu?
+5. **Google's sign-in screen** says "continue to …supabase.co" until Spark Hub has its own sign-in domain.
+6. **Video on the vibe board** (2 photos + 1 short clip) is parked: phone videos can't be shrunk in the browser, so it would need a ~20 s / 25 MB cap and watching the free plan's bandwidth.
+7. **Spark Hub address:** gosparkhub.vercel.app for now; a custom domain may follow.
 
 ## 6. Design tokens
 
