@@ -51,3 +51,11 @@ insert into public.test_pending_invites (email, group_name, role) values
   ('auburn.layman@gmail.com', 'Hub on Hunters', 'admin'),
   ('auburn.layman@gmail.com', 'Walnut Creek Neighborhood', 'member')
 on conflict (email, group_name) do update set role = excluded.role;
+
+-- Testers who signed in before their invite was added: apply it to their account now
+insert into public.memberships (group_id, user_id, role)
+select g.id, u.id, i.role
+  from public.test_pending_invites i
+  join public.groups g on g.name = i.group_name
+  join auth.users u on lower(u.email) = lower(i.email)
+on conflict (group_id, user_id) do update set role = excluded.role;
