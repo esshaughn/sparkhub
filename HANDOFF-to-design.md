@@ -5,7 +5,7 @@
 - **Built (test):** https://gosparkhub-git-test-eric-5958s-projects.vercel.app · **Live:** https://gosparkhub.vercel.app
 - **Source:** github.com/esshaughn/sparkhub (`index.html`, `js/sparks.js`, `css/sparks.css`, `privacy.html`, `supabase/templates/`)
 - **Baseline:** `design_handoff_spark_hub/Spark Hub App.dc.html` + its README, from "Spark Torrez - Full Site 3"
-- **As of:** 2026-09-25 (Welcome v2) (the Spark Hub rebuild, on the test branch)
+- **As of:** 2026-09-25 (Spark Hub rebuild + Welcome v2, both live)
 
 Everything in the Full Site 3 README is built as specified, except what's listed below. Where this doc and the design files disagree, **this doc is correct**.
 
@@ -17,8 +17,8 @@ Everything in the Full Site 3 README is built as specified, except what's listed
 |---|---|---|---|
 | 1 | **Location suggestions stay.** The post flow's Location step suggests places near Austin as you type (Geoapify), and a pick saves the street address. The idea page shows that address under the location, followed by a purple **Directions** link (Google Maps). The lead's **Set** for a location uses the same suggestions. Suggestions to the lead ("Know a location?") stay plain text. The privacy page keeps its Geoapify row | Remove suggestions, the picked address and Directions; plain text | Owner decision |
 | 2 | **Welcome (signed out) rebuilt to the owner's second mockup:** the picnic photo (`photos/welcome.jpg`) fills the top, raised 90px (its top edge cropped) so the people sit above the headline, under a scrim (`.15` top → `.78` at 50% → `.93` at 70% → `#0d1117`) so the text reads clearly; logo only; *Turn your idea / into a plan.* (40px, line 2 `#a99cff`); the same line as Home; the 1-2-3 steps as a **vertical list** (28px circles `#e8a71c` / `#5b4ae8` / `#0f7a3c`, white 17px/800 labels); then two full-width 54px pill buttons: **Continue with Google** (white, Google logo) and **Continue with email** (outline `1.5px #454b55`, white text, envelope icon); under them *New here? Either one creates your account.* (`#9aa0ac`). No group-code card, no Start a group, no How this works link, no separate Sign in (the tab bar still has How this works) | Photo, "Small ideas. / Done together.", Sign in top right, **Start your own group** outline button, three step tiles | Owner's mockup |
-| 4 | Date pickers (posting, "Got a date & time in mind?", the lead's Set) allow **any date from today on** | October 2026 only | Many groups now, not just Walktober |
-| 6 | **Home (signed in) header:** *Turn your idea / into a plan.* (line 2 purple), then *Post an idea. Your group helps pick the day, find the place and make it happen.* The three steps are one grey `#f2f3f6` pill: 22px coloured number dots (gold `#e8a71c`, purple `#5b4ae8`, green `#0f7a3c`, white 12/900 numbers), labels 13.5/800 ink, grey chevrons between | *Got an idea? / Spark it.*, a longer line, three separate tinted tiles | Owner's mockup |
+| 3 | Date pickers (posting, "Got a date & time in mind?", the lead's Set) allow **any date from today on** | October 2026 only | Many groups now, not just Walktober |
+| 4 | **Home (signed in) header:** *Turn your idea / into a plan.* (line 2 purple), then *Post an idea. Your group helps pick the day, find the place and make it happen.* The three steps are one grey `#f2f3f6` pill: 22px coloured number dots (gold `#e8a71c`, purple `#5b4ae8`, green `#0f7a3c`, white 12/900 numbers), labels 13.5/800 ink, grey chevrons between | *Got an idea? / Spark it.*, a longer line, three separate tinted tiles | Owner's mockup |
 | 5 | Wording: suggestion pop-ups say **Offer this location** / **Offer this date**; activity lines say "offered a location:" / "suggested a date:"; the lead's buttons say **Use this location** / **Use this date** | "Offer this spot", "floated a day", "Use this spot" | Matches the rows' "Location" and the README's leftover note |
 
 ## 2. Things the build had to invent (please design these properly)
@@ -42,7 +42,12 @@ Everything in the Full Site 3 README is built as specified, except what's listed
 ### e. Group photos
 - New groups have no photo yet, so their tiles and All ideas header fall back to gold `#e8a71c`, and their ideas without a photo fall back to brown `#2b2413`. There's no way to set a group photo yet (see §4).
 
-### f. Small states
+### f. Sign-in from Welcome
+- **Continue with Google** on Welcome goes straight to Google (no pop-up first).
+- **Continue with email** opens the usual **Sign in** pop-up *without* its Google button: *Your ideas, groups and name are saved to your account. We'll email you a 6-digit code. No password.* / email field / **Email me a code** / Privacy line. Everywhere else (Profile, posting, joining) the pop-up still offers Google first.
+- **Invite link, signed out:** Welcome adds one centred line above the buttons: *Sign in to join the group* **CODE** (14.5px/700 `#dfe2e8`, the code white 900 with 1px letter-spacing). After sign-in (either way) the Join pop-up opens with the code filled in.
+
+### g. Small states
 - Busy labels added: **Joining…**, **Creating…**, **Saving…**, **Confirming…**.
 - Profile with no name reads **No name yet**.
 - All ideas shows *Loading ideas…* above the skeletons.
@@ -52,7 +57,7 @@ Everything in the Full Site 3 README is built as specified, except what's listed
 - **Who sees what:** members see their groups' ideas. Opening an idea's link gives that visitor access to just that idea (and its group's name and photo), so guests can take part from a shared link. Join codes are visible only to admins (Group page).
 - **Guests** give name + phone once per visit (remembered on the device as a convenience). The number is saved per idea and only that idea's lead can see it. Taking interest back never asks.
 - **New-idea badges** count ideas posted by others since you last opened that group; opening it clears them.
-- **Invite links** are `/join/CODE`. Signed out: Welcome adds *Sign in to join the group CODE* above the buttons (14.5px/700 `#dfe2e8`, code white 900), and signing in either way opens Join pre-filled. Signed in: the Join pop-up opens pre-filled.
+- **Invite links** are `/join/CODE`. Signed out: Welcome names the code (§2f), and signing in either way opens Join pre-filled. Signed in: the Join pop-up opens pre-filled.
 - **Names** come from the profile; renaming updates every idea and offer you're named on.
 - **Signing in on a new phone** moves that phone's anonymous activity (interest, suggestions, guest info, opened links) into the account.
 - The confirm-email template serves both a first sign-in and a Profile email change, with different wording for each.
@@ -70,7 +75,8 @@ Everything in the Full Site 3 README is built as specified, except what's listed
 5. **Suggest vs Offer** wording in pop-up titles and activity lines (§1 #5 is the build's interim choice).
 6. **Lead notifications:** still skipped.
 7. **Google's sign-in screen** says "continue to …supabase.co" until Spark Hub has its own sign-in domain.
-8. **Spark Hub address:** live at gosparkhub.vercel.app for now; a custom domain (e.g. sparkhub.group) may follow.
+8. **Codes and new groups when signed out:** Welcome no longer has a code box or **Start a group** (owner's mockup), so a signed-out visitor with a code but no invite link signs in first, then uses **Join with a code** on Home. Is that fine, or should Welcome keep a small "Have a group code?" link?
+9. **Spark Hub address:** live at gosparkhub.vercel.app for now; a custom domain (e.g. sparkhub.group) may follow.
 
 ## 6. Design tokens: unchanged
 
