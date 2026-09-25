@@ -26,7 +26,7 @@ test('visitors land on Welcome, and group screens ask them to join or sign in', 
     await page.getByRole('dialog').getByRole('button', { name: 'Close' }).click();
 
     // "Continue with email" from Welcome: the sign-in pop-up with the email field focused
-    await page.getByRole('button', { name: 'Home' }).click();
+    await page.getByRole('button', { name: 'Home', exact: true }).click();
     await welcome.getByRole('button', { name: 'Continue with email' }).click();
     const dialog = page.getByRole('dialog', { name: 'Sign in' });
     await expect(dialog).toContainText('Your ideas, groups and name are saved to your account. Use Google, or we’ll email you a 6-digit code. No password.');

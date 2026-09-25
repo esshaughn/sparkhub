@@ -78,14 +78,17 @@ test('a group end to end: edit group, cover, rename, invite, pin, admin edits, r
     const home = A.locator('[data-screen-label=Home]');
     await home.getByRole('button', { name: 'Pin ' + groupName }).click();
     await expect(A.getByText('Pinned to the front')).toBeVisible();
+    await expect(home.getByRole('button', { name: 'Unpin ' + groupName })).toBeVisible();
+    await expect.poll(() => asUser(A, async (c, _C, id) => (await c.from('memberships').select('pinned').eq('group_id', id)).data.map(m => m.pinned), g.id)).toEqual([true]);
     await A.reload();
     await expect(home.getByRole('button', { name: 'Unpin ' + groupName })).toBeVisible();
     await home.getByRole('button', { name: 'View all' }).click();
     const sheet = A.getByRole('dialog', { name: 'All your groups' });
-    await expect(sheet.getByRole('button').first()).toContainText(groupName);
-    await expect(sheet.getByRole('button').first()).toContainText('Pinned');
+    const rows = sheet.getByRole('button').filter({ hasText: /\S/ });           // skips the ✕
+    await expect(rows.first()).toContainText(groupName);                       // pinned goes first
+    await expect(rows.first()).toContainText('Pinned');
     await expect(sheet.getByRole('button', { name: 'Join a group' })).toBeVisible();
-    await sheet.getByRole('button').first().click();
+    await rows.first().click();
     await expect(A.locator('[data-screen-label=Browse]')).toContainText(groupName);
 
     // Bo posts; the admin edits and deletes it (Bo stays the lead)

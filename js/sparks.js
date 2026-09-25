@@ -91,9 +91,12 @@
     ? CFG.supabaseUrl + '/storage/v1/object/public/' + PHOTO_BUCKET + '/' + path
     : SITE_PHOTO.test(path || '') ? '/' + path : null;
 
-  // Per-render handler registry
-  let H = [];
-  const reg = (fn) => { H.push(fn); return H.length - 1; };
+  // Per-render handler registry. Ids carry the render they belong to ("gen.index"), so an
+  // event from an element that has just been removed (e.g. a late "change" on a text box)
+  // can't reach whatever handler now has the same index.
+  let H = [], GEN = 0;
+  const reg = (fn) => { H.push(fn); return GEN + '.' + (H.length - 1); };
+  const handlerFor = (id) => { const [g, i] = String(id || '').split('.'); return +g === GEN ? handlers[+i] : null; };
   const on = (fn) => 'data-on="' + reg(fn) + '" role="button" tabindex="0"';
   const onInput = (fn) => 'data-input="' + reg(fn) + '"';
   const onFocus = (fn) => 'data-focus="' + reg(fn) + '"';
@@ -835,10 +838,10 @@
 
   // ---- Photo positioner: group headers (admins), idea covers (lead) and the post flow's cover.
   // What's saved is a focal point + zoom, rendered with the same rule everywhere (photoLayer / posAt).
-  const PH_DEF = { group: GROUP_POS, idea: IDEA_POS, draft: IDEA_POS };
+  const phDef = (kind) => kind === 'group' ? GROUP_POS : IDEA_POS;
   const openPositioner = (t) => {
     const img = new Image();
-    const open = (w, h) => setState({ ph: Object.assign({}, t, { pos: posOf(t.pos, PH_DEF[t.kind]), nat: { w, h } }) });
+    const open = (w, h) => setState({ ph: Object.assign({}, t, { pos: posOf(t.pos, phDef(t.kind)), nat: { w, h } }) });
     img.onload = () => open(img.naturalWidth, img.naturalHeight);
     img.onerror = () => open(0, 0);
     img.src = t.url;
@@ -1873,7 +1876,7 @@
           '<span style="' + LABEL + '">Group name</span>' +
           (renaming
             ? '<div style="display:flex;align-items:center;gap:6px;min-height:50px;border:2px solid #5b4ae8;border-radius:12px;padding:0 6px 0 14px">' +
-                '<input class="fld" type="text" maxlength="40" data-rename aria-label="Group name" value="' + esc(st.gpRename) + '" ' + onInput(e => setState({ gpRename: e.target.value.slice(0, 40) })) + ' style="flex:1;min-width:0;border:0;outline:none;background:transparent;font-family:inherit;font-size:16px;font-weight:700;color:#0d1117">' +
+                '<input class="fld" type="text" maxlength="40" data-rename aria-label="Group name" value="' + esc(st.gpRename) + '" ' + onInput(e => { if (e.type === 'input') setState({ gpRename: e.target.value.slice(0, 40) }); }) + ' style="flex:1;min-width:0;border:0;outline:none;background:transparent;font-family:inherit;font-size:16px;font-weight:700;color:#0d1117">' +
                 '<span ' + on(() => setState({ gpRename: null })) + ' style="display:flex;align-items:center;min-height:36px;padding:0 10px;font-size:14px;font-weight:700;color:#6b7280;cursor:pointer">Cancel</span>' +
                 '<span ' + on(() => saveRename(g)) + ' aria-disabled="' + !renameOk + '" style="display:flex;align-items:center;min-height:36px;padding:0 14px;border-radius:9px;background:' + (renameOk ? '#5b4ae8' : '#b9bcc4') + ';font-size:14px;font-weight:800;color:#fff;cursor:' + (renameOk ? 'pointer' : 'not-allowed') + '">' + (st.busy === 'save' ? 'Saving…' : 'Save') + '</span>' +
               '</div>'
@@ -2385,7 +2388,7 @@
         '</div>' +
         '<div style="position:relative;margin:0 2px 8px">' +
           svg(16, stroke('#9aa0ac', 2.4) + ' style="position:absolute;left:14px;top:50%;transform:translateY(-50%)"', '<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/>') +
-          '<input class="fld" type="search" aria-label="Search members" placeholder="Search members" value="' + esc(st.membersQ) + '" ' + onInput(e => setState({ membersQ: e.target.value.slice(0, 40) })) + ' style="width:100%;min-height:44px;background:#f2f3f6;border:0;border-radius:12px;padding:0 14px 0 38px;font-family:inherit;font-size:16px;font-weight:600;color:#0d1117;outline:none">' +
+          '<input class="fld" type="search" aria-label="Search members" placeholder="Search members" value="' + esc(st.membersQ) + '" ' + onInput(e => { if (e.type === 'input') setState({ membersQ: e.target.value.slice(0, 40) }); }) + ' style="width:100%;min-height:44px;background:#f2f3f6;border:0;border-radius:12px;padding:0 14px 0 38px;font-family:inherit;font-size:16px;font-weight:600;color:#0d1117;outline:none">' +
         '</div>' +
       '</div>' +
       '<div style="flex:1;overflow:auto;padding:0 14px 22px">' +
@@ -2605,6 +2608,7 @@
 
   function render() {
     H = [];
+    GEN++;
     const html = view();
     handlers = H;
     tpl.innerHTML = html;
@@ -2620,8 +2624,8 @@
     const scrim = e.target.closest('[data-scrim]');
     const el = e.target.closest('[data-on]');
     const fn = scrim && e.target === scrim
-      ? handlers[+scrim.getAttribute('data-scrim')]
-      : el ? handlers[+el.getAttribute('data-on')] : null;
+      ? handlerFor(scrim.getAttribute('data-scrim'))
+      : el ? handlerFor(el.getAttribute('data-on')) : null;
     // Clicking outside a menu closes it
     if (state.menu && !e.target.closest('[data-menu]')) setState({ menu: null });
     if (fn) fn(e);
@@ -2657,7 +2661,7 @@
     }
     if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-on][role]') && !isField(e.target)) {
       e.preventDefault();
-      const fn = handlers[+e.target.getAttribute('data-on')];
+      const fn = handlerFor(e.target.getAttribute('data-on'));
       if (fn) fn(e);
     }
   });
@@ -2666,7 +2670,7 @@
   const onField = (e) => {
     const el = e.target.closest('[data-input]');
     if (!el) return;
-    const fn = handlers[+el.getAttribute('data-input')];
+    const fn = handlerFor(el.getAttribute('data-input'));
     if (fn) fn(e);
   };
   root.addEventListener('pointerdown', phDown);
@@ -2679,7 +2683,7 @@
   root.addEventListener('focusin', (e) => {
     const el = e.target.closest('[data-focus]');
     if (!el) return;
-    const fn = handlers[+el.getAttribute('data-focus')];
+    const fn = handlerFor(el.getAttribute('data-focus'));
     if (fn) fn(e);
   });
 

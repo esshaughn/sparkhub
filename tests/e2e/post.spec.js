@@ -28,7 +28,7 @@ test('post → idea page → all three views → profile → edit → delete', a
 
     // The photo was uploaded and is served
     const url = await page.evaluate((id) => {
-      const el = document.querySelector('[data-screen-label="Idea page"] > div');
+      const el = document.querySelector('[data-screen-label="Idea page"] > div > div[aria-hidden]');   // the framed cover layer
       return getComputedStyle(el).backgroundImage.match(/url\("([^"]+)"/)[1];
     }, id);
     expect((await page.request.get(url)).status()).toBe(200);
