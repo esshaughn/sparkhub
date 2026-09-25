@@ -48,6 +48,22 @@ test('groups, idea links, guests and leads: the database refuses what the app ne
     }), { g: group.id, me: leadUid, them: otherUid });
     expect(photos).toEqual({ someoneElses: 'refused', notAPhoto: 'refused', direct: 'refused', own: 'ok' });
 
+    // Roles: only owners change them, at most two owners, never zero
+    const outsiderRoles = await asUser(O, async (c, _C, { g, me, leadUid }) => ({
+      promote: (await c.rpc('set_member_role', { p_group: g, p_user: me, p_role: 'owner' })).error ? 'refused' : 'ALLOWED',
+      demoteOwner: (await c.rpc('set_member_role', { p_group: g, p_user: leadUid, p_role: 'member' })).error ? 'refused' : 'ALLOWED',
+      list: (await c.rpc('group_members', { p_group: g })).data?.length || 0
+    }), { g: group.id, me: otherUid, leadUid });
+    expect(outsiderRoles).toEqual({ promote: 'refused', demoteOwner: 'refused', list: 0 });
+    const ownerRoles = await asUser(L, async (c, _C, { g, me, them }) => ({
+      role: (await c.from('memberships').select('role').eq('group_id', g).eq('user_id', me).single()).data.role,
+      stepDownAlone: (await c.rpc('set_member_role', { p_group: g, p_user: me, p_role: 'admin' })).error ? 'refused' : 'ALLOWED',
+      notInGroup: (await c.rpc('set_member_role', { p_group: g, p_user: them, p_role: 'admin' })).error ? 'refused' : 'ALLOWED',
+      badRole: (await c.rpc('set_member_role', { p_group: g, p_user: me, p_role: 'king' })).error ? 'refused' : 'ALLOWED',
+      list: ((await c.rpc('group_members', { p_group: g })).data || []).map(m => m.role)
+    }), { g: group.id, me: leadUid, them: otherUid });
+    expect(ownerRoles).toEqual({ role: 'owner', stepDownAlone: 'refused', notInGroup: 'refused', badRole: 'refused', list: ['owner'] });
+
     // The admin gets the code and the head count
     const admin = await asUser(L, async (c, _C, g) => ({
       code: (await c.rpc('group_code', { p_group: g })).data,

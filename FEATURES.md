@@ -33,6 +33,7 @@ As of 2026-09-25: the Spark Hub rebuild from the design handoff "Spark Torrez - 
 | 13 | **Start a group** pop-up → "{Name} is ready" with code, link, **Copy invite link**, **Go to {Name}** | Test | Name saved in Title Case |
 | 14 | Invite links `/join/CODE` (and `#/join/CODE`): code filled in; Join opens for someone signed in | Test | Vercel rewrite in `vercel.json` |
 | 15 | **Group page** (admins): code, link, **Share invite link**, **Copy code**, Members count, Go to this group | Test | |
+| 15b | **Owners** (up to 2 per group; whoever starts a group): everything admins can do, plus **Members and roles** on the Group page to make anyone Owner / Admin / Member. Admins see the member list read-only. A group always keeps one owner | Test | Owner badge is purple, Admin gold |
 | 16 | Group photo on Home tiles, All ideas header and as the fallback behind ideas without a photo; admins replace it on the Group page (**Replace photo**) | Test | New groups fall back to gold until an admin sets one |
 
 ## All ideas (per group)

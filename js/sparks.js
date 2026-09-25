@@ -147,7 +147,7 @@
     whenMode: 'one', dateOne: '', timeOne: '', timeOn: false
   });
   const state = Object.assign({
-    screen: 'home', menu: null, subjectId: null, gpId: null, tag: null, zoom: null,
+    screen: 'home', menu: null, subjectId: null, gpId: null, tag: null, zoom: null, membersOpen: null, membersList: null,
     sort: SORTS.some(s => s[0] === prefs.sort) ? prefs.sort : 'popular',
     view: VIEWS.indexOf(prefs.view) > -1 ? prefs.view : 'cards',
     groupId: prefs.groupId || null,
@@ -239,11 +239,16 @@
   const groupById = (id) => state.groups.find(g => g.id === id) || null;
   const currentGroup = () => {
     const mine = myGroups();
-    return mine.find(g => g.id === state.groupId) || mine.find(g => g.role === 'admin') || mine[0] || null;
+    return mine.find(g => g.id === state.groupId) || mine.find(g => runs(g)) || mine[0] || null;
   };
+  // Owners are admins too (and also decide who the admins are)
+  const runs = (g) => !!g && (g.role === 'admin' || g.role === 'owner');
+  const ROLE_WORD = { owner: 'Owner', admin: 'Admin', member: 'Member' };
+  const roleBadge = (role, extra) => '<span aria-label="You’re ' + (role === 'owner' ? 'an owner' : 'an admin') + '" style="flex:0 0 auto;border-radius:999px;padding:2px 7px;' +
+    (role === 'owner' ? 'background:#ece9fd;color:#4a3ad4' : 'background:#fdf1d6;color:#8f6405') + ';font-size:11px;font-weight:900;letter-spacing:.6px;text-transform:uppercase;' + (extra || '') + '">' + ROLE_WORD[role] + '</span>';
   const isLead = (s) => !!s && !!state.me && s.leadId === state.me;
   // The lead, or an admin of the idea's group, can edit or delete it
-  const isGroupAdmin = (s) => { const g = s && groupById(s.groupId); return !!g && g.role === 'admin'; };
+  const isGroupAdmin = (s) => { const g = s && groupById(s.groupId); return runs(g); };
   const canEdit = (s) => isLead(s) || isGroupAdmin(s);
   const nameOf = (uid, fallback) => {
     if (uid && uid === state.me && state.myName) return state.myName;
@@ -329,7 +334,7 @@
     const roles = {};
     mem.data.forEach(m => { roles[m.group_id] = { role: m.role, lastSeen: Date.parse(m.last_seen_at) }; });
     const groups = grp.data.map(g => Object.assign({ id: g.id, name: g.name, photo: g.photo, role: null, lastSeen: 0 }, roles[g.id] || {}))
-      .sort((a, b) => (b.role === 'admin') - (a.role === 'admin') || a.name.localeCompare(b.name));
+      .sort((a, b) => runs(b) - runs(a) || a.name.localeCompare(b.name));
 
     const sparks = sp.data.map(r => toSpark(r, of.data, it.data, gc.data));
 
@@ -492,6 +497,29 @@
       const [code, count] = await Promise.all([sb.rpc('group_code', { p_group: id }), sb.rpc('member_count', { p_group: id })]);
       setState({ gpCode: code.data || '', gpMembers: count.data });
     } catch (e) { console.error(e); }
+  };
+
+  // Who's in a group you run; owners also set roles
+  const loadMembers = async (g) => {
+    const res = must(await sb.rpc('group_members', { p_group: g.id }));
+    setState({ membersList: res.data || [], gpMembers: (res.data || []).length });
+  };
+  const openMembers = (g) => {
+    setState({ membersOpen: g.id, membersList: null });
+    loadMembers(g).catch(e => { console.error(e); setState({ membersOpen: null }); toast(FAILED); });
+  };
+  const setRole = (g, m, role) => {
+    if (role === m.role || state.busy) return;
+    const apply = () => run(async () => {
+      must(await sb.rpc('set_member_role', { p_group: g.id, p_user: m.user_id, p_role: role }));
+      await loadMembers(g);
+    }, { confirm: null }).then(ok => { if (ok) toast(m.name + ' is now ' + (role === 'owner' ? 'an owner' : role === 'admin' ? 'an admin' : 'a member'), true); });
+    const me = m.user_id === state.me;
+    if (role === 'owner') {
+      setState({ confirm: { title: 'Make ' + m.name + ' an owner?', body: 'Owners can do everything admins can, and choose who the admins and owners are. They could also take the owner role away from you. A group can have two owners.', cta: 'Make them an owner', keep: 'Cancel', run: apply } });
+    } else if (m.role === 'owner') {
+      setState({ confirm: { title: me ? 'Step down as owner?' : 'Remove ' + m.name + ' as owner?', body: me ? 'You’ll be ' + (role === 'admin' ? 'an admin' : 'a member') + ' and can’t change roles any more.' : m.name + ' will be ' + (role === 'admin' ? 'an admin' : 'a member') + '.', cta: me ? 'Step down' : 'Remove as owner', keep: 'Cancel', danger: true, run: apply } });
+    } else apply();
   };
 
   const openJoin = (code) => {
@@ -1108,7 +1136,7 @@
         return '<div ' + on(() => pickGroup(g)) + ' style="display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;padding:9px 12px;border-radius:12px;background:' + (onIt ? '#f3f1fe' : 'transparent') + ';cursor:pointer">' +
           '<div style="min-width:0;display:flex;align-items:center;gap:8px">' +
             '<span style="font-size:15px;font-weight:800;color:' + (onIt ? '#5b4ae8' : '#0d1117') + '">' + esc(g.name) + '</span>' +
-            (g.role === 'admin' ? '<span aria-label="You’re an admin" style="flex:0 0 auto;border-radius:999px;padding:2px 7px;background:#fdf1d6;color:#8f6405;font-size:11px;font-weight:900;letter-spacing:.6px;text-transform:uppercase">Admin</span>' : '') +
+            (runs(g) ? roleBadge(g.role) : '') +
             (fresh ? '<span aria-label="' + fresh + ' new ideas" style="flex:0 0 auto;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:11.5px;font-weight:800;display:flex;align-items:center;justify-content:center">' + fresh + '</span>' : '') +
           '</div></div>';
       }).join('') +
@@ -1187,7 +1215,7 @@
 
   function viewHome() {
     const st = state, cur = currentGroup(), groups = myGroups();
-    const tiles = groups.slice().sort((a, b) => (b.role === 'admin') - (a.role === 'admin') || (cur && b.id === cur.id) - (cur && a.id === cur.id));
+    const tiles = groups.slice().sort((a, b) => runs(b) - runs(a) || (cur && b.id === cur.id) - (cur && a.id === cur.id));
     const first = tiles[0], rest = tiles.slice(1);
     const tileBg = (g) => groupPhoto(g) ? bg(groupPhoto(g), '50% 40%') : '#e8a71c';
     const nIn = (g) => st.sparks.filter(s => s.groupId === g.id).length;
@@ -1215,7 +1243,7 @@
                 '<div ' + on(() => openGroup(first)) + ' style="position:relative;height:108px;border-radius:18px;overflow:hidden;cursor:pointer;background:' + tileBg(first) + '">' +
                   '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to right, rgba(13,17,23,.82) 0%, rgba(13,17,23,.35) 70%, rgba(13,17,23,.2) 100%)"></div>' +
                   '<div style="position:absolute;left:16px;top:14px;bottom:14px;right:44px;display:flex;flex-direction:column;justify-content:space-between;color:#fff">' +
-                    (first.role === 'admin' ? '<span style="align-self:flex-start;border-radius:999px;padding:3px 8px;background:#fdf1d6;color:#8f6405;font-size:10.5px;font-weight:900;letter-spacing:.6px">ADMIN</span>' : '') +
+                    (runs(first) ? roleBadge(first.role, 'align-self:flex-start;padding:3px 8px;font-size:10.5px') : '') +
                     '<div style="margin-top:auto"><div style="font-size:20px;font-weight:900;letter-spacing:-.4px">' + esc(first.name) + '</div><div style="font-size:13px;font-weight:700;color:#dfe2e8">' + esc(firstMeta) + '</div></div>' +
                   '</div>' +
                   '<span style="position:absolute;right:14px;top:45px">' + I.chevR(18, '#fff', 2.4) + '</span>' +
@@ -1227,7 +1255,7 @@
                         return '<div ' + on(() => openGroup(g)) + ' style="position:relative;height:92px;border-radius:16px;overflow:hidden;cursor:pointer;background:' + tileBg(g) + '">' +
                           '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.85), rgba(13,17,23,.2))"></div>' +
                           (fresh ? '<span aria-label="' + fresh + ' new ideas" style="position:absolute;top:10px;right:10px;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:11.5px;font-weight:800;display:flex;align-items:center;justify-content:center">' + fresh + '</span>' : '') +
-                          (g.role === 'admin' ? '<span style="position:absolute;top:10px;left:10px;border-radius:999px;padding:2px 7px;background:#fdf1d6;color:#8f6405;font-size:10px;font-weight:900;letter-spacing:.6px">ADMIN</span>' : '') +
+                          (runs(g) ? roleBadge(g.role, 'position:absolute;top:10px;left:10px;font-size:10px') : '') +
                           '<div style="position:absolute;left:12px;right:10px;bottom:10px;color:#fff;font-size:15px;line-height:1.15;font-weight:900">' + esc(g.name) + '</div>' +
                         '</div>';
                       }).join('') +
@@ -1675,9 +1703,9 @@
             }).join('')
           : '<div style="padding:16px 0;font-size:15px;line-height:1.45;font-weight:500;color:#5c6270">Nothing yet. Anything you post shows up here.</div>') +
         section('Your groups',
-          groups.map(g => '<div ' + on(() => g.role === 'admin' ? openGroupPage(g.id) : openGroup(g)) + ' style="display:flex;align-items:center;gap:10px;min-height:54px;border-bottom:1px solid #f2f3f6;cursor:pointer">' +
+          groups.map(g => '<div ' + on(() => runs(g) ? openGroupPage(g.id) : openGroup(g)) + ' style="display:flex;align-items:center;gap:10px;min-height:54px;border-bottom:1px solid #f2f3f6;cursor:pointer">' +
             '<span style="flex:1 1 auto;min-width:0;font-size:15.5px;font-weight:800;letter-spacing:-.2px;color:#0d1117">' + esc(g.name) + '</span>' +
-            (g.role === 'admin' ? '<span aria-label="You’re an admin" style="flex:0 0 auto;display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:3px 9px 3px 7px;background:#fdf1d6;color:#8f6405;font-size:11px;font-weight:900;letter-spacing:.6px;text-transform:uppercase">' + I.star(11) + 'Admin</span>' : '') +
+            (runs(g) ? '<span aria-label="You’re ' + (g.role === 'owner' ? 'an owner' : 'an admin') + '" style="flex:0 0 auto;display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:3px 9px 3px 7px;' + (g.role === 'owner' ? 'background:#ece9fd;color:#4a3ad4' : 'background:#fdf1d6;color:#8f6405') + ';font-size:11px;font-weight:900;letter-spacing:.6px;text-transform:uppercase">' + I.star(11) + ROLE_WORD[g.role] + '</span>' : '') +
             I.chevR(16, '#9aa0ac', 2.4) + '</div>').join('') +
           '<div ' + on(() => openJoin()) + ' style="display:flex;align-items:center;gap:10px;min-height:54px;cursor:pointer">' + I.keypad(16) + '<span style="font-size:15.5px;font-weight:800;color:#5b4ae8">Join with a code</span></div>' +
           '<div ' + on(startGroup) + ' style="display:flex;align-items:center;gap:10px;min-height:48px;border-top:1px solid #f2f3f6;cursor:pointer">' + I.plus(15, '#6b7280', 2.4) + '<span style="font-size:14.5px;font-weight:700;color:#5c6270">Start a group</span></div>') +
@@ -1696,7 +1724,7 @@
 
   function viewGroupPage() {
     const st = state, g = groupById(st.gpId);
-    if (!g || g.role !== 'admin') return viewHome();
+    if (!runs(g)) return viewHome();
     const link = st.gpCode ? inviteLink(st.gpCode) : '';
     const share = () => {
       if (!link) return;
@@ -1706,7 +1734,7 @@
     return '<div data-screen-label="Group you run">' +
       '<header style="background:#fff;padding:16px 20px;display:flex;align-items:center;gap:14px">' +
         '<div ' + on(() => go('profile')) + ' aria-label="Back" style="flex:0 0 38px;width:38px;height:38px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.chevL(18, '#0d1117', 2.2) + '</div>' +
-        '<div style="min-width:0"><div style="font-size:11.5px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#8f6405">You’re an admin</div>' +
+        '<div style="min-width:0"><div style="font-size:11.5px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:' + (g.role === 'owner' ? '#4a3ad4' : '#8f6405') + '">' + (g.role === 'owner' ? 'You’re an owner' : 'You’re an admin') + '</div>' +
         '<div style="font-size:19px;font-weight:800;letter-spacing:-.3px;color:#0d1117">' + esc(g.name) + '</div></div>' +
       '</header>' +
       '<div style="padding:18px 14px 26px;display:flex;flex-direction:column;gap:14px">' +
@@ -1732,7 +1760,7 @@
           '<div style="font-size:13px;line-height:1.45;font-weight:500;color:#6b7280">Shows on the group’s tile and at the top of its ideas, for everyone in the group.</div>' +
         '</div>' +
         '<div style="' + CARD + ';padding:0 16px">' +
-          '<div style="display:flex;align-items:center;gap:10px;min-height:54px"><span style="flex:1 1 auto;font-size:15.5px;font-weight:700;color:#0d1117">Members</span><span style="font-size:15px;font-weight:600;color:#6b7280">' + (st.gpMembers == null ? '…' : st.gpMembers) + '</span></div>' +
+          '<div ' + on(() => openMembers(g)) + ' style="display:flex;align-items:center;gap:10px;min-height:54px;cursor:pointer"><span style="flex:1 1 auto;font-size:15.5px;font-weight:700;color:#0d1117">' + (g.role === 'owner' ? 'Members and roles' : 'Members') + '</span><span style="font-size:15px;font-weight:600;color:#6b7280">' + (st.gpMembers == null ? '…' : st.gpMembers) + '</span>' + I.chevR(16, '#9aa0ac', 2.4) + '</div>' +
           '<div ' + on(() => openGroup(g)) + ' style="display:flex;align-items:center;gap:10px;min-height:54px;border-top:1px solid #f2f3f6;cursor:pointer"><span style="flex:1 1 auto;font-size:15.5px;font-weight:700;color:#0d1117">Go to this group</span>' + I.chevR(16, '#9aa0ac', 2.4) + '</div>' +
         '</div>' +
       '</div>' +
@@ -2179,6 +2207,37 @@
       { z: 34, role: 'alertdialog', max: 330 });
   }
 
+  // Members of a group you run. Owners set roles; admins just see them (not in the design yet)
+  function viewMembers() {
+    const st = state, g = groupById(st.membersOpen), close = () => setState({ membersOpen: null, membersList: null });
+    if (!runs(g)) return '';
+    const owner = g.role === 'owner', list = st.membersList, owners = (list || []).filter(m => m.role === 'owner').length;
+    return modal('Members', close,
+      h3('Members') +
+      para(owner
+        ? 'Owners (up to two) choose who’s an admin. Admins can invite people, change the group photo, and edit or delete any idea.'
+        : 'Only the group’s owners can change roles.') +
+      (list == null
+        ? '<div style="padding:14px 0;font-size:15px;font-weight:600;color:#6b7280">Loading…</div>'
+        : '<div style="display:flex;flex-direction:column">' +
+            list.map((m, i) => {
+              const me = m.user_id === st.me;
+              return '<div style="display:flex;align-items:center;gap:12px;min-height:56px;border-top:' + (i ? '1px solid #f2f3f6' : '0') + '">' +
+                face(m.user_id, m.name, 32, FACE_COLORS[i % 3]) +
+                '<span style="flex:1 1 auto;min-width:0;font-size:15.5px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(m.name) + (me ? ' <span style="font-weight:600;color:#6b7280">(you)</span>' : '') + '</span>' +
+                (owner
+                  ? '<select class="fld" aria-label="Role for ' + esc(m.name) + '" ' + onInput(e => { if (e.type !== 'change') return; const v = e.target.value; e.target.value = m.role; setRole(g, m, v); }) +
+                      ' style="flex:0 0 auto;min-height:36px;border:2px solid #e6e7eb;border-radius:10px;padding:0 8px;background:#fff;font-family:inherit;font-size:14px;font-weight:800;color:' + (m.role === 'owner' ? '#4a3ad4' : m.role === 'admin' ? '#8f6405' : '#454b55') + '">' +
+                      ['owner', 'admin', 'member'].map(r => '<option value="' + r + '"' + (r === m.role ? ' selected' : '') + (r === 'owner' && m.role !== 'owner' && owners >= 2 ? ' disabled' : '') + '>' + ROLE_WORD[r] + '</option>').join('') +
+                    '</select>'
+                  : (m.role === 'member' ? '<span style="font-size:13.5px;font-weight:700;color:#6b7280">Member</span>' : roleBadge(m.role))) +
+              '</div>';
+            }).join('') +
+          '</div>') +
+      (owner && owners >= 2 ? '<p style="margin:0;font-size:13px;line-height:1.45;font-weight:500;color:#6b7280">This group has two owners, the most it can have.</p>' : ''),
+      { max: 380 });
+  }
+
   // The lead's list of who's interested, with guests' numbers (not in the design yet)
   function viewInterestList(s) {
     const close = () => setState({ interestList: false });
@@ -2264,6 +2323,7 @@
       (st.pe ? viewProfileEdit() : '') +
       (st.create ? viewCreate() : '') +
       (st.joinOpen ? viewJoin() : '') +
+      (st.membersOpen ? viewMembers() : '') +
       (st.loginStep ? viewLogin() : '') +
       (st.confirm ? viewConfirm() : '') +
       (st.zoom ? viewZoom() : '') +
@@ -2361,6 +2421,7 @@
       if (state.confirm) return setState({ confirm: null });
       if (state.loginStep) return closeLogin();
       if (state.joinOpen) return setState({ joinOpen: false });
+      if (state.membersOpen) return setState({ membersOpen: null, membersList: null });
       if (state.create) return setState({ create: null });
       if (state.pe) return setState({ pe: null });
       if (state.nameAsk) return setState({ nameAsk: null, nameText: '' });

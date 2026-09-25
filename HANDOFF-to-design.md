@@ -56,7 +56,12 @@ Everything in the Full Site 3 README is built as specified, except what's listed
 ### h. Full-screen vibe photos
 - Tapping a vibe photo opens it full screen: black `rgba(0,0,0,.94)`, the photo fitted, a 40px round ✕ top right (`rgba(255,255,255,.16)`), and with 2–3 photos 44px round ‹ › arrows at the sides plus *2 / 3* at the bottom (13/700, 75% white). Tap outside the photo or press Escape to close; arrow keys move between photos.
 
-### i. Small states
+### i. Owners and the member list
+- A third role above admin: **Owner** (whoever starts a group; up to two per group). Owners can do everything admins can, and set anyone's role. Badges: **OWNER** in purple (`#ece9fd` bg, `#4a3ad4` text) next to the gold **ADMIN** (switcher, Home tiles, Profile → Your groups). The Group page eyebrow reads *You're an owner* (purple) or *You're an admin* (gold).
+- On the Group page the **Members** row (now with a chevron; *Members and roles* for owners) opens a **Members** pop-up: face, name (*(you)* for yourself), and for owners a small role picker (Owner / Admin / Member; Owner greyed out once there are two). Admins see the role as a badge instead. Copy: owners *Owners (up to two) choose who's an admin. Admins can invite people, change the group photo, and edit or delete any idea.*; admins *Only the group's owners can change roles.*; with two owners *This group has two owners, the most it can have.*
+- Confirmations: **Make {name} an owner?** / *Owners can do everything admins can, and choose who the admins and owners are. They could also take the owner role away from you. A group can have two owners.* / **Make them an owner**. Removing an owner: **Remove {name} as owner?** (or **Step down as owner?** for yourself), red **Remove as owner** / **Step down**. Toasts: *{name} is now an owner / an admin / a member*.
+
+### j. Small states
 - Busy labels added: **Joining…**, **Creating…**, **Saving…**, **Confirming…**.
 - Profile with no name reads **No name yet**.
 - All ideas shows *Loading ideas…* above the skeletons.
@@ -70,7 +75,7 @@ Everything in the Full Site 3 README is built as specified, except what's listed
 - **Names** come from the profile; renaming updates every idea and offer you're named on.
 - **Signing in on a new phone** moves that phone's anonymous activity (interest, suggestions, guest info, opened links) into the account.
 - **Admins' powers:** an admin of a group can replace its photo, and edit (title, basics) or delete any idea in it. They can't set another lead's date/location, answer their offers or change their vibe photos. When an admin deletes someone else's idea, its photos stay in storage (only the uploader can delete files).
-- **Several admins per group** already exist (e.g. Hub on Hunters has three), set by the owner; there's no screen to add or remove admins yet (§5.1).
+- **Roles:** owner > admin > member. The database allows at most two owners and never lets the last owner step down; only owners change roles (`set_member_role`).
 - **Groups today (live):** Torrez Fitness, Hub on Hunters, Woodcliff Neighborhood, Walnut Creek Neighborhood, each with example ideas.
 - The confirm-email template serves both a first sign-in and a Profile email change, with different wording for each.
 
@@ -80,7 +85,7 @@ Everything in the Full Site 3 README is built as specified, except what's listed
 
 ## 5. Open questions for the next round
 
-1. **Group settings** (from the design's open list): rename, regenerate the code, remove members, add or remove co-admins (several admins already exist, §3), leave a group. The **group photo** is built (§2e); a crop/position control is still open.
+1. **Group settings** (from the design's open list): rename, regenerate the code, remove members, leave a group. (Roles are built: owners set admins, §2i.) The **group photo** is built (§2e); a crop/position control is still open.
 2. **Categories:** how they work; Walktober is meant to become one.
 3. **An empty new group's first-run view** (today: "No ideas yet." under a gold header).
 4. **Names:** first names or full names? (Google sign-ins show the first name.)
