@@ -53,7 +53,7 @@ test('members: Home, group switcher, view and sort menus', async ({ browser }) =
   const { page, context, errors } = await newLead(browser, 1, 'Tester');
   try {
     const home = page.locator('[data-screen-label=Home]');
-    await expect(home.getByRole('heading', { name: /Got an idea\?\s*Spark it\./ })).toBeVisible();
+    await expect(home.getByRole('heading', { name: /Turn your idea\s*into a plan\./ })).toBeVisible();
     await expect(home.getByText('Your groups')).toBeVisible();
     await expect(home.getByRole('button', { name: /^Torrez Fitness/ })).toBeVisible();
 

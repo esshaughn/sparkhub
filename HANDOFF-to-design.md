@@ -19,6 +19,7 @@ Everything in the Full Site 3 README is built as specified, except what's listed
 | 2 | **Welcome photo** is the owner's neighbourhood picnic photo (`photos/welcome.jpg`) | `trail-cleanup.png` | Owner request |
 | 3 | Welcome card heading reads **Enter a group code** | *Got a code from your group?* | Owner request |
 | 4 | Date pickers (posting, "Got a date & time in mind?", the lead's Set) allow **any date from today on** | October 2026 only | Many groups now, not just Walktober |
+| 6 | **Home (signed in) header:** *Turn your idea / into a plan.* (line 2 purple), then *Post an idea. Your group helps pick the day, find the place and make it happen.* The three steps are one grey `#f2f3f6` pill: 22px coloured number dots (gold `#e8a71c`, purple `#5b4ae8`, green `#0f7a3c`, white 12/900 numbers), labels 13.5/800 ink, grey chevrons between | *Got an idea? / Spark it.*, a longer line, three separate tinted tiles | Owner's mockup |
 | 5 | Wording: suggestion pop-ups say **Offer this location** / **Offer this date**; activity lines say "offered a location:" / "suggested a date:"; the lead's buttons say **Use this location** / **Use this date** | "Offer this spot", "floated a day", "Use this spot" | Matches the rows' "Location" and the README's leftover note |
 
 ## 2. Things the build had to invent (please design these properly)

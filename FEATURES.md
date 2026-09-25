@@ -18,7 +18,7 @@ As of 2026-09-25: the Spark Hub rebuild from the design handoff "Spark Torrez - 
 | # | Feature | Status | Notes |
 |---|---|---|---|
 | 5 | Logo (goes Home) + group switcher | Test | |
-| 6 | "Got an idea? / Spark it." hero, steps, **I have an idea** | Test | Posts to the current group |
+| 6 | "Turn your idea / into a plan." hero, one-pill 1-2-3 steps, **I have an idea** | Live | Posts to the current group |
 | 7 | **Your groups**: first tile (the group you run, else current) with ADMIN chip and "N ideas" / "N new", other groups in a 2-column grid with new-idea badges | Test | Tapping switches group and opens All ideas |
 | 8 | **Join with a code** link | Test | |
 | 9 | **Coming up**: next 3 dated ideas across your groups, mini calendar | Test | Hidden when nothing is dated |

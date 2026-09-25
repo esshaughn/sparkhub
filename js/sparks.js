@@ -1165,11 +1165,14 @@
       '<header style="position:relative;background:#fff;padding:12px 16px 24px">' +
         switcher(false) +
         logo(false) +
-        '<h1 style="margin:22px 0 0;font-size:40px;line-height:1;font-weight:900;letter-spacing:-1.3px;color:#0d1117">Got an idea?<br><span style="color:#5b4ae8">Spark it.</span></h1>' +
-        '<p style="margin:12px 0 0;font-size:16px;line-height:1.45;font-weight:500;color:#454b55;text-wrap:pretty">A spark is a rough idea for something to do together. Post it, and your group helps turn it into a plan.</p>' +
-        '<div style="margin-top:18px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px">' +
-          [['#fdf1d6', '#8f6405', '1', 'Post an idea'], ['#f3f1fe', '#5b4ae8', '2', 'People pitch in'], ['#e8f6ee', '#0f7a3c', '3', 'It happens']].map(([b, c, n, t]) =>
-            '<div style="background:' + b + ';border-radius:14px;padding:12px 10px"><div style="font-size:12px;font-weight:900;color:' + c + '">' + n + '</div><div style="margin-top:4px;font-size:13.5px;line-height:1.25;font-weight:800;color:#0d1117">' + t + '</div></div>').join('') +
+        '<h1 style="margin:22px 0 0;font-size:40px;line-height:1;font-weight:900;letter-spacing:-1.3px;color:#0d1117">Turn your idea<br><span style="color:#5b4ae8">into a plan.</span></h1>' +
+        '<p style="margin:12px 0 0;font-size:16px;line-height:1.45;font-weight:500;color:#454b55;text-wrap:pretty">Post an idea. Your group helps pick the day, find the place and make it happen.</p>' +
+        // The three steps as one pill: numbered dots with chevrons between
+        '<div style="margin-top:18px;display:flex;align-items:center;justify-content:space-between;gap:4px;background:#f2f3f6;border-radius:999px;padding:9px 12px">' +
+          [['#e8a71c', '1', 'Post an idea'], ['#5b4ae8', '2', 'People pitch in'], ['#0f7a3c', '3', 'It happens']].map(([c, n, t], i) =>
+            (i ? '<span aria-hidden="true" style="flex:0 0 auto;display:flex">' + I.chevR(11, '#b3b8c2', 2.4) + '</span>' : '') +
+            '<span style="display:flex;align-items:center;gap:6px;min-width:0"><span style="flex:0 0 22px;width:22px;height:22px;border-radius:999px;background:' + c + ';color:#fff;font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center">' + n + '</span>' +
+            '<span style="font-size:13.5px;font-weight:800;color:#0d1117;white-space:nowrap">' + t + '</span></span>').join('') +
         '</div>' +
         ideaButton('margin-top:16px') +
       '</header>' +
