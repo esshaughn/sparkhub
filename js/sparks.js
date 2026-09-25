@@ -16,7 +16,7 @@
 (function () {
   'use strict';
 
-  const SORTS = [['popular', 'Most popular'], ['new', 'Newest'], ['old', 'Oldest']];
+  const SORTS = [['popular', 'Most popular'], ['soon', 'Happening soon'], ['new', 'Newest'], ['old', 'Oldest']];
   const VIEWS = ['cards', 'grid', 'list'];
   const HOPE_PH = ['tacos after', 'teams by class', 'glow-in-the-dark shirts'];
   const FACE_COLORS = ['#5b4ae8', '#e8a71c', '#0f7a3c'];
@@ -266,6 +266,12 @@
     if (state.sort === 'new') out.sort(byNew);
     if (state.sort === 'old') out.sort((x, y) => x.created - y.created);
     if (state.sort === 'popular') out.sort((x, y) => y.interested.length - x.interested.length || byNew(x, y));
+    if (state.sort === 'soon') {
+      // Upcoming dates first (soonest on top), then ideas with no date yet (newest first), then past dates
+      const today = todayISO(), when = (x) => x.dayDate + (x.dayTime || '');
+      const rank = (x) => !x.dayDate ? 1 : x.dayDate >= today ? 0 : 2;
+      out.sort((x, y) => rank(x) - rank(y) || (rank(x) === 0 ? when(x).localeCompare(when(y)) : rank(x) === 2 ? when(y).localeCompare(when(x)) : byNew(x, y)));
+    }
     return out;
   };
 

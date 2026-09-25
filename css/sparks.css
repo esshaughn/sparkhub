@@ -8,7 +8,7 @@ html, body { height: 100%; }
 
 body {
   margin: 0;
-  background: #e9eaee;
+  background: #dcdfe4;
   font-family: Figtree, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
@@ -41,7 +41,7 @@ input::placeholder, textarea::placeholder { color: #b9bcc4; font-weight: 400; fo
   height: 100dvh;
   margin: 0 auto;
   overflow: hidden;
-  background: #f1f2f5;
+  background: #e8eaee;
   font-family: Figtree, system-ui, sans-serif;
 }
 
@@ -57,7 +57,7 @@ input::placeholder, textarea::placeholder { color: #b9bcc4; font-weight: 400; fo
 }
 
 .scroller { position: absolute; inset: 0; overflow: auto; -webkit-overflow-scrolling: touch; }
-.overlay-screen { position: absolute; left: 0; right: 0; top: 0; bottom: var(--nav-h); background: #f1f2f5; overflow: auto; z-index: 5; }
+.overlay-screen { position: absolute; left: 0; right: 0; top: 0; bottom: var(--nav-h); background: #e8eaee; overflow: auto; z-index: 5; }
 
 .tabbar {
   position: absolute; left: 0; right: 0; bottom: 0; height: var(--nav-h);

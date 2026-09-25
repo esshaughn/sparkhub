@@ -20,6 +20,7 @@ Everything in the Full Site 3 README is built as specified, except what's listed
 | 3 | Date pickers (posting, "Got a date & time in mind?", the lead's Set) allow **any date from today on** | October 2026 only | Many groups now, not just Walktober |
 | 4 | **Home (signed in) header:** *Turn your idea / into a plan.* (line 2 purple), then *Post an idea. Your group helps pick the day, find the place and make it happen.* The three steps are one grey `#f2f3f6` pill: 22px coloured number dots (gold `#e8a71c`, purple `#5b4ae8`, green `#0f7a3c`, white 12/900 numbers), labels 13.5/800 ink, grey chevrons between | *Got an idea? / Spark it.*, a longer line, three separate tinted tiles | Owner's mockup |
 | 5 | Wording: suggestion pop-ups say **Offer this location** / **Offer this date**; activity lines say "offered a location:" / "suggested a date:"; the lead's buttons say **Use this location** / **Use this date** | "Offer this spot", "floated a day", "Use this spot" | Matches the rows' "Location" and the README's leftover note |
+| 6 | **Sort** adds **Happening soon** (second, after Most popular): ideas with an upcoming date first, soonest on top; then ideas with no date yet (newest first); ideas whose date has passed go last | Most popular · Newest · Oldest | Owner's request |
 
 ## 2. Things the build had to invent (please design these properly)
 
@@ -85,6 +86,7 @@ Everything in the Full Site 3 README is built as specified, except what's listed
 8. **Codes and new groups when signed out:** Welcome no longer has a code box or **Start a group** (owner's mockup), so a signed-out visitor with a code but no invite link signs in first, then uses **Join with a code** on Home. Is that fine, or should Welcome keep a small "Have a group code?" link?
 9. **Spark Hub address:** live at gosparkhub.vercel.app for now; a custom domain (e.g. sparkhub.group) may follow.
 
-## 6. Design tokens: unchanged
+## 6. Design tokens
 
-As listed in the Full Site 3 README.
+As listed in the Full Site 3 README, except:
+- **App background** (behind cards and lists, and overlay screens) is `#e8eaee`, a step darker than the README's `#f1f2f5`, so white cards stand out (owner's request). The page outside the app frame on desktop is `#dcdfe4`.

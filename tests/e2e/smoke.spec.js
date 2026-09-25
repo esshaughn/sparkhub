@@ -71,11 +71,23 @@ test('members: Home, group switcher, view and sort menus', async ({ browser }) =
     await expect(browse.getByRole('heading', { name: 'All ideas' })).toBeVisible();
     await expect(browse).toContainText('Torrez Fitness');
 
-    // Sort: Most popular first by default, then Newest, Oldest
+    // Sort: Most popular first by default, then Happening soon, Newest, Oldest
     await expect(page.getByRole('button', { name: 'Sort' })).toContainText('Most popular');
     await page.getByRole('button', { name: 'Sort' }).click();
     const sortRows = page.getByRole('menu', { name: 'Order by' }).getByRole('button');
-    await expect(sortRows).toHaveText(['Most popular', 'Newest', 'Oldest']);
+    await expect(sortRows).toHaveText(['Most popular', 'Happening soon', 'Newest', 'Oldest']);
+
+    // Happening soon: ideas with upcoming dates first, soonest on top; undated ones after
+    await sortRows.filter({ hasText: 'Happening soon' }).click();
+    const cards = browse.locator('[role=button]').filter({ hasText: /Led by/ });
+    const dates = await cards.evaluateAll(els => els.map(el => /(Date TBD)|((Mon|Tue|Wed|Thu|Fri|Sat|Sun), [A-Z][a-z]{2} \d+)/.exec(el.textContent)?.[0] || ''));
+    const firstTbd = dates.indexOf('Date TBD');
+    const dated = firstTbd < 0 ? dates : dates.slice(0, firstTbd);
+    expect(dated.length).toBeGreaterThan(1);
+    const asTime = (d) => Date.parse(d.replace(/^\w+, /, '') + ' 2026');
+    for (let i = 1; i < dated.length; i++) expect(asTime(dated[i])).toBeGreaterThanOrEqual(asTime(dated[i - 1]));
+    if (firstTbd > -1) expect(dates.slice(firstTbd).every(d => d === 'Date TBD')).toBe(true);
+    await page.getByRole('button', { name: 'Sort' }).click();
     await sortRows.filter({ hasText: 'Newest' }).click();
     await expect(page.getByRole('button', { name: 'Sort' })).toContainText('Newest');
 

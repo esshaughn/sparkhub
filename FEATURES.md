@@ -41,7 +41,7 @@ As of 2026-09-25: the Spark Hub rebuild from the design handoff "Spark Torrez - 
 |---|---|---|---|
 | 17 | Photo header with group name, **All ideas**, overlapping **I have an idea** | Test | |
 | 18 | **View**: Cards · Grid · List, remembered on this device | Test | |
-| 19 | **Sort**: Most popular (default) · Newest · Oldest | Test | |
+| 19 | **Sort**: Most popular (default) · Happening soon · Newest · Oldest | Test | Happening soon: upcoming dates (soonest first), then no date yet (newest first), then past dates |
 | 20 | Card: photo (or blurred group photo), title, date · time, location, lead's face + "Led by", interest count | Test | "Date TBD" / "Location TBD" in grey |
 | 21 | Loading skeletons, "Couldn't load ideas" banner with **Try now**, "No ideas yet." | Test | |
 
