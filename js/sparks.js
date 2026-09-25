@@ -1126,8 +1126,8 @@
     // Google straight from here; email opens the sign-in pop-up without the Google button
     const google = () => { if (busy) return; setState({ loginFrom: from, loginThen: null }); googleSignIn(); };
     const email = () => { openLogin(from, st.joinCode ? () => openJoin(st.joinCode) : null); setState({ loginEmailOnly: true }); };
-    return '<div data-screen-label="Welcome" style="position:relative;background:#0d1117;min-height:100%">' +
-      '<div aria-hidden="true" style="position:absolute;left:0;right:0;top:0;height:560px;background:' + bg('/photos/welcome.jpg', 'center') + '"></div>' +
+    return '<div data-screen-label="Welcome" style="position:relative;overflow:hidden;background:#0d1117;min-height:100%">' +
+      '<div aria-hidden="true" style="position:absolute;left:0;right:0;top:-90px;height:560px;background:' + bg('/photos/welcome.jpg', 'center') + '"></div>' +
       '<div aria-hidden="true" style="position:absolute;left:0;right:0;top:0;height:561px;background:linear-gradient(to bottom, rgba(13,17,23,.15) 0%, rgba(13,17,23,.3) 30%, rgba(13,17,23,.78) 50%, rgba(13,17,23,.93) 70%, #0d1117 100%)"></div>' +
       '<div style="position:relative;padding:10.5px 16px 0">' +
         '<div aria-label="Spark Hub" style="display:flex;align-items:center;gap:6px;min-height:44px">' + I.bolt(24, '#f3c55a') + '<span style="font-size:18px;line-height:1;font-weight:900;letter-spacing:-.5px;color:#fff">Spark Hub</span></div>' +
