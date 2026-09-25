@@ -22,6 +22,7 @@ textarea { font-family: inherit; }
 
 @keyframes skPulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
 
 @keyframes popIn {
   from { opacity: 0; transform: translateY(10px) scale(.96); }
@@ -74,6 +75,30 @@ input::placeholder, textarea::placeholder { color: #b9bcc4; font-weight: 400; fo
   display: flex; align-items: center; justify-content: center; padding: 20px;
 }
 
+/* Bottom sheets (Your groups, Members): slide up while the scrim fades in, no scale */
+.sheet-scrim {
+  position: absolute; inset: 0; z-index: 30; background: rgba(15, 18, 25, .45);
+  display: flex; align-items: flex-end; animation: fadeIn 240ms ease-out both;
+}
+.sheet {
+  position: relative; width: 100%; background: #fff; border-radius: 24px 24px 0 0;
+  box-shadow: 0 -12px 40px rgba(15, 18, 25, .2); will-change: transform;
+  animation: sheetUp 380ms cubic-bezier(.32, .72, 0, 1) both;
+}
+
+/* Photo positioner: rule-of-thirds lines while dragging */
+.ph-grid { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 120ms; }
+.ph-dragging { cursor: grabbing !important; }
+.ph-dragging .ph-grid {
+  opacity: 1;
+  background-image:
+    linear-gradient(to right, transparent calc(33.33% - .5px), rgba(255,255,255,.35) calc(33.33% - .5px), rgba(255,255,255,.35) calc(33.33% + .5px), transparent calc(33.33% + .5px), transparent calc(66.66% - .5px), rgba(255,255,255,.35) calc(66.66% - .5px), rgba(255,255,255,.35) calc(66.66% + .5px), transparent calc(66.66% + .5px)),
+    linear-gradient(to bottom, transparent calc(33.33% - .5px), rgba(255,255,255,.35) calc(33.33% - .5px), rgba(255,255,255,.35) calc(33.33% + .5px), transparent calc(33.33% + .5px), transparent calc(66.66% - .5px), rgba(255,255,255,.35) calc(66.66% - .5px), rgba(255,255,255,.35) calc(66.66% + .5px), transparent calc(66.66% + .5px));
+}
+
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
 /* ---- Pseudo-states from the design's style-hover / style-focus ---- */
 .hov-primary:hover { background: #4a3ad4 !important; }
 .hov-outline:hover { border-color: #5b4ae8 !important; color: #5b4ae8 !important; }
@@ -82,7 +107,12 @@ input::placeholder, textarea::placeholder { color: #b9bcc4; font-weight: 400; fo
 .hov-row:hover { background: #f7f7f9 !important; }
 .hov-tint2:hover { background: #e9e5fd !important; }
 .hov-grey:hover { border-color: #b9bcc4 !important; }
+.hov-fill-grey:hover { background: #f2f3f6 !important; }
+.hov-white-line:hover { border-color: #fff !important; }
+.hov-white:hover { color: #fff !important; }
+.hov-danger:hover { background: #fdeef0 !important; }
 .fld:focus { border-color: #5b4ae8 !important; }
+.fld-danger:focus { border-color: #9b1c31 !important; }
 
 [data-on] { cursor: pointer; }
 [data-on]:focus-visible, button:focus-visible { outline: 2px solid #5b4ae8; outline-offset: 2px; }
