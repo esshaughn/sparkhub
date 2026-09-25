@@ -34,9 +34,10 @@ test('groups, idea links, guests and leads: the database refuses what the app ne
       offer: (await c.rpc('add_offer', { p_spark: id, p_kind: 'spot', p_body: 'x', p_who: 'x' })).error ? 'refused' : 'ALLOWED',
       interest: (await c.from('interests').insert({ spark_id: id, user_id: me })).error ? 'refused' : 'ALLOWED',
       photo: (await c.rpc('set_group_photo', { p_group: g, p_photo: me + '/00000000-0000-4000-8000-000000000000.jpg' })).error ? 'refused' : 'ALLOWED',
-      photoDirect: (await c.from('groups').update({ photo: 'photos/welcome.jpg' }).eq('id', g).select('id')).data?.length ? 'ALLOWED' : 'refused'
+      photoDirect: (await c.from('groups').update({ photo: 'photos/welcome.jpg' }).eq('id', g).select('id')).data?.length ? 'ALLOWED' : 'refused',
+      adminEdit: (await c.rpc('admin_edit_spark', { p_spark: id, p_text: '[E2E] hijacked', p_hopes: [] })).error ? 'refused' : 'ALLOWED'
     }), { g: group.id, id: sparkId, me: otherUid });
-    expect(outsider).toEqual({ sparks: 0, groups: 0, post: 'refused', selfJoin: 'refused', code: null, members: null, offer: 'refused', interest: 'refused', photo: 'refused', photoDirect: 'refused' });
+    expect(outsider).toEqual({ sparks: 0, groups: 0, post: 'refused', selfJoin: 'refused', code: null, members: null, offer: 'refused', interest: 'refused', photo: 'refused', photoDirect: 'refused', adminEdit: 'refused' });
 
     // The admin can set a group photo only from their own uploads
     const photos = await asUser(L, async (c, _C, { g, me, them }) => ({

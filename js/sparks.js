@@ -147,7 +147,7 @@
     whenMode: 'one', dateOne: '', timeOne: '', timeOn: false
   });
   const state = Object.assign({
-    screen: 'home', menu: null, subjectId: null, gpId: null, tag: null,
+    screen: 'home', menu: null, subjectId: null, gpId: null, tag: null, zoom: null,
     sort: SORTS.some(s => s[0] === prefs.sort) ? prefs.sort : 'popular',
     view: VIEWS.indexOf(prefs.view) > -1 ? prefs.view : 'cards',
     groupId: prefs.groupId || null,
@@ -214,7 +214,7 @@
 
   const scroller = () => document.querySelector('.scroller');
   const go = (screen, extra) => {
-    setState(Object.assign({ screen, menu: null }, extra || {}));
+    setState(Object.assign({ screen, menu: null, zoom: null }, extra || {}));
     const sc = scroller();
     if (sc) sc.scrollTop = 0;
   };
@@ -242,6 +242,9 @@
     return mine.find(g => g.id === state.groupId) || mine.find(g => g.role === 'admin') || mine[0] || null;
   };
   const isLead = (s) => !!s && !!state.me && s.leadId === state.me;
+  // The lead, or an admin of the idea's group, can edit or delete it
+  const isGroupAdmin = (s) => { const g = s && groupById(s.groupId); return !!g && g.role === 'admin'; };
+  const canEdit = (s) => isLead(s) || isGroupAdmin(s);
   const nameOf = (uid, fallback) => {
     if (uid && uid === state.me && state.myName) return state.myName;
     const p = uid && state.profiles[uid];
@@ -694,7 +697,9 @@
   const saveEdit = (s) => {
     if (!state.editText.trim() || state.busy) return;
     run(async () => {
-      must(await sb.from('sparks').update({ text: cleanTitle(state.editText), hopes: state.editHopes.map(cleanTitle).filter(Boolean) }).eq('id', s.id));
+      const text = cleanTitle(state.editText), hopes = state.editHopes.map(cleanTitle).filter(Boolean);
+      if (isLead(s)) must(await sb.from('sparks').update({ text, hopes }).eq('id', s.id));
+      else must(await sb.rpc('admin_edit_spark', { p_spark: s.id, p_text: text, p_hopes: hopes }));
     }, { screen: 'detail', tag: 'Saved' });
   };
   const askDelete = (s) => setState({ confirm: {
@@ -1515,7 +1520,7 @@
         '<div style="position:absolute;top:12px;left:12px;right:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;z-index:1">' +
           '<span ' + on(() => go(g && g.role ? 'browse' : 'home', g && g.role ? { groupId: g.id } : {})) + ' aria-label="Back" style="flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.chevL(18, '#fff', 2.3) + '</span>' +
           '<span style="min-width:0;font-size:11.5px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(g ? g.name : '') + '</span>' +
-          (lead
+          (canEdit(s)
             ? '<span ' + on(() => openEdit(s)) + ' style="flex:0 0 auto;display:flex;align-items:center;gap:6px;min-height:40px;padding:0 14px;border-radius:999px;background:rgba(255,255,255,.2);font-size:14px;font-weight:800;color:#fff;cursor:pointer">' + I.edit(14, '#fff') + 'Edit</span>'
             : '<span style="flex:0 0 40px;width:40px"></span>') +
         '</div>' +
@@ -1612,7 +1617,7 @@
               '</div>' +
               (lead && !mood.length ? '<p style="margin:0;font-size:14px;line-height:1.45;font-weight:500;color:#5c6270">Add up to three photos that set the mood: the place, past years, the feel you’re going for.</p>' : '') +
               '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">' +
-                mood.map(p => '<div role="img" aria-label="Mood photo" style="position:relative;aspect-ratio:1;border-radius:12px;background:' + bg(photoUrl(p)) + '">' +
+                mood.map((p, i) => '<div ' + on(() => setState({ zoom: { photos: mood.map(photoUrl), i } })) + ' aria-label="View mood photo ' + (i + 1) + '" style="position:relative;aspect-ratio:1;border-radius:12px;cursor:zoom-in;background:' + bg(photoUrl(p)) + '">' +
                   (lead ? '<span ' + on((e) => { stop(e); if (!st.busy) removeMood(s, p); }) + ' aria-label="Remove photo" style="position:absolute;top:5px;right:5px;width:24px;height:24px;border-radius:999px;background:rgba(13,17,23,.6);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(11, '#fff', 3) + '</span>' : '') +
                   '</div>').join('') +
                 (lead && mood.length < 3
@@ -1924,7 +1929,7 @@
   }
 
   // ---------------------------------------------------------------------------
-  // 6. Edit idea (lead)
+  // 6. Edit idea (lead, or an admin of its group)
   // ---------------------------------------------------------------------------
 
   function viewEdit(s) {
@@ -1941,7 +1946,8 @@
           '<div style="font-size:18px;font-weight:800;letter-spacing:-.3px;color:#0d1117">The basics</div>' +
           basicsInputs(st.editHopes, (i, v) => { const h = state.editHopes.slice(); h[i] = v; setState({ editHopes: h }); }) +
         '</div>' +
-        '<p style="margin:0 4px;font-size:14px;line-height:1.45;font-weight:500;color:#6b7280">The location, date and offers stay as they are.</p>' +
+        '<p style="margin:0 4px;font-size:14px;line-height:1.45;font-weight:500;color:#6b7280">The location, date and offers stay as they are.' +
+          (isLead(s) ? '' : ' You’re editing as an admin of ' + esc((groupById(s.groupId) || {}).name || 'this group') + '; ' + esc(nameOf(s.leadId, s.leadName) || 'the lead') + ' still leads it.') + '</p>' +
         '<button type="button" class="hov-primary" ' + on(() => { if (ok) saveEdit(s); }) + ' aria-disabled="' + !ok + '" style="' + btn(ok) + '">' + (st.busy === 'save' ? 'Saving…' : 'Save changes') + '</button>' +
         '<div style="height:1px;background:#e2e4e9;margin:6px 0"></div>' +
         '<span ' + on(() => askDelete(s)) + ' style="display:flex;align-items:center;justify-content:center;gap:7px;min-height:44px;font-size:15px;font-weight:800;color:#9b1c31;cursor:pointer">' + I.trash(15, '#9b1c31') + 'Delete this idea</span>' +
@@ -2212,6 +2218,21 @@
     '</nav>';
   }
 
+  // Full-screen photo (the vibe photos): tap anywhere or ✕ to close, arrows between them
+  function viewZoom() {
+    const z = state.zoom, n = z.photos.length, close = () => setState({ zoom: null });
+    const step = (d) => (e) => { stop(e); setState({ zoom: { photos: z.photos, i: (z.i + d + n) % n } }); };
+    const arrow = (d, label, path) => '<span ' + on(step(d)) + ' aria-label="' + label + '" style="position:absolute;top:50%;' + (d < 0 ? 'left' : 'right') + ':12px;transform:translateY(-50%);width:44px;height:44px;border-radius:999px;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;cursor:pointer">' + path + '</span>';
+    return '<div role="dialog" aria-modal="true" aria-label="Photo" data-scrim="' + reg(close) + '" style="position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.94);display:flex;align-items:center;justify-content:center;animation:fadeIn 160ms ease both;cursor:zoom-out">' +
+      '<img src="' + esc(z.photos[z.i]) + '" alt="Mood photo ' + (z.i + 1) + ' of ' + n + '" data-scrim="' + reg(close) + '" style="max-width:100%;max-height:100%;object-fit:contain;display:block">' +
+      '<span ' + on(close) + ' aria-label="Close" style="position:absolute;top:max(14px, env(safe-area-inset-top));right:14px;width:40px;height:40px;border-radius:999px;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(16, '#fff', 2.6) + '</span>' +
+      (n > 1
+        ? arrow(-1, 'Previous photo', I.chevL(18, '#fff', 2.4)) + arrow(1, 'Next photo', I.chevR(18, '#fff', 2.4)) +
+          '<span style="position:absolute;bottom:max(18px, env(safe-area-inset-bottom));left:0;right:0;text-align:center;font-size:13px;font-weight:700;color:rgba(255,255,255,.75)">' + (z.i + 1) + ' / ' + n + '</span>'
+        : '') +
+    '</div>';
+  }
+
   function view() {
     const st = state, s = st.screen, subj = subject();
     const home = () => st.email ? viewHome() : viewWelcome();
@@ -2237,6 +2258,7 @@
       (st.joinOpen ? viewJoin() : '') +
       (st.loginStep ? viewLogin() : '') +
       (st.confirm ? viewConfirm() : '') +
+      (st.zoom ? viewZoom() : '') +
       (st.toast ? viewToast() : '') +
       viewNav();
   }
@@ -2327,6 +2349,7 @@
 
   root.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
+      if (state.zoom) return setState({ zoom: null });
       if (state.confirm) return setState({ confirm: null });
       if (state.loginStep) return closeLogin();
       if (state.joinOpen) return setState({ joinOpen: false });
@@ -2337,6 +2360,10 @@
       if (state.offerKind) return setState({ offerKind: null, offerText: '' });
       if (state.interestList) return setState({ interestList: false });
       if (state.menu) return setState({ menu: null });
+    }
+    if (state.zoom && state.zoom.photos.length > 1 && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+      const z = state.zoom, n = z.photos.length;
+      return setState({ zoom: { photos: z.photos, i: (z.i + (e.key === 'ArrowLeft' ? -1 : 1) + n) % n } });
     }
     if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-on][role]') && !isField(e.target)) {
       e.preventDefault();

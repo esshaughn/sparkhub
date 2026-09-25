@@ -48,7 +48,13 @@ Everything in the Full Site 3 README is built as specified, except what's listed
 - **Continue with email** opens the usual **Sign in** pop-up *without* its Google button: *Your ideas, groups and name are saved to your account. We'll email you a 6-digit code. No password.* / email field / **Email me a code** / Privacy line. Everywhere else (Profile, posting, joining) the pop-up still offers Google first.
 - **Invite link, signed out:** Welcome adds one centred line above the buttons: *Sign in to join the group* **CODE** (14.5px/700 `#dfe2e8`, the code white 900 with 1px letter-spacing). After sign-in (either way) the Join pop-up opens with the code filled in.
 
-### g. Small states
+### g. Admins edit any idea in their group
+- An admin of the idea's group gets the same **Edit** button as the lead, and the same Edit screen (the idea, the basics, **Delete this idea**). For an admin who isn't the lead, the note under the basics adds: *You're editing as an admin of {group}; {lead} still leads it.* The lead stays the lead; setting the date/location, the vibe photos and answering offers stay the lead's.
+
+### h. Full-screen vibe photos
+- Tapping a vibe photo opens it full screen: black `rgba(0,0,0,.94)`, the photo fitted, a 40px round ✕ top right (`rgba(255,255,255,.16)`), and with 2–3 photos 44px round ‹ › arrows at the sides plus *2 / 3* at the bottom (13/700, 75% white). Tap outside the photo or press Escape to close; arrow keys move between photos.
+
+### i. Small states
 - Busy labels added: **Joining…**, **Creating…**, **Saving…**, **Confirming…**.
 - Profile with no name reads **No name yet**.
 - All ideas shows *Loading ideas…* above the skeletons.

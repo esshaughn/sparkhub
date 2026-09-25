@@ -49,7 +49,7 @@ As of 2026-09-25: the Spark Hub rebuild from the design handoff "Spark Torrez - 
 
 | # | Feature | Status | Notes |
 |---|---|---|---|
-| 22 | Photo header (or blurred group photo), back, group name, **Edit** (lead) | Test | |
+| 22 | Photo header (or blurred group photo), back, group name, **Edit** (lead, or an admin of the group: edit the idea and basics, delete it) | Test | |
 | 23 | Title sheet: lead's face, "Led by", **N interested** + face stack (+N) | Test | |
 | 24 | **I'm interested** / **You're interested** (not for the lead) | Test | Guests give name + phone first |
 | 25 | **Waiting on you** (lead): suggested locations/dates with **Use this location / Use this date** and **Not this time** | Test | |
@@ -57,7 +57,7 @@ As of 2026-09-25: the Spark Hub rebuild from the design handoff "Spark Torrez - 
 | 27 | **The basics** (up to 3 lines) with lead/member empty states | Test | |
 | 28 | What the lead is picturing + **Say more about what you're picturing** | Test | |
 | 29 | **Who's pitching in** (accepted offers; your own waiting ones) | Test | |
-| 30 | **The vibe** mood board: up to 3 photos, lead adds/removes | Test | Members see it only with photos |
+| 30 | **The vibe** mood board: up to 3 photos, lead adds/removes; tap one to see it full screen (arrows between, ✕ / Escape / tap to close) | Test | Members see it only with photos |
 | 31 | Rotated tag after actions ("It's up", "You're interested", "Sent to the lead", "Location set"…) | Test | |
 | 32 | Lead's **Who's interested** list with guests' phone numbers (tap the count) | Test | Not designed yet |
 | 33 | "That idea isn't up anymore" card for a dead link | Test | |

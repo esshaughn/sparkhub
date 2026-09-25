@@ -89,7 +89,16 @@ test('a guest with the link takes part; the lead decides', async ({ browser }) =
     await LD.getByLabel('Add a mood photo').setInputFiles({ name: 'mood.png', mimeType: 'image/png', buffer: PNG });
     await expect(LD).toContainText('1 / 3');
     await G.reload();
-    await expect(GD.getByRole('img', { name: 'Mood photo' })).toHaveCount(1);
+    await expect(GD.getByRole('button', { name: /^View mood photo/ })).toHaveCount(1);
+    // Tapping a vibe photo opens it full screen; ✕ (or Escape) closes it
+    await GD.getByRole('button', { name: 'View mood photo 1' }).click();
+    const zoom = G.getByRole('dialog', { name: 'Photo' });
+    await expect(zoom.getByRole('img', { name: 'Mood photo 1 of 1' })).toBeVisible();
+    await zoom.getByRole('button', { name: 'Close' }).click();
+    await expect(zoom).toHaveCount(0);
+    await GD.getByRole('button', { name: 'View mood photo 1' }).click();
+    await G.keyboard.press('Escape');
+    await expect(zoom).toHaveCount(0);
     await expect(GD).toContainText('Sat, Oct 10');
     await LD.getByRole('button', { name: 'Remove photo' }).click();
     await expect(LD).toContainText('0 / 3');

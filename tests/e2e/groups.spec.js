@@ -1,6 +1,6 @@
 // Groups: start one, invite with a code or link, join, switch, "new ideas" badges, the admin page.
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newMember, newLead, button, postIdea, deleteIdea, asUser } = require('./helpers');
+const { uniqueTitle, newMember, newLead, button, postIdea, openIdea, deleteIdea, confirm, asUser } = require('./helpers');
 
 test('start a group, invite someone, they join and post, the admin sees a badge', async ({ browser }) => {
   const admin = await newLead(browser, 1, 'Ada');
@@ -82,6 +82,21 @@ test('start a group, invite someone, they join and post, the admin sees a badge'
     await A.getByRole('button', { name: 'Profile' }).click();
     await A.locator('[data-screen-label=Profile]').getByRole('button', { name: new RegExp(groupName.replace(/[[\]]/g, '\\$&')) }).click();
     await expect(A.locator('[data-screen-label="Group you run"]').getByText('Members').locator('..')).toContainText('2');
+
+    // The admin can edit and delete Bo's idea (Bo stays the lead)
+    await openIdea(A, ideaId);
+    const detail = A.locator('[data-screen-label="Idea page"]');
+    await detail.getByRole('button', { name: 'Edit' }).first().click();
+    await expect(A.locator('[data-screen-label="Edit idea"]')).toContainText('You’re editing as an admin of ' + groupName + '; Bo still leads it.');
+    await A.getByLabel('The idea').fill('[E2E] Tempo run, moved indoors');
+    await button(A, 'Save changes').click();
+    await expect(detail).toContainText('moved indoors');
+    await expect(detail).toContainText('Led by Bo');
+    await detail.getByRole('button', { name: 'Edit' }).first().click();
+    await button(A, 'Delete this idea').click();
+    await confirm(A, 'Delete it');
+    await expect(A.locator('[data-screen-label=Browse]')).not.toContainText('moved indoors');
+    ideaId = null;
 
     expect(admin.errors).toEqual([]);
     expect(other.errors).toEqual([]);
