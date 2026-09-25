@@ -666,7 +666,7 @@
     clearTimeout(placeTimer);
     if (placeAbort) { placeAbort.abort(); placeAbort = null; }
     const q = text.trim();
-    if (!PLACES || q.length < 3) { if (state[key].length) setState({ [key]: [] }); return; }
+    if (!PLACES || q.length < 2) { if (state[key].length) setState({ [key]: [] }); return; }
     const ck = q.toLowerCase();
     if (placeCache.has(ck)) { setState({ [key]: placeCache.get(ck) }); return; }
     placeTimer = setTimeout(async () => {
@@ -726,7 +726,7 @@
         await ensureSession();
         for (const p of st.photos) paths.push(await uploadBlob(p.blob));
         const row = Object.assign({
-          group_id: g.id, author_name: st.myName, text: cleanTitle(st.activity),
+          group_id: g.id, author_name: st.myName, text: cleanTitle(st.activity).slice(0, 40),
           hopes: st.hopes.map(cleanTitle).filter(Boolean), photos: paths, cat: 'events', answers: {},
           lead_id: st.me, lead_name: st.myName, created_by: st.me,
           spot: st.locMode === 'specific' ? cleanTitle(st.locText) || null : null, spot_open: st.locMode === 'open',
@@ -754,7 +754,7 @@
   const saveEdit = (s) => {
     if (!state.editText.trim() || state.busy) return;
     run(async () => {
-      const text = cleanTitle(state.editText), hopes = state.editHopes.map(cleanTitle).filter(Boolean);
+      const text = cleanTitle(state.editText).slice(0, 40), hopes = state.editHopes.map(cleanTitle).filter(Boolean);
       if (isLead(s)) must(await sb.from('sparks').update({ text, hopes }).eq('id', s.id));
       else must(await sb.rpc('admin_edit_spark', { p_spark: s.id, p_text: text, p_hopes: hopes }));
     }, { screen: 'detail', tag: 'Saved' });
@@ -805,7 +805,7 @@
         ? { day_date: text.slice(0, 10), day_time: text.length > 10 ? text.slice(11, 16) : null }
         : { spot: cleanTitle(text).slice(0, 80), spot_open: false, spot_address: place ? place.address : null, spot_lat: place ? place.lat : null, spot_lon: place ? place.lon : null };
       run(async () => { must(await sb.from('sparks').update(row).eq('id', s.id)); },
-        { offerKind: null, offerText: '', offerPlace: null, tag: kind === 'day' ? 'Date set' : 'Location set' });
+        { offerKind: null, offerText: '', offerPlace: null, tag: kind === 'day' ? 'Day set' : 'Location set' });
       return;
     }
     run(async () => {
@@ -815,7 +815,7 @@
   };
   const resolveOffer = (s, p, accept) => run(async () => {
     must(await sb.rpc('resolve_offer', { p_offer: p.id, p_accept: accept }));
-  }, accept ? { tag: p.kind === 'spot' ? 'Location set' : 'Date set' } : {});
+  }, accept ? { tag: p.kind === 'spot' ? 'Location set' : 'Day set' } : {});
 
   const addMood = async (s, fileList) => {
     const f = (fileList || [])[0];
@@ -1240,7 +1240,6 @@
         return '<div ' + on(() => pickGroup(g)) + ' style="display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;padding:9px 12px;border-radius:12px;background:' + (onIt ? '#f3f1fe' : 'transparent') + ';cursor:pointer">' +
           '<div style="min-width:0;display:flex;align-items:center;gap:8px">' +
             '<span style="font-size:15px;font-weight:800;color:' + (onIt ? '#5b4ae8' : '#0d1117') + '">' + esc(g.name) + '</span>' +
-            (runs(g) ? roleBadge(g.role) : '') +
           '</div></div>';
       }).join('') +
       (myGroups().length ? '<div style="height:1px;background:#f2f3f6;margin:6px"></div>' : '') +
@@ -1310,7 +1309,7 @@
   // 2. Home (signed in)
   // ---------------------------------------------------------------------------
 
-  const PIN = (fill, strokeColor) => '<svg width="15" height="15" viewBox="0 0 24 24" fill="' + fill + '" stroke="' + strokeColor + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6l-1 6 3 3v2H7v-2l3-3-1-6Z"/><path d="M12 14v7"/></svg>';
+  const PIN = (fill, strokeColor) => '<svg width="11" height="11" viewBox="0 0 24 24" fill="' + fill + '" stroke="' + strokeColor + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6l-1 6 3 3v2H7v-2l3-3-1-6Z"/><path d="M12 14v7"/></svg>';
 
   function viewHome() {
     const st = state, groups = groupsInOrder();
@@ -1319,7 +1318,7 @@
       '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.88), rgba(13,17,23,.15) 70%)"></div>' +
       (runs(g) ? roleBadge(g.role, 'position:absolute;top:12px;left:10px;font-size:10px') : '') +
       '<div ' + on((e) => { stop(e); togglePin(g); }) + ' aria-label="' + (g.pinned ? 'Unpin ' : 'Pin ') + esc(g.name) + '" aria-pressed="' + g.pinned + '" style="position:absolute;top:2px;right:2px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;cursor:pointer">' +
-        '<span style="width:30px;height:30px;border-radius:999px;display:flex;align-items:center;justify-content:center;transition:background 160ms;background:' + (g.pinned ? '#fff' : 'rgba(13,17,23,.45)') + '">' + (g.pinned ? PIN('#5b4ae8', '#5b4ae8') : PIN('none', '#fff')) + '</span>' +
+        '<span style="width:22px;height:22px;border-radius:999px;display:flex;align-items:center;justify-content:center;transition:background 160ms,opacity 160ms;background:' + (g.pinned ? '#fff' : 'rgba(13,17,23,.28);opacity:.7') + '">' + (g.pinned ? PIN('#5b4ae8', '#5b4ae8') : PIN('none', '#fff')) + '</span>' +
       '</div>' +
       '<div style="position:absolute;left:12px;right:10px;bottom:10px;color:#fff;font-size:15.5px;line-height:1.15;font-weight:900">' + esc(g.name) + '</div>' +
     '</div>';
@@ -1549,7 +1548,7 @@
     return '<div ' + on(openIdea(s)) + ' style="border-radius:16px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer;display:flex;flex-direction:column">' +
       '<div style="position:relative;height:112px;overflow:hidden;background:' + (b.cover ? 'linear-gradient(to top, rgba(13,17,23,.85) 0%, rgba(13,17,23,.4) 55%, rgba(13,17,23,.08) 100%), ' + bg(b.cover, b.coverAt) : '#2b2413') + '">' +
         (b.cover ? '' : groupFallback(g, 'linear-gradient(to top, rgba(13,17,23,.85) 0%, rgba(13,17,23,.55) 55%, rgba(13,17,23,.35) 100%)')) +
-        '<div style="position:absolute;z-index:1;left:11px;right:11px;bottom:9px;font-size:16px;line-height:1.18;font-weight:900;letter-spacing:-.3px;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.3);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">' + esc(s.text) + '</div>' +
+        '<div style="position:absolute;z-index:1;left:11px;right:11px;bottom:9px;font-size:16px;line-height:1.18;font-weight:900;letter-spacing:-.3px;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.3);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">' + esc(s.text) + '</div>' +
       '</div>' +
       '<div style="padding:9px 11px 10px;display:flex;flex-direction:column;gap:5px;font-size:12.5px;font-weight:600">' +
         '<span style="' + b.dateRow + '">' + I.cal(13, 2.3) + '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#454b55"><strong style="' + b.dayStrong + '">' + esc(b.dayLabel) + '</strong>' + esc(b.timeSuffix) + '</span></span>' +
@@ -1642,7 +1641,7 @@
     const action = (t) => '<span style="flex:0 0 auto;font-size:13.5px;font-weight:800;color:#5b4ae8;text-align:right">' + t + '</span>';
     const rowAttrs = (missing, kind) => missing ? on(() => openOffer(s, kind)) + ' ' : '';
     const directions = s.spotPoint
-      ? '<a href="https://www.google.com/maps/dir/?api=1&amp;destination=' + s.spotPoint[0] + ',' + s.spotPoint[1] + '" target="_blank" rel="noopener noreferrer" style="font-weight:800;color:#5b4ae8">Directions</a>'
+      ? '<a href="https://www.google.com/maps/dir/?api=1&amp;destination=' + s.spotPoint[0] + ',' + s.spotPoint[1] + '" target="_blank" rel="noopener noreferrer" style="font-size:13px;font-weight:800;color:#5b4ae8">Directions</a>'
       : '';
     // The address shortens with an ellipsis; "Directions" always stays visible
     const placeNote = s.spotAddress || directions
@@ -1734,7 +1733,7 @@
         '<div style="' + CARD + ';padding:18px 16px;display:flex;flex-direction:column;gap:10px">' +
           '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px">' +
             '<span style="' + EYEBROW + '">The basics</span>' +
-            (lead && s.hopes.length ? '<span ' + on(() => openEdit(s)) + ' style="font-size:13.5px;font-weight:800;color:#5b4ae8;cursor:pointer">Edit</span>' : '') +
+            (canEdit(s) && s.hopes.length ? '<span ' + on(() => openEdit(s)) + ' style="font-size:13.5px;font-weight:800;color:#5b4ae8;cursor:pointer">Edit</span>' : '') +
           '</div>' +
           (s.hopes.length
             ? '<div style="display:flex;flex-direction:column;gap:9px">' + s.hopes.slice(0, 3).map(h =>
@@ -1884,7 +1883,7 @@
                 '<span style="flex:1;min-width:0;font-size:16px;font-weight:700;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(g.name) + '</span>' +
                 (owner ? svg(14, stroke('#9aa0ac', 2.6) + ' style="flex:0 0 14px"', '<path d="M9 6l6 6-6 6"/>') : svg(15, stroke('#9aa0ac', 2.4), '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>')) +
               '</div>') +
-          '<span style="font-size:13px;font-weight:500;color:#8a909b">' + (owner ? 'Everyone in the group sees it.' : 'Only the group’s owner can change the name.') + '</span>' +
+          '<span style="font-size:13px;font-weight:500;color:#8a909b">' + (owner ? 'Everyone in the group sees it.' : 'Only owners can change the name.') + '</span>' +
         '</div>' +
         '<div ' + on(openMembers) + ' class="hov-tint2" aria-label="See all members" style="display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:16px;background:#f3f1fe;cursor:pointer">' +
           '<div style="display:flex">' +
@@ -1909,7 +1908,7 @@
           ? '<div style="height:1px;background:#eceef2"></div>' +
             '<div style="display:flex;flex-direction:column;gap:6px">' +
               '<button type="button" class="hov-danger" ' + on(() => askDeleteGroup(g)) + ' style="display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;background:#fff;border:1.5px solid #f5c2cb;border-radius:999px;font-family:inherit;font-size:15.5px;font-weight:800;color:#9b1c31;cursor:pointer">' + svg(17, stroke('#9b1c31', 2), '<path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13"/>') + 'Delete group</button>' +
-              '<span style="text-align:center;font-size:12.5px;font-weight:500;color:#8a909b">Only the owner can delete the group.</span>' +
+              '<span style="text-align:center;font-size:12.5px;font-weight:500;color:#8a909b">Only owners can delete the group.</span>' +
             '</div>'
           : '') +
       '</div>' +
@@ -1937,16 +1936,16 @@
         onInput(e => { const v = e.target.value.slice(0, 80); setText(v); findPlaces(v, field); }) +
         ' style="' + opts.style + '">' +
       (picked
-        ? '<div style="display:flex;align-items:flex-start;gap:8px;padding:2px 4px 0;font-size:14px;line-height:1.4;font-weight:600;color:#5c6270">' +
-            '<span aria-hidden="true" style="flex:0 0 auto;margin-top:1px;color:#5b4ae8">' + I.pin(14) + '</span><span>' + esc(picked.address) + '</span></div>'
+        ? '<div style="display:flex;align-items:flex-start;gap:7px;padding:2px 4px 0;font-size:13.5px;line-height:1.4;font-weight:600;color:#6b7280">' +
+            '<span aria-hidden="true" style="flex:0 0 auto;margin-top:1px;color:#9aa0ac">' + I.pin(13) + '</span><span>' + esc(picked.address) + '</span></div>'
         : '') +
       (!picked && sugg.length
-        ? '<div role="group" aria-label="Suggested places" style="background:#fff;border:2px solid #e6e7eb;border-radius:18px;overflow:hidden;box-shadow:0 12px 28px rgba(15,18,25,.08)">' +
-            sugg.map((p, i) =>
-              '<div ' + on(() => pick(p)) + ' class="hov-row" style="display:flex;align-items:flex-start;gap:10px;padding:12px 16px;cursor:pointer' + (i ? ';border-top:1px solid #f2f3f6' : '') + '">' +
-                '<span aria-hidden="true" style="flex:0 0 auto;margin-top:2px;color:#9aa0ac">' + I.pin(14) + '</span>' +
+        ? '<div role="group" aria-label="Suggested places" style="background:#fff;border:1px solid #eceef2;border-radius:16px;overflow:hidden;box-shadow:0 12px 28px rgba(15,18,25,.08)">' +
+            sugg.slice(0, 4).map((p, i) =>
+              '<div ' + on(() => pick(p)) + ' class="hov-row" style="display:flex;align-items:center;gap:12px;padding:10px 14px;cursor:pointer' + (i ? ';border-top:1px solid #f2f3f6' : '') + '">' +
+                '<span aria-hidden="true" style="flex:0 0 32px;width:32px;height:32px;border-radius:10px;background:#f3f1fe;color:#5b4ae8;display:flex;align-items:center;justify-content:center">' + I.pin(15) + '</span>' +
                 '<span style="min-width:0"><span style="display:block;font-size:15.5px;line-height:1.3;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(p.name) + '</span>' +
-                (p.sub ? '<span style="display:block;margin-top:1px;font-size:13.5px;line-height:1.35;font-weight:500;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(p.sub) + '</span>' : '') +
+                (p.sub ? '<span style="display:block;margin-top:1px;font-size:13px;line-height:1.35;font-weight:500;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(p.sub) + '</span>' : '') +
                 '</span></div>').join('') +
             '<div style="padding:8px 16px 10px;border-top:1px solid #f2f3f6;font-size:11.5px;font-weight:500;color:#9aa0ac">' +
               'Powered by <a href="https://www.geoapify.com/" target="_blank" rel="noopener noreferrer" style="color:inherit">Geoapify</a> · © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" style="color:inherit">OpenStreetMap</a> contributors</div>' +
@@ -1998,7 +1997,7 @@
             mine.map(g => {
               const onIt = cur && g.id === cur.id;
               return '<div ' + on((e) => { stop(e); setState({ groupId: g.id, menu: null }); }) + ' style="display:flex;align-items:center;gap:8px;min-height:44px;padding:9px 12px;border-radius:12px;background:' + (onIt ? '#f3f1fe' : 'transparent') + ';cursor:pointer">' +
-                '<span style="font-size:15px;font-weight:800;color:' + (onIt ? '#5b4ae8' : '#0d1117') + '">' + esc(g.name) + '</span>' + (runs(g) ? roleBadge(g.role) : '') + '</div>';
+                '<span style="font-size:15px;font-weight:800;color:' + (onIt ? '#5b4ae8' : '#0d1117') + '">' + esc(g.name) + '</span></div>';
             }).join('') + '</div>'
         : '') +
     '</div>';
@@ -2017,8 +2016,10 @@
     if (st.step === 'activity') {
       body = '<div style="padding:22px 20px 26px;display:flex;flex-direction:column;gap:16px">' +
         '<h2 style="margin:0;font-size:34px;line-height:1.04;font-weight:900;letter-spacing:-1px;color:#0d1117;text-wrap:pretty">What’s the event?</h2>' +
-        '<div><textarea class="fld" rows="2" maxlength="80" aria-label="The event" placeholder="E.g. a sunrise walk, laser tag, pickleball at the park" ' + onInput(e => setState({ activity: e.target.value.slice(0, 80) })) +
-          ' style="width:100%;display:block;background:#fff;border:2px solid #e6e7eb;border-radius:18px;padding:16px 18px;font-size:21px;line-height:1.35;font-weight:700;letter-spacing:-.3px;color:#0d1117;resize:none;outline:none">' + esc(st.activity) + '</textarea></div>' +
+        '<div><textarea class="fld" rows="2" maxlength="40" aria-label="The event" placeholder="E.g. a sunrise walk, laser tag, pickleball at the park" ' + onInput(e => setState({ activity: e.target.value.slice(0, 40) })) +
+          ' style="width:100%;display:block;background:#fff;border:2px solid #e6e7eb;border-radius:18px;padding:16px 18px;font-size:21px;line-height:1.35;font-weight:700;letter-spacing:-.3px;color:#0d1117;resize:none;outline:none">' + esc(st.activity) + '</textarea>' +
+          (40 - st.activity.length <= 10 ? '<div aria-live="polite" style="margin-top:6px;text-align:right;font-size:12.5px;font-weight:700;color:#9aa0ac">' + (40 - st.activity.length) + ' left</div>' : '') +
+        '</div>' +
         postToField() +
         '<button type="button" ' + on(() => { if (actReady) setState({ step: 'location', menu: null }); }) + ' aria-disabled="' + !actReady + '" style="' + btn(actReady) + ';margin-top:2px">Next</button>' +
         backLink(close) +
@@ -2042,8 +2043,12 @@
       body = '<div style="padding:22px 20px 26px;display:flex;flex-direction:column;gap:12px">' +
         stepHead('Date') +
         '<div style="display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:8px">' +
-          '<input class="fld" type="date" aria-label="Date" min="' + todayISO() + '" value="' + esc(st.dateOne) + '" ' + onInput(e => setState({ dateOne: e.target.value, whenMode: 'one' })) +
-            ' style="width:100%;min-width:0;height:58px;padding:0 12px;background:#fff;border:2px solid #e6e7eb;border-radius:18px;font-family:inherit;font-size:16px;font-weight:700;color:#0d1117;outline:none;color-scheme:light">' +
+          // iOS Safari: keep the date field inside its column, and show a placeholder while it's empty
+          '<div style="position:relative;min-width:0">' +
+            '<input class="fld date-fld" type="date" aria-label="Date" min="' + todayISO() + '" value="' + esc(st.dateOne) + '"' + (st.dateOne ? '' : ' data-empty') + ' ' + onInput(e => setState({ dateOne: e.target.value, whenMode: 'one' })) +
+              ' style="display:block;width:100%;max-width:100%;min-width:0;margin:0;-webkit-appearance:none;appearance:none;box-sizing:border-box;height:58px;padding:0 12px 0 14px;background:#fff;border:2px solid #e6e7eb;border-radius:18px;font-family:inherit;font-size:16px;font-weight:700;color:#0d1117;outline:none;color-scheme:light">' +
+            (st.dateOne ? '' : '<span aria-hidden="true" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);pointer-events:none;font-size:16px;font-weight:400;font-style:italic;color:#b9bcc4">mm/dd/yy</span>') +
+          '</div>' +
           (st.timeOn
             ? '<div style="position:relative;height:58px">' +
                 '<select class="fld" aria-label="Time" ' + onInput(e => setState({ timeOne: e.target.value })) + ' style="width:100%;height:58px;padding:0 34px 0 12px;appearance:none;-webkit-appearance:none;background:#fff;border:2px solid #e6e7eb;border-radius:18px;font-family:inherit;font-size:16px;font-weight:700;color:#0d1117;outline:none;color-scheme:light">' +
@@ -2149,7 +2154,7 @@
       '<div style="padding:22px 20px 26px;display:flex;flex-direction:column;gap:14px">' +
         '<div style="display:flex;flex-direction:column;gap:8px">' +
           '<div style="font-size:18px;font-weight:800;letter-spacing:-.3px;color:#0d1117">The idea</div>' +
-          '<textarea class="fld" rows="2" maxlength="80" aria-label="The idea" ' + onInput(e => setState({ editText: e.target.value.slice(0, 80) })) +
+          '<textarea class="fld" rows="2" maxlength="40" aria-label="The idea" ' + onInput(e => setState({ editText: e.target.value.slice(0, 40) })) +
             ' style="width:100%;display:block;background:#fff;border:2px solid #e6e7eb;border-radius:18px;padding:14px 16px;font-size:19px;line-height:1.35;font-weight:700;letter-spacing:-.3px;color:#0d1117;resize:none;outline:none">' + esc(st.editText) + '</textarea>' +
         '</div>' +
         '<div style="background:#fff;border-radius:20px;padding:18px;display:flex;flex-direction:column;gap:6px;box-shadow:0 1px 3px rgba(15,18,25,.08)">' +
@@ -2270,8 +2275,8 @@
       ? { title: 'Say more about it', hint: 'What you’re picturing, in your own words. It’s your idea — take the room.', ph: 'e.g. Nothing fancy. Meet in the gym lot, loop the lake, coffee after for whoever wants it.', cta: 'Add it to the spark' }
       : lead
         ? (kind === 'day'
-          ? { title: 'Set the date & time', hint: 'It shows on the idea straight away.', cta: 'Set it' }
-          : { title: 'Set the location', hint: 'It shows on the idea straight away.', ph: 'Enter the location', cta: 'Set it' })
+          ? { title: 'Set the date', hint: 'Pick a day and time.', cta: 'Set date' }
+          : { title: 'Set the location', hint: 'Start typing and pick a place, or just write it in.', ph: 'Enter the location', cta: 'Set location' })
         : (kind === 'day'
           ? { title: 'Got a date & time in mind?', hint: 'Pick the day and time you’re thinking of. The lead takes it from there.', cta: 'Offer this date' }
           : { title: 'Know a location?', hint: 'Somewhere this could actually happen. The lead takes it from there.', ph: 'e.g. the loop trail at the lake', cta: 'Offer this location' });
@@ -2504,7 +2509,7 @@
     const step = (d) => (e) => { stop(e); setState({ zoom: { photos: z.photos, i: (z.i + d + n) % n } }); };
     const arrow = (d, label, path) => '<span ' + on(step(d)) + ' aria-label="' + label + '" style="position:absolute;top:50%;' + (d < 0 ? 'left' : 'right') + ':12px;transform:translateY(-50%);width:44px;height:44px;border-radius:999px;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;cursor:pointer">' + path + '</span>';
     return '<div role="dialog" aria-modal="true" aria-label="Photo" data-scrim="' + reg(close) + '" style="position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.94);display:flex;align-items:center;justify-content:center;animation:fadeIn 160ms ease both;cursor:zoom-out">' +
-      '<img src="' + esc(z.photos[z.i]) + '" alt="Mood photo ' + (z.i + 1) + ' of ' + n + '" data-scrim="' + reg(close) + '" style="max-width:100%;max-height:100%;object-fit:contain;display:block">' +
+      '<img src="' + esc(z.photos[z.i]) + '" alt="Mood photo ' + (z.i + 1) + ' of ' + n + '" style="max-width:100%;max-height:100%;object-fit:contain;display:block">' +
       '<span ' + on(close) + ' aria-label="Close" style="position:absolute;top:max(14px, env(safe-area-inset-top));right:14px;width:40px;height:40px;border-radius:999px;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(16, '#fff', 2.6) + '</span>' +
       (n > 1
         ? arrow(-1, 'Previous photo', I.chevL(18, '#fff', 2.4)) + arrow(1, 'Next photo', I.chevR(18, '#fff', 2.4)) +

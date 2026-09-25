@@ -55,11 +55,11 @@ test('post → idea page → all three views → profile → edit → delete', a
     // Edit the title and basics
     await openIdea(page, id);
     await detail.getByRole('button', { name: 'Edit' }).first().click();
-    await page.getByLabel('The idea').fill(title + ' plus stargazing');
+    await page.getByLabel('The idea').fill(title + ' + stars');
     await page.getByLabel('The basics, line 3').fill('hot cocoa');
     await button(page, 'Save changes').click();
     await expect(page.getByText('Saved')).toBeVisible();
-    await expect(detail).toContainText('plus stargazing');
+    await expect(detail).toContainText('+ stars');
     await expect(detail).toContainText('Hot cocoa');
 
     // Delete: the idea and its photo both go
@@ -79,6 +79,12 @@ test('post flow guards, and "Put it up" asks visitors to sign in', async ({ brow
   try {
     await page.getByRole('button', { name: 'Post an idea' }).click();
     await expect(button(page, 'Next')).toHaveAttribute('aria-disabled', 'true');
+    // The event name is capped at 40; a count shows once 10 or fewer are left
+    await page.getByLabel('The event').fill('A'.repeat(29));
+    await expect(page.getByText(/\d+ left$/)).toHaveCount(0);
+    await page.getByLabel('The event').fill('A'.repeat(35));
+    await expect(page.getByText('5 left')).toBeVisible();
+    await expect(page.getByLabel('The event')).toHaveAttribute('maxlength', '40');
     await page.getByLabel('The event').fill('Anything');
     await button(page, 'Next').click();
 
@@ -117,14 +123,14 @@ test('post flow guards, and "Put it up" asks visitors to sign in', async ({ brow
   }
 });
 
-test('location suggestions: 3 letters, Austin area, remembered, free text still works', async ({ browser }) => {
+test('location suggestions: 2 letters, 4 rows, Austin area, remembered, free text still works', async ({ browser }) => {
   const { page, context } = await newLead(browser, 1, 'Tester');
   try {
     await page.getByRole('button', { name: 'Post an idea' }).click();
     await page.getByLabel('The event').fill('Anything');
     await button(page, 'Next').click();
 
-    await page.getByLabel('Location').fill('zi');
+    await page.getByLabel('Location').fill('z');
     await page.waitForTimeout(400);
     expect(context.placeRequests).toHaveLength(0);
     await page.getByLabel('Location').fill('zilk');

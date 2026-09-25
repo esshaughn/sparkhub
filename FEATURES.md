@@ -19,7 +19,7 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 |---|---|---|---|
 | 5 | Logo (goes Home); no group switcher on Home | Test | Home spans all your groups |
 | 6 | "Turn your idea / into a plan.", the 1-2-3 steps as one plain row, **I have an idea** | Test | Posts to the current group |
-| 7 | **Your groups**: one swipeable row of 150×150 photo tiles (pinned first, then most recently opened), ADMIN/OWNER chip, **pin** button (toast "Pinned to the front" / "Unpinned") | Test | Tapping switches group and opens All ideas |
+| 7 | **Your groups**: one swipeable row of 150×150 photo tiles (pinned first, then most recently opened), ADMIN/OWNER chip, a quiet **pin** (22px, faint until pinned; toast "Pinned to the front" / "Unpinned") | Test | Tapping switches group and opens All ideas |
 | 8 | **View all** → the **Your groups** bottom sheet (photo, name, chip, *Pinned*; **Join a group**) | Test | |
 | 9 | **Coming up**: next 3 dated ideas across your groups, mini calendar | Test | Hidden when nothing is dated |
 | 10 | Not in a group yet: **Join with a code** card | Test | Not designed |
@@ -28,7 +28,7 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 
 | # | Feature | Status | Notes |
 |---|---|---|---|
-| 11 | Group switcher menu (All ideas, How this works): your groups in Home's order, ADMIN/OWNER chip, current one tinted, **+ Join a group** | Test | No new-idea badges any more |
+| 11 | Group switcher menu (All ideas, How this works): your groups in Home's order, names only (no role chips), current one tinted, **+ Join a group** | Test | |
 | 12 | **Join a group** pop-up (code, "didn't match" error) | Test | Needs sign-in |
 | 13 | (Removed) Start a group: groups are created behind the scenes (Supabase) | Test | `create_group()` still exists for tests and by hand |
 | 14 | Invite links `/join/CODE` (and `#/join/CODE`): code filled in; Join opens for someone signed in | Test | Vercel rewrite in `vercel.json` |
@@ -67,8 +67,8 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 
 | # | Feature | Status | Notes |
 |---|---|---|---|
-| 34 | Post flow: event (+ **Post to** your group picker) → location → date (+ time) → the basics → photos (up to 3, **Position the cover**) → **Look good?** → **Put it up** | Test | Post to defaults to the switcher's group; the Lead note is parked |
-| 35 | Location suggestions while typing (Geoapify, near Austin), address saved with the pick | Test | Kept by owner decision; the design had removed them |
+| 34 | Post flow: event (40 characters max, *N left* from 10; **Post to** picker, names only) → location → date (iPhone-safe field, *mm/dd/yy*) + time (30-minute list, 6:00 pm default) → the basics → photos (up to 3, **Position the cover**) → **Look good?** → **Put it up** | Test | Grid titles clamp to 2 lines |
+| 35 | Location suggestions from 2 characters (Geoapify, near Austin), up to 4 rows with a purple pin tile; address saved with the pick | Test | Kept by owner decision |
 | 36 | **Put it up** needs sign-in ("Sign in to post"), then a name if missing | Test | |
 | 37 | Edit idea: title + the basics; **Delete this idea** (removes its photos) | Test | |
 

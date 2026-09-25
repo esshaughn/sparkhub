@@ -71,9 +71,10 @@ test('a guest with the link takes part; the lead decides', async ({ browser }) =
 
     // The lead sets the date directly
     await LD.getByRole('button', { name: /Date TBD\s*Set/ }).click();
-    const set = L.getByRole('dialog', { name: 'Set the date & time' });
+    const set = L.getByRole('dialog', { name: 'Set the date' });
     await set.getByLabel('Date and time').fill('2026-10-10T09:00');
-    await set.getByRole('button', { name: 'Set it' }).click();
+    await expect(set).toContainText('Pick a day and time.');
+    await set.getByRole('button', { name: 'Set date' }).click();
     await expect(LD).toContainText('Sat, Oct 10');
     await expect(LD).toContainText('9am');
 

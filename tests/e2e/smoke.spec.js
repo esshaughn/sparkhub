@@ -64,7 +64,7 @@ test('members: Home, group switcher, view and sort menus', async ({ browser }) =
 
     // The switcher (group screens) lists your groups and "Join a group"
     await page.getByRole('button', { name: 'Switch group' }).click();
-    await expect(page.getByRole('menu', { name: 'Your groups' }).getByRole('button', { name: /^Torrez Fitness/ })).toBeVisible();
+    await expect(page.getByRole('menu', { name: 'Your groups' }).getByRole('button', { name: /^Torrez Fitness/ })).toHaveText('Torrez Fitness');   // no role chips in menus
     await expect(page.getByRole('button', { name: 'Join a group' })).toBeVisible();
     await page.mouse.click(5, 600);   // clicking away closes it
     await expect(page.getByRole('button', { name: 'Join a group' })).toHaveCount(0);
