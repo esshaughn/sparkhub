@@ -1111,22 +1111,29 @@
   // 1. Welcome (Home, signed out)
   // ---------------------------------------------------------------------------
 
+  // The 1-2-3 steps as one pill (Home and Welcome)
+  const stepsPill = (dark) =>
+    '<div style="display:flex;align-items:center;justify-content:space-between;gap:4px;background:' + (dark ? 'rgba(255,255,255,.1)' : '#f2f3f6') + ';border-radius:999px;padding:9px 11px">' +
+      [['#e8a71c', '1', 'Post an idea'], ['#5b4ae8', '2', 'People pitch in'], ['#0f7a3c', '3', 'It happens']].map(([c, n, t], i) =>
+        (i ? '<span aria-hidden="true" style="flex:0 0 auto;display:flex;margin:0 1px">' + I.chevR(10, dark ? '#8a909b' : '#b3b8c2', 2.4) + '</span>' : '') +
+        '<span style="display:flex;align-items:center;gap:5px;min-width:0"><span style="flex:0 0 20px;width:20px;height:20px;border-radius:999px;background:' + c + ';color:#fff;font-size:11.5px;font-weight:900;display:flex;align-items:center;justify-content:center">' + n + '</span>' +
+        '<span style="font-size:13px;font-weight:800;color:' + (dark ? '#fff' : '#0d1117') + ';white-space:nowrap">' + t + '</span></span>').join('') +
+    '</div>';
+
   function viewWelcome() {
     const st = state, codeOk = st.joinCode.length === 6;
-    return '<div data-screen-label="Welcome" style="background:#0d1117;min-height:100%">' +
-      '<div style="position:relative;height:430px">' +
-        '<div aria-hidden="true" style="position:absolute;inset:0;background:' + bg('/photos/welcome.jpg', 'center') + '"></div>' +
-        '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to bottom, rgba(13,17,23,.7) 0%, rgba(13,17,23,.35) 35%, rgba(13,17,23,.75) 70%, #0d1117 100%)"></div>' +
-        '<div style="position:absolute;top:10.5px;left:16px;right:10px;display:flex;align-items:center;justify-content:space-between;min-height:44px">' +
-          '<div aria-label="Spark Hub" style="display:flex;align-items:center;gap:6px">' + I.bolt(24, '#f3c55a') + '<span style="font-size:18px;line-height:1;font-weight:900;letter-spacing:-.5px;color:#fff">Spark Hub</span></div>' +
-          '<span ' + on(() => openLogin('default')) + ' style="display:flex;align-items:center;min-height:44px;padding:0 10px;font-size:14.5px;font-weight:800;color:#fff;cursor:pointer">Sign in</span>' +
+    return '<div data-screen-label="Welcome" style="position:relative;background:#0d1117;min-height:100%">' +
+      '<div aria-hidden="true" style="position:absolute;left:0;right:0;top:0;height:470px;background:' + bg('/photos/welcome.jpg', 'center') + '"></div>' +
+      '<div aria-hidden="true" style="position:absolute;left:0;right:0;top:0;height:471px;background:linear-gradient(to bottom, rgba(13,17,23,.42) 0%, rgba(13,17,23,.5) 35%, rgba(13,17,23,.82) 70%, #0d1117 100%)"></div>' +
+      '<div style="position:relative;padding:10.5px 16px 0">' +
+        '<div aria-label="Spark Hub" style="display:flex;align-items:center;gap:6px;min-height:44px">' + I.bolt(24, '#f3c55a') + '<span style="font-size:18px;line-height:1;font-weight:900;letter-spacing:-.5px;color:#fff">Spark Hub</span></div>' +
+        '<div style="padding:160px 4px 0">' +
+          '<h1 style="margin:0;font-size:40px;line-height:1;font-weight:900;letter-spacing:-1.3px;color:#fff">Turn your idea<br><span style="color:#a99cff">into a plan.</span></h1>' +
+          '<p style="margin:14px 0 0;font-size:16px;line-height:1.45;font-weight:500;color:#f1f2f5;text-wrap:pretty">Post an idea. Your group helps pick the day, find the place and make it happen.</p>' +
         '</div>' +
-        '<div style="position:absolute;left:20px;right:20px;bottom:20px;color:#fff">' +
-          '<h1 style="margin:0;font-size:42px;line-height:.98;font-weight:900;letter-spacing:-1.4px;color:#fff">Small ideas.<br>Done together.</h1>' +
-          '<p style="margin:14px 0 0;font-size:16px;line-height:1.45;font-weight:500;color:#dfe2e8;text-wrap:pretty">Post a rough idea to your group. Others add a date, a place or a hand, and it turns into a plan.</p>' +
-        '</div>' +
+        '<div style="margin-top:18px">' + stepsPill(true) + '</div>' +
       '</div>' +
-      '<div style="padding:6px 16px 26px;display:flex;flex-direction:column;gap:12px">' +
+      '<div style="position:relative;padding:26px 16px 26px;display:flex;flex-direction:column;gap:12px">' +
         goneCard() +
         '<div style="background:#fff;border-radius:20px;padding:18px;display:flex;flex-direction:column;gap:12px">' +
           '<div style="font-size:17px;font-weight:900;letter-spacing:-.3px;color:#0d1117">Enter a group code</div>' +
@@ -1137,11 +1144,13 @@
             '<button type="button" ' + on(() => { if (codeOk) openJoin(st.joinCode); }) + ' aria-disabled="' + !codeOk + '" style="flex:0 0 auto;min-height:50px;padding:0 18px;border:0;border-radius:14px;background:' + (codeOk ? '#5b4ae8' : '#b9bcc4') + ';color:#fff;font-family:inherit;font-size:15px;font-weight:800;cursor:' + (codeOk ? 'pointer' : 'not-allowed') + '">Join</button>' +
           '</div>' +
           '<div style="display:flex;align-items:center;gap:10px"><span style="flex:1;height:1px;background:#eceef2"></span><span style="font-size:12px;font-weight:800;color:#9aa0ac">OR</span><span style="flex:1;height:1px;background:#eceef2"></span></div>' +
-          '<button type="button" class="hov-outline" ' + on(startGroup) + ' style="min-height:48px;background:#fff;border:1.5px solid #dcdfe6;border-radius:999px;font-family:inherit;font-size:15px;font-weight:800;color:#0d1117;cursor:pointer">Start your own group</button>' +
+          '<button type="button" class="hov-tint2" ' + on(startGroup) + ' style="min-height:48px;background:#f3f1fe;border:0;border-radius:999px;font-family:inherit;font-size:15px;font-weight:800;color:#5b4ae8;cursor:pointer">Start a group</button>' +
         '</div>' +
-        '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">' +
-          [['1', 'Post an idea'], ['2', 'People pitch in'], ['3', 'It happens']].map(([n, t]) =>
-            '<div style="background:rgba(255,255,255,.07);border-radius:14px;padding:12px 10px"><div style="font-size:18px;font-weight:900;color:#f3c55a">' + n + '</div><div style="margin-top:4px;font-size:13.5px;line-height:1.25;font-weight:700;color:#fff">' + t + '</div></div>').join('') +
+        '<span ' + on(() => go('how')) + ' style="align-self:center;display:flex;align-items:center;gap:8px;min-height:44px;margin-top:10px;padding:0 10px;font-size:15px;font-weight:800;color:#dfe2e8;cursor:pointer">' +
+          svg(17, stroke('#dfe2e8', 1.9), '<path d="M12 6.5C10.5 5 8 4.3 4 4.5V18c4-.2 6.5.5 8 2 1.5-1.5 4-2.2 8-2V4.5c-4-.2-6.5.5-8 2Z"/><path d="M12 6.5V20"/>') + 'How this works</span>' +
+        '<div style="display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:4px 10px;margin-top:10px;font-size:15px;font-weight:600;color:#9aa0ac">' +
+          '<span>Already have an account?</span>' +
+          '<span ' + on(() => openLogin('default')) + ' style="display:flex;align-items:center;min-height:44px;font-size:15.5px;font-weight:800;color:#fff;cursor:pointer">Sign in</span>' +
         '</div>' +
       '</div>' +
       '<div style="height:var(--nav-h)"></div>' +
@@ -1167,13 +1176,7 @@
         logo(false) +
         '<h1 style="margin:22px 0 0;font-size:40px;line-height:1;font-weight:900;letter-spacing:-1.3px;color:#0d1117">Turn your idea<br><span style="color:#5b4ae8">into a plan.</span></h1>' +
         '<p style="margin:12px 0 0;font-size:16px;line-height:1.45;font-weight:500;color:#454b55;text-wrap:pretty">Post an idea. Your group helps pick the day, find the place and make it happen.</p>' +
-        // The three steps as one pill: numbered dots with chevrons between
-        '<div style="margin-top:18px;display:flex;align-items:center;justify-content:space-between;gap:4px;background:#f2f3f6;border-radius:999px;padding:9px 12px">' +
-          [['#e8a71c', '1', 'Post an idea'], ['#5b4ae8', '2', 'People pitch in'], ['#0f7a3c', '3', 'It happens']].map(([c, n, t], i) =>
-            (i ? '<span aria-hidden="true" style="flex:0 0 auto;display:flex">' + I.chevR(11, '#b3b8c2', 2.4) + '</span>' : '') +
-            '<span style="display:flex;align-items:center;gap:6px;min-width:0"><span style="flex:0 0 22px;width:22px;height:22px;border-radius:999px;background:' + c + ';color:#fff;font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center">' + n + '</span>' +
-            '<span style="font-size:13.5px;font-weight:800;color:#0d1117;white-space:nowrap">' + t + '</span></span>').join('') +
-        '</div>' +
+        '<div style="margin-top:18px">' + stepsPill(false) + '</div>' +
         ideaButton('margin-top:16px') +
       '</header>' +
       '<div style="padding:18px 14px 26px;display:flex;flex-direction:column;gap:18px">' +

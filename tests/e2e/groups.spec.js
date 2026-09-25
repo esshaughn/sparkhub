@@ -98,9 +98,9 @@ test('an invite link for someone signed out: code filled in on Welcome, joining 
     const login = page.getByRole('dialog', { name: 'Sign in' });
     await expect(login).toContainText('Sign in to join a group.');
 
-    // Start your own group also needs an account
+    // Starting a group also needs an account
     await login.getByRole('button', { name: 'Close' }).click();
-    await button(page, 'Start your own group').click();
+    await button(page, 'Start a group').click();
     await expect(page.getByRole('dialog', { name: 'Sign in' })).toBeVisible();
   } finally {
     await context.close();

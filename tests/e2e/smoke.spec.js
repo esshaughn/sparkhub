@@ -6,7 +6,13 @@ test('visitors land on Welcome, and group screens ask them to join or sign in', 
   const { page, context, errors } = await newMember(browser);
   try {
     const welcome = page.locator('[data-screen-label=Welcome]');
-    await expect(welcome.getByRole('heading', { name: /Small ideas\.\s*Done together\./ })).toBeVisible();
+    await expect(welcome.getByRole('heading', { name: /Turn your idea\s*into a plan\./ })).toBeVisible();
+    await expect(welcome.getByText('Already have an account?')).toBeVisible();
+
+    // "How this works" from Welcome
+    await welcome.getByRole('button', { name: 'How this works' }).click();
+    await expect(page.getByRole('heading', { name: 'Ideas come to life when we build them together' })).toBeVisible();
+    await page.getByRole('button', { name: 'Home' }).click();
     await expect(welcome.getByText('Enter a group code')).toBeVisible();
 
     // Join stays grey until the code has 6 characters; letters are uppercased

@@ -8,9 +8,9 @@ As of 2026-09-25: the Spark Hub rebuild from the design handoff "Spark Torrez - 
 
 | # | Feature | Status | Notes |
 |---|---|---|---|
-| 1 | Photo header (picnic photo), logo, **Sign in**, "Small ideas. / Done together." | Test | Photo: `photos/welcome.jpg` |
+| 1 | Photo header (picnic photo), logo, "Turn your idea / into a plan.", steps pill | Live | Photo: `photos/welcome.jpg` |
 | 2 | **Enter a group code** card: 6-character code + **Join** (opens sign-in, then Join pre-filled) | Test | |
-| 3 | **Start your own group** (signs in, then creates the group) | Test | |
+| 3 | **Start a group** (signs in, then creates the group); **How this works** link; "Already have an account? **Sign in**" | Live | |
 | 4 | 1-2-3 steps row | Test | |
 
 ## Home (signed in)

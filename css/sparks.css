@@ -79,6 +79,7 @@ input::placeholder, textarea::placeholder { color: #b9bcc4; font-weight: 400; fo
 .hov-dash:hover { border-color: #5b4ae8 !important; }
 .hov-tint:hover { background: #f3f1fe !important; }
 .hov-row:hover { background: #f7f7f9 !important; }
+.hov-tint2:hover { background: #e9e5fd !important; }
 .hov-grey:hover { border-color: #b9bcc4 !important; }
 .fld:focus { border-color: #5b4ae8 !important; }
 
