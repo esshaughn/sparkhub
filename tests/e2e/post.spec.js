@@ -85,6 +85,18 @@ test('post flow guards: each step waits for an answer or a "later"', async ({ br
   const { page, context } = await newLead(browser, 2, 'Guard');
   try {
     await page.getByRole('button', { name: 'Post an idea' }).click();
+    // The event form comes first: it needs a name and a date
+    const form = page.locator('[data-screen-label="New spark"]');
+    await expect(form.getByRole('button', { name: 'Give it a name' })).toHaveAttribute('aria-disabled', 'true');
+    await form.getByLabel('What', { exact: true }).fill('Chili cook-off');
+    await expect(form.getByRole('button', { name: 'Pick a date' })).toHaveAttribute('aria-disabled', 'true');
+    await expect(form.getByLabel('Time', { exact: true })).toHaveValue('18:00');
+    await expect(form).toContainText('Shows up for everyone in the group.');
+    await form.getByRole('radio', { name: 'Invite only' }).click();
+    await expect(form).toContainText('Only people you invite, or who have the link, can see it.');
+    // …or float it as an idea instead
+    await form.getByRole('button', { name: /Don’t have it all figured out/ }).click();
+    await expect(page.getByRole('heading', { name: 'What’s the event?' })).toBeVisible();
     await expect(button(page, 'Next')).toHaveAttribute('aria-disabled', 'true');
     // The event name is capped at 40; a count shows once 10 or fewer are left
     await page.getByLabel('The event').fill('A'.repeat(29));
@@ -123,6 +135,7 @@ test('location suggestions: 2 letters, 4 rows, Austin area, remembered, free tex
   const { page, context } = await newLead(browser, 1, 'Tester');
   try {
     await page.getByRole('button', { name: 'Post an idea' }).click();
+    await page.getByRole('button', { name: /Don’t have it all figured out/ }).click();
     await page.getByLabel('The event').fill('Anything');
     await button(page, 'Next').click();
 

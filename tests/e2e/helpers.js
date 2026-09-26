@@ -86,6 +86,8 @@ const button = (page, name) => page.getByRole('button', { name, exact: true });
 // Post an idea through the whole flow into the current group. Returns its id.
 async function postIdea(page, { title, location, pick, date, time, basics = [], photo = false, name }) {
   await page.getByRole('button', { name: 'Post an idea' }).click();
+  // The + opens the event form; ideas are behind "Don't have it all figured out?"
+  await page.getByRole('button', { name: /Don’t have it all figured out/ }).click();
   await expect(page.getByRole('heading', { name: 'What’s the event?' })).toBeVisible();
   await page.getByLabel('The event').fill(title);
   await button(page, 'Next').click();
@@ -156,7 +158,24 @@ function ideaIdFromUrl(page) {
 
 async function openIdea(page, id) {
   await page.goto('/#/idea/' + id);
-  await expect(page.locator('[data-screen-label="Idea page"]')).toBeVisible();
+  await expect(page.locator('[data-screen-label="Idea page"], [data-screen-label="Plan page"], [data-screen-label="It happened"]')).toBeVisible();
+}
+
+// Post an event (a plan) with the event form. Returns its id.
+async function postEvent(page, { title, date, time = '18:00', where, details, inviteOnly = false }) {
+  await page.getByRole('button', { name: 'Post an idea' }).click();
+  const form = page.locator('[data-screen-label="New spark"]');
+  await expect(form.getByText('Post an event')).toBeVisible();
+  await form.getByLabel('What', { exact: true }).fill(title);
+  await form.getByLabel('When', { exact: true }).fill(date);
+  await form.getByLabel('Time', { exact: true }).selectOption(time);
+  if (where) await form.getByLabel('Location').fill(where);
+  if (details) await form.getByLabel('Good to know').fill(details);
+  if (inviteOnly) await form.getByRole('radio', { name: 'Invite only' }).click();
+  await form.getByRole('button', { name: 'Post it' }).click();
+  await expect(page.locator('[data-screen-label="Plan page"]')).toBeVisible();
+  await expect(page.getByText('It’s on the books')).toBeVisible();
+  return ideaIdFromUrl(page);
 }
 
 // Confirm dialogs: click the action, then the confirm button in the dialog.
@@ -170,7 +189,7 @@ async function confirm(page, cta) {
 // Delete an idea as its lead (cleanup)
 async function deleteIdea(page, id) {
   await openIdea(page, id);
-  await page.locator('[data-screen-label="Idea page"]').getByRole('button', { name: 'Edit' }).first().click();
+  await page.locator('[data-screen-label="Idea page"], [data-screen-label="Plan page"], [data-screen-label="It happened"]').getByRole('button', { name: 'Edit' }).first().click();
   await button(page, 'Delete this idea').click();
   await confirm(page, 'Delete it');
   await expect(page.locator('[data-screen-label=Browse]')).toBeVisible();
@@ -193,5 +212,5 @@ async function asUser(page, fn, args) {
 
 module.exports = {
   TAG, TORREZ, PNG, uniqueTitle, mockPlaces, trackErrors, expectConnected, newMember, newLead, button,
-  postIdea, answerNamePrompt, answerGuestPrompt, ideaIdFromUrl, openIdea, confirm, deleteIdea, asUser
+  postIdea, postEvent, answerNamePrompt, answerGuestPrompt, ideaIdFromUrl, openIdea, confirm, deleteIdea, asUser
 };

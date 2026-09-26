@@ -197,3 +197,81 @@ test('groups, idea links, guests and leads: the database refuses what the app ne
     await anon.context.close();
   }
 });
+
+test('plans: replies, sign-ups, updates, notes and invite-only plans follow the rules', async ({ browser }) => {
+  const lead = await newLead(browser, 1, 'Lena');
+  const other = await newLead(browser, 2, 'Omar');      // also in Torrez Fitness, not the lead
+  const anon = await newMember(browser);                // in no group
+  const L = lead.page, O = other.page, A = anon.page;
+  const ids = [];
+  try {
+    const made = await asUser(L, async (c, _C, { idea, plan, secret }) => {
+      const me = (await c.auth.getUser()).data.user.id;
+      const g = (await c.from('groups').select('id').eq('name', 'Torrez Fitness').single()).data.id;
+      const base = { group_id: g, author_name: 'Lena', lead_name: 'Lena', lead_id: me, created_by: me };
+      const one = async (row) => (await c.from('sparks').insert({ ...base, ...row }).select('id').single()).data.id;
+      const out = {
+        idea: await one({ text: idea }),
+        plan: await one({ text: plan, planned: true, day_date: '2026-12-05', day_time: '10:00' }),
+        secret: await one({ text: secret, planned: true, day_date: '2026-12-06', day_time: '10:00', visibility: 'invite' }),
+        planWithoutDate: (await c.from('sparks').insert({ ...base, text: '[E2E] no date', planned: true }).select('id')).error ? 'refused' : 'ALLOWED'
+      };
+      out.item = (await c.from('signup_items').insert({ spark_id: out.plan, item: 'Cooler', need: 1 }).select('id').single()).data.id;
+      out.prep = (await c.from('plan_prep').insert({ spark_id: out.plan, answers: { 0: 'private' } })).error ? 'refused' : 'ok';
+      out.update = (await c.from('plan_updates').insert({ spark_id: out.plan, body: 'See you there' })).error ? 'refused' : 'ok';
+      return out;
+    }, { idea: uniqueTitle('Sec idea'), plan: uniqueTitle('Sec plan'), secret: uniqueTitle('Sec secret') });
+    ids.push(made.idea, made.plan, made.secret);
+    expect(made.planWithoutDate).toBe('refused');
+    expect(made.prep).toBe('ok');
+    expect(made.update).toBe('ok');
+
+    const r = await asUser(O, async (c, _C, m) => {
+      const me = (await c.auth.getUser()).data.user.id;
+      const ok = async (q) => { const x = await q; return x.error ? 'refused' : 'ALLOWED'; };
+      return {
+        rsvpOnIdea: await ok(c.from('rsvps').insert({ spark_id: m.idea, user_id: me, status: 'going' })),
+        rsvpOnPlan: await ok(c.from('rsvps').insert({ spark_id: m.plan, user_id: me, status: 'going' })),
+        rsvpForSomeoneElse: await ok(c.from('rsvps').insert({ spark_id: m.plan, user_id: '00000000-0000-0000-0000-000000000000', status: 'going' })),
+        signupWithNeed: await ok(c.from('signup_items').insert({ spark_id: m.plan, item: 'Chairs', need: 5 })),
+        signupSomethingElse: await ok(c.from('signup_items').insert({ spark_id: m.plan, item: 'Lemonade' })),
+        claim: await ok(c.from('signup_claims').insert({ item_id: m.item })),
+        update: await ok(c.from('plan_updates').insert({ spark_id: m.plan, body: 'Hijacked' })),
+        readPrep: (await c.from('plan_prep').select('spark_id').eq('spark_id', m.plan)).data.length,
+        writePrep: await ok(c.from('plan_prep').insert({ spark_id: m.idea, answers: {} })),
+        makePlan: await ok(c.rpc('make_plan', { p_spark: m.idea })),
+        clearPlan: await ok(c.rpc('clear_plan', { p_spark: m.plan })),
+        markPlanned: (await c.from('sparks').update({ planned: false }).eq('id', m.plan).select()).data?.length ?? 'refused',
+        seeSecret: (await c.from('sparks').select('id').eq('id', m.secret)).data.length,
+        rsvpSecret: await ok(c.from('rsvps').insert({ spark_id: m.secret, user_id: me, status: 'going' })),
+        suggestDateOnPlan: await ok(c.from('date_options').insert({ spark_id: m.plan, day_date: '2026-12-07', who: 'Omar' }))
+      };
+    }, made);
+    expect(r).toEqual({
+      rsvpOnIdea: 'refused', rsvpOnPlan: 'ALLOWED', rsvpForSomeoneElse: 'refused',
+      signupWithNeed: 'refused', signupSomethingElse: 'ALLOWED', claim: 'ALLOWED',
+      update: 'refused', readPrep: 0, writePrep: 'refused', makePlan: 'refused', clearPlan: 'refused',
+      markPlanned: 0, seeSecret: 0, rsvpSecret: 'refused', suggestDateOnPlan: 'ALLOWED'
+    });
+
+    // The item needed one and Omar took it: nobody else can
+    const full = await asUser(L, async (c, _C, item) => (await c.from('signup_claims').insert({ item_id: item })).error ? 'refused' : 'ALLOWED', made.item);
+    expect(full).toBe('refused');
+
+    // Someone in no group sees none of it
+    const outsider = await asUser(A, async (c, _C, id) => {
+      const out = {};
+      for (const t of ['rsvps', 'signup_items', 'plan_updates', 'date_options', 'spot_options', 'organizers', 'album_photos', 'plan_prep']) {
+        const x = await c.from(t).select('*').eq('spark_id', id);
+        out[t] = x.error ? 'refused' : x.data.length;
+      }
+      return out;
+    }, made.plan);
+    for (const [t, v] of Object.entries(outsider)) expect([0, 'refused'], t).toContain(v);
+  } finally {
+    for (const id of ids) await asUser(L, async (c, _C, id) => { await c.from('sparks').delete().eq('id', id); }, id).catch(() => {});
+    await lead.context.close();
+    await other.context.close();
+    await anon.context.close();
+  }
+});
