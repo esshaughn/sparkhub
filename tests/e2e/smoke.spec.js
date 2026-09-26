@@ -40,6 +40,21 @@ test('visitors land on Welcome, and group screens ask them to join or sign in', 
   }
 });
 
+test('installable: manifest, icons and the iOS home-screen tags', async ({ request }) => {
+  const html = await (await request.get('/')).text();
+  for (const tag of ['rel="manifest" href="/manifest.json"', 'name="apple-mobile-web-app-capable" content="yes"', 'name="apple-mobile-web-app-title" content="Spark Hub"', 'rel="apple-touch-icon" href="/icons/icon-180.png"']) {
+    expect(html).toContain(tag);
+  }
+  const m = await (await request.get('/manifest.json')).json();
+  expect(m).toMatchObject({ name: 'Spark Hub', short_name: 'Spark Hub', start_url: '/', display: 'standalone' });
+  expect(m.icons.map(i => i.sizes)).toEqual(expect.arrayContaining(['192x192', '512x512']));
+  for (const src of m.icons.map(i => i.src).concat('/icons/icon-180.png')) {
+    const r = await request.get(src);
+    expect(r.status(), src).toBe(200);
+    expect((await r.body()).subarray(1, 4).toString(), src).toBe('PNG');
+  }
+});
+
 test('privacy page is public', async ({ request }) => {
   const res = await request.get('/privacy.html');
   expect(res.status()).toBe(200);

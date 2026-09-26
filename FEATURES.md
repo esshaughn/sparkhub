@@ -4,6 +4,12 @@ Every function and feature in the build, numbered so you can say "scrub 27, 29, 
 
 As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updated for "Full Site 4" (spec in `design/spark-hub/`). This rebuild restarted the numbering; the list for the old single-group app is in git history (`FEATURES.md` before this date).
 
+## Install
+
+| # | Feature | Status | Notes |
+|---|---|---|---|
+| 0 | **Add to Home Screen**: web app manifest + iOS tags, so it opens full-screen with the Spark Hub icon (gold bolt on purple) | Test | Icons in `icons/`, redrawn by `scripts/make-icons.js`; no service worker yet |
+
 ## Welcome (signed out)
 
 | # | Feature | Status | Notes |

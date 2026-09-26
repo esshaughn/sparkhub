@@ -17,10 +17,14 @@ Nothing yet.
 
 ## 2. Things the build had to invent (please design these properly)
 
+- **App icon** for "Add to Home Screen": the gold bolt with rays (`#f3c55a` / `#e8a71c`) centred on a full-bleed `#5b4ae8` square, bolt at ~66% of the square (50% in the Android "maskable" version). iOS rounds the corners itself. The home-screen name is **Spark Hub**. A designed icon (and a splash look) would replace it.
+
 - **The lead's Set the date pop-up** and **Got a date & time in mind?** still use one native date-and-time field, so on iPhone the time is a minute-by-minute wheel. Part B's date + 30-minute list fix was specified for the post flow only; should the pop-ups get the same two fields?
 - **Titles already over 40 characters** keep their full text; editing one trims it to 40 on the first keystroke.
 
 ## 3. Behaviour added in the build (no visual change)
+
+- **Installable (PWA):** a web app manifest (`display: standalone`, start `/`, white theme and background) and the iOS home-screen tags. Opened from the home screen, there's no browser bar. On iPhone the home-screen app keeps its own sign-in, separate from Safari, so people sign in once more there. No service worker (no offline mode or push notifications) yet.
 
 - Location suggestions now start at 2 characters (was 3), still debounced and cached; that uses more of the free 3,000 lookups a day, so worth watching.
 
