@@ -2017,6 +2017,7 @@
   }
 
   // ---- V5: Notifications, built from what's already stored (last 7 days) --------------------
+  // In-app only for now (the owner doesn't want email notifications yet); notif_state.email is unused.
   // Topics (Settings) → filter chips: new events = Invites; updates + reminders = Updates; the rest = Hosting
   const N_TYPES = {
     newevent: { bg: '#149a4b', glyph: '●', cat: 'invites', topic: 'newevents' },
@@ -2161,12 +2162,7 @@
           '<span aria-hidden="true" style="flex:0 0 46px;width:46px;height:28px;border-radius:999px;position:relative;transition:background 160ms;background:' + (v ? '#149a4b' : '#dcdfe6') + '"><span style="position:absolute;top:3px;left:' + (v ? 21 : 3) + 'px;width:22px;height:22px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:left 160ms"></span></span>' +
         '</div>';
       }).join('') + '</div>' +
-      '<div style="margin-top:14px;padding-top:14px;border-top:1px solid #f2f3f6">' +
-        '<div style="font-size:15.5px;font-weight:800;color:#0d1117">Also send by email</div>' +
-        '<div style="margin-top:2px;font-size:13px;line-height:1.4;font-weight:500;color:#6b7280">Invites, host updates and day-before reminders, to ' + esc(state.email) + '. Email starts soon; push notifications come later.</div>' +
-        '<span ' + on(() => saveNotif({ email: !n.email }), 'switch') + ' aria-checked="' + !!n.email + '" aria-label="Email" style="margin-top:10px;display:inline-flex;align-items:center;min-height:40px;padding:0 16px;border-radius:999px;font-size:14px;font-weight:800;cursor:pointer;' +
-          (n.email ? 'background:#f3f1fe;color:#4a3ad4;box-shadow:inset 0 0 0 2px #5b4ae8' : 'background:#fff;color:#0d1117;box-shadow:inset 0 0 0 1.5px #dcdfe6') + '">' + (n.email ? '✓ ' : '') + 'Email</span>' +
-      '</div>');
+      '<div style="margin-top:14px;padding-top:14px;border-top:1px solid #f2f3f6;font-size:13px;line-height:1.4;font-weight:500;color:#6b7280">Notifications show here in the app.</div>');
   }
 
   // Signed in but in no group yet (not designed; README → Open "first-run view")

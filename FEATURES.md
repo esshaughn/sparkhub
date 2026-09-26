@@ -88,7 +88,7 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 73 | **You own**: counts (events · ideas · need you), **Post an event** / **Float an idea**, group chips, cards with the next step strip (e.g. *Oct 4 has 4 votes · Pick date*, *Location TBD · Add it*, *All set*) | Test | Next-step buttons open the plan |
 | 74 | **Notifications** (last 7 days, built from stored activity): new plans in your groups (with **I'm going** / **Maybe**), host updates with their text (to the audience the host picked), day-before and day-of reminders; for your own plans and ideas: replies, sign-ups, interest, date/location suggestions, offers to help organize. Filters All / Invites / Updates / Hosting; New / Earlier this week; unread dots | Test | |
 | 75 | **Mark all read** and per-item read (tapping one), kept in your account so they follow you between the app and the browser | Test | `notif_state` |
-| 76 | **Notification settings**: four topics on/off (hide them from the feed and the count) and an **Email** choice for phase 4 | Test | Push notifications aren't possible yet (no service worker) |
+| 76 | **Notification settings**: four topics on/off (hide them from the feed and the count). Notifications are **in-app only** for now | Test | No email (owner's call, 2026-09-28); push isn't possible yet (no service worker) |
 
 ## Posting and editing
 

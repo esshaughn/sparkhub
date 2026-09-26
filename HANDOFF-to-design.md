@@ -32,7 +32,7 @@ Where this doc and the design files disagree, **this doc is correct**.
 | 16 | **Profile has "How Spark Hub works"** (the old How this works tab) | Not in V5 | The tab went away; the page stays reachable |
 | 17 | **Home scope isn't remembered** across reloads; the Calendar's Post an event only shows on today or later | Not specified | Keeps it simple; you can't post an event in the past |
 | 18 | **No "invited you" notifications**: new plans in your groups show as "{host} put an event on the books: {plan}" with I'm going / Maybe (the Invites filter shows these) | "Tasha invited you to …" | Invites are a share link, so there's no invite to notify about |
-| 19 | **Notification settings have four topics** (new events, host updates, day-before reminders, things you're hosting) and one channel, **Email**, with the line "Email starts soon; push notifications come later." | Five topics incl. Invites; Push + Email | No invites (above); push needs a service worker the app doesn't have yet |
+| 19 | **Notification settings have four topics** (new events, host updates, day-before reminders, things you're hosting) and no channels; the sheet ends "Notifications show here in the app." | Five topics incl. Invites; Push + Email | No invites (above); the owner wants in-app only for now (no email), and push needs a service worker |
 | 20 | **Host updates only reach people in the plan** (replied, or signed up for something); "haven't replied" updates reach everyone else in the group | Every update to everyone | Otherwise the feed fills with plans you never touched |
 
 ## 2. Things the build had to invent (please design these properly)
@@ -61,7 +61,7 @@ Where this doc and the design files disagree, **this doc is correct**.
 
 ## 4. Designed but not built or not working
 
-- **V5 phase 4 isn't built yet:** email (invites, host updates, day-before reminders). Push notifications aren't planned until the app has a service worker.
+- **Email and push notifications aren't built:** the owner wants everything in-app for now (phase 4, email, is on hold). Push would also need a service worker.
 - **Next-step buttons** on You own cards open the plan or idea (as in the prototype); they don't jump straight to the action.
 - **Home's action strip, "Your Groups" row and "Float an idea" card** are off, as in the README toggles.
 - **"How this works" body copy** is still placeholder Latin (as designed).
