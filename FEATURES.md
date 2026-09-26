@@ -19,15 +19,15 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 3 | An invite link (/join/CODE) adds "Sign in to join the group CODE"; after signing in, Join opens pre-filled | Test | |
 | 4 | (Removed) Group code card, Start a group, How this works link: now only after sign-in (How Spark Hub works is in Profile) | Test | |
 
-## Home (signed in) — V5
+## Your plans (Home, signed in) — V5 update
 
 | # | Feature | Status | Notes |
 |---|---|---|---|
-| 5 | Header: logo (goes Home), **All groups ▾** scope menu (narrows every row to one group), your photo → Profile | Test | The scope resets when the app reloads |
-| 6 | **Leading**: swipeable 284px cards for ideas you lead, your upcoming plans and ones from the last 3 days (today, tomorrow, plans that need something, ideas, just happened, all set); date badge or IDEA pill, countdown, group, title; a 4-ring tracker (ideas: Date, Location, People, Tasks; plans: Location, Going, Sign-ups, Reminder); ends with a **New event** card | Test | View all → You own |
-| 7 | **Going**: plans you replied Going or Maybe to (not hosting), photo tiles with date and *Maybe*; empty-state line | Test | View all → sheet |
-| 8 | **Helping**: sign-up items you took on upcoming plans (date badge, item, plan · day time); hidden when there are none | Test | View all → sheet |
-| 9 | **View all** sheet: Going · You own · Helping tabs with counts, group chips, This week / Later in {Month} / Just happened / No date yet | Test | |
+| 5 | Header: logo, **All groups ▾** scope menu, your photo → Profile; title **Your plans** with a **Tiles · List · Grid** switcher (Tiles by default, remembered on this device) | Test | The scope resets when the app reloads |
+| 6 | Upcoming plans you lead, said Going / Maybe to, or signed up to help with, by month (List: by day too). Photo cards with date · time, title and place | Test | |
+| 7 | **YOU'RE HELPING:** your sign-ups on each plan, with their time; two, then **+N more** / **Show less** | Test | Grid shows a *Helping* chip |
+| 8 | Plans you lead: **Leading** chip and a dashboard — Going · Maybe · Sign-ups rings and an **Actions** tile (count of next steps) or **All set** | Test | Grid: *Leading · N to do* |
+| 9 | Empty: *Nothing on the books yet.* + **Post an event** | Test | |
 | 10 | Not in a group yet: **Join with a code** card | Test | Not designed |
 
 ## Groups
@@ -42,15 +42,15 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 15b | **Owners** (up to 2 per group; whoever starts a group). Members sheet (search, *(you)* first): owners **Make admin**, **Make owner**, **Remove**, **Step down**; admins see it read-only. A group always keeps one owner | Test | Owner chip purple, Admin gold |
 | 16 | Group photo on Groups cards and tiles, All ideas header and behind ideas without a photo, framed with the **Photo positioner** (drag, zoom 1–2.5×, Choose a different photo) | Test | New groups fall back to gold |
 
-## All ideas (per group)
+## Group page (per group) — V5 update
 
 | # | Feature | Status | Notes |
 |---|---|---|---|
-| 17 | Photo header with group name, **All ideas**, **Edit** link (admins), overlapping **I have an idea**; Sort on the left, View on the right | Test | |
-| 18 | **View**: Cards · Grid · List, remembered on this device | Test | |
-| 19 | **Sort**: Most popular (default) · Happening soon · Newest · Oldest | Test | Happening soon: upcoming dates (soonest first), then no date yet (newest first), then past dates |
-| 20 | Card: photo (or the group photo), title, date · time, location, lead's face + "Led by", interest count | Test | "Date TBD" / "Location TBD" in grey |
-| 21 | Loading skeletons, "Couldn't load ideas" banner with **Try now**, "No ideas yet." | Test | |
+| 17 | Cover header: logo, **Edit** (admins), *N members*, group name, **I have an idea** | Test | |
+| 18 | Ideas / Plans / Happened tabs; **Tiles · List · Grid** switcher, remembered on this device | Test | |
+| 19 | **Sort** on Ideas only: Most popular (default) · Happening soon · Newest · Oldest. Plans: *N upcoming plans*, soonest first; Happened: *N past events*, newest first | Test | |
+| 20 | Photo cards by month (List: by day) with date · time, title, place; your role as a chip — Leading / Helping / Going / Maybe (Led / Helped / Went on Happened, photos desaturated) | Test | Ideas with no date: "Idea · no date yet" |
+| 21 | Loading placeholders, "Couldn't load ideas" banner with **Try now**, empty states per tab | Test | |
 
 ## Idea page
 
@@ -83,12 +83,14 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 68 | All ideas **Ideas / Plans / Happened** tabs with counts; cards show IDEA / PLAN / It happened | Test | |
 | 69 | **Start a group** (Profile → Your groups) | Test | `create_group()` |
 | 70 | Temporary **demo plans** in every group the owner is in (`scripts/demo/seed-v5.py`) | Test | Re-run to refresh dates; see the script to remove |
-| 71 | **Tab bar** (V5): Home · Calendar · You own · Groups · Notifications (bell with a red unread count); no + button (post from *New event*, You own, Calendar or All ideas); Profile is your photo in the page header; *How Spark Hub works* moved to Profile | Test | |
-| 72 | **Calendar**: Month grid across your groups (green = on the books, gold ring = floated idea date, gray = happened), day list or *Nothing on this day* + **Post an event** (date filled in); **List** view by month with Hosting / Going / Maybe / RSVP / votes pills | Test | |
-| 73 | **You own**: counts (events · ideas · need you), **Post an event** / **Float an idea**, group chips, cards with the next step strip (e.g. *Oct 4 has 4 votes · Pick date*, *Location TBD · Add it*, *All set*) | Test | Next-step buttons open the plan |
+| 71 | **Tab bar** (V5 update): Your plans · Your events & ideas · **Calendar** (a big purple circle in the middle) · Groups · Notifications (red unread count) | Test | Profile is your photo in the header |
+| 72 | **Calendar**: every event in all your groups (or one: *All groups ▾*), filters All · Leading · Going · Helping with counts, **List** (default) · Week · Month; rows show time · group, place, *Helping · …* and a pill (Leading, Going, Maybe, Open to join, Happened); floated idea dates; *Post an event* on empty days. *ROUGH DRAFT* stamp (design's, temporary) | Test | |
+| 73 | **Your events & ideas**: counts (events · ideas · need you), **Post an event** / **Float an idea**, group chips, Events you're leading · Your ideas · Past events, each with its next step. *ROUGH DRAFT* stamp (temporary) | Test | Next steps open the plan |
 | 74 | **Notifications** (last 7 days, built from stored activity): new plans in your groups (with **I'm going** / **Maybe**), host updates with their text (to the audience the host picked), day-before and day-of reminders; for your own plans and ideas: replies, sign-ups, interest, date/location suggestions, offers to help organize. Filters All / Invites / Updates / Hosting; New / Earlier this week; unread dots | Test | |
 | 75 | **Mark all read** and per-item read (tapping one), kept in your account so they follow you between the app and the browser | Test | `notif_state` |
 | 76 | **Notification settings**: four topics on/off (hide them from the feed and the count). Notifications are **in-app only** for now | Test | No email (owner's call, 2026-09-28); push isn't possible yet (no service worker) |
+| 77 | **Sign-up times**: the host can give a sign-up item a time ("Set up barriers · 8:30am"), shown on the plan and in Your plans | Test | `signup_items.time`, host only |
+| 78 | Temporary **demo content matching the V5 update design** (`scripts/demo/seed-v5-update.py`) | Test | |
 
 ## Posting and editing
 
@@ -139,7 +141,7 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 56 | Design handoff doc kept current by Claude Code | Live | |
 | 57 | Vercel auto-deploy from `main`; previews from `test` | Live | |
 | 58 | Security headers + CSP; pinned, integrity-checked Supabase script | Live | |
-| 59 | Automated end-to-end tests (20 tests: smoke, posting, groups, collaboration, plans, notifications, Google, database security) | Test | `tests/` |
+| 59 | Automated end-to-end tests (21 tests: smoke, posting, groups, collaboration, plans, Your plans, notifications, Google, database security) | Test | `tests/` |
 | 60 | Nightly cleanup of test-database leftovers ([E2E] ideas and groups, old anonymous users) | Live | Test project only |
 
 ## Removed in this rebuild

@@ -83,13 +83,13 @@ async function newLead(browser, n, name, path) {
 
 const button = (page, name) => page.getByRole('button', { name, exact: true });
 
-// Posting starts from Home's "New event" card; Profile is your photo in the Home header
+// Posting starts from "Your events & ideas" (Post an event); Profile is your photo in the Your plans header
 async function startPost(page) {
-  await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Home', exact: true }).click();
-  await page.locator('[data-screen-label=Home]').getByRole('button', { name: 'New event' }).click();
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Your events and ideas', exact: true }).click();
+  await page.locator('[data-screen-label="Your events"]').getByRole('button', { name: 'Post an event' }).click();
 }
 async function openProfile(page) {
-  await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Home', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Your plans', exact: true }).click();
   await page.locator('[data-screen-label=Home]').getByRole('button', { name: 'Profile' }).click();
   await expect(page.locator('[data-screen-label=Profile]')).toBeVisible();
 }

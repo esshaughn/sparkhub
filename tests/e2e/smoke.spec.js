@@ -29,7 +29,7 @@ test('visitors land on Welcome (no tab bar there) and sign in from there', async
     await expect(page.getByText('You’re not in a group yet.')).toBeVisible();
     await expect(page.getByRole('navigation', { name: 'Main' })).toBeVisible();   // …but everywhere else, signed in or not
     await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('button')).toHaveText(['', '', '', '', '']);
-    for (const name of ['Home', 'Calendar', 'You own', 'Groups', 'Notifications']) await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name, exact: true })).toBeVisible();
+    for (const name of ['Your plans', 'Your events and ideas', 'Calendar', 'Groups', 'Notifications']) await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name, exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Calendar', exact: true }).click();   // the signed-in tabs show Welcome
     await expect(page.locator('[data-screen-label=Welcome]')).toBeVisible();
     await expect(page.getByRole('navigation', { name: 'Main' })).toHaveCount(0);
@@ -65,12 +65,12 @@ test('members: Home, group switcher, view and sort menus', async ({ browser }) =
   const { page, context, errors } = await newLead(browser, 1, 'Tester');
   try {
     const home = page.locator('[data-screen-label=Home]');
-    await expect(home.getByRole('heading', { name: 'Leading' })).toBeVisible();
-    await expect(home.getByRole('heading', { name: 'Going' })).toBeVisible();
-    await expect(home.getByRole('button', { name: 'New event' })).toBeVisible();
-    await expect(home.getByRole('button', { name: 'Switch group' })).toHaveCount(0);   // Home spans all your groups
+    await expect(home.getByRole('heading', { name: 'Your plans' })).toBeVisible();
+    await expect(home.getByRole('radiogroup', { name: 'View' }).getByRole('radio')).toHaveCount(3);
+    await expect(home.getByRole('radio', { name: 'Tiles' })).toHaveAttribute('aria-checked', 'true');   // Tiles by default
+    await expect(home.getByRole('button', { name: 'Switch group' })).toHaveCount(0);   // Your plans spans all your groups
 
-    // The scope menu narrows Home to one group, and back
+    // The scope menu narrows it to one group, and back
     await home.getByRole('button', { name: 'Show groups' }).click();
     const scope = page.getByRole('menu', { name: 'Show groups' });
     await expect(scope.getByRole('button').first()).toHaveText('All groups');
@@ -80,37 +80,37 @@ test('members: Home, group switcher, view and sort menus', async ({ browser }) =
     await page.getByRole('menu', { name: 'Show groups' }).getByRole('button', { name: 'All groups' }).click();
     await expect(home.getByRole('button', { name: 'Show groups' })).toHaveText('All groups');
 
-    // Calendar and You own open from the tab bar
+    // Calendar (the big center tab): List by default, then Month
     await page.getByRole('button', { name: 'Calendar', exact: true }).click();
     const cal = page.locator('[data-screen-label=Calendar]');
-    await expect(cal.getByRole('heading', { level: 1 })).toHaveText(new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }));
-    await expect(cal).toContainText(/Today · /);
-    await cal.getByRole('tab', { name: 'List' }).click();
-    await expect(cal.getByRole('heading', { name: 'Coming up' })).toBeVisible();
-    await page.getByRole('button', { name: 'You own', exact: true }).click();
-    await expect(page.locator('[data-screen-label="You own"]').getByRole('heading', { name: 'You own' })).toBeVisible();
+    await expect(cal.getByRole('note', { name: 'Rough draft' })).toBeVisible();
+    await expect(cal.getByRole('tab')).toHaveText([/^All\d+$/, /^Leading\d+$/, /^Going\d+$/, /^Helping\d+$/]);
+    await expect(cal).toContainText('Coming up');
+    await cal.getByRole('button', { name: 'Calendar view' }).click();
+    await page.getByRole('menu', { name: 'Calendar view' }).getByText('Month', { exact: true }).click();
+    await expect(cal).toContainText(new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }));
+    await expect(cal.getByRole('button', { name: 'Previous' })).toBeVisible();
 
-    // Groups → the group card opens its ideas
+    // Your events & ideas
+    await page.getByRole('button', { name: 'Your events and ideas', exact: true }).click();
+    await expect(page.locator('[data-screen-label="Your events"]').getByRole('heading', { name: 'Your events & ideas' })).toBeVisible();
+
+    // Groups → the group card opens its page: cover, tabs, Tiles / List / Grid
     await page.getByRole('button', { name: 'Groups', exact: true }).click();
     const groups = page.locator('[data-screen-label=Groups]');
     await expect(groups.getByRole('heading', { name: 'Your groups' })).toBeVisible();
     await expect(groups).toContainText(/\d+ members/);
     await groups.getByRole('button', { name: 'Torrez Fitness', exact: true }).click();
     const browse = page.locator('[data-screen-label=Browse]');
-    await expect(browse.getByRole('heading', { name: 'Plans' })).toBeVisible();   // plans first
-    await expect(browse).toContainText('Torrez Fitness');
+    await expect(browse.getByRole('heading', { name: 'Torrez Fitness' })).toBeVisible();
+    await expect(browse).toContainText(/\d+ members/i);
+    await expect(browse.getByRole('button', { name: 'I have an idea' })).toBeVisible();
+    await expect(browse).toContainText(/\d+ upcoming plans?/);                    // Plans first: a count, no sort
+    await expect(browse.getByRole('button', { name: 'Sort' })).toHaveCount(0);
     const tabs = browse.getByRole('tablist', { name: 'Ideas, plans and what happened' }).getByRole('tab');
     await expect(tabs).toHaveText([/^Ideas\s*\d+$/, /^Plans\s*\d+$/, /^Happened\s*\d+$/]);
     await tabs.filter({ hasText: 'Ideas' }).click();
-    await expect(browse.getByRole('heading', { name: 'Ideas' })).toBeVisible();
     await expect(tabs.filter({ hasText: 'Ideas' })).toHaveAttribute('aria-selected', 'true');
-
-    // The switcher (group screens) lists your groups and "Join a group"
-    await page.getByRole('button', { name: 'Switch group' }).click();
-    await expect(page.getByRole('menu', { name: 'Your groups' }).getByRole('button', { name: /^Torrez Fitness/ })).toHaveText('Torrez Fitness');   // no role chips in menus
-    await expect(page.getByRole('button', { name: 'Join a group' })).toBeVisible();
-    await page.mouse.click(5, 600);   // clicking away closes it
-    await expect(page.getByRole('button', { name: 'Join a group' })).toHaveCount(0);
 
     // Sort: Most popular first by default, then Happening soon, Newest, Oldest
     await expect(page.getByRole('button', { name: 'Sort' })).toContainText('Most popular');
@@ -120,27 +120,27 @@ test('members: Home, group switcher, view and sort menus', async ({ browser }) =
 
     // Happening soon: ideas with upcoming dates first, soonest on top; undated ones after
     await sortRows.filter({ hasText: 'Happening soon' }).click();
-    const cards = browse.locator('[role=button]').filter({ hasText: /Led by/ });
-    const dates = await cards.evaluateAll(els => els.map(el => /(Date TBD)|((Mon|Tue|Wed|Thu|Fri|Sat|Sun), [A-Z][a-z]{2} \d+)/.exec(el.textContent)?.[0] || ''));
-    const firstTbd = dates.indexOf('Date TBD');
+    const cards = browse.locator('[data-card]');
+    const dates = await cards.evaluateAll(els => els.map(el => /(no date yet)|((Mon|Tue|Wed|Thu|Fri|Sat|Sun), [A-Z][a-z]{2} \d+)/.exec(el.textContent)?.[0] || ''));
+    const firstTbd = dates.indexOf('no date yet');
     const dated = firstTbd < 0 ? dates : dates.slice(0, firstTbd);
     expect(dated.length).toBeGreaterThan(1);
     const asTime = (d) => Date.parse(d.replace(/^\w+, /, '') + ' 2026');
     for (let i = 1; i < dated.length; i++) expect(asTime(dated[i])).toBeGreaterThanOrEqual(asTime(dated[i - 1]));
-    if (firstTbd > -1) expect(dates.slice(firstTbd).every(d => d === 'Date TBD')).toBe(true);
+    if (firstTbd > -1) expect(dates.slice(firstTbd).every(d => d === 'no date yet')).toBe(true);
     await page.getByRole('button', { name: 'Sort' }).click();
     await sortRows.filter({ hasText: 'Newest' }).click();
     await expect(page.getByRole('button', { name: 'Sort' })).toContainText('Newest');
 
-    // View: Cards → Grid, remembered after a reload
-    await page.getByRole('button', { name: 'Change view' }).click();
-    await page.getByRole('menu', { name: 'View' }).getByRole('button', { name: 'Grid' }).click();
-    await expect(page.getByRole('button', { name: 'Change view' })).toContainText('Grid');
+    // View: Tiles → Grid, remembered after a reload
+    await browse.getByRole('radio', { name: 'Grid' }).click();
+    await expect(browse.getByRole('radio', { name: 'Grid' })).toHaveAttribute('aria-checked', 'true');
     await page.reload();
-    await expect(page.getByRole('button', { name: 'Change view' })).toContainText('Grid');
+    await expect(browse.getByRole('radio', { name: 'Grid' })).toHaveAttribute('aria-checked', 'true');
+    await browse.getByRole('radio', { name: 'Tiles' }).click();
 
     // Profile (your photo, top right) → How Spark Hub works
-    await page.getByRole('button', { name: 'Home', exact: true }).click();
+    await page.getByRole('button', { name: 'Your plans', exact: true }).click();
     await page.locator('[data-screen-label=Home]').getByRole('button', { name: 'Profile' }).click();
     await page.getByRole('button', { name: 'How Spark Hub works' }).click();
     await expect(page.getByRole('heading', { name: 'Ideas come to life when we build them together' })).toBeVisible();

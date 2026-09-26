@@ -33,34 +33,29 @@ test('post → idea page → all three views → profile → edit → delete', a
     }, id);
     expect((await page.request.get(url)).status()).toBe(200);
 
-    // Home → Leading: the idea's card, with its date and location steps done
-    await page.getByRole('button', { name: 'Home', exact: true }).click();
-    const lead = page.locator('[data-screen-label=Home]').getByRole('button', { name: Title, exact: true });
-    await expect(lead).toContainText('Torrez Fitness');
-    await expect(lead).toContainText('IDEA');
-    await expect(lead.getByLabel('Date: done')).toBeVisible();
-    await expect(lead.getByLabel('Location: done')).toBeVisible();
-    await expect(lead.getByLabel('Tasks: not yet')).toBeVisible();
-
-    // You own lists it with its next step
-    await page.getByRole('button', { name: 'You own', exact: true }).click();
-    const own = page.locator('[data-screen-label="You own"]');
+    // Your events & ideas lists it under "Your ideas" with its next step
+    await page.getByRole('button', { name: 'Your events and ideas', exact: true }).click();
+    const own = page.locator('[data-screen-label="Your events"]');
+    await expect(own).toContainText('Your ideas');
+    await expect(own.getByRole('button', { name: Title, exact: true })).toContainText('Idea · Torrez Fitness');
     await expect(own.getByRole('button', { name: Title, exact: true })).toContainText('Make it a plan');
 
-    // Groups → Torrez Fitness → its ideas, in each view
+    // Groups → Torrez Fitness → Ideas, in each view
     await page.getByRole('button', { name: 'Groups', exact: true }).click();
     await page.locator('[data-screen-label=Groups]').getByRole('button', { name: 'Torrez Fitness', exact: true }).click();
     const browse = page.locator('[data-screen-label=Browse]');
-    const card = browse.getByRole('button', { name: new RegExp(title.replace(/[[\]]/g, '\\$&')) });
+    await browse.getByRole('tab', { name: /^Ideas/ }).click();
+    const card = browse.locator('[data-card="' + Title + '"]');
     await expect(card).toContainText('Sat, Oct 17 · 5:30pm');
     await expect(card).toContainText('Zilker Metropolitan Park');
-    await expect(card).toContainText('Led by Tester');
-    await page.getByRole('button', { name: 'Change view' }).click();
-    await page.getByRole('menu', { name: 'View' }).getByRole('button', { name: 'List' }).click();
-    await expect(card).toContainText('Sat, Oct 17 · 5:30pm · Zilker Metropolitan Park');
-    await page.getByRole('button', { name: 'Change view' }).click();
-    await page.getByRole('menu', { name: 'View' }).getByRole('button', { name: 'Grid' }).click();
-    await expect(card).toContainText('Tester');
+    await expect(card.getByText('Leading', { exact: true })).toBeVisible();          // your role on the photo
+    await browse.getByRole('radio', { name: 'List' }).click();
+    await expect(card).toContainText('Sat, Oct 17');
+    await expect(card).toContainText('5:30pm');
+    await expect(card).toContainText('Zilker Metropolitan Park');
+    await browse.getByRole('radio', { name: 'Grid' }).click();
+    await expect(card).toContainText(Title);
+    await browse.getByRole('radio', { name: 'Tiles' }).click();
 
     // Profile lists it with its group and date
     await openProfile(page);

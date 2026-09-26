@@ -51,7 +51,12 @@ def upload(uid, local):
     return path
 
 
-users = {u['email']: u['id'] for u in call('GET', '/auth/v1/admin/users?per_page=1000')['users'] if u.get('email')}
+users = {}
+for page in range(1, 100):   # every page: test runs leave many anonymous users
+    batch = call('GET', f'/auth/v1/admin/users?per_page=1000&page={page}')['users']
+    users.update({u['email']: u['id'] for u in batch if u.get('email')})
+    if len(batch) < 1000:
+        break
 eric = users['eric@ericscott-creative.com']
 P = {n: users[f'seed-{n.lower()}@example.com'] for n in ['Marisol', 'Darnell', 'Theo', 'Hana', 'Dee']}
 P['Eric'] = eric

@@ -234,6 +234,7 @@ test('plans: replies, sign-ups, updates, notes and invite-only plans follow the 
         rsvpOnPlan: await ok(c.from('rsvps').insert({ spark_id: m.plan, user_id: me, status: 'going' })),
         rsvpForSomeoneElse: await ok(c.from('rsvps').insert({ spark_id: m.plan, user_id: '00000000-0000-0000-0000-000000000000', status: 'going' })),
         signupWithNeed: await ok(c.from('signup_items').insert({ spark_id: m.plan, item: 'Chairs', need: 5 })),
+        signupWithTime: await ok(c.from('signup_items').insert({ spark_id: m.plan, item: 'Cups', time: '10:00' })),
         signupSomethingElse: await ok(c.from('signup_items').insert({ spark_id: m.plan, item: 'Lemonade' })),
         claim: await ok(c.from('signup_claims').insert({ item_id: m.item })),
         update: await ok(c.from('plan_updates').insert({ spark_id: m.plan, body: 'Hijacked' })),
@@ -249,7 +250,7 @@ test('plans: replies, sign-ups, updates, notes and invite-only plans follow the 
     }, made);
     expect(r).toEqual({
       rsvpOnIdea: 'refused', rsvpOnPlan: 'ALLOWED', rsvpForSomeoneElse: 'refused',
-      signupWithNeed: 'refused', signupSomethingElse: 'ALLOWED', claim: 'ALLOWED',
+      signupWithNeed: 'refused', signupWithTime: 'refused', signupSomethingElse: 'ALLOWED', claim: 'ALLOWED',
       update: 'refused', readPrep: 0, writePrep: 'refused', makePlan: 'refused', clearPlan: 'refused',
       markPlanned: 0, seeSecret: 0, rsvpSecret: 'refused', suggestDateOnPlan: 'ALLOWED'
     });

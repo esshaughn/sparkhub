@@ -87,96 +87,58 @@
           <sc-if value="{{ noGroups }}" hint-placeholder-val="{{ false }}"><div style="margin:0 14px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);border-radius:20px;padding:18px;display:flex;flex-direction:column;gap:4px"><div style="font-size:16.5px;font-weight:800;letter-spacing:-.2px;color:#0d1117">You’re not in a group yet.</div><div style="font-size:15px;line-height:1.45;font-weight:500;color:#5c6270">Join one with a code from its organiser.</div><button onClick="{{ openJoin }}" style="margin-top:12px;min-height:48px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:15.5px;font-weight:800;cursor:pointer" style-hover="background:#4a3ad4">Join with a code</button></div></sc-if>
           <sc-if value="{{ inGroups }}" hint-placeholder-val="{{ true }}">
 
-            <div style="display:flex;flex-direction:column;gap:7px">
-              <div style="padding:0 18px;display:flex;align-items:baseline;gap:8px"><sc-if value="{{ iconTitles }}" hint-placeholder-val="{{ false }}"><span style="flex:0 0 32px;width:32px;height:32px;margin-right:2px;align-self:center;border-radius:10px;background:#ece9fd;display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5b4ae8" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 21V4" /><path d="M5.5 4.5h11.5l-2.2 4 2.2 4H5.5" /></svg></span></sc-if><span style="font-size:28px;line-height:1.05;font-weight:900;letter-spacing:-.8px;color:#0d1117">Leading</span><span style="font-size:15px;font-weight:700;color:#9aa0ac">{{ hOwnCount }}</span><span onClick="{{ openAllOwn }}" style="margin-left:auto;display:flex;align-items:center;min-height:32px;font-size:13.5px;font-weight:800;color:#5b4ae8;cursor:pointer">View all</span></div>
-              <div style="display:flex;gap:10px;overflow-x:auto;padding:0 18px 4px;scrollbar-width:none;scroll-snap-type:x mandatory;scroll-padding:0 18px;-webkit-overflow-scrolling:touch">
-                <sc-for list="{{ hOwn }}" as="e" hint-placeholder-count="2">
-                  <div onClick="{{ e.open }}" style="flex:0 0 284px;width:284px;scroll-snap-align:start;display:flex;flex-direction:column;border-radius:20px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">
-                    <div style="{{ e.cover }}">
-                      <div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.9) 0%, rgba(13,17,23,.3) 55%, rgba(13,17,23,.1) 100%)"></div>
-                      <sc-if value="{{ e.isPlan }}" hint-placeholder-val="{{ true }}"><span style="position:absolute;top:12px;left:12px;width:44px;border-radius:10px;overflow:hidden;text-align:center;background:#fff;box-shadow:0 4px 12px rgba(0,0,0,.25)"><span style="display:block;background:#149a4b;color:#fff;font-size:9px;font-weight:900;letter-spacing:.8px;padding:2px 0">{{ e.mon }}</span><span style="display:block;font-size:17px;line-height:1.2;font-weight:900;color:#0d1117;padding:1px 0 2px">{{ e.day }}</span></span></sc-if>
-                      <sc-if value="{{ e.isIdea }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;top:12px;left:12px;border-radius:999px;padding:4px 10px;background:#f3c55a;color:#0d1117;font-size:10.5px;font-weight:900;letter-spacing:.7px">IDEA</span></sc-if>
-                      <sc-if value="{{ e.hasWhen }}" hint-placeholder-val="{{ true }}"><span style="{{ e.whenStyle }}">{{ e.when }}</span></sc-if>
-                      <div style="position:absolute;left:14px;right:14px;bottom:11px;color:#fff"><div style="font-size:10px;font-weight:900;letter-spacing:.9px;text-transform:uppercase;color:#cfc9ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ e.group }}</div><div style="margin-top:1px;font-size:18px;line-height:1.1;font-weight:900;letter-spacing:-.4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ e.text }}</div></div>
-                    </div>
-                    <sc-if value="{{ e.isIdea }}" hint-placeholder-val="{{ false }}">
-                      <div style="padding:12px 14px">
-                        <div style="position:relative;display:flex;align-items:flex-start;justify-content:space-between">
-                          <sc-for list="{{ e.steps }}" as="st" hint-placeholder-count="4">
-                            <div style="position:relative;flex:0 0 auto;width:52px;display:flex;flex-direction:column;align-items:center;gap:5px">
-                              <span style="position:relative;width:36px;height:36px;display:flex;align-items:center;justify-content:center">
-                                <svg aria-hidden="true" width="36" height="36" viewBox="0 0 36 36" style="position:absolute;inset:0;transform:rotate(-90deg)"><circle cx="18" cy="18" r="16" fill="none" stroke="#eef0f3" stroke-width="3" /><circle cx="18" cy="18" r="16" fill="none" stroke="{{ st.ringColor }}" stroke-width="3" stroke-linecap="round" stroke-dasharray="{{ st.dash }}" /></svg>
-                                <span style="{{ st.circle }}">
-                                <sc-if value="{{ st.done }}" hint-placeholder-val="{{ false }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 10 17l9-10" /></svg></sc-if>
-                                <sc-if value="{{ st.isDate }}" hint-placeholder-val="{{ false }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#454b55" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5.5" width="16" height="14.5" rx="2.5" /><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4" /></svg></sc-if>
-                                <sc-if value="{{ st.isLoc }}" hint-placeholder-val="{{ false }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#454b55" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Z" /><circle cx="12" cy="10" r="2.4" /></svg></sc-if>
-                                <sc-if value="{{ st.isPeople }}" hint-placeholder-val="{{ false }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#454b55" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2" /><path d="M2.8 19c.5-3.3 3-5 6.2-5s5.7 1.7 6.2 5" /><circle cx="17" cy="9" r="2.6" /><path d="M16.5 14c2.6.1 4.3 1.6 4.7 4.2" /></svg></sc-if>
-                                <sc-if value="{{ st.isTasks }}" hint-placeholder-val="{{ false }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#454b55" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11M9 12h11M9 18h11" /><path d="m3.5 6 1.2 1.2L7 5M3.5 12l1.2 1.2L7 11M3.5 18l1.2 1.2L7 17" /></svg></sc-if>
-                                </span>
-                              </span>
-                              <span style="{{ st.labelStyle }}">{{ st.label }}</span>
-                            </div>
-                          </sc-for>
-                        </div>
-                      </div>
-                    </sc-if>
-                    <sc-if value="{{ e.isLive }}" hint-placeholder-val="{{ false }}">
-                      <div style="padding:12px 14px">
-                        <div style="position:relative;display:flex;align-items:flex-start;justify-content:space-between">
-                          <sc-for list="{{ e.planSteps }}" as="ps" hint-placeholder-count="4">
-                            <div style="position:relative;flex:0 0 auto;width:52px;display:flex;flex-direction:column;align-items:center;gap:5px">
-                              <span style="position:relative;width:36px;height:36px;display:flex;align-items:center;justify-content:center">
-                                <svg aria-hidden="true" width="36" height="36" viewBox="0 0 36 36" style="position:absolute;inset:0;transform:rotate(-90deg)"><circle cx="18" cy="18" r="16" fill="none" stroke="#eef0f3" stroke-width="3" /><circle cx="18" cy="18" r="16" fill="none" stroke="{{ ps.ringColor }}" stroke-width="3" stroke-linecap="round" stroke-dasharray="{{ ps.dash }}" /></svg>
-                                <span style="{{ ps.circle }}"><sc-if value="{{ ps.light }}" hint-placeholder-val="{{ false }}"><sc-if value="{{ ps.isInv }}" hint-placeholder-val="{{ false }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16v12H4z" /><path d="m4 7 8 6 8-6" /></svg></sc-if><sc-if value="{{ ps.isRsvp }}" hint-placeholder-val="{{ false }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2" /><path d="M2.8 19c.5-3.3 3-5 6.2-5s5.7 1.7 6.2 5" /><circle cx="17" cy="9" r="2.6" /><path d="M16.5 14c2.6.1 4.3 1.6 4.7 4.2" /></svg></sc-if><sc-if value="{{ ps.isTasks }}" hint-placeholder-val="{{ false }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11M9 12h11M9 18h11" /><path d="m3.5 6 1.2 1.2L7 5M3.5 12l1.2 1.2L7 11M3.5 18l1.2 1.2L7 17" /></svg></sc-if><sc-if value="{{ ps.isRem }}" hint-placeholder-val="{{ false }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16.5V11a6 6 0 1 1 12 0v5.5l1.6 2H4.4L6 16.5Z" /><path d="M10 21a2.2 2.2 0 0 0 4 0" /></svg></sc-if></sc-if><sc-if value="{{ ps.dark }}" hint-placeholder-val="{{ false }}"><sc-if value="{{ ps.isInv }}" hint-placeholder-val="{{ false }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#454b55" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16v12H4z" /><path d="m4 7 8 6 8-6" /></svg></sc-if><sc-if value="{{ ps.isRsvp }}" hint-placeholder-val="{{ false }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#454b55" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2" /><path d="M2.8 19c.5-3.3 3-5 6.2-5s5.7 1.7 6.2 5" /><circle cx="17" cy="9" r="2.6" /><path d="M16.5 14c2.6.1 4.3 1.6 4.7 4.2" /></svg></sc-if><sc-if value="{{ ps.isTasks }}" hint-placeholder-val="{{ false }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#454b55" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11M9 12h11M9 18h11" /><path d="m3.5 6 1.2 1.2L7 5M3.5 12l1.2 1.2L7 11M3.5 18l1.2 1.2L7 17" /></svg></sc-if><sc-if value="{{ ps.isRem }}" hint-placeholder-val="{{ false }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#454b55" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16.5V11a6 6 0 1 1 12 0v5.5l1.6 2H4.4L6 16.5Z" /><path d="M10 21a2.2 2.2 0 0 0 4 0" /></svg></sc-if></sc-if></span>
-                              </span>
-                              <span style="{{ ps.valueStyle }}">{{ ps.value }}</span>
-                            </div>
-                          </sc-for>
-                        </div>
-                      </div>
-                    </sc-if>
-                    <sc-if value="{{ e.hasSu }}" hint-placeholder-val="{{ false }}"><div style="padding:10px 14px;display:flex;justify-content:space-between;font-size:13px;font-weight:700;color:#454b55"><span>Sign-ups</span><span><span style="font-weight:900;color:#0d1117">{{ e.su }}</span> filled</span></div></sc-if>
-                    <sc-if value="{{ e.hasAct }}" hint-placeholder-val="{{ false }}"><div style="margin-top:auto;display:flex;align-items:center;gap:8px;padding:10px 14px;background:#f3f1fe"><span style="flex:1;min-width:0;font-size:13.5px;font-weight:800;color:#4a3ad4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ e.act }}</span><span style="flex:0 0 auto;display:flex;align-items:center;min-height:30px;padding:0 12px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:12.5px;font-weight:900">{{ e.cta }}</span><sc-if value="{{ e.hasMore }}" hint-placeholder-val="{{ false }}"><span style="flex:0 0 auto;font-size:12px;font-weight:800;color:#6b5fe0">{{ e.more }}</span></sc-if></div></sc-if>
-                    <sc-if value="{{ e.noAct }}" hint-placeholder-val="{{ false }}"><div style="margin-top:auto;display:flex;align-items:center;gap:8px;padding:11px 14px;background:#e7f6ec"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0f7a3c" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 10 17l9-10" /></svg><span style="font-size:13.5px;font-weight:800;color:#0f7a3c">All set</span></div></sc-if>
-                  </div>
-                </sc-for>
-                <div onClick="{{ goCompose }}" style="flex:0 0 140px;scroll-snap-align:start;min-height:120px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;border:1.5px dashed #b9bdc6;border-radius:20px;background:rgba(255,255,255,.5);font-size:14px;font-weight:800;color:#454b55;cursor:pointer" style-hover="border-color:#0d1117"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#454b55" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>New event</div>
-              </div>
-            </div>
-
-            <div style="display:flex;flex-direction:column;gap:7px">
-              <div style="padding:0 18px;display:flex;align-items:baseline;gap:8px"><sc-if value="{{ iconTitles }}" hint-placeholder-val="{{ false }}"><span style="flex:0 0 32px;width:32px;height:32px;margin-right:2px;align-self:center;border-radius:10px;background:#e7f6ec;display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0f7a3c" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 10 17l9-10" /></svg></span></sc-if><span style="font-size:28px;line-height:1.05;font-weight:900;letter-spacing:-.8px;color:#0d1117">Going</span><span style="font-size:15px;font-weight:700;color:#9aa0ac">{{ hGoingCount }}</span><span onClick="{{ openAllGoing }}" style="margin-left:auto;display:flex;align-items:center;min-height:32px;font-size:13.5px;font-weight:800;color:#5b4ae8;cursor:pointer">View all</span></div>
-              <sc-if value="{{ hNoGoing }}" hint-placeholder-val="{{ false }}"><div style="margin:0 18px;font-size:14.5px;line-height:1.45;font-weight:600;color:#6b7280">Nothing yet. RSVP to an event in one of your groups and it shows up here.</div></sc-if>
-              <div style="display:flex;gap:10px;overflow-x:auto;padding:0 18px 4px;scrollbar-width:none;scroll-snap-type:x mandatory;scroll-padding:0 18px;-webkit-overflow-scrolling:touch">
-                <sc-for list="{{ hGoing }}" as="e" hint-placeholder-count="3">
-                  <div onClick="{{ e.open }}" style="flex:0 0 268px;width:268px;height:88px;scroll-snap-align:start;display:flex;align-items:stretch;border-radius:20px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">
-                    <div style="{{ e.photoStyle }}"></div>
-                    <div style="flex:1;min-width:0;padding:0 14px;display:flex;flex-direction:column;justify-content:center;gap:3px">
-                      <div style="font-size:9.5px;font-weight:900;letter-spacing:.7px;text-transform:uppercase;color:#5b4ae8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ e.group }}</div>
-                      <div style="font-size:17.5px;line-height:1.2;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ e.text }}</div>
-                      <div style="font-size:12.5px;font-weight:600;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ e.when }}<sc-if value="{{ e.isMaybe }}" hint-placeholder-val="{{ false }}"> · <span style="color:#8f6405;font-weight:800">Maybe</span></sc-if></div>
-                    </div>
-                  </div>
-                </sc-for>
-              </div>
-            </div>
-
-
-
-            <sc-if value="{{ hHasHelp }}" hint-placeholder-val="{{ false }}">
-              <div style="display:flex;flex-direction:column;gap:7px">
-                <div style="padding:0 18px;display:flex;align-items:baseline;gap:8px"><sc-if value="{{ iconTitles }}" hint-placeholder-val="{{ false }}"><span style="flex:0 0 32px;width:32px;height:32px;margin-right:2px;align-self:center;border-radius:10px;background:#fdf1d6;display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8f6405" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11M9 12h11M9 18h11" /><path d="m3.5 6 1.2 1.2L7 5M3.5 12l1.2 1.2L7 11M3.5 18l1.2 1.2L7 17" /></svg></span></sc-if><span style="font-size:28px;line-height:1.05;font-weight:900;letter-spacing:-.8px;color:#0d1117">Helping</span><span style="font-size:15px;font-weight:700;color:#9aa0ac">{{ hHelpCount }}</span><span onClick="{{ openAllHelp }}" style="margin-left:auto;display:flex;align-items:center;min-height:32px;font-size:13.5px;font-weight:800;color:#5b4ae8;cursor:pointer">View all</span></div>
-                <div style="margin:0 14px;border-radius:20px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08)">
-                  <sc-for list="{{ hHelp }}" as="e" hint-placeholder-count="2">
-                    <div onClick="{{ e.open }}" style="{{ e.rowStyle }}" style-hover="background:#f7f7f9">
-                      <span style="flex:0 0 46px;width:46px;border-radius:12px;overflow:hidden;text-align:center;background:#fff;box-shadow:inset 0 0 0 1.5px #e6e7eb"><span style="display:block;background:#e8a71c;color:#fff;font-size:10px;font-weight:900;letter-spacing:.8px;padding:2px 0">{{ e.dow }}</span><span style="display:block;font-size:19px;line-height:1.25;font-weight:900;color:#0d1117;padding:1px 0 3px">{{ e.dnum }}</span></span>
-                      <div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ e.item }}</div><div style="font-size:12.5px;font-weight:600;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ e.meta }}</div></div>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9aa0ac" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6" /></svg>
-                    </div>
-                  </sc-for>
+            <div style="display:flex;flex-direction:column;gap:14px;padding:0 14px">
+              <div style="padding:0 4px;display:flex;align-items:center;gap:8px"><span style="display:flex;align-items:center;gap:8px"><span style="font-size:28px;line-height:1.05;font-weight:900;letter-spacing:-.8px;color:#0d1117">Your plans</span></span>
+                <div style="margin-left:auto;display:flex;gap:2px;padding:3px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08)">
+                  <span onClick="{{ hvTiles }}" aria-label="Tiles" style="{{ hvTilesStyle }}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="{{ hvTilesInk }}" stroke-width="2.3"><rect x="4" y="4.5" width="16" height="6" rx="1.6" /><rect x="4" y="13.5" width="16" height="6" rx="1.6" /></svg></span>
+                  <span onClick="{{ hvList }}" aria-label="List" style="{{ hvListStyle }}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="{{ hvListInk }}" stroke-width="2.3" stroke-linecap="round"><path d="M9 6h11M9 12h11M9 18h11" /><path d="M4.5 6h.01M4.5 12h.01M4.5 18h.01" stroke-width="3" /></svg></span>
+                  <span onClick="{{ hvGrid }}" aria-label="Grid" style="{{ hvGridStyle }}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="{{ hvGridInk }}" stroke-width="2.3"><rect x="4" y="4" width="7" height="7" rx="1.6" /><rect x="13" y="4" width="7" height="7" rx="1.6" /><rect x="4" y="13" width="7" height="7" rx="1.6" /><rect x="13" y="13" width="7" height="7" rx="1.6" /></svg></span>
                 </div>
               </div>
-            </sc-if>
+              <sc-if value="{{ hNoPlans }}" hint-placeholder-val="{{ false }}"><div style="background:#fff;border-radius:18px;padding:18px;box-shadow:0 1px 3px rgba(15,18,25,.08);display:flex;align-items:center;gap:12px"><div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:800;color:#0d1117">Nothing on the books yet.</div><div style="font-size:14px;line-height:1.45;font-weight:500;color:#6b7280">RSVP to something in your groups, or post your own.</div></div><span onClick="{{ goCompose }}" style="flex:0 0 auto;display:flex;align-items:center;min-height:40px;padding:0 14px;border-radius:999px;background:#0d1117;color:#fff;font-size:13.5px;font-weight:800;cursor:pointer">Post an event</span></div></sc-if>
+              <sc-for list="{{ hPlanSecs }}" as="sec" hint-placeholder-count="2">
+                <div style="display:flex;flex-direction:column;gap:8px">
+                  <span style="padding:0 4px;font-size:12px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#6b7280">{{ sec.label }}</span>
+                  <sc-if value="{{ hvIsGrid }}" hint-placeholder-val="{{ true }}">
+                    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;align-items:stretch">
+                      <sc-for list="{{ sec.items }}" as="e" hint-placeholder-count="2">
+                        <div onClick="{{ e.open }}" style="display:flex;flex-direction:column;border-radius:18px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">
+                          <div style="{{ e.photoSq }}"><div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.92) 0%, rgba(13,17,23,.4) 45%, rgba(13,17,23,0) 75%)"></div><sc-if value="{{ e.hasTasks }}" hint-placeholder-val="{{ false }}"><div aria-label="You're helping" title="You're helping" style="position:absolute;top:8px;right:8px;display:flex;align-items:center;gap:3px;height:22px;padding:0 8px 0 6px;border-radius:999px;background:rgba(13,17,23,.5);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);font-size:10.5px;font-weight:800;color:#ffd978"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11V6a2 2 0 0 0-4 0v5M14 10V4a2 2 0 0 0-4 0v6M10 10.5V6a2 2 0 0 0-4 0v8a8 8 0 0 0 16 0v-3a2 2 0 0 0-4 0" /></svg>Helping</div></sc-if><sc-if value="{{ e.isLead }}" hint-placeholder-val="{{ false }}"><div aria-label="You're leading" style="position:absolute;top:8px;right:8px;display:flex;align-items:center;gap:3px;height:22px;padding:0 8px 0 6px;border-radius:999px;background:#5b4ae8;box-shadow:0 1px 4px rgba(0,0,0,.3);font-size:10.5px;font-weight:900;color:#fff"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4M5 4h11l-2 4 2 4H5" /></svg>{{ e.leadBadge }}</div></sc-if><div style="position:absolute;left:10px;right:10px;bottom:9px;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.3)"><div style="{{ e.dateInk }}">{{ e.dateLine }}</div><div style="margin-top:2px;font-size:15px;line-height:1.18;font-weight:900;letter-spacing:-.3px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">{{ e.text }}</div><div style="margin-top:3px;display:flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:rgba(255,255,255,.85);min-width:0"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 11px"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Z" /><circle cx="12" cy="10" r="2.4" /></svg><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ e.place }}</span></div></div></div>
+                                                  </div>
+                      </sc-for>
+                    </div>
+                  </sc-if>
+                  <sc-if value="{{ hvIsTiles }}" hint-placeholder-val="{{ false }}"><div style="display:flex;flex-direction:column;gap:14px">
+                    <sc-for list="{{ sec.items }}" as="e" hint-placeholder-count="2">
+                      <div onClick="{{ e.open }}" style="display:flex;flex-direction:column;border-radius:20px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">
+                        <div style="{{ e.photoWide }}"><div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.92) 0%, rgba(13,17,23,.4) 45%, rgba(13,17,23,0) 75%)"></div><sc-if value="{{ e.isLead }}" hint-placeholder-val="{{ false }}"><div aria-label="You're leading" style="position:absolute;top:12px;right:12px;display:flex;align-items:center;gap:3px;height:24px;padding:0 8px 0 6px;border-radius:999px;background:#5b4ae8;box-shadow:0 1px 4px rgba(0,0,0,.3);font-size:11.5px;font-weight:900;color:#fff"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4M5 4h11l-2 4 2 4H5" /></svg>Leading</div></sc-if><div style="position:absolute;left:14px;right:14px;bottom:12px;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.3)"><div style="{{ e.dateInk }}">{{ e.dateLine }}</div><div style="margin-top:2px;font-size:20px;line-height:1.12;font-weight:900;letter-spacing:-.4px">{{ e.text }}</div><div style="margin-top:4px;display:flex;align-items:center;gap:5px;font-size:12.5px;font-weight:700;color:rgba(255,255,255,.88)"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 11px"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Z" /><circle cx="12" cy="10" r="2.4" /></svg>{{ e.place }}</div></div></div>
+                        <sc-if value="{{ e.hasBody }}" hint-placeholder-val="{{ true }}"><div style="padding:12px 14px 14px;display:flex;flex-direction:column;gap:8px">
+                            <sc-if value="{{ e.hasTasks }}" hint-placeholder-val="{{ false }}"><div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:10.5px;font-weight:900;letter-spacing:.9px;color:#8f6405">YOU’RE HELPING:</span><sc-for list="{{ e.tasks }}" as="t" hint-placeholder-count="1"><div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;color:#3d2a00"><span style="flex:0 0 6px;width:6px;height:6px;border-radius:999px;background:#e8a71c"></span><span style="flex:1;min-width:0">{{ t.label }}</span><sc-if value="{{ t.hasTime }}" hint-placeholder-val="{{ false }}"><span style="flex:0 0 auto;padding:2px 8px;border-radius:999px;background:#fdf1d6;font-size:12px;font-weight:800;color:#8f6405">{{ t.time }}</span></sc-if></div></sc-for><sc-if value="{{ e.taskMore }}" hint-placeholder-val="{{ false }}"><span onClick="{{ e.taskToggle }}" style="align-self:flex-start;display:flex;align-items:center;gap:4px;min-height:32px;padding:0 2px;font-size:13px;font-weight:800;color:#8f6405;cursor:pointer">{{ e.taskMoreLabel }}<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#c28a12" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="transform:{{ e.taskChev }}"><path d="M6 9l6 6 6-6" /></svg></span></sc-if></div></sc-if>
+                            <sc-if value="{{ e.isLead }}" hint-placeholder-val="{{ false }}"><div style="display:flex;align-items:stretch;gap:10px"><div style="flex:1;min-width:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;padding:2px 0"><sc-for list="{{ e.org }}" as="o" hint-placeholder-count="4"><div style="display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0"><div style="position:relative;width:40px;height:40px;display:flex;align-items:center;justify-content:center"><svg width="40" height="40" viewBox="0 0 52 52" style="position:absolute;inset:0;transform:rotate(-90deg)"><circle cx="26" cy="26" r="22" fill="{{ o.fill }}" stroke="#eceef2" stroke-width="5" /><circle cx="26" cy="26" r="22" fill="none" stroke="{{ o.ink }}" stroke-width="5" stroke-linecap="round" stroke-dasharray="{{ o.dash }}" /></svg><sc-if value="{{ o.isInv }}" hint-placeholder-val="{{ false }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3b4150" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="position:absolute"><rect x="3.5" y="5.5" width="17" height="13" rx="2" /><path d="m4 7 8 6 8-6" /></svg></sc-if><sc-if value="{{ o.isGo }}" hint-placeholder-val="{{ false }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3b4150" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="position:absolute"><circle cx="9" cy="8.5" r="3" /><path d="M3.5 19a5.5 5.5 0 0 1 11 0" /><path d="M15.5 5.8a3 3 0 0 1 0 5.4M17.5 19a5.5 5.5 0 0 0-2.5-4.6" /></svg></sc-if><sc-if value="{{ o.isSign }}" hint-placeholder-val="{{ false }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3b4150" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="position:absolute"><path d="M10 6h10M10 12h10M10 18h10" /><path d="m3.5 6 1.3 1.3L7 5M3.5 12l1.3 1.3L7 11M3.5 18l1.3 1.3L7 17" /></svg></sc-if><sc-if value="{{ o.isRem }}" hint-placeholder-val="{{ false }}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="{{ o.iconInk }}" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" style="position:absolute"><path d="M9 18h6M10 21h4" /><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3Z" /></svg></sc-if></div><div style="display:flex;flex-direction:column;align-items:center;gap:1px;min-width:0"><span style="{{ o.valStyle }}">{{ o.val }}</span><span style="{{ o.labStyle }}">{{ o.label }}</span></div></div></sc-for></div><sc-if value="{{ e.hasAct }}" hint-placeholder-val="{{ false }}"><div style="flex:0 0 92px;display:flex;flex-direction:column;justify-content:center;gap:2px;padding:10px;border-radius:14px;background:#eeebff"><div style="display:flex;align-items:center;justify-content:space-between"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5b4ae8" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2.5 4.5 13.5H11l-1 8 8.5-11H12l1-8Z" /></svg><span style="display:flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 5px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:11.5px;font-weight:900">{{ e.actN }}</span></div><span style="margin-top:4px;font-size:12.5px;line-height:1.15;font-weight:900;color:#2a1f8f">Actions</span><span style="display:flex;align-items:center;gap:2px;font-size:11px;font-weight:800;color:#5b4ae8">Review<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#5b4ae8" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6" /></svg></span></div></sc-if><sc-if value="{{ e.noAct }}" hint-placeholder-val="{{ false }}"><div style="flex:0 0 92px;display:flex;flex-direction:column;justify-content:center;gap:2px;padding:10px;border-radius:14px;background:#e7f6ec"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0f7a3c" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 10 17l9-10" /></svg><span style="margin-top:4px;font-size:12.5px;line-height:1.15;font-weight:900;color:#0f7a3c">All set</span><span style="font-size:11px;font-weight:700;color:#3f7a55">No actions</span></div></sc-if></div></sc-if>
+                        </div></sc-if>
+                      </div>
+                    </sc-for></div>
+                  </sc-if>
+                  <sc-if value="{{ hvIsList }}" hint-placeholder-val="{{ false }}">
+                    <div style="display:flex;flex-direction:column;gap:14px"><sc-for list="{{ sec.days }}" as="d" hint-placeholder-count="2"><div style="display:flex;flex-direction:column;gap:6px"><span style="padding:0 4px;font-size:13px;font-weight:800;color:#454b55">{{ d.key }}</span><div style="background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08);overflow:hidden">
+                      <sc-for list="{{ d.items }}" as="e" hint-placeholder-count="1">
+                        <div onClick="{{ e.open }}" style="{{ e.rowStyle }}" style-hover="background:#f7f7f9">
+                          <span style="{{ e.thumbSq }}"><span aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.88) 0%, rgba(13,17,23,.35) 50%, rgba(13,17,23,0) 75%)"></span><span style="position:absolute;left:8px;right:6px;bottom:7px;display:flex;flex-direction:column;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.35)"><span style="font-size:10.5px;font-weight:900;letter-spacing:.5px;text-transform:uppercase;white-space:nowrap">{{ e.dTop }}</span><sc-if value="{{ e.hasDTime }}" hint-placeholder-val="{{ false }}"><span style="font-size:12.5px;font-weight:800;color:rgba(255,255,255,.9)">{{ e.dTime }}</span></sc-if></span></span>
+                          <div style="flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:2px">
+                            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><sc-if value="{{ e.isLead }}" hint-placeholder-val="{{ false }}"><span style="display:flex;align-items:center;gap:3px;height:20px;padding:0 7px 0 5px;border-radius:999px;background:#eeebff;color:#4a3ad4;font-size:10.5px;font-weight:800"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4M5 4h11l-2 4 2 4H5" /></svg>Leading</span></sc-if></div>
+                            <div style="font-size:15.5px;line-height:1.25;font-weight:800;color:#0d1117">{{ e.text }}</div>
+                            <div style="display:flex;align-items:center;gap:4px;font-size:12.5px;font-weight:600;color:#6b7280;min-width:0"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 11px"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Z" /><circle cx="12" cy="10" r="2.4" /></svg><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ e.place }}</span></div>
+                            <sc-if value="{{ e.hasBody }}" hint-placeholder-val="{{ true }}"><div style="margin-top:6px;display:flex;flex-direction:column;gap:6px">
+                            <sc-if value="{{ e.hasTasks }}" hint-placeholder-val="{{ false }}"><div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:10.5px;font-weight:900;letter-spacing:.9px;color:#8f6405">YOU’RE HELPING:</span><sc-for list="{{ e.tasks }}" as="t" hint-placeholder-count="1"><div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;color:#3d2a00"><span style="flex:0 0 6px;width:6px;height:6px;border-radius:999px;background:#e8a71c"></span>{{ t.label }}</div></sc-for><sc-if value="{{ e.taskMore }}" hint-placeholder-val="{{ false }}"><span onClick="{{ e.taskToggle }}" style="align-self:flex-start;display:flex;align-items:center;gap:4px;min-height:32px;padding:0 2px;font-size:13px;font-weight:800;color:#8f6405;cursor:pointer">{{ e.taskMoreLabel }}<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#c28a12" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="transform:{{ e.taskChev }}"><path d="M6 9l6 6 6-6" /></svg></span></sc-if></div></sc-if>
+                            </div></sc-if>
+                          </div><sc-if value="{{ e.isLead }}" hint-placeholder-val="{{ false }}"><div style="flex:0 0 100%;min-width:0"><div style="display:flex;align-items:stretch;gap:10px"><div style="flex:1;min-width:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;padding:2px 0"><sc-for list="{{ e.org }}" as="o" hint-placeholder-count="4"><div style="display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0"><div style="position:relative;width:40px;height:40px;display:flex;align-items:center;justify-content:center"><svg width="40" height="40" viewBox="0 0 52 52" style="position:absolute;inset:0;transform:rotate(-90deg)"><circle cx="26" cy="26" r="22" fill="{{ o.fill }}" stroke="#eceef2" stroke-width="5" /><circle cx="26" cy="26" r="22" fill="none" stroke="{{ o.ink }}" stroke-width="5" stroke-linecap="round" stroke-dasharray="{{ o.dash }}" /></svg><sc-if value="{{ o.isInv }}" hint-placeholder-val="{{ false }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3b4150" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="position:absolute"><rect x="3.5" y="5.5" width="17" height="13" rx="2" /><path d="m4 7 8 6 8-6" /></svg></sc-if><sc-if value="{{ o.isGo }}" hint-placeholder-val="{{ false }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3b4150" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="position:absolute"><circle cx="9" cy="8.5" r="3" /><path d="M3.5 19a5.5 5.5 0 0 1 11 0" /><path d="M15.5 5.8a3 3 0 0 1 0 5.4M17.5 19a5.5 5.5 0 0 0-2.5-4.6" /></svg></sc-if><sc-if value="{{ o.isSign }}" hint-placeholder-val="{{ false }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3b4150" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="position:absolute"><path d="M10 6h10M10 12h10M10 18h10" /><path d="m3.5 6 1.3 1.3L7 5M3.5 12l1.3 1.3L7 11M3.5 18l1.3 1.3L7 17" /></svg></sc-if><sc-if value="{{ o.isRem }}" hint-placeholder-val="{{ false }}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="{{ o.iconInk }}" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" style="position:absolute"><path d="M9 18h6M10 21h4" /><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3Z" /></svg></sc-if></div><div style="display:flex;flex-direction:column;align-items:center;gap:1px;min-width:0"><span style="{{ o.valStyle }}">{{ o.val }}</span><span style="{{ o.labStyle }}">{{ o.label }}</span></div></div></sc-for></div><sc-if value="{{ e.hasAct }}" hint-placeholder-val="{{ false }}"><div style="flex:0 0 92px;display:flex;flex-direction:column;justify-content:center;gap:2px;padding:10px;border-radius:14px;background:#eeebff"><div style="display:flex;align-items:center;justify-content:space-between"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5b4ae8" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2.5 4.5 13.5H11l-1 8 8.5-11H12l1-8Z" /></svg><span style="display:flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 5px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:11.5px;font-weight:900">{{ e.actN }}</span></div><span style="margin-top:4px;font-size:12.5px;line-height:1.15;font-weight:900;color:#2a1f8f">Actions</span><span style="display:flex;align-items:center;gap:2px;font-size:11px;font-weight:800;color:#5b4ae8">Review<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#5b4ae8" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6" /></svg></span></div></sc-if><sc-if value="{{ e.noAct }}" hint-placeholder-val="{{ false }}"><div style="flex:0 0 92px;display:flex;flex-direction:column;justify-content:center;gap:2px;padding:10px;border-radius:14px;background:#e7f6ec"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0f7a3c" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 10 17l9-10" /></svg><span style="margin-top:4px;font-size:12.5px;line-height:1.15;font-weight:900;color:#0f7a3c">All set</span><span style="font-size:11px;font-weight:700;color:#3f7a55">No actions</span></div></sc-if></div></div></sc-if>
+                        </div>
+                      </sc-for>
+                    </div></div></sc-for></div>
+                  </sc-if>
+                </div>
+              </sc-for>
+            </div>
 
             <sc-if value="{{ homeGroupsOn }}" hint-placeholder-val="{{ false }}">
             <div style="display:flex;flex-direction:column;gap:7px">
@@ -209,68 +171,93 @@
     </sc-if>
 
     <sc-if value="{{ isCalendar }}" hint-placeholder-val="{{ false }}">
-      <div data-screen-label="Calendar" style="min-height:852px;background:#e8eaee">
-        <header style="background:#fff;padding:12px 16px 14px;display:flex;flex-direction:column;gap:12px">
-          <div style="display:flex;align-items:center;justify-content:space-between"><div onClick="{{ goHome }}" aria-label="Spark Hub" style="display:flex;align-items:center;gap:6px;min-height:44px;cursor:pointer"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M13.2 2.2 7.2 13.1l3.9-.35-.9 8.8 6.9-11.2-4.1.4z" fill="#e8a71c" stroke="#e8a71c" stroke-width="1.7" stroke-linejoin="round" /></svg><span style="font-size:18px;line-height:1;font-weight:900;letter-spacing:-.5px;color:#0d1117">Spark Hub</span></div>
-            <div style="display:flex;align-items:center;gap:8px"><div style="display:flex;gap:2px;padding:3px;border-radius:999px;background:#f2f3f6"><sc-for list="{{ calViews }}" as="v" hint-placeholder-count="2"><span onClick="{{ v.pick }}" style="{{ v.style }}">{{ v.label }}</span></sc-for></div><div onClick="{{ goProfile }}" aria-label="Profile" style="{{ headAvatarStyle }}">{{ headInitial }}</div></div>
-          </div>
-          <div style="display:flex;align-items:center;justify-content:space-between">
-            <span onClick="{{ calPrev }}" aria-label="Previous month" style="width:40px;height:40px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0d1117" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 5.5 8 12l6.5 6.5" /></svg></span>
-            <h1 style="margin:0;font-size:24px;font-weight:900;letter-spacing:-.6px;color:#0d1117">{{ calMonthLabel }}</h1>
-            <span onClick="{{ calNext }}" aria-label="Next month" style="width:40px;height:40px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0d1117" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 5.5 16 12l-6.5 6.5" /></svg></span>
-          </div>
-        </header>
-        <sc-if value="{{ calIsMonth }}" hint-placeholder-val="{{ true }}">
-          <div style="background:#fff;padding:0 10px 12px;border-bottom:1px solid #e6e7eb">
-            <div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));padding:0 0 4px"><sc-for list="{{ calDows }}" as="d" hint-placeholder-count="7"><span style="text-align:center;font-size:11px;font-weight:800;letter-spacing:.6px;color:#9aa0ac">{{ d.label }}</span></sc-for></div>
-            <div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px">
-              <sc-for list="{{ calCells }}" as="c" hint-placeholder-count="35">
-                <div onClick="{{ c.pick }}" style="{{ c.style }}"><span style="{{ c.numStyle }}">{{ c.num }}</span><span style="display:flex;gap:3px;height:6px;align-items:center"><sc-for list="{{ c.dots }}" as="d" hint-placeholder-count="0"><span style="{{ d.style }}"></span></sc-for></span></div>
-              </sc-for>
-            </div>
-            <div style="display:flex;gap:14px;padding:12px 6px 0;font-size:11.5px;font-weight:700;color:#6b7280">
-              <span style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:999px;background:#149a4b"></span>On the books</span>
-              <span style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:999px;box-shadow:inset 0 0 0 2px #e8a71c"></span>Floated (idea)</span>
-              <span style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:999px;background:#b3b8c2"></span>Happened</span>
-            </div>
-          </div>
-          <div style="padding:16px 14px 26px;display:flex;flex-direction:column;gap:10px">
-            <span style="font-size:12px;font-weight:800;letter-spacing:1.2px;color:#6b7280;text-transform:uppercase;padding:0 4px">{{ calDayLabel }}</span>
-            <sc-if value="{{ calDayEmpty }}" hint-placeholder-val="{{ false }}">
-              <div style="background:#fff;border-radius:18px;padding:16px;box-shadow:0 1px 3px rgba(15,18,25,.08);display:flex;align-items:center;gap:12px"><div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">Nothing on this day.</div><div style="font-size:13.5px;font-weight:600;color:#6b7280">Wide open if you’re planning something.</div></div><span onClick="{{ calPostHere }}" style="flex:0 0 auto;display:flex;align-items:center;min-height:40px;padding:0 14px;border-radius:999px;background:#0d1117;color:#fff;font-size:13.5px;font-weight:800;cursor:pointer">Post an event</span></div>
-            </sc-if>
-            <sc-if value="{{ calDayHas }}" hint-placeholder-val="{{ true }}">
-              <div style="background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08);overflow:hidden">
-                <sc-for list="{{ calDayItems }}" as="e" hint-placeholder-count="1">
-                <div onClick="{{ e.open }}" style="{{ e.rowStyle }}" style-hover="background:#f7f7f9">
-                  <span style="{{ e.badgeStyle }}"><span style="{{ e.badgeTop }}">{{ e.mon }}</span><span style="display:block;font-size:18px;line-height:1.2;font-weight:900;padding:3px 0 4px">{{ e.day }}</span></span>
-                  <div style="flex:1 1 auto;min-width:0"><div style="font-size:9.5px;line-height:1.2;font-weight:800;letter-spacing:.9px;text-transform:uppercase;color:#7b6ef0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ e.group }}</div><div style="margin-top:1px;font-size:15.5px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ e.text }}</div><div style="font-size:13px;font-weight:600;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ e.meta }}</div></div>
-                  <span style="{{ e.pillStyle }}">{{ e.pill }}</span>
-                </div>
-                </sc-for>
-              </div>
-            </sc-if>
-          </div>
-        </sc-if>
-        <sc-if value="{{ calIsList }}" hint-placeholder-val="{{ false }}">
-          <div style="padding:16px 14px 26px;display:flex;flex-direction:column;gap:18px">
-            <sc-if value="{{ calListEmpty }}" hint-placeholder-val="{{ false }}"><div style="background:#fff;border-radius:18px;padding:16px;box-shadow:0 1px 3px rgba(15,18,25,.08);font-size:14.5px;line-height:1.45;font-weight:500;color:#6b7280">Nothing coming up yet.</div></sc-if>
-            <sc-for list="{{ calMonths }}" as="m" hint-placeholder-count="2">
-              <div>
-                <span style="font-size:12px;font-weight:800;letter-spacing:1.2px;color:#6b7280;text-transform:uppercase;display:block;padding:0 4px 8px">{{ m.label }}</span>
-                <div style="background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08);overflow:hidden">
-                  <sc-for list="{{ m.items }}" as="e" hint-placeholder-count="2">
-                  <div onClick="{{ e.open }}" style="{{ e.rowStyle }}" style-hover="background:#f7f7f9">
-                  <span style="{{ e.badgeStyle }}"><span style="{{ e.badgeTop }}">{{ e.mon }}</span><span style="display:block;font-size:18px;line-height:1.2;font-weight:900;padding:3px 0 4px">{{ e.day }}</span></span>
-                  <div style="flex:1 1 auto;min-width:0"><div style="font-size:9.5px;line-height:1.2;font-weight:800;letter-spacing:.9px;text-transform:uppercase;color:#7b6ef0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ e.group }}</div><div style="margin-top:1px;font-size:15.5px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ e.text }}</div><div style="font-size:13px;font-weight:600;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ e.meta }}</div></div>
-                  <span style="{{ e.pillStyle }}">{{ e.pill }}</span>
-                </div>
+      <div data-screen-label="Calendar" style="position:relative;min-height:852px;background:#e8eaee"><div role="note" aria-label="Rough draft" style="position:absolute;top:150px;right:22px;z-index:20;pointer-events:none;user-select:none;transform:rotate(-8deg);padding:10px 20px;border:4px solid #3d2a00;border-radius:12px;background:#f5b428;color:#3d2a00;font-size:22px;line-height:1;font-weight:900;letter-spacing:1.6px;text-transform:uppercase;white-space:nowrap;box-shadow:0 4px 12px rgba(61,42,0,.3)">Rough draft</div>
+        <header style="background:#fff;padding:12px 16px 16px;display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;align-items:center;justify-content:space-between"><div onClick="{{ goHome }}" aria-label="Spark Hub" style="display:flex;align-items:center;gap:6px;min-height:44px;cursor:pointer"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M13.2 2.2 7.2 13.1l3.9-.35-.9 8.8 6.9-11.2-4.1.4z" fill="#e8a71c" stroke="#e8a71c" stroke-width="1.7" stroke-linejoin="round" /></svg><span style="font-size:18px;line-height:1;font-weight:900;letter-spacing:-.5px;color:#0d1117">Spark Hub</span></div><div onClick="{{ goProfile }}" aria-label="Profile" style="{{ headAvatarStyle }}">{{ headInitial }}</div></div>
+          <div style="display:flex;flex-direction:column;gap:2px">
+            <span style="font-size:12px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#8a909b">Calendar</span>
+            <div style="position:relative;align-self:flex-start">
+              <div onClick="{{ toggleCalGrp }}" style="display:flex;align-items:center;gap:8px;min-height:44px;cursor:pointer"><span style="font-size:32px;line-height:1.05;font-weight:900;letter-spacing:-1px;color:#0d1117">{{ calGrpLabel }}</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0d1117" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6" /></svg></div>
+              <sc-if value="{{ calGrpOpen }}" hint-placeholder-val="{{ false }}">
+                <div onClick="{{ stop }}" style="position:absolute;top:calc(100% + 4px);left:-4px;width:290px;background:#fff;border-radius:18px;box-shadow:0 12px 36px rgba(15,18,25,.22),0 0 0 1px rgba(15,18,25,.05);padding:6px;display:flex;flex-direction:column;z-index:20">
+                  <sc-for list="{{ calGrpOpts }}" as="o" hint-placeholder-count="4">
+                    <div onClick="{{ o.pick }}" style="{{ o.style }}" style-hover="background:#f7f7f9"><span style="{{ o.thumb }}"><sc-if value="{{ o.isAll }}" hint-placeholder-val="{{ false }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5" /><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5" /><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5" /><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5" /></svg></sc-if></span><span style="{{ o.nameStyle }}">{{ o.label }}</span><span style="{{ o.countStyle }}">{{ o.count }}</span><span style="flex:0 0 16px;width:16px;display:flex"><sc-if value="{{ o.on }}" hint-placeholder-val="{{ false }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5b4ae8" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg></sc-if></span></div>
                   </sc-for>
                 </div>
-              </div>
-            </sc-for>
+              </sc-if>
+            </div>
           </div>
-        </sc-if>
+        </header>
+        <div style="padding:14px 14px 0;display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;gap:16px;border-bottom:1px solid #d5d8df;padding:0 4px;overflow-x:auto;scrollbar-width:none"><sc-for list="{{ calRoles }}" as="r" hint-placeholder-count="4"><span onClick="{{ r.pick }}" style="{{ r.style }}">{{ r.label }}<span style="{{ r.countStyle }}">{{ r.count }}</span></span></sc-for></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 4px;min-height:40px">
+            <sc-if value="{{ calHasNav }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:center;gap:6px;min-width:0">
+                <span onClick="{{ calPrev }}" aria-label="Previous" style="flex:0 0 32px;height:32px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);display:flex;align-items:center;justify-content:center;cursor:pointer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0d1117" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 5.5 8 12l6.5 6.5" /></svg></span>
+                <div style="display:flex;flex-direction:column;min-width:0;padding:0 4px"><span style="font-size:18px;line-height:1.15;font-weight:900;letter-spacing:-.4px;color:#0d1117;white-space:nowrap">{{ calNavLabel }}</span><span style="font-size:11.5px;font-weight:700;color:#8a909b">{{ calNavSub }}</span></div>
+                <span onClick="{{ calNext }}" aria-label="Next" style="flex:0 0 32px;height:32px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);display:flex;align-items:center;justify-content:center;cursor:pointer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0d1117" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 5.5 16 12l-6.5 6.5" /></svg></span>
+              </div>
+            </sc-if>
+            <sc-if value="{{ calIsList }}" hint-placeholder-val="{{ true }}"><span style="font-size:13px;font-weight:800;letter-spacing:1.1px;text-transform:uppercase;color:#6b7280">Coming up</span></sc-if>
+            <div style="position:relative;flex:0 0 auto">
+              <span onClick="{{ toggleCalView }}" style="display:flex;align-items:center;gap:5px;min-height:32px;padding:0 9px 0 10px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);font-size:13px;font-weight:800;color:#0d1117;cursor:pointer">{{ calViewLabel }}<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6" /></svg></span>
+              <sc-if value="{{ calViewOpen }}" hint-placeholder-val="{{ false }}">
+                <div onClick="{{ stop }}" style="position:absolute;top:38px;right:0;width:150px;background:#fff;border-radius:14px;box-shadow:0 12px 32px rgba(15,18,25,.2),0 0 0 1px rgba(15,18,25,.05);padding:5px;display:flex;flex-direction:column;z-index:20">
+                  <sc-for list="{{ calViews }}" as="v" hint-placeholder-count="3"><div onClick="{{ v.pick }}" style="{{ v.style }}" style-hover="background:#f7f7f9">{{ v.label }}</div></sc-for>
+                </div>
+              </sc-if>
+            </div>
+          </div>
+          <sc-if value="{{ calIsMonth }}" hint-placeholder-val="{{ false }}">
+            <div style="background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08);padding:10px 8px 12px">
+              <div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));padding:0 0 4px"><sc-for list="{{ calDows }}" as="d" hint-placeholder-count="7"><span style="text-align:center;font-size:11px;font-weight:800;letter-spacing:.6px;color:#9aa0ac">{{ d.label }}</span></sc-for></div>
+              <div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px">
+                <sc-for list="{{ calCells }}" as="c" hint-placeholder-count="35">
+                  <div onClick="{{ c.pick }}" style="{{ c.style }}"><span style="{{ c.numStyle }}">{{ c.num }}</span><span style="display:flex;gap:3px;height:6px;align-items:center"><sc-for list="{{ c.dots }}" as="d" hint-placeholder-count="0"><span style="{{ d.style }}"></span></sc-for></span></div>
+                </sc-for>
+              </div>
+              <div style="display:flex;flex-wrap:wrap;gap:6px 14px;padding:12px 6px 0;font-size:11.5px;font-weight:700;color:#6b7280">
+                <span style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:999px;background:#5b4ae8"></span>Leading</span>
+                <span style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:999px;background:#149a4b"></span>Going</span>
+                <span style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:999px;background:#e8a71c"></span>Helping</span>
+                <span style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:999px;box-shadow:inset 0 0 0 2px #5b4ae8"></span>Floated date</span>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+        <div style="padding:16px 14px 26px;display:flex;flex-direction:column;gap:22px">
+          <sc-if value="{{ calEmpty }}" hint-placeholder-val="{{ false }}"><div style="background:#fff;border-radius:18px;padding:18px;box-shadow:0 1px 3px rgba(15,18,25,.08);display:flex;flex-direction:column;gap:4px"><div style="font-size:16px;font-weight:800;color:#0d1117">Nothing here yet.</div><div style="font-size:14.5px;line-height:1.45;font-weight:500;color:#6b7280">{{ calEmptyNote }}</div></div></sc-if>
+          <sc-for list="{{ calSections }}" as="sec" hint-placeholder-count="2">
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <sc-if value="{{ sec.hasLabel }}" hint-placeholder-val="{{ true }}"><span style="font-size:20px;font-weight:900;letter-spacing:-.4px;color:#0d1117;padding:0 4px">{{ sec.label }}</span></sc-if>
+              <sc-for list="{{ sec.days }}" as="d" hint-placeholder-count="3">
+                <div style="display:grid;grid-template-columns:44px minmax(0,1fr);gap:10px;align-items:start">
+                  <div style="display:flex;flex-direction:column;align-items:center;gap:1px;padding-top:9px"><span style="{{ d.dowStyle }}">{{ d.dow }}</span><span style="{{ d.numStyle }}">{{ d.num }}</span></div>
+                  <div>
+                    <sc-if value="{{ d.has }}" hint-placeholder-val="{{ true }}">
+                      <div style="background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08);overflow:hidden">
+                        <sc-for list="{{ d.rows }}" as="e" hint-placeholder-count="1">
+                      <div onClick="{{ e.open }}" style="{{ e.rowStyle }}" style-hover="background:#f7f7f9">
+                        <div style="flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:1px">
+                          <div style="font-size:10px;line-height:1.3;font-weight:800;letter-spacing:.9px;text-transform:uppercase;color:#7b6ef0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ e.eyebrow }}</div>
+                          <div style="font-size:15.5px;line-height:1.3;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ e.text }}</div>
+                          <div style="font-size:13px;line-height:1.35;font-weight:600;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ e.sub }}</div>
+                          <sc-if value="{{ e.hasHelp }}" hint-placeholder-val="{{ false }}"><span style="align-self:flex-start;max-width:100%;margin-top:5px;display:flex;align-items:center;gap:5px;padding:3px 10px 3px 4px;border-radius:999px;background:#fdf4e2;color:#8f6405;font-size:12px;font-weight:800"><span style="flex:0 0 16px;width:16px;height:16px;border-radius:999px;background:#e8a71c;display:flex;align-items:center;justify-content:center"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg></span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ e.helpTxt }}</span></span></sc-if>
+                        </div>
+                        <span style="{{ e.pillStyle }}">{{ e.pill }}</span>
+                      </div>
+                        </sc-for>
+                      </div>
+                    </sc-if>
+                    <sc-if value="{{ d.empty }}" hint-placeholder-val="{{ false }}">
+                      <div style="min-height:50px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 14px;border-radius:16px;border:1.5px dashed #cfd3da"><span style="font-size:13.5px;font-weight:700;color:#8a909b">{{ d.emptyText }}</span><sc-if value="{{ d.canPost }}" hint-placeholder-val="{{ false }}"><span onClick="{{ d.post }}" style="display:flex;align-items:center;min-height:40px;font-size:13.5px;font-weight:800;color:#5b4ae8;cursor:pointer">Post an event</span></sc-if></div>
+                    </sc-if>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </sc-for>
+        </div>
         <div style="height:73px"></div>
       </div>
     </sc-if>
@@ -312,10 +299,10 @@
     </sc-if>
 
     <sc-if value="{{ isOwn }}" hint-placeholder-val="{{ false }}">
-      <div data-screen-label="You own" style="min-height:852px;background:#e8eaee">
+      <div data-screen-label="Your events" style="position:relative;min-height:852px;background:#e8eaee"><div role="note" aria-label="Rough draft" style="position:absolute;top:150px;right:22px;z-index:20;pointer-events:none;user-select:none;transform:rotate(-8deg);padding:10px 20px;border:4px solid #3d2a00;border-radius:12px;background:#f5b428;color:#3d2a00;font-size:22px;line-height:1;font-weight:900;letter-spacing:1.6px;text-transform:uppercase;white-space:nowrap;box-shadow:0 4px 12px rgba(61,42,0,.3)">Rough draft</div>
         <header style="background:#fff;padding:12px 16px 18px">
           <div style="display:flex;align-items:center;justify-content:space-between"><div onClick="{{ goHome }}" aria-label="Spark Hub" style="display:flex;align-items:center;gap:6px;min-height:44px;cursor:pointer"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M13.2 2.2 7.2 13.1l3.9-.35-.9 8.8 6.9-11.2-4.1.4z" fill="#e8a71c" stroke="#e8a71c" stroke-width="1.7" stroke-linejoin="round" /></svg><span style="font-size:18px;line-height:1;font-weight:900;letter-spacing:-.5px;color:#0d1117">Spark Hub</span></div><div onClick="{{ goProfile }}" aria-label="Profile" style="{{ headAvatarStyle }}">{{ headInitial }}</div></div>
-          <h1 style="margin:14px 0 0;font-size:36px;line-height:1;font-weight:900;letter-spacing:-1.2px;color:#0d1117">You own</h1>
+          <h1 style="margin:14px 0 0;font-size:36px;line-height:1;font-weight:900;letter-spacing:-1.2px;color:#0d1117">Your events &amp; ideas</h1>
           <div style="margin-top:6px;font-size:15px;font-weight:600;color:#6b7280">{{ ownSub }}</div>
           <div style="margin-top:16px;display:flex;gap:8px">
             <button onClick="{{ goCompose }}" style="flex:1 1 0;min-height:48px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:15px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer" style-hover="background:#4a3ad4"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>Post an event</button>
@@ -394,31 +381,24 @@
 
     <sc-if value="{{ isBrowse }}" hint-placeholder-val="{{ false }}">
       <div data-screen-label="Browse" style="{{ browseBg }}">
-        <header style="position:relative;height:180px;background:#e8a71c;overflow:visible">
+        <header style="position:relative;height:210px;background:#2b303a;overflow:hidden">
           <div aria-hidden="true" style="{{ browsePhotoStyle }}"></div>
-          <div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to bottom, rgba(13,17,23,.85) 0%, rgba(13,17,23,.56) 30%, rgba(13,17,23,.52) 45%, rgba(13,17,23,.72) 62%, rgba(13,17,23,.96) 100%)"></div>
-          <div onClick="{{ goGroups }}" aria-label="All your groups" style="position:absolute;top:12px;right:12px;display:flex;align-items:center;gap:6px;min-height:40px;padding:0 14px 0 11px;border-radius:999px;background:rgba(255,255,255,.18);cursor:pointer;z-index:3" style-hover="background:rgba(255,255,255,.3)">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2" /><path d="M2.8 19c.5-3.3 3-5 6.2-5s5.7 1.7 6.2 5" /><circle cx="17" cy="9" r="2.6" /><path d="M16.5 14c2.6.1 4.3 1.6 4.7 4.2" /></svg>
-            <span style="font-size:13px;font-weight:800;color:#fff">Groups</span>
-          </div>
+          <div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to bottom, rgba(13,17,23,.7) 0%, rgba(13,17,23,.4) 32%, rgba(13,17,23,.5) 55%, rgba(13,17,23,.95) 100%)"></div>
+          
+          <sc-if value="{{ isGroupAdmin }}" hint-placeholder-val="{{ false }}"><span onClick="{{ editGroup }}" role="button" aria-label="Edit group" style="position:absolute;top:12px;right:12px;z-index:3;display:flex;align-items:center;gap:6px;min-height:40px;padding:0 14px 0 12px;border-radius:999px;background:rgba(255,255,255,.18);color:#fff;font-size:13px;font-weight:800;cursor:pointer" style-hover="background:rgba(255,255,255,.3)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16v4Z" /></svg>Edit</span></sc-if>
           <div onClick="{{ goHome }}" role="link" aria-label="Spark Hub home" style="position:absolute;top:10.5px;left:16px;display:flex;align-items:center;gap:6px;min-height:44px;z-index:2;cursor:pointer" style-hover="opacity:.85">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M13.2 2.2 7.2 13.1l3.9-.35-.9 8.8 6.9-11.2-4.1.4z" fill="#f3c55a" stroke="#f3c55a" stroke-width="1.7" stroke-linejoin="round" /><path d="M4.6 4.6 6.9 7.2" stroke="#e8a71c" stroke-width="1.1" stroke-linecap="round" /><path d="M1.9 15.2 5.1 14.9" stroke="#e8a71c" stroke-width="1.1" stroke-linecap="round" /><path d="M19.4 4.6 17.1 7.2" stroke="#e8a71c" stroke-width="1.1" stroke-linecap="round" /><path d="M22.1 15.2 18.9 14.9" stroke="#e8a71c" stroke-width="1.1" stroke-linecap="round" /></svg>
             <span style="font-size:18px;line-height:1;font-weight:900;letter-spacing:-.5px;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.3)">Spark Hub</span>
           </div>
           <div style="position:absolute;left:20px;right:16px;bottom:18px;display:flex;align-items:flex-end;justify-content:space-between;gap:12px;z-index:2">
-            <div style="flex:1 1 auto;min-width:0;color:#fff">
-              <sc-if value="{{ isGroupAdmin }}" hint-placeholder-val="{{ false }}">
-                <div onClick="{{ editGroup }}" role="button" aria-label="Edit group" style="display:flex;align-items:center;gap:7px;min-height:44px;margin:-12px 0 -8px;cursor:pointer;min-width:0" style-hover="opacity:.85">
-                  <span style="min-width:0;font-size:12.5px;font-weight:800;letter-spacing:1.3px;text-transform:uppercase;color:#f3c55a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ groupName }}</span>
-                  <span style="flex:0 0 22px;width:22px;height:22px;border-radius:999px;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16v4Z" /></svg></span>
-                </div>
-              </sc-if>
-              <sc-if value="{{ notGroupAdmin }}" hint-placeholder-val="{{ true }}">
-                <div style="font-size:12.5px;font-weight:800;letter-spacing:1.3px;text-transform:uppercase;color:#f3c55a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ groupName }}</div>
-              </sc-if>
-              <h1 style="margin:4px 0 0;font-size:40px;line-height:1;font-weight:900;letter-spacing:-1.2px;color:#fff">{{ browseTitle }}</h1>
+            <div style="flex:1 1 auto;min-width:0;color:#fff;display:flex;flex-direction:column;gap:4px">
+              <span style="font-size:12px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:rgba(255,255,255,.75)">{{ gpMemberLine }}</span>
+              <div style="display:flex;align-items:flex-end;gap:8px;min-width:0">
+                <h1 style="margin:0;min-width:0;font-size:30px;line-height:1.02;font-weight:900;letter-spacing:-.8px;color:#fff;text-wrap:balance;text-shadow:0 1px 8px rgba(0,0,0,.3)">{{ groupName }}</h1>
+                
+              </div>
             </div>
-            <button onClick="{{ goCompose }}" style="flex:0 0 auto;display:flex;align-items:center;gap:7px;min-height:46px;padding:0 18px 0 14px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:15px;font-weight:800;white-space:nowrap;box-shadow:0 6px 18px rgba(91,74,232,.45);cursor:pointer" style-hover="background:#4a3ad4">
+            <button onClick="{{ goCompose }}" style="flex:0 0 auto;display:flex;align-items:center;gap:6px;min-height:44px;padding:0 16px 0 12px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:15px;font-weight:800;white-space:nowrap;box-shadow:0 6px 18px rgba(91,74,232,.45);cursor:pointer" style-hover="background:#4a3ad4">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>
               I have an idea
             </button>
@@ -451,30 +431,12 @@
         </div>
         <sc-if value="{{ showSortRow }}" hint-placeholder-val="{{ true }}">
         <div style="position:relative;padding:8px 14px 0;display:flex;gap:8px;z-index:3;align-items:center">
-          <div style="position:relative;flex:0 0 auto;display:flex;order:2">
-            <div onClick="{{ toggleViewMenu }}" aria-label="Change view" style="display:flex;align-items:center;gap:6px;min-height:40px;padding:0 4px;cursor:pointer" style-hover="opacity:.75">
-              <span style="display:flex;color:#6b7280">{{ viewIcon }}</span>
-              <span style="font-size:14px;font-weight:700;color:#6b7280">{{ viewLabel }}</span>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6" /></svg>
-            </div>
-            <sc-if value="{{ viewMenuOpen }}" hint-placeholder-val="{{ false }}">
-              <div style="position:absolute;top:calc(100% + 6px);right:0;min-width:200px;background:#fff;border:1px solid #eceef2;border-radius:16px;padding:6px;box-shadow:0 18px 44px rgba(15,18,25,.2);animation:popIn 280ms cubic-bezier(.22,.9,.28,1) both">
-                <div style="padding:8px 12px 6px;font-size:11.5px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#9aa0ac">View</div>
-                <sc-for list="{{ viewRows }}" as="vr" hint-placeholder-count="3">
-                  <div onClick="{{ vr.pick }}" style="{{ vr.rowStyle }}">
-                    <span style="display:flex;align-items:center;gap:10px">
-                      <span style="{{ vr.iconStyle }}">{{ vr.icon }}</span>
-                      <span style="{{ vr.textStyle }}">{{ vr.label }}</span>
-                    </span>
-                    <sc-if value="{{ vr.on }}" hint-placeholder-val="{{ false }}">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5b4ae8" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7" /></svg>
-                    </sc-if>
-                  </div>
-                </sc-for>
-              </div>
-            </sc-if>
+          <div style="order:2;flex:0 0 auto;display:flex;gap:2px;padding:3px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08)">
+            <span onClick="{{ gvSetTiles }}" aria-label="Tiles" style="{{ gvTilesStyle }}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="{{ gvTilesInk }}" stroke-width="2.3"><rect x="4" y="4.5" width="16" height="6" rx="1.6" /><rect x="4" y="13.5" width="16" height="6" rx="1.6" /></svg></span>
+            <span onClick="{{ gvSetList }}" aria-label="List" style="{{ gvListStyle }}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="{{ gvListInk }}" stroke-width="2.3" stroke-linecap="round"><path d="M9 6h11M9 12h11M9 18h11" /><path d="M4.5 6h.01M4.5 12h.01M4.5 18h.01" stroke-width="3" /></svg></span>
+            <span onClick="{{ gvSetGrid }}" aria-label="Grid" style="{{ gvGridStyle }}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="{{ gvGridInk }}" stroke-width="2.3"><rect x="4" y="4" width="7" height="7" rx="1.6" /><rect x="13" y="4" width="7" height="7" rx="1.6" /><rect x="4" y="13" width="7" height="7" rx="1.6" /><rect x="13" y="13" width="7" height="7" rx="1.6" /></svg></span>
           </div>
-          <div style="position:relative;flex:1 1 auto;display:flex;order:1">
+          <div style="flex:1 1 auto;order:1;display:flex;align-items:center"><sc-if value="{{ gpHideSort }}" hint-placeholder-val="{{ true }}"><span style="padding:0 4px;font-size:14px;font-weight:700;color:#6b7280">{{ gpCountLine }}</span></sc-if><sc-if value="{{ gpShowSort }}" hint-placeholder-val="{{ false }}"><div style="position:relative;flex:1 1 auto;display:flex;order:1">
             <div onClick="{{ toggleSortMenu }}" style="display:flex;align-items:center;gap:5px;min-height:40px;padding:0 4px;cursor:pointer" style-hover="opacity:.75">
               <span style="font-size:14px;font-weight:700;color:#6b7280">{{ sortLabel }}</span>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6" /></svg>
@@ -492,11 +454,11 @@
                 </sc-for>
               </div>
             </sc-if>
-          </div>
+          </div></sc-if></div>
         </div>
 
         </sc-if>
-        <div style="padding:4px 14px 22px;display:flex;flex-direction:column;gap:14px">
+        <div style="padding:10px 14px 22px;display:flex;flex-direction:column;gap:22px">
           <sc-if value="{{ noGroups }}" hint-placeholder-val="{{ false }}"><div style="background:#fff;border-radius:18px;padding:18px;box-shadow:0 1px 3px rgba(15,18,25,.08);display:flex;flex-direction:column;gap:4px"><div style="font-size:16.5px;font-weight:800;letter-spacing:-.2px;color:#0d1117">You’re not in a group yet.</div><div style="font-size:15px;line-height:1.45;font-weight:500;color:#5c6270">Join one with a code from its organiser.</div><button onClick="{{ openJoin }}" style="margin-top:12px;min-height:48px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:15.5px;font-weight:800;cursor:pointer" style-hover="background:#4a3ad4">Join with a code</button></div></sc-if>
           <sc-if value="{{ noCards }}" hint-placeholder-val="{{ false }}">
             <div style="background:#fff;border-radius:18px;padding:18px;box-shadow:0 1px 3px rgba(15,18,25,.08)">
@@ -516,75 +478,39 @@
               </div>
             </sc-for>
           </sc-if>
-          <sc-if value="{{ isCardView }}" hint-placeholder-val="{{ true }}">
-          <sc-for list="{{ cards }}" as="card" hint-placeholder-count="3">
-            <div onClick="{{ card.open }}" style="{{ card.cardStyle }}">
-              <div style="{{ card.sheetTopStyle }}">
-<sc-if value="{{ card.isIdea }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;z-index:1;top:10px;right:10px;gap:4px;padding:4px 9px 4px 7px;font-size:11px;letter-spacing:.8px;box-shadow:0 2px 6px rgba(15,18,25,.15);display:flex;align-items:center;border-radius:999px;background:#fff;font-weight:900;color:#8f6405"><svg width="12" height="12" viewBox="0 0 24 24" fill="#f3c55a" stroke="#8f6405" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 12px"><path d="M13.2 2.2 7.2 13.1l3.9-.35-.9 8.8 6.9-11.2-4.1.4z" /></svg>IDEA</span></sc-if><sc-if value="{{ card.isPlan }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;z-index:1;top:10px;right:10px;gap:4px;padding:4px 9px 4px 7px;font-size:11px;letter-spacing:.8px;box-shadow:0 2px 6px rgba(15,18,25,.15);display:flex;align-items:center;border-radius:999px;background:#fff;font-weight:900;color:#0f7a3c"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0f7a3c" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 12px"><path d="M5 12.5l4.5 4.5L19 7" /></svg>PLAN</span></sc-if><sc-if value="{{ card.isDone }}" hint-placeholder-val="{{ false }}"><span aria-label="It happened" style="position:absolute;z-index:1;top:30px;right:14px;display:flex;align-items:center;min-height:34px;padding:0 14px 0 42px;border-radius:999px;background:#5b4ae8;box-shadow:0 6px 16px rgba(15,18,25,.3);transform:rotate(-8deg);font-size:15px;font-weight:900;color:#fff;white-space:nowrap;pointer-events:none"><span style="position:absolute;left:-10px;top:50%;transform:translateY(-55%) rotate(-10deg);font-size:46px;line-height:1;filter:drop-shadow(0 3px 5px rgba(15,18,25,.3))">🥳</span>It happened!</span></sc-if>
-                <sc-if value="{{ card.noCover }}" hint-placeholder-val="{{ false }}"><div aria-hidden="true" style="position:absolute;inset:0;background:url(photos/torrez-trail.png) 50% 40%/cover"></div><div aria-hidden="true" style="position:absolute;inset:0;background:rgba(13,17,23,.3)"></div></sc-if>
-              </div>
-              <div style="{{ card.bodyStyle }}">
-                <div style="font-size:21px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117;text-wrap:pretty">{{ card.text }}</div>
-                <div style="margin-top:-2px;display:flex;flex-direction:column;gap:6px;font-size:13.5px;font-weight:600">
-                  <span style="{{ card.dateRowStyle }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 14px"><rect x="4" y="5.5" width="16" height="14.5" rx="2.5" /><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4" /></svg><span style="min-width:0;color:#454b55"><strong style="{{ card.dayStrong }}">{{ card.dayLabel }}</strong>{{ card.timeSuffix }}</span></span>
-                  <span style="{{ card.placeRowStyle }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 14px"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Z" /><circle cx="12" cy="10" r="2.3" /></svg><span style="{{ card.placeTextStyle }}">{{ card.placeLabel }}</span></span>
-                </div>
-                <div style="margin-top:2px;padding-top:10px;border-top:1px solid #f2f3f6;display:flex;align-items:center;gap:7px;font-size:13.5px;font-weight:700;color:#454b55">
-                  <span style="{{ card.avatarStyle }}">{{ card.initial }}</span>
-                  <span style="flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;color:#6b7280">{{ card.ledWord }} <span style="font-weight:700;color:#454b55">{{ card.who }}</span></span>
-                  <span style="flex:0 0 auto;display:flex;align-items:center;gap:4px;border-radius:999px;padding:4px 10px;background:#f2f3f6;font-size:13px;font-weight:800;color:#5c6270">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6" /><path d="M4.8 20.5c.6-3.8 3.6-5.8 7.2-5.8s6.6 2 7.2 5.8" /></svg>
-                    {{ card.intCount }}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </sc-for>
-          </sc-if>
-          <sc-if value="{{ isGridView }}" hint-placeholder-val="{{ false }}">
-            <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">
-              <sc-for list="{{ cards }}" as="card" hint-placeholder-count="4">
-                <div onClick="{{ card.open }}" style="{{ card.gridStyle }}">
-                  <div style="{{ card.gridTopStyle }}">
-<sc-if value="{{ card.isIdea }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;z-index:1;top:8px;right:8px;gap:3px;padding:3px 7px 3px 5px;font-size:10px;letter-spacing:.7px;display:flex;align-items:center;border-radius:999px;background:#fff;font-weight:900;color:#8f6405"><svg width="11" height="11" viewBox="0 0 24 24" fill="#f3c55a" stroke="#8f6405" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 11px"><path d="M13.2 2.2 7.2 13.1l3.9-.35-.9 8.8 6.9-11.2-4.1.4z" /></svg>IDEA</span></sc-if><sc-if value="{{ card.isPlan }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;z-index:1;top:8px;right:8px;gap:3px;padding:3px 7px 3px 5px;font-size:10px;letter-spacing:.7px;display:flex;align-items:center;border-radius:999px;background:#fff;font-weight:900;color:#0f7a3c"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0f7a3c" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 11px"><path d="M5 12.5l4.5 4.5L19 7" /></svg>PLAN</span></sc-if><sc-if value="{{ card.isDone }}" hint-placeholder-val="{{ false }}"><span aria-label="It happened" style="position:absolute;z-index:1;top:22px;right:8px;display:flex;align-items:center;min-height:26px;padding:0 10px 0 30px;border-radius:999px;background:#5b4ae8;box-shadow:0 4px 12px rgba(15,18,25,.3);transform:rotate(-8deg);font-size:11.5px;font-weight:900;color:#fff;white-space:nowrap;pointer-events:none"><span style="position:absolute;left:-8px;top:50%;transform:translateY(-55%) rotate(-10deg);font-size:33px;line-height:1;filter:drop-shadow(0 2px 4px rgba(15,18,25,.3))">🥳</span>It happened!</span></sc-if>
-                    <sc-if value="{{ card.noCover }}" hint-placeholder-val="{{ false }}"><div aria-hidden="true" style="position:absolute;inset:0;background:url(photos/torrez-trail.png) 50% 40%/cover"></div><div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.85) 0%, rgba(13,17,23,.55) 55%, rgba(13,17,23,.35) 100%)"></div></sc-if>
-                    <div style="position:absolute;z-index:1;left:11px;right:11px;bottom:9px;font-size:16px;line-height:1.18;font-weight:900;letter-spacing:-.3px;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.3);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">{{ card.text }}</div>
-                  </div>
-                  <div style="{{ card.gridBodyStyle }}">
-                    <span style="{{ card.dateRowStyle }}"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 13px"><rect x="4" y="5.5" width="16" height="14.5" rx="2.5" /><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4" /></svg><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#454b55"><strong style="{{ card.dayStrong }}">{{ card.dayLabel }}</strong>{{ card.timeSuffix }}</span></span>
-                    <span style="{{ card.placeRowStyle }}"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 13px"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Z" /><circle cx="12" cy="10" r="2.3" /></svg><span style="{{ card.placeTextStyle }}">{{ card.placeLabel }}</span></span>
-                    <div style="margin-top:4px;display:flex;align-items:center;gap:6px">
-                      <span style="{{ card.gridAvatarStyle }}">{{ card.initial }}</span>
-                      <span style="flex:1 1 auto;min-width:0;font-size:12.5px;font-weight:700;color:#454b55;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ card.who }}</span>
-                      <span style="display:flex;align-items:center;gap:3px;font-size:12.5px;font-weight:800;color:#5c6270">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6" /><path d="M4.8 20.5c.6-3.8 3.6-5.8 7.2-5.8s6.6 2 7.2 5.8" /></svg>
-                        {{ card.intCount }}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </sc-for>
-            </div>
-          </sc-if>
-          <sc-if value="{{ isListView }}" hint-placeholder-val="{{ false }}">
-            <sc-if value="{{ hasCards }}" hint-placeholder-val="{{ true }}">
-              <div style="background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08);overflow:hidden">
-                <sc-for list="{{ cards }}" as="card" hint-placeholder-count="4">
-                  <div onClick="{{ card.open }}" style="{{ card.listRowStyle }}" style-hover="background:#f7f7f9">
-                    <span style="{{ card.thumbStyle }}"></span>
-                    <div style="flex:1 1 auto;min-width:0">
-                      <div style="font-size:16px;line-height:1.25;font-weight:800;letter-spacing:-.2px;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ card.text }}</div>
-                      <div style="margin-top:2px;font-size:13.5px;font-weight:600;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ card.listMeta }}</div>
-                    </div>
-                    <span style="{{ card.intStyle }}">
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6" /><path d="M4.8 20.5c.6-3.8 3.6-5.8 7.2-5.8s6.6 2 7.2 5.8" /></svg>
-                      {{ card.intCount }}
-                    </span>
+          <sc-for list="{{ gpSecs }}" as="sec" hint-placeholder-count="2">
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <span style="padding:0 4px;font-size:12px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#6b7280">{{ sec.label }}</span>
+              <sc-if value="{{ gvTiles }}" hint-placeholder-val="{{ true }}"><div style="display:flex;flex-direction:column;gap:14px">
+                <sc-for list="{{ sec.items }}" as="e" hint-placeholder-count="2">
+                  <div onClick="{{ e.open }}" style="border-radius:20px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">
+                    <div style="{{ e.photoWide }}"><div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.92) 0%, rgba(13,17,23,.4) 45%, rgba(13,17,23,0) 75%)"></div><sc-if value="{{ e.hasRole }}" hint-placeholder-val="{{ false }}"><span style="{{ e.roleChip }}"><sc-if value="{{ e.isLeadRole }}" hint-placeholder-val="{{ false }}"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4M5 4h11l-2 4 2 4H5" /></svg></sc-if>{{ e.roleLabel }}</span></sc-if><div style="position:absolute;left:14px;right:14px;bottom:12px;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.3)"><div style="{{ e.dateInk }}">{{ e.dateLine }}</div><div style="margin-top:2px;font-size:20px;line-height:1.12;font-weight:900;letter-spacing:-.4px;text-wrap:pretty">{{ e.text }}</div><div style="margin-top:4px;display:flex;align-items:center;gap:5px;font-size:12.5px;font-weight:700;color:rgba(255,255,255,.88)"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 11px"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Z" /><circle cx="12" cy="10" r="2.4" /></svg>{{ e.place }}</div></div></div>
                   </div>
                 </sc-for>
-              </div>
-            </sc-if>
-          </sc-if>
+              </div></sc-if>
+              <sc-if value="{{ gvList }}" hint-placeholder-val="{{ false }}"><div style="display:flex;flex-direction:column;gap:14px">
+                <sc-for list="{{ sec.days }}" as="d" hint-placeholder-count="2"><div style="display:flex;flex-direction:column;gap:6px"><span style="padding:0 4px;font-size:13px;font-weight:800;color:#454b55">{{ d.key }}</span><div style="background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08);overflow:hidden">
+                  <sc-for list="{{ d.items }}" as="e" hint-placeholder-count="1">
+                    <div onClick="{{ e.open }}" style="{{ e.rowStyle }}" style-hover="background:#f7f7f9">
+                      <span style="{{ e.thumbSq }}"><span aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.88) 0%, rgba(13,17,23,.35) 50%, rgba(13,17,23,0) 75%)"></span><span style="position:absolute;left:8px;right:6px;bottom:7px;display:flex;flex-direction:column;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.35)"><span style="font-size:10.5px;font-weight:900;letter-spacing:.5px;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ e.dTop }}</span><sc-if value="{{ e.hasDTime }}" hint-placeholder-val="{{ false }}"><span style="font-size:12.5px;font-weight:800;color:rgba(255,255,255,.9)">{{ e.dTime }}</span></sc-if></span></span>
+                      <div style="flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:3px">
+                        <sc-if value="{{ e.hasRole }}" hint-placeholder-val="{{ false }}"><div style="display:flex"><span style="{{ e.rolePill }}">{{ e.roleLabel }}</span></div></sc-if>
+                        <div style="font-size:15.5px;line-height:1.25;font-weight:800;color:#0d1117">{{ e.text }}</div>
+                        <div style="display:flex;align-items:center;gap:4px;font-size:12.5px;font-weight:600;color:#6b7280;min-width:0"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 11px"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Z" /><circle cx="12" cy="10" r="2.4" /></svg><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ e.place }}</span></div>
+                      </div>
+                    </div>
+                  </sc-for>
+                </div></div></sc-for>
+              </div></sc-if>
+              <sc-if value="{{ gvGrid }}" hint-placeholder-val="{{ false }}"><div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">
+                <sc-for list="{{ sec.items }}" as="e" hint-placeholder-count="2">
+                  <div onClick="{{ e.open }}" style="border-radius:18px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">
+                    <div style="{{ e.photoSq }}"><div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.92) 0%, rgba(13,17,23,.4) 45%, rgba(13,17,23,0) 75%)"></div><sc-if value="{{ e.hasRole }}" hint-placeholder-val="{{ false }}"><span style="{{ e.roleChipSm }}">{{ e.roleLabel }}</span></sc-if><div style="position:absolute;left:10px;right:10px;bottom:9px;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.3)"><div style="{{ e.dateInk }}">{{ e.dateLine }}</div><div style="margin-top:2px;font-size:15px;line-height:1.18;font-weight:900;letter-spacing:-.3px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">{{ e.text }}</div><div style="margin-top:3px;display:flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:rgba(255,255,255,.85);min-width:0"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 11px"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Z" /><circle cx="12" cy="10" r="2.4" /></svg><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ e.place }}</span></div></div></div>
+                  </div>
+                </sc-for>
+              </div></sc-if>
+            </div>
+          </sc-for>
         </div>
         <div style="height:73px"></div>
       </div>
@@ -1649,7 +1575,7 @@
         <div onPointerDown="{{ phDown }}" onPointerMove="{{ phMove }}" onPointerUp="{{ phUp }}" onPointerCancel="{{ phUp }}" style="{{ phBoxStyle }}">
           <div aria-hidden="true" style="{{ phImgStyle }}"></div>
           <sc-if value="{{ phIsGroup }}" hint-placeholder-val="{{ true }}">
-            <div aria-hidden="true" style="position:absolute;inset:0;pointer-events:none;background:linear-gradient(to bottom, rgba(13,17,23,.85) 0%, rgba(13,17,23,.56) 30%, rgba(13,17,23,.52) 45%, rgba(13,17,23,.72) 62%, rgba(13,17,23,.96) 100%)"></div>
+            <div aria-hidden="true" style="position:absolute;inset:0;pointer-events:none;background:linear-gradient(to bottom, rgba(13,17,23,.7) 0%, rgba(13,17,23,.4) 32%, rgba(13,17,23,.5) 55%, rgba(13,17,23,.95) 100%)"></div>
           </sc-if>
           <sc-if value="{{ phIsIdea }}" hint-placeholder-val="{{ false }}">
             <div aria-hidden="true" style="position:absolute;inset:0;pointer-events:none;background:linear-gradient(to bottom, rgba(13,17,23,.68) 0%, rgba(13,17,23,.18) 40%, rgba(13,17,23,.18) 70%, rgba(13,17,23,.45) 100%)"></div>
@@ -2060,14 +1986,14 @@
 
   <sc-if value="{{ showNav }}" hint-placeholder-val="{{ true }}">
   <nav style="position:absolute;left:0;right:0;bottom:0;height:73px;display:grid;grid-template-columns:repeat(5,1fr);align-items:center;justify-items:center;background:rgba(255,255,255,.94);backdrop-filter:blur(12px);border-top:1px solid #e8eaef;padding:13px 8px 15px;z-index:10">
-    <div onClick="{{ goHome }}" style="{{ tabHomeStyle }}">
-      <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3.5l9 7" /><path d="M5.5 9.5V20h13V9.5" /></svg>
+    <div onClick="{{ goHome }}" aria-label="Your plans" style="{{ tabHomeStyle }}">
+      <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8.5V6a1.5 1.5 0 0 1 1.5-1.5h13A1.5 1.5 0 0 1 20 6v2.5a2.5 2.5 0 0 0 0 5V16a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 16v-2.5a2.5 2.5 0 0 0 0-5Z" transform="translate(0 1)" /><path d="m9.2 12.2 2 2 3.8-4" /></svg>
     </div>
-    <div onClick="{{ goCalendar }}" style="{{ tabCalStyle }}">
-      <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5" /><path d="M3.5 10h17M8 3v4M16 3v4" /></svg>
-    </div>
-    <div onClick="{{ goOwn }}" aria-label="You own" style="{{ tabOwnStyle }}">
+    <div onClick="{{ goOwn }}" aria-label="Your events and ideas" style="{{ tabOwnStyle }}">
       <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 21V4" /><path d="M5.5 4.5h11.5l-2.2 4 2.2 4H5.5" /></svg>
+    </div>
+    <div onClick="{{ goCalendar }}" aria-label="Calendar" style="{{ tabCalStyle }}">
+      <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5" /><path d="M3.5 10h17M8 3v4M16 3v4" /></svg>
     </div>
     <div onClick="{{ goGroups }}" style="{{ tabAllStyle }}">
       <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2" /><path d="M2.8 19c.5-3.3 3-5 6.2-5s5.7 1.7 6.2 5" /><circle cx="17" cy="9" r="2.6" /><path d="M16.5 14c2.6.1 4.3 1.6 4.7 4.2" /></svg>
@@ -2103,7 +2029,7 @@
  * Before the day · a Lead-only checklist card on the plan page with lightweight cost/logistics prompts.
  * Groups · every event carries groups: [ids] (many-to-many, one record); one group populated per event for now.
  *   Browse/Plans filter by the current group; Home + Calendar span all groups. Events can be Invite only.
- * Filler data · Hub on Hunters Lane, Walnut Creek, Woodcliff and Torrez Fitness each get 4 events, one per group
+ * Filler data · Hub on Hunters, Walnut Creek, Woodcliff and Torrez Fitness each get 4 events, one per group
  *   left with no date/location. "Activate" (Joseph) wasn’t in V4’s data, so it’s added here as a plan.
  *   "Foursquare and badminton" is a Torrez event at the Hub — listed under Torrez only (cross-post later).
  * Terminology · "Lead" kept, flagged temporary; not baked into screen titles.
@@ -2153,14 +2079,14 @@ const FACTS = {
   people: { couple: 'A couple of people could do it.', handful: 'It’d take a small handful of us.', crowd: 'It’d take a real crowd.', unknown: 'How many people it takes is still open.' },
   resource: { yes: 'It hinges on something hard to come by.', no: 'Nothing hard to come by needed.' }
 };
-const GROUPS = [{ id: 'torrez', name: 'Torrez Fitness', fresh: 0, role: 'member', photo: 'photos/torrez-trail.png' }, { id: 'hub', name: 'Hub on Hunters Lane', fresh: 0, role: 'member', photo: 'photos/get-togethers.jpg' }, { id: 'wood', name: 'Woodcliff Neighborhood', fresh: 0, role: 'member', photo: 'photos/projects.jpg' }, { id: 'walnut', name: 'Walnut Creek Neighborhood', fresh: 0, role: 'member', photo: 'photos/mutual-aid.jpg' }];
+const GROUPS = [{ id: 'torrez', name: 'Torrez Fitness', fresh: 0, role: 'member', photo: 'photos/torrez-group.jpg', photoPos: { x: 50, y: 45, z: 1.35 } }, { id: 'hub', name: 'Hub on Hunters', fresh: 0, role: 'member', photo: 'photos/get-togethers-2.jpg' }, { id: 'wood', name: 'Woodcliff Neighborhood', fresh: 0, role: 'member', photo: 'photos/projects.jpg' }, { id: 'walnut', name: 'Walnut Creek Neighborhood', fresh: 0, role: 'member', photo: 'photos/walnut-creek-parade.jpg', photoPos: { x: 50, y: 55, z: 1.4 } }];
 const FACES = { Eric: 'photos/faces/eric.png', Darnell: 'photos/faces/darnell.png', Hana: 'photos/faces/hana.png', Marisol: 'photos/faces/marisol.png', Dee: 'photos/faces/dee.png' };
 const ADDRESSES = {
   'Mueller Lake Park': '4550 Mueller Blvd, Austin, TX 78723',
   'Blast Zone on 5th': '1201 E 5th St, Austin, TX 78702',
   'Barton Creek Greenbelt': '3755 S Capital of Texas Hwy, Austin, TX 78704',
   'Zilker Park': '2207 Lou Neff Rd, Austin, TX 78746',
-  'Hub on Hunters Lane': '5900 Hunters Ln, Austin, TX 78744',
+  'Hub on Hunters': '5900 Hunters Ln, Austin, TX 78744',
   'Walnut Creek Metropolitan Park': '12138 N Lamar Blvd, Austin, TX 78753'
 };
 const GROUP_PHOTO = 'photos/torrez-trail.png';
@@ -2172,20 +2098,21 @@ const BASICS = {};
 const SEED_OFFERS = {};
 const SEED = [];
 const DEMO = [
-  {"cat":"events","answers":{},"lockedDateId":null,"vision":null,"mood":[],"dates":[],"rsvps":[],"offers":[],"pending":[],"basics":true,"id":"h1","planned":true,"text":"Easter egg hunt at the Hub","bits":["Kids 10 and under. Bring a basket."],"who":"Priya","leadName":"Priya","when":"1 week ago","hrs":170,"spot":"Hub on Hunters Lane","day":"Sun, Nov 1 · 10am","year":2026,"interested":14,"photos":["photos/welcome-picnic.png"],"groups":["hub"],"inv":{"sent":30,"maybe":4,"no":1,"names":[]},"signup":[{"id":"s1","item":"A dozen filled eggs","need":10,"people":[{"who":"Luis"},{"who":"Jordan","note":"no chocolate"}]},{"id":"s2","item":"Run the craft table for an hour","need":2,"people":[]}]},
-  {"cat":"events","answers":{},"lockedDateId":null,"vision":null,"mood":[],"dates":[],"rsvps":[],"offers":[],"pending":[],"basics":true,"id":"h2","planned":true,"text":"Mini Gras","bits":["Beads and king cake provided. Costumes encouraged."],"who":"Luis","leadName":"Luis","when":"3 days ago","hrs":70,"spot":"Hub on Hunters Lane","day":"Sat, Nov 28 · 6pm","year":2026,"interested":22,"photos":["photos/get-togethers.jpg"],"groups":["hub"],"inv":{"sent":41,"maybe":6,"no":3,"names":[]},"chipIn":{"amount":10,"what":"the band + king cake","paid":9}},
+  {"cat":"events","answers":{},"lockedDateId":null,"vision":null,"mood":[],"dates":[],"rsvps":[],"offers":[],"pending":[],"basics":true,"id":"h1","planned":true,"text":"Easter egg hunt at the Hub","bits":["Kids 10 and under. Bring a basket."],"who":"Priya","leadName":"Priya","when":"1 week ago","hrs":170,"spot":"Hub on Hunters","day":"Sun, Nov 1 · 10am","year":2026,"interested":14,"photos":["photos/welcome-picnic.png"],"groups":["hub"],"inv":{"sent":30,"maybe":4,"no":1,"names":[]},"signup":[{"id":"s1","item":"A dozen filled eggs","need":10,"people":[{"who":"Luis"},{"who":"Jordan","note":"no chocolate"}]},{"id":"s2","item":"Run the craft table for an hour","need":2,"people":[]}]},
+  {"cat":"events","answers":{},"lockedDateId":null,"vision":null,"mood":[],"dates":[],"rsvps":[],"offers":[],"pending":[],"basics":true,"id":"h2","planned":true,"text":"Mini Gras","bits":["Beads and king cake provided. Costumes encouraged."],"who":"Luis","leadName":"Luis","when":"3 days ago","hrs":70,"spot":"Hub on Hunters","day":"Sat, Nov 28 · 6pm","year":2026,"interested":22,"photos":["photos/get-togethers.jpg"],"groups":["hub"],"inv":{"sent":41,"maybe":6,"no":3,"names":[]},"chipIn":{"amount":10,"what":"the band + king cake","paid":9}},
   {"cat":"events","answers":{},"lockedDateId":null,"vision":null,"mood":[],"dates":[],"rsvps":[],"offers":[],"pending":[],"basics":false,"id":"h3","text":"Folk music song circle","bits":["Bring an instrument, or just your voice."],"who":"Jordan","leadName":"Jordan","when":"4 days ago","hrs":96,"spot":null,"day":null,"interested":3,"photos":[],"groups":["hub"]},
-  {"cat":"events","answers":{},"lockedDateId":null,"vision":null,"mood":[],"dates":[],"rsvps":[],"offers":[],"pending":[],"basics":true,"id":"h4","planned":true,"text":"Hub cleanup work day","bits":["Coffee and breakfast tacos at 8:30. Wear closed-toe shoes."],"who":"Priya","leadName":"Priya","when":"2 days ago","hrs":50,"spot":"Hub on Hunters Lane","day":"Sat, Nov 7 · 9am","interested":6,"photos":["photos/projects.jpg"],"groups":["hub"],"inv":{"sent":18,"maybe":2,"no":0,"names":[]},"signup":[{"id":"s1","item":"Extra pairs of work gloves","need":5,"people":[]},{"id":"s2","item":"Wheelbarrow","need":1,"people":[{"who":"Luis"}]}]},
+  {"cat":"events","answers":{},"lockedDateId":null,"vision":null,"mood":[],"dates":[],"rsvps":[],"offers":[],"pending":[],"basics":true,"id":"h4","planned":true,"text":"Hub cleanup work day","bits":["Coffee and breakfast tacos at 8:30. Wear closed-toe shoes."],"who":"Priya","leadName":"Priya","when":"2 days ago","hrs":50,"spot":"Hub on Hunters","day":"Sat, Nov 7 · 9am","interested":6,"photos":["photos/projects.jpg"],"groups":["hub"],"inv":{"sent":18,"maybe":2,"no":0,"names":[]},"signup":[{"id":"s1","item":"Extra pairs of work gloves","need":5,"people":[]},{"id":"s2","item":"Wheelbarrow","need":1,"people":[{"who":"Luis"}]}]},
   {"cat":"events","answers":{},"lockedDateId":null,"vision":null,"mood":[],"dates":[],"rsvps":[],"offers":[],"pending":[],"basics":true,"id":"w1","planned":true,"text":"Fourth of July parade","bits":["Decorate your bike, wagon, dog, whatever. Line up at 9:30 by the park sign."],"who":"Tasha","leadName":"Tasha","when":"2 weeks ago","hrs":340,"spot":"Walnut Creek Metropolitan Park","day":"Sun, Nov 8 · 10am","year":2026,"interested":31,"photos":["photos/get-togethers.jpg"],"groups":["walnut"],"inv":{"sent":60,"maybe":8,"no":2,"names":[]}},
   {"cat":"events","answers":{},"lockedDateId":null,"vision":null,"mood":[],"dates":[],"rsvps":[],"offers":[],"pending":[],"basics":true,"id":"w2","planned":true,"text":"Neighborhood garage sale","bits":["Everyone sells from their own driveway. We’ll post one map."],"who":"Cynthia","leadName":"Cynthia","when":"5 days ago","hrs":120,"spot":"Walnut Bend Dr & Ferguson Ln","day":"Sat, Nov 14 · 8am","interested":9,"photos":["photos/mutual-aid.jpg"],"groups":["walnut"],"inv":{"sent":22,"maybe":3,"no":1,"names":[]}},
   {"cat":"events","answers":{},"lockedDateId":null,"vision":null,"mood":[],"dates":[],"rsvps":[],"offers":[],"pending":[],"basics":true,"id":"w3","planned":true,"text":"Walnut Eek","bits":["Street closes at 4:30. Bring a chair and candy to hand out."],"who":"Tasha","leadName":"Tasha","when":"3 weeks ago","hrs":500,"spot":"Walnut Bend Dr (barrier closed)","day":"Sat, Oct 24 · 5pm","interested":40,"photos":["photos/get-togethers-2.jpg"],"groups":["walnut"],"inv":{"sent":75,"maybe":10,"no":4,"names":[]},"signup":[{"id":"s1","item":"Hay bales","need":6,"people":[{"who":"Cynthia"},{"who":"Sam"}]},{"id":"s2","item":"Fog machine","need":1,"people":[]},{"id":"s3","item":"Help set up the barrier at 4","need":3,"people":[{"who":"Sam"}]}],"updates":[{"text":"Barrier permit came through! Same setup as last year.","when":"2 days ago","meta":"sent to 71"}]},
   {"cat":"events","answers":{},"lockedDateId":null,"vision":null,"mood":[],"dates":[],"rsvps":[],"offers":[],"pending":[],"basics":false,"id":"w4","text":"Grief circle","bits":["A quiet hour for anyone carrying a loss. No pressure to talk."],"who":"Cynthia","leadName":"Cynthia","when":"6 days ago","hrs":140,"spot":null,"day":null,"interested":4,"photos":[],"groups":["walnut"]},
-  {"cat":"events","answers":{},"lockedDateId":null,"vision":null,"mood":[],"dates":[],"rsvps":[],"offers":[],"pending":[],"basics":true,"id":"t1","planned":true,"meIn":true,"signup":[{"id":"s1","item":"Set up barriers","need":2,"people":[{"who":"You"}]}],"text":"Activate","bits":["Joseph’s Saturday session. All levels — show up, we’ll scale it."],"who":"Joseph","leadName":"Joseph","when":"1 week ago","hrs":168,"spot":"Torrez Fitness","day":"Sat, Oct 3 · 8am","interested":16,"photos":["photos/torrez-crew.png"],"groups":["torrez"],"inv":{"sent":28,"maybe":3,"no":1,"names":[]}},
-  {"cat":"events","answers":{},"lockedDateId":null,"vision":null,"mood":[],"dates":[],"rsvps":[],"offers":[],"pending":[],"basics":true,"id":"t2","planned":true,"meIn":true,"signup":[{"id":"s1","item":"Bring waffle cones","need":3,"people":[{"who":"You"},{"who":"Hana"}]}],"text":"Walk and ice cream in Mueller","bits":["Easy 2-mile loop, then Lick on Aldrich."],"who":"Joseph","leadName":"Joseph","when":"3 days ago","hrs":72,"spot":"Mueller Lake Park","day":"Sat, Oct 10 · 6pm","interested":12,"photos":["photos/torrez-trail.png"],"groups":["torrez"],"inv":{"sent":24,"maybe":2,"no":0,"names":[]}},
-  {"cat":"events","answers":{},"lockedDateId":null,"vision":null,"mood":[],"dates":[],"rsvps":[],"offers":[],"pending":[],"basics":true,"id":"t3","planned":true,"signup":[{"id":"s1","item":"Drive 3 people from the Hub","need":4,"people":[{"who":"You"},{"who":"Theo"}]}],"text":"Paintball","bits":["Carpool from the gym at 12. Wear layers you don’t love."],"who":"Darnell","leadName":"Darnell","when":"4 days ago","hrs":100,"spot":"Paintball park off Hwy 71","day":"Sat, Oct 17 · 1pm","interested":8,"photos":["photos/projects.jpg"],"groups":["torrez"],"inv":{"sent":20,"maybe":4,"no":2,"names":[]},"chipIn":{"amount":25,"what":"gear + field fee","paid":6}},
-  {"cat":"events","answers":{},"lockedDateId":null,"vision":null,"mood":[],"dates":[],"rsvps":[],"offers":[],"pending":[],"basics":true,"id":"t4","planned":true,"signup":[{"id":"s1","item":"Bring badminton rackets","need":2,"people":[{"who":"You"},{"who":"Dee"}]}],"text":"Foursquare and badminton at the Hub","bits":["Torrez crew takes over the Hub’s lot. Nets and chalk provided."],"who":"Joseph","leadName":"Joseph","when":"yesterday","hrs":30,"spot":"Hub on Hunters Lane","day":"Sun, Oct 25 · 3pm","interested":10,"photos":["photos/torrez-crew.png"],"groups":["torrez"],"inv":{"sent":26,"maybe":3,"no":0,"names":[]}},
+  {"cat":"events","answers":{},"lockedDateId":null,"vision":null,"mood":[],"dates":[],"rsvps":[],"offers":[],"pending":[],"basics":true,"id":"t1","planned":true,"meIn":true,"signup":[{"id":"s1","item":"Set up barriers","time":"8:30am","need":2,"people":[{"who":"You"}]}],"text":"Activate","bits":["Joseph’s Saturday session. All levels — show up, we’ll scale it."],"who":"Joseph","leadName":"Joseph","when":"1 week ago","hrs":168,"spot":"Torrez Fitness","day":"Sat, Oct 3 · 8am","interested":16,"photos":["photos/activate.jpg"],"groups":["torrez"],"inv":{"sent":28,"maybe":3,"no":1,"names":[]}},
+  {"cat":"events","answers":{},"lockedDateId":null,"vision":null,"mood":[],"dates":[],"rsvps":[],"offers":[],"pending":[],"basics":true,"id":"t2","planned":true,"meIn":true,"signup":[{"id":"s1","item":"Bring waffle cones","need":3,"people":[{"who":"You"},{"who":"Hana"}]}],"text":"Walk and ice cream in Mueller","bits":["Easy 2-mile loop, then Lick on Aldrich."],"who":"Joseph","leadName":"Joseph","when":"3 days ago","hrs":72,"spot":"Mueller Lake Park","day":"Sat, Oct 10 · 6pm","interested":12,"photos":["photos/mueller-walk.png"],"groups":["torrez"],"inv":{"sent":24,"maybe":2,"no":0,"names":[]}},
+  {"cat":"events","answers":{},"lockedDateId":null,"vision":null,"mood":[],"dates":[],"rsvps":[],"offers":[],"pending":[],"basics":true,"id":"t3","planned":true,"signup":[{"id":"s1","item":"Drive 3 people from the Hub","time":"9:15am","need":4,"people":[{"who":"You"},{"who":"Theo"}]},{"id":"s2","item":"Pick up rental masks","time":"11am","need":1,"people":[{"who":"You"}]},{"id":"s3","item":"Bring a cooler of water","need":2,"people":[{"who":"You"}]},{"id":"s4","item":"Collect chip-in at the gate","time":"12:45pm","need":1,"people":[{"who":"You"}]}],"text":"Paintball","bits":["Carpool from the gym at 12. Wear layers you don’t love."],"who":"Darnell","leadName":"Darnell","when":"4 days ago","hrs":100,"spot":"Paintball park off Hwy 71","day":"Sat, Oct 17 · 1pm","interested":8,"photos":["photos/projects.jpg"],"groups":["torrez"],"inv":{"sent":20,"maybe":4,"no":2,"names":[]},"chipIn":{"amount":25,"what":"gear + field fee","paid":6}},
+  {"cat":"events","answers":{},"lockedDateId":null,"vision":null,"mood":[],"dates":[],"rsvps":[],"offers":[],"pending":[],"basics":true,"id":"t4","planned":true,"signup":[{"id":"s1","item":"Bring badminton rackets","need":2,"people":[{"who":"You"},{"who":"Dee"}]}],"text":"Foursquare and badminton at the Hub","bits":["Torrez crew takes over the Hub’s lot. Nets and chalk provided."],"who":"Joseph","leadName":"Joseph","when":"yesterday","hrs":30,"spot":"Hub on Hunters","day":"Sun, Oct 25 · 3pm","interested":10,"photos":["photos/torrez-crew.png"],"groups":["torrez"],"inv":{"sent":26,"maybe":3,"no":0,"names":[]}},
+  {"cat":"events","answers":{},"lockedDateId":null,"vision":null,"mood":[],"dates":[],"rsvps":[],"offers":[],"pending":[],"basics":true,"id":"t5","planned":true,"signup":[{"id":"s1","item":"Drive 3 people from the gym","need":3,"people":[{"who":"Theo"}]}],"text":"Pumpkin Nights","bits":["Glowing pumpkins, hayrides, and kettle corn. Wear orange, costumes welcome."],"who":"Marisol","leadName":"Marisol","when":"2 days ago","hrs":50,"spot":"Pioneer Farms","day":"Fri, Oct 23 · 7pm","interested":12,"photos":["photos/pumpkin-nights.png"],"groups":["torrez"],"inv":{"sent":26,"maybe":4,"no":1,"names":[]}},
   {"cat":"events","answers":{},"lockedDateId":null,"vision":null,"mood":[],"dates":[],"rsvps":[],"offers":[],"pending":[],"basics":true,"id":"d1","planned":true,"signup":[{"id":"s1","item":"Bring a veggie tray","need":2,"people":[{"who":"You"}]}],"text":"Wednesday Wind-Down","bits":["Every Wednesday. BYO drink, we bring the chairs."],"who":"Nate","leadName":"Nate","when":"1 week ago","hrs":175,"spot":"Woodcliff pocket park","day":"Wed, Oct 7 · 6:30pm","interested":9,"photos":["photos/welcome-picnic.png"],"groups":["wood"],"inv":{"sent":19,"maybe":2,"no":0,"names":[]}},
-  {"cat":"events","answers":{},"lockedDateId":null,"vision":null,"mood":[],"dates":[],"rsvps":[],"offers":[],"pending":[],"basics":true,"id":"d2","planned":true,"myRsvp":"maybe","text":"Weekend Wake-Up","bits":["Coffee walk to the overlook and back. Strollers fine."],"who":"Elena","leadName":"Elena","when":"5 days ago","hrs":115,"spot":"Woodcliff trailhead","day":"Sat, Oct 3 · 7am","interested":7,"photos":["photos/torrez-trail.png"],"groups":["wood"],"inv":{"sent":15,"maybe":1,"no":0,"names":[]}},
+  {"cat":"events","answers":{},"lockedDateId":null,"vision":null,"mood":[],"dates":[],"rsvps":[],"offers":[],"pending":[],"basics":true,"id":"d2","planned":true,"myRsvp":"maybe","text":"Weekend Wake-Up","bits":["Coffee walk to the overlook and back. Strollers fine."],"who":"Elena","leadName":"Elena","when":"5 days ago","hrs":115,"spot":"Woodcliff trailhead","day":"Sat, Oct 3 · 7am","interested":7,"photos":["photos/weekend-wake-up.jpg"],"groups":["wood"],"inv":{"sent":15,"maybe":1,"no":0,"names":[]}},
   {"cat":"events","answers":{},"lockedDateId":null,"vision":null,"mood":[],"dates":[],"rsvps":[],"offers":[],"pending":[],"basics":true,"id":"d3","planned":true,"text":"Trail cleaning and building day","bits":["We’re rerouting the muddy stretch below the bridge. Tools provided, gloves aren’t."],"who":"Nate","leadName":"Nate","when":"2 days ago","hrs":45,"spot":"Woodcliff Greenbelt","day":"Sat, Nov 21 · 9am","interested":5,"photos":["photos/trail-cleanup.png"],"groups":["wood"],"inv":{"sent":21,"maybe":3,"no":1,"names":[]},"signup":[{"id":"s1","item":"Loppers or a hand saw","need":4,"people":[{"who":"Elena"}]},{"id":"s2","item":"Big cooler of water","need":1,"people":[]}]},
   {"cat":"events","answers":{},"lockedDateId":null,"vision":null,"mood":[],"dates":[],"rsvps":[],"offers":[],"pending":[],"basics":false,"id":"d4","text":"Moms’ walking group (one time, see who’s in)","bits":["Weekday morning, kids in tow. If it clicks we keep going."],"who":"Maya","leadName":"Maya","when":"3 days ago","hrs":68,"spot":null,"day":null,"interested":6,"photos":[],"groups":["wood"]},
   { id: 'x1', text: 'Sunrise loop around the lake', bits: ['Coffee after for whoever wants it'], who: 'You', when: '2 hours ago', hrs: 2, cat: 'events', answers: {}, leadName: 'You', basics: false, spot: null, day: 'Sat, Oct 12 · 7am', lockedDateId: null, vision: null,
@@ -2193,7 +2120,7 @@ const DEMO = [
     ideaDates: [{ id: 'd1', dow: 'SAT', md: 'OCT 4', time: '6:45am', votes: 4, who: 'You' }, { id: 'd2', dow: 'SUN', md: 'OCT 5', time: '7am', votes: 2, who: 'Marisol' }],
     ideaLocs: [{ id: 'l1', name: 'Lady Bird Lake, Rainey St', note: 'Suggested by Marisol', votes: 3 }],
     interested: 5, offers: [], pending: [{ id: 'p1', who: 'Dee', kind: 'spot', text: 'The north lot at Zilker Park' }] },
-  { id: 'x2', planned: true, text: 'Laser tag night', bits: [], who: 'Darnell', when: 'yesterday', hrs: 26, cat: 'events', answers: {}, leadName: 'Darnell', basics: false, spot: 'Blast Zone on 5th', day: 'Fri, Oct 18 · 7:30pm', mood: ['photos/get-togethers.jpg', 'photos/get-togethers-2.jpg'],  lockedDateId: null, vision: null,
+  { id: 'x2', planned: true, text: 'Pickleball', photos: ['photos/pickleball.png'], bits: [], who: 'Darnell', when: 'yesterday', hrs: 26, cat: 'events', answers: {}, leadName: 'Darnell', basics: false, spot: 'Austin Pickleball Park', day: 'Fri, Oct 18 · 7:30pm', mood: ['photos/get-togethers.jpg', 'photos/get-togethers-2.jpg'],  lockedDateId: null, vision: null,
     interested: 7, meIn: true, dates: [], rsvps: [], offers: [{ who: 'Theo', line: 'is in, and bringing his cousin.' }], pending: [] },
   { id: 'x3', text: 'Pickleball at Mueller', bits: [], who: 'Hana', when: '2 days ago', hrs: 48, cat: 'events', answers: {}, leadName: 'Hana', basics: false, spot: 'Mueller Lake Park', day: 'Sun, Oct 20 · 9am', mood: ['photos/torrez-trail.png', 'photos/projects.jpg', 'photos/torrez-crew.png'],  lockedDateId: null, vision: null, interested: 2,
     photos: ['photos/torrez-crew.png'], dates: [], rsvps: [], offers: [], pending: [] },
@@ -2201,7 +2128,13 @@ const DEMO = [
     ideaDates: [{ id: 'd1', dow: 'SUN', md: 'OCT 5', time: '9:30am', votes: 5, who: 'Theo' }, { id: 'd2', dow: 'SUN', md: 'OCT 12', time: '9:30am', votes: 2, who: 'Hana' }, { id: 'd3', dow: 'SUN', md: 'OCT 19', time: '9am', votes: 1, who: 'Dee' }],
     ideaLocs: [{ id: 'l1', name: 'Veracruz All Natural', note: 'Suggested by Hana', votes: 4 }, { id: 'l2', name: 'Taco Deli on Spyglass', note: 'Suggested by Theo', votes: 2 }],
     dates: [], rsvps: [], offers: [], pending: [] },
-  { id: 'p1x', planned: true, text: 'Garden work day at the Hub', bits: ['Weeding the beds and planting fall bulbs. Gloves provided.'], who: 'You', when: '2 weeks ago', hrs: 336, cat: 'events', answers: {}, leadName: 'You', basics: true, spot: 'Hub on Hunters Lane', day: 'Thu, Sep 24 · 5pm', interested: 12, photos: ['photos/get-togethers.jpg'], mood: [], dates: [], rsvps: [], offers: [], pending: [], lockedDateId: null, vision: null, groups: ['hub'], inv: { sent: 18, maybe: 2, no: 1, names: [] }, signup: [{ id: 's1', item: 'Bring a shovel', need: 4, people: [{ who: 'Marisol' }, { who: 'Dee' }, { who: 'Theo' }, { who: 'Hana' }] }] },
+  { id: 'p1x', planned: true, text: 'Garden work day at the Hub', bits: ['Weeding the beds and planting fall bulbs. Gloves provided.'], who: 'You', when: '2 weeks ago', hrs: 336, cat: 'events', answers: {}, leadName: 'You', basics: true, spot: 'Hub on Hunters', day: 'Thu, Sep 24 · 5pm', interested: 12, photos: ['photos/get-togethers.jpg'], mood: [], dates: [], rsvps: [], offers: [], pending: [], lockedDateId: null, vision: null, groups: ['hub'], inv: { sent: 18, maybe: 2, no: 1, names: [] }, signup: [{ id: 's1', item: 'Bring a shovel', need: 4, people: [{ who: 'Marisol' }, { who: 'Dee' }, { who: 'Theo' }, { who: 'Hana' }] }] },
+  { id: 'n1x', planned: true, text: 'Coat drive sort night', bits: ['Sorting donated coats by size before the big giveaway. Pizza on us.'], who: 'Marisol', when: '3 days ago', hrs: 72, cat: 'events', answers: {}, leadName: 'Marisol', basics: true, spot: 'Hub on Hunters', day: 'Thu, Nov 12 · 6pm', interested: 8, photos: ['photos/mutual-aid.jpg'], mood: [], dates: [], rsvps: [], offers: [], pending: [], lockedDateId: null, vision: null, groups: ['hub'], inv: { sent: 14, maybe: 1, no: 0, names: [] }, signup: [{ id: 's1', item: 'Sort kids’ sizes', time: '6pm', need: 3, people: [{ who: 'You' }, { who: 'Hana' }] }, { id: 's2', item: 'Bring hangers', need: 2, people: [{ who: 'You' }] }] },
+  { id: 'n2x', planned: true, text: 'Friendsgiving potluck', bits: ['Bring a dish that means something to you. Plates and drinks covered.'], who: 'You', when: '2 days ago', hrs: 48, cat: 'events', answers: {}, leadName: 'You', basics: true, spot: 'Hunters Lane Park pavilion', day: 'Sat, Nov 21 · 5pm', interested: 11, photos: ['photos/get-togethers-2.jpg'], mood: [], dates: [], rsvps: [], offers: [], pending: [{ id: 'pp3', who: 'Dee', kind: 'day', text: 'Start at 4 so kids can play before dark' }], lockedDateId: null, vision: null, groups: ['hub'], inv: { sent: 22, maybe: 3, no: 1, names: [] }, signup: [{ id: 's1', item: 'Bring a main dish', need: 4, people: [{ who: 'Theo' }, { who: 'Marisol' }] }, { id: 's2', item: 'Bring dessert', need: 3, people: [{ who: 'Hana' }] }, { id: 's3', item: 'Folding tables', need: 2, people: [{ who: 'Darnell' }, { who: 'Dee' }] }] },
+  { id: 'n3x', planned: true, text: 'Turkey Trot 5K', bits: ['Run or walk it together, then coffee after. Costumes encouraged.'], who: 'Joseph', when: '5 days ago', hrs: 120, cat: 'events', answers: {}, leadName: 'Joseph', basics: true, spot: 'Mueller Lake Park', day: 'Thu, Nov 26 · 8am', interested: 14, meIn: true, photos: ['photos/torrez-trail.png'], mood: [], dates: [], rsvps: [], offers: [], pending: [], lockedDateId: null, vision: null, groups: ['torrez'], inv: { sent: 26, maybe: 2, no: 1, names: [] }, signup: [] },
+  { id: 'n4x', planned: true, text: 'Saturday trail loop', bits: ['Easy 4 miles on the greenbelt, all paces.'], who: 'Darnell', when: '1 day ago', hrs: 24, cat: 'events', answers: {}, leadName: 'Darnell', basics: true, spot: 'Barton Creek Greenbelt', day: 'Sat, Nov 21 · 8am', interested: 9, meIn: true, photos: ['photos/trail-cleanup.png'], mood: [], dates: [], rsvps: [], offers: [], pending: [], lockedDateId: null, vision: null, groups: ['torrez'], inv: { sent: 26, maybe: 3, no: 0, names: [] }, signup: [] },
+  { id: 'l1x', planned: true, text: 'Welcome picnic for new neighbors', bits: ['Blankets, snacks, and name tags. Bring the kids.'], who: 'You', when: '4 days ago', hrs: 96, cat: 'events', answers: {}, leadName: 'You', basics: true, spot: 'Hunters Lane Park', day: 'Sat, Oct 10 · 12pm', interested: 9, photos: ['photos/welcome-picnic.png'], mood: [], dates: [], rsvps: [], offers: [], pending: [{ id: 'pp1', who: 'Hana', kind: 'spot', text: 'Shaded pavilion by the playground' }, { id: 'pp2', who: 'Theo', kind: 'day', text: 'Start at 11:30 to beat the heat' }], lockedDateId: null, vision: null, groups: ['hub'], reminder: 'Oct 9', inv: { sent: 16, maybe: 2, no: 1, names: [] }, signup: [{ id: 's1', item: 'Bring a picnic blanket', need: 4, people: [{ who: 'Dee' }, { who: 'Hana' }] }, { id: 's2', item: 'Lemonade', need: 1, people: [{ who: 'Theo' }] }] },
+  { id: 'l2x', planned: true, text: 'Paint a Hub mural!!!', bits: ['Two coats on the front porch. Paint and rollers covered.'], who: 'You', when: '1 week ago', hrs: 168, cat: 'events', answers: {}, leadName: 'You', basics: true, spot: 'Hub on Hunters', day: 'Sat, Oct 24 · 9am', interested: 6, photos: ['photos/projects.jpg'], mood: [], dates: [], rsvps: [], offers: [], pending: [], lockedDateId: null, vision: null, groups: ['hub'], inv: { sent: 6, maybe: 0, no: 0, names: [] }, signup: [{ id: 's1', item: 'Bring a roller', need: 3, people: [{ who: 'Marisol' }, { who: 'Dee' }, { who: 'Theo' }] }] },
   { id: 'p2x', planned: true, text: 'Sunset run and tacos', bits: ['Easy 3 miles, then tacos on the patio.'], who: 'Joseph', when: '3 weeks ago', hrs: 504, cat: 'events', answers: {}, leadName: 'Joseph', basics: true, spot: 'Torrez Fitness', day: 'Sat, Sep 19 · 6:30pm', interested: 14, meIn: true, photos: ['photos/torrez-trail.png'], mood: [], dates: [], rsvps: [], offers: [], pending: [], lockedDateId: null, vision: null, groups: ['torrez'] }
 ];
 
@@ -2254,6 +2187,16 @@ class Component extends DCLogic {
   hasSpot = (s) => !!s.spot || s.answers.place === 'in-mind';
   hasDay = (s) => !!s.day || s.answers.when === 'a-day';
   ready = (s) => [this.hasSpot(s), this.hasDay(s), !!s.basics];
+  orgRings = (s) => {
+    const C = 2 * Math.PI * 22, ring = (f) => { const v = Math.max(0, Math.min(1, f)); return { dash: (v * C).toFixed(1) + ' ' + C.toFixed(1), ink: v >= 1 ? '#149a4b' : v > 0 ? '#e8a71c' : '#e6e7eb' }; };
+    const sug = (s.pending || []).length + (s.ideaDates || []).length + (s.ideaLocs || []).length, inv = (s.inv && s.inv.sent) || 0, go = this.intCount(s), rows = this.signupOf(s);
+    const need = rows.reduce((a, r) => a + (r.need || 0), 0), got = rows.reduce((a, r) => a + Math.min(r.people.length, r.need || r.people.length), 0);
+    return [
+      { key: 'inv', val: String(inv), label: 'Invited', ...ring(inv > 0 ? 1 : 0) },
+      { key: 'go', val: String(go), label: 'Going', ...ring(inv ? go / inv : 0) },
+      { key: 'sign', val: need ? got + '/' + need : '—', label: 'Sign-ups', ...ring(need ? got / need : 0) }
+    ].map(o => ({ ...o, isInv: o.key === 'inv', isGo: o.key === 'go', isSign: o.key === 'sign', isRem: o.key === 'rem', fill: o.fill || 'none', valStyle: { fontSize: '13px', lineHeight: 1.1, fontWeight: 900, letterSpacing: '-.3px', color: o.act ? '#4a3ad4' : o.dim ? '#9aa0ac' : '#0d1117', whiteSpace: 'nowrap' }, labStyle: { fontSize: '10.5px', fontWeight: o.act ? 800 : 700, color: o.act ? '#4a3ad4' : '#6b7280' } }));
+  };
   readyCount = (s) => this.ready(s).filter(Boolean).length;
   patch = (id, fields, after) => {
     const sparks = this.state.sparks.map(s => s.id === id ? { ...s, ...fields } : s);
@@ -2479,6 +2422,38 @@ class Component extends DCLogic {
       openAll: () => this.go('browse', { cats: [] }),
 
       cards, sortRows, hasCards: cards.length > 0,
+      ...(() => {
+        const src = live && !st.noGroups ? this.visible().filter(s => this.phase(s) === ptab) : [];
+        const gv = st.gView || 'tiles';
+        const ROLE = { lead: ['Leading', '#5b4ae8', '#fff', '#eeebff', '#4a3ad4'], help: ['Helping', '#f5b428', '#3d2a00', '#fdf1d6', '#8f6405'], going: ['Going', '#149a4b', '#fff', '#e7f6ec', '#0f7a3c'], maybe: ['Maybe', '#ffffff', '#0d1117', '#f2f3f6', '#454b55'] };
+        const flag = '<path d="M5 21V4M5 4h11l-2 4 2 4H5" />';
+        const items = src.map(s => { const t = this.dayTime(s); const my = s.myRsvp || (s.meIn ? 'going' : null);
+          const helping = this.signupOf(s).some(r => r.people.some(p => p.who === 'You'));
+          const rk = s.leadName === 'You' ? 'lead' : helping ? 'help' : my === 'going' ? 'going' : my === 'maybe' ? 'maybe' : null; const R = rk ? ROLE[rk] : null;
+          const time = t != null ? (this.timeOf(s) || '') : '';
+          const dTop = t != null ? new Date(t).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : (ptab === 'idea' ? 'Idea · no date yet' : 'Date TBD');
+          const bgp = '#2b303a url(' + ((s.photos || [])[0] || GROUP_PHOTO) + ') center/cover';
+          return { s, t, text: s.text, place: s.spot || 'Location TBD', dTop, dTime: time, hasDTime: !!time, dateLine: dTop + (time ? ' · ' + time : ''), open: () => this.openSpark(s),
+            hasRole: !!R, roleLabel: R ? (ptab === 'done' ? ({ Leading: 'Led', Helping: 'Helped', Going: 'Went', Maybe: 'Maybe' })[R[0]] : R[0]) : '', isLeadRole: rk === 'lead',
+            roleChip: R ? { position: 'absolute', top: '10px', right: '10px', display: 'flex', alignItems: 'center', gap: '4px', height: '24px', padding: '0 9px', borderRadius: '999px', background: R[1], color: R[2], boxShadow: '0 1px 4px rgba(0,0,0,.3)', fontSize: '11.5px', fontWeight: 900 } : {},
+            roleChipSm: R ? { position: 'absolute', top: '8px', right: '8px', display: 'flex', alignItems: 'center', height: '22px', padding: '0 8px', borderRadius: '999px', background: R[1], color: R[2], boxShadow: '0 1px 4px rgba(0,0,0,.3)', fontSize: '10.5px', fontWeight: 900 } : {},
+            rolePill: R ? { display: 'flex', alignItems: 'center', height: '20px', padding: '0 7px', borderRadius: '999px', background: R[3], color: R[4], fontSize: '10.5px', fontWeight: 800 } : {},
+            dateInk: { fontSize: '10.5px', fontWeight: 900, letterSpacing: '.7px', textTransform: 'uppercase', color: ptab === 'idea' ? '#f3c55a' : ptab === 'done' ? '#cfc9ff' : '#9eecbc' },
+            photoWide: { position: 'relative', height: '180px', background: bgp, filter: ptab === 'done' ? 'saturate(.6)' : 'none' },
+            photoSq: { position: 'relative', aspectRatio: '1 / 1', background: bgp, filter: ptab === 'done' ? 'saturate(.6)' : 'none' },
+            thumbSq: { position: 'relative', overflow: 'hidden', flex: '0 0 96px', width: '96px', height: '96px', borderRadius: '14px', background: bgp } }; });
+        if (ptab !== 'idea') items.sort((a, b) => (a.t == null) - (b.t == null) || (ptab === 'done' ? b.t - a.t : a.t - b.t));
+        const secs = [];
+        items.forEach(it => { const label = it.t == null ? (ptab === 'idea' ? 'No date yet' : 'Date TBD') : new Date(it.t).toLocaleDateString('en-US', { month: 'long' }); let z = secs.find(q => q.label === label); if (!z) { z = { label, items: [], days: [] }; secs.push(z); } z.items.push(it); });
+        secs.forEach(z => z.items.forEach(it => { const key = it.t == null ? z.label : it.dTop; let d = z.days.find(q => q.key === key); if (!d) { d = { key, items: [] }; z.days.push(d); } d.items.push({ ...it, rowStyle: { display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 14px', borderTop: d.items.length ? '1px solid #f2f3f6' : '0', cursor: 'pointer' } }); }));
+        secs.sort((p, q) => (p.label === 'No date yet' || p.label === 'Date TBD') - (q.label === 'No date yet' || q.label === 'Date TBD'));
+        const seg = (on) => ({ width: '38px', height: '32px', borderRadius: '999px', background: on ? '#0d1117' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' });
+        return { gpSecs: secs, gpShowSort: ptab === 'idea', gpHideSort: ptab !== 'idea', gpCountLine: items.length + (ptab === 'done' ? (items.length === 1 ? ' past event' : ' past events') : (items.length === 1 ? ' upcoming plan' : ' upcoming plans')),
+          gpMemberLine: (() => { const g = st.groups[st.group] || {}; const n = g.members || ({ torrez: 48, hub: 112, wood: 36, walnut: 64 })[g.id] || 24; return n + ' members'; })(), gvTiles: gv === 'tiles', gvList: gv === 'list', gvGrid: gv === 'grid',
+          gvSetTiles: () => this.setState({ gView: 'tiles' }), gvSetList: () => this.setState({ gView: 'list' }), gvSetGrid: () => this.setState({ gView: 'grid' }),
+          gvTilesStyle: seg(gv === 'tiles'), gvListStyle: seg(gv === 'list'), gvGridStyle: seg(gv === 'grid'),
+          gvTilesInk: gv === 'tiles' ? '#fff' : '#6b7280', gvListInk: gv === 'list' ? '#fff' : '#6b7280', gvGridInk: gv === 'grid' ? '#fff' : '#6b7280' };
+      })(),
       isCardView: st.view === 'cards' || !st.view, isListView: st.view === 'list', isGridView: st.view === 'grid',
       ...(() => {
         const VIEWS = [['cards', 'Cards', () => React.createElement('svg', { width: 15, height: 15, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2.2, strokeLinejoin: 'round' }, React.createElement('rect', { x: 4, y: 4, width: 16, height: 7, rx: 2 }), React.createElement('rect', { x: 4, y: 13, width: 16, height: 7, rx: 2 }))], ['grid', 'Grid', () => React.createElement('svg', { width: 15, height: 15, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2.2, strokeLinejoin: 'round' }, React.createElement('rect', { x: 4, y: 4, width: 7, height: 7, rx: 1.8 }), React.createElement('rect', { x: 13, y: 4, width: 7, height: 7, rx: 1.8 }), React.createElement('rect', { x: 4, y: 13, width: 7, height: 7, rx: 1.8 }), React.createElement('rect', { x: 13, y: 13, width: 7, height: 7, rx: 1.8 }))], ['list', 'List', () => React.createElement('svg', { width: 15, height: 15, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2.4, strokeLinecap: 'round' }, React.createElement('path', { d: 'M9 6h11M9 12h11M9 18h11' }), React.createElement('circle', { cx: 4.5, cy: 6, r: 1.2, fill: 'currentColor' }), React.createElement('circle', { cx: 4.5, cy: 12, r: 1.2, fill: 'currentColor' }), React.createElement('circle', { cx: 4.5, cy: 18, r: 1.2, fill: 'currentColor' }))]];
@@ -3044,7 +3019,7 @@ class Component extends DCLogic {
             togglePin: (e) => { if (e) e.stopPropagation(); const pins = st.pins || []; this.setState({ pins: pinned ? pins.filter(x => x !== i) : pins.filter(x => x !== i).concat([i]) }); this.showToast(pinned ? 'Unpinned' : 'Pinned', true); } }; })(),
         open: () => openG(i), edit: (e) => { if (e) e.stopPropagation(); this.go('groupPage', { gpIdx: i, gpFrom: 'groups' }); } }; });
     const nEv = st.sparks.filter(s => this.phase(s) === 'plan').length;
-    const pinned = (st.pins || []).filter((k, j, a) => cards[k] && a.indexOf(k) === j); const topIdx = pinned.length ? pinned : cards.length ? [0] : [];
+    const pinned = (st.pins || []).filter((k, j, a) => cards[k] && a.indexOf(k) === j); const topIdx = pinned;
     const rest = cards.filter((_, k) => !topIdx.includes(k));
     return { groupCards: cards, groupTop: topIdx.map(k => cards[k]), groupRest: rest, hasGroupRest: rest.length > 0, groupsSub: st.groups.length + (st.groups.length === 1 ? ' group' : ' groups') + ' · ' + nEv + (nEv === 1 ? ' event' : ' events') + ' on the books' };
   }
@@ -3096,7 +3071,33 @@ class Component extends DCLogic {
     const chip = (on) => ({ flex: '0 0 auto', display: 'flex', alignItems: 'center', minHeight: '36px', padding: '0 14px', borderRadius: '999px', background: on ? '#0d1117' : '#fff', color: on ? '#fff' : '#454b55', boxShadow: on ? 'none' : 'inset 0 0 0 1.5px #e6e7eb', fontSize: '13.5px', fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' });
     const openAll = (k) => () => this.setState({ allTab: k, allGrp: hg != null ? hg : null });
     const cnt = (a) => String(a.length);
+    const hv = st.homeView || 'tiles';
+    const hvS = (on) => ({ width: '38px', height: '32px', borderRadius: '999px', background: on ? '#0d1117' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' });
+    const mineT = (s) => this.signupOf(s).filter(r => r.people.some(p => p.who === 'You')).map(r => r.item);
+    const mineR = (s) => this.signupOf(s).filter(r => r.people.some(p => p.who === 'You'));
+    const planL = up.filter(x => this.phase(x.s) === 'plan' && inG(x.s) && (x.s.leadName === 'You' || me(x.s) === 'going' || me(x.s) === 'maybe' || mineT(x.s).length > 0));
+    const planSecs = [];
+    planL.forEach((x) => { const label = x.t == null ? 'No date yet' : new Date(x.t).toLocaleDateString('en-US', { month: 'long' }); let z = planSecs.find(q => q.label === label); if (!z) { z = { label, items: [] }; planSecs.push(z); }
+      const s = x.s, lead = s.leadName === 'You', tasks = lead ? [] : mineT(s), taskR = lead ? [] : mineR(s), needs = lead ? ownActs(s, x.t).map(q => q.act) : [], k = z.items.length, bgp = '#2b303a url(' + photo(s) + ') center/cover';
+      const dl = x.t != null ? new Date(x.t).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) + (this.timeOf(s) ? ' · ' + this.timeOf(s) : '') : 'Date TBD';
+      z.items.push({ text: s.text, place: s.spot || 'Location TBD', dateLine: dl, dTop: x.t != null ? new Date(x.t).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : 'Date TBD', dTime: x.t != null ? (this.timeOf(s) || '') : '', hasDTime: x.t != null && !!this.timeOf(s), open: () => this.openSpark(s),
+        tasks: (((st.taskOpen || {})[s.id] || taskR.length <= 2) ? taskR : taskR.slice(0, 2)).map(r => ({ label: r.item, time: r.time || '', hasTime: !!r.time })),
+        taskMore: taskR.length > 2, taskMoreLabel: (st.taskOpen || {})[s.id] ? 'Show less' : '+' + (taskR.length - 2) + ' more', taskChev: (st.taskOpen || {})[s.id] ? 'rotate(180deg)' : 'none',
+        taskToggle: (ev) => { ev.stopPropagation(); this.setState(p => ({ taskOpen: { ...(p.taskOpen || {}), [s.id]: !(p.taskOpen || {})[s.id] } })); }, hasTasks: tasks.length > 0, taskCount: tasks.length + (tasks.length === 1 ? ' task for you' : ' tasks for you'),
+        needs: needs.map(label => ({ label })), hasNeeds: lead && needs.length > 0, needBadge: needs.length + ' to do', isLead: lead, org: lead ? this.orgRings(s) : [], actN: String(needs.length), hasAct: needs.length > 0, noAct: needs.length === 0, leadBadge: needs.length ? 'Leading · ' + needs.length + ' to do' : 'Leading', needShort: needs.length === 1 ? needs[0] : needs.length + ' things need you', allSet: lead && needs.length === 0, hasBody: lead || tasks.length > 0,
+        dateInk: { fontSize: '10.5px', fontWeight: 900, letterSpacing: '.7px', textTransform: 'uppercase', color: lead ? '#cfc9ff' : '#9eecbc' },
+        dateInkLight: { fontSize: '10.5px', fontWeight: 900, letterSpacing: '.7px', textTransform: 'uppercase', color: lead ? '#5b4ae8' : '#149a4b' },
+        photoSq: { position: 'relative', aspectRatio: '1 / 1', background: bgp }, photoWide: { position: 'relative', height: '160px', background: bgp },
+        thumbSq: { position: 'relative', overflow: 'hidden', flex: '0 0 96px', width: '96px', height: '96px', borderRadius: '14px', background: bgp },
+        rowStyle: { display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', gap: '12px', padding: '12px 14px', borderTop: k ? '1px solid #f2f3f6' : '0', cursor: 'pointer' } }); });
+    planSecs.forEach(z => { z.days = []; z.items.forEach(it => { const key = it.dateLine.split(' · ')[0]; let d = z.days.find(q => q.key === key); if (!d) { d = { key, items: [] }; z.days.push(d); } d.items.push({ ...it, rowStyle: { ...it.rowStyle, borderTop: d.items.length ? '1px solid #f2f3f6' : '0' } }); }); });
+    planSecs.sort((p, q) => (p.label === 'No date yet') - (q.label === 'No date yet'));
     return {
+      hPlanCount: String(planL.length), hNoPlans: planL.length === 0, hPlanSecs: planSecs,
+      hvIsGrid: hv === 'grid', hvIsTiles: hv === 'tiles', hvIsList: hv === 'list',
+      hvGrid: () => this.setState({ homeView: 'grid' }), hvTiles: () => this.setState({ homeView: 'tiles' }), hvList: () => this.setState({ homeView: 'list' }),
+      hvGridStyle: hvS(hv === 'grid'), hvTilesStyle: hvS(hv === 'tiles'), hvListStyle: hvS(hv === 'list'),
+      hvGridInk: hv === 'grid' ? '#fff' : '#6b7280', hvTilesInk: hv === 'tiles' ? '#fff' : '#6b7280', hvListInk: hv === 'list' ? '#fff' : '#6b7280',
       toggleHomeGrp: (e) => { if (e) e.stopPropagation(); this.setState({ menu: st.menu === 'homeGrp' ? null : 'homeGrp' }); },
       homeGrpOpen: st.menu === 'homeGrp', homeGrpLabel: hg == null ? 'All groups' : (st.groups[hg] || {}).name || 'All groups',
       homeGrpOpts: [{ k: null, label: 'All groups' }].concat(st.groups.map((g, k) => ({ k, label: g.name }))).map(o => ({ label: o.label, pick: () => this.setState({ homeGroup: o.k, menu: null }),
@@ -3148,15 +3149,15 @@ class Component extends DCLogic {
         rowStyle: { display: 'flex', alignItems: 'center', gap: '12px', padding: '9px 0', borderTop: k ? '1px solid #f2f3f6' : '0', cursor: 'pointer' } })) })),
       ...(() => { const og = st.ownGrp ?? null; const gi = []; ownAll.forEach(x => { const k = this.groupIdxOf(x.s); if (!gi.includes(k)) gi.push(k); });
         const L = ownAll.filter(x => og == null || this.groupIdxOf(x.s) === og); const ss = [];
-        L.forEach(x => { const label = x.t == null ? 'Ideas · no date yet' : x.t < wk ? 'This week' : 'Later in ' + new Date(x.t).toLocaleDateString('en-US', { month: 'long' }); let z = ss.find(q => q.label === label); if (!z) { z = { label, rows: [] }; ss.push(z); } z.rows.push(x); });
-        ss.sort((a, b) => (a.label.startsWith('Ideas')) - (b.label.startsWith('Ideas')));
-        const nPlan = ownAll.filter(x => this.phase(x.s) === 'plan').length, nIdea = ownAll.length - nPlan, nNeed = ownAll.filter(x => ownAct(x.s)).length;
+        L.forEach(x => { const ph = this.phase(x.s); const label = ph === 'plan' ? 'Events you’re leading' : ph === 'idea' ? 'Your ideas' : 'Past events'; let z = ss.find(q => q.label === label); if (!z) { z = { label, rows: [] }; ss.push(z); } z.rows.push(x); });
+        const ORD = { 'Events you’re leading': 0, 'Your ideas': 1, 'Past events': 2 }; ss.sort((a, b) => ORD[a.label] - ORD[b.label]); ss.forEach(z => z.rows.sort((p, q) => (p.t ?? 1e15) - (q.t ?? 1e15)));
+        const nPlan = ownAll.filter(x => this.phase(x.s) === 'plan').length, nIdea = ownAll.filter(x => this.phase(x.s) === 'idea').length, nNeed = ownAll.filter(x => ownAct(x.s)).length;
         return {
           ownSub: [nPlan + (nPlan === 1 ? ' event' : ' events'), nIdea + (nIdea === 1 ? ' idea' : ' ideas'), nNeed ? nNeed + ' need you' : ''].filter(Boolean).join(' · '),
           ownChips: [{ k: null, label: 'All' }].concat(gi.map(k => ({ k, label: ((st.groups[k] || {}).name || '') + ' · ' + ownAll.filter(x => this.groupIdxOf(x.s) === k).length }))).map(c => ({ label: c.label, pick: () => this.setState({ ownGrp: c.k }), style: chip(og === c.k) })),
           ownEmpty: L.length === 0,
           ownSections: ss.map(z => ({ label: z.label, rows: z.rows.map(({ s, t }) => { const a = ownAct(s); const plan = this.phase(s) === 'plan';
-            return { text: s.text, top: (plan ? when(s, t) : 'Idea') + ' · ' + this.groupNameOf(s), sub: plan ? this.intCount(s) + ' going' + (s.inv && s.inv.maybe ? ' · ' + s.inv.maybe + ' maybe' : '') : (s.interested || 0) + ' interested',
+            return { text: s.text, top: (this.phase(s) === 'idea' ? 'Idea' : when(s, t)) + ' · ' + this.groupNameOf(s), sub: plan ? this.intCount(s) + ' going' + (s.inv && s.inv.maybe ? ' · ' + s.inv.maybe + ' maybe' : '') : (s.interested || 0) + ' interested',
               hasAct: !!a, act: a ? a.act : '', cta: a ? a.cta : '', thumb: thumb(s, 64), open: () => this.openSpark(s) }; }) })) };
       })(),
       headAvatarStyle: { flex: '0 0 40px', width: '40px', height: '40px', borderRadius: '999px', background: st.myPhoto ? 'url(' + st.myPhoto + ') center/cover' : '#e8a71c', color: '#fff', fontSize: '16px', fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: st.screen === 'profile' ? '0 0 0 2px #fff, 0 0 0 4px #5b4ae8' : 'none' },
@@ -3192,35 +3193,92 @@ class Component extends DCLogic {
   }
 
   calVals() {
-    const st = this.state; const today = new Date(); today.setHours(0, 0, 0, 0);
+    const st = this.state; const today = new Date(); today.setHours(0, 0, 0, 0); const T0 = today.getTime();
+    const view = st.calView || 'list', role = st.calRole || 'all', cg = st.calGrp ?? null;
+    const me = (s) => s.myRsvp || (s.meIn ? 'going' : null);
+    const all = [];
+    st.sparks.forEach(s => { const ph = this.phase(s), lead = s.leadName === 'You', my = me(s);
+      const tasks = ph === 'plan' ? this.signupOf(s).filter(r => r.people.some(p => p.who === 'You')).map(r => r.item) : [];
+      const org = !lead && !!(st.helping || {})[s.id];
+      const mine = lead || my === 'going' || my === 'maybe' || tasks.length > 0 || org;
+      if (s.draft || (!mine && ph === 'done')) return;
+      const b = { s, ph, lead, my, tasks, org, mine, gi: this.groupIdxOf(s), role: lead ? 'lead' : mine ? 'going' : 'open', time: this.timeOf(s) };
+      const t = this.dayTime(s);
+      if (t != null) { all.push({ ...b, t, kind: ph === 'done' ? 'done' : ph === 'idea' ? 'idea' : 'plan' }); return; }
+      let any = false;
+      (s.ideaDates || []).forEach(dd => { const m = String(dd.md || '').match(/([A-Za-z]{3})\s+(\d+)/); const mi = m ? 'JANFEBMARAPRMAYJUNJULAUGSEPOCTNOVDEC'.indexOf(m[1].toUpperCase()) : -1; if (mi >= 0 && mi % 3 === 0) { any = true; all.push({ ...b, t: new Date(s.year || 2026, mi / 3, +m[2]).getTime(), kind: 'floated', time: dd.time || '', votes: dd.votes || 0 }); } });
+      if (!any && ph !== 'done') all.push({ ...b, t: null, kind: ph === 'idea' ? 'idea' : 'plan' }); });
+    all.sort((x, y) => (x.t == null) - (y.t == null) || x.t - y.t);
+    const inG = (x) => cg == null || x.gi === cg, inR = (x) => role === 'all' || (role === 'help' ? (x.tasks.length > 0 || x.org) : x.role === role);
+    const live = (x) => x.t == null || (x.t >= T0 && x.kind !== 'done');
+    const uniq = (a) => new Set(a.map(x => x.s.id)).size;
+    const items = all.filter(x => inG(x) && inR(x));
+    const sameDay = (p, q) => { const x = new Date(p), y = new Date(q); return x.getFullYear() === y.getFullYear() && x.getMonth() === y.getMonth() && x.getDate() === y.getDate(); };
+    const dkey = (t) => { const x = new Date(t); return x.getFullYear() + '-' + x.getMonth() + '-' + x.getDate(); };
+    const RC = { lead: ['Leading', '#f3f1fe', '#4a3ad4'], going: ['Going', '#e7f6ec', '#0f7a3c'], maybe: ['Maybe', '#fdf1d6', '#8f6405'], done: ['Happened', '#f2f3f6', '#6b7280'], open: ['Open to join', '#f2f3f6', '#454b55'] };
+    const row = (x, k) => { const key = x.kind === 'done' ? 'done' : x.lead ? 'lead' : !x.mine ? 'open' : x.my === 'maybe' ? 'maybe' : 'going'; const [pill, bg, ink] = RC[key];
+      const helpTxt = x.tasks.length ? 'Helping · ' + x.tasks.join(', ') : x.org ? 'Helping organize' : '';
+      const sub = x.kind === 'floated' ? 'Floated date · ' + x.votes + (x.votes === 1 ? ' vote' : ' votes') : x.kind === 'idea' ? 'Idea · ' + (x.t == null ? 'no date yet' : (x.s.spot || 'location TBD')) : (x.s.spot || 'Location TBD');
+      return { text: x.s.text, eyebrow: [x.t != null ? (x.time || 'All day') : '', this.groupNameOf(x.s)].filter(Boolean).join(' · '), sub, pill, hasHelp: !!helpTxt, helpTxt, open: () => this.openSpark(x.s),
+        pillStyle: { flex: '0 0 auto', display: 'flex', alignItems: 'center', minHeight: '28px', padding: '0 11px', borderRadius: '999px', background: bg, color: ink, fontSize: '12.5px', fontWeight: 800, whiteSpace: 'nowrap' },
+        rowStyle: { display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 14px', borderTop: k ? '1px solid #f2f3f6' : '0', cursor: 'pointer', opacity: x.kind === 'done' ? .75 : 1 } }; };
+    const post = (dt) => () => { const iso = dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0'); this.go('compose', { activity: '', vibe: '', hopes: ['', '', ''], photos: [], step: 'event', newCat: 'events', leadInfo: false, locText: '', locAddr: '', locMode: 'specific', evDate: iso, evTime: '', evPlace: '', evDetails: '', evPriv: false, evPhoto: null }); };
+    const DOW = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+    const block = (t, rows, emptyText) => { const dt = t != null ? new Date(t) : null; const isT = t != null && sameDay(t, T0); const past = t != null && t < T0;
+      return { dow: dt ? (isT ? 'TODAY' : DOW[dt.getDay()]) : '', num: dt ? String(dt.getDate()) : '', has: rows.length > 0, empty: rows.length === 0, emptyText: emptyText || '', canPost: !!dt && !past, post: dt ? post(dt) : null, rows: rows.map(row),
+        dowStyle: { fontSize: '10.5px', fontWeight: 900, letterSpacing: '.8px', color: isT ? '#5b4ae8' : '#8a909b' },
+        numStyle: { fontSize: '22px', lineHeight: 1.05, fontWeight: 900, letterSpacing: '-.5px', color: isT ? '#5b4ae8' : past ? '#9aa0ac' : '#0d1117' } }; };
     const cm = st.calM || { y: today.getFullYear(), m: today.getMonth() };
-    const view = st.calView || 'month';
-    const items = this.calItems();
     const first = new Date(cm.y, cm.m, 1); const nDays = new Date(cm.y, cm.m + 1, 0).getDate();
-    const sel = st.calSel != null ? st.calSel : (today.getFullYear() === cm.y && today.getMonth() === cm.m ? today.getTime() : null);
-    const sameDay = (a, b) => { const x = new Date(a), y = new Date(b); return x.getFullYear() === y.getFullYear() && x.getMonth() === y.getMonth() && x.getDate() === y.getDate(); };
-    const cells = [];
-    for (let i = 0; i < first.getDay(); i++) cells.push({ num: '', dots: [], style: { aspectRatio: '1 / 1' }, numStyle: {}, pick: null });
-    for (let d = 1; d <= nDays; d++) { const t = new Date(cm.y, cm.m, d).getTime(); const on = sel != null && sameDay(t, sel); const isT = sameDay(t, today.getTime()); const day = items.filter(it => sameDay(it.t, t));
-      cells.push({ num: String(d), pick: () => this.setState({ calSel: t }),
-        style: { aspectRatio: '1 / 1', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '3px', cursor: 'pointer', background: on ? '#0d1117' : isT ? '#f3f1fe' : 'transparent' },
-        numStyle: { fontSize: '15px', fontWeight: on || isT ? 900 : 700, color: on ? '#fff' : isT ? '#5b4ae8' : t < today.getTime() ? '#9aa0ac' : '#0d1117' },
-        dots: day.slice(0, 3).map(it => ({ style: { width: '6px', height: '6px', borderRadius: '999px', background: it.kind === 'plan' ? (on ? '#7ee2a3' : '#149a4b') : it.kind === 'done' ? (on ? '#8a909b' : '#b3b8c2') : 'transparent', boxShadow: it.kind === 'idea' || it.kind === 'floated' ? 'inset 0 0 0 1.5px ' + (on ? '#f3c55a' : '#e8a71c') : 'none' } })) }); }
-    const dayItems = sel != null ? items.filter(it => sameDay(it.t, sel)) : [];
-    const selD = sel != null ? new Date(sel) : null;
-    const upcoming = items.filter(it => it.t >= today.getTime());
-    const months = []; upcoming.forEach(it => { const d = new Date(it.t); const label = d.toLocaleDateString('en-US', { month: 'long', year: d.getFullYear() !== today.getFullYear() ? 'numeric' : undefined }); let m = months.find(x => x.label === label); if (!m) { m = { label, items: [] }; months.push(m); } m.items.push(it); });
-    const seg = (on) => ({ display: 'flex', alignItems: 'center', minHeight: '34px', padding: '0 14px', borderRadius: '999px', background: on ? '#fff' : 'transparent', boxShadow: on ? '0 1px 3px rgba(15,18,25,.14)' : 'none', color: on ? '#0d1117' : '#6b7280', fontSize: '13.5px', fontWeight: 800, cursor: 'pointer' });
+    const ws = st.calW || (() => { const x = new Date(T0); x.setDate(x.getDate() - x.getDay()); return { y: x.getFullYear(), m: x.getMonth(), d: x.getDate() }; })();
+    const wStart = new Date(ws.y, ws.m, ws.d), wEnd = new Date(ws.y, ws.m, ws.d + 6, 23, 59);
+    const md = (x) => x.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    let sections = [], cells = [], navSub = '';
+    if (view === 'list') { const days = [];
+      items.filter(x => x.t != null && live(x)).forEach(x => { const k = dkey(x.t); let z = days.find(q => q.k === k); if (!z) { z = { k, t: x.t, rows: [] }; days.push(z); } z.rows.push(x); });
+      days.forEach(z => { const dt = new Date(z.t); const label = dt.toLocaleDateString('en-US', { month: 'long' }) + (dt.getFullYear() !== today.getFullYear() ? ' ' + dt.getFullYear() : ''); let sec = sections.find(q => q.label === label); if (!sec) { sec = { label, hasLabel: true, days: [] }; sections.push(sec); } sec.days.push(block(z.t, z.rows)); });
+      const und = items.filter(x => x.t == null); if (und.length) sections.push({ label: 'No date yet', hasLabel: true, days: [block(null, und)] }); }
+    if (view === 'week') { const days = []; for (let i = 0; i < 7; i++) { const t = new Date(ws.y, ws.m, ws.d + i).getTime(); days.push(block(t, items.filter(x => x.t != null && sameDay(x.t, t)), 'Nothing planned')); }
+      sections = [{ label: '', hasLabel: false, days }]; const n = uniq(items.filter(x => x.t != null && x.t >= wStart.getTime() && x.t <= wEnd.getTime())); navSub = n ? n + (n === 1 ? ' thing' : ' things') + ' this week' : 'Wide open'; }
+    if (view === 'month') {
+      const sel = st.calSel != null ? st.calSel : (today.getFullYear() === cm.y && today.getMonth() === cm.m ? T0 : first.getTime());
+      for (let i = 0; i < first.getDay(); i++) cells.push({ num: '', dots: [], style: { aspectRatio: '1 / 1' }, numStyle: {}, pick: null });
+      for (let dn = 1; dn <= nDays; dn++) { const t = new Date(cm.y, cm.m, dn).getTime(); const on = sameDay(t, sel), isT = sameDay(t, T0); const day = items.filter(x => x.t != null && sameDay(x.t, t));
+        const dots = day.slice(0, 3).map(x => ({ style: { width: '6px', height: '6px', borderRadius: '999px', background: x.kind === 'floated' ? 'transparent' : x.kind === 'done' ? (on ? '#8a909b' : '#b3b8c2') : x.lead ? (on ? '#b3a9ff' : '#5b4ae8') : (on ? '#7ee2a3' : '#149a4b'), boxShadow: x.kind === 'floated' ? 'inset 0 0 0 1.5px ' + (on ? '#b3a9ff' : '#5b4ae8') : 'none' } }));
+        if (day.some(x => x.tasks.length || x.org)) dots.push({ style: { width: '6px', height: '6px', borderRadius: '999px', background: on ? '#f3c55a' : '#e8a71c' } });
+        cells.push({ num: String(dn), dots, pick: () => this.setState({ calSel: t }),
+          style: { aspectRatio: '1 / 1', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '3px', cursor: 'pointer', background: on ? '#0d1117' : isT ? '#f3f1fe' : 'transparent' },
+          numStyle: { fontSize: '15px', fontWeight: on || isT ? 900 : 700, color: on ? '#fff' : isT ? '#5b4ae8' : t < T0 ? '#9aa0ac' : '#0d1117' } }); }
+      sections = [{ label: '', hasLabel: false, days: [block(sel, items.filter(x => x.t != null && sameDay(x.t, sel)), 'Nothing on this day')] }];
+      const n = uniq(items.filter(x => x.t != null && new Date(x.t).getMonth() === cm.m && new Date(x.t).getFullYear() === cm.y)); navSub = n ? n + (n === 1 ? ' thing' : ' things') + ' this month' : 'Nothing yet'; }
+    const seg = (on) => ({ display: 'flex', alignItems: 'center', minHeight: '34px', padding: '0 12px', borderRadius: '999px', background: on ? '#fff' : 'transparent', boxShadow: on ? '0 1px 3px rgba(15,18,25,.14)' : 'none', color: on ? '#0d1117' : '#6b7280', fontSize: '13.5px', fontWeight: 800, cursor: 'pointer' });
+    const pill = (on) => ({ flex: '1 1 0', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '38px', borderRadius: '999px', background: on ? '#0d1117' : 'transparent', color: on ? '#fff' : '#454b55', fontSize: '14px', fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' });
+    const chip = (on) => ({ flex: '0 0 auto', display: 'flex', alignItems: 'center', minHeight: '36px', padding: '0 14px', borderRadius: '999px', background: on ? '#0d1117' : '#fff', color: on ? '#fff' : '#454b55', boxShadow: on ? 'none' : 'inset 0 0 0 1.5px #e6e7eb', fontSize: '13.5px', fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' });
+    const rBase = all.filter(x => inG(x) && live(x)), gBase = all.filter(x => inR(x) && live(x));
+    const shiftW = (n) => { const x = new Date(ws.y, ws.m, ws.d + n); this.setState({ calW: { y: x.getFullYear(), m: x.getMonth(), d: x.getDate() } }); };
+    const gName = cg != null ? (st.groups[cg] || {}).name : '';
     return {
-      calViews: [['month', 'Month'], ['list', 'List']].map(([k, label]) => ({ label, pick: () => this.setState({ calView: k }), style: seg(view === k) })),
-      calIsMonth: view === 'month', calIsList: view === 'list',
-      calMonthLabel: view === 'month' ? first.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : 'Coming up',
-      calPrev: () => this.setState({ calM: { y: cm.m === 0 ? cm.y - 1 : cm.y, m: (cm.m + 11) % 12 }, calSel: null }), calNext: () => this.setState({ calM: { y: cm.m === 11 ? cm.y + 1 : cm.y, m: (cm.m + 1) % 12 }, calSel: null }),
+      calViews: [['list', 'List'], ['week', 'Week'], ['month', 'Month']].map(([k, label]) => ({ label, pick: () => this.setState({ calView: k, menu: null }), style: { display: 'flex', alignItems: 'center', minHeight: '40px', padding: '0 12px', borderRadius: '10px', fontSize: '14.5px', fontWeight: view === k ? 900 : 700, color: view === k ? '#5b4ae8' : '#0d1117', cursor: 'pointer' } })),
+      calViewLabel: { list: 'List', week: 'Week', month: 'Month' }[view], calViewOpen: st.menu === 'calView', calIsList: view === 'list',
+      toggleCalView: (e) => { if (e) e.stopPropagation(); this.setState({ menu: st.menu === 'calView' ? null : 'calView' }); },
+      toggleCalGrp: (e) => { if (e) e.stopPropagation(); this.setState({ menu: st.menu === 'calGrp' ? null : 'calGrp' }); },
+      calGrpOpen: st.menu === 'calGrp', calGrpLabel: gName || 'All groups',
+      calGrpOpts: [{ k: null, label: 'All groups' }].concat(st.groups.map((g, k) => ({ k, label: g.name, photo: g.photo || GROUP_PHOTO }))).map(o => { const on = cg === o.k; return { label: o.label, isAll: o.k == null, on, count: String(uniq(gBase.filter(x => o.k == null || x.gi === o.k))), pick: () => this.setState({ calGrp: o.k, menu: null }),
+        style: { display: 'flex', alignItems: 'center', gap: '12px', minHeight: '52px', padding: '0 10px', borderRadius: '12px', background: on ? '#f3f1fe' : 'transparent', cursor: 'pointer' },
+        thumb: { flex: '0 0 36px', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: o.k == null ? '#0d1117' : '#c9ccd3 url(' + o.photo + ') center/cover' },
+        nameStyle: { flex: '1 1 auto', minWidth: 0, fontSize: '15px', fontWeight: on ? 900 : 700, color: on ? '#4a3ad4' : '#0d1117', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+        countStyle: { fontSize: '13px', fontWeight: 800, color: on ? '#4a3ad4' : '#8a909b' } }; }),
+      calRoles: [['all', 'All', rBase, ['#0d1117', '#eef0f3', '#0d1117']], ['lead', 'Leading', rBase.filter(x => x.lead), ['#4a3ad4', '#f3f1fe', '#5b4ae8']], ['going', 'Going', rBase.filter(x => !x.lead && x.mine), ['#0f7a3c', '#e7f6ec', '#149a4b']], ['help', 'Helping', rBase.filter(x => x.tasks.length || x.org), ['#8f6405', '#fdf4e2', '#e8a71c']]].map(([k, l, a, c]) => { const on = role === k; return { label: l, count: String(uniq(a)), pick: () => this.setState({ calRole: k }),
+        style: { flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: '6px', minHeight: '38px', paddingBottom: '2px', borderBottom: '2.5px solid ' + (on ? c[0] : 'transparent'), marginBottom: '-1px', fontSize: '15px', fontWeight: on ? 900 : 700, color: c[0], opacity: on ? 1 : .45, cursor: 'pointer', whiteSpace: 'nowrap' },
+        countStyle: { padding: '1px 7px', borderRadius: '999px', background: on ? c[2] : c[1], color: on ? '#fff' : c[0], fontSize: '11.5px', fontWeight: 900 } }; }),
+      calChips: [{ k: null, label: 'All groups' }].concat(st.groups.map((g, k) => ({ k, label: g.name + ' · ' + uniq(gBase.filter(x => x.gi === k)) }))).map(c => ({ label: c.label, pick: () => this.setState({ calGrp: c.k }), style: chip(cg === c.k) })),
+      calIsMonth: view === 'month', calHasNav: view !== 'list',
+      calNavLabel: view === 'month' ? first.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : md(wStart) + ' – ' + (wStart.getMonth() === wEnd.getMonth() ? wEnd.getDate() : md(wEnd)), calNavSub: navSub,
+      calPrev: () => view === 'week' ? shiftW(-7) : this.setState({ calM: { y: cm.m === 0 ? cm.y - 1 : cm.y, m: (cm.m + 11) % 12 }, calSel: null }),
+      calNext: () => view === 'week' ? shiftW(7) : this.setState({ calM: { y: cm.m === 11 ? cm.y + 1 : cm.y, m: (cm.m + 1) % 12 }, calSel: null }),
       calDows: ['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(label => ({ label })), calCells: cells,
-      calDayLabel: selD ? (sameDay(sel, today.getTime()) ? 'Today · ' : '') + selD.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }) : 'Pick a day',
-      calDayEmpty: selD != null && dayItems.length === 0, calDayHas: dayItems.length > 0, calDayItems: dayItems.map((it, k) => this.calRow(it, k)),
-      calPostHere: () => { const d = selD || today; const iso = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); this.go('compose', { activity: '', vibe: '', hopes: ['', '', ''], photos: [], step: 'event', newCat: 'events', leadInfo: false, locText: '', locAddr: '', locMode: 'specific', evDate: iso, evTime: '', evPlace: '', evDetails: '', evPriv: false, evPhoto: null }); },
-      calMonths: months.map(m => ({ label: m.label, items: m.items.map((it, k) => this.calRow(it, k)) })), calListEmpty: upcoming.length === 0
+      calSections: sections, calEmpty: view === 'list' && sections.length === 0,
+      calEmptyNote: 'Nothing coming up' + (role === 'lead' ? ' that you’re leading' : role === 'going' ? ' that you’re going to' : role === 'help' ? ' that you’re helping with' : '') + (gName ? ' in ' + gName : '') + '.'
     };
   }
 
