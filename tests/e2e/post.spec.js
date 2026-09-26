@@ -15,9 +15,9 @@ test('post → idea page → all three views → profile → edit → delete', a
     // Idea page: date, time, location, address, directions, basics, lead
     const detail = page.locator('[data-screen-label="Idea page"]');
     await expect(detail.getByRole('heading', { name: Title })).toBeVisible();
-    await expect(detail).toContainText('Torrez Fitness');
-    await expect(detail).toContainText('Sat, Oct 17');
-    await expect(detail).toContainText('5:30pm');
+    await expect(detail.getByLabel('Idea in Torrez Fitness')).toBeVisible();
+    await expect(detail.getByLabel(/^Picked: Sat, Oct 17/)).toBeVisible();
+    await expect(detail).toContainText('Make it a plan');                        // the lead has a date and time
     await expect(detail).toContainText('Zilker Metropolitan Park');
     await expect(detail).toContainText('2100 Barton Springs Road, Austin, TX 78746');
     await expect(detail.getByRole('link', { name: 'Directions' })).toHaveAttribute('href', 'https://www.google.com/maps/dir/?api=1&destination=30.2669,-97.7729');
@@ -97,6 +97,8 @@ test('post flow guards: each step waits for an answer or a "later"', async ({ br
     // …or float it as an idea instead
     await form.getByRole('button', { name: /Don’t have it all figured out/ }).click();
     await expect(page.getByRole('heading', { name: 'What’s the event?' })).toBeVisible();
+    await expect(page.getByLabel('The event')).toHaveValue('Chili cook-off');       // the name comes along
+    await page.getByLabel('The event').fill('');
     await expect(button(page, 'Next')).toHaveAttribute('aria-disabled', 'true');
     // The event name is capped at 40; a count shows once 10 or fewer are left
     await page.getByLabel('The event').fill('A'.repeat(29));

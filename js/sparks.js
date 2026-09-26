@@ -97,7 +97,7 @@
   let H = [], GEN = 0;
   const reg = (fn) => { H.push(fn); return GEN + '.' + (H.length - 1); };
   const handlerFor = (id) => { const [g, i] = String(id || '').split('.'); return +g === GEN ? handlers[+i] : null; };
-  const on = (fn) => 'data-on="' + reg(fn) + '" role="button" tabindex="0"';
+  const on = (fn, role) => 'data-on="' + reg(fn) + '" role="' + (role || 'button') + '" tabindex="0"';
   const onInput = (fn) => 'data-input="' + reg(fn) + '"';
   const onFocus = (fn) => 'data-focus="' + reg(fn) + '"';
   const stop = (e) => { if (e && e.stopPropagation) e.stopPropagation(); };
@@ -763,7 +763,7 @@
   };
   const goCompose = () => {
     setState({ menu: null });
-    if (state.email && !currentGroup()) { openJoin(); return; }
+    if (state.email && !currentGroup()) { if (state.loaded) openJoin(); return; }   // groups still loading: wait
     go('compose', composeReset());
   };
 
@@ -2182,7 +2182,7 @@
       '<div style="position:absolute;top:calc(12px + var(--pt));left:12px;right:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;z-index:1">' +
         '<span ' + on(() => go(g && g.role ? 'browse' : 'home', g && g.role ? { groupId: g.id } : {})) + ' aria-label="Back" style="flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.chevL(18, '#fff', 2.3) + '</span>' +
         '<span style="min-width:0;font-size:11.5px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(g ? g.name : '') + '</span>' +
-        (canEdit(s) && phaseOf(s) === 'plan'
+        (canEdit(s)   // plans and past events (the idea page has its own header)
           ? '<span ' + on(() => openEdit(s)) + ' style="flex:0 0 auto;display:flex;align-items:center;gap:6px;min-height:40px;padding:0 14px;border-radius:999px;background:rgba(255,255,255,.2);font-size:14px;font-weight:800;color:#fff;cursor:pointer">' + I.edit(14, '#fff') + 'Edit</span>'
           : '<span style="flex:0 0 40px;width:40px"></span>') +
       '</div>' + inner +
@@ -2275,7 +2275,7 @@
             '<button type="button" class="hov-primary" ' + on(() => setState({ invite: { id: s.id } })) + ' style="min-height:50px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:15.5px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;box-shadow:0 8px 20px rgba(91,74,232,.28)">' + I.plus(16, '#fff', 2.5) + 'Invite people</button>' +
             '<button type="button" class="hov-outline" ' + on(() => setState({ blast: { id: s.id, to: 'all', text: '' } })) + ' style="min-height:50px;border:1.5px solid #dcdfe6;border-radius:999px;background:#fff;color:#0d1117;font-family:inherit;font-size:15.5px;font-weight:800;cursor:pointer">Send an update</button>' +
           '</div>' +
-          '<div ' + on(() => { if (!st.busy) toggleAutoRemind(s); }) + ' role="switch" aria-checked="' + s.autoRemind + '" aria-label="Remind everyone the day before" style="display:flex;align-items:center;gap:12px;padding-top:12px;border-top:1px solid #f2f3f6;cursor:pointer">' +
+          '<div ' + on(() => { if (!st.busy) toggleAutoRemind(s); }, 'switch') + ' aria-checked="' + s.autoRemind + '" aria-label="Remind everyone the day before" style="display:flex;align-items:center;gap:12px;padding-top:12px;border-top:1px solid #f2f3f6;cursor:pointer">' +
             '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">Remind everyone the day before</div><div style="font-size:13px;font-weight:500;color:#6b7280">Goes to anyone going or maybe</div></div>' +
             '<span style="flex:0 0 46px;width:46px;height:28px;border-radius:999px;position:relative;transition:background 160ms;background:' + (s.autoRemind ? '#149a4b' : '#dcdfe6') + '"><span style="position:absolute;top:3px;left:' + (s.autoRemind ? 21 : 3) + 'px;width:22px;height:22px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:left 160ms"></span></span>' +
           '</div>', 'gap:14px') : '') +
@@ -2324,9 +2324,10 @@
           eyebrowRow('The album' + (album.length ? ' · ' + album.length : ''),
             '<label style="font-size:13.5px;font-weight:800;color:#5b4ae8;cursor:pointer">+ Add yours<input type="file" accept="image/*" aria-label="Add a photo to the album" ' + onInput(e => { if (e.type !== 'change') return; const f = (e.target.files || [])[0]; e.target.value = ''; addAlbumPhoto(s, f); }) + ' style="display:none"></label>') +
           (album.length
-            ? '<div ' + on(() => setState({ zoom: { photos: album, i: 0 } })) + ' aria-label="Open the album" style="display:grid;grid-template-columns:2fr 1fr;grid-template-rows:90px 90px;gap:6px;cursor:zoom-in">' +
-                tileAt(album[0], 'grid-row:span 2') + tileAt(album[1] || album[0]) +
-                '<span style="position:relative;border-radius:12px;background:' + bg(album[2] || album[1] || album[0]) + '">' + (album.length > 3 ? '<span style="position:absolute;inset:0;border-radius:12px;background:rgba(13,17,23,.5);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:900;color:#fff">+' + (album.length - 3) + '</span>' : '') + '</span>' +
+            ? '<div ' + on(() => setState({ zoom: { photos: album, i: 0 } })) + ' aria-label="Open the album" style="display:grid;grid-template-columns:' + (album.length === 1 ? '1fr' : album.length === 2 ? '1fr 1fr' : '2fr 1fr') + ';grid-template-rows:' + (album.length < 3 ? '186px' : '90px 90px') + ';gap:6px;cursor:zoom-in">' +
+                (album.length < 3 ? album.map(src => tileAt(src)).join('') :
+                tileAt(album[0], 'grid-row:span 2') + tileAt(album[1]) +
+                '<span style="position:relative;border-radius:12px;background:' + bg(album[2]) + '">' + (album.length > 3 ? '<span style="position:absolute;inset:0;border-radius:12px;background:rgba(13,17,23,.5);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:900;color:#fff">+' + (album.length - 3) + '</span>' : '') + '</span>') +
               '</div>'
             : '<p style="margin:0;font-size:14px;line-height:1.45;font-weight:500;color:#5c6270">No photos yet. Anyone who went can add theirs.</p>') +
         '</div>' +

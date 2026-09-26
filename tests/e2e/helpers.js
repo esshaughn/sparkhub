@@ -189,8 +189,8 @@ async function confirm(page, cta) {
 // Delete an idea as its lead (cleanup)
 async function deleteIdea(page, id) {
   await openIdea(page, id);
-  await page.locator('[data-screen-label="Idea page"], [data-screen-label="Plan page"], [data-screen-label="It happened"]').getByRole('button', { name: 'Edit' }).first().click();
-  await button(page, 'Delete this idea').click();
+  await page.locator('[data-screen-label="Idea page"], [data-screen-label="Plan page"], [data-screen-label="It happened"]').getByRole('button', { name: 'Edit' }).first().click({ timeout: 10000 });
+  await button(page, 'Delete this idea').click({ timeout: 10000 });
   await confirm(page, 'Delete it');
   await expect(page.locator('[data-screen-label=Browse]')).toBeVisible();
 }

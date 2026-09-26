@@ -69,6 +69,21 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 32 | Lead's **Who's interested** list with guests' phone numbers (tap the count) | Test | Not designed yet |
 | 33 | "That idea isn't up anymore" card for a dead link | Test | |
 
+## Plans (V5)
+
+| # | Feature | Status | Notes |
+|---|---|---|---|
+| 61 | **Post an event** form (the default when posting): what, post to, when + time, where, good to know, who can see it (everyone / invite only), photo; *Don't have it all figured out?* switches to the idea steps | Test | |
+| 62 | Idea page boards: **Dates** and **Location** suggestions with votes; the lead taps one to use it; *Steps to a plan* banner; *Make it a plan*; *Offer to help organize* | Test | `date_options`, `spot_options`, votes, `organizers`, `make_plan()` |
+| 63 | **Plan page**: countdown header, *Are you coming?* (Going / Maybe / Can't make it), who's going, add to calendar (.ics), directions, good to know, sign-ups, updates, Inspo | Test | `rsvps` |
+| 64 | Host tools: guest list counts, **Invite people** (share link), **Send an update** (audience + templates), remind-the-day-before switch, private **Before the day** notes, *Clear the date* | Test | `plan_updates`, `plan_prep`, `clear_plan()`; delivery comes later |
+| 65 | **Sign-ups**: the host adds items with an optional "how many"; anyone signs up or adds "something else" they're bringing | Test | `signup_items`, `signup_claims` (full items refuse more) |
+| 66 | **It happened** page: album (anyone can add), *Do it again* (prefilled event form), Edit for the lead/admins | Test | `album_photos` |
+| 67 | **Invite-only plans**: seen by the lead, admins, people who replied and link holders | Test | `can_see_spark()` |
+| 68 | All ideas **Ideas / Plans / Happened** tabs with counts; cards show IDEA / PLAN / It happened | Test | |
+| 69 | **Start a group** (Profile → Your groups) | Test | `create_group()` |
+| 70 | Temporary **demo plans** in every group the owner is in (`scripts/demo/seed-v5.py`) | Test | Re-run to refresh dates; see the script to remove |
+
 ## Posting and editing
 
 | # | Feature | Status | Notes |
@@ -118,12 +133,12 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 56 | Design handoff doc kept current by Claude Code | Live | |
 | 57 | Vercel auto-deploy from `main`; previews from `test` | Live | |
 | 58 | Security headers + CSP; pinned, integrity-checked Supabase script | Live | |
-| 59 | Automated end-to-end tests (15: smoke, posting, groups, collaboration, Google, database security) | Test | `tests/` |
+| 59 | Automated end-to-end tests (19: smoke, posting, groups, collaboration, plans, Google, database security) | Test | `tests/` |
 | 60 | Nightly cleanup of test-database leftovers ([E2E] ideas and groups, old anonymous users) | Live | Test project only |
 
 ## Removed in this rebuild
 
-- Date voting (date options, ranks, lock-in) and the RSVP pop-up.
+- The old date voting (ranks, lock-in) and the RSVP pop-up (V5 brought back simpler date votes and RSVPs).
 - The Walktober hero card, "What should we get up to?" Home, category filter, questions screen.
 - Progress / "N of 3 in place", checkpoints, "Everything's in place" card.
 - "I can help with something" and the offer chips at the bottom of the idea page.

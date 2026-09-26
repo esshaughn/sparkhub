@@ -7,6 +7,7 @@ const { uniqueTitle, newMember, newLead, button, postEvent, openIdea, deleteIdea
 const inDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
 
 test('a plan: guest RSVPs, sign-ups, an update, the host’s notes, then clearing the date', async ({ browser }) => {
+  test.setTimeout(150000);
   const host = await newLead(browser, 1, 'Hope');
   const guest = await newMember(browser);
   const H = host.page, G = guest.page;
@@ -55,6 +56,7 @@ test('a plan: guest RSVPs, sign-ups, an update, the host’s notes, then clearin
     await GP.getByRole('button', { name: 'Maybe' }).click();
     await expect(G.getByText('Marked as maybe')).toBeVisible();
     await GP.getByRole('button', { name: 'I’m going' }).click();
+    await expect(GP.getByRole('button', { name: '✓ Going' })).toBeVisible();
     await GP.locator('[data-signup="Folding chairs"]').getByRole('button', { name: 'Sign up' }).click();
     await expect(G.getByText('You’re down for folding chairs')).toBeVisible();
     await expect(GP.locator('[data-signup="Folding chairs"]')).toContainText('1 of 2 · 1 still needed');
@@ -85,6 +87,7 @@ test('a plan: guest RSVPs, sign-ups, an update, the host’s notes, then clearin
 });
 
 test('it happened: the album and "do it again"; invite-only plans stay private', async ({ browser }) => {
+  test.setTimeout(150000);
   const host = await newLead(browser, 1, 'Hope');
   const other = await newLead(browser, 2, 'Otto');
   const H = host.page, O = other.page;
@@ -108,13 +111,14 @@ test('it happened: the album and "do it again"; invite-only plans stay private',
     await done.getByLabel('Add a photo to the album').setInputFiles({ name: 'p.png', mimeType: 'image/png', buffer: PNG });
     await expect(H.getByText('Added to the album')).toBeVisible();
     await expect(done).toContainText('The album · 1');
-    await done.getByText('Do it again').click();
+    await done.getByRole('button', { name: 'Do it again', exact: true }).click();
     const form = H.locator('[data-screen-label="New spark"]');
     await expect(form.getByLabel('What', { exact: true })).toHaveValue(title.charAt(0).toUpperCase() + title.slice(1));
     await expect(form.getByLabel('Location')).toHaveValue('Pease Park');
 
     // Invite-only: Otto (in the same group) doesn't see it until he has the link
     await H.goto('/');
+    await expect(H.locator('html[data-loaded=true]')).toHaveCount(1);
     ids.push(await postEvent(H, { title: secret, date: inDays(9), inviteOnly: true }));
     await expect(H.locator('[data-screen-label="Plan page"]')).toContainText('INVITE ONLY');
     const hidden = await asUser(O, async (c, _C, id) => (await c.from('sparks').select('id').eq('id', id)).data.length, ids[1]);

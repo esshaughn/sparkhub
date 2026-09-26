@@ -84,8 +84,13 @@ test('members: Home, group switcher, view and sort menus', async ({ browser }) =
     // Tapping the group tile opens its ideas
     await home.getByRole('button', { name: /^Torrez Fitness/ }).click();
     const browse = page.locator('[data-screen-label=Browse]');
-    await expect(browse.getByRole('heading', { name: 'All ideas' })).toBeVisible();
+    await expect(browse.getByRole('heading', { name: 'Plans' })).toBeVisible();   // plans first
     await expect(browse).toContainText('Torrez Fitness');
+    const tabs = browse.getByRole('tablist', { name: 'Ideas, plans and what happened' }).getByRole('tab');
+    await expect(tabs).toHaveText([/^Ideas\s*\d+$/, /^Plans\s*\d+$/, /^Happened\s*\d+$/]);
+    await tabs.filter({ hasText: 'Ideas' }).click();
+    await expect(browse.getByRole('heading', { name: 'Ideas' })).toBeVisible();
+    await expect(tabs.filter({ hasText: 'Ideas' })).toHaveAttribute('aria-selected', 'true');
 
     // The switcher (group screens) lists your groups and "Join a group"
     await page.getByRole('button', { name: 'Switch group' }).click();
