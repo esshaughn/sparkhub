@@ -28,8 +28,8 @@ test('visitors land on Welcome (no tab bar there) and sign in from there', async
     await page.goto('/#/ideas');
     await expect(page.getByText('You’re not in a group yet.')).toBeVisible();
     await expect(page.getByRole('navigation', { name: 'Main' })).toBeVisible();   // …but everywhere else, signed in or not
-    await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('button')).toHaveText(['', '', '', '']);
-    for (const name of ['Home', 'Calendar', 'You own', 'Groups']) await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name, exact: true })).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('button')).toHaveText(['', '', '', '', '']);
+    for (const name of ['Home', 'Calendar', 'You own', 'Groups', 'Notifications']) await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name, exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Calendar', exact: true }).click();   // the signed-in tabs show Welcome
     await expect(page.locator('[data-screen-label=Welcome]')).toBeVisible();
     await expect(page.getByRole('navigation', { name: 'Main' })).toHaveCount(0);

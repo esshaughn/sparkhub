@@ -139,6 +139,7 @@
     tabCal: svg(23, stroke('currentColor', 1.9), '<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8.5 3v4M15.5 3v4"/>'),
     tabFlag: svg(23, stroke('currentColor', 1.9), '<path d="M5.5 21V4"/><path d="M5.5 4.5h11.5l-2.5 4 2.5 4H5.5"/>'),
     tabGroups: svg(23, stroke('currentColor', 1.9), '<circle cx="9" cy="8.5" r="3.3"/><path d="M3 19.5c.6-3.3 3-5.1 6-5.1s5.4 1.8 6 5.1"/><circle cx="16.8" cy="9.3" r="2.6"/><path d="M16.4 14.5c2.6 0 4.3 1.6 4.8 4.4"/>'),
+    tabBell: svg(23, stroke('currentColor', 1.9), '<path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 1.5h-15Z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>'),
     tabProfile: svg(23, stroke('currentColor', 1.9), '<circle cx="12" cy="8" r="3.6"/><path d="M4.8 20.5c.6-3.8 3.6-5.8 7.2-5.8s6.6 2 7.2 5.8"/>'),
     google: '<svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true" style="flex:0 0 20px"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>'
   };
@@ -175,7 +176,7 @@
     guestName: prefs.guestName || '', guestPhone: prefs.guestPhone || '',
     offerKind: null, offerText: '', offerPlace: null, offerSuggest: [],
     joinOpen: false, joinCode: '', joinBad: false,
-    allTab: null, allGrp: null, ownGrp: null, homeGroup: null, calView: 'month', calM: null, calSel: null, sizes: {}, membersQ: '', gpRename: null, gpDel: null, ph: null, postTo: false,
+    notif: { allReadAt: 0, read: [], topics: {}, email: true, loaded: false }, nFilter: 'all', nSettings: false, allTab: null, allGrp: null, ownGrp: null, homeGroup: null, calView: 'month', calM: null, calSel: null, sizes: {}, membersQ: '', gpRename: null, gpDel: null, ph: null, postTo: false,
     startName: null, phaseTab: 'plan', sigDraft: '', sigNeed: '', blast: null, prepEdit: null, prepText: '', invite: null, datesSheet: false,
     pe: null, confirm: null, interestList: false,
     gpCode: '', gpMembers: null
@@ -187,7 +188,7 @@
     const s = state.screen;
     if (s === 'detail' && state.subjectId) return '#/idea/' + state.subjectId;
     if (s === 'groupPage' && state.gpId) return '#/group/' + state.gpId;
-    const plain = { home: '', browse: '#/ideas', how: '#/how', profile: '#/me', calendar: '#/calendar', own: '#/own', groups: '#/groups' };
+    const plain = { home: '', browse: '#/ideas', how: '#/how', profile: '#/me', calendar: '#/calendar', own: '#/own', groups: '#/groups', notifs: '#/notifications' };
     return plain[s] != null ? plain[s] : null;
   };
   const syncHash = () => {
@@ -209,6 +210,7 @@
     if (h === '#/calendar') return { screen: 'calendar' };
     if (h === '#/own') return { screen: 'own' };
     if (h === '#/groups') return { screen: 'groups' };
+    if (h === '#/notifications') return { screen: 'notifs' };
     if (h === '#/me') return { screen: 'profile' };
     return { screen: 'home' };
   };
@@ -318,15 +320,17 @@
     pending: offers.filter(o => o.spark_id === row.id && o.status === 'pending')
       .map(o => ({ id: o.id, userId: o.user_id, who: o.who, kind: o.kind, body: o.body })),
     interested: interests.filter(i => i.spark_id === row.id).sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at)).map(i => i.user_id),
+    interestAt: interests.filter(i => i.spark_id === row.id).reduce((m, i) => { m[i.user_id] = Date.parse(i.created_at); return m; }, {}),
     contacts: contacts.filter(c => c.spark_id === row.id),
     planned: !!row.planned, visibility: row.visibility || 'group', autoRemind: row.auto_remind !== false, minPeople: row.min_people || null,
     rsvps: (x.rsvps[row.id] || []).map(r => ({ userId: r.user_id, status: r.status, created: Date.parse(r.created_at) })),
-    dateOpts: (x.dateOpts[row.id] || []).map(o => ({ id: o.id, dayDate: o.day_date, dayTime: o.day_time ? String(o.day_time).slice(0, 5) : null, who: o.who, createdBy: o.created_by, votes: (x.dateVotes[o.id] || []).map(v => v.user_id) })),
-    spotOpts: (x.spotOpts[row.id] || []).map(o => ({ id: o.id, name: o.name, address: o.address || '', lat: o.lat, lon: o.lon, who: o.who, createdBy: o.created_by, votes: (x.spotVotes[o.id] || []).map(v => v.user_id) })),
+    dateOpts: (x.dateOpts[row.id] || []).map(o => ({ id: o.id, dayDate: o.day_date, dayTime: o.day_time ? String(o.day_time).slice(0, 5) : null, who: o.who, createdBy: o.created_by, created: Date.parse(o.created_at), votes: (x.dateVotes[o.id] || []).map(v => v.user_id) })),
+    spotOpts: (x.spotOpts[row.id] || []).map(o => ({ id: o.id, name: o.name, address: o.address || '', lat: o.lat, lon: o.lon, who: o.who, createdBy: o.created_by, created: Date.parse(o.created_at), votes: (x.spotVotes[o.id] || []).map(v => v.user_id) })),
     signups: (x.signups[row.id] || []).sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at))
-      .map(i => ({ id: i.id, item: i.item, need: i.need || null, createdBy: i.created_by, claims: (x.claims[i.id] || []).map(c => ({ userId: c.user_id, note: c.note || '' })) })),
+      .map(i => ({ id: i.id, item: i.item, need: i.need || null, createdBy: i.created_by, claims: (x.claims[i.id] || []).map(c => ({ userId: c.user_id, note: c.note || '', created: Date.parse(c.created_at) })) })),
     updates: (x.updates[row.id] || []).sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at)).map(u => ({ id: u.id, body: u.body, audience: u.audience, created: Date.parse(u.created_at) })),
     organizers: (x.organizers[row.id] || []).map(o => o.user_id),
+    organizerAt: (x.organizers[row.id] || []).reduce((m, o) => { m[o.user_id] = Date.parse(o.created_at); return m; }, {}),
     album: (x.album[row.id] || []).sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at)).filter(a => PHOTO_PATH.test(a.path)).map(a => ({ id: a.id, path: a.path, createdBy: a.created_by })),
     prep: (x.prep[row.id] || [])[0] ? x.prep[row.id][0].answers || {} : {}
   });
@@ -347,14 +351,14 @@
       sb.from('interests').select('spark_id,user_id,created_at'),
       sb.from('guest_contacts').select('spark_id,user_id,name,phone'),
       sb.from('rsvps').select('spark_id,user_id,status,created_at'),
-      sb.from('date_options').select('id,spark_id,day_date,day_time,who,created_by'),
+      sb.from('date_options').select('id,spark_id,day_date,day_time,who,created_by,created_at'),
       sb.from('date_votes').select('option_id,user_id'),
-      sb.from('spot_options').select('id,spark_id,name,address,lat,lon,who,created_by'),
+      sb.from('spot_options').select('id,spark_id,name,address,lat,lon,who,created_by,created_at'),
       sb.from('spot_votes').select('option_id,user_id'),
       sb.from('signup_items').select('id,spark_id,item,need,created_by,created_at'),
-      sb.from('signup_claims').select('item_id,user_id,note'),
+      sb.from('signup_claims').select('item_id,user_id,note,created_at'),
       sb.from('plan_updates').select('id,spark_id,body,audience,created_at'),
-      sb.from('organizers').select('spark_id,user_id'),
+      sb.from('organizers').select('spark_id,user_id,created_at'),
       sb.from('album_photos').select('id,spark_id,path,created_by,created_at'),
       sb.from('plan_prep').select('spark_id,answers')
     ]);
@@ -392,6 +396,14 @@
       groups, sparks, profiles, loaded: true, error: null,
       myName: mine.name || state.myName, myAvatar: mine.avatar || null
     });
+    // Notification read state and settings (signed-in people only)
+    if (state.email) {
+      sb.from('notif_state').select('all_read_at,read_keys,topics,email').maybeSingle().then(r => {
+        if (r.error) return;
+        const d = r.data || {};
+        setState({ notif: { allReadAt: d.all_read_at ? Date.parse(d.all_read_at) : 0, read: d.read_keys || [], topics: d.topics || {}, email: d.email !== false, loaded: true } });
+      }, () => {});
+    }
     // Member counts for the Groups page (a nicety: the page works without them)
     sb.rpc('my_group_sizes').then(r => {
       if (r.error) return;
@@ -2004,6 +2016,159 @@
     '</div>';
   }
 
+  // ---- V5: Notifications, built from what's already stored (last 7 days) --------------------
+  // Topics (Settings) → filter chips: new events = Invites; updates + reminders = Updates; the rest = Hosting
+  const N_TYPES = {
+    newevent: { bg: '#149a4b', glyph: '●', cat: 'invites', topic: 'newevents' },
+    update: { bg: '#0d1117', glyph: '“', cat: 'updates', topic: 'updates' },
+    reminder: { bg: '#e2556b', glyph: '⏰', cat: 'updates', topic: 'reminders' },
+    rsvp: { bg: '#149a4b', glyph: '✓', cat: 'hosting', topic: 'hosting' },
+    signup: { bg: '#e8a71c', glyph: '+', cat: 'hosting', topic: 'hosting' },
+    interest: { bg: '#5b4ae8', glyph: '♥', cat: 'hosting', topic: 'hosting' },
+    vote: { bg: '#e8a71c', glyph: '▲', cat: 'hosting', topic: 'hosting' },
+    lead: { bg: '#7b6ef0', glyph: '★', cat: 'hosting', topic: 'hosting' }
+  };
+  const N_TOPICS = [
+    ['newevents', 'New events in your groups', 'When something goes on the books'],
+    ['updates', 'Updates from hosts', 'Changes and last calls on plans you’re in'],
+    ['reminders', 'Day-before reminders', 'For anything you said you’re going to'],
+    ['hosting', 'Things you’re hosting', 'Replies, sign-ups, suggestions and people pitching in']
+  ];
+  // A guest's name comes from what they left the lead; everyone else from their profile
+  const personName = (s, uid) => {
+    const c = s.contacts.find(x => x.user_id === uid);
+    return (state.profiles[uid] && state.profiles[uid].name) || (c && c.name) || 'Someone';
+  };
+  const notifList = () => {
+    if (!state.email || !state.me) return [];
+    const me = state.me, since = Date.now() - 7 * DAY_MS, out = [];
+    const add = (n) => { if (n.t >= since && n.t <= Date.now() + 60000) out.push(n); };
+    state.sparks.filter(inMine).forEach(s => {
+      const lead = isLead(s), ph = phaseOf(s), my = myRsvp(s);
+      // Updates from the host: "everyone" / going / maybe reach people in the plan (replied or signed up);
+      // "haven't replied" reaches the rest of the group
+      const inIt = !!my || s.signups.some(it => it.claims.some(c => c.userId === me));
+      if (!lead && ph === 'plan') s.updates.forEach(u => {
+        const aud = u.audience || 'all';
+        if (aud === 'noreply' ? !my : inIt && (aud === 'all' || aud === my))
+          add({ key: 'u:' + u.id, type: 'update', s, t: u.created, uid: s.leadId, who: nameOf(s.leadId, s.leadName), text: 'posted an update on', quote: u.body });
+      });
+      // Day-before reminder (and the day itself) for plans you're going to
+      if (ph === 'plan' && s.autoRemind && (my === 'going' || my === 'maybe') && !lead) {
+        const d = dayDiff(s.dayDate);
+        if (d === 0 || d === 1) add({ key: 'r:' + s.id + ':' + s.dayDate, type: 'reminder', s, t: Math.min(Date.now(), midnight(s.dayDate) - (d === 1 ? DAY_MS : 0) + 8 * 3600000),   // 8am on the day before (or the day)
+          uid: s.leadId, who: d === 1 ? 'Tomorrow:' : 'Today:', text: '', after: (s.dayTime ? ' at ' + fmtTime(s.dayTime) : '') + (s.spot ? ' · ' + s.spot : '') });
+      }
+      // A new plan in one of your groups
+      if (!lead && s.planned && s.created && ph === 'plan')
+        add({ key: 'e:' + s.id, type: 'newevent', s, t: s.created, uid: s.leadId, who: nameOf(s.leadId, s.leadName), text: 'put an event on the books:', rsvp: !my });
+      if (!lead) return;
+      // Things you're hosting
+      s.rsvps.filter(r => r.userId !== me).forEach(r => add({ key: 'rv:' + s.id + ':' + r.userId, type: 'rsvp', s, t: r.created, uid: r.userId, who: personName(s, r.userId),
+        text: r.status === 'going' ? 'is going to' : r.status === 'maybe' ? 'might come to' : 'can’t make it to' }));
+      s.signups.forEach(it => it.claims.filter(c => c.userId !== me && c.created).forEach(c => add({ key: 's:' + it.id + ':' + c.userId, type: 'signup', s, t: c.created, uid: c.userId, who: personName(s, c.userId), text: 'signed up to bring', item: it.item })));
+      if (ph === 'idea') {
+        s.interested.filter(u => u !== me && s.interestAt[u]).forEach(u => add({ key: 'i:' + s.id + ':' + u, type: 'interest', s, t: s.interestAt[u], uid: u, who: personName(s, u), text: 'is interested in' }));
+        s.dateOpts.filter(o => o.createdBy !== me && o.created).forEach(o => add({ key: 'd:' + o.id, type: 'vote', s, t: o.created, uid: o.createdBy, who: o.who, text: 'suggested', item: fmtDay(o.dayDate) + (o.dayTime ? ' ' + fmtTime(o.dayTime) : ''), joiner: ' for ' }));
+        s.spotOpts.filter(o => o.createdBy !== me && o.created).forEach(o => add({ key: 'p:' + o.id, type: 'vote', s, t: o.created, uid: o.createdBy, who: o.who, text: 'suggested', item: o.name, joiner: ' for ' }));
+        s.organizers.filter(u => u !== me && s.organizerAt[u]).forEach(u => add({ key: 'o:' + s.id + ':' + u, type: 'lead', s, t: s.organizerAt[u], uid: u, who: personName(s, u), text: 'offered to help organize' }));
+      }
+    });
+    const topics = state.notif.topics || {};
+    return out.filter(n => topics[N_TYPES[n.type].topic] !== false).sort((a, b) => b.t - a.t);
+  };
+  const isUnread = (n) => n.t > (state.notif.allReadAt || 0) && state.notif.read.indexOf(n.key) < 0;
+  const unreadCount = () => notifList().filter(isUnread).length;
+
+  // Saving read state and settings (one row per person)
+  const saveNotif = (patch) => {
+    const n = Object.assign({}, state.notif, patch);
+    setState({ notif: n });
+    sb.from('notif_state').upsert({ user_id: state.me, all_read_at: n.allReadAt ? new Date(n.allReadAt).toISOString() : null, read_keys: n.read.slice(-300), topics: n.topics, email: n.email, updated_at: new Date().toISOString() }, { onConflict: 'user_id' })
+      .then(r => { if (r.error) throw r.error; }).catch(e => { console.error(e); toast(FAILED); });
+  };
+  const markRead = (n) => { if (isUnread(n)) saveNotif({ read: state.notif.read.concat([n.key]) }); };
+  const markAllRead = () => saveNotif({ allReadAt: Date.now(), read: [] });
+  const openNotif = (n) => { markRead(n); openSpark(n.s); };
+  const rsvpFromFeed = (n, status) => (e) => { stop(e); markRead(n); setRsvp(n.s, status); };
+
+  function viewNotifs() {
+    const st = state, all = notifList(), f = st.nFilter, shown = all.filter(n => f === 'all' || N_TYPES[n.type].cat === f), unread = all.filter(isUnread).length;
+    const todayStart = midnight(todayISO());
+    const secs = [['New', shown.filter(n => n.t >= todayStart)], ['Earlier this week', shown.filter(n => n.t < todayStart)]].filter(x => x[1].length);
+    const chip = (k, label) => '<span ' + on(() => setState({ nFilter: k }), 'radio') + ' aria-checked="' + (f === k) + '" style="flex:0 0 auto;display:flex;align-items:center;min-height:36px;padding:0 14px;border-radius:999px;font-size:13.5px;font-weight:800;white-space:nowrap;cursor:pointer;' +
+      (f === k ? 'background:#0d1117;color:#fff' : 'background:#f2f3f6;color:#454b55') + '">' + label + '</span>';
+    const row = (n, k) => {
+      const T = N_TYPES[n.type], g = groupById(n.s.groupId), unr = isUnread(n), face = n.uid ? avatarOf(n.uid) : null;
+      const initial = initialOf(n.type === 'reminder' ? n.s.text : n.who) || '?';
+      const what = '<b style="font-weight:800;color:#0d1117">' + esc(n.s.text) + '</b>';
+      const line = n.type === 'reminder'
+        ? '<b style="font-weight:800;color:#0d1117">' + esc(n.who) + '</b> ' + what + esc(n.after)
+        : '<b style="font-weight:800;color:#0d1117">' + esc(n.who) + '</b> ' + esc(n.text) + ' ' +
+          (n.item ? '<b style="font-weight:800;color:#0d1117">' + esc(n.item) + '</b>' + (n.joiner ? esc(n.joiner) + what : ' on ' + what) : what);
+      return '<div ' + on(() => openNotif(n)) + ' data-notif="' + esc(n.type) + '" style="display:flex;align-items:flex-start;gap:12px;padding:14px;border-top:' + (k ? '1px solid #f2f3f6' : '0') + ';background:' + (unr ? '#faf9ff' : '#fff') + ';cursor:pointer">' +
+        '<span aria-hidden="true" style="position:relative;flex:0 0 44px;width:44px;height:44px;border-radius:999px;background:' + (face ? bg(face) : FACE_SET[(n.who || '').length % FACE_SET.length]) + ';color:#fff;font-size:17px;font-weight:900;display:flex;align-items:center;justify-content:center">' + (face ? '' : esc(initial)) +
+          '<span style="position:absolute;right:-3px;bottom:-3px;width:20px;height:20px;border-radius:999px;border:2px solid #fff;background:' + T.bg + ';color:#fff;font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center;line-height:1">' + T.glyph + '</span></span>' +
+        '<div style="flex:1;min-width:0">' +
+          '<div style="font-size:15px;line-height:1.35;font-weight:500;color:#2b303a">' + line + '</div>' +
+          (n.quote ? '<div style="margin-top:8px;padding:10px 12px;border-radius:12px;background:#f2f3f6;font-size:14px;line-height:1.4;font-weight:500;color:#2b303a">' + esc(n.quote) + '</div>' : '') +
+          '<div style="margin-top:4px;font-size:12.5px;font-weight:600;color:#9aa0ac">' + esc(ago(n.t) + (g ? ' · ' + g.name : '')) + '</div>' +
+          (n.rsvp && !myRsvp(n.s)
+            ? '<div style="margin-top:10px;display:flex;gap:8px">' +
+                '<span ' + on(rsvpFromFeed(n, 'going')) + ' style="display:flex;align-items:center;min-height:36px;padding:0 14px;border-radius:999px;background:#149a4b;color:#fff;font-size:13.5px;font-weight:800;cursor:pointer">I’m going</span>' +
+                '<span ' + on(rsvpFromFeed(n, 'maybe')) + ' style="display:flex;align-items:center;min-height:36px;padding:0 14px;border-radius:999px;background:#fff;color:#0d1117;box-shadow:inset 0 0 0 1.5px #dcdfe6;font-size:13.5px;font-weight:800;cursor:pointer">Maybe</span>' +
+              '</div>'
+            : '') +
+        '</div>' +
+        (unr ? '<span aria-label="Unread" style="flex:0 0 9px;width:9px;height:9px;margin-top:6px;border-radius:999px;background:#5b4ae8"></span>' : '') +
+      '</div>';
+    };
+    const round = (label, icon, fn) => '<span ' + on(fn) + ' aria-label="' + label + '" style="width:40px;height:40px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + icon + '</span>';
+    return '<div data-screen-label="Notifications">' +
+      '<header style="background:#fff;padding:14px 18px 14px">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between">' +
+          round('Back', I.chevL(16, '#0d1117', 2.4), () => go('home')) +
+          round('Notification settings', svg(18, stroke('#0d1117', 2), '<path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/>'), () => setState({ nSettings: true })) +
+        '</div>' +
+        '<div style="margin-top:12px;display:flex;align-items:baseline;justify-content:space-between;gap:10px">' +
+          '<h1 style="margin:0;font-size:36px;line-height:1;font-weight:900;letter-spacing:-1.2px;color:#0d1117">Notifications</h1>' +
+          (unread ? '<span ' + on(markAllRead) + ' style="flex:0 0 auto;font-size:13.5px;font-weight:800;color:#5b4ae8;cursor:pointer">Mark all read</span>' : '') +
+        '</div>' +
+        '<div class="no-scrollbar" role="radiogroup" aria-label="Show" style="margin-top:14px;display:flex;gap:8px;overflow-x:auto">' + chip('all', 'All') + chip('invites', 'Invites') + chip('updates', 'Updates') + chip('hosting', 'Hosting') + '</div>' +
+      '</header>' +
+      '<div style="padding:16px 14px 26px;display:flex;flex-direction:column;gap:16px">' +
+        (secs.length
+          ? secs.map(([label, items]) => '<div><div style="padding:0 4px 8px;' + EYEBROW + '">' + label + '</div><div style="' + CARD + ';overflow:hidden">' + items.map(row).join('') + '</div></div>').join('')
+          : '<div style="' + CARD + ';padding:18px;font-size:14.5px;line-height:1.45;font-weight:500;color:#6b7280">' + (f === 'all' ? 'You’re all caught up. New plans, updates and replies from the last week show up here.' : 'Nothing here this week.') + '</div>') +
+      '</div>' +
+      '<div style="height:var(--nav-h)"></div>' +
+    '</div>';
+  }
+
+  function viewNotifSettings() {
+    const n = state.notif, topics = n.topics || {}, close = () => setState({ nSettings: false });
+    const toggle = (k) => () => saveNotif({ topics: Object.assign({}, topics, { [k]: topics[k] === false }) });
+    return sheet('Notification settings', close, 'max-height:88%;overflow:auto;padding:10px 18px 26px',
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">' +
+        '<h3 style="margin:0;font-size:22px;font-weight:900;letter-spacing:-.5px;color:#0d1117">Notifications</h3>' +
+        '<div ' + on(close) + ' aria-label="Close" style="width:32px;height:32px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(15, '#0d1117', 2.4) + '</div>' +
+      '</div>' +
+      '<div style="font-size:14px;line-height:1.4;font-weight:500;color:#6b7280">What shows up here in the app.</div>' +
+      '<div style="margin-top:10px">' + N_TOPICS.map(([k, label, sub], i) => {
+        const v = topics[k] !== false;
+        return '<div ' + on(toggle(k), 'switch') + ' aria-checked="' + v + '" aria-label="' + esc(label) + '" style="display:flex;align-items:center;gap:12px;min-height:64px;border-top:' + (i ? '1px solid #f2f3f6' : '0') + ';cursor:pointer">' +
+          '<div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:800;color:#0d1117">' + esc(label) + '</div><div style="font-size:13px;font-weight:500;color:#6b7280">' + esc(sub) + '</div></div>' +
+          '<span aria-hidden="true" style="flex:0 0 46px;width:46px;height:28px;border-radius:999px;position:relative;transition:background 160ms;background:' + (v ? '#149a4b' : '#dcdfe6') + '"><span style="position:absolute;top:3px;left:' + (v ? 21 : 3) + 'px;width:22px;height:22px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:left 160ms"></span></span>' +
+        '</div>';
+      }).join('') + '</div>' +
+      '<div style="margin-top:14px;padding-top:14px;border-top:1px solid #f2f3f6">' +
+        '<div style="font-size:15.5px;font-weight:800;color:#0d1117">Also send by email</div>' +
+        '<div style="margin-top:2px;font-size:13px;line-height:1.4;font-weight:500;color:#6b7280">Invites, host updates and day-before reminders, to ' + esc(state.email) + '. Email starts soon; push notifications come later.</div>' +
+        '<span ' + on(() => saveNotif({ email: !n.email }), 'switch') + ' aria-checked="' + !!n.email + '" aria-label="Email" style="margin-top:10px;display:inline-flex;align-items:center;min-height:40px;padding:0 16px;border-radius:999px;font-size:14px;font-weight:800;cursor:pointer;' +
+          (n.email ? 'background:#f3f1fe;color:#4a3ad4;box-shadow:inset 0 0 0 2px #5b4ae8' : 'background:#fff;color:#0d1117;box-shadow:inset 0 0 0 1.5px #dcdfe6') + '">' + (n.email ? '✓ ' : '') + 'Email</span>' +
+      '</div>');
+  }
+
   // Signed in but in no group yet (not designed; README → Open "first-run view")
   const noGroupCard = () =>
     '<div style="' + CARD + ';padding:18px;display:flex;flex-direction:column;gap:12px">' +
@@ -3492,7 +3657,7 @@
   // ---------------------------------------------------------------------------
 
   function viewNav() {
-    const s = state.screen;
+    const s = state.screen, n = state.email ? unreadCount() : 0;
     const tab = (active, label, icon, fn) => '<div ' + on(fn) + ' aria-label="' + label + '"' + (active ? ' aria-current="page"' : '') +
       ' style="padding:9px 0;min-height:44px;display:flex;align-items:center;justify-content:center;width:100%;color:' + (active ? '#5b4ae8' : '#5c6270') + ';cursor:pointer">' + icon + '</div>';
     return '<nav class="tabbar" aria-label="Main">' +
@@ -3500,6 +3665,8 @@
       tab(s === 'calendar', 'Calendar', I.tabCal, () => go('calendar')) +
       tab(s === 'own', 'You own', I.tabFlag, () => go('own')) +
       tab(s === 'groups' || s === 'browse' || s === 'groupPage', 'Groups', I.tabGroups, () => go('groups')) +
+      tab(s === 'notifs', n ? 'Notifications, ' + n + ' new' : 'Notifications', '<span style="position:relative;display:flex">' + I.tabBell +
+        (n ? '<span aria-hidden="true" style="position:absolute;top:-6px;right:-9px;min-width:18px;height:18px;padding:0 4px;border-radius:999px;border:2px solid #fff;background:#e2556b;color:#fff;font-size:10.5px;font-weight:900;display:flex;align-items:center;justify-content:center;box-sizing:border-box">' + (n > 9 ? '9+' : n) + '</span>' : '') + '</span>', () => go('notifs')) +
     '</nav>';
   }
 
@@ -3519,7 +3686,7 @@
   }
 
   // Welcome is what signed-out visitors see for Home (and Profile / a group page, which need an account)
-  const welcomeShown = () => !state.email && ['home', 'profile', 'groupPage', 'calendar', 'own', 'groups'].indexOf(state.screen) > -1;
+  const welcomeShown = () => !state.email && ['home', 'profile', 'groupPage', 'calendar', 'own', 'groups', 'notifs'].indexOf(state.screen) > -1;
 
   function view() {
     const st = state, s = st.screen, subj = subject();
@@ -3532,6 +3699,7 @@
     else if (s === 'calendar') main = st.email ? viewCalendar() : home();
     else if (s === 'own') main = st.email ? viewOwn() : home();
     else if (s === 'groups') main = st.email ? viewGroups() : home();
+    else if (s === 'notifs') main = st.email ? viewNotifs() : home();
     else if ((s === 'detail' || s === 'edit') && subj) main = viewDetail(subj);
     else if (s === 'detail' && !st.loaded) main = '<div style="padding:40px 20px;font-size:15px;font-weight:600;color:#6b7280">Loading…</div>';
     else if (s === 'compose') main = st.email ? viewHome() : viewWelcome();
@@ -3547,6 +3715,7 @@
       (st.pe ? viewProfileEdit() : '') +
       (st.joinOpen ? viewJoin() : '') +
       (st.allTab && st.email ? viewAllSheet() : '') +
+      (st.nSettings && st.email ? viewNotifSettings() : '') +
       (st.membersOpen ? viewMembers() : '') +
       (st.gpDel != null && s === 'groupPage' ? viewDeleteGroup() : '') +
       (st.ph ? viewPositioner() : '') +
@@ -3677,6 +3846,7 @@
       if (state.gpDel != null) return setState({ gpDel: null });
       if (state.gpRename != null) return setState({ gpRename: null });
       if (state.allTab) return setState({ allTab: null });
+      if (state.nSettings) return setState({ nSettings: false });
       if (state.loginStep) return closeLogin();
       if (state.joinOpen) return setState({ joinOpen: false });
       if (state.membersOpen) return setState({ membersOpen: null, membersQ: '' });

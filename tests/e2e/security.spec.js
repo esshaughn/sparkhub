@@ -278,6 +278,16 @@ test('plans: replies, sign-ups, updates, notes and invite-only plans follow the 
       return { mine, sized: (await c.rpc('my_group_sizes')).data.map(x => x.group_id).sort() };
     });
     expect(omars.sized).toEqual(omars.mine);
+
+    // Notification state: your own row only
+    const lenaId = await asUser(L, async (c) => (await c.auth.getUser()).data.user.id);
+    await asUser(L, async (c) => { await c.from('notif_state').upsert({ read_keys: ['x'] }, { onConflict: 'user_id' }); });
+    const ns = await asUser(O, async (c, _C, lena) => ({
+      othersRows: (await c.from('notif_state').select('user_id').eq('user_id', lena)).data.length,
+      writeOthers: (await c.from('notif_state').insert({ user_id: lena, read_keys: [] })).error ? 'refused' : 'ALLOWED',
+      editOthers: (await c.from('notif_state').update({ email: false }).eq('user_id', lena).select()).data?.length ?? 'refused'
+    }), lenaId);
+    expect(ns).toEqual({ othersRows: 0, writeOthers: 'refused', editOthers: 0 });
   } finally {
     for (const id of ids) await asUser(L, async (c, _C, id) => { await c.from('sparks').delete().eq('id', id); }, id).catch(() => {});
     await lead.context.close();

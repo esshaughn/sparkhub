@@ -83,9 +83,12 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 68 | All ideas **Ideas / Plans / Happened** tabs with counts; cards show IDEA / PLAN / It happened | Test | |
 | 69 | **Start a group** (Profile → Your groups) | Test | `create_group()` |
 | 70 | Temporary **demo plans** in every group the owner is in (`scripts/demo/seed-v5.py`) | Test | Re-run to refresh dates; see the script to remove |
-| 71 | **Tab bar** (V5): Home · Calendar · You own · Groups; no + button (post from *New event*, You own, Calendar or All ideas); Profile is your photo in the page header; *How Spark Hub works* moved to Profile | Test | Notifications tab comes with phase 3 |
+| 71 | **Tab bar** (V5): Home · Calendar · You own · Groups · Notifications (bell with a red unread count); no + button (post from *New event*, You own, Calendar or All ideas); Profile is your photo in the page header; *How Spark Hub works* moved to Profile | Test | |
 | 72 | **Calendar**: Month grid across your groups (green = on the books, gold ring = floated idea date, gray = happened), day list or *Nothing on this day* + **Post an event** (date filled in); **List** view by month with Hosting / Going / Maybe / RSVP / votes pills | Test | |
 | 73 | **You own**: counts (events · ideas · need you), **Post an event** / **Float an idea**, group chips, cards with the next step strip (e.g. *Oct 4 has 4 votes · Pick date*, *Location TBD · Add it*, *All set*) | Test | Next-step buttons open the plan |
+| 74 | **Notifications** (last 7 days, built from stored activity): new plans in your groups (with **I'm going** / **Maybe**), host updates with their text (to the audience the host picked), day-before and day-of reminders; for your own plans and ideas: replies, sign-ups, interest, date/location suggestions, offers to help organize. Filters All / Invites / Updates / Hosting; New / Earlier this week; unread dots | Test | |
+| 75 | **Mark all read** and per-item read (tapping one), kept in your account so they follow you between the app and the browser | Test | `notif_state` |
+| 76 | **Notification settings**: four topics on/off (hide them from the feed and the count) and an **Email** choice for phase 4 | Test | Push notifications aren't possible yet (no service worker) |
 
 ## Posting and editing
 
@@ -136,7 +139,7 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 56 | Design handoff doc kept current by Claude Code | Live | |
 | 57 | Vercel auto-deploy from `main`; previews from `test` | Live | |
 | 58 | Security headers + CSP; pinned, integrity-checked Supabase script | Live | |
-| 59 | Automated end-to-end tests (19 tests: smoke, posting, groups, collaboration, plans, Google, database security) | Test | `tests/` |
+| 59 | Automated end-to-end tests (20 tests: smoke, posting, groups, collaboration, plans, notifications, Google, database security) | Test | `tests/` |
 | 60 | Nightly cleanup of test-database leftovers ([E2E] ideas and groups, old anonymous users) | Live | Test project only |
 
 ## Removed in this rebuild

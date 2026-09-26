@@ -5,7 +5,7 @@
 - **Built (test):** https://gosparkhub-git-test-eric-5958s-projects.vercel.app · **Live:** https://gosparkhub.vercel.app
 - **Source:** github.com/esshaughn/sparkhub (`index.html`, `js/sparks.js`, `css/sparks.css`, `privacy.html`, `supabase/templates/`)
 - **Baseline:** Claude Design's **Spark Hub Version 5** handoff (`Spark Hub App Version 5.dc.html` + README). It's being built in phases the owner chose: **1) Plans** (RSVPs, sign-ups, the event form), 2) the new Home, tab bar, Groups, You own and Calendar screens, 3) the Notifications feed, 4) email. Earlier Full Site 4 decisions the owner kept are in §1.
-- **As of:** 2026-09-27, phases 1 (Plans) and 2 (Home, tab bar, Groups, You own, Calendar) are built on the test branch
+- **As of:** 2026-09-28, phases 1 (Plans), 2 (Home, tab bar, Groups, You own, Calendar) and 3 (Notifications) are built on the test branch
 
 Where this doc and the design files disagree, **this doc is correct**.
 
@@ -25,13 +25,15 @@ Where this doc and the design files disagree, **this doc is correct**.
 | 8 | **The idea page's date/location card is replaced** by the V5 idea boards (Dates, Location, "Steps to a plan" banner, *Make it a plan* for the lead, *Offer to help organize* for others); "The vibe" is now **Inspo** | Full Site 4 card | V5 |
 | 9 | **Guest list** shows Going / Maybe / Can't make it only, no "Invited" count; **Invite people** shares the plan's link (copy / share sheet) rather than picking people | Invited count + people picker | There's no invite list yet; the link is how people get in |
 | 10 | **Plans are made two ways:** posting an event (date + time required, lands on Plans with "It's on the books") or the lead's *Make it a plan* on an idea once it has a date and time (everyone interested becomes Going). *Clear the date* turns it back into an idea (Going people become interested) | V5 | Built to V5 |
-| 11 | **Tab bar has four tabs** (Home, Calendar, You own, Groups) until the Notifications feed ships in phase 3 | Five tabs with the bell | Phases |
 | 12 | **Plan tracker's first ring is Location** (pin; *Set* / *TBD*) instead of Invited | Invited (envelope, invites sent) | Invites are a share link, so there's no count of invites sent |
 | 13 | **Plan tracker's Going ring** is solid green once anyone's going, gold-empty at 0 (no "needs you while someone hasn't replied") | Ring = going / invited | Same: no invite list to compare against |
 | 14 | **Idea tracker's People ring**: with no minimum set, it's done once anyone is interested | Done only if `answers.people`; else 0 | There's no "minimum people" field yet (README open item), so it would never fill |
 | 15 | **You own and View all add a "Just happened" section** (plans from the last 3 days) after the dated ones | This week / Later / No date | Leading includes them, so the lists need somewhere to put them |
 | 16 | **Profile has "How Spark Hub works"** (the old How this works tab) | Not in V5 | The tab went away; the page stays reachable |
 | 17 | **Home scope isn't remembered** across reloads; the Calendar's Post an event only shows on today or later | Not specified | Keeps it simple; you can't post an event in the past |
+| 18 | **No "invited you" notifications**: new plans in your groups show as "{host} put an event on the books: {plan}" with I'm going / Maybe (the Invites filter shows these) | "Tasha invited you to …" | Invites are a share link, so there's no invite to notify about |
+| 19 | **Notification settings have four topics** (new events, host updates, day-before reminders, things you're hosting) and one channel, **Email**, with the line "Email starts soon; push notifications come later." | Five topics incl. Invites; Push + Email | No invites (above); push needs a service worker the app doesn't have yet |
+| 20 | **Host updates only reach people in the plan** (replied, or signed up for something); "haven't replied" updates reach everyone else in the group | Every update to everyone | Otherwise the feed fills with plans you never touched |
 
 ## 2. Things the build had to invent (please design these properly)
 
@@ -55,9 +57,11 @@ Where this doc and the design files disagree, **this doc is correct**.
 - **Updates and the day-before reminder are stored, not sent yet:** updates show on the plan page; delivery (notifications, email) comes in phases 3–4. The reminder switch saves the host's choice.
 - **Signing up for something** needs a name (guests leave a name + number once, like "I'm interested"); items with a "how many" stop taking sign-ups when full (enforced in the database).
 
+- **The notification feed is built in the app** from what's already stored (last 7 days); only read state and settings are saved (`notif_state`), so they follow you between the installed app and the browser. A reminder appears at 8am the day before (and on the day).
+
 ## 4. Designed but not built or not working
 
-- **V5 phases 3–4 aren't built yet:** the Notifications tab and feed, and email invites / updates / reminders.
+- **V5 phase 4 isn't built yet:** email (invites, host updates, day-before reminders). Push notifications aren't planned until the app has a service worker.
 - **Next-step buttons** on You own cards open the plan or idea (as in the prototype); they don't jump straight to the action.
 - **Home's action strip, "Your Groups" row and "Float an idea" card** are off, as in the README toggles.
 - **"How this works" body copy** is still placeholder Latin (as designed).
