@@ -43,12 +43,15 @@ input::placeholder, textarea::placeholder { color: #b9bcc4; font-weight: 400; fo
 }
 /* iPhone status bar: the page runs under it (black-translucent, white time/battery).
    Photo-topped screens let the photo show through (--pt pushes their controls down);
-   the rest get a dark strip so the white status text stays readable. */
+   the rest continue their white header behind it. */
 :root { --sat: env(safe-area-inset-top, 0px); --pt: 0px; }
 .app.photo-top { --pt: var(--sat); }
 .app::before {
   content: ''; position: absolute; left: 0; right: 0; top: 0; height: var(--sat);
-  background: #0d1117; z-index: 20; pointer-events: none;
+  /* Plain white, continuing the white headers (owner's call: the white status text
+     may be hard to see on these screens for now) */
+  background: #fff;
+  z-index: 20; pointer-events: none;
 }
 .app.photo-top::before { display: none; }
 .app:not(.photo-top) .scroller { top: var(--sat); }
