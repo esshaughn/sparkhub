@@ -1228,7 +1228,7 @@
   const switcher = (onPhoto) => {
     const g = currentGroup();
     const color = onPhoto ? '#fff' : '#5b4ae8';
-    return '<div data-menu style="position:absolute;top:10.5px;right:10px;z-index:3">' +
+    return '<div data-menu style="position:absolute;top:calc(10.5px + var(--pt));right:10px;z-index:3">' +
       '<div ' + on((e) => { stop(e); setState({ menu: state.menu === 'groups' ? null : 'groups' }); }) + ' aria-label="Switch group" aria-expanded="' + (state.menu === 'groups') + '" style="display:flex;align-items:center;gap:6px;min-height:44px;padding:0 10px;cursor:pointer">' +
         '<span style="font-size:11.5px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:' + color + (onPhoto ? ';text-shadow:0 1px 4px rgba(0,0,0,.3)' : '') + '">' + esc(g ? g.name : 'Your groups') + '</span>' +
         I.chevD(12, color, 2.8) +
@@ -1281,10 +1281,10 @@
     const google = () => { if (st.busy) return; openLogin(from, then); googleSignIn(); };
     const email = () => { openLogin(from, then); setTimeout(() => { const f = document.querySelector('[data-screen-label="Sign in"] input[type=email]'); if (f) f.focus(); }, 0); };
     return '<div data-screen-label="Welcome" style="background:#0d1117;min-height:100%">' +
-      '<div style="position:relative;height:580px;overflow:hidden">' +
-        '<div aria-hidden="true" style="position:absolute;left:0;right:0;top:-70px;height:500px;background:' + bg('/photos/welcome.jpg', '40% 50%') + '"></div>' +
-        '<div aria-hidden="true" style="position:absolute;left:0;right:0;top:0;height:430px;background:linear-gradient(to bottom, rgba(13,17,23,.4) 0%, rgba(13,17,23,.18) 25%, rgba(13,17,23,.62) 48%, rgba(13,17,23,.92) 70%, #0d1117 100%)"></div>' +
-        '<div style="position:absolute;top:10.5px;left:16px;right:10px;display:flex;align-items:center;min-height:44px">' +
+      '<div style="position:relative;height:calc(540px + var(--pt));overflow:hidden">' +
+        '<div aria-hidden="true" style="position:absolute;left:0;right:0;top:-110px;height:500px;background:' + bg('/photos/welcome.jpg', '40% 50%') + '"></div>' +
+        '<div aria-hidden="true" style="position:absolute;left:0;right:0;top:0;height:390px;background:linear-gradient(to bottom, rgba(13,17,23,.4) 0%, rgba(13,17,23,.18) 25%, rgba(13,17,23,.62) 48%, rgba(13,17,23,.92) 70%, #0d1117 100%)"></div>' +
+        '<div style="position:absolute;top:calc(10.5px + var(--pt));left:16px;right:10px;display:flex;align-items:center;min-height:44px">' +
           '<div aria-label="Spark Hub" style="display:flex;align-items:center;gap:6px">' + I.bolt(24, '#f3c55a') + '<span style="font-size:18px;line-height:1;font-weight:900;letter-spacing:-.5px;color:#fff">Spark Hub</span></div>' +
         '</div>' +
         '<div style="position:absolute;left:20px;right:20px;bottom:16px;color:#fff;text-shadow:0 1px 12px rgba(13,17,23,.5)">' +
@@ -1446,11 +1446,11 @@
     const loading = !st.loaded;
 
     // z-index 4: the group menu opens down over the sort row (z-index 3)
-    const header = '<header style="position:relative;z-index:4;height:236px;background:#e8a71c">' +
+    const header = '<header style="position:relative;z-index:4;height:calc(236px + var(--pt));background:#e8a71c">' +
       (gPhoto ? '<div style="position:absolute;inset:0;overflow:hidden">' + photoLayer(gPhoto, g.photoPos, GROUP_POS) + '</div>' : '') +
       '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to bottom, rgba(13,17,23,.85) 0%, rgba(13,17,23,.56) 30%, rgba(13,17,23,.52) 45%, rgba(13,17,23,.72) 62%, rgba(13,17,23,.96) 100%)"></div>' +
       switcher(true) +
-      '<div style="position:absolute;top:10.5px;left:16px;z-index:2">' + logo(true) + '</div>' +
+      '<div style="position:absolute;top:calc(10.5px + var(--pt));left:16px;z-index:2">' + logo(true) + '</div>' +
       '<div style="position:absolute;left:20px;right:20px;bottom:40px;color:#fff">' +
         '<div style="font-size:12.5px;font-weight:800;letter-spacing:1.3px;text-transform:uppercase;color:#f3c55a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(g ? g.name : 'Spark Hub') + '</div>' +
         '<h1 style="margin:4px 0 0;font-size:40px;line-height:1;font-weight:900;letter-spacing:-1.2px;color:#fff">All ideas</h1>' +
@@ -1692,10 +1692,10 @@
     const showMood = mood.length > 0 || lead;
 
     return '<div data-screen-label="Idea page">' +
-      '<div style="position:relative;height:210px;overflow:hidden;background:#2b2413">' +
+      '<div style="position:relative;height:calc(210px + var(--pt));overflow:hidden;background:#2b2413">' +
         (cover ? photoLayer(cover, s.coverPos, IDEA_POS) : '<div aria-hidden="true" style="position:absolute;inset:0;background:' + groupBg(g, '#2b2413') + '"></div>') +
         '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to bottom, rgba(13,17,23,.68) 0%, rgba(13,17,23,.18) 40%, rgba(13,17,23,.18) 70%, rgba(13,17,23,.45) 100%)"></div>' +
-        '<div style="position:absolute;top:12px;left:12px;right:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;z-index:1">' +
+        '<div style="position:absolute;top:calc(12px + var(--pt));left:12px;right:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;z-index:1">' +
           '<span ' + on(() => go(g && g.role ? 'browse' : 'home', g && g.role ? { groupId: g.id } : {})) + ' aria-label="Back" style="flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.chevL(18, '#fff', 2.3) + '</span>' +
           '<span style="min-width:0;font-size:11.5px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(g ? g.name : '') + '</span>' +
           (canEdit(s)
@@ -2464,7 +2464,7 @@
       ? 'linear-gradient(to bottom, rgba(13,17,23,.85) 0%, rgba(13,17,23,.56) 30%, rgba(13,17,23,.52) 45%, rgba(13,17,23,.72) 62%, rgba(13,17,23,.96) 100%)'
       : 'linear-gradient(to bottom, rgba(13,17,23,.68) 0%, rgba(13,17,23,.18) 40%, rgba(13,17,23,.18) 70%, rgba(13,17,23,.45) 100%)';
     return '<div role="dialog" aria-modal="true" aria-label="Position photo" data-screen-label="Position photo" style="position:absolute;inset:0;z-index:36;background:#0d1117;display:flex;flex-direction:column;overflow:auto;animation:fadeIn 200ms ease-out both">' +
-      '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:calc(12px + var(--sat)) 14px 12px">' +
         '<span ' + on(closePositioner) + ' style="display:flex;align-items:center;min-height:44px;padding:0 4px;font-size:15px;font-weight:700;color:#dfe2e8;cursor:pointer">Cancel</span>' +
         '<span style="font-size:16px;font-weight:800;color:#fff">' + (group ? 'Header photo' : 'Cover photo') + '</span>' +
         '<button type="button" class="hov-primary" ' + on(savePositioner) + ' style="min-height:36px;padding:0 16px;border:0;border-radius:999px;background:#5b4ae8;font-family:inherit;font-size:14.5px;font-weight:800;color:#fff;cursor:' + (state.busy ? 'wait' : 'pointer') + '">' + (state.busy === 'save' ? 'Saving…' : 'Save') + '</button>' +
@@ -2580,7 +2580,7 @@
       (st.confirm ? viewConfirm() : '') +
       (st.zoom ? viewZoom() : '') +
       (st.toast ? viewToast() : '') +
-      viewNav();
+      (st.email ? viewNav() : '');   // the tab bar is for signed-in people only
   }
 
   // ---------------------------------------------------------------------------
@@ -2650,6 +2650,10 @@
     handlers = H;
     tpl.innerHTML = html;
     morphChildren(root, tpl.content);
+    root.classList.toggle('signed-out', !state.email);
+    // Screens that start with a photo run it up under the iPhone status bar
+    const sc = state.screen, photoTop = sc === 'browse' || (sc === 'detail' && !!subject()) || (!state.email && (sc === 'home' || sc === 'compose' || sc === 'profile' || sc === 'groupPage'));
+    root.classList.toggle('photo-top', photoTop);
   }
 
   // ---------------------------------------------------------------------------

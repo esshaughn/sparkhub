@@ -81,8 +81,8 @@ test('post → idea page → all three views → profile → edit → delete', a
   }
 });
 
-test('post flow guards, and "Put it up" asks visitors to sign in', async ({ browser }) => {
-  const { page, context } = await newMember(browser);
+test('post flow guards: each step waits for an answer or a "later"', async ({ browser }) => {
+  const { page, context } = await newLead(browser, 2, 'Guard');
   try {
     await page.getByRole('button', { name: 'Post an idea' }).click();
     await expect(button(page, 'Next')).toHaveAttribute('aria-disabled', 'true');
@@ -109,22 +109,11 @@ test('post flow guards, and "Put it up" asks visitors to sign in', async ({ brow
     await expect(review).toContainText('Nothing yet');
     await expect(review).toContainText('None');
 
-    // Not signed in: "Sign in to post", and closing keeps the draft
-    await button(page, 'Put it up').click();
-    const login = page.getByRole('dialog', { name: 'Sign in' });
-    await expect(login.getByRole('heading', { name: 'Sign in to post' })).toBeVisible();
-    await expect(login).toContainText('Sign in to put your idea up. Use Google, or we’ll email you a 6-digit code. No password.');
-    await expect(button(page, 'Email me a code')).toHaveAttribute('aria-disabled', 'true');
-    await login.getByLabel('Email').fill('someone@example.com');
-    await expect(button(page, 'Email me a code')).toHaveAttribute('aria-disabled', 'false');
-    await login.getByRole('button', { name: 'Close' }).click();
-    await expect(review).toContainText('Anything');
-
     // "Edit" jumps back; leaving the flow posts nothing
     await review.getByRole('button', { name: 'Edit the event' }).click();
     await expect(page.getByRole('heading', { name: 'What’s the event?' })).toBeVisible();
     await page.getByRole('button', { name: 'Back' }).last().click();
-    await expect(page.locator('[data-screen-label=Welcome]')).toBeVisible();
+    await expect(page.locator('[data-screen-label=Home]')).toBeVisible();
   } finally {
     await context.close();
   }

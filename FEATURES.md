@@ -8,13 +8,13 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 
 | # | Feature | Status | Notes |
 |---|---|---|---|
-| 0 | **Add to Home Screen**: web app manifest + iOS tags, so it opens full-screen with the Spark Hub icon (gold bolt on purple) | Test | Icons in `icons/`, redrawn by `scripts/make-icons.js`; no service worker yet |
+| 0 | **Add to Home Screen**: web app manifest + iOS tags, so it opens full-screen with the Spark Hub icon (gold bolt on purple). On iPhone the page runs under the status bar (white time/battery): photos go to the top on Welcome, All ideas and idea pages; other screens get a dark strip behind it | Test | Icons in `icons/`, redrawn by `scripts/make-icons.js`; no service worker yet |
 
 ## Welcome (signed out)
 
 | # | Feature | Status | Notes |
 |---|---|---|---|
-| 1 | Photo block (picnic photo, raised 70px, lighter scrim), logo, "Turn your idea / into a plan." (42px), the 1-2-3 steps as a list | Test | Photo: `photos/welcome.jpg` |
+| 1 | Photo block (picnic photo, lighter scrim), logo, "Turn your idea / into a plan." (42px), the 1-2-3 steps as a list; everything 40px higher than Full Site 4; **no tab bar** (signed out) | Test | Photo: `photos/welcome.jpg` |
 | 2 | **Continue with Google** (opens sign-in straight into *Opening Google…*) and **Continue with email** (sign-in with the email field focused); "New here? Either one creates your account." | Test | |
 | 3 | An invite link (/join/CODE) adds "Sign in to join the group CODE"; after signing in, Join opens pre-filled | Test | |
 | 4 | (Removed) Group code card, Start a group, How this works link: now only after sign-in / in the tab bar | Test | |

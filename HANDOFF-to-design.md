@@ -13,7 +13,12 @@ Everything in that reply is built as specified, except what's listed below. Wher
 
 ## 1. What changed since the design
 
-Nothing yet.
+| # | Change | Design said | Why |
+|---|---|---|---|
+| 1 | **No tab bar when signed out.** Welcome (and a shared idea opened by a visitor) has no bottom bar; it appears after sign-in. Signed-out visitors can't start posting any more; they sign in first | Tab bar on every screen | Owner's request |
+| 2 | **Welcome content 40px higher:** photo block 540px (was 580), photo at `top:-110px` (was -70), scrim over the top 390px (was 430) | 580 / -70 / 430 | Owner, after seeing it on an iPhone 15 |
+| 3 | **Tab bar spacing:** 13px above the icons; below them the iPhone home-indicator inset less 8px (at least 14px), so the bar isn't bottom-heavy. 73px on desktop as before | 73px + the full inset | Owner, on iPhone |
+| 4 | **Under the iPhone status bar** (installed app): the page runs behind the status bar with white time/battery. Welcome, All ideas and idea-page photos extend up behind it (their top controls move down by the inset); screens with a white top (Home, Profile, How this works, Edit group, post/edit flows) get a `#0d1117` strip behind the status bar | Not specified | Owner: "photo all the way to the top, light status icons" |
 
 ## 2. Things the build had to invent (please design these properly)
 

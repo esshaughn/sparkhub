@@ -35,7 +35,25 @@ input[type="date"]::-webkit-date-and-time-value { text-align: left; }
 input::placeholder, textarea::placeholder { color: #b9bcc4; font-weight: 400; font-style: italic; opacity: 1; }
 
 /* ---- Frame: full-bleed on phones, centred ~430px column on desktop ---- */
-:root { --nav-h: calc(73px + env(safe-area-inset-bottom, 0px)); }
+/* Tab bar: 13px above the icons; below them only as much as the iPhone home indicator
+   needs (its inset less 8px, at least 14px), so the bar doesn't look bottom-heavy */
+:root {
+  --nav-bottom: max(14px, calc(env(safe-area-inset-bottom, 0px) - 8px));
+  --nav-h: calc(58px + var(--nav-bottom));
+}
+/* iPhone status bar: the page runs under it (black-translucent, white time/battery).
+   Photo-topped screens let the photo show through (--pt pushes their controls down);
+   the rest get a dark strip so the white status text stays readable. */
+:root { --sat: env(safe-area-inset-top, 0px); --pt: 0px; }
+.app.photo-top { --pt: var(--sat); }
+.app::before {
+  content: ''; position: absolute; left: 0; right: 0; top: 0; height: var(--sat);
+  background: #0d1117; z-index: 20; pointer-events: none;
+}
+.app.photo-top::before { display: none; }
+.app:not(.photo-top) .scroller { top: var(--sat); }
+/* Signed out there's no tab bar (Welcome and shared idea links) */
+.app.signed-out { --nav-h: env(safe-area-inset-bottom, 0px); }
 
 .app {
   position: relative;
@@ -57,11 +75,11 @@ input::placeholder, textarea::placeholder { color: #b9bcc4; font-weight: 400; fo
     border-radius: 30px;
     box-shadow: 0 20px 60px rgba(15, 18, 25, .12);
   }
-  :root { --nav-h: 73px; }
+  :root { --nav-bottom: 15px; }
 }
 
 .scroller { position: absolute; inset: 0; overflow: auto; -webkit-overflow-scrolling: touch; }
-.overlay-screen { position: absolute; left: 0; right: 0; top: 0; bottom: var(--nav-h); background: #e8eaee; overflow: auto; z-index: 5; }
+.overlay-screen { position: absolute; left: 0; right: 0; top: var(--sat); bottom: var(--nav-h); background: #e8eaee; overflow: auto; z-index: 5; }
 
 .tabbar {
   position: absolute; left: 0; right: 0; bottom: 0; height: var(--nav-h);
@@ -69,7 +87,7 @@ input::placeholder, textarea::placeholder { color: #b9bcc4; font-weight: 400; fo
   background: rgba(255, 255, 255, .94);
   -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
   border-top: 1px solid #e8eaef;
-  padding: 13px 8px calc(15px + env(safe-area-inset-bottom, 0px));
+  padding: 13px 8px var(--nav-bottom);
   z-index: 10;
 }
 

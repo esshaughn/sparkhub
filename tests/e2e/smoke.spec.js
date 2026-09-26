@@ -2,7 +2,7 @@
 const { test, expect } = require('@playwright/test');
 const { newMember, newLead, button } = require('./helpers');
 
-test('visitors land on Welcome, and group screens ask them to join or sign in', async ({ browser }) => {
+test('visitors land on Welcome (no tab bar) and sign in from there', async ({ browser }) => {
   const { page, context, errors } = await newMember(browser);
   try {
     const welcome = page.locator('[data-screen-label=Welcome]');
@@ -10,30 +10,23 @@ test('visitors land on Welcome, and group screens ask them to join or sign in', 
     await expect(welcome.getByText('New here? Either one creates your account.')).toBeVisible();
     await expect(welcome.getByRole('listitem')).toHaveText(['1Post an idea', '2People pitch in', '3It happens']);
     await expect(welcome.getByRole('button', { name: 'Continue with Google' })).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Main' })).toHaveCount(0);   // the tab bar is for signed-in people
 
-    // All ideas without a group: join or start one
-    await page.getByRole('button', { name: 'All ideas' }).click();
-    await expect(page).toHaveURL(/#\/ideas$/);
-    await expect(page.getByText('You’re not in a group yet.')).toBeVisible();
-
-    // How this works
-    await page.getByRole('button', { name: 'How this works' }).click();
-    await expect(page.getByRole('heading', { name: 'Ideas come to life when we build them together' })).toBeVisible();
-
-    // Profile needs an account
-    await page.getByRole('button', { name: 'Profile' }).click();
-    await expect(page.getByRole('dialog', { name: 'Sign in' })).toBeVisible();
-    await page.getByRole('dialog').getByRole('button', { name: 'Close' }).click();
-
-    // "Continue with email" from Welcome: the sign-in pop-up with the email field focused
-    await page.getByRole('button', { name: 'Home', exact: true }).click();
+    // "Continue with email": the sign-in pop-up with the email field focused
     await welcome.getByRole('button', { name: 'Continue with email' }).click();
     const dialog = page.getByRole('dialog', { name: 'Sign in' });
     await expect(dialog).toContainText('Your ideas, groups and name are saved to your account. Use Google, or we’ll email you a 6-digit code. No password.');
     await expect(dialog.getByLabel('Email')).toBeFocused();
     await expect(dialog.getByRole('button', { name: 'Continue with Google' })).toBeVisible();
     await expect(dialog.getByRole('link', { name: 'Privacy' })).toHaveAttribute('href', '/privacy.html');
+    await expect(dialog.getByRole('button', { name: 'Email me a code' })).toHaveAttribute('aria-disabled', 'true');
+    await dialog.getByLabel('Email').fill('someone@example.com');
+    await expect(dialog.getByRole('button', { name: 'Email me a code' })).toHaveAttribute('aria-disabled', 'false');
     await dialog.getByRole('button', { name: 'Close' }).click();
+
+    // Group screens reached by URL still ask signed-out visitors to join first
+    await page.goto('/#/ideas');
+    await expect(page.getByText('You’re not in a group yet.')).toBeVisible();
     expect(errors).toEqual([]);
   } finally {
     await context.close();
