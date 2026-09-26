@@ -71,9 +71,16 @@ input::placeholder, textarea::placeholder { color: #b9bcc4; font-weight: 400; fo
   font-family: Figtree, system-ui, sans-serif;
 }
 
+/* Installed app (iOS 26): 100%/100dvh come out short by the status bar there; 100lvh is the
+   full screen height */
+@media (display-mode: standalone) {
+  html, body { height: 100lvh; }
+  .app { bottom: auto; height: 100lvh; }
+}
+
 @media (min-width: 520px) and (min-height: 700px) {
   .app {
-    top: 24px; bottom: 24px;
+    top: 24px; bottom: 24px; height: auto;
     max-height: 932px;
     margin: auto;
     border-radius: 30px;

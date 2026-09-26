@@ -2590,20 +2590,21 @@
 
   const root = document.getElementById('app');
 
-  // Installed iPhone app: on first launch iOS reports the viewport short by the status bar's
-  // height until something scrolls, so the tab bar floats above the bottom. The screen size is
-  // right from the start, so size the app from it (portrait: the long side).
+  // Installed iPhone app (iOS 26): on first launch WebKit sizes the page short by the status
+  // bar's height, leaving a band at the bottom until something scrolls. CSS uses 100lvh for the
+  // installed app (see sparks.css); a one-pixel scroll nudge after launch triggers the re-layout
+  // that a hand scroll does.
   const STANDALONE = navigator.standalone === true || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
-  const fitScreen = () => {
-    if (!STANDALONE || !window.screen) return;
-    const portrait = !window.matchMedia || matchMedia('(orientation: portrait)').matches;
-    const h = portrait ? Math.max(screen.width, screen.height) : Math.min(screen.width, screen.height);
-    root.style.bottom = 'auto';
-    root.style.height = Math.max(h, window.innerHeight) + 'px';
+  const nudgeLayout = () => {
+    if (!STANDALONE) return;
+    requestAnimationFrame(() => {
+      window.scrollTo(0, 1); window.scrollTo(0, 0);
+      const sc = document.querySelector('.scroller');
+      if (sc) { const y = sc.scrollTop; sc.scrollTop = y + 1; sc.scrollTop = y; }
+    });
   };
-  fitScreen();
-  window.addEventListener('orientationchange', () => setTimeout(fitScreen, 250));
-  window.addEventListener('resize', fitScreen);
+  window.addEventListener('load', () => { nudgeLayout(); setTimeout(nudgeLayout, 300); });
+  window.addEventListener('pageshow', nudgeLayout);
   const tpl = document.createElement('template');
   let handlers = [];
 
