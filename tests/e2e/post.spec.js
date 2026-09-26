@@ -1,6 +1,6 @@
 // Posting an idea through every step, seeing it everywhere, editing and deleting it.
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newMember, newLead, button, postIdea, openIdea, confirm } = require('./helpers');
+const { uniqueTitle, newMember, newLead, button, postIdea, openIdea, confirm, startPost, openProfile } = require('./helpers');
 
 test('post → idea page → all three views → profile → edit → delete', async ({ browser }) => {
   const { page, context, errors } = await newLead(browser, 1, 'Tester');
@@ -33,15 +33,23 @@ test('post → idea page → all three views → profile → edit → delete', a
     }, id);
     expect((await page.request.get(url)).status()).toBe(200);
 
-    // Home → Coming up (You're leading): group eyebrow, title, "You're leading · time"
+    // Home → Leading: the idea's card, with its date and location steps done
     await page.getByRole('button', { name: 'Home', exact: true }).click();
-    const coming = page.locator('[data-screen-label=Home]').getByRole('button', { name: new RegExp(Title.replace(/[[\]]/g, '\\$&')) });
-    await expect(coming).toContainText('Torrez Fitness');
-    await expect(coming).toContainText('You’re leading · 5:30pm');
-    await coming.click();
+    const lead = page.locator('[data-screen-label=Home]').getByRole('button', { name: Title, exact: true });
+    await expect(lead).toContainText('Torrez Fitness');
+    await expect(lead).toContainText('IDEA');
+    await expect(lead.getByLabel('Date: done')).toBeVisible();
+    await expect(lead.getByLabel('Location: done')).toBeVisible();
+    await expect(lead.getByLabel('Tasks: not yet')).toBeVisible();
 
-    // All ideas, in each view
-    await page.getByRole('button', { name: 'All ideas' }).click();
+    // You own lists it with its next step
+    await page.getByRole('button', { name: 'You own', exact: true }).click();
+    const own = page.locator('[data-screen-label="You own"]');
+    await expect(own.getByRole('button', { name: Title, exact: true })).toContainText('Make it a plan');
+
+    // Groups → Torrez Fitness → its ideas, in each view
+    await page.getByRole('button', { name: 'Groups', exact: true }).click();
+    await page.locator('[data-screen-label=Groups]').getByRole('button', { name: 'Torrez Fitness', exact: true }).click();
     const browse = page.locator('[data-screen-label=Browse]');
     const card = browse.getByRole('button', { name: new RegExp(title.replace(/[[\]]/g, '\\$&')) });
     await expect(card).toContainText('Sat, Oct 17 · 5:30pm');
@@ -55,7 +63,7 @@ test('post → idea page → all three views → profile → edit → delete', a
     await expect(card).toContainText('Tester');
 
     // Profile lists it with its group and date
-    await page.getByRole('button', { name: 'Profile' }).click();
+    await openProfile(page);
     await expect(page.locator('[data-screen-label=Profile]')).toContainText(Title);
     await expect(page.locator('[data-screen-label=Profile]')).toContainText('Torrez Fitness · Sat, Oct 17');
 
@@ -84,7 +92,7 @@ test('post → idea page → all three views → profile → edit → delete', a
 test('post flow guards: each step waits for an answer or a "later"', async ({ browser }) => {
   const { page, context } = await newLead(browser, 2, 'Guard');
   try {
-    await page.getByRole('button', { name: 'Post an idea' }).click();
+    await startPost(page);
     // The event form comes first: it needs a name and a date
     const form = page.locator('[data-screen-label="New spark"]');
     await expect(form.getByRole('button', { name: 'Give it a name' })).toHaveAttribute('aria-disabled', 'true');
@@ -136,7 +144,7 @@ test('post flow guards: each step waits for an answer or a "later"', async ({ br
 test('location suggestions: 2 letters, 4 rows, Austin area, remembered, free text still works', async ({ browser }) => {
   const { page, context } = await newLead(browser, 1, 'Tester');
   try {
-    await page.getByRole('button', { name: 'Post an idea' }).click();
+    await startPost(page);
     await page.getByRole('button', { name: /Don’t have it all figured out/ }).click();
     await page.getByLabel('The event').fill('Anything');
     await button(page, 'Next').click();

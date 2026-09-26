@@ -1,7 +1,7 @@
 // A lead and a guest on one idea: the shared link, "I'm interested" with guest info,
 // suggestions everyone votes on, the lead picking, the mood board, making it a plan.
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newMember, newLead, button, postIdea, openIdea, deleteIdea, answerGuestPrompt, confirm, PNG } = require('./helpers');
+const { uniqueTitle, newMember, newLead, button, postIdea, openIdea, deleteIdea, answerGuestPrompt, confirm, PNG, openProfile } = require('./helpers');
 
 test('a guest with the link takes part; everyone votes; the lead picks and makes it a plan', async ({ browser }) => {
   const lead = await newLead(browser, 1, 'Lena');
@@ -147,7 +147,7 @@ test('Edit profile: a new name shows everywhere', async ({ browser }) => {
   let id;
   try {
     id = await postIdea(me.page, { title });
-    await me.page.getByRole('button', { name: 'Profile' }).click();
+    await openProfile(me.page);
     await button(me.page, 'Edit').click();
     const pe = me.page.getByRole('dialog', { name: 'Edit profile' });
     await expect(pe.getByRole('textbox').nth(1)).toHaveValue('e2e-lead-1@example.com');

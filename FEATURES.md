@@ -17,30 +17,30 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 1 | Welcome: picnic photo with scrim at the top; logo just above "Turn your idea / into a plan." (42px); the 1-2-3 steps; sign-in buttons anchored at the bottom; **no tab bar** on Welcome only | Test | Photo: `photos/welcome.jpg` |
 | 2 | **Continue with Google** (opens sign-in straight into *Opening Google…*) and **Continue with email** (sign-in with the email field focused); "New here? Either one creates your account." | Test | |
 | 3 | An invite link (/join/CODE) adds "Sign in to join the group CODE"; after signing in, Join opens pre-filled | Test | |
-| 4 | (Removed) Group code card, Start a group, How this works link: now only after sign-in / in the tab bar | Test | |
+| 4 | (Removed) Group code card, Start a group, How this works link: now only after sign-in (How Spark Hub works is in Profile) | Test | |
 
-## Home (signed in)
+## Home (signed in) — V5
 
 | # | Feature | Status | Notes |
 |---|---|---|---|
-| 5 | Logo (goes Home); no group switcher on Home | Test | Home spans all your groups |
-| 6 | "Turn your idea / into a plan.", the 1-2-3 steps as one plain row, **I have an idea** | Test | Posts to the current group |
-| 7 | **Your groups**: one swipeable row of 150×150 photo tiles (pinned first, then most recently opened), ADMIN/OWNER chip, a quiet **pin** (22px, faint until pinned; toast "Pinned to the front" / "Unpinned") | Test | Tapping switches group and opens All ideas |
-| 8 | **View all** → the **Your groups** bottom sheet (photo, name, chip, *Pinned*; **Join a group**) | Test | |
-| 9 | **Coming up** with a **Show** menu: *You're leading* (default) or *You're interested* (also ideas you're interested in or pitched in to); dates from today, soonest first, up to 3; group eyebrow, title, *You're leading / You're in · time*; empty-state line | Test | Shows whenever you're in a group; the choice is remembered on this device |
+| 5 | Header: logo (goes Home), **All groups ▾** scope menu (narrows every row to one group), your photo → Profile | Test | The scope resets when the app reloads |
+| 6 | **Leading**: swipeable 284px cards for ideas you lead, your upcoming plans and ones from the last 3 days (today, tomorrow, plans that need something, ideas, just happened, all set); date badge or IDEA pill, countdown, group, title; a 4-ring tracker (ideas: Date, Location, People, Tasks; plans: Location, Going, Sign-ups, Reminder); ends with a **New event** card | Test | View all → You own |
+| 7 | **Going**: plans you replied Going or Maybe to (not hosting), photo tiles with date and *Maybe*; empty-state line | Test | View all → sheet |
+| 8 | **Helping**: sign-up items you took on upcoming plans (date badge, item, plan · day time); hidden when there are none | Test | View all → sheet |
+| 9 | **View all** sheet: Going · You own · Helping tabs with counts, group chips, This week / Later in {Month} / Just happened / No date yet | Test | |
 | 10 | Not in a group yet: **Join with a code** card | Test | Not designed |
 
 ## Groups
 
 | # | Feature | Status | Notes |
 |---|---|---|---|
-| 11 | Group switcher menu (All ideas, How this works): your groups in Home's order, names only (no role chips), current one tinted, **+ Join a group** | Test | |
+| 11 | Group switcher menu (All ideas): your groups in Home's order, names only (no role chips), current one tinted, **+ Join a group** | Test | |
 | 12 | **Join a group** pop-up (code, "didn't match" error) | Test | Needs sign-in |
-| 13 | (Removed) Start a group: groups are created behind the scenes (Supabase) | Test | `create_group()` still exists for tests and by hand |
+| 13 | **Groups** tab: *Your groups* with **Join a group** / **Start a group** pills; pinned groups as big cards (role chip, gear for owners/admins → Edit group, pin, members, *N new*, events · ideas, Leading · Helping), the rest as square tiles in two columns | Test | Member counts via `my_group_sizes()`; toast *Pinned* / *Unpinned* |
 | 14 | Invite links `/join/CODE` (and `#/join/CODE`): code filled in; Join opens for someone signed in | Test | Vercel rewrite in `vercel.json` |
 | 15 | **Edit group** (owners and admins; Profile → Your groups or **Edit** on All ideas): cover with **Change cover** / **Add a cover**, group name (owners rename in place; admins see a lock), members card → Members sheet, invite code + link with **Copy**, **Delete group** (owners; type DELETE) | Test | Back returns where you came from |
 | 15b | **Owners** (up to 2 per group; whoever starts a group). Members sheet (search, *(you)* first): owners **Make admin**, **Make owner**, **Remove**, **Step down**; admins see it read-only. A group always keeps one owner | Test | Owner chip purple, Admin gold |
-| 16 | Group photo on Home tiles, the sheet, All ideas header and behind ideas without a photo, framed with the **Photo positioner** (drag, zoom 1–2.5×, Choose a different photo) | Test | New groups fall back to gold |
+| 16 | Group photo on Groups cards and tiles, All ideas header and behind ideas without a photo, framed with the **Photo positioner** (drag, zoom 1–2.5×, Choose a different photo) | Test | New groups fall back to gold |
 
 ## All ideas (per group)
 
@@ -83,6 +83,9 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 68 | All ideas **Ideas / Plans / Happened** tabs with counts; cards show IDEA / PLAN / It happened | Test | |
 | 69 | **Start a group** (Profile → Your groups) | Test | `create_group()` |
 | 70 | Temporary **demo plans** in every group the owner is in (`scripts/demo/seed-v5.py`) | Test | Re-run to refresh dates; see the script to remove |
+| 71 | **Tab bar** (V5): Home · Calendar · You own · Groups; no + button (post from *New event*, You own, Calendar or All ideas); Profile is your photo in the page header; *How Spark Hub works* moved to Profile | Test | Notifications tab comes with phase 3 |
+| 72 | **Calendar**: Month grid across your groups (green = on the books, gold ring = floated idea date, gray = happened), day list or *Nothing on this day* + **Post an event** (date filled in); **List** view by month with Hosting / Going / Maybe / RSVP / votes pills | Test | |
+| 73 | **You own**: counts (events · ideas · need you), **Post an event** / **Float an idea**, group chips, cards with the next step strip (e.g. *Oct 4 has 4 votes · Pick date*, *Location TBD · Add it*, *All set*) | Test | Next-step buttons open the plan |
 
 ## Posting and editing
 
@@ -133,7 +136,7 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 56 | Design handoff doc kept current by Claude Code | Live | |
 | 57 | Vercel auto-deploy from `main`; previews from `test` | Live | |
 | 58 | Security headers + CSP; pinned, integrity-checked Supabase script | Live | |
-| 59 | Automated end-to-end tests (19: smoke, posting, groups, collaboration, plans, Google, database security) | Test | `tests/` |
+| 59 | Automated end-to-end tests (19 tests: smoke, posting, groups, collaboration, plans, Google, database security) | Test | `tests/` |
 | 60 | Nightly cleanup of test-database leftovers ([E2E] ideas and groups, old anonymous users) | Live | Test project only |
 
 ## Removed in this rebuild

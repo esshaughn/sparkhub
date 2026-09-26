@@ -268,6 +268,16 @@ test('plans: replies, sign-ups, updates, notes and invite-only plans follow the 
       return out;
     }, made.plan);
     for (const [t, v] of Object.entries(outsider)) expect([0, 'refused'], t).toContain(v);
+
+    // Group sizes: only for the groups you're in
+    const sizes = await asUser(A, async (c) => { const r = await c.rpc('my_group_sizes'); return r.error ? 'refused' : r.data.length; });
+    expect([0, 'refused']).toContain(sizes);
+    const omars = await asUser(O, async (c) => {
+      const me = (await c.auth.getUser()).data.user.id;
+      const mine = (await c.from('memberships').select('group_id').eq('user_id', me)).data.map(m => m.group_id).sort();
+      return { mine, sized: (await c.rpc('my_group_sizes')).data.map(x => x.group_id).sort() };
+    });
+    expect(omars.sized).toEqual(omars.mine);
   } finally {
     for (const id of ids) await asUser(L, async (c, _C, id) => { await c.from('sparks').delete().eq('id', id); }, id).catch(() => {});
     await lead.context.close();

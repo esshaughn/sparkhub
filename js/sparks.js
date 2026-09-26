@@ -47,7 +47,7 @@
   };
   let lastPrefs = '';
   const savePrefs = () => {
-    const next = JSON.stringify({ groupId: state.groupId, view: state.view, sort: state.sort, coming: state.coming, guestName: state.guestName, guestPhone: state.guestPhone });
+    const next = JSON.stringify({ groupId: state.groupId, view: state.view, sort: state.sort, guestName: state.guestName, guestPhone: state.guestPhone });
     if (next === lastPrefs) return;
     lastPrefs = next;
     try { localStorage.setItem(PREFS_KEY, next); } catch (e) { /* storage blocked: conveniences only */ }
@@ -136,6 +136,9 @@
     tabHome: svg(23, stroke('currentColor', 1.9), '<path d="M3 10.5 12 3.5l9 7"/><path d="M5.5 9.5V20h13V9.5"/>'),
     tabHow: svg(23, stroke('currentColor', 1.9), '<path d="M12 6.5C10.5 5 8 4.3 4 4.5V18c4-.2 6.5.5 8 2 1.5-1.5 4-2.2 8-2V4.5c-4-.2-6.5.5-8 2Z"/><path d="M12 6.5V20"/>'),
     tabAll: svg(23, stroke('currentColor', 1.9), '<rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/>'),
+    tabCal: svg(23, stroke('currentColor', 1.9), '<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8.5 3v4M15.5 3v4"/>'),
+    tabFlag: svg(23, stroke('currentColor', 1.9), '<path d="M5.5 21V4"/><path d="M5.5 4.5h11.5l-2.5 4 2.5 4H5.5"/>'),
+    tabGroups: svg(23, stroke('currentColor', 1.9), '<circle cx="9" cy="8.5" r="3.3"/><path d="M3 19.5c.6-3.3 3-5.1 6-5.1s5.4 1.8 6 5.1"/><circle cx="16.8" cy="9.3" r="2.6"/><path d="M16.4 14.5c2.6 0 4.3 1.6 4.8 4.4"/>'),
     tabProfile: svg(23, stroke('currentColor', 1.9), '<circle cx="12" cy="8" r="3.6"/><path d="M4.8 20.5c.6-3.8 3.6-5.8 7.2-5.8s6.6 2 7.2 5.8"/>'),
     google: '<svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true" style="flex:0 0 20px"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>'
   };
@@ -155,7 +158,6 @@
   const state = Object.assign({
     screen: 'home', menu: null, subjectId: null, gpId: null, tag: null, zoom: null, membersOpen: null, membersList: null,
     sort: SORTS.some(s => s[0] === prefs.sort) ? prefs.sort : 'popular',
-    coming: prefs.coming === 'interested' ? 'interested' : 'leading',
     view: VIEWS.indexOf(prefs.view) > -1 ? prefs.view : 'cards',
     groupId: prefs.groupId || null,
 
@@ -173,7 +175,7 @@
     guestName: prefs.guestName || '', guestPhone: prefs.guestPhone || '',
     offerKind: null, offerText: '', offerPlace: null, offerSuggest: [],
     joinOpen: false, joinCode: '', joinBad: false,
-    groupsSheet: false, membersQ: '', gpRename: null, gpDel: null, ph: null, postTo: false,
+    allTab: null, allGrp: null, ownGrp: null, homeGroup: null, calView: 'month', calM: null, calSel: null, sizes: {}, membersQ: '', gpRename: null, gpDel: null, ph: null, postTo: false,
     startName: null, phaseTab: 'plan', sigDraft: '', sigNeed: '', blast: null, prepEdit: null, prepText: '', invite: null, datesSheet: false,
     pe: null, confirm: null, interestList: false,
     gpCode: '', gpMembers: null
@@ -185,8 +187,8 @@
     const s = state.screen;
     if (s === 'detail' && state.subjectId) return '#/idea/' + state.subjectId;
     if (s === 'groupPage' && state.gpId) return '#/group/' + state.gpId;
-    return { home: '', browse: '#/ideas', how: '#/how', profile: '#/me' }[s] != null
-      ? { home: '', browse: '#/ideas', how: '#/how', profile: '#/me' }[s] : null;
+    const plain = { home: '', browse: '#/ideas', how: '#/how', profile: '#/me', calendar: '#/calendar', own: '#/own', groups: '#/groups' };
+    return plain[s] != null ? plain[s] : null;
   };
   const syncHash = () => {
     const h = hashFor();
@@ -204,6 +206,9 @@
     if (m) return { screen: 'home', inviteCode: m[1].toUpperCase() };
     if (h === '#/ideas') return { screen: 'browse' };
     if (h === '#/how') return { screen: 'how' };
+    if (h === '#/calendar') return { screen: 'calendar' };
+    if (h === '#/own') return { screen: 'own' };
+    if (h === '#/groups') return { screen: 'groups' };
     if (h === '#/me') return { screen: 'profile' };
     return { screen: 'home' };
   };
@@ -287,20 +292,6 @@
       out.sort((x, y) => rank(x) - rank(y) || (rank(x) === 0 ? when(x).localeCompare(when(y)) : rank(x) === 2 ? when(y).localeCompare(when(x)) : byNew(x, y)));
     }
     return out;
-  };
-
-  // Home → Coming up: "You're leading" (ideas you lead) or "You're interested" (those, plus ones
-  // you're interested in or pitched in to); dates from today on, soonest first, up to 3
-  const COMING = [['leading', 'You’re leading'], ['interested', 'You’re interested']];
-  const involved = (s) => s.interested.indexOf(state.me) > -1 || s.offers.concat(s.pending).some(o => o.userId === state.me);
-  const comingUp = () => {
-    const today = todayISO();
-    const mine = new Set(myGroups().map(g => g.id));
-    const wanted = state.coming === 'interested' ? (s) => isLead(s) || involved(s) : isLead;
-    return state.sparks
-      .filter(s => mine.has(s.groupId) && s.dayDate && s.dayDate >= today && wanted(s))
-      .sort((a, b) => (a.dayDate + (a.dayTime || '')).localeCompare(b.dayDate + (b.dayTime || '')))
-      .slice(0, 3);
   };
 
   // ---------------------------------------------------------------------------
@@ -401,6 +392,13 @@
       groups, sparks, profiles, loaded: true, error: null,
       myName: mine.name || state.myName, myAvatar: mine.avatar || null
     });
+    // Member counts for the Groups page (a nicety: the page works without them)
+    sb.rpc('my_group_sizes').then(r => {
+      if (r.error) return;
+      const sizes = {};
+      (r.data || []).forEach(x => { sizes[x.group_id] = x.members; });
+      setState({ sizes });
+    }, () => {});
   }
 
   // ---- Session recovery ------------------------------------------------------
@@ -535,7 +533,7 @@
   const togglePin = (g) => {
     const pinned = !g.pinned;
     g.pinned = pinned;
-    toast(pinned ? 'Pinned to the front' : 'Unpinned', true);
+    toast(pinned ? 'Pinned' : 'Unpinned', true);
     sb.from('memberships').update({ pinned }).eq('group_id', g.id).eq('user_id', state.me)
       .then(r => { if (r.error) throw r.error; }).catch(e => { console.error(e); g.pinned = !pinned; toast(FAILED); });
   };
@@ -562,7 +560,7 @@
   };
   const closeGroupPage = () => {
     const g = groupById(state.gpId);
-    if (state.gpFrom === 'browse' && g) go('browse', { groupId: g.id }); else go('profile');
+    if (state.gpFrom === 'browse' && g) go('browse', { groupId: g.id }); else go(state.gpFrom === 'groups' ? 'groups' : 'profile');
   };
   const openMembers = () => setState({ membersOpen: state.gpId, membersQ: '' });
 
@@ -604,7 +602,7 @@
   };
 
   // Start a group (V5 brings it back): name it, then land on its Edit group page with the code
-  const startGroup = () => { setState({ menu: null, groupsSheet: false }); needSignIn(() => setState({ startName: '' }), 'profile'); };
+  const startGroup = () => { setState({ menu: null, allTab: null }); needSignIn(() => setState({ startName: '' }), 'profile'); };
   const submitStartGroup = async () => {
     const name = titleCase(state.startName || '').slice(0, 40);
     if (name.length < 2 || state.busy) return;
@@ -761,10 +759,12 @@
     state.photos.forEach(p => URL.revokeObjectURL(p.url));
     return blankCompose();
   };
-  const goCompose = () => {
+  const goCompose = (extra) => {
     setState({ menu: null });
     if (state.email && !currentGroup()) { if (state.loaded) openJoin(); return; }   // groups still loading: wait
-    go('compose', composeReset());
+    const pre = extra && !extra.type ? extra : {};   // on(goCompose) passes the click event
+    if (state.homeGroup && groupById(state.homeGroup) && groupById(state.homeGroup).role) state.groupId = state.homeGroup;
+    go('compose', Object.assign(composeReset(), pre));
   };
 
   const dayFields = (st) => st.whenMode === 'one' && st.dateOne
@@ -1542,111 +1542,466 @@
 
   const PIN = (fill, strokeColor) => '<svg width="11" height="11" viewBox="0 0 24 24" fill="' + fill + '" stroke="' + strokeColor + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6l-1 6 3 3v2H7v-2l3-3-1-6Z"/><path d="M12 14v7"/></svg>';
 
-  const comingMenu = () => {
-    const open = state.menu === 'coming', cur = COMING.find(c => c[0] === state.coming) || COMING[0];
-    return '<div data-menu style="position:relative">' +
-      '<div ' + on((e) => { stop(e); setState({ menu: open ? null : 'coming' }); }) + ' aria-label="Show" aria-expanded="' + open + '" style="display:flex;align-items:center;gap:5px;min-height:32px;padding:0 2px;cursor:pointer">' +
-        '<span style="font-size:14px;font-weight:700;color:#6b7280">' + cur[1] + '</span>' + I.chevD(12, '#6b7280', 2.8) +
+  // ---- V5: what you're leading, going to and helping with, across your groups ----------------
+  const DAY_MS = 864e5;
+  const midnight = (iso) => new Date(iso + 'T00:00').getTime();
+  const dayDiff = (iso) => Math.round((midnight(iso) - midnight(todayISO())) / DAY_MS);
+  const whenOf = (s) => s.dayDate ? s.dayDate + (s.dayTime || '') : '';
+  const byWhen = (a, b) => whenOf(a).localeCompare(whenOf(b));
+  const inMine = (s) => { const g = groupById(s.groupId); return !!(g && g.role); };
+  const inScope = (s, gid) => inMine(s) && (!gid || s.groupId === gid);
+  const cardPhoto = (s) => s.photoPaths[0] ? photoUrl(s.photoPaths[0]) : (groupPhoto(groupById(s.groupId)) || '/photos/torrez-trail.jpg');
+  const monthDay = (iso) => new Date(iso + 'T12:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const shortWhen = (s) => s.dayDate ? fmtDay(s.dayDate) + (s.dayTime ? ' · ' + fmtTime(s.dayTime) : '') : 'No date yet';
+  const countdown = (s) => {
+    const d = dayDiff(s.dayDate);
+    return d === 0 ? 'Today' + (s.dayTime ? ' · ' + fmtTime(s.dayTime) : '') : d === 1 ? 'Tomorrow' : d > 1 ? 'in ' + d + ' days' : d === -1 ? 'Yesterday' : -d + ' days ago';
+  };
+  const signupFill = (s) => {
+    const counted = s.signups.filter(i => i.need);
+    const needed = counted.reduce((n, i) => n + i.need, 0), filled = counted.reduce((n, i) => n + Math.min(i.claims.length, i.need), 0);
+    return { rows: s.signups.length, counted: counted.length, needed, filled, open: needed - filled };
+  };
+  const needsYou = (s) => { const f = signupFill(s); return !s.spot || !s.autoRemind || f.open > 0; };
+
+  // Leading = ideas you lead, your upcoming plans, and ones that happened in the last 3 days.
+  // Order: today, tomorrow, plans that need something, ideas, just happened, all set.
+  const leadingList = (gid) => state.sparks.filter(s => isLead(s) && inScope(s, gid) && (phaseOf(s) !== 'done' || (s.dayDate && dayDiff(s.dayDate) >= -3)))
+    .map(s => {
+      const ph = phaseOf(s), d = s.dayDate ? dayDiff(s.dayDate) : null;
+      const rank = ph === 'idea' ? 3 : ph === 'done' ? 4 : d === 0 ? 0 : d === 1 ? 1 : needsYou(s) ? 2 : 5;
+      return { s, rank };
+    })
+    .sort((a, b) => a.rank - b.rank || (a.rank === 3 ? b.s.created - a.s.created : byWhen(a.s, b.s)))
+    .map(x => x.s);
+  const goingList = (gid) => state.sparks.filter(s => inScope(s, gid) && phaseOf(s) === 'plan' && !isLead(s) && ['going', 'maybe'].indexOf(myRsvp(s)) > -1).sort(byWhen);
+  const helpingList = (gid) => {
+    const out = [];
+    state.sparks.filter(s => inScope(s, gid) && phaseOf(s) === 'plan').sort(byWhen)
+      .forEach(s => s.signups.forEach(it => { if (it.claims.some(c => c.userId === state.me)) out.push({ s, it }); }));
+    return out;
+  };
+
+  // The tracker on Leading cards: four rings, identical geometry for ideas and plans
+  const TRK = {
+    cal: '<rect x="4" y="5" width="16" height="15" rx="2.5"/><path d="M4 10h16M9 3v4M15 3v4"/>',
+    pin: '<path d="M12 21s-6.5-6.2-6.5-11.2a6.5 6.5 0 0 1 13 0C18.5 14.8 12 21 12 21Z"/><circle cx="12" cy="9.8" r="2.3"/>',
+    people: '<circle cx="9" cy="8.5" r="3"/><path d="M3.5 19c.5-3 2.7-4.7 5.5-4.7s5 1.7 5.5 4.7"/><circle cx="16.5" cy="9.5" r="2.4"/><path d="M16 14.4c2.4 0 4.1 1.5 4.5 4.1"/>',
+    list: '<path d="M10 6.5h10M10 12h10M10 17.5h10"/><path d="m3.8 6.5 1.4 1.4 2.3-2.6M3.8 12l1.4 1.4 2.3-2.6"/><path d="M4.5 17.5h1.5"/>',
+    bell: '<path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 1.5h-15Z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>',
+    check: '<path d="m5.5 12.5 4.2 4.2 8.8-9.4"/>'
+  };
+  const trkIcon = (k, color) => svg(16, stroke(color, 2.1), TRK[k]);
+  const ring = (st) => {
+    const C = 2 * Math.PI * 16, pct = Math.max(0, Math.min(1, st.pct || 0));
+    const disc = st.done
+      ? '<span style="width:36px;height:36px;border-radius:999px;background:#149a4b;display:flex;align-items:center;justify-content:center">' + trkIcon(st.checkWhenDone ? 'check' : st.icon, '#fff') + '</span>'
+      : '<span style="position:relative;width:36px;height:36px;display:block">' +
+          '<svg width="36" height="36" viewBox="0 0 36 36" aria-hidden="true" style="position:absolute;inset:0;transform:rotate(-90deg)"><circle cx="18" cy="18" r="16" fill="none" stroke="#eef0f3" stroke-width="3"/>' +
+            (pct > 0 ? '<circle cx="18" cy="18" r="16" fill="none" stroke="#e8a71c" stroke-width="3" stroke-linecap="round" stroke-dasharray="' + (C * pct).toFixed(1) + ' ' + C.toFixed(1) + '"/>' : '') + '</svg>' +
+          '<span style="position:absolute;inset:4px;border-radius:999px;display:flex;align-items:center;justify-content:center">' + trkIcon(st.icon, st.na ? '#9aa0ac' : '#454b55') + '</span>' +
+        '</span>';
+    return '<span aria-label="' + esc(st.aria) + '" style="flex:0 0 52px;width:52px;display:flex;flex-direction:column;align-items:center;gap:5px">' + disc +
+      '<span aria-hidden="true" style="font-size:11.5px;font-weight:800;white-space:nowrap;color:' + (st.done ? '#0f7a3c' : st.na ? '#9aa0ac' : '#454b55') + '">' + esc(st.label) + '</span></span>';
+  };
+  const ideaSteps = (s) => {
+    const n = s.interested.length, top = s.dateOpts.reduce((m, o) => Math.max(m, o.votes.length), 0), f = signupFill(s);
+    const people = s.minPeople ? { done: n >= s.minPeople, pct: n / s.minPeople } : { done: n > 0, pct: 0 };
+    const tasks = f.counted ? { done: f.filled >= f.needed, pct: f.filled / f.needed } : { done: f.rows > 0, pct: 0 };
+    const date = s.dayDate ? { done: true } : { done: false, pct: Math.min(0.9, top / Math.max(1, n)) };
+    const loc = s.spot ? { done: true } : { done: false, pct: s.spotOpts.length || s.pending.some(o => o.kind === 'spot') ? 0.5 : 0 };
+    return [
+      Object.assign({ icon: 'cal', label: 'Date' }, date), Object.assign({ icon: 'pin', label: 'Location' }, loc),
+      Object.assign({ icon: 'people', label: 'People' }, people), Object.assign({ icon: 'list', label: 'Tasks' }, tasks)
+    ].map(x => Object.assign(x, { checkWhenDone: true, aria: x.label + (x.done ? ': done' : ': not yet') }));
+  };
+  const planSteps = (s) => {
+    const g = going(s).length, f = signupFill(s), d = dayDiff(s.dayDate);
+    const eve = new Date(midnight(s.dayDate) - DAY_MS), eveLabel = eve.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const signups = f.counted ? { label: f.filled + '/' + f.needed, done: f.open <= 0, pct: f.filled / f.needed, aria: 'Sign-ups: ' + f.filled + ' of ' + f.needed }
+      : f.rows ? { label: String(s.signups.reduce((n, i) => n + i.claims.length, 0)), done: true, aria: 'Sign-ups: open list' }
+      : { label: '—', na: true, aria: 'No sign-up list' };
+    const remind = !s.autoRemind ? { label: 'Off', done: false, aria: 'Day-before reminder: off' }
+      : d <= 1 ? { label: 'Sent', done: true, aria: 'Day-before reminder: sent' } : { label: eveLabel, done: true, aria: 'Day-before reminder: ' + eveLabel };
+    return [
+      { icon: 'pin', label: s.spot ? 'Set' : 'TBD', done: !!s.spot, aria: s.spot ? 'Location: set' : 'Location: to be decided' },
+      { icon: 'people', label: String(g), done: g > 0, aria: g + ' going' },
+      Object.assign({ icon: 'list' }, signups), Object.assign({ icon: 'bell' }, remind)
+    ];
+  };
+
+  const dateBadge = (iso, top, size) => '<span aria-hidden="true" style="display:block;width:' + (size || 44) + 'px;border-radius:10px;overflow:hidden;text-align:center;background:#fff;box-shadow:0 4px 12px rgba(0,0,0,.25)">' +
+    '<span style="display:block;background:' + (top || '#149a4b') + ';color:#fff;font-size:9px;font-weight:900;letter-spacing:.8px;padding:2px 0">' + MONTHS[+iso.slice(5, 7) - 1] + '</span>' +
+    '<span style="display:block;font-size:17px;line-height:1.2;font-weight:900;color:#0d1117;padding:2px 0 3px">' + (+iso.slice(8, 10)) + '</span></span>';
+  const openSpark = (s) => go('detail', { subjectId: s.id, tag: null, menu: null, allTab: null });
+
+  const leadCard = (s) => {
+    const g = groupById(s.groupId), ph = phaseOf(s), cd = ph !== 'idea' && s.dayDate ? countdown(s) : null, soon = cd && /^(Today|Tomorrow)/.test(cd);
+    return '<div ' + on(() => openSpark(s)) + ' aria-label="' + esc(s.text) + '" style="flex:0 0 284px;width:284px;border-radius:20px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);overflow:hidden;display:flex;flex-direction:column;scroll-snap-align:start;cursor:pointer">' +
+      '<div style="position:relative;height:132px;background:' + bg(cardPhoto(s), '50% 40%') + '">' +
+        '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.9) 0%, rgba(13,17,23,.3) 55%, rgba(13,17,23,.1) 100%)"></div>' +
+        '<div style="position:absolute;top:12px;left:12px">' + (ph === 'idea'
+          ? '<span style="display:inline-flex;align-items:center;min-height:24px;padding:0 9px;border-radius:999px;background:#f3c55a;color:#0d1117;font-size:10.5px;font-weight:900;letter-spacing:.7px">IDEA</span>'
+          : dateBadge(s.dayDate)) + '</div>' +
+        (cd ? '<span style="position:absolute;top:12px;right:12px;padding:4px 10px;border-radius:999px;font-size:11.5px;font-weight:900;' + (soon ? 'background:#fff;color:#0d1117' : 'background:rgba(13,17,23,.55);color:#fff') + '">' + esc(cd) + '</span>' : '') +
+        '<div style="position:absolute;left:14px;right:14px;bottom:11px;color:#fff;min-width:0">' +
+          '<div style="font-size:10px;font-weight:900;letter-spacing:.9px;text-transform:uppercase;color:#cfc9ff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(g ? g.name : '') + '</div>' +
+          '<div style="font-size:18px;line-height:1.2;font-weight:900;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(s.text) + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div style="display:flex;justify-content:space-between;padding:12px 14px">' + (ph === 'idea' ? ideaSteps(s) : planSteps(s)).map(ring).join('') + '</div>' +
+    '</div>';
+  };
+  const goingTile = (s) => {
+    const g = groupById(s.groupId), maybe = myRsvp(s) === 'maybe';
+    return '<div ' + on(() => openSpark(s)) + ' aria-label="' + esc(s.text) + '" style="flex:0 0 268px;width:268px;height:88px;border-radius:20px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);overflow:hidden;display:flex;scroll-snap-align:start;cursor:pointer">' +
+      '<span aria-hidden="true" style="flex:0 0 84px;background:' + bg(cardPhoto(s)) + '"></span>' +
+      '<div style="flex:1;min-width:0;padding:0 14px;display:flex;flex-direction:column;justify-content:center;gap:3px">' +
+        '<div style="font-size:9.5px;font-weight:900;letter-spacing:.7px;text-transform:uppercase;color:#5b4ae8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(g ? g.name : '') + '</div>' +
+        '<div style="font-size:17.5px;line-height:1.15;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(s.text) + '</div>' +
+        '<div style="font-size:12.5px;font-weight:600;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(shortWhen(s)) + (maybe ? ' · <span style="color:#8f6405;font-weight:800">Maybe</span>' : '') + '</div>' +
+      '</div>' +
+    '</div>';
+  };
+  const helpRow = (x, k) => '<div ' + on(() => openSpark(x.s)) + ' class="hov-row" style="display:flex;align-items:center;gap:12px;padding:10px 14px;border-top:' + (k ? '1px solid #f2f3f6' : '0') + ';cursor:pointer">' +
+    '<span aria-hidden="true" style="flex:0 0 46px;border-radius:12px;overflow:hidden;text-align:center;background:#fff;box-shadow:inset 0 0 0 1.5px #e6e7eb">' +
+      '<span style="display:block;background:#e8a71c;color:#fff;font-size:10px;font-weight:900;padding:2px 0">' + MONTHS[+x.s.dayDate.slice(5, 7) - 1] + '</span>' +
+      '<span style="display:block;font-size:19px;line-height:1.2;font-weight:900;color:#0d1117;padding:2px 0 3px">' + (+x.s.dayDate.slice(8, 10)) + '</span></span>' +
+    '<div style="flex:1;min-width:0">' +
+      '<div style="font-size:15px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(x.it.item) + '</div>' +
+      '<div style="font-size:12.5px;font-weight:600;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(x.s.text + ' · ' + new Date(x.s.dayDate + 'T12:00').toLocaleDateString('en-US', { weekday: 'short' }) + (x.s.dayTime ? ' ' + fmtTime(x.s.dayTime) : '')) + '</div>' +
+    '</div>' + I.chevR(16, '#9aa0ac', 2.4) + '</div>';
+
+  // Standard V5 page header: logo left, your photo right (to Profile)
+  const headAvatar = () => {
+    const url = state.myAvatar ? photoUrl(state.myAvatar) : null;
+    return '<span ' + on(() => go('profile')) + ' aria-label="Profile" style="flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:' + (url ? bg(url) : '#e8a71c') + ';color:#fff;font-size:16px;font-weight:900;display:flex;align-items:center;justify-content:center;cursor:pointer">' + (url ? '' : esc(initialOf(state.myName) || '?')) + '</span>';
+  };
+  const pageHead = (right, below) => '<header style="background:#fff;padding:14px 18px 14px">' +
+    '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px">' + logo(false) + '<div style="display:flex;align-items:center;gap:10px;min-width:0">' + (right || '') + headAvatar() + '</div></div>' +
+    (below || '') + '</header>';
+  const sectionHead = (title, count, all) => '<div style="display:flex;align-items:baseline;gap:8px;padding:0 18px">' +
+    '<h2 style="margin:0;font-size:28px;line-height:1.05;font-weight:900;letter-spacing:-.8px;color:#0d1117">' + title + '</h2>' +
+    '<span style="font-size:15px;font-weight:700;color:#9aa0ac">' + count + '</span>' +
+    (all ? '<span ' + on(all) + ' style="margin-left:auto;font-size:13.5px;font-weight:800;color:#5b4ae8;cursor:pointer">View all</span>' : '') + '</div>';
+  const ROW_SCROLL = 'display:flex;gap:10px;padding:0 18px 4px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding:0 18px;-webkit-overflow-scrolling:touch';
+
+  const scopeMenu = () => {
+    const open = state.menu === 'scope', g = groupById(state.homeGroup);
+    const pick = (id) => (e) => { stop(e); setState({ homeGroup: id, menu: null }); };
+    const row = (id, label) => {
+      const onIt = (id || null) === (state.homeGroup || null);
+      return '<div ' + on(pick(id)) + ' style="display:flex;align-items:center;min-height:42px;padding:0 12px;border-radius:12px;background:' + (onIt ? '#f3f1fe' : 'transparent') + ';font-size:15px;font-weight:' + (onIt ? 900 : 700) + ';color:' + (onIt ? '#5b4ae8' : '#0d1117') + ';cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(label) + '</div>';
+    };
+    return '<div data-menu style="position:relative;min-width:0">' +
+      '<div ' + on((e) => { stop(e); setState({ menu: open ? null : 'scope' }); }) + ' aria-label="Show groups" aria-expanded="' + open + '" style="display:flex;align-items:center;gap:5px;min-height:40px;cursor:pointer;min-width:0">' +
+        '<span style="font-size:14px;font-weight:800;color:#454b55;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px">' + esc(g && g.role ? g.name : 'All groups') + '</span>' + I.chevD(12, '#454b55', 2.8) +
       '</div>' +
       (open
-        ? '<div role="menu" aria-label="Show" style="position:absolute;top:calc(100% + 6px);right:0;z-index:4;min-width:220px;' + MENU + '">' + menuLabel('Show') +
-            COMING.map(([k, label]) => {
-              const onIt = k === state.coming;
-              return '<div ' + on((e) => { stop(e); setState({ coming: k, menu: null }); }) + ' style="display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;padding:9px 12px;border-radius:12px;background:' + (onIt ? '#f3f1fe' : 'transparent') + ';cursor:pointer">' +
-                '<span style="font-size:15px;font-weight:800;color:' + (onIt ? '#5b4ae8' : '#0d1117') + '">' + label + '</span>' + (onIt ? I.check(16, '#5b4ae8', 2.6) : '') + '</div>';
-            }).join('') + '</div>'
+        ? '<div role="menu" aria-label="Show groups" style="position:absolute;top:calc(100% + 6px);right:-50px;z-index:4;width:230px;padding:6px;border-radius:16px;background:#fff;box-shadow:0 12px 32px rgba(15,18,25,.18), 0 0 0 1px #e6e7eb;animation:popIn 160ms ease both">' +
+            row(null, 'All groups') + groupsInOrder().map(x => row(x.id, x.name)).join('') + '</div>'
         : '') +
     '</div>';
   };
 
   function viewHome() {
-    const st = state, groups = groupsInOrder();
-    const coming = comingUp();
-    const tile = (g) => '<div ' + on(() => openGroup(g)) + ' aria-label="' + esc(g.name) + '" style="position:relative;flex:0 0 150px;width:150px;height:150px;border-radius:18px;overflow:hidden;cursor:pointer;scroll-snap-align:start;background:' + groupBg(g) + '">' +
-      '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.88), rgba(13,17,23,.15) 70%)"></div>' +
-      (runs(g) ? roleBadge(g.role, 'position:absolute;top:12px;left:10px;font-size:10px') : '') +
-      '<div ' + on((e) => { stop(e); togglePin(g); }) + ' aria-label="' + (g.pinned ? 'Unpin ' : 'Pin ') + esc(g.name) + '" aria-pressed="' + g.pinned + '" style="position:absolute;top:2px;right:2px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;cursor:pointer">' +
-        '<span style="width:22px;height:22px;border-radius:999px;display:flex;align-items:center;justify-content:center;transition:background 160ms,opacity 160ms;background:' + (g.pinned ? '#fff' : 'rgba(13,17,23,.28);opacity:.7') + '">' + (g.pinned ? PIN('#5b4ae8', '#5b4ae8') : PIN('none', '#fff')) + '</span>' +
-      '</div>' +
-      '<div style="position:absolute;left:12px;right:10px;bottom:10px;color:#fff;font-size:15.5px;line-height:1.15;font-weight:900">' + esc(g.name) + '</div>' +
-    '</div>';
-
+    const st = state, gid = st.homeGroup && groupById(st.homeGroup) ? st.homeGroup : null;
+    if (!myGroups().length) {
+      return '<div data-screen-label="Home">' + pageHead('') +
+        '<div style="padding:20px 14px 26px;display:flex;flex-direction:column;gap:14px">' + goneCard() + noGroupCard() + '</div>' +
+        '<div style="height:var(--nav-h)"></div></div>';
+    }
+    const lead = leadingList(gid), gone = goingList(gid), help = helpingList(gid);
+    const newCard = '<div ' + on(() => goCompose()) + ' style="flex:0 0 140px;width:140px;min-height:120px;border-radius:20px;border:1.5px dashed #b9bdc6;background:rgba(255,255,255,.5);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;scroll-snap-align:start;cursor:pointer">' +
+      I.plus(20, '#454b55', 2.6) + '<span style="font-size:14px;font-weight:800;color:#454b55">New event</span></div>';
     return '<div data-screen-label="Home">' +
-      '<header style="position:relative;background:#fff;padding:12px 16px 24px">' +
-        logo(false) +
-        '<h1 style="margin:22px 0 0;font-size:40px;line-height:1;font-weight:900;letter-spacing:-1.3px;color:#0d1117">Turn your idea<br><span style="color:#5b4ae8">into a plan.</span></h1>' +
-        '<div style="margin-top:16px;display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12.5px;font-weight:800;color:#0d1117;white-space:nowrap">' +
-          STEPS.map(([c, n, t], i) =>
-            (i ? svg(11, stroke('#6b7280', 3.4) + ' style="flex:0 0 11px"', '<path d="M9 6l6 6-6 6"/>') : '') +
-            '<span style="display:flex;align-items:center;gap:5px;white-space:nowrap"><span style="flex:0 0 18px;width:18px;height:18px;border-radius:999px;background:' + c + ';color:#fff;font-size:10.5px;display:flex;align-items:center;justify-content:center">' + n + '</span>' + t + '</span>').join('') +
-        '</div>' +
-        ideaButton('margin-top:16px') +
-      '</header>' +
-      '<div style="padding:18px 14px 26px;display:flex;flex-direction:column;gap:18px">' +
-        goneCard() +
-        (groups.length
-          ? '<div style="margin:0 -14px">' +
-              '<div style="display:flex;align-items:center;justify-content:space-between;padding:0 18px 8px">' +
-                '<span style="' + EYEBROW + '">Your groups</span>' +
-                '<span ' + on(() => setState({ groupsSheet: true })) + ' style="display:flex;align-items:center;min-height:32px;font-size:13.5px;font-weight:800;color:#5b4ae8;cursor:pointer">View all</span>' +
-              '</div>' +
-              '<div class="no-scrollbar" style="display:flex;gap:10px;padding:0 14px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding:0 14px;-webkit-overflow-scrolling:touch">' +
-                groups.map(tile).join('') +
-              '</div>' +
-            '</div>'
-          : '<div><div style="padding:0 4px 8px;' + EYEBROW + '">Your groups</div>' + noGroupCard() + '</div>') +
-        (groups.length
-          ? '<div>' +
-              '<div style="display:flex;align-items:center;justify-content:space-between;padding:0 4px 8px">' +
-                '<span style="' + EYEBROW + '">Coming up</span>' + comingMenu() +
-              '</div>' +
-              '<div style="' + CARD + ';overflow:hidden">' +
-                (coming.length
-                  ? coming.map((s, k) => {
-                      const g = groupById(s.groupId);
-                      return '<div ' + on(() => go('detail', { subjectId: s.id, tag: null })) + ' class="hov-row" style="display:flex;align-items:center;gap:12px;padding:10px 14px;min-height:66px;border-top:' + (k ? '1px solid #f2f3f6' : '0') + ';cursor:pointer">' +
-                        '<span style="flex:0 0 46px;border-radius:11px;overflow:hidden;text-align:center;box-shadow:0 0 0 1px #eceef2"><span style="display:block;background:#e8a71c;color:#fff;font-size:10px;font-weight:900;padding:2px 0">' + MONTHS[+s.dayDate.slice(5, 7) - 1] + '</span><span style="display:block;font-size:18px;font-weight:900;color:#0d1117;padding:3px 0">' + (+s.dayDate.slice(8, 10)) + '</span></span>' +
-                        '<div style="flex:1 1 auto;min-width:0">' +
-                          '<div style="font-size:9.5px;font-weight:800;letter-spacing:.9px;text-transform:uppercase;color:#7b6ef0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(g ? g.name : '') + '</div>' +
-                          '<div style="font-size:15.5px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(s.text) + '</div>' +
-                          '<div style="font-size:13px;font-weight:600;color:#6b7280">' + (isLead(s) ? 'You’re leading' : 'You’re in') + esc(s.dayTime ? ' · ' + fmtTime(s.dayTime) : '') + '</div>' +
-                        '</div>' +
-                        I.chevR(16, '#9aa0ac', 2.4) +
-                      '</div>';
-                    }).join('')
-                  : '<div style="padding:16px;font-size:14.5px;line-height:1.45;font-weight:500;color:#6b7280">' +
-                      (st.coming === 'interested' ? 'Nothing coming up yet. Ideas you post or are interested in show here.' : 'Nothing you’ve posted has a date coming up.') + '</div>') +
-              '</div>' +
-            '</div>'
+      pageHead(scopeMenu()) +
+      '<div style="padding:20px 0 24px;display:flex;flex-direction:column;gap:24px">' +
+        (st.goneOpen ? '<div style="padding:0 14px">' + goneCard() + '</div>' : '') +
+        '<section aria-label="Leading" style="display:flex;flex-direction:column;gap:7px">' +
+          sectionHead('Leading', lead.length, () => go('own', { ownGrp: gid })) +
+          '<div class="no-scrollbar" style="' + ROW_SCROLL + ';align-items:stretch">' + lead.map(leadCard).join('') + newCard + '</div>' +
+        '</section>' +
+        '<section aria-label="Going" style="display:flex;flex-direction:column;gap:7px">' +
+          sectionHead('Going', gone.length, () => setState({ allTab: 'going', allGrp: gid })) +
+          (gone.length
+            ? '<div class="no-scrollbar" style="' + ROW_SCROLL + '">' + gone.map(goingTile).join('') + '</div>'
+            : '<div style="padding:0 18px;font-size:14.5px;line-height:1.45;font-weight:600;color:#6b7280">Nothing yet. RSVP to an event in one of your groups and it shows up here.</div>') +
+        '</section>' +
+        (help.length
+          ? '<section aria-label="Helping" style="display:flex;flex-direction:column;gap:7px">' +
+              sectionHead('Helping', help.length, () => setState({ allTab: 'help', allGrp: gid })) +
+              '<div style="margin:0 14px;border-radius:20px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);overflow:hidden">' + help.map(helpRow).join('') + '</div>' +
+            '</section>'
           : '') +
       '</div>' +
       '<div style="height:var(--nav-h)"></div>' +
     '</div>';
   }
 
-  // The Your groups bottom sheet (Home → View all)
-  function viewGroupsSheet() {
-    const close = () => setState({ groupsSheet: false });
-    return sheet('All your groups', close, 'max-height:78%;overflow:auto;padding:10px 14px 22px',
-      '<div style="display:flex;align-items:center;justify-content:space-between;padding:0 6px 8px">' +
-        '<h3 style="margin:0;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">Your groups</h3>' +
-        '<div ' + on(close) + ' aria-label="Close" style="width:32px;height:32px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(15, '#0d1117', 2.4) + '</div>' +
-      '</div>' +
-      '<div style="display:flex;flex-direction:column">' +
-        groupsInOrder().map(g => '<div ' + on(() => { setState({ groupsSheet: false }); openGroup(g); }) + ' class="hov-row" style="display:flex;align-items:center;gap:12px;min-height:64px;padding:8px 6px;border-radius:14px;cursor:pointer">' +
-          '<div style="flex:0 0 48px;width:48px;height:48px;border-radius:12px;background:' + groupBg(g) + '"></div>' +
-          '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px">' +
-            '<div style="display:flex;align-items:center;gap:7px;min-width:0"><span style="font-size:16px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(g.name) + '</span>' + (runs(g) ? roleBadge(g.role, 'font-size:10.5px') : '') + '</div>' +
-            (g.pinned ? '<span style="font-size:13px;font-weight:600;color:#6b7280">Pinned</span>' : '') +
-          '</div>' +
-          svg(14, stroke('#9aa0ac', 2.6) + ' style="flex:0 0 14px"', '<path d="M9 6l6 6-6 6"/>') +
-        '</div>').join('') +
-      '</div>' +
-      '<div style="height:1px;background:#f2f3f6;margin:6px 6px 4px"></div>' +
-      '<div ' + on(() => { setState({ groupsSheet: false }); openJoin(); }) + ' class="hov-row" style="display:flex;align-items:center;gap:12px;min-height:56px;padding:8px 6px;border-radius:14px;cursor:pointer">' +
-        '<span style="flex:0 0 48px;width:48px;height:48px;border-radius:12px;background:#f3f1fe;display:flex;align-items:center;justify-content:center">' + I.plus(16, '#5b4ae8', 2.8) + '</span>' +
-        '<span style="font-size:15.5px;font-weight:800;color:#5b4ae8">Join a group</span>' +
+  // Lists grouped for View all / You own: just happened, this week, later in each month, no date
+  const bucketed = (items, sOf) => {
+    const out = [], today = todayISO();
+    const put = (label, it) => { let b = out.find(x => x.label === label); if (!b) { b = { label, items: [] }; out.push(b); } b.items.push(it); };
+    const withDate = items.filter(it => sOf(it).dayDate), none = items.filter(it => !sOf(it).dayDate);
+    withDate.slice().sort((a, b) => byWhen(sOf(a), sOf(b))).forEach(it => {
+      const d = dayDiff(sOf(it).dayDate), iso = sOf(it).dayDate;
+      if (d < 0) put('Just happened', it);
+      else if (d < 7) put('This week', it);
+      else put('Later in ' + new Date(iso + 'T12:00').toLocaleDateString('en-US', { month: 'long', year: iso.slice(0, 4) !== today.slice(0, 4) ? 'numeric' : undefined }), it);
+    });
+    if (none.length) out.push({ label: 'none', items: none });
+    const order = (l) => l === 'This week' ? 0 : l === 'Just happened' ? 2 : l === 'none' ? 3 : 1;
+    return out.sort((a, b) => order(a.label) - order(b.label));
+  };
+  const chipRow = (items, sOf, cur, pick) => {
+    const counts = {};
+    items.forEach(it => { const id = sOf(it).groupId; counts[id] = (counts[id] || 0) + 1; });
+    const chip = (id, label, onIt) => '<span ' + on(() => pick(id), 'radio') + ' aria-checked="' + onIt + '" style="flex:0 0 auto;display:flex;align-items:center;min-height:36px;padding:0 14px;border-radius:999px;font-size:13.5px;font-weight:800;white-space:nowrap;cursor:pointer;' +
+      (onIt ? 'background:#0d1117;color:#fff' : 'background:#fff;color:#0d1117;box-shadow:inset 0 0 0 1.5px #e6e7eb') + '">' + esc(label) + '</span>';
+    return '<div class="no-scrollbar" role="radiogroup" aria-label="Group" style="display:flex;gap:8px;overflow-x:auto;padding:0 2px">' +
+      chip(null, 'All', !cur) + groupsInOrder().filter(g => counts[g.id]).map(g => chip(g.id, g.name + ' · ' + counts[g.id], cur === g.id)).join('') + '</div>';
+  };
+
+  // View all (bottom sheet): Going · You own · Helping
+  function viewAllSheet() {
+    const st = state, tab = st.allTab, close = () => setState({ allTab: null });
+    const lists = { going: goingList(null), own: leadingList(null), help: helpingList(null) };
+    const sOf = tab === 'help' ? (x) => x.s : (x) => x;
+    const all = lists[tab], shown = all.filter(it => !st.allGrp || sOf(it).groupId === st.allGrp);
+    const row = (it, k) => {
+      const s = sOf(it), g = groupById(s.groupId), maybe = tab === 'going' && myRsvp(s) === 'maybe';
+      const sub = tab === 'help' ? s.text + ' · ' + shortWhen(s) : shortWhen(s) + ' · ' + (g ? g.name : '');
+      return '<div ' + on(() => openSpark(s)) + ' class="hov-row" style="display:flex;align-items:center;gap:12px;min-height:64px;padding:8px 4px;border-top:' + (k ? '1px solid #f2f3f6' : '0') + ';cursor:pointer">' +
+        '<span aria-hidden="true" style="flex:0 0 44px;width:44px;height:44px;border-radius:10px;background:' + bg(cardPhoto(s)) + '"></span>' +
+        '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(tab === 'help' ? it.it.item : s.text) + '</div>' +
+          '<div style="font-size:12.5px;font-weight:600;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(sub) + (maybe ? ' · <span style="color:#8f6405;font-weight:800">Maybe</span>' : '') + '</div></div>' +
+        I.chevR(16, '#9aa0ac', 2.4) + '</div>';
+    };
+    const seg = (k, label) => '<span ' + on(() => setState({ allTab: k }), 'tab') + ' aria-selected="' + (tab === k) + '" style="flex:1 1 0;display:flex;align-items:center;justify-content:center;min-height:38px;border-radius:999px;font-size:14px;font-weight:800;white-space:nowrap;cursor:pointer;' +
+      (tab === k ? 'background:#0d1117;color:#fff' : 'color:#454b55') + '">' + label + ' · ' + lists[k].length + '</span>';
+    return sheet('View all', close, 'height:88%;display:flex;flex-direction:column;padding:10px 14px 0',
+      '<div role="tablist" aria-label="View all" style="display:flex;gap:4px;padding:4px;border-radius:999px;background:#f2f3f6">' + seg('going', 'Going') + seg('own', 'You own') + seg('help', 'Helping') + '</div>' +
+      '<div style="margin:12px -2px 4px">' + chipRow(all, sOf, st.allGrp, (id) => setState({ allGrp: id })) + '</div>' +
+      '<div style="flex:1;overflow:auto;padding-bottom:24px">' +
+        (shown.length
+          ? bucketed(shown, sOf).map(b => '<div style="padding-top:12px"><div style="padding:0 4px 4px;font-size:14px;font-weight:800;color:#6b7280">' + esc(b.label === 'none' ? 'No date yet' : b.label) + '</div>' + b.items.map(row).join('') + '</div>').join('')
+          : '<div style="padding:24px 4px;font-size:14.5px;font-weight:600;color:#6b7280">Nothing here for this group.</div>') +
       '</div>');
+  }
+
+  // The next thing a lead could do (You own cards). The first match shows; the rest count as +N.
+  const nextSteps = (s) => {
+    const ph = phaseOf(s), out = [];
+    if (ph === 'done') return [{ text: 'Say thanks · add photos', cta: 'Thank' }];
+    if (ph === 'idea') {
+      const topDate = s.dateOpts.slice().sort((a, b) => b.votes.length - a.votes.length)[0];
+      const byOther = (o) => o.createdBy !== state.me;
+      if (!s.dayDate && topDate && topDate.votes.length) out.push({ text: monthDay(topDate.dayDate) + ' has ' + topDate.votes.length + (topDate.votes.length === 1 ? ' vote' : ' votes'), cta: 'Pick date' });
+      else if (!s.dayDate && s.dateOpts.some(byOther)) out.push({ text: s.dateOpts.find(byOther).who + ' suggested a date', cta: 'Review' });
+      if (!s.spot && s.spotOpts.some(byOther)) out.push({ text: s.spotOpts.find(byOther).who + ' suggested a spot', cta: 'Review' });
+      s.pending.forEach(o => out.push({ text: o.who + ' suggested a ' + (o.kind === 'day' ? 'date' : o.kind === 'spot' ? 'spot' : 'hand'), cta: 'Review' }));
+      if (!s.dayDate && !s.dateOpts.length) out.push({ text: 'No date yet', cta: 'Add date' });
+      if (!s.spot && !s.spotOpts.length) out.push({ text: 'No location yet', cta: 'Add spot' });
+      if (!out.length) out.push({ text: s.dayTime ? 'Ready when you are' : 'Pick a time', cta: s.dayTime ? 'Make it a plan' : 'Add time' });
+      return out;
+    }
+    const d = dayDiff(s.dayDate), f = signupFill(s);
+    if (d === 0) out.push({ text: 'Today · post an update', cta: 'Post' });
+    if (d === 1 && !s.autoRemind) out.push({ text: 'Tomorrow · reminder is off', cta: 'Turn on' });
+    if (!s.spot) out.push({ text: 'Location TBD', cta: 'Add it' });
+    if (f.open > 0) out.push({ text: f.open + (f.open === 1 ? ' sign-up spot open' : ' sign-up spots open'), cta: 'Share list' });
+    if (!s.autoRemind && d > 1) out.push({ text: 'Day-before reminder is off', cta: 'Turn on' });
+    return out.length ? out : [{ text: 'All set', ok: true }];
+  };
+  const stepStrip = (s) => {
+    const steps = nextSteps(s), first = steps[0];
+    if (first.ok) return '<div style="margin-top:12px;display:flex;align-items:center;gap:8px;min-height:40px;padding:0 12px;border-radius:12px;background:#e7f6ec;font-size:13.5px;font-weight:800;color:#0f7a3c">' + I.check(14, '#0f7a3c', 2.8) + 'All set</div>';
+    return '<div style="margin-top:12px;display:flex;align-items:center;gap:8px;min-height:40px;padding:0 12px;border-radius:12px;background:#f3f1fe">' +
+      '<span aria-hidden="true" style="flex:0 0 6px;width:6px;height:6px;border-radius:999px;background:#5b4ae8"></span>' +
+      '<span style="flex:1;min-width:0;font-size:13.5px;font-weight:800;color:#4a3ad4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(first.text) + '</span>' +
+      (steps.length > 1 ? '<span style="font-size:12px;font-weight:800;color:#6b5fe0">+' + (steps.length - 1) + '</span>' : '') +
+      '<span style="flex:0 0 auto;font-size:13.5px;font-weight:900;color:#5b4ae8">' + esc(first.cta) + '</span></div>';
+  };
+
+  function viewOwn() {
+    const st = state, all = leadingList(null), gid = st.ownGrp && groupById(st.ownGrp) ? st.ownGrp : null;
+    const shown = all.filter(s => !gid || s.groupId === gid);
+    const nEv = all.filter(s => s.planned).length, nId = all.filter(s => !s.planned).length, nNeed = all.filter(s => !nextSteps(s)[0].ok).length;
+    const card = (s) => {
+      const g = groupById(s.groupId), ph = phaseOf(s), n = ph === 'idea' ? s.interested.length : going(s).length;
+      return '<div ' + on(() => openSpark(s)) + ' aria-label="' + esc(s.text) + '" style="' + CARD + ';padding:14px 16px;cursor:pointer">' +
+        '<div style="display:flex;gap:12px">' +
+          '<div style="flex:1;min-width:0">' +
+            '<div style="font-size:13px;font-weight:700;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc((ph === 'idea' ? 'Idea' : shortWhen(s)) + ' · ' + (g ? g.name : '')) + '</div>' +
+            '<div style="margin-top:2px;font-size:17.5px;line-height:1.2;font-weight:900;color:#0d1117">' + esc(s.text) + '</div>' +
+            '<div style="margin-top:3px;font-size:13.5px;font-weight:600;color:#6b7280">' + n + (ph === 'idea' ? ' interested' : ph === 'done' ? ' went' : ' going') + '</div>' +
+          '</div>' +
+          '<span aria-hidden="true" style="flex:0 0 64px;width:64px;height:64px;border-radius:14px;background:' + bg(cardPhoto(s)) + '"></span>' +
+        '</div>' + stepStrip(s) + '</div>';
+    };
+    const buckets = bucketed(shown, (x) => x);
+    return '<div data-screen-label="You own">' +
+      pageHead('',
+        '<h1 style="margin:16px 0 0;font-size:36px;line-height:1;font-weight:900;letter-spacing:-1.2px;color:#0d1117">You own</h1>' +
+        '<div style="margin-top:6px;font-size:14.5px;font-weight:600;color:#6b7280">' + nEv + (nEv === 1 ? ' event' : ' events') + ' · ' + nId + (nId === 1 ? ' idea' : ' ideas') + ' · ' + nNeed + ' need you</div>' +
+        '<div style="margin-top:14px;display:flex;gap:10px">' +
+          '<button type="button" class="hov-primary" ' + on(() => goCompose()) + ' style="flex:1;min-height:48px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:15.5px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer">' + I.plus(15, '#fff', 2.8) + 'Post an event</button>' +
+          '<button type="button" class="hov-outline" ' + on(() => goCompose({ step: 'activity' })) + ' style="flex:1;min-height:48px;border:1.5px solid #dcdfe6;border-radius:999px;background:#fff;color:#0d1117;font-family:inherit;font-size:15.5px;font-weight:800;cursor:pointer">Float an idea</button>' +
+        '</div>') +
+      '<div style="padding:14px 14px 26px;display:flex;flex-direction:column;gap:12px">' +
+        (all.length ? chipRow(all, (x) => x, gid, (id) => setState({ ownGrp: id })) : '') +
+        (shown.length
+          ? buckets.map(b => '<div style="display:flex;flex-direction:column;gap:10px"><div style="padding:4px 4px 0;font-size:14px;font-weight:800;color:#6b7280">' + esc(b.label === 'none' ? 'Ideas · no date yet' : b.label) + '</div>' + b.items.map(card).join('') + '</div>').join('')
+          : '<div style="' + CARD + ';padding:16px;font-size:14.5px;line-height:1.45;font-weight:500;color:#6b7280">Nothing yet. Events you post and ideas you float show up here.</div>') +
+      '</div>' +
+      '<div style="height:var(--nav-h)"></div>' +
+    '</div>';
+  }
+
+  // Groups: pinned groups as big cards, the rest as a grid of square tiles
+  const newIn = (g) => state.sparks.filter(s => s.groupId === g.id && s.createdBy !== state.me && s.created > (g.lastSeen || 0)).length;
+  const pinBtn = (g, size) => '<span ' + on((e) => { stop(e); togglePin(g); }) + ' aria-label="' + (g.pinned ? 'Unpin ' : 'Pin ') + esc(g.name) + '" aria-pressed="' + g.pinned + '" style="width:' + size + 'px;height:' + size + 'px;border-radius:999px;display:flex;align-items:center;justify-content:center;cursor:pointer;' +
+    (g.pinned ? 'background:#fff;box-shadow:0 2px 8px rgba(15,18,25,.2)' : 'background:rgba(13,17,23,.35);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.55);opacity:.85') + '">' +
+    (g.pinned ? PIN('#5b4ae8', '#5b4ae8').replace(/width="11" height="11"/, 'width="15" height="15"') : PIN('none', '#fff').replace(/width="11" height="11"/, 'width="15" height="15"')) + '</span>';
+  const roleChip = (g) => runs(g) ? '<span style="display:inline-flex;align-items:center;min-height:22px;padding:0 8px;border-radius:999px;font-size:10.5px;font-weight:900;letter-spacing:.6px;' +
+    (g.role === 'owner' ? 'background:#ece9fd;color:#4a3ad4' : 'background:#fdf1d6;color:#8f6405') + '">' + (g.role === 'owner' ? 'OWNER' : 'ADMIN') + '</span>' : '';
+  const gearBtn = (g) => runs(g) ? '<span ' + on((e) => { stop(e); openGroupPage(g.id, false, 'groups'); }) + ' aria-label="Edit ' + esc(g.name) + '" style="width:36px;height:36px;border-radius:999px;background:rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;cursor:pointer">' +
+    svg(18, stroke('#fff', 1.9), '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/>') + '</span>' : '';
+  const GRAD = '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.85), rgba(13,17,23,.1) 60%)"></div>';
+
+  function viewGroups() {
+    const groups = groupsInOrder(), pinned = groups.filter(g => g.pinned), big = pinned.length ? pinned : groups.slice(0, 1);
+    const rest = groups.filter(g => big.indexOf(g) < 0);
+    const chip = (text, strong) => '<span style="display:inline-flex;align-items:center;min-height:28px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:800;' + (strong ? 'background:#ece9fd;color:#4a3ad4' : 'background:#f2f3f6;color:#454b55') + '">' + esc(text) + '</span>';
+    const bigCard = (g) => {
+      const mine = state.sparks.filter(s => s.groupId === g.id), nPlan = mine.filter(s => phaseOf(s) === 'plan').length, nIdea = mine.filter(s => phaseOf(s) === 'idea').length;
+      const lead = mine.filter(s => isLead(s) && phaseOf(s) !== 'done').length, help = helpingList(g.id).length, fresh = newIn(g), size = state.sizes[g.id];
+      const counts = [nPlan + (nPlan === 1 ? ' event' : ' events'), nIdea ? nIdea + (nIdea === 1 ? ' idea' : ' ideas') : ''].filter(Boolean).join(' · ');
+      const role = [lead ? 'Leading ' + lead : '', help ? 'Helping ' + help : ''].filter(Boolean).join(' · ');
+      return '<div ' + on(() => openGroup(g)) + ' aria-label="' + esc(g.name) + '" style="border-radius:22px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);overflow:hidden;cursor:pointer">' +
+        '<div style="position:relative;height:170px;background:' + groupBg(g) + '">' + GRAD +
+          '<div style="position:absolute;top:12px;left:12px">' + roleChip(g) + '</div>' +
+          '<div style="position:absolute;top:10px;right:10px;display:flex;gap:8px">' + gearBtn(g) + pinBtn(g, 36) + '</div>' +
+          '<div style="position:absolute;left:16px;right:16px;bottom:12px;color:#fff">' +
+            '<div style="font-size:26px;line-height:1.05;font-weight:900;letter-spacing:-.6px">' + esc(g.name) + '</div>' +
+            (size ? '<div style="margin-top:3px;font-size:13px;font-weight:700;color:#dfe2e8">' + size + (size === 1 ? ' member' : ' members') + '</div>' : '') +
+          '</div>' +
+        '</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:6px;padding:12px 16px">' + (fresh ? chip(fresh + ' new', true) : '') + chip(counts) + (role ? chip(role) : '') + '</div>' +
+      '</div>';
+    };
+    const tile = (g) => '<div ' + on(() => openGroup(g)) + ' aria-label="' + esc(g.name) + '" style="position:relative;aspect-ratio:1 / 1;border-radius:20px;overflow:hidden;box-shadow:0 1px 3px rgba(15,18,25,.08);background:' + groupBg(g) + ';cursor:pointer">' + GRAD +
+      '<div style="position:absolute;top:10px;left:10px">' + roleChip(g) + '</div>' +
+      '<div style="position:absolute;top:8px;right:8px">' + pinBtn(g, 32) + '</div>' +
+      '<div style="position:absolute;left:12px;right:10px;bottom:10px;color:#fff;font-size:16px;line-height:1.15;font-weight:900">' +
+        (newIn(g) ? '<span aria-label="New ideas" style="display:inline-block;width:9px;height:9px;border-radius:999px;background:#9d93f7;margin-right:6px;vertical-align:1px"></span>' : '') + esc(g.name) + '</div>' +
+    '</div>';
+    const pill = (label, icon, fn, strong) => '<span ' + on(fn) + ' style="display:inline-flex;align-items:center;gap:5px;min-height:30px;padding:0 10px;border-radius:999px;font-size:12.5px;font-weight:800;cursor:pointer;' + (strong ? 'background:#ece9fd;color:#4a3ad4' : 'background:#f2f3f6;color:#454b55') + '">' + icon + label + '</span>';
+    return '<div data-screen-label="Groups">' +
+      pageHead('',
+        '<h1 style="margin:16px 0 0;font-size:36px;line-height:1;font-weight:900;letter-spacing:-1.2px;color:#0d1117">Your groups</h1>' +
+        '<div style="margin-top:10px;display:flex;gap:6px">' +
+          pill('Join a group', I.keypad(11), () => openJoin(), true) + pill('Start a group', I.plus(11, '#454b55', 2.8), startGroup, false) +
+        '</div>') +
+      '<div style="padding:16px 14px 26px;display:flex;flex-direction:column;gap:12px">' +
+        (groups.length ? big.map(bigCard).join('') : noGroupCard()) +
+        (rest.length ? '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' + rest.map(tile).join('') + '</div>' : '') +
+      '</div>' +
+      '<div style="height:var(--nav-h)"></div>' +
+    '</div>';
+  }
+
+  // Calendar: a month grid across all your groups (or a list by month)
+  const calItems = () => {
+    const out = [];
+    state.sparks.filter(inMine).forEach(s => {
+      const ph = phaseOf(s);
+      if (s.dayDate) out.push({ s, iso: s.dayDate, kind: ph === 'done' ? 'done' : ph === 'plan' ? 'plan' : 'idea', time: s.dayTime });
+      else s.dateOpts.forEach(o => out.push({ s, iso: o.dayDate, kind: 'floated', time: o.dayTime, votes: o.votes.length }));
+    });
+    return out.sort((a, b) => (a.iso + (a.time || '')).localeCompare(b.iso + (b.time || '')));
+  };
+  const statusPill = (s) => {
+    const my = myRsvp(s);
+    const [label, bgc, ink, ring] = isLead(s) ? ['Hosting', '#f3f1fe', '#4a3ad4'] : my === 'going' ? ['Going', '#e7f6ec', '#0f7a3c'] : my === 'maybe' ? ['Maybe', '#fdf1d6', '#8f6405'] : my === 'no' ? ['Can’t go', '#f2f3f6', '#6b7280'] : ['RSVP', '#fff', '#0d1117', true];
+    return [label, 'background:' + bgc + ';color:' + ink + (ring ? ';box-shadow:inset 0 0 0 1.5px #dcdfe6' : '')];
+  };
+  const calRow = (it, k) => {
+    const g = groupById(it.s.groupId), top = { plan: ['#149a4b', '#fff'], done: ['#b3b8c2', '#fff'], idea: ['#f3c55a', '#3d2a00'], floated: ['#fdf1d6', '#8f6405'] }[it.kind];
+    const [pill, pillCss] = it.kind === 'plan' ? statusPill(it.s) : [it.kind === 'done' ? 'Happened' : it.kind === 'floated' ? it.votes + (it.votes === 1 ? ' vote' : ' votes') : 'Idea', it.kind === 'done' ? 'background:#f2f3f6;color:#6b7280' : 'background:#fdf1d6;color:#8f6405'];
+    const meta = [it.time ? fmtTime(it.time) : '', it.s.spot || (it.kind === 'floated' ? 'floated date' : 'Location TBD')].filter(Boolean).join(' · ');
+    return '<div ' + on(() => openSpark(it.s)) + ' class="hov-row" style="display:flex;align-items:center;gap:12px;padding:10px 14px;min-height:66px;border-top:' + (k ? '1px solid #f2f3f6' : '0') + ';cursor:pointer">' +
+      '<span aria-hidden="true" style="flex:0 0 46px;border-radius:11px;overflow:hidden;text-align:center;color:#0d1117;' + (it.kind === 'floated' ? 'box-shadow:inset 0 0 0 2px #e8a71c' : 'box-shadow:0 0 0 1px #eceef2') + (it.kind === 'done' ? ';opacity:.7' : '') + '">' +
+        '<span style="display:block;background:' + top[0] + ';color:' + top[1] + ';font-size:10px;font-weight:900;padding:2px 0">' + MONTHS[+it.iso.slice(5, 7) - 1] + '</span>' +
+        '<span style="display:block;font-size:18px;line-height:1.2;font-weight:900;padding:3px 0 4px">' + (+it.iso.slice(8, 10)) + '</span></span>' +
+      '<div style="flex:1 1 auto;min-width:0">' +
+        '<div style="font-size:9.5px;line-height:1.2;font-weight:800;letter-spacing:.9px;text-transform:uppercase;color:#7b6ef0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(g ? g.name : '') + '</div>' +
+        '<div style="margin-top:1px;font-size:15.5px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(it.s.text) + '</div>' +
+        '<div style="font-size:13px;font-weight:600;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(meta) + '</div>' +
+      '</div>' +
+      '<span style="flex:0 0 auto;display:flex;align-items:center;min-height:32px;padding:0 12px;border-radius:999px;font-size:13px;font-weight:800;white-space:nowrap;' + pillCss + '">' + esc(pill) + '</span>' +
+    '</div>';
+  };
+  const isoOf = (y, m, d) => y + '-' + pad2(m + 1) + '-' + pad2(d);
+
+  function viewCalendar() {
+    const st = state, today = todayISO(), items = calItems(), view = st.calView;
+    const cm = st.calM || { y: +today.slice(0, 4), m: +today.slice(5, 7) - 1 };
+    const sel = st.calSel || (cm.y === +today.slice(0, 4) && cm.m === +today.slice(5, 7) - 1 ? today : null);
+    const first = new Date(cm.y, cm.m, 1), nDays = new Date(cm.y, cm.m + 1, 0).getDate();
+    const card = 'background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08)';
+    const segBtn = (k, label) => '<span ' + on(() => setState({ calView: k }), 'tab') + ' aria-selected="' + (view === k) + '" style="display:flex;align-items:center;min-height:34px;padding:0 14px;border-radius:999px;font-size:13.5px;font-weight:800;cursor:pointer;' +
+      (view === k ? 'background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.14);color:#0d1117' : 'color:#6b7280') + '">' + label + '</span>';
+    const shift = (d) => () => { const m = cm.m + d; setState({ calM: { y: cm.y + Math.floor(m / 12), m: (m + 12) % 12 }, calSel: null }); };
+    const navBtn = (d, label, icon) => '<span ' + on(shift(d)) + ' aria-label="' + label + '" style="width:40px;height:40px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + icon + '</span>';
+    let body;
+    if (view === 'month') {
+      const cells = [];
+      for (let i = 0; i < first.getDay(); i++) cells.push('<span></span>');
+      for (let d = 1; d <= nDays; d++) {
+        const iso = isoOf(cm.y, cm.m, d), onIt = iso === sel, isT = iso === today, day = items.filter(it => it.iso === iso);
+        const dots = day.slice(0, 3).map(it => '<span style="width:6px;height:6px;border-radius:999px;' + (it.kind === 'plan' ? 'background:' + (onIt ? '#7ee2a3' : '#149a4b') : it.kind === 'done' ? 'background:' + (onIt ? '#8a909b' : '#b3b8c2') : 'box-shadow:inset 0 0 0 1.5px ' + (onIt ? '#f3c55a' : '#e8a71c')) + '"></span>').join('');
+        cells.push('<span ' + on(() => setState({ calSel: iso }), 'button') + ' aria-label="' + esc(fmtDay(iso) + (day.length ? ', ' + day.length + (day.length === 1 ? ' thing' : ' things') : '')) + '" aria-pressed="' + onIt + '" style="aspect-ratio:1 / 1;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;background:' + (onIt ? '#0d1117' : isT ? '#f3f1fe' : 'transparent') + '">' +
+          '<span style="font-size:15px;font-weight:' + (onIt || isT ? 900 : 700) + ';color:' + (onIt ? '#fff' : isT ? '#5b4ae8' : iso < today ? '#9aa0ac' : '#0d1117') + '">' + d + '</span>' +
+          '<span style="display:flex;gap:3px;height:6px;align-items:center">' + dots + '</span></span>');
+      }
+      const dayItems = sel ? items.filter(it => it.iso === sel) : [];
+      const legend = (css, label) => '<span style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:999px;' + css + '"></span>' + label + '</span>';
+      body = '<div style="background:#fff;padding:0 10px 12px;border-bottom:1px solid #e6e7eb">' +
+          '<div aria-hidden="true" style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));padding:0 0 4px">' + ['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(x => '<span style="text-align:center;font-size:11px;font-weight:800;letter-spacing:.6px;color:#9aa0ac">' + x + '</span>').join('') + '</div>' +
+          '<div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px">' + cells.join('') + '</div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:14px;padding:12px 6px 0;font-size:11.5px;font-weight:700;color:#6b7280">' + legend('background:#149a4b', 'On the books') + legend('box-shadow:inset 0 0 0 2px #e8a71c', 'Floated (idea)') + legend('background:#b3b8c2', 'Happened') + '</div>' +
+        '</div>' +
+        '<div style="padding:16px 14px 26px;display:flex;flex-direction:column;gap:10px">' +
+          '<span style="font-size:12px;font-weight:800;letter-spacing:1.2px;color:#6b7280;text-transform:uppercase;padding:0 4px">' + (sel ? (sel === today ? 'Today · ' : '') + esc(new Date(sel + 'T12:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })) : 'Pick a day') + '</span>' +
+          (sel && !dayItems.length
+            ? '<div style="' + card + ';padding:16px;display:flex;align-items:center;gap:12px"><div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">Nothing on this day.</div><div style="font-size:13.5px;font-weight:600;color:#6b7280">Wide open if you’re planning something.</div></div>' +
+                (sel >= today ? '<span ' + on(() => goCompose({ evDate: sel })) + ' style="flex:0 0 auto;display:flex;align-items:center;min-height:40px;padding:0 14px;border-radius:999px;background:#0d1117;color:#fff;font-size:13.5px;font-weight:800;cursor:pointer">Post an event</span>' : '') + '</div>'
+            : '') +
+          (dayItems.length ? '<div style="' + card + ';overflow:hidden">' + dayItems.map(calRow).join('') + '</div>' : '') +
+        '</div>';
+    } else {
+      const up = items.filter(it => it.iso >= today), months = [];
+      up.forEach(it => { const label = new Date(it.iso + 'T12:00').toLocaleDateString('en-US', { month: 'long', year: it.iso.slice(0, 4) !== today.slice(0, 4) ? 'numeric' : undefined }); let m = months.find(x => x.label === label); if (!m) { m = { label, items: [] }; months.push(m); } m.items.push(it); });
+      body = '<div style="padding:16px 14px 26px;display:flex;flex-direction:column;gap:18px">' +
+        (up.length ? months.map(m => '<div><span style="font-size:12px;font-weight:800;letter-spacing:1.2px;color:#6b7280;text-transform:uppercase;display:block;padding:0 4px 8px">' + esc(m.label) + '</span><div style="' + card + ';overflow:hidden">' + m.items.map(calRow).join('') + '</div></div>').join('')
+          : '<div style="' + card + ';padding:16px;font-size:14.5px;line-height:1.45;font-weight:500;color:#6b7280">Nothing coming up yet.</div>') +
+      '</div>';
+    }
+    return '<div data-screen-label="Calendar">' +
+      '<header style="background:#fff;padding:14px 18px 14px;display:flex;flex-direction:column;gap:12px">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px">' + logo(false) +
+          '<div style="display:flex;align-items:center;gap:8px"><div role="tablist" aria-label="Calendar view" style="display:flex;gap:2px;padding:3px;border-radius:999px;background:#f2f3f6">' + segBtn('month', 'Month') + segBtn('list', 'List') + '</div>' + headAvatar() + '</div>' +
+        '</div>' +
+        (view === 'month'
+          ? '<div style="display:flex;align-items:center;justify-content:space-between">' + navBtn(-1, 'Previous month', I.chevL(16, '#0d1117', 2.4)) +
+              '<h1 style="margin:0;font-size:24px;font-weight:900;letter-spacing:-.6px;color:#0d1117">' + esc(first.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })) + '</h1>' +
+              navBtn(1, 'Next month', I.chevR(16, '#0d1117', 2.4)) + '</div>'
+          : '<h1 style="margin:0;font-size:24px;font-weight:900;letter-spacing:-.6px;color:#0d1117">Coming up</h1>') +
+      '</header>' + body +
+      '<div style="height:var(--nav-h)"></div>' +
+    '</div>';
   }
 
   // Signed in but in no group yet (not designed; README → Open "first-run view")
@@ -2423,6 +2778,7 @@
           '<div ' + on(() => openJoin()) + ' style="display:flex;align-items:center;gap:10px;min-height:54px;cursor:pointer">' + I.keypad(16) + '<span style="font-size:15.5px;font-weight:800;color:#5b4ae8">Join with a code</span></div>' +
           '<div ' + on(startGroup) + ' style="display:flex;align-items:center;gap:10px;min-height:48px;border-top:1px solid #f2f3f6;cursor:pointer">' + I.plus(15, '#6b7280', 2.4) + '<span style="font-size:14.5px;font-weight:700;color:#5c6270">Start a group</span></div>') +
         '<div style="display:flex;flex-direction:column;gap:14px">' +
+          '<div ' + on(() => go('how')) + ' style="' + CARD + ';padding:0 16px;min-height:52px;display:flex;align-items:center;justify-content:space-between;cursor:pointer"><span style="font-size:15.5px;font-weight:800;color:#0d1117">How Spark Hub works</span>' + I.chevR(16, '#9aa0ac', 2.4) + '</div>' +
           '<div ' + on(signOut) + ' style="' + CARD + ';padding:0 16px;min-height:52px;display:flex;align-items:center;cursor:pointer"><span style="font-size:15.5px;font-weight:800;color:#9b1c31">Sign out</span></div>' +
           '<a href="/privacy.html" target="_blank" rel="noopener" style="align-self:center;display:flex;align-items:center;min-height:36px;padding:0 10px;font-size:13.5px;font-weight:700;color:#6b7280">Privacy</a>' +
         '</div>' +
@@ -3141,10 +3497,9 @@
       ' style="padding:9px 0;min-height:44px;display:flex;align-items:center;justify-content:center;width:100%;color:' + (active ? '#5b4ae8' : '#5c6270') + ';cursor:pointer">' + icon + '</div>';
     return '<nav class="tabbar" aria-label="Main">' +
       tab(s === 'home', 'Home', I.tabHome, () => go('home')) +
-      tab(s === 'how', 'How this works', I.tabHow, () => go('how')) +
-      '<div ' + on(goCompose) + ' aria-label="Post an idea" style="width:44px;height:44px;border-radius:999px;background:#5b4ae8;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(91,74,232,.3);cursor:pointer">' + I.plus(23, '#fff', 2.5) + '</div>' +
-      tab(s === 'browse', 'All ideas', I.tabAll, () => go('browse')) +
-      tab(s === 'profile' || s === 'groupPage', 'Profile', I.tabProfile, () => needSignIn(() => go('profile'), 'profile')) +
+      tab(s === 'calendar', 'Calendar', I.tabCal, () => go('calendar')) +
+      tab(s === 'own', 'You own', I.tabFlag, () => go('own')) +
+      tab(s === 'groups' || s === 'browse' || s === 'groupPage', 'Groups', I.tabGroups, () => go('groups')) +
     '</nav>';
   }
 
@@ -3164,7 +3519,7 @@
   }
 
   // Welcome is what signed-out visitors see for Home (and Profile / a group page, which need an account)
-  const welcomeShown = () => !state.email && ['home', 'profile', 'groupPage'].indexOf(state.screen) > -1;
+  const welcomeShown = () => !state.email && ['home', 'profile', 'groupPage', 'calendar', 'own', 'groups'].indexOf(state.screen) > -1;
 
   function view() {
     const st = state, s = st.screen, subj = subject();
@@ -3174,6 +3529,9 @@
     else if (s === 'how') main = viewHow();
     else if (s === 'profile') main = st.email ? viewProfile() : home();
     else if (s === 'groupPage') main = st.email ? viewGroupPage() : home();
+    else if (s === 'calendar') main = st.email ? viewCalendar() : home();
+    else if (s === 'own') main = st.email ? viewOwn() : home();
+    else if (s === 'groups') main = st.email ? viewGroups() : home();
     else if ((s === 'detail' || s === 'edit') && subj) main = viewDetail(subj);
     else if (s === 'detail' && !st.loaded) main = '<div style="padding:40px 20px;font-size:15px;font-weight:600;color:#6b7280">Loading…</div>';
     else if (s === 'compose') main = st.email ? viewHome() : viewWelcome();
@@ -3188,7 +3546,7 @@
       (st.nameAsk ? viewName() : '') +
       (st.pe ? viewProfileEdit() : '') +
       (st.joinOpen ? viewJoin() : '') +
-      (st.groupsSheet && st.email ? viewGroupsSheet() : '') +
+      (st.allTab && st.email ? viewAllSheet() : '') +
       (st.membersOpen ? viewMembers() : '') +
       (st.gpDel != null && s === 'groupPage' ? viewDeleteGroup() : '') +
       (st.ph ? viewPositioner() : '') +
@@ -3318,7 +3676,7 @@
       if (state.prepEdit) return setState({ prepEdit: null, prepText: '' });
       if (state.gpDel != null) return setState({ gpDel: null });
       if (state.gpRename != null) return setState({ gpRename: null });
-      if (state.groupsSheet) return setState({ groupsSheet: false });
+      if (state.allTab) return setState({ allTab: null });
       if (state.loginStep) return closeLogin();
       if (state.joinOpen) return setState({ joinOpen: false });
       if (state.membersOpen) return setState({ membersOpen: null, membersQ: '' });

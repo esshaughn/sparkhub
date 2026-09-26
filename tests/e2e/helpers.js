@@ -83,9 +83,20 @@ async function newLead(browser, n, name, path) {
 
 const button = (page, name) => page.getByRole('button', { name, exact: true });
 
+// Posting starts from Home's "New event" card; Profile is your photo in the Home header
+async function startPost(page) {
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Home', exact: true }).click();
+  await page.locator('[data-screen-label=Home]').getByRole('button', { name: 'New event' }).click();
+}
+async function openProfile(page) {
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Home', exact: true }).click();
+  await page.locator('[data-screen-label=Home]').getByRole('button', { name: 'Profile' }).click();
+  await expect(page.locator('[data-screen-label=Profile]')).toBeVisible();
+}
+
 // Post an idea through the whole flow into the current group. Returns its id.
 async function postIdea(page, { title, location, pick, date, time, basics = [], photo = false, name }) {
-  await page.getByRole('button', { name: 'Post an idea' }).click();
+  await startPost(page);
   // The + opens the event form; ideas are behind "Don't have it all figured out?"
   await page.getByRole('button', { name: /Don’t have it all figured out/ }).click();
   await expect(page.getByRole('heading', { name: 'What’s the event?' })).toBeVisible();
@@ -163,7 +174,7 @@ async function openIdea(page, id) {
 
 // Post an event (a plan) with the event form. Returns its id.
 async function postEvent(page, { title, date, time = '18:00', where, details, inviteOnly = false }) {
-  await page.getByRole('button', { name: 'Post an idea' }).click();
+  await startPost(page);
   const form = page.locator('[data-screen-label="New spark"]');
   await expect(form.getByText('Post an event')).toBeVisible();
   await form.getByLabel('What', { exact: true }).fill(title);
@@ -211,6 +222,6 @@ async function asUser(page, fn, args) {
 }
 
 module.exports = {
-  TAG, TORREZ, PNG, uniqueTitle, mockPlaces, trackErrors, expectConnected, newMember, newLead, button,
+  TAG, TORREZ, PNG, uniqueTitle, startPost, openProfile, mockPlaces, trackErrors, expectConnected, newMember, newLead, button,
   postIdea, postEvent, answerNamePrompt, answerGuestPrompt, ideaIdFromUrl, openIdea, confirm, deleteIdea, asUser
 };
