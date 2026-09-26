@@ -56,11 +56,12 @@ input::placeholder, textarea::placeholder { color: #b9bcc4; font-weight: 400; fo
 .app.no-nav { --nav-h: 0px; }
 
 .app {
-  position: relative;
+  /* Pinned to the screen's edges rather than 100dvh: an installed iPhone app measures
+     100dvh short on first load (without the status bar), leaving a gap under the tab bar */
+  position: fixed;
+  top: 0; bottom: 0; left: 0; right: 0;
   width: 100%;
   max-width: 430px;
-  height: 100vh;
-  height: 100dvh;
   margin: 0 auto;
   overflow: hidden;
   background: #e8eaee;
@@ -69,9 +70,9 @@ input::placeholder, textarea::placeholder { color: #b9bcc4; font-weight: 400; fo
 
 @media (min-width: 520px) and (min-height: 700px) {
   .app {
-    height: calc(100dvh - 48px);
+    top: 24px; bottom: 24px;
     max-height: 932px;
-    margin: 24px auto;
+    margin: auto;
     border-radius: 30px;
     box-shadow: 0 20px 60px rgba(15, 18, 25, .12);
   }
