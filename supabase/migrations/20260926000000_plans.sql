@@ -9,8 +9,7 @@
 alter table public.sparks
   add column planned     boolean not null default false,
   add column visibility  text    not null default 'group' check (visibility in ('group', 'invite')),
-  add column auto_remind boolean not null default true,
-  add column min_people  integer check (min_people between 1 and 999);
+  add column auto_remind boolean not null default true;   -- min_people is from the initial schema
 -- A plan always has a day and a time
 alter table public.sparks add constraint sparks_plan_has_when
   check (not planned or (day_date is not null and day_time is not null));
