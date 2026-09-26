@@ -2,7 +2,7 @@
 const { test, expect } = require('@playwright/test');
 const { newMember, newLead, button } = require('./helpers');
 
-test('visitors land on Welcome (no tab bar) and sign in from there', async ({ browser }) => {
+test('visitors land on Welcome (no tab bar there) and sign in from there', async ({ browser }) => {
   const { page, context, errors } = await newMember(browser);
   try {
     const welcome = page.locator('[data-screen-label=Welcome]');
@@ -10,7 +10,7 @@ test('visitors land on Welcome (no tab bar) and sign in from there', async ({ br
     await expect(welcome.getByText('New here? Either one creates your account.')).toBeVisible();
     await expect(welcome.getByRole('listitem')).toHaveText(['1Post an idea', '2People pitch in', '3It happens']);
     await expect(welcome.getByRole('button', { name: 'Continue with Google' })).toBeVisible();
-    await expect(page.getByRole('navigation', { name: 'Main' })).toHaveCount(0);   // the tab bar is for signed-in people
+    await expect(page.getByRole('navigation', { name: 'Main' })).toHaveCount(0);   // no tab bar on Welcome
 
     // "Continue with email": the sign-in pop-up with the email field focused
     await welcome.getByRole('button', { name: 'Continue with email' }).click();
@@ -27,6 +27,11 @@ test('visitors land on Welcome (no tab bar) and sign in from there', async ({ br
     // Group screens reached by URL still ask signed-out visitors to join first
     await page.goto('/#/ideas');
     await expect(page.getByText('You’re not in a group yet.')).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Main' })).toBeVisible();   // …but everywhere else, signed in or not
+    await page.getByRole('button', { name: 'How this works' }).click();
+    await expect(page.getByRole('heading', { name: 'Ideas come to life when we build them together' })).toBeVisible();
+    await page.getByRole('button', { name: 'Home', exact: true }).click();
+    await expect(page.getByRole('navigation', { name: 'Main' })).toHaveCount(0);
     expect(errors).toEqual([]);
   } finally {
     await context.close();

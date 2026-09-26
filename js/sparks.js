@@ -1280,22 +1280,21 @@
     // Both open the sign-in pop-up: Google straight into "Opening Google…", email with the field focused
     const google = () => { if (st.busy) return; openLogin(from, then); googleSignIn(); };
     const email = () => { openLogin(from, then); setTimeout(() => { const f = document.querySelector('[data-screen-label="Sign in"] input[type=email]'); if (f) f.focus(); }, 0); };
-    return '<div data-screen-label="Welcome" style="background:#0d1117;min-height:100%">' +
-      '<div style="position:relative;height:calc(540px + var(--pt));overflow:hidden">' +
-        '<div aria-hidden="true" style="position:absolute;left:0;right:0;top:-110px;height:500px;background:' + bg('/photos/welcome.jpg', '40% 50%') + '"></div>' +
-        '<div aria-hidden="true" style="position:absolute;left:0;right:0;top:0;height:390px;background:linear-gradient(to bottom, rgba(13,17,23,.4) 0%, rgba(13,17,23,.18) 25%, rgba(13,17,23,.62) 48%, rgba(13,17,23,.92) 70%, #0d1117 100%)"></div>' +
-        '<div style="position:absolute;top:calc(10.5px + var(--pt));left:16px;right:10px;display:flex;align-items:center;min-height:44px">' +
-          '<div aria-label="Spark Hub" style="display:flex;align-items:center;gap:6px">' + I.bolt(24, '#f3c55a') + '<span style="font-size:18px;line-height:1;font-weight:900;letter-spacing:-.5px;color:#fff">Spark Hub</span></div>' +
-        '</div>' +
-        '<div style="position:absolute;left:20px;right:20px;bottom:16px;color:#fff;text-shadow:0 1px 12px rgba(13,17,23,.5)">' +
-          '<h1 style="margin:0;font-size:42px;line-height:.98;font-weight:900;letter-spacing:-1.4px;color:#fff">Turn your idea<br><span style="color:#9d93f7">into a plan.</span></h1>' +
-          '<ol style="list-style:none;margin:18px 0 0;padding:0;display:flex;flex-direction:column;gap:12px">' +
-            STEPS.map(([c, n, t]) => '<li style="display:flex;align-items:center;gap:12px"><span aria-hidden="true" style="flex:0 0 28px;width:28px;height:28px;border-radius:999px;background:' + c + ';color:#fff;font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center;text-shadow:none">' + n + '</span>' +
-              '<span style="font-size:16.5px;line-height:1.2;font-weight:800;color:#fff">' + t + '</span></li>').join('') +
-          '</ol>' +
-        '</div>' +
+    // A full-screen column: the photo behind the top, then the logo, headline and steps,
+    // with the sign-in buttons anchored near the bottom of the screen
+    return '<div data-screen-label="Welcome" style="position:relative;min-height:100%;display:flex;flex-direction:column;background:#0d1117;overflow:hidden">' +
+      '<div aria-hidden="true" style="position:absolute;left:0;right:0;top:calc(-70px + var(--pt));height:500px;background:' + bg('/photos/welcome.jpg', '40% 50%') + '"></div>' +
+      '<div aria-hidden="true" style="position:absolute;left:0;right:0;top:0;height:calc(430px + var(--pt));background:linear-gradient(to bottom, rgba(13,17,23,.4) 0%, rgba(13,17,23,.18) 25%, rgba(13,17,23,.62) 48%, rgba(13,17,23,.92) 70%, #0d1117 100%)"></div>' +
+      '<div style="flex:1 0 calc(200px + var(--pt))"></div>' +
+      '<div style="position:relative;padding:0 20px;color:#fff;text-shadow:0 1px 12px rgba(13,17,23,.5)">' +
+        '<div aria-label="Spark Hub" style="display:flex;align-items:center;gap:6px;margin-bottom:14px">' + I.bolt(24, '#f3c55a') + '<span style="font-size:18px;line-height:1;font-weight:900;letter-spacing:-.5px;color:#fff">Spark Hub</span></div>' +
+        '<h1 style="margin:0;font-size:42px;line-height:.98;font-weight:900;letter-spacing:-1.4px;color:#fff">Turn your idea<br><span style="color:#9d93f7">into a plan.</span></h1>' +
+        '<ol style="list-style:none;margin:18px 0 0;padding:0;display:flex;flex-direction:column;gap:12px">' +
+          STEPS.map(([c, n, t]) => '<li style="display:flex;align-items:center;gap:12px"><span aria-hidden="true" style="flex:0 0 28px;width:28px;height:28px;border-radius:999px;background:' + c + ';color:#fff;font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center;text-shadow:none">' + n + '</span>' +
+            '<span style="font-size:16.5px;line-height:1.2;font-weight:800;color:#fff">' + t + '</span></li>').join('') +
+        '</ol>' +
       '</div>' +
-      '<div style="padding:10px 16px 26px;display:flex;flex-direction:column;gap:10px">' +
+      '<div style="position:relative;padding:32px 16px calc(22px + env(safe-area-inset-bottom, 0px));display:flex;flex-direction:column;gap:10px">' +
         goneCard() +
         // Not designed yet (README → Open, invite link flow): say which group the link is for
         (st.joinCode ? '<div style="text-align:center;font-size:14.5px;font-weight:700;color:#dfe2e8">Sign in to join the group <strong style="font-weight:900;letter-spacing:1px;color:#fff">' + esc(st.joinCode) + '</strong></div>' : '') +
@@ -1307,7 +1306,6 @@
           svg(19, stroke('currentColor', 2.1), '<rect x="3" y="5.5" width="18" height="13" rx="2.5"/><path d="m4 7.5 8 6 8-6"/>') + 'Continue with email</button>' +
         '<p style="margin:6px 0 0;text-align:center;font-size:13.5px;line-height:1.45;font-weight:600;color:#8a909b">New here? Either one creates your account.</p>' +
       '</div>' +
-      '<div style="height:var(--nav-h)"></div>' +
     '</div>';
   }
 
@@ -2550,6 +2548,9 @@
     '</div>';
   }
 
+  // Welcome is what signed-out visitors see for Home (and Profile / a group page, which need an account)
+  const welcomeShown = () => !state.email && ['home', 'profile', 'groupPage'].indexOf(state.screen) > -1;
+
   function view() {
     const st = state, s = st.screen, subj = subject();
     const home = () => st.email ? viewHome() : viewWelcome();
@@ -2580,7 +2581,7 @@
       (st.confirm ? viewConfirm() : '') +
       (st.zoom ? viewZoom() : '') +
       (st.toast ? viewToast() : '') +
-      (st.email ? viewNav() : '');   // the tab bar is for signed-in people only
+      (welcomeShown() ? '' : viewNav());   // no tab bar on Welcome
   }
 
   // ---------------------------------------------------------------------------
@@ -2650,7 +2651,7 @@
     handlers = H;
     tpl.innerHTML = html;
     morphChildren(root, tpl.content);
-    root.classList.toggle('signed-out', !state.email);
+    root.classList.toggle('no-nav', welcomeShown());
     // Screens that start with a photo run it up under the iPhone status bar
     const sc = state.screen, photoTop = sc === 'browse' || (sc === 'detail' && !!subject()) || (!state.email && (sc === 'home' || sc === 'compose' || sc === 'profile' || sc === 'groupPage'));
     root.classList.toggle('photo-top', photoTop);

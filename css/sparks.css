@@ -52,8 +52,8 @@ input::placeholder, textarea::placeholder { color: #b9bcc4; font-weight: 400; fo
 }
 .app.photo-top::before { display: none; }
 .app:not(.photo-top) .scroller { top: var(--sat); }
-/* Signed out there's no tab bar (Welcome and shared idea links) */
-.app.signed-out { --nav-h: env(safe-area-inset-bottom, 0px); }
+/* No tab bar on Welcome */
+.app.no-nav { --nav-h: 0px; }
 
 .app {
   position: relative;

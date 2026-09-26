@@ -15,8 +15,8 @@ Everything in that reply is built as specified, except what's listed below. Wher
 
 | # | Change | Design said | Why |
 |---|---|---|---|
-| 1 | **No tab bar when signed out.** Welcome (and a shared idea opened by a visitor) has no bottom bar; it appears after sign-in. Signed-out visitors can't start posting any more; they sign in first | Tab bar on every screen | Owner's request |
-| 2 | **Welcome content 40px higher:** photo block 540px (was 580), photo at `top:-110px` (was -70), scrim over the top 390px (was 430) | 580 / -70 / 430 | Owner, after seeing it on an iPhone 15 |
+| 1 | **No tab bar on Welcome** (it shows everywhere else, signed in or not) | Tab bar on every screen | Owner's request |
+| 2 | **Welcome is a full-screen column:** the photo and scrim stay where Full Site 4 put them (photo 500px at `top:-70px`, scrim over the top 430px, both shifted down by the status-bar inset in the installed app); the **logo moves down to sit just above the headline** (14px gap); a 32px gap after the steps; the sign-in buttons are anchored to the bottom of the screen (22px + the home-indicator inset below *New here?…*). On short screens the text rides higher over the photo | Logo top-left, fixed 580px photo block, buttons right after it | Owner, on an iPhone 15 |
 | 3 | **Tab bar spacing:** 13px above the icons; below them the iPhone home-indicator inset less 8px (at least 14px), so the bar isn't bottom-heavy. 73px on desktop as before | 73px + the full inset | Owner, on iPhone |
 | 4 | **Under the iPhone status bar** (installed app): the page runs behind the status bar with white time/battery. Welcome, All ideas and idea-page photos extend up behind it (their top controls move down by the inset); screens with a white top (Home, Profile, How this works, Edit group, post/edit flows) get a `#0d1117` strip behind the status bar | Not specified | Owner: "photo all the way to the top, light status icons" |
 
