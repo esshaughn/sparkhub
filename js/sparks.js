@@ -2589,6 +2589,21 @@
   // ---------------------------------------------------------------------------
 
   const root = document.getElementById('app');
+
+  // Installed iPhone app: on first launch iOS reports the viewport short by the status bar's
+  // height until something scrolls, so the tab bar floats above the bottom. The screen size is
+  // right from the start, so size the app from it (portrait: the long side).
+  const STANDALONE = navigator.standalone === true || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
+  const fitScreen = () => {
+    if (!STANDALONE || !window.screen) return;
+    const portrait = !window.matchMedia || matchMedia('(orientation: portrait)').matches;
+    const h = portrait ? Math.max(screen.width, screen.height) : Math.min(screen.width, screen.height);
+    root.style.bottom = 'auto';
+    root.style.height = Math.max(h, window.innerHeight) + 'px';
+  };
+  fitScreen();
+  window.addEventListener('orientationchange', () => setTimeout(fitScreen, 250));
+  window.addEventListener('resize', fitScreen);
   const tpl = document.createElement('template');
   let handlers = [];
 
