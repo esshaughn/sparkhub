@@ -1,12 +1,12 @@
-// V5 update: Your plans (Tiles / List / Grid with the helping list and the lead's dashboard),
-// the sign-up time, and the all-groups Calendar with role pills and filters.
+// Your schedule's strips (v6), the sign-up time, the Calendar's role strips, back navigation,
+// and the lead's dashboard on Your plans.
 const { test, expect } = require('@playwright/test');
 const { uniqueTitle, newLead, postEvent, openIdea, deleteIdea, pickView } = require('./helpers');
 
 // Local dates, like the app (toISOString would be UTC, a day ahead in the evening)
 const inDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 
-test('Your plans and the Calendar: the host’s dashboard, a helper’s list with times, role pills', async ({ browser }) => {
+test('Your schedule and the Calendar: role strips, a helper’s sign-ups with times, the host’s dashboard', async ({ browser }) => {
   test.setTimeout(150000);
   const host = await newLead(browser, 1, 'Hope');
   const helper = await newLead(browser, 2, 'Hal');
@@ -37,51 +37,40 @@ test('Your plans and the Calendar: the host’s dashboard, a helper’s list wit
       await expect(OP.locator('[data-signup="' + item + '"]').getByText('✓ You’re on it')).toBeVisible();
     }
 
-    // Hal's Your plans: the tile shows what he's helping with (two, then "+1 more"), with the time
+    // Hal's Your schedule: a Helping strip, "3 tasks", expanding in place to his sign-ups with the time
     await O.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Your schedule', exact: true }).click();
-    const oHome = O.locator('[data-screen-label=Home]');
+    const oHome = O.locator('[data-screen-label="Your schedule"]');
     const tile = oHome.locator('[data-plan="' + title + '"]');
     await expect(tile).toContainText('Hunters Lane');
-    await expect(tile).toContainText('YOU’RE HELPING:');
+    await expect(tile).toContainText('Helping');
+    await tile.getByText('3 tasks').click();
     await expect(tile).toContainText('Folding tables');
     await expect(tile).toContainText('3:30pm');
-    await expect(tile).toContainText('+1 more');
-    await tile.getByText('+1 more').click();
     await expect(tile).toContainText('Speaker');
-    await expect(tile).toContainText('Show less');
-    await pickView(oHome, 'Grid');
-    await expect(tile.getByLabel('You’re helping')).toBeVisible();
     await pickView(oHome, 'List');
-    await expect(tile).toContainText('YOU’RE HELPING:');
+    await expect(tile).toContainText('Helping');
     await pickView(oHome, 'Tiles');
 
-    // Hope's Your plans: Leading, with Going · Maybe · Sign-ups and the Actions tile
+    // Hope's Your schedule: Leading, with her to-dos (or All set)
     await H.reload();
     await H.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Your schedule', exact: true }).click();
-    const hTile = H.locator('[data-screen-label=Home] [data-plan="' + title + '"]');
-    await expect(hTile.getByLabel('You’re leading')).toBeVisible();
-    await expect(hTile.getByLabel('1 going')).toBeVisible();
-    await expect(hTile.getByLabel('0 maybe')).toBeVisible();
-    await expect(hTile.getByLabel('Sign-ups: 3 of 4')).toBeVisible();
-    await expect(hTile.getByLabel(/^\d+ actions?$|^All set$/)).toBeVisible();
+    const hTile = H.locator('[data-screen-label="Your schedule"] [data-plan="' + title + '"]');
+    await expect(hTile).toContainText('Leading');
+    await expect(hTile).toContainText(/\d+ tasks?|All set/);
 
-    // Calendar: Hope sees "Leading", Hal sees "Going" with his helping chip; the Helping filter keeps it
+    // Calendar: Hope's card says Leading · Manage; Hal's says Helping with his count
     await H.getByRole('button', { name: 'Calendar', exact: true }).click();
-    await expect(H.locator('[data-screen-label=Calendar] [data-cal="' + title + '"]')).toContainText('Leading');
+    const hCard = H.locator('[data-screen-label=Calendar] [data-plan="' + title + '"]');
+    await expect(hCard).toContainText('Leading');
+    await expect(hCard).toContainText('Manage');
     await O.getByRole('button', { name: 'Calendar', exact: true }).click();
     const oCal = O.locator('[data-screen-label=Calendar]');
-    const row = oCal.locator('[data-cal="' + title + '"]');
-    await expect(row).toContainText('Going');
-    await expect(row).toContainText('Helping · Folding tables, Ice, Speaker');
-    await expect(row).toContainText('4pm · Torrez Fitness');
-    await oCal.getByRole('tab', { name: /^Helping/ }).click();
-    await expect(row).toBeVisible();
-    await oCal.getByRole('tab', { name: /^Leading/ }).click();
-    await expect(row).toHaveCount(0);
+    const row = oCal.locator('[data-plan="' + title + '"]');
+    await expect(row).toContainText('Helping');
+    await expect(row).toContainText('4pm · Hunters Lane');
 
     // Back from an event page returns to where it was opened from (here, the Calendar), then Your schedule
-    await oCal.getByRole('tab', { name: /^All/ }).click();
-    await row.click();
+    await row.locator('div').first().click();
     await O.locator('[data-screen-label="Plan page"]').getByRole('button', { name: 'Back to Calendar' }).click();
     await expect(oCal).toBeVisible();
     await O.getByRole('button', { name: 'Your schedule', exact: true }).click();
@@ -89,8 +78,8 @@ test('Your plans and the Calendar: the host’s dashboard, a helper’s list wit
     await O.locator('[data-screen-label="Plan page"]').getByRole('button', { name: 'Back to Your schedule' }).click();
     await expect(oHome.getByRole('heading', { name: 'Your schedule' })).toBeVisible();
 
-    // Hope's Your plans tab: her plan's dashboard, no Leading chip (everything here is hers)
-    await H.getByRole('button', { name: 'Your plans and ideas', exact: true }).click();
+    // Hope's Your plans (off the tab bar, still there by link): her plan's dashboard
+    await H.goto('/#/own');
     const own = H.locator('[data-screen-label="Your plans & ideas"] [data-plan="' + title + '"]');
     await expect(own.getByLabel('1 going')).toBeVisible();
     await expect(own.getByLabel('You’re leading')).toHaveCount(0);

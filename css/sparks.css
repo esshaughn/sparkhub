@@ -138,6 +138,25 @@ input::placeholder, textarea::placeholder { color: #b9bcc4; font-weight: 400; fo
   animation: sheetUp 380ms cubic-bezier(.32, .72, 0, 1) both;
 }
 
+/* v6 slide-up sheets (Profile, Notifications, View all, Could use a hand, Search, Will you be there?):
+   from a fixed top down to the bottom, over the tab bar */
+.v6-scrim {
+  position: absolute; inset: 0; z-index: 30; background: rgba(13, 17, 23, .45);
+  animation: scrimIn 180ms ease-out both;   /* the colour fades, not the sheet inside it */
+}
+@keyframes scrimIn { from { background: rgba(13, 17, 23, 0); } }
+.v6-sheet {
+  position: absolute; left: 0; right: 0; bottom: 0; top: calc(var(--sheet-top, 64px) + var(--sat));
+  display: flex; flex-direction: column; overflow: hidden;
+  border-radius: 24px 24px 0 0; background: #e8eaee;
+  animation: sheetUp 260ms cubic-bezier(.2, .8, .2, 1) both;
+}
+.v6-sheet-body { flex: 1 1 auto; min-height: 0; overflow: auto; -webkit-overflow-scrolling: touch; }
+
+/* Your tasks carousels: cards snap, bleeding to the screen edge */
+.snap-row { display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding: 0 14px; padding: 2px 14px 6px; }
+.snap-row > * { scroll-snap-align: start; flex: 0 0 290px; }
+
 /* Photo positioner: rule-of-thirds lines while dragging */
 .ph-grid { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 120ms; }
 .ph-dragging { cursor: grabbing !important; }
@@ -148,8 +167,8 @@ input::placeholder, textarea::placeholder { color: #b9bcc4; font-weight: 400; fo
     linear-gradient(to bottom, transparent calc(33.33% - .5px), rgba(255,255,255,.35) calc(33.33% - .5px), rgba(255,255,255,.35) calc(33.33% + .5px), transparent calc(33.33% + .5px), transparent calc(66.66% - .5px), rgba(255,255,255,.35) calc(66.66% - .5px), rgba(255,255,255,.35) calc(66.66% + .5px), transparent calc(66.66% + .5px));
 }
 
-.no-scrollbar { scrollbar-width: none; }
-.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar, .snap-row { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar, .snap-row::-webkit-scrollbar { display: none; }
 
 /* ---- Pseudo-states from the design's style-hover / style-focus ---- */
 .hov-primary:hover { background: #4a3ad4 !important; }
@@ -163,6 +182,7 @@ input::placeholder, textarea::placeholder { color: #b9bcc4; font-weight: 400; fo
 .hov-white-line:hover { border-color: #fff !important; }
 .hov-white:hover { color: #fff !important; }
 .hov-danger:hover { background: #fdeef0 !important; }
+.hov-grey-fill:hover { background: #eef0f3 !important; }
 .fld:focus { border-color: #5b4ae8 !important; }
 .fld-danger:focus { border-color: #9b1c31 !important; }
 

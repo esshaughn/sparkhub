@@ -83,12 +83,10 @@ async function newLead(browser, n, name, path) {
 
 const button = (page, name) => page.getByRole('button', { name, exact: true });
 
-// Posting starts from "Your plans" (Post an event); Profile is your photo in the Your schedule header
+// v6: posting starts from the Calendar's + button; Profile is the last tab (a sheet)
 async function startPost(page) {
-  await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Your plans and ideas', exact: true }).click();
-  const own = page.locator('[data-screen-label="Your plans & ideas"]');
-  await own.getByRole('tab', { name: 'Your plans' }).click();
-  await own.getByRole('button', { name: 'Post an event' }).click();
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Calendar', exact: true }).click();
+  await page.locator('[data-screen-label=Calendar]').getByRole('button', { name: 'Post an event' }).click();
 }
 // Tiles · List · Grid: the picker on the first month row
 async function pickView(scope, name) {
@@ -97,9 +95,8 @@ async function pickView(scope, name) {
   await expect(scope.getByRole('button', { name: 'View: ' + name })).toBeVisible();
 }
 async function openProfile(page) {
-  await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Your schedule', exact: true }).click();
-  await page.locator('[data-screen-label=Home]').getByRole('button', { name: 'Profile' }).click();
-  await expect(page.locator('[data-screen-label=Profile]')).toBeVisible();
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Profile', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Profile', exact: true })).toBeVisible();
 }
 
 // Post an idea through the whole flow into the current group. Returns its id.

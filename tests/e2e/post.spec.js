@@ -33,15 +33,16 @@ test('post → idea page → all three views → profile → edit → delete', a
     }, id);
     expect((await page.request.get(url)).status()).toBe(200);
 
-    // Your ideas lists it with its readiness steps (date and location are set)
-    await page.getByRole('button', { name: 'Your plans and ideas', exact: true }).click();
-    const own = page.locator('[data-screen-label="Your plans & ideas"]');
-    await own.getByRole('tab', { name: 'Your ideas' }).click();
-    const mine = own.locator('[data-plan="' + Title + '"]');
-    await expect(mine).toContainText('Idea · Torrez Fitness');
-    await expect(mine.getByLabel('Date: done')).toBeVisible();
-    await expect(mine.getByLabel('Location: done')).toBeVisible();
-    await expect(mine.getByLabel('Tasks: not yet')).toBeVisible();
+    // Your tasks lists it under Ideas with its four checkpoints (date and location are set; no roles yet)
+    await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: /^Your tasks/ }).click();
+    const mine = page.locator('[data-screen-label="Your tasks"] section[aria-label=Ideas] [data-task="' + Title + '"]');
+    await expect(mine).toContainText('Idea · Sat, Oct 17');
+    await expect(mine.getByRole('button', { name: 'Date: Date set' })).toBeVisible();
+    await expect(mine.getByRole('button', { name: 'Location: Location set' })).toBeVisible();
+    await expect(mine.getByRole('button', { name: 'Roles: Add essential roles' })).toBeVisible();
+    // A checkpoint opens the idea at that part: Roles → its sign-ups
+    await mine.getByRole('button', { name: 'Roles: Add essential roles' }).click();
+    await expect(page.locator('[data-screen-label="Idea page"] #sec-tasks')).toBeInViewport();
 
     // Groups → Torrez Fitness → Ideas, in each view
     await page.getByRole('button', { name: 'Groups', exact: true }).click();
@@ -131,8 +132,10 @@ test('post flow guards: each step waits for an answer or a "later"', async ({ br
     // "Edit" jumps back; leaving the flow posts nothing
     await review.getByRole('button', { name: 'Edit the event' }).click();
     await expect(page.getByRole('heading', { name: 'What’s the event?' })).toBeVisible();
-    await page.getByRole('button', { name: 'Back' }).last().click();
-    await expect(page.locator('[data-screen-label=Home]')).toBeVisible();
+    await page.getByRole('button', { name: 'Back' }).last().click();   // idea steps → the event form
+    await expect(page.locator('[data-screen-label="New spark"]').getByText('Post an event')).toBeVisible();
+    await page.getByRole('button', { name: 'Back' }).last().click();   // → out of the flow
+    await expect(page.locator('[data-screen-label="Your tasks"]')).toBeVisible();
   } finally {
     await context.close();
   }

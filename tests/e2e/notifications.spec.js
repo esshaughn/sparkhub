@@ -21,7 +21,7 @@ test('notifications: a new plan, replying from the feed, the host hears back, up
     await O.reload();
     await expect(O.getByRole('button', { name: /^Notifications, \d+ new$/ })).toBeVisible();
     await O.getByRole('button', { name: /^Notifications/ }).click();
-    const feed = O.locator('[data-screen-label=Notifications]');
+    const feed = O.getByRole('dialog', { name: 'Notifications' });
     const row = feed.locator('[data-notif=newevent]').filter({ hasText: title });
     await expect(row).toContainText(new RegExp('\\w+ put an event on the books: ' + esc(title)));   // leads are shared between parallel tests, so names can change
     await expect(row.getByLabel('Unread')).toBeVisible();
@@ -32,8 +32,9 @@ test('notifications: a new plan, replying from the feed, the host hears back, up
 
     // Hope hears about it (Hosting) and posts an update
     await H.reload();
+    await H.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: /^Your tasks/ }).click();
     await H.getByRole('button', { name: /^Notifications/ }).click();
-    const hfeed = H.locator('[data-screen-label=Notifications]');
+    const hfeed = H.getByRole('dialog', { name: 'Notifications' });
     await hfeed.getByRole('radio', { name: 'Hosting' }).click();
     await expect(hfeed.locator('[data-notif=rsvp]').filter({ hasText: title })).toContainText(new RegExp('\\w+ is going to ' + esc(title)));
     await hfeed.locator('[data-notif=rsvp]').filter({ hasText: title }).click();
@@ -46,6 +47,7 @@ test('notifications: a new plan, replying from the feed, the host hears back, up
 
     // Omar: the update, with its text, under Updates; Mark all read sticks after a reload
     await O.reload();
+    await O.getByRole('button', { name: /^Notifications/ }).click();   // v6: a sheet from the bell
     await feed.getByRole('radio', { name: 'Updates' }).click();
     const upd = feed.locator('[data-notif=update]').filter({ hasText: title });
     await expect(upd).toContainText(new RegExp('\\w+ posted an update on ' + esc(title)));
@@ -57,6 +59,7 @@ test('notifications: a new plan, replying from the feed, the host hears back, up
     await expect(feed.getByLabel('Unread')).toHaveCount(0);
     await expect(O.getByRole('button', { name: 'Notifications', exact: true })).toBeVisible();
     await O.reload();
+    await O.getByRole('button', { name: /^Notifications/ }).click();   // v6: a sheet from the bell
     await expect(feed.getByLabel('Unread')).toHaveCount(0);
 
     // Settings: turning a topic off hides it; back on shows it again
@@ -68,6 +71,7 @@ test('notifications: a new plan, replying from the feed, the host hears back, up
     await expect(set).toHaveCount(0);
     await expect(feed.locator('[data-notif=update]').filter({ hasText: title })).toHaveCount(0);
     await O.reload();
+    await O.getByRole('button', { name: /^Notifications/ }).click();   // v6: a sheet from the bell
     await expect(feed.locator('[data-notif=update]').filter({ hasText: title })).toHaveCount(0);
     await feed.getByRole('button', { name: 'Notification settings' }).click();
     await set.getByRole('switch', { name: 'Updates from hosts' }).click();
