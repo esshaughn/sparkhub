@@ -90,23 +90,6 @@ input::placeholder, textarea::placeholder { color: #b9bcc4; font-weight: 400; fo
 }
 
 .scroller { position: absolute; inset: 0; overflow: auto; -webkit-overflow-scrolling: touch; }
-/* Pull to refresh: the page slides down by --ptr (set from JS) and a round spinner follows it */
-.app { --ptr: 0px; --ptr-turn: 0deg; }
-.app.ptr-drag .scroller, .app.ptr-busy .scroller, .app.ptr-back .scroller { transform: translateY(var(--ptr)); transition: transform 260ms cubic-bezier(.22,.9,.28,1); }
-.app.ptr-drag .scroller, .app.ptr-drag .ptr { transition: none; }
-.ptr {
-  position: absolute; left: 50%; top: calc(var(--sat) + 8px); z-index: 21;
-  width: 36px; height: 36px; margin-left: -18px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  background: #fff; color: #b9bcc4; box-shadow: 0 4px 14px rgba(15, 18, 25, .16);
-  transform: translateY(calc(var(--ptr) - 52px)); opacity: 0; pointer-events: none;
-  transition: transform 260ms cubic-bezier(.22,.9,.28,1), opacity 200ms;
-}
-.app.ptr-drag .ptr, .app.ptr-busy .ptr { opacity: 1; }
-.ptr svg { transform: rotate(var(--ptr-turn)); }
-.app.ptr-ready .ptr, .app.ptr-busy .ptr { color: #5b4ae8; }
-.app.ptr-busy .ptr svg { animation: ptrSpin 800ms linear infinite; }
-@keyframes ptrSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .overlay-screen { position: absolute; left: 0; right: 0; top: var(--sat); bottom: var(--nav-h); background: #e8eaee; overflow: auto; z-index: 5; }
 
 .tabbar {

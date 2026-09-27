@@ -242,31 +242,3 @@ test('a Spark Hub loading screen shows until the app is ready', async ({ browser
     await context.close();
   }
 });
-
-test('pulling the page down from the top reloads the data', async ({ browser }) => {
-  const { page, context, errors } = await newLead(browser, 1, 'E2E Lead');
-  try {
-    // Drag with real touch events (CDP), like a thumb: a short pull does nothing, a long one reloads
-    const cdp = await context.newCDPSession(page);
-    const pull = async (dist) => {
-      const touch = (type, y) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x: 200, y }] });
-      await touch('touchStart', 200);
-      for (let y = 210; y <= 200 + dist; y += 10) await touch('touchMove', y);
-      await touch('touchEnd');
-    };
-    const reloads = () => page.evaluate(() => { document.documentElement.removeAttribute('data-loaded'); });
-
-    await reloads();
-    await pull(60);   // 30px after resistance: under the threshold
-    await page.waitForTimeout(800);
-    await expect(page.locator('html[data-loaded]')).toHaveCount(0);
-
-    await pull(200);
-    await expect(page.locator('#app.ptr-busy')).toHaveCount(1);   // the spinner stays up while loading
-    await expect(page.locator('html[data-loaded=true]')).toHaveCount(1);
-    await expect(page.locator('#app.ptr-busy')).toHaveCount(0);
-    expect(errors).toEqual([]);
-  } finally {
-    await context.close();
-  }
-});

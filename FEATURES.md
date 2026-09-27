@@ -98,7 +98,6 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 83 | **Profile** (v5.2, from your photo on Your schedule): centred 96px photo with a camera badge, name, *{place} · Member since {year}*, a short bio, **Edit profile** (photo, name, **Place**, **About you**, email), a **Hosted / Went to / Groups** stats row; **Settings** (Notifications → the settings sheet; Privacy), **Help & info** (How Spark Hub works), the owner's Demo content card, Sign out. No Your ideas or Your groups lists | Test | `profiles.place` (≤40), `profiles.bio` (≤160) |
 | 84 | **Event page controls** (idea, plan, happened): the photo runs to the top; a white **Back** circle and, for hosts, a white **Edit** pill; no group name or IDEA pill between them. **Back returns to the screen you came from** (Your schedule, Your plans or ideas, Calendar, Notifications, Groups, the group page), scrolled to where you were; a link opened cold goes to the group's page | Test | `state.back`, recorded in `go()` |
 | 85 | **Groups page** (v5.2): title at 40px, 36px Join / Start pills; tiles honour each group's crop and zoom | Test | |
-| 86 | **Pull to refresh**: on any screen, drag down from the top and let go to reload the latest ideas, plans and replies; a round spinner follows the pull and spins while loading | Test | Touch only; the 30-second background refresh still runs |
 
 ## Posting and editing
 
@@ -149,7 +148,7 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 56 | Design handoff doc kept current by Claude Code | Live | |
 | 57 | Vercel auto-deploy from `main`; previews from `test` | Live | |
 | 58 | Security headers + CSP; pinned, integrity-checked Supabase script | Live | |
-| 59 | Automated end-to-end tests (24 tests: smoke, posting, groups, collaboration, plans, Your plans, notifications, Google, database security) | Test | `tests/` |
+| 59 | Automated end-to-end tests (23 tests: smoke, posting, groups, collaboration, plans, Your plans, notifications, Google, database security) | Test | `tests/` |
 | 60 | Nightly cleanup of test-database leftovers ([E2E] ideas and groups, old anonymous users) | Live | Test project only |
 
 ## Removed in this rebuild
