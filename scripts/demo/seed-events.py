@@ -139,9 +139,6 @@ EVENTS = [
          lead='torrez.fitness@gmail.com', alt='Darnell', going=8, past=True,
          signups=[('Bring salsa', 6, None)], album=['torrez-trail.jpg', 'torrez-crew.jpg', 'activate.jpg']),
     # Hub on Hunters
-    dict(g=H, text='Dad\'s Video Game Hangout', date='2026-10-10', time='19:30', spot='Hub on Hunters', photo='video-game-hangout.jpg',
-         lead='auburn.layman@gmail.com', alt='Dee', going=8, maybe=2, vision='Couch co-op on the big projector in the Hub garage. Bring a controller if you have one, and a snack to share. Kids welcome to watch or jump in.',
-         signups=[('Bring an extra controller', 4, None), ('Set up the projector and consoles', 3, '19:00')]),
     dict(g=H, text='Mini Gras', date='2026-10-30', time='18:00', spot='Hub on Hunters', photo='mini-gras.jpg',
          lead='ejshaughn@gmail.com', alt='Darnell', going=10, maybe=3, vision='A tiny parade down the lane, then king cake. Beads provided.',
          signups=[('Decorate a wagon', 3, '17:00'), ('Bring king cake', 2, None)],
@@ -209,6 +206,8 @@ EVENTS = [
          alt='Darnell', going=4, maybe=1, vision='Paddles to share. All levels.', signups=[('Extra paddles', 2, None)]),
 ]
 IDEAS = [
+    dict(g=H, text='Dad\'s Video Game Hangout', photo='video-game-hangout.jpg', vision='Couch co-op on the big projector in the Hub garage. Bring a controller if you have one, and a snack to share. Kids welcome to watch or jump in.',
+         lead='auburn.layman@gmail.com', alt='Dee', fans=8),
     dict(g=H, text='Folk music song circle', photo='folk-circle.jpg', vision='Bring an instrument, or just your voice.', lead='ejshaughn@gmail.com', alt='Theo', fans=4),
     dict(g=W, text='Grief circle', vision='A quiet hour for anyone carrying a loss. No pressure to talk.', lead='auburn.layman@gmail.com', alt='Hana', fans=3),
     dict(g=C, text='Moms’ walking group (one time, see who’s in)', vision='Weekday morning, kids in tow. If it clicks we keep going.',
