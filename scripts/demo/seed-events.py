@@ -139,9 +139,9 @@ EVENTS = [
          lead='torrez.fitness@gmail.com', alt='Darnell', going=8, past=True,
          signups=[('Bring salsa', 6, None)], album=['torrez-trail.jpg', 'torrez-crew.jpg', 'activate.jpg']),
     # Hub on Hunters
-    dict(g=H, text='Egg Hunt on Hunters', date='2026-10-10', time='10:00', spot='Hub on Hunters', photo='egg-hunt.jpg',
-         lead='auburn.layman@gmail.com', alt='Dee', going=8, maybe=2, vision='Out of season and proud of it. Kids 10 and under, bring a basket.',
-         signups=[('Fill plastic eggs', 4, None), ('Hide eggs', 3, '09:15')]),
+    dict(g=H, text='Dad\'s Video Game Hangout', date='2026-10-10', time='19:30', spot='Hub on Hunters', photo='video-game-hangout.jpg',
+         lead='auburn.layman@gmail.com', alt='Dee', going=8, maybe=2, vision='Couch co-op on the big projector in the Hub garage. Bring a controller if you have one, and a snack to share. Kids welcome to watch or jump in.',
+         signups=[('Bring an extra controller', 4, None), ('Set up the projector and consoles', 3, '19:00')]),
     dict(g=H, text='Mini Gras', date='2026-10-30', time='18:00', spot='Hub on Hunters', photo='mini-gras.jpg',
          lead='ejshaughn@gmail.com', alt='Darnell', going=10, maybe=3, vision='A tiny parade down the lane, then king cake. Beads provided.',
          signups=[('Decorate a wagon', 3, '17:00'), ('Bring king cake', 2, None)],
