@@ -192,7 +192,7 @@ EVENTS = [
          signups=[('Coach a drill station', 4, '08:30'), ('Orange slices', 2, None)]),
     # Woodcliff Neighborhood
     dict(g=C, text='Wednesday Wind-Down', date='2026-10-21', time='18:30', spot='55 Bluff Canyon Dr', photo='wednesday-wind-down.jpg',
-         lead='stacy.claye@gmail.com', alt='Dee', going=8, maybe=1, vision='BYO drink, we bring the chairs.',
+         lead='eric@ericscott-creative.com', alt='Dee', going=8, maybe=1, vision='BYO drink, we bring the chairs.',
          signups=[('Bring a veggie tray', 2, None), ('Extra chairs', 3, '18:00')]),
     dict(g=C, text='Weekend Wake-Up', date='2026-10-17', time='07:00', spot='14 Bluff Canyon Dr', photo='weekend-wake-up.jpg',
          lead='torrez.fitness@gmail.com', alt='Hana', going=6, maybe=2, vision='Coffee walk to the overlook and back. Strollers fine.',
@@ -202,7 +202,7 @@ EVENTS = [
          signups=[('Bring gloves', 4, None), ('Breakfast tacos', 2, '11:00')],
          update='Parking is on the street. We start at 9 sharp.'),
     dict(g=C, text='Poker night', date='2026-11-13', time='19:00', spot='123 Wandering Way', photo='poker-night.jpg',
-         lead='eric@ericscott-creative.com', alt='Theo', going=5, maybe=1, invite=True, vision='Low stakes, big snacks. Invite only.',
+         lead='torrez.fitness@gmail.com', alt='Theo', going=5, maybe=1, invite=True, vision='Low stakes, big snacks. Invite only.',
          signups=[('Bring snacks', 3, None)]),
     # Personal plan (group-less in the design; groups are required here, so it lives in Torrez Fitness)
     dict(g=T, text='Pickleball', date='2026-11-06', time='19:30', spot='Austin Pickleball Park', photo='pickleball.jpg',
