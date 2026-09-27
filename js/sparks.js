@@ -214,9 +214,10 @@
     history.pushState(null, '', h || location.pathname + location.search);
   };
   const JOIN_PATH = /^\/join\/([A-Za-z0-9]{6})\/?$/;
+  const IDEA_PATH = /^\/i\/([0-9a-f-]{36})\/?$/;   // shared idea links (a real path so chat apps can preview them)
   const fromUrl = () => {
     const h = location.hash;
-    let m = h.match(/^#\/idea\/([0-9a-f-]{36})$/);
+    let m = h.match(/^#\/idea\/([0-9a-f-]{36})$/) || (!h && location.pathname.match(IDEA_PATH));
     if (m) return { screen: 'detail', subjectId: m[1], tag: null };
     m = h.match(/^#\/group\/([0-9a-f-]{36})$/);
     if (m) return { screen: 'groupPage', gpId: m[1] };
@@ -1102,7 +1103,7 @@
     const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Spark Hub//EN', 'BEGIN:VEVENT', 'UID:' + s.id + '@sparkhub',
       'DTSTAMP:' + new Date().toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z', 'DTSTART:' + d + 'T' + t, 'DTEND:' + endStr,
       'SUMMARY:' + escIcs(s.text), 'LOCATION:' + escIcs([s.spot, s.spotAddress].filter(Boolean).join(', ')),
-      'DESCRIPTION:' + escIcs(location.origin + '/#/idea/' + s.id), 'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
+      'DESCRIPTION:' + escIcs(location.origin + '/i/' + s.id), 'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([ics], { type: 'text/calendar' }));
     a.download = (s.text.replace(/[^\w ]+/g, '').trim() || 'plan') + '.ics';
@@ -2877,7 +2878,7 @@
   function viewInvite() {
     const s = state.sparks.find(x => x.id === state.invite.id), close = () => setState({ invite: null });
     if (!s) return '';
-    const link = location.origin + '/#/idea/' + s.id, lead = isLead(s);
+    const link = location.origin + '/i/' + s.id, lead = isLead(s);
     const msg = 'Hey! ' + (lead ? 'I’m hosting ' : 'Come to ') + s.text + ' on ' + whenLong(s) + (s.spot ? ' at ' + s.spot : '') + '. RSVP here: ' + link;
     return modal(lead ? 'Invite people' : 'Share this plan', close,
       h3(lead ? 'Invite people' : 'Share this plan') +
@@ -4056,6 +4057,7 @@
 
   Object.assign(state, fromUrl());
   delete state.inviteCode;
+  if (IDEA_PATH.test(location.pathname)) history.replaceState(null, '', '/#/idea/' + location.pathname.match(IDEA_PATH)[1]);
   // Signed in last time? Show their app (from the cache, or loading placeholders), not Welcome
   const bootUser = sb && signedInUser();
   if (bootUser) {

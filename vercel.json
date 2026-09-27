@@ -53,10 +53,17 @@
       ]
     }
   ],
+  "functions": {
+    "api/preview.js": { "includeFiles": "index.html" }
+  },
   "rewrites": [
     {
       "source": "/join/:code",
-      "destination": "/index.html"
+      "destination": "/api/preview?join=:code"
+    },
+    {
+      "source": "/i/:id",
+      "destination": "/api/preview?i=:id"
     }
   ]
 }

@@ -100,6 +100,7 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 85 | **Groups page** (v5.2): title at 40px, 36px Join / Start pills; tiles honour each group's crop and zoom | Test | |
 | 86 | **Freeze log** (temporary, owner's Profile only): notes when the app stops responding for over a second (screen, what ran last, image count), slow redraws (>150ms) and slow loads (>3s); kept on the device, last 40, Clear button | Test | Tracing the home-screen app freezes (2026-09-27); remove once found |
 | 87 | **Pull to refresh**: at the top of any screen, drag down and let go to reload; the header stays put while the feed under it slides down, with a spinner in the gap (screens without a header slide whole) | Test | Touch only; the 30-second background refresh still runs |
+| 88 | **Link previews**: shared idea links are `/i/<id>` and show the idea's title, when · where · group, and its photo (or the group's) in iMessage, WhatsApp and the like; invite links (`/join/CODE`) show *Join {group} on Spark Hub* with the group photo; everything else shows the Spark Hub card. Invite-only plans stay generic | Test | `api/preview.js` (Vercel function), `link_preview()` / `group_preview()`, `icons/share.jpg` (`scripts/make-share-image.js`) |
 
 ## Posting and editing
 
@@ -150,7 +151,7 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 56 | Design handoff doc kept current by Claude Code | Live | |
 | 57 | Vercel auto-deploy from `main`; previews from `test` | Live | |
 | 58 | Security headers + CSP; pinned, integrity-checked Supabase script | Live | |
-| 59 | Automated end-to-end tests (25 tests: smoke, posting, groups, collaboration, plans, Your plans, notifications, Google, database security) | Test | `tests/` |
+| 59 | Automated end-to-end tests (26 tests: smoke, posting, groups, collaboration, plans, Your plans, notifications, Google, database security) | Test | `tests/` |
 | 60 | Nightly cleanup of test-database leftovers ([E2E] ideas and groups, old anonymous users) | Live | Test project only |
 
 ## Removed in this rebuild
