@@ -87,7 +87,7 @@ test('a group end to end: edit group, cover, rename, invite, pin, admin edits, r
     const big = gl.getByRole('button', { name: groupName, exact: true });
     await expect(big).toContainText('OWNER');
     await expect(big).toContainText('2 members');   // Ada and Bo
-    await expect(big).toContainText('0 events');
+    await expect(big).not.toContainText('events');   // no chip row under pinned cards (owner, 2026-09-27)
     await big.getByRole('button', { name: 'Edit ' + groupName }).click();
     await expect(A.locator('[data-screen-label="Edit group"]')).toContainText('You’re the owner');
     await A.locator('[data-screen-label="Edit group"]').getByRole('button', { name: 'Back' }).first().click();

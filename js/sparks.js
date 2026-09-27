@@ -1939,31 +1939,27 @@
   const GRAD = '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.85), rgba(13,17,23,.1) 60%)"></div>';
 
   function viewGroups() {
-    const groups = groupsInOrder(), pinned = groups.filter(g => g.pinned), big = pinned.length ? pinned : groups.slice(0, 1);
-    const rest = groups.filter(g => big.indexOf(g) < 0);
-    const chip = (text, strong) => '<span style="display:inline-flex;align-items:center;min-height:28px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:800;' + (strong ? 'background:#ece9fd;color:#4a3ad4' : 'background:#f2f3f6;color:#454b55') + '">' + esc(text) + '</span>';
+    // Pinned groups get the big photo cards; everything else (all of them, when nothing is pinned) is a tile
+    const groups = groupsInOrder(), big = groups.filter(g => g.pinned);
+    const rest = groups.filter(g => !g.pinned);
+    const newDot = (g) => newIn(g) ? '<span aria-label="New ideas" style="display:inline-block;width:9px;height:9px;border-radius:999px;background:#9d93f7;margin-right:6px;vertical-align:1px"></span>' : '';
     const bigCard = (g) => {
-      const mine = state.sparks.filter(s => s.groupId === g.id), nPlan = mine.filter(s => phaseOf(s) === 'plan').length, nIdea = mine.filter(s => phaseOf(s) === 'idea').length;
-      const lead = mine.filter(s => isLead(s) && phaseOf(s) !== 'done').length, help = helpingList(g.id).length, fresh = newIn(g), size = state.sizes[g.id];
-      const counts = [nPlan + (nPlan === 1 ? ' event' : ' events'), nIdea ? nIdea + (nIdea === 1 ? ' idea' : ' ideas') : ''].filter(Boolean).join(' · ');
-      const role = [lead ? 'Leading ' + lead : '', help ? 'Helping ' + help : ''].filter(Boolean).join(' · ');
-      return '<div ' + on(() => openGroup(g)) + ' aria-label="' + esc(g.name) + '" style="border-radius:22px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);overflow:hidden;cursor:pointer">' +
-        '<div style="position:relative;height:170px;overflow:hidden;background:#e8a71c">' + (groupPhoto(g) ? photoLayer(groupPhoto(g), g.photoPos, GROUP_POS) : '') + GRAD +
-          '<div style="position:absolute;top:12px;left:12px">' + roleChip(g) + '</div>' +
-          '<div style="position:absolute;top:10px;right:10px;display:flex;gap:8px">' + gearBtn(g) + pinBtn(g, 36) + '</div>' +
-          '<div style="position:absolute;left:16px;right:16px;bottom:12px;color:#fff">' +
-            '<div style="font-size:26px;line-height:1.05;font-weight:900;letter-spacing:-.6px">' + esc(g.name) + '</div>' +
-            (size ? '<div style="margin-top:3px;font-size:13px;font-weight:700;color:#dfe2e8">' + size + (size === 1 ? ' member' : ' members') + '</div>' : '') +
-          '</div>' +
+      const size = state.sizes[g.id];
+      return '<div ' + on(() => openGroup(g)) + ' aria-label="' + esc(g.name) + '" style="position:relative;height:170px;border-radius:22px;overflow:hidden;background:#e8a71c;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
+        (groupPhoto(g) ? photoLayer(groupPhoto(g), g.photoPos, GROUP_POS) : '') + GRAD +
+        '<div style="position:absolute;top:12px;left:12px">' + roleChip(g) + '</div>' +
+        '<div style="position:absolute;top:10px;right:10px;display:flex;gap:8px">' + gearBtn(g) + pinBtn(g, 36) + '</div>' +
+        '<div style="position:absolute;left:16px;right:16px;bottom:12px;color:#fff">' +
+          '<div style="font-size:26px;line-height:1.05;font-weight:900;letter-spacing:-.6px">' + newDot(g) + esc(g.name) + '</div>' +
+          (size ? '<div style="margin-top:3px;font-size:13px;font-weight:700;color:#dfe2e8">' + size + (size === 1 ? ' member' : ' members') + '</div>' : '') +
         '</div>' +
-        '<div style="display:flex;flex-wrap:wrap;gap:6px;padding:12px 16px">' + (fresh ? chip(fresh + ' new', true) : '') + chip(counts) + (role ? chip(role) : '') + '</div>' +
       '</div>';
     };
     const tile = (g) => '<div ' + on(() => openGroup(g)) + ' aria-label="' + esc(g.name) + '" style="position:relative;aspect-ratio:1 / 1;border-radius:20px;overflow:hidden;box-shadow:0 1px 3px rgba(15,18,25,.08);background:#e8a71c;cursor:pointer">' + (groupPhoto(g) ? photoLayer(groupPhoto(g), g.photoPos, GROUP_POS) : '') + GRAD +
       '<div style="position:absolute;top:10px;left:10px">' + roleChip(g) + '</div>' +
       '<div style="position:absolute;top:8px;right:8px">' + pinBtn(g, 32) + '</div>' +
       '<div style="position:absolute;left:12px;right:10px;bottom:10px;color:#fff;font-size:16px;line-height:1.15;font-weight:900">' +
-        (newIn(g) ? '<span aria-label="New ideas" style="display:inline-block;width:9px;height:9px;border-radius:999px;background:#9d93f7;margin-right:6px;vertical-align:1px"></span>' : '') + esc(g.name) + '</div>' +
+        newDot(g) + esc(g.name) + '</div>' +
     '</div>';
     const pill = (label, icon, fn, strong) => '<span ' + on(fn) + ' style="display:inline-flex;align-items:center;gap:5px;min-height:36px;padding:0 12px;border-radius:999px;font-size:13.5px;font-weight:800;cursor:pointer;' + (strong ? 'background:#ece9fd;color:#4a3ad4' : 'background:#f2f3f6;color:#454b55') + '">' + icon + label + '</span>';
     return '<div data-screen-label="Groups">' +

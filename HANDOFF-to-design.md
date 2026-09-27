@@ -30,6 +30,7 @@ Where this doc and the design files disagree, **this doc is correct**.
 | 13 | **The People readiness step** is done once anyone is interested, since there's no minimum-people field to divide by | interested ÷ minimum people | Minimum people isn't designed yet (§5) |
 | 14 | **Profile has no "Your groups" section** (as v5.2 says), so Start a group, Join a group and the admin gear live on the Groups tab and Edit on each group's page only | v5.2 | Owner confirmed the removal (2026-09-27) |
 | 15 | **NEW · N** on Notifications counts unread items and, with Mark all read, sits on the first section whichever it is (sections stay New today / Earlier this week by date); both go once everything is read | "NEW · 6" | Same look; the count is unread, not today's |
+| 16 | **Groups tab: pinned cards are photo only**: the white strip under a pinned group's card (*N new*, events · ideas, Leading · Helping chips) is removed; a new-ideas dot sits before the name instead. With nothing pinned, every group is a square tile (the first group no longer gets a big card) | v5.2 big card with a chip row; first group featured when none pinned | Owner: remove the bottom bar for now; unpinned groups showing the pinned layout looked like a glitch (2026-09-27) |
 
 ## 2. Things the build had to invent (please design these properly)
 
