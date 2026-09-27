@@ -163,7 +163,7 @@ EVENTS = [
          lead='eric@ericscott-creative.com', alt='Dee', going=10, maybe=3, vision='Start at 4 so kids can play before dark.',
          signups=[('A side dish', 6, None), ('Folding chairs', 4, '16:00'), ('Dessert', 3, None)],
          prep={'0': 'Turkey and gravy', '2': 'Move inside if it rains'}),
-    dict(g=H, text='Garden work day at the Hub', date='2026-09-24', time='17:00', spot='Hub on Hunters', photo='get-togethers.jpg',
+    dict(g=H, text='Garden work day at the Hub', date='2026-09-24', time='17:00', spot='Hub on Hunters', photo='garden-work-day.jpg',
          lead='eric@ericscott-creative.com', alt='Dee', going=7, past=True,
          signups=[('Bring gloves', 6, None)], album=['get-togethers.jpg', 'projects.jpg', 'get-togethers-2.jpg']),
     # Walnut Creek Neighborhood
