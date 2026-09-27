@@ -90,6 +90,26 @@ input::placeholder, textarea::placeholder { color: #b9bcc4; font-weight: 400; fo
 }
 
 .scroller { position: absolute; inset: 0; overflow: auto; -webkit-overflow-scrolling: touch; }
+/* Pull to refresh: the feed under the screen's header slides down by --ptr (set from JS) while the
+   header stays put; a round spinner shows in the gap. Screens without a header slide as a whole. */
+.app { --ptr: 0px; --ptr-turn: 0deg; --ptr-top: 0px; }
+.app.ptr-head.ptr-on .scroller > div > header ~ *,
+.app:not(.ptr-head).ptr-on .scroller > * { transform: translateY(var(--ptr)); transition: transform 260ms cubic-bezier(.22,.9,.28,1); }
+.app.ptr-drag .scroller *, .app.ptr-drag .ptr { transition: none; }
+.ptr {
+  position: absolute; left: 0; right: 0; top: var(--ptr-top); height: var(--ptr); z-index: 21;
+  display: flex; align-items: center; justify-content: center; overflow: hidden; pointer-events: none;
+  transition: height 260ms cubic-bezier(.22,.9,.28,1);
+}
+.ptr-spin {
+  flex: 0 0 36px; width: 36px; height: 36px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: #fff; color: #b9bcc4; box-shadow: 0 2px 8px rgba(15, 18, 25, .14);
+}
+.ptr svg { transform: rotate(var(--ptr-turn)); }
+.app.ptr-ready .ptr-spin, .app.ptr-busy .ptr-spin { color: #5b4ae8; }
+.app.ptr-busy .ptr svg { animation: ptrSpin 800ms linear infinite; }
+@keyframes ptrSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .overlay-screen { position: absolute; left: 0; right: 0; top: var(--sat); bottom: var(--nav-h); background: #e8eaee; overflow: auto; z-index: 5; }
 
 .tabbar {

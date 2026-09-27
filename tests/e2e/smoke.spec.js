@@ -262,3 +262,36 @@ test('freeze log (temporary): a 2-second stall is noted and shows on the owner\'
     await context.close();
   }
 });
+
+test('pull to refresh: the feed slides under a still header, and letting go reloads the data', async ({ browser }) => {
+  const { page, context, errors } = await newLead(browser, 1, 'Tester');
+  try {
+    // Drag with real touch events (CDP), like a thumb: a short pull does nothing, a long one reloads
+    const cdp = await context.newCDPSession(page);
+    const touch = (type, y) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x: 200, y }] });
+    const drag = async (dist) => { await touch('touchStart', 300); for (let y = 310; y <= 300 + dist; y += 10) await touch('touchMove', y); };
+    await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Groups', exact: true }).click();
+    const screen = page.locator('[data-screen-label=Groups]');
+    const head = screen.locator('header'), feed = screen.locator(':scope > header + *');
+    const [h0, f0] = [await head.boundingBox(), await feed.boundingBox()];
+    const unload = () => page.evaluate(() => { document.documentElement.removeAttribute('data-loaded'); });
+
+    await unload();
+    await drag(60);   // 30px after resistance: under the threshold
+    expect((await head.boundingBox()).y).toBe(h0.y);
+    expect((await feed.boundingBox()).y).toBeGreaterThan(f0.y + 20);
+    await touch('touchEnd');
+    await page.waitForTimeout(800);
+    await expect(page.locator('html[data-loaded]')).toHaveCount(0);
+    expect((await feed.boundingBox()).y).toBe(f0.y);
+
+    await drag(200);
+    await touch('touchEnd');
+    await expect(page.locator('#app.ptr-busy')).toHaveCount(1);   // the spinner stays up while loading
+    await expect(page.locator('html[data-loaded=true]')).toHaveCount(1);
+    await expect(page.locator('#app.ptr-busy')).toHaveCount(0);
+    expect(errors).toEqual([]);
+  } finally {
+    await context.close();
+  }
+});
