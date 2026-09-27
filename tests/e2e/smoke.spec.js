@@ -242,3 +242,23 @@ test('a Spark Hub loading screen shows until the app is ready', async ({ browser
     await context.close();
   }
 });
+
+test('freeze log (temporary): a 2-second stall is noted and shows on the owner\'s Profile', async ({ browser }) => {
+  const { page, context, errors } = await newLead(browser, 1, 'Tester');
+  try {
+    // Pretend this account is the owner (the only one who sees the log)
+    await page.route('**/rest/v1/demo_admins*', r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ user_id: 'x' }) }));
+    await page.reload();
+    await expect(page.locator('html[data-loaded=true]')).toHaveCount(1);
+    await page.evaluate(() => { localStorage.removeItem('spark-hub-diag'); const end = Date.now() + 2000; while (Date.now() < end) { /* freeze */ } });
+    await expect.poll(() => page.evaluate(() => (JSON.parse(localStorage.getItem('spark-hub-diag')) || []).map(e => e.kind))).toContain('stall');
+    await page.locator('[data-screen-label=Home]').getByRole('button', { name: 'Profile' }).click();
+    const log = page.locator('[data-screen-label="Freeze log"]');
+    await expect(log).toContainText(/stall [12]\.\d+s/);
+    await log.getByRole('button', { name: 'Clear' }).click();
+    await expect(log).toContainText('Nothing logged yet.');
+    expect(errors).toEqual([]);
+  } finally {
+    await context.close();
+  }
+});

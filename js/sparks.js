@@ -366,6 +366,8 @@
 
   async function loadAll() {
     if (!sb) return;
+    const t0 = performance.now();
+    diagNote('load started');
     const [mem, grp, sp, of, it, gc, rs, dop, dvo, sop, svo, sui, scl, upd, org, alb, prp] = await Promise.all([
       sb.from('memberships').select('group_id,role,last_seen_at,pinned'),
       sb.from('groups').select('id,name,photo,photo_pos'),
@@ -414,6 +416,7 @@
       res.data.forEach(p => { profiles[p.id] = { name: p.name || '', avatar: PHOTO_PATH.test(p.avatar_path || '') ? p.avatar_path : null, place: p.place || '', bio: p.bio || '' }; });
     }
     const mine = profiles[state.me] || {};
+    if (performance.now() - t0 > 3000) diag('slow load', performance.now() - t0, 'waiting on the network');
     document.documentElement.setAttribute('data-loaded', 'true');   // tests wait for this
     setState({
       groups, sparks, profiles, loaded: true, fromCache: false, error: null,
@@ -2907,6 +2910,20 @@
   // 7. Profile (signed in only)
   // ---------------------------------------------------------------------------
 
+  const diagCard = () => {
+    const log = diagRead(), clock = (t) => new Date(t).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', second: '2-digit' });
+    return '<div data-screen-label="Freeze log" style="' + CARD + ';padding:14px 16px;display:flex;flex-direction:column;gap:8px">' +
+      '<div><div style="font-size:15.5px;font-weight:800;color:#0d1117">Freeze log</div>' +
+      '<div style="margin-top:2px;font-size:13.5px;line-height:1.4;font-weight:500;color:#6b7280">Temporary, only you see this. Times the app stopped responding on this device.</div></div>' +
+      (log.length
+        ? log.slice(0, 15).map(e => '<div style="font-size:12.5px;line-height:1.4;font-weight:600;color:#454b55;border-top:1px solid #f2f3f6;padding-top:6px">' +
+            '<b style="color:' + (e.kind === 'stall' ? '#9b1c31' : '#0d1117') + '">' + esc(e.kind) + ' ' + (e.ms / 1000).toFixed(1) + 's</b> · ' + esc(e.screen || '') + ' · ' + esc(clock(e.at)) +
+            (e.note ? '<br>' + esc(e.note) : '') + '</div>').join('') +
+          '<button type="button" ' + on(() => { try { localStorage.removeItem(DIAG_KEY); } catch (e) { /* blocked */ } render(); }) + ' style="align-self:flex-start;min-height:36px;padding:0 14px;border:1.5px solid #dcdfe6;border-radius:999px;background:#fff;color:#0d1117;font-family:inherit;font-size:13.5px;font-weight:800;cursor:pointer">Clear</button>'
+        : '<div style="font-size:13.5px;font-weight:600;color:#8a909b">Nothing logged yet.</div>') +
+    '</div>';
+  };
+
   function viewProfile() {
     const st = state, avatar = st.myAvatar ? photoUrl(st.myAvatar) : null;
     const hosted = st.sparks.filter(x => isLead(x) && x.planned).length;
@@ -2944,6 +2961,7 @@
                 '<button type="button" ' + on(wipeDemo) + ' style="align-self:flex-start;min-height:40px;padding:0 16px;border:1.5px solid #f5c2cb;border-radius:999px;background:#fff;color:#9b1c31;font-family:inherit;font-size:14px;font-weight:800;cursor:pointer">Remove all demo content</button>' +
               '</div>'
             : '') +
+          (st.demoAdmin ? diagCard() : '') +
           '<div ' + on(signOut) + ' style="' + CARD + ';padding:0 16px;min-height:52px;display:flex;align-items:center;cursor:pointer"><span style="font-size:15.5px;font-weight:800;color:#9b1c31">Sign out</span></div>' +
           '<a href="/privacy.html" target="_blank" rel="noopener" style="align-self:center;display:flex;align-items:center;min-height:36px;padding:0 10px;font-size:13.5px;font-weight:700;color:#6b7280">Privacy</a>' +
         '</div>' +
@@ -3808,7 +3826,27 @@
     for (let i = fc.length - 1; i >= tc.length; i--) from.removeChild(fc[i]);
   }
 
+  // Freeze log (temporary, owner only; shown on Profile): notes when the page stops responding for over a
+  // second, plus slow redraws and loads, to trace the freezes on the installed iPhone app. Stays on this device.
+  const DIAG_KEY = 'spark-hub-diag';
+  let diagTick = Date.now(), diagAway = false, diagWork = '';
+  const diagRead = () => { try { return JSON.parse(localStorage.getItem(DIAG_KEY)) || []; } catch (e) { return []; } };
+  const diag = (kind, ms, note) => {
+    const log = diagRead();
+    log.unshift({ at: Date.now(), kind, ms: Math.round(ms), screen: state.screen, note: note || '' });
+    try { localStorage.setItem(DIAG_KEY, JSON.stringify(log.slice(0, 40))); } catch (e) { /* storage blocked */ }
+  };
+  const diagNote = (what) => { diagWork = what + ' at ' + new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' }); };
+  document.addEventListener('visibilitychange', () => { if (document.hidden) diagAway = true; });
+  setInterval(() => {
+    const now = Date.now(), gap = now - diagTick;
+    diagTick = now;
+    if (diagAway || document.hidden) { diagAway = document.hidden; return; }   // timers pause in the background: not a freeze
+    if (gap > 1250) diag('stall', gap - 250, 'last: ' + (diagWork || 'nothing') + ' · ' + document.images.length + ' images');
+  }, 250);
+
   function render() {
+    const t0 = performance.now();
     H = [];
     GEN++;
     const html = view();
@@ -3819,6 +3857,9 @@
     // Screens that start with a photo run it up under the iPhone status bar
     const sc = state.screen, photoTop = sc === 'browse' || (sc === 'detail' && !!subject()) || (!state.email && (sc === 'home' || sc === 'compose' || sc === 'profile' || sc === 'groupPage'));
     root.classList.toggle('photo-top', photoTop);
+    const took = performance.now() - t0;
+    diagNote('redraw (' + Math.round(took) + 'ms)');
+    if (took > 150) diag('slow redraw', took);
   }
 
   // ---------------------------------------------------------------------------
