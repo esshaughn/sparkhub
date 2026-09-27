@@ -3,7 +3,8 @@
 const { test, expect } = require('@playwright/test');
 const { uniqueTitle, newLead, postEvent, openIdea, deleteIdea } = require('./helpers');
 
-const inDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+// Local dates, like the app (toISOString would be UTC, a day ahead in the evening)
+const inDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 
 test('Your plans and the Calendar: the host’s dashboard, a helper’s list with times, role pills', async ({ browser }) => {
   test.setTimeout(150000);

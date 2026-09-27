@@ -5,7 +5,7 @@
 - **Built (test):** https://gosparkhub-git-test-eric-5958s-projects.vercel.app · **Live:** https://gosparkhub.vercel.app
 - **Source:** github.com/esshaughn/sparkhub (`index.html`, `js/sparks.js`, `css/sparks.css`, `privacy.html`, `supabase/templates/`)
 - **Baseline:** Claude Design's **Spark Hub v5 update** handoff (Your plans, Your events & ideas, all-groups Calendar, group page redesign), which builds on the **Spark Hub Version 5** handoff. Both READMEs and the updated prototype are in `design/spark-hub/`. Some decisions the owner made while V5 was being built aren't in that update; they're in §1.
-- **As of:** 2026-09-29, the v5 update is built on the test branch (V5 phases 1–3 are live; the email phase is on hold)
+- **As of:** 2026-09-30, the v5 update is live; the shared demo world is on the test branch (the email phase is on hold)
 
 Where this doc and the design files disagree, **this doc is correct**.
 
@@ -42,6 +42,7 @@ Where this doc and the design files disagree, **this doc is correct**.
 - **The host's "Before the day"** questions (4 prompts, "N of 4 thought through"); tap to answer, Enter to save.
 - **Notification kinds the prototype didn't have**, each a 44px face with a 20px type badge: **is interested in** your idea (`#5b4ae8`, ♥), **suggested** a date or place (`#e8a71c`, ▲), **offered to help organize** (`#7b6ef0`, ★), and "**Tomorrow:** {plan} at 8am · {place}" / "**Today:** …" (`#e2556b`, ⏰). Replies: "{name} is going to / might come to / can't make it to {plan}"; sign-ups: "{name} signed up to bring {item} on {plan}". Empty feed: *You're all caught up. New plans, updates and replies from the last week show up here.*; filtered: *Nothing here this week.*
 - **Your plans / group page when you're in no group:** the *Join with a code* card.
+- **Demo content card** (Profile, only on the owner's account, only while demo content exists): white card, "Demo content" 15.5px/800, "N ideas and plans in your groups are demo content. Only you can see this." 13.5px/500 `#6b7280`, and an outlined red button **Remove all demo content** (1.5px `#f5c2cb` border, `#9b1c31` text). It confirms with "Remove all demo content?" / "Remove it" / "Keep it".
 
 ## 3. Behaviour added in the build (no visual change)
 
@@ -50,6 +51,7 @@ Where this doc and the design files disagree, **this doc is correct**.
 - **Plans:** an idea is a plan when `planned` is set (date and time required); it shows as **It happened** from the day after its date. Invite-only plans are hidden from the group except the lead, admins, people who replied and link holders.
 - **Updates and the day-before reminder reach people in the Notifications feed** (in the app only). The host's reminder switch decides whether the reminder shows. The feed is built from what's stored (last 7 days); read state and settings follow you between devices.
 - **Sign-ups:** a name is needed (guests leave name + number once); items with a "how many" stop taking sign-ups when full; only the host sets "how many" or a time (enforced in the database).
+- **Shared demo world:** anyone who signs in joins the four demo groups as a member (named testers get owner/admin roles from a roster). The demo content isn't marked as demo anywhere in the app.
 - **Calendar** lists every idea and plan you can see in your groups (invite-only ones only if you're in them), past events only if you were part of them.
 
 ## 4. Designed but not built or not working

@@ -179,7 +179,7 @@
     guestName: prefs.guestName || '', guestPhone: prefs.guestPhone || '',
     offerKind: null, offerText: '', offerPlace: null, offerSuggest: [],
     joinOpen: false, joinCode: '', joinBad: false,
-    notif: { allReadAt: 0, read: [], topics: {}, email: true, loaded: false }, nFilter: 'all', nSettings: false, ownGrp: null, homeGroup: null, taskOpen: {}, calView: 'list', calRole: 'all', calGrp: null, calM: null, calW: null, calSel: null, sizes: {}, membersQ: '', gpRename: null, gpDel: null, ph: null, postTo: false,
+    notif: { allReadAt: 0, read: [], topics: {}, email: true, loaded: false }, nFilter: 'all', nSettings: false, demoAdmin: false, ownGrp: null, homeGroup: null, taskOpen: {}, calView: 'list', calRole: 'all', calGrp: null, calM: null, calW: null, calSel: null, sizes: {}, membersQ: '', gpRename: null, gpDel: null, ph: null, postTo: false,
     startName: null, phaseTab: 'plan', sigDraft: '', sigNeed: '', sigTime: '', blast: null, prepEdit: null, prepText: '', invite: null, datesSheet: false,
     pe: null, confirm: null, interestList: false,
     gpCode: '', gpMembers: null
@@ -325,6 +325,7 @@
     interested: interests.filter(i => i.spark_id === row.id).sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at)).map(i => i.user_id),
     interestAt: interests.filter(i => i.spark_id === row.id).reduce((m, i) => { m[i.user_id] = Date.parse(i.created_at); return m; }, {}),
     contacts: contacts.filter(c => c.spark_id === row.id),
+    demo: !!row.demo,   // seeded demo content; never shown, only counted for the owner's wipe
     planned: !!row.planned, visibility: row.visibility || 'group', autoRemind: row.auto_remind !== false, minPeople: row.min_people || null,
     rsvps: (x.rsvps[row.id] || []).map(r => ({ userId: r.user_id, status: r.status, created: Date.parse(r.created_at) })),
     dateOpts: (x.dateOpts[row.id] || []).map(o => ({ id: o.id, dayDate: o.day_date, dayTime: o.day_time ? String(o.day_time).slice(0, 5) : null, who: o.who, createdBy: o.created_by, created: Date.parse(o.created_at), votes: (x.dateVotes[o.id] || []).map(v => v.user_id) })),
@@ -399,6 +400,11 @@
       groups, sparks, profiles, loaded: true, error: null,
       myName: mine.name || state.myName, myAvatar: mine.avatar || null
     });
+    // Whether you're the account that can wipe the demo content (Profile)
+    if (state.email) {
+      sb.from('demo_admins').select('user_id').eq('user_id', state.me).maybeSingle()
+        .then(r => { if (!r.error) setState({ demoAdmin: !!r.data }); }, () => {});
+    }
     // Notification read state and settings (signed-in people only)
     if (state.email) {
       sb.from('notif_state').select('all_read_at,read_keys,topics,email').maybeSingle().then(r => {
@@ -551,6 +557,18 @@
     toast(pinned ? 'Pinned' : 'Unpinned', true);
     sb.from('memberships').update({ pinned }).eq('group_id', g.id).eq('user_id', state.me)
       .then(r => { if (r.error) throw r.error; }).catch(e => { console.error(e); g.pinned = !pinned; toast(FAILED); });
+  };
+
+  // The owner's one-tap removal of the seeded demo content (wipe_demo() checks it's them)
+  const wipeDemo = () => {
+    const n = state.sparks.filter(s => s.demo).length;
+    setState({ confirm: { title: 'Remove all demo content?', danger: true, cta: 'Remove it', keep: 'Keep it',
+      body: 'Deletes the ' + n + (n === 1 ? ' demo idea or plan' : ' demo ideas and plans') + ' in your groups (with their replies, sign-ups and photos), takes the demo people out of the groups, and stops adding new sign-ups to them. Real posts and people stay. This can’t be undone.',
+      run: () => run(async () => {
+        const r = must(await sb.rpc('wipe_demo')).data;
+        const row = (r && r[0]) || {};
+        toast('Removed ' + (row.ideas || 0) + ' demo ideas and plans', true);
+      }, { confirm: null }) } });
   };
 
   const inviteLink = (code) => location.origin + '/join/' + code;
@@ -2889,6 +2907,13 @@
           '<div ' + on(() => openJoin()) + ' style="display:flex;align-items:center;gap:10px;min-height:54px;cursor:pointer">' + I.keypad(16) + '<span style="font-size:15.5px;font-weight:800;color:#5b4ae8">Join with a code</span></div>' +
           '<div ' + on(startGroup) + ' style="display:flex;align-items:center;gap:10px;min-height:48px;border-top:1px solid #f2f3f6;cursor:pointer">' + I.plus(15, '#6b7280', 2.4) + '<span style="font-size:14.5px;font-weight:700;color:#5c6270">Start a group</span></div>') +
         '<div style="display:flex;flex-direction:column;gap:14px">' +
+          (st.demoAdmin && st.sparks.some(s => s.demo)
+            ? '<div style="' + CARD + ';padding:14px 16px;display:flex;flex-direction:column;gap:10px">' +
+                '<div><div style="font-size:15.5px;font-weight:800;color:#0d1117">Demo content</div>' +
+                '<div style="margin-top:2px;font-size:13.5px;line-height:1.4;font-weight:500;color:#6b7280">' + st.sparks.filter(s => s.demo).length + ' ideas and plans in your groups are demo content. Only you can see this.</div></div>' +
+                '<button type="button" ' + on(wipeDemo) + ' style="align-self:flex-start;min-height:40px;padding:0 16px;border:1.5px solid #f5c2cb;border-radius:999px;background:#fff;color:#9b1c31;font-family:inherit;font-size:14px;font-weight:800;cursor:pointer">Remove all demo content</button>' +
+              '</div>'
+            : '') +
           '<div ' + on(() => go('how')) + ' style="' + CARD + ';padding:0 16px;min-height:52px;display:flex;align-items:center;justify-content:space-between;cursor:pointer"><span style="font-size:15.5px;font-weight:800;color:#0d1117">How Spark Hub works</span>' + I.chevR(16, '#9aa0ac', 2.4) + '</div>' +
           '<div ' + on(signOut) + ' style="' + CARD + ';padding:0 16px;min-height:52px;display:flex;align-items:center;cursor:pointer"><span style="font-size:15.5px;font-weight:800;color:#9b1c31">Sign out</span></div>' +
           '<a href="/privacy.html" target="_blank" rel="noopener" style="align-self:center;display:flex;align-items:center;min-height:36px;padding:0 10px;font-size:13.5px;font-weight:700;color:#6b7280">Privacy</a>' +

@@ -1,3 +1,7 @@
+-- SUPERSEDED (2026-09-30) by the demo_roster table and trigger in migration 20260930000000_demo_world.sql
+-- (roles up to owner, plus auto-joining the demo groups); that migration drops this file's trigger and
+-- scripts/demo/demo-world.sql carries its rows over. Don't re-apply this file.
+--
 -- Pre-arranged memberships for testers. Written for the test project; the owner
 -- asked for it on LIVE too, for now (2026-09-25), so Joseph's accounts work there
 -- (and Stacy's and Auburn's, added the same day).

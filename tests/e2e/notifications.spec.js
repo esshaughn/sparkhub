@@ -4,7 +4,8 @@ const { test, expect } = require('@playwright/test');
 const { uniqueTitle, newLead, postEvent, deleteIdea, confirm } = require('./helpers');
 
 const esc = (t) => t.replace(/[[\]]/g, '\\$&');
-const inDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+// Local dates, like the app (toISOString would be UTC, a day ahead in the evening)
+const inDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 
 test('notifications: a new plan, replying from the feed, the host hears back, updates, read state, settings', async ({ browser }) => {
   test.setTimeout(150000);

@@ -91,6 +91,8 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 76 | **Notification settings**: four topics on/off (hide them from the feed and the count). Notifications are **in-app only** for now | Test | No email (owner's call, 2026-09-28); push isn't possible yet (no service worker) |
 | 77 | **Sign-up times**: the host can give a sign-up item a time ("Set up barriers · 8:30am"), shown on the plan and in Your plans | Test | `signup_items.time`, host only |
 | 78 | Temporary **demo content matching the V5 update design** (`scripts/demo/seed-v5-update.py`) | Test | |
+| 79 | **Shared demo world**: everyone who signs in joins Hub on Hunters, Walnut Creek, Woodcliff and Torrez Fitness as a member; named testers get their owner/admin roles from a roster (roles only go up) | Test | `demo_roster`, trigger on sign-in; `scripts/demo/demo-world.sql` |
+| 80 | **Remove all demo content** (Profile, owner's account only): deletes every demo idea and plan, takes the demo people out of the groups, stops auto-joining | Test | `wipe_demo()`, `demo_admins` |
 
 ## Posting and editing
 

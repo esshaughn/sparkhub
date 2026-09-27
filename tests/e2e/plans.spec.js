@@ -4,7 +4,8 @@
 const { test, expect } = require('@playwright/test');
 const { uniqueTitle, newMember, newLead, button, postEvent, openIdea, deleteIdea, answerGuestPrompt, confirm, asUser, PNG } = require('./helpers');
 
-const inDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+// Local dates, like the app (toISOString would be UTC, a day ahead in the evening)
+const inDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 
 test('a plan: guest RSVPs, sign-ups, an update, the host’s notes, then clearing the date', async ({ browser }) => {
   test.setTimeout(150000);

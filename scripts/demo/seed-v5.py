@@ -111,7 +111,7 @@ for gid in groups:
     for d in PLANS + [DONE]:
         lead = P[d['lead']]
         row = {
-            'group_id': gid, 'text': d['text'], 'author_name': d['lead'], 'lead_name': d['lead'], 'lead_id': lead, 'created_by': lead,
+            'group_id': gid, 'demo': True, 'text': d['text'], 'author_name': d['lead'], 'lead_name': d['lead'], 'lead_id': lead, 'created_by': lead,
             'created_at': (now - timedelta(days=3)).isoformat(), 'hopes': [], 'cat': 'events', 'answers': {},
             'vision': d.get('vision'), 'photos': [upload(lead, d['photo'])], 'mood': [],
             'day_date': day(d['days']), 'day_time': d['time'], 'planned': True,

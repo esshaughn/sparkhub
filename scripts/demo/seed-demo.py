@@ -129,7 +129,7 @@ for gid in group_ids:
     for d in IDEAS:
         uid = people[d['lead']]
         row = {
-            'group_id': gid, 'text': d['text'], 'author_name': d['lead'], 'lead_name': d['lead'],
+            'group_id': gid, 'demo': True, 'text': d['text'], 'author_name': d['lead'], 'lead_name': d['lead'],
             'lead_id': uid, 'created_by': uid, 'created_at': (now - timedelta(hours=d['hrs'])).isoformat(),
             'hopes': d['basics'], 'cat': 'events', 'answers': {},
             'photos': [upload(uid, p) for p in d['photos']], 'mood': [upload(uid, p) for p in d['mood']],

@@ -117,7 +117,7 @@ for gid in groups:
         rest('DELETE', 'sparks', query=f'?group_id=eq.{gid}&text=eq.{q(d["text"])}')
         lead = P[d['lead']]
         sid = rest('POST', 'sparks', {
-            'group_id': gid, 'text': d['text'], 'author_name': d['lead'], 'lead_name': d['lead'], 'lead_id': lead, 'created_by': lead,
+            'group_id': gid, 'demo': True, 'text': d['text'], 'author_name': d['lead'], 'lead_name': d['lead'], 'lead_id': lead, 'created_by': lead,
             'created_at': (now - timedelta(days=2)).isoformat(), 'hopes': [], 'cat': 'events', 'answers': {},
             'vision': d.get('vision'), 'photos': [upload(lead, d['photo'])], 'mood': [],
             'day_date': d['date'], 'day_time': d['time'], 'planned': True, 'spot': d['spot'], 'spot_open': False,

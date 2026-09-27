@@ -289,6 +289,20 @@ test('plans: replies, sign-ups, updates, notes and invite-only plans follow the 
       editOthers: (await c.from('notif_state').update({ email: false }).eq('user_id', lena).select()).data?.length ?? 'refused'
     }), lenaId);
     expect(ns).toEqual({ othersRows: 0, writeOthers: 'refused', editOthers: 0 });
+
+    // The demo world: only the owner's account can wipe it; nobody can make themselves that account or flip the flags
+    const demo = await asUser(L, async (c, _C, id) => {
+      const me = (await c.auth.getUser()).data.user.id;
+      const ok = async (q) => { const x = await q; return x.error ? 'refused' : 'ALLOWED'; };
+      return {
+        wipe: await ok(c.rpc('wipe_demo')),
+        makeMeWiper: await ok(c.from('demo_admins').insert({ user_id: me })),
+        flagMyIdea: await ok(c.from('sparks').update({ demo: true }).eq('id', id)),
+        flagGroup: await ok(c.from('groups').update({ demo: false }).eq('name', 'Torrez Fitness')),
+        readRoster: (await c.from('demo_roster').select('*')).error ? 'refused' : 'ALLOWED'
+      };
+    }, made.plan);
+    expect(demo).toEqual({ wipe: 'refused', makeMeWiper: 'refused', flagMyIdea: 'refused', flagGroup: 'refused', readRoster: 'refused' });
   } finally {
     for (const id of ids) await asUser(L, async (c, _C, id) => { await c.from('sparks').delete().eq('id', id); }, id).catch(() => {});
     await lead.context.close();
