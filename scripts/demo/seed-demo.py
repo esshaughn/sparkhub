@@ -111,7 +111,7 @@ IDEAS = [
 group_ids = [] if ONLY else [torrez]
 # --- More groups the owner runs (seed people join them too) ---------------------------------------------------
 ABC = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-for name, photo in [('Hub on Hunters', 'photos/hub-on-hunters.jpg'), ('Woodcliff Neighborhood', 'photos/woodcliff-oaks.jpg'),
+for name, photo in [('Hub on Hunters', 'photos/hub-on-hunters-mask.jpg'), ('Woodcliff Neighborhood', 'photos/woodcliff-oaks.jpg'),
                     ('Walnut Creek Neighborhood', 'photos/walnut-creek.jpg')]:
     have = rest('GET', 'groups', query='?name=eq.' + urllib.parse.quote(name) + '&select=id')
     if have:
