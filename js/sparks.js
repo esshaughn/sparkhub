@@ -40,6 +40,31 @@
     ? window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseKey, { auth: { flowType: 'pkce' } })
     : null;
 
+  // The last data a signed-in person saw, shown straight away on the next open while fresh data
+  // loads (so the app never looks empty between sessions). Per database, and only used for the
+  // same account; guests' phone numbers are left out; cleared on sign-out.
+  const REF = CFG && CFG.supabaseUrl ? new URL(CFG.supabaseUrl).host.split('.')[0] : 'none';
+  const CACHE_KEY = 'spark-hub-cache-' + REF;
+  const signedInUser = () => {   // who the saved Supabase session belongs to, read without waiting on the network
+    try {
+      const t = JSON.parse(localStorage.getItem('sb-' + REF + '-auth-token'));
+      const u = t && t.user;
+      return u && !u.is_anonymous && u.email ? u : null;
+    } catch (e) { return null; }
+  };
+  const readCache = (uid) => {
+    try { const c = JSON.parse(localStorage.getItem(CACHE_KEY)); return c && c.me === uid ? c : null; } catch (e) { return null; }
+  };
+  const writeCache = () => {
+    if (!state.email || !state.loaded || state.error) return;
+    const sparks = state.sparks.map(s => Object.assign({}, s, { contacts: s.contacts.map(c => ({ spark_id: c.spark_id, user_id: c.user_id, name: c.name })) }));
+    try {
+      localStorage.setItem(CACHE_KEY, JSON.stringify({ me: state.me, email: state.email, isGoogle: state.isGoogle, myName: state.myName, myAvatar: state.myAvatar,
+        groups: state.groups, sparks, profiles: state.profiles, sizes: state.sizes, notif: state.notif, demoAdmin: state.demoAdmin, at: Date.now() }));
+    } catch (e) { /* storage full or blocked: the app just loads as before */ }
+  };
+  const clearCache = () => { try { localStorage.removeItem(CACHE_KEY); } catch (e) { /* blocked */ } };
+
   // Only conveniences live in the browser: current group, view, sort, and a guest's name + number
   const PREFS_KEY = 'spark-hub-prefs';
   const loadPrefs = () => {
@@ -166,7 +191,7 @@
     groupId: prefs.groupId || null,
 
     me: null, email: '', isGoogle: false, myName: '', myAvatar: null,
-    loaded: false, error: null, busy: null, toast: null, goneOpen: false,
+    loaded: false, fromCache: false, error: null, busy: null, toast: null, goneOpen: false,
 
     groups: [], sparks: [], profiles: {},
 
@@ -397,20 +422,23 @@
     const mine = profiles[state.me] || {};
     document.documentElement.setAttribute('data-loaded', 'true');   // tests wait for this
     setState({
-      groups, sparks, profiles, loaded: true, error: null,
+      groups, sparks, profiles, loaded: true, fromCache: false, error: null,
       myName: mine.name || state.myName, myAvatar: mine.avatar || null
     });
+    writeCache();
     // Whether you're the account that can wipe the demo content (Profile)
     if (state.email) {
       sb.from('demo_admins').select('user_id').eq('user_id', state.me).maybeSingle()
-        .then(r => { if (!r.error) setState({ demoAdmin: !!r.data }); }, () => {});
+        .then(r => { if (!r.error) { setState({ demoAdmin: !!r.data }); writeCache(); } }, () => {});
     }
     // Notification read state and settings (signed-in people only)
     if (state.email) {
+      const asked = Date.now();
       sb.from('notif_state').select('all_read_at,read_keys,topics,email').maybeSingle().then(r => {
-        if (r.error) return;
+        if (r.error || asked < notifSavedAt) return;   // a read/setting saved since then is newer than this answer
         const d = r.data || {};
         setState({ notif: { allReadAt: d.all_read_at ? Date.parse(d.all_read_at) : 0, read: d.read_keys || [], topics: d.topics || {}, email: d.email !== false, loaded: true } });
+        writeCache();
       }, () => {});
     }
     // Member counts for the Groups page (a nicety: the page works without them)
@@ -419,6 +447,7 @@
       const sizes = {};
       (r.data || []).forEach(x => { sizes[x.group_id] = x.members; });
       setState({ sizes });
+      writeCache();
     }, () => {});
   }
 
@@ -435,6 +464,9 @@
     const u = session.user, meta = u.user_metadata || {};
     const email = !u.is_anonymous && u.email ? u.email : '';
     const google = !u.is_anonymous && ((u.app_metadata || {}).provider === 'google' || ((u.app_metadata || {}).providers || []).indexOf('google') > -1);
+    if (state.me && u.id !== state.me && state.fromCache) {   // cached data was someone else's: don't show it
+      setState({ groups: [], sparks: [], profiles: {}, sizes: {}, loaded: false, fromCache: false, demoAdmin: false });
+    }
     if (u.id !== state.me || email !== state.email || google !== state.isGoogle) {
       setState({ me: u.id, email, isGoogle: google, myName: (u.is_anonymous ? state.myName : metaName(meta) || state.myName).slice(0, 30) });
     }
@@ -1261,6 +1293,7 @@
   };
 
   const signOut = async () => {
+    clearCache();
     await sb.auth.signOut().catch(() => {});
     setState({ email: '', isGoogle: false, myName: '', myAvatar: null, guest: null, groups: [], sparks: [] });
     go('home');
@@ -1636,6 +1669,10 @@
     return out;
   };
 
+  // Loading placeholders (never the empty-state copy) until the first data arrives
+  const skeleton = (n, h) => '<div role="status" aria-label="Loading" style="display:flex;flex-direction:column;gap:14px">' +
+    Array.from({ length: n }, () => '<div aria-hidden="true" style="height:' + h + 'px;border-radius:20px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);animation:skPulse 1.4s ease-in-out infinite"></div>').join('') + '</div>';
+
   // Standard V5 page header: logo left, your photo right (to Profile)
   const headAvatar = () => {
     const url = state.myAvatar ? photoUrl(state.myAvatar) : null;
@@ -1760,6 +1797,11 @@
 
   function viewHome() {
     const st = state, gid = st.homeGroup && groupById(st.homeGroup) ? st.homeGroup : null;
+    if (!st.loaded) {
+      return '<div data-screen-label="Home">' + pageHead('') +
+        '<div style="padding:20px 14px 24px;display:flex;flex-direction:column;gap:14px"><h1 style="margin:0;padding:0 4px;font-size:28px;line-height:1.05;font-weight:900;letter-spacing:-.8px;color:#0d1117">Your plans</h1>' + skeleton(2, 220) + '</div>' +
+        '<div style="height:var(--nav-h)"></div></div>';
+    }
     if (!myGroups().length) {
       return '<div data-screen-label="Home">' + pageHead('') +
         '<div style="padding:20px 14px 26px;display:flex;flex-direction:column;gap:14px">' + goneCard() + noGroupCard() + '</div>' +
@@ -1857,7 +1899,8 @@
         '</div>') +
       '<div style="padding:14px 14px 2px">' + (all.length ? chipRow(all, gid, (id) => setState({ ownGrp: id })) : '') + '</div>' +
       '<div style="padding:12px 14px 26px;display:flex;flex-direction:column;gap:20px">' +
-        (secs.length
+        (!st.loaded ? skeleton(3, 120)
+          : secs.length
           ? secs.map(z => '<div style="display:flex;flex-direction:column;gap:10px"><div style="padding:0 4px;font-size:14px;font-weight:800;color:#6b7280">' + esc(z.label) + '</div>' + z.items.map(card).join('') + '</div>').join('')
           : '<div style="' + CARD + ';padding:18px;font-size:15px;line-height:1.45;font-weight:600;color:#5c6270">Nothing you’re hosting yet. Post an event or float an idea and it lives here.</div>') +
       '</div>' +
@@ -1911,7 +1954,7 @@
           pill('Join a group', I.keypad(11), () => openJoin(), true) + pill('Start a group', I.plus(11, '#454b55', 2.8), startGroup, false) +
         '</div>') +
       '<div style="padding:16px 14px 26px;display:flex;flex-direction:column;gap:12px">' +
-        (groups.length ? big.map(bigCard).join('') : noGroupCard()) +
+        (!state.loaded ? skeleton(2, 200) : groups.length ? big.map(bigCard).join('') : noGroupCard()) +
         (rest.length ? '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' + rest.map(tile).join('') + '</div>' : '') +
       '</div>' +
       '<div style="height:var(--nav-h)"></div>' +
@@ -2055,7 +2098,7 @@
           '<div style="align-self:flex-start">' + scopePicker('calGrp', cg, (id) => setState({ calGrp: id, menu: null }), 'Calendar group', true) + '</div></div>' +
       '</header>' +
       '<div style="padding:14px 14px 0;display:flex;flex-direction:column;gap:12px">' + roleTabs + toolbar + grid + '</div>' +
-      '<div style="padding:16px 14px 26px;display:flex;flex-direction:column;gap:22px">' + body + '</div>' +
+      '<div style="padding:16px 14px 26px;display:flex;flex-direction:column;gap:22px">' + (st.loaded ? body : skeleton(3, 90)) + '</div>' +
       '<div style="height:var(--nav-h)"></div>' +
     '</div>';
   }
@@ -2126,14 +2169,18 @@
   const unreadCount = () => notifList().filter(isUnread).length;
 
   // Saving read state and settings (one row per person)
+  let notifSavedAt = 0;
   const saveNotif = (patch) => {
+    notifSavedAt = Date.now();
     const n = Object.assign({}, state.notif, patch);
     setState({ notif: n });
+    writeCache();
     sb.from('notif_state').upsert({ user_id: state.me, all_read_at: n.allReadAt ? new Date(n.allReadAt).toISOString() : null, read_keys: n.read.slice(-300), topics: n.topics, email: n.email, updated_at: new Date().toISOString() }, { onConflict: 'user_id' })
       .then(r => { if (r.error) throw r.error; }).catch(e => { console.error(e); toast(FAILED); });
   };
   const markRead = (n) => { if (isUnread(n)) saveNotif({ read: state.notif.read.concat([n.key]) }); };
-  const markAllRead = () => saveNotif({ allReadAt: Date.now(), read: [] });
+  // Everything shown counts, even an item stamped a little ahead of this device's clock
+  const markAllRead = () => saveNotif({ allReadAt: Math.max(Date.now(), ...notifList().map(n => n.t)), read: [] });
   const openNotif = (n) => { markRead(n); openSpark(n.s); };
   const rsvpFromFeed = (n, status) => (e) => { stop(e); markRead(n); setRsvp(n.s, status); };
 
@@ -2182,7 +2229,8 @@
         '<div class="no-scrollbar" role="radiogroup" aria-label="Show" style="margin-top:14px;display:flex;gap:8px;overflow-x:auto">' + chip('all', 'All') + chip('invites', 'Invites') + chip('updates', 'Updates') + chip('hosting', 'Hosting') + '</div>' +
       '</header>' +
       '<div style="padding:16px 14px 26px;display:flex;flex-direction:column;gap:16px">' +
-        (secs.length
+        (!st.loaded ? skeleton(4, 76)
+          : secs.length
           ? secs.map(([label, items]) => '<div><div style="padding:0 4px 8px;' + EYEBROW + '">' + label + '</div><div style="' + CARD + ';overflow:hidden">' + items.map(row).join('') + '</div></div>').join('')
           : '<div style="' + CARD + ';padding:18px;font-size:14.5px;line-height:1.45;font-weight:500;color:#6b7280">' + (f === 'all' ? 'You’re all caught up. New plans, updates and replies from the last week show up here.' : 'Nothing here this week.') + '</div>') +
       '</div>' +
@@ -3929,6 +3977,15 @@
 
   Object.assign(state, fromUrl());
   delete state.inviteCode;
+  // Signed in last time? Show their app (from the cache, or loading placeholders), not Welcome
+  const bootUser = sb && signedInUser();
+  if (bootUser) {
+    const c = readCache(bootUser.id);
+    Object.assign(state, { me: bootUser.id, email: bootUser.email }, c
+      ? { isGoogle: c.isGoogle, myName: c.myName || '', myAvatar: c.myAvatar, groups: c.groups || [], sparks: c.sparks || [], profiles: c.profiles || {},
+          sizes: c.sizes || {}, notif: c.notif || state.notif, demoAdmin: !!c.demoAdmin, loaded: true, fromCache: true }
+      : {});
+  }
   render();
   init();
 })();

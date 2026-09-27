@@ -51,7 +51,9 @@ test('notifications: a new plan, replying from the feed, the host hears back, up
     await expect(upd).toContainText(new RegExp('\\w+ posted an update on ' + esc(title)));
     await expect(upd).toContainText('Helmets on, please.');
     await feed.getByRole('radio', { name: 'All' }).click();
+    const saved = O.waitForResponse(r => r.url().includes('/rest/v1/notif_state') && r.request().method() === 'POST');
     await feed.getByText('Mark all read').click();
+    await saved;
     await expect(feed.getByLabel('Unread')).toHaveCount(0);
     await expect(O.getByRole('button', { name: 'Notifications', exact: true })).toBeVisible();
     await O.reload();

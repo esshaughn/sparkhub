@@ -5,7 +5,7 @@
 - **Built (test):** https://gosparkhub-git-test-eric-5958s-projects.vercel.app · **Live:** https://gosparkhub.vercel.app
 - **Source:** github.com/esshaughn/sparkhub (`index.html`, `js/sparks.js`, `css/sparks.css`, `privacy.html`, `supabase/templates/`)
 - **Baseline:** Claude Design's **Spark Hub v5 update** handoff (Your plans, Your events & ideas, all-groups Calendar, group page redesign), which builds on the **Spark Hub Version 5** handoff. Both READMEs and the updated prototype are in `design/spark-hub/`. Some decisions the owner made while V5 was being built aren't in that update; they're in §1.
-- **As of:** 2026-09-30, the v5 update is live; the shared demo world is on the test branch (the email phase is on hold)
+- **As of:** 2026-09-30, the v5 update and the shared demo world are live; the start-up fix is on the test branch (the email phase is on hold)
 
 Where this doc and the design files disagree, **this doc is correct**.
 
@@ -42,6 +42,7 @@ Where this doc and the design files disagree, **this doc is correct**.
 - **The host's "Before the day"** questions (4 prompts, "N of 4 thought through"); tap to answer, Enter to save.
 - **Notification kinds the prototype didn't have**, each a 44px face with a 20px type badge: **is interested in** your idea (`#5b4ae8`, ♥), **suggested** a date or place (`#e8a71c`, ▲), **offered to help organize** (`#7b6ef0`, ★), and "**Tomorrow:** {plan} at 8am · {place}" / "**Today:** …" (`#e2556b`, ⏰). Replies: "{name} is going to / might come to / can't make it to {plan}"; sign-ups: "{name} signed up to bring {item} on {plan}". Empty feed: *You're all caught up. New plans, updates and replies from the last week show up here.*; filtered: *Nothing here this week.*
 - **Your plans / group page when you're in no group:** the *Join with a code* card.
+- **Loading placeholders:** until the first data arrives, Your plans, Your events & ideas, Calendar, Groups and Notifications show pulsing white rounded blocks (the page's card shape, `skPulse` 1.4s) instead of their empty states. After the first visit, the app opens on the last data seen while it refreshes.
 - **Demo content card** (Profile, only on the owner's account, only while demo content exists): white card, "Demo content" 15.5px/800, "N ideas and plans in your groups are demo content. Only you can see this." 13.5px/500 `#6b7280`, and an outlined red button **Remove all demo content** (1.5px `#f5c2cb` border, `#9b1c31` text). It confirms with "Remove all demo content?" / "Remove it" / "Keep it".
 
 ## 3. Behaviour added in the build (no visual change)

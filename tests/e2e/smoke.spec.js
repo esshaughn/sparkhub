@@ -149,3 +149,46 @@ test('members: Home, group switcher, view and sort menus', async ({ browser }) =
     await context.close();
   }
 });
+
+test('opening the app: loading placeholders (never "empty"), then the last screen straight away next time', async ({ browser }) => {
+  const { page, context, errors } = await newLead(browser, 1, 'Tester');   // signed in, loaded once (so cached)
+  const home = page.locator('[data-screen-label=Home]');
+  const hold = async () => {   // hold every data request until released
+    let release; const gate = new Promise(r => { release = r; });
+    await page.route('**/rest/v1/**', async (route) => { await gate; await route.continue().catch(() => {}); });
+    return release;
+  };
+  try {
+    // No cache yet (cleared): placeholders, not Welcome and not the "empty" messages
+    await page.evaluate(() => Object.keys(localStorage).filter(k => k.startsWith('spark-hub-cache')).forEach(k => localStorage.removeItem(k)));
+    let release = await hold();
+    await page.reload();
+    await expect(home.getByRole('status', { name: 'Loading' })).toBeVisible();
+    await expect(page.locator('[data-screen-label=Welcome]')).toHaveCount(0);
+    await expect(page.getByText('You’re not in a group yet.')).toHaveCount(0);
+    await expect(page.getByText('Nothing on the books yet.')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Groups', exact: true }).click();
+    await expect(page.locator('[data-screen-label=Groups]').getByRole('status', { name: 'Loading' })).toBeVisible();
+    await page.getByRole('button', { name: 'Your plans', exact: true }).click();
+    release();
+    await expect(page.locator('html[data-loaded=true]')).toHaveCount(1);
+    await page.unroute('**/rest/v1/**');
+    await expect(home.getByRole('status', { name: 'Loading' })).toHaveCount(0);
+    await expect(home.getByRole('radiogroup', { name: 'View' })).toBeVisible();
+
+    // Next open: the cached screen shows at once, while the fresh data is still on its way
+    release = await hold();
+    await page.reload();
+    await expect(home.getByRole('radiogroup', { name: 'View' })).toBeVisible();
+    await expect(home.getByRole('status', { name: 'Loading' })).toHaveCount(0);
+    await expect(page.locator('html[data-loaded=true]')).toHaveCount(0);
+    release();
+    await expect(page.locator('html[data-loaded=true]')).toHaveCount(1);
+    await page.unroute('**/rest/v1/**');
+
+    // (Sign-out clears the cache too; not exercised here: the test leads are shared with parallel tests)
+    expect(errors).toEqual([]);
+  } finally {
+    await context.close();
+  }
+});

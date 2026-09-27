@@ -75,6 +75,7 @@ test('a group end to end: edit group, cover, rename, invite, pin, admin edits, r
 
     // Groups: pin puts it in the big cards at the top; the gear (owners/admins) opens Edit group
     await A.goto('/');
+    await expect(A.locator('html[data-loaded=true]')).toHaveCount(1);
     await A.getByRole('button', { name: 'Groups', exact: true }).click();
     const gl = A.locator('[data-screen-label=Groups]');
     await gl.getByRole('button', { name: 'Pin ' + groupName }).click();
@@ -128,6 +129,7 @@ test('a group end to end: edit group, cover, rename, invite, pin, admin edits, r
 
     // Bo removes Ada as owner, then as admin
     await B.goto('/');
+    await expect(B.locator('html[data-loaded=true]')).toHaveCount(1);   // fresh data, not the cached screen
     await openProfile(B);
     const bRow = B.locator('[data-screen-label=Profile]').getByRole('button', { name: rx(groupName) });
     await expect(bRow).toContainText('Owner');
@@ -142,6 +144,7 @@ test('a group end to end: edit group, cover, rename, invite, pin, admin edits, r
 
     // Ada is a plain member now: no badge, no Edit link
     await A.goto('/');
+    await expect(A.locator('html[data-loaded=true]')).toHaveCount(1);
     await openProfile(A);
     await expect(A.locator('[data-screen-label=Profile]').getByRole('button', { name: rx(groupName) })).not.toContainText(/Owner|Admin/);
 
