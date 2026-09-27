@@ -20,7 +20,8 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 let page;
-const indexHtml = () => page || (page = fs.readFileSync(path.join(process.cwd(), 'index.html'), 'utf8'));
+const indexHtml = () => page || (page = fs.readFileSync(
+  [path.join(__dirname, '..', 'index.html'), path.join(process.cwd(), 'index.html')].find(f => fs.existsSync(f)), 'utf8'));
 
 const esc = (s) => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
