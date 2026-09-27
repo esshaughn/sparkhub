@@ -5,7 +5,7 @@
    Rendering: each state change re-renders the view to an HTML string and morphs
    it into the live DOM (keeps focus, caret and scroll position intact).
    Event handlers are registered per render and referenced by index via
-   data-on / data-input / data-focus attributes.
+   data-on / data-input attributes.
 
    Data: Supabase (see supabase/migrations/; js/config.js picks live vs test).
    Every visitor gets an anonymous session. Signing in (email code or Google)
@@ -124,7 +124,6 @@
   const handlerFor = (id) => { const [g, i] = String(id || '').split('.'); return +g === GEN ? handlers[+i] : null; };
   const on = (fn, role) => 'data-on="' + reg(fn) + '" role="' + (role || 'button') + '" tabindex="0"';
   const onInput = (fn) => 'data-input="' + reg(fn) + '"';
-  const onFocus = (fn) => 'data-focus="' + reg(fn) + '"';
   const stop = (e) => { if (e && e.stopPropagation) e.stopPropagation(); };
 
   // ---------------------------------------------------------------------------
@@ -136,7 +135,6 @@
   const I = {
     bolt: (size, fill) => svg(size, 'fill="none"', '<path d="M13.2 2.2 7.2 13.1l3.9-.35-.9 8.8 6.9-11.2-4.1.4z" fill="' + fill + '" stroke="' + fill + '" stroke-width="1.7" stroke-linejoin="round"/>'),
     boltRays: (size) => svg(size, 'fill="none"', '<path d="M13.2 2.2 7.2 13.1l3.9-.35-.9 8.8 6.9-11.2-4.1.4z" fill="#f3c55a" stroke="#f3c55a" stroke-width="1.7" stroke-linejoin="round"/><path d="M4.6 4.6 6.9 7.2" stroke="#e8a71c" stroke-width="1.1" stroke-linecap="round"/><path d="M1.9 15.2 5.1 14.9" stroke="#e8a71c" stroke-width="1.1" stroke-linecap="round"/><path d="M19.4 4.6 17.1 7.2" stroke="#e8a71c" stroke-width="1.1" stroke-linecap="round"/><path d="M22.1 15.2 18.9 14.9" stroke="#e8a71c" stroke-width="1.1" stroke-linecap="round"/>'),
-    boltSolid: (size) => svg(size, 'fill="#e8a71c"', '<path d="M13.2 2.2 7.2 13.1l3.9-.35-.9 8.8 6.9-11.2-4.1.4z"/>'),
     plus: (size, color, w) => svg(size, stroke(color, w), '<path d="M12 5v14M5 12h14"/>'),
     x: (size, color, w) => svg(size, stroke(color, w), '<path d="M6 6l12 12M18 6 6 18"/>'),
     chevL: (size, color, w) => svg(size, stroke(color, w), '<path d="M14.5 5.5 8 12l6.5 6.5"/>'),
@@ -151,23 +149,14 @@
     photo: (size, color, w) => svg(size, stroke(color, w), '<rect x="3.5" y="5.5" width="17" height="13" rx="2.5"/><circle cx="9" cy="10.5" r="1.6"/><path d="M20.5 15.5l-4.5-4.5-7.5 7.5"/>'),
     camera: (size) => svg(size, stroke('#0d1117', 2.2), '<path d="M4 8.5h3l1.5-2.5h7L17 8.5h3v10H4Z"/><circle cx="12" cy="13" r="3.2"/>'),
     camera2: svg(14, stroke('#fff', 2.2), '<rect x="3.5" y="6" width="17" height="13" rx="2.5"/><circle cx="12" cy="12.5" r="3.2"/><path d="M9 6l1.2-2h3.6L15 6"/>'),
-    shield: (size, color, w) => svg(size, stroke(color, w) + ' style="flex:0 0 ' + size + 'px;margin-top:2px"', '<path d="M12 3.2 5 6v5.4c0 4.2 2.9 7.4 7 9.4 4.1-2 7-5.2 7-9.4V6l-7-2.8Z"/>'),
     keypad: (size) => svg(size, stroke('#5b4ae8', 2.2), '<rect x="4" y="7" width="16" height="11" rx="2.5"/><path d="M8 11h.01M12 11h.01M16 11h.01M8 14.5h8"/>'),
     star: (size) => '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="#e8a71c" aria-hidden="true"><path d="M12 2.5 14.6 8l6 .7-4.5 4.1 1.2 5.9L12 15.8l-5.3 2.9 1.2-5.9L3.4 8.7l6-.7Z"/></svg>',
     offline: svg(16, stroke('#9b1c31', 2.2), '<path d="M4.5 9.5a11 11 0 0 1 15 0M7.5 13a6.5 6.5 0 0 1 9 0"/><circle cx="12" cy="17" r="1.2" fill="#9b1c31"/><path d="M4 4l16 16"/>'),
-    viewCards: svg(15, 'fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"', '<rect x="4" y="4" width="16" height="7" rx="2"/><rect x="4" y="13" width="16" height="7" rx="2"/>'),
-    viewGrid: svg(15, 'fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"', '<rect x="4" y="4" width="7" height="7" rx="1.8"/><rect x="13" y="4" width="7" height="7" rx="1.8"/><rect x="4" y="13" width="7" height="7" rx="1.8"/><rect x="13" y="13" width="7" height="7" rx="1.8"/>'),
-    viewList: svg(15, 'fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"', '<path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1.2" fill="currentColor"/><circle cx="4.5" cy="12" r="1.2" fill="currentColor"/><circle cx="4.5" cy="18" r="1.2" fill="currentColor"/>'),
-    tabHome: svg(23, stroke('currentColor', 1.9), '<path d="M3 10.5 12 3.5l9 7"/><path d="M5.5 9.5V20h13V9.5"/>'),
-    tabHow: svg(23, stroke('currentColor', 1.9), '<path d="M12 6.5C10.5 5 8 4.3 4 4.5V18c4-.2 6.5.5 8 2 1.5-1.5 4-2.2 8-2V4.5c-4-.2-6.5.5-8 2Z"/><path d="M12 6.5V20"/>'),
-    tabAll: svg(23, stroke('currentColor', 1.9), '<rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/>'),
-    tabCal: svg(23, stroke('currentColor', 1.9), '<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8.5 3v4M15.5 3v4"/>'),
     tabFlag: svg(23, stroke('currentColor', 1.9), '<path d="M5.5 21V4"/><path d="M5.5 4.5h11.5l-2.5 4 2.5 4H5.5"/>'),
     tabGroups: svg(23, stroke('currentColor', 1.9), '<circle cx="9" cy="8.5" r="3.3"/><path d="M3 19.5c.6-3.3 3-5.1 6-5.1s5.4 1.8 6 5.1"/><circle cx="16.8" cy="9.3" r="2.6"/><path d="M16.4 14.5c2.6 0 4.3 1.6 4.8 4.4"/>'),
     tabTicket: svg(23, stroke('currentColor', 1.9), '<path d="M4 8.5V6a1.5 1.5 0 0 1 1.5-1.5h13A1.5 1.5 0 0 1 20 6v2.5a2.5 2.5 0 0 0 0 5V16a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 16v-2.5a2.5 2.5 0 0 0 0-5Z" transform="translate(0 1)"/><path d="m9.2 12.2 2 2 3.8-4"/>'),
     tabCalBig: svg(25, stroke('#fff', 2.1), '<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>'),
     tabBell: svg(23, stroke('currentColor', 1.9), '<path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 1.5h-15Z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>'),
-    tabProfile: svg(23, stroke('currentColor', 1.9), '<circle cx="12" cy="8" r="3.6"/><path d="M4.8 20.5c.6-3.8 3.6-5.8 7.2-5.8s6.6 2 7.2 5.8"/>'),
     google: '<svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true" style="flex:0 0 20px"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>'
   };
 
@@ -205,7 +194,7 @@
     offerKind: null, offerText: '', offerPlace: null, offerSuggest: [],
     joinOpen: false, joinCode: '', joinBad: false,
     notif: { allReadAt: 0, read: [], topics: {}, email: true, loaded: false }, nFilter: 'all', nSettings: false, demoAdmin: false, ownGrp: null, homeGroup: null, taskOpen: {}, calView: 'list', calRole: 'all', calGrp: null, calM: null, calW: null, calSel: null, sizes: {}, membersQ: '', gpRename: null, gpDel: null, ph: null, postTo: false,
-    startName: null, phaseTab: 'plan', sigDraft: '', sigNeed: '', sigTime: '', blast: null, prepEdit: null, prepText: '', invite: null, datesSheet: false,
+    startName: null, phaseTab: 'plan', sigDraft: '', sigNeed: '', sigTime: '', blast: null, prepEdit: null, prepText: '', invite: null,
     pe: null, confirm: null, interestList: false,
     gpCode: '', gpMembers: null
   }, blankCompose());
@@ -1616,12 +1605,10 @@
   const byWhen = (a, b) => whenOf(a).localeCompare(whenOf(b));
   const inMine = (s) => { const g = groupById(s.groupId); return !!(g && g.role); };
   const inScope = (s, gid) => inMine(s) && (!gid || s.groupId === gid);
-  const cardPhoto = (s) => s.photoPaths[0] ? photoUrl(s.photoPaths[0]) : (groupPhoto(groupById(s.groupId)) || '/photos/torrez-trail.jpg');
   const photoBg = (s) => s.photoPaths[0] ? bg(photoUrl(s.photoPaths[0]), posAt(s.coverPos, IDEA_POS)) : groupBg(groupById(s.groupId), "url('/photos/torrez-trail.jpg') center/cover");
   const monthDay = (iso) => new Date(iso + 'T12:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  const dayLabel = (iso) => new Date(iso + 'T12:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
   const monthLabel = (iso) => new Date(iso + 'T12:00').toLocaleDateString('en-US', { month: 'long', year: iso.slice(0, 4) !== todayISO().slice(0, 4) ? 'numeric' : undefined });
-  const shortWhen = (s) => s.dayDate ? dayLabel(s.dayDate) + (s.dayTime ? ' · ' + fmtTime(s.dayTime) : '') : 'No date yet';
+  const shortWhen = (s) => s.dayDate ? fmtDay(s.dayDate) + (s.dayTime ? ' · ' + fmtTime(s.dayTime) : '') : 'No date yet';
   const dateLineOf = (s) => s.dayDate ? shortWhen(s) : (phaseOf(s) === 'idea' ? 'Idea · no date yet' : 'Date TBD');
   const signupFill = (s) => {
     const counted = s.signups.filter(i => i.need);
@@ -1726,7 +1713,7 @@
   const thumbDate = (s) => '<span aria-hidden="true" style="position:relative;overflow:hidden;flex:0 0 96px;width:96px;height:96px;border-radius:14px;background:' + photoBg(s) + '">' +
     '<span style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.88) 0%, rgba(13,17,23,.35) 50%, rgba(13,17,23,0) 75%)"></span>' +
     '<span style="position:absolute;left:8px;right:6px;bottom:7px;display:flex;flex-direction:column;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.35)">' +
-      '<span style="font-size:10.5px;font-weight:900;letter-spacing:.5px;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(s.dayDate ? dayLabel(s.dayDate) : (phaseOf(s) === 'idea' ? 'Idea' : 'Date TBD')) + '</span>' +
+      '<span style="font-size:10.5px;font-weight:900;letter-spacing:.5px;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(s.dayDate ? fmtDay(s.dayDate) : (phaseOf(s) === 'idea' ? 'Idea' : 'Date TBD')) + '</span>' +
       (s.dayDate && s.dayTime ? '<span style="font-size:12.5px;font-weight:800;color:rgba(255,255,255,.9)">' + fmtTime(s.dayTime) + '</span>' : '') +
     '</span></span>';
   // Sections by month, and within them by day (list views)
@@ -1737,16 +1724,16 @@
       let z = secs.find(q => q.label === label);
       if (!z) { z = { label, items: [], days: [] }; secs.push(z); }
       z.items.push(s);
-      const key = s.dayDate ? dayLabel(s.dayDate) : label;
+      const key = s.dayDate ? fmtDay(s.dayDate) : label;
       let d = z.days.find(q => q.key === key);
       if (!d) { d = { key, items: [] }; z.days.push(d); }
       d.items.push(s);
     });
     return secs.sort((a, b) => (a.label === undatedLabel) - (b.label === undatedLabel));
   };
-  const monthHead = (label) => '<span style="padding:0 4px;font-size:12px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#6b7280">' + esc(label) + '</span>';
+  const monthHead = (label) => '<span style="padding:0 4px;' + EYEBROW + '">' + esc(label) + '</span>';
   const dayGroup = (d, row) => '<div style="display:flex;flex-direction:column;gap:6px"><span style="padding:0 4px;font-size:13px;font-weight:800;color:#454b55">' + esc(d.key) + '</span>' +
-    '<div style="background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08);overflow:hidden">' + d.items.map(row).join('') + '</div></div>';
+    '<div style="' + CARD + ';overflow:hidden">' + d.items.map(row).join('') + '</div></div>';
 
   // The helping list ("YOU'RE HELPING:"), two at a time with "+N more"
   const helpBlock = (s, withTime) => {
@@ -1789,7 +1776,7 @@
           '<div style="display:flex;align-items:center;justify-content:space-between">' + svg(18, stroke('#5b4ae8', 2.3), '<path d="M13 2.5 4.5 13.5H11l-1 8 8.5-11H12l1-8Z"/>') +
             '<span style="display:flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 5px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:11.5px;font-weight:900">' + acts.length + '</span></div>' +
           '<span style="margin-top:4px;font-size:12.5px;line-height:1.15;font-weight:900;color:#2a1f8f">Actions</span>' +
-          '<span style="display:flex;align-items:center;gap:2px;font-size:11px;font-weight:800;color:#5b4ae8">Review' + svg(10, stroke('#5b4ae8', 3.2), '<path d="M9 6l6 6-6 6"/>') + '</span></div>'
+          '<span style="display:flex;align-items:center;gap:2px;font-size:11px;font-weight:800;color:#5b4ae8">Review' + I.chevR(10, '#5b4ae8', 3.2) + '</span></div>'
       : '<div aria-label="All set" style="flex:0 0 92px;display:flex;flex-direction:column;justify-content:center;gap:2px;padding:10px;border-radius:14px;background:#e7f6ec">' + svg(18, stroke('#0f7a3c', 3), '<path d="M5 12.5 10 17l9-10"/>') +
           '<span style="margin-top:4px;font-size:12.5px;line-height:1.15;font-weight:900;color:#0f7a3c">All set</span><span style="font-size:11px;font-weight:700;color:#3f7a55">No actions</span></div>';
     return '<div style="display:flex;align-items:stretch;gap:10px;width:100%"><div style="flex:1;min-width:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;padding:2px 0">' + rings + '</div>' + tile + '</div>';
@@ -2441,22 +2428,6 @@
       const url = avatarOf(u);
       return '<span style="' + faceTile(i) + ';background:' + (url ? bg(url) : FACE_COLORS[i % 3]) + '">' + (url ? '' : esc(initialOf(nameOf(u)) || '?')) + '</span>';
     }).join('') + (n > people.length ? '<span style="' + faceTile(people.length) + ';background:#f2f3f6;color:#5c6270">+' + (n - people.length) + '</span>' : '');
-
-    const tile = (ok) => 'flex:0 0 38px;width:38px;height:38px;border-radius:11px;background:' + (ok ? '#fdf1d6' : '#f2f3f6') + ';color:' + (ok ? '#8f6405' : '#9aa0ac') + ';display:flex;align-items:center;justify-content:center';
-    const main = (ok) => 'font-size:15.5px;font-weight:800;letter-spacing:-.2px;color:' + (ok ? '#0d1117' : '#6b7280');
-    const note = (t) => t ? '<div style="margin-top:1px;font-size:13px;font-weight:500;color:#8a909b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + t + '</div>' : '';
-    const action = (t) => '<span style="flex:0 0 auto;font-size:13.5px;font-weight:800;color:#5b4ae8;text-align:right">' + t + '</span>';
-    const rowAttrs = (missing, kind) => missing ? on(() => openOffer(s, kind)) + ' ' : '';
-    const directions = s.spotPoint
-      ? '<a href="https://www.google.com/maps/dir/?api=1&amp;destination=' + s.spotPoint[0] + ',' + s.spotPoint[1] + '" target="_blank" rel="noopener noreferrer" style="font-size:13px;font-weight:800;color:#5b4ae8">Directions</a>'
-      : '';
-    // The address shortens with an ellipsis; "Directions" always stays visible
-    const placeNote = s.spotAddress || directions
-      ? '<div style="margin-top:1px;display:flex;gap:4px;font-size:13px;font-weight:500;color:#8a909b;min-width:0">' +
-          (s.spotAddress ? '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(s.spotAddress) + '</span>' : '') +
-          (directions ? '<span style="flex:0 0 auto">' + (s.spotAddress ? '· ' : '') + directions + '</span>' : '') +
-        '</div>'
-      : '';
 
     const pending = lead ? s.pending : [];
     const myWaiting = lead ? [] : s.pending.filter(p => p.userId === st.me);
@@ -3912,13 +3883,6 @@
   root.addEventListener('pointercancel', phUp);
   root.addEventListener('input', onField);
   root.addEventListener('change', onField);
-
-  root.addEventListener('focusin', (e) => {
-    const el = e.target.closest('[data-focus]');
-    if (!el) return;
-    const fn = handlerFor(el.getAttribute('data-focus'));
-    if (fn) fn(e);
-  });
 
   // ---------------------------------------------------------------------------
   // Boot
