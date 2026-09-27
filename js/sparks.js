@@ -708,19 +708,20 @@
   // Photos
   // ---------------------------------------------------------------------------
 
-  // Shrink to ≤1600px JPEG before upload: phone photos are 3–10 MB, this is ~300 KB
+  // Shrink to ≤1200px JPEG before upload (sharp on a 430px-wide phone at 3x): phone photos are 3–10 MB,
+  // this is ~150 KB. scripts/demo/shrink-photos.py applies the same size to photos already stored.
   const shrinkImage = (file, max) => new Promise((resolve, reject) => {
     if (/hei[cf]/i.test(file.type) || /\.hei[cf]$/i.test(file.name || '')) { reject(new Error('heic')); return; }
     const url = URL.createObjectURL(file);
     const img = new Image();
     img.onload = () => {
-      const scale = Math.min(1, (max || 1600) / Math.max(img.naturalWidth, img.naturalHeight));
+      const scale = Math.min(1, (max || 1200) / Math.max(img.naturalWidth, img.naturalHeight));
       const c = document.createElement('canvas');
       c.width = Math.round(img.naturalWidth * scale);
       c.height = Math.round(img.naturalHeight * scale);
       c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
       URL.revokeObjectURL(url);
-      c.toBlob(b => (b ? resolve(b) : reject(new Error('resize failed'))), 'image/jpeg', 0.82);
+      c.toBlob(b => (b ? resolve(b) : reject(new Error('resize failed'))), 'image/jpeg', 0.78);
     };
     img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('not a readable image')); };
     img.src = url;
@@ -1461,7 +1462,7 @@
     const f = (fileList || [])[0];
     if (!f) return;
     try {
-      const blob = await shrinkImage(f, 600);
+      const blob = await shrinkImage(f, 400);
       setPe({ avatar: { blob, url: URL.createObjectURL(blob) } });
     } catch (e) { toast(BAD_PHOTO); }
   };

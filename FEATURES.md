@@ -137,7 +137,7 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 49 | Tables: groups, memberships, sparks, offers, interests, profiles, guest_contacts, link_access, merge_tokens | Test | Migration `20260925000000_spark_hub_groups.sql` |
 | 50 | Members see their groups' ideas; an idea's link opens just that idea for anyone | Test | `open_idea()` |
 | 51 | Functions: create_group, join_group, group_code, member_count, add_offer, resolve_offer, rename_me, open_idea, prepare/complete_merge | Test | |
-| 52 | Photo bucket `spark-photos` (own-folder rules): idea photos, mood photos, avatars | Live | |
+| 52 | Photo bucket `spark-photos` (own-folder rules): idea photos, mood photos, avatars | Live | Uploads shrink to ≤1200px JPEG (avatars 400px) in the browser; `scripts/demo/shrink-photos.py` shrinks what's already stored, backing originals up to ~/Backups/sparkhub/photos-original |
 | 53 | Live and test databases; migrations | Live | |
 
 ## Operations
