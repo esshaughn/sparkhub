@@ -2,7 +2,7 @@
 
 One app, many groups (Torrez Fitness is one, code TORREZ). Static HTML/CSS/JS (no build step), Supabase for data, deployed by Vercel on every push to `main`. See README.md for structure.
 
-**Renamed 2026-09-25:** live address https://gosparkhub.vercel.app (the Vercel project is `gosparkhub`; the old torrezhub.vercel.app redirects), GitHub repo `esshaughn/sparkhub`, Supabase projects `sparkhub` / `sparkhub-test`, backups in `~/Backups/sparkhub` (launchd `com.sparkhub.backup`). Only this local folder is still called `sparks-torrez`.
+**Renamed 2026-09-25:** live address https://gosparkhub.vercel.app (the Vercel project is `gosparkhub`; the old torrezhub.vercel.app redirects), GitHub repo `esshaughn/sparkhub`, Supabase projects `sparkhub` / `sparkhub-test`, backups in `~/Backups/sparkhub` (launchd `com.sparkhub.backup`). The local folder was renamed from `sparks-torrez` to `sparkhub` on 2026-09-27.
 
 ## Design files
 
