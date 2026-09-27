@@ -121,7 +121,7 @@ test('members: Home, group switcher, view and sort menus', async ({ browser }) =
     await page.getByRole('button', { name: 'Groups', exact: true }).click();
     const groups = page.locator('[data-screen-label=Groups]');
     await expect(groups.getByRole('heading', { name: 'Your groups' })).toBeVisible();
-    await expect(groups).toContainText(/\d+ members/);
+    await expect(groups.getByRole('button', { name: 'Torrez Fitness', exact: true })).not.toContainText(/members/);   // unpinned: a tile, no member count
     await groups.getByRole('button', { name: 'Torrez Fitness', exact: true }).click();
     const browse = page.locator('[data-screen-label=Browse]');
     await expect(browse.getByRole('heading', { name: 'Torrez Fitness' })).toBeVisible();
