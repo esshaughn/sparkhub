@@ -149,7 +149,7 @@ EVENTS = [
     dict(g=H, text='BYO Craft Night', date='2026-10-08', time='19:00', spot='Hub on Hunters', photo='craft-night.jpg',
          lead='stacy.claye@gmail.com', alt='Marisol', going=6, maybe=1, vision='Bring whatever you’re working on. Coffee’s on.',
          signups=[('Bring coffee', 1, None), ('Extra folding tables', 2, '18:30')]),
-    dict(g=H, text='Song Circle Folk Jam', date='2026-10-18', time='19:00', spot='Hub on Hunters', photo='song-circle.jpg',
+    dict(g=H, text='Hootenanny @ the Hub', date='2026-10-18', time='19:00', spot='Hub on Hunters', photo='song-circle.jpg',
          lead='stacy.claye@gmail.com', alt='Dee', going=9, maybe=2, vision='Folk songs around the fire pit. Bring a guitar, a fiddle, a shaker or just your voice. All levels, no mics.',
          signups=[('Hot cider and cocoa', 2, None), ('Firewood for the pit', 2, '18:30')]),
     dict(g=H, text='Paint a Hub mural!!!', date='2026-11-14', time='09:00', spot='Hub on Hunters', photo='projects.jpg',
@@ -209,7 +209,7 @@ EVENTS = [
          alt='Darnell', going=4, maybe=1, vision='Paddles to share. All levels.', signups=[('Extra paddles', 2, None)]),
 ]
 IDEAS = [
-    dict(g=H, text='Folk music song circle', vision='Bring an instrument, or just your voice.', lead='ejshaughn@gmail.com', alt='Theo', fans=4),
+    dict(g=H, text='Folk music song circle', photo='folk-circle.jpg', vision='Bring an instrument, or just your voice.', lead='ejshaughn@gmail.com', alt='Theo', fans=4),
     dict(g=W, text='Grief circle', vision='A quiet hour for anyone carrying a loss. No pressure to talk.', lead='auburn.layman@gmail.com', alt='Hana', fans=3),
     dict(g=C, text='Moms’ walking group (one time, see who’s in)', vision='Weekday morning, kids in tow. If it clicks we keep going.',
          lead='stacy.claye@gmail.com', alt='Marisol', fans=5),
