@@ -59,7 +59,7 @@
     if (!state.email || !state.loaded || state.error) return;
     const sparks = state.sparks.map(s => Object.assign({}, s, { contacts: s.contacts.map(c => ({ spark_id: c.spark_id, user_id: c.user_id, name: c.name })) }));
     try {
-      localStorage.setItem(CACHE_KEY, JSON.stringify({ me: state.me, email: state.email, isGoogle: state.isGoogle, myName: state.myName, myAvatar: state.myAvatar,
+      localStorage.setItem(CACHE_KEY, JSON.stringify({ me: state.me, email: state.email, isGoogle: state.isGoogle, myName: state.myName, myAvatar: state.myAvatar, myPlace: state.myPlace, myBio: state.myBio, memberSince: state.memberSince,
         groups: state.groups, sparks, profiles: state.profiles, sizes: state.sizes, notif: state.notif, demoAdmin: state.demoAdmin, at: Date.now() }));
     } catch (e) { /* storage full or blocked: the app just loads as before */ }
   };
@@ -152,10 +152,10 @@
     keypad: (size) => svg(size, stroke('#5b4ae8', 2.2), '<rect x="4" y="7" width="16" height="11" rx="2.5"/><path d="M8 11h.01M12 11h.01M16 11h.01M8 14.5h8"/>'),
     star: (size) => '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="#e8a71c" aria-hidden="true"><path d="M12 2.5 14.6 8l6 .7-4.5 4.1 1.2 5.9L12 15.8l-5.3 2.9 1.2-5.9L3.4 8.7l6-.7Z"/></svg>',
     offline: svg(16, stroke('#9b1c31', 2.2), '<path d="M4.5 9.5a11 11 0 0 1 15 0M7.5 13a6.5 6.5 0 0 1 9 0"/><circle cx="12" cy="17" r="1.2" fill="#9b1c31"/><path d="M4 4l16 16"/>'),
-    tabFlag: svg(23, stroke('currentColor', 1.9), '<path d="M5.5 21V4"/><path d="M5.5 4.5h11.5l-2.5 4 2.5 4H5.5"/>'),
-    tabGroups: svg(23, stroke('currentColor', 1.9), '<circle cx="9" cy="8.5" r="3.3"/><path d="M3 19.5c.6-3.3 3-5.1 6-5.1s5.4 1.8 6 5.1"/><circle cx="16.8" cy="9.3" r="2.6"/><path d="M16.4 14.5c2.6 0 4.3 1.6 4.8 4.4"/>'),
     tabTicket: svg(23, stroke('currentColor', 1.9), '<path d="M4 8.5V6a1.5 1.5 0 0 1 1.5-1.5h13A1.5 1.5 0 0 1 20 6v2.5a2.5 2.5 0 0 0 0 5V16a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 16v-2.5a2.5 2.5 0 0 0 0-5Z" transform="translate(0 1)"/><path d="m9.2 12.2 2 2 3.8-4"/>'),
-    tabCalBig: svg(25, stroke('#fff', 2.1), '<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>'),
+    tabSpark: svg(23, stroke('currentColor', 1.9), '<path d="M13.2 2.5 6.8 13.4l4.3-.4-1 8.5 7.1-11.3-4.4.4z"/>'),
+    tabCal: svg(23, stroke('currentColor', 1.9), '<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>'),
+    tabSquares: svg(23, stroke('currentColor', 1.9), '<rect x="4" y="4" width="7" height="7" rx="1.8"/><rect x="13" y="4" width="7" height="7" rx="1.8"/><rect x="4" y="13" width="7" height="7" rx="1.8"/><rect x="13" y="13" width="7" height="7" rx="1.8"/>'),
     tabBell: svg(23, stroke('currentColor', 1.9), '<path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 1.5h-15Z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>'),
     google: '<svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true" style="flex:0 0 20px"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>'
   };
@@ -193,7 +193,7 @@
     guestName: prefs.guestName || '', guestPhone: prefs.guestPhone || '',
     offerKind: null, offerText: '', offerPlace: null, offerSuggest: [],
     joinOpen: false, joinCode: '', joinBad: false,
-    notif: { allReadAt: 0, read: [], topics: {}, email: true, loaded: false }, nFilter: 'all', nSettings: false, demoAdmin: false, ownGrp: null, homeGroup: null, taskOpen: {}, calView: 'list', calRole: 'all', calGrp: null, calM: null, calW: null, calSel: null, sizes: {}, membersQ: '', gpRename: null, gpDel: null, ph: null, postTo: false,
+    notif: { allReadAt: 0, read: [], topics: {}, email: true, loaded: false }, nFilter: 'all', nSettings: false, demoAdmin: false, ownTab: 'plan', back: null, myPlace: '', myBio: '', memberSince: null, ownGrp: null, homeGroup: null, taskOpen: {}, calView: 'list', calRole: 'all', calGrp: null, calM: null, calW: null, calSel: null, sizes: {}, membersQ: '', gpRename: null, gpDel: null, ph: null, postTo: false,
     startName: null, phaseTab: 'plan', sigDraft: '', sigNeed: '', sigTime: '', blast: null, prepEdit: null, prepText: '', invite: null,
     pe: null, confirm: null, interestList: false,
     gpCode: '', gpMembers: null
@@ -245,9 +245,14 @@
   };
 
   const scroller = () => document.querySelector('.scroller');
+  // Screens an event page can come back to, with their scroll position; anywhere else falls back to the group's page
+  const ORIGINS = ['home', 'own', 'calendar', 'notifs', 'groups', 'browse', 'profile'];
   const go = (screen, extra) => {
-    setState(Object.assign({ screen, menu: null, zoom: null }, extra || {}));
     const sc = scroller();
+    if (screen === 'detail' && state.screen !== 'detail') {
+      state.back = ORIGINS.indexOf(state.screen) > -1 ? { screen: state.screen, groupId: state.groupId, phaseTab: state.phaseTab, ownTab: state.ownTab, scroll: sc ? sc.scrollTop : 0 } : null;
+    }
+    setState(Object.assign({ screen, menu: null, zoom: null }, extra || {}));
     if (sc) sc.scrollTop = 0;
   };
 
@@ -405,14 +410,14 @@
     ids.delete(null); ids.delete(undefined);
     const profiles = {};
     for (const part of chunks(Array.from(ids), 80)) {
-      const res = must(await sb.from('profiles').select('id,name,avatar_path').in('id', part));
-      res.data.forEach(p => { profiles[p.id] = { name: p.name || '', avatar: PHOTO_PATH.test(p.avatar_path || '') ? p.avatar_path : null }; });
+      const res = must(await sb.from('profiles').select('id,name,avatar_path,place,bio').in('id', part));
+      res.data.forEach(p => { profiles[p.id] = { name: p.name || '', avatar: PHOTO_PATH.test(p.avatar_path || '') ? p.avatar_path : null, place: p.place || '', bio: p.bio || '' }; });
     }
     const mine = profiles[state.me] || {};
     document.documentElement.setAttribute('data-loaded', 'true');   // tests wait for this
     setState({
       groups, sparks, profiles, loaded: true, fromCache: false, error: null,
-      myName: mine.name || state.myName, myAvatar: mine.avatar || null
+      myName: mine.name || state.myName, myAvatar: mine.avatar || null, myPlace: mine.place || '', myBio: mine.bio || ''
     });
     writeCache();
     // Whether you're the account that can wipe the demo content (Profile)
@@ -457,7 +462,7 @@
       setState({ groups: [], sparks: [], profiles: {}, sizes: {}, loaded: false, fromCache: false, demoAdmin: false });
     }
     if (u.id !== state.me || email !== state.email || google !== state.isGoogle) {
-      setState({ me: u.id, email, isGoogle: google, myName: (u.is_anonymous ? state.myName : metaName(meta) || state.myName).slice(0, 30) });
+      setState({ me: u.id, email, isGoogle: google, myName: (u.is_anonymous ? state.myName : metaName(meta) || state.myName).slice(0, 30), memberSince: u.created_at ? new Date(u.created_at).getFullYear() : state.memberSince });
     }
   };
 
@@ -1399,7 +1404,7 @@
   // ---------------------------------------------------------------------------
 
   const openProfileEdit = () => setState({ pe: {
-    name: state.myName, email: state.email, step: 'form', code: '',
+    name: state.myName, email: state.email, place: state.myPlace, bio: state.myBio, step: 'form', code: '',
     avatar: state.myAvatar ? { url: photoUrl(state.myAvatar), path: state.myAvatar } : null
   } });
   const setPe = (p) => setState({ pe: Object.assign({}, state.pe, p) });
@@ -1417,6 +1422,8 @@
       if (pe.avatar && pe.avatar.blob) avatar = await uploadBlob(pe.avatar.blob);
       if (!pe.avatar) avatar = null;
       if (avatar !== old) must(await sb.from('profiles').upsert({ id: state.me, avatar_path: avatar, updated_at: new Date().toISOString() }, { onConflict: 'id' }));
+      const place = (pe.place || '').trim().slice(0, 40), bio = (pe.bio || '').trim().slice(0, 160);
+      if (place !== state.myPlace || bio !== state.myBio) must(await sb.from('profiles').upsert({ id: state.me, place: place || null, bio: bio || null, updated_at: new Date().toISOString() }, { onConflict: 'id' }));
       if (name !== state.myName) await saveName(name, true);
       if (emailChanged) must(await sb.auth.updateUser({ email: newEmail }));
       await loadFresh();
@@ -1618,6 +1625,20 @@
   const myClaims = (s) => s.signups.filter(it => it.claims.some(c => c.userId === state.me));
   const maybes = (s) => s.rsvps.filter(r => r.status === 'maybe');
   const openSpark = (s) => go('detail', { subjectId: s.id, tag: null, menu: null });
+  const backLabel = (s) => {
+    const b = state.back, g = groupById(s.groupId);
+    if (!b) return g && g.role ? g.name : 'home';
+    return { home: 'Your schedule', own: b.ownTab === 'idea' ? 'Your ideas' : 'Your plans', calendar: 'Calendar', notifs: 'Notifications', groups: 'Groups', profile: 'Profile', browse: (groupById(b.groupId) || g || {}).name || 'the group' }[b.screen];
+  };
+  const goBack = (s) => {
+    const b = state.back, g = groupById(s.groupId);
+    if (!b) { go(g && g.role ? 'browse' : 'home', g && g.role ? { groupId: g.id } : {}); return; }
+    setState({ screen: b.screen, groupId: b.groupId || state.groupId, phaseTab: b.phaseTab, ownTab: b.ownTab, back: null, menu: null, zoom: null });
+    const sc = scroller();
+    if (sc) sc.scrollTop = b.scroll;
+  };
+  const backBtn = (s) => '<span ' + on(() => goBack(s)) + ' aria-label="Back to ' + esc(backLabel(s)) + '" style="flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:rgba(255,255,255,.94);box-shadow:0 2px 10px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.chevL(20, '#0d1117', 2.6) + '</span>';
+  const EDIT_PILL = 'flex:0 0 auto;display:flex;align-items:center;gap:6px;min-height:40px;padding:0 14px;border-radius:999px;background:rgba(255,255,255,.94);box-shadow:0 2px 10px rgba(0,0,0,.25);font-size:14px;font-weight:800;color:#0d1117;cursor:pointer';
 
   // Ideas you lead, your upcoming plans, and ones that happened in the last 3 days
   const leadingList = (gid) => state.sparks.filter(s => isLead(s) && inScope(s, gid) && (phaseOf(s) !== 'done' || (s.dayDate && dayDiff(s.dayDate) >= -3)));
@@ -1668,10 +1689,15 @@
   const pageHead = (right, below) => '<header style="background:#fff;padding:14px 18px 14px">' +
     '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px">' + logo(false) + '<div style="display:flex;align-items:center;gap:10px;min-width:0">' + (right || '') + headAvatar() + '</div></div>' +
     (below || '') + '</header>';
+  const H1 = (text, extra) => '<h1 style="margin:0;font-size:36px;line-height:1;font-weight:900;letter-spacing:-1.2px;color:#0d1117;' + (extra || '') + '">' + text + '</h1>';
+  // Every other tab: the title at 40px, one optional control on its row, no logo or photo
+  const titleHead = (title, right, below) => '<header style="background:#fff;padding:40px 18px 16px">' +
+    '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px">' + title + (right || '') + '</div>' + (below || '') + '</header>';
   // Temporary, per the design: "Remove before launch"
   const DRAFT_STAMP = '<div role="note" aria-label="Rough draft" style="position:absolute;top:calc(150px + var(--pt));right:22px;z-index:20;pointer-events:none;user-select:none;transform:rotate(-8deg);padding:10px 20px;border:4px solid #3d2a00;border-radius:12px;background:#f5b428;color:#3d2a00;font-size:22px;line-height:1;font-weight:900;letter-spacing:1.6px;text-transform:uppercase;white-space:nowrap;box-shadow:0 4px 12px rgba(61,42,0,.3)">Rough draft</div>';
 
-  const scopePicker = (key, cur, pick, label, big) => {
+  const scopePicker = (key, cur, pick, label, mode) => {
+    const big = mode === 'big', pill = mode === 'pill';
     const open = state.menu === key, g = groupById(cur);
     const row = (id, name) => {
       const onIt = (id || null) === (cur || null);
@@ -1679,12 +1705,12 @@
     };
     const name = g && g.role ? g.name : 'All groups';
     return '<div data-menu style="position:relative;min-width:0">' +
-      '<div ' + on((e) => { stop(e); setState({ menu: open ? null : key }); }) + ' aria-label="' + label + '" aria-expanded="' + open + '" style="display:flex;align-items:center;gap:' + (big ? 8 : 5) + 'px;min-height:' + (big ? 44 : 40) + 'px;cursor:pointer;min-width:0">' +
-        (big ? '<span style="font-size:32px;line-height:1.05;font-weight:900;letter-spacing:-1px;color:#0d1117">' + esc(name) + '</span>' + I.chevD(20, '#0d1117', 2.6)
+      '<div ' + on((e) => { stop(e); setState({ menu: open ? null : key }); }) + ' aria-label="' + label + '" aria-expanded="' + open + '" style="' + (pill ? 'display:flex;align-items:center;gap:8px;min-height:44px;padding:0 14px 0 16px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);font-size:15px;font-weight:800;color:#0d1117;cursor:pointer' : 'display:flex;align-items:center;gap:' + (big ? 8 : 5) + 'px;min-height:' + (big ? 44 : 40) + 'px;cursor:pointer;min-width:0') + '">' +
+        (pill ? '<span>' + esc(name) + '</span>' + I.chevD(14, '#0d1117', 2.8) : big ? '<span style="font-size:32px;line-height:1.05;font-weight:900;letter-spacing:-1px;color:#0d1117">' + esc(name) + '</span>' + I.chevD(20, '#0d1117', 2.6)
           : '<span style="font-size:14px;font-weight:800;color:#454b55;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px">' + esc(name) + '</span>' + I.chevD(12, '#454b55', 2.8)) +
       '</div>' +
       (open
-        ? '<div role="menu" aria-label="' + label + '" style="position:absolute;top:calc(100% + 6px);' + (big ? 'left:-4px' : 'right:-50px') + ';z-index:25;width:' + (big ? 290 : 230) + 'px;padding:6px;border-radius:16px;background:#fff;box-shadow:0 12px 32px rgba(15,18,25,.18), 0 0 0 1px #e6e7eb;animation:popIn 160ms ease both">' +
+        ? '<div role="menu" aria-label="' + label + '" style="position:absolute;top:calc(100% + 6px);' + (big ? 'left:-4px' : pill ? 'left:0' : 'right:-50px') + ';z-index:25;width:' + (big ? 290 : 230) + 'px;padding:6px;border-radius:16px;background:#fff;box-shadow:0 12px 32px rgba(15,18,25,.18), 0 0 0 1px #e6e7eb;animation:popIn 160ms ease both">' +
             row(null, 'All groups') + groupsInOrder().map(x => row(x.id, x.name)).join('') + '</div>'
         : '') +
     '</div>';
@@ -1696,19 +1722,29 @@
     list: '<path d="M9 6h11M9 12h11M9 18h11"/><path d="M4.5 6h.01M4.5 12h.01M4.5 18h.01" stroke-width="3"/>',
     grid: '<rect x="4" y="4" width="7" height="7" rx="1.6"/><rect x="13" y="4" width="7" height="7" rx="1.6"/><rect x="4" y="13" width="7" height="7" rx="1.6"/><rect x="13" y="13" width="7" height="7" rx="1.6"/>'
   };
-  const viewSwitch = (cur, set) => '<div role="radiogroup" aria-label="View" style="flex:0 0 auto;display:flex;gap:2px;padding:3px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08)">' +
-    [['tiles', 'Tiles'], ['list', 'List'], ['grid', 'Grid']].map(([k, label]) => '<span ' + on(() => set(k), 'radio') + ' aria-checked="' + (cur === k) + '" aria-label="' + label + '" style="width:38px;height:32px;border-radius:999px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:' + (cur === k ? '#0d1117' : 'transparent') + '">' +
-      svg(15, 'fill="none" stroke="' + (cur === k ? '#fff' : '#6b7280') + '" stroke-width="2.3" stroke-linecap="round"', VIEW_ICONS[k]) + '</span>').join('') + '</div>';
+  const VIEW_NAMES = { tiles: 'Tiles', list: 'List', grid: 'Grid' };
+  // The current view's icon opens a menu (Your schedule and group pages); it sits on the first month row
+  const viewPicker = (key, cur, set) => {
+    const open = state.menu === key, icon = (k, c) => svg(17, 'fill="none" stroke="' + c + '" stroke-width="2.2" stroke-linecap="round"', VIEW_ICONS[k]);
+    return '<div data-menu style="position:relative;flex:0 0 auto">' +
+      '<div ' + on((e) => { stop(e); setState({ menu: open ? null : key }); }) + ' aria-label="View: ' + VIEW_NAMES[cur] + '" aria-haspopup="menu" aria-expanded="' + open + '" style="display:flex;align-items:center;gap:4px;min-height:40px;padding:0 6px;color:#6b7280;cursor:pointer">' + icon(cur, 'currentColor') + I.chevD(12, 'currentColor', 2.8) + '</div>' +
+      (open
+        ? '<div role="menu" aria-label="View" style="position:absolute;top:calc(100% + 4px);right:0;z-index:25;min-width:160px;padding:6px;border-radius:16px;background:#fff;border:1px solid #eceef2;box-shadow:0 18px 44px rgba(15,18,25,.2);animation:popIn 160ms ease both">' +
+            VIEWS.map(k => '<div ' + on((e) => { stop(e); set(k); }) + ' style="display:flex;align-items:center;gap:10px;min-height:42px;padding:0 10px;border-radius:10px;cursor:pointer">' + icon(k, '#6b7280') +
+              '<span style="flex:1;font-size:15px;font-weight:' + (k === cur ? 900 : 700) + ';color:' + (k === cur ? '#5b4ae8' : '#0d1117') + '">' + VIEW_NAMES[k] + '</span>' + (k === cur ? I.check(16, '#5b4ae8', 2.6) : '') + '</div>').join('') + '</div>'
+        : '') +
+    '</div>';
+  };
 
   // Photo cards: the date line, title and place over the photo
   const PIN_SM = svg(11, stroke('currentColor', 2.6) + ' style="flex:0 0 11px"', '<path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Z"/><circle cx="12" cy="10" r="2.4"/>');
   const FLAG_SM = svg(11, stroke('currentColor', 2.6), '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>');
   const HAND_SM = svg(11, stroke('currentColor', 2.6), '<path d="M18 11V6a2 2 0 0 0-4 0v5M14 10V4a2 2 0 0 0-4 0v6M10 10.5V6a2 2 0 0 0-4 0v8a8 8 0 0 0 16 0v-3a2 2 0 0 0-4 0"/>');
   const PHOTO_GRAD = '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.92) 0%, rgba(13,17,23,.4) 45%, rgba(13,17,23,0) 75%)"></div>';
-  const overlay = (s, ink, small) => '<div style="position:absolute;left:' + (small ? 10 : 14) + 'px;right:' + (small ? 10 : 14) + 'px;bottom:' + (small ? 9 : 12) + 'px;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.3)">' +
-    '<div style="font-size:10.5px;font-weight:900;letter-spacing:.7px;text-transform:uppercase;color:' + ink + '">' + esc(dateLineOf(s)) + '</div>' +
+  const overlay = (s, ink, small, line, place) => '<div style="position:absolute;left:' + (small ? 10 : 14) + 'px;right:' + (small ? 10 : 14) + 'px;bottom:' + (small ? 9 : 12) + 'px;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.3)">' +
+    '<div style="font-size:10.5px;font-weight:900;letter-spacing:.7px;text-transform:uppercase;color:' + ink + '">' + esc(line || dateLineOf(s)) + '</div>' +
     '<div style="margin-top:2px;font-size:' + (small ? '15px;line-height:1.18;letter-spacing:-.3px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden' : '20px;line-height:1.12;letter-spacing:-.4px;text-wrap:pretty') + ';font-weight:900">' + esc(s.text) + '</div>' +
-    '<div style="margin-top:' + (small ? 3 : 4) + 'px;display:flex;align-items:center;gap:' + (small ? 4 : 5) + 'px;font-size:' + (small ? 11 : 12.5) + 'px;font-weight:700;color:rgba(255,255,255,.88);min-width:0">' + PIN_SM + '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(s.spot || 'Location TBD') + '</span></div>' +
+    '<div style="margin-top:' + (small ? 3 : 4) + 'px;display:flex;align-items:center;gap:' + (small ? 4 : 5) + 'px;font-size:' + (small ? 11 : 12.5) + 'px;font-weight:700;color:rgba(255,255,255,.88);min-width:0">' + PIN_SM + '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(s.spot || place || 'Location TBD') + '</span></div>' +
   '</div>';
   const thumbDate = (s) => '<span aria-hidden="true" style="position:relative;overflow:hidden;flex:0 0 96px;width:96px;height:96px;border-radius:14px;background:' + photoBg(s) + '">' +
     '<span style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.88) 0%, rgba(13,17,23,.35) 50%, rgba(13,17,23,0) 75%)"></span>' +
@@ -1731,18 +1767,21 @@
     });
     return secs.sort((a, b) => (a.label === undatedLabel) - (b.label === undatedLabel));
   };
-  const monthHead = (label) => '<span style="padding:0 4px;' + EYEBROW + '">' + esc(label) + '</span>';
-  const dayGroup = (d, row) => '<div style="display:flex;flex-direction:column;gap:6px"><span style="padding:0 4px;font-size:13px;font-weight:800;color:#454b55">' + esc(d.key) + '</span>' +
-    '<div style="' + CARD + ';overflow:hidden">' + d.items.map(row).join('') + '</div></div>';
+  const monthHead = (label, right) => '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 4px"><h3 style="margin:0;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:#0d1117">' + esc(label) + '</h3>' + (right || '') + '</div>';
+  // A day's rows: one card (group pages), or a bubble per event (Your schedule)
+  const dayGroup = (d, row, split) => '<div style="display:flex;flex-direction:column;gap:6px"><span style="padding:0 4px;font-size:13px;font-weight:800;color:#454b55">' + esc(d.key) + '</span>' +
+    (split ? '<div style="display:flex;flex-direction:column;gap:8px">' + d.items.map(x => '<div style="' + CARD + ';overflow:hidden">' + row(x, 0) + '</div>').join('') + '</div>'
+      : '<div style="' + CARD + ';overflow:hidden">' + d.items.map(row).join('') + '</div>') + '</div>';
 
   // The helping list ("YOU'RE HELPING:"), two at a time with "+N more"
-  const helpBlock = (s, withTime) => {
+  const helpBlock = (s, withTime, small) => {
     const mine = myClaims(s);
     if (!mine.length) return '';
     const open = !!state.taskOpen[s.id], shown = open || mine.length <= 2 ? mine : mine.slice(0, 2);
-    return '<div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:10.5px;font-weight:900;letter-spacing:.9px;color:#8f6405">YOU’RE HELPING:</span>' +
-      shown.map(it => '<div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;color:#3d2a00"><span style="flex:0 0 6px;width:6px;height:6px;border-radius:999px;background:#e8a71c"></span><span style="flex:1;min-width:0">' + esc(it.item) + '</span>' +
-        (withTime && it.time ? '<span style="flex:0 0 auto;padding:2px 8px;border-radius:999px;background:#fdf1d6;font-size:12px;font-weight:800;color:#8f6405">' + fmtTime(it.time) + '</span>' : '') + '</div>').join('') +
+    const f = small ? [9.5, 12.5, 5, 11] : [10.5, 14, 6, 12];   // label, item, dot, time chip
+    return '<div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:' + f[0] + 'px;font-weight:900;letter-spacing:.9px;color:#8f6405">YOU’RE HELPING:</span>' +
+      shown.map(it => '<div style="display:flex;align-items:center;gap:8px;font-size:' + f[1] + 'px;font-weight:700;color:#3d2a00"><span style="flex:0 0 ' + f[2] + 'px;width:' + f[2] + 'px;height:' + f[2] + 'px;border-radius:999px;background:#e8a71c"></span><span style="flex:1;min-width:0">' + esc(it.item) + '</span>' +
+        (withTime && it.time ? '<span style="flex:0 0 auto;padding:2px 8px;border-radius:999px;background:#fdf1d6;font-size:' + f[3] + 'px;font-weight:800;color:#8f6405">' + fmtTime(it.time) + '</span>' : '') + '</div>').join('') +
       (mine.length > 2 ? '<span ' + on((e) => { stop(e); setState({ taskOpen: Object.assign({}, state.taskOpen, { [s.id]: !open }) }); }) + ' style="align-self:flex-start;display:flex;align-items:center;gap:4px;min-height:32px;padding:0 2px;font-size:13px;font-weight:800;color:#8f6405;cursor:pointer">' +
         (open ? 'Show less' : '+' + (mine.length - 2) + ' more') + svg(12, stroke('#c28a12', 3) + ' style="transform:' + (open ? 'rotate(180deg)' : 'none') + '"', '<path d="M6 9l6 6 6-6"/>') + '</span>' : '') +
     '</div>';
@@ -1782,29 +1821,56 @@
     return '<div style="display:flex;align-items:stretch;gap:10px;width:100%"><div style="flex:1;min-width:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;padding:2px 0">' + rings + '</div>' + tile + '</div>';
   };
 
+  const leadChip = (small, n) => '<div aria-label="You’re leading" style="position:absolute;top:' + (small ? 8 : 12) + 'px;right:' + (small ? 8 : 12) + 'px;display:flex;align-items:center;gap:3px;height:' + (small ? 22 : 24) + 'px;padding:0 8px 0 6px;border-radius:999px;background:#5b4ae8;box-shadow:0 1px 4px rgba(0,0,0,.3);font-size:' + (small ? 10.5 : 11.5) + 'px;font-weight:900;color:#fff">' + FLAG_SM + (n ? 'Leading · ' + n + ' to do' : 'Leading') + '</div>';
+  const helpChip = '<div aria-label="You’re helping" style="position:absolute;top:8px;right:8px;display:flex;align-items:center;gap:3px;height:22px;padding:0 8px 0 6px;border-radius:999px;background:rgba(13,17,23,.5);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);font-size:10.5px;font-weight:800;color:#ffd978">' + HAND_SM + 'Helping</div>';
+
+  // An idea's four readiness steps (Your ideas): a ring fills as it comes together, then goes solid green
+  const STEP_ICON = {
+    cal: '<rect x="4" y="5" width="16" height="15" rx="2.5"/><path d="M4 10h16M9 3v4M15 3v4"/>',
+    pin: '<path d="M12 21s-6.5-6.2-6.5-11.2a6.5 6.5 0 0 1 13 0C18.5 14.8 12 21 12 21Z"/><circle cx="12" cy="9.8" r="2.3"/>',
+    people: '<circle cx="9" cy="8.5" r="3"/><path d="M3.5 19c.5-3 2.7-4.7 5.5-4.7s5 1.7 5.5 4.7"/><circle cx="16.5" cy="9.5" r="2.4"/><path d="M16 14.4c2.4 0 4.1 1.5 4.5 4.1"/>',
+    list: '<path d="M10 6.5h10M10 12h10M10 17.5h10"/><path d="m3.8 6.5 1.4 1.4 2.3-2.6M3.8 12l1.4 1.4 2.3-2.6"/><path d="M4.5 17.5h1.5"/>'
+  };
+  const readiness = (s) => {
+    const n = s.interested.length, top = s.dateOpts.reduce((m, o) => Math.max(m, o.votes.length), 0), f = signupFill(s);
+    return [
+      ['cal', 'Date', s.dayDate ? 1 : Math.min(.9, top / Math.max(1, n))],
+      ['pin', 'Location', s.spot ? 1 : (s.spotOpts.length || s.pending.some(o => o.kind === 'spot')) ? .5 : 0],
+      ['people', 'People', s.minPeople ? Math.min(1, n / s.minPeople) : (n ? 1 : 0)],   // no minimum to set yet: done once anyone's in
+      ['list', 'Tasks', f.counted ? f.filled / f.needed : (f.rows ? 1 : 0)]
+    ];
+  };
+  const stepRing = ([icon, label, frac]) => {
+    const done = frac >= 1, C = 2 * Math.PI * 16;
+    return '<div aria-label="' + label + (done ? ': done' : ': not yet') + '" style="display:flex;flex-direction:column;align-items:center;gap:5px">' +
+      (done
+        ? '<span style="width:36px;height:36px;border-radius:999px;background:#149a4b;display:flex;align-items:center;justify-content:center">' + svg(16, stroke('#fff', 2.4), '<path d="m5.5 12.5 4.2 4.2 8.8-9.4"/>') + '</span>'
+        : '<span style="position:relative;width:36px;height:36px;display:block"><svg width="36" height="36" viewBox="0 0 36 36" aria-hidden="true" style="position:absolute;inset:0;transform:rotate(-90deg)"><circle cx="18" cy="18" r="16" fill="none" stroke="#eef0f3" stroke-width="3"/>' +
+            (frac > 0 ? '<circle cx="18" cy="18" r="16" fill="none" stroke="#e8a71c" stroke-width="3" stroke-linecap="round" stroke-dasharray="' + (C * frac).toFixed(1) + ' ' + C.toFixed(1) + '"/>' : '') + '</svg>' +
+            '<span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center">' + svg(16, stroke('#454b55', 2.1), STEP_ICON[icon]) + '</span></span>') +
+      '<span aria-hidden="true" style="font-size:11.5px;font-weight:800;color:' + (done ? '#0f7a3c' : '#454b55') + '">' + label + '</span></div>';
+  };
+
+  // A plan's photo tile: date line, title, place; the helping list and/or the lead's dashboard below.
+  // Ideas (Your ideas) get "IDEA · GROUP" and the readiness steps instead.
+  const planTile = (s, o) => {
+    o = o || {};
+    const lead = isLead(s), help = !lead && myClaims(s).length > 0, g = groupById(s.groupId);
+    const body = o.idea ? '<div style="display:flex;justify-content:space-between;padding:12px 22px 14px">' + readiness(s).map(stepRing).join('') + '</div>'
+      : (lead || help) ? '<div style="padding:12px 14px 14px;display:flex;flex-direction:column;gap:8px">' + (help ? helpBlock(s, true) : '') + (lead ? leadDash(s) : '') + '</div>' : '';
+    return '<div ' + on(() => openSpark(s)) + ' aria-label="' + esc(s.text) + '" data-plan="' + esc(s.text) + '" style="display:flex;flex-direction:column;border-radius:20px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
+      '<div style="position:relative;height:160px;background:' + photoBg(s) + (o.dim ? ';filter:saturate(.6)' : '') + '">' + PHOTO_GRAD + (lead && !o.noChip && !o.idea ? leadChip(false) : '') +
+        overlay(s, o.idea ? '#f3c55a' : lead ? '#cfc9ff' : '#9eecbc', false, o.idea ? 'Idea · ' + (g ? g.name : '') : null, o.idea && g ? g.name : null) + '</div>' + body + '</div>';
+  };
+
   function viewHome() {
     const st = state, gid = st.homeGroup && groupById(st.homeGroup) ? st.homeGroup : null;
-    if (!st.loaded) {
-      return '<div data-screen-label="Home">' + pageHead('') +
-        '<div style="padding:20px 14px 24px;display:flex;flex-direction:column;gap:14px"><h1 style="margin:0;padding:0 4px;font-size:28px;line-height:1.05;font-weight:900;letter-spacing:-.8px;color:#0d1117">Your plans</h1>' + skeleton(2, 220) + '</div>' +
-        '<div style="height:var(--nav-h)"></div></div>';
-    }
-    if (!myGroups().length) {
-      return '<div data-screen-label="Home">' + pageHead('') +
-        '<div style="padding:20px 14px 26px;display:flex;flex-direction:column;gap:14px">' + goneCard() + noGroupCard() + '</div>' +
-        '<div style="height:var(--nav-h)"></div></div>';
-    }
-    const plans = planList(gid), view = st.homeView;
-    const leadChip = (small, n) => '<div aria-label="You’re leading" style="position:absolute;top:' + (small ? 8 : 12) + 'px;right:' + (small ? 8 : 12) + 'px;display:flex;align-items:center;gap:3px;height:' + (small ? 22 : 24) + 'px;padding:0 8px 0 6px;border-radius:999px;background:#5b4ae8;box-shadow:0 1px 4px rgba(0,0,0,.3);font-size:' + (small ? 10.5 : 11.5) + 'px;font-weight:900;color:#fff">' + FLAG_SM + (n ? 'Leading · ' + n + ' to do' : 'Leading') + '</div>';
-    const helpChip = '<div aria-label="You’re helping" style="position:absolute;top:8px;right:8px;display:flex;align-items:center;gap:3px;height:22px;padding:0 8px 0 6px;border-radius:999px;background:rgba(13,17,23,.5);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);font-size:10.5px;font-weight:800;color:#ffd978">' + HAND_SM + 'Helping</div>';
+    const head = pageHead(scopePicker('scope', gid, (id) => setState({ homeGroup: id, menu: null }), 'Show groups'), H1('Your schedule', 'margin-top:8px'));
+    const wrap = (inner) => '<div data-screen-label="Home">' + head + inner + '<div style="height:var(--nav-h)"></div></div>';
+    if (!st.loaded) return wrap('<div style="padding:10px 14px 24px">' + skeleton(2, 220) + '</div>');
+    if (!myGroups().length) return wrap('<div style="padding:10px 14px 26px;display:flex;flex-direction:column;gap:14px">' + goneCard() + noGroupCard() + '</div>');
+    const plans = planList(gid), view = st.homeView, picker = viewPicker('hview', view, (k) => setState({ homeView: k, menu: null }));
     const ink = (s) => isLead(s) ? '#cfc9ff' : '#9eecbc';
-    const tile = (s) => {
-      const lead = isLead(s), help = !lead && myClaims(s).length > 0;
-      return '<div ' + on(() => openSpark(s)) + ' aria-label="' + esc(s.text) + '" data-plan="' + esc(s.text) + '" style="display:flex;flex-direction:column;border-radius:20px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
-        '<div style="position:relative;height:160px;background:' + photoBg(s) + '">' + PHOTO_GRAD + (lead ? leadChip(false) : '') + overlay(s, ink(s)) + '</div>' +
-        (lead || help ? '<div style="padding:12px 14px 14px;display:flex;flex-direction:column;gap:8px">' + (help ? helpBlock(s, true) : '') + (lead ? leadDash(s) : '') + '</div>' : '') +
-      '</div>';
-    };
     const square = (s) => {
       const lead = isLead(s), help = !lead && myClaims(s).length > 0;
       return '<div ' + on(() => openSpark(s)) + ' aria-label="' + esc(s.text) + '" data-plan="' + esc(s.text) + '" style="border-radius:18px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
@@ -1814,11 +1880,11 @@
       const lead = isLead(s), help = !lead && myClaims(s).length > 0;
       return '<div ' + on(() => openSpark(s)) + ' aria-label="' + esc(s.text) + '" data-plan="' + esc(s.text) + '" class="hov-row" style="display:flex;flex-wrap:wrap;align-items:flex-start;gap:12px;padding:12px 14px;border-top:' + (k ? '1px solid #f2f3f6' : '0') + ';cursor:pointer">' +
         thumbDate(s) +
-        '<div style="flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:2px">' +
+        '<div style="flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:2px">' +
           (lead ? '<div style="display:flex"><span style="display:flex;align-items:center;gap:3px;height:20px;padding:0 7px 0 5px;border-radius:999px;background:#eeebff;color:#4a3ad4;font-size:10.5px;font-weight:800">' + FLAG_SM + 'Leading</span></div>' : '') +
           '<div style="font-size:15.5px;line-height:1.25;font-weight:800;color:#0d1117">' + esc(s.text) + '</div>' +
           '<div style="display:flex;align-items:center;gap:4px;font-size:12.5px;font-weight:600;color:#6b7280;min-width:0">' + PIN_SM + '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(s.spot || 'Location TBD') + '</span></div>' +
-          (help ? '<div style="margin-top:6px">' + helpBlock(s, false) + '</div>' : '') +
+          (help ? '<div style="margin-top:6px">' + helpBlock(s, true, true) + '</div>' : '') +
         '</div>' +
         (lead ? '<div style="flex:0 0 100%;min-width:0">' + leadDash(s) + '</div>' : '') +
       '</div>';
@@ -1827,72 +1893,38 @@
     const body = !plans.length
       ? '<div style="' + CARD + ';padding:18px;display:flex;align-items:center;gap:12px"><div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:800;color:#0d1117">Nothing on the books yet.</div><div style="font-size:14px;line-height:1.45;font-weight:500;color:#6b7280">RSVP to something in your groups, or post your own.</div></div>' +
           '<span ' + on(() => goCompose()) + ' style="flex:0 0 auto;display:flex;align-items:center;min-height:40px;padding:0 14px;border-radius:999px;background:#0d1117;color:#fff;font-size:13.5px;font-weight:800;cursor:pointer">Post an event</span></div>'
-      : secs.map(z => '<div style="display:flex;flex-direction:column;gap:8px">' + monthHead(z.label) +
+      : secs.map((z, i) => '<div style="display:flex;flex-direction:column;gap:8px">' + monthHead(z.label, i ? '' : picker) +
           (view === 'grid' ? '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">' + z.items.map(square).join('') + '</div>'
-            : view === 'list' ? '<div style="display:flex;flex-direction:column;gap:14px">' + z.days.map(d => dayGroup(d, row)).join('') + '</div>'
-            : '<div style="display:flex;flex-direction:column;gap:14px">' + z.items.map(tile).join('') + '</div>') +
+            : view === 'list' ? '<div style="display:flex;flex-direction:column;gap:14px">' + z.days.map(d => dayGroup(d, row, true)).join('') + '</div>'
+            : '<div style="display:flex;flex-direction:column;gap:14px">' + z.items.map(x => planTile(x)).join('') + '</div>') +
         '</div>').join('');
-    return '<div data-screen-label="Home">' +
-      pageHead(scopePicker('scope', gid, (id) => setState({ homeGroup: id, menu: null }), 'Show groups')) +
-      '<div style="padding:20px 14px 24px;display:flex;flex-direction:column;gap:14px">' +
-        goneCard() +
-        '<div style="padding:0 4px;display:flex;align-items:center;gap:8px"><h1 style="margin:0;font-size:28px;line-height:1.05;font-weight:900;letter-spacing:-.8px;color:#0d1117">Your plans</h1>' +
-          '<span style="margin-left:auto"></span>' + viewSwitch(view, (k) => setState({ homeView: k })) + '</div>' +
-        body +
-      '</div>' +
-      '<div style="height:var(--nav-h)"></div>' +
-    '</div>';
+    return wrap((st.goneOpen ? '<div style="padding:10px 14px 0">' + goneCard() + '</div>' : '') + '<div style="padding:10px 14px 24px;display:flex;flex-direction:column;gap:14px">' + body + '</div>');
   }
 
-  const chipRow = (items, cur, pick) => {
-    const counts = {};
-    items.forEach(s => { counts[s.groupId] = (counts[s.groupId] || 0) + 1; });
-    const chip = (id, label, onIt) => '<span ' + on(() => pick(id), 'radio') + ' aria-checked="' + onIt + '" style="flex:0 0 auto;display:flex;align-items:center;min-height:36px;padding:0 14px;border-radius:999px;font-size:13.5px;font-weight:800;white-space:nowrap;cursor:pointer;' +
-      (onIt ? 'background:#0d1117;color:#fff' : 'background:#fff;color:#454b55;box-shadow:inset 0 0 0 1.5px #e6e7eb') + '">' + esc(label) + '</span>';
-    return '<div class="no-scrollbar" role="radiogroup" aria-label="Group" style="display:flex;gap:6px;overflow-x:auto;padding:0 2px">' +
-      chip(null, 'All', !cur) + groupsInOrder().filter(g => counts[g.id]).map(g => chip(g.id, g.name + ' · ' + counts[g.id], cur === g.id)).join('') + '</div>';
-  };
-
-  // Your events & ideas: what you run, and what it needs next
+  // Your plans / Your ideas: what you run. The title is the switch.
   function viewOwn() {
-    const st = state, all = leadingList(null), gid = st.ownGrp && groupById(st.ownGrp) ? st.ownGrp : null;
-    const shown = all.filter(s => !gid || s.groupId === gid);
-    const nEv = all.filter(s => phaseOf(s) === 'plan').length, nId = all.filter(s => phaseOf(s) === 'idea').length, nNeed = all.filter(s => phaseOf(s) !== 'done' && nextSteps(s).length).length;
-    const LABELS = { plan: 'Events you’re leading', idea: 'Your ideas', done: 'Past events' };
-    const secs = ['plan', 'idea', 'done'].map(ph => ({ label: LABELS[ph], items: shown.filter(s => phaseOf(s) === ph).sort((a, b) => ph === 'idea' ? (b.created - a.created) : byWhen(a, b)) })).filter(z => z.items.length);
-    const card = (s) => {
-      const g = groupById(s.groupId), ph = phaseOf(s), a = nextSteps(s)[0], gn = going(s).length, m = maybes(s).length;
-      const sub = ph === 'idea' ? s.interested.length + ' interested' : ph === 'done' ? gn + ' went' : gn + ' going' + (m ? ' · ' + m + ' maybe' : '');
-      return '<div ' + on(() => openSpark(s)) + ' aria-label="' + esc(s.text) + '" style="' + CARD + ';padding:14px;display:flex;flex-direction:column;gap:12px;cursor:pointer">' +
-        '<div style="display:flex;gap:12px">' +
-          '<div style="flex:1;min-width:0">' +
-            '<div style="font-size:12.5px;font-weight:700;color:#6b7280">' + esc((ph === 'idea' ? 'Idea' : shortWhen(s)) + ' · ' + (g ? g.name : '')) + '</div>' +
-            '<div style="font-size:17.5px;line-height:1.2;font-weight:900;color:#0d1117;text-wrap:pretty">' + esc(s.text) + '</div>' +
-            '<div style="margin-top:3px;font-size:13px;font-weight:600;color:#6b7280">' + esc(sub) + '</div>' +
-          '</div>' +
-          '<span aria-hidden="true" style="flex:0 0 64px;width:64px;height:64px;border-radius:10px;background:' + photoBg(s) + '"></span>' +
-        '</div>' +
-        (a ? '<div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:12px;background:#f3f1fe"><span style="flex:0 0 7px;width:7px;height:7px;border-radius:999px;background:#5b4ae8"></span>' +
-          '<span style="flex:1;min-width:0;font-size:14px;font-weight:800;color:#4a3ad4">' + esc(a.text) + '</span><span style="font-size:14px;font-weight:800;color:#4a3ad4">' + esc(a.cta) + '</span></div>' : '') +
-      '</div>';
-    };
-    return '<div data-screen-label="Your events" style="position:relative">' + DRAFT_STAMP +
-      pageHead('',
-        '<h1 style="margin:14px 0 0;font-size:36px;line-height:1;font-weight:900;letter-spacing:-1.2px;color:#0d1117">Your events &amp; ideas</h1>' +
-        '<div style="margin-top:6px;font-size:15px;font-weight:600;color:#6b7280">' + [nEv + (nEv === 1 ? ' event' : ' events'), nId + (nId === 1 ? ' idea' : ' ideas'), nNeed ? nNeed + ' need you' : ''].filter(Boolean).join(' · ') + '</div>' +
-        '<div style="margin-top:16px;display:flex;gap:8px">' +
-          '<button type="button" class="hov-primary" ' + on(() => goCompose()) + ' style="flex:1 1 0;min-height:48px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:15px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer">' + I.plus(16, '#fff', 2.6) + 'Post an event</button>' +
-          '<button type="button" class="hov-outline" ' + on(() => goCompose({ step: 'activity' })) + ' style="flex:1 1 0;min-height:48px;border:1.5px solid #dcdfe6;border-radius:999px;background:#fff;color:#0d1117;font-family:inherit;font-size:15px;font-weight:800;cursor:pointer">Float an idea</button>' +
-        '</div>') +
-      '<div style="padding:14px 14px 2px">' + (all.length ? chipRow(all, gid, (id) => setState({ ownGrp: id })) : '') + '</div>' +
-      '<div style="padding:12px 14px 26px;display:flex;flex-direction:column;gap:20px">' +
-        (!st.loaded ? skeleton(3, 120)
-          : secs.length
-          ? secs.map(z => '<div style="display:flex;flex-direction:column;gap:10px"><div style="padding:0 4px;font-size:14px;font-weight:800;color:#6b7280">' + esc(z.label) + '</div>' + z.items.map(card).join('') + '</div>').join('')
-          : '<div style="' + CARD + ';padding:18px;font-size:15px;line-height:1.45;font-weight:600;color:#5c6270">Nothing you’re hosting yet. Post an event or float an idea and it lives here.</div>') +
-      '</div>' +
-      '<div style="height:var(--nav-h)"></div>' +
-    '</div>';
+    const st = state, gid = st.ownGrp && groupById(st.ownGrp) ? st.ownGrp : null, ideas = st.ownTab === 'idea';
+    const mine = leadingList(gid);
+    const sw = (k, label) => '<span ' + on(() => setState({ ownTab: k, menu: null }), 'tab') + ' aria-selected="' + (st.ownTab === k) + '" style="font-size:30px;line-height:1;font-weight:900;letter-spacing:-1px;color:' + (st.ownTab === k ? '#0d1117' : '#c3c7d0') + ';cursor:pointer">' + label + '</span>';
+    const CTA = 'display:flex;align-items:center;gap:6px;min-height:44px;padding:0 16px 0 12px;border:0;border-radius:999px;font-family:inherit;font-size:15px;font-weight:800;cursor:pointer;';
+    const head = titleHead('<div role="tablist" aria-label="Your plans and ideas" style="display:flex;align-items:baseline;gap:16px">' + sw('plan', 'Your plans') + sw('idea', 'Your ideas') + '</div>', '',
+      '<div style="margin-top:14px;display:flex;align-items:center;justify-content:space-between;gap:10px">' + scopePicker('ownGrp', gid, (id) => setState({ ownGrp: id, menu: null }), 'Group', 'pill') +
+        (ideas
+          ? '<button type="button" ' + on(() => goCompose({ step: 'activity' })) + ' style="' + CTA + 'background:#f5b428;color:#3d2a00">' + I.plus(14, '#3d2a00', 2.8) + 'Float an idea</button>'
+          : '<button type="button" class="hov-primary" ' + on(() => goCompose()) + ' style="' + CTA + 'background:#149a4b;color:#fff">' + I.plus(14, '#fff', 2.8) + 'Post an event</button>') + '</div>');
+    const label = (t) => '<div style="padding:0 4px;font-size:14px;font-weight:800;color:#6b7280">' + t + '</div>';
+    const empty = (t, sub) => '<div style="' + CARD + ';padding:18px"><div style="font-size:16px;font-weight:800;color:#0d1117">' + t + '</div><div style="margin-top:2px;font-size:14px;line-height:1.45;font-weight:500;color:#6b7280">' + sub + '</div></div>';
+    let body;
+    if (!st.loaded) body = skeleton(3, 220);
+    else if (ideas) {
+      const list = mine.filter(x => phaseOf(x) === 'idea').sort((x, y) => y.created - x.created);
+      body = list.length ? label('Your ideas') + list.map(x => planTile(x, { idea: true })).join('') : empty('No ideas yet.', 'Float one and see who’s in before you pick a date.');
+    } else {
+      const up = mine.filter(x => phaseOf(x) === 'plan').sort(byWhen), past = mine.filter(x => phaseOf(x) === 'done').sort((x, y) => byWhen(y, x));
+      body = (up.length ? up.map(x => planTile(x, { noChip: true })).join('') : empty('Nothing on the books yet.', 'Post an event and it lives here.')) +
+        (past.length ? label('Past events') + past.map(x => planTile(x, { noChip: true, dim: true })).join('') : '');
+    }
+    return '<div data-screen-label="Your plans & ideas">' + head + '<div style="padding:12px 14px 26px;display:flex;flex-direction:column;gap:12px">' + body + '</div><div style="height:var(--nav-h)"></div></div>';
   }
 
   // Groups: pinned groups as big cards, the rest as a grid of square tiles
@@ -1916,7 +1948,7 @@
       const counts = [nPlan + (nPlan === 1 ? ' event' : ' events'), nIdea ? nIdea + (nIdea === 1 ? ' idea' : ' ideas') : ''].filter(Boolean).join(' · ');
       const role = [lead ? 'Leading ' + lead : '', help ? 'Helping ' + help : ''].filter(Boolean).join(' · ');
       return '<div ' + on(() => openGroup(g)) + ' aria-label="' + esc(g.name) + '" style="border-radius:22px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);overflow:hidden;cursor:pointer">' +
-        '<div style="position:relative;height:170px;background:' + groupBg(g) + '">' + GRAD +
+        '<div style="position:relative;height:170px;overflow:hidden;background:#e8a71c">' + (groupPhoto(g) ? photoLayer(groupPhoto(g), g.photoPos, GROUP_POS) : '') + GRAD +
           '<div style="position:absolute;top:12px;left:12px">' + roleChip(g) + '</div>' +
           '<div style="position:absolute;top:10px;right:10px;display:flex;gap:8px">' + gearBtn(g) + pinBtn(g, 36) + '</div>' +
           '<div style="position:absolute;left:16px;right:16px;bottom:12px;color:#fff">' +
@@ -1927,17 +1959,16 @@
         '<div style="display:flex;flex-wrap:wrap;gap:6px;padding:12px 16px">' + (fresh ? chip(fresh + ' new', true) : '') + chip(counts) + (role ? chip(role) : '') + '</div>' +
       '</div>';
     };
-    const tile = (g) => '<div ' + on(() => openGroup(g)) + ' aria-label="' + esc(g.name) + '" style="position:relative;aspect-ratio:1 / 1;border-radius:20px;overflow:hidden;box-shadow:0 1px 3px rgba(15,18,25,.08);background:' + groupBg(g) + ';cursor:pointer">' + GRAD +
+    const tile = (g) => '<div ' + on(() => openGroup(g)) + ' aria-label="' + esc(g.name) + '" style="position:relative;aspect-ratio:1 / 1;border-radius:20px;overflow:hidden;box-shadow:0 1px 3px rgba(15,18,25,.08);background:#e8a71c;cursor:pointer">' + (groupPhoto(g) ? photoLayer(groupPhoto(g), g.photoPos, GROUP_POS) : '') + GRAD +
       '<div style="position:absolute;top:10px;left:10px">' + roleChip(g) + '</div>' +
       '<div style="position:absolute;top:8px;right:8px">' + pinBtn(g, 32) + '</div>' +
       '<div style="position:absolute;left:12px;right:10px;bottom:10px;color:#fff;font-size:16px;line-height:1.15;font-weight:900">' +
         (newIn(g) ? '<span aria-label="New ideas" style="display:inline-block;width:9px;height:9px;border-radius:999px;background:#9d93f7;margin-right:6px;vertical-align:1px"></span>' : '') + esc(g.name) + '</div>' +
     '</div>';
-    const pill = (label, icon, fn, strong) => '<span ' + on(fn) + ' style="display:inline-flex;align-items:center;gap:5px;min-height:30px;padding:0 10px;border-radius:999px;font-size:12.5px;font-weight:800;cursor:pointer;' + (strong ? 'background:#ece9fd;color:#4a3ad4' : 'background:#f2f3f6;color:#454b55') + '">' + icon + label + '</span>';
+    const pill = (label, icon, fn, strong) => '<span ' + on(fn) + ' style="display:inline-flex;align-items:center;gap:5px;min-height:36px;padding:0 12px;border-radius:999px;font-size:13.5px;font-weight:800;cursor:pointer;' + (strong ? 'background:#ece9fd;color:#4a3ad4' : 'background:#f2f3f6;color:#454b55') + '">' + icon + label + '</span>';
     return '<div data-screen-label="Groups">' +
-      pageHead('',
-        '<h1 style="margin:16px 0 0;font-size:36px;line-height:1;font-weight:900;letter-spacing:-1.2px;color:#0d1117">Your groups</h1>' +
-        '<div style="margin-top:10px;display:flex;gap:6px">' +
+      titleHead(H1('Your groups'), '',
+        '<div style="margin-top:12px;display:flex;gap:6px">' +
           pill('Join a group', I.keypad(11), () => openJoin(), true) + pill('Start a group', I.plus(11, '#454b55', 2.8), startGroup, false) +
         '</div>') +
       '<div style="padding:16px 14px 26px;display:flex;flex-direction:column;gap:12px">' +
@@ -2079,10 +2110,8 @@
         : '<span style="font-size:13px;font-weight:800;letter-spacing:1.1px;text-transform:uppercase;color:#6b7280">Coming up</span>') +
       viewMenu + '</div>';
     return '<div data-screen-label="Calendar" style="position:relative">' + DRAFT_STAMP +
-      '<header style="background:#fff;padding:14px 18px 16px;display:flex;flex-direction:column;gap:10px">' +
-        '<div style="display:flex;align-items:center;justify-content:space-between">' + logo(false) + headAvatar() + '</div>' +
-        '<div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:12px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#8a909b">Calendar</span>' +
-          '<div style="align-self:flex-start">' + scopePicker('calGrp', cg, (id) => setState({ calGrp: id, menu: null }), 'Calendar group', true) + '</div></div>' +
+      '<header style="background:#fff;padding:40px 18px 16px;display:flex;flex-direction:column;gap:2px"><span style="font-size:12px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#8a909b">Calendar</span>' +
+        '<div style="align-self:flex-start">' + scopePicker('calGrp', cg, (id) => setState({ calGrp: id, menu: null }), 'Calendar group', 'big') + '</div>' +
       '</header>' +
       '<div style="padding:14px 14px 0;display:flex;flex-direction:column;gap:12px">' + roleTabs + toolbar + grid + '</div>' +
       '<div style="padding:16px 14px 26px;display:flex;flex-direction:column;gap:22px">' + (st.loaded ? body : skeleton(3, 90)) + '</div>' +
@@ -2204,21 +2233,14 @@
     };
     const round = (label, icon, fn) => '<span ' + on(fn) + ' aria-label="' + label + '" style="width:40px;height:40px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + icon + '</span>';
     return '<div data-screen-label="Notifications">' +
-      '<header style="background:#fff;padding:14px 18px 14px">' +
-        '<div style="display:flex;align-items:center;justify-content:space-between">' +
-          round('Back', I.chevL(16, '#0d1117', 2.4), () => go('home')) +
-          round('Notification settings', svg(18, stroke('#0d1117', 2), '<path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/>'), () => setState({ nSettings: true })) +
-        '</div>' +
-        '<div style="margin-top:12px;display:flex;align-items:baseline;justify-content:space-between;gap:10px">' +
-          '<h1 style="margin:0;font-size:36px;line-height:1;font-weight:900;letter-spacing:-1.2px;color:#0d1117">Notifications</h1>' +
-          (unread ? '<span ' + on(markAllRead) + ' style="flex:0 0 auto;font-size:13.5px;font-weight:800;color:#5b4ae8;cursor:pointer">Mark all read</span>' : '') +
-        '</div>' +
-        '<div class="no-scrollbar" role="radiogroup" aria-label="Show" style="margin-top:14px;display:flex;gap:8px;overflow-x:auto">' + chip('all', 'All') + chip('invites', 'Invites') + chip('updates', 'Updates') + chip('hosting', 'Hosting') + '</div>' +
-      '</header>' +
+      titleHead(H1('Notifications'),
+        round('Notification settings', svg(18, stroke('#0d1117', 2), '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/>'), () => setState({ nSettings: true })),
+        '<div class="no-scrollbar" role="radiogroup" aria-label="Show" style="margin-top:14px;display:flex;gap:8px;overflow-x:auto">' + chip('all', 'All') + chip('invites', 'Invites') + chip('updates', 'Updates') + chip('hosting', 'Hosting') + '</div>') +
       '<div style="padding:16px 14px 26px;display:flex;flex-direction:column;gap:16px">' +
         (!st.loaded ? skeleton(4, 76)
           : secs.length
-          ? secs.map(([label, items]) => '<div><div style="padding:0 4px 8px;' + EYEBROW + '">' + label + '</div><div style="' + CARD + ';overflow:hidden">' + items.map(row).join('') + '</div></div>').join('')
+          ? secs.map(([label, items], i) => '<div><div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 4px 6px;min-height:32px"><span style="' + EYEBROW + '">' + label + (!i && unread ? ' · ' + unread : '') + '</span>' +
+              (!i && unread ? '<span ' + on(markAllRead) + ' style="font-size:13.5px;font-weight:800;color:#5b4ae8;cursor:pointer">Mark all read</span>' : '') + '</div><div style="' + CARD + ';overflow:hidden">' + items.map(row).join('') + '</div></div>').join('')
           : '<div style="' + CARD + ';padding:18px;font-size:14.5px;line-height:1.45;font-weight:500;color:#6b7280">' + (f === 'all' ? 'You’re all caught up. New plans, updates and replies from the last week show up here.' : 'Nothing here this week.') + '</div>') +
       '</div>' +
       '<div style="height:var(--nav-h)"></div>' +
@@ -2270,7 +2292,7 @@
     const header = '<header style="position:relative;height:calc(210px + var(--pt));background:#2b303a;overflow:hidden">' +
       (gPhoto ? '<div style="position:absolute;inset:0;overflow:hidden">' + photoLayer(gPhoto, g.photoPos, GROUP_POS) + '</div>' : '<div aria-hidden="true" style="position:absolute;inset:0;background:#e8a71c"></div>') +
       '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to bottom, rgba(13,17,23,.7) 0%, rgba(13,17,23,.4) 32%, rgba(13,17,23,.5) 55%, rgba(13,17,23,.95) 100%)"></div>' +
-      '<div style="position:absolute;top:calc(10.5px + var(--pt));left:16px;z-index:2">' + logo(true) + '</div>' +
+      '<span ' + on(() => go('groups')) + ' aria-label="Back to groups" style="position:absolute;top:calc(12px + var(--pt));left:12px;z-index:3;width:40px;height:40px;border-radius:999px;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.chevL(18, '#fff', 2.4) + '</span>' +
       (runs(g) ? '<span ' + on(() => openGroupPage(g.id, false, 'browse')) + ' aria-label="Edit group" style="position:absolute;top:calc(12px + var(--pt));right:12px;z-index:3;display:flex;align-items:center;gap:6px;min-height:40px;padding:0 14px 0 12px;border-radius:999px;background:rgba(255,255,255,.18);color:#fff;font-size:13px;font-weight:800;cursor:pointer">' +
         svg(13, stroke('#fff', 2.6), '<path d="M4 20h4L19 9l-4-4L4 16v4Z"/>') + 'Edit</span>' : '') +
       '<div style="position:absolute;left:20px;right:16px;bottom:18px;display:flex;align-items:flex-end;justify-content:space-between;gap:12px;z-index:2">' +
@@ -2314,9 +2336,8 @@
             }).join('') + '</div>'
         : '') +
     '</div>';
-    const countLine = '<span style="padding:0 4px;font-size:14px;font-weight:700;color:#6b7280">' + cards.length + (tab === 'done' ? (cards.length === 1 ? ' past event' : ' past events') : (cards.length === 1 ? ' upcoming plan' : ' upcoming plans')) + '</span>';
-    const controls = g ? '<div style="position:relative;padding:8px 14px 0;display:flex;align-items:center;gap:8px;z-index:3">' +
-      '<div style="flex:1 1 auto;display:flex;align-items:center">' + (tab === 'idea' ? sortRow : countLine) + '</div>' + viewSwitch(gv, (k) => setState({ view: k })) + '</div>' : '';
+    const controls = g && tab === 'idea' ? '<div style="position:relative;padding:8px 14px 0;display:flex;align-items:center;z-index:3">' + sortRow + '</div>' : '';
+    const picker = viewPicker('gview', gv, (k) => setState({ view: k, menu: null }));
 
     // Your role on each, as a chip on the photo (past tense on Happened)
     const roleOf = (s) => { const R = GP_ROLE[isLead(s) ? 'lead' : myClaims(s).length ? 'help' : myRsvp(s) === 'going' ? 'going' : myRsvp(s) === 'maybe' ? 'maybe' : '']; return R ? [tab === 'done' ? PAST_ROLE[R[0]] : R[0]].concat(R.slice(1)) : null; };
@@ -2350,7 +2371,7 @@
     } else {
       // Ideas keep the sort order: undated ones go under "No date yet" at the end
       const secs = byMonth(cards, tab === 'idea' ? 'No date yet' : 'Date TBD');
-      list = secs.map(z => '<div style="display:flex;flex-direction:column;gap:8px">' + monthHead(z.label) +
+      list = secs.map((z, i) => '<div style="display:flex;flex-direction:column;gap:8px">' + monthHead(z.label, i ? '' : picker) +
         (gv === 'grid' ? '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">' + z.items.map(square).join('') + '</div>'
           : gv === 'list' ? '<div style="display:flex;flex-direction:column;gap:14px">' + z.days.map(d => dayGroup(d, row)).join('') + '</div>'
           : '<div style="display:flex;flex-direction:column;gap:14px">' + z.items.map(tile).join('') + '</div>') +
@@ -2442,10 +2463,10 @@
         (cover ? photoLayer(cover, s.coverPos, IDEA_POS) : '<div aria-hidden="true" style="position:absolute;inset:0;background:' + groupBg(g, '#2b2413') + '"></div>') +
         '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to bottom, rgba(13,17,23,.68) 0%, rgba(13,17,23,.18) 40%, rgba(13,17,23,.18) 70%, rgba(13,17,23,.45) 100%)"></div>' +
         '<div style="position:absolute;top:calc(12px + var(--pt));left:12px;right:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;z-index:1">' +
-          '<span ' + on(() => go(g && g.role ? 'browse' : 'home', g && g.role ? { groupId: g.id } : {})) + ' aria-label="Back" style="flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.chevL(18, '#fff', 2.3) + '</span>' +
-          '<span aria-label="Idea in ' + esc(g ? g.name : '') + '" style="min-width:0;display:flex;align-items:center;border-radius:999px;padding:5px 12px;background:#f3c55a;font-size:11.5px;font-weight:900;letter-spacing:.9px;color:#3d2a00;box-shadow:0 4px 12px rgba(15,18,25,.25)">IDEA</span>' +
+          backBtn(s) +
+          '<span style="flex:1"></span>' +
           (canEdit(s)
-            ? '<span ' + on(() => openEdit(s)) + ' style="flex:0 0 auto;display:flex;align-items:center;gap:6px;min-height:40px;padding:0 14px;border-radius:999px;background:rgba(255,255,255,.2);font-size:14px;font-weight:800;color:#fff;cursor:pointer">' + I.edit(14, '#fff') + 'Edit</span>'
+            ? '<span ' + on(() => openEdit(s)) + ' style="' + EDIT_PILL + '">' + I.edit(14, '#0d1117') + 'Edit</span>'
             : '<span style="flex:0 0 40px;width:40px"></span>') +
         '</div>' +
         // The lead frames the cover (or adds one): the Photo positioner
@@ -2677,10 +2698,10 @@
       (cover ? photoLayer(cover, s.coverPos, IDEA_POS) : '<div aria-hidden="true" style="position:absolute;inset:0;background:' + groupBg(g, '#0b2a17') + '"></div>') +
       '<div aria-hidden="true" style="position:absolute;inset:0;background:' + scrim + '"></div>' +
       '<div style="position:absolute;top:calc(12px + var(--pt));left:12px;right:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;z-index:1">' +
-        '<span ' + on(() => go(g && g.role ? 'browse' : 'home', g && g.role ? { groupId: g.id } : {})) + ' aria-label="Back" style="flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.chevL(18, '#fff', 2.3) + '</span>' +
-        '<span style="min-width:0;font-size:11.5px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(g ? g.name : '') + '</span>' +
+        backBtn(s) +
+        '<span style="flex:1"></span>' +
         (canEdit(s)   // plans and past events (the idea page has its own header)
-          ? '<span ' + on(() => openEdit(s)) + ' style="flex:0 0 auto;display:flex;align-items:center;gap:6px;min-height:40px;padding:0 14px;border-radius:999px;background:rgba(255,255,255,.2);font-size:14px;font-weight:800;color:#fff;cursor:pointer">' + I.edit(14, '#fff') + 'Edit</span>'
+          ? '<span ' + on(() => openEdit(s)) + ' style="' + EDIT_PILL + '">' + I.edit(14, '#0d1117') + 'Edit</span>'
           : '<span style="flex:0 0 40px;width:40px"></span>') +
       '</div>' + inner +
       (state.tag ? '<div style="position:absolute;right:16px;bottom:44px;z-index:2;transform:rotate(5deg);background:#fff;border-radius:999px;padding:8px 14px;font-size:13px;font-weight:800;color:#0d1117;box-shadow:0 8px 20px rgba(15,18,25,.18);animation:popIn 320ms cubic-bezier(.22,.9,.28,1) both">' + esc(state.tag) + '</div>' : '') +
@@ -2891,40 +2912,34 @@
   // ---------------------------------------------------------------------------
 
   function viewProfile() {
-    const st = state;
-    const mine = st.sparks.filter(s => isLead(s));
-    const groups = myGroups();
-    const avatar = st.myAvatar ? photoUrl(st.myAvatar) : null;
-    const section = (label, inner) => '<div><div style="padding:0 6px 8px;' + EYEBROW + '">' + label + '</div><div style="' + CARD + ';padding:0 16px">' + inner + '</div></div>';
+    const st = state, avatar = st.myAvatar ? photoUrl(st.myAvatar) : null;
+    const hosted = st.sparks.filter(x => isLead(x) && x.planned).length;
+    const went = st.sparks.filter(x => phaseOf(x) === 'done' && (isLead(x) || myRsvp(x) === 'going')).length;
+    const who = [st.myPlace, st.memberSince ? 'Member since ' + st.memberSince : ''].filter(Boolean).join(' · ');
+    const stat = (n, label) => '<div style="display:flex;flex-direction:column;align-items:center;gap:2px"><span style="font-size:22px;line-height:1;font-weight:900;color:#0d1117">' + n + '</span><span style="font-size:12.5px;font-weight:700;color:#6b7280">' + label + '</span></div>';
+    const ROW = 'display:flex;align-items:center;gap:12px;min-height:60px;padding:10px 16px;cursor:pointer;text-decoration:none';
+    const line = (title, sub) => '<div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:800;color:#0d1117">' + title + '</div><div style="font-size:13px;font-weight:500;color:#6b7280">' + sub + '</div></div>';
+    const section = (label, inner) => '<div style="display:flex;flex-direction:column;gap:8px"><span style="padding:0 4px;' + EYEBROW + '">' + label + '</span><div style="' + CARD + ';overflow:hidden">' + inner + '</div></div>';
     return '<div data-screen-label="Profile">' +
-      '<header style="background:#fff;padding:30px 20px 22px;display:flex;align-items:center;gap:14px">' +
-        '<div ' + on(openProfileEdit) + ' aria-label="Change photo" style="position:relative;flex:0 0 64px;width:64px;height:64px;cursor:pointer">' +
-          '<span style="width:64px;height:64px;border-radius:999px;background:' + (avatar ? bg(avatar) : '#e8a71c') + ';color:#fff;font-size:26px;font-weight:900;display:flex;align-items:center;justify-content:center">' + (avatar ? '' : esc(initialOf(st.myName) || '?')) + '</span>' +
-          '<span style="position:absolute;right:-2px;bottom:-2px;width:26px;height:26px;border-radius:999px;background:#fff;box-shadow:0 1px 4px rgba(15,18,25,.2);display:flex;align-items:center;justify-content:center">' + I.camera(14) + '</span>' +
+      '<header style="background:#fff;padding:40px 20px 22px;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center">' +
+        '<div ' + on(openProfileEdit) + ' aria-label="Change photo" style="position:relative;width:96px;height:96px;cursor:pointer">' +
+          '<span style="width:96px;height:96px;border-radius:999px;background:' + (avatar ? bg(avatar) : '#e8a71c') + ';color:#fff;font-size:38px;font-weight:900;display:flex;align-items:center;justify-content:center">' + (avatar ? '' : esc(initialOf(st.myName) || '?')) + '</span>' +
+          '<span style="position:absolute;right:0;bottom:0;width:30px;height:30px;border-radius:999px;background:#fff;box-shadow:0 1px 4px rgba(15,18,25,.2);display:flex;align-items:center;justify-content:center">' + I.camera(15) + '</span>' +
         '</div>' +
-        '<div style="flex:1 1 auto;min-width:0">' +
-          '<div style="font-size:26px;line-height:1.05;font-weight:900;letter-spacing:-.7px;color:#0d1117;overflow-wrap:break-word">' + esc(st.myName || 'No name yet') + '</div>' +
-          '<div style="margin-top:3px;font-size:14px;font-weight:600;color:#6b7280;overflow-wrap:anywhere">' + esc(st.email) + '</div>' +
+        '<div style="display:flex;flex-direction:column;gap:4px;align-items:center;min-width:0">' +
+          '<div style="font-size:28px;line-height:1.05;font-weight:900;letter-spacing:-.8px;color:#0d1117;overflow-wrap:break-word">' + esc(st.myName || 'No name yet') + '</div>' +
+          (who ? '<div style="display:flex;align-items:center;gap:5px;font-size:14px;font-weight:700;color:#6b7280">' + PIN_SM + esc(who) + '</div>' : '') +
         '</div>' +
-        '<button type="button" class="hov-outline" ' + on(openProfileEdit) + ' style="flex:0 0 auto;min-height:40px;padding:0 15px;background:#fff;border:1.5px solid #dcdfe6;border-radius:999px;font-family:inherit;font-size:14px;font-weight:800;color:#0d1117;cursor:pointer">Edit</button>' +
+        (st.myBio ? '<p style="margin:0;max-width:300px;font-size:15px;line-height:1.45;font-weight:500;color:#454b55;text-wrap:pretty">' + esc(st.myBio) + '</p>' : '') +
+        '<button type="button" class="hov-outline" ' + on(openProfileEdit) + ' style="min-height:40px;padding:0 18px;background:#fff;border:1.5px solid #dcdfe6;border-radius:999px;font-family:inherit;font-size:14px;font-weight:800;color:#0d1117;cursor:pointer">Edit profile</button>' +
+        '<div style="align-self:stretch;margin-top:6px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid #f2f3f6;padding-top:14px">' + stat(hosted, 'Hosted') + stat(went, 'Went to') + stat(myGroups().length, 'Groups') + '</div>' +
       '</header>' +
       '<div style="padding:18px 14px 26px;display:flex;flex-direction:column;gap:20px">' +
-        section('Your ideas', mine.length
-          ? mine.map((s, i) => {
-              const g = groupById(s.groupId), d = dayOf(s);
-              return '<div ' + on(() => go('detail', { subjectId: s.id, tag: null })) + ' style="display:flex;align-items:center;gap:12px;min-height:60px;padding:11px 0;border-top:' + (i ? '1px solid #f2f3f6' : '0') + ';cursor:pointer">' +
-                '<div style="flex:1 1 auto;min-width:0"><div style="font-size:15.5px;line-height:1.3;font-weight:800;letter-spacing:-.2px;color:#0d1117">' + esc(s.text) + '</div>' +
-                '<div style="margin-top:1px;font-size:13px;font-weight:600;color:#6b7280">' + esc((g ? g.name : '') + (d ? ' · ' + d.day : '')) + '</div></div>' +
-                I.chevR(16, '#9aa0ac', 2.4) + '</div>';
-            }).join('')
-          : '<div style="padding:16px 0;font-size:15px;line-height:1.45;font-weight:500;color:#5c6270">Nothing yet. Anything you post shows up here.</div>') +
-        section('Your groups',
-          groups.map(g => '<div ' + on(() => runs(g) ? openGroupPage(g.id) : openGroup(g)) + ' style="display:flex;align-items:center;gap:10px;min-height:54px;border-bottom:1px solid #f2f3f6;cursor:pointer">' +
-            '<span style="flex:1 1 auto;min-width:0;font-size:15.5px;font-weight:800;letter-spacing:-.2px;color:#0d1117">' + esc(g.name) + '</span>' +
-            (runs(g) ? '<span aria-label="You’re ' + (g.role === 'owner' ? 'an owner' : 'an admin') + '" style="flex:0 0 auto;display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:3px 9px 3px 7px;' + (g.role === 'owner' ? 'background:#ece9fd;color:#4a3ad4' : 'background:#fdf1d6;color:#8f6405') + ';font-size:11px;font-weight:900;letter-spacing:.6px;text-transform:uppercase">' + I.star(11) + ROLE_WORD[g.role] + '</span>' : '') +
-            I.chevR(16, '#9aa0ac', 2.4) + '</div>').join('') +
-          '<div ' + on(() => openJoin()) + ' style="display:flex;align-items:center;gap:10px;min-height:54px;cursor:pointer">' + I.keypad(16) + '<span style="font-size:15.5px;font-weight:800;color:#5b4ae8">Join with a code</span></div>' +
-          '<div ' + on(startGroup) + ' style="display:flex;align-items:center;gap:10px;min-height:48px;border-top:1px solid #f2f3f6;cursor:pointer">' + I.plus(15, '#6b7280', 2.4) + '<span style="font-size:14.5px;font-weight:700;color:#5c6270">Start a group</span></div>') +
+        section('Settings',
+          '<div ' + on(() => setState({ nSettings: true })) + ' class="hov-row" style="' + ROW + '">' + line('Notifications', 'What shows up in the app') + I.chevR(16, '#9aa0ac', 2.4) + '</div>' +
+          '<a href="/privacy.html" target="_blank" rel="noopener" class="hov-row" style="' + ROW + ';border-top:1px solid #f2f3f6">' + line('Privacy', 'How your info is used') + I.chevR(16, '#9aa0ac', 2.4) + '</a>') +
+        section('Help &amp; info',
+          '<div ' + on(() => go('how')) + ' class="hov-row" style="' + ROW + ';padding:10px 14px"><span style="flex:0 0 36px;width:36px;height:36px;border-radius:10px;background:#f3f1fe;color:#4a3ad4;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:900">?</span>' + line('How Spark Hub works', 'Events, ideas, and pitching in') + I.chevR(16, '#9aa0ac', 2.4) + '</div>') +
         '<div style="display:flex;flex-direction:column;gap:14px">' +
           (st.demoAdmin && st.sparks.some(s => s.demo)
             ? '<div style="' + CARD + ';padding:14px 16px;display:flex;flex-direction:column;gap:10px">' +
@@ -2933,7 +2948,6 @@
                 '<button type="button" ' + on(wipeDemo) + ' style="align-self:flex-start;min-height:40px;padding:0 16px;border:1.5px solid #f5c2cb;border-radius:999px;background:#fff;color:#9b1c31;font-family:inherit;font-size:14px;font-weight:800;cursor:pointer">Remove all demo content</button>' +
               '</div>'
             : '') +
-          '<div ' + on(() => go('how')) + ' style="' + CARD + ';padding:0 16px;min-height:52px;display:flex;align-items:center;justify-content:space-between;cursor:pointer"><span style="font-size:15.5px;font-weight:800;color:#0d1117">How Spark Hub works</span>' + I.chevR(16, '#9aa0ac', 2.4) + '</div>' +
           '<div ' + on(signOut) + ' style="' + CARD + ';padding:0 16px;min-height:52px;display:flex;align-items:center;cursor:pointer"><span style="font-size:15.5px;font-weight:800;color:#9b1c31">Sign out</span></div>' +
           '<a href="/privacy.html" target="_blank" rel="noopener" style="align-self:center;display:flex;align-items:center;min-height:36px;padding:0 10px;font-size:13.5px;font-weight:700;color:#6b7280">Privacy</a>' +
         '</div>' +
@@ -3495,6 +3509,10 @@
       '</div>' +
       '<label style="display:flex;flex-direction:column;gap:6px"><span style="font-size:13px;font-weight:800;color:#454b55">Name</span>' +
         '<input class="fld" type="text" maxlength="30" autocomplete="given-name" placeholder="First name" value="' + esc(pe.name) + '" ' + onInput(e => setPe({ name: e.target.value.slice(0, 30) })) + ' style="' + FIELD + '"></label>' +
+      '<label style="display:flex;flex-direction:column;gap:6px"><span style="font-size:13px;font-weight:800;color:#454b55">Place</span>' +
+        '<input class="fld" type="text" maxlength="40" placeholder="e.g. East Austin" value="' + esc(pe.place || '') + '" ' + onInput(e => setPe({ place: e.target.value.slice(0, 40) })) + ' style="' + FIELD + '"></label>' +
+      '<label style="display:flex;flex-direction:column;gap:6px"><span style="font-size:13px;font-weight:800;color:#454b55">About you</span>' +
+        '<textarea class="fld" rows="3" maxlength="160" placeholder="A line or two: what you’re up for, what you bring" ' + onInput(e => setPe({ bio: e.target.value.slice(0, 160) })) + ' style="' + FIELD + ';resize:none;line-height:1.4">' + esc(pe.bio || '') + '</textarea></label>' +
       '<label style="display:flex;flex-direction:column;gap:6px"><span style="font-size:13px;font-weight:800;color:#454b55">Email</span>' +
         (st.isGoogle
           ? '<div style="' + FIELD + ';background:#f7f7f9;border-color:#f2f3f6;color:#6b7280;overflow-wrap:anywhere">' + esc(st.email) + '</div><span style="font-size:13px;line-height:1.4;font-weight:500;color:#6b7280">From your Google account.</span>'
@@ -3649,16 +3667,14 @@
   function viewNav() {
     const s = state.screen, n = state.email ? unreadCount() : 0;
     const tab = (active, label, icon, fn) => '<div ' + on(fn) + ' aria-label="' + label + '"' + (active ? ' aria-current="page"' : '') +
-      ' style="padding:9px 0;min-height:44px;display:flex;align-items:center;justify-content:center;width:100%;color:' + (active ? '#5b4ae8' : '#5c6270') + ';cursor:pointer">' + icon + '</div>';
-    const cal = s === 'calendar';
+      ' style="padding:9px 0;min-height:44px;display:flex;align-items:center;justify-content:center;width:100%;color:' + (active ? '#0d1117' : '#9aa0ac') + ';cursor:pointer">' + icon + '</div>';
     return '<nav class="tabbar" aria-label="Main">' +
-      tab(s === 'home', 'Your plans', I.tabTicket, () => go('home')) +
-      tab(s === 'own', 'Your events and ideas', I.tabFlag, () => go('own')) +
-      // The center tab: a big purple circle (owner's request)
-      '<div ' + on(() => go('calendar')) + ' aria-label="Calendar"' + (cal ? ' aria-current="page"' : '') + ' style="width:54px;height:54px;margin-top:-10px;border-radius:999px;background:' + (cal ? '#4a3ad4' : '#5b4ae8') + ';color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 16px rgba(91,74,232,.38)' + (cal ? ', 0 0 0 3px #fff, 0 0 0 5px #5b4ae8' : '') + ';cursor:pointer">' + I.tabCalBig + '</div>' +
-      tab(s === 'groups' || s === 'browse' || s === 'groupPage', 'Groups', I.tabGroups, () => go('groups')) +
+      tab(s === 'home', 'Your schedule', I.tabTicket, () => go('home')) +
+      tab(s === 'own', 'Your plans and ideas', I.tabSpark, () => go('own')) +
+      tab(s === 'calendar', 'Calendar', I.tabCal, () => go('calendar')) +
       tab(s === 'notifs', n ? 'Notifications, ' + n + ' new' : 'Notifications', '<span style="position:relative;display:flex">' + I.tabBell +
         (n ? '<span aria-hidden="true" style="position:absolute;top:-6px;right:-9px;min-width:18px;height:18px;padding:0 4px;border-radius:999px;border:2px solid #fff;background:#e2556b;color:#fff;font-size:10.5px;font-weight:900;display:flex;align-items:center;justify-content:center;box-sizing:border-box">' + (n > 9 ? '9+' : n) + '</span>' : '') + '</span>', () => go('notifs')) +
+      tab(s === 'groups' || s === 'browse' || s === 'groupPage', 'Groups', I.tabSquares, () => go('groups')) +
     '</nav>';
   }
 
@@ -3946,7 +3962,7 @@
   if (bootUser) {
     const c = readCache(bootUser.id);
     Object.assign(state, { me: bootUser.id, email: bootUser.email }, c
-      ? { isGoogle: c.isGoogle, myName: c.myName || '', myAvatar: c.myAvatar, groups: c.groups || [], sparks: c.sparks || [], profiles: c.profiles || {},
+      ? { isGoogle: c.isGoogle, myName: c.myName || '', myAvatar: c.myAvatar, myPlace: c.myPlace || '', myBio: c.myBio || '', memberSince: c.memberSince || null, groups: c.groups || [], sparks: c.sparks || [], profiles: c.profiles || {},
           sizes: c.sizes || {}, notif: c.notif || state.notif, demoAdmin: !!c.demoAdmin, loaded: true, fromCache: true }
       : {});
   }

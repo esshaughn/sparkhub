@@ -17,11 +17,12 @@ test('a group end to end: edit group, cover, rename, invite, pin, admin edits, r
     expect(code).toMatch(/^[A-HJ-NP-Z2-9]{6}$/);
     await A.reload();
 
-    // Profile → Your groups → Edit group
-    await openProfile(A);
-    const row = A.locator('[data-screen-label=Profile]').getByRole('button', { name: rx(groupName) });
-    await expect(row).toContainText('Owner');
-    await row.click();
+    // Groups → the new group → its page → Edit group (owners and admins)
+    await A.getByRole('button', { name: 'Groups', exact: true }).click();
+    const cardA = A.locator('[data-screen-label=Groups]').getByRole('button', { name: groupName, exact: true });
+    await expect(cardA).toContainText('OWNER');
+    await cardA.click();
+    await A.locator('[data-screen-label=Browse]').getByRole('button', { name: 'Edit group' }).click();
     const gp = A.locator('[data-screen-label="Edit group"]');
     await expect(gp).toContainText('You’re the owner');
     await expect(gp).toContainText(code);
@@ -130,10 +131,11 @@ test('a group end to end: edit group, cover, rename, invite, pin, admin edits, r
     // Bo removes Ada as owner, then as admin
     await B.goto('/');
     await expect(B.locator('html[data-loaded=true]')).toHaveCount(1);   // fresh data, not the cached screen
-    await openProfile(B);
-    const bRow = B.locator('[data-screen-label=Profile]').getByRole('button', { name: rx(groupName) });
-    await expect(bRow).toContainText('Owner');
-    await bRow.click();
+    await B.getByRole('button', { name: 'Groups', exact: true }).click();
+    const cardB = B.locator('[data-screen-label=Groups]').getByRole('button', { name: groupName, exact: true });
+    await expect(cardB).toContainText('OWNER');
+    await cardB.click();
+    await B.locator('[data-screen-label=Browse]').getByRole('button', { name: 'Edit group' }).click();
     await B.getByRole('button', { name: 'See all members' }).click();
     const ada = B.getByRole('dialog', { name: 'Members' }).locator('[data-member="Ada"]');
     await ada.getByRole('button', { name: 'Remove' }).click();
@@ -145,8 +147,10 @@ test('a group end to end: edit group, cover, rename, invite, pin, admin edits, r
     // Ada is a plain member now: no badge, no Edit link
     await A.goto('/');
     await expect(A.locator('html[data-loaded=true]')).toHaveCount(1);
-    await openProfile(A);
-    await expect(A.locator('[data-screen-label=Profile]').getByRole('button', { name: rx(groupName) })).not.toContainText(/Owner|Admin/);
+    await A.getByRole('button', { name: 'Groups', exact: true }).click();
+    await expect(A.locator('[data-screen-label=Groups]').getByRole('button', { name: groupName, exact: true })).not.toContainText(/OWNER|ADMIN/);
+    await A.locator('[data-screen-label=Groups]').getByRole('button', { name: groupName, exact: true }).click();
+    await expect(A.locator('[data-screen-label=Browse]').getByRole('button', { name: 'Edit group' })).toHaveCount(0);
 
     // Bo deletes the group: type DELETE
     await B.getByRole('dialog', { name: 'Members' }).getByRole('button', { name: 'Close' }).click();

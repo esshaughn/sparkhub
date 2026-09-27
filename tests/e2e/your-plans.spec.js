@@ -1,7 +1,7 @@
 // V5 update: Your plans (Tiles / List / Grid with the helping list and the lead's dashboard),
 // the sign-up time, and the all-groups Calendar with role pills and filters.
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newLead, postEvent, openIdea, deleteIdea } = require('./helpers');
+const { uniqueTitle, newLead, postEvent, openIdea, deleteIdea, pickView } = require('./helpers');
 
 // Local dates, like the app (toISOString would be UTC, a day ahead in the evening)
 const inDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
@@ -38,7 +38,7 @@ test('Your plans and the Calendar: the host’s dashboard, a helper’s list wit
     }
 
     // Hal's Your plans: the tile shows what he's helping with (two, then "+1 more"), with the time
-    await O.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Your plans', exact: true }).click();
+    await O.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Your schedule', exact: true }).click();
     const oHome = O.locator('[data-screen-label=Home]');
     const tile = oHome.locator('[data-plan="' + title + '"]');
     await expect(tile).toContainText('Hunters Lane');
@@ -49,15 +49,15 @@ test('Your plans and the Calendar: the host’s dashboard, a helper’s list wit
     await tile.getByText('+1 more').click();
     await expect(tile).toContainText('Speaker');
     await expect(tile).toContainText('Show less');
-    await oHome.getByRole('radio', { name: 'Grid' }).click();
+    await pickView(oHome, 'Grid');
     await expect(tile.getByLabel('You’re helping')).toBeVisible();
-    await oHome.getByRole('radio', { name: 'List' }).click();
+    await pickView(oHome, 'List');
     await expect(tile).toContainText('YOU’RE HELPING:');
-    await oHome.getByRole('radio', { name: 'Tiles' }).click();
+    await pickView(oHome, 'Tiles');
 
     // Hope's Your plans: Leading, with Going · Maybe · Sign-ups and the Actions tile
     await H.reload();
-    await H.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Your plans', exact: true }).click();
+    await H.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Your schedule', exact: true }).click();
     const hTile = H.locator('[data-screen-label=Home] [data-plan="' + title + '"]');
     await expect(hTile.getByLabel('You’re leading')).toBeVisible();
     await expect(hTile.getByLabel('1 going')).toBeVisible();
@@ -78,6 +78,22 @@ test('Your plans and the Calendar: the host’s dashboard, a helper’s list wit
     await expect(row).toBeVisible();
     await oCal.getByRole('tab', { name: /^Leading/ }).click();
     await expect(row).toHaveCount(0);
+
+    // Back from an event page returns to where it was opened from (here, the Calendar), then Your schedule
+    await oCal.getByRole('tab', { name: /^All/ }).click();
+    await row.click();
+    await O.locator('[data-screen-label="Plan page"]').getByRole('button', { name: 'Back to Calendar' }).click();
+    await expect(oCal).toBeVisible();
+    await O.getByRole('button', { name: 'Your schedule', exact: true }).click();
+    await tile.click();
+    await O.locator('[data-screen-label="Plan page"]').getByRole('button', { name: 'Back to Your schedule' }).click();
+    await expect(oHome.getByRole('heading', { name: 'Your schedule' })).toBeVisible();
+
+    // Hope's Your plans tab: her plan's dashboard, no Leading chip (everything here is hers)
+    await H.getByRole('button', { name: 'Your plans and ideas', exact: true }).click();
+    const own = H.locator('[data-screen-label="Your plans & ideas"] [data-plan="' + title + '"]');
+    await expect(own.getByLabel('1 going')).toBeVisible();
+    await expect(own.getByLabel('You’re leading')).toHaveCount(0);
 
     expect(host.errors).toEqual([]);
     expect(helper.errors).toEqual([]);

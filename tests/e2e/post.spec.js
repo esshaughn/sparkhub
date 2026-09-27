@@ -15,7 +15,7 @@ test('post → idea page → all three views → profile → edit → delete', a
     // Idea page: date, time, location, address, directions, basics, lead
     const detail = page.locator('[data-screen-label="Idea page"]');
     await expect(detail.getByRole('heading', { name: Title })).toBeVisible();
-    await expect(detail.getByLabel('Idea in Torrez Fitness')).toBeVisible();
+    await expect(detail.getByRole('button', { name: 'Back to Torrez Fitness' })).toBeVisible();   // opened from posting: back goes to the group
     await expect(detail.getByLabel(/^Picked: Sat, Oct 17/)).toBeVisible();
     await expect(detail).toContainText('Make it a plan');                        // the lead has a date and time
     await expect(detail).toContainText('Zilker Metropolitan Park');
@@ -33,12 +33,15 @@ test('post → idea page → all three views → profile → edit → delete', a
     }, id);
     expect((await page.request.get(url)).status()).toBe(200);
 
-    // Your events & ideas lists it under "Your ideas" with its next step
-    await page.getByRole('button', { name: 'Your events and ideas', exact: true }).click();
-    const own = page.locator('[data-screen-label="Your events"]');
-    await expect(own).toContainText('Your ideas');
-    await expect(own.getByRole('button', { name: Title, exact: true })).toContainText('Idea · Torrez Fitness');
-    await expect(own.getByRole('button', { name: Title, exact: true })).toContainText('Make it a plan');
+    // Your ideas lists it with its readiness steps (date and location are set)
+    await page.getByRole('button', { name: 'Your plans and ideas', exact: true }).click();
+    const own = page.locator('[data-screen-label="Your plans & ideas"]');
+    await own.getByRole('tab', { name: 'Your ideas' }).click();
+    const mine = own.locator('[data-plan="' + Title + '"]');
+    await expect(mine).toContainText('Idea · Torrez Fitness');
+    await expect(mine.getByLabel('Date: done')).toBeVisible();
+    await expect(mine.getByLabel('Location: done')).toBeVisible();
+    await expect(mine.getByLabel('Tasks: not yet')).toBeVisible();
 
     // Groups → Torrez Fitness → Ideas, in each view
     await page.getByRole('button', { name: 'Groups', exact: true }).click();
@@ -57,10 +60,9 @@ test('post → idea page → all three views → profile → edit → delete', a
     await expect(card).toContainText(Title);
     await browse.getByRole('radio', { name: 'Tiles' }).click();
 
-    // Profile lists it with its group and date
+    // Profile no longer lists ideas; it has the stats row
     await openProfile(page);
-    await expect(page.locator('[data-screen-label=Profile]')).toContainText(Title);
-    await expect(page.locator('[data-screen-label=Profile]')).toContainText('Torrez Fitness · Sat, Oct 17');
+    await expect(page.locator('[data-screen-label=Profile]')).toContainText('Hosted');
 
     // Edit the title and basics
     await openIdea(page, id);

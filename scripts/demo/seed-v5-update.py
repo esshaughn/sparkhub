@@ -4,7 +4,7 @@ Matches the design's sample content:
   - "Laser tag night" becomes the plan "Pickleball" at Austin Pickleball Park (new photo)
   - new photos for Activate and the Mueller walk; the Torrez Fitness cover becomes photos/torrez-group.jpg
   - Eric's "Set up barriers" sign-up on Activate gets a time (8:30am)
-  - group-specific plans: Pumpkin Nights, Turkey Trot 5K and Saturday trail loop (Torrez Fitness);
+  - group-specific plans: Pumpkin Nights, Turkey Trot 5K, Saturday trail loop and Paintball (Torrez Fitness);
     Welcome picnic for new neighbors, Paint a Hub mural!!!, Coat drive sort night and Friendsgiving
     potluck (Hub on Hunters); Weekend Wake-Up and Wednesday Wind-Down (Woodcliff and Walnut Creek)
 Re-running replaces the plans it made (matched by title in each group).
@@ -78,6 +78,7 @@ BY_GROUP = {
              signups=[('Drive 3 people from the gym', 3, '18:15', ['Theo'])]),
         dict(text='Saturday trail loop', lead='Darnell', date='2026-11-21', time='08:00', spot='Barton Creek Greenbelt', photo='trail-cleanup.jpg', going=5, eric='maybe'),
         dict(text='Turkey Trot 5K', lead='Darnell', date='2026-11-26', time='08:00', spot='Mueller Lake Park', photo='torrez-trail.jpg', going=9, eric='going'),
+        dict(text='Paintball', lead='Darnell', date='2026-10-17', time='13:00', spot='Paintball park off Hwy 71', photo='paintball.jpg', going=7, maybe=1),
     ],
     'Hub on Hunters': [
         dict(text='Welcome picnic for new neighbors', lead='Eric', date='2026-10-10', time='12:00', spot='Hunters Lane Park', photo='welcome-picnic.jpg',
@@ -94,7 +95,7 @@ BY_GROUP = {
 }
 
 # Torrez Fitness cover (a photo shipped with the site)
-rest('PATCH', 'groups', {'photo': 'photos/torrez-group.jpg', 'photo_pos': None}, '?name=eq.' + q('Torrez Fitness'))
+rest('PATCH', 'groups', {'photo': 'photos/torrez-group.jpg', 'photo_pos': {'x': 50, 'y': 72, 'zoom': 1.35}}, '?name=eq.' + q('Torrez Fitness'))   # the design's crop
 print('Torrez Fitness: new cover')
 
 groups = {r['group_id'] for r in rest('GET', 'memberships', query=f'?user_id=eq.{eric}&select=group_id')}

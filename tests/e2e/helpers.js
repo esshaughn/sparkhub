@@ -83,13 +83,21 @@ async function newLead(browser, n, name, path) {
 
 const button = (page, name) => page.getByRole('button', { name, exact: true });
 
-// Posting starts from "Your events & ideas" (Post an event); Profile is your photo in the Your plans header
+// Posting starts from "Your plans" (Post an event); Profile is your photo in the Your schedule header
 async function startPost(page) {
-  await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Your events and ideas', exact: true }).click();
-  await page.locator('[data-screen-label="Your events"]').getByRole('button', { name: 'Post an event' }).click();
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Your plans and ideas', exact: true }).click();
+  const own = page.locator('[data-screen-label="Your plans & ideas"]');
+  await own.getByRole('tab', { name: 'Your plans' }).click();
+  await own.getByRole('button', { name: 'Post an event' }).click();
+}
+// Tiles · List · Grid: the picker on the first month row
+async function pickView(scope, name) {
+  await scope.getByRole('button', { name: /^View: / }).click();
+  await scope.page().getByRole('menu', { name: 'View' }).getByRole('button', { name, exact: true }).click();
+  await expect(scope.getByRole('button', { name: 'View: ' + name })).toBeVisible();
 }
 async function openProfile(page) {
-  await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Your plans', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Your schedule', exact: true }).click();
   await page.locator('[data-screen-label=Home]').getByRole('button', { name: 'Profile' }).click();
   await expect(page.locator('[data-screen-label=Profile]')).toBeVisible();
 }
@@ -222,6 +230,6 @@ async function asUser(page, fn, args) {
 }
 
 module.exports = {
-  TAG, TORREZ, PNG, uniqueTitle, startPost, openProfile, mockPlaces, trackErrors, expectConnected, newMember, newLead, button,
+  TAG, TORREZ, PNG, uniqueTitle, startPost, openProfile, pickView, mockPlaces, trackErrors, expectConnected, newMember, newLead, button,
   postIdea, postEvent, answerNamePrompt, answerGuestPrompt, ideaIdFromUrl, openIdea, confirm, deleteIdea, asUser
 };
