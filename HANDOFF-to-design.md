@@ -26,6 +26,7 @@ Where this doc and the design files disagree, **this doc is correct**.
 | 9 | **The Calendar header** uses the Walnut Creek group photo (the same parade shot as `walnut-creek-parade.jpg`, already resized in `photos/`) | `walnut-creek-parade.jpg` | Same photo, no second copy |
 | 10 | **"Feeling wild?" cards** show the first three events in the current results (A♠ K♥ Q♣) | poker-night / paintball / pumpkin-nights photos | Always real events |
 | 11 | **Your tasks' "Find something to help with"** opens the Calendar | Groups | The Calendar is where "could use a hand" lives |
+| 12 | **The Calendar is the home screen.** Signing in, the logo, back with no history, closing the post flow and deleting a group all land on the Calendar; the tab bar is still the v6 five | Your tasks is the home screen | Owner (2026-09-27) |
 
 ## 2. Things the build had to invent (please design these properly)
 
@@ -36,7 +37,7 @@ Where this doc and the design files disagree, **this doc is correct**.
 
 ## 3. Behaviour added in the build (no visual change)
 
-- **URLs:** Your tasks is `/`, Your schedule `#/schedule`, Calendar `#/calendar`; `#/me` and `#/notifications` open the Profile / Notifications sheets over Your tasks. Your plans & ideas is still at `#/own` (off the tab bar). Following a link or the back button closes any open sheet.
+- **URLs:** the Calendar is `/` (and `#/calendar`), Your tasks `#/tasks`, Your schedule `#/schedule`; `#/me` and `#/notifications` open the Profile / Notifications sheets over the Calendar. Your plans & ideas is still at `#/own` (off the tab bar). Following a link or the back button closes any open sheet.
 - **The RSVP ask** shows after signing up for an item, adding your own item, claiming a role, or offering to help organize a plan — when you're not the lead and haven't said Going or Can't go. It can't be dismissed.
 - **Calendar filters, search and "Feeling wild? / could use a hand" dismissals** last for the visit; the chosen view (List / Tiles / Month) is remembered per device.
 - **Demo data:** `scripts/demo/seed-events.py` now also makes, dated from the day it runs, a plan today / tomorrow (reminder off) / two days ago and a Helpers-stage idea for each tester, plus two shared plans everyone helps on, so every v6 state shows.

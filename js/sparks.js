@@ -172,7 +172,7 @@
     evDate: '', evTime: '18:00', evDetails: '', evPriv: false
   });
   const state = Object.assign({
-    screen: 'home', menu: null, subjectId: null, gpId: null, tag: null, zoom: null, membersOpen: null, membersList: null,
+    screen: 'calendar', menu: null, subjectId: null, gpId: null, tag: null, zoom: null, membersOpen: null, membersList: null,
     sort: SORTS.some(s => s[0] === prefs.sort) ? prefs.sort : 'popular',
     view: VIEWS.indexOf(prefs.view) > -1 ? prefs.view : 'tiles',                 // a group's page
     homeView: SCHED_VIEWS.indexOf(prefs.homeView) > -1 ? prefs.homeView : 'tiles',   // Your schedule
@@ -209,7 +209,8 @@
     const s = state.screen;
     if (s === 'detail' && state.subjectId) return '#/idea/' + state.subjectId;
     if (s === 'groupPage' && state.gpId) return '#/group/' + state.gpId;
-    const plain = { home: '', sched: '#/schedule', browse: '#/ideas', how: '#/how', calendar: '#/calendar', own: '#/own', groups: '#/groups' };
+    // The Calendar is the home screen (owner, 2026-09-27); Your tasks has its own link
+    const plain = { calendar: '', home: '#/tasks', sched: '#/schedule', browse: '#/ideas', how: '#/how', own: '#/own', groups: '#/groups' };
     return plain[s] != null ? plain[s] : null;
   };
   const syncHash = () => {
@@ -226,17 +227,18 @@
     m = h.match(/^#\/group\/([0-9a-f-]{36})$/);
     if (m) return { screen: 'groupPage', gpId: m[1] };
     m = h.match(/^#\/join\/([A-Za-z0-9]{6})$/) || location.pathname.match(JOIN_PATH);
-    if (m) return { screen: 'home', inviteCode: m[1].toUpperCase() };
+    if (m) return { screen: 'calendar', inviteCode: m[1].toUpperCase() };
     if (h === '#/ideas') return { screen: 'browse' };
     if (h === '#/how') return { screen: 'how' };
     if (h === '#/calendar') return { screen: 'calendar' };
     if (h === '#/schedule') return { screen: 'sched' };
+    if (h === '#/tasks') return { screen: 'home' };
     if (h === '#/own') return { screen: 'own' };
     if (h === '#/groups') return { screen: 'groups' };
-    // v6: Profile and Notifications are sheets over Your tasks
-    if (h === '#/notifications') return { screen: 'home', notifSheet: true };
-    if (h === '#/me') return { screen: 'home', profSheet: true };
-    return { screen: 'home' };
+    // v6: Profile and Notifications are sheets over the Calendar
+    if (h === '#/notifications') return { screen: 'calendar', notifSheet: true };
+    if (h === '#/me') return { screen: 'calendar', profSheet: true };
+    return { screen: 'calendar' };
   };
 
   const setState = (patch) => {
@@ -538,10 +540,10 @@
   const loadForRoute = async () => {
     if (state.screen === 'detail' && state.subjectId) {
       const ok = await openLink(state.subjectId);
-      if (!ok) setState({ screen: 'home', subjectId: null, goneOpen: true });
+      if (!ok) setState({ screen: 'calendar', subjectId: null, goneOpen: true });
     }
     await loadFresh();
-    if (state.screen === 'detail' && !subject()) setState({ screen: 'home', subjectId: null, goneOpen: true });
+    if (state.screen === 'detail' && !subject()) setState({ screen: 'calendar', subjectId: null, goneOpen: true });
     if (state.screen === 'groupPage') openGroupPage(state.gpId, true);
   };
 
@@ -667,7 +669,7 @@
     const ok = await run(async () => { must(await sb.rpc('delete_group', { p_group: g.id })); }, { gpDel: null });
     if (!ok) return;
     if (state.groupId === g.id) setState({ groupId: null });
-    go('home');
+    go('calendar');
     toast(g.name + ' was deleted', true);
   };
 
@@ -1274,7 +1276,7 @@
     const then = st.loginThen;
     setState({ busy: null, loginStep: null, loginCode: '', loginThen: null, mergeToken: null, googleFailed: false });
     if (typeof then === 'function') then();
-    else if (state.screen === 'home') go('home');
+    else if (state.screen === 'calendar') go('calendar');
   };
 
   const verifyCode = async () => {
@@ -1301,7 +1303,7 @@
     clearCache();
     await sb.auth.signOut().catch(() => {});
     setState({ email: '', isGoogle: false, myName: '', myAvatar: null, guest: null, groups: [], sparks: [] });
-    go('home');
+    go('calendar');
     await ensureSession(true);
     await loadFresh().catch(() => {});
   };
@@ -1378,7 +1380,7 @@
   const resumeAfter = (r) => {
     if (r.from === 'post') return () => (r.draft && r.draft.step === 'event' ? createEvent() : createDraft());
     if (r.from === 'join') return () => setState({ joinOpen: true, joinCode: r.joinCode || '', joinBad: false });
-    if (r.from === 'profile') return () => go('home', { profSheet: true });
+    if (r.from === 'profile') return () => go('calendar', { profSheet: true });
     return null;
   };
 
@@ -1521,7 +1523,7 @@
 
   // ---- Logo, group switcher and its menu -----------------------------------
 
-  const logo = (onDark) => '<div ' + on(() => go('home')) + ' aria-label="Spark Hub home" style="display:flex;align-items:center;gap:6px;min-height:44px;cursor:pointer;width:fit-content">' +
+  const logo = (onDark) => '<div ' + on(() => go('calendar')) + ' aria-label="Spark Hub home" style="display:flex;align-items:center;gap:6px;min-height:44px;cursor:pointer;width:fit-content">' +
     (onDark ? I.boltRays(24) : I.bolt(24, '#e8a71c')) +
     '<span style="font-size:18px;line-height:1;font-weight:900;letter-spacing:-.5px;color:' + (onDark ? '#fff;text-shadow:0 1px 4px rgba(0,0,0,.3)' : '#0d1117') + '">Spark Hub</span></div>';
 
@@ -1638,12 +1640,12 @@
   const openSpark = (s) => go('detail', { subjectId: s.id, tag: null, menu: null });
   const backLabel = (s) => {
     const b = state.back, g = groupById(s.groupId);
-    if (!b) return g && g.role ? g.name : 'home';
+    if (!b) return g && g.role ? g.name : 'Calendar';
     return { home: 'Your tasks', sched: 'Your schedule', own: b.ownTab === 'idea' ? 'Your ideas' : 'Your plans', calendar: 'Calendar', groups: 'Groups', browse: (groupById(b.groupId) || g || {}).name || 'the group' }[b.screen];
   };
   const goBack = (s) => {
     const b = state.back, g = groupById(s.groupId);
-    if (!b) { go(g && g.role ? 'browse' : 'home', g && g.role ? { groupId: g.id } : {}); return; }
+    if (!b) { go(g && g.role ? 'browse' : 'calendar', g && g.role ? { groupId: g.id } : {}); return; }
     setState({ screen: b.screen, groupId: b.groupId || state.groupId, phaseTab: b.phaseTab, ownTab: b.ownTab, back: null, menu: null, zoom: null });
     const sc = scroller();
     if (sc) sc.scrollTop = b.scroll;
@@ -2404,7 +2406,7 @@
         z.items.map(card6).join('') + '</div>').join('');
     }
     return '<div data-screen-label="Calendar">' + header + filters +
-      '<div style="padding:10px 14px 0;display:flex;flex-direction:column;gap:10px">' + wild + needs + '</div>' +
+      '<div style="padding:10px 14px 0;display:flex;flex-direction:column;gap:10px">' + goneCard() + (st.loaded && !groups.length ? noGroupCard() : '') + wild + needs + '</div>' +
       '<div style="padding:16px 14px 26px;display:flex;flex-direction:column;gap:22px">' + body + '</div>' +
       '<div style="height:var(--nav-h)"></div></div>';
   }
@@ -3532,7 +3534,7 @@
     const close = () => {
       if (st.step === 'activity') { setState({ step: 'event' }); return; }
       if (st.step !== 'event') { setState({ step: 'activity' }); return; }
-      go('home', composeReset());
+      go('calendar', composeReset());
     };
     const actReady = st.activity.trim().length > 0;
     let body = '';
@@ -4252,7 +4254,7 @@
     morphChildren(root, tpl.content);
     root.classList.toggle('no-nav', welcomeShown());
     // Screens that start with a photo run it up under the iPhone status bar
-    const sc = state.screen, photoTop = sc === 'browse' || (sc === 'detail' && !!subject()) || (!!state.email && sc === 'calendar') || (!state.email && (sc === 'home' || sc === 'compose' || sc === 'groupPage'));
+    const sc = state.screen, photoTop = sc === 'browse' || (sc === 'detail' && !!subject()) || sc === 'calendar' || (!state.email && (sc === 'home' || sc === 'compose' || sc === 'groupPage'));
     root.classList.toggle('photo-top', photoTop);
     const took = performance.now() - t0;
     diagNote('redraw (' + Math.round(took) + 'ms)');
@@ -4448,7 +4450,7 @@
       if (await finishGoogle().catch(e => { console.error(e); return false; })) return;
       await loadForRoute();
       if (invite) takeInvite(invite);
-      if (state.profSheet && !state.email) { setState({ profSheet: false }); openLogin('profile', () => go('home', { profSheet: true })); }
+      if (state.profSheet && !state.email) { setState({ profSheet: false }); openLogin('profile', () => go('calendar', { profSheet: true })); }
     } catch (e) {
       console.error(e);
       setState({ error: 'load', loaded: true });

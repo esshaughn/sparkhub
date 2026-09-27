@@ -18,8 +18,9 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
   const title = uniqueTitle('Porch jam');
   let id;
   try {
-    // Signed in, the app opens on Your tasks; the tab bar is the v6 five
-    await expect(H.locator('[data-screen-label="Your tasks"]')).toBeVisible();
+    // Signed in, the app opens on the Calendar (the home screen); the tab bar is the v6 five
+    await expect(H.locator('[data-screen-label=Calendar]')).toBeVisible();
+    await expect(H.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Calendar', exact: true })).toHaveAttribute('aria-current', 'page');
     await expect(nav(H).getByRole('button')).toHaveCount(5);
     for (const name of [/^Your tasks/, 'Your schedule', 'Calendar', 'Groups', 'Profile']) await expect(nav(H).getByRole('button', { name, exact: typeof name === 'string' })).toBeVisible();
 

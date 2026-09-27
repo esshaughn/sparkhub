@@ -65,8 +65,8 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
   const { page, context, errors } = await newLead(browser, 1, 'Tester');
   let going = null;
   try {
-    // Signed in, the app opens on Your tasks (v6)
-    await expect(page.locator('[data-screen-label="Your tasks"]').getByRole('heading', { name: 'Your tasks' })).toBeVisible();
+    // Signed in, the app opens on the Calendar (the home screen)
+    await expect(page.locator('[data-screen-label=Calendar]').getByRole('heading', { name: 'Calendar' })).toBeVisible();
     await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Your schedule', exact: true }).click();
     const home = page.locator('[data-screen-label="Your schedule"]');
     await expect(home.getByRole('heading', { name: 'Your schedule' })).toBeVisible();
@@ -182,7 +182,7 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
 
 test('opening the app: loading placeholders (never "empty"), then the last screen straight away next time', async ({ browser }) => {
   const { page, context, errors } = await newLead(browser, 1, 'Tester');   // signed in, loaded once (so cached)
-  const home = page.locator('[data-screen-label="Your tasks"]');
+  const home = page.locator('[data-screen-label=Calendar]');
   const hold = async () => {   // hold every data request until released
     let release; const gate = new Promise(r => { release = r; });
     await page.route('**/rest/v1/**', async (route) => { await gate; await route.continue().catch(() => {}); });
@@ -199,17 +199,17 @@ test('opening the app: loading placeholders (never "empty"), then the last scree
     await expect(page.getByText('Nothing on the books yet.')).toHaveCount(0);
     await page.getByRole('button', { name: 'Groups', exact: true }).click();
     await expect(page.locator('[data-screen-label=Groups]').getByRole('status', { name: 'Loading' })).toBeVisible();
-    await page.getByRole('button', { name: /^Your tasks/ }).click();
+    await page.getByRole('button', { name: 'Calendar', exact: true }).click();
     release();
     await expect(page.locator('html[data-loaded=true]')).toHaveCount(1);
     await page.unroute('**/rest/v1/**');
     await expect(home.getByRole('status', { name: 'Loading' })).toHaveCount(0);
-    await expect(home.getByRole('heading', { name: 'Your tasks' })).toBeVisible();
+    await expect(home.getByRole('heading', { name: 'Calendar' })).toBeVisible();
 
     // Next open: the cached screen shows at once, while the fresh data is still on its way
     release = await hold();
     await page.reload();
-    await expect(home.getByRole('heading', { name: 'Your tasks' })).toBeVisible();
+    await expect(home.getByRole('heading', { name: 'Calendar' })).toBeVisible();
     await expect(home.getByRole('status', { name: 'Loading' })).toHaveCount(0);
     await expect(page.locator('html[data-loaded=true]')).toHaveCount(0);
     release();

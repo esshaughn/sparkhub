@@ -135,7 +135,7 @@ test('post flow guards: each step waits for an answer or a "later"', async ({ br
     await page.getByRole('button', { name: 'Back' }).last().click();   // idea steps → the event form
     await expect(page.locator('[data-screen-label="New spark"]').getByText('Post an event')).toBeVisible();
     await page.getByRole('button', { name: 'Back' }).last().click();   // → out of the flow
-    await expect(page.locator('[data-screen-label="Your tasks"]')).toBeVisible();
+    await expect(page.locator('[data-screen-label=Calendar]')).toBeVisible();
   } finally {
     await context.close();
   }
