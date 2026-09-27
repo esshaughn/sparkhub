@@ -1,5 +1,5 @@
 // The app loads for visitors and members, and its menus and links work.
-const { test, expect } = require('@playwright/test');
+const { test, expect, devices } = require('@playwright/test');
 const { newMember, newLead, button } = require('./helpers');
 
 test('visitors land on Welcome (no tab bar there) and sign in from there', async ({ browser }) => {
@@ -188,6 +188,22 @@ test('opening the app: loading placeholders (never "empty"), then the last scree
 
     // (Sign-out clears the cache too; not exercised here: the test leads are shared with parallel tests)
     expect(errors).toEqual([]);
+  } finally {
+    await context.close();
+  }
+});
+
+test('a Spark Hub loading screen shows until the app is ready', async ({ browser }) => {
+  const context = await browser.newContext({ ...devices['Pixel 7'] });
+  const page = await context.newPage();
+  try {
+    let release; const gate = new Promise(r => { release = r; });
+    await page.route('**/js/sparks.js*', async (route) => { await gate; await route.continue(); });
+    await page.goto('/', { waitUntil: 'commit' });
+    await expect(page.getByRole('status', { name: 'Loading Spark Hub' })).toBeVisible();
+    release();
+    await expect(page.locator('[data-screen-label=Welcome]')).toBeVisible();
+    await expect(page.getByRole('status', { name: 'Loading Spark Hub' })).toHaveCount(0);
   } finally {
     await context.close();
   }

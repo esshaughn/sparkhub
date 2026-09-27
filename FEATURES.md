@@ -94,6 +94,7 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 79 | **Shared demo world**: everyone who signs in joins Hub on Hunters, Walnut Creek, Woodcliff and Torrez Fitness as a member; named testers get their owner/admin roles from a roster (roles only go up) | Test | `demo_roster`, trigger on sign-in; `scripts/demo/demo-world.sql` |
 | 80 | **Remove all demo content** (Profile, owner's account only): deletes every demo idea and plan, takes the demo people out of the groups, stops auto-joining | Test | `wipe_demo()`, `demo_admins` |
 | 81 | **No empty flash on open**: a signed-in person goes straight to their app (not Welcome); screens show loading placeholders until data arrives, and after the first time the last-seen data shows at once while fresh data loads | Test | Cache in localStorage per database and account, without guests' phone numbers; cleared on sign-out |
+| 82 | **Loading screen**: the gold bolt (64px, gently pulsing) over "Spark Hub" on white, shown from the first moment until the app renders | Test | In `index.html`, so it shows before any script loads |
 
 ## Posting and editing
 
@@ -144,7 +145,7 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 56 | Design handoff doc kept current by Claude Code | Live | |
 | 57 | Vercel auto-deploy from `main`; previews from `test` | Live | |
 | 58 | Security headers + CSP; pinned, integrity-checked Supabase script | Live | |
-| 59 | Automated end-to-end tests (22 tests: smoke, posting, groups, collaboration, plans, Your plans, notifications, Google, database security) | Test | `tests/` |
+| 59 | Automated end-to-end tests (23 tests: smoke, posting, groups, collaboration, plans, Your plans, notifications, Google, database security) | Test | `tests/` |
 | 60 | Nightly cleanup of test-database leftovers ([E2E] ideas and groups, old anonymous users) | Live | Test project only |
 
 ## Removed in this rebuild
