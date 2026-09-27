@@ -19,12 +19,12 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 3 | An invite link (/join/CODE) adds "Sign in to join the group CODE"; after signing in, Join opens pre-filled | Test | |
 | 4 | (Removed) Group code card, Start a group, How this works link: now only after sign-in (How Spark Hub works is in Profile) | Test | |
 
-## Your plans (Home, signed in) — V5 update
+## Your schedule (Home, signed in) — v5.2
 
 | # | Feature | Status | Notes |
 |---|---|---|---|
-| 5 | Header: logo, **All groups ▾** scope menu, your photo → Profile; title **Your plans** with a **Tiles · List · Grid** switcher (Tiles by default, remembered on this device) | Test | The scope resets when the app reloads |
-| 6 | Upcoming plans you lead, said Going / Maybe to, or signed up to help with, by month (List: by day too). Photo cards with date · time, title and place | Test | |
+| 5 | Header: logo, **All groups ▾** scope menu, your photo → Profile, then the title **Your schedule**. A **view picker** (the current view's icon + chevron → Tiles / List / Grid menu) sits at the right end of the first month heading; Tiles by default, remembered on this device | Test | The scope resets when the app reloads |
+| 6 | Upcoming plans you lead, said Going / Maybe to, or signed up to help with, under 22px month headings. **List** view: one white bubble per event, same-day events stacked under one day label, titles wrapping beside the 96px thumbnail | Test | |
 | 7 | **YOU'RE HELPING:** your sign-ups on each plan, with their time; two, then **+N more** / **Show less** | Test | Grid shows a *Helping* chip |
 | 8 | Plans you lead: **Leading** chip and a dashboard — Going · Maybe · Sign-ups rings and an **Actions** tile (count of next steps) or **All set** | Test | Grid: *Leading · N to do* |
 | 9 | Empty: *Nothing on the books yet.* + **Post an event** | Test | |
@@ -46,9 +46,9 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 
 | # | Feature | Status | Notes |
 |---|---|---|---|
-| 17 | Cover header: logo, **Edit** (admins), *N members*, group name, **I have an idea** | Test | |
-| 18 | Ideas / Plans / Happened tabs; **Tiles · List · Grid** switcher, remembered on this device | Test | |
-| 19 | **Sort** on Ideas only: Most popular (default) · Happening soon · Newest · Oldest. Plans: *N upcoming plans*, soonest first; Happened: *N past events*, newest first | Test | |
+| 17 | Cover header: a **Back to groups** circle (no logo), **Edit** pill (admins), *N members*, group name, **I have an idea** | Test | |
+| 18 | Ideas / Plans / Happened tabs; the **view picker** (Tiles / List / Grid) on the first month heading, remembered on this device | Test | |
+| 19 | **Sort** on Ideas only, on its own row: Most popular (default) · Happening soon · Newest · Oldest. Plans (soonest first) and Happened (newest first) have no count line or sort | Test | |
 | 20 | Photo cards by month (List: by day) with date · time, title, place; your role as a chip — Leading / Helping / Going / Maybe (Led / Helped / Went on Happened, photos desaturated) | Test | Ideas with no date: "Idea · no date yet" |
 | 21 | Loading placeholders, "Couldn't load ideas" banner with **Try now**, empty states per tab | Test | |
 
@@ -83,18 +83,21 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 68 | All ideas **Ideas / Plans / Happened** tabs with counts; cards show IDEA / PLAN / It happened | Test | |
 | 69 | **Start a group** (Profile → Your groups) | Test | `create_group()` |
 | 70 | Temporary **demo plans** in every group the owner is in (`scripts/demo/seed-v5.py`) | Test | Re-run to refresh dates; see the script to remove |
-| 71 | **Tab bar** (V5 update): Your plans · Your events & ideas · **Calendar** (a big purple circle in the middle) · Groups · Notifications (red unread count) | Test | Profile is your photo in the header |
-| 72 | **Calendar**: every event in all your groups (or one: *All groups ▾*), filters All · Leading · Going · Helping with counts, **List** (default) · Week · Month; rows show time · group, place, *Helping · …* and a pill (Leading, Going, Maybe, Open to join, Happened); floated idea dates; *Post an event* on empty days. *ROUGH DRAFT* stamp (design's, temporary) | Test | |
-| 73 | **Your events & ideas**: counts (events · ideas · need you), **Post an event** / **Float an idea**, group chips, Events you're leading · Your ideas · Past events, each with its next step. *ROUGH DRAFT* stamp (temporary) | Test | Next steps open the plan |
-| 74 | **Notifications** (last 7 days, built from stored activity): new plans in your groups (with **I'm going** / **Maybe**), host updates with their text (to the audience the host picked), day-before and day-of reminders; for your own plans and ideas: replies, sign-ups, interest, date/location suggestions, offers to help organize. Filters All / Invites / Updates / Hosting; New / Earlier this week; unread dots | Test | |
+| 71 | **Tab bar** (v5.2): Your schedule · Your plans & ideas · Calendar · Notifications (red unread count) · Groups; five plain 23px icons, black when active, gray otherwise. Logo and your photo appear only on Your schedule; every other tab is a 36px title at 40px | Test | |
+| 72 | **Calendar**: title-only header (CALENDAR eyebrow + *All groups ▾*), every event in all your groups, filters All · Leading · Going · Helping with counts, **List** (default) · Week · Month; rows show time · group, place, *Helping · …* and a pill (Leading, Going, Maybe, Open to join, Happened); floated idea dates; *Post an event* on empty days. *ROUGH DRAFT* stamp (design's, temporary) | Test | |
+| 73 | **Your plans / Your ideas**: the title is the switch (active black, inactive light gray); a group dropdown pill and the create button for that tab (**Post an event** green, **Float an idea** yellow). Plans: photo tiles with the Going · Maybe · Sign-ups rings and the Actions box, then *Past events* with desaturated photos. Ideas: photo tiles (IDEA · GROUP) with the four **readiness steps** (Date, Location, People, Tasks: rings that fill, then go solid green) | Test | No draft stamp here |
+| 74 | **Notifications** (a tab; last 7 days, built from stored activity): gear on the title row, filter chips All / Invites / Updates / Hosting, sections **NEW · N** (with **Mark all read** at its right, both gone once everything is read) and Earlier this week; new plans with **I'm going** / **Maybe**, host updates with their text, day-before and day-of reminders; on your own plans: replies, sign-ups, interest, suggestions, offers to organize | Test | |
 | 75 | **Mark all read** and per-item read (tapping one), kept in your account so they follow you between the app and the browser | Test | `notif_state` |
 | 76 | **Notification settings**: four topics on/off (hide them from the feed and the count). Notifications are **in-app only** for now | Test | No email (owner's call, 2026-09-28); push isn't possible yet (no service worker) |
 | 77 | **Sign-up times**: the host can give a sign-up item a time ("Set up barriers · 8:30am"), shown on the plan and in Your plans | Test | `signup_items.time`, host only |
-| 78 | Temporary **demo content matching the V5 update design** (`scripts/demo/seed-v5-update.py`) | Test | |
+| 78 | Temporary **demo content matching the design** (`scripts/demo/seed-v5-update.py`): the v5 update's plans and photos, v5.2's Paintball and the Torrez Fitness cover crop | Test | |
 | 79 | **Shared demo world**: everyone who signs in joins Hub on Hunters, Walnut Creek, Woodcliff and Torrez Fitness as a member; named testers get their owner/admin roles from a roster (roles only go up) | Test | `demo_roster`, trigger on sign-in; `scripts/demo/demo-world.sql` |
 | 80 | **Remove all demo content** (Profile, owner's account only): deletes every demo idea and plan, takes the demo people out of the groups, stops auto-joining | Test | `wipe_demo()`, `demo_admins` |
 | 81 | **No empty flash on open**: a signed-in person goes straight to their app (not Welcome); screens show loading placeholders until data arrives, and after the first time the last-seen data shows at once while fresh data loads | Test | Cache in localStorage per database and account, without guests' phone numbers; cleared on sign-out |
 | 82 | **Loading screen**: the gold bolt (64px, gently pulsing) over "Spark Hub" on white, shown from the first moment until the app renders | Test | In `index.html`, so it shows before any script loads |
+| 83 | **Profile** (v5.2, from your photo on Your schedule): centred 96px photo with a camera badge, name, *{place} · Member since {year}*, a short bio, **Edit profile** (photo, name, **Place**, **About you**, email), a **Hosted / Went to / Groups** stats row; **Settings** (Notifications → the settings sheet; Privacy), **Help & info** (How Spark Hub works), the owner's Demo content card, Sign out. No Your ideas or Your groups lists | Test | `profiles.place` (≤40), `profiles.bio` (≤160) |
+| 84 | **Event page controls** (idea, plan, happened): the photo runs to the top; a white **Back** circle and, for hosts, a white **Edit** pill; no group name or IDEA pill between them. **Back returns to the screen you came from** (Your schedule, Your plans or ideas, Calendar, Notifications, Groups, the group page), scrolled to where you were; a link opened cold goes to the group's page | Test | `state.back`, recorded in `go()` |
+| 85 | **Groups page** (v5.2): title at 40px, 36px Join / Start pills; tiles honour each group's crop and zoom | Test | |
 
 ## Posting and editing
 
