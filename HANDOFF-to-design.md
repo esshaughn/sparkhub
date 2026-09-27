@@ -46,7 +46,7 @@ Where this doc and the design files disagree, **this doc is correct**.
 - **Empty states on Your plans / Your ideas:** *Nothing on the books yet. Post an event and it lives here.* / *No ideas yet. Float one and see who's in before you pick a date.*
 - **Profile → Settings → Privacy** opens the privacy page (sub-line *How your info is used*); Notifications' sub-line is *What shows up in the app*.
 - **Loading screen:** while the app itself loads (a blank page before), a white screen with the gold bolt (64px, `#e8a71c`, soft glow, pulsing to 86% scale and 60% opacity every 1.2s; still with reduced motion) and "Spark Hub" 24px/900 under it. A designed splash would replace it.
-- **Loading placeholders:** until the first data arrives, Your plans, Your events & ideas, Calendar, Groups and Notifications show pulsing white rounded blocks (the page's card shape, `skPulse` 1.4s) instead of their empty states. After the first visit, the app opens on the last data seen while it refreshes.
+- **Loading placeholders:** until the first data arrives, Your schedule, Your plans & ideas, Calendar, Groups and Notifications show pulsing white rounded blocks (the page's card shape, `skPulse` 1.4s) instead of their empty states. After the first visit, the app opens on the last data seen while it refreshes.
 - **Demo content card** (Profile, only on the owner's account, only while demo content exists): white card, "Demo content" 15.5px/800, "N ideas and plans in your groups are demo content. Only you can see this." 13.5px/500 `#6b7280`, and an outlined red button **Remove all demo content** (1.5px `#f5c2cb` border, `#9b1c31` text). It confirms with "Remove all demo content?" / "Remove it" / "Keep it".
 
 ## 3. Behaviour added in the build (no visual change)
