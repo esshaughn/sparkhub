@@ -215,9 +215,9 @@ IDEAS = [
          lead='stacy.claye@gmail.com', alt='Marisol', fans=5),
     dict(g=C, text='Pickup basketball', vision='Casual full-court run, all skill levels.', lead='torrez.fitness@gmail.com', alt='Darnell', fans=4),
     # Personal ideas (group-less in the design) in Torrez Fitness
-    dict(g=T, text='Sunrise loop around the lake', photo='get-togethers.jpg', lead='eric@ericscott-creative.com', alt='Dee', fans=5,
+    dict(g=T, text='Sunrise loop around the lake', lead='eric@ericscott-creative.com', alt='Dee', fans=5,
          hopes=['Coffee after, if you want it'], dates=[('2026-10-12', '07:00', 'Marisol', 4), ('2026-10-19', '07:00', 'Dee', 2)]),
-    dict(g=T, text='Pickleball at Mueller', photo='torrez-crew.jpg', alt='Hana', fans=2, date='2026-10-20', time='09:00',
+    dict(g=T, text='Pickleball at Mueller', alt='Hana', fans=2, date='2026-10-20', time='09:00',
          spot='Mueller Lake Park', addr='4550 Mueller Blvd, Austin, TX 78723', ll=(30.2983, -97.7055)),
     dict(g=T, text='Tacos after Sunday runs', alt='Theo', fans=4,
          dates=[('2026-11-01', '09:30', 'Hana', 5), ('2026-11-08', '09:30', 'Dee', 2)],
