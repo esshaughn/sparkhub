@@ -140,7 +140,7 @@ EVENTS = [
          signups=[('Bring salsa', 6, None)], album=['torrez-trail.jpg', 'torrez-crew.jpg', 'activate.jpg']),
     # Hub on Hunters
     dict(g=H, text='Easter egg hunt at the Hub', date='2026-11-01', time='10:00', spot='Hub on Hunters', photo='welcome-picnic.jpg',
-         lead='ejshaughn@gmail.com', alt='Dee', going=8, maybe=2, vision='Out of season and proud of it. Kids 10 and under, bring a basket.',
+         lead='auburn.layman@gmail.com', alt='Dee', going=8, maybe=2, vision='Out of season and proud of it. Kids 10 and under, bring a basket.',
          signups=[('Fill plastic eggs', 4, None), ('Hide eggs', 3, '09:15')]),
     dict(g=H, text='Mini Gras', date='2026-11-28', time='18:00', spot='Hub on Hunters', photo='get-togethers.jpg',
          lead='ejshaughn@gmail.com', alt='Darnell', going=10, maybe=3, vision='A tiny parade down the lane, then king cake. Beads provided.',
@@ -157,7 +157,7 @@ EVENTS = [
          signups=[('Brushes and rollers', 3, None), ('Drop cloths', 2, '08:30'), ('Snacks for painters', 2, None)],
          update='Paint is bought. Wear something you can ruin.'),
     dict(g=H, text='Driveway Dance', date='2026-11-12', time='18:00', spot='Hub on Hunters', photo='mutual-aid.jpg',
-         alt='Theo', going=7, maybe=2, vision='String lights, a speaker, and the whole driveway.',
+         lead='ejshaughn@gmail.com', alt='Theo', going=7, maybe=2, vision='String lights, a speaker, and the whole driveway.',
          signups=[('Bring a playlist', 2, None), ('String lights', 2, '17:00')]),
     dict(g=H, text='Friendsgiving potluck', date='2026-11-21', time='17:00', spot='Hub on Hunters', photo='get-togethers-2.jpg',
          lead='eric@ericscott-creative.com', alt='Dee', going=10, maybe=3, vision='Start at 4 so kids can play before dark.',
