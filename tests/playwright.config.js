@@ -24,6 +24,9 @@ module.exports = defineConfig({
   use: {
     ...devices['Pixel 7'],
     baseURL: `http://localhost:${PORT}`,
+    // A click on a control that no longer exists fails here, not after the 90s test timeout
+    actionTimeout: 15_000,
+    navigationTimeout: 30_000,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure'
   },
