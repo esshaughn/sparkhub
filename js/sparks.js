@@ -3713,7 +3713,8 @@
     else if (s === 'compose') main = st.email ? viewHome() : viewWelcome();
     else main = home();
 
-    return '<div class="scroller">' + main + '</div>' +
+    return '<div class="ptr" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v4.5h-4.5"/></svg></div>' +
+      '<div class="scroller">' + main + '</div>' +
       (s === 'compose' ? viewCompose() : '') +
       (s === 'edit' && subj ? viewEdit(subj) : '') +
       (st.offerKind && subj ? viewOffer(subj) : '') +
@@ -3932,6 +3933,58 @@
       .catch(e => { console.error(e); if (!state.loaded || state.error) setState({ error: 'load', loaded: true }); });
   };
   document.addEventListener('visibilitychange', refresh);
+
+  // Pull to refresh: drag the page down from its top and let go to reload the data.
+  // The page follows the finger (with resistance); the spinner turns as you pull and spins while loading.
+  const PTR_GO = 64, PTR_REST = 52;
+  let ptr = null, ptrBusy = false, ptrBackTimer = null;
+  const ptrShow = (d, cls) => {
+    root.style.setProperty('--ptr', d + 'px');
+    root.style.setProperty('--ptr-turn', (d * 4) + 'deg');
+    root.classList.toggle('ptr-drag', cls === 'drag');
+    root.classList.toggle('ptr-busy', cls === 'busy');
+    root.classList.toggle('ptr-ready', d >= PTR_GO);
+    // The page keeps its transform only while it slides back, so nothing is left transformed at rest
+    clearTimeout(ptrBackTimer);
+    root.classList.toggle('ptr-back', !cls);
+    if (!cls) ptrBackTimer = setTimeout(() => root.classList.remove('ptr-back'), 300);
+  };
+  root.addEventListener('touchstart', (e) => {
+    const sc = e.target.closest('.scroller');
+    ptr = null;
+    if (!sc || ptrBusy || e.touches.length > 1 || sc.scrollTop > 0 || !state.me) return;
+    ptr = { sc, x0: e.touches[0].clientX, y0: e.touches[0].clientY, d: 0, on: false };
+  }, { passive: true });
+  root.addEventListener('touchmove', (e) => {
+    if (!ptr) return;
+    const dx = e.touches[0].clientX - ptr.x0, dy = e.touches[0].clientY - ptr.y0;
+    if (!ptr.on) {
+      // Only a downward, mostly-vertical drag from the very top counts (not scrolling up or swiping a carousel)
+      if (Math.abs(dy) < 6 && Math.abs(dx) < 6) return;
+      if (dy <= 0 || Math.abs(dx) > dy || ptr.sc.scrollTop > 0) { ptr = null; return; }
+      ptr.on = true;
+    }
+    e.preventDefault();
+    ptr.d = Math.max(0, Math.min(110, dy * 0.5));
+    ptrShow(ptr.d, 'drag');
+  }, { passive: false });
+  const ptrEnd = () => {
+    if (!ptr) return;
+    const on = ptr.on, go = on && ptr.d >= PTR_GO;
+    ptr = null;
+    if (!on) return;
+    if (!go) return ptrShow(0);
+    ptrBusy = true;
+    ptrShow(PTR_REST, 'busy');
+    const started = Date.now();
+    loadFresh()
+      .then(() => { if (state.error === 'load') setState({ error: null }); })
+      .catch(e => { console.error(e); toast('Couldn’t refresh. Check your connection.'); })
+      .then(() => new Promise(r => setTimeout(r, Math.max(0, 600 - (Date.now() - started)))))   // don't flash the spinner
+      .then(() => { ptrBusy = false; ptrShow(0); });
+  };
+  root.addEventListener('touchend', ptrEnd);
+  root.addEventListener('touchcancel', () => { if (ptr) { ptr = null; ptrShow(0); } });
   setInterval(refresh, 30000);   // picks up other people's posts; also retries after "Couldn't load"
 
   async function init() {
