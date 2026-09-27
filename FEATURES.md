@@ -23,7 +23,7 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 
 | # | Feature | Status | Notes |
 |---|---|---|---|
-| 5 | Header: your photo (⌄ badge → Profile sheet), **Your tasks**, the bell (red unread count → Notifications sheet). The default screen | Test | |
+| 5 | Header: your photo (⌄ badge → Profile sheet), **Your tasks**, the bell (red unread count → Notifications sheet). At `#/tasks` | Test | The Calendar is the home screen (#90) |
 | 6 | **Leading**: plans you lead (upcoming, or in the last 3 days) with something to do, as a swipeable row of 290px cards: photo banner, **Going · Maybe · Sign-ups · Reminder** strip, to-dos (Post an update, Send a reminder, *{name}'s spot idea · Review*, Location TBD, *N spots open · Share list*, Say thanks / Add photos); two, then **+N more** / **Show less** | Test | Invites aren't counted (share links), so Maybe replaces Invited |
 | 7 | **Helping** (green): plans you're going / maybe to or signed up for — Confirm RSVP, *You said maybe · Update RSVP*, each sign-up with its time, Location TBD, Today/Tomorrow · Directions, In N days · Details; most to-dos first. Empty: *Find something to help with* → Calendar | Test | |
 | 8 | **Ideas** you lead: four checkpoints (Date · Location · Roles→Helpers · People), each opening the idea at that part | Test | Idea pages now have a Sign-ups card |
@@ -40,7 +40,7 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 
 | # | Feature | Status | Notes |
 |---|---|---|---|
-| 90 | Photo header (search, bell, **+** to post), every upcoming plan in your groups; **Groups** and **Type** checklists (types guessed from titles), **Clear filters**; **Sort** Soonest / Most lively / Newest / Needs you; **List** · **Tiles** · **Month**; not-joined cards say *N spots left · N going · RSVP* | Test | Types are placeholders until hosts tag events |
+| 90 | **The home screen** (the app opens here). Photo header (search, bell, **+** to post), every upcoming plan in your groups; **Groups** and **Type** checklists (types guessed from titles), **Clear filters**; **Sort** Soonest / Most lively / Newest / Needs you; **List** · **Tiles** · **Month**; not-joined cards say *N spots left · N going · RSVP* | Test | Types are placeholders until hosts tag events |
 | 91 | **Feeling wild?** (a random event) and **N events could use a hand** (open sign-ups in the next two weeks, **Claim** in a sheet), each dismissible for the visit | Test | |
 | 92 | **Search** sheet: live results by name, place or group, with type chips | Test | |
 | 93 | **Will you be there?** after signing up, claiming or offering to organize without a Going / Can't go: I'm going · Maybe · Helping, not attending | Test | Can't be dismissed |
