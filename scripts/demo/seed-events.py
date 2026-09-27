@@ -185,7 +185,7 @@ EVENTS = [
          alt='Theo', going=5, maybe=2, vision='Bring what you don’t use, take what you need.',
          signups=[('Folding tables', 2, '09:30')]),
     dict(g=W, text='Creekside Meditation', date='2026-11-04', time='07:00', spot='Walnut Bluffs Trailhead', photo='creekside-meditation.jpg',
-         lead='auburn.layman@gmail.com', alt='Hana', going=5, maybe=1, vision='Twenty quiet minutes by the water. Bring a mat.',
+         lead='ejshaughn@gmail.com', alt='Hana', going=5, maybe=1, vision='Twenty quiet minutes by the water. Bring a mat.',
          signups=[('Extra mats', 3, None)]),
     dict(g=W, text='Free youth soccer - skill building & game', date='2026-11-07', time='09:00', spot='601 W Braker Lane',
          photo='free-youth-soccer.jpg', alt='Darnell', going=12, maybe=2, vision='Ages 6–12. Drills, then a friendly game. Shin guards if you have them.',
