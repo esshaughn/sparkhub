@@ -5,6 +5,9 @@ Neighborhood (the owner is admin of all of them), demo people (seed-*@example.co
 in every group with photos, mood boards, interest and a suggestion waiting on the
 owner's "Sunrise loop". Photos are the JPEGs beside this script.
 
+The ideas it makes are placeholders: run seed-events.py next, which replaces all demo content with
+the events handoff's (this script is still what creates the demo people and groups).
+
   Test (clears every idea first):  python3 scripts/demo/seed-demo.py
   Live (keeps existing ideas):     SEED_REF=xwrzfpgsazyrgieymtee SEED_CLEAR=0 python3 scripts/demo/seed-demo.py
   Just one group's ideas:          SEED_ONLY='Walnut Creek Neighborhood' SEED_CLEAR=0 python3 scripts/demo/seed-demo.py

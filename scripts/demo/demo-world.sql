@@ -40,7 +40,8 @@ update public.sparks s set demo = true
 update public.sparks s set demo = true
   from auth.users u
  where u.id = s.lead_id and u.email = 'eric@ericscott-creative.com'
-   and s.text in ('Sunrise loop around the lake', 'Garden workday', 'Welcome picnic for new neighbors', 'Paint a Hub mural!!!', 'Friendsgiving potluck');
+   and s.text in ('Sunrise loop around the lake', 'Garden work day at the Hub', 'Paint a Hub mural!!!', 'Friendsgiving potluck', 'Poker night');
+-- (seed-events.py sets the flag on everything it makes; this line only matters for older seeds)
 
 -- 4. Only the owner can wipe it
 insert into public.demo_admins (user_id)
