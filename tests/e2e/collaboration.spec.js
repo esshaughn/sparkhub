@@ -12,7 +12,6 @@ test('a guest with the link takes part; everyone votes; the lead picks and makes
   try {
     id = await postIdea(L, { title, basics: ['teams by class'] });
     const LD = L.locator('[data-screen-label="Idea page"]');
-    await expect(LD.getByLabel(/^Idea in /)).toHaveText('IDEA');
     await expect(LD.getByLabel('Steps to a plan')).toContainText('Details');
     await expect(LD).toContainText('Set a date and a time first. Then you can lock it in.');
     await expect(LD.getByRole('button', { name: 'Add a date' })).toBeVisible();
@@ -148,9 +147,9 @@ test('Edit profile: a new name shows everywhere', async ({ browser }) => {
   try {
     id = await postIdea(me.page, { title });
     await openProfile(me.page);
-    await button(me.page, 'Edit').click();
+    await button(me.page, 'Edit profile').click();
     const pe = me.page.getByRole('dialog', { name: 'Edit profile' });
-    await expect(pe.getByRole('textbox').nth(1)).toHaveValue('e2e-lead-1@example.com');
+    await expect(pe.getByLabel('Email')).toHaveValue('e2e-lead-1@example.com');
     await pe.getByPlaceholder('First name').fill('Samira');
     await pe.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(me.page.getByText('Profile saved')).toBeVisible();

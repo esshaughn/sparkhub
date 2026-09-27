@@ -1,6 +1,6 @@
 // Groups: Edit group (cover, rename, invite, members and roles, delete), joining, pins, admins editing ideas.
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newMember, newLead, button, postIdea, openIdea, deleteIdea, confirm, asUser, PNG, openProfile } = require('./helpers');
+const { uniqueTitle, newMember, newLead, button, postIdea, openIdea, deleteIdea, confirm, asUser, PNG } = require('./helpers');
 
 const rx = (t) => new RegExp(t.replace(/[[\]]/g, '\\$&'));
 
@@ -62,8 +62,8 @@ test('a group end to end: edit group, cover, rename, invite, pin, admin edits, r
     await expect(gp).toContainText(groupName);
 
     // A wrong code, then the invite link
-    await openProfile(B);
-    await B.getByRole('button', { name: 'Join with a code' }).click();
+    await B.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Groups', exact: true }).click();
+    await B.getByRole('button', { name: 'Join a group' }).click();
     const join = B.getByRole('dialog', { name: 'Join a group' });
     await join.getByLabel('Group code').fill('ZZZZ22');
     await join.getByRole('button', { name: 'Join' }).click();

@@ -3961,7 +3961,7 @@
   const bootUser = sb && signedInUser();
   if (bootUser) {
     const c = readCache(bootUser.id);
-    Object.assign(state, { me: bootUser.id, email: bootUser.email }, c
+    Object.assign(state, { me: bootUser.id, email: bootUser.email, memberSince: bootUser.created_at ? new Date(bootUser.created_at).getFullYear() : null }, c
       ? { isGoogle: c.isGoogle, myName: c.myName || '', myAvatar: c.myAvatar, myPlace: c.myPlace || '', myBio: c.myBio || '', memberSince: c.memberSince || null, groups: c.groups || [], sparks: c.sparks || [], profiles: c.profiles || {},
           sizes: c.sizes || {}, notif: c.notif || state.notif, demoAdmin: !!c.demoAdmin, loaded: true, fromCache: true }
       : {});

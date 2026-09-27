@@ -1,6 +1,6 @@
 // Posting an idea through every step, seeing it everywhere, editing and deleting it.
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newMember, newLead, button, postIdea, openIdea, confirm, startPost, openProfile } = require('./helpers');
+const { uniqueTitle, newMember, newLead, button, postIdea, openIdea, confirm, startPost, openProfile, pickView } = require('./helpers');
 
 test('post → idea page → all three views → profile → edit → delete', async ({ browser }) => {
   const { page, context, errors } = await newLead(browser, 1, 'Tester');
@@ -52,13 +52,13 @@ test('post → idea page → all three views → profile → edit → delete', a
     await expect(card).toContainText('Sat, Oct 17 · 5:30pm');
     await expect(card).toContainText('Zilker Metropolitan Park');
     await expect(card.getByText('Leading', { exact: true })).toBeVisible();          // your role on the photo
-    await browse.getByRole('radio', { name: 'List' }).click();
+    await pickView(browse, 'List');
     await expect(card).toContainText('Sat, Oct 17');
     await expect(card).toContainText('5:30pm');
     await expect(card).toContainText('Zilker Metropolitan Park');
-    await browse.getByRole('radio', { name: 'Grid' }).click();
+    await pickView(browse, 'Grid');
     await expect(card).toContainText(Title);
-    await browse.getByRole('radio', { name: 'Tiles' }).click();
+    await pickView(browse, 'Tiles');
 
     // Profile no longer lists ideas; it has the stats row
     await openProfile(page);
