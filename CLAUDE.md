@@ -100,3 +100,5 @@ Ad-hoc reads: `supabase db query --linked [--project-ref …] "select …"`.
 - **Start-up cache:** the app shows the last data a signed-in person saw (`spark-hub-cache-<ref>` in localStorage, same account only, guests' phone numbers stripped, cleared on sign-out) while `loadAll` fetches fresh data; until either exists, screens show `skeleton()` placeholders, never their empty-state copy. `html[data-loaded]` is set only by a fresh load, so tests that reload and then check fresh data should wait for it.
 - Bump the `?v=` query on script/style tags in `index.html` when their files change, so browsers don't serve stale copies.
 - `.vercelignore` keeps docs, `supabase/`, `scripts/`, `tests/` and `.github/` off the public site. New non-site files belong there too.
+
+For live Supabase changes: cd into sparkhub in its own command, then run each command bare (no &&, pipes or redirects) so it matches the allow rules in .claude/settings.local.json. Put one-off live data scripts in scripts/demo/ and run SEED_REF=xwrzfpgsazyrgieymtee python3 scripts/demo/<name>.py.
