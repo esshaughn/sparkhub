@@ -145,9 +145,18 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
       const el = document.querySelector('[data-tabpane]'), r = el.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + 40;
       const t = (cx) => new Touch({ identifier: 1, target: el, clientX: cx, clientY: y });
       el.dispatchEvent(new TouchEvent('touchstart', { bubbles: true, touches: [t(x)], changedTouches: [t(x)] }));
+      for (let i = 1; i <= 8; i++) el.dispatchEvent(new TouchEvent('touchmove', { bubbles: true, cancelable: true, touches: [t(x + dx * i / 8)], changedTouches: [t(x + dx * i / 8)] }));
+      const follows = el.style.transform;   // the page moves with the thumb, the neighbouring tab beside it
+      const peek = !!el.querySelector('[data-peek]');
       el.dispatchEvent(new TouchEvent('touchend', { bubbles: true, touches: [], changedTouches: [t(x + dx)] }));
+      return { follows, peek };
     }, dx);
-    await swipe(140);    // swipe right: back to Plans
+    const short = await swipe(20);    // a short drag follows the thumb, then springs back
+    expect(short.follows).toMatch(/translateX\(\d/);
+    expect(short.peek).toBe(true);
+    await page.waitForTimeout(400);
+    await expect(tabs.filter({ hasText: 'Past' })).toHaveAttribute('aria-selected', 'true');
+    await swipe(220);    // swipe right past 40%: back to Plans
     await expect(tabs.filter({ hasText: 'Plans' })).toHaveAttribute('aria-selected', 'true');
     await expect(page.getByRole('button', { name: 'Go to Ideas' })).toBeVisible();
 

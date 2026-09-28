@@ -219,3 +219,6 @@ input::placeholder, textarea::placeholder { color: #b9bcc4; font-weight: 400; fo
 .swipe-hint:hover { opacity: 1; }
 @keyframes nudgeR { 0%, 70%, 100% { transform: translateX(0); } 78% { transform: translateX(-5px); } 86% { transform: translateX(0); } 92% { transform: translateX(-3px); } }
 @keyframes nudgeL { 0%, 70%, 100% { transform: translateX(0); } 78% { transform: translateX(5px); } 86% { transform: translateX(0); } 92% { transform: translateX(3px); } }
+/* The page follows a sideways drag (JS); the browser keeps vertical scrolling and pinch-zoom */
+[data-tabpane] { touch-action: pan-y pinch-zoom; }
+.app.swiping .swipe-hint { opacity: 0; transition: opacity 120ms ease; }

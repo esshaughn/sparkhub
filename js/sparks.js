@@ -2837,14 +2837,18 @@
   // Ideas · Plans · Past: tap a tab, swipe the page, or tap the quiet edge arrows. The new tab slides in
   // from the side you're heading to.
   const WORLDS = ['idea', 'plan', 'done'];
-  const switchTab = (k, dir) => {
+  const tabsTop = (sc) => {   // the scroll position that brings the Ideas · Plans · Past bar just into view
+    const tabsEl = document.querySelector('[data-screen-label=Browse] [role=tablist]');
+    return tabsEl ? Math.max(0, tabsEl.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop - 10) : sc.scrollTop;
+  };
+  const switchTab = (k, dir, dragged) => {
     const from = WORLDS.indexOf(state.phaseTab), to = WORLDS.indexOf(k);
     if (to < 0 || to === from) return;
+    const sc = scroller(), top = sc ? Math.min(sc.scrollTop, tabsTop(sc)) : 0;
     setState({ phaseTab: k, menu: null });
-    const sc = scroller(), tabsEl = document.querySelector('[data-screen-label=Browse] [role=tablist]');
-    if (sc && tabsEl) sc.scrollTop = Math.min(sc.scrollTop, Math.max(0, tabsEl.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop - 10));
+    if (sc) sc.scrollTop = top;
     const pane = document.querySelector('[data-tabpane]');
-    if (pane && !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) {
+    if (pane && !dragged && !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) {
       pane.style.animation = 'none'; void pane.offsetWidth;
       pane.style.animation = ((dir || (to > from ? 1 : -1)) > 0 ? 'paneFromRight' : 'paneFromLeft') + ' 240ms cubic-bezier(.2,.8,.2,1) both';
     }
@@ -2858,7 +2862,7 @@
   };
 
   function viewBrowse() {
-    const st = state, g = currentGroup(), tab = st.phaseTab, gv = st.view === 'list' ? 'list' : 'tiles';
+    const st = state, g = currentGroup(), tab = st.phaseTab;
     const loading = !st.loaded;
     const gPhoto = groupPhoto(g), size = g ? st.sizes[g.id] : null;
 
@@ -2896,14 +2900,27 @@
           label + '<span style="font-size:11.5px;font-weight:800;color:' + (onIt ? '#6b7280' : '#9aa0aa') + '">' + counts[k] + '</span></span>';
       }).join('') + '</div></div>' : '';
 
+    const { body, pageStyle } = browseBody(tab, g);
+
+    return '<div data-screen-label="Browse" style="' + pageStyle + '">' + header + offline + tabs +
+      '<div data-tabpane style="padding:10px 14px 22px;display:flex;flex-direction:column;gap:22px">' +
+        (loading ? '<div style="padding:0 4px;font-size:14px;font-weight:700;color:#6b7280">Loading ideas…</div>' : '') + body +
+      '</div>' +
+      '<div style="height:var(--nav-h)"></div></div>';
+  }
+
+  // One tab's content on a group page (also drawn beside the page while it's being swiped)
+  const IDEA_PAPER = 'background:#fbfaf6;background-image:linear-gradient(#eeeae0 1px, transparent 1px), linear-gradient(90deg, #eeeae0 1px, transparent 1px);background-size:18px 18px';
+  function browseBody(tab, g) {
+    const st = state, gv = st.view === 'list' ? 'list' : 'tiles';
     let body, pageStyle = '';
-    if (loading) {
+    if (!st.loaded) {
       body = [0, 1, 2].map(() => '<div aria-hidden="true" style="height:180px;border-radius:20px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);animation:skPulse 1.4s ease-in-out infinite"></div>').join('');
     } else if (!g) {
       body = noGroupCard();
     } else if (tab === 'idea') {
       // The Ideas board: graph paper, two tilted columns (no sort, filter or view here)
-      pageStyle = 'min-height:100%;background:#fbfaf6;background-image:linear-gradient(#eeeae0 1px, transparent 1px), linear-gradient(90deg, #eeeae0 1px, transparent 1px);background-size:18px 18px';
+      pageStyle = 'min-height:100%;' + IDEA_PAPER;
       const ideas = visible('idea');
       body = ideas.length ? ideaBoard6(ideas) : '<div style="padding:24px 8px;text-align:center;font-size:15px;font-weight:700;color:#8a909b">No ideas yet. Toss one on the board!</div>';
     } else if (tab === 'done') {
@@ -2924,12 +2941,7 @@
       else body = sections6(plans, st.gSort, 'Date TBD').map((z, i) => '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(z.label, i ? '' : controls) +
         '<div style="display:flex;flex-direction:column;gap:' + (gv === 'list' ? 10 : 14) + 'px">' + z.items.map(s => gv === 'list' ? listCard6(s, partOf(s, true)) : tile6(s, partOf(s, true), 180)).join('') + '</div></div>').join('');
     }
-
-    return '<div data-screen-label="Browse" style="' + pageStyle + '">' + header + offline + tabs +
-      '<div data-tabpane style="padding:10px 14px 22px;display:flex;flex-direction:column;gap:22px">' +
-        (loading ? '<div style="padding:0 4px;font-size:14px;font-weight:700;color:#6b7280">Loading ideas…</div>' : '') + body +
-      '</div>' +
-      '<div style="height:var(--nav-h)"></div></div>';
+    return { body, pageStyle };
   }
 
   // Search inside one group: Browse chips, "Or something unexpected", live results
@@ -4476,6 +4488,7 @@
 
   function render() {
     const t0 = performance.now();
+    if (swipe && swipe.on && !swipe.settling) { swipe = null; swipeClear(); }
     H = [];
     GEN++;
     const html = view();
@@ -4665,21 +4678,88 @@
   };
   root.addEventListener('touchend', ptrEnd);
   // Swipe left / right on a group page to move between Ideas, Plans and Past (not on the header,
-  // a sideways carousel, an open menu or a field)
+  // a sideways carousel, an open menu or a field). The page follows the thumb from the first few pixels,
+  // with the neighbouring tab drawn beside it; let go past 40% of the way, or with a flick, and it
+  // carries on to that tab, otherwise it springs back. Past the first or last tab it only gives a little.
   let swipe = null;
+  const swipeEls = () => ({ page: document.querySelector('[data-screen-label=Browse]'), pane: document.querySelector('[data-tabpane]') });
+  const swipeClear = () => {   // put the page back as it was drawn
+    const { page, pane } = swipeEls();
+    root.classList.remove('swiping');
+    if (pane) { pane.querySelectorAll('[data-peek]').forEach(n => n.remove()); ['transform', 'transition', 'animation', 'position', 'background', 'backgroundImage', 'backgroundSize', 'minHeight'].forEach(k => { pane.style[k] = ''; }); }
+    if (page) page.style.overflowX = '';
+  };
+  // Start the drag: draw each neighbouring tab beside the page, lined up with where it'll sit once it's the tab
+  const swipeBegin = () => {
+    const { page, pane } = swipeEls(), sc = scroller(), g = currentGroup();
+    if (!page || !pane || !sc || !g) return false;
+    const i = WORLDS.indexOf(state.phaseTab), off = Math.max(0, sc.scrollTop - tabsTop(sc)), fill = sc.clientHeight + 'px';
+    root.classList.add('swiping');
+    page.style.overflowX = 'clip';
+    pane.style.animation = 'none';   // a tab tap's slide-in would otherwise hold the page in place
+    pane.style.position = 'relative';
+    pane.style.minHeight = fill;
+    pane.style.cssText += ';' + (state.phaseTab === 'idea' ? IDEA_PAPER : 'background:#e8eaee');
+    [-1, 1].forEach(d => {
+      const k = WORLDS[i + d];
+      if (!k) return;
+      const peek = document.createElement('div');
+      peek.setAttribute('data-peek', k);
+      peek.setAttribute('aria-hidden', 'true');
+      peek.style.cssText = 'position:absolute;top:' + off + 'px;' + (d < 0 ? 'right' : 'left') + ':100%;width:100%;min-height:' + fill + ';box-sizing:border-box;padding:10px 14px 22px;display:flex;flex-direction:column;gap:22px;pointer-events:none;' +
+        (k === 'idea' ? IDEA_PAPER : 'background:#e8eaee');
+      peek.innerHTML = browseBody(k, g).body;
+      pane.appendChild(peek);
+    });
+    swipe.w = pane.getBoundingClientRect().width;
+    return true;
+  };
   root.addEventListener('touchstart', (e) => {
+    if (swipe && swipe.settling) return;
     swipe = null;
-    if (state.screen !== 'browse' || e.touches.length > 1 || state.menu || state.gSearch) return;
+    if (state.screen !== 'browse' || e.touches.length > 1 || state.menu || state.gSearch || !state.loaded) return;
     const t = e.target;
     if (!t.closest('[data-screen-label=Browse]') || t.closest('header, .snap-row, [data-menu], input, textarea, select')) return;
-    swipe = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    swipe = { x: e.touches[0].clientX, y: e.touches[0].clientY, on: false, dx: 0, v: 0, t: Date.now() };
   }, { passive: true });
-  root.addEventListener('touchend', (e) => {
+  root.addEventListener('touchmove', (e) => {
+    if (!swipe || swipe.settling) return;
+    const x = e.touches[0].clientX, dx = x - swipe.x, dy = e.touches[0].clientY - swipe.y;
+    if (!swipe.on) {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      // Mostly sideways takes the page; anything else is a scroll (or pull to refresh)
+      if (Math.abs(dx) < Math.abs(dy) * 1.2 || !swipeBegin()) { swipe = null; return; }
+      swipe.on = true;
+      swipe.x0 = x;   // start moving from here, so the page doesn't jump by the 8px it took to decide
+    }
+    e.preventDefault();
+    const now = Date.now(), i = WORLDS.indexOf(state.phaseTab);
+    let d = x - swipe.x0;
+    if ((d > 0 && i === 0) || (d < 0 && i === WORLDS.length - 1)) d *= 0.3;   // nothing that way: resist
+    swipe.v = (d - swipe.dx) / Math.max(1, now - swipe.t);
+    swipe.dx = d; swipe.t = now;
+    const { pane } = swipeEls();
+    if (pane) pane.style.transform = 'translateX(' + d + 'px)';
+  }, { passive: false });
+  const swipeEnd = () => {
     if (!swipe) return;
-    const t = e.changedTouches[0], dx = t.clientX - swipe.x, dy = t.clientY - swipe.y;
-    swipe = null;
-    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.6) stepTab(dx < 0 ? 1 : -1);
-  });
+    if (!swipe.on) { swipe = null; return; }
+    const { pane } = swipeEls(), dir = swipe.dx < 0 ? 1 : -1, next = WORLDS[WORLDS.indexOf(state.phaseTab) + dir];
+    const v = Date.now() - swipe.t > 80 ? 0 : swipe.v;   // held still before letting go: not a flick
+    const go = next && (Math.abs(swipe.dx) > swipe.w * 0.4 || (Math.abs(v) > 0.5 && Math.sign(v) === -dir && Math.abs(swipe.dx) > 24));
+    if (!pane) { swipeClear(); swipe = null; return; }
+    swipe.settling = true;
+    const ms = Math.round(Math.min(260, Math.max(140, (go ? swipe.w - Math.abs(swipe.dx) : Math.abs(swipe.dx)) * 0.8)));
+    pane.style.transition = 'transform ' + ms + 'ms cubic-bezier(.2,.8,.2,1)';
+    pane.style.transform = 'translateX(' + (go ? -dir * swipe.w : 0) + 'px)';
+    setTimeout(() => {
+      swipe = null;
+      if (go) switchTab(next, dir, true);   // the neighbour is already where it belongs, so no slide-in
+      swipeClear();
+    }, ms + 20);
+  };
+  root.addEventListener('touchend', swipeEnd);
+  root.addEventListener('touchcancel', swipeEnd);
   root.addEventListener('touchcancel', () => { if (ptr) { ptr = null; ptrShow(0); } });
   setInterval(refresh, 30000);   // picks up other people's posts; also retries after "Couldn't load"
 
