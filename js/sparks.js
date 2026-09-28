@@ -3745,7 +3745,7 @@
             '<input type="file" accept="image/*" aria-label="Event photo" ' + onInput(e => { if (e.type !== 'change') return; const f = Array.from(e.target.files || []); e.target.value = ''; state.photos.forEach(p => URL.revokeObjectURL(p.url)); state.photos = []; addPhotos(f.slice(0, 1)); }) + ' style="display:none"></label>' +
           '<div style="position:absolute;left:18px;right:18px;bottom:16px;z-index:2">' +
             '<div style="font-size:12px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:#cfc9ff">New event</div>' +
-            '<input class="ev-name" type="text" maxlength="40" aria-label="What" placeholder="What’s happening?" value="' + esc(st.activity) + '" ' + onInput(e => { if (e.type === 'input') setState({ activity: e.target.value.slice(0, 40) }); }) +
+            '<input class="ev-name" type="text" maxlength="40" aria-label="What" placeholder="Enter event title" value="' + esc(st.activity) + '" ' + onInput(e => { if (e.type === 'input') setState({ activity: e.target.value.slice(0, 40) }); }) +
               ' style="display:block;width:100%;margin-top:2px;border:0;padding:0;background:transparent;outline:none;font-family:inherit;font-size:30px;line-height:1.15;font-weight:900;letter-spacing:-.8px;color:#fff;text-shadow:0 1px 8px rgba(0,0,0,.3)">' +
             (40 - st.activity.length <= 10 ? '<div style="font-size:12.5px;font-weight:700;color:rgba(255,255,255,.75)">' + (40 - st.activity.length) + ' left</div>' : '') +
           '</div></div>' +
