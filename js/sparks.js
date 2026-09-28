@@ -2834,6 +2834,29 @@
       '</div></div>';
   };
 
+  // Ideas · Plans · Past: tap a tab, swipe the page, or tap the quiet edge arrows. The new tab slides in
+  // from the side you're heading to.
+  const WORLDS = ['idea', 'plan', 'done'];
+  const switchTab = (k, dir) => {
+    const from = WORLDS.indexOf(state.phaseTab), to = WORLDS.indexOf(k);
+    if (to < 0 || to === from) return;
+    setState({ phaseTab: k, menu: null });
+    const sc = scroller(), tabsEl = document.querySelector('[data-screen-label=Browse] [role=tablist]');
+    if (sc && tabsEl) sc.scrollTop = Math.min(sc.scrollTop, Math.max(0, tabsEl.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop - 10));
+    const pane = document.querySelector('[data-tabpane]');
+    if (pane && !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) {
+      pane.style.animation = 'none'; void pane.offsetWidth;
+      pane.style.animation = ((dir || (to > from ? 1 : -1)) > 0 ? 'paneFromRight' : 'paneFromLeft') + ' 240ms cubic-bezier(.2,.8,.2,1) both';
+    }
+  };
+  const stepTab = (d) => { const i = WORLDS.indexOf(state.phaseTab) + d; if (i >= 0 && i < WORLDS.length) switchTab(WORLDS[i], d); };
+  // Quiet chevrons on the screen's edges, nudging now and then toward the next tab
+  const swipeHints = () => {
+    const i = WORLDS.indexOf(state.phaseTab), names = { idea: 'Ideas', plan: 'Plans', done: 'Past' };
+    const arrow = (d) => '<span ' + on(() => stepTab(d)) + ' aria-label="Go to ' + names[WORLDS[i + d]] + '" class="swipe-hint swipe-hint-' + (d < 0 ? 'l' : 'r') + '">' + (d < 0 ? I.chevL(16, '#454b55', 2.6) : I.chevR(16, '#454b55', 2.6)) + '</span>';
+    return (i > 0 ? arrow(-1) : '') + (i < WORLDS.length - 1 ? arrow(1) : '');
+  };
+
   function viewBrowse() {
     const st = state, g = currentGroup(), tab = st.phaseTab, gv = st.view === 'list' ? 'list' : 'tiles';
     const loading = !st.loaded;
@@ -2869,7 +2892,7 @@
       '<span aria-hidden="true" style="position:absolute;top:4px;bottom:4px;border-radius:999px;background:#fff;box-shadow:0 1px 4px rgba(13,17,23,.15);transition:left 220ms cubic-bezier(.2,.8,.2,1),width 220ms cubic-bezier(.2,.8,.2,1);' + thumbPos + '"></span>' +
       [['idea', 'Ideas'], ['plan', 'Plans'], ['done', 'Past']].map(([k, label]) => {
         const onIt = tab === k;
-        return '<span ' + on((e) => { stop(e); setState({ phaseTab: k, menu: null }); }, 'tab') + ' aria-selected="' + onIt + '" style="position:relative;display:flex;align-items:baseline;justify-content:center;gap:5px;height:100%;line-height:44px;font-size:' + (k === 'plan' ? 14.5 : 13) + 'px;font-weight:900;cursor:pointer;white-space:nowrap;transition:color 180ms ease;color:' + (onIt ? '#0d1117' : '#6b7280') + '">' +
+        return '<span ' + on((e) => { stop(e); switchTab(k); }, 'tab') + ' aria-selected="' + onIt + '" style="position:relative;display:flex;align-items:baseline;justify-content:center;gap:5px;height:100%;line-height:44px;font-size:' + (k === 'plan' ? 14.5 : 13) + 'px;font-weight:900;cursor:pointer;white-space:nowrap;transition:color 180ms ease;color:' + (onIt ? '#0d1117' : '#6b7280') + '">' +
           label + '<span style="font-size:11.5px;font-weight:800;color:' + (onIt ? '#6b7280' : '#9aa0aa') + '">' + counts[k] + '</span></span>';
       }).join('') + '</div></div>' : '';
 
@@ -2903,7 +2926,7 @@
     }
 
     return '<div data-screen-label="Browse" style="' + pageStyle + '">' + header + offline + tabs +
-      '<div style="padding:10px 14px 22px;display:flex;flex-direction:column;gap:22px">' +
+      '<div data-tabpane style="padding:10px 14px 22px;display:flex;flex-direction:column;gap:22px">' +
         (loading ? '<div style="padding:0 4px;font-size:14px;font-weight:700;color:#6b7280">Loading ideas…</div>' : '') + body +
       '</div>' +
       '<div style="height:var(--nav-h)"></div></div>';
@@ -4331,6 +4354,7 @@
       (st.email && st.dashAll ? viewDashAll() : '') +
       (st.email && st.cHandSheet ? viewHandSheet() : '') +
       (st.email && st.cSearch ? viewSearch() : '') +
+      (s === 'browse' && st.loaded && currentGroup() && !st.gSearch ? swipeHints() : '') +
       (st.email && st.gSearch && s === 'browse' ? viewGroupSearch() : '') +
       (st.rsvpAsk ? viewRsvpAsk() : '') +
       (s === 'compose' ? viewCompose() : '') +
@@ -4640,6 +4664,22 @@
       .then(() => { ptrBusy = false; ptrShow(0); });
   };
   root.addEventListener('touchend', ptrEnd);
+  // Swipe left / right on a group page to move between Ideas, Plans and Past (not on the header,
+  // a sideways carousel, an open menu or a field)
+  let swipe = null;
+  root.addEventListener('touchstart', (e) => {
+    swipe = null;
+    if (state.screen !== 'browse' || e.touches.length > 1 || state.menu || state.gSearch) return;
+    const t = e.target;
+    if (!t.closest('[data-screen-label=Browse]') || t.closest('header, .snap-row, [data-menu], input, textarea, select')) return;
+    swipe = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  }, { passive: true });
+  root.addEventListener('touchend', (e) => {
+    if (!swipe) return;
+    const t = e.changedTouches[0], dx = t.clientX - swipe.x, dy = t.clientY - swipe.y;
+    swipe = null;
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.6) stepTab(dx < 0 ? 1 : -1);
+  });
   root.addEventListener('touchcancel', () => { if (ptr) { ptr = null; ptrShow(0); } });
   setInterval(refresh, 30000);   // picks up other people's posts; also retries after "Couldn't load"
 

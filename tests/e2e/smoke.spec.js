@@ -137,6 +137,20 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
     await expect(tabs).toHaveText([/^Ideas\s*\d+$/, /^Plans\s*\d+$/, /^Past\s*\d+$/]);
     await expect(tabs.filter({ hasText: 'Plans' })).toHaveAttribute('aria-selected', 'true');
 
+    // Swipe or tap the edge arrows to move between them
+    await page.getByRole('button', { name: 'Go to Past' }).click();
+    await expect(tabs.filter({ hasText: 'Past' })).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByRole('button', { name: 'Go to Past' })).toHaveCount(0);   // no arrow past the last one
+    const swipe = (dx) => page.evaluate((dx) => {
+      const el = document.querySelector('[data-tabpane]'), r = el.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + 40;
+      const t = (cx) => new Touch({ identifier: 1, target: el, clientX: cx, clientY: y });
+      el.dispatchEvent(new TouchEvent('touchstart', { bubbles: true, touches: [t(x)], changedTouches: [t(x)] }));
+      el.dispatchEvent(new TouchEvent('touchend', { bubbles: true, touches: [], changedTouches: [t(x + dx)] }));
+    }, dx);
+    await swipe(140);    // swipe right: back to Plans
+    await expect(tabs.filter({ hasText: 'Plans' })).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByRole('button', { name: 'Go to Ideas' })).toBeVisible();
+
     // Plans: Sort · Filter · view on the first heading
     await expect(browse.getByRole('button', { name: 'Sort: Soonest' })).toBeVisible();
     await browse.getByRole('button', { name: 'Sort: Soonest' }).click();

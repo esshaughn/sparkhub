@@ -47,6 +47,7 @@ Where this doc and the design files disagree, **this doc is correct**.
 - **It happened page: a Reactions card** under the album (eyebrow *REACTIONS*; ❤️ 🙌 🎉 🙏 chips as on the memory cards, lavender `#f3f1fe` with a `#9d93f7` ring when yours). Below: *Thanks from Hal, Omar and 2 more.* or, before anyone thanks, *🙏 sends {lead} a public thank-you.* (not shown to the lead). This is where the 🙏 on a memory card leads.
 - **Empty filters on Your schedule and group Plans:** the heading reads *Coming up* (Soonest) or the sort's name, then the design's *No events match these filters.* card.
 - **Search "Or something unexpected" with nothing to pick** (e.g. no outdoor events): an error toast *Nothing like that yet* (Calendar) / *Nothing like that here yet* (group).
+- **Swiping between Ideas · Plans · Past** (owner, 2026-09-28): swipe the group page left or right; the new tab slides in from that side. Quiet edge arrows show where there's a neighbour tab: 26×44px half-pills against the screen edge, `rgba(255,255,255,.72)` with blur, a 16px `#454b55` chevron, 75% opacity, at 58% of the screen height; every 3.2s they nudge 5px toward the middle and back. Tapping one switches tabs. Please design these properly.
 
 ## 3. Behaviour added in the build (no visual change)
 

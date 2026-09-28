@@ -204,3 +204,18 @@ input::placeholder, textarea::placeholder { color: #b9bcc4; font-weight: 400; fo
 
 /* Post an event (v6 Update 3): the name typed on the photo */
 .ev-name::placeholder { color: rgba(255, 255, 255, .72); font-weight: 900; }
+
+/* Group pages (Ideas · Plans · Past): the pane slides in on a tab change; quiet edge arrows hint at swiping */
+@keyframes paneFromRight { from { opacity: .3; transform: translateX(48px); } to { opacity: 1; transform: none; } }
+@keyframes paneFromLeft { from { opacity: .3; transform: translateX(-48px); } to { opacity: 1; transform: none; } }
+.swipe-hint {
+  position: absolute; top: 58%; z-index: 4; width: 26px; height: 44px;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  background: rgba(255, 255, 255, .72); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  box-shadow: 0 1px 4px rgba(13, 17, 23, .12); opacity: .75;
+}
+.swipe-hint-l { left: 0; border-radius: 0 12px 12px 0; animation: nudgeL 3.2s ease-in-out infinite; }
+.swipe-hint-r { right: 0; border-radius: 12px 0 0 12px; animation: nudgeR 3.2s ease-in-out infinite; }
+.swipe-hint:hover { opacity: 1; }
+@keyframes nudgeR { 0%, 70%, 100% { transform: translateX(0); } 78% { transform: translateX(-5px); } 86% { transform: translateX(0); } 92% { transform: translateX(-3px); } }
+@keyframes nudgeL { 0%, 70%, 100% { transform: translateX(0); } 78% { transform: translateX(5px); } 86% { transform: translateX(0); } 92% { transform: translateX(3px); } }
