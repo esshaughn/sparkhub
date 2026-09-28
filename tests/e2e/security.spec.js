@@ -327,10 +327,11 @@ test('plans: replies, sign-ups, updates, notes and invite-only plans follow the 
           return r.data.demo === false && r.data.created_at > '2025' ? 'reset' : 'KEPT';
         })(),
         flagGroup: await ok(c.from('groups').update({ demo: false }).eq('name', 'Torrez Fitness')),
-        readRoster: (await c.from('demo_roster').select('*')).error ? 'refused' : 'ALLOWED'
+        readRoster: (await c.from('demo_roster').select('*')).error ? 'refused' : 'ALLOWED',
+        listTesters: await (async () => { const r = await c.rpc('demo_testers'); return r.error ? 'refused' : r.data.length ? 'LISTED' : 'none'; })()
       };
     }, made.plan);
-    expect(demo).toEqual({ wipe: 'refused', makeMeWiper: 'refused', flagMyIdea: 'refused', postAsDemo: 'reset', flagGroup: 'refused', readRoster: 'refused' });
+    expect(demo).toEqual({ wipe: 'refused', makeMeWiper: 'refused', flagMyIdea: 'refused', postAsDemo: 'reset', flagGroup: 'refused', readRoster: 'refused', listTesters: 'none' });
   } finally {
     for (const id of ids) await asUser(L, async (c, _C, id) => { await c.from('sparks').delete().eq('id', id); }, id).catch(() => {});
     await lead.context.close();

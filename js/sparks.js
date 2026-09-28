@@ -38,8 +38,17 @@
     } catch (e) { return {}; }
   })();
   // PKCE keeps the Google round trip in the query string, clear of our #/ routes
+  // "View as a tester" (demo admin only) is look-only: while it's on, nothing but reads leaves the app
+  let previewing = false;
+  const READ_RPCS = /\/rest\/v1\/rpc\/(my_group_sizes|demo_testers)(\?|$)/;
+  const guardedFetch = (url, opts) => {
+    const m = String((opts && opts.method) || 'GET').toUpperCase(), u = String((url && url.url) || url);
+    if (previewing && m !== 'GET' && m !== 'HEAD' && !/\/auth\/v1\//.test(u) && !READ_RPCS.test(u))
+      return Promise.resolve(new Response(JSON.stringify({ message: 'Viewing as a tester: changes are off' }), { status: 403, headers: { 'Content-Type': 'application/json' } }));
+    return fetch(url, opts);
+  };
   const sb = window.supabase && CFG.supabaseUrl
-    ? window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseKey, { auth: { flowType: 'pkce' } })
+    ? window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseKey, { auth: { flowType: 'pkce' }, global: { fetch: guardedFetch } })
     : null;
 
   // The last data a signed-in person saw, shown straight away on the next open while fresh data
@@ -58,7 +67,7 @@
     try { const c = JSON.parse(localStorage.getItem(CACHE_KEY)); return c && c.me === uid ? c : null; } catch (e) { return null; }
   };
   const writeCache = () => {
-    if (!state.email || !state.loaded || state.error) return;
+    if (state.viewAs || !state.email || !state.loaded || state.error) return;
     const sparks = state.sparks.map(s => Object.assign({}, s, { contacts: s.contacts.map(c => ({ spark_id: c.spark_id, user_id: c.user_id, name: c.name })) }));
     try {
       localStorage.setItem(CACHE_KEY, JSON.stringify({ me: state.me, email: state.email, isGoogle: state.isGoogle, myName: state.myName, myAvatar: state.myAvatar, myPlace: state.myPlace, myBio: state.myBio, memberSince: state.memberSince,
@@ -201,7 +210,7 @@
     cq: '', cSearch: false, cGrps: null, cTypes: [], cSort: 'soon', cView: CVIEWS.indexOf(prefs.cView) > -1 ? prefs.cView : 'list',
     cMon: null, cDay: null, cWildHidden: false, cNeedsHidden: false, cHandSheet: false,
     // v6 Update 2: search's Try chips; Your schedule and group pages' Sort · Filter; a group's search
-    cTry: null, cWhen: 'any', cHelp: false, sSort: 'soon', sFilt: [], gSort: 'soon', gFilt: [], iSort: 'interest', pastStatsHidden: prefs.pastStatsHidden || {}, jobsClosed: prefs.jobsClosed || {}, rsvpEdit: null, gSearch: false, gq: '', gTry: null
+    cTry: null, cWhen: 'any', cHelp: false, sSort: 'soon', sFilt: [], gSort: 'soon', gFilt: [], iSort: 'interest', pastStatsHidden: prefs.pastStatsHidden || {}, jobsClosed: prefs.jobsClosed || {}, rsvpEdit: null, viewAs: null, testers: null, gSearch: false, gq: '', gTry: null
   }, blankCompose());
 
   // ---- URL <-> screen, so ideas and invites can be shared and the back button works
@@ -412,10 +421,16 @@
 
     const roles = {};
     mem.data.forEach(m => { roles[m.group_id] = { role: m.role, lastSeen: Date.parse(m.last_seen_at), pinned: !!m.pinned }; });
-    const groups = grp.data.map(g => Object.assign({ id: g.id, name: g.name, photo: g.photo, photoPos: g.photo_pos || null, role: null, lastSeen: 0, pinned: false }, roles[g.id] || {}))
+    const va = state.viewAs;
+    const groups = grp.data.map(g => Object.assign({ id: g.id, name: g.name, photo: g.photo, photoPos: g.photo_pos || null, role: null, lastSeen: 0, pinned: false }, (va ? va.roles : roles)[g.id] || {}))
+      .filter(g => !va || va.roles[g.id])
       .sort((a, b) => runs(b) - runs(a) || a.name.localeCompare(b.name));
 
-    const sparks = sp.data.map(r => toSpark(r, of.data, it.data, gc.data, x));
+    // Previewing as a tester: only what they'd see (the rule in can_see_spark_row, minus shared links)
+    const sparks = sp.data.map(r => toSpark(r, of.data, it.data, gc.data, x)).filter(s => {
+      const m = va && va.roles[s.groupId];
+      return !va || (m && (s.visibility === 'group' || s.leadId === va.id || m.role === 'owner' || m.role === 'admin' || s.rsvps.some(r => r.userId === va.id)));
+    });
 
     // Names and photos of everyone on screen
     const ids = new Set([state.me]);
@@ -442,12 +457,12 @@
     });
     writeCache();
     // Whether you're the account that can wipe the demo content (Profile)
-    if (state.email) {
+    if (state.email && !va) {
       sb.from('demo_admins').select('user_id').eq('user_id', state.me).maybeSingle()
         .then(r => { if (!r.error) { setState({ demoAdmin: !!r.data }); writeCache(); } }, () => {});
     }
     // Notification read state and settings (signed-in people only)
-    if (state.email) {
+    if (state.email && !va) {
       const asked = Date.now();
       sb.from('notif_state').select('all_read_at,read_keys,topics,email').maybeSingle().then(r => {
         if (r.error || asked < notifSavedAt) return;   // a read/setting saved since then is newer than this answer
@@ -483,6 +498,7 @@
       setState({ groups: [], sparks: [], profiles: {}, sizes: {}, loaded: false, fromCache: false, demoAdmin: false });
     }
     if (u.id !== state.me || email !== state.email || google !== state.isGoogle) {
+      if (state.viewAs) return;   // previewing as a tester: stay them until Exit (which reloads)
       setState({ me: u.id, email, isGoogle: google, myName: (u.is_anonymous ? state.myName : metaName(meta) || state.myName).slice(0, 30), memberSince: u.created_at ? new Date(u.created_at).getFullYear() : state.memberSince });
     }
   };
@@ -520,6 +536,7 @@
 
   // Run a write, then refresh. Errors become the "didn't go through" toast.
   const run = async (work, after) => {
+    if (state.viewAs) { toast('You’re viewing as ' + firstName(state.viewAs.name) + ', so nothing changes. Exit to make changes.'); return false; }
     setState({ busy: 'save' });
     try {
       await ensureSession();
@@ -538,7 +555,7 @@
   // Opening a shared idea link grants this session access to that one idea
   const opened = new Set();
   const openLink = async (id) => {
-    if (!id || opened.has(id)) return true;
+    if (!id || opened.has(id) || previewing) return true;
     const res = must(await sb.rpc('open_idea', { p_spark: id }));
     if (res.data) opened.add(id);
     return !!res.data;
@@ -616,6 +633,44 @@
         const row = (r && r[0]) || {};
         toast('Removed ' + (row.ideas || 0) + ' demo ideas and plans', true);
       }, { confirm: null }) } });
+  };
+
+  // "View as a tester" (demo admin): pick a tester, and the app draws itself as them (look only)
+  const openTesters = () => {
+    if (state.testers) return setState({ testers: null });
+    sb.rpc('demo_testers').then(r => {
+      if (r.error) { console.error(r.error); toast(FAILED); return; }
+      setState({ testers: r.data || [] });
+    }, () => toast(FAILED));
+  };
+  const viewAsTester = (t) => {
+    const roles = {};
+    (t.memberships || []).forEach(m => { roles[m.group_id] = { role: m.role, pinned: !!m.pinned, lastSeen: Date.parse(m.last_seen_at) || 0 }; });
+    previewing = true;
+    setState({ viewAs: { id: t.user_id, name: t.name || 'Tester', roles }, me: t.user_id, email: t.email || 'tester', myName: t.name || '', myAvatar: null, myPlace: '', myBio: '',
+      testers: null, profSheet: false, notif: { allReadAt: 0, read: [], topics: {}, email: true, loaded: true }, demoAdmin: false, loaded: false });
+    go('calendar');
+    loadFresh().then(() => toast('Viewing as ' + t.name + '. Nothing you tap changes anything.', true), (e) => { console.error(e); setState({ error: 'load', loaded: true }); });
+  };
+  const exitPreview = () => { location.hash = '#/'; location.reload(); };
+  const previewBar = () => '<div role="status" data-preview style="position:fixed;z-index:90;bottom:calc(var(--nav-h) + 10px);left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:10px;max-width:calc(100% - 32px);height:36px;padding:0 6px 0 14px;border-radius:999px;background:#1f2433;color:#fff;box-shadow:0 4px 14px rgba(13,17,23,.35);font-size:13px;font-weight:800;white-space:nowrap">' +
+    '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis">Viewing as ' + esc(state.viewAs.name) + '</span>' +
+    '<span ' + on(exitPreview) + ' style="flex:0 0 auto;display:flex;align-items:center;height:26px;padding:0 11px;border-radius:999px;background:#ffd98a;color:#1f2433;font-size:12.5px;font-weight:900;cursor:pointer">Exit</span></div>';
+  const testerCard = () => {
+    const st = state;
+    if (st.viewAs) return '<div style="' + CARD + ';padding:14px 16px;display:flex;align-items:center;gap:12px"><div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:800;color:#0d1117">Viewing as ' + esc(st.viewAs.name) + '</div>' +
+      '<div style="margin-top:2px;font-size:13.5px;line-height:1.4;font-weight:500;color:#6b7280">Look only. Nothing you tap changes anything.</div></div>' +
+      '<button type="button" ' + on(exitPreview) + ' style="flex:0 0 auto;min-height:40px;padding:0 16px;border:0;border-radius:999px;background:#0d1117;color:#fff;font-family:inherit;font-size:14px;font-weight:800;cursor:pointer">Exit</button></div>';
+    if (!st.demoAdmin) return '';
+    const list = st.testers;
+    return '<div data-screen-label="View as a tester" style="' + CARD + ';padding:14px 16px;display:flex;flex-direction:column;gap:10px">' +
+      '<div style="display:flex;align-items:center;gap:12px"><div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:800;color:#0d1117">View as a tester</div>' +
+        '<div style="margin-top:2px;font-size:13.5px;line-height:1.4;font-weight:500;color:#6b7280">See the app the way a tester does when they sign in. Look only. Only you can see this.</div></div>' +
+        '<button type="button" ' + on(openTesters) + ' aria-expanded="' + !!list + '" style="flex:0 0 auto;min-height:40px;padding:0 16px;border:1.5px solid #dcdfe6;border-radius:999px;background:#fff;color:#0d1117;font-family:inherit;font-size:14px;font-weight:800;cursor:pointer">' + (list ? 'Close' : 'Pick one') + '</button></div>' +
+      (list ? (list.length ? list.map(t => '<div ' + on(() => viewAsTester(t)) + ' class="hov-row" data-tester="' + esc(t.email) + '" style="display:flex;align-items:center;gap:10px;min-height:48px;padding:4px 0;border-top:1px solid #f2f3f6;cursor:pointer">' +
+          face(t.user_id, t.name, 32) + '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">' + esc(t.name) + '</div><div style="font-size:12.5px;font-weight:600;color:#8a909b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(t.email) + ' · ' + (t.memberships || []).length + ((t.memberships || []).length === 1 ? ' group' : ' groups') + '</div></div>' + I.chevR(16, '#9aa0ac', 2.4) + '</div>').join('')
+        : '<div style="font-size:14px;font-weight:600;color:#6b7280">No testers have signed in yet.</div>') : '') +
+    '</div>';
   };
 
   const inviteLink = (code) => location.origin + '/join/' + code;
@@ -3610,6 +3665,7 @@
                 '<button type="button" ' + on(wipeDemo) + ' style="align-self:flex-start;min-height:40px;padding:0 16px;border:1.5px solid #f5c2cb;border-radius:999px;background:#fff;color:#9b1c31;font-family:inherit;font-size:14px;font-weight:800;cursor:pointer">Remove all demo content</button>' +
               '</div>'
             : '') +
+          testerCard() +
           (st.demoAdmin ? diagCard() : '') +
           '<div ' + on(signOut) + ' style="' + CARD + ';padding:0 16px;min-height:52px;display:flex;align-items:center;cursor:pointer"><span style="font-size:15.5px;font-weight:800;color:#9b1c31">Sign out</span></div>' +
           '<a href="/privacy.html" target="_blank" rel="noopener" style="align-self:center;display:flex;align-items:center;min-height:36px;padding:0 10px;font-size:13.5px;font-weight:700;color:#6b7280">Privacy</a>' +
@@ -4408,6 +4464,7 @@
 
     return '<div class="ptr" aria-hidden="true"><span class="ptr-spin"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v4.5h-4.5"/></svg></span></div>' +
       '<div class="scroller">' + main + '</div>' +
+      (st.viewAs ? previewBar() : '') +
       // v6 sheets sit under the pop-ups they open (Edit profile, Notification settings, sign-in, guest info)
       (st.email && st.profSheet ? viewProfileSheet() : '') +
       (st.email && st.notifSheet ? viewNotifSheet() : '') +
