@@ -123,6 +123,16 @@ test('groups, idea links, guests and leads: the database refuses what the app ne
       return (await c.from('guest_contacts').select('phone').eq('spark_id', id)).data.length;
     }, sparkId);
     expect(otherSees).toBe(0);
+    // A guest can't move their contact onto another idea, and can withdraw it
+    const guestMoves = await asUser(A, async (c, _C, { id, other }) => {
+      const me = (await c.auth.getUser()).data.user.id;
+      return {
+        repoint: (await c.from('guest_contacts').update({ spark_id: other }).eq('spark_id', id).eq('user_id', me)).error ? 'refused' : 'ALLOWED',
+        withdraw: (await c.from('guest_contacts').delete().eq('spark_id', id).eq('user_id', me)).error ? 'failed' : 'gone',
+        left: (await c.from('guest_contacts').select('spark_id').eq('user_id', me)).data.length
+      };
+    }, { id: sparkId, other: '00000000-0000-0000-0000-000000000000' });
+    expect(guestMoves).toEqual({ repoint: 'refused', withdraw: 'gone', left: 0 });
     await anon2.context.close();
 
     // --- Someone who isn't the lead can't change or decide anything ----------------
@@ -293,16 +303,23 @@ test('plans: replies, sign-ups, updates, notes and invite-only plans follow the 
     // The demo world: only the owner's account can wipe it; nobody can make themselves that account or flip the flags
     const demo = await asUser(L, async (c, _C, id) => {
       const me = (await c.auth.getUser()).data.user.id;
+      const g = (await c.from('groups').select('id').eq('name', 'Torrez Fitness').single()).data.id;
       const ok = async (q) => { const x = await q; return x.error ? 'refused' : 'ALLOWED'; };
       return {
         wipe: await ok(c.rpc('wipe_demo')),
         makeMeWiper: await ok(c.from('demo_admins').insert({ user_id: me })),
         flagMyIdea: await ok(c.from('sparks').update({ demo: true }).eq('id', id)),
+        postAsDemo: await (async () => {   // the flag and a backdated created_at are reset on insert
+          const r = await c.from('sparks').insert({ group_id: g, author_name: 'x', lead_name: 'x', lead_id: me, created_by: me, text: '[E2E] demo?', demo: true, created_at: '2020-01-01T00:00:00Z' }).select('id,demo,created_at').single();
+          if (r.error) return 'refused';
+          await c.from('sparks').delete().eq('id', r.data.id);
+          return r.data.demo === false && r.data.created_at > '2025' ? 'reset' : 'KEPT';
+        })(),
         flagGroup: await ok(c.from('groups').update({ demo: false }).eq('name', 'Torrez Fitness')),
         readRoster: (await c.from('demo_roster').select('*')).error ? 'refused' : 'ALLOWED'
       };
     }, made.plan);
-    expect(demo).toEqual({ wipe: 'refused', makeMeWiper: 'refused', flagMyIdea: 'refused', flagGroup: 'refused', readRoster: 'refused' });
+    expect(demo).toEqual({ wipe: 'refused', makeMeWiper: 'refused', flagMyIdea: 'refused', postAsDemo: 'reset', flagGroup: 'refused', readRoster: 'refused' });
   } finally {
     for (const id of ids) await asUser(L, async (c, _C, id) => { await c.from('sparks').delete().eq('id', id); }, id).catch(() => {});
     await lead.context.close();
