@@ -1,12 +1,17 @@
 # End-to-end tests: a real browser clicks through the app against the TEST database.
-# Runs on every push to test/main and on pull requests. A red ✗ on GitHub means don't merge.
+# Runs on every push to test and on pull requests. A red ✗ on GitHub means don't merge.
+# Not on main: main only ever fast-forwards to a commit that already passed on test, and a second
+# run there just holds the shared test database while the next push to test waits.
+# Changes to docs (*.md) and the design folder alone don't need a browser run.
 
 name: End-to-end tests
 
 on:
   push:
-    branches: [test, main]
+    branches: [test]
+    paths-ignore: ['**.md', 'design/**']
   pull_request:
+    paths-ignore: ['**.md', 'design/**']
   workflow_dispatch: {}
 
 # The workflow only needs to read the repo
@@ -36,8 +41,22 @@ jobs:
 
       - run: npm ci
 
+      # Chromium is cached per Playwright version; the system libraries it needs are installed every time
+      - name: Playwright version
+        id: pw
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+      - name: Cache Chromium
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ steps.pw.outputs.version }}
       - name: Install Chromium
+        if: steps.pw-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium
+      - name: Install Chromium's system libraries
+        if: steps.pw-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
 
       - name: Run tests
         run: npx playwright test
