@@ -27,11 +27,14 @@ DEST="$DEST_ROOT/$STAMP"
 mkdir "$DEST.partial"
 cd "$WORK"   # the CLI writes a scratch supabase/ folder into the current directory
 
-dump() {   # dump <file name> <sql>
-  if ! "$SUPABASE" db query --linked --project-ref "$REF" --output-format json "$2" \
-      </dev/null >"$WORK/$1.raw" 2>"$WORK/$1.err"; then
-    echo "backup: query for $1 failed:" >&2; cat "$WORK/$1.err" >&2; exit 1
-  fi
+dump() {   # dump <file name> <sql>  (one retry: the CLI's login step sometimes hangs right after the Mac wakes)
+  local try
+  for try in 1 2; do
+    if "$SUPABASE" db query --linked --project-ref "$REF" --output-format json "$2" \
+        </dev/null >"$WORK/$1.raw" 2>"$WORK/$1.err"; then break; fi
+    if [ "$try" = 2 ]; then echo "backup: query for $1 failed twice:" >&2; cat "$WORK/$1.err" >&2; exit 1; fi
+    echo "  $1: retrying" >&2; sleep 30
+  done
   /usr/bin/python3 - "$WORK/$1.raw" "$DEST.partial/$1.json" <<'PY'
 import json, sys
 raw = open(sys.argv[1]).read()
