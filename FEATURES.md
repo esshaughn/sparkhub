@@ -34,7 +34,7 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 
 | # | Feature | Status | Notes |
 |---|---|---|---|
-| 89 | Upcoming plans you lead, are going / maybe to, or help with, by month; **Tiles** (big photo, role strip: Leading / Helping / Going / Maybe with *N tasks ⌄* expanding in place, *All set*, *Change RSVP* / *Update RSVP*) or **List** (date block, role bar, same strip); the view picker sits on the first month heading | Test | Grid and the group picker are gone |
+| 89 | Upcoming plans you lead, are going / maybe to, or help with; **Tiles** (big photo, role strip: Leading / Helping / Going / Maybe with *N tasks ⌄* expanding in place, *All set*, *Change RSVP* / *Update RSVP*) or **List** (date block, role bar, same strip). On the first heading: **Sort** (Soonest by month · Most lively · Newest · Needs you, one section named after the sort), **Filter** (*Show only*: Leading, Helping, Going, Maybe, Needs helpers, This week, with counts, all must match; black *Filter · N* while on; *No events match these filters* + **Clear filters**) and the view picker | Test | v6 Update 2; Grid and the group picker are gone |
 
 ## Calendar (community) — v6
 
@@ -42,7 +42,7 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 |---|---|---|---|
 | 90 | **The home screen** (the app opens here). Photo header (search, bell, **+** to post), every upcoming plan in your groups; **Groups** and **Type** checklists (types guessed from titles), **Clear filters**; **Sort** Soonest / Most lively / Newest / Needs you; **List** · **Tiles** · **Month**; not-joined cards say *N spots left · N going · RSVP* | Test | Types are placeholders until hosts tag events |
 | 91 | **Feeling wild?** (a random event) and **N events could use a hand** (open sign-ups in the next two weeks, **Claim** in a sheet), each dismissible for the visit | Test | |
-| 92 | **Search** sheet: live results by name, place or group, with type chips | Test | |
+| 92 | **Search** sheet: before typing, **Try** chips (This weekend, Outdoors, Kid-friendly, Needs helpers, Food & drink) and **Or something unexpected** (Deal me a wildcard, Something new to me, Soonest surprise, Tag along, Small & cozy, Get outside); live results by name, place or group; gray Cancel | Test | v6 Update 2; no recent searches |
 | 93 | **Will you be there?** after signing up, claiming or offering to organize without a Going / Can't go: I'm going · Maybe · Helping, not attending | Test | Can't be dismissed |
 
 ## Groups
@@ -51,7 +51,7 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 |---|---|---|---|
 | 11 | Group switcher menu (All ideas): your groups in Home's order, names only (no role chips), current one tinted, **+ Join a group** | Test | |
 | 12 | **Join a group** pop-up (code, "didn't match" error) | Test | Needs sign-in |
-| 13 | **Groups** tab: *Your groups* with **Join a group** / **Start a group** pills; pinned groups as big photo cards (role chip, gear for owners/admins → Edit group, pin, name with a dot when there's something new, members), every unpinned group as a square tile in two columns (all tiles when nothing is pinned) | Test | Member counts via `my_group_sizes()`; toast *Pinned* / *Unpinned* |
+| 13 | **Groups** tab (v6 Update 2): photo header (*YOUR PEOPLE* · **Groups** · *N groups*, the bell, a white **Join** pill → the code pop-up); pinned groups as big photo cards (role chip, gear for owners/admins → Edit group, pin, name with a dot when there's something new, members), every unpinned group as a square tile in two columns; dotted **+ Start a new group** at the bottom. The Groups tab is purple only on this list | Test | Header photo: the first of your groups with a photo; member counts via `my_group_sizes()` |
 | 14 | Invite links `/join/CODE` (and `#/join/CODE`): code filled in; Join opens for someone signed in | Test | Vercel rewrite in `vercel.json` |
 | 15 | **Edit group** (owners and admins; Profile → Your groups or **Edit** on All ideas): cover with **Change cover** / **Add a cover**, group name (owners rename in place; admins see a lock), members card → Members sheet, invite code + link with **Copy**, **Delete group** (owners; type DELETE) | Test | Back returns where you came from |
 | 15b | **Owners** (up to 2 per group; whoever starts a group). Members sheet (search, *(you)* first): owners **Make admin**, **Make owner**, **Remove**, **Step down**; admins see it read-only. A group always keeps one owner | Test | Owner chip purple, Admin gold |
@@ -61,11 +61,12 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 
 | # | Feature | Status | Notes |
 |---|---|---|---|
-| 17 | Cover header: a **Back to groups** circle (no logo), **Edit** pill (admins), *N members*, group name, **I have an idea** | Test | |
-| 18 | Ideas / Plans / Happened tabs; the **view picker** (Tiles / List / Grid) on the first month heading, remembered on this device | Test | |
-| 19 | **Sort** on Ideas only, on its own row: Most popular (default) · Happening soon · Newest · Oldest. Plans (soonest first) and Happened (newest first) have no count line or sort | Test | |
-| 20 | Photo cards by month (List: by day) with date · time, title, place; your role as a chip — Leading / Helping / Going / Maybe (Led / Helped / Went on Happened, photos desaturated) | Test | Ideas with no date: "Idea · no date yet" |
+| 17 | Cover header (v6 Update 2, 190px): a white **Back to groups** circle, **Search this group** and the bell, *N MEMBERS* in violet, the group name with a quiet pencil for owners/admins (→ Edit group), a violet **+** (I have an idea) | Test | |
+| 18 | The **world switcher**: *Ideas N · Plans N · Past N* on a gray track with a white sliding thumb (no icons); Plans first | Test | v6 Update 2 |
+| 19 | **Plans**: Your schedule's Tiles / List cards and strips (not joined: *N spots left · N going · RSVP*); **Sort** · **Filter** (Leading, Helping, Going, Not joined yet, Needs helpers, This week) · view picker on the first heading, the view remembered on this device | Test | v6 Update 2 |
+| 20 | **Ideas** board: graph-paper page, two columns of tilted cards (photo or the group's, title, ↑ interested count, the four checkpoints as green / amber tiles); **Past** scrapbook: dark *{GROUP} · SO FAR* recap (events · showed up · photos), memory cards (photo or a 4-photo mosaic, *🎉 N went!*, add a photo to the album, **Made it happen** · lead with N helpers · 🙏 thanks, ❤️ 🙌 🎉 reactions, **Let's do it again!** with its count) | Test | v6 Update 2; reactions in `reactions` |
 | 21 | Loading placeholders, "Couldn't load ideas" banner with **Try now**, empty states per tab | Test | |
+| 94 | **Group search** sheet (this group only): **Browse** chips (Plans, Ideas, Past events, Needs helpers) and **Or something unexpected** (Wildcard, Next up here, They need you, Hidden gem, Throwback, Fresh off the press); live results with *Idea / Past · date · place* | Test | v6 Update 2 |
 
 ## Idea page
 
@@ -93,12 +94,12 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 63 | **Plan page**: countdown header, *Are you coming?* (Going / Maybe / Can't make it), who's going, add to calendar (.ics), directions, good to know, sign-ups, updates, Inspo | Test | `rsvps` |
 | 64 | Host tools: guest list counts, **Invite people** (share link), **Send an update** (audience + templates), remind-the-day-before switch, private **Before the day** notes, *Clear the date* | Test | `plan_updates`, `plan_prep`, `clear_plan()`; delivery comes later |
 | 65 | **Sign-ups**: the host adds items with an optional "how many"; anyone signs up or adds "something else" they're bringing | Test | `signup_items`, `signup_claims` (full items refuse more) |
-| 66 | **It happened** page: album (anyone can add), *Do it again* (prefilled event form), Edit for the lead/admins | Test | `album_photos` |
+| 66 | **It happened** page: album (anyone can add), **Reactions** (❤️ 🙌 🎉, 🙏 a public thank-you to the lead, *Thanks from …*), *Do it again* (prefilled event form), Edit for the lead/admins | Test | `album_photos`, `reactions` |
 | 67 | **Invite-only plans**: seen by the lead, admins, people who replied and link holders | Test | `can_see_spark()` |
 | 68 | All ideas **Ideas / Plans / Happened** tabs with counts; cards show IDEA / PLAN / It happened | Test | |
 | 69 | **Start a group** (Profile → Your groups) | Test | `create_group()` |
 | 70 | Temporary **demo events** in the four demo groups (`scripts/demo/seed-events.py`, after `seed-demo.py`): the v5.2 events content handoff, with every signed-in tester leading, helping, going, maybe, can't and not yet answered, plus past events and ideas | Test | Re-run to rebuild; see the script to remove |
-| 71 | **Tab bar** (v6): Your tasks (purple count) · Your schedule · **Calendar** (centre, in a ring) · Groups · Profile (opens the sheet); purple when active. Your plans & ideas is off the bar (`#/own`) | Test | |
+| 71 | **Tab bar** (v6): Your tasks (purple count) · Your schedule · **Calendar** (centre, in a ring) · Groups (purple only on the Groups list) · Profile (opens the sheet); purple when active. Your plans & ideas is off the bar (`#/own`) | Test | |
 | 72 | (Replaced by #90) The v5 role-filtered Calendar with Week view and the ROUGH DRAFT stamp | Removed | v6 |
 | 73 | **Your plans / Your ideas**: the title is the switch (active black, inactive light gray); a group dropdown pill and the create button for that tab (**Post an event** green, **Float an idea** yellow). Plans: photo tiles with the Going · Maybe · Sign-ups rings and the Actions box, then *Past events* with desaturated photos. Ideas: photo tiles (IDEA · GROUP) with the four **readiness steps** (Date, Location, People, Tasks: rings that fill, then go solid green) | Test | No draft stamp here |
 | 74 | **Notifications** (v6: a sheet from the bell; last 7 days, built from stored activity): gear on the title row, filter chips All / Invites / Updates / Hosting, sections **NEW · N** (with **Mark all read** at its right, both gone once everything is read) and Earlier this week; new plans with **I'm going** / **Maybe**, host updates with their text, day-before and day-of reminders; on your own plans: replies, sign-ups, interest, suggestions, offers to organize | Test | |
@@ -110,9 +111,9 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 80 | **Remove all demo content** (Profile, owner's account only): deletes every demo idea and plan, takes the demo people out of the groups, stops auto-joining | Test | `wipe_demo()`, `demo_admins` |
 | 81 | **No empty flash on open**: a signed-in person goes straight to their app (not Welcome); screens show loading placeholders until data arrives, and after the first time the last-seen data shows at once while fresh data loads | Test | Cache in localStorage per database and account, without guests' phone numbers; cleared on sign-out |
 | 82 | **Loading screen**: the gold bolt (64px, gently pulsing) over "Spark Hub" on white, shown from the first moment until the app renders | Test | In `index.html`, so it shows before any script loads |
-| 83 | **Profile** (v6: a sheet from the Profile tab or your photo on Your tasks; content as v5.2): centred 96px photo with a camera badge, name, *{place} · Member since {year}*, a short bio, **Edit profile** (photo, name, **Place**, **About you**, email), a **Hosted / Went to / Groups** stats row; **Settings** (Notifications → the settings sheet; Privacy), **Help & info** (How Spark Hub works), the owner's Demo content card, Sign out. No Your ideas or Your groups lists | Test | `profiles.place` (≤40), `profiles.bio` (≤160) |
+| 83 | **Profile** (v6 Update 2: a compact sheet from the Profile tab or your photo on Your tasks): 56px photo, name, a gray pencil (**Edit profile**: photo, name, **Place**, **About you**, email), Close; **Help & info** tiles (How Spark Hub works, Notification settings), **Settings** (Notifications, Privacy), the owner's Demo content card, Sign out. Notification settings and Edit profile open above the sheet | Test | Place / bio / member since / stats aren't shown for yourself any more (kept for viewing others, not built yet) |
 | 84 | **Event page controls** (idea, plan, happened): the photo runs to the top; a white **Back** circle and, for hosts, a white **Edit** pill; no group name or IDEA pill between them. **Back returns to the screen you came from** (Your tasks, Your schedule, Your plans or ideas, Calendar, Groups, the group page), scrolled to where you were; a link opened cold goes to the group's page | Test | `state.back`, recorded in `go()` |
-| 85 | **Groups page** (v5.2): title at 40px, 36px Join / Start pills; tiles honour each group's crop and zoom | Test | |
+| 85 | (Replaced by #13) The v5.2 Groups page title and pills | Removed | v6 Update 2 |
 | 86 | **Freeze log** (temporary, owner's Profile only): notes when the app stops responding for over a second (screen, what ran last, image count), slow redraws (>150ms) and slow loads (>3s); kept on the device, last 40, Clear button | Test | Tracing the home-screen app freezes (2026-09-27); remove once found |
 | 87 | **Pull to refresh**: at the top of any screen, drag down and let go to reload; the header stays put while the feed under it slides down, with a spinner in the gap (screens without a header slide whole) | Test | Touch only; the 30-second background refresh still runs |
 | 88 | **Link previews**: shared idea links are `/i/<id>` and show the idea's title, when · where · group, and its photo (or the group's) in iMessage, WhatsApp and the like; invite links (`/join/CODE`) show *Join {group} on Spark Hub* with the group photo; everything else shows the Spark Hub card. Invite-only plans stay generic | Test | `api/preview.js` (Vercel function), `link_preview()` / `group_preview()`, `icons/share.jpg` (`scripts/make-share-image.js`) |
@@ -166,7 +167,7 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 56 | Design handoff doc kept current by Claude Code | Live | |
 | 57 | Vercel auto-deploy from `main`; previews from `test` | Live | |
 | 58 | Security headers + CSP; pinned, integrity-checked Supabase script | Live | |
-| 59 | Automated end-to-end tests (27 tests: smoke, posting, groups, collaboration, plans, Your schedule, v6, notifications, link previews, Google, database security) | Test | `tests/` |
+| 59 | Automated end-to-end tests (28 tests: smoke, posting, groups, collaboration, plans, Your schedule, v6 and Update 2, notifications, link previews, Google, database security) | Test | `tests/` |
 | 60 | Nightly cleanup of test-database leftovers ([E2E] ideas and groups, old anonymous users) | Live | Test project only |
 
 ## Removed in this rebuild

@@ -276,13 +276,16 @@ test('plans: replies, sign-ups, updates, notes and invite-only plans follow the 
     // Someone in no group sees none of it
     const outsider = await asUser(A, async (c, _C, id) => {
       const out = {};
-      for (const t of ['rsvps', 'signup_items', 'plan_updates', 'date_options', 'spot_options', 'organizers', 'album_photos', 'plan_prep']) {
+      for (const t of ['rsvps', 'signup_items', 'plan_updates', 'date_options', 'spot_options', 'organizers', 'album_photos', 'plan_prep', 'reactions']) {
         const x = await c.from(t).select('*').eq('spark_id', id);
         out[t] = x.error ? 'refused' : x.data.length;
       }
       return out;
     }, made.plan);
     for (const [t, v] of Object.entries(outsider)) expect([0, 'refused'], t).toContain(v);
+    // Reactions (v6 Update 2): an anonymous session can't react, even on a plan it can't see
+    const anonReact = await asUser(A, async (c, _C, id) => (await c.from('reactions').insert({ spark_id: id, kind: 'heart' })).error ? 'refused' : 'ALLOWED', made.plan);
+    expect(anonReact).toBe('refused');
 
     // Group sizes: only for the groups you're in
     const sizes = await asUser(A, async (c) => { const r = await c.rpc('my_group_sizes'); return r.error ? 'refused' : r.data.length; });

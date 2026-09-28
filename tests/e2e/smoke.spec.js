@@ -113,10 +113,14 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
     await own.getByRole('tab', { name: 'Your ideas' }).click();
     await expect(own.getByRole('button', { name: 'Float an idea' })).toBeVisible();
 
-    // Groups → the group card opens its page: cover, tabs, Tiles / List / Grid
+    // Groups (Update 2): photo header (YOUR PEOPLE · Groups · N groups), Join pill, Start a new group at the bottom
     await page.getByRole('button', { name: 'Groups', exact: true }).click();
     const groups = page.locator('[data-screen-label=Groups]');
-    await expect(groups.getByRole('heading', { name: 'Your groups' })).toBeVisible();
+    await expect(groups.getByRole('heading', { name: 'Groups', exact: true })).toBeVisible();
+    await expect(groups).toContainText(/\d+ groups?/);
+    await expect(groups.getByRole('button', { name: 'Join a group' })).toBeVisible();
+    await expect(groups.getByRole('button', { name: 'Start a new group' })).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Groups', exact: true })).toHaveAttribute('aria-current', 'page');
     await expect(groups.getByRole('button', { name: 'Torrez Fitness', exact: true })).not.toContainText(/members/);   // unpinned: a tile, no member count
     await groups.getByRole('button', { name: 'Torrez Fitness', exact: true }).click();
     const browse = page.locator('[data-screen-label=Browse]');
@@ -124,53 +128,75 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
     await expect(browse).toContainText(/\d+ members/i);
     await expect(browse.getByRole('button', { name: 'I have an idea' })).toBeVisible();
     await expect(browse.getByRole('button', { name: 'Back to groups' })).toBeVisible();
-    await expect(browse.getByRole('button', { name: 'Sort' })).toHaveCount(0);   // Plans first: no sort row
-    await expect(browse.getByRole('button', { name: 'View: Tiles' })).toBeVisible();
-    const tabs = browse.getByRole('tablist', { name: 'Ideas, plans and what happened' }).getByRole('tab');
-    await expect(tabs).toHaveText([/^Ideas\s*\d+$/, /^Plans\s*\d+$/, /^Happened\s*\d+$/]);
-    await tabs.filter({ hasText: 'Ideas' }).click();
-    await expect(tabs.filter({ hasText: 'Ideas' })).toHaveAttribute('aria-selected', 'true');
+    await expect(browse.getByRole('button', { name: 'Search this group' })).toBeVisible();
+    // Inside a group the Groups tab isn't highlighted
+    await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Groups', exact: true })).not.toHaveAttribute('aria-current', 'page');
 
-    // Sort: Most popular first by default, then Happening soon, Newest, Oldest
-    await expect(page.getByRole('button', { name: 'Sort' })).toContainText('Most popular');
-    await page.getByRole('button', { name: 'Sort' }).click();
-    const sortRows = page.getByRole('menu', { name: 'Order by' }).getByRole('button');
-    await expect(sortRows).toHaveText(['Most popular', 'Happening soon', 'Newest', 'Oldest']);
+    // The world switcher: Ideas · Plans · Past, Plans first
+    const tabs = browse.getByRole('tablist', { name: 'Ideas, plans and past events' }).getByRole('tab');
+    await expect(tabs).toHaveText([/^Ideas\s*\d+$/, /^Plans\s*\d+$/, /^Past\s*\d+$/]);
+    await expect(tabs.filter({ hasText: 'Plans' })).toHaveAttribute('aria-selected', 'true');
 
-    // Happening soon: ideas with upcoming dates first, soonest on top; undated ones after
-    await sortRows.filter({ hasText: 'Happening soon' }).click();
-    const cards = browse.locator('[data-card]');
-    const dates = await cards.evaluateAll(els => els.map(el => /(no date yet)|((Mon|Tue|Wed|Thu|Fri|Sat|Sun), [A-Z][a-z]{2} \d+)/.exec(el.textContent)?.[0] || ''));
-    const firstTbd = dates.indexOf('no date yet');
-    const dated = firstTbd < 0 ? dates : dates.slice(0, firstTbd);
-    expect(dated.length).toBeGreaterThan(1);
-    const asTime = (d) => Date.parse(d.replace(/^\w+, /, '') + ' 2026');
-    for (let i = 1; i < dated.length; i++) expect(asTime(dated[i])).toBeGreaterThanOrEqual(asTime(dated[i - 1]));
-    if (firstTbd > -1) expect(dates.slice(firstTbd).every(d => d === 'no date yet')).toBe(true);
-    await page.getByRole('button', { name: 'Sort' }).click();
-    await sortRows.filter({ hasText: 'Newest' }).click();
-    await expect(page.getByRole('button', { name: 'Sort' })).toContainText('Newest');
+    // Plans: Sort · Filter · view on the first heading
+    await expect(browse.getByRole('button', { name: 'Sort: Soonest' })).toBeVisible();
+    await browse.getByRole('button', { name: 'Sort: Soonest' }).click();
+    await expect(page.getByRole('menu', { name: 'Sort' }).getByRole('menuitemradio')).toHaveText(['Soonest', 'Most lively', 'Newest', 'Needs you']);
+    await page.getByRole('menu', { name: 'Sort' }).getByRole('menuitemradio', { name: 'Needs you' }).click();
+    await expect(browse.getByRole('heading', { name: 'Needs you' })).toBeVisible();   // one section, named after the sort
+    await browse.getByRole('button', { name: 'Sort: Needs you' }).click();
+    await page.getByRole('menu', { name: 'Sort' }).getByRole('menuitemradio', { name: 'Soonest' }).click();
+    await browse.getByRole('button', { name: 'Filter' }).click();
+    const show = page.getByRole('menu', { name: 'Show only' });
+    await expect(show.getByRole('menuitemcheckbox')).toHaveText([/^Leading/, /^Helping/, /^Going/, /^Not joined yet/, /^Needs helpers/, /^This week/]);
+    await show.getByRole('menuitemcheckbox', { name: /^Needs helpers/ }).click();
+    await expect(browse.getByRole('button', { name: 'Filter, 1 on' })).toContainText('Filter · 1');
+    await show.getByRole('button', { name: /^Show \d+ events?$/ }).click();
+    await browse.getByRole('button', { name: 'Filter, 1 on' }).click();
+    await page.getByRole('menu', { name: 'Show only' }).getByText('Clear', { exact: true }).click();
+    await page.keyboard.press('Escape');
+    await expect(browse.getByRole('button', { name: 'Filter', exact: true })).toBeVisible();
 
-    // View: Tiles → Grid, remembered after a reload
-    await pickView(browse, 'Grid');
+    // View: Tiles → List, remembered after a reload
+    await pickView(browse, 'List');
     await page.reload();
-    await expect(browse.getByRole('button', { name: 'View: Grid' })).toBeVisible();
+    await expect(browse.getByRole('button', { name: 'View: List' })).toBeVisible();
     await pickView(browse, 'Tiles');
 
-    // Profile (your photo on Your tasks, a sheet): stats, Edit profile with a place line, Help & info → How Spark Hub works
+    // Ideas: the board; Past: the scrapbook with the "SO FAR" recap
+    await tabs.filter({ hasText: 'Ideas' }).click();
+    await expect(tabs.filter({ hasText: 'Ideas' })).toHaveAttribute('aria-selected', 'true');
+    await expect(browse.getByRole('button', { name: /^Sort/ })).toHaveCount(0);
+    await tabs.filter({ hasText: 'Past' }).click();
+    await expect(browse).toContainText('TORREZ FITNESS · SO FAR');
+
+    // Group search: Browse chips and "Or something unexpected"
+    await browse.getByRole('button', { name: 'Search this group' }).click();
+    const gs = page.getByRole('dialog', { name: 'Group search' });
+    await expect(gs.getByText('Browse', { exact: true })).toBeVisible();
+    await expect(gs.locator('[data-magic]')).toHaveCount(6);
+    await gs.getByRole('button', { name: 'Plans', exact: true }).click();
+    await expect(gs.locator('[data-result]').first()).toBeVisible();
+    await gs.getByText('Cancel', { exact: true }).click();
+    await expect(gs).toHaveCount(0);
+
+    // Profile (Update 2, compact): photo, name and a pencil; Help & info tiles first, then Settings
     await page.getByRole('button', { name: /^Your tasks/ }).click();
     await page.locator('[data-screen-label="Your tasks"]').getByRole('button', { name: 'Profile' }).click();
     const profile = page.getByRole('dialog', { name: 'Profile', exact: true });
-    await expect(profile).toContainText(/Member since \d{4}/);
-    await expect(profile).toContainText('Groups');
-    await expect(profile).not.toContainText('Your groups');
+    await expect(profile.getByRole('heading', { name: 'Help & info' })).toBeVisible();
+    await expect(profile).not.toContainText('Member since');
+    await expect(profile).not.toContainText('Hosted');
+    // Notification settings opens above the Profile sheet
+    await profile.getByRole('button', { name: 'Notification settings' }).click();
+    await expect(page.getByRole('dialog', { name: 'Notification settings' })).toBeVisible();
+    await page.getByRole('dialog', { name: 'Notification settings' }).getByRole('button', { name: 'Close' }).click();
     await profile.getByRole('button', { name: 'Edit profile' }).click();
     const pe = page.getByRole('dialog', { name: 'Edit profile' });
     await pe.getByLabel('Place').fill('East Austin');
     await pe.getByLabel('About you').fill('Always up for a trail walk.');
     await pe.getByRole('button', { name: 'Save', exact: true }).click();
-    await expect(profile).toContainText('East Austin · Member since');
-    await expect(profile).toContainText('Always up for a trail walk.');
+    await expect(pe).toHaveCount(0);
+    await expect(profile).toBeVisible();
     await page.getByRole('button', { name: 'How Spark Hub works' }).click();
     await expect(page.getByRole('heading', { name: 'Ideas come to life when we build them together' })).toBeVisible();
     expect(errors).toEqual([]);

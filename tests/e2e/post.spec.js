@@ -49,21 +49,17 @@ test('post → idea page → all three views → profile → edit → delete', a
     await page.locator('[data-screen-label=Groups]').getByRole('button', { name: 'Torrez Fitness', exact: true }).click();
     const browse = page.locator('[data-screen-label=Browse]');
     await browse.getByRole('tab', { name: /^Ideas/ }).click();
+    // Update 2: the Ideas board (tilted cards on graph paper, the four checkpoints as tiles; no sort or view)
     const card = browse.locator('[data-card="' + Title + '"]');
-    await expect(card).toContainText('Sat, Oct 17 · 5:30pm');
-    await expect(card).toContainText('Zilker Metropolitan Park');
-    await expect(card.getByText('Leading', { exact: true })).toBeVisible();          // your role on the photo
-    await pickView(browse, 'List');
-    await expect(card).toContainText('Sat, Oct 17');
-    await expect(card).toContainText('5:30pm');
-    await expect(card).toContainText('Zilker Metropolitan Park');
-    await pickView(browse, 'Grid');
     await expect(card).toContainText(Title);
-    await pickView(browse, 'Tiles');
+    await expect(card.getByLabel('Date: Date set')).toBeVisible();
+    await expect(card.getByLabel('Location: Location set')).toBeVisible();
+    await expect(card.getByLabel('Roles: Add essential roles')).toBeVisible();
+    await expect(browse.getByRole('button', { name: /^View: / })).toHaveCount(0);
 
-    // Profile no longer lists ideas; it has the stats row
+    // Profile (compact): Help & info first
     await openProfile(page);
-    await expect(page.locator('[data-screen-label=Profile]')).toContainText('Hosted');
+    await expect(page.locator('[data-screen-label=Profile]')).toContainText('Help & info');
 
     // Edit the title and basics
     await openIdea(page, id);

@@ -4,8 +4,8 @@
 
 - **Built (test):** https://gosparkhub-git-test-eric-5958s-projects.vercel.app · **Live:** https://gosparkhub.vercel.app
 - **Source:** github.com/esshaughn/sparkhub (`index.html`, `js/sparks.js`, `css/sparks.css`, `privacy.html`, `supabase/templates/`)
-- **Baseline:** Claude Design's **Spark Hub v6** handoff (Your tasks, Your schedule, the community Calendar, Profile and Notifications as sheets, the RSVP ask). Its README is `design/spark-hub/README-v6.md` and `design/spark-hub/Spark Hub App.dc.html` is the v6 prototype; the v5, v5 update and v5.2 READMEs sit beside it. Where v6 conflicts with a decision the owner already made, §1 says what was built.
-- **As of:** 2026-09-27, v6 is built on the test branch
+- **Baseline:** Claude Design's **Spark Hub v6** handoff plus **Update 2** (Groups list and group pages redesigned: world switcher, Ideas board, Past scrapbook, group search; Sort · Filter on Your schedule and group Plans; Calendar search's Try chips and "Or something unexpected"; the compact Profile sheet). The READMEs are `design/spark-hub/README-v6.md` and `design/spark-hub/README-v6-update-2.md`; `design/spark-hub/Spark Hub App.dc.html` is the Update 2 prototype. Where the design conflicts with a decision the owner already made, §1 says what was built.
+- **As of:** 2026-09-28, v6 Update 2 is built on the test branch
 
 Where this doc and the design files disagree, **this doc is correct**.
 
@@ -20,7 +20,7 @@ Where this doc and the design files disagree, **this doc is correct**.
 | 3 | **Ideas' third to-do is "No roles yet · Add roles"** (it only decides whether an idea shows under Ideas; the card shows the four checkpoints) | "No tasks yet · Add tasks" | Matches the v6 Roles → Helpers checkpoint wording |
 | 4 | **Idea pages have a Sign-ups card** (between Location and the organizer card), so "Add essential roles" / "Get helpers" land somewhere; empty, the lead reads *What roles does this need? Add them now and people can grab one before there's a date.* | Not drawn on the idea page | v6's Roles/Helpers checkpoint opens the idea's sign-ups |
 | 5 | **Plans show "Waiting on you"** (the lead's pending suggestions, same card as ideas) so "Hana's spot idea · Review" has somewhere to go | Only on ideas | Your tasks now lists these for plans |
-| 6 | **Profile's Settings list has two rows**, Notifications and Privacy; Help & info has one, How Spark Hub works | Notifications, Calendar sync, Email, Privacy; more help rows | Owner (2026-09-27): no calendar sync, email is in-app only, nothing receives feedback yet |
+| 6 | **Profile's Help & info has two tiles** (How Spark Hub works, Notification settings) and **Settings two rows** (Notifications, Privacy) | Help & info: + Ask a question, Send feedback; Settings: + Calendar sync, Email | Owner (2026-09-27): no calendar sync, email is in-app only, nothing receives feedback yet |
 | 7 | **Calendar sort "Most lively"** = going ×2 + maybe + sign-ups taken + updates, plus a boost for plans posted in the last 2 / 5 days | Also votes, suggestions and readiness (ideas) | The Calendar lists plans only, so the idea parts don't apply |
 | 8 | **Event types** are guessed from the title only (keywords as in the prototype, plus taco/pie → Food & drink, run/5k → Fitness, hootenanny → Arts & crafts) | Title + tags | There are no tags yet; nothing is written to the data |
 | 9 | **The Calendar header** uses the Walnut Creek group photo (the same parade shot as `walnut-creek-parade.jpg`, already resized in `photos/`) | `walnut-creek-parade.jpg` | Same photo, no second copy |
@@ -30,12 +30,21 @@ Where this doc and the design files disagree, **this doc is correct**.
 | 13 | **"How Spark Hub works"** (Profile → Help & info) has real copy: the three steps from Welcome (Post an idea · People pitch in · It happens) and three "Good to know" notes (groups are private, leads stay in charge, Your tasks keeps track) | Placeholder text in the prototype | It shipped with lorem ipsum |
 | 14 | **Calendar with no groups** shows one card ("You're not in a group yet · Join with a code"); the header reads *Join a group to see its events* and the empty "Coming up" list is hidden | Not designed (first-run view is open) | Three empty states stacked |
 
+| 15 | **Reactions are real** (saved per person): ❤️ 🙌 🎉, 🙏 thanks and "Let's do it again!" start at 0 and count people. Tapping one while signed out asks you to sign in | Counts derived from the event as placeholders | Update 2 says to use real data when available; it's now stored (`reactions`) |
+| 16 | **The Groups header photo** is the first of your groups that has one (pinned first), framed as that group's cover | `torrez-group.jpg` | People in other groups shouldn't see Torrez Fitness's photo |
+| 17 | **The Past "photos" number** counts each event's cover photos and album photos; *showed up* counts Going RSVPs | Not defined | |
+| 18 | **The add-photo button on a memory card** adds to that event's album (same as *+ Add yours* on It happened) | Prototype toast "Opening your photos…" | |
+| 19 | **The Ideas board keeps Most popular order** (most interested first) and has no sort, filter or view | Same (no controls) | Stated so the order is known |
 ## 2. Things the build had to invent (please design these properly)
 
 - **Empty states:** Could use a hand with nothing open: *Everything's covered for the next two weeks.* Calendar with no results: *No events match these filters.* / *Nothing coming up in your groups yet.* (under a "Coming up" heading). Month view, a day with nothing: *Nothing on this day.* View all, empty: *Nothing here right now.*
 - **Search with only type chips on** (no text) lists matching events; "No events match" then names the chips.
 - **Helping sign-ups with no time** show no time on Your schedule's expanded rows (Your tasks falls back to the event's time).
 - **Nav badges show "9+"** past nine.
+
+- **It happened page: a Reactions card** under the album (eyebrow *REACTIONS*; ❤️ 🙌 🎉 🙏 chips as on the memory cards, lavender `#f3f1fe` with a `#9d93f7` ring when yours). Below: *Thanks from Hal, Omar and 2 more.* or, before anyone thanks, *🙏 sends {lead} a public thank-you.* (not shown to the lead). This is where the 🙏 on a memory card leads.
+- **Empty filters on Your schedule and group Plans:** the heading reads *Coming up* (Soonest) or the sort's name, then the design's *No events match these filters.* card.
+- **Search "Or something unexpected" with nothing to pick** (e.g. no outdoor events): an error toast *Nothing like that yet* (Calendar) / *Nothing like that here yet* (group).
 
 ## 3. Behaviour added in the build (no visual change)
 
@@ -44,6 +53,10 @@ Where this doc and the design files disagree, **this doc is correct**.
 - **The RSVP ask** shows after signing up for an item, adding your own item, claiming a role, or offering to help organize a plan — when you're not the lead and haven't said Going or Can't go. It can't be dismissed.
 - **Calendar filters, search and "Feeling wild? / could use a hand" dismissals** last for the visit; the chosen view (List / Tiles / Month) is remembered per device.
 - **Demo data:** `scripts/demo/seed-events.py` now also makes, dated from the day it runs, a plan today / tomorrow (reminder off) / two days ago and a Helpers-stage idea for each tester, plus two shared plans everyone helps on, so every v6 state shows.
+
+- **Search Try chips** set a filter for the search only (This weekend = the coming Friday to Sunday; Needs helpers = open sign-ups) and are cleared when the sheet closes. Search matches upcoming plans only (the Calendar's scope); group search covers ideas, plans and past events.
+- **Sort and Filter** on Your schedule and on group Plans last for the visit; the group Plans view (Tiles / List) is remembered per device, as before.
+- **Reactions:** "Let's do it again!" counts once per person (tapping again does nothing); the others toggle.
 
 ## 4. Designed but not built or not working
 
@@ -63,6 +76,9 @@ Where this doc and the design files disagree, **this doc is correct**.
 7. **Video on the vibe board** is parked (needs a ~20 s / 25 MB cap).
 8. **Spark Hub address:** gosparkhub.vercel.app for now; a custom domain may follow.
 9. **Send feedback / Ask a question:** where should these go (email to the owner, a form)? Until there's an answer they stay out of Help & info.
+
+12. **Your place, bio and "member since"** are no longer shown anywhere for yourself (Update 2 keeps them "for viewing other people", which isn't designed or built yet). Design a public profile view, or show them somewhere on your own sheet?
+13. **Reactions on It happened:** is the build's Reactions card right, or should the page get its own design (and a list of who thanked)?
 
 ## 6. Design tokens
 

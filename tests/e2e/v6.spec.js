@@ -2,7 +2,7 @@
 // the community Calendar (filters, search, Could use a hand, Month), the "Will you be there?" sheet,
 // and Profile / Notifications as sheets.
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newLead, postEvent, openIdea, deleteIdea, pickView } = require('./helpers');
+const { uniqueTitle, newLead, postEvent, openIdea, deleteIdea, pickView, asUser } = require('./helpers');
 
 // Local dates, like the app (toISOString would be UTC, a day ahead in the evening)
 const inDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
@@ -81,7 +81,14 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     // Search finds it; a result opens the plan
     await cal.getByRole('button', { name: 'Search events' }).click();
     const search = O.getByRole('dialog', { name: 'Search' });
-    await expect(search.getByText('Search by event name, place, or group.')).toBeVisible();
+    // Before typing: Try chips and "Or something unexpected" (Update 2)
+    await expect(search.getByText('Try', { exact: true })).toBeVisible();
+    await expect(search.getByText('Or something unexpected')).toBeVisible();
+    await expect(search.locator('[data-magic]')).toHaveCount(6);
+    await search.getByRole('button', { name: 'Needs helpers', exact: true }).click();
+    await expect(search.locator('[data-result="' + title + '"]')).toBeVisible();   // it has open sign-ups
+    await search.getByRole('button', { name: 'Clear Needs helpers' }).click();
+    await expect(search.locator('[data-magic]')).toHaveCount(6);
     await search.getByLabel('Search events').fill(title.slice(-12));
     await expect(search.locator('[data-result="' + title + '"]')).toBeVisible();
     await shot(O, '04-search');
@@ -171,3 +178,59 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     await helper.context.close();
   }
 });
+
+// v6 Update 2: a group's Past scrapbook — the recap, a memory card, reactions and "Let's do it again!"
+test('v6 update 2: the Past scrapbook and reactions', async ({ browser }) => {
+  test.setTimeout(120000);
+  const host = await newLead(browser, 1, 'Hope');
+  const guest = await newLead(browser, 2, 'Hal');
+  const H = host.page, O = guest.page;
+  const title = uniqueTitle('Porch supper');
+  let id;
+  try {
+    // Hope's plan, moved to yesterday so it's in the past
+    id = await postEvent(H, { title, date: inDays(3), time: '18:00' });
+    const moved = await asUser(H, async (c, _C, { id, day }) => { const r = await c.from('sparks').update({ day_date: day }).eq('id', id); return r.error ? r.error.message : 'ok'; }, { id, day: inDays(-1) });
+    expect(moved).toBe('ok');
+
+    // Hal: Groups → Torrez Fitness → Past
+    await O.reload();
+    await O.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Groups', exact: true }).click();
+    await O.locator('[data-screen-label=Groups]').getByRole('button', { name: 'Torrez Fitness', exact: true }).click();
+    const browse = O.locator('[data-screen-label=Browse]');
+    await browse.getByRole('tab', { name: /^Past/ }).click();
+    await expect(browse).toContainText('TORREZ FITNESS · SO FAR');
+    const card = browse.locator('[data-card="' + title + '"]');
+    await expect(card).toContainText('went!');
+    await expect(card).toContainText('MADE IT HAPPEN');
+    await expect(card).toContainText('Hope');
+
+    // A reaction counts and shows as his; tapping again takes it back
+    await card.getByRole('button', { name: 'Love it, 0' }).click();
+    await expect(card.getByRole('button', { name: 'Love it, 1' })).toHaveAttribute('aria-pressed', 'true');
+    await shot(O, '05-past-scrapbook');
+    await card.getByRole('button', { name: 'Love it, 1' }).click();
+    await expect(card.getByRole('button', { name: 'Love it, 0' })).toHaveAttribute('aria-pressed', 'false');
+
+    // "Let's do it again!" counts once
+    await card.getByRole('button', { name: 'Let’s do it again, 0' }).click();
+    await expect(O.getByText('Counted! Hope will see you want it again.')).toBeVisible();
+    await expect(card.getByRole('button', { name: 'Let’s do it again, 1' })).toBeVisible();
+    await card.getByRole('button', { name: 'Let’s do it again, 1' }).click();
+    await expect(card.getByRole('button', { name: 'Let’s do it again, 1' })).toBeVisible();
+
+    // The It happened page: a public thank-you, which Hope sees
+    await card.getByRole('button', { name: /^Made it happen/ }).click();
+    const done = O.locator('[data-screen-label="It happened"]');
+    await done.getByRole('button', { name: 'Say thanks, 0' }).click();
+    await expect(done.getByRole('button', { name: 'Say thanks, 1' })).toHaveAttribute('aria-pressed', 'true');
+    await expect(done).toContainText('Thanks from Hal');
+    await openIdea(H, id);
+    await expect(H.locator('[data-screen-label="It happened"]')).toContainText('Thanks from Hal');
+  } finally {
+    if (id) await deleteIdea(H, id).catch(() => {});
+    await host.context.close();
+    await guest.context.close();
+  }
+});
+
