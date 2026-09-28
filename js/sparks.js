@@ -2791,7 +2791,7 @@
   // A tilted card on the graph-paper board: photo, title, interested count, the four checkpoints as tiles
   const ideaCard6 = (s, k) => {
     const n = s.interested.length;
-    return '<div ' + on(() => openSpark(s)) + ' data-card="' + esc(s.text) + '" aria-label="' + esc(s.text) + '" style="background:#fff;border-radius:8px;padding:6px 6px 8px;box-shadow:0 3px 10px rgba(13,17,23,.14);transform:rotate(' + ROT6[k % 6] + 'deg);cursor:pointer;' + (k === 1 ? 'margin-top:22px' : '') + '">' +
+    return '<div ' + on(() => openSpark(s)) + ' data-card="' + esc(s.text) + '" data-rank="' + k + '" aria-label="' + esc(s.text) + '" style="background:#fff;border-radius:8px;padding:6px 6px 8px;box-shadow:0 3px 10px rgba(13,17,23,.14);transform:rotate(' + ROT6[k % 6] + 'deg);cursor:pointer;' + (k === 1 ? 'margin-top:22px' : '') + '">' +
       '<div style="position:relative;height:112px;border-radius:5px;overflow:hidden;background:' + photoBg(s) + '">' +
         '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.9) 0%, rgba(13,17,23,.6) 28%, rgba(13,17,23,0) 55%)"></div>' +
         '<span aria-label="' + n + ' interested" style="position:absolute;top:6px;right:6px;display:flex;align-items:center;gap:3px;height:24px;padding:0 8px 0 6px;border-radius:999px;background:rgba(255,255,255,.92);box-shadow:0 1px 4px rgba(13,17,23,.2);font-size:12.5px;font-weight:900;color:#8f6405">' + svg(12, stroke('currentColor', 3), '<path d="M12 19V6M6 11.5 12 5.5l6 6"/>') + n + '</span>' +

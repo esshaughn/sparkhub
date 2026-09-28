@@ -110,7 +110,7 @@ test('a guest with the link takes part; everyone votes; the lead picks and makes
   }
 });
 
-test('"Most popular" puts the idea with the most interest first', async ({ browser }) => {
+test('the Ideas board puts the idea with the most interest first', async ({ browser }) => {
   const poster = await newLead(browser, 1, 'Pat');
   const fan = await newLead(browser, 2, 'Fay');
   const older = uniqueTitle('Popular');
@@ -125,12 +125,12 @@ test('"Most popular" puts the idea with the most interest first', async ({ brows
 
     const P = poster.page;
     await P.goto('/#/ideas');
-    const order = async () => (await P.locator('[data-screen-label=Browse] [role=button]').allTextContents())
-      .filter(t => t.includes(older) || t.includes(newer)).map(t => (t.includes(older) ? 'older' : 'newer'));
-    await expect.poll(order).toEqual(['older', 'newer']);                       // Most popular (default)
-    await P.getByRole('button', { name: 'Sort' }).click();
-    await P.getByRole('menu', { name: 'Order by' }).getByRole('button', { name: 'Newest' }).click();
-    await expect.poll(order).toEqual(['newer', 'older']);
+    await P.locator('[data-screen-label=Browse]').getByRole('tab', { name: /^Ideas/ }).click();
+    // The Ideas board (v6 Update 2) keeps Most popular order across its two columns: read it by rank
+    const order = async () => (await P.locator('[data-screen-label=Browse] [data-card]').evaluateAll(els => els
+      .map(el => [+el.getAttribute('data-rank'), el.getAttribute('data-card')]).sort((a, b) => a[0] - b[0]).map(x => x[1])))
+      .filter(t => t === older || t === newer).map(t => (t === older ? 'older' : 'newer'));
+    await expect.poll(order).toEqual(['older', 'newer']);
     expect(poster.errors).toEqual([]);
     expect(fan.errors).toEqual([]);
   } finally {
