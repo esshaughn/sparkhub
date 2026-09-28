@@ -180,7 +180,6 @@ input::placeholder, textarea::placeholder { color: #b9bcc4; font-weight: 400; fo
 .hov-grey:hover { border-color: #b9bcc4 !important; }
 .hov-fill-grey:hover { background: #f2f3f6 !important; }
 .hov-white-line:hover { border-color: #fff !important; }
-.hov-white:hover { color: #fff !important; }
 .hov-danger:hover { background: #fdeef0 !important; }
 .hov-grey-fill:hover { background: #eef0f3 !important; }
 .fld:focus { border-color: #5b4ae8 !important; }

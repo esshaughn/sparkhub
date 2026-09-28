@@ -67,7 +67,7 @@ test('a group end to end: edit group, cover, rename, invite, pin, admin edits, r
     const join = B.getByRole('dialog', { name: 'Join a group' });
     await join.getByLabel('Group code').fill('ZZZZ22');
     await join.getByRole('button', { name: 'Join' }).click();
-    await expect(join).toContainText('That code didn’t match a group. Check it with your organiser.');
+    await expect(join).toContainText('That code didn’t match a group. Check it with your organizer.');
     await join.getByRole('button', { name: 'Close' }).click();
     await B.goto('/#/join/' + code);
     await expect(B.getByRole('dialog', { name: 'Join a group' }).getByLabel('Group code')).toHaveValue(code);

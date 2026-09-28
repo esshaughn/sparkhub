@@ -27,6 +27,8 @@ Where this doc and the design files disagree, **this doc is correct**.
 | 10 | **"Feeling wild?" cards** show the first three events in the current results (A♠ K♥ Q♣) | poker-night / paintball / pumpkin-nights photos | Always real events |
 | 11 | **Your tasks' "Find something to help with"** opens the Calendar | Groups | The Calendar is where "could use a hand" lives |
 | 12 | **The Calendar is the home screen.** Signing in, the logo, back with no history, closing the post flow and deleting a group all land on the Calendar; the tab bar is still the v6 five | Your tasks is the home screen | Owner (2026-09-27) |
+| 13 | **"How Spark Hub works"** (Profile → Help & info) has real copy: the three steps from Welcome (Post an idea · People pitch in · It happens) and three "Good to know" notes (groups are private, leads stay in charge, Your tasks keeps track) | Placeholder text in the prototype | It shipped with lorem ipsum |
+| 14 | **Calendar with no groups** shows one card ("You're not in a group yet · Join with a code"); the header reads *Join a group to see its events* and the empty "Coming up" list is hidden | Not designed (first-run view is open) | Three empty states stacked |
 
 ## 2. Things the build had to invent (please design these properly)
 
@@ -37,6 +39,7 @@ Where this doc and the design files disagree, **this doc is correct**.
 
 ## 3. Behaviour added in the build (no visual change)
 
+- **Deleting an idea** returns you to the screen you opened it from (the Calendar if none).
 - **URLs:** the Calendar is `/` (and `#/calendar`), Your tasks `#/tasks`, Your schedule `#/schedule`; `#/me` and `#/notifications` open the Profile / Notifications sheets over the Calendar. Your plans & ideas is still at `#/own` (off the tab bar). Following a link or the back button closes any open sheet.
 - **The RSVP ask** shows after signing up for an item, adding your own item, claiming a role, or offering to help organize a plan — when you're not the lead and haven't said Going or Can't go. It can't be dismissed.
 - **Calendar filters, search and "Feeling wild? / could use a hand" dismissals** last for the visit; the chosen view (List / Tiles / Month) is remembered per device.

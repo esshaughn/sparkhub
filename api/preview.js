@@ -95,8 +95,8 @@ module.exports = async (req, res) => {
     if (d) {
       const url = 'https://' + host + (q.i ? '/i/' + q.i : '/join/' + q.join);
       html = html
-        .replace(/<!-- preview -->[\s\S]*?<!-- \/preview -->/, '<!-- preview -->\n' + tags(d, url) + '\n<!-- /preview -->')
-        .replace(/<title>[^<]*<\/title>/, '<title>' + esc(d.title) + ' · Spark Hub</title>');
+        .replace(/<!-- preview -->[\s\S]*?<!-- \/preview -->/, () => '<!-- preview -->\n' + tags(d, url) + '\n<!-- /preview -->')   // a function: "$&" in a title must stay text
+        .replace(/<title>[^<]*<\/title>/, () => '<title>' + esc(d.title) + ' · Spark Hub</title>');
     }
   } catch (e) {
     console.error(e);

@@ -1,6 +1,7 @@
--- Put every current tester in every current group (owner's request, 2026-09-27).
+-- Put every current tester in every DEMO group (owner's request, 2026-09-27). Superseded by the
+-- demo_world_on_sign_in trigger for new sign-ins; kept for one-off catch-ups after re-seeding.
 -- Testers: every signed-in account that isn't anonymous or an @example.com test/demo account.
--- Groups: all of them except the end-to-end tests' "[E2E] …" groups.
+-- Groups: the demo-flagged ones only (never a group someone made for themselves).
 -- New memberships are plain members; existing memberships and roles are left exactly as they are.
 -- Safe to re-run. Run it before scripts/demo/seed-events.py so the new groups get their share.
 --   Test: supabase db query --linked -f scripts/demo/add-testers-to-groups.sql
@@ -13,7 +14,7 @@ with added as (
    where u.email is not null
      and coalesce(u.is_anonymous, false) = false
      and u.email not ilike '%@example.com'
-     and g.name not like '[E2E]%'
+     and g.demo
   on conflict (group_id, user_id) do nothing
   returning group_id, user_id
 )

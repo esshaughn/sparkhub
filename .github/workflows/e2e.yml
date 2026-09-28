@@ -9,6 +9,10 @@ on:
   pull_request:
   workflow_dispatch: {}
 
+# The workflow only needs to read the repo
+permissions:
+  contents: read
+
 # Runs share one test database, so never run two at once
 concurrency:
   group: e2e
@@ -39,6 +43,12 @@ jobs:
         run: npx playwright test
         env:
           E2E_LEAD_PASSWORD: ${{ secrets.E2E_LEAD_PASSWORD }}
+
+      # Traces record page.evaluate arguments and request bodies, which include the leads' password;
+      # the repo is public, so keep only the report, screenshots and error context
+      - name: Drop traces before uploading
+        if: failure()
+        run: find test-results -name 'trace.zip' -delete || true
 
       - name: Keep the report if something failed
         if: failure()

@@ -152,7 +152,6 @@
     camera: (size) => svg(size, stroke('#0d1117', 2.2), '<path d="M4 8.5h3l1.5-2.5h7L17 8.5h3v10H4Z"/><circle cx="12" cy="13" r="3.2"/>'),
     camera2: svg(14, stroke('#fff', 2.2), '<rect x="3.5" y="6" width="17" height="13" rx="2.5"/><circle cx="12" cy="12.5" r="3.2"/><path d="M9 6l1.2-2h3.6L15 6"/>'),
     keypad: (size) => svg(size, stroke('#5b4ae8', 2.2), '<rect x="4" y="7" width="16" height="11" rx="2.5"/><path d="M8 11h.01M12 11h.01M16 11h.01M8 14.5h8"/>'),
-    star: (size) => '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="#e8a71c" aria-hidden="true"><path d="M12 2.5 14.6 8l6 .7-4.5 4.1 1.2 5.9L12 15.8l-5.3 2.9 1.2-5.9L3.4 8.7l6-.7Z"/></svg>',
     offline: svg(16, stroke('#9b1c31', 2.2), '<path d="M4.5 9.5a11 11 0 0 1 15 0M7.5 13a6.5 6.5 0 0 1 9 0"/><circle cx="12" cy="17" r="1.2" fill="#9b1c31"/><path d="M4 4l16 16"/>'),
     tabTicket: svg(23, stroke('currentColor', 1.9), '<path d="M4 8.5V6a1.5 1.5 0 0 1 1.5-1.5h13A1.5 1.5 0 0 1 20 6v2.5a2.5 2.5 0 0 0 0 5V16a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 16v-2.5a2.5 2.5 0 0 0 0-5Z" transform="translate(0 1)"/><path d="m9.2 12.2 2 2 3.8-4"/>'),
     tabSquares: svg(23, stroke('currentColor', 1.9), '<rect x="4" y="4" width="7" height="7" rx="1.8"/><rect x="13" y="4" width="7" height="7" rx="1.8"/><rect x="4" y="13" width="7" height="7" rx="1.8"/><rect x="13" y="13" width="7" height="7" rx="1.8"/>'),
@@ -192,7 +191,7 @@
     guestName: prefs.guestName || '', guestPhone: prefs.guestPhone || '',
     offerKind: null, offerText: '', offerPlace: null, offerSuggest: [],
     joinOpen: false, joinCode: '', joinBad: false,
-    notif: { allReadAt: 0, read: [], topics: {}, email: true, loaded: false }, nFilter: 'all', nSettings: false, demoAdmin: false, ownTab: 'plan', back: null, myPlace: '', myBio: '', memberSince: null, ownGrp: null, taskOpen: {}, sizes: {}, membersQ: '', gpRename: null, gpDel: null, ph: null, postTo: false,
+    notif: { allReadAt: 0, read: [], topics: {}, email: true, loaded: false }, nFilter: 'all', nSettings: false, demoAdmin: false, ownTab: 'plan', back: null, myPlace: '', myBio: '', memberSince: null, ownGrp: null, taskOpen: {}, sizes: {}, membersQ: '', gpRename: null, gpDel: null, ph: null,
     startName: null, phaseTab: 'plan', sigDraft: '', sigNeed: '', sigTime: '', blast: null, prepEdit: null, prepText: '', invite: null,
     pe: null, confirm: null, interestList: false,
     gpCode: '', gpMembers: null,
@@ -374,9 +373,10 @@
 
   const chunks = (arr, n) => { const out = []; for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n)); return out; };
 
+  let loadSeq = 0, loadWritten = 0;   // loads overlap (30s refresh, a write's reload); older data never lands over newer
   async function loadAll() {
     if (!sb) return;
-    const t0 = performance.now();
+    const seq = ++loadSeq, t0 = performance.now();
     diagNote('load started');
     const [mem, grp, sp, of, it, gc, rs, dop, dvo, sop, svo, sui, scl, upd, org, alb, prp] = await Promise.all([
       sb.from('memberships').select('group_id,role,last_seen_at,pinned'),
@@ -425,6 +425,8 @@
       const res = must(await sb.from('profiles').select('id,name,avatar_path,place,bio').in('id', part));
       res.data.forEach(p => { profiles[p.id] = { name: p.name || '', avatar: PHOTO_PATH.test(p.avatar_path || '') ? p.avatar_path : null, place: p.place || '', bio: p.bio || '' }; });
     }
+    if (seq < loadWritten) return;   // a newer load already wrote fresher data
+    loadWritten = seq;
     const mine = profiles[state.me] || {};
     if (performance.now() - t0 > 3000) diag('slow load', performance.now() - t0, 'waiting on the network');
     document.documentElement.setAttribute('data-loaded', 'true');   // tests wait for this
@@ -683,7 +685,7 @@
       const row = (must(await sb.rpc('create_group', { p_name: name })).data || [])[0];
       await loadFresh();
       setState({ busy: null, startName: null });
-      openGroupPage(row.id, false, 'groups');
+      if (row) openGroupPage(row.id, false, 'groups'); else go('groups');
       toast(name + ' is ready. Share the code to invite people.', true);
     } catch (e) {
       console.error(e);
@@ -937,7 +939,10 @@
       const photos = s.photoPaths.concat(s.mood);
       run(async () => {
         must(await sb.from('sparks').delete().eq('id', s.id));
-      }, { confirm: null, screen: 'browse', subjectId: null, tag: null }).then(ok => { if (ok) deletePhotos(photos); });
+      }, () => {   // land where the Back button would have: where you came from, else the group's page, else the Calendar
+        const b = state.back, g = groupById(s.groupId), member = !!(g && g.role);
+        return { confirm: null, screen: b ? b.screen : member ? 'browse' : 'calendar', groupId: b ? (b.groupId || state.groupId) : member ? g.id : state.groupId, subjectId: null, tag: null, back: null };
+      }).then(ok => { if (ok) deletePhotos(photos); });
     }
   } });
 
@@ -1302,7 +1307,9 @@
   const signOut = async () => {
     clearCache();
     await sb.auth.signOut().catch(() => {});
-    setState({ email: '', isGoogle: false, myName: '', myAvatar: null, guest: null, groups: [], sparks: [] });
+    setState({ email: '', isGoogle: false, myName: '', myAvatar: null, myPlace: '', myBio: '', guest: null, groups: [], sparks: [], profiles: {}, sizes: {},
+      notif: { allReadAt: 0, read: [], topics: {}, email: true, loaded: false }, demoAdmin: false, back: null, subjectId: null, gpId: null,
+      cq: '', cSearch: false, cGrps: null, cTypes: [], cSort: 'soon', cMon: null, cDay: null, cWildHidden: false, cNeedsHidden: false });
     go('calendar');
     await ensureSession(true);
     await loadFresh().catch(() => {});
@@ -1567,7 +1574,7 @@
         '<span ' + on(() => setState({ goneOpen: false })) + ' aria-label="Dismiss" style="position:absolute;top:10px;right:10px;width:32px;height:32px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(14, '#0d1117', 2.4) + '</span>' +
         '<div style="font-size:16.5px;font-weight:800;letter-spacing:-.2px;color:#0d1117">That idea isn’t up anymore</div>' +
         '<div style="margin-top:4px;font-size:15px;line-height:1.45;font-weight:500;color:#5c6270">Its lead may have taken it down, or the link got cut short.</div>' +
-        '<span ' + on(() => { setState({ goneOpen: false }); go('browse'); }) + ' style="display:inline-flex;margin-top:10px;min-height:32px;align-items:center;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">See what’s up now →</span>' +
+        '<span ' + on(() => { setState({ goneOpen: false }); go('calendar'); }) + ' style="display:inline-flex;margin-top:10px;min-height:32px;align-items:center;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">See what’s up now →</span>' +
       '</div>'
     : '';
 
@@ -1655,15 +1662,6 @@
 
   // Ideas you lead, your upcoming plans, and ones that happened in the last 3 days
   const leadingList = (gid) => state.sparks.filter(s => isLead(s) && inScope(s, gid) && (phaseOf(s) !== 'done' || (s.dayDate && dayDiff(s.dayDate) >= -3)));
-  const helpingList = (gid) => {
-    const out = [];
-    state.sparks.filter(s => inScope(s, gid) && phaseOf(s) === 'plan').sort(byWhen)
-      .forEach(s => myClaims(s).forEach(it => out.push({ s, it })));
-    return out;
-  };
-  // Your plans: upcoming plans you lead, said Going / Maybe to, or signed up to help with
-  const planList = (gid) => state.sparks.filter(s => inScope(s, gid) && phaseOf(s) === 'plan' &&
-    (isLead(s) || ['going', 'maybe'].indexOf(myRsvp(s)) > -1 || myClaims(s).length > 0)).sort(byWhen);
 
   // What a lead could do next (Your plans' Actions tile): the same list as Your tasks (ownActs, below)
   const nextSteps = (s) => ownActs(s).map(a => ({ text: a.act, cta: a.cta }));
@@ -1749,10 +1747,9 @@
     return secs.sort((a, b) => (a.label === undatedLabel) - (b.label === undatedLabel));
   };
   const monthHead = (label, right) => '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 4px"><h3 style="margin:0;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:#0d1117">' + esc(label) + '</h3>' + (right || '') + '</div>';
-  // A day's rows: one card (group pages), or a bubble per event (Your schedule)
-  const dayGroup = (d, row, split) => '<div style="display:flex;flex-direction:column;gap:6px"><span style="padding:0 4px;font-size:13px;font-weight:800;color:#454b55">' + esc(d.key) + '</span>' +
-    (split ? '<div style="display:flex;flex-direction:column;gap:8px">' + d.items.map(x => '<div style="' + CARD + ';overflow:hidden">' + row(x, 0) + '</div>').join('') + '</div>'
-      : '<div style="' + CARD + ';overflow:hidden">' + d.items.map(row).join('') + '</div>') + '</div>';
+  // A day's rows in one card (group pages' list view)
+  const dayGroup = (d, row) => '<div style="display:flex;flex-direction:column;gap:6px"><span style="padding:0 4px;font-size:13px;font-weight:800;color:#454b55">' + esc(d.key) + '</span>' +
+    '<div style="' + CARD + ';overflow:hidden">' + d.items.map(row).join('') + '</div></div>';
 
   // The helping list ("YOU'RE HELPING:"), two at a time with "+N more"
   const helpBlock = (s, withTime, small) => {
@@ -1803,7 +1800,6 @@
   };
 
   const leadChip = (small, n) => '<div aria-label="You’re leading" style="position:absolute;top:' + (small ? 8 : 12) + 'px;right:' + (small ? 8 : 12) + 'px;display:flex;align-items:center;gap:3px;height:' + (small ? 22 : 24) + 'px;padding:0 8px 0 6px;border-radius:999px;background:#5b4ae8;box-shadow:0 1px 4px rgba(0,0,0,.3);font-size:' + (small ? 10.5 : 11.5) + 'px;font-weight:900;color:#fff">' + FLAG_SM + (n ? 'Leading · ' + n + ' to do' : 'Leading') + '</div>';
-  const helpChip = '<div aria-label="You’re helping" style="position:absolute;top:8px;right:8px;display:flex;align-items:center;gap:3px;height:22px;padding:0 8px 0 6px;border-radius:999px;background:rgba(13,17,23,.5);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);font-size:10.5px;font-weight:800;color:#ffd978">' + HAND_SM + 'Helping</div>';
 
   // An idea's four readiness steps (Your ideas): a ring fills as it comes together, then goes solid green
   const STEP_ICON = {
@@ -1933,7 +1929,6 @@
     open: { dot: '#c3c7d0', strip: '#fafafb', pill: '#f2f3f6', ink: '#454b55', kick: '#dfe2e8', sliver: '#fafafb', word: '' }
   };
   const P6 = {
-    mail: '<rect x="3.5" y="6" width="17" height="12" rx="2.5"/><path d="m4 7.5 8 5.5 8-5.5"/>',
     people: '<circle cx="9" cy="8.5" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M16 5.6a3 3 0 0 1 0 5.8M17.5 14a5 5 0 0 1 3 5"/>',
     maybe: '<circle cx="12" cy="12" r="8.5"/><path d="M9.8 9.6a2.3 2.3 0 0 1 4.4.9c0 1.6-2.2 2-2.2 3.4M12 16.8h.01"/>',
     clip: '<rect x="5" y="4" width="14" height="17" rx="2.5"/><path d="M9 4V3h6v1"/><path d="m9 13 2 2 4-4.5"/>',
@@ -2321,7 +2316,7 @@
       '<div style="position:absolute;left:18px;right:90px;bottom:16px;color:#fff;display:flex;flex-direction:column;gap:2px">' +
         '<span style="font-size:13px;font-weight:900;letter-spacing:1px;color:#cfc9ff">COMMUNITY</span>' +
         '<h1 style="margin:0;font-size:34px;line-height:1.02;font-weight:900;letter-spacing:-1px;color:#fff">Calendar</h1>' +
-        '<span style="font-size:14px;font-weight:700;color:rgba(255,255,255,.88)">All events from your ' + groups.length + (groups.length === 1 ? ' group' : ' groups') + '</span></div>' +
+        '<span style="font-size:14px;font-weight:700;color:rgba(255,255,255,.88)">' + (groups.length ? 'All events from your ' + groups.length + (groups.length === 1 ? ' group' : ' groups') : 'Join a group to see its events') + '</span></div>' +
       '<button type="button" ' + on(() => goCompose()) + ' aria-label="Post an event" style="position:absolute;right:16px;bottom:18px;z-index:2;width:52px;height:52px;border:0;border-radius:999px;background:#5b4ae8;box-shadow:0 6px 16px rgba(13,17,23,.35);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.plus(24, '#fff', 2.6) + '</button>' +
     '</header>';
 
@@ -2399,7 +2394,7 @@
         '<div style="padding:6px 4px 0;font-size:16px;font-weight:900;color:#0d1117">' + esc(new Date(sel + 'T12:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })) + '</div>' +
         (dayList.length ? dayList.map(card6).join('') : '<div style="padding:4px 4px 0;font-size:14.5px;font-weight:600;color:#8a909b">Nothing on this day.</div>') + '</div>';
     } else if (!list.length) {
-      body = '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(st.cSort === 'soon' ? 'Coming up' : (CSORTS.find(x => x[0] === st.cSort) || CSORTS[0])[1], '<div style="display:flex;align-items:center">' + sortMenu + calViewMenu() + '</div>') +
+      body = st.loaded && !groups.length ? '' : '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(st.cSort === 'soon' ? 'Coming up' : (CSORTS.find(x => x[0] === st.cSort) || CSORTS[0])[1], '<div style="display:flex;align-items:center">' + sortMenu + calViewMenu() + '</div>') +
         note6(filtered ? 'No events match these filters.' : 'Nothing coming up in your groups yet.') + '</div>';
     } else {
       body = secs.map((z, i) => '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(z.label, i ? '' : '<div style="display:flex;align-items:center">' + sortMenu + calViewMenu() + '</div>') +
@@ -2646,7 +2641,7 @@
   const noGroupCard = () =>
     '<div style="' + CARD + ';padding:18px;display:flex;flex-direction:column;gap:12px">' +
       '<div style="font-size:16.5px;font-weight:800;letter-spacing:-.2px;color:#0d1117">You’re not in a group yet.</div>' +
-      '<div style="font-size:15px;line-height:1.45;font-weight:500;color:#5c6270">Join one with a code from its organiser.</div>' +
+      '<div style="font-size:15px;line-height:1.45;font-weight:500;color:#5c6270">Join one with a code from its organizer.</div>' +
       '<button type="button" class="hov-primary" ' + on(() => openJoin()) + ' style="' + primary(true) + '">Join with a code</button>' +
     '</div>';
 
@@ -2781,18 +2776,18 @@
       '<section style="padding:20px 20px 26px">' +
         '<div style="font-size:12px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#0f7a3c">How this works</div>' +
         '<h2 style="margin:8px 0 0;font-size:28px;line-height:1.06;font-weight:900;letter-spacing:-.8px;color:#0d1117;text-wrap:pretty">Ideas come to life when we build them together</h2>' +
-        '<p style="margin:12px 0 0;font-size:15.5px;line-height:1.45;font-weight:500;color:#454b55">Consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco.</p>' +
+        '<p style="margin:12px 0 0;font-size:15.5px;line-height:1.45;font-weight:500;color:#454b55">Spark Hub is where your group turns “someone should…” into something on the calendar. Anyone can post an idea; the people who like it help shape it; when the date and place are set, it becomes a plan.</p>' +
         '<div style="margin-top:20px;display:flex;flex-direction:column;gap:16px">' +
-          step(1, '#efedfd', '#4a3ad4', 'Sed ut perspiciatis', 'Unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam eaque ipsa.') +
-          step(2, '#fdf4e2', '#8f6405', 'Nemo enim ipsam voluptatem', 'Quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt.') +
-          step(3, '#e7f6ec', '#0f7a3c', 'Neque porro quisquam est', 'Qui dolorem ipsum quia dolor sit amet, consectetur adipisci velit, sed quia non numquam eius modi tempora incidunt ut labore et dolore.') +
+          step(1, '#efedfd', '#4a3ad4', 'Post an idea', 'A line or two and a photo is plenty. Say what you hope for, and whether you already have a day or a spot in mind.') +
+          step(2, '#fdf4e2', '#8f6405', 'People pitch in', 'Neighbors say they’re interested, vote on dates and places, suggest what’s missing, and grab a role.') +
+          step(3, '#e7f6ec', '#0f7a3c', 'It happens', 'Once the date and place are set, it’s a plan: people RSVP, sign up to help, get reminders, and it lands on the community Calendar.') +
         '</div>' +
         '<div style="height:1px;background:#eceef2;margin:22px 0"></div>' +
-        '<div style="' + EYEBROW + '">Duis aute irure dolor</div>' +
+        '<div style="' + EYEBROW + '">Good to know</div>' +
         '<div style="margin-top:12px;display:flex;flex-direction:column;gap:12px">' +
-          note(ic('<path d="M12 3.2 5 6v5.4c0 4.2 2.9 7.4 7 9.4 4.1-2 7-5.2 7-9.4V6l-7-2.8Z"/><path d="M9.2 12.1l2.1 2.1 3.6-3.9"/>'), 'Excepteur sint occaecat.', 'Cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.') +
-          note(ic('<path d="M16.6 3.8l3.6 3.6L8.4 19.2 4 20.5l1.3-4.4L16.6 3.8Z"/>'), 'At vero eos et accusamus.', 'Iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti.') +
-          note(ic('<circle cx="12" cy="12" r="8.4"/><path d="M12 7.6V12l3.2 2"/>'), 'Temporibus autem quibusdam.', 'Et aut officiis debitis aut rerum necessitatibus saepe eveniet ut et voluptates repudiandae sint.') +
+          note(ic('<path d="M12 3.2 5 6v5.4c0 4.2 2.9 7.4 7 9.4 4.1-2 7-5.2 7-9.4V6l-7-2.8Z"/><path d="M9.2 12.1l2.1 2.1 3.6-3.9"/>'), 'Groups are private.', 'Only members see a group’s ideas and plans. Join with a code or a link from someone in the group.') +
+          note(ic('<path d="M16.6 3.8l3.6 3.6L8.4 19.2 4 20.5l1.3-4.4L16.6 3.8Z"/>'), 'Leads stay in charge.', 'Whoever posts an idea picks the final date and place, and can edit or take it down anytime.') +
+          note(ic('<circle cx="12" cy="12" r="8.4"/><path d="M12 7.6V12l3.2 2"/>'), 'Your tasks keeps track.', 'Anything waiting on you, from a vote to a reminder to send, shows up in Your tasks.') +
         '</div>' +
         ideaButton('margin-top:26px') +
       '</section>' +
@@ -3376,7 +3371,7 @@
 
   function viewGroupPage() {
     const st = state, g = groupById(st.gpId);
-    if (!runs(g)) return viewTasks();
+    if (!runs(g)) return viewCalendar();
     const owner = g.role === 'owner', link = st.gpCode ? inviteLink(st.gpCode) : '';
     const photo = groupPhoto(g), list = st.membersList || [];
     const me = list.find(m => m.user_id === st.me), others = list.filter(m => m.user_id !== st.me);
@@ -3873,13 +3868,13 @@
   function viewJoin() {
     const st = state, ok = st.joinCode.length === 6 && !st.busy;
     return modal('Join a group', () => setState({ joinOpen: false }),
-      h3('Join a group') + para('Got a code from an organiser? Enter it here.') +
+      h3('Join a group') + para('Got a code from an organizer? Enter it here.') +
       '<input class="fld" type="text" maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Group code" placeholder="ABC123" value="' + esc(st.joinCode) + '" ' +
         onInput(e => { const v = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6); if (e.target.value !== v) e.target.value = v; setState({ joinCode: v, joinBad: false }); }) +
         ' style="' + FIELD + ';padding:14px 16px;font-size:24px;font-weight:800;letter-spacing:8px;text-align:center;text-transform:uppercase">' +
-      (st.joinBad ? '<div role="alert" style="font-size:14px;line-height:1.4;font-weight:700;color:#9b1c31">That code didn’t match a group. Check it with your organiser.</div>' : '') +
+      (st.joinBad ? '<div role="alert" style="font-size:14px;line-height:1.4;font-weight:700;color:#9b1c31">That code didn’t match a group. Check it with your organizer.</div>' : '') +
       '<button type="button" ' + on(submitJoin) + ' aria-disabled="' + !ok + '" style="' + primary(ok) + '">' + (st.busy === 'join' ? 'Joining…' : 'Join') + '</button>' +
-      '<p style="margin:0;font-size:13px;line-height:1.45;font-weight:500;color:#6b7280">Organisers find their group’s code in its settings, and can share it as a link too.</p>',
+      '<p style="margin:0;font-size:13px;line-height:1.45;font-weight:500;color:#6b7280">Organizers find their group’s code in its settings, and can share it as a link too.</p>',
       { z: 31, max: 330 });
   }
 
@@ -4254,7 +4249,7 @@
     morphChildren(root, tpl.content);
     root.classList.toggle('no-nav', welcomeShown());
     // Screens that start with a photo run it up under the iPhone status bar
-    const sc = state.screen, photoTop = sc === 'browse' || (sc === 'detail' && !!subject()) || sc === 'calendar' || (!state.email && (sc === 'home' || sc === 'compose' || sc === 'groupPage'));
+    const sc = state.screen, photoTop = sc === 'browse' || (sc === 'detail' && !!subject()) || sc === 'calendar' || welcomeShown() || (!state.email && sc === 'compose');
     root.classList.toggle('photo-top', photoTop);
     const took = performance.now() - t0;
     diagNote('redraw (' + Math.round(took) + 'ms)');
@@ -4358,7 +4353,7 @@
     const target = fromUrl();
     if (target.inviteCode) { takeInvite(target.inviteCode); return; }
     if (target.screen === state.screen && target.subjectId === state.subjectId && target.gpId === state.gpId) return;
-    setState(Object.assign({ menu: null, offerKind: null, nameAsk: null, confirm: null, loginStep: null, loginThen: null, interestList: false,
+    setState(Object.assign({ menu: null, offerKind: null, nameAsk: null, confirm: null, loginStep: null, loginThen: null, interestList: false, back: null,
       profSheet: false, notifSheet: false, dashAll: null, cHandSheet: false, cSearch: false, cq: '' }, target));
     const sc = scroller();
     if (sc) sc.scrollTop = 0;
@@ -4441,6 +4436,7 @@
     // Supabase signs the session out when a token refresh fails; replace it right away
     sb.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_OUT' && !reauthing) {
+        clearCache();
         setTimeout(() => { ensureSession().then(() => loadAll()).catch(e => console.error(e)); }, 0);
       }
     });

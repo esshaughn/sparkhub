@@ -57,7 +57,8 @@ for t in $(/usr/bin/python3 -c "import json,sys; print(' '.join(r['table_name'] 
   [ "$t" = merge_tokens ] && continue    # one-time sign-in tokens: nothing worth keeping
   dump "$t" "select * from public.$t"
 done
-dump users         "select id, created_at, is_anonymous, raw_user_meta_data from auth.users order by created_at"
+dump users         "select id, email, email_confirmed_at, created_at, is_anonymous, raw_user_meta_data from auth.users order by created_at"
+dump identities    "select id, user_id, provider, provider_id, identity_data, created_at from auth.identities order by created_at"
 dump migrations    "select version, name from supabase_migrations.schema_migrations order by version"
 
 mv "$DEST.partial" "$DEST"   # only complete backups get a final folder name
