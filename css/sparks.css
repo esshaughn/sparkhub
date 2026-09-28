@@ -201,3 +201,6 @@ input::placeholder, textarea::placeholder { color: #b9bcc4; font-weight: 400; fo
 .splash-name { font-size: 24px; font-weight: 900; letter-spacing: -.6px; color: #0d1117; }
 @keyframes sparkPulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(.86); opacity: .6; } }
 @media (prefers-reduced-motion: reduce) { .splash-bolt { animation: none; } }
+
+/* Post an event (v6 Update 3): the name typed on the photo */
+.ev-name::placeholder { color: rgba(255, 255, 255, .72); font-weight: 900; }

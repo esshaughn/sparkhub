@@ -180,8 +180,10 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
     await expect(gs).toHaveCount(0);
 
     // Profile (Update 2, compact): photo, name and a pencil; Help & info tiles first, then Settings
+    // Update 3: no photo button on Your tasks; Profile is the last tab
     await page.getByRole('button', { name: /^Your tasks/ }).click();
-    await page.locator('[data-screen-label="Your tasks"]').getByRole('button', { name: 'Profile' }).click();
+    await expect(page.locator('[data-screen-label="Your tasks"]').getByRole('button', { name: 'Profile' })).toHaveCount(0);
+    await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Profile', exact: true }).click();
     const profile = page.getByRole('dialog', { name: 'Profile', exact: true });
     await expect(profile.getByRole('heading', { name: 'Help & info' })).toBeVisible();
     await expect(profile).not.toContainText('Member since');

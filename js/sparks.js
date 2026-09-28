@@ -2084,7 +2084,7 @@
     }, 60);
   };
 
-  // Headers: your photo (Your tasks only) opens Profile; the bell opens Notifications
+  // Headers: the bell opens Notifications (Profile is only on the tab bar since Update 3)
   const bellBtn = (frosted) => {
     const n = state.email ? unreadCount() : 0;
     return '<span ' + on(() => setState({ notifSheet: true, menu: null })) + ' aria-label="' + (n ? 'Notifications, ' + n + ' new' : 'Notifications') + '" style="position:relative;flex:0 0 44px;width:44px;height:44px;border-radius:999px;display:flex;align-items:center;justify-content:center;cursor:pointer;' +
@@ -2092,12 +2092,6 @@
       (n ? '<span aria-hidden="true" style="position:absolute;top:-3px;right:-4px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;border:2px solid #fff;background:#e2556b;color:#fff;font-size:10.5px;font-weight:900;display:flex;align-items:center;justify-content:center;box-sizing:border-box">' + (n > 9 ? '9+' : n) + '</span>' : '') + '</span>';
   };
   const openProfileSheet = () => needSignIn(() => setState({ profSheet: true, menu: null }), 'profile');
-  const profileChip = () => {
-    const url = state.myAvatar ? photoUrl(state.myAvatar) : null;
-    return '<span ' + on(openProfileSheet) + ' aria-label="Profile" style="position:relative;flex:0 0 auto;display:flex;padding:2px;border-radius:999px;box-shadow:0 0 0 ' + (state.profSheet ? '2px #5b4ae8' : '1px #e6e7eb') + ';cursor:pointer">' +
-      '<span style="width:40px;height:40px;border-radius:999px;background:' + (url ? bg(url) : '#e8a71c') + ';color:#fff;font-size:16px;font-weight:900;display:flex;align-items:center;justify-content:center">' + (url ? '' : esc(initialOf(state.myName) || '?')) + '</span>' +
-      '<span aria-hidden="true" style="position:absolute;right:-4px;bottom:-4px;width:18px;height:18px;border-radius:999px;background:#fff;box-shadow:0 0 0 1.5px #dcdfe6, 0 1px 3px rgba(15,18,25,.15);display:flex;align-items:center;justify-content:center">' + I.chevD(10, '#454b55', 3) + '</span></span>';
-  };
   const head6 = (title, left) => '<header style="background:#fff;padding:14px 16px;display:flex;align-items:center;gap:12px">' + (left || '') +
     '<h1 style="flex:1 1 0;min-width:0;margin:0;font-size:30px;line-height:1;font-weight:900;letter-spacing:-1px;color:#0d1117">' + title + '</h1>' + bellBtn() + '</header>';
 
@@ -2127,7 +2121,7 @@
 
   function viewTasks() {
     const st = state;
-    const wrap = (inner) => '<div data-screen-label="Your tasks">' + head6('Your tasks', profileChip()) +
+    const wrap = (inner) => '<div data-screen-label="Your tasks">' + head6('Your tasks') +
       '<div style="padding:14px 14px 22px;display:flex;flex-direction:column;gap:16px">' + inner + '</div><div style="height:var(--nav-h)"></div></div>';
     if (!st.loaded) return wrap(skeleton(2, 200));
     if (!myGroups().length) return wrap(goneCard() + noGroupCard());
@@ -3721,49 +3715,78 @@
     const actReady = st.activity.trim().length > 0;
     let body = '';
 
-    // The event form: what, when, where, good to know, who can see it, a photo
+    // The event form (v6 Update 3): a photo header with the name typed on it, The basics, Invite only,
+    // "Not sure on the details?", and a sticky Post it! button
     if (st.step === 'event') {
-      const ok = actReady && !!st.evDate && st.busy !== 'post';
-      const box = (label, inner, extra) => '<label style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:4px;cursor:text;' + (extra || '') + '"><span style="' + EYEBROW + '">' + label + '</span>' + inner + '</label>';
-      const bare = 'width:100%;border:0;padding:4px 0;background:transparent;font-family:inherit;outline:none;color:#0d1117';
-      const seg = (onIt) => 'display:flex;align-items:center;justify-content:center;min-height:38px;padding:0 10px;border-radius:999px;font-size:14px;font-weight:800;cursor:pointer;white-space:nowrap;' + (onIt ? 'background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.14);color:#0d1117' : 'color:#6b7280');
-      body = '<div style="padding:18px 16px 26px;display:flex;flex-direction:column;gap:12px">' +
-        box('What', '<input class="fld" type="text" maxlength="40" aria-label="What" placeholder="e.g. Chili cook-off" value="' + esc(st.activity) + '" ' + onInput(e => { if (e.type === 'input') setState({ activity: e.target.value.slice(0, 40) }); }) + ' style="' + bare + ';font-size:22px;font-weight:800;letter-spacing:-.4px">' +
-          (40 - st.activity.length <= 10 ? '<span style="align-self:flex-end;font-size:12.5px;font-weight:700;color:#9aa0ac">' + (40 - st.activity.length) + ' left</span>' : '')) +
-        postToField() +
-        '<div style="display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:10px">' +
-          '<label style="' + CARD + ';padding:16px 12px 12px 16px;display:flex;flex-direction:column;gap:4px;min-width:0"><span style="' + EYEBROW + '">When</span>' +
-            '<div style="position:relative;min-width:0">' +
-              '<input class="fld date-fld" type="date" aria-label="When" min="' + todayISO() + '" value="' + esc(st.evDate) + '"' + (st.evDate ? '' : ' data-empty') + ' ' + onInput(e => setState({ evDate: e.target.value })) +
-                ' style="display:block;width:100%;max-width:100%;min-width:0;margin:0;-webkit-appearance:none;appearance:none;box-sizing:border-box;' + bare + ';font-size:16px;font-weight:700;color-scheme:light">' +
-              (st.evDate ? '' : '<span aria-hidden="true" style="position:absolute;left:0;top:50%;transform:translateY(-50%);pointer-events:none;font-size:16px;font-weight:400;font-style:italic;color:#b9bcc4">mm/dd/yy</span>') +
-            '</div></label>' +
-          '<label style="' + CARD + ';padding:16px 12px 12px 16px;display:flex;flex-direction:column;gap:4px;min-width:0"><span style="' + EYEBROW + '">Time</span>' +
-            '<select class="fld" aria-label="Time" ' + onInput(e => setState({ evTime: e.target.value })) + ' style="' + bare + ';appearance:none;-webkit-appearance:none;font-size:16px;font-weight:700;color-scheme:light">' +
-              TIME_OPTS.map(([v, l]) => '<option value="' + v + '"' + (v === st.evTime ? ' selected' : '') + '>' + l + '</option>').join('') +
-            '</select></label>' +
-        '</div>' +
-        '<div style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:4px"><span style="' + EYEBROW + '">Where</span>' +
-          placeField('loc', { placeholder: 'Where should people show up?', style: bare + ';font-size:16px;font-weight:700' }) + '</div>' +
-        box('Good to know', '<textarea class="fld" rows="3" maxlength="240" aria-label="Good to know" placeholder="Kids welcome, bring a chair, park on the street…" ' + onInput(e => { if (e.type === 'input') setState({ evDetails: e.target.value.slice(0, 240) }); }) + ' style="' + bare + ';font-size:15.5px;line-height:1.4;font-weight:600;resize:none">' + esc(st.evDetails) + '</textarea>') +
-        '<div style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:10px"><span style="' + EYEBROW + '">Who can see it</span>' +
-          '<div role="radiogroup" aria-label="Who can see it" style="display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;border-radius:999px;background:#f2f3f6">' +
-            [[false, 'Everyone in the group'], [true, 'Invite only']].map(([v, l]) => '<span role="radio" aria-checked="' + (!!st.evPriv === v) + '" ' + on(() => setState({ evPriv: v })) + ' style="' + seg(!!st.evPriv === v) + '">' + l + '</span>').join('') +
+      const ok = actReady && !!st.evDate && st.busy !== 'post', g = currentGroup(), photo = st.photos[0];
+      const bare = 'width:100%;min-width:0;border:0;padding:2px 0;background:transparent;font-family:inherit;outline:none;color:#0d1117;font-size:16px;font-weight:700';
+      const lbl = (t) => '<span style="display:block;font-size:11px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;color:#8a909b">' + t + '</span>';
+      const tileOf = (done, icon) => '<span aria-hidden="true" style="flex:0 0 36px;width:36px;height:36px;border-radius:11px;display:flex;align-items:center;justify-content:center;background:' + (done ? '#e7f6ec' : '#f3f1fe') + ';color:' + (done ? '#149a4b' : '#5b4ae8') + '">' + svg(18, stroke('currentColor', 2.2), icon) + '</span>';
+      const check = (done) => done ? '<span aria-hidden="true" style="flex:0 0 20px;margin-top:8px;width:20px;height:20px;border-radius:999px;background:#149a4b;display:flex;align-items:center;justify-content:center">' + I.check(11, '#fff', 3.6) + '</span>' : '';
+      const row = (tile, inner, end, first) => '<div style="display:flex;align-items:flex-start;gap:12px;min-height:58px;padding:11px 16px;' + (first ? '' : 'border-top:1px solid #f2f3f6') + '">' + tile + '<div style="flex:1;min-width:0">' + inner + '</div>' + (end || '') + '</div>';
+      const sparkles = '<span aria-hidden="true" style="position:absolute;left:22px;top:66px;font-size:14px;color:#ffe6a8">✦</span><span aria-hidden="true" style="position:absolute;left:44%;top:78px;font-size:10px;color:#fff">✧</span><span aria-hidden="true" style="position:absolute;right:92px;top:62px;font-size:13px;color:#e6defc">✧</span>';
+      const openMenu = st.menu === 'postTo', mine = groupsInOrder();
+      const groupRow = '<div data-menu style="position:relative">' + row(
+        '<span aria-hidden="true" style="flex:0 0 36px;width:36px;height:36px;border-radius:11px;background:' + groupBg(g, '#f3f1fe') + '"></span>',
+        lbl('Group') + '<div style="font-size:16px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(g ? g.name : '') + '</div>',
+        mine.length > 1 ? '<span ' + on((e) => { stop(e); setState({ menu: openMenu ? null : 'postTo' }); }) + ' aria-label="Post to: ' + esc(g ? g.name : '') + '" aria-expanded="' + openMenu + '" style="flex:0 0 auto;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">Change</span>' : '', true) +
+        (openMenu ? '<div role="menu" aria-label="Your groups" style="position:absolute;left:12px;right:12px;top:calc(100% - 4px);z-index:6;' + MENU + '">' + menuLabel('Your groups') +
+          mine.map(x => { const onIt = g && x.id === g.id;
+            return '<div ' + on((e) => { stop(e); setState({ groupId: x.id, menu: null }); }) + ' style="display:flex;align-items:center;gap:8px;min-height:44px;padding:9px 12px;border-radius:12px;background:' + (onIt ? '#f3f1fe' : 'transparent') + ';cursor:pointer"><span style="font-size:15px;font-weight:800;color:' + (onIt ? '#5b4ae8' : '#0d1117') + '">' + esc(x.name) + '</span></div>'; }).join('') + '</div>' : '') +
+        '</div>';
+      const where = !!cleanTitle(st.locText), details = !!st.evDetails.trim();
+      body = '<div style="position:relative;min-height:100%;display:flex;flex-direction:column">' +
+        // Photo header: the cover, or the violet → gold gradient with sparkles
+        '<div style="position:relative;flex:0 0 210px;height:210px;overflow:hidden;background:' + (photo ? bg(photo.url) : 'linear-gradient(135deg,#5b4ae8 0%,#8a6ff0 55%,#e8a71c 100%)') + '">' +
+          (photo ? '' : sparkles) +
+          '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.78) 0%, rgba(13,17,23,.25) 55%, rgba(13,17,23,0) 100%)"></div>' +
+          '<span ' + on(close) + ' aria-label="Close" style="position:absolute;top:14px;left:14px;z-index:2;width:40px;height:40px;border-radius:999px;background:#fff;box-shadow:0 2px 8px rgba(13,17,23,.25);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(16, '#0d1117', 2.6) + '</span>' +
+          '<label style="position:absolute;top:14px;right:14px;z-index:2;display:flex;align-items:center;gap:7px;height:38px;padding:0 14px 0 12px;border-radius:999px;background:rgba(255,255,255,.82);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);font-size:13.5px;font-weight:800;color:#0d1117;cursor:pointer">' + I.photo(16, '#5b4ae8', 2.2) + (photo ? 'Photo added' : 'Add a photo') +
+            '<input type="file" accept="image/*" aria-label="Event photo" ' + onInput(e => { if (e.type !== 'change') return; const f = Array.from(e.target.files || []); e.target.value = ''; state.photos.forEach(p => URL.revokeObjectURL(p.url)); state.photos = []; addPhotos(f.slice(0, 1)); }) + ' style="display:none"></label>' +
+          '<div style="position:absolute;left:18px;right:18px;bottom:16px;z-index:2">' +
+            '<div style="font-size:12px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:#cfc9ff">New event</div>' +
+            '<input class="ev-name" type="text" maxlength="40" aria-label="What" placeholder="What’s happening?" value="' + esc(st.activity) + '" ' + onInput(e => { if (e.type === 'input') setState({ activity: e.target.value.slice(0, 40) }); }) +
+              ' style="display:block;width:100%;margin-top:2px;border:0;padding:0;background:transparent;outline:none;font-family:inherit;font-size:30px;line-height:1.15;font-weight:900;letter-spacing:-.8px;color:#fff;text-shadow:0 1px 8px rgba(0,0,0,.3)">' +
+            (40 - st.activity.length <= 10 ? '<div style="font-size:12.5px;font-weight:700;color:rgba(255,255,255,.75)">' + (40 - st.activity.length) + ' left</div>' : '') +
+          '</div></div>' +
+        '<div style="flex:1 0 auto;padding:14px 14px 0;display:flex;flex-direction:column;gap:12px">' +
+          // The basics
+          '<div style="background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08)">' +
+            '<div style="padding:14px 16px 6px;font-size:18px;font-weight:900;letter-spacing:-.3px;color:#0d1117">The basics</div>' +
+            groupRow +
+            row(tileOf(!!st.evDate, P6.cal),
+              '<div style="display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:10px">' +
+                '<label style="min-width:0">' + lbl('When') + '<div style="position:relative">' +
+                  '<input class="fld date-fld" type="date" aria-label="When" min="' + todayISO() + '" value="' + esc(st.evDate) + '"' + (st.evDate ? '' : ' data-empty') + ' ' + onInput(e => setState({ evDate: e.target.value })) + ' style="display:block;margin:0;-webkit-appearance:none;appearance:none;box-sizing:border-box;' + bare + ';color-scheme:light">' +
+                  (st.evDate ? '' : '<span aria-hidden="true" style="position:absolute;left:0;top:50%;transform:translateY(-50%);pointer-events:none;font-size:16px;font-weight:400;font-style:italic;color:#b9bcc4">mm/dd/yy</span>') + '</div></label>' +
+                '<label style="min-width:0">' + lbl('Time') +
+                  '<select class="fld" aria-label="Time" ' + onInput(e => setState({ evTime: e.target.value })) + ' style="' + bare + ';appearance:none;-webkit-appearance:none;color-scheme:light">' +
+                    TIME_OPTS.map(([v, l]) => '<option value="' + v + '"' + (v === st.evTime ? ' selected' : '') + '>' + l + '</option>').join('') + '</select></label>' +
+              '</div>', check(!!st.evDate)) +
+            row(tileOf(where, P6.pin), lbl('Where') + placeField('loc', { placeholder: 'Add a spot', style: bare }), check(where)) +
+            row(tileOf(details, '<path d="M5 7h14M5 12h14M5 17h9"/>'), '<label>' + lbl('Details') +
+              '<textarea class="fld" rows="2" maxlength="240" aria-label="Details" placeholder="What to bring, parking, the vibe…" ' + onInput(e => { if (e.type === 'input') setState({ evDetails: e.target.value.slice(0, 240) }); }) + ' style="' + bare + ';font-size:15px;line-height:1.4;font-weight:600;resize:none">' + esc(st.evDetails) + '</textarea></label>', check(details)) +
           '</div>' +
-          '<span style="font-size:13px;font-weight:600;color:#6b7280">' + (st.evPriv ? 'Only people you invite, or who have the link, can see it.' : 'Shows up for everyone in the group.') + '</span></div>' +
-        '<label style="' + CARD + ';padding:16px;display:flex;align-items:center;gap:12px;cursor:pointer">' +
-          (st.photos[0] ? '<span style="flex:0 0 46px;width:46px;height:46px;border-radius:12px;background:' + bg(st.photos[0].url) + '"></span>' : '<span style="flex:0 0 46px;width:46px;height:46px;border-radius:12px;background:repeating-linear-gradient(135deg,#eef0f3 0 6px,#e4e7ec 6px 12px)"></span>') +
-          '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">' + (st.photos[0] ? 'Photo added' : 'Add a photo') + '</div><div style="font-size:13px;font-weight:600;color:#6b7280">Shows on the card and the invite.</div></div>' +
-          '<span style="font-size:14px;font-weight:800;color:#5b4ae8">' + (st.photos[0] ? 'Change' : 'Choose') + '</span>' +
-          '<input type="file" accept="image/*" aria-label="Event photo" ' + onInput(e => { if (e.type !== 'change') return; const f = Array.from(e.target.files || []); e.target.value = ''; state.photos.forEach(p => URL.revokeObjectURL(p.url)); state.photos = []; addPhotos(f.slice(0, 1)); }) + ' style="display:none">' +
-        '</label>' +
-        '<button type="button" ' + on(() => { if (ok) createEvent(); }) + ' aria-disabled="' + !ok + '" style="width:100%;min-height:54px;border:0;border-radius:999px;font-family:inherit;font-size:16.5px;font-weight:900;' + (ok ? 'background:#149a4b;color:#fff;cursor:pointer;box-shadow:0 10px 24px rgba(20,154,75,.3)' : 'background:#e2e4e9;color:#9aa0ac;cursor:default') + '">' +
-          (st.busy === 'post' ? 'Posting…' : ok ? 'Post it' : !actReady ? 'Give it a name' : 'Pick a date') + '</button>' +
-        '<div ' + on(() => setState({ step: 'activity', dateOne: st.evDate, timeOne: st.evTime, timeOn: !!st.evDate })) + ' class="hov-row" style="margin-top:4px;border-radius:18px;border:1.5px dashed #cdd1d9;padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer">' +
-          svg(22, 'fill="#f3c55a" stroke="#c98f0a" stroke-width="1.4" stroke-linejoin="round" style="flex:0 0 22px"', '<path d="M13.2 2.2 7.2 13.1l3.9-.35-.9 8.8 6.9-11.2-4.1.4z"/>') +
-          '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">Don’t have it all figured out?</div><div style="font-size:13.5px;line-height:1.4;font-weight:600;color:#6b7280">Float it as an idea instead. Neighbors vote on dates and places, and someone can step up to lead it.</div></div>' +
-          I.chevR(16, '#9aa0ac', 2.4) +
+          // Invite only
+          '<div ' + on(() => setState({ evPriv: !st.evPriv }), 'switch') + ' aria-checked="' + !!st.evPriv + '" aria-label="Invite only" style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:18px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
+            '<span aria-hidden="true" style="flex:0 0 36px;width:36px;height:36px;border-radius:11px;background:#f2f3f6;color:#454b55;display:flex;align-items:center;justify-content:center">' + svg(17, stroke('currentColor', 2.2), '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>') + '</span>' +
+            '<div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:800;color:#0d1117">Invite only</div><div style="font-size:13px;line-height:1.35;font-weight:600;color:#6b7280">' + (st.evPriv ? 'Only people you invite, or who have the link, can see it.' : 'Shows up on the group’s calendar for everyone.') + '</div></div>' +
+            '<span aria-hidden="true" style="flex:0 0 44px;width:44px;height:26px;border-radius:999px;position:relative;transition:background 160ms;background:' + (st.evPriv ? '#5b4ae8' : '#dcdfe6') + '"><span style="position:absolute;top:3px;left:' + (st.evPriv ? 21 : 3) + 'px;width:20px;height:20px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:left 160ms"></span></span></div>' +
+          // Not sure on the details? → the idea steps
+          '<div ' + on(() => setState({ step: 'activity', dateOne: st.evDate, timeOne: st.evTime, timeOn: !!st.evDate })) + ' aria-label="Not sure on the details? Float it as an idea" class="hov-row" style="border-radius:18px;border:1.5px dashed #cdd1d9;padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer">' +
+            '<span aria-hidden="true" style="flex:0 0 36px;width:36px;height:36px;border-radius:11px;background:#fdf1d6;color:#b07a0a;display:flex;align-items:center;justify-content:center">' + svg(18, stroke('currentColor', 2.2), '<path d="M12 21v-9"/><path d="M12 12c0-4 2.5-6.5 7-6.5 0 4.5-2.5 6.5-7 6.5Z"/><path d="M12 14c0-3-2-5-6-5 0 3.5 2 5 6 5Z"/>') + '</span>' +
+            '<div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:800;color:#0d1117">Not sure on the details?</div><div style="font-size:13px;line-height:1.4;font-weight:600;color:#6b7280">Float it as an idea. Neighbors weigh in and someone can step up to lead.</div></div>' +
+            I.chevR(16, '#9aa0ac', 2.4) + '</div>' +
         '</div>' +
+        // Sticky Post it!
+        '<div style="position:sticky;bottom:0;z-index:5;padding:14px 14px 12px;background:linear-gradient(to top, #e8eaee 70%, rgba(232,234,238,0))">' +
+          '<button type="button" ' + on(() => { if (ok) createEvent(); }) + ' aria-disabled="' + !ok + '" style="position:relative;overflow:hidden;width:100%;min-height:56px;border:0;border-radius:999px;font-family:inherit;font-size:17px;font-weight:900;' + (ok ? 'background:#149a4b;color:#fff;cursor:pointer;box-shadow:0 10px 24px rgba(20,154,75,.32)' : 'background:#c9ccd3;color:#fff;cursor:default') + '">' +
+            (ok ? ['#ffd98a:12%:30%', '#cfc9ff:22%:68%', '#fff:78%:28%', '#ffb3c1:88%:64%', '#9eecbc:66%:74%'].map(c => { const [col, x, y] = c.split(':'); return '<span aria-hidden="true" style="position:absolute;left:' + x + ';top:' + y + ';width:6px;height:6px;border-radius:2px;background:' + col + ';transform:rotate(30deg);opacity:.9"></span>'; }).join('') : '') +
+            '<span style="position:relative">' + (st.busy === 'post' ? 'Posting…' : ok ? 'Post it! 🎉' : !actReady ? 'Give it a name' : 'Pick a date') + '</span></button>' +
+          '<div style="margin-top:8px;text-align:center;font-size:13px;font-weight:600;color:#6b7280">' + (ok && g ? 'Your neighbors in ' + esc(g.name) + ' will see it' : 'Only a name and date are required, the rest can come later') + '</div>' +
+        '</div>' +
+        // ROUGH DRAFT stamp (temporary, per the design)
+        '<div aria-hidden="true" style="position:absolute;left:50%;top:430px;transform:translate(-50%,-50%) rotate(-14deg);z-index:4;pointer-events:none;padding:4px 16px;border:4px solid rgba(226,85,107,.85);border-radius:10px;font-size:34px;font-weight:900;letter-spacing:2px;color:rgba(226,85,107,.85);white-space:nowrap">ROUGH DRAFT</div>' +
       '</div>';
     }
 
@@ -3894,7 +3917,7 @@
       '</div>';
     }
 
-    return '<div class="overlay-screen" data-screen-label="New spark">' + overlayHeader(st.step === 'event' ? 'Post an event' : 'Float an idea', close) + body + '</div>';
+    return '<div class="overlay-screen" data-screen-label="New spark">' + (st.step === 'event' ? '' : overlayHeader('Float an idea', close)) + body + '</div>';
   }
 
   // ---------------------------------------------------------------------------

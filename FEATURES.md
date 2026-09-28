@@ -23,7 +23,7 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 
 | # | Feature | Status | Notes |
 |---|---|---|---|
-| 5 | Header: your photo (⌄ badge → Profile sheet), **Your tasks**, the bell (red unread count → Notifications sheet). At `#/tasks` | Test | The Calendar is the home screen (#90) |
+| 5 | Header: **Your tasks** and the bell (red unread count → Notifications sheet); no photo button since v6 Update 3 (Profile is the last tab). At `#/tasks` | Test | The Calendar is the home screen (#90) |
 | 6 | **Leading**: plans you lead (upcoming, or in the last 3 days) with something to do, as a swipeable row of 290px cards: photo banner, **Going · Maybe · Sign-ups · Reminder** strip, to-dos (Post an update, Send a reminder, *{name}'s spot idea · Review*, Location TBD, *N spots open · Share list*, Say thanks / Add photos); two, then **+N more** / **Show less** | Test | Invites aren't counted (share links), so Maybe replaces Invited |
 | 7 | **Helping** (green): plans you're going / maybe to or signed up for — Confirm RSVP, *You said maybe · Update RSVP*, each sign-up with its time, Location TBD, Today/Tomorrow · Directions, In N days · Details; most to-dos first. Empty: *Find something to help with* → Calendar | Test | |
 | 8 | **Ideas** you lead: four checkpoints (Date · Location · Roles→Helpers · People), each opening the idea at that part | Test | Idea pages now have a Sign-ups card |
@@ -122,7 +122,7 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 
 | # | Feature | Status | Notes |
 |---|---|---|---|
-| 34 | Post flow: event (40 characters max, *N left* from 10; **Post to** picker, names only) → location → date (iPhone-safe field, *mm/dd/yy*) + time (30-minute list, 6:00 pm default) → the basics → photos (up to 3, **Position the cover**) → **Look good?** → **Put it up** | Test | Grid titles clamp to 2 lines |
+| 34 | **Post an event** (v6 Update 3): a 210px photo header (the cover, or a violet→gold gradient with sparkles; white **Close**, frosted **Add a photo**), *NEW EVENT* and the name typed on the photo (40 characters max, *N left* from 10); **The basics** (Group with **Change**, When + Time on a 30-minute list, Where with suggestions, Details), tiles turn green with a check once filled; **Invite only** switch; **Not sure on the details?** → the idea steps; a sticky **Post it! 🎉** (gray *Give it a name* / *Pick a date* until ready); a temporary **ROUGH DRAFT** stamp. The idea steps: event → location → date → the basics → photos → **Look good?** → **Put it up** | Test | Grid titles clamp to 2 lines |
 | 35 | Location suggestions from 2 characters (Geoapify, near Austin), up to 4 rows with a purple pin tile; address saved with the pick | Test | Kept by owner decision |
 | 36 | **Put it up** needs sign-in ("Sign in to post"), then a name if missing | Test | |
 | 37 | Edit idea: title + the basics; **Delete this idea** (removes its photos) | Test | |

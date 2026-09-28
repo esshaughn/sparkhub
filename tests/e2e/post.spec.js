@@ -93,11 +93,12 @@ test('post flow guards: each step waits for an answer or a "later"', async ({ br
     await form.getByLabel('What', { exact: true }).fill('Chili cook-off');
     await expect(form.getByRole('button', { name: 'Pick a date' })).toHaveAttribute('aria-disabled', 'true');
     await expect(form.getByLabel('Time', { exact: true })).toHaveValue('18:00');
-    await expect(form).toContainText('Shows up for everyone in the group.');
-    await form.getByRole('radio', { name: 'Invite only' }).click();
+    await expect(form).toContainText('Shows up on the group’s calendar for everyone.');
+    await form.getByRole('switch', { name: 'Invite only' }).click();
+    await expect(form.getByRole('switch', { name: 'Invite only' })).toHaveAttribute('aria-checked', 'true');
     await expect(form).toContainText('Only people you invite, or who have the link, can see it.');
     // …or float it as an idea instead
-    await form.getByRole('button', { name: /Don’t have it all figured out/ }).click();
+    await form.getByRole('button', { name: /Not sure on the details/ }).click();
     await expect(page.getByRole('heading', { name: 'What’s the event?' })).toBeVisible();
     await expect(page.getByLabel('The event')).toHaveValue('Chili cook-off');       // the name comes along
     await page.getByLabel('The event').fill('');
@@ -129,8 +130,8 @@ test('post flow guards: each step waits for an answer or a "later"', async ({ br
     await review.getByRole('button', { name: 'Edit the event' }).click();
     await expect(page.getByRole('heading', { name: 'What’s the event?' })).toBeVisible();
     await page.getByRole('button', { name: 'Back' }).last().click();   // idea steps → the event form
-    await expect(page.locator('[data-screen-label="New spark"]').getByText('Post an event')).toBeVisible();
-    await page.getByRole('button', { name: 'Back' }).last().click();   // → out of the flow
+    await expect(page.locator('[data-screen-label="New spark"]').getByText('New event', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Close' }).click();   // → out of the flow
     await expect(page.locator('[data-screen-label=Calendar]')).toBeVisible();
   } finally {
     await context.close();
@@ -141,7 +142,7 @@ test('location suggestions: 2 letters, 4 rows, Austin area, remembered, free tex
   const { page, context } = await newLead(browser, 1, 'Tester');
   try {
     await startPost(page);
-    await page.getByRole('button', { name: /Don’t have it all figured out/ }).click();
+    await page.getByRole('button', { name: /Not sure on the details/ }).click();
     await page.getByLabel('The event').fill('Anything');
     await button(page, 'Next').click();
 

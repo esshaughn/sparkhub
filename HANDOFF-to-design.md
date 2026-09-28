@@ -4,8 +4,8 @@
 
 - **Built (test):** https://gosparkhub-git-test-eric-5958s-projects.vercel.app · **Live:** https://gosparkhub.vercel.app
 - **Source:** github.com/esshaughn/sparkhub (`index.html`, `js/sparks.js`, `css/sparks.css`, `privacy.html`, `supabase/templates/`)
-- **Baseline:** Claude Design's **Spark Hub v6** handoff plus **Update 2** (Groups list and group pages redesigned: world switcher, Ideas board, Past scrapbook, group search; Sort · Filter on Your schedule and group Plans; Calendar search's Try chips and "Or something unexpected"; the compact Profile sheet). The READMEs are `design/spark-hub/README-v6.md` and `design/spark-hub/README-v6-update-2.md`; `design/spark-hub/Spark Hub App.dc.html` is the Update 2 prototype. Where the design conflicts with a decision the owner already made, §1 says what was built.
-- **As of:** 2026-09-28, v6 Update 2 is built on the test branch
+- **Baseline:** Claude Design's **Spark Hub v6** handoff plus **Update 2** and **Update 3** (Update 3: no photo button on Your tasks, the new Post an event form; Update 2: Groups list and group pages redesigned: world switcher, Ideas board, Past scrapbook, group search; Sort · Filter on Your schedule and group Plans; Calendar search's Try chips and "Or something unexpected"; the compact Profile sheet). The READMEs are `design/spark-hub/README-v6.md` and `design/spark-hub/README-v6-update-2.md` and `README-v6-update-3.md`; `design/spark-hub/Spark Hub App.dc.html` is the Update 3 prototype. Where the design conflicts with a decision the owner already made, §1 says what was built.
+- **As of:** 2026-09-28, v6 Update 3 is built on the test branch
 
 Where this doc and the design files disagree, **this doc is correct**.
 
@@ -35,6 +35,7 @@ Where this doc and the design files disagree, **this doc is correct**.
 | 17 | **The Past "photos" number** counts each event's cover photos and album photos; *showed up* counts Going RSVPs | Not defined | |
 | 18 | **The add-photo button on a memory card** adds to that event's album (same as *+ Add yours* on It happened) | Prototype toast "Opening your photos…" | |
 | 19 | **The Ideas board keeps Most popular order** (most interested first) and has no sort, filter or view | Same (no controls) | Stated so the order is known |
+| 20 | **Post an event keeps the 30-minute time list** (6:00 pm default) and the location suggestions under Where | A plain time input; a plain text input | Same choices as before; the suggestions save the address for directions |
 ## 2. Things the build had to invent (please design these properly)
 
 - **Empty states:** Could use a hand with nothing open: *Everything's covered for the next two weeks.* Calendar with no results: *No events match these filters.* / *Nothing coming up in your groups yet.* (under a "Coming up" heading). Month view, a day with nothing: *Nothing on this day.* View all, empty: *Nothing here right now.*
