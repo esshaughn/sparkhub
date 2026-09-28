@@ -17,8 +17,9 @@ test('a plan: guest RSVPs, sign-ups, an update, the host’s notes, then clearin
   try {
     id = await postEvent(H, { title, date: inDays(20), time: '17:30', details: 'Bring a bowl.' });
     const HP = H.locator('[data-screen-label="Plan page"]');
-    await expect(HP).toContainText('IT’S A PLAN · IN 20 DAYS');
-    await expect(HP).toContainText('5:30pm · hosted by Hope');
+    await expect(HP).toContainText('HAPPENING');                               // v6 Update 4: the chip; time and spot live in When & where
+    await expect(HP).toContainText('5:30pm');
+    await expect(HP).not.toContainText('HOSTED BY');                           // not shown to the host
     await expect(HP).toContainText('Bring a bowl.');
     await expect(HP).toContainText('Your guest list');
     await expect(HP.getByRole('switch', { name: 'Remind everyone the day before' })).toHaveAttribute('aria-checked', 'true');
@@ -47,19 +48,35 @@ test('a plan: guest RSVPs, sign-ups, an update, the host’s notes, then clearin
     // The guest opens the link: RSVP asks for their info once, then they sign up for things
     await openIdea(G, id);
     const GP = G.locator('[data-screen-label="Plan page"]');
-    await expect(GP).toContainText('Are you coming?');
+    await expect(GP).toContainText('Coming?');
     await expect(GP).toContainText('Parking is on the street.');
+    await expect(GP).toContainText('HOSTED BY');
+    await expect(GP.getByRole('button', { name: 'Say hi' })).toBeVisible();
     await expect(GP).not.toContainText('Before the day');                     // just for the host
     await GP.getByRole('button', { name: 'I’m going' }).click();
     await answerGuestPrompt(G, 'Gus', '(512) 555-0142');
     await expect(G.getByText('You’re going. See you there!')).toBeVisible();
-    await expect(GP.getByRole('button', { name: '✓ Going' })).toHaveAttribute('aria-pressed', 'true');
+    // Answered, the RSVP folds into one line; "Change ›" brings the choices back
+    const bar = GP.locator('[data-rsvp-bar]');
+    await expect(bar).toContainText('You’re going');
+    await expect(GP.getByRole('button', { name: 'Maybe' })).toHaveCount(0);
+    await bar.click();
     await GP.getByRole('button', { name: 'Maybe' }).click();
     await expect(G.getByText('Marked as maybe')).toBeVisible();
+    await expect(bar).toContainText('You’re a maybe');
+    await bar.click();
     await GP.getByRole('button', { name: 'I’m going' }).click();
-    await expect(GP.getByRole('button', { name: '✓ Going' })).toBeVisible();
+    await expect(bar).toContainText('You’re going');
+    await expect(GP).not.toContainText('YOU’RE HELPING WITH');
     await GP.locator('[data-signup="Folding chairs"]').getByRole('button', { name: 'Sign up' }).click();
     await expect(G.getByText('You’re down for folding chairs')).toBeVisible();
+    // "You're helping with": open by default, collapses and stays collapsed
+    const jobs = GP.locator('[data-screen-label="You’re helping with"]');
+    await expect(jobs).toContainText('Folding chairs');
+    await jobs.getByRole('button', { name: '1 job' }).click();
+    await expect(jobs).not.toContainText('Folding chairs');
+    await jobs.getByRole('button', { name: '1 job' }).click();
+    await expect(jobs).toContainText('Folding chairs');
     await expect(GP.locator('[data-signup="Folding chairs"]')).toContainText('1 of 2 · 1 still needed');
     await GP.getByLabel('Bringing something else?').fill('Lemonade');
     await GP.getByRole('button', { name: 'Add', exact: true }).click();
@@ -125,7 +142,7 @@ test('it happened: the album and "do it again"; invite-only plans stay private',
     const hidden = await asUser(O, async (c, _C, id) => (await c.from('sparks').select('id').eq('id', id)).data.length, ids[1]);
     expect(hidden).toBe(0);
     await openIdea(O, ids[1]);
-    await expect(O.locator('[data-screen-label="Plan page"]')).toContainText('Are you coming?');
+    await expect(O.locator('[data-screen-label="Plan page"]')).toContainText('Coming?');
 
     expect(host.errors).toEqual([]);
   } finally {

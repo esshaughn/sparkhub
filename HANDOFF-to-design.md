@@ -4,8 +4,8 @@
 
 - **Built (test):** https://gosparkhub-git-test-eric-5958s-projects.vercel.app · **Live:** https://gosparkhub.vercel.app
 - **Source:** github.com/esshaughn/sparkhub (`index.html`, `js/sparks.js`, `css/sparks.css`, `privacy.html`, `supabase/templates/`)
-- **Baseline:** Claude Design's **Spark Hub v6** handoff plus **Update 2** and **Update 3** (Update 3: no photo button on Your tasks, the new Post an event form; Update 2: Groups list and group pages redesigned: world switcher, Ideas board, Past scrapbook, group search; Sort · Filter on Your schedule and group Plans; Calendar search's Try chips and "Or something unexpected"; the compact Profile sheet). The READMEs are `design/spark-hub/README-v6.md` and `design/spark-hub/README-v6-update-2.md` and `README-v6-update-3.md`; `design/spark-hub/Spark Hub App.dc.html` is the Update 3 prototype. Where the design conflicts with a decision the owner already made, §1 says what was built.
-- **As of:** 2026-09-28, v6 Update 3 is built on the test branch
+- **Baseline:** Claude Design's **Spark Hub v6** handoff plus **Update 2**, **Update 3** and **Update 4** (Update 4: Past scrapbook date stickers and a dismissable So far card, the Ideas board's sort row and plain step icons, the event page's Plan phase as option 39a; Update 3: no photo button on Your tasks, the new Post an event form; Update 2: Groups list and group pages redesigned: world switcher, Ideas board, Past scrapbook, group search; Sort · Filter on Your schedule and group Plans; Calendar search's Try chips and "Or something unexpected"; the compact Profile sheet). The READMEs are `design/spark-hub/README-v6.md` and `design/spark-hub/README-v6-update-2.md` `README-v6-update-3.md` and `README-v6-update-4.md`; `design/spark-hub/Spark Hub App.dc.html` is the Update 4 prototype. Where the design conflicts with a decision the owner already made, §1 says what was built.
+- **As of:** 2026-09-28, v6 Update 4 is built
 
 Where this doc and the design files disagree, **this doc is correct**.
 
@@ -34,9 +34,12 @@ Where this doc and the design files disagree, **this doc is correct**.
 | 16 | **The Groups header photo** is the first of your groups that has one (pinned first), framed as that group's cover | `torrez-group.jpg` | People in other groups shouldn't see Torrez Fitness's photo |
 | 17 | **The Past "photos" number** counts each event's cover photos and album photos; *showed up* counts Going RSVPs | Not defined | |
 | 18 | **The add-photo button on a memory card** adds to that event's album (same as *+ Add yours* on It happened) | Prototype toast "Opening your photos…" | |
-| 19 | **The Ideas board keeps Most popular order** (most interested first) and has no sort, filter or view | Same (no controls) | Stated so the order is known |
+| 19 | **Ideas board sort "Almost there"** counts the four checkpoints that are done (ties: most interested); **Newest** is by when it was posted | By number of steps done (the board has four) | |
 | 20 | **Post an event keeps the 30-minute time list** (6:00 pm default) and the location suggestions under Where | A plain time input; a plain text input | Same choices as before; the suggestions save the address for directions |
 | 21 | **Post an event's name placeholder** reads *Enter event title* | *What’s happening?* | Owner (2026-09-28) |
+| 22 | **No new pickleball demo event** (`p3x`, Saturday pickleball round robin) | Add it to the demo data | Owner (2026-09-28): use the existing content |
+| 23 | **About the event** keeps the idea's longer description (if it has one) as a paragraph under the bulleted list | Only the bullets | So nothing the host wrote disappears |
+| 24 | **Your guest list** keeps its three counts (Going · Maybe · Can't make it) | Four tiles | Invites are share links (§1 #1) |
 ## 2. Things the build had to invent (please design these properly)
 
 - **Empty states:** Could use a hand with nothing open: *Everything's covered for the next two weeks.* Calendar with no results: *No events match these filters.* / *Nothing coming up in your groups yet.* (under a "Coming up" heading). Month view, a day with nothing: *Nothing on this day.* View all, empty: *Nothing here right now.*
@@ -51,6 +54,9 @@ Where this doc and the design files disagree, **this doc is correct**.
 
 ## 3. Behaviour added in the build (no visual change)
 
+- **Remembered on this device:** the Past *So far* card's X (per group) and the event page's *You're helping with* open / closed (per event). The Ideas sort lasts for the visit.
+- **The compact RSVP:** tapping the pill you've already chosen while changing takes your RSVP back (the choices stay open).
+
 - **Deleting an idea** returns you to the screen you opened it from (the Calendar if none).
 - **URLs:** the Calendar is `/` (and `#/calendar`), Your tasks `#/tasks`, Your schedule `#/schedule`; `#/me` and `#/notifications` open the Profile / Notifications sheets over the Calendar. Your plans & ideas is still at `#/own` (off the tab bar). Following a link or the back button closes any open sheet.
 - **The RSVP ask** shows after signing up for an item, adding your own item, claiming a role, or offering to help organize a plan — when you're not the lead and haven't said Going or Can't go. It can't be dismissed.
@@ -62,6 +68,8 @@ Where this doc and the design files disagree, **this doc is correct**.
 - **Reactions:** "Let's do it again!" counts once per person (tapping again does nothing); the others toggle.
 
 ## 4. Designed but not built or not working
+
+- **Say hi** on the Hosted by card: there's no messaging yet, so it shows a toast *Messages are coming soon. For now, say hi to {first name} at the event!*
 
 - **The CTA pills on to-do rows** don't do their action; as in the prototype, tapping the rows expands them (3+) or opens the event.
 - **"Include ideas"** on the Calendar (in the prototype's code, not the README) isn't built; the Calendar lists plans.

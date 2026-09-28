@@ -31,7 +31,7 @@ test('Your schedule and the Calendar: role strips, a helper’s sign-ups with ti
     await openIdea(O, id);
     const OP = O.locator('[data-screen-label="Plan page"]');
     await OP.getByRole('button', { name: 'I’m going' }).click();
-    await expect(OP.getByRole('button', { name: '✓ Going' })).toBeVisible();
+    await expect(OP.locator('[data-rsvp-bar]')).toContainText('You’re going');
     for (const item of ['Folding tables', 'Ice', 'Speaker']) {
       await OP.locator('[data-signup="' + item + '"]').getByRole('button', { name: 'Sign up' }).click();
       await expect(OP.locator('[data-signup="' + item + '"]').getByText('✓ You’re on it')).toBeVisible();

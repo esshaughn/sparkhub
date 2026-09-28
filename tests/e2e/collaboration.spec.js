@@ -95,11 +95,11 @@ test('a guest with the link takes part; everyone votes; the lead picks and makes
     await LD.getByRole('button', { name: 'Make it a plan' }).click();
     await confirm(L, 'Make it a plan');
     const LP = L.locator('[data-screen-label="Plan page"]');
-    await expect(LP).toContainText('IT’S A PLAN');
+    await expect(LP).toContainText('HAPPENING');
     await expect(LP).toContainText('1 going');
     await G.reload();
     const GP = G.locator('[data-screen-label="Plan page"]');
-    await expect(GP.getByRole('button', { name: '✓ Going' })).toHaveAttribute('aria-pressed', 'true');
+    await expect(GP.locator('[data-rsvp-bar]')).toContainText('You’re going');
 
     expect(lead.errors).toEqual([]);
     expect(guest.errors).toEqual([]);
@@ -131,6 +131,12 @@ test('the Ideas board puts the idea with the most interest first', async ({ brow
       .map(el => [+el.getAttribute('data-rank'), el.getAttribute('data-card')]).sort((a, b) => a[0] - b[0]).map(x => x[1])))
       .filter(t => t === older || t === newer).map(t => (t === older ? 'older' : 'newer'));
     await expect.poll(order).toEqual(['older', 'newer']);
+    // The quiet sort row (v6 Update 4): Newest puts the later post first
+    const sortRow = P.getByRole('group', { name: 'Sort ideas' });
+    await expect(sortRow.getByRole('button', { name: 'Most interest' })).toHaveAttribute('aria-pressed', 'true');
+    await sortRow.getByRole('button', { name: 'Newest' }).click();
+    await expect(sortRow.getByRole('button', { name: 'Newest' })).toHaveAttribute('aria-pressed', 'true');
+    await expect.poll(order).toEqual(['newer', 'older']);
     expect(poster.errors).toEqual([]);
     expect(fan.errors).toEqual([]);
   } finally {

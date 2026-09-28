@@ -202,6 +202,7 @@ test('v6 update 2: the Past scrapbook and reactions', async ({ browser }) => {
     await expect(browse).toContainText('TORREZ FITNESS · SO FAR');
     const card = browse.locator('[data-card="' + title + '"]');
     await expect(card).toContainText('went!');
+    await expect(browse.locator('[data-sticker]').first()).toBeVisible();      // the date sticker above each memory
     await expect(card).toContainText('MADE IT HAPPEN');
     await expect(card).toContainText('Hope');
 
@@ -218,6 +219,10 @@ test('v6 update 2: the Past scrapbook and reactions', async ({ browser }) => {
     await expect(card.getByRole('button', { name: 'Let’s do it again, 1' })).toBeVisible();
     await card.getByRole('button', { name: 'Let’s do it again, 1' }).click();
     await expect(card.getByRole('button', { name: 'Let’s do it again, 1' })).toBeVisible();
+
+    // The "So far" card can be put away (per group)
+    await browse.getByRole('button', { name: 'Hide this' }).click();
+    await expect(browse).not.toContainText('TORREZ FITNESS · SO FAR');
 
     // The It happened page: a public thank-you, which Hope sees
     await card.getByRole('button', { name: /^Made it happen/ }).click();

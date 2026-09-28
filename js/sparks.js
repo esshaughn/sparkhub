@@ -74,7 +74,7 @@
   };
   let lastPrefs = '';
   const savePrefs = () => {
-    const next = JSON.stringify({ groupId: state.groupId, view: state.view, homeView: state.homeView, cView: state.cView, sort: state.sort, guestName: state.guestName, guestPhone: state.guestPhone });
+    const next = JSON.stringify({ groupId: state.groupId, view: state.view, homeView: state.homeView, cView: state.cView, sort: state.sort, guestName: state.guestName, guestPhone: state.guestPhone, pastStatsHidden: state.pastStatsHidden, jobsClosed: state.jobsClosed });
     if (next === lastPrefs) return;
     lastPrefs = next;
     try { localStorage.setItem(PREFS_KEY, next); } catch (e) { /* storage blocked: conveniences only */ }
@@ -201,7 +201,7 @@
     cq: '', cSearch: false, cGrps: null, cTypes: [], cSort: 'soon', cView: CVIEWS.indexOf(prefs.cView) > -1 ? prefs.cView : 'list',
     cMon: null, cDay: null, cWildHidden: false, cNeedsHidden: false, cHandSheet: false,
     // v6 Update 2: search's Try chips; Your schedule and group pages' Sort · Filter; a group's search
-    cTry: null, cWhen: 'any', cHelp: false, sSort: 'soon', sFilt: [], gSort: 'soon', gFilt: [], gSearch: false, gq: '', gTry: null
+    cTry: null, cWhen: 'any', cHelp: false, sSort: 'soon', sFilt: [], gSort: 'soon', gFilt: [], iSort: 'interest', pastStatsHidden: prefs.pastStatsHidden || {}, jobsClosed: prefs.jobsClosed || {}, rsvpEdit: null, gSearch: false, gq: '', gTry: null
   }, blankCompose());
 
   // ---- URL <-> screen, so ideas and invites can be shared and the back button works
@@ -2765,7 +2765,7 @@
     }).then(ok => { if (ok && !on_ && o.note) toast(o.note, true); });
   }, 'default');
   const reactChip = (s, k, em, rot) => { const onIt = myReact(s, k), n = countReact(s, k);
-    return '<span ' + on((e) => { stop(e); toggleReact(s, k); }, 'button') + ' aria-pressed="' + onIt + '" aria-label="' + esc({ heart: 'Love it', praise: 'Hands up', party: 'Party', thanks: 'Say thanks' }[k]) + ', ' + n + '" style="display:flex;align-items:center;gap:3px;height:30px;padding:0 9px 0 6px;border-radius:999px;transform:rotate(' + rot + 'deg);font-size:15px;line-height:1;cursor:pointer;' +
+    return '<span ' + on((e) => { stop(e); toggleReact(s, k); }, 'button') + ' aria-pressed="' + onIt + '" aria-label="' + esc({ heart: 'Love it', praise: 'Hands up', party: 'Party', thanks: 'Say thanks' }[k]) + ', ' + n + '" style="display:flex;align-items:center;gap:3px;height:30px;padding:0 9px 0 6px;border-radius:999px;font-size:15px;line-height:1;cursor:pointer;' +
       (onIt ? 'background:#f3f1fe;box-shadow:inset 0 0 0 1.5px #9d93f7' : 'background:#fff;box-shadow:0 1px 4px rgba(13,17,23,.18)') + '"><span>' + em + '</span><span style="font-size:12px;font-weight:900;color:#454b55">' + n + '</span></span>'; };
   // The It happened page: reactions and public thank-yous
   const reactionsCard = (s) => {
@@ -2791,36 +2791,53 @@
         '<span aria-label="' + n + ' interested" style="position:absolute;top:6px;right:6px;display:flex;align-items:center;gap:3px;height:24px;padding:0 8px 0 6px;border-radius:999px;background:rgba(255,255,255,.92);box-shadow:0 1px 4px rgba(13,17,23,.2);font-size:12.5px;font-weight:900;color:#8f6405">' + svg(12, stroke('currentColor', 3), '<path d="M12 19V6M6 11.5 12 5.5l6 6"/>') + n + '</span>' +
         '<span aria-hidden="true" style="position:absolute;right:4px;top:0;bottom:0;display:flex;align-items:center;opacity:.9;filter:drop-shadow(0 1px 3px rgba(0,0,0,.4))">' + I.chevR(20, '#fff', 2.6) + '</span>' +
         '<div style="position:absolute;left:9px;right:26px;bottom:8px;font-size:14.5px;line-height:1.15;font-weight:900;color:#fff;text-wrap:balance">' + esc(s.text) + '</div></div>' +
-      '<span style="display:flex;justify-content:space-between;padding:8px 2px 0">' + ideaSteps6(s).map(st => '<span aria-label="' + st.label + ': ' + (st.p >= 1 ? st.done : st.todo) + '" style="width:28px;height:28px;border-radius:9px;display:flex;align-items:center;justify-content:center;background:' + (st.p >= 1 ? '#e7f6ec' : '#fdf1d6') + '">' + ic6(st.icon, 15, st.p >= 1 ? '#149a4b' : '#b07a0a', 2.3) + '</span>').join('') + '</span></div>';
+      '<span style="display:flex;align-items:center;padding:8px 0 0">' + ideaSteps6(s).map((st, i) => '<span aria-label="' + st.label + ': ' + (st.p >= 1 ? st.done : st.todo) + '" style="flex:1;height:22px;display:flex;align-items:center;justify-content:center;' + (i ? 'border-left:1px solid #dcdfe4' : '') + '">' + ic6(st.icon, 15, st.p >= 1 ? '#149a4b' : '#b07a0a', 2.3) + '</span>').join('') + '</span></div>';
   };
   const ideaBoard6 = (ideas) => {
     const col = (list, off) => '<div style="display:flex;flex-direction:column;gap:14px">' + list.map((s, i) => ideaCard6(s, i * 2 + off)).join('') + '</div>';
     return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start;padding:6px 2px 20px">' + col(ideas.filter((_, i) => i % 2 === 0), 0) + col(ideas.filter((_, i) => i % 2 === 1), 1) + '</div>';
   };
+  // The Ideas board's quiet sort row: Most interest (default) · Newest · Almost there (most checkpoints done)
+  const ISORTS6 = [['interest', 'Most interest'], ['new', 'Newest'], ['almost', 'Almost there']];
+  const stepsDone6 = (s) => ideaSteps6(s).filter(st => st.p >= 1).length;
+  const sortIdeas6 = (list, k) => list.slice().sort(
+    k === 'new' ? (a, b) => b.created - a.created
+      : k === 'almost' ? (a, b) => stepsDone6(b) - stepsDone6(a) || b.interested.length - a.interested.length
+      : (a, b) => b.interested.length - a.interested.length || b.created - a.created);
+  const ideaSortRow6 = (cur) => '<div role="group" aria-label="Sort ideas" style="display:flex;align-items:center;gap:14px;padding:0 4px;min-height:32px">' +
+    '<span style="font-size:13px;font-weight:600;color:#8a909b">Sort</span>' +
+    ISORTS6.map(([k, label]) => { const onIt = (cur || 'interest') === k;
+      return '<span ' + on(() => setState({ iSort: k }), 'button') + ' aria-pressed="' + onIt + '" style="display:flex;align-items:center;min-height:32px;font-size:13px;cursor:pointer;' +
+        (onIt ? 'font-weight:800;color:#0d1117;text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:4px' : 'font-weight:600;color:#8a909b') + '">' + label + '</span>'; }).join('') + '</div>';
   // "{GROUP} · SO FAR": events · showed up · photos, with confetti
   const recap6 = (g, done) => {
     const went = done.reduce((a, s) => a + going(s).length, 0), photos = done.reduce((a, s) => a + picsOf(s).length, 0);
     const COL = ['#e8a71c', '#5b4ae8', '#149a4b', '#e2556b', '#1f7ab8'];
     const confetti = Array.from({ length: 16 }, (_, i) => '<span aria-hidden="true" style="position:absolute;left:' + ((i * 37) % 100) + '%;top:' + ((i * 53) % 120) + 'px;width:' + (i % 3 ? 6 : 8) + 'px;height:' + (i % 2 ? 3 : 8) + 'px;border-radius:' + (i % 2 ? '1px' : '999px') + ';background:' + COL[i % 5] + ';transform:rotate(' + (i * 40) + 'deg);opacity:.85"></span>').join('');
     const big = (n, label) => '<div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:40px;line-height:1;font-weight:900;letter-spacing:-1.5px">' + n + '</span><span style="font-size:12px;font-weight:800;color:#c3c7d0">' + label + '</span></div>';
-    return '<div data-screen-label="So far" style="position:relative;border-radius:18px;padding:16px;background:#1f2433;color:#fff;overflow:hidden;box-shadow:0 3px 12px rgba(60,40,10,.14)">' + confetti +
+    const hide = g ? '<span ' + on(() => setState({ pastStatsHidden: Object.assign({}, state.pastStatsHidden, { [g.id]: true }) })) + ' aria-label="Hide this" style="position:absolute;top:4px;right:4px;z-index:1;width:36px;height:36px;display:flex;align-items:center;justify-content:center;opacity:.45;cursor:pointer">' + I.x(12, '#fff', 2.6) + '</span>' : '';
+    return '<div data-screen-label="So far" style="position:relative;border-radius:18px;padding:16px;background:#1f2433;color:#fff;overflow:hidden;box-shadow:0 3px 12px rgba(60,40,10,.14)">' + confetti + hide +
       '<div style="position:relative;font-size:11px;font-weight:900;letter-spacing:1px;color:#ffd98a">' + esc((g ? g.name : 'This group').toUpperCase()) + ' · SO FAR</div>' +
       '<div style="position:relative;margin-top:10px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">' + big(done.length, done.length === 1 ? 'event' : 'events') + big(went, 'showed up') + big(photos, photos === 1 ? 'photo' : 'photos') + '</div></div>';
   };
   // A memory card: the photo (a mosaic with four or more), "N went!", add a photo, who made it happen, reactions
-  const pastCard6 = (s) => {
+  const WENT6 = ['#ffb347,#ff6f91', '#7b6ef0,#e05fc4', '#1fb86a,#1f9ec8', '#ff8a3d,#e2336b', '#3d8bff,#8a5cf0'];
+  const pastCard6 = (s, i) => {
     const pics = picsOf(s), mosaic = pics.length >= 4, n = going(s).length, lead = nameOf(s.leadId, s.leadName), h = helpersOf(s);
     const thanks = countReact(s, 'thanks'), again = countReact(s, 'again'), mineAgain = myReact(s, 'again');
     const tile = (src, extra) => '<span style="background:' + bg(src) + ';' + (extra || '') + '"></span>';
-    return '<div data-card="' + esc(s.text) + '" style="position:relative;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 3px 12px rgba(60,40,10,.16)">' +
+    // A date sticker and a dashed rule above each memory
+    return '<div style="margin-top:10px;display:flex;flex-direction:column;gap:10px">' +
+      '<div style="display:flex;align-items:center;gap:10px"><span data-sticker style="flex:0 0 auto;display:flex;align-items:center;height:30px;padding:0 12px;border-radius:8px;background:#1f2433;color:#fff;font-size:13px;font-weight:900;letter-spacing:1px;box-shadow:0 2px 6px rgba(13,17,23,.2)">' + esc(monthDay(s.dayDate).toUpperCase()) + '</span><span aria-hidden="true" style="flex:1;border-top:2.5px dashed #b9bdc6"></span></div>' +
+      '<div data-card="' + esc(s.text) + '" style="position:relative;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 3px 12px rgba(60,40,10,.16)">' +
       '<div ' + on(() => openSpark(s)) + ' aria-label="' + esc(s.text) + '" style="position:relative;height:190px;overflow:hidden;cursor:pointer;background:' + (mosaic ? '#fff' : photoBg(s)) + '">' +
         (mosaic ? '<div aria-hidden="true" style="position:absolute;inset:0;display:grid;grid-template-columns:1.3fr 1fr 1fr;grid-template-rows:1fr 1fr;gap:3px">' + tile(pics[0], 'grid-row:1 / 3') + tile(pics[1], 'grid-column:2 / 4') + tile(pics[2]) + tile(pics[3]) + '</div>' : '') +
         '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.88) 0%, rgba(13,17,23,0) 50%)"></div>' +
         '<label ' + on(stop) + ' aria-label="Add photos" style="position:absolute;bottom:10px;right:10px;z-index:2;width:34px;height:34px;border-radius:999px;background:rgba(255,255,255,.8);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;cursor:pointer">' +
           '<span style="position:relative;display:flex">' + I.photo(22, '#5b4ae8', 2.1) + '<span style="position:absolute;right:-6px;bottom:-5px;width:14px;height:14px;border-radius:999px;background:#5b4ae8;border:1.5px solid #fff;display:flex;align-items:center;justify-content:center">' + I.plus(8, '#fff', 4.5) + '</span></span>' +
           '<input type="file" accept="image/*" ' + onInput(e => { if (e.type !== 'change') return; const f = (e.target.files || [])[0]; e.target.value = ''; if (f) addAlbumPhoto(s, f); }) + ' style="display:none"></label>' +
-        '<span style="position:absolute;top:10px;right:10px;display:flex;align-items:center;gap:5px;height:34px;padding:0 13px 0 10px;border-radius:999px;background:linear-gradient(135deg,#ffb347,#ff6f91);color:#fff;font-size:14.5px;font-weight:900;transform:rotate(4deg);box-shadow:0 3px 8px rgba(0,0,0,.25)"><span style="font-size:17px">🎉</span>' + n + ' went!</span>' +
-        '<div style="position:absolute;left:12px;bottom:10px;right:56px;color:#fff"><div style="font-size:11px;font-weight:900;letter-spacing:.8px;color:#e6e7eb">' + esc(monthDay(s.dayDate).toUpperCase()) + '</div><div style="font-size:24px;line-height:1.1;font-weight:900;letter-spacing:-.5px;text-wrap:balance">' + esc(s.text) + '</div></div>' +
+        '<span style="position:absolute;top:10px;right:10px;display:flex;align-items:center;gap:5px;height:34px;padding:0 13px 0 10px;border-radius:999px;background:linear-gradient(135deg,' + WENT6[(i || 0) % 5] + ');color:#fff;font-size:14.5px;font-weight:900;transform:rotate(4deg);box-shadow:0 3px 8px rgba(0,0,0,.25)"><span style="font-size:17px">🎉</span>' + n + ' went!</span>' +
+        '<div style="position:absolute;left:12px;bottom:10px;right:56px;color:#fff"><div style="font-size:24px;line-height:1.1;font-weight:900;letter-spacing:-.5px;text-wrap:balance">' + esc(s.text) + '</div></div>' +
       '</div>' +
       '<div style="padding:10px 12px 12px;display:flex;flex-direction:column;gap:10px">' +
         '<div ' + on(() => openSpark(s)) + ' aria-label="Made it happen: ' + esc(lead) + ', ' + thanks + ' thanks" style="position:relative;display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;background:linear-gradient(135deg,#f1edff,#e0d8ff);overflow:hidden;cursor:pointer">' +
@@ -2831,7 +2848,7 @@
           '<span style="display:flex;align-items:center;gap:3px;font-size:12px;font-weight:900;color:#4a3ad4">🙏 ' + thanks + I.chevR(14, '#4a3ad4', 2.8) + '</span></div>' +
         '<div style="display:flex;align-items:center;gap:6px">' + RX6.map(([k, em, rot]) => reactChip(s, k, em, rot)).join('') +
           '<span ' + on((e) => { stop(e); toggleReact(s, 'again', { once: true, note: 'Counted! ' + firstName(lead) + ' will see you want it again.' }); }, 'button') + ' aria-pressed="' + mineAgain + '" aria-label="Let’s do it again, ' + again + '" style="margin-left:auto;display:flex;align-items:center;gap:5px;height:34px;padding:0 10px 0 12px;border-radius:999px;background:#149a4b;color:#fff;font-size:12.5px;font-weight:900;white-space:nowrap;box-shadow:0 2px 8px rgba(20,154,75,.3);cursor:pointer">Let’s do it again!<span style="min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:rgba(255,255,255,.25);display:inline-flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:900">' + again + '</span></span></div>' +
-      '</div></div>';
+      '</div></div></div>';
   };
 
   // Ideas · Plans · Past: tap a tab, swipe the page, or tap the quiet edge arrows. The new tab slides in
@@ -2921,13 +2938,13 @@
     } else if (tab === 'idea') {
       // The Ideas board: graph paper, two tilted columns (no sort, filter or view here)
       pageStyle = 'min-height:100%;' + IDEA_PAPER;
-      const ideas = visible('idea');
-      body = ideas.length ? ideaBoard6(ideas) : '<div style="padding:24px 8px;text-align:center;font-size:15px;font-weight:700;color:#8a909b">No ideas yet. Toss one on the board!</div>';
+      const ideas = sortIdeas6(visible('idea'), st.iSort);
+      body = ideas.length ? '<div style="display:flex;flex-direction:column;gap:6px">' + ideaSortRow6(st.iSort) + ideaBoard6(ideas) + '</div>' : '<div style="padding:24px 8px;text-align:center;font-size:15px;font-weight:700;color:#8a909b">No ideas yet. Toss one on the board!</div>';
     } else if (tab === 'done') {
       // The Past scrapbook: the recap, then a memory card per event (newest first)
       const done = visible('done').slice().sort((a, b) => byWhen(b, a));
-      body = '<div style="display:flex;flex-direction:column;gap:14px;padding-bottom:20px">' + recap6(g, done) +
-        (done.length ? done.map(pastCard6).join('') : '<div style="background:#fff;border-radius:16px;padding:18px;text-align:center;font-size:15px;font-weight:700;color:#8a909b">Nothing here yet. Your first memory is one event away.</div>') + '</div>';
+      body = '<div style="display:flex;flex-direction:column;gap:14px;padding-bottom:20px">' + (st.pastStatsHidden[g.id] ? '' : recap6(g, done)) +
+        (done.length ? done.map((s, i) => pastCard6(s, i)).join('') : '<div style="background:#fff;border-radius:16px;padding:18px;text-align:center;font-size:15px;font-weight:700;color:#8a909b">Nothing here yet. Your first memory is one event away.</div>') + '</div>';
     } else {
       // Plans: Your schedule's cards and controls (Sort · Filter · Tiles / List), the strips expanding in place
       const all = visible('plan'), plans = applySort(applyFilters(all, st.gFilt), st.gSort), clear = () => setState({ gFilt: [], menu: null });
@@ -3344,16 +3361,9 @@
   function viewPlan(s) {
     const st = state, lead = isLead(s), leadName = nameOf(s.leadId, s.leadName), my = myRsvp(s);
     const dp = dateParts(s.dayDate);
-    const days = Math.round((new Date(s.dayDate + 'T12:00:00') - new Date(todayISO() + 'T12:00:00')) / 864e5);
-    const when = days === 0 ? ' · TODAY' : days === 1 ? ' · TOMORROW' : days > 1 ? ' · IN ' + days + ' DAYS' : '';
     const goingIds = going(s).map(r => r.userId), maybeN = s.rsvps.filter(r => r.status === 'maybe').length, noN = s.rsvps.filter(r => r.status === 'no').length;
     const directions = s.spotPoint ? 'https://www.google.com/maps/dir/?api=1&destination=' + s.spotPoint[0] + ',' + s.spotPoint[1] : '';
     const RC = { going: ['#149a4b', '#e7f6ec', '#0f7a3c'], maybe: ['#e8a71c', '#fdf1d6', '#8f6405'], no: ['#6b7280', '#f2f3f6', '#454b55'] };
-    const rsvpBtn = (k, label) => {
-      const onIt = my === k, c = RC[k], hero = k === 'going' && !my;
-      return '<button type="button" ' + on(() => { if (!st.busy) setRsvp(s, k); }) + ' aria-pressed="' + onIt + '" style="min-height:52px;padding:0 6px;border-radius:999px;font-family:inherit;font-weight:900;cursor:pointer;white-space:nowrap;font-size:' + (k === 'going' ? 16 : 14) + 'px;' +
-        (onIt ? 'border:2px solid ' + c[0] + ';background:' + c[1] + ';color:' + c[2] : hero ? 'border:0;background:#149a4b;color:#fff;box-shadow:0 8px 20px rgba(20,154,75,.3)' : 'border:1.5px solid #dcdfe6;background:#fff;color:#0d1117') + '">' + label + '</button>';
-    };
     const stat = (num, label, bgc, ink) => '<div style="display:flex;flex-direction:column;align-items:center;gap:5px;padding:12px 4px;border-radius:14px;background:' + bgc + ';color:' + ink + '"><span style="font-size:24px;line-height:1;font-weight:900;letter-spacing:-.5px">' + num + '</span><span style="font-size:11.5px;font-weight:800">' + label + '</span></div>';
     const sheetCard = (inner, extra) => '<div style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:10px;' + (extra || '') + '">' + inner + '</div>';
 
@@ -3379,21 +3389,66 @@
         '</div>'
       : '';
 
+    const whenWhere =
+        '<div style="' + CARD + ';overflow:hidden">' +
+          '<div style="display:flex;align-items:center;gap:12px;padding:12px 16px"><span style="flex:0 0 38px;height:38px;border-radius:11px;background:#e7f6ec;color:#0f7a3c;display:flex;align-items:center;justify-content:center">' + I.cal(17) + '</span>' +
+            '<div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:800;color:#0d1117">' + esc(fmtDay(s.dayDate) + ' · ' + fmtTime(s.dayTime)) + '</div><div style="font-size:13px;font-weight:500;color:#6b7280">' + (s.autoRemind ? 'Reminder the day before' : 'No reminder') + '</div></div>' +
+            '<span ' + on(() => addToCalendar(s)) + ' style="flex:0 0 auto;font-size:13.5px;font-weight:800;color:#5b4ae8;cursor:pointer">Add to calendar</span></div>' +
+          '<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-top:1px solid #f2f3f6"><span style="flex:0 0 38px;height:38px;border-radius:11px;background:' + (s.spot ? '#e7f6ec;color:#0f7a3c' : '#f2f3f6;color:#9aa0ac') + ';display:flex;align-items:center;justify-content:center">' + I.pin(17) + '</span>' +
+            '<div ' + (lead && !s.spot ? on(() => openOffer(s, 'spot')) + ' ' : '') + 'style="flex:1;min-width:0' + (lead && !s.spot ? ';cursor:pointer' : '') + '"><div style="font-size:15.5px;font-weight:800;color:' + (s.spot ? '#0d1117' : '#6b7280') + '">' + esc(s.spot || 'Location TBD') + '</div>' +
+              (s.spotAddress ? '<div style="font-size:13px;font-weight:500;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(s.spotAddress) + '</div>' : '') + '</div>' +
+            (directions ? '<a href="' + esc(directions) + '" target="_blank" rel="noopener noreferrer" style="flex:0 0 auto;font-size:13.5px;font-weight:800;color:#5b4ae8;text-decoration:none">Directions</a>' : lead && !s.spot ? '<span ' + on(() => openOffer(s, 'spot')) + ' style="flex:0 0 auto;font-size:13.5px;font-weight:800;color:#5b4ae8;cursor:pointer">Add it</span>' : '') +
+          '</div>' +
+        '</div>';
+    // RSVP, compact: answered → one line with "Change ›"; unanswered (or changing) → "Coming?" and three pills
+    const RSL = { going: 'You’re going', maybe: 'You’re a maybe', no: 'You can’t make it' };
+    const rsvpPill = (k, label) => {
+      const onIt = my === k, c = RC[k], hero = k === 'going' && !my;
+      return '<button type="button" ' + on(() => { if (!st.busy) { setRsvp(s, k); setState({ rsvpEdit: null }); } }) + ' aria-pressed="' + onIt + '" style="min-height:40px;padding:0 4px;border-radius:999px;font-family:inherit;font-size:13.5px;font-weight:900;cursor:pointer;white-space:nowrap;' +
+        (onIt ? 'border:2px solid ' + c[0] + ';background:' + c[1] + ';color:' + c[2] : hero ? 'border:0;background:#149a4b;color:#fff;box-shadow:0 8px 20px rgba(20,154,75,.3)' : 'border:1.5px solid #dcdfe6;background:#fff;color:#0d1117') + '">' + label + '</button>';
+    };
+    const rsvpBlock = lead ? '' : my && st.rsvpEdit !== s.id
+      ? '<div ' + on(() => setState({ rsvpEdit: s.id })) + ' data-rsvp-bar aria-label="' + RSL[my] + '. Change" style="display:flex;align-items:center;gap:10px;background:#fff;border-radius:14px;padding:10px 12px 10px 14px;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
+          '<span style="flex:0 0 22px;width:22px;height:22px;border-radius:999px;background:' + RC[my][0] + ';display:flex;align-items:center;justify-content:center">' + svg(12, stroke('#fff', 3.5), '<path d="m5 12.5 4.5 4.5L19 7.5"/>') + '</span>' +
+          '<span style="flex:1;font-size:14.5px;font-weight:800;color:#0d1117">' + RSL[my] + '</span>' +
+          '<span style="display:flex;align-items:center;gap:2px;font-size:13.5px;font-weight:800;color:#5c6270">Change' + I.chevR(14, '#5c6270', 2.8) + '</span></div>'
+      : '<div style="background:#fff;border-radius:14px;padding:10px 12px 4px;box-shadow:0 1px 3px rgba(15,18,25,.08);display:flex;flex-direction:column;gap:4px">' +
+          '<div style="display:flex;align-items:center;gap:8px"><span style="flex:0 0 auto;font-size:14px;font-weight:800;color:#0d1117">Coming?</span>' +
+            '<div style="flex:1;display:grid;grid-template-columns:1.2fr 1fr 1.3fr;gap:6px">' + rsvpPill('going', my === 'going' ? '✓ Going' : 'I’m going') + rsvpPill('maybe', 'Maybe') + rsvpPill('no', 'Can’t make it') + '</div></div>' +
+          '<span ' + on(() => setState({ invite: { id: s.id } })) + ' style="display:flex;align-items:center;justify-content:center;gap:7px;min-height:36px;font-size:13px;font-weight:800;color:#5b4ae8;cursor:pointer">' + svg(15, stroke('currentColor', 2.3), '<path d="M12 4v11M7.5 8.5 12 4l4.5 4.5M5 14v5h14v-5"/>') + 'Bring a neighbor — share it</span></div>';
+    // "You're helping with": the sign-ups you're on, one line each; opens by default, collapsed state kept per event
+    const myJobs = s.signups.filter(it => it.claims.some(c => c.userId === st.me));
+    const jobsOpen = !st.jobsClosed[s.id];
+    const helping = myJobs.length
+      ? '<div data-screen-label="You’re helping with" style="background:#fff6dc;border-radius:18px;padding:16px;box-shadow:0 1px 3px rgba(15,18,25,.08), inset 0 0 0 1.5px #f3d98b;display:flex;flex-direction:column;gap:2px">' +
+          '<div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:12px;font-weight:800;letter-spacing:1.2px;color:#8f6405">YOU’RE HELPING WITH</span>' +
+            '<span ' + on(() => setState({ jobsClosed: Object.assign({}, st.jobsClosed, { [s.id]: jobsOpen }) })) + ' aria-expanded="' + jobsOpen + '" style="display:flex;align-items:center;gap:4px;min-height:32px;padding:0 4px 0 8px;margin-right:-4px;border-radius:999px;font-size:13px;font-weight:800;color:#8f6405;cursor:pointer">' + myJobs.length + (myJobs.length === 1 ? ' job' : ' jobs') +
+              '<span style="display:flex;transition:transform .15s;transform:' + (jobsOpen ? 'rotate(180deg)' : 'none') + '">' + svg(16, stroke('#8f6405', 2.8), '<path d="m6 9 6 6 6-6"/>') + '</span></span></div>' +
+          (jobsOpen ? myJobs.map((it, i) => '<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-top:' + (i ? '1px solid #f3e2ad' : '0') + '"><span style="flex:0 0 8px;width:8px;height:8px;border-radius:999px;background:#e8a71c"></span>' +
+            '<span style="flex:1;min-width:0;font-size:15.5px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(it.item) + '</span>' +
+            (it.time ? '<span style="flex:0 0 auto;font-size:13px;font-weight:700;color:#8f6405">' + fmtTime(it.time) + '</span>' : '') + '</div>').join('') : '') +
+        '</div>'
+      : '';
+    // "Hosted by" (not shown to the host)
+    const host = lead ? '' :
+      '<div style="position:relative;display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:18px;background:linear-gradient(135deg,#f1edff,#e0d8ff);box-shadow:0 1px 3px rgba(15,18,25,.08)">' +
+        '<span aria-hidden="true" style="position:absolute;left:52%;top:6px;font-size:9px;color:#9d93f7">✦</span><span aria-hidden="true" style="position:absolute;left:64%;bottom:6px;font-size:7px;color:#7b6ef0">✦</span>' +
+        '<span style="position:relative;flex:0 0 56px;width:56px;height:56px;border-radius:999px;border:3px solid #fff;box-shadow:0 0 0 2.5px #7b6ef0, 0 6px 16px rgba(13,17,23,.25);display:flex">' + face(s.leadId, leadName, 50, '#7b6ef0') +
+          '<span aria-hidden="true" style="position:absolute;top:-10px;left:-8px;font-size:13px;color:#9d93f7">✦</span><span aria-hidden="true" style="position:absolute;top:-4px;right:-10px;font-size:10px;color:#b8aefc">✦</span><span aria-hidden="true" style="position:absolute;bottom:-4px;right:-10px;font-size:13px;color:#7b6ef0">✧</span></span>' +
+        '<div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:900;letter-spacing:.9px;color:#6b5ce7">HOSTED BY</div><div style="font-size:20px;font-weight:900;letter-spacing:-.3px;color:#2a1f8f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(leadName) + '</div></div>' +
+        '<span ' + on(() => toast('Messages are coming soon. For now, say hi to ' + firstName(leadName) + ' at the event!')) + ' style="flex:0 0 auto;display:flex;align-items:center;min-height:40px;padding:0 14px;border-radius:999px;background:#fff;font-size:13.5px;font-weight:800;color:#4a3ad4;cursor:pointer">Say hi</span></div>';
+
     return '<div data-screen-label="Plan page">' +
-      phaseHeader(s, 430, 'linear-gradient(to bottom, rgba(13,17,23,.5) 0%, rgba(13,17,23,0) 30%, rgba(8,40,22,.55) 62%, rgba(8,40,22,.96) 100%)',
-        '<span aria-hidden="true" style="position:absolute;top:calc(66px + var(--pt));right:16px;width:78px;border-radius:16px;overflow:hidden;text-align:center;background:#fff;box-shadow:0 10px 24px rgba(0,0,0,.3);transform:rotate(4deg)"><span style="display:block;background:#149a4b;color:#fff;font-size:12px;font-weight:900;letter-spacing:1px;padding:4px 0">' + dp.mon + '</span><span style="display:block;font-size:36px;line-height:1.15;font-weight:900;color:#0d1117">' + dp.day + '</span><span style="display:block;padding-bottom:6px;font-size:11.5px;font-weight:800;color:#6b7280">' + dp.dow + '</span></span>' +
-        '<div style="position:absolute;left:20px;right:20px;bottom:20px;color:#fff;display:flex;flex-direction:column;gap:8px">' +
-          '<div style="display:flex;gap:6px;flex-wrap:wrap"><span style="display:flex;align-items:center;gap:6px;border-radius:999px;padding:5px 11px;background:#149a4b;font-size:12px;font-weight:900;letter-spacing:.9px">✓ IT’S A PLAN' + when + '</span>' +
+      phaseHeader(s, 340, 'linear-gradient(to bottom, rgba(13,17,23,.5) 0%, rgba(13,17,23,0) 30%, rgba(8,40,22,.55) 62%, rgba(8,40,22,.96) 100%)',
+        '<div style="position:absolute;left:20px;right:20px;bottom:20px;color:#fff;display:flex;align-items:flex-end;gap:14px"><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px">' +
+          '<div style="display:flex;gap:6px;flex-wrap:wrap"><span style="display:flex;align-items:center;gap:6px;border-radius:999px;padding:5px 11px;background:#149a4b;font-size:12px;font-weight:900;letter-spacing:.9px">HAPPENING</span>' +
             (s.visibility === 'invite' ? '<span style="display:flex;align-items:center;gap:5px;border-radius:999px;padding:5px 11px;background:rgba(255,255,255,.22);font-size:12px;font-weight:900;letter-spacing:.9px">' + svg(11, stroke('#fff', 2.6), '<rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>') + 'INVITE ONLY</span>' : '') + '</div>' +
-          '<h1 style="margin:0;font-size:40px;line-height:.98;font-weight:900;letter-spacing:-1.3px;text-wrap:pretty">' + esc(s.text) + '</h1>' +
-          '<div style="font-size:15px;font-weight:700;color:#d7f2e0">' + esc([fmtTime(s.dayTime), s.spot, 'hosted by ' + leadName].filter(Boolean).join(' · ')) + '</div>' +
+          '<h1 style="margin:0;font-size:40px;line-height:.98;font-weight:900;letter-spacing:-1.3px;text-wrap:pretty">' + esc(s.text) + '</h1></div>' +
+          '<span aria-label="' + esc(fmtDay(s.dayDate)) + '" style="flex:0 0 70px;width:70px;border-radius:14px;overflow:hidden;text-align:center;background:#fff;box-shadow:0 8px 20px rgba(0,0,0,.3);transform:rotate(4deg)"><span style="display:block;background:#149a4b;color:#fff;font-size:11.5px;font-weight:900;letter-spacing:1px;padding:3px 0">' + dp.mon + '</span><span style="display:block;font-size:32px;line-height:1.15;font-weight:900;color:#0d1117">' + dp.day + '</span><span style="display:block;padding-bottom:5px;font-size:11px;font-weight:800;color:#6b7280">' + dp.dow + '</span></span>' +
         '</div>') +
       '<div style="padding:14px 14px 26px;display:flex;flex-direction:column;gap:12px">' +
         pendingCard(s) +
-        (lead ? '' : sheetCard(
-          '<span style="' + EYEBROW + '">Are you coming?</span>' +
-          '<div style="display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:8px">' + rsvpBtn('going', my === 'going' ? '✓ Going' : 'I’m going') + rsvpBtn('maybe', 'Maybe') + rsvpBtn('no', 'Can’t make it') + '</div>' +
-          '<span ' + on(() => setState({ invite: { id: s.id } })) + ' style="display:flex;align-items:center;justify-content:center;gap:7px;min-height:40px;font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">' + svg(15, stroke('currentColor', 2.3), '<path d="M12 4v11M7.5 8.5 12 4l4.5 4.5M5 14v5h14v-5"/>') + 'Bring a neighbor — share it</span>', 'gap:12px')) +
+        rsvpBlock +
         (lead ? sheetCard(
           eyebrowRow('Your guest list', '<span style="font-size:13px;font-weight:800;color:#6b7280">You’re hosting</span>') +
           '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px">' + stat(goingIds.length, 'Going', '#e7f6ec', '#0f7a3c') + stat(maybeN, 'Maybe', '#fdf1d6', '#8f6405') + stat(noN, 'Can’t make it', '#f2f3f6', '#454b55') + '</div>' +
@@ -3405,30 +3460,23 @@
             '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">Remind everyone the day before</div><div style="font-size:13px;font-weight:500;color:#6b7280">Goes to anyone going or maybe</div></div>' +
             '<span style="flex:0 0 46px;width:46px;height:28px;border-radius:999px;position:relative;transition:background 160ms;background:' + (s.autoRemind ? '#149a4b' : '#dcdfe6') + '"><span style="position:absolute;top:3px;left:' + (s.autoRemind ? 21 : 3) + 'px;width:22px;height:22px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:left 160ms"></span></span>' +
           '</div>', 'gap:14px') : '') +
+        whenWhere +
+        helping +
+        prep +
+        (s.updates.length ? sheetCard('<span style="' + EYEBROW + '">Updates from ' + esc(leadName) + '</span>' +
+          s.updates.map(u => '<div style="display:flex;gap:10px">' + face(s.leadId, leadName, 30) + '<div style="flex:1;border-radius:4px 14px 14px 14px;background:#f2f3f6;padding:10px 12px;font-size:14.5px;line-height:1.4;font-weight:500;color:#2b303a;white-space:pre-line">' + esc(u.body) +
+            '<div style="margin-top:4px;font-size:12px;font-weight:700;color:#8a909b">' + esc(ago(u.created)) + '</div></div></div>').join('')) : '') +
+        (s.hopes.length || s.vision ? '<div data-screen-label="About the event" style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:4px"><span style="' + EYEBROW + '">About the event</span>' +
+          (s.hopes.length ? '<ul style="margin:0;padding:0;list-style:none;display:flex;flex-direction:column">' + s.hopes.slice(0, 3).map(h => '<li style="display:flex;align-items:baseline;gap:11px;padding:10px 0;border-bottom:1px solid #f0f1f4;font-size:15.5px;line-height:1.4;font-weight:600;color:#0d1117"><span style="flex:0 0 6px;width:6px;height:6px;border-radius:999px;background:#0d1117;transform:translateY(-2px)"></span>' + esc(h) + '</li>').join('') + '</ul>' : '') +
+          (s.vision ? '<p style="margin:10px 0 0;font-size:15px;line-height:1.5;font-weight:500;color:#2b303a;white-space:pre-line">' + esc(s.vision) + '</p>' : '') + '</div>' : '') +
+        signups +
+        host +
         sheetCard(
           eyebrowRow('Who’s going', '<span style="font-size:13px;font-weight:800;color:#0f7a3c">' + goingIds.length + ' going</span>') +
           '<div style="display:flex;align-items:center;gap:10px">' +
             '<span style="display:flex">' + (goingIds.length ? peopleFaces(goingIds.slice(0, 5), 40) + (goingIds.length > 5 ? '<span style="width:40px;height:40px;border-radius:999px;border:2.5px solid #fff;margin-left:-10px;background:#e7f6ec;color:#0f7a3c;font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center">+' + (goingIds.length - 5) + '</span>' : '') : '<span style="font-size:14px;font-weight:600;color:#6b7280">Nobody yet. Be the first.</span>') + '</span>' +
             (lead ? '<span ' + on(() => clearPlan(s)) + ' style="margin-left:auto;font-size:13.5px;font-weight:800;color:#5c6270;cursor:pointer">Clear the date</span>' : '') +
           '</div>') +
-        '<div style="' + CARD + ';overflow:hidden">' +
-          '<div style="display:flex;align-items:center;gap:12px;padding:12px 16px"><span style="flex:0 0 38px;height:38px;border-radius:11px;background:#e7f6ec;color:#0f7a3c;display:flex;align-items:center;justify-content:center">' + I.cal(17) + '</span>' +
-            '<div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:800;color:#0d1117">' + esc(fmtDay(s.dayDate) + ' · ' + fmtTime(s.dayTime)) + '</div><div style="font-size:13px;font-weight:500;color:#6b7280">' + (s.autoRemind ? 'Reminder the day before' : 'No reminder') + '</div></div>' +
-            '<span ' + on(() => addToCalendar(s)) + ' style="flex:0 0 auto;font-size:13.5px;font-weight:800;color:#5b4ae8;cursor:pointer">Add to calendar</span></div>' +
-          '<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-top:1px solid #f2f3f6"><span style="flex:0 0 38px;height:38px;border-radius:11px;background:' + (s.spot ? '#e7f6ec;color:#0f7a3c' : '#f2f3f6;color:#9aa0ac') + ';display:flex;align-items:center;justify-content:center">' + I.pin(17) + '</span>' +
-            '<div ' + (lead && !s.spot ? on(() => openOffer(s, 'spot')) + ' ' : '') + 'style="flex:1;min-width:0' + (lead && !s.spot ? ';cursor:pointer' : '') + '"><div style="font-size:15.5px;font-weight:800;color:' + (s.spot ? '#0d1117' : '#6b7280') + '">' + esc(s.spot || 'Location TBD') + '</div>' +
-              (s.spotAddress ? '<div style="font-size:13px;font-weight:500;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(s.spotAddress) + '</div>' : '') + '</div>' +
-            (directions ? '<a href="' + esc(directions) + '" target="_blank" rel="noopener noreferrer" style="flex:0 0 auto;font-size:13.5px;font-weight:800;color:#5b4ae8;text-decoration:none">Directions</a>' : lead && !s.spot ? '<span ' + on(() => openOffer(s, 'spot')) + ' style="flex:0 0 auto;font-size:13.5px;font-weight:800;color:#5b4ae8;cursor:pointer">Add it</span>' : '') +
-          '</div>' +
-        '</div>' +
-        prep +
-        (s.updates.length ? sheetCard('<span style="' + EYEBROW + '">Updates from ' + esc(leadName) + '</span>' +
-          s.updates.map(u => '<div style="display:flex;gap:10px">' + face(s.leadId, leadName, 30) + '<div style="flex:1;border-radius:4px 14px 14px 14px;background:#f2f3f6;padding:10px 12px;font-size:14.5px;line-height:1.4;font-weight:500;color:#2b303a;white-space:pre-line">' + esc(u.body) +
-            '<div style="margin-top:4px;font-size:12px;font-weight:700;color:#8a909b">' + esc(ago(u.created)) + '</div></div></div>').join('')) : '') +
-        (s.hopes.length || s.vision ? sheetCard('<span style="' + EYEBROW + '">Good to know</span>' +
-          s.hopes.slice(0, 3).map(h => '<div style="display:flex;align-items:center;gap:11px"><span style="flex:0 0 8px;width:8px;height:8px;border-radius:999px;background:#149a4b"></span><span style="font-size:15.5px;line-height:1.35;font-weight:700;color:#0d1117">' + esc(h) + '</span></div>').join('') +
-          (s.vision ? '<p style="margin:0;font-size:15px;line-height:1.5;font-weight:500;color:#2b303a;white-space:pre-line">' + esc(s.vision) + '</p>' : '')) : '') +
-        signups +
         (s.mood.length ? sheetCard('<span style="' + EYEBROW + '">Inspo</span><div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">' +
           s.mood.slice(0, 3).map((p, i) => '<div ' + on(() => setState({ zoom: { photos: s.mood.map(photoUrl), i } })) + ' aria-label="View mood photo ' + (i + 1) + '" style="aspect-ratio:1;border-radius:12px;cursor:zoom-in;background:' + bg(photoUrl(p)) + '"></div>').join('') + '</div>') : '') +
       '</div>' +
