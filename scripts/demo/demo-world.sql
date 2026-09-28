@@ -24,15 +24,6 @@ insert into public.demo_roster (email, group_name, role) values
   ('torrez.fitness@gmail.com', 'Torrez Fitness', 'owner')
 on conflict (email, group_name) do update set role = excluded.role;
 
--- Earlier pre-arranged invites (test-only/pending-invites.sql) carry over where the roster doesn't cover them
-do $$ begin
-  if to_regclass('public.test_pending_invites') is not null then
-    insert into public.demo_roster (email, group_name, role)
-    select email, group_name, role from public.test_pending_invites
-    on conflict (email, group_name) do nothing;
-  end if;
-end $$;
-
 -- 3. The seeded content: anything led or posted by the demo people, plus the owner's seeded plans
 update public.sparks s set demo = true
   from auth.users u
