@@ -99,6 +99,10 @@ test('groups, idea links, guests and leads: the database refuses what the app ne
     // Profiles: a visitor in no group sees nobody; with the link, the idea's lead (and only them)
     const strangers = await asUser(A, async (c) => (await c.from('profiles').select('id')).data.length);
     expect(strangers).toBe(0);
+    // Members of the same group (both leads are in Torrez Fitness) see each other; the visitor doesn't
+    const seen = (page, id) => asUser(page, async (c, _C, id) => (await c.from('profiles').select('id').eq('id', id)).data.length, id);
+    expect({ leadSeesOther: await seen(L, otherUid), otherSeesLead: await seen(O, leadUid), visitorSeesOther: await seen(A, otherUid) })
+      .toEqual({ leadSeesOther: 1, otherSeesLead: 1, visitorSeesOther: 0 });
 
     const withLink = await asUser(A, async (c, _C, { id, g }) => {
       const opened = (await c.rpc('open_idea', { p_spark: id })).data;
