@@ -96,6 +96,9 @@ test('groups, idea links, guests and leads: the database refuses what the app ne
       bogusLink: (await c.rpc('open_idea', { p_spark: '00000000-0000-0000-0000-000000000000' })).data
     }), sparkId);
     expect(before).toEqual({ sparks: 0, bogusLink: false });
+    // Profiles: a visitor in no group sees nobody; with the link, the idea's lead (and only them)
+    const strangers = await asUser(A, async (c) => (await c.from('profiles').select('id')).data.length);
+    expect(strangers).toBe(0);
 
     const withLink = await asUser(A, async (c, _C, { id, g }) => {
       const opened = (await c.rpc('open_idea', { p_spark: id })).data;
@@ -109,10 +112,11 @@ test('groups, idea links, guests and leads: the database refuses what the app ne
         joinGroup: (await c.rpc('join_group', { p_code: 'TORREZ' })).error ? 'refused' : 'ALLOWED',
         startGroup: (await c.rpc('create_group', { p_name: '[E2E] anon group' })).error ? 'refused' : 'ALLOWED',
         contact: (await c.from('guest_contacts').insert({ spark_id: id, user_id: me, name: 'Gus', phone: '512 555 0142' })).error ? 'refused' : 'saved',
+        people: (await c.from('profiles').select('id')).data.map(p => p.id).filter(x => x !== me),
         shortPhone: (await c.from('guest_contacts').upsert({ spark_id: id, user_id: me, name: 'Gus', phone: '555' })).error ? 'refused' : 'ALLOWED'
       };
     }, { id: sparkId, g: group.id });
-    expect(withLink).toEqual({ opened: true, idea: ['[E2E] secret plan'], otherIdeas: 0, group: 1, post: 'refused', joinGroup: 'refused', startGroup: 'refused', contact: 'saved', shortPhone: 'refused' });
+    expect(withLink).toEqual({ opened: true, idea: ['[E2E] secret plan'], otherIdeas: 0, group: 1, post: 'refused', joinGroup: 'refused', startGroup: 'refused', contact: 'saved', people: [leadUid], shortPhone: 'refused' });
 
     // Guest phone numbers: the lead sees them, other people don't
     const leadSees = await asUser(L, async (c, _C, id) => (await c.from('guest_contacts').select('phone').eq('spark_id', id)).data.map(r => r.phone), sparkId);
