@@ -4,8 +4,8 @@
 
 - **Built (test):** https://gosparkhub-git-test-eric-5958s-projects.vercel.app · **Live:** https://gosparkhub.vercel.app
 - **Source:** github.com/esshaughn/sparkhub (`index.html`, `js/sparks.js`, `css/sparks.css`, `privacy.html`, `supabase/templates/`)
-- **Baseline:** Claude Design's **Spark Hub v6** handoff plus **Update 2**, **Update 3** and **Update 4** (Update 4: Past scrapbook date stickers and a dismissable So far card, the Ideas board's sort row and plain step icons, the event page's Plan phase as option 39a; Update 3: no photo button on Your tasks, the new Post an event form; Update 2: Groups list and group pages redesigned: world switcher, Ideas board, Past scrapbook, group search; Sort · Filter on Your schedule and group Plans; Calendar search's Try chips and "Or something unexpected"; the compact Profile sheet). The READMEs are `design/spark-hub/README-v6.md` and `design/spark-hub/README-v6-update-2.md` `README-v6-update-3.md` and `README-v6-update-4.md`; `design/spark-hub/Spark Hub App.dc.html` is the Update 4 prototype. Where the design conflicts with a decision the owner already made, §1 says what was built.
-- **As of:** 2026-09-28, v6 Update 4 is built
+- **Baseline:** Claude Design's **Spark Hub v6** handoff plus **Update 2**, **Update 3**, **Update 4** and **Update 5** (Update 5: the event page's Plan phase rebuilt: You're helping sliver, three-button RSVP, date and map cards, Help out job cards with shifts and descriptions, Pick a shift, the You're on it / You're off it banners, no RSVP question after signing up; Update 4: Past scrapbook date stickers and a dismissable So far card, the Ideas board's sort row and plain step icons, the event page's Plan phase as option 39a; Update 3: no photo button on Your tasks, the new Post an event form; Update 2: Groups list and group pages redesigned: world switcher, Ideas board, Past scrapbook, group search; Sort · Filter on Your schedule and group Plans; Calendar search's Try chips and "Or something unexpected"; the compact Profile sheet). The READMEs are `design/spark-hub/README-v6.md` and `design/spark-hub/README-v6-update-2.md` `README-v6-update-3.md`, `README-v6-update-4.md` and `README-v6-update-5.md`; `design/spark-hub/Spark Hub App.dc.html` is the Update 5 prototype. Where the design conflicts with a decision the owner already made, §1 says what was built.
+- **As of:** 2026-09-28, v6 Update 5 is built
 
 Where this doc and the design files disagree, **this doc is correct**.
 
@@ -38,14 +38,20 @@ Where this doc and the design files disagree, **this doc is correct**.
 | 20 | **Post an event keeps the 30-minute time list** (6:00 pm default) and the location suggestions under Where | A plain time input; a plain text input | Same choices as before; the suggestions save the address for directions |
 | 21 | **Post an event's name placeholder** reads *Enter event title* | *What’s happening?* | Owner (2026-09-28) |
 | 22 | **No new pickleball demo event** (`p3x`, Saturday pickleball round robin) | Add it to the demo data | Owner (2026-09-28): use the existing content |
-| 23 | **About the event** keeps the idea's longer description (if it has one) as a paragraph under the bulleted list | Only the bullets | So nothing the host wrote disappears |
+| 23 | **Only one demo event shows shifts and descriptions** (*Street tree planting*, shared by every tester: a described *Set up the tool table* 8:30 – 9:00am and *Water the new trees* in two shifts); every other demo sign-up keeps its name, count and time | All 26 planned events get the prototype's sign-ups (times, descriptions, 9 two-shift jobs) | The prototype's sign-ups differ from the live content, which stays as it is (README: don't change content) |
 | 24 | **Your guest list** keeps its three counts (Going · Maybe · Can't make it) | Four tiles | Invites are share links (§1 #1) |
+| 25 | **The Where card's map** is a Geoapify static map (OpenStreetMap, attribution on the image) with the purple pin; tapping it opens directions. No map when the place has no coordinates (typed by hand, not picked); Directions then searches the address | A placeholder map | Same provider as the location suggestions |
+| 26 | **RSVP counts** are real RSVPs (Going / Maybe / Can't), yours included | Going = interested count; Maybe / Can't from invite stats | Interest turns into Going when an idea becomes a plan; invites aren't counted |
 ## 2. Things the build had to invent (please design these properly)
 
 - **Empty states:** Could use a hand with nothing open: *Everything's covered for the next two weeks.* Calendar with no results: *No events match these filters.* / *Nothing coming up in your groups yet.* (under a "Coming up" heading). Month view, a day with nothing: *Nothing on this day.* View all, empty: *Nothing here right now.*
 - **Search with only type chips on** (no text) lists matching events; "No events match" then names the chips.
 - **Helping sign-ups with no time** show no time on Your schedule's expanded rows (Your tasks falls back to the event's time).
 - **Nav badges show "9+"** past nine.
+- **Help out, host tools:** the host (and whoever added a *something else*) gets a 28px gray **✕** on each job card, before the button, to remove it (*Remove "…"?* confirm). The open add card has a small ✕ to cancel; the host's version also has a *How many* box and, once something's typed, *Time (optional)* with the 30-minute list. A job with no *how many* shows *N in* instead of the dashes.
+- **Pick a shift** rows (built from the screenshot): 22px circle (purple with a white check when picked), time 16px/800, *n of need* / *Full* on the right, a 4px segmented bar underneath; a picked row gets a lavender `#f7f6ff` fill and a 2px purple ring. Full rows are dimmed and can't be picked unless you're in them. Close ✕ top-right.
+- **Find a replacement** opens the share sheet titled *Find a replacement*, quoting the message, with **Send the message** (the phone's share sheet, or copy).
+- **Could use a hand** rows for a shift add its time: *6:00 – 7:00pm · 1 of 1 open*.
 
 - **It happened page: a Reactions card** under the album (eyebrow *REACTIONS*; ❤️ 🙌 🎉 🙏 chips as on the memory cards, lavender `#f3f1fe` with a `#9d93f7` ring when yours). Below: *Thanks from Hal, Omar and 2 more.* or, before anyone thanks, *🙏 sends {lead} a public thank-you.* (not shown to the lead). This is where the 🙏 on a memory card leads.
 - **Empty filters on Your schedule and group Plans:** the heading reads *Coming up* (Soonest) or the sort's name, then the design's *No events match these filters.* card.
@@ -56,12 +62,11 @@ Where this doc and the design files disagree, **this doc is correct**.
 
 ## 3. Behaviour added in the build (no visual change)
 
-- **Remembered on this device:** the Past *So far* card's X (per group) and the event page's *You're helping with* open / closed (per event). The Ideas sort lasts for the visit.
-- **The compact RSVP:** tapping the pill you've already chosen while changing takes your RSVP back (the choices stay open).
+- **Remembered on this device:** the Past *So far* card's X (per group) and the event page's *You're helping* open / closed (per event; closed until you open it). The Ideas sort lasts for the visit.
+- **Undo** on *You're on it* after adding *something else* removes the item you added (not just your name on it).
 
 - **Deleting an idea** returns you to the screen you opened it from (the Calendar if none).
 - **URLs:** the Calendar is `/` (and `#/calendar`), Your tasks `#/tasks`, Your schedule `#/schedule`; `#/me` and `#/notifications` open the Profile / Notifications sheets over the Calendar. Your plans & ideas is still at `#/own` (off the tab bar). Following a link or the back button closes any open sheet.
-- **The RSVP ask** shows after signing up for an item, adding your own item, claiming a role, or offering to help organize a plan — when you're not the lead and haven't said Going or Can't go. It can't be dismissed.
 - **Calendar filters, search and "Feeling wild? / could use a hand" dismissals** last for the visit; the chosen view (List / Tiles / Month) is remembered per device.
 - **Demo data:** `scripts/demo/seed-events.py` now also makes, dated from the day it runs, a plan today / tomorrow (reminder off) / two days ago and a Helpers-stage idea for each tester, plus two shared plans everyone helps on, so every v6 state shows.
 
@@ -71,6 +76,8 @@ Where this doc and the design files disagree, **this doc is correct**.
 
 ## 4. Designed but not built or not working
 
+- **"We'll let {Host} know"** (You're off it): nothing is sent yet. Notifications are built from what's stored, so the host just sees one fewer name on the job.
+- **Adding descriptions, time ranges and shifts:** only the host can, and there's no form for it yet (still open in the design), so today they come from the demo data.
 - **Say hi** on the Hosted by card: there's no messaging yet, so it shows a toast *Messages are coming soon. For now, say hi to {first name} at the event!*
 
 - **The CTA pills on to-do rows** don't do their action; as in the prototype, tapping the rows expands them (3+) or opens the event.

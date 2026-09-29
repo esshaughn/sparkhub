@@ -1,5 +1,5 @@
 // v6: Your tasks (Leading / Helping, to-dos, stats strip, View all), Your schedule (strips that expand),
-// the community Calendar (filters, search, Could use a hand, Month), the "Will you be there?" sheet,
+// the community Calendar (filters, search, Could use a hand, Month), the "You're on it" banner,
 // and Profile / Notifications as sheets.
 const { test, expect } = require('@playwright/test');
 const { uniqueTitle, newLead, postEvent, openIdea, deleteIdea, pickView, asUser } = require('./helpers');
@@ -28,6 +28,7 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     id = await postEvent(H, { title, date: inDays(0), time: '23:30' });
     const HP = H.locator('[data-screen-label="Plan page"]');
     for (const [item, need, time] of [['Folding chairs', '2', '23:00'], ['Ice', '1', '']]) {
+      await HP.getByText('Add a job or item').click();
       await HP.getByLabel('Add a sign-up').fill(item);
       await HP.getByLabel('How many needed').fill(need);
       if (time) await HP.getByLabel('Sign-up time').selectOption(time);
@@ -96,14 +97,13 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     const OP = O.locator('[data-screen-label="Plan page"]');
     await expect(OP).toBeVisible();
 
-    // Signing up without an RSVP asks "Will you be there?"; Maybe keeps him helping
+    // v6 Update 5: signing up is one tap and a "You're on it" banner, no RSVP question; he says Maybe himself
     await OP.locator('[data-signup="Ice"]').getByRole('button', { name: 'Sign up' }).click();
-    const ask = O.getByRole('dialog', { name: 'Will you be there?' });
-    await expect(ask).toContainText('You can help even if you can’t attend.');
-    await shot(O, '05-rsvp-ask');
-    await ask.getByRole('button', { name: 'Maybe' }).click();
-    await expect(O.getByText('Marked as maybe. You’re still helping.')).toBeVisible();
-    await expect(ask).toHaveCount(0);
+    await expect(O.locator('[data-banner="on"]')).toContainText('You’re on it');
+    await expect(O.getByRole('dialog', { name: 'Will you be there?' })).toHaveCount(0);
+    await shot(O, '05-on-it');
+    await OP.locator('[data-rsvp]').getByRole('button', { name: /^Maybe/ }).click();
+    await expect(O.getByText('Marked as maybe')).toBeVisible();
 
     // His Your tasks: a Helping card with "You said maybe", his sign-up and the day
     await nav(O).getByRole('button', { name: /^Your tasks/ }).click();
@@ -128,7 +128,7 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     await shot(O, '07-your-schedule-list');
     await pickView(sched, 'Tiles');
 
-    // Could use a hand: claim the chairs; as a Maybe he's asked to confirm, and says he's going
+    // Could use a hand: claim the chairs; "You're on it", and no RSVP question
     await nav(O).getByRole('button', { name: 'Calendar', exact: true }).click();
     await cal.getByRole('button', { name: /^\d+ events? could use a hand$/ }).click();
     const hand = O.getByRole('dialog', { name: 'Could use a hand' });
@@ -136,12 +136,9 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     await expect(row).toContainText('2 of 2 open');
     await shot(O, '08-could-use-a-hand');
     await row.getByRole('button', { name: 'Claim' }).click();
-    await expect(O.getByText('You claimed folding chairs')).toBeVisible();
+    await expect(O.locator('[data-banner="on"]')).toContainText('You’re on it');
     await expect(row).toContainText('Yours');
-    const confirmAsk = O.getByRole('dialog', { name: 'Confirm your RSVP' });
-    await expect(confirmAsk).toContainText('You’re marked as maybe.');
-    await confirmAsk.getByRole('button', { name: 'I’m going' }).click();
-    await expect(O.getByText('You’re going. Thanks for helping!')).toBeVisible();
+    await expect(O.getByRole('dialog', { name: 'Confirm your RSVP' })).toHaveCount(0);
     await hand.getByRole('button', { name: 'Close' }).click();
 
     // Month view: the day's events under the grid
@@ -165,9 +162,9 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     await notifs.getByRole('button', { name: 'Close' }).click();
     await expect(notifs).toHaveCount(0);
 
-    // Hope's card now shows him going and the chairs half covered
+    // Hope's card: he's a maybe (so not going), and the chairs are half covered
     await H.reload();
-    await expect(lead.getByLabel('Going: 1')).toBeVisible();
+    await expect(lead.getByLabel('Going: 0')).toBeVisible();
     await expect(lead.getByLabel('Sign-ups: 2/3')).toBeVisible();
 
     expect(host.errors).toEqual([]);

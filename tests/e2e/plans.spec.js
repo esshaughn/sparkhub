@@ -20,17 +20,18 @@ test('a plan: guest RSVPs, sign-ups, an update, the host’s notes, then clearin
     await expect(HP).toContainText('HAPPENING');                               // v6 Update 4: the chip; time and spot live in When & where
     await expect(HP).toContainText('5:30pm');
     await expect(HP).not.toContainText('HOSTED BY');                           // not shown to the host
-    await expect(HP).toContainText('Bring a bowl.');
+    await expect(HP).not.toContainText('Bring a bowl.');                      // v6 Update 5: no About the event on plans
     await expect(HP).toContainText('Your guest list');
     await expect(HP.getByRole('switch', { name: 'Remind everyone the day before' })).toHaveAttribute('aria-checked', 'true');
     await expect(HP).toContainText('Location TBD');
 
     // The host adds sign-ups (with "how many") and posts an update
+    await HP.getByText('Add a job or item').click();
     await HP.getByLabel('Add a sign-up').fill('Folding chairs');
     await HP.getByLabel('How many needed').fill('2');
     await HP.getByRole('button', { name: 'Add', exact: true }).click();
     await expect(H.getByText('Added to sign-ups')).toBeVisible();
-    await expect(HP.locator('[data-signup="Folding chairs"]')).toContainText('0 of 2 · 2 still needed');
+    await expect(HP.locator('[data-signup="Folding chairs"]')).toContainText('0 of 2');
     await HP.getByRole('button', { name: 'Send an update' }).click();
     const blast = H.getByRole('dialog', { name: 'Send an update' });
     await blast.getByLabel('Your update').fill('Parking is on the street.');
@@ -48,48 +49,67 @@ test('a plan: guest RSVPs, sign-ups, an update, the host’s notes, then clearin
     // The guest opens the link: RSVP asks for their info once, then they sign up for things
     await openIdea(G, id);
     const GP = G.locator('[data-screen-label="Plan page"]');
-    await expect(GP).toContainText('Coming?');
+    await expect(GP.locator('[data-rsvp]')).toBeVisible();
     await expect(GP).toContainText('Parking is on the street.');
     await expect(GP).toContainText('HOSTED BY');
     await expect(GP.getByRole('button', { name: 'Say hi' })).toBeVisible();
     await expect(GP).not.toContainText('Before the day');                     // just for the host
-    await GP.getByRole('button', { name: 'I’m going' }).click();
+    const rsvp = (k) => GP.locator('[data-rsvp]').getByRole('button', { name: new RegExp('^' + k) });
+    await rsvp('Going').click();
     await answerGuestPrompt(G, 'Gus', '(512) 555-0142');
     await expect(G.getByText('You’re going. See you there!')).toBeVisible();
-    // Answered, the RSVP folds into one line; "Change ›" brings the choices back
-    const bar = GP.locator('[data-rsvp-bar]');
-    await expect(bar).toContainText('You’re going');
-    await expect(GP.getByRole('button', { name: 'Maybe' })).toHaveCount(0);
-    await bar.click();
-    await GP.getByRole('button', { name: 'Maybe' }).click();
+    // v6 Update 5: three buttons with counts; the pick is filled; tapping it again clears it
+    await expect(rsvp('Going')).toHaveAttribute('aria-pressed', 'true');
+    await expect(rsvp('Going')).toContainText('1');
+    await rsvp('Maybe').click();
     await expect(G.getByText('Marked as maybe')).toBeVisible();
-    await expect(bar).toContainText('You’re a maybe');
-    await bar.click();
-    await GP.getByRole('button', { name: 'I’m going' }).click();
-    await expect(bar).toContainText('You’re going');
-    await expect(GP).not.toContainText('YOU’RE HELPING WITH');
+    await expect(rsvp('Maybe')).toHaveAttribute('aria-pressed', 'true');
+    await rsvp('Maybe').click();
+    await expect(rsvp('Maybe')).toHaveAttribute('aria-pressed', 'false');
+    await rsvp('Going').click();
+    await expect(rsvp('Going')).toHaveAttribute('aria-pressed', 'true');
+    await expect(GP.locator('[data-helping-bar]')).toHaveCount(0);
+    // Signing up is one tap, then "You're on it" (no RSVP question)
     await GP.locator('[data-signup="Folding chairs"]').getByRole('button', { name: 'Sign up' }).click();
-    await expect(G.getByText('You’re down for folding chairs')).toBeVisible();
-    // "You're helping with": open by default, collapses and stays collapsed
-    const jobs = GP.locator('[data-screen-label="You’re helping with"]');
-    await expect(jobs).toContainText('Folding chairs');
-    await jobs.getByRole('button', { name: '1 job' }).click();
-    await expect(jobs).not.toContainText('Folding chairs');
-    await jobs.getByRole('button', { name: '1 job' }).click();
-    await expect(jobs).toContainText('Folding chairs');
-    await expect(GP.locator('[data-signup="Folding chairs"]')).toContainText('1 of 2 · 1 still needed');
+    await expect(G.locator('[data-banner="on"]')).toContainText('You’re on it');
+    await expect(G.locator('[data-banner="on"]')).toContainText('is counting on you');
+    await expect(G.getByRole('dialog', { name: 'Will you be there?' })).toHaveCount(0);
+    // "You're helping": under the photo, collapsed by default, opens to the jobs
+    const bar = GP.locator('[data-helping-bar]');
+    await expect(bar).toContainText('1 task');
+    await expect(GP.locator('[data-screen-label="You’re helping"]')).not.toContainText('Folding chairs');
+    await bar.click();
+    await expect(GP.locator('[data-screen-label="You’re helping"]')).toContainText('Folding chairs');
+    await expect(GP.locator('[data-signup="Folding chairs"]')).toContainText('1 of 2');
+    await expect(GP.locator('[data-signup="Folding chairs"]')).toContainText('You’re in');
+    // Undo takes it straight back
+    await G.locator('[data-banner="on"]').getByRole('button', { name: 'Undo' }).click();
+    await expect(G.getByText('Okay, you’re off it')).toBeVisible();
+    await expect(GP.locator('[data-signup="Folding chairs"]')).toContainText('0 of 2');
+    await GP.locator('[data-signup="Folding chairs"]').getByRole('button', { name: 'Sign up' }).click();
+    await expect(GP.locator('[data-signup="Folding chairs"]')).toContainText('1 of 2');
+    // Adding something else signs you up for it
+    await GP.getByText('Add something else').click();
     await GP.getByLabel('Bringing something else?').fill('Lemonade');
     await GP.getByRole('button', { name: 'Add', exact: true }).click();
-    await expect(G.getByText('Thanks! You’re down for lemonade')).toBeVisible();
-    await expect(GP.locator('[data-signup="Lemonade"]')).toContainText('Gus');
+    await expect(GP.locator('[data-signup="Lemonade"]')).toContainText('You’re in');
+    // Taking yourself off later: "You're off it" with Find a replacement
+    await GP.locator('[data-signup="Lemonade"]').getByLabel('You’re in. Tap to take yourself off').click();
+    const off = G.locator('[data-banner="off"]');
+    await expect(off).toContainText('You’re off it');
+    await off.getByRole('button', { name: 'Find a replacement' }).click();
+    await expect(G.getByRole('dialog', { name: 'Find a replacement' })).toContainText('I can’t make it to lemonade');
+    await G.keyboard.press('Escape');
+    await GP.locator('[data-signup="Lemonade"]').getByRole('button', { name: 'Sign up' }).click();
+    await expect(GP.locator('[data-signup="Lemonade"]')).toContainText('You’re in');
     const download = G.waitForEvent('download');
-    await GP.getByText('Add to calendar').click();
+    await GP.getByLabel('Add to calendar').click();
     expect((await download).suggestedFilename()).toMatch(/\.ics$/);
 
     // The host sees them; then clears the date: back to an idea, the guest shows as interested
     await H.reload();
     await expect(HP).toContainText('1 going');
-    await expect(HP.locator('[data-signup="Folding chairs"]')).toContainText('Gus');
+    await expect(HP.locator('[data-signup="Folding chairs"]')).toContainText('1 of 2');
     await HP.getByText('Clear the date').click();
     await confirm(H, 'Clear the date');
     const HI = H.locator('[data-screen-label="Idea page"]');
@@ -101,6 +121,75 @@ test('a plan: guest RSVPs, sign-ups, an update, the host’s notes, then clearin
     if (id) await deleteIdea(H, id).catch(() => {});
     await host.context.close();
     await guest.context.close();
+  }
+});
+
+test('Help out: descriptions, time ranges and Pick a shift', async ({ browser }) => {
+  test.setTimeout(120000);
+  const host = await newLead(browser, 1, 'Hope');
+  const helper = await newLead(browser, 2, 'Omar');
+  const H = host.page, O = helper.page;
+  const title = uniqueTitle('Coat drive');
+  let id;
+  try {
+    id = await postEvent(H, { title, date: inDays(12), time: '17:00' });
+    // The post form can't make these yet (still open in design), so the host adds them directly
+    const long = 'Go through the donated bins and pile coats by size: toddler, kids, teen. Labeled tables are set up in the garage, and anything needing a wash goes on the blue tarp.';
+    await asUser(H, async (c, _C, { id, long }) => {
+      await c.from('signup_items').insert({ spark_id: id, item: 'Sort kids’ sizes', need: 3, time: '17:00', end_time: '18:00', descr: long });
+      const job = (await c.from('signup_items').insert({ spark_id: id, item: 'Coat check table', descr: 'Hand out tickets and hang coats.' }).select('id').single()).data.id;
+      await c.from('signup_items').insert([
+        { spark_id: id, item: 'Coat check table', need: 1, time: '18:00', end_time: '19:00', shift_of: job },
+        { spark_id: id, item: 'Coat check table', need: 1, time: '19:00', end_time: '20:00', shift_of: job }]);
+    }, { id, long });
+
+    await openIdea(O, id);
+    const OP = O.locator('[data-screen-label="Plan page"]');
+    const sort = OP.locator('[data-signup="Sort kids’ sizes"]');
+    await expect(sort).toContainText('5:00 – 6:00pm');
+    await expect(sort).toContainText('0 of 3');
+    await sort.getByRole('button', { name: 'More' }).click();
+    await expect(sort.getByRole('button', { name: 'Less' })).toBeVisible();
+    const coat = OP.locator('[data-signup="Coat check table"]');
+    await expect(coat).toContainText('2 shifts · 6:00 – 8:00pm');
+    await expect(coat).toContainText('0 of 2');
+
+    // Pick a shift: both shifts, with a note
+    await coat.getByRole('button', { name: 'Sign up' }).click();
+    const pick = O.getByRole('dialog', { name: 'Pick a shift' });
+    await expect(pick).toContainText('Hand out tickets and hang coats.');
+    await pick.locator('[data-shift="6:00 – 7:00pm"]').click();
+    await pick.locator('[data-shift="7:00 – 8:00pm"]').click();
+    await pick.getByLabel('Add a note, if you want').fill('Can bring hangers');
+    await pick.getByRole('button', { name: 'Done' }).click();
+    await expect(O.locator('[data-banner="on"]')).toContainText('You’re on it');
+    await expect(coat).toContainText('2 of 2');
+    await expect(coat).toContainText('You’re in');
+    await O.locator('[data-helping-bar]').click();
+    await expect(OP.locator('[data-screen-label="You’re helping"]')).toContainText('6:00 – 7:00pm, 7:00 – 8:00pm');
+    const notes = await asUser(O, async (c) => (await c.from('signup_claims').select('note').eq('note', 'Can bring hangers')).data.length);
+    expect(notes).toBe(2);
+
+    // Undo takes him off every shift on that job
+    await O.locator('[data-banner="on"]').getByRole('button', { name: 'Undo' }).click();
+    await expect(coat).toContainText('0 of 2');
+    // One shift, then drop it: "You're off it"
+    await coat.getByRole('button', { name: 'Sign up' }).click();
+    await pick.locator('[data-shift="7:00 – 8:00pm"]').click();
+    await pick.getByRole('button', { name: 'Done' }).click();
+    await expect(coat).toContainText('1 of 2');
+    await coat.getByLabel('You’re in. Tap to take yourself off').click();
+    await pick.locator('[data-shift="7:00 – 8:00pm"]').click();
+    await pick.getByRole('button', { name: 'Done' }).click();
+    await expect(O.locator('[data-banner="off"]')).toContainText('We’ll let Hope know');
+    await expect(coat).toContainText('0 of 2');
+
+    expect(host.errors).toEqual([]);
+    expect(helper.errors).toEqual([]);
+  } finally {
+    if (id) await deleteIdea(H, id).catch(() => {});
+    await host.context.close();
+    await helper.context.close();
   }
 });
 
@@ -142,7 +231,7 @@ test('it happened: the album and "do it again"; invite-only plans stay private',
     const hidden = await asUser(O, async (c, _C, id) => (await c.from('sparks').select('id').eq('id', id)).data.length, ids[1]);
     expect(hidden).toBe(0);
     await openIdea(O, ids[1]);
-    await expect(O.locator('[data-screen-label="Plan page"]')).toContainText('Coming?');
+    await expect(O.locator('[data-screen-label="Plan page"] [data-rsvp]')).toBeVisible();
 
     expect(host.errors).toEqual([]);
   } finally {

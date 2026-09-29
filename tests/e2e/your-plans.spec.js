@@ -19,6 +19,7 @@ test('Your schedule and the Calendar: role strips, a helper’s sign-ups with ti
     // The host adds sign-ups; one has a time (hosts only)
     const HP = H.locator('[data-screen-label="Plan page"]');
     for (const [item, need, time] of [['Folding tables', '2', '15:30'], ['Ice', '1', ''], ['Speaker', '1', '']]) {
+      await HP.getByText('Add a job or item').click();
       await HP.getByLabel('Add a sign-up').fill(item);
       await HP.getByLabel('How many needed').fill(need);
       if (time) await HP.getByLabel('Sign-up time').selectOption(time);
@@ -30,11 +31,11 @@ test('Your schedule and the Calendar: role strips, a helper’s sign-ups with ti
     // Hal says he's going and takes three things
     await openIdea(O, id);
     const OP = O.locator('[data-screen-label="Plan page"]');
-    await OP.getByRole('button', { name: 'I’m going' }).click();
-    await expect(OP.locator('[data-rsvp-bar]')).toContainText('You’re going');
+    await OP.locator('[data-rsvp]').getByRole('button', { name: /^Going/ }).click();
+    await expect(OP.locator('[data-rsvp]').getByRole('button', { name: /^Going/ })).toHaveAttribute('aria-pressed', 'true');
     for (const item of ['Folding tables', 'Ice', 'Speaker']) {
       await OP.locator('[data-signup="' + item + '"]').getByRole('button', { name: 'Sign up' }).click();
-      await expect(OP.locator('[data-signup="' + item + '"]').getByText('✓ You’re on it')).toBeVisible();
+      await expect(OP.locator('[data-signup="' + item + '"]').getByText('You’re in')).toBeVisible();
     }
 
     // Hal's Your schedule: a Helping strip, "3 tasks", expanding in place to his sign-ups with the time

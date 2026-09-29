@@ -235,6 +235,10 @@ test('plans: replies, sign-ups, updates, notes and invite-only plans follow the 
         planWithoutDate: (await c.from('sparks').insert({ ...base, text: '[E2E] no date', planned: true }).select('id')).error ? 'refused' : 'ALLOWED'
       };
       out.item = (await c.from('signup_items').insert({ spark_id: out.plan, item: 'Cooler', need: 1 }).select('id').single()).data.id;
+      // v6 Update 5: a job split into shifts (the lead can; shifts point at a job on the same event)
+      out.job = (await c.from('signup_items').insert({ spark_id: out.plan, item: 'Coat check', descr: 'Hang coats' }).select('id').single()).data.id;
+      out.shift = (await c.from('signup_items').insert({ spark_id: out.plan, item: 'Coat check', need: 1, time: '10:00', end_time: '11:00', shift_of: out.job }).select('id').single()).data.id;
+      out.shiftElsewhere = (await c.from('signup_items').insert({ spark_id: out.idea, item: 'Coat check', shift_of: out.job })).error ? 'refused' : 'ALLOWED';
       out.prep = (await c.from('plan_prep').insert({ spark_id: out.plan, answers: { 0: 'private' } })).error ? 'refused' : 'ok';
       out.update = (await c.from('plan_updates').insert({ spark_id: out.plan, body: 'See you there' })).error ? 'refused' : 'ok';
       return out;
@@ -243,6 +247,7 @@ test('plans: replies, sign-ups, updates, notes and invite-only plans follow the 
     expect(made.planWithoutDate).toBe('refused');
     expect(made.prep).toBe('ok');
     expect(made.update).toBe('ok');
+    expect(made.shiftElsewhere).toBe('refused');
 
     const r = await asUser(O, async (c, _C, m) => {
       const me = (await c.auth.getUser()).data.user.id;
@@ -254,6 +259,12 @@ test('plans: replies, sign-ups, updates, notes and invite-only plans follow the 
         signupWithNeed: await ok(c.from('signup_items').insert({ spark_id: m.plan, item: 'Chairs', need: 5 })),
         signupWithTime: await ok(c.from('signup_items').insert({ spark_id: m.plan, item: 'Cups', time: '10:00' })),
         signupSomethingElse: await ok(c.from('signup_items').insert({ spark_id: m.plan, item: 'Lemonade' })),
+        signupWithDescr: await ok(c.from('signup_items').insert({ spark_id: m.plan, item: 'Cake', descr: 'Chocolate' })),
+        signupWithEnd: await ok(c.from('signup_items').insert({ spark_id: m.plan, item: 'Cake', end_time: '11:00' })),
+        signupAsShift: await ok(c.from('signup_items').insert({ spark_id: m.plan, item: 'Coat check', shift_of: m.job })),
+        claimShift: await ok(c.from('signup_claims').insert({ item_id: m.shift })),
+        // A job with shifts takes no claims itself: the insert is skipped
+        claimJobRow: await c.from('signup_claims').insert({ item_id: m.job }).then(() => c.from('signup_claims').select('item_id').eq('item_id', m.job)).then(x => x.data.length),
         claim: await ok(c.from('signup_claims').insert({ item_id: m.item })),
         update: await ok(c.from('plan_updates').insert({ spark_id: m.plan, body: 'Hijacked' })),
         readPrep: (await c.from('plan_prep').select('spark_id').eq('spark_id', m.plan)).data.length,
@@ -269,6 +280,7 @@ test('plans: replies, sign-ups, updates, notes and invite-only plans follow the 
     expect(r).toEqual({
       rsvpOnIdea: 'refused', rsvpOnPlan: 'ALLOWED', rsvpForSomeoneElse: 'refused',
       signupWithNeed: 'refused', signupWithTime: 'refused', signupSomethingElse: 'ALLOWED', claim: 'ALLOWED',
+      signupWithDescr: 'refused', signupWithEnd: 'refused', signupAsShift: 'refused', claimShift: 'ALLOWED', claimJobRow: 0,
       update: 'refused', readPrep: 0, writePrep: 'refused', makePlan: 'refused', clearPlan: 'refused',
       markPlanned: 0, seeSecret: 0, rsvpSecret: 'refused', suggestDateOnPlan: 'ALLOWED'
     });

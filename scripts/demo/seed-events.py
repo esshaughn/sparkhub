@@ -416,10 +416,20 @@ def make(d, lead, is_plan):
            'min_people': d.get('min'), 'spot_address': d.get('addr'), 'spot_lat': ll[0] if ll else None, 'spot_lon': ll[1] if ll else None}
     sid = rest('POST', 'sparks', row)[0]['id']
     x = dict(d, id=sid, gid=groups[d['g']], lead_id=lead, items=[], taken={})
-    for item, need, t in d.get('signups', []):
-        iid = rest('POST', 'signup_items', {'spark_id': sid, 'item': item, 'need': need, 'time': t, 'created_by': lead})[0]['id']
+    for su in d.get('signups', []):
+        # (item, need, time), or a dict for v6 Update 5 jobs: desc, end time, and shifts [(start, end, need)]
+        j = su if isinstance(su, dict) else {'item': su[0], 'need': su[1], 'time': su[2]}
+        base = {'spark_id': sid, 'item': j['item'], 'descr': j.get('desc'), 'created_by': lead}
+        if j.get('shifts'):
+            job = rest('POST', 'signup_items', base)[0]['id']
+            for t, end, need in j['shifts']:
+                iid = rest('POST', 'signup_items', dict(base, descr=None, need=need, time=t, end_time=end, shift_of=job))[0]['id']
+                x['items'].append(iid)
+                x['taken'][iid] = [need, 0]
+            continue
+        iid = rest('POST', 'signup_items', dict(base, need=j['need'], time=j.get('time'), end_time=j.get('end')))[0]['id']
         x['items'].append(iid)
-        x['taken'][iid] = [need, 0]
+        x['taken'][iid] = [j['need'], 0]
     return x
 
 
@@ -467,7 +477,13 @@ for k, r in enumerate(R):
 shared = [(dict(g=W, text='Porch light potluck', date=day(1), time='18:30', spot='Walnut Creek Neighborhood Park', photo='friendsgiving.jpg',
                 vision='Bring a dish, we’ll bring the lights.', signups=[('Bring a folding table', 8, '18:00'), ('Pick up ice', 6, None)]), 'maybe'),
           (dict(g=C, text='Street tree planting', date=day(4), time='09:00', photo='garden-work-day.jpg',
-                vision='Twelve saplings, lots of shovels. Location coming soon.', signups=[('Set up the tool table', 8, '08:30'), ('Bring lemonade', 6, None)]), None)]
+                vision='Twelve saplings, lots of shovels. Location coming soon.',
+                signups=[{'item': 'Set up the tool table', 'need': 8, 'time': '08:30', 'end': '09:00',
+                          'desc': 'Unload the shovels, gloves and mulch from the truck and lay them out by size so planters can grab what they need. '
+                                  'Keep an eye on the sign-out sheet so every tool finds its way back to the truck at the end.'},
+                         ('Bring lemonade', 6, None),
+                         {'item': 'Water the new trees', 'desc': 'Fill buckets at the spigot and give each sapling a slow soak.',
+                          'shifts': [('09:00', '10:00', 2), ('10:00', '11:00', 2)]}]), None)]
 for d, status in shared:
     x = make(d, P['Marisol'] if d['g'] == W else P['Dee'], True)
     fill(x, going=4, maybe=1)

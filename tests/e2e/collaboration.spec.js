@@ -99,7 +99,7 @@ test('a guest with the link takes part; everyone votes; the lead picks and makes
     await expect(LP).toContainText('1 going');
     await G.reload();
     const GP = G.locator('[data-screen-label="Plan page"]');
-    await expect(GP.locator('[data-rsvp-bar]')).toContainText('You’re going');
+    await expect(GP.locator('[data-rsvp]').getByRole('button', { name: /^Going/ })).toHaveAttribute('aria-pressed', 'true');
 
     expect(lead.errors).toEqual([]);
     expect(guest.errors).toEqual([]);

@@ -83,7 +83,7 @@
   };
   let lastPrefs = '';
   const savePrefs = () => {
-    const next = JSON.stringify({ groupId: state.groupId, view: state.view, homeView: state.homeView, cView: state.cView, sort: state.sort, guestName: state.guestName, guestPhone: state.guestPhone, pastStatsHidden: state.pastStatsHidden, jobsClosed: state.jobsClosed });
+    const next = JSON.stringify({ groupId: state.groupId, view: state.view, homeView: state.homeView, cView: state.cView, sort: state.sort, guestName: state.guestName, guestPhone: state.guestPhone, pastStatsHidden: state.pastStatsHidden, jobsOpen: state.jobsOpen });
     if (next === lastPrefs) return;
     lastPrefs = next;
     try { localStorage.setItem(PREFS_KEY, next); } catch (e) { /* storage blocked: conveniences only */ }
@@ -205,12 +205,12 @@
     pe: null, confirm: null, interestList: false,
     gpCode: '', gpMembers: null,
     // v6: Profile / Notifications are sheets; Your tasks' "View all", expansions, the RSVP ask
-    profSheet: false, notifSheet: false, dashAll: null, dashOpen: {}, schedOpen: {}, rsvpAsk: null,
+    profSheet: false, notifSheet: false, dashAll: null, dashOpen: {}, schedOpen: {}, shiftPick: null, banner: null, sigAdding: false,
     // v6 Calendar: search, filters, sort, view, month, discovery cards
     cq: '', cSearch: false, cGrps: null, cTypes: [], cSort: 'soon', cView: CVIEWS.indexOf(prefs.cView) > -1 ? prefs.cView : 'list',
     cMon: null, cDay: null, cWildHidden: false, cNeedsHidden: false, cHandSheet: false,
     // v6 Update 2: search's Try chips; Your schedule and group pages' Sort · Filter; a group's search
-    cTry: null, cWhen: 'any', cHelp: false, sSort: 'soon', sFilt: [], gSort: 'soon', gFilt: [], iSort: 'interest', pastStatsHidden: prefs.pastStatsHidden || {}, jobsClosed: prefs.jobsClosed || {}, rsvpEdit: null, viewAs: null, testers: null, gSearch: false, gq: '', gTry: null
+    cTry: null, cWhen: 'any', cHelp: false, sSort: 'soon', sFilt: [], gSort: 'soon', gFilt: [], iSort: 'interest', pastStatsHidden: prefs.pastStatsHidden || {}, jobsOpen: prefs.jobsOpen || {}, descOpen: {}, viewAs: null, testers: null, gSearch: false, gq: '', gTry: null
   }, blankCompose());
 
   // ---- URL <-> screen, so ideas and invites can be shared and the back button works
@@ -344,6 +344,36 @@
 
   // Plan data grouped by idea (RSVPs, votes, sign-ups, updates, organizers, album, the lead's prep)
   const byKey = (rows, key) => { const m = {}; (rows || []).forEach(r => { (m[r[key]] = m[r[key]] || []).push(r); }); return m; };
+  // Sign-ups (v6 Update 5). `signups` is every spot people can claim: plain jobs, and each shift of a
+  // job that has shifts (a shift row points at its job with shift_of and carries the job's name).
+  // `jobs` is what the event page lists: plain jobs, and shift jobs with their `shifts`.
+  const hm = (t) => t ? String(t).slice(0, 5) : null;
+  const toSignups = (rows, claims) => {
+    const unit = (i, job) => ({ id: i.id, item: i.item, need: i.need || null, time: hm(i.time), endTime: hm(i.end_time), desc: i.descr || '', jobId: job ? job.id : null,
+      createdBy: i.created_by, claims: (claims[i.id] || []).map(c => ({ userId: c.user_id, note: c.note || '', created: Date.parse(c.created_at) })) });
+    const byAge = rows.slice().sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at) || String(a.time || '').localeCompare(String(b.time || '')));
+    const kids = byKey(byAge.filter(i => i.shift_of), 'shift_of');
+    const signups = [], jobs = [];
+    byAge.filter(i => !i.shift_of).forEach(i => {
+      if (!kids[i.id]) { const u = unit(i); signups.push(u); jobs.push(u); return; }
+      const job = { id: i.id, item: i.item, desc: i.descr || '', createdBy: i.created_by, shifts: [] };
+      kids[i.id].sort((a, b) => String(a.time || '').localeCompare(String(b.time || ''))).forEach(k => { const u = unit(k, job); u.desc = u.desc || job.desc; job.shifts.push(u); signups.push(u); });
+      job.time = job.shifts[0].time; job.endTime = job.shifts[job.shifts.length - 1].endTime || null;
+      job.need = job.shifts.reduce((a, u) => a + (u.need || 0), 0) || null;
+      job.claims = [].concat(...job.shifts.map(u => u.claims));
+      jobs.push(job);
+    });
+    return { signups, jobs };
+  };
+  // "5:00 – 6:00pm", "8:30am"; a shift job: "2 shifts · 6:00 – 8:00pm"
+  const spanTime = (it) => {
+    if (!it || !it.time) return '';
+    if (!it.endTime) return fmtTime(it.time);
+    const a = fmtTime(it.time), b = fmtTime(it.endTime), am = (t) => +t.slice(0, 2) < 12;
+    const whole = (t) => { const [h, m] = t.split(':').map(Number); return (h % 12 || 12) + ':' + pad2(m); };
+    return (am(it.time) === am(it.endTime) ? whole(it.time) : a) + ' – ' + whole(it.endTime) + (am(it.endTime) ? 'am' : 'pm');
+  };
+  const jobTime = (j) => j.shifts ? j.shifts.length + (j.shifts.length === 1 ? ' shift' : ' shifts') +(j.time ? ' · ' + spanTime(j) : '') : spanTime(j);
   const toSpark = (row, offers, interests, contacts, x) => ({
     id: row.id, groupId: row.group_id, text: row.text,
     hopes: (row.hopes || []).filter(Boolean),
@@ -369,8 +399,7 @@
     rsvps: (x.rsvps[row.id] || []).map(r => ({ userId: r.user_id, status: r.status, created: Date.parse(r.created_at) })),
     dateOpts: (x.dateOpts[row.id] || []).map(o => ({ id: o.id, dayDate: o.day_date, dayTime: o.day_time ? String(o.day_time).slice(0, 5) : null, who: o.who, createdBy: o.created_by, created: Date.parse(o.created_at), votes: (x.dateVotes[o.id] || []).map(v => v.user_id) })),
     spotOpts: (x.spotOpts[row.id] || []).map(o => ({ id: o.id, name: o.name, address: o.address || '', lat: o.lat, lon: o.lon, who: o.who, createdBy: o.created_by, created: Date.parse(o.created_at), votes: (x.spotVotes[o.id] || []).map(v => v.user_id) })),
-    signups: (x.signups[row.id] || []).sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at))
-      .map(i => ({ id: i.id, item: i.item, need: i.need || null, time: i.time ? String(i.time).slice(0, 5) : null, createdBy: i.created_by, claims: (x.claims[i.id] || []).map(c => ({ userId: c.user_id, note: c.note || '', created: Date.parse(c.created_at) })) })),
+    ...toSignups(x.signups[row.id] || [], x.claims),
     updates: (x.updates[row.id] || []).sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at)).map(u => ({ id: u.id, body: u.body, audience: u.audience, created: Date.parse(u.created_at) })),
     organizers: (x.organizers[row.id] || []).map(o => o.user_id),
     organizerAt: (x.organizers[row.id] || []).reduce((m, o) => { m[o.user_id] = Date.parse(o.created_at); return m; }, {}),
@@ -402,7 +431,9 @@
       sb.from('date_votes').select('option_id,user_id'),
       sb.from('spot_options').select('id,spark_id,name,address,lat,lon,who,created_by,created_at'),
       sb.from('spot_votes').select('option_id,user_id'),
-      sb.from('signup_items').select('id,spark_id,item,need,time,created_by,created_at'),
+      // Descriptions, end times and shifts came with v6 Update 5; a database without them still loads
+      sb.from('signup_items').select('id,spark_id,item,need,time,end_time,descr,shift_of,created_by,created_at')
+        .then(r => r.error && r.error.code === '42703' ? sb.from('signup_items').select('id,spark_id,item,need,time,created_by,created_at') : r),
       sb.from('signup_claims').select('item_id,user_id,note,created_at'),
       sb.from('plan_updates').select('id,spark_id,body,audience,created_at'),
       sb.from('organizers').select('spark_id,user_id,created_at'),
@@ -1105,18 +1136,39 @@
       await saveGuestContact(s.id);
       if (on) must(await sb.from('organizers').delete().eq('spark_id', s.id).eq('user_id', state.me));
       else must(await sb.from('organizers').insert({ spark_id: s.id, user_id: state.me }));
-    }).then(ok => { if (ok && !on) { toast('You’re helping organize. ' + nameOf(s.leadId, s.leadName) + ' will see it.', true); askRsvp(s); } }));
+    }).then(ok => { if (ok && !on) toast('You’re helping organize. ' + nameOf(s.leadId, s.leadName) + ' will see it.', true); }));
   };
+
+  // v6 Update 5: signing up is one tap, then a "You're on it" banner with Undo (4s). Taking yourself
+  // off later shows "You're off it" with Find a replacement (7s); on your own event, just a toast.
+  let bannerTimer = null;
+  const showBanner = (b, ms) => {
+    clearTimeout(toastTimer); clearTimeout(bannerTimer);
+    setState({ toast: null, banner: b });
+    bannerTimer = setTimeout(() => setState({ banner: null }), ms);
+  };
+  const onItBanner = (s, undo) => showBanner({ kind: 'on', id: s.id, undo }, 4000);
+  const offIt = (s, job) => isLead(s) ? toast('Removed you from ' + job.item.toLowerCase(), true) : showBanner({ kind: 'off', id: s.id, job: job.item }, 7000);
+  const undoClaim = (b) => {
+    clearTimeout(bannerTimer);
+    run(async () => {
+      if (b.undo.del) must(await sb.from('signup_items').delete().eq('id', b.undo.del));
+      else must(await sb.from('signup_claims').delete().in('item_id', b.undo.items).eq('user_id', state.me));
+    }, { banner: null }).then(ok => { if (ok) toast('Okay, you’re off it', true); });
+  };
+  const jobOf = (s, it) => (s.jobs || s.signups).find(j => j.id === (it.jobId || it.id)) || it;
+  const myShiftIds = (job) => (job.shifts || []).filter(u => u.claims.some(c => c.userId === state.me)).map(u => u.id);
 
   // Sign-ups: the lead adds items (with an optional "how many"); others add what they're bringing
   const addSignup = (s) => {
     const item = cleanTitle(state.sigDraft).slice(0, 60), need = isLead(s) ? (parseInt(state.sigNeed, 10) || null) : null, time = isLead(s) ? (state.sigTime || null) : null;
     if (!item || state.busy) return;
+    let row = null;
     const add = () => run(async () => {
       await saveGuestContact(s.id);
-      const row = must(await sb.from('signup_items').insert({ spark_id: s.id, item, need, time }).select('id').single()).data;
+      row = must(await sb.from('signup_items').insert({ spark_id: s.id, item, need, time }).select('id').single()).data;
       if (!isLead(s)) must(await sb.from('signup_claims').insert({ item_id: row.id, user_id: state.me }));
-    }, { sigDraft: '', sigNeed: '', sigTime: '' }).then(ok => { if (ok) { toast(isLead(s) ? 'Added to sign-ups' : 'Thanks! You’re down for ' + item.toLowerCase(), true); askRsvp(s); } });
+    }, { sigDraft: '', sigNeed: '', sigTime: '', sigAdding: false }).then(ok => { if (ok) { if (isLead(s)) toast('Added to sign-ups', true); else onItBanner(s, { del: row.id }); } });
     if (isLead(s)) add(); else needGuest(add);
   };
   const toggleClaim = (s, it) => {
@@ -1125,7 +1177,28 @@
       await saveGuestContact(s.id);
       if (mine) must(await sb.from('signup_claims').delete().eq('item_id', it.id).eq('user_id', state.me));
       else must(await sb.from('signup_claims').insert({ item_id: it.id, user_id: state.me }));
-    }).then(ok => { if (ok && !mine) { toast('You’re down for ' + it.item.toLowerCase(), true); askRsvp(s); } }));
+    }).then(ok => { if (ok) { if (mine) offIt(s, jobOf(s, it)); else onItBanner(s, { items: [it.id] }); } }));
+  };
+  // Pick a shift: tick any shifts (more than one is fine), an optional note, Done
+  const openShifts = (s, job) => needGuest(() => {
+    const mine = myShiftIds(job), c = job.shifts.map(u => u.claims.find(x => x.userId === state.me)).find(Boolean);
+    setState({ shiftPick: { id: s.id, job: job.id, sel: mine, note: c ? c.note : '' } });
+  });
+  const saveShifts = (s, job) => {
+    const p = state.shiftPick, had = myShiftIds(job), sel = p.sel, note = (p.note || '').trim().slice(0, 60) || null;
+    const add = sel.filter(id => had.indexOf(id) < 0), drop = had.filter(id => sel.indexOf(id) < 0), keep = had.filter(id => sel.indexOf(id) > -1);
+    const noteChanged = keep.some(id => { const u = job.shifts.find(x => x.id === id), c = u && u.claims.find(x => x.userId === state.me); return c && (c.note || null) !== note; });
+    if (!add.length && !drop.length && !noteChanged) return setState({ shiftPick: null });
+    run(async () => {
+      await saveGuestContact(s.id);
+      if (drop.length) must(await sb.from('signup_claims').delete().in('item_id', drop).eq('user_id', state.me));
+      if (add.length) must(await sb.from('signup_claims').insert(add.map(id => ({ item_id: id, user_id: state.me, note }))));
+      if (keep.length && noteChanged) must(await sb.from('signup_claims').update({ note }).in('item_id', keep).eq('user_id', state.me));
+    }, { shiftPick: null }).then(ok => {
+      if (!ok) return;
+      if (add.length) onItBanner(s, { items: sel });
+      else if (drop.length) offIt(s, job);
+    });
   };
   const saveClaimNote = (it, note) => {
     sb.from('signup_claims').update({ note: note.slice(0, 60) || null }).eq('item_id', it.id).eq('user_id', state.me)
@@ -2525,7 +2598,7 @@
   const claimRole = (s, it) => needGuest(() => run(async () => {
     await saveGuestContact(s.id);
     must(await sb.from('signup_claims').insert({ item_id: it.id, user_id: state.me }));
-  }).then(ok => { if (ok) { toast('You claimed ' + it.item.toLowerCase(), true); askRsvp(s); } }));
+  }).then(ok => { if (ok) onItBanner(s, { items: [it.id] }); }));
   function viewHandSheet() {
     const list = handList(), close = () => setState({ cHandSheet: false });
     const card = (s) => {
@@ -2541,7 +2614,7 @@
           const mine = it.claims.some(c => c.userId === state.me), left = it.need - it.claims.length;
           return '<div data-signup="' + esc(it.item) + '" style="display:flex;align-items:center;gap:12px;min-height:52px;padding:8px 14px;border-top:1px solid #f2f3f6">' +
             '<span aria-hidden="true" style="flex:0 0 10px;width:10px;height:10px;border-radius:999px;box-shadow:inset 0 0 0 2px #e8a71c"></span>' +
-            '<div style="flex:1;min-width:0"><div style="font-size:14.5px;font-weight:700;color:#0d1117">' + esc(it.item) + '</div><div style="font-size:12px;font-weight:600;color:#6b7280">' + Math.max(0, left) + ' of ' + it.need + ' open</div></div>' +
+            '<div style="flex:1;min-width:0"><div style="font-size:14.5px;font-weight:700;color:#0d1117">' + esc(it.item) + '</div><div style="font-size:12px;font-weight:600;color:#6b7280">' + esc([it.jobId ? spanTime(it) : '', Math.max(0, left) + ' of ' + it.need + ' open'].filter(Boolean).join(' · ')) + '</div></div>' +
             (mine ? '<span style="flex:0 0 auto;display:flex;align-items:center;gap:4px;min-height:32px;padding:0 12px;border-radius:999px;background:#fdf1d6;color:#8f6405;font-size:13.5px;font-weight:800">' + svg(12, stroke('#8f6405', 3), P6.check) + 'Yours</span>'
               : '<button type="button" ' + on(() => { if (!state.busy) claimRole(s, it); }) + ' style="flex:0 0 auto;min-height:32px;padding:0 14px;border:0;border-radius:999px;background:#0d1117;color:#fff;font-family:inherit;font-size:13.5px;font-weight:800;cursor:pointer">Claim</button>') + '</div>';
         }).join('') + '</div>';
@@ -2620,32 +2693,54 @@
       '</div>', 64, '8px 14px 12px');
   }
 
-  // "Will you be there?": whenever someone who isn't the lead signs up, claims a role or offers to help
-  // organize, and hasn't said Going or Can't go, they pick one of three (it can't be dismissed)
-  const askRsvp = (s) => {
-    if (!s || isLead(s) || !s.planned || phaseOf(s) !== 'plan') return;
-    const my = myRsvp(state.sparks.find(x => x.id === s.id) || s);
-    if (my === 'going' || my === 'no') return;
-    setTimeout(() => setState({ rsvpAsk: s.id }), 350);
-  };
-  const answerAsk = (s, status) => needGuest(() => run(async () => {
-    await saveGuestContact(s.id);
-    must(await sb.from('rsvps').upsert({ spark_id: s.id, user_id: state.me, status }, { onConflict: 'spark_id,user_id' }));
-  }, { rsvpAsk: null }).then(ok => { if (ok) toast({ going: 'You’re going. Thanks for helping!', maybe: 'Marked as maybe. You’re still helping.', no: 'Got it. You’re helping but not attending.' }[status], true); }));
-  function viewRsvpAsk() {
-    const s = state.sparks.find(x => x.id === state.rsvpAsk);
+  // Pick a shift (v6 Update 5): a job split into shifts. Tick any (full ones can't be picked unless
+  // they're yours), an optional note saved on your entry in each shift, then Done.
+  function viewShiftSheet() {
+    const p = state.shiftPick, s = state.sparks.find(x => x.id === p.id), job = s && (s.jobs || []).find(j => j.id === p.job);
+    if (!job || !job.shifts) return '';
+    const close = () => setState({ shiftPick: null });
+    const row = (u) => {
+      const was = u.claims.some(c => c.userId === state.me), sel = p.sel.indexOf(u.id) > -1, n = u.claims.length - (was ? 1 : 0) + (sel ? 1 : 0);
+      const full = !!u.need && u.claims.length >= u.need && !was;
+      const pick = () => { if (!full) setState({ shiftPick: Object.assign({}, p, { sel: sel ? p.sel.filter(x => x !== u.id) : p.sel.concat(u.id) }) }); };
+      return '<div ' + (full ? '' : on(pick, 'checkbox') + ' aria-checked="' + sel + '" ') + 'data-shift="' + esc(spanTime(u)) + '" style="display:flex;flex-direction:column;gap:8px;padding:12px 14px;border-radius:14px;' +
+          (sel ? 'background:#f7f6ff;box-shadow:inset 0 0 0 2px #5b4ae8;cursor:pointer' : full ? 'background:#f7f8fa;box-shadow:inset 0 0 0 1.5px #e6e7eb;opacity:.65' : 'background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;cursor:pointer') + '">' +
+        '<div style="display:flex;align-items:center;gap:12px">' +
+          '<span aria-hidden="true" style="flex:0 0 22px;width:22px;height:22px;border-radius:999px;display:flex;align-items:center;justify-content:center;' + (sel ? 'background:#5b4ae8' : 'box-shadow:inset 0 0 0 2px #c3c7d0') + '">' + (sel ? I.check(12, '#fff', 3.4) : '') + '</span>' +
+          '<span style="flex:1;min-width:0;font-size:16px;font-weight:800;color:' + (full ? '#9aa0ac' : '#0d1117') + '">' + esc(spanTime(u) || 'Any time') + '</span>' +
+          '<span style="flex:0 0 auto;font-size:13px;font-weight:800;color:' + (sel ? '#4a3ad4' : '#6b7280') + '">' + (full ? 'Full' : u.need ? n + ' of ' + u.need : n + ' in') + '</span></div>' +
+        (u.need ? '<div aria-hidden="true" style="display:flex;gap:3px;padding-left:34px">' + Array.from({ length: u.need }, (_, i) => '<span style="flex:1;height:4px;border-radius:999px;background:' + (i < n ? '#5b4ae8' : '#e3e5ea') + '"></span>').join('') + '</div>' : '') +
+      '</div>';
+    };
+    return sheet('Pick a shift', close, 'padding:10px 18px calc(22px + env(safe-area-inset-bottom, 0px));display:flex;flex-direction:column;gap:10px',
+      '<div style="display:flex;align-items:flex-start;gap:12px"><div style="flex:1;min-width:0">' +
+        '<div style="font-size:11.5px;font-weight:900;letter-spacing:1.2px;color:#6b7280">PICK A SHIFT</div>' +
+        '<h2 style="margin:2px 0 0;font-size:24px;line-height:1.1;font-weight:900;letter-spacing:-.6px;color:#0d1117">' + esc(job.item) + '</h2></div>' + closeX(close) + '</div>' +
+      (job.desc ? '<p style="margin:0;font-size:14.5px;line-height:1.45;font-weight:500;color:#454b55">' + esc(job.desc) + '</p>' : '') +
+      '<div style="font-size:13px;font-weight:800;color:#454b55">' + esc([s.dayDate ? fmtDay(s.dayDate) : '', 'you can pick more than one'].filter(Boolean).join(' · ')) + '</div>' +
+      job.shifts.map(row).join('') +
+      '<input class="fld" type="text" maxlength="60" aria-label="Add a note, if you want" placeholder="Add a note, if you want" value="' + esc(p.note) + '" ' + onInput(e => { if (e.type === 'input') state.shiftPick = Object.assign({}, state.shiftPick, { note: e.target.value.slice(0, 60) }); }) + ' style="width:100%;min-height:48px;border:1.5px solid #dcdfe6;border-radius:14px;padding:10px 14px;font-family:inherit;font-size:15px;font-weight:600;color:#0d1117;background:#fff;outline:none">' +
+      '<button type="button" ' + on(() => { if (!state.busy) saveShifts(s, job); }) + ' style="min-height:52px;border:0;border-radius:999px;background:#0d1117;color:#fff;font-family:inherit;font-size:16px;font-weight:800;cursor:pointer">Done</button>', 36);
+  }
+
+  // "You're on it" (after any new sign-up, with Undo) and "You're off it" (after taking yourself off)
+  function viewBanner() {
+    const b = state.banner, s = state.sparks.find(x => x.id === b.id);
     if (!s) return '';
-    const my = myRsvp(s), lead = firstName(nameOf(s.leadId, s.leadName));
-    const C = { going: ['#149a4b', '#fff'], maybe: ['#fdf1d6', '#8f6405'], no: ['#f2f3f6', '#454b55'] };
-    const b = (k, label) => '<button type="button" ' + on(() => { if (!state.busy) answerAsk(s, k); }) + ' style="width:100%;min-height:52px;border:' + (my === k ? '2px solid #e8a71c' : '0') + ';border-radius:999px;background:' + C[k][0] + ';color:' + C[k][1] + ';font-family:inherit;font-size:16px;font-weight:900;cursor:pointer">' + label + '</button>';
-    return '<div class="sheet-scrim" style="z-index:35">' +
-      '<div role="dialog" aria-modal="true" aria-label="' + (my === 'maybe' ? 'Confirm your RSVP' : 'Will you be there?') + '" class="sheet" style="padding:10px 18px calc(22px + env(safe-area-inset-bottom, 0px));display:flex;flex-direction:column;gap:10px">' +
-        '<div aria-hidden="true" style="width:40px;height:5px;border-radius:999px;background:#dcdfe6;margin:0 auto 6px"></div>' +
-        '<div style="font-size:12px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#6b7280">' + esc(s.text) + '</div>' +
-        '<h2 style="margin:0;font-size:26px;line-height:1.1;font-weight:900;letter-spacing:-.6px;color:#0d1117">' + (my === 'maybe' ? 'Confirm your RSVP' : 'Will you be there?') + '</h2>' +
-        '<p style="margin:0 0 6px;font-size:15px;line-height:1.45;font-weight:500;color:#454b55">' + (my === 'maybe' ? 'You’re marked as maybe. ' : '') + 'Thanks for pitching in! You can help even if you can’t attend. Just let ' + esc(lead) + ' know.</p>' +
-        b('going', 'I’m going') + b('maybe', 'Maybe') + b('no', 'Helping, not attending') +
-      '</div></div>';
+    const host = nameOf(s.leadId, s.leadName), hostFirst = firstName(host), wrap = (style, inner) =>
+      '<div role="status" data-banner="' + b.kind + '" style="position:absolute;left:14px;right:14px;bottom:calc(var(--nav-h) + 12px);z-index:40;border-radius:18px;padding:14px;animation:popIn 260ms cubic-bezier(.22,.9,.28,1) both;' + style + '">' + inner + '</div>';
+    if (b.kind === 'on') return wrap('background:#0f7a3c;box-shadow:0 10px 28px rgba(15,122,60,.35);display:flex;align-items:center;gap:12px',
+      '<span style="flex:0 0 44px;width:44px;height:44px;border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center">' + I.check(22, '#149a4b', 3.4) + '</span>' +
+      '<div style="flex:1;min-width:0"><div style="font-size:17px;font-weight:900;color:#fff">You’re on it</div>' +
+        '<div style="display:flex;align-items:center;gap:6px;margin-top:3px;font-size:12.5px;font-weight:800;color:rgba(255,255,255,.9)">' +
+          (isLead(s) ? 'Added to your jobs' : face(s.leadId, host, 18) + '<span style="min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(hostFirst) + ' is counting on you</span>') + '</div></div>' +
+      '<button type="button" ' + on(() => { if (!state.busy) undoClaim(b); }) + ' style="flex:0 0 auto;min-height:36px;padding:0 14px;border:0;border-radius:999px;background:rgba(255,255,255,.18);color:#fff;font-family:inherit;font-size:13.5px;font-weight:800;cursor:pointer">Undo</button>');
+    const msg = 'Hey! I can’t make it to ' + b.job.toLowerCase() + ' for ' + s.text + ' anymore. Any chance you could take my spot?';
+    return wrap('background:#fff6dc;box-shadow:0 10px 28px rgba(15,18,25,.18), inset 0 0 0 1.5px #f3d98b;display:flex;flex-direction:column;gap:12px',
+      '<div style="display:flex;align-items:flex-start;gap:10px"><div style="flex:1;min-width:0"><div style="font-size:17px;font-weight:900;color:#0d1117">You’re off it</div>' +
+        '<p style="margin:4px 0 0;font-size:14px;line-height:1.4;font-weight:600;color:#5c4a12">We’ll let ' + esc(hostFirst) + ' know. A quick check-in with them helps too, or find someone to take your spot.</p></div>' +
+        '<span ' + on(() => { clearTimeout(bannerTimer); setState({ banner: null }); }) + ' aria-label="Dismiss" style="flex:0 0 32px;width:32px;height:32px;border-radius:999px;background:rgba(13,17,23,.06);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(13, '#5c4a12', 2.6) + '</span></div>' +
+      '<button type="button" ' + on(() => { clearTimeout(bannerTimer); setState({ banner: null, invite: { id: s.id, msg, title: 'Find a replacement' } }); }) + ' style="min-height:44px;border:0;border-radius:999px;background:#0d1117;color:#fff;font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer">Find a replacement</button>');
   }
 
   // ---- V5: Notifications, built from what's already stored (last 7 days) --------------------
@@ -3361,7 +3456,7 @@
   };
 
   // A photo header shared by the plan and "happened" pages
-  const phaseHeader = (s, height, scrim, inner) => {
+  const phaseHeader = (s, height, scrim, inner, share) => {
     const g = groupById(s.groupId), cover = s.photoPaths[0] ? photoUrl(s.photoPaths[0]) : null;
     return '<div style="position:relative;height:calc(' + height + 'px + var(--pt));overflow:hidden;background:#0b2a17">' +
       (cover ? photoLayer(cover, s.coverPos, IDEA_POS) : '<div aria-hidden="true" style="position:absolute;inset:0;background:' + groupBg(g, '#0b2a17') + '"></div>') +
@@ -3371,7 +3466,8 @@
         '<span style="flex:1"></span>' +
         (canEdit(s)   // plans and past events (the idea page has its own header)
           ? '<span ' + on(() => openEdit(s)) + ' style="' + EDIT_PILL + '">' + I.edit(14, '#0d1117') + 'Edit</span>'
-          : '<span style="flex:0 0 40px;width:40px"></span>') +
+          : share ? '' : '<span style="flex:0 0 40px;width:40px"></span>') +
+        (share ? '<span ' + on(() => setState({ invite: { id: s.id } })) + ' aria-label="Share" style="flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:rgba(255,255,255,.94);box-shadow:0 2px 10px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(18, stroke('#0d1117', 2.4), P5.share) + '</span>' : '') +
       '</div>' + inner +
       (state.tag ? '<div style="position:absolute;right:16px;bottom:44px;z-index:2;transform:rotate(5deg);background:#fff;border-radius:999px;padding:8px 14px;font-size:13px;font-weight:800;color:#0d1117;box-shadow:0 8px 20px rgba(15,18,25,.18);animation:popIn 320ms cubic-bezier(.22,.9,.28,1) both">' + esc(state.tag) + '</div>' : '') +
     '</div>';
@@ -3413,22 +3509,82 @@
         '</div>';
   }
 
+  // v6 Update 5 (Plan phase): a section title sits on the gray page above its white card
+  const secTitle = (t, right, big) => '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:0 4px;margin-bottom:8px">' +
+    '<h2 style="margin:0;font-size:' + (big ? '24px;line-height:1.1;letter-spacing:-.6px' : '17px;line-height:1.2;letter-spacing:-.3px') + ';font-weight:900;color:#0d1117">' + t + '</h2>' + (right || '') + '</div>';
+  const P5 = {
+    calPlus: '<rect x="3.5" y="5" width="14" height="13.5" rx="2.5"/><path d="M3.5 9.5h14M7.5 3v3.5M13.5 3v3.5M19.5 15v6M16.5 18h6"/>',
+    clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+    share: '<path d="M12 3.5v11M7.5 8 12 3.5 16.5 8"/><path d="M5 12.5V19a1.5 1.5 0 0 0 1.5 1.5h11A1.5 1.5 0 0 0 19 19v-6.5"/>'
+  };
+  const mapUrl = (pt) => 'https://maps.geoapify.com/v1/staticmap?style=osm-bright&width=360&height=150&scaleFactor=2&center=lonlat:' + pt[1] + ',' + pt[0] +
+    '&zoom=15&marker=lonlat:' + pt[1] + ',' + pt[0] + ';type:awesome;color:%235b4ae8;size:large&apiKey=' + encodeURIComponent((CFG.places && CFG.places.key) || '');
+  const directionsUrl = (s) => 'https://www.google.com/maps/dir/?api=1&destination=' + (s.spotPoint ? s.spotPoint[0] + ',' + s.spotPoint[1] : encodeURIComponent(s.spotAddress || s.spot));
+
+  // Help out: one white card per job. Sign up is one tap (a shift job opens Pick a shift).
+  function helpOut(s) {
+    const st = state, lead = isLead(s), jobs = s.jobs || s.signups, sigReady = st.sigDraft.trim().length > 0;
+    const card = (j) => {
+      const shifts = !!j.shifts, mine = shifts ? myShiftIds(j).length > 0 : j.claims.some(c => c.userId === st.me);
+      const cnt = j.claims.length, need = j.need, full = !mine && !!need && (shifts ? j.shifts.every(u => u.need && u.claims.length >= u.need) : cnt >= need);
+      const tint = shifts ? '#5b4ae8' : '#149a4b', when = jobTime(j);
+      const counter = need
+        ? '<span style="display:inline-flex;align-items:center;gap:8px">' + (need <= 12 ? '<span aria-hidden="true" style="display:inline-flex;gap:3px">' + Array.from({ length: need }, (_, i) => '<span style="width:14px;height:5px;border-radius:999px;background:' + (i < cnt ? tint : '#e3e5ea') + '"></span>').join('') + '</span>' : '') +
+            '<span style="font-size:13px;font-weight:800;color:' + (mine ? '#0f7a3c' : '#6b7280') + '">' + Math.min(cnt, need) + ' of ' + need + '</span></span>'
+        : cnt ? '<span style="font-size:13px;font-weight:800;color:' + (mine ? '#0f7a3c' : '#6b7280') + '">' + cnt + ' in</span>' : '';
+      const act = () => { if (st.busy) return; if (shifts) openShifts(s, j); else toggleClaim(s, j); };
+      const btn = mine
+        ? '<span ' + on(act) + ' aria-label="You’re in. Tap to take yourself off" style="flex:0 0 auto;display:flex;align-items:center;gap:4px;min-height:36px;padding:0 14px;border-radius:999px;background:#fdf1d6;color:#8f6405;font-size:13.5px;font-weight:800;white-space:nowrap;cursor:pointer">' + svg(12, stroke('#8f6405', 3.2), P6.check) + 'You’re in</span>'
+        : full ? '<span aria-disabled="true" style="flex:0 0 auto;display:flex;align-items:center;min-height:36px;padding:0 14px;border-radius:999px;box-shadow:inset 0 0 0 1.5px #d5d8df;color:#9aa0ac;font-size:13.5px;font-weight:800">Full</span>'
+        : '<span ' + on(act) + ' style="flex:0 0 auto;display:flex;align-items:center;min-height:36px;padding:0 14px;border-radius:999px;box-shadow:inset 0 0 0 1.5px #5b4ae8;color:#5b4ae8;font-size:13.5px;font-weight:800;white-space:nowrap;cursor:pointer">Sign up</span>';
+      const long = j.desc.length > 90, open = !!st.descOpen[j.id];
+      const more = (label, up) => '<span ' + on(() => setState({ descOpen: Object.assign({}, st.descOpen, { [j.id]: !open }) })) + ' aria-expanded="' + open + '" style="flex:0 0 auto;display:inline-flex;align-items:center;gap:2px;font-size:13px;font-weight:800;color:#5b4ae8;cursor:pointer;white-space:nowrap">' + label + '<span style="display:flex;transform:' + (up ? 'rotate(180deg)' : 'none') + '">' + I.chevD(12, '#5b4ae8', 3) + '</span></span>';
+      const desc = !j.desc ? '' : !long ? '<p style="margin:0;font-size:14px;line-height:1.45;font-weight:500;color:#5c6270">' + esc(j.desc) + '</p>'
+        : open ? '<p style="margin:0;font-size:14px;line-height:1.45;font-weight:500;color:#5c6270">' + esc(j.desc) + ' ' + more('Less', true) + '</p>'
+        : '<div style="display:flex;align-items:flex-end;gap:8px"><p style="flex:1;min-width:0;margin:0;font-size:14px;line-height:1.45;font-weight:500;color:#5c6270;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">' + esc(j.desc) + '</p>' + more('More', false) + '</div>';
+      return '<div data-signup="' + esc(j.item) + '" style="' + CARD + ';padding:14px 16px;display:flex;flex-direction:column;gap:8px">' +
+        '<div style="display:flex;align-items:flex-start;gap:10px">' +
+          '<div style="flex:1;min-width:0"><div style="font-size:15.5px;line-height:1.3;font-weight:800;color:#0d1117;text-wrap:pretty">' + esc(j.item) + '</div>' +
+            (when || counter ? '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-top:5px">' +
+              (when ? '<span style="display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:700;color:#454b55">' + svg(13, stroke('#454b55', 2.4), P5.clock) + esc(when) + '</span>' : '') + counter + '</div>' : '') + '</div>' +
+          (lead || (j.createdBy === st.me && !shifts) ? '<span ' + on(() => removeSignup(s, j)) + ' aria-label="Remove ' + esc(j.item) + '" style="flex:0 0 28px;width:28px;height:28px;margin-top:4px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(11, '#5c6270', 2.6) + '</span>' : '') +
+          btn + '</div>' + desc + '</div>';
+    };
+    const addLabel = lead ? 'Add a job or item' : 'Add something else';
+    const adder = !st.sigAdding
+      ? '<div ' + on(() => setState({ sigAdding: true })) + ' data-add-signup style="display:flex;align-items:center;gap:8px;min-height:52px;padding:0 16px;border-radius:18px;border:1.5px dashed #e3c979;background:#fef7dd;font-size:14px;font-weight:800;color:#8f6405;cursor:pointer">' + I.plus(16, '#8f6405', 2.6) + addLabel + '</div>'
+      : '<div style="' + CARD + ';padding:14px 16px;display:flex;flex-direction:column;gap:10px">' +
+          '<div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:14px;font-weight:800;color:#8f6405">' + addLabel + '</span>' +
+            '<span ' + on(() => setState({ sigAdding: false, sigDraft: '', sigNeed: '', sigTime: '' })) + ' aria-label="Cancel" style="width:28px;height:28px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(11, '#5c6270', 2.6) + '</span></div>' +
+          '<div style="display:flex;gap:8px">' +
+            '<input class="fld" type="text" maxlength="60" data-autofocus aria-label="' + (lead ? 'Add a sign-up' : 'Bringing something else?') + '" placeholder="' + (lead ? 'Add a thing, e.g. A dozen filled eggs' : 'Bringing something else?') + '" value="' + esc(st.sigDraft) + '" ' + onInput(e => { if (e.type === 'input') setState({ sigDraft: e.target.value.slice(0, 60) }); }) + ' style="flex:1 1 auto;min-width:0;min-height:46px;border:1.5px solid #dcdfe6;border-radius:14px;padding:10px 14px;font-family:inherit;font-size:15px;font-weight:600;color:#0d1117;background:#fff;outline:none">' +
+            (lead ? '<input class="fld" type="text" inputmode="numeric" maxlength="3" aria-label="How many needed" placeholder="How many" value="' + esc(st.sigNeed) + '" ' + onInput(e => { if (e.type === 'input') setState({ sigNeed: e.target.value.replace(/\D/g, '').slice(0, 3) }); }) + ' style="flex:0 0 74px;width:74px;min-height:46px;border:1.5px solid #dcdfe6;border-radius:14px;padding:10px 8px;text-align:center;font-family:inherit;font-size:13.5px;font-weight:600;color:#0d1117;background:#fff;outline:none">' : '') +
+            '<button type="button" ' + on(() => addSignup(s)) + ' aria-disabled="' + !sigReady + '" style="flex:0 0 auto;min-height:46px;padding:0 16px;border:0;border-radius:999px;font-family:inherit;font-size:15px;font-weight:800;cursor:' + (sigReady ? 'pointer' : 'default') + ';background:' + (sigReady ? '#5b4ae8' : '#e2e4e9') + ';color:' + (sigReady ? '#fff' : '#9aa0ac') + '">Add</button>' +
+          '</div>' +
+          (lead && st.sigDraft
+            ? '<label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#6b7280">Time (optional)' +
+                '<select class="fld" aria-label="Sign-up time" ' + onInput(e => setState({ sigTime: e.target.value })) + ' style="min-height:38px;padding:0 10px;border:1.5px solid #dcdfe6;border-radius:12px;font-family:inherit;font-size:13.5px;font-weight:700;color:#0d1117;background:#fff;outline:none;color-scheme:light">' +
+                  '<option value="">No time</option>' + TIME_OPTS.map(([v, l]) => '<option value="' + v + '"' + (v === st.sigTime ? ' selected' : '') + '>' + l + '</option>').join('') +
+                '</select></label>'
+            : '') +
+        '</div>';
+    return '<section id="sec-tasks" data-screen-label="Help out">' + secTitle('Help out', '', true) +
+      '<div style="display:flex;flex-direction:column;gap:8px">' +
+        (jobs.length ? jobs.map(card).join('') : '<div style="' + CARD + ';padding:16px;font-size:14px;line-height:1.45;font-weight:500;color:#5c6270">' + (lead ? 'Need people to bring things? Add what you need and neighbors can grab a spot.' : 'Nothing on the list yet. Bringing something? Add it below.') + '</div>') +
+        adder + '</div></section>';
+  }
+
   function viewPlan(s) {
-    const st = state, lead = isLead(s), leadName = nameOf(s.leadId, s.leadName), my = myRsvp(s);
-    const dp = dateParts(s.dayDate);
+    const st = state, lead = isLead(s), leadName = nameOf(s.leadId, s.leadName), my = myRsvp(s), dp = dateParts(s.dayDate);
     const goingIds = going(s).map(r => r.userId), maybeN = s.rsvps.filter(r => r.status === 'maybe').length, noN = s.rsvps.filter(r => r.status === 'no').length;
-    const directions = s.spotPoint ? 'https://www.google.com/maps/dir/?api=1&destination=' + s.spotPoint[0] + ',' + s.spotPoint[1] : '';
-    const RC = { going: ['#149a4b', '#e7f6ec', '#0f7a3c'], maybe: ['#e8a71c', '#fdf1d6', '#8f6405'], no: ['#6b7280', '#f2f3f6', '#454b55'] };
     const stat = (num, label, bgc, ink) => '<div style="display:flex;flex-direction:column;align-items:center;gap:5px;padding:12px 4px;border-radius:14px;background:' + bgc + ';color:' + ink + '"><span style="font-size:24px;line-height:1;font-weight:900;letter-spacing:-.5px">' + num + '</span><span style="font-size:11.5px;font-weight:800">' + label + '</span></div>';
     const sheetCard = (inner, extra) => '<div style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:10px;' + (extra || '') + '">' + inner + '</div>';
 
-    const signups = signupsCard(s);
-
     const prepDone = PREP.filter((_, i) => s.prep[i]).length;
     const prep = lead
-      ? '<div data-screen-label="Before the day" style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:2px">' +
-          eyebrowRow('Before the day', '<span style="font-size:13px;font-weight:800;color:#6b7280">' + prepDone + ' of ' + PREP.length + ' thought through</span>') +
-          '<p style="margin:4px 0 8px;font-size:13.5px;line-height:1.45;font-weight:500;color:#6b7280">Just for you. A quick gut-check so nothing lands on you at the last minute.</p>' +
+      ? secTitle('Before the day', '<span style="font-size:13.5px;font-weight:800;color:#6b7280">' + prepDone + ' of ' + PREP.length + ' thought through</span>') +
+        '<div data-screen-label="Before the day" style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:2px">' +
+          '<p style="margin:0 0 8px;font-size:13.5px;line-height:1.45;font-weight:500;color:#6b7280">Just for you. A quick gut-check so nothing lands on you at the last minute.</p>' +
           PREP.map((q, i) => {
             const a = s.prep[i] || '', editing = st.prepEdit && st.prepEdit.id === s.id && st.prepEdit.i === i;
             return '<div style="padding:10px 0;border-top:' + (i ? '1px solid #f2f3f6' : '0') + '">' +
@@ -3444,46 +3600,49 @@
         '</div>'
       : '';
 
-    const whenWhere =
-        '<div style="' + CARD + ';overflow:hidden">' +
-          '<div style="display:flex;align-items:center;gap:12px;padding:12px 16px"><span style="flex:0 0 38px;height:38px;border-radius:11px;background:#e7f6ec;color:#0f7a3c;display:flex;align-items:center;justify-content:center">' + I.cal(17) + '</span>' +
-            '<div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:800;color:#0d1117">' + esc(fmtDay(s.dayDate) + ' · ' + fmtTime(s.dayTime)) + '</div><div style="font-size:13px;font-weight:500;color:#6b7280">' + (s.autoRemind ? 'Reminder the day before' : 'No reminder') + '</div></div>' +
-            '<span ' + on(() => addToCalendar(s)) + ' style="flex:0 0 auto;font-size:13.5px;font-weight:800;color:#5b4ae8;cursor:pointer">Add to calendar</span></div>' +
-          '<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-top:1px solid #f2f3f6"><span style="flex:0 0 38px;height:38px;border-radius:11px;background:' + (s.spot ? '#e7f6ec;color:#0f7a3c' : '#f2f3f6;color:#9aa0ac') + ';display:flex;align-items:center;justify-content:center">' + I.pin(17) + '</span>' +
-            '<div ' + (lead && !s.spot ? on(() => openOffer(s, 'spot')) + ' ' : '') + 'style="flex:1;min-width:0' + (lead && !s.spot ? ';cursor:pointer' : '') + '"><div style="font-size:15.5px;font-weight:800;color:' + (s.spot ? '#0d1117' : '#6b7280') + '">' + esc(s.spot || 'Location TBD') + '</div>' +
-              (s.spotAddress ? '<div style="font-size:13px;font-weight:500;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(s.spotAddress) + '</div>' : '') + '</div>' +
-            (directions ? '<a href="' + esc(directions) + '" target="_blank" rel="noopener noreferrer" style="flex:0 0 auto;font-size:13.5px;font-weight:800;color:#5b4ae8;text-decoration:none">Directions</a>' : lead && !s.spot ? '<span ' + on(() => openOffer(s, 'spot')) + ' style="flex:0 0 auto;font-size:13.5px;font-weight:800;color:#5b4ae8;cursor:pointer">Add it</span>' : '') +
-          '</div>' +
-        '</div>';
-    // RSVP, compact: answered → one line with "Change ›"; unanswered (or changing) → "Coming?" and three pills
-    const RSL = { going: 'You’re going', maybe: 'You’re a maybe', no: 'You can’t make it' };
-    const rsvpPill = (k, label) => {
-      const onIt = my === k, c = RC[k], hero = k === 'going' && !my;
-      return '<button type="button" ' + on(() => { if (!st.busy) { setRsvp(s, k); setState({ rsvpEdit: null }); } }) + ' aria-pressed="' + onIt + '" style="min-height:40px;padding:0 4px;border-radius:999px;font-family:inherit;font-size:13.5px;font-weight:900;cursor:pointer;white-space:nowrap;' +
-        (onIt ? 'border:2px solid ' + c[0] + ';background:' + c[1] + ';color:' + c[2] : hero ? 'border:0;background:#149a4b;color:#fff;box-shadow:0 8px 20px rgba(20,154,75,.3)' : 'border:1.5px solid #dcdfe6;background:#fff;color:#0d1117') + '">' + label + '</button>';
+    // You're helping: attached under the photo; collapsed by default, open state kept per event
+    const myJobs = (s.jobs || s.signups).filter(j => j.shifts ? myShiftIds(j).length : j.claims.some(c => c.userId === st.me));
+    const jobsOpen = !!st.jobsOpen[s.id];
+    const myTime = (j) => j.shifts ? j.shifts.filter(u => u.claims.some(c => c.userId === st.me)).map(spanTime).filter(Boolean).join(', ') : spanTime(j);
+    const helping = !myJobs.length ? '' :
+      '<div data-screen-label="You’re helping" style="border-radius:0 0 24px 24px;overflow:hidden;box-shadow:0 1px 3px rgba(15,18,25,.08)">' +
+        (jobsOpen ? myJobs.map((j, i) => '<div style="display:flex;align-items:center;gap:12px;min-height:52px;padding:10px 18px;background:#fff;border-top:' + (i ? '1px solid #f2f3f6' : '0') + '">' +
+            '<span style="flex:0 0 7px;width:7px;height:7px;border-radius:999px;background:#e8a71c"></span>' +
+            '<span style="flex:1;min-width:0;font-size:16px;font-weight:700;color:#2a2f38;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(j.item) + '</span>' +
+            (myTime(j) ? '<span style="flex:0 0 auto;font-size:14.5px;font-weight:800;color:#8f6405">' + esc(myTime(j)) + '</span>' : '') + '</div>').join('') : '') +
+        '<div ' + on(() => setState({ jobsOpen: Object.assign({}, st.jobsOpen, { [s.id]: !jobsOpen }) })) + ' aria-expanded="' + jobsOpen + '" data-helping-bar style="display:flex;align-items:center;gap:8px;min-height:48px;padding:0 18px;background:#fefaef;color:#8f6405;font-size:15.5px;font-weight:800;cursor:pointer' + (jobsOpen ? ';border-top:1px solid #f3e2ad' : '') + '">' +
+          ic6('clip', 18, '#8f6405', 2.2) + '<span style="flex:1">You’re helping</span>' +
+          (jobsOpen ? '' : '<span style="font-size:14.5px;font-weight:800">' + myJobs.length + (myJobs.length === 1 ? ' task' : ' tasks') + '</span>') +
+          '<span style="display:flex;transition:transform .15s;transform:' + (jobsOpen ? 'rotate(180deg)' : 'none') + '">' + I.chevD(14, '#8f6405', 2.8) + '</span></div>' +
+      '</div>';
+
+    // RSVP: three buttons, no checkmarks; tapping your pick again clears it
+    const RC = { going: '#149a4b', maybe: '#e8a71c', no: '#6b7280' };
+    const rsvpBtn = (k, label, n) => {
+      const onIt = my === k;
+      return '<button type="button" ' + on(() => { if (!st.busy) setRsvp(s, k); }) + ' aria-pressed="' + onIt + '" style="min-height:60px;border:0;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-family:inherit;cursor:pointer;' +
+        (onIt ? 'background:' + RC[k] + ';color:#fff' : 'background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;color:#0d1117') + '">' +
+        '<span style="font-size:17px;font-weight:800">' + label + '</span><span style="font-size:13px;font-weight:700;color:' + (onIt ? 'rgba(255,255,255,.85)' : '#6b7280') + '">' + n + '</span></button>';
     };
-    const rsvpBlock = lead ? '' : my && st.rsvpEdit !== s.id
-      ? '<div ' + on(() => setState({ rsvpEdit: s.id })) + ' data-rsvp-bar aria-label="' + RSL[my] + '. Change" style="display:flex;align-items:center;gap:10px;background:#fff;border-radius:14px;padding:10px 12px 10px 14px;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
-          '<span style="flex:0 0 22px;width:22px;height:22px;border-radius:999px;background:' + RC[my][0] + ';display:flex;align-items:center;justify-content:center">' + svg(12, stroke('#fff', 3.5), '<path d="m5 12.5 4.5 4.5L19 7.5"/>') + '</span>' +
-          '<span style="flex:1;font-size:14.5px;font-weight:800;color:#0d1117">' + RSL[my] + '</span>' +
-          '<span style="display:flex;align-items:center;gap:2px;font-size:13.5px;font-weight:800;color:#5c6270">Change' + I.chevR(14, '#5c6270', 2.8) + '</span></div>'
-      : '<div style="background:#fff;border-radius:14px;padding:10px 12px 4px;box-shadow:0 1px 3px rgba(15,18,25,.08);display:flex;flex-direction:column;gap:4px">' +
-          '<div style="display:flex;align-items:center;gap:8px"><span style="flex:0 0 auto;font-size:14px;font-weight:800;color:#0d1117">Coming?</span>' +
-            '<div style="flex:1;display:grid;grid-template-columns:1.2fr 1fr 1.3fr;gap:6px">' + rsvpPill('going', my === 'going' ? '✓ Going' : 'I’m going') + rsvpPill('maybe', 'Maybe') + rsvpPill('no', 'Can’t make it') + '</div></div>' +
-          '<span ' + on(() => setState({ invite: { id: s.id } })) + ' style="display:flex;align-items:center;justify-content:center;gap:7px;min-height:36px;font-size:13px;font-weight:800;color:#5b4ae8;cursor:pointer">' + svg(15, stroke('currentColor', 2.3), '<path d="M12 4v11M7.5 8.5 12 4l4.5 4.5M5 14v5h14v-5"/>') + 'Bring a neighbor — share it</span></div>';
-    // "You're helping with": the sign-ups you're on, one line each; opens by default, collapsed state kept per event
-    const myJobs = s.signups.filter(it => it.claims.some(c => c.userId === st.me));
-    const jobsOpen = !st.jobsClosed[s.id];
-    const helping = myJobs.length
-      ? '<div data-screen-label="You’re helping with" style="background:#fff6dc;border-radius:18px;padding:16px;box-shadow:0 1px 3px rgba(15,18,25,.08), inset 0 0 0 1.5px #f3d98b;display:flex;flex-direction:column;gap:2px">' +
-          '<div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:12px;font-weight:800;letter-spacing:1.2px;color:#8f6405">YOU’RE HELPING WITH</span>' +
-            '<span ' + on(() => setState({ jobsClosed: Object.assign({}, st.jobsClosed, { [s.id]: jobsOpen }) })) + ' aria-expanded="' + jobsOpen + '" style="display:flex;align-items:center;gap:4px;min-height:32px;padding:0 4px 0 8px;margin-right:-4px;border-radius:999px;font-size:13px;font-weight:800;color:#8f6405;cursor:pointer">' + myJobs.length + (myJobs.length === 1 ? ' job' : ' jobs') +
-              '<span style="display:flex;transition:transform .15s;transform:' + (jobsOpen ? 'rotate(180deg)' : 'none') + '">' + svg(16, stroke('#8f6405', 2.8), '<path d="m6 9 6 6 6-6"/>') + '</span></span></div>' +
-          (jobsOpen ? myJobs.map((it, i) => '<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-top:' + (i ? '1px solid #f3e2ad' : '0') + '"><span style="flex:0 0 8px;width:8px;height:8px;border-radius:999px;background:#e8a71c"></span>' +
-            '<span style="flex:1;min-width:0;font-size:15.5px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(it.item) + '</span>' +
-            (it.time ? '<span style="flex:0 0 auto;font-size:13px;font-weight:700;color:#8f6405">' + fmtTime(it.time) + '</span>' : '') + '</div>').join('') : '') +
-        '</div>'
-      : '';
+    const rsvpBlock = lead ? '' : '<div data-rsvp style="' + CARD + ';padding:16px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">' +
+      rsvpBtn('going', 'Going', goingIds.length) + rsvpBtn('maybe', 'Maybe', maybeN) + rsvpBtn('no', 'Can’t', noN) + '</div>';
+
+    const dateCard = '<div style="' + CARD + ';padding:14px 16px;display:flex;align-items:center;gap:14px">' +
+      '<div style="flex:1;min-width:0;font-size:21px;line-height:1.2;font-weight:900;letter-spacing:-.4px">' +
+        '<div style="color:#0d1117">' + esc(s.dayDate ? new Date(s.dayDate + 'T12:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }) : 'Date TBD') + '</div>' +
+        '<div style="margin-top:2px;color:#0f7a3c">' + esc(fmtTime(s.dayTime) || 'TBD') + '</div></div>' +
+      (s.dayDate ? '<span ' + on(() => addToCalendar(s)) + ' aria-label="Add to calendar" style="flex:0 0 44px;width:44px;height:44px;border-radius:999px;background:#f3f1fe;display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(20, stroke('#5b4ae8', 2.2), P5.calPlus) + '</span>' : '') + '</div>';
+
+    const whereCard = '<div style="' + CARD + ';overflow:hidden">' +
+      '<div style="display:flex;align-items:center;gap:12px;padding:12px 16px">' +
+        '<div ' + (lead && !s.spot ? on(() => openOffer(s, 'spot')) + ' ' : '') + 'style="flex:1;min-width:0' + (lead && !s.spot ? ';cursor:pointer' : '') + '"><div style="font-size:15.5px;font-weight:800;color:' + (s.spot ? '#0d1117' : '#6b7280') + '">' + esc(s.spot || 'Location TBD') + '</div>' +
+          (s.spotAddress ? '<div style="font-size:13px;font-weight:500;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(s.spotAddress) + '</div>' : '') + '</div>' +
+        (s.spot ? '<a href="' + esc(directionsUrl(s)) + '" target="_blank" rel="noopener noreferrer" style="flex:0 0 auto;display:flex;align-items:center;min-height:36px;padding:0 14px;border-radius:999px;background:#0d1117;color:#fff;font-size:13px;font-weight:800;text-decoration:none">Directions</a>'
+          : lead ? '<span ' + on(() => openOffer(s, 'spot')) + ' style="flex:0 0 auto;font-size:13.5px;font-weight:800;color:#5b4ae8;cursor:pointer">Add it</span>' : '') +
+      '</div>' +
+      (s.spotPoint ? '<a href="' + esc(directionsUrl(s)) + '" target="_blank" rel="noopener noreferrer" aria-label="Map of ' + esc(s.spot) + '" style="display:block;height:150px;background:repeating-linear-gradient(135deg,#eef0f3 0 10px,#e6e8ec 10px 20px)"><img src="' + esc(mapUrl(s.spotPoint)) + '" alt="" loading="lazy" style="display:block;width:100%;height:150px;object-fit:cover"></a>' : '') +
+    '</div>';
+
     // "Hosted by" (not shown to the host)
     const host = lead ? '' :
       '<div style="position:relative;display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:18px;background:linear-gradient(135deg,#f1edff,#e0d8ff);box-shadow:0 1px 3px rgba(15,18,25,.08)">' +
@@ -3500,12 +3659,14 @@
             (s.visibility === 'invite' ? '<span style="display:flex;align-items:center;gap:5px;border-radius:999px;padding:5px 11px;background:rgba(255,255,255,.22);font-size:12px;font-weight:900;letter-spacing:.9px">' + svg(11, stroke('#fff', 2.6), '<rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>') + 'INVITE ONLY</span>' : '') + '</div>' +
           '<h1 style="margin:0;font-size:40px;line-height:.98;font-weight:900;letter-spacing:-1.3px;text-wrap:pretty">' + esc(s.text) + '</h1></div>' +
           '<span aria-label="' + esc(fmtDay(s.dayDate)) + '" style="flex:0 0 70px;width:70px;border-radius:14px;overflow:hidden;text-align:center;background:#fff;box-shadow:0 8px 20px rgba(0,0,0,.3);transform:rotate(4deg)"><span style="display:block;background:#149a4b;color:#fff;font-size:11.5px;font-weight:900;letter-spacing:1px;padding:3px 0">' + dp.mon + '</span><span style="display:block;font-size:32px;line-height:1.15;font-weight:900;color:#0d1117">' + dp.day + '</span><span style="display:block;padding-bottom:5px;font-size:11px;font-weight:800;color:#6b7280">' + dp.dow + '</span></span>' +
-        '</div>') +
-      '<div style="padding:14px 14px 26px;display:flex;flex-direction:column;gap:12px">' +
+        '</div>', true) +
+      helping +
+      '<div style="padding:16px 14px 26px;display:flex;flex-direction:column;gap:18px">' +
         pendingCard(s) +
         rsvpBlock +
-        (lead ? sheetCard(
-          eyebrowRow('Your guest list', '<span style="font-size:13px;font-weight:800;color:#6b7280">You’re hosting</span>') +
+        dateCard +
+        whereCard +
+        (lead ? '<section>' + secTitle('Your guest list', '<span style="font-size:13.5px;font-weight:800;color:#6b7280">You’re hosting</span>') + sheetCard(
           '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px">' + stat(goingIds.length, 'Going', '#e7f6ec', '#0f7a3c') + stat(maybeN, 'Maybe', '#fdf1d6', '#8f6405') + stat(noN, 'Can’t make it', '#f2f3f6', '#454b55') + '</div>' +
           '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' +
             '<button type="button" class="hov-primary" ' + on(() => setState({ invite: { id: s.id } })) + ' style="min-height:50px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:15.5px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;box-shadow:0 8px 20px rgba(91,74,232,.28)">' + I.plus(16, '#fff', 2.5) + 'Invite people</button>' +
@@ -3514,26 +3675,20 @@
           '<div ' + on(() => { if (!st.busy) toggleAutoRemind(s); }, 'switch') + ' aria-checked="' + s.autoRemind + '" aria-label="Remind everyone the day before" style="display:flex;align-items:center;gap:12px;padding-top:12px;border-top:1px solid #f2f3f6;cursor:pointer">' +
             '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">Remind everyone the day before</div><div style="font-size:13px;font-weight:500;color:#6b7280">Goes to anyone going or maybe</div></div>' +
             '<span style="flex:0 0 46px;width:46px;height:28px;border-radius:999px;position:relative;transition:background 160ms;background:' + (s.autoRemind ? '#149a4b' : '#dcdfe6') + '"><span style="position:absolute;top:3px;left:' + (s.autoRemind ? 21 : 3) + 'px;width:22px;height:22px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:left 160ms"></span></span>' +
-          '</div>', 'gap:14px') : '') +
-        whenWhere +
-        helping +
-        prep +
-        (s.updates.length ? sheetCard('<span style="' + EYEBROW + '">Updates from ' + esc(leadName) + '</span>' +
+          '</div>', 'gap:14px') + '</section>' : '') +
+        (prep ? '<section>' + prep + '</section>' : '') +
+        (s.updates.length ? '<section>' + secTitle('Updates') + sheetCard(
           s.updates.map(u => '<div style="display:flex;gap:10px">' + face(s.leadId, leadName, 30) + '<div style="flex:1;border-radius:4px 14px 14px 14px;background:#f2f3f6;padding:10px 12px;font-size:14.5px;line-height:1.4;font-weight:500;color:#2b303a;white-space:pre-line">' + esc(u.body) +
-            '<div style="margin-top:4px;font-size:12px;font-weight:700;color:#8a909b">' + esc(ago(u.created)) + '</div></div></div>').join('')) : '') +
-        (s.hopes.length || s.vision ? '<div data-screen-label="About the event" style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:4px"><span style="' + EYEBROW + '">About the event</span>' +
-          (s.hopes.length ? '<ul style="margin:0;padding:0;list-style:none;display:flex;flex-direction:column">' + s.hopes.slice(0, 3).map(h => '<li style="display:flex;align-items:baseline;gap:11px;padding:10px 0;border-bottom:1px solid #f0f1f4;font-size:15.5px;line-height:1.4;font-weight:600;color:#0d1117"><span style="flex:0 0 6px;width:6px;height:6px;border-radius:999px;background:#0d1117;transform:translateY(-2px)"></span>' + esc(h) + '</li>').join('') + '</ul>' : '') +
-          (s.vision ? '<p style="margin:10px 0 0;font-size:15px;line-height:1.5;font-weight:500;color:#2b303a;white-space:pre-line">' + esc(s.vision) + '</p>' : '') + '</div>' : '') +
-        signups +
+            '<div style="margin-top:4px;font-size:12px;font-weight:700;color:#8a909b">' + esc(ago(u.created)) + '</div></div></div>').join('')) + '</section>' : '') +
+        helpOut(s) +
         host +
-        sheetCard(
-          eyebrowRow('Who’s going', '<span style="font-size:13px;font-weight:800;color:#0f7a3c">' + goingIds.length + ' going</span>') +
+        '<section>' + secTitle('Who’s going', '<span style="font-size:13.5px;font-weight:800;color:#0f7a3c">' + goingIds.length + ' going</span>') + sheetCard(
           '<div style="display:flex;align-items:center;gap:10px">' +
             '<span style="display:flex">' + (goingIds.length ? peopleFaces(goingIds.slice(0, 5), 40) + (goingIds.length > 5 ? '<span style="width:40px;height:40px;border-radius:999px;border:2.5px solid #fff;margin-left:-10px;background:#e7f6ec;color:#0f7a3c;font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center">+' + (goingIds.length - 5) + '</span>' : '') : '<span style="font-size:14px;font-weight:600;color:#6b7280">Nobody yet. Be the first.</span>') + '</span>' +
             (lead ? '<span ' + on(() => clearPlan(s)) + ' style="margin-left:auto;font-size:13.5px;font-weight:800;color:#5c6270;cursor:pointer">Clear the date</span>' : '') +
-          '</div>') +
-        (s.mood.length ? sheetCard('<span style="' + EYEBROW + '">Inspo</span><div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">' +
-          s.mood.slice(0, 3).map((p, i) => '<div ' + on(() => setState({ zoom: { photos: s.mood.map(photoUrl), i } })) + ' aria-label="View mood photo ' + (i + 1) + '" style="aspect-ratio:1;border-radius:12px;cursor:zoom-in;background:' + bg(photoUrl(p)) + '"></div>').join('') + '</div>') : '') +
+          '</div>') + '</section>' +
+        (s.mood.length ? '<section>' + secTitle('Inspo') + sheetCard('<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">' +
+          s.mood.slice(0, 3).map((p, i) => '<div ' + on(() => setState({ zoom: { photos: s.mood.map(photoUrl), i } })) + ' aria-label="View mood photo ' + (i + 1) + '" style="aspect-ratio:1;border-radius:12px;cursor:zoom-in;background:' + bg(photoUrl(p)) + '"></div>').join('') + '</div>') + '</section>' : '') +
       '</div>' +
       '<div style="height:var(--nav-h)"></div>' +
     '</div>';
@@ -3583,14 +3738,15 @@
   function viewInvite() {
     const s = state.sparks.find(x => x.id === state.invite.id), close = () => setState({ invite: null });
     if (!s) return '';
-    const link = location.origin + '/i/' + s.id, lead = isLead(s);
-    const msg = 'Hey! ' + (lead ? 'I’m hosting ' : 'Come to ') + s.text + ' on ' + whenLong(s) + (s.spot ? ' at ' + s.spot : '') + '. RSVP here: ' + link;
-    return modal(lead ? 'Invite people' : 'Share this plan', close,
-      h3(lead ? 'Invite people' : 'Share this plan') +
+    const link = location.origin + '/i/' + s.id, lead = isLead(s), ask = state.invite.msg;   // ask: "Find a replacement"
+    const msg = ask ? ask + ' ' + link : 'Hey! ' + (lead ? 'I’m hosting ' : 'Come to ') + s.text + ' on ' + whenLong(s) + (s.spot ? ' at ' + s.spot : '') + '. RSVP here: ' + link;
+    const title = state.invite.title || (lead ? 'Invite people' : 'Share this plan');
+    return modal(title, close,
+      h3(title) + (ask ? para('“' + esc(ask) + '”') : '') +
       para(esc(s.text) + ' · ' + esc(whenLong(s))) +
       '<div style="display:flex;gap:8px"><span style="' + WELL + ';flex:1;min-width:0;font-size:14px;font-weight:600;color:#5c6270;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(link.replace(/^https?:\/\//, '')) + '</span>' +
         '<button type="button" class="hov-outline" ' + on(() => copy(link, 'Link copied')) + ' style="' + COPY_BTN + '">Copy</button></div>' +
-      '<button type="button" class="hov-primary" ' + on(() => { if (navigator.share) navigator.share({ title: s.text, text: msg, url: link }).catch(() => {}); else copy(msg, 'Invite copied. Paste it anywhere.'); }) + ' style="' + primary(true) + '">Share the invite</button>' +
+      '<button type="button" class="hov-primary" ' + on(() => { if (navigator.share) navigator.share({ title: s.text, text: msg, url: link }).catch(() => {}); else copy(msg, ask ? 'Message copied. Paste it anywhere.' : 'Invite copied. Paste it anywhere.'); }) + ' style="' + primary(true) + '">' + (ask ? 'Send the message' : 'Share the invite') + '</button>' +
       '<p style="margin:0;font-size:13px;line-height:1.45;font-weight:500;color:#6b7280">Anyone with the link can see it and RSVP, even without an account. Email invites are coming.</p>',
       { z: 32 });
   }
@@ -4473,7 +4629,8 @@
       (st.email && st.cSearch ? viewSearch() : '') +
       (s === 'browse' && st.loaded && currentGroup() && !st.gSearch ? swipeHints() : '') +
       (st.email && st.gSearch && s === 'browse' ? viewGroupSearch() : '') +
-      (st.rsvpAsk ? viewRsvpAsk() : '') +
+      (st.shiftPick ? viewShiftSheet() : '') +
+      (st.banner ? viewBanner() : '') +
       (s === 'compose' ? viewCompose() : '') +
       (s === 'edit' && subj ? viewEdit(subj) : '') +
       (st.offerKind && subj ? viewOffer(subj) : '') +
@@ -4631,6 +4788,7 @@
       if (state.confirm) return setState({ confirm: null });
       if (state.ph) return closePositioner();
       if (state.invite) return setState({ invite: null });
+      if (state.shiftPick) return setState({ shiftPick: null });
       if (state.startName != null) return setState({ startName: null });
       if (state.blast) return setState({ blast: null });
       if (state.prepEdit) return setState({ prepEdit: null, prepText: '' });
