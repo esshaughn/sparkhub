@@ -42,11 +42,11 @@
           <div aria-hidden="true" style="position:absolute;left:0;right:0;top:0;height:520px;background:linear-gradient(to bottom, rgba(13,17,23,.4) 0%, rgba(13,17,23,.18) 25%, rgba(13,17,23,.62) 48%, rgba(13,17,23,.92) 70%, #0d1117 100%)"></div>
           <div style="position:absolute;left:20px;right:20px;bottom:6px;color:#fff;text-shadow:0 1px 12px rgba(13,17,23,.5)">
             <div aria-label="Spark Hub" style="display:flex;align-items:center;gap:6px;margin-bottom:16px"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M13.2 2.2 7.2 13.1l3.9-.35-.9 8.8 6.9-11.2-4.1.4z" fill="#f3c55a" stroke="#f3c55a" stroke-width="1.7" stroke-linejoin="round" /></svg><span style="font-size:18px;line-height:1;font-weight:900;letter-spacing:-.5px;color:#fff">Spark Hub</span></div>
-            <h1 style="margin:0;font-size:42px;line-height:.98;font-weight:900;letter-spacing:-1.4px;color:#fff">Turn your idea<br /><span style="color:#9d93f7">into a plan.</span></h1>
+            <h1 style="margin:0;font-size:42px;line-height:.98;font-weight:900;letter-spacing:-1.4px;color:#fff">Plans with<br /><span style="color:#9d93f7">your people.</span></h1>
             <div style="margin-top:18px;display:flex;flex-direction:column;gap:12px">
-              <div style="display:flex;align-items:center;gap:12px"><span style="flex:0 0 28px;width:28px;height:28px;border-radius:999px;background:#e8a71c;color:#fff;font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center;text-shadow:none">1</span><span style="font-size:16.5px;line-height:1.2;font-weight:800;color:#fff">Post an idea</span></div>
-              <div style="display:flex;align-items:center;gap:12px"><span style="flex:0 0 28px;width:28px;height:28px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center;text-shadow:none">2</span><span style="font-size:16.5px;line-height:1.2;font-weight:800;color:#fff">People pitch in</span></div>
-              <div style="display:flex;align-items:center;gap:12px"><span style="flex:0 0 28px;width:28px;height:28px;border-radius:999px;background:#0f7a3c;color:#fff;font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center;text-shadow:none">3</span><span style="font-size:16.5px;line-height:1.2;font-weight:800;color:#fff">It happens</span></div>
+              <div style="display:flex;align-items:center;gap:12px"><span style="flex:0 0 28px;width:28px;height:28px;border-radius:999px;background:#e8a71c;color:#fff;font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center;text-shadow:none">1</span><span style="font-size:16.5px;line-height:1.2;font-weight:800;color:#fff">Create an event</span></div>
+              <div style="display:flex;align-items:center;gap:12px"><span style="flex:0 0 28px;width:28px;height:28px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center;text-shadow:none">2</span><span style="font-size:16.5px;line-height:1.2;font-weight:800;color:#fff">RSVP &amp; pitch in</span></div>
+              <div style="display:flex;align-items:center;gap:12px"><span style="flex:0 0 28px;width:28px;height:28px;border-radius:999px;background:#0f7a3c;color:#fff;font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center;text-shadow:none">3</span><span style="font-size:16.5px;line-height:1.2;font-weight:800;color:#fff">Make it happen</span></div>
             </div>
           </div>
         </div>
@@ -72,7 +72,8 @@
         <header style="position:relative;z-index:5;background:#fff;padding:14px 16px;display:flex;align-items:center;gap:12px">
           
           <h1 style="flex:1 1 0;min-width:0;margin:0;font-size:30px;line-height:1;font-weight:900;letter-spacing:-1px;color:#0d1117">Your tasks</h1>
-          <div onClick="{{ goNotifs }}" role="button" aria-label="{{ bellLabel }}" style="position:relative;width:44px;height:44px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;color:#0d1117;cursor:pointer" style-hover="background:#e8eaee"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16.5V11a6 6 0 1 1 12 0v5.5l1.6 2H4.4L6 16.5Z" /><path d="M10 21a2.2 2.2 0 0 0 4 0" /></svg><sc-if value="{{ bellHasBadge }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;top:-3px;right:-4px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;border:2px solid #fff;background:#e2556b;color:#fff;font-size:10.5px;font-weight:900;display:flex;align-items:center;justify-content:center">{{ bellCount }}</span></sc-if></div>
+          <div onClick="{{ openSearchAny }}" role="button" aria-label="Search" style="position:relative;width:44px;height:44px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;color:#0d1117;cursor:pointer" style-hover="background:#e8eaee"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5" /><path d="m20 20-4.2-4.2" /></svg></div>
+          <div onClick="{{ goNotifs }}" role="button" aria-label="{{ bellLabel }}" style="position:relative;width:44px;height:44px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;color:#0d1117;cursor:pointer" style-hover="background:#e8eaee"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16.5V11a6 6 0 1 1 12 0v5.5l1.6 2H4.4L6 16.5Z" /><path d="M10 21a2.2 2.2 0 0 0 4 0" /></svg><sc-if value="{{ bellHasBadge }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;top:-3px;right:-4px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#e2556b;color:#fff;font-size:10.5px;font-weight:900;display:flex;align-items:center;justify-content:center">{{ bellCount }}</span></sc-if></div>
         </header>
         <div style="padding:14px 14px 22px;display:flex;flex-direction:column;gap:14px">
           <sc-if value="{{ hasEvDrafts }}" hint-placeholder-val="{{ false }}"><div style="display:flex;flex-direction:column;gap:8px"><div style="padding:0 4px;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:#0d1117">Your drafts</div><sc-for list="{{ evDraftRows }}" as="d" hint-placeholder-count="1"><div style="background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08);overflow:hidden;display:flex"><span style="{{ d.thumb }}"></span><div style="flex:1;min-width:0;padding:12px 14px;display:flex;flex-direction:column;gap:7px"><div style="display:flex;align-items:center;gap:6px"><span style="display:inline-flex;align-items:center;min-height:22px;padding:0 8px;border-radius:999px;background:#eef0f3;color:#454b55;font-size:11px;font-weight:900;letter-spacing:.6px">DRAFT</span><span style="flex:1;font-size:12.5px;font-weight:600;color:#6b7280">{{ d.saved }}</span><span onClick="{{ d.remove }}" role="button" aria-label="Delete draft" style="width:30px;height:30px;border-radius:999px;display:flex;align-items:center;justify-content:center;cursor:pointer" style-hover="background:#f2f3f6"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9aa0ac" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 15px"><path d="M4.5 7h15M10 11v6M14 11v6M6 7l1 12.5A1.5 1.5 0 0 0 8.5 21h7a1.5 1.5 0 0 0 1.5-1.5L18 7M9 7V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V7" /></svg></span></div><div style="font-size:17px;line-height:1.2;font-weight:900;letter-spacing:-.3px;color:#0d1117">{{ d.title }}</div><div style="display:flex;gap:3px"><sc-for list="{{ d.prog }}" as="g" hint-placeholder-count="5"><span style="{{ g }}"></span></sc-for></div><div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><span style="font-size:13px;font-weight:700;color:#454b55">Up next: {{ d.next }}</span><span onClick="{{ d.resume }}" role="button" style="display:flex;align-items:center;min-height:36px;padding:0 14px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:13.5px;font-weight:800;cursor:pointer">Continue</span></div></div></div></sc-for></div></sc-if>
@@ -84,7 +85,7 @@
             <sc-for list="{{ dLead }}" as="e" hint-placeholder-count="2">
               <div onClick="{{ e.open }}" style="flex:0 0 290px;width:290px;scroll-snap-align:start;align-self:flex-start;background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">
                 <div style="{{ e.banner }}"><div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.94) 0%, rgba(13,17,23,.55) 60%, rgba(13,17,23,.3) 100%)"></div><span aria-hidden="true" style="position:absolute;right:10px;top:0;bottom:0;display:flex;align-items:center;opacity:.85"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6" /></svg></span><div style="position:absolute;left:14px;right:40px;bottom:11px;display:flex;flex-direction:column;gap:3px;color:#fff"><div style="font-size:18px;line-height:1.15;font-weight:900;letter-spacing:-.3px;text-wrap:balance;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">{{ e.text }}</div><div style="{{ e.kick }}">{{ e.when }}</div></div></div>
-                <sc-if value="{{ e.hasStats }}" hint-placeholder-val="{{ false }}"><div style="display:flex;align-items:center;justify-content:space-between;height:40px;padding:0 30px;border-top:1px solid #f2f3f6;background:#fafafb"><sc-for list="{{ e.stats }}" as="q" hint-placeholder-count="4"><span aria-label="{{ q.aria }}" style="{{ q.style }}"><sc-if value="{{ q.isInv }}" hint-placeholder-val="{{ false }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="6" width="17" height="12" rx="2.5" /><path d="m4 7.5 8 5.5 8-5.5" /></svg></sc-if><sc-if value="{{ q.isGo }}" hint-placeholder-val="{{ false }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8.5" r="3.2" /><path d="M3.5 19a5.5 5.5 0 0 1 11 0" /><path d="M16 5.6a3 3 0 0 1 0 5.8M17.5 14a5 5 0 0 1 3 5" /></svg></sc-if><sc-if value="{{ q.isSu }}" hint-placeholder-val="{{ false }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2.5" /><path d="M9 4V3h6v1" /><path d="m9 13 2 2 4-4.5" /></svg></sc-if><sc-if value="{{ q.isRem }}" hint-placeholder-val="{{ false }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16.5V11a6 6 0 1 1 12 0v5.5l1.6 2H4.4L6 16.5Z" /><path d="M10 21a2.2 2.2 0 0 0 4 0" /></svg></sc-if>{{ q.value }}</span></sc-for></div></sc-if>
+                <sc-if value="{{ e.hasStats }}" hint-placeholder-val="{{ false }}"><div style="display:flex;align-items:center;justify-content:space-between;height:40px;padding:0 30px;border-top:1px solid #f2f3f6;background:#fafafb"><sc-for list="{{ e.stats }}" as="q" hint-placeholder-count="4"><span aria-label="{{ q.aria }}" style="{{ q.style }}"><sc-if value="{{ q.isInv }}" hint-placeholder-val="{{ false }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5" /><path d="M9.6 9.4a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.2-2.4 3.6" /><path d="M12 17h.01" /></svg></sc-if><sc-if value="{{ q.isGo }}" hint-placeholder-val="{{ false }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8.5" r="3.2" /><path d="M3.5 19a5.5 5.5 0 0 1 11 0" /><path d="M16 5.6a3 3 0 0 1 0 5.8M17.5 14a5 5 0 0 1 3 5" /></svg></sc-if><sc-if value="{{ q.isSu }}" hint-placeholder-val="{{ false }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2.5" /><path d="M9 4V3h6v1" /><path d="m9 13 2 2 4-4.5" /></svg></sc-if><sc-if value="{{ q.isRem }}" hint-placeholder-val="{{ false }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16.5V11a6 6 0 1 1 12 0v5.5l1.6 2H4.4L6 16.5Z" /><path d="M10 21a2.2 2.2 0 0 0 4 0" /></svg></sc-if>{{ q.value }}</span></sc-for></div></sc-if>
                 <div onClick="{{ e.toggleMore }}" style="display:flex;flex-direction:column">
                   <sc-for list="{{ e.acts }}" as="a" hint-placeholder-count="2">
                     <div style="display:flex;align-items:center;gap:10px;min-height:46px;padding:9px 12px;border-top:1px solid #f2f3f6">
@@ -104,9 +105,9 @@
             <div style="display:flex;align-items:center;gap:7px;padding:0 4px"><span style="min-width:19px;height:19px;padding:0 6px;border-radius:999px;background:#149a4b;color:#fff;font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center">{{ dGoingN }}</span><span style="font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:#0d1117">Helping</span><sc-if value="{{ dGoingHasN }}" hint-placeholder-val="{{ true }}"><span onClick="{{ openGoingAll }}" role="button" style="margin-left:auto;display:flex;align-items:center;gap:3px;min-height:32px;padding:0 2px 0 8px;font-size:14px;font-weight:800;color:#6b7280;cursor:pointer">View all<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6" /></svg></span></sc-if></div>
             <sc-if value="{{ dGoingEmpty }}" hint-placeholder-val="{{ false }}"><div style="background:#fff;border-radius:18px;padding:16px 18px;box-shadow:0 1px 3px rgba(15,18,25,.08);font-size:15px;line-height:1.45;font-weight:600;color:#6b7280">Nothing to think about for events you’re helping with.</div></sc-if>
             <sc-if value="{{ dGoingNone }}" hint-placeholder-val="{{ false }}">
-              <div onClick="{{ goGroups }}" role="button" style="display:flex;align-items:center;gap:12px;padding:14px 14px 14px 16px;border-radius:18px;background:#f4f5f7;box-shadow:inset 0 0 0 1.5px #dcdfe6;cursor:pointer" style-hover="background:#eef0f3">
+              <div onClick="{{ goCalendar }}" role="button" style="display:flex;align-items:center;gap:12px;padding:14px 14px 14px 16px;border-radius:18px;background:#f4f5f7;box-shadow:inset 0 0 0 1.5px #dcdfe6;cursor:pointer" style-hover="background:#eef0f3">
                 <span style="flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#454b55" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z" /></svg></span>
-                <div style="flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-size:15.5px;font-weight:800;color:#0d1117">Find something to help with</span><span style="font-size:13.5px;line-height:1.35;font-weight:600;color:#6b7280">Leads in your groups need a hand. Sign up to bring something or pitch in.</span></div>
+                <div style="flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-size:15.5px;font-weight:800;color:#0d1117">Find something to help with</span><span style="font-size:13.5px;line-height:1.35;font-weight:600;color:#6b7280">Events on the Calendar that could use a hand.</span></div>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#b9bcc4" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6" /></svg>
               </div>
             </sc-if>
@@ -168,7 +169,8 @@
         <header style="position:relative;z-index:5;background:#fff;padding:14px 16px;display:flex;align-items:center;gap:12px">
           
           <h1 style="flex:1 1 0;min-width:0;margin:0;font-size:30px;line-height:1;font-weight:900;letter-spacing:-1px;color:#0d1117">Your schedule</h1>
-          <div onClick="{{ goNotifs }}" role="button" aria-label="{{ bellLabel }}" style="position:relative;width:44px;height:44px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;color:#0d1117;cursor:pointer" style-hover="background:#e8eaee"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16.5V11a6 6 0 1 1 12 0v5.5l1.6 2H4.4L6 16.5Z" /><path d="M10 21a2.2 2.2 0 0 0 4 0" /></svg><sc-if value="{{ bellHasBadge }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;top:-3px;right:-4px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;border:2px solid #fff;background:#e2556b;color:#fff;font-size:10.5px;font-weight:900;display:flex;align-items:center;justify-content:center">{{ bellCount }}</span></sc-if></div>
+          <div onClick="{{ openSearchAny }}" role="button" aria-label="Search" style="position:relative;width:44px;height:44px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;color:#0d1117;cursor:pointer" style-hover="background:#e8eaee"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5" /><path d="m20 20-4.2-4.2" /></svg></div>
+          <div onClick="{{ goNotifs }}" role="button" aria-label="{{ bellLabel }}" style="position:relative;width:44px;height:44px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;color:#0d1117;cursor:pointer" style-hover="background:#e8eaee"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16.5V11a6 6 0 1 1 12 0v5.5l1.6 2H4.4L6 16.5Z" /><path d="M10 21a2.2 2.2 0 0 0 4 0" /></svg><sc-if value="{{ bellHasBadge }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;top:-3px;right:-4px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#e2556b;color:#fff;font-size:10.5px;font-weight:900;display:flex;align-items:center;justify-content:center">{{ bellCount }}</span></sc-if></div>
         </header>
         <div style="padding:10px 0 24px;display:flex;flex-direction:column;gap:24px">
           <sc-if value="{{ noGroups }}" hint-placeholder-val="{{ false }}"><div style="margin:0 14px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);border-radius:20px;padding:18px;display:flex;flex-direction:column;gap:4px"><div style="font-size:16.5px;font-weight:800;letter-spacing:-.2px;color:#0d1117">You’re not in a group yet.</div><div style="font-size:15px;line-height:1.45;font-weight:500;color:#5c6270">Join one with a code from its organiser.</div><button onClick="{{ openJoin }}" style="margin-top:12px;min-height:48px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:15.5px;font-weight:800;cursor:pointer" style-hover="background:#4a3ad4">Join with a code</button></div></sc-if>
@@ -695,49 +697,49 @@
         <section style="padding:20px 20px 26px">
           <div style="font-size:12px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#0f7a3c">How this works</div>
           <h2 style="margin:8px 0 0;font-size:28px;line-height:1.06;font-weight:900;letter-spacing:-.8px;color:#0d1117;text-wrap:pretty">Ideas come to life when we build them together</h2>
-          <p style="margin:12px 0 0;font-size:15.5px;line-height:1.45;font-weight:500;color:#454b55">Consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco.</p>
+          <p style="margin:12px 0 0;font-size:15.5px;line-height:1.45;font-weight:500;color:#454b55">Spark Hub is where your groups plan things. Anyone can start something, and everyone can help make it happen.</p>
           <div style="margin-top:20px;display:flex;flex-direction:column;gap:16px">
             <div style="display:flex;gap:14px">
               <div style="flex:0 0 34px;width:34px;height:34px;border-radius:999px;background:#efedfd;color:#4a3ad4;font-size:15px;font-weight:900;display:flex;align-items:center;justify-content:center">1</div>
               <div>
-                <div style="font-size:16.5px;font-weight:800;letter-spacing:-.2px;color:#0d1117">Sed ut perspiciatis</div>
-                <p style="margin:3px 0 0;font-size:14.5px;line-height:1.42;font-weight:500;color:#5c6270">Unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam eaque ipsa.</p>
+                <div style="font-size:16.5px;font-weight:800;letter-spacing:-.2px;color:#0d1117">Create an event</div>
+                <p style="margin:3px 0 0;font-size:14.5px;line-height:1.42;font-weight:500;color:#5c6270">Add a title and whatever you know. Date, place and details can wait. Let the group vote on them.</p>
               </div>
             </div>
             <div style="display:flex;gap:14px">
               <div style="flex:0 0 34px;width:34px;height:34px;border-radius:999px;background:#fdf4e2;color:#8f6405;font-size:15px;font-weight:900;display:flex;align-items:center;justify-content:center">2</div>
               <div>
-                <div style="font-size:16.5px;font-weight:800;letter-spacing:-.2px;color:#0d1117">Nemo enim ipsam voluptatem</div>
-                <p style="margin:3px 0 0;font-size:14.5px;line-height:1.42;font-weight:500;color:#5c6270">Quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt.</p>
+                <div style="font-size:16.5px;font-weight:800;letter-spacing:-.2px;color:#0d1117">RSVP &amp; pitch in</div>
+                <p style="margin:3px 0 0;font-size:14.5px;line-height:1.42;font-weight:500;color:#5c6270">Neighbors RSVP, vote on dates and spots, and sign up to bring things or help out.</p>
               </div>
             </div>
             <div style="display:flex;gap:14px">
               <div style="flex:0 0 34px;width:34px;height:34px;border-radius:999px;background:#e7f6ec;color:#0f7a3c;font-size:15px;font-weight:900;display:flex;align-items:center;justify-content:center">3</div>
               <div>
-                <div style="font-size:16.5px;font-weight:800;letter-spacing:-.2px;color:#0d1117">Neque porro quisquam est</div>
-                <p style="margin:3px 0 0;font-size:14.5px;line-height:1.42;font-weight:500;color:#5c6270">Qui dolorem ipsum quia dolor sit amet, consectetur adipisci velit, sed quia non numquam eius modi tempora incidunt ut labore et dolore.</p>
+                <div style="font-size:16.5px;font-weight:800;letter-spacing:-.2px;color:#0d1117">Make it happen</div>
+                <p style="margin:3px 0 0;font-size:14.5px;line-height:1.42;font-weight:500;color:#5c6270">Everyone going gets a reminder the day before. Afterwards, add photos and thank whoever helped.</p>
               </div>
             </div>
           </div>
           <div style="height:1px;background:#eceef2;margin:22px 0"></div>
-          <div style="font-size:12px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#6b7280">Duis aute irure dolor</div>
+          <div style="font-size:12px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#6b7280">Good to know</div>
           <div style="margin-top:12px;display:flex;flex-direction:column;gap:12px">
             <div style="display:flex;gap:12px">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5c6270" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 20px;margin-top:2px"><path d="M12 3.2 5 6v5.4c0 4.2 2.9 7.4 7 9.4 4.1-2 7-5.2 7-9.4V6l-7-2.8Z" /><path d="M9.2 12.1l2.1 2.1 3.6-3.9" /></svg>
-              <p style="margin:0;font-size:14.5px;line-height:1.42;font-weight:500;color:#454b55"><strong style="font-weight:800;color:#0d1117">Excepteur sint occaecat.</strong> Cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+              <p style="margin:0;font-size:14.5px;line-height:1.42;font-weight:500;color:#454b55"><strong style="font-weight:800;color:#0d1117">Groups are private.</strong> Only members see a group’s events, and you join with a code or a link.</p>
             </div>
             <div style="display:flex;gap:12px">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5c6270" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 20px;margin-top:2px"><path d="M16.6 3.8l3.6 3.6L8.4 19.2 4 20.5l1.3-4.4L16.6 3.8Z" /></svg>
-              <p style="margin:0;font-size:14.5px;line-height:1.42;font-weight:500;color:#454b55"><strong style="font-weight:800;color:#0d1117">At vero eos et accusamus.</strong> Iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti.</p>
+              <p style="margin:0;font-size:14.5px;line-height:1.42;font-weight:500;color:#454b55"><strong style="font-weight:800;color:#0d1117">Hosts stay in charge.</strong> People can suggest dates and spots. The host decides what the event becomes.</p>
             </div>
             <div style="display:flex;gap:12px">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5c6270" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 20px;margin-top:2px"><circle cx="12" cy="12" r="8.4" /><path d="M12 7.6V12l3.2 2" /></svg>
-              <p style="margin:0;font-size:14.5px;line-height:1.42;font-weight:500;color:#454b55"><strong style="font-weight:800;color:#0d1117">Temporibus autem quibusdam.</strong> Et aut officiis debitis aut rerum necessitatibus saepe eveniet ut et voluptates repudiandae sint.</p>
+              <p style="margin:0;font-size:14.5px;line-height:1.42;font-weight:500;color:#454b55"><strong style="font-weight:800;color:#0d1117">Your tasks keeps track.</strong> Anything you’re hosting or signed up for shows up there with what’s left to do.</p>
             </div>
           </div>
           <button onClick="{{ goCompose }}" style="margin-top:26px;width:100%;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16.5px;font-weight:800;padding:17px;display:flex;align-items:center;justify-content:center;gap:9px;box-shadow:0 10px 24px rgba(91,74,232,.32);cursor:pointer" style-hover="background:#4a3ad4">
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>
-            I have an idea
+            Start an event
           </button>
         </section>
         <div style="height:92px"></div>
@@ -1010,13 +1012,8 @@
                     <div style="{{ s.style }}"><span style="font-size:24px;line-height:1;font-weight:900;letter-spacing:-.5px">{{ s.num }}</span><span style="font-size:11.5px;font-weight:800">{{ s.label }}</span></div>
                   </sc-for>
                 </div>
-                <sc-if value="{{ hasNoReply }}" hint-placeholder-val="{{ false }}">
-                  <span onClick="{{ nudgeNoReply }}" style="display:flex;align-items:center;justify-content:center;gap:7px;min-height:44px;border-radius:999px;background:#fdf1d6;font-size:14.5px;font-weight:800;color:#8f6405;cursor:pointer" style-hover="background:#fbe8bd"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15L6 16ZM10 20.5a2 2 0 0 0 4 0" /></svg>{{ nudgeLabel }}</span>
-                </sc-if>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-                  <button onClick="{{ openInvite }}" style="min-height:50px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:15.5px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;box-shadow:0 8px 20px rgba(91,74,232,.28)" style-hover="background:#4a3ad4"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>Invite people</button>
-                  <button onClick="{{ openShareLink }}" style="min-height:50px;border:1.5px solid #dcdfe6;border-radius:999px;background:#fff;color:#0d1117;font-family:inherit;font-size:15.5px;font-weight:800;cursor:pointer" style-hover="border-color:#0d1117">Share link</button>
-                </div>
+                <button onClick="{{ openShareLink }}" style="min-height:50px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:15.5px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;box-shadow:0 8px 20px rgba(91,74,232,.28)" style-hover="background:#4a3ad4"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1" /><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1" /></svg>Share link</button>
+                <span onClick="{{ openBlast }}" role="button" style="display:flex;align-items:center;justify-content:center;gap:7px;min-height:40px;font-size:14.5px;font-weight:800;color:#6b7280;cursor:pointer" style-hover="color:#0d1117"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15L6 16ZM10 20.5a2 2 0 0 0 4 0" /></svg>Send everyone an update</span>
               </div>
             </div>
             </sc-if>
@@ -1073,6 +1070,7 @@
               </div>
             </div>
             </sc-if>
+            <sc-if value="{{ canEditSections }}" hint-placeholder-val="{{ false }}"><span onClick="{{ askDeleteEvent }}" role="button" style="align-self:center;display:flex;align-items:center;gap:7px;min-height:44px;padding:0 10px;font-size:14.5px;font-weight:800;color:#9b1c31;cursor:pointer" style-hover="color:#7a1426"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 7h15M9.5 7V4.8h5V7M6.5 7l.9 12.2a1.8 1.8 0 0 0 1.8 1.6h5.6a1.8 1.8 0 0 0 1.8-1.6L17.5 7" /></svg>Delete this event</span></sc-if>
           </div>
         </sc-if>
         <sc-if value="{{ isDonePhase }}" hint-placeholder-val="{{ false }}">
@@ -1198,7 +1196,7 @@
             <sc-if value="{{ evOnTitle }}" hint-placeholder-val="{{ true }}">
               <div style="padding:26px 18px 0"><h2 style="margin:0;font-size:24px;line-height:1.05;font-weight:900;letter-spacing:-.8px;color:#0d1117">Event title</h2></div>
               <div style="padding:12px 16px 0;display:flex;flex-direction:column;gap:10px">
-                <input value="{{ activity }}" onChange="{{ onActivity }}" placeholder="e.g. Fall yard cleanup" aria-label="Event title" style="width:100%;min-height:58px;border:2px solid #dcdfe6;border-radius:16px;padding:0 16px;font-family:inherit;font-size:17px;font-weight:800;color:#0d1117;background:#fff;outline:none" style-focus="border-color:#5b4ae8" />
+                <input value="{{ activity }}" onChange="{{ onActivity }}" placeholder="Enter event title" aria-label="Event title" style="width:100%;min-height:58px;border:2px solid #dcdfe6;border-radius:16px;padding:0 16px;font-family:inherit;font-size:17px;font-weight:800;color:#0d1117;background:#fff;outline:none" style-focus="border-color:#5b4ae8" />
                 <sc-if value="{{ noEvPhoto }}" hint-placeholder-val="{{ true }}"><label style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:118px;border-radius:16px;border:2px dashed #b9bcc4;background:#f4f5f7;cursor:pointer" style-hover="border-color:#5b4ae8;background:#f3f1fe"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#5b4ae8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 18 8.5a4 4 0 0 1-.5 9.5" /><path d="M12 12v8M9 15l3-3 3 3" /></svg><span style="font-size:15px;font-weight:800;color:#0d1117">Upload a cover photo</span><span style="font-size:12.5px;font-weight:600;color:#6b7280">JPG or PNG · Optional</span><input type="file" accept="image/*" onChange="{{ pickEvPhoto }}" style="display:none" /></label></sc-if>
                 <sc-if value="{{ hasEvPhoto }}" hint-placeholder-val="{{ false }}"><div style="display:flex;align-items:center;gap:12px;padding:8px 14px 8px 8px;border-radius:16px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08)"><span style="{{ evPhotoThumb }}"></span><span style="flex:1;font-size:15px;font-weight:800;color:#0d1117">Cover photo added</span><label style="font-size:13.5px;font-weight:800;color:#5b4ae8;cursor:pointer">Change<input type="file" accept="image/*" onChange="{{ pickEvPhoto }}" style="display:none" /></label></div></sc-if>
                 
@@ -1248,7 +1246,7 @@
                 <div style="background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08);padding:14px 16px;display:flex;flex-direction:column;gap:10px"><div style="display:flex;align-items:center;gap:10px"><span style="{{ sumHelp.ink }}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V11M11 10.5V4.5a1.5 1.5 0 0 1 3 0v6M14 10.5V6a1.5 1.5 0 0 1 3 0v7.5a6.5 6.5 0 0 1-6.5 6.5A5.5 5.5 0 0 1 5.6 17L4 13.8a1.5 1.5 0 0 1 2.6-1.5L8 14" /></svg></span><span style="flex:1;font-size:12px;font-weight:800;letter-spacing:1.1px;text-transform:uppercase;color:#6b7280">How people can help</span><span onClick="{{ sumHelp.go }}" role="button" style="font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">{{ sumHelp.act }}</span></div><sc-if value="{{ sumHelpNoList }}" hint-placeholder-val="{{ true }}"><div style="padding-left:28px"><div style="{{ sumHelp.mainStyle }}">{{ sumHelp.main }}</div><sc-if value="{{ sumHelp.hasSub }}" hint-placeholder-val="{{ false }}"><div style="margin-top:2px;font-size:13.5px;line-height:1.35;font-weight:500;color:#6b7280">{{ sumHelp.sub }}</div></sc-if></div></sc-if><sc-if value="{{ sumHelpHasList }}" hint-placeholder-val="{{ false }}"><div style="padding-left:28px;display:flex;flex-direction:column"><sc-for list="{{ sumHelpList }}" as="j" hint-placeholder-count="2"><div style="{{ j.row }}"><span style="flex:1;min-width:0;font-size:15.5px;line-height:1.35;font-weight:800;color:#0d1117;text-wrap:pretty">{{ j.t }}</span><span style="flex:0 0 auto;font-size:13px;font-weight:700;color:#6b7280">{{ j.m }}</span></div></sc-for></div></sc-if></div>
               </div>
               <div style="display:flex;flex-direction:column;gap:8px"><div style="padding:0 4px;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:#0d1117">Who can see it</div><div style="background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08)"><div style="position:relative"><div onClick="{{ togglePostGroup }}" role="button" style="display:flex;align-items:center;gap:12px;min-height:58px;padding:10px 14px;cursor:pointer"><span style="{{ evGroupPhoto }}"></span><div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:900;letter-spacing:.7px;text-transform:uppercase;color:#8a909b">Post to</div><div style="font-size:15px;font-weight:800;color:#0d1117">{{ evGroupsLabel }}</div></div><span style="font-size:13px;font-weight:800;color:#5b4ae8">{{ evGroupsCta }}</span></div>
-                <sc-if value="{{ postGroupOpen }}" hint-placeholder-val="{{ false }}"><div onClick="{{ stop }}" style="position:absolute;left:12px;right:12px;top:60px;z-index:20;background:#fff;border-radius:16px;box-shadow:0 12px 32px rgba(15,18,25,.18), 0 0 0 1px #e6e7eb;padding:6px"><sc-for list="{{ evGroupRows }}" as="g" hint-placeholder-count="3"><div onClick="{{ g.pick }}" style="{{ g.rowStyle }}"><span style="{{ g.box }}"><sc-if value="{{ g.on }}" hint-placeholder-val="{{ false }}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7" /></svg></sc-if></span><span style="{{ g.nameStyle }}">{{ g.name }}</span></div></sc-for></div></sc-if></div>
+                <sc-if value="{{ postGroupOpen }}" hint-placeholder-val="{{ false }}"><div onClick="{{ stop }}" style="position:absolute;left:12px;right:12px;top:60px;z-index:20;background:#fff;border-radius:16px;box-shadow:0 12px 32px rgba(15,18,25,.18), 0 0 0 1px #e6e7eb;padding:6px"><sc-for list="{{ evGroupRows }}" as="g" hint-placeholder-count="3"><div onClick="{{ g.pick }}" style="{{ g.rowStyle }}"><span style="{{ g.box }}"><sc-if value="{{ g.on }}" hint-placeholder-val="{{ false }}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7" /></svg></sc-if></span><span style="{{ g.nameStyle }}">{{ g.name }}</span><sc-if value="{{ g.isHome }}" hint-placeholder-val="{{ false }}"><span style="margin-left:auto;font-size:12.5px;font-weight:700;color:#8a909b">Posted here first</span></sc-if></div></sc-for></div></sc-if></div>
               <div style="padding:12px 14px 14px;border-top:1px solid #f2f3f6;display:flex;gap:8px"><sc-for list="{{ evPrivTiles }}" as="t" hint-placeholder-count="2"><div onClick="{{ t.pick }}" role="button" style="{{ t.box }}"><span style="{{ t.ic }}"><sc-if value="{{ t.isPub }}" hint-placeholder-val="{{ true }}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8.5" r="3.2" /><path d="M3.5 19a5.5 5.5 0 0 1 11 0" /><circle cx="17" cy="9.5" r="2.5" /><path d="M16 14.2a4.5 4.5 0 0 1 5 4.8" /></svg></sc-if><sc-if value="{{ t.isPriv }}" hint-placeholder-val="{{ false }}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9.5" rx="2.5" /><path d="M8.5 11V8a3.5 3.5 0 0 1 7 0v3" /></svg></sc-if></span><span style="{{ t.title }}">{{ t.label }}</span><span style="font-size:12.5px;line-height:1.35;font-weight:600;color:#6b7280">{{ t.sub }}</span></div></sc-for></div></div></div>
             </div>
             <div style="position:sticky;bottom:0;margin-top:auto;padding:16px 14px 16px;background:linear-gradient(to top,#e8eaee 70%,rgba(232,234,238,0))">
@@ -1867,7 +1865,7 @@
           <div style="display:flex;flex-direction:column;gap:10px">
             <span style="font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:#0d1117;padding:0 4px">Help &amp; info</span>
             <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">
-              <sc-for list="{{ helpRows }}" as="r" hint-placeholder-count="4">
+              <sc-for list="{{ helpRows }}" as="r" hint-placeholder-count="2">
                 <div onClick="{{ r.open }}" role="button" style="display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:18px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer" style-hover="background:#fafafb">
                   <span style="width:42px;height:42px;border-radius:12px;background:#f3f1fe;color:#4a3ad4;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:900">{{ r.glyph }}</span>
                   <div><div style="font-size:15.5px;line-height:1.2;font-weight:900;color:#0d1117">{{ r.label }}</div><div style="margin-top:3px;font-size:12.5px;line-height:1.35;font-weight:600;color:#6b7280">{{ r.sub }}</div></div>
@@ -1999,9 +1997,9 @@
             <div style="display:flex;align-items:center;gap:10px"><span style="flex:1;min-width:0;font-size:12px;font-weight:800;letter-spacing:1.2px;color:#6b7280">{{ r.label }}</span><sc-if value="{{ r.hasPeople }}" hint-placeholder-val="{{ false }}"><span style="font-size:13px;font-weight:700;color:#454b55">{{ r.peopleLine }}</span></sc-if><span onClick="{{ r.remove }}" role="button" aria-label="Remove" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9b1c31" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 7h15M10 11v6M14 11v6M6 7l1 12.5A1.5 1.5 0 0 0 8.5 21h7a1.5 1.5 0 0 0 1.5-1.5L18 7M9 7V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V7" /></svg></span></div>
             <input value="{{ r.item }}" onChange="{{ r.onItem }}" placeholder="What you need, e.g. Bring a case of water" style="width:100%;min-height:52px;border:2px solid #dcdfe6;border-radius:16px;padding:12px 16px;font-family:inherit;font-size:16px;font-weight:600;color:#0d1117;background:#fff;outline:none;font-weight:800" />
             <textarea value="{{ r.desc }}" onChange="{{ r.onDesc }}" rows="2" placeholder="Details (optional)" style="width:100%;min-height:52px;border:2px solid #dcdfe6;border-radius:16px;padding:12px 16px;font-family:inherit;font-size:16px;font-weight:600;color:#0d1117;background:#fff;outline:none;resize:none;line-height:1.4;font-weight:500"></textarea>
-            <sc-if value="{{ r.isOne }}" hint-placeholder-val="{{ true }}"><div style="display:flex;align-items:center;gap:10px"><input value="{{ r.time }}" onChange="{{ r.onTime }}" placeholder="Time (optional)" style="width:100%;min-height:52px;border:2px solid #dcdfe6;border-radius:16px;padding:12px 16px;font-family:inherit;font-size:16px;font-weight:600;color:#0d1117;background:#fff;outline:none;flex:1 1 auto;min-width:0" /><div style="flex:0 0 auto;display:flex;align-items:center;gap:8px"><span onClick="{{ r.dec }}" role="button" aria-label="Fewer" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#0d1117;font-size:18px;font-weight:800;line-height:1">−</span><span style="min-width:22px;text-align:center;font-size:16px;font-weight:900;color:#0d1117">{{ r.need }}</span><span onClick="{{ r.inc }}" role="button" aria-label="More" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#0d1117;font-size:18px;font-weight:800;line-height:1">+</span></div></div></sc-if>
+            <sc-if value="{{ r.isOne }}" hint-placeholder-val="{{ true }}"><div style="display:flex;align-items:center;gap:10px"><select value="{{ r.time }}" onChange="{{ r.onTime }}" aria-label="Time" style="width:100%;min-height:52px;border:2px solid #dcdfe6;border-radius:16px;padding:0 12px;font-family:inherit;font-size:16px;font-weight:700;color:#0d1117;background:#fff;outline:none;flex:1 1 auto;min-width:0;-webkit-appearance:none;appearance:none"><sc-for list="{{ r.timeOpts }}" as="o" hint-placeholder-count="1"><option value="{{ o.value }}">{{ o.label }}</option></sc-for></select><div style="flex:0 0 auto;display:flex;align-items:center;gap:8px"><span onClick="{{ r.dec }}" role="button" aria-label="Fewer" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#0d1117;font-size:18px;font-weight:800;line-height:1">−</span><span style="min-width:22px;text-align:center;font-size:16px;font-weight:900;color:#0d1117">{{ r.need }}</span><span onClick="{{ r.inc }}" role="button" aria-label="More" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#0d1117;font-size:18px;font-weight:800;line-height:1">+</span></div></div></sc-if>
             <sc-if value="{{ r.isShifts }}" hint-placeholder-val="{{ false }}"><div style="display:flex;flex-direction:column;gap:8px">
-              <sc-for list="{{ r.shifts }}" as="q" hint-placeholder-count="2"><div style="display:flex;align-items:center;gap:8px"><input value="{{ q.time }}" onChange="{{ q.onTime }}" placeholder="e.g. 6:00 – 7:00pm" style="width:100%;min-height:52px;border:2px solid #dcdfe6;border-radius:16px;padding:12px 16px;font-family:inherit;font-size:16px;font-weight:600;color:#0d1117;background:#fff;outline:none;flex:1 1 auto;min-width:0" /><div style="flex:0 0 auto;display:flex;align-items:center;gap:8px"><span onClick="{{ q.dec }}" role="button" aria-label="Fewer" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#0d1117;font-size:18px;font-weight:800;line-height:1">−</span><span style="min-width:22px;text-align:center;font-size:16px;font-weight:900;color:#0d1117">{{ q.need }}</span><span onClick="{{ q.inc }}" role="button" aria-label="More" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#0d1117;font-size:18px;font-weight:800;line-height:1">+</span></div><span onClick="{{ q.remove }}" role="button" aria-label="Remove shift" style="flex:0 0 28px;width:28px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2.8" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18" /></svg></span></div></sc-for>
+              <sc-for list="{{ r.shifts }}" as="q" hint-placeholder-count="2"><div style="display:flex;align-items:center;gap:8px"><select value="{{ q.start }}" onChange="{{ q.onStart }}" aria-label="Start" style="width:100%;min-height:52px;border:2px solid #dcdfe6;border-radius:16px;padding:0 8px;font-family:inherit;font-size:15px;font-weight:700;color:#0d1117;background:#fff;outline:none;flex:1 1 auto;min-width:0;-webkit-appearance:none;appearance:none"><sc-for list="{{ q.startOpts }}" as="o" hint-placeholder-count="1"><option value="{{ o.value }}">{{ o.label }}</option></sc-for></select><select value="{{ q.end }}" onChange="{{ q.onEnd }}" aria-label="End" style="width:100%;min-height:52px;border:2px solid #dcdfe6;border-radius:16px;padding:0 8px;font-family:inherit;font-size:15px;font-weight:700;color:#0d1117;background:#fff;outline:none;flex:1 1 auto;min-width:0;-webkit-appearance:none;appearance:none"><sc-for list="{{ q.endOpts }}" as="o" hint-placeholder-count="1"><option value="{{ o.value }}">{{ o.label }}</option></sc-for></select><div style="flex:0 0 auto;display:flex;align-items:center;gap:8px"><span onClick="{{ q.dec }}" role="button" aria-label="Fewer" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#0d1117;font-size:18px;font-weight:800;line-height:1">−</span><span style="min-width:22px;text-align:center;font-size:16px;font-weight:900;color:#0d1117">{{ q.need }}</span><span onClick="{{ q.inc }}" role="button" aria-label="More" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#0d1117;font-size:18px;font-weight:800;line-height:1">+</span></div><span onClick="{{ q.remove }}" role="button" aria-label="Remove shift" style="flex:0 0 28px;width:28px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2.8" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18" /></svg></span></div></sc-for>
               <span onClick="{{ r.addShift }}" role="button" style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:36px;font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>Add a shift</span>
             </div></sc-if><sc-if value="{{ r.isOne }}" hint-placeholder-val="{{ true }}"><span onClick="{{ r.toShifts }}" role="button" style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:32px;font-size:13.5px;font-weight:700;color:#6b7280;cursor:pointer" style-hover="color:#5b4ae8"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5V12l3 2" /></svg>Add a shift</span></sc-if><sc-if value="{{ r.isShifts }}" hint-placeholder-val="{{ false }}"><span onClick="{{ r.toOne }}" role="button" style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:32px;font-size:13.5px;font-weight:700;color:#6b7280;cursor:pointer" style-hover="color:#5b4ae8">Use one time instead</span></sc-if>
           </div>
@@ -2025,9 +2023,9 @@
                   
                   <input autoFocus="{{ true }}" onFocus="{{ caretEnd }}" value="{{ r.item }}" onChange="{{ r.onItem }}" placeholder="What you need, e.g. Bring a case of water" style="width:100%;min-height:52px;border:2px solid #dcdfe6;border-radius:16px;padding:12px 16px;font-family:inherit;font-size:16px;font-weight:600;color:#0d1117;background:#fff;outline:none;font-weight:800" />
                   <textarea value="{{ r.desc }}" onChange="{{ r.onDesc }}" rows="2" placeholder="Details (optional)" style="width:100%;min-height:52px;border:2px solid #dcdfe6;border-radius:16px;padding:12px 16px;font-family:inherit;font-size:16px;font-weight:600;color:#0d1117;background:#fff;outline:none;resize:none;line-height:1.4;font-weight:500"></textarea>
-                  <sc-if value="{{ r.isOne }}" hint-placeholder-val="{{ true }}"><div style="display:flex;align-items:center;gap:10px"><input value="{{ r.time }}" onChange="{{ r.onTime }}" placeholder="Time (optional)" style="width:100%;min-height:52px;border:2px solid #dcdfe6;border-radius:16px;padding:12px 16px;font-family:inherit;font-size:16px;font-weight:600;color:#0d1117;background:#fff;outline:none;flex:1 1 auto;min-width:0" /><div style="flex:0 0 auto;display:flex;align-items:center;gap:8px"><span onClick="{{ r.dec }}" role="button" aria-label="Fewer" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#0d1117;font-size:18px;font-weight:800;line-height:1">−</span><span style="min-width:22px;text-align:center;font-size:16px;font-weight:900;color:#0d1117">{{ r.need }}</span><span onClick="{{ r.inc }}" role="button" aria-label="More" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#0d1117;font-size:18px;font-weight:800;line-height:1">+</span></div></div></sc-if>
+                  <sc-if value="{{ r.isOne }}" hint-placeholder-val="{{ true }}"><div style="display:flex;align-items:center;gap:10px"><select value="{{ r.time }}" onChange="{{ r.onTime }}" aria-label="Time" style="width:100%;min-height:52px;border:2px solid #dcdfe6;border-radius:16px;padding:0 12px;font-family:inherit;font-size:16px;font-weight:700;color:#0d1117;background:#fff;outline:none;flex:1 1 auto;min-width:0;-webkit-appearance:none;appearance:none"><sc-for list="{{ r.timeOpts }}" as="o" hint-placeholder-count="1"><option value="{{ o.value }}">{{ o.label }}</option></sc-for></select><div style="flex:0 0 auto;display:flex;align-items:center;gap:8px"><span onClick="{{ r.dec }}" role="button" aria-label="Fewer" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#0d1117;font-size:18px;font-weight:800;line-height:1">−</span><span style="min-width:22px;text-align:center;font-size:16px;font-weight:900;color:#0d1117">{{ r.need }}</span><span onClick="{{ r.inc }}" role="button" aria-label="More" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#0d1117;font-size:18px;font-weight:800;line-height:1">+</span></div></div></sc-if>
                   <sc-if value="{{ r.isShifts }}" hint-placeholder-val="{{ false }}"><div style="display:flex;flex-direction:column;gap:8px">
-                    <sc-for list="{{ r.shifts }}" as="q" hint-placeholder-count="2"><div style="display:flex;align-items:center;gap:8px"><input value="{{ q.time }}" onChange="{{ q.onTime }}" placeholder="e.g. 6:00 – 7:00pm" style="width:100%;min-height:52px;border:2px solid #dcdfe6;border-radius:16px;padding:12px 16px;font-family:inherit;font-size:16px;font-weight:600;color:#0d1117;background:#fff;outline:none;flex:1 1 auto;min-width:0" /><div style="flex:0 0 auto;display:flex;align-items:center;gap:8px"><span onClick="{{ q.dec }}" role="button" aria-label="Fewer" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#0d1117;font-size:18px;font-weight:800;line-height:1">−</span><span style="min-width:22px;text-align:center;font-size:16px;font-weight:900;color:#0d1117">{{ q.need }}</span><span onClick="{{ q.inc }}" role="button" aria-label="More" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#0d1117;font-size:18px;font-weight:800;line-height:1">+</span></div><span onClick="{{ q.remove }}" role="button" aria-label="Remove shift" style="flex:0 0 28px;width:28px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2.8" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18" /></svg></span></div></sc-for>
+                    <sc-for list="{{ r.shifts }}" as="q" hint-placeholder-count="2"><div style="display:flex;align-items:center;gap:8px"><select value="{{ q.start }}" onChange="{{ q.onStart }}" aria-label="Start" style="width:100%;min-height:52px;border:2px solid #dcdfe6;border-radius:16px;padding:0 8px;font-family:inherit;font-size:15px;font-weight:700;color:#0d1117;background:#fff;outline:none;flex:1 1 auto;min-width:0;-webkit-appearance:none;appearance:none"><sc-for list="{{ q.startOpts }}" as="o" hint-placeholder-count="1"><option value="{{ o.value }}">{{ o.label }}</option></sc-for></select><select value="{{ q.end }}" onChange="{{ q.onEnd }}" aria-label="End" style="width:100%;min-height:52px;border:2px solid #dcdfe6;border-radius:16px;padding:0 8px;font-family:inherit;font-size:15px;font-weight:700;color:#0d1117;background:#fff;outline:none;flex:1 1 auto;min-width:0;-webkit-appearance:none;appearance:none"><sc-for list="{{ q.endOpts }}" as="o" hint-placeholder-count="1"><option value="{{ o.value }}">{{ o.label }}</option></sc-for></select><div style="flex:0 0 auto;display:flex;align-items:center;gap:8px"><span onClick="{{ q.dec }}" role="button" aria-label="Fewer" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#0d1117;font-size:18px;font-weight:800;line-height:1">−</span><span style="min-width:22px;text-align:center;font-size:16px;font-weight:900;color:#0d1117">{{ q.need }}</span><span onClick="{{ q.inc }}" role="button" aria-label="More" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#0d1117;font-size:18px;font-weight:800;line-height:1">+</span></div><span onClick="{{ q.remove }}" role="button" aria-label="Remove shift" style="flex:0 0 28px;width:28px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2.8" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18" /></svg></span></div></sc-for>
                     <span onClick="{{ r.addShift }}" role="button" style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:36px;font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>Add a shift</span>
                   </div></sc-if><sc-if value="{{ r.isOne }}" hint-placeholder-val="{{ true }}"><span onClick="{{ r.toShifts }}" role="button" style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:32px;font-size:13.5px;font-weight:700;color:#6b7280;cursor:pointer" style-hover="color:#5b4ae8"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5V12l3 2" /></svg>Add a shift</span></sc-if><sc-if value="{{ r.isShifts }}" hint-placeholder-val="{{ false }}"><span onClick="{{ r.toOne }}" role="button" style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:32px;font-size:13.5px;font-weight:700;color:#6b7280;cursor:pointer" style-hover="color:#5b4ae8">Use one time instead</span></sc-if>
                 </div>
@@ -2055,7 +2053,7 @@
         <div style="display:flex;gap:8px"><sc-for list="{{ secPrivTiles }}" as="t" hint-placeholder-count="2"><div onClick="{{ t.pick }}" role="button" style="{{ t.box }}"><span style="{{ t.title }}">{{ t.label }}</span><span style="font-size:12.5px;line-height:1.35;font-weight:600;color:#6b7280">{{ t.sub }}</span></div></sc-for></div>
         <div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;font-weight:800;letter-spacing:1.1px;text-transform:uppercase;color:#6b7280">Post to</span><sc-for list="{{ secGroupRows }}" as="g" hint-placeholder-count="2"><div onClick="{{ g.pick }}" role="button" style="{{ g.rowStyle }}"><span style="{{ g.box }}"><sc-if value="{{ g.on }}" hint-placeholder-val="{{ false }}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7" /></svg></sc-if></span><span style="{{ g.nameStyle }}">{{ g.name }}</span></div></sc-for></div>
       </sc-if>
-      <span style="font-size:13px;line-height:1.4;font-weight:500;color:#6b7280">Everyone going gets an update when you save.</span>
+      <sc-if value="{{ secIsWhen }}" hint-placeholder-val="{{ false }}"><span style="font-size:13px;line-height:1.4;font-weight:500;color:#6b7280">A new date or place sends an update to everyone going.</span></sc-if>
       <button onClick="{{ secSave }}" style="min-height:54px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16.5px;font-weight:800;cursor:pointer">Save</button>
     </div>
   </sc-if>
@@ -2161,7 +2159,7 @@
               </div>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#b9bcc4" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6" /></svg>
             </div>
-            <sc-if value="{{ e.hasStats }}" hint-placeholder-val="{{ false }}"><div style="display:flex;align-items:center;justify-content:space-between;height:40px;padding:0 30px;border-top:1px solid #f2f3f6;background:#fafafb"><sc-for list="{{ e.stats }}" as="q" hint-placeholder-count="4"><span aria-label="{{ q.aria }}" style="{{ q.style }}"><sc-if value="{{ q.isInv }}" hint-placeholder-val="{{ false }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="6" width="17" height="12" rx="2.5" /><path d="m4 7.5 8 5.5 8-5.5" /></svg></sc-if><sc-if value="{{ q.isGo }}" hint-placeholder-val="{{ false }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8.5" r="3.2" /><path d="M3.5 19a5.5 5.5 0 0 1 11 0" /><path d="M16 5.6a3 3 0 0 1 0 5.8M17.5 14a5 5 0 0 1 3 5" /></svg></sc-if><sc-if value="{{ q.isSu }}" hint-placeholder-val="{{ false }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2.5" /><path d="M9 4V3h6v1" /><path d="m9 13 2 2 4-4.5" /></svg></sc-if><sc-if value="{{ q.isRem }}" hint-placeholder-val="{{ false }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16.5V11a6 6 0 1 1 12 0v5.5l1.6 2H4.4L6 16.5Z" /><path d="M10 21a2.2 2.2 0 0 0 4 0" /></svg></sc-if>{{ q.value }}</span></sc-for></div></sc-if>
+            <sc-if value="{{ e.hasStats }}" hint-placeholder-val="{{ false }}"><div style="display:flex;align-items:center;justify-content:space-between;height:40px;padding:0 30px;border-top:1px solid #f2f3f6;background:#fafafb"><sc-for list="{{ e.stats }}" as="q" hint-placeholder-count="4"><span aria-label="{{ q.aria }}" style="{{ q.style }}"><sc-if value="{{ q.isInv }}" hint-placeholder-val="{{ false }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5" /><path d="M9.6 9.4a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.2-2.4 3.6" /><path d="M12 17h.01" /></svg></sc-if><sc-if value="{{ q.isGo }}" hint-placeholder-val="{{ false }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8.5" r="3.2" /><path d="M3.5 19a5.5 5.5 0 0 1 11 0" /><path d="M16 5.6a3 3 0 0 1 0 5.8M17.5 14a5 5 0 0 1 3 5" /></svg></sc-if><sc-if value="{{ q.isSu }}" hint-placeholder-val="{{ false }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2.5" /><path d="M9 4V3h6v1" /><path d="m9 13 2 2 4-4.5" /></svg></sc-if><sc-if value="{{ q.isRem }}" hint-placeholder-val="{{ false }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16.5V11a6 6 0 1 1 12 0v5.5l1.6 2H4.4L6 16.5Z" /><path d="M10 21a2.2 2.2 0 0 0 4 0" /></svg></sc-if>{{ q.value }}</span></sc-for></div></sc-if>
             <sc-if value="{{ e.isIdea }}" hint-placeholder-val="{{ false }}"><div style="display:flex;flex-direction:column">
               <sc-for list="{{ e.dSteps }}" as="g" hint-placeholder-count="4">
                 <div onClick="{{ g.goSheet }}" role="button" style="display:flex;align-items:center;gap:12px;min-height:48px;padding:8px 12px;border-top:1px solid #f2f3f6;cursor:pointer" style-hover="background:#fafafb">
@@ -2187,7 +2185,7 @@
 
   <sc-if value="{{ showNav }}" hint-placeholder-val="{{ true }}">
   <nav style="position:absolute;left:0;right:0;bottom:0;height:73px;display:grid;grid-template-columns:repeat(5,1fr);align-items:center;justify-items:center;background:rgba(255,255,255,.94);backdrop-filter:blur(12px);border-top:1px solid #e8eaef;padding:13px 8px 15px;z-index:10">
-    <div onClick="{{ goHome }}" aria-label="Your tasks" style="{{ tabDashStyle }}">
+    <div onClick="{{ goTasks }}" aria-label="Your tasks" style="{{ tabDashStyle }}">
       <span style="position:relative;display:flex"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M10 6.5h10M10 12h10M10 17.5h10" /><path d="m3.5 6.5 1.5 1.5 2.5-3M3.5 12l1.5 1.5 2.5-3M3.5 17.5l1.5 1.5 2.5-3" /></svg><sc-if value="{{ dashHasBadge }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;top:-6px;right:-9px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;border:2px solid #fff;background:#5b4ae8;color:#fff;font-size:10.5px;font-weight:900;display:flex;align-items:center;justify-content:center">{{ dashCount }}</span></sc-if></span>
     </div>
     <div onClick="{{ goSched }}" aria-label="Your schedule" style="{{ tabHomeStyle }}">
@@ -2385,7 +2383,7 @@ class Component extends DCLogic {
   };
   goBack = () => {
     const b = this._back; this._back = null;
-    if (!b || b.screen === 'detail') { this.go('browse'); return; }
+    if (!b || b.screen === 'detail') { this.go('calendar'); return; }
     const { scroll, ...rest } = b;
     this.setState({ ...rest, menu: null }, () => { const sc = this.scroller(); if (sc) sc.scrollTop = scroll || 0; });
   };
@@ -2419,7 +2417,7 @@ class Component extends DCLogic {
   ownTile = (s, t, a, src, n) => {
     const plan = this.phase(s) === 'plan', idea = this.phase(s) === 'idea', past = !plan && !idea;
     const bgp = '#2b303a url(' + src + ') center/cover';
-    const dl = idea ? 'Idea · ' + this.groupNameOf(s) : (t != null ? new Date(t).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) + (this.timeOf(s) ? ' · ' + this.timeOf(s) : '') : 'Date TBD');
+    const dl = idea ? 'Idea · ' + this.groupNameOf(s) : (t != null ? new Date(t).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) + (this.timeOf(s) ? ' · ' + this.timeOf(s) : '') : 'Date to be decided');
     return { place: s.spot || this.groupNameOf(s), dateLine: dl, isLead: plan, isIdeaT: idea, steps: idea ? this.ideaSteps(s) : [], org: plan ? this.orgRings(s) : [], actN: String(n), hasAct: (plan || idea) && n > 0, noAct: (plan || idea) && n === 0, hasBody: plan || idea, ideaAct: false, hasTasks: false, tasks: [], taskMore: false,
       dateInk: { fontSize: '10.5px', fontWeight: 900, letterSpacing: '.7px', textTransform: 'uppercase', color: idea ? '#f3c55a' : past ? '#cfc9ff' : '#9eecbc' },
       photoWide: { position: 'relative', height: '160px', background: bgp, filter: past ? 'saturate(.6)' : 'none' } };
@@ -2440,8 +2438,8 @@ class Component extends DCLogic {
     const sug = (s.pending || []).length + (s.ideaDates || []).length + (s.ideaLocs || []).length, inv = (s.inv && s.inv.sent) || 0, go = this.intCount(s), rows = this.signupOf(s);
     const need = rows.reduce((a, r) => a + (r.need || 0), 0), got = rows.reduce((a, r) => a + Math.min(r.people.length, r.need || r.people.length), 0);
     return [
-      { key: 'inv', val: String(inv), label: 'Invited', ...ring(inv > 0 ? 1 : 0) },
-      { key: 'go', val: String(go), label: 'Going', ...ring(inv ? go / inv : 0) },
+      { key: 'go', val: String(go), label: 'Going', ...ring(go > 0 ? 1 : 0) },
+      { key: 'inv', val: String((s.inv && s.inv.maybe) || 0), label: 'Maybe', ...ring(1) },
       { key: 'sign', val: need ? got + '/' + need : '—', label: 'Sign-ups', ...ring(need ? got / need : 0) }
     ].map(o => ({ ...o, isInv: o.key === 'inv', isGo: o.key === 'go', isSign: o.key === 'sign', isRem: o.key === 'rem', fill: o.fill || 'none', valStyle: { fontSize: '13px', lineHeight: 1.1, fontWeight: 900, letterSpacing: '-.3px', color: o.act ? '#4a3ad4' : o.dim ? '#9aa0ac' : '#0d1117', whiteSpace: 'nowrap' }, labStyle: { fontSize: '10.5px', fontWeight: o.act ? 800 : 700, color: o.act ? '#4a3ad4' : '#6b7280' } }));
   };
@@ -2489,8 +2487,8 @@ class Component extends DCLogic {
     const txt = (ok) => ({ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '14.5px', fontWeight: ok ? 700 : 600, color: ok ? '#0d1117' : '#9aa0aa' });
     return {
       locOk, dateOk,
-      locText: locOk ? (s.spot || 'Spot picked') : 'Location TBD',
-      dateText: dateOk ? (s.day || 'Date & time set') : 'Date TBD',
+      locText: locOk ? (s.spot || 'Spot picked') : 'Location to be decided',
+      dateText: dateOk ? (s.day || 'Date & time set') : 'Date to be decided',
       locIcon: icon(locOk), dateIcon: icon(dateOk), locTextStyle: txt(locOk), dateTextStyle: txt(dateOk)
     };
   };
@@ -2513,7 +2511,7 @@ class Component extends DCLogic {
     this.setState({ guestOpen: true, guestName: this.state.guestName || this.state.myName || '' });
   };
   openLogin = (from) => { this._afterLogin = null; this.setState({ loginStep: 'email', loginFrom: from, loginCode: '', resent: false, googleFailed: false, busy: null }); };
-  finishLogin = (email, method) => this.setState({ signedIn: email, loginMethod: method || 'email', loginStep: null, busy: null, loginCode: '', googleFailed: false }, () => { const fn = this._afterLogin; this._afterLogin = null; if (fn) fn(); const inv = this.state.invite; if (inv) this.setState({ invite: null, join: true, joinCode: inv, joinBad: false }); });
+  finishLogin = (email, method) => this.setState({ ...(this.state.screen === 'home' ? { screen: 'calendar' } : {}), signedIn: email, loginMethod: method || 'email', loginStep: null, busy: null, loginCode: '', googleFailed: false }, () => { const fn = this._afterLogin; this._afterLogin = null; if (fn) fn(); const inv = this.state.invite; if (inv) this.setState({ invite: null, join: true, joinCode: inv, joinBad: false }); });
   posCss = (p, fallback, src) => { const q = p || fallback || { x: 50, y: 50, z: 1 }; return { position: 'absolute', inset: 0, width: '100%', height: '100%', backgroundImage: src ? 'url(' + src + ')' : 'none', backgroundSize: 'cover', backgroundPosition: q.x + '% ' + q.y + '%', transform: 'scale(' + (q.z || 1) + ')', transformOrigin: q.x + '% ' + q.y + '%', userSelect: 'none', pointerEvents: 'none' }; };
   readPhoto = (e, cb) => { const f = (e.target.files || [])[0]; e.target.value = ''; if (!f) return; if (/hei[cf]/i.test(f.type) || /\.hei[cf]$/i.test(f.name)) { this.showToast('That photo couldn’t be read. Try a different one.'); return; } const r = new FileReader(); r.onload = () => cb(r.result); r.readAsDataURL(f); };
   openPh = (target, key, src, pos) => { const p = pos || { x: 50, y: 50, z: 1 }; this.setState({ ph: { target, key, src, x: p.x, y: p.y, z: p.z || 1, w: 0, h: 0 } }); const im = new Image(); im.onload = () => this.setState(s => s.ph && s.ph.src === src ? { ph: { ...s.ph, w: im.naturalWidth, h: im.naturalHeight } } : null); im.src = src; };
@@ -2529,14 +2527,14 @@ class Component extends DCLogic {
     setTimeout(() => this.createDraft(), this.state.photos.length ? 1800 : 700);
   };
 
-  seedDemo = (on) => this.setState(s => ({ myName: on ? 'Eric' : (s.myName === 'Eric' ? '' : s.myName), myPhoto: on ? FACES.Eric : (s.myPhoto === FACES.Eric ? null : s.myPhoto), groups: s.groups.map((g, i) => i === 0 ? (on ? { ...g, role: 'owner', code: 'TORREZ', members: 48 } : { name: g.name, fresh: g.fresh, role: 'member' }) : g), signedIn: s.signedIn ? (on ? 'eric@example.com' : 'you@example.com') : null }), () => this.setState({ sparks: on ? DEMO.map(s => ({ ...s, dates: s.dates.slice(), rsvps: s.rsvps.slice(), offers: s.offers.slice(), pending: s.pending.slice() })) : [], screen: 'home', subjectId: null, tag: null }));
+  seedDemo = (on) => this.setState(s => ({ myName: on ? 'Eric' : (s.myName === 'Eric' ? '' : s.myName), myPhoto: on ? FACES.Eric : (s.myPhoto === FACES.Eric ? null : s.myPhoto), groups: s.groups.map((g, i) => i === 0 ? (on ? { ...g, role: 'owner', code: 'TORREZ', members: 48 } : { name: g.name, fresh: g.fresh, role: 'member' }) : g), signedIn: s.signedIn ? (on ? 'eric@example.com' : 'you@example.com') : null }), () => this.setState({ sparks: on ? DEMO.map(s => ({ ...s, dates: s.dates.slice(), rsvps: s.rsvps.slice(), offers: s.offers.slice(), pending: s.pending.slice() })) : [], screen: this.state.signedIn || this.props.startSignedIn ? 'calendar' : 'home', subjectId: null, tag: null }));
 
   componentDidUpdate(prev) {
     if (!!prev.demoData !== !!this.props.demoData) this.seedDemo(this.demoOn());
-    if (!!prev.startSignedIn !== !!this.props.startSignedIn) this.setState({ signedIn: this.props.startSignedIn ? (this.demoOn() ? 'eric@example.com' : 'you@example.com') : null });
+    if (!!prev.startSignedIn !== !!this.props.startSignedIn) this.setState({ signedIn: this.props.startSignedIn ? (this.demoOn() ? 'eric@example.com' : 'you@example.com') : null, screen: this.props.startSignedIn ? 'calendar' : 'home' });
     if (!!prev.inviteLink !== !!this.props.inviteLink) this.setState({ invite: this.props.inviteLink ? 'WLNT26' : null });
-    if (!!prev.noGroups !== !!this.props.noGroups) this.setState({ noGroups: !!this.props.noGroups, screen: 'home' });
-    if (prev.dataState !== this.props.dataState) this.setState({ dataOverride: null, goneDismissed: false, screen: 'home' });
+    if (!!prev.noGroups !== !!this.props.noGroups) this.setState({ noGroups: !!this.props.noGroups, screen: (this.state.signedIn || this.props.startSignedIn ? 'calendar' : 'home') });
+    if (prev.dataState !== this.props.dataState) this.setState({ dataOverride: null, goneDismissed: false, screen: (this.state.signedIn || this.props.startSignedIn ? 'calendar' : 'home') });
   }
 
   chipStyle = (c) => ({ display: 'flex', alignItems: 'center', gap: '6px', borderRadius: '999px', padding: '5px 11px', fontSize: '12.5px', fontWeight: 700, background: c.tint, color: c.ink });
@@ -2578,7 +2576,7 @@ class Component extends DCLogic {
           const m = f.dateOk && s.day ? String(s.day).match(/^([A-Za-z]{3})[a-z]*,?\s+([A-Za-z]{3})[a-z]*\.?\s+(\d{1,2})(.*)$/) : null;
           const time = m ? m[4].replace(/^[\s·,@at]+/, '').trim() : '';
           const cover = (s.photos || []).length > 0;
-          const parts = [f.locOk ? f.locText : 'Location TBD'];
+          const parts = [f.locOk ? f.locText : 'Location to be decided'];
           if (time) parts.push(time); else if (f.dateOk && !m) parts.push(s.day || 'Date & time set');
           const row = (ok) => ({ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, color: ok ? '#8f6405' : '#b3b8c2' });
           return {
@@ -2587,10 +2585,10 @@ class Component extends DCLogic {
             topStyle: cover
               ? { position: 'relative', height: '84px', backgroundImage: 'linear-gradient(to top, rgba(13,17,23,.82) 0%, rgba(13,17,23,.4) 55%, rgba(13,17,23,.08) 100%), url(' + s.photos[0] + ')', backgroundSize: 'cover', backgroundPosition: 'center' }
               : { position: 'relative', height: '84px', overflow: 'hidden', background: '#2b2413' },
-            dayLabel: m ? m[1] + ', ' + m[2] + ' ' + m[3] : (f.dateOk ? (s.day || 'Date & time set') : 'Date TBD'),
+            dayLabel: m ? m[1] + ', ' + m[2] + ' ' + m[3] : (f.dateOk ? (s.day || 'Date & time set') : 'Date to be decided'),
             timeSuffix: time ? ' · ' + time : '',
-            dayStrong: { fontWeight: 800, color: f.dateOk ? '#0d1117' : '#9aa0ac' },
-            placeLabel: f.locOk ? f.locText : 'Location TBD',
+            dayStrong: { fontWeight: 800, color: f.dateOk ? '#0d1117' : '#8f6405' },
+            placeLabel: f.locOk ? f.locText : 'Location to be decided',
             dateRowStyle: row(f.dateOk),
             placeRowStyle: { ...row(f.locOk), ...(f.locOk ? {} : {}) },
             gridTopStyle: { ...(cover
@@ -2598,9 +2596,9 @@ class Component extends DCLogic {
               : { background: '#2b2413', overflow: 'hidden' }), position: 'relative', height: '112px' },
             listRowStyle: { display: 'flex', alignItems: 'center', gap: '12px', minHeight: '68px', padding: '10px 14px 10px 18px', borderTop: ci ? '1px solid #f2f3f6' : '0', boxShadow: 'inset 5px 0 0 ' + (this.phase(s) === 'plan' ? '#149a4b' : this.phase(s) === 'done' ? '#7b6ef0' : '#f3c55a'), cursor: 'pointer' },
             thumbStyle: { flex: '0 0 48px', width: '48px', height: '48px', borderRadius: '12px', background: cover ? 'url(' + s.photos[0] + ') center/cover' : 'linear-gradient(rgba(13,17,23,.35), rgba(13,17,23,.35)), url(' + GROUP_PHOTO + ') 50% 40%/260% auto' },
-            listMeta: [m ? m[1] + ', ' + m[2] + ' ' + m[3] + (time ? ' · ' + time : '') : (f.dateOk ? (s.day || 'Date & time set') : 'Date TBD'), f.locOk ? f.locText : 'Location TBD'].join(' · '),
+            listMeta: [m ? m[1] + ', ' + m[2] + ' ' + m[3] + (time ? ' · ' + time : '') : (f.dateOk ? (s.day || 'Date & time set') : 'Date to be decided'), f.locOk ? f.locText : 'Location to be decided'].join(' · '),
             intCount: String(this.intCount ? this.intCount(s) : (s.interested || 0)),
-            placeTextStyle: { minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: f.locOk ? '#454b55' : '#9aa0ac' },
+            placeTextStyle: { minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: f.locOk ? '#454b55' : '#8f6405' },
             timeStyle: {}
           };
         })(),
@@ -2688,9 +2686,9 @@ class Component extends DCLogic {
           const helping = this.signupOf(s).some(r => r.people.some(p => p.who === 'You'));
           const rk = s.leadName === 'You' ? 'lead' : helping ? 'help' : my === 'going' ? 'going' : my === 'maybe' ? 'maybe' : null; const R = rk ? ROLE[rk] : null;
           const time = t != null ? (this.timeOf(s) || '') : '';
-          const dTop = t != null ? new Date(t).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : (ptab === 'idea' ? 'Idea · no date yet' : 'Date TBD');
+          const dTop = t != null ? new Date(t).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : (ptab === 'idea' ? 'Idea · no date yet' : 'Date to be decided');
           const bgp = '#2b303a url(' + ((s.photos || [])[0] || GROUP_PHOTO) + ') center/cover';
-          return { s, t, ev: this.evCard(s, t), text: s.text, place: s.spot || 'Location TBD', dTop, dTime: time, hasDTime: !!time, dateLine: dTop + (time ? ' · ' + time : ''), open: () => this.openSpark(s),
+          return { s, t, ev: this.evCard(s, t), text: s.text, place: s.spot || 'Location to be decided', dTop, dTime: time, hasDTime: !!time, dateLine: dTop + (time ? ' · ' + time : ''), open: () => this.openSpark(s),
             hasRole: !!R, roleLabel: R ? (ptab === 'done' ? ({ Leading: 'Led', Helping: 'Helped', Going: 'Went', Maybe: 'Maybe' })[R[0]] : R[0]) : '', isLeadRole: rk === 'lead',
             roleChip: R ? { position: 'absolute', top: '10px', right: '10px', display: 'flex', alignItems: 'center', gap: '4px', height: '24px', padding: '0 9px', borderRadius: '999px', background: R[1], color: R[2], boxShadow: '0 1px 4px rgba(0,0,0,.3)', fontSize: '11.5px', fontWeight: 900 } : {},
             roleChipSm: R ? { position: 'absolute', top: '8px', right: '8px', display: 'flex', alignItems: 'center', height: '22px', padding: '0 8px', borderRadius: '999px', background: R[1], color: R[2], boxShadow: '0 1px 4px rgba(0,0,0,.3)', fontSize: '10.5px', fontWeight: 900 } : {},
@@ -2701,9 +2699,9 @@ class Component extends DCLogic {
             thumbSq: { position: 'relative', overflow: 'hidden', flex: '0 0 96px', width: '96px', height: '96px', borderRadius: '14px', background: bgp } }; });
         if (ptab !== 'idea') items.sort((a, b) => (a.t == null) - (b.t == null) || (ptab === 'done' ? b.t - a.t : a.t - b.t));
         const secs = [];
-        items.forEach(it => { const label = gSort === 'lively' ? 'Most lively' : gSort === 'new' ? 'Newest' : gSort === 'help' ? 'Needs you' : it.t == null ? (ptab === 'idea' ? 'No date yet' : 'Date TBD') : new Date(it.t).toLocaleDateString('en-US', { month: 'long' }); let z = secs.find(q => q.label === label); if (!z) { z = { label, items: [], days: [] }; secs.push(z); } z.items.push(it); });
+        items.forEach(it => { const label = gSort === 'lively' ? 'Most lively' : gSort === 'new' ? 'Newest' : gSort === 'help' ? 'Needs you' : it.t == null ? (ptab === 'idea' ? 'No date yet' : 'Date to be decided') : new Date(it.t).toLocaleDateString('en-US', { month: 'long' }); let z = secs.find(q => q.label === label); if (!z) { z = { label, items: [], days: [] }; secs.push(z); } z.items.push(it); });
         secs.forEach(z => z.items.forEach(it => { const key = it.t == null ? z.label : it.dTop; let d = z.days.find(q => q.key === key); if (!d) { d = { key, items: [] }; z.days.push(d); } d.items.push({ ...it, rowStyle: { display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 14px', borderTop: d.items.length ? '1px solid #f2f3f6' : '0', cursor: 'pointer' } }); }));
-        secs.sort((p, q) => (p.label === 'No date yet' || p.label === 'Date TBD') - (q.label === 'No date yet' || q.label === 'Date TBD'));
+        secs.sort((p, q) => (p.label === 'No date yet' || p.label === 'Date to be decided') - (q.label === 'No date yet' || q.label === 'Date to be decided'));
         const GS = { soon: 'Soonest', lively: 'Most lively', new: 'Newest', help: 'Needs you' }; const GFL = [['lead', 'Leading'], ['help', 'Helping'], ['going', 'Going'], ['open', 'Not joined yet'], ['needs', 'Needs helpers'], ['week', 'This week']];
         const gOpt = (on) => ({ display: 'flex', alignItems: 'center', gap: '10px', minHeight: '42px', padding: '0 12px', borderRadius: '10px', fontSize: '14.5px', fontWeight: on ? 800 : 700, color: on ? '#5b4ae8' : '#0d1117', cursor: 'pointer' });
         const gsx = { gSortLabel: GS[gSort], gSortOpen: st.menu === 'gSort', gSortToggle: (e) => { if (e) e.stopPropagation(); this.setState({ menu: st.menu === 'gSort' ? null : 'gSort' }); },
@@ -2788,13 +2786,13 @@ class Component extends DCLogic {
               labelStyle: { fontSize: '10.5px', lineHeight: 1.1, fontWeight: 800, color: s.met ? '#0d1117' : '#6b4d00', textAlign: 'center' } })),
           detailAvatarStyle: { flex: '0 0 26px', width: '26px', height: '26px', borderRadius: '999px', background: face ? 'url(' + face + ') center/cover' : '#e8a71c', color: '#fff', fontSize: '12px', fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center' },
           ...(() => { const parts = day && subj.day ? String(subj.day).split(/\s*·\s*/) : []; const addr = spot ? (subj.spotAddr || ADDRESSES[subj.spot] || '') : ''; return {
-            dayMain: day ? (parts[0] || subj.day || 'Date & time set') : 'Date TBD',
+            dayMain: day ? (parts[0] || subj.day || 'Date & time set') : 'Date to be decided',
             dayNote: parts.slice(1).join(' · '), hasDayNote: parts.length > 1,
             placeNote: addr, hasPlaceNote: !!addr, directionsUrl: spot ? 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(subj.spot + (addr ? ', ' + addr : '')) : '#' }; })(),
           dayAction: day ? '' : (lead ? 'Set' : 'Suggest'), hasDayAction: !day,
           dayTileStyle: tile(day), dayMainStyle: main(day), dayNoteStyle: note(day),
           dayRowAct: day ? null : ask('day'),
-          placeMain: spot ? subj.spot : 'Location TBD',
+          placeMain: spot ? subj.spot : 'Location to be decided',
           placeAction: spot ? '' : (lead ? 'Set' : 'Suggest'), hasPlaceAction: !spot,
           placeTileStyle: tile(spot), placeMainStyle: main(spot), placeNoteStyle: note(spot),
           placeRowAct: spot ? null : ask('spot')
@@ -2930,14 +2928,14 @@ class Component extends DCLogic {
       startQuestions: () => { if (st.busy) return; if (whenReady && locReady) this.needSignIn(() => this.needName(() => this.postIdea())); },
       putStyle: { ...this.btn(true), opacity: st.busy === 'post' ? .72 : 1, cursor: st.busy === 'post' ? 'wait' : 'pointer' },
       putLabel: st.busy === 'post' ? 'Putting it up…' : 'Put it up',
-      closeCompose: () => { if (st.step === 'specifics') { this.setState({ step: 'activity' }); return; } if (st.step === 'activity') { this.setState({ step: 'event' }); return; } this.go('home', { activity: '', vibe: '', hopes: ['', '', ''], photos: [], leadInfo: false }); },
+      closeCompose: () => { if (st.step === 'specifics') { this.setState({ step: 'activity' }); return; } if (st.step === 'activity') { this.setState({ step: 'event' }); return; } this.go(st.signedIn ? 'calendar' : 'home', { activity: '', vibe: '', hopes: ['', '', ''], photos: [], leadInfo: false }); },
 
       scrollToHow: () => {
         const sec = document.getElementById('home-how');
         const sc = sec && sec.closest('[style*="overflow"]');
         if (sec && sc) sc.scrollTo({ top: sec.offsetTop - sc.offsetTop - 8, behavior: 'smooth' });
       },
-      goHome: () => this.go('home'),
+      goHome: () => this.go(st.signedIn ? 'calendar' : 'home'), openSearchAny: () => this.go('calendar', { cSearch: true }), goTasks: () => this.go('home'),
       goHow: () => this.go('how'),
       goBrowse: () => this.go('browse'), goBack: () => this.goBack(), backLabel: this.backLabel(),
       goAllSparks: () => this.go('browse', { cats: [] }),
@@ -2952,7 +2950,7 @@ class Component extends DCLogic {
       isGroups: screen === 'groups' && !!st.signedIn, goGroups: () => this.go('groups'),
       tabBellStyle: tab(screen === 'notifs'), tabOwnStyle: tab(screen === 'own'), isOwn: screen === 'own' && !!st.signedIn, goOwn: () => this.needSignIn(() => this.go('own'), 'own'), goNotifs: () => this.needSignIn(() => this.go('notifs', { nFrom: screen === 'notifs' ? st.nFrom : screen }), 'notifs'), notifBack: () => this.setState({ notifSheet: false }), isNotifs: (!!st.notifSheet || screen === 'notifs') && !!st.signedIn,
       ...this.notifVals(),
-      helpRows: [['?', 'How Spark Hub works', 'Events, ideas, and pitching in', () => this.go('how')], ['⚙', 'Notification settings', 'What you hear about and how', () => this.setState({ notifSet: true })], ['i', 'Ask a question', 'A real person answers, usually same day', () => this.showToast('Opening a message to the Spark Hub team…', true)], ['✉', 'Send feedback', 'Tell us what’s working and what isn’t', () => this.showToast('Thanks! Opening a note to the Spark Hub team…', true)]].map(([glyph, label, sub, open], k) => ({ glyph, label, sub, open, rowStyle: { display: 'flex', alignItems: 'center', gap: '12px', minHeight: '64px', padding: '10px 14px', borderTop: k ? '1px solid #f2f3f6' : '0', cursor: 'pointer' } })),
+      helpRows: [['?', 'How Spark Hub works', 'Events, ideas, and pitching in', () => this.go('how')], ['⚙', 'Notification settings', 'What you hear about and how', () => this.setState({ notifSet: true })]].map(([glyph, label, sub, open], k) => ({ glyph, label, sub, open, rowStyle: { display: 'flex', alignItems: 'center', gap: '12px', minHeight: '64px', padding: '10px 14px', borderTop: k ? '1px solid #f2f3f6' : '0', cursor: 'pointer' } })),
       ...this.groupsVals(),
       tabProfileStyle: tab(screen === 'profile' || screen === 'groupPage'),
       ...(() => {
@@ -3109,7 +3107,7 @@ class Component extends DCLogic {
                 if (st.busy === 'del') return; this.setState({ busy: 'del' }); setTimeout(() => { this.setState({ busy: null });
                 const k = st.gpIdx; const groups = st.groups.filter((_, j) => j !== k);
                 const fix = (v) => v > k ? v - 1 : v;
-                this.go('home', { gpDel: false, gpDelText: '', groups, group: st.group === k ? 0 : fix(st.group), recent: (st.recent || []).filter(v => v !== k).map(fix), pins: (st.pins || []).filter(v => v !== k).map(fix) });
+                this.go('calendar', { gpDel: false, gpDelText: '', groups, group: st.group === k ? 0 : fix(st.group), recent: (st.recent || []).filter(v => v !== k).map(fix), pins: (st.pins || []).filter(v => v !== k).map(fix) });
                 this.showToast(gp.name + ' was deleted', true); }, 800);
               },
               gpRenameOpenFn: () => { if (own) this.setState({ gpRename: true, gpRenameText: gp.name }); },
@@ -3211,12 +3209,13 @@ class Component extends DCLogic {
   componentWillUnmount() { window.removeEventListener('keydown', this._key); }
 
   componentDidMount() {
+    if (this.state.signedIn && this.state.screen === 'home') this.setState({ screen: 'calendar' });
     if (this.props.inviteLink) this.setState({ invite: 'WLNT26' });
     if (this.props.noGroups) this.setState({ noGroups: true });
     this._key = (e) => { if (!this.state.viewer) return; if (e.key === 'Escape') this.setState({ viewer: null }); if (e.key === 'ArrowLeft') this.stepViewer(-1); if (e.key === 'ArrowRight') this.stepViewer(1); };
     window.addEventListener('keydown', this._key);
     if (this.demoOn()) this.seedDemo(true);
-    if (this.props.startSignedIn) this.setState({ signedIn: this.demoOn() ? 'eric@example.com' : 'you@example.com' });
+    if (this.props.startSignedIn) this.setState(s => ({ signedIn: this.demoOn() ? 'eric@example.com' : 'you@example.com', screen: s.screen === 'home' ? 'calendar' : s.screen }));
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { this.syncIndent('what'); this.syncIndent('why'); });
   }
 
@@ -3250,7 +3249,7 @@ class Component extends DCLogic {
   calRow = (it, k) => { const d = new Date(it.t); const K = { plan: ['#149a4b', '#fff'], done: ['#b3b8c2', '#fff'], idea: ['#f3c55a', '#3d2a00'], floated: ['#fdf1d6', '#8f6405'] }[it.kind];
     const pill = it.kind === 'plan' ? this.statusPill(it.s) : { pill: it.kind === 'done' ? 'Happened' : it.kind === 'floated' ? it.votes + (it.votes === 1 ? ' vote' : ' votes') : 'Idea', pillStyle: { flex: '0 0 auto', display: 'flex', alignItems: 'center', minHeight: '32px', padding: '0 12px', borderRadius: '999px', background: it.kind === 'done' ? '#f2f3f6' : '#fdf1d6', color: it.kind === 'done' ? '#6b7280' : '#8f6405', fontSize: '13px', fontWeight: 800, whiteSpace: 'nowrap' } };
     return { mon: d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase(), day: String(d.getDate()), text: it.s.text, group: it.g,
-      meta: [it.time, it.s.spot || (it.kind === 'floated' ? 'floated date' : 'Location TBD')].filter(Boolean).join(' · '),
+      meta: [it.time, it.s.spot || (it.kind === 'floated' ? 'floated date' : 'Location to be decided')].filter(Boolean).join(' · '),
       badgeStyle: { flex: '0 0 46px', borderRadius: '11px', overflow: 'hidden', textAlign: 'center', boxShadow: it.kind === 'floated' ? 'inset 0 0 0 2px #e8a71c' : '0 0 0 1px #eceef2', color: '#0d1117', opacity: it.kind === 'done' ? .7 : 1 },
       badgeTop: { display: 'block', background: K[0], color: K[1], fontSize: '10px', fontWeight: 900, padding: '2px 0' },
       rowStyle: { display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', minHeight: '66px', borderTop: k ? '1px solid #f2f3f6' : '0', cursor: 'pointer' },
@@ -3282,7 +3281,7 @@ class Component extends DCLogic {
     const PREFS = [['invites', 'Invites', 'When someone invites you to something'], ['updates', 'Updates from hosts', 'Changes, reminders, and last calls'], ['reminders', 'Day-before reminders', 'For anything you said you’re going to'], ['hosting', 'Things you’re hosting', 'RSVPs, sign-ups, and someone stepping up to lead'], ['newevents', 'New events in your groups', 'When something goes on the books']];
     return {
       notifSections: secs, notifEmpty: secs.length === 0, hasUnread: unread > 0, notifNewLine: unread + ' new',
-      bellHasBadge: unread > 0 && !!st.signedIn, bellCount: String(unread), bellLabel: unread ? 'Notifications, ' + unread + ' new' : 'Notifications',
+      bellHasBadge: unread > 0 && !!st.signedIn, bellCount: unread > 9 ? '9+' : String(unread), bellLabel: unread ? 'Notifications, ' + unread + ' new' : 'Notifications',
       markAllRead: () => this.setState({ nAllRead: true }),
       notifFilters: [['all', 'All'], ['invites', 'Invites'], ['updates', 'Updates'], ['hosting', 'Hosting']].map(([k, label]) => ({ label, pick: () => this.setState({ nFilter: k }), style: chip(f === k) })),
       notifSetOpen: !!st.notifSet, openNotifSettings: () => this.setState({ notifSet: true }), closeNotifSettings: () => this.setState({ notifSet: false }),
@@ -3344,8 +3343,7 @@ class Component extends DCLogic {
         if (!k.date && top) out.push({ act: top.md.charAt(0) + top.md.slice(1).toLowerCase() + ' has ' + top.votes + (top.votes === 1 ? ' vote' : ' votes'), cta: 'Pick date' });
         else if (!k.date) out.push({ act: 'No date yet', cta: 'Add date' });
         if (!k.loc) out.push({ act: 'No location yet', cta: 'Add spot' });
-        if (!k.people) out.push({ act: 'Set head count', cta: 'Set' });
-        if (!k.tasks) out.push({ act: 'No tasks yet', cta: 'Add tasks' });
+        if (!k.tasks) out.push({ act: 'No roles yet', cta: 'Add roles' });
         if (!out.length) out.push({ act: 'Everything’s ready', cta: 'Make it a plan' });
         return out; }
       if (ph === 'done') return [{ act: 'Say thanks', cta: 'Thank' }, { act: 'Add photos', cta: 'Add' }];
@@ -3354,9 +3352,8 @@ class Component extends DCLogic {
       if (dd === 0) out.push({ act: 'Post an update', cta: 'Post' });
       if (dd === 1 && s.autoRemind === false) out.push({ act: 'Send a reminder', cta: 'Send' });
       (s.pending || []).slice(0, 1).forEach(p => out.push({ act: p.who + '’s ' + (p.kind === 'spot' ? 'spot idea' : p.kind === 'day' ? 'time idea' : 'idea'), cta: 'Review' }));
-      if (iv && !iv.sent) out.push({ act: 'No one invited yet', cta: 'Invite' });
-      if (!s.spot) out.push({ act: 'Location TBD', cta: 'Add it' });
-      if (noR > 0 && (dd == null || dd >= 2)) out.push({ act: noR + (noR === 1 ? ' hasn’t replied' : ' haven’t replied'), cta: 'Nudge' });
+      if (!s.day) out.push({ act: (s.datePoll || []).length ? 'Voting on ' + s.datePoll.length + ' dates' : 'Date to be decided', cta: 'Pick' });
+      if (!s.spot) out.push({ act: (s.spotPoll || []).length ? 'Voting on ' + s.spotPoll.length + ' spots' : 'Location to be decided', cta: 'Pick' });
       if (open) out.push({ act: open + (open === 1 ? ' spot open' : ' spots open'), cta: 'Share list' });
       return out; };
     this._ownActs = ownActs;
@@ -3397,8 +3394,8 @@ class Component extends DCLogic {
     const planSecs = [];
     planL.forEach((x) => { const label = sSort !== 'soon' ? SL[sSort] : x.t == null ? 'No date yet' : new Date(x.t).toLocaleDateString('en-US', { month: 'long' }); let z = planSecs.find(q => q.label === label); if (!z) { z = { label, items: [] }; planSecs.push(z); }
       const s = x.s, lead = s.leadName === 'You', tasks = lead ? [] : mineT(s), taskR = lead ? [] : mineR(s), needs = lead ? ownActs(s, x.t).map(q => q.act) : [], k = z.items.length, bgp = '#2b303a url(' + photo(s) + ') center/cover';
-      const dl = x.t != null ? new Date(x.t).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) + (this.timeOf(s) ? ' · ' + this.timeOf(s) : '') : 'Date TBD';
-      z.items.push({ _t: x.t, text: s.text, place: s.spot || 'Location TBD', dateLine: dl, dTop: x.t != null ? new Date(x.t).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : 'Date TBD', dTime: x.t != null ? (this.timeOf(s) || '') : '', hasDTime: x.t != null && !!this.timeOf(s), open: () => this.openSpark(s),
+      const dl = x.t != null ? new Date(x.t).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) + (this.timeOf(s) ? ' · ' + this.timeOf(s) : '') : 'Date to be decided';
+      z.items.push({ _t: x.t, text: s.text, place: s.spot || 'Location to be decided', dateLine: dl, dTop: x.t != null ? new Date(x.t).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : 'Date to be decided', dTime: x.t != null ? (this.timeOf(s) || '') : '', hasDTime: x.t != null && !!this.timeOf(s), open: () => this.openSpark(s),
         tasks: (((st.taskOpen || {})[s.id] || taskR.length <= 2) ? taskR : taskR.slice(0, 2)).map(r => ({ label: r.item, time: r.time || '', hasTime: !!r.time })),
         taskMore: taskR.length > 2, taskMoreLabel: (st.taskOpen || {})[s.id] ? 'Show less' : '+' + (taskR.length - 2) + ' more', taskChev: (st.taskOpen || {})[s.id] ? 'rotate(180deg)' : 'none',
         taskToggle: (ev) => { ev.stopPropagation(); this.setState(p => ({ taskOpen: { ...(p.taskOpen || {}), [s.id]: !(p.taskOpen || {})[s.id] } })); }, hasTasks: tasks.length > 0, taskCount: tasks.length + (tasks.length === 1 ? ' task for you' : ' tasks for you'),
@@ -3418,7 +3415,7 @@ class Component extends DCLogic {
             roleDot: { width: '7px', height: '7px', borderRadius: '999px', background: R[1] } };
           const lt = x.t != null ? new Date(x.t) : null;
           sl.lDow = lt ? lt.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase() : 'TBD'; sl.lNum = lt ? String(lt.getDate()) : '—';
-          sl.lSub = [this.timeOf(s), s.spot || 'Location TBD'].filter(Boolean).join(' · ');
+          sl.lSub = [this.timeOf(s), s.spot || 'Location to be decided'].filter(Boolean).join(' · ');
           sl.lBar = { flex: '0 0 3px', borderRadius: '999px', background: T[2] };
           sl.lSliver = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '24px', padding: '0 14px', background: T[0], color: T[1], fontSize: '11px', fontWeight: 800, cursor: 'pointer' };
           return { ...sl, roleLabel: R[0], roleAria: 'You’re ' + R[0].toLowerCase(), roleChip: { ...base, top: '12px', right: '12px', height: '24px', padding: '0 10px', fontSize: '11.5px' }, roleChipSm: { ...base, top: '8px', right: '8px', height: '22px', padding: '0 8px', fontSize: '10.5px' }, roleChipInline: { display: 'inline-flex', alignItems: 'center', height: '20px', padding: '0 8px', borderRadius: '999px', background: R[1], color: R[2], fontSize: '10.5px', fontWeight: 900 } }; })(),
@@ -3481,7 +3478,7 @@ class Component extends DCLogic {
             const rd = t != null ? new Date(t - 864e5).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—';
             const C = { ok: ['#149a4b', 'none', '#0d1117'], warn: ['#fff', 'inset 0 0 0 2px #f3c55a', '#8f6405'], off: ['#fff', 'inset 0 0 0 2px #dcdfe6', '#9aa0ac'] };
             const CIRC = 2 * Math.PI * 16; const frac = { isInv: iv.sent ? 1 : 0, isRsvp: iv.sent ? Math.min(1, n / iv.sent) : 0, isTasks: need ? got / need : 0, isRem: auto || (dd != null && dd <= 0) ? 1 : 0 };
-            return [['isInv', 'Invited', String(iv.sent || 0), iv.sent ? 'ok' : 'warn'], ['isRsvp', 'Going', String(n), noR > 0 ? 'warn' : 'ok'], ['isTasks', 'Sign-ups', need ? got + '/' + need : '—', !need ? 'off' : got >= need ? 'ok' : 'warn'], ['isRem', 'Reminder', dd != null && dd <= 0 ? 'Sent' : auto ? rd : 'Off', auto || (dd != null && dd <= 0) ? 'ok' : 'warn']]
+            return [['isRsvp', 'Going', String(n), 'ok'], ['isInv', 'Maybe', String(iv.maybe || 0), 'ok'], ['isTasks', 'Sign-ups', need ? got + '/' + need : '—', !need ? 'off' : got >= need ? 'ok' : 'warn'], ['isRem', 'Reminder', dd != null && dd <= 0 ? 'Sent' : auto ? rd : 'Off', auto || (dd != null && dd <= 0) ? 'ok' : 'warn']]
               .map(([key, label, value, stt]) => { const p = stt === 'ok' ? 1 : frac[key]; return { label, value, [key]: true, light: stt === 'ok', dark: stt !== 'ok',
                 ringColor: stt === 'ok' ? '#149a4b' : stt === 'off' ? '#eef0f3' : '#e8a71c', dash: p >= 1 ? 'none' : (CIRC * p).toFixed(1) + ' ' + CIRC.toFixed(1),
                 circle: { position: 'relative', width: stt === 'ok' ? '36px' : '28px', height: stt === 'ok' ? '36px' : '28px', borderRadius: '999px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: stt === 'ok' ? '#149a4b' : 'transparent' },
@@ -3562,7 +3559,7 @@ class Component extends DCLogic {
     const rows = this.signupOf(s); const need = rows.reduce((z, r) => z + (r.need || 0), 0), got = rows.reduce((z, r) => z + (r.need ? Math.min(r.need, r.people.length) : 0), 0);
     const rd = t != null ? new Date(t - 864e5).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—';
     const col = { ok: '#454b55', warn: '#b07a0a', off: '#9aa0ac' };
-    return [['isInv', 'Invited', String(iv.sent || 0), iv.sent ? 'ok' : 'warn'], ['isGo', 'Going', String(n), 'ok'], ['isSu', 'Helper roles covered', need ? got + '/' + need : '—', !need ? 'off' : got >= need ? 'ok' : 'warn'], ['isRem', 'Reminder', dd != null && dd <= 0 ? 'Sent' : auto ? rd : 'Off', auto || (dd != null && dd <= 0) ? 'ok' : 'warn']]
+    return [['isGo', 'Going', String(n), 'ok'], ['isInv', 'Maybe', String(iv.maybe || 0), 'ok'], ['isSu', 'Sign-ups', need ? got + '/' + need : '—', !need ? 'off' : got >= need ? 'ok' : 'warn'], ['isRem', 'Reminder', dd != null && dd <= 0 ? 'Sent' : auto ? rd : 'Off', auto || (dd != null && dd <= 0) ? 'ok' : 'warn']]
       .map(([k, l, v, st]) => ({ [k]: true, value: v, aria: l + ': ' + v, style: { display: 'flex', alignItems: 'center', gap: '5px', fontSize: '13px', fontWeight: 800, color: col[st], whiteSpace: 'nowrap' } }));
   }
   dashIdeaSteps(s) {
@@ -3616,9 +3613,9 @@ class Component extends DCLogic {
       const leftSub = rk === 'open' && slots ? ' · ' + n + ' going' : ''; const left = x.ph === 'done' ? n + ' went' : rk === 'open' ? (slots ? slots + (slots === 1 ? ' spot left' : ' spots left') : n + ' going') : rk === 'idea' && s.leadName !== 'You' ? (s.interested || 0) + ' interested' : T[0];
       const right = x.ph === 'done' ? '' : rk === 'open' ? 'RSVP' : rk === 'idea' ? 'Take a look' : rk === 'lead' ? 'Manage' : rk === 'help' ? (() => { const n2 = this.signupOf(s).filter(r => r.people.some(p => p.who === 'You')).length; return String(n2); })() : rk === 'maybe' ? 'Update RSVP' : 'Change RSVP';
       const join = (ev) => { if (ev) ev.stopPropagation(); this.openSpark(s); };
-      return { text: s.text, open: () => this.openSpark(s), group: this.groupNameOf(s), place: s.spot || 'Location TBD',
+      return { text: s.text, open: () => this.openSpark(s), group: this.groupNameOf(s), place: s.spot || 'Location to be decided',
         dow: d ? d.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase() : 'TBD', num: d ? String(d.getDate()) : '—',
-        sub: [d ? '' : 'No date yet', this.timeOf(s), String(s.spotAddr || (typeof ADDRESSES !== 'undefined' && ADDRESSES[s.spot]) || s.spot || 'Location TBD').split(',')[0].trim()].filter(Boolean).join(' · '),
+        sub: [d ? '' : 'Date to be decided', this.timeOf(s), String(s.spotAddr || (typeof ADDRESSES !== 'undefined' && ADDRESSES[s.spot]) || s.spot || 'Location to be decided').split(',')[0].trim()].filter(Boolean).join(' · '),
         dateLine: d ? [d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }), this.timeOf(s)].filter(Boolean).join(' · ') : 'Idea · no date yet',
         kick: { fontSize: '12.5px', fontWeight: 900, letterSpacing: '.8px', textTransform: 'uppercase', color: rk === 'lead' ? '#cfc9ff' : rk === 'help' || rk === 'idea' ? '#ffd98a' : '#9eecbc' },
         bar: { flex: '0 0 3px', borderRadius: '999px', background: T[3] },
@@ -3666,9 +3663,9 @@ class Component extends DCLogic {
       const leftSub = rk === 'open' && slots ? ' · ' + n + ' going' : ''; const left = rk === 'open' ? (slots ? slots + (slots === 1 ? ' spot left' : ' spots left') : n + ' going') : rk === 'idea' && s.leadName !== 'You' ? (s.interested || 0) + ' interested' : T[0];
       const right = rk === 'open' ? 'RSVP' : rk === 'idea' ? 'Take a look' : rk === 'lead' ? 'Manage' : rk === 'help' ? (() => { const n2 = this.signupOf(s).filter(r => r.people.some(p => p.who === 'You')).length; return String(n2); })() : rk === 'maybe' ? 'Update RSVP' : 'Change RSVP';
       const join = (ev) => { if (ev) ev.stopPropagation(); this.openSpark(s); };
-      return { text: s.text, open: () => this.openSpark(s), group: this.groupNameOf(s), place: s.spot || 'Location TBD',
+      return { text: s.text, open: () => this.openSpark(s), group: this.groupNameOf(s), place: s.spot || 'Location to be decided',
         dow: d ? d.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase() : 'TBD', num: d ? String(d.getDate()) : '—',
-        sub: [d ? '' : 'No date yet', this.timeOf(s), String(s.spotAddr || (typeof ADDRESSES !== 'undefined' && ADDRESSES[s.spot]) || s.spot || 'Location TBD').split(',')[0].trim()].filter(Boolean).join(' · '),
+        sub: [d ? '' : 'Date to be decided', this.timeOf(s), String(s.spotAddr || (typeof ADDRESSES !== 'undefined' && ADDRESSES[s.spot]) || s.spot || 'Location to be decided').split(',')[0].trim()].filter(Boolean).join(' · '),
         dateLine: d ? [d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }), this.timeOf(s)].filter(Boolean).join(' · ') : 'Idea · no date yet',
         kick: { fontSize: '12.5px', fontWeight: 900, letterSpacing: '.8px', textTransform: 'uppercase', color: rk === 'lead' ? '#cfc9ff' : rk === 'help' || rk === 'idea' ? '#ffd98a' : '#9eecbc' },
         bar: { flex: '0 0 3px', borderRadius: '999px', background: T[3] },
@@ -3751,13 +3748,13 @@ class Component extends DCLogic {
       cNeedsToggle: () => this.setState({ cHandSheet: true }),
       ...(() => { const cand = base.filter(x => x.ph === 'plan' && x.s.leadName !== 'You' && x.t != null && openSlots(x.s) > 0).sort((a, b) => a.t - b.t); const anchor = cand.length ? Math.max(T0, new Date(cand[0].t).setHours(0, 0, 0, 0)) : T0; const soon = cand.filter(x => x.t < anchor + 14 * D);
         const evs = soon.map(x => { const s = x.s; const rows = this.signupOf(s).filter(r => r.need && r.people.length < r.need);
-          const dd = new Date(x.t); return { dow: dd.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase(), num: String(dd.getDate()), sub: [this.timeOf(s), s.spot || 'Location TBD'].filter(Boolean).join(' · '), text: s.text, when: [new Date(x.t).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }), this.timeOf(s)].filter(Boolean).join(' · '), thumb: { flex: '0 0 40px', width: '40px', height: '40px', borderRadius: '10px', background: '#2b303a url(' + photo(s) + ') center/cover' },
+          const dd = new Date(x.t); return { dow: dd.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase(), num: String(dd.getDate()), sub: [this.timeOf(s), s.spot || 'Location to be decided'].filter(Boolean).join(' · '), text: s.text, when: [new Date(x.t).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }), this.timeOf(s)].filter(Boolean).join(' · '), thumb: { flex: '0 0 40px', width: '40px', height: '40px', borderRadius: '10px', background: '#2b303a url(' + photo(s) + ') center/cover' },
             open: () => { this.setState({ cHandSheet: false }); this.openSpark(s); },
             rows: rows.map(r => { const mine = r.people.some(p => p.who === 'You'); const left = r.need - r.people.length; return { label: r.item, meta: left + ' of ' + r.need + ' open', mine, notMine: !mine,
               claim: (ev) => { if (ev) ev.stopPropagation(); this.needGuest(() => { this.editSignup(s.id, rs => { const row = rs.find(q => q.id === r.id); if (row && !row.people.some(p => p.who === 'You')) row.people.push({ who: 'You' }); }); this.claimed(s.id, () => this.unclaim(s.id, r.id)); }); } }; }) }; });
         return { cHandOpen: !!st.cHandSheet && st.screen === 'calendar', cHandClose: () => this.setState({ cHandSheet: false }), cHandEvents: evs, cHandSub: evs.length + (evs.length === 1 ? ' event' : ' events') + ' coming up in the next 2 weeks', cNeedsN: evs.length + (evs.length === 1 ? ' event' : ' events'), cNeedsShow: evs.length > 0 && !st.cNeedsHidden, cNeedFaces: evs.slice(0, 3).map((e, i) => ({ style: { width: '26px', height: '26px', borderRadius: '999px', border: '2px solid #fff', marginLeft: i ? '-8px' : '0', background: e.thumb.background } })), cHandEmpty: evs.length === 0 }; })(), cNeedsHide: (ev) => { if (ev) ev.stopPropagation(); this.setState({ cNeedsHidden: true }); this.showToast('Hidden. You can still find these with search.', true); },
       cNeedFaces: needs.slice(0, 3).map((x, i) => ({ style: { width: '26px', height: '26px', borderRadius: '999px', border: '2px solid #fff', marginLeft: i ? '-8px' : '0', background: '#2b303a url(' + photo(x.s) + ') center/cover' } })),
-      cNeeds: needs.map(x => { const n = openSlots(x.s); return { text: x.s.text, when: x.t != null ? new Date(x.t).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : 'Date TBD', need: n + (n === 1 ? ' spot open' : ' spots open'), open: () => this.openSpark(x.s), photo: { height: '84px', background: '#2b303a url(' + photo(x.s) + ') center/cover' } }; }),
+      cNeeds: needs.map(x => { const n = openSlots(x.s); return { text: x.s.text, when: x.t != null ? new Date(x.t).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : 'Date to be decided', need: n + (n === 1 ? ' spot open' : ' spots open'), open: () => this.openSpark(x.s), photo: { height: '84px', background: '#2b303a url(' + photo(x.s) + ') center/cover' } }; }),
       cSurprise: () => { if (!pickable.length) return; const x = pickable[Math.floor(Math.random() * pickable.length)]; this.openSpark(x.s); },
       cCount: list.length + (list.length === 1 ? ' event' : ' events') + (filtered ? ' match' : ' coming up'), cFiltered: filtered, cReset: () => this.setState({ cq: '', cWhen: 'any', cGrps: null, cTypes: [], cTags: {} }),
       cEmpty: list.length === 0, cSecs: secs.map((z, zi) => ({ label: z.label, isFirst: zi === 0, items: z.items.map(card) }))
@@ -3766,19 +3763,16 @@ class Component extends DCLogic {
 
   dashVals(c) {
     const thumb = (s) => ({ flex: '0 0 56px', width: '56px', height: '56px', borderRadius: '12px', background: '#2b303a url(' + c.photo(s) + ') center/cover' });
-    const rel = (s, t) => { if (this.phase(s) === 'idea') return 'Idea · no date yet'; const dd = c.daysTo(t); if (dd == null) return 'Date TBD'; const d = dd === 0 ? 'Today' : dd === 1 ? 'Tomorrow' : dd < 0 ? (-dd === 1 ? 'Yesterday' : -dd + ' days ago') : new Date(t).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }); return [d, dd >= 0 ? this.timeOf(s) : ''].filter(Boolean).join(' · '); };
+    const rel = (s, t) => { if (this.phase(s) === 'idea') return 'Idea · no date yet'; const dd = c.daysTo(t); if (dd == null) return 'Date to be decided'; const d = dd === 0 ? 'Today' : dd === 1 ? 'Tomorrow' : dd < 0 ? (-dd === 1 ? 'Yesterday' : -dd + ' days ago') : new Date(t).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }); return [d, dd >= 0 ? this.timeOf(s) : ''].filter(Boolean).join(' · '); };
     const rank = (x) => { const ph = this.phase(x.s), dd = c.daysTo(x.t); return ph === 'done' ? 1e6 : dd == null ? 5e5 : dd; };
     const card = ({ x, a: a0 }) => { const a = a0.map(q => ({ ...q, isTime: !!q.isTime, notTime: !q.isTime })); const ex = !!(this.state.dashOpen || {})[x.s.id]; const idea = this.phase(x.s) === 'idea'; const TH = idea ? { k: '#ffd98a', d: '#e8a71c', b: '#fdf1d6', i: '#8f6405' } : { k: '#cfc9ff', d: '#5b4ae8', b: '#f3f1fe', i: '#4a3ad4' };
       const theme = { isIdea: idea, notIdea: !idea, kick: { fontSize: '11px', fontWeight: 900, letterSpacing: '.8px', textTransform: 'uppercase', color: TH.k, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }, dotS: { flex: '0 0 7px', width: '7px', height: '7px', borderRadius: '999px', background: TH.d }, ctaS: { flex: '0 0 auto', display: 'flex', alignItems: 'center', minHeight: '28px', padding: '0 11px', borderRadius: '999px', background: TH.b, color: TH.i, fontSize: '13px', fontWeight: 800 }, moreInk: { color: TH.i }, TH }; const stats = this.phase(x.s) === 'plan' && x.s.leadName === 'You' ? this.dashPlanStats(x.s, x.t) : [];
-      return { ...theme, stats, hasStats: stats.length > 0, dSteps: idea ? this.dashIdeaSteps(x.s) : [], allActs: a, nLabel: String(a.length), openFromSheet: () => { this.setState({ dashAll: null }); this.openSpark(x.s); }, text: x.s.text, when: rel(x.s, x.t), group: String(x.s.spotAddr || (typeof ADDRESSES !== 'undefined' && ADDRESSES[x.s.spot]) || x.s.spot || 'Location TBD').split(',')[0].trim(), thumb: thumb(x.s), banner: { position: 'relative', height: '92px', background: '#2b303a url(' + c.photo(x.s) + ') center/cover' }, open: () => this.openSpark(x.s), acts: ex ? a : a.slice(0, 2), more: a.length > 2, moreLabel: ex ? 'Show less' : '+' + (a.length - 2) + ' more', moreChev: { transform: ex ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }, toggleMore: (ev) => { if (ev) ev.stopPropagation(); if (a.length < 3) { this.openSpark(x.s); return; } this.setState(p => ({ dashOpen: { ...(p.dashOpen || {}), [x.s.id]: !(p.dashOpen || {})[x.s.id] } })); } }; };
+      return { ...theme, stats, hasStats: stats.length > 0, dSteps: idea ? this.dashIdeaSteps(x.s) : [], allActs: a, nLabel: String(a.length), openFromSheet: () => { this.setState({ dashAll: null }); this.openSpark(x.s); }, text: x.s.text, when: rel(x.s, x.t), group: String(x.s.spotAddr || (typeof ADDRESSES !== 'undefined' && ADDRESSES[x.s.spot]) || x.s.spot || 'Location to be decided').split(',')[0].trim(), thumb: thumb(x.s), banner: { position: 'relative', height: '92px', background: '#2b303a url(' + c.photo(x.s) + ') center/cover' }, open: () => this.openSpark(x.s), acts: ex ? a : a.slice(0, 2), more: a.length > 2, moreLabel: ex ? 'Show less' : '+' + (a.length - 2) + ' more', moreChev: { transform: ex ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }, toggleMore: (ev) => { if (ev) ev.stopPropagation(); if (a.length < 3) { this.openSpark(x.s); return; } this.setState(p => ({ dashOpen: { ...(p.dashOpen || {}), [x.s.id]: !(p.dashOpen || {})[x.s.id] } })); } }; };
     const lead = c.ownAll.map(x => ({ x, a: c.ownActs(x.s, x.t).map(q => ({ act: q.act, cta: q.cta })) })).filter(z => z.a.length).sort((p, q) => rank(p.x) - rank(q.x));
     { const plans = lead.filter(z => this.phase(z.x.s) !== 'idea'); const big = plans.find(z => z.a.length > 2); if (big && plans.length > 1 && !(plans[1].a.length > 2)) { lead.splice(lead.indexOf(big), 1); lead.splice(lead.indexOf(plans.find(z => z !== big)) + 1, 0, big); } }
     const going = c.up.filter(x => x.s.leadName !== 'You' && this.phase(x.s) === 'plan' && (c.me(x.s) || c.mineR(x.s).length)).map(x => { const s = x.s, dd = c.daysTo(x.t), my = c.me(s), a = [];
       if (!my) a.push({ act: 'Confirm RSVP', cta: 'RSVP' }); if (my === 'maybe') a.push({ act: 'You said maybe', cta: 'Update RSVP' });
       c.mineR(s).forEach(r => a.push({ act: r.item, cta: r.time || this.timeOf(s) || 'Time TBD', isTime: true }));
-      if (!s.spot) a.push({ act: 'Location TBD', cta: 'Check' });
-      if (dd != null && dd <= 1) a.push({ act: (dd === 0 ? 'Today' : 'Tomorrow') + (this.timeOf(s) ? ' · ' + this.timeOf(s) : ''), cta: 'Directions' });
-      else if (dd != null && dd <= 7) a.push({ act: 'In ' + dd + ' days', cta: 'Details' });
       return { x, a }; }).filter(z => z.a.length).sort((p, q) => q.a.length - p.a.length || rank(p.x) - rank(q.x));
     { const iW = going.findIndex(z => z.x.s.text === 'Wednesday Wind-Down'), iA = going.findIndex(z => z.x.s.text === 'Activate'); if (iW > -1 && iA > -1) { const tmp = going[iW]; going[iW] = going[iA]; going[iA] = tmp; } }
     const nL = lead.reduce((n, z) => n + z.a.length, 0), nG = going.reduce((n, z) => n + z.a.length, 0);
@@ -3797,7 +3791,7 @@ class Component extends DCLogic {
     const helpsAny = c.up.some(x => x.s.leadName !== 'You' && this.phase(x.s) === 'plan' && (c.me(x.s) || c.mineR(x.s).length));
     const hr = new Date().getHours(), nm = (this.state.myName || '').trim().split(' ')[0];
     return { ...sheetVals, dashHello: (hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening') + (nm ? ', ' + nm : ''), dLeadHasN: lead.length > 0, dIdea: ideas.map(card), dIdeaN: String(ideas.length), dIdeaHasN: ideas.length > 0, dGoingHasN: going.length > 0, dLeadNone: !leadsAny, dLeadSome: leadsAny, dLead: lead.map(card), dLeadN: String(lead.length), dLeadEmpty: !lead.length, dGoing: going.map(card), dGoingN: String(going.length), dGoingEmpty: !going.length && helpsAny, dGoingNone: !helpsAny,
-      dashSub: nL + nG ? (nL + nG) + ((nL + nG) === 1 ? ' thing needs' : ' things need') + ' your attention' : 'You’re all caught up', dashCount: String(lead.length + going.length), dashHasBadge: lead.length + going.length > 0 };
+      dashSub: nL + nG ? (nL + nG) + ((nL + nG) === 1 ? ' thing needs' : ' things need') + ' your attention' : 'You’re all caught up', dashCount: lead.length + going.length > 9 ? '9+' : String(lead.length + going.length), dashHasBadge: lead.length + going.length > 0 };
   }
 
   oldHomeVals() {
@@ -3807,7 +3801,7 @@ class Component extends DCLogic {
     const homeEvents = plans.slice(0, 4).map(({ s, t }) => { const d = t != null ? new Date(t) : null; const n = this.intCount(s); const rows = this.signupOf(s); const open = rows.reduce((a, r) => a + (r.need ? Math.max(0, r.need - r.people.length) : 0), 0);
       return { text: s.text, group: this.groupNameOf(s), mon: d ? d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase() : 'TBD', day: d ? String(d.getDate()) : '—', isPriv: !!s.priv,
         coverStyle: { position: 'relative', height: '170px', background: 'url(' + ((s.photos || [])[0] || (st.groups[this.groupIdxOf(s)] || {}).photo || GROUP_PHOTO) + ') center/cover' },
-        meta: [this.timeOf(s), s.spot || 'Location TBD'].filter(Boolean).join(' · '),
+        meta: [this.timeOf(s), s.spot || 'Location to be decided'].filter(Boolean).join(' · '),
         sub: n + ' going · hosted by ' + this.whoName(s.leadName || s.who) + (open ? ' · ' + open + ' spots to fill' : ''),
         ...this.statusPill(s), open: () => this.openSpark(s) }; });
     const needs = []; plans.forEach(({ s }) => this.signupOf(s).forEach(r => { const left = r.need ? r.need - r.people.length : 0; if (left > 0) needs.push({ item: r.item, left: String(left), sub: (left === 1 ? '1 more needed' : left + ' more needed') + ' · ' + s.text, open: () => this.openSpark(s) }); }));
@@ -3851,7 +3845,7 @@ class Component extends DCLogic {
     const RC = { lead: ['Leading', '#f3f1fe', '#4a3ad4'], going: ['Going', '#e7f6ec', '#0f7a3c'], maybe: ['Maybe', '#fdf1d6', '#8f6405'], done: ['Happened', '#f2f3f6', '#6b7280'], open: ['Open to join', '#f2f3f6', '#454b55'] };
     const row = (x, k) => { const key = x.kind === 'done' ? 'done' : x.lead ? 'lead' : !x.mine ? 'open' : x.my === 'maybe' ? 'maybe' : 'going'; const [pill, bg, ink] = RC[key];
       const helpTxt = x.tasks.length ? 'Helping · ' + x.tasks.join(', ') : x.org ? 'Helping organize' : '';
-      const sub = x.kind === 'floated' ? 'Floated date · ' + x.votes + (x.votes === 1 ? ' vote' : ' votes') : x.kind === 'idea' ? 'Idea · ' + (x.t == null ? 'no date yet' : (x.s.spot || 'location TBD')) : (x.s.spot || 'Location TBD');
+      const sub = x.kind === 'floated' ? 'Floated date · ' + x.votes + (x.votes === 1 ? ' vote' : ' votes') : x.kind === 'idea' ? 'Idea · ' + (x.t == null ? 'no date yet' : (x.s.spot || 'location TBD')) : (x.s.spot || 'Location to be decided');
       return { text: x.s.text, eyebrow: [x.t != null ? (x.time || 'All day') : '', this.groupNameOf(x.s)].filter(Boolean).join(' · '), sub, pill, hasHelp: !!helpTxt, helpTxt, open: () => this.openSpark(x.s),
         pillStyle: { flex: '0 0 auto', display: 'flex', alignItems: 'center', minHeight: '28px', padding: '0 11px', borderRadius: '999px', background: bg, color: ink, fontSize: '12.5px', fontWeight: 800, whiteSpace: 'nowrap' },
         rowStyle: { display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 14px', borderTop: k ? '1px solid #f2f3f6' : '0', cursor: 'pointer', opacity: x.kind === 'done' ? .75 : 1 } }; };
@@ -4094,7 +4088,7 @@ class Component extends DCLogic {
       onSecPhoto: (e) => this.readPhoto(e, (src) => set({ photo: src })),
       secPrivTiles: [[false, 'Public', 'Everyone in your groups'], [true, 'Private', 'Only people you invite']].map(([v, label, sub]) => { const on = ss.priv === v; return { label, sub, pick: () => set({ priv: v }),
         box: { flex: '1 1 0', minWidth: 0, display: 'flex', flexDirection: 'column', gap: '4px', padding: '14px', borderRadius: '16px', background: on ? '#f3f1fe' : '#fff', boxShadow: 'inset 0 0 0 ' + (on ? '2px #5b4ae8' : '1.5px #dcdfe6'), cursor: 'pointer' }, title: { fontSize: '16px', fontWeight: 900, color: on ? '#5b4ae8' : '#0d1117' } }; }),
-      secGroupRows: this.state.groups.map((g, k) => { const on = ss.groups.includes(k); return { name: g.name, on, pick: () => this.setState(s => { const cur = s.secSheet.groups; const nx = cur.includes(k) ? cur.filter(x => x !== k) : cur.concat([k]); return { secSheet: { ...s.secSheet, groups: nx.length ? nx : cur } }; }),
+      secGroupRows: this.state.groups.map((g, k) => { const on = ss.groups.includes(k), home = this.gid(k) === (subj.groups || [])[0]; return { name: g.name, on, isHome: home, pick: () => home ? this.showToast('It stays posted in ' + g.name + ', where it started') : this.setState(s => { const cur = s.secSheet.groups; const nx = cur.includes(k) ? cur.filter(x => x !== k) : cur.concat([k]); return { secSheet: { ...s.secSheet, groups: nx.length ? nx : cur } }; }),
         box: { flex: '0 0 20px', width: '20px', height: '20px', borderRadius: '6px', background: on ? '#5b4ae8' : '#fff', boxShadow: on ? 'none' : 'inset 0 0 0 2px #c9ccd3', display: 'flex', alignItems: 'center', justifyContent: 'center' },
         rowStyle: { display: 'flex', alignItems: 'center', gap: '10px', minHeight: '46px', padding: '9px 12px', borderRadius: '12px', background: on ? '#f3f1fe' : '#f7f8fa', cursor: 'pointer' }, nameStyle: { fontSize: '15px', fontWeight: 800, color: on ? '#5b4ae8' : '#0d1117' } }; }),
       secD: ss.d, secT: ss.t, secP: ss.p, secDHas: ss.d ? 'true' : undefined, secTHas: ss.t ? 'true' : undefined,
@@ -4109,7 +4103,8 @@ class Component extends DCLogic {
         else if (ss.kind === 'title') { if (!ss.title.trim()) return; this.patch(subj.id, { text: this.cleanTitle(ss.title), photos: ss.photo ? [ss.photo].concat((subj.photos || []).filter(p => p !== ss.photo)).slice(0, 6) : (subj.photos || []) }, { secSheet: null }); }
         else if (ss.kind === 'vis') this.patch(subj.id, { priv: ss.priv, groups: ss.groups.map(k => this.gid(k)) }, { secSheet: null });
         else this.patch(subj.id, { bits: ss.bits.map(b => b.trim()).filter(Boolean), basics: ss.bits.some(b => b.trim()) }, { secSheet: null });
-        this.showToast('Saved. Everyone going gets an update.', true); } };
+        const moved = ss.kind === 'when' && ((ss.d ? this.fmtEvDay(ss.d, ss.t) : null) !== (subj.day ? subj.day.split(' – ')[0] : null) || (this.cleanTitle(ss.p || '') || null) !== (subj.spot || null));
+        this.showToast(moved ? 'Saved. Everyone going gets an update.' : 'Saved', true); } };
   }
 
   tbdVals(subj) {
@@ -4147,18 +4142,19 @@ class Component extends DCLogic {
         isOne: !r.shifts, isShifts: !!r.shifts, oneTab: tab(!r.shifts), shiftTab: tab(!!r.shifts),
         onItem: (e) => { const v = e.target.value.slice(0, 60); set(x => { x.item = v; }); },
         onDesc: (e) => { const v = e.target.value.slice(0, 200); set(x => { x.desc = v; }); },
-        onTime: (e) => { const v = e.target.value.slice(0, 30); set(x => { x.time = v; }); },
+        onTime: (e) => { const v = e.target.value; set(x => { x.time = v; }); }, timeOpts: this.halfHours(r.time, 'Time (optional)'),
         dec: () => set(x => { x.need = clamp(x.need - 1); }), inc: () => set(x => { x.need = clamp(x.need + 1); }),
         toOne: () => set(x => { if (!x.shifts) return; x.people = [].concat(...x.shifts.map(q => q.people)); x.need = Math.max(1, x.shifts.reduce((z, q) => z + q.need, 0)); x.shifts = null; }),
         toShifts: () => set(x => { if (x.shifts) return; x.shifts = [{ id: 'a' + Date.now(), time: x.time, need: x.need, people: x.people }]; x.people = []; }),
         addShift: () => set(x => { x.shifts.push({ id: 'q' + Date.now(), time: '', need: 1, people: [] }); }),
         remove: () => up(rs => { rs.splice(i, 1); }),
         shifts: (r.shifts || []).map((q, j) => ({ time: q.time || '', need: String(q.need),
-          onTime: (e) => { const v = e.target.value.slice(0, 30); set(x => { x.shifts[j].time = v; }); },
+          ...(() => { const [s0, e0] = String(q.time || '').split(/\s*[–-]\s*/); return { start: s0 || '', end: e0 || '', startOpts: this.halfHours(s0, 'Start'), endOpts: this.halfHours(e0, 'End'), onStart: (e) => { const v = e.target.value; set(x => { const b = String(x.shifts[j].time || '').split(/\s*[–-]\s*/)[1] || ''; x.shifts[j].time = b ? v + ' – ' + b : v; }); }, onEnd: (e) => { const v = e.target.value; set(x => { const b = String(x.shifts[j].time || '').split(/\s*[–-]\s*/)[0] || ''; x.shifts[j].time = b ? b + ' – ' + v : v; }); } }; })(),
           dec: () => set(x => { x.shifts[j].need = clamp(x.shifts[j].need - 1); }), inc: () => set(x => { x.shifts[j].need = clamp(x.shifts[j].need + 1); }),
           remove: () => set(x => { if (x.shifts.length > 1) x.shifts.splice(j, 1); }) })) }; });
   }
 
+  halfHours = (cur, ph) => { const L = Array.from({ length: 48 }, (_, i) => { const h = Math.floor(i / 2), m = i % 2 ? '30' : '00'; return (h % 12 || 12) + ':' + m + (h < 12 ? 'am' : 'pm'); }); const out = [{ value: '', label: ph }].concat(L.map(l => ({ value: l, label: l }))); if (cur && !L.includes(cur)) out.splice(1, 0, { value: cur, label: cur }); return out; };
   needsOut(rows) {
     return rows.filter(r => (r.item || '').trim()).map(r => { const o = { id: r.id, item: r.item.trim() }; if ((r.desc || '').trim()) o.desc = r.desc.trim();
       let shifts = r.shifts ? r.shifts.map(q => ({ id: q.id, time: (q.time || '').trim(), need: q.need, people: q.people })) : null;
@@ -4198,14 +4194,14 @@ class Component extends DCLogic {
           isOne: !r.shifts, isShifts: !!r.shifts, oneTab: tab(!r.shifts), shiftTab: tab(!!r.shifts),
           onItem: (e) => { const v = e.target.value.slice(0, 60); set(x => { x.item = v; }); },
           onDesc: (e) => { const v = e.target.value.slice(0, 200); set(x => { x.desc = v; }); },
-          onTime: (e) => { const v = e.target.value.slice(0, 30); set(x => { x.time = v; }); },
+          onTime: (e) => { const v = e.target.value; set(x => { x.time = v; }); }, timeOpts: this.halfHours(r.time, 'Time (optional)'),
           dec: () => set(x => { x.need = clamp(x.need - 1); }), inc: () => set(x => { x.need = clamp(x.need + 1); }),
           toOne: () => set(x => { if (!x.shifts) return; x.people = [].concat(...x.shifts.map(q => q.people)); x.need = Math.max(1, x.shifts.reduce((z, q) => z + q.need, 0)); x.shifts = null; }),
           toShifts: () => set(x => { if (x.shifts) return; x.shifts = [{ id: 'a' + Date.now(), time: x.time, need: x.need, people: x.people }]; x.people = []; }),
           addShift: () => set(x => { x.shifts.push({ id: 'q' + Date.now(), time: '', need: 1, people: [] }); }),
           remove: () => up(x => { x.rows.splice(i, 1); }),
           shifts: (r.shifts || []).map((q, j) => ({ time: q.time || '', need: String(q.need),
-            onTime: (e) => { const v = e.target.value.slice(0, 30); set(x => { x.shifts[j].time = v; }); },
+            ...(() => { const [s0, e0] = String(q.time || '').split(/\s*[–-]\s*/); return { start: s0 || '', end: e0 || '', startOpts: this.halfHours(s0, 'Start'), endOpts: this.halfHours(e0, 'End'), onStart: (e) => { const v = e.target.value; set(x => { const b = String(x.shifts[j].time || '').split(/\s*[–-]\s*/)[1] || ''; x.shifts[j].time = b ? v + ' – ' + b : v; }); }, onEnd: (e) => { const v = e.target.value; set(x => { const b = String(x.shifts[j].time || '').split(/\s*[–-]\s*/)[0] || ''; x.shifts[j].time = b ? b + ' – ' + v : v; }); } }; })(),
             dec: () => set(x => { x.shifts[j].need = clamp(x.shifts[j].need - 1); }), inc: () => set(x => { x.shifts[j].need = clamp(x.shifts[j].need + 1); }),
             remove: () => set(x => { if (x.shifts.length > 1) x.shifts.splice(j, 1); }) })) }; }) };
   }
@@ -4234,7 +4230,7 @@ class Component extends DCLogic {
     const RC = { going: ['#149a4b', '#e7f6ec', '#0f7a3c'], maybe: ['#e8a71c', '#fdf1d6', '#8f6405'], no: ['#6b7280', '#f2f3f6', '#454b55'] };
     const rsvpOpts = [['going', my === 'going' ? '✓ Going' : 'I’m going'], ['maybe', 'Maybe'], ['no', 'Can’t make it']].map(([k, label]) => { const on = my === k, c = RC[k], hero = k === 'going' && !my; return { label, pick: setR(k), style: { minHeight: '52px', padding: '0 6px', borderRadius: '999px', border: on ? '2px solid ' + c[0] : hero ? '0' : '1.5px solid #dcdfe6', background: on ? c[1] : hero ? '#149a4b' : '#fff', color: on ? c[2] : hero ? '#fff' : '#0d1117', fontFamily: 'inherit', fontSize: k === 'going' ? '16px' : '14px', fontWeight: 900, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: hero ? '0 8px 20px rgba(20,154,75,.3)' : 'none' } }; });
     const stat = (bg, ink) => ({ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', padding: '12px 4px', borderRadius: '14px', background: bg, color: ink });
-    const inviteStats = [[inv.sent, 'Invited', '#f2f3f6', '#0d1117'], [n, 'Going', '#e7f6ec', '#0f7a3c'], [inv.maybe, 'Maybe', '#fdf1d6', '#8f6405']].map(([num, label, bg, ink]) => ({ num: String(num), label, style: stat(bg, ink) }));
+    const inviteStats = [[n, 'Going', '#e7f6ec', '#0f7a3c'], [(inv.maybe || 0) + (my === 'maybe' ? 1 : 0), 'Maybe', '#fdf1d6', '#8f6405'], [(inv.no || 0) + (my === 'no' ? 1 : 0), 'Can’t', '#f2f3f6', '#454b55']].map(([num, label, bg, ink]) => ({ num: String(num), label, style: stat(bg, ink) }));
     const autoOn = subj.autoRemind !== false;
 
     const rows = this.signupOf(subj);
@@ -4286,7 +4282,7 @@ class Component extends DCLogic {
     const copy = (t, note) => { try { navigator.clipboard && navigator.clipboard.writeText(t); } catch (e) {} this.showToast(note, true); };
 
     const bl = st.blast && st.blast.id === subj.id ? st.blast : null;
-    const audN = { all: inv.sent || n, going: n, maybe: inv.maybe, noreply: noReply };
+    const audN = { all: n + (inv.maybe || 0), going: n, maybe: inv.maybe, noreply: noReply };
     const blastN = bl ? audN[bl.to] || 0 : 0;
     const dayWord = subj.day ? subj.day.replace(' · ', ' at ') : 'soon';
     const openBl = (to, text) => this.setState({ blast: { id: subj.id, to, text: text || '', when: 'now' } });
@@ -4318,7 +4314,6 @@ class Component extends DCLogic {
         if (!subj.spot) t.push({ item: (subj.spotPoll || []).length ? 'Pick the winning spot' : 'Pick a location', meta: '', act: () => this.openSec(subj, 'when') });
         if (!this.splitBits(subj.bits).length) t.push({ item: 'Add basic details', meta: '', act: () => this.openSec(subj, 'details') });
         if (totalNeed > 0) t.push({ item: 'Fill open spots', meta: totalNeed + ' open', act: () => { const el = document.getElementById('sec-tasks'); const sc = this.scroller && this.scroller(); if (el && sc) sc.scrollTop = el.offsetTop - 80; } });
-        if (!inv.sent) t.push({ item: 'Invite people', meta: '', act: () => openInv('text') });
         myJobs.forEach(j => t.push({ item: j.item, meta: j.time || '', act: () => {} }));
         const open = !!(st.hostTasksOpen || {})[subj.id];
         return { hasHostTasks: t.length > 0, hostTasks: t, hostTasksOpen: open, hostTasksCount: open ? '' : t.length + (t.length === 1 ? ' task' : ' tasks'),
@@ -4370,7 +4365,7 @@ class Component extends DCLogic {
       shareTargets: ['Messages', 'WhatsApp', 'Instagram story', 'Facebook', 'Nextdoor', 'More…'].map(label => ({ label, go: () => { if (label === 'More…' && navigator.share) { navigator.share({ title: subj.text, url: 'https://' + link }).catch(() => {}); return; } this.showToast('Opening ' + label + '…', true); } })),
 
       blastOpen: !!bl, closeBlast: () => this.setState({ blast: null }),
-      blastAud: [['all', 'Everyone invited'], ['going', 'Going'], ['maybe', 'Maybe'], ['noreply', 'No reply yet']].map(([k, label]) => ({ label: label + ' · ' + (audN[k] || 0), pick: () => this.setState(s => ({ blast: { ...s.blast, to: k } })), style: chip(bl && bl.to === k) })),
+      blastAud: [['all', 'Everyone'], ['going', 'Going'], ['maybe', 'Maybe'], ['noreply', 'No reply yet']].map(([k, label]) => ({ label: label + ' · ' + (audN[k] || 0), pick: () => this.setState(s => ({ blast: { ...s.blast, to: k } })), style: chip(bl && bl.to === k) })),
       blastTemplates: TPL.map(([label, text]) => ({ label, use: () => this.setState(s => ({ blast: { ...s.blast, text } })) })),
       blastText: bl ? bl.text : '', onBlastText: (e) => { const v = e.target.value.slice(0, 320); this.setState(s => ({ blast: { ...s.blast, text: v } })); },
       blastWhen: [['now', 'Now'], ['day', 'Day before'], ['morning', 'Morning of']].map(([k, label]) => ({ label, pick: () => this.setState(s => ({ blast: { ...s.blast, when: k } })), style: pill(bl && bl.when === k) })),
@@ -4698,7 +4693,7 @@ class Component extends DCLogic {
         countStyle: { fontSize: '11.5px', lineHeight: '44px', fontWeight: 800, color: on ? '#6b7280' : '#9aa0aa' },
         pick: (e) => { if (e) e.stopPropagation(); this.setState({ phaseTab: k, menu: null }); } }; }),
       planEmpty: ptab === 'plan' && plans.length === 0,
-      planCards: plans.map(s => ({ text: s.text, place: s.spot || 'Location TBD', who: this.whoName(s.who), day: s.day || '', going: String(this.intCount(s)),
+      planCards: plans.map(s => ({ text: s.text, place: s.spot || 'Location to be decided', who: this.whoName(s.who), day: s.day || '', going: String(this.intCount(s)),
         eyebrow: s.meIn ? 'YOU’RE GOING' : s.leadName === 'You' ? 'YOU’RE LEADING' : 'IT’S A PLAN',
         coverStyle: { height: '112px', background: 'url(' + cover(s) + ') center/cover' },
         open: () => this.go('detail', { subjectId: s.id, tag: null }) })),
@@ -4723,15 +4718,15 @@ class Component extends DCLogic {
       makePlanBody: 'It has a date and a time. Make it a plan, and ' + (n ? people(n) : 'anyone who joins sees it’s happening') + '.',
       makePlan: () => { if (!ready) return; this.setState({ confirm: { title: 'Make it a plan?', body: 'It’s on for ' + String(subj.day).replace(/\s*·\s*/, ' at ') + '. ' + (n ? (n === 1 ? 'The 1 person who’s interested gets told, and shows as going.' : 'The ' + n + ' people who are interested get told, and they’ll show as going.') : 'Anyone who joins shows as going.'), cta: 'Make it a plan', keep: 'Not yet', tone: 'green',
         run: () => { if (this.fails()) { this.setState({ confirm: null }); return; } this.patch(subj.id, { planned: true }, { confirm: null, tag: 'It’s a plan' }); } } }); },
-      planDateLong: subj.day ? (() => { const p = String(subj.day).split(' · ')[0], m = p.match(/^([A-Za-z]{3}),?\s*(.*)$/), W = { Mon: 'Monday', Tue: 'Tuesday', Wed: 'Wednesday', Thu: 'Thursday', Fri: 'Friday', Sat: 'Saturday', Sun: 'Sunday' }; return m && W[m[1]] ? W[m[1]] + (m[2] ? ', ' + m[2] : '') : p; })() : 'Date TBD',
-      planWeekday: subj.day ? (({ Mon: 'Monday', Tue: 'Tuesday', Wed: 'Wednesday', Thu: 'Thursday', Fri: 'Friday', Sat: 'Saturday', Sun: 'Sunday' })[String(subj.day).slice(0, 3)] || String(subj.day).split(' · ')[0]) : 'Date TBD',
-      planDateStr: subj.day ? String(subj.day).split(' · ')[0] : 'Date TBD', planDateShort: subj.day ? String(subj.day).split(' · ')[0].replace(/^[A-Za-z]{3},?\s*/, '') : 'Date TBD', planTimeStr: subj.day && String(subj.day).split(' · ')[1] ? String(subj.day).split(' · ').slice(1).join(' · ') : 'TBD',
+      planDateLong: subj.day ? (() => { const p = String(subj.day).split(' · ')[0], m = p.match(/^([A-Za-z]{3}),?\s*(.*)$/), W = { Mon: 'Monday', Tue: 'Tuesday', Wed: 'Wednesday', Thu: 'Thursday', Fri: 'Friday', Sat: 'Saturday', Sun: 'Sunday' }; return m && W[m[1]] ? W[m[1]] + (m[2] ? ', ' + m[2] : '') : p; })() : 'Date to be decided',
+      planWeekday: subj.day ? (({ Mon: 'Monday', Tue: 'Tuesday', Wed: 'Wednesday', Thu: 'Thursday', Fri: 'Friday', Sat: 'Saturday', Sun: 'Sunday' })[String(subj.day).slice(0, 3)] || String(subj.day).split(' · ')[0]) : 'Date to be decided',
+      planDateStr: subj.day ? String(subj.day).split(' · ')[0] : 'Date to be decided', planDateShort: subj.day ? String(subj.day).split(' · ')[0].replace(/^[A-Za-z]{3},?\s*/, '') : 'Date to be decided', planTimeStr: subj.day && String(subj.day).split(' · ')[1] ? String(subj.day).split(' · ').slice(1).join(' · ') : 'TBD',
       hasPlanBits: this.splitBits(subj.bits).length > 0, showDetailsSec: this.splitBits(subj.bits).length > 0 || (subj.leadName === 'You' && ph === 'plan'), noPlanBitsLead: !this.splitBits(subj.bits).length && subj.leadName === 'You',
       isPriv: !!subj.priv, canEditSections: subj.leadName === 'You', editTitle: () => this.openSec(subj, 'title'), editVisibility: () => this.openSec(subj, 'vis'),
       changeEventPhoto: (e) => this.readPhoto(e, (src) => { this.patch(subj.id, { photos: [src].concat((subj.photos || []).filter(p => p !== src)).slice(0, 6) }); this.showToast('Cover photo updated', true); }),
       visPublic: !subj.priv, visLabel: subj.priv ? 'Private' : 'Public', visIc: { flex: '0 0 18px', display: 'flex', color: '#0f7a3c' }, visGroups: (subj.groups || []).map(id => (this.state.groups.find(g => (g.id || g.name) === id) || {}).name).filter(Boolean).join(', ') || this.groupNameOf(subj), editWhenShow: subj.leadName === 'You' && (!!subj.day || !!subj.spot), editWhereShow: subj.leadName === 'You' && !!subj.spot,
       editWhenSec: () => this.openSec(subj, 'when'), editDetailsSec: () => this.openSec(subj, 'details'), planBits: this.splitBits(subj.bits).map((t, k) => ({ t, row: { display: 'flex', alignItems: 'baseline', gap: '11px', padding: '12px 0', borderTop: k ? '1px solid #f2f3f6' : '0' } })),
-      planDay: subj.day || '', planPlace: subj.spot || 'Location TBD', goingNum: String(n),
+      planDay: subj.day || '', planPlace: subj.spot || 'Location to be decided', goingNum: String(n),
       canGo: !lead && ph === 'plan', leadOnPlan: lead && ph === 'plan',
       goLabel: subj.meIn ? 'You’re going' : 'I’m going',
       goBtnStyle: { width: '100%', marginTop: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', minHeight: '52px', borderRadius: '999px', fontFamily: 'inherit', fontSize: '16px', fontWeight: 800, cursor: 'pointer', border: '2px solid ' + (subj.meIn ? '#149a4b' : '#0f7a3c'), background: subj.meIn ? '#e7f6ec' : '#0f7a3c', color: subj.meIn ? '#0f7a3c' : '#fff' },
@@ -4785,6 +4780,8 @@ class Component extends DCLogic {
 
       openEventEdit: () => this.openSec(subj, 'title'),
       openEdit: () => this.openSec(subj, 'title'),
+      askDeleteEvent: () => this.setState({ confirm: { title: 'Delete this event?', body: 'It comes down for everyone, along with its RSVPs and sign-ups. This can’t be undone.', cta: 'Delete it', keep: 'Keep it', danger: true,
+        run: () => { this.setState({ sparks: st.sparks.filter(s => s.id !== subj.id), confirm: null, screen: 'calendar', subjectId: null, tag: null }); this.showToast('Event deleted'); } } }),
       askDelete: () => this.setState({ confirm: {
         title: 'Delete this idea?',
         body: 'It comes down for everyone, along with its dates and RSVPs. This can’t be undone.',
@@ -4859,7 +4856,7 @@ class Component extends DCLogic {
       avatarStyleBig: { width: 96, height: 96, borderRadius: 999, background: st.myPhoto ? 'url(' + st.myPhoto + ') center/cover' : '#e8a71c', color: '#fff', fontSize: 38, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center' },
       profStats: (() => { const mine = st.sparks.filter(s => s.leadName === 'You'); const went = st.sparks.filter(s => this.phase(s) === 'done' && (s.leadName === 'You' || s.meIn || s.myRsvp === 'going')).length; return [{ n: String(mine.filter(s => this.phase(s) !== 'idea').length), label: 'Hosted' }, { n: String(went), label: 'Went to' }, { n: String(st.groups.length), label: 'Groups' }]; })(),
       profInterests: ['Trail walks', 'Potlucks', 'Pickleball', 'Volunteering', 'Live music'],
-      profSettings: [['Notifications', 'Invites, updates, reminders', () => this.setState({ notifSet: true })], ['Calendar sync', 'Add your plans to Google or Apple Calendar', () => {}], ['Email', st.signedIn || 'Not signed in', () => this.setState({ peOpen: true })], ['Privacy', 'Who sees your profile and plans', () => {}]].map(([label, sub, open], i) => ({ label, sub, open, rowStyle: { display: 'flex', alignItems: 'center', gap: 12, minHeight: 60, padding: '10px 16px', borderTop: i ? '1px solid #f2f3f6' : '0', cursor: 'pointer' } })),
+      profSettings: [['Notifications', 'Updates, reminders, sign-ups', () => this.setState({ notifSet: true })], ['Privacy', 'Who sees your profile and plans', () => {}]].map(([label, sub, open], i) => ({ label, sub, open, rowStyle: { display: 'flex', alignItems: 'center', gap: 12, minHeight: 60, padding: '10px 16px', borderTop: i ? '1px solid #f2f3f6' : '0', cursor: 'pointer' } })),
       changeNameLabel: st.myName ? 'Change name' : 'Add your name',
       signedOut: !st.signedIn, isSignedIn: !!st.signedIn, signedInEmail: st.signedIn || '',
       signOut: () => this.go('home', { signedIn: null }),

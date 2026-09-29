@@ -4,8 +4,8 @@
 
 - **Built (test):** https://gosparkhub-git-test-eric-5958s-projects.vercel.app · **Live:** https://gosparkhub.vercel.app
 - **Source:** github.com/esshaughn/sparkhub (`index.html`, `js/sparks.js`, `css/sparks.css`, `privacy.html`, `supabase/templates/`)
-- **Baseline:** Claude Design's **Spark Hub v6** handoff plus **Update 2** to **Update 6** (Update 6: the 5-step Create event flow with Decide later, polls, jobs, Review and drafts; the host's event page with YOU'RE LEADING, Change photo, the purple Your tasks tab, the guest panel and Share link sheet, things left to decide, the date and location card with Vote / Pick, and one small edit sheet per section; Invite only → Private, "Basic details" everywhere; Update 5: the event page's Plan phase rebuilt: You're helping sliver, three-button RSVP, date and map cards, Help out job cards with shifts and descriptions, Pick a shift, the You're on it / You're off it banners, no RSVP question after signing up; Update 4: Past scrapbook date stickers and a dismissable So far card, the Ideas board's sort row and plain step icons, the event page's Plan phase as option 39a; Update 3: no photo button on Your tasks, the new Post an event form; Update 2: Groups list and group pages redesigned: world switcher, Ideas board, Past scrapbook, group search; Sort · Filter on Your schedule and group Plans; Calendar search's Try chips and "Or something unexpected"; the compact Profile sheet). The READMEs are `design/spark-hub/README-v6.md` and `design/spark-hub/README-v6-update-2.md` `README-v6-update-3.md`, `README-v6-update-4.md`, `README-v6-update-5.md` and `README-v6-update-6.md`; `design/spark-hub/Spark Hub App.dc.html` is the Update 6 prototype. Where the design conflicts with a decision the owner already made, §1 says what was built.
-- **As of:** 2026-09-29, v6 Update 6 is built
+- **Baseline:** Claude Design's **Spark Hub v6** handoff plus **Update 2** to **Update 7**. Update 7 (`design/spark-hub/README-v6-update-7.md`) absorbed the previous version of this doc: `design/spark-hub/Spark Hub App.dc.html` matches the build as of Update 6, and the Event Page Options file's Rounds 64–66 (kept in the design zip) are now built: 64a empty states, 64b Help out host tools, 64c Pick a shift / Find a replacement, 64d who thanked, 64f Edit what you need rows, 64g View as a tester, 65a edits that tell people, 65b delete note, 65c Make home, 65d the TBD badge and month strip, 66e Welcome copy. The earlier READMEs (`README-v6.md`, `README-v6-update-2.md` … `-6.md`) still describe everything else.
+- **As of:** 2026-09-29, v6 Update 7 is built
 
 Where this doc and the design files disagree, **this doc is correct**.
 
@@ -15,96 +15,43 @@ Where this doc and the design files disagree, **this doc is correct**.
 
 | # | Change | Design said | Why |
 |---|---|---|---|
-| 1 | **Invites are a share link, so nothing counts invites.** The Leading stats strip reads **Going · Maybe · Sign-ups · Reminder** (Maybe, with a question-circle icon, in place of Invited); there's no "N haven't replied · Nudge" and no "No one invited yet · Invite" to-do | Invited · Going · Sign-ups · Reminder; Nudge / Invite to-dos | Owner kept share links (2026-09-29) |
-| 2 | **No "Set head count" to-do** on ideas; the People checkpoint uses the idea's minimum when it has one (demo ideas do), otherwise interested ÷ 10, capped below done | "Set head count · Set" | There's still no input for minimum people (§5) |
-| 3 | **Ideas' third to-do is "No roles yet · Add roles"** (it only decides whether an idea shows under Ideas; the card shows the four checkpoints) | "No tasks yet · Add tasks" | Matches the v6 Roles → Helpers checkpoint wording |
-| 4 | **Idea pages have a Sign-ups card** (between Location and the organizer card), so "Add essential roles" / "Get helpers" land somewhere; empty, the lead reads *What roles does this need? Add them now and people can grab one before there's a date.* | Not drawn on the idea page | v6's Roles/Helpers checkpoint opens the idea's sign-ups |
-| 5 | **Plans show "Waiting on you"** (the lead's pending suggestions, same card as ideas) so "Hana's spot idea · Review" has somewhere to go | Only on ideas | Your tasks now lists these for plans |
-| 6 | **Profile's Help & info has two tiles** (How Spark Hub works, Notification settings) and **Settings two rows** (Notifications, Privacy) | Help & info: + Ask a question, Send feedback; Settings: + Calendar sync, Email | Owner (2026-09-27): no calendar sync, email is in-app only, nothing receives feedback yet |
-| 7 | **Calendar sort "Most lively"** = going ×2 + maybe + sign-ups taken + updates, plus a boost for plans posted in the last 2 / 5 days | Also votes, suggestions and readiness (ideas) | The Calendar lists plans only, so the idea parts don't apply |
-| 8 | **Event types** are guessed from the title only (keywords as in the prototype, plus taco/pie → Food & drink, run/5k → Fitness, hootenanny → Arts & crafts) | Title + tags | There are no tags yet; nothing is written to the data |
-| 9 | **The Calendar header** uses the Walnut Creek group photo (the same parade shot as `walnut-creek-parade.jpg`, already resized in `photos/`) | `walnut-creek-parade.jpg` | Same photo, no second copy |
-| 10 | **"Feeling wild?" cards** show the first three events in the current results (A♠ K♥ Q♣) | poker-night / paintball / pumpkin-nights photos | Always real events |
-| 11 | **Your tasks' "Find something to help with"** opens the Calendar | Groups | The Calendar is where "could use a hand" lives |
-| 12 | **The Calendar is the home screen.** Signing in, the logo, back with no history, closing the post flow and deleting a group all land on the Calendar; the tab bar is still the v6 five | Your tasks is the home screen | Owner (2026-09-27) |
-| 13 | **"How Spark Hub works"** (Profile → Help & info) has real copy: the three steps from Welcome (Post an idea · People pitch in · It happens) and three "Good to know" notes (groups are private, leads stay in charge, Your tasks keeps track) | Placeholder text in the prototype | It shipped with lorem ipsum |
-| 14 | **Calendar with no groups** shows one card ("You're not in a group yet · Join with a code"); the header reads *Join a group to see its events* and the empty "Coming up" list is hidden | Not designed (first-run view is open) | Three empty states stacked |
+| 1 | **Find a replacement** has no *You stay signed up until someone takes it.* line, and quotes the build's message (*Hey! I can't make it to {job} for {event} anymore. Any chance you could take my spot?* + link) | That line, and *Can anyone take my spot …?* | It only opens from *You're off it*, after you've already taken yourself off |
+| 2 | **Updates from edits go to everyone who replied or signed up** (the *Everyone* audience); the preview line reads *Goes to the N people going and the M maybes.* when that's everyone, otherwise *Goes to the N people who replied or signed up.* | Going and maybes | Uses the existing update audiences (someone who said Can't may want to know about a new date) |
+| 3 | **Search with a Try chip and no text**: *No events match {chip}.* · *Try taking it off.* | *… Kid-friendly + Needs helpers.* · *Try taking one off.* | Search takes one Try chip at a time |
+| 4 | **Help out job cards** keep the job's time in the gray line (*8:30am · 3 of 6 · 3 still needed*) and the description under the bar | No time on the card | Times matter for jobs; descriptions came with Update 5 |
+| 5 | **Could use a hand** keeps its per-event cards with **Claim**; a shift's row reads *12:00 – 1:30pm · 2 of 2 open* in amber 800 | A single-job card with *Sign up* | Small change to the existing sheet |
+| 6 | **Update notifications** read *{event} · {update}* with *From {host} · 5m ago · {group}* for every host update, including ones sent with *Send everyone an update* | Shown for an edit's update | One format for all updates |
+| 7 | **Pick a shift** keeps the job's description under the date line | Not shown | Update 5 descriptions |
 
-| 15 | **Reactions are real** (saved per person): ❤️ 🙌 🎉, 🙏 thanks and "Let's do it again!" start at 0 and count people. Tapping one while signed out asks you to sign in | Counts derived from the event as placeholders | Update 2 says to use real data when available; it's now stored (`reactions`) |
-| 16 | **The Groups header photo** is the first of your groups that has one (pinned first), framed as that group's cover | `torrez-group.jpg` | People in other groups shouldn't see Torrez Fitness's photo |
-| 17 | **The Past "photos" number** counts each event's cover photos and album photos; *showed up* counts Going RSVPs | Not defined | |
-| 18 | **The add-photo button on a memory card** adds to that event's album (same as *+ Add yours* on It happened) | Prototype toast "Opening your photos…" | |
-| 19 | **Ideas board sort "Almost there"** counts the four checkpoints that are done (ties: most interested); **Newest** is by when it was posted | By number of steps done (the board has four) | |
-| 20 | **Post an event keeps the 30-minute time list** (6:00 pm default) and the location suggestions under Where | A plain time input; a plain text input | Same choices as before; the suggestions save the address for directions |
-| 21 | **Post an event's name placeholder** reads *Enter event title* | *What’s happening?* | Owner (2026-09-28) |
-| 22 | **No new pickleball demo event** (`p3x`, Saturday pickleball round robin) | Add it to the demo data | Owner (2026-09-28): use the existing content |
-| 23 | **Only one demo event shows shifts and descriptions** (*Street tree planting*, shared by every tester: a described *Set up the tool table* 8:30 – 9:00am and *Water the new trees* in two shifts); every other demo sign-up keeps its name, count and time | All 26 planned events get the prototype's sign-ups (times, descriptions, 9 two-shift jobs) | The prototype's sign-ups differ from the live content, which stays as it is (README: don't change content) |
-| 24 | **The host's guest panel** shows **Going · Maybe · Can't** (no Invited), and where the nudge link would sit, a quiet gray **Send everyone an update** (bell icon, 14.5px/800 `#6b7280`) that opens Send an update | Invited · Going · Maybe, then the nudge link | Invites are share links (§1 #1); the panel lost *Send an update* and updates had nowhere else to start |
-| 25 | **No "Invite people" row in the host's Your tasks** | "Invite people (only if nobody has been invited yet)" | Nothing counts invites (§1 #1) |
-| 26 | **RSVP counts** are real RSVPs (Going / Maybe / Can't), yours included | Going = interested count; Maybe / Can't from invite stats | Interest turns into Going when an idea becomes a plan; invites aren't counted |
-| 27 | **Your tasks and Your schedule headers have Search** (a 44px `#f2f3f6` circle with the search icon, left of the bell), opening the Calendar's search sheet | Title and bell only | Owner (2026-09-28) |
-| 28 | **The bell's red badge has no white ring** | 2px white border | Owner (2026-09-28) |
-| 29 | **"Everyone going gets an update"** is true for date and place changes: saving a new date or location posts an update to the people going (*New date: Sat, Oct 24 · 10am · New location: …*), and the toast says *Saved. Everyone going gets an update.* Title, photo, Basic details and Who can see it save quietly (toast *Saved*) | The note under every edit sheet | Only date and place changes are worth a message |
-| 30 | **The event's first group can't be unticked** in Who can see it: its row reads *Posted here first* (12.5px/700 `#8a909b`), and tapping it says *It stays posted in {group}, where it started* | Any group, as long as one stays ticked | That group's admins look after the event (they can delete it) |
-| 31 | **Delete this event** is a red link (`#9b1c31`, trash icon) at the bottom of the event page for the host and the group's admins, then the usual *Delete this event?* confirm | Not drawn (the retired full-screen editor had it) | Somewhere to delete from |
-| 32 | **Job times use the 30-minute list**: Add a job has *Time (optional)*; each shift has *Start* and *End* lists plus its own − n + | Free-text time fields (*e.g. 6:00 – 7:00pm*) | Times are stored as times, so sign-ups can show and sort them |
-| 33 | **Location polls** are plain text (no address suggestions); a picked winner has no map link until the host sets the place with a suggestion | — | Keeps the poll sheet simple |
-| 34 | **No map on the date and location card** | Update 5's Geoapify map | Update 6's card has none |
-| 35 | **Older ideas** (still in the demo data; nothing new becomes one) keep the idea page; its title pencil and Basic details open the same edit sheets, and the Edit pill is gone | — | "Float an idea" now opens Create event |
-| 36 | **Helping to-dos are only what's yours to do**: *Confirm RSVP* (no reply yet) or *You said maybe · Update RSVP*, and each sign-up with its time; no *Location TBD · Check* or *In N days · Details* rows. Your schedule's Helping strip opens to the same rows | The v6 list | Owner (2026-09-29) |
-| 37 | **Update 6's known gaps, filled in by the build:** cards on Your tasks, Your schedule, the Calendar and group pages read *Date to be decided* / *Location to be decided* in amber (`#8f6405` on white; `#ffd98a` over photos), or *Voting on N dates / spots*; undated events list last under a *Date to be decided* heading (not in the month grid or *Could use a hand*); a multi-group event's chip and search row read *{first group} +N*; *Your drafts* also shows at the top of Your schedule | Not designed | Update 6 §5 |
 ## 2. Things the build had to invent (please design these properly)
 
-- **Empty states:** Could use a hand with nothing open: *Everything's covered for the next two weeks.* Calendar with no results: *No events match these filters.* / *Nothing coming up in your groups yet.* (under a "Coming up" heading). Month view, a day with nothing: *Nothing on this day.* View all, empty: *Nothing here right now.*
-- **Search with only type chips on** (no text) lists matching events; "No events match" then names the chips.
-- **Helping sign-ups with no time** show no time on Your schedule's expanded rows (Your tasks falls back to the event's time).
-- **Nav badges show "9+"** past nine.
-- **Help out, host tools:** the host (and whoever added a *something else*) gets a 28px gray **✕** on each job card, before the button, to remove it (*Remove "…"?* confirm). A guest's open *Add something else* card has a small ✕ to cancel. A job with no *how many* shows *N in* instead of the dashes.
-- **Pick a shift** rows (built from the screenshot): 22px circle (purple with a white check when picked), time 16px/800, *n of need* / *Full* on the right, a 4px segmented bar underneath; a picked row gets a lavender `#f7f6ff` fill and a 2px purple ring. Full rows are dimmed and can't be picked unless you're in them. Close ✕ top-right.
-- **Find a replacement** opens the share sheet titled *Find a replacement*, quoting the message, with **Send the message** (the phone's share sheet, or copy).
-- **Could use a hand** rows for a shift add its time: *6:00 – 7:00pm · 1 of 1 open*.
-
-- **It happened page: a Reactions card** under the album (eyebrow *REACTIONS*; ❤️ 🙌 🎉 🙏 chips as on the memory cards, lavender `#f3f1fe` with a `#9d93f7` ring when yours). Below: *Thanks from Hal, Omar and 2 more.* or, before anyone thanks, *🙏 sends {lead} a public thank-you.* (not shown to the lead). This is where the 🙏 on a memory card leads.
-- **Empty filters on Your schedule and group Plans:** the heading reads *Coming up* (Soonest) or the sort's name, then the design's *No events match these filters.* card.
-- **Search "Or something unexpected" with nothing to pick** (e.g. no outdoor events): an error toast *Nothing like that yet* (Calendar) / *Nothing like that here yet* (group).
-- **Swiping between Ideas · Plans · Past** (owner, 2026-09-28): the group page follows your thumb as soon as a sideways drag starts, with the neighbouring tab (its own background: graph paper for Ideas, `#e8eaee` otherwise) sliding in beside it. Let go past 40% of the width, or flick, and it carries on to that tab; otherwise it springs back (140–260ms, `cubic-bezier(.2,.8,.2,1)`). Past the first or last tab the page only gives 30% of the drag. The edge arrows fade out while dragging. Quiet edge arrows show where there's a neighbour tab: 26×44px half-pills against the screen edge, `rgba(255,255,255,.72)` with blur, a 16px `#454b55` chevron, 75% opacity, at 58% of the screen height; every 3.2s they nudge 5px toward the middle and back. Tapping one switches tabs. Please design these properly.
-
-- **Edit what you need** rows: a small *JOB 1* eyebrow, *N signed up* when anyone is, and the red trash. A job with no limit shows **Any** in its − n + until you set one. Guests keep *Add something else* under Help out; the host adds jobs in this sheet.
-- **Save as draft needs a title:** without one the flow goes back to step 1 with the toast *Add a title first so you can find it later*. More than 20 drafts: *That's a lot of drafts. Post or delete one first.*
-
-- **View as a tester** (owner, 2026-09-28; demo admin only): a Profile card *View as a tester* (*See the app the way a tester does when they sign in. Look only. Only you can see this.* · **Pick one** → rows of testers: face, name, email · N groups). While on: a dark `#1f2433` pill above the tab bar, *Viewing as {name}* + a gold `#ffd98a` **Exit**; Profile shows *Viewing as {name}* · *Look only. Nothing you tap changes anything.* · **Exit**; any change shows the toast *You're viewing as {first name}, so nothing changes. Exit to make changes.*
+- **Tell everyone going, on:** the switch's second line reads *On: they get an update when you save* (off: *Off: it saves quietly*). The switch only shows when someone has replied or signed up.
+- **Notes when something comes down** (Notifications → Updates, red **!** badge, the host's face): *{event} is off. {host} took it down.* and *“{job}” is off the list for {event}.* Tapping one only marks it read (there's nothing to open).
+- **Make home, after the move:** tapping the new home's row says *{group} is its home now*. Below the list, *The home group's admins can edit or delete it.* shows whenever more than one group is ticked.
+- **Who thanked** is a pop-up (the build's modal style, not a slide-up sheet), titled *Thanks for {host first name}*; your own row reads *You*.
+- **Delete / remove confirms with one person:** *The 1 person going gets a note that it's off.* / *The 1 person signed up gets a note that it's off the list.* With nobody else, the note line is left out.
 
 ## 3. Behaviour added in the build (no visual change)
 
-- **Remembered on this device:** the Past *So far* card's X (per group) and the event page's *You're helping* open / closed (per event; closed until you open it). The Ideas sort lasts for the visit.
-- **Undo** on *You're on it* after adding *something else* removes the item you added (not just your name on it).
-- **Drafts** are saved to your account (they follow you to another device) with their cover photo; posting or deleting one removes its photo when nothing else uses it. The host's *Your tasks* tab remembers open / closed per event, like *You're helping*.
-- **Picking a poll's winner** (or setting that date or place in the edit sheet) deletes the poll's options and votes.
-- **Posting to several groups:** members of any of them see the event (and its Private rules apply in each); the first group is its home.
-
-- **Deleting an idea** returns you to the screen you opened it from (the Calendar if none).
-- **URLs:** the Calendar is `/` (and `#/calendar`), Your tasks `#/tasks`, Your schedule `#/schedule`; `#/me` and `#/notifications` open the Profile / Notifications sheets over the Calendar. Your plans & ideas is still at `#/own` (off the tab bar). Following a link or the back button closes any open sheet.
-- **Calendar filters, search and "Feeling wild? / could use a hand" dismissals** last for the visit; the chosen view (List / Tiles / Month) is remembered per device.
-- **Demo data:** `scripts/demo/seed-events.py` now also makes, dated from the day it runs, a plan today / tomorrow (reminder off) / two days ago and a Helpers-stage idea for each tester, plus two shared plans everyone helps on, so every v6 state shows. Since v6 Update 6 each tester also leads an event with its date put to a poll (three dates with votes) and no place yet, and everyone can vote on a shared *Neighborhood chili cook-off* whose date and place are still to be decided (a location poll).
-
-- **Search Try chips** set a filter for the search only (This weekend = the coming Friday to Sunday; Needs helpers = open sign-ups) and are cleared when the sheet closes. Search matches upcoming plans only (the Calendar's scope); group search covers ideas, plans and past events.
-- **Sort and Filter** on Your schedule and on group Plans last for the visit; the group Plans view (Tiles / List) is remembered per device, as before.
-- **Reactions:** "Let's do it again!" counts once per person (tapping again does nothing); the others toggle.
+- **Month view, empty day:** *Start an event on {date}* opens Create event with that date filled in; it's hidden on past days.
+- **The TBD strip** switches the Calendar to List (remembered, as picking List would be) and scrolls to *Date to be decided*.
+- **Make home** happens on Save: new groups are added first, then the home moves (`set_home_group()`), then unticked groups come off.
+- **Removing a job** in Edit what you need also sends the note to the people signed up, not just the Help out ✕.
+- **Admins** who edit a title or Basic details don't get the switch (only the host posts updates).
 
 ## 4. Designed but not built or not working
 
 - **"We'll let {Host} know"** (You're off it): nothing is sent yet. Notifications are built from what's stored, so the host just sees one fewer name on the job.
 - **The event preview slide-up** (Task Card Options, Round 13) is still undecided, so it isn't built.
 - **Say hi** on the Hosted by card: there's no messaging yet, so it shows a toast *Messages are coming soon. For now, say hi to {first name} at the event!*
-
 - **The CTA pills on to-do rows** don't do their action; as in the prototype, tapping the rows expands them (3+) or opens the event.
 - **"Include ideas"** on the Calendar (in the prototype's code, not the README) isn't built; the Calendar lists plans.
 
 ## 5. Open questions for the next round
 
-1. Everything in the README's **Open / not designed yet** list still stands (categories, first-run view for an empty group, removing members, leaving a group, Suggest vs Offer wording, first vs full names, Welcome wording).
-2. **A real invite list** (pick neighbors or the whole group) would bring back Invited on the stats strip, "haven't replied · Nudge" and "invited you" notifications — design it next? (v6 draws Invited again; §1 #1.)
-3. **Minimum people** on ideas ("How many do you need?") has no input yet, so the People checkpoint rarely completes (§1 #2).
+1. Everything in the README's **Open / not designed yet** list still stands (categories, first-run view for an empty group, removing members, leaving a group, Suggest vs Offer wording, first vs full names).
+2. **A real invite list** (pick neighbors or the whole group) would bring back Invited on the stats strip, "haven't replied · Nudge" and "invited you" notifications — design it next? (Invites are share links today, so nothing counts them.)
+3. **Minimum people** on ideas ("How many do you need?") has no input yet, so the People checkpoint rarely completes.
 10. **Event types:** the placeholder keyword guesses are shown to people as filters; host-chosen tags (v6 open item) would replace them.
 11. **Event preview slide-up** (v6 options 13a/13b/13c) is still undecided.
 4. **Invite link screens** (the current sign-in-to-join flow is a stopgap).
@@ -115,11 +62,6 @@ Where this doc and the design files disagree, **this doc is correct**.
 9. **Send feedback / Ask a question:** where should these go (email to the owner, a form)? Until there's an answer they stay out of Help & info.
 
 12. **Your place, bio and "member since"** are no longer shown anywhere for yourself (Update 2 keeps them "for viewing other people", which isn't designed or built yet). Design a public profile view, or show them somewhere on your own sheet?
-13. **Reactions on It happened:** is the build's Reactions card right, or should the page get its own design (and a list of who thanked)?
-14. **Edits that tell people:** today only a new date or place sends an update to everyone going (§1 #29). Should a new title, time-only change, Basic details or a switch to Private tell them too, and what should that update say?
-15. **Delete this event** is a red link at the bottom of the event page (§1 #31). Is that the right place, or should it live in one of the edit sheets?
-16. **An event's first group** stays ticked in Who can see it (§1 #30). Should the host be able to move an event out of the group it started in?
-17. **Undecided events on cards** (§1 #37): the amber *to be decided* lines and the *Date to be decided* section were built without a design. Please check them, and the month grid (undated events aren't in it).
 
 ## 6. Design tokens
 

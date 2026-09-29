@@ -50,8 +50,8 @@ test('notifications: a new plan, replying from the feed, the host hears back, up
     await O.getByRole('button', { name: /^Notifications/ }).click();   // v6: a sheet from the bell
     await feed.getByRole('radio', { name: 'Updates' }).click();
     const upd = feed.locator('[data-notif=update]').filter({ hasText: title });
-    await expect(upd).toContainText(new RegExp('\\w+ posted an update on ' + esc(title)));
-    await expect(upd).toContainText('Helmets on, please.');
+    await expect(upd).toContainText(title + ' · Helmets on, please.');   // Round 65a: "{event} · {update}", From {host}
+    await expect(upd).toContainText(/From \w+/);
     await feed.getByRole('radio', { name: 'All' }).click();
     const saved = O.waitForResponse(r => r.url().includes('/rest/v1/notif_state') && r.request().method() === 'POST');
     await feed.getByText('Mark all read').click();

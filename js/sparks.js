@@ -191,7 +191,7 @@
 
     groups: [], sparks: [], profiles: {},
 
-    drafts: [], sec: null, needEd: null, share: null,
+    drafts: [], notes: [], sec: null, needEd: null, share: null,
 
     loginStep: null, loginFrom: 'default', loginThen: null, loginMode: 'link', loginEmail: '', loginCode: '',
     resent: false, mergeToken: null, googleFailed: false,
@@ -202,7 +202,7 @@
     joinOpen: false, joinCode: '', joinBad: false,
     notif: { allReadAt: 0, read: [], topics: {}, email: true, loaded: false }, nFilter: 'all', nSettings: false, demoAdmin: false, ownTab: 'plan', back: null, myPlace: '', myBio: '', memberSince: null, ownGrp: null, taskOpen: {}, sizes: {}, membersQ: '', gpRename: null, gpDel: null, ph: null,
     startName: null, phaseTab: 'plan', sigDraft: '', sigNeed: '', sigTime: '', blast: null, prepEdit: null, prepText: '', invite: null,
-    pe: null, confirm: null, interestList: false,
+    pe: null, confirm: null, interestList: false, thanksList: false,
     gpCode: '', gpMembers: null,
     // v6: Profile / Notifications are sheets; Your tasks' "View all", expansions, the RSVP ask
     profSheet: false, notifSheet: false, dashAll: null, dashOpen: {}, schedOpen: {}, shiftPick: null, banner: null, sigAdding: false,
@@ -420,7 +420,7 @@
     if (!sb) return;
     const seq = ++loadSeq, t0 = performance.now();
     diagNote('load started');
-    const [mem, grp, sp, of, it, gc, rs, dop, dvo, sop, svo, sui, scl, upd, org, alb, prp, rct, sgr, drf] = await Promise.all([
+    const [mem, grp, sp, of, it, gc, rs, dop, dvo, sop, svo, sui, scl, upd, org, alb, prp, rct, sgr, drf, nts] = await Promise.all([
       sb.from('memberships').select('group_id,role,last_seen_at,pinned'),
       sb.from('groups').select('id,name,photo,photo_pos'),
       sb.from('sparks').select('*').order('created_at', { ascending: false }),
@@ -443,7 +443,9 @@
       sb.from('reactions').select('spark_id,user_id,kind'),
       // v6 Update 6: extra groups an event is posted to, and your drafts (a database without them still loads)
       sb.from('spark_groups').select('spark_id,group_id'),
-      state.email ? sb.from('event_drafts').select('id,data,updated_at').order('updated_at', { ascending: false }) : Promise.resolve({ data: [] })
+      state.email ? sb.from('event_drafts').select('id,data,updated_at').order('updated_at', { ascending: false }) : Promise.resolve({ data: [] }),
+      // v6 Update 7: notes about events and jobs that were taken down (a database without them still loads)
+      state.email ? sb.from('notes').select('id,body,created_by,created_at').order('created_at', { ascending: false }).limit(50) : Promise.resolve({ data: [] })
     ]);
     [mem, grp, sp, of, it, gc, rs, dop, dvo, sop, svo, sui, scl, upd, org, alb, prp].forEach(must);
     const x = {
@@ -459,6 +461,7 @@
     mem.data.forEach(m => { roles[m.group_id] = { role: m.role, lastSeen: Date.parse(m.last_seen_at), pinned: !!m.pinned }; });
     const va = state.viewAs;
     const drafts = va || drf.error ? [] : (drf.data || []).map(d => ({ id: d.id, data: d.data || {}, saved: Date.parse(d.updated_at) }));
+    const notes = va || nts.error ? [] : (nts.data || []).map(n => ({ id: n.id, body: n.body, createdBy: n.created_by, created: Date.parse(n.created_at) }));
     const groups = grp.data.map(g => Object.assign({ id: g.id, name: g.name, photo: g.photo, photoPos: g.photo_pos || null, role: null, lastSeen: 0, pinned: false }, (va ? va.roles : roles)[g.id] || {}))
       .filter(g => !va || va.roles[g.id])
       .sort((a, b) => runs(b) - runs(a) || a.name.localeCompare(b.name));
@@ -478,6 +481,7 @@
       s.signups.forEach(i => i.claims.forEach(c => ids.add(c.userId)));
       s.reactions.forEach(r => ids.add(r.userId));
     });
+    notes.forEach(n => ids.add(n.createdBy));
     ids.delete(null); ids.delete(undefined);
     const profiles = {};
     for (const part of chunks(Array.from(ids), 80)) {
@@ -490,7 +494,7 @@
     if (performance.now() - t0 > 3000) diag('slow load', performance.now() - t0, 'waiting on the network');
     document.documentElement.setAttribute('data-loaded', 'true');   // tests wait for this
     setState({
-      groups, sparks, profiles, drafts, loaded: true, fromCache: false, error: null,
+      groups, sparks, profiles, drafts, notes, loaded: true, fromCache: false, error: null,
       myName: mine.name || state.myName, myAvatar: mine.avatar || null, myPlace: mine.place || '', myBio: mine.bio || ''
     });
     writeCache();
@@ -691,23 +695,23 @@
     loadFresh().then(() => toast('Viewing as ' + t.name + '. Nothing you tap changes anything.', true), (e) => { console.error(e); setState({ error: 'load', loaded: true }); });
   };
   const exitPreview = () => { location.hash = '#/'; location.reload(); };
-  const previewBar = () => '<div role="status" data-preview style="position:fixed;z-index:90;bottom:calc(var(--nav-h) + 10px);left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:10px;max-width:calc(100% - 32px);height:36px;padding:0 6px 0 14px;border-radius:999px;background:#1f2433;color:#fff;box-shadow:0 4px 14px rgba(13,17,23,.35);font-size:13px;font-weight:800;white-space:nowrap">' +
+  const previewBar = () => '<div role="status" data-preview style="position:fixed;z-index:90;bottom:calc(var(--nav-h) + 10px);left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:10px;max-width:calc(100% - 32px);height:44px;padding:0 6px 0 16px;border-radius:999px;background:#1f2433;color:#fff;box-shadow:0 8px 20px rgba(13,17,23,.3);font-size:14px;font-weight:800;white-space:nowrap">' +
     '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis">Viewing as ' + esc(state.viewAs.name) + '</span>' +
-    '<span ' + on(exitPreview) + ' style="flex:0 0 auto;display:flex;align-items:center;height:26px;padding:0 11px;border-radius:999px;background:#ffd98a;color:#1f2433;font-size:12.5px;font-weight:900;cursor:pointer">Exit</span></div>';
+    '<span ' + on(exitPreview) + ' style="flex:0 0 auto;display:flex;align-items:center;height:34px;padding:0 14px;border-radius:999px;background:#ffd98a;color:#1f2433;font-size:13.5px;font-weight:900;cursor:pointer">Exit</span></div>';
   const testerCard = () => {
     const st = state;
-    if (st.viewAs) return '<div style="' + CARD + ';padding:14px 16px;display:flex;align-items:center;gap:12px"><div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:800;color:#0d1117">Viewing as ' + esc(st.viewAs.name) + '</div>' +
-      '<div style="margin-top:2px;font-size:13.5px;line-height:1.4;font-weight:500;color:#6b7280">Look only. Nothing you tap changes anything.</div></div>' +
-      '<button type="button" ' + on(exitPreview) + ' style="flex:0 0 auto;min-height:40px;padding:0 16px;border:0;border-radius:999px;background:#0d1117;color:#fff;font-family:inherit;font-size:14px;font-weight:800;cursor:pointer">Exit</button></div>';
+    if (st.viewAs) return '<div style="' + CARD + ';padding:16px;display:flex;flex-direction:column;align-items:flex-start;gap:10px"><div style="font-size:17px;font-weight:900;color:#0d1117">Viewing as ' + esc(firstName(st.viewAs.name)) + '</div>' +
+      '<div style="font-size:13.5px;line-height:1.4;font-weight:600;color:#5c6270">Look only. Nothing you tap changes anything.</div>' +
+      '<button type="button" ' + on(exitPreview) + ' style="min-height:42px;padding:0 18px;border:0;border-radius:999px;background:#0d1117;color:#fff;font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer">Exit</button></div>';
     if (!st.demoAdmin) return '';
     const list = st.testers;
-    return '<div data-screen-label="View as a tester" style="' + CARD + ';padding:14px 16px;display:flex;flex-direction:column;gap:10px">' +
-      '<div style="display:flex;align-items:center;gap:12px"><div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:800;color:#0d1117">View as a tester</div>' +
-        '<div style="margin-top:2px;font-size:13.5px;line-height:1.4;font-weight:500;color:#6b7280">See the app the way a tester does when they sign in. Look only. Only you can see this.</div></div>' +
-        '<button type="button" ' + on(openTesters) + ' aria-expanded="' + !!list + '" style="flex:0 0 auto;min-height:40px;padding:0 16px;border:1.5px solid #dcdfe6;border-radius:999px;background:#fff;color:#0d1117;font-family:inherit;font-size:14px;font-weight:800;cursor:pointer">' + (list ? 'Close' : 'Pick one') + '</button></div>' +
-      (list ? (list.length ? list.map(t => '<div ' + on(() => viewAsTester(t)) + ' class="hov-row" data-tester="' + esc(t.email) + '" style="display:flex;align-items:center;gap:10px;min-height:48px;padding:4px 0;border-top:1px solid #f2f3f6;cursor:pointer">' +
-          face(t.user_id, t.name, 32) + '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">' + esc(t.name) + '</div><div style="font-size:12.5px;font-weight:600;color:#8a909b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(t.email) + ' · ' + (t.memberships || []).length + ((t.memberships || []).length === 1 ? ' group' : ' groups') + '</div></div>' + I.chevR(16, '#9aa0ac', 2.4) + '</div>').join('')
-        : '<div style="font-size:14px;font-weight:600;color:#6b7280">No testers have signed in yet.</div>') : '') +
+    return '<div data-screen-label="View as a tester" style="display:flex;flex-direction:column;gap:12px"><div style="' + CARD + ';padding:16px;display:flex;flex-direction:column;align-items:flex-start;gap:10px">' +
+        '<div style="font-size:17px;font-weight:900;color:#0d1117">View as a tester</div>' +
+        '<div style="font-size:13.5px;line-height:1.4;font-weight:600;color:#5c6270">See the app the way a tester does when they sign in. Look only. Only you can see this.</div>' +
+        '<button type="button" ' + on(openTesters) + ' aria-expanded="' + !!list + '" style="min-height:42px;padding:0 16px;border:1.5px solid #dcdfe6;border-radius:999px;background:#fff;color:#0d1117;font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer">' + (list ? 'Close' : 'Pick one') + '</button></div>' +
+      (list ? '<div style="' + CARD + ';padding:4px 16px;display:flex;flex-direction:column">' + (list.length ? list.map((t, i) => '<div ' + on(() => viewAsTester(t)) + ' class="hov-row" data-tester="' + esc(t.email) + '" style="display:flex;align-items:center;gap:12px;min-height:54px;border-top:' + (i ? '1px solid #f2f3f6' : '0') + ';cursor:pointer">' +
+          face(t.user_id, t.name, 36, '#7b6ef0') + '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">' + esc(t.name) + '</div><div style="font-size:12.5px;font-weight:600;color:#8a909b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(t.email) + ' · ' + (t.memberships || []).length + ((t.memberships || []).length === 1 ? ' group' : ' groups') + '</div></div></div>').join('')
+        : '<div style="padding:14px 0;font-size:14px;font-weight:600;color:#6b7280">No testers have signed in yet.</div>') + '</div>' : '') +
     '</div>';
   };
 
@@ -913,12 +917,14 @@
 
   const askDelete = (s) => setState({ confirm: {
     title: s.planned ? 'Delete this event?' : 'Delete this idea?',
-    body: s.planned ? 'It comes down for everyone, along with its replies, sign-ups and updates. This can’t be undone.' : 'It comes down for everyone, along with its offers and interest. This can’t be undone.',
+    body: s.planned ? (() => { const n = going(s).filter(r => r.userId !== state.me).length;
+      return 'It comes down for everyone, along with its RSVPs and sign-ups. ' + (n ? (n === 1 ? 'The 1 person going gets' : 'The ' + n + ' people going get') + ' a note that it’s off. ' : '') + 'This can’t be undone.'; })()
+      : 'It comes down for everyone, along with its offers and interest. This can’t be undone.',
     cta: 'Delete it', keep: 'Keep it', danger: true,
     run: () => {
       const photos = s.photoPaths.concat(s.mood);
       run(async () => {
-        must(await sb.from('sparks').delete().eq('id', s.id));
+        must(await sb.rpc('delete_event', { p_spark: s.id }));
       }, () => {   // land where the Back button would have: where you came from, else the group's page, else the Calendar
         const b = state.back, g = groupById(s.groupId), member = !!(g && g.role);
         return { confirm: null, screen: b ? b.screen : member ? 'browse' : 'calendar', groupId: b ? (b.groupId || state.groupId) : member ? g.id : state.groupId, subjectId: null, tag: null, back: null };
@@ -1092,8 +1098,11 @@
     sb.from('signup_claims').update({ note: note.slice(0, 60) || null }).eq('item_id', it.id).eq('user_id', state.me)
       .then(r => { if (r.error) throw r.error; }).catch(e => { console.error(e); toast(FAILED); });
   };
-  const removeSignup = (s, it) => setState({ confirm: { title: 'Remove “' + it.item + '”?', body: it.claims.length ? 'Anyone signed up for it comes off the list.' : 'It comes off the list.', cta: 'Remove it', keep: 'Keep it', danger: true,
-    run: () => run(async () => { must(await sb.from('signup_items').delete().eq('id', it.id)); }, { confirm: null }) } });
+  const removeSignup = (s, it) => {
+    const n = new Set(it.claims.map(c => c.userId).filter(u => u !== state.me)).size;
+    setState({ confirm: { title: 'Remove “' + it.item + '”?', body: n ? (n === 1 ? 'The 1 person signed up gets' : 'The ' + n + ' people signed up get') + ' a note that it’s off the list.' : 'It comes off the list.', cta: 'Remove', keep: 'Keep it', danger: true,
+      run: () => run(async () => { must(await sb.rpc('remove_signup', { p_item: it.id })); }, { confirm: null }) } });
+  };
 
   // Updates from the host (they show on the plan; delivery comes with notifications)
   const postUpdate = (s) => {
@@ -1317,7 +1326,7 @@
   const signOut = async () => {
     clearCache();
     await sb.auth.signOut().catch(() => {});
-    setState({ email: '', isGoogle: false, myName: '', myAvatar: null, myPlace: '', myBio: '', guest: null, groups: [], sparks: [], drafts: [], profiles: {}, sizes: {},
+    setState({ email: '', isGoogle: false, myName: '', myAvatar: null, myPlace: '', myBio: '', guest: null, groups: [], sparks: [], drafts: [], notes: [], profiles: {}, sizes: {},
       notif: { allReadAt: 0, read: [], topics: {}, email: true, loaded: false }, demoAdmin: false, back: null, subjectId: null, gpId: null,
       cq: '', cSearch: false, cGrps: null, cTypes: [], cSort: 'soon', cMon: null, cDay: null, cWildHidden: false, cNeedsHidden: false });
     go('calendar');
@@ -1576,7 +1585,7 @@
   };
 
   const ideaButton = (extra) => '<button type="button" class="hov-primary" ' + on(goCompose) + ' style="width:100%;min-height:54px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16.5px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:9px;box-shadow:0 10px 24px rgba(91,74,232,.32);cursor:pointer;' + (extra || '') + '">' +
-    I.plus(19, '#fff', 2.5) + 'I have an idea</button>';
+    I.plus(19, '#fff', 2.5) + 'Start an event</button>';
 
   // "That idea isn't up anymore": a dead or cut-short idea link
   const goneCard = () => state.goneOpen
@@ -1592,7 +1601,7 @@
   // 1. Welcome (Home, signed out)
   // ---------------------------------------------------------------------------
 
-  const STEPS = [['#e8a71c', '1', 'Post an idea'], ['#5b4ae8', '2', 'People pitch in'], ['#0f7a3c', '3', 'It happens']];
+  const STEPS = [['#e8a71c', '1', 'Create an event'], ['#5b4ae8', '2', 'RSVP &amp; pitch in'], ['#0f7a3c', '3', 'Make it happen']];
 
   function viewWelcome() {
     const st = state, from = st.joinCode ? 'join' : 'default', then = st.joinCode ? () => openJoin(st.joinCode) : null;
@@ -1607,7 +1616,7 @@
       '<div style="flex:1 0 calc(200px + var(--pt))"></div>' +
       '<div style="position:relative;padding:0 20px;color:#fff;text-shadow:0 1px 12px rgba(13,17,23,.5)">' +
         '<div aria-label="Spark Hub" style="display:flex;align-items:center;gap:6px;margin-bottom:14px">' + I.bolt(24, '#f3c55a') + '<span style="font-size:18px;line-height:1;font-weight:900;letter-spacing:-.5px;color:#fff">Spark Hub</span></div>' +
-        '<h1 style="margin:0;font-size:42px;line-height:.98;font-weight:900;letter-spacing:-1.4px;color:#fff">Turn your idea<br><span style="color:#9d93f7">into a plan.</span></h1>' +
+        '<h1 style="margin:0;font-size:42px;line-height:.98;font-weight:900;letter-spacing:-1.4px;color:#fff">Plans with<br><span style="color:#9d93f7">your people.</span></h1>' +
         '<ol style="list-style:none;margin:18px 0 0;padding:0;display:flex;flex-direction:column;gap:12px">' +
           STEPS.map(([c, n, t]) => '<li style="display:flex;align-items:center;gap:12px"><span aria-hidden="true" style="flex:0 0 28px;width:28px;height:28px;border-radius:999px;background:' + c + ';color:#fff;font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center;text-shadow:none">' + n + '</span>' +
             '<span style="font-size:16.5px;line-height:1.2;font-weight:800;color:#fff">' + t + '</span></li>').join('') +
@@ -1760,7 +1769,9 @@
     });
     return secs.sort((a, b) => (a.label === undatedLabel) - (b.label === undatedLabel));
   };
-  const monthHead = (label, right) => '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 4px"><h3 style="margin:0;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:#0d1117">' + esc(label) + '</h3>' + (right || '') + '</div>';
+  // "Date to be decided" reads amber (Round 65d), and the month grid's strip scrolls to it
+  const monthHead = (label, right) => { const tbd = label === 'Date to be decided';
+    return '<div' + (tbd ? ' data-sec-tbd' : '') + ' style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 4px;scroll-margin-top:12px"><h3 style="margin:0;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:' + (tbd ? '#8f6405' : '#0d1117') + '">' + esc(label) + '</h3>' + (right || '') + '</div>'; };
 
   // The helping list ("YOU'RE HELPING:"), two at a time with "+N more"
   const helpBlock = (s, withTime, small) => {
@@ -2179,7 +2190,7 @@
     return sheet6(title, close,
       '<div style="display:flex;align-items:center;gap:10px"><span style="width:10px;height:10px;border-radius:999px;background:' + R.dot + '"></span>' +
         '<h2 style="flex:1;margin:0;font-size:26px;line-height:1.1;font-weight:900;letter-spacing:-.6px;color:#0d1117">' + title + '</h2>' + closeX(close) + '</div>',
-      '<div style="padding:14px 14px 30px;display:flex;flex-direction:column;gap:10px">' + (list.length ? list.map(card).join('') : note6('Nothing here right now.')) + '</div>');
+      '<div style="padding:14px 14px 30px;display:flex;flex-direction:column;gap:10px">' + (list.length ? list.map(card).join('') : '<div style="' + CARD + ';padding:26px 16px;text-align:center;font-size:15px;font-weight:700;color:#6b7280">Nothing here right now.</div>') + '</div>');
   }
 
   // ---- Screen 2: Your schedule ----------------------------------------------------------------
@@ -2229,7 +2240,8 @@
     const dp = s.dayDate ? dateParts(s.dayDate) : null;
     return '<div ' + on(() => openSpark(s)) + ' data-plan="' + esc(s.text) + '" aria-label="' + esc(s.text) + '" style="border-radius:16px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
       '<div style="display:flex;align-items:center;gap:12px;padding:12px 14px">' +
-        '<div style="flex:0 0 40px;display:flex;flex-direction:column;align-items:center"><span style="font-size:10.5px;font-weight:900;letter-spacing:.6px;color:#6b7280">' + (dp ? dp.dow : '') + '</span><span style="font-size:20px;line-height:1.1;font-weight:900;color:#0d1117">' + (dp ? dp.day : '–') + '</span></div>' +
+        '<div style="flex:0 0 40px;display:flex;flex-direction:column;align-items:center">' + (dp ? '<span style="font-size:10.5px;font-weight:900;letter-spacing:.6px;color:#6b7280">' + dp.dow + '</span><span style="font-size:20px;line-height:1.1;font-weight:900;color:#0d1117">' + dp.day + '</span>'
+          : '<span style="font-size:10.5px;font-weight:900;letter-spacing:.6px;color:#8f6405">TBD</span><span style="font-size:20px;line-height:1.1;font-weight:900;color:#8f6405">?</span>') + '</div>' +
         '<span aria-hidden="true" style="flex:0 0 3px;align-self:stretch;border-radius:999px;background:' + P.R.dot + '"></span>' +
         '<div style="flex:1;min-width:0"><div style="font-size:15px;line-height:1.3;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(s.text) + '</div>' +
           '<div style="font-size:12.5px;font-weight:600;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + [s.dayDate ? esc(fmtTime(s.dayTime)) : tbdSpan(dateTbd(s)), s.spot ? esc(cal ? street(s) : s.spot) : tbdSpan(spotTbd(s))].filter(Boolean).join(' · ') + '</div></div>' +
@@ -2286,8 +2298,10 @@
   };
   // Soonest: a section per month; any other sort: one section named after it
   const sections6 = (list, sort, undated) => sort === 'soon' ? byMonth(list, undated) : (list.length ? [{ label: sortName6(sort), items: list }] : []);
-  const filterEmpty = (clear) => '<div style="' + CARD + ';padding:16px 18px;display:flex;align-items:center;gap:12px"><div style="flex:1 1 0;min-width:0"><div style="font-size:15.5px;font-weight:800;color:#0d1117">No events match these filters.</div><div style="font-size:13.5px;font-weight:500;color:#6b7280">Try removing one.</div></div>' +
-    '<span ' + on(clear) + ' style="flex:0 0 auto;display:flex;align-items:center;min-height:36px;padding:0 14px;border-radius:999px;background:#0d1117;color:#fff;font-size:13.5px;font-weight:800;cursor:pointer">Clear filters</span></div>';
+  // Empty filters (Round 64a): one line, the filters that are on as dark chips, and Clear filters
+  const filterEmpty = (clear, chips) => '<div style="' + CARD + ';padding:16px;display:flex;flex-direction:column;align-items:flex-start;gap:10px"><div style="font-size:16px;font-weight:800;color:#0d1117">No events match these filters.</div>' +
+    (chips && chips.length ? '<div style="display:flex;flex-wrap:wrap;gap:6px">' + chips.map(c => '<span style="display:flex;align-items:center;min-height:32px;padding:0 12px;border-radius:999px;background:#0d1117;color:#fff;font-size:13px;font-weight:800">' + esc(c) + '</span>').join('') + '</div>' : '') +
+    '<span ' + on(clear) + ' style="display:flex;align-items:center;min-height:32px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">Clear filters</span></div>';
 
   function viewSched() {
     const st = state, view = st.homeView === 'list' ? 'list' : 'tiles';
@@ -2448,7 +2462,7 @@
     else if (st.cView === 'month') {
       const first = list.find(s => s.dayDate) || null, cm = st.cMon || (first ? first.dayDate.slice(0, 7) : todayISO().slice(0, 7));
       const [y, m] = cm.split('-').map(Number), start = new Date(y, m - 1, 1), nDays = new Date(y, m, 0).getDate(), today = todayISO();
-      const inMonth = list.filter(s => s.dayDate && s.dayDate.slice(0, 7) === cm);
+      const inMonth = list.filter(s => s.dayDate && s.dayDate.slice(0, 7) === cm), undatedN = list.filter(s => !s.dayDate).length;
       const sel = st.cDay && st.cDay.slice(0, 7) === cm ? st.cDay : (today.slice(0, 7) === cm ? today : (inMonth[0] ? inMonth[0].dayDate : cm + '-01'));
       const shift = (d) => () => { const x = new Date(y, m - 1 + d, 1); setState({ cMon: x.getFullYear() + '-' + pad2(x.getMonth() + 1), cDay: null }); };
       const navBtn = (fn, label, icon) => '<span ' + on(fn) + ' aria-label="' + label + '" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + icon + '</span>';
@@ -2468,11 +2482,18 @@
         '<div style="' + CARD + ';padding:10px 8px">' +
           '<div aria-hidden="true" style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));padding-bottom:4px">' + ['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(x => '<span style="text-align:center;font-size:11px;font-weight:800;letter-spacing:.6px;color:#6b7280">' + x + '</span>').join('') + '</div>' +
           '<div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px">' + cells.join('') + '</div></div>' +
+        // Undated events stay out of the grid; the strip opens List at "Date to be decided" (Round 65d)
+        (undatedN ? '<div ' + on(() => { setState({ cView: 'list', menu: null, cMon: null, cDay: null }); setTimeout(() => { const el = document.querySelector('[data-sec-tbd]'); if (el) el.scrollIntoView({ block: 'start' }); }, 0); }) + ' data-no-date style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:14px;background:#fef7dd;box-shadow:inset 0 0 0 1.5px #e3c979;cursor:pointer">' +
+          svg(18, stroke('#8f6405', 2.2), '<rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>') +
+          '<span style="flex:1;font-size:14px;font-weight:800;color:#8f6405">' + undatedN + (undatedN === 1 ? ' event with no date yet' : ' events with no date yet') + '</span>' + I.chevR(14, '#8f6405', 2.6) + '</div>' : '') +
         '<div style="padding:6px 4px 0;font-size:16px;font-weight:900;color:#0d1117">' + esc(new Date(sel + 'T12:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })) + '</div>' +
-        (dayList.length ? dayList.map(card6).join('') : '<div style="padding:4px 4px 0;font-size:14.5px;font-weight:600;color:#8a909b">Nothing on this day.</div>') + '</div>';
+        (dayList.length ? dayList.map(card6).join('') : '<div style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:10px">' +
+          '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px"><span style="font-size:17px;font-weight:900;color:#0d1117">' + esc(fmtDay(sel)) + '</span><span style="font-size:13px;font-weight:700;color:#9aa0ac">0 events</span></div>' +
+          '<div style="font-size:15px;font-weight:700;color:#6b7280">Nothing on this day.</div>' +
+          (sel >= today ? '<span ' + on(() => goCompose({ evDate: sel })) + ' style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:32px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(15, '#5b4ae8', 2.8) + 'Start an event on ' + esc(new Date(sel + 'T12:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })) + '</span>' : '') + '</div>') + '</div>';
     } else if (!list.length) {
       body = st.loaded && !groups.length ? '' : '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(st.cSort === 'soon' ? 'Coming up' : (CSORTS.find(x => x[0] === st.cSort) || CSORTS[0])[1], '<div style="display:flex;align-items:center">' + sortMenu + calViewMenu() + '</div>') +
-        note6(filtered ? 'No events match these filters.' : 'Nothing coming up in your groups yet.') + '</div>';
+        (filtered ? filterEmpty(clearFilters, (gSel ? groups.filter(g => gSel.indexOf(g.id) > -1).map(g => g.name) : []).concat(tSel.map(typeName))) : note6('Nothing coming up in your groups yet.')) + '</div>';
     } else {
       body = secs.map((z, i) => '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(z.label, i ? '' : '<div style="display:flex;align-items:center">' + sortMenu + calViewMenu() + '</div>') +
         z.items.map(card6).join('') + '</div>').join('');
@@ -2503,7 +2524,7 @@
           const mine = it.claims.some(c => c.userId === state.me), left = it.need - it.claims.length;
           return '<div data-signup="' + esc(it.item) + '" style="display:flex;align-items:center;gap:12px;min-height:52px;padding:8px 14px;border-top:1px solid #f2f3f6">' +
             '<span aria-hidden="true" style="flex:0 0 10px;width:10px;height:10px;border-radius:999px;box-shadow:inset 0 0 0 2px #e8a71c"></span>' +
-            '<div style="flex:1;min-width:0"><div style="font-size:14.5px;font-weight:700;color:#0d1117">' + esc(it.item) + '</div><div style="font-size:12px;font-weight:600;color:#6b7280">' + esc([it.jobId ? spanTime(it) : '', Math.max(0, left) + ' of ' + it.need + ' open'].filter(Boolean).join(' · ')) + '</div></div>' +
+            '<div style="flex:1;min-width:0"><div style="font-size:14.5px;font-weight:700;color:#0d1117">' + esc(it.item) + '</div><div style="font-size:12.5px;font-weight:' + (it.jobId ? '800;color:#8f6405' : '600;color:#6b7280') + '">' + esc([it.jobId ? spanTime(it) : '', Math.max(0, left) + ' of ' + it.need + ' open'].filter(Boolean).join(' · ')) + '</div></div>' +
             (mine ? '<span style="flex:0 0 auto;display:flex;align-items:center;gap:4px;min-height:32px;padding:0 12px;border-radius:999px;background:#fdf1d6;color:#8f6405;font-size:13.5px;font-weight:800">' + svg(12, stroke('#8f6405', 3), P6.check) + 'Yours</span>'
               : '<button type="button" ' + on(() => { if (!state.busy) claimRole(s, it); }) + ' style="flex:0 0 auto;min-height:32px;padding:0 14px;border:0;border-radius:999px;background:#0d1117;color:#fff;font-family:inherit;font-size:13.5px;font-weight:800;cursor:pointer">Claim</button>') + '</div>';
         }).join('') + '</div>';
@@ -2511,7 +2532,9 @@
     return sheet6('Could use a hand', close,
       '<div style="display:flex;align-items:center;gap:10px"><h2 style="flex:1;margin:0;font-size:26px;line-height:1.1;font-weight:900;letter-spacing:-.6px;color:#0d1117">Could use a hand</h2>' + closeX(close) + '</div>' +
         '<div style="margin-top:6px;font-size:14px;font-weight:600;color:#6b7280">' + list.length + (list.length === 1 ? ' event' : ' events') + ' coming up in the next 2 weeks</div>',
-      '<div style="padding:14px 14px 30px;display:flex;flex-direction:column;gap:10px">' + (list.length ? list.map(card).join('') : note6('Everything’s covered for the next two weeks.')) + '</div>');
+      '<div style="padding:14px 14px 30px;display:flex;flex-direction:column;gap:10px">' + (list.length ? list.map(card).join('') : '<div style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:10px"><span style="font-size:11.5px;font-weight:900;letter-spacing:1px;color:#8f6405">COULD USE A HAND</span>' +
+        '<div style="display:flex;gap:12px;align-items:center"><span aria-hidden="true" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#e7f6ec;display:flex;align-items:center;justify-content:center">' + svg(18, stroke('#149a4b', 2.8), P6.check) + '</span>' +
+          '<div><div style="font-size:16px;font-weight:800;color:#0d1117">Everything’s covered for the next two weeks.</div><div style="margin-top:2px;font-size:13.5px;font-weight:600;color:#6b7280">New asks show up here.</div></div></div></div>') + '</div>');
   }
 
   // Search (v6 Update 2): before typing, Try chips and "Or something unexpected"; live results as you type
@@ -2577,7 +2600,8 @@
       '<div style="padding:14px 14px 28px;display:flex;flex-direction:column;gap:8px">' +
         (!q && !tr ? hint : '') +
         (tr ? tryOn(tr[1], () => setState(TRY_UNDO)) : '') +
-        ((q || tr) && !results.length ? '<div style="background:#fff;border-radius:16px;padding:16px;font-size:15px;font-weight:600;color:#6b7280">No events match “' + esc(q || tr[1]) + '”.</div>' : '') +
+        ((q || tr) && !results.length ? (q ? '<div style="background:#fff;border-radius:16px;padding:16px;font-size:15px;font-weight:600;color:#6b7280">No events match “' + esc(q) + '”.</div>'
+          : '<div style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:4px"><div style="font-size:15.5px;font-weight:800;color:#0d1117">No events match ' + esc(tr[1]) + '.</div><div style="font-size:13.5px;font-weight:600;color:#6b7280">Try taking it off.</div></div>') : '') +
         results.map(s => searchRow(s, (s.dayDate ? shortWhen(s) : dateTbd(s)) + ' · ' + groupsLabel(s))).join('') +
       '</div>', 64, '8px 14px 12px');
   }
@@ -2593,23 +2617,21 @@
       const full = !!u.need && u.claims.length >= u.need && !was;
       const pick = () => { if (!full) setState({ shiftPick: Object.assign({}, p, { sel: sel ? p.sel.filter(x => x !== u.id) : p.sel.concat(u.id) }) }); };
       return '<div ' + (full ? '' : on(pick, 'checkbox') + ' aria-checked="' + sel + '" ') + 'data-shift="' + esc(spanTime(u)) + '" style="display:flex;flex-direction:column;gap:8px;padding:12px 14px;border-radius:14px;' +
-          (sel ? 'background:#f7f6ff;box-shadow:inset 0 0 0 2px #5b4ae8;cursor:pointer' : full ? 'background:#f7f8fa;box-shadow:inset 0 0 0 1.5px #e6e7eb;opacity:.65' : 'background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;cursor:pointer') + '">' +
+          (sel ? 'background:#f7f6ff;box-shadow:inset 0 0 0 2px #5b4ae8;cursor:pointer' : full ? 'background:#f7f8fa;box-shadow:inset 0 0 0 1.5px #eef0f3;opacity:.6' : 'background:#fff;box-shadow:inset 0 0 0 1.5px #e3e5ea;cursor:pointer') + '">' +
         '<div style="display:flex;align-items:center;gap:12px">' +
-          '<span aria-hidden="true" style="flex:0 0 22px;width:22px;height:22px;border-radius:999px;display:flex;align-items:center;justify-content:center;' + (sel ? 'background:#5b4ae8' : 'box-shadow:inset 0 0 0 2px #c3c7d0') + '">' + (sel ? I.check(12, '#fff', 3.4) : '') + '</span>' +
+          '<span aria-hidden="true" style="flex:0 0 22px;width:22px;height:22px;border-radius:999px;display:flex;align-items:center;justify-content:center;' + (sel ? 'background:#5b4ae8' : 'box-shadow:inset 0 0 0 2px ' + (full ? '#dcdfe6' : '#b9bcc4')) + '">' + (sel ? I.check(12, '#fff', 3.4) : '') + '</span>' +
           '<span style="flex:1;min-width:0;font-size:16px;font-weight:800;color:' + (full ? '#9aa0ac' : '#0d1117') + '">' + esc(spanTime(u) || 'Any time') + '</span>' +
           '<span style="flex:0 0 auto;font-size:13px;font-weight:800;color:' + (sel ? '#4a3ad4' : '#6b7280') + '">' + (full ? 'Full' : u.need ? n + ' of ' + u.need : n + ' in') + '</span></div>' +
-        (u.need ? '<div aria-hidden="true" style="display:flex;gap:3px;padding-left:34px">' + Array.from({ length: u.need }, (_, i) => '<span style="flex:1;height:4px;border-radius:999px;background:' + (i < n ? '#5b4ae8' : '#e3e5ea') + '"></span>').join('') + '</div>' : '') +
+        (u.need ? '<div aria-hidden="true" style="display:flex;gap:4px">' + Array.from({ length: u.need }, (_, i) => '<span style="flex:1;height:4px;border-radius:999px;background:' + (i < n ? '#5b4ae8' : '#e3e5ea') + '"></span>').join('') + '</div>' : '') +
       '</div>';
     };
-    return sheet('Pick a shift', close, 'padding:10px 18px calc(22px + env(safe-area-inset-bottom, 0px));display:flex;flex-direction:column;gap:10px',
-      '<div style="display:flex;align-items:flex-start;gap:12px"><div style="flex:1;min-width:0">' +
-        '<div style="font-size:11.5px;font-weight:900;letter-spacing:1.2px;color:#6b7280">PICK A SHIFT</div>' +
-        '<h2 style="margin:2px 0 0;font-size:24px;line-height:1.1;font-weight:900;letter-spacing:-.6px;color:#0d1117">' + esc(job.item) + '</h2></div>' + closeX(close) + '</div>' +
+    return sheet('Pick a shift', close, 'padding:10px 16px calc(22px + env(safe-area-inset-bottom, 0px));display:flex;flex-direction:column;gap:10px',
+      '<div style="display:flex;align-items:center;gap:10px"><h2 style="flex:1;min-width:0;margin:0;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">' + esc(job.item) + '</h2>' + closeX(close) + '</div>' +
+      '<div style="margin-top:-4px;font-size:14px;font-weight:700;color:#6b7280">' + esc([s.dayDate ? fmtDay(s.dayDate) : '', 'you can pick more than one'].filter(Boolean).join(' · ')) + '</div>' +
       (job.desc ? '<p style="margin:0;font-size:14.5px;line-height:1.45;font-weight:500;color:#454b55">' + esc(job.desc) + '</p>' : '') +
-      '<div style="font-size:13px;font-weight:800;color:#454b55">' + esc([s.dayDate ? fmtDay(s.dayDate) : '', 'you can pick more than one'].filter(Boolean).join(' · ')) + '</div>' +
       job.shifts.map(row).join('') +
       '<input class="fld" type="text" maxlength="60" aria-label="Add a note, if you want" placeholder="Add a note, if you want" value="' + esc(p.note) + '" ' + onInput(e => { if (e.type === 'input') state.shiftPick = Object.assign({}, state.shiftPick, { note: e.target.value.slice(0, 60) }); }) + ' style="width:100%;min-height:48px;border:1.5px solid #dcdfe6;border-radius:14px;padding:10px 14px;font-family:inherit;font-size:15px;font-weight:600;color:#0d1117;background:#fff;outline:none">' +
-      '<button type="button" ' + on(() => { if (!state.busy) saveShifts(s, job); }) + ' style="min-height:52px;border:0;border-radius:999px;background:#0d1117;color:#fff;font-family:inherit;font-size:16px;font-weight:800;cursor:pointer">Done</button>', 36);
+      '<button type="button" class="hov-primary" ' + on(() => { if (!state.busy) saveShifts(s, job); }) + ' style="min-height:52px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16px;font-weight:800;cursor:pointer">Done</button>', 36);
   }
 
   // "You're on it" (after any new sign-up, with Undo) and "You're off it" (after taking yourself off)
@@ -2629,7 +2651,7 @@
       '<div style="display:flex;align-items:flex-start;gap:10px"><div style="flex:1;min-width:0"><div style="font-size:17px;font-weight:900;color:#0d1117">You’re off it</div>' +
         '<p style="margin:4px 0 0;font-size:14px;line-height:1.4;font-weight:600;color:#5c4a12">We’ll let ' + esc(hostFirst) + ' know. A quick check-in with them helps too, or find someone to take your spot.</p></div>' +
         '<span ' + on(() => { clearTimeout(bannerTimer); setState({ banner: null }); }) + ' aria-label="Dismiss" style="flex:0 0 32px;width:32px;height:32px;border-radius:999px;background:rgba(13,17,23,.06);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(13, '#5c4a12', 2.6) + '</span></div>' +
-      '<button type="button" ' + on(() => { clearTimeout(bannerTimer); setState({ banner: null, invite: { id: s.id, msg, title: 'Find a replacement' } }); }) + ' style="min-height:44px;border:0;border-radius:999px;background:#0d1117;color:#fff;font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer">Find a replacement</button>');
+      '<button type="button" ' + on(() => { clearTimeout(bannerTimer); setState({ banner: null, invite: { id: s.id, msg, title: 'Find a replacement', sub: [b.job, shortWhen(s)].filter(Boolean).join(' · ') } }); }) + ' style="min-height:44px;border:0;border-radius:999px;background:#0d1117;color:#fff;font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer">Find a replacement</button>');
   }
 
   // ---- V5: Notifications, built from what's already stored (last 7 days) --------------------
@@ -2643,7 +2665,8 @@
     signup: { bg: '#e8a71c', glyph: '+', cat: 'hosting', topic: 'hosting' },
     interest: { bg: '#5b4ae8', glyph: '♥', cat: 'hosting', topic: 'hosting' },
     vote: { bg: '#e8a71c', glyph: '▲', cat: 'hosting', topic: 'hosting' },
-    lead: { bg: '#7b6ef0', glyph: '★', cat: 'hosting', topic: 'hosting' }
+    lead: { bg: '#7b6ef0', glyph: '★', cat: 'hosting', topic: 'hosting' },
+    note: { bg: '#e2556b', glyph: '!', cat: 'updates', topic: 'updates' }   // an event or job was taken down
   };
   const N_TOPICS = [
     ['newevents', 'New events in your groups', 'When something goes on the books'],
@@ -2691,6 +2714,7 @@
         s.organizers.filter(u => u !== me && s.organizerAt[u]).forEach(u => add({ key: 'o:' + s.id + ':' + u, type: 'lead', s, t: s.organizerAt[u], uid: u, who: personName(s, u), text: 'offered to help organize' }));
       }
     });
+    (state.notes || []).forEach(x => add({ key: 'n:' + x.id, type: 'note', s: null, t: x.created, uid: x.createdBy, who: nameOf(x.createdBy, 'The host'), body: x.body }));
     const topics = state.notif.topics || {};
     return out.filter(n => topics[N_TYPES[n.type].topic] !== false).sort((a, b) => b.t - a.t);
   };
@@ -2710,7 +2734,7 @@
   const markRead = (n) => { if (isUnread(n)) saveNotif({ read: state.notif.read.concat([n.key]) }); };
   // Everything shown counts, even an item stamped a little ahead of this device's clock
   const markAllRead = () => saveNotif({ allReadAt: Math.max(Date.now(), ...notifList().map(n => n.t)), read: [] });
-  const openNotif = (n) => { markRead(n); openSpark(n.s); };
+  const openNotif = (n) => { markRead(n); if (n.s) openSpark(n.s); };
   const rsvpFromFeed = (n, status) => (e) => { stop(e); markRead(n); setRsvp(n.s, status); };
 
   // v6: a slide-up sheet (from the bell), gear and Close beside the title
@@ -2721,10 +2745,12 @@
     const chip = (k, label) => '<span ' + on(() => setState({ nFilter: k }), 'radio') + ' aria-checked="' + (f === k) + '" style="flex:0 0 auto;display:flex;align-items:center;min-height:36px;padding:0 14px;border-radius:999px;font-size:13.5px;font-weight:800;white-space:nowrap;cursor:pointer;' +
       (f === k ? 'background:#0d1117;color:#fff' : 'background:#f2f3f6;color:#454b55') + '">' + label + '</span>';
     const row = (n, k) => {
-      const T = N_TYPES[n.type], g = groupById(n.s.groupId), unr = isUnread(n), face = n.uid ? avatarOf(n.uid) : null;
+      const T = N_TYPES[n.type], g = n.s && groupById(n.s.groupId), unr = isUnread(n), face = n.uid ? avatarOf(n.uid) : null;
       const initial = initialOf(n.type === 'reminder' ? n.s.text : n.who) || '?';
-      const what = '<b style="font-weight:800;color:#0d1117">' + esc(n.s.text) + '</b>';
-      const line = n.type === 'reminder'
+      const what = n.s ? '<b style="font-weight:800;color:#0d1117">' + esc(n.s.text) + '</b>' : '';
+      const line = n.type === 'note' ? '<b style="font-weight:800;color:#0d1117">' + esc(n.body) + '</b>'
+        : n.type === 'update' ? what + ' · ' + esc(n.quote)   // Round 65a
+        : n.type === 'reminder'
         ? '<b style="font-weight:800;color:#0d1117">' + esc(n.who) + '</b> ' + what + esc(n.after)
         : '<b style="font-weight:800;color:#0d1117">' + esc(n.who) + '</b> ' + esc(n.text) + ' ' +
           (n.item ? '<b style="font-weight:800;color:#0d1117">' + esc(n.item) + '</b>' + (n.joiner ? esc(n.joiner) + what : ' on ' + what) : what);
@@ -2733,8 +2759,8 @@
           '<span style="position:absolute;right:-3px;bottom:-3px;width:20px;height:20px;border-radius:999px;border:2px solid #fff;background:' + T.bg + ';color:#fff;font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center;line-height:1">' + T.glyph + '</span></span>' +
         '<div style="flex:1;min-width:0">' +
           '<div style="font-size:15px;line-height:1.35;font-weight:500;color:#2b303a">' + line + '</div>' +
-          (n.quote ? '<div style="margin-top:8px;padding:10px 12px;border-radius:12px;background:#f2f3f6;font-size:14px;line-height:1.4;font-weight:500;color:#2b303a">' + esc(n.quote) + '</div>' : '') +
-          '<div style="margin-top:4px;font-size:12.5px;font-weight:600;color:#9aa0ac">' + esc(ago(n.t) + (g ? ' · ' + g.name : '')) + '</div>' +
+          (n.quote && n.type !== 'update' ? '<div style="margin-top:8px;padding:10px 12px;border-radius:12px;background:#f2f3f6;font-size:14px;line-height:1.4;font-weight:500;color:#2b303a">' + esc(n.quote) + '</div>' : '') +
+          '<div style="margin-top:4px;font-size:12.5px;font-weight:600;color:#9aa0ac">' + esc((n.type === 'update' ? 'From ' + firstName(n.who) + ' · ' : '') + ago(n.t) + (g ? ' · ' + g.name : '')) + '</div>' +
           (n.rsvp && !myRsvp(n.s)
             ? '<div style="margin-top:10px;display:flex;gap:8px">' +
                 '<span ' + on(rsvpFromFeed(n, 'going')) + ' style="display:flex;align-items:center;min-height:36px;padding:0 14px;border-radius:999px;background:#149a4b;color:#fff;font-size:13.5px;font-weight:800;cursor:pointer">I’m going</span>' +
@@ -2812,7 +2838,8 @@
     return '<div style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:10px">' +
       eyebrowRow('Reactions', '') +
       '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">' + RX6.map(([k, em, rot]) => reactChip(s, k, em, rot)).join('') + reactChip(s, 'thanks', '🙏', 2) + '</div>' +
-      (thanked.length ? '<div style="font-size:13.5px;line-height:1.4;font-weight:600;color:#6b7280">Thanks from ' + esc(thanked.slice(0, 3).join(', ') + (thanked.length > 3 ? ' and ' + (thanked.length - 3) + ' more' : '')) + '.</div>'
+      // Round 64d: tap the thanks line for the list of who thanked
+      (thanked.length ? '<div ' + on(() => setState({ thanksList: true })) + ' style="font-size:13.5px;line-height:1.4;font-weight:600;color:#6b7280;cursor:pointer">Thanks from ' + esc(thanked.slice(0, 3).map(firstName).join(', ') + (thanked.length > 3 ? ' and ' + (thanked.length - 3) + ' more' : '')) + '.</div>'
         : (isLead(s) ? '' : '<div style="font-size:13.5px;line-height:1.4;font-weight:600;color:#6b7280">🙏 sends ' + esc(firstName(nameOf(s.leadId, s.leadName))) + ' a public thank-you.</div>')) +
     '</div>';
   };
@@ -3053,18 +3080,18 @@
       '<section style="padding:20px 20px 26px">' +
         '<div style="font-size:12px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#0f7a3c">How this works</div>' +
         '<h2 style="margin:8px 0 0;font-size:28px;line-height:1.06;font-weight:900;letter-spacing:-.8px;color:#0d1117;text-wrap:pretty">Ideas come to life when we build them together</h2>' +
-        '<p style="margin:12px 0 0;font-size:15.5px;line-height:1.45;font-weight:500;color:#454b55">Spark Hub is where your group turns “someone should…” into something on the calendar. Anyone can post an idea; the people who like it help shape it; when the date and place are set, it becomes a plan.</p>' +
+        '<p style="margin:12px 0 0;font-size:15.5px;line-height:1.45;font-weight:500;color:#454b55">Spark Hub is where your groups plan things. Anyone can start something, and everyone can help make it happen.</p>' +
         '<div style="margin-top:20px;display:flex;flex-direction:column;gap:16px">' +
-          step(1, '#efedfd', '#4a3ad4', 'Post an idea', 'A line or two and a photo is plenty. Say what you hope for, and whether you already have a day or a spot in mind.') +
-          step(2, '#fdf4e2', '#8f6405', 'People pitch in', 'Neighbors say they’re interested, vote on dates and places, suggest what’s missing, and grab a role.') +
-          step(3, '#e7f6ec', '#0f7a3c', 'It happens', 'Once the date and place are set, it’s a plan: people RSVP, sign up to help, get reminders, and it lands on the community Calendar.') +
+          step(1, '#efedfd', '#4a3ad4', 'Create an event', 'Add a title and whatever you know. Date, place and details can wait. Let the group vote on them.') +
+          step(2, '#fdf4e2', '#8f6405', 'RSVP &amp; pitch in', 'Neighbors RSVP, vote on dates and spots, and sign up to bring things or help out.') +
+          step(3, '#e7f6ec', '#0f7a3c', 'Make it happen', 'Everyone going gets a reminder the day before. Afterwards, add photos and thank whoever helped.') +
         '</div>' +
         '<div style="height:1px;background:#eceef2;margin:22px 0"></div>' +
         '<div style="' + EYEBROW + '">Good to know</div>' +
         '<div style="margin-top:12px;display:flex;flex-direction:column;gap:12px">' +
-          note(ic('<path d="M12 3.2 5 6v5.4c0 4.2 2.9 7.4 7 9.4 4.1-2 7-5.2 7-9.4V6l-7-2.8Z"/><path d="M9.2 12.1l2.1 2.1 3.6-3.9"/>'), 'Groups are private.', 'Only members see a group’s ideas and plans. Join with a code or a link from someone in the group.') +
-          note(ic('<path d="M16.6 3.8l3.6 3.6L8.4 19.2 4 20.5l1.3-4.4L16.6 3.8Z"/>'), 'Leads stay in charge.', 'Whoever posts an idea picks the final date and place, and can edit or take it down anytime.') +
-          note(ic('<circle cx="12" cy="12" r="8.4"/><path d="M12 7.6V12l3.2 2"/>'), 'Your tasks keeps track.', 'Anything waiting on you, from a vote to a reminder to send, shows up in Your tasks.') +
+          note(ic('<path d="M12 3.2 5 6v5.4c0 4.2 2.9 7.4 7 9.4 4.1-2 7-5.2 7-9.4V6l-7-2.8Z"/><path d="M9.2 12.1l2.1 2.1 3.6-3.9"/>'), 'Groups are private.', 'Only members see a group’s events, and you join with a code or a link.') +
+          note(ic('<path d="M16.6 3.8l3.6 3.6L8.4 19.2 4 20.5l1.3-4.4L16.6 3.8Z"/>'), 'Hosts stay in charge.', 'People can suggest dates and spots. The host decides what the event becomes.') +
+          note(ic('<circle cx="12" cy="12" r="8.4"/><path d="M12 7.6V12l3.2 2"/>'), 'Your tasks keeps track.', 'Anything you’re hosting or signed up for shows up there with what’s left to do.') +
         '</div>' +
         ideaButton('margin-top:26px') +
       '</section>' +
@@ -3417,34 +3444,33 @@
     const card = (j) => {
       const shifts = !!j.shifts, mine = shifts ? myShiftIds(j).length > 0 : j.claims.some(c => c.userId === st.me);
       const cnt = j.claims.length, need = j.need, full = !mine && !!need && (shifts ? j.shifts.every(u => u.need && u.claims.length >= u.need) : cnt >= need);
-      const tint = shifts ? '#5b4ae8' : '#149a4b', when = jobTime(j);
-      const counter = need
-        ? '<span style="display:inline-flex;align-items:center;gap:8px">' + (need <= 12 ? '<span aria-hidden="true" style="display:inline-flex;gap:3px">' + Array.from({ length: need }, (_, i) => '<span style="width:14px;height:5px;border-radius:999px;background:' + (i < cnt ? tint : '#e3e5ea') + '"></span>').join('') + '</span>' : '') +
-            '<span style="font-size:13px;font-weight:800;color:' + (mine ? '#0f7a3c' : '#6b7280') + '">' + Math.min(cnt, need) + ' of ' + need + '</span></span>'
-        : cnt ? '<span style="font-size:13px;font-weight:800;color:' + (mine ? '#0f7a3c' : '#6b7280') + '">' + cnt + ' in</span>' : '';
+      // Round 64b: one gray line (time · n of need · k still needed, or "N in" with no limit), a segmented bar under the row
+      const when = jobTime(j);
+      const count = need ? Math.min(cnt, need) + ' of ' + need + (cnt < need ? ' · ' + (need - cnt) + ' still needed' : '') : cnt ? cnt + ' in' : '';
+      const subline = [when, !lead && j.createdBy === st.me ? 'You added this' : '', count].filter(Boolean).join(' · ');
+      const bar = need && need <= 12 ? '<div aria-hidden="true" style="display:flex;gap:4px">' + Array.from({ length: need }, (_, i) => '<span style="flex:1 1 0;height:4px;border-radius:999px;background:' + (i < cnt ? '#5b4ae8' : '#e3e5ea') + '"></span>').join('') + '</div>' : '';
       const act = () => { if (st.busy) return; if (shifts) openShifts(s, j); else toggleClaim(s, j); };
       const btn = mine
-        ? '<span ' + on(act) + ' aria-label="You’re in. Tap to take yourself off" style="flex:0 0 auto;display:flex;align-items:center;gap:4px;min-height:36px;padding:0 14px;border-radius:999px;background:#fdf1d6;color:#8f6405;font-size:13.5px;font-weight:800;white-space:nowrap;cursor:pointer">' + svg(12, stroke('#8f6405', 3.2), P6.check) + 'You’re in</span>'
-        : full ? '<span aria-disabled="true" style="flex:0 0 auto;display:flex;align-items:center;min-height:36px;padding:0 14px;border-radius:999px;box-shadow:inset 0 0 0 1.5px #d5d8df;color:#9aa0ac;font-size:13.5px;font-weight:800">Full</span>'
-        : '<span ' + on(act) + ' style="flex:0 0 auto;display:flex;align-items:center;min-height:36px;padding:0 14px;border-radius:999px;box-shadow:inset 0 0 0 1.5px #5b4ae8;color:#5b4ae8;font-size:13.5px;font-weight:800;white-space:nowrap;cursor:pointer">Sign up</span>';
+        ? '<span ' + on(act) + ' aria-label="You’re in. Tap to take yourself off" style="flex:0 0 auto;display:flex;align-items:center;justify-content:center;gap:4px;min-width:84px;min-height:36px;padding:0 14px;border-radius:999px;background:#fdf1d6;color:#8f6405;font-size:13.5px;font-weight:800;white-space:nowrap;cursor:pointer">' + svg(12, stroke('#8f6405', 3.2), P6.check) + 'You’re in</span>'
+        : full ? '<span aria-disabled="true" style="flex:0 0 auto;display:flex;align-items:center;justify-content:center;min-width:84px;min-height:36px;padding:0 14px;border-radius:999px;box-shadow:inset 0 0 0 1.5px #d5d8df;color:#9aa0ac;font-size:13.5px;font-weight:800">Full</span>'
+        : '<span ' + on(act) + ' style="flex:0 0 auto;display:flex;align-items:center;justify-content:center;min-width:84px;min-height:36px;padding:0 14px;border-radius:999px;box-shadow:inset 0 0 0 1.5px #5b4ae8;color:#5b4ae8;font-size:13.5px;font-weight:800;white-space:nowrap;cursor:pointer">Sign up</span>';
       const long = j.desc.length > 90, open = !!st.descOpen[j.id];
       const more = (label, up) => '<span ' + on(() => setState({ descOpen: Object.assign({}, st.descOpen, { [j.id]: !open }) })) + ' aria-expanded="' + open + '" style="flex:0 0 auto;display:inline-flex;align-items:center;gap:2px;font-size:13px;font-weight:800;color:#5b4ae8;cursor:pointer;white-space:nowrap">' + label + '<span style="display:flex;transform:' + (up ? 'rotate(180deg)' : 'none') + '">' + I.chevD(12, '#5b4ae8', 3) + '</span></span>';
       const desc = !j.desc ? '' : !long ? '<p style="margin:0;font-size:14px;line-height:1.45;font-weight:500;color:#5c6270">' + esc(j.desc) + '</p>'
         : open ? '<p style="margin:0;font-size:14px;line-height:1.45;font-weight:500;color:#5c6270">' + esc(j.desc) + ' ' + more('Less', true) + '</p>'
         : '<div style="display:flex;align-items:flex-end;gap:8px"><p style="flex:1;min-width:0;margin:0;font-size:14px;line-height:1.45;font-weight:500;color:#5c6270;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">' + esc(j.desc) + '</p>' + more('More', false) + '</div>';
-      return '<div data-signup="' + esc(j.item) + '" style="' + CARD + ';padding:14px 16px;display:flex;flex-direction:column;gap:8px">' +
-        '<div style="display:flex;align-items:flex-start;gap:10px">' +
-          '<div style="flex:1;min-width:0"><div style="font-size:15.5px;line-height:1.3;font-weight:800;color:#0d1117;text-wrap:pretty">' + esc(j.item) + '</div>' +
-            (when || counter ? '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-top:5px">' +
-              (when ? '<span style="display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:700;color:#454b55">' + svg(13, stroke('#454b55', 2.4), P5.clock) + esc(when) + '</span>' : '') + counter + '</div>' : '') + '</div>' +
-          (lead || (j.createdBy === st.me && !shifts) ? '<span ' + on(() => removeSignup(s, j)) + ' aria-label="Remove ' + esc(j.item) + '" style="flex:0 0 28px;width:28px;height:28px;margin-top:4px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(11, '#5c6270', 2.6) + '</span>' : '') +
-          btn + '</div>' + desc + '</div>';
+      return '<div data-signup="' + esc(j.item) + '" style="' + CARD + ';padding:14px 16px;display:flex;flex-direction:column;gap:10px">' +
+        '<div style="display:flex;align-items:center;gap:10px">' +
+          '<div style="flex:1;min-width:0"><div style="font-size:16px;line-height:1.3;font-weight:800;color:#0d1117;text-wrap:pretty">' + esc(j.item) + '</div>' +
+            (subline ? '<div style="margin-top:2px;font-size:13px;font-weight:700;color:#6b7280">' + esc(subline) + '</div>' : '') + '</div>' +
+          (lead || (j.createdBy === st.me && !shifts) ? '<span ' + on(() => removeSignup(s, j)) + ' aria-label="Remove ' + esc(j.item) + '" style="flex:0 0 28px;width:28px;height:28px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(11, '#6b7280', 2.6) + '</span>' : '') +
+          btn + '</div>' + bar + desc + '</div>';
     };
     const addLabel = lead ? 'Add a job or item' : 'Add something else';
     const adder = !st.sigAdding
       ? '<div ' + on(() => setState({ sigAdding: true })) + ' data-add-signup style="display:flex;align-items:center;gap:8px;min-height:52px;padding:0 16px;border-radius:18px;border:1.5px dashed #e3c979;background:#fef7dd;font-size:14px;font-weight:800;color:#8f6405;cursor:pointer">' + I.plus(16, '#8f6405', 2.6) + addLabel + '</div>'
       : '<div style="' + CARD + ';padding:14px 16px;display:flex;flex-direction:column;gap:10px">' +
-          '<div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:14px;font-weight:800;color:#8f6405">' + addLabel + '</span>' +
+          '<div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:15px;font-weight:800;color:#0d1117">' + addLabel + '</span>' +
             '<span ' + on(() => setState({ sigAdding: false, sigDraft: '', sigNeed: '', sigTime: '' })) + ' aria-label="Cancel" style="width:28px;height:28px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(11, '#5c6270', 2.6) + '</span></div>' +
           '<div style="display:flex;gap:8px">' +
             '<input class="fld" type="text" maxlength="60" data-autofocus aria-label="' + (lead ? 'Add a sign-up' : 'Bringing something else?') + '" placeholder="' + (lead ? 'Add a thing, e.g. A dozen filled eggs' : 'Bringing something else?') + '" value="' + esc(st.sigDraft) + '" ' + onInput(e => { if (e.type === 'input') setState({ sigDraft: e.target.value.slice(0, 60) }); }) + ' style="flex:1 1 auto;min-width:0;min-height:46px;border:1.5px solid #dcdfe6;border-radius:14px;padding:10px 14px;font-family:inherit;font-size:15px;font-weight:600;color:#0d1117;background:#fff;outline:none">' +
@@ -3472,8 +3498,40 @@
     setState({ sec: { id: s.id, kind, title: s.text, photo: null, d: s.dayDate || '', t: s.dayTime || '', e: s.dayEnd || '', bits, priv: s.visibility === 'invite', groups: gIds(s).slice() },
       offerText: kind === 'when' ? s.spot || '' : '', offerPlace: s.spot && s.spotPoint ? { name: s.spot, address: s.spotAddress, lat: s.spotPoint[0], lon: s.spotPoint[1] } : null, offerSuggest: [], timeOpen: null, menu: null });
   };
+  // Round 65a: what an edit tells people. A new date, time or place always goes out; a new title or
+  // Basic details only when the host turns on Tell everyone going; Who can see it tells no one.
+  const secMessage = (s, ss) => {
+    if (ss.kind === 'title') { const t = cleanTitle(ss.title).slice(0, 40); return t && t !== s.text ? 'Renamed: ' + s.text + ' → ' + t : ''; }
+    if (ss.kind === 'details') {
+      const was = s.hopes || [], hopes = ss.bits.map(b => b.trim().slice(0, 40)).filter(Boolean);
+      if (hopes.join('\n') === was.join('\n')) return '';
+      const line = hopes.find(h => was.indexOf(h) < 0) || hopes[0];
+      return line ? 'Details updated: ' + line : '';
+    }
+    if (ss.kind !== 'when') return '';
+    const lines = [], d = ss.d || null, t = d && ss.t ? ss.t : null, e = t && ss.e && ss.e > t ? ss.e : null;
+    if (d && d !== s.dayDate) lines.push('New date: ' + dayLabel(d, t, e));
+    else if (d && (t !== s.dayTime || e !== s.dayEnd)) lines.push('New time: ' + dayLabel(d, t, e) + (s.dayTime ? ' (was ' + (s.dayEnd ? spanTime({ time: s.dayTime, endTime: s.dayEnd }) : fmtTime(s.dayTime)) + ')' : ''));
+    const p = cleanTitle(state.offerText).slice(0, 80);
+    if (p && p !== (s.spot || '')) lines.push('New location: ' + p);
+    return lines.join(' · ');
+  };
+  // Who an update reaches (audience "all"): everyone who replied or signed up, but you
+  const updateReach = (s) => {
+    const ids = new Set();
+    s.rsvps.forEach(r => ids.add(r.userId)); s.signups.forEach(it => it.claims.forEach(c => ids.add(c.userId)));
+    ids.delete(state.me);
+    const g = s.rsvps.filter(r => r.status === 'going' && r.userId !== state.me).length, m = s.rsvps.filter(r => r.status === 'maybe' && r.userId !== state.me).length;
+    const text = !ids.size ? '' : ids.size === g + m
+      ? 'Goes to ' + [g ? (g === 1 ? 'the 1 person going' : 'the ' + g + ' people going') : '', m ? (m === 1 ? 'the 1 maybe' : 'the ' + m + ' maybes') : ''].filter(Boolean).join(' and ') + '.'
+      : 'Goes to the ' + ids.size + (ids.size === 1 ? ' person who replied or signed up.' : ' people who replied or signed up.');
+    return { n: ids.size, text };
+  };
+  const secSends = (s, ss) => isLead(s) && s.planned && !!secMessage(s, ss) && updateReach(s).n > 0 && (ss.kind === 'when' || !!ss.tell);
+  const sendUpdate = async (s, body) => must(await sb.from('plan_updates').insert({ spark_id: s.id, body: body.slice(0, 320), audience: 'all' }));
+
   const saveSec = (s) => {
-    const ss = state.sec, lead = isLead(s);
+    const ss = state.sec, lead = isLead(s), msg = secMessage(s, ss), send = secSends(s, ss);
     if (!ss || state.busy) return;
     let note = 'Saved';
     if (ss.kind === 'title') {
@@ -3487,7 +3545,8 @@
           path = await uploadBlob(ss.photo.blob);
           try { old = must(await sb.rpc('set_idea_cover', { p_spark: s.id, p_photo: path, p_pos: null })).data; } catch (e) { deletePhotos([path]); throw e; }
         }
-      }, { sec: null }).then(ok => { if (!ok) return; if (old) deletePhotos([old]); toast(note, true); });
+        if (send) await sendUpdate(s, msg);
+      }, { sec: null }).then(ok => { if (!ok) return; if (old) deletePhotos([old]); toast(send ? 'Saved. Everyone going gets an update.' : note, true); });
       return;
     }
     if (ss.kind === 'details') {
@@ -3495,37 +3554,38 @@
       run(async () => {
         if (lead) must(await sb.from('sparks').update({ hopes, vision: null }).eq('id', s.id));
         else must(await sb.rpc('admin_edit_spark', { p_spark: s.id, p_text: s.text, p_hopes: hopes }));
-      }, { sec: null }).then(ok => { if (ok) toast(note, true); });
+        if (send) await sendUpdate(s, msg);
+      }, { sec: null }).then(ok => { if (ok) toast(send ? 'Saved. Everyone going gets an update.' : note, true); });
       return;
     }
     if (ss.kind === 'vis') {
-      const home = s.groupId, want = ss.groups.filter(id => id !== home), had = gIds(s).slice(1);
-      const add = want.filter(id => had.indexOf(id) < 0), drop = had.filter(id => want.indexOf(id) < 0), priv = ss.priv ? 'invite' : 'group';
+      // Add new groups first, then move the home (set_home_group needs it posted there), then take groups off
+      const old = s.groupId, home = ss.home || old, had = gIds(s).slice(1), priv = ss.priv ? 'invite' : 'group';
+      const add = ss.groups.filter(id => id !== old && had.indexOf(id) < 0);
+      const extras = had.concat(add).filter(id => id !== home).concat(home !== old ? [old] : []);
+      const drop = extras.filter(id => ss.groups.indexOf(id) < 0);
       run(async () => {
         if (priv !== s.visibility) must(await sb.from('sparks').update({ visibility: priv }).eq('id', s.id));
-        if (drop.length) must(await sb.from('spark_groups').delete().eq('spark_id', s.id).in('group_id', drop));
         if (add.length) must(await sb.from('spark_groups').insert(add.map(g => ({ spark_id: s.id, group_id: g }))));
+        if (home !== old) must(await sb.rpc('set_home_group', { p_spark: s.id, p_group: home }));
+        if (drop.length) must(await sb.from('spark_groups').delete().eq('spark_id', s.id).in('group_id', drop));
       }, { sec: null }).then(ok => { if (ok) toast(note, true); });
       return;
     }
-    // Date, time & location: a date or place set here closes its poll. People going get an update.
-    const patch = {}, lines = [], d = ss.d || null, t = d && ss.t ? ss.t : null, e = t && ss.e && ss.e > t ? ss.e : null;
-    if (d !== s.dayDate || t !== s.dayTime || e !== s.dayEnd) {
-      Object.assign(patch, { day_date: d, day_time: t, day_end: e });
-      if (d) lines.push('New date: ' + dayLabel(d, t, e));
-    }
+    // Date, time & location: a date or place set here closes its poll. Everyone in it gets an update.
+    const patch = {}, d = ss.d || null, t = d && ss.t ? ss.t : null, e = t && ss.e && ss.e > t ? ss.e : null;
+    if (d !== s.dayDate || t !== s.dayTime || e !== s.dayEnd) Object.assign(patch, { day_date: d, day_time: t, day_end: e });
     const p = cleanTitle(state.offerText).slice(0, 80), pl = state.offerPlace && state.offerPlace.name === p ? state.offerPlace : null;
     if (p !== (s.spot || '')) {
       Object.assign(patch, { spot: p || null, spot_open: !p, spot_address: pl ? pl.address : null, spot_lat: pl ? pl.lat : null, spot_lon: pl ? pl.lon : null });
-      if (p) lines.push('New location: ' + p);
     }
     if (!Object.keys(patch).length) { setState({ sec: null }); return; }
-    const tell = lines.length && going(s).some(r => r.userId !== state.me);
+    const tell = send;
     run(async () => {
       must(await sb.from('sparks').update(patch).eq('id', s.id));
       if (patch.day_date && s.dateOpts.length) must(await sb.from('date_options').delete().eq('spark_id', s.id));
       if (patch.spot && s.spotOpts.length) must(await sb.from('spot_options').delete().eq('spark_id', s.id));
-      if (tell) must(await sb.from('plan_updates').insert({ spark_id: s.id, body: lines.join(' · ').slice(0, 320), audience: 'going' }));
+      if (tell) await sendUpdate(s, msg);
     }, { sec: null, offerText: '', offerPlace: null, offerSuggest: [] }).then(ok => { if (ok) toast(tell ? 'Saved. Everyone going gets an update.' : note, true); });
   };
   // Change photo on the event's header: the new cover goes up straight away
@@ -3562,7 +3622,7 @@
     if (!ed || state.busy) return;
     run(async () => {
       const orig = s.jobs || [], keep = ed.rows.filter(r => r.id).map(r => r.id), gone = orig.filter(j => keep.indexOf(j.id) < 0).map(j => j.id);
-      if (gone.length) must(await sb.from('signup_items').delete().in('id', gone));
+      for (const id of gone) must(await sb.rpc('remove_signup', { p_item: id }));   // tells the people signed up
       for (const r of ed.rows) {
         const item = cleanTitle(r.item).slice(0, 60), descr = (r.desc || '').trim().slice(0, 400) || null;
         if (!item) continue;
@@ -3583,6 +3643,20 @@
         }
       }
     }, { needEd: null }).then(ok => { if (ok) toast('Saved', true); });
+  };
+
+  // The switch (title and Basic details) and the exact message people get (Round 65a)
+  const secTell = (s, ss) => {
+    if (!isLead(s) || !s.planned || ss.kind === 'vis') return '';
+    const reach = updateReach(s), msg = secMessage(s, ss), quiet = ss.kind === 'title' || ss.kind === 'details', v = !!ss.tell;
+    const sw = quiet && reach.n ? '<div ' + on(() => setState({ sec: Object.assign({}, state.sec, { tell: !v }) }), 'switch') + ' aria-checked="' + v + '" aria-label="Tell everyone going" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:16px;background:#f4f5f7;cursor:pointer">' +
+      '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">Tell everyone going</div><div style="font-size:12.5px;font-weight:600;color:#6b7280">' + (v ? 'On: they get an update when you save' : 'Off: it saves quietly') + '</div></div>' +
+      '<span aria-hidden="true" style="flex:0 0 46px;width:46px;height:28px;border-radius:999px;position:relative;transition:background 160ms;background:' + (v ? '#149a4b' : '#dcdfe6') + '"><span style="position:absolute;top:3px;left:' + (v ? 21 : 3) + 'px;width:22px;height:22px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:left 160ms"></span></span></div>' : '';
+    const preview = secSends(s, ss) ? '<div data-update-preview style="display:flex;flex-direction:column;gap:6px;padding:12px 14px;border-radius:16px;background:#f7f6ff;box-shadow:inset 0 0 0 1.5px #dcd6fb">' +
+      '<span style="font-size:11px;font-weight:900;letter-spacing:1px;color:#4a3ad4">WHAT THEY GET</span>' +
+      '<span style="font-size:14.5px;line-height:1.4;font-weight:700;color:#2a1f8f">' + esc(msg) + '</span>' +
+      '<span style="font-size:13px;line-height:1.4;font-weight:600;color:#6b7280">' + esc(reach.text) + '</span></div>' : '';
+    return sw + preview;
   };
 
   function viewSecSheet() {
@@ -3617,15 +3691,21 @@
       const mine = groupsInOrder();
       body = '<div style="display:flex;gap:8px">' + tile(false, 'Public', 'Everyone in your groups') + tile(true, 'Private', 'Only people you invite') + '</div>' +
         '<div style="display:flex;flex-direction:column;gap:6px">' + label('Post to') +
-          mine.map(g => g.id === s.groupId
-            ? groupCheck(g, true, () => toast('It stays posted in ' + g.name + ', where it started'), 'Posted here first')
-            : groupCheck(g, ss.groups.indexOf(g.id) > -1, () => set({ groups: ss.groups.indexOf(g.id) > -1 ? ss.groups.filter(x => x !== g.id) : ss.groups.concat(g.id) }))).join('') + '</div>';
+          // Round 65c: the home group stays ticked; another ticked group can be made home, then the old one unticked
+          mine.map(g => {
+            const home = ss.home || s.groupId, onIt = ss.groups.indexOf(g.id) > -1;
+            if (g.id === home) return groupCheck(g, true, () => toast(home === s.groupId ? 'It stays posted in ' + g.name + ', where it started' : g.name + ' is its home now'), '',
+              '<span style="font-size:12.5px;font-weight:700;color:' + (home === s.groupId ? '#8a909b' : '#4a3ad4') + '">' + (home === s.groupId ? 'Posted here first' : 'Home') + '</span>');
+            return groupCheck(g, onIt, () => set({ groups: onIt ? ss.groups.filter(x => x !== g.id) : ss.groups.concat(g.id) }), '',
+              onIt && isLead(s) ? '<span ' + on((e) => { stop(e); set({ home: g.id }); }) + ' style="display:flex;align-items:center;min-height:32px;font-size:13px;font-weight:800;color:#5b4ae8;cursor:pointer">Make home</span>' : '');
+          }).join('') +
+          (ss.groups.length > 1 ? '<span style="padding-top:4px;font-size:13px;line-height:1.4;font-weight:600;color:#6b7280">' +
+            ((ss.home || s.groupId) !== s.groupId && ss.groups.indexOf(s.groupId) > -1 ? esc((groupById(s.groupId) || {}).name || 'The first group') + ' can now be unticked.' : 'The home group’s admins can edit or delete it.') + '</span>' : '') + '</div>';
     }
     return sheet(title, close, SHEET_PAD,
       '<div style="display:flex;align-items:center;gap:10px"><div style="flex:1;min-width:0;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.4px;color:#0d1117">' + esc(title) + '</div>' + closeX(close, 'flex:0 0 36px;width:36px;height:36px') + '</div>' +
-      body +
-      '<span style="font-size:13px;line-height:1.4;font-weight:500;color:#6b7280">Everyone going gets an update when you save.</span>' +
-      saveBtn(ok && !state.busy, () => saveSec(s), state.busy === 'save' ? 'Saving…' : 'Save'), 36);
+      body + secTell(s, ss) +
+      saveBtn(ok && !state.busy, () => saveSec(s), state.busy === 'save' ? 'Saving…' : secSends(s, ss) ? 'Save and send' : 'Save'), 36);
   }
 
   function viewNeedsSheet() {
@@ -3639,8 +3719,8 @@
           '<div style="display:flex;align-items:center;gap:10px"><div style="flex:1;min-width:0;font-size:22px;font-weight:900;letter-spacing:-.4px;color:#0d1117">Edit what you need</div>' + closeX(close, 'flex:0 0 36px;width:36px;height:36px') + '</div></div>' +
         '<div style="flex:1 1 auto;min-height:0;overflow-y:auto;padding:16px 18px;display:flex;flex-direction:column;gap:14px">' +
           ed.rows.map((r, k) => '<div data-need-row style="background:#f4f5f7;border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:10px">' +
-            '<div style="display:flex;align-items:center;gap:10px"><span style="flex:1;min-width:0;font-size:12px;font-weight:800;letter-spacing:1.2px;color:#6b7280">JOB ' + (k + 1) + '</span>' +
-              (r.n ? '<span style="font-size:13px;font-weight:700;color:#454b55">' + r.n + ' signed up</span>' : '') +
+            '<div style="display:flex;align-items:center;gap:10px"><span style="font-size:11.5px;font-weight:900;letter-spacing:1.2px;color:#6b7280">JOB ' + (k + 1) + (r.shifts ? ' · SHIFTS' : '') + '</span>' +
+              (r.n ? '<span style="font-size:12.5px;font-weight:800;color:#0f7a3c">' + r.n + ' signed up</span>' : '') + '<span style="flex:1"></span>' +
               '<span ' + on(() => setState({ needEd: Object.assign({}, ed, { rows: ed.rows.filter((_, j) => j !== k) }) })) + ' aria-label="Remove job ' + (k + 1) + '" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(16, stroke('#9b1c31', 2.2), TRASH_IC) + '</span></div>' +
             jobFields(r, (patch) => setRow(k, patch), k) + '</div>').join('') +
           '<div ' + on(() => setState({ needEd: Object.assign({}, ed, { rows: ed.rows.concat([blankJob('')]) }) })) + ' style="display:flex;align-items:center;justify-content:center;gap:8px;min-height:52px;border-radius:18px;border:1.5px dashed #c9ccd3;font-size:14.5px;font-weight:800;color:#454b55;cursor:pointer">' + I.plus(16, 'currentColor', 2.6) + 'Add a job or item</div>' +
@@ -3867,6 +3947,12 @@
     const link = location.origin + '/i/' + s.id, lead = isLead(s), ask = state.invite.msg;   // ask: "Find a replacement"
     const msg = ask ? ask + ' ' + link : 'Hey! ' + (lead ? 'I’m hosting ' : 'Come to ') + s.text + (s.dayDate ? ' on ' + whenLong(s) : '') + (s.spot ? ' at ' + s.spot : '') + '. RSVP here: ' + link;
     const title = state.invite.title || (lead ? 'Invite people' : 'Share this plan');
+    if (ask) return modal(title, close,   // Round 64c
+      h3(title) + '<div style="margin-top:-6px;font-size:14px;font-weight:700;color:#6b7280">' + esc(state.invite.sub || s.text) + '</div>' +
+      '<div style="padding:14px 16px;border-radius:16px;background:#f4f5f7;font-size:15px;line-height:1.45;font-weight:600;color:#2b303a;overflow-wrap:anywhere">“' + esc(ask + ' ' + link.replace(/^https?:\/\//, '')) + '”</div>' +
+      '<button type="button" class="hov-primary" ' + on(() => { if (navigator.share) navigator.share({ title: s.text, text: msg, url: link }).catch(() => {}); else copy(msg, 'Message copied. Paste it anywhere.'); }) + ' style="' + primary(true) + '">Send the message</button>' +
+      '<span ' + on(() => copy(msg, 'Message copied. Paste it anywhere.')) + ' style="align-self:center;display:flex;align-items:center;min-height:36px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">Copy it instead</span>',
+      { z: 32 });
     return modal(title, close,
       h3(title) + (ask ? para('“' + esc(ask) + '”') : '') +
       para(esc([s.text, whenLong(s)].filter(Boolean).join(' · '))) +
@@ -4460,9 +4546,9 @@
   }
 
   // A group row with a checkbox (Post to, Who can see it)
-  const groupCheck = (g, onIt, pick, note) => '<div ' + on(pick, 'checkbox') + ' aria-checked="' + onIt + '" style="display:flex;align-items:center;gap:10px;min-height:46px;padding:9px 12px;border-radius:12px;background:' + (onIt ? '#f3f1fe' : 'transparent') + ';cursor:pointer">' +
+  const groupCheck = (g, onIt, pick, note, noteHtml) => '<div ' + on(pick, 'checkbox') + ' aria-checked="' + onIt + '" style="display:flex;align-items:center;gap:10px;min-height:46px;padding:9px 12px;border-radius:12px;background:' + (onIt ? '#f3f1fe' : 'transparent') + ';cursor:pointer">' +
     '<span aria-hidden="true" style="flex:0 0 20px;width:20px;height:20px;border-radius:6px;display:flex;align-items:center;justify-content:center;' + (onIt ? 'background:#5b4ae8' : 'background:#fff;box-shadow:inset 0 0 0 2px #c9ccd3') + '">' + (onIt ? I.check(12, '#fff', 3.4) : '') + '</span>' +
-    '<span style="flex:1;min-width:0;font-size:15px;font-weight:800;color:' + (onIt ? '#5b4ae8' : '#0d1117') + '">' + esc(g.name) + '</span>' + (note ? '<span style="font-size:12.5px;font-weight:700;color:#8a909b">' + note + '</span>' : '') + '</div>';
+    '<span style="flex:1;min-width:0;font-size:15px;font-weight:800;color:' + (onIt ? '#5b4ae8' : '#0d1117') + '">' + esc(g.name) + '</span>' + (note ? '<span style="font-size:12.5px;font-weight:700;color:#8a909b">' + note + '</span>' : '') + (noteHtml || '') + '</div>';
 
   // The flow's sheets: Poll the group, Add a job, Save this as a draft? (one at a time, never stacked)
   const stepper = (n, set, label) => '<div style="flex:0 0 auto;display:flex;align-items:center;gap:8px">' +
@@ -4533,11 +4619,13 @@
       '<input class="fld" type="text" maxlength="60"' + (idx == null ? ' data-job-name' : '') + ' aria-label="Job name' + tag + '" placeholder="What you need, e.g. Bring a case of water" value="' + esc(r.item) + '" ' + onInput(e => { if (e.type === 'input') set({ item: e.target.value.slice(0, 60) }); }) + ' style="' + BIG + ';min-height:52px;font-size:16px">' +
       '<textarea class="fld" rows="2" maxlength="400" aria-label="Details' + tag + '" placeholder="Details (optional)" ' + onInput(e => { if (e.type === 'input') set({ desc: e.target.value.slice(0, 400) }); }) + ' style="' + BIG + ';min-height:52px;padding:12px 16px;font-size:16px;font-weight:500;line-height:1.4;resize:none">' + esc(r.desc || '') + '</textarea>' +
       (r.shifts
-        ? r.shifts.map((q, k) => '<div data-shift-row style="display:flex;align-items:center;gap:6px">' +
-            timeSelect(q.time, EV_TIMES, 'Start', (v) => setShift(k, { time: v, end: q.end && q.end <= v ? '' : q.end }), 'Shift ' + (k + 1) + ' start') +
-            timeSelect(q.end, EV_TIMES.filter(v => !q.time || v > q.time), 'End', (v) => setShift(k, { end: v }), 'Shift ' + (k + 1) + ' end') +
-            stepper(q.need, (n) => setShift(k, { need: n }), 'shift ' + (k + 1)) +
-            '<span ' + on(() => set({ shifts: r.shifts.length > 1 ? r.shifts.filter((_, j) => j !== k) : null, time: r.shifts.length > 1 ? r.time : q.time, need: r.shifts.length > 1 ? r.need : q.need })) + ' aria-label="Remove shift ' + (k + 1) + '" style="flex:0 0 22px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(13, '#6b7280', 2.8) + '</span></div>').join('') +
+        ? r.shifts.map((q, k) => '<div data-shift-row style="display:flex;flex-direction:column;gap:8px;padding:10px;border-radius:14px;background:#fff;box-shadow:inset 0 0 0 1.5px #eef0f3">' +
+            '<div style="display:flex;align-items:center;gap:6px">' +
+              timeSelect(q.time, EV_TIMES, 'Start', (v) => setShift(k, { time: v, end: q.end && q.end <= v ? '' : q.end }), 'Shift ' + (k + 1) + ' start') +
+              '<span aria-hidden="true" style="font-weight:800;color:#9aa0ac">–</span>' +
+              timeSelect(q.end, EV_TIMES.filter(v => !q.time || v > q.time), 'End', (v) => setShift(k, { end: v }), 'Shift ' + (k + 1) + ' end') +
+              '<span ' + on(() => set({ shifts: r.shifts.length > 1 ? r.shifts.filter((_, j) => j !== k) : null, time: r.shifts.length > 1 ? r.time : q.time, need: r.shifts.length > 1 ? r.need : q.need })) + ' aria-label="Remove shift ' + (k + 1) + '" style="flex:0 0 28px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(13, '#6b7280', 2.8) + '</span></div>' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><span style="font-size:13px;font-weight:800;color:#6b7280">People needed</span>' + stepper(q.need, (n) => setShift(k, { need: n }), 'shift ' + (k + 1)) + '</div></div>').join('') +
           '<span ' + on(() => set({ shifts: r.shifts.concat([{ time: '', end: '', need: 1 }]) })) + ' style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:36px;font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(14, 'currentColor', 2.6) + 'Add a shift</span>' +
           '<span ' + on(() => set({ shifts: null, time: r.shifts[0].time, need: r.shifts[0].need || 1 })) + ' style="align-self:flex-start;display:flex;align-items:center;min-height:32px;font-size:13.5px;font-weight:700;color:#6b7280;cursor:pointer">Use one time instead</span>'
         : '<div style="display:flex;align-items:center;gap:10px">' + timeSelect(r.time, EV_TIMES, 'Time (optional)', (v) => set({ time: v }), 'Time' + tag) + stepper(r.need, (n) => set({ need: n }), 'how many people') + '</div>' +
@@ -4854,6 +4942,20 @@
       '</div>');
   }
 
+  // Who thanked the host (Round 64d): everyone can see it, as thank-yous are public
+  function viewThanksList(s) {
+    const close = () => setState({ thanksList: false });
+    const who = s.reactions.filter(r => r.kind === 'thanks').map(r => r.userId);
+    return modal('Thanks for ' + firstName(nameOf(s.leadId, s.leadName)), close,
+      h3('Thanks for ' + esc(firstName(nameOf(s.leadId, s.leadName)))) +
+      '<div style="display:flex;flex-direction:column">' +
+        who.map((u, i) => '<div style="display:flex;align-items:center;gap:12px;min-height:52px;border-top:' + (i ? '1px solid #f2f3f6' : '0') + '">' +
+          face(u, nameOf(u), 36, '#7b6ef0') +
+          '<span style="flex:1 1 auto;min-width:0;font-size:15.5px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(u === state.me ? 'You' : nameOf(u)) + '</span>' +
+          '<span aria-hidden="true" style="font-size:18px">🙏</span></div>').join('') +
+      '</div>');
+  }
+
   function viewToast() {
     const t = state.toast;
     return '<div role="status" style="position:absolute;left:14px;right:14px;bottom:calc(var(--nav-h) + 12px);z-index:50;display:flex;justify-content:center;pointer-events:none">' +
@@ -4938,6 +5040,7 @@
       (s === 'compose' && st.email ? viewComposeSheets() : '') +
       (st.offerKind && subj ? viewOffer(subj) : '') +
       (st.interestList && subj ? viewInterestList(subj) : '') +
+      (st.thanksList && subj ? viewThanksList(subj) : '') +
       (st.guestOpen ? viewGuest() : '') +
       (st.nameAsk ? viewName() : '') +
       (st.pe ? viewProfileEdit() : '') +
@@ -5115,6 +5218,7 @@
       if (state.guestOpen) return setState({ guestOpen: false, guestThen: null });
       if (state.offerKind) return setState({ offerKind: null, offerText: '' });
       if (state.interestList) return setState({ interestList: false });
+      if (state.thanksList) return setState({ thanksList: false });
       if (state.menu) return setState({ menu: null });
       if (state.cSearch) return setState(Object.assign({ cSearch: false, cq: '' }, state.cTry ? TRY_UNDO : {}));
       if (state.gSearch) return setState({ gSearch: false, gq: '', gTry: null });
@@ -5171,7 +5275,7 @@
     const target = fromUrl();
     if (target.inviteCode) { takeInvite(target.inviteCode); return; }
     if (target.screen === state.screen && target.subjectId === state.subjectId && target.gpId === state.gpId) return;
-    setState(Object.assign({ menu: null, offerKind: null, nameAsk: null, confirm: null, loginStep: null, loginThen: null, interestList: false, back: null,
+    setState(Object.assign({ menu: null, offerKind: null, nameAsk: null, confirm: null, loginStep: null, loginThen: null, interestList: false, thanksList: false, back: null,
       profSheet: false, notifSheet: false, dashAll: null, cHandSheet: false, cSearch: false, cq: '', gSearch: false, gq: '', gTry: null }, target));
     const sc = scroller();
     if (sc) sc.scrollTop = 0;

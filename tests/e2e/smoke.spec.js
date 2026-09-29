@@ -6,9 +6,9 @@ test('visitors land on Welcome (no tab bar there) and sign in from there', async
   const { page, context, errors } = await newMember(browser);
   try {
     const welcome = page.locator('[data-screen-label=Welcome]');
-    await expect(welcome.getByRole('heading', { name: /Turn your idea\s*into a plan\./ })).toBeVisible();
+    await expect(welcome.getByRole('heading', { name: /Plans with\s*your people\./ })).toBeVisible();
     await expect(welcome.getByText('New here? Either one creates your account.')).toBeVisible();
-    await expect(welcome.getByRole('listitem')).toHaveText(['1Post an idea', '2People pitch in', '3It happens']);
+    await expect(welcome.getByRole('listitem')).toHaveText(['1Create an event', '2RSVP & pitch in', '3Make it happen']);
     await expect(welcome.getByRole('button', { name: 'Continue with Google' })).toBeVisible();
     await expect(page.getByRole('navigation', { name: 'Main' })).toHaveCount(0);   // no tab bar on Welcome
 
