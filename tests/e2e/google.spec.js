@@ -49,11 +49,11 @@ test('coming back signed in posts the saved draft', async ({ browser }) => {
   try {
     await page.evaluate(({ k, title }) => sessionStorage.setItem(k, JSON.stringify({
       at: Date.now(), stage: 'link', from: 'post', anonId: null, name: 'Tester', mergeToken: null, screen: 'compose',
-      draft: { activity: title, hopes: ['bring snacks', '', ''], locMode: 'open', locText: '', locPlace: null, whenMode: 'one', dateOne: '', timeOne: '', timeOn: false, photos: [] }
+      draft: { activity: title, evStep: 'review', evBits: ['Bring snacks', '', ''], evNeeds: [], evLater: {}, locText: '', locPlace: null, photos: [] }
     })), { k: RESUME_KEY, title });
     await page.goto('/?code=returned-from-google');
-    await expect(page.getByText('It’s up')).toBeVisible();
-    const detail = page.locator('[data-screen-label="Idea page"]');
+    await expect(page.getByText('It’s on the books')).toBeVisible();
+    const detail = page.locator('[data-screen-label="Plan page"]');
     await expect(detail).toContainText(title.charAt(0).toUpperCase() + title.slice(1));
     await expect(detail).toContainText('Bring snacks');
     id = page.url().match(/#\/idea\/([0-9a-f-]{36})$/)[1];
