@@ -78,8 +78,8 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     await cal.getByRole('button', { name: /^Type of event:/ }).click();
     await O.getByRole('menu', { name: 'Type of event' }).getByRole('menuitemcheckbox', { name: /^Games/ }).click();
     await expect(card).toHaveCount(0);
-    await expect(cal.getByText('Clear filters')).toBeVisible();
-    await cal.getByText('Clear filters').click();
+    await expect(cal.getByText('Clear filters').first()).toBeVisible();   // twice when nothing else matches (the empty state has its own)
+    await cal.getByText('Clear filters').first().click();
     await expect(card).toBeVisible();
 
     // Search finds it; a result opens the plan

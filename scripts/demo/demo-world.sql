@@ -4,9 +4,11 @@
 --   Live: supabase db query --linked --project-ref xwrzfpgsazyrgieymtee -f scripts/demo/demo-world.sql
 -- Safe to re-run. Roles only go up; nobody is removed from anything.
 
--- 1. The four demo groups: everyone who signs in joins them as a member
+-- 1. The three demo groups. Nobody is added automatically any more (since 20261011000000_demo_optin.sql):
+--    people join them with their invite codes, which the owner shares by hand. Torrez Fitness is the real
+--    pilot group and is NOT a demo group (see pilot-torrez.sql).
 update public.groups set demo = true
- where name in ('Hub on Hunters', 'Walnut Creek Neighborhood', 'Woodcliff Neighborhood', 'Torrez Fitness');
+ where name in ('Hub on Hunters', 'Walnut Creek Neighborhood', 'Woodcliff Neighborhood');
 
 -- 2. The testers' roles (the brief's roster; emails as the accounts actually exist)
 insert into public.demo_roster (email, group_name, role) values
@@ -39,7 +41,7 @@ insert into public.demo_admins (user_id)
 select id from auth.users where email = 'eric@ericscott-creative.com'
 on conflict do nothing;
 
--- 5. Everyone already signed in gets it now (new sign-ups get it from the trigger)
+-- 5. Roster roles for the named testers (nobody else is added to the demo groups automatically)
 select public.apply_demo_world(id, email) from auth.users
  where email is not null and coalesce(is_anonymous, false) = false;
 

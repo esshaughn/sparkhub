@@ -83,7 +83,8 @@ FANS = [by_email[f'seed-fan-{n}@example.com']['id'] for n in ['ava', 'ben', 'car
 seed_ids = set(P.values()) | set(FANS)
 
 groups = {g['name']: g['id'] for g in rest('GET', 'groups', query='?demo=eq.true&select=id,name')}
-NEEDED = ['Torrez Fitness', 'Hub on Hunters', 'Walnut Creek Neighborhood', 'Woodcliff Neighborhood']
+# Torrez Fitness is the real pilot group (owner, 2026-09-29): it gets no demo content, so it isn't here.
+NEEDED = ['Hub on Hunters', 'Walnut Creek Neighborhood', 'Woodcliff Neighborhood']
 missing = [n for n in NEEDED if n not in groups]
 if missing:
     sys.exit(f'Not demo groups here (run demo-world.sql first): {missing}')
@@ -115,7 +116,8 @@ print('Real people:', ', '.join(f"{r['name']} <{r['email']}>" for r in R) or 'no
 
 # --- The handoff's content ------------------------------------------------------------------------
 # lead: a real person's email (used when they're here and in that group), else the seed person in `alt`.
-T, H, W, C = NEEDED
+T = None   # Torrez: the events below that name it are dropped
+H, W, C = NEEDED
 EVENTS = [
     # Torrez Fitness
     dict(g=T, text='Activate', date='2026-10-15', time='08:00', spot='Torrez Fitness', photo='activate.jpg',
@@ -227,6 +229,9 @@ IDEAS = [
          spots=[('Veracruz All Natural', '1704 E Cesar Chavez St, Austin, TX 78702', 'Hana', 4),
                 ('Taco Deli on Spyglass', '1500 Spyglass Dr, Austin, TX 78746', 'Darnell', 2)]),
 ]
+
+EVENTS = [d for d in EVENTS if d['g'] is not None]
+IDEAS = [d for d in IDEAS if d['g'] is not None]
 
 
 def lead_of(d):
