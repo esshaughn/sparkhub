@@ -2828,12 +2828,14 @@
   // ---- Add to Home Screen (not designed; HANDOFF §2). Android Chrome hands us its install prompt
   // (beforeinstallprompt) so our own button can open Chrome's dialog; iPhone Safari has no prompt, so we
   // show where Share → Add to Home Screen is. Nothing shows in the installed app.
-  const IOS_SAFARI = IS_IOS && /Safari\//.test(navigator.userAgent) && !/CriOS|FxiOS|EdgiOS|OPiOS|GSA\//.test(navigator.userAgent);
+  // iPhone browsers that can add to the Home Screen from their Share button: Safari and Chrome
+  const IOS_BROWSER = !IS_IOS ? '' : /CriOS\//.test(navigator.userAgent) ? 'Chrome'
+    : /Safari\//.test(navigator.userAgent) && !/FxiOS|EdgiOS|OPiOS|GSA\//.test(navigator.userAgent) ? 'Safari' : '';
   let installEvt = null;
   window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installEvt = e; setState({ canInstall: true }); });
   window.addEventListener('appinstalled', () => { installEvt = null; setState({ canInstall: false, iosTip: false }); toast('Spark Hub is on your Home Screen', true); });
   // prompt (Android: our button opens Chrome's dialog) · ios (show the Share steps) · '' (installed, or this browser can't)
-  const installMode = () => STANDALONE ? '' : state.canInstall && installEvt ? 'prompt' : IOS_SAFARI ? 'ios' : '';
+  const installMode = () => STANDALONE ? '' : state.canInstall && installEvt ? 'prompt' : IOS_BROWSER ? 'ios' : '';
   const startInstall = async () => {
     const mode = installMode();
     if (mode === 'ios') return setState({ iosTip: true, profSheet: false });
@@ -2853,12 +2855,12 @@
         '<div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:800;color:#0d1117">Put Spark Hub on your Home Screen</div>' +
           '<div style="margin-top:2px;font-size:13.5px;line-height:1.4;font-weight:600;color:#6b7280">' + (mode === 'prompt'
             ? 'It opens full screen, like any app, and can buzz you when plans change.'
-            : 'Safari adds it in a few taps. Then it opens full screen, like any app.') + '</div></div>' +
+            : IOS_BROWSER + ' adds it in a few taps. Then it opens full screen, like any app.') + '</div></div>' +
         '<span ' + on(hide) + ' aria-label="Not now" style="flex:0 0 28px;width:28px;height:28px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(11, '#6b7280', 2.6) + '</span></div>' +
       '<button type="button" class="hov-primary" ' + on(startInstall) + ' style="align-self:flex-start;min-height:42px;padding:0 18px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer">' + (mode === 'prompt' ? 'Install app' : 'Show me how') + '</button>' +
     '</div>';
   };
-  // iPhone Safari: the steps, pointing down at Safari's bar under the page
+  // iPhone Safari or Chrome: the steps (in Safari, pointing down at its bar under the page)
   function viewIosTip() {
     const close = () => setState({ iosTip: false });
     const share = svg(17, stroke('#0a84ff', 2.1), '<path d="M12 3v12"/><path d="M8 7l4-4 4 4"/><path d="M7 10H6a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-9a1 1 0 0 0-1-1h-1"/>');
@@ -2867,11 +2869,11 @@
     return '<div data-ios-tip role="dialog" aria-label="Add to Home Screen" style="position:absolute;left:12px;right:12px;bottom:calc(var(--nav-h) + 16px);z-index:40;background:#fff;border-radius:20px;box-shadow:0 12px 36px rgba(13,17,23,.28);padding:16px 16px 18px;animation:fadeIn 200ms ease-out both">' +
       '<div style="display:flex;align-items:center;gap:10px"><h3 style="flex:1;margin:0;font-size:18px;font-weight:900;letter-spacing:-.3px;color:#0d1117">Add Spark Hub to your Home Screen</h3>' + closeX(close) + '</div>' +
       '<ol style="margin:12px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:10px;font-size:14.5px;line-height:1.4;font-weight:600;color:#2b303a">' +
-        step(1, 'Tap <b style="font-weight:800;white-space:nowrap">Share ' + share + '</b> in Safari’s bar below. No Share? Tap <b style="font-weight:800">···</b> first.') +
+        step(1, 'Tap <b style="font-weight:800;white-space:nowrap">Share ' + share + '</b> ' + (IOS_BROWSER === 'Chrome' ? 'in Chrome’s address bar' : 'in Safari’s bar below') + '. No Share? Tap <b style="font-weight:800">···</b> first.') +
         step(2, 'Tap <b style="font-weight:800">Add to Home Screen</b>, then <b style="font-weight:800">Add</b>.') +
         step(3, 'Open Spark Hub from your Home Screen.') +
       '</ol>' +
-      '<span aria-hidden="true" style="position:absolute;left:50%;bottom:-8px;width:18px;height:18px;margin-left:-9px;background:#fff;transform:rotate(45deg);border-radius:0 0 4px 0"></span>' +
+      (IOS_BROWSER === 'Safari' ? '<span aria-hidden="true" style="position:absolute;left:50%;bottom:-8px;width:18px;height:18px;margin-left:-9px;background:#fff;transform:rotate(45deg);border-radius:0 0 4px 0"></span>' : '') +
     '</div>';
   }
 
@@ -4173,7 +4175,7 @@
           '</div></div>' +
         section('Settings',
           '<div ' + on(() => setState({ nSettings: true })) + ' class="hov-row" style="' + ROW + '">' + line('Notifications', 'In the app and on your phone') + I.chevR(16, '#9aa0ac', 2.4) + '</div>' +
-          (installMode() ? '<div ' + on(startInstall) + ' class="hov-row" style="' + ROW + ';border-top:1px solid #f2f3f6">' + line('Add to Home Screen', installMode() === 'prompt' ? 'Install Spark Hub on this phone' : 'A few taps in Safari’s Share menu') + I.chevR(16, '#9aa0ac', 2.4) + '</div>' : '') +
+          (installMode() ? '<div ' + on(startInstall) + ' class="hov-row" style="' + ROW + ';border-top:1px solid #f2f3f6">' + line('Add to Home Screen', installMode() === 'prompt' ? 'Install Spark Hub on this phone' : 'A few taps in ' + IOS_BROWSER + '’s Share menu') + I.chevR(16, '#9aa0ac', 2.4) + '</div>' : '') +
           '<a href="/privacy.html" target="_blank" rel="noopener" class="hov-row" style="' + ROW + ';border-top:1px solid #f2f3f6">' + line('Privacy', 'Who sees your profile and plans') + I.chevR(16, '#9aa0ac', 2.4) + '</a>') +
         '<div style="display:flex;flex-direction:column;gap:14px">' +
           (st.demoAdmin && st.sparks.some(s => s.demo)

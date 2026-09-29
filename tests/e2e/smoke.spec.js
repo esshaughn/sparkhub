@@ -79,14 +79,18 @@ test('web push: a push-only service worker registers, and Notifications offers p
   }
 });
 
-test('Add to Home Screen: Android opens Chrome’s install prompt from our card; iPhone Safari shows the Share steps', async ({ browser }) => {
+test('Add to Home Screen: Android opens Chrome’s install prompt from our card; iPhone Safari and Chrome show the Share steps', async ({ browser }) => {
   const m = await newLead(browser, 1, 'Ivy');
   try {
     const page = m.page;
     // Chrome hands an installable site a beforeinstallprompt event; stand in for it (or be iPhone Safari, which has none)
     await m.context.addInitScript(() => {
-      if (localStorage.getItem('e2e-iphone')) {
-        Object.defineProperty(navigator, 'userAgent', { get: () => 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1' });
+      const iphone = localStorage.getItem('e2e-iphone');
+      if (iphone) {
+        const ua = iphone === 'chrome'
+          ? 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/140.0.0.0 Mobile/15E148 Safari/604.1'
+          : 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
+        Object.defineProperty(navigator, 'userAgent', { get: () => ua });
         return;
       }
       document.addEventListener('DOMContentLoaded', () => {
@@ -114,6 +118,15 @@ test('Add to Home Screen: Android opens Chrome’s install prompt from our card;
     await expect(tip).toContainText('Tap Add to Home Screen, then Add.');
     await tip.getByRole('button', { name: 'Close' }).click();
     await expect(tip).toHaveCount(0);
+
+    // Chrome on iPhone adds to the Home Screen from its own Share button
+    await page.evaluate(() => localStorage.setItem('e2e-iphone', 'chrome'));
+    await page.reload();
+    await expect(page.locator('html[data-loaded=true]')).toHaveCount(1);
+    await expect(card).toContainText('Chrome adds it in a few taps.');
+    await card.getByRole('button', { name: 'Show me how' }).click();
+    await expect(tip).toContainText('in Chrome’s address bar');
+    await tip.getByRole('button', { name: 'Close' }).click();
 
     // "Not now" puts the card away for good; Profile keeps the way in
     await card.getByLabel('Not now').click();
