@@ -44,10 +44,21 @@ async function expectConnected(page, errors) {
   expect(await page.evaluate(() => !!window.supabase && window.SPARKS_CONFIG.env)).toBe('test');
 }
 
+// Photos from Supabase Storage are answered with the tiny PNG instead of downloaded.
+// Every test browser starts with an empty cache, so real photos were fetched again on
+// every run and used up the free plan's cached egress. Uploads and deletes still go through.
+async function stubPhotos(target) {
+  await target.route('**/storage/v1/object/public/**', (route) =>
+    route.request().method() === 'GET'
+      ? route.fulfill({ status: 200, contentType: 'image/png', body: PNG })
+      : route.continue());
+}
+
 // Fresh visitor: new browser context = new localStorage = new anonymous identity
 async function newMember(browser, path) {
   const context = await browser.newContext({ ...devices['Pixel 7'] });
   context.placeRequests = await mockPlaces(context);
+  await stubPhotos(context);
   const page = await context.newPage();
   const errors = trackErrors(page);
   await page.goto(path || '/');
@@ -227,6 +238,6 @@ async function asUser(page, fn, args) {
 }
 
 module.exports = {
-  TAG, TORREZ, PNG, uniqueTitle, startPost, openProfile, pickView, mockPlaces, trackErrors, expectConnected, newMember, newLead, button,
+  TAG, TORREZ, PNG, uniqueTitle, startPost, openProfile, pickView, mockPlaces, stubPhotos, trackErrors, expectConnected, newMember, newLead, button,
   postIdea, postEvent, answerNamePrompt, answerGuestPrompt, ideaIdFromUrl, openIdea, confirm, deleteIdea, asUser
 };
