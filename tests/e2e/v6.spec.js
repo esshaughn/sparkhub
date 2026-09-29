@@ -40,6 +40,13 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     await nav(H).getByRole('button', { name: /^Your tasks/ }).click();
     const lead = H.locator('[data-screen-label="Your tasks"] section[aria-label=Leading] [data-task="' + title + '"]');
     await expect(lead).toContainText('Today');
+    // Your tasks and Your schedule have Search beside the bell (the Calendar's search sheet)
+    await H.locator('[data-screen-label="Your tasks"]').getByRole('button', { name: 'Search events' }).click();
+    const hSearch = H.getByRole('dialog', { name: 'Search' });
+    await hSearch.getByLabel('Search events').fill(title.slice(-12));
+    await expect(hSearch.locator('[data-result="' + title + '"]')).toBeVisible();
+    await hSearch.getByRole('button', { name: 'Cancel' }).click();
+    await expect(hSearch).toHaveCount(0);
     await expect(lead.getByLabel('Going: 0')).toBeVisible();
     await expect(lead.getByLabel('Sign-ups: 0/3')).toBeVisible();
     await expect(lead.getByLabel('Reminder: Sent')).toBeVisible();

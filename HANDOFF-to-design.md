@@ -42,6 +42,8 @@ Where this doc and the design files disagree, **this doc is correct**.
 | 24 | **Your guest list** keeps its three counts (Going · Maybe · Can't make it) | Four tiles | Invites are share links (§1 #1) |
 | 25 | **The Where card's map** is a Geoapify static map (OpenStreetMap, attribution on the image) with the purple pin; tapping it opens directions. No map when the place has no coordinates (typed by hand, not picked); Directions then searches the address | A placeholder map | Same provider as the location suggestions |
 | 26 | **RSVP counts** are real RSVPs (Going / Maybe / Can't), yours included | Going = interested count; Maybe / Can't from invite stats | Interest turns into Going when an idea becomes a plan; invites aren't counted |
+| 27 | **Your tasks and Your schedule headers have Search** (a 44px `#f2f3f6` circle with the search icon, left of the bell), opening the Calendar's search sheet | Title and bell only | Owner (2026-09-28) |
+| 28 | **The bell's red badge has no white ring** | 2px white border | Owner (2026-09-28) |
 ## 2. Things the build had to invent (please design these properly)
 
 - **Empty states:** Could use a hand with nothing open: *Everything's covered for the next two weeks.* Calendar with no results: *No events match these filters.* / *Nothing coming up in your groups yet.* (under a "Coming up" heading). Month view, a day with nothing: *Nothing on this day.* View all, empty: *Nothing here right now.*
