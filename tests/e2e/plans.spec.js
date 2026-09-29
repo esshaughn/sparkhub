@@ -98,8 +98,10 @@ test('a plan: guest RSVPs, sign-ups, an update, the host’s notes, then clearin
     const off = G.locator('[data-banner="off"]');
     await expect(off).toContainText('You’re off it');
     await off.getByRole('button', { name: 'Find a replacement' }).click();
-    await expect(G.getByRole('dialog', { name: 'Find a replacement' })).toContainText('I can’t make it to lemonade');
-    await G.keyboard.press('Escape');
+    const rep = G.getByRole('dialog', { name: 'Find a replacement' });
+    await expect(rep).toContainText('I can’t make it to lemonade');
+    await rep.getByRole('button', { name: 'Close' }).click();
+    await expect(rep).toHaveCount(0);
     await GP.locator('[data-signup="Lemonade"]').getByRole('button', { name: 'Sign up' }).click();
     await expect(GP.locator('[data-signup="Lemonade"]')).toContainText('You’re in');
     const download = G.waitForEvent('download');
