@@ -1,18 +1,32 @@
 # End-to-end tests: a real browser clicks through the app against the TEST database.
-# Runs on every push to test and on pull requests. A red ✗ on GitHub means don't merge.
-# Not on main: main only ever fast-forwards to a commit that already passed on test, and a second
-# run there just holds the shared test database while the next push to test waits.
-# Changes to docs (*.md) and the design folder alone don't need a browser run.
+# Every run counts against the Supabase free plan that live and test share (logs, photo egress),
+# so runs are sized to what they're for:
+#   - push to test:       the quick suite (smoke + database security), a minute or two
+#   - nightly:            the full suite on test, only if test changed in the last 24 hours
+#   - pull request:       the full suite
+#   - by hand:            gh workflow run e2e.yml --ref test -f suite=full   (or suite=quick)
+# Merging to main needs a green FULL run on that commit (the nightly one, or start one by hand).
+# Not on main: main only ever fast-forwards to a commit that already passed on test.
+# Commits that only touch docs, design, scripts, icons, email templates or test-only SQL skip the run.
+# Scheduled runs use this file as it is on main, so changes to the nightly only apply once merged.
 
 name: End-to-end tests
 
 on:
   push:
     branches: [test]
-    paths-ignore: ['**.md', 'design/**']
+    paths-ignore: ['**.md', 'design/**', 'scripts/**', 'icons/**', 'supabase/templates/**', 'supabase/test-only/**', '.vercelignore', '.github/workflows/keep-supabase-awake.yml']
   pull_request:
-    paths-ignore: ['**.md', 'design/**']
-  workflow_dispatch: {}
+    paths-ignore: ['**.md', 'design/**', 'scripts/**', 'icons/**', 'supabase/templates/**', 'supabase/test-only/**', '.vercelignore', '.github/workflows/keep-supabase-awake.yml']
+  schedule:
+    - cron: "30 9 * * *"   # nightly, 09:30 UTC (early morning in the US)
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: 'quick (smoke + security) or full'
+        type: choice
+        options: [full, quick]
+        default: full
 
 # The workflow only needs to read the repo
 permissions:
@@ -24,7 +38,31 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Decides which tests run (or none, for a nightly with nothing new on test)
+  pick:
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.pick.outputs.run }}
+      files: ${{ steps.pick.outputs.files }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'schedule' && 'test' || '' }}
+      - id: pick
+        run: |
+          suite=full; run=true
+          case "${{ github.event_name }}" in
+            push) suite=quick ;;
+            workflow_dispatch) suite="${{ inputs.suite }}" ;;
+            schedule) [ $(( $(date +%s) - $(git log -1 --format=%ct) )) -lt 86400 ] || run=false ;;
+          esac
+          [ "$suite" = quick ] && files="e2e/smoke.spec.js e2e/security.spec.js" || files=""
+          echo "run=$run" >> "$GITHUB_OUTPUT"; echo "files=$files" >> "$GITHUB_OUTPUT"
+          echo "Suite: $suite, run: $run" >> "$GITHUB_STEP_SUMMARY"
+
   e2e:
+    needs: pick
+    if: needs.pick.outputs.run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     defaults:
@@ -32,6 +70,8 @@ jobs:
         working-directory: tests
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'schedule' && 'test' || '' }}
 
       - uses: actions/setup-node@v4
         with:
@@ -59,7 +99,7 @@ jobs:
         run: npx playwright install-deps chromium
 
       - name: Run tests
-        run: npx playwright test
+        run: npx playwright test ${{ needs.pick.outputs.files }}
         env:
           E2E_LEAD_PASSWORD: ${{ secrets.E2E_LEAD_PASSWORD }}
 
