@@ -39,7 +39,7 @@ Where this doc and the design files disagree, **this doc is correct**.
 - **Make home** happens on Save: new groups are added first, then the home moves (`set_home_group()`), then unticked groups come off.
 - **Removing a job** in Edit what you need also sends the note to the people signed up, not just the Help out ✕.
 - **Push** follows the in-app feed's rules and each person's topics; a topic that's off is off on the phone too. Demo seeding never pushes, and reminders skip demo events. Signing out removes that phone's push.
-- **Second address:** https://sparkhub.weareallneighbors.org serves the live app alongside gosparkhub.vercel.app.
+- **Second address:** https://sparkhub.wereallneighbors.org serves the live app alongside gosparkhub.vercel.app.
 - **Admins** who edit a title or Basic details don't get the switch (only the host posts updates).
 
 ## 4. Designed but not built or not working

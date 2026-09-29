@@ -7,7 +7,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const LIVE_HOSTS = ['gosparkhub.vercel.app', 'sparkhub.weareallneighbors.org', 'torrezhub.vercel.app'];   // keep in step with js/config.js
+const LIVE_HOSTS = ['gosparkhub.vercel.app', 'sparkhub.wereallneighbors.org', 'torrezhub.vercel.app'];   // keep in step with js/config.js
 const DB = {
   live: { url: 'https://xwrzfpgsazyrgieymtee.supabase.co', key: 'sb_publishable_NrnRB0SC3-dzeCJTU6vUjQ_328Q1BJC' },
   test: { url: 'https://hroxgvxvafgikikviiud.supabase.co', key: 'sb_publishable_f7dwskaTS-TV42YC-p0lFw_9Pe8FY1O' }
