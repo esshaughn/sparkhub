@@ -115,9 +115,9 @@ test('Add to Home Screen: a pop-up on Welcome and once after signing in; Android
     await fresh(v.page, 'safari');
     await expect(v.page.locator('[data-screen-label=Welcome]')).toBeVisible();
     const pop = v.page.getByRole('dialog', { name: 'Add to Home Screen' });
-    await expect(pop).toContainText('Put Spark Hub on your Home Screen');
-    await expect(pop).toContainText('in Safari’s bar below');
-    await expect(pop).toContainText('Tap Add to Home Screen, then Add.');
+    await expect(pop).toContainText('Put Spark Hub onyour Home Screen');
+    await expect(pop).toContainText('Tap Share in Safari’s toolbar');
+    await expect(pop).toContainText('Choose Add to Home Screen');
     await pop.getByRole('button', { name: 'Got it' }).click();
     await expect(pop).toHaveCount(0);
     await v.page.reload();
@@ -127,8 +127,8 @@ test('Add to Home Screen: a pop-up on Welcome and once after signing in; Android
 
     // iPhone Chrome: its Share button is in the address bar
     await fresh(v.page, 'chrome');
-    await expect(pop).toContainText('in Chrome’s address bar');
-    await pop.getByLabel('Close').click();
+    await expect(pop).toContainText('Tap Share at the top right');
+    await pop.getByRole('button', { name: 'Maybe later' }).click();
     expect(v.errors).toEqual([]);
   } finally {
     await v.context.close();
@@ -141,9 +141,10 @@ test('Add to Home Screen: a pop-up on Welcome and once after signing in; Android
     await m.context.addInitScript(fake);
     await fresh(page, null);
     const pop = page.getByRole('dialog', { name: 'Add to Home Screen' });
-    await expect(pop).toContainText('It opens full screen, like any app');
+    await expect(pop).toContainText('It becomes an app icon on your phone.');
+    await expect(pop).not.toContainText('Choose Add to Home Screen');   // Android: Chrome's own dialog, no steps
     await expect(page.locator('[data-screen-label=Calendar] [data-install-card]')).toHaveCount(0);   // no card on the Calendar
-    await pop.getByRole('button', { name: 'Install app' }).click();
+    await pop.getByRole('button', { name: 'Add to Home Screen' }).click();
     await expect.poll(() => page.evaluate(() => window.__prompted)).toBe(1);
     await expect(pop).toHaveCount(0);
     await page.reload();
@@ -170,7 +171,8 @@ test('privacy page is public', async ({ request }) => {
 
 test('members: Your tasks, Your schedule, Calendar, view and sort menus', async ({ browser }) => {
   const { page, context, errors } = await newLead(browser, 1, 'Tester');
-  let going = null;
+  let going = null, host = null;
+  const PLAN = '[E2E] Schedule check';
   try {
     // Signed in, the app opens on the Calendar (the home screen)
     await expect(page.locator('[data-screen-label=Calendar]').getByRole('heading', { name: 'Calendar' })).toBeVisible();
@@ -179,23 +181,31 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
     await expect(home.getByRole('heading', { name: 'Your schedule' })).toBeVisible();
     await expect(home.getByRole('button', { name: 'Show groups' })).toHaveCount(0);   // no group picker in v6
 
-    // With something on the schedule (going to the demo "Activate"), the first month row carries the view picker
-    going = await asUser(page, async (c) => {
+    // With something on the schedule (going to another lead's plan in Torrez), the first month row carries the view picker.
+    // Torrez is the real pilot group and has no demo events, so the test hosts its own.
+    host = await newLead(browser, 2, 'Host');
+    const day = new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
+    const planId = await asUser(host.page, async (c, _C, { day, title }) => {
       const me = (await c.auth.getUser()).data.user.id;
       const g = (await c.from('groups').select('id').eq('name', 'Torrez Fitness').single()).data.id;
-      const id = (await c.from('sparks').select('id').eq('text', 'Activate').eq('group_id', g).single()).data.id;
+      const r = await c.from('sparks').insert({ group_id: g, author_name: 'Host', lead_name: 'Host', lead_id: me, created_by: me, text: title, planned: true, day_date: day, day_time: '09:00', spot: 'The track' }).select('id').single();
+      return r.error ? r.error.message : r.data.id;
+    }, { day, title: PLAN });
+    expect(planId).toMatch(/^[0-9a-f-]{36}$/);
+    going = await asUser(page, async (c, _C, id) => {
+      const me = (await c.auth.getUser()).data.user.id;
       await c.from('rsvps').upsert({ spark_id: id, user_id: me, status: 'going' });
       return { id, me };
-    });
+    }, planId);
     await page.reload();
     await expect(page.locator('html[data-loaded=true]')).toHaveCount(1);
     await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Your schedule', exact: true }).click();
     await expect(home.getByRole('heading', { name: new Date().toLocaleDateString('en-US', { month: 'long' }), exact: true }).or(home.getByRole('heading', { name: 'October', exact: true })).first()).toBeVisible();
     await expect(home.getByRole('button', { name: 'View: Tiles' })).toBeVisible();   // Tiles by default
-    await expect(home.locator('[data-plan="Activate"]')).toContainText('Going');   // the strip under the tile
-    await expect(home.locator('[data-plan="Activate"]')).toContainText('Change RSVP');
+    await expect(home.locator(`[data-plan="${PLAN}"]`)).toContainText('Going');   // the strip under the tile
+    await expect(home.locator(`[data-plan="${PLAN}"]`)).toContainText('Change RSVP');
     await pickView(home, 'List');
-    await expect(home.locator('[data-plan="Activate"]')).toBeVisible();
+    await expect(home.locator(`[data-plan="${PLAN}"]`)).toBeVisible();
     await pickView(home, 'Tiles');
 
     // Calendar (the ringed center tab): the community calendar, List by default, then Month
@@ -204,7 +214,7 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
     await expect(cal.getByRole('heading', { name: 'Calendar' })).toBeVisible();
     await expect(cal.getByRole('button', { name: 'Groups: All groups' })).toBeVisible();
     await expect(cal.getByRole('button', { name: 'Type of event: All types' })).toBeVisible();
-    await expect(cal.locator('[data-plan="Activate"]')).toContainText('Change RSVP');
+    await expect(cal.locator(`[data-plan="${PLAN}"]`)).toContainText('Change RSVP');
     await cal.getByRole('button', { name: /^Sort: / }).click();
     await page.getByRole('menu', { name: 'Sort' }).getByRole('button', { name: 'Needs you' }).click();
     await expect(cal.getByRole('heading', { name: 'Could use a hand' }).or(cal.getByRole('heading', { name: 'All covered' })).first()).toBeVisible();
@@ -334,6 +344,7 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
     expect(errors).toEqual([]);
   } finally {
     if (going) await asUser(page, async (c, _C, x) => { await c.from('rsvps').delete().eq('spark_id', x.id).eq('user_id', x.me); await c.from('profiles').update({ place: null, bio: null }).eq('id', x.me); }, going).catch(() => {});
+    if (host) { await asUser(host.page, async (c) => { await c.from('sparks').delete().eq('text', '[E2E] Schedule check'); }).catch(() => {}); await host.context.close(); }
     await context.close();
   }
 });

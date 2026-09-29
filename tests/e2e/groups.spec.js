@@ -69,9 +69,22 @@ test('a group end to end: edit group, cover, rename, invite, pin, admin edits, r
     await join.getByRole('button', { name: 'Join' }).click();
     await expect(join).toContainText('That code didn’t match a group. Check it with your organizer.');
     await join.getByRole('button', { name: 'Close' }).click();
+    // Signed in before the tap: one confirm (E3), then Welcome to {group} (4) → its Plans tab
     await B.goto('/#/join/' + code);
-    await expect(B.getByRole('dialog', { name: 'Join a group' }).getByLabel('Group code')).toHaveValue(code);
-    await B.getByRole('dialog', { name: 'Join a group' }).getByRole('button', { name: 'Join' }).click();
+    const confirm = B.getByRole('dialog', { name: 'Join ' + groupName + '?' });
+    await expect(confirm).toContainText('You’ll join as:');
+    await expect(confirm).not.toContainText(code);   // the code is never shown
+    await confirm.getByRole('button', { name: 'Join as Bo' }).click();
+    const welcome = B.locator('[data-screen-label="Welcome to group"]');
+    await expect(welcome).toContainText('Welcome to' + groupName);
+    await expect(welcome).toContainText('Nothing planned yet. Got an idea?');
+    await welcome.getByRole('button', { name: 'See what’s coming up' }).click();
+    await expect(B.locator('[data-screen-label=Browse]')).toContainText(groupName);
+    // The link again, already a member (E2): the group page and a toast, no Welcome
+    await B.goto('/#/join/' + code);
+    await confirm.getByRole('button', { name: /^Join as / }).click();
+    await expect(B.getByText('You’re already in ' + groupName)).toBeVisible();
+    await expect(welcome).toHaveCount(0);
     await expect(B.locator('[data-screen-label=Browse]')).toContainText(groupName);
 
     // Groups: pin puts it in the big cards at the top; the gear (owners/admins) opens Edit group
@@ -181,13 +194,37 @@ test('a group end to end: edit group, cover, rename, invite, pin, admin edits, r
   }
 });
 
-test('an invite link for someone signed out: Welcome names the code, signing in opens Join', async ({ browser }) => {
-  const { page, context } = await newMember(browser, '/#/join/TORREZ');
+test('an invite link for someone signed out: the group’s landing with sign-in on it; a bad link; inside Instagram', async ({ browser }) => {
+  const { page, context, errors } = await newMember(browser, '/#/join/TORREZ');
   try {
-    const welcome = page.locator('[data-screen-label=Welcome]');
-    await expect(welcome).toContainText('Sign in to join the group TORREZ');
-    await welcome.getByRole('button', { name: 'Continue with email' }).click();
-    await expect(page.getByRole('dialog', { name: 'Sign in' })).toContainText('Sign in to join a group.');
+    // 1a: the group's name leads; the code never shows; Google, or an email code
+    const land = page.locator('[data-screen-label=Invite]');
+    await expect(land).toContainText('You’re invited to');
+    await expect(land.getByRole('heading', { name: 'Torrez Fitness' })).toBeVisible();
+    await expect(land).not.toContainText('TORREZ');
+    await expect(land.getByRole('button', { name: 'Continue with Google' })).toBeVisible();
+    await expect(land.getByRole('button', { name: 'Email me a code' })).toHaveAttribute('aria-disabled', 'true');
+    await land.getByLabel('Email').fill('someone@example.com');
+    await expect(land.getByRole('button', { name: 'Email me a code' })).toHaveAttribute('aria-disabled', 'false');
+    await expect(page.getByRole('navigation', { name: 'Main' })).toHaveCount(0);
+
+    // E1: a code that matches nothing; "What's Spark Hub?" goes to the usual Welcome
+    await page.goto('/#/join/ZZZZ99');
+    const bad = page.locator('[data-screen-label="Bad invite link"]');
+    await expect(bad).toContainText('This invite link isn’t working');
+    await expect(bad).not.toContainText('ZZZZ99');
+    await bad.getByRole('button', { name: 'What’s Spark Hub?' }).click();
+    await expect(page.locator('[data-screen-label=Welcome]')).toBeVisible();
+    expect(errors).toEqual([]);
+
+    // E4: inside Instagram's browser Google can't work, so email leads and Copy link helps them out
+    await context.addInitScript(() => Object.defineProperty(navigator, 'userAgent', { get: () => 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Instagram 350.0.0' }));
+    await page.goto('about:blank');
+    await page.goto('/#/join/TORREZ');
+    await expect(land.getByRole('heading', { name: 'Torrez Fitness' })).toBeVisible();
+    await expect(land.getByRole('button', { name: 'Continue with Google' })).toHaveCount(0);
+    await expect(land).toContainText('It won’t work inside this app.');
+    await expect(land.getByRole('button', { name: 'Email me a code' })).toBeVisible();
   } finally {
     await context.close();
   }

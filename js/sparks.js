@@ -283,6 +283,12 @@
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => setState({ toast: null }), 3500);
   };
+  // The invite flow's larger toast ("You’re already in {group}"), 3s
+  const toastIn = (text) => {
+    setState({ toast: { text, ok: true, big: true } });
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => setState({ toast: null }), 3000);
+  };
   const FAILED = 'That didn’t go through. Try again in a moment.';
   const BAD_PHOTO = 'That photo couldn’t be read. Try a different one.';
 
@@ -821,6 +827,130 @@
     }
   };
 
+  // ---- Invite links (/join/CODE; design handoff "Invite flow", 2026-09-29) ------------------------
+  // The group's name and photo lead every screen; the code itself is never shown. Signed out: the invite
+  // landing (Google, or a 6-digit email code in a pop-up), then the join runs by itself. Signed in before
+  // the tap: one confirm (it may be the wrong account). Then Welcome to {group} (once per group) → its
+  // Plans tab. state.inv = { code, group (undefined while loading, null if the code matches nothing),
+  // step: land · confirm · joining · neterr · welcome · bad, busy, gid, copied }.
+  const PENDING_INVITE = 'pendingInvite', WELCOMED = 'spark-hub-welcomed-groups';
+  const IN_APP = /Instagram|FBAN|FBAV|Messenger|Line\/|TikTok|Snapchat/i.test(navigator.userAgent);
+  const setPending = (code) => { try { if (code) sessionStorage.setItem(PENDING_INVITE, code); else sessionStorage.removeItem(PENDING_INVITE); } catch (e) { /* fine */ } };
+  const welcomedIds = () => { try { return JSON.parse(localStorage.getItem(WELCOMED)) || []; } catch (e) { return []; } };
+  const markWelcomed = (id) => { try { localStorage.setItem(WELCOMED, JSON.stringify(welcomedIds().filter(x => x !== id).concat(id).slice(-50))); } catch (e) { /* fine */ } };
+  const setInv = (patch) => { if (state.inv) setState({ inv: Object.assign({}, state.inv, patch) }); };
+  // Full-screen invite steps (no tab bar); the landing stays up while a join it started is running
+  const invFull = () => { const v = state.inv; return !!v && (v.step === 'land' ? !state.email || !!v.busy : v.step !== 'confirm'); };
+
+  const loadInviteGroup = async (code, tries) => {
+    try {
+      const g = (must(await sb.rpc('group_preview', { p_code: code })).data || [])[0];
+      if (!state.inv || state.inv.code !== code) return;
+      if (g) setInv({ group: { name: g.name, photo: photoUrl(g.photo) } });
+      else if (state.inv.step !== 'joining') setInv({ group: null, step: 'bad' });
+    } catch (e) {
+      console.error(e);
+      const n = (tries || 0) + 1;
+      if (n < 5) setTimeout(() => loadInviteGroup(code, n), 1500 * n);
+    }
+  };
+  // Opening the link: signed in already → the confirm pop-up over their Calendar; otherwise the landing
+  const startInvite = (code, step) => {
+    setPending(code);
+    setState({ inv: { code, group: undefined, step: step || (state.email ? 'confirm' : 'land') }, screen: 'calendar', joinOpen: false, loginStep: null, installPop: false, menu: null });
+    loadInviteGroup(code);
+  };
+  const closeInvite = () => { setPending(''); setState({ inv: null }); };
+
+  // Join as soon as there's a session: no confirm (E3 had it). Under 400ms, skip the Joining screen.
+  const inviteJoin = async () => {
+    const inv = state.inv;
+    if (!inv || inv.busy) return;
+    const code = inv.code;
+    setInv({ busy: true, step: inv.step === 'neterr' ? 'joining' : inv.step });
+    const slow = setTimeout(() => { if (state.inv && state.inv.busy) setInv({ step: 'joining' }); }, 400);
+    try {
+      const session = await ensureSession();
+      if (state.fromCache || !state.loaded) await loadFresh();
+      const before = myGroups().map(g => g.id);
+      const id = must(await sb.rpc('join_group', { p_code: code })).data;
+      clearTimeout(slow);
+      setPending('');
+      if (!id) { setState({ inv: { code, group: null, step: 'bad' } }); return; }
+      await loadFresh();
+      const g = groupById(id), group = state.inv && state.inv.group ? state.inv.group : { name: g ? g.name : '', photo: groupPhoto(g) };
+      // A brand-new account can't have been a member before (the demo world may add it to groups on sign-up)
+      const created = Date.parse((session.user || {}).created_at || '') || 0;
+      const isNew = Date.now() - created < 20 * 60 * 1000;
+      if (before.indexOf(id) > -1 && !isNew) {   // E2: nothing to decide, go to the group
+        setState({ inv: null });
+        if (g) { markSeen(g); go('browse', { groupId: g.id, phaseTab: 'plan' }); }
+        toastIn('You’re already in ' + group.name);
+        return;
+      }
+      if (welcomedIds().indexOf(id) > -1) {   // Welcome shows once per group
+        setState({ inv: null, invA2hs: true });
+        if (g) { markSeen(g); go('browse', { groupId: g.id, phaseTab: 'plan' }); }
+        return;
+      }
+      markWelcomed(id);
+      setState({ inv: { code, gid: id, group, step: 'welcome' }, screen: 'calendar' });
+      const sc = scroller();
+      if (sc) sc.scrollTop = 0;
+    } catch (e) {
+      clearTimeout(slow);
+      console.error(e);
+      setInv({ busy: false, step: 'neterr' });
+    }
+  };
+  // Leaving Welcome for the group page; the Add to Home Screen pop-up follows 1.2s later
+  const leaveWelcome = (tab) => {
+    const g = groupById(state.inv && state.inv.gid);
+    setState({ inv: null, invA2hs: true });
+    if (g) { markSeen(g); go('browse', { groupId: g.id, phaseTab: tab }); } else go('calendar');
+  };
+  // Signed out on the landing: email → a code in pop-up 2; Google → a full-page trip, back into the join
+  const invSendCode = () => {
+    const st = state;
+    if (!EMAIL_OK.test(st.loginEmail.trim()) || st.busy) return;
+    setState({ loginFrom: 'invite', loginThen: () => inviteJoin(), joinCode: st.inv.code, invCodeBad: false });
+    sendCode(false).then(() => { if (state.loginStep === 'code') setState({ invResendAt: Date.now() + 60000 }); });
+  };
+  const invResend = () => {
+    if (state.busy || (state.invResendAt || 0) > Date.now()) return;
+    setState({ resent: false, loginCode: '', invCodeBad: false });
+    sendCode(true).then(() => { if (state.loginStep === 'code') setState({ invResendAt: Date.now() + 60000, resent: false }); });
+  };
+  const invGoogle = () => {
+    if (state.busy) return;
+    setState({ loginFrom: 'invite', joinCode: state.inv.code });
+    googleSignIn();
+  };
+  // E3: sign out, keep the invite, and show the landing
+  const invOtherAccount = async () => {
+    const { code, group } = state.inv;
+    setState({ inv: { code, group, step: 'land' } });
+    await signOut();
+    setPending(code);
+    setState({ inv: { code, group, step: 'land' } });
+  };
+  const invCopyLink = () => {
+    const url = location.origin + '/join/' + state.inv.code;
+    const done = () => setInv({ copied: true });
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, () => toast('Couldn’t copy. Tap ··· then Open in browser.'));
+    else toast('Couldn’t copy. Tap ··· then Open in browser.');
+  };
+  // Pop-up 2 sits near the top third, but always above the keyboard
+  const placeInvPop = () => {
+    const el = document.querySelector('[data-inv-pop]');
+    if (!el) return;
+    const vv = window.visualViewport, h = vv ? vv.height : innerHeight, off = vv ? vv.offsetTop : 0;
+    root.style.setProperty('--inv-top', Math.round(off + Math.max(12, Math.min(170, h - el.offsetHeight - 12))) + 'px');
+  };
+  if (window.visualViewport) { visualViewport.addEventListener('resize', placeInvPop); visualViewport.addEventListener('scroll', placeInvPop); }
+  // "Resend in 0:42" counts down while pop-up 2 is open
+  setInterval(() => { if (state.inv && state.loginStep === 'code' && (state.invResendAt || 0) > Date.now() - 1500) render(); }, 1000);
+
   // ---------------------------------------------------------------------------
   // Photos
   // ---------------------------------------------------------------------------
@@ -1321,7 +1451,8 @@
     } catch (e) {
       console.error(e);
       setState({ busy: null });
-      toast('That code didn’t work. Check it, or send it again.');
+      if (state.inv && state.loginStep === 'code') setState({ invCodeBad: true });   // pop-up 2 shows it under the boxes
+      else toast('That code didn’t work. Check it, or send it again.');
     }
   };
 
@@ -1409,6 +1540,7 @@
   const resumeAfter = (r) => {
     if (r.from === 'post') return () => createEvent();
     if (r.from === 'join') return () => setState({ joinOpen: true, joinCode: r.joinCode || '', joinBad: false });
+    if (r.from === 'invite') return () => { if (!state.inv) startInvite(r.joinCode, 'joining'); inviteJoin(); };
     if (r.from === 'profile') return () => go('calendar', { profSheet: true });
     return null;
   };
@@ -1426,6 +1558,13 @@
     clearResume();
     const session = (await sb.auth.getSession()).data.session;
     const back = Object.assign(restoreDraft(r), r.subjectId && r.screen === 'detail' ? { screen: 'detail', subjectId: r.subjectId } : {});
+    if ((!session || session.user.is_anonymous) && r.from === 'invite' && r.joinCode) {
+      // Back on the invite landing, not the sign-in pop-up
+      setState({ inv: { code: r.joinCode, group: state.inv ? state.inv.group : undefined, step: 'land' } });
+      toast('Google sign-in didn’t finish. Try again, or use your email.');
+      await loadFresh().catch(() => {});
+      return false;
+    }
     if (!session || session.user.is_anonymous) {
       // Cancelled at Google, or it didn't finish: put them back where they were, sign-in still open
       setState(Object.assign(back, { loginStep: 'email', loginFrom: r.from || 'default', loginThen: resumeAfter(r), googleFailed: true, joinCode: r.joinCode || '' }));
@@ -1638,6 +1777,176 @@
         '<p style="margin:6px 0 0;text-align:center;font-size:13.5px;line-height:1.45;font-weight:600;color:#8a909b">New here? Either one creates your account.</p>' +
       '</div>' +
     '</div>';
+  }
+
+  // ---------------------------------------------------------------------------
+  // 1b. Invite link screens (design handoff "Invite flow": 1a landing, 2 email code, 3 joining,
+  //     4 welcome, E1 bad link, E3 confirm account, E4 in-app browser; E2 is a toast)
+  // ---------------------------------------------------------------------------
+
+  const INV_BTN = 'width:100%;min-height:54px;display:flex;align-items:center;justify-content:center;gap:12px;border-radius:999px;font-family:inherit;font-size:17px;font-weight:800;cursor:pointer;';
+  const invPrimary = (ok, h) => INV_BTN + 'min-height:' + (h || 54) + 'px;border:0;color:#fff;background:' + (ok ? '#5b4ae8' : '#c3c5ce') + ';cursor:' + (ok ? 'pointer' : 'default');
+  const INV_OUTLINE = INV_BTN + 'background:#fff;border:2px solid #e3e5ec;color:#11131f';
+  const INV_EYEBROW = 'font-size:13px;font-weight:800;letter-spacing:.12em;text-transform:uppercase';
+  // The group's photo; no photo → its colour with the initial; still loading → grey
+  const invPhoto = (g, h, initialSize) => g === undefined
+    ? '<div aria-hidden="true" style="height:' + h + ';background:#e3e5ec;animation:skPulse 1.4s ease-in-out infinite"></div>'
+    : g && g.photo ? '<div aria-hidden="true" style="height:' + h + ';background:' + bg(g.photo) + '"></div>'
+    : '<div aria-hidden="true" style="height:' + h + ';background:#e8a71c;display:flex;align-items:center;justify-content:center;font-size:' + initialSize + 'px;font-weight:900;color:#fff">' + esc(initialOf(g && g.name)) + '</div>';
+  const invThumb = (g, size, ring) => '<span aria-hidden="true" style="flex:0 0 ' + size + 'px;width:' + size + 'px;height:' + size + 'px;border-radius:999px;overflow:hidden;display:block' + (ring ? ';box-shadow:' + ring : '') + '">' + invPhoto(g, size + 'px', Math.round(size * 0.45)) + '</span>';
+  const invName = (g) => g && g.name ? esc(g.name) : '';
+  const invNameSize = (g) => g && g.name && g.name.length > 16 ? 34 : 38;
+  const statusFade = '<div aria-hidden="true" style="position:absolute;left:0;right:0;top:0;height:calc(120px + var(--pt));background:linear-gradient(rgba(0,0,0,.45),transparent)"></div>';
+  const brandPill = '<div aria-label="Spark Hub" style="position:absolute;top:calc(var(--pt) + 16px);left:24px;display:flex;align-items:center;gap:6px;padding:6px 12px 6px 9px;border-radius:999px;background:rgba(17,19,31,.55);font-size:14px;font-weight:700;color:#fff">' + I.bolt(18, '#f2b51c') + 'Spark Hub</div>';
+
+  // 1a / E4: the invite landing, signed out
+  function viewInvLanding() {
+    const st = state, g = st.inv.group, busy = st.busy, emailOk = EMAIL_OK.test(st.loginEmail.trim()) && !busy;
+    const photoH = IN_APP ? 230 : 300;
+    const nameBlock = g === undefined
+      ? '<div aria-hidden="true" style="margin-top:8px;width:72%;height:38px;border-radius:10px;background:#e3e5ec;animation:skPulse 1.4s ease-in-out infinite"></div>'
+      : '<h1 style="margin:6px 0 0;font-size:' + (IN_APP ? 34 : invNameSize(g)) + 'px;line-height:1.05;font-weight:900;letter-spacing:-.025em;color:#11131f;overflow-wrap:break-word">' + invName(g) + '</h1>';
+    const email = '<input class="fld" data-inv-email type="email" inputmode="email" maxlength="80" autocomplete="email" autocapitalize="off" spellcheck="false" aria-label="Email" placeholder="you@example.com" value="' + esc(st.loginEmail) + '" ' +
+        onInput(e => { if (e.type === 'input') setState({ loginEmail: e.target.value.slice(0, 80) }); }) +
+        ' style="width:100%;height:54px;border:2px solid #e3e5ec;border-radius:16px;padding:0 18px;font-family:inherit;font-size:17px;font-weight:500;color:#11131f;background:#fff;outline:none">' +
+      '<button type="button" ' + on(invSendCode) + ' aria-disabled="' + !emailOk + '" style="margin-top:10px;' + invPrimary(emailOk) + '">' + (busy === 'send' ? 'Sending…' : 'Email me a code') + '</button>';
+    const body = IN_APP
+      ? email +
+        '<div style="margin-top:16px;display:flex;flex-direction:column;gap:10px;background:#fdf5e1;border-radius:18px;padding:14px 16px">' +
+          '<p style="margin:0;font-size:15px;line-height:1.4;color:#5c4510"><b style="font-weight:800">Want to use Google?</b> It won’t work inside this app. Tap <b style="font-weight:800">···</b> then <b style="font-weight:800">Open in browser</b>.</p>' +
+          '<span ' + on(invCopyLink) + ' style="align-self:flex-start;display:flex;align-items:center;padding:8px 14px;border-radius:999px;background:#fff;border:1.5px solid #ecd9a6;font-size:14px;font-weight:800;color:#5c4510;cursor:pointer">' +
+            (st.inv.copied ? 'Copied. Paste it in ' + (/Android/i.test(navigator.userAgent) ? 'Chrome' : 'Safari') + '.' : 'Copy link') + '</span></div>'
+      : '<p style="margin:10px 0 0;font-size:16px;line-height:1.4;color:#5f6475">This is where the group plans get-togethers. See what’s coming up and RSVP in a tap.</p>' +
+        (GOOGLE_ON
+          ? '<button type="button" ' + on(invGoogle) + ' style="margin-top:22px;' + INV_OUTLINE + ';opacity:' + (busy && busy !== 'google' ? '.5' : '1') + '">' + I.google + (busy === 'google' ? 'Opening Google…' : 'Continue with Google') + '</button>' +
+            '<div style="display:flex;align-items:center;gap:14px;margin:16px 0"><span style="flex:1;height:1px;background:#e3e5ec"></span><span style="font-size:12px;font-weight:800;letter-spacing:.12em;color:#8a8fa0">OR</span><span style="flex:1;height:1px;background:#e3e5ec"></span></div>'
+          : '<div style="height:22px"></div>') +
+        email +
+        '<p style="margin:14px 0 0;text-align:center;font-size:14px;color:#6b7080">New here? Either one creates your account.</p>';
+    return '<div data-screen-label="Invite" style="position:relative;min-height:100%;display:flex;flex-direction:column;background:#fff">' +
+      '<div style="position:relative;flex:0 0 auto">' + invPhoto(g, 'calc(' + photoH + 'px + var(--pt))', 96) + statusFade + brandPill + '</div>' +
+      '<div style="position:relative;flex:1 0 auto;margin-top:-28px;border-radius:28px 28px 0 0;background:#fff;padding:26px 24px calc(24px + env(safe-area-inset-bottom, 0px));display:flex;flex-direction:column">' +
+        '<div style="' + INV_EYEBROW + ';color:#5b4ae8">You’re invited to</div>' + nameBlock + body +
+      '</div></div>';
+  }
+
+  // 2: the 6-digit email code, over the landing. One hidden input drawn as six boxes (paste and iOS autofill work).
+  function viewInvCode() {
+    const st = state, g = st.inv.group, code = st.loginCode.slice(0, 6), bad = !!st.invCodeBad, ok = code.length === 6 && !st.busy;
+    const close = () => { closeLogin(); setState({ invCodeBad: false }); };
+    const left = Math.max(0, Math.ceil(((st.invResendAt || 0) - Date.now()) / 1000));
+    const boxes = Array.from({ length: 6 }, (_, i) => {
+      const active = !bad && i === Math.min(code.length, 5);
+      return '<span style="height:58px;border-radius:14px;border:2px solid ' + (bad ? '#d93a3a' : active ? '#5b4ae8' : '#e3e5ec') + ';' + (active ? 'box-shadow:0 0 0 4px #e6e3fc;' : '') +
+        'display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:800;color:#11131f">' + esc(code.charAt(i)) + '</span>';
+    }).join('');
+    const onCode = (e) => {
+      if (e.type !== 'input') return;
+      const v = e.target.value.replace(/\D/g, '').slice(0, 6);
+      if (e.target.value !== v) e.target.value = v;
+      setState({ loginCode: v, invCodeBad: false });
+      if (v.length === 6 && !state.busy) verifyCode();
+    };
+    return '<div class="modal-scrim" data-scrim="' + reg(close) + '" style="z-index:32;display:block;padding:0;background:rgba(17,19,31,.55)">' +
+      '<div data-inv-pop role="dialog" aria-modal="true" aria-label="Check your email" style="position:absolute;left:18px;right:18px;top:var(--inv-top, 170px);max-width:420px;margin:0 auto;background:#fff;border-radius:32px;padding:22px 22px 24px;box-shadow:0 24px 60px rgba(17,19,31,.3);animation:popIn 260ms cubic-bezier(.22,.9,.28,1) both">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px">' +
+          '<span style="min-width:0;display:flex;align-items:center;gap:8px;padding:4px 12px 4px 4px;border-radius:999px;background:#f0f1f5;font-size:14px;font-weight:700;color:#3a3e4d;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + invThumb(g, 28) + 'Joining ' + invName(g) + '</span>' +
+          '<span ' + on(close) + ' aria-label="Close" style="flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:#f0f1f5;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(16, '#11131f', 2.4) + '</span></div>' +
+        '<h2 style="margin:18px 0 0;font-size:28px;line-height:1.1;font-weight:900;letter-spacing:-.02em;color:#11131f">Check your email</h2>' +
+        '<p style="margin:8px 0 0;font-size:16px;line-height:1.4;color:#5f6475;overflow-wrap:anywhere">We sent a 6-digit sign-in code to <b style="font-weight:700;color:#11131f">' + esc(st.loginEmail.trim()) + '</b></p>' +
+        '<div style="position:relative;margin-top:20px;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px">' + boxes +
+          '<input data-inv-code type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" aria-label="6-digit code" value="' + esc(code) + '" ' + onInput(onCode) +
+            ' style="position:absolute;inset:0;width:100%;height:100%;border:0;padding:0;background:transparent;color:transparent;caret-color:transparent;font-size:16px;letter-spacing:40px;outline:none;opacity:.01"></div>' +
+        (bad ? '<div role="alert" style="margin-top:10px;font-size:14px;line-height:1.4;color:#d93a3a">That code didn’t work. Check the newest email from Spark Hub.</div>' : '') +
+        '<button type="button" ' + on(() => { if (ok) verifyCode(); }) + ' aria-disabled="' + !ok + '" style="margin-top:18px;' + invPrimary(ok) + '">' + (st.busy === 'signin' ? 'Signing in…' : 'Sign in & join') + '</button>' +
+        '<div style="margin-top:16px;display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:14px">' +
+          (left > 0 ? '<span style="color:#6b7080">Resend in 0:' + pad2(left) + '</span>' : '<span ' + on(invResend) + ' style="font-weight:700;color:#5b4ae8;cursor:pointer">Send a new code</span>') +
+          '<span ' + on(() => { close(); setTimeout(() => { const f = document.querySelector('[data-inv-email]'); if (f) f.focus(); }, 0); }) + ' style="font-weight:700;color:#5b4ae8;cursor:pointer">Use a different email</span></div>' +
+      '</div></div>';
+  }
+
+  // 3: joining (only after 400ms), or the network error with Try again
+  function viewInvJoining() {
+    const st = state, g = st.inv.group, err = st.inv.step === 'neterr';
+    return '<div data-screen-label="Joining" style="min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;padding:24px;background:#fff;text-align:center">' +
+      invThumb(g, 112, '0 0 0 6px #fff, 0 0 0 8px #e6e3fc') +
+      '<div style="font-size:26px;line-height:1.15;font-weight:900;letter-spacing:-.02em;color:#11131f">' + (g && g.name ? 'Joining ' + invName(g) + '…' : 'Joining…') + '</div>' +
+      (err
+        ? '<div style="display:flex;flex-direction:column;align-items:center;gap:14px"><span style="font-size:16px;color:#5f6475">Couldn’t reach Spark Hub.</span>' +
+            '<button type="button" ' + on(inviteJoin) + ' style="' + invPrimary(true) + ';width:auto;padding:0 28px">Try again</button></div>'
+        : '<div role="progressbar" aria-label="Joining" style="position:relative;width:140px;height:6px;border-radius:999px;background:#eceef2;overflow:hidden"><span style="position:absolute;top:0;bottom:0;width:40%;border-radius:999px;background:#5b4ae8;animation:invBar 1.1s ease-in-out infinite"></span></div>') +
+    '</div>';
+  }
+
+  // 4: Welcome to {group}, once per group joined by link
+  function viewInvWelcome() {
+    const st = state, inv = st.inv, g = inv.group, gid = inv.gid;
+    const next = state.sparks.filter(s => inGroup(s, gid) && phaseOf(s) === 'plan' && s.dayDate).sort(byWhen)[0];
+    const rows = [['#e8a317', 'Plans', 'see what’s coming up and RSVP'], ['#5b4ae8', 'Ideas', 'suggest something, see who’s up for it'], ['#1f8a4c', 'Pitch in', 'bring something or lend a hand']];
+    let card;
+    if (next) {
+      const f = signupFill(next), n = going(next).length;
+      const rsvp = () => { const s = next; leaveWelcome('plan'); if (myRsvp(s) !== 'going') setRsvp(s, 'going'); };
+      card = '<div style="margin-top:22px;display:flex;align-items:center;gap:12px;border-radius:22px;padding:16px 18px;color:#fff;background:' +
+          (next.photoPaths[0] ? 'linear-gradient(rgba(13,17,23,.5),rgba(13,17,23,.72)),' + photoBg(next) : 'linear-gradient(180deg,#a57a1c,#4a3a1a)') + '">' +
+        '<div style="flex:1;min-width:0">' +
+          '<div style="font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;opacity:.9">Next up · ' + esc(when6(next)) + '</div>' +
+          '<div style="margin-top:2px;font-size:20px;line-height:1.2;font-weight:900;overflow-wrap:break-word">' + esc(next.text) + '</div>' +
+          '<div style="margin-top:2px;font-size:14px;opacity:.85">' + esc((f.open > 0 ? f.open + (f.open === 1 ? ' spot left · ' : ' spots left · ') : '') + n + ' going') + '</div></div>' +
+        '<button type="button" ' + on(rsvp) + ' style="flex:0 0 auto;border:0;border-radius:999px;background:#fff;color:#11131f;padding:10px 18px;font-family:inherit;font-size:15px;font-weight:800;cursor:pointer">' + (myRsvp(next) === 'going' ? 'Going' : 'RSVP') + '</button></div>';
+    } else {
+      card = '<div style="margin-top:22px;display:flex;align-items:center;gap:12px;border-radius:22px;padding:16px 18px;background:#fff;border:2px solid #e3e5ec">' +
+        '<div style="flex:1;min-width:0;font-size:16px;line-height:1.35;font-weight:700;color:#11131f">Nothing planned yet. Got an idea?</div>' +
+        '<button type="button" ' + on(() => { leaveWelcome('idea'); goCompose(); }) + ' style="flex:0 0 auto;border:0;border-radius:999px;background:#5b4ae8;color:#fff;padding:10px 18px;font-family:inherit;font-size:15px;font-weight:800;cursor:pointer">Suggest one</button></div>';
+    }
+    return '<div data-screen-label="Welcome to group" style="position:relative;min-height:100%;display:flex;flex-direction:column;background:#f0f1f5">' +
+      '<div style="position:relative;flex:0 0 auto">' + invPhoto(g, 'calc(240px + var(--pt))', 80) + statusFade + '</div>' +
+      '<div style="position:relative;flex:1 0 auto;margin-top:-28px;border-radius:28px 28px 0 0;background:#fff;padding:26px 24px calc(24px + env(safe-area-inset-bottom, 0px))">' +
+        '<span aria-hidden="true" style="position:absolute;top:-28px;right:24px;width:56px;height:56px;border-radius:999px;background:#1f8a4c;box-shadow:0 0 0 5px #fff;display:flex;align-items:center;justify-content:center">' + I.check(26, '#fff', 3.2) + '</span>' +
+        '<div style="' + INV_EYEBROW + ';color:#1f8a4c">You’re in</div>' +
+        '<h1 style="margin:6px 0 0;font-size:34px;line-height:1.05;font-weight:900;letter-spacing:-.025em;color:#11131f;overflow-wrap:break-word">Welcome to<br>' + invName(g) + '</h1>' +
+        '<div style="margin-top:20px;display:flex;flex-direction:column;gap:14px">' + rows.map(([c, b, t], i) =>
+          '<div style="display:flex;align-items:flex-start;gap:14px"><span aria-hidden="true" style="flex:0 0 34px;width:34px;height:34px;border-radius:999px;background:' + c + ';color:#fff;font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center">' + (i + 1) + '</span>' +
+          '<span style="padding-top:5px;font-size:16px;line-height:1.35;color:#5f6475"><b style="font-weight:800;color:#11131f">' + b + '</b> — ' + t + '</span></div>').join('') + '</div>' +
+        card +
+        '<button type="button" ' + on(() => leaveWelcome('plan')) + ' style="margin-top:14px;' + invPrimary(true, 56) + '">See what’s coming up</button>' +
+      '</div></div>';
+  }
+
+  // E1: a mistyped, rotated or deleted link (one message for all three)
+  function viewInvBad() {
+    const signedIn = !!state.email;
+    return '<div data-screen-label="Bad invite link" style="min-height:100%;display:flex;flex-direction:column;padding:calc(var(--pt) + 14px) 24px calc(40px + env(safe-area-inset-bottom, 0px));background:#fff">' +
+      '<div aria-label="Spark Hub" style="display:flex;align-items:center;gap:6px;font-size:15px;font-weight:800;color:#11131f">' + I.bolt(18, '#f2b51c') + 'Spark Hub</div>' +
+      '<div style="flex:1;display:flex;flex-direction:column;justify-content:center;padding:32px 0">' +
+        '<span aria-hidden="true" style="width:72px;height:72px;border-radius:999px;background:#fde8e8;color:#d93a3a;font-size:36px;font-weight:900;display:flex;align-items:center;justify-content:center">?</span>' +
+        '<h1 style="margin:22px 0 0;font-size:34px;line-height:1.08;font-weight:900;letter-spacing:-.025em;color:#11131f">This invite link isn’t working</h1>' +
+        '<p style="margin:12px 0 0;font-size:17px;line-height:1.45;color:#5f6475">It may have a typo, or the group may have made a new one. Ask the person who sent it for a fresh link.</p>' +
+      '</div>' +
+      '<div style="display:flex;flex-direction:column;gap:10px">' +
+        '<button type="button" ' + on(() => { closeInvite(); openJoin(); }) + ' style="' + invPrimary(true) + '">Enter a group code</button>' +
+        (signedIn
+          ? '<button type="button" ' + on(() => { closeInvite(); go('calendar'); }) + ' style="' + INV_OUTLINE + '">Go to my calendar</button>'
+          : '<button type="button" ' + on(closeInvite) + ' style="' + INV_OUTLINE + '">What’s Spark Hub?</button>') +
+      '</div></div>';
+  }
+
+  // E3: signed in before the tap — join as this account, or switch
+  function viewInvConfirm() {
+    const st = state, g = st.inv.group, busy = !!st.inv.busy, first = firstName(st.myName) || 'me';
+    return '<div class="modal-scrim" data-scrim="' + reg(closeInvite) + '" style="z-index:32;background:rgba(17,19,31,.55);padding:18px">' +
+      '<div role="dialog" aria-modal="true" aria-label="Join ' + esc(g && g.name ? g.name : 'this group') + '?" style="position:relative;width:100%;max-width:420px;background:#fff;border-radius:32px;padding:26px 22px 22px;box-shadow:0 24px 60px rgba(17,19,31,.3);animation:popIn 260ms cubic-bezier(.22,.9,.28,1) both">' +
+        '<span ' + on(closeInvite) + ' aria-label="Close" style="position:absolute;top:16px;right:16px;width:40px;height:40px;border-radius:999px;background:#f0f1f5;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(16, '#11131f', 2.4) + '</span>' +
+        invThumb(g, 64) +
+        '<h2 style="margin:16px 0 0;padding-right:40px;font-size:28px;line-height:1.1;font-weight:900;letter-spacing:-.02em;color:#11131f;overflow-wrap:break-word">' + (g && g.name ? 'Join ' + invName(g) + '?' : 'Join this group?') + '</h2>' +
+        '<p style="margin:10px 0 0;font-size:16px;color:#5f6475">You’ll join as:</p>' +
+        '<div style="margin-top:10px;display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:18px;background:#f0f1f5">' +
+          face(st.me, st.myName || st.email, 40, '#5b4ae8') +
+          '<div style="min-width:0"><div style="font-size:16px;font-weight:700;color:#11131f">' + esc(st.myName || st.email) + '</div>' +
+          '<div style="font-size:14px;color:#6b7080;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(st.email) + '</div></div></div>' +
+        '<button type="button" ' + on(() => { if (!busy && g !== undefined) inviteJoin(); }) + ' style="margin-top:18px;' + invPrimary(!busy && g !== undefined) + '">' + (busy ? 'Joining…' : 'Join as ' + esc(first)) + '</button>' +
+        '<div ' + on(invOtherAccount) + ' style="margin-top:14px;text-align:center;font-size:15px;font-weight:700;color:#5b4ae8;cursor:pointer">Use a different account</div>' +
+      '</div></div>';
   }
 
   // ---------------------------------------------------------------------------
@@ -2835,7 +3144,7 @@
   window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installEvt = e; setState({ canInstall: true }); });
   window.addEventListener('appinstalled', () => { installEvt = null; setState({ canInstall: false, installPop: false }); toast('Spark Hub is on your Home Screen', true); });
   // prompt (Android: our button opens Chrome's dialog) · ios (show the Share steps) · '' (installed, or this browser can't)
-  const installMode = () => STANDALONE ? '' : state.canInstall && installEvt ? 'prompt' : IOS_BROWSER ? 'ios' : '';
+  const installMode = () => STANDALONE || IN_APP ? '' : state.canInstall && installEvt ? 'prompt' : IOS_BROWSER ? 'ios' : '';
   const startInstall = async () => {
     const mode = installMode();
     if (mode === 'ios') return setState({ installPop: true, profSheet: false });
@@ -2854,47 +3163,36 @@
   let popTimer = null;
   const maybeInstallPop = () => {
     const st = state;
-    if (popTimer || st.installPop || !installMode() || st.viewAs || st.screen === 'compose') return;
+    if (popTimer || st.installPop || !installMode() || st.viewAs || st.screen === 'compose' || st.inv) return;   // never over the invite screens
     if (st.loginStep || st.nameAsk || st.confirm || st.guestOpen || st.joinOpen || st.pe || st.invite || st.profSheet || st.notifSheet) return;
     const which = welcomeShown() ? [sessionStorage, POP_WELCOME] : st.email && st.loaded ? [localStorage, POP_SIGNED_IN] : null;
     if (!which || popSeen(which[0], which[1])) return;
     popTimer = setTimeout(() => {
       popTimer = null;
       if (!installMode() || popSeen(which[0], which[1])) return;
+      if (state.inv) return;
       markPopSeen(which[0], which[1]);
-      setState({ installPop: true });
-    }, 700);
+      setState({ installPop: true, invA2hs: false });
+    }, st.invA2hs ? 1200 : 700);   // after an invite's Welcome: 1.2s into the group page
   };
   function viewInstallPop() {
     const mode = installMode();
     if (!mode) return '';
     const close = () => setState({ installPop: false });
-    const icon = '<img src="/icons/icon-192.png" alt="" width="52" height="52" style="border-radius:13px">';
-    const title = '<h3 style="margin:0;padding-right:36px;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">Put Spark Hub on your Home Screen</h3>';
-    const x = '<div ' + on(close) + ' aria-label="Close" style="position:absolute;top:14px;right:14px;width:32px;height:32px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(15, '#0d1117', 2.4) + '</div>';
-    let body;
-    if (mode === 'prompt') {
-      body = '<p style="margin:0;font-size:15px;line-height:1.45;font-weight:500;color:#5c6270">It opens full screen, like any app, and can buzz you when plans change.</p>' +
-        '<div style="margin-top:4px;display:flex;flex-direction:column;gap:8px">' +
-          '<button type="button" ' + on(startInstall) + ' style="' + primary(true) + '">Install app</button>' +
-          '<button type="button" ' + on(close) + ' style="' + SECONDARY + '">Not now</button></div>';
-    } else {
-      const share = svg(17, stroke('#0a84ff', 2.1), '<path d="M12 3v12"/><path d="M8 7l4-4 4 4"/><path d="M7 10H6a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-9a1 1 0 0 0-1-1h-1"/>');
-      const step = (n, html) => '<li style="display:flex;gap:10px;align-items:flex-start"><span aria-hidden="true" style="flex:0 0 24px;width:24px;height:24px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center">' + n + '</span>' +
-        '<span style="flex:1;min-width:0;padding-top:2px">' + html + '</span></li>';
-      body = '<ol style="margin:2px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:10px;font-size:15px;line-height:1.4;font-weight:600;color:#2b303a">' +
-          step(1, 'Tap <b style="font-weight:800;white-space:nowrap">Share ' + share + '</b> ' + (IOS_BROWSER === 'Chrome' ? 'in Chrome’s address bar' : 'in Safari’s bar below') + '. No Share? Tap <b style="font-weight:800">···</b> first.') +
-          step(2, 'Tap <b style="font-weight:800">Add to Home Screen</b>, then <b style="font-weight:800">Add</b>.') +
-          step(3, 'Open Spark Hub from your Home Screen.') +
-        '</ol>' +
-        '<button type="button" ' + on(close) + ' style="margin-top:4px;' + SECONDARY + '">Got it</button>';
-    }
-    // In Safari the pop-up sits at the bottom with a caret pointing at Safari's bar under the page
-    const low = mode === 'ios' && IOS_BROWSER === 'Safari';
-    return '<div class="modal-scrim" data-scrim="' + reg(close) + '" style="z-index:36' + (low ? ';align-items:flex-end;padding-bottom:22px' : '') + '">' +
-      '<div data-install-pop role="dialog" aria-modal="true" aria-label="Add to Home Screen" style="position:relative;width:100%;max-width:360px;background:#fff;border-radius:22px;padding:22px 20px;display:flex;flex-direction:column;gap:12px;box-shadow:0 24px 60px rgba(15,18,25,.3)">' +
-        x + icon + title + body +
-        (low ? '<span aria-hidden="true" style="position:absolute;left:50%;bottom:-8px;width:18px;height:18px;margin-left:-9px;background:#fff;transform:rotate(45deg);border-radius:0 0 4px 0"></span>' : '') +
+    // Invite flow handoff, screen 5: bottom-anchored; iPhone shows the Share steps, Android Chrome its own prompt
+    const step = (n, html) => '<li style="display:flex;align-items:center;gap:10px"><span aria-hidden="true" style="flex:0 0 26px;width:26px;height:26px;border-radius:999px;background:#11131f;color:#fff;font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center">' + n + '</span>' +
+      '<span style="flex:1;min-width:0">' + html + '</span></li>';
+    const steps = mode === 'prompt' ? '' : '<ol style="margin:16px 0 0;padding:14px 16px;list-style:none;display:flex;flex-direction:column;gap:10px;border-radius:18px;background:#f0f1f5;font-size:15px;line-height:1.35;color:#11131f">' +
+        step(1, IOS_BROWSER === 'Chrome' ? 'Tap <b style="font-weight:800">Share</b> at the top right' : 'Tap <b style="font-weight:800">Share</b> in Safari’s toolbar') +
+        step(2, 'Choose <b style="font-weight:800">Add to Home Screen</b>') + '</ol>';
+    return '<div class="modal-scrim" data-scrim="' + reg(close) + '" style="z-index:36;display:block;padding:0;background:rgba(17,19,31,.55)">' +
+      '<div data-install-pop role="dialog" aria-modal="true" aria-label="Add to Home Screen" style="position:absolute;left:18px;right:18px;bottom:calc(28px + env(safe-area-inset-bottom, 0px));max-width:420px;margin:0 auto;background:#fff;border-radius:32px;padding:24px 22px;box-shadow:0 24px 60px rgba(17,19,31,.3);animation:popIn 260ms cubic-bezier(.22,.9,.28,1) both">' +
+        '<div style="margin-bottom:8px;font-size:13px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#5b4ae8">Strongly recommended</div>' +
+        '<h3 style="margin:0;font-size:26px;line-height:1.1;font-weight:900;letter-spacing:-.02em;color:#11131f">Put Spark Hub on<br>your Home Screen</h3>' +
+        '<p style="margin:8px 0 0;font-size:16px;line-height:1.4;color:#5f6475">It becomes an app icon on your phone. No App Store, nothing to download.</p>' +
+        steps +
+        '<button type="button" ' + on(mode === 'prompt' ? startInstall : close) + ' style="margin-top:18px;width:100%;min-height:56px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:17px;font-weight:800;cursor:pointer">' + (mode === 'prompt' ? 'Add to Home Screen' : 'Got it') + '</button>' +
+        '<button type="button" ' + on(close) + ' style="display:block;width:100%;margin-top:10px;min-height:36px;border:0;background:transparent;font-family:inherit;font-size:15px;font-weight:700;color:#6b7080;cursor:pointer">Maybe later</button>' +
       '</div></div>';
   }
 
@@ -5131,6 +5429,10 @@
 
   function viewToast() {
     const t = state.toast;
+    if (t.big) return '<div role="status" style="position:absolute;left:16px;right:16px;bottom:calc(var(--nav-h) + 16px);z-index:50;pointer-events:none">' +
+      '<div style="display:flex;align-items:center;gap:12px;background:#11131f;border-radius:20px;padding:14px 16px;box-shadow:0 12px 30px rgba(17,19,31,.3);animation:popIn 240ms cubic-bezier(.22,.9,.28,1) both">' +
+        '<span aria-hidden="true" style="flex:0 0 30px;width:30px;height:30px;border-radius:999px;background:#1f8a4c;display:flex;align-items:center;justify-content:center">' + I.check(16, '#fff', 3) + '</span>' +
+        '<span style="font-size:16px;line-height:1.3;font-weight:600;color:#fff">' + esc(t.text) + '</span></div></div>';
     return '<div role="status" style="position:absolute;left:14px;right:14px;bottom:calc(var(--nav-h) + 12px);z-index:50;display:flex;justify-content:center;pointer-events:none">' +
       '<div style="display:flex;align-items:flex-start;gap:10px;max-width:100%;background:#0d1117;border-radius:14px;padding:13px 16px;box-shadow:0 12px 30px rgba(15,18,25,.3);animation:popIn 240ms cubic-bezier(.22,.9,.28,1) both">' +
         (t.ok
@@ -5195,6 +5497,11 @@
     else if (s === 'detail' && !st.loaded) main = '<div style="padding:40px 20px;font-size:15px;font-weight:600;color:#6b7280">Loading…</div>';
     else if (s === 'compose') main = st.email ? '' : viewWelcome();   // the post flow covers the screen
     else main = home();
+    // An invite link's full-screen steps take the place of the screen
+    if (invFull()) {
+      const k = st.inv.step;
+      main = k === 'land' ? viewInvLanding() : k === 'welcome' ? viewInvWelcome() : k === 'bad' ? viewInvBad() : viewInvJoining();
+    }
 
     return '<div class="ptr" aria-hidden="true"><span class="ptr-spin"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v4.5h-4.5"/></svg></span></div>' +
       '<div class="scroller">' + main + '</div>' +
@@ -5228,12 +5535,13 @@
       (st.share ? viewShareSheet() : '') +
       (st.startName != null ? viewStartGroup() : '') +
       (st.blast ? viewBlast() : '') +
-      (st.loginStep ? viewLogin() : '') +
+      (st.loginStep ? (st.inv && st.inv.step === 'land' && st.loginStep === 'code' ? viewInvCode() : viewLogin()) : '') +
+      (st.inv && st.inv.step === 'confirm' && st.email ? viewInvConfirm() : '') +
       (st.confirm ? viewConfirm() : '') +
       (st.zoom ? viewZoom() : '') +
       (st.installPop ? viewInstallPop() : '') +
       (st.toast ? viewToast() : '') +
-      (welcomeShown() ? '' : viewNav());   // no tab bar on Welcome
+      (welcomeShown() || invFull() ? '' : viewNav());   // no tab bar on Welcome or the invite screens
   }
 
   // ---------------------------------------------------------------------------
@@ -5340,12 +5648,14 @@
     handlers = H;
     tpl.innerHTML = html;
     morphChildren(root, tpl.content);
-    root.classList.toggle('no-nav', welcomeShown());
+    root.classList.toggle('no-nav', welcomeShown() || invFull());
     // Screens that start with a photo run it up under the iPhone status bar
-    const sc = state.screen, photoTop = sc === 'browse' || (sc === 'detail' && !!subject()) || sc === 'calendar' || sc === 'groups' || welcomeShown() || (!state.email && sc === 'compose');
+    const sc = state.screen, photoTop = sc === 'browse' || (sc === 'detail' && !!subject()) || sc === 'calendar' || sc === 'groups' || welcomeShown() || (!state.email && sc === 'compose') ||
+      (invFull() && (state.inv.step === 'land' || state.inv.step === 'welcome'));
     root.classList.toggle('photo-top', photoTop);
     syncBadge();
     maybeInstallPop();
+    placeInvPop();
     const took = performance.now() - t0;
     diagNote('redraw (' + Math.round(took) + 'ms)');
     if (took > 150) diag('slow redraw', took);
@@ -5371,6 +5681,8 @@
     if (e.key === 'Escape') {
       if (state.zoom) return setState({ zoom: null });
       if (state.installPop) return setState({ installPop: false });
+      if (state.inv && state.loginStep === 'code') { closeLogin(); return setState({ invCodeBad: false }); }
+      if (state.inv && state.inv.step === 'confirm' && !state.inv.busy) return closeInvite();
       if (state.confirm) return setState({ confirm: null });
       if (state.ph) return closePositioner();
       if (state.invite) return setState({ invite: null });
@@ -5439,12 +5751,11 @@
   // Boot
   // ---------------------------------------------------------------------------
 
-  // An invite link (/join/CODE): fill the code in, and open Join for someone signed in
+  // An invite link (/join/CODE): the invite flow (startInvite)
   const takeInvite = (code) => {
     if (!code) return;
     if (JOIN_PATH.test(location.pathname) || /^#\/join\//.test(location.hash)) history.replaceState(null, '', '/');
-    setState({ joinCode: code, joinBad: false });
-    if (state.email) setState({ joinOpen: true });
+    startInvite(code);
   };
 
   // Back/forward buttons fire popstate; a link opened or pasted in the same tab only fires hashchange
@@ -5628,6 +5939,7 @@
       if (await finishGoogle().catch(e => { console.error(e); return false; })) return;
       await loadForRoute();
       if (invite) takeInvite(invite);
+      if (state.inv && state.inv.step === 'confirm' && !state.email) setInv({ step: 'land' });   // the saved session had ended
       if (state.profSheet && !state.email) { setState({ profSheet: false }); openLogin('profile', () => go('calendar', { profSheet: true })); }
     } catch (e) {
       console.error(e);
@@ -5636,7 +5948,14 @@
   }
 
   Object.assign(state, fromUrl());
+  const bootInvite = state.inviteCode;
   delete state.inviteCode;
+  // Back from Google in the middle of an invite: the Joining screen straight away
+  const inviteTrip = sb && AUTH_RETURN.any && readResume();
+  if (inviteTrip && inviteTrip.from === 'invite' && inviteTrip.joinCode) {
+    state.inv = { code: inviteTrip.joinCode, group: undefined, step: 'joining' };
+    loadInviteGroup(inviteTrip.joinCode);
+  }
   if (IDEA_PATH.test(location.pathname)) history.replaceState(null, '', '/#/idea/' + location.pathname.match(IDEA_PATH)[1]);
   // Signed in last time? Show their app (from the cache, or loading placeholders), not Welcome
   const bootUser = sb && signedInUser();
@@ -5646,6 +5965,13 @@
       ? { isGoogle: c.isGoogle, myName: c.myName || '', myAvatar: c.myAvatar, myPlace: c.myPlace || '', myBio: c.myBio || '', memberSince: c.memberSince || null, groups: c.groups || [], sparks: c.sparks || [], profiles: c.profiles || {},
           sizes: c.sizes || {}, notif: c.notif || state.notif, demoAdmin: !!c.demoAdmin, loaded: true, fromCache: true }
       : {});
+  }
+  // An invite link: its landing (or, signed in already, the confirm) from the first frame
+  if (bootInvite && sb && !state.inv) {
+    history.replaceState(null, '', '/');
+    setPending(bootInvite);
+    state.inv = { code: bootInvite, group: undefined, step: bootUser ? 'confirm' : 'land' };
+    loadInviteGroup(bootInvite);
   }
   render();
   init();
