@@ -1,6 +1,5 @@
-// V5 plans: the event form, RSVPs (going / maybe / can't) from a guest with the link,
-// sign-ups, updates from the host, the host's "before the day" notes, clearing the date,
-// "it happened" with its album, and invite-only plans.
+// V5 plans: RSVPs (going / maybe / can't) from a guest with the link, sign-ups, updates from
+// the host, a date change that tells everyone going, "it happened" with its album, and private plans.
 const { test, expect } = require('@playwright/test');
 const { uniqueTitle, newMember, newLead, button, postEvent, openIdea, deleteIdea, answerGuestPrompt, confirm, asUser, PNG } = require('./helpers');
 
@@ -15,36 +14,30 @@ test('a plan: guest RSVPs, sign-ups, an update, the host’s notes, then clearin
   const title = uniqueTitle('Chili');
   let id;
   try {
-    id = await postEvent(H, { title, date: inDays(20), time: '17:30', details: 'Bring a bowl.' });
+    id = await postEvent(H, { title, date: inDays(20), time: '17:30' });
     const HP = H.locator('[data-screen-label="Plan page"]');
-    await expect(HP).toContainText('HAPPENING');                               // v6 Update 4: the chip; time and spot live in When & where
+    await expect(HP).toContainText('YOU’RE LEADING');                          // v6 Update 6: the host's chip
     await expect(HP).toContainText('5:30pm');
     await expect(HP).not.toContainText('HOSTED BY');                           // not shown to the host
-    await expect(HP).not.toContainText('Bring a bowl.');                      // v6 Update 5: no About the event on plans
-    await expect(HP).toContainText('Your guest list');
-    await expect(HP.getByRole('switch', { name: 'Remind everyone the day before' })).toHaveAttribute('aria-checked', 'true');
-    await expect(HP).toContainText('Location TBD');
+    await expect(HP.locator('[data-screen-label="Guest list"]')).toContainText('Going');
+    await expect(HP.getByRole('button', { name: 'Share link' })).toBeVisible();
+    await expect(HP).not.toContainText('Remind everyone the day before');      // retired in Update 6
+    await expect(HP.locator('[data-when-card]')).toContainText('Location to be decided');
 
-    // The host adds sign-ups (with "how many") and posts an update
-    await HP.getByText('Add a job or item').click();
-    await HP.getByLabel('Add a sign-up').fill('Folding chairs');
-    await HP.getByLabel('How many needed').fill('2');
-    await HP.getByRole('button', { name: 'Add', exact: true }).click();
-    await expect(H.getByText('Added to sign-ups')).toBeVisible();
+    // The host adds sign-ups (with "how many") in Edit what you need, and posts an update
+    await HP.getByRole('button', { name: 'Edit what you need' }).click();
+    const needs = H.getByRole('dialog', { name: 'Edit what you need' });
+    await needs.getByText('Add a job or item').click();
+    await needs.getByLabel('Job name 1').fill('Folding chairs');
+    await needs.getByRole('button', { name: 'More for how many people' }).click();
+    await needs.getByRole('button', { name: 'Save changes' }).click();
     await expect(HP.locator('[data-signup="Folding chairs"]')).toContainText('0 of 2');
-    await HP.getByRole('button', { name: 'Send an update' }).click();
+    await HP.getByRole('button', { name: 'Send everyone an update' }).click();
     const blast = H.getByRole('dialog', { name: 'Send an update' });
     await blast.getByLabel('Your update').fill('Parking is on the street.');
     await blast.getByRole('button', { name: 'Post update' }).click();
     await expect(H.getByText('Posted to the plan')).toBeVisible();
     await expect(HP).toContainText('Parking is on the street.');
-
-    // The host's private notes
-    await HP.getByText('What if it rains?').click();
-    await HP.getByLabel('What if it rains?').fill('Move it to the garage');
-    await HP.getByLabel('What if it rains?').press('Enter');
-    await expect(HP).toContainText('Move it to the garage');
-    await expect(HP).toContainText('1 of 4 thought through');
 
     // The guest opens the link: RSVP asks for their info once, then they sign up for things
     await openIdea(G, id);
@@ -105,17 +98,19 @@ test('a plan: guest RSVPs, sign-ups, an update, the host’s notes, then clearin
     await GP.locator('[data-signup="Lemonade"]').getByRole('button', { name: 'Sign up' }).click();
     await expect(GP.locator('[data-signup="Lemonade"]')).toContainText('You’re in');
     const download = G.waitForEvent('download');
-    await GP.getByLabel('Add to calendar').click();
+    await GP.getByRole('button', { name: 'Add to calendar' }).click();
     expect((await download).suggestedFilename()).toMatch(/\.ics$/);
 
-    // The host sees them; then clears the date: back to an idea, the guest shows as interested
+    // The host sees them; changing the date tells everyone going
     await H.reload();
     await expect(HP).toContainText('1 going');
     await expect(HP.locator('[data-signup="Folding chairs"]')).toContainText('1 of 2');
-    await HP.getByText('Clear the date').click();
-    await confirm(H, 'Clear the date');
-    const HI = H.locator('[data-screen-label="Idea page"]');
-    await expect(HI.getByLabel('1 interested')).toBeVisible();
+    await HP.getByRole('button', { name: 'Edit date, time and location' }).click();
+    const when = H.getByRole('dialog', { name: 'Date, time & location' });
+    await when.getByLabel('Date', { exact: true }).fill(inDays(21));
+    await when.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(H.getByText('Saved. Everyone going gets an update.')).toBeVisible();
+    await expect(HP).toContainText('New date:');
 
     expect(host.errors).toEqual([]);
     expect(guest.errors).toEqual([]);
@@ -222,14 +217,16 @@ test('it happened: the album and "do it again"; invite-only plans stay private',
     await expect(done).toContainText('The album · 1');
     await done.getByRole('button', { name: 'Do it again', exact: true }).click();
     const form = H.locator('[data-screen-label="New spark"]');
-    await expect(form.getByLabel('What', { exact: true })).toHaveValue(title.charAt(0).toUpperCase() + title.slice(1));
+    await expect(form.getByLabel('Event title')).toHaveValue(title.charAt(0).toUpperCase() + title.slice(1));
+    await form.getByRole('button', { name: 'Next' }).click();
+    await form.getByText('Decide later', { exact: true }).click();
     await expect(form.getByLabel('Location')).toHaveValue('Pease Park');
 
     // Invite-only: Otto (in the same group) doesn't see it until he has the link
     await H.goto('/');
     await expect(H.locator('html[data-loaded=true]')).toHaveCount(1);
     ids.push(await postEvent(H, { title: secret, date: inDays(9), inviteOnly: true }));
-    await expect(H.locator('[data-screen-label="Plan page"]')).toContainText('INVITE ONLY');
+    await expect(H.locator('[data-screen-label="Plan page"]')).toContainText('PRIVATE');
     const hidden = await asUser(O, async (c, _C, id) => (await c.from('sparks').select('id').eq('id', id)).data.length, ids[1]);
     expect(hidden).toBe(0);
     await openIdea(O, ids[1]);

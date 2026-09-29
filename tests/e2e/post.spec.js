@@ -1,139 +1,245 @@
-// Posting an idea through every step, seeing it everywhere, editing and deleting it.
+// Create event (v6 Update 6): the 5-step flow with "Decide later", polls, jobs, Review, drafts,
+// then the host's edit pop-ups on the event page.
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newMember, newLead, button, postIdea, openIdea, confirm, startPost, openProfile, pickView } = require('./helpers');
+const { uniqueTitle, newLead, button, postEvent, openIdea, confirm, startPost, asUser } = require('./helpers');
 
-test('post → idea page → all three views → profile → edit → delete', async ({ browser }) => {
-  const { page, context, errors } = await newLead(browser, 1, 'Tester');
+const inDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+
+test('post an event with every step filled, then edit it in the pop-ups and delete it', async ({ browser }) => {
+  test.setTimeout(120000);
+  const { page, errors, context } = await newLead(browser, 1, 'Tester');
   const title = uniqueTitle('Sunset hike');
-  const Title = title.charAt(0).toUpperCase() + title.slice(1);
+  let id;
   try {
-    const id = await postIdea(page, {
-      title, location: 'zilk', pick: 'Zilker Metropolitan Park', date: '2026-10-17', time: '17:30',
-      basics: ['tacos after', 'bring headlamps'], photo: true
+    id = await postEvent(page, {
+      title, date: inDays(18), time: '17:30', where: 'zilk', pick: 'Zilker Metropolitan Park',
+      details: ['Tacos after', 'Bring headlamps'], jobs: [{ item: 'Bring water', need: 3 }], photo: true
     });
+    const P = page.locator('[data-screen-label="Plan page"]');
+    await expect(P.locator('[data-chip]')).toHaveText('YOU’RE LEADING');
+    await expect(P).toContainText('5:30pm');
+    await expect(P).toContainText('Zilker Metropolitan Park');
+    await expect(P).toContainText('2100 Barton Springs Road, Austin, TX 78746');
+    await expect(P.locator('[data-basics]')).toContainText('Tacos after');
+    await expect(P.locator('[data-basics]')).toContainText('Bring headlamps');
+    await expect(P.locator('[data-signup="Bring water"]')).toContainText('0 of 3');
+    await expect(P).not.toContainText('Before the day');
+    await expect(P).not.toContainText('Remind everyone the day before');
+    await expect(P.locator('[data-tbd]')).toHaveCount(0);                 // nothing left to decide
+    await expect(P.locator('[data-vis]')).toContainText('Public');
+    await expect(P.locator('[data-vis]')).toContainText('Torrez Fitness');
 
-    // Idea page: date, time, location, address, directions, basics, lead
-    const detail = page.locator('[data-screen-label="Idea page"]');
-    await expect(detail.getByRole('heading', { name: Title })).toBeVisible();
-    await expect(detail.getByRole('button', { name: 'Back to Torrez Fitness' })).toBeVisible();   // opened from posting: back goes to the group
-    await expect(detail.getByLabel(/^Picked: Sat, Oct 17/)).toBeVisible();
-    await expect(detail).toContainText('Make it a plan');                        // the lead has a date and time
-    await expect(detail).toContainText('Zilker Metropolitan Park');
-    await expect(detail).toContainText('2100 Barton Springs Road, Austin, TX 78746');
-    await expect(detail.getByRole('link', { name: 'Directions' })).toHaveAttribute('href', 'https://www.google.com/maps/dir/?api=1&destination=30.2669,-97.7729');
-    await expect(detail.getByText('Tacos after')).toBeVisible();
-    await expect(detail.getByText('Bring headlamps')).toBeVisible();
-    await expect(detail.getByText('Led by Tester')).toBeVisible();
-    await expect(button(page, 'I’m interested')).toHaveCount(0);   // the lead doesn't get the button
-
-    // The photo was uploaded and is served
-    const url = await page.evaluate((id) => {
-      const el = document.querySelector('[data-screen-label="Idea page"] > div > div[aria-hidden]');   // the framed cover layer
-      return getComputedStyle(el).backgroundImage.match(/url\("([^"]+)"/)[1];
-    }, id);
+    // The cover was uploaded and is served
+    const url = await page.evaluate(() => getComputedStyle(document.querySelector('[data-screen-label="Plan page"] > div > div[aria-hidden]')).backgroundImage.match(/url\("([^"]+)"/)[1]);
     expect((await page.request.get(url)).status()).toBe(200);
 
-    // Your tasks lists it under Ideas with its four checkpoints (date and location are set; no roles yet)
-    await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: /^Your tasks/ }).click();
-    const mine = page.locator('[data-screen-label="Your tasks"] section[aria-label=Ideas] [data-task="' + Title + '"]');
-    await expect(mine).toContainText('Idea · Sat, Oct 17');
-    await expect(mine.getByRole('button', { name: 'Date: Date set' })).toBeVisible();
-    await expect(mine.getByRole('button', { name: 'Location: Location set' })).toBeVisible();
-    await expect(mine.getByRole('button', { name: 'Roles: Add essential roles' })).toBeVisible();
-    // A checkpoint opens the idea at that part: Roles → its sign-ups
-    await mine.getByRole('button', { name: 'Roles: Add essential roles' }).click();
-    await expect(page.locator('[data-screen-label="Idea page"] #sec-tasks')).toBeInViewport();
+    // Your tasks (purple): only open spots are left
+    const bar = P.locator('[data-host-tasks-bar]');
+    await expect(bar).toContainText('1 task');
+    await bar.click();
+    await expect(P.locator('[data-screen-label="Your tasks"]')).toContainText('Fill open spots');
 
-    // Groups → Torrez Fitness → Ideas, in each view
-    await page.getByRole('button', { name: 'Groups', exact: true }).click();
-    await page.locator('[data-screen-label=Groups]').getByRole('button', { name: 'Torrez Fitness', exact: true }).click();
-    const browse = page.locator('[data-screen-label=Browse]');
-    await browse.getByRole('tab', { name: /^Ideas/ }).click();
-    // Update 2: the Ideas board (tilted cards on graph paper, the four checkpoints as tiles; no sort or view)
-    const card = browse.locator('[data-card="' + Title + '"]');
-    await expect(card).toContainText(Title);
-    await expect(card.getByLabel('Date: Date set')).toBeVisible();
-    await expect(card.getByLabel('Location: Location set')).toBeVisible();
-    await expect(card.getByLabel('Roles: Add essential roles')).toBeVisible();
-    await expect(browse.getByRole('button', { name: /^View: / })).toHaveCount(0);
+    // Title & photo pop-up
+    await P.getByRole('button', { name: /edit the title$/ }).click();
+    const sec = page.getByRole('dialog', { name: 'Title & photo' });
+    await sec.getByLabel('Event title').fill(title + ' + stars');
+    await sec.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(sec).toHaveCount(0);
+    await expect(P.locator('h1')).toContainText('+ stars');
 
-    // Profile (compact): Help & info first
-    await openProfile(page);
-    await expect(page.locator('[data-screen-label=Profile]')).toContainText('Help & info');
+    // Basic details pop-up
+    await P.getByRole('button', { name: 'Edit basic details' }).click();
+    const bd = page.getByRole('dialog', { name: 'Basic details' });
+    await bd.getByLabel('Basic details, line 3').fill('Hot cocoa');
+    await bd.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(P.locator('[data-basics]')).toContainText('Hot cocoa');
 
-    // Edit the title and basics
-    await openIdea(page, id);
-    await detail.getByRole('button', { name: 'Edit' }).first().click();
-    await page.getByLabel('The idea').fill(title + ' + stars');
-    await page.getByLabel('The basics, line 3').fill('hot cocoa');
-    await button(page, 'Save changes').click();
-    await expect(page.getByText('Saved')).toBeVisible();
-    await expect(detail).toContainText('+ stars');
-    await expect(detail).toContainText('Hot cocoa');
+    // Who can see it: Private
+    await P.getByRole('button', { name: 'Edit who can see it' }).click();
+    const vis = page.getByRole('dialog', { name: 'Who can see it' });
+    await vis.getByRole('radio', { name: /^Private/ }).click();
+    await vis.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(P).toContainText('PRIVATE');
+    await expect(P.locator('[data-vis]')).toContainText('Private');
 
-    // Delete: the idea and its photo both go
-    await detail.getByRole('button', { name: 'Edit' }).first().click();
-    await button(page, 'Delete this idea').click();
+    // Edit what you need: rename the job and ask for one more
+    await P.getByRole('button', { name: 'Edit what you need' }).click();
+    const needs = page.getByRole('dialog', { name: 'Edit what you need' });
+    await needs.getByLabel('Job name 1').fill('Bring cold water');
+    await needs.getByRole('button', { name: 'More for how many people' }).click();
+    await needs.getByRole('button', { name: 'Save changes' }).click();
+    await expect(needs).toHaveCount(0);
+    await expect(P.locator('[data-signup="Bring cold water"]')).toContainText('0 of 4');
+
+    // Share link: copy, and the share intents
+    await P.getByRole('button', { name: 'Share link' }).click();
+    const share = page.getByRole('dialog', { name: 'Share link' });
+    await expect(share.getByRole('link', { name: 'WhatsApp' })).toHaveAttribute('href', /^https:\/\/wa\.me\/\?text=/);
+    await expect(share.getByRole('link', { name: 'Email' })).toHaveAttribute('href', /^mailto:/);
+    await share.getByRole('button', { name: 'Close' }).click();
+
+    // Delete: the event and its photo both go
+    await P.getByRole('button', { name: 'Delete this event' }).click();
     await confirm(page, 'Delete it');
-    await expect(page.locator('[data-screen-label=Browse]')).not.toContainText(title);
+    id = null;
     await expect.poll(async () => (await page.request.get(url + '?t=' + Date.now())).status(), { timeout: 20_000 }).toBeGreaterThanOrEqual(400);
     expect(errors).toEqual([]);
   } finally {
+    if (id) await asUser(page, async (c, _C, id) => { await c.from('sparks').delete().eq('id', id); }, id).catch(() => {});
     await context.close();
   }
 });
 
-test('post flow guards: each step waits for an answer or a "later"', async ({ browser }) => {
-  const { page, context } = await newLead(browser, 2, 'Guard');
+test('decide everything later: only the title is needed; the host is left with tasks', async ({ browser }) => {
+  test.setTimeout(90000);
+  const { page, context, errors } = await newLead(browser, 2, 'Guard');
+  const title = uniqueTitle('Chili cook-off');
+  let id;
   try {
     await startPost(page);
-    // The event form comes first: it needs a name and a date
-    const form = page.locator('[data-screen-label="New spark"]');
-    await expect(form.getByRole('button', { name: 'Give it a name' })).toHaveAttribute('aria-disabled', 'true');
-    await form.getByLabel('What', { exact: true }).fill('Chili cook-off');
-    await expect(form.getByRole('button', { name: 'Pick a date' })).toHaveAttribute('aria-disabled', 'true');
-    await expect(form.getByLabel('Time', { exact: true })).toHaveValue('18:00');
-    await expect(form).toContainText('Shows up on the group’s calendar for everyone.');
-    await form.getByRole('switch', { name: 'Invite only' }).click();
-    await expect(form.getByRole('switch', { name: 'Invite only' })).toHaveAttribute('aria-checked', 'true');
-    await expect(form).toContainText('Only people you invite, or who have the link, can see it.');
-    // …or float it as an idea instead
-    await form.getByRole('button', { name: /Not sure on the details/ }).click();
-    await expect(page.getByRole('heading', { name: 'What’s the event?' })).toBeVisible();
-    await expect(page.getByLabel('The event')).toHaveValue('Chili cook-off');       // the name comes along
-    await page.getByLabel('The event').fill('');
-    await expect(button(page, 'Next')).toHaveAttribute('aria-disabled', 'true');
-    // The event name is capped at 40; a count shows once 10 or fewer are left
-    await page.getByLabel('The event').fill('A'.repeat(29));
-    await expect(page.getByText(/\d+ left$/)).toHaveCount(0);
-    await page.getByLabel('The event').fill('A'.repeat(35));
-    await expect(page.getByText('5 left')).toBeVisible();
-    await expect(page.getByLabel('The event')).toHaveAttribute('maxlength', '40');
-    await page.getByLabel('The event').fill('Anything');
-    await button(page, 'Next').click();
-
-    await expect(button(page, 'Next')).toHaveAttribute('aria-disabled', 'true');   // location
-    await button(page, 'Decide location later').click();
-    await expect(button(page, 'Next')).toHaveAttribute('aria-disabled', 'true');   // date
-    await button(page, 'Decide date later').click();
-    await expect(page.getByRole('heading', { name: 'Paint the picture' })).toBeVisible();
-    await button(page, 'Next').click();                                            // the basics are optional
-    await expect(button(page, 'Next')).toHaveAttribute('aria-disabled', 'true');   // photos
-    await button(page, 'Skip photos').click();
-
-    const review = page.locator('[data-screen-label="New spark"]');
-    await expect(review).toContainText('Decide later');
-    await expect(review).toContainText('Nothing yet');
-    await expect(review).toContainText('None');
-
-    // "Edit" jumps back; leaving the flow posts nothing
-    await review.getByRole('button', { name: 'Edit the event' }).click();
-    await expect(page.getByRole('heading', { name: 'What’s the event?' })).toBeVisible();
-    await page.getByRole('button', { name: 'Back' }).last().click();   // idea steps → the event form
-    await expect(page.locator('[data-screen-label="New spark"]').getByText('New event', { exact: true })).toBeVisible();
-    await page.getByRole('button', { name: 'Close' }).click();   // → out of the flow
+    const flow = page.locator('[data-screen-label="New spark"]');
+    await expect(flow).toContainText('1 of 5');
+    await expect(flow).toContainText('Your event');
+    await expect(flow.getByRole('button', { name: 'Next' })).toHaveAttribute('aria-disabled', 'true');
+    await expect(flow.getByText('Decide later', { exact: true })).toHaveCount(0);   // the title can't wait
+    // With no title, X just closes
+    await flow.getByRole('button', { name: 'Close' }).click();
     await expect(page.locator('[data-screen-label=Calendar]')).toBeVisible();
+
+    await startPost(page);
+    await flow.getByLabel('Event title').fill(title);
+    await expect(flow.getByLabel('Event title')).toHaveAttribute('maxlength', '40');
+    await flow.getByRole('button', { name: 'Next' }).click();
+    // Date & time: the start list, then an end time that only offers later times
+    await expect(flow).toContainText('Date & time');
+    await flow.getByLabel('Date', { exact: true }).fill(inDays(10));
+    await flow.getByRole('button', { name: 'Add a start time (optional)' }).click();
+    await flow.getByRole('option', { name: '6:00pm', exact: true }).click();
+    await flow.getByText('Add end time').click();
+    await expect(flow.getByRole('option', { name: '5:30pm', exact: true })).toHaveCount(0);
+    await flow.getByRole('option', { name: '8:00pm', exact: true }).click();
+    // …then Decide later clears it all and moves on
+    await flow.getByText('Decide later', { exact: true }).click();
+    await expect(flow).toContainText('3 of 5');
+    await flow.getByRole('button', { name: 'Back' }).click();
+    await expect(flow.getByLabel('Date', { exact: true })).toHaveValue('');
+    await flow.getByText('Decide later', { exact: true }).click();
+    for (const n of ['3 of 5', '4 of 5', '5 of 5']) {
+      await expect(flow).toContainText(n);
+      await expect(flow.getByRole('button', { name: /^(Next|Review)$/ })).toHaveAttribute('aria-disabled', 'true');
+      await flow.getByText('Decide later', { exact: true }).click();
+    }
+    // Review: every undecided part in amber
+    await expect(flow).toContainText('LOOKS GOOD');
+    for (const t of ['Date to be decided', 'Location to be decided', 'Basic details to be decided', 'Help to be decided']) await expect(flow).toContainText(t);
+    await flow.getByRole('button', { name: 'Post it' }).click();
+    await expect(page.locator('[data-screen-label="Plan page"]')).toBeVisible();
+    id = await page.evaluate(() => location.hash.split('/').pop());
+
+    const P = page.locator('[data-screen-label="Plan page"]');
+    await expect(P.locator('[data-tbd]')).toContainText('2 things left to decide');
+    await expect(P.locator('[data-when-card]')).toContainText('Date to be decided');
+    await expect(P.locator('[data-when-card]')).toContainText('Location to be decided');
+    await P.locator('[data-host-tasks-bar]').click();
+    for (const t of ['Pick a date', 'Pick a location', 'Add basic details']) await expect(P.locator('[data-screen-label="Your tasks"]')).toContainText(t);
+    // A task opens its pop-up; setting the place there closes that part
+    await P.locator('[data-task-row]', { hasText: 'Pick a location' }).click();
+    const when = page.getByRole('dialog', { name: 'Date, time & location' });
+    await when.getByLabel('Location').fill('The garage');
+    await when.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(P.locator('[data-tbd]')).toContainText('1 thing left to decide');
+    await expect(P.locator('[data-when-card]')).toContainText('The garage');
+    expect(errors).toEqual([]);
   } finally {
+    if (id) await asUser(page, async (c, _C, id) => { await c.from('sparks').delete().eq('id', id); }, id).catch(() => {});
+    await context.close();
+  }
+});
+
+test('polls: the host posts a date poll, a member votes, the host picks the winner', async ({ browser }) => {
+  test.setTimeout(120000);
+  const host = await newLead(browser, 1, 'Hope');
+  const member = await newLead(browser, 2, 'Omar');
+  const H = host.page, O = member.page;
+  const title = uniqueTitle('Game night');
+  let id;
+  try {
+    await startPost(H);
+    const flow = H.locator('[data-screen-label="New spark"]');
+    await flow.getByLabel('Event title').fill(title);
+    await flow.getByRole('button', { name: 'Next' }).click();
+    await flow.getByText('Poll the group').click();
+    const poll = H.getByRole('dialog', { name: 'Poll the group' });
+    await expect(poll).toContainText('Create a poll');
+    await expect(poll.getByRole('button', { name: 'Save', exact: true })).toHaveAttribute('aria-disabled', 'true');
+    await poll.getByLabel('Date option 1').fill(inDays(15));
+    await poll.getByLabel('Date option 2').fill(inDays(16));
+    await poll.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(flow.locator('[data-poll]')).toContainText('POLL · 2 OPTIONS');
+    await expect(flow).toContainText('2 of 5');                                  // saving doesn't move on
+    await flow.getByRole('button', { name: 'Next' }).click();
+    for (let i = 0; i < 3; i++) await flow.getByText('Decide later', { exact: true }).click();
+    await expect(flow).toContainText('Poll: 2 dates');
+    await flow.getByRole('button', { name: 'Post it' }).click();
+    await expect(H.locator('[data-screen-label="Plan page"]')).toBeVisible();
+    id = await H.evaluate(() => location.hash.split('/').pop());
+
+    await openIdea(O, id);
+    const OP = O.locator('[data-screen-label="Plan page"]');
+    await expect(OP.locator('[data-when-card]')).toContainText('VOTING ON A DATE');
+    const first = OP.locator('[data-poll-opt]').first();
+    await first.getByRole('button', { name: 'Vote' }).click();
+    await expect(first).toContainText('✓ Voted');
+    await expect(first).toContainText('1 vote');
+
+    await H.reload();
+    const HP = H.locator('[data-screen-label="Plan page"]');
+    const top = HP.locator('[data-poll-opt]').first();
+    await expect(top).toContainText('1 vote');
+    await top.getByRole('button', { name: 'Pick' }).click();
+    await expect(HP.locator('[data-when-card]')).not.toContainText('VOTING ON A DATE');
+    await expect(HP.locator('[data-tbd]')).toContainText('1 thing left to decide');   // only the place now
+    expect(host.errors).toEqual([]);
+    expect(member.errors).toEqual([]);
+  } finally {
+    if (id) await asUser(H, async (c, _C, id) => { await c.from('sparks').delete().eq('id', id); }, id).catch(() => {});
+    await host.context.close();
+    await member.context.close();
+  }
+});
+
+test('drafts: X saves one, Your tasks lists it, Continue picks up there, posting removes it', async ({ browser }) => {
+  test.setTimeout(90000);
+  const { page, context, errors } = await newLead(browser, 2, 'Guard');
+  const title = uniqueTitle('Yard sale');
+  let id;
+  try {
+    await startPost(page);
+    const flow = page.locator('[data-screen-label="New spark"]');
+    await flow.getByLabel('Event title').fill(title);
+    await flow.getByRole('button', { name: 'Next' }).click();
+    await flow.getByText('Decide later', { exact: true }).click();
+    await flow.getByRole('button', { name: 'Close' }).click();
+    const leave = page.getByRole('dialog', { name: 'Save as draft' });
+    await expect(leave).toContainText('Save this as a draft?');
+    await leave.getByRole('button', { name: 'Save draft' }).click();
+    await expect(page.getByText('Saved as a draft')).toBeVisible();
+
+    const draft = page.locator('[data-screen-label="Your tasks"] [data-draft="' + title + '"]');
+    await expect(draft).toContainText('DRAFT');
+    await expect(draft).toContainText('Up next: Location');
+    await draft.getByRole('button', { name: 'Continue' }).click();
+    await expect(flow).toContainText('3 of 5');
+    for (let i = 0; i < 3; i++) await flow.getByText('Decide later', { exact: true }).click();
+    await flow.getByRole('button', { name: 'Post it' }).click();
+    await expect(page.locator('[data-screen-label="Plan page"]')).toBeVisible();
+    id = await page.evaluate(() => location.hash.split('/').pop());
+    const left = await asUser(page, async (c) => (await c.from('event_drafts').select('id')).data.length);
+    expect(left).toBe(0);
+    expect(errors).toEqual([]);
+  } finally {
+    if (id) await asUser(page, async (c, _C, id) => { await c.from('sparks').delete().eq('id', id); }, id).catch(() => {});
+    await asUser(page, async (c) => { await c.from('event_drafts').delete().neq('id', '00000000-0000-0000-0000-000000000000'); }).catch(() => {});
     await context.close();
   }
 });
@@ -142,9 +248,10 @@ test('location suggestions: 2 letters, 4 rows, Austin area, remembered, free tex
   const { page, context } = await newLead(browser, 1, 'Tester');
   try {
     await startPost(page);
-    await page.getByRole('button', { name: /Not sure on the details/ }).click();
-    await page.getByLabel('The event').fill('Anything');
-    await button(page, 'Next').click();
+    const flow = page.locator('[data-screen-label="New spark"]');
+    await flow.getByLabel('Event title').fill('Anything');
+    await flow.getByRole('button', { name: 'Next' }).click();
+    await flow.getByText('Decide later', { exact: true }).click();
 
     await page.getByLabel('Location').fill('z');
     await page.waitForTimeout(400);

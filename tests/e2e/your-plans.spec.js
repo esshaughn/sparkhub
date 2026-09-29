@@ -1,7 +1,7 @@
 // Your schedule's strips (v6), the sign-up time, the Calendar's role strips, back navigation,
 // and the lead's dashboard on Your plans.
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newLead, postEvent, openIdea, deleteIdea, pickView } = require('./helpers');
+const { uniqueTitle, newLead, postEvent, openIdea, deleteIdea, pickView, addJob } = require('./helpers');
 
 // Local dates, like the app (toISOString would be UTC, a day ahead in the evening)
 const inDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
@@ -19,11 +19,7 @@ test('Your schedule and the Calendar: role strips, a helper’s sign-ups with ti
     // The host adds sign-ups; one has a time (hosts only)
     const HP = H.locator('[data-screen-label="Plan page"]');
     for (const [item, need, time] of [['Folding tables', '2', '15:30'], ['Ice', '1', ''], ['Speaker', '1', '']]) {
-      await HP.getByText('Add a job or item').click();
-      await HP.getByLabel('Add a sign-up').fill(item);
-      await HP.getByLabel('How many needed').fill(need);
-      if (time) await HP.getByLabel('Sign-up time').selectOption(time);
-      await HP.getByRole('button', { name: 'Add', exact: true }).click();
+      await addJob(H, { item, need: +need, time });
       await expect(HP.locator('[data-signup="' + item + '"]')).toBeVisible();
     }
     await expect(HP.locator('[data-signup="Folding tables"]')).toContainText('3:30pm');

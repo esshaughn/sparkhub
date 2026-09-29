@@ -232,8 +232,12 @@ test('plans: replies, sign-ups, updates, notes and invite-only plans follow the 
         idea: await one({ text: idea }),
         plan: await one({ text: plan, planned: true, day_date: '2026-12-05', day_time: '10:00' }),
         secret: await one({ text: secret, planned: true, day_date: '2026-12-06', day_time: '10:00', visibility: 'invite' }),
-        planWithoutDate: (await c.from('sparks').insert({ ...base, text: '[E2E] no date', planned: true }).select('id')).error ? 'refused' : 'ALLOWED'
+        // v6 Update 6: a posted event may leave its date to be decided
+        planWithoutDate: await one({ text: '[E2E] no date', planned: true })
       };
+      // Posting to more groups: only the lead, and not the home group twice
+      out.homeAgain = (await c.from('spark_groups').insert({ spark_id: out.plan, group_id: g })).error ? 'refused' : 'ALLOWED';
+      out.draft = (await c.from('event_drafts').insert({ data: { activity: 'Mine' } }).select('id').single()).data.id;
       out.item = (await c.from('signup_items').insert({ spark_id: out.plan, item: 'Cooler', need: 1 }).select('id').single()).data.id;
       // v6 Update 5: a job split into shifts (the lead can; shifts point at a job on the same event)
       out.job = (await c.from('signup_items').insert({ spark_id: out.plan, item: 'Coat check', descr: 'Hang coats' }).select('id').single()).data.id;
@@ -243,8 +247,9 @@ test('plans: replies, sign-ups, updates, notes and invite-only plans follow the 
       out.update = (await c.from('plan_updates').insert({ spark_id: out.plan, body: 'See you there' })).error ? 'refused' : 'ok';
       return out;
     }, { idea: uniqueTitle('Sec idea'), plan: uniqueTitle('Sec plan'), secret: uniqueTitle('Sec secret') });
-    ids.push(made.idea, made.plan, made.secret);
-    expect(made.planWithoutDate).toBe('refused');
+    ids.push(made.idea, made.plan, made.secret, made.planWithoutDate);
+    expect(made.planWithoutDate).toMatch(/^[0-9a-f-]{36}$/);
+    expect(made.homeAgain).toBe('refused');
     expect(made.prep).toBe('ok');
     expect(made.update).toBe('ok');
     expect(made.shiftElsewhere).toBe('refused');
@@ -274,7 +279,12 @@ test('plans: replies, sign-ups, updates, notes and invite-only plans follow the 
         markPlanned: (await c.from('sparks').update({ planned: false }).eq('id', m.plan).select()).data?.length ?? 'refused',
         seeSecret: (await c.from('sparks').select('id').eq('id', m.secret)).data.length,
         rsvpSecret: await ok(c.from('rsvps').insert({ spark_id: m.secret, user_id: me, status: 'going' })),
-        suggestDateOnPlan: await ok(c.from('date_options').insert({ spark_id: m.plan, day_date: '2026-12-07', who: 'Omar' }))
+        suggestDateOnPlan: await ok(c.from('date_options').insert({ spark_id: m.plan, day_date: '2026-12-07', who: 'Omar' })),
+        // v6 Update 6: only the lead edits jobs or adds groups; drafts are private
+        editJob: (await c.from('signup_items').update({ item: 'Hijacked' }).eq('id', m.item).select()).data?.length ?? 'refused',
+        addGroup: await ok(c.from('spark_groups').insert({ spark_id: m.plan, group_id: (await c.from('sparks').select('group_id').eq('id', m.plan).single()).data.group_id })),
+        readDraft: (await c.from('event_drafts').select('id').eq('id', m.draft)).data.length,
+        editDraft: (await c.from('event_drafts').update({ data: {} }).eq('id', m.draft).select()).data?.length ?? 'refused'
       };
     }, made);
     expect(r).toEqual({
@@ -282,8 +292,14 @@ test('plans: replies, sign-ups, updates, notes and invite-only plans follow the 
       signupWithNeed: 'refused', signupWithTime: 'refused', signupSomethingElse: 'ALLOWED', claim: 'ALLOWED',
       signupWithDescr: 'refused', signupWithEnd: 'refused', signupAsShift: 'refused', claimShift: 'ALLOWED', claimJobRow: 0,
       update: 'refused', readPrep: 0, writePrep: 'refused', makePlan: 'refused', clearPlan: 'refused',
-      markPlanned: 0, seeSecret: 0, rsvpSecret: 'refused', suggestDateOnPlan: 'ALLOWED'
+      markPlanned: 0, seeSecret: 0, rsvpSecret: 'refused', suggestDateOnPlan: 'ALLOWED',
+      editJob: 0, addGroup: 'refused', readDraft: 0, editDraft: 0
     });
+    const leadEdits = await asUser(L, async (c, _C, m) => ({
+      job: (await c.from('signup_items').update({ item: 'Big cooler' }).eq('id', m.item).select()).data?.length ?? 'refused',
+      draft: (await c.from('event_drafts').delete().eq('id', m.draft).select()).data?.length ?? 'refused'
+    }), made);
+    expect(leadEdits).toEqual({ job: 1, draft: 1 });
 
     // The item needed one and Omar took it: nobody else can
     const full = await asUser(L, async (c, _C, item) => (await c.from('signup_claims').insert({ item_id: item })).error ? 'refused' : 'ALLOWED', made.item);

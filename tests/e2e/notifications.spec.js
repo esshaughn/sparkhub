@@ -39,7 +39,7 @@ test('notifications: a new plan, replying from the feed, the host hears back, up
     await expect(hfeed.locator('[data-notif=rsvp]').filter({ hasText: title })).toContainText(new RegExp('\\w+ is going to ' + esc(title)));
     await hfeed.locator('[data-notif=rsvp]').filter({ hasText: title }).click();
     await expect(H.locator('[data-screen-label="Plan page"]')).toBeVisible();
-    await H.getByRole('button', { name: 'Send an update' }).click();
+    await H.getByRole('button', { name: 'Send everyone an update' }).click();
     const blast = H.getByRole('dialog', { name: 'Send an update' });
     await blast.getByLabel('Your update').fill('Helmets on, please.');
     await blast.getByRole('button', { name: 'Post update' }).click();

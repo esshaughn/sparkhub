@@ -94,7 +94,7 @@ async function newLead(browser, n, name, path) {
 
 const button = (page, name) => page.getByRole('button', { name, exact: true });
 
-// v6: posting starts from the Calendar's + button; Profile is the last tab (a sheet)
+// v6: posting starts from the Calendar's + button (the Create event flow); Profile is the last tab (a sheet)
 async function startPost(page) {
   await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Calendar', exact: true }).click();
   await page.locator('[data-screen-label=Calendar]').getByRole('button', { name: 'Post an event' }).click();
@@ -110,56 +110,20 @@ async function openProfile(page) {
   await expect(page.getByRole('dialog', { name: 'Profile', exact: true })).toBeVisible();
 }
 
-// Post an idea through the whole flow into the current group. Returns its id.
-async function postIdea(page, { title, location, pick, date, time, basics = [], photo = false, name }) {
-  await startPost(page);
-  // The + opens the event form; ideas are behind "Not sure on the details?"
-  await page.getByRole('button', { name: /Not sure on the details/ }).click();
-  await expect(page.getByRole('heading', { name: 'What’s the event?' })).toBeVisible();
-  await page.getByLabel('The event').fill(title);
-  await button(page, 'Next').click();
-
-  await expect(page.getByRole('heading', { name: 'Location' })).toBeVisible();
-  if (location) {
-    await page.getByLabel('Location').fill(location);
-    if (pick) await page.getByRole('group', { name: 'Suggested places' }).getByRole('button', { name: new RegExp(pick) }).click();
-    await button(page, 'Next').click();
-  } else {
-    await button(page, 'Decide location later').click();
-  }
-
-  await expect(page.getByRole('heading', { name: 'Date' })).toBeVisible();
-  if (date) {
-    await page.getByLabel('Date', { exact: true }).fill(date);
-    if (time) {
-      await page.getByRole('button', { name: 'Add time' }).click();
-      await page.getByLabel('Time', { exact: true }).selectOption(time);
-    }
-    await button(page, 'Next').click();
-  } else {
-    await button(page, 'Decide date later').click();
-  }
-
-  await expect(page.getByRole('heading', { name: 'Paint the picture' })).toBeVisible();
-  for (let i = 0; i < basics.length; i++) await page.getByLabel(`The basics, line ${i + 1}`).fill(basics[i]);
-  await button(page, 'Next').click();
-
-  await expect(page.getByRole('heading', { name: 'Add a photo' })).toBeVisible();
-  if (photo) {
-    await page.locator('input[type=file]').setInputFiles({ name: 'photo.png', mimeType: 'image/png', buffer: PNG });
-    await expect(page.getByRole('button', { name: 'Remove photo' })).toHaveCount(1);
-    await button(page, 'Next').click();
-  } else {
-    await button(page, 'Skip photos').click();
-  }
-
-  await expect(page.getByRole('heading', { name: 'Look good?' })).toBeVisible();
-  await button(page, 'Put it up').click();
-  if (name) await answerNamePrompt(page, name);
-
-  await expect(page.locator('[data-screen-label="Idea page"]')).toBeVisible();
-  await expect(page.getByText('It’s up')).toBeVisible();
-  return ideaIdFromUrl(page);
+// An idea (not yet a plan) in the current group. v6 Update 6 retired the idea-posting flow (everything
+// posted is an event now), so older ideas are made directly, the way the demo data has them. Returns its id.
+async function postIdea(page, { title, location, date, time, basics = [] }) {
+  const id = await asUser(page, async (c, _C, { title, location, date, time, basics }) => {
+    const me = (await c.auth.getUser()).data.user.id;
+    const g = JSON.parse(localStorage.getItem('spark-hub-prefs') || '{}').groupId || (await c.from('groups').select('id').eq('name', 'Torrez Fitness').single()).data.id;
+    const name = (await c.from('profiles').select('name').eq('id', me).single()).data.name || 'Tester';
+    const r = await c.from('sparks').insert({ group_id: g, author_name: name, lead_name: name, lead_id: me, created_by: me, text: title.charAt(0).toUpperCase() + title.slice(1),
+      hopes: basics.map(b => b.charAt(0).toUpperCase() + b.slice(1)), spot: location || null, spot_open: !location, day_date: date || null, day_time: date && time ? time : null }).select('id').single();
+    return r.error ? r.error.message : r.data.id;
+  }, { title, location, date, time, basics });
+  if (!/^[0-9a-f-]{36}$/.test(id)) throw new Error('Couldn’t make the idea: ' + id);
+  await openIdea(page, id);
+  return id;
 }
 
 async function answerNamePrompt(page, name) {
@@ -188,22 +152,75 @@ async function openIdea(page, id) {
   await expect(page.locator('[data-screen-label="Idea page"], [data-screen-label="Plan page"], [data-screen-label="It happened"]')).toBeVisible();
 }
 
-// Post an event (a plan) with the event form. Returns its id.
-async function postEvent(page, { title, date, time = '18:00', where, details, inviteOnly = false }) {
+// Post an event with the 5-step Create event flow (v6 Update 6). Anything left out is decided later.
+// Returns its id.
+async function postEvent(page, { title, date, time, where, pick, details = [], jobs = [], inviteOnly = false, photo = false }) {
   await startPost(page);
-  const form = page.locator('[data-screen-label="New spark"]');
-  await expect(form.getByText('New event', { exact: true })).toBeVisible();
-  await form.getByLabel('What', { exact: true }).fill(title);
-  await form.getByLabel('When', { exact: true }).fill(date);
-  await form.getByLabel('Time', { exact: true }).selectOption(time);
-  if (where) await form.getByLabel('Location').fill(where);
-  if (details) await form.getByLabel('Details', { exact: true }).fill(details);
-  if (inviteOnly) await form.getByRole('switch', { name: 'Invite only' }).click();
-  await form.getByRole('button', { name: 'Post it' }).click();
+  const flow = page.locator('[data-screen-label="New spark"]');
+  const next = () => flow.getByRole('button', { name: /^(Next|Review)$/ }).click();
+  const later = () => flow.getByText('Decide later', { exact: true }).click();
+  await expect(flow).toContainText('1 of 5');
+  await flow.getByLabel('Event title').fill(title);
+  if (photo) await flow.getByLabel('Upload a cover photo').setInputFiles({ name: 'photo.png', mimeType: 'image/png', buffer: PNG });
+  await next();
+
+  await expect(flow).toContainText('2 of 5');
+  if (date) {
+    await flow.getByLabel('Date', { exact: true }).fill(date);
+    if (time) {
+      await flow.getByRole('button', { name: 'Add a start time (optional)' }).click();
+      await flow.getByRole('option', { name: timeWord(time), exact: true }).click();
+    }
+    await next();
+  } else await later();
+
+  await expect(flow).toContainText('3 of 5');
+  if (where) {
+    await flow.getByLabel('Location').fill(where);
+    if (pick) await page.getByRole('group', { name: 'Suggested places' }).getByRole('button', { name: new RegExp(pick) }).click();
+    await next();
+  } else await later();
+
+  await expect(flow).toContainText('4 of 5');
+  if (details.length) {
+    for (let i = 0; i < details.length; i++) await flow.getByLabel('Basic details, line ' + (i + 1)).fill(details[i]);
+    await next();
+  } else await later();
+
+  await expect(flow).toContainText('5 of 5');
+  if (jobs.length) {
+    for (const j of jobs) {
+      await flow.getByRole('button', { name: /Something else$/ }).click();
+      const sheet = page.getByRole('dialog', { name: 'Add a job' });
+      await sheet.getByLabel('Job name').fill(j.item);
+      for (let n = 1; n < (j.need || 1); n++) await sheet.getByRole('button', { name: 'More for how many people' }).click();
+      await sheet.getByRole('button', { name: 'Save', exact: true }).click();
+    }
+    await next();
+  } else await later();
+
+  await expect(flow).toContainText('LOOKS GOOD');
+  if (inviteOnly) await flow.getByRole('radio', { name: /^Private/ }).click();
+  await flow.getByRole('button', { name: 'Post it' }).click();
   await expect(page.locator('[data-screen-label="Plan page"]')).toBeVisible();
   await expect(page.getByText('It’s on the books')).toBeVisible();
   return ideaIdFromUrl(page);
 }
+// The host adds a job in Edit what you need (v6 Update 6): name, how many, an optional time
+async function addJob(page, { item, need = 1, time }) {
+  await page.locator('[data-screen-label="Plan page"]').getByRole('button', { name: 'Edit what you need' }).click();
+  const sheet = page.getByRole('dialog', { name: 'Edit what you need' });
+  const n = await sheet.locator('[data-need-row]').count() + 1;
+  await sheet.getByText('Add a job or item').click();
+  await sheet.getByLabel('Job name ' + n).fill(item);
+  const row = sheet.locator('[data-need-row]').nth(n - 1);
+  for (let k = 1; k < need; k++) await row.getByRole('button', { name: 'More for how many people' }).click();
+  if (time) await row.getByLabel('Time ' + n).selectOption(time);
+  await sheet.getByRole('button', { name: 'Save changes' }).click();
+  await expect(sheet).toHaveCount(0);
+}
+// "17:30" → "5:30pm", as the time list shows it
+const timeWord = (t) => { const [h, m] = t.split(':').map(Number); return (h % 12 || 12) + ':' + String(m).padStart(2, '0') + (h < 12 ? 'am' : 'pm'); };
 
 // Confirm dialogs: click the action, then the confirm button in the dialog.
 async function confirm(page, cta) {
@@ -216,8 +233,7 @@ async function confirm(page, cta) {
 // Delete an idea as its lead (cleanup)
 async function deleteIdea(page, id) {
   await openIdea(page, id);
-  await page.locator('[data-screen-label="Idea page"], [data-screen-label="Plan page"], [data-screen-label="It happened"]').getByRole('button', { name: 'Edit' }).first().click({ timeout: 10000 });
-  await button(page, 'Delete this idea').click({ timeout: 10000 });
+  await page.getByRole('button', { name: /^Delete this (event|idea)$/ }).click({ timeout: 10000 });
   await confirm(page, 'Delete it');
   await expect(page.locator('[data-screen-label=Browse]')).toBeVisible();
 }
@@ -239,5 +255,5 @@ async function asUser(page, fn, args) {
 
 module.exports = {
   TAG, TORREZ, PNG, uniqueTitle, startPost, openProfile, pickView, mockPlaces, stubPhotos, trackErrors, expectConnected, newMember, newLead, button,
-  postIdea, postEvent, answerNamePrompt, answerGuestPrompt, ideaIdFromUrl, openIdea, confirm, deleteIdea, asUser
+  postIdea, postEvent, addJob, answerNamePrompt, answerGuestPrompt, ideaIdFromUrl, openIdea, confirm, deleteIdea, asUser
 };

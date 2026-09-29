@@ -99,13 +99,13 @@ test('a group end to end: edit group, cover, rename, invite, pin, admin edits, r
     ideaId = await postIdea(B, { title: uniqueTitle('Tempo run') });
     await openIdea(A, ideaId);
     const detail = A.locator('[data-screen-label="Idea page"]');
-    await detail.getByRole('button', { name: 'Edit' }).first().click();
-    await expect(A.locator('[data-screen-label="Edit idea"]')).toContainText('You’re editing as an admin of ' + groupName + '; Bo still leads it.');
-    await A.getByLabel('The idea').fill('[E2E] Tempo run, moved indoors');
-    await button(A, 'Save changes').click();
+    await detail.getByRole('button', { name: /edit the title$/ }).click();   // v6 Update 6: the title's pencil opens its pop-up
+    const sec = A.getByRole('dialog', { name: 'Title & photo' });
+    await expect(sec.getByText('Cover photo')).toHaveCount(0);                   // only the lead changes the photo
+    await sec.getByLabel('Event title').fill('[E2E] Tempo run, moved indoors');
+    await sec.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(detail).toContainText('moved indoors');
     await expect(detail).toContainText('Led by Bo');
-    await detail.getByRole('button', { name: 'Edit' }).first().click();
     await button(A, 'Delete this idea').click();
     await confirm(A, 'Delete it');
     await expect(A.locator('[data-screen-label=Browse]')).not.toContainText('moved indoors');

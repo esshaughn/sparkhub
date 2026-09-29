@@ -2,7 +2,7 @@
 // the community Calendar (filters, search, Could use a hand, Month), the "You're on it" banner,
 // and Profile / Notifications as sheets.
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newLead, postEvent, openIdea, deleteIdea, pickView, asUser } = require('./helpers');
+const { uniqueTitle, newLead, postEvent, openIdea, deleteIdea, pickView, asUser, addJob } = require('./helpers');
 
 // Local dates, like the app (toISOString would be UTC, a day ahead in the evening)
 const inDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
@@ -28,11 +28,7 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     id = await postEvent(H, { title, date: inDays(0), time: '23:30' });
     const HP = H.locator('[data-screen-label="Plan page"]');
     for (const [item, need, time] of [['Folding chairs', '2', '23:00'], ['Ice', '1', '']]) {
-      await HP.getByText('Add a job or item').click();
-      await HP.getByLabel('Add a sign-up').fill(item);
-      await HP.getByLabel('How many needed').fill(need);
-      if (time) await HP.getByLabel('Sign-up time').selectOption(time);
-      await HP.getByRole('button', { name: 'Add', exact: true }).click();
+      await addJob(H, { item, need: +need, time });
       await expect(HP.locator('[data-signup="' + item + '"]')).toBeVisible();
     }
 
