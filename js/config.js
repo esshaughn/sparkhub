@@ -6,7 +6,7 @@
 // trying things out never touches real members' data.
 // Add any new production domain (e.g. a custom domain) to LIVE_HOSTS.
 (function () {
-  var LIVE_HOSTS = ['gosparkhub.vercel.app', 'torrezhub.vercel.app'];   // torrezhub = the old address, now a redirect
+  var LIVE_HOSTS = ['gosparkhub.vercel.app', 'sparkhub.weareallneighbors.org', 'torrezhub.vercel.app'];   // torrezhub = the old address, now a redirect
   var projects = {
     live: { supabaseUrl: 'https://xwrzfpgsazyrgieymtee.supabase.co', supabaseKey: 'sb_publishable_NrnRB0SC3-dzeCJTU6vUjQ_328Q1BJC' },
     test: { supabaseUrl: 'https://hroxgvxvafgikikviiud.supabase.co', supabaseKey: 'sb_publishable_f7dwskaTS-TV42YC-p0lFw_9Pe8FY1O' }
@@ -23,5 +23,9 @@
   // linking" and this site in Auth → URL Configuration → Redirect URLs).
   var googleSignIn = { live: true, test: true };
 
-  window.SPARKS_CONFIG = Object.assign({ env: env, places: places, googleSignIn: googleSignIn[env] }, projects[env]);
+  // Web push: the public half of the VAPID key pair (the private half is a Vercel secret used by
+  // api/push.js). One pair serves both databases.
+  var vapidPublicKey = 'BNOk6MpgFtacANYKzM2XQdhB0yu45sCWt200fU3VkbMeZx4WJI026sePjflvzjmG0gjF6A-Y1f7CY-T7zLtA530';
+
+  window.SPARKS_CONFIG = Object.assign({ env: env, places: places, googleSignIn: googleSignIn[env], vapidPublicKey: vapidPublicKey }, projects[env]);
 })();

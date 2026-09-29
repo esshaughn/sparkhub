@@ -54,6 +54,31 @@ test('installable: manifest, icons and the iOS home-screen tags', async ({ reque
   }
 });
 
+test('web push: a push-only service worker registers, and Notifications offers phone notifications', async ({ browser, request }) => {
+  const sw = await request.get('/sw.js');
+  expect(sw.status()).toBe(200);
+  const code = await sw.text();
+  expect(code).toContain("addEventListener('push'");
+  expect(code).not.toContain("addEventListener('fetch'");   // never caches the site
+  const m = await newLead(browser, 1, 'Pia');
+  try {
+    const page = m.page;
+    // Headless Chromium reports notifications as blocked; act like a phone that hasn't been asked yet
+    await m.context.addInitScript(() => Object.defineProperty(Notification, 'permission', { get: () => 'default' }));
+    await page.reload();
+    await expect.poll(() => page.evaluate(async () => !!(await navigator.serviceWorker.getRegistration('/')))).toBe(true);
+    await page.getByRole('button', { name: /^Notifications/ }).first().click();
+    const card = page.locator('[data-push-card]');
+    await expect(card).toContainText('Get these on your phone');
+    await expect(card.getByRole('button', { name: 'Turn on notifications' })).toBeVisible();
+    await card.getByLabel('Not now').click();
+    await expect(card).toHaveCount(0);
+    expect(m.errors).toEqual([]);
+  } finally {
+    await m.context.close();
+  }
+});
+
 test('privacy page is public', async ({ request }) => {
   const res = await request.get('/privacy.html');
   expect(res.status()).toBe(200);

@@ -191,7 +191,7 @@
 
     groups: [], sparks: [], profiles: {},
 
-    drafts: [], notes: [], sec: null, needEd: null, share: null,
+    drafts: [], notes: [], pushOn: false, pushCardHidden: (() => { try { return localStorage.getItem('spark-hub-push-card') === 'hidden'; } catch (e) { return false; } })(), sec: null, needEd: null, share: null,
 
     loginStep: null, loginFrom: 'default', loginThen: null, loginMode: 'link', loginEmail: '', loginCode: '',
     resent: false, mergeToken: null, googleFailed: false,
@@ -498,6 +498,7 @@
       myName: mine.name || state.myName, myAvatar: mine.avatar || null, myPlace: mine.place || '', myBio: mine.bio || ''
     });
     writeCache();
+    if (state.email && !va) syncPush();
     // Whether you're the account that can wipe the demo content (Profile)
     if (state.email && !va) {
       sb.from('demo_admins').select('user_id').eq('user_id', state.me).maybeSingle()
@@ -1324,6 +1325,7 @@
   };
 
   const signOut = async () => {
+    await forgetPush();   // this phone stops getting the old account's notifications
     clearCache();
     await sb.auth.signOut().catch(() => {});
     setState({ email: '', isGoogle: false, myName: '', myAvatar: null, myPlace: '', myBio: '', guest: null, groups: [], sparks: [], drafts: [], notes: [], profiles: {}, sizes: {},
@@ -2737,6 +2739,78 @@
   const openNotif = (n) => { markRead(n); if (n.s) openSpark(n.s); };
   const rsvpFromFeed = (n, status) => (e) => { stop(e); markRead(n); setRsvp(n.s, status); };
 
+  // ---- Web push: phone notifications (the service worker is /sw.js; the database decides who
+  // hears about what and /api/push sends it). On iPhone it only works in the installed app.
+  const PUSH_OK = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+  const IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(e => console.error(e));
+    // Tapping a notification while the app is open: the worker asks us to go to that event
+    navigator.serviceWorker.addEventListener('message', (e) => {
+      if (!e.data || e.data.type !== 'open') return;
+      try { const u = new URL(e.data.url); if (u.origin === location.origin) location.hash = u.hash || '#/'; } catch (err) { /* ignore */ }
+    });
+  }
+  // on · off · denied (blocked in Settings) · install (iPhone Safari: add to Home Screen first) · none
+  const pushStatus = () => !PUSH_OK ? (IS_IOS && !STANDALONE ? 'install' : 'none') : Notification.permission === 'denied' ? 'denied' : state.pushOn ? 'on' : 'off';
+  const vapidKey = (k) => { const b = atob((k + '='.repeat((4 - k.length % 4) % 4)).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from(b, c => c.charCodeAt(0)); };
+  const saveSub = async (sub) => { const j = sub.toJSON(); must(await sb.rpc('save_push', { p_endpoint: j.endpoint, p_p256dh: j.keys.p256dh, p_auth: j.keys.auth })); };
+  const turnOnPush = async () => {
+    if (!PUSH_OK || state.busy || state.viewAs) return;
+    try {
+      const perm = await Notification.requestPermission();   // first, so it's still inside the tap
+      if (perm !== 'granted') { setState({}); toast(perm === 'denied' ? 'Notifications are blocked. Allow them for Spark Hub in your phone’s Settings.' : 'Notifications stay off for now'); return; }
+      const reg = await navigator.serviceWorker.ready;
+      const sub = (await reg.pushManager.getSubscription()) || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: vapidKey(CFG.vapidPublicKey) });
+      await saveSub(sub);
+      setState({ pushOn: true });
+      toast('Notifications are on for this phone', true);
+    } catch (e) { console.error(e); toast(FAILED); }
+  };
+  const forgetPush = async () => {
+    if (!PUSH_OK || !navigator.serviceWorker.controller) return;
+    try {
+      const sub = await (await navigator.serviceWorker.ready).pushManager.getSubscription();
+      if (sub) await sb.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
+    } catch (e) { /* signing out still works */ }
+    state.pushOn = false;
+  };
+  const turnOffPush = async () => {
+    if (state.busy || state.viewAs) return;
+    try {
+      const sub = await (await navigator.serviceWorker.ready).pushManager.getSubscription();
+      if (sub) { must(await sb.from('push_subscriptions').delete().eq('endpoint', sub.endpoint)); await sub.unsubscribe().catch(() => {}); }
+      setState({ pushOn: false });
+      toast('Notifications are off for this phone', true);
+    } catch (e) { console.error(e); toast(FAILED); }
+  };
+  // After each sign-in load: if this phone already allowed notifications, keep it tied to this account
+  let pushSynced = false;
+  const syncPush = async () => {
+    if (pushSynced || !PUSH_OK || Notification.permission !== 'granted') return;
+    pushSynced = true;
+    try {
+      const sub = await (await navigator.serviceWorker.ready).pushManager.getSubscription();
+      if (sub) await saveSub(sub);
+      setState({ pushOn: !!sub });
+    } catch (e) { console.error(e); }
+  };
+  // The card at the top of Notifications until it's on (or put away)
+  const pushCard = () => {
+    const ps = pushStatus();
+    if (state.pushCardHidden || (ps !== 'off' && ps !== 'install')) return '';
+    const hide = () => { try { localStorage.setItem('spark-hub-push-card', 'hidden'); } catch (e) { /* fine */ } setState({ pushCardHidden: true }); };
+    return '<div data-push-card style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:10px">' +
+      '<div style="display:flex;align-items:flex-start;gap:12px"><span aria-hidden="true" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#f3f1fe;display:flex;align-items:center;justify-content:center">' + svg(18, stroke('#5b4ae8', 2.2), '<path d="M6 16.5V11a6 6 0 1 1 12 0v5.5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>') + '</span>' +
+        '<div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:800;color:#0d1117">' + (ps === 'install' ? 'Get these on your iPhone' : 'Get these on your phone') + '</div>' +
+          '<div style="margin-top:2px;font-size:13.5px;line-height:1.4;font-weight:600;color:#6b7280">' + (ps === 'install'
+            ? 'Add Spark Hub to your Home Screen first: tap Share, then Add to Home Screen. Open it from there and turn them on.'
+            : 'We’ll buzz you when a plan changes, something new goes up, or the day before you’re going.') + '</div></div>' +
+        '<span ' + on(hide) + ' aria-label="Not now" style="flex:0 0 28px;width:28px;height:28px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(11, '#6b7280', 2.6) + '</span></div>' +
+      (ps === 'off' ? '<button type="button" class="hov-primary" ' + on(turnOnPush) + ' style="align-self:flex-start;min-height:42px;padding:0 18px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer">Turn on notifications</button>' : '') +
+    '</div>';
+  };
+
   // v6: a slide-up sheet (from the bell), gear and Close beside the title
   function viewNotifSheet() {
     const st = state, all = notifList(), f = st.nFilter, shown = all.filter(n => f === 'all' || N_TYPES[n.type].cat === f), unread = all.filter(isUnread).length;
@@ -2777,7 +2851,7 @@
     return sheet6('Notifications', close,
       '<div style="display:flex;align-items:center;gap:10px">' + H1('Notifications', 'flex:1;min-width:0') + gear + closeX(close) + '</div>' +
         '<div class="no-scrollbar" role="radiogroup" aria-label="Show" style="margin-top:14px;display:flex;gap:8px;overflow-x:auto">' + chip('all', 'All') + chip('invites', 'Invites') + chip('updates', 'Updates') + chip('hosting', 'Hosting') + '</div>',
-      '<div style="padding:16px 14px 30px;display:flex;flex-direction:column;gap:16px">' +
+      '<div style="padding:16px 14px 30px;display:flex;flex-direction:column;gap:16px">' + pushCard() +
         (!st.loaded ? skeleton(4, 76)
           : secs.length
           ? secs.map(([label, items], i) => '<div><div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 4px 6px;min-height:32px"><span style="' + EYEBROW + '">' + label + (!i && unread ? ' · ' + unread : '') + '</span>' +
@@ -2794,7 +2868,8 @@
         '<h3 style="margin:0;font-size:22px;font-weight:900;letter-spacing:-.5px;color:#0d1117">Notifications</h3>' +
         '<div ' + on(close) + ' aria-label="Close" style="width:32px;height:32px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(15, '#0d1117', 2.4) + '</div>' +
       '</div>' +
-      '<div style="font-size:14px;line-height:1.4;font-weight:500;color:#6b7280">What shows up here in the app.</div>' +
+      '<div style="font-size:14px;line-height:1.4;font-weight:500;color:#6b7280">What shows up in the app, and on your phone when that’s on.</div>' +
+      phoneRow() +
       '<div style="margin-top:10px">' + N_TOPICS.map(([k, label, sub], i) => {
         const v = topics[k] !== false;
         return '<div ' + on(toggle(k), 'switch') + ' aria-checked="' + v + '" aria-label="' + esc(label) + '" style="display:flex;align-items:center;gap:12px;min-height:64px;border-top:' + (i ? '1px solid #f2f3f6' : '0') + ';cursor:pointer">' +
@@ -2802,8 +2877,18 @@
           '<span aria-hidden="true" style="flex:0 0 46px;width:46px;height:28px;border-radius:999px;position:relative;transition:background 160ms;background:' + (v ? '#149a4b' : '#dcdfe6') + '"><span style="position:absolute;top:3px;left:' + (v ? 21 : 3) + 'px;width:22px;height:22px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:left 160ms"></span></span>' +
         '</div>';
       }).join('') + '</div>' +
-      '<div style="margin-top:14px;padding-top:14px;border-top:1px solid #f2f3f6;font-size:13px;line-height:1.4;font-weight:500;color:#6b7280">Notifications show here in the app.</div>', 45);
+      '<div style="margin-top:14px;padding-top:14px;border-top:1px solid #f2f3f6;font-size:13px;line-height:1.4;font-weight:500;color:#6b7280">A topic that’s off is off in the app and on your phone.</div>', 45);
   }
+  // Phone notifications on this device (Notification settings)
+  const phoneRow = () => {
+    const ps = pushStatus(), v = ps === 'on';
+    const sub = { on: 'On for this phone', off: 'Off for this phone', denied: 'Blocked. Allow them for Spark Hub in your phone’s Settings.', install: 'On iPhone, add Spark Hub to your Home Screen first, then turn them on there.', none: 'This browser can’t show them.' }[ps];
+    const canToggle = ps === 'on' || ps === 'off';
+    return '<div ' + (canToggle ? on(v ? turnOffPush : turnOnPush, 'switch') + ' aria-checked="' + v + '" ' : '') + 'aria-label="Phone notifications" style="margin-top:12px;display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:16px;background:#f4f5f7;' + (canToggle ? 'cursor:pointer' : '') + '">' +
+      '<div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:800;color:#0d1117">Phone notifications</div><div style="font-size:13px;line-height:1.35;font-weight:500;color:#6b7280">' + esc(sub) + '</div></div>' +
+      (canToggle ? '<span aria-hidden="true" style="flex:0 0 46px;width:46px;height:28px;border-radius:999px;position:relative;transition:background 160ms;background:' + (v ? '#149a4b' : '#dcdfe6') + '"><span style="position:absolute;top:3px;left:' + (v ? 21 : 3) + 'px;width:22px;height:22px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:left 160ms"></span></span>' : '') +
+    '</div>';
+  };
 
   // Signed in but in no group yet (not designed; README → Open "first-run view")
   const noGroupCard = () =>
@@ -4023,7 +4108,7 @@
             tile(svg(18, stroke('currentColor', 2), '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/>'), 'Notification settings', 'What you hear about and how', () => setState({ nSettings: true })) +
           '</div></div>' +
         section('Settings',
-          '<div ' + on(() => setState({ nSettings: true })) + ' class="hov-row" style="' + ROW + '">' + line('Notifications', 'What shows up in the app') + I.chevR(16, '#9aa0ac', 2.4) + '</div>' +
+          '<div ' + on(() => setState({ nSettings: true })) + ' class="hov-row" style="' + ROW + '">' + line('Notifications', 'In the app and on your phone') + I.chevR(16, '#9aa0ac', 2.4) + '</div>' +
           '<a href="/privacy.html" target="_blank" rel="noopener" class="hov-row" style="' + ROW + ';border-top:1px solid #f2f3f6">' + line('Privacy', 'Who sees your profile and plans') + I.chevR(16, '#9aa0ac', 2.4) + '</a>') +
         '<div style="display:flex;flex-direction:column;gap:14px">' +
           (st.demoAdmin && st.sparks.some(s => s.demo)

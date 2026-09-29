@@ -29,6 +29,7 @@ Where this doc and the design files disagree, **this doc is correct**.
 - **Notes when something comes down** (Notifications → Updates, red **!** badge, the host's face): *{event} is off. {host} took it down.* and *“{job}” is off the list for {event}.* Tapping one only marks it read (there's nothing to open).
 - **Make home, after the move:** tapping the new home's row says *{group} is its home now*. Below the list, *The home group's admins can edit or delete it.* shows whenever more than one group is ticked.
 - **Who thanked** is a pop-up (the build's modal style, not a slide-up sheet), titled *Thanks for {host first name}*; your own row reads *You*.
+- **Phone notifications (web push, owner 2026-09-29):** a card at the top of the Notifications sheet (white card, 36px lavender `#f3f1fe` circle with a purple bell): *Get these on your phone* · *We'll buzz you when a plan changes, something new goes up, or the day before you're going.* · purple **Turn on notifications** pill, and a gray ✕ (*Not now*, remembered on the device). In iPhone Safari (not installed) it reads *Get these on your iPhone* · *Add Spark Hub to your Home Screen first: tap Share, then Add to Home Screen. Open it from there and turn them on.* with no button. Notification settings gets a gray `#f4f5f7` row first: **Phone notifications** with a switch (*On / Off for this phone*), or *Blocked. Allow them for Spark Hub in your phone's Settings.* The push itself: title = the event (or *New in {group}: {event}*, *Tomorrow: {event}*), body = the same line as the in-app feed. Please design the card, the settings row and when to ask.
 - **Delete / remove confirms with one person:** *The 1 person going gets a note that it's off.* / *The 1 person signed up gets a note that it's off the list.* With nobody else, the note line is left out.
 
 ## 3. Behaviour added in the build (no visual change)
@@ -37,6 +38,8 @@ Where this doc and the design files disagree, **this doc is correct**.
 - **The TBD strip** switches the Calendar to List (remembered, as picking List would be) and scrolls to *Date to be decided*.
 - **Make home** happens on Save: new groups are added first, then the home moves (`set_home_group()`), then unticked groups come off.
 - **Removing a job** in Edit what you need also sends the note to the people signed up, not just the Help out ✕.
+- **Push** follows the in-app feed's rules and each person's topics; a topic that's off is off on the phone too. Demo seeding never pushes, and reminders skip demo events. Signing out removes that phone's push.
+- **Second address:** https://sparkhub.weareallneighbors.org serves the live app alongside gosparkhub.vercel.app.
 - **Admins** who edit a title or Basic details don't get the switch (only the host posts updates).
 
 ## 4. Designed but not built or not working

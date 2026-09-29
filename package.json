@@ -1,0 +1,8 @@
+{
+  "name": "sparkhub",
+  "private": true,
+  "description": "Static site; this file only brings in the web-push library for api/push.js on Vercel",
+  "dependencies": {
+    "web-push": "^3.6.7"
+  }
+}

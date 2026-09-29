@@ -349,6 +349,25 @@ test('plans: replies, sign-ups, updates, notes and invite-only plans follow the 
     });
     expect(omars.sized).toEqual(omars.mine);
 
+    // Web push: devices are saved only through save_push (signed in), each person sees and removes
+    // only their own, and the send settings (private schema) aren't reachable at all
+    const ep = 'https://push.example.com/e2e-' + Date.now();
+    const pushL = await asUser(L, async (c, _C, ep) => {
+      const saved = (await c.rpc('save_push', { p_endpoint: ep, p_p256dh: 'B'.repeat(40), p_auth: 'a'.repeat(16) })).error ? 'refused' : 'ok';
+      return { saved, mine: (await c.from('push_subscriptions').select('endpoint').eq('endpoint', ep)).data.length };
+    }, ep);
+    expect(pushL).toEqual({ saved: 'ok', mine: 1 });
+    const pushO = await asUser(O, async (c, _C, ep) => ({
+      see: (await c.from('push_subscriptions').select('endpoint').eq('endpoint', ep)).data.length,
+      remove: (await c.from('push_subscriptions').delete().eq('endpoint', ep).select()).data?.length ?? 'refused',
+      insert: (await c.from('push_subscriptions').insert({ endpoint: ep + 'x', p256dh: 'B'.repeat(40), auth: 'a'.repeat(16) })).error ? 'refused' : 'ALLOWED',
+      config: (await c.schema('private').from('push_config').select('*')).error ? 'refused' : 'ALLOWED'
+    }), ep);
+    expect(pushO).toEqual({ see: 0, remove: 0, insert: 'refused', config: 'refused' });
+    const pushA = await asUser(A, async (c, _C, ep) => (await c.rpc('save_push', { p_endpoint: ep + 'anon', p_p256dh: 'B'.repeat(40), p_auth: 'a'.repeat(16) })).error ? 'refused' : 'ALLOWED', ep);
+    expect(pushA).toBe('refused');
+    await asUser(L, async (c, _C, ep) => { await c.from('push_subscriptions').delete().eq('endpoint', ep); }, ep);
+
     // Notification state: your own row only
     const lenaId = await asUser(L, async (c) => (await c.auth.getUser()).data.user.id);
     await asUser(L, async (c) => { await c.from('notif_state').upsert({ read_keys: ['x'] }, { onConflict: 'user_id' }); });
