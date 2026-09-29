@@ -1,6 +1,6 @@
 // The app loads for visitors and members, and its menus and links work.
 const { test, expect, devices } = require('@playwright/test');
-const { newMember, newLead, button, asUser, pickView } = require('./helpers');
+const { newMember, newLead, button, asUser, pickView, openProfile } = require('./helpers');
 
 test('visitors land on Welcome (no tab bar there) and sign in from there', async ({ browser }) => {
   const { page, context, errors } = await newMember(browser);
@@ -73,6 +73,54 @@ test('web push: a push-only service worker registers, and Notifications offers p
     await expect(card.getByRole('button', { name: 'Turn on notifications' })).toBeVisible();
     await card.getByLabel('Not now').click();
     await expect(card).toHaveCount(0);
+    expect(m.errors).toEqual([]);
+  } finally {
+    await m.context.close();
+  }
+});
+
+test('Add to Home Screen: Android opens Chrome’s install prompt from our card; iPhone Safari shows the Share steps', async ({ browser }) => {
+  const m = await newLead(browser, 1, 'Ivy');
+  try {
+    const page = m.page;
+    // Chrome hands an installable site a beforeinstallprompt event; stand in for it (or be iPhone Safari, which has none)
+    await m.context.addInitScript(() => {
+      if (localStorage.getItem('e2e-iphone')) {
+        Object.defineProperty(navigator, 'userAgent', { get: () => 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1' });
+        return;
+      }
+      document.addEventListener('DOMContentLoaded', () => {
+        const e = new Event('beforeinstallprompt', { cancelable: true });
+        e.prompt = async () => { window.__prompted = (window.__prompted || 0) + 1; };
+        e.userChoice = Promise.resolve({ outcome: 'accepted', platform: 'web' });
+        window.dispatchEvent(e);
+      });
+    });
+    await page.reload();
+    await expect(page.locator('html[data-loaded=true]')).toHaveCount(1);
+    const card = page.locator('[data-screen-label=Calendar] [data-install-card]');
+    await expect(card).toContainText('Put Spark Hub on your Home Screen');
+    await card.getByRole('button', { name: 'Install app' }).click();
+    await expect.poll(() => page.evaluate(() => window.__prompted)).toBe(1);
+    await expect(card).toHaveCount(0);   // Chrome's prompt works once; it offers a new one on a later visit
+
+    // iPhone Safari: no prompt to open, so the card shows where Share → Add to Home Screen is
+    await page.evaluate(() => localStorage.setItem('e2e-iphone', '1'));
+    await page.reload();
+    await expect(page.locator('html[data-loaded=true]')).toHaveCount(1);
+    await card.getByRole('button', { name: 'Show me how' }).click();
+    const tip = page.getByRole('dialog', { name: 'Add to Home Screen' });
+    await expect(tip).toContainText('in Safari’s bar below');
+    await expect(tip).toContainText('Tap Add to Home Screen, then Add.');
+    await tip.getByRole('button', { name: 'Close' }).click();
+    await expect(tip).toHaveCount(0);
+
+    // "Not now" puts the card away for good; Profile keeps the way in
+    await card.getByLabel('Not now').click();
+    await expect(card).toHaveCount(0);
+    await openProfile(page);
+    await page.getByRole('dialog', { name: 'Profile', exact: true }).getByRole('button', { name: /^Add to Home Screen/ }).click();
+    await expect(tip).toBeVisible();
     expect(m.errors).toEqual([]);
   } finally {
     await m.context.close();
