@@ -50,9 +50,9 @@ Where this doc and the design files disagree, **this doc is correct**.
 | 32 | **Job times use the 30-minute list**: Add a job has *Time (optional)*; each shift has *Start* and *End* lists plus its own − n + | Free-text time fields (*e.g. 6:00 – 7:00pm*) | Times are stored as times, so sign-ups can show and sort them |
 | 33 | **Location polls** are plain text (no address suggestions); a picked winner has no map link until the host sets the place with a suggestion | — | Keeps the poll sheet simple |
 | 34 | **No map on the date and location card** | Update 5's Geoapify map | Update 6's card has none |
+| 35 | **Older ideas** (still in the demo data; nothing new becomes one) keep the idea page; its title pencil and Basic details open the same edit sheets, and the Edit pill is gone | — | "Float an idea" now opens Create event |
 | 36 | **Helping to-dos are only what's yours to do**: *Confirm RSVP* (no reply yet) or *You said maybe · Update RSVP*, and each sign-up with its time; no *Location TBD · Check* or *In N days · Details* rows. Your schedule's Helping strip opens to the same rows | The v6 list | Owner (2026-09-29) |
 | 37 | **Update 6's known gaps, filled in by the build:** cards on Your tasks, Your schedule, the Calendar and group pages read *Date to be decided* / *Location to be decided* in amber (`#8f6405` on white; `#ffd98a` over photos), or *Voting on N dates / spots*; undated events list last under a *Date to be decided* heading (not in the month grid or *Could use a hand*); a multi-group event's chip and search row read *{first group} +N*; *Your drafts* also shows at the top of Your schedule | Not designed | Update 6 §5 |
-| 35 | **Older ideas** (still in the demo data; nothing new becomes one) keep the idea page; its title pencil and Basic details open the same edit sheets, and the Edit pill is gone | — | "Float an idea" now opens Create event |
 ## 2. Things the build had to invent (please design these properly)
 
 - **Empty states:** Could use a hand with nothing open: *Everything's covered for the next two weeks.* Calendar with no results: *No events match these filters.* / *Nothing coming up in your groups yet.* (under a "Coming up" heading). Month view, a day with nothing: *Nothing on this day.* View all, empty: *Nothing here right now.*
@@ -85,7 +85,7 @@ Where this doc and the design files disagree, **this doc is correct**.
 - **Deleting an idea** returns you to the screen you opened it from (the Calendar if none).
 - **URLs:** the Calendar is `/` (and `#/calendar`), Your tasks `#/tasks`, Your schedule `#/schedule`; `#/me` and `#/notifications` open the Profile / Notifications sheets over the Calendar. Your plans & ideas is still at `#/own` (off the tab bar). Following a link or the back button closes any open sheet.
 - **Calendar filters, search and "Feeling wild? / could use a hand" dismissals** last for the visit; the chosen view (List / Tiles / Month) is remembered per device.
-- **Demo data:** `scripts/demo/seed-events.py` now also makes, dated from the day it runs, a plan today / tomorrow (reminder off) / two days ago and a Helpers-stage idea for each tester, plus two shared plans everyone helps on, so every v6 state shows.
+- **Demo data:** `scripts/demo/seed-events.py` now also makes, dated from the day it runs, a plan today / tomorrow (reminder off) / two days ago and a Helpers-stage idea for each tester, plus two shared plans everyone helps on, so every v6 state shows. Since v6 Update 6 each tester also leads an event with its date put to a poll (three dates with votes) and no place yet, and everyone can vote on a shared *Neighborhood chili cook-off* whose date and place are still to be decided (a location poll).
 
 - **Search Try chips** set a filter for the search only (This weekend = the coming Friday to Sunday; Needs helpers = open sign-ups) and are cleared when the sheet closes. Search matches upcoming plans only (the Calendar's scope); group search covers ideas, plans and past events.
 - **Sort and Filter** on Your schedule and on group Plans last for the visit; the group Plans view (Tiles / List) is remembered per device, as before.
@@ -116,6 +116,10 @@ Where this doc and the design files disagree, **this doc is correct**.
 
 12. **Your place, bio and "member since"** are no longer shown anywhere for yourself (Update 2 keeps them "for viewing other people", which isn't designed or built yet). Design a public profile view, or show them somewhere on your own sheet?
 13. **Reactions on It happened:** is the build's Reactions card right, or should the page get its own design (and a list of who thanked)?
+14. **Edits that tell people:** today only a new date or place sends an update to everyone going (§1 #29). Should a new title, time-only change, Basic details or a switch to Private tell them too, and what should that update say?
+15. **Delete this event** is a red link at the bottom of the event page (§1 #31). Is that the right place, or should it live in one of the edit sheets?
+16. **An event's first group** stays ticked in Who can see it (§1 #30). Should the host be able to move an event out of the group it started in?
+17. **Undecided events on cards** (§1 #37): the amber *to be decided* lines and the *Date to be decided* section were built without a design. Please check them, and the month grid (undated events aren't in it).
 
 ## 6. Design tokens
 

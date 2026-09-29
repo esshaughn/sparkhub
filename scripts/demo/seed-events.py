@@ -17,6 +17,8 @@ else who has signed in) gets, across the groups they belong to:
 The demo people (Marisol, Darnell, Theo, Hana, Dee and the fans) lead the rest and fill the replies.
 v6 adds, dated from the day it runs: for each person a plan today, one tomorrow, one two days ago and an
 idea at the Helpers stage (all led by them), plus two shared plans everyone helps on. Re-run to refresh them.
+v6 Update 6 adds undecided events: each person leads a plan with no date (a date poll with votes) and no place
+yet, and everyone can vote on a shared plan whose date and location are still to be decided (a spot poll).
 
 Run seed-demo.py once first (it creates the demo people and groups). Then:
   Test:  python3 scripts/demo/seed-events.py
@@ -409,7 +411,7 @@ def make(d, lead, is_plan):
     ll = d.get('ll')
     row = {'group_id': groups[d['g']], 'demo': True, 'text': d['text'], 'author_name': NAME[lead], 'lead_name': NAME[lead],
            'lead_id': lead, 'created_by': lead, 'created_at': (now - timedelta(days=d.get('age', 3))).isoformat(),
-           'hopes': [], 'cat': 'events', 'answers': {}, 'vision': d.get('vision'),
+           'hopes': d.get('hopes', []), 'cat': 'events', 'answers': {}, 'vision': d.get('vision'),
            'photos': [upload(lead, d['photo'])] if d.get('photo') else [], 'mood': [],
            'day_date': d.get('date'), 'day_time': d.get('time'), 'planned': is_plan, 'visibility': 'group',
            'spot': d.get('spot'), 'spot_open': not d.get('spot'), 'auto_remind': d.get('remind', True),
@@ -446,6 +448,7 @@ def fill(x, going=0, maybe=0, claims=0):   # the demo fans reply and take a few 
 V6_TODAY = ['Porch coffee hour', 'Front-yard movie night', 'Sidewalk chalk morning', 'Board game night', 'Dog park meetup', 'Soup swap']
 V6_TOMORROW = ['Kite flying at the park', 'Bike tune-up clinic', 'Book swap on the lawn', 'Stretch and stroll', 'Leaf raking party', 'Lemonade stand for the kids']
 V6_PAST = ['Taco Tuesday potluck', 'Neighborhood photo walk', 'Garage gym session', 'Backyard s’mores', 'Pancake breakfast', 'Plant swap']
+V6_UNDECIDED = ['Fall yard cleanup', 'Neighborhood trivia night', 'Pumpkin carving on the porch', 'Coat drive sorting', 'Tamale-making afternoon', 'Stargazing at the field']
 V6_IDEA = ['Community garden plots', 'Block party planning', 'Little free library', 'Saturday cleanup crew', 'Neighborhood yard sale', 'Kids’ bike parade']
 PHOTOS = ['get-togethers.jpg', 'welcome-picnic.jpg', 'projects.jpg', 'get-togethers-2.jpg', 'mutual-aid.jpg', 'craft-night.jpg']
 for k, r in enumerate(R):
@@ -471,7 +474,16 @@ for k, r in enumerate(R):
     for uid in sorted(FANS, key=lambda u: pick(i['text'], u))[:2]:
         claim(i, uid)
     call('POST', '/rest/v1/spot_options', {'spark_id': i['id'], 'name': SPOT_IDEA[g], 'who': 'Marisol', 'created_by': P['Marisol']})
-    print(f"  v6: {r['name']} leads {a['text']} (today), {b['text']} (tomorrow), {c['text']} (2 days ago), {i['text']} (idea)")
+    # v6 Update 6: a plan they lead with the date put to a poll and the place still to be decided
+    u = make(dict(g=g, text=V6_UNDECIDED[n] + suffix, photo=PHOTOS[(n + 4) % 6], age=1,
+                  hopes=['Bring a chair', 'Kids and dogs welcome'], signups=[('Bring snacks', 2, None), ('Help set up', 2, None)]), me, True)
+    fans = sorted(FANS, key=lambda f: pick(u['text'], f))
+    for k2, (off, t) in enumerate([(9, '10:00'), (10, '10:00'), (16, '14:00')]):
+        oid = rest('POST', 'date_options', {'spark_id': u['id'], 'day_date': day(off), 'day_time': t, 'who': NAME[me], 'created_by': me})[0]['id']
+        for f in fans[:[4, 2, 1][k2]]:
+            call('POST', '/rest/v1/date_votes', {'option_id': oid, 'user_id': f})
+    fill(u, going=2, maybe=1)
+    print(f"  v6: {r['name']} leads {a['text']} (today), {b['text']} (tomorrow), {c['text']} (2 days ago), {i['text']} (idea), {u['text']} (undecided)")
 
 # Shared: everyone helps on these two (led by the demo people)
 shared = [(dict(g=W, text='Porch light potluck', date=day(1), time='18:30', spot='Walnut Creek Neighborhood Park', photo='friendsgiving.jpg',
@@ -493,6 +505,16 @@ for d, status in shared:
             if status:
                 rsvp(x, r['id'], status)
     print(f"  v6: shared {d['text']} ({d['date']})")
+
+# v6 Update 6: a shared plan with the date and the place still to be decided (a spot poll everyone can vote on)
+ud = make(dict(g=W, text='Neighborhood chili cook-off', photo='friendsgiving.jpg', age=1,
+               hopes=['Bring your best chili', 'Judging at 3', 'Cornbread welcome'], signups=[('Bring a crockpot', 6, None)]), P['Marisol'], True)
+for name, votes in [('Walnut Creek Neighborhood Park', 3), ('The rec center patio', 2)]:
+    oid = rest('POST', 'spot_options', {'spark_id': ud['id'], 'name': name, 'who': 'Marisol', 'created_by': P['Marisol']})[0]['id']
+    for f in sorted(FANS, key=lambda f: pick(name, f))[:votes]:
+        call('POST', '/rest/v1/spot_votes', {'option_id': oid, 'user_id': f})
+fill(ud, going=3, maybe=2)
+print(f"  v6: shared {ud['text']} (date and place to be decided)")
 
 # Real people already have their demo share: the sign-in trigger mustn't add more on top
 for r in R:
