@@ -59,7 +59,7 @@ Where this doc and the design files disagree, **this doc is correct**.
 3. **Minimum people** on ideas ("How many do you need?") has no input yet, so the People checkpoint rarely completes.
 10. **Event types:** the placeholder keyword guesses are shown to people as filters; host-chosen tags (v6 open item) would replace them.
 11. **Event preview slide-up** (v6 options 13a/13b/13c) is still undecided.
-4. **Invite link screens** (the current sign-in-to-join flow is a stopgap).
+4. **Invite link screens** (the current sign-in-to-join flow is a stopgap). Priority for the pilot: the first thing a new member sees. Full brief + today's four screens: `spark-hub-invite-flow-brief` (BRIEF.md). Signed-out visitors see the Welcome screen with *Sign in to join the group {CODE}*; after sign-in a generic *Join a group* popup opens with the code pre-filled. The app can show the group's name and photo to anyone with the code (`group_preview()`), nothing more.
 5. **Owner controls** in the Members sheet: pill + text button per row at 393px, or a per-row menu?
 6. **Google's sign-in screen** says "continue to …supabase.co" until Spark Hub has its own sign-in domain.
 7. **Video on the vibe board** is parked (needs a ~20 s / 25 MB cap).
