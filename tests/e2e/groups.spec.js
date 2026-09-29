@@ -71,10 +71,10 @@ test('a group end to end: edit group, cover, rename, invite, pin, admin edits, r
     await join.getByRole('button', { name: 'Close' }).click();
     // Signed in before the tap: one confirm (E3), then Welcome to {group} (4) → its Plans tab
     await B.goto('/#/join/' + code);
-    const confirm = B.getByRole('dialog', { name: 'Join ' + groupName + '?' });
-    await expect(confirm).toContainText('You’ll join as:');
-    await expect(confirm).not.toContainText(code);   // the code is never shown
-    await confirm.getByRole('button', { name: 'Join as Bo' }).click();
+    const joinAsk = B.getByRole('dialog', { name: 'Join ' + groupName + '?' });
+    await expect(joinAsk).toContainText('You’ll join as:');
+    await expect(joinAsk).not.toContainText(code);   // the code is never shown
+    await joinAsk.getByRole('button', { name: /^Join as / }).click();
     const welcome = B.locator('[data-screen-label="Welcome to group"]');
     await expect(welcome).toContainText('Welcome to' + groupName);
     await expect(welcome).toContainText('Nothing planned yet. Got an idea?');
@@ -82,7 +82,7 @@ test('a group end to end: edit group, cover, rename, invite, pin, admin edits, r
     await expect(B.locator('[data-screen-label=Browse]')).toContainText(groupName);
     // The link again, already a member (E2): the group page and a toast, no Welcome
     await B.goto('/#/join/' + code);
-    await confirm.getByRole('button', { name: /^Join as / }).click();
+    await joinAsk.getByRole('button', { name: /^Join as / }).click();
     await expect(B.getByText('You’re already in ' + groupName)).toBeVisible();
     await expect(welcome).toHaveCount(0);
     await expect(B.locator('[data-screen-label=Browse]')).toContainText(groupName);
