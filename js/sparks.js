@@ -2795,6 +2795,19 @@
       setState({ pushOn: !!sub });
     } catch (e) { console.error(e); }
   };
+  // The Home Screen icon's badge = the bell's unread count (installed app, notifications allowed).
+  // The service worker bumps it when a push arrives while the app is closed; the count it keeps
+  // lives in the 'spark-hub-badge' cache, which we reset to the real number here.
+  let badgeShown = -1;
+  const syncBadge = () => {
+    if (!('setAppBadge' in navigator) || !state.loaded || state.viewAs) return;
+    const n = state.email ? unreadCount() : 0;
+    if (n === badgeShown) return;
+    badgeShown = n;
+    (n ? navigator.setAppBadge(n) : navigator.clearAppBadge()).catch(() => {});
+    if ('caches' in window) caches.open('spark-hub-badge').then(c => c.put('/badge-count', new Response(String(n)))).catch(() => {});
+  };
+
   // The card at the top of Notifications until it's on (or put away)
   const pushCard = () => {
     const ps = pushStatus();
@@ -5255,6 +5268,7 @@
     // Screens that start with a photo run it up under the iPhone status bar
     const sc = state.screen, photoTop = sc === 'browse' || (sc === 'detail' && !!subject()) || sc === 'calendar' || sc === 'groups' || welcomeShown() || (!state.email && sc === 'compose');
     root.classList.toggle('photo-top', photoTop);
+    syncBadge();
     const took = performance.now() - t0;
     diagNote('redraw (' + Math.round(took) + 'ms)');
     if (took > 150) diag('slow redraw', took);
