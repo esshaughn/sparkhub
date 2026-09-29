@@ -79,61 +79,82 @@ test('web push: a push-only service worker registers, and Notifications offers p
   }
 });
 
-test('Add to Home Screen: Android opens Chrome’s install prompt from our card; iPhone Safari and Chrome show the Share steps', async ({ browser }) => {
+test('Add to Home Screen: a pop-up on Welcome and once after signing in; Android opens Chrome’s prompt, iPhone Safari and Chrome show the Share steps', async ({ browser }) => {
+  // Chrome hands an installable site a beforeinstallprompt event; stand in for it (or be an iPhone browser, which has none)
+  const fake = () => {
+    const iphone = localStorage.getItem('e2e-iphone');
+    if (iphone) {
+      const ua = iphone === 'chrome'
+        ? 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/140.0.0.0 Mobile/15E148 Safari/604.1'
+        : 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
+      Object.defineProperty(navigator, 'userAgent', { get: () => ua });
+      return;
+    }
+    document.addEventListener('DOMContentLoaded', () => {
+      const e = new Event('beforeinstallprompt', { cancelable: true });
+      e.prompt = async () => { window.__prompted = (window.__prompted || 0) + 1; };
+      e.userChoice = Promise.resolve({ outcome: 'accepted', platform: 'web' });
+      window.dispatchEvent(e);
+    });
+  };
+  const fresh = async (page, iphone) => {   // this device hasn't seen the pop-up yet
+    await page.evaluate((iphone) => {
+      localStorage.setItem('e2e-install', '1');
+      localStorage.removeItem('spark-hub-install-pop');
+      sessionStorage.removeItem('spark-hub-install-welcome');
+      if (iphone) localStorage.setItem('e2e-iphone', iphone); else localStorage.removeItem('e2e-iphone');
+    }, iphone);
+    await page.reload();
+    await expect(page.locator('html[data-loaded=true]')).toHaveCount(1);
+  };
+
+  // Welcome (signed out), iPhone Safari: the steps, once a visit
+  const v = await newMember(browser);
+  try {
+    await v.context.addInitScript(fake);
+    await fresh(v.page, 'safari');
+    await expect(v.page.locator('[data-screen-label=Welcome]')).toBeVisible();
+    const pop = v.page.getByRole('dialog', { name: 'Add to Home Screen' });
+    await expect(pop).toContainText('Put Spark Hub on your Home Screen');
+    await expect(pop).toContainText('in Safari’s bar below');
+    await expect(pop).toContainText('Tap Add to Home Screen, then Add.');
+    await pop.getByRole('button', { name: 'Got it' }).click();
+    await expect(pop).toHaveCount(0);
+    await v.page.reload();
+    await expect(v.page.locator('html[data-loaded=true]')).toHaveCount(1);
+    await v.page.waitForTimeout(1200);
+    await expect(pop).toHaveCount(0);   // not again this visit
+
+    // iPhone Chrome: its Share button is in the address bar
+    await fresh(v.page, 'chrome');
+    await expect(pop).toContainText('in Chrome’s address bar');
+    await pop.getByLabel('Close').click();
+    expect(v.errors).toEqual([]);
+  } finally {
+    await v.context.close();
+  }
+
+  // Signed in, Android Chrome: once after signing in, and Install app opens Chrome's dialog
   const m = await newLead(browser, 1, 'Ivy');
   try {
     const page = m.page;
-    // Chrome hands an installable site a beforeinstallprompt event; stand in for it (or be iPhone Safari, which has none)
-    await m.context.addInitScript(() => {
-      const iphone = localStorage.getItem('e2e-iphone');
-      if (iphone) {
-        const ua = iphone === 'chrome'
-          ? 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/140.0.0.0 Mobile/15E148 Safari/604.1'
-          : 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
-        Object.defineProperty(navigator, 'userAgent', { get: () => ua });
-        return;
-      }
-      document.addEventListener('DOMContentLoaded', () => {
-        const e = new Event('beforeinstallprompt', { cancelable: true });
-        e.prompt = async () => { window.__prompted = (window.__prompted || 0) + 1; };
-        e.userChoice = Promise.resolve({ outcome: 'accepted', platform: 'web' });
-        window.dispatchEvent(e);
-      });
-    });
-    await page.reload();
-    await expect(page.locator('html[data-loaded=true]')).toHaveCount(1);
-    const card = page.locator('[data-screen-label=Calendar] [data-install-card]');
-    await expect(card).toContainText('Put Spark Hub on your Home Screen');
-    await card.getByRole('button', { name: 'Install app' }).click();
+    await m.context.addInitScript(fake);
+    await fresh(page, null);
+    const pop = page.getByRole('dialog', { name: 'Add to Home Screen' });
+    await expect(pop).toContainText('It opens full screen, like any app');
+    await expect(page.locator('[data-screen-label=Calendar] [data-install-card]')).toHaveCount(0);   // no card on the Calendar
+    await pop.getByRole('button', { name: 'Install app' }).click();
     await expect.poll(() => page.evaluate(() => window.__prompted)).toBe(1);
-    await expect(card).toHaveCount(0);   // Chrome's prompt works once; it offers a new one on a later visit
-
-    // iPhone Safari: no prompt to open, so the card shows where Share → Add to Home Screen is
-    await page.evaluate(() => localStorage.setItem('e2e-iphone', '1'));
+    await expect(pop).toHaveCount(0);
     await page.reload();
     await expect(page.locator('html[data-loaded=true]')).toHaveCount(1);
-    await card.getByRole('button', { name: 'Show me how' }).click();
-    const tip = page.getByRole('dialog', { name: 'Add to Home Screen' });
-    await expect(tip).toContainText('in Safari’s bar below');
-    await expect(tip).toContainText('Tap Add to Home Screen, then Add.');
-    await tip.getByRole('button', { name: 'Close' }).click();
-    await expect(tip).toHaveCount(0);
+    await page.waitForTimeout(1200);
+    await expect(pop).toHaveCount(0);   // once per device
 
-    // Chrome on iPhone adds to the Home Screen from its own Share button
-    await page.evaluate(() => localStorage.setItem('e2e-iphone', 'chrome'));
-    await page.reload();
-    await expect(page.locator('html[data-loaded=true]')).toHaveCount(1);
-    await expect(card).toContainText('Chrome adds it in a few taps.');
-    await card.getByRole('button', { name: 'Show me how' }).click();
-    await expect(tip).toContainText('in Chrome’s address bar');
-    await tip.getByRole('button', { name: 'Close' }).click();
-
-    // "Not now" puts the card away for good; Profile keeps the way in
-    await card.getByLabel('Not now').click();
-    await expect(card).toHaveCount(0);
+    // Profile keeps the way in (on Android it opens Chrome's dialog straight away)
     await openProfile(page);
     await page.getByRole('dialog', { name: 'Profile', exact: true }).getByRole('button', { name: /^Add to Home Screen/ }).click();
-    await expect(tip).toBeVisible();
+    await expect.poll(() => page.evaluate(() => window.__prompted)).toBe(1);
     expect(m.errors).toEqual([]);
   } finally {
     await m.context.close();

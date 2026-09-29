@@ -192,7 +192,7 @@
     groups: [], sparks: [], profiles: {},
 
     drafts: [], notes: [], pushOn: false, pushCardHidden: (() => { try { return localStorage.getItem('spark-hub-push-card') === 'hidden'; } catch (e) { return false; } })(),
-    canInstall: false, iosTip: false, installHidden: (() => { try { return localStorage.getItem('spark-hub-install-card') === 'hidden'; } catch (e) { return false; } })(), sec: null, needEd: null, share: null,
+    canInstall: false, installPop: false, sec: null, needEd: null, share: null,
 
     loginStep: null, loginFrom: 'default', loginThen: null, loginMode: 'link', loginEmail: '', loginCode: '',
     resent: false, mergeToken: null, googleFailed: false,
@@ -2502,7 +2502,7 @@
         z.items.map(card6).join('') + '</div>').join('');
     }
     return '<div data-screen-label="Calendar">' + header + filters +
-      '<div style="padding:10px 14px 0;display:flex;flex-direction:column;gap:10px">' + goneCard() + (st.loaded && !groups.length ? noGroupCard() : '') + wild + needs + installCard() + '</div>' +
+      '<div style="padding:10px 14px 0;display:flex;flex-direction:column;gap:10px">' + goneCard() + (st.loaded && !groups.length ? noGroupCard() : '') + wild + needs + '</div>' +
       '<div style="padding:16px 14px 26px;display:flex;flex-direction:column;gap:22px">' + body + '</div>' +
       '<div style="height:var(--nav-h)"></div></div>';
   }
@@ -2825,56 +2825,77 @@
     '</div>';
   };
 
-  // ---- Add to Home Screen (not designed; HANDOFF §2). Android Chrome hands us its install prompt
-  // (beforeinstallprompt) so our own button can open Chrome's dialog; iPhone Safari has no prompt, so we
-  // show where Share → Add to Home Screen is. Nothing shows in the installed app.
+  // ---- Add to Home Screen (not designed; HANDOFF §2): a pop-up on Welcome (once a visit) and once after signing in,
+  // while the app isn't installed. Android Chrome hands us its install prompt (beforeinstallprompt), so our button
+  // opens Chrome's dialog; iPhone has no prompt, so the pop-up shows the Share → Add to Home Screen steps.
   // iPhone browsers that can add to the Home Screen from their Share button: Safari and Chrome
   const IOS_BROWSER = !IS_IOS ? '' : /CriOS\//.test(navigator.userAgent) ? 'Chrome'
     : /Safari\//.test(navigator.userAgent) && !/FxiOS|EdgiOS|OPiOS|GSA\//.test(navigator.userAgent) ? 'Safari' : '';
   let installEvt = null;
   window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installEvt = e; setState({ canInstall: true }); });
-  window.addEventListener('appinstalled', () => { installEvt = null; setState({ canInstall: false, iosTip: false }); toast('Spark Hub is on your Home Screen', true); });
+  window.addEventListener('appinstalled', () => { installEvt = null; setState({ canInstall: false, installPop: false }); toast('Spark Hub is on your Home Screen', true); });
   // prompt (Android: our button opens Chrome's dialog) · ios (show the Share steps) · '' (installed, or this browser can't)
   const installMode = () => STANDALONE ? '' : state.canInstall && installEvt ? 'prompt' : IOS_BROWSER ? 'ios' : '';
   const startInstall = async () => {
     const mode = installMode();
-    if (mode === 'ios') return setState({ iosTip: true, profSheet: false });
+    if (mode === 'ios') return setState({ installPop: true, profSheet: false });
     if (mode !== 'prompt') return;
     const e = installEvt;
     installEvt = null;   // Chrome's prompt works once; it offers a fresh one on a later visit
+    setState({ installPop: false });
     try { await e.prompt(); await e.userChoice; } catch (err) { console.error(err); }
     setState({ canInstall: false });
   };
-  // The card on the Calendar until it's installed (or put away; Profile keeps the row)
-  const installCard = () => {
-    const mode = installMode();
-    if (!mode || state.installHidden || state.viewAs) return '';
-    const hide = () => { try { localStorage.setItem('spark-hub-install-card', 'hidden'); } catch (e) { /* fine */ } setState({ installHidden: true }); };
-    return '<div data-install-card style="' + CARD + ';padding:14px;display:flex;flex-direction:column;gap:10px">' +
-      '<div style="display:flex;align-items:flex-start;gap:12px"><img src="/icons/icon-192.png" alt="" width="40" height="40" style="flex:0 0 40px;border-radius:10px">' +
-        '<div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:800;color:#0d1117">Put Spark Hub on your Home Screen</div>' +
-          '<div style="margin-top:2px;font-size:13.5px;line-height:1.4;font-weight:600;color:#6b7280">' + (mode === 'prompt'
-            ? 'It opens full screen, like any app, and can buzz you when plans change.'
-            : IOS_BROWSER + ' adds it in a few taps. Then it opens full screen, like any app.') + '</div></div>' +
-        '<span ' + on(hide) + ' aria-label="Not now" style="flex:0 0 28px;width:28px;height:28px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(11, '#6b7280', 2.6) + '</span></div>' +
-      '<button type="button" class="hov-primary" ' + on(startInstall) + ' style="align-self:flex-start;min-height:42px;padding:0 18px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer">' + (mode === 'prompt' ? 'Install app' : 'Show me how') + '</button>' +
-    '</div>';
+  // When to pop it up by itself: on Welcome once a visit, and once on this device after signing in. Called after each
+  // render; waits for other pop-ups (sign-in, name, confirm…) to close first.
+  const POP_WELCOME = 'spark-hub-install-welcome', POP_SIGNED_IN = 'spark-hub-install-pop';
+  const popSeen = (store, k) => { try { return store.getItem(k) === 'shown'; } catch (e) { return true; } };
+  const markPopSeen = (store, k) => { try { store.setItem(k, 'shown'); } catch (e) { /* fine */ } };
+  let popTimer = null;
+  const maybeInstallPop = () => {
+    const st = state;
+    if (popTimer || st.installPop || !installMode() || st.viewAs || st.screen === 'compose') return;
+    if (st.loginStep || st.nameAsk || st.confirm || st.guestOpen || st.joinOpen || st.pe || st.invite || st.profSheet || st.notifSheet) return;
+    const which = welcomeShown() ? [sessionStorage, POP_WELCOME] : st.email && st.loaded ? [localStorage, POP_SIGNED_IN] : null;
+    if (!which || popSeen(which[0], which[1])) return;
+    popTimer = setTimeout(() => {
+      popTimer = null;
+      if (!installMode() || popSeen(which[0], which[1])) return;
+      markPopSeen(which[0], which[1]);
+      setState({ installPop: true });
+    }, 700);
   };
-  // iPhone Safari or Chrome: the steps (in Safari, pointing down at its bar under the page)
-  function viewIosTip() {
-    const close = () => setState({ iosTip: false });
-    const share = svg(17, stroke('#0a84ff', 2.1), '<path d="M12 3v12"/><path d="M8 7l4-4 4 4"/><path d="M7 10H6a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-9a1 1 0 0 0-1-1h-1"/>');
-    const step = (n, html) => '<li style="display:flex;gap:10px;align-items:flex-start"><span aria-hidden="true" style="flex:0 0 24px;width:24px;height:24px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center">' + n + '</span>' +
-      '<span style="flex:1;min-width:0;padding-top:2px">' + html + '</span></li>';
-    return '<div data-ios-tip role="dialog" aria-label="Add to Home Screen" style="position:absolute;left:12px;right:12px;bottom:calc(var(--nav-h) + 16px);z-index:40;background:#fff;border-radius:20px;box-shadow:0 12px 36px rgba(13,17,23,.28);padding:16px 16px 18px;animation:fadeIn 200ms ease-out both">' +
-      '<div style="display:flex;align-items:center;gap:10px"><h3 style="flex:1;margin:0;font-size:18px;font-weight:900;letter-spacing:-.3px;color:#0d1117">Add Spark Hub to your Home Screen</h3>' + closeX(close) + '</div>' +
-      '<ol style="margin:12px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:10px;font-size:14.5px;line-height:1.4;font-weight:600;color:#2b303a">' +
-        step(1, 'Tap <b style="font-weight:800;white-space:nowrap">Share ' + share + '</b> ' + (IOS_BROWSER === 'Chrome' ? 'in Chrome’s address bar' : 'in Safari’s bar below') + '. No Share? Tap <b style="font-weight:800">···</b> first.') +
-        step(2, 'Tap <b style="font-weight:800">Add to Home Screen</b>, then <b style="font-weight:800">Add</b>.') +
-        step(3, 'Open Spark Hub from your Home Screen.') +
-      '</ol>' +
-      (IOS_BROWSER === 'Safari' ? '<span aria-hidden="true" style="position:absolute;left:50%;bottom:-8px;width:18px;height:18px;margin-left:-9px;background:#fff;transform:rotate(45deg);border-radius:0 0 4px 0"></span>' : '') +
-    '</div>';
+  function viewInstallPop() {
+    const mode = installMode();
+    if (!mode) return '';
+    const close = () => setState({ installPop: false });
+    const icon = '<img src="/icons/icon-192.png" alt="" width="52" height="52" style="border-radius:13px">';
+    const title = '<h3 style="margin:0;padding-right:36px;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">Put Spark Hub on your Home Screen</h3>';
+    const x = '<div ' + on(close) + ' aria-label="Close" style="position:absolute;top:14px;right:14px;width:32px;height:32px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(15, '#0d1117', 2.4) + '</div>';
+    let body;
+    if (mode === 'prompt') {
+      body = '<p style="margin:0;font-size:15px;line-height:1.45;font-weight:500;color:#5c6270">It opens full screen, like any app, and can buzz you when plans change.</p>' +
+        '<div style="margin-top:4px;display:flex;flex-direction:column;gap:8px">' +
+          '<button type="button" ' + on(startInstall) + ' style="' + primary(true) + '">Install app</button>' +
+          '<button type="button" ' + on(close) + ' style="' + SECONDARY + '">Not now</button></div>';
+    } else {
+      const share = svg(17, stroke('#0a84ff', 2.1), '<path d="M12 3v12"/><path d="M8 7l4-4 4 4"/><path d="M7 10H6a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-9a1 1 0 0 0-1-1h-1"/>');
+      const step = (n, html) => '<li style="display:flex;gap:10px;align-items:flex-start"><span aria-hidden="true" style="flex:0 0 24px;width:24px;height:24px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center">' + n + '</span>' +
+        '<span style="flex:1;min-width:0;padding-top:2px">' + html + '</span></li>';
+      body = '<ol style="margin:2px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:10px;font-size:15px;line-height:1.4;font-weight:600;color:#2b303a">' +
+          step(1, 'Tap <b style="font-weight:800;white-space:nowrap">Share ' + share + '</b> ' + (IOS_BROWSER === 'Chrome' ? 'in Chrome’s address bar' : 'in Safari’s bar below') + '. No Share? Tap <b style="font-weight:800">···</b> first.') +
+          step(2, 'Tap <b style="font-weight:800">Add to Home Screen</b>, then <b style="font-weight:800">Add</b>.') +
+          step(3, 'Open Spark Hub from your Home Screen.') +
+        '</ol>' +
+        '<button type="button" ' + on(close) + ' style="margin-top:4px;' + SECONDARY + '">Got it</button>';
+    }
+    // In Safari the pop-up sits at the bottom with a caret pointing at Safari's bar under the page
+    const low = mode === 'ios' && IOS_BROWSER === 'Safari';
+    return '<div class="modal-scrim" data-scrim="' + reg(close) + '" style="z-index:36' + (low ? ';align-items:flex-end;padding-bottom:22px' : '') + '">' +
+      '<div data-install-pop role="dialog" aria-modal="true" aria-label="Add to Home Screen" style="position:relative;width:100%;max-width:360px;background:#fff;border-radius:22px;padding:22px 20px;display:flex;flex-direction:column;gap:12px;box-shadow:0 24px 60px rgba(15,18,25,.3)">' +
+        x + icon + title + body +
+        (low ? '<span aria-hidden="true" style="position:absolute;left:50%;bottom:-8px;width:18px;height:18px;margin-left:-9px;background:#fff;transform:rotate(45deg);border-radius:0 0 4px 0"></span>' : '') +
+      '</div></div>';
   }
 
   // v6: a slide-up sheet (from the bell), gear and Close beside the title
@@ -5210,7 +5231,7 @@
       (st.loginStep ? viewLogin() : '') +
       (st.confirm ? viewConfirm() : '') +
       (st.zoom ? viewZoom() : '') +
-      (st.iosTip && st.email ? viewIosTip() : '') +
+      (st.installPop ? viewInstallPop() : '') +
       (st.toast ? viewToast() : '') +
       (welcomeShown() ? '' : viewNav());   // no tab bar on Welcome
   }
@@ -5324,6 +5345,7 @@
     const sc = state.screen, photoTop = sc === 'browse' || (sc === 'detail' && !!subject()) || sc === 'calendar' || sc === 'groups' || welcomeShown() || (!state.email && sc === 'compose');
     root.classList.toggle('photo-top', photoTop);
     syncBadge();
+    maybeInstallPop();
     const took = performance.now() - t0;
     diagNote('redraw (' + Math.round(took) + 'ms)');
     if (took > 150) diag('slow redraw', took);
@@ -5348,7 +5370,7 @@
   root.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       if (state.zoom) return setState({ zoom: null });
-      if (state.iosTip) return setState({ iosTip: false });
+      if (state.installPop) return setState({ installPop: false });
       if (state.confirm) return setState({ confirm: null });
       if (state.ph) return closePositioner();
       if (state.invite) return setState({ invite: null });

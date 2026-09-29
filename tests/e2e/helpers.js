@@ -57,6 +57,12 @@ async function stubPhotos(target) {
 // Fresh visitor: new browser context = new localStorage = new anonymous identity
 async function newMember(browser, path) {
   const context = await browser.newContext({ ...devices['Pixel 7'] });
+  // The Add to Home Screen pop-up counts as already shown, so it never covers what a test clicks (smoke.spec.js tests it)
+  await context.addInitScript(() => {
+    if (localStorage.getItem('e2e-install')) return;
+    localStorage.setItem('spark-hub-install-pop', 'shown');
+    sessionStorage.setItem('spark-hub-install-welcome', 'shown');
+  });
   context.placeRequests = await mockPlaces(context);
   await stubPhotos(context);
   const page = await context.newPage();
