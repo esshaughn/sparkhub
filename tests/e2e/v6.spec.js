@@ -47,7 +47,7 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     await expect(lead.getByLabel('Sign-ups: 0/3')).toBeVisible();
     await expect(lead.getByLabel('Reminder: Sent')).toBeVisible();
     await expect(lead).toContainText('Post an update');
-    await expect(lead).toContainText('Location TBD');
+    await expect(lead).toContainText('Location to be decided');
     await expect(lead).toContainText('+1 more');
     await lead.getByText('+1 more').click();
     await expect(lead).toContainText('3 spots open');
@@ -108,15 +108,14 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     await OP.locator('[data-rsvp]').getByRole('button', { name: /^Maybe/ }).click();
     await expect(O.getByText('Marked as maybe')).toBeVisible();
 
-    // His Your tasks: a Helping card with "You said maybe", his sign-up and the day
+    // His Your tasks: a Helping card with just "You said maybe" and his sign-up (owner, 2026-09-29)
     await nav(O).getByRole('button', { name: /^Your tasks/ }).click();
     const help = O.locator('[data-screen-label="Your tasks"] section[aria-label=Helping] [data-task="' + title + '"]');
     await expect(help).toContainText('You said maybe');
     await expect(help).toContainText('Update RSVP');
-    await expect(help).toContainText('+2 more');
-    await help.getByText('+2 more').click();
     await expect(help).toContainText('Ice');
-    await expect(help).toContainText('Today · 11:30pm');
+    await expect(help).not.toContainText('more');
+    await expect(help).not.toContainText('Location');
     await shot(O, '06-your-tasks-help');
 
     // Your schedule: Helping strip, "1 task" expands in place; the List view has the same strip
@@ -124,7 +123,8 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     const sched = O.locator('[data-screen-label="Your schedule"]');
     const tile = sched.locator('[data-plan="' + title + '"]');
     await expect(tile).toContainText('Helping');
-    await tile.getByText('1 task').click();
+    await tile.getByText('2 tasks').click();
+    await expect(tile).toContainText('You said maybe');
     await expect(tile).toContainText('Ice');
     await pickView(sched, 'List');
     await expect(tile).toContainText('Helping');

@@ -149,6 +149,11 @@ test('decide everything later: only the title is needed; the host is left with t
     await when.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(P.locator('[data-tbd]')).toContainText('1 thing left to decide');
     await expect(P.locator('[data-when-card]')).toContainText('The garage');
+    // The Calendar lists it last, under "Date to be decided"
+    await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Calendar', exact: true }).click();
+    const card = page.locator('[data-screen-label=Calendar] [data-plan="' + title.charAt(0).toUpperCase() + title.slice(1) + '"]');
+    await expect(card).toContainText('Date to be decided');
+    await expect(page.locator('[data-screen-label=Calendar]')).toContainText('Date to be decided');
     expect(errors).toEqual([]);
   } finally {
     if (id) await asUser(page, async (c, _C, id) => { await c.from('sparks').delete().eq('id', id); }, id).catch(() => {});

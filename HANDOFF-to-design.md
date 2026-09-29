@@ -50,6 +50,8 @@ Where this doc and the design files disagree, **this doc is correct**.
 | 32 | **Job times use the 30-minute list**: Add a job has *Time (optional)*; each shift has *Start* and *End* lists plus its own − n + | Free-text time fields (*e.g. 6:00 – 7:00pm*) | Times are stored as times, so sign-ups can show and sort them |
 | 33 | **Location polls** are plain text (no address suggestions); a picked winner has no map link until the host sets the place with a suggestion | — | Keeps the poll sheet simple |
 | 34 | **No map on the date and location card** | Update 5's Geoapify map | Update 6's card has none |
+| 36 | **Helping to-dos are only what's yours to do**: *Confirm RSVP* (no reply yet) or *You said maybe · Update RSVP*, and each sign-up with its time; no *Location TBD · Check* or *In N days · Details* rows. Your schedule's Helping strip opens to the same rows | The v6 list | Owner (2026-09-29) |
+| 37 | **Update 6's known gaps, filled in by the build:** cards on Your tasks, Your schedule, the Calendar and group pages read *Date to be decided* / *Location to be decided* in amber (`#8f6405` on white; `#ffd98a` over photos), or *Voting on N dates / spots*; undated events list last under a *Date to be decided* heading (not in the month grid or *Could use a hand*); a multi-group event's chip and search row read *{first group} +N*; *Your drafts* also shows at the top of Your schedule | Not designed | Update 6 §5 |
 | 35 | **Older ideas** (still in the demo data; nothing new becomes one) keep the idea page; its title pencil and Basic details open the same edit sheets, and the Edit pill is gone | — | "Float an idea" now opens Create event |
 ## 2. Things the build had to invent (please design these properly)
 
@@ -92,7 +94,7 @@ Where this doc and the design files disagree, **this doc is correct**.
 ## 4. Designed but not built or not working
 
 - **"We'll let {Host} know"** (You're off it): nothing is sent yet. Notifications are built from what's stored, so the host just sees one fewer name on the job.
-- **Update 6's known gaps, as listed:** Home, Calendar and group cards still say *Date TBD* / *Location TBD* (no amber treatment or "Voting on N dates"); events with no date don't appear on the Calendar or Your schedule; multi-group events show the first group's name on cards; drafts show only on Your tasks.
+- **The event preview slide-up** (Task Card Options, Round 13) is still undecided, so it isn't built.
 - **Say hi** on the Hosted by card: there's no messaging yet, so it shows a toast *Messages are coming soon. For now, say hi to {first name} at the event!*
 
 - **The CTA pills on to-do rows** don't do their action; as in the prototype, tapping the rows expands them (3+) or opens the event.

@@ -1648,8 +1648,15 @@
   const photoBg = (s) => s.photoPaths[0] ? bg(photoUrl(s.photoPaths[0]), posAt(s.coverPos, IDEA_POS)) : groupBg(groupById(s.groupId), "url('/photos/torrez-trail.jpg') center/cover");
   const monthDay = (iso) => new Date(iso + 'T12:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   const monthLabel = (iso) => new Date(iso + 'T12:00').toLocaleDateString('en-US', { month: 'long', year: iso.slice(0, 4) !== todayISO().slice(0, 4) ? 'numeric' : undefined });
+  // v6 Update 6: an undecided date or place reads "… to be decided" (amber), or the poll's size
+  const dateTbd = (s) => s.dateOpts.length ? 'Voting on ' + s.dateOpts.length + (s.dateOpts.length === 1 ? ' date' : ' dates') : 'Date to be decided';
+  const spotTbd = (s) => s.spotOpts.length ? 'Voting on ' + s.spotOpts.length + (s.spotOpts.length === 1 ? ' spot' : ' spots') : 'Location to be decided';
+  const TBD_ON_PHOTO = '#ffd98a', TBD_INK = '#8f6405';
+  const tbdSpan = (t, color) => '<span style="color:' + (color || TBD_INK) + '">' + esc(t) + '</span>';
+  // Events posted to several groups: "Torrez Fitness +1"
+  const groupsLabel = (s) => { const n = (s.groupIds || [s.groupId]).map(id => groupById(id)).filter(g => g && g.role).map(g => g.name); return n.length ? n[0] + (n.length > 1 ? ' +' + (n.length - 1) : '') : ((groupById(s.groupId) || {}).name || ''); };
   const shortWhen = (s) => s.dayDate ? fmtDay(s.dayDate) + (s.dayTime ? ' · ' + fmtTime(s.dayTime) : '') : 'No date yet';
-  const dateLineOf = (s) => s.dayDate ? shortWhen(s) : (phaseOf(s) === 'idea' ? 'Idea · no date yet' : 'Date TBD');
+  const dateLineOf = (s) => s.dayDate ? shortWhen(s) : (phaseOf(s) === 'idea' ? 'Idea · no date yet' : dateTbd(s));
   const signupFill = (s) => {
     const counted = s.signups.filter(i => i.need);
     const needed = counted.reduce((n, i) => n + i.need, 0), filled = counted.reduce((n, i) => n + Math.min(i.claims.length, i.need), 0);
@@ -1734,9 +1741,9 @@
   const HAND_SM = svg(11, stroke('currentColor', 2.6), '<path d="M18 11V6a2 2 0 0 0-4 0v5M14 10V4a2 2 0 0 0-4 0v6M10 10.5V6a2 2 0 0 0-4 0v8a8 8 0 0 0 16 0v-3a2 2 0 0 0-4 0"/>');
   const PHOTO_GRAD = '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.92) 0%, rgba(13,17,23,.4) 45%, rgba(13,17,23,0) 75%)"></div>';
   const overlay = (s, ink, small, line, place) => '<div style="position:absolute;left:' + (small ? 10 : 14) + 'px;right:' + (small ? 10 : 14) + 'px;bottom:' + (small ? 9 : 12) + 'px;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.3)">' +
-    '<div style="font-size:10.5px;font-weight:900;letter-spacing:.7px;text-transform:uppercase;color:' + ink + '">' + esc(line || dateLineOf(s)) + '</div>' +
+    '<div style="font-size:10.5px;font-weight:900;letter-spacing:.7px;text-transform:uppercase;color:' + (!line && s.planned && !s.dayDate ? TBD_ON_PHOTO : ink) + '">' + esc(line || dateLineOf(s)) + '</div>' +
     '<div style="margin-top:2px;font-size:' + (small ? '15px;line-height:1.18;letter-spacing:-.3px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden' : '20px;line-height:1.12;letter-spacing:-.4px;text-wrap:pretty') + ';font-weight:900">' + esc(s.text) + '</div>' +
-    '<div style="margin-top:' + (small ? 3 : 4) + 'px;display:flex;align-items:center;gap:' + (small ? 4 : 5) + 'px;font-size:' + (small ? 11 : 12.5) + 'px;font-weight:700;color:rgba(255,255,255,.88);min-width:0">' + PIN_SM + '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(s.spot || place || 'Location TBD') + '</span></div>' +
+    '<div style="margin-top:' + (small ? 3 : 4) + 'px;display:flex;align-items:center;gap:' + (small ? 4 : 5) + 'px;font-size:' + (small ? 11 : 12.5) + 'px;font-weight:700;color:rgba(255,255,255,.88);min-width:0">' + PIN_SM + '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (s.spot || place ? esc(s.spot || place) : tbdSpan(spotTbd(s), TBD_ON_PHOTO)) + '</span></div>' +
   '</div>';
   // Sections by month, and within them by day (list views)
   const byMonth = (list, undatedLabel) => {
@@ -1963,10 +1970,10 @@
 
   const daysTo = (s) => s.dayDate ? dayDiff(s.dayDate) : null;
   const helpsOn = (s) => myClaims(s).length > 0;
-  const street = (s) => s.spotAddress ? s.spotAddress.split(',')[0] : (s.spot || 'Location TBD');
+  const street = (s) => s.spotAddress ? s.spotAddress.split(',')[0] : (s.spot || spotTbd(s));
   // "Today · 7pm", "Tomorrow", "Yesterday", "3 days ago", "Sat, Oct 17 · 6pm"
   const when6 = (s) => {
-    if (!s.dayDate) return phaseOf(s) === 'idea' ? 'Idea · ' + ((groupById(s.groupId) || {}).name || 'no date yet') : 'Date TBD';
+    if (!s.dayDate) return phaseOf(s) === 'idea' ? 'Idea · ' + ((groupById(s.groupId) || {}).name || 'no date yet') : dateTbd(s);
     const d = dayDiff(s.dayDate), t = s.dayTime ? ' · ' + fmtTime(s.dayTime) : '';
     if (phaseOf(s) === 'idea') return 'Idea · ' + fmtDay(s.dayDate);
     return d === 0 ? 'Today' + t : d === 1 ? 'Tomorrow' + t : d === -1 ? 'Yesterday' : d < 0 ? -d + ' days ago' : fmtDay(s.dayDate) + t;
@@ -1993,20 +2000,18 @@
     if (dd === 0) out.push({ act: 'Post an update', cta: 'Post' });
     if (dd === 1 && !s.autoRemind) out.push({ act: 'Send a reminder', cta: 'Send' });
     s.pending.slice(0, 1).forEach(p => review(nameOf(p.userId, p.who), p.kind, 'time'));
-    if (!s.dayDate) out.push({ act: s.dateOpts.length ? 'Voting on ' + s.dateOpts.length + ' dates' : 'Date TBD', cta: s.dateOpts.length ? 'Pick' : 'Add it' });
-    if (!s.spot) out.push({ act: 'Location TBD', cta: 'Add it' });
+    if (!s.dayDate) out.push({ act: dateTbd(s), cta: s.dateOpts.length ? 'Pick' : 'Add it' });
+    if (!s.spot) out.push({ act: spotTbd(s), cta: s.spotOpts.length ? 'Pick' : 'Add it' });
     if (f.open > 0) out.push({ act: f.open + (f.open === 1 ? ' spot open' : ' spots open'), cta: 'Share list' });
     return out;
   };
   // What someone going, maybe, or signed up for (not leading) should keep in mind
   const helpActs = (s) => {
-    const my = myRsvp(s), dd = daysTo(s), out = [];
+    const my = myRsvp(s), out = [];
     if (!my) out.push({ act: 'Confirm RSVP', cta: 'RSVP' });
     if (my === 'maybe') out.push({ act: 'You said maybe', cta: 'Update RSVP' });
-    myClaims(s).forEach(it => out.push({ act: it.item, cta: fmtTime(it.time || s.dayTime) || 'Time TBD', time: true }));
-    if (!s.spot) out.push({ act: 'Location TBD', cta: 'Check' });
-    if (dd != null && dd <= 1) out.push({ act: (dd === 0 ? 'Today' : 'Tomorrow') + (s.dayTime ? ' · ' + fmtTime(s.dayTime) : ''), cta: 'Directions' });
-    else if (dd != null && dd <= 7) out.push({ act: 'In ' + dd + ' days', cta: 'Details' });
+    // Only what you signed up for (owner, 2026-09-29): no location or countdown rows
+    myClaims(s).forEach(it => out.push({ act: it.item, cta: spanTime(it) || fmtTime(s.dayTime) || 'Any time', time: true }));
     return out;
   };
   // Your tasks: plans you lead (upcoming, or in the last 3 days) with something to do, what you're helping
@@ -2059,7 +2064,7 @@
     '<span aria-hidden="true" style="position:absolute;right:10px;top:0;bottom:0;display:flex;align-items:center;opacity:.85">' + I.chevR(22, '#fff', 2.6) + '</span>' +
     '<div style="position:absolute;left:14px;right:40px;bottom:11px;display:flex;flex-direction:column;gap:3px;color:#fff">' +
       '<div style="font-size:18px;line-height:1.15;font-weight:900;letter-spacing:-.3px;text-wrap:balance;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">' + esc(s.text) + '</div>' +
-      '<div style="font-size:11px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;color:' + R.kick + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(when6(s)) + '</div>' +
+      '<div style="font-size:11px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;color:' + (s.planned && !s.dayDate ? TBD_ON_PHOTO : R.kick) + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(when6(s)) + '</div>' +
     '</div></div>';
 
   // An idea's four checkpoints: Date · Location · Roles→Helpers · People
@@ -2184,7 +2189,7 @@
   const partOf = (s, cal) => {
     const my = myRsvp(s);
     if (isLead(s)) return { k: 'lead', R: R6.lead, word: 'Leading', icon: 'bolt', rows: ownActs(s) };
-    if (helpsOn(s)) return { k: 'help', R: R6.help, word: 'Helping', icon: 'clip', rows: myClaims(s).map(it => ({ act: it.item, cta: fmtTime(it.time) || '', time: true })) };
+    if (helpsOn(s)) return { k: 'help', R: R6.help, word: 'Helping', icon: 'clip', rows: helpActs(s) };
     if (my === 'going' || my === 'maybe') return { k: 'go', R: R6.go, word: my === 'maybe' ? 'Maybe' : 'Going', icon: 'check', rows: [], right: my === 'maybe' ? 'Update RSVP' : 'Change RSVP' };
     return cal ? { k: 'open', R: R6.open, word: '', rows: [], right: 'RSVP' } : null;
   };
@@ -2212,11 +2217,11 @@
     return '<div ' + on(() => openSpark(s)) + ' data-plan="' + esc(s.text) + '" aria-label="' + esc(s.text) + '" style="border-radius:20px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
       '<div style="position:relative;height:' + h + 'px;background:' + photoBg(s) + '">' +
         '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.95) 0%, rgba(13,17,23,.65) 45%, rgba(13,17,23,.3) 100%)"></div>' +
-        (cal && g ? '<span style="position:absolute;top:10px;left:10px;display:flex;align-items:center;height:24px;padding:0 9px;border-radius:999px;background:rgba(13,17,23,.4);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);font-size:11.5px;font-weight:800;color:#fff">' + esc(g.name) + '</span>' : '') +
+        (cal && g ? '<span style="position:absolute;top:10px;left:10px;display:flex;align-items:center;height:24px;padding:0 9px;border-radius:999px;background:rgba(13,17,23,.4);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);font-size:11.5px;font-weight:800;color:#fff">' + esc(groupsLabel(s)) + '</span>' : '') +
         '<div style="position:absolute;left:16px;right:16px;bottom:14px;color:#fff;display:flex;flex-direction:column;gap:3px">' +
-          '<div style="font-size:13px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;color:' + (P.k === 'open' ? '#dfe2e8' : P.R.kick) + '">' + esc(when6(s)) + '</div>' +
+          '<div style="font-size:13px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;color:' + (!s.dayDate ? TBD_ON_PHOTO : P.k === 'open' ? '#dfe2e8' : P.R.kick) + '">' + esc(when6(s)) + '</div>' +
           '<div style="font-size:25px;line-height:1.05;font-weight:900;letter-spacing:-.6px;text-wrap:balance">' + esc(s.text) + '</div>' +
-          '<div style="display:flex;align-items:center;gap:5px;font-size:14.5px;font-weight:700;color:rgba(255,255,255,.9);min-width:0">' + ic6('pin', 14, 'currentColor', 2.3) + '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(s.spot || 'Location TBD') + '</span></div>' +
+          '<div style="display:flex;align-items:center;gap:5px;font-size:14.5px;font-weight:700;color:rgba(255,255,255,.9);min-width:0">' + ic6('pin', 14, 'currentColor', 2.3) + '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (s.spot ? esc(s.spot) : tbdSpan(spotTbd(s), TBD_ON_PHOTO)) + '</span></div>' +
         '</div></div>' + strip6(s, P, 40, cal) + '</div>';
   };
   // List: date block, role bar, title, time · place (and on the Calendar, a photo) over the strip
@@ -2227,7 +2232,7 @@
         '<div style="flex:0 0 40px;display:flex;flex-direction:column;align-items:center"><span style="font-size:10.5px;font-weight:900;letter-spacing:.6px;color:#6b7280">' + (dp ? dp.dow : '') + '</span><span style="font-size:20px;line-height:1.1;font-weight:900;color:#0d1117">' + (dp ? dp.day : '–') + '</span></div>' +
         '<span aria-hidden="true" style="flex:0 0 3px;align-self:stretch;border-radius:999px;background:' + P.R.dot + '"></span>' +
         '<div style="flex:1;min-width:0"><div style="font-size:15px;line-height:1.3;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(s.text) + '</div>' +
-          '<div style="font-size:12.5px;font-weight:600;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc([fmtTime(s.dayTime), cal ? street(s) : (s.spot || 'Location TBD')].filter(Boolean).join(' · ')) + '</div></div>' +
+          '<div style="font-size:12.5px;font-weight:600;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + [s.dayDate ? esc(fmtTime(s.dayTime)) : tbdSpan(dateTbd(s)), s.spot ? esc(cal ? street(s) : s.spot) : tbdSpan(spotTbd(s))].filter(Boolean).join(' · ') + '</div></div>' +
         (cal ? '<span aria-hidden="true" style="flex:0 0 44px;width:44px;height:44px;border-radius:10px;background:' + photoBg(s) + '"></span>' : I.chevR(16, '#b9bcc4', 2.6)) +
       '</div>' + strip6(s, P, 28, cal) + '</div>';
   };
@@ -2277,7 +2282,7 @@
     else if (sort === 'lively') out.sort((a, b) => lively(b) - lively(a) || byWhen(a, b));
     else if (sort === 'new') out.sort((a, b) => b.created - a.created);
     else out.sort(byWhen);
-    return out;
+    return out.filter(s => s.dayDate).concat(out.filter(s => !s.dayDate));   // undecided dates last
   };
   // Soonest: a section per month; any other sort: one section named after it
   const sections6 = (list, sort, undated) => sort === 'soon' ? byMonth(list, undated) : (list.length ? [{ label: sortName6(sort), items: list }] : []);
@@ -2300,7 +2305,7 @@
         (k) => setState({ sFilt: st.sFilt.indexOf(k) > -1 ? st.sFilt.filter(x => x !== k) : st.sFilt.concat([k]) }), clear, plans.length) +
       viewPicker('hview', view, (k) => setState({ homeView: k, menu: null }), SCHED_VIEWS) + '</div>';
     if (!plans.length) return wrap(goneCard() + '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(st.sSort === 'soon' ? 'Coming up' : sortName6(st.sSort), controls) + filterEmpty(clear) + '</div>');
-    return wrap(goneCard() + sections6(plans, st.sSort, 'No date yet').map((z, i) => '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(z.label, i ? '' : controls) +
+    return wrap(goneCard() + draftsSection() + sections6(plans, st.sSort, 'Date to be decided').map((z, i) => '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(z.label, i ? '' : controls) +
       '<div style="display:flex;flex-direction:column;gap:' + (view === 'list' ? 10 : 14) + 'px">' + z.items.map(s => view === 'list' ? listCard6(s, partOf(s)) : tile6(s, partOf(s), 180)).join('') + '</div></div>').join(''));
   }
 
@@ -2322,7 +2327,7 @@
   const calBase = () => state.sparks.filter(s => inMine(s) && phaseOf(s) === 'plan');
   const inGroups6 = (s) => !state.cGrps || gIds(s).some(id => state.cGrps.indexOf(id) > -1);
   const inTypes6 = (s) => !state.cTypes.length || typesOf(s).some(t => state.cTypes.indexOf(t) > -1);
-  const matchQ = (s, q) => { q = (q || '').trim().toLowerCase(); return !q || [s.text, s.spot, s.spotAddress, (groupById(s.groupId) || {}).name].some(v => (v || '').toLowerCase().indexOf(q) > -1); };
+  const matchQ = (s, q) => { q = (q || '').trim().toLowerCase(); return !q || [s.text, s.spot, s.spotAddress].concat(gIds(s).map(id => (groupById(id) || {}).name)).some(v => (v || '').toLowerCase().indexOf(q) > -1); };
   const lively = (s) => going(s).length * 2 + maybes(s).length + s.signups.reduce((a, i) => a + i.claims.length, 0) + s.updates.length +
     ((Date.now() - s.created) < 48 * 3600000 ? 4 : (Date.now() - s.created) < 120 * 3600000 ? 2 : 0);
   const calResults = () => {
@@ -2332,11 +2337,11 @@
     else if (state.cSort === 'lively') out.sort((a, b) => lively(b) - lively(a) || byWhen(a, b));
     else if (state.cSort === 'new') out.sort((a, b) => b.created - a.created);
     else out.sort(byWhen);
-    return out;
+    return out.filter(s => s.dayDate).concat(out.filter(s => !s.dayDate));   // undecided dates last
   };
   // "Could use a hand": plans you don't lead with open sign-ups, in two weeks from the first of them
   const handList = () => {
-    const cand = calBase().filter(s => !isLead(s) && signupFill(s).open > 0).sort(byWhen);
+    const cand = calBase().filter(s => s.dayDate && !isLead(s) && signupFill(s).open > 0).sort(byWhen);
     if (!cand.length) return [];
     const from = cand[0].dayDate < todayISO() ? todayISO() : cand[0].dayDate, to = isoAdd(from, 14);
     return cand.filter(s => s.dayDate < to);
@@ -2433,7 +2438,7 @@
       if (st.cSort === 'lively') return 'Most lively';
       if (st.cSort === 'new') return 'Newest';
       const d = daysTo(s);
-      return d === 0 ? 'Today' : d < 7 ? 'This week' : monthLabel(s.dayDate);
+      return d == null ? 'Date to be decided' : d === 0 ? 'Today' : d < 7 ? 'This week' : monthLabel(s.dayDate);
     };
     const secs = [];
     list.forEach(s => { const l = secOf(s); let z = secs.find(q => q.label === l); if (!z) { z = { label: l, items: [] }; secs.push(z); } z.items.push(s); });
@@ -2492,7 +2497,7 @@
           '<div style="flex:0 0 40px;display:flex;flex-direction:column;align-items:center"><span style="font-size:10.5px;font-weight:900;letter-spacing:.6px;color:#6b7280">' + dp.dow + '</span><span style="font-size:20px;line-height:1.1;font-weight:900;color:#0d1117">' + dp.day + '</span></div>' +
           '<span aria-hidden="true" style="flex:0 0 3px;align-self:stretch;border-radius:999px;background:#e8a71c"></span>' +
           '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(s.text) + '</div>' +
-            '<div style="font-size:12.5px;font-weight:600;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc([fmtTime(s.dayTime), s.spot || 'Location TBD'].filter(Boolean).join(' · ')) + '</div></div>' +
+            '<div style="font-size:12.5px;font-weight:600;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + [esc(fmtTime(s.dayTime)), s.spot ? esc(s.spot) : tbdSpan(spotTbd(s))].filter(Boolean).join(' · ') + '</div></div>' +
           I.chevR(16, '#b9bcc4', 2.6) + '</div>' +
         rows.map(it => {
           const mine = it.claims.some(c => c.userId === state.me), left = it.need - it.claims.length;
@@ -2573,7 +2578,7 @@
         (!q && !tr ? hint : '') +
         (tr ? tryOn(tr[1], () => setState(TRY_UNDO)) : '') +
         ((q || tr) && !results.length ? '<div style="background:#fff;border-radius:16px;padding:16px;font-size:15px;font-weight:600;color:#6b7280">No events match “' + esc(q || tr[1]) + '”.</div>' : '') +
-        results.map(s => searchRow(s, shortWhen(s) + ' · ' + ((groupById(s.groupId) || {}).name || ''))).join('') +
+        results.map(s => searchRow(s, (s.dayDate ? shortWhen(s) : dateTbd(s)) + ' · ' + groupsLabel(s))).join('') +
       '</div>', 64, '8px 14px 12px');
   }
 
@@ -2989,7 +2994,7 @@
         viewPicker('gview', gv, (k) => setState({ view: k, menu: null }), SCHED_VIEWS) + '</div>';
       if (!all.length) body = '<div style="' + CARD + ';padding:18px"><div style="font-size:16.5px;font-weight:800;letter-spacing:-.2px;color:#0d1117">No plans yet.</div><div style="margin-top:4px;font-size:15px;line-height:1.45;font-weight:500;color:#5c6270">When a lead locks in a date and time, it shows up here.</div></div>';
       else if (!plans.length) body = '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(st.gSort === 'soon' ? 'Coming up' : sortName6(st.gSort), controls) + filterEmpty(clear) + '</div>';
-      else body = sections6(plans, st.gSort, 'Date TBD').map((z, i) => '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(z.label, i ? '' : controls) +
+      else body = sections6(plans, st.gSort, 'Date to be decided').map((z, i) => '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(z.label, i ? '' : controls) +
         '<div style="display:flex;flex-direction:column;gap:' + (gv === 'list' ? 10 : 14) + 'px">' + z.items.map(s => gv === 'list' ? listCard6(s, partOf(s, true)) : tile6(s, partOf(s, true), 180)).join('') + '</div></div>').join('');
     }
     return { body, pageStyle };
