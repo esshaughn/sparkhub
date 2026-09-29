@@ -17,6 +17,7 @@ select cron.unschedule('e2e-cleanup')
 select cron.schedule('e2e-cleanup', '0 4 * * *', $job$
   delete from public.sparks where text like '[E2E]%' and created_at < now() - interval '2 hours';
   delete from public.groups where name like '[E2E]%' and created_at < now() - interval '2 hours';
+  delete from public.feedback where body like '[E2E]%' and created_at < now() - interval '2 hours';
   delete from auth.users   where is_anonymous      and created_at < now() - interval '1 day';
 $job$);
 

@@ -399,6 +399,22 @@ test('plans: replies, sign-ups, updates, notes and invite-only plans follow the 
       };
     }, made.plan);
     expect(demo).toEqual({ wipe: 'refused', makeMeWiper: 'refused', flagMyIdea: 'refused', postAsDemo: 'reset', flagGroup: 'refused', readRoster: 'refused', listTesters: 'none' });
+
+    // Feedback (Profile → Send feedback): anyone signed in can send their own, nobody but the owner can read any, and names can't be forged
+    const fb = await asUser(L, async (c) => {
+      const me = (await c.auth.getUser()).data.user.id;
+      const ok = async (q) => { const x = await q; return x.error ? 'refused' : 'ALLOWED'; };
+      return {
+        send: await ok(c.from('feedback').insert({ body: '[E2E] security check', screen: 'calendar' })),
+        empty: await ok(c.from('feedback').insert({ body: '   ' })),
+        asSomeoneElse: await ok(c.from('feedback').insert({ body: '[E2E] forged', user_id: '00000000-0000-0000-0000-000000000000' })),
+        forgeName: await ok(c.from('feedback').insert({ body: '[E2E] forged name', name: 'Eric' })),
+        readOwn: (await c.from('feedback').select('id')).data.length,
+        edit: await ok(c.from('feedback').update({ body: 'x' }).eq('user_id', me)),
+        remove: await ok(c.from('feedback').delete().eq('user_id', me))
+      };
+    });
+    expect(fb).toEqual({ send: 'ALLOWED', empty: 'refused', asSomeoneElse: 'refused', forgeName: 'refused', readOwn: 0, edit: 'refused', remove: 'refused' });
   } finally {
     for (const id of ids) await asUser(L, async (c, _C, id) => { await c.from('sparks').delete().eq('id', id); }, id).catch(() => {});
     await lead.context.close();

@@ -192,7 +192,7 @@
     groups: [], sparks: [], profiles: {},
 
     drafts: [], notes: [], pushOn: false, pushCardHidden: (() => { try { return localStorage.getItem('spark-hub-push-card') === 'hidden'; } catch (e) { return false; } })(),
-    canInstall: false, installPop: false, sec: null, needEd: null, share: null,
+    canInstall: false, installPop: false, fb: null, sec: null, needEd: null, share: null,
 
     loginStep: null, loginFrom: 'default', loginThen: null, loginMode: 'link', loginEmail: '', loginCode: '',
     resent: false, mergeToken: null, googleFailed: false,
@@ -3134,6 +3134,29 @@
     '</div>';
   };
 
+  // ---- Send feedback (Profile sheet; not designed, HANDOFF §2): a note that only the owner reads, plus a phone alert to them
+  const sendFeedback = async () => {
+    const f = state.fb;
+    if (!f || !f.text.trim() || state.busy) return;
+    if (state.viewAs) { toast('You’re viewing as ' + firstName(state.viewAs.name) + ', so nothing is sent. Exit to send.'); return; }
+    setState({ busy: 'feedback' });
+    try {
+      await ensureSession();
+      must(await sb.from('feedback').insert({ body: f.text.trim().slice(0, 1000), screen: String(state.screen || '').slice(0, 60) }));
+      setState({ busy: null, fb: null });
+      toast('Thank you. It went straight to Eric.', true);
+    } catch (e) { console.error(e); setState({ busy: null }); toast(FAILED); }   // what they typed stays
+  };
+  function viewFeedback() {
+    const f = state.fb, close = () => setState({ fb: null }), ok = f.text.trim().length > 0 && !state.busy;
+    return modal('Send feedback', close,
+      h3('Send feedback') + para('What’s confusing, what’s missing, what do you love? It goes straight to Eric, who’s building Spark Hub.') +
+      '<textarea class="fld" rows="5" maxlength="1000" aria-label="Your feedback" placeholder="Tell me anything…" ' + onInput(e => { if (e.type === 'input') setState({ fb: { text: e.target.value.slice(0, 1000) } }); }) + ' style="' + FIELD + ';resize:none;line-height:1.4">' + esc(f.text) + '</textarea>' +
+      '<button type="button" ' + on(sendFeedback) + ' aria-disabled="' + !ok + '" style="' + primary(ok) + '">' + (state.busy === 'feedback' ? 'Sending…' : 'Send') + '</button>' +
+      '<p style="margin:0;font-size:13px;line-height:1.45;font-weight:500;color:#6b7280">Your name goes with it, so I can write back. Please don’t put passwords or anything private in it.</p>',
+      { z: 50 });
+  }
+
   // ---- Add to Home Screen (not designed; HANDOFF §2): a pop-up on Welcome (once a visit) and once after signing in,
   // while the app isn't installed. Android Chrome hands us its install prompt (beforeinstallprompt), so our button
   // opens Chrome's dialog; iPhone has no prompt, so the pop-up shows the Share → Add to Home Screen steps.
@@ -4495,6 +4518,7 @@
         section('Settings',
           '<div ' + on(() => setState({ nSettings: true })) + ' class="hov-row" style="' + ROW + '">' + line('Notifications', 'In the app and on your phone') + I.chevR(16, '#9aa0ac', 2.4) + '</div>' +
           (installMode() ? '<div ' + on(startInstall) + ' class="hov-row" style="' + ROW + ';border-top:1px solid #f2f3f6">' + line('Add to Home Screen', installMode() === 'prompt' ? 'Install Spark Hub on this phone' : 'A few taps in ' + IOS_BROWSER + '’s Share menu') + I.chevR(16, '#9aa0ac', 2.4) + '</div>' : '') +
+          '<div ' + on(() => setState({ fb: { text: '' }, profSheet: false })) + ' class="hov-row" style="' + ROW + ';border-top:1px solid #f2f3f6">' + line('Send feedback', 'Tell Eric what’s confusing or missing') + I.chevR(16, '#9aa0ac', 2.4) + '</div>' +
           '<a href="/privacy.html" target="_blank" rel="noopener" class="hov-row" style="' + ROW + ';border-top:1px solid #f2f3f6">' + line('Privacy', 'Who sees your profile and plans') + I.chevR(16, '#9aa0ac', 2.4) + '</a>') +
         '<div style="display:flex;flex-direction:column;gap:14px">' +
           (st.demoAdmin && st.sparks.some(s => s.demo)
@@ -5539,6 +5563,7 @@
       (st.inv && st.inv.step === 'confirm' && st.email ? viewInvConfirm() : '') +
       (st.confirm ? viewConfirm() : '') +
       (st.zoom ? viewZoom() : '') +
+      (st.fb && st.email ? viewFeedback() : '') +
       (st.installPop ? viewInstallPop() : '') +
       (st.toast ? viewToast() : '') +
       (welcomeShown() || invFull() ? '' : viewNav());   // no tab bar on Welcome or the invite screens
@@ -5680,6 +5705,7 @@
   root.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       if (state.zoom) return setState({ zoom: null });
+      if (state.fb) return setState({ fb: null });
       if (state.installPop) return setState({ installPop: false });
       if (state.inv && state.loginStep === 'code') { closeLogin(); return setState({ invCodeBad: false }); }
       if (state.inv && state.inv.step === 'confirm' && !state.inv.busy) return closeInvite();

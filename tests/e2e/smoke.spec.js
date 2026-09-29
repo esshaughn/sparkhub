@@ -162,6 +162,31 @@ test('Add to Home Screen: a pop-up on Welcome and once after signing in; Android
   }
 });
 
+test('Send feedback: a row in Profile opens a box; Send says thank you; ✕ closes it without sending', async ({ browser }) => {
+  const m = await newLead(browser, 1, 'Fern');
+  try {
+    const page = m.page;
+    await openProfile(page);
+    await page.getByRole('dialog', { name: 'Profile', exact: true }).getByRole('button', { name: /^Send feedback/ }).click();
+    const box = page.getByRole('dialog', { name: 'Send feedback' });
+    await expect(box).toContainText('It goes straight to Eric');
+    await expect(box.getByRole('button', { name: 'Send', exact: true })).toHaveAttribute('aria-disabled', 'true');   // nothing typed yet
+    await box.getByLabel('Your feedback').fill('[E2E] The Join button was easy to find');
+    await expect(box.getByRole('button', { name: 'Send', exact: true })).toHaveAttribute('aria-disabled', 'false');
+    await box.getByRole('button', { name: 'Send', exact: true }).click();
+    await expect(page.getByText('Thank you. It went straight to Eric.')).toBeVisible();
+    await expect(box).toHaveCount(0);
+    // Close without sending: the ✕
+    await openProfile(page);
+    await page.getByRole('dialog', { name: 'Profile', exact: true }).getByRole('button', { name: /^Send feedback/ }).click();
+    await box.getByRole('button', { name: 'Close' }).click();
+    await expect(box).toHaveCount(0);
+    expect(m.errors).toEqual([]);
+  } finally {
+    await m.context.close();
+  }
+});
+
 test('privacy page is public', async ({ request }) => {
   const res = await request.get('/privacy.html');
   expect(res.status()).toBe(200);
