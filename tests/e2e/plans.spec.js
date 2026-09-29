@@ -108,7 +108,10 @@ test('a plan: guest RSVPs, sign-ups, an update, the host’s notes, then clearin
     await HP.getByRole('button', { name: 'Edit date, time and location' }).click();
     const when = H.getByRole('dialog', { name: 'Date, time & location' });
     await when.getByLabel('Date', { exact: true }).fill(inDays(21));
-    await when.getByRole('button', { name: 'Save', exact: true }).click();
+    // Round 65a: the sheet shows what they get, and the button says it sends
+    await expect(when.locator('[data-update-preview]')).toContainText('New date:');
+    await expect(when.locator('[data-update-preview]')).toContainText('Goes to the 1 person going.');
+    await when.getByRole('button', { name: 'Save and send', exact: true }).click();
     await expect(H.getByText('Saved. Everyone going gets an update.')).toBeVisible();
     await expect(HP).toContainText('New date:');
 
