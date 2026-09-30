@@ -109,6 +109,16 @@ test('decide everything later: only the title is needed; the host is left with t
     await startPost(page);
     await flow.getByLabel('Event title').fill(title);
     await expect(flow.getByLabel('Event title')).toHaveAttribute('maxlength', '40');
+    // The phone's Back with a title asks about a draft instead of dropping it
+    await page.goBack();
+    const leave = page.getByRole('dialog', { name: 'Save as draft' });
+    await expect(leave).toContainText('Save this as a draft?');
+    await leave.getByRole('button', { name: 'Keep going' }).click();
+    await expect(flow.getByLabel('Event title')).toHaveValue(title);
+    await flow.getByRole('button', { name: 'Next' }).click();
+    // …and on a later step it goes back a step
+    await page.goBack();
+    await expect(flow).toContainText('1 of 5');
     await flow.getByRole('button', { name: 'Next' }).click();
     // Date & time: the start list, then an end time that only offers later times
     await expect(flow).toContainText('Date & time');
@@ -118,11 +128,14 @@ test('decide everything later: only the title is needed; the host is left with t
     await flow.getByText('Add end time').click();
     await expect(flow.getByRole('option', { name: '5:30pm', exact: true })).toHaveCount(0);
     await flow.getByRole('option', { name: '8:00pm', exact: true }).click();
-    // …then Decide later clears it all and moves on
-    await flow.getByText('Decide later', { exact: true }).click();
+    // Decide later only shows while the step is empty, so it can't wipe what's filled in
+    await expect(flow.getByText('Decide later', { exact: true })).toHaveCount(0);
+    await flow.getByLabel('Date', { exact: true }).fill('');
+    await flow.getByText('Decide later', { exact: true }).click();   // clears the leftover times too
     await expect(flow).toContainText('3 of 5');
     await flow.getByRole('button', { name: 'Back' }).click();
     await expect(flow.getByLabel('Date', { exact: true })).toHaveValue('');
+    await expect(flow.getByRole('button', { name: 'Add a start time (optional)' })).toBeVisible();
     await flow.getByText('Decide later', { exact: true }).click();
     for (const n of ['3 of 5', '4 of 5', '5 of 5']) {
       await expect(flow).toContainText(n);
@@ -132,6 +145,17 @@ test('decide everything later: only the title is needed; the host is left with t
     // Review: every undecided part in amber
     await expect(flow).toContainText('LOOKS GOOD');
     for (const t of ['Date TBD', 'Location TBD', 'Basic details to be decided', 'Help to be decided']) await expect(flow).toContainText(t);
+    // Add / Edit on Review comes straight back to Review, not through the later steps
+    await flow.getByLabel('Add basic details').click();
+    await expect(flow).toContainText('4 of 5');
+    await flow.getByLabel('Basic details, line 1').fill('Bring a bowl');
+    await flow.getByRole('button', { name: 'Back to review' }).click();
+    await expect(flow).toContainText('LOOKS GOOD');
+    await expect(flow).toContainText('Bring a bowl');
+    await flow.getByLabel('Edit basic details').click();
+    await flow.getByLabel('Basic details, line 1').fill('');
+    await flow.getByText('Decide later', { exact: true }).click();
+    await expect(flow).toContainText('Basic details to be decided');
     await flow.getByRole('button', { name: 'Post it' }).click();
     await expect(page.locator('[data-screen-label="Plan page"]')).toBeVisible();
     id = await page.evaluate(() => location.hash.split('/').pop());
@@ -178,6 +202,10 @@ test('polls: the host posts a date poll, a member votes, the host picks the winn
     await expect(poll).toContainText('Create a poll');
     await expect(poll.getByRole('button', { name: 'Save', exact: true })).toHaveAttribute('aria-disabled', 'true');
     await poll.getByLabel('Date option 1').fill(inDays(15));
+    // The same date twice is refused (it used to make posting fail)
+    await poll.getByLabel('Date option 2').fill(inDays(15));
+    await poll.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(H.getByText('Two options are the same date and time. Change or remove one.')).toBeVisible();
     await poll.getByLabel('Date option 2').fill(inDays(16));
     await poll.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(flow.locator('[data-poll]')).toContainText('POLL · 2 OPTIONS');
@@ -201,7 +229,13 @@ test('polls: the host posts a date poll, a member votes, the host picks the winn
     const HP = H.locator('[data-screen-label="Plan page"]');
     const top = HP.locator('[data-poll-opt]').first();
     await expect(top).toContainText('1 vote');
+    // The task goes to the poll's votes, not a blank date field
+    await HP.locator('[data-host-tasks-bar]').click();
+    await HP.locator('[data-task-row]', { hasText: 'Pick the winning date' }).click();
+    await expect(H.getByRole('dialog', { name: 'Date, time & location' })).toHaveCount(0);
+    await expect(HP.locator('[data-when-card]')).toBeInViewport();
     await top.getByRole('button', { name: 'Pick' }).click();
+    await confirm(H, 'Use this date');   // it asks first: picking closes the poll
     await expect(HP.locator('[data-when-card]')).not.toContainText('VOTING ON A DATE');
     await expect(HP.locator('[data-tbd]')).toContainText('1 thing left to decide');   // only the place now
     expect(host.errors).toEqual([]);

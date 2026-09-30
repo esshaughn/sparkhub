@@ -178,7 +178,7 @@
     evDate: '', evTime: '', evEnd: '', evEndOn: false, timeOpen: null,
     locMode: 'specific', locText: '', locPlace: null, locSuggest: [],
     evBits: ['', '', ''], evNeeds: [], evDatePoll: null, evSpotPoll: null, evLater: {},
-    evPriv: false, evGroups: null, evDraftId: null, evLeave: false, pollSheet: null, needSheet: null
+    evPriv: false, evGroups: null, evDraftId: null, evLeave: false, pollSheet: null, needSheet: null, evFromReview: false
   });
   const state = Object.assign({
     screen: 'calendar', menu: null, subjectId: null, gpId: null, tag: null, zoom: null, membersOpen: null, membersList: null,
@@ -221,14 +221,16 @@
     const s = state.screen;
     if (s === 'detail' && state.subjectId) return '#/idea/' + state.subjectId;
     if (s === 'groupPage' && state.gpId) return '#/group/' + state.gpId;
+    if (s === 'compose') return '#/new';   // its own history entry, so the phone's Back stays in the flow (followUrl)
     // The Calendar is the home screen (owner, 2026-09-27); Your tasks has its own link
     const plain = { calendar: '', home: '#/tasks', sched: '#/schedule', browse: '#/ideas', how: '#/how', own: '#/own', groups: '#/groups' };
     return plain[s] != null ? plain[s] : null;
   };
-  const syncHash = () => {
+  const syncHash = (prevScreen) => {
     const h = hashFor();
-    if (h === null || (location.hash || '') === h) return;   // compose / edit keep the current URL
-    history.pushState(null, '', h || location.pathname + location.search);
+    if (h === null || (location.hash || '') === h) return;
+    // Leaving the post flow replaces its #/new entry, so Back from the new event doesn't reopen the flow
+    history[prevScreen === 'compose' && location.hash === '#/new' ? 'replaceState' : 'pushState'](null, '', h || location.pathname + location.search);
   };
   const JOIN_PATH = /^\/join\/([A-Za-z0-9]{6})\/?$/;
   const IDEA_PATH = /^\/i\/([0-9a-f-]{36})\/?$/;   // shared idea links (a real path so chat apps can preview them)
@@ -247,6 +249,7 @@
     if (h === '#/tasks') return { screen: 'home' };
     if (h === '#/own') return { screen: 'own' };
     if (h === '#/groups') return { screen: 'groups' };
+    if (h === '#/new') { history.replaceState(null, '', location.pathname + location.search); return { screen: 'calendar' }; }   // a post flow left behind by a reload
     // v6: Profile and Notifications are sheets over the Calendar
     if (h === '#/notifications') return { screen: 'calendar', notifSheet: true };
     if (h === '#/me') return { screen: 'calendar', profSheet: true };
@@ -262,7 +265,7 @@
       const ov = document.querySelector('.overlay-screen');
       if (ov) ov.scrollTop = 0;
     }
-    if (state.screen !== prevScreen || state.subjectId !== prevSubj || state.gpId !== prevGp) syncHash();
+    if (state.screen !== prevScreen || state.subjectId !== prevSubj || state.gpId !== prevGp) syncHash(prevScreen);
   };
 
   const scroller = () => document.querySelector('.scroller');
@@ -1213,6 +1216,7 @@
     run(async () => {
       if (b.undo.del) must(await sb.from('signup_items').delete().eq('id', b.undo.del));
       else must(await sb.from('signup_claims').delete().in('item_id', b.undo.items).eq('user_id', state.me));
+      if (b.undo.back && b.undo.back.length) must(await sb.from('signup_claims').insert(b.undo.back.map(id => ({ item_id: id, user_id: state.me, note: b.undo.note || null }))));
     }, { banner: null }).then(ok => { if (ok) toast('Okay, you’re off it', true); });
   };
   const jobOf = (s, it) => (s.jobs || s.signups).find(j => j.id === (it.jobId || it.id)) || it;
@@ -1255,7 +1259,7 @@
       if (keep.length && noteChanged) must(await sb.from('signup_claims').update({ note }).in('item_id', keep).eq('user_id', state.me));
     }, { shiftPick: null }).then(ok => {
       if (!ok) return;
-      if (add.length) onItBanner(s, { items: sel });
+      if (add.length) onItBanner(s, { items: add, back: drop, note });   // Undo takes back only this change: the new shifts go, dropped ones return
       else if (drop.length) offIt(s, job);
     });
   };
@@ -4165,19 +4169,27 @@
   };
   const coverInput = (s) => '<input type="file" accept="image/*" aria-label="Change the cover photo" ' + onInput(e => { if (e.type !== 'change') return; const f = (e.target.files || [])[0]; e.target.value = ''; changeCover(s, f); }) + ' style="display:none">';
   // The host picks a poll's winner: it becomes the date (or place) and the poll closes
-  const pickOpt = (s, kind, o) => run(async () => {
-    if (kind === 'day') {
-      must(await sb.from('sparks').update({ day_date: o.dayDate, day_time: o.dayTime, day_end: null }).eq('id', s.id));
-      must(await sb.from('date_options').delete().eq('spark_id', s.id));
-    } else {
-      must(await sb.from('sparks').update({ spot: o.name, spot_open: false, spot_address: o.address || null, spot_lat: o.lat, spot_lon: o.lon }).eq('id', s.id));
-      must(await sb.from('spot_options').delete().eq('spark_id', s.id));
-    }
-  }).then(ok => { if (ok) toast('Picked ' + (kind === 'day' ? dayLabel(o.dayDate, o.dayTime) : o.name), true); });
+  // The host picks a poll's winner: confirm first (it closes the poll), then tell everyone, like a new date or place from the sheet
+  const pickOpt = (s, kind, o) => {
+    const day = kind === 'day', label = day ? dayLabel(o.dayDate, o.dayTime) : o.name, reach = updateReach(s), send = s.planned && reach.n > 0;
+    const msg = day ? 'New date: ' + label : 'New location: ' + label;
+    setState({ confirm: { title: 'Pick ' + label + '?', cta: day ? 'Use this date' : 'Use this spot', keep: 'Not yet',
+      body: 'This closes the poll and clears its votes.' + (send ? ' ' + reach.text.replace(/^Goes to/, 'An update goes to') : ''),
+      run: () => run(async () => {
+        if (day) {
+          must(await sb.from('sparks').update({ day_date: o.dayDate, day_time: o.dayTime, day_end: null }).eq('id', s.id));
+          must(await sb.from('date_options').delete().eq('spark_id', s.id));
+        } else {
+          must(await sb.from('sparks').update({ spot: o.name, spot_open: false, spot_address: o.address || null, spot_lat: o.lat, spot_lon: o.lon }).eq('id', s.id));
+          must(await sb.from('spot_options').delete().eq('spark_id', s.id));
+        }
+        if (send) await sendUpdate(s, msg);
+      }, { confirm: null }).then(ok => { if (ok) toast(send ? 'Picked. Everyone gets an update.' : 'Picked ' + label, true); }) } });
+  };
 
   // Edit what you need: every job editable in place (nothing opens on top)
   const openNeeds = (s) => setState({ needEd: { id: s.id, rows: (s.jobs || []).map(j => j.shifts
-    ? { id: j.id, item: j.item, desc: j.desc, n: j.claims.length, shifts: j.shifts.map(u => ({ id: u.id, time: u.time || '', end: u.endTime || '', need: u.need || null })) }
+    ? { id: j.id, item: j.item, desc: j.desc, n: j.claims.length, shifts: j.shifts.map(u => ({ id: u.id, time: u.time || '', end: u.endTime || '', need: u.need || null, n: u.claims.length })) }
     : { id: j.id, item: j.item, desc: j.desc, n: j.claims.length, time: j.time || '', end: j.endTime || '', need: j.need || null, shifts: null }) } });
   const saveNeeds = (s) => {
     const ed = state.needEd;
@@ -4192,12 +4204,12 @@
         const o = orig.find(j => j.id === r.id) || {}, shifts = (r.shifts || []).filter(q => q.time), oldShifts = (o.shifts || []).map(u => u.id);
         if (!shifts.length) {
           must(await sb.from('signup_items').update({ item, descr, time: r.time || null, end_time: r.time && r.end && r.end > r.time ? r.end : null, need: r.need || null }).eq('id', r.id));
-          if (oldShifts.length) must(await sb.from('signup_items').delete().in('id', oldShifts));
+          for (const id of oldShifts) must(await sb.rpc('remove_signup', { p_item: id }));   // tells anyone signed up
           continue;
         }
         must(await sb.from('signup_items').update({ item, descr, time: null, end_time: null, need: null }).eq('id', r.id));
         const kept = shifts.filter(q => q.id).map(q => q.id), dropped = oldShifts.filter(id => kept.indexOf(id) < 0);
-        if (dropped.length) must(await sb.from('signup_items').delete().in('id', dropped));
+        for (const id of dropped) must(await sb.rpc('remove_signup', { p_item: id }));   // tells the people on that shift
         for (const q of shifts) {
           const row = { item, time: q.time, end_time: q.end && q.end > q.time ? q.end : null, need: q.need || null };
           if (q.id) must(await sb.from('signup_items').update(row).eq('id', q.id));
@@ -4370,8 +4382,9 @@
     const myTime = (j) => j.shifts ? j.shifts.filter(u => u.claims.some(c => c.userId === st.me)).map(spanTime).filter(Boolean).join(', ') : spanTime(j);
     const f = signupFill(s);
     const tasks = !lead ? myJobs.map(j => ({ item: j.item, meta: myTime(j) })) : [].concat(
-      !s.dayDate ? [{ item: s.dateOpts.length ? 'Pick the winning date' : 'Pick a date', act: () => openSec(s, 'when') }] : [],
-      !s.spot ? [{ item: s.spotOpts.length ? 'Pick the winning spot' : 'Pick a location', act: () => openSec(s, 'when') }] : [],
+      // With a poll running, go to its votes and Pick buttons (the pop-up's plain field would throw the poll away)
+      !s.dayDate ? [{ item: s.dateOpts.length ? 'Pick the winning date' : 'Pick a date', act: () => s.dateOpts.length ? openToSection(s, 'sec-when') : openSec(s, 'when') }] : [],
+      !s.spot ? [{ item: s.spotOpts.length ? 'Pick the winning spot' : 'Pick a location', act: () => s.spotOpts.length ? openToSection(s, 'sec-when') : openSec(s, 'when') }] : [],
       !basicsOf(s).length ? [{ item: 'Add basic details', act: () => openSec(s, 'details') }] : [],
       f.open > 0 ? [{ item: 'Fill open spots', meta: f.open + ' open', act: () => openToSection(s, 'sec-tasks') }] : [],
       myJobs.map(j => ({ item: j.item, meta: myTime(j) })));
@@ -4792,6 +4805,19 @@
   };
   const evGo = (k, extra) => setState(Object.assign({ evStep: k, menu: null, timeOpen: null }, extra || {}));
   const evExit = () => go('calendar', composeReset());
+  // The phone's Back (or the browser's) inside the post flow: close the open sheet, else go back a step,
+  // else ask about a draft. False only when there's nothing to lose, so the flow can close.
+  const composeBack = () => {
+    const st = state;
+    if (st.busy) return true;
+    if (st.pollSheet || st.needSheet || st.evLeave || st.timeOpen) { setState({ pollSheet: null, needSheet: null, evLeave: false, timeOpen: null }); return true; }
+    if (st.evStep === 'review') { evGo('help'); return true; }
+    if (st.evFromReview) { evGo('review', { evFromReview: false }); return true; }
+    const i = EV_STEPS.indexOf(st.evStep);
+    if (i > 0) { evGo(EV_STEPS[i - 1]); return true; }
+    if (cleanTitle(st.activity)) { setState({ evLeave: true }); return true; }
+    return false;
+  };
 
   const pickEvPhoto = async (file) => {
     if (!file) return;
@@ -4827,6 +4853,13 @@
     must(await sb.from('signup_items').insert(shifts.map(q => ({ spark_id: sparkId, item, shift_of: job.id, time: q.time, end_time: q.end && q.end > q.time ? q.end : null, need: q.need || null }))));
   };
 
+  // After a save that worked: refresh, tolerating one failed try (the next background refresh catches up)
+  const freshAfterSave = async () => {
+    try { await loadFresh(); } catch (e) {
+      console.error(e);
+      try { await loadFresh(); } catch (e2) { console.error(e2); }
+    }
+  };
   const postEvent = () => {
     const st = state, groups = evGroupIds(st);
     if (!groups.length || st.busy || !cleanTitle(st.activity)) return;
@@ -4860,11 +4893,14 @@
           if (cover && cover.fresh) deletePhotos([cover.path]);
           throw e;
         }
-        if (st.evDraftId) {
-          await sb.from('event_drafts').delete().eq('id', st.evDraftId);
-          if (cover && cover.fresh && st.evPhotoPath) deletePhotos([st.evPhotoPath]);   // the draft's old cover
-        }
-        await loadFresh();
+        // It's posted: from here a failed tidy-up or refresh mustn't show "didn't go through" (a second tap would post it twice)
+        try {
+          if (st.evDraftId) {
+            must(await sb.from('event_drafts').delete().eq('id', st.evDraftId));
+            if (cover && cover.fresh && st.evPhotoPath) deletePhotos([st.evPhotoPath]);   // the draft's old cover
+          }
+        } catch (e) { console.error(e); }
+        await freshAfterSave();
         setState(Object.assign(composeReset(), { busy: null, phaseTab: 'plan' }));
         go('detail', { subjectId: id, tag: 'It’s on the books' });
       } catch (e) {
@@ -4892,8 +4928,9 @@
         data.evPhoto = cover ? cover.path : null;
         if (st.evDraftId) must(await sb.from('event_drafts').update({ data, updated_at: new Date().toISOString() }).eq('id', st.evDraftId));
         else must(await sb.from('event_drafts').insert({ data }));
-        if (cover && cover.fresh && st.evPhotoPath) deletePhotos([st.evPhotoPath]);
-        await loadFresh();
+        cover = null;   // saved: the draft now points at this photo, so a later failure mustn't delete it
+        if (st.evPhotoPath && data.evPhoto !== st.evPhotoPath) deletePhotos([st.evPhotoPath]);
+        await freshAfterSave();
         setState(Object.assign(composeReset(), { busy: null }));
         go('home');
         toast('Saved as a draft', true);
@@ -4995,7 +5032,7 @@
       const card = (icon, label, has, act, step, inner) => '<div style="background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08);padding:14px 16px;display:flex;flex-direction:column;gap:10px">' +
         '<div style="display:flex;align-items:center;gap:10px"><span style="flex:0 0 20px;display:flex;color:' + (has ? '#0f7a3c' : '#b07a0a') + '">' + svg(18, stroke('currentColor', 2.2), icon) + '</span>' +
           '<span style="flex:1;font-size:12px;font-weight:800;letter-spacing:1.1px;text-transform:uppercase;color:#6b7280">' + label + '</span>' +
-          '<span ' + on(() => evGo(step)) + ' aria-label="' + (has ? 'Edit ' : 'Add ') + label.toLowerCase() + '" style="font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">' + (has ? 'Edit' : 'Add') + '</span></div>' +
+          '<span ' + on(() => evGo(step, { evFromReview: true })) + ' aria-label="' + (has ? 'Edit ' : 'Add ') + label.toLowerCase() + '" style="font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">' + (has ? 'Edit' : 'Add') + '</span></div>' +
         '<div style="padding-left:28px">' + inner + '</div></div>';
       const main = (t, has, sub) => '<div style="font-size:15px;line-height:1.3;font-weight:800;color:' + (has ? '#0d1117' : AMBER_INK) + ';text-wrap:pretty">' + esc(t) + '</div>' +
         (sub ? '<div style="margin-top:2px;font-size:13.5px;line-height:1.35;font-weight:500;color:#6b7280">' + esc(sub) + '</div>' : '');
@@ -5014,7 +5051,7 @@
           '<label style="position:absolute;top:16px;right:14px;z-index:2;display:flex;align-items:center;gap:6px;min-height:38px;padding:0 13px;border-radius:999px;background:#fff;box-shadow:0 2px 8px rgba(13,17,23,.25);font-size:13px;font-weight:800;color:#0d1117;cursor:pointer">' +
             svg(15, stroke('currentColor', 2.2), CAMERA) + (url ? 'Change photo' : 'Add a cover photo') + photoInput('Cover photo') + '</label>' +
           '<div style="position:absolute;left:18px;right:18px;bottom:14px;color:#fff"><div style="font-size:12px;font-weight:900;letter-spacing:1px;color:#e4dfff">LOOKS GOOD</div>' +
-            '<div ' + on(() => evGo('title')) + ' aria-label="Edit the title" style="margin-top:2px;display:flex;align-items:flex-end;gap:10px;cursor:pointer"><span style="font-size:30px;line-height:1.05;font-weight:900;letter-spacing:-.8px;text-wrap:balance;overflow-wrap:anywhere">' + esc(title) + '</span>' +
+            '<div ' + on(() => evGo('title', { evFromReview: true })) + ' aria-label="Edit the title" style="margin-top:2px;display:flex;align-items:flex-end;gap:10px;cursor:pointer"><span style="font-size:30px;line-height:1.05;font-weight:900;letter-spacing:-.8px;text-wrap:balance;overflow-wrap:anywhere">' + esc(title) + '</span>' +
               svg(18, stroke('#fff', 2.3) + ' style="flex:0 0 18px;margin-bottom:6px;opacity:.85"', PENCIL) + '</div></div>' +
         '</div>' +
         '<div style="padding:16px 14px 0;display:flex;flex-direction:column;gap:18px"><div style="display:flex;flex-direction:column;gap:10px">' +
@@ -5095,9 +5132,12 @@
         }).join('') + '</div>';
     }
 
-    const ok = filled[cur];
-    const next = () => { if (!ok) return; evGo(nextOf(cur), { evLater: later(cur) }); };
-    const skip = () => evGo(nextOf(cur), Object.assign({}, CLEAR[cur] || {}, { evLater: Object.assign({}, st.evLater, { [cur]: true }) }));
+    // Opened from Review's Edit: Next and Back both return to Review, instead of walking the later steps again
+    const ok = filled[cur], back = st.evFromReview;
+    const ahead = back ? 'review' : nextOf(cur), aheadX = back ? { evFromReview: false } : {};
+    const next = () => { if (!ok) return; evGo(ahead, Object.assign({ evLater: later(cur) }, aheadX)); };
+    // Decide later only shows on an empty step (it used to wipe a filled one: every job, the poll…)
+    const skip = () => evGo(ahead, Object.assign({}, CLEAR[cur] || {}, aheadX, { evLater: Object.assign({}, st.evLater, { [cur]: true }) }));
     return '<div class="overlay-screen" data-screen-label="New spark"><div style="display:flex;flex-direction:column;min-height:100%">' +
       '<div style="position:relative;flex:0 0 auto;height:' + (cur === 'title' ? 270 : 200) + 'px;transition:height 240ms ease;background:' + (url ? '#2b303a ' + bg(url) : EV_GRAD) + '">' +
         '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top,rgba(13,17,23,.88),rgba(13,17,23,.12) 55%,rgba(13,17,23,.4))"></div>' +
@@ -5110,10 +5150,10 @@
       '</div>' +
       '<div style="margin-top:-16px;position:relative;z-index:1;flex:1 1 auto;display:flex;flex-direction:column;background:#e8eaee;border-radius:20px 20px 0 0">' + body +
         '<div style="margin-top:auto;padding:14px 16px 20px;display:flex;flex-direction:column;gap:4px">' +
-          (i > 0 ? '<div style="display:flex;justify-content:center;padding-bottom:4px"><span ' + on(skip) + ' data-later style="display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 14px;border-radius:999px;color:#6b7280;font-size:14.5px;font-weight:700;cursor:pointer">Decide later' + I.chevR(13, 'currentColor', 2.8) + '</span></div>' : '') +
+          (i > 0 && !ok ? '<div style="display:flex;justify-content:center;padding-bottom:4px"><span ' + on(skip) + ' data-later style="display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 14px;border-radius:999px;color:#6b7280;font-size:14.5px;font-weight:700;cursor:pointer">Decide later' + I.chevR(13, 'currentColor', 2.8) + '</span></div>' : '') +
           '<div style="display:flex;gap:8px">' +
-            (i > 0 ? '<button type="button" ' + on(() => evGo(EV_STEPS[i - 1])) + ' style="flex:0 0 auto;min-height:54px;padding:0 22px;background:transparent;border:2px solid #c9ccd3;border-radius:999px;font-family:inherit;font-size:16px;font-weight:800;color:#0d1117;cursor:pointer">Back</button>' : '') +
-            '<button type="button" ' + on(next) + ' aria-disabled="' + !ok + '" style="flex:1 1 auto;min-width:0;min-height:54px;border:0;border-radius:999px;background:' + (ok ? '#5b4ae8' : '#d5d8df') + ';color:#fff;font-family:inherit;font-size:16.5px;font-weight:800;cursor:' + (ok ? 'pointer' : 'default') + '">' + (cur === 'help' ? 'Review' : 'Next') + '</button>' +
+            (i > 0 && !back ? '<button type="button" ' + on(() => evGo(EV_STEPS[i - 1])) + ' style="flex:0 0 auto;min-height:54px;padding:0 22px;background:transparent;border:2px solid #c9ccd3;border-radius:999px;font-family:inherit;font-size:16px;font-weight:800;color:#0d1117;cursor:pointer">Back</button>' : '') +
+            '<button type="button" ' + on(next) + ' aria-disabled="' + !ok + '" style="flex:1 1 auto;min-width:0;min-height:54px;border:0;border-radius:999px;background:' + (ok ? '#5b4ae8' : '#d5d8df') + ';color:#fff;font-family:inherit;font-size:16.5px;font-weight:800;cursor:' + (ok ? 'pointer' : 'default') + '">' + (back ? 'Back to review' : cur === 'help' ? 'Review' : 'Next') + '</button>' +
           '</div></div>' +
       '</div></div></div>';
   }
@@ -5148,6 +5188,9 @@
       const rmBtn = (k) => '<span ' + on(rm(k)) + ' aria-label="Remove option ' + (k + 1) + '" style="flex:0 0 32px;width:32px;height:32px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(12, '#6b7280', 2.8) + '</span>';
       const save = () => {
         if (valid.length < 2) { toast('Add at least two options'); return; }
+        // Two identical dates made the whole post fail; two identical spots split the vote
+        const keys = valid.map(r => when ? r.d + ' ' + (r.t || '') : cleanTitle(r.v).toLowerCase());
+        if (keys.some((k, j) => keys.indexOf(k) !== j)) { toast(when ? 'Two options are the same date and time. Change or remove one.' : 'Two options are the same place. Change or remove one.'); return; }
         if (when) setState({ pollSheet: null, evDatePoll: valid.map(r => ({ d: r.d, t: r.t || '' })), evDate: '', evTime: '', evEnd: '', evEndOn: false, evLater: Object.assign({}, st.evLater, { when: false }) });
         else setState({ pollSheet: null, evSpotPoll: valid.map(r => ({ v: cleanTitle(r.v).slice(0, 80) })), locText: '', locPlace: null, locSuggest: [], evLater: Object.assign({}, st.evLater, { where: false }) });
       };
@@ -5188,6 +5231,8 @@
   const jobFields = (r, set, idx) => {
     const tag = idx == null ? '' : ' ' + (idx + 1);
     const setShift = (k, patch) => set({ shifts: r.shifts.map((q, j) => j === k ? Object.assign({}, q, patch) : q) });
+    // Sign-ups belong to the job or to its shifts, and switching between them would drop them, so it's locked while anyone's on it
+    const held = r.n > 0, heldNote = (t) => '<span data-held style="font-size:13px;line-height:1.4;font-weight:600;color:#6b7280">' + t + '</span>';
     return '<div style="display:flex;flex-direction:column;gap:10px">' +
       '<input class="fld" type="text" maxlength="60"' + (idx == null ? ' data-job-name' : '') + ' aria-label="Job name' + tag + '" placeholder="What you need, e.g. Bring a case of water" value="' + esc(r.item) + '" ' + onInput(e => { if (e.type === 'input') set({ item: e.target.value.slice(0, 60) }); }) + ' style="' + BIG + ';min-height:52px;font-size:16px">' +
       '<textarea class="fld" rows="2" maxlength="400" aria-label="Details' + tag + '" placeholder="Details (optional)" ' + onInput(e => { if (e.type === 'input') set({ desc: e.target.value.slice(0, 400) }); }) + ' style="' + BIG + ';min-height:52px;padding:12px 16px;font-size:16px;font-weight:500;line-height:1.4;resize:none">' + esc(r.desc || '') + '</textarea>' +
@@ -5197,12 +5242,13 @@
               timeSelect(q.time, EV_TIMES, 'Start', (v) => setShift(k, { time: v, end: q.end && q.end <= v ? '' : q.end }), 'Shift ' + (k + 1) + ' start') +
               '<span aria-hidden="true" style="font-weight:800;color:#9aa0ac">–</span>' +
               timeSelect(q.end, EV_TIMES.filter(v => !q.time || v > q.time), 'End', (v) => setShift(k, { end: v }), 'Shift ' + (k + 1) + ' end') +
-              '<span ' + on(() => set({ shifts: r.shifts.length > 1 ? r.shifts.filter((_, j) => j !== k) : null, time: r.shifts.length > 1 ? r.time : q.time, need: r.shifts.length > 1 ? r.need : q.need })) + ' aria-label="Remove shift ' + (k + 1) + '" style="flex:0 0 28px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(13, '#6b7280', 2.8) + '</span></div>' +
+              (held && r.shifts.length === 1 ? '' : '<span ' + on(() => set({ shifts: r.shifts.length > 1 ? r.shifts.filter((_, j) => j !== k) : null, time: r.shifts.length > 1 ? r.time : q.time, need: r.shifts.length > 1 ? r.need : q.need })) + ' aria-label="Remove shift ' + (k + 1) + '" style="flex:0 0 28px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(13, '#6b7280', 2.8) + '</span>') + '</div>' +
+            (q.n ? heldNote(q.n + (q.n === 1 ? ' person is' : ' people are') + ' on this shift. Removing it lets them know.') : '') +
             '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><span style="font-size:13px;font-weight:800;color:#6b7280">People needed</span>' + stepper(q.need, (n) => setShift(k, { need: n }), 'shift ' + (k + 1)) + '</div></div>').join('') +
           '<span ' + on(() => set({ shifts: r.shifts.concat([{ time: '', end: '', need: 1 }]) })) + ' style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:36px;font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(14, 'currentColor', 2.6) + 'Add a shift</span>' +
-          '<span ' + on(() => set({ shifts: null, time: r.shifts[0].time, need: r.shifts[0].need || 1 })) + ' style="align-self:flex-start;display:flex;align-items:center;min-height:32px;font-size:13.5px;font-weight:700;color:#6b7280;cursor:pointer">Use one time instead</span>'
+          (held ? heldNote('People are signed up for these shifts, so they stay as shifts.') : '<span ' + on(() => set({ shifts: null, time: r.shifts[0].time, need: r.shifts[0].need || 1 })) + ' style="align-self:flex-start;display:flex;align-items:center;min-height:32px;font-size:13.5px;font-weight:700;color:#6b7280;cursor:pointer">Use one time instead</span>')
         : '<div style="display:flex;align-items:center;gap:10px">' + timeSelect(r.time, EV_TIMES, 'Time (optional)', (v) => set({ time: v }), 'Time' + tag) + stepper(r.need, (n) => set({ need: n }), 'how many people') + '</div>' +
-          '<span ' + on(() => set({ shifts: [{ time: r.time || '', end: '', need: r.need || 1 }, { time: '', end: '', need: r.need || 1 }] })) + ' style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:32px;font-size:13.5px;font-weight:700;color:#6b7280;cursor:pointer">' + svg(14, stroke('currentColor', 2.4), P5.clock) + 'Add a shift</span>') +
+          (held ? heldNote('People are signed up, so it can’t be split into shifts.') : '<span ' + on(() => set({ shifts: [{ time: r.time || '', end: '', need: r.need || 1 }, { time: '', end: '', need: r.need || 1 }] })) + ' style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:32px;font-size:13.5px;font-weight:700;color:#6b7280;cursor:pointer">' + svg(14, stroke('currentColor', 2.4), P5.clock) + 'Add a shift</span>')) +
     '</div>';
   };
 
@@ -5922,10 +5968,16 @@
 
   // Back/forward buttons fire popstate; a link opened or pasted in the same tab only fires hashchange
   const followUrl = () => {
+    if (state.screen === 'compose' && location.hash === '#/new') return;   // Back's popstate re-pushed #/new; its hashchange follows
     const target = fromUrl();
     if (target.inviteCode) { takeInvite(target.inviteCode); return; }
+    let leaving = {};
+    if (state.screen === 'compose') {
+      if (composeBack()) { history.pushState(null, '', '#/new'); return; }   // stay in the flow
+      leaving = composeReset();
+    }
     if (target.screen === state.screen && target.subjectId === state.subjectId && target.gpId === state.gpId) return;
-    setState(Object.assign({ menu: null, offerKind: null, nameAsk: null, confirm: null, loginStep: null, loginThen: null, interestList: false, thanksList: false, back: null,
+    setState(Object.assign(leaving, { menu: null, offerKind: null, nameAsk: null, confirm: null, loginStep: null, loginThen: null, interestList: false, thanksList: false, back: null,
       profSheet: false, notifSheet: false, dashAll: null, cHandSheet: false, cSearch: false, cq: '', gSearch: false, gq: '', gTry: null }, target));
     const sc = scroller();
     if (sc) sc.scrollTop = 0;

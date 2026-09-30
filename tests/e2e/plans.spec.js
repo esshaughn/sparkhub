@@ -178,6 +178,21 @@ test('Help out: descriptions, time ranges and Pick a shift', async ({ browser })
     await pick.locator('[data-shift="7:00 – 8:00pm"]').click();
     await pick.getByRole('button', { name: 'Done' }).click();
     await expect(coat).toContainText('1 of 2');
+    // Adding a second shift, then Undo, takes back only the new one
+    await coat.getByLabel('You’re in. Tap to take yourself off').click();
+    await pick.locator('[data-shift="6:00 – 7:00pm"]').click();
+    await pick.getByRole('button', { name: 'Done' }).click();
+    await expect(coat).toContainText('2 of 2');
+    await O.locator('[data-banner="on"]').getByRole('button', { name: 'Undo' }).click();
+    await expect(coat).toContainText('1 of 2');
+    // With someone signed up, the host can't merge the shifts (it would drop them)
+    await H.reload();
+    await expect(H.locator('html[data-loaded=true]')).toHaveCount(1);   // the jobs were added straight to the database
+    await H.locator('[data-screen-label="Plan page"]').getByRole('button', { name: 'Edit what you need' }).click();
+    const needs = H.getByRole('dialog', { name: 'Edit what you need' });
+    await expect(needs).toContainText('People are signed up for these shifts, so they stay as shifts.');
+    await expect(needs.getByText('Use one time instead')).toHaveCount(0);
+    await needs.getByRole('button', { name: 'Close' }).click();
     await coat.getByLabel('You’re in. Tap to take yourself off').click();
     await pick.locator('[data-shift="7:00 – 8:00pm"]').click();
     await pick.getByRole('button', { name: 'Done' }).click();
