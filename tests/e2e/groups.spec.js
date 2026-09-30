@@ -211,6 +211,45 @@ test('a group end to end: edit group, cover, rename, invite, pin, admin edits, r
   }
 });
 
+test('leaving a group: a member leaves from the bottom of its page; its only owner can’t', async ({ browser }) => {
+  const owner = await newLead(browser, 2, 'Olive');
+  const member = await newLead(browser, 1, 'Mo');
+  const O = owner.page, M = member.page;
+  const name = '[E2E] Leavers ' + Date.now().toString(36);
+  let gid;
+  try {
+    const g = await asUser(O, async (c, _C, n) => (await c.rpc('create_group', { p_name: n })).data[0], name);
+    gid = g.id;
+    await asUser(M, async (c, _C, code) => c.rpc('join_group', { p_code: code }), g.code);
+
+    // The member leaves: confirm, then the Groups page without it, and the database agrees
+    await M.goto('/'); await M.reload();
+    await M.getByRole('button', { name: 'Groups', exact: true }).click();
+    await M.locator('[data-screen-label=Groups]').getByRole('button', { name: name, exact: true }).click();
+    await M.locator('[data-screen-label=Browse] [data-leave-group]').click();
+    const c = M.getByRole('alertdialog', { name: 'Leave ' + name + '?' });
+    await expect(c).toContainText('Your events and replies stay. You can rejoin with the group’s link.');
+    await c.getByRole('button', { name: 'Leave', exact: true }).click();
+    await expect(M.getByText('You left ' + name)).toBeVisible();
+    await expect(M.locator('[data-screen-label=Groups]')).not.toContainText(name);
+    expect(await asUser(M, async (c, _C, id) => (await c.from('memberships').select('group_id').eq('group_id', id)).data.length, gid)).toBe(0);
+
+    // The only owner can't leave: they're told what to do instead, and stay in
+    await O.goto('/'); await O.reload();
+    await O.getByRole('button', { name: 'Groups', exact: true }).click();
+    await O.locator('[data-screen-label=Groups]').getByRole('button', { name: name, exact: true }).click();
+    await O.locator('[data-screen-label=Browse] [data-leave-group]').click();
+    await O.getByRole('alertdialog').getByRole('button', { name: 'Leave', exact: true }).click();
+    await expect(O.getByText('You’re its only owner. Make someone else an owner first (Edit group → Members), or delete the group.')).toBeVisible();
+    expect(await asUser(O, async (c, _C, id) => (await c.from('memberships').select('group_id').eq('group_id', id)).data.length, gid)).toBe(1);
+    expect(member.errors).toEqual([]);
+  } finally {
+    if (gid) await asUser(O, async (c, _C, id) => c.rpc('e2e_delete_group', { p_group: id }), gid).catch(() => {});
+    await owner.context.close();
+    await member.context.close();
+  }
+});
+
 test('an invite link for someone signed out: the group’s landing with sign-in on it; a bad link; inside Instagram', async ({ browser }) => {
   const { page, context, errors } = await newMember(browser, '/#/join/TORREZ');
   try {

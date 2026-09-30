@@ -53,6 +53,8 @@ Where this doc and the design files disagree, **this doc is correct**.
 
 - **Welcome's two sign-in buttons (owner, 2026-09-30):** *Continue with Google* goes straight to Google (the button reads *Opening Google…*), and *Continue with email* opens the sign-in pop-up with only the email field (no Google button or OR divider; the line reads *We'll email you a 6-digit code. No password.*). Sign-in opened from anywhere else still offers both.
 
+- **Leave a group (owner, 2026-09-30):** a quiet gray link *Leave {group}* (14px/700 `#8a909b`, centered) at the bottom of the group page, for everyone in the group. Confirm: *Leave {group}?* · *You won't see its plans and ideas any more. Your events and replies stay. You can rejoin with the group's link.* · red **Leave** / **Cancel**; then the Groups page and a toast *You left {group}*. The last owner gets a toast instead: *You're its only owner. Make someone else an owner first (Edit group → Members), or delete the group.* Please design it properly.
+
 ## 4. Designed but not built or not working
 
 - **"We'll let {Host} know"** (You're off it): nothing is sent yet. Notifications are built from what's stored, so the host just sees one fewer name on the job.
@@ -64,7 +66,7 @@ Where this doc and the design files disagree, **this doc is correct**.
 
 ## 5. Open questions for the next round
 
-1. Everything in the README's **Open / not designed yet** list still stands (categories, first-run view for an empty group, leaving a group, Suggest vs Offer wording, first vs full names).
+1. Everything in the README's **Open / not designed yet** list still stands (categories, first-run view for an empty group, Suggest vs Offer wording, first vs full names).
 2. **A real invite list** (pick neighbors or the whole group) would bring back Invited on the stats strip, "haven't replied · Nudge" and "invited you" notifications — design it next? (Invites are share links today, so nothing counts them.)
 3. **Minimum people** on ideas ("How many do you need?") has no input yet, so the People checkpoint rarely completes.
 10. **Event types:** the placeholder keyword guesses are shown to people as filters; host-chosen tags (v6 open item) would replace them.

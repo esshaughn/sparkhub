@@ -797,6 +797,28 @@
     toast(g.name + ' was deleted', true);
   };
 
+  // Leave a group (owner, 2026-09-30): a quiet link at the bottom of its page. The last owner can't (leave_group()
+  // refuses too): they make someone else an owner first, or delete the group.
+  const leaveGroup = (g) => {
+    setState({ confirm: { title: 'Leave ' + g.name + '?', body: 'You won’t see its plans and ideas any more. Your events and replies stay. You can rejoin with the group’s link.', cta: 'Leave', keep: 'Cancel', danger: true,
+      run: async () => {
+        if (state.viewAs || state.busy) return;
+        setState({ busy: 'save' });
+        try {
+          await ensureSession();
+          must(await sb.rpc('leave_group', { p_group: g.id }));
+          await loadFresh();
+          setState({ busy: null, confirm: null, groupId: state.groupId === g.id ? null : state.groupId });
+          go('groups');
+          toast('You left ' + g.name, true);
+        } catch (e) {
+          console.error(e);
+          setState({ busy: null, confirm: null });
+          toast(/owner first/.test(e.message || '') ? 'You’re its only owner. Make someone else an owner first (Edit group → Members), or delete the group.' : FAILED);
+        }
+      } } });
+  };
+
   // Start a group (V5 brings it back): name it, then land on its Edit group page with the code
   const startGroup = () => { setState({ menu: null }); needSignIn(() => setState({ startName: '' }), 'profile'); };
   const submitStartGroup = async () => {
@@ -3506,6 +3528,7 @@
     return '<div data-screen-label="Browse" style="' + pageStyle + '">' + header + offline + tabs +
       '<div data-tabpane style="padding:10px 14px 22px;display:flex;flex-direction:column;gap:22px">' +
         (loading ? '<div style="padding:0 4px;font-size:14px;font-weight:700;color:#6b7280">Loading ideas…</div>' : '') + body +
+        (g && g.role && !loading ? '<span ' + on(() => leaveGroup(g)) + ' data-leave-group style="align-self:center;display:flex;align-items:center;min-height:44px;padding:0 12px;font-size:14px;font-weight:700;color:#8a909b;cursor:pointer">Leave ' + esc(g.name) + '</span>' : '') +
       '</div>' +
       '<div style="height:var(--nav-h)"></div></div>';
   }
