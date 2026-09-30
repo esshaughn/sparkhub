@@ -18,6 +18,7 @@ test('Welcome → Continue with Google: the trip is saved; cancelling comes back
     });
     await page.route('http://localhost:4173/fake-google', (route) => route.fulfill({ contentType: 'text/html', body: '<p>Google</p>' }));
     await page.locator('[data-screen-label=Welcome]').getByRole('button', { name: 'Continue with Google' }).click();
+    await expect(page.getByRole('dialog', { name: 'Sign in' })).toHaveCount(0);   // straight to Google, no pop-up first
     await page.waitForURL('**/fake-google');
     expect(authorize.searchParams.get('provider')).toBe('google');
     expect(authorize.searchParams.get('redirect_to')).toBe('http://localhost:4173/');

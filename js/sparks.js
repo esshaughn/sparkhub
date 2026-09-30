@@ -1760,8 +1760,9 @@
 
   function viewWelcome() {
     const st = state, from = st.joinCode ? 'join' : 'default', then = st.joinCode ? () => openJoin(st.joinCode) : null;
-    // Both open the sign-in pop-up: Google straight into "Opening Google…", email with the field focused
-    const google = () => { if (st.busy) return; openLogin(from, then); googleSignIn(); };
+    // Google leaves for Google straight from here, the button reading "Opening Google…" (no sign-in pop-up flashing
+    // first; owner, 2026-09-30). If Google is cancelled, the return opens the pop-up anyway. Email opens the pop-up.
+    const google = () => { if (st.busy) return; setState({ loginFrom: from, loginThen: then, loginMode: 'link', googleFailed: false }); googleSignIn(); };
     const email = () => { openLogin(from, then); setTimeout(() => { const f = document.querySelector('[data-screen-label="Sign in"] input[type=email]'); if (f) f.focus(); }, 0); };
     // A full-screen column: the photo behind the top, then the logo, headline and steps,
     // with the sign-in buttons anchored near the bottom of the screen
@@ -1783,7 +1784,7 @@
         (st.joinCode ? '<div style="text-align:center;font-size:14.5px;font-weight:700;color:#dfe2e8">Sign in to join the group <strong style="font-weight:900;letter-spacing:1px;color:#fff">' + esc(st.joinCode) + '</strong></div>' : '') +
         (GOOGLE_ON
           ? '<button type="button" class="hov-fill-grey" ' + on(google) + ' style="width:100%;min-height:54px;display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;border:0;border-radius:999px;font-family:inherit;font-size:16px;font-weight:800;color:#0d1117;cursor:pointer">' +
-              I.google + 'Continue with Google</button>'
+              I.google + (st.busy === 'google' ? 'Opening Google…' : 'Continue with Google') + '</button>'
           : '') +
         '<button type="button" class="hov-white-line" ' + on(email) + ' style="width:100%;min-height:54px;display:flex;align-items:center;justify-content:center;gap:10px;background:transparent;border:1.5px solid rgba(255,255,255,.3);border-radius:999px;font-family:inherit;font-size:16px;font-weight:800;color:#fff;cursor:pointer">' +
           svg(19, stroke('currentColor', 2.1), '<rect x="3" y="5.5" width="18" height="13" rx="2.5"/><path d="m4 7.5 8 6 8-6"/>') + 'Continue with email</button>' +
