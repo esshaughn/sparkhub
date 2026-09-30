@@ -38,13 +38,13 @@
     } catch (e) { return {}; }
   })();
   // PKCE keeps the Google round trip in the query string, clear of our #/ routes
-  // "View as a tester" (demo admin only) is look-only: while it's on, nothing but reads leaves the app
+  // "View as a user" (demo admin only) is look-only: while it's on, nothing but reads leaves the app
   let previewing = false;
   const READ_RPCS = /\/rest\/v1\/rpc\/(my_group_sizes|demo_testers)(\?|$)/;
   const guardedFetch = (url, opts) => {
     const m = String((opts && opts.method) || 'GET').toUpperCase(), u = String((url && url.url) || url);
     if (previewing && m !== 'GET' && m !== 'HEAD' && !/\/auth\/v1\//.test(u) && !READ_RPCS.test(u))
-      return Promise.resolve(new Response(JSON.stringify({ message: 'Viewing as a tester: changes are off' }), { status: 403, headers: { 'Content-Type': 'application/json' } }));
+      return Promise.resolve(new Response(JSON.stringify({ message: 'Viewing as someone else: changes are off' }), { status: 403, headers: { 'Content-Type': 'application/json' } }));
     return fetch(url, opts);
   };
   const sb = window.supabase && CFG.supabaseUrl
@@ -474,7 +474,7 @@
       .filter(g => !va || va.roles[g.id])
       .sort((a, b) => runs(b) - runs(a) || a.name.localeCompare(b.name));
 
-    // Previewing as a tester: only what they'd see (the rule in can_see_spark_row, minus shared links)
+    // Previewing as someone else: only what they'd see (the rule in can_see_spark_row, minus shared links)
     const sparks = sp.data.map(r => toSpark(r, of.data, it.data, gc.data, x)).filter(s => {
       const m = va && va.roles[s.groupId];
       const m2 = va && s.groupIds.map(id => va.roles[id]).find(Boolean);
@@ -549,7 +549,7 @@
       setState({ groups: [], sparks: [], profiles: {}, sizes: {}, loaded: false, fromCache: false, demoAdmin: false });
     }
     if (u.id !== state.me || email !== state.email || google !== state.isGoogle) {
-      if (state.viewAs) return;   // previewing as a tester: stay them until Exit (which reloads)
+      if (state.viewAs) return;   // previewing as someone else: stay them until Exit (which reloads)
       setState({ me: u.id, email, isGoogle: google, myName: (u.is_anonymous ? state.myName : metaName(meta) || state.myName).slice(0, 30), memberSince: u.created_at ? new Date(u.created_at).getFullYear() : state.memberSince });
     }
   };
@@ -686,7 +686,7 @@
       }, { confirm: null }) } });
   };
 
-  // "View as a tester" (demo admin): pick a tester, and the app draws itself as them (look only)
+  // "View as a user" (demo admin): pick anyone with an account, and the app draws itself as them (look only)
   const openTesters = () => {
     if (state.testers) return setState({ testers: null });
     sb.rpc('demo_testers').then(r => {
@@ -698,7 +698,7 @@
     const roles = {};
     (t.memberships || []).forEach(m => { roles[m.group_id] = { role: m.role, pinned: !!m.pinned, lastSeen: Date.parse(m.last_seen_at) || 0 }; });
     previewing = true;
-    setState({ viewAs: { id: t.user_id, name: t.name || 'Tester', roles }, me: t.user_id, email: t.email || 'tester', myName: t.name || '', myAvatar: null, myPlace: '', myBio: '',
+    setState({ viewAs: { id: t.user_id, name: t.name || 'User', roles }, me: t.user_id, email: t.email || 'user', myName: t.name || '', myAvatar: null, myPlace: '', myBio: '',
       testers: null, profSheet: false, notif: { allReadAt: 0, read: [], topics: {}, email: true, loaded: true }, demoAdmin: false, loaded: false });
     go('calendar');
     loadFresh().then(() => toast('Viewing as ' + t.name + '. Nothing you tap changes anything.', true), (e) => { console.error(e); setState({ error: 'load', loaded: true }); });
@@ -714,13 +714,13 @@
       '<button type="button" ' + on(exitPreview) + ' style="min-height:42px;padding:0 18px;border:0;border-radius:999px;background:#0d1117;color:#fff;font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer">Exit</button></div>';
     if (!st.demoAdmin) return '';
     const list = st.testers;
-    return '<div data-screen-label="View as a tester" style="display:flex;flex-direction:column;gap:12px"><div style="' + CARD + ';padding:16px;display:flex;flex-direction:column;align-items:flex-start;gap:10px">' +
-        '<div style="font-size:17px;font-weight:900;color:#0d1117">View as a tester</div>' +
-        '<div style="font-size:13.5px;line-height:1.4;font-weight:600;color:#5c6270">See the app the way a tester does when they sign in. Look only. Only you can see this.</div>' +
+    return '<div data-screen-label="View as a user" style="display:flex;flex-direction:column;gap:12px"><div style="' + CARD + ';padding:16px;display:flex;flex-direction:column;align-items:flex-start;gap:10px">' +
+        '<div style="font-size:17px;font-weight:900;color:#0d1117">View as a user</div>' +
+        '<div style="font-size:13.5px;line-height:1.4;font-weight:600;color:#5c6270">See the app the way anyone with an account sees it. Look only. Only you can see this.</div>' +
         '<button type="button" ' + on(openTesters) + ' aria-expanded="' + !!list + '" style="min-height:42px;padding:0 16px;border:1.5px solid #dcdfe6;border-radius:999px;background:#fff;color:#0d1117;font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer">' + (list ? 'Close' : 'Pick one') + '</button></div>' +
       (list ? '<div style="' + CARD + ';padding:4px 16px;display:flex;flex-direction:column">' + (list.length ? list.map((t, i) => '<div ' + on(() => viewAsTester(t)) + ' class="hov-row" data-tester="' + esc(t.email) + '" style="display:flex;align-items:center;gap:12px;min-height:54px;border-top:' + (i ? '1px solid #f2f3f6' : '0') + ';cursor:pointer">' +
           face(t.user_id, t.name, 36, '#7b6ef0') + '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">' + esc(t.name) + '</div><div style="font-size:12.5px;font-weight:600;color:#8a909b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(t.email) + ' · ' + (t.memberships || []).length + ((t.memberships || []).length === 1 ? ' group' : ' groups') + '</div></div></div>').join('')
-        : '<div style="padding:14px 0;font-size:14px;font-weight:600;color:#6b7280">No testers have signed in yet.</div>') + '</div>' : '') +
+        : '<div style="padding:14px 0;font-size:14px;font-weight:600;color:#6b7280">No one else has an account yet.</div>') + '</div>' : '') +
     '</div>';
   };
 
