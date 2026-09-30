@@ -3081,7 +3081,7 @@
             ? 'Add Spark Hub to your Home Screen first: tap Share, then Add to Home Screen. Open it from there and turn them on.'
             : 'We’ll buzz you when a plan changes, something new goes up, or the day before you’re going.') + '</div></div>' +
         '<span ' + on(hide) + ' aria-label="Not now" style="flex:0 0 28px;width:28px;height:28px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(11, '#6b7280', 2.6) + '</span></div>' +
-      (ps === 'off' ? '<button type="button" class="hov-primary" ' + on(turnOnPush) + ' style="align-self:flex-start;min-height:42px;padding:0 18px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer">Turn on notifications</button>' : '') +
+      (ps === 'off' ? '<button type="button" class="hov-primary" ' + on(turnOnPush) + ' style="align-self:flex-start;margin-left:48px;min-height:42px;padding:0 18px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer">Turn on notifications</button>' : '') +
     '</div>';
   };
 
