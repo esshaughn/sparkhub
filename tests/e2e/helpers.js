@@ -60,8 +60,7 @@ async function newMember(browser, path) {
   // The Add to Home Screen pop-up counts as already shown, so it never covers what a test clicks (smoke.spec.js tests it)
   await context.addInitScript(() => {
     if (localStorage.getItem('e2e-install')) return;
-    localStorage.setItem('spark-hub-install-pop', 'shown');
-    sessionStorage.setItem('spark-hub-install-welcome', 'shown');
+    localStorage.setItem('sparkhub-a2hs', 'done');
   });
   context.placeRequests = await mockPlaces(context);
   await stubPhotos(context);
