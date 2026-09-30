@@ -2307,7 +2307,7 @@
 
   // Seeded demo content gets a small DEMO pill before its title (owner, 2026-09-30): pilot members joined to a demo
   // group shouldn't mistake it for real plans. Translucent white on photos, gray on white.
-  const demoTag = (s, onPhoto) => !s || !s.demo ? '' : '<span data-demo-tag style="display:inline-block;vertical-align:.15em;margin-right:7px;padding:2px 7px;border-radius:999px;font-size:10.5px;line-height:1.3;font-weight:900;letter-spacing:.8px;text-shadow:none;' +
+  const demoTag = (s, onPhoto, after) => !s || !s.demo ? '' : '<span data-demo-tag style="display:inline-block;vertical-align:.15em;' + (after ? 'flex:0 0 auto;margin-left:7px' : 'margin-right:7px') + ';padding:2px 7px;border-radius:999px;font-size:10.5px;line-height:1.3;font-weight:900;letter-spacing:.8px;text-shadow:none;' +
     (onPhoto ? 'background:rgba(255,255,255,.24);color:#fff;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)' : 'background:#eef0f3;color:#6b7280') + '">DEMO</span>';
   // A photo banner: title (up to two lines, growing upward) and the date line, with a chevron
   const banner6 = (s, R, h) => '<div style="position:relative;height:' + (h || 92) + 'px;background:' + photoBg(s) + '">' +
@@ -2483,7 +2483,7 @@
         '<div style="flex:0 0 40px;display:flex;flex-direction:column;align-items:center">' + (dp ? '<span style="font-size:10.5px;font-weight:900;letter-spacing:.6px;color:#6b7280">' + dp.dow + '</span><span style="font-size:20px;line-height:1.1;font-weight:900;color:#0d1117">' + dp.day + '</span>'
           : '<span style="font-size:10.5px;font-weight:900;letter-spacing:.6px;color:#8f6405">TBD</span><span style="font-size:20px;line-height:1.1;font-weight:900;color:#8f6405">?</span>') + '</div>' +
         '<span aria-hidden="true" style="flex:0 0 3px;align-self:stretch;border-radius:999px;background:' + P.R.dot + '"></span>' +
-        '<div style="flex:1;min-width:0"><div style="font-size:15px;line-height:1.3;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + demoTag(s, false) + esc(s.text) + '</div>' +
+        '<div style="flex:1;min-width:0"><div style="display:flex;align-items:center;min-width:0"><span style="min-width:0;font-size:15px;line-height:1.3;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(s.text) + '</span>' + demoTag(s, false, true) + '</div>' +
           '<div style="font-size:12.5px;font-weight:600;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + [s.dayDate ? esc(fmtTime(s.dayTime)) : tbdSpan(dateTbd(s)), s.spot ? esc(cal || thumb ? street(s) : s.spot) : tbdSpan(spotTbd(s))].filter(Boolean).join(' · ') + '</div></div>' +
         (cal || thumb ? '<span aria-hidden="true" style="flex:0 0 44px;width:44px;height:44px;border-radius:10px;background:' + photoBg(s) + '"></span>' : I.chevR(16, '#b9bcc4', 2.6)) +
       '</div>' + strip6(s, P, 28, cal) + '</div>';
@@ -4399,11 +4399,11 @@
     return '<div data-screen-label="Plan page">' +
       phaseHeader(s, 340, 'linear-gradient(to bottom, rgba(13,17,23,.5) 0%, rgba(13,17,23,0) 30%, rgba(8,40,22,.55) 62%, rgba(8,40,22,.96) 100%)',
         '<div style="position:absolute;left:20px;right:20px;bottom:20px;color:#fff;display:flex;align-items:flex-end;gap:14px"><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px">' +
-          '<div style="display:flex;gap:6px;flex-wrap:wrap"><span data-chip style="display:flex;align-items:center;gap:6px;border-radius:999px;padding:5px 11px;background:' + (lead ? '#5b4ae8' : '#149a4b') + ';font-size:12px;font-weight:900;letter-spacing:.9px">' + (lead ? 'YOU’RE LEADING' : 'HAPPENING') + '</span>' +
+          '<div style="display:flex;gap:6px;flex-wrap:wrap"><span data-chip' + (s.demo ? ' data-demo-tag' : '') + ' style="display:flex;align-items:center;gap:6px;border-radius:999px;padding:5px 11px;background:' + (s.demo ? 'rgba(255,255,255,.24);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)' : lead ? '#5b4ae8' : '#149a4b') + ';font-size:12px;font-weight:900;letter-spacing:.9px">' + (s.demo ? 'DEMO' : lead ? 'YOU’RE LEADING' : 'HAPPENING') + '</span>' +
             (s.visibility === 'invite' ? '<span style="display:flex;align-items:center;gap:5px;border-radius:999px;padding:5px 11px;background:rgba(255,255,255,.22);font-size:12px;font-weight:900;letter-spacing:.9px">' + svg(11, stroke('#fff', 2.6), '<rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>') + 'PRIVATE</span>' : '') + '</div>' +
           (edit
-            ? '<h1 ' + on(() => openSec(s, 'title'), 'button') + ' aria-label="' + esc(s.text) + ', edit the title" style="margin:0;font-size:40px;line-height:.98;font-weight:900;letter-spacing:-1.3px;text-wrap:pretty;cursor:pointer">' + demoTag(s, true) + esc(s.text) + svg(20, stroke('#fff', 2.4) + ' style="display:inline-block;margin-left:8px;vertical-align:4px;opacity:.85"', PENCIL) + '</h1>'
-            : '<h1 style="margin:0;font-size:40px;line-height:.98;font-weight:900;letter-spacing:-1.3px;text-wrap:pretty">' + demoTag(s, true) + esc(s.text) + '</h1>') + '</div>' +
+            ? '<h1 ' + on(() => openSec(s, 'title'), 'button') + ' aria-label="' + esc(s.text) + ', edit the title" style="margin:0;font-size:40px;line-height:.98;font-weight:900;letter-spacing:-1.3px;text-wrap:pretty;cursor:pointer">' + esc(s.text) + svg(20, stroke('#fff', 2.4) + ' style="display:inline-block;margin-left:8px;vertical-align:4px;opacity:.85"', PENCIL) + '</h1>'
+            : '<h1 style="margin:0;font-size:40px;line-height:.98;font-weight:900;letter-spacing:-1.3px;text-wrap:pretty">' + esc(s.text) + '</h1>') + '</div>' +
           (s.dayDate ? '<span aria-label="' + esc(fmtDay(s.dayDate)) + '" style="flex:0 0 70px;width:70px;border-radius:14px;overflow:hidden;text-align:center;background:#fff;box-shadow:0 8px 20px rgba(0,0,0,.3);transform:rotate(4deg)"><span style="display:block;background:#149a4b;color:#fff;font-size:11.5px;font-weight:900;letter-spacing:1px;padding:3px 0">' + dp.mon + '</span><span style="display:block;font-size:32px;line-height:1.15;font-weight:900;color:#0d1117">' + dp.day + '</span><span style="display:block;padding-bottom:5px;font-size:11px;font-weight:800;color:#6b7280">' + dp.dow + '</span></span>' : '') +
         '</div>', true) +
       tab +
