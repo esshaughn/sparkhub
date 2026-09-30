@@ -8,20 +8,20 @@
 --    people join them with their invite codes, which the owner shares by hand. Torrez Fitness is the real
 --    pilot group and is NOT a demo group (see pilot-torrez.sql).
 update public.groups set demo = true
- where name in ('Hub on Hunters', 'Walnut Creek Neighborhood', 'Woodcliff Neighborhood');
+ where name in ('Hub on Hunters (Demo)', 'Walnut Creek Neighborhood', 'Woodcliff Neighborhood');
 
 -- 2. The testers' roles (the brief's roster; emails as the accounts actually exist)
 insert into public.demo_roster (email, group_name, role) values
-  ('eric@ericscott-creative.com', 'Hub on Hunters', 'owner'),
+  ('eric@ericscott-creative.com', 'Hub on Hunters (Demo)', 'owner'),
   ('eric@ericscott-creative.com', 'Walnut Creek Neighborhood', 'owner'),
   ('eric@ericscott-creative.com', 'Woodcliff Neighborhood', 'owner'),
   ('eric@ericscott-creative.com', 'Torrez Fitness', 'owner'),
-  ('ejshaughn@gmail.com', 'Hub on Hunters', 'owner'),                 -- Emily
+  ('ejshaughn@gmail.com', 'Hub on Hunters (Demo)', 'owner'),                 -- Emily
   ('ejshaughn@gmail.com', 'Walnut Creek Neighborhood', 'admin'),
-  ('stacy.claye@gmail.com', 'Hub on Hunters', 'admin'),               -- Stacy
+  ('stacy.claye@gmail.com', 'Hub on Hunters (Demo)', 'admin'),               -- Stacy
   ('stacy.claye@gmail.com', 'Woodcliff Neighborhood', 'admin'),
   ('auburn.layman@gmail.com', 'Walnut Creek Neighborhood', 'owner'),  -- Auburn
-  ('auburn.layman@gmail.com', 'Hub on Hunters', 'admin'),
+  ('auburn.layman@gmail.com', 'Hub on Hunters (Demo)', 'admin'),
   ('torrez.fitness@gmail.com', 'Woodcliff Neighborhood', 'owner'),    -- Joseph
   ('torrez.fitness@gmail.com', 'Torrez Fitness', 'owner')
 on conflict (email, group_name) do update set role = excluded.role;

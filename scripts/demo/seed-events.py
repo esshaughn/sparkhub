@@ -84,7 +84,7 @@ seed_ids = set(P.values()) | set(FANS)
 
 groups = {g['name']: g['id'] for g in rest('GET', 'groups', query='?demo=eq.true&select=id,name')}
 # Torrez Fitness is the real pilot group (owner, 2026-09-29): it gets no demo content, so it isn't here.
-NEEDED = ['Hub on Hunters', 'Walnut Creek Neighborhood', 'Woodcliff Neighborhood']
+NEEDED = ['Hub on Hunters (Demo)', 'Walnut Creek Neighborhood', 'Woodcliff Neighborhood']
 missing = [n for n in NEEDED if n not in groups]
 if missing:
     sys.exit(f'Not demo groups here (run demo-world.sql first): {missing}')

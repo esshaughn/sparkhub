@@ -395,10 +395,12 @@ test('plans: replies, sign-ups, updates, notes and invite-only plans follow the 
         })(),
         flagGroup: await ok(c.from('groups').update({ demo: false }).eq('name', 'Torrez Fitness')),
         readRoster: (await c.from('demo_roster').select('*')).error ? 'refused' : 'ALLOWED',
+        readJoinAlso: (await c.from('join_also').select('*')).error ? 'refused' : 'ALLOWED',
+        addJoinAlso: (await c.from('join_also').insert({ group_id: '00000000-0000-0000-0000-000000000000', also_group_id: '00000000-0000-0000-0000-000000000001' })).error ? 'refused' : 'ALLOWED',
         listTesters: await (async () => { const r = await c.rpc('demo_testers'); return r.error ? 'refused' : r.data.length ? 'LISTED' : 'none'; })()
       };
     }, made.plan);
-    expect(demo).toEqual({ wipe: 'refused', makeMeWiper: 'refused', flagMyIdea: 'refused', postAsDemo: 'reset', flagGroup: 'refused', readRoster: 'refused', listTesters: 'none' });
+    expect(demo).toEqual({ wipe: 'refused', makeMeWiper: 'refused', flagMyIdea: 'refused', postAsDemo: 'reset', flagGroup: 'refused', readRoster: 'refused', readJoinAlso: 'refused', addJoinAlso: 'refused', listTesters: 'none' });
 
     // Feedback (Profile → Send feedback): anyone signed in can send their own, nobody but the owner can read any, and names can't be forged
     const fb = await asUser(L, async (c) => {

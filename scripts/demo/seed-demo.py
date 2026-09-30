@@ -1,6 +1,6 @@
 """Example data: the design's five demo ideas in each of three groups.
 
-Adds the groups Hub on Hunters, Woodcliff Neighborhood and Walnut Creek
+Adds the groups Hub on Hunters (Demo), Woodcliff Neighborhood and Walnut Creek
 Neighborhood (the owner is admin of all of them), demo people (seed-*@example.com accounts), and the same five ideas
 in every group with photos, mood boards, interest and a suggestion waiting on the
 owner's "Sunrise loop". Photos are the JPEGs beside this script.
@@ -111,7 +111,7 @@ IDEAS = [
 group_ids = [] if ONLY else [torrez]
 # --- More groups the owner runs (seed people join them too) ---------------------------------------------------
 ABC = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-for name, photo in [('Hub on Hunters', 'photos/hub-on-hunters-mask.jpg'), ('Woodcliff Neighborhood', 'photos/woodcliff-oaks.jpg'),
+for name, photo in [('Hub on Hunters (Demo)', 'photos/hub-on-hunters-mask.jpg'), ('Woodcliff Neighborhood', 'photos/woodcliff-oaks.jpg'),
                     ('Walnut Creek Neighborhood', 'photos/walnut-creek.jpg')]:
     have = rest('GET', 'groups', query='?name=eq.' + urllib.parse.quote(name) + '&select=id')
     if have:
