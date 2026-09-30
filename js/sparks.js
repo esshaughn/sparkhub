@@ -4520,7 +4520,7 @@
       '<div style="margin-top:2px;font-size:13.5px;line-height:1.4;font-weight:500;color:#6b7280">Temporary, only you see this. Times the app stopped responding on this device.</div></div>' +
       (log.length
         ? log.slice(0, 15).map(e => '<div style="font-size:12.5px;line-height:1.4;font-weight:600;color:#454b55;border-top:1px solid #f2f3f6;padding-top:6px">' +
-            '<b style="color:' + (e.kind === 'stall' ? '#9b1c31' : '#0d1117') + '">' + esc(e.kind) + ' ' + (e.ms / 1000).toFixed(1) + 's</b> · ' + esc(e.screen || '') + ' · ' + esc(clock(e.at)) +
+            '<b style="color:' + (e.kind === 'stall' ? '#9b1c31' : '#0d1117') + '">' + esc(e.kind) + (e.kind === 'layout' ? '' : ' ' + (e.ms / 1000).toFixed(1) + 's') + '</b> · ' + esc(e.screen || '') + ' · ' + esc(clock(e.at)) +
             (e.note ? '<br>' + esc(e.note) : '') + '</div>').join('') +
           '<button type="button" ' + on(() => { try { localStorage.removeItem(DIAG_KEY); } catch (e) { /* blocked */ } render(); }) + ' style="align-self:flex-start;min-height:36px;padding:0 14px;border:1.5px solid #dcdfe6;border-radius:999px;background:#fff;color:#0d1117;font-family:inherit;font-size:13.5px;font-weight:800;cursor:pointer">Clear</button>'
         : '<div style="font-size:13.5px;font-weight:600;color:#8a909b">Nothing logged yet.</div>') +
@@ -5649,8 +5649,24 @@
       if (sc) { const y = sc.scrollTop; sc.scrollTop = y + 1; sc.scrollTop = y; }
     });
   };
-  window.addEventListener('load', () => { nudgeLayout(); setTimeout(nudgeLayout, 300); });
+  // Back from Google the page can load while iOS is still closing the sign-in sheet, so keep nudging for a few seconds
+  window.addEventListener('load', () => { [0, 300, 1000, 2000, 4000].forEach(ms => setTimeout(nudgeLayout, ms)); setTimeout(() => layoutNote('4s after load'), 4200); });
   window.addEventListener('pageshow', nudgeLayout);
+  window.addEventListener('resize', () => { if (STANDALONE) setTimeout(nudgeLayout, 100); });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && STANDALONE) { setTimeout(nudgeLayout, 100); setTimeout(nudgeLayout, 800); } });
+  // Freeze log (temporary): what iOS reports for the screen vs what the app got, when they disagree (the band under
+  // the tab bar). All in CSS points.
+  const layoutNote = (when) => {
+    if (!STANDALONE) return;
+    const app = document.querySelector('.app'), probe = document.createElement('div');
+    probe.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:100lvh;visibility:hidden;pointer-events:none';
+    document.body.appendChild(probe);
+    const lvh = probe.offsetHeight;
+    probe.remove();
+    const m = { inner: innerHeight, vv: window.visualViewport ? Math.round(visualViewport.height) : 0, client: document.documentElement.clientHeight,
+      screen: screen.height, lvh, app: app ? Math.round(app.getBoundingClientRect().bottom) : 0 };
+    if (m.app < m.screen - 4 || m.inner < m.screen - 4) diag('layout', 0, when + ' · screen ' + m.screen + ' · app ' + m.app + ' · inner ' + m.inner + ' · vv ' + m.vv + ' · client ' + m.client + ' · lvh ' + m.lvh + (AUTH_RETURN.any ? ' · back from Google' : ''));
+  };
   // The installed app also comes up short after the keyboard closes (typing an email and code when joining),
   // and when the tab bar comes back after Welcome or the invite screens: nudge then too (2026-09-30)
   const nudgeSoon = () => { if (!STANDALONE) return; setTimeout(nudgeLayout, 60); setTimeout(nudgeLayout, 350); };
@@ -5742,7 +5758,7 @@
     morphChildren(root, tpl.content);
     const noNav = welcomeShown() || invFull();
     root.classList.toggle('no-nav', noNav);
-    if (hadNoNav && !noNav) nudgeSoon();   // the tab bar is back
+    if (hadNoNav && !noNav) { nudgeSoon(); setTimeout(() => layoutNote('tab bar back'), 1500); }   // the tab bar is back
     hadNoNav = noNav;
     // Screens that start with a photo run it up under the iPhone status bar
     const sc = state.screen, photoTop = sc === 'browse' || (sc === 'detail' && !!subject()) || sc === 'calendar' || sc === 'groups' || welcomeShown() || (!state.email && sc === 'compose') ||
