@@ -23,6 +23,7 @@ Where this doc and the design files disagree, **this doc is correct**.
 | 6 | **Update notifications** read *{event} · {update}* with *From {host} · 5m ago · {group}* for every host update, including ones sent with *Send everyone an update* | Shown for an edit's update | One format for all updates |
 | 7 | **Pick a shift** keeps the job's description under the date line | Not shown | Update 5 descriptions |
 | 8 | **Invite flow built** (handoff *Invite flow*, 1a · 2 · 3 · 4 · 5 · E1–E4). Differences: Welcome's **RSVP** marks you Going in one tap (the name pop-up first if you have none) and goes to the Plans tab, since there's no RSVP sheet to open; the Next-up line is *NEXT UP · TODAY · 7PM* (the cards' format); a group with no photo shows gold `#e8a71c` with its initial (groups have no colour); the name is 34px when it's over 16 characters; Google returns to `/` (the invite rides in the sign-in resume, not the `redirectTo` URL, which would need new allowed URLs in Supabase); the E2 toast sits above the tab bar. 1b (inviter · member count) isn't built | Screens as specced | No new database fields; Welcome's *seen* list is per device (`spark-hub-welcomed-groups`) |
+| 9 | **An undecided date or place reads *Date TBD* / *Location TBD*** everywhere (the Date and time card, list rows, the amber heading in Calendar and Your schedule, Your tasks) | *Date to be decided* / *Location to be decided* | Shorter, and it fits on one line in the amber row (owner, 2026-09-29). Basic details and Help still read *… to be decided*; phone notifications still say *Date to be decided* until a database change ships |
 
 ## 2. Things the build had to invent (please design these properly)
 
@@ -38,7 +39,7 @@ Where this doc and the design files disagree, **this doc is correct**.
 ## 3. Behaviour added in the build (no visual change)
 
 - **Month view, empty day:** *Start an event on {date}* opens Create event with that date filled in; it's hidden on past days.
-- **The TBD strip** switches the Calendar to List (remembered, as picking List would be) and scrolls to *Date to be decided*.
+- **The TBD strip** switches the Calendar to List (remembered, as picking List would be) and scrolls to *Date TBD*.
 - **Make home** happens on Save: new groups are added first, then the home moves (`set_home_group()`), then unticked groups come off.
 - **Removing a job** in Edit what you need also sends the note to the people signed up, not just the Help out ✕.
 - **Push** follows the in-app feed's rules and each person's topics; a topic that's off is off on the phone too. Demo seeding never pushes, and reminders skip demo events. Signing out removes that phone's push.

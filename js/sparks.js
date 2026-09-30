@@ -1970,8 +1970,8 @@
   const monthDay = (iso) => new Date(iso + 'T12:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   const monthLabel = (iso) => new Date(iso + 'T12:00').toLocaleDateString('en-US', { month: 'long', year: iso.slice(0, 4) !== todayISO().slice(0, 4) ? 'numeric' : undefined });
   // v6 Update 6: an undecided date or place reads "… to be decided" (amber), or the poll's size
-  const dateTbd = (s) => s.dateOpts.length ? 'Voting on ' + s.dateOpts.length + (s.dateOpts.length === 1 ? ' date' : ' dates') : 'Date to be decided';
-  const spotTbd = (s) => s.spotOpts.length ? 'Voting on ' + s.spotOpts.length + (s.spotOpts.length === 1 ? ' spot' : ' spots') : 'Location to be decided';
+  const dateTbd = (s) => s.dateOpts.length ? 'Voting on ' + s.dateOpts.length + (s.dateOpts.length === 1 ? ' date' : ' dates') : 'Date TBD';
+  const spotTbd = (s) => s.spotOpts.length ? 'Voting on ' + s.spotOpts.length + (s.spotOpts.length === 1 ? ' spot' : ' spots') : 'Location TBD';
   const TBD_ON_PHOTO = '#ffd98a', TBD_INK = '#8f6405';
   const tbdSpan = (t, color) => '<span style="color:' + (color || TBD_INK) + '">' + esc(t) + '</span>';
   // Events posted to several groups: "Torrez Fitness +1"
@@ -2081,8 +2081,8 @@
     });
     return secs.sort((a, b) => (a.label === undatedLabel) - (b.label === undatedLabel));
   };
-  // "Date to be decided" reads amber (Round 65d), and the month grid's strip scrolls to it
-  const monthHead = (label, right) => { const tbd = label === 'Date to be decided';
+  // "Date TBD" reads amber (Round 65d), and the month grid's strip scrolls to it
+  const monthHead = (label, right) => { const tbd = label === 'Date TBD';
     return '<div' + (tbd ? ' data-sec-tbd' : '') + ' style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 4px;scroll-margin-top:12px"><h3 style="margin:0;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:' + (tbd ? '#8f6405' : '#0d1117') + '">' + esc(label) + '</h3>' + (right || '') + '</div>'; };
 
   // The helping list ("YOU'RE HELPING:"), two at a time with "+N more"
@@ -2631,7 +2631,7 @@
         (k) => setState({ sFilt: st.sFilt.indexOf(k) > -1 ? st.sFilt.filter(x => x !== k) : st.sFilt.concat([k]) }), clear, plans.length) +
       viewPicker('hview', view, (k) => setState({ homeView: k, menu: null }), SCHED_VIEWS) + '</div>';
     if (!plans.length) return wrap(goneCard() + '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(st.sSort === 'soon' ? 'Coming up' : sortName6(st.sSort), controls) + filterEmpty(clear) + '</div>');
-    return wrap(goneCard() + draftsSection() + sections6(plans, st.sSort, 'Date to be decided').map((z, i) => '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(z.label, i ? '' : controls) +
+    return wrap(goneCard() + draftsSection() + sections6(plans, st.sSort, 'Date TBD').map((z, i) => '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(z.label, i ? '' : controls) +
       '<div style="display:flex;flex-direction:column;gap:' + (view === 'list' ? 10 : 14) + 'px">' + z.items.map(s => view === 'list' ? listCard6(s, partOf(s)) : tile6(s, partOf(s), 180)).join('') + '</div></div>').join(''));
   }
 
@@ -2764,7 +2764,7 @@
       if (st.cSort === 'lively') return 'Most lively';
       if (st.cSort === 'new') return 'Newest';
       const d = daysTo(s);
-      return d == null ? 'Date to be decided' : d === 0 ? 'Today' : d < 7 ? 'This week' : monthLabel(s.dayDate);
+      return d == null ? 'Date TBD' : d === 0 ? 'Today' : d < 7 ? 'This week' : monthLabel(s.dayDate);
     };
     const secs = [];
     list.forEach(s => { const l = secOf(s); let z = secs.find(q => q.label === l); if (!z) { z = { label: l, items: [] }; secs.push(z); } z.items.push(s); });
@@ -2794,7 +2794,7 @@
         '<div style="' + CARD + ';padding:10px 8px">' +
           '<div aria-hidden="true" style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));padding-bottom:4px">' + ['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(x => '<span style="text-align:center;font-size:11px;font-weight:800;letter-spacing:.6px;color:#6b7280">' + x + '</span>').join('') + '</div>' +
           '<div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px">' + cells.join('') + '</div></div>' +
-        // Undated events stay out of the grid; the strip opens List at "Date to be decided" (Round 65d)
+        // Undated events stay out of the grid; the strip opens List at "Date TBD" (Round 65d)
         (undatedN ? '<div ' + on(() => { setState({ cView: 'list', menu: null, cMon: null, cDay: null }); setTimeout(() => { const el = document.querySelector('[data-sec-tbd]'); if (el) el.scrollIntoView({ block: 'start' }); }, 0); }) + ' data-no-date style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:14px;background:#fef7dd;box-shadow:inset 0 0 0 1.5px #e3c979;cursor:pointer">' +
           svg(18, stroke('#8f6405', 2.2), '<rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>') +
           '<span style="flex:1;font-size:14px;font-weight:800;color:#8f6405">' + undatedN + (undatedN === 1 ? ' event with no date yet' : ' events with no date yet') + '</span>' + I.chevR(14, '#8f6405', 2.6) + '</div>' : '') +
@@ -3514,7 +3514,7 @@
         viewPicker('gview', gv, (k) => setState({ view: k, menu: null }), SCHED_VIEWS) + '</div>';
       if (!all.length) body = '<div style="' + CARD + ';padding:18px"><div style="font-size:16.5px;font-weight:800;letter-spacing:-.2px;color:#0d1117">No plans yet.</div><div style="margin-top:4px;font-size:15px;line-height:1.45;font-weight:500;color:#5c6270">When a lead locks in a date and time, it shows up here.</div></div>';
       else if (!plans.length) body = '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(st.gSort === 'soon' ? 'Coming up' : sortName6(st.gSort), controls) + filterEmpty(clear) + '</div>';
-      else body = sections6(plans, st.gSort, 'Date to be decided').map((z, i) => '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(z.label, i ? '' : controls) +
+      else body = sections6(plans, st.gSort, 'Date TBD').map((z, i) => '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(z.label, i ? '' : controls) +
         '<div style="display:flex;flex-direction:column;gap:' + (gv === 'list' ? 10 : 14) + 'px">' + z.items.map(s => gv === 'list' ? listCard6(s, partOf(s, true)) : tile6(s, partOf(s, true), 180)).join('') + '</div></div>').join('');
     }
     return { body, pageStyle };
@@ -4264,10 +4264,10 @@
     const whenTxt = s.dayDate ? new Date(s.dayDate + 'T12:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }) : '';
     const time = s.dayTime ? (s.dayEnd ? spanTime({ time: s.dayTime, endTime: s.dayEnd }) : fmtTime(s.dayTime)) : '';
     const dayPart = s.dayDate ? '<div style="font-size:17px;line-height:1.25;font-weight:900;letter-spacing:-.3px;color:#0d1117;text-wrap:pretty">' + esc(whenTxt) + (time ? ' · <span style="color:#0f7a3c">' + esc(time) + '</span>' : '') + '</div>'
-      : s.dateOpts.length ? voting('VOTING ON A DATE', pollRows(s.dateOpts, 'day')) : tbd('Date to be decided');
+      : s.dateOpts.length ? voting('VOTING ON A DATE', pollRows(s.dateOpts, 'day')) : tbd('Date TBD');
     const spotPart = s.spot ? '<div style="font-size:17px;line-height:1.25;font-weight:900;letter-spacing:-.3px;color:#0d1117;text-wrap:pretty">' + esc(s.spot) + '</div>' +
         (s.spotAddress ? '<div style="margin-top:2px;font-size:14.5px;line-height:1.35;font-weight:500;color:#6b7280;text-wrap:pretty">' + esc(s.spotAddress) + '</div>' : '')
-      : s.spotOpts.length ? voting('VOTING ON A SPOT', pollRows(s.spotOpts, 'spot')) : tbd('Location to be decided');
+      : s.spotOpts.length ? voting('VOTING ON A SPOT', pollRows(s.spotOpts, 'spot')) : tbd('Location TBD');
     const pill = 'flex:1 1 0;display:flex;align-items:center;justify-content:center;gap:8px;min-height:46px;border-radius:999px;background:#f3f1fe;color:#5b4ae8;font-size:14.5px;font-weight:800;text-decoration:none;cursor:pointer';
     return '<div id="sec-when" data-when-card style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:14px">' +
       '<div style="display:flex;gap:12px">' + svg(20, stroke('#0f7a3c', 2.2) + ' style="flex:0 0 20px;margin-top:1px"', P6.cal) + '<div style="flex:1;min-width:0">' + dayPart + '</div>' +
@@ -4940,8 +4940,8 @@
               svg(18, stroke('#fff', 2.3) + ' style="flex:0 0 18px;margin-bottom:6px;opacity:.85"', PENCIL) + '</div></div>' +
         '</div>' +
         '<div style="padding:16px 14px 0;display:flex;flex-direction:column;gap:18px"><div style="display:flex;flex-direction:column;gap:10px">' +
-          card(P6.cal, 'Date &amp; time', filled.when, '', 'when', st.evDatePoll ? main('Poll: ' + st.evDatePoll.length + ' dates', true, 'Neighbors vote, you pick') : st.evDate ? main(dayLabel(st.evDate, st.evTime, st.evEnd), true) : main('Date to be decided', false)) +
-          card(P6.pin, 'Location', filled.where, '', 'where', st.evSpotPoll ? main('Poll: ' + st.evSpotPoll.length + ' spots', true, 'Neighbors vote, you pick') : place ? main(place, true, st.locPlace ? st.locPlace.address : '') : main('Location to be decided', false)) +
+          card(P6.cal, 'Date &amp; time', filled.when, '', 'when', st.evDatePoll ? main('Poll: ' + st.evDatePoll.length + ' dates', true, 'Neighbors vote, you pick') : st.evDate ? main(dayLabel(st.evDate, st.evTime, st.evEnd), true) : main('Date TBD', false)) +
+          card(P6.pin, 'Location', filled.where, '', 'where', st.evSpotPoll ? main('Poll: ' + st.evSpotPoll.length + ' spots', true, 'Neighbors vote, you pick') : place ? main(place, true, st.locPlace ? st.locPlace.address : '') : main('Location TBD', false)) +
           card(LINES_IC, 'Basic details', filled.details, '', 'details', bits.length ? list(bits.map(t => '<span style="flex:0 0 6px;width:6px;height:6px;border-radius:999px;background:#0f7a3c;transform:translateY(-2px)"></span><span style="font-size:15.5px;line-height:1.35;font-weight:800;color:#0d1117;text-wrap:pretty">' + esc(t) + '</span>')) : main('Basic details to be decided', false)) +
           card(HAND_IC, 'How people can help', filled.help, '', 'help', st.evNeeds.length ? list(st.evNeeds.map(j => '<span style="flex:1;min-width:0;font-size:15.5px;line-height:1.35;font-weight:800;color:#0d1117;text-wrap:pretty">' + esc(cleanTitle(j.item)) + '</span><span style="flex:0 0 auto;font-size:13px;font-weight:700;color:#6b7280">' + esc(jobMeta(j)) + '</span>')) : main('Help to be decided', false)) +
         '</div>' +

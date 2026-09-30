@@ -131,15 +131,15 @@ test('decide everything later: only the title is needed; the host is left with t
     }
     // Review: every undecided part in amber
     await expect(flow).toContainText('LOOKS GOOD');
-    for (const t of ['Date to be decided', 'Location to be decided', 'Basic details to be decided', 'Help to be decided']) await expect(flow).toContainText(t);
+    for (const t of ['Date TBD', 'Location TBD', 'Basic details to be decided', 'Help to be decided']) await expect(flow).toContainText(t);
     await flow.getByRole('button', { name: 'Post it' }).click();
     await expect(page.locator('[data-screen-label="Plan page"]')).toBeVisible();
     id = await page.evaluate(() => location.hash.split('/').pop());
 
     const P = page.locator('[data-screen-label="Plan page"]');
     await expect(P.locator('[data-tbd]')).toContainText('2 things left to decide');
-    await expect(P.locator('[data-when-card]')).toContainText('Date to be decided');
-    await expect(P.locator('[data-when-card]')).toContainText('Location to be decided');
+    await expect(P.locator('[data-when-card]')).toContainText('Date TBD');
+    await expect(P.locator('[data-when-card]')).toContainText('Location TBD');
     await P.locator('[data-host-tasks-bar]').click();
     for (const t of ['Pick a date', 'Pick a location', 'Add basic details']) await expect(P.locator('[data-screen-label="Your tasks"]')).toContainText(t);
     // A task opens its pop-up; setting the place there closes that part
@@ -149,11 +149,11 @@ test('decide everything later: only the title is needed; the host is left with t
     await when.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(P.locator('[data-tbd]')).toContainText('1 thing left to decide');
     await expect(P.locator('[data-when-card]')).toContainText('The garage');
-    // The Calendar lists it last, under "Date to be decided"
+    // The Calendar lists it last, under "Date TBD"
     await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Calendar', exact: true }).click();
     const card = page.locator('[data-screen-label=Calendar] [data-plan="' + title.charAt(0).toUpperCase() + title.slice(1) + '"]');
-    await expect(card).toContainText('Date to be decided');
-    await expect(page.locator('[data-screen-label=Calendar]')).toContainText('Date to be decided');
+    await expect(card).toContainText('Date TBD');
+    await expect(page.locator('[data-screen-label=Calendar]')).toContainText('Date TBD');
     expect(errors).toEqual([]);
   } finally {
     if (id) await asUser(page, async (c, _C, id) => { await c.from('sparks').delete().eq('id', id); }, id).catch(() => {});

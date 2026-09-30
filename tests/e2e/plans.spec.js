@@ -22,7 +22,7 @@ test('a plan: guest RSVPs, sign-ups, an update, the host’s notes, then clearin
     await expect(HP.locator('[data-screen-label="Guest list"]')).toContainText('Going');
     await expect(HP.getByRole('button', { name: 'Share link' })).toBeVisible();
     await expect(HP).not.toContainText('Remind everyone the day before');      // retired in Update 6
-    await expect(HP.locator('[data-when-card]')).toContainText('Location to be decided');
+    await expect(HP.locator('[data-when-card]')).toContainText('Location TBD');
 
     // The host adds sign-ups (with "how many") in Edit what you need, and posts an update
     await HP.getByRole('button', { name: 'Edit what you need' }).click();

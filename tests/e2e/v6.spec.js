@@ -47,7 +47,7 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     await expect(lead.getByLabel('Sign-ups: 0/3')).toBeVisible();
     await expect(lead.getByLabel('Reminder: Sent')).toBeVisible();
     await expect(lead).toContainText('Post an update');
-    await expect(lead).toContainText('Location to be decided');
+    await expect(lead).toContainText('Location TBD');
     await expect(lead).toContainText('+1 more');
     await lead.getByText('+1 more').click();
     await expect(lead).toContainText('3 spots open');
