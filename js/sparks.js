@@ -5650,7 +5650,7 @@
     });
   };
   // Back from Google the page can load while iOS is still closing the sign-in sheet, so keep nudging for a few seconds
-  window.addEventListener('load', () => { [0, 300, 1000, 2000, 4000].forEach(ms => setTimeout(nudgeLayout, ms)); setTimeout(() => layoutNote('4s after load'), 4200); });
+  window.addEventListener('load', () => { [0, 300, 1000, 2000, 4000].forEach(ms => setTimeout(nudgeLayout, ms)); setTimeout(tallFix, 4100); setTimeout(() => layoutNote('4s after load'), 4200); });
   window.addEventListener('pageshow', nudgeLayout);
   window.addEventListener('resize', () => { if (STANDALONE) setTimeout(nudgeLayout, 100); });
   document.addEventListener('visibilitychange', () => { if (!document.hidden && STANDALONE) { setTimeout(nudgeLayout, 100); setTimeout(nudgeLayout, 800); } });
@@ -5665,8 +5665,23 @@
     probe.remove();
     const m = { inner: innerHeight, vv: window.visualViewport ? Math.round(visualViewport.height) : 0, client: document.documentElement.clientHeight,
       screen: screen.height, lvh, app: app ? Math.round(app.getBoundingClientRect().bottom) : 0 };
-    if (m.app < m.screen - 4 || m.inner < m.screen - 4) diag('layout', 0, when + ' · screen ' + m.screen + ' · app ' + m.app + ' · inner ' + m.inner + ' · vv ' + m.vv + ' · client ' + m.client + ' · lvh ' + m.lvh + (AUTH_RETURN.any ? ' · back from Google' : ''));
+    if (m.app < m.screen - 4 || m.inner < m.screen - 4) diag('layout', 0, when + ' · screen ' + m.screen + ' · app ' + m.app + ' · inner ' + m.inner + ' · vv ' + m.vv + ' · client ' + m.client + ' · lvh ' + m.lvh + (AUTH_RETURN.any ? ' · back from Google' : '') + (tallFixOn ? ' · stretched' : ''));
   };
+  // Back from Google in the installed app, iOS reports every height short by the status bar (852 vs 793 on the
+  // owner's iPhone, 2026-09-30) and nudging doesn't bring it back. The band under the tab bar is the page's own gray,
+  // so stretch the app to the screen's height while that's the case (upright only, short by 20–80pt). Off again
+  // as soon as iOS reports the full height (e.g. the next launch).
+  let tallFixOn = false;
+  const tallFix = () => {
+    if (!STANDALONE) return;
+    const short = screen.height - innerHeight, upright = innerWidth < innerHeight;
+    const on = upright && short >= 20 && short <= 80;
+    if (on === tallFixOn) return;
+    tallFixOn = on;
+    document.documentElement.classList.toggle('tall-fix', on);
+    document.documentElement.style.setProperty('--true-h', on ? screen.height + 'px' : '');
+  };
+  window.addEventListener('resize', () => setTimeout(tallFix, 150));
   // The installed app also comes up short after the keyboard closes (typing an email and code when joining),
   // and when the tab bar comes back after Welcome or the invite screens: nudge then too (2026-09-30)
   const nudgeSoon = () => { if (!STANDALONE) return; setTimeout(nudgeLayout, 60); setTimeout(nudgeLayout, 350); };
@@ -5758,7 +5773,7 @@
     morphChildren(root, tpl.content);
     const noNav = welcomeShown() || invFull();
     root.classList.toggle('no-nav', noNav);
-    if (hadNoNav && !noNav) { nudgeSoon(); setTimeout(() => layoutNote('tab bar back'), 1500); }   // the tab bar is back
+    if (hadNoNav && !noNav) { nudgeSoon(); setTimeout(tallFix, 1400); setTimeout(() => layoutNote('tab bar back'), 1500); }   // the tab bar is back
     hadNoNav = noNav;
     // Screens that start with a photo run it up under the iPhone status bar
     const sc = state.screen, photoTop = sc === 'browse' || (sc === 'detail' && !!subject()) || sc === 'calendar' || sc === 'groups' || welcomeShown() || (!state.email && sc === 'compose') ||
