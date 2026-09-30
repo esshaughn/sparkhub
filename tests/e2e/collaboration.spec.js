@@ -12,7 +12,7 @@ test('a guest with the link takes part; everyone votes; the lead picks and makes
   try {
     id = await postIdea(L, { title, basics: ['teams by class'] });
     const LD = L.locator('[data-screen-label="Idea page"]');
-    await expect(LD.getByLabel('Steps to a plan')).toContainText('Basic details');
+    await expect(LD.getByLabel('Steps to a plan')).toContainText('Details');
     await expect(LD).toContainText('Pick a date first. Then you can lock it in.');
     await expect(LD.getByRole('button', { name: 'Add a date' })).toBeVisible();
 

@@ -1,6 +1,6 @@
 // The app loads for visitors and members, and its menus and links work.
 const { test, expect, devices } = require('@playwright/test');
-const { newMember, newLead, button, asUser, pickView, openProfile } = require('./helpers');
+const { newMember, newLead, button, asUser, pickView, openProfile, postIdea, uniqueTitle } = require('./helpers');
 
 test('visitors land on Welcome (no tab bar there) and sign in from there', async ({ browser }) => {
   const { page, context, errors } = await newMember(browser);
@@ -557,6 +557,33 @@ test('pull to refresh: the feed slides under a still header, and letting go relo
     await expect(page.locator('#app.ptr-busy')).toHaveCount(0);
     expect(errors).toEqual([]);
   } finally {
+    await context.close();
+  }
+});
+
+test('a failed first load says so (never "not in a group"), and an event taken down while open says it is gone', async ({ browser }) => {
+  test.setTimeout(90000);
+  const { page, context } = await newLead(browser, 1, 'Hope');
+  let id;
+  try {
+    // No saved copy and the database unreachable: the load-failed card, not "You're not in a group yet"
+    await page.evaluate(() => Object.keys(localStorage).filter(k => k.startsWith('spark-hub-cache')).forEach(k => localStorage.removeItem(k)));
+    await page.route('**/rest/v1/**', r => r.abort());
+    await page.reload();
+    await expect(page.locator('[data-load-failed]').first()).toContainText('Couldn’t load your groups and events');
+    await expect(page.getByText('You’re not in a group yet.')).toHaveCount(0);
+    await page.unroute('**/rest/v1/**');
+    await page.locator('[data-load-failed]').first().getByText('Try now').click();
+    await expect(page.locator('[data-load-failed]')).toHaveCount(0);
+
+    // An event deleted while you're on it: the next refresh says it's gone
+    id = await postIdea(page, { title: uniqueTitle('Vanishing act') });
+    await asUser(page, async (c, _C, id) => { await c.from('sparks').delete().eq('id', id); }, id);
+    await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+    await expect(page.locator('[data-gone]')).toContainText('That event isn’t up anymore');
+    id = null;
+  } finally {
+    if (id) await asUser(page, async (c, _C, id) => { await c.from('sparks').delete().eq('id', id); }, id).catch(() => {});
     await context.close();
   }
 });

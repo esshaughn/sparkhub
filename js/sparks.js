@@ -616,12 +616,16 @@
   };
 
   // Load, and make sure a linked idea is reachable; an unknown one shows "That idea isn't up anymore"
+  let routeLoading = 0;   // while a link is being opened, the background refresh doesn't call its event gone
   const loadForRoute = async () => {
-    if (state.screen === 'detail' && state.subjectId) {
-      const ok = await openLink(state.subjectId);
-      if (!ok) setState({ screen: 'calendar', subjectId: null, goneOpen: true });
-    }
-    await loadFresh();
+    routeLoading++;
+    try {
+      if (state.screen === 'detail' && state.subjectId) {
+        const ok = await openLink(state.subjectId);
+        if (!ok) setState({ screen: 'calendar', subjectId: null, goneOpen: true });
+      }
+      await loadFresh();
+    } finally { routeLoading--; }
     if (state.screen === 'detail' && !subject()) setState({ screen: 'calendar', subjectId: null, goneOpen: true });
     if (state.screen === 'groupPage') openGroupPage(state.gpId, true);
   };
@@ -668,7 +672,6 @@
       .then(() => {}, () => {});
   };
   const openGroup = (g) => { if (!g) return; markSeen(g); go('browse', { groupId: g.id }); };
-  const pickGroup = (g) => { markSeen(g); setState({ groupId: g.id, menu: null }); };
   const togglePin = (g) => {
     const pinned = !g.pinned;
     g.pinned = pinned;
@@ -888,6 +891,8 @@
       console.error(e);
       const n = (tries || 0) + 1;
       if (n < 5) setTimeout(() => loadInviteGroup(code, n), 1500 * n);
+      // Out of tries: show it without the group's name and photo, so Join still works (it doesn't need the preview)
+      else if (state.inv && state.inv.code === code && state.inv.group === undefined) setInv({ group: { name: '', photo: null } });
     }
   };
   // Opening the link: signed in already → the confirm pop-up over their Calendar; otherwise the landing
@@ -1169,7 +1174,7 @@
     if (o.votes.indexOf(state.me) > -1) must(await sb.from(table).delete().eq('option_id', o.id).eq('user_id', state.me));
     else must(await sb.from(table).insert({ option_id: o.id, user_id: state.me }));
   }));
-  const pickDate = (s, o) => setState({ confirm: { title: 'Use ' + fmtDay(o.dayDate) + '?', body: 'It becomes the date on the idea' + (o.dayTime ? ', at ' + fmtTime(o.dayTime) : '') + '. You can still change it.', cta: 'Use this date', keep: 'Not yet',
+  const pickDate = (s, o) => o.dayDate < todayISO() ? toast('That date has passed. Pick another, or set a new date.') : setState({ confirm: { title: 'Use ' + fmtDay(o.dayDate) + '?', body: 'It becomes the date on the idea' + (o.dayTime ? ', at ' + fmtTime(o.dayTime) : '') + '. You can still change it.', cta: 'Use this date', keep: 'Not yet',
     run: () => run(async () => { must(await sb.from('sparks').update({ day_date: o.dayDate, day_time: o.dayTime }).eq('id', s.id)); }, { confirm: null, tag: 'Day set' }) } });
   const pickSpot = (s, o) => setState({ confirm: { title: 'Use ' + o.name + '?', body: 'It becomes the location on the idea. You can still change it.', cta: 'Use this location', keep: 'Not yet',
     run: () => run(async () => { must(await sb.from('sparks').update({ spot: o.name, spot_open: false, spot_address: o.address || null, spot_lat: o.lat, spot_lon: o.lon }).eq('id', s.id)); }, { confirm: null, tag: 'Location set' }) } });
@@ -1723,42 +1728,11 @@
   // Other shapes (tiles, cards, thumbnails): the same focal point
   const groupBg = (g, fallback) => groupPhoto(g) ? bg(groupPhoto(g), posAt(g.photoPos, GROUP_POS)) : (fallback || '#e8a71c');
 
-  // ---- Logo, group switcher and its menu -----------------------------------
+  // ---- Logo ------------------------------------------------------------------
 
   const logo = (onDark) => '<div ' + on(() => go('calendar')) + ' aria-label="Spark Hub home" style="display:flex;align-items:center;gap:6px;min-height:44px;cursor:pointer;width:fit-content">' +
     (onDark ? I.boltRays(24) : I.bolt(24, '#e8a71c')) +
     '<span style="font-size:18px;line-height:1;font-weight:900;letter-spacing:-.5px;color:' + (onDark ? '#fff;text-shadow:0 1px 4px rgba(0,0,0,.3)' : '#0d1117') + '">Spark Hub</span></div>';
-
-  const switcher = (onPhoto) => {
-    const g = currentGroup();
-    const color = onPhoto ? '#fff' : '#5b4ae8';
-    return '<div data-menu style="position:absolute;top:calc(10.5px + var(--pt));right:10px;z-index:3">' +
-      '<div ' + on((e) => { stop(e); setState({ menu: state.menu === 'groups' ? null : 'groups' }); }) + ' aria-label="Switch group" aria-expanded="' + (state.menu === 'groups') + '" style="display:flex;align-items:center;gap:6px;min-height:44px;padding:0 10px;cursor:pointer">' +
-        '<span style="font-size:11.5px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:' + color + (onPhoto ? ';text-shadow:0 1px 4px rgba(0,0,0,.3)' : '') + '">' + esc(g ? g.name : 'Your groups') + '</span>' +
-        I.chevD(12, color, 2.8) +
-      '</div>' +
-      (state.menu === 'groups' ? groupMenu() : '') +
-    '</div>';
-  };
-
-  const groupMenu = () => {
-    const cur = currentGroup();
-    return '<div role="menu" aria-label="Your groups" style="position:absolute;top:44px;right:2px;z-index:4;min-width:220px;' + MENU + '">' +
-      menuLabel('Your groups') +
-      groupsInOrder().map(g => {
-        const onIt = cur && g.id === cur.id;
-        return '<div ' + on(() => pickGroup(g)) + ' style="display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;padding:9px 12px;border-radius:12px;background:' + (onIt ? '#f3f1fe' : 'transparent') + ';cursor:pointer">' +
-          '<div style="min-width:0;display:flex;align-items:center;gap:8px">' +
-            '<span style="font-size:15px;font-weight:800;color:' + (onIt ? '#5b4ae8' : '#0d1117') + '">' + esc(g.name) + groupTag(g) + '</span>' +
-          '</div></div>';
-      }).join('') +
-      (myGroups().length ? '<div style="height:1px;background:#f2f3f6;margin:6px"></div>' : '') +
-      '<div ' + on(() => openJoin()) + ' style="display:flex;align-items:center;gap:10px;min-height:46px;padding:9px 12px;border-radius:12px;cursor:pointer" class="hov-row">' +
-        '<span style="flex:0 0 26px;width:26px;height:26px;border-radius:999px;background:#f3f1fe;display:flex;align-items:center;justify-content:center">' + I.plus(13, '#5b4ae8', 2.8) + '</span>' +
-        '<span style="font-size:15px;font-weight:800;color:#5b4ae8">Join a group</span>' +
-      '</div>' +
-    '</div>';
-  };
 
   const ideaButton = (extra) => '<button type="button" class="hov-primary" ' + on(goCompose) + ' style="width:100%;min-height:54px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16.5px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:9px;box-shadow:0 10px 24px rgba(91,74,232,.32);cursor:pointer;' + (extra || '') + '">' +
     I.plus(19, '#fff', 2.5) + 'Start an event</button>';
@@ -1767,9 +1741,9 @@
   const goneCard = () => state.goneOpen
     ? '<div role="status" style="position:relative;' + CARD + ';padding:18px 48px 18px 18px">' +
         '<span ' + on(() => setState({ goneOpen: false })) + ' aria-label="Dismiss" style="position:absolute;top:10px;right:10px;width:32px;height:32px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(14, '#0d1117', 2.4) + '</span>' +
-        '<div style="font-size:16.5px;font-weight:800;letter-spacing:-.2px;color:#0d1117">That idea isn’t up anymore</div>' +
-        '<div style="margin-top:4px;font-size:15px;line-height:1.45;font-weight:500;color:#5c6270">Its lead may have taken it down, or the link got cut short.</div>' +
-        '<span ' + on(() => { setState({ goneOpen: false }); go('calendar'); }) + ' style="display:inline-flex;margin-top:10px;min-height:32px;align-items:center;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">See what’s up now →</span>' +
+        '<div data-gone style="font-size:16.5px;font-weight:800;letter-spacing:-.2px;color:#0d1117">That event isn’t up anymore</div>' +
+        '<div style="margin-top:4px;font-size:15px;line-height:1.45;font-weight:500;color:#5c6270">Its host may have taken it down, or the link got cut short.</div>' +
+        (!state.email ? '' : '<span ' + on(() => { setState({ goneOpen: false }); go('calendar'); }) + ' style="display:inline-flex;margin-top:10px;min-height:32px;align-items:center;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">See what’s up now →</span>') +
       '</div>'
     : '';
 
@@ -1829,7 +1803,7 @@
     : g && g.photo ? '<div aria-hidden="true" style="height:' + h + ';background:' + bg(g.photo) + '"></div>'
     : '<div aria-hidden="true" style="height:' + h + ';background:#e8a71c;display:flex;align-items:center;justify-content:center;font-size:' + initialSize + 'px;font-weight:900;color:#fff">' + esc(initialOf(g && g.name)) + '</div>';
   const invThumb = (g, size, ring) => '<span aria-hidden="true" style="flex:0 0 ' + size + 'px;width:' + size + 'px;height:' + size + 'px;border-radius:999px;overflow:hidden;display:block' + (ring ? ';box-shadow:' + ring : '') + '">' + invPhoto(g, size + 'px', Math.round(size * 0.45)) + '</span>';
-  const invName = (g) => g && g.name ? esc(g.name) : '';
+  const invName = (g) => g && g.name ? esc(g.name) : g ? 'this group' : '';   // g with no name: the preview couldn't load
   const invNameSize = (g) => g && g.name && g.name.length > 16 ? 34 : 38;
   const statusFade = '<div aria-hidden="true" style="position:absolute;left:0;right:0;top:0;height:calc(120px + var(--pt));background:linear-gradient(rgba(0,0,0,.45),transparent)"></div>';
   const brandPill = '<div aria-label="Spark Hub" style="position:absolute;top:calc(var(--pt) + 16px);left:24px;display:flex;align-items:center;gap:6px;padding:6px 12px 6px 9px;border-radius:999px;background:rgba(17,19,31,.55);font-size:14px;font-weight:700;color:#fff">' + I.bolt(18, '#f2b51c') + 'Spark Hub</div>';
@@ -2739,7 +2713,7 @@
       '<div style="position:absolute;left:18px;right:90px;bottom:16px;color:#fff;display:flex;flex-direction:column;gap:2px">' +
         '<span style="font-size:13px;font-weight:900;letter-spacing:1px;color:#cfc9ff">COMMUNITY</span>' +
         '<h1 style="margin:0;font-size:40px;line-height:1;font-weight:900;letter-spacing:-1.4px;color:#fff">Calendar</h1>' +
-        '<span style="font-size:14px;font-weight:700;color:rgba(255,255,255,.88)">' + (groups.length ? 'All events from your ' + groups.length + (groups.length === 1 ? ' group' : ' groups') : 'Join a group to see its events') + '</span></div>' +
+        '<span style="font-size:14px;font-weight:700;color:rgba(255,255,255,.88)">' + (groups.length ? 'All events from your ' + groups.length + (groups.length === 1 ? ' group' : ' groups') : st.error === 'load' ? 'Couldn’t load your groups' : 'Join a group to see its events') + '</span></div>' +
       '<button type="button" ' + on(() => goCompose()) + ' aria-label="Post an event" style="position:absolute;right:16px;bottom:18px;z-index:2;width:52px;height:52px;border:0;border-radius:999px;background:#5b4ae8;box-shadow:0 6px 16px rgba(13,17,23,.35);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.plus(24, '#fff', 2.6) + '</button>' +
     '</header>';
 
@@ -3345,7 +3319,15 @@
   };
 
   // Signed in but in no group yet (not designed; README → Open "first-run view")
-  const noGroupCard = () =>
+  // The first load failed (offline, or the database didn't answer): say so, never "You're not in a group yet"
+  const loadFailCard = (extra) =>
+    '<div role="status" data-load-failed style="' + (extra ? extra + ';' : '') + 'display:flex;align-items:flex-start;gap:12px;background:#fdeef0;border:1.5px solid #f5c2cb;border-radius:14px;padding:13px 14px">' +
+      '<span style="flex:0 0 30px;width:30px;height:30px;border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center">' + I.offline + '</span>' +
+      '<div style="flex:1 1 auto;min-width:0"><div style="font-size:14.5px;font-weight:800;color:#9b1c31">Couldn’t load your groups and events</div>' +
+      '<div style="margin-top:2px;font-size:13.5px;line-height:1.4;font-weight:600;color:#9b1c31;text-wrap:pretty">Check your connection. We’ll keep trying, and this goes away once you’re back.</div></div>' +
+      '<span ' + on(retryNow) + ' style="flex:0 0 auto;min-height:30px;display:flex;align-items:center;font-size:13.5px;font-weight:800;color:#9b1c31;text-decoration:underline;text-underline-offset:3px;cursor:pointer">Try now</span>' +
+    '</div>';
+  const noGroupCard = () => state.error === 'load' ? loadFailCard() :
     '<div style="' + CARD + ';padding:18px;display:flex;flex-direction:column;gap:12px">' +
       '<div style="font-size:16.5px;font-weight:800;letter-spacing:-.2px;color:#0d1117">You’re not in a group yet.</div>' +
       '<div style="font-size:15px;line-height:1.45;font-weight:500;color:#5c6270">Join one with a code from its organizer.</div>' +
@@ -3502,14 +3484,7 @@
       (g ? '<button type="button" class="hov-primary" ' + on(() => goCompose()) + ' aria-label="I have an idea" style="position:absolute;right:16px;bottom:16px;z-index:3;width:52px;height:52px;border:0;border-radius:999px;background:#5b4ae8;box-shadow:0 6px 16px rgba(13,17,23,.35);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.plus(22, '#fff', 2.8) + '</button>' : '') +
     '</header>';
 
-    const offline = st.error === 'load'
-      ? '<div role="status" style="margin:14px 14px 0;display:flex;align-items:flex-start;gap:12px;background:#fdeef0;border:1.5px solid #f5c2cb;border-radius:14px;padding:13px 14px">' +
-          '<span style="flex:0 0 30px;width:30px;height:30px;border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center">' + I.offline + '</span>' +
-          '<div style="flex:1 1 auto;min-width:0"><div style="font-size:14.5px;font-weight:800;color:#9b1c31">Couldn’t load ideas</div>' +
-          '<div style="margin-top:2px;font-size:13.5px;line-height:1.4;font-weight:600;color:#9b1c31;text-wrap:pretty">Check your connection. We’ll keep trying, and this goes away once you’re back.</div></div>' +
-          '<span ' + on(retryNow) + ' style="flex:0 0 auto;min-height:30px;display:flex;align-items:center;font-size:13.5px;font-weight:800;color:#9b1c31;text-decoration:underline;text-underline-offset:3px;cursor:pointer">Try now</span>' +
-        '</div>'
-      : '';
+    const offline = st.error === 'load' ? loadFailCard('margin:14px 14px 0') : '';
 
     // The world switcher: Ideas N · Plans N · Past N on a gray track, a white thumb sliding to the one that's on
     const counts = { idea: visible('idea').length, plan: visible('plan').length, done: visible('done').length };
@@ -3636,7 +3611,8 @@
     const note = (icon, strong, p) => '<div style="display:flex;gap:12px">' + icon + '<p style="margin:0;font-size:14.5px;line-height:1.42;font-weight:500;color:#454b55"><strong style="font-weight:800;color:#0d1117">' + strong + '</strong> ' + p + '</p></div>';
     const ic = (body) => '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5c6270" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 20px;margin-top:2px" aria-hidden="true">' + body + '</svg>';
     return '<div data-screen-label="How this works" style="background:#fff;min-height:100%">' +
-      '<header style="position:relative;background:#fff;padding:10.5px 16px 10px;min-height:64px">' + logo(false) + (myGroups().length ? switcher(false) : '') + '</header>' +
+      '<header style="position:relative;z-index:5;background:#fff;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px">' + logo(false) +
+        '<div style="flex:0 0 auto;display:flex;gap:8px">' + (state.email ? searchBtn() : '') + bellBtn() + '</div></header>' +
       '<div style="height:1px;background:#e6e7eb"></div>' +
       '<section style="padding:20px 20px 26px">' +
         '<div style="font-size:12px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#0f7a3c">How this works</div>' +
@@ -3835,7 +3811,7 @@
 
   // Date → Location → Details → Plan, in the idea's gold strip
   const ideaBanner = (s) => {
-    const steps = [['Date', !!s.dayDate], ['Location', !!s.spot], ['Basic details', basicsOf(s).length > 0]]
+    const steps = [['Date', !!s.dayDate], ['Location', !!s.spot], ['Details', basicsOf(s).length > 0]]
       .map((x, i) => x.concat(i)).sort((a, b) => (b[1] - a[1]) || (a[2] - b[2]));
     const line = '<span style="flex:1;height:3px;margin-top:7.5px;border-radius:999px;background:rgba(61,42,0,.2)"></span>';
     const step = ([label, met]) => '<div style="flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:3px;width:52px">' +
@@ -4172,6 +4148,7 @@
   // The host picks a poll's winner: it becomes the date (or place) and the poll closes
   // The host picks a poll's winner: confirm first (it closes the poll), then tell everyone, like a new date or place from the sheet
   const pickOpt = (s, kind, o) => {
+    if (kind === 'day' && o.dayDate < todayISO()) { toast('That date has passed. Pick another, or set a new date.'); return; }
     const day = kind === 'day', label = day ? dayLabel(o.dayDate, o.dayTime) : o.name, reach = updateReach(s), send = s.planned && reach.n > 0;
     const msg = day ? 'New date: ' + label : 'New location: ' + label;
     setState({ confirm: { title: 'Pick ' + label + '?', cta: day ? 'Use this date' : 'Use this spot', keep: 'Not yet',
@@ -4488,6 +4465,12 @@
     '</div>';
   }
 
+  // Once the date has passed, the host can still move it (a wrong date, or it got pushed) or take it down
+  const doneFixCard = (s) => !canEdit(s) ? '' :
+    '<div data-done-fix style="display:flex;flex-direction:column;align-items:center;gap:2px;padding-top:4px">' +
+      (isLead(s) ? '<span ' + on(() => openSec(s, 'when')) + ' style="display:flex;align-items:center;gap:7px;min-height:44px;padding:0 12px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">' +
+        svg(15, stroke('currentColor', 2.2), PENCIL) + 'Wrong date? Change it</span>' : '') +
+      deleteLink(s) + '</div>';
   function viewDone(s) {
     const st = state, dp = dateParts(s.dayDate), n = going(s).length;
     const album = s.album.map(a => photoUrl(a.path));
@@ -4510,6 +4493,7 @@
             : '<p style="margin:0;font-size:14px;line-height:1.45;font-weight:500;color:#5c6270">No photos yet. Anyone who went can add theirs.</p>') +
         '</div>' +
         reactionsCard(s) +
+        doneFixCard(s) +
         '<div style="border-radius:18px;background:#fdf1d6;padding:16px;display:flex;align-items:center;gap:12px">' +
           '<div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:900;color:#3d2a00">Do it again?</div><div style="margin-top:2px;font-size:13.5px;line-height:1.4;font-weight:600;color:#6b5418">Starts a new event with the place and details filled in.</div></div>' +
           '<span ' + on(() => needSignIn(() => doItAgain(s), 'post')) + ' style="flex:0 0 auto;display:flex;align-items:center;gap:6px;min-height:42px;padding:0 16px;border-radius:999px;background:#e8a71c;font-size:14.5px;font-weight:800;color:#fff;cursor:pointer">' + svg(13, 'fill="#fff"', '<path d="M13.2 2.2 7.2 13.1l3.9-.35-.9 8.8 6.9-11.2-4.1.4z"/>') + 'Do it again</span>' +
@@ -4813,7 +4797,10 @@
   };
   const goCompose = (extra) => {
     setState({ menu: null });
-    if (state.email && !currentGroup()) { if (state.loaded) openJoin(); return; }   // groups still loading: wait
+    if (state.email && !currentGroup()) {
+      if (state.error === 'load') { toast('Couldn’t load your groups yet. Trying again…'); retryNow(); return; }
+      if (state.loaded) openJoin(); return;   // groups still loading: wait
+    }
     const pre = extra && !extra.type ? extra : {};   // on(goCompose) passes the click event
     go('compose', Object.assign(composeReset(), pre));
   };
@@ -5697,7 +5684,7 @@
     else if (s === 'own') main = st.email ? viewOwn() : home();
     else if (s === 'groups') main = st.email ? viewGroups() : home();
     else if ((s === 'detail' || s === 'edit') && subj) main = viewDetail(subj);
-    else if (s === 'detail' && !st.loaded) main = '<div style="padding:40px 20px;font-size:15px;font-weight:600;color:#6b7280">Loading…</div>';
+    else if (s === 'detail' && st.subjectId) main = '<div style="padding:40px 20px;font-size:15px;font-weight:600;color:#6b7280">Loading…</div>';
     else if (s === 'compose') main = st.email ? '' : viewWelcome();   // the post flow covers the screen
     else main = home();
     // An invite link's full-screen steps take the place of the screen
@@ -6021,7 +6008,10 @@
       profSheet: false, notifSheet: false, dashAll: null, cHandSheet: false, cSearch: false, cq: '', gSearch: false, gq: '', gTry: null }, target));
     const sc = scroller();
     if (sc) sc.scrollTop = 0;
-    if (state.me) loadForRoute().catch(e => console.error(e));
+    if (state.me) loadForRoute().catch(e => {
+      console.error(e);
+      if (state.screen === 'detail' && !subject()) { setState({ screen: 'calendar', subjectId: null }); toast('Couldn’t open that event. Check your connection and try again.'); }
+    });
   };
   window.addEventListener('popstate', followUrl);
   window.addEventListener('hashchange', followUrl);
@@ -6029,7 +6019,11 @@
   const refresh = () => {
     if (!state.me || state.busy || document.hidden) return;
     loadFresh()
-      .then(() => { if (state.error === 'load') setState({ error: null }); })
+      .then(() => {
+        if (state.error === 'load') setState({ error: null });
+        // The event on screen was taken down (or you lost access): say so instead of showing a blank page
+        if (state.screen === 'detail' && state.subjectId && !subject() && !routeLoading) setState({ screen: 'calendar', subjectId: null, goneOpen: true, sec: null, needEd: null });
+      })
       .catch(e => { console.error(e); if (!state.loaded || state.error) setState({ error: 'load', loaded: true }); });
   };
   document.addEventListener('visibilitychange', refresh);
@@ -6204,7 +6198,7 @@
       if (state.profSheet && !state.email) { setState({ profSheet: false }); openLogin('profile', () => go('calendar', { profSheet: true })); }
     } catch (e) {
       console.error(e);
-      setState({ error: 'load', loaded: true });
+      setState(Object.assign({ error: 'load', loaded: true }, state.screen === 'detail' && !subject() ? { screen: 'calendar', subjectId: null } : {}));
     }
   }
 

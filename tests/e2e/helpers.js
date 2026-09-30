@@ -40,7 +40,7 @@ function trackErrors(page) {
 async function expectConnected(page, errors) {
   await expect(page.locator('html[data-loaded=true]')).toHaveCount(1);
   if (errors && errors.length) throw new Error('Page errors while loading: ' + errors.join(' | '));
-  await expect(page.getByText('Couldn’t load ideas')).toHaveCount(0);
+  await expect(page.locator('[data-load-failed]')).toHaveCount(0);
   expect(await page.evaluate(() => !!window.supabase && window.SPARKS_CONFIG.env)).toBe('test');
 }
 

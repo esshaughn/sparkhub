@@ -245,6 +245,12 @@ test('it happened: the album and "do it again"; invite-only plans stay private',
     await openIdea(H, past);
     const done = H.locator('[data-screen-label="It happened"]');
     await expect(done).toContainText('It happened!');
+    // The host can still fix the date or take it down once it's past
+    await expect(done.locator('[data-done-fix]')).toContainText('Wrong date? Change it');
+    await expect(done.locator('[data-done-fix]')).toContainText('Delete this event');
+    await done.getByText('Wrong date? Change it').click();
+    await expect(H.getByRole('dialog', { name: 'Date, time & location' })).toBeVisible();
+    await H.getByRole('dialog', { name: 'Date, time & location' }).getByRole('button', { name: 'Close' }).click();
     await expect(done).toContainText('No photos yet. Anyone who went can add theirs.');
     await done.getByLabel('Add a photo to the album').setInputFiles({ name: 'p.png', mimeType: 'image/png', buffer: PNG });
     await expect(H.getByText('Added to the album')).toBeVisible();

@@ -83,7 +83,7 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 30 | **The vibe** mood board: up to 3 photos, lead adds/removes; tap one to see it full screen (arrows between, ✕ / Escape / tap to close) | Test | Members see it only with photos |
 | 31 | Rotated tag after actions ("It's up", "You're interested", "Sent to the lead", "Location set"…) | Test | |
 | 32 | Lead's **Who's interested** list with guests' phone numbers (tap the count) | Test | Not designed yet |
-| 33 | "That idea isn't up anymore" card for a dead link | Test | |
+| 33 | "That event isn't up anymore" card for a dead link, or an event taken down while you're on it | Test | |
 
 ## Plans (V5)
 
@@ -94,7 +94,7 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 63 | **Plan page** (v6 Update 5): 340px photo header (*HAPPENING*, the title, the date sticker beside it, a **share** button); **You're helping** sliver under the photo (your jobs with times; collapsed by default, remembered per event on this device); RSVP as three buttons **Going · Maybe · Can't** with counts (tap your pick again to clear it); a **date card** (Add to calendar); a **Where card** with Directions and a map; the host's guest list; Before the day; Updates; **Help out**; **Hosted by** (*Say hi*); Who's going; Inspo. Section titles sit above their cards | Test | `rsvps`; the map is a Geoapify static image; *Say hi* only says messages are coming |
 | 64 | Host tools (v6 Update 6): a guest panel with no title (Going · Maybe · Can't, tapping one opens the **Guest list** with guests' phone numbers, *Send everyone an update*, **Invite people**, **Share link** with Copy / Text / Email / WhatsApp / More), *N things left to decide* banner, *Who can see it* row. The remind-the-day-before switch, **Before the day** notes and *Clear the date* are gone | Test | `plan_updates`; invites stay share links |
 | 65 | **Help out** (sign-ups): one card per job with its time, a spot counter (dashes + *N of M*) and a description (*More* / *Less* when long); **Sign up** / **✓ You're in** (tap to take yourself off) / **Full**; the host adds jobs (*Add a job or item*, with how many and a time), anyone adds *something else* they're bringing; under each job the host sees who's on it (shift and note), everyone else faces and first names | Test | `signup_items`, `signup_claims` (full items refuse more) |
-| 66 | **It happened** page: album (anyone can add), **Reactions** (❤️ 🙌 🎉, 🙏 a public thank-you to the lead, *Thanks from …*), *Do it again* (prefilled event form), Edit for the lead/admins | Test | `album_photos`, `reactions` |
+| 66 | **It happened** page: album (anyone can add), the host's *Wrong date? Change it* and *Delete this event*, **Reactions** (❤️ 🙌 🎉, 🙏 a public thank-you to the lead, *Thanks from …*), *Do it again* (prefilled event form), Edit for the lead/admins | Test | `album_photos`, `reactions` |
 | 67 | **Invite-only plans**: seen by the lead, admins, people who replied and link holders | Test | `can_see_spark()` |
 | 68 | All ideas **Ideas / Plans / Happened** tabs with counts; cards show IDEA / PLAN / It happened | Test | |
 | 69 | **Start a group** (Profile → Your groups) | Test | `create_group()` |
