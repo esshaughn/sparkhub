@@ -81,6 +81,16 @@ test('a plan: guest RSVPs, sign-ups, an update, the host’s notes, then clearin
     await expect(GP.locator('[data-signup="Folding chairs"]')).toContainText('0 of 2');
     await GP.locator('[data-signup="Folding chairs"]').getByRole('button', { name: 'Sign up' }).click();
     await expect(GP.locator('[data-signup="Folding chairs"]')).toContainText('1 of 2');
+    await expect(GP.locator('[data-signup="Folding chairs"] [data-who]')).toContainText('You');
+    // The host sees who's on each job, and taps Going for the guest list with the guest's number
+    await H.reload();
+    await expect(H.locator('html[data-loaded=true]')).toHaveCount(1);
+    await expect(HP.locator('[data-signup="Folding chairs"] [data-who]')).toContainText('Gus');
+    await HP.getByRole('button', { name: '1 Going. See who' }).click();
+    const list = H.getByRole('dialog', { name: 'Guest list' });
+    await expect(list.locator('[data-guest-part="going"]')).toContainText('Gus');
+    await expect(list.locator('[data-guest-part="going"]')).toContainText('(512) 555-0142');
+    await list.getByRole('button', { name: 'Close' }).click();
     // Adding something else signs you up for it
     await GP.getByText('Add something else').click();
     await GP.getByLabel('Bringing something else?').fill('Lemonade');
@@ -169,6 +179,12 @@ test('Help out: descriptions, time ranges and Pick a shift', async ({ browser })
     await expect(OP.locator('[data-screen-label="You’re helping"]')).toContainText('6:00 – 7:00pm, 7:00 – 8:00pm');
     const notes = await asUser(O, async (c) => (await c.from('signup_claims').select('note').eq('note', 'Can bring hangers')).data.length);
     expect(notes).toBe(2);
+    // The host sees each shift with the note
+    await H.reload();
+    await expect(H.locator('html[data-loaded=true]')).toHaveCount(1);
+    const hostCoat = H.locator('[data-screen-label="Plan page"] [data-signup="Coat check table"] [data-who]');
+    await expect(hostCoat).toContainText('Omar · 6:00 – 7:00pm');
+    await expect(hostCoat).toContainText('“Can bring hangers”');
 
     // Undo takes him off every shift on that job
     await O.locator('[data-banner="on"]').getByRole('button', { name: 'Undo' }).click();

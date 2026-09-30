@@ -204,7 +204,7 @@
     joinOpen: false, joinCode: '', joinBad: false,
     notif: { allReadAt: 0, read: [], topics: {}, email: true, loaded: false }, nFilter: 'all', nSettings: false, demoAdmin: false, back: null, myPlace: '', myBio: '', memberSince: null, ownGrp: null, taskOpen: {}, sizes: {}, membersQ: '', gpRename: null, gpDel: null, ph: null,
     startName: null, phaseTab: 'plan', sigDraft: '', sigNeed: '', sigTime: '', blast: null, prepEdit: null, prepText: '', invite: null,
-    pe: null, confirm: null, interestList: false, thanksList: false,
+    pe: null, confirm: null, interestList: false, thanksList: false, guestList: null,
     gpCode: '', gpMembers: null,
     // v6: Profile / Notifications are sheets; Your tasks' "View all", expansions, the RSVP ask
     profSheet: false, notifSheet: false, dashAll: null, dashOpen: {}, schedOpen: {}, shiftPick: null, banner: null, sigAdding: false,
@@ -4013,12 +4013,25 @@
       const desc = !j.desc ? '' : !long ? '<p style="margin:0;font-size:14px;line-height:1.45;font-weight:500;color:#5c6270">' + esc(j.desc) + '</p>'
         : open ? '<p style="margin:0;font-size:14px;line-height:1.45;font-weight:500;color:#5c6270">' + esc(j.desc) + ' ' + more('Less', true) + '</p>'
         : '<div style="display:flex;align-items:flex-end;gap:8px"><p style="flex:1;min-width:0;margin:0;font-size:14px;line-height:1.45;font-weight:500;color:#5c6270;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">' + esc(j.desc) + '</p>' + more('More', false) + '</div>';
+      // Who's in: the host sees each person with their shift and note; everyone else a face stack and names
+      const ppl = shifts ? [].concat(...j.shifts.map(u => u.claims.map(c => Object.assign({ at: spanTime(u) }, c)))) : j.claims;
+      const uniq = ppl.map(c => c.userId).filter((u, i, a) => a.indexOf(u) === i);
+      const names = uniq.map(u => u === st.me ? 'You' : firstName(personName(s, u)));
+      const who = !ppl.length ? '' : lead
+        ? '<div data-who style="display:flex;flex-direction:column;gap:8px;padding-top:2px">' + ppl.map((c, i) =>
+            '<div style="display:flex;align-items:flex-start;gap:10px">' + face(c.userId, personName(s, c.userId), 26, FACE_COLORS[i % 3], 'margin-top:1px') +
+              '<div style="flex:1;min-width:0"><div style="font-size:14.5px;line-height:1.35;font-weight:800;color:#0d1117">' + esc(c.userId === st.me ? 'You' : personName(s, c.userId)) +
+                (c.at ? '<span style="font-weight:700;color:#6b7280"> · ' + esc(c.at) + '</span>' : '') + '</div>' +
+                (c.note ? '<div style="margin-top:1px;font-size:13.5px;line-height:1.4;font-weight:500;color:#5c6270">“' + esc(c.note) + '”</div>' : '') + '</div></div>').join('') + '</div>'
+        : '<div data-who style="display:flex;align-items:center;gap:9px"><span style="display:flex">' + peopleFaces(uniq.slice(0, 4), 26) + '</span>' +
+            '<span style="flex:1;min-width:0;font-size:13.5px;font-weight:700;color:#454b55;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' +
+            esc(names.length > 3 ? names.slice(0, 2).join(', ') + ' and ' + (names.length - 2) + ' more' : namesList(names)) + '</span></div>';
       return '<div data-signup="' + esc(j.item) + '" style="' + CARD + ';padding:14px 16px;display:flex;flex-direction:column;gap:10px">' +
         '<div style="display:flex;align-items:center;gap:10px">' +
           '<div style="flex:1;min-width:0"><div style="font-size:16px;line-height:1.3;font-weight:800;color:#0d1117;text-wrap:pretty">' + esc(j.item) + '</div>' +
             (subline ? '<div style="margin-top:2px;font-size:13px;font-weight:700;color:#6b7280">' + esc(subline) + '</div>' : '') + '</div>' +
           (lead || (j.createdBy === st.me && !shifts) ? '<span ' + on(() => removeSignup(s, j)) + ' aria-label="Remove ' + esc(j.item) + '" style="flex:0 0 28px;width:28px;height:28px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(11, '#6b7280', 2.6) + '</span>' : '') +
-          btn + '</div>' + bar + desc + '</div>';
+          btn + '</div>' + bar + desc + who + '</div>';
     };
     const addLabel = lead ? 'Add a job or item' : 'Add something else';
     const adder = !st.sigAdding
@@ -4374,7 +4387,7 @@
   function viewPlan(s) {
     const st = state, lead = isLead(s), edit = canEdit(s), leadName = nameOf(s.leadId, s.leadName), my = myRsvp(s), dp = dateParts(s.dayDate);
     const goingIds = going(s).map(r => r.userId), maybeN = s.rsvps.filter(r => r.status === 'maybe').length, noN = s.rsvps.filter(r => r.status === 'no').length;
-    const stat = (num, label, bgc, ink) => '<div style="display:flex;flex-direction:column;align-items:center;gap:5px;padding:12px 4px;border-radius:14px;background:' + bgc + ';color:' + ink + '"><span style="font-size:24px;line-height:1;font-weight:900;letter-spacing:-.5px">' + num + '</span><span style="font-size:11.5px;font-weight:800">' + label + '</span></div>';
+    const stat = (num, label, bgc, ink) => '<div ' + on(() => setState({ guestList: s.id })) + ' aria-label="' + num + ' ' + label + '. See who" style="cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px;padding:12px 4px;border-radius:14px;background:' + bgc + ';color:' + ink + '"><span style="font-size:24px;line-height:1;font-weight:900;letter-spacing:-.5px">' + num + '</span><span style="font-size:11.5px;font-weight:800">' + label + '</span></div>';
     const sheetCard = (inner, extra) => '<div style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:10px;' + (extra || '') + '">' + inner + '</div>';
 
     // Under the photo: the host's "Your tasks" (purple), or a helper's "You're helping" (gold). Collapsed by default.
@@ -5580,6 +5593,29 @@
       '</div>');
   }
 
+  // The host's guest list: everyone who replied, by answer, with guests' phone numbers (only the host can read those)
+  function viewGuestList(s) {
+    const close = () => setState({ guestList: null });
+    const row = (u, i) => {
+      const c = s.contacts.find(x => x.user_id === u), name = personName(s, u);
+      return '<div data-guest style="display:flex;align-items:center;gap:12px;min-height:50px;border-top:' + (i ? '1px solid #f2f3f6' : '0') + '">' +
+        face(u, name, 32, FACE_COLORS[i % 3]) +
+        '<span style="flex:1 1 auto;min-width:0;font-size:15.5px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(name) + '</span>' +
+        (c ? '<a href="tel:' + esc(c.phone.replace(/[^\d+]/g, '')) + '" style="flex:0 0 auto;font-size:14px;font-weight:800;color:#5b4ae8">' + esc(c.phone) + '</a>' : '') + '</div>';
+    };
+    const part = (k, label, ink) => {
+      const ids = s.rsvps.filter(r => r.status === k).map(r => r.userId);
+      return !ids.length ? '' : '<div data-guest-part="' + k + '" style="display:flex;flex-direction:column;gap:2px"><span style="font-size:12px;font-weight:900;letter-spacing:1px;color:' + ink + '">' + label + ' · ' + ids.length + '</span>' +
+        '<div style="display:flex;flex-direction:column">' + ids.map(row).join('') + '</div></div>';
+    };
+    const any = s.rsvps.length > 0;
+    return modal('Guest list', close,
+      h3('Guest list') +
+      (any ? para('Phone numbers are from people who replied without an account. Only you see them.') +
+        '<div style="display:flex;flex-direction:column;gap:14px">' + part('going', 'GOING', '#0f7a3c') + part('maybe', 'MAYBE', '#8f6405') + part('no', 'CAN’T', '#454b55') + '</div>'
+        : para('Nobody has replied yet. Share the link to get the word out.')));
+  }
+
   // Who thanked the host (Round 64d): everyone can see it, as thank-yous are public
   function viewThanksList(s) {
     const close = () => setState({ thanksList: false });
@@ -5687,6 +5723,7 @@
       (s === 'compose' && st.email ? viewComposeSheets() : '') +
       (st.offerKind && subj ? viewOffer(subj) : '') +
       (st.interestList && subj ? viewInterestList(subj) : '') +
+      (st.guestList && subj && st.guestList === subj.id ? viewGuestList(subj) : '') +
       (st.thanksList && subj ? viewThanksList(subj) : '') +
       (st.guestOpen ? viewGuest() : '') +
       (st.nameAsk ? viewName() : '') +
@@ -5917,6 +5954,7 @@
       if (state.guestOpen) return setState({ guestOpen: false, guestThen: null });
       if (state.offerKind) return setState({ offerKind: null, offerText: '' });
       if (state.interestList) return setState({ interestList: false });
+      if (state.guestList) return setState({ guestList: null });
       if (state.thanksList) return setState({ thanksList: false });
       if (state.menu) return setState({ menu: null });
       if (state.cSearch) return setState(Object.assign({ cSearch: false, cq: '' }, state.cTry ? TRY_UNDO : {}));
@@ -5979,7 +6017,7 @@
       leaving = composeReset();
     }
     if (target.screen === state.screen && target.subjectId === state.subjectId && target.gpId === state.gpId) return;
-    setState(Object.assign(leaving, { menu: null, offerKind: null, nameAsk: null, confirm: null, loginStep: null, loginThen: null, interestList: false, thanksList: false, back: null,
+    setState(Object.assign(leaving, { menu: null, offerKind: null, nameAsk: null, confirm: null, loginStep: null, loginThen: null, interestList: false, thanksList: false, guestList: null, back: null,
       profSheet: false, notifSheet: false, dashAll: null, cHandSheet: false, cSearch: false, cq: '', gSearch: false, gq: '', gTry: null }, target));
     const sc = scroller();
     if (sc) sc.scrollTop = 0;
