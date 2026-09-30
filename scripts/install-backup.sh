@@ -1,5 +1,5 @@
 #!/bin/bash
-# Schedule scripts/backup-live.sh to run weekly on this Mac (Sundays 03:30).
+# Schedule scripts/backup-live.sh to run daily on this Mac (03:30; weekly until the Torrez pilot, 2026-09-30).
 # If the Mac is asleep then, macOS runs it at the next wake.
 #
 # The script is copied to ~/.local/share/sparkhub/ because macOS doesn't let
@@ -35,7 +35,6 @@ cat >"$PLIST" <<PLIST
   </array>
   <key>StartCalendarInterval</key>
   <dict>
-    <key>Weekday</key><integer>0</integer>
     <key>Hour</key><integer>3</integer>
     <key>Minute</key><integer>30</integer>
   </dict>
@@ -49,5 +48,5 @@ PLIST
 
 launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null || true
 launchctl bootstrap "gui/$(id -u)" "$PLIST"
-echo "Installed. Weekly backups → $LOGDIR (log: $LOGDIR/backup.log)"
+echo "Installed. Daily backups → $LOGDIR (log: $LOGDIR/backup.log)"
 echo "Run one now with: launchctl kickstart gui/$(id -u)/$LABEL"

@@ -16,7 +16,7 @@ set -euo pipefail
 REF="${SPARKS_LIVE_REF:-xwrzfpgsazyrgieymtee}"
 SUPABASE="${SUPABASE_BIN:-$HOME/.local/bin/supabase}"
 DEST_ROOT="${SPARKS_BACKUP_DIR:-$HOME/Backups/sparkhub}"
-KEEP="${SPARKS_BACKUP_KEEP:-12}"          # how many backups to keep
+KEEP="${SPARKS_BACKUP_KEEP:-30}"          # how many backups to keep (daily: a month)
 
 umask 077
 STAMP=$(date +%Y-%m-%d_%H%M)

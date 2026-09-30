@@ -2,7 +2,7 @@
 
 One app, many groups (Torrez Fitness is one, code TORREZ). Static HTML/CSS/JS (no build step), Supabase for data, deployed by Vercel on every push to `main`. See README.md for structure.
 
-**Renamed 2026-09-25:** live address https://gosparkhub.vercel.app (since 2026-09-29 also https://sparkhub.wereallneighbors.org: an `A` record to Vercel in the domain's DNS at Hostinger (registered at Namecheap), listed in `LIVE_HOSTS` in `js/config.js` and `api/preview.js`) (the Vercel project is `gosparkhub`; the old torrezhub.vercel.app redirects), GitHub repo `esshaughn/sparkhub`, Supabase projects `sparkhub` / `sparkhub-test`, backups in `~/Backups/sparkhub` (launchd `com.sparkhub.backup`). The local folder was renamed from `sparks-torrez` to `sparkhub` on 2026-09-27.
+**Renamed 2026-09-25:** live address https://gosparkhub.vercel.app (since 2026-09-29 also https://sparkhub.wereallneighbors.org: an `A` record to Vercel in the domain's DNS at Hostinger (registered at Namecheap), listed in `LIVE_HOSTS` in `js/config.js` and `api/preview.js`) (the Vercel project is `gosparkhub`; the old torrezhub.vercel.app redirects), GitHub repo `esshaughn/sparkhub`, Supabase projects `sparkhub` / `sparkhub-test`, daily backups in `~/Backups/sparkhub` (launchd `com.sparkhub.backup`). The local folder was renamed from `sparks-torrez` to `sparkhub` on 2026-09-27.
 
 ## Design files
 
@@ -54,7 +54,7 @@ Ad-hoc reads: `supabase db query --linked [--project-ref …] "select …"`.
 ## Keep-alive and backups
 
 - `.github/workflows/keep-supabase-awake.yml` pings both projects daily so the free plan doesn't pause them. It only runs from `main`, and GitHub disables it after 60 days without commits.
-- `scripts/backup-live.sh` dumps every live table to `~/Backups/sparkhub/<date>/` as JSON (keeps 12). It runs weekly on the user's Mac via launchd (`scripts/install-backup.sh`; rerun the installer after editing the script). Backups contain names and phone numbers: **never commit or upload them.**
+- `scripts/backup-live.sh` dumps every live table to `~/Backups/sparkhub/<date>/` as JSON (keeps 30). It runs daily at 03:30 on the user's Mac via launchd (weekly until the Torrez pilot, 2026-09-30) (`scripts/install-backup.sh`; rerun the installer after editing the script). Backups contain names and phone numbers: **never commit or upload them.**
 - The backup saves every public table that exists (it lists them first), so it keeps working as migrations add and drop tables.
 - To restore: apply migrations to an empty project, recreate `auth.users` rows from `users.json` and their sign-in identities from `identities.json`, then insert the table files in order: groups, memberships, profiles, sparks, offers, interests, guest_contacts, link_access, then the plan tables (spark_groups, rsvps, date_options, date_votes, spot_options, spot_votes, signup_items, signup_claims, plan_updates, organizers, plan_prep, album_photos, reactions), then event_drafts. (Backups from before 2026-09-25 have an older date_options/rsvps shape from the first build; don't restore those into the new tables.)
 
