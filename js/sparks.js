@@ -2281,7 +2281,7 @@
   // Seeded demo content gets a small DEMO pill before its title (owner, 2026-09-30): pilot members joined to a demo
   // group shouldn't mistake it for real plans. Translucent white on photos, gray on white.
   // Demo groups (Hub on Hunters, Walnut Creek, Woodcliff) get the same chip after their name (owner, 2026-09-30)
-  // Groups page cards: the DEMO chip sits on its own line above the name
+  // Groups page cards and the group page's title: the DEMO chip sits on its own line above the name
   const groupTagAbove = (g) => g && g.demo ? '<div style="margin-bottom:6px;line-height:1">' + demoTag({ demo: true }, true) + '</div>' : '';
   const groupTag = (g, onPhoto) => g && g.demo ? demoTag({ demo: true }, onPhoto, true) : '';
   const demoTag = (s, onPhoto, after) => !s || !s.demo ? '' : '<span data-demo-tag style="display:inline-block;vertical-align:.15em;' + (after ? 'flex:0 0 auto;margin-left:7px' : 'margin-right:7px') + ';padding:2px 7px;border-radius:999px;font-size:10.5px;line-height:1.3;font-weight:900;letter-spacing:.8px;text-shadow:none;' +
@@ -3452,9 +3452,9 @@
       '<span ' + on(() => go('groups')) + ' aria-label="Back to groups" style="position:absolute;top:calc(14px + var(--pt));left:14px;z-index:3;width:44px;height:44px;border-radius:999px;background:#fff;box-shadow:0 2px 8px rgba(13,17,23,.25);display:flex;align-items:center;justify-content:center;cursor:pointer" class="hov-fill-grey">' + I.chevL(18, '#0d1117', 2.6) + '</span>' +
       '<div style="position:absolute;top:calc(14px + var(--pt));right:16px;z-index:3;display:flex;gap:8px">' +
         (g ? '<span ' + on(openGroupSearch) + ' aria-label="Search this group" style="width:44px;height:44px;border-radius:999px;background:rgba(255,255,255,.18);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;cursor:pointer">' + ic6('search', 19, '#fff', 2.4) + '</span>' : '') + bellBtn(true) + '</div>' +
-      '<div style="position:absolute;left:18px;right:90px;bottom:16px;z-index:2;color:#fff">' +
+      '<div style="position:absolute;left:18px;right:90px;bottom:16px;z-index:2;color:#fff">' + groupTagAbove(g) +
         (size ? '<div style="font-size:13px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:#cfc9ff">' + size + (size === 1 ? ' member' : ' members') + '</div>' : '') +
-        '<h1 style="margin:2px 0 0;font-size:34px;line-height:1.02;font-weight:900;letter-spacing:-1.1px;color:#fff;text-wrap:balance;text-shadow:0 1px 8px rgba(0,0,0,.3)">' + esc(g ? g.name : 'Spark Hub') + groupTag(g, true) +
+        '<h1 style="margin:2px 0 0;font-size:34px;line-height:1.02;font-weight:900;letter-spacing:-1.1px;color:#fff;text-wrap:balance;text-shadow:0 1px 8px rgba(0,0,0,.3)">' + esc(g ? g.name : 'Spark Hub') +
           (runs(g) ? '<span ' + on((e) => { stop(e); openGroupPage(g.id, false, 'browse'); }) + ' aria-label="Edit group" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;margin-left:6px;vertical-align:4px;border-radius:999px;color:rgba(255,255,255,.6);cursor:pointer">' + svg(16, stroke('currentColor', 2.2), '<path d="M4 20h4L19 9l-4-4L4 16v4Z"/>') + '</span>' : '') +
         '</h1></div>' +
       (g ? '<button type="button" class="hov-primary" ' + on(() => goCompose()) + ' aria-label="Post an event" style="position:absolute;right:16px;bottom:16px;z-index:3;width:52px;height:52px;border:0;border-radius:999px;background:#5b4ae8;box-shadow:0 6px 16px rgba(13,17,23,.35);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.plus(22, '#fff', 2.8) + '</button>' : '') +
