@@ -5651,6 +5651,12 @@
   };
   window.addEventListener('load', () => { nudgeLayout(); setTimeout(nudgeLayout, 300); });
   window.addEventListener('pageshow', nudgeLayout);
+  // The installed app also comes up short after the keyboard closes (typing an email and code when joining),
+  // and when the tab bar comes back after Welcome or the invite screens: nudge then too (2026-09-30)
+  const nudgeSoon = () => { if (!STANDALONE) return; setTimeout(nudgeLayout, 60); setTimeout(nudgeLayout, 350); };
+  document.addEventListener('focusout', (e) => { if (isField(e.target)) nudgeSoon(); });
+  if (window.visualViewport) { let vh = visualViewport.height; visualViewport.addEventListener('resize', () => { if (visualViewport.height > vh + 80) nudgeSoon(); vh = visualViewport.height; }); }
+  let hadNoNav = null;
   const tpl = document.createElement('template');
   let handlers = [];
 
@@ -5734,7 +5740,10 @@
     handlers = H;
     tpl.innerHTML = html;
     morphChildren(root, tpl.content);
-    root.classList.toggle('no-nav', welcomeShown() || invFull());
+    const noNav = welcomeShown() || invFull();
+    root.classList.toggle('no-nav', noNav);
+    if (hadNoNav && !noNav) nudgeSoon();   // the tab bar is back
+    hadNoNav = noNav;
     // Screens that start with a photo run it up under the iPhone status bar
     const sc = state.screen, photoTop = sc === 'browse' || (sc === 'detail' && !!subject()) || sc === 'calendar' || sc === 'groups' || welcomeShown() || (!state.email && sc === 'compose') ||
       (invFull() && (state.inv.step === 'land' || state.inv.step === 'welcome'));
