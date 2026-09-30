@@ -1583,7 +1583,9 @@
       return false;
     }
     if (r.stage === 'signin' && r.mergeToken && session.user.id !== r.anonId) {
-      await sb.rpc('complete_merge', { p_token: r.mergeToken }).catch(() => {});
+      // Best effort. A query builder has then() but no catch(), so it's awaited in a try (a .catch() here threw,
+      // leaving invites stuck on Joining, 2026-09-30)
+      try { await sb.rpc('complete_merge', { p_token: r.mergeToken }); } catch (e) { console.error(e); }
     }
     if (r.name) state.myName = r.name;
     setState(back);
@@ -6022,6 +6024,13 @@
     try {
       await ensureSession();
       if (await finishGoogle().catch(e => { console.error(e); return false; })) return;
+      // Back from Google mid-invite: nothing may leave the Joining screen hanging. Signed in → join now (inviteJoin
+      // shows Try again if it fails); not signed in → the landing.
+      if (state.inv && state.inv.step === 'joining' && !state.inv.busy) {
+        const s0 = (await sb.auth.getSession()).data.session;
+        if (s0 && !s0.user.is_anonymous) { if (!state.email) noteSession(s0); inviteJoin(); }
+        else setInv({ step: 'land' });
+      }
       await loadForRoute();
       if (invite) takeInvite(invite);
       if (state.inv && state.inv.step === 'confirm' && !state.email) setInv({ step: 'land' });   // the saved session had ended

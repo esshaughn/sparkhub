@@ -2,7 +2,7 @@
 // two ends of the round trip: leaving (Supabase hands back Google's URL) and
 // coming back (the page reloads with ?error=… or a signed-in session).
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newMember, newLead, deleteIdea } = require('./helpers');
+const { uniqueTitle, newMember, newLead, deleteIdea, asUser } = require('./helpers');
 
 const RESUME_KEY = 'spark-hub-google-resume';
 const readResume = (page) => page.evaluate((k) => JSON.parse(sessionStorage.getItem(k)), RESUME_KEY);
@@ -92,5 +92,30 @@ test('Google account that already has an account: sign in to it instead', async 
     expect(saved.mergeToken).toBe('00000000-0000-0000-0000-000000000000');
   } finally {
     await context.close();
+  }
+});
+
+test('an invite link through Google, for an account that already existed: the join finishes (not stuck on Joining)', async ({ browser }) => {
+  // The owner (lead 2) starts an [E2E] group; lead 1 comes back from Google as their existing account
+  const owner = await newLead(browser, 2, 'Olive');
+  const { page, context, errors } = await newLead(browser, 1, 'Tester');
+  const name = '[E2E] Invite ' + Date.now().toString(36);
+  let gid;
+  try {
+    const g = await asUser(owner.page, async (c, _C, n) => (await c.rpc('create_group', { p_name: n })).data[0], name);
+    gid = g.id;
+    await page.evaluate(({ k, code }) => sessionStorage.setItem(k, JSON.stringify({
+      at: Date.now(), stage: 'signin', from: 'invite', joinCode: code, anonId: 'someone-else', name: '', mergeToken: '00000000-0000-0000-0000-000000000000', draft: null
+    })), { k: RESUME_KEY, code: g.code });
+    await page.goto('/?code=returned-from-google');
+    // Welcome to {group}, then its page; never left on Joining
+    await expect(page.locator('[data-screen-label=Joining]')).toHaveCount(0, { timeout: 15000 });
+    await expect(page.getByRole('heading', { name: new RegExp(name.replace(/[[\]]/g, '\\$&')) }).first()).toBeVisible();
+    expect(await asUser(page, async (c, _C, id) => (await c.from('memberships').select('group_id').eq('group_id', id)).data.length, gid)).toBe(1);
+    expect(errors.filter(e => !/code|pkce|verifier/i.test(e))).toEqual([]);
+  } finally {
+    if (gid) await asUser(owner.page, async (c, _C, id) => c.rpc('e2e_delete_group', { p_group: id }), gid).catch(() => {});
+    await context.close();
+    await owner.context.close();
   }
 });
