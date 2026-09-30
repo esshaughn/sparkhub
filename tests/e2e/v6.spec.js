@@ -118,18 +118,18 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     await expect(help).not.toContainText('Location');
     await shot(O, '06-your-tasks-help');
 
-    // Your schedule: Helping strip, "1 task" expands in place; the List view has the same strip
+    // Your schedule (Tiles): Helping strip, "2 tasks" expands in place; Up next has the same strip
     await nav(O).getByRole('button', { name: 'Your schedule', exact: true }).click();
     const sched = O.locator('[data-screen-label="Your schedule"]');
+    await pickView(sched, 'Tiles');
     const tile = sched.locator('[data-plan="' + title + '"]');
     await expect(tile).toContainText('Helping');
     await tile.getByText('2 tasks').click();
     await expect(tile).toContainText('You said maybe');
     await expect(tile).toContainText('Ice');
-    await pickView(sched, 'List');
+    await pickView(sched, 'Up next');
     await expect(tile).toContainText('Helping');
-    await shot(O, '07-your-schedule-list');
-    await pickView(sched, 'Tiles');
+    await shot(O, '07-your-schedule-up-next');
 
     // Could use a hand: claim the chairs; "You're on it", and no RSVP question
     await nav(O).getByRole('button', { name: 'Calendar', exact: true }).click();

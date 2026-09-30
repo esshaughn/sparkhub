@@ -225,13 +225,16 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
     await page.reload();
     await expect(page.locator('html[data-loaded=true]')).toHaveCount(1);
     await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Your schedule', exact: true }).click();
+    await expect(home.getByRole('button', { name: 'View: Up next' })).toBeVisible();   // Up next by default (v6 Update 9)
+    await expect(home.locator('[data-next]')).toHaveCount(1);   // the hero card
+    await expect(home.locator(`[data-plan="${PLAN}"]`)).toContainText('Going');
+    await pickView(home, 'Tiles');
     await expect(home.getByRole('heading', { name: new Date().toLocaleDateString('en-US', { month: 'long' }), exact: true }).or(home.getByRole('heading', { name: 'October', exact: true })).first()).toBeVisible();
-    await expect(home.getByRole('button', { name: 'View: Tiles' })).toBeVisible();   // Tiles by default
     await expect(home.locator(`[data-plan="${PLAN}"]`)).toContainText('Going');   // the strip under the tile
     await expect(home.locator(`[data-plan="${PLAN}"]`)).toContainText('Change RSVP');
-    await pickView(home, 'List');
-    await expect(home.locator(`[data-plan="${PLAN}"]`)).toBeVisible();
-    await pickView(home, 'Tiles');
+    await pickView(home, 'Month');
+    await expect(home.getByRole('button', { name: 'Next month' })).toBeVisible();
+    await pickView(home, 'Up next');
 
     // Calendar (the ringed center tab): the community calendar, List by default, then Month
     await page.getByRole('button', { name: 'Calendar', exact: true }).click();

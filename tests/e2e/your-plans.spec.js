@@ -37,6 +37,7 @@ test('Your schedule and the Calendar: role strips, a helper’s sign-ups with ti
     // Hal's Your schedule: a Helping strip, "3 tasks", expanding in place to his sign-ups with the time
     await O.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Your schedule', exact: true }).click();
     const oHome = O.locator('[data-screen-label="Your schedule"]');
+    await pickView(oHome, 'Tiles');
     const tile = oHome.locator('[data-plan="' + title + '"]');
     await expect(tile).toContainText('Hunters Lane');
     await expect(tile).toContainText('Helping');
@@ -44,13 +45,13 @@ test('Your schedule and the Calendar: role strips, a helper’s sign-ups with ti
     await expect(tile).toContainText('Folding tables');
     await expect(tile).toContainText('3:30pm');
     await expect(tile).toContainText('Speaker');
-    await pickView(oHome, 'List');
+    await pickView(oHome, 'Up next');
     await expect(tile).toContainText('Helping');
-    await pickView(oHome, 'Tiles');
 
     // Hope's Your schedule: Leading, with her to-dos (or All set)
     await H.reload();
     await H.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Your schedule', exact: true }).click();
+    await pickView(H.locator('[data-screen-label="Your schedule"]'), 'Tiles');   // Up next lists the hero's to-dos open, without a count
     const hTile = H.locator('[data-screen-label="Your schedule"] [data-plan="' + title + '"]');
     await expect(hTile).toContainText('Leading');
     await expect(hTile).toContainText(/\d+ tasks?|All set/);
