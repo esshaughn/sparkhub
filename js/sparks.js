@@ -3158,9 +3158,11 @@
   // ---- Add to Home Screen (not designed; HANDOFF §2): a pop-up on Welcome (once a visit) and once after signing in,
   // while the app isn't installed. Android Chrome hands us its install prompt (beforeinstallprompt), so our button
   // opens Chrome's dialog; iPhone has no prompt, so the pop-up shows the Share → Add to Home Screen steps.
-  // iPhone browsers that can add to the Home Screen from their Share button: Safari and Chrome
-  const IOS_BROWSER = !IS_IOS ? '' : /CriOS\//.test(navigator.userAgent) ? 'Chrome'
-    : /Safari\//.test(navigator.userAgent) && !/FxiOS|EdgiOS|OPiOS|GSA\//.test(navigator.userAgent) ? 'Safari' : '';
+  // iPhone browsers that can add to the Home Screen from their Share button (Update 12): Safari gets the ••• steps;
+  // Chrome, Firefox, Edge and Opera the Chrome ones. The Google app (GSA) is an in-app browser, so none.
+  const UA = navigator.userAgent;
+  const IOS_BROWSER = !IS_IOS || /GSA\//.test(UA) ? '' : /Safari\//.test(UA) && !/Chrome|CriOS|FxiOS|EdgiOS|OPiOS|Android/.test(UA) ? 'Safari'
+    : /CriOS|FxiOS|EdgiOS|OPiOS/.test(UA) ? 'Chrome' : '';
   let installEvt = null;
   window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installEvt = e; setState({ canInstall: true }); });
   window.addEventListener('appinstalled', () => { installEvt = null; setState({ canInstall: false, installPop: false }); toast('Spark Hub is on your Home Screen', true); });
@@ -3200,13 +3202,21 @@
   // Android Chrome has its own install dialog, so there the button opens it and the steps are left out.
   const A2HS_SHARE = '<path d="M12 3v12M7.5 7.5 12 3l4.5 4.5"/><path d="M8 10.5H6.5A1.5 1.5 0 0 0 5 12v7.5A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5V12a1.5 1.5 0 0 0-1.5-1.5H16"/>';
   const A2HS_ADD = '<rect x="4" y="4" width="16" height="16" rx="4"/><path d="M12 8.5v7M8.5 12h7"/>';
+  const A2HS_DOTS = '<circle cx="5.5" cy="12" r="1.6" fill="currentColor"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><circle cx="18.5" cy="12" r="1.6" fill="currentColor"/>';
   function viewInstallPop() {
     const mode = installMode();
     if (!mode) return '';
     const step = (icon, html) => '<div style="flex:0 0 130px;width:130px;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center">' +
       '<span aria-hidden="true" style="width:64px;height:64px;border-radius:999px;background:#eceef1;display:flex;align-items:center;justify-content:center">' + svg(28, stroke('#0d1117', 2), icon) + '</span>' +
       '<span style="font-size:14px;line-height:1.3;font-weight:500;color:#0d1117">' + html + '</span></div>';
-    const steps = mode === 'prompt' ? '' : '<div style="display:flex;align-items:flex-start;justify-content:center;gap:4px">' +
+    // Safari (Update 12, Round 42b): Share sits behind ••• by the address bar, so three stacked rows
+    const row = (icon, html) => '<div style="display:flex;align-items:center;gap:14px"><span aria-hidden="true" style="flex:0 0 50px;width:50px;height:50px;border-radius:999px;background:#eceef1;color:#0d1117;display:flex;align-items:center;justify-content:center">' + svg(22, stroke('#0d1117', 2), icon) + '</span>' +
+      '<span style="font-size:16px;line-height:1.3;font-weight:500;color:#0d1117">' + html + '</span></div>';
+    const link = '<span aria-hidden="true" style="display:block;width:2px;height:10px;margin-left:24px;border-radius:1px;background:#dcdfe6"></span>';
+    const steps = mode === 'prompt' ? '' : IOS_BROWSER === 'Safari'
+      ? '<div data-a2hs-steps="safari" style="display:flex;flex-direction:column;gap:6px">' + row(A2HS_DOTS, 'Tap <b style="font-weight:900">•••</b> in your browser') + link +
+          row(A2HS_SHARE, 'Choose <b style="font-weight:900">Share</b>') + link + row(A2HS_ADD, 'Choose <b style="font-weight:900">Add to Home Screen</b>') + '</div>'
+      : '<div data-a2hs-steps="chrome" style="display:flex;align-items:flex-start;justify-content:center;gap:4px">' +
       step(A2HS_SHARE, 'Tap <b style="font-weight:900">Share</b> in your browser') +
       '<span aria-hidden="true" style="flex:0 0 30px;height:64px;display:flex;align-items:center">' + '<svg width="30" height="14" viewBox="0 0 30 14" fill="none" stroke="#b9bcc4" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7h25M21 2l6 5-6 5"/></svg>' + '</span>' +
       step(A2HS_ADD, 'Choose <b style="font-weight:900">Add to Home Screen</b>') + '</div>';

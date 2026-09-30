@@ -118,7 +118,9 @@ test('Add to Home Screen (Update 11): once a visit until Got it; Maybe later hid
     await expect(pop).toContainText('Recommended');
     await expect(pop.getByRole('heading', { name: 'Make this an app (kinda)' })).toBeVisible();
     await expect(pop).toContainText('Add a shortcut icon on your home screen, no App Store needed.');
-    await expect(pop).toContainText('Tap Share in your browser');
+    // Safari (Update 12): Share is behind •••, so three stacked steps
+    await expect(pop.locator('[data-a2hs-steps=safari]')).toContainText('Tap ••• in your browser');
+    await expect(pop).toContainText('Choose Share');
     await expect(pop).toContainText('Choose Add to Home Screen');
     await pop.getByRole('button', { name: 'Got it' }).click();
     await expect(pop).toHaveCount(0);
@@ -134,6 +136,7 @@ test('Add to Home Screen (Update 11): once a visit until Got it; Maybe later hid
 
     // iPhone Chrome, Maybe later: gone for this visit, back on the next
     await fresh(v.page, 'chrome');
+    await expect(pop.locator('[data-a2hs-steps=chrome]')).toContainText('Tap Share in your browser');
     await expect(pop).toContainText('Choose Add to Home Screen');
     await pop.getByRole('button', { name: 'Maybe later' }).click();
     await expect(pop).toHaveCount(0);
