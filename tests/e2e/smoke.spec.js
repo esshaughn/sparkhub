@@ -12,12 +12,12 @@ test('visitors land on Welcome (no tab bar there) and sign in from there', async
     await expect(welcome.getByRole('button', { name: 'Continue with Google' })).toBeVisible();
     await expect(page.getByRole('navigation', { name: 'Main' })).toHaveCount(0);   // no tab bar on Welcome
 
-    // "Continue with email": the sign-in pop-up with the email field focused
+    // "Continue with email": the sign-in pop-up with just the email field, focused (no Google button there)
     await welcome.getByRole('button', { name: 'Continue with email' }).click();
     const dialog = page.getByRole('dialog', { name: 'Sign in' });
-    await expect(dialog).toContainText('Your ideas, groups and name are saved to your account. Use Google, or we’ll email you a 6-digit code. No password.');
+    await expect(dialog).toContainText('Your ideas, groups and name are saved to your account. We’ll email you a 6-digit code. No password.');
     await expect(dialog.getByLabel('Email')).toBeFocused();
-    await expect(dialog.getByRole('button', { name: 'Continue with Google' })).toBeVisible();
+    await expect(dialog.getByRole('button', { name: 'Continue with Google' })).toHaveCount(0);
     await expect(dialog.getByRole('link', { name: 'Privacy' })).toHaveAttribute('href', '/privacy.html');
     await expect(dialog.getByRole('button', { name: 'Email me a code' })).toHaveAttribute('aria-disabled', 'true');
     await dialog.getByLabel('Email').fill('someone@example.com');

@@ -51,6 +51,8 @@ Where this doc and the design files disagree, **this doc is correct**.
 - **Feedback inbox unread** (Update 9): a note is *NEW* until the owner closes the inbox on that device (kept in the browser, `spark-hub-feedback-seen`, not the database), so another device shows it as new again. The inbox shows whoever's signed in as a `demo_admins` account (the owner), not a hard-coded email. Feedback keeps its phone notification to the owner.
 - **Send feedback row** in Profile → Settings is gone; the Help & info **Give feedback** tile replaces it. Notification settings stays in Settings → Notifications and the bell's gear.
 
+- **Welcome's two sign-in buttons (owner, 2026-09-30):** *Continue with Google* goes straight to Google (the button reads *Opening Google…*), and *Continue with email* opens the sign-in pop-up with only the email field (no Google button or OR divider; the line reads *We'll email you a 6-digit code. No password.*). Sign-in opened from anywhere else still offers both.
+
 ## 4. Designed but not built or not working
 
 - **"We'll let {Host} know"** (You're off it): nothing is sent yet. Notifications are built from what's stored, so the host just sees one fewer name on the job.

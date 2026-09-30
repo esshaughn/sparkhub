@@ -629,7 +629,7 @@
 
   const openLogin = (from, then) => setState({
     loginStep: 'email', loginFrom: from || 'default', loginThen: then || null, loginMode: 'link',
-    loginCode: '', resent: false, googleFailed: false, nameAsk: null, guestOpen: false, menu: null
+    loginCode: '', resent: false, googleFailed: false, loginEmailOnly: false, nameAsk: null, guestOpen: false, menu: null
   });
   const closeLogin = () => setState({ loginStep: null, loginCode: '', loginThen: null, googleFailed: false, busy: null });
 
@@ -1763,7 +1763,7 @@
     // Google leaves for Google straight from here, the button reading "Opening Google…" (no sign-in pop-up flashing
     // first; owner, 2026-09-30). If Google is cancelled, the return opens the pop-up anyway. Email opens the pop-up.
     const google = () => { if (st.busy) return; setState({ loginFrom: from, loginThen: then, loginMode: 'link', googleFailed: false }); googleSignIn(); };
-    const email = () => { openLogin(from, then); setTimeout(() => { const f = document.querySelector('[data-screen-label="Sign in"] input[type=email]'); if (f) f.focus(); }, 0); };
+    const email = () => { openLogin(from, then); setState({ loginEmailOnly: true }); setTimeout(() => { const f = document.querySelector('[data-screen-label="Sign in"] input[type=email]'); if (f) f.focus(); }, 0); };
     // A full-screen column: the photo behind the top, then the logo, headline and steps,
     // with the sign-in buttons anchored near the bottom of the screen
     return '<div data-screen-label="Welcome" style="position:relative;min-height:100%;display:flex;flex-direction:column;background:#0d1117;overflow:hidden">' +
@@ -5201,7 +5201,8 @@
   function viewLogin() {
     const st = state, busy = st.busy;
     if (st.loginStep === 'email') {
-      const emailOk = EMAIL_OK.test(st.loginEmail.trim()), withGoogle = GOOGLE_ON;
+      // Opened from Welcome's "Continue with email": just the email field (owner, 2026-09-30)
+      const emailOk = EMAIL_OK.test(st.loginEmail.trim()), withGoogle = GOOGLE_ON && !st.loginEmailOnly;
       const lead = { post: 'Sign in to put your idea up. ', guest: 'Your name fills in, and everything you add is saved to your account. ', join: 'Sign in to join a group. ' }[st.loginFrom] ||
         'Your ideas, groups and name are saved to your account. ';
       return modal('Sign in', closeLogin,
