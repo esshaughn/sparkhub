@@ -403,7 +403,7 @@
     interested: interests.filter(i => i.spark_id === row.id).sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at)).map(i => i.user_id),
     interestAt: interests.filter(i => i.spark_id === row.id).reduce((m, i) => { m[i.user_id] = Date.parse(i.created_at); return m; }, {}),
     contacts: contacts.filter(c => c.spark_id === row.id),
-    demo: !!row.demo,   // seeded demo content; never shown, only counted for the owner's wipe
+    demo: !!row.demo,   // seeded demo content: a DEMO pill before its title (demoTag), and counted for the owner's wipe
     planned: !!row.planned, visibility: row.visibility || 'group', autoRemind: row.auto_remind !== false, minPeople: row.min_people || null,
     rsvps: (x.rsvps[row.id] || []).map(r => ({ userId: r.user_id, status: r.status, created: Date.parse(r.created_at) })),
     dateOpts: (x.dateOpts[row.id] || []).map(o => ({ id: o.id, dayDate: o.day_date, dayTime: o.day_time ? String(o.day_time).slice(0, 5) : null, who: o.who, createdBy: o.created_by, created: Date.parse(o.created_at), votes: (x.dateVotes[o.id] || []).map(v => v.user_id) })),
@@ -2082,8 +2082,8 @@
   // Hosting (v6 Update 8, 77a): compact rows in four sections — Drafts, Ideas, Planning, Past
   const IMG_IC = '<rect x="3.5" y="5" width="17" height="14" rx="2.5"/><path d="m4 17 5-5 4 4 2.5-2.5L20 17"/>';
   const MUTED = ';filter:saturate(.35);opacity:.85';
-  const hostRow = (thumb, title, line, ink, fn, attr) => '<div ' + on(fn) + ' ' + attr + ' class="hov-host" style="display:flex;align-items:center;gap:10px;min-height:52px;padding:6px 14px 6px 10px;cursor:pointer;box-sizing:border-box">' + thumb +
-    '<div style="flex:1 1 0;min-width:0"><div style="font-size:15px;line-height:1.2;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(title) + '</div>' +
+  const hostRow = (thumb, title, line, ink, fn, attr, s) => '<div ' + on(fn) + ' ' + attr + ' class="hov-host" style="display:flex;align-items:center;gap:10px;min-height:52px;padding:6px 14px 6px 10px;cursor:pointer;box-sizing:border-box">' + thumb +
+    '<div style="flex:1 1 0;min-width:0"><div style="font-size:15px;line-height:1.2;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + demoTag(s, false) + esc(title) + '</div>' +
       '<div style="font-size:12.5px;font-weight:600;color:' + (ink || '#6b7280') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(line) + '</div></div>' +
     I.chevR(12, '#b9bcc4', 3) + '</div>';
   const hostThumb = (css, dim) => '<span aria-hidden="true" style="flex:0 0 32px;width:32px;height:32px;border-radius:7px;background:' + css + (dim ? MUTED : '') + '"></span>';
@@ -2111,7 +2111,7 @@
     const past = mine.filter(s => phaseOf(s) === 'done').sort((a, b) => byWhen(b, a));
     const sec = (label, rows) => rows.length ? '<section aria-label="' + label + '" style="display:flex;flex-direction:column;gap:8px"><h2 style="margin:0;padding:6px 6px 0;font-size:12px;font-weight:900;letter-spacing:.9px;text-transform:uppercase;color:#6b7280">' + label + ' · ' + rows.length + '</h2>' +
       '<div class="host-card" style="background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 1px 2px rgba(15,18,25,.06)">' + rows.join('') + '</div></section>' : '';
-    const ev = (s, line, ink, dim) => hostRow(hostThumb(photoBg(s), dim), s.text, line, ink, () => openSpark(s), 'data-host="' + esc(s.text) + '" aria-label="' + esc(s.text) + '"');
+    const ev = (s, line, ink, dim) => hostRow(hostThumb(photoBg(s), dim), s.text, line, ink, () => openSpark(s), 'data-host="' + esc(s.text) + '" aria-label="' + esc(s.text) + '"', s);
     const body = sec('Drafts', drafts.map(d => {
         const x = draftState(d), j = x.evStep === 'review' ? 5 : Math.max(0, EV_STEPS.indexOf(x.evStep)), t = cleanTitle(x.activity) || 'Untitled event';
         const thumb = x.evPhotoPath ? hostThumb('#2b303a ' + bg(photoUrl(x.evPhotoPath)), true)
@@ -2305,12 +2305,16 @@
     '</div>';
   };
 
+  // Seeded demo content gets a small DEMO pill before its title (owner, 2026-09-30): pilot members joined to a demo
+  // group shouldn't mistake it for real plans. Translucent white on photos, gray on white.
+  const demoTag = (s, onPhoto) => !s || !s.demo ? '' : '<span data-demo-tag style="display:inline-block;vertical-align:.15em;margin-right:7px;padding:2px 7px;border-radius:999px;font-size:10.5px;line-height:1.3;font-weight:900;letter-spacing:.8px;text-shadow:none;' +
+    (onPhoto ? 'background:rgba(255,255,255,.24);color:#fff;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)' : 'background:#eef0f3;color:#6b7280') + '">DEMO</span>';
   // A photo banner: title (up to two lines, growing upward) and the date line, with a chevron
   const banner6 = (s, R, h) => '<div style="position:relative;height:' + (h || 92) + 'px;background:' + photoBg(s) + '">' +
     '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.94) 0%, rgba(13,17,23,.55) 60%, rgba(13,17,23,.3) 100%)"></div>' +
     '<span aria-hidden="true" style="position:absolute;right:10px;top:0;bottom:0;display:flex;align-items:center;opacity:.85">' + I.chevR(22, '#fff', 2.6) + '</span>' +
     '<div style="position:absolute;left:14px;right:40px;bottom:11px;display:flex;flex-direction:column;gap:3px;color:#fff">' +
-      '<div style="font-size:18px;line-height:1.15;font-weight:900;letter-spacing:-.3px;text-wrap:balance;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">' + esc(s.text) + '</div>' +
+      '<div style="font-size:18px;line-height:1.15;font-weight:900;letter-spacing:-.3px;text-wrap:balance;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">' + demoTag(s, true) + esc(s.text) + '</div>' +
       '<div style="font-size:11px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;color:' + (s.planned && !s.dayDate ? TBD_ON_PHOTO : R.kick) + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(when6(s)) + '</div>' +
     '</div></div>';
 
@@ -2467,7 +2471,7 @@
         (cal && g ? '<span style="position:absolute;top:10px;left:10px;display:flex;align-items:center;height:24px;padding:0 9px;border-radius:999px;background:rgba(13,17,23,.4);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);font-size:11.5px;font-weight:800;color:#fff">' + esc(groupsLabel(s)) + '</span>' : '') +
         '<div style="position:absolute;left:16px;right:16px;bottom:14px;color:#fff;display:flex;flex-direction:column;gap:3px">' +
           '<div style="font-size:13px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;color:' + (!s.dayDate ? TBD_ON_PHOTO : P.k === 'open' ? '#dfe2e8' : P.R.kick) + '">' + esc(when6(s)) + '</div>' +
-          '<div style="font-size:25px;line-height:1.05;font-weight:900;letter-spacing:-.6px;text-wrap:balance">' + esc(s.text) + '</div>' +
+          '<div style="font-size:25px;line-height:1.05;font-weight:900;letter-spacing:-.6px;text-wrap:balance">' + demoTag(s, true) + esc(s.text) + '</div>' +
           '<div style="display:flex;align-items:center;gap:5px;font-size:14.5px;font-weight:700;color:rgba(255,255,255,.9);min-width:0">' + ic6('pin', 14, 'currentColor', 2.3) + '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (s.spot ? esc(s.spot) : tbdSpan(spotTbd(s), TBD_ON_PHOTO)) + '</span></div>' +
         '</div></div>' + strip6(s, P, 40, cal) + '</div>';
   };
@@ -2479,7 +2483,7 @@
         '<div style="flex:0 0 40px;display:flex;flex-direction:column;align-items:center">' + (dp ? '<span style="font-size:10.5px;font-weight:900;letter-spacing:.6px;color:#6b7280">' + dp.dow + '</span><span style="font-size:20px;line-height:1.1;font-weight:900;color:#0d1117">' + dp.day + '</span>'
           : '<span style="font-size:10.5px;font-weight:900;letter-spacing:.6px;color:#8f6405">TBD</span><span style="font-size:20px;line-height:1.1;font-weight:900;color:#8f6405">?</span>') + '</div>' +
         '<span aria-hidden="true" style="flex:0 0 3px;align-self:stretch;border-radius:999px;background:' + P.R.dot + '"></span>' +
-        '<div style="flex:1;min-width:0"><div style="font-size:15px;line-height:1.3;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(s.text) + '</div>' +
+        '<div style="flex:1;min-width:0"><div style="font-size:15px;line-height:1.3;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + demoTag(s, false) + esc(s.text) + '</div>' +
           '<div style="font-size:12.5px;font-weight:600;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + [s.dayDate ? esc(fmtTime(s.dayTime)) : tbdSpan(dateTbd(s)), s.spot ? esc(cal || thumb ? street(s) : s.spot) : tbdSpan(spotTbd(s))].filter(Boolean).join(' · ') + '</div></div>' +
         (cal || thumb ? '<span aria-hidden="true" style="flex:0 0 44px;width:44px;height:44px;border-radius:10px;background:' + photoBg(s) + '"></span>' : I.chevR(16, '#b9bcc4', 2.6)) +
       '</div>' + strip6(s, P, 28, cal) + '</div>';
@@ -2494,7 +2498,7 @@
         '<span style="position:absolute;top:12px;right:14px;display:flex;align-items:center;height:24px;padding:0 10px;border-radius:999px;background:rgba(13,17,23,.4);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff;font-size:11.5px;font-weight:800">' + when + '</span>' +
         '<div style="position:absolute;left:16px;right:16px;bottom:14px;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.3)">' +
           '<div style="font-size:13px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;color:' + (P.k === 'lead' ? R6.lead.kick : R6.go.kick) + '">' + esc(when6(s)) + '</div>' +
-          '<div style="margin-top:3px;font-size:25px;line-height:1.1;font-weight:900;letter-spacing:-.6px;text-wrap:balance">' + esc(s.text) + '</div>' +
+          '<div style="margin-top:3px;font-size:25px;line-height:1.1;font-weight:900;letter-spacing:-.6px;text-wrap:balance">' + demoTag(s, true) + esc(s.text) + '</div>' +
           '<div style="margin-top:6px;display:flex;align-items:center;gap:6px;font-size:14.5px;font-weight:700;color:rgba(255,255,255,.9);min-width:0">' + ic6('pin', 13, 'currentColor', 2.6) + '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (s.spot ? esc(s.spot) : tbdSpan(spotTbd(s), TBD_ON_PHOTO)) + '</span></div>' +
         '</div></div>' +
       '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;height:40px;padding:0 14px;background:' + P.R.strip + ';font-size:13.5px;font-weight:800;color:' + P.R.ink + '"><span>' + P.word + '</span>' +
@@ -2791,7 +2795,7 @@
         '<div ' + on(() => openSpark(s)) + ' style="display:flex;align-items:center;gap:12px;padding:12px 14px;cursor:pointer">' +
           '<div style="flex:0 0 40px;display:flex;flex-direction:column;align-items:center"><span style="font-size:10.5px;font-weight:900;letter-spacing:.6px;color:#6b7280">' + dp.dow + '</span><span style="font-size:20px;line-height:1.1;font-weight:900;color:#0d1117">' + dp.day + '</span></div>' +
           '<span aria-hidden="true" style="flex:0 0 3px;align-self:stretch;border-radius:999px;background:#e8a71c"></span>' +
-          '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(s.text) + '</div>' +
+          '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + demoTag(s, false) + esc(s.text) + '</div>' +
             '<div style="font-size:12.5px;font-weight:600;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + [esc(fmtTime(s.dayTime)), s.spot ? esc(s.spot) : tbdSpan(spotTbd(s))].filter(Boolean).join(' · ') + '</div></div>' +
           I.chevR(16, '#b9bcc4', 2.6) + '</div>' +
         rows.map(it => {
@@ -2844,7 +2848,7 @@
     '<span ' + on(close) + ' style="flex:0 0 auto;font-size:14.5px;font-weight:800;color:#454b55;cursor:pointer">Cancel</span></div>';
   const searchRow = (s, sub) => '<div ' + on(() => openSpark(s)) + ' data-result="' + esc(s.text) + '" style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:14px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
     '<span aria-hidden="true" style="flex:0 0 40px;width:40px;height:40px;border-radius:10px;background:' + photoBg(s) + '"></span>' +
-    '<div style="flex:1;min-width:0"><div style="font-size:14.5px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(s.text) + '</div>' +
+    '<div style="flex:1;min-width:0"><div style="font-size:14.5px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + demoTag(s, false) + esc(s.text) + '</div>' +
       '<div style="font-size:12.5px;font-weight:600;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(sub) + '</div></div>' + I.chevR(14, '#b9bcc4', 2.6) + '</div>';
   const rnd6 = (a) => a.length ? a[Math.floor(Math.random() * a.length)] : null;
   function viewSearch() {
@@ -3363,7 +3367,7 @@
         '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.9) 0%, rgba(13,17,23,.6) 28%, rgba(13,17,23,0) 55%)"></div>' +
         '<span aria-label="' + n + ' interested" style="position:absolute;top:6px;right:6px;display:flex;align-items:center;gap:3px;height:24px;padding:0 8px 0 6px;border-radius:999px;background:rgba(255,255,255,.92);box-shadow:0 1px 4px rgba(13,17,23,.2);font-size:12.5px;font-weight:900;color:#8f6405">' + svg(12, stroke('currentColor', 3), '<path d="M12 19V6M6 11.5 12 5.5l6 6"/>') + n + '</span>' +
         '<span aria-hidden="true" style="position:absolute;right:4px;top:0;bottom:0;display:flex;align-items:center;opacity:.9;filter:drop-shadow(0 1px 3px rgba(0,0,0,.4))">' + I.chevR(20, '#fff', 2.6) + '</span>' +
-        '<div style="position:absolute;left:9px;right:26px;bottom:8px;font-size:14.5px;line-height:1.15;font-weight:900;color:#fff;text-wrap:balance">' + esc(s.text) + '</div></div>' +
+        '<div style="position:absolute;left:9px;right:26px;bottom:8px;font-size:14.5px;line-height:1.15;font-weight:900;color:#fff;text-wrap:balance">' + demoTag(s, true) + esc(s.text) + '</div></div>' +
       '<span style="display:flex;align-items:center;padding:8px 0 0">' + ideaSteps6(s).map((st, i) => '<span aria-label="' + st.label + ': ' + (st.p >= 1 ? st.done : st.todo) + '" style="flex:1;height:22px;display:flex;align-items:center;justify-content:center;' + (i ? 'border-left:1px solid #dcdfe4' : '') + '">' + ic6(st.icon, 15, st.p >= 1 ? '#149a4b' : '#b07a0a', 2.3) + '</span>').join('') + '</span></div>';
   };
   const ideaBoard6 = (ideas) => {
@@ -3410,7 +3414,7 @@
           '<span style="position:relative;display:flex">' + I.photo(22, '#5b4ae8', 2.1) + '<span style="position:absolute;right:-6px;bottom:-5px;width:14px;height:14px;border-radius:999px;background:#5b4ae8;border:1.5px solid #fff;display:flex;align-items:center;justify-content:center">' + I.plus(8, '#fff', 4.5) + '</span></span>' +
           '<input type="file" accept="image/*" ' + onInput(e => { if (e.type !== 'change') return; const f = (e.target.files || [])[0]; e.target.value = ''; if (f) addAlbumPhoto(s, f); }) + ' style="display:none"></label>' +
         '<span style="position:absolute;top:10px;right:10px;display:flex;align-items:center;gap:5px;height:34px;padding:0 13px 0 10px;border-radius:999px;background:linear-gradient(135deg,' + WENT6[(i || 0) % 5] + ');color:#fff;font-size:14.5px;font-weight:900;transform:rotate(4deg);box-shadow:0 3px 8px rgba(0,0,0,.25)"><span style="font-size:17px">🎉</span>' + n + ' went!</span>' +
-        '<div style="position:absolute;left:12px;bottom:10px;right:56px;color:#fff"><div style="font-size:24px;line-height:1.1;font-weight:900;letter-spacing:-.5px;text-wrap:balance">' + esc(s.text) + '</div></div>' +
+        '<div style="position:absolute;left:12px;bottom:10px;right:56px;color:#fff"><div style="font-size:24px;line-height:1.1;font-weight:900;letter-spacing:-.5px;text-wrap:balance">' + demoTag(s, true) + esc(s.text) + '</div></div>' +
       '</div>' +
       '<div style="padding:10px 12px 12px;display:flex;flex-direction:column;gap:10px">' +
         '<div ' + on(() => openSpark(s)) + ' aria-label="Made it happen: ' + esc(lead) + ', ' + thanks + ' thanks" style="position:relative;display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;background:linear-gradient(135deg,#f1edff,#e0d8ff);overflow:hidden;cursor:pointer">' +
@@ -3704,8 +3708,8 @@
       '<div style="position:relative;margin-top:-28px;background:#fff;border-radius:26px 26px 0 0;padding:22px 20px 20px;display:flex;flex-direction:column;gap:12px">' +
         ideaBanner(s) +
         (canEdit(s)
-          ? '<h1 ' + on(() => openSec(s, 'title')) + ' aria-label="' + esc(s.text) + ', edit the title" style="margin:0;font-size:30px;line-height:1.08;font-weight:900;letter-spacing:-.8px;color:#0d1117;text-wrap:pretty;cursor:pointer">' + esc(s.text) + svg(18, stroke('#6b7280', 2.4) + ' style="display:inline-block;margin-left:8px;vertical-align:2px"', PENCIL) + '</h1>'
-          : '<h1 style="margin:0;font-size:30px;line-height:1.08;font-weight:900;letter-spacing:-.8px;color:#0d1117;text-wrap:pretty">' + esc(s.text) + '</h1>') +
+          ? '<h1 ' + on(() => openSec(s, 'title')) + ' aria-label="' + esc(s.text) + ', edit the title" style="margin:0;font-size:30px;line-height:1.08;font-weight:900;letter-spacing:-.8px;color:#0d1117;text-wrap:pretty;cursor:pointer">' + demoTag(s, false) + esc(s.text) + svg(18, stroke('#6b7280', 2.4) + ' style="display:inline-block;margin-left:8px;vertical-align:2px"', PENCIL) + '</h1>'
+          : '<h1 style="margin:0;font-size:30px;line-height:1.08;font-weight:900;letter-spacing:-.8px;color:#0d1117;text-wrap:pretty">' + demoTag(s, false) + esc(s.text) + '</h1>') +
         '<div id="sec-people" style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;color:#454b55">' +
           face(s.leadId, leadName, 26) +
           '<span style="flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Led by ' + esc(leadName) + '</span>' +
@@ -4398,8 +4402,8 @@
           '<div style="display:flex;gap:6px;flex-wrap:wrap"><span data-chip style="display:flex;align-items:center;gap:6px;border-radius:999px;padding:5px 11px;background:' + (lead ? '#5b4ae8' : '#149a4b') + ';font-size:12px;font-weight:900;letter-spacing:.9px">' + (lead ? 'YOU’RE LEADING' : 'HAPPENING') + '</span>' +
             (s.visibility === 'invite' ? '<span style="display:flex;align-items:center;gap:5px;border-radius:999px;padding:5px 11px;background:rgba(255,255,255,.22);font-size:12px;font-weight:900;letter-spacing:.9px">' + svg(11, stroke('#fff', 2.6), '<rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>') + 'PRIVATE</span>' : '') + '</div>' +
           (edit
-            ? '<h1 ' + on(() => openSec(s, 'title'), 'button') + ' aria-label="' + esc(s.text) + ', edit the title" style="margin:0;font-size:40px;line-height:.98;font-weight:900;letter-spacing:-1.3px;text-wrap:pretty;cursor:pointer">' + esc(s.text) + svg(20, stroke('#fff', 2.4) + ' style="display:inline-block;margin-left:8px;vertical-align:4px;opacity:.85"', PENCIL) + '</h1>'
-            : '<h1 style="margin:0;font-size:40px;line-height:.98;font-weight:900;letter-spacing:-1.3px;text-wrap:pretty">' + esc(s.text) + '</h1>') + '</div>' +
+            ? '<h1 ' + on(() => openSec(s, 'title'), 'button') + ' aria-label="' + esc(s.text) + ', edit the title" style="margin:0;font-size:40px;line-height:.98;font-weight:900;letter-spacing:-1.3px;text-wrap:pretty;cursor:pointer">' + demoTag(s, true) + esc(s.text) + svg(20, stroke('#fff', 2.4) + ' style="display:inline-block;margin-left:8px;vertical-align:4px;opacity:.85"', PENCIL) + '</h1>'
+            : '<h1 style="margin:0;font-size:40px;line-height:.98;font-weight:900;letter-spacing:-1.3px;text-wrap:pretty">' + demoTag(s, true) + esc(s.text) + '</h1>') + '</div>' +
           (s.dayDate ? '<span aria-label="' + esc(fmtDay(s.dayDate)) + '" style="flex:0 0 70px;width:70px;border-radius:14px;overflow:hidden;text-align:center;background:#fff;box-shadow:0 8px 20px rgba(0,0,0,.3);transform:rotate(4deg)"><span style="display:block;background:#149a4b;color:#fff;font-size:11.5px;font-weight:900;letter-spacing:1px;padding:3px 0">' + dp.mon + '</span><span style="display:block;font-size:32px;line-height:1.15;font-weight:900;color:#0d1117">' + dp.day + '</span><span style="display:block;padding-bottom:5px;font-size:11px;font-weight:800;color:#6b7280">' + dp.dow + '</span></span>' : '') +
         '</div>', true) +
       tab +
@@ -4436,7 +4440,7 @@
       phaseHeader(s, 300, 'linear-gradient(to bottom, rgba(13,17,23,.4), rgba(13,17,23,0) 30%, rgba(34,25,110,.92) 100%)',
         '<span aria-hidden="true" style="position:absolute;top:calc(66px + var(--pt));right:18px;display:flex;align-items:center;min-height:36px;padding:0 14px 0 44px;border-radius:999px;background:#5b4ae8;transform:rotate(-8deg);font-size:15px;font-weight:900;color:#fff;box-shadow:0 6px 16px rgba(15,18,25,.3)"><span style="position:absolute;left:-10px;top:50%;transform:translateY(-55%) rotate(-10deg);font-size:46px;line-height:1">🥳</span>It happened!</span>' +
         '<div style="position:absolute;left:20px;right:20px;bottom:18px;color:#fff"><div style="font-size:13px;font-weight:900;letter-spacing:1.2px;color:#cfc9ff">' + dp.dow + ', ' + dp.md + ' · ' + n + ' WENT</div>' +
-          '<h1 style="margin:6px 0 0;font-size:32px;line-height:1.02;font-weight:900;letter-spacing:-1px;text-wrap:pretty">' + esc(s.text) + '</h1></div>') +
+          '<h1 style="margin:6px 0 0;font-size:32px;line-height:1.02;font-weight:900;letter-spacing:-1px;text-wrap:pretty">' + demoTag(s, false) + esc(s.text) + '</h1></div>') +
       '<div style="padding:14px 14px 26px;display:flex;flex-direction:column;gap:12px">' +
         '<div style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:10px">' +
           eyebrowRow('The album' + (album.length ? ' · ' + album.length : ''),

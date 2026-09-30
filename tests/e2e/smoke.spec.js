@@ -282,6 +282,20 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
     await expect(cal.getByRole('button', { name: 'Groups: All groups' })).toBeVisible();
     await expect(cal.getByRole('button', { name: 'Type of event: All types' })).toBeVisible();
     await expect(cal.locator(`[data-plan="${PLAN}"]`)).toContainText('Change RSVP');
+    await expect(cal.locator(`[data-plan="${PLAN}"] [data-demo-tag]`)).toHaveCount(0);   // real events: no DEMO pill
+    // Seeded demo content gets a DEMO pill before its title (clients can't set the flag, so fake it in the response)
+    const flagDemo = async (r) => {
+      if (r.request().method() !== 'GET') return r.continue();
+      const res = await r.fetch(), rows = await res.json();
+      rows.forEach(x => { if (x.text === PLAN) x.demo = true; });
+      r.fulfill({ response: res, json: rows });
+    };
+    await context.route(/\/rest\/v1\/sparks\?/, flagDemo);
+    await page.reload();
+    await expect(cal.locator(`[data-plan="${PLAN}"] [data-demo-tag]`)).toHaveText('DEMO');
+    await context.unroute(/\/rest\/v1\/sparks\?/, flagDemo);
+    await page.reload();
+    await expect(cal.locator(`[data-plan="${PLAN}"]`)).toContainText('Change RSVP');
     await cal.getByRole('button', { name: /^Sort: / }).click();
     await page.getByRole('menu', { name: 'Sort' }).getByRole('button', { name: 'Needs you' }).click();
     await expect(cal.getByRole('heading', { name: 'Could use a hand' }).or(cal.getByRole('heading', { name: 'All covered' })).first()).toBeVisible();
