@@ -127,13 +127,19 @@ test('a group end to end: edit group, cover, rename, invite, pin, admin edits, r
     await expect(A.locator('[data-screen-label=Browse]')).not.toContainText('moved indoors');
     ideaId = null;
 
-    // All ideas → Edit (admins) → Members: Bo becomes an admin, then a second owner
+    // All ideas → Edit (admins) → Members: a row's chevron opens a short profile (email, joined) and actions;
+    // Bo becomes an admin, then a second owner
     await A.locator('[data-screen-label=Browse]').getByRole('button', { name: 'Edit group' }).click();
     await expect(gp).toContainText('2 members');
     await gp.getByRole('button', { name: 'See all members' }).click();
     const members = A.getByRole('dialog', { name: 'Members' });
     const bo = members.locator('[data-member="Bo"]');
     await expect(members.locator('[data-member="Ada"]')).toContainText('(you)');
+    await expect(bo.locator('[data-member-panel]')).toHaveCount(0);
+    await bo.getByRole('button', { name: 'Bo', exact: true }).click();
+    await expect(bo.locator('[data-member-panel]')).toContainText(/Email.*@example\.com/);
+    await expect(bo.locator('[data-member-panel]')).toContainText('Joined ');
+    await expect(bo.getByRole('button', { name: 'Remove from group' })).toBeVisible();
     await bo.getByRole('button', { name: 'Make admin' }).click();
     await expect(A.getByText('Bo is now an admin')).toBeVisible();
     await expect(bo).toContainText('Admin');
@@ -154,10 +160,11 @@ test('a group end to end: edit group, cover, rename, invite, pin, admin edits, r
     await B.locator('[data-screen-label=Browse]').getByRole('button', { name: 'Edit group' }).click();
     await B.getByRole('button', { name: 'See all members' }).click();
     const ada = B.getByRole('dialog', { name: 'Members' }).locator('[data-member="Ada"]');
-    await ada.getByRole('button', { name: 'Remove' }).click();
+    await ada.getByRole('button', { name: 'Ada', exact: true }).click();
+    await ada.getByRole('button', { name: 'Remove as owner' }).click();
     await confirm(B, 'Remove as owner');
     await expect(B.getByText('Ada is no longer an owner')).toBeVisible();
-    await ada.getByRole('button', { name: 'Remove' }).click();
+    await ada.getByRole('button', { name: 'Remove as admin' }).click();
     await expect(B.getByText('Ada is no longer an admin')).toBeVisible();
 
     // Ada is a plain member now: no badge, no Edit link
@@ -168,12 +175,19 @@ test('a group end to end: edit group, cover, rename, invite, pin, admin edits, r
     await A.locator('[data-screen-label=Groups]').getByRole('button', { name: groupName, exact: true }).click();
     await expect(A.locator('[data-screen-label=Browse]').getByRole('button', { name: 'Edit group' })).toHaveCount(0);
 
+    // Bo removes Ada from the group; the database agrees she's gone
+    await ada.getByRole('button', { name: 'Remove from group' }).click();
+    await confirm(B, 'Remove');
+    await expect(B.getByText('Ada was removed')).toBeVisible();
+    await expect(ada).toHaveCount(0);
+    await expect.poll(() => asUser(A, async (c, _C, id) => (await c.from('memberships').select('group_id').eq('group_id', id)).data.length, g.id)).toBe(0);
+
     // Bo deletes the group: type DELETE
     await B.getByRole('dialog', { name: 'Members' }).getByRole('button', { name: 'Close' }).click();
     await B.locator('[data-screen-label="Edit group"]').getByRole('button', { name: 'Delete group' }).click();
     const del = B.getByRole('dialog', { name: 'Delete group' });
     await expect(del.getByRole('heading')).toHaveText('Delete ' + groupName + '?');
-    await expect(del).toContainText('for all 2 members');
+    await expect(del).toContainText('for its 1 member');
     await expect(del.getByRole('button', { name: 'Delete group' })).toHaveAttribute('aria-disabled', 'true');
     await del.getByLabel('Type DELETE to confirm').fill('delete');
     await expect(del.getByLabel('Type DELETE to confirm')).toHaveValue('DELETE');

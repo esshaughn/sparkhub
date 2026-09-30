@@ -750,7 +750,7 @@
   };
   const openMembers = () => setState({ membersOpen: state.gpId, membersQ: '' });
 
-  // Owners set roles (two owners at most, never none); admins see the list
+  // Owners set roles (five owners at most, never none); admins see the list
   const setRole = (g, m, role) => {
     if (role === m.role || state.busy) return;
     const first = firstName(m.name) || m.name;
@@ -762,10 +762,20 @@
     }, { confirm: null }).then(ok => { if (ok) toast(m.user_id === state.me ? 'You’re ' + (role === 'admin' ? 'an admin' : 'a member') + ' now' : note, true); });
     const me = m.user_id === state.me;
     if (role === 'owner') {
-      setState({ confirm: { title: 'Make ' + first + ' an owner?', body: 'Owners can do everything admins can, and choose who the admins and owners are. They could also take the owner role away from you. A group can have two owners.', cta: 'Make them an owner', keep: 'Cancel', run: apply } });
+      setState({ confirm: { title: 'Make ' + first + ' an owner?', body: 'Owners can do everything admins can, and choose who the admins and owners are. They could also take the owner role away from you. A group can have up to five owners.', cta: 'Make them an owner', keep: 'Cancel', run: apply } });
     } else if (m.role === 'owner') {
       setState({ confirm: { title: me ? 'Step down as owner?' : 'Remove ' + first + ' as owner?', body: me ? 'You’ll be an admin and can’t change roles any more.' : first + ' will be an admin.', cta: me ? 'Step down' : 'Remove as owner', keep: 'Cancel', danger: true, run: apply } });
     } else apply();
+  };
+
+  // Admins remove members; owners also remove admins and other owners (remove_member() checks)
+  const removeMember = (g, m) => {
+    const first = firstName(m.name) || m.name;
+    setState({ confirm: { title: 'Remove ' + first + ' from ' + g.name + '?', body: 'They won’t see the group’s plans and ideas any more. Their events and replies stay. They can rejoin with the group’s link.', cta: 'Remove', keep: 'Cancel', danger: true,
+      run: () => run(async () => {
+        must(await sb.rpc('remove_member', { p_group: g.id, p_user: m.user_id }));
+        await loadMembers(g.id);
+      }, { confirm: null, memberOpen: null }).then(ok => { if (ok) toast(first + ' was removed', true); }) } });
   };
 
   const saveRename = async (g) => {
@@ -5348,22 +5358,43 @@
 
   // Members of a group you run. Owners (up to two) set roles; admins see them
   function viewMembers() {
-    const st = state, g = groupById(st.membersOpen), close = () => setState({ membersOpen: null, membersQ: '' });
+    const st = state, g = groupById(st.membersOpen), close = () => setState({ membersOpen: null, membersQ: '', memberOpen: null });
     if (!runs(g)) return '';
     const owner = g.role === 'owner', list = st.membersList || [], owners = list.filter(m => m.role === 'owner').length;
     const q = st.membersQ.trim().toLowerCase();
     const rows = list.filter(m => m.user_id === st.me).concat(list.filter(m => m.user_id !== st.me)).filter(m => !q || m.name.toLowerCase().includes(q));
     const chip = (role) => role === 'member' ? '' : roleBadge(role, 'padding:3px 9px');
-    const textBtn = (label, fn) => '<span ' + on(fn) + ' style="flex:0 0 auto;display:flex;align-items:center;min-height:36px;padding:0 4px;font-size:13.5px;font-weight:700;color:#6b7280;cursor:pointer">' + label + '</span>';
-    const pill = (label, fn) => '<span ' + on(fn) + ' class="hov-outline" style="flex:0 0 auto;display:flex;align-items:center;min-height:34px;padding:0 12px;border:1.5px solid #dcdfe6;border-radius:999px;font-size:13.5px;font-weight:800;color:#0d1117;cursor:pointer">' + label + '</span>';
+    const pill = (label, fn) => '<span ' + on(fn) + ' class="hov-outline" style="flex:0 0 auto;display:flex;align-items:center;min-height:36px;padding:0 14px;border:1.5px solid #dcdfe6;border-radius:999px;background:#fff;font-size:13.5px;font-weight:800;color:#0d1117;cursor:pointer">' + label + '</span>';
+    const redBtn = (label, fn) => '<span ' + on(fn) + ' class="hov-danger" style="flex:0 0 auto;display:flex;align-items:center;min-height:36px;padding:0 14px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #f3c4cc;font-size:13.5px;font-weight:800;color:#c2334a;cursor:pointer">' + label + '</span>';
+    // What the viewer may do: owners change roles (up to five owners, never none); admins remove members, owners anyone but themselves
     const actions = (m) => {
-      if (!owner) return '';
-      const mine = m.user_id === st.me;
-      if (m.role === 'member') return pill('Make admin', () => setRole(g, m, 'admin'));
-      if (m.role === 'admin') return (owners < 2 ? pill('Make owner', () => setRole(g, m, 'owner')) : '') + textBtn('Remove', () => setRole(g, m, 'member'));
-      if (m.role === 'owner' && owners > 1) return textBtn(mine ? 'Step down' : 'Remove', () => setRole(g, m, 'admin'));
-      return '';
+      const mine = m.user_id === st.me, out = [];
+      if (owner && !mine) {
+        if (m.role === 'member') out.push(pill('Make admin', () => setRole(g, m, 'admin')));
+        if (m.role !== 'owner' && owners < 5) out.push(pill('Make owner', () => setRole(g, m, 'owner')));
+        if (m.role === 'admin') out.push(pill('Remove as admin', () => setRole(g, m, 'member')));
+        if (m.role === 'owner') out.push(pill('Remove as owner', () => setRole(g, m, 'admin')));
+      }
+      if (owner && mine && owners > 1) out.push(pill('Step down as owner', () => setRole(g, m, 'admin')));
+      if (!mine && (owner || m.role === 'member')) out.push(redBtn('Remove from group', () => removeMember(g, m)));
+      return out.join('');
     };
+    const joined = (t) => t ? new Date(t).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '';
+    const panel = (m) => '<div data-member-panel style="margin:0 6px 10px;padding:12px 14px;border-radius:14px;background:#f7f7f9;display:flex;flex-direction:column;gap:10px">' +
+      '<div style="display:flex;flex-direction:column;gap:3px;font-size:14px;font-weight:600;color:#454b55">' +
+        '<div style="display:flex;align-items:center;gap:8px;min-width:0"><span style="flex:0 0 auto;font-size:12px;font-weight:900;letter-spacing:.6px;text-transform:uppercase;color:#8a909b">Email</span>' +
+          (m.email ? '<a href="mailto:' + esc(m.email) + '" style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#4a3ad4;font-weight:700;text-decoration:none">' + esc(m.email) + '</a>' : '<span style="color:#8a909b">Not shared</span>') + '</div>' +
+        (m.joined_at ? '<div style="font-size:13px;color:#6b7280">Joined ' + esc(joined(m.joined_at)) + '</div>' : '') + '</div>' +
+      (actions(m) ? '<div style="display:flex;flex-wrap:wrap;gap:8px">' + actions(m) + '</div>' : '') + '</div>';
+    const row = (m) => { const open = st.memberOpen === m.user_id;
+      return '<div data-member="' + esc(m.name) + '" style="border-bottom:1px solid #f2f3f6">' +
+        '<div ' + on(() => setState({ memberOpen: open ? null : m.user_id })) + ' aria-expanded="' + open + '" aria-label="' + esc(m.name) + (m.user_id === st.me ? ' (you)' : '') + '" style="display:flex;align-items:center;gap:12px;min-height:58px;padding:6px;cursor:pointer">' +
+          memberFace(m, 40) +
+          '<div style="flex:1;min-width:0;display:flex;align-items:center;gap:6px"><span style="font-size:16px;font-weight:700;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(m.name) + '</span>' +
+            (m.user_id === st.me ? '<span style="font-size:14px;font-weight:600;color:#8a909b">(you)</span>' : '') + '</div>' +
+          chip(m.role) +
+          '<span aria-hidden="true" style="flex:0 0 auto;display:flex;transition:transform .15s;transform:' + (open ? 'rotate(180deg)' : 'none') + '">' + I.chevD(14, '#9aa0ac', 2.8) + '</span>' +
+        '</div>' + (open ? panel(m) : '') + '</div>'; };
     return sheet('Members', close, 'height:84%;display:flex;flex-direction:column;padding:10px 0 0',
       '<div style="padding:0 14px">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;padding:0 6px 12px">' +
@@ -5379,12 +5410,7 @@
       '<div style="flex:1;overflow:auto;padding:0 14px 22px">' +
         (st.membersList == null
           ? '<div style="padding:28px 8px;text-align:center;font-size:15px;font-weight:600;color:#8a909b">Loading…</div>'
-          : rows.map(m => '<div data-member="' + esc(m.name) + '" style="display:flex;align-items:center;gap:12px;min-height:58px;padding:6px;border-bottom:1px solid #f2f3f6">' +
-              memberFace(m, 40) +
-              '<div style="flex:1;min-width:0;display:flex;align-items:center;gap:6px"><span style="font-size:16px;font-weight:700;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(m.name) + '</span>' +
-                (m.user_id === st.me ? '<span style="font-size:14px;font-weight:600;color:#8a909b">(you)</span>' : '') + '</div>' +
-              chip(m.role) + actions(m) +
-            '</div>').join('') +
+          : rows.map(row).join('') +
             (rows.length ? '' : '<div style="padding:28px 8px;text-align:center;font-size:15px;font-weight:600;color:#8a909b">No one by that name.</div>')) +
       '</div>');
   }
@@ -5396,7 +5422,7 @@
     const ok = st.gpDel.trim() === 'DELETE' && !st.busy;
     return modal('Delete group', close,
       h3('Delete ' + esc(g.name) + '?') +
-      para('This removes the group and every idea in it, for all ' + (st.gpMembers || 0) + ' members. It can’t be undone.') +
+      para('This removes the group and every idea in it, ' + (st.gpMembers === 1 ? 'for its 1 member' : 'for all ' + (st.gpMembers || 0) + ' members') + '. It can’t be undone.') +
       '<label style="display:flex;flex-direction:column;gap:6px"><span style="' + LABEL + '">Type <strong style="font-weight:900;color:#9b1c31">DELETE</strong> to confirm</span>' +
         '<input class="fld fld-danger" type="text" autocomplete="off" autocapitalize="characters" aria-label="Type DELETE to confirm" placeholder="DELETE" value="' + esc(st.gpDel) + '" ' +
           onInput(e => { const v = e.target.value.toUpperCase().slice(0, 12); if (e.target.value !== v) e.target.value = v; setState({ gpDel: v }); }) + ' style="' + FIELD + ';font-weight:800;letter-spacing:1px"></label>' +

@@ -35,6 +35,7 @@ Where this doc and the design files disagree, **this doc is correct**.
 - **Phone notifications (web push, owner 2026-09-29):** a card at the top of the Notifications sheet (white card, 36px lavender `#f3f1fe` circle with a purple bell): *Get these on your phone* · *We'll buzz you when a plan changes, something new goes up, or the day before you're going.* · purple **Turn on notifications** pill, and a gray ✕ (*Not now*, remembered on the device). In iPhone Safari (not installed) it reads *Get these on your iPhone* · *Add Spark Hub to your Home Screen first: tap Share, then Add to Home Screen. Open it from there and turn them on.* with no button. Notification settings gets a gray `#f4f5f7` row first: **Phone notifications** with a switch (*On / Off for this phone*), or *Blocked. Allow them for Spark Hub in your phone's Settings.* The push itself: title = the event (or *New in {group}: {event}*, *Tomorrow: {event}*), body = the same line as the in-app feed. Please design the card, the settings row and when to ask.
 - **Add to Home Screen:** now built to the invite-flow handoff's screen 5 (bottom pop-up, *STRONGLY RECOMMENDED*, steps box, **Got it** / **Maybe later**; Android: **Add to Home Screen** opens Chrome's dialog, no steps). Still invented: *when* it shows outside an invite — on **Welcome** once a visit, and once per device after signing in (it waits for other pop-ups; never in an in-app browser). After an invite's Welcome it follows 1.2s after reaching the group page. Profile → Settings keeps its **Add to Home Screen** row.
 - **Delete / remove confirms with one person:** *The 1 person going gets a note that it's off.* / *The 1 person signed up gets a note that it's off the list.* With nobody else, the note line is left out.
+- **Members sheet rows (owner, 2026-09-30):** each row ends in a gray ⌄ chevron (14px `#9aa0ac`, turns 180° open); tapping the row opens a `#f7f7f9` panel (radius 14) under it: **EMAIL** (12px/900 gray label) and the address as a purple `mailto:` link, *Joined {Month YYYY}*, then pill buttons (white, 1.5px `#dcdfe6`): **Make admin**, **Make owner**, **Remove as admin**, **Remove as owner**, **Step down as owner**, and a red-outlined **Remove from group**. Removing asks *Remove {first} from {group}?* · *They won't see the group's plans and ideas any more. Their events and replies stay. They can rejoin with the group's link.* · red **Remove**; toast *{first} was removed*. Groups can have up to five owners (was two).
 
 ## 3. Behaviour added in the build (no visual change)
 
@@ -60,13 +61,13 @@ Where this doc and the design files disagree, **this doc is correct**.
 
 ## 5. Open questions for the next round
 
-1. Everything in the README's **Open / not designed yet** list still stands (categories, first-run view for an empty group, removing members, leaving a group, Suggest vs Offer wording, first vs full names).
+1. Everything in the README's **Open / not designed yet** list still stands (categories, first-run view for an empty group, leaving a group, Suggest vs Offer wording, first vs full names).
 2. **A real invite list** (pick neighbors or the whole group) would bring back Invited on the stats strip, "haven't replied · Nudge" and "invited you" notifications — design it next? (Invites are share links today, so nothing counts them.)
 3. **Minimum people** on ideas ("How many do you need?") has no input yet, so the People checkpoint rarely completes.
 10. **Event types:** the placeholder keyword guesses are shown to people as filters; host-chosen tags (v6 open item) would replace them.
 11. **Event preview slide-up** (v6 options 13a/13b/13c) is still undecided.
 4. **Invite link 1b** (*Ana Torrez invited you · 20 members*) needs a public read of the inviter and member count by code. Worth a migration for the pilot, or leave it at 1a?
-5. **Owner controls** in the Members sheet: pill + text button per row at 393px, or a per-row menu?
+5. **Members sheet** (see §2): the build chose an expanding row. Design it properly?
 6. **Google's sign-in screen** says "continue to …supabase.co" until Spark Hub has its own sign-in domain.
 7. **Video on the vibe board** is parked (needs a ~20 s / 25 MB cap).
 8. **Spark Hub address:** gosparkhub.vercel.app for now; a custom domain may follow.
