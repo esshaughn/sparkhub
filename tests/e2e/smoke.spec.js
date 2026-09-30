@@ -162,25 +162,44 @@ test('Add to Home Screen: a pop-up on Welcome and once after signing in; Android
   }
 });
 
-test('Send feedback: a row in Profile opens a box; Send says thank you; ✕ closes it without sending', async ({ browser }) => {
+test('Give feedback (Update 9): a Help & info tile opens the sheet; Send to Eric, then Thank you; Cancel closes it; group Plans suggestions', async ({ browser }) => {
   const m = await newLead(browser, 1, 'Fern');
   try {
     const page = m.page;
     await openProfile(page);
-    await page.getByRole('dialog', { name: 'Profile', exact: true }).getByRole('button', { name: /^Send feedback/ }).click();
-    const box = page.getByRole('dialog', { name: 'Send feedback' });
-    await expect(box).toContainText('It goes straight to Eric');
-    await expect(box.getByRole('button', { name: 'Send', exact: true })).toHaveAttribute('aria-disabled', 'true');   // nothing typed yet
+    const profile = page.getByRole('dialog', { name: 'Profile', exact: true });
+    await expect(profile.getByRole('button', { name: 'Notification settings' })).toHaveCount(0);   // the tile it replaced
+    await profile.getByRole('button', { name: 'Give feedback' }).click();
+    const box = page.getByRole('dialog', { name: 'Give feedback' });
+    await expect(box).toContainText('Tell Eric what you think about the app so far');
+    await expect(box).toContainText('How useful does it feel?');
+    await expect(box.getByRole('button', { name: 'Send to Eric' })).toHaveAttribute('aria-disabled', 'true');   // nothing typed yet
     await box.getByLabel('Your feedback').fill('[E2E] The Join button was easy to find');
-    await expect(box.getByRole('button', { name: 'Send', exact: true })).toHaveAttribute('aria-disabled', 'false');
-    await box.getByRole('button', { name: 'Send', exact: true }).click();
-    await expect(page.getByText('Thank you. It went straight to Eric.')).toBeVisible();
+    await expect(box.getByRole('button', { name: 'Send to Eric' })).toHaveAttribute('aria-disabled', 'false');
+    await box.getByRole('button', { name: 'Send to Eric' }).click();
+    await expect(box).toContainText('Thank you!');
+    await expect(box).toContainText('Got it. This really helps me figure out what to build next.');
+    await box.getByRole('button', { name: 'Done' }).click();
     await expect(box).toHaveCount(0);
-    // Close without sending: the ✕
-    await openProfile(page);
-    await page.getByRole('dialog', { name: 'Profile', exact: true }).getByRole('button', { name: /^Send feedback/ }).click();
-    await box.getByRole('button', { name: 'Close' }).click();
+    // Cancel closes without sending
+    await profile.getByRole('button', { name: 'Give feedback' }).click();
+    await box.getByRole('button', { name: 'Cancel' }).click();
     await expect(box).toHaveCount(0);
+    await expect(profile).not.toContainText('Feedback inbox');   // only the owner sees the inbox
+    await profile.getByRole('button', { name: 'Close' }).click();
+
+    // A group's Plans tab (80a): the empty state, or "What else could happen?" under the plans; a chip starts an event with that title
+    await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Groups', exact: true }).click();
+    await page.locator('[data-screen-label=Groups]').getByRole('button', { name: 'Torrez Fitness', exact: true }).click();
+    const more = page.locator('[data-plans-more]'), empty = page.locator('[data-plans-empty]');
+    await expect(more.or(empty)).toBeVisible();
+    if (await more.count()) {
+      await expect(more).toContainText('What else could happen?');
+      await more.getByRole('button', { name: 'Taco night?' }).click();
+      await expect(page.getByLabel('Event title')).toHaveValue('Taco night');
+    } else {
+      await expect(empty).toContainText('Somebody should fix that.');
+    }
     expect(m.errors).toEqual([]);
   } finally {
     await m.context.close();
@@ -366,8 +385,8 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
     await expect(profile.getByRole('heading', { name: 'Help & info' })).toBeVisible();
     await expect(profile).not.toContainText('Member since');
     await expect(profile).not.toContainText('Hosted');
-    // Notification settings opens above the Profile sheet
-    await profile.getByRole('button', { name: 'Notification settings' }).click();
+    // Notification settings (Settings → Notifications) opens above the Profile sheet
+    await profile.getByRole('button', { name: /^Notifications/ }).click();
     await expect(page.getByRole('dialog', { name: 'Notification settings' })).toBeVisible();
     await page.getByRole('dialog', { name: 'Notification settings' }).getByRole('button', { name: 'Close' }).click();
     await profile.getByRole('button', { name: 'Edit profile' }).click();
@@ -377,7 +396,7 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
     await pe.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(pe).toHaveCount(0);
     await expect(profile).toBeVisible();
-    await page.getByRole('button', { name: 'How Spark Hub works' }).click();
+    await page.getByRole('button', { name: 'How this works' }).click();
     await expect(page.getByRole('heading', { name: 'Ideas come to life when we build them together' })).toBeVisible();
     expect(errors).toEqual([]);
   } finally {

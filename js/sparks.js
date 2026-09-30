@@ -510,7 +510,7 @@
     // Whether you're the account that can wipe the demo content (Profile)
     if (state.email && !va) {
       sb.from('demo_admins').select('user_id').eq('user_id', state.me).maybeSingle()
-        .then(r => { if (!r.error) { setState({ demoAdmin: !!r.data }); writeCache(); } }, () => {});
+        .then(r => { if (!r.error) { setState({ demoAdmin: !!r.data }); writeCache(); if (r.data) loadFeedback(); } }, () => {});
     }
     // Notification read state and settings (signed-in people only)
     if (state.email && !va) {
@@ -3085,27 +3085,65 @@
     '</div>';
   };
 
-  // ---- Send feedback (Profile sheet; not designed, HANDOFF §2): a note that only the owner reads, plus a phone alert to them
+  // ---- Give feedback (v6 Update 9, 50 · 51): a bottom sheet to Eric; the note goes to the feedback table
+  // (only the owner reads it) and buzzes the owner's phone
+  const ERIC_FACE = '/photos/faces/eric.jpg';
+  const FB_QS = ['What’s your overall sense of it?', 'How useful does it feel?', 'What would make you excited to use it?', 'Any issues I should be considering?'];
   const sendFeedback = async () => {
     const f = state.fb;
-    if (!f || !f.text.trim() || state.busy) return;
+    if (!f || f.sent || !f.text.trim() || state.busy) return;
     if (state.viewAs) { toast('You’re viewing as ' + firstName(state.viewAs.name) + ', so nothing is sent. Exit to send.'); return; }
     setState({ busy: 'feedback' });
     try {
       await ensureSession();
       must(await sb.from('feedback').insert({ body: f.text.trim().slice(0, 1000), screen: String(state.screen || '').slice(0, 60) }));
-      setState({ busy: null, fb: null });
-      toast('Thank you. It went straight to Eric.', true);
+      setState({ busy: null, fb: { text: '', sent: true } });
+      if (state.demoAdmin) loadFeedback();
     } catch (e) { console.error(e); setState({ busy: null }); toast(FAILED); }   // what they typed stays
   };
+  const ericFace = (size, extra) => '<span aria-hidden="true" style="flex:0 0 ' + size + 'px;width:' + size + 'px;height:' + size + 'px;border-radius:999px;background:#dcdfe6 url(' + ERIC_FACE + ') center/cover;' + (extra || '') + '"></span>';
   function viewFeedback() {
     const f = state.fb, close = () => setState({ fb: null }), ok = f.text.trim().length > 0 && !state.busy;
-    return modal('Send feedback', close,
-      h3('Send feedback') + para('What’s confusing, what’s missing, what do you love? It goes straight to Eric, who’s building Spark Hub.') +
-      '<textarea class="fld" rows="5" maxlength="1000" aria-label="Your feedback" placeholder="Tell me anything…" ' + onInput(e => { if (e.type === 'input') setState({ fb: { text: e.target.value.slice(0, 1000) } }); }) + ' style="' + FIELD + ';resize:none;line-height:1.4">' + esc(f.text) + '</textarea>' +
-      '<button type="button" ' + on(sendFeedback) + ' aria-disabled="' + !ok + '" style="' + primary(ok) + '">' + (state.busy === 'feedback' ? 'Sending…' : 'Send') + '</button>' +
-      '<p style="margin:0;font-size:13px;line-height:1.45;font-weight:500;color:#6b7280">Your name goes with it, so I can write back. Please don’t put passwords or anything private in it.</p>',
-      { z: 50 });
+    const inner = f.sent
+      ? '<div style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:10px 4px 4px;text-align:center">' +
+          '<span style="position:relative;display:flex">' + ericFace(64) + '<span style="position:absolute;right:-4px;bottom:-4px;width:26px;height:26px;border-radius:999px;background:#149a4b;box-shadow:0 0 0 3px #fff;display:flex;align-items:center;justify-content:center">' + I.check(14, '#fff', 3) + '</span></span>' +
+          '<h3 style="margin:6px 0 0;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">Thank you!</h3>' +
+          '<p style="margin:0;font-size:15px;line-height:1.45;font-weight:500;color:#5c6270;text-wrap:pretty">Got it. This really helps me figure out what to build next.</p>' +
+          '<button type="button" ' + on(close) + ' style="margin-top:8px;width:100%;min-height:52px;border:0;border-radius:999px;background:#0d1117;color:#fff;font-family:inherit;font-size:16px;font-weight:800;cursor:pointer">Done</button></div>'
+      : '<div style="display:flex;align-items:flex-start;gap:12px">' + ericFace(48) +
+          '<h3 style="flex:1;min-width:0;margin:0;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117;text-wrap:balance">Tell Eric what you think about the app so far</h3>' +
+          '<span ' + on(close) + ' style="flex:0 0 auto;display:flex;align-items:center;min-height:32px;font-size:15px;font-weight:700;color:#6b7280;cursor:pointer">Cancel</span></div>' +
+        '<ul style="margin:0;padding:0 0 0 20px;display:flex;flex-direction:column;gap:6px;font-size:15.5px;line-height:1.4;font-weight:600;color:#2a2f38">' + FB_QS.map(q => '<li>' + q + '</li>').join('') + '</ul>' +
+        '<textarea rows="5" maxlength="1000" aria-label="Your feedback" placeholder="Write as much or as little as you like." ' + onInput(e => { if (e.type === 'input') setState({ fb: { text: e.target.value.slice(0, 1000) } }); }) +
+          ' style="width:100%;box-sizing:border-box;min-height:140px;padding:14px;border:2px solid #dcdfe6;border-radius:16px;font-family:inherit;font-size:16px;font-weight:500;line-height:1.4;color:#0d1117;resize:none;outline:none">' + esc(f.text) + '</textarea>' +
+        '<button type="button" ' + on(sendFeedback) + ' aria-disabled="' + !ok + '" style="width:100%;min-height:52px;border:0;border-radius:999px;background:' + (ok ? '#5b4ae8' : '#dcdfe6') + ';color:' + (ok ? '#fff' : '#8a909b') + ';font-family:inherit;font-size:16px;font-weight:800;cursor:' + (ok ? 'pointer' : 'default') + '">' + (state.busy === 'feedback' ? 'Sending…' : 'Send to Eric') + '</button>';
+    return '<div class="v6-scrim" data-scrim="' + reg(close) + '" style="z-index:50">' +
+      '<div role="dialog" aria-modal="true" aria-label="Give feedback" data-screen-label="Give feedback" style="position:absolute;left:0;right:0;bottom:0;max-height:calc(100% - 24px - var(--sat));overflow:auto;background:#fff;border-radius:24px 24px 0 0;padding:8px 18px calc(22px + env(safe-area-inset-bottom, 0px));display:flex;flex-direction:column;gap:16px;animation:sheetUp 320ms cubic-bezier(.2,.8,.2,1) both">' +
+        '<div aria-hidden="true" style="width:40px;height:5px;border-radius:999px;background:#dcdfe6;margin:0 auto"></div>' + inner + '</div></div>';
+  }
+
+  // ---- Feedback inbox (v6 Update 9, 49 · 52): only the owner (demo_admins) can read the feedback table.
+  // "Unread" is newer than when the owner last closed the inbox on this device (no database field for it)
+  const FB_SEEN_KEY = 'spark-hub-feedback-seen';
+  const fbSeenAt = () => { try { return Number(localStorage.getItem(FB_SEEN_KEY)) || 0; } catch (e) { return 0; } };
+  const loadFeedback = () => sb.from('feedback').select('id, user_id, name, body, created_at').order('created_at', { ascending: false }).limit(200)
+    .then(r => { if (!r.error) setState({ fbInbox: r.data.map(x => ({ id: x.id, uid: x.user_id, name: x.name || 'Someone', text: x.body, at: Date.parse(x.created_at) })) }); }, () => {});
+  const fbUnread = () => (state.fbInbox || []).filter(x => x.at > fbSeenAt()).length;
+  function viewFbInbox() {
+    const list = state.fbInbox || [], seen = fbSeenAt();
+    const close = () => { try { localStorage.setItem(FB_SEEN_KEY, String(Date.now())); } catch (e) { /* blocked */ } setState({ fbOpen: false }); };
+    const who = (x) => { const p = state.profiles[x.uid], a = p && p.avatar ? photoUrl(p.avatar) : null;
+      return '<span aria-hidden="true" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:' + (a ? bg(a) : '#5b4ae8') + ';color:#fff;font-size:15px;font-weight:900;display:flex;align-items:center;justify-content:center">' + (a ? '' : esc(initialOf(x.name) || '?')) + '</span>'; };
+    const card = (x) => '<div data-feedback style="background:#fff;border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:10px;box-shadow:0 1px 3px rgba(15,18,25,.08)">' +
+      '<div style="display:flex;align-items:center;gap:10px">' + who(x) + '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(x.name) + '</div>' +
+        '<div style="font-size:12.5px;font-weight:600;color:#8a909b">' + esc(ago(x.at)) + '</div></div>' +
+        (x.at > seen ? '<span style="flex:0 0 auto;height:22px;padding:0 8px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:11px;font-weight:900;letter-spacing:.6px;display:flex;align-items:center">NEW</span>' : '') + '</div>' +
+      '<div style="font-size:15px;line-height:1.45;font-weight:500;color:#2a2f38;white-space:pre-wrap;overflow-wrap:break-word">' + esc(x.text) + '</div></div>';
+    return sheet6('Feedback', close,
+      '<div style="display:flex;align-items:flex-end;gap:10px"><div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:900;letter-spacing:1px;color:#8f6405">SUPER ADMIN</div>' +
+        '<h2 style="margin:2px 0 0;font-size:24px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:#0d1117">Feedback</h2></div>' + closeX(close) + '</div>',
+      '<div style="padding:14px 14px 30px;display:flex;flex-direction:column;gap:10px">' + (list.length ? list.map(card).join('')
+        : '<div style="background:#fff;border-radius:18px;padding:26px 16px;text-align:center;font-size:15px;font-weight:700;color:#6b7280">No feedback yet.</div>') + '</div>');
   }
 
   // ---- Add to Home Screen (not designed; HANDOFF §2): a pop-up on Welcome (once a visit) and once after signing in,
@@ -3463,13 +3501,29 @@
         filterPill('gFilt', filterOpts(['lead', 'help', 'going', 'open', 'needs', 'week'], all, st.gFilt), st.gFilt,
           (k) => setState({ gFilt: st.gFilt.indexOf(k) > -1 ? st.gFilt.filter(x => x !== k) : st.gFilt.concat([k]) }), clear, plans.length) +
         viewPicker('gview', gv, (k) => setState({ view: k, menu: null }), SCHED_VIEWS) + '</div>';
-      if (!all.length) body = '<div style="' + CARD + ';padding:18px"><div style="font-size:16.5px;font-weight:800;letter-spacing:-.2px;color:#0d1117">No plans yet.</div><div style="margin-top:4px;font-size:15px;line-height:1.45;font-weight:500;color:#5c6270">When a lead locks in a date and time, it shows up here.</div></div>';
+      if (!all.length) body = plansEmpty();
       else if (!plans.length) body = '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(st.gSort === 'soon' ? 'Coming up' : sortName6(st.gSort), controls) + filterEmpty(clear) + '</div>';
       else body = sections6(plans, st.gSort, 'Date TBD').map((z, i) => '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(z.label, i ? '' : controls) +
         '<div style="display:flex;flex-direction:column;gap:' + (gv === 'list' ? 10 : 14) + 'px">' + z.items.map(s => gv === 'list' ? listCard6(s, partOf(s, true)) : tile6(s, partOf(s, true), 180)).join('') + '</div></div>').join('');
+      if (all.length) body += plansMore();
     }
     return { body, pageStyle };
   }
+
+  // Plans tab (v6 Update 9, 80a): an empty state with a calendar fan, and "What else could happen?" under the list
+  const createBtn = () => '<button type="button" class="hov-primary" ' + on(() => goCompose()) + ' style="width:100%;min-height:52px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 6px 16px rgba(91,74,232,.3);cursor:pointer">' + I.plus(18, '#fff', 2.8) + 'Create an event</button>';
+  const fanPage = (w, rot, x, y, z) => '<span style="position:absolute;left:' + x + 'px;top:' + y + 'px;z-index:' + z + ';width:' + w + 'px;border-radius:14px;overflow:hidden;background:#fff;box-shadow:0 8px 22px rgba(15,18,25,.14);transform:rotate(' + rot + 'deg)">' +
+    '<span style="display:flex;align-items:center;justify-content:center;height:' + Math.round(w * .26) + 'px;background:#e2556b;color:#fff;font-size:' + Math.round(w * .12) + 'px;font-weight:900;letter-spacing:1.5px">SAT</span>' +
+    '<span style="display:flex;align-items:center;justify-content:center;height:' + Math.round(w * .74) + 'px;color:#0d1117;font-size:' + Math.round(w * .5) + 'px;line-height:1;font-weight:900">?</span></span>';
+  const plansEmpty = () => '<div data-plans-empty style="min-height:420px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;padding:0 12px;text-align:center">' +
+    '<div aria-hidden="true" style="position:relative;width:200px;height:150px">' + fanPage(96, -12, 4, 26, 1) + fanPage(96, 9, 100, 26, 1) + fanPage(118, -2, 41, 4, 2) + '</div>' +
+    '<div><div style="font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">No plans yet</div>' +
+      '<div style="margin-top:6px;font-size:15px;font-weight:500;color:#5c6270">Somebody should fix that.</div></div>' + createBtn() + '</div>';
+  const plansMore = () => '<div data-plans-more style="' + CARD + ';border-radius:20px;padding:16px;display:flex;flex-direction:column;gap:12px">' +
+    '<div style="font-size:16px;font-weight:900;color:#0d1117">What else could happen?</div>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:8px">' + ['Taco night?', 'Park hang', 'Board games'].map(c => '<span ' + on(() => goCompose({ activity: c.replace(/\?$/, '') })) +
+      ' class="hov-chip" style="display:flex;align-items:center;height:36px;padding:0 14px;border-radius:999px;background:#f2f3f6;font-size:14px;font-weight:800;color:#0d1117;cursor:pointer">' + c + '</span>').join('') + '</div>' +
+    createBtn() + '</div>';
 
   // Search inside one group: Browse chips, "Or something unexpected", live results
   const openGroupSearch = () => { setState({ gSearch: true, menu: null }); setTimeout(() => { const f = document.querySelector('[data-csearch]'); if (f) f.focus(); }, 30); };
@@ -4443,6 +4497,16 @@
     '</div>';
   };
 
+  // The owner's way into the inbox (top of the Profile sheet)
+  const fbInboxCard = () => {
+    const n = (state.fbInbox || []).length, u = fbUnread();
+    return '<div ' + on(() => { setState({ fbOpen: true }); loadFeedback(); }) + ' aria-label="Feedback inbox' + (u ? ', ' + u + ' new' : '') + '" class="hov-row" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:16px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
+      '<span style="flex:0 0 42px;width:42px;height:42px;border-radius:12px;background:#fdf1d6;display:flex;align-items:center;justify-content:center">' + svg(20, stroke('#8f6405', 2.2), '<path d="M20 12a8 8 0 0 1-11.6 7.1L4 20l1-4.2A8 8 0 1 1 20 12Z"/>') + '</span>' +
+      '<div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:900;color:#0d1117">Feedback inbox</div><div style="font-size:13px;font-weight:500;color:#6b7280">' + (n ? n + (n === 1 ? ' note' : ' notes') + ' from testers' : 'Notes from testers land here') + '</div></div>' +
+      (u ? '<span style="flex:0 0 auto;min-width:22px;height:22px;padding:0 6px;border-radius:999px;background:#e2556b;color:#fff;font-size:11.5px;font-weight:900;display:flex;align-items:center;justify-content:center;box-sizing:border-box">' + (u > 9 ? '9+' : u) + '</span>' : '') +
+      I.chevR(16, '#9aa0ac', 2.4) + '</div>';
+  };
+
   // v6 Update 2: a compact Profile sheet (photo, name, a pencil to edit); Help & info tiles, then Settings
   function viewProfileSheet() {
     const close = () => setState({ profSheet: false });
@@ -4460,16 +4524,15 @@
           '<span style="min-width:0;font-size:20px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(st.myName || 'No name yet') + '</span>' +
           '<span ' + on(openProfileEdit) + ' aria-label="Edit profile" style="flex:0 0 32px;width:32px;height:32px;border-radius:999px;color:#9aa0ac;display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(15, stroke('currentColor', 2.2), '<path d="M4 20h4L19 9l-4-4L4 16v4Z"/>') + '</span></div>' +
         closeX(close) + '</div>',
-      '<div style="padding:18px 14px 30px;display:flex;flex-direction:column;gap:20px">' +
+      '<div style="padding:18px 14px 30px;display:flex;flex-direction:column;gap:20px">' + (st.demoAdmin ? fbInboxCard() : '') +
         '<div style="display:flex;flex-direction:column;gap:10px"><h2 style="margin:0;padding:0 4px;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:#0d1117">Help &amp; info</h2>' +
           '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">' +
-            tile('<span style="font-size:17px;font-weight:900">?</span>', 'How Spark Hub works', 'Events, ideas, and pitching in', () => go('how')) +
-            tile(svg(18, stroke('currentColor', 2), '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/>'), 'Notification settings', 'What you hear about and how', () => setState({ nSettings: true })) +
+            tile('<span style="font-size:17px;font-weight:900">?</span>', 'How this works', 'Events, ideas, and pitching in', () => go('how')) +
+            tile('<span style="font-size:18px;font-weight:900">✎</span>', 'Give feedback', 'Tell Eric what you think', () => setState({ fb: { text: '' } })) +
           '</div></div>' +
         section('Settings',
           '<div ' + on(() => setState({ nSettings: true })) + ' class="hov-row" style="' + ROW + '">' + line('Notifications', 'In the app and on your phone') + I.chevR(16, '#9aa0ac', 2.4) + '</div>' +
           (installMode() ? '<div ' + on(startInstall) + ' class="hov-row" style="' + ROW + ';border-top:1px solid #f2f3f6">' + line('Add to Home Screen', installMode() === 'prompt' ? 'Install Spark Hub on this phone' : 'A few taps in ' + IOS_BROWSER + '’s Share menu') + I.chevR(16, '#9aa0ac', 2.4) + '</div>' : '') +
-          '<div ' + on(() => setState({ fb: { text: '' }, profSheet: false })) + ' class="hov-row" style="' + ROW + ';border-top:1px solid #f2f3f6">' + line('Send feedback', 'Tell Eric what’s confusing or missing') + I.chevR(16, '#9aa0ac', 2.4) + '</div>' +
           '<a href="/privacy.html" target="_blank" rel="noopener" class="hov-row" style="' + ROW + ';border-top:1px solid #f2f3f6">' + line('Privacy', 'Who sees your profile and plans') + I.chevR(16, '#9aa0ac', 2.4) + '</a>') +
         '<div style="display:flex;flex-direction:column;gap:14px">' +
           (st.demoAdmin && st.sparks.some(s => s.demo)
@@ -5514,6 +5577,7 @@
       (st.inv && st.inv.step === 'confirm' && st.email ? viewInvConfirm() : '') +
       (st.confirm ? viewConfirm() : '') +
       (st.zoom ? viewZoom() : '') +
+      (st.fbOpen && st.demoAdmin ? viewFbInbox() : '') +
       (st.fb && st.email ? viewFeedback() : '') +
       (st.installPop ? viewInstallPop() : '') +
       (st.toast ? viewToast() : '') +

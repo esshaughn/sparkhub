@@ -22,6 +22,9 @@ test('a group end to end: edit group, cover, rename, invite, pin, admin edits, r
     const cardA = A.locator('[data-screen-label=Groups]').getByRole('button', { name: groupName, exact: true });
     await expect(cardA).toContainText('OWNER');
     await cardA.click();
+    // A new group's Plans tab (Update 9, 80a): the calendar fan, No plans yet, Create an event
+    await expect(A.locator('[data-plans-empty]')).toContainText('No plans yet');
+    await expect(A.locator('[data-plans-empty]').getByRole('button', { name: 'Create an event' })).toBeVisible();
     await A.locator('[data-screen-label=Browse]').getByRole('button', { name: 'Edit group' }).click();
     const gp = A.locator('[data-screen-label="Edit group"]');
     await expect(gp).toContainText('You’re the owner');

@@ -5,7 +5,7 @@
 - **Built (test):** https://gosparkhub-git-test-eric-5958s-projects.vercel.app · **Live:** https://gosparkhub.vercel.app
 - **Source:** github.com/esshaughn/sparkhub (`index.html`, `js/sparks.js`, `css/sparks.css`, `privacy.html`, `supabase/templates/`)
 - **Baseline:** Claude Design's **Spark Hub v6** handoff plus **Update 2** to **Update 7**. Update 7 (`design/spark-hub/README-v6-update-7.md`) absorbed the previous version of this doc: `design/spark-hub/Spark Hub App.dc.html` matches the build as of Update 6, and the Event Page Options file's Rounds 64–66 (kept in the design zip) are now built: 64a empty states, 64b Help out host tools, 64c Pick a shift / Find a replacement, 64d who thanked, 64f Edit what you need rows, 64g View as a tester, 65a edits that tell people, 65b delete note, 65c Make home, 65d the TBD badge and month strip, 66e Welcome copy. The earlier READMEs (`README-v6.md`, `README-v6-update-2.md` … `-6.md`) still describe everything else.
-- **As of:** 2026-09-29, v6 Update 7, Update 8, Update 9 §4 Your schedule views (Up next · Tiles · Month; the rest of Update 9 is not built yet) (`design/spark-hub/README-v6-update-8.md`: 73a title switcher, 77a Hosting; `Spark Hub App.dc.html` is now the Update 8 file) and the Invite flow handoff are built
+- **As of:** 2026-09-29, v6 Update 7, Update 8, Update 9 (`design/spark-hub/README-v6-update-9.md`) are built (`design/spark-hub/README-v6-update-8.md`: 73a title switcher, 77a Hosting; `Spark Hub App.dc.html` is now the Update 8 file) and the Invite flow handoff are built
 
 Where this doc and the design files disagree, **this doc is correct**.
 
@@ -34,7 +34,6 @@ Where this doc and the design files disagree, **this doc is correct**.
 - **Who thanked** is a pop-up (the build's modal style, not a slide-up sheet), titled *Thanks for {host first name}*; your own row reads *You*.
 - **Phone notifications (web push, owner 2026-09-29):** a card at the top of the Notifications sheet (white card, 36px lavender `#f3f1fe` circle with a purple bell): *Get these on your phone* · *We'll buzz you when a plan changes, something new goes up, or the day before you're going.* · purple **Turn on notifications** pill, and a gray ✕ (*Not now*, remembered on the device). In iPhone Safari (not installed) it reads *Get these on your iPhone* · *Add Spark Hub to your Home Screen first: tap Share, then Add to Home Screen. Open it from there and turn them on.* with no button. Notification settings gets a gray `#f4f5f7` row first: **Phone notifications** with a switch (*On / Off for this phone*), or *Blocked. Allow them for Spark Hub in your phone's Settings.* The push itself: title = the event (or *New in {group}: {event}*, *Tomorrow: {event}*), body = the same line as the in-app feed. Please design the card, the settings row and when to ask.
 - **Add to Home Screen:** now built to the invite-flow handoff's screen 5 (bottom pop-up, *STRONGLY RECOMMENDED*, steps box, **Got it** / **Maybe later**; Android: **Add to Home Screen** opens Chrome's dialog, no steps). Still invented: *when* it shows outside an invite — on **Welcome** once a visit, and once per device after signing in (it waits for other pop-ups; never in an in-app browser). After an invite's Welcome it follows 1.2s after reaching the group page. Profile → Settings keeps its **Add to Home Screen** row.
-- **Send feedback (owner 2026-09-29):** Profile → Settings gets a row **Send feedback** (*Tell Eric what's confusing or missing*) between Notifications and Privacy. It opens a centered pop-up (same style as Send an update): *Send feedback* · *What's confusing, what's missing, what do you love? It goes straight to Eric, who's building Spark Hub.* · a 5-line text box (*Tell me anything…*, up to 1000 characters) · purple **Send** (gray until something is typed; *Sending…* while it goes) · small gray note *Your name goes with it, so I can write back. Please don't put passwords or anything private in it.* After sending, a toast: *Thank you. It went straight to Eric.* The ✕ closes it without sending. It's saved privately and the owner gets a phone notification. Please design the row and box.
 - **Delete / remove confirms with one person:** *The 1 person going gets a note that it's off.* / *The 1 person signed up gets a note that it's off the list.* With nobody else, the note line is left out.
 
 ## 3. Behaviour added in the build (no visual change)
@@ -47,6 +46,8 @@ Where this doc and the design files disagree, **this doc is correct**.
 - **Home Screen badge** (installed app, notifications allowed): the icon's red number is the bell's unread count; each push adds one while the app is closed, and opening the app sets it back to the real count (cleared at zero).
 - **Second address:** https://sparkhub.wereallneighbors.org serves the live app alongside gosparkhub.vercel.app.
 - **Admins** who edit a title or Basic details don't get the switch (only the host posts updates).
+- **Feedback inbox unread** (Update 9): a note is *NEW* until the owner closes the inbox on that device (kept in the browser, `spark-hub-feedback-seen`, not the database), so another device shows it as new again. The inbox shows whoever's signed in as a `demo_admins` account (the owner), not a hard-coded email. Feedback keeps its phone notification to the owner.
+- **Send feedback row** in Profile → Settings is gone; the Help & info **Give feedback** tile replaces it. Notification settings stays in Settings → Notifications and the bell's gear.
 
 ## 4. Designed but not built or not working
 
@@ -69,7 +70,7 @@ Where this doc and the design files disagree, **this doc is correct**.
 6. **Google's sign-in screen** says "continue to …supabase.co" until Spark Hub has its own sign-in domain.
 7. **Video on the vibe board** is parked (needs a ~20 s / 25 MB cap).
 8. **Spark Hub address:** gosparkhub.vercel.app for now; a custom domain may follow.
-9. **Send feedback** now exists (Profile → Settings, see §2): it goes to the owner as a private note and a phone notification. Still open: *Ask a question* as a separate thing, and whether feedback should also be reachable from Welcome or the invite landing.
+9. **Give feedback** is built as designed in Update 9 (Help & info tile, sheet, Thank you, the owner's inbox). Still open: *Ask a question* as a separate thing, and whether feedback should also be reachable from Welcome or the invite landing.
 
 12. **Your place, bio and "member since"** are no longer shown anywhere for yourself (Update 2 keeps them "for viewing other people", which isn't designed or built yet). Design a public profile view, or show them somewhere on your own sheet?
 
