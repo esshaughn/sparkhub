@@ -1118,17 +1118,12 @@
 
   // Non-leads suggest (waits for the lead); the lead sets it straight away
   const openOffer = (s, kind) => {
-    const text = kind === 'vision' ? s.vision : '';
-    const open = () => setState({ offerKind: kind, offerText: text, offerPlace: null, offerSuggest: [] });
+    const open = () => setState({ offerKind: kind, offerText: '', offerPlace: null, offerSuggest: [] });
     if (isLead(s)) open(); else needGuest(open);
   };
   const commitOffer = (s) => {
     const kind = state.offerKind, text = state.offerText.trim(), place = state.offerPlace;
     if (!text || state.busy) return;
-    if (kind === 'vision') {
-      run(async () => { must(await sb.from('sparks').update({ vision: text.slice(0, 1000) }).eq('id', s.id)); }, { offerKind: null, offerText: '' });
-      return;
-    }
     if (isLead(s)) {
       const row = kind === 'day'
         ? { day_date: text.slice(0, 10), day_time: text.length > 10 ? text.slice(11, 16) : null }
@@ -3781,13 +3776,6 @@
               : '<p style="margin:0;font-size:14.5px;line-height:1.45;font-weight:500;color:#9aa0ac">' + esc(leadName) + ' hasn’t added basic details yet.</p>') +
         '</div>' +
 
-        (s.vision && s.hopes.length
-          ? '<div style="' + CARD + ';padding:18px;display:flex;flex-direction:column;gap:8px">' +
-              '<div style="' + EYEBROW + '">' + (lead ? 'What you’re picturing' : 'What ' + esc(leadName) + ' is picturing') + '</div>' +
-              '<p style="margin:0;font-size:15.5px;line-height:1.5;font-weight:500;color:#2b303a;white-space:pre-line">' + esc(s.vision) + '</p>' +
-            '</div>'
-          : '') +
-        (lead ? '<button type="button" class="hov-outline" ' + on(() => openOffer(s, 'vision')) + ' style="' + SECONDARY + ';padding:16px">' + (s.vision ? 'Change what you wrote' : 'Say more about what you’re picturing') + '</button>' : '') +
 
         (pitching.length
           ? '<div style="' + CARD + ';padding:18px;display:flex;flex-direction:column;gap:10px">' +
@@ -4785,7 +4773,8 @@
   const PEOPLE_IC = '<circle cx="9" cy="8.5" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><circle cx="17" cy="9.5" r="2.5"/><path d="M16 14.2a4.5 4.5 0 0 1 5 4.8"/>';
   const LOCK_IC = '<rect x="5" y="11" width="14" height="9.5" rx="2.5"/><path d="M8.5 11V8a3.5 3.5 0 0 1 7 0v3"/>';
 
-  // Older events kept several sentences in one line (or in `vision`): one bullet per sentence
+  // Older events kept several sentences in one line, or a paragraph in `vision` (the retired "What you're picturing";
+  // only demo events have one): one bullet per sentence. Saving Basic details moves it into the bullets.
   const splitBits = (arr) => [].concat(...(arr || []).map(b => String(b || '').split(/(?<=[.!?])\s+/))).map(x => x.trim()).filter(Boolean);
   const basicsOf = (s) => s.hopes.length ? splitBits(s.hopes) : splitBits([s.vision]);
   const evPhotoUrl = (st) => st.photos[0] ? st.photos[0].url : (PHOTO_PATH.test(st.evPhotoPath || '') ? photoUrl(st.evPhotoPath) : null);
@@ -5362,9 +5351,7 @@
 
   function viewOffer(s) {
     const st = state, kind = st.offerKind, lead = isLead(s);
-    const copy = kind === 'vision'
-      ? { title: 'Say more about it', hint: 'What you’re picturing, in your own words. It’s your idea — take the room.', ph: 'e.g. Nothing fancy. Meet in the gym lot, loop the lake, coffee after for whoever wants it.', cta: 'Add it to the spark' }
-      : lead
+    const copy = lead
         ? (kind === 'day'
           ? { title: 'Set the date', hint: 'Pick a day and time.', cta: 'Set date' }
           : { title: 'Set the location', hint: 'Start typing and pick a place, or just write it in.', ph: 'Enter the location', cta: 'Set location' })
@@ -5380,7 +5367,7 @@
     } else if (kind === 'spot') {
       field = placeField('offer', { placeholder: copy.ph, style: FIELD });
     } else {
-      field = '<textarea class="fld" rows="' + (kind === 'vision' ? 4 : 2) + '" maxlength="' + (kind === 'vision' ? 1000 : 80) + '" aria-label="' + esc(copy.title) + '" placeholder="' + esc(copy.ph) + '" ' + onInput(e => setState({ offerText: e.target.value })) +
+      field = '<textarea class="fld" rows="' + 2 + '" maxlength="' + 80 + '" aria-label="' + esc(copy.title) + '" placeholder="' + esc(copy.ph) + '" ' + onInput(e => setState({ offerText: e.target.value })) +
         ' style="width:100%;display:block;background:#fff;border:2px solid #e6e7eb;border-radius:16px;padding:14px 16px;font-size:16px;line-height:1.4;font-weight:600;color:#0d1117;resize:none;outline:none">' + esc(st.offerText) + '</textarea>';
     }
     return modal(copy.title, close,

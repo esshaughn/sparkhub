@@ -78,7 +78,7 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 25 | **Waiting on you** (lead): suggested locations/dates with **Use this location / Use this date** and **Not this time** | Test | |
 | 26 | Date & location card: date + time, location + address + **Directions**; **Suggest** (others) or **Set** (lead) while missing | Test | The lead's Set applies at once |
 | 27 | **Basic details** (up to 3 lines of 40; older one-line notes split into a bullet per sentence) with lead/member empty states; the lead edits them in the Basic details pop-up | Test | v6 Update 6 rename |
-| 28 | What the lead is picturing + **Say more about what you're picturing** | Test | |
+| 28 | (Removed 2026-09-30) What the lead is picturing + **Say more about what you're picturing**; Basic details (#27) is the one place for notes | Removed | Old demo text in `vision` shows as Basic details bullets |
 | 29 | **Who's pitching in** (accepted offers; your own waiting ones) | Test | |
 | 30 | **The vibe** mood board: up to 3 photos, lead adds/removes; tap one to see it full screen (arrows between, ✕ / Escape / tap to close) | Test | Members see it only with photos |
 | 31 | Rotated tag after actions ("It's up", "You're interested", "Sent to the lead", "Location set"…) | Test | |

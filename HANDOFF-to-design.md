@@ -29,6 +29,7 @@ Where this doc and the design files disagree, **this doc is correct**.
 | 12 | **Add / Edit on Create event's Review comes straight back to Review**: that step's button reads **Back to review** and its Back button is hidden | Edit walked through the later steps again | Tapping through them risked Decide later wiping them |
 | 13 | **The host's poll Pick asks first**: *Pick {date or spot}?* · *This closes the poll and clears its votes.* (+ *An update goes to the N people going…* when anyone replied or signed up) · **Use this date / Use this spot** · *Not yet*; then it sends *New date: …* / *New location: …* like the Date, time & location pop-up, and toasts *Picked. Everyone gets an update.* | One tap picked it; nobody was told | Picking deletes every vote |
 | 14 | **Pick the winning date / spot** (host's Your tasks) scrolls to the poll's votes and Pick buttons | Opened the Date, time & location pop-up | That pop-up's plain field replaced the poll without showing the votes |
+| 15 | **"What you're picturing" is gone** from the idea page: the card, *Say more about what you're picturing* / *Change what you wrote* and the *Say more about it* pop-up (*Add it to the spark*). **Basic details** (up to three short lines, shown as bullets) is the only place for notes | Both, one above the other | Two overlapping fields, and saving Basic details erased the paragraph (owner, 2026-09-30) |
 
 ## 2. Things the build had to invent (please design these properly)
 

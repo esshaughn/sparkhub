@@ -71,11 +71,9 @@ test('a guest with the link takes part; everyone votes; the lead picks and makes
     await expect(L.getByText('Day set')).toBeVisible();
     await expect(LD.getByRole('button', { name: /^Picked: Sat, Nov 14/ })).toBeVisible();
 
-    // What the lead is picturing
-    await button(L, 'Say more about what you’re picturing').click();
-    await L.getByRole('dialog', { name: 'Say more about it' }).getByRole('textbox').fill('Glow sticks and pizza after.');
-    await L.getByRole('dialog').getByRole('button', { name: 'Add it to the spark' }).click();
-    await expect(LD).toContainText('Glow sticks and pizza after.');
+    // "What you're picturing" is retired (owner, 2026-09-30): Basic details is the one place for notes
+    await expect(LD.getByText('Say more about what you’re picturing')).toHaveCount(0);
+    await expect(LD).not.toContainText('What you’re picturing');
 
     // Inspo: lead adds and removes a photo; members only see it with photos
     await expect(LD).toContainText('0 / 3');
