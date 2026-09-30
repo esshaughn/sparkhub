@@ -5650,7 +5650,7 @@
     });
   };
   // Back from Google the page can load while iOS is still closing the sign-in sheet, so keep nudging for a few seconds
-  window.addEventListener('load', () => { [0, 300, 1000, 2000, 4000].forEach(ms => setTimeout(nudgeLayout, ms)); setTimeout(tallFix, 4100); setTimeout(() => layoutNote('4s after load'), 4200); });
+  window.addEventListener('load', () => { [0, 300, 1000, 2000, 4000].forEach(ms => { setTimeout(nudgeLayout, ms); setTimeout(tallFix, ms + 50); }); setTimeout(() => layoutNote('4s after load'), 4200); });
   window.addEventListener('pageshow', nudgeLayout);
   window.addEventListener('resize', () => { if (STANDALONE) setTimeout(nudgeLayout, 100); });
   document.addEventListener('visibilitychange', () => { if (!document.hidden && STANDALONE) { setTimeout(nudgeLayout, 100); setTimeout(nudgeLayout, 800); } });
@@ -5773,7 +5773,7 @@
     morphChildren(root, tpl.content);
     const noNav = welcomeShown() || invFull();
     root.classList.toggle('no-nav', noNav);
-    if (hadNoNav && !noNav) { nudgeSoon(); setTimeout(tallFix, 1400); setTimeout(() => layoutNote('tab bar back'), 1500); }   // the tab bar is back
+    if (hadNoNav && !noNav) { nudgeSoon(); tallFix(); setTimeout(tallFix, 400); setTimeout(() => layoutNote('tab bar back'), 1500); }   // the tab bar is back
     hadNoNav = noNav;
     // Screens that start with a photo run it up under the iPhone status bar
     const sc = state.screen, photoTop = sc === 'browse' || (sc === 'detail' && !!subject()) || sc === 'calendar' || sc === 'groups' || welcomeShown() || (!state.email && sc === 'compose') ||
