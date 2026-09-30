@@ -2120,7 +2120,7 @@
         '<div style="position:absolute;top:12px;left:12px">' + roleChip(g) + '</div>' +
         '<div style="position:absolute;top:10px;right:10px;display:flex;gap:8px">' + gearBtn(g) + pinBtn(g, 36) + '</div>' +
         '<div style="position:absolute;left:16px;right:16px;bottom:12px;color:#fff">' +
-          '<div style="font-size:26px;line-height:1.05;font-weight:900;letter-spacing:-.6px">' + newDot(g) + esc(g.name) + groupTag(g, true) + '</div>' +
+          groupTagAbove(g) + '<div style="font-size:26px;line-height:1.05;font-weight:900;letter-spacing:-.6px">' + newDot(g) + esc(g.name) + '</div>' +
           (size ? '<div style="margin-top:3px;font-size:13px;font-weight:700;color:#dfe2e8">' + size + (size === 1 ? ' member' : ' members') + '</div>' : '') +
         '</div>' +
       '</div>';
@@ -2129,7 +2129,7 @@
       '<div style="position:absolute;top:10px;left:10px">' + roleChip(g) + '</div>' +
       '<div style="position:absolute;top:8px;right:8px">' + pinBtn(g, 32) + '</div>' +
       '<div style="position:absolute;left:12px;right:10px;bottom:10px;color:#fff;font-size:16px;line-height:1.15;font-weight:900">' +
-        newDot(g) + esc(g.name) + groupTag(g, true) + '</div>' +
+        groupTagAbove(g) + newDot(g) + esc(g.name) + '</div>' +
     '</div>';
     // v6 Update 2: a Calendar-style photo header (YOUR PEOPLE · Groups · N groups), the bell, a white Join pill
     const header = '<header style="position:relative;height:calc(180px + var(--pt));overflow:hidden;background:#2b303a">' +
@@ -2281,6 +2281,8 @@
   // Seeded demo content gets a small DEMO pill before its title (owner, 2026-09-30): pilot members joined to a demo
   // group shouldn't mistake it for real plans. Translucent white on photos, gray on white.
   // Demo groups (Hub on Hunters, Walnut Creek, Woodcliff) get the same chip after their name (owner, 2026-09-30)
+  // Groups page cards: the DEMO chip sits on its own line above the name
+  const groupTagAbove = (g) => g && g.demo ? '<div style="margin-bottom:6px;line-height:1">' + demoTag({ demo: true }, true) + '</div>' : '';
   const groupTag = (g, onPhoto) => g && g.demo ? demoTag({ demo: true }, onPhoto, true) : '';
   const demoTag = (s, onPhoto, after) => !s || !s.demo ? '' : '<span data-demo-tag style="display:inline-block;vertical-align:.15em;' + (after ? 'flex:0 0 auto;margin-left:7px' : 'margin-right:7px') + ';padding:2px 7px;border-radius:999px;font-size:10.5px;line-height:1.3;font-weight:900;letter-spacing:.8px;text-shadow:none;' +
     (onPhoto ? 'background:rgba(255,255,255,.24);color:#fff;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)' : 'background:#eef0f3;color:#6b7280') + '">DEMO</span>';
