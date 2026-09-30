@@ -479,15 +479,16 @@ for k, r in enumerate(R):
     for uid in sorted(FANS, key=lambda u: pick(i['text'], u))[:2]:
         claim(i, uid)
     call('POST', '/rest/v1/spot_options', {'spark_id': i['id'], 'name': SPOT_IDEA[g], 'who': 'Marisol', 'created_by': P['Marisol']})
-    # v6 Update 6: a plan they lead with the date put to a poll and the place still to be decided
+    # An idea they lead with the date put to a poll and the place still to be decided (no date, so not a plan yet)
     u = make(dict(g=g, text=V6_UNDECIDED[n] + suffix, photo=PHOTOS[(n + 4) % 6], age=1,
-                  hopes=['Bring a chair', 'Kids and dogs welcome'], signups=[('Bring snacks', 2, None), ('Help set up', 2, None)]), me, True)
+                  hopes=['Bring a chair', 'Kids and dogs welcome'], signups=[('Bring snacks', 2, None), ('Help set up', 2, None)]), me, False)
     fans = sorted(FANS, key=lambda f: pick(u['text'], f))
     for k2, (off, t) in enumerate([(9, '10:00'), (10, '10:00'), (16, '14:00')]):
         oid = rest('POST', 'date_options', {'spark_id': u['id'], 'day_date': day(off), 'day_time': t, 'who': NAME[me], 'created_by': me})[0]['id']
         for f in fans[:[4, 2, 1][k2]]:
             call('POST', '/rest/v1/date_votes', {'option_id': oid, 'user_id': f})
-    fill(u, going=2, maybe=1)
+    for f in fans[:3]:
+        call('POST', '/rest/v1/interests', {'spark_id': u['id'], 'user_id': f})
     print(f"  v6: {r['name']} leads {a['text']} (today), {b['text']} (tomorrow), {c['text']} (2 days ago), {i['text']} (idea), {u['text']} (undecided)")
 
 # Shared: everyone helps on these two (led by the demo people)
@@ -511,14 +512,15 @@ for d, status in shared:
                 rsvp(x, r['id'], status)
     print(f"  v6: shared {d['text']} ({d['date']})")
 
-# v6 Update 6: a shared plan with the date and the place still to be decided (a spot poll everyone can vote on)
+# A shared idea with the date and the place still to be decided (a spot poll everyone can vote on)
 ud = make(dict(g=W, text='Neighborhood chili cook-off', photo='friendsgiving.jpg', age=1,
-               hopes=['Bring your best chili', 'Judging at 3', 'Cornbread welcome'], signups=[('Bring a crockpot', 6, None)]), P['Marisol'], True)
+               hopes=['Bring your best chili', 'Judging at 3', 'Cornbread welcome'], signups=[('Bring a crockpot', 6, None)]), P['Marisol'], False)
 for name, votes in [('Walnut Creek Neighborhood Park', 3), ('The rec center patio', 2)]:
     oid = rest('POST', 'spot_options', {'spark_id': ud['id'], 'name': name, 'who': 'Marisol', 'created_by': P['Marisol']})[0]['id']
     for f in sorted(FANS, key=lambda f: pick(name, f))[:votes]:
         call('POST', '/rest/v1/spot_votes', {'option_id': oid, 'user_id': f})
-fill(ud, going=3, maybe=2)
+for f in sorted(FANS, key=lambda f: pick(ud['text'], f))[:5]:
+    call('POST', '/rest/v1/interests', {'spark_id': ud['id'], 'user_id': f})
 print(f"  v6: shared {ud['text']} (date and place to be decided)")
 
 # Real people already have their demo share: the sign-in trigger mustn't add more on top

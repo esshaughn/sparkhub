@@ -161,28 +161,18 @@ test('decide everything later: only the title is needed; the host is left with t
     await flow.getByLabel('Basic details, line 1').fill('');
     await flow.getByText('Decide later', { exact: true }).click();
     await expect(flow).toContainText('Basic details to be decided');
+    // No date: it goes up as an idea, not a plan
+    await expect(flow.locator('[data-posts-as]')).toContainText('It goes up as an idea');
     await flow.getByRole('button', { name: 'Post it' }).click();
-    await expect(page.locator('[data-screen-label="Plan page"]')).toBeVisible();
+    const I = page.locator('[data-screen-label="Idea page"]');
+    await expect(I).toBeVisible();
     id = await page.evaluate(() => location.hash.split('/').pop());
-
-    const P = page.locator('[data-screen-label="Plan page"]');
-    await expect(P.locator('[data-tbd]')).toContainText('2 things left to decide');
-    await expect(P.locator('[data-when-card]')).toContainText('Date TBD');
-    await expect(P.locator('[data-when-card]')).toContainText('Location TBD');
-    await P.locator('[data-host-tasks-bar]').click();
-    for (const t of ['Pick a date', 'Pick a location', 'Add basic details']) await expect(P.locator('[data-screen-label="Your tasks"]')).toContainText(t);
-    // A task opens its pop-up; setting the place there closes that part
-    await P.locator('[data-task-row]', { hasText: 'Pick a location' }).click();
-    const when = page.getByRole('dialog', { name: 'Date, time & location' });
-    await when.getByLabel('Location').fill('The garage');
-    await when.getByRole('button', { name: 'Save', exact: true }).click();
-    await expect(P.locator('[data-tbd]')).toContainText('1 thing left to decide');
-    await expect(P.locator('[data-when-card]')).toContainText('The garage');
-    // The Calendar lists it last, under "Date TBD"
+    await expect(I).toContainText('Pick a date first. Then you can lock it in.');
+    await expect(I.getByRole('button', { name: 'Make it a plan' })).toHaveAttribute('aria-disabled', 'true');
+    // Not on the Calendar until the host makes it a plan
     await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Calendar', exact: true }).click();
-    const card = page.locator('[data-screen-label=Calendar] [data-plan="' + title.charAt(0).toUpperCase() + title.slice(1) + '"]');
-    await expect(card).toContainText('Date TBD');
-    await expect(page.locator('[data-screen-label=Calendar]')).toContainText('Date TBD');
+    await expect(page.locator('[data-screen-label=Calendar]')).toBeVisible();
+    await expect(page.locator('[data-screen-label=Calendar] [data-plan="' + title.charAt(0).toUpperCase() + title.slice(1) + '"]')).toHaveCount(0);
     expect(errors).toEqual([]);
   } finally {
     if (id) await asUser(page, async (c, _C, id) => { await c.from('sparks').delete().eq('id', id); }, id).catch(() => {});
@@ -190,7 +180,7 @@ test('decide everything later: only the title is needed; the host is left with t
   }
 });
 
-test('polls: the host posts a date poll, a member votes, the host picks the winner', async ({ browser }) => {
+test('polls: the host posts a date poll (an idea), a member votes, the host picks the winner and makes it a plan', async ({ browser }) => {
   test.setTimeout(120000);
   const host = await newLead(browser, 1, 'Hope');
   const member = await newLead(browser, 2, 'Omar');
@@ -218,31 +208,36 @@ test('polls: the host posts a date poll, a member votes, the host picks the winn
     await flow.getByRole('button', { name: 'Next' }).click();
     for (let i = 0; i < 3; i++) await flow.getByText('Decide later', { exact: true }).click();
     await expect(flow).toContainText('Poll: 2 dates');
+    await expect(flow.locator('[data-posts-as]')).toContainText('It goes up as an idea');
     await flow.getByRole('button', { name: 'Post it' }).click();
-    await expect(H.locator('[data-screen-label="Plan page"]')).toBeVisible();
+    await expect(H.locator('[data-screen-label="Idea page"]')).toBeVisible();
     id = await H.evaluate(() => location.hash.split('/').pop());
 
     await openIdea(O, id);
-    const OP = O.locator('[data-screen-label="Plan page"]');
-    await expect(OP.locator('[data-when-card]')).toContainText('VOTING ON A DATE');
-    const first = OP.locator('[data-poll-opt]').first();
-    await first.getByRole('button', { name: 'Vote' }).click();
-    await expect(first).toContainText('✓ Voted');
-    await expect(first).toContainText('1 vote');
+    const OI = O.locator('[data-screen-label="Idea page"]');
+    await OI.getByLabel(/, 0 votes, suggested by /).first().click();
+    await expect(OI.getByLabel(/, 1 votes, suggested by /)).toHaveCount(1);
 
+    // The host picks the winner, then locks it in
     await H.reload();
-    const HP = H.locator('[data-screen-label="Plan page"]');
-    const top = HP.locator('[data-poll-opt]').first();
-    await expect(top).toContainText('1 vote');
-    // The task goes to the poll's votes, not a blank date field
-    await HP.locator('[data-host-tasks-bar]').click();
-    await HP.locator('[data-task-row]', { hasText: 'Pick the winning date' }).click();
-    await expect(H.getByRole('dialog', { name: 'Date, time & location' })).toHaveCount(0);
-    await expect(HP.locator('[data-when-card]')).toBeInViewport();
-    await top.getByRole('button', { name: 'Pick' }).click();
-    await confirm(H, 'Use this date');   // it asks first: picking closes the poll
-    await expect(HP.locator('[data-when-card]')).not.toContainText('VOTING ON A DATE');
-    await expect(HP.locator('[data-tbd]')).toContainText('1 thing left to decide');   // only the place now
+    const HI = H.locator('[data-screen-label="Idea page"]');
+    await HI.getByLabel(/, 1 votes, suggested by /).click();
+    await confirm(H, 'Use this date');
+    await expect(HI).toContainText('Ready when you are');
+    await HI.getByRole('button', { name: 'Make it a plan' }).click();
+    await confirm(H, 'Make it a plan');
+    await expect(H.locator('[data-screen-label="Plan page"]')).toBeVisible();
+
+    // A plan keeps its date: clearing it can't be saved; turning it back into an idea takes it off
+    await H.getByLabel('Edit date, time and location').click();
+    const when = H.getByRole('dialog', { name: 'Date, time & location' });
+    await when.getByLabel('Date', { exact: true }).fill('');
+    await expect(when.locator('[data-needs-date]')).toBeVisible();
+    await expect(when.getByRole('button', { name: 'Save', exact: true })).toHaveAttribute('aria-disabled', 'true');
+    await when.locator('[data-back-to-idea]').click();
+    await confirm(H, 'Back to an idea');
+    await expect(HI).toBeVisible();
+    await expect(HI).toContainText('Pick a date first. Then you can lock it in.');
     expect(host.errors).toEqual([]);
     expect(member.errors).toEqual([]);
   } finally {
@@ -276,7 +271,7 @@ test('drafts: X saves one, Your tasks lists it, Continue picks up there, posting
     await expect(flow).toContainText('3 of 5');
     for (let i = 0; i < 3; i++) await flow.getByText('Decide later', { exact: true }).click();
     await flow.getByRole('button', { name: 'Post it' }).click();
-    await expect(page.locator('[data-screen-label="Plan page"]')).toBeVisible();
+    await expect(page.locator('[data-screen-label="Idea page"]')).toBeVisible();   // no date: an idea
     id = await page.evaluate(() => location.hash.split('/').pop());
     const left = await asUser(page, async (c) => (await c.from('event_drafts').select('id')).data.length);
     expect(left).toBe(0);

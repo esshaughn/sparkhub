@@ -1177,14 +1177,14 @@
   const makePlan = (s) => {
     const n = s.interested.length;
     setState({ confirm: { title: 'Make it a plan?', green: true, cta: 'Make it a plan', keep: 'Not yet',
-      body: 'It’s on for ' + whenLong(s) + '. ' + (n ? (n === 1 ? 'The 1 person who’s interested shows as going.' : 'The ' + n + ' people who are interested show as going.') : 'Anyone who joins shows as going.'),
+      body: 'It’s on for ' + whenLong(s) + '. ' + (n ? (n === 1 ? 'The 1 person who’s interested shows as going.' : 'The ' + n + ' people who are interested show as going.') : 'Anyone who joins shows as going.') + ' It goes on the calendar.',
       run: () => run(async () => { must(await sb.rpc('make_plan', { p_spark: s.id })); }, { confirm: null, tag: 'It’s a plan' }) } });
   };
   const clearPlan = (s) => {
     const n = going(s).length;
-    setState({ confirm: { title: 'Clear the date?', danger: true, cta: 'Clear the date', keep: 'Keep it',
-      body: 'It goes back to being an idea.' + (n ? (n === 1 ? ' The 1 person going shows as interested again.' : ' The ' + n + ' people going show as interested again.') : ''),
-      run: () => run(async () => { must(await sb.rpc('clear_plan', { p_spark: s.id })); }, { confirm: null, tag: null }) } });
+    setState({ confirm: { title: 'Turn it back into an idea?', danger: true, cta: 'Back to an idea', keep: 'Keep the plan',
+      body: 'The date comes off and it goes back to being an idea.' + (n ? (n === 1 ? ' The 1 person going shows as interested again and gets a note.' : ' The ' + n + ' people going show as interested again and get a note.') : ''),
+      run: () => run(async () => { must(await sb.rpc('clear_plan', { p_spark: s.id })); }, { confirm: null, sec: null, tag: 'Back to an idea' }) } });
   };
 
   const toggleOrganizer = (s) => {
@@ -3902,16 +3902,16 @@
   };
 
   const makePlanCard = (s) => {
-    const ready = !!(s.dayDate && s.dayTime), n = s.interested.length;
+    const ready = !!s.dayDate, n = s.interested.length;
     return ready
       ? '<div style="' + CARD + ';padding:18px;box-shadow:0 0 0 2px #bfe9cf, 0 1px 3px rgba(15,18,25,.08);display:flex;flex-direction:column;gap:6px">' +
           '<div style="font-size:12px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#0f7a3c">Ready when you are</div>' +
-          '<p style="margin:0;font-size:14.5px;line-height:1.45;font-weight:500;color:#5c6270">It has a date and a time. Make it a plan, and ' + (n ? (n === 1 ? 'the 1 person who’s interested shows as going' : 'the ' + n + ' people who are interested show as going') : 'anyone who joins sees it’s happening') + '.</p>' +
+          '<p style="margin:0;font-size:14.5px;line-height:1.45;font-weight:500;color:#5c6270">It has a date. Make it a plan, and ' + (n ? (n === 1 ? 'the 1 person who’s interested shows as going' : 'the ' + n + ' people who are interested show as going') : 'anyone who joins sees it’s happening') + '.</p>' +
           '<button type="button" ' + on(() => { if (!state.busy) makePlan(s); }) + ' style="margin-top:8px;min-height:50px;border:0;border-radius:999px;background:#0f7a3c;color:#fff;font-family:inherit;font-size:16px;font-weight:800;cursor:pointer;box-shadow:0 10px 24px rgba(15,122,60,.25)">Make it a plan</button>' +
         '</div>'
       : '<div style="' + CARD + ';padding:18px;display:flex;flex-direction:column;gap:6px">' +
           '<div style="' + EYEBROW + '">Make it a plan</div>' +
-          '<p style="margin:0;font-size:14.5px;line-height:1.45;font-weight:500;color:#5c6270">Set a date and a time first. Then you can lock it in.</p>' +
+          '<p style="margin:0;font-size:14.5px;line-height:1.45;font-weight:500;color:#5c6270">Pick a date first. Then you can lock it in.</p>' +
           '<button type="button" aria-disabled="true" style="margin-top:8px;min-height:50px;border:0;border-radius:999px;background:#b9bcc4;color:#fff;font-family:inherit;font-size:16px;font-weight:800;cursor:not-allowed">Make it a plan</button>' +
         '</div>';
   };
@@ -4250,7 +4250,11 @@
         '<div style="display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:8px">' + dateField(ss.d, 'Date', 'Pick a date', (v) => set({ d: v })) +
           timeField('secT', ss.t, EV_TIMES, 'Time', (v) => setState({ sec: Object.assign({}, state.sec, { t: v, e: ss.e && ss.e <= v ? '' : ss.e }), timeOpen: null })) + '</div>' +
         (ss.t ? timeField('secE', ss.e, EV_TIMES.filter(v => v > ss.t), 'End time (optional)', (v) => setState({ sec: Object.assign({}, state.sec, { e: v }), timeOpen: null })) : '') + '</div>' +
-        '<div style="display:flex;flex-direction:column;gap:8px">' + label('Location') + placeField('offer', { placeholder: 'Search a place or address', style: BIG }) + '</div>';
+        '<div style="display:flex;flex-direction:column;gap:8px">' + label('Location') + placeField('offer', { placeholder: 'Search a place or address', style: BIG }) + '</div>' +
+        // A plan keeps its date; taking it off turns the plan back into an idea (the host's call, with a confirm)
+        (s.planned && isLead(s) ? (ss.d ? '' : '<span data-needs-date style="font-size:13.5px;line-height:1.4;font-weight:600;color:' + AMBER_INK + '">A plan needs a date. To take it off, turn it back into an idea.</span>') +
+          '<span ' + on(() => { close(); clearPlan(s); }) + ' data-back-to-idea style="align-self:center;display:flex;align-items:center;min-height:44px;padding:0 12px;font-size:14.5px;font-weight:800;color:#9b1c31;cursor:pointer">Turn it back into an idea</span>' : '');
+      ok = !(s.planned && !ss.d);
     } else if (ss.kind === 'details') {
       body = '<div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:14px;line-height:1.4;font-weight:500;color:#5c6270">Up to three quick notes on what to expect or the vibe.</span>' +
         bitRows(ss.bits, (k, v) => { const b = state.sec.bits.slice(); b[k] = v; set({ bits: b }); }) + '</div>';
@@ -4861,7 +4865,7 @@
     const st = state, groups = evGroupIds(st);
     if (!groups.length || st.busy || !cleanTitle(st.activity)) return;
     const place = st.locPlace && cleanTitle(st.locText) ? st.locPlace : null, spot = cleanTitle(st.locText).slice(0, 80) || null;
-    const who = (st.myName || 'Someone').slice(0, 40);
+    const who = (st.myName || 'Someone').slice(0, 40), dated = !!st.evDate;   // a date posts it as a plan; without one it's an idea
     let id = null, cover = null;
     setState({ busy: 'post' });
     (async () => {
@@ -4874,7 +4878,7 @@
           photos: cover ? [cover.path] : [], cat: 'events', answers: {}, lead_id: st.me, lead_name: st.myName, created_by: st.me,
           spot, spot_open: !spot, spot_address: place ? place.address : null, spot_lat: place ? place.lat : null, spot_lon: place ? place.lon : null,
           day_date: st.evDate || null, day_time: st.evDate && st.evTime ? st.evTime : null, day_end: st.evDate && st.evTime && st.evEnd ? st.evEnd : null,
-          planned: true, visibility: st.evPriv ? 'invite' : 'group',
+          planned: dated, visibility: st.evPriv ? 'invite' : 'group',
           cover_pos: cover && st.coverPos ? posOf(st.coverPos, IDEA_POS) : null
         };
         try {
@@ -4898,8 +4902,8 @@
           }
         } catch (e) { console.error(e); }
         await freshAfterSave();
-        setState(Object.assign(composeReset(), { busy: null, phaseTab: 'plan' }));
-        go('detail', { subjectId: id, tag: 'It’s on the books' });
+        setState(Object.assign(composeReset(), { busy: null, phaseTab: dated ? 'plan' : 'idea' }));
+        go('detail', { subjectId: id, tag: dated ? 'It’s on the books' : 'It’s up' });
       } catch (e) {
         console.error(e);
         setState({ busy: null });
@@ -5069,6 +5073,9 @@
             tile(false, 'Public', 'Everyone in your groups', PEOPLE_IC) + tile(true, 'Private', 'Only people you invite', LOCK_IC) + '</div></div></div>' +
         '</div>' +
         '<div style="position:sticky;bottom:0;margin-top:auto;padding:16px 14px;background:linear-gradient(to top,#e8eaee 70%,rgba(232,234,238,0))">' +
+          // A date locks it in as a plan; without one it goes up as an idea
+          '<div data-posts-as style="padding:0 6px 10px;text-align:center;font-size:13.5px;line-height:1.4;font-weight:600;color:#5c6270">' +
+            (st.evDate ? 'It goes on the calendar as a plan.' : 'It goes up as an idea. Once there’s a date, tap <strong style="font-weight:800;color:#0d1117">Make it a plan</strong> to lock it in.') + '</div>' +
           '<button type="button" ' + on(() => { if (!busy) createEvent(); }) + ' aria-disabled="' + busy + '" style="position:relative;overflow:hidden;width:100%;min-height:56px;border:0;border-radius:999px;background:#149a4b;color:#fff;font-family:inherit;font-size:17px;font-weight:900;cursor:pointer;box-shadow:0 10px 24px rgba(20,154,75,.32)' + (busy ? ';opacity:.72;cursor:wait' : '') + '">' +
             ['#ffd98a:6%:18%', '#cfc9ff:22%:68%', '#fff:78%:28%', '#ffb3c1:88%:64%', '#b8f0cd:62%:74%', '#ffd98a:40%:20%'].map(c => { const [col, x, y] = c.split(':'); return '<span aria-hidden="true" style="position:absolute;left:' + x + ';top:' + y + ';width:6px;height:6px;border-radius:2px;background:' + col + ';transform:rotate(30deg);opacity:.9"></span>'; }).join('') +
             '<span style="position:relative">' + (busy ? 'Posting…' : 'Post it') + '</span></button>' +

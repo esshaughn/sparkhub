@@ -237,9 +237,15 @@ test('plans: replies, sign-ups, updates, notes and invite-only plans follow the 
         idea: await one({ text: idea }),
         plan: await one({ text: plan, planned: true, day_date: '2026-12-05', day_time: '10:00' }),
         secret: await one({ text: secret, planned: true, day_date: '2026-12-06', day_time: '10:00', visibility: 'invite' }),
-        // v6 Update 6: a posted event may leave its date to be decided
-        planWithoutDate: await one({ text: '[E2E] no date', planned: true })
+        // A plan needs a date (a time may wait); without one it's an idea
+        planNoTime: await one({ text: '[E2E] no time', planned: true, day_date: '2026-12-07' })
       };
+      out.planWithoutDate = (await c.from('sparks').insert({ ...base, text: '[E2E] no date', planned: true })).error ? 'refused' : 'ALLOWED';
+      out.makePlanNoDate = (await c.rpc('make_plan', { p_spark: out.idea })).error ? 'refused' : 'ALLOWED';
+      out.dropPlanDate = (await c.from('sparks').update({ day_date: null }).eq('id', out.planNoTime)).error ? 'refused' : 'ALLOWED';
+      // The lead turns a plan back into an idea: the date comes off
+      out.backToIdea = (await c.rpc('clear_plan', { p_spark: out.planNoTime })).error ? 'refused'
+        : (await c.from('sparks').select('planned, day_date').eq('id', out.planNoTime).single()).data;
       // Posting to more groups: only the lead, and not the home group twice
       out.homeAgain = (await c.from('spark_groups').insert({ spark_id: out.plan, group_id: g })).error ? 'refused' : 'ALLOWED';
       out.draft = (await c.from('event_drafts').insert({ data: { activity: 'Mine' } }).select('id').single()).data.id;
@@ -252,8 +258,12 @@ test('plans: replies, sign-ups, updates, notes and invite-only plans follow the 
       out.update = (await c.from('plan_updates').insert({ spark_id: out.plan, body: 'See you there' })).error ? 'refused' : 'ok';
       return out;
     }, { idea: uniqueTitle('Sec idea'), plan: uniqueTitle('Sec plan'), secret: uniqueTitle('Sec secret') });
-    ids.push(made.idea, made.plan, made.secret, made.planWithoutDate);
-    expect(made.planWithoutDate).toMatch(/^[0-9a-f-]{36}$/);
+    ids.push(made.idea, made.plan, made.secret, made.planNoTime);
+    expect(made.planNoTime).toMatch(/^[0-9a-f-]{36}$/);
+    expect(made.planWithoutDate).toBe('refused');
+    expect(made.makePlanNoDate).toBe('refused');
+    expect(made.dropPlanDate).toBe('refused');
+    expect(made.backToIdea).toEqual({ planned: false, day_date: null });
     expect(made.homeAgain).toBe('refused');
     expect(made.prep).toBe('ok');
     expect(made.update).toBe('ok');

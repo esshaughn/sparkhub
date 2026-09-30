@@ -30,6 +30,7 @@ Where this doc and the design files disagree, **this doc is correct**.
 | 13 | **The host's poll Pick asks first**: *Pick {date or spot}?* · *This closes the poll and clears its votes.* (+ *An update goes to the N people going…* when anyone replied or signed up) · **Use this date / Use this spot** · *Not yet*; then it sends *New date: …* / *New location: …* like the Date, time & location pop-up, and toasts *Picked. Everyone gets an update.* | One tap picked it; nobody was told | Picking deletes every vote |
 | 14 | **Pick the winning date / spot** (host's Your tasks) scrolls to the poll's votes and Pick buttons | Opened the Date, time & location pop-up | That pop-up's plain field replaced the poll without showing the votes |
 | 15 | **"What you're picturing" is gone** from the idea page: the card, *Say more about what you're picturing* / *Change what you wrote* and the *Say more about it* pop-up (*Add it to the spark*). **Basic details** (up to three short lines, shown as bullets) is the only place for notes | Both, one above the other | Two overlapping fields, and saving Basic details erased the paragraph (owner, 2026-09-30) |
+| 16 | **Ideas come back (owner, 2026-09-30): an event is an idea until the host locks it in with a date.** Create event posts with a date as a plan; with the date left to *Decide later* or a poll it goes up as an **idea** (the idea page: interest, date and place boards with votes, *Make it a plan*). *Make it a plan* needs only a date (a time and a place can wait) and puts it on the Calendar; interested people become Going. Plans without a date no longer exist (older ones became ideas), so the Calendar's and Your schedule's *Date TBD* sections for plans stay empty | Every post was a plan; the date could stay to be decided | The owner wants ideas to be anything not truly on the calendar |
 
 ## 2. Things the build had to invent (please design these properly)
 
@@ -45,6 +46,10 @@ Where this doc and the design files disagree, **this doc is correct**.
 
 - **Poll the group, duplicates:** saving two identical options toasts *Two options are the same date and time. Change or remove one.* (places: *…the same place…*), and the poll isn't saved.
 - **Edit what you need, with people signed up:** a job with sign-ups can't switch between one time and shifts. In place of *Add a shift* / *Use one time instead*, a gray 13px/600 `#6b7280` line: *People are signed up, so it can't be split into shifts.* / *People are signed up for these shifts, so they stay as shifts.* (the last shift's ✕ is hidden too). A shift with people on it shows *N people are on this shift. Removing it lets them know.*
+- **Create event's Review says what Post it makes** (above **Post it**, 13.5px 600 `#5c6270`, centred): *It goes on the calendar as a plan.* with a date, else *It goes up as an idea. Once there's a date, tap **Make it a plan** to lock it in.* Posting an idea tags the page *It's up* (a plan: *It's on the books*).
+- **Turn it back into an idea** (host): a red link (`#9b1c31`, 14.5px 800) at the bottom of a plan's *Date, time & location* pop-up. Clearing the date there disables Save with the amber line *A plan needs a date. To take it off, turn it back into an idea.* The confirm: *Turn it back into an idea?* · *The date comes off and it goes back to being an idea.* (+ *The N people going show as interested again and get a note.*) · **Back to an idea** / *Keep the plan*. Everyone going gets the note *{event} is off the calendar for now. {host} turned it back into an idea.* Tag: *Back to an idea*.
+- **Make it a plan** card copy: *It has a date. Make it a plan, and …* / *Pick a date first. Then you can lock it in.*; the confirm adds *It goes on the calendar.* Members get a phone notification *It's a plan in {group}: {event}* (ideas don't notify when posted).
+
 ## 3. Behaviour added in the build (no visual change)
 
 - **Month view, empty day:** *Start an event on {date}* opens Create event with that date filled in; it's hidden on past days.
@@ -92,6 +97,8 @@ Where this doc and the design files disagree, **this doc is correct**.
 9. **Give feedback** is built as designed in Update 9 (Help & info tile, sheet, Thank you, the owner's inbox). Still open: *Ask a question* as a separate thing, and whether feedback should also be reachable from Welcome or the invite landing.
 
 12. **Your place, bio and "member since"** are no longer shown anywhere for yourself (Update 2 keeps them "for viewing other people", which isn't designed or built yet). Design a public profile view, or show them somewhere on your own sheet?
+
+13. **The idea page is the older design** (v5 boards for dates and places, the *Steps to a plan* banner). With ideas back as the no-date stage, a v6 idea page (and how polls from Create event look on it) is worth designing.
 
 ## 6. Design tokens
 
