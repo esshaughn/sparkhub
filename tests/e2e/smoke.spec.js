@@ -247,13 +247,23 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
     await expect(cal.getByRole('button', { name: 'Previous month' })).toBeVisible();
     await pickView(cal, 'List');
 
-    // Your plans / Your ideas are off the tab bar but still open by link
-    await page.goto('/#/own');
-    const own = page.locator('[data-screen-label="Your plans & ideas"]');
-    await expect(own.getByRole('tab', { name: 'Your plans' })).toHaveAttribute('aria-selected', 'true');
-    await expect(own.getByRole('button', { name: 'Post an event' })).toBeVisible();
-    await own.getByRole('tab', { name: 'Your ideas' }).click();
-    await expect(own.getByRole('button', { name: 'Float an idea' })).toBeVisible();
+    // Hosting (Update 8): only through the Your tasks title switcher; scrim closes it; the switcher takes you back
+    await page.goto('/#/tasks');
+    await page.locator('[data-screen-label="Your tasks"]').getByRole('button', { name: 'Your tasks, switch view' }).click();
+    const sw = page.getByRole('listbox', { name: 'Switch view' });
+    await expect(sw.getByRole('option', { name: /^Your tasks/ })).toHaveAttribute('aria-selected', 'true');
+    await expect(sw.getByRole('option', { name: /^Hosting/ })).toContainText('Everything you’re leading — drafts and ideas too');
+    await page.mouse.click(200, 600);
+    await expect(sw).toHaveCount(0);
+    await page.locator('[data-screen-label="Your tasks"]').getByRole('button', { name: 'Your tasks, switch view' }).click();
+    await sw.getByRole('option', { name: /^Hosting/ }).click();
+    const own = page.locator('[data-screen-label="Hosting"]');
+    await expect(own.getByRole('button', { name: 'Search events' })).toBeVisible();
+    await expect(own.getByRole('button', { name: /^Notifications/ })).toHaveCount(0);
+    await expect(own.locator('[data-host]').or(own.getByText('Nothing you’re hosting yet.')).first()).toBeVisible();
+    await own.getByRole('button', { name: 'Hosting, switch view' }).click();
+    await sw.getByRole('option', { name: /^Your tasks/ }).click();
+    await expect(page.locator('[data-screen-label="Your tasks"]')).toBeVisible();
 
     // Groups (Update 2): photo header (YOUR PEOPLE · Groups · N groups), Join pill, Start a new group at the bottom
     await page.getByRole('button', { name: 'Groups', exact: true }).click();

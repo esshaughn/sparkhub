@@ -5,7 +5,7 @@
 - **Built (test):** https://gosparkhub-git-test-eric-5958s-projects.vercel.app · **Live:** https://gosparkhub.vercel.app
 - **Source:** github.com/esshaughn/sparkhub (`index.html`, `js/sparks.js`, `css/sparks.css`, `privacy.html`, `supabase/templates/`)
 - **Baseline:** Claude Design's **Spark Hub v6** handoff plus **Update 2** to **Update 7**. Update 7 (`design/spark-hub/README-v6-update-7.md`) absorbed the previous version of this doc: `design/spark-hub/Spark Hub App.dc.html` matches the build as of Update 6, and the Event Page Options file's Rounds 64–66 (kept in the design zip) are now built: 64a empty states, 64b Help out host tools, 64c Pick a shift / Find a replacement, 64d who thanked, 64f Edit what you need rows, 64g View as a tester, 65a edits that tell people, 65b delete note, 65c Make home, 65d the TBD badge and month strip, 66e Welcome copy. The earlier READMEs (`README-v6.md`, `README-v6-update-2.md` … `-6.md`) still describe everything else.
-- **As of:** 2026-09-29, v6 Update 7 and the Invite flow handoff are built
+- **As of:** 2026-09-29, v6 Update 7, Update 8 (`design/spark-hub/README-v6-update-8.md`: 73a title switcher, 77a Hosting; `Spark Hub App.dc.html` is now the Update 8 file) and the Invite flow handoff are built
 
 Where this doc and the design files disagree, **this doc is correct**.
 
@@ -24,6 +24,7 @@ Where this doc and the design files disagree, **this doc is correct**.
 | 7 | **Pick a shift** keeps the job's description under the date line | Not shown | Update 5 descriptions |
 | 8 | **Invite flow built** (handoff *Invite flow*, 1a · 2 · 3 · 4 · 5 · E1–E4). Differences: Welcome's **RSVP** marks you Going in one tap (the name pop-up first if you have none) and goes to the Plans tab, since there's no RSVP sheet to open; the Next-up line is *NEXT UP · TODAY · 7PM* (the cards' format); a group with no photo shows gold `#e8a71c` with its initial (groups have no colour); the name is 34px when it's over 16 characters; Google returns to `/` (the invite rides in the sign-in resume, not the `redirectTo` URL, which would need new allowed URLs in Supabase); the E2 toast sits above the tab bar. 1b (inviter · member count) isn't built | Screens as specced | No new database fields; Welcome's *seen* list is per device (`spark-hub-welcomed-groups`) |
 | 9 | **An undecided date or place reads *Date TBD* / *Location TBD*** everywhere (the Date and time card, list rows, the amber heading in Calendar and Your schedule, Your tasks) | *Date to be decided* / *Location to be decided* | Shorter, and it fits on one line in the amber row (owner, 2026-09-29). Basic details and Help still read *… to be decided*; phone notifications still say *Date to be decided* until a database change ships |
+
 
 ## 2. Things the build had to invent (please design these properly)
 
@@ -53,6 +54,7 @@ Where this doc and the design files disagree, **this doc is correct**.
 - **The event preview slide-up** (Task Card Options, Round 13) is still undecided, so it isn't built.
 - **Say hi** on the Hosted by card: there's no messaging yet, so it shows a toast *Messages are coming soon. For now, say hi to {first name} at the event!*
 - **The CTA pills on to-do rows** don't do their action; as in the prototype, tapping the rows expands them (3+) or opens the event.
+- **Hosting filtered to a group** (the gray group line above the list) is built, but nothing opens it that way: the build's group pages have no *View all* into Hosting.
 - **"Include ideas"** on the Calendar (in the prototype's code, not the README) isn't built; the Calendar lists plans.
 
 ## 5. Open questions for the next round

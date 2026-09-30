@@ -224,3 +224,5 @@ input::placeholder, textarea::placeholder { color: #b9bcc4; font-weight: 400; fo
 /* The page follows a sideways drag (JS); the browser keeps vertical scrolling and pinch-zoom */
 [data-tabpane] { touch-action: pan-y pinch-zoom; }
 .app.swiping .swipe-hint { opacity: 0; transition: opacity 120ms ease; }
+.hov-host:hover { background: #fafbfc !important; }
+.host-card > * + * { border-top: 1px solid #f2f3f6; }

@@ -1,5 +1,5 @@
 // Your schedule's strips (v6), the sign-up time, the Calendar's role strips, back navigation,
-// and the lead's dashboard on Your plans.
+// and the host's Hosting list.
 const { test, expect } = require('@playwright/test');
 const { uniqueTitle, newLead, postEvent, openIdea, deleteIdea, pickView, addJob } = require('./helpers');
 
@@ -75,11 +75,13 @@ test('Your schedule and the Calendar: role strips, a helper’s sign-ups with ti
     await O.locator('[data-screen-label="Plan page"]').getByRole('button', { name: 'Back to Your schedule' }).click();
     await expect(oHome.getByRole('heading', { name: 'Your schedule' })).toBeVisible();
 
-    // Hope's Your plans (off the tab bar, still there by link): her plan's dashboard
+    // Hope's Hosting (Update 8): her plan under Planning with its date; a tap opens it
     await H.goto('/#/own');
-    const own = H.locator('[data-screen-label="Your plans & ideas"] [data-plan="' + title + '"]');
-    await expect(own.getByLabel('1 going')).toBeVisible();
-    await expect(own.getByLabel('You’re leading')).toHaveCount(0);
+    const hosting = H.locator('[data-screen-label="Hosting"]');
+    const own = hosting.getByRole('region', { name: 'Planning' }).locator('[data-host="' + title + '"]');
+    await expect(own).toContainText(new Date(inDays(4) + 'T12:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }));
+    await own.click();
+    await expect(H.locator('[data-screen-label="Plan page"]').getByRole('button', { name: 'Back to Hosting' })).toBeVisible();
 
     expect(host.errors).toEqual([]);
     expect(helper.errors).toEqual([]);
