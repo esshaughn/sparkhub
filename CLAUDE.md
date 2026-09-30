@@ -44,7 +44,7 @@ The schema is the files in `supabase/migrations/`, applied in order. Never edit 
 
 1. `supabase migration new <short_name>` and write the SQL (keep RLS: guests' phone numbers in `guest_contacts` must stay readable only by that idea's lead and the guest).
 2. Apply to **test**: `scripts/db-push-test.sh` (refuses unless the folder is linked to test; allowed without a prompt) → try it on the `test` branch preview. Always `cat supabase/.temp/project-ref` before any other `--linked` command: on 2026-09-29 the folder was silently linked to live.
-3. Apply to **live**, only when the matching code is being merged to `main` and the user has agreed: `supabase link --project-ref xwrzfpgsazyrgieymtee && supabase db push --linked; supabase link --project-ref hroxgvxvafgikikviiud` (always relink to test afterwards).
+3. Apply to **live**, only when the matching code is being merged to `main` and the user has agreed: `scripts/db-push-live.sh` (links to live, pushes, lists migrations, and always relinks to test; pre-approved in the owner's auto-mode settings when they've asked in chat, 2026-09-30).
 4. Check with `supabase migration list --linked [--project-ref …]`.
 
 Ad-hoc reads: `supabase db query --linked [--project-ref …] "select …"`.
