@@ -422,7 +422,7 @@ test('opening the app: loading placeholders (never "empty"), then the last scree
     await expect(home.getByRole('status', { name: 'Loading' })).toBeVisible();
     await expect(page.locator('[data-screen-label=Welcome]')).toHaveCount(0);
     await expect(page.getByText('You’re not in a group yet.')).toHaveCount(0);
-    await expect(page.getByText('Nothing on the books yet.')).toHaveCount(0);
+    await expect(page.locator('[data-sched-empty]')).toHaveCount(0);
     await page.getByRole('button', { name: 'Groups', exact: true }).click();
     await expect(page.locator('[data-screen-label=Groups]').getByRole('status', { name: 'Loading' })).toBeVisible();
     await page.getByRole('button', { name: 'Calendar', exact: true }).click();

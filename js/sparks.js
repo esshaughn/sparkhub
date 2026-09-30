@@ -2559,8 +2559,7 @@
     if (!st.loaded) return wrap(skeleton(2, 220));
     if (!myGroups().length) return wrap(goneCard() + noGroupCard());
     const all = schedList();
-    if (!all.length) return wrap(goneCard() + '<div style="' + CARD + ';padding:18px;display:flex;align-items:center;gap:12px"><div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:800;color:#0d1117">Nothing on the books yet.</div><div style="font-size:14px;line-height:1.45;font-weight:500;color:#6b7280">RSVP to something in your groups, or post your own.</div></div>' +
-      '<span ' + on(() => goCompose()) + ' style="flex:0 0 auto;display:flex;align-items:center;min-height:40px;padding:0 14px;border-radius:999px;background:#0d1117;color:#fff;font-size:13.5px;font-weight:800;cursor:pointer">Post an event</span></div>');
+    if (!all.length) return wrap(goneCard() + schedEmpty());
     // Sort · Filter · view, on the first heading row
     const viewPick = () => viewPicker('hview', view, (k) => setState({ homeView: k, menu: null, hMon: null, hDay: null }), HOME_VIEWS);
     const plans = applySort(applyFilters(all, st.sFilt), st.sSort), clear = () => setState({ sFilt: [], menu: null });
@@ -3515,10 +3514,15 @@
   const fanPage = (w, rot, x, y, z) => '<span style="position:absolute;left:' + x + 'px;top:' + y + 'px;z-index:' + z + ';width:' + w + 'px;border-radius:14px;overflow:hidden;background:#fff;box-shadow:0 8px 22px rgba(15,18,25,.14);transform:rotate(' + rot + 'deg)">' +
     '<span style="display:flex;align-items:center;justify-content:center;height:' + Math.round(w * .26) + 'px;background:#e2556b;color:#fff;font-size:' + Math.round(w * .12) + 'px;font-weight:900;letter-spacing:1.5px">SAT</span>' +
     '<span style="display:flex;align-items:center;justify-content:center;height:' + Math.round(w * .74) + 'px;color:#0d1117;font-size:' + Math.round(w * .5) + 'px;line-height:1;font-weight:900">?</span></span>';
-  const plansEmpty = () => '<div data-plans-empty style="min-height:420px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;padding:0 12px;text-align:center">' +
+  // Also Your schedule's empty state (Update 10), with its own line and buttons
+  const plansEmpty = (sub, btns, attr) => '<div ' + (attr || 'data-plans-empty') + ' style="min-height:420px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;padding:0 12px;text-align:center">' +
     '<div aria-hidden="true" style="position:relative;width:200px;height:150px">' + fanPage(96, -12, 4, 26, 1) + fanPage(96, 9, 100, 26, 1) + fanPage(118, -2, 41, 4, 2) + '</div>' +
     '<div><div style="font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">No plans yet</div>' +
-      '<div style="margin-top:6px;font-size:15px;font-weight:500;color:#5c6270">Somebody should fix that.</div></div>' + createBtn() + '</div>';
+      '<div style="margin-top:6px;font-size:15px;font-weight:500;color:#5c6270;text-wrap:pretty">' + (sub || 'Somebody should fix that.') + '</div></div>' + (btns || createBtn()) + '</div>';
+  const schedEmpty = () => plansEmpty('RSVP to something in your groups, or post your own.',
+    '<div style="width:100%;display:flex;flex-direction:column;gap:10px">' + createBtn().replace('Create an event', 'Post an event') +
+      '<button type="button" class="hov-sec" ' + on(() => go('calendar')) + ' style="width:100%;min-height:52px;border:0;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;color:#0d1117;font-family:inherit;font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer">' + ic6('cal', 18, '#0d1117', 2.2) + 'View calendar</button></div>',
+    'data-sched-empty');
   const plansMore = () => '<div data-plans-more style="' + CARD + ';border-radius:20px;padding:16px;display:flex;flex-direction:column;gap:12px">' +
     '<div style="font-size:16px;font-weight:900;color:#0d1117">What else could happen?</div>' +
     '<div style="display:flex;flex-wrap:wrap;gap:8px">' + ['Taco night?', 'Park hang', 'Board games'].map(c => '<span ' + on(() => goCompose({ activity: c.replace(/\?$/, '') })) +

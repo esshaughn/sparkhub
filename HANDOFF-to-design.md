@@ -5,7 +5,7 @@
 - **Built (test):** https://gosparkhub-git-test-eric-5958s-projects.vercel.app · **Live:** https://gosparkhub.vercel.app
 - **Source:** github.com/esshaughn/sparkhub (`index.html`, `js/sparks.js`, `css/sparks.css`, `privacy.html`, `supabase/templates/`)
 - **Baseline:** Claude Design's **Spark Hub v6** handoff plus **Update 2** to **Update 7**. Update 7 (`design/spark-hub/README-v6-update-7.md`) absorbed the previous version of this doc: `design/spark-hub/Spark Hub App.dc.html` matches the build as of Update 6, and the Event Page Options file's Rounds 64–66 (kept in the design zip) are now built: 64a empty states, 64b Help out host tools, 64c Pick a shift / Find a replacement, 64d who thanked, 64f Edit what you need rows, 64g View as a tester, 65a edits that tell people, 65b delete note, 65c Make home, 65d the TBD badge and month strip, 66e Welcome copy. The earlier READMEs (`README-v6.md`, `README-v6-update-2.md` … `-6.md`) still describe everything else.
-- **As of:** 2026-09-29, v6 Update 7, Update 8, Update 9 (`design/spark-hub/README-v6-update-9.md`) are built (`design/spark-hub/README-v6-update-8.md`: 73a title switcher, 77a Hosting; `Spark Hub App.dc.html` is now the Update 8 file) and the Invite flow handoff are built
+- **As of:** 2026-09-29, v6 Update 7, Update 8, Update 9 (`design/spark-hub/README-v6-update-9.md`) and Update 10 (`README-v6-update-10.md`: Your schedule's empty state) are built (`design/spark-hub/README-v6-update-8.md`: 73a title switcher, 77a Hosting; `Spark Hub App.dc.html` is now the Update 10 file) and the Invite flow handoff are built
 
 Where this doc and the design files disagree, **this doc is correct**.
 
