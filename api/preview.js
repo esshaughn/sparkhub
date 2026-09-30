@@ -56,9 +56,11 @@ async function details(db, q) {
   if (q.i && ID.test(q.i)) {
     const s = await rpc(db, 'link_preview', { p_spark: q.i });
     if (!s) return null;
-    const bits = [when(s.day_date, s.day_time), s.spot].filter(Boolean).join(' · ');
+    // "Buffy Bingo – Thu, Oct 1" (the date moves up to the title; the time and place stay below)
+    const time = s.day_date && s.day_time ? when(s.day_date, s.day_time).split(' · ')[1] : '';
+    const bits = [time, s.spot].filter(Boolean).join(' · ');
     return {
-      title: s.title,
+      title: s.title + (s.day_date ? ' – ' + when(s.day_date) : ''),
       description: (bits ? bits + ' · ' : '') + (s.planned ? 'A plan in ' : 'An idea in ') + s.group_name + ' on Spark Hub',
       image: photoUrl(db, s.photo)
     };
