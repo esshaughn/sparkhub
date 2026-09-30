@@ -35,7 +35,7 @@ test('notifications: a new plan, replying from the feed, the host hears back, up
     await H.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: /^Your tasks/ }).click();
     await H.getByRole('button', { name: /^Notifications/ }).click();
     const hfeed = H.getByRole('dialog', { name: 'Notifications' });
-    await hfeed.getByRole('radio', { name: 'Hosting' }).click();
+    await hfeed.getByRole('radio', { name: 'Leading' }).click();
     await expect(hfeed.locator('[data-notif=rsvp]').filter({ hasText: title })).toContainText(new RegExp('\\w+ is going to ' + esc(title)));
     await hfeed.locator('[data-notif=rsvp]').filter({ hasText: title }).click();
     await expect(H.locator('[data-screen-label="Plan page"]')).toBeVisible();
@@ -65,8 +65,8 @@ test('notifications: a new plan, replying from the feed, the host hears back, up
     // Settings: turning a topic off hides it; back on shows it again
     await feed.getByRole('button', { name: 'Notification settings' }).click();
     const set = O.getByRole('dialog', { name: 'Notification settings' });
-    await set.getByRole('switch', { name: 'Updates from hosts' }).click();
-    await expect(set.getByRole('switch', { name: 'Updates from hosts' })).toHaveAttribute('aria-checked', 'false');
+    await set.getByRole('switch', { name: 'Updates from leads' }).click();
+    await expect(set.getByRole('switch', { name: 'Updates from leads' })).toHaveAttribute('aria-checked', 'false');
     await set.getByRole('button', { name: 'Close' }).click();
     await expect(set).toHaveCount(0);
     await expect(feed.locator('[data-notif=update]').filter({ hasText: title })).toHaveCount(0);
@@ -74,8 +74,8 @@ test('notifications: a new plan, replying from the feed, the host hears back, up
     await O.getByRole('button', { name: /^Notifications/ }).click();   // v6: a sheet from the bell
     await expect(feed.locator('[data-notif=update]').filter({ hasText: title })).toHaveCount(0);
     await feed.getByRole('button', { name: 'Notification settings' }).click();
-    await set.getByRole('switch', { name: 'Updates from hosts' }).click();
-    await expect(set.getByRole('switch', { name: 'Updates from hosts' })).toHaveAttribute('aria-checked', 'true');
+    await set.getByRole('switch', { name: 'Updates from leads' }).click();
+    await expect(set.getByRole('switch', { name: 'Updates from leads' })).toHaveAttribute('aria-checked', 'true');
 
     expect(host.errors).toEqual([]);
     expect(other.errors).toEqual([]);

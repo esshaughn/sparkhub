@@ -18,7 +18,7 @@ test('a plan: guest RSVPs, sign-ups, an update, the host’s notes, then clearin
     const HP = H.locator('[data-screen-label="Plan page"]');
     await expect(HP).toContainText('YOU’RE LEADING');                          // v6 Update 6: the host's chip
     await expect(HP).toContainText('5:30pm');
-    await expect(HP).not.toContainText('HOSTED BY');                           // not shown to the host
+    await expect(HP).not.toContainText('LED BY');                           // not shown to the host
     await expect(HP.locator('[data-screen-label="Guest list"]')).toContainText('Going');
     await expect(HP.getByRole('button', { name: 'Share link' })).toBeVisible();
     await expect(HP).not.toContainText('Remind everyone the day before');      // retired in Update 6
@@ -44,7 +44,7 @@ test('a plan: guest RSVPs, sign-ups, an update, the host’s notes, then clearin
     const GP = G.locator('[data-screen-label="Plan page"]');
     await expect(GP.locator('[data-rsvp]')).toBeVisible();
     await expect(GP).toContainText('Parking is on the street.');
-    await expect(GP).toContainText('HOSTED BY');
+    await expect(GP).toContainText('LED BY');
     await expect(GP.getByRole('button', { name: 'Say hi' })).toBeVisible();
     await expect(GP).not.toContainText('Before the day');                     // just for the host
     const rsvp = (k) => GP.locator('[data-rsvp]').getByRole('button', { name: new RegExp('^' + k) });

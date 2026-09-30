@@ -122,7 +122,7 @@ test('a group end to end: edit group, cover, rename, invite, pin, admin edits, r
     await sec.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(detail).toContainText('moved indoors');
     await expect(detail).toContainText('Led by Bo');
-    await button(A, 'Delete this idea').click();
+    await button(A, 'Delete this event').click();
     await confirm(A, 'Delete it');
     await expect(A.locator('[data-screen-label=Browse]')).not.toContainText('moved indoors');
     ideaId = null;

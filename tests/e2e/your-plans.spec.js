@@ -78,11 +78,11 @@ test('Your schedule and the Calendar: role strips, a helper’s sign-ups with ti
 
     // Hope's Hosting (Update 8): her plan under Planning with its date; a tap opens it
     await H.goto('/#/own');
-    const hosting = H.locator('[data-screen-label="Hosting"]');
+    const hosting = H.locator('[data-screen-label="Leading"]');
     const own = hosting.getByRole('region', { name: 'Planning' }).locator('[data-host="' + title + '"]');
     await expect(own).toContainText(new Date(inDays(4) + 'T12:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }));
     await own.click();
-    await expect(H.locator('[data-screen-label="Plan page"]').getByRole('button', { name: 'Back to Hosting' })).toBeVisible();
+    await expect(H.locator('[data-screen-label="Plan page"]').getByRole('button', { name: 'Back to Leading' })).toBeVisible();
 
     expect(host.errors).toEqual([]);
     expect(helper.errors).toEqual([]);

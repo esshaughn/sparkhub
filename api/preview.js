@@ -68,7 +68,7 @@ async function details(db, q) {
     if (!g) return null;
     return {
       title: 'Join ' + g.name + ' on Spark Hub',
-      description: 'You’re invited to ' + g.name + '. Float ideas, make plans, and show up together.',
+      description: 'You’re invited to ' + g.name + '. Make plans with your people and show up together.',
       image: photoUrl(db, g.photo)
     };
   }

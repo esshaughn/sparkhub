@@ -15,7 +15,7 @@ test('visitors land on Welcome (no tab bar there) and sign in from there', async
     // "Continue with email": the sign-in pop-up with just the email field, focused (no Google button there)
     await welcome.getByRole('button', { name: 'Continue with email' }).click();
     const dialog = page.getByRole('dialog', { name: 'Sign in' });
-    await expect(dialog).toContainText('Your ideas, groups and name are saved to your account. We’ll email you a 6-digit code. No password.');
+    await expect(dialog).toContainText('Your events, groups and name are saved to your account. We’ll email you a 6-digit code. No password.');
     await expect(dialog.getByLabel('Email')).toBeFocused();
     await expect(dialog.getByRole('button', { name: 'Continue with Google' })).toHaveCount(0);
     await expect(dialog.getByRole('link', { name: 'Privacy' })).toHaveAttribute('href', '/privacy.html');
@@ -317,16 +317,16 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
     await page.locator('[data-screen-label="Your tasks"]').getByRole('button', { name: 'Your tasks, switch view' }).click();
     const sw = page.getByRole('listbox', { name: 'Switch view' });
     await expect(sw.getByRole('option', { name: /^Your tasks/ })).toHaveAttribute('aria-selected', 'true');
-    await expect(sw.getByRole('option', { name: /^Hosting/ })).toContainText('Everything you’re leading — drafts and ideas too');
+    await expect(sw.getByRole('option', { name: /^Leading/ })).toContainText('Every event you’re leading, drafts too');
     await page.mouse.click(200, 600);
     await expect(sw).toHaveCount(0);
     await page.locator('[data-screen-label="Your tasks"]').getByRole('button', { name: 'Your tasks, switch view' }).click();
-    await sw.getByRole('option', { name: /^Hosting/ }).click();
-    const own = page.locator('[data-screen-label="Hosting"]');
+    await sw.getByRole('option', { name: /^Leading/ }).click();
+    const own = page.locator('[data-screen-label="Leading"]');
     await expect(own.getByRole('button', { name: 'Search events' })).toBeVisible();
     await expect(own.getByRole('button', { name: /^Notifications/ })).toHaveCount(0);
-    await expect(own.locator('[data-host]').or(own.getByText('Nothing you’re hosting yet.')).first()).toBeVisible();
-    await own.getByRole('button', { name: 'Hosting, switch view' }).click();
+    await expect(own.locator('[data-host]').or(own.getByText('Nothing you’re leading yet.')).first()).toBeVisible();
+    await own.getByRole('button', { name: 'Leading, switch view' }).click();
     await sw.getByRole('option', { name: /^Your tasks/ }).click();
     await expect(page.locator('[data-screen-label="Your tasks"]')).toBeVisible();
 
@@ -343,7 +343,7 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
     const browse = page.locator('[data-screen-label=Browse]');
     await expect(browse.getByRole('heading', { name: 'Torrez Fitness' })).toBeVisible();
     await expect(browse).toContainText(/\d+ members/i);
-    await expect(browse.getByRole('button', { name: 'I have an idea' })).toBeVisible();
+    await expect(browse.getByRole('button', { name: 'Post an event' })).toBeVisible();
     await expect(browse.getByRole('button', { name: 'Back to groups' })).toBeVisible();
     await expect(browse.getByRole('button', { name: 'Search this group' })).toBeVisible();
     // Inside a group the Groups tab isn't highlighted

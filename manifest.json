@@ -2,7 +2,7 @@
   "id": "/",
   "name": "Spark Hub",
   "short_name": "Spark Hub",
-  "description": "Turn your idea into a plan. Post an idea; your group helps pick the day, find the place and make it happen.",
+  "description": "Make plans with your people. Start something, and everyone can pitch in to make it happen.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
