@@ -3214,10 +3214,10 @@
       '<span style="font-size:16px;line-height:1.3;font-weight:500;color:#0d1117">' + html + '</span></div>';
     const link = '<span aria-hidden="true" style="display:block;width:2px;height:10px;margin-left:24px;border-radius:1px;background:#dcdfe6"></span>';
     const steps = mode === 'prompt' ? '' : IOS_BROWSER === 'Safari'
-      ? '<div data-a2hs-steps="safari" style="display:flex;flex-direction:column;gap:6px">' + row(A2HS_DOTS, 'Tap <b style="font-weight:900">•••</b> in your browser') + link +
+      ? '<div data-a2hs-steps="safari" style="display:flex;flex-direction:column;gap:6px">' + row(A2HS_DOTS, 'Tap <b style="font-weight:900">•••</b> in this browser') + link +
           row(A2HS_SHARE, 'Choose <b style="font-weight:900">Share</b>') + link + row(A2HS_ADD, 'Choose <b style="font-weight:900">Add to Home Screen</b>') + '</div>'
       : '<div data-a2hs-steps="chrome" style="display:flex;align-items:flex-start;justify-content:center;gap:4px">' +
-      step(A2HS_SHARE, 'Tap <b style="font-weight:900">Share</b> in your browser') +
+      step(A2HS_SHARE, 'Tap <b style="font-weight:900">Share</b> in this browser') +
       '<span aria-hidden="true" style="flex:0 0 30px;height:64px;display:flex;align-items:center">' + '<svg width="30" height="14" viewBox="0 0 30 14" fill="none" stroke="#b9bcc4" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7h25M21 2l6 5-6 5"/></svg>' + '</span>' +
       step(A2HS_ADD, 'Choose <b style="font-weight:900">Add to Home Screen</b>') + '</div>';
     return '<div class="modal-scrim" data-scrim="' + reg(a2hsLater) + '" style="z-index:36;display:block;padding:0;background:rgba(13,17,23,.55)">' +
