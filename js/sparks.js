@@ -430,7 +430,7 @@
     diagNote('load started');
     const [mem, grp, sp, of, it, gc, rs, dop, dvo, sop, svo, sui, scl, upd, org, alb, prp, rct, sgr, drf, nts] = await Promise.all([
       sb.from('memberships').select('group_id,role,last_seen_at,pinned'),
-      sb.from('groups').select('id,name,photo,photo_pos'),
+      sb.from('groups').select('id,name,photo,photo_pos,demo'),
       sb.from('sparks').select('*').order('created_at', { ascending: false }),
       sb.from('offers').select('*').order('created_at'),
       sb.from('interests').select('spark_id,user_id,created_at'),
@@ -470,7 +470,7 @@
     const va = state.viewAs;
     const drafts = va || drf.error ? [] : (drf.data || []).map(d => ({ id: d.id, data: d.data || {}, saved: Date.parse(d.updated_at) }));
     const notes = va || nts.error ? [] : (nts.data || []).map(n => ({ id: n.id, body: n.body, createdBy: n.created_by, created: Date.parse(n.created_at) }));
-    const groups = grp.data.map(g => Object.assign({ id: g.id, name: g.name, photo: g.photo, photoPos: g.photo_pos || null, role: null, lastSeen: 0, pinned: false }, (va ? va.roles : roles)[g.id] || {}))
+    const groups = grp.data.map(g => Object.assign({ id: g.id, name: g.name, photo: g.photo, photoPos: g.photo_pos || null, demo: !!g.demo, role: null, lastSeen: 0, pinned: false }, (va ? va.roles : roles)[g.id] || {}))
       .filter(g => !va || va.roles[g.id])
       .sort((a, b) => runs(b) - runs(a) || a.name.localeCompare(b.name));
 
@@ -1728,7 +1728,7 @@
         const onIt = cur && g.id === cur.id;
         return '<div ' + on(() => pickGroup(g)) + ' style="display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;padding:9px 12px;border-radius:12px;background:' + (onIt ? '#f3f1fe' : 'transparent') + ';cursor:pointer">' +
           '<div style="min-width:0;display:flex;align-items:center;gap:8px">' +
-            '<span style="font-size:15px;font-weight:800;color:' + (onIt ? '#5b4ae8' : '#0d1117') + '">' + esc(g.name) + '</span>' +
+            '<span style="font-size:15px;font-weight:800;color:' + (onIt ? '#5b4ae8' : '#0d1117') + '">' + esc(g.name) + groupTag(g) + '</span>' +
           '</div></div>';
       }).join('') +
       (myGroups().length ? '<div style="height:1px;background:#f2f3f6;margin:6px"></div>' : '') +
@@ -2147,7 +2147,7 @@
         '<div style="position:absolute;top:12px;left:12px">' + roleChip(g) + '</div>' +
         '<div style="position:absolute;top:10px;right:10px;display:flex;gap:8px">' + gearBtn(g) + pinBtn(g, 36) + '</div>' +
         '<div style="position:absolute;left:16px;right:16px;bottom:12px;color:#fff">' +
-          '<div style="font-size:26px;line-height:1.05;font-weight:900;letter-spacing:-.6px">' + newDot(g) + esc(g.name) + '</div>' +
+          '<div style="font-size:26px;line-height:1.05;font-weight:900;letter-spacing:-.6px">' + newDot(g) + esc(g.name) + groupTag(g, true) + '</div>' +
           (size ? '<div style="margin-top:3px;font-size:13px;font-weight:700;color:#dfe2e8">' + size + (size === 1 ? ' member' : ' members') + '</div>' : '') +
         '</div>' +
       '</div>';
@@ -2156,7 +2156,7 @@
       '<div style="position:absolute;top:10px;left:10px">' + roleChip(g) + '</div>' +
       '<div style="position:absolute;top:8px;right:8px">' + pinBtn(g, 32) + '</div>' +
       '<div style="position:absolute;left:12px;right:10px;bottom:10px;color:#fff;font-size:16px;line-height:1.15;font-weight:900">' +
-        newDot(g) + esc(g.name) + '</div>' +
+        newDot(g) + esc(g.name) + groupTag(g, true) + '</div>' +
     '</div>';
     // v6 Update 2: a Calendar-style photo header (YOUR PEOPLE · Groups · N groups), the bell, a white Join pill
     const header = '<header style="position:relative;height:calc(180px + var(--pt));overflow:hidden;background:#2b303a">' +
@@ -2307,6 +2307,8 @@
 
   // Seeded demo content gets a small DEMO pill before its title (owner, 2026-09-30): pilot members joined to a demo
   // group shouldn't mistake it for real plans. Translucent white on photos, gray on white.
+  // Demo groups (Hub on Hunters, Walnut Creek, Woodcliff) get the same chip after their name (owner, 2026-09-30)
+  const groupTag = (g, onPhoto) => g && g.demo ? demoTag({ demo: true }, onPhoto, true) : '';
   const demoTag = (s, onPhoto, after) => !s || !s.demo ? '' : '<span data-demo-tag style="display:inline-block;vertical-align:.15em;' + (after ? 'flex:0 0 auto;margin-left:7px' : 'margin-right:7px') + ';padding:2px 7px;border-radius:999px;font-size:10.5px;line-height:1.3;font-weight:900;letter-spacing:.8px;text-shadow:none;' +
     (onPhoto ? 'background:rgba(255,255,255,.24);color:#fff;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)' : 'background:#eef0f3;color:#6b7280') + '">DEMO</span>';
   // A photo banner: title (up to two lines, growing upward) and the date line, with a chevron
@@ -2647,7 +2649,7 @@
             (onAll ? '<span ' + on((e) => { stop(e); onAll(); }) + ' style="font-size:13.5px;font-weight:800;color:' + (allOn ? '#b9b2f5' : '#5b4ae8') + ';cursor:pointer">Select all</span>' : '') +
             '<span ' + on((e) => { stop(e); onClear(); }) + ' style="font-size:13.5px;font-weight:800;color:#6b7280;cursor:pointer">Clear</span></div>' +
           rows.map(r => '<div ' + on((e) => { stop(e); r.toggle(); }, 'menuitemcheckbox') + ' aria-checked="' + r.on + '" style="display:flex;align-items:center;gap:12px;min-height:44px;padding:0 10px;border-top:1px solid #f2f3f6;cursor:pointer">' + box(r.on) +
-            '<span style="flex:1;min-width:0;font-size:15px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(r.name) + '</span><span style="font-size:13px;font-weight:800;color:#8a909b">' + r.n + '</span></div>').join('') +
+            '<span style="flex:1;min-width:0;font-size:15px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(r.name) + '</span>' + (r.demo ? groupTag(r) : '') + '<span style="font-size:13px;font-weight:800;color:#8a909b">' + r.n + '</span></div>').join('') +
           (footer ? '<button type="button" ' + on((e) => { stop(e); setState({ menu: null }); }) + ' style="margin-top:8px;width:100%;min-height:46px;border:0;border-radius:999px;background:#0d1117;color:#fff;font-family:inherit;font-size:15px;font-weight:800;cursor:pointer">' + footer + '</button>' : '') +
         '</div>' : '') +
     '</div>';
@@ -2724,7 +2726,7 @@
     const gLabel = !gSel ? 'All groups' : !nG ? 'No groups' : nG === 1 ? '1 group' : nG + ' groups';
     const toggleG = (id) => { const cur = st.cGrps || groups.map(g => g.id), next = cur.indexOf(id) > -1 ? cur.filter(x => x !== id) : cur.concat([id]); setState({ cGrps: next.length === groups.length ? null : next }); };
     const shown = base.filter(s => inGroups6(s) && inTypes6(s)).length;
-    const gMenu = checkMenu('cGrp', gLabel, 'people', 'Groups', groups.map(g => ({ name: g.name, n: base.filter(s => inGroup(s, g.id)).length, on: !gSel || gSel.indexOf(g.id) > -1, toggle: () => toggleG(g.id) })),
+    const gMenu = checkMenu('cGrp', gLabel, 'people', 'Groups', groups.map(g => ({ name: g.name, demo: g.demo, n: base.filter(s => inGroup(s, g.id)).length, on: !gSel || gSel.indexOf(g.id) > -1, toggle: () => toggleG(g.id) })),
       !gSel, () => setState({ cGrps: null }), () => setState({ cGrps: [] }), 'Show ' + shown + (shown === 1 ? ' event' : ' events'));
     const tSel = st.cTypes, tLabel = !tSel.length ? 'All types' : tSel.length === 1 ? typeName(tSel[0]) : tSel.length + ' types';
     const toggleT = (k) => setState({ cTypes: tSel.indexOf(k) > -1 ? tSel.filter(x => x !== k) : tSel.concat([k]) });
@@ -3472,7 +3474,7 @@
         (g ? '<span ' + on(openGroupSearch) + ' aria-label="Search this group" style="width:44px;height:44px;border-radius:999px;background:rgba(255,255,255,.18);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;cursor:pointer">' + ic6('search', 19, '#fff', 2.4) + '</span>' : '') + bellBtn(true) + '</div>' +
       '<div style="position:absolute;left:18px;right:90px;bottom:16px;z-index:2;color:#fff">' +
         (size ? '<div style="font-size:13px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:#cfc9ff">' + size + (size === 1 ? ' member' : ' members') + '</div>' : '') +
-        '<h1 style="margin:2px 0 0;font-size:34px;line-height:1.02;font-weight:900;letter-spacing:-1.1px;color:#fff;text-wrap:balance;text-shadow:0 1px 8px rgba(0,0,0,.3)">' + esc(g ? g.name : 'Spark Hub') +
+        '<h1 style="margin:2px 0 0;font-size:34px;line-height:1.02;font-weight:900;letter-spacing:-1.1px;color:#fff;text-wrap:balance;text-shadow:0 1px 8px rgba(0,0,0,.3)">' + esc(g ? g.name : 'Spark Hub') + groupTag(g, true) +
           (runs(g) ? '<span ' + on((e) => { stop(e); openGroupPage(g.id, false, 'browse'); }) + ' aria-label="Edit group" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;margin-left:6px;vertical-align:4px;border-radius:999px;color:rgba(255,255,255,.6);cursor:pointer">' + svg(16, stroke('currentColor', 2.2), '<path d="M4 20h4L19 9l-4-4L4 16v4Z"/>') + '</span>' : '') +
         '</h1></div>' +
       (g ? '<button type="button" class="hov-primary" ' + on(() => goCompose()) + ' aria-label="I have an idea" style="position:absolute;right:16px;bottom:16px;z-index:3;width:52px;height:52px;border:0;border-radius:999px;background:#5b4ae8;box-shadow:0 6px 16px rgba(13,17,23,.35);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.plus(22, '#fff', 2.8) + '</button>' : '') +
@@ -5095,7 +5097,7 @@
   // A group row with a checkbox (Post to, Who can see it)
   const groupCheck = (g, onIt, pick, note, noteHtml) => '<div ' + on(pick, 'checkbox') + ' aria-checked="' + onIt + '" style="display:flex;align-items:center;gap:10px;min-height:46px;padding:9px 12px;border-radius:12px;background:' + (onIt ? '#f3f1fe' : 'transparent') + ';cursor:pointer">' +
     '<span aria-hidden="true" style="flex:0 0 20px;width:20px;height:20px;border-radius:6px;display:flex;align-items:center;justify-content:center;' + (onIt ? 'background:#5b4ae8' : 'background:#fff;box-shadow:inset 0 0 0 2px #c9ccd3') + '">' + (onIt ? I.check(12, '#fff', 3.4) : '') + '</span>' +
-    '<span style="flex:1;min-width:0;font-size:15px;font-weight:800;color:' + (onIt ? '#5b4ae8' : '#0d1117') + '">' + esc(g.name) + '</span>' + (note ? '<span style="font-size:12.5px;font-weight:700;color:#8a909b">' + note + '</span>' : '') + (noteHtml || '') + '</div>';
+    '<span style="flex:1;min-width:0;font-size:15px;font-weight:800;color:' + (onIt ? '#5b4ae8' : '#0d1117') + '">' + esc(g.name) + groupTag(g) + '</span>' + (note ? '<span style="font-size:12.5px;font-weight:700;color:#8a909b">' + note + '</span>' : '') + (noteHtml || '') + '</div>';
 
   // The flow's sheets: Poll the group, Add a job, Save this as a draft? (one at a time, never stacked)
   const stepper = (n, set, label) => '<div style="flex:0 0 auto;display:flex;align-items:center;gap:8px">' +
