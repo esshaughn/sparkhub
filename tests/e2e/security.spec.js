@@ -433,6 +433,10 @@ test('plans: replies, sign-ups, updates, notes and invite-only plans follow the 
       };
     });
     expect(fb).toEqual({ send: 'ALLOWED', empty: 'refused', asSomeoneElse: 'refused', forgeName: 'refused', readOwn: 0, edit: 'refused', remove: 'refused' });
+
+    // New accounts (owner's Profile): new_accounts() lists everyone's email only for demo_admins; anyone else gets no rows
+    const accts = await asUser(L, async (c) => { const r = await c.rpc('new_accounts'); return r.error ? 'refused' : r.data.length ? 'LISTED' : 'none'; });
+    expect(accts).toBe('none');
   } finally {
     for (const id of ids) await asUser(L, async (c, _C, id) => { await c.from('sparks').delete().eq('id', id); }, id).catch(() => {});
     await lead.context.close();

@@ -215,6 +215,7 @@ test('Give feedback (Update 9): a Help & info tile opens the sheet; Send to Eric
     await box.getByRole('button', { name: 'Cancel' }).click();
     await expect(box).toHaveCount(0);
     await expect(profile).not.toContainText('Feedback inbox');   // only the owner sees the inbox
+    await expect(profile).not.toContainText('New accounts');     // nor the accounts list
     await profile.getByRole('button', { name: 'Close' }).click();
 
     // A group's Plans tab (80a): the empty state, or "What else could happen?" under the plans; a chip starts an event with that title
@@ -522,6 +523,47 @@ test('freeze log (temporary): a 2-second stall is noted and shows on the owner\'
     await expect(log).toContainText(/stall [12]\.\d+s/);
     await log.getByRole('button', { name: 'Clear' }).click();
     await expect(log).toContainText('Nothing logged yet.');
+    expect(errors).toEqual([]);
+  } finally {
+    await context.close();
+  }
+});
+
+test('New accounts (owner only): a card under the Feedback inbox counts accounts, badges the unseen ones, and opens the list', async ({ browser }) => {
+  const { page, context, errors } = await newLead(browser, 1, 'Tester');
+  try {
+    // Pretend this account is the owner, and answer new_accounts() with two made-up accounts
+    const now = Date.now();
+    const rows = [
+      { user_id: '00000000-0000-4000-8000-000000000001', name: 'Rosa Diaz', email: 'rosa@e2e.test', avatar_path: null, joined_at: new Date(now - 5 * 60000).toISOString(), method: 'google',
+        groups: [{ name: 'Torrez Fitness', demo: false }, { name: 'Hub on Hunters', demo: true }] },
+      { user_id: '00000000-0000-4000-8000-000000000002', name: 'Sam Lee', email: 'sam@e2e.test', avatar_path: null, joined_at: new Date(now - 3 * 86400000).toISOString(), method: 'email', groups: [] }
+    ];
+    await page.route('**/rest/v1/demo_admins*', r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ user_id: 'x' }) }));
+    await page.route('**/rest/v1/rpc/new_accounts*', r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(rows) }));
+    await page.evaluate((t) => localStorage.setItem('spark-hub-accounts-seen', String(t)), now - 86400000);   // Sam joined before the last look
+    await page.reload();
+    await expect(page.locator('html[data-loaded=true]')).toHaveCount(1);
+    await openProfile(page);
+    const profile = page.getByRole('dialog', { name: 'Profile', exact: true });
+    const card = profile.getByRole('button', { name: 'New accounts, 1 new' });
+    await expect(card).toContainText('2 accounts so far');
+    await card.click();
+    const sheet = page.getByRole('dialog', { name: 'New accounts' });
+    await expect(sheet).toContainText('2 accounts, newest first');
+    const items = sheet.locator('[data-account]');
+    await expect(items).toHaveCount(2);
+    await expect(items.nth(0)).toContainText('Rosa Diaz');
+    await expect(items.nth(0)).toContainText('rosa@e2e.test');
+    await expect(items.nth(0)).toContainText('Joined 5m ago · Google');
+    await expect(items.nth(0)).toContainText('Torrez Fitness · 1 demo group');
+    await expect(items.nth(0)).toContainText('NEW');
+    await expect(items.nth(1)).toContainText('Joined 3 days ago · Email');
+    await expect(items.nth(1)).toContainText('No groups yet');
+    await expect(items.nth(1)).not.toContainText('NEW');
+    await sheet.getByRole('button', { name: 'Close' }).click();
+    await expect(sheet).toHaveCount(0);
+    await expect(profile.getByRole('button', { name: 'New accounts', exact: true })).toContainText('2 accounts so far');   // closing marks them seen
     expect(errors).toEqual([]);
   } finally {
     await context.close();

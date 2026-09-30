@@ -40,7 +40,7 @@
   // PKCE keeps the Google round trip in the query string, clear of our #/ routes
   // "View as a user" (demo admin only) is look-only: while it's on, nothing but reads leaves the app
   let previewing = false;
-  const READ_RPCS = /\/rest\/v1\/rpc\/(my_group_sizes|demo_testers)(\?|$)/;
+  const READ_RPCS = /\/rest\/v1\/rpc\/(my_group_sizes|demo_testers|new_accounts)(\?|$)/;
   const guardedFetch = (url, opts) => {
     const m = String((opts && opts.method) || 'GET').toUpperCase(), u = String((url && url.url) || url);
     if (previewing && m !== 'GET' && m !== 'HEAD' && !/\/auth\/v1\//.test(u) && !READ_RPCS.test(u))
@@ -508,7 +508,7 @@
     // Whether you're the account that can wipe the demo content (Profile)
     if (state.email && !va) {
       sb.from('demo_admins').select('user_id').eq('user_id', state.me).maybeSingle()
-        .then(r => { if (!r.error) { setState({ demoAdmin: !!r.data }); writeCache(); if (r.data) loadFeedback(); } }, () => {});
+        .then(r => { if (!r.error) { setState({ demoAdmin: !!r.data }); writeCache(); if (r.data) { loadFeedback(); loadAccounts(); } } }, () => {});
     }
     // Notification read state and settings (signed-in people only)
     if (state.email && !va) {
@@ -3122,6 +3122,38 @@
   const loadFeedback = () => sb.from('feedback').select('id, user_id, name, body, created_at').order('created_at', { ascending: false }).limit(200)
     .then(r => { if (!r.error) setState({ fbInbox: r.data.map(x => ({ id: x.id, uid: x.user_id, name: x.name || 'Someone', text: x.body, at: Date.parse(x.created_at) })) }); }, () => {});
   const fbUnread = () => (state.fbInbox || []).filter(x => x.at > fbSeenAt()).length;
+
+  // ---- New accounts (owner only, beside the Feedback inbox): everyone with a confirmed, non-anonymous email,
+  // newest first, from new_accounts() (20261022000000_accounts_list.sql; no rows for anyone else). Loaded tolerantly:
+  // without the function the card stays hidden. "New" works like the inbox: joined since the sheet was last closed here.
+  const ACCT_SEEN_KEY = 'spark-hub-accounts-seen';
+  const acctSeenAt = () => { try { return Number(localStorage.getItem(ACCT_SEEN_KEY)) || 0; } catch (e) { return 0; } };
+  const loadAccounts = () => sb.rpc('new_accounts')
+    .then(r => { setState({ accts: r.error ? null : (r.data || []).map(x => ({ id: x.user_id, name: x.name || 'Someone', email: x.email || '', avatar: x.avatar_path,
+      at: Date.parse(x.joined_at), google: x.method === 'google', groups: Array.isArray(x.groups) ? x.groups : [] })) }); }, () => {});
+  const acctUnread = () => (state.accts || []).filter(x => x.at > acctSeenAt()).length;
+  function viewAccounts() {
+    const list = state.accts || [], seen = acctSeenAt();
+    const close = () => { try { localStorage.setItem(ACCT_SEEN_KEY, String(Date.now())); } catch (e) { /* blocked */ } setState({ acctOpen: false }); };
+    const face = (x) => { const a = x.avatar ? photoUrl(x.avatar) : null;
+      return '<span aria-hidden="true" style="flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:' + (a ? bg(a) : '#5b4ae8') + ';color:#fff;font-size:16px;font-weight:900;display:flex;align-items:center;justify-content:center">' + (a ? '' : esc(initialOf(x.name) || '?')) + '</span>'; };
+    const joined = (t) => { const a = ago(t); return 'Joined ' + (a === 'Just now' || a === 'Yesterday' ? a.toLowerCase() : a); };
+    const groupsLine = (x) => { const real = x.groups.filter(g => !g.demo).map(g => g.name), d = x.groups.length - real.length;
+      return (real.length ? real.join(', ') : 'No groups yet') + (d ? ' · ' + d + (d === 1 ? ' demo group' : ' demo groups') : ''); };
+    const row = (x) => '<div data-account style="background:#fff;border-radius:18px;padding:14px;display:flex;gap:12px;box-shadow:0 1px 3px rgba(15,18,25,.08)">' + face(x) +
+      '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px">' +
+        '<div style="display:flex;align-items:center;gap:8px"><div style="flex:1;min-width:0;font-size:15.5px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(x.name) + '</div>' +
+          (x.at > seen ? '<span style="flex:0 0 auto;height:22px;padding:0 8px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:11px;font-weight:900;letter-spacing:.6px;display:flex;align-items:center">NEW</span>' : '') + '</div>' +
+        '<div style="font-size:13.5px;font-weight:600;color:#454b55;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(x.email) + '</div>' +
+        '<div style="font-size:12.5px;font-weight:600;color:#8a909b">' + esc(joined(x.at)) + ' · ' + (x.google ? 'Google' : 'Email') + '</div>' +
+        '<div style="font-size:12.5px;line-height:1.4;font-weight:600;color:#6b7280;overflow-wrap:break-word">' + esc(groupsLine(x)) + '</div></div></div>';
+    return sheet6('New accounts', close,
+      '<div style="display:flex;align-items:flex-end;gap:10px"><div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:900;letter-spacing:1px;color:#8f6405">SUPER ADMIN</div>' +
+        '<h2 style="margin:2px 0 0;font-size:24px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:#0d1117">New accounts</h2>' +
+        '<div style="margin-top:4px;font-size:13px;font-weight:600;color:#6b7280">' + list.length + (list.length === 1 ? ' account' : ' accounts') + ', newest first</div></div>' + closeX(close) + '</div>',
+      '<div style="padding:14px 14px 30px;display:flex;flex-direction:column;gap:10px">' + (list.length ? list.map(row).join('')
+        : '<div style="background:#fff;border-radius:18px;padding:26px 16px;text-align:center;font-size:15px;font-weight:700;color:#6b7280">No accounts yet.</div>') + '</div>');
+  }
   function viewFbInbox() {
     const list = state.fbInbox || [], seen = fbSeenAt();
     const close = () => { try { localStorage.setItem(FB_SEEN_KEY, String(Date.now())); } catch (e) { /* blocked */ } setState({ fbOpen: false }); };
@@ -4547,6 +4579,17 @@
       I.chevR(16, '#9aa0ac', 2.4) + '</div>';
   };
 
+  // The owner's way into the New accounts list (under the Feedback inbox card); hidden until new_accounts() has answered
+  const acctCard = () => {
+    if (!Array.isArray(state.accts)) return '';
+    const n = state.accts.length, u = acctUnread();
+    return '<div ' + on(() => { setState({ acctOpen: true }); loadAccounts(); }) + ' aria-label="New accounts' + (u ? ', ' + u + ' new' : '') + '" class="hov-row" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:16px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
+      '<span style="flex:0 0 42px;width:42px;height:42px;border-radius:12px;background:#fdf1d6;display:flex;align-items:center;justify-content:center">' + svg(20, stroke('#8f6405', 2.2), '<circle cx="10" cy="8" r="4"/><path d="M3 20a7 7 0 0 1 14 0M19 8v6M16 11h6"/>') + '</span>' +
+      '<div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:900;color:#0d1117">New accounts</div><div style="font-size:13px;font-weight:500;color:#6b7280">' + (n ? n + (n === 1 ? ' account so far' : ' accounts so far') : 'Everyone who signs up lands here') + '</div></div>' +
+      (u ? '<span style="flex:0 0 auto;min-width:22px;height:22px;padding:0 6px;border-radius:999px;background:#e2556b;color:#fff;font-size:11.5px;font-weight:900;display:flex;align-items:center;justify-content:center;box-sizing:border-box">' + (u > 9 ? '9+' : u) + '</span>' : '') +
+      I.chevR(16, '#9aa0ac', 2.4) + '</div>';
+  };
+
   // v6 Update 2: a compact Profile sheet (photo, name, a pencil to edit); Help & info tiles, then Settings
   function viewProfileSheet() {
     const close = () => setState({ profSheet: false });
@@ -4564,7 +4607,7 @@
           '<span style="min-width:0;font-size:20px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(st.myName || 'No name yet') + '</span>' +
           '<span ' + on(openProfileEdit) + ' aria-label="Edit profile" style="flex:0 0 32px;width:32px;height:32px;border-radius:999px;color:#9aa0ac;display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(15, stroke('currentColor', 2.2), '<path d="M4 20h4L19 9l-4-4L4 16v4Z"/>') + '</span></div>' +
         closeX(close) + '</div>',
-      '<div style="padding:18px 14px 30px;display:flex;flex-direction:column;gap:20px">' + (st.demoAdmin ? fbInboxCard() : '') +
+      '<div style="padding:18px 14px 30px;display:flex;flex-direction:column;gap:20px">' + (st.demoAdmin ? '<div style="display:flex;flex-direction:column;gap:10px">' + fbInboxCard() + acctCard() + '</div>' : '') +
         '<div style="display:flex;flex-direction:column;gap:10px"><h2 style="margin:0;padding:0 4px;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:#0d1117">Help &amp; info</h2>' +
           '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">' +
             tile('<span style="font-size:17px;font-weight:900">?</span>', 'How this works', 'Events and pitching in', () => go('how', { howFrom: state.screen })) +
@@ -5693,6 +5736,7 @@
       (st.confirm ? viewConfirm() : '') +
       (st.zoom ? viewZoom() : '') +
       (st.fbOpen && st.demoAdmin ? viewFbInbox() : '') +
+      (st.acctOpen && st.demoAdmin ? viewAccounts() : '') +
       (st.fb && st.email ? viewFeedback() : '') +
       (st.installPop ? viewInstallPop() : '') +
       (st.toast ? viewToast() : '') +
