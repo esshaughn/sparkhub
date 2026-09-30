@@ -228,7 +228,7 @@ test('leaving a group: a member leaves from the bottom of its page; its only own
     await M.locator('[data-screen-label=Groups]').getByRole('button', { name: name, exact: true }).click();
     await M.locator('[data-screen-label=Browse] [data-leave-group]').click();
     const c = M.getByRole('alertdialog', { name: 'Leave ' + name + '?' });
-    await expect(c).toContainText('Your events and replies stay. You can rejoin with the group’s link.');
+    await expect(c).toContainText('The events you posted and your replies stay. You can rejoin with the group’s link.');
     await c.getByRole('button', { name: 'Leave', exact: true }).click();
     await expect(M.getByText('You left ' + name)).toBeVisible();
     await expect(M.locator('[data-screen-label=Groups]')).not.toContainText(name);
