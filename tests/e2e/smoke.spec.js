@@ -79,7 +79,7 @@ test('web push: a push-only service worker registers, and Notifications offers p
   }
 });
 
-test('Add to Home Screen (Update 11): once a visit until Got it; Maybe later hides it for the visit; Android opens Chrome’s prompt, iPhone shows the Share steps', async ({ browser }) => {
+test('Add to Home Screen: at most once a visit, back 48 hours after Got it and 24 after Maybe later / ✕ / scrim; Android opens Chrome’s prompt, iPhone shows the Share steps', async ({ browser }) => {
   // Chrome hands an installable site a beforeinstallprompt event; stand in for it (or be an iPhone browser, which has none)
   const fake = () => {
     const iphone = localStorage.getItem('e2e-iphone');
@@ -108,7 +108,7 @@ test('Add to Home Screen (Update 11): once a visit until Got it; Maybe later hid
     await expect(page.locator('html[data-loaded=true]')).toHaveCount(1);
   };
 
-  // Welcome (signed out), iPhone Safari: the steps; Got it means never again on this device
+  // Welcome (signed out), iPhone Safari: the steps; Got it hides it for 48 hours
   const v = await newMember(browser);
   try {
     await v.context.addInitScript(fake);
@@ -127,14 +127,22 @@ test('Add to Home Screen (Update 11): once a visit until Got it; Maybe later hid
     await v.page.reload();
     await expect(v.page.locator('html[data-loaded=true]')).toHaveCount(1);
     await v.page.waitForTimeout(1200);
-    expect(await v.page.evaluate(() => localStorage.getItem('sparkhub-a2hs'))).toBe('done');
+    const daysLeft = () => v.page.evaluate(() => (+localStorage.getItem('sparkhub-a2hs') - Date.now()) / 864e5);
+    expect(Math.round(await daysLeft())).toBe(2);
     await v.page.evaluate(() => sessionStorage.removeItem('sparkhub-a2hs'));   // a new visit
     await v.page.reload();
     await expect(v.page.locator('html[data-loaded=true]')).toHaveCount(1);
     await v.page.waitForTimeout(1200);
-    await expect(pop).toHaveCount(0);   // never again
+    await expect(pop).toHaveCount(0);   // not within the 48 hours
+    // Two days later, not installed: it's back, and ✕ closes it for 24 hours
+    await v.page.evaluate(() => { localStorage.setItem('sparkhub-a2hs', String(Date.now() - 1)); sessionStorage.removeItem('sparkhub-a2hs'); });
+    await v.page.reload();
+    await expect(pop).toBeVisible();
+    await pop.getByRole('button', { name: 'Close' }).click();
+    await expect(pop).toHaveCount(0);
+    expect(Math.round(await daysLeft())).toBe(1);
 
-    // iPhone Chrome, Maybe later: gone for this visit, back on the next
+    // iPhone Chrome, Maybe later: gone for 24 hours, then back
     await fresh(v.page, 'chrome');
     await expect(pop.locator('[data-a2hs-steps=chrome]')).toContainText('Tap Share in this browser');
     await expect(pop).toContainText('Choose Add to Home Screen');
@@ -144,7 +152,8 @@ test('Add to Home Screen (Update 11): once a visit until Got it; Maybe later hid
     await expect(v.page.locator('html[data-loaded=true]')).toHaveCount(1);
     await v.page.waitForTimeout(1200);
     await expect(pop).toHaveCount(0);
-    await v.page.evaluate(() => sessionStorage.removeItem('sparkhub-a2hs'));
+    expect(Math.round(await daysLeft())).toBe(1);
+    await v.page.evaluate(() => { localStorage.setItem('sparkhub-a2hs', String(Date.now() - 1)); sessionStorage.removeItem('sparkhub-a2hs'); });
     await v.page.reload();
     await expect(pop).toBeVisible();
     await v.page.mouse.click(200, 60);   // the scrim is Maybe later too
@@ -170,7 +179,7 @@ test('Add to Home Screen (Update 11): once a visit until Got it; Maybe later hid
     await page.reload();
     await expect(page.locator('html[data-loaded=true]')).toHaveCount(1);
     await page.waitForTimeout(1200);
-    await expect(pop).toHaveCount(0);   // installing counts as Got it
+    await expect(pop).toHaveCount(0);   // installing counts as Got it (48 hours; once installed it never shows)
 
     // Profile keeps the way in (on Android it opens Chrome's dialog straight away)
     await openProfile(page);

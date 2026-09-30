@@ -3184,13 +3184,16 @@
     try { await e.prompt(); await e.userChoice; } catch (err) { console.error(err); }
     setState({ canInstall: false });
   };
-  // When to pop it up by itself (v6 Update 11): once a visit until "Got it" (never again on this device); "Maybe later"
-  // or the scrim hide it for this visit. Called after each render; waits for other pop-ups (sign-in, name, confirm…).
-  const A2HS = 'sparkhub-a2hs';
-  const a2hsSeen = () => { try { return localStorage.getItem(A2HS) === 'done' || sessionStorage.getItem(A2HS) === 'later'; } catch (e) { return true; } };
+  // When to pop it up by itself: at most once a visit, and it keeps coming back now and then until the app is
+  // installed (owner, 2026-09-30; Update 11 had Got it = never again). Got it hides it for 48 hours; Maybe later, ✕,
+  // the scrim or Escape for 24. localStorage holds the time it may show again. Never in the installed app
+  // (installMode() is '' there). Called after each render; waits for other pop-ups (sign-in, name, confirm…).
+  const A2HS = 'sparkhub-a2hs', A2HS_DAY = 864e5;
+  const a2hsSeen = () => { try { return (+localStorage.getItem(A2HS) || 0) > Date.now() || sessionStorage.getItem(A2HS) === 'later'; } catch (e) { return true; } };
   const a2hsMark = (store, v) => { try { store.setItem(A2HS, v); } catch (e) { /* fine */ } };
-  const a2hsLater = () => { a2hsMark(sessionStorage, 'later'); setState({ installPop: false }); };
-  const a2hsDone = () => { a2hsMark(localStorage, 'done'); setState({ installPop: false }); };
+  const a2hsHide = (days) => { a2hsMark(localStorage, String(Date.now() + days * A2HS_DAY)); setState({ installPop: false }); };
+  const a2hsLater = () => { a2hsMark(sessionStorage, 'later'); a2hsHide(1); };
+  const a2hsDone = () => a2hsHide(2);
   let popTimer = null;
   const maybeInstallPop = () => {
     const st = state;
@@ -3228,11 +3231,12 @@
       step(A2HS_ADD, 'Choose <b style="font-weight:900">Add to Home Screen</b>') + '</div>';
     return '<div class="modal-scrim" data-scrim="' + reg(a2hsLater) + '" style="z-index:36;display:block;padding:0;background:rgba(13,17,23,.55)">' +
       '<div data-install-pop role="dialog" aria-modal="true" aria-label="Add to Home Screen" style="position:absolute;left:16px;right:16px;bottom:calc(24px + env(safe-area-inset-bottom, 0px));max-width:420px;margin:0 auto;background:#fff;border-radius:28px;padding:26px 22px 18px;display:flex;flex-direction:column;gap:14px;box-shadow:0 20px 50px rgba(0,0,0,.35);animation:popIn 260ms cubic-bezier(.22,.9,.28,1) both">' +
+        closeX(a2hsLater, 'position:absolute;top:12px;right:12px;width:34px;height:34px') +
         '<div style="font-size:12px;font-weight:900;letter-spacing:2px;text-transform:uppercase;color:#5b4ae8">Recommended</div>' +
         '<h3 style="margin:0;font-size:28px;line-height:1.05;font-weight:900;letter-spacing:-.8px;color:#0d1117">Make this an app (kinda)</h3>' +
         '<p style="margin:0;font-size:19px;line-height:1.35;font-weight:500;color:#5c6270">Add a shortcut icon on your home screen, no App Store needed.</p>' +
         steps +
-        '<button type="button" class="hov-primary" ' + on(mode === 'prompt' ? () => { a2hsMark(localStorage, 'done'); startInstall(); } : a2hsDone) + ' style="width:100%;min-height:54px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:17px;font-weight:900;cursor:pointer">' + (mode === 'prompt' ? 'Add to Home Screen' : 'Got it') + '</button>' +
+        '<button type="button" class="hov-primary" ' + on(mode === 'prompt' ? () => { a2hsDone(); startInstall(); } : a2hsDone) + ' style="width:100%;min-height:54px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:17px;font-weight:900;cursor:pointer">' + (mode === 'prompt' ? 'Add to Home Screen' : 'Got it') + '</button>' +
         '<button type="button" ' + on(a2hsLater) + ' style="display:block;width:100%;margin-top:-6px;min-height:44px;border:0;background:transparent;font-family:inherit;font-size:15px;font-weight:800;color:#6b7280;cursor:pointer">Maybe later</button>' +
       '</div></div>';
   }
