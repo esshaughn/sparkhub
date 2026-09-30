@@ -4188,20 +4188,28 @@
   };
 
   // Edit what you need: every job editable in place (nothing opens on top)
-  const openNeeds = (s) => setState({ needEd: { id: s.id, rows: (s.jobs || []).map(j => j.shifts
+  // `known`: the jobs and shifts on screen when it opened. Save only removes those, so a job or shift that
+  // arrived later (the sheet opened on cached data, or someone added one meanwhile) is never taken down.
+  const openNeeds = (s) => setState({ needEd: { id: s.id, known: [].concat(...(s.jobs || []).map(j => [j.id].concat((j.shifts || []).map(u => u.id)))), rows: (s.jobs || []).map(j => j.shifts
     ? { id: j.id, item: j.item, desc: j.desc, n: j.claims.length, shifts: j.shifts.map(u => ({ id: u.id, time: u.time || '', end: u.endTime || '', need: u.need || null, n: u.claims.length })) }
     : { id: j.id, item: j.item, desc: j.desc, n: j.claims.length, time: j.time || '', end: j.endTime || '', need: j.need || null, shifts: null }) } });
   const saveNeeds = (s) => {
     const ed = state.needEd;
     if (!ed || state.busy) return;
+    const orig = s.jobs || [], known = (id) => (ed.known || []).indexOf(id) > -1;
+    // Someone signed up since it opened: switching that job between one time and shifts would drop them
+    const flips = ed.rows.filter(r => r.id).filter(r => { const o = orig.find(j => j.id === r.id); return o && o.claims.length && !!o.shifts !== (r.shifts || []).some(q => q.time); });
+    if (flips.length) { toast('Someone just signed up for “' + cleanTitle(flips[0].item) + '”, so it can’t switch between one time and shifts. Close and open it again.'); return; }
     run(async () => {
-      const orig = s.jobs || [], keep = ed.rows.filter(r => r.id).map(r => r.id), gone = orig.filter(j => keep.indexOf(j.id) < 0).map(j => j.id);
+      const keep = ed.rows.filter(r => r.id).map(r => r.id), gone = orig.filter(j => keep.indexOf(j.id) < 0 && known(j.id)).map(j => j.id);
       for (const id of gone) must(await sb.rpc('remove_signup', { p_item: id }));   // tells the people signed up
       for (const r of ed.rows) {
         const item = cleanTitle(r.item).slice(0, 60), descr = (r.desc || '').trim().slice(0, 400) || null;
         if (!item) continue;
         if (!r.id) { await insertJob(s.id, r); continue; }
-        const o = orig.find(j => j.id === r.id) || {}, shifts = (r.shifts || []).filter(q => q.time), oldShifts = (o.shifts || []).map(u => u.id);
+        const o = orig.find(j => j.id === r.id);
+        if (!o) continue;   // taken down since the sheet opened
+        const shifts = (r.shifts || []).filter(q => q.time), oldShifts = (o.shifts || []).map(u => u.id).filter(known);
         if (!shifts.length) {
           must(await sb.from('signup_items').update({ item, descr, time: r.time || null, end_time: r.time && r.end && r.end > r.time ? r.end : null, need: r.need || null }).eq('id', r.id));
           for (const id of oldShifts) must(await sb.rpc('remove_signup', { p_item: id }));   // tells anyone signed up

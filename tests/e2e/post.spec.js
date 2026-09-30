@@ -67,9 +67,14 @@ test('post an event with every step filled, then edit it in the pop-ups and dele
     const needs = page.getByRole('dialog', { name: 'Edit what you need' });
     await needs.getByLabel('Job name 1').fill('Bring cold water');
     await needs.getByRole('button', { name: 'More for how many people' }).click();
+    // A job that arrives while the sheet is open (another device, or the sheet opened on cached data) survives Save
+    await asUser(page, async (c, _C, id) => { await c.from('signup_items').insert({ spark_id: id, item: 'Folding chairs', need: 2 }); }, id);
+    await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));   // the background refresh
+    await expect(P.locator('[data-signup="Folding chairs"]')).toHaveCount(1);
     await needs.getByRole('button', { name: 'Save changes' }).click();
     await expect(needs).toHaveCount(0);
     await expect(P.locator('[data-signup="Bring cold water"]')).toContainText('0 of 4');
+    await expect(P.locator('[data-signup="Folding chairs"]')).toContainText('0 of 2');
 
     // Share link: copy, and the share intents
     await P.getByRole('button', { name: 'Share link' }).click();

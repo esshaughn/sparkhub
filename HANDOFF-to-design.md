@@ -63,6 +63,7 @@ Where this doc and the design files disagree, **this doc is correct**.
 
 - **The phone's Back inside Create event** (and the browser's) closes an open sheet, else goes back a step (or to Review), else asks *Save this as a draft?* (with a title); with no title it closes the flow. Before, it left the flow and dropped the work. The flow has its own address, `#/new`, replaced by the new event's when you post.
 - **Post it / Save as draft** no longer say *That didn't go through* when only the refresh after saving failed (a second tap posted the event twice), and a draft's cover photo is kept.
+- **Edit what you need** only removes jobs and shifts that were on screen when it opened, so one added meanwhile (or missed by cached data) survives Save. If someone signed up for a job since it opened and the host switched it between one time and shifts, Save stops with *Someone just signed up for “{job}”, so it can't switch between one time and shifts. Close and open it again.*
 - **Pick a shift, Undo** takes back only that change: the shifts just added come off and any just dropped come back (it used to take you off every shift).
 - **Removing a shift** in Edit what you need (or switching a job with no sign-ups back to one time) goes through `remove_signup()`, so anyone on it gets the *off the list* note.
 
