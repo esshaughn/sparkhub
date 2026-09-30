@@ -672,6 +672,7 @@
       .then(() => {}, () => {});
   };
   const openGroup = (g) => { if (!g) return; markSeen(g); go('browse', { groupId: g.id }); };
+  const pickGroup = (g) => { markSeen(g); setState({ groupId: g.id, menu: null }); };
   const togglePin = (g) => {
     const pinned = !g.pinned;
     g.pinned = pinned;
@@ -1728,11 +1729,42 @@
   // Other shapes (tiles, cards, thumbnails): the same focal point
   const groupBg = (g, fallback) => groupPhoto(g) ? bg(groupPhoto(g), posAt(g.photoPos, GROUP_POS)) : (fallback || '#e8a71c');
 
-  // ---- Logo ------------------------------------------------------------------
+  // ---- Logo, group switcher and its menu -----------------------------------
 
   const logo = (onDark) => '<div ' + on(() => go('calendar')) + ' aria-label="Spark Hub home" style="display:flex;align-items:center;gap:6px;min-height:44px;cursor:pointer;width:fit-content">' +
     (onDark ? I.boltRays(24) : I.bolt(24, '#e8a71c')) +
     '<span style="font-size:18px;line-height:1;font-weight:900;letter-spacing:-.5px;color:' + (onDark ? '#fff;text-shadow:0 1px 4px rgba(0,0,0,.3)' : '#0d1117') + '">Spark Hub</span></div>';
+
+  const switcher = (onPhoto) => {
+    const g = currentGroup();
+    const color = onPhoto ? '#fff' : '#5b4ae8';
+    return '<div data-menu style="position:absolute;top:calc(10.5px + var(--pt));right:10px;z-index:3">' +
+      '<div ' + on((e) => { stop(e); setState({ menu: state.menu === 'groups' ? null : 'groups' }); }) + ' aria-label="Switch group" aria-expanded="' + (state.menu === 'groups') + '" style="display:flex;align-items:center;gap:6px;min-height:44px;padding:0 10px;cursor:pointer">' +
+        '<span style="font-size:11.5px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:' + color + (onPhoto ? ';text-shadow:0 1px 4px rgba(0,0,0,.3)' : '') + '">' + esc(g ? g.name : 'Your groups') + '</span>' +
+        I.chevD(12, color, 2.8) +
+      '</div>' +
+      (state.menu === 'groups' ? groupMenu() : '') +
+    '</div>';
+  };
+
+  const groupMenu = () => {
+    const cur = currentGroup();
+    return '<div role="menu" aria-label="Your groups" style="position:absolute;top:44px;right:2px;z-index:4;min-width:220px;' + MENU + '">' +
+      menuLabel('Your groups') +
+      groupsInOrder().map(g => {
+        const onIt = cur && g.id === cur.id;
+        return '<div ' + on(() => pickGroup(g)) + ' style="display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;padding:9px 12px;border-radius:12px;background:' + (onIt ? '#f3f1fe' : 'transparent') + ';cursor:pointer">' +
+          '<div style="min-width:0;display:flex;align-items:center;gap:8px">' +
+            '<span style="font-size:15px;font-weight:800;color:' + (onIt ? '#5b4ae8' : '#0d1117') + '">' + esc(g.name) + groupTag(g) + '</span>' +
+          '</div></div>';
+      }).join('') +
+      (myGroups().length ? '<div style="height:1px;background:#f2f3f6;margin:6px"></div>' : '') +
+      '<div ' + on(() => openJoin()) + ' style="display:flex;align-items:center;gap:10px;min-height:46px;padding:9px 12px;border-radius:12px;cursor:pointer" class="hov-row">' +
+        '<span style="flex:0 0 26px;width:26px;height:26px;border-radius:999px;background:#f3f1fe;display:flex;align-items:center;justify-content:center">' + I.plus(13, '#5b4ae8', 2.8) + '</span>' +
+        '<span style="font-size:15px;font-weight:800;color:#5b4ae8">Join a group</span>' +
+      '</div>' +
+    '</div>';
+  };
 
   const ideaButton = (extra) => '<button type="button" class="hov-primary" ' + on(goCompose) + ' style="width:100%;min-height:54px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16.5px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:9px;box-shadow:0 10px 24px rgba(91,74,232,.32);cursor:pointer;' + (extra || '') + '">' +
     I.plus(19, '#fff', 2.5) + 'Start an event</button>';
@@ -3611,8 +3643,7 @@
     const note = (icon, strong, p) => '<div style="display:flex;gap:12px">' + icon + '<p style="margin:0;font-size:14.5px;line-height:1.42;font-weight:500;color:#454b55"><strong style="font-weight:800;color:#0d1117">' + strong + '</strong> ' + p + '</p></div>';
     const ic = (body) => '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5c6270" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 20px;margin-top:2px" aria-hidden="true">' + body + '</svg>';
     return '<div data-screen-label="How this works" style="background:#fff;min-height:100%">' +
-      '<header style="position:relative;z-index:5;background:#fff;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px">' + logo(false) +
-        '<div style="flex:0 0 auto;display:flex;gap:8px">' + (state.email ? searchBtn() : '') + bellBtn() + '</div></header>' +
+      '<header style="position:relative;background:#fff;padding:10.5px 16px 10px;min-height:64px">' + logo(false) + (myGroups().length ? switcher(false) : '') + '</header>' +
       '<div style="height:1px;background:#e6e7eb"></div>' +
       '<section style="padding:20px 20px 26px">' +
         '<div style="font-size:12px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#0f7a3c">How this works</div>' +
