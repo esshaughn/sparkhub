@@ -16,8 +16,9 @@ module.exports = defineConfig({
   testDir: './e2e',
   timeout: 90_000,
   expect: { timeout: 15_000 },
-  // Tests share one test database; keep them sequential so counts and lists are predictable.
-  workers: 1,
+  // CI runs 3 tests at a time: each worker signs in as its own pair of leads (leadEmail() in helpers.js,
+  // accounts from scripts/test-leads.py), so nothing collides. Locally one at a time (PW_WORKERS to change it).
+  workers: process.env.PW_WORKERS ? +process.env.PW_WORKERS : process.env.CI ? 3 : 1,
   fullyParallel: false,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',

@@ -1,5 +1,5 @@
 // Shared helpers for driving Spark Hub the way a member would.
-const { expect, devices } = require('@playwright/test');
+const { expect, devices, test } = require('@playwright/test');
 
 // A 64×48 solid PNG. Enough for the app's resize-and-upload path.
 const PNG = Buffer.from(
@@ -74,6 +74,10 @@ async function newMember(browser, path) {
 // Signed-in lead. The test project has two password accounts for this (the app
 // itself only offers email codes and Google; tests can't read an inbox).
 // Password comes from tests/.env or the CI secret. Both are Torrez Fitness members.
+// Each parallel worker signs in as its own pair of leads, so tests running side by side never share an account:
+// worker 0 → e2e-lead-1/2, worker 1 → 3/4, worker 2 → 5/6 (all on TEST; made by scripts/test-leads.py)
+const leadEmail = (n) => `e2e-lead-${n + 2 * test.info().parallelIndex}@example.com`;
+
 async function newLead(browser, n, name, path) {
   const password = process.env.E2E_LEAD_PASSWORD;
   if (!password) throw new Error('E2E_LEAD_PASSWORD is not set (tests/.env locally, a repo secret on CI)');
@@ -86,7 +90,7 @@ async function newLead(browser, n, name, path) {
     if (u.error) return u.error.message;
     const p = await c.rpc('rename_me', { p_name: name });
     return p.error ? p.error.message : null;
-  }, { email: `e2e-lead-${n}@example.com`, password, name });
+  }, { email: leadEmail(n), password, name });
   if (err) throw new Error('Lead sign-in failed: ' + err);
   // Start each test in Torrez Fitness, the group every test lead belongs to
   const torrez = await asUser(m.page, async (c) => (await c.from('groups').select('id').eq('name', 'Torrez Fitness').single()).data.id);
@@ -259,6 +263,6 @@ async function asUser(page, fn, args) {
 }
 
 module.exports = {
-  TAG, TORREZ, PNG, uniqueTitle, startPost, openProfile, pickView, mockPlaces, stubPhotos, trackErrors, expectConnected, newMember, newLead, button,
+  TAG, TORREZ, PNG, leadEmail, uniqueTitle, startPost, openProfile, pickView, mockPlaces, stubPhotos, trackErrors, expectConnected, newMember, newLead, button,
   postIdea, postEvent, addJob, answerNamePrompt, answerGuestPrompt, ideaIdFromUrl, openIdea, confirm, deleteIdea, asUser
 };

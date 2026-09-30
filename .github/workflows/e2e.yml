@@ -5,6 +5,9 @@
 #   - nightly:            the full suite on test, only if test changed in the last 24 hours
 #   - pull request:       the full suite
 #   - by hand:            gh workflow run e2e.yml --ref test -f suite=full   (or suite=quick)
+#   - by hand, middle:    gh workflow run e2e.yml --ref test -f suite=some -f specs="groups post"
+#                         (the quick suite plus those spec files: e2e/groups.spec.js, e2e/post.spec.js)
+# Tests run 3 at a time on CI (workers: 3 in playwright.config.js); each worker signs in as its own leads.
 # Merging to main needs a green FULL run on that commit (the nightly one, or start one by hand).
 # Not on main: main only ever fast-forwards to a commit that already passed on test.
 # Commits that only touch docs, design, scripts, icons, email templates or test-only SQL skip the run.
@@ -23,10 +26,14 @@ on:
   workflow_dispatch:
     inputs:
       suite:
-        description: 'quick (smoke + security) or full'
+        description: 'quick (smoke + security), some (quick + the specs below) or full'
         type: choice
-        options: [full, quick]
+        options: [full, quick, some]
         default: full
+      specs:
+        description: 'for some: spec names, space-separated (e.g. groups post)'
+        type: string
+        default: ''
 
 # The workflow only needs to read the repo
 permissions:
@@ -49,6 +56,8 @@ jobs:
         with:
           ref: ${{ github.event_name == 'schedule' && 'test' || '' }}
       - id: pick
+        env:
+          SPECS: ${{ inputs.specs }}
         run: |
           suite=full; run=true
           case "${{ github.event_name }}" in
@@ -56,9 +65,17 @@ jobs:
             workflow_dispatch) suite="${{ inputs.suite }}" ;;
             schedule) [ $(( $(date +%s) - $(git log -1 --format=%ct) )) -lt 86400 ] || run=false ;;
           esac
-          [ "$suite" = quick ] && files="e2e/smoke.spec.js e2e/security.spec.js" || files=""
+          files=""
+          [ "$suite" = quick ] || [ "$suite" = some ] && files="e2e/smoke.spec.js e2e/security.spec.js"
+          if [ "$suite" = some ]; then
+            for n in $SPECS; do
+              case "$n" in *[!a-z0-9-]*) echo "Bad spec name: $n"; exit 1 ;; esac
+              [ -f "tests/e2e/$n.spec.js" ] || { echo "No such spec: $n"; exit 1; }
+              case " $files " in *" e2e/$n.spec.js "*) ;; *) files="$files e2e/$n.spec.js" ;; esac
+            done
+          fi
           echo "run=$run" >> "$GITHUB_OUTPUT"; echo "files=$files" >> "$GITHUB_OUTPUT"
-          echo "Suite: $suite, run: $run" >> "$GITHUB_STEP_SUMMARY"
+          echo "Suite: $suite${files:+ ($files)}, run: $run" >> "$GITHUB_STEP_SUMMARY"
 
   e2e:
     needs: pick
