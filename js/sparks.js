@@ -4117,9 +4117,16 @@
     '</div>';
   function viewDetail(s) {
     const ph = phaseOf(s);
-    if (s.cancelledAt) return s.planned ? viewPlan(s) : viewIdea(s);   // it didn't happen: no album or reactions
-    return ph === 'plan' ? viewPlan(s) : ph === 'done' ? viewDone(s) : viewIdea(s);
+    const page = s.cancelledAt ? (s.planned ? viewPlan(s) : viewIdea(s))   // it didn't happen: no album or reactions
+      : ph === 'plan' ? viewPlan(s) : ph === 'done' ? viewDone(s) : viewIdea(s);
+    return isDemo(s) ? '<div>' + testTab() + page + '</div>' : page;
   }
+  // Demo and test events: a striped yellow tab hanging from the top edge between the back and share
+  // buttons, pinned while scrolling, so nobody mistakes them for real and signs up (owner's design,
+  // 2026-10-01). Zero height, so it overlays and moves nothing; it reaches up behind the status bar.
+  const testTab = () => '<div data-test-tab style="position:sticky;top:0;z-index:6;height:0;display:flex;justify-content:center;pointer-events:none">' +
+    '<div role="note" style="display:flex;align-items:center;gap:7px;box-sizing:border-box;height:calc(38px + var(--pt));padding:var(--pt) 18px 0;border-radius:0 0 18px 18px;background:repeating-linear-gradient(135deg,#f5b729 0 9px,#f8c74e 9px 18px);color:#2a1d00;font-size:16px;font-weight:800;white-space:nowrap;box-shadow:0 6px 16px -8px rgba(13,17,23,.45)">' +
+      svg(17, stroke('currentColor', 2.2), '<path d="M9 3h6M10 3v6L4.5 18.5A1.5 1.5 0 0 0 5.8 21h12.4a1.5 1.5 0 0 0 1.3-2.5L14 9V3"/><path d="M7.2 15h9.6"/>') + 'Test event</div></div>';
 
   // Suggestions waiting on the lead ("Waiting on you"): on ideas, and on plans since v6 (Your tasks' Review)
   const pendingCard = (s) => {
@@ -4269,7 +4276,9 @@
         backBtn(s) +
         '<span style="flex:1"></span>' +
         (isLead(s)   // v6 Update 6: the old Edit button is gone; the host changes the photo here
-          ? '<label style="' + EDIT_PILL + '">' + svg(15, stroke('#0d1117', 2.2), CAMERA) + (s.photoPaths[0] ? 'Change photo' : 'Add a photo') +
+          // On demo/test events it's a round camera button, so the Test event tab between the buttons stays clear
+          ? (isDemo(s) ? '<label title="' + (s.photoPaths[0] ? 'Change photo' : 'Add a photo') + '" class="hov-fill-grey" style="flex:0 0 44px;width:44px;height:44px;border-radius:999px;background:#fff;box-shadow:0 2px 8px rgba(13,17,23,.25);display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(18, stroke('#0d1117', 2.2), CAMERA)
+            : '<label style="' + EDIT_PILL + '">' + svg(15, stroke('#0d1117', 2.2), CAMERA) + (s.photoPaths[0] ? 'Change photo' : 'Add a photo')) +
               '<input type="file" accept="image/*" aria-label="' + (s.photoPaths[0] ? 'Change the cover photo' : 'Add a cover photo') + '" ' + onInput(e => { if (e.type !== 'change') return; const f = (e.target.files || [])[0]; e.target.value = ''; pickForPositioner(f, { kind: 'idea', id: s.id }); }) + ' style="display:none"></label>'
           : share ? '' : '<span style="flex:0 0 44px;width:44px"></span>') +
         (share ? '<span ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' aria-label="Share" class="hov-fill-grey" style="flex:0 0 44px;width:44px;height:44px;border-radius:999px;background:#fff;box-shadow:0 2px 8px rgba(13,17,23,.25);display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(18, stroke('#0d1117', 2.4), P5.share) + '</span>' : '') +

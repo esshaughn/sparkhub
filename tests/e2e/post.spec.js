@@ -19,6 +19,7 @@ test('post an event with every step filled, then edit it in the pop-ups and dele
     // Nobody's replied: the lead gets a nudge to share, not "Be the first"
     await expect(P.locator('[data-going-empty]')).toContainText('Nobody’s RSVP’d yet. Share the link');
     await expect(P.locator('[data-chip]')).toHaveText('YOU’RE LEADING');
+    await expect(page.locator('[data-test-tab]')).toHaveCount(0);   // a real event: no Test event tab
     await expect(P).toContainText('5:30pm');
     await expect(P).toContainText('Zilker Metropolitan Park');
     await expect(P).toContainText('2100 Barton Springs Road, Austin, TX 78746');
@@ -179,6 +180,12 @@ test('decide everything later: only the title is needed; the host is left with t
     id = await page.evaluate(() => location.hash.split('/').pop());
     // A test event carries the DEMO chip and is saved as a test (not as seeded demo content)
     await expect(I.locator('[data-demo-tag]').first()).toBeVisible();
+    // ...and a gold Test event tab hanging from the top, still there after scrolling (owner, 2026-10-01)
+    const testTab = page.locator('[data-test-tab] [role=note]');
+    await expect(testTab).toHaveText('Test event');
+    await page.locator('.scroller').evaluate(el => el.scrollTo(0, 500));
+    expect((await testTab.boundingBox()).y).toBeLessThan(4);
+    await page.locator('.scroller').evaluate(el => el.scrollTo(0, 0));
     expect(await asUser(page, async (c, _C, id) => (await c.from('sparks').select('test,demo').eq('id', id).single()).data, id)).toEqual({ test: true, demo: false });
     await expect(I).toContainText('Pick a date first. Then you can lock it in.');
     await expect(I.getByRole('button', { name: 'Make it a plan' })).toHaveAttribute('aria-disabled', 'true');
