@@ -2374,7 +2374,7 @@
   const removeFriend = (f) => setState({ confirm: { z: 60, title: 'Remove ' + firstName(f.name) + ' as a friend?', body: 'They won’t be told. You’ll still see each other in any groups you share.', cta: 'Remove friend', keep: 'Keep friend', danger: true,
     run: () => run(async () => {
       must(await sb.rpc('remove_friend', { p_other: f.id }));
-      setState({ frProfile: null, frSel: state.frSel.filter(x => x !== f.id), fr: Object.assign({}, state.fr, { friends: state.fr.friends.filter(x => x.id !== f.id), outgoing: state.fr.outgoing.filter(x => x !== f.id) }) });
+      setState({ frProfile: null, person: null, frSel: state.frSel.filter(x => x !== f.id), fr: Object.assign({}, state.fr, { friends: state.fr.friends.filter(x => x.id !== f.id), outgoing: state.fr.outgoing.filter(x => x !== f.id) }) });
       toast('Removed ' + firstName(f.name), true);
     }, { confirm: null }) } });
 
@@ -2403,7 +2403,7 @@
     const id = el.getAttribute('data-friend-id'), x = e.clientX, y = e.clientY;
     clearTimeout(frPress && frPress.t);
     frPressed = false;
-    frPress = { x, y, t: setTimeout(() => { frPressed = true; frPress = null; if (navigator.vibrate) navigator.vibrate(10); setState({ frProfile: id }); }, 500) };
+    frPress = { x, y, t: setTimeout(() => { frPressed = true; frPress = null; if (navigator.vibrate) navigator.vibrate(10); openPerson(id); }, 500) };
   });
   const frPressEnd = () => { if (frPress) { clearTimeout(frPress.t); frPress = null; } };
   document.addEventListener('pointerup', frPressEnd);
@@ -2414,7 +2414,7 @@
     if (!el) return;
     e.preventDefault();
     frPressEnd(); frPressed = true;
-    setState({ frProfile: el.getAttribute('data-friend-id') });
+    openPerson(el.getAttribute('data-friend-id'));   // the same profile pop-up as everywhere else
   });
   // The click after a long-press doesn't also select the friend
   document.addEventListener('click', (e) => { if (frPressed && e.target.closest('[data-friend-id]')) { e.stopPropagation(); e.preventDefault(); frPressed = false; } }, true);
@@ -2483,8 +2483,9 @@
     if (!fr.loaded) return skeleton(2, 120);
     const shown = q ? fr.friends.filter(f => f.name.toLowerCase().includes(q)) : fr.friends;
     const reqs = q ? [] : fr.incoming;
-    const req = (f) => '<div data-friend-request="' + esc(f.name) + '" style="' + CARD + ';padding:12px 14px;display:flex;align-items:center;gap:12px">' + frFace(f, 40) +
-      '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:900;color:#0d1117">' + esc(f.name) + '</div><div style="font-size:12.5px;font-weight:700;color:#6b7280">Wants to be friends' + (f.group ? ' · ' + esc(f.group) : '') + '</div></div>' +
+    const req = (f) => '<div data-friend-request="' + esc(f.name) + '" style="' + CARD + ';padding:12px 14px;display:flex;align-items:center;gap:12px">' +
+      '<span ' + on(() => openPerson(f.id)) + ' aria-label="' + esc(f.name) + ', see profile" style="flex:1;min-width:0;display:flex;align-items:center;gap:12px;cursor:pointer">' + frFace(f, 40) +
+      '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:900;color:#0d1117">' + esc(f.name) + '</div><div style="font-size:12.5px;font-weight:700;color:#6b7280">Wants to be friends' + (f.group ? ' · ' + esc(f.group) : '') + '</div></div></span>' +
       '<span ' + on(() => answerRequest(f, false)) + ' aria-label="Decline ' + esc(f.name) + '" style="flex:0 0 34px;width:34px;height:34px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(13, '#0d1117', 2.6) + '</span>' +
       '<span ' + on(() => answerRequest(f, true)) + ' aria-label="Accept ' + esc(f.name) + '" class="hov-primary" style="display:flex;align-items:center;height:34px;padding:0 13px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:13.5px;font-weight:900;cursor:pointer">Accept</span></div>';
     const cell = (f, k) => {
@@ -2555,20 +2556,6 @@
         : '<div style="padding:14px 6px;border-top:1px solid #eceef1;font-size:14.5px;line-height:1.45;font-weight:600;color:#5c6270">You don’t have anything coming up yet. Events you’re leading or going to show up here.</div>') + '</div>', 45);
   }
 
-  // A friend's short profile (long-press): name, groups you share, friends since, Remove friend
-  function viewFrProfile() {
-    const f = friendById(state.frProfile), close = () => setState({ frProfile: null });
-    if (!f) return '';
-    const since = f.since ? new Date(f.since).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '';
-    return sheet(f.name, close, 'padding:10px 18px calc(22px + env(safe-area-inset-bottom, 0px));display:flex;flex-direction:column;gap:14px',
-      '<div style="display:flex;align-items:center;gap:14px">' + frFace(f, 56, state.fr.friends.indexOf(f)) +
-        '<div style="flex:1;min-width:0"><div style="font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.4px;color:#0d1117">' + esc(f.name) + '</div>' +
-        (since ? '<div style="margin-top:3px;font-size:13.5px;font-weight:600;color:#6b7280">Friends since ' + esc(since) + '</div>' : '') + '</div>' + closeX(close) + '</div>' +
-      '<div style="padding:12px 14px;border-radius:14px;background:#f7f7f9;font-size:14px;line-height:1.45;font-weight:600;color:#454b55">' +
-        (f.groups.length ? '<span style="font-size:12px;font-weight:900;letter-spacing:.6px;text-transform:uppercase;color:#8a909b">Both in</span><br>' + esc(namesList(f.groups)) : 'You’re not in any of the same groups.') + '</div>' +
-      '<span ' + on(() => removeFriend(f)) + ' class="hov-danger" style="align-self:flex-start;display:flex;align-items:center;min-height:40px;padding:0 16px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #f5c2cb;font-size:14px;font-weight:800;color:#9b1c31;cursor:pointer">Remove friend</span>', 45);
-  }
-
   // Anyone's profile (owner, 2026-10-01): from Who's going / Who's interested, the Led by card, and Members.
   // Photo, name, place, bio, the groups you share (each of your groups' group_people) and the friend button.
   // Your own face opens your own profile sheet instead.
@@ -2594,27 +2581,31 @@
     if (!p) return '';
     const name = p.name || nameOf(p.id), f = friendById(p.id), asked = st.fr.incoming.find(x => x.id === p.id);
     const since = f && f.since ? new Date(f.since).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '';
-    const btn = 'display:flex;align-items:center;gap:6px;min-height:40px;padding:0 16px;border-radius:999px;font-size:14px;font-weight:900';
+    const btn = 'display:flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 18px;border-radius:999px;font-size:15px;font-weight:900';
     const friendRow = p.loading || !st.fr.loaded ? ''
-      : f ? '<span data-person-friend style="' + btn + ';background:#e7f6ec;color:#0f7a3c">' + I.check(13, '#0f7a3c', 3) + 'Friends' + (since ? ' since ' + esc(since) : '') + '</span>'
+      : f ? '<span data-person-friend style="' + btn + ';background:#e7f6ec;color:#0f7a3c">' + I.check(13, '#0f7a3c', 3) + 'Friends' + (since ? ' since ' + esc(since) : '') + '</span>' +
+          '<span ' + on(() => removeFriend(f)) + ' class="hov-danger" style="' + btn + ';min-height:40px;background:#fff;box-shadow:inset 0 0 0 1.5px #f5c2cb;font-size:14px;font-weight:800;color:#9b1c31;cursor:pointer">Remove friend</span>'
       : asked ? '<span ' + on(() => answerRequest(asked, true)) + ' data-person-friend class="hov-primary" style="' + btn + ';background:#5b4ae8;color:#fff;cursor:pointer">Accept friend request</span>'
       : st.fr.outgoing.indexOf(p.id) > -1 ? '<span data-person-friend style="' + btn + ';background:#f2f3f6;color:#6b7280">Requested</span>'
       : p.groups.length ? '<span ' + on(() => sendRequest(p.id, name)) + ' data-person-friend class="hov-primary" style="' + btn + ';background:#5b4ae8;color:#fff;cursor:pointer">' +
-          svg(14, stroke('#fff', 2.6), '<circle cx="9.5" cy="8" r="3.5"/><path d="M3 20a6.5 6.5 0 0 1 13 0"/><path d="M19 8v6M16 11h6"/>') + 'Add friend</span>'
+          svg(15, stroke('#fff', 2.6), '<circle cx="9.5" cy="8" r="3.5"/><path d="M3 20a6.5 6.5 0 0 1 13 0"/><path d="M19 8v6M16 11h6"/>') + 'Add friend</span>'
       : '';
-    return sheet(name, close, 'padding:10px 18px calc(22px + env(safe-area-inset-bottom, 0px));display:flex;flex-direction:column;gap:14px',
-      '<div data-screen-label="Person" style="display:flex;align-items:center;gap:14px">' + avatarSpan(p.id, name, p.avatar || avatarOf(p.id), 64) +
-        '<div style="flex:1;min-width:0"><div style="font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.4px;color:#0d1117;overflow:hidden;text-overflow:ellipsis">' + esc(name) + '</div>' +
-          (p.place ? '<div data-person-place style="margin-top:4px;display:flex;align-items:center;gap:5px;font-size:14px;font-weight:700;color:#6b7280">' +
-            svg(14, stroke('#6b7280', 2.2), '<path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>') + esc(p.place) + '</div>' : '') +
-        '</div>' + closeX(close) + '</div>' +
-      (p.loading ? '<div style="font-size:14px;font-weight:600;color:#9aa0ac">Loading…</div>'
-        : (p.bio ? '<p data-person-bio style="margin:0;font-size:15.5px;line-height:1.45;font-weight:500;color:#2a2f38;white-space:pre-line">' + esc(p.bio) + '</p>' : '') +
-          '<div data-person-groups style="padding:12px 14px;border-radius:14px;background:#f7f7f9;font-size:14px;line-height:1.45;font-weight:600;color:#454b55">' +
-            (p.groups.length ? '<span style="font-size:12px;font-weight:900;letter-spacing:.6px;text-transform:uppercase;color:#8a909b">Both in</span><br>' + esc(namesList(p.groups))
-              : 'You’re not in a group together.') + '</div>' +
-          (friendRow ? '<div style="display:flex">' + friendRow + '</div>' : '')));
+    // A pop-up in the middle of the screen, not a slide-up (owner, 2026-10-01); above lists and sheets, under confirms
+    return modal(name, close,
+      '<div data-screen-label="Person" style="display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center;padding-top:6px">' +
+        avatarSpan(p.id, name, p.avatar || avatarOf(p.id) || (f && f.avatar ? photoUrl(f.avatar) : null), 84) +
+        '<div style="max-width:100%"><div style="font-size:24px;line-height:1.1;font-weight:900;letter-spacing:-.4px;color:#0d1117;overflow-wrap:anywhere">' + esc(name) + '</div>' +
+          (p.place ? '<div data-person-place style="margin-top:6px;display:flex;align-items:center;justify-content:center;gap:5px;font-size:14px;font-weight:700;color:#6b7280">' +
+            svg(14, stroke('#6b7280', 2.2), '<path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>') + esc(p.place) + '</div>' : '') + '</div>' +
+        (p.loading ? '<div style="font-size:14px;font-weight:600;color:#9aa0ac">Loading…</div>'
+          : (p.bio ? '<p data-person-bio style="margin:0;font-size:15.5px;line-height:1.45;font-weight:500;color:#2a2f38;white-space:pre-line">' + esc(p.bio) + '</p>' : '') +
+            '<div data-person-groups style="align-self:stretch;padding:12px 14px;border-radius:14px;background:#f7f7f9;font-size:14px;line-height:1.45;font-weight:600;color:#454b55">' +
+              (p.groups.length ? '<span style="font-size:12px;font-weight:900;letter-spacing:.6px;text-transform:uppercase;color:#8a909b">Both in</span><br>' + esc(namesList(p.groups))
+                : 'You’re not in a group together.') + '</div>' +
+            (friendRow ? '<div style="align-self:stretch;display:flex;flex-direction:column;gap:8px">' + friendRow + '</div>' : '')) +
+      '</div>', { z: 45, max: 360 });
   }
+
 
   const isoOf = (y, m, d) => y + '-' + pad2(m + 1) + '-' + pad2(d);
   const isoAdd = (iso, n) => { const x = new Date(iso + 'T12:00'); x.setDate(x.getDate() + n); return isoOf(x.getFullYear(), x.getMonth(), x.getDate()); };
@@ -4234,7 +4225,7 @@
     const ids = (meIn ? [st.me] : []).concat(s.interested.filter(u => u !== st.me));
     const interested = '<section id="sec-people">' + secTitle('Who’s in') + sheetCard(
       '<div ' + (n ? on(() => setState({ interestList: true })) + ' aria-label="See who’s interested" ' : '') + 'style="display:flex;align-items:center;gap:10px' + (n ? ';cursor:pointer' : '') + '">' +
-        '<span style="display:flex">' + (n ? peopleFaces(ids.slice(0, 5), 40) + (n > 5 ? '<span style="width:40px;height:40px;border-radius:999px;border:2.5px solid #fff;margin-left:-10px;background:#fdf1d6;color:#8f6405;font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center">+' + (n - 5) + '</span>' : '')
+        '<span style="display:flex">' + (n ? peopleFaces(ids.slice(0, 5), 40, null, true) + (n > 5 ? '<span style="width:40px;height:40px;border-radius:999px;border:2.5px solid #fff;margin-left:-10px;background:#fdf1d6;color:#8f6405;font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center">+' + (n - 5) + '</span>' : '')
           : lead ? '<span style="font-size:14px;font-weight:600;color:#6b7280">No one yet. <span ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' style="font-weight:800;color:#5b4ae8;cursor:pointer">Share the link</span></span>'
           : '<span style="font-size:14px;font-weight:600;color:#6b7280">Nobody yet. Be the first.</span>') + '</span>' +
         (n ? '<span style="margin-left:auto;display:flex;align-items:center;gap:6px;font-size:14.5px;font-weight:800;color:#8f6405;white-space:nowrap">' + n + ' interested' + I.chevR(14, '#9aa0ac', 2.6) + '</span>' : '') + '</div>' + groupRow(s)) + '</section>';
@@ -4291,8 +4282,10 @@
   const DOWS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
   const dateParts = (iso) => { if (!iso) return { dow: '', md: '', mon: '', day: '–' }; const d = new Date(iso + 'T12:00:00'); return { dow: DOWS[d.getDay()], md: MONTHS[d.getMonth()].toUpperCase() + ' ' + d.getDate(), mon: MONTHS[d.getMonth()].toUpperCase(), day: d.getDate() }; };
   const eyebrowRow = (label, right) => '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><span style="' + EYEBROW + '">' + label + '</span>' + (right || '') + '</div>';
-  const peopleFaces = (ids, size, ring) => ids.map((u, i) => {
-    return avatarSpan(u, nameOf(u), avatarOf(u), size, 'border:2.5px solid ' + (ring || '#fff') + ';margin-left:' + (i ? '-10px' : '0'));
+  // tap: each face opens that person's profile (the row around it still opens the full list)
+  const peopleFaces = (ids, size, ring, tap) => ids.map((u, i) => {
+    const f = avatarSpan(u, nameOf(u), avatarOf(u), size, 'border:2.5px solid ' + (ring || '#fff') + ';margin-left:' + (i ? '-10px' : '0'));
+    return tap ? '<span ' + on(() => openPerson(u)) + ' data-person-face aria-label="' + esc(u === state.me ? 'You' : nameOf(u)) + ', see profile" style="display:flex;cursor:pointer">' + f + '</span>' : f;
   }).join('');
 
   // Date → Location → Details → Plan, in the idea's gold strip
@@ -4897,7 +4890,7 @@
         '<section>' + secTitle('Who’s in') + sheetCard(
           // the count sits inside the card, and the card opens the full list (owner, 2026-10-01)
           '<div ' + (goingIds.length ? on(() => setState({ guestList: s.id })) + ' data-going aria-label="See everyone going (' + goingIds.length + ')" ' : '') + 'style="display:flex;align-items:center;gap:10px' + (goingIds.length ? ';cursor:pointer' : '') + '">' +
-            '<span style="display:flex">' + (goingIds.length ? peopleFaces(goingIds.slice(0, 5), 40) + (goingIds.length > 5 ? '<span style="width:40px;height:40px;border-radius:999px;border:2.5px solid #fff;margin-left:-10px;background:#e7f6ec;color:#0f7a3c;font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center">+' + (goingIds.length - 5) + '</span>' : '') : lead ? '<span data-going-empty style="font-size:14px;font-weight:600;color:#6b7280">Nobody’s RSVP’d yet. <span ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' style="font-weight:800;color:#5b4ae8;cursor:pointer">Share the link</span></span>' : '<span style="font-size:14px;font-weight:600;color:#6b7280">Nobody yet. Be the first.</span>') + '</span>' +
+            '<span style="display:flex">' + (goingIds.length ? peopleFaces(goingIds.slice(0, 5), 40, null, true) + (goingIds.length > 5 ? '<span style="width:40px;height:40px;border-radius:999px;border:2.5px solid #fff;margin-left:-10px;background:#e7f6ec;color:#0f7a3c;font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center">+' + (goingIds.length - 5) + '</span>' : '') : lead ? '<span data-going-empty style="font-size:14px;font-weight:600;color:#6b7280">Nobody’s RSVP’d yet. <span ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' style="font-weight:800;color:#5b4ae8;cursor:pointer">Share the link</span></span>' : '<span style="font-size:14px;font-weight:600;color:#6b7280">Nobody yet. Be the first.</span>') + '</span>' +
             (goingIds.length ? '<span style="margin-left:auto;display:flex;align-items:center;gap:6px;font-size:14.5px;font-weight:800;color:#0f7a3c;white-space:nowrap">' + goingIds.length + ' going' + I.chevR(14, '#9aa0ac', 2.6) + '</span>' : '') +
           '</div>' + groupRow(s)) + '</section>' +
         inspoSec(s) +
@@ -6220,7 +6213,6 @@
       (st.membersOpen ? viewMembers() : '') +
       (st.email && st.pplAdd ? viewPplAdd() : '') +
       (st.email && st.frInvite && st.frSel.length ? viewFrInvite() : '') +
-      (st.email && st.frProfile ? viewFrProfile() : '') +
       (st.email && st.person ? viewPerson() : '') +
       (st.frAdd ? viewFrAdd() : '') +
       (st.gpDel != null && s === 'groupPage' ? viewDeleteGroup() : '') +
@@ -6425,6 +6417,7 @@
       if (state.inv && state.loginStep === 'code') { closeLogin(); return setState({ invCodeBad: false }); }
       if (state.inv && state.inv.step === 'confirm' && !state.inv.busy) return closeInvite();
       if (state.confirm) return setState({ confirm: null });
+      if (state.person) return setState({ person: null });
       if (state.ph) return closePositioner();
       if (state.invite) return setState({ invite: null });
       if (state.timeOpen) return setState({ timeOpen: null });
