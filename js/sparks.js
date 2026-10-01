@@ -3206,22 +3206,21 @@
     .then(r => { setState({ accts: r.error ? null : (r.data || []).map(x => ({ id: x.user_id, name: x.name || 'Someone', email: x.email || '', avatar: x.avatar_path,
       at: Date.parse(x.joined_at), google: x.method === 'google', groups: Array.isArray(x.groups) ? x.groups : [] })) }); }, () => {});
   const acctUnread = () => (state.accts || []).filter(x => x.at > acctSeenAt()).length;
-  // Remove an account entirely (owner, 2026-09-30): remove_account() refuses admins and a group's only owner
+  // Remove an account entirely (owner, 2026-09-30): remove_account() refuses admins; you take over any group they were the only owner of
   const askRemoveAccount = (x) => setState({ confirm: { z: 60, title: 'Remove ' + x.name + '?', danger: true, cta: 'Remove account', keep: 'Keep it',
-    body: 'Deletes ' + (x.email || 'this account') + ' and everything tied to it: group memberships, replies, sign-ups, photos they added, and any events they host (quietly). They can sign up again later as someone new. This can’t be undone.',
+    body: 'Deletes ' + (x.email || 'this account') + ' and everything tied to it: group memberships, replies, sign-ups, photos they added, and any events they lead (quietly). If they’re a group’s only owner, you become its owner. They can sign up again later as someone new. This can’t be undone.',
     run: async () => {
       if (state.busy) return;
       setState({ busy: 'save' });
       try {
-        must(await sb.rpc('remove_account', { p_user: x.id }));
+        const taken = must(await sb.rpc('remove_account', { p_user: x.id })).data;
         setState({ busy: null, confirm: null, accts: (state.accts || []).filter(a => a.id !== x.id) });
-        toast(x.name + '’s account was removed', true);
+        toast(x.name + '’s account was removed' + (taken ? '. You’re now the owner of ' + taken + '.' : ''), true);
         loadFresh().catch(() => {});
       } catch (e) {
         console.error(e);
-        const m = /only owner of (.+)/.exec((e && e.message) || '');
         setState({ busy: null });
-        toast(m ? x.name + ' is the only owner of ' + m[1] + '. Make someone else an owner first.' : FAILED);
+        toast(FAILED);
       }
     } } });
   function viewAccounts() {
