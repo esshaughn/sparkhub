@@ -45,7 +45,7 @@ test('notifications: a new plan, replying from the feed, the host hears back, up
     const blast = H.getByRole('dialog', { name: 'Send an update' });
     await blast.getByLabel('Your update').fill('Helmets on, please.');
     await blast.getByRole('button', { name: 'Post update' }).click();
-    await expect(H.getByText('Posted to the plan')).toBeVisible();
+    await expect(H.getByText('Posted to the event')).toBeVisible();
 
     // Omar: the update, with its text, under Updates; Mark all read sticks after a reload
     await O.reload();

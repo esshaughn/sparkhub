@@ -36,7 +36,7 @@ test('a plan: guest RSVPs, sign-ups, an update, the host’s notes, then clearin
     const blast = H.getByRole('dialog', { name: 'Send an update' });
     await blast.getByLabel('Your update').fill('Parking is on the street.');
     await blast.getByRole('button', { name: 'Post update' }).click();
-    await expect(H.getByText('Posted to the plan')).toBeVisible();
+    await expect(H.getByText('Posted to the event')).toBeVisible();
     await expect(HP).toContainText('Parking is on the street.');
 
     // The guest opens the link: RSVP asks for their info once, then they sign up for things

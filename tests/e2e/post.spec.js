@@ -17,7 +17,7 @@ test('post an event with every step filled, then edit it in the pop-ups and dele
     });
     const P = page.locator('[data-screen-label="Plan page"]');
     // Nobody's replied: the lead gets a nudge to share, not "Be the first"
-    await expect(P.locator('[data-going-empty]')).toContainText('Nobody’s replied yet. Share the link');
+    await expect(P.locator('[data-going-empty]')).toContainText('Nobody’s RSVP’d yet. Share the link');
     await expect(P.locator('[data-chip]')).toHaveText('YOU’RE LEADING');
     await expect(P).toContainText('5:30pm');
     await expect(P).toContainText('Zilker Metropolitan Park');
@@ -50,9 +50,9 @@ test('post an event with every step filled, then edit it in the pop-ups and dele
     await expect(P.locator('h1')).toContainText('+ stars');
 
     // Basic details pop-up
-    await P.getByRole('button', { name: 'Edit basic details' }).click();
-    const bd = page.getByRole('dialog', { name: 'Basic details' });
-    await bd.getByLabel('Basic details, line 3').fill('Hot cocoa');
+    await P.getByRole('button', { name: 'Edit details' }).click();
+    const bd = page.getByRole('dialog', { name: 'Details' });
+    await bd.getByLabel('Details, line 3').fill('Hot cocoa');
     await bd.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(P.locator('[data-basics]')).toContainText('Hot cocoa');
 
@@ -154,18 +154,18 @@ test('decide everything later: only the title is needed; the host is left with t
     }
     // Review: every undecided part in amber
     await expect(flow).toContainText('LOOKS GOOD');
-    for (const t of ['Date TBD', 'Location TBD', 'Basic details to be decided', 'Help to be decided']) await expect(flow).toContainText(t);
+    for (const t of ['Date TBD', 'Location TBD', 'Details to be decided', 'Help to be decided']) await expect(flow).toContainText(t);
     // Add / Edit on Review comes straight back to Review, not through the later steps
-    await flow.getByLabel('Add basic details').click();
+    await flow.getByLabel('Add details').click();
     await expect(flow).toContainText('4 of 5');
-    await flow.getByLabel('Basic details, line 1').fill('Bring a bowl');
+    await flow.getByLabel('Details, line 1').fill('Bring a bowl');
     await flow.getByRole('button', { name: 'Back to review' }).click();
     await expect(flow).toContainText('LOOKS GOOD');
     await expect(flow).toContainText('Bring a bowl');
-    await flow.getByLabel('Edit basic details').click();
-    await flow.getByLabel('Basic details, line 1').fill('');
+    await flow.getByLabel('Edit details').click();
+    await flow.getByLabel('Details, line 1').fill('');
     await flow.getByText('Decide later', { exact: true }).click();
-    await expect(flow).toContainText('Basic details to be decided');
+    await expect(flow).toContainText('Details to be decided');
     // No date: it goes up as an idea, not a plan
     await expect(flow.locator('[data-posts-as]')).toContainText('It goes up as an idea');
     await flow.getByRole('button', { name: 'Post it' }).click();
@@ -339,7 +339,7 @@ test('an idea says how many it needs; a bare starter chip can’t be saved; its 
     await flow.getByRole('button', { name: 'Next' }).click();
     await flow.getByText('Decide later', { exact: true }).click();   // no date: it goes up as an idea
     await flow.getByText('Decide later', { exact: true }).click();
-    await flow.getByLabel('Basic details, line 1').fill('Bring cleats');
+    await flow.getByLabel('Details, line 1').fill('Bring cleats');
     // Its type: up to two, picked by the host (a third replaces the oldest)
     const tags = flow.locator('[data-tags]');
     for (const t of ['Social', 'Active', 'Outdoors']) await tags.getByRole('checkbox', { name: t }).click();

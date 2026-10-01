@@ -685,7 +685,7 @@
   const wipeDemo = () => {
     const n = state.sparks.filter(s => s.demo).length;
     setState({ confirm: { title: 'Remove all demo content?', danger: true, cta: 'Remove it', keep: 'Keep it',
-      body: 'Deletes the ' + n + (n === 1 ? ' demo event' : ' demo events') + ' in your groups (with their replies, sign-ups and photos), takes the demo people out of the groups, and stops adding new sign-ups to them. Real posts and people stay. This can’t be undone.',
+      body: 'Deletes the ' + n + (n === 1 ? ' demo event' : ' demo events') + ' in your groups (with their RSVPs, sign-ups and photos), takes the demo people out of the groups, and stops adding new sign-ups to them. Real posts and people stay. This can’t be undone.',
       run: () => run(async () => {
         const r = must(await sb.rpc('wipe_demo')).data;
         const row = (r && r[0]) || {};
@@ -778,7 +778,7 @@
   // Admins remove members; owners also remove admins and other owners (remove_member() checks)
   const removeMember = (g, m) => {
     const first = firstName(m.name) || m.name;
-    setState({ confirm: { title: 'Remove ' + first + ' from ' + g.name + '?', body: 'They won’t see the group’s events any more. The events they posted and their replies stay. They can rejoin with the group’s link.', cta: 'Remove', keep: 'Cancel', danger: true,
+    setState({ confirm: { title: 'Remove ' + first + ' from ' + g.name + '?', body: 'They won’t see the group’s events any more. The events they posted and their RSVPs stay. They can rejoin with the group’s link.', cta: 'Remove', keep: 'Cancel', danger: true,
       run: () => run(async () => {
         must(await sb.rpc('remove_member', { p_group: g.id, p_user: m.user_id }));
         await loadMembers(g.id);
@@ -807,7 +807,7 @@
   // Leave a group (owner, 2026-09-30): a quiet link at the bottom of its page. The last owner can't (leave_group()
   // refuses too): they make someone else an owner first, or delete the group.
   const leaveGroup = (g) => {
-    setState({ confirm: { title: 'Leave ' + g.name + '?', body: 'You won’t see its events any more. The events you posted and your replies stay. You can rejoin with the group’s link.', cta: 'Leave', keep: 'Cancel', danger: true,
+    setState({ confirm: { title: 'Leave ' + g.name + '?', body: 'You won’t see its events any more. The events you posted and your RSVPs stay. You can rejoin with the group’s link.', cta: 'Leave', keep: 'Cancel', danger: true,
       run: async () => {
         if (state.viewAs || state.busy) return;
         setState({ busy: 'save' });
@@ -1089,7 +1089,7 @@
   // Posting and editing
   // ---------------------------------------------------------------------------
 
-  const UPD_TO = { going: 'To people going', maybe: 'To maybes', noreply: 'To people who haven’t replied' };
+  const UPD_TO = { going: 'To people going', maybe: 'To maybes', noreply: 'To people who haven’t RSVP’d' };
   const askRemoveUpdate = (s, u) => setState({ confirm: { title: 'Remove this update?', body: 'It comes off the event page and people’s notifications. Anyone who already saw it on their phone keeps that.', cta: 'Remove it', keep: 'Keep it', danger: true,
     run: () => run(async () => { must(await sb.from('plan_updates').delete().eq('id', u.id)); }, { confirm: null }).then(ok => { if (ok) toast('Update removed', true); }) } });
   const peopleIn = (s) => (s.planned ? s.rsvps.filter(r => r.status !== 'no').map(r => r.userId).concat(...s.signups.map(it => it.claims.map(c => c.userId))) : s.interested.slice())
@@ -1112,7 +1112,7 @@
   const askDelete = (s) => {
     const n = peopleIn(s).filter(u => u !== state.me).length;
     if (n && !s.cancelledAt) return setState({ takeDown: { id: s.id, reason: '' } });
-    setState({ confirm: { title: 'Delete this ' + (s.planned ? 'event' : 'idea') + '?', body: (s.cancelledAt ? 'Everyone already got the cancellation note; deleting tells no one.' : 'Nobody has replied yet, so no one needs telling.') + ' This can’t be undone.',
+    setState({ confirm: { title: 'Delete this ' + (s.planned ? 'event' : 'idea') + '?', body: (s.cancelledAt ? 'Everyone already got the cancellation note; deleting tells no one.' : 'Nobody has RSVP’d yet, so no one needs telling.') + ' This can’t be undone.',
       cta: 'Delete it', keep: 'Keep it', danger: true, run: () => takeDown(s, true) } });
   };
   function viewTakeDown() {
@@ -1330,7 +1330,7 @@
     const b = state.blast;
     if (!b || !b.text.trim() || state.busy) return;
     run(async () => { must(await sb.from('plan_updates').insert({ spark_id: s.id, body: b.text.trim().slice(0, 320), audience: b.to })); }, { blast: null })
-      .then(ok => { if (ok) toast('Posted to the plan', true); });
+      .then(ok => { if (ok) toast('Posted to the event', true); });
   };
   // The album, once it's happened
   // The person who added a photo, or the host, can take it out of the album (owner, 2026-09-30)
@@ -1956,8 +1956,8 @@
         '<button type="button" ' + on(rsvp) + ' style="flex:0 0 auto;border:0;border-radius:999px;background:#fff;color:#11131f;padding:10px 18px;font-family:inherit;font-size:15px;font-weight:800;cursor:pointer">' + (myRsvp(next) === 'going' ? 'Going' : 'RSVP') + '</button></div>';
     } else {
       card = '<div style="margin-top:22px;display:flex;align-items:center;gap:12px;border-radius:22px;padding:16px 18px;background:#fff;border:2px solid #e3e5ec">' +
-        '<div style="flex:1;min-width:0;font-size:16px;line-height:1.35;font-weight:700;color:#11131f">Nothing planned yet. Sign in to start something.</div>' +
-        '<button type="button" ' + on(() => { leaveWelcome('idea'); goCompose(); }) + ' style="flex:0 0 auto;border:0;border-radius:999px;background:#5b4ae8;color:#fff;padding:10px 18px;font-family:inherit;font-size:15px;font-weight:800;cursor:pointer">Sign in</button></div>';
+        '<div style="flex:1;min-width:0;font-size:16px;line-height:1.35;font-weight:700;color:#11131f">Nothing planned yet. Start the first one?</div>' +
+        '<button type="button" ' + on(() => { leaveWelcome('idea'); goCompose(); }) + ' style="flex:0 0 auto;border:0;border-radius:999px;background:#5b4ae8;color:#fff;padding:10px 18px;font-family:inherit;font-size:15px;font-weight:800;cursor:pointer">Start an event</button></div>';
     }
     return '<div data-screen-label="Welcome to group" style="position:relative;min-height:100%;display:flex;flex-direction:column;background:#f0f1f5">' +
       '<div style="position:relative;flex:0 0 auto">' + invPhoto(g, 'calc(240px + var(--pt))', 80) + statusFade + '</div>' +
@@ -3007,9 +3007,9 @@
   };
   const N_TOPICS = [
     ['newevents', 'New in your groups', 'New plans and ideas'],
-    ['updates', 'Updates from leads', 'Changes and last calls on plans you’re in'],
+    ['updates', 'Updates from leads', 'Changes on events you’re in'],
     ['reminders', 'Reminders', 'The day before and the morning of anything you’re going to or helping with'],
-    ['hosting', 'Things you’re leading', 'Replies, interest, sign-ups and suggestions']
+    ['hosting', 'Things you’re leading', 'RSVPs, interest, sign-ups and suggestions']
   ];
   // A guest's name comes from what they left the lead; everyone else from their profile
   const personName = (s, uid) => {
@@ -3156,7 +3156,7 @@
         '<div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:800;color:#0d1117">' + (ps === 'install' ? 'Get these on your iPhone' : 'Get these on your phone') + '</div>' +
           '<div style="margin-top:2px;font-size:13.5px;line-height:1.4;font-weight:600;color:#6b7280">' + (ps === 'install'
             ? 'Add Spark Hub to your Home Screen first: tap Share, then Add to Home Screen. Open it from there and turn them on.'
-            : 'We’ll buzz you when a plan changes, something new goes up, or the day before you’re going.') + '</div></div>' +
+            : 'We’ll buzz you when an event changes, something new goes up, and the day before and morning of anything you’re going to.') + '</div></div>' +
         '<span ' + on(hide) + ' aria-label="Not now" style="flex:0 0 28px;width:28px;height:28px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(11, '#6b7280', 2.6) + '</span></div>' +
       (ps === 'off' ? '<button type="button" class="hov-primary" ' + on(turnOnPush) + ' style="align-self:flex-start;margin-left:48px;min-height:42px;padding:0 18px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer">Turn on notifications</button>' : '') +
     '</div>';
@@ -3218,7 +3218,7 @@
   const acctUnread = () => (state.accts || []).filter(x => x.at > acctSeenAt()).length;
   // Remove an account entirely (owner, 2026-09-30): remove_account() refuses admins; you take over any group they were the only owner of
   const askRemoveAccount = (x) => setState({ confirm: { z: 60, title: 'Remove ' + x.name + '?', danger: true, cta: 'Remove account', keep: 'Keep it',
-    body: 'Deletes ' + (x.email || 'this account') + ' and everything tied to it: group memberships, replies, sign-ups, photos they added, and any events they lead (quietly). If they’re a group’s only owner, you become its owner. They can sign up again later as someone new. This can’t be undone.',
+    body: 'Deletes ' + (x.email || 'this account') + ' and everything tied to it: group memberships, RSVPs, sign-ups, photos they added, and any events they lead (quietly). If they’re a group’s only owner, you become its owner. They can sign up again later as someone new. This can’t be undone.',
     run: async () => {
       if (state.busy) return;
       setState({ busy: 'save' });
@@ -3401,7 +3401,7 @@
           : secs.length
           ? secs.map(([label, items], i) => '<div><div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 4px 6px;min-height:32px"><span style="' + EYEBROW + '">' + label + (!i && unread ? ' · ' + unread : '') + '</span>' +
               (!i && unread ? '<span ' + on(markAllRead) + ' style="font-size:13.5px;font-weight:800;color:#5b4ae8;cursor:pointer">Mark all read</span>' : '') + '</div><div style="' + CARD + ';overflow:hidden">' + items.map(row).join('') + '</div></div>').join('')
-          : '<div style="' + CARD + ';padding:18px;font-size:14.5px;line-height:1.45;font-weight:500;color:#6b7280">' + (f === 'all' ? 'You’re all caught up. New plans, updates and replies from the last week show up here.' : 'Nothing here this week.') + '</div>') +
+          : '<div style="' + CARD + ';padding:18px;font-size:14.5px;line-height:1.45;font-weight:500;color:#6b7280">' + (f === 'all' ? 'You’re all caught up. New events, updates and RSVPs from the last week show up here.' : 'Nothing here this week.') + '</div>') +
       '</div>', 48);
   }
 
@@ -3859,7 +3859,7 @@
 
         (!basicsOf(s).length && !lead ? '' : '<div id="sec-details" style="' + CARD + ';padding:18px 16px;display:flex;flex-direction:column;gap:10px">' +
           '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px">' +
-            '<span style="' + EYEBROW + '">Basic details</span>' +
+            '<span style="' + EYEBROW + '">Details</span>' +
             (canEdit(s) && basicsOf(s).length ? '<span ' + on(() => openSec(s, 'details')) + ' style="font-size:13.5px;font-weight:800;color:#5b4ae8;cursor:pointer">Edit</span>' : '') +
           '</div>' +
           (basicsOf(s).length
@@ -3867,7 +3867,7 @@
                 '<div style="display:flex;align-items:center;gap:11px"><span style="flex:0 0 8px;width:8px;height:8px;border-radius:999px;background:#e8a71c"></span><span style="font-size:16.5px;line-height:1.35;font-weight:700;letter-spacing:-.2px;color:#0d1117">' + esc(h) + '</span></div>').join('') + '</div>'
             : lead
               ? '<p style="margin:0;font-size:14.5px;line-height:1.45;font-weight:500;color:#5c6270">Up to three quick notes on what to expect or the vibe.</p>' +
-                '<span ' + on(() => openSec(s, 'details')) + ' class="hov-outline" style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:40px;padding:0 15px;border:1.5px solid #dcdfe6;border-radius:999px;font-size:14.5px;font-weight:800;color:#0d1117;cursor:pointer">+ Add basic details</span>'
+                '<span ' + on(() => openSec(s, 'details')) + ' class="hov-outline" style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:40px;padding:0 15px;border:1.5px solid #dcdfe6;border-radius:999px;font-size:14.5px;font-weight:800;color:#0d1117;cursor:pointer">+ Add details</span>'
               : '') +   // members: the section is hidden when empty (owner, 2026-09-30)
         '</div>') +
 
@@ -4165,7 +4165,7 @@
     if (p && p !== (s.spot || '')) lines.push('New location: ' + p);
     return lines.join(' · ');
   };
-  // Who an update reaches (audience "all"): everyone who replied or signed up, but you
+  // Who an update reaches (audience "all"): everyone who RSVP’d or signed up, but you
   const updateReach = (s) => {
     const ids = new Set();
     s.rsvps.forEach(r => ids.add(r.userId)); s.signups.forEach(it => it.claims.forEach(c => ids.add(c.userId)));
@@ -4173,7 +4173,7 @@
     const g = s.rsvps.filter(r => r.status === 'going' && r.userId !== state.me).length, m = s.rsvps.filter(r => r.status === 'maybe' && r.userId !== state.me).length;
     const text = !ids.size ? '' : ids.size === g + m
       ? 'Goes to ' + [g ? (g === 1 ? 'the 1 person going' : 'the ' + g + ' people going') : '', m ? (m === 1 ? 'the 1 maybe' : 'the ' + m + ' maybes') : ''].filter(Boolean).join(' and ') + '.'
-      : 'Goes to the ' + ids.size + (ids.size === 1 ? ' person who replied or signed up.' : ' people who replied or signed up.');
+      : 'Goes to the ' + ids.size + (ids.size === 1 ? ' person who RSVP’d or signed up.' : ' people who RSVP’d or signed up.');
     return { n: ids.size, text };
   };
   const secSends = (s, ss) => isLead(s) && s.planned && !!secMessage(s, ss) && updateReach(s).n > 0 && (ss.kind === 'when' || !!ss.tell);
@@ -4331,7 +4331,7 @@
     const close = () => setState({ sec: null, offerText: '', offerPlace: null, offerSuggest: [], timeOpen: null });
     const set = (patch) => setState({ sec: Object.assign({}, state.sec, patch) });
     const label = (t) => '<span style="font-size:12px;font-weight:800;letter-spacing:1.1px;text-transform:uppercase;color:#6b7280">' + t + '</span>';
-    const title = { title: 'Title & photo', when: 'Date, time & location', details: 'Basic details', vis: 'Who can see it' }[ss.kind];
+    const title = { title: 'Title & photo', when: 'Date, time & location', details: 'Details', vis: 'Who can see it' }[ss.kind];
     let body = '', ok = true;
     if (ss.kind === 'title') {
       const cur = ss.photo ? ss.photo.url : s.photoPaths[0] ? photoUrl(s.photoPaths[0]) : null;
@@ -4467,8 +4467,8 @@
   const basicDetailsSec = (s) => {
     const bits = basicsOf(s), edit = canEdit(s);
     if (!bits.length && !edit) return '';
-    return '<section data-basics><div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 4px;margin-bottom:8px"><h2 style="margin:0;font-size:24px;line-height:1.1;font-weight:900;letter-spacing:-.6px;color:#0d1117">Basic details</h2>' +
-        (edit ? '<span ' + on(() => openSec(s, 'details')) + ' aria-label="Edit basic details" style="display:flex;align-items:center;gap:5px;min-height:36px;padding:0 2px;color:#6b7280;font-size:14px;font-weight:700;cursor:pointer">' + svg(13, stroke('currentColor', 2.4), PENCIL) + 'Edit</span>' : '') + '</div>' +
+    return '<section data-basics><div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 4px;margin-bottom:8px"><h2 style="margin:0;font-size:24px;line-height:1.1;font-weight:900;letter-spacing:-.6px;color:#0d1117">Details</h2>' +
+        (edit ? '<span ' + on(() => openSec(s, 'details')) + ' aria-label="Edit details" style="display:flex;align-items:center;gap:5px;min-height:36px;padding:0 2px;color:#6b7280;font-size:14px;font-weight:700;cursor:pointer">' + svg(13, stroke('currentColor', 2.4), PENCIL) + 'Edit</span>' : '') + '</div>' +
       (bits.length
         ? '<div style="' + CARD + ';padding:4px 16px">' + bits.map((t, k) => '<div style="display:flex;align-items:baseline;gap:10px;padding:10px 0;border-top:' + (k ? '1px solid #f2f3f6' : '0') + '"><span style="flex:0 0 6px;width:6px;height:6px;border-radius:999px;background:#0f7a3c;transform:translateY(-3px)"></span><span style="font-size:16px;line-height:1.4;font-weight:700;color:#0d1117;text-wrap:pretty">' + esc(t) + '</span></div>').join('') + '</div>'
         : '<div ' + on(() => openSec(s, 'details')) + ' style="padding:14px 16px;border-radius:18px;border:1.5px dashed #c9ccd3;font-size:14.5px;font-weight:700;color:#6b7280;cursor:pointer">Add up to three quick notes on what to expect.</div>') +
@@ -4569,7 +4569,7 @@
         host +
         '<section>' + secTitle('Who’s going', '<span style="font-size:13.5px;font-weight:800;color:#0f7a3c">' + goingIds.length + ' going</span>') + sheetCard(
           '<div style="display:flex;align-items:center;gap:10px">' +
-            '<span style="display:flex">' + (goingIds.length ? peopleFaces(goingIds.slice(0, 5), 40) + (goingIds.length > 5 ? '<span style="width:40px;height:40px;border-radius:999px;border:2.5px solid #fff;margin-left:-10px;background:#e7f6ec;color:#0f7a3c;font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center">+' + (goingIds.length - 5) + '</span>' : '') : lead ? '<span data-going-empty style="font-size:14px;font-weight:600;color:#6b7280">Nobody’s replied yet. <span ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' style="font-weight:800;color:#5b4ae8;cursor:pointer">Share the link</span></span>' : '<span style="font-size:14px;font-weight:600;color:#6b7280">Nobody yet. Be the first.</span>') + '</span>' +
+            '<span style="display:flex">' + (goingIds.length ? peopleFaces(goingIds.slice(0, 5), 40) + (goingIds.length > 5 ? '<span style="width:40px;height:40px;border-radius:999px;border:2.5px solid #fff;margin-left:-10px;background:#e7f6ec;color:#0f7a3c;font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center">+' + (goingIds.length - 5) + '</span>' : '') : lead ? '<span data-going-empty style="font-size:14px;font-weight:600;color:#6b7280">Nobody’s RSVP’d yet. <span ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' style="font-weight:800;color:#5b4ae8;cursor:pointer">Share the link</span></span>' : '<span style="font-size:14px;font-weight:600;color:#6b7280">Nobody yet. Be the first.</span>') + '</span>' +
           '</div>') + '</section>' +
         (s.mood.length ? '<section>' + secTitle('Inspo') + sheetCard('<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">' +
           s.mood.slice(0, 3).map((p, i) => '<div ' + on(() => setState({ zoom: { photos: s.mood.map(photoUrl), i } })) + ' aria-label="View mood photo ' + (i + 1) + '" style="aspect-ratio:1;border-radius:12px;cursor:zoom-in;background:' + bg(photoUrl(p)) + '"></div>').join('') + '</div>') + '</section>' : '') +
@@ -4640,7 +4640,7 @@
     if (!s) return '';
     const link = location.origin + '/i/' + s.id, lead = isLead(s), ask = state.invite.msg;   // ask: "Find a replacement"
     const msg = ask ? ask + ' ' + link : 'Hey! ' + (lead ? 'I’m leading ' : 'Come to ') + s.text + (s.dayDate ? ' on ' + whenLong(s) : '') + (s.spot ? ' at ' + s.spot : '') + '. RSVP here: ' + link;
-    const title = state.invite.title || (lead ? 'Invite people' : 'Share this plan');
+    const title = state.invite.title || (lead ? 'Invite people' : 'Share this event');
     if (ask) return modal(title, close,   // Round 64c
       h3(title) + '<div style="margin-top:-6px;font-size:14px;font-weight:700;color:#6b7280">' + esc(state.invite.sub || s.text) + '</div>' +
       '<div style="padding:14px 16px;border-radius:16px;background:#f4f5f7;font-size:15px;line-height:1.45;font-weight:600;color:#2b303a;overflow-wrap:anywhere">“' + esc(ask + ' ' + link.replace(/^https?:\/\//, '')) + '”</div>' +
@@ -4672,7 +4672,7 @@
       '<div style="display:flex;gap:6px;flex-wrap:wrap">' + tpl.map(([label, text]) => '<span ' + on(() => setState({ blast: Object.assign({}, b, { text }) })) + ' style="display:flex;align-items:center;min-height:32px;padding:0 11px;border-radius:999px;background:#f3f1fe;font-size:13px;font-weight:800;color:#4a3ad4;cursor:pointer">' + label + '</span>').join('') + '</div>' +
       '<textarea class="fld" rows="4" maxlength="320" aria-label="Your update" placeholder="What should people know?" ' + onInput(e => { if (e.type === 'input') setState({ blast: Object.assign({}, state.blast, { text: e.target.value.slice(0, 320) }) }); }) + ' style="' + FIELD + ';resize:none;line-height:1.4">' + esc(b.text) + '</textarea>' +
       '<button type="button" ' + on(() => { if (ok) postUpdate(s); }) + ' aria-disabled="' + !ok + '" style="' + primary(ok) + '">' + (state.busy === 'save' ? 'Posting…' : 'Post update') + '</button>' +
-      '<p style="margin:0;font-size:13px;line-height:1.45;font-weight:500;color:#6b7280">It goes to ' + ({ all: 'everyone who replied or signed up', going: 'the people going', maybe: 'the maybes' }[b.to] || 'them') + ', on the event and in their notifications.</p>',
+      '<p style="margin:0;font-size:13px;line-height:1.45;font-weight:500;color:#6b7280">It goes to ' + ({ all: 'everyone who RSVP’d or signed up', going: 'the people going', maybe: 'the maybes' }[b.to] || 'them') + ', on the event and in their notifications.</p>',
       { z: 32 });
   }
 
@@ -4741,7 +4741,7 @@
         section('Settings',
           '<div ' + on(() => setState({ nSettings: true })) + ' class="hov-row" style="' + ROW + '">' + line('Notifications', 'In the app and on your phone') + I.chevR(16, '#9aa0ac', 2.4) + '</div>' +
           (installMode() ? '<div ' + on(startInstall) + ' class="hov-row" style="' + ROW + ';border-top:1px solid #f2f3f6">' + line('Add to Home Screen', installMode() === 'prompt' ? 'Install Spark Hub on this phone' : 'A few taps in ' + IOS_BROWSER + '’s Share menu') + I.chevR(16, '#9aa0ac', 2.4) + '</div>' : '') +
-          '<a href="/privacy.html" target="_blank" rel="noopener" class="hov-row" style="' + ROW + ';border-top:1px solid #f2f3f6">' + line('Privacy', 'Who sees your profile and plans') + I.chevR(16, '#9aa0ac', 2.4) + '</a>') +
+          '<a href="/privacy.html" target="_blank" rel="noopener" class="hov-row" style="' + ROW + ';border-top:1px solid #f2f3f6">' + line('Privacy', 'Who sees your profile and events') + I.chevR(16, '#9aa0ac', 2.4) + '</a>') +
         '<div style="display:flex;flex-direction:column;gap:14px">' +
           (st.demoAdmin && st.sparks.some(s => s.demo)
             ? '<div style="' + CARD + ';padding:14px 16px;display:flex;flex-direction:column;gap:10px">' +
@@ -4888,7 +4888,7 @@
   const clock = (v) => { if (!v) return ''; const [h, m] = v.split(':').map(Number); return (h % 12 || 12) + ':' + pad2(m) + (h < 12 ? 'am' : 'pm'); };
   const EV_TIMES = TIME_OPTS.map(o => o[0]).filter(v => v >= '06:00');   // every 30 min, 6:00am–11:30pm
   const EV_STEPS = ['title', 'when', 'where', 'details', 'help'];
-  const EV_NAMES = { title: 'Event title', when: 'Date & time', where: 'Location', details: 'Basic details', help: 'How people can help', review: 'Review' };
+  const EV_NAMES = { title: 'Event title', when: 'Date & time', where: 'Location', details: 'Details', help: 'How people can help', review: 'Review' };
   const BIT_PH = ['e.g. Meet by the front desk', 'e.g. Coffee and donuts at 9:30', 'e.g. Kids and dogs welcome'];
   const EV_GRAD = 'linear-gradient(135deg,#5b4ae8,#8a6ff0 55%,#e8a71c)';
   const AMBER_INK = '#8f6405';
@@ -5154,7 +5154,7 @@
     stepper(n, set, 'how many people needed') + '</div>';
   const bitRows = (bits, set) => bits.map((v, k) => '<label style="display:flex;align-items:center;gap:10px;min-height:58px;padding:0 16px;border-radius:16px;background:#fff;box-shadow:inset 0 0 0 2px #dcdfe6;cursor:text">' +
     '<span aria-hidden="true" style="flex:0 0 7px;width:7px;height:7px;border-radius:999px;background:' + (v.trim() ? '#0f7a3c' : '#c9ccd3') + '"></span>' +
-    '<input class="bit-fld" type="text" maxlength="40" aria-label="Basic details, line ' + (k + 1) + '" placeholder="' + esc(BIT_PH[k]) + '" value="' + esc(v) + '" ' + onInput(e => { if (e.type === 'input') set(k, e.target.value.slice(0, 40)); }) +
+    '<input class="bit-fld" type="text" maxlength="40" aria-label="Details, line ' + (k + 1) + '" placeholder="' + esc(BIT_PH[k]) + '" value="' + esc(v) + '" ' + onInput(e => { if (e.type === 'input') set(k, e.target.value.slice(0, 40)); }) +
       ' style="flex:1 1 auto;min-width:0;border:0;padding:0;background:transparent;font-family:inherit;font-size:17px;font-weight:800;color:#0d1117;outline:none">' +
     (v.length ? '<span style="font-size:11.5px;font-weight:700;color:#9aa0ac">' + v.length + '/40</span>' : '') + '</label>').join('');
   // A starter chip leaves just its verb ("Bring "): Save waits for what (owner, 2026-09-30)
@@ -5202,7 +5202,7 @@
         '<div style="padding:16px 14px 0;display:flex;flex-direction:column;gap:18px"><div style="display:flex;flex-direction:column;gap:10px">' +
           card(P6.cal, 'Date &amp; time', filled.when, '', 'when', st.evDatePoll ? main('Poll: ' + st.evDatePoll.length + ' dates', true, 'People vote, you pick') : st.evDate ? main(dayLabel(st.evDate, st.evTime, st.evEnd), true) : main('Date TBD', false)) +
           card(P6.pin, 'Location', filled.where, '', 'where', st.evSpotPoll ? main('Poll: ' + st.evSpotPoll.length + ' spots', true, 'People vote, you pick') : place ? main(place, true, st.locPlace ? st.locPlace.address : '') : main('Location TBD', false)) +
-          card(LINES_IC, 'Basic details', filled.details, '', 'details', bits.length ? list(bits.map(t => '<span style="flex:0 0 6px;width:6px;height:6px;border-radius:999px;background:#0f7a3c;transform:translateY(-2px)"></span><span style="font-size:15.5px;line-height:1.35;font-weight:800;color:#0d1117;text-wrap:pretty">' + esc(t) + '</span>')) : main('Basic details to be decided', false)) +
+          card(LINES_IC, 'Details', filled.details, '', 'details', bits.length ? list(bits.map(t => '<span style="flex:0 0 6px;width:6px;height:6px;border-radius:999px;background:#0f7a3c;transform:translateY(-2px)"></span><span style="font-size:15.5px;line-height:1.35;font-weight:800;color:#0d1117;text-wrap:pretty">' + esc(t) + '</span>')) : main('Details to be decided', false)) +
           card(HAND_IC, 'How people can help', filled.help, '', 'help', st.evNeeds.length ? list(st.evNeeds.map(j => '<span style="flex:1;min-width:0;font-size:15.5px;line-height:1.35;font-weight:800;color:#0d1117;text-wrap:pretty">' + esc(cleanTitle(j.item)) + '</span><span style="flex:0 0 auto;font-size:13px;font-weight:700;color:#6b7280">' + esc(jobMeta(j)) + '</span>')) : main('Help to be decided', false)) +
         '</div>' +
         '<div style="display:flex;flex-direction:column;gap:8px"><div style="padding:0 4px;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:#0d1117">Who can see it</div>' +
@@ -5257,7 +5257,7 @@
         : pad(placeField('loc', { placeholder: 'Search a place or address', style: BIG, cls: 'fld big-fld' })) +
           '<div style="padding:0 16px">' + orLine() + pollRow(() => openPoll('where')) + '</div>');
     } else if (cur === 'details') {
-      body = head('Basic details', 'Up to three quick notes on what to expect or the vibe.') +
+      body = head('Details', 'Up to three quick notes on what to expect or the vibe.') +
         '<div style="padding:12px 16px 0;display:flex;flex-direction:column;gap:8px">' + bitRows(st.evBits, (k, v) => { const b = state.evBits.slice(); b[k] = v; setState({ evBits: b }); }) +
           tagRow(st.evTags || [], (t) => setState({ evTags: t })) +
           (st.evDate ? '' : needRow(st.evNeed, (n) => setState({ evNeed: n }))) + '</div>';   // no date: it goes up as an idea, which can say how many it needs
@@ -5741,9 +5741,9 @@
     const any = s.rsvps.length > 0;
     return modal('Guest list', close,
       h3('Guest list') +
-      (any ? para('Phone numbers are from people who replied without an account. Only you see them.') +
+      (any ? para('Phone numbers are from people who RSVP’d without an account. Only you see them.') +
         '<div style="display:flex;flex-direction:column;gap:14px">' + part('going', 'GOING', '#0f7a3c') + part('maybe', 'MAYBE', '#8f6405') + part('no', 'CAN’T', '#454b55') + '</div>'
-        : para('Nobody has replied yet. Share the link to get the word out.')));
+        : para('Nobody has RSVP’d yet. Share the link to get the word out.')));
   }
 
   // Who thanked the host (Round 64d): everyone can see it, as thank-yous are public

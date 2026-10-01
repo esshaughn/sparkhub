@@ -192,7 +192,7 @@ async function postEvent(page, { title, date, time, where, pick, details = [], j
 
   await expect(flow).toContainText('4 of 5');
   if (details.length) {
-    for (let i = 0; i < details.length; i++) await flow.getByLabel('Basic details, line ' + (i + 1)).fill(details[i]);
+    for (let i = 0; i < details.length; i++) await flow.getByLabel('Details, line ' + (i + 1)).fill(details[i]);
     await next();
   } else await later();
 

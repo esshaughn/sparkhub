@@ -80,7 +80,7 @@ test('a group end to end: edit group, cover, rename, invite, pin, admin edits, r
     await joinAsk.getByRole('button', { name: /^Join as / }).click();
     const welcome = B.locator('[data-screen-label="Welcome to group"]');
     await expect(welcome).toContainText('Welcome to' + groupName);
-    await expect(welcome).toContainText('Nothing planned yet. Got an idea?');
+    await expect(welcome).toContainText('Nothing planned yet. Start the first one?');
     await welcome.getByRole('button', { name: 'See what’s coming up' }).click();
     await expect(B.locator('[data-screen-label=Browse]')).toContainText(groupName);
     // The link again, already a member (E2): the group page and a toast, no Welcome
@@ -231,7 +231,7 @@ test('leaving a group: a member leaves from the bottom of its page; its only own
     await M.locator('[data-screen-label=Groups]').getByRole('button', { name: name, exact: true }).click();
     await M.locator('[data-screen-label=Browse] [data-leave-group]').click();
     const c = M.getByRole('alertdialog', { name: 'Leave ' + name + '?' });
-    await expect(c).toContainText('The events you posted and your replies stay. You can rejoin with the group’s link.');
+    await expect(c).toContainText('The events you posted and your RSVPs stay. You can rejoin with the group’s link.');
     await c.getByRole('button', { name: 'Leave', exact: true }).click();
     await expect(M.getByText('You left ' + name)).toBeVisible();
     await expect(M.locator('[data-screen-label=Groups]')).not.toContainText(name);
