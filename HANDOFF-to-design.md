@@ -96,6 +96,12 @@ Where this doc and the design files disagree, **this doc is correct**.
 | 79 | **Who's going: *N going* sits inside the card** on the right (14.5px/800 green, then a gray chevron), and **tapping the card opens the list**: members get *Who's going* (GOING and MAYBE, no phone numbers, you as *You*); the lead still gets the *Guest list* with Can't and guests' numbers. *Who's interested* on ideas works the same way (gold count; anyone can open the list, numbers only for the lead) | The count beside the section title; the faces did nothing (the idea's list was lead-only) | Owner, 2026-10-01 |
 | 80 | **Help out with no jobs, for the lead:** the same dashed box as an empty Details (`#c9ccd3` dashed, 14.5px/700 gray), reading *Add ways people can help.*; it opens Edit what you need | A white card: *Need people to bring things? Add what you need and anyone can grab a spot.* | Owner, 2026-10-01 |
 | 81 | **Who's in** (plans and ideas; was *Who's going* / *Who's interested*): one card with the faces and *N going ›* / *N interested ›* on top, then under a thin line the group(s) it's posted to (15px/800 names; tap one to open that group) and *Public · everyone in the group* / *Private · only people invited* beside a 32px lavender people or lock tile. The lead's gray pencil **Edit** there opens Who can see it; the separate Public/Private card is gone | People in one card, the lead's Public/Private row in another, and members never saw where it's posted | Owner, 2026-10-01: easy to see and change what group it's in |
+| 82 | **A guest who RSVP'd or took a job** sees a lavender card under the RSVP buttons: a bell, *Want a reminder?* · *Sign in and we'll remind you the day before and that morning, and tell you if anything changes.* · purple **Sign in** | Nothing after *You're going. See you there!* | First-day walkthrough (owner, 2026-10-01): guests get no reminders or updates without an account |
+| 83 | **No tab bar for a guest on an event page** | The full tab bar | Every tab led to sign-in with no way back to the event |
+| 84 | **Say hi is hidden** on the Led by card until there's messaging | *Say hi* → *Messages are coming soon…* toast | A dead end |
+| 85 | **The bell's first section is *Today*** (*Today · N unread*) | *NEW · N* | The *New* chip means new events |
+| 86 | **Welcome to {group}:** *Ideas — float one, see who's up for it* | *suggest something, see who's up for it* | Wording |
+| 87 | **The Calendar's *Feeling wild?* card is gone** | *Feeling wild? We'll deal you a random event* | Filler |
 
 ## 2. Things the build had to invent (please design these properly)
 
@@ -176,7 +182,6 @@ Where this doc and the design files disagree, **this doc is correct**.
 
 - **"We'll let {Lead} know"** (You're off it): nothing is sent yet. Notifications are built from what's stored, so the lead just sees one fewer name on the job.
 - **The event preview slide-up** (Task Card Options, Round 13) is still undecided, so it isn't built.
-- **Say hi** on the Led by card: there's no messaging yet, so it shows a toast *Messages are coming soon. For now, say hi to {first name} at the event!*
 - **Leading filtered to a group** (the gray group line above the list) is built, but nothing opens it that way: the build's group pages have no *View all* into Leading.
 - **"Include ideas"** on the Calendar (in the prototype's code, not the README) isn't built; the Calendar lists plans.
 

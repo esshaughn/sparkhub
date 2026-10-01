@@ -2040,7 +2040,7 @@
   function viewInvWelcome() {
     const st = state, inv = st.inv, g = inv.group, gid = inv.gid;
     const next = state.sparks.filter(s => inGroup(s, gid) && phaseOf(s) === 'plan' && s.dayDate).sort(byWhen)[0];
-    const rows = [['#e8a317', 'Plans', 'see what’s coming up and RSVP'], ['#5b4ae8', 'Ideas', 'suggest something, see who’s up for it'], ['#1f8a4c', 'Pitch in', 'bring something or lend a hand']];
+    const rows = [['#e8a317', 'Plans', 'see what’s coming up and RSVP'], ['#5b4ae8', 'Ideas', 'float one, see who’s up for it'], ['#1f8a4c', 'Pitch in', 'bring something or lend a hand']];
     let card;
     if (next) {
       const f = signupFill(next), n = going(next).length;
@@ -3087,10 +3087,7 @@
         '<span style="position:absolute;left:3px;top:1px;z-index:1;font-size:9px;line-height:1;font-weight:900;color:' + (red ? '#e2556b' : '#0d1117') + '">' + rank + '<br>' + suit + '</span>' +
         '<span style="display:block;width:100%;height:100%;border-radius:4px;background:' + (s ? photoBg(s) : '#e8eaee') + '"></span></span>';
     };
-    const wild = !st.cWildHidden && pool.length ? '<div ' + on(() => { const p = pool[Math.floor(Math.random() * pool.length)]; if (p) openSpark(p); }) + ' aria-label="Feeling wild? Open a random event" style="display:flex;align-items:center;gap:12px;padding:12px 8px 12px 14px;border-radius:18px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
-      '<span style="position:relative;flex:0 0 66px;height:50px">' + [0, 1, 2].map(i => card(faces[i] || pool[0], i)).join('') + '</span>' +
-      '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">Feeling wild?</div><div style="font-size:13px;font-weight:600;color:#6b7280">We’ll deal you a random event</div></div>' +
-      I.chevR(14, '#b9bcc4', 2.6) + xBtn(() => setState({ cWildHidden: true }), 'Hide Feeling wild') + '</div>' : '';
+    const wild = '';   // "Feeling wild?" is gone (owner, 2026-10-01): filler, like Search's old surprise cards
     const needs = !st.cNeedsHidden && hand.length ? '<div ' + on(() => setState({ cHandSheet: true, menu: null })) + ' aria-label="' + hand.length + (hand.length === 1 ? ' event could' : ' events could') + ' use a hand" style="display:flex;align-items:center;gap:10px;padding:8px 8px 8px 14px;border-radius:18px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
       '<span style="display:flex">' + hand.slice(0, 3).map((s, i) => '<span aria-hidden="true" style="width:26px;height:26px;border-radius:999px;border:2px solid #fff;margin-left:' + (i ? -9 : 0) + 'px;background:' + photoBg(s) + '"></span>').join('') + '</span>' +
       '<span style="flex:1;min-width:0;font-size:14.5px;font-weight:700;color:#0d1117"><b style="font-weight:900;color:#b07a0a">' + hand.length + (hand.length === 1 ? ' event' : ' events') + '</b> could use a hand</span>' +
@@ -3650,7 +3647,7 @@
   function viewNotifSheet() {
     const st = state, all = notifList(), f = st.nFilter, shown = all.filter(n => f === 'all' || N_TYPES[n.type].cat === f), unread = all.filter(isUnread).length;
     const todayStart = midnight(todayISO());
-    const secs = [['New', shown.filter(n => n.t >= todayStart)], ['Earlier this week', shown.filter(n => n.t < todayStart)]].filter(x => x[1].length);
+    const secs = [['Today', shown.filter(n => n.t >= todayStart)], ['Earlier this week', shown.filter(n => n.t < todayStart)]].filter(x => x[1].length);
     const chip = (k, label) => '<span ' + on(() => setState({ nFilter: k }), 'radio') + ' aria-checked="' + (f === k) + '" style="flex:0 0 auto;display:flex;align-items:center;min-height:36px;padding:0 14px;border-radius:999px;font-size:13.5px;font-weight:800;white-space:nowrap;cursor:pointer;' +
       (f === k ? 'background:#0d1117;color:#fff' : 'background:#f2f3f6;color:#454b55') + '">' + label + '</span>';
     const row = (n, k) => {
@@ -3690,7 +3687,7 @@
       '<div style="padding:16px 14px 30px;display:flex;flex-direction:column;gap:16px">' + pushCard() +
         (!st.loaded ? skeleton(4, 76)
           : secs.length
-          ? secs.map(([label, items], i) => '<div><div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 4px 6px;min-height:32px"><span style="' + EYEBROW + '">' + label + (!i && unread ? ' · ' + unread : '') + '</span>' +
+          ? secs.map(([label, items], i) => '<div><div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 4px 6px;min-height:32px"><span style="' + EYEBROW + '">' + label + (!i && unread ? ' · ' + unread + ' unread' : '') + '</span>' +
               (!i && unread ? '<span ' + on(markAllRead) + ' style="font-size:13.5px;font-weight:800;color:#5b4ae8;cursor:pointer">Mark all read</span>' : '') + '</div><div style="' + CARD + ';overflow:hidden">' + items.map(row).join('') + '</div></div>').join('')
           : '<div style="' + CARD + ';padding:18px;font-size:14.5px;line-height:1.45;font-weight:500;color:#6b7280">' + (f === 'all' ? 'You’re all caught up. New events, updates and RSVPs from the last week show up here.' : 'Nothing here this week.') + '</div>') +
       '</div>', 48);
@@ -4659,7 +4656,7 @@
         '<span style="position:relative;flex:0 0 56px;width:56px;height:56px;border-radius:999px;border:3px solid #fff;box-shadow:0 0 0 2.5px #7b6ef0, 0 6px 16px rgba(13,17,23,.25);display:flex">' + face(s.leadId, leadName, 50, '#7b6ef0') +
           '<span aria-hidden="true" style="position:absolute;top:-10px;left:-8px;font-size:13px;color:#9d93f7">✦</span><span aria-hidden="true" style="position:absolute;top:-4px;right:-10px;font-size:10px;color:#b8aefc">✦</span><span aria-hidden="true" style="position:absolute;bottom:-4px;right:-10px;font-size:13px;color:#7b6ef0">✧</span></span>' +
         '<div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:900;letter-spacing:.9px;color:#6b5ce7">LED BY</div><div style="font-size:20px;font-weight:900;letter-spacing:-.3px;color:#2a1f8f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(leadName) + '</div></div>' +
-        '<span ' + on(() => toast('Messages are coming soon. For now, say hi to ' + firstName(leadName) + ' at the event!')) + ' style="flex:0 0 auto;display:flex;align-items:center;min-height:40px;padding:0 14px;border-radius:999px;background:#fff;font-size:13.5px;font-weight:800;color:#4a3ad4;cursor:pointer">Say hi</span></div>';
+        '</div>';   // (Say hi is hidden until there's messaging, owner 2026-10-01)
   };
   // Inspo: up to three mood photos; the lead adds and removes them (ideas and plans alike), everyone else sees them when there are some
   const inspoSec = (s) => {
@@ -4722,6 +4719,14 @@
     };
     // An update sent to Going, Maybe or people who haven't replied shows only to them; the host sees all, labelled
     const shownUpdates = lead ? s.updates : s.updates.filter(u => { const a = u.audience || 'all'; return a === 'all' || a === my || (a === 'noreply' && !my); });
+    // A guest who RSVP'd or took a job gets no reminders or updates without an account: offer them (owner, 2026-10-01)
+    const guestNudge = st.email || lead || s.cancelledAt || !(my === 'going' || my === 'maybe' || s.signups.some(it => it.claims.some(c => c.userId === st.me))) ? '' :
+      '<div data-guest-nudge style="' + CARD + ';padding:16px;display:flex;align-items:center;gap:12px;background:#f7f6ff;box-shadow:inset 0 0 0 1.5px #dcd6fb">' +
+        '<span style="flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center">' + ic6('bell', 18, '#5b4ae8', 2.2) + '</span>' +
+        '<div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:800;color:#0d1117">Want a reminder?</div>' +
+          '<div style="margin-top:2px;font-size:13.5px;line-height:1.4;font-weight:600;color:#5c6270">Sign in and we’ll remind you the day before and that morning, and tell you if anything changes.</div></div>' +
+        '<span ' + on(() => openLogin('guest', () => {})) + ' style="flex:0 0 auto;display:flex;align-items:center;min-height:40px;padding:0 16px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:14px;font-weight:800;cursor:pointer">Sign in</span>' +
+      '</div>';
     const rsvpBlock = lead || s.cancelledAt ? '' : '<div data-rsvp style="' + CARD + ';padding:16px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">' +
       rsvpBtn('going', 'Going', goingIds.length) + rsvpBtn('maybe', 'Maybe', maybeN) + rsvpBtn('no', 'Can’t', noN) + '</div>';
 
@@ -4752,6 +4757,7 @@
         (s.cancelledAt ? '' : guests) +
         pendingCard(s) +
         rsvpBlock +
+        guestNudge +
         whenWhereCard(s) +
         basicDetailsSec(s) +
         (shownUpdates.length ? '<section>' + secTitle('Updates') + sheetCard(
@@ -6086,7 +6092,7 @@
       (st.fb && st.email ? viewFeedback() : '') +
       (st.installPop ? viewInstallPop() : '') +
       (st.toast ? viewToast() : '') +
-      (welcomeShown() || invFull() ? '' : viewNav());   // no tab bar on Welcome or the invite screens
+      (welcomeShown() || invFull() || (!state.email && state.screen === 'detail') ? '' : viewNav());   // no tab bar on Welcome, the invite screens, or for a guest on an event (it only led to sign-in)
   }
 
   // ---------------------------------------------------------------------------
@@ -6231,7 +6237,7 @@
     handlers = H;
     tpl.innerHTML = html;
     morphChildren(root, tpl.content);
-    const noNav = welcomeShown() || invFull();
+    const noNav = welcomeShown() || invFull() || (!state.email && state.screen === 'detail');
     root.classList.toggle('no-nav', noNav);
     if (hadNoNav && !noNav) { nudgeSoon(); tallFix(); setTimeout(tallFix, 400); setTimeout(() => layoutNote('tab bar back'), 1500); }   // the tab bar is back
     hadNoNav = noNav;

@@ -45,12 +45,15 @@ test('a plan: guest RSVPs, sign-ups, an update, the host’s notes, then clearin
     await expect(GP.locator('[data-rsvp]')).toBeVisible();
     await expect(GP).toContainText('Parking is on the street.');
     await expect(GP).toContainText('LED BY');
-    await expect(GP.getByRole('button', { name: 'Say hi' })).toBeVisible();
+    await expect(GP.getByRole('button', { name: 'Say hi' })).toHaveCount(0);   // hidden until there's messaging
     await expect(GP).not.toContainText('Before the day');                     // just for the host
     const rsvp = (k) => GP.locator('[data-rsvp]').getByRole('button', { name: new RegExp('^' + k) });
     await rsvp('Going').click();
     await answerGuestPrompt(G, 'Gus', '(512) 555-0142');
     await expect(G.getByText('You’re going. See you there!')).toBeVisible();
+    // A guest gets no reminders without an account, so the page offers them; and no tab bar (it only led to sign-in)
+    await expect(GP.locator('[data-guest-nudge]')).toContainText('Want a reminder?');
+    await expect(G.getByRole('navigation', { name: 'Main' })).toBeHidden();
     // v6 Update 5: three buttons with counts; the pick is filled; tapping it again clears it
     await expect(rsvp('Going')).toHaveAttribute('aria-pressed', 'true');
     await expect(rsvp('Going')).toContainText('1');
