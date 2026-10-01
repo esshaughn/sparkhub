@@ -343,3 +343,45 @@ test('a cancelled idea offers nothing to do: no Sign up, Suggest, voting or Make
     await host.context.close(); await mem.context.close();
   }
 });
+
+test('RSVP buttons change as soon as they are tapped (the save follows), and go back if it fails', async ({ browser }) => {
+  const host = await newLead(browser, 1, 'Host'), mem = await newLead(browser, 2, 'Omar');
+  const H = host.page, M = mem.page;
+  let id;
+  try {
+    id = await asUser(H, async (c) => {
+      const me = (await c.auth.getUser()).data.user.id;
+      const g = (await c.from('groups').select('id').eq('name', 'Torrez Fitness').single()).data.id;
+      const d = new Date(Date.now() + 6 * 864e5).toISOString().slice(0, 10);
+      return (await c.from('sparks').insert({ group_id: g, author_name: 'Host', lead_name: 'Host', lead_id: me, created_by: me, text: '[E2E] Quick RSVP ' + Date.now().toString(36), planned: true, day_date: d }).select('id').single()).data.id;
+    });
+    await M.goto('/#/idea/' + id);
+    const rsvp = M.locator('[data-rsvp]');
+    // A slow save: the button is already on long before it lands
+    let release;
+    const gate = new Promise(r => { release = r; });
+    await M.route('**/rest/v1/rsvps*', async (route) => { if (route.request().method() !== 'GET') await gate; await route.continue().catch(() => {}); });
+    await rsvp.getByRole('button', { name: /^Going/ }).click();
+    await expect(rsvp.getByRole('button', { name: /^Going/ })).toHaveAttribute('aria-pressed', 'true', { timeout: 1000 });
+    release();
+    await M.unroute('**/rest/v1/rsvps*');
+    await expect.poll(() => asUser(H, async (c, _C, id) => (await c.from('rsvps').select('status').eq('spark_id', id)).data.map(r => r.status), id)).toEqual(['going']);
+    // Who's going: the count is inside the card, and tapping it lists everyone going (no phone numbers for members)
+    const goingCard = M.locator('[data-going]');
+    await expect(goingCard).toContainText('1 going');
+    await goingCard.click();
+    const list = M.getByRole('dialog', { name: 'Who’s going' });
+    await expect(list.locator('[data-guest-part=going]')).toContainText('You');
+    await expect(list).not.toContainText('Phone numbers');
+    await list.getByRole('button', { name: 'Close' }).click();
+    // A failed save puts the old answer back
+    await M.route('**/rest/v1/rsvps*', (route) => route.request().method() === 'GET' ? route.continue() : route.fulfill({ status: 500, body: '{}' }));
+    await rsvp.getByRole('button', { name: /^Maybe/ }).click();
+    await expect(M.getByText('That didn’t go through. Try again in a moment.')).toBeVisible();
+    await expect(rsvp.getByRole('button', { name: /^Going/ })).toHaveAttribute('aria-pressed', 'true');
+    await expect(rsvp.getByRole('button', { name: /^Maybe/ })).toHaveAttribute('aria-pressed', 'false');
+  } finally {
+    if (id) await asUser(H, async (c, _C, id) => c.rpc('delete_event', { p_spark: id, p_quiet: true }), id).catch(() => {});
+    await host.context.close(); await mem.context.close();
+  }
+});

@@ -1271,16 +1271,36 @@
   const going = (s) => s.rsvps.filter(r => r.status === 'going');
   const whenLong = (s) => s.dayDate ? fmtDay(s.dayDate) + (s.dayTime ? ' at ' + fmtTime(s.dayTime) : '') : '';
 
+  // Change one event in place (for instant feedback before the next load replaces it)
+  let rsvpChain = Promise.resolve(), rsvpQueued = 0;
+  const patchSpark = (id, patch) => setState({ sparks: state.sparks.map(x => x.id === id ? Object.assign({}, x, patch) : x) });
   const setRsvp = (s, status) => {
     const cur = myRsvp(s), next = cur === status ? null : status, lead = nameOf(s.leadId, s.leadName);
     const note = { going: 'You’re going. See you there!', maybe: 'Marked as maybe', no: 'Thanks for letting ' + lead + ' know' }[next];
     const jobs = next === 'no' ? myClaims(s) : [];
-    const save = (dropJobs) => { if (state.confirm) setState({ confirm: null }); needGuest(() => run(async () => {
-      await saveGuestContact(s.id);
-      if (!next) must(await sb.from('rsvps').delete().eq('spark_id', s.id).eq('user_id', state.me));
-      else must(await sb.from('rsvps').upsert({ spark_id: s.id, user_id: state.me, status: next }, { onConflict: 'spark_id,user_id' }));
-      if (dropJobs) must(await sb.from('signup_claims').delete().in('item_id', jobs.map(it => it.id)).eq('user_id', state.me));
-    }).then(ok => { if (ok && note) toast(dropJobs ? 'Thanks for letting ' + lead + ' know. You’re off the list too.' : note, true); })); };
+    // The button changes as soon as it's tapped (owner, 2026-10-01: it took a second or two). Saves queue in order without
+    // blocking the next tap; one refresh follows the last of them, and a save that fails puts that answer back
+    const save = (dropJobs) => { if (state.confirm) setState({ confirm: null }); needGuest(() => {
+      if (state.viewAs) return run(async () => {});   // previewing: run() says nothing changes
+      const before = (state.sparks.find(x => x.id === s.id) || s).rsvps;
+      patchSpark(s.id, { rsvps: before.filter(r => r.userId !== state.me).concat(next ? [{ userId: state.me, status: next, created: Date.now() }] : []) });
+      if (note) toast(dropJobs ? 'Thanks for letting ' + lead + ' know. You’re off the list too.' : note, true);
+      const mine = ++rsvpQueued;
+      rsvpChain = rsvpChain.then(async () => {
+        try {
+          await ensureSession();
+          await saveGuestContact(s.id);
+          if (!next) must(await sb.from('rsvps').delete().eq('spark_id', s.id).eq('user_id', state.me));
+          else must(await sb.from('rsvps').upsert({ spark_id: s.id, user_id: state.me, status: next }, { onConflict: 'spark_id,user_id' }));
+          if (dropJobs) must(await sb.from('signup_claims').delete().in('item_id', jobs.map(it => it.id)).eq('user_id', state.me));
+        } catch (e) {
+          console.error(e);
+          patchSpark(s.id, { rsvps: before });
+          toast(FAILED);
+        }
+        if (mine === rsvpQueued) loadFresh().catch(e => console.error(e));
+      });
+    }); };
     // Can't, while signed up for a job: free the spot too? (owner, 2026-09-30)
     if (jobs.length) {
       const names = jobs.map(it => it.item).filter((x, k, a) => a.indexOf(x) === k);
@@ -4089,12 +4109,12 @@
 
     // Who's interested: like Who's going (the lead taps it for the list)
     const ids = (meIn ? [st.me] : []).concat(s.interested.filter(u => u !== st.me));
-    const interested = '<section id="sec-people">' + secTitle('Who’s interested', '<span style="font-size:13.5px;font-weight:800;color:#8f6405">' + n + ' interested</span>') + sheetCard(
-      '<div ' + (lead && n ? on(() => setState({ interestList: true })) + ' aria-label="See who’s interested" ' : '') + 'style="display:flex;align-items:center;gap:10px' + (lead && n ? ';cursor:pointer' : '') + '">' +
+    const interested = '<section id="sec-people">' + secTitle('Who’s interested') + sheetCard(
+      '<div ' + (n ? on(() => setState({ interestList: true })) + ' aria-label="See who’s interested" ' : '') + 'style="display:flex;align-items:center;gap:10px' + (n ? ';cursor:pointer' : '') + '">' +
         '<span style="display:flex">' + (n ? peopleFaces(ids.slice(0, 5), 40) + (n > 5 ? '<span style="width:40px;height:40px;border-radius:999px;border:2.5px solid #fff;margin-left:-10px;background:#fdf1d6;color:#8f6405;font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center">+' + (n - 5) + '</span>' : '')
           : lead ? '<span style="font-size:14px;font-weight:600;color:#6b7280">No one yet. <span ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' style="font-weight:800;color:#5b4ae8;cursor:pointer">Share the link</span></span>'
           : '<span style="font-size:14px;font-weight:600;color:#6b7280">Nobody yet. Be the first.</span>') + '</span>' +
-        (lead && n ? '<span style="margin-left:auto;display:flex">' + I.chevR(14, '#9aa0ac', 2.6) + '</span>' : '') + '</div>') + '</section>';
+        (n ? '<span style="margin-left:auto;display:flex;align-items:center;gap:6px;font-size:14.5px;font-weight:800;color:#8f6405;white-space:nowrap">' + n + ' interested' + I.chevR(14, '#9aa0ac', 2.6) + '</span>' : '') + '</div>') + '</section>';
 
     const pitchSec = !pitching.length ? '' : '<section>' + secTitle('Who’s pitching in') + sheetCard(pitching.map(o =>
       '<div style="display:flex;gap:10px"><span style="flex:0 0 7px;width:7px;height:7px;border-radius:999px;background:' + (o.waiting ? '#e8c46a' : '#e8a71c') + ';margin-top:7px"></span>' +
@@ -4280,7 +4300,10 @@
     const editBtn = lead ? '<span ' + on(() => openNeeds(s)) + ' aria-label="Edit what you need" style="flex:0 0 auto;display:flex;align-items:center;gap:5px;min-height:36px;padding:0 2px;color:#6b7280;font-size:14px;font-weight:700;cursor:pointer">' + svg(13, stroke('currentColor', 2.4), PENCIL) + 'Edit</span>' : '';
     return '<section id="sec-tasks" data-screen-label="Help out">' + secTitle('Help out', editBtn, true) +
       '<div style="display:flex;flex-direction:column;gap:8px">' +
-        (jobs.length ? jobs.map(card).join('') : '<div ' + (lead ? on(() => openNeeds(s)) + ' ' : '') + 'style="' + CARD + ';padding:16px;font-size:14px;line-height:1.45;font-weight:500;color:#5c6270' + (lead ? ';cursor:pointer' : '') + '">' + (lead ? 'Need people to bring things? Add what you need and anyone can grab a spot.' : 'Nothing on the list yet. Bringing something? Add it below.') + '</div>') +
+        // Empty, for the lead: the same dashed box as an empty Details (owner, 2026-10-01)
+        (jobs.length ? jobs.map(card).join('') : lead
+          ? '<div ' + on(() => openNeeds(s)) + ' data-help-empty style="padding:14px 16px;border-radius:18px;border:1.5px dashed #c9ccd3;font-size:14.5px;font-weight:700;color:#6b7280;cursor:pointer">Add ways people can help.</div>'
+          : '<div style="' + CARD + ';padding:16px;font-size:14px;line-height:1.45;font-weight:500;color:#5c6270">Nothing on the list yet. Bringing something? Add it below.</div>') +
         (lead || s.cancelledAt ? '' : adder) + '</div></section>';
   }
 
@@ -4686,7 +4709,7 @@
     const RC = { going: '#149a4b', maybe: '#e8a71c', no: '#6b7280' };
     const rsvpBtn = (k, label, n) => {
       const onIt = my === k;
-      return '<button type="button" ' + on(() => { if (!st.busy) setRsvp(s, k); }) + ' aria-pressed="' + onIt + '" style="min-height:60px;border:0;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-family:inherit;cursor:pointer;' +
+      return '<button type="button" ' + on(() => setRsvp(s, k)) + ' aria-pressed="' + onIt + '" style="min-height:60px;border:0;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-family:inherit;cursor:pointer;' +
         (onIt ? 'background:' + RC[k] + ';color:#fff' : 'background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;color:#0d1117') + '">' +
         '<span style="font-size:17px;font-weight:800">' + label + '</span><span style="font-size:13px;font-weight:700;color:' + (onIt ? 'rgba(255,255,255,.85)' : '#6b7280') + '">' + n + '</span></button>';
     };
@@ -4735,9 +4758,11 @@
         helpOut(s) +
         visRow +
         host +
-        '<section>' + secTitle('Who’s going', '<span style="font-size:13.5px;font-weight:800;color:#0f7a3c">' + goingIds.length + ' going</span>') + sheetCard(
-          '<div style="display:flex;align-items:center;gap:10px">' +
+        '<section>' + secTitle('Who’s going') + sheetCard(
+          // the count sits inside the card, and the card opens the full list (owner, 2026-10-01)
+          '<div ' + (goingIds.length ? on(() => setState({ guestList: s.id })) + ' data-going aria-label="See everyone going (' + goingIds.length + ')" ' : '') + 'style="display:flex;align-items:center;gap:10px' + (goingIds.length ? ';cursor:pointer' : '') + '">' +
             '<span style="display:flex">' + (goingIds.length ? peopleFaces(goingIds.slice(0, 5), 40) + (goingIds.length > 5 ? '<span style="width:40px;height:40px;border-radius:999px;border:2.5px solid #fff;margin-left:-10px;background:#e7f6ec;color:#0f7a3c;font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center">+' + (goingIds.length - 5) + '</span>' : '') : lead ? '<span data-going-empty style="font-size:14px;font-weight:600;color:#6b7280">Nobody’s RSVP’d yet. <span ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' style="font-weight:800;color:#5b4ae8;cursor:pointer">Share the link</span></span>' : '<span style="font-size:14px;font-weight:600;color:#6b7280">Nobody yet. Be the first.</span>') + '</span>' +
+            (goingIds.length ? '<span style="margin-left:auto;display:flex;align-items:center;gap:6px;font-size:14.5px;font-weight:800;color:#0f7a3c;white-space:nowrap">' + goingIds.length + ' going' + I.chevR(14, '#9aa0ac', 2.6) + '</span>' : '') +
           '</div>') + '</section>' +
         inspoSec(s) +
         deleteLink(s) +
@@ -5881,14 +5906,14 @@
 
   // The lead's list of who's interested, with guests' numbers (not in the design yet)
   function viewInterestList(s) {
-    const close = () => setState({ interestList: false });
+    const close = () => setState({ interestList: false }), lead = isLead(s);
     return modal('Who’s interested', close,
       h3('Who’s interested') +
-      para('Only you see phone numbers. They’re from people who took part without an account.') +
+      (lead ? para('Only you see phone numbers. They’re from people who took part without an account.') : '') +
       '<div style="display:flex;flex-direction:column">' +
         s.interested.map((u, i) => {
-          const c = s.contacts.find(x => x.user_id === u);
-          const name = c ? c.name : nameOf(u);
+          const c = lead && s.contacts.find(x => x.user_id === u);
+          const name = u === state.me ? 'You' : c ? c.name : nameOf(u);
           return '<div style="display:flex;align-items:center;gap:12px;min-height:52px;border-top:' + (i ? '1px solid #f2f3f6' : '0') + '">' +
             face(u, name, 32, null) +
             '<span style="flex:1 1 auto;min-width:0;font-size:15.5px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(name) + '</span>' +
@@ -5900,9 +5925,9 @@
 
   // The host's guest list: everyone who replied, by answer, with guests' phone numbers (only the host can read those)
   function viewGuestList(s) {
-    const close = () => setState({ guestList: null });
+    const close = () => setState({ guestList: null }), lead = isLead(s);
     const row = (u, i) => {
-      const c = s.contacts.find(x => x.user_id === u), name = personName(s, u);
+      const c = lead && s.contacts.find(x => x.user_id === u), name = u === state.me ? 'You' : personName(s, u);
       return '<div data-guest style="display:flex;align-items:center;gap:12px;min-height:50px;border-top:' + (i ? '1px solid #f2f3f6' : '0') + '">' +
         face(u, name, 32, null) +
         '<span style="flex:1 1 auto;min-width:0;font-size:15.5px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(name) + '</span>' +
@@ -5913,12 +5938,13 @@
       return !ids.length ? '' : '<div data-guest-part="' + k + '" style="display:flex;flex-direction:column;gap:2px"><span style="font-size:12px;font-weight:900;letter-spacing:1px;color:' + ink + '">' + label + ' · ' + ids.length + '</span>' +
         '<div style="display:flex;flex-direction:column">' + ids.map(row).join('') + '</div></div>';
     };
-    const any = s.rsvps.length > 0;
-    return modal('Guest list', close,
-      h3('Guest list') +
-      (any ? para('Phone numbers are from people who RSVP’d without an account. Only you see them.') +
-        '<div style="display:flex;flex-direction:column;gap:14px">' + part('going', 'GOING', '#0f7a3c') + part('maybe', 'MAYBE', '#8f6405') + part('no', 'CAN’T', '#454b55') + '</div>'
-        : para('Nobody has RSVP’d yet. Share the link to get the word out.')));
+    const any = s.rsvps.some(r => lead || r.status !== 'no');
+    // The lead's Guest list (with guests' numbers and Can't); everyone else sees who's going and who might
+    return modal(lead ? 'Guest list' : 'Who’s going', close,
+      h3(lead ? 'Guest list' : 'Who’s going') +
+      (any ? (lead ? para('Phone numbers are from people who RSVP’d without an account. Only you see them.') : '') +
+        '<div style="display:flex;flex-direction:column;gap:14px">' + part('going', 'GOING', '#0f7a3c') + part('maybe', 'MAYBE', '#8f6405') + (lead ? part('no', 'CAN’T', '#454b55') : '') + '</div>'
+        : para(lead ? 'Nobody has RSVP’d yet. Share the link to get the word out.' : 'Nobody yet. Be the first.')));
   }
 
   // Who thanked the host (Round 64d): everyone can see it, as thank-yous are public

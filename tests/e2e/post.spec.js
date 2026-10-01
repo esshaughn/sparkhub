@@ -174,6 +174,12 @@ test('decide everything later: only the title is needed; the host is left with t
     id = await page.evaluate(() => location.hash.split('/').pop());
     await expect(I).toContainText('Pick a date first. Then you can lock it in.');
     await expect(I.getByRole('button', { name: 'Make it a plan' })).toHaveAttribute('aria-disabled', 'true');
+    // Empty Details and Help out are the same dashed box for the host
+    await expect(I.locator('[data-basics]')).toContainText('Add up to three quick notes on what to expect.');
+    await expect(I.locator('[data-help-empty]')).toHaveText('Add ways people can help.');
+    await I.locator('[data-help-empty]').click();
+    await expect(page.getByRole('dialog', { name: 'Edit what you need' })).toBeVisible();
+    await page.keyboard.press('Escape');
     // Not on the Calendar until the host makes it a plan
     await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Calendar', exact: true }).click();
     await expect(page.locator('[data-screen-label=Calendar]')).toBeVisible();
