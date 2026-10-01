@@ -316,3 +316,30 @@ test('it happened: the album and "do it again"; invite-only plans stay private',
     await other.context.close();
   }
 });
+
+test('a cancelled idea offers nothing to do: no Sign up, Suggest, voting or Make it a plan', async ({ browser }) => {
+  const host = await newLead(browser, 1, 'Host'), mem = await newLead(browser, 2, 'Omar');
+  const H = host.page, M = mem.page;
+  let id;
+  try {
+    id = await asUser(H, async (c) => {
+      const me = (await c.auth.getUser()).data.user.id;
+      const g = (await c.from('groups').select('id').eq('name', 'Torrez Fitness').single()).data.id;
+      const r = (await c.from('sparks').insert({ group_id: g, author_name: 'Host', lead_name: 'Host', lead_id: me, created_by: me, text: '[E2E] Called off idea ' + Date.now().toString(36), planned: false }).select('id').single()).data;
+      await c.from('signup_items').insert({ spark_id: r.id, item: 'Ice', need: 1 });
+      await c.from('date_options').insert({ spark_id: r.id, day_date: new Date(Date.now() + 9 * 864e5).toISOString().slice(0, 10), who: 'Host' });
+      await c.rpc('cancel_event', { p_spark: r.id, p_reason: 'Rained out' });
+      return r.id;
+    });
+    for (const [P, lead] of [[M, false], [H, true]]) {
+      await P.goto('/#/idea/' + id);
+      await expect(P.locator('[data-screen-label="Idea page"]')).toContainText('Ice');
+      await expect(P.getByText('Sign up', { exact: true })).toHaveCount(0);
+      await expect(P.getByText(/^(Suggest a date|Suggest a location|Add a date|Add a location)$/)).toHaveCount(0);
+      if (lead) await expect(P.getByRole('button', { name: 'Make it a plan' })).toHaveCount(0);
+    }
+  } finally {
+    if (id) await asUser(H, async (c, _C, id) => c.rpc('delete_event', { p_spark: id, p_quiet: true }), id).catch(() => {});
+    await host.context.close(); await mem.context.close();
+  }
+});

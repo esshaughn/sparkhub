@@ -314,7 +314,7 @@
   // Owners are admins too (and also decide who the admins are)
   const runs = (g) => !!g && (g.role === 'admin' || g.role === 'owner');
   const ROLE_WORD = { owner: 'Owner', admin: 'Admin', member: 'Member' };
-  const roleBadge = (role, extra) => '<span aria-label="You’re ' + (role === 'owner' ? 'an owner' : 'an admin') + '" style="flex:0 0 auto;border-radius:999px;padding:2px 7px;' +
+  const roleBadge = (role, extra) => '<span aria-label="' + (role === 'owner' ? 'Owner' : 'Admin') + '" style="flex:0 0 auto;border-radius:999px;padding:2px 7px;' +
     (role === 'owner' ? 'background:#ece9fd;color:#4a3ad4' : 'background:#fdf1d6;color:#8f6405') + ';font-size:11px;font-weight:900;letter-spacing:.6px;text-transform:uppercase;' + (extra || '') + '">' + ROLE_WORD[role] + '</span>';
   const isLead = (s) => !!s && !!state.me && s.leadId === state.me;
   // The lead, or an admin of the idea's group, can edit or delete it
@@ -1206,7 +1206,7 @@
         '<div><div style="font-size:16px;font-weight:900;color:#9b1c31">Cancel it</div>' +
           '<div style="margin-top:2px;font-size:14px;line-height:1.4;font-weight:600;color:#7a1626">' + (n === 1 ? 'The 1 person in it gets' : 'The ' + n + ' people in it get') + ' a note that it’s off. It stays up, marked Cancelled, until you delete it.</div></div>' +
         '<textarea class="fld" rows="2" maxlength="160" aria-label="Reason (optional)" placeholder="Add a reason (optional), e.g. Rained out, back next week!" ' + onInput(e => { if (e.type === 'input') setState({ takeDown: Object.assign({}, state.takeDown, { reason: e.target.value.slice(0, 160) }) }); }) +
-          ' style="width:100%;display:block;background:#fff;border:1.5px solid #f5c2cb;border-radius:12px;padding:10px 12px;font-family:inherit;font-size:15px;line-height:1.4;font-weight:600;color:#0d1117;resize:none;outline:none">' + esc(td.reason) + '</textarea>' +
+          ' style="width:100%;display:block;background:#fff;border:1.5px solid #f5c2cb;border-radius:12px;padding:10px 12px;font-family:inherit;font-size:16px;line-height:1.4;font-weight:600;color:#0d1117;resize:none;outline:none">' + esc(td.reason) + '</textarea>' +
         '<button type="button" ' + on(() => { if (!state.busy) cancelEvent(s, td.reason); }) + ' style="' + primary(true) + ';background:#9b1c31">' + (state.busy ? 'Cancelling…' : 'Cancel and tell ' + (n === 1 ? '1 person' : n + ' people')) + '</button>' +
       '</div>' +
       '<div data-delete-opt style="display:flex;flex-direction:column;gap:8px;padding:14px;border-radius:16px;background:#f4f5f7">' +
@@ -2836,7 +2836,8 @@
         '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.95) 0%, rgba(13,17,23,.6) 45%, rgba(13,17,23,.25) 100%)"></div>' +
         '<span style="position:absolute;top:12px;right:14px;display:flex;align-items:center;height:24px;padding:0 10px;border-radius:999px;background:rgba(13,17,23,.4);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff;font-size:11.5px;font-weight:800">' + when + '</span>' +
         '<div style="position:absolute;left:16px;right:16px;bottom:14px;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.3)">' +
-          '<div style="font-size:13px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;color:' + (P.k === 'lead' ? R6.lead.kick : R6.go.kick) + '">' + esc(when6(s)) + '</div>' +
+          // the badge says Today / Tomorrow / In N days, so the date line gives the date itself (it said "Today" twice); its colour follows your role
+          '<div style="font-size:13px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;color:' + P.R.kick + '">' + esc(s.dayDate ? fmtDay(s.dayDate) + (s.dayTime ? ' · ' + fmtTime(s.dayTime) : '') : when6(s)) + '</div>' +
           '<div style="margin-top:3px;font-size:25px;line-height:1.1;font-weight:900;letter-spacing:-.6px;text-wrap:balance">' + esc(s.text) + demoTag(s, true, true) + '</div>' +
           '<div style="margin-top:6px;display:flex;align-items:center;gap:6px;font-size:14.5px;font-weight:700;color:rgba(255,255,255,.9);min-width:0">' + ic6('pin', 13, 'currentColor', 2.6) + '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (s.spot ? esc(s.spot) : tbdSpan(spotTbd(s), TBD_ON_PHOTO)) + '</span></div>' +
         '</div></div>' +
@@ -2918,16 +2919,15 @@
     // Sort · Filter · view, on the first heading row
     const viewPick = () => viewPicker('hview', view, (k) => setState({ homeView: k, menu: null, hMon: null, hDay: null }), HOME_VIEWS);
     const plans = applySort(applyFilters(all, st.sFilt), st.sSort), clear = () => setState({ sFilt: [], menu: null });
+    const filt = () => filterPill('sFilt', filterOpts(['lead', 'help', 'going', 'maybe', 'needs', 'week'], all, st.sFilt), st.sFilt,
+      (k) => setState({ sFilt: st.sFilt.indexOf(k) > -1 ? st.sFilt.filter(x => x !== k) : st.sFilt.concat([k]) }), clear, plans.length);
     const controls = '<div style="display:flex;align-items:center;gap:6px">' +
-      sortPill('sSort', st.sSort, (k) => setState({ sSort: k, menu: null })) +
-      filterPill('sFilt', filterOpts(['lead', 'help', 'going', 'maybe', 'needs', 'week'], all, st.sFilt), st.sFilt,
-        (k) => setState({ sFilt: st.sFilt.indexOf(k) > -1 ? st.sFilt.filter(x => x !== k) : st.sFilt.concat([k]) }), clear, plans.length) +
-      viewPick() + '</div>';
+      sortPill('sSort', st.sSort, (k) => setState({ sSort: k, menu: null })) + filt() + viewPick() + '</div>';
     if (!plans.length) return wrap(goneCard() + '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(st.sSort === 'soon' ? 'Coming up' : sortName6(st.sSort), controls) + filterEmpty(clear) + '</div>');
     // Month: the grid with the chosen day's plans; the view menu sits beside the month arrows
     if (view === 'month') return wrap(goneCard() + draftsSection() +
-      monthBody(plans, { mon: st.hMon, day: st.hDay, cal: false, menu: viewPick(), card: (s) => listCard6(s, partOf(s), false, true),
-        set: (hMon, hDay) => setState({ hMon, hDay }), toTbd: () => setState({ homeView: 'next', menu: null, hMon: null, hDay: null }) }));
+      monthBody(plans, { mon: st.hMon, day: st.hDay, cal: false, menu: '<div style="display:flex;align-items:center;gap:6px">' + filt() + viewPick() + '</div>', card: (s) => listCard6(s, partOf(s), false, true),
+        set: (hMon, hDay) => setState({ hMon, hDay }), toTbd: () => setState({ homeView: 'next', sSort: 'soon', menu: null, hMon: null, hDay: null }) }));
     // Up next (Soonest only): the hero card, then list cards by This week / Next week / Later in {month}
     const secs = view === 'next' && st.sSort === 'soon' ? nextSections(plans) : sections6(plans, st.sSort, 'Date TBD');
     const card = (s) => view === 'next' ? listCard6(s, partOf(s), false, true) : tile6(s, partOf(s), 180);
@@ -3098,7 +3098,7 @@
     let body;
     if (!st.loaded) body = skeleton(3, 90);
     else if (st.cView === 'month') body = monthBody(list, { mon: st.cMon, day: st.cDay, cal: true, menu: calViewMenu(), card: card6,
-      set: (cMon, cDay) => setState({ cMon, cDay }), toTbd: () => setState({ cView: 'list', menu: null, cMon: null, cDay: null }) });
+      set: (cMon, cDay) => setState({ cMon, cDay }), toTbd: () => setState({ cView: 'list', cSort: 'soon', menu: null, cMon: null, cDay: null }) });
     else if (!list.length) {
       body = st.loaded && !groups.length ? '' : '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(st.cSort === 'soon' ? 'Coming up' : (CSORTS.find(x => x[0] === st.cSort) || CSORTS[0])[1], '<div style="display:flex;align-items:center">' + sortMenu + calViewMenu() + '</div>') +
         (filtered ? filterEmpty(clearFilters, (gSel ? groups.filter(g => gSel.indexOf(g.id) > -1).map(g => g.name) : []).concat(tSel.map(typeName))) : calEmpty()) + '</div>';
@@ -3173,7 +3173,7 @@
   const tryOn = (label, clear) => '<div style="display:flex;padding:0 2px 4px"><span ' + on(clear) + ' aria-label="Clear ' + esc(label) + '" style="display:flex;align-items:center;gap:6px;min-height:32px;padding:0 12px;border-radius:999px;background:#0d1117;color:#fff;font-size:13px;font-weight:800;cursor:pointer">' + esc(label) + I.x(10, '#fff', 3.4) + '</span></div>';
   const searchHead = (label, value, placeholder, onType, clearFn, close) => '<div style="display:flex;align-items:center;gap:10px">' +
     '<label style="flex:1;min-width:0;display:flex;align-items:center;gap:10px;min-height:48px;padding:0 10px 0 14px;border-radius:14px;background:#fff;box-shadow:0 1px 3px rgba(13,17,23,.08),0 0 0 1px rgba(13,17,23,.06)">' + ic6('search', 18, '#6b7280', 2.4) +
-      '<input class="fld" type="search" data-csearch aria-label="' + esc(label) + '" placeholder="' + esc(placeholder) + '" value="' + esc(value) + '" ' + onInput(e => { if (e.type === 'input') onType(e.target.value.slice(0, 60)); }) + ' style="flex:1;min-width:0;border:0;outline:none;background:transparent;font-family:inherit;font-size:15.5px;font-weight:600;color:#0d1117">' +
+      '<input class="fld" type="search" data-csearch aria-label="' + esc(label) + '" placeholder="' + esc(placeholder) + '" value="' + esc(value) + '" ' + onInput(e => { if (e.type === 'input') onType(e.target.value.slice(0, 60)); }) + ' style="flex:1;min-width:0;border:0;outline:none;background:transparent;font-family:inherit;font-size:16px;font-weight:600;color:#0d1117">' +
       (value ? '<span ' + on(() => { clearFn(); const f = document.querySelector('[data-csearch]'); if (f) f.focus(); }) + ' aria-label="Clear search" style="flex:0 0 24px;width:24px;height:24px;border-radius:999px;background:#c3c7d0;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(10, '#fff', 4) + '</span>' : '') +
     '</label>' +
     '<span ' + on(close) + ' style="flex:0 0 auto;font-size:14.5px;font-weight:800;color:#454b55;cursor:pointer">Cancel</span></div>';
@@ -3235,7 +3235,7 @@
       '<div style="margin-top:-4px;font-size:14px;font-weight:700;color:#6b7280">' + esc([s.dayDate ? fmtDay(s.dayDate) : '', 'you can pick more than one'].filter(Boolean).join(' · ')) + '</div>' +
       (job.desc ? '<p style="margin:0;font-size:14.5px;line-height:1.45;font-weight:500;color:#454b55">' + esc(job.desc) + '</p>' : '') +
       job.shifts.map(row).join('') +
-      '<input class="fld" type="text" maxlength="60" aria-label="Add a note, if you want" placeholder="Add a note, if you want" value="' + esc(p.note) + '" ' + onInput(e => { if (e.type === 'input') state.shiftPick = Object.assign({}, state.shiftPick, { note: e.target.value.slice(0, 60) }); }) + ' style="width:100%;min-height:48px;border:1.5px solid #dcdfe6;border-radius:14px;padding:10px 14px;font-family:inherit;font-size:15px;font-weight:600;color:#0d1117;background:#fff;outline:none">' +
+      '<input class="fld" type="text" maxlength="60" aria-label="Add a note, if you want" placeholder="Add a note, if you want" value="' + esc(p.note) + '" ' + onInput(e => { if (e.type === 'input') state.shiftPick = Object.assign({}, state.shiftPick, { note: e.target.value.slice(0, 60) }); }) + ' style="width:100%;min-height:48px;border:1.5px solid #dcdfe6;border-radius:14px;padding:10px 14px;font-family:inherit;font-size:16px;font-weight:600;color:#0d1117;background:#fff;outline:none">' +
       '<button type="button" class="hov-primary" ' + on(() => { if (!state.busy) saveShifts(s, job); }) + ' style="min-height:52px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16px;font-weight:800;cursor:pointer">Done</button>', 36);
   }
 
@@ -4138,7 +4138,7 @@
         cancelledCard(s) +
         pendingCard(s) +
 
-        (lead ? makePlanCard(s) : '') +
+        (lead && !s.cancelledAt ? makePlanCard(s) : '') +   // a cancelled idea offers nothing to do (refuse_if_cancelled)
         datesBoard(s) + spotsBoard(s) + signupsCard(s) +
 
         (!basicsOf(s).length && !lead ? '' : '<div id="sec-details" style="' + CARD + ';padding:18px 16px;display:flex;flex-direction:column;gap:10px">' +
@@ -4231,7 +4231,7 @@
 
   // DATES: the lead's date first (picked), then everyone's suggestions by votes. Tap to vote; the lead taps to pick.
   const datesBoard = (s) => {
-    const lead = isLead(s);
+    const lead = isLead(s), off = !!s.cancelledAt;
     const opts = s.dateOpts.filter(o => !(o.dayDate === s.dayDate && (o.dayTime || null) === (s.dayTime || null)))
       .sort((a, b) => b.votes.length - a.votes.length || a.dayDate.localeCompare(b.dayDate));
     const tile = (dp, time, votes, onIt, picked, fn, label) => '<div ' + on(fn) + ' aria-label="' + esc(label) + '" style="flex:0 0 138px;scroll-snap-align:start;border-radius:18px;background:' + (onIt ? '#5b4ae8' : '#fff') + ';color:' + (onIt ? '#fff' : '#0d1117') + ';padding:12px 12px 10px;display:flex;flex-direction:column;gap:2px;min-height:104px;box-shadow:' + (onIt ? '0 6px 16px rgba(91,74,232,.3)' : picked ? '0 0 0 2px #149a4b, 0 1px 3px rgba(15,18,25,.08)' : '0 1px 3px rgba(15,18,25,.08)') + ';cursor:pointer">' +
@@ -4243,21 +4243,21 @@
     return '<div id="sec-dates" style="display:flex;flex-direction:column;gap:8px;margin:2px -14px 0">' +
       '<div style="padding:0 18px"><span style="' + EYEBROW + '">Dates</span></div>' +
       '<div class="no-scrollbar" style="display:flex;gap:8px;padding:0 14px 4px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding:0 14px">' +
-        (s.dayDate ? tile(dateParts(s.dayDate), s.dayTime, null, false, true, () => { if (lead) openOffer(s, 'day'); }, 'Picked: ' + fmtDay(s.dayDate)) : '') +
+        (s.dayDate ? tile(dateParts(s.dayDate), s.dayTime, null, false, true, () => { if (lead && !off) openOffer(s, 'day'); }, 'Picked: ' + fmtDay(s.dayDate)) : '') +
         opts.map(o => {
           const mine = o.votes.indexOf(state.me) > -1;
-          return tile(dateParts(o.dayDate), o.dayTime, o.votes.length, mine, false, () => { if (state.busy) return; if (lead) pickDate(s, o); else vote('date_votes', s, o); },
+          return tile(dateParts(o.dayDate), o.dayTime, o.votes.length, mine, false, () => { if (state.busy || off) return; if (lead) pickDate(s, o); else vote('date_votes', s, o); },
             fmtDay(o.dayDate) + (o.dayTime ? ' ' + fmtTime(o.dayTime) : '') + ', ' + o.votes.length + ' votes, suggested by ' + o.who);
         }).join('') +
-        '<div ' + on(() => openOffer(s, 'day')) + ' style="flex:0 0 118px;scroll-snap-align:start;border-radius:18px;border:1.5px dashed #b9b2f5;background:#f3f1fe;min-height:104px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:#5b4ae8;cursor:pointer"><span style="font-size:22px;line-height:1;font-weight:700">+</span><span style="font-size:13.5px;font-weight:800">' + (lead ? (s.dayDate ? 'Change date' : 'Add a date') : 'Suggest a date') + '</span></div>' +
+        (off ? '' : '<div ' + on(() => openOffer(s, 'day')) + ' style="flex:0 0 118px;scroll-snap-align:start;border-radius:18px;border:1.5px dashed #b9b2f5;background:#f3f1fe;min-height:104px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:#5b4ae8;cursor:pointer"><span style="font-size:22px;line-height:1;font-weight:700">+</span><span style="font-size:13.5px;font-weight:800">' + (lead ? (s.dayDate ? 'Change date' : 'Add a date') : 'Suggest a date') + '</span></div>') +
       '</div>' +
-      (lead && opts.length ? '<div style="padding:0 18px;font-size:12.5px;font-weight:600;color:#8a909b">Tap a suggestion to use it.</div>' : '') +
+      (lead && opts.length && !off ? '<div style="padding:0 18px;font-size:12.5px;font-weight:600;color:#8a909b">Tap a suggestion to use it.</div>' : '') +
     '</div>';
   };
 
   // LOCATION: the picked spot, then suggestions with votes. The lead taps a suggestion to use it.
   const spotsBoard = (s) => {
-    const lead = isLead(s);
+    const lead = isLead(s), off = !!s.cancelledAt;
     const opts = s.spotOpts.filter(o => o.name !== s.spot).sort((a, b) => b.votes.length - a.votes.length);
     const directions = s.spotPoint ? '<a href="https://www.google.com/maps/dir/?api=1&amp;destination=' + s.spotPoint[0] + ',' + s.spotPoint[1] + '" target="_blank" rel="noopener noreferrer" style="flex:0 0 auto;font-size:13px;font-weight:800;color:#5b4ae8">Directions</a>' : '';
     const row = (name, noteHtml, right, i, fn) => '<div ' + (fn ? on(fn) + ' ' : '') + 'style="display:flex;align-items:center;gap:12px;padding:10px 0;border-top:' + (i ? '1px solid #f2f3f6' : '0') + (fn ? ';cursor:pointer' : '') + '">' +
@@ -4271,12 +4271,12 @@
           '<span style="border-radius:999px;padding:3px 8px;background:#e7f6ec;font-size:11px;font-weight:900;color:#0f7a3c">PICKED</span>', i++) : '') +
         opts.map(o => {
           const mine = o.votes.indexOf(state.me) > -1;
-          const voteBtn = '<span ' + on((e) => { stop(e); if (!state.busy) vote('spot_votes', s, o); }) + ' aria-label="' + (mine ? 'Remove your vote for ' : 'Vote for ') + esc(o.name) + '" aria-pressed="' + mine + '" style="flex:0 0 44px;height:52px;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;background:' + (mine ? '#5b4ae8' : '#fff') + ';color:' + (mine ? '#fff' : '#6b7280') + ';box-shadow:' + (mine ? 'none' : 'inset 0 0 0 1.5px #e6e7eb') + '">' + svg(14, 'fill="currentColor"', '<path d="M12 5l7 9H5z"/>') + '<span style="font-size:14px;font-weight:900">' + o.votes.length + '</span></span>';
-          return row(o.name, note(['Suggested by ' + o.who, o.address].filter(Boolean).join(' · ')), voteBtn, i++, lead ? () => { if (!state.busy) pickSpot(s, o); } : null);
+          const voteBtn = '<span ' + on((e) => { stop(e); if (!state.busy && !off) vote('spot_votes', s, o); }) + ' aria-label="' + (mine ? 'Remove your vote for ' : 'Vote for ') + esc(o.name) + '" aria-pressed="' + mine + '" style="flex:0 0 44px;height:52px;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;background:' + (mine ? '#5b4ae8' : '#fff') + ';color:' + (mine ? '#fff' : '#6b7280') + ';box-shadow:' + (mine ? 'none' : 'inset 0 0 0 1.5px #e6e7eb') + '">' + svg(14, 'fill="currentColor"', '<path d="M12 5l7 9H5z"/>') + '<span style="font-size:14px;font-weight:900">' + o.votes.length + '</span></span>';
+          return row(o.name, note(['Suggested by ' + o.who, o.address].filter(Boolean).join(' · ')), voteBtn, i++, lead && !off ? () => { if (!state.busy) pickSpot(s, o); } : null);
         }).join('') +
-        '<div ' + on(() => openOffer(s, 'spot')) + ' style="display:flex;align-items:center;gap:12px;min-height:52px;border-top:' + (i ? '1px solid #f2f3f6' : '0') + ';font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer"><span style="font-size:20px;line-height:1">+</span>' + (lead ? (s.spot ? 'Change location' : 'Add a location') : 'Suggest a location') + '</div>' +
+        (off ? '' : '<div ' + on(() => openOffer(s, 'spot')) + ' style="display:flex;align-items:center;gap:12px;min-height:52px;border-top:' + (i ? '1px solid #f2f3f6' : '0') + ';font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer"><span style="font-size:20px;line-height:1">+</span>' + (lead ? (s.spot ? 'Change location' : 'Add a location') : 'Suggest a location') + '</div>') +
       '</div>' +
-      (lead && opts.length ? '<div style="padding:0 4px;font-size:12.5px;font-weight:600;color:#8a909b">Tap a suggestion to use it.</div>' : '') +
+      (lead && opts.length && !off ? '<div style="padding:0 4px;font-size:12.5px;font-weight:600;color:#8a909b">Tap a suggestion to use it.</div>' : '') +
     '</div>';
   };
 
@@ -4315,7 +4315,7 @@
 
   // Sign-ups (plans) and roles (ideas): the lead adds items, anyone signs up
   function signupsCard(s) {
-    const st = state, lead = isLead(s);
+    const st = state, lead = isLead(s), off = !!s.cancelledAt;
     const needOpen = s.signups.filter(i => i.need).reduce((a, i) => a + Math.max(0, i.need - i.claims.length), 0);
     const sigReady = st.sigDraft.trim().length > 0;
     return '<div id="sec-tasks" data-screen-label="Sign-ups" style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:4px">' +
@@ -4328,21 +4328,21 @@
               '<div style="display:flex;align-items:center;gap:10px">' +
                 '<div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:800;color:#0d1117;text-wrap:pretty">' + esc(it.item) + (it.time ? ' <span style="display:inline-block;vertical-align:1px;margin-left:4px;padding:1px 8px;border-radius:999px;background:#fdf1d6;font-size:12px;font-weight:800;color:#8f6405">' + fmtTime(it.time) + '</span>' : '') + '</div><div style="margin-top:1px;font-size:13px;font-weight:600;color:#6b7280">' + countLine + '</div></div>' +
                 (lead || it.createdBy === st.me ? '<span ' + on(() => removeSignup(s, it)) + ' aria-label="Remove ' + esc(it.item) + '" style="flex:0 0 28px;width:28px;height:28px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(11, '#5c6270', 2.6) + '</span>' : '') +
-                '<span ' + on(() => { if (!full && !st.busy) toggleClaim(s, it); }) + ' style="flex:0 0 auto;display:flex;align-items:center;min-height:38px;padding:0 14px;border-radius:999px;font-size:13.5px;font-weight:800;white-space:nowrap;cursor:' + (full ? 'default' : 'pointer') + ';background:' + (mine ? '#e7f6ec' : full ? '#f2f3f6' : '#0d1117') + ';color:' + (mine ? '#0f7a3c' : full ? '#9aa0ac' : '#fff') + '">' + (mine ? '✓ You’re on it' : full ? 'All set' : 'Sign up') + '</span>' +
+                (off ? '' : '<span ' + on(() => { if (!full && !st.busy) toggleClaim(s, it); }) + ' style="flex:0 0 auto;display:flex;align-items:center;min-height:38px;padding:0 14px;border-radius:999px;font-size:13.5px;font-weight:800;white-space:nowrap;cursor:' + (full ? 'default' : 'pointer') + ';background:' + (mine ? '#e7f6ec' : full ? '#f2f3f6' : '#0d1117') + ';color:' + (mine ? '#0f7a3c' : full ? '#9aa0ac' : '#fff') + '">' + (mine ? '✓ You’re on it' : full ? 'All set' : 'Sign up') + '</span>') +
               '</div>' +
               (it.need && it.need > 1 ? '<div style="height:6px;border-radius:999px;background:#f2f3f6;overflow:hidden"><div style="width:' + Math.min(100, cnt / it.need * 100) + '%;height:100%;border-radius:999px;background:' + (cnt >= it.need ? '#149a4b' : '#e8a71c') + '"></div></div>' : '') +
               (cnt ? '<div style="display:flex;flex-wrap:wrap;gap:6px">' + it.claims.map(c => '<span style="display:flex;align-items:center;gap:6px;border-radius:999px;background:#f2f3f6;padding:3px 10px 3px 3px;font-size:13px;font-weight:700;color:#2b303a">' + face(c.userId, nameOf(c.userId), 24) + esc(nameOf(c.userId) + (c.note ? ' · ' + c.note : '')) + '</span>').join('') + '</div>' : '') +
-              (mine ? '<input class="fld" type="text" maxlength="60" aria-label="Note for ' + esc(it.item) + '" placeholder="Add a note, if you want" value="' + esc(mine.note) + '" ' + onInput(e => { if (e.type === 'change') saveClaimNote(it, e.target.value.trim()); }) + ' style="width:100%;min-height:40px;border:1.5px solid #dcdfe6;border-radius:14px;padding:10px 14px;font-family:inherit;font-size:14px;font-weight:600;color:#0d1117;background:#fff;outline:none">' : '') +
+              (mine ? '<input class="fld" type="text" maxlength="60" aria-label="Note for ' + esc(it.item) + '" placeholder="Add a note, if you want" value="' + esc(mine.note) + '" ' + onInput(e => { if (e.type === 'change') saveClaimNote(it, e.target.value.trim()); }) + ' style="width:100%;min-height:40px;border:1.5px solid #dcdfe6;border-radius:14px;padding:10px 14px;font-family:inherit;font-size:16px;font-weight:600;color:#0d1117;background:#fff;outline:none">' : '') +
             '</div>';
           }).join('') +
-          '<div style="display:flex;gap:8px;padding-top:12px;border-top:1px solid #f2f3f6">' +
-            '<input class="fld" type="text" maxlength="60" aria-label="' + (lead ? 'Add a sign-up' : 'Bringing something else?') + '" placeholder="' + (lead ? 'Add a thing, e.g. A dozen filled eggs' : 'Bringing something else?') + '" value="' + esc(st.sigDraft) + '" ' + onInput(e => { if (e.type === 'input') setState({ sigDraft: e.target.value.slice(0, 60) }); }) + ' style="flex:1 1 auto;min-width:0;min-height:46px;border:1.5px solid #dcdfe6;border-radius:14px;padding:10px 14px;font-family:inherit;font-size:15px;font-weight:600;color:#0d1117;background:#fff;outline:none">' +
-            (lead ? '<input class="fld" type="text" inputmode="numeric" maxlength="3" aria-label="How many needed" placeholder="How many" value="' + esc(st.sigNeed) + '" ' + onInput(e => { if (e.type === 'input') setState({ sigNeed: e.target.value.replace(/\D/g, '').slice(0, 3) }); }) + ' style="flex:0 0 74px;width:74px;min-height:46px;border:1.5px solid #dcdfe6;border-radius:14px;padding:10px 8px;text-align:center;font-family:inherit;font-size:13.5px;font-weight:600;color:#0d1117;background:#fff;outline:none">' : '') +
+          (off ? '' : '<div style="display:flex;gap:8px;padding-top:12px;border-top:1px solid #f2f3f6">' +
+            '<input class="fld" type="text" maxlength="60" aria-label="' + (lead ? 'Add a sign-up' : 'Bringing something else?') + '" placeholder="' + (lead ? 'Add a thing, e.g. A dozen filled eggs' : 'Bringing something else?') + '" value="' + esc(st.sigDraft) + '" ' + onInput(e => { if (e.type === 'input') setState({ sigDraft: e.target.value.slice(0, 60) }); }) + ' style="flex:1 1 auto;min-width:0;min-height:46px;border:1.5px solid #dcdfe6;border-radius:14px;padding:10px 14px;font-family:inherit;font-size:16px;font-weight:600;color:#0d1117;background:#fff;outline:none">' +
+            (lead ? '<input class="fld" type="text" inputmode="numeric" maxlength="3" aria-label="How many needed" placeholder="How many" value="' + esc(st.sigNeed) + '" ' + onInput(e => { if (e.type === 'input') setState({ sigNeed: e.target.value.replace(/\D/g, '').slice(0, 3) }); }) + ' style="flex:0 0 74px;width:74px;min-height:46px;border:1.5px solid #dcdfe6;border-radius:14px;padding:10px 8px;text-align:center;font-family:inherit;font-size:16px;font-weight:600;color:#0d1117;background:#fff;outline:none">' : '') +
             '<button type="button" ' + on(() => addSignup(s)) + ' aria-disabled="' + !sigReady + '" style="flex:0 0 auto;min-height:46px;padding:0 16px;border:0;border-radius:999px;font-family:inherit;font-size:15px;font-weight:800;cursor:' + (sigReady ? 'pointer' : 'default') + ';background:' + (sigReady ? '#5b4ae8' : '#e2e4e9') + ';color:' + (sigReady ? '#fff' : '#9aa0ac') + '">Add</button>' +
-          '</div>' +
-          (lead && st.sigDraft
+          '</div>') +
+          (lead && st.sigDraft && !off
             ? '<label style="display:flex;align-items:center;gap:8px;padding-top:8px;font-size:13px;font-weight:700;color:#6b7280">Time (optional)' +
-                '<select class="fld" aria-label="Sign-up time" ' + onInput(e => setState({ sigTime: e.target.value })) + ' style="min-height:38px;padding:0 10px;border:1.5px solid #dcdfe6;border-radius:12px;font-family:inherit;font-size:13.5px;font-weight:700;color:#0d1117;background:#fff;outline:none;color-scheme:light">' +
+                '<select class="fld" aria-label="Sign-up time" ' + onInput(e => setState({ sigTime: e.target.value })) + ' style="min-height:38px;padding:0 10px;border:1.5px solid #dcdfe6;border-radius:12px;font-family:inherit;font-size:16px;font-weight:700;color:#0d1117;background:#fff;outline:none;color-scheme:light">' +
                   '<option value="">No time</option>' + TIME_OPTS.map(([v, l]) => '<option value="' + v + '"' + (v === st.sigTime ? ' selected' : '') + '>' + l + '</option>').join('') +
                 '</select></label>'
             : '') +
@@ -4406,13 +4406,13 @@
           '<div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:15px;font-weight:800;color:#0d1117">' + addLabel + '</span>' +
             '<span ' + on(() => setState({ sigAdding: false, sigDraft: '', sigNeed: '', sigTime: '' })) + ' aria-label="Cancel" style="width:28px;height:28px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(11, '#5c6270', 2.6) + '</span></div>' +
           '<div style="display:flex;gap:8px">' +
-            '<input class="fld" type="text" maxlength="60" data-autofocus aria-label="' + (lead ? 'Add a sign-up' : 'Bringing something else?') + '" placeholder="' + (lead ? 'Add a thing, e.g. A dozen filled eggs' : 'Bringing something else?') + '" value="' + esc(st.sigDraft) + '" ' + onInput(e => { if (e.type === 'input') setState({ sigDraft: e.target.value.slice(0, 60) }); }) + ' style="flex:1 1 auto;min-width:0;min-height:46px;border:1.5px solid #dcdfe6;border-radius:14px;padding:10px 14px;font-family:inherit;font-size:15px;font-weight:600;color:#0d1117;background:#fff;outline:none">' +
-            (lead ? '<input class="fld" type="text" inputmode="numeric" maxlength="3" aria-label="How many needed" placeholder="How many" value="' + esc(st.sigNeed) + '" ' + onInput(e => { if (e.type === 'input') setState({ sigNeed: e.target.value.replace(/\D/g, '').slice(0, 3) }); }) + ' style="flex:0 0 74px;width:74px;min-height:46px;border:1.5px solid #dcdfe6;border-radius:14px;padding:10px 8px;text-align:center;font-family:inherit;font-size:13.5px;font-weight:600;color:#0d1117;background:#fff;outline:none">' : '') +
+            '<input class="fld" type="text" maxlength="60" data-autofocus aria-label="' + (lead ? 'Add a sign-up' : 'Bringing something else?') + '" placeholder="' + (lead ? 'Add a thing, e.g. A dozen filled eggs' : 'Bringing something else?') + '" value="' + esc(st.sigDraft) + '" ' + onInput(e => { if (e.type === 'input') setState({ sigDraft: e.target.value.slice(0, 60) }); }) + ' style="flex:1 1 auto;min-width:0;min-height:46px;border:1.5px solid #dcdfe6;border-radius:14px;padding:10px 14px;font-family:inherit;font-size:16px;font-weight:600;color:#0d1117;background:#fff;outline:none">' +
+            (lead ? '<input class="fld" type="text" inputmode="numeric" maxlength="3" aria-label="How many needed" placeholder="How many" value="' + esc(st.sigNeed) + '" ' + onInput(e => { if (e.type === 'input') setState({ sigNeed: e.target.value.replace(/\D/g, '').slice(0, 3) }); }) + ' style="flex:0 0 74px;width:74px;min-height:46px;border:1.5px solid #dcdfe6;border-radius:14px;padding:10px 8px;text-align:center;font-family:inherit;font-size:16px;font-weight:600;color:#0d1117;background:#fff;outline:none">' : '') +
             '<button type="button" ' + on(() => addSignup(s)) + ' aria-disabled="' + !sigReady + '" style="flex:0 0 auto;min-height:46px;padding:0 16px;border:0;border-radius:999px;font-family:inherit;font-size:15px;font-weight:800;cursor:' + (sigReady ? 'pointer' : 'default') + ';background:' + (sigReady ? '#5b4ae8' : '#e2e4e9') + ';color:' + (sigReady ? '#fff' : '#9aa0ac') + '">Add</button>' +
           '</div>' +
           (lead && st.sigDraft
             ? '<label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#6b7280">Time (optional)' +
-                '<select class="fld" aria-label="Sign-up time" ' + onInput(e => setState({ sigTime: e.target.value })) + ' style="min-height:38px;padding:0 10px;border:1.5px solid #dcdfe6;border-radius:12px;font-family:inherit;font-size:13.5px;font-weight:700;color:#0d1117;background:#fff;outline:none;color-scheme:light">' +
+                '<select class="fld" aria-label="Sign-up time" ' + onInput(e => setState({ sigTime: e.target.value })) + ' style="min-height:38px;padding:0 10px;border:1.5px solid #dcdfe6;border-radius:12px;font-family:inherit;font-size:16px;font-weight:700;color:#0d1117;background:#fff;outline:none;color-scheme:light">' +
                   '<option value="">No time</option>' + TIME_OPTS.map(([v, l]) => '<option value="' + v + '"' + (v === st.sigTime ? ' selected' : '') + '>' + l + '</option>').join('') +
                 '</select></label>'
             : '') +
@@ -5607,7 +5607,7 @@
     '<span style="min-width:22px;text-align:center;font-size:16px;font-weight:900;color:#0d1117">' + (n || 'Any') + '</span>' +
     '<span ' + on(() => set(Math.min(99, (n || 0) + 1))) + ' aria-label="More' + (label ? ' for ' + label : '') + '" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#0d1117;font-size:18px;font-weight:800;line-height:1">+</span></div>';
   const timeSelect = (value, opts, hint, set, label) => '<div style="position:relative;flex:1 1 0;min-width:0"><select class="fld" aria-label="' + label + '" ' + onInput(e => set(e.target.value)) +
-    ' style="' + BIG + ';min-height:52px;height:52px;padding:0 10px;font-size:15px;-webkit-appearance:none;appearance:none;color-scheme:light;' + (value ? '' : 'color:#b9bcc4;font-weight:400;font-style:italic') + '">' +
+    ' style="' + BIG + ';min-height:52px;height:52px;padding:0 10px;font-size:16px;-webkit-appearance:none;appearance:none;color-scheme:light;' + (value ? '' : 'color:#b9bcc4;font-weight:400;font-style:italic') + '">' +
     '<option value="">' + hint + '</option>' + opts.map(v => '<option value="' + v + '"' + (v === value ? ' selected' : '') + '>' + clock(v) + '</option>').join('') + '</select></div>';
   const SHEET_PAD = 'padding:10px 18px calc(24px + env(safe-area-inset-bottom, 0px));display:flex;flex-direction:column;gap:14px;max-height:88%;overflow-y:auto';
   const sheetHead = (eyebrow, title, sub, close) => '<div style="display:flex;align-items:flex-start;gap:10px"><div style="flex:1;min-width:0">' +
