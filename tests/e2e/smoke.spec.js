@@ -445,7 +445,8 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
     await expect(pe).toHaveCount(0);
     await expect(profile).toBeVisible();
     await page.getByRole('button', { name: 'How this works' }).click();
-    await expect(page.getByRole('heading', { name: 'Ideas come to life when we build them together' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Plan things with your group' })).toBeVisible();
+    await expect(page.locator('[data-screen-label="How this works"]')).toContainText('the morning of');   // matches the app (owner, 2026-09-30)
     expect(errors).toEqual([]);
   } finally {
     if (going) await asUser(page, async (c, _C, x) => { await c.from('rsvps').delete().eq('spark_id', x.id).eq('user_id', x.me); await c.from('profiles').update({ place: null, bio: null }).eq('id', x.me); }, going).catch(() => {});
