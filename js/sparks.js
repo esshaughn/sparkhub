@@ -17,8 +17,8 @@
   'use strict';
 
   const SORTS = [['popular', 'Most popular'], ['soon', 'Happening soon'], ['new', 'Newest'], ['old', 'Oldest']];
-  const VIEWS = ['tiles', 'list'];
-  const SCHED_VIEWS = ['tiles', 'list'];           // v6 group pages (Grid is gone there)
+  const VIEWS = ['tiles', 'list', 'month'];
+  const SCHED_VIEWS = ['tiles', 'list', 'month'];  // v6 group pages (Grid is gone there; Month added 2026-09-30)
   const HOME_VIEWS = ['next', 'tiles', 'month'];   // v6 Update 9: Your schedule (List is gone; a saved List opens Up next)
   const CVIEWS = ['list', 'tiles', 'month'];       // v6 Calendar
   const FACE_COLORS = ['#5b4ae8', '#e8a71c', '#0f7a3c'];
@@ -205,7 +205,7 @@
     profSheet: false, notifSheet: false, dashAll: null, dashOpen: {}, schedOpen: {}, shiftPick: null, banner: null, sigAdding: false,
     // v6 Calendar: search, filters, sort, view, month, discovery cards
     cq: '', cSearch: false, cGrps: null, cTypes: [], cSort: 'soon', cView: CVIEWS.indexOf(prefs.cView) > -1 ? prefs.cView : 'list',
-    cMon: null, cDay: null, cWildHidden: false, cNeedsHidden: false, cHandSheet: false, hMon: null, hDay: null,
+    cMon: null, cDay: null, cWildHidden: false, cNeedsHidden: false, cHandSheet: false, hMon: null, hDay: null, gMon: null, gDay: null,
     // v6 Update 2: search's Try chips; Your schedule and group pages' Sort · Filter; a group's search
     cTry: null, cWhen: 'any', cHelp: false, sSort: 'soon', sFilt: [], gSort: 'soon', gFilt: [], iSort: 'interest', pastStatsHidden: prefs.pastStatsHidden || {}, jobsOpen: prefs.jobsOpen || {}, descOpen: {}, viewAs: null, testers: null, gSearch: false, gq: '', gTry: null
   }, blankCompose());
@@ -3623,7 +3623,7 @@
   // One tab's content on a group page (also drawn beside the page while it's being swiped)
   const IDEA_PAPER = 'background:#fbfaf6;background-image:linear-gradient(#eeeae0 1px, transparent 1px), linear-gradient(90deg, #eeeae0 1px, transparent 1px);background-size:18px 18px';
   function browseBody(tab, g) {
-    const st = state, gv = st.view === 'list' ? 'list' : 'tiles';
+    const st = state, gv = st.view === 'list' || st.view === 'month' ? st.view : 'tiles';
     let body, pageStyle = '';
     if (!st.loaded) {
       body = [0, 1, 2].map(() => '<div aria-hidden="true" style="height:180px;border-radius:20px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);animation:skPulse 1.4s ease-in-out infinite"></div>').join('');
@@ -3646,8 +3646,14 @@
         sortPill('gSort', st.gSort, (k) => setState({ gSort: k, menu: null })) +
         filterPill('gFilt', filterOpts(['lead', 'help', 'going', 'open', 'needs', 'week'], all, st.gFilt), st.gFilt,
           (k) => setState({ gFilt: st.gFilt.indexOf(k) > -1 ? st.gFilt.filter(x => x !== k) : st.gFilt.concat([k]) }), clear, plans.length) +
-        viewPicker('gview', gv, (k) => setState({ view: k, menu: null }), SCHED_VIEWS) + '</div>';
+        viewPicker('gview', gv, (k) => setState({ view: k, menu: null, gMon: null, gDay: null }), SCHED_VIEWS) + '</div>';
       if (!all.length) body = plansEmpty();
+      // Month (owner, 2026-09-30): the group's plans on a month grid, the chosen day's below; the filter and view menu beside the arrows
+      else if (gv === 'month') body = monthBody(plans, { mon: st.gMon, day: st.gDay, cal: true, card: (s) => listCard6(s, partOf(s, true), false, true),
+        menu: '<div style="display:flex;align-items:center;gap:6px">' + filterPill('gFilt', filterOpts(['lead', 'help', 'going', 'open', 'needs', 'week'], all, st.gFilt), st.gFilt,
+          (k) => setState({ gFilt: st.gFilt.indexOf(k) > -1 ? st.gFilt.filter(x => x !== k) : st.gFilt.concat([k]) }), clear, plans.length) +
+          viewPicker('gview', gv, (k) => setState({ view: k, menu: null, gMon: null, gDay: null }), SCHED_VIEWS) + '</div>',
+        set: (gMon, gDay) => setState({ gMon, gDay }), toTbd: () => setState({ view: 'list', gSort: 'soon', menu: null, gMon: null, gDay: null }) });
       else if (!plans.length) body = '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(st.gSort === 'soon' ? 'Coming up' : sortName6(st.gSort), controls) + filterEmpty(clear) + '</div>';
       else body = sections6(plans, st.gSort, 'Date TBD').map((z, i) => '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(z.label, i ? '' : controls) +
         '<div style="display:flex;flex-direction:column;gap:' + (gv === 'list' ? 10 : 14) + 'px">' + z.items.map(s => gv === 'list' ? listCard6(s, partOf(s, true)) : tile6(s, partOf(s, true), 180)).join('') + '</div></div>').join('');

@@ -153,6 +153,15 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     await expect(cal.locator('[data-plan="' + title + '"]')).toBeVisible();
     await shot(O, '09-month');
     await pickView(cal, 'List');
+    // The group page has a Month view too (owner, 2026-09-30)
+    await nav(O).getByRole('button', { name: 'Groups', exact: true }).click();
+    await O.locator('[data-screen-label=Groups]').getByRole('button', { name: 'Torrez Fitness', exact: true }).click();
+    const gp = O.locator('[data-screen-label=Browse]');
+    await pickView(gp, 'Month');
+    await expect(gp.getByRole('button', { name: 'Next month' })).toBeVisible();
+    await expect(gp.locator('[data-plan="' + title + '"]')).toBeVisible();
+    await pickView(gp, 'Tiles');
+    await nav(O).getByRole('button', { name: 'Calendar', exact: true }).click();
 
     // Profile and Notifications are sheets
     await nav(O).getByRole('button', { name: 'Profile', exact: true }).click();

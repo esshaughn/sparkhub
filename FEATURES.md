@@ -139,6 +139,7 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 113 | **Remove account** (owner only, New accounts list): deletes an account and everything tied to it, its events quietly; refuses admins; you take over as owner of any group they were the only owner of | Test | `remove_account()` |
 | 114 | Audit leftovers (2026-09-30): Can't asks to free your job spots; updates show only to their audience (host can remove); album photos can be removed (adder or host); *You're off it* has Undo; Add to calendar uses the end time / all-day | Test | `20261024000000_leftovers.sql` |
 | 115 | **Event types** (owner, 2026-09-30): the host picks up to 2 of Active · Outdoors · Food · Family · Social (Create event's Details step, the Details pop-up); the Calendar's type filter and Search use them; existing events got a one-time guess | Test | `sparks.tags` (`20261027000000_event_tags.sql`) |
+| 116 | **Group page Month view** (owner, 2026-09-30): Tiles · List · Month on a group's Plans tab | Test | |
 
 ## Posting and editing
 
