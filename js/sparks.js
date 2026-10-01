@@ -4109,23 +4109,18 @@
 
     // Who's interested: like Who's going (the lead taps it for the list)
     const ids = (meIn ? [st.me] : []).concat(s.interested.filter(u => u !== st.me));
-    const interested = '<section id="sec-people">' + secTitle('Who’s interested') + sheetCard(
+    const interested = '<section id="sec-people">' + secTitle('Who’s in') + sheetCard(
       '<div ' + (n ? on(() => setState({ interestList: true })) + ' aria-label="See who’s interested" ' : '') + 'style="display:flex;align-items:center;gap:10px' + (n ? ';cursor:pointer' : '') + '">' +
         '<span style="display:flex">' + (n ? peopleFaces(ids.slice(0, 5), 40) + (n > 5 ? '<span style="width:40px;height:40px;border-radius:999px;border:2.5px solid #fff;margin-left:-10px;background:#fdf1d6;color:#8f6405;font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center">+' + (n - 5) + '</span>' : '')
           : lead ? '<span style="font-size:14px;font-weight:600;color:#6b7280">No one yet. <span ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' style="font-weight:800;color:#5b4ae8;cursor:pointer">Share the link</span></span>'
           : '<span style="font-size:14px;font-weight:600;color:#6b7280">Nobody yet. Be the first.</span>') + '</span>' +
-        (n ? '<span style="margin-left:auto;display:flex;align-items:center;gap:6px;font-size:14.5px;font-weight:800;color:#8f6405;white-space:nowrap">' + n + ' interested' + I.chevR(14, '#9aa0ac', 2.6) + '</span>' : '') + '</div>') + '</section>';
+        (n ? '<span style="margin-left:auto;display:flex;align-items:center;gap:6px;font-size:14.5px;font-weight:800;color:#8f6405;white-space:nowrap">' + n + ' interested' + I.chevR(14, '#9aa0ac', 2.6) + '</span>' : '') + '</div>' + groupRow(s)) + '</section>';
 
     const pitchSec = !pitching.length ? '' : '<section>' + secTitle('Who’s pitching in') + sheetCard(pitching.map(o =>
       '<div style="display:flex;gap:10px"><span style="flex:0 0 7px;width:7px;height:7px;border-radius:999px;background:' + (o.waiting ? '#e8c46a' : '#e8a71c') + ';margin-top:7px"></span>' +
       '<span style="font-size:14.5px;line-height:1.42;font-weight:500;color:#454b55"><strong style="font-weight:800;color:#0d1117">' + esc(o.who) + '</strong> ' + esc(o.line) +
       (o.waiting ? '<span style="font-weight:700;color:#8f6405"> · waiting on ' + esc(nameOf(s.leadId, s.leadName)) + '</span>' : '') + '</span></div>').join('')) + '</section>';
 
-    // The visibility row, like the plan's
-    const visRow = !lead ? '' : '<div data-vis style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:18px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08)">' +
-      '<span style="flex:0 0 36px;width:36px;height:36px;border-radius:11px;background:#f3f1fe;color:#5b4ae8;display:flex;align-items:center;justify-content:center">' + svg(18, stroke('currentColor', 2.2), s.visibility === 'invite' ? LOCK_IC : PEOPLE_IC) + '</span>' +
-      '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">' + (s.visibility === 'invite' ? 'Private' : 'Public') + '</div><div style="font-size:13px;font-weight:600;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(namesList(gIds(s).map(id => (groupById(id) || {}).name).filter(Boolean))) + '</div></div>' +
-      '<span ' + on(() => openSec(s, 'vis')) + ' aria-label="Edit who can see it" style="font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">Edit</span></div>';
 
     return '<div data-screen-label="Idea page">' +
       phaseHeader(s, 300, 'linear-gradient(to bottom, rgba(13,17,23,.5) 0%, rgba(13,17,23,0) 30%, rgba(43,36,19,.55) 62%, rgba(43,36,19,.96) 100%)',
@@ -4149,7 +4144,6 @@
         helpOut(s) +
         interested +
         pitchSec +
-        visRow +
         ledByCard(s) +
         inspoSec(s) +
         deleteLink(s) +
@@ -4643,6 +4637,19 @@
   };
   const deleteLink = (s) => canEdit(s) ? '<span ' + on(() => askDelete(s)) + ' style="align-self:center;display:flex;align-items:center;justify-content:center;gap:7px;min-height:44px;padding:0 12px;font-size:14.5px;font-weight:800;color:#9b1c31;cursor:pointer">' + I.trash(15, '#9b1c31') + (!s.cancelledAt && peopleIn(s).some(u => u !== state.me) ? 'Cancel or delete this ' + (s.planned ? 'event' : 'idea') : 'Delete this ' + (s.planned ? 'event' : 'idea')) + '</span>' : '';
 
+  // Who's in: the group(s) it's posted to and Public / Private, under the people (owner, 2026-10-01: easy to see and change).
+  // The lead's Edit opens Who can see it; anyone in a group can tap its name to open it.
+  const groupRow = (s) => {
+    const ids = gIds(s), known = ids.map(groupById).filter(Boolean), more = ids.length - known.length, priv = s.visibility === 'invite';
+    const name = (g) => g.role ? '<span ' + on((e) => { stop(e); openGroup(g); }) + ' data-group-link style="font-weight:800;color:#0d1117;cursor:pointer">' + esc(g.name) + '</span>' : '<span style="font-weight:800;color:#0d1117">' + esc(g.name) + '</span>';
+    return '<div data-vis style="display:flex;align-items:center;gap:10px;padding-top:12px;border-top:1px solid #f2f3f6">' +
+      '<span aria-hidden="true" style="flex:0 0 32px;width:32px;height:32px;border-radius:10px;background:#f3f1fe;color:#5b4ae8;display:flex;align-items:center;justify-content:center">' + svg(16, stroke('currentColor', 2.2), priv ? LOCK_IC : PEOPLE_IC) + '</span>' +
+      '<div style="flex:1;min-width:0;font-size:14px;line-height:1.35;font-weight:600;color:#6b7280">' +
+        '<div style="font-size:14.5px;color:#0d1117">' + (known.length ? known.map(name).join(', ') : '') + (more ? (known.length ? ' + ' + more : more + (more === 1 ? ' group' : ' groups')) : '') + '</div>' +
+        '<div>' + (priv ? 'Private · only people invited' : 'Public · everyone in ' + (ids.length > 1 ? 'these groups' : 'the group')) + '</div></div>' +
+      (isLead(s) && !s.cancelledAt ? '<span ' + on(() => openSec(s, 'vis')) + ' aria-label="Edit who can see it" style="flex:0 0 auto;display:flex;align-items:center;gap:5px;color:#6b7280;font-size:14px;font-weight:700;cursor:pointer">' + svg(13, stroke('currentColor', 2.4), PENCIL) + 'Edit</span>' : '') +
+    '</div>';
+  };
   // "Led by" (not shown to the lead): plans and ideas
   const ledByCard = (s) => {
     if (isLead(s)) return '';
@@ -4726,10 +4733,6 @@
         '<button type="button" class="hov-primary" ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' style="min-height:50px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:15.5px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;box-shadow:0 8px 20px rgba(91,74,232,.28)">' + I.plus(16, '#fff', 2.5) + 'Invite people</button>' +
       '</div></div>';
     // (The gold "N things left to decide" banner is gone: the host's tasks bar lists them, owner 2026-09-30)
-    const visRow = !lead ? '' : '<div data-vis style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:18px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08)">' +
-      '<span style="flex:0 0 36px;width:36px;height:36px;border-radius:11px;background:#f3f1fe;color:#5b4ae8;display:flex;align-items:center;justify-content:center">' + svg(18, stroke('currentColor', 2.2), s.visibility === 'invite' ? LOCK_IC : PEOPLE_IC) + '</span>' +
-      '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">' + (s.visibility === 'invite' ? 'Private' : 'Public') + '</div><div style="font-size:13px;font-weight:600;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(namesList(gIds(s).map(id => (groupById(id) || {}).name).filter(Boolean))) + '</div></div>' +
-      '<span ' + on(() => openSec(s, 'vis')) + ' aria-label="Edit who can see it" style="font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">Edit</span></div>';
 
     const host = ledByCard(s);
 
@@ -4756,14 +4759,13 @@
             '<div style="margin-top:4px;display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:#8a909b"><span style="flex:1">' + esc(ago(u.created) + (lead && UPD_TO[u.audience] ? ' · ' + UPD_TO[u.audience] : '')) + '</span>' +
               (lead ? '<span ' + on(() => askRemoveUpdate(s, u)) + ' aria-label="Remove this update" style="color:#9b1c31;font-weight:800;cursor:pointer">Remove</span>' : '') + '</div></div></div>').join('')) + '</section>' : '') +
         helpOut(s) +
-        visRow +
         host +
-        '<section>' + secTitle('Who’s going') + sheetCard(
+        '<section>' + secTitle('Who’s in') + sheetCard(
           // the count sits inside the card, and the card opens the full list (owner, 2026-10-01)
           '<div ' + (goingIds.length ? on(() => setState({ guestList: s.id })) + ' data-going aria-label="See everyone going (' + goingIds.length + ')" ' : '') + 'style="display:flex;align-items:center;gap:10px' + (goingIds.length ? ';cursor:pointer' : '') + '">' +
             '<span style="display:flex">' + (goingIds.length ? peopleFaces(goingIds.slice(0, 5), 40) + (goingIds.length > 5 ? '<span style="width:40px;height:40px;border-radius:999px;border:2.5px solid #fff;margin-left:-10px;background:#e7f6ec;color:#0f7a3c;font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center">+' + (goingIds.length - 5) + '</span>' : '') : lead ? '<span data-going-empty style="font-size:14px;font-weight:600;color:#6b7280">Nobody’s RSVP’d yet. <span ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' style="font-weight:800;color:#5b4ae8;cursor:pointer">Share the link</span></span>' : '<span style="font-size:14px;font-weight:600;color:#6b7280">Nobody yet. Be the first.</span>') + '</span>' +
             (goingIds.length ? '<span style="margin-left:auto;display:flex;align-items:center;gap:6px;font-size:14.5px;font-weight:800;color:#0f7a3c;white-space:nowrap">' + goingIds.length + ' going' + I.chevR(14, '#9aa0ac', 2.6) + '</span>' : '') +
-          '</div>') + '</section>' +
+          '</div>' + groupRow(s)) + '</section>' +
         inspoSec(s) +
         deleteLink(s) +
       '</div>' +

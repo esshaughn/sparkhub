@@ -380,6 +380,13 @@ test('RSVP buttons change as soon as they are tapped (the save follows), and go 
     await expect(M.getByText('That didn’t go through. Try again in a moment.')).toBeVisible();
     await expect(rsvp.getByRole('button', { name: /^Going/ })).toHaveAttribute('aria-pressed', 'true');
     await expect(rsvp.getByRole('button', { name: /^Maybe/ })).toHaveAttribute('aria-pressed', 'false');
+    // Who's in also shows where it's posted; a member taps the group to open it (only the lead gets Edit)
+    const where = M.locator('[data-vis]');
+    await expect(where).toContainText('Torrez Fitness');
+    await expect(where).toContainText('Public');
+    await expect(where.getByRole('button', { name: 'Edit who can see it' })).toHaveCount(0);
+    await where.locator('[data-group-link]').click();
+    await expect(M.locator('[data-screen-label=Browse]').getByRole('heading', { name: 'Torrez Fitness' })).toBeVisible();
   } finally {
     if (id) await asUser(H, async (c, _C, id) => c.rpc('delete_event', { p_spark: id, p_quiet: true }), id).catch(() => {});
     await host.context.close(); await mem.context.close();
