@@ -335,6 +335,10 @@ test('an idea says how many it needs; a bare starter chip can’t be saved; its 
     await flow.getByText('Decide later', { exact: true }).click();   // no date: it goes up as an idea
     await flow.getByText('Decide later', { exact: true }).click();
     await flow.getByLabel('Basic details, line 1').fill('Bring cleats');
+    // Its type: up to two, picked by the host (a third replaces the oldest)
+    const tags = flow.locator('[data-tags]');
+    for (const t of ['Social', 'Active', 'Outdoors']) await tags.getByRole('checkbox', { name: t }).click();
+    await expect(tags.getByRole('checkbox', { name: 'Social' })).toHaveAttribute('aria-checked', 'false');
     const need = flow.locator('[data-need-people]');
     await expect(need).toContainText('Optional');
     for (let i = 0; i < 6; i++) await need.getByRole('button', { name: 'More for how many people needed' }).click();
@@ -355,6 +359,8 @@ test('an idea says how many it needs; a bare starter chip can’t be saved; its 
     for (const t of ['Date', 'Location', 'Details', 'People']) await expect(steps).toContainText(t);
     const saved = await asUser(page, async (c, _C, id) => (await c.from('sparks').select('min_people').eq('id', id).single()).data.min_people, id);
     expect(saved).toBe(6);
+    const savedTags = await asUser(page, async (c, _C, id) => (await c.from('sparks').select('tags').eq('id', id).single()).data.tags, id);
+    expect(savedTags).toEqual(['active', 'outdoors']);
     expect(errors).toEqual([]);
   } finally {
     if (id) await asUser(page, async (c, _C, id) => { await c.from('sparks').delete().eq('id', id); }, id).catch(() => {});

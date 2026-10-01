@@ -332,10 +332,11 @@ test('plans: replies, sign-ups, updates, notes and invite-only plans follow the 
         cancelEvent: await ok(c.rpc('cancel_event', { p_spark: m.plan })),
         markCancelled: (await c.from('sparks').update({ cancelled_at: new Date().toISOString() }).eq('id', m.plan).select('id')).data?.length ? 'ALLOWED' : 'refused',
         removeAccount: await ok(c.rpc('remove_account', { p_user: (await c.auth.getUser()).data.user.id })),
+        setTags: (await c.from('sparks').update({ tags: ['social'] }).eq('id', m.plan).select('id')).data?.length ? 'ALLOWED' : 'refused',
         moveHome: await ok(c.rpc('set_home_group', { p_spark: m.plan, p_group: (await c.from('sparks').select('group_id').eq('id', m.plan).single()).data.group_id }))
       };
     }, made);
-    expect(notLead).toEqual({ writeNote: 'refused', removeJob: 'refused', deleteEvent: 'refused', deleteQuietly: 'refused', cancelEvent: 'refused', markCancelled: 'refused', removeAccount: 'refused', moveHome: 'refused' });
+    expect(notLead).toEqual({ writeNote: 'refused', removeJob: 'refused', deleteEvent: 'refused', deleteQuietly: 'refused', cancelEvent: 'refused', markCancelled: 'refused', removeAccount: 'refused', setTags: 'refused', moveHome: 'refused' });
     const told = await asUser(L, async (c, _C, item) => (await c.rpc('remove_signup', { p_item: item })).data, made.item);
     expect(told).toBe(1);   // Omar had signed up
     const omarNotes = await asUser(O, async (c) => (await c.from('notes').select('id,body').ilike('body', '%Big cooler%')).data);

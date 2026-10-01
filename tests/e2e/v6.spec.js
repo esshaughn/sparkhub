@@ -76,9 +76,9 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     await expect(card).toContainText('RSVP');
     await shot(O, '03-calendar');
 
-    // Type filter: it's a Social event (nothing else in the title matches); Games hides it
+    // Type filter: types are what the host picked (none here), so Family hides it
     await cal.getByRole('button', { name: /^Type of event:/ }).click();
-    await O.getByRole('menu', { name: 'Type of event' }).getByRole('menuitemcheckbox', { name: /^Games/ }).click();
+    await O.getByRole('menu', { name: 'Type of event' }).getByRole('menuitemcheckbox', { name: /^Family/ }).click();
     await expect(card).toHaveCount(0);
     await expect(cal.getByText('Clear filters').first()).toBeVisible();   // twice when nothing else matches (the empty state has its own)
     await cal.getByText('Clear filters').first().click();
@@ -90,11 +90,11 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     // Before typing: Try chips and "Or something unexpected" (Update 2)
     await expect(search.getByText('Try', { exact: true })).toBeVisible();
     await expect(search.getByText('Or something unexpected')).toBeVisible();
-    await expect(search.locator('[data-magic]')).toHaveCount(6);
+    await expect(search.locator('[data-magic]')).toHaveCount(3);   // three real ones (owner, 2026-09-30)
     await search.getByRole('button', { name: 'Needs helpers', exact: true }).click();
     await expect(search.locator('[data-result="' + title + '"]')).toBeVisible();   // it has open sign-ups
     await search.getByRole('button', { name: 'Clear Needs helpers' }).click();
-    await expect(search.locator('[data-magic]')).toHaveCount(6);
+    await expect(search.locator('[data-magic]')).toHaveCount(3);   // three real ones (owner, 2026-09-30)
     await search.getByLabel('Search events').fill(title.slice(-12));
     await expect(search.locator('[data-result="' + title + '"]')).toBeVisible();
     await shot(O, '04-search');

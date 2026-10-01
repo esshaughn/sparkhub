@@ -418,7 +418,7 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
     await browse.getByRole('button', { name: 'Search this group' }).click();
     const gs = page.getByRole('dialog', { name: 'Group search' });
     await expect(gs.getByText('Browse', { exact: true })).toBeVisible();
-    await expect(gs.locator('[data-magic]')).toHaveCount(6);
+    await expect(gs.locator('[data-magic]')).toHaveCount(3);
     await gs.getByRole('button', { name: 'Plans', exact: true }).click();
     await expect(gs.locator('[data-result]').first()).toBeVisible();
     await gs.getByText('Cancel', { exact: true }).click();

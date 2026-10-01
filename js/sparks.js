@@ -172,7 +172,7 @@
     evStep: 'title', activity: '', photos: [], evPhotoPath: null, coverPos: null,
     evDate: '', evTime: '', evEnd: '', evEndOn: false, timeOpen: null,
     locText: '', locPlace: null, locSuggest: [],
-    evBits: ['', '', ''], evNeed: null, evNeeds: [], evDatePoll: null, evSpotPoll: null, evLater: {},
+    evBits: ['', '', ''], evNeed: null, evTags: [], evNeeds: [], evDatePoll: null, evSpotPoll: null, evLater: {},
     evPriv: false, evGroups: null, evDraftId: null, evLeave: false, pollSheet: null, needSheet: null, evFromReview: false
   });
   const state = Object.assign({
@@ -392,7 +392,7 @@
     dayText: row.day_date ? '' : (row.day || ''),
     vision: row.vision || '',
     photoPaths: (row.photos || []).filter(p => PHOTO_PATH.test(p)),
-    coverPos: row.cover_pos || null, cancelledAt: row.cancelled_at ? Date.parse(row.cancelled_at) : null, cancelReason: row.cancel_reason || '',
+    coverPos: row.cover_pos || null, cancelledAt: row.cancelled_at ? Date.parse(row.cancelled_at) : null, tags: Array.isArray(row.tags) ? row.tags : [], cancelReason: row.cancel_reason || '',
     mood: (row.mood || []).filter(p => PHOTO_PATH.test(p)),
     offers: offers.filter(o => o.spark_id === row.id && o.status === 'accepted')
       .map(o => ({ userId: o.user_id, who: o.who, kind: o.kind, body: o.body })),
@@ -1374,7 +1374,7 @@
   };
 
   // "Do it again": a new event with the place and details filled in
-  const doItAgain = (s) => goCompose({ activity: s.text.slice(0, 40), locText: s.spot || '', locPlace: s.spotAddress ? { name: s.spot, address: s.spotAddress, lat: s.spotPoint && s.spotPoint[0], lon: s.spotPoint && s.spotPoint[1] } : null,
+  const doItAgain = (s) => goCompose({ activity: s.text.slice(0, 40), evTags: (s.tags || []).slice(0, 2), locText: s.spot || '', locPlace: s.spotAddress ? { name: s.spot, address: s.spotAddress, lat: s.spotPoint && s.spotPoint[0], lon: s.spotPoint && s.spotPoint[1] } : null,
     evBits: [0, 1, 2].map(i => (basicsOf(s)[i] || '').slice(0, 40)) });
 
   const addMood = async (s, fileList) => {
@@ -1578,7 +1578,7 @@
 
   const GOOGLE_ON = !!CFG.googleSignIn;
   const RESUME_KEY = 'spark-hub-google-resume';
-  const DRAFT_KEYS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'locText', 'locPlace', 'evBits', 'evNeed', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evGroups', 'coverPos', 'evPhotoPath', 'evDraftId'];
+  const DRAFT_KEYS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'locText', 'locPlace', 'evBits', 'evNeed', 'evTags', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evGroups', 'coverPos', 'evPhotoPath', 'evDraftId'];
   const readResume = () => {
     try {
       const r = JSON.parse(sessionStorage.getItem(RESUME_KEY));
@@ -2657,18 +2657,9 @@
   }
 
   // ---- Screen 3: the community Calendar -------------------------------------------------------
-  // Placeholder event types, guessed from the title until hosts pick tags (never written to the data)
-  const TYPES6 = [
-    ['outdoors', 'Outdoors', /walk|trail|hike|park|creek|lake|garden|bonfire|loop|paintball|soccer|basketball|pickleball|yard/i],
-    ['food', 'Food & drink', /potluck|ice cream|friendsgiving|picnic|brunch|coffee|bbq|gras|dinner|sale|taco|pie/i],
-    ['fitness', 'Fitness', /activate|fitness|wake-up|wind-down|pickleball|basketball|soccer|meditation|walk|run|5k/i],
-    ['kids', 'Kids & family', /egg hunt|eek|pumpkin|youth|kids|family|4th of july|parade/i],
-    ['arts', 'Arts & crafts', /craft|mural|paint a|song|music|folk|hootenanny/i],
-    ['games', 'Games', /poker|game|paintball/i],
-    ['helping', 'Volunteering', /cleanup|cleaning|workday|work day|mutual aid|swap|garden work/i],
-    ['social', 'Social', /hang|night|circle|party|dance|get-together|bonfire|potluck/i]
-  ];
-  const typesOf = (s) => { const t = TYPES6.filter(x => x[2].test(s.text)).map(x => x[0]); return t.length ? t : ['social']; };
+  // Event types: the host picks up to two in Create event or the Details pop-up (owner, 2026-09-30; `sparks.tags`)
+  const TYPES6 = [['active', 'Active'], ['outdoors', 'Outdoors'], ['food', 'Food'], ['family', 'Family'], ['social', 'Social']];
+  const typesOf = (s) => s.tags || [];
   const typeName = (k) => (TYPES6.find(x => x[0] === k) || [])[1] || k;
   // Upcoming plans in your groups (invite-only ones only show if you can see them)
   const calBase = () => state.sparks.filter(s => inMine(s) && phaseOf(s) === 'plan');
@@ -2877,7 +2868,7 @@
   }
 
   // Search (v6 Update 2): before typing, Try chips and "Or something unexpected"; live results as you type
-  const TRY6 = [['weekend', 'This weekend', { cWhen: 'weekend' }], ['outdoors', 'Outdoors', { cTypes: ['outdoors'] }], ['kids', 'Kid-friendly', { cTypes: ['kids'] }], ['help', 'Needs helpers', { cHelp: true }], ['food', 'Food & drink', { cTypes: ['food'] }]];
+  const TRY6 = [['weekend', 'This weekend', { cWhen: 'weekend' }], ['help', 'Needs helpers', { cHelp: true }], ['active', 'Active', { cTypes: ['active'] }], ['outdoors', 'Outdoors', { cTypes: ['outdoors'] }], ['family', 'Family', { cTypes: ['family'] }]];
   const TRY_UNDO = { cTry: null, cWhen: 'any', cTypes: [], cHelp: false };
   // "This weekend": the coming Friday to Sunday (today included when it's one of them)
   const inWhen6 = (s) => {
@@ -2896,7 +2887,7 @@
     sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M2.5 12h2M19.5 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/>'
   };
   const magicGrid = (cards) => '<span style="margin-top:16px;font-size:11.5px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;color:#8a909b">Or something unexpected</span>' +
-    '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding-top:4px">' + cards.map(m => '<div ' + on(m.pick) + ' data-magic="' + esc(m.title) + '" style="display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:16px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
+    '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding-top:4px">' + cards.map((m, i) => '<div ' + on(m.pick) + ' data-magic="' + esc(m.title) + '" style="' + (cards.length % 2 && i === cards.length - 1 ? 'grid-column:span 2;' : '') + 'display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:16px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
       '<span style="width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:' + m.bg + ';color:' + m.ink + '">' + svg(20, stroke('currentColor', 2), MAGIC_ICON[m.icon]) + '</span>' +
       '<div><div style="font-size:14.5px;line-height:1.2;font-weight:900;color:#0d1117">' + m.title + '</div><div style="margin-top:2px;font-size:12px;line-height:1.35;font-weight:600;color:#6b7280">' + m.sub + '</div></div></div>').join('') + '</div>';
   const tryChip = (label, fn) => '<span ' + on(fn) + ' style="display:flex;align-items:center;min-height:34px;padding:0 13px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #e6e7eb;font-size:13.5px;font-weight:800;color:#454b55;cursor:pointer">' + label + '</span>';
@@ -2919,16 +2910,12 @@
     const pool = calBase(), list = pool.filter(s => matchQ(s, q) && inTypes6(s) && inWhen6(s) && (!st.cHelp || signupFill(s).open > 0)).sort(byWhen);
     const results = q || tr ? list.slice(0, 30) : [];
     const pick = (fn) => () => { const x = fn(); if (!x) { toast('Nothing like that yet'); return; } setState(Object.assign({ cSearch: false, cq: '' }, undo)); openSpark(x); };
-    const notMine = pool.filter(s => !isLead(s) && !myRsvp(s) && !helpsOn(s));
-    const myTypes = {};
-    pool.filter(s => isLead(s) || myRsvp(s)).forEach(s => typesOf(s).forEach(k => { myTypes[k] = 1; }));
+    const notMine = pool.filter(s => !isLead(s) && !myRsvp(s) && !helpsOn(s) && !s.cancelledAt);
+    // Three real ones (owner, 2026-09-30): the next thing you're not in, where people are going, where help is needed
     const magic = [
-      { icon: 'cards', title: 'Deal me a wildcard', sub: 'Any event, totally at random', bg: '#f3f1fe', ink: '#5b4ae8', pick: pick(() => rnd6(pool)) },
-      { icon: 'compass', title: 'Something new to me', sub: 'A kind of event I haven’t tried', bg: '#e7f6ec', ink: '#149a4b', pick: pick(() => rnd6(notMine.filter(s => typesOf(s).some(k => !myTypes[k]))) || rnd6(notMine)) },
       { icon: 'moon', title: 'Soonest surprise', sub: 'The next thing happening that I’m not in', bg: '#1f2433', ink: '#cfc9ff', pick: pick(() => notMine.slice().sort(byWhen)[0]) },
       { icon: 'people', title: 'Tag along', sub: 'Where the most people are going', bg: '#fdf1d6', ink: '#8f6405', pick: pick(() => notMine.slice().sort((a, b) => going(b).length - going(a).length)[0]) },
-      { icon: 'cup', title: 'Small & cozy', sub: 'An intimate one with just a few people', bg: '#fde8ec', ink: '#c2415a', pick: pick(() => notMine.slice().sort((a, b) => going(a).length - going(b).length)[0]) },
-      { icon: 'sun', title: 'Get outside', sub: 'A random outdoor adventure', bg: '#e6f3fb', ink: '#1f7ab8', pick: pick(() => rnd6(pool.filter(s => typesOf(s).indexOf('outdoors') > -1))) }
+      { icon: 'compass', title: 'Lend a hand', sub: 'The soonest event still looking for helpers', bg: '#e7f6ec', ink: '#149a4b', pick: pick(() => notMine.filter(s => signupFill(s).open > 0).sort(byWhen)[0]) }
     ];
     const hint = '<div style="display:flex;flex-direction:column;gap:4px;padding:0 4px">' +
       '<span style="font-size:11.5px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;color:#8a909b">Try</span>' +
@@ -3697,11 +3684,8 @@
     const pick = (fn) => () => { const s = fn(); if (!s) { toast('Nothing like that here yet'); return; } close(); openSpark(s); };
     const up = inG.filter(s => phaseOf(s) === 'plan').sort(byWhen), ideas = inG.filter(s => phaseOf(s) === 'idea'), done = inG.filter(s => phaseOf(s) === 'done');
     const magic = [
-      { icon: 'cards', title: 'Wildcard', sub: 'A random ' + esc(gname) + ' event', bg: '#f3f1fe', ink: '#5b4ae8', pick: pick(() => rnd6(up)) },
       { icon: 'moon', title: 'Next up here', sub: 'The very next thing on', bg: '#1f2433', ink: '#cfc9ff', pick: pick(() => up[0]) },
       { icon: 'people', title: 'They need you', sub: 'Most open helper spots', bg: '#fdf1d6', ink: '#8f6405', pick: pick(() => up.filter(s => signupFill(s).open > 0).sort((a, b) => signupFill(b).open - signupFill(a).open)[0]) },
-      { icon: 'compass', title: 'Hidden gem', sub: 'An idea few have spotted yet', bg: '#e7f6ec', ink: '#149a4b', pick: pick(() => ideas.slice().sort((a, b) => a.interested.length - b.interested.length)[0]) },
-      { icon: 'cup', title: 'Throwback', sub: 'Relive a past ' + esc(gname) + ' moment', bg: '#fde8ec', ink: '#c2415a', pick: pick(() => rnd6(done)) },
       { icon: 'sun', title: 'Fresh off the press', sub: 'The newest thing posted here', bg: '#e6f3fb', ink: '#1f7ab8', pick: pick(() => inG.slice().sort((a, b) => b.created - a.created)[0]) }
     ];
     const hint = '<div style="display:flex;flex-direction:column;gap:4px;padding:0 4px">' +
@@ -4151,7 +4135,7 @@
   const openSec = (s, kind) => {
     const bits = basicsOf(s).slice(0, 3).map(b => b.slice(0, 40));
     while (bits.length < 3) bits.push('');
-    setState({ sec: { id: s.id, kind, title: s.text, photo: null, d: s.dayDate || '', t: s.dayTime || '', e: s.dayEnd || '', bits, need: s.minPeople || null, priv: s.visibility === 'invite', groups: gIds(s).slice() },
+    setState({ sec: { id: s.id, kind, title: s.text, photo: null, d: s.dayDate || '', t: s.dayTime || '', e: s.dayEnd || '', bits, need: s.minPeople || null, tags: (s.tags || []).slice(), priv: s.visibility === 'invite', groups: gIds(s).slice() },
       offerText: kind === 'when' ? s.spot || '' : '', offerPlace: s.spot && s.spotPoint ? { name: s.spot, address: s.spotAddress, lat: s.spotPoint[0], lon: s.spotPoint[1] } : null, offerSuggest: [], timeOpen: null, menu: null });
   };
   // Round 65a: what an edit tells people. A new date, time or place always goes out; a new title or
@@ -4208,7 +4192,7 @@
     if (ss.kind === 'details') {
       const hopes = ss.bits.map(b => b.trim().slice(0, 40)).filter(Boolean);
       run(async () => {
-        if (lead) must(await sb.from('sparks').update(Object.assign({ hopes, vision: null }, s.planned ? {} : { min_people: ss.need || null })).eq('id', s.id));
+        if (lead) must(await sb.from('sparks').update(Object.assign({ hopes, vision: null, tags: (ss.tags || []).slice(0, 2) }, s.planned ? {} : { min_people: ss.need || null })).eq('id', s.id));
         else must(await sb.rpc('admin_edit_spark', { p_spark: s.id, p_text: s.text, p_hopes: hopes }));
         if (send) await sendUpdate(s, msg);
       }, { sec: null }).then(ok => { if (ok) toast(send ? 'Saved. Everyone going gets an update.' : note, true); });
@@ -4361,6 +4345,7 @@
     } else if (ss.kind === 'details') {
       body = '<div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:14px;line-height:1.4;font-weight:500;color:#5c6270">Up to three quick notes on what to expect or the vibe.</span>' +
         bitRows(ss.bits, (k, v) => { const b = state.sec.bits.slice(); b[k] = v; set({ bits: b }); }) +
+        (isLead(s) ? tagRow(ss.tags || [], (t) => set({ tags: t })) : '') +
         (!s.planned && isLead(s) ? needRow(ss.need, (n) => set({ need: n })) : '') + '</div>';
     } else {
       const tile = (priv, name, sub) => { const onIt = ss.priv === priv;
@@ -5007,7 +4992,7 @@
           photos: cover ? [cover.path] : [], cat: 'events', answers: {}, lead_id: st.me, lead_name: st.myName, created_by: st.me,
           spot, spot_open: !spot, spot_address: place ? place.address : null, spot_lat: place ? place.lat : null, spot_lon: place ? place.lon : null,
           day_date: st.evDate || null, day_time: st.evDate && st.evTime ? st.evTime : null, day_end: st.evDate && st.evTime && st.evEnd ? st.evEnd : null,
-          planned: dated, visibility: st.evPriv ? 'invite' : 'group', min_people: dated ? null : st.evNeed || null,
+          planned: dated, visibility: st.evPriv ? 'invite' : 'group', min_people: dated ? null : st.evNeed || null, tags: (st.evTags || []).slice(0, 2),
           cover_pos: cover && st.coverPos ? posOf(st.coverPos, IDEA_POS) : null
         };
         try {
@@ -5042,7 +5027,7 @@
   };
 
   // Drafts: the flow's own fields, saved to your account (only you see them)
-  const DRAFT_FIELDS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'locText', 'locPlace', 'evBits', 'evNeed', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evGroups', 'coverPos'];
+  const DRAFT_FIELDS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'locText', 'locPlace', 'evBits', 'evNeed', 'evTags', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evGroups', 'coverPos'];
   const saveDraft = () => {
     const st = state;
     if (st.busy) return;
@@ -5078,7 +5063,7 @@
       activity: str(x.activity).slice(0, 40), evStep: EV_STEPS.concat('review').indexOf(x.evStep) > -1 ? x.evStep : 'title',
       evDate: /^\d{4}-\d{2}-\d{2}$/.test(x.evDate || '') ? x.evDate : '', evTime: str(x.evTime), evEnd: str(x.evEnd), evEndOn: !!x.evEndOn,
       locText: str(x.locText).slice(0, 80), locPlace: x.locPlace && typeof x.locPlace === 'object' ? x.locPlace : null,
-      evBits: [0, 1, 2].map(i => str((x.evBits || [])[i]).slice(0, 40)), evNeed: Number.isInteger(x.evNeed) && x.evNeed > 0 ? Math.min(x.evNeed, 99) : null, evNeeds: arr(x.evNeeds) || [],
+      evBits: [0, 1, 2].map(i => str((x.evBits || [])[i]).slice(0, 40)), evNeed: Number.isInteger(x.evNeed) && x.evNeed > 0 ? Math.min(x.evNeed, 99) : null, evTags: (arr(x.evTags) || []).filter(k => TYPES6.some(t => t[0] === k)).slice(0, 2), evNeeds: arr(x.evNeeds) || [],
       evDatePoll: arr(x.evDatePoll), evSpotPoll: arr(x.evSpotPoll), evLater: x.evLater && typeof x.evLater === 'object' ? x.evLater : {},
       evPriv: !!x.evPriv, evGroups: arr(x.evGroups), coverPos: x.coverPos || null,
       evPhotoPath: PHOTO_PATH.test(x.evPhoto || '') ? x.evPhoto : null, evDraftId: d.id
@@ -5140,6 +5125,12 @@
       : (st.evSpotPoll ? st.evSpotPoll.map(r => Object.assign({}, r)) : [{ v: cleanTitle(st.locText) }, { v: '' }]);
     setState({ pollSheet: { kind, rows }, timeOpen: null });
   };
+  // "What kind of event?": up to two type chips (optional)
+  const tagRow = (tags, set) => '<div data-tags style="display:flex;flex-direction:column;gap:8px;padding:12px 14px;border-radius:16px;background:#fff;box-shadow:inset 0 0 0 2px #dcdfe6">' +
+    '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px"><span style="font-size:15px;font-weight:800;color:#0d1117">What kind of event?</span><span style="font-size:12.5px;font-weight:600;color:#6b7280">Up to 2 · helps people find it</span></div>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:6px">' + TYPES6.map(([k, name]) => { const onIt = tags.indexOf(k) > -1;
+      return '<span ' + on(() => set(onIt ? tags.filter(x => x !== k) : tags.concat([k]).slice(-2)), 'checkbox') + ' aria-checked="' + onIt + '" style="display:flex;align-items:center;min-height:36px;padding:0 13px;border-radius:999px;font-size:14px;font-weight:800;cursor:pointer;' +
+        (onIt ? 'background:#5b4ae8;color:#fff' : 'background:#f2f3f6;color:#0d1117') + '">' + name + '</span>'; }).join('') + '</div></div>';
   // "How many do you need?" (optional; an idea's People step fills against it)
   const needRow = (n, set) => '<div data-need-people style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:16px;background:#fff;box-shadow:inset 0 0 0 2px #dcdfe6">' +
     '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">How many do you need?</div>' +
@@ -5252,6 +5243,7 @@
     } else if (cur === 'details') {
       body = head('Basic details', 'Up to three quick notes on what to expect or the vibe.') +
         '<div style="padding:12px 16px 0;display:flex;flex-direction:column;gap:8px">' + bitRows(st.evBits, (k, v) => { const b = state.evBits.slice(); b[k] = v; setState({ evBits: b }); }) +
+          tagRow(st.evTags || [], (t) => setState({ evTags: t })) +
           (st.evDate ? '' : needRow(st.evNeed, (n) => setState({ evNeed: n }))) + '</div>';   // no date: it goes up as an idea, which can say how many it needs
     } else if (cur === 'help') {
       const chip = (label, fn, dashed) => '<span ' + on(fn) + ' style="display:flex;align-items:center;gap:5px;min-height:38px;padding:0 13px;border-radius:999px;font-size:14px;font-weight:800;cursor:pointer;' +

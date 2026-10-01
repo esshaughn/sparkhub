@@ -59,6 +59,9 @@ Where this doc and the design files disagree, **this doc is correct**.
 | 41 | **Hosting empty** card: *Nothing you're leading yet. Post an event, or float an idea and see who bites.* + **Create an event** | *… Tap + to post an event or float an idea.* (there's no + there) | Audit leftovers |
 | 42 | **Sign-in email note:** *Used to sign you in. Your groups' admins can see it; other members can't.* | *Only used to sign you in. Nobody else sees it.* | It wasn't true (privacy page fixed the same day) |
 | 43 | **New accounts list (owner):** each row (not your own) has a red *Remove account* → *Remove {name}?* · *Deletes {email} and everything tied to it: group memberships, replies, sign-ups, photos they added, and any events they host (quietly). They can sign up again later as someone new. This can't be undone.* · **Remove account**; a group's only owner is refused (*{name} is the only owner of {group}. Make someone else an owner first.*) | — | Owner, 2026-09-30 |
+| 44 | **Event types are picked by the host:** Create event's Details step and the host's Details pop-up have *What kind of event?* · *Up to 2 · helps people find it* with five chips (Active · Outdoors · Food · Family · Social; purple when on, a third replaces the oldest). The Calendar's type filter, Search's Try chips and Do it again use them; an event with none shows only under All types | Keyword guesses from the title (Outdoors · Food & drink · Fitness · Kids & family · Arts & crafts · Games · Volunteering · Social, anything unmatched called Social) | Guesses were often wrong (owner, 2026-09-30) |
+| 45 | **Search Try chips:** This weekend · Needs helpers · Active · Outdoors · Family | This weekend · Outdoors · Kid-friendly · Needs helpers · Food & drink | The new types |
+| 46 | **Or something unexpected:** three cards: *Soonest surprise* · *Tag along* · *Lend a hand* (the soonest event still looking for helpers; the third card spans the row). In a group's search: *Next up here* · *They need you* · *Fresh off the press* | Six each (wildcard, something new to me, small & cozy, get outside; wildcard, hidden gem, throwback) | Only the ones built on something real (owner, 2026-09-30) |
 
 ## 2. Things the build had to invent (please design these properly)
 
@@ -132,7 +135,6 @@ Where this doc and the design files disagree, **this doc is correct**.
 1. Everything in the README's **Open / not designed yet** list still stands (categories, first-run view for an empty group, Suggest vs Offer wording, first vs full names).
 2. **A real invite list** (pick neighbors or the whole group) would bring back Invited on the stats strip, "haven't replied · Nudge" and "invited you" notifications — design it next? (Invites are share links today, so nothing counts them.)
 3. **Minimum people** on ideas ("How many do you need?") has no input yet, so the People checkpoint rarely completes.
-10. **Event types:** the placeholder keyword guesses are shown to people as filters; host-chosen tags (v6 open item) would replace them.
 11. **Event preview slide-up** (v6 options 13a/13b/13c) is still undecided.
 4. **Invite link 1b** (*Ana Torrez invited you · 20 members*) needs a public read of the inviter and member count by code. Worth a migration for the pilot, or leave it at 1a?
 5. **Members sheet** (see §2): the build chose an expanding row. Design it properly?
