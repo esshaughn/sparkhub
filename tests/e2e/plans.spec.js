@@ -1,7 +1,7 @@
 // V5 plans: RSVPs (going / maybe / can't) from a guest with the link, sign-ups, updates from
 // the host, a date change that tells everyone going, "it happened" with its album, and private plans.
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newMember, newLead, button, postEvent, openIdea, deleteIdea, answerGuestPrompt, confirm, asUser, PNG } = require('./helpers');
+const { uniqueTitle, newMember, newLead, button, postEvent, openIdea, deleteIdea, answerGuestPrompt, confirm, asUser, postIdea, PNG } = require('./helpers');
 
 // Local dates, like the app (toISOString would be UTC, a day ahead in the evening)
 const inDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
@@ -433,5 +433,78 @@ test('RSVP buttons change as soon as they are tapped (the save follows), and go 
   } finally {
     if (id) await asUser(H, async (c, _C, id) => c.rpc('delete_event', { p_spark: id, p_quiet: true }), id).catch(() => {});
     await host.context.close(); await mem.context.close();
+  }
+});
+
+// Social-science review (2026-10-01): floating an idea and hosting it are separate jobs; RSVPs aren't attendance
+test('looking for a host: someone else takes the lead; "I could help"; the host checks in who came', async ({ browser }) => {
+  test.setTimeout(150000);
+  const host = await newLead(browser, 1, 'Hope');
+  const other = await newLead(browser, 2, 'Otto');
+  const H = host.page, O = other.page;
+  const ids = [];
+  try {
+    // Hope floats an idea and looks for a host
+    const id = await postIdea(H, { title: uniqueTitle('Kite day') });
+    ids.push(id);
+    const HI = H.locator('[data-screen-label="Idea page"]');
+    await HI.locator('[data-hand-off]').getByRole('button', { name: 'Look for a host' }).click();
+    await expect(HI.locator('[data-wants-host]')).toContainText('LOOKING FOR A HOST');
+    await expect(HI.locator('[data-wants-host]')).toContainText('You stay the lead until someone does');
+
+    // Otto sees it needs a host, is interested and could help
+    await openIdea(O, id);
+    const OI = O.locator('[data-screen-label="Idea page"]');
+    await expect(OI.locator('[data-wants-host]')).toContainText('Hope floated this and would love someone to take it on.');
+    await expect(OI.locator('[data-led-by]')).toContainText('FLOATED BY');
+    await expect(OI.locator('[data-can-help]')).toHaveCount(0);           // only once you're interested
+    await OI.getByRole('button', { name: 'I’m interested' }).click();
+    await OI.locator('[data-can-help]').click();
+    await expect(OI.locator('[data-can-help]')).toHaveAttribute('aria-checked', 'true');
+
+    // Hope sees who could help
+    await openIdea(H, id);
+    await HI.getByRole('button', { name: 'See who’s interested' }).click();
+    await expect(H.getByRole('dialog', { name: 'Who’s interested' }).locator('[data-interested]', { hasText: 'Otto' })).toContainText('Can help');
+    await H.getByRole('dialog', { name: 'Who’s interested' }).getByRole('button', { name: 'Close' }).click();
+
+    // Otto takes the lead
+    await OI.locator('[data-wants-host]').getByRole('button', { name: 'I’ll host it' }).click();
+    await confirm(O, 'I’ll host it');
+    await expect(OI).toContainText('YOU’RE LEADING');
+    await expect(OI.locator('[data-wants-host]')).toHaveCount(0);
+    await openIdea(H, id);
+    await expect(HI.locator('[data-led-by]')).toContainText('LED BY');
+    await expect(HI.locator('[data-led-by]')).toContainText('Otto');
+    await expect(HI.getByRole('button', { name: 'You’re interested' })).toBeVisible();   // the floater stays interested
+
+    // Who came: a plan from two days ago that Otto said yes to
+    const past = await asUser(H, async (c, _C, { title, day }) => {
+      const me = (await c.auth.getUser()).data.user.id;
+      const g = (await c.from('groups').select('id').eq('name', 'Torrez Fitness').single()).data.id;
+      const r = await c.from('sparks').insert({ group_id: g, author_name: 'Hope', lead_name: 'Hope', lead_id: me, created_by: me, text: title, planned: true, day_date: day }).select('id').single();
+      return r.error ? r.error.message : r.data.id;
+    }, { title: uniqueTitle('Came walk'), day: inDays(-2) });
+    expect(past).toMatch(/^[0-9a-f-]{36}$/);
+    ids.push(past);
+    await asUser(O, async (c, _C, id) => { await c.from('rsvps').insert({ spark_id: id, status: 'going' }); }, past);
+    await openIdea(H, past);
+    const done = H.locator('[data-screen-label="It happened"]');
+    await expect(done).toContainText('1 SAID YES');
+    const card = done.locator('[data-who-came]');
+    await expect(card).toContainText('0 of 1');
+    await card.getByRole('button', { name: 'Otto came' }).click();
+    await expect(card).toContainText('1 of 1');
+    await expect(done).toContainText('1 CAME');
+    await openIdea(H, past);
+    await expect(done.locator('[data-who-came]').getByRole('button', { name: 'Otto came' })).toHaveAttribute('aria-pressed', 'true');
+    await openIdea(O, past);
+    await expect(O.locator('[data-screen-label="It happened"]')).toContainText('1 CAME');   // everyone sees the count
+    expect(host.errors).toEqual([]);
+  } finally {
+    await asUser(O, async (c, _C, id) => { await c.from('sparks').delete().eq('id', id); }, ids[0]).catch(() => {});
+    for (const id of ids) await deleteIdea(H, id).catch(() => {});
+    await host.context.close();
+    await other.context.close();
   }
 });

@@ -655,3 +655,76 @@ test('groups and guests: leaving ends link access, blocks, new codes, who update
     await anon.context.close();
   }
 });
+
+// Looking for a host and Who came (20261101090000_hosts_and_who_came.sql)
+test('hosts and who came: only an idea looking for a host can change hands, and only the host checks people in', async ({ browser }) => {
+  const lead = await newLead(browser, 1, 'Lena');
+  const other = await newLead(browser, 2, 'Omar');      // also in Torrez Fitness, not the lead
+  const L = lead.page, O = other.page;
+  const day = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+  let m;
+  try {
+    const leadUid = await uid(L), otherUid = await uid(O);
+    m = await asUser(L, async (c, _C, { idea, past, soon, d1, d2 }) => {
+      const me = (await c.auth.getUser()).data.user.id;
+      const g = (await c.from('groups').select('id').eq('name', 'Torrez Fitness').single()).data.id;
+      const base = { group_id: g, author_name: 'Lena', lead_name: 'Lena', lead_id: me, created_by: me };
+      const one = async (row) => (await c.from('sparks').insert({ ...base, ...row }).select('id').single()).data.id;
+      return { idea: await one({ text: idea }), past: await one({ text: past, planned: true, day_date: d1 }), soon: await one({ text: soon, planned: true, day_date: d2 }) };
+    }, { idea: uniqueTitle('Host idea'), past: uniqueTitle('Came past'), soon: uniqueTitle('Came soon'), d1: day(-2), d2: day(5) });
+    expect(m.idea).toMatch(/^[0-9a-f-]{36}$/);
+
+    const before = await asUser(O, async (c, _C, m) => {
+      const ok = async (q) => { const x = await q; return x.error ? 'refused' : 'ALLOWED'; };
+      return {
+        wantsHostNotLead: await ok(c.rpc('set_wants_host', { p_spark: m.idea, p_on: true })),
+        takeBeforeAsked: await ok(c.rpc('take_the_lead', { p_spark: m.idea })),
+        flipColumn: (await c.from('sparks').update({ wants_host: true }).eq('id', m.idea).select()).data?.length ?? 'refused',
+        interestCanHelp: await ok(c.from('interests').insert({ spark_id: m.idea, can_help: true })),
+        canHelpOff: await ok(c.from('interests').update({ can_help: false }).eq('spark_id', m.idea)),
+        // A reply can't arrive already checked in, or check itself in later
+        rsvpAttended: await ok(c.from('rsvps').insert({ spark_id: m.past, status: 'going', attended: true })),
+        rsvp: await ok(c.from('rsvps').insert({ spark_id: m.past, status: 'going' })),
+        rsvpSoon: await ok(c.from('rsvps').insert({ spark_id: m.soon, status: 'going' })),
+        selfAttended: await ok(c.from('rsvps').update({ attended: true }).eq('spark_id', m.past)),
+        selfMark: await ok(c.rpc('mark_attended', { p_spark: m.past, p_user: (await c.auth.getUser()).data.user.id, p_came: true })),
+        // Replies and interest can't be moved to another event (20261101110000_rsvp_interest_column_grants.sql)
+        moveRsvp: await ok(c.from('rsvps').update({ spark_id: m.soon }).eq('spark_id', m.past)),
+        moveInterest: await ok(c.from('interests').update({ spark_id: m.past }).eq('spark_id', m.idea))
+      };
+    }, m);
+    expect(before).toEqual({ wantsHostNotLead: 'refused', takeBeforeAsked: 'refused', flipColumn: 'refused', interestCanHelp: 'ALLOWED', canHelpOff: 'ALLOWED',
+      rsvpAttended: 'refused', rsvp: 'ALLOWED', rsvpSoon: 'ALLOWED', selfAttended: 'refused', selfMark: 'refused', moveRsvp: 'refused', moveInterest: 'refused' });
+
+    const host = await asUser(L, async (c, _C, { m, otherUid }) => {
+      const ok = async (q) => { const x = await q; return x.error ? 'refused' : 'ALLOWED'; };
+      return {
+        markFuture: await ok(c.rpc('mark_attended', { p_spark: m.soon, p_user: otherUid, p_came: true })),
+        mark: await ok(c.rpc('mark_attended', { p_spark: m.past, p_user: otherUid, p_came: true })),
+        attended: (await c.from('rsvps').select('attended').eq('spark_id', m.past).eq('user_id', otherUid).single()).data.attended,
+        wantsHost: await ok(c.rpc('set_wants_host', { p_spark: m.idea, p_on: true })),
+        wantsHostOnPlan: await ok(c.rpc('set_wants_host', { p_spark: m.soon, p_on: true }))
+      };
+    }, { m, otherUid });
+    expect(host).toEqual({ markFuture: 'refused', mark: 'ALLOWED', attended: true, wantsHost: 'ALLOWED', wantsHostOnPlan: 'refused' });
+
+    const took = await asUser(O, async (c, _C, id) => {
+      const r = await c.rpc('take_the_lead', { p_spark: id });
+      if (r.error) return r.error.message;
+      const s = (await c.from('sparks').select('lead_id, lead_name, wants_host').eq('id', id).single()).data;
+      const ints = (await c.from('interests').select('user_id').eq('spark_id', id)).data.map(i => i.user_id);
+      return { s, ints };
+    }, m.idea);
+    expect(took.s).toEqual({ lead_id: otherUid, lead_name: 'Omar', wants_host: false });
+    expect(took.ints).toEqual([leadUid]);   // the floater stays interested; the new lead doesn't
+    const again = await asUser(L, async (c, _C, id) => (await c.rpc('take_the_lead', { p_spark: id })).error ? 'refused' : 'ALLOWED', m.idea);
+    expect(again).toBe('refused');
+  } finally {
+    if (m) {
+      await asUser(O, async (c, _C, id) => { await c.from('sparks').delete().eq('id', id); }, m.idea).catch(() => {});
+      await asUser(L, async (c, _C, m) => { await c.from('sparks').delete().in('id', [m.idea, m.past, m.soon]); }, m).catch(() => {});
+    }
+    await lead.context.close();
+    await other.context.close();
+  }
+});

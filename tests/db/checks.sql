@@ -354,3 +354,47 @@ select t.check('the e2e leads keep theirs',
   (select encrypted_password = extensions.crypt('lead-pass', encrypted_password) from auth.users where email = 'e2e-lead-1@example.com'));
 select t.check('only leads 1 to 6',
   (select encrypted_password from auth.users where email = 'e2e-lead-7@example.com') = '');
+
+-- Looking for a host and Who came (20261101090000_hosts_and_who_came.sql, 20261101110000_rsvp_interest_column_grants.sql)
+-- Fresh people: earlier blocks remove 'member' and 'linked' from the group
+select t.person('taker'), t.person('helper'), t.person('late');
+insert into memberships (group_id, user_id, role) values (t.id('g'), t.id('taker'), 'member'), (t.id('g'), t.id('helper'), 'member'), (t.id('g'), t.id('late'), 'member');
+insert into sparks (id, group_id, author_name, lead_name, lead_id, created_by, text, visibility, planned, day_date) values
+  (gen_random_uuid(), t.id('g'), 'Host', 'Host', t.id('host'), t.id('host'), 'Host idea', 'group', false, null),
+  (gen_random_uuid(), t.id('g'), 'Host', 'Host', t.id('host'), t.id('host'), 'Came walk', 'group', true, current_date - 2),
+  (gen_random_uuid(), t.id('g'), 'Host', 'Host', t.id('host'), t.id('host'), 'Secret walk', 'invite', true, current_date + 3);
+insert into t.ids select 'host_idea', id from sparks where text = 'Host idea';
+insert into t.ids select 'came_walk', id from sparks where text = 'Came walk';
+insert into t.ids select 'secret_walk', id from sparks where text = 'Secret walk';
+insert into rsvps (spark_id, user_id, status) values (t.id('came_walk'), t.id('taker'), 'going');
+select t.login('taker'); set role authenticated;
+select t.must_refuse('checking yourself in', format($$update rsvps set attended = true where spark_id = %L$$, t.id('came_walk')));
+select t.must_refuse('moving your reply to an invite-only event', format($$update rsvps set spark_id = %L where spark_id = %L$$, t.id('secret_walk'), t.id('came_walk')));
+select t.must_refuse('marking yourself as came', format($$select public.mark_attended(%L, %L, true)$$, t.id('came_walk'), t.id('taker')));
+select t.must_allow('changing your answer', format($$update rsvps set status = 'maybe' where spark_id = %L$$, t.id('came_walk')));
+select t.must_allow('re-saving your reply the way an upsert does (spark_id and user_id unchanged)', format($$insert into rsvps (spark_id, user_id, status) values (%L, %L, 'going') on conflict (spark_id, user_id) do update set spark_id = excluded.spark_id, user_id = excluded.user_id, status = excluded.status$$, t.id('came_walk'), t.id('taker')));
+select t.must_refuse('taking the lead of an idea that isn''t looking for a host', format($$select public.take_the_lead(%L)$$, t.id('host_idea')));
+select t.must_refuse('saying someone else''s idea is looking for a host', format($$select public.set_wants_host(%L, true)$$, t.id('host_idea')));
+select t.must_refuse('flipping wants_host directly', format($$update sparks set wants_host = true where id = %L$$, t.id('host_idea')));
+reset role;
+select t.login('helper'); set role authenticated;
+select t.must_allow('interest with "I could help"', format($$insert into interests (spark_id, user_id, can_help) values (%L, %L, true)$$, t.id('host_idea'), t.id('helper')));
+select t.must_allow('switching "I could help" off', format($$update interests set can_help = false where spark_id = %L$$, t.id('host_idea')));
+select t.must_refuse('moving your interest to another event', format($$update interests set spark_id = %L where spark_id = %L$$, t.id('came_walk'), t.id('host_idea')));
+reset role;
+select t.login('late'); set role authenticated;
+select t.must_refuse('an RSVP that arrives checked in', format($$insert into rsvps (spark_id, user_id, status, attended) values (%L, %L, 'going', true)$$, t.id('came_walk'), t.id('late')));
+reset role;
+select t.login('host'); set role authenticated;
+select t.must_refuse('checking in before the day', format($$select public.mark_attended(%L, %L, true)$$, t.id('invite_plan'), t.id('replied')));
+select t.must_allow('the host checks someone in', format($$select public.mark_attended(%L, %L, true)$$, t.id('came_walk'), t.id('taker')));
+select t.must_allow('the lead looks for a host', format($$select public.set_wants_host(%L, true)$$, t.id('host_idea')));
+reset role;
+select t.check('checked in', (select attended from rsvps where spark_id = t.id('came_walk') and user_id = t.id('taker')));
+select t.login('taker'); set role authenticated;
+select t.must_allow('someone else takes the lead', format($$select public.take_the_lead(%L)$$, t.id('host_idea')));
+reset role;
+select t.check('the taker leads it, and it isn''t looking any more',
+  (select lead_id = t.id('taker') and not wants_host from sparks where id = t.id('host_idea')));
+select t.check('the floater stays interested',
+  exists (select 1 from interests where spark_id = t.id('host_idea') and user_id = t.id('host')));
