@@ -5,12 +5,17 @@ worker 1: leads 3 and 4, worker 2: leads 5 and 6; see leadFor() in tests/e2e/hel
 an account. Every lead is a plain member of Torrez Fitness, like the first two. The password is the one in
 tests/.env (E2E_LEAD_PASSWORD), which CI also has as a repo secret.
 
-  python3 scripts/test-leads.py        (safe to re-run: existing accounts are left as they are)
+  python3 scripts/test-leads.py                    (safe to re-run: existing accounts are left as they are)
+  python3 scripts/test-leads.py --reset-password   (also sets every existing lead's password to the one in
+                                                    tests/.env; run it after rotating E2E_LEAD_PASSWORD)
+
+The password is never printed.
 
 TEST only: it refuses any other project.
 """
 import json, os, subprocess, sys, urllib.error, urllib.request
 
+RESET = '--reset-password' in sys.argv[1:]
 REF = 'hroxgvxvafgikikviiud'   # sparkhub-test; never live
 COUNT = 6
 BASE = f'https://{REF}.supabase.co'
@@ -48,10 +53,14 @@ rows = data.get('rows', []) if isinstance(data, dict) else data
 by_email = {r['email']: r['id'] for r in rows}
 torrez = call('GET', '/rest/v1/groups?code=eq.TORREZ&select=id')[0]['id']
 
+lead_ids = []
 for n in range(1, COUNT + 1):
     email = f'e2e-lead-{n}@example.com'
     uid = by_email.get(email)
-    if uid:
+    if uid and RESET:
+        call('PUT', f'/auth/v1/admin/users/{uid}', {'password': PASSWORD})
+        print(f'{email}: password reset')
+    elif uid:
         print(f'{email}: already there')
     else:
         uid = call('POST', '/auth/v1/admin/users', {'email': email, 'password': PASSWORD, 'email_confirm': True,
@@ -59,4 +68,11 @@ for n in range(1, COUNT + 1):
         print(f'{email}: created')
     call('POST', '/rest/v1/memberships?on_conflict=group_id,user_id', {'group_id': torrez, 'user_id': uid, 'role': 'member'},
          prefer='resolution=ignore-duplicates')
-print('All leads are Torrez Fitness members.')
+    lead_ids.append(uid)
+# The leads post far more than the app's rate limits allow (20261101020000_rate_limits.sql), so they're exempt.
+# private.rate_exempt isn't reachable over the REST API; this goes through the CLI, TEST only.
+values = ','.join(f"('{u}'::uuid)" for u in lead_ids)
+subprocess.check_output([os.path.expanduser('~/.local/bin/supabase'), 'db', 'query', '--project-ref', REF, '--linked',
+                         f"insert into private.rate_exempt (user_id) select v from (values {values}) x(v) on conflict do nothing"],
+                        stderr=subprocess.DEVNULL, cwd=os.path.join(HERE, '..'))
+print('All leads are Torrez Fitness members and exempt from rate limits.')

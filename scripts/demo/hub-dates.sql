@@ -21,4 +21,4 @@ update public.sparks s set day_date = v.d::date
     ('Block party planning', '2026-12-12'),
     ('Kids’ bike parade', '2026-12-19')
   ) as v(t, d), public.groups g
- where g.id = s.group_id and g.name like 'Hub on Hunters%' and s.demo and s.text = v.t;
+ where g.id = s.group_id and g.demo and g.name like 'Hub on Hunters%' and s.demo and s.text = v.t;

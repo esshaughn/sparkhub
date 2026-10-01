@@ -1,0 +1,316 @@
+-- Rules the app relies on, checked as made-up people (run with tests/db/run.sh, never against TEST or live).
+-- Each block raises an error, and the run stops, the moment something is allowed that shouldn't be.
+\set ON_ERROR_STOP 1
+set client_min_messages = notice;
+
+-- Helpers ----------------------------------------------------------------------------------------------
+create schema t;
+grant usage on schema t to authenticated, anon;
+create table t.ids (name text primary key, id uuid not null);
+grant select on t.ids to authenticated, anon;
+create function t.id(p text) returns uuid language sql stable as $$ select id from t.ids where name = p $$;
+-- A person: a signed-in (confirmed email) account, or an anonymous visitor
+create function t.person(p_name text, p_anon boolean default false) returns uuid language plpgsql as $$
+declare v uuid := gen_random_uuid();
+begin
+  insert into auth.users (id, email, is_anonymous, email_confirmed_at, created_at, raw_user_meta_data)
+  values (v, case when p_anon then null else p_name || '@example.com' end, p_anon, case when p_anon then null else now() end, now() - interval '1 day', '{}');
+  insert into t.ids values (p_name, v);
+  return v;
+end $$;
+-- Act as someone (then `set role authenticated`, and `reset role` to go back to the superuser)
+create function t.login(p_name text) returns void language plpgsql as $$
+declare v uuid := t.id(p_name); a boolean;
+begin
+  select is_anonymous into a from auth.users where id = v;
+  perform set_config('request.jwt.claims', json_build_object('sub', v, 'role', 'authenticated', 'is_anonymous', a)::text, false);
+  perform set_config('request.jwt.claim.sub', v::text, false);
+end $$;
+-- Run a statement; refused = an error, or an UPDATE/DELETE that touched nothing
+create function t.refused(p_sql text) returns boolean language plpgsql as $$
+declare n int;
+begin
+  execute p_sql; get diagnostics n = row_count;
+  return n = 0;
+exception when others then return true;
+end $$;
+create function t.must_refuse(p_label text, p_sql text) returns void language plpgsql as $$
+begin
+  if not t.refused(p_sql) then raise exception 'ALLOWED, should be refused: %', p_label; end if;
+  raise notice 'ok  refused: %', p_label;
+end $$;
+create function t.must_allow(p_label text, p_sql text) returns void language plpgsql as $$
+declare n int;
+begin
+  execute p_sql; get diagnostics n = row_count;
+  if n = 0 then raise exception 'touched nothing, should be allowed: %', p_label; end if;
+  raise notice 'ok  allowed: %', p_label;
+exception when raise_exception then raise;
+          when others then raise exception 'REFUSED, should be allowed: % (%)', p_label, sqlerrm;
+end $$;
+-- Refused by a rate limit specifically (SQLSTATE PT429), not by some other rule
+create function t.must_rate_limit(p_label text, p_sql text) returns void language plpgsql as $$
+begin
+  execute p_sql;
+  raise exception 'ALLOWED, should hit the rate limit: %', p_label;
+exception when sqlstate 'PT429' then raise notice 'ok  rate-limited: %', p_label;
+end $$;
+create function t.check(p_label text, p_ok boolean) returns void language plpgsql as $$
+begin
+  if p_ok is not true then raise exception 'FAILED: %', p_label; end if;
+  raise notice 'ok  %', p_label;
+end $$;
+grant execute on all functions in schema t to authenticated, anon;
+
+-- People and a group ---------------------------------------------------------------------------------
+select t.person('host'), t.person('member'), t.person('admin'), t.person('linked'), t.person('replied'),
+       t.person('outsider'), t.person('guest', true);
+insert into groups (id, name, code, created_by) values (gen_random_uuid(), 'Check group', 'CHECK2', t.id('host'));
+insert into t.ids select 'g', id from groups where code = 'CHECK2';
+insert into memberships (group_id, user_id, role) values
+  (t.id('g'), t.id('host'), 'owner'), (t.id('g'), t.id('member'), 'member'), (t.id('g'), t.id('admin'), 'admin'),
+  (t.id('g'), t.id('linked'), 'member'), (t.id('g'), t.id('replied'), 'member');
+insert into sparks (id, group_id, author_name, lead_name, lead_id, created_by, text, visibility, planned, day_date)
+values (gen_random_uuid(), t.id('g'), 'Host', 'Host', t.id('host'), t.id('host'), 'Invite-only plan', 'invite', true, current_date + 7);
+insert into t.ids select 'invite_plan', id from sparks where text = 'Invite-only plan';
+insert into link_access (user_id, spark_id) values (t.id('linked'), t.id('invite_plan'));
+insert into rsvps (spark_id, user_id, status) values (t.id('invite_plan'), t.id('replied'), 'going');
+
+-- Host updates go only to people who can see the event --------------------------------------------------
+select t.check('update to "hasn''t replied" on an invite-only plan: the admin and the link holder only',
+  (select array_agg(x order by x) from unnest(private.update_recipients(t.id('invite_plan'), 'noreply', t.id('host'))) x)
+  = (select array_agg(x order by x) from unnest(array[t.id('admin'), t.id('linked')]) x));
+update sparks set visibility = 'group' where id = t.id('invite_plan');
+select t.check('update to "hasn''t replied" on a group plan: every member who hasn''t replied',
+  (select array_agg(x order by x) from unnest(private.update_recipients(t.id('invite_plan'), 'noreply', t.id('host'))) x)
+  = (select array_agg(x order by x) from unnest(array[t.id('member'), t.id('admin'), t.id('linked')]) x));
+update sparks set visibility = 'invite' where id = t.id('invite_plan');
+select t.check('update to everyone going: the one who replied',
+  private.update_recipients(t.id('invite_plan'), 'going', t.id('host')) = array[t.id('replied')]);
+
+-- Photo uploads: own folder only, and a daily allowance (anonymous 10, signed in 50) ----------------------
+select t.login('guest'); set role authenticated;
+select t.must_refuse('upload into someone else''s folder',
+  format('insert into storage.objects (bucket_id, name) values (''spark-photos'', %L)', t.id('host') || '/a.jpg'));
+do $$ begin
+  for i in 1..10 loop
+    insert into storage.objects (bucket_id, name) values ('spark-photos', t.id('guest') || '/' || gen_random_uuid() || '.jpg');
+  end loop;
+end $$;
+select t.must_refuse('a guest''s 11th photo in a day',
+  format('insert into storage.objects (bucket_id, name) values (''spark-photos'', %L)', t.id('guest') || '/' || gen_random_uuid() || '.jpg'));
+reset role;
+select t.login('member'); set role authenticated;
+do $$ begin
+  for i in 1..50 loop
+    insert into storage.objects (bucket_id, name) values ('spark-photos', t.id('member') || '/' || gen_random_uuid() || '.jpg');
+  end loop;
+end $$;
+select t.must_refuse('a member''s 51st photo in a day',
+  format('insert into storage.objects (bucket_id, name) values (''spark-photos'', %L)', t.id('member') || '/' || gen_random_uuid() || '.jpg'));
+reset role;
+update storage.objects set created_at = now() - interval '25 hours' where name like t.id('member') || '/%';
+select t.login('member'); set role authenticated;
+select t.must_allow('a new photo once yesterday''s have aged out',
+  format('insert into storage.objects (bucket_id, name) values (''spark-photos'', %L)', t.id('member') || '/' || gen_random_uuid() || '.jpg'));
+reset role;
+select t.check('the photo size limit is 2 MB', (select file_size_limit from storage.buckets where id = 'spark-photos') = 2097152);
+
+-- Push devices: only push-service addresses, someone else's only with its keys, 10 each -----------------
+select t.login('member'); set role authenticated;
+select t.must_refuse('saving a made-up push address',
+  $$select public.save_push('https://evil.example.com/hook', repeat('k', 40), repeat('a', 20))$$);
+select t.must_allow('saving a Google push address',
+  $$select public.save_push('https://fcm.googleapis.com/fcm/send/member-1', repeat('k', 40), repeat('a', 20))$$);
+select t.must_allow('saving an Apple push address',
+  $$select public.save_push('https://web.push.apple.com/member-2', repeat('k', 40), repeat('a', 20))$$);
+reset role;
+select t.login('outsider'); set role authenticated;
+select t.must_refuse('taking over someone else''s device without its keys',
+  $$select public.save_push('https://fcm.googleapis.com/fcm/send/member-1', repeat('x', 40), repeat('y', 20))$$);
+select t.must_allow('the same device (same keys) signed in as someone new',
+  $$select public.save_push('https://web.push.apple.com/member-2', repeat('k', 40), repeat('a', 20))$$);
+reset role;
+select t.check('the device moved over', (select user_id from push_subscriptions where endpoint = 'https://web.push.apple.com/member-2') = t.id('outsider'));
+select t.login('member'); set role authenticated;
+do $$ begin
+  for i in 3..14 loop
+    perform public.save_push('https://fcm.googleapis.com/fcm/send/member-' || i, repeat('k', 40), repeat('a', 20));
+  end loop;
+end $$;
+reset role;
+select t.check('at most 10 devices each', (select count(*) from push_subscriptions where user_id = t.id('member')) = 10);
+select t.login('member'); set role authenticated;
+do $$ begin
+  for i in 15..30 loop
+    perform public.save_push('https://fcm.googleapis.com/fcm/send/member-' || i, repeat('k', 40), repeat('a', 20));
+  end loop;
+  raise exception 'should have hit the hourly limit';
+exception when sqlstate 'PT429' then raise notice 'ok  refused: more than 20 device saves an hour';
+end $$;
+reset role;
+select t.login('guest'); set role authenticated;
+select t.must_refuse('a visitor saving a device',
+  $$select public.save_push('https://fcm.googleapis.com/fcm/send/guest-1', repeat('k', 40), repeat('a', 20))$$);
+reset role;
+
+-- Rate limits ------------------------------------------------------------------------------------------
+insert into sparks (id, group_id, author_name, lead_name, lead_id, created_by, text)
+values (gen_random_uuid(), t.id('g'), 'Host', 'Host', t.id('host'), t.id('host'), 'Group idea');
+insert into t.ids select 'idea', id from sparks where text = 'Group idea';
+insert into sparks (group_id, author_name, lead_name, lead_id, created_by, text)
+select t.id('g'), 'Host', 'Host', t.id('host'), t.id('host'), 'Idea ' || i from generate_series(1, 21) i;
+select t.login('member'); set role authenticated;
+do $$ begin
+  for i in 1..10 loop
+    insert into spot_options (spark_id, name, who) values (t.id('idea'), 'Spot ' || i, 'Mem');
+  end loop;
+end $$;
+select t.must_rate_limit('an 11th location suggestion on one event in an hour',
+  format($$insert into spot_options (spark_id, name, who) values (%L, 'Spot 11', 'Mem')$$, t.id('idea')));
+select t.must_allow('a location suggestion on another event',
+  format($$insert into spot_options (spark_id, name, who) values ((select id from sparks where text = 'Idea 1'), 'Spot', 'Mem')$$));
+do $$ begin
+  for i in 1..10 loop
+    insert into date_options (spark_id, day_date, who) values (t.id('idea'), current_date + i, 'Mem');
+  end loop;
+end $$;
+select t.must_rate_limit('an 11th date suggestion on one event in an hour',
+  format($$insert into date_options (spark_id, day_date, who) values (%L, current_date + 30, 'Mem')$$, t.id('idea')));
+do $$ begin
+  insert into interests (spark_id, user_id) select id, t.id('member') from sparks where text like 'Idea %' order by text limit 20;
+end $$;
+select t.must_rate_limit('a 21st "interested" in an hour',
+  format($$insert into interests (spark_id, user_id) values (%L, %L)$$, t.id('idea'), t.id('member')));
+do $$ begin
+  for i in 1..10 loop
+    insert into sparks (group_id, author_name, lead_name, lead_id, created_by, text)
+    values (t.id('g'), 'Mem', 'Mem', t.id('member'), t.id('member'), 'Member idea ' || i);
+  end loop;
+end $$;
+select t.must_rate_limit('an 11th new event in an hour',
+  format($$insert into sparks (group_id, author_name, lead_name, lead_id, created_by, text) values (%L, 'Mem', 'Mem', %L, %L, 'One too many')$$, t.id('g'), t.id('member'), t.id('member')));
+reset role;
+select t.login('host'); set role authenticated;
+do $$ begin
+  for i in 1..10 loop
+    insert into plan_updates (spark_id, body, audience) values (t.id('invite_plan'), 'Update ' || i, 'all');
+  end loop;
+end $$;
+select t.must_rate_limit('an 11th host update on one event in an hour',
+  format($$insert into plan_updates (spark_id, body, audience) values (%L, 'Update 11', 'all')$$, t.id('invite_plan')));
+reset role;
+-- Rows a function writes for other people don't count: clearing the date moves 25 people to interested
+insert into sparks (id, group_id, author_name, lead_name, lead_id, created_by, text, planned, day_date)
+values (gen_random_uuid(), t.id('g'), 'Host', 'Host', t.id('host'), t.id('host'), 'Big plan', true, current_date + 3);
+insert into t.ids select 'big', id from sparks where text = 'Big plan';
+do $$ declare u uuid; begin
+  for i in 1..25 loop
+    u := t.person('crowd' || i);
+    insert into memberships (group_id, user_id) values (t.id('g'), u);
+    insert into rsvps (spark_id, user_id, status) values (t.id('big'), u, 'going');
+  end loop;
+end $$;
+select t.login('host'); set role authenticated;
+select t.must_allow('clearing the date with 25 people going', format('select public.clear_plan(%L)', t.id('big')));
+reset role;
+select t.check('all 25 moved to interested', (select count(*) from interests where spark_id = t.id('big')) = 25);
+-- Exempt accounts (the e2e leads on TEST) skip the limits
+insert into private.rate_exempt values (t.id('member'));
+select t.login('member'); set role authenticated;
+select t.must_allow('an exempt account posting past the limit',
+  format($$insert into sparks (group_id, author_name, lead_name, lead_id, created_by, text) values (%L, 'Mem', 'Mem', %L, %L, 'Exempt')$$, t.id('g'), t.id('member'), t.id('member')));
+reset role;
+delete from private.rate_exempt;
+
+-- Groups: removal ends link access; blocks; new invite codes ----------------------------------------------
+-- 'linked' opened the invite-only plan's link; 'member' got a friend's invite to it
+insert into link_access (user_id, spark_id, via) values (t.id('member'), t.id('invite_plan'), 'invite');
+select t.login('linked'); set role authenticated;
+select t.check('a member who opened an invite-only event''s link sees it', exists (select 1 from sparks where id = t.id('invite_plan')));
+reset role;
+select t.login('host'); set role authenticated;
+select t.must_refuse('removing yourself', format('select public.remove_member(%L, %L)', t.id('g'), t.id('host')));
+select t.must_allow('the owner removing a member and blocking them', format('select public.remove_member(%L, %L, true)', t.id('g'), t.id('linked')));
+select t.must_allow('the owner removing a member', format('select public.remove_member(%L, %L)', t.id('g'), t.id('member')));
+reset role;
+select t.login('linked'); set role authenticated;
+select t.check('removed: the event they had the link to is gone', not exists (select 1 from sparks where id = t.id('invite_plan')));
+select t.check('blocked: joining with the code fails', public.join_group('CHECK2') is null);
+reset role;
+select t.login('member'); set role authenticated;
+select t.check('removed, but a friend''s invite still stands', exists (select 1 from sparks where id = t.id('invite_plan')));
+select t.check('removed without a block: can rejoin', public.join_group('CHECK2') = t.id('g'));
+reset role;
+select t.login('admin'); set role authenticated;
+select t.must_refuse('an admin changing the invite code', format('select public.rotate_group_code(%L)', t.id('g')));
+select t.check('an admin sees who''s blocked', (select count(*) from public.group_blocked(t.id('g'))) = 1);
+reset role;
+select t.login('outsider'); set role authenticated;
+select t.check('an outsider sees no blocks', (select count(*) from public.group_blocked(t.id('g'))) = 0);
+select t.must_refuse('an outsider lifting a block', format('select public.unblock_member(%L, %L)', t.id('g'), t.id('linked')));
+select t.must_refuse('reading the block list directly', 'select * from group_bans');
+reset role;
+select t.login('host'); set role authenticated;
+select t.check('the owner gets a new code', public.rotate_group_code(t.id('g')) <> 'CHECK2');
+reset role;
+select t.login('outsider'); set role authenticated;
+select t.check('the old code stops working', public.join_group('CHECK2') is null);
+reset role;
+select t.login('admin'); set role authenticated;
+select t.must_allow('an admin lifting a block', format('select public.unblock_member(%L, %L)', t.id('g'), t.id('linked')));
+reset role;
+select set_config('t.code', (select code from groups where id = t.id('g')), false);
+select t.login('linked'); set role authenticated;
+select t.check('unblocked: joining with the new code works', public.join_group(current_setting('t.code')) = t.id('g'));
+select public.leave_group(t.id('g'));
+reset role;
+insert into link_access (user_id, spark_id, via) values (t.id('replied'), t.id('invite_plan'), 'link');
+select t.login('replied'); set role authenticated;
+select public.leave_group(t.id('g'));
+select t.check('leaving a group drops the links to its events', not exists (select 1 from link_access where spark_id = t.id('invite_plan')));
+reset role;
+
+-- Demo roster by group id; demo groups' names are reserved ----------------------------------------------
+insert into groups (id, name, code, created_by, demo) values (gen_random_uuid(), 'Demo Street', 'DEMO22', t.id('host'), true);
+insert into t.ids select 'demo_g', id from groups where code = 'DEMO22';
+select t.login('outsider'); set role authenticated;
+select t.must_refuse('starting a group with a demo group''s name', $$select public.create_group('demo street')$$);
+select t.must_refuse('renaming your group to a demo group''s name', format($$select public.rename_group(%L, 'Demo Street')$$, (select id from public.create_group('Copycat'))));
+reset role;
+insert into demo_roster (email, group_id, role) values ('newtester@example.org', t.id('demo_g'), 'admin');
+insert into groups (name, code, created_by) values ('Demo Street', 'FAKE22', t.id('outsider'));   -- a look-alike from before the rule
+do $$ declare u uuid := gen_random_uuid(); begin
+  insert into auth.users (id, email, email_confirmed_at, created_at, raw_user_meta_data) values (u, 'newtester@example.org', now(), now(), '{}');
+  perform public.apply_demo_world(u, 'newtester@example.org');
+  perform t.check('a roster tester gets their role in the roster''s group',
+    (select role from memberships where user_id = u and group_id = t.id('demo_g')) = 'admin');
+  perform t.check('and nothing in a same-named group', (select count(*) from memberships where user_id = u) = 1);
+end $$;
+
+-- Plans: the lead can't flip "planned" directly (only make_plan / clear_plan) ------------------------------
+select t.login('host'); set role authenticated;
+select t.must_refuse('the lead updating planned directly', format('update sparks set planned = false where id = %L', t.id('invite_plan')));
+select t.must_allow('the lead still edits the title', format($$update sparks set text = 'Invite-only plan!' where id = %L$$, t.id('invite_plan')));
+reset role;
+
+-- Friends: a declined request survives the sender removing and re-adding ----------------------------------
+select t.login('admin'); set role authenticated;
+select t.check('a friend request goes out', public.send_friend_request(t.id('host')) = 'requested');
+reset role;
+select t.login('host'); set role authenticated;
+select public.answer_friend_request(t.id('admin'), false);
+reset role;
+select t.login('admin'); set role authenticated;
+select public.remove_friend(t.id('host'));
+select public.send_friend_request(t.id('host'));
+reset role;
+select t.check('the declined request is still there, still declined, and no new one',
+  (select count(*) from friend_requests where from_id = t.id('admin') and to_id = t.id('host') and declined_at is not null) = 1
+  and (select count(*) from friend_requests where from_id = t.id('admin') and to_id = t.id('host')) = 1);
+select t.login('admin'); set role authenticated;
+select t.check('a pending request of your own is withdrawn by remove_friend',
+  public.send_friend_request(t.id('member')) = 'requested');
+select public.remove_friend(t.id('member'));
+reset role;
+select t.check('withdrawn', not exists (select 1 from friend_requests where from_id = t.id('admin') and to_id = t.id('member')));
