@@ -150,21 +150,22 @@ test('groups, idea links, guests and leads: the database refuses what the app ne
 
     // --- Someone who isn't the lead can't change or decide anything ----------------
     const notLead = await asUser(A, async (c, _C, id) => {
-      await c.rpc('add_offer', { p_spark: id, p_kind: 'spot', p_body: 'Somewhere', p_who: 'Gus' });
+      // A guest can't suggest at all any more (guests only RSVP, 20261101080000_guests_rsvp_only.sql)
+      const addOffer = (await c.rpc('add_offer', { p_spark: id, p_kind: 'spot', p_body: 'Somewhere', p_who: 'Gus' })).error ? 'refused' : 'ALLOWED';
       const pending = (await c.from('offers').select('id,status').eq('spark_id', id)).data;
       const upd = await c.from('sparks').update({ text: 'hacked' }).eq('id', id).select();
       const del = await c.from('sparks').delete().eq('id', id).select();
       return {
-        offerStatus: pending.map(p => p.status),
+        addOffer, offerStatus: pending.map(p => p.status),
         update: upd.error ? 'refused' : upd.data.length + ' rows',
         delete: del.error ? 'refused' : del.data.length + ' rows',
-        resolve: (await c.rpc('resolve_offer', { p_offer: pending[0].id, p_accept: true })).error ? 'refused' : 'ALLOWED',
+        resolve: (await c.rpc('resolve_offer', { p_offer: pending[0]?.id ?? '00000000-0000-0000-0000-000000000000', p_accept: true })).error ? 'refused' : 'ALLOWED',
         badDay: (await c.rpc('add_offer', { p_spark: id, p_kind: 'day', p_body: 'next tuesday', p_who: 'Gus' })).error ? 'refused' : 'ALLOWED',
         applyDay: (await c.rpc('apply_day', { p_spark: id, p_body: '2026-10-10' })).error ? 'refused' : 'ALLOWED',
         removed: (await c.rpc('rsvp_counts')).error && (await c.rpc('claim_lead', { p_spark: id, p_name: 'x' })).error ? 'gone' : 'STILL THERE'
       };
     }, sparkId);
-    expect(notLead).toEqual({ offerStatus: ['pending'], update: '0 rows', delete: '0 rows', resolve: 'refused', badDay: 'refused', applyDay: 'refused', removed: 'gone' });
+    expect(notLead).toEqual({ addOffer: 'refused', offerStatus: [], update: '0 rows', delete: '0 rows', resolve: 'refused', badDay: 'refused', applyDay: 'refused', removed: 'gone' });
 
     // --- Even the lead can only edit what the app edits ------------------------------
     const leadLimits = await asUser(L, async (c, _C, { id, otherUid }) => {
@@ -310,7 +311,7 @@ test('plans: replies, sign-ups, updates, notes and invite-only plans follow the 
       signupWithNeed: 'refused', signupWithTime: 'refused', signupSomethingElse: 'ALLOWED', claim: 'ALLOWED',
       signupWithDescr: 'refused', signupWithEnd: 'refused', signupAsShift: 'refused', claimShift: 'ALLOWED', claimJobRow: 0,
       update: 'refused', readPrep: 0, writePrep: 'refused', makePlan: 'refused', clearPlan: 'refused',
-      markPlanned: 0, seeSecret: 0, rsvpSecret: 'refused', suggestDateOnPlan: 'ALLOWED',
+      markPlanned: 'refused', seeSecret: 0, rsvpSecret: 'refused', suggestDateOnPlan: 'ALLOWED',
       editJob: 0, addGroup: 'refused', readDraft: 0, editDraft: 0
     });
     const leadEdits = await asUser(L, async (c, _C, m) => ({
