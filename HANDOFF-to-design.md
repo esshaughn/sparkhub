@@ -103,6 +103,7 @@ Where this doc and the design files disagree, **this doc is correct**.
 | 86 | **Welcome to {group}:** *Ideas — float one, see who's up for it* | *suggest something, see who's up for it* | Wording |
 | 87 | **The Calendar's *Feeling wild?* card is gone** | *Feeling wild? We'll deal you a random event* | Filler |
 | 88 | **Group page edge arrows** (‹ › to the next tab) show only on someone's first 3 group-page visits on a device, and never again once they've swiped or used one; they're a see-through light yellow (`rgba(253,241,214,.72)` with a blur, gold border and `#8f6405` chevron) | Quiet frosted white arrows, always | They sat on the cards and read as stray buttons; now they teach swiping, then step aside (owner, 2026-10-01) |
+| 89 | **The tab bar's last tab is a gear**, not a person: same 1.9 outline at 23px, grey `#6b7280` off and purple `#5b4ae8` on; it still opens the profile sheet and is still labelled *Profile* for screen readers | A person icon | Owner, 2026-10-01: the sheet is profile and settings |
 
 ## 2. Things the build had to invent (please design these properly)
 
