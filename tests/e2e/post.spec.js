@@ -313,6 +313,12 @@ test('drafts: X saves one, Your tasks lists it under Leading, Continue picks up 
     await expect(all.locator('[data-draft-all="' + title + '"]')).toContainText('Up next: Location');
     await all.getByRole('button', { name: 'Close' }).click();
     await expect(page.locator('[aria-label="Your drafts"]')).toHaveCount(0);
+    // ...and not on Your schedule either (owner, 2026-10-01)
+    await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Your schedule', exact: true }).click();
+    await expect(page.locator('[data-screen-label="Your schedule"]')).toBeVisible();
+    await expect(page.locator('[aria-label="Your drafts"]')).toHaveCount(0);
+    await expect(page.locator('[data-screen-label="Your schedule"] [data-draft]')).toHaveCount(0);
+    await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: /^Your tasks/ }).click();
     const draft = leading.locator('[data-draft="' + title + '"]');
     await expect(draft).toContainText('DRAFT');
     await expect(draft).toContainText('Up next: Location');

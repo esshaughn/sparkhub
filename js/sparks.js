@@ -3071,13 +3071,13 @@
       sortPill('sSort', st.sSort, (k) => setState({ sSort: k, menu: null })) + filt() + viewPick() + '</div>';
     if (!plans.length) return wrap(goneCard() + '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(st.sSort === 'soon' ? 'Coming up' : sortName6(st.sSort), controls) + filterEmpty(clear) + '</div>');
     // Month: the grid with the chosen day's plans; the view menu sits beside the month arrows
-    if (view === 'month') return wrap(goneCard() + draftsSection() +
+    if (view === 'month') return wrap(goneCard() +
       monthBody(plans, { mon: st.hMon, day: st.hDay, cal: false, menu: '<div style="display:flex;align-items:center;gap:6px">' + filt() + viewPick() + '</div>', card: (s) => listCard6(s, partOf(s), false, true),
         set: (hMon, hDay) => setState({ hMon, hDay }), toTbd: () => setState({ homeView: 'next', sSort: 'soon', menu: null, hMon: null, hDay: null }) }));
     // Up next (Soonest only): the hero card, then list cards by This week / Next week / Later in {month}
     const secs = view === 'next' && st.sSort === 'soon' ? nextSections(plans) : sections6(plans, st.sSort, 'Date TBD');
     const card = (s) => view === 'next' ? listCard6(s, partOf(s), false, true) : tile6(s, partOf(s), 180);
-    return wrap(goneCard() + draftsSection() + secs.map((z, i) => '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(z.label, i ? '' : controls) +
+    return wrap(goneCard() + secs.map((z, i) => '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(z.label, i ? '' : controls) +
       '<div style="display:flex;flex-direction:column;gap:' + (view === 'next' ? 10 : 14) + 'px">' + (z.hero ? nextCard6(z.hero, partOf(z.hero)) : z.items.map(card).join('')) + '</div></div>').join(''));
   }
 
@@ -5579,22 +5579,6 @@
         '<div style="margin-top:2px;font-size:12.5px;font-weight:600;color:' + R6.lead.ink + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Draft · ' + draftStep(x) + ' of 5 steps · Up next: ' + esc(EV_NAMES[x.evStep] || 'Event title') + '</div></div>' +
       I.chevR(14, '#b9bcc4', 2.6) + '</div>';
   };
-  const draftsSection = () => !state.drafts.length ? '' :
-    '<section aria-label="Your drafts" style="display:flex;flex-direction:column;gap:8px"><h2 style="margin:0;padding:0 4px;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:#0d1117">Your drafts</h2>' +
-    state.drafts.map(d => {
-      const x = draftState(d), j = x.evStep === 'review' ? 5 : Math.max(0, EV_STEPS.indexOf(x.evStep)), url = x.evPhotoPath ? photoUrl(x.evPhotoPath) : null;
-      return '<div data-draft="' + esc(x.activity) + '" style="background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08);overflow:hidden;display:flex">' +
-        '<span aria-hidden="true" style="flex:0 0 76px;background:' + (url ? '#2b303a ' + bg(url) : EV_GRAD) + '"></span>' +
-        '<div style="flex:1;min-width:0;padding:12px 14px;display:flex;flex-direction:column;gap:7px">' +
-          '<div style="display:flex;align-items:center;gap:6px"><span style="display:inline-flex;align-items:center;min-height:22px;padding:0 8px;border-radius:999px;background:#eef0f3;color:#454b55;font-size:11px;font-weight:900;letter-spacing:.6px">DRAFT</span>' +
-            '<span style="flex:1;font-size:12.5px;font-weight:600;color:#6b7280">' + agoSaved(d.saved) + '</span>' +
-            '<span ' + on(() => { if (!state.busy) deleteDraft(d); }) + ' aria-label="Delete draft" style="width:30px;height:30px;border-radius:999px;display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(15, stroke('#9aa0ac', 2.2), TRASH_IC) + '</span></div>' +
-          '<div style="font-size:17px;line-height:1.2;font-weight:900;letter-spacing:-.3px;color:#0d1117">' + esc(cleanTitle(x.activity) || 'Untitled event') + '</div>' +
-          '<div aria-hidden="true" style="display:flex;gap:3px">' + EV_STEPS.map((_, k) => '<span style="flex:1 1 0;height:4px;border-radius:999px;background:' + (k < j ? '#5b4ae8' : '#d5d8df') + '"></span>').join('') + '</div>' +
-          '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><span style="font-size:13px;font-weight:700;color:#454b55">Up next: ' + esc(EV_NAMES[x.evStep] || 'Event title') + '</span>' +
-            '<span ' + on(() => resumeDraft(d)) + ' style="display:flex;align-items:center;min-height:36px;padding:0 14px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:13.5px;font-weight:800;cursor:pointer">Continue</span></div>' +
-        '</div></div>';
-    }).join('') + '</section>';
 
   // A 30-minute time list that opens under its field (not a sheet), scrolled to the current value
   const timeField = (key, value, opts, hint, pick) => {
