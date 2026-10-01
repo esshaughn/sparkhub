@@ -32,7 +32,7 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
       await expect(HP.locator('[data-signup="' + item + '"]')).toBeVisible();
     }
 
-    // Her Your tasks: a Leading card with the stats strip and three to-dos (two, then "+1 more")
+    // Her Your tasks: a Leading card with the stats strip (no Reminder) and only real to-dos, each button doing its job
     await nav(H).getByRole('button', { name: /^Your tasks/ }).click();
     const lead = H.locator('[data-screen-label="Your tasks"] section[aria-label=Leading] [data-task="' + title + '"]');
     await expect(lead).toContainText('Today');
@@ -45,13 +45,15 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     await expect(hSearch).toHaveCount(0);
     await expect(lead.getByLabel('Going: 0')).toBeVisible();
     await expect(lead.getByLabel('Sign-ups: 0/3')).toBeVisible();
-    await expect(lead.getByLabel('Reminder: Sent')).toBeVisible();
-    await expect(lead).toContainText('Post an update');
+    await expect(lead.getByLabel(/^Reminder/)).toHaveCount(0);           // automatic now, so not shown (owner, 2026-09-30)
+    await expect(lead).not.toContainText('Post an update');
     await expect(lead).toContainText('Location TBD');
-    await expect(lead).toContainText('+1 more');
-    await lead.getByText('+1 more').click();
     await expect(lead).toContainText('3 spots open');
-    await expect(lead).toContainText('Show less');
+    // Share list opens the share sheet with the open jobs named
+    await lead.locator('[data-todo-cta]', { hasText: 'Share list' }).click();
+    const shareSheet = H.getByRole('dialog', { name: 'Share link' });
+    await expect(shareSheet.getByRole('link', { name: 'Text message' })).toHaveAttribute('href', /still%20needs%3A%20Folding%20chairs%20\(2\)%2C%20Ice/);
+    await shareSheet.getByRole('button', { name: 'Close' }).click();
     await shot(H, '01-your-tasks-lead');
     await expect(nav(H).getByRole('button', { name: /^Your tasks, \d+$/ })).toBeVisible();   // the badge counts events with to-dos
 
@@ -103,15 +105,16 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     // v6 Update 5: signing up is one tap and a "You're on it" banner, no RSVP question; he says Maybe himself
     await OP.locator('[data-signup="Ice"]').getByRole('button', { name: 'Sign up' }).click();
     await expect(O.locator('[data-banner="on"]')).toContainText('You’re on it');
+    await expect(OP.locator('[data-rsvp]').getByRole('button', { name: /^Going/ })).toHaveAttribute('aria-pressed', 'true');   // taking a job marks you Going
     await expect(O.getByRole('dialog', { name: 'Will you be there?' })).toHaveCount(0);
     await shot(O, '05-on-it');
     await OP.locator('[data-rsvp]').getByRole('button', { name: /^Maybe/ }).click();
     await expect(O.getByText('Marked as maybe')).toBeVisible();
 
-    // His Your tasks: a Helping card with just "You said maybe" and his sign-up (owner, 2026-09-29)
+    // His Your tasks: a Helping card with just "You said Maybe" (it's in the last 3 days) and his sign-up
     await nav(O).getByRole('button', { name: /^Your tasks/ }).click();
     const help = O.locator('[data-screen-label="Your tasks"] section[aria-label=Helping] [data-task="' + title + '"]');
-    await expect(help).toContainText('You said maybe');
+    await expect(help).toContainText('You said Maybe');
     await expect(help).toContainText('Update RSVP');
     await expect(help).toContainText('Ice');
     await expect(help).not.toContainText('more');
@@ -125,7 +128,7 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     const tile = sched.locator('[data-plan="' + title + '"]');
     await expect(tile).toContainText('Helping');
     await tile.getByText('2 tasks').click();
-    await expect(tile).toContainText('You said maybe');
+    await expect(tile).toContainText('You said Maybe');
     await expect(tile).toContainText('Ice');
     await pickView(sched, 'Up next');
     await expect(tile).toContainText('Helping');

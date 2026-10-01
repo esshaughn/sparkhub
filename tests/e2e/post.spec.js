@@ -321,3 +321,43 @@ test('location suggestions: 2 letters, 4 rows, Austin area, remembered, free tex
     await context.close();
   }
 });
+
+test('an idea says how many it needs; a bare starter chip can’t be saved; its steps are Date · Location · Details · People', async ({ browser }) => {
+  test.setTimeout(90000);
+  const { page, context, errors } = await newLead(browser, 1, 'Tester');
+  const title = uniqueTitle('Pickup soccer');
+  let id;
+  try {
+    await startPost(page);
+    const flow = page.locator('[data-screen-label="New spark"]');
+    await flow.getByLabel('Event title').fill(title);
+    await flow.getByRole('button', { name: 'Next' }).click();
+    await flow.getByText('Decide later', { exact: true }).click();   // no date: it goes up as an idea
+    await flow.getByText('Decide later', { exact: true }).click();
+    await flow.getByLabel('Basic details, line 1').fill('Bring cleats');
+    const need = flow.locator('[data-need-people]');
+    await expect(need).toContainText('Optional');
+    for (let i = 0; i < 6; i++) await need.getByRole('button', { name: 'More for how many people needed' }).click();
+    await expect(need).toContainText('It’s a go once 6 people are in.');
+    await flow.getByRole('button', { name: 'Next' }).click();
+    // A starter chip alone ("Bring") can't be saved
+    await flow.getByRole('button', { name: /Bring$/ }).click();
+    const job = page.getByRole('dialog', { name: 'Add a job' });
+    await expect(job.getByRole('button', { name: 'Save', exact: true })).toHaveAttribute('aria-disabled', 'true');
+    await job.getByLabel('Job name').fill('Bring a ball');
+    await job.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(flow).not.toContainText('FOR EXAMPLE');
+    await flow.getByRole('button', { name: 'Review' }).click();
+    await flow.getByRole('button', { name: 'Post it' }).click();
+    await expect(page.locator('[data-screen-label="Idea page"]')).toBeVisible();
+    id = await page.evaluate(() => location.hash.split('/').pop());
+    const steps = page.getByLabel('Steps to a plan');
+    for (const t of ['Date', 'Location', 'Details', 'People']) await expect(steps).toContainText(t);
+    const saved = await asUser(page, async (c, _C, id) => (await c.from('sparks').select('min_people').eq('id', id).single()).data.min_people, id);
+    expect(saved).toBe(6);
+    expect(errors).toEqual([]);
+  } finally {
+    if (id) await asUser(page, async (c, _C, id) => { await c.from('sparks').delete().eq('id', id); }, id).catch(() => {});
+    await context.close();
+  }
+});

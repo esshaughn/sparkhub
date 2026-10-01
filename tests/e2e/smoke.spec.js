@@ -218,15 +218,19 @@ test('Give feedback (Update 9): a Help & info tile opens the sheet; Send to Eric
     await expect(profile).not.toContainText('New accounts');     // nor the accounts list
     await profile.getByRole('button', { name: 'Close' }).click();
 
-    // A group's Plans tab (80a): the empty state, or "What else could happen?" under the plans; a chip starts an event with that title
+    // A group's Plans tab (80a): the empty state, or the card under the plans: "Do it again?" with the group's own past events (no made-up ideas)
     await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Groups', exact: true }).click();
     await page.locator('[data-screen-label=Groups]').getByRole('button', { name: 'Torrez Fitness', exact: true }).click();
     const more = page.locator('[data-plans-more]'), empty = page.locator('[data-plans-empty]');
     await expect(more.or(empty)).toBeVisible();
     if (await more.count()) {
-      await expect(more).toContainText('What else could happen?');
-      await more.getByRole('button', { name: 'Taco night?' }).click();
-      await expect(page.getByLabel('Event title')).toHaveValue('Taco night');
+      await expect(more).not.toContainText('What else could happen?');
+      const again = more.locator('[data-again]').first();
+      if (await again.count()) {
+        const t = await again.getAttribute('data-again');
+        await again.click();
+        await expect(page.getByLabel('Event title')).toHaveValue(t.slice(0, 40));
+      }
     } else {
       await expect(empty).toContainText('Somebody should fix that.');
     }

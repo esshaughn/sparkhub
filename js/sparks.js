@@ -172,7 +172,7 @@
     evStep: 'title', activity: '', photos: [], evPhotoPath: null, coverPos: null,
     evDate: '', evTime: '', evEnd: '', evEndOn: false, timeOpen: null,
     locText: '', locPlace: null, locSuggest: [],
-    evBits: ['', '', ''], evNeeds: [], evDatePoll: null, evSpotPoll: null, evLater: {},
+    evBits: ['', '', ''], evNeed: null, evNeeds: [], evDatePoll: null, evSpotPoll: null, evLater: {},
     evPriv: false, evGroups: null, evDraftId: null, evLeave: false, pollSheet: null, needSheet: null, evFromReview: false
   });
   const state = Object.assign({
@@ -1212,6 +1212,10 @@
       if (b.undo.del) must(await sb.from('signup_items').delete().eq('id', b.undo.del));
       else must(await sb.from('signup_claims').delete().in('item_id', b.undo.items).eq('user_id', state.me));
       if (b.undo.back && b.undo.back.length) must(await sb.from('signup_claims').insert(b.undo.back.map(id => ({ item_id: id, user_id: state.me, note: b.undo.note || null }))));
+      if ('was' in b.undo && b.undo.was !== 'going') {   // the sign-up made them Going: put their old answer back
+        if (b.undo.was) must(await sb.from('rsvps').upsert({ spark_id: b.id, user_id: state.me, status: b.undo.was }, { onConflict: 'spark_id,user_id' }));
+        else must(await sb.from('rsvps').delete().eq('spark_id', b.id).eq('user_id', state.me));
+      }
     }, { banner: null }).then(ok => { if (ok) toast('Okay, you’re off it', true); });
   };
   const jobOf = (s, it) => (s.jobs || s.signups).find(j => j.id === (it.jobId || it.id)) || it;
@@ -1222,20 +1226,27 @@
     const item = cleanTitle(state.sigDraft).slice(0, 60), need = isLead(s) ? (parseInt(state.sigNeed, 10) || null) : null, time = isLead(s) ? (state.sigTime || null) : null;
     if (!item || state.busy) return;
     let row = null;
+    const was = myRsvp(s);
     const add = () => run(async () => {
       await saveGuestContact(s.id);
       row = must(await sb.from('signup_items').insert({ spark_id: s.id, item, need, time }).select('id').single()).data;
-      if (!isLead(s)) must(await sb.from('signup_claims').insert({ item_id: row.id, user_id: state.me }));
-    }, { sigDraft: '', sigNeed: '', sigTime: '', sigAdding: false }).then(ok => { if (ok) { if (isLead(s)) toast('Added to sign-ups', true); else onItBanner(s, { del: row.id }); } });
+      if (!isLead(s)) { must(await sb.from('signup_claims').insert({ item_id: row.id, user_id: state.me })); await goingWithJob(s); }
+    }, { sigDraft: '', sigNeed: '', sigTime: '', sigAdding: false }).then(ok => { if (ok) { if (isLead(s)) toast('Added to sign-ups', true); else onItBanner(s, { del: row.id, was }); } });
     if (isLead(s)) add(); else needGuest(add);
   };
+  // Taking a job means you're coming (owner, 2026-09-30): it marks you Going on a plan, whatever you'd said.
+  // Undo puts your old answer back (`was`).
+  const goingWithJob = async (s) => {
+    if (!s.planned || isLead(s) || myRsvp(s) === 'going') return;
+    must(await sb.from('rsvps').upsert({ spark_id: s.id, user_id: state.me, status: 'going' }, { onConflict: 'spark_id,user_id' }));
+  };
   const toggleClaim = (s, it) => {
-    const mine = it.claims.some(c => c.userId === state.me);
+    const mine = it.claims.some(c => c.userId === state.me), was = myRsvp(s);
     needGuest(() => run(async () => {
       await saveGuestContact(s.id);
       if (mine) must(await sb.from('signup_claims').delete().eq('item_id', it.id).eq('user_id', state.me));
-      else must(await sb.from('signup_claims').insert({ item_id: it.id, user_id: state.me }));
-    }).then(ok => { if (ok) { if (mine) offIt(s, jobOf(s, it)); else onItBanner(s, { items: [it.id] }); } }));
+      else { must(await sb.from('signup_claims').insert({ item_id: it.id, user_id: state.me })); await goingWithJob(s); }
+    }).then(ok => { if (ok) { if (mine) offIt(s, jobOf(s, it)); else onItBanner(s, { items: [it.id], was }); } }));
   };
   // Pick a shift: tick any shifts (more than one is fine), an optional note, Done
   const openShifts = (s, job) => needGuest(() => {
@@ -1243,18 +1254,18 @@
     setState({ shiftPick: { id: s.id, job: job.id, sel: mine, note: c ? c.note : '' } });
   });
   const saveShifts = (s, job) => {
-    const p = state.shiftPick, had = myShiftIds(job), sel = p.sel, note = (p.note || '').trim().slice(0, 60) || null;
+    const p = state.shiftPick, had = myShiftIds(job), sel = p.sel, was = myRsvp(s), note = (p.note || '').trim().slice(0, 60) || null;
     const add = sel.filter(id => had.indexOf(id) < 0), drop = had.filter(id => sel.indexOf(id) < 0), keep = had.filter(id => sel.indexOf(id) > -1);
     const noteChanged = keep.some(id => { const u = job.shifts.find(x => x.id === id), c = u && u.claims.find(x => x.userId === state.me); return c && (c.note || null) !== note; });
     if (!add.length && !drop.length && !noteChanged) return setState({ shiftPick: null });
     run(async () => {
       await saveGuestContact(s.id);
       if (drop.length) must(await sb.from('signup_claims').delete().in('item_id', drop).eq('user_id', state.me));
-      if (add.length) must(await sb.from('signup_claims').insert(add.map(id => ({ item_id: id, user_id: state.me, note }))));
+      if (add.length) { must(await sb.from('signup_claims').insert(add.map(id => ({ item_id: id, user_id: state.me, note })))); await goingWithJob(s); }
       if (keep.length && noteChanged) must(await sb.from('signup_claims').update({ note }).in('item_id', keep).eq('user_id', state.me));
     }, { shiftPick: null }).then(ok => {
       if (!ok) return;
-      if (add.length) onItBanner(s, { items: add, back: drop, note });   // Undo takes back only this change: the new shifts go, dropped ones return
+      if (add.length) onItBanner(s, { items: add, back: drop, note, was });   // Undo takes back only this change: the new shifts go, dropped ones return
       else if (drop.length) offIt(s, job);
     });
   };
@@ -1511,7 +1522,7 @@
 
   const GOOGLE_ON = !!CFG.googleSignIn;
   const RESUME_KEY = 'spark-hub-google-resume';
-  const DRAFT_KEYS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'locText', 'locPlace', 'evBits', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evGroups', 'coverPos', 'evPhotoPath', 'evDraftId'];
+  const DRAFT_KEYS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'locText', 'locPlace', 'evBits', 'evNeed', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evGroups', 'coverPos', 'evPhotoPath', 'evDraftId'];
   const readResume = () => {
     try {
       const r = JSON.parse(sessionStorage.getItem(RESUME_KEY));
@@ -2202,34 +2213,47 @@
   // What the lead should do next (the prototype's ownActs). Invites are share links, so nothing counts
   // them: no "N haven't replied · Nudge" or "No one invited yet" (HANDOFF §1 #4).
   const ownActs = (s) => {
-    const ph = phaseOf(s), dd = daysTo(s), out = [];
-    const review = (who, kind, word) => out.push({ act: firstName(who) + '’s ' + (kind === 'spot' ? 'spot idea' : kind === 'day' ? word + ' idea' : 'idea'), cta: 'Review' });
-    if (ph === 'idea') {
-      const p = s.pending[0], top = s.dateOpts.slice().sort((a, b) => b.votes.length - a.votes.length)[0], other = s.spotOpts.find(o => o.createdBy !== state.me);
-      if (p) review(nameOf(p.userId, p.who), p.kind, 'date');
-      else if (!s.spot && other) review(other.who, 'spot');
-      if (!s.dayDate && top && top.votes.length) out.push({ act: monthDay(top.dayDate) + ' has ' + top.votes.length + (top.votes.length === 1 ? ' vote' : ' votes'), cta: 'Pick date' });
-      else if (!s.dayDate) out.push({ act: 'No date yet', cta: 'Add date' });
-      if (!s.spot) out.push({ act: 'No location yet', cta: 'Add spot' });
-      if (!s.signups.length) out.push({ act: 'No roles yet', cta: 'Add roles' });
-      if (!out.length) out.push({ act: 'Everything’s ready', cta: 'Make it a plan' });
+    const ph = phaseOf(s), out = [];
+    // Each to-do's button does its job (owner, 2026-09-30); `go` runs it, the row itself still opens the event
+    const onPage = (fn) => () => { openSpark(s); setTimeout(fn, 0); };
+    if (ph === 'idea') {   // only the next step
+      const top = s.dateOpts.slice().sort((a, b) => b.votes.length - a.votes.length)[0];
+      if (!s.dayDate && top && top.votes.length) return [{ act: monthDay(top.dayDate) + ' has ' + top.votes.length + (top.votes.length === 1 ? ' vote' : ' votes'), cta: 'Pick', go: () => openToSection(s, 'sec-dates') }];
+      if (!s.dayDate) return [{ act: 'Pick a date to make it a plan', cta: 'Add date', go: () => openToSection(s, 'sec-dates') }];
+      return [{ act: 'It has a date', cta: 'Make it a plan', go: onPage(() => makePlan(s)) }];
+    }
+    if (ph === 'done') {
+      const helpers = helperIds(s);
+      out.push({ act: 'Add photos', cta: 'Add', go: () => openSpark(s) });
+      if (helpers.length) out.push({ act: 'Thank ' + (helpers.length === 1 ? firstName(personName(s, helpers[0])) : 'your ' + helpers.length + ' helpers'), cta: 'Thank', go: () => setState({ blast: { id: s.id, to: 'all', text: thanksText(s, helpers) } }) });
       return out;
     }
-    if (ph === 'done') return [{ act: 'Say thanks', cta: 'Thank' }, { act: 'Add photos', cta: 'Add' }];
-    const f = signupFill(s);
-    if (dd === 0) out.push({ act: 'Post an update', cta: 'Post' });
-    if (dd === 1 && !s.autoRemind) out.push({ act: 'Send a reminder', cta: 'Send' });
-    s.pending.slice(0, 1).forEach(p => review(nameOf(p.userId, p.who), p.kind, 'time'));
-    if (!s.dayDate) out.push({ act: dateTbd(s), cta: s.dateOpts.length ? 'Pick' : 'Add it' });
-    if (!s.spot) out.push({ act: spotTbd(s), cta: s.spotOpts.length ? 'Pick' : 'Add it' });
-    if (f.open > 0) out.push({ act: f.open + (f.open === 1 ? ' spot open' : ' spots open'), cta: 'Share list' });
+    const f = signupFill(s), sug = s.spotOpts.filter(o => o.createdBy !== state.me);
+    if (!s.dayDate) out.push({ act: dateTbd(s), cta: s.dateOpts.length ? 'Pick' : 'Add it', go: s.dateOpts.length ? () => openToSection(s, 'sec-when') : onPage(() => openSec(s, 'when')) });
+    if (!s.spot && sug.length) out.push({ act: firstName(sug[0].who || 'Someone') + ' suggested a spot', cta: 'Review', go: () => openToSection(s, 'sec-when') });
+    else if (!s.spot) out.push({ act: spotTbd(s), cta: s.spotOpts.length ? 'Pick' : 'Add it', go: s.spotOpts.length ? () => openToSection(s, 'sec-when') : onPage(() => openSec(s, 'when')) });
+    if (f.open > 0) out.push({ act: f.open + (f.open === 1 ? ' spot open' : ' spots open'), cta: 'Share list', go: () => shareOpenJobs(s) });
     return out;
+  };
+  // Everyone who took a job (not the host), for "Thank helpers"
+  const helperIds = (s) => [].concat(...s.signups.map(it => it.claims.map(c => c.userId))).filter((u, i, a) => u !== s.leadId && a.indexOf(u) === i);
+  const thanksText = (s, ids) => 'Thank you ' + namesList(ids.map(u => firstName(personName(s, u)))) + ' for helping make ' + s.text + ' happen!';
+  // The share sheet with a message naming the open jobs
+  const shareOpenJobs = (s) => {
+    const open = (s.jobs || s.signups).map(j => {
+      const units = j.shifts || [j], left = units.reduce((a, u) => a + (u.need ? Math.max(0, u.need - u.claims.length) : 0), 0);
+      return left ? j.item + (left > 1 ? ' (' + left + ')' : '') : '';
+    }).filter(Boolean);
+    setState({ share: { id: s.id, copied: false, msg: s.text + (s.dayDate ? ' · ' + dayLabel(s.dayDate, s.dayTime, s.dayEnd) : '') + ' still needs: ' + open.join(', ') + '. Can you grab one?' } });
   };
   // What someone going, maybe, or signed up for (not leading) should keep in mind
   const helpActs = (s) => {
-    const my = myRsvp(s), out = [];
-    if (!my) out.push({ act: 'Confirm RSVP', cta: 'RSVP' });
-    if (my === 'maybe') out.push({ act: 'You said maybe', cta: 'Update RSVP' });
+    const my = myRsvp(s), out = [], dd = daysTo(s);
+    // A date, time or place change in the last 3 days, in amber (its update is the record of it)
+    const moved = s.updates.find(u => /^New (date|time|location):/.test(u.body) && Date.now() - u.created < 3 * DAY_MS);
+    if (moved) out.push({ act: moved.body.split(' · ')[0].replace(/^New date: /, 'Moved to ').replace(/^New time: /, 'New time: ').replace(/^New location: /, 'Now at '), cta: 'See', warn: true, go: () => openToSection(s, 'sec-when') });
+    // Taking a job marks you Going, so there's no "Confirm RSVP"; a Maybe gets a nudge only in the last 3 days
+    if (my === 'maybe' && dd != null && dd <= 3) out.push({ act: 'You said Maybe', cta: 'Update RSVP', go: () => openSpark(s) });
     // Only what you signed up for (owner, 2026-09-29): no location or countdown rows
     myClaims(s).forEach(it => out.push({ act: it.item, cta: spanTime(it) || fmtTime(s.dayTime) || 'Any time', time: true }));
     return out;
@@ -2250,13 +2274,12 @@
   };
   const tasksBadge = () => { if (!state.email || !state.loaded) return 0; const d = tasksData(); return d.plans.length + d.help.length; };
 
-  // Leading plans: Going · Maybe · Sign-ups · Reminder (Maybe in place of Invited: invites aren't counted)
+  // Leading plans: Going · Maybe · Sign-ups (Maybe in place of Invited: invites aren't counted)
   const statsStrip = (s) => {
-    const g = going(s).length, m = maybes(s).length, f = signupFill(s), dd = daysTo(s);
+    const g = going(s).length, m = maybes(s).length, f = signupFill(s);
     const col = { ok: '#454b55', warn: '#b07a0a', off: '#9aa0ac' };
     const items = [['people', 'Going', String(g), 'ok'], ['maybe', 'Maybe', String(m), 'ok'],
-      ['clip', 'Sign-ups', f.counted ? f.filled + '/' + f.needed : '—', !f.counted ? 'off' : f.open <= 0 ? 'ok' : 'warn'],
-      ['bell', 'Reminder', dd != null && dd <= 0 ? 'Sent' : s.autoRemind ? (s.dayDate ? monthDay(isoAdd(s.dayDate, -1)) : '—') : 'Off', s.autoRemind || (dd != null && dd <= 0) ? 'ok' : 'warn']];
+      ['clip', 'Sign-ups', f.counted ? f.filled + '/' + f.needed : '—', !f.counted ? 'off' : f.open <= 0 ? 'ok' : 'warn']];   // no Reminder: it's automatic (owner, 2026-09-30)
     return '<div style="display:flex;align-items:center;justify-content:space-between;height:40px;padding:0 30px;border-top:1px solid #f2f3f6;background:#fafafb">' +
       items.map(([k, label, v, c]) => '<span aria-label="' + label + ': ' + esc(v) + '" style="display:flex;align-items:center;gap:5px;font-size:13px;font-weight:800;color:' + col[c] + '">' + ic6(k, 14) + esc(v) + '</span>').join('') + '</div>';
   };
@@ -2264,9 +2287,9 @@
   // To-do rows: a role dot, the text, a pill (or a sign-up's time as plain text)
   const actRow = (a, R) => '<div style="display:flex;align-items:center;gap:10px;min-height:46px;padding:9px 12px;border-top:1px solid #f2f3f6">' +
     '<span style="flex:0 0 7px;width:7px;height:7px;border-radius:999px;background:' + R.dot + '"></span>' +
-    '<span style="flex:1 1 0;min-width:0;font-size:14.5px;line-height:1.3;font-weight:700;color:#2a2f38;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(a.act) + '</span>' +
+    '<span style="flex:1 1 0;min-width:0;font-size:14.5px;line-height:1.3;font-weight:' + (a.warn ? 800 : 700) + ';color:' + (a.warn ? '#8f6405' : '#2a2f38') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(a.act) + '</span>' +
     (a.time ? '<span style="flex:0 0 auto;font-size:13.5px;font-weight:800;color:' + R.ink + '">' + esc(a.cta) + '</span>'
-      : '<span style="flex:0 0 auto;display:flex;align-items:center;min-height:28px;padding:0 11px;border-radius:999px;background:' + R.pill + ';color:' + R.ink + ';font-size:13px;font-weight:800;white-space:nowrap">' + esc(a.cta) + '</span>') + '</div>';
+      : '<span ' + (a.go ? on((e) => { stop(e); a.go(); }) + ' ' : '') + 'data-todo-cta style="flex:0 0 auto;display:flex;align-items:center;min-height:28px;padding:0 11px;border-radius:999px;background:' + R.pill + ';color:' + R.ink + ';font-size:13px;font-weight:800;white-space:nowrap' + (a.go ? ';cursor:pointer' : '') + '">' + esc(a.cta) + '</span>') + '</div>';
   // Two rows, then "+N more ⌄"; a tap anywhere here expands them in place (with two or fewer, it opens the event)
   const actBlock = (s, acts, R, key) => {
     const open = !!state[key][s.id], shown = open || acts.length <= 2 ? acts : acts.slice(0, 2);
@@ -2295,17 +2318,15 @@
       '<div style="font-size:11px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;color:' + (s.planned && !s.dayDate ? TBD_ON_PHOTO : R.kick) + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(when6(s)) + '</div>' +
     '</div></div>';
 
-  // An idea's four checkpoints: Date · Location · Roles→Helpers · People
+  // An idea's steps, the same everywhere (owner, 2026-09-30): Date · Location · Details, and People when the host
+  // set how many they need. Only the date is needed to make it a plan.
   const ideaSteps6 = (s) => {
-    const n = s.interested.length, top = s.dateOpts.reduce((m, o) => Math.max(m, o.votes.length), 0), rows = s.signups;
-    const slots = rows.reduce((a, r) => a + (r.need || 1), 0), filled = rows.reduce((a, r) => a + Math.min(r.need || 1, r.claims.length), 0);
-    const roles = rows.length > 0;
+    const n = s.interested.length, top = s.dateOpts.reduce((m, o) => Math.max(m, o.votes.length), 0);
     return [
-      { label: 'Date', icon: 'cal', p: s.dayDate ? 1 : Math.min(.9, top / Math.max(1, n)), todo: 'Pick a date', done: 'Date set', sec: 'sec-dates' },
-      { label: 'Location', icon: 'pin', p: s.spot ? 1 : (s.spotOpts.length || s.pending.some(o => o.kind === 'spot')) ? .5 : 0, todo: 'Pick a location', done: 'Location set', sec: 'sec-loc' },
-      { label: roles ? 'Helpers' : 'Roles', icon: roles ? 'clip' : 'roles', p: !roles ? 0 : filled >= slots ? 1 : .25 + .75 * (filled / slots) * .99, todo: roles ? 'Get helpers' : 'Add essential roles', done: 'Helpers on board', sec: 'sec-tasks' },
-      { label: 'People', icon: 'people', p: s.minPeople ? Math.min(1, n / s.minPeople) : Math.min(.9, n / 10), todo: 'Get more people interested', done: 'Enough people in', sec: 'sec-people' }
-    ];
+      { label: 'Date', icon: 'cal', p: s.dayDate ? 1 : top ? .5 : 0, todo: 'Pick a date', done: 'Date set', sec: 'sec-dates' },
+      { label: 'Location', icon: 'pin', p: s.spot ? 1 : s.spotOpts.length ? .5 : 0, todo: 'Pick a location', done: 'Location set', sec: 'sec-loc' },
+      { label: 'Details', icon: 'roles', p: basicsOf(s).length ? 1 : 0, todo: 'Add details', done: 'Details added', sec: 'sec-details' }
+    ].concat(s.minPeople ? [{ label: 'People', icon: 'people', p: Math.min(1, n / s.minPeople), todo: n + ' of ' + s.minPeople + ' people in', done: 'Enough people in', sec: 'sec-people' }] : []);
   };
   const ring6 = (st, size) => {
     const done = st.p >= 1, r = size * 17 / 40, C = 2 * Math.PI * r, sw = size > 34 ? 3.5 : 3;
@@ -2383,7 +2404,7 @@
       : '';
     const help = '<section aria-label="Helping" style="display:flex;flex-direction:column;gap:8px">' + secHead6(d.help.length, '#149a4b', 'Helping', d.help.length ? () => setState({ dashAll: 'help' }) : null) +
       (d.help.length ? row(d.help.map(helpCard).join(''))
-        : inviteCard(ic6('heart', 18, '#454b55', 2.4), 'Find something to help with', 'Leads in your groups need a hand. Sign up to bring something or pitch in.', () => go('calendar'))) + '</section>';
+        : inviteCard(ic6('heart', 18, '#454b55', 2.4), 'Find something to help with', 'Leads in your groups need a hand. Sign up to bring something or pitch in.', () => handList().length ? setState({ cHandSheet: true }) : go('calendar'))) + '</section>';
     const invite = d.leadsAny ? '' : '<section aria-label="Leading" style="display:flex;flex-direction:column;gap:8px">' + secHead6(0, '#5b4ae8', 'Leading') +
       inviteCard(I.plus(18, '#454b55', 2.6), 'Start an event', 'You’re not leading anything yet. Got an idea for your group?', () => goCompose()) + '</section>';
     const ideas = d.ideas.length ? '<section aria-label="Ideas" style="display:flex;flex-direction:column;gap:8px">' + secHead6(d.ideas.length, '#e8a71c', 'Ideas', () => setState({ dashAll: 'idea' })) +
@@ -2761,10 +2782,11 @@
   }
 
   // "Could use a hand": each event's open roles, with Claim
-  const claimRole = (s, it) => needGuest(() => run(async () => {
+  const claimRole = (s, it) => needGuest(() => { const was = myRsvp(s); run(async () => {
     await saveGuestContact(s.id);
     must(await sb.from('signup_claims').insert({ item_id: it.id, user_id: state.me }));
-  }).then(ok => { if (ok) onItBanner(s, { items: [it.id] }); }));
+    await goingWithJob(s);
+  }).then(ok => { if (ok) onItBanner(s, { items: [it.id], was }); }); });
   function viewHandSheet() {
     const list = handList(), close = () => setState({ cHandSheet: false });
     const card = (s) => {
@@ -3565,11 +3587,17 @@
     '<div style="width:100%;display:flex;flex-direction:column;gap:10px">' + createBtn().replace('Create an event', 'Post an event') +
       '<button type="button" class="hov-sec" ' + on(() => go('calendar')) + ' style="width:100%;min-height:52px;border:0;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;color:#0d1117;font-family:inherit;font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer">' + ic6('cal', 18, '#0d1117', 2.2) + 'View calendar</button></div>',
     'data-sched-empty');
-  const plansMore = () => '<div data-plans-more style="' + CARD + ';border-radius:20px;padding:16px;display:flex;flex-direction:column;gap:12px">' +
-    '<div style="font-size:16px;font-weight:900;color:#0d1117">What else could happen?</div>' +
-    '<div style="display:flex;flex-wrap:wrap;gap:8px">' + ['Taco night?', 'Park hang', 'Board games'].map(c => '<span ' + on(() => goCompose({ activity: c.replace(/\?$/, '') })) +
-      ' class="hov-chip" style="display:flex;align-items:center;height:36px;padding:0 14px;border-radius:999px;background:#f2f3f6;font-size:14px;font-weight:800;color:#0d1117;cursor:pointer">' + c + '</span>').join('') + '</div>' +
-    createBtn() + '</div>';
+  // Under a group's plans: its own past events to run again (owner, 2026-09-30: not made-up suggestions), then Create an event
+  const plansMore = () => {
+    const seen = {}, past = visible('done').slice().sort((a, b) => String(b.dayDate).localeCompare(String(a.dayDate)))
+      .filter(s => { const k = s.text.toLowerCase(); if (seen[k]) return false; seen[k] = 1; return true; }).slice(0, 3);
+    return '<div data-plans-more style="' + CARD + ';border-radius:20px;padding:16px;display:flex;flex-direction:column;gap:12px">' +
+      (past.length ? '<div style="font-size:16px;font-weight:900;color:#0d1117">Do it again?</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:8px">' + past.map(p => '<span ' + on(() => needSignIn(() => doItAgain(p), 'post')) + ' data-again="' + esc(p.text) + '"' +
+          ' class="hov-chip" style="display:flex;align-items:center;gap:6px;height:36px;padding:0 14px;border-radius:999px;background:#f2f3f6;font-size:14px;font-weight:800;color:#0d1117;cursor:pointer">' +
+          svg(13, stroke('#5b4ae8', 2.6), '<path d="M4 12a8 8 0 0 1 13.7-5.6L20 8.5M20 4v4.5h-4.5M20 12a8 8 0 0 1-13.7 5.6L4 15.5M4 20v-4.5h4.5"/>') + esc(p.text) + '</span>').join('') + '</div>' : '') +
+      createBtn() + '</div>';
+  };
 
   // Search inside one group: Browse chips, "Or something unexpected", live results
   const openGroupSearch = () => { setState({ gSearch: true, menu: null }); setTimeout(() => { const f = document.querySelector('[data-csearch]'); if (f) f.focus(); }, 30); };
@@ -3739,7 +3767,7 @@
         datesBoard(s) + spotsBoard(s) + signupsCard(s) +
         (lead ? '' : organizerCard(s)) +
 
-        '<div style="' + CARD + ';padding:18px 16px;display:flex;flex-direction:column;gap:10px">' +
+        '<div id="sec-details" style="' + CARD + ';padding:18px 16px;display:flex;flex-direction:column;gap:10px">' +
           '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px">' +
             '<span style="' + EYEBROW + '">Basic details</span>' +
             (canEdit(s) && basicsOf(s).length ? '<span ' + on(() => openSec(s, 'details')) + ' style="font-size:13.5px;font-weight:800;color:#5b4ae8;cursor:pointer">Edit</span>' : '') +
@@ -3812,7 +3840,7 @@
 
   // Date → Location → Details → Plan, in the idea's gold strip
   const ideaBanner = (s) => {
-    const steps = [['Date', !!s.dayDate], ['Location', !!s.spot], ['Details', basicsOf(s).length > 0]]
+    const steps = [['Date', !!s.dayDate], ['Location', !!s.spot], ['Details', basicsOf(s).length > 0]].concat(s.minPeople ? [['People', s.interested.length >= s.minPeople]] : [])
       .map((x, i) => x.concat(i)).sort((a, b) => (b[1] - a[1]) || (a[2] - b[2]));
     const line = '<span style="flex:1;height:3px;margin-top:7.5px;border-radius:999px;background:rgba(61,42,0,.2)"></span>';
     const step = ([label, met]) => '<div style="flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:3px;width:52px">' +
@@ -4036,7 +4064,7 @@
   const openSec = (s, kind) => {
     const bits = basicsOf(s).slice(0, 3).map(b => b.slice(0, 40));
     while (bits.length < 3) bits.push('');
-    setState({ sec: { id: s.id, kind, title: s.text, photo: null, d: s.dayDate || '', t: s.dayTime || '', e: s.dayEnd || '', bits, priv: s.visibility === 'invite', groups: gIds(s).slice() },
+    setState({ sec: { id: s.id, kind, title: s.text, photo: null, d: s.dayDate || '', t: s.dayTime || '', e: s.dayEnd || '', bits, need: s.minPeople || null, priv: s.visibility === 'invite', groups: gIds(s).slice() },
       offerText: kind === 'when' ? s.spot || '' : '', offerPlace: s.spot && s.spotPoint ? { name: s.spot, address: s.spotAddress, lat: s.spotPoint[0], lon: s.spotPoint[1] } : null, offerSuggest: [], timeOpen: null, menu: null });
   };
   // Round 65a: what an edit tells people. A new date, time or place always goes out; a new title or
@@ -4093,7 +4121,7 @@
     if (ss.kind === 'details') {
       const hopes = ss.bits.map(b => b.trim().slice(0, 40)).filter(Boolean);
       run(async () => {
-        if (lead) must(await sb.from('sparks').update({ hopes, vision: null }).eq('id', s.id));
+        if (lead) must(await sb.from('sparks').update(Object.assign({ hopes, vision: null }, s.planned ? {} : { min_people: ss.need || null })).eq('id', s.id));
         else must(await sb.rpc('admin_edit_spark', { p_spark: s.id, p_text: s.text, p_hopes: hopes }));
         if (send) await sendUpdate(s, msg);
       }, { sec: null }).then(ok => { if (ok) toast(send ? 'Saved. Everyone going gets an update.' : note, true); });
@@ -4245,7 +4273,8 @@
       ok = !(s.planned && !ss.d);
     } else if (ss.kind === 'details') {
       body = '<div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:14px;line-height:1.4;font-weight:500;color:#5c6270">Up to three quick notes on what to expect or the vibe.</span>' +
-        bitRows(ss.bits, (k, v) => { const b = state.sec.bits.slice(); b[k] = v; set({ bits: b }); }) + '</div>';
+        bitRows(ss.bits, (k, v) => { const b = state.sec.bits.slice(); b[k] = v; set({ bits: b }); }) +
+        (!s.planned && isLead(s) ? needRow(ss.need, (n) => set({ need: n })) : '') + '</div>';
     } else {
       const tile = (priv, name, sub) => { const onIt = ss.priv === priv;
         return '<div ' + on(() => set({ priv }), 'radio') + ' aria-checked="' + onIt + '" style="flex:1 1 0;display:flex;flex-direction:column;gap:4px;padding:12px;border-radius:14px;cursor:pointer;' + (onIt ? 'background:#f3f1fe;box-shadow:inset 0 0 0 2px #5b4ae8' : 'background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6') + '">' +
@@ -4298,7 +4327,7 @@
     const sh = state.share, s = state.sparks.find(x => x.id === sh.id);
     if (!s) return '';
     const close = () => setState({ share: null }), link = location.origin + '/i/' + s.id;
-    const msg = s.text + (s.dayDate ? ' · ' + dayLabel(s.dayDate, s.dayTime, s.dayEnd) : '') + '. RSVP here: ' + link;
+    const msg = sh.msg ? sh.msg + ' ' + link : s.text + (s.dayDate ? ' · ' + dayLabel(s.dayDate, s.dayTime, s.dayEnd) : '') + '. RSVP here: ' + link;
     const btn = (label, href, icon) => '<a href="' + esc(href) + '" target="_blank" rel="noopener noreferrer" aria-label="' + label + '" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 4px;border-radius:16px;background:#f7f8fa;text-decoration:none">' +
       '<span style="width:46px;height:46px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.1);display:flex;align-items:center;justify-content:center">' + svg(22, stroke('#5b4ae8', 2.1), icon) + '</span></a>';
     const more = () => { if (navigator.share) navigator.share({ title: s.text, text: msg, url: link }).catch(() => {}); else copy(msg, 'Invite copied. Paste it anywhere.'); };
@@ -4373,8 +4402,8 @@
       // With a poll running, go to its votes and Pick buttons (the pop-up's plain field would throw the poll away)
       !s.dayDate ? [{ item: s.dateOpts.length ? 'Pick the winning date' : 'Pick a date', act: () => s.dateOpts.length ? openToSection(s, 'sec-when') : openSec(s, 'when') }] : [],
       !s.spot ? [{ item: s.spotOpts.length ? 'Pick the winning spot' : 'Pick a location', act: () => s.spotOpts.length ? openToSection(s, 'sec-when') : openSec(s, 'when') }] : [],
-      !basicsOf(s).length ? [{ item: 'Add basic details', act: () => openSec(s, 'details') }] : [],
-      f.open > 0 ? [{ item: 'Fill open spots', meta: f.open + ' open', act: () => openToSection(s, 'sec-tasks') }] : [],
+      // Details are optional, so no task for them; open spots open the share sheet with the jobs named (owner, 2026-09-30)
+      f.open > 0 ? [{ item: 'Fill open spots', meta: f.open + ' open', act: () => shareOpenJobs(s) }] : [],
       myJobs.map(j => ({ item: j.item, meta: myTime(j) })));
     const tKey = (lead ? 'h:' : '') + s.id, tOpen = !!st.jobsOpen[tKey];
     const T = lead ? { bar: '#f5f3fe', ink: '#4a3ad4', dot: '#7b6ef0', line: '#e6e1fc', word: 'Your tasks' } : { bar: '#fefaef', ink: '#8f6405', dot: '#e8a71c', line: '#f3e2ad', word: 'You’re helping' };
@@ -4409,10 +4438,7 @@
         '<button type="button" class="hov-primary" ' + on(() => setState({ invite: { id: s.id } })) + ' style="min-height:50px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:15.5px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;box-shadow:0 8px 20px rgba(91,74,232,.28)">' + I.plus(16, '#fff', 2.5) + 'Invite people</button>' +
         '<button type="button" class="hov-outline" ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' style="min-height:50px;border:1.5px solid #dcdfe6;border-radius:999px;background:#fff;color:#0d1117;font-family:inherit;font-size:15.5px;font-weight:800;cursor:pointer">Share link</button>' +
       '</div></div>';
-    const missing = (s.dayDate ? 0 : 1) + (s.spot ? 0 : 1);
-    const tbdBanner = lead && missing ? '<div ' + on(() => openSec(s, 'when')) + ' data-tbd style="cursor:pointer;display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:16px;background:#fef7dd;box-shadow:inset 0 0 0 1.5px #e3c979">' +
-      svg(16, stroke(AMBER_INK, 2.2) + ' style="flex:0 0 16px"', P5.clock) + '<span style="flex:1;font-size:14px;line-height:1.35;font-weight:700;color:' + AMBER_INK + '">' +
-      (missing === 1 ? '1 thing left to decide. Add it whenever you’re ready.' : missing + ' things left to decide. Add them whenever you’re ready.') + '</span>' + I.chevR(14, AMBER_INK, 2.6) + '</div>' : '';
+    // (The gold "N things left to decide" banner is gone: the host's tasks bar lists them, owner 2026-09-30)
     const visRow = !lead ? '' : '<div data-vis style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:18px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08)">' +
       '<span style="flex:0 0 36px;width:36px;height:36px;border-radius:11px;background:#f3f1fe;color:#5b4ae8;display:flex;align-items:center;justify-content:center">' + svg(18, stroke('currentColor', 2.2), s.visibility === 'invite' ? LOCK_IC : PEOPLE_IC) + '</span>' +
       '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">' + (s.visibility === 'invite' ? 'Private' : 'Public') + '</div><div style="font-size:13px;font-weight:600;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(namesList(gIds(s).map(id => (groupById(id) || {}).name).filter(Boolean))) + '</div></div>' +
@@ -4442,7 +4468,6 @@
         guests +
         pendingCard(s) +
         rsvpBlock +
-        tbdBanner +
         whenWhereCard(s) +
         basicDetailsSec(s) +
         (s.updates.length ? '<section>' + secTitle('Updates') + sheetCard(
@@ -4764,7 +4789,7 @@
   const EV_TIMES = TIME_OPTS.map(o => o[0]).filter(v => v >= '06:00');   // every 30 min, 6:00am–11:30pm
   const EV_STEPS = ['title', 'when', 'where', 'details', 'help'];
   const EV_NAMES = { title: 'Event title', when: 'Date & time', where: 'Location', details: 'Basic details', help: 'How people can help', review: 'Review' };
-  const BIT_PH = ['e.g. Let’s all catch up!', 'e.g. Coffee and donuts at 9:30', 'e.g. Kids and dogs welcome'];
+  const BIT_PH = ['e.g. Meet by the front desk', 'e.g. Coffee and donuts at 9:30', 'e.g. Kids and dogs welcome'];
   const EV_GRAD = 'linear-gradient(135deg,#5b4ae8,#8a6ff0 55%,#e8a71c)';
   const AMBER_INK = '#8f6405';
   const BIG = 'display:block;box-sizing:border-box;width:100%;min-width:0;min-height:58px;margin:0;border:2px solid #dcdfe6;border-radius:16px;padding:0 16px;font-family:inherit;font-size:17px;font-weight:800;color:#0d1117;background:#fff;outline:none';
@@ -4883,7 +4908,7 @@
           photos: cover ? [cover.path] : [], cat: 'events', answers: {}, lead_id: st.me, lead_name: st.myName, created_by: st.me,
           spot, spot_open: !spot, spot_address: place ? place.address : null, spot_lat: place ? place.lat : null, spot_lon: place ? place.lon : null,
           day_date: st.evDate || null, day_time: st.evDate && st.evTime ? st.evTime : null, day_end: st.evDate && st.evTime && st.evEnd ? st.evEnd : null,
-          planned: dated, visibility: st.evPriv ? 'invite' : 'group',
+          planned: dated, visibility: st.evPriv ? 'invite' : 'group', min_people: dated ? null : st.evNeed || null,
           cover_pos: cover && st.coverPos ? posOf(st.coverPos, IDEA_POS) : null
         };
         try {
@@ -4918,7 +4943,7 @@
   };
 
   // Drafts: the flow's own fields, saved to your account (only you see them)
-  const DRAFT_FIELDS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'locText', 'locPlace', 'evBits', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evGroups', 'coverPos'];
+  const DRAFT_FIELDS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'locText', 'locPlace', 'evBits', 'evNeed', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evGroups', 'coverPos'];
   const saveDraft = () => {
     const st = state;
     if (st.busy) return;
@@ -4954,7 +4979,7 @@
       activity: str(x.activity).slice(0, 40), evStep: EV_STEPS.concat('review').indexOf(x.evStep) > -1 ? x.evStep : 'title',
       evDate: /^\d{4}-\d{2}-\d{2}$/.test(x.evDate || '') ? x.evDate : '', evTime: str(x.evTime), evEnd: str(x.evEnd), evEndOn: !!x.evEndOn,
       locText: str(x.locText).slice(0, 80), locPlace: x.locPlace && typeof x.locPlace === 'object' ? x.locPlace : null,
-      evBits: [0, 1, 2].map(i => str((x.evBits || [])[i]).slice(0, 40)), evNeeds: arr(x.evNeeds) || [],
+      evBits: [0, 1, 2].map(i => str((x.evBits || [])[i]).slice(0, 40)), evNeed: Number.isInteger(x.evNeed) && x.evNeed > 0 ? Math.min(x.evNeed, 99) : null, evNeeds: arr(x.evNeeds) || [],
       evDatePoll: arr(x.evDatePoll), evSpotPoll: arr(x.evSpotPoll), evLater: x.evLater && typeof x.evLater === 'object' ? x.evLater : {},
       evPriv: !!x.evPriv, evGroups: arr(x.evGroups), coverPos: x.coverPos || null,
       evPhotoPath: PHOTO_PATH.test(x.evPhoto || '') ? x.evPhoto : null, evDraftId: d.id
@@ -5016,11 +5041,19 @@
       : (st.evSpotPoll ? st.evSpotPoll.map(r => Object.assign({}, r)) : [{ v: cleanTitle(st.locText) }, { v: '' }]);
     setState({ pollSheet: { kind, rows }, timeOpen: null });
   };
+  // "How many do you need?" (optional; an idea's People step fills against it)
+  const needRow = (n, set) => '<div data-need-people style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:16px;background:#fff;box-shadow:inset 0 0 0 2px #dcdfe6">' +
+    '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">How many do you need?</div>' +
+      '<div style="font-size:12.5px;font-weight:600;color:#6b7280">' + (n ? 'It’s a go once ' + n + (n === 1 ? ' person is' : ' people are') + ' in. <span ' + on(() => set(null)) + ' style="color:#5b4ae8;font-weight:800;cursor:pointer">No minimum</span>' : 'Optional') + '</div></div>' +
+    stepper(n, set, 'how many people needed') + '</div>';
   const bitRows = (bits, set) => bits.map((v, k) => '<label style="display:flex;align-items:center;gap:10px;min-height:58px;padding:0 16px;border-radius:16px;background:#fff;box-shadow:inset 0 0 0 2px #dcdfe6;cursor:text">' +
     '<span aria-hidden="true" style="flex:0 0 7px;width:7px;height:7px;border-radius:999px;background:' + (v.trim() ? '#0f7a3c' : '#c9ccd3') + '"></span>' +
     '<input class="bit-fld" type="text" maxlength="40" aria-label="Basic details, line ' + (k + 1) + '" placeholder="' + esc(BIT_PH[k]) + '" value="' + esc(v) + '" ' + onInput(e => { if (e.type === 'input') set(k, e.target.value.slice(0, 40)); }) +
       ' style="flex:1 1 auto;min-width:0;border:0;padding:0;background:transparent;font-family:inherit;font-size:17px;font-weight:800;color:#0d1117;outline:none">' +
     (v.length ? '<span style="font-size:11.5px;font-weight:700;color:#9aa0ac">' + v.length + '/40</span>' : '') + '</label>').join('');
+  // A starter chip leaves just its verb ("Bring "): Save waits for what (owner, 2026-09-30)
+  const JOB_VERBS = ['bring', 'set up', 'help with', 'clean up'];
+  const jobNamed = (item) => { const t = cleanTitle(item || ''); return !!t && JOB_VERBS.indexOf(t.toLowerCase()) < 0; };
   const blankJob = (item) => ({ item: item || '', desc: '', time: '', need: 1, shifts: null });
   const openJob = (i, row) => {
     setState({ needSheet: { i, row } });
@@ -5119,17 +5152,15 @@
           '<div style="padding:0 16px">' + orLine() + pollRow(() => openPoll('where')) + '</div>');
     } else if (cur === 'details') {
       body = head('Basic details', 'Up to three quick notes on what to expect or the vibe.') +
-        '<div style="padding:12px 16px 0;display:flex;flex-direction:column;gap:8px">' + bitRows(st.evBits, (k, v) => { const b = state.evBits.slice(); b[k] = v; setState({ evBits: b }); }) + '</div>';
+        '<div style="padding:12px 16px 0;display:flex;flex-direction:column;gap:8px">' + bitRows(st.evBits, (k, v) => { const b = state.evBits.slice(); b[k] = v; setState({ evBits: b }); }) +
+          (st.evDate ? '' : needRow(st.evNeed, (n) => setState({ evNeed: n }))) + '</div>';   // no date: it goes up as an idea, which can say how many it needs
     } else if (cur === 'help') {
       const chip = (label, fn, dashed) => '<span ' + on(fn) + ' style="display:flex;align-items:center;gap:5px;min-height:38px;padding:0 13px;border-radius:999px;font-size:14px;font-weight:800;cursor:pointer;' +
         (dashed ? 'border:1.5px dashed #b9bcc4;color:#454b55' : 'background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;color:#0d1117') + '"><span style="color:#5b4ae8;font-size:16px;line-height:1">+</span>' + label + '</span>';
-      const eg = (t) => '<span style="display:flex;align-items:center;gap:9px;font-size:14.5px;font-weight:600;font-style:italic;color:#6b7280"><span style="flex:0 0 5px;width:5px;height:5px;border-radius:999px;background:#b9bcc4"></span>' + t + '</span>';
       body = head('How people can help', 'Jobs to do or things to bring.') +
         '<div style="padding:12px 16px 0;display:flex;flex-wrap:wrap;gap:6px">' +
           [['Bring', 'Bring '], ['Set up', 'Set up '], ['Help with', 'Help with '], ['Clean up', 'Clean up ']].map(([l, p]) => chip(l, () => openJob(null, blankJob(p)))).join('') +
           chip('Something else', () => openJob(null, blankJob('')), true) + '</div>' +
-        (st.evNeeds.length ? '' : '<div style="margin:14px 16px 0;padding:12px 14px;border-radius:14px;background:rgba(255,255,255,.55);display:flex;flex-direction:column;gap:6px"><span style="font-size:11.5px;font-weight:800;letter-spacing:1.1px;color:#8a909b">FOR EXAMPLE</span>' +
-          eg('Bring a folding table') + eg('Set up the grill') + eg('Help with parking') + eg('Clean up the yard') + '</div>') +
         '<div style="padding:12px 14px 0;display:flex;flex-direction:column;gap:8px">' + st.evNeeds.map((j, k) => {
           const edit = () => openJob(k, JSON.parse(JSON.stringify(j)));
           return '<div data-job="' + esc(cleanTitle(j.item)) + '" style="background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08);padding:12px 8px 12px 14px;display:flex;align-items:center;gap:8px">' +
@@ -5223,7 +5254,7 @@
         setState({ evNeeds: list, needSheet: null });
       };
       return sheet('Add a job', close, SHEET_PAD,
-        sheetHead('How people can help', ns.i != null ? 'Edit job' : 'Add a job', '', close) + jobFields(r, set) + saveBtn(!!cleanTitle(r.item), save), 36);
+        sheetHead('How people can help', ns.i != null ? 'Edit job' : 'Add a job', '', close) + jobFields(r, set) + saveBtn(jobNamed(r.item), save), 36);
     }
     if (st.evLeave) {
       const close = () => setState({ evLeave: false });
