@@ -85,7 +85,7 @@
   };
   let lastPrefs = '';
   const savePrefs = () => {
-    const next = JSON.stringify({ groupId: state.groupId, view: state.view, homeView: state.homeView, cView: state.cView, sort: state.sort, guestName: state.guestName, guestPhone: state.guestPhone, pastStatsHidden: state.pastStatsHidden, jobsOpen: state.jobsOpen });
+    const next = JSON.stringify({ groupId: state.groupId, view: state.view, homeView: state.homeView, cView: state.cView, sort: state.sort, guestName: state.guestName, pastStatsHidden: state.pastStatsHidden, jobsOpen: state.jobsOpen });
     if (next === lastPrefs) return;
     lastPrefs = next;
     try { localStorage.setItem(PREFS_KEY, next); } catch (e) { /* storage blocked: conveniences only */ }
@@ -197,7 +197,7 @@
     resent: false, mergeToken: null, googleFailed: false,
     nameAsk: null, nameText: '',
     guestOpen: false, guestThen: null, guest: null,
-    guestName: prefs.guestName || '', guestPhone: prefs.guestPhone || '',
+    guestName: prefs.guestName || '',
     offerKind: null, offerText: '', offerPlace: null, offerSuggest: [],
     joinOpen: false, joinCode: '', joinBad: false,
     notif: { allReadAt: 0, read: [], topics: {}, email: true, loaded: false }, nFilter: 'all', nSettings: false, demoAdmin: false, back: null, myPlace: '', myBio: '', memberSince: null, ownGrp: null, sizes: {}, membersQ: '', gpRename: null, gpDel: null, ph: null,
@@ -672,15 +672,28 @@
 
   const needSignIn = (fn, from) => { if (state.email) fn(); else openLogin(from, fn); };
   const needName = (fn) => { if (state.myName) fn(); else setState({ nameAsk: fn, nameText: '' }); };
-  // Guests (not signed in) leave a name and number once per visit so the lead can reach them
+  // Guests (not signed in) can only RSVP, with a name (owner, 2026-10-01). They give it once; it's kept on their
+  // profile, so the next RSVP on this device doesn't ask again. The database refuses a guest's RSVP without it.
   const needGuest = (fn) => {
     if (state.email) { needName(fn); return; }
     if (state.guest) { fn(); return; }
-    setState({ guestOpen: true, guestThen: fn, guestName: state.guestName || state.myName || '' });
+    if (state.myName) { setState({ guest: { name: state.myName } }); fn(); return; }
+    setState({ guestOpen: true, guestThen: fn, guestName: state.guestName || '' });
   };
+  // Everything else (interest, suggestions, votes, jobs, photos) needs an account: sign-in, then the action
+  const needAccount = (fn) => { if (state.email) needName(fn); else openLogin('account', () => needName(fn)); };
   const saveGuestContact = async (sparkId) => {
     if (state.email || !state.guest || !sparkId) return;
-    must(await sb.from('guest_contacts').upsert({ spark_id: sparkId, user_id: state.me, name: state.guest.name, phone: state.guest.phone }, { onConflict: 'spark_id,user_id' }));
+    must(await sb.from('guest_contacts').upsert({ spark_id: sparkId, user_id: state.me, name: state.guest.name, phone: null }, { onConflict: 'spark_id,user_id' }));
+  };
+  // After a guest's first Going or Maybe on an event (this visit): what an account adds
+  const guestAsked = new Set();
+  const askGuestToJoin = (s) => {
+    if (state.email || guestAsked.has(s.id)) return;
+    guestAsked.add(s.id);
+    setTimeout(() => { if (!state.email && !state.confirm && !state.loginStep) setState({ confirm: {
+      title: 'You’re on the list', body: 'Make a free account to get a reminder the day before, hear about changes, and sign up to help. Your RSVP comes with you.',
+      cta: 'Create an account', keep: 'Not now', green: true, run: () => { setState({ confirm: null }); openLogin('account'); } } }); }, 900);
   };
 
   const saveName = async (name, stampEverywhere) => {
@@ -1263,8 +1276,7 @@
       run(async () => { must(await sb.from('interests').delete().eq('spark_id', s.id).eq('user_id', state.me)); }, { tag: null });
       return;
     }
-    needGuest(() => run(async () => {
-      await saveGuestContact(s.id);
+    needAccount(() => run(async () => {
       must(await sb.from('interests').insert({ spark_id: s.id, user_id: state.me }));
     }, { tag: 'You’re interested' }));
   };
@@ -1272,7 +1284,7 @@
   // Non-leads suggest (waits for the lead); the lead sets it straight away
   const openOffer = (s, kind) => {
     const open = () => setState({ offerKind: kind, offerText: '', offerPlace: null, offerSuggest: [] });
-    if (isLead(s)) open(); else needGuest(open);
+    if (isLead(s)) open(); else needAccount(open);
   };
   const commitOffer = (s) => {
     const kind = state.offerKind, text = state.offerText.trim(), place = state.offerPlace;
@@ -1321,6 +1333,7 @@
       const before = (state.sparks.find(x => x.id === s.id) || s).rsvps;
       patchSpark(s.id, { rsvps: before.filter(r => r.userId !== state.me).concat(next ? [{ userId: state.me, status: next, created: Date.now() }] : []) });
       if (note) toast(dropJobs ? 'Thanks for letting ' + lead + ' know. You’re off the list too.' : note, true);
+      if (next === 'going' || next === 'maybe') askGuestToJoin(s);
       const mine = ++rsvpQueued;
       rsvpChain = rsvpChain.then(async () => {
         try {
@@ -1347,7 +1360,7 @@
     save(false);
   };
 
-  const vote = (table, s, o) => needGuest(() => run(async () => {
+  const vote = (table, s, o) => needAccount(() => run(async () => {
     await saveGuestContact(s.id);
     if (o.votes.indexOf(state.me) > -1) must(await sb.from(table).delete().eq('option_id', o.id).eq('user_id', state.me));
     else must(await sb.from(table).insert({ option_id: o.id, user_id: state.me }));
@@ -1409,7 +1422,7 @@
       row = must(await sb.from('signup_items').insert({ spark_id: s.id, item, need, time }).select('id').single()).data;
       if (!isLead(s)) { must(await sb.from('signup_claims').insert({ item_id: row.id, user_id: state.me })); await goingWithJob(s); }
     }, { sigDraft: '', sigNeed: '', sigTime: '', sigAdding: false }).then(ok => { if (ok) { if (isLead(s)) toast('Added to sign-ups', true); else onItBanner(s, { del: row.id, was }); } });
-    if (isLead(s)) add(); else needGuest(add);
+    if (isLead(s)) add(); else needAccount(add);
   };
   // Taking a job means you're coming (owner, 2026-09-30): it marks you Going on a plan, whatever you'd said.
   // Undo puts your old answer back (`was`).
@@ -1419,14 +1432,14 @@
   };
   const toggleClaim = (s, it) => {
     const mine = it.claims.some(c => c.userId === state.me), was = myRsvp(s), myNote = (it.claims.find(c => c.userId === state.me) || {}).note || null;
-    needGuest(() => run(async () => {
+    needAccount(() => run(async () => {
       await saveGuestContact(s.id);
       if (mine) must(await sb.from('signup_claims').delete().eq('item_id', it.id).eq('user_id', state.me));
       else { must(await sb.from('signup_claims').insert({ item_id: it.id, user_id: state.me })); await goingWithJob(s); }
     }).then(ok => { if (ok) { if (mine) offIt(s, jobOf(s, it), { items: [it.id], note: myNote }); else onItBanner(s, { items: [it.id], was }); } }));
   };
   // Pick a shift: tick any shifts (more than one is fine), an optional note, Done
-  const openShifts = (s, job) => needGuest(() => {
+  const openShifts = (s, job) => needAccount(() => {
     const mine = myShiftIds(job), c = job.shifts.map(u => u.claims.find(x => x.userId === state.me)).find(Boolean);
     setState({ shiftPick: { id: s.id, job: job.id, sel: mine, note: c ? c.note : '' } });
   });
@@ -1473,7 +1486,7 @@
     let blob;
     try { blob = await shrinkImage(file); } catch (e) { toast(BAD_PHOTO); return; }
     let path = null;
-    needGuest(() => run(async () => {
+    needAccount(() => run(async () => {
       path = await uploadBlob(blob);
       try { must(await sb.from('album_photos').insert({ spark_id: s.id, path })); } catch (e) { deletePhotos([path]); throw e; }
     }).then(ok => { if (ok) toast('Added to the album', true); }));
@@ -3176,7 +3189,7 @@
   }
 
   // "Could use a hand": each event's open roles, with Claim
-  const claimRole = (s, it) => needGuest(() => { const was = myRsvp(s); run(async () => {
+  const claimRole = (s, it) => needAccount(() => { const was = myRsvp(s); run(async () => {
     await saveGuestContact(s.id);
     must(await sb.from('signup_claims').insert({ item_id: it.id, user_id: state.me }));
     await goingWithJob(s);
@@ -4783,8 +4796,8 @@
       '<div data-guest-nudge style="' + CARD + ';padding:16px;display:flex;align-items:center;gap:12px;background:#f7f6ff;box-shadow:inset 0 0 0 1.5px #dcd6fb">' +
         '<span style="flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center">' + ic6('bell', 18, '#5b4ae8', 2.2) + '</span>' +
         '<div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:800;color:#0d1117">Want a reminder?</div>' +
-          '<div style="margin-top:2px;font-size:13.5px;line-height:1.4;font-weight:600;color:#5c6270">Sign in and we’ll remind you the day before and that morning, and tell you if anything changes.</div></div>' +
-        '<span ' + on(() => openLogin('guest', () => {})) + ' style="flex:0 0 auto;display:flex;align-items:center;min-height:40px;padding:0 16px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:14px;font-weight:800;cursor:pointer">Sign in</span>' +
+          '<div style="margin-top:2px;font-size:13.5px;line-height:1.4;font-weight:600;color:#5c6270">Make a free account and we’ll remind you the day before and that morning, and tell you if anything changes.</div></div>' +
+        '<span ' + on(() => openLogin('account', () => {})) + ' style="flex:0 0 auto;display:flex;align-items:center;min-height:40px;padding:0 16px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:14px;font-weight:800;cursor:pointer">Create account</span>' +
       '</div>';
     const rsvpBlock = lead || s.cancelledAt ? '' : '<div data-rsvp style="' + CARD + ';padding:16px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">' +
       rsvpBtn('going', 'Going', goingIds.length) + rsvpBtn('maybe', 'Maybe', maybeN) + rsvpBtn('no', 'Can’t', noN) + '</div>';
@@ -5689,10 +5702,10 @@
     if (st.loginStep === 'email') {
       // Opened from Welcome's "Continue with email": just the email field (owner, 2026-09-30)
       const emailOk = EMAIL_OK.test(st.loginEmail.trim()), withGoogle = GOOGLE_ON && !st.loginEmailOnly;
-      const lead = { post: 'Sign in to post your event. ', guest: 'Your name fills in, and everything you add is saved to your account. ', join: 'Sign in to join a group. ', friend: 'Sign in to add your friend. ' }[st.loginFrom] ||
+      const lead = { post: 'Sign in to post your event. ', guest: 'Your name fills in, and everything you add is saved to your account. ', account: 'Guests can RSVP. To suggest, vote, sign up to help and get reminders, make a free account. ', join: 'Sign in to join a group. ', friend: 'Sign in to add your friend. ' }[st.loginFrom] ||
         'Your events, groups and name are saved to your account. ';
       return modal('Sign in', closeLogin,
-        h3Html(st.loginFrom === 'post' ? 'Sign in to post' : 'Sign in') +
+        h3Html(st.loginFrom === 'post' ? 'Sign in to post' : st.loginFrom === 'account' ? 'Create a free account' : 'Sign in') +
         paraHtml(lead + (withGoogle ? 'Use Google, or we’ll email you a 6-digit code. No password.' : 'We’ll email you a 6-digit code. No password.')) +
         (st.googleFailed
           ? '<div role="alert" style="display:flex;align-items:flex-start;gap:9px;background:#fdeef0;border:1.5px solid #f5c2cb;border-radius:14px;padding:11px 13px">' +
@@ -5743,28 +5756,25 @@
 
   function viewGuest() {
     const st = state, s = subject();
-    const nameOk = st.guestName.trim().length > 0;
-    const phoneOk = st.guestPhone.replace(/\D/g, '').length >= 10;
-    const ok = nameOk && phoneOk && !st.busy;
+    const ok = st.guestName.trim().length > 0 && !st.busy;
     const to = s ? firstName(nameOf(s.leadId, s.leadName)) : 'The lead';
     const close = () => setState({ guestOpen: false, guestThen: null });
     const submit = async () => {
       if (!ok) return;
-      const name = cleanTitle(st.guestName).slice(0, 30), phone = st.guestPhone.trim();
+      const name = cleanTitle(st.guestName).slice(0, 30);
       const then = st.guestThen;
-      setState({ guest: { name, phone }, guestOpen: false, guestThen: null, myName: st.myName || name });
+      setState({ guest: { name }, guestOpen: false, guestThen: null, myName: st.myName || name });
       try { await ensureSession(); must(await sb.from('profiles').upsert({ id: state.me, name }, { onConflict: 'id' })); } catch (e) { console.error(e); }
       if (typeof then === 'function') then();
     };
-    return modal('Your info', close,
-      h3Html('Your info') +
-      paraHtml('So ' + esc(to) + ' can reach you. Only they see it.') +
-      '<input class="fld" type="text" maxlength="30" autocomplete="name" aria-label="Your name" placeholder="Jane Smith" value="' + esc(st.guestName) + '" ' + onInput(e => setState({ guestName: e.target.value.slice(0, 30) })) + ' style="' + FIELD + '">' +
-      '<input class="fld" type="tel" inputmode="tel" maxlength="20" autocomplete="tel" aria-label="Phone number" placeholder="Phone number" value="' + esc(st.guestPhone) + '" ' + onInput(e => setState({ guestPhone: e.target.value.replace(/[^\d\s()+.-]/g, '').slice(0, 20) })) + ' style="' + FIELD + '">' +
+    return modal('RSVP as a guest', close,
+      h3Html('RSVP as a guest') +
+      paraHtml('Your name goes on the guest list, so ' + esc(to) + ' knows who’s coming.') +
+      '<input class="fld" type="text" maxlength="30" autocomplete="given-name" aria-label="Your name" placeholder="Your name" value="' + esc(st.guestName) + '" ' + onInput(e => setState({ guestName: e.target.value.slice(0, 30) })) + ' style="' + FIELD + '">' +
       '<button type="button" ' + on(submit) + ' aria-disabled="' + !ok + '" style="' + primary(ok) + '">Continue</button>' +
       '<div style="margin-top:4px;background:#f3f1fe;border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:12px">' +
         '<div style="flex:1 1 auto;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">Have an account?</div>' +
-        '<div style="margin-top:2px;font-size:13.5px;line-height:1.4;font-weight:500;color:#454b55">Sign in to skip this.</div></div>' +
+        '<div style="margin-top:2px;font-size:13.5px;line-height:1.4;font-weight:500;color:#454b55">Sign in to skip this and get reminders.</div></div>' +
         '<span ' + on(() => { const fn = st.guestThen; setState({ guestOpen: false, guestThen: null }); openLogin('guest', () => needName(fn || (() => {}))); }) + ' class="hov-primary" style="flex:0 0 auto;display:flex;align-items:center;min-height:40px;padding:0 16px;background:#5b4ae8;border-radius:999px;font-size:14.5px;font-weight:800;color:#fff;cursor:pointer">Sign in</span>' +
       '</div>');
   }
@@ -5995,7 +6005,7 @@
     const close = () => setState({ interestList: false }), lead = isLead(s);
     return modal('Who’s interested', close,
       h3Html('Who’s interested') +
-      (lead ? paraHtml('Only you see phone numbers. They’re from people who took part without an account.') : '') +
+      (lead && s.contacts.some(c => c.phone && s.interested.indexOf(c.user_id) > -1) ? paraHtml('Only you see phone numbers. They’re from people who took part without an account.') : '') +
       '<div style="display:flex;flex-direction:column">' +
         s.interested.map((u, i) => {
           const c = lead && s.contacts.find(x => x.user_id === u);
@@ -6003,7 +6013,7 @@
           return '<div style="display:flex;align-items:center;gap:12px;min-height:52px;border-top:' + (i ? '1px solid #f2f3f6' : '0') + '">' +
             face(u, name, 32, null) +
             '<span style="flex:1 1 auto;min-width:0;font-size:15.5px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(name) + '</span>' +
-            (c ? '<a href="tel:' + esc(c.phone.replace(/[^\d+]/g, '')) + '" style="flex:0 0 auto;font-size:14px;font-weight:800;color:#5b4ae8">' + esc(c.phone) + '</a>' : '') +
+            (c && c.phone ? '<a href="tel:' + esc(c.phone.replace(/[^\d+]/g, '')) + '" style="flex:0 0 auto;font-size:14px;font-weight:800;color:#5b4ae8">' + esc(c.phone) + '</a>' : c ? '<span style="flex:0 0 auto;padding:3px 9px;border-radius:999px;background:#f2f3f6;font-size:12px;font-weight:800;color:#6b7280">Guest</span>' : '') +
           '</div>';
         }).join('') +
       '</div>');
@@ -6017,7 +6027,7 @@
       return '<div data-guest style="display:flex;align-items:center;gap:12px;min-height:50px;border-top:' + (i ? '1px solid #f2f3f6' : '0') + '">' +
         face(u, name, 32, null) +
         '<span style="flex:1 1 auto;min-width:0;font-size:15.5px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(name) + '</span>' +
-        (c ? '<a href="tel:' + esc(c.phone.replace(/[^\d+]/g, '')) + '" style="flex:0 0 auto;font-size:14px;font-weight:800;color:#5b4ae8">' + esc(c.phone) + '</a>' : '') + '</div>';
+        (c && c.phone ? '<a href="tel:' + esc(c.phone.replace(/[^\d+]/g, '')) + '" style="flex:0 0 auto;font-size:14px;font-weight:800;color:#5b4ae8">' + esc(c.phone) + '</a>' : c ? '<span style="flex:0 0 auto;padding:3px 9px;border-radius:999px;background:#f2f3f6;font-size:12px;font-weight:800;color:#6b7280">Guest</span>' : '') + '</div>';
     };
     const part = (k, label, ink) => {
       const ids = s.rsvps.filter(r => r.status === k).map(r => r.userId);
@@ -6028,7 +6038,7 @@
     // The lead's Guest list (with guests' numbers and Can't); everyone else sees who's going and who might
     return modal(lead ? 'Guest list' : 'Who’s going', close,
       h3Html(lead ? 'Guest list' : 'Who’s going') +
-      (any ? (lead ? paraHtml('Phone numbers are from people who RSVP’d without an account. Only you see them.') : '') +
+      (any ? (lead && s.contacts.some(c => c.phone && s.rsvps.some(r => r.userId === c.user_id)) ? paraHtml('Phone numbers are from people who RSVP’d without an account. Only you see them.') : '') +
         '<div style="display:flex;flex-direction:column;gap:14px">' + part('going', 'GOING', '#0f7a3c') + part('maybe', 'MAYBE', '#8f6405') + (lead ? part('no', 'CAN’T', '#454b55') : '') + '</div>'
         : paraHtml(lead ? 'Nobody has RSVP’d yet. Share the link to get the word out.' : 'Nobody yet. Be the first.')));
   }

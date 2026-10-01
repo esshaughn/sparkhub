@@ -1,12 +1,13 @@
-// A lead and a guest on one idea: the shared link, "I'm interested" with guest info,
-// suggestions everyone votes on, the lead picking, the mood board, making it a plan.
+// A lead and a member on one idea: the shared link, "I'm interested", suggestions everyone votes on,
+// the lead picking, the mood board, making it a plan. A guest (no account) is asked to make one.
 const { test, expect } = require('@playwright/test');
 const { uniqueTitle, newMember, newLead, leadEmail, button, postIdea, openIdea, deleteIdea, answerGuestPrompt, confirm, PNG, openProfile } = require('./helpers');
 
-test('a guest with the link takes part; everyone votes; the lead picks and makes it a plan', async ({ browser }) => {
+test('a member with the link takes part; everyone votes; the lead picks and makes it a plan', async ({ browser }) => {
   const lead = await newLead(browser, 1, 'Lena');
-  const guest = await newMember(browser);
-  const L = lead.page, G = guest.page;
+  const guest = await newLead(browser, 2, 'Gus');
+  const visitor = await newMember(browser);
+  const L = lead.page, G = guest.page, V = visitor.page;
   const title = uniqueTitle('Laser tag');
   let id;
   try {
@@ -17,22 +18,24 @@ test('a guest with the link takes part; everyone votes; the lead picks and makes
     await expect(LD.locator('#sec-when')).toContainText('Date TBD');   // the plan page's date & place card (audit, 2026-10-01)
     await expect(LD.locator('#sec-when').getByRole('button', { name: 'Add' }).first()).toBeVisible();
 
-    // The guest opens the shared link (they're not in the group)
+    // A guest (no account) with the link sees the idea, but "I'm interested" asks them to make an account
+    await openIdea(V, id);
+    await expect(V.locator('[data-screen-label="Idea page"]')).toContainText('Teams by class');
+    await button(V, 'I’m interested').click();
+    const signIn = V.getByRole('dialog', { name: 'Sign in' });
+    await expect(signIn).toContainText('Create a free account');
+    await signIn.getByRole('button', { name: 'Close' }).click();
+    await expect(button(V, 'I’m interested')).toBeVisible();
+
+    // A member opens the shared link
     await openIdea(G, id);
     const GD = G.locator('[data-screen-label="Idea page"]');
     await expect(GD.locator('[data-led-by]')).toContainText('Lena');
     await expect(GD).toContainText('Teams by class');
     await expect(GD.getByRole('button', { name: 'Edit' })).toHaveCount(0);
 
-    // "I'm interested" asks for their info once, then counts them
+    // "I'm interested" counts them
     await button(G, 'I’m interested').click();
-    const info = G.getByRole('dialog', { name: 'Your info' });
-    await expect(info).toContainText('So Lena can reach you. Only they see it.');
-    await expect(info.getByRole('button', { name: 'Continue' })).toHaveAttribute('aria-disabled', 'true');
-    await info.getByLabel('Your name').fill('Gus');
-    await info.getByLabel('Phone number').fill('555 12');
-    await expect(info.getByRole('button', { name: 'Continue' })).toHaveAttribute('aria-disabled', 'true');   // too short
-    await answerGuestPrompt(G, 'Gus', '(512) 555-0142');
     await expect(button(G, 'You’re interested')).toBeVisible();
     await expect(GD.locator('#sec-people')).toContainText('1 interested');
 
@@ -54,12 +57,12 @@ test('a guest with the link takes part; everyone votes; the lead picks and makes
     await GD.getByRole('button', { name: /^Vote for Sat, Nov 14 · 6:30pm \(0 votes, suggested by Gus\)/ }).click();
     await expect(GD.getByRole('button', { name: /^Remove your vote for Sat, Nov 14 · 6:30pm \(1 vote/ })).toBeVisible();
 
-    // The lead sees who's interested (with the guest's number) and the suggestions, and picks
+    // The lead sees who's interested and the suggestions, and picks
     await L.reload();
     await LD.getByRole('button', { name: 'See who’s interested' }).click();
     const list = L.getByRole('dialog', { name: 'Who’s interested' });
     await expect(list).toContainText('Gus');
-    await expect(list.getByRole('link', { name: '(512) 555-0142' })).toHaveAttribute('href', 'tel:5125550142');
+    await expect(list.getByRole('link')).toHaveCount(0);   // no phone numbers: guests don't leave one
     await list.getByRole('button', { name: 'Close' }).click();
     // Pick closes each poll (as on a plan)
     await LD.getByRole('button', { name: /^Pick The north lot at Zilker/ }).click();
@@ -88,7 +91,7 @@ test('a guest with the link takes part; everyone votes; the lead picks and makes
     await LD.getByRole('button', { name: 'Remove photo' }).click();
     await expect(LD).toContainText('0 / 3');
 
-    // Make it a plan: the interested guest shows as going
+    // Make it a plan: the interested member shows as going
     await expect(LD).toContainText('Ready when you are');
     await LD.getByRole('button', { name: 'Make it a plan' }).click();
     await confirm(L, 'Make it a plan');
@@ -101,10 +104,12 @@ test('a guest with the link takes part; everyone votes; the lead picks and makes
 
     expect(lead.errors).toEqual([]);
     expect(guest.errors).toEqual([]);
+    expect(visitor.errors).toEqual([]);
   } finally {
     if (id) await deleteIdea(L, id).catch(() => {});
     await lead.context.close();
     await guest.context.close();
+    await visitor.context.close();
   }
 });
 

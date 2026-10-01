@@ -538,7 +538,7 @@ test('friends: requests, links and invites only go through the functions, with t
   }
 });
 
-test('groups and limits: leaving ends link access, blocks, new codes, who updates reach, rate and upload limits', async ({ browser }) => {
+test('groups and guests: leaving ends link access, blocks, new codes, who updates reach, guests only RSVP', async ({ browser }) => {
   const lead = await newLead(browser, 1, 'Owner');
   const other = await newLead(browser, 2, 'Other');
   const anon = await newMember(browser);
@@ -606,30 +606,33 @@ test('groups and limits: leaving ends link access, blocks, new codes, who update
       expect(copy).toBe('refused');
     }
 
-    // Rate limits (the e2e leads are exempt, so a visitor checks them): 10 location ideas an hour per event
+    // Guests (no account, owner 2026-10-01): they see the event they were sent and RSVP with a name, nothing else.
+    // (Rate limits are checked in tests/db: the e2e leads are exempt, and guests can't post.)
     await asUser(A, async (c, _C, id) => c.rpc('open_idea', { p_spark: id }), open);
-    const spots = await asUser(A, async (c, _C, id) => {
-      const me = (await c.auth.getUser()).data.user.id, out = [];
-      for (let i = 1; i <= 11; i++) {
-        const r = await c.from('spot_options').insert({ spark_id: id, name: 'Spot ' + i, who: 'Gus', created_by: me });
-        out.push(r.error ? r.error.code : 'ok');
-      }
-      return out;
-    }, open);
-    expect(spots).toEqual([...Array(10).fill('ok'), 'PT429']);
-
-    // Photo uploads: only into your own folder, and a visitor gets 10 a day
-    const uploads = await asUser(A, async (c, _C, { png, other }) => {
+    const guest = await asUser(A, async (c, _C, { id, png }) => {
       const me = (await c.auth.getUser()).data.user.id;
+      const ok = async (q) => (await q).error ? 'refused' : 'ok';
       const blob = new Blob([Uint8Array.from(atob(png), ch => ch.charCodeAt(0))], { type: 'image/png' });
-      const put = async (folder) => (await c.storage.from('spark-photos').upload(folder + '/' + crypto.randomUUID() + '.jpg', blob, { contentType: 'image/png' })).error ? 'refused' : 'ok';
-      const out = { someoneElse: await put(other), own: [] };
-      for (let i = 0; i < 11; i++) out.own.push(await put(me));
-      const mine = (await c.storage.from('spark-photos').list(me)).data || [];
-      await c.storage.from('spark-photos').remove(mine.map(f => me + '/' + f.name));
-      return out;
+      return {
+        sees: (await c.from('sparks').select('id').eq('id', id)).data.length,
+        rsvpNoName: await ok(c.from('rsvps').insert({ spark_id: id, user_id: me, status: 'going' })),
+        name: await ok(c.from('guest_contacts').insert({ spark_id: id, user_id: me, name: 'Gus' })),
+        rsvp: await ok(c.from('rsvps').insert({ spark_id: id, user_id: me, status: 'going' })),
+        interest: await ok(c.from('interests').insert({ spark_id: id, user_id: me })),
+        spot: await ok(c.from('spot_options').insert({ spark_id: id, name: 'Park', who: 'Gus', created_by: me })),
+        date: await ok(c.from('date_options').insert({ spark_id: id, day_date: '2026-12-01', who: 'Gus', created_by: me })),
+        job: await ok(c.from('signup_items').insert({ spark_id: id, item: 'Ice' })),
+        upload: await ok(c.storage.from('spark-photos').upload(me + '/' + crypto.randomUUID() + '.jpg', blob, { contentType: 'image/png' })),
+        avatar: await ok(c.from('profiles').upsert({ id: me, name: 'Gus', avatar_path: me + '/' + crypto.randomUUID() + '.jpg' }))
+      };
+    }, { id: open, png: PNG.toString('base64') });
+    expect(guest).toEqual({ sees: 1, rsvpNoName: 'refused', name: 'ok', rsvp: 'ok', interest: 'refused', spot: 'refused', date: 'refused', job: 'refused', upload: 'refused', avatar: 'refused' });
+    // Photo uploads into someone else's folder are refused for accounts too
+    const intoOthers = await asUser(L, async (c, _C, { png, other }) => {
+      const blob = new Blob([Uint8Array.from(atob(png), ch => ch.charCodeAt(0))], { type: 'image/png' });
+      return (await c.storage.from('spark-photos').upload(other + '/' + crypto.randomUUID() + '.jpg', blob, { contentType: 'image/png' })).error ? 'refused' : 'ALLOWED';
     }, { png: PNG.toString('base64'), other: otherUid });
-    expect(uploads).toEqual({ someoneElse: 'refused', own: [...Array(10).fill('ok'), 'refused'] });
+    expect(intoOthers).toBe('refused');
 
     // Friends: a declined request stays declined, whatever the sender does
     const reset = async () => {

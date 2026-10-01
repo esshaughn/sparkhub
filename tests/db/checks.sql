@@ -88,16 +88,13 @@ update sparks set visibility = 'invite' where id = t.id('invite_plan');
 select t.check('update to everyone going: the one who replied',
   private.update_recipients(t.id('invite_plan'), 'going', t.id('host')) = array[t.id('replied')]);
 
--- Photo uploads: own folder only, and a daily allowance (anonymous 10, signed in 50) ----------------------
-select t.login('guest'); set role authenticated;
+-- Photo uploads: own folder only, accounts only, 50 a day --------------------------------------------
+select t.login('member'); set role authenticated;
 select t.must_refuse('upload into someone else''s folder',
   format('insert into storage.objects (bucket_id, name) values (''spark-photos'', %L)', t.id('host') || '/a.jpg'));
-do $$ begin
-  for i in 1..10 loop
-    insert into storage.objects (bucket_id, name) values ('spark-photos', t.id('guest') || '/' || gen_random_uuid() || '.jpg');
-  end loop;
-end $$;
-select t.must_refuse('a guest''s 11th photo in a day',
+reset role;
+select t.login('guest'); set role authenticated;
+select t.must_refuse('a guest uploading a photo',
   format('insert into storage.objects (bucket_id, name) values (''spark-photos'', %L)', t.id('guest') || '/' || gen_random_uuid() || '.jpg'));
 reset role;
 select t.login('member'); set role authenticated;
@@ -314,3 +311,28 @@ select t.check('a pending request of your own is withdrawn by remove_friend',
 select public.remove_friend(t.id('member'));
 reset role;
 select t.check('withdrawn', not exists (select 1 from friend_requests where from_id = t.id('admin') and to_id = t.id('member')));
+
+-- Guests: see the event they were sent, RSVP with a name, nothing else ----------------------------------
+insert into link_access (user_id, spark_id) values (t.id('guest'), t.id('invite_plan')), (t.id('guest'), t.id('idea'));
+insert into signup_items (id, spark_id, item, need) values (gen_random_uuid(), t.id('invite_plan'), 'Chairs', 3);
+select t.login('guest'); set role authenticated;
+select t.check('a guest sees the event they were sent', exists (select 1 from sparks where id = t.id('invite_plan')));
+select t.must_refuse('a guest RSVPing before leaving a name',
+  format($$insert into rsvps (spark_id, user_id, status) values (%L, %L, 'going')$$, t.id('invite_plan'), t.id('guest')));
+select t.must_allow('a guest leaving just a name (no phone)',
+  format($$insert into guest_contacts (spark_id, user_id, name) values (%L, %L, 'Gus')$$, t.id('invite_plan'), t.id('guest')));
+select t.must_allow('then RSVPing', format($$insert into rsvps (spark_id, user_id, status) values (%L, %L, 'going')$$, t.id('invite_plan'), t.id('guest')));
+select t.must_allow('and changing it', format($$update rsvps set status = 'maybe' where spark_id = %L and user_id = %L$$, t.id('invite_plan'), t.id('guest')));
+select t.must_refuse('a guest showing interest', format($$insert into interests (spark_id, user_id) values (%L, %L)$$, t.id('idea'), t.id('guest')));
+select t.must_refuse('a guest suggesting a place', format($$insert into spot_options (spark_id, name, who) values (%L, 'Park', 'Gus')$$, t.id('idea')));
+select t.must_refuse('a guest suggesting a date', format($$insert into date_options (spark_id, day_date, who) values (%L, current_date + 5, 'Gus')$$, t.id('idea')));
+select t.must_refuse('a guest taking a job', format($$insert into signup_claims (item_id, user_id) values ((select id from signup_items where item = 'Chairs'), %L)$$, t.id('guest')));
+select t.must_refuse('a guest adding a job', format($$insert into signup_items (spark_id, item) values (%L, 'Ice')$$, t.id('invite_plan')));
+select t.must_refuse('a guest adding an album photo', format($$insert into album_photos (spark_id, path) values (%L, %L)$$, t.id('invite_plan'), t.id('guest') || '/' || gen_random_uuid() || '.jpg'));
+select t.must_refuse('a guest setting a profile photo', format($$insert into profiles (id, name, avatar_path) values (%L, 'Gus', %L)$$, t.id('guest'), t.id('guest') || '/' || gen_random_uuid() || '.jpg'));
+select t.must_allow('a guest keeping a name on their profile', format($$insert into profiles (id, name) values (%L, 'Gus')$$, t.id('guest')));
+select t.must_refuse('a guest using the old offers path', format($$select public.add_offer(%L, 'spot', 'Park', 'Gus')$$, t.id('idea')));
+reset role;
+select t.login('member'); set role authenticated;
+select t.must_allow('a member still takes a job', format($$insert into signup_claims (item_id, user_id) values ((select id from signup_items where item = 'Chairs'), %L)$$, t.id('member')));
+reset role;

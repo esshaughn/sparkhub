@@ -6,11 +6,12 @@ const { uniqueTitle, newMember, newLead, button, postEvent, openIdea, deleteIdea
 // Local dates, like the app (toISOString would be UTC, a day ahead in the evening)
 const inDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 
-test('a plan: guest RSVPs, sign-ups, an update, the host’s notes, then clearing the date', async ({ browser }) => {
+test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clearing the date', async ({ browser }) => {
   test.setTimeout(150000);
   const host = await newLead(browser, 1, 'Hope');
-  const guest = await newMember(browser);
-  const H = host.page, G = guest.page;
+  const guest = await newLead(browser, 2, 'Gus');      // a member: guests without an account can only RSVP (below)
+  const visitor = await newMember(browser);
+  const H = host.page, G = guest.page, V = visitor.page;
   const title = uniqueTitle('Chili');
   let id;
   try {
@@ -39,7 +40,7 @@ test('a plan: guest RSVPs, sign-ups, an update, the host’s notes, then clearin
     await expect(H.getByText('Posted to the event')).toBeVisible();
     await expect(HP).toContainText('Parking is on the street.');
 
-    // The guest opens the link: RSVP asks for their info once, then they sign up for things
+    // A member opens the link: RSVP, then they sign up for things
     await openIdea(G, id);
     const GP = G.locator('[data-screen-label="Plan page"]');
     await expect(GP.locator('[data-rsvp]')).toBeVisible();
@@ -49,11 +50,8 @@ test('a plan: guest RSVPs, sign-ups, an update, the host’s notes, then clearin
     await expect(GP).not.toContainText('Before the day');                     // just for the host
     const rsvp = (k) => GP.locator('[data-rsvp]').getByRole('button', { name: new RegExp('^' + k) });
     await rsvp('Going').click();
-    await answerGuestPrompt(G, 'Gus', '(512) 555-0142');
     await expect(G.getByText('You’re going. See you there!')).toBeVisible();
-    // A guest gets no reminders without an account, so the page offers them; and no tab bar (it only led to sign-in)
-    await expect(GP.locator('[data-guest-nudge]')).toContainText('Want a reminder?');
-    await expect(G.getByRole('navigation', { name: 'Main' })).toBeHidden();
+    await expect(GP.locator('[data-guest-nudge]')).toHaveCount(0);
     // v6 Update 5: three buttons with counts; the pick is filled; tapping it again clears it
     await expect(rsvp('Going')).toHaveAttribute('aria-pressed', 'true');
     await expect(rsvp('Going')).toContainText('1');
@@ -92,8 +90,43 @@ test('a plan: guest RSVPs, sign-ups, an update, the host’s notes, then clearin
     await HP.getByRole('button', { name: '1 Going. See who' }).click();
     const list = H.getByRole('dialog', { name: 'Guest list' });
     await expect(list.locator('[data-guest-part="going"]')).toContainText('Gus');
-    await expect(list.locator('[data-guest-part="going"]')).toContainText('(512) 555-0142');
     await list.getByRole('button', { name: 'Close' }).click();
+
+    // A guest (no account) with the link can RSVP with just a name, and is offered an account; anything else asks for one
+    await openIdea(V, id);
+    const VP = V.locator('[data-screen-label="Plan page"]');
+    const vRsvp = (k) => VP.locator('[data-rsvp]').getByRole('button', { name: new RegExp('^' + k) });
+    await vRsvp('Going').click();
+    await answerGuestPrompt(V, 'Vic');
+    await expect(V.getByText('You’re going. See you there!')).toBeVisible();
+    const join = V.getByRole('alertdialog');
+    await expect(join).toContainText('You’re on the list');
+    await expect(join.getByRole('button', { name: 'Create an account' })).toBeVisible();
+    await join.getByRole('button', { name: 'Not now' }).click();
+    await expect(join).toHaveCount(0);
+    // No reminders without an account, so the page offers one; and no tab bar (it only led to sign-in)
+    await expect(VP.locator('[data-guest-nudge]')).toContainText('Want a reminder?');
+    await expect(V.getByRole('navigation', { name: 'Main' })).toBeHidden();
+    await VP.locator('[data-signup="Folding chairs"]').getByRole('button', { name: 'Sign up' }).click();
+    const signIn = V.getByRole('dialog', { name: 'Sign in' });
+    await expect(signIn).toContainText('Create a free account');
+    await expect(signIn).toContainText('Guests can RSVP.');
+    await signIn.getByRole('button', { name: 'Close' }).click();
+    await expect(VP.locator('[data-signup="Folding chairs"]')).toContainText('1 of 2');   // still just Gus
+    // The answer is still there when they come back (this event only)
+    await V.reload();
+    await expect(vRsvp('Going')).toHaveAttribute('aria-pressed', 'true');
+    // The host sees them on the guest list as a guest
+    await H.reload();
+    await expect(H.locator('html[data-loaded=true]')).toHaveCount(1);
+    await HP.getByRole('button', { name: '2 Going. See who' }).click();
+    const list2 = H.getByRole('dialog', { name: 'Guest list' });
+    await expect(list2.locator('[data-guest-part="going"]')).toContainText('Vic');
+    await expect(list2.locator('[data-guest-part="going"]')).toContainText('Guest');
+    await list2.getByRole('button', { name: 'Close' }).click();
+    // The guest takes it back, so the counts below are the member's
+    await vRsvp('Going').click();
+    await expect(vRsvp('Going')).toHaveAttribute('aria-pressed', 'false');
     // Adding something else signs you up for it
     await GP.getByText('Add something else').click();
     await GP.getByLabel('Bringing something else?').fill('Lemonade');
@@ -160,10 +193,12 @@ test('a plan: guest RSVPs, sign-ups, an update, the host’s notes, then clearin
 
     expect(host.errors).toEqual([]);
     expect(guest.errors).toEqual([]);
+    expect(visitor.errors).toEqual([]);
   } finally {
     if (id) await deleteIdea(H, id).catch(() => {});
     await host.context.close();
     await guest.context.close();
+    await visitor.context.close();
   }
 });
 

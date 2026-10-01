@@ -77,7 +77,7 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 |---|---|---|---|
 | 22 | Photo header like the plan page's (audit, 2026-10-01): 300px photo with the title on it (36px, pencil for the lead or an admin), chips (*IDEA* gold, *YOU'RE LEADING*, *DEMO*, *PRIVATE*, *CANCELLED*), a gold date sticker once it has a date, back, **Share**, the lead's **Change photo / Add a photo** (→ Photo positioner, on plans too); the gold *Steps to a plan* strip sits under the photo | Test | |
 | 23 | **Who's interested** section (faces, *N interested*; the lead taps it for the list) and the **LED BY** card with *Say hi* (not for the lead), as on plans | Test | Audit 2026-10-01 |
-| 24 | **I'm interested** / **You're interested** in its own card where a plan has RSVP (not for the lead; not on a cancelled idea) | Test | Guests give name + phone first |
+| 24 | **I'm interested** / **You're interested** in its own card where a plan has RSVP (not for the lead; not on a cancelled idea) | Test | Guests are asked to make an account (#40) |
 | 25 | **Waiting on you** (lead): suggested locations/dates with **Use this location / Use this date** and **Not this time** | Test | |
 | 26 | The plan's **date & place card** (audit, 2026-10-01): a set date/place, or *Voting on a date / spot* with each option's *Suggested by …*, votes and **Vote** / **✓ Voted** (the lead: **Pick**, which closes the poll); other suggestions stay under a set date/place; members get **+ Suggest a date / location**; *Date TBD* / *Location TBD* with the lead's **Add**; Add to calendar and Directions | Test | Replaced the Dates tiles and Location list |
 | 27 | **Details** as on plans (heading on the page, green dots, the gray pencil Edit, dashed empty box for the lead or an admin); hidden for members when empty. **Help out** as on plans: one card per job (#65) | Test | Replaced the one-card Sign-ups list (audit) |
@@ -85,7 +85,7 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 29 | **Who's pitching in** (accepted offers; your own waiting ones) | Test | |
 | 30 | **Inspo**: up to 3 photos with *n / 3*; the lead adds/removes them on ideas **and plans** (plans were view-only); tap one to see it full screen | Test | Members see it only with photos |
 | 31 | Rotated tag after actions ("It's up", "You're interested", "Sent to the lead", "Location set"…) | Test | |
-| 32 | Lead's **Who's interested** list with guests' phone numbers (tap the Who's interested row) | Test | Not designed yet |
+| 32 | Lead's **Who's interested** list (tap the Who's interested row); older guest rows still show their phone number | Test | Not designed yet |
 | 33 | "That event isn't up anymore" card for a dead link, or an event taken down while you're on it | Test | |
 
 ## Plans (V5)
@@ -167,7 +167,7 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 |---|---|---|---|
 | 38 | Sign-in pop-up: **Continue with Google**, email → 6-digit code, **Send it again** (one a minute), per-entry copy (post / join / guest) | Test | |
 | 39 | Google cancelled: inline "didn't finish" alert; a half-finished idea survives the trip | Test | |
-| 40 | Guests: **Your info** pop-up (name + phone, once per visit) before interest or suggesting | Test | Phone visible to that idea's lead only |
+| 40 | **Guests (no account) only RSVP** (owner, 2026-10-01): on the event they were sent, Going / Maybe / Can't asks for a first name once (**RSVP as a guest** · *Your name goes on the guest list, so {lead} knows who's coming.*), then **You're on the list** offers *Create an account* / *Not now*; their answer is kept for that event on this device. Interest, suggestions, votes, jobs, photos open sign-in as **Create a free account** (*Guests can RSVP. To suggest, vote, sign up to help and get reminders, make a free account.*). The host's guest list marks them **Guest** | Test | No phone numbers any more; `20261101080000_guests_rsvp_only.sql` |
 | 41 | Name pop-up (first time a signed-in person needs a name) | Test | |
 | 42 | Signing in on a new phone moves that phone's anonymous activity into the account | Test | |
 | 43 | Profile: photo, name, email, **Edit**; Your ideas; Your groups (ADMIN first); Join with a code; Start a group; **Sign out**; Privacy | Test | Signed-in only |
