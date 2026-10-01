@@ -173,7 +173,7 @@
     evDate: '', evTime: '', evEnd: '', evEndOn: false, timeOpen: null,
     locText: '', locPlace: null, locSuggest: [],
     evBits: ['', '', ''], evNeed: null, evTags: [], evNeeds: [], evDatePoll: null, evSpotPoll: null, evLater: {},
-    evPriv: false, evNoGuestInv: false, evGroups: null, evDraftId: null, evLeave: false, pollSheet: null, needSheet: null, evFromReview: false
+    evPriv: false, evNoGuestInv: false, evTest: null, evGroups: null, evDraftId: null, evLeave: false, pollSheet: null, needSheet: null, evFromReview: false
   });
   const state = Object.assign({
     screen: 'calendar', menu: null, subjectId: null, gpId: null, tag: null, zoom: null, membersOpen: null, membersList: null,
@@ -233,13 +233,18 @@
   const JOIN_PATH = /^\/join\/([A-Za-z0-9]{6})\/?$/;
   const IDEA_PATH = /^\/i\/([0-9a-f-]{36})\/?$/;   // shared idea links (a real path so chat apps can preview them)
   const ADD_PATH = /^\/add\/([A-Za-z0-9]{6})\/?$/;   // friend links (v6 Update 13)
+  // Named join links (owner, 2026-10-01): /torrez joins Torrez Fitness (and Hub on Hunters, via join_also),
+  // /hubonhunters joins only Hub on Hunters. Keep in step with the rewrites in vercel.json.
+  const GROUP_LINKS = { torrez: 'TORREZ', hubonhunters: 'HUNTER' };
+  const NAMED_PATH = /^\/([a-z]+)\/?$/i;
+  const namedCode = () => { const m = location.pathname.match(NAMED_PATH); return m && GROUP_LINKS[m[1].toLowerCase()] || null; };
   const fromUrl = () => {
     const h = location.hash;
     let m = h.match(/^#\/idea\/([0-9a-f-]{36})$/) || (!h && location.pathname.match(IDEA_PATH));
     if (m) return { screen: 'detail', subjectId: m[1], tag: null };
     m = h.match(/^#\/group\/([0-9a-f-]{36})$/);
     if (m) return { screen: 'groupPage', gpId: m[1] };
-    m = h.match(/^#\/join\/([A-Za-z0-9]{6})$/) || location.pathname.match(JOIN_PATH);
+    m = h.match(/^#\/join\/([A-Za-z0-9]{6})$/) || location.pathname.match(JOIN_PATH) || (!h && namedCode() && [0, namedCode()]);
     if (m) return { screen: 'calendar', inviteCode: m[1].toUpperCase() };
     m = h.match(/^#\/add\/([A-Za-z0-9]{6})$/) || location.pathname.match(ADD_PATH);
     if (m) return { screen: 'calendar', friendCode: m[1].toUpperCase() };
@@ -409,6 +414,7 @@
     interestAt: interests.filter(i => i.spark_id === row.id).reduce((m, i) => { m[i.user_id] = Date.parse(i.created_at); return m; }, {}),
     contacts: contacts.filter(c => c.spark_id === row.id),
     demo: !!row.demo,   // seeded demo content: a DEMO pill before its title (demoTag), and counted for the owner's wipe
+    test: !!row.test,   // a member's test event (chosen when posting): the same DEMO pill, never wiped with the demo content
     planned: !!row.planned, visibility: row.visibility || 'group', guestInvites: row.guest_invites !== false, autoRemind: row.auto_remind !== false, minPeople: row.min_people || null,
     rsvps: (x.rsvps[row.id] || []).map(r => ({ userId: r.user_id, status: r.status, created: Date.parse(r.created_at) })),
     dateOpts: (x.dateOpts[row.id] || []).map(o => ({ id: o.id, dayDate: o.day_date, dayTime: o.day_time ? String(o.day_time).slice(0, 5) : null, who: o.who, createdBy: o.created_by, created: Date.parse(o.created_at), votes: (x.dateVotes[o.id] || []).map(v => v.user_id) })),
@@ -2651,8 +2657,10 @@
   const groupTag = (g, onPhoto) => g && g.demo ? demoTag({ demo: true }, onPhoto, true) : '';
   const cancelTag = (s, onPhoto, after) => !s || !s.cancelledAt ? '' : '<span data-cancel-tag style="display:inline-block;vertical-align:.15em;' + (after ? 'flex:0 0 auto;margin-left:7px' : 'margin-right:7px') + ';padding:2px 7px;border-radius:999px;font-size:10.5px;line-height:1.3;font-weight:900;letter-spacing:.8px;text-shadow:none;' +
     (onPhoto ? 'background:#d92d4a;color:#fff' : 'background:#fdeef0;color:#9b1c31') + '">CANCELLED</span>';
+  // Seeded demo content and members' test events look the same to everyone
+  const isDemo = (s) => !!s && (s.demo || s.test);
   const demoTag = (s, onPhoto, after) => cancelTag(s, onPhoto, after) + demoTagOnly(s, onPhoto, after);
-  const demoTagOnly = (s, onPhoto, after) => !s || !s.demo ? '' : '<span data-demo-tag style="display:inline-block;vertical-align:.15em;' + (after ? 'flex:0 0 auto;margin-left:7px' : 'margin-right:7px') + ';padding:2px 7px;border-radius:999px;font-size:10.5px;line-height:1.3;font-weight:900;letter-spacing:.8px;text-shadow:none;' +
+  const demoTagOnly = (s, onPhoto, after) => !isDemo(s) ? '' : '<span data-demo-tag style="display:inline-block;vertical-align:.15em;' + (after ? 'flex:0 0 auto;margin-left:7px' : 'margin-right:7px') + ';padding:2px 7px;border-radius:999px;font-size:10.5px;line-height:1.3;font-weight:900;letter-spacing:.8px;text-shadow:none;' +
     (onPhoto ? 'background:rgba(255,255,255,.24);color:#fff;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)' : 'background:#eef0f3;color:#6b7280') + '">DEMO</span>';
   // A photo banner: title (up to two lines, growing upward) and the date line, with a chevron
   const banner6 = (s, R, h) => '<div style="position:relative;height:' + (h || 92) + 'px;background:' + photoBg(s) + '">' +
@@ -4131,7 +4139,7 @@
       phaseHeader(s, 300, 'linear-gradient(to bottom, rgba(13,17,23,.5) 0%, rgba(13,17,23,0) 30%, rgba(43,36,19,.55) 62%, rgba(43,36,19,.96) 100%)',
         '<div style="position:absolute;left:20px;right:20px;bottom:20px;color:#fff;display:flex;align-items:flex-end;gap:14px"><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px">' +
           '<div style="display:flex;gap:6px;flex-wrap:wrap">' + (off ? chip('CANCELLED', '#d92d4a', '#fff', 'data-cancelled') : '') +
-            (s.demo ? chip('DEMO', 'rgba(255,255,255,.24);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)', '#fff', 'data-chip data-demo-tag') : lead ? chip('YOU’RE LEADING', '#5b4ae8', '#fff', 'data-chip') : chip('IDEA', '#f3c55a', '#3d2a00', 'data-chip')) +
+            (isDemo(s) ? chip('DEMO', 'rgba(255,255,255,.24);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)', '#fff', 'data-chip data-demo-tag') : lead ? chip('YOU’RE LEADING', '#5b4ae8', '#fff', 'data-chip') : chip('IDEA', '#f3c55a', '#3d2a00', 'data-chip')) +
             (s.visibility === 'invite' ? chip(svg(11, stroke('#fff', 2.6), '<rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>') + 'PRIVATE', 'rgba(255,255,255,.22)') : '') + '</div>' +
           (edit
             ? '<h1 ' + on(() => openSec(s, 'title'), 'button') + ' aria-label="' + esc(s.text) + ', edit the title" style="margin:0;font-size:36px;line-height:1;font-weight:900;letter-spacing:-1.2px;text-wrap:pretty;cursor:pointer">' + esc(s.text) + svg(20, stroke('#fff', 2.4) + ' style="display:inline-block;margin-left:8px;vertical-align:4px;opacity:.85"', PENCIL) + '</h1>'
@@ -4752,7 +4760,7 @@
     return '<div data-screen-label="Plan page">' +
       phaseHeader(s, 340, 'linear-gradient(to bottom, rgba(13,17,23,.5) 0%, rgba(13,17,23,0) 30%, rgba(8,40,22,.55) 62%, rgba(8,40,22,.96) 100%)',
         '<div style="position:absolute;left:20px;right:20px;bottom:20px;color:#fff;display:flex;align-items:flex-end;gap:14px"><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px">' +
-          '<div style="display:flex;gap:6px;flex-wrap:wrap">' + (s.cancelledAt ? '<span data-cancelled style="display:flex;align-items:center;border-radius:999px;padding:5px 11px;background:#d92d4a;font-size:12px;font-weight:900;letter-spacing:.9px">CANCELLED</span>' : '') + '<span data-chip' + (s.demo ? ' data-demo-tag' : '') + ' style="display:flex;align-items:center;gap:6px;border-radius:999px;padding:5px 11px;background:' + (s.demo ? 'rgba(255,255,255,.24);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)' : lead ? '#5b4ae8' : '#149a4b') + ';font-size:12px;font-weight:900;letter-spacing:.9px">' + (s.demo ? 'DEMO' : lead ? 'YOU’RE LEADING' : 'HAPPENING') + '</span>' +
+          '<div style="display:flex;gap:6px;flex-wrap:wrap">' + (s.cancelledAt ? '<span data-cancelled style="display:flex;align-items:center;border-radius:999px;padding:5px 11px;background:#d92d4a;font-size:12px;font-weight:900;letter-spacing:.9px">CANCELLED</span>' : '') + '<span data-chip' + (isDemo(s) ? ' data-demo-tag' : '') + ' style="display:flex;align-items:center;gap:6px;border-radius:999px;padding:5px 11px;background:' + (isDemo(s) ? 'rgba(255,255,255,.24);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)' : lead ? '#5b4ae8' : '#149a4b') + ';font-size:12px;font-weight:900;letter-spacing:.9px">' + (isDemo(s) ? 'DEMO' : lead ? 'YOU’RE LEADING' : 'HAPPENING') + '</span>' +
             (s.visibility === 'invite' ? '<span style="display:flex;align-items:center;gap:5px;border-radius:999px;padding:5px 11px;background:rgba(255,255,255,.22);font-size:12px;font-weight:900;letter-spacing:.9px">' + svg(11, stroke('#fff', 2.6), '<rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>') + 'PRIVATE</span>' : '') + '</div>' +
           (edit
             ? '<h1 ' + on(() => openSec(s, 'title'), 'button') + ' aria-label="' + esc(s.text) + ', edit the title" style="margin:0;font-size:40px;line-height:.98;font-weight:900;letter-spacing:-1.3px;text-wrap:pretty;cursor:pointer">' + esc(s.text) + svg(20, stroke('#fff', 2.4) + ' style="display:inline-block;margin-left:8px;vertical-align:4px;opacity:.85"', PENCIL) + '</h1>'
@@ -5103,6 +5111,7 @@
   const PENCIL = '<path d="M4 20h4L19 9l-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/>';
   const CAMERA = '<path d="M4 8.5A2 2 0 0 1 6 6.5h1.8l1.4-2h5.6l1.4 2H18a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z"/><circle cx="12" cy="13" r="3.4"/>';
   const POLL_IC = '<path d="M5 20V11M12 20V5M19 20v-6"/>';
+  const FLASK_IC = '<path d="M9.5 3.5h5M10.5 3.5v5.2L5.2 18a1.8 1.8 0 0 0 1.6 2.6h10.4a1.8 1.8 0 0 0 1.6-2.6l-5.3-9.3V3.5"/><path d="M7.6 14.5h8.8"/>';
   const HAND_IC = '<path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V11M11 10.5V4.5a1.5 1.5 0 0 1 3 0v6M14 10.5V6a1.5 1.5 0 0 1 3 0v7.5a6.5 6.5 0 0 1-6.5 6.5A5.5 5.5 0 0 1 5.6 17L4 13.8a1.5 1.5 0 0 1 2.6-1.5L8 14"/>';
   const LINES_IC = '<path d="M5 7h14M5 12h14M5 17h9"/>';
   const TRASH_IC = '<path d="M4.5 7h15M10 11v6M14 11v6M6 7l1 12.5A1.5 1.5 0 0 0 8.5 21h7a1.5 1.5 0 0 0 1.5-1.5L18 7M9 7V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V7"/>';
@@ -5198,7 +5207,7 @@
   };
   const postEvent = () => {
     const st = state, groups = evGroupIds(st);
-    if (!groups.length || st.busy || !cleanTitle(st.activity)) return;
+    if (!groups.length || st.busy || !cleanTitle(st.activity) || st.evTest == null) return;
     const place = st.locPlace && cleanTitle(st.locText) ? st.locPlace : null, spot = cleanTitle(st.locText).slice(0, 80) || null;
     const who = (st.myName || 'Someone').slice(0, 40), dated = !!st.evDate;   // a date posts it as a plan; without one it's an idea
     let id = null, cover = null;
@@ -5216,6 +5225,7 @@
           planned: dated, visibility: st.evPriv ? 'invite' : 'group', guest_invites: !st.evNoGuestInv, min_people: dated ? null : st.evNeed || null, tags: (st.evTags || []).slice(0, 2),
           cover_pos: cover && st.coverPos ? posOf(st.coverPos, IDEA_POS) : null
         };
+        if (st.evTest) row.test = true;   // Just testing: the DEMO chip, and no pushes (20261031000000_test_events.sql)
         try {
           id = must(await sb.from('sparks').insert(row).select('id').single()).data.id;
         } catch (e) { if (cover && cover.fresh) deletePhotos([cover.path]); throw e; }
@@ -5248,7 +5258,7 @@
   };
 
   // Drafts: the flow's own fields, saved to your account (only you see them)
-  const DRAFT_FIELDS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'locText', 'locPlace', 'evBits', 'evNeed', 'evTags', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evNoGuestInv', 'evGroups', 'coverPos'];
+  const DRAFT_FIELDS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'locText', 'locPlace', 'evBits', 'evNeed', 'evTags', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evNoGuestInv', 'evTest', 'evGroups', 'coverPos'];
   const saveDraft = () => {
     const st = state;
     if (st.busy) return;
@@ -5393,7 +5403,13 @@
         return '<div ' + on(() => setState({ evPriv: priv }), 'radio') + ' aria-checked="' + onIt + '" style="flex:1 1 0;display:flex;flex-direction:column;gap:4px;padding:12px;border-radius:14px;cursor:pointer;' + (onIt ? 'background:#f3f1fe;box-shadow:inset 0 0 0 2px #5b4ae8' : 'background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6') + '">' +
           '<span style="display:flex;color:' + (onIt ? '#5b4ae8' : '#454b55') + '">' + svg(22, stroke('currentColor', 2.2), icon) + '</span>' +
           '<span style="font-size:15px;font-weight:900;color:' + (onIt ? '#5b4ae8' : '#0d1117') + '">' + label + '</span><span style="font-size:12.5px;line-height:1.35;font-weight:600;color:#6b7280">' + sub + '</span></div>'; };
-      const busy = st.busy === 'post';
+      const busy = st.busy === 'post', chosen = st.evTest != null;
+      // Real or test (owner, 2026-10-01): no default, so nobody posts a test as real by accident
+      const kind = (test, label, sub, icon) => { const onIt = st.evTest === test;
+        return '<div ' + on(() => setState({ evTest: test }), 'radio') + ' data-ev-kind="' + (test ? 'test' : 'real') + '" aria-checked="' + onIt + '" style="flex:1 1 0;display:flex;flex-direction:column;gap:4px;padding:12px;border-radius:14px;cursor:pointer;' + (onIt ? 'background:#f3f1fe;box-shadow:inset 0 0 0 2px #5b4ae8' : 'background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6') + '">' +
+          '<span style="display:flex;color:' + (onIt ? '#5b4ae8' : '#454b55') + '">' + svg(22, stroke('currentColor', 2.2), icon) + '</span>' +
+          '<span style="font-size:15px;font-weight:900;color:' + (onIt ? '#5b4ae8' : '#0d1117') + '">' + label + '</span><span style="font-size:12.5px;line-height:1.35;font-weight:600;color:#6b7280">' + sub + '</span></div>'; };
+      const pickKind = () => { toast('Choose Real event or Just testing first'); const el = document.querySelector('[data-ev-kinds]'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); };
       return '<div class="overlay-screen" data-screen-label="New spark"><div style="min-height:100%;display:flex;flex-direction:column">' +
         '<div style="position:relative;flex:0 0 auto;height:210px;background:' + (url ? '#2b303a ' + bg(url) : EV_GRAD) + '">' +
           '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.9) 0%, rgba(13,17,23,.2) 60%, rgba(13,17,23,.3) 100%)"></div>' +
@@ -5421,12 +5437,15 @@
           '</div><div style="padding:12px 14px 14px;border-top:1px solid #f2f3f6;display:flex;gap:8px">' +
             tile(false, 'Public', 'Everyone in your groups', PEOPLE_IC) + tile(true, 'Private', 'Only people you invite', LOCK_IC) + '</div>' +
             '<div style="padding:0 14px 14px">' + guestInvSwitch(!st.evNoGuestInv, () => setState({ evNoGuestInv: !st.evNoGuestInv })) + '</div></div></div>' +
+        '<div data-ev-kinds style="display:flex;flex-direction:column;gap:8px"><div style="padding:0 4px;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:#0d1117">Real or test?</div>' +
+          '<div role="radiogroup" aria-label="Real or test" style="background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08);padding:12px 14px 14px;display:flex;gap:8px">' +
+            kind(false, 'Real event', 'It’s happening. Your groups hear about it.', P6.cal) + kind(true, 'Just testing', 'Shows a DEMO tag. No one gets notified.', FLASK_IC) + '</div></div>' +
         '</div>' +
         '<div style="position:sticky;bottom:0;margin-top:auto;padding:16px 14px;background:linear-gradient(to top,#e8eaee 70%,rgba(232,234,238,0))">' +
           // A date locks it in as a plan; without one it goes up as an idea
           '<div data-posts-as style="padding:0 6px 10px;text-align:center;font-size:13.5px;line-height:1.4;font-weight:600;color:#5c6270">' +
             (st.evDate ? 'It goes on the calendar as a plan.' : 'It goes up as an idea. Once there’s a date, tap <strong style="font-weight:800;color:#0d1117">Make it a plan</strong> to lock it in.') + '</div>' +
-          '<button type="button" ' + on(() => { if (!busy) createEvent(); }) + ' aria-disabled="' + busy + '" style="position:relative;overflow:hidden;width:100%;min-height:56px;border:0;border-radius:999px;background:#149a4b;color:#fff;font-family:inherit;font-size:17px;font-weight:900;cursor:pointer;box-shadow:0 10px 24px rgba(20,154,75,.32)' + (busy ? ';opacity:.72;cursor:wait' : '') + '">' +
+          '<button type="button" ' + on(() => { if (busy) return; if (!chosen) { pickKind(); return; } createEvent(); }) + ' aria-disabled="' + (busy || !chosen) + '" style="position:relative;overflow:hidden;width:100%;min-height:56px;border:0;border-radius:999px;background:#149a4b;color:#fff;font-family:inherit;font-size:17px;font-weight:900;cursor:pointer;box-shadow:0 10px 24px rgba(20,154,75,.32)' + (busy ? ';opacity:.72;cursor:wait' : !chosen ? ';opacity:.5' : '') + '">' +
             ['#ffd98a:6%:18%', '#cfc9ff:22%:68%', '#fff:78%:28%', '#ffb3c1:88%:64%', '#b8f0cd:62%:74%', '#ffd98a:40%:20%'].map(c => { const [col, x, y] = c.split(':'); return '<span aria-hidden="true" style="position:absolute;left:' + x + ';top:' + y + ';width:6px;height:6px;border-radius:2px;background:' + col + ';transform:rotate(30deg);opacity:.9"></span>'; }).join('') +
             '<span style="position:relative">' + (busy ? 'Posting…' : 'Post it') + '</span></button>' +
           '<button type="button" ' + on(saveDraft) + ' style="margin-top:12px;width:100%;min-height:50px;background:transparent;border:2px solid #c9ccd3;border-radius:999px;font-family:inherit;font-size:15.5px;font-weight:800;color:#0d1117;cursor:pointer">' + (st.busy === 'draft' ? 'Saving…' : 'Save as draft') + '</button>' +
@@ -6362,7 +6381,7 @@
   // An invite link (/join/CODE): the invite flow (startInvite)
   const takeInvite = (code) => {
     if (!code) return;
-    if (JOIN_PATH.test(location.pathname) || /^#\/join\//.test(location.hash)) history.replaceState(null, '', '/');
+    if (JOIN_PATH.test(location.pathname) || namedCode() || /^#\/join\//.test(location.hash)) history.replaceState(null, '', '/');
     startInvite(code);
   };
 

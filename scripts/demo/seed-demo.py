@@ -117,7 +117,7 @@ for name, photo in [('Hub on Hunters', 'photos/hub-on-hunters-mask.jpg'), ('Wood
     if have:
         gid = have[0]['id']
     else:
-        code = ''.join(random.choice(ABC) for _ in range(6))
+        code = 'HUNTER' if name == 'Hub on Hunters' else ''.join(random.choice(ABC) for _ in range(6))   # its /hubonhunters link
         gid = rest('POST', 'groups', {'name': name, 'code': code, 'photo': photo, 'created_by': eric})[0]['id']
     call('POST', '/rest/v1/memberships', {'group_id': gid, 'user_id': eric, 'role': 'admin'}, {'Prefer': 'resolution=merge-duplicates'})
     if not ONLY or ONLY == name:

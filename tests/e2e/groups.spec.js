@@ -289,3 +289,22 @@ test('an invite link for someone signed out: the group’s landing with sign-in 
     await context.close();
   }
 });
+
+// Named join links (owner, 2026-10-01): /torrez and /hubonhunters open that group's invite landing.
+// Vercel rewrites them to the page; the local test server doesn't, so the test serves index.html for them.
+test('named join links: /torrez and /hubonhunters land on their group’s invite', async ({ browser }) => {
+  const { page, context, errors } = await newMember(browser);
+  try {
+    const fs = require('fs'), path = require('path'), html = fs.readFileSync(path.join(__dirname, '..', '..', 'index.html'), 'utf8');
+    await context.route(/\/(torrez|hubonhunters)$/, r => r.fulfill({ contentType: 'text/html', body: html }));
+    const land = page.locator('[data-screen-label=Invite]');
+    for (const [p, name] of [['/torrez', 'Torrez Fitness'], ['/hubonhunters', 'Hub on Hunters']]) {
+      await page.goto(p);
+      await expect(land.getByRole('heading', { name })).toBeVisible();
+      await expect(land).not.toContainText(/TORREZ|HUNTER\b/);
+    }
+    expect(errors).toEqual([]);
+  } finally {
+    await context.close();
+  }
+});

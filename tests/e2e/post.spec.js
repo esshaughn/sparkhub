@@ -168,10 +168,20 @@ test('decide everything later: only the title is needed; the host is left with t
     await expect(flow).toContainText('Details to be decided');
     // No date: it goes up as an idea, not a plan
     await expect(flow.locator('[data-posts-as]')).toContainText('It goes up as an idea');
+    // Real or test has no default: Post it waits for a choice (owner, 2026-10-01)
+    await expect(flow.getByRole('button', { name: 'Post it' })).toHaveAttribute('aria-disabled', 'true');
+    await flow.getByRole('button', { name: 'Post it' }).click();
+    await expect(page.getByText('Choose Real event or Just testing first')).toBeVisible();
+    await expect(page.locator('[data-screen-label="Idea page"]')).toHaveCount(0);
+    await flow.getByRole('radio', { name: /^Just testing/ }).click();
+    await expect(flow.getByRole('radio', { name: /^Just testing/ })).toHaveAttribute('aria-checked', 'true');
     await flow.getByRole('button', { name: 'Post it' }).click();
     const I = page.locator('[data-screen-label="Idea page"]');
     await expect(I).toBeVisible();
     id = await page.evaluate(() => location.hash.split('/').pop());
+    // A test event carries the DEMO chip and is saved as a test (not as seeded demo content)
+    await expect(I.locator('[data-demo-tag]').first()).toBeVisible();
+    expect(await asUser(page, async (c, _C, id) => (await c.from('sparks').select('test,demo').eq('id', id).single()).data, id)).toEqual({ test: true, demo: false });
     await expect(I).toContainText('Pick a date first. Then you can lock it in.');
     await expect(I.getByRole('button', { name: 'Make it a plan' })).toHaveAttribute('aria-disabled', 'true');
     // Empty Details and Help out are the same dashed box for the host
@@ -220,6 +230,8 @@ test('polls: the host posts a date poll (an idea), a member votes, the host pick
     for (let i = 0; i < 3; i++) await flow.getByText('Decide later', { exact: true }).click();
     await expect(flow).toContainText('Poll: 2 dates');
     await expect(flow.locator('[data-posts-as]')).toContainText('It goes up as an idea');
+    await flow.getByRole('radio', { name: /^Real event/ }).click();
+
     await flow.getByRole('button', { name: 'Post it' }).click();
     await expect(H.locator('[data-screen-label="Idea page"]')).toBeVisible();
     id = await H.evaluate(() => location.hash.split('/').pop());
@@ -281,6 +293,8 @@ test('drafts: X saves one, Your tasks lists it, Continue picks up there, posting
     await draft.getByRole('button', { name: 'Continue' }).click();
     await expect(flow).toContainText('3 of 5');
     for (let i = 0; i < 3; i++) await flow.getByText('Decide later', { exact: true }).click();
+    await flow.getByRole('radio', { name: /^Real event/ }).click();
+
     await flow.getByRole('button', { name: 'Post it' }).click();
     await expect(page.locator('[data-screen-label="Idea page"]')).toBeVisible();   // no date: an idea
     id = await page.evaluate(() => location.hash.split('/').pop());
@@ -363,6 +377,8 @@ test('an idea says how many it needs; a bare starter chip can’t be saved; its 
     await job.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(flow).not.toContainText('FOR EXAMPLE');
     await flow.getByRole('button', { name: 'Review' }).click();
+    await flow.getByRole('radio', { name: /^Real event/ }).click();
+
     await flow.getByRole('button', { name: 'Post it' }).click();
     await expect(page.locator('[data-screen-label="Idea page"]')).toBeVisible();
     id = await page.evaluate(() => location.hash.split('/').pop());

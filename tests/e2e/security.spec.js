@@ -407,6 +407,7 @@ test('plans: replies, sign-ups, updates, notes and invite-only plans follow the 
         wipe: await ok(c.rpc('wipe_demo')),
         makeMeWiper: await ok(c.from('demo_admins').insert({ user_id: me })),
         flagMyIdea: await ok(c.from('sparks').update({ demo: true }).eq('id', id)),
+        flipTest: await ok(c.from('sparks').update({ test: true }).eq('id', id)),   // real or test is chosen once, when posting
         postAsDemo: await (async () => {   // the flag and a backdated created_at are reset on insert
           const r = await c.from('sparks').insert({ group_id: g, author_name: 'x', lead_name: 'x', lead_id: me, created_by: me, text: '[E2E] demo?', demo: true, created_at: '2020-01-01T00:00:00Z' }).select('id,demo,created_at').single();
           if (r.error) return 'refused';
@@ -421,7 +422,7 @@ test('plans: replies, sign-ups, updates, notes and invite-only plans follow the 
         listTesters: await (async () => { const r = await c.rpc('demo_testers'); return r.error ? 'refused' : r.data.length ? 'LISTED' : 'none'; })()
       };
     }, made.plan);
-    expect(demo).toEqual({ wipe: 'refused', makeMeWiper: 'refused', flagMyIdea: 'refused', postAsDemo: 'reset', flagGroup: 'refused', readGroupFlag: 'read', readRoster: 'refused', readJoinAlso: 'refused', addJoinAlso: 'refused', listTesters: 'none' });
+    expect(demo).toEqual({ wipe: 'refused', makeMeWiper: 'refused', flagMyIdea: 'refused', flipTest: 'refused', postAsDemo: 'reset', flagGroup: 'refused', readGroupFlag: 'read', readRoster: 'refused', readJoinAlso: 'refused', addJoinAlso: 'refused', listTesters: 'none' });
 
     // Feedback (Profile → Send feedback): anyone signed in can send their own, nobody but the owner can read any, and names can't be forged
     const fb = await asUser(L, async (c) => {

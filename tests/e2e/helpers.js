@@ -163,7 +163,7 @@ async function openIdea(page, id) {
 
 // Post an event with the 5-step Create event flow (v6 Update 6). Anything left out is decided later.
 // Returns its id.
-async function postEvent(page, { title, date, time, where, pick, details = [], jobs = [], inviteOnly = false, photo = false }) {
+async function postEvent(page, { title, date, time, where, pick, details = [], jobs = [], inviteOnly = false, photo = false, test = false }) {
   await startPost(page);
   const flow = page.locator('[data-screen-label="New spark"]');
   const next = () => flow.getByRole('button', { name: /^(Next|Review)$/ }).click();
@@ -210,6 +210,7 @@ async function postEvent(page, { title, date, time, where, pick, details = [], j
 
   await expect(flow).toContainText('LOOKS GOOD');
   if (inviteOnly) await flow.getByRole('radio', { name: /^Private/ }).click();
+  await flow.getByRole('radio', { name: test ? /^Just testing/ : /^Real event/ }).click();
   await flow.getByRole('button', { name: 'Post it' }).click();
   await expect(page.locator('[data-screen-label="Plan page"]')).toBeVisible();
   await expect(page.getByText('It’s on the books')).toBeVisible();
