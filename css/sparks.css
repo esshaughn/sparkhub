@@ -128,19 +128,19 @@ html.tall-fix .app { bottom: auto; height: var(--true-h); }
 }
 
 .modal-scrim {
-  position: absolute; inset: 0; background: rgba(15, 18, 25, .45);
+  position: absolute; inset: 0; background: rgba(13, 17, 23, .45);
   display: flex; align-items: center; justify-content: center; padding: 20px;
 }
 
-/* Bottom sheets (Your groups, Members): slide up while the scrim fades in, no scale */
+/* Bottom sheets that fit their content (Members, Share, Add people…): the same scrim and slide as the tall v6 sheets (audit, 2026-10-01) */
 .sheet-scrim {
-  position: absolute; inset: 0; z-index: 30; background: rgba(15, 18, 25, .45);
-  display: flex; align-items: flex-end; animation: fadeIn 240ms ease-out both;
+  position: absolute; inset: 0; z-index: 30; background: rgba(13, 17, 23, .45);
+  display: flex; align-items: flex-end; animation: scrimIn 180ms ease-out both;
 }
 .sheet {
   position: relative; width: 100%; background: #fff; border-radius: 24px 24px 0 0;
   box-shadow: 0 -12px 40px rgba(15, 18, 25, .2); will-change: transform;
-  animation: sheetUp 380ms cubic-bezier(.32, .72, 0, 1) both;
+  animation: sheetUp 260ms cubic-bezier(.2, .8, .2, 1) both;
 }
 
 /* v6 slide-up sheets (Profile, Notifications, View all, Could use a hand, Search, Will you be there?):

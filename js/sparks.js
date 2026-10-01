@@ -21,7 +21,6 @@
   const SCHED_VIEWS = ['tiles', 'list', 'month'];  // v6 group pages (Grid is gone there; Month added 2026-09-30)
   const HOME_VIEWS = ['next', 'tiles', 'month'];   // v6 Update 9: Your schedule (List is gone; a saved List opens Up next)
   const CVIEWS = ['list', 'tiles', 'month'];       // v6 Calendar
-  const FACE_COLORS = ['#5b4ae8', '#e8a71c', '#0f7a3c'];
   const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
   const OFFER_LINES = { spot: 'offered a location: ', day: 'suggested a date: ', help: 'can help: ' };
 
@@ -792,16 +791,16 @@
     }, { confirm: null }).then(ok => { if (ok) toast(m.user_id === state.me ? 'You’re ' + (role === 'admin' ? 'an admin' : 'a member') + ' now' : note, true); });
     const me = m.user_id === state.me;
     if (role === 'owner') {
-      setState({ confirm: { title: 'Make ' + first + ' an owner?', body: 'Owners can do everything admins can, and choose who the admins and owners are. They could also take the owner role away from you. A group can have up to five owners.', cta: 'Make them an owner', keep: 'Cancel', run: apply } });
+      setState({ confirm: { title: 'Make ' + first + ' an owner?', body: 'Owners can do everything admins can, and choose who the admins and owners are. They could also take the owner role away from you. A group can have up to five owners.', cta: 'Make them an owner', keep: 'Not now', run: apply } });
     } else if (m.role === 'owner') {
-      setState({ confirm: { title: me ? 'Step down as owner?' : 'Remove ' + first + ' as owner?', body: me ? 'You’ll be an admin and can’t change roles any more.' : first + ' will be an admin.', cta: me ? 'Step down' : 'Remove as owner', keep: 'Cancel', danger: true, run: apply } });
+      setState({ confirm: { title: me ? 'Step down as owner?' : 'Remove ' + first + ' as owner?', body: me ? 'You’ll be an admin and can’t change roles any more.' : first + ' will be an admin.', cta: me ? 'Step down' : 'Remove as owner', keep: 'Not now', danger: true, run: apply } });
     } else apply();
   };
 
   // Admins remove members; owners also remove admins and other owners (remove_member() checks)
   const removeMember = (g, m) => {
     const first = firstName(m.name) || m.name;
-    setState({ confirm: { title: 'Remove ' + first + ' from ' + g.name + '?', body: 'They won’t see the group’s events any more. The events they posted and their RSVPs stay. They can rejoin with the group’s link.', cta: 'Remove', keep: 'Cancel', danger: true,
+    setState({ confirm: { title: 'Remove ' + first + ' from ' + g.name + '?', body: 'They won’t see the group’s events any more. The events they posted and their RSVPs stay. They can rejoin with the group’s link.', cta: 'Remove', keep: 'Keep them', danger: true,
       run: () => run(async () => {
         must(await sb.rpc('remove_member', { p_group: g.id, p_user: m.user_id }));
         await loadMembers(g.id);
@@ -830,7 +829,7 @@
   // Leave a group (owner, 2026-09-30): a quiet link at the bottom of its page. The last owner can't (leave_group()
   // refuses too): they make someone else an owner first, or delete the group.
   const leaveGroup = (g) => {
-    setState({ confirm: { title: 'Leave ' + g.name + '?', body: 'You won’t see its events any more. The events you posted and your RSVPs stay. You can rejoin with the group’s link.', cta: 'Leave', keep: 'Cancel', danger: true,
+    setState({ confirm: { title: 'Leave ' + g.name + '?', body: 'You won’t see its events any more. The events you posted and your RSVPs stay. You can rejoin with the group’s link.', cta: 'Leave', keep: 'Stay', danger: true,
       run: async () => {
         if (state.viewAs || state.busy) return;
         setState({ busy: 'save' });
@@ -940,7 +939,7 @@
     if (fa.self) return modal('Friend link', close, h3('That’s your link') + para('Send it to people you want to be friends with on Spark Hub.') + ok('OK'), { z: 46 });
     const first = firstName(w.name) || 'them', url = w.avatar ? photoUrl(w.avatar) : null;
     return modal('Add a friend', close,
-      '<span aria-hidden="true" style="align-self:center;width:72px;height:72px;border-radius:999px;background:' + (url ? '#dcdfe6 ' + bg(url) : FR_TINT[0][0]) + ';color:' + FR_TINT[0][1] + ';font-size:24px;font-weight:900;display:flex;align-items:center;justify-content:center">' + (url ? '' : esc(initialsOf(w.name))) + '</span>' +
+      avatarSpan(w.name, w.name, url, 72, 'align-self:center') +
       '<h3 style="margin:0;text-align:center;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117;text-wrap:balance">' + (state.email ? 'Add ' + esc(w.name || 'them') + ' as a friend?' : esc(w.name || 'Someone') + ' wants to be friends on Spark Hub') + '</h3>' +
       '<p style="margin:0;text-align:center;font-size:14.5px;line-height:1.45;font-weight:500;color:#5c6270;text-wrap:pretty">Friends can invite each other to events, even across groups.</p>' +
       '<div style="margin-top:4px;display:flex;flex-direction:column;gap:8px">' +
@@ -1214,7 +1213,7 @@
           '<div style="margin-top:2px;font-size:14px;line-height:1.4;font-weight:600;color:#5c6270">No one is told. The ' + word + ' just disappears.</div></div>' +
         '<button type="button" ' + on(() => { if (!state.busy) takeDown(s, true); }) + ' style="' + SECONDARY + '">Delete without telling anyone</button>' +
       '</div>' +
-      '<span ' + on(close) + ' style="align-self:center;display:flex;align-items:center;min-height:40px;font-size:15px;font-weight:800;color:#5c6270;cursor:pointer">Keep it</span>',
+      '<button type="button" class="hov-outline" ' + on(close) + ' style="' + SECONDARY + '">Keep it</button>',
       { z: 34, max: 380 });
   }
 
@@ -1825,10 +1824,10 @@
   // Style factories (values from the design file)
   // ---------------------------------------------------------------------------
 
-  const btn = (ok) => css({ marginTop: '4px', width: '100%', border: 0, borderRadius: '999px', padding: '17px', fontFamily: 'inherit', fontSize: '16.5px', fontWeight: 800, color: '#fff',
-    background: ok ? '#5b4ae8' : '#b9bcc4', cursor: ok ? 'pointer' : 'not-allowed', boxShadow: ok ? '0 10px 24px rgba(91,74,232,.32)' : 'none' });
+  // One main button (audit, 2026-10-01): 52px purple pill, #d5d8df when it can't be used yet
   const primary = (ok) => css({ width: '100%', border: 0, borderRadius: '999px', padding: '16px', fontFamily: 'inherit', fontSize: '16px', fontWeight: 800, color: '#fff',
-    background: ok ? '#5b4ae8' : '#b9bcc4', cursor: ok ? 'pointer' : 'not-allowed' });
+    background: ok ? '#5b4ae8' : '#d5d8df', cursor: ok ? 'pointer' : 'not-allowed' });
+  const btn = (ok) => primary(ok) + ';margin-top:4px';
   const SECONDARY = 'width:100%;background:#fff;border:1.5px solid #dcdfe6;border-radius:999px;padding:15px;font-family:inherit;font-size:16px;font-weight:800;color:#0d1117;cursor:pointer';
   const CARD = 'background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08)';
   const EYEBROW = 'font-size:12px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#6b7280';
@@ -1837,12 +1836,15 @@
   const bg = (url, pos) => url ? 'url(\'' + esc(url) + '\') ' + (pos || 'center') + '/cover' : '';
 
   // A person's face: photo, or a coloured initial
-  const face = (uid, name, size, color, extra) => {
-    const url = avatarOf(uid);
-    return '<span aria-hidden="true" style="flex:0 0 ' + size + 'px;width:' + size + 'px;height:' + size + 'px;border-radius:999px;background:' +
-      (url ? bg(url) : (color || '#e8a71c')) + ';color:#fff;font-size:' + Math.round(size * 0.46) + 'px;font-weight:900;display:flex;align-items:center;justify-content:center;' + (extra || '') + '">' +
-      (url ? '' : esc(initialOf(name) || '?')) + '</span>';
-  };
+  // One face for a person everywhere (audit, 2026-10-01): their photo, or two initials on a pastel picked from their
+  // account id, so the same person keeps the same colour on every screen (it used to depend on list position or name length)
+  const FACE_TINTS = [['#dcd7fb', '#4a3ad4'], ['#fde4cf', '#9a4a0c'], ['#d6f0e0', '#0f7a3c'], ['#dbeafe', '#1d4ed8'], ['#fde2e7', '#b4233c'], ['#fdf1d6', '#8f6405']];
+  const tintOf = (key) => { const k = String(key || ''); let h = 0; for (let i = 0; i < k.length; i++) h = (h * 31 + k.charCodeAt(i)) >>> 0; return FACE_TINTS[h % FACE_TINTS.length]; };
+  const twoInitials = (n) => (n || '').trim().split(/\s+/).slice(0, 2).map(w => w.charAt(0).toUpperCase()).join('') || '?';
+  const avatarSpan = (key, name, url, size, extra, inner) => { const t = tintOf(key || name);
+    return '<span aria-hidden="true" style="flex:0 0 ' + size + 'px;width:' + size + 'px;height:' + size + 'px;border-radius:999px;background:' + (url ? '#dcdfe6 ' + bg(url) : t[0]) + ';color:' + t[1] +
+      ';font-size:' + Math.round(size * 0.36) + 'px;font-weight:900;display:flex;align-items:center;justify-content:center;' + (extra || '') + '">' + (url ? '' : esc(twoInitials(name))) + (inner || '') + '</span>'; };
+  const face = (uid, name, size, color, extra) => avatarSpan(uid, name, avatarOf(uid), size, extra);   // (color is ignored now)
 
   const groupPhoto = (g) => g && g.photo ? photoUrl(g.photo) : null;
 
@@ -2130,8 +2132,10 @@
     const sc = scroller();
     if (sc) sc.scrollTop = b.scroll;
   };
-  const backBtn = (s) => '<span ' + on(() => goBack(s)) + ' aria-label="Back to ' + esc(backLabel(s)) + '" style="flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:rgba(255,255,255,.94);box-shadow:0 2px 10px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.chevL(20, '#0d1117', 2.6) + '</span>';
-  const EDIT_PILL = 'flex:0 0 auto;display:flex;align-items:center;gap:6px;min-height:40px;padding:0 14px;border-radius:999px;background:rgba(255,255,255,.94);box-shadow:0 2px 10px rgba(0,0,0,.25);font-size:14px;font-weight:800;color:#0d1117;cursor:pointer';
+  // Photo headers (audit, 2026-10-01): one dark wash on the tab screens; one 44px white back button
+  const HEAD_WASH = 'linear-gradient(to top, rgba(13,17,23,.9) 0%, rgba(13,17,23,.45) 55%, rgba(13,17,23,.25) 100%)';
+  const backBtn = (s) => '<span ' + on(() => goBack(s)) + ' aria-label="Back to ' + esc(backLabel(s)) + '" class="hov-fill-grey" style="flex:0 0 44px;width:44px;height:44px;border-radius:999px;background:#fff;box-shadow:0 2px 8px rgba(13,17,23,.25);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.chevL(18, '#0d1117', 2.6) + '</span>';
+  const EDIT_PILL = 'flex:0 0 auto;display:flex;align-items:center;gap:6px;min-height:44px;padding:0 14px;border-radius:999px;background:rgba(255,255,255,.94);box-shadow:0 2px 10px rgba(0,0,0,.25);font-size:14px;font-weight:800;color:#0d1117;cursor:pointer';
 
   // Loading placeholders (never the empty-state copy) until the first data arrives
   const skeleton = (n, h) => '<div role="status" aria-label="Loading" style="display:flex;flex-direction:column;gap:14px">' +
@@ -2202,8 +2206,8 @@
   const hostRow = (thumb, title, line, ink, fn, attr, s) => '<div ' + on(fn) + ' ' + attr + ' class="hov-host" style="display:flex;align-items:center;gap:10px;min-height:52px;padding:6px 14px 6px 10px;cursor:pointer;box-sizing:border-box">' + thumb +
     '<div style="flex:1 1 0;min-width:0"><div style="display:flex;align-items:center;min-width:0"><span style="min-width:0;font-size:15px;line-height:1.2;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(title) + '</span>' + demoTag(s, false, true) + '</div>' +
       '<div style="font-size:12.5px;font-weight:600;color:' + (ink || '#6b7280') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(line) + '</div></div>' +
-    I.chevR(12, '#b9bcc4', 3) + '</div>';
-  const hostThumb = (css, dim) => '<span aria-hidden="true" style="flex:0 0 32px;width:32px;height:32px;border-radius:7px;background:' + css + (dim ? MUTED : '') + '"></span>';
+    I.chevR(14, '#b9bcc4', 2.6) + '</div>';
+  const hostThumb = (css, dim) => '<span aria-hidden="true" style="flex:0 0 40px;width:40px;height:40px;border-radius:10px;background:' + css + (dim ? MUTED : '') + '"></span>';
   // An idea's line: the top-voted date while none is picked ("Oct 23 leads", amber), else how many are in
   const ideaLine = (s) => {
     const top = s.dateOpts.filter(o => o.votes.length).sort((a, b) => b.votes.length - a.votes.length || (a.dayDate || '').localeCompare(b.dayDate || ''))[0];
@@ -2216,7 +2220,7 @@
 
   function viewOwn() {
     const st = state, gid = st.ownGrp && groupById(st.ownGrp) ? st.ownGrp : null;
-    const head = '<header style="position:relative;z-index:5;background:#fff;padding:14px 16px;display:flex;align-items:center;gap:12px">' + titleSwitch('Leading') + searchBtn() + '</header>';
+    const head = head6('Leading', '', true);   // the same header as Your tasks, its twin behind the title switch (it had no bell)
     const wrap = (inner) => '<div data-screen-label="Leading">' + head +
       (gid ? '<div style="padding:12px 20px 0;font-size:13px;font-weight:700;color:#6b7280">' + esc(groupById(gid).name) + '</div>' : '') +
       '<div style="padding:12px 14px 26px;display:flex;flex-direction:column;gap:8px">' + inner + '</div><div style="height:var(--nav-h)"></div></div>';
@@ -2232,7 +2236,7 @@
     const body = sec('Drafts', drafts.map(d => {
         const x = draftState(d), j = x.evStep === 'review' ? 5 : Math.max(0, EV_STEPS.indexOf(x.evStep)), t = cleanTitle(x.activity) || 'Untitled event';
         const thumb = x.evPhotoPath ? hostThumb('#2b303a ' + bg(photoUrl(x.evPhotoPath)), true)
-          : '<span aria-hidden="true" style="flex:0 0 32px;width:32px;height:32px;border-radius:7px;background:#f4f5f7;display:flex;align-items:center;justify-content:center">' + svg(16, stroke('#9aa0ac', 2.2), IMG_IC) + '</span>';
+          : '<span aria-hidden="true" style="flex:0 0 40px;width:40px;height:40px;border-radius:10px;background:#f4f5f7;display:flex;align-items:center;justify-content:center">' + svg(16, stroke('#9aa0ac', 2.2), IMG_IC) + '</span>';
         return hostRow(thumb, t, j + ' of 5 steps', null, () => resumeDraft(d), 'data-host-draft="' + esc(t) + '" aria-label="Draft: ' + esc(t) + '"');
       })) +
       sec('Ideas', ideas.map(s => { const l = ideaLine(s); return ev(s, l[0], l[1]); })) +
@@ -2255,16 +2259,11 @@
   const GRAD = '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.85), rgba(13,17,23,.1) 60%)"></div>';
 
   // v6 Update 13: Groups becomes Your people: Groups · Friends under one photo header, Search, and a white Add button
-  const FR_TINT = [['#dcd7fb', '#4a3ad4'], ['#fde4cf', '#9a4a0c'], ['#d6f0e0', '#0f7a3c'], ['#dbeafe', '#1d4ed8']];
-  const initialsOf = (n) => (n || '').trim().split(/\s+/).slice(0, 2).map(w => w.charAt(0).toUpperCase()).join('') || '?';
-  const frFace = (f, size, k) => {
-    const url = f.avatar ? photoUrl(f.avatar) : null, t = FR_TINT[(k == null ? (f.name || '').length : k) % FR_TINT.length];
-    return '<span aria-hidden="true" style="flex:0 0 ' + size + 'px;width:' + size + 'px;height:' + size + 'px;border-radius:999px;background:' + (url ? '#dcdfe6 ' + bg(url) : t[0]) + ';color:' + t[1] + ';font-size:' + Math.round(size * 0.34) + 'px;font-weight:900;display:flex;align-items:center;justify-content:center">' + (url ? '' : esc(initialsOf(f.name))) + '</span>';
-  };
+  const frFace = (f, size) => avatarSpan(f.id, f.name, f.avatar ? photoUrl(f.avatar) : null, size);
   const isFriend = (uid) => state.fr.friends.some(f => f.id === uid);
   const friendById = (uid) => state.fr.friends.find(f => f.id === uid) || null;
   const pplQ = () => state.pplSearch ? state.pplQ.trim().toLowerCase() : '';
-  const openPplSearch = () => { setState({ pplSearch: true, pplQ: '' }); setTimeout(() => { const el = document.querySelector('[data-ppl-q]'); if (el) el.focus(); }, 50); };
+  const openPplSearch = () => { setState({ pplSearch: true, pplQ: '' }); setTimeout(() => { const el = document.querySelector('[data-csearch]'); if (el) el.focus(); }, 50); };
   const pplTab = (k) => setState({ pplTab: k, frSel: k === 'friends' ? state.frSel : [] });
   const toggleFriendSel = (id) => setState({ frSel: state.frSel.indexOf(id) > -1 ? state.frSel.filter(x => x !== id) : state.frSel.concat(id) });
   // "Darnell & Marisol", or "Darnell, Marisol + 2"
@@ -2289,7 +2288,7 @@
     setState({ fr: Object.assign({}, state.fr, { outgoing: state.fr.outgoing.concat(uid) }) });
     toast(r === 'friends' ? 'You and ' + firstName(name) + ' are friends' : 'Friend request sent to ' + firstName(name), true);
   });
-  const removeFriend = (f) => setState({ confirm: { z: 60, title: 'Remove ' + firstName(f.name) + ' as a friend?', body: 'They won’t be told. You’ll still see each other in any groups you share.', cta: 'Remove friend', keep: 'Keep', danger: true,
+  const removeFriend = (f) => setState({ confirm: { z: 60, title: 'Remove ' + firstName(f.name) + ' as a friend?', body: 'They won’t be told. You’ll still see each other in any groups you share.', cta: 'Remove friend', keep: 'Keep friend', danger: true,
     run: () => run(async () => {
       must(await sb.rpc('remove_friend', { p_other: f.id }));
       setState({ frProfile: null, frSel: state.frSel.filter(x => x !== f.id), fr: Object.assign({}, state.fr, { friends: state.fr.friends.filter(x => x.id !== f.id), outgoing: state.fr.outgoing.filter(x => x !== f.id) }) });
@@ -2363,7 +2362,7 @@
     const sub = st.loaded ? all.length + (all.length === 1 ? ' group' : ' groups') + (st.fr.loaded ? ' · ' + nFr + (nFr === 1 ? ' friend' : ' friends') : '') : '';
     const header = '<header style="position:relative;height:calc(180px + var(--pt));overflow:hidden;background:#2b303a">' +
       (hero ? '<div style="position:absolute;inset:0;overflow:hidden">' + photoLayer(groupPhoto(hero), hero.photoPos, GROUP_POS) + '</div>' : '<div aria-hidden="true" style="position:absolute;inset:0;background:' + bg('/photos/walnut-creek.jpg', '50% 45%') + '"></div>') +
-      '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.9) 0%, rgba(13,17,23,.45) 55%, rgba(13,17,23,.25) 100%)"></div>' +
+      '<div aria-hidden="true" style="position:absolute;inset:0;background:' + HEAD_WASH + '"></div>' +
       '<div style="position:absolute;top:calc(14px + var(--pt));right:16px;z-index:2;display:flex;gap:8px">' + frosted('Search your people', ic6('search', 19, '#fff', 2.4), openPplSearch) + bellBtn(true) + '</div>' +
       '<div style="position:absolute;left:18px;right:90px;bottom:16px;z-index:2;color:#fff">' +
         '<div style="font-size:13px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:#cfc9ff">Groups &amp; friends</div>' +
@@ -2372,15 +2371,15 @@
       '<span ' + on(openPplAdd) + ' aria-label="Add a group or friend" class="hov-fill-grey" style="position:absolute;right:16px;bottom:16px;z-index:3;width:52px;height:52px;border-radius:999px;background:#fff;box-shadow:0 6px 16px rgba(13,17,23,.35);display:flex;align-items:center;justify-content:center;cursor:pointer">' +
         svg(22, stroke('#0d1117', 2.4), '<circle cx="9.5" cy="8" r="3.5"/><path d="M3 20a6.5 6.5 0 0 1 13 0"/><path d="M19 8v6M16 11h6"/>') + '</span>' +
     '</header>';
-    const search = st.pplSearch ? '<div style="display:flex;align-items:center;gap:8px;min-height:48px;padding:0 6px 0 14px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6">' +
-        svg(17, stroke('#6b7280', 2.4), '<circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/>') +
-        '<input data-ppl-q type="search" aria-label="' + (friendsTab ? 'Search friends' : 'Search groups') + '" placeholder="' + (friendsTab ? 'Search friends' : 'Search groups') + '" value="' + esc(st.pplQ) + '" ' + onInput(e => { if (e.type === 'input') setState({ pplQ: e.target.value.slice(0, 40) }); }) +
-          ' style="flex:1;min-width:0;border:0;outline:0;background:transparent;font-family:inherit;font-size:16px;font-weight:600;color:#0d1117">' +
-        '<span ' + on(() => setState({ pplSearch: false, pplQ: '' })) + ' style="padding:8px 10px;font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">Cancel</span></div>' : '';
+    // The Calendar's search field (audit, 2026-10-01)
+    const search = st.pplSearch ? searchHead(friendsTab ? 'Search friends' : 'Search groups', st.pplQ, friendsTab ? 'Search friends' : 'Search groups',
+      (v) => setState({ pplQ: v.slice(0, 40) }), () => setState({ pplQ: '' }), () => setState({ pplSearch: false, pplQ: '' })) : '';
+    // The group page's switch (audit, 2026-10-01): a 44px gray track, a white thumb that slides to the side that's on
+    const onFr = (st.pplTab || 'groups') === 'friends';
     const seg = (k, label) => { const onIt = (st.pplTab || 'groups') === k;
-      return '<span ' + on(() => pplTab(k), 'tab') + ' aria-selected="' + onIt + '" style="flex:1 1 0;min-width:0;height:38px;border-radius:999px;display:flex;align-items:center;justify-content:center;font-size:14.5px;cursor:pointer;transition:background 160ms;' +
-        (onIt ? 'background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.12);font-weight:900;color:#0d1117' : 'font-weight:800;color:#5c6270') + '">' + label + '</span>'; };
-    const tabs = '<div role="tablist" aria-label="Groups or friends" style="display:flex;padding:4px;border-radius:999px;background:#dfe2e7">' +
+      return '<span ' + on(() => pplTab(k), 'tab') + ' aria-selected="' + onIt + '" style="position:relative;display:flex;align-items:center;justify-content:center;height:100%;font-size:14px;font-weight:900;white-space:nowrap;cursor:pointer;transition:color 180ms ease;color:' + (onIt ? '#0d1117' : '#6b7280') + '">' + label + '</span>'; };
+    const tabs = '<div role="tablist" aria-label="Groups or friends" style="position:relative;height:44px;border-radius:999px;background:#dfe2e7;display:grid;grid-template-columns:1fr 1fr;align-items:center">' +
+      '<span aria-hidden="true" style="position:absolute;top:4px;bottom:4px;width:calc(50% - 6px);left:' + (onFr ? 'calc(50% + 2px)' : '4px') + ';border-radius:999px;background:#fff;box-shadow:0 1px 4px rgba(13,17,23,.15);transition:left 220ms cubic-bezier(.2,.8,.2,1)"></span>' +
       seg('groups', 'Groups · ' + all.length) + seg('friends', 'Friends' + (st.fr.loaded ? ' · ' + nFr : '')) + '</div>';
     const none = (what) => '<div style="padding:8px;text-align:center;font-size:14.5px;font-weight:700;color:#6b7280">No ' + what + ' match “' + esc(st.pplQ.trim()) + '”</div>';
     const groupsBody = !st.loaded ? skeleton(2, 200)
@@ -2434,7 +2433,7 @@
       '<span style="flex:0 0 44px;width:44px;height:44px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center">' + icon + '</span>' +
       '<div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:900;color:#0d1117">' + label + '</div><div style="font-size:13px;font-weight:600;color:#5c6270">' + sub + '</div></div>' + I.chevR(16, '#9aa0aa', 2.4) + '</div>';
     return sheet('Add people', close, 'padding:10px 14px calc(22px + env(safe-area-inset-bottom, 0px))',
-      '<div style="display:flex;align-items:center;justify-content:space-between;padding:0 6px 8px"><h3 style="margin:0;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">Add people</h3>' + closeX(close, 'flex:0 0 36px;width:36px;height:36px') + '</div>' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;padding:0 6px 8px"><h3 style="margin:0;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">Add people</h3>' + closeX(close) + '</div>' +
       '<div style="display:flex;flex-direction:column">' +
         row('Add a friend', 'Send them your friend link', svg(19, stroke('#0d1117', 2.2), '<circle cx="9.5" cy="8" r="3.5"/><path d="M3 20a6.5 6.5 0 0 1 13 0"/><path d="M19 8v6M16 11h6"/>'), shareFriendLink) +
         row('Join a group', 'Have a code or link?', svg(19, stroke('#0d1117', 2.2), '<rect x="3" y="7" width="18" height="10" rx="2"/><path d="M7 12h.01M11 12h.01M15 12h.01"/>'), () => { setState({ pplAdd: false }); openJoin(); }) +
@@ -2463,11 +2462,11 @@
   function viewFrInvite() {
     const close = () => setState({ frInvite: false }), list = inviteList();
     const row = (s) => '<div ' + on(() => inviteFriends(s)) + ' data-invite-event="' + esc(s.text) + '" class="hov-grey-fill" style="display:flex;align-items:center;gap:12px;padding:12px 6px;border-top:1px solid #eceef1;cursor:pointer">' +
-      '<span aria-hidden="true" style="flex:0 0 48px;width:48px;height:48px;border-radius:10px;background:#2b303a ' + photoBg(s) + '"></span>' +
-      '<div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:900;color:#0d1117;text-wrap:pretty">' + esc(s.text) + '</div>' +
-        '<div style="font-size:12.5px;font-weight:700;color:#6b7280">' + esc([s.dayDate ? dayLabel(s.dayDate, s.dayTime) : 'Date TBD', (groupById(s.groupId) || {}).name].filter(Boolean).join(' · ')) + '</div></div>' + I.chevR(16, '#9aa0aa', 2.4) + '</div>';
+      '<span aria-hidden="true" style="flex:0 0 40px;width:40px;height:40px;border-radius:10px;background:#2b303a ' + photoBg(s) + '"></span>' +
+      '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(s.text) + '</div>' +
+        '<div style="font-size:12.5px;font-weight:600;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc([s.dayDate ? dayLabel(s.dayDate, s.dayTime) : 'Date TBD', (groupById(s.groupId) || {}).name].filter(Boolean).join(' · ')) + '</div></div>' + I.chevR(14, '#b9bcc4', 2.6) + '</div>';
     return sheet('Invite friends', close, 'max-height:78%;overflow-y:auto;padding:10px 14px calc(22px + env(safe-area-inset-bottom, 0px))',
-      '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 6px 4px"><h3 style="margin:0;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">Invite ' + esc(selNames()) + '</h3>' + closeX(close, 'flex:0 0 32px;width:32px;height:32px') + '</div>' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 6px 4px"><h3 style="margin:0;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">Invite ' + esc(selNames()) + '</h3>' + closeX(close) + '</div>' +
       '<div style="padding:0 6px 10px;font-size:14px;font-weight:600;color:#5c6270">Pick one of your upcoming events.</div>' +
       '<div style="display:flex;flex-direction:column">' + (list.length ? list.map(row).join('')
         : '<div style="padding:14px 6px;border-top:1px solid #eceef1;font-size:14.5px;line-height:1.45;font-weight:600;color:#5c6270">You don’t have anything coming up yet. Events you’re leading or going to show up here.</div>') + '</div>', 45);
@@ -2481,10 +2480,10 @@
     return sheet(f.name, close, 'padding:10px 18px calc(22px + env(safe-area-inset-bottom, 0px));display:flex;flex-direction:column;gap:14px',
       '<div style="display:flex;align-items:center;gap:14px">' + frFace(f, 56, state.fr.friends.indexOf(f)) +
         '<div style="flex:1;min-width:0"><div style="font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.4px;color:#0d1117">' + esc(f.name) + '</div>' +
-        (since ? '<div style="margin-top:3px;font-size:13.5px;font-weight:600;color:#6b7280">Friends since ' + esc(since) + '</div>' : '') + '</div>' + closeX(close, 'flex:0 0 36px;width:36px;height:36px') + '</div>' +
+        (since ? '<div style="margin-top:3px;font-size:13.5px;font-weight:600;color:#6b7280">Friends since ' + esc(since) + '</div>' : '') + '</div>' + closeX(close) + '</div>' +
       '<div style="padding:12px 14px;border-radius:14px;background:#f7f7f9;font-size:14px;line-height:1.45;font-weight:600;color:#454b55">' +
         (f.groups.length ? '<span style="font-size:12px;font-weight:900;letter-spacing:.6px;text-transform:uppercase;color:#8a909b">Both in</span><br>' + esc(namesList(f.groups)) : 'You’re not in any of the same groups.') + '</div>' +
-      '<span ' + on(() => removeFriend(f)) + ' class="hov-danger" style="align-self:flex-start;display:flex;align-items:center;min-height:40px;padding:0 16px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #f3c4cc;font-size:14px;font-weight:800;color:#c2334a;cursor:pointer">Remove friend</span>', 45);
+      '<span ' + on(() => removeFriend(f)) + ' class="hov-danger" style="align-self:flex-start;display:flex;align-items:center;min-height:40px;padding:0 16px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #f5c2cb;font-size:14px;font-weight:800;color:#9b1c31;cursor:pointer">Remove friend</span>', 45);
   }
 
   const isoOf = (y, m, d) => y + '-' + pad2(m + 1) + '-' + pad2(d);
@@ -2757,13 +2756,13 @@
       ring6(st, 30) + '<span style="flex:1;min-width:0;font-size:14.5px;font-weight:700;color:' + (st.p >= 1 ? '#8a909b' : '#2a2f38') + '">' + (st.p >= 1 ? st.done : st.todo) + '</span>' + I.chevR(14, '#b9bcc4', 2.6) + '</div>').join('');
     const card = (z) => '<div ' + on(() => openSpark(z.s)) + ' data-task="' + esc(z.s.text) + '" style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
       '<div style="display:flex;align-items:center;gap:12px;padding:12px">' + thumb(z.s) +
-        '<div style="flex:1;min-width:0"><div style="font-size:15px;line-height:1.25;font-weight:800;color:#0d1117;text-wrap:balance">' + esc(z.s.text) + '</div>' +
-        '<div style="margin-top:2px;font-size:12.5px;font-weight:700;color:' + R.ink + '">' + esc(when6(z.s)) + '</div></div>' + I.chevR(14, '#b9bcc4', 2.6) + '</div>' +
+        '<div style="flex:1;min-width:0"><div style="font-size:15px;line-height:1.25;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(z.s.text) + '</div>' +
+        '<div style="margin-top:2px;font-size:12.5px;font-weight:600;color:' + R.ink + '">' + esc(when6(z.s)) + '</div></div>' + I.chevR(14, '#b9bcc4', 2.6) + '</div>' +
       (k === 'lead' && phaseOf(z.s) === 'plan' ? statsStrip(z.s) : '') +
       (k === 'idea' ? stepRows(z.s) : z.a.map(a => actRow(a, R)).join('')) + '</div>';
     return sheet6(title, close,
       '<div style="display:flex;align-items:center;gap:10px"><span style="width:10px;height:10px;border-radius:999px;background:' + R.dot + '"></span>' +
-        '<h2 style="flex:1;margin:0;font-size:26px;line-height:1.1;font-weight:900;letter-spacing:-.6px;color:#0d1117">' + title + '</h2>' + closeX(close) + '</div>',
+        '<h2 style="flex:1;margin:0;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">' + title + '</h2>' + closeX(close) + '</div>',
       '<div style="padding:14px 14px 30px;display:flex;flex-direction:column;gap:10px">' + (list.length ? list.map(card).join('') : '<div style="' + CARD + ';padding:26px 16px;text-align:center;font-size:15px;font-weight:700;color:#6b7280">Nothing here right now.</div>') + '</div>');
   }
 
@@ -2781,7 +2780,7 @@
   // The strip under a card: your role on the left; tasks (tap to expand in place), All set, or Change / Update RSVP
   const strip6 = (s, P, h, cal) => {
     const open = !!state.schedOpen[s.id] && P.rows.length > 0;
-    const expands = P.rows.length > 0 && (P.k !== 'lead' || !cal);
+    const expands = P.rows.length > 0;   // the same on every list (audit, 2026-10-01: the Calendar said "Manage" and opened the event)
     const tap = (e) => { stop(e); if (!expands) openSpark(s); else setState({ schedOpen: Object.assign({}, state.schedOpen, { [s.id]: !open }) }); };
     const f = signupFill(s), n = going(s).length;
     let left, right;
@@ -2790,7 +2789,7 @@
       right = '<span style="color:#0d1117">RSVP</span>';
     } else {
       left = '<span style="display:flex;align-items:center;gap:6px">' + (h > 30 ? ic6(P.icon, 14, P.R.ink, 2.4) : '') + P.word + '</span>';
-      const word = P.right || (P.rows.length ? (cal && P.k === 'help' ? String(P.rows.length) : cal && P.k === 'lead' ? 'Manage' : P.rows.length + (P.rows.length === 1 ? ' task' : ' tasks')) : 'All set');
+      const word = P.right || (P.rows.length ? P.rows.length + (P.rows.length === 1 ? ' task' : ' tasks') : 'All set');
       right = '<span style="display:flex;align-items:center;gap:4px">' + (open ? '' : word) + (expands || P.k === 'go' ? chev6(11, P.R.ink, open) : '') + '</span>';
     }
     return '<div ' + on(tap) + ' aria-expanded="' + open + '" style="display:flex;align-items:center;justify-content:space-between;gap:10px;height:' + h + 'px;padding:0 14px;background:' + P.R.strip + ';border-top:1px solid ' + P.R.strip + ';font-size:' + (h > 30 ? 13.5 : 12) + 'px;font-weight:800;color:' + P.R.ink + ';cursor:pointer">' + '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + left + '</span>' + right + '</div>' +
@@ -2809,7 +2808,7 @@
           '<div style="display:flex;align-items:center;gap:5px;font-size:14.5px;font-weight:700;color:rgba(255,255,255,.9);min-width:0">' + ic6('pin', 14, 'currentColor', 2.3) + '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (s.spot ? esc(s.spot) : tbdSpan(spotTbd(s), TBD_ON_PHOTO)) + '</span></div>' +
         '</div></div>' + strip6(s, P, 40, cal) + '</div>';
   };
-  // List: date block, role bar, title, time · place (and on the Calendar, a photo) over the strip
+  // List: date block, role bar, title, time · street, the photo on the right, over the strip (the same on every list since the audit, 2026-10-01)
   const listCard6 = (s, P, cal, thumb) => {
     const dp = s.dayDate ? dateParts(s.dayDate) : null;
     return '<div ' + on(() => openSpark(s)) + ' data-plan="' + esc(s.text) + '" aria-label="' + esc(s.text) + '" style="border-radius:16px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
@@ -2818,8 +2817,8 @@
           : '<span style="font-size:10.5px;font-weight:900;letter-spacing:.6px;color:#8f6405">TBD</span><span style="font-size:20px;line-height:1.1;font-weight:900;color:#8f6405">?</span>') + '</div>' +
         '<span aria-hidden="true" style="flex:0 0 3px;align-self:stretch;border-radius:999px;background:' + P.R.dot + '"></span>' +
         '<div style="flex:1;min-width:0"><div style="display:flex;align-items:center;min-width:0"><span style="min-width:0;font-size:15px;line-height:1.3;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(s.text) + '</span>' + demoTag(s, false, true) + '</div>' +
-          '<div style="font-size:12.5px;font-weight:600;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + [s.dayDate ? esc(fmtTime(s.dayTime)) : tbdSpan(dateTbd(s)), s.spot ? esc(cal || thumb ? street(s) : s.spot) : tbdSpan(spotTbd(s))].filter(Boolean).join(' · ') + '</div></div>' +
-        (cal || thumb ? '<span aria-hidden="true" style="flex:0 0 44px;width:44px;height:44px;border-radius:10px;background:' + photoBg(s) + '"></span>' : I.chevR(16, '#b9bcc4', 2.6)) +
+          '<div style="font-size:12.5px;font-weight:600;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + [s.dayDate ? esc(fmtTime(s.dayTime)) : tbdSpan(dateTbd(s)), s.spot ? esc(street(s)) : tbdSpan(spotTbd(s))].filter(Boolean).join(' · ') + '</div></div>' +
+        '<span aria-hidden="true" style="flex:0 0 44px;width:44px;height:44px;border-radius:10px;background:' + photoBg(s) + '"></span>' +
       '</div>' + strip6(s, P, 28, cal) + '</div>';
   };
 
@@ -3033,15 +3032,15 @@
     const st = state, groups = groupsInOrder(), base = calBase(), list = calResults(), hand = handList();
     const header = '<header style="position:relative;height:calc(180px + var(--pt));overflow:hidden;background:#2b303a">' +
       '<div aria-hidden="true" style="position:absolute;inset:0;background:' + bg('/photos/walnut-creek.jpg', '50% 45%') + '"></div>' +
-      '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.95) 0%, rgba(13,17,23,.65) 45%, rgba(13,17,23,.3) 100%)"></div>' +
-      '<div style="position:absolute;top:calc(14px + var(--pt));right:16px;display:flex;gap:10px;z-index:2">' +
-        '<span ' + on(openSearch) + ' aria-label="Search events" style="width:44px;height:44px;border-radius:999px;background:rgba(255,255,255,.18);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;cursor:pointer">' + ic6('search', 20, '#fff', 2.3) + '</span>' +
+      '<div aria-hidden="true" style="position:absolute;inset:0;background:' + HEAD_WASH + '"></div>' +
+      '<div style="position:absolute;top:calc(14px + var(--pt));right:16px;display:flex;gap:8px;z-index:2">' +
+        '<span ' + on(openSearch) + ' aria-label="Search events" style="width:44px;height:44px;border-radius:999px;background:rgba(255,255,255,.18);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;cursor:pointer">' + ic6('search', 19, '#fff', 2.4) + '</span>' +
         bellBtn(true) + '</div>' +
       '<div style="position:absolute;left:18px;right:90px;bottom:16px;color:#fff;display:flex;flex-direction:column;gap:2px">' +
         '<span style="font-size:13px;font-weight:900;letter-spacing:1px;color:#cfc9ff">COMMUNITY</span>' +
         '<h1 style="margin:0;font-size:40px;line-height:1;font-weight:900;letter-spacing:-1.4px;color:#fff">Calendar</h1>' +
         '<span style="font-size:14px;font-weight:700;color:rgba(255,255,255,.88)">' + (groups.length ? 'All events from your ' + groups.length + (groups.length === 1 ? ' group' : ' groups') : st.error === 'load' ? 'Couldn’t load your groups' : 'Join a group to see its events') + '</span></div>' +
-      '<button type="button" ' + on(() => goCompose()) + ' aria-label="Post an event" style="position:absolute;right:16px;bottom:18px;z-index:2;width:52px;height:52px;border:0;border-radius:999px;background:#5b4ae8;box-shadow:0 6px 16px rgba(13,17,23,.35);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.plus(24, '#fff', 2.6) + '</button>' +
+      '<button type="button" class="hov-primary" ' + on(() => goCompose()) + ' aria-label="Post an event" style="position:absolute;right:16px;bottom:16px;z-index:2;width:52px;height:52px;border:0;border-radius:999px;background:#5b4ae8;box-shadow:0 6px 16px rgba(13,17,23,.35);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.plus(22, '#fff', 2.8) + '</button>' +
     '</header>';
 
     // Filters: Groups · Type · Clear filters
@@ -3134,7 +3133,7 @@
         }).join('') + '</div>';
     };
     return sheet6('Could use a hand', close,
-      '<div style="display:flex;align-items:center;gap:10px"><h2 style="flex:1;margin:0;font-size:26px;line-height:1.1;font-weight:900;letter-spacing:-.6px;color:#0d1117">Could use a hand</h2>' + closeX(close) + '</div>' +
+      '<div style="display:flex;align-items:center;gap:10px"><h2 style="flex:1;margin:0;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">Could use a hand</h2>' + closeX(close) + '</div>' +
         '<div style="margin-top:6px;font-size:14px;font-weight:600;color:#6b7280">' + list.length + (list.length === 1 ? ' event' : ' events') + ' coming up in the next 2 weeks</div>',
       '<div style="padding:14px 14px 30px;display:flex;flex-direction:column;gap:10px">' + (list.length ? list.map(card).join('') : '<div style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:10px"><span style="font-size:11.5px;font-weight:900;letter-spacing:1px;color:#8f6405">COULD USE A HAND</span>' +
         '<div style="display:flex;gap:12px;align-items:center"><span aria-hidden="true" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#e7f6ec;display:flex;align-items:center;justify-content:center">' + svg(18, stroke('#149a4b', 2.8), P6.check) + '</span>' +
@@ -3174,7 +3173,7 @@
     '<span ' + on(close) + ' style="flex:0 0 auto;font-size:14.5px;font-weight:800;color:#454b55;cursor:pointer">Cancel</span></div>';
   const searchRow = (s, sub) => '<div ' + on(() => openSpark(s)) + ' data-result="' + esc(s.text) + '" style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:14px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
     '<span aria-hidden="true" style="flex:0 0 40px;width:40px;height:40px;border-radius:10px;background:' + photoBg(s) + '"></span>' +
-    '<div style="flex:1;min-width:0"><div style="display:flex;align-items:center;min-width:0"><span style="min-width:0;font-size:14.5px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(s.text) + '</span>' + demoTag(s, false, true) + '</div>' +
+    '<div style="flex:1;min-width:0"><div style="display:flex;align-items:center;min-width:0"><span style="min-width:0;font-size:15px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(s.text) + '</span>' + demoTag(s, false, true) + '</div>' +
       '<div style="font-size:12.5px;font-weight:600;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(sub) + '</div></div>' + I.chevR(14, '#b9bcc4', 2.6) + '</div>';
   const rnd6 = (a) => a.length ? a[Math.floor(Math.random() * a.length)] : null;
   function viewSearch() {
@@ -3300,7 +3299,9 @@
       // Day-before reminder (and the day itself) for plans you're going to
       if (ph === 'plan' && s.autoRemind && !s.cancelledAt && (my === 'going' || my === 'maybe') && !lead) {
         const d = dayDiff(s.dayDate);
-        if (d === 0 || d === 1) add({ key: 'r:' + s.id + ':' + s.dayDate, type: 'reminder', s, t: Math.min(Date.now(), midnight(s.dayDate) - (d === 1 ? DAY_MS : 0) + 8 * 3600000),   // 8am on the day before (or the day)
+        // 8am on the day before (or the day). Before then it isn't due: stamping it "now" made it new on every redraw, so Mark all read never stuck
+        const due = midnight(s.dayDate) - (d === 1 ? DAY_MS : 0) + 8 * 3600000;
+        if ((d === 0 || d === 1) && due <= Date.now()) add({ key: 'r:' + s.id + ':' + s.dayDate, type: 'reminder', s, t: due,
           uid: s.leadId, who: d === 1 ? 'Tomorrow:' : 'Today:', text: '', after: (s.dayTime ? ' at ' + fmtTime(s.dayTime) : '') + (s.spot ? ' · ' + s.spot : '') });
       }
       // A new plan or idea in one of your groups (owner, 2026-09-30: ideas too); "New: {event}", the host under it
@@ -3509,8 +3510,7 @@
   function viewAccounts() {
     const list = state.accts || [], seen = acctSeenAt();
     const close = () => { try { localStorage.setItem(ACCT_SEEN_KEY, String(Date.now())); } catch (e) { /* blocked */ } setState({ acctOpen: false }); };
-    const face = (x) => { const a = x.avatar ? photoUrl(x.avatar) : null;
-      return '<span aria-hidden="true" style="flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:' + (a ? bg(a) : '#5b4ae8') + ';color:#fff;font-size:16px;font-weight:900;display:flex;align-items:center;justify-content:center">' + (a ? '' : esc(initialOf(x.name) || '?')) + '</span>'; };
+    const face = (x) => avatarSpan(x.id, x.name, PHOTO_PATH.test(x.avatar || '') ? photoUrl(x.avatar) : null, 40);
     const joined = (t) => { const a = ago(t); return 'Joined ' + (a === 'Just now' || a === 'Yesterday' ? a.toLowerCase() : a); };
     const groupsLine = (x) => { const real = x.groups.filter(g => !g.demo).map(g => g.name), d = x.groups.length - real.length;
       return (real.length ? real.join(', ') : 'No groups yet') + (d ? ' · ' + d + (d === 1 ? ' demo group' : ' demo groups') : ''); };
@@ -3525,7 +3525,7 @@
       '</div></div>';
     return sheet6('New accounts', close,
       '<div style="display:flex;align-items:flex-end;gap:10px"><div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:900;letter-spacing:1px;color:#8f6405">SUPER ADMIN</div>' +
-        '<h2 style="margin:2px 0 0;font-size:24px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:#0d1117">New accounts</h2>' +
+        '<h2 style="margin:2px 0 0;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">New accounts</h2>' +
         '<div style="margin-top:4px;font-size:13px;font-weight:600;color:#6b7280">' + list.length + (list.length === 1 ? ' account' : ' accounts') + ', newest first</div></div>' + closeX(close) + '</div>',
       '<div style="padding:14px 14px 30px;display:flex;flex-direction:column;gap:10px">' + (list.length ? list.map(row).join('')
         : '<div style="background:#fff;border-radius:18px;padding:26px 16px;text-align:center;font-size:15px;font-weight:700;color:#6b7280">No accounts yet.</div>') + '</div>');
@@ -3533,8 +3533,7 @@
   function viewFbInbox() {
     const list = state.fbInbox || [], seen = fbSeenAt();
     const close = () => { try { localStorage.setItem(FB_SEEN_KEY, String(Date.now())); } catch (e) { /* blocked */ } setState({ fbOpen: false }); };
-    const who = (x) => { const p = state.profiles[x.uid], a = p && p.avatar ? photoUrl(p.avatar) : null;
-      return '<span aria-hidden="true" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:' + (a ? bg(a) : '#5b4ae8') + ';color:#fff;font-size:15px;font-weight:900;display:flex;align-items:center;justify-content:center">' + (a ? '' : esc(initialOf(x.name) || '?')) + '</span>'; };
+    const who = (x) => { const p = state.profiles[x.uid]; return avatarSpan(x.uid, x.name, p && p.avatar ? photoUrl(p.avatar) : null, 36); };
     const card = (x) => '<div data-feedback style="background:#fff;border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:10px;box-shadow:0 1px 3px rgba(15,18,25,.08)">' +
       '<div style="display:flex;align-items:center;gap:10px">' + who(x) + '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(x.name) + '</div>' +
         '<div style="font-size:12.5px;font-weight:600;color:#8a909b">' + esc(ago(x.at)) + '</div></div>' +
@@ -3542,7 +3541,7 @@
       '<div style="font-size:15px;line-height:1.45;font-weight:500;color:#2a2f38;white-space:pre-wrap;overflow-wrap:break-word">' + esc(x.text) + '</div></div>';
     return sheet6('Feedback', close,
       '<div style="display:flex;align-items:flex-end;gap:10px"><div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:900;letter-spacing:1px;color:#8f6405">SUPER ADMIN</div>' +
-        '<h2 style="margin:2px 0 0;font-size:24px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:#0d1117">Feedback</h2></div>' + closeX(close) + '</div>',
+        '<h2 style="margin:2px 0 0;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">Feedback</h2></div>' + closeX(close) + '</div>',
       '<div style="padding:14px 14px 30px;display:flex;flex-direction:column;gap:10px">' + (list.length ? list.map(card).join('')
         : '<div style="background:#fff;border-radius:18px;padding:26px 16px;text-align:center;font-size:15px;font-weight:700;color:#6b7280">No feedback yet.</div>') + '</div>');
   }
@@ -3636,7 +3635,6 @@
       (f === k ? 'background:#0d1117;color:#fff' : 'background:#f2f3f6;color:#454b55') + '">' + label + '</span>';
     const row = (n, k) => {
       const T = N_TYPES[n.type], g = n.s && groupById(n.s.groupId), unr = isUnread(n), face = n.uid ? avatarOf(n.uid) : null;
-      const initial = initialOf(n.type === 'reminder' ? n.s.text : n.who) || '?';
       const what = n.s ? '<b style="font-weight:800;color:#0d1117">' + esc(n.s.text) + '</b>' : '';
       const line = n.type === 'note' ? '<b style="font-weight:800;color:#0d1117">' + esc(n.body) + '</b>'
         : n.type === 'update' ? what + ' · ' + esc(n.quote)   // Round 65a
@@ -3646,8 +3644,8 @@
         : '<b style="font-weight:800;color:#0d1117">' + esc(n.who) + '</b> ' + esc(n.text) + ' ' +
           (n.item ? '<b style="font-weight:800;color:#0d1117">' + esc(n.item) + '</b>' + (n.joiner ? esc(n.joiner) + what : ' on ' + what) : what);
       return '<div ' + on(() => openNotif(n)) + ' data-notif="' + esc(n.type) + '" style="display:flex;align-items:flex-start;gap:12px;padding:14px;border-top:' + (k ? '1px solid #f2f3f6' : '0') + ';background:' + (unr ? '#faf9ff' : '#fff') + ';cursor:pointer">' +
-        '<span aria-hidden="true" style="position:relative;flex:0 0 44px;width:44px;height:44px;border-radius:999px;background:' + (face ? bg(face) : FACE_SET[(n.who || '').length % FACE_SET.length]) + ';color:#fff;font-size:17px;font-weight:900;display:flex;align-items:center;justify-content:center">' + (face ? '' : esc(initial)) +
-          '<span style="position:absolute;right:-3px;bottom:-3px;width:20px;height:20px;border-radius:999px;border:2px solid #fff;background:' + T.bg + ';color:#fff;font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center;line-height:1">' + T.glyph + '</span></span>' +
+        avatarSpan(n.type === 'reminder' ? n.s.id : n.uid, n.type === 'reminder' ? n.s.text : n.who, face, 44, 'position:relative',
+          '<span style="position:absolute;right:-3px;bottom:-3px;width:20px;height:20px;border-radius:999px;border:2px solid #fff;background:' + T.bg + ';color:#fff;font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center;line-height:1">' + T.glyph + '</span>') +
         '<div style="flex:1;min-width:0">' +
           '<div style="font-size:15px;line-height:1.35;font-weight:500;color:#2b303a">' + line + '</div>' +
           (n.sub ? '<div style="margin-top:2px;font-size:14px;line-height:1.35;font-weight:600;color:#5c6270">' + esc(n.sub) + '</div>' : '') +
@@ -3667,7 +3665,7 @@
     const close = () => setState({ notifSheet: false });
     const gear = round('Notification settings', svg(18, stroke('#0d1117', 2), '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/>'), () => setState({ nSettings: true }));
     return sheet6('Notifications', close,
-      '<div style="display:flex;align-items:center;gap:10px">' + H1('Notifications', 'flex:1;min-width:0') + gear + closeX(close) + '</div>' +
+      '<div style="display:flex;align-items:center;gap:10px">' + '<h2 style="flex:1;min-width:0;margin:0;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">Notifications</h2>' + gear + closeX(close) + '</div>' +
         '<div class="no-scrollbar" role="radiogroup" aria-label="Show" style="margin-top:14px;display:flex;gap:8px;overflow-x:auto">' + chip('all', 'All') + chip('invites', 'New') + chip('updates', 'Updates') + chip('hosting', 'Leading') + '</div>',
       '<div style="padding:16px 14px 30px;display:flex;flex-direction:column;gap:16px">' + pushCard() +
         (!st.loaded ? skeleton(4, 76)
@@ -3684,7 +3682,7 @@
     return sheet('Notification settings', close, 'max-height:88%;overflow:auto;padding:10px 18px 26px',
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">' +
         '<h3 style="margin:0;font-size:22px;font-weight:900;letter-spacing:-.5px;color:#0d1117">Notifications</h3>' +
-        '<div ' + on(close) + ' aria-label="Close" style="width:32px;height:32px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(15, '#0d1117', 2.4) + '</div>' +
+        closeX(close) +
       '</div>' +
       '<div style="font-size:14px;line-height:1.4;font-weight:500;color:#6b7280">What shows up in the app, and on your phone when that’s on.</div>' +
       phoneRow() +
@@ -3856,9 +3854,9 @@
     const loading = !st.loaded;
     const gPhoto = groupPhoto(g), size = g ? st.sizes[g.id] : null;
 
-    const header = '<header style="position:relative;height:calc(190px + var(--pt));background:#2b303a;overflow:hidden">' +
+    const header = '<header style="position:relative;height:calc(210px + var(--pt));background:#2b303a;overflow:hidden">' +
       (gPhoto ? '<div style="position:absolute;inset:0;overflow:hidden">' + photoLayer(gPhoto, g.photoPos, GROUP_POS) + '</div>' : '<div aria-hidden="true" style="position:absolute;inset:0;background:#e8a71c"></div>') +
-      '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.9) 0%, rgba(13,17,23,.45) 55%, rgba(13,17,23,.3) 100%)"></div>' +
+      '<div aria-hidden="true" style="position:absolute;inset:0;background:' + HEAD_WASH + '"></div>' +
       '<span ' + on(() => go('groups')) + ' aria-label="Back to groups" style="position:absolute;top:calc(14px + var(--pt));left:14px;z-index:3;width:44px;height:44px;border-radius:999px;background:#fff;box-shadow:0 2px 8px rgba(13,17,23,.25);display:flex;align-items:center;justify-content:center;cursor:pointer" class="hov-fill-grey">' + I.chevL(18, '#0d1117', 2.6) + '</span>' +
       '<div style="position:absolute;top:calc(14px + var(--pt));right:16px;z-index:3;display:flex;gap:8px">' +
         (g ? '<span ' + on(openGroupSearch) + ' aria-label="Search this group" style="width:44px;height:44px;border-radius:999px;background:rgba(255,255,255,.18);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;cursor:pointer">' + ic6('search', 19, '#fff', 2.4) + '</span>' : '') + bellBtn(true) + '</div>' +
@@ -4157,8 +4155,7 @@
   const dateParts = (iso) => { if (!iso) return { dow: '', md: '', mon: '', day: '–' }; const d = new Date(iso + 'T12:00:00'); return { dow: DOWS[d.getDay()], md: MONTHS[d.getMonth()].toUpperCase() + ' ' + d.getDate(), mon: MONTHS[d.getMonth()].toUpperCase(), day: d.getDate() }; };
   const eyebrowRow = (label, right) => '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><span style="' + EYEBROW + '">' + label + '</span>' + (right || '') + '</div>';
   const peopleFaces = (ids, size, ring) => ids.map((u, i) => {
-    const url = avatarOf(u);
-    return '<span aria-hidden="true" style="flex:0 0 ' + size + 'px;width:' + size + 'px;height:' + size + 'px;border-radius:999px;border:2.5px solid ' + (ring || '#fff') + ';margin-left:' + (i ? '-10px' : '0') + ';background:' + (url ? bg(url) : FACE_COLORS[i % 3]) + ';color:#fff;font-size:' + Math.round(size * .34) + 'px;font-weight:900;display:flex;align-items:center;justify-content:center">' + (url ? '' : esc(initialOf(nameOf(u)) || '?')) + '</span>';
+    return avatarSpan(u, nameOf(u), avatarOf(u), size, 'border:2.5px solid ' + (ring || '#fff') + ';margin-left:' + (i ? '-10px' : '0'));
   }).join('');
 
   // Date → Location → Details → Plan, in the idea's gold strip
@@ -4189,7 +4186,7 @@
       : '<div style="' + CARD + ';padding:18px;display:flex;flex-direction:column;gap:6px">' +
           '<div style="' + EYEBROW + '">Make it a plan</div>' +
           '<p style="margin:0;font-size:14.5px;line-height:1.45;font-weight:500;color:#5c6270">Pick a date first. Then you can lock it in.</p>' +
-          '<button type="button" aria-disabled="true" style="margin-top:8px;min-height:50px;border:0;border-radius:999px;background:#b9bcc4;color:#fff;font-family:inherit;font-size:16px;font-weight:800;cursor:not-allowed">Make it a plan</button>' +
+          '<button type="button" aria-disabled="true" style="margin-top:8px;min-height:50px;border:0;border-radius:999px;background:#d5d8df;color:#fff;font-family:inherit;font-size:16px;font-weight:800;cursor:not-allowed">Make it a plan</button>' +
         '</div>';
   };
 
@@ -4205,8 +4202,8 @@
         (isLead(s)   // v6 Update 6: the old Edit button is gone; the host changes the photo here
           ? '<label style="' + EDIT_PILL + '">' + svg(15, stroke('#0d1117', 2.2), CAMERA) + (s.photoPaths[0] ? 'Change photo' : 'Add a photo') +
               '<input type="file" accept="image/*" aria-label="' + (s.photoPaths[0] ? 'Change the cover photo' : 'Add a cover photo') + '" ' + onInput(e => { if (e.type !== 'change') return; const f = (e.target.files || [])[0]; e.target.value = ''; pickForPositioner(f, { kind: 'idea', id: s.id }); }) + ' style="display:none"></label>'
-          : share ? '' : '<span style="flex:0 0 40px;width:40px"></span>') +
-        (share ? '<span ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' aria-label="Share" style="flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:rgba(255,255,255,.94);box-shadow:0 2px 10px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(18, stroke('#0d1117', 2.4), P5.share) + '</span>' : '') +
+          : share ? '' : '<span style="flex:0 0 44px;width:44px"></span>') +
+        (share ? '<span ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' aria-label="Share" class="hov-fill-grey" style="flex:0 0 44px;width:44px;height:44px;border-radius:999px;background:#fff;box-shadow:0 2px 8px rgba(13,17,23,.25);display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(18, stroke('#0d1117', 2.4), P5.share) + '</span>' : '') +
       '</div>' + inner +
       (state.tag ? '<div style="position:absolute;right:16px;bottom:44px;z-index:2;transform:rotate(5deg);background:#fff;border-radius:999px;padding:8px 14px;font-size:13px;font-weight:800;color:#0d1117;box-shadow:0 8px 20px rgba(15,18,25,.18);animation:popIn 320ms cubic-bezier(.22,.9,.28,1) both">' + esc(state.tag) + '</div>' : '') +
     '</div>';
@@ -4248,7 +4245,7 @@
       const names = uniq.map(u => u === st.me ? 'You' : firstName(personName(s, u)));
       const who = !ppl.length ? '' : lead
         ? '<div data-who style="display:flex;flex-direction:column;gap:8px;padding-top:2px">' + ppl.map((c, i) =>
-            '<div style="display:flex;align-items:flex-start;gap:10px">' + face(c.userId, personName(s, c.userId), 26, FACE_COLORS[i % 3], 'margin-top:1px') +
+            '<div style="display:flex;align-items:flex-start;gap:10px">' + face(c.userId, personName(s, c.userId), 26, null, 'margin-top:1px') +
               '<div style="flex:1;min-width:0"><div style="font-size:14.5px;line-height:1.35;font-weight:800;color:#0d1117">' + esc(c.userId === st.me ? 'You' : personName(s, c.userId)) +
                 (c.at ? '<span style="font-weight:700;color:#6b7280"> · ' + esc(c.at) + '</span>' : '') + '</div>' +
                 (c.note ? '<div style="margin-top:1px;font-size:13.5px;line-height:1.4;font-weight:500;color:#5c6270">“' + esc(c.note) + '”</div>' : '') + '</div></div>').join('') + '</div>'
@@ -4515,7 +4512,7 @@
             ((ss.home || s.groupId) !== s.groupId && ss.groups.indexOf(s.groupId) > -1 ? esc((groupById(s.groupId) || {}).name || 'The first group') + ' can now be unticked.' : 'The home group’s admins can edit or delete it.') + '</span>' : '') + '</div>';
     }
     return sheet(title, close, SHEET_PAD,
-      '<div style="display:flex;align-items:center;gap:10px"><div style="flex:1;min-width:0;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.4px;color:#0d1117">' + esc(title) + '</div>' + closeX(close, 'flex:0 0 36px;width:36px;height:36px') + '</div>' +
+      '<div style="display:flex;align-items:center;gap:10px"><div style="flex:1;min-width:0;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.4px;color:#0d1117">' + esc(title) + '</div>' + closeX(close) + '</div>' +
       body + secTell(s, ss) +
       saveBtn(ok && !state.busy, () => saveSec(s), state.busy === 'save' ? 'Saving…' : secSends(s, ss) ? 'Save and send' : 'Save'), 36);
   }
@@ -4528,7 +4525,7 @@
     return '<div class="sheet-scrim" data-scrim="' + reg(close) + '" style="z-index:36">' +
       '<div role="dialog" aria-modal="true" aria-label="Edit what you need" data-screen-label="Edit what you need" class="sheet" style="height:calc(100% - 56px);display:flex;flex-direction:column">' +
         '<div style="padding:10px 18px 12px;display:flex;flex-direction:column;gap:10px;border-bottom:1px solid #f2f3f6"><span aria-hidden="true" style="align-self:center;width:38px;height:5px;border-radius:999px;background:#dcdfe6"></span>' +
-          '<div style="display:flex;align-items:center;gap:10px"><div style="flex:1;min-width:0;font-size:22px;font-weight:900;letter-spacing:-.4px;color:#0d1117">Edit what you need</div>' + closeX(close, 'flex:0 0 36px;width:36px;height:36px') + '</div></div>' +
+          '<div style="display:flex;align-items:center;gap:10px"><div style="flex:1;min-width:0;font-size:22px;font-weight:900;letter-spacing:-.4px;color:#0d1117">Edit what you need</div>' + closeX(close) + '</div></div>' +
         '<div style="flex:1 1 auto;min-height:0;overflow-y:auto;padding:16px 18px;display:flex;flex-direction:column;gap:14px">' +
           ed.rows.map((r, k) => '<div data-need-row style="background:#f4f5f7;border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:10px">' +
             '<div style="display:flex;align-items:center;gap:10px"><span style="font-size:11.5px;font-weight:900;letter-spacing:1.2px;color:#6b7280">JOB ' + (k + 1) + (r.shifts ? ' · SHIFTS' : '') + '</span>' +
@@ -4561,7 +4558,7 @@
     return sheet(title, close, SHEET_PAD,
       '<div style="display:flex;align-items:center;gap:10px"><div style="flex:1;min-width:0"><div style="font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.4px;color:#0d1117">' + title + '</div>' +
         '<div data-invite-msg style="margin-top:8px;padding:10px 12px;border-radius:12px;background:#f7f6ff;font-size:14px;line-height:1.4;font-weight:600;color:#2a1f8f">“' + esc(sh.msg || inviteText(s)) + '”</div>' +
-        '<div style="margin-top:3px;font-size:13.5px;font-weight:600;color:#6b7280">' + esc([s.text, s.dayDate ? dayLabel(s.dayDate, s.dayTime, s.dayEnd) : ''].filter(Boolean).join(' · ')) + '</div></div>' + closeX(close, 'flex:0 0 36px;width:36px;height:36px') + '</div>' +
+        '<div style="margin-top:3px;font-size:13.5px;font-weight:600;color:#6b7280">' + esc([s.text, s.dayDate ? dayLabel(s.dayDate, s.dayTime, s.dayEnd) : ''].filter(Boolean).join(' · ')) + '</div></div>' + closeX(close) + '</div>' +
       '<div style="display:flex;align-items:center;gap:8px;border-radius:16px;background:#f2f3f6;padding:6px 6px 6px 14px"><span style="flex:1;min-width:0;font-size:14.5px;font-weight:700;color:#454b55;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(link.replace(/^https?:\/\//, '')) + '</span>' +
         '<span ' + on(() => { copy(link, 'Link copied'); setState({ share: Object.assign({}, sh, { copied: true }) }); }) + ' style="flex:0 0 auto;display:flex;align-items:center;min-height:42px;padding:0 16px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:14px;font-weight:800;cursor:pointer">' + (sh.copied ? '✓ Copied' : 'Copy') + '</span></div>' +
       '<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px">' +
@@ -4897,7 +4894,7 @@
       '<div><div style="font-size:15.5px;line-height:1.2;font-weight:900;color:#0d1117;text-wrap:balance">' + title + '</div><div style="margin-top:3px;font-size:12.5px;line-height:1.35;font-weight:600;color:#6b7280">' + sub + '</div></div></div>';
     return sheet6('Profile', close,
       '<div style="display:flex;align-items:center;gap:14px;padding:2px 2px 4px">' +
-        '<span ' + on(openProfileEdit) + ' aria-label="Change photo" style="flex:0 0 56px;width:56px;height:56px;border-radius:999px;background:' + (avatar ? bg(avatar) : '#e8a71c') + ';color:#fff;font-size:22px;font-weight:900;display:flex;align-items:center;justify-content:center;cursor:pointer">' + (avatar ? '' : esc(initialOf(st.myName) || '?')) + '</span>' +
+        '<span ' + on(openProfileEdit) + ' aria-label="Change photo" style="display:flex;cursor:pointer">' + avatarSpan(st.me, st.myName, avatar, 56) + '</span>' +
         '<div style="flex:1;min-width:0;display:flex;align-items:center;gap:4px">' +
           '<span style="min-width:0;font-size:20px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(st.myName || 'No name yet') + '</span>' +
           '<span ' + on(openProfileEdit) + ' aria-label="Edit profile" style="flex:0 0 32px;width:32px;height:32px;border-radius:999px;color:#9aa0ac;display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(15, stroke('currentColor', 2.2), '<path d="M4 20h4L19 9l-4-4L4 16v4Z"/>') + '</span></div>' +
@@ -4931,12 +4928,9 @@
   // 8. Edit group (owners and admins)
   // ---------------------------------------------------------------------------
 
-  const FACE_SET = ['#e8a71c', '#5b4ae8', '#0f7a3c', '#e2556b', '#2b8fd6', '#8f6405'];
   const memberFace = (m, size, extra) => {
     const url = m.user_id === state.me ? avatarOf(state.me) : (PHOTO_PATH.test(m.avatar_path || '') ? photoUrl(m.avatar_path) : null);
-    return '<span aria-hidden="true" style="flex:0 0 ' + size + 'px;width:' + size + 'px;height:' + size + 'px;border-radius:999px;background:' +
-      (url ? bg(url) : FACE_SET[(m.name || '').length % FACE_SET.length]) + ';color:#fff;font-size:' + Math.round(size * 0.4) + 'px;font-weight:800;display:flex;align-items:center;justify-content:center;' + (extra || '') + '">' +
-      (url ? '' : esc(initialOf(m.name) || '?')) + '</span>';
+    return avatarSpan(m.user_id, m.name, url, size, extra);
   };
   const WELL = 'display:flex;align-items:center;min-height:50px;border-radius:12px;background:#f7f7f9;padding:0 14px';
   const COPY_BTN = 'display:flex;align-items:center;min-height:50px;padding:0 16px;border:1.5px solid #dcdfe6;border-radius:12px;background:#fff;font-family:inherit;font-size:15px;font-weight:800;color:#0d1117;cursor:pointer';
@@ -5493,7 +5487,7 @@
   const sheetHead = (eyebrow, title, sub, close) => '<div style="display:flex;align-items:flex-start;gap:10px"><div style="flex:1;min-width:0">' +
     (eyebrow ? '<div style="font-size:12px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#6b7280">' + eyebrow + '</div>' : '') +
     '<div style="margin-top:' + (eyebrow ? 2 : 0) + 'px;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.4px;color:#0d1117">' + title + '</div>' +
-    (sub ? '<div style="margin-top:4px;font-size:14px;line-height:1.4;font-weight:500;color:#5c6270">' + sub + '</div>' : '') + '</div>' + closeX(close, 'flex:0 0 36px;width:36px;height:36px') + '</div>';
+    (sub ? '<div style="margin-top:4px;font-size:14px;line-height:1.4;font-weight:500;color:#5c6270">' + sub + '</div>' : '') + '</div>' + closeX(close) + '</div>';
   const saveBtn = (ok, fn, label) => '<button type="button" ' + on(() => { if (ok) fn(); }) + ' aria-disabled="' + !ok + '" style="min-height:52px;border:0;border-radius:999px;background:' + (ok ? '#5b4ae8' : '#d5d8df') + ';color:#fff;font-family:inherit;font-size:16px;font-weight:800;cursor:' + (ok ? 'pointer' : 'default') + '">' + (label || 'Save') + '</button>';
 
   function viewComposeSheets() {
@@ -5729,7 +5723,7 @@
     return modal('Edit profile', close,
       h3('Edit profile') +
       '<div style="display:flex;align-items:center;gap:14px">' +
-        '<span aria-hidden="true" style="flex:0 0 64px;width:64px;height:64px;border-radius:999px;background:' + (pe.avatar ? bg(pe.avatar.url) : '#e8a71c') + ';color:#fff;font-size:26px;font-weight:900;display:flex;align-items:center;justify-content:center">' + (pe.avatar ? '' : esc(initialOf(pe.name) || '?')) + '</span>' +
+        avatarSpan(state.me, pe.name, pe.avatar ? pe.avatar.url : null, 64) +
         '<div style="display:flex;flex-wrap:wrap;gap:4px 14px">' +
           '<label style="display:flex;align-items:center;min-height:32px;font-size:15px;font-weight:800;color:#5b4ae8;cursor:pointer">' + (pe.avatar ? 'Change photo' : 'Add a photo') +
             '<input type="file" accept="image/*" aria-label="Profile photo" ' + onInput(e => { if (e.type !== 'change') return; const f = Array.from(e.target.files || []); e.target.value = ''; onPeAvatar(f); }) + ' style="display:none"></label>' +
@@ -5778,7 +5772,7 @@
     const rows = list.filter(m => m.user_id === st.me).concat(list.filter(m => m.user_id !== st.me)).filter(m => !q || m.name.toLowerCase().includes(q));
     const chip = (role) => role === 'member' ? '' : roleBadge(role, 'padding:3px 9px');
     const pill = (label, fn) => '<span ' + on(fn) + ' class="hov-outline" style="flex:0 0 auto;display:flex;align-items:center;min-height:36px;padding:0 14px;border:1.5px solid #dcdfe6;border-radius:999px;background:#fff;font-size:13.5px;font-weight:800;color:#0d1117;cursor:pointer">' + label + '</span>';
-    const redBtn = (label, fn) => '<span ' + on(fn) + ' class="hov-danger" style="flex:0 0 auto;display:flex;align-items:center;min-height:36px;padding:0 14px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #f3c4cc;font-size:13.5px;font-weight:800;color:#c2334a;cursor:pointer">' + label + '</span>';
+    const redBtn = (label, fn) => '<span ' + on(fn) + ' class="hov-danger" style="flex:0 0 auto;display:flex;align-items:center;min-height:36px;padding:0 14px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #f5c2cb;font-size:13.5px;font-weight:800;color:#9b1c31;cursor:pointer">' + label + '</span>';
     // What the viewer may do: owners change roles (up to five owners, never none); admins remove members, owners anyone but themselves
     const actions = (m) => {
       const mine = m.user_id === st.me, out = [];
@@ -5823,12 +5817,12 @@
         '<div style="display:flex;align-items:center;justify-content:space-between;padding:0 6px 12px">' +
           '<div style="display:flex;align-items:baseline;gap:8px"><h3 style="margin:0;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">Members</h3>' +
             '<span style="font-size:15px;font-weight:700;color:#8a909b">' + (st.membersList ? list.length : '') + '</span></div>' +
-          '<div ' + on(close) + ' aria-label="Close" style="width:32px;height:32px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(15, '#0d1117', 2.4) + '</div>' +
+          closeX(close) +
         '</div>' +
-        '<div style="position:relative;margin:0 2px 8px">' +
-          svg(16, stroke('#9aa0ac', 2.4) + ' style="position:absolute;left:14px;top:50%;transform:translateY(-50%)"', '<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/>') +
-          '<input class="fld" type="search" aria-label="Search members" placeholder="Search members" value="' + esc(st.membersQ) + '" ' + onInput(e => { if (e.type === 'input') setState({ membersQ: e.target.value.slice(0, 40) }); }) + ' style="width:100%;min-height:44px;background:#f2f3f6;border:0;border-radius:12px;padding:0 14px 0 38px;font-family:inherit;font-size:16px;font-weight:600;color:#0d1117;outline:none">' +
-        '</div>' +
+        '<label style="margin:0 2px 8px;display:flex;align-items:center;gap:10px;min-height:48px;padding:0 10px 0 14px;border-radius:14px;background:#fff;box-shadow:0 1px 3px rgba(13,17,23,.08),0 0 0 1px rgba(13,17,23,.06)">' + ic6('search', 18, '#6b7280', 2.4) +
+          '<input class="fld" type="search" aria-label="Search members" placeholder="Search members" value="' + esc(st.membersQ) + '" ' + onInput(e => { if (e.type === 'input') setState({ membersQ: e.target.value.slice(0, 40) }); }) + ' style="flex:1;min-width:0;border:0;outline:none;background:transparent;font-family:inherit;font-size:16px;font-weight:600;color:#0d1117">' +
+          (st.membersQ ? '<span ' + on(() => setState({ membersQ: '' })) + ' aria-label="Clear search" style="flex:0 0 24px;width:24px;height:24px;border-radius:999px;background:#c3c7d0;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(10, '#fff', 4) + '</span>' : '') +
+        '</label>' +
       '</div>' +
       '<div style="flex:1;overflow:auto;padding:0 14px 22px">' +
         (st.membersList == null
@@ -5850,7 +5844,7 @@
         '<input class="fld fld-danger" type="text" autocomplete="off" autocapitalize="characters" aria-label="Type DELETE to confirm" placeholder="DELETE" value="' + esc(st.gpDel) + '" ' +
           onInput(e => { const v = e.target.value.toUpperCase().slice(0, 12); if (e.target.value !== v) e.target.value = v; setState({ gpDel: v }); }) + ' style="' + FIELD + ';font-weight:800;letter-spacing:1px"></label>' +
       '<button type="button" ' + on(() => deleteGroup(g)) + ' aria-disabled="' + !ok + '" style="' + primary(ok) + ';box-shadow:none;background:' + (ok ? '#9b1c31' : '#b9bcc4') + '">' + (st.busy === 'save' ? 'Deleting…' : 'Delete group') + '</button>' +
-      '<button type="button" class="hov-outline" ' + on(close) + ' style="' + SECONDARY + ';padding:14px;font-size:15.5px">Keep it</button>',
+      '<button type="button" class="hov-outline" ' + on(close) + ' style="' + SECONDARY + '">Keep it</button>',
       { z: 31 });
   }
 
@@ -5896,7 +5890,7 @@
           const c = s.contacts.find(x => x.user_id === u);
           const name = c ? c.name : nameOf(u);
           return '<div style="display:flex;align-items:center;gap:12px;min-height:52px;border-top:' + (i ? '1px solid #f2f3f6' : '0') + '">' +
-            face(u, name, 32, FACE_COLORS[i % 3]) +
+            face(u, name, 32, null) +
             '<span style="flex:1 1 auto;min-width:0;font-size:15.5px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(name) + '</span>' +
             (c ? '<a href="tel:' + esc(c.phone.replace(/[^\d+]/g, '')) + '" style="flex:0 0 auto;font-size:14px;font-weight:800;color:#5b4ae8">' + esc(c.phone) + '</a>' : '') +
           '</div>';
@@ -5910,7 +5904,7 @@
     const row = (u, i) => {
       const c = s.contacts.find(x => x.user_id === u), name = personName(s, u);
       return '<div data-guest style="display:flex;align-items:center;gap:12px;min-height:50px;border-top:' + (i ? '1px solid #f2f3f6' : '0') + '">' +
-        face(u, name, 32, FACE_COLORS[i % 3]) +
+        face(u, name, 32, null) +
         '<span style="flex:1 1 auto;min-width:0;font-size:15.5px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(name) + '</span>' +
         (c ? '<a href="tel:' + esc(c.phone.replace(/[^\d+]/g, '')) + '" style="flex:0 0 auto;font-size:14px;font-weight:800;color:#5b4ae8">' + esc(c.phone) + '</a>' : '') + '</div>';
     };

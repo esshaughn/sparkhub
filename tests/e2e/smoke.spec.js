@@ -329,7 +329,7 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
     await sw.getByRole('option', { name: /^Leading/ }).click();
     const own = page.locator('[data-screen-label="Leading"]');
     await expect(own.getByRole('button', { name: 'Search events' })).toBeVisible();
-    await expect(own.getByRole('button', { name: /^Notifications/ })).toHaveCount(0);
+    await expect(own.getByRole('button', { name: /^Notifications/ })).toHaveCount(1);   // the same header as Your tasks (audit, 2026-10-01)
     await expect(own.locator('[data-host]').or(own.getByText('Nothing you’re leading yet.')).first()).toBeVisible();
     await own.getByRole('button', { name: 'Leading, switch view' }).click();
     await sw.getByRole('option', { name: /^Your tasks/ }).click();

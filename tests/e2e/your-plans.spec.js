@@ -56,11 +56,12 @@ test('Your schedule and the Calendar: role strips, a helper’s sign-ups with ti
     await expect(hTile).toContainText('Leading');
     await expect(hTile).toContainText(/\d+ tasks?|All set/);
 
-    // Calendar: Hope's card says Leading · Manage; Hal's says Helping with his count
+    // Calendar: the same strip as Your schedule (audit, 2026-10-01: no "Manage"); Hal's says Helping
     await H.getByRole('button', { name: 'Calendar', exact: true }).click();
     const hCard = H.locator('[data-screen-label=Calendar] [data-plan="' + title + '"]');
     await expect(hCard).toContainText('Leading');
-    await expect(hCard).toContainText('Manage');
+    await expect(hCard).toContainText(/\d+ tasks?|All set/);
+    await expect(hCard).not.toContainText('Manage');
     await O.getByRole('button', { name: 'Calendar', exact: true }).click();
     const oCal = O.locator('[data-screen-label=Calendar]');
     const row = oCal.locator('[data-plan="' + title + '"]');
