@@ -119,6 +119,10 @@ test('decide everything later: only the title is needed; the host is left with t
     await startPost(page);
     await flow.getByLabel('Event title').fill(title);
     await expect(flow.getByLabel('Event title')).toHaveAttribute('maxlength', '40');
+    // Real or test comes first and has no default: Next waits for it (owner, 2026-10-01)
+    await expect(flow.getByRole('button', { name: 'Next' })).toHaveAttribute('aria-disabled', 'true');
+    await flow.getByRole('radio', { name: /^Just testing/ }).click();
+    await expect(flow.getByRole('radio', { name: /^Just testing/ })).toHaveAttribute('aria-checked', 'true');
     // The phone's Back with a title asks about a draft instead of dropping it
     await page.goBack();
     const leave = page.getByRole('dialog', { name: 'Save as draft' });
@@ -168,13 +172,7 @@ test('decide everything later: only the title is needed; the host is left with t
     await expect(flow).toContainText('Details to be decided');
     // No date: it goes up as an idea, not a plan
     await expect(flow.locator('[data-posts-as]')).toContainText('It goes up as an idea');
-    // Real or test has no default: Post it waits for a choice (owner, 2026-10-01)
-    await expect(flow.getByRole('button', { name: 'Post it' })).toHaveAttribute('aria-disabled', 'true');
-    await flow.getByRole('button', { name: 'Post it' }).click();
-    await expect(page.getByText('Choose Real event or Just testing first')).toBeVisible();
-    await expect(page.locator('[data-screen-label="Idea page"]')).toHaveCount(0);
-    await flow.getByRole('radio', { name: /^Just testing/ }).click();
-    await expect(flow.getByRole('radio', { name: /^Just testing/ })).toHaveAttribute('aria-checked', 'true');
+    await expect(flow).toContainText('Just testing');   // Review shows the choice from step 1
     await flow.getByRole('button', { name: 'Post it' }).click();
     const I = page.locator('[data-screen-label="Idea page"]');
     await expect(I).toBeVisible();
@@ -212,6 +210,7 @@ test('polls: the host posts a date poll (an idea), a member votes, the host pick
     await startPost(H);
     const flow = H.locator('[data-screen-label="New spark"]');
     await flow.getByLabel('Event title').fill(title);
+    await flow.getByRole('radio', { name: /^Real event/ }).click();
     await flow.getByRole('button', { name: 'Next' }).click();
     await flow.getByText('Poll the group').click();
     const poll = H.getByRole('dialog', { name: 'Poll the group' });
@@ -230,7 +229,6 @@ test('polls: the host posts a date poll (an idea), a member votes, the host pick
     for (let i = 0; i < 3; i++) await flow.getByText('Decide later', { exact: true }).click();
     await expect(flow).toContainText('Poll: 2 dates');
     await expect(flow.locator('[data-posts-as]')).toContainText('It goes up as an idea');
-    await flow.getByRole('radio', { name: /^Real event/ }).click();
 
     await flow.getByRole('button', { name: 'Post it' }).click();
     await expect(H.locator('[data-screen-label="Idea page"]')).toBeVisible();
@@ -279,6 +277,7 @@ test('drafts: X saves one, Your tasks lists it, Continue picks up there, posting
     await startPost(page);
     const flow = page.locator('[data-screen-label="New spark"]');
     await flow.getByLabel('Event title').fill(title);
+    await flow.getByRole('radio', { name: /^Real event/ }).click();
     await flow.getByRole('button', { name: 'Next' }).click();
     await flow.getByText('Decide later', { exact: true }).click();
     await flow.getByRole('button', { name: 'Close' }).click();
@@ -293,8 +292,6 @@ test('drafts: X saves one, Your tasks lists it, Continue picks up there, posting
     await draft.getByRole('button', { name: 'Continue' }).click();
     await expect(flow).toContainText('3 of 5');
     for (let i = 0; i < 3; i++) await flow.getByText('Decide later', { exact: true }).click();
-    await flow.getByRole('radio', { name: /^Real event/ }).click();
-
     await flow.getByRole('button', { name: 'Post it' }).click();
     await expect(page.locator('[data-screen-label="Idea page"]')).toBeVisible();   // no date: an idea
     id = await page.evaluate(() => location.hash.split('/').pop());
@@ -314,6 +311,7 @@ test('location suggestions: 2 letters, 4 rows, Austin area, remembered, free tex
     await startPost(page);
     const flow = page.locator('[data-screen-label="New spark"]');
     await flow.getByLabel('Event title').fill('Anything');
+    await flow.getByRole('radio', { name: /^Real event/ }).click();
     await flow.getByRole('button', { name: 'Next' }).click();
     await flow.getByText('Decide later', { exact: true }).click();
 
@@ -356,6 +354,7 @@ test('an idea says how many it needs; a bare starter chip can’t be saved; its 
     await startPost(page);
     const flow = page.locator('[data-screen-label="New spark"]');
     await flow.getByLabel('Event title').fill(title);
+    await flow.getByRole('radio', { name: /^Real event/ }).click();
     await flow.getByRole('button', { name: 'Next' }).click();
     await flow.getByText('Decide later', { exact: true }).click();   // no date: it goes up as an idea
     await flow.getByText('Decide later', { exact: true }).click();
@@ -377,7 +376,6 @@ test('an idea says how many it needs; a bare starter chip can’t be saved; its 
     await job.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(flow).not.toContainText('FOR EXAMPLE');
     await flow.getByRole('button', { name: 'Review' }).click();
-    await flow.getByRole('radio', { name: /^Real event/ }).click();
 
     await flow.getByRole('button', { name: 'Post it' }).click();
     await expect(page.locator('[data-screen-label="Idea page"]')).toBeVisible();

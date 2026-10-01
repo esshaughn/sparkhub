@@ -5123,7 +5123,7 @@
   const splitBits = (arr) => [].concat(...(arr || []).map(b => String(b || '').split(/(?<=[.!?])\s+/))).map(x => x.trim()).filter(Boolean);
   const basicsOf = (s) => s.hopes.length ? splitBits(s.hopes) : splitBits([s.vision]);
   const evPhotoUrl = (st) => st.photos[0] ? st.photos[0].url : (PHOTO_PATH.test(st.evPhotoPath || '') ? photoUrl(st.evPhotoPath) : null);
-  const evFilled = (st) => ({ title: !!cleanTitle(st.activity), when: !!st.evDate || !!st.evDatePoll, where: !!cleanTitle(st.locText) || !!st.evSpotPoll,
+  const evFilled = (st) => ({ title: !!cleanTitle(st.activity) && st.evTest != null, when: !!st.evDate || !!st.evDatePoll, where: !!cleanTitle(st.locText) || !!st.evSpotPoll,
     details: st.evBits.some(b => b.trim()), help: st.evNeeds.length > 0 });
   // "Sat, Oct 24 · 10am", "Sat, Oct 24 · 10am – 12pm"
   const dayLabel = (d, t, e) => d ? fmtDay(d) + (t ? ' · ' + (e ? spanTime({ time: t, endTime: e }) : fmtTime(t)) : '') : '';
@@ -5387,6 +5387,11 @@
     const nextOf = (k) => EV_STEPS[EV_STEPS.indexOf(k) + 1] || 'review';
     const close = () => { if (title) setState({ evLeave: true, timeOpen: null }); else evExit(); };
     const later = (k) => Object.assign({}, st.evLater, { [k]: false });
+      // Real or test (owner, 2026-10-01): the first thing asked, no default, so nobody posts a test as real by accident
+      const kind = (test, label, sub, icon) => { const onIt = st.evTest === test;
+        return '<div ' + on(() => setState({ evTest: test }), 'radio') + ' data-ev-kind="' + (test ? 'test' : 'real') + '" aria-checked="' + onIt + '" style="flex:1 1 0;display:flex;flex-direction:column;gap:4px;padding:12px;border-radius:14px;cursor:pointer;' + (onIt ? 'background:#f3f1fe;box-shadow:inset 0 0 0 2px #5b4ae8' : 'background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6') + '">' +
+          '<span style="display:flex;color:' + (onIt ? '#5b4ae8' : '#454b55') + '">' + svg(22, stroke('currentColor', 2.2), icon) + '</span>' +
+          '<span style="font-size:15px;font-weight:900;color:' + (onIt ? '#5b4ae8' : '#0d1117') + '">' + label + '</span><span style="font-size:12.5px;line-height:1.35;font-weight:600;color:#6b7280">' + sub + '</span></div>'; };
 
     if (cur === 'review') {
       const card = (icon, label, has, act, step, inner) => '<div style="background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08);padding:14px 16px;display:flex;flex-direction:column;gap:10px">' +
@@ -5404,12 +5409,7 @@
           '<span style="display:flex;color:' + (onIt ? '#5b4ae8' : '#454b55') + '">' + svg(22, stroke('currentColor', 2.2), icon) + '</span>' +
           '<span style="font-size:15px;font-weight:900;color:' + (onIt ? '#5b4ae8' : '#0d1117') + '">' + label + '</span><span style="font-size:12.5px;line-height:1.35;font-weight:600;color:#6b7280">' + sub + '</span></div>'; };
       const busy = st.busy === 'post', chosen = st.evTest != null;
-      // Real or test (owner, 2026-10-01): no default, so nobody posts a test as real by accident
-      const kind = (test, label, sub, icon) => { const onIt = st.evTest === test;
-        return '<div ' + on(() => setState({ evTest: test }), 'radio') + ' data-ev-kind="' + (test ? 'test' : 'real') + '" aria-checked="' + onIt + '" style="flex:1 1 0;display:flex;flex-direction:column;gap:4px;padding:12px;border-radius:14px;cursor:pointer;' + (onIt ? 'background:#f3f1fe;box-shadow:inset 0 0 0 2px #5b4ae8' : 'background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6') + '">' +
-          '<span style="display:flex;color:' + (onIt ? '#5b4ae8' : '#454b55') + '">' + svg(22, stroke('currentColor', 2.2), icon) + '</span>' +
-          '<span style="font-size:15px;font-weight:900;color:' + (onIt ? '#5b4ae8' : '#0d1117') + '">' + label + '</span><span style="font-size:12.5px;line-height:1.35;font-weight:600;color:#6b7280">' + sub + '</span></div>'; };
-      const pickKind = () => { toast('Choose Real event or Just testing first'); const el = document.querySelector('[data-ev-kinds]'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); };
+      const pickKind = () => { toast('Choose Real event or Just testing first'); evGo('title', { evFromReview: true }); };
       return '<div class="overlay-screen" data-screen-label="New spark"><div style="min-height:100%;display:flex;flex-direction:column">' +
         '<div style="position:relative;flex:0 0 auto;height:210px;background:' + (url ? '#2b303a ' + bg(url) : EV_GRAD) + '">' +
           '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.9) 0%, rgba(13,17,23,.2) 60%, rgba(13,17,23,.3) 100%)"></div>' +
@@ -5421,6 +5421,7 @@
               svg(18, stroke('#fff', 2.3) + ' style="flex:0 0 18px;margin-bottom:6px;opacity:.85"', PENCIL) + '</div></div>' +
         '</div>' +
         '<div style="padding:16px 14px 0;display:flex;flex-direction:column;gap:18px"><div style="display:flex;flex-direction:column;gap:10px">' +
+          card(st.evTest ? FLASK_IC : P6.cal, 'Real or test', chosen, '', 'title', chosen ? main(st.evTest ? 'Just testing' : 'Real event', true, st.evTest ? 'Shows a DEMO tag. No one gets notified.' : 'Your groups hear about it.') : main('Not chosen yet', false)) +
           card(P6.cal, 'Date &amp; time', filled.when, '', 'when', st.evDatePoll ? main('Poll: ' + st.evDatePoll.length + ' dates', true, 'People vote, you pick') : st.evDate ? main(dayLabel(st.evDate, st.evTime, st.evEnd), true) : main('Date TBD', false)) +
           card(P6.pin, 'Location', filled.where, '', 'where', st.evSpotPoll ? main('Poll: ' + st.evSpotPoll.length + ' spots', true, 'People vote, you pick') : place ? main(place, true, st.locPlace ? st.locPlace.address : '') : main('Location TBD', false)) +
           card(LINES_IC, 'Details', filled.details, '', 'details', bits.length ? list(bits.map(t => '<span style="flex:0 0 6px;width:6px;height:6px;border-radius:999px;background:#0f7a3c;transform:translateY(-2px)"></span><span style="font-size:15.5px;line-height:1.35;font-weight:800;color:#0d1117;text-wrap:pretty">' + esc(t) + '</span>')) : main('Details to be decided', false)) +
@@ -5437,9 +5438,6 @@
           '</div><div style="padding:12px 14px 14px;border-top:1px solid #f2f3f6;display:flex;gap:8px">' +
             tile(false, 'Public', 'Everyone in your groups', PEOPLE_IC) + tile(true, 'Private', 'Only people you invite', LOCK_IC) + '</div>' +
             '<div style="padding:0 14px 14px">' + guestInvSwitch(!st.evNoGuestInv, () => setState({ evNoGuestInv: !st.evNoGuestInv })) + '</div></div></div>' +
-        '<div data-ev-kinds style="display:flex;flex-direction:column;gap:8px"><div style="padding:0 4px;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:#0d1117">Real or test?</div>' +
-          '<div role="radiogroup" aria-label="Real or test" style="background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08);padding:12px 14px 14px;display:flex;gap:8px">' +
-            kind(false, 'Real event', 'It’s happening. Your groups hear about it.', P6.cal) + kind(true, 'Just testing', 'Shows a DEMO tag. No one gets notified.', FLASK_IC) + '</div></div>' +
         '</div>' +
         '<div style="position:sticky;bottom:0;margin-top:auto;padding:16px 14px;background:linear-gradient(to top,#e8eaee 70%,rgba(232,234,238,0))">' +
           // A date locks it in as a plan; without one it goes up as an idea
@@ -5457,7 +5455,9 @@
     const pad = (inner) => '<div style="padding:12px 16px 0;display:flex;flex-direction:column;gap:10px">' + inner + '</div>';
     let body = '';
     if (cur === 'title') {
-      body = head('Event title') + pad(
+      body = head('Real or test?', 'Trying the app out? Post a test. It shows a DEMO tag and no one gets notified.') + pad('<div data-ev-kinds role="radiogroup" aria-label="Real or test" style="display:flex;gap:8px">' +
+          kind(false, 'Real event', 'It’s happening. Your groups hear about it.', P6.cal) + kind(true, 'Just testing', 'Shows a DEMO tag. No one gets notified.', FLASK_IC) + '</div>') +
+        head('Event title') + pad(
         '<input class="fld big-fld" type="text" maxlength="40" aria-label="Event title" placeholder="e.g. Fall yard cleanup" value="' + esc(st.activity) + '" ' + onInput(e => { if (e.type === 'input') setState({ activity: e.target.value.slice(0, 40) }); }) + ' style="' + BIG + '">' +
         (url
           ? '<div style="display:flex;align-items:center;gap:12px;padding:8px 14px 8px 8px;border-radius:16px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08)"><span aria-hidden="true" style="flex:0 0 56px;width:56px;height:42px;border-radius:10px;background:' + bg(url) + '"></span>' +

@@ -170,6 +170,7 @@ async function postEvent(page, { title, date, time, where, pick, details = [], j
   const later = () => flow.getByText('Decide later', { exact: true }).click();
   await expect(flow).toContainText('1 of 5');
   await flow.getByLabel('Event title').fill(title);
+  await flow.getByRole('radio', { name: test ? /^Just testing/ : /^Real event/ }).click();
   if (photo) await flow.getByLabel('Upload a cover photo').setInputFiles({ name: 'photo.png', mimeType: 'image/png', buffer: PNG });
   await next();
 
@@ -210,7 +211,6 @@ async function postEvent(page, { title, date, time, where, pick, details = [], j
 
   await expect(flow).toContainText('LOOKS GOOD');
   if (inviteOnly) await flow.getByRole('radio', { name: /^Private/ }).click();
-  await flow.getByRole('radio', { name: test ? /^Just testing/ : /^Real event/ }).click();
   await flow.getByRole('button', { name: 'Post it' }).click();
   await expect(page.locator('[data-screen-label="Plan page"]')).toBeVisible();
   await expect(page.getByText('It’s on the books')).toBeVisible();
