@@ -508,3 +508,59 @@ test('looking for a host: someone else takes the lead; "I could help"; the host 
     await other.context.close();
   }
 });
+
+// Co-hosts (20261101130000_cohosts.sql): the lead adds one from the group; they host alongside, but can't delete it
+test('co-hosts: the lead adds one, who edits and posts updates but can’t delete it, then steps down', async ({ browser }) => {
+  test.setTimeout(150000);
+  const host = await newLead(browser, 1, 'Hope');
+  const other = await newLead(browser, 2, 'Otto');
+  const H = host.page, O = other.page;
+  let id;
+  try {
+    id = await asUser(H, async (c, _C, { title, day }) => {
+      const me = (await c.auth.getUser()).data.user.id;
+      const g = (await c.from('groups').select('id').eq('name', 'Torrez Fitness').single()).data.id;
+      const r = await c.from('sparks').insert({ group_id: g, author_name: 'Hope', lead_name: 'Hope', lead_id: me, created_by: me, text: title, planned: true, day_date: day }).select('id').single();
+      return r.error ? r.error.message : r.data.id;
+    }, { title: uniqueTitle('Co walk'), day: inDays(12) });
+    expect(id).toMatch(/^[0-9a-f-]{36}$/);
+    await openIdea(H, id);
+    const HP = H.locator('[data-screen-label="Plan page"]');
+    const hosts = HP.locator('[data-cohosts]');
+    await expect(hosts.locator('[data-host-row="You"]')).toContainText('Lead');
+    await hosts.getByRole('button', { name: 'Add a co-host' }).click();
+    const pick = H.getByRole('dialog', { name: 'Add a co-host' });
+    await pick.locator('[data-pick-cohost="Otto"]').click();
+    await expect(H.getByText('Otto is a co-host now')).toBeVisible();
+    await expect(hosts.locator('[data-host-row="Otto"]')).toContainText('Remove');
+
+    // Otto hosts alongside Hope
+    await openIdea(O, id);
+    const OP = O.locator('[data-screen-label="Plan page"]');
+    await expect(OP).toContainText('YOU’RE CO-HOSTING');
+    await expect(OP.locator('[data-led-by]')).toContainText('Hope');
+    await expect(OP.locator('[data-cohost-names]')).toContainText('with you');
+    await expect(OP.getByRole('button', { name: 'Edit what you need' })).toBeVisible();
+    await OP.getByRole('button', { name: 'Send everyone an update' }).click();
+    const blast = O.getByRole('dialog', { name: 'Send an update' });
+    await blast.getByLabel('Your update').fill('Meet at the north gate.');
+    await blast.getByRole('button', { name: 'Post update' }).click();
+    await expect(OP).toContainText('Meet at the north gate.');
+    await expect(OP.getByRole('button', { name: 'Delete this event' })).toHaveCount(0);   // only the lead or an admin
+    // Hope sees the update, but it's Otto's to remove
+    await openIdea(H, id);
+    await expect(HP.locator('[data-update]', { hasText: 'north gate' })).toBeVisible();
+    await expect(HP.locator('[data-update]', { hasText: 'north gate' }).getByRole('button', { name: 'Remove this update' })).toHaveCount(0);
+
+    // Otto steps down
+    await OP.locator('[data-cohosts] [data-host-row="You"]').getByRole('button', { name: 'Step down' }).click();
+    await confirm(O, 'Step down');
+    await expect(OP).toContainText('HAPPENING');
+    await expect(OP.locator('[data-cohosts]')).toHaveCount(0);
+    expect(host.errors).toEqual([]);
+  } finally {
+    if (id) await deleteIdea(H, id).catch(() => {});
+    await host.context.close();
+    await other.context.close();
+  }
+});

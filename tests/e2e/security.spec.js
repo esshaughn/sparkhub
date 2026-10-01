@@ -719,6 +719,22 @@ test('hosts and who came: only an idea looking for a host can change hands, and 
     expect(took.ints).toEqual([leadUid]);   // the floater stays interested; the new lead doesn't
     const again = await asUser(L, async (c, _C, id) => (await c.rpc('take_the_lead', { p_spark: id })).error ? 'refused' : 'ALLOWED', m.idea);
     expect(again).toBe('refused');
+
+    // Co-hosts (20261101130000_cohosts.sql): only a host adds them, never directly; a co-host edits but can't delete
+    const selfAdd = await asUser(L, async (c, _C, { soon, me }) => ({
+      direct: (await c.from('cohosts').insert({ spark_id: soon, user_id: me })).error ? 'refused' : 'ALLOWED'
+    }), { soon: m.soon, me: leadUid });
+    expect(selfAdd.direct).toBe('refused');
+    const notHost = await asUser(O, async (c, _C, { soon, me }) => (await c.rpc('add_cohost', { p_spark: soon, p_user: me })).error ? 'refused' : 'ALLOWED', { soon: m.soon, me: otherUid });
+    expect(notHost).toBe('refused');
+    const added = await asUser(L, async (c, _C, { soon, other }) => (await c.rpc('add_cohost', { p_spark: soon, p_user: other })).error?.message || 'ok', { soon: m.soon, other: otherUid });
+    expect(added).toBe('ok');
+    const co = await asUser(O, async (c, _C, soon) => ({
+      edit: (await c.from('sparks').update({ hopes: ['Bring water'] }).eq('id', soon).select('id')).data?.length ?? 'refused',
+      remove: (await c.from('sparks').delete().eq('id', soon).select('id')).data?.length ?? 'refused',
+      cancel: (await c.rpc('cancel_event', { p_spark: soon })).error ? 'refused' : 'ALLOWED'
+    }), m.soon);
+    expect(co).toEqual({ edit: 1, remove: 0, cancel: 'refused' });
   } finally {
     if (m) {
       await asUser(O, async (c, _C, id) => { await c.from('sparks').delete().eq('id', id); }, m.idea).catch(() => {});

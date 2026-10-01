@@ -398,3 +398,43 @@ select t.check('the taker leads it, and it isn''t looking any more',
   (select lead_id = t.id('taker') and not wants_host from sparks where id = t.id('host_idea')));
 select t.check('the floater stays interested',
   exists (select 1 from interests where spark_id = t.id('host_idea') and user_id = t.id('host')));
+
+-- Co-hosts (20261101130000_cohosts.sql) ------------------------------------------------------------------
+select t.person('cohost'), t.person('cohost2');
+insert into memberships (group_id, user_id, role) values (t.id('g'), t.id('cohost'), 'member'), (t.id('g'), t.id('cohost2'), 'member');
+insert into sparks (id, group_id, author_name, lead_name, lead_id, created_by, text, visibility, planned, day_date, mood) values
+  (gen_random_uuid(), t.id('g'), 'Host', 'Host', t.id('host'), t.id('host'), 'Co walk', 'invite', true, current_date + 4,
+   array[t.id('host')::text || '/' || gen_random_uuid() || '.jpg']);
+insert into t.ids select 'co_walk', id from sparks where text = 'Co walk';
+select t.login('cohost'); set role authenticated;
+select t.must_refuse('a member making themselves a co-host', format($$select public.add_cohost(%L, %L)$$, t.id('co_walk'), t.id('cohost')));
+select t.must_refuse('writing cohosts directly', format($$insert into cohosts (spark_id, user_id) values (%L, %L)$$, t.id('co_walk'), t.id('cohost')));
+select t.check('an invite-only event is hidden before', (select count(*) from sparks where id = t.id('co_walk')) = 0);
+reset role;
+select t.login('host'); set role authenticated;
+select t.must_refuse('a co-host from outside the groups', format($$select public.add_cohost(%L, %L)$$, t.id('co_walk'), t.id('outsider')));
+select t.must_refuse('a guest as co-host', format($$select public.add_cohost(%L, %L)$$, t.id('co_walk'), t.id('guest')));
+select t.must_allow('the lead adds a co-host', format($$select public.add_cohost(%L, %L)$$, t.id('co_walk'), t.id('cohost')));
+reset role;
+select t.check('the new co-host gets a note', exists (select 1 from notes where user_id = t.id('cohost') and body like '%co-host of Co walk%'));
+select t.login('cohost'); set role authenticated;
+select t.check('a co-host sees the invite-only event', (select count(*) from sparks where id = t.id('co_walk')) = 1);
+select t.check('is_host for a co-host', public.is_host(t.id('co_walk')));
+select t.must_allow('a co-host edits it (even with the lead''s mood photo on it)', format($$update sparks set text = 'Co walk' where id = %L$$, t.id('co_walk')));
+select t.must_allow('a co-host adds their own mood photo', format($$update sparks set mood = mood || array[%L] where id = %L$$, t.id('cohost')::text || '/' || gen_random_uuid() || '.jpg', t.id('co_walk')));
+select t.must_refuse('…but not someone else''s', format($$update sparks set mood = mood || array[%L] where id = %L$$, t.id('outsider')::text || '/' || gen_random_uuid() || '.jpg', t.id('co_walk')));
+select t.must_allow('a co-host posts an update', format($$insert into plan_updates (spark_id, body, created_by) values (%L, 'Bring water', %L)$$, t.id('co_walk'), t.id('cohost')));
+select t.must_allow('a co-host adds a job with a count', format($$insert into signup_items (spark_id, item, need, created_by) values (%L, 'Snacks', 3, %L)$$, t.id('co_walk'), t.id('cohost')));
+select t.must_allow('a co-host adds another co-host', format($$select public.add_cohost(%L, %L)$$, t.id('co_walk'), t.id('cohost2')));
+select t.must_refuse('a co-host removing another', format($$select public.remove_cohost(%L, %L)$$, t.id('co_walk'), t.id('cohost2')));
+select t.must_refuse('a co-host cancelling', format($$select public.cancel_event(%L)$$, t.id('co_walk')));
+select t.must_refuse('a co-host deleting', format($$delete from sparks where id = %L$$, t.id('co_walk')));
+select t.must_refuse('a co-host deleting through delete_event', format($$select public.delete_event(%L, true)$$, t.id('co_walk')));
+reset role;
+select t.login('cohost2'); set role authenticated;
+select t.must_allow('a co-host steps down', format($$select public.remove_cohost(%L, %L)$$, t.id('co_walk'), t.id('cohost2')));
+select t.check('and is no longer a host', not public.is_host(t.id('co_walk')));
+reset role;
+select t.login('host'); set role authenticated;
+select t.must_allow('the lead removes a co-host', format($$select public.remove_cohost(%L, %L)$$, t.id('co_walk'), t.id('cohost')));
+reset role;

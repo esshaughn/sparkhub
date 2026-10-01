@@ -202,7 +202,7 @@
     joinOpen: false, joinCode: '', joinBad: false,
     notif: { allReadAt: 0, read: [], topics: {}, email: true, loaded: false }, nFilter: 'all', nSettings: false, demoAdmin: false, back: null, myPlace: '', myBio: '', memberSince: null, ownGrp: null, sizes: {}, membersQ: '', gpRename: null, gpDel: null, ph: null,
     startName: null, phaseTab: 'plan', sigDraft: '', sigNeed: '', sigTime: '', blast: null, invite: null,
-    pe: null, confirm: null, interestList: false, thanksList: false, guestList: null, takeDown: null, albumEdit: null,
+    pe: null, confirm: null, interestList: false, thanksList: false, guestList: null, cohostPick: null, takeDown: null, albumEdit: null,
     gpCode: '', gpMembers: null,
     // v6 Update 13: Your people (Groups · Friends), friend requests, the friend link, inviting friends
     fr: { friends: [], incoming: [], outgoing: [], invites: [], loaded: false }, pplTab: 'groups', pplSearch: false, pplQ: '', pplAdd: false, frSel: [], frInvite: false,
@@ -282,7 +282,7 @@
       state.back = ORIGINS.indexOf(state.screen) > -1 ? { screen: state.screen, groupId: state.groupId, phaseTab: state.phaseTab, scroll: sc ? sc.scrollTop : 0 } : null;
     }
     // Going anywhere closes the v6 sheets (Profile, Notifications, View all, Could use a hand, Search)
-    setState(Object.assign({ screen, menu: null, zoom: null, sec: null, needEd: null, share: null, profSheet: false, notifSheet: false, dashAll: null, cHandSheet: false, cSearch: false, cq: '', gSearch: false, gq: '', gTry: null, pplAdd: false, frInvite: false, frProfile: null, person: null }, extra || {}));
+    setState(Object.assign({ screen, menu: null, zoom: null, sec: null, needEd: null, share: null, cohostPick: null, profSheet: false, notifSheet: false, dashAll: null, cHandSheet: false, cSearch: false, cq: '', gSearch: false, gq: '', gTry: null, pplAdd: false, frInvite: false, frProfile: null, person: null }, extra || {}));
     if (sc) sc.scrollTop = 0;
   };
 
@@ -325,10 +325,15 @@
   const ROLE_WORD = { owner: 'Owner', admin: 'Admin', member: 'Member' };
   const roleBadge = (role, extra) => '<span aria-label="' + (role === 'owner' ? 'Owner' : 'Admin') + '" style="flex:0 0 auto;border-radius:999px;padding:2px 7px;' +
     (role === 'owner' ? 'background:#ece9fd;color:#4a3ad4' : 'background:#fdf1d6;color:#8f6405') + ';font-size:11px;font-weight:900;letter-spacing:.6px;text-transform:uppercase;' + (extra || '') + '">' + ROLE_WORD[role] + '</span>';
-  const isLead = (s) => !!s && !!state.me && s.leadId === state.me;
+  // isLead: anyone hosting it (the lead or a co-host, 20261101130000_cohosts.sql). isTheLead: only the lead, for what
+  // co-hosts can't do (delete or cancel, look for a host) and where the lead is shown apart
+  const isTheLead = (s) => !!s && !!state.me && s.leadId === state.me;
+  const isCohost = (s) => !!s && !!state.me && (s.cohosts || []).indexOf(state.me) > -1;
+  const isLead = (s) => isTheLead(s) || isCohost(s);
   // The lead, or an admin of the idea's group, can edit or delete it
   const isGroupAdmin = (s) => { const g = s && groupById(s.groupId); return runs(g); };
   const canEdit = (s) => isLead(s) || isGroupAdmin(s);
+  const canTakeDown = (s) => isTheLead(s) || isGroupAdmin(s);   // delete or cancel: not co-hosts
   const nameOf = (uid, fallback) => {
     if (uid && uid === state.me && state.myName) return state.myName;
     const p = uid && state.profiles[uid];
@@ -364,7 +369,7 @@
   // Data (Supabase)
   // ---------------------------------------------------------------------------
 
-  // Plan data grouped by idea (RSVPs, votes, sign-ups, updates, organizers, album, the lead's prep)
+  // Plan data grouped by idea (RSVPs, votes, sign-ups, updates, co-hosts, album, the hosts' prep)
   const byKey = (rows, key) => { const m = {}; (rows || []).forEach(r => { (m[r[key]] = m[r[key]] || []).push(r); }); return m; };
   // Sign-ups (v6 Update 5). `signups` is every spot people can claim: plain jobs, and each shift of a
   // job that has shifts (a shift row points at its job with shift_of and carries the job's name).
@@ -426,9 +431,8 @@
     dateOpts: (x.dateOpts[row.id] || []).map(o => ({ id: o.id, dayDate: o.day_date, dayTime: o.day_time ? String(o.day_time).slice(0, 5) : null, who: o.who, createdBy: o.created_by, created: Date.parse(o.created_at), votes: (x.dateVotes[o.id] || []).map(v => v.user_id) })),
     spotOpts: (x.spotOpts[row.id] || []).map(o => ({ id: o.id, name: o.name, address: o.address || '', lat: o.lat, lon: o.lon, who: o.who, createdBy: o.created_by, created: Date.parse(o.created_at), votes: (x.spotVotes[o.id] || []).map(v => v.user_id) })),
     ...toSignups(x.signups[row.id] || [], x.claims),
-    updates: (x.updates[row.id] || []).sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at)).map(u => ({ id: u.id, body: u.body, audience: u.audience, created: Date.parse(u.created_at) })),
-    organizers: (x.organizers[row.id] || []).map(o => o.user_id),
-    organizerAt: (x.organizers[row.id] || []).reduce((m, o) => { m[o.user_id] = Date.parse(o.created_at); return m; }, {}),
+    updates: (x.updates[row.id] || []).sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at)).map(u => ({ id: u.id, body: u.body, audience: u.audience, createdBy: u.created_by || null, created: Date.parse(u.created_at) })),
+    cohosts: (x.cohosts[row.id] || []).map(o => o.user_id),
     album: (x.album[row.id] || []).sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at)).filter(a => PHOTO_PATH.test(a.path)).map(a => ({ id: a.id, path: a.path, createdBy: a.created_by })),
     prep: (x.prep[row.id] || [])[0] ? x.prep[row.id][0].answers || {} : {},
     reactions: (x.reactions[row.id] || []).map(r => ({ userId: r.user_id, kind: r.kind }))
@@ -464,8 +468,9 @@
       sb.from('signup_items').select('id,spark_id,item,need,time,end_time,descr,shift_of,created_by,created_at')
         .then(r => r.error && r.error.code === '42703' ? sb.from('signup_items').select('id,spark_id,item,need,time,created_by,created_at') : r),
       sb.from('signup_claims').select('item_id,user_id,note,created_at'),
-      sb.from('plan_updates').select('id,spark_id,body,audience,created_at'),
-      Promise.resolve({ data: [] }),   // organizers: "Offer to help organize" is retired (2026-09-30), nothing reads them
+      sb.from('plan_updates').select('id,spark_id,body,audience,created_by,created_at'),
+      // Co-hosts (20261101130000_cohosts.sql; the old organizers slot, retired 2026-09-30). A database without them still loads
+      sb.from('cohosts').select('spark_id,user_id,created_at').order('created_at').then(r => r.error ? { data: [] } : r),
       sb.from('album_photos').select('id,spark_id,path,created_by,created_at'),
       sb.from('plan_prep').select('spark_id,answers'),
       sb.from('reactions').select('spark_id,user_id,kind'),
@@ -479,7 +484,7 @@
     const x = {
       rsvps: byKey(rs.data, 'spark_id'), dateOpts: byKey(dop.data, 'spark_id'), dateVotes: byKey(dvo.data, 'option_id'),
       spotOpts: byKey(sop.data, 'spark_id'), spotVotes: byKey(svo.data, 'option_id'), signups: byKey(sui.data, 'spark_id'),
-      claims: byKey(scl.data, 'item_id'), updates: byKey(upd.data, 'spark_id'), organizers: byKey(org.data, 'spark_id'),
+      claims: byKey(scl.data, 'item_id'), updates: byKey(upd.data, 'spark_id'), cohosts: byKey(org.data, 'spark_id'),
       album: byKey(alb.data, 'spark_id'), prep: byKey(prp.data, 'spark_id'),
       reactions: byKey(rct.error ? [] : rct.data, 'spark_id'),   // v6 Update 2 (reactions on past events)
       groups: byKey(sgr.error ? [] : sgr.data, 'spark_id')
@@ -505,7 +510,7 @@
     const ids = new Set([state.me]);
     sparks.forEach(s => {
       ids.add(s.leadId); s.interested.forEach(u => ids.add(u)); s.offers.concat(s.pending).forEach(o => ids.add(o.userId));
-      s.rsvps.forEach(r => ids.add(r.userId)); s.organizers.forEach(u => ids.add(u));
+      s.rsvps.forEach(r => ids.add(r.userId)); s.cohosts.forEach(u => ids.add(u));
       s.signups.forEach(i => i.claims.forEach(c => ids.add(c.userId)));
       s.reactions.forEach(r => ids.add(r.userId));
     });
@@ -2700,7 +2705,7 @@
     return out;
   };
   // Everyone who took a job (not the host), for "Thank helpers"
-  const helperIds = (s) => [].concat(...s.signups.map(it => it.claims.map(c => c.userId))).filter((u, i, a) => u !== s.leadId && a.indexOf(u) === i);
+  const helperIds = (s) => [].concat(...s.signups.map(it => it.claims.map(c => c.userId))).filter((u, i, a) => u !== s.leadId && s.cohosts.indexOf(u) < 0 && a.indexOf(u) === i);
   const thanksText = (s, ids) => 'Thank you ' + namesList(ids.map(u => firstName(personName(s, u)))) + ' for helping make ' + s.text + ' happen!';
   // The share sheet with a message naming the open jobs
   const shareOpenJobs = (s) => {
@@ -3898,7 +3903,7 @@
   };
 
   // ---- Group pages (v6 Update 2): world switcher, Plans with Sort · Filter, the Ideas board, the Past scrapbook
-  const helpersOf = (s) => { const set = {}; s.signups.forEach(it => it.claims.forEach(c => { if (c.userId !== s.leadId) set[c.userId] = 1; })); return Object.keys(set).length; };
+  const helpersOf = (s) => { const set = {}; s.signups.forEach(it => it.claims.forEach(c => { if (c.userId !== s.leadId && s.cohosts.indexOf(c.userId) < 0) set[c.userId] = 1; })); return Object.keys(set).length; };
   const picsOf = (s) => s.photoPaths.concat(s.album.map(a => a.path)).filter((p, i, a) => a.indexOf(p) === i).map(photoUrl);
   const ROT6 = [-2, 1.5, 1, -1.5, 2, -1];
   // A tilted card on the graph-paper board: photo, title, interested count, the four checkpoints as tiles
@@ -3964,7 +3969,7 @@
           '<span aria-hidden="true" style="position:absolute;left:52%;top:5px;font-size:9px;color:#9d93f7">✦</span><span aria-hidden="true" style="position:absolute;left:64%;bottom:5px;font-size:7px;color:#7b6ef0">✦</span><span aria-hidden="true" style="position:absolute;left:44%;bottom:8px;font-size:10px;color:#fff">✧</span>' +
           '<span style="position:relative;flex:0 0 36px">' + face(s.leadId, lead, 36, '#7b6ef0', 'box-shadow:0 0 0 2.5px #7b6ef0') +
             '<span aria-hidden="true" style="position:absolute;top:-9px;left:-7px;font-size:11px;line-height:1;color:#9d93f7">✦</span><span aria-hidden="true" style="position:absolute;top:-6px;right:-8px;font-size:9px;line-height:1;color:#b8aefc">✦</span><span aria-hidden="true" style="position:absolute;bottom:-5px;right:-9px;font-size:12px;line-height:1;color:#7b6ef0">✧</span></span>' +
-          '<div style="flex:1;min-width:0"><div style="font-size:10.5px;font-weight:900;letter-spacing:.8px;color:#6b5ce7">MADE IT HAPPEN</div><div style="font-size:14.5px;font-weight:900;color:#2a1f8f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(lead + (h ? ', with ' + h + (h === 1 ? ' helper' : ' helpers') : '')) + '</div></div>' +
+          '<div style="flex:1;min-width:0"><div style="font-size:10.5px;font-weight:900;letter-spacing:.8px;color:#6b5ce7">MADE IT HAPPEN</div><div style="font-size:14.5px;font-weight:900;color:#2a1f8f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(lead + (s.cohosts.length ? ' & ' + s.cohosts.map(u => firstName(nameOf(u))).join(' & ') : '') + (h ? ', with ' + h + (h === 1 ? ' helper' : ' helpers') : '')) + '</div></div>' +
           '<span style="display:flex;align-items:center;gap:3px;font-size:12px;font-weight:900;color:#4a3ad4">🙏 ' + thanks + I.chevR(14, '#4a3ad4', 2.8) + '</span></div>' +
         '<div style="display:flex;align-items:center;gap:6px">' + RX6.map(([k, em, rot]) => reactChip(s, k, em, rot)).join('') +
           '<span ' + on((e) => { stop(e); toggleReact(s, 'again', { once: true, note: 'Counted! ' + firstName(lead) + ' will see you want it again.' }); }, 'button') + ' aria-pressed="' + mineAgain + '" aria-label="Let’s do it again, ' + again + '" style="margin-left:auto;display:flex;align-items:center;gap:5px;height:34px;padding:0 10px 0 12px;border-radius:999px;background:#149a4b;color:#fff;font-size:12.5px;font-weight:900;white-space:nowrap;box-shadow:0 2px 8px rgba(20,154,75,.3);cursor:pointer">Let’s do it again!<span style="min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:rgba(255,255,255,.25);display:inline-flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:900">' + again + '</span></span></div>' +
@@ -4194,7 +4199,7 @@
       '<div style="font-size:14.5px;line-height:1.45;font-weight:600;color:#7a1626">' +
         (s.cancelReason ? esc(firstName(nameOf(s.leadId, s.leadName))) + ': “' + esc(s.cancelReason) + '”' : esc(firstName(nameOf(s.leadId, s.leadName))) + ' called it off.') +
         ' <span style="font-weight:600;color:#9b1c31">' + esc(ago(s.cancelledAt)) + '</span></div>' +
-      (canEdit(s) ? '<div style="font-size:13.5px;line-height:1.4;font-weight:600;color:#7a1626">It stays up so everyone sees it. Delete it whenever you like (that tells no one).</div>' : '') +
+      (canTakeDown(s) ? '<div style="font-size:13.5px;line-height:1.4;font-weight:600;color:#7a1626">It stays up so everyone sees it. Delete it whenever you like (that tells no one).</div>' : '') +
     '</div>';
   function viewDetail(s) {
     const ph = phaseOf(s);
@@ -4254,14 +4259,14 @@
           '<span aria-hidden="true" style="flex:0 0 22px;width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;' + (h ? 'background:#5b4ae8' : 'box-shadow:inset 0 0 0 2px #c3c7d0') + '">' + (h ? I.check(12, '#fff', 3.4) : '') + '</span>' +
           '<span style="font-size:14.5px;font-weight:700;color:#0d1117">I could help make it happen</span></div>'; })() : '') + '</div>';
     // Looking for a host: everyone else can take it on; the lead can say they're looking, or take it back
-    const floater = firstName(nameOf(s.leadId, s.leadName));
+    const floater = firstName(nameOf(s.leadId, s.leadName)), theLead = isTheLead(s);
     const hostCard = off ? '' : s.wantsHost
       ? '<div data-wants-host style="border-radius:18px;background:#fdf1d6;padding:16px;display:flex;flex-direction:column;gap:10px;box-shadow:inset 0 0 0 1.5px #f3d98b">' +
           '<div style="font-size:12px;font-weight:900;letter-spacing:1.1px;color:#8f6405">LOOKING FOR A HOST</div>' +
-          '<p style="margin:0;font-size:14.5px;line-height:1.45;font-weight:600;color:#5c4a12">' + (lead ? 'Anyone who can see this idea can take it on. You stay the lead until someone does.' : esc(floater) + ' floated this and would love someone to take it on.') + '</p>' +
-          (lead ? '<button type="button" ' + on(() => { if (!st.busy) setWantsHost(s, false); }) + ' style="min-height:44px;border:0;border-radius:999px;background:#fff;color:#0d1117;font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer;box-shadow:inset 0 0 0 1.5px #e8c46a">I’ll host it myself</button>'
+          '<p style="margin:0;font-size:14.5px;line-height:1.45;font-weight:600;color:#5c4a12">' + (theLead ? 'Anyone who can see this idea can take it on. You stay the lead until someone does.' : esc(floater) + ' floated this and would love someone to take it on.') + '</p>' +
+          (theLead ? '<button type="button" ' + on(() => { if (!st.busy) setWantsHost(s, false); }) + ' style="min-height:44px;border:0;border-radius:999px;background:#fff;color:#0d1117;font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer;box-shadow:inset 0 0 0 1.5px #e8c46a">I’ll host it myself</button>'
             : '<button type="button" ' + on(() => { if (!st.busy) takeTheLead(s); }) + ' style="min-height:48px;border:0;border-radius:999px;background:#e8a71c;color:#fff;font-family:inherit;font-size:15.5px;font-weight:800;cursor:pointer">I’ll host it</button>') + '</div>'
-      : lead && !s.planned ? '<div data-hand-off style="display:flex;align-items:center;gap:8px;padding:0 4px;font-size:14px;font-weight:600;color:#6b7280">Just floating it?<span ' + on(() => { if (!st.busy) setWantsHost(s, true); }) + ' style="font-weight:800;color:#5b4ae8;cursor:pointer">Look for a host</span></div>'
+      : theLead && !s.planned ? '<div data-hand-off style="display:flex;align-items:center;gap:8px;padding:0 4px;font-size:14px;font-weight:600;color:#6b7280">Just floating it?<span ' + on(() => { if (!st.busy) setWantsHost(s, true); }) + ' style="font-weight:800;color:#5b4ae8;cursor:pointer">Look for a host</span></div>'
       : '';
 
     // Who's interested: like Who's going (the lead taps it for the list)
@@ -4283,7 +4288,7 @@
       phaseHeader(s, 300, 'linear-gradient(to bottom, rgba(13,17,23,.5) 0%, rgba(13,17,23,0) 30%, rgba(43,36,19,.55) 62%, rgba(43,36,19,.96) 100%)',
         '<div style="position:absolute;left:20px;right:20px;bottom:20px;color:#fff;display:flex;align-items:flex-end;gap:14px"><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px">' +
           '<div style="display:flex;gap:6px;flex-wrap:wrap">' + (off ? chip('CANCELLED', '#d92d4a', '#fff', 'data-cancelled') : '') +
-            (isDemo(s) ? chip('DEMO', 'rgba(255,255,255,.24);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)', '#fff', 'data-chip data-demo-tag') : lead ? chip('YOU’RE LEADING', '#5b4ae8', '#fff', 'data-chip') : chip('IDEA', '#f3c55a', '#3d2a00', 'data-chip')) +
+            (isDemo(s) ? chip('DEMO', 'rgba(255,255,255,.24);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)', '#fff', 'data-chip data-demo-tag') : lead ? chip(isTheLead(s) ? 'YOU’RE LEADING' : 'YOU’RE CO-HOSTING', '#5b4ae8', '#fff', 'data-chip') : chip('IDEA', '#f3c55a', '#3d2a00', 'data-chip')) +
             (s.visibility === 'invite' ? chip(svg(11, stroke('#fff', 2.6), '<rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>') + 'PRIVATE', 'rgba(255,255,255,.22)') : '') + '</div>' +
           (edit
             ? '<h1 ' + on(() => openSec(s, 'title'), 'button') + ' aria-label="' + esc(s.text) + ', edit the title" style="margin:0;font-size:36px;line-height:1;font-weight:900;letter-spacing:-1.2px;text-wrap:pretty;cursor:pointer">' + esc(s.text) + svg(20, stroke('#fff', 2.4) + ' style="display:inline-block;margin-left:8px;vertical-align:4px;opacity:.85"', PENCIL) + '</h1>'
@@ -4304,6 +4309,7 @@
         interested +
         pitchSec +
         ledByCard(s) +
+        cohostSec(s) +
         inspoSec(s) +
         deleteLink(s) +
       '</div>' +
@@ -4799,7 +4805,7 @@
         : '<div ' + on(() => openSec(s, 'details')) + ' style="padding:14px 16px;border-radius:18px;border:1.5px dashed #c9ccd3;font-size:14.5px;font-weight:700;color:#6b7280;cursor:pointer">Add up to three quick notes on what to expect.</div>') +
     '</section>';
   };
-  const deleteLink = (s) => canEdit(s) ? '<span ' + on(() => askDelete(s)) + ' style="align-self:center;display:flex;align-items:center;justify-content:center;gap:7px;min-height:44px;padding:0 12px;font-size:14.5px;font-weight:800;color:#9b1c31;cursor:pointer">' + I.trash(15, '#9b1c31') + (!s.cancelledAt && peopleIn(s).some(u => u !== state.me) ? 'Cancel or delete this ' + (s.planned ? 'event' : 'idea') : 'Delete this ' + (s.planned ? 'event' : 'idea')) + '</span>' : '';
+  const deleteLink = (s) => canTakeDown(s) ? '<span ' + on(() => askDelete(s)) + ' style="align-self:center;display:flex;align-items:center;justify-content:center;gap:7px;min-height:44px;padding:0 12px;font-size:14.5px;font-weight:800;color:#9b1c31;cursor:pointer">' + I.trash(15, '#9b1c31') + (!s.cancelledAt && peopleIn(s).some(u => u !== state.me) ? 'Cancel or delete this ' + (s.planned ? 'event' : 'idea') : 'Delete this ' + (s.planned ? 'event' : 'idea')) + '</span>' : '';
 
   // Who's in: the group(s) it's posted to and Public / Private, under the people (owner, 2026-10-01: easy to see and change).
   // The lead's Edit opens Who can see it; anyone in a group can tap its name to open it.
@@ -4816,15 +4822,64 @@
   };
   // "Led by" (not shown to the lead): plans and ideas
   const ledByCard = (s) => {
-    if (isLead(s)) return '';
+    if (isTheLead(s)) return '';
     const leadName = nameOf(s.leadId, s.leadName), lbl = s.wantsHost ? 'FLOATED BY' : 'LED BY';
+    const co = s.cohosts.map(u => u === state.me ? 'you' : firstName(nameOf(u)));
     return '<div data-led-by ' + on(() => openPerson(s.leadId)) + ' aria-label="' + (s.wantsHost ? 'Floated by ' : 'Led by ') + esc(leadName) + ', see profile" style="cursor:pointer;position:relative;display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:18px;background:linear-gradient(135deg,#f1edff,#e0d8ff);box-shadow:0 1px 3px rgba(15,18,25,.08)">' +
         '<span aria-hidden="true" style="position:absolute;left:52%;top:6px;font-size:9px;color:#9d93f7">✦</span><span aria-hidden="true" style="position:absolute;left:64%;bottom:6px;font-size:7px;color:#7b6ef0">✦</span>' +
         '<span style="position:relative;flex:0 0 56px;width:56px;height:56px;border-radius:999px;border:3px solid #fff;box-shadow:0 0 0 2.5px #7b6ef0, 0 6px 16px rgba(13,17,23,.25);display:flex">' + face(s.leadId, leadName, 50, '#7b6ef0') +
           '<span aria-hidden="true" style="position:absolute;top:-10px;left:-8px;font-size:13px;color:#9d93f7">✦</span><span aria-hidden="true" style="position:absolute;top:-4px;right:-10px;font-size:10px;color:#b8aefc">✦</span><span aria-hidden="true" style="position:absolute;bottom:-4px;right:-10px;font-size:13px;color:#7b6ef0">✧</span></span>' +
-        '<div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:900;letter-spacing:.9px;color:#6b5ce7">' + lbl + '</div><div style="font-size:20px;font-weight:900;letter-spacing:-.3px;color:#2a1f8f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(leadName) + '</div></div>' +
+        '<div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:900;letter-spacing:.9px;color:#6b5ce7">' + lbl + '</div><div style="font-size:20px;font-weight:900;letter-spacing:-.3px;color:#2a1f8f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(leadName) + '</div>' +
+          (co.length ? '<div data-cohost-names style="font-size:13.5px;font-weight:700;color:#4a3ad4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">with ' + esc(co.join(', ')) + '</div>' : '') + '</div>' +
         '</div>';   // (Say hi is hidden until there's messaging, owner 2026-10-01)
   };
+  // Co-hosts (20261101130000_cohosts.sql): hosts and group admins see who's hosting and add people from the event's
+  // groups (up to 5); the lead and admins remove co-hosts, and a co-host can step down
+  const cohostSec = (s) => {
+    if (!canEdit(s) || s.cancelledAt) return '';
+    const lead = nameOf(s.leadId, s.leadName), mayRemove = canTakeDown(s);
+    const row = (u, name, tail) => '<div data-host-row="' + esc(name) + '" style="display:flex;align-items:center;gap:12px;min-height:50px">' + face(u, name, 34, null) +
+      '<span style="flex:1;min-width:0;font-size:15px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(name) + '</span>' + tail + '</div>';
+    const tag = (t) => '<span style="flex:0 0 auto;font-size:12.5px;font-weight:800;color:#6b7280">' + t + '</span>';
+    const act = (label, fn) => '<span ' + on(fn) + ' style="flex:0 0 auto;font-size:13.5px;font-weight:800;color:#9b1c31;cursor:pointer">' + label + '</span>';
+    return '<section data-cohosts>' + secTitle('Hosts') + '<div style="' + CARD + ';padding:8px 16px 12px;display:flex;flex-direction:column">' +
+      row(s.leadId, s.leadId === state.me ? 'You' : lead, tag('Lead')) +
+      s.cohosts.map(u => { const me = u === state.me, name = me ? 'You' : nameOf(u);
+        return row(u, name, me ? act('Step down', () => askRemoveCohost(s, u, true)) : mayRemove ? act('Remove', () => askRemoveCohost(s, u, false)) : tag('Co-host')); }).join('') +
+      (s.cohosts.length < 5 ? '<span ' + on(() => openCohostPicker(s)) + ' style="margin-top:6px;display:flex;align-items:center;gap:7px;min-height:42px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(15, '#5b4ae8', 2.6) + 'Add a co-host</span>' +
+        '<span style="font-size:13px;line-height:1.4;font-weight:500;color:#6b7280">Co-hosts can edit it, post updates, run the sign-ups and check people in. Sharing the load makes it more likely to keep happening.</span>' : '') +
+    '</div></section>';
+  };
+  const openCohostPicker = (s) => {
+    setState({ cohostPick: { id: s.id, people: null, q: '' } });
+    Promise.all(s.groupIds.map(g => sb.rpc('group_people', { p_group: g })))
+      .then(rs => { rs.forEach(r => { if (r.error) throw r.error; });
+        const seen = {}, people = [].concat(...rs.map(r => r.data || [])).filter(p => { const id = p.user_id || p.id; if (seen[id]) return false; seen[id] = 1; return true; });
+        if (state.cohostPick && state.cohostPick.id === s.id) setState({ cohostPick: Object.assign({}, state.cohostPick, { people }) }); })
+      .catch(e => { console.error(e); setState({ cohostPick: null }); toast(failed(e)); });
+  };
+  const addCohost = (s, u, name) => run(async () => { must(await sb.rpc('add_cohost', { p_spark: s.id, p_user: u })); }, { cohostPick: null })
+    .then(ok => { if (ok) toast(firstName(name) + ' is a co-host now', true); });
+  const askRemoveCohost = (s, u, self) => setState({ confirm: self
+    ? { title: 'Step down as co-host?', body: firstName(nameOf(s.leadId, s.leadName)) + ' keeps leading it. You stay on the guest list if you RSVP’d.', cta: 'Step down', keep: 'Stay on', danger: true,
+        run: () => run(async () => { must(await sb.rpc('remove_cohost', { p_spark: s.id, p_user: u })); }, { confirm: null, tag: null }) }
+    : { title: 'Remove ' + firstName(nameOf(u)) + ' as co-host?', body: 'They won’t be able to edit it or see the guest list any more.', cta: 'Remove', keep: 'Keep them', danger: true,
+        run: () => run(async () => { must(await sb.rpc('remove_cohost', { p_spark: s.id, p_user: u })); }, { confirm: null }) } });
+  function viewCohostPicker() {
+    const cp = state.cohostPick, s = state.sparks.find(x => x.id === cp.id);
+    if (!s) return '';
+    const close = () => setState({ cohostPick: null }), q = (cp.q || '').trim().toLowerCase();
+    const list = (cp.people || []).map(p => ({ id: p.user_id || p.id, name: p.name || 'Someone' }))
+      .filter(p => p.id && p.id !== s.leadId && s.cohosts.indexOf(p.id) < 0 && (!q || p.name.toLowerCase().indexOf(q) > -1));
+    return modal('Add a co-host', close,
+      h3Html('Add a co-host') + paraHtml('Someone from ' + esc(s.groupIds.length > 1 ? 'its groups' : 'the group') + ' to share the hosting. They’ll get a note.') +
+      '<input class="fld" type="search" aria-label="Search people" placeholder="Search" value="' + esc(cp.q || '') + '" ' + onInput(e => { if (e.type === 'input') setState({ cohostPick: Object.assign({}, state.cohostPick, { q: e.target.value.slice(0, 40) }) }); }) + ' style="' + FIELD + '">' +
+      (cp.people === null ? paraHtml('Loading…') : !list.length ? paraHtml(q ? 'Nobody by that name.' : 'Everyone’s already hosting.') :
+        '<div style="display:flex;flex-direction:column;max-height:50vh;overflow:auto">' + list.map((p, i) =>
+          '<div ' + on(() => { if (!state.busy) addCohost(s, p.id, p.name); }) + ' data-pick-cohost="' + esc(p.name) + '" aria-label="Make ' + esc(p.name) + ' a co-host" style="display:flex;align-items:center;gap:12px;min-height:52px;cursor:pointer;border-top:' + (i ? '1px solid #f2f3f6' : '0') + '">' +
+            face(p.id, p.name, 32, null) + '<span style="flex:1;min-width:0;font-size:15px;font-weight:800;color:#0d1117">' + esc(p.name) + '</span>' + I.plus(15, '#5b4ae8', 2.6) + '</div>').join('') + '</div>'));
+  }
+
   // Inspo: up to three mood photos; the lead adds and removes them (ideas and plans alike), everyone else sees them when there are some
   const inspoSec = (s) => {
     const lead = isLead(s), mood = s.mood.slice(0, 3);
@@ -4911,7 +4966,7 @@
     return '<div data-screen-label="Plan page">' +
       phaseHeader(s, 340, 'linear-gradient(to bottom, rgba(13,17,23,.5) 0%, rgba(13,17,23,0) 30%, rgba(8,40,22,.55) 62%, rgba(8,40,22,.96) 100%)',
         '<div style="position:absolute;left:20px;right:20px;bottom:20px;color:#fff;display:flex;align-items:flex-end;gap:14px"><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px">' +
-          '<div style="display:flex;gap:6px;flex-wrap:wrap">' + (s.cancelledAt ? '<span data-cancelled style="display:flex;align-items:center;border-radius:999px;padding:5px 11px;background:#d92d4a;font-size:12px;font-weight:900;letter-spacing:.9px">CANCELLED</span>' : '') + '<span data-chip' + (isDemo(s) ? ' data-demo-tag' : '') + ' style="display:flex;align-items:center;gap:6px;border-radius:999px;padding:5px 11px;background:' + (isDemo(s) ? 'rgba(255,255,255,.24);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)' : lead ? '#5b4ae8' : '#149a4b') + ';font-size:12px;font-weight:900;letter-spacing:.9px">' + (isDemo(s) ? 'DEMO' : lead ? 'YOU’RE LEADING' : 'HAPPENING') + '</span>' +
+          '<div style="display:flex;gap:6px;flex-wrap:wrap">' + (s.cancelledAt ? '<span data-cancelled style="display:flex;align-items:center;border-radius:999px;padding:5px 11px;background:#d92d4a;font-size:12px;font-weight:900;letter-spacing:.9px">CANCELLED</span>' : '') + '<span data-chip' + (isDemo(s) ? ' data-demo-tag' : '') + ' style="display:flex;align-items:center;gap:6px;border-radius:999px;padding:5px 11px;background:' + (isDemo(s) ? 'rgba(255,255,255,.24);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)' : lead ? '#5b4ae8' : '#149a4b') + ';font-size:12px;font-weight:900;letter-spacing:.9px">' + (isDemo(s) ? 'DEMO' : lead ? (isTheLead(s) ? 'YOU’RE LEADING' : 'YOU’RE CO-HOSTING') : 'HAPPENING') + '</span>' +
             (s.visibility === 'invite' ? '<span style="display:flex;align-items:center;gap:5px;border-radius:999px;padding:5px 11px;background:rgba(255,255,255,.22);font-size:12px;font-weight:900;letter-spacing:.9px">' + svg(11, stroke('#fff', 2.6), '<rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>') + 'PRIVATE</span>' : '') + '</div>' +
           (edit
             ? '<h1 ' + on(() => openSec(s, 'title'), 'button') + ' aria-label="' + esc(s.text) + ', edit the title" style="margin:0;font-size:40px;line-height:.98;font-weight:900;letter-spacing:-1.3px;text-wrap:pretty;cursor:pointer">' + esc(s.text) + svg(20, stroke('#fff', 2.4) + ' style="display:inline-block;margin-left:8px;vertical-align:4px;opacity:.85"', PENCIL) + '</h1>'
@@ -4928,11 +4983,12 @@
         whenWhereCard(s) +
         basicDetailsSec(s) +
         (shownUpdates.length ? '<section>' + secTitle('Updates') + sheetCard(
-          shownUpdates.map(u => '<div data-update style="display:flex;gap:10px">' + face(s.leadId, leadName, 30) + '<div style="flex:1;min-width:0;border-radius:4px 14px 14px 14px;background:#f2f3f6;padding:10px 12px;font-size:14.5px;line-height:1.4;font-weight:500;color:#2b303a;white-space:pre-line">' + esc(u.body) +
+          shownUpdates.map(u => '<div data-update style="display:flex;gap:10px">' + (u.createdBy && u.createdBy !== s.leadId ? face(u.createdBy, nameOf(u.createdBy), 30) : face(s.leadId, leadName, 30)) + '<div style="flex:1;min-width:0;border-radius:4px 14px 14px 14px;background:#f2f3f6;padding:10px 12px;font-size:14.5px;line-height:1.4;font-weight:500;color:#2b303a;white-space:pre-line">' + esc(u.body) +
             '<div style="margin-top:4px;display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:#8a909b"><span style="flex:1">' + esc(ago(u.created) + (lead && UPD_TO[u.audience] ? ' · ' + UPD_TO[u.audience] : '')) + '</span>' +
-              (lead ? '<span ' + on(() => askRemoveUpdate(s, u)) + ' aria-label="Remove this update" style="color:#9b1c31;font-weight:800;cursor:pointer">Remove</span>' : '') + '</div></div></div>').join('')) + '</section>' : '') +
+              (lead && (!u.createdBy || u.createdBy === st.me) ? '<span ' + on(() => askRemoveUpdate(s, u)) + ' aria-label="Remove this update" style="color:#9b1c31;font-weight:800;cursor:pointer">Remove</span>' : '') + '</div></div></div>').join('')) + '</section>' : '') +
         helpOut(s) +
         host +
+        cohostSec(s) +
         '<section>' + secTitle('Who’s in') + sheetCard(
           // the count sits inside the card, and the card opens the full list (owner, 2026-10-01)
           '<div ' + (goingIds.length ? on(() => setState({ guestList: s.id })) + ' data-going aria-label="See everyone going (' + goingIds.length + ')" ' : '') + 'style="display:flex;align-items:center;gap:10px' + (goingIds.length ? ';cursor:pointer' : '') + '">' +
@@ -6297,6 +6353,7 @@
       (st.offerKind && subj ? viewOffer(subj) : '') +
       (st.interestList && subj ? viewInterestList(subj) : '') +
       (st.guestList && subj && st.guestList === subj.id ? viewGuestList(subj) : '') +
+      (st.cohostPick ? viewCohostPicker() : '') +
       (st.takeDown ? viewTakeDown() : '') +
       (st.thanksList && subj ? viewThanksList(subj) : '') +
       (st.guestOpen ? viewGuest() : '') +
@@ -6541,6 +6598,7 @@
       if (state.offerKind) return setState({ offerKind: null, offerText: '' });
       if (state.interestList) return setState({ interestList: false });
       if (state.guestList) return setState({ guestList: null });
+      if (state.cohostPick) return setState({ cohostPick: null });
       if (state.takeDown) return setState({ takeDown: null });
       if (state.thanksList) return setState({ thanksList: false });
       if (state.menu) return setState({ menu: null });
