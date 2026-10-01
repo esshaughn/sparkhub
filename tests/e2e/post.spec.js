@@ -1,7 +1,7 @@
 // Create event (v6 Update 6): the 5-step flow with "Decide later", polls, jobs, Review, drafts,
 // then the host's edit pop-ups on the event page.
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newLead, button, postEvent, openIdea, confirm, startPost, asUser } = require('./helpers');
+const { uniqueTitle, newLead, button, postEvent, openIdea, confirm, startPost, asUser, closeAskFirst } = require('./helpers');
 
 const inDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 
@@ -239,6 +239,7 @@ test('polls: the host posts a date poll (an idea), a member votes, the host pick
 
     await flow.getByRole('button', { name: 'Post it' }).click();
     await expect(H.locator('[data-screen-label="Idea page"]')).toBeVisible();
+    await closeAskFirst(H);
     id = await H.evaluate(() => location.hash.split('/').pop());
 
     await openIdea(O, id);
@@ -301,6 +302,7 @@ test('drafts: X saves one, Your tasks lists it, Continue picks up there, posting
     for (let i = 0; i < 3; i++) await flow.getByText('Decide later', { exact: true }).click();
     await flow.getByRole('button', { name: 'Post it' }).click();
     await expect(page.locator('[data-screen-label="Idea page"]')).toBeVisible();   // no date: an idea
+    await closeAskFirst(page);
     id = await page.evaluate(() => location.hash.split('/').pop());
     const left = await asUser(page, async (c) => (await c.from('event_drafts').select('id')).data.length);
     expect(left).toBe(0);
@@ -386,6 +388,7 @@ test('an idea says how many it needs; a bare starter chip can’t be saved; its 
 
     await flow.getByRole('button', { name: 'Post it' }).click();
     await expect(page.locator('[data-screen-label="Idea page"]')).toBeVisible();
+    await closeAskFirst(page);
     id = await page.evaluate(() => location.hash.split('/').pop());
     const steps = page.getByLabel('Steps to a plan');
     for (const t of ['Date', 'Location', 'Details', 'People']) await expect(steps).toContainText(t);

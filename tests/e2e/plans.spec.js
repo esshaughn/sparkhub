@@ -51,6 +51,11 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     const rsvp = (k) => GP.locator('[data-rsvp]').getByRole('button', { name: new RegExp('^' + k) });
     await rsvp('Going').click();
     await expect(G.getByText('You’re going. See you there!')).toBeVisible();
+    // A dated event: the banner offers Add to calendar right away (research review, 2026-10-01)
+    const calDownload = G.waitForEvent('download');
+    await G.locator('[data-banner="going"]').getByRole('button', { name: 'Add to calendar' }).click();
+    expect((await calDownload).suggestedFilename()).toMatch(/\.ics$/);
+    await expect(G.locator('[data-banner="going"]')).toHaveCount(0);
     await expect(GP.locator('[data-guest-nudge]')).toHaveCount(0);
     // v6 Update 5: three buttons with counts; the pick is filled; tapping it again clears it
     await expect(rsvp('Going')).toHaveAttribute('aria-pressed', 'true');

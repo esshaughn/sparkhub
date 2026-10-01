@@ -1332,7 +1332,9 @@
       if (state.viewAs) return run(async () => {});   // previewing: run() says nothing changes
       const before = (state.sparks.find(x => x.id === s.id) || s).rsvps;
       patchSpark(s.id, { rsvps: before.filter(r => r.userId !== state.me).concat(next ? [{ userId: state.me, status: next, created: Date.now() }] : []) });
-      if (note) toast(dropJobs ? 'Thanks for letting ' + lead + ' know. You’re off the list too.' : note, true);
+      // Going to a dated event: the toast becomes a banner with Add to calendar, so the reminder is set while they're committing
+      if (next === 'going' && s.dayDate && !s.cancelledAt) showBanner({ kind: 'going', id: s.id }, 5000);
+      else if (note) toast(dropJobs ? 'Thanks for letting ' + lead + ' know. You’re off the list too.' : note, true);
       if (next === 'going' || next === 'maybe') askGuestToJoin(s);
       const mine = ++rsvpQueued;
       rsvpChain = rsvpChain.then(async () => {
@@ -3359,6 +3361,10 @@
     if (!s) return '';
     const host = nameOf(s.leadId, s.leadName), hostFirst = firstName(host), wrap = (style, inner) =>
       '<div role="status" data-banner="' + b.kind + '" style="position:absolute;left:14px;right:14px;bottom:calc(var(--nav-h) + 12px);z-index:40;border-radius:18px;padding:14px;animation:popIn 260ms cubic-bezier(.22,.9,.28,1) both;' + style + '">' + inner + '</div>';
+    if (b.kind === 'going') return wrap('background:#0d1117;box-shadow:0 12px 30px rgba(15,18,25,.3);display:flex;align-items:center;gap:12px',
+      '<span style="flex:0 0 18px;width:18px;height:18px;border-radius:999px;background:#149a4b;display:flex;align-items:center;justify-content:center">' + I.check(10, '#fff', 4) + '</span>' +
+      '<span style="flex:1;min-width:0;font-size:14.5px;line-height:1.35;font-weight:700;color:#fff">You’re going. See you there!</span>' +
+      '<button type="button" ' + on(() => { clearTimeout(bannerTimer); setState({ banner: null }); addToCalendar(s); }) + ' style="flex:0 0 auto;min-height:36px;padding:0 14px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:13.5px;font-weight:800;cursor:pointer;white-space:nowrap">Add to calendar</button>');
     if (b.kind === 'on') return wrap('background:#0f7a3c;box-shadow:0 10px 28px rgba(15,122,60,.35);display:flex;align-items:center;gap:12px',
       '<span style="flex:0 0 44px;width:44px;height:44px;border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center">' + I.check(22, '#149a4b', 3.4) + '</span>' +
       '<div style="flex:1;min-width:0"><div style="font-size:17px;font-weight:900;color:#fff">You’re on it</div>' +
@@ -3900,7 +3906,7 @@
     ISORTS6.map(([k, label]) => { const onIt = (cur || 'interest') === k;
       return '<span ' + on(() => setState({ iSort: k }), 'button') + ' aria-pressed="' + onIt + '" style="display:flex;align-items:center;min-height:32px;font-size:13px;cursor:pointer;' +
         (onIt ? 'font-weight:800;color:#0d1117;text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:4px' : 'font-weight:600;color:#8a909b') + '">' + label + '</span>'; }).join('') + '</div>';
-  // "{GROUP} · SO FAR": events · showed up · photos, with confetti
+  // "{GROUP} · SO FAR": events · said yes · photos, with confetti. Going RSVPs, not attendance, so not "showed up" (research review, 2026-10-01)
   const recap6 = (g, done) => {
     const went = done.reduce((a, s) => a + going(s).length, 0), photos = done.reduce((a, s) => a + picsOf(s).length, 0);
     const COL = ['#e8a71c', '#5b4ae8', '#149a4b', '#e2556b', '#1f7ab8'];
@@ -3909,9 +3915,9 @@
     const hide = g ? '<span ' + on(() => setState({ pastStatsHidden: Object.assign({}, state.pastStatsHidden, { [g.id]: true }) })) + ' aria-label="Hide this" style="position:absolute;top:4px;right:4px;z-index:1;width:36px;height:36px;display:flex;align-items:center;justify-content:center;opacity:.45;cursor:pointer">' + I.x(12, '#fff', 2.6) + '</span>' : '';
     return '<div data-screen-label="So far" style="position:relative;border-radius:18px;padding:16px;background:#1f2433;color:#fff;overflow:hidden;box-shadow:0 3px 12px rgba(60,40,10,.14)">' + confetti + hide +
       '<div style="position:relative;font-size:11px;font-weight:900;letter-spacing:1px;color:#ffd98a">' + esc((g ? g.name : 'This group').toUpperCase()) + ' · SO FAR</div>' +
-      '<div style="position:relative;margin-top:10px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">' + big(done.length, done.length === 1 ? 'event' : 'events') + big(went, 'showed up') + big(photos, photos === 1 ? 'photo' : 'photos') + '</div></div>';
+      '<div style="position:relative;margin-top:10px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">' + big(done.length, done.length === 1 ? 'event' : 'events') + big(went, 'said yes') + big(photos, photos === 1 ? 'photo' : 'photos') + '</div></div>';
   };
-  // A memory card: the photo (a mosaic with four or more), "N went!", add a photo, who made it happen, reactions
+  // A memory card: the photo (a mosaic with four or more), "N said yes!" (Going RSVPs, not a head count), add a photo, who made it happen, reactions
   const WENT6 = ['#ffb347,#ff6f91', '#7b6ef0,#e05fc4', '#1fb86a,#1f9ec8', '#ff8a3d,#e2336b', '#3d8bff,#8a5cf0'];
   const pastCard6 = (s, i) => {
     const pics = picsOf(s), mosaic = pics.length >= 4, n = going(s).length, lead = nameOf(s.leadId, s.leadName), h = helpersOf(s);
@@ -3927,7 +3933,7 @@
         '<label ' + on(stop) + ' aria-label="Add photos" style="position:absolute;bottom:10px;right:10px;z-index:2;width:34px;height:34px;border-radius:999px;background:rgba(255,255,255,.8);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;cursor:pointer">' +
           '<span style="position:relative;display:flex">' + I.photo(22, '#5b4ae8', 2.1) + '<span style="position:absolute;right:-6px;bottom:-5px;width:14px;height:14px;border-radius:999px;background:#5b4ae8;border:1.5px solid #fff;display:flex;align-items:center;justify-content:center">' + I.plus(8, '#fff', 4.5) + '</span></span>' +
           '<input type="file" accept="image/*" ' + onInput(e => { if (e.type !== 'change') return; const f = (e.target.files || [])[0]; e.target.value = ''; if (f) addAlbumPhoto(s, f); }) + ' style="display:none"></label>' +
-        '<span style="position:absolute;top:10px;right:10px;display:flex;align-items:center;gap:5px;height:34px;padding:0 13px 0 10px;border-radius:999px;background:linear-gradient(135deg,' + WENT6[(i || 0) % 5] + ');color:#fff;font-size:14.5px;font-weight:900;transform:rotate(4deg);box-shadow:0 3px 8px rgba(0,0,0,.25)"><span style="font-size:17px">🎉</span>' + n + ' went!</span>' +
+        '<span style="position:absolute;top:10px;right:10px;display:flex;align-items:center;gap:5px;height:34px;padding:0 13px 0 10px;border-radius:999px;background:linear-gradient(135deg,' + WENT6[(i || 0) % 5] + ');color:#fff;font-size:14.5px;font-weight:900;transform:rotate(4deg);box-shadow:0 3px 8px rgba(0,0,0,.25)"><span style="font-size:17px">🎉</span>' + n + ' said yes!</span>' +
         '<div style="position:absolute;left:12px;bottom:10px;right:56px;color:#fff"><div style="font-size:24px;line-height:1.1;font-weight:900;letter-spacing:-.5px;text-wrap:balance">' + esc(s.text) + demoTag(s, true, true) + '</div></div>' +
       '</div>' +
       '<div style="padding:10px 12px 12px;display:flex;flex-direction:column;gap:10px">' +
@@ -4686,12 +4692,13 @@
     const sh = state.share, s = state.sparks.find(x => x.id === sh.id);
     if (!s) return '';
     const close = () => setState({ share: null }), link = location.origin + '/i/' + s.id;
-    const msg = (sh.msg || inviteText(s)) + ' ' + link, title = isLead(s) ? 'Invite people' : 'Share this event';
+    const msg = (sh.msg || inviteText(s)) + ' ' + link, title = sh.ask ? 'Ask two people first' : isLead(s) ? 'Invite people' : 'Share this event';
     const btn = (label, href, icon) => '<a href="' + esc(href) + '" target="_blank" rel="noopener noreferrer" aria-label="' + label + '" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 4px;border-radius:16px;background:#f7f8fa;text-decoration:none">' +
       '<span style="width:46px;height:46px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.1);display:flex;align-items:center;justify-content:center">' + svg(22, stroke('#5b4ae8', 2.1), icon) + '</span></a>';
     const more = () => { if (navigator.share) navigator.share({ title: s.text, text: msg, url: link }).catch(() => {}); else copy(msg, 'Invite copied. Paste it anywhere.'); };
     return sheet(title, close, SHEET_PAD,
       '<div style="display:flex;align-items:center;gap:10px"><div style="flex:1;min-width:0"><div style="font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.4px;color:#0d1117">' + title + '</div>' +
+        (sh.ask ? '<p data-ask-first style="margin:6px 0 0;font-size:14px;line-height:1.4;font-weight:600;color:#454b55">Events that start with a friend or two already in are far more likely to happen. Send it to two people you think would come.</p>' : '') +
         '<div data-invite-msg style="margin-top:8px;padding:10px 12px;border-radius:12px;background:#f7f6ff;font-size:14px;line-height:1.4;font-weight:600;color:#2a1f8f">“' + esc(sh.msg || inviteText(s)) + '”</div>' +
         '<div style="margin-top:3px;font-size:13.5px;font-weight:600;color:#6b7280">' + esc([s.text, s.dayDate ? dayLabel(s.dayDate, s.dayTime, s.dayEnd) : ''].filter(Boolean).join(' · ')) + '</div></div>' + closeX(close) + '</div>' +
       '<div style="display:flex;align-items:center;gap:8px;border-radius:16px;background:#f2f3f6;padding:6px 6px 6px 14px"><span style="flex:1;min-width:0;font-size:14.5px;font-weight:700;color:#454b55;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(link.replace(/^https?:\/\//, '')) + '</span>' +
@@ -4914,7 +4921,7 @@
     return '<div data-screen-label="It happened">' +
       phaseHeader(s, 300, 'linear-gradient(to bottom, rgba(13,17,23,.4), rgba(13,17,23,0) 30%, rgba(34,25,110,.92) 100%)',
         '<span aria-hidden="true" style="position:absolute;top:calc(66px + var(--pt));right:18px;display:flex;align-items:center;min-height:36px;padding:0 14px 0 44px;border-radius:999px;background:#5b4ae8;transform:rotate(-8deg);font-size:15px;font-weight:900;color:#fff;box-shadow:0 6px 16px rgba(15,18,25,.3)"><span style="position:absolute;left:-10px;top:50%;transform:translateY(-55%) rotate(-10deg);font-size:46px;line-height:1">🥳</span>It happened!</span>' +
-        '<div style="position:absolute;left:20px;right:20px;bottom:18px;color:#fff"><div style="font-size:13px;font-weight:900;letter-spacing:1.2px;color:#cfc9ff">' + dp.dow + ', ' + dp.md + ' · ' + n + ' WENT</div>' +
+        '<div style="position:absolute;left:20px;right:20px;bottom:18px;color:#fff"><div style="font-size:13px;font-weight:900;letter-spacing:1.2px;color:#cfc9ff">' + dp.dow + ', ' + dp.md + ' · ' + n + ' SAID YES</div>' +
           '<h1 style="margin:6px 0 0;font-size:32px;line-height:1.02;font-weight:900;letter-spacing:-1px;text-wrap:pretty">' + esc(s.text) + demoTag(s, false, true) + '</h1></div>', true) +
       '<div style="padding:14px 14px 26px;display:flex;flex-direction:column;gap:12px">' +
         '<div style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:10px">' +
@@ -5354,7 +5361,9 @@
         } catch (e) { console.error(e); }
         await freshAfterSave();
         setState(Object.assign(composeReset(), { busy: null, phaseTab: dated ? 'plan' : 'idea' }));
-        go('detail', { subjectId: id, tag: dated ? 'It’s on the books' : 'It’s up' });
+        // Then straight to asking people (research review, 2026-10-01): a host who lines up one or two people before
+        // anyone else sees it makes the event far more likely to happen. Not for "Just testing" events
+        go('detail', Object.assign({ subjectId: id, tag: dated ? 'It’s on the books' : 'It’s up' }, row.test ? {} : { share: { id, copied: false, ask: true } }));
       } catch (e) {
         console.error(e);
         setState({ busy: null });

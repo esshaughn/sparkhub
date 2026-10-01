@@ -2,7 +2,7 @@
 // two ends of the round trip: leaving (Supabase hands back Google's URL) and
 // coming back (the page reloads with ?error=… or a signed-in session).
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newMember, newLead, deleteIdea, asUser } = require('./helpers');
+const { uniqueTitle, newMember, newLead, deleteIdea, asUser, closeAskFirst } = require('./helpers');
 
 const RESUME_KEY = 'spark-hub-google-resume';
 const readResume = (page) => page.evaluate((k) => JSON.parse(sessionStorage.getItem(k)), RESUME_KEY);
@@ -54,6 +54,7 @@ test('coming back signed in posts the saved draft', async ({ browser }) => {
     })), { k: RESUME_KEY, title });
     await page.goto('/?code=returned-from-google');
     await expect(page.getByText('It’s up')).toBeVisible();   // no date: it goes up as an idea
+    await closeAskFirst(page);
     const detail = page.locator('[data-screen-label="Idea page"]');
     await expect(detail).toContainText(title.charAt(0).toUpperCase() + title.slice(1));
     await expect(detail).toContainText('Bring snacks');

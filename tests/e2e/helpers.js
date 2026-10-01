@@ -215,7 +215,16 @@ async function postEvent(page, { title, date, time, where, pick, details = [], j
   await flow.getByRole('button', { name: 'Post it' }).click();
   await expect(page.locator('[data-screen-label="Plan page"]')).toBeVisible();
   await expect(page.getByText('It’s on the books')).toBeVisible();
+  if (!test) await closeAskFirst(page);
   return ideaIdFromUrl(page);
+}
+// Posting a real event opens the invite sheet as "Ask two people first" (research review, 2026-10-01)
+async function closeAskFirst(page) {
+  const ask = page.getByRole('dialog', { name: 'Ask two people first' });
+  await expect(ask.locator('[data-ask-first]')).toContainText('a friend or two');
+  await expect(ask.locator('[data-invite-msg]')).toBeVisible();
+  await ask.getByRole('button', { name: 'Close' }).click();
+  await expect(ask).toHaveCount(0);
 }
 // The host adds a job in Edit what you need (v6 Update 6): name, how many, an optional time
 async function addJob(page, { item, need = 1, time }) {
@@ -266,5 +275,5 @@ async function asUser(page, fn, args) {
 
 module.exports = {
   TAG, TORREZ, PNG, leadEmail, uniqueTitle, startPost, openProfile, pickView, mockPlaces, stubPhotos, trackErrors, expectConnected, newMember, newLead, button,
-  postIdea, postEvent, addJob, answerNamePrompt, answerGuestPrompt, ideaIdFromUrl, openIdea, confirm, deleteIdea, asUser
+  postIdea, postEvent, closeAskFirst, addJob, answerNamePrompt, answerGuestPrompt, ideaIdFromUrl, openIdea, confirm, deleteIdea, asUser
 };

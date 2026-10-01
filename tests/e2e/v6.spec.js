@@ -213,7 +213,8 @@ test('v6 update 2: the Past scrapbook and reactions', async ({ browser }) => {
     await browse.getByRole('tab', { name: /^Past/ }).click();
     await expect(browse).toContainText('TORREZ FITNESS · SO FAR');
     const card = browse.locator('[data-card="' + title + '"]');
-    await expect(card).toContainText('went!');
+    await expect(card).toContainText('said yes!');   // Going RSVPs, not a head count
+    await expect(browse).toContainText('said yes');
     await expect(browse.locator('[data-sticker]').first()).toBeVisible();      // the date sticker above each memory
     await expect(card).toContainText('MADE IT HAPPEN');
     await expect(card).toContainText('Hope');
