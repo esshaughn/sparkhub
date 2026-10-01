@@ -203,7 +203,7 @@
     gpCode: '', gpMembers: null,
     // v6 Update 13: Your people (Groups · Friends), friend requests, the friend link, inviting friends
     fr: { friends: [], incoming: [], outgoing: [], invites: [], loaded: false }, pplTab: 'groups', pplSearch: false, pplQ: '', pplAdd: false, frSel: [], frInvite: false,
-    frProfile: null, frAdd: null, myFriendCode: null,
+    frProfile: null, frAdd: null, myFriendCode: null, person: null,
     // v6: Profile / Notifications are sheets; Your tasks' "View all", expansions, the RSVP ask
     profSheet: false, notifSheet: false, dashAll: null, dashOpen: {}, schedOpen: {}, shiftPick: null, banner: null, sigAdding: false,
     // v6 Calendar: search, filters, sort, view, month, discovery cards
@@ -279,7 +279,7 @@
       state.back = ORIGINS.indexOf(state.screen) > -1 ? { screen: state.screen, groupId: state.groupId, phaseTab: state.phaseTab, scroll: sc ? sc.scrollTop : 0 } : null;
     }
     // Going anywhere closes the v6 sheets (Profile, Notifications, View all, Could use a hand, Search)
-    setState(Object.assign({ screen, menu: null, zoom: null, sec: null, needEd: null, share: null, profSheet: false, notifSheet: false, dashAll: null, cHandSheet: false, cSearch: false, cq: '', gSearch: false, gq: '', gTry: null, pplAdd: false, frInvite: false, frProfile: null }, extra || {}));
+    setState(Object.assign({ screen, menu: null, zoom: null, sec: null, needEd: null, share: null, profSheet: false, notifSheet: false, dashAll: null, cHandSheet: false, cSearch: false, cq: '', gSearch: false, gq: '', gTry: null, pplAdd: false, frInvite: false, frProfile: null, person: null }, extra || {}));
     if (sc) sc.scrollTop = 0;
   };
 
@@ -2508,6 +2508,53 @@
       '<span ' + on(() => removeFriend(f)) + ' class="hov-danger" style="align-self:flex-start;display:flex;align-items:center;min-height:40px;padding:0 16px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #f5c2cb;font-size:14px;font-weight:800;color:#9b1c31;cursor:pointer">Remove friend</span>', 45);
   }
 
+  // Anyone's profile (owner, 2026-10-01): from Who's going / Who's interested, the Led by card, and Members.
+  // Photo, name, place, bio, the groups you share (each of your groups' group_people) and the friend button.
+  // Your own face opens your own profile sheet instead.
+  const openPerson = (uid) => {
+    if (!uid) return;
+    if (uid === state.me) { openProfileSheet(); return; }
+    const mine = myGroups();
+    setState({ person: { id: uid, loading: true } });
+    Promise.all([sb.from('profiles').select('name,avatar_path,place,bio').eq('id', uid).maybeSingle()]
+      .concat(mine.map(g => sb.rpc('group_people', { p_group: g.id }))))
+      .then(([p, ...lists]) => {
+        if (!state.person || state.person.id !== uid) return;
+        const rows = lists.map(r => (r.data || []).find(m => m.user_id === uid) || null);
+        const pr = (p && p.data) || {}, any = rows.find(Boolean) || {}, path = pr.avatar_path || any.avatar_path || '';
+        setState({ person: { id: uid, loading: false, name: pr.name || any.name || nameOf(uid),
+          avatar: PHOTO_PATH.test(path) ? photoUrl(path) : avatarOf(uid), place: pr.place || '', bio: pr.bio || '',
+          groups: mine.filter((g, i) => rows[i]).map(g => g.name) } });
+      })
+      .catch(e => { console.error(e); setState({ person: null }); toast(FAILED); });
+  };
+  function viewPerson() {
+    const st = state, p = st.person, close = () => setState({ person: null });
+    if (!p) return '';
+    const name = p.name || nameOf(p.id), f = friendById(p.id), asked = st.fr.incoming.find(x => x.id === p.id);
+    const since = f && f.since ? new Date(f.since).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '';
+    const btn = 'display:flex;align-items:center;gap:6px;min-height:40px;padding:0 16px;border-radius:999px;font-size:14px;font-weight:900';
+    const friendRow = p.loading || !st.fr.loaded ? ''
+      : f ? '<span data-person-friend style="' + btn + ';background:#e7f6ec;color:#0f7a3c">' + I.check(13, '#0f7a3c', 3) + 'Friends' + (since ? ' since ' + esc(since) : '') + '</span>'
+      : asked ? '<span ' + on(() => answerRequest(asked, true)) + ' data-person-friend class="hov-primary" style="' + btn + ';background:#5b4ae8;color:#fff;cursor:pointer">Accept friend request</span>'
+      : st.fr.outgoing.indexOf(p.id) > -1 ? '<span data-person-friend style="' + btn + ';background:#f2f3f6;color:#6b7280">Requested</span>'
+      : p.groups.length ? '<span ' + on(() => sendRequest(p.id, name)) + ' data-person-friend class="hov-primary" style="' + btn + ';background:#5b4ae8;color:#fff;cursor:pointer">' +
+          svg(14, stroke('#fff', 2.6), '<circle cx="9.5" cy="8" r="3.5"/><path d="M3 20a6.5 6.5 0 0 1 13 0"/><path d="M19 8v6M16 11h6"/>') + 'Add friend</span>'
+      : '';
+    return sheet(name, close, 'padding:10px 18px calc(22px + env(safe-area-inset-bottom, 0px));display:flex;flex-direction:column;gap:14px',
+      '<div data-screen-label="Person" style="display:flex;align-items:center;gap:14px">' + avatarSpan(p.id, name, p.avatar || avatarOf(p.id), 64) +
+        '<div style="flex:1;min-width:0"><div style="font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.4px;color:#0d1117;overflow:hidden;text-overflow:ellipsis">' + esc(name) + '</div>' +
+          (p.place ? '<div data-person-place style="margin-top:4px;display:flex;align-items:center;gap:5px;font-size:14px;font-weight:700;color:#6b7280">' +
+            svg(14, stroke('#6b7280', 2.2), '<path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>') + esc(p.place) + '</div>' : '') +
+        '</div>' + closeX(close) + '</div>' +
+      (p.loading ? '<div style="font-size:14px;font-weight:600;color:#9aa0ac">Loading…</div>'
+        : (p.bio ? '<p data-person-bio style="margin:0;font-size:15.5px;line-height:1.45;font-weight:500;color:#2a2f38;white-space:pre-line">' + esc(p.bio) + '</p>' : '') +
+          '<div data-person-groups style="padding:12px 14px;border-radius:14px;background:#f7f7f9;font-size:14px;line-height:1.45;font-weight:600;color:#454b55">' +
+            (p.groups.length ? '<span style="font-size:12px;font-weight:900;letter-spacing:.6px;text-transform:uppercase;color:#8a909b">Both in</span><br>' + esc(namesList(p.groups))
+              : 'You’re not in a group together.') + '</div>' +
+          (friendRow ? '<div style="display:flex">' + friendRow + '</div>' : '')));
+  }
+
   const isoOf = (y, m, d) => y + '-' + pad2(m + 1) + '-' + pad2(d);
   const isoAdd = (iso, n) => { const x = new Date(iso + 'T12:00'); x.setDate(x.getDate() + n); return isoOf(x.getFullYear(), x.getMonth(), x.getDate()); };
 
@@ -4662,7 +4709,7 @@
   const ledByCard = (s) => {
     if (isLead(s)) return '';
     const leadName = nameOf(s.leadId, s.leadName);
-    return '<div data-led-by style="position:relative;display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:18px;background:linear-gradient(135deg,#f1edff,#e0d8ff);box-shadow:0 1px 3px rgba(15,18,25,.08)">' +
+    return '<div data-led-by ' + on(() => openPerson(s.leadId)) + ' aria-label="Led by ' + esc(leadName) + ', see profile" style="cursor:pointer;position:relative;display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:18px;background:linear-gradient(135deg,#f1edff,#e0d8ff);box-shadow:0 1px 3px rgba(15,18,25,.08)">' +
         '<span aria-hidden="true" style="position:absolute;left:52%;top:6px;font-size:9px;color:#9d93f7">✦</span><span aria-hidden="true" style="position:absolute;left:64%;bottom:6px;font-size:7px;color:#7b6ef0">✦</span>' +
         '<span style="position:relative;flex:0 0 56px;width:56px;height:56px;border-radius:999px;border:3px solid #fff;box-shadow:0 0 0 2.5px #7b6ef0, 0 6px 16px rgba(13,17,23,.25);display:flex">' + face(s.leadId, leadName, 50, '#7b6ef0') +
           '<span aria-hidden="true" style="position:absolute;top:-10px;left:-8px;font-size:13px;color:#9d93f7">✦</span><span aria-hidden="true" style="position:absolute;top:-4px;right:-10px;font-size:10px;color:#b8aefc">✦</span><span aria-hidden="true" style="position:absolute;bottom:-4px;right:-10px;font-size:13px;color:#7b6ef0">✧</span></span>' +
@@ -5857,7 +5904,8 @@
         (admin ? '<div style="display:flex;align-items:center;gap:8px;min-width:0"><span style="flex:0 0 auto;font-size:12px;font-weight:900;letter-spacing:.6px;text-transform:uppercase;color:#8a909b">Email</span>' +
           (m.email ? '<a href="mailto:' + esc(m.email) + '" style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#4a3ad4;font-weight:700;text-decoration:none">' + esc(m.email) + '</a>' : '<span style="color:#8a909b">Not shared</span>') + '</div>' : '') +
         (m.joined_at ? '<div style="font-size:13px;color:#6b7280">Joined ' + esc(joined(m.joined_at)) + '</div>' : '') + '</div>' +
-      (friendBtn(m) || actions(m) ? '<div style="display:flex;flex-wrap:wrap;gap:8px">' + friendBtn(m) + actions(m) + '</div>' : '') + '</div>';
+      (friendBtn(m) || actions(m) || m.user_id !== st.me ? '<div style="display:flex;flex-wrap:wrap;gap:8px">' + friendBtn(m) +
+        (m.user_id !== st.me ? pill('See profile', () => openPerson(m.user_id)) : '') + actions(m) + '</div>' : '') + '</div>';
     const row = (m) => { const open = st.memberOpen === m.user_id;
       return '<div data-member="' + esc(m.name) + '" style="border-bottom:1px solid #f2f3f6">' +
         '<div ' + on(() => setState({ memberOpen: open ? null : m.user_id })) + ' aria-expanded="' + open + '" aria-label="' + esc(m.name) + (m.user_id === st.me ? ' (you)' : '') + '" style="display:flex;align-items:center;gap:12px;min-height:58px;padding:6px;cursor:pointer">' +
@@ -5944,7 +5992,7 @@
         s.interested.map((u, i) => {
           const c = lead && s.contacts.find(x => x.user_id === u);
           const name = u === state.me ? 'You' : c ? c.name : nameOf(u);
-          return '<div style="display:flex;align-items:center;gap:12px;min-height:52px;border-top:' + (i ? '1px solid #f2f3f6' : '0') + '">' +
+          return '<div data-interested ' + (c ? '' : on(() => openPerson(u)) + ' aria-label="' + esc(name) + ', see profile" ') + 'style="display:flex;align-items:center;gap:12px;min-height:52px;border-top:' + (i ? '1px solid #f2f3f6' : '0') + (c ? '' : ';cursor:pointer') + '">' +
             face(u, name, 32, null) +
             '<span style="flex:1 1 auto;min-width:0;font-size:15.5px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(name) + '</span>' +
             (c ? '<a href="tel:' + esc(c.phone.replace(/[^\d+]/g, '')) + '" style="flex:0 0 auto;font-size:14px;font-weight:800;color:#5b4ae8">' + esc(c.phone) + '</a>' : '') +
@@ -5958,7 +6006,8 @@
     const close = () => setState({ guestList: null }), lead = isLead(s);
     const row = (u, i) => {
       const c = lead && s.contacts.find(x => x.user_id === u), name = u === state.me ? 'You' : personName(s, u);
-      return '<div data-guest style="display:flex;align-items:center;gap:12px;min-height:50px;border-top:' + (i ? '1px solid #f2f3f6' : '0') + '">' +
+      // Tap someone for their profile (guests without an account have none)
+      return '<div data-guest ' + (c ? '' : on(() => openPerson(u)) + ' aria-label="' + esc(name) + ', see profile" ') + 'style="display:flex;align-items:center;gap:12px;min-height:50px;border-top:' + (i ? '1px solid #f2f3f6' : '0') + (c ? '' : ';cursor:pointer') + '">' +
         face(u, name, 32, null) +
         '<span style="flex:1 1 auto;min-width:0;font-size:15.5px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(name) + '</span>' +
         (c ? '<a href="tel:' + esc(c.phone.replace(/[^\d+]/g, '')) + '" style="flex:0 0 auto;font-size:14px;font-weight:800;color:#5b4ae8">' + esc(c.phone) + '</a>' : '') + '</div>';
@@ -6097,6 +6146,7 @@
       (st.email && st.pplAdd ? viewPplAdd() : '') +
       (st.email && st.frInvite && st.frSel.length ? viewFrInvite() : '') +
       (st.email && st.frProfile ? viewFrProfile() : '') +
+      (st.email && st.person ? viewPerson() : '') +
       (st.frAdd ? viewFrAdd() : '') +
       (st.gpDel != null && s === 'groupPage' ? viewDeleteGroup() : '') +
       (st.ph ? viewPositioner() : '') +

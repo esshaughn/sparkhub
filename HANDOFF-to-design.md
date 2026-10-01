@@ -107,6 +107,7 @@ Where this doc and the design files disagree, **this doc is correct**.
 
 ## 2. Things the build had to invent (please design these properly)
 
+- **Anyone's profile** (owner, 2026-10-01; FEATURES #125): a slide-up sheet like the friend profile. 64px face, name 22px/900, place under it with a pin (14px `#6b7280`), the bio as a 15.5px paragraph, a grey `#f7f7f9` box *BOTH IN* {groups} (or *You're not in a group together.*), then one button: purple **Add friend**, grey *Requested*, purple *Accept friend request*, or green *Friends since {month year}*. Opens from Who's going / Who's interested rows, the Led by card, and a **See profile** pill in Members. Needs a real design pass (cover photo? their upcoming events? Say hi once there's messaging).
 - **Tell everyone going, on:** the switch's second line reads *On: they get an update when you save* (off: *Off: it saves quietly*). The switch only shows when someone has replied or signed up.
 - **Notes when something comes down** (Notifications → Updates, red **!** badge, the lead's face): *{event} is off. {lead} took it down.* and *“{job}” is off the list for {event}.* Tapping one only marks it read (there's nothing to open).
 - **Make home, after the move:** tapping the new home's row says *{group} is its home now*. Below the list, *The home group's admins can edit or delete it.* shows whenever more than one group is ticked.

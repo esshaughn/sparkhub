@@ -123,6 +123,14 @@ test('a group end to end: edit group, cover, rename, invite, pin, admin edits, r
     await sec.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(detail).toContainText('moved indoors');
     await expect(detail.locator('[data-led-by]')).toContainText('Bo');
+    // Led by opens Bo's profile: name, the groups you share, a friend button (owner, 2026-10-01)
+    await detail.locator('[data-led-by]').click();
+    const person = A.getByRole('dialog', { name: 'Bo' });
+    await expect(person.locator('[data-screen-label="Person"]')).toContainText('Bo');
+    await expect(person.locator('[data-person-groups]')).toContainText(groupName);
+    await expect(person.locator('[data-person-friend]')).toBeVisible();   // Add friend, Requested or Friends: you share a group
+    await person.getByRole('button', { name: 'Close' }).click();
+    await expect(person).toHaveCount(0);
     // Someone's in it, so it's Cancel or delete; deleting tells no one
     await button(A, /^(Cancel or delete|Delete) this (event|idea)$/).click();
     const takeDown = A.getByRole('dialog', { name: 'Cancel or delete' });
