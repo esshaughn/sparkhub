@@ -276,7 +276,7 @@ test('polls: the host posts a date poll (an idea), a member votes, the host pick
   }
 });
 
-test('drafts: X saves one, Your tasks lists it, Continue picks up there, posting removes it', async ({ browser }) => {
+test('drafts: X saves one, Your tasks lists it under Leading, Continue picks up there, posting removes it', async ({ browser }) => {
   test.setTimeout(90000);
   const { page, context, errors } = await newLead(browser, 2, 'Guard');
   const title = uniqueTitle('Yard sale');
@@ -294,7 +294,14 @@ test('drafts: X saves one, Your tasks lists it, Continue picks up there, posting
     await leave.getByRole('button', { name: 'Save draft' }).click();
     await expect(page.getByText('Saved as a draft')).toBeVisible();
 
-    const draft = page.locator('[data-screen-label="Your tasks"] [data-draft="' + title + '"]');
+    // Drafts sit in Your tasks' Leading row (and its View all), not in a list of their own
+    const leading = page.locator('[data-screen-label="Your tasks"] section[aria-label="Leading"]');
+    await leading.getByRole('button', { name: 'View all leading' }).click();
+    const all = page.getByRole('dialog', { name: 'Leading' });
+    await expect(all.locator('[data-draft-all="' + title + '"]')).toContainText('Up next: Location');
+    await all.getByRole('button', { name: 'Close' }).click();
+    await expect(page.locator('[aria-label="Your drafts"]')).toHaveCount(0);
+    const draft = leading.locator('[data-draft="' + title + '"]');
     await expect(draft).toContainText('DRAFT');
     await expect(draft).toContainText('Up next: Location');
     await draft.getByRole('button', { name: 'Continue' }).click();

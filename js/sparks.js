@@ -2877,25 +2877,27 @@
       (phaseOf(z.s) === 'plan' ? statsStrip(z.s) : '') + actBlock(z.s, z.a, R6.lead, 'dashOpen') + '</div>';
     const helpCard = (z) => '<div ' + on(() => openSpark(z.s)) + ' data-task="' + esc(z.s.text) + '" style="' + CARD6 + '">' + banner6(z.s, R6.go) + actBlock(z.s, z.a, R6.go, 'dashOpen') + '</div>';
     const ideaCard = (s) => '<div ' + on(() => openSpark(s)) + ' data-task="' + esc(s.text) + '" style="' + CARD6 + '">' + banner6(s, R6.help) + ideaStepGrid(s) + '</div>';
-    const lead = d.leadsAny
-      ? '<section aria-label="Leading" style="display:flex;flex-direction:column;gap:8px">' + secHead6(d.plans.length, '#5b4ae8', 'Leading', d.plans.length ? () => setState({ dashAll: 'lead' }) : null) +
-          (d.plans.length ? row(d.plans.map(leadCard).join('')) : note6('Nothing needs you on the events you lead.')) + '</section>'
+    // Drafts join the Leading row after the events with to-dos (owner, 2026-10-01; they were a Your drafts list above it)
+    const drafts = st.drafts, nLead = d.plans.length + drafts.length;
+    const lead = d.leadsAny || drafts.length
+      ? '<section aria-label="Leading" style="display:flex;flex-direction:column;gap:8px">' + secHead6(nLead, '#5b4ae8', 'Leading', nLead ? () => setState({ dashAll: 'lead' }) : null) +
+          (nLead ? row(d.plans.map(leadCard).join('') + drafts.map(draftCard6).join('')) : note6('Nothing needs you on the events you lead.')) + '</section>'
       : '';
     const help = '<section aria-label="Helping" style="display:flex;flex-direction:column;gap:8px">' + secHead6(d.help.length, '#149a4b', 'Helping', d.help.length ? () => setState({ dashAll: 'help' }) : null) +
       (d.help.length ? row(d.help.map(helpCard).join(''))
         : inviteCard(ic6('heart', 18, '#454b55', 2.4), 'Find something to help with', 'Leads in your groups need a hand. Sign up to bring something or pitch in.', () => handList().length ? setState({ cHandSheet: true }) : go('calendar'))) + '</section>';
-    const invite = d.leadsAny ? '' : '<section aria-label="Leading" style="display:flex;flex-direction:column;gap:8px">' + secHead6(0, '#5b4ae8', 'Leading') +
+    const invite = d.leadsAny || drafts.length ? '' : '<section aria-label="Leading" style="display:flex;flex-direction:column;gap:8px">' + secHead6(0, '#5b4ae8', 'Leading') +
       inviteCard(I.plus(18, '#454b55', 2.6), 'Start an event', 'You’re not leading anything yet. Got an idea for your group?', () => goCompose()) + '</section>';
     const ideas = d.ideas.length ? '<section aria-label="Ideas" style="display:flex;flex-direction:column;gap:8px">' + secHead6(d.ideas.length, '#e8a71c', 'Ideas', () => setState({ dashAll: 'idea' })) +
       row(d.ideas.map(ideaCard).join('')) + '</section>' : '';
-    return wrap(goneCard() + draftsSection() + lead + help + invite + ideas);
+    return wrap(goneCard() + lead + help + invite + ideas);
   }
 
   // "View all": one card per event with every to-do (ideas: the four checkpoints as rows)
   function viewDashAll() {
     const k = state.dashAll, d = tasksData(), close = () => setState({ dashAll: null });
     const title = { lead: 'Leading', help: 'Helping', idea: 'Ideas' }[k], R = k === 'lead' ? R6.lead : k === 'help' ? R6.go : R6.help;
-    const list = k === 'lead' ? d.plans : k === 'help' ? d.help : d.ideas.map(s => ({ s, a: [] }));
+    const list = k === 'lead' ? d.plans : k === 'help' ? d.help : d.ideas.map(s => ({ s, a: [] })), drafts = k === 'lead' ? state.drafts : [];
     const thumb = (s) => '<span aria-hidden="true" style="flex:0 0 40px;width:40px;height:40px;border-radius:10px;background:' + photoBg(s) + '"></span>';
     const stepRows = (s) => ideaSteps6(s).map(st => '<div ' + on((e) => { stop(e); openToSection(s, st.sec); }) + ' style="display:flex;align-items:center;gap:12px;min-height:50px;padding:8px 12px;border-top:1px solid #f2f3f6;cursor:pointer">' +
       ring6(st, 30) + '<span style="flex:1;min-width:0;font-size:14.5px;font-weight:700;color:' + (st.p >= 1 ? '#8a909b' : '#2a2f38') + '">' + (st.p >= 1 ? st.done : st.todo) + '</span>' + I.chevR(14, '#b9bcc4', 2.6) + '</div>').join('');
@@ -2908,7 +2910,7 @@
     return sheet6(title, close,
       '<div style="display:flex;align-items:center;gap:10px"><span style="width:10px;height:10px;border-radius:999px;background:' + R.dot + '"></span>' +
         '<h2 style="flex:1;margin:0;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">' + title + '</h2>' + closeX(close) + '</div>',
-      '<div style="padding:14px 14px 30px;display:flex;flex-direction:column;gap:10px">' + (list.length ? list.map(card).join('') : '<div style="' + CARD + ';padding:26px 16px;text-align:center;font-size:15px;font-weight:700;color:#6b7280">Nothing here right now.</div>') + '</div>');
+      '<div style="padding:14px 14px 30px;display:flex;flex-direction:column;gap:10px">' + (list.length || drafts.length ? list.map(card).join('') + drafts.map(draftRow6).join('') : '<div style="' + CARD + ';padding:26px 16px;text-align:center;font-size:15px;font-weight:700;color:#6b7280">Nothing here right now.</div>') + '</div>');
   }
 
   // ---- Screen 2: Your schedule ----------------------------------------------------------------
@@ -5474,6 +5476,35 @@
     must(await sb.from('event_drafts').delete().eq('id', d.id));
   }).then(ok => { if (ok) { if (PHOTO_PATH.test((d.data || {}).evPhoto || '')) deletePhotos([d.data.evPhoto]); toast('Draft deleted', true); } });
   const agoSaved = (t) => { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? 'Saved just now' : m < 60 ? 'Saved ' + m + ' min ago' : m < 1440 ? 'Saved ' + Math.round(m / 60) + 'h ago' : 'Saved ' + Math.round(m / 1440) + 'd ago'; };
+  const draftStep = (x) => x.evStep === 'review' ? 5 : Math.max(0, EV_STEPS.indexOf(x.evStep));
+  const draftCover = (x) => x.evPhotoPath ? '#2b303a ' + bg(photoUrl(x.evPhotoPath)) : EV_GRAD;
+  // A draft as a card in Your tasks' Leading row (owner, 2026-10-01): the cover (or the post flow's gradient) with the
+  // title and DRAFT · saved time, then the 5-step bar, Up next and Continue; a tap anywhere picks it up, the trash deletes it
+  const draftCard6 = (d) => {
+    const x = draftState(d), j = draftStep(x), t = cleanTitle(x.activity) || 'Untitled event';
+    return '<div ' + on(() => resumeDraft(d)) + ' data-draft="' + esc(x.activity) + '" aria-label="Draft: ' + esc(t) + '" style="' + CARD6 + '">' +
+      '<div style="position:relative;height:92px;background:' + draftCover(x) + '">' +
+        '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.9) 0%, rgba(13,17,23,.45) 60%, rgba(13,17,23,.2) 100%)"></div>' +
+        '<span ' + on((e) => { stop(e); if (!state.busy) deleteDraft(d); }) + ' aria-label="Delete draft" style="position:absolute;top:8px;right:8px;width:32px;height:32px;border-radius:999px;background:rgba(13,17,23,.35);display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(15, stroke('#fff', 2.2), TRASH_IC) + '</span>' +
+        '<div style="position:absolute;left:14px;right:48px;bottom:11px;display:flex;flex-direction:column;gap:3px;color:#fff">' +
+          '<div style="font-size:18px;line-height:1.15;font-weight:900;letter-spacing:-.3px;text-wrap:balance;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">' + esc(t) + '</div>' +
+          '<div style="font-size:11px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;color:' + R6.lead.kick + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">DRAFT · ' + esc(agoSaved(d.saved)) + '</div>' +
+        '</div></div>' +
+      '<div style="padding:11px 12px 12px;display:flex;flex-direction:column;gap:10px">' +
+        '<div aria-hidden="true" style="display:flex;gap:3px">' + EV_STEPS.map((_, k) => '<span style="flex:1 1 0;height:4px;border-radius:999px;background:' + (k < j ? '#5b4ae8' : '#d5d8df') + '"></span>').join('') + '</div>' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><span style="min-width:0;font-size:13.5px;font-weight:700;color:#454b55;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Up next: ' + esc(EV_NAMES[x.evStep] || 'Event title') + '</span>' +
+          '<span ' + on((e) => { stop(e); resumeDraft(d); }) + ' style="flex:0 0 auto;display:flex;align-items:center;min-height:32px;padding:0 13px;border-radius:999px;background:' + R6.lead.pill + ';color:' + R6.lead.ink + ';font-size:13px;font-weight:800;cursor:pointer">Continue</span></div>' +
+      '</div></div>';
+  };
+  // The same draft as a row in Leading's View all
+  const draftRow6 = (d) => {
+    const x = draftState(d), t = cleanTitle(x.activity) || 'Untitled event';
+    return '<div ' + on(() => { setState({ dashAll: null }); resumeDraft(d); }) + ' data-draft-all="' + esc(x.activity) + '" aria-label="Draft: ' + esc(t) + '" style="display:flex;align-items:center;gap:12px;padding:12px;background:#fff;border-radius:16px;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
+      '<span aria-hidden="true" style="flex:0 0 40px;width:40px;height:40px;border-radius:10px;background:' + draftCover(x) + '"></span>' +
+      '<div style="flex:1;min-width:0"><div style="font-size:15px;line-height:1.25;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(t) + '</div>' +
+        '<div style="margin-top:2px;font-size:12.5px;font-weight:600;color:' + R6.lead.ink + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Draft · ' + draftStep(x) + ' of 5 steps · Up next: ' + esc(EV_NAMES[x.evStep] || 'Event title') + '</div></div>' +
+      I.chevR(14, '#b9bcc4', 2.6) + '</div>';
+  };
   const draftsSection = () => !state.drafts.length ? '' :
     '<section aria-label="Your drafts" style="display:flex;flex-direction:column;gap:8px"><h2 style="margin:0;padding:0 4px;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:#0d1117">Your drafts</h2>' +
     state.drafts.map(d => {
