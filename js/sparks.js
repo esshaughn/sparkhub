@@ -176,7 +176,7 @@
     evDate: '', evTime: '', evEnd: '', evEndOn: false, timeOpen: null,
     locText: '', locPlace: null, locSuggest: [],
     evBits: ['', '', ''], evNeed: null, evTags: [], evNeeds: [], evDatePoll: null, evSpotPoll: null, evLater: {},
-    evPriv: false, evNoGuestInv: false, evTest: null, evGroups: null, evDraftId: null, evLeave: false, pollSheet: null, needSheet: null, evFromReview: false
+    evPriv: false, evNoGuestInv: false, evTest: null, evKindAsk: false, evGroups: null, evDraftId: null, evLeave: false, pollSheet: null, needSheet: null, evFromReview: false
   });
   const state = Object.assign({
     screen: 'calendar', menu: null, subjectId: null, gpId: null, tag: null, zoom: null, membersOpen: null, membersList: null,
@@ -5374,11 +5374,29 @@
   };
   const evGo = (k, extra) => setState(Object.assign({ evStep: k, menu: null, timeOpen: null }, extra || {}));
   const evExit = () => go('calendar', composeReset());
+  // Real or test? (owner, 2026-10-01): a pop-up over Create event until it's answered, no default, so nobody posts a test
+  // as real by accident. Closing it before choosing backs out of Create event entirely; reopened from Review, it just closes
+  function viewKindAsk() {
+    const st = state, again = st.evTest != null;
+    const close = () => again ? setState({ evKindAsk: false }) : evExit();
+    const pick = (test) => setState({ evTest: test, evKindAsk: false });
+    const opt = (test, label, sub, icon) => { const onIt = st.evTest === test;
+      return '<button type="button" ' + on(() => pick(test)) + ' data-ev-kind="' + (test ? 'test' : 'real') + '" aria-pressed="' + onIt + '" style="display:flex;align-items:center;gap:14px;width:100%;padding:14px;border:0;border-radius:16px;font-family:inherit;text-align:left;cursor:pointer;' +
+        (onIt ? 'background:#f3f1fe;box-shadow:inset 0 0 0 2px #5b4ae8' : 'background:#f7f8fa;box-shadow:inset 0 0 0 1.5px #e4e7ec') + '">' +
+        '<span style="flex:0 0 44px;width:44px;height:44px;border-radius:12px;background:#fff;display:flex;align-items:center;justify-content:center;color:#5b4ae8">' + svg(22, stroke('currentColor', 2.2), icon) + '</span>' +
+        '<span style="flex:1;min-width:0"><span style="display:block;font-size:16px;font-weight:900;color:#0d1117">' + label + '</span><span style="display:block;margin-top:2px;font-size:13px;line-height:1.35;font-weight:600;color:#6b7280">' + sub + '</span></span></button>'; };
+    return modal('Real or test?', close,
+      h3Html('Real or test?') + paraHtml('Trying the app out? Post a test. It shows a DEMO tag and no one gets notified.') +
+      '<div data-ev-kinds style="display:flex;flex-direction:column;gap:10px">' +
+        opt(false, 'Real event', 'It’s happening. Your groups hear about it.', P6.cal) + opt(true, 'Just testing', 'Shows a DEMO tag. No one gets notified.', FLASK_IC) + '</div>' +
+      (again ? '' : '<span ' + on(close) + ' data-ev-back-out style="align-self:center;display:flex;align-items:center;min-height:40px;font-size:14px;font-weight:800;color:#6b7280;cursor:pointer">Never mind</span>'), { z: 60 });
+  }
   // The phone's Back (or the browser's) inside the post flow: close the open sheet, else go back a step,
   // else ask about a draft. False only when there's nothing to lose, so the flow can close.
   const composeBack = () => {
     const st = state;
     if (st.busy) return true;
+    if (st.evKindAsk) { setState({ evKindAsk: false }); return true; }
     if (st.pollSheet || st.needSheet || st.evLeave || st.timeOpen) { setState({ pollSheet: null, needSheet: null, evLeave: false, timeOpen: null }); return true; }
     if (st.evStep === 'review') { evGo('help'); return true; }
     if (st.evFromReview) { evGo('review', { evFromReview: false }); return true; }
@@ -5642,17 +5660,12 @@
     const nextOf = (k) => EV_STEPS[EV_STEPS.indexOf(k) + 1] || 'review';
     const close = () => { if (title) setState({ evLeave: true, timeOpen: null }); else evExit(); };
     const later = (k) => Object.assign({}, st.evLater, { [k]: false });
-      // Real or test (owner, 2026-10-01): the first thing asked, no default, so nobody posts a test as real by accident
-      const kind = (test, label, sub, icon) => { const onIt = st.evTest === test;
-        return '<div ' + on(() => setState({ evTest: test }), 'radio') + ' data-ev-kind="' + (test ? 'test' : 'real') + '" aria-checked="' + onIt + '" style="flex:1 1 0;display:flex;flex-direction:column;gap:4px;padding:12px;border-radius:14px;cursor:pointer;' + (onIt ? 'background:#f3f1fe;box-shadow:inset 0 0 0 2px #5b4ae8' : 'background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6') + '">' +
-          '<span style="display:flex;color:' + (onIt ? '#5b4ae8' : '#454b55') + '">' + svg(22, stroke('currentColor', 2.2), icon) + '</span>' +
-          '<span style="font-size:15px;font-weight:900;color:' + (onIt ? '#5b4ae8' : '#0d1117') + '">' + label + '</span><span style="font-size:12.5px;line-height:1.35;font-weight:600;color:#6b7280">' + sub + '</span></div>'; };
 
     if (cur === 'review') {
       const card = (icon, label, has, act, step, inner) => '<div style="background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08);padding:14px 16px;display:flex;flex-direction:column;gap:10px">' +
         '<div style="display:flex;align-items:center;gap:10px"><span style="flex:0 0 20px;display:flex;color:' + (has ? '#0f7a3c' : '#b07a0a') + '">' + svg(18, stroke('currentColor', 2.2), icon) + '</span>' +
           '<span style="flex:1;font-size:12px;font-weight:800;letter-spacing:1.1px;text-transform:uppercase;color:#6b7280">' + label + '</span>' +
-          '<span ' + on(() => evGo(step, { evFromReview: true })) + ' aria-label="' + (has ? 'Edit ' : 'Add ') + label.toLowerCase() + '" style="font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">' + (has ? 'Edit' : 'Add') + '</span></div>' +
+          '<span ' + on(() => step === 'kind' ? setState({ evKindAsk: true }) : evGo(step, { evFromReview: true })) + ' aria-label="' + (has ? 'Edit ' : 'Add ') + label.toLowerCase() + '" style="font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">' + (has ? 'Edit' : 'Add') + '</span></div>' +
         '<div style="padding-left:28px">' + inner + '</div></div>';
       const main = (t, has, sub) => '<div style="font-size:15px;line-height:1.3;font-weight:800;color:' + (has ? '#0d1117' : AMBER_INK) + ';text-wrap:pretty">' + esc(t) + '</div>' +
         (sub ? '<div style="margin-top:2px;font-size:13.5px;line-height:1.35;font-weight:500;color:#6b7280">' + esc(sub) + '</div>' : '');
@@ -5664,7 +5677,7 @@
           '<span style="display:flex;color:' + (onIt ? '#5b4ae8' : '#454b55') + '">' + svg(22, stroke('currentColor', 2.2), icon) + '</span>' +
           '<span style="font-size:15px;font-weight:900;color:' + (onIt ? '#5b4ae8' : '#0d1117') + '">' + label + '</span><span style="font-size:12.5px;line-height:1.35;font-weight:600;color:#6b7280">' + sub + '</span></div>'; };
       const busy = st.busy === 'post', chosen = st.evTest != null;
-      const pickKind = () => { toast('Choose Real event or Just testing first'); evGo('title', { evFromReview: true }); };
+      const pickKind = () => setState({ evKindAsk: true });
       return '<div class="overlay-screen" data-screen-label="New spark"><div style="min-height:100%;display:flex;flex-direction:column">' +
         '<div style="position:relative;flex:0 0 auto;height:210px;background:' + (url ? '#2b303a ' + bg(url) : EV_GRAD) + '">' +
           '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.9) 0%, rgba(13,17,23,.2) 60%, rgba(13,17,23,.3) 100%)"></div>' +
@@ -5676,7 +5689,7 @@
               svg(18, stroke('#fff', 2.3) + ' style="flex:0 0 18px;margin-bottom:6px;opacity:.85"', PENCIL) + '</div></div>' +
         '</div>' +
         '<div style="padding:16px 14px 0;display:flex;flex-direction:column;gap:18px"><div style="display:flex;flex-direction:column;gap:10px">' +
-          card(st.evTest ? FLASK_IC : P6.cal, 'Real or test', chosen, '', 'title', chosen ? main(st.evTest ? 'Just testing' : 'Real event', true, st.evTest ? 'Shows a DEMO tag. No one gets notified.' : 'Your groups hear about it.') : main('Not chosen yet', false)) +
+          card(st.evTest ? FLASK_IC : P6.cal, 'Real or test', chosen, '', 'kind', chosen ? main(st.evTest ? 'Just testing' : 'Real event', true, st.evTest ? 'Shows a DEMO tag. No one gets notified.' : 'Your groups hear about it.') : main('Not chosen yet', false)) +
           card(P6.cal, 'Date &amp; time', filled.when, '', 'when', st.evDatePoll ? main('Poll: ' + st.evDatePoll.length + ' dates', true, 'People vote, you pick') : st.evDate ? main(dayLabel(st.evDate, st.evTime, st.evEnd), true) : main('Date TBD', false)) +
           card(P6.pin, 'Location', filled.where, '', 'where', st.evSpotPoll ? main('Poll: ' + st.evSpotPoll.length + ' spots', true, 'People vote, you pick') : place ? main(place, true, st.locPlace ? st.locPlace.address : '') : main('Location TBD', false)) +
           card(LINES_IC, 'Details', filled.details, '', 'details', bits.length ? list(bits.map(t => '<span style="flex:0 0 6px;width:6px;height:6px;border-radius:999px;background:#0f7a3c;transform:translateY(-2px)"></span><span style="font-size:15.5px;line-height:1.35;font-weight:800;color:#0d1117;text-wrap:pretty">' + esc(t) + '</span>')) : main('Details to be decided', false)) +
@@ -5710,9 +5723,7 @@
     const pad = (inner) => '<div style="padding:12px 16px 0;display:flex;flex-direction:column;gap:10px">' + inner + '</div>';
     let body = '';
     if (cur === 'title') {
-      body = head('Real or test?', 'Trying the app out? Post a test. It shows a DEMO tag and no one gets notified.') + pad('<div data-ev-kinds role="radiogroup" aria-label="Real or test" style="display:flex;gap:8px">' +
-          kind(false, 'Real event', 'It’s happening. Your groups hear about it.', P6.cal) + kind(true, 'Just testing', 'Shows a DEMO tag. No one gets notified.', FLASK_IC) + '</div>') +
-        head('Event title') + pad(
+      body = head('Event title') + pad(
         '<input class="fld big-fld" type="text" maxlength="40" aria-label="Event title" placeholder="e.g. Fall yard cleanup" value="' + esc(st.activity) + '" ' + onInput(e => { if (e.type === 'input') setState({ activity: e.target.value.slice(0, 40) }); }) + ' style="' + BIG + '">' +
         (url
           ? '<div style="display:flex;align-items:center;gap:12px;padding:8px 14px 8px 8px;border-radius:16px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08)"><span aria-hidden="true" style="flex:0 0 56px;width:56px;height:42px;border-radius:10px;background:' + bg(url) + '"></span>' +
@@ -6349,6 +6360,7 @@
       (st.shiftPick ? viewShiftSheet() : '') +
       (st.banner ? viewBanner() : '') +
       (s === 'compose' ? viewCompose() : '') +
+      (s === 'compose' && (st.evTest == null || st.evKindAsk) && !st.evLeave && !st.loginStep ? viewKindAsk() : '') +
       (s === 'compose' && st.email ? viewComposeSheets() : '') +
       (st.offerKind && subj ? viewOffer(subj) : '') +
       (st.interestList && subj ? viewInterestList(subj) : '') +

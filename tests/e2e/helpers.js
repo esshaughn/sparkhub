@@ -108,6 +108,12 @@ async function startPost(page) {
   await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Calendar', exact: true }).click();
   await page.locator('[data-screen-label=Calendar]').getByRole('button', { name: 'Post an event' }).click();
 }
+// Create event opens with the Real or test? pop-up (owner, 2026-10-01)
+async function pickKind(page, test = false) {
+  const ask = page.getByRole('dialog', { name: 'Real or test?' });
+  await ask.getByRole('button', { name: test ? /^Just testing/ : /^Real event/ }).click();
+  await expect(ask).toHaveCount(0);
+}
 // Tiles · List · Grid: the picker on the first month row
 async function pickView(scope, name) {
   await scope.getByRole('button', { name: /^View: / }).click();
@@ -169,9 +175,9 @@ async function postEvent(page, { title, date, time, where, pick, details = [], j
   const flow = page.locator('[data-screen-label="New spark"]');
   const next = () => flow.getByRole('button', { name: /^(Next|Review)$/ }).click();
   const later = () => flow.getByText('Decide later', { exact: true }).click();
+  await pickKind(page, test);
   await expect(flow).toContainText('1 of 5');
   await flow.getByLabel('Event title').fill(title);
-  await flow.getByRole('radio', { name: test ? /^Just testing/ : /^Real event/ }).click();
   if (photo) await flow.getByLabel('Upload a cover photo').setInputFiles({ name: 'photo.png', mimeType: 'image/png', buffer: PNG });
   await next();
 
@@ -275,5 +281,5 @@ async function asUser(page, fn, args) {
 
 module.exports = {
   TAG, TORREZ, PNG, leadEmail, uniqueTitle, startPost, openProfile, pickView, mockPlaces, stubPhotos, trackErrors, expectConnected, newMember, newLead, button,
-  postIdea, postEvent, closeAskFirst, addJob, answerNamePrompt, answerGuestPrompt, ideaIdFromUrl, openIdea, confirm, deleteIdea, asUser
+  postIdea, postEvent, closeAskFirst, pickKind, addJob, answerNamePrompt, answerGuestPrompt, ideaIdFromUrl, openIdea, confirm, deleteIdea, asUser
 };

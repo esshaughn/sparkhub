@@ -1,7 +1,7 @@
 // Create event (v6 Update 6): the 5-step flow with "Decide later", polls, jobs, Review, drafts,
 // then the host's edit pop-ups on the event page.
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newLead, button, postEvent, openIdea, confirm, startPost, asUser, closeAskFirst } = require('./helpers');
+const { uniqueTitle, newLead, button, postEvent, openIdea, confirm, startPost, asUser, closeAskFirst, pickKind } = require('./helpers');
 
 const inDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 
@@ -109,6 +109,16 @@ test('decide everything later: only the title is needed; the host is left with t
   try {
     await startPost(page);
     const flow = page.locator('[data-screen-label="New spark"]');
+    // Real or test? comes first, in a pop-up with no default; backing out of it leaves Create event (owner, 2026-10-01)
+    const ask = page.getByRole('dialog', { name: 'Real or test?' });
+    await expect(ask.getByRole('button', { name: /^Real event/ })).toHaveAttribute('aria-pressed', 'false');
+    await ask.getByText('Never mind', { exact: true }).click();
+    await expect(page.locator('[data-screen-label=Calendar]')).toBeVisible();
+    await startPost(page);
+    await ask.getByRole('button', { name: 'Close' }).click();
+    await expect(page.locator('[data-screen-label=Calendar]')).toBeVisible();
+    await startPost(page);
+    await pickKind(page, true);
     await expect(flow).toContainText('1 of 5');
     await expect(flow).toContainText('Your event');
     await expect(flow.getByRole('button', { name: 'Next' })).toHaveAttribute('aria-disabled', 'true');
@@ -118,12 +128,9 @@ test('decide everything later: only the title is needed; the host is left with t
     await expect(page.locator('[data-screen-label=Calendar]')).toBeVisible();
 
     await startPost(page);
+    await pickKind(page, true);
     await flow.getByLabel('Event title').fill(title);
     await expect(flow.getByLabel('Event title')).toHaveAttribute('maxlength', '40');
-    // Real or test comes first and has no default: Next waits for it (owner, 2026-10-01)
-    await expect(flow.getByRole('button', { name: 'Next' })).toHaveAttribute('aria-disabled', 'true');
-    await flow.getByRole('radio', { name: /^Just testing/ }).click();
-    await expect(flow.getByRole('radio', { name: /^Just testing/ })).toHaveAttribute('aria-checked', 'true');
     // The phone's Back with a title asks about a draft instead of dropping it
     await page.goBack();
     const leave = page.getByRole('dialog', { name: 'Save as draft' });
@@ -173,7 +180,12 @@ test('decide everything later: only the title is needed; the host is left with t
     await expect(flow).toContainText('Details to be decided');
     // No date: it goes up as an idea, not a plan
     await expect(flow.locator('[data-posts-as]')).toContainText('It goes up as an idea');
-    await expect(flow).toContainText('Just testing');   // Review shows the choice from step 1
+    await expect(flow).toContainText('Just testing');   // Review shows the choice from the pop-up
+    // Edit reopens the pop-up; closing it there keeps the choice and stays in Create event
+    await flow.getByRole('button', { name: 'Edit real or test' }).click();
+    await expect(page.getByRole('dialog', { name: 'Real or test?' }).getByRole('button', { name: /^Just testing/ })).toHaveAttribute('aria-pressed', 'true');
+    await page.getByRole('dialog', { name: 'Real or test?' }).getByRole('button', { name: 'Close' }).click();
+    await expect(flow).toContainText('Just testing');
     await flow.getByRole('button', { name: 'Post it' }).click();
     const I = page.locator('[data-screen-label="Idea page"]');
     await expect(I).toBeVisible();
@@ -216,8 +228,8 @@ test('polls: the host posts a date poll (an idea), a member votes, the host pick
   try {
     await startPost(H);
     const flow = H.locator('[data-screen-label="New spark"]');
+    await pickKind(H);
     await flow.getByLabel('Event title').fill(title);
-    await flow.getByRole('radio', { name: /^Real event/ }).click();
     await flow.getByRole('button', { name: 'Next' }).click();
     await flow.getByText('Poll the group').click();
     const poll = H.getByRole('dialog', { name: 'Poll the group' });
@@ -284,8 +296,8 @@ test('drafts: X saves one, Your tasks lists it under Leading, Continue picks up 
   try {
     await startPost(page);
     const flow = page.locator('[data-screen-label="New spark"]');
+    await pickKind(page);
     await flow.getByLabel('Event title').fill(title);
-    await flow.getByRole('radio', { name: /^Real event/ }).click();
     await flow.getByRole('button', { name: 'Next' }).click();
     await flow.getByText('Decide later', { exact: true }).click();
     await flow.getByRole('button', { name: 'Close' }).click();
@@ -326,8 +338,8 @@ test('location suggestions: 2 letters, 4 rows, Austin area, remembered, free tex
   try {
     await startPost(page);
     const flow = page.locator('[data-screen-label="New spark"]');
+    await pickKind(page);
     await flow.getByLabel('Event title').fill('Anything');
-    await flow.getByRole('radio', { name: /^Real event/ }).click();
     await flow.getByRole('button', { name: 'Next' }).click();
     await flow.getByText('Decide later', { exact: true }).click();
 
@@ -369,8 +381,8 @@ test('an idea says how many it needs; a bare starter chip can’t be saved; its 
   try {
     await startPost(page);
     const flow = page.locator('[data-screen-label="New spark"]');
+    await pickKind(page);
     await flow.getByLabel('Event title').fill(title);
-    await flow.getByRole('radio', { name: /^Real event/ }).click();
     await flow.getByRole('button', { name: 'Next' }).click();
     await flow.getByText('Decide later', { exact: true }).click();   // no date: it goes up as an idea
     await flow.getByText('Decide later', { exact: true }).click();
