@@ -232,7 +232,7 @@ test('Give feedback (Update 9): a Help & info tile opens the sheet; Send to Eric
         await expect(page.getByLabel('Event title')).toHaveValue(t.slice(0, 40));
       }
     } else {
-      await expect(empty).toContainText('Somebody should fix that.');
+      await expect(empty).toContainText('Start one, or turn an idea into a plan.');
     }
     expect(m.errors).toEqual([]);
   } finally {

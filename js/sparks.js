@@ -1956,8 +1956,8 @@
         '<button type="button" ' + on(rsvp) + ' style="flex:0 0 auto;border:0;border-radius:999px;background:#fff;color:#11131f;padding:10px 18px;font-family:inherit;font-size:15px;font-weight:800;cursor:pointer">' + (myRsvp(next) === 'going' ? 'Going' : 'RSVP') + '</button></div>';
     } else {
       card = '<div style="margin-top:22px;display:flex;align-items:center;gap:12px;border-radius:22px;padding:16px 18px;background:#fff;border:2px solid #e3e5ec">' +
-        '<div style="flex:1;min-width:0;font-size:16px;line-height:1.35;font-weight:700;color:#11131f">Nothing planned yet. Got an idea?</div>' +
-        '<button type="button" ' + on(() => { leaveWelcome('idea'); goCompose(); }) + ' style="flex:0 0 auto;border:0;border-radius:999px;background:#5b4ae8;color:#fff;padding:10px 18px;font-family:inherit;font-size:15px;font-weight:800;cursor:pointer">Suggest one</button></div>';
+        '<div style="flex:1;min-width:0;font-size:16px;line-height:1.35;font-weight:700;color:#11131f">Nothing planned yet. Sign in to start something.</div>' +
+        '<button type="button" ' + on(() => { leaveWelcome('idea'); goCompose(); }) + ' style="flex:0 0 auto;border:0;border-radius:999px;background:#5b4ae8;color:#fff;padding:10px 18px;font-family:inherit;font-size:15px;font-weight:800;cursor:pointer">Sign in</button></div>';
     }
     return '<div data-screen-label="Welcome to group" style="position:relative;min-height:100%;display:flex;flex-direction:column;background:#f0f1f5">' +
       '<div style="position:relative;flex:0 0 auto">' + invPhoto(g, 'calc(240px + var(--pt))', 80) + statusFade + '</div>' +
@@ -2440,6 +2440,16 @@
     '<span style="flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;display:flex;align-items:center;justify-content:center">' + icon + '</span>' +
     '<div style="flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-size:15.5px;font-weight:800;color:#0d1117">' + title + '</span><span style="font-size:13.5px;line-height:1.35;font-weight:600;color:#6b7280">' + sub + '</span></div>' +
     I.chevR(16, '#b9bcc4', 2.6) + '</div>';
+  // The Calendar with nothing coming up (owner, 2026-09-30): a next step, not just a sentence
+  const calEmpty = () => {
+    const ideas = state.sparks.filter(s => inMine(s) && phaseOf(s) === 'idea' && !s.cancelledAt), g = ideas.length ? groupById(ideas[0].groupId) : null;
+    return '<div data-cal-empty style="' + CARD + ';padding:18px;display:flex;flex-direction:column;gap:12px">' +
+      '<div><div style="font-size:16.5px;font-weight:800;color:#0d1117">Nothing on the calendar yet.</div>' +
+      '<div style="margin-top:3px;font-size:14.5px;line-height:1.45;font-weight:500;color:#5c6270">' + (ideas.length ? 'Start something, or see what ideas people are floating.' : 'Start something and it shows up here for your group.') + '</div></div>' +
+      createBtn().replace('Create an event', 'Start an event') +
+      (ideas.length ? '<button type="button" class="hov-outline" ' + on(() => go('browse', { groupId: g ? g.id : state.groupId, phaseTab: 'idea' })) + ' style="' + SECONDARY + '">See ' + ideas.length + (ideas.length === 1 ? ' idea' : ' ideas') + '</button>' : '') +
+    '</div>';
+  };
   const note6 = (t) => '<div style="' + CARD + ';padding:16px 18px;font-size:15px;line-height:1.45;font-weight:600;color:#6b7280">' + t + '</div>';
   const CARD6 = 'align-self:flex-start;background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer';
 
@@ -2822,7 +2832,7 @@
       set: (cMon, cDay) => setState({ cMon, cDay }), toTbd: () => setState({ cView: 'list', menu: null, cMon: null, cDay: null }) });
     else if (!list.length) {
       body = st.loaded && !groups.length ? '' : '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(st.cSort === 'soon' ? 'Coming up' : (CSORTS.find(x => x[0] === st.cSort) || CSORTS[0])[1], '<div style="display:flex;align-items:center">' + sortMenu + calViewMenu() + '</div>') +
-        (filtered ? filterEmpty(clearFilters, (gSel ? groups.filter(g => gSel.indexOf(g.id) > -1).map(g => g.name) : []).concat(tSel.map(typeName))) : note6('Nothing coming up in your groups yet.')) + '</div>';
+        (filtered ? filterEmpty(clearFilters, (gSel ? groups.filter(g => gSel.indexOf(g.id) > -1).map(g => g.name) : []).concat(tSel.map(typeName))) : calEmpty()) + '</div>';
     } else {
       body = secs.map((z, i) => '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(z.label, i ? '' : '<div style="display:flex;align-items:center">' + sortMenu + calViewMenu() + '</div>') +
         z.items.map(card6).join('') + '</div>').join('');
@@ -3623,12 +3633,12 @@
       // The Ideas board: graph paper, two tilted columns (no sort, filter or view here)
       pageStyle = 'min-height:100%;' + IDEA_PAPER;
       const ideas = sortIdeas6(visible('idea'), st.iSort);
-      body = ideas.length ? '<div style="display:flex;flex-direction:column;gap:6px">' + ideaSortRow6(st.iSort) + ideaBoard6(ideas) + '</div>' : '<div style="padding:24px 8px;text-align:center;font-size:15px;font-weight:700;color:#8a909b">No ideas yet. Toss one on the board!</div>';
+      body = ideas.length ? '<div style="display:flex;flex-direction:column;gap:6px">' + ideaSortRow6(st.iSort) + ideaBoard6(ideas) + '</div>' : '<div style="padding:24px 8px;text-align:center;font-size:15px;font-weight:700;color:#8a909b">No ideas yet. Got one? Post it without a date.</div>';
     } else if (tab === 'done') {
       // The Past scrapbook: the recap, then a memory card per event (newest first)
       const done = visible('done').slice().sort((a, b) => byWhen(b, a));
       body = '<div style="display:flex;flex-direction:column;gap:14px;padding-bottom:20px">' + (st.pastStatsHidden[g.id] ? '' : recap6(g, done)) +
-        (done.length ? done.map((s, i) => pastCard6(s, i)).join('') : '<div style="background:#fff;border-radius:16px;padding:18px;text-align:center;font-size:15px;font-weight:700;color:#8a909b">Nothing here yet. Your first memory is one event away.</div>') + '</div>';
+        (done.length ? done.map((s, i) => pastCard6(s, i)).join('') : '<div style="background:#fff;border-radius:16px;padding:18px;text-align:center;font-size:15px;font-weight:700;color:#8a909b">Events show up here after they happen.</div>') + '</div>';
     } else {
       // Plans: Your schedule's cards and controls (Sort · Filter · Tiles / List), the strips expanding in place
       const all = visible('plan'), plans = applySort(applyFilters(all, st.gFilt), st.gSort), clear = () => setState({ gFilt: [], menu: null });
@@ -3655,7 +3665,7 @@
   const plansEmpty = (sub, btns, attr) => '<div ' + (attr || 'data-plans-empty') + ' style="min-height:420px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;padding:0 12px;text-align:center">' +
     '<div aria-hidden="true" style="position:relative;width:200px;height:150px">' + fanPage(96, -12, 4, 26, 1) + fanPage(96, 9, 100, 26, 1) + fanPage(118, -2, 41, 4, 2) + '</div>' +
     '<div><div style="font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">No plans yet</div>' +
-      '<div style="margin-top:6px;font-size:15px;font-weight:500;color:#5c6270;text-wrap:pretty">' + (sub || 'Somebody should fix that.') + '</div></div>' + (btns || createBtn()) + '</div>';
+      '<div style="margin-top:6px;font-size:15px;font-weight:500;color:#5c6270;text-wrap:pretty">' + (sub || 'Start one, or turn an idea into a plan.') + '</div></div>' + (btns || createBtn()) + '</div>';
   const schedEmpty = () => plansEmpty('RSVP to something in your groups, or post your own.',
     '<div style="width:100%;display:flex;flex-direction:column;gap:10px">' + createBtn().replace('Create an event', 'Post an event') +
       '<button type="button" class="hov-sec" ' + on(() => go('calendar')) + ' style="width:100%;min-height:52px;border:0;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;color:#0d1117;font-family:inherit;font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer">' + ic6('cal', 18, '#0d1117', 2.2) + 'View calendar</button></div>',
@@ -3847,7 +3857,7 @@
         (lead ? makePlanCard(s) : '') +
         datesBoard(s) + spotsBoard(s) + signupsCard(s) +
 
-        '<div id="sec-details" style="' + CARD + ';padding:18px 16px;display:flex;flex-direction:column;gap:10px">' +
+        (!basicsOf(s).length && !lead ? '' : '<div id="sec-details" style="' + CARD + ';padding:18px 16px;display:flex;flex-direction:column;gap:10px">' +
           '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px">' +
             '<span style="' + EYEBROW + '">Basic details</span>' +
             (canEdit(s) && basicsOf(s).length ? '<span ' + on(() => openSec(s, 'details')) + ' style="font-size:13.5px;font-weight:800;color:#5b4ae8;cursor:pointer">Edit</span>' : '') +
@@ -3858,8 +3868,8 @@
             : lead
               ? '<p style="margin:0;font-size:14.5px;line-height:1.45;font-weight:500;color:#5c6270">Up to three quick notes on what to expect or the vibe.</p>' +
                 '<span ' + on(() => openSec(s, 'details')) + ' class="hov-outline" style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:40px;padding:0 15px;border:1.5px solid #dcdfe6;border-radius:999px;font-size:14.5px;font-weight:800;color:#0d1117;cursor:pointer">+ Add basic details</span>'
-              : '<p style="margin:0;font-size:14.5px;line-height:1.45;font-weight:500;color:#9aa0ac">' + esc(leadName) + ' hasn’t added basic details yet.</p>') +
-        '</div>' +
+              : '') +   // members: the section is hidden when empty (owner, 2026-09-30)
+        '</div>') +
 
 
         (pitching.length
@@ -4553,7 +4563,7 @@
         host +
         '<section>' + secTitle('Who’s going', '<span style="font-size:13.5px;font-weight:800;color:#0f7a3c">' + goingIds.length + ' going</span>') + sheetCard(
           '<div style="display:flex;align-items:center;gap:10px">' +
-            '<span style="display:flex">' + (goingIds.length ? peopleFaces(goingIds.slice(0, 5), 40) + (goingIds.length > 5 ? '<span style="width:40px;height:40px;border-radius:999px;border:2.5px solid #fff;margin-left:-10px;background:#e7f6ec;color:#0f7a3c;font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center">+' + (goingIds.length - 5) + '</span>' : '') : '<span style="font-size:14px;font-weight:600;color:#6b7280">Nobody yet. Be the first.</span>') + '</span>' +
+            '<span style="display:flex">' + (goingIds.length ? peopleFaces(goingIds.slice(0, 5), 40) + (goingIds.length > 5 ? '<span style="width:40px;height:40px;border-radius:999px;border:2.5px solid #fff;margin-left:-10px;background:#e7f6ec;color:#0f7a3c;font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center">+' + (goingIds.length - 5) + '</span>' : '') : lead ? '<span data-going-empty style="font-size:14px;font-weight:600;color:#6b7280">Nobody’s replied yet. <span ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' style="font-weight:800;color:#5b4ae8;cursor:pointer">Share the link</span></span>' : '<span style="font-size:14px;font-weight:600;color:#6b7280">Nobody yet. Be the first.</span>') + '</span>' +
           '</div>') + '</section>' +
         (s.mood.length ? '<section>' + secTitle('Inspo') + sheetCard('<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">' +
           s.mood.slice(0, 3).map((p, i) => '<div ' + on(() => setState({ zoom: { photos: s.mood.map(photoUrl), i } })) + ' aria-label="View mood photo ' + (i + 1) + '" style="aspect-ratio:1;border-radius:12px;cursor:zoom-in;background:' + bg(photoUrl(p)) + '"></div>').join('') + '</div>') + '</section>' : '') +

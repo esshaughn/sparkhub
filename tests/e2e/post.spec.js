@@ -16,6 +16,8 @@ test('post an event with every step filled, then edit it in the pop-ups and dele
       details: ['Tacos after', 'Bring headlamps'], jobs: [{ item: 'Bring water', need: 3 }], photo: true
     });
     const P = page.locator('[data-screen-label="Plan page"]');
+    // Nobody's replied: the lead gets a nudge to share, not "Be the first"
+    await expect(P.locator('[data-going-empty]')).toContainText('Nobody’s replied yet. Share the link');
     await expect(P.locator('[data-chip]')).toHaveText('YOU’RE LEADING');
     await expect(P).toContainText('5:30pm');
     await expect(P).toContainText('Zilker Metropolitan Park');
