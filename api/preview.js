@@ -1,5 +1,5 @@
 // Link previews. Chat apps (iMessage, WhatsApp, Facebook…) don't run the app's JavaScript and
-// ignore everything after '#', so shared links are real paths: /i/<idea id> and /join/<code>
+// ignore everything after '#', so shared links are real paths: /i/<idea id>, /join/<code> and /add/<friend code>
 // (rewrites in vercel.json). This serves the normal index.html with its preview tags (between
 // <!-- preview --> and <!-- /preview -->) filled in for that idea or group; the app then boots as
 // usual. The details come from link_preview() / group_preview() (only what's safe to show anyone
@@ -74,6 +74,16 @@ async function details(db, q) {
       image: photoUrl(db, g.photo)
     };
   }
+  if (q.add && CODE.test(q.add)) {
+    const f = await rpc(db, 'friend_link_preview', { p_code: q.add.toUpperCase() });
+    if (!f) return null;
+    const first = String(f.name || '').trim().split(/\s+/)[0] || 'Someone';
+    return {
+      title: 'Be friends with ' + first + ' on Spark Hub',
+      description: 'Friends on Spark Hub can invite each other to events, even across groups.',
+      image: photoUrl(db, f.avatar_path)
+    };
+  }
   return null;
 }
 
@@ -95,7 +105,7 @@ module.exports = async (req, res) => {
     const q = req.query || Object.fromEntries(new URL(req.url, 'http://x').searchParams);
     const d = await details(db, q);
     if (d) {
-      const url = 'https://' + host + (q.i ? '/i/' + q.i : '/join/' + q.join);
+      const url = 'https://' + host + (q.i ? '/i/' + q.i : q.add ? '/add/' + q.add : '/join/' + q.join);
       html = html
         .replace(/<!-- preview -->[\s\S]*?<!-- \/preview -->/, () => '<!-- preview -->\n' + tags(d, url) + '\n<!-- /preview -->')   // a function: "$&" in a title must stay text
         .replace(/<title>[^<]*<\/title>/, () => '<title>' + esc(d.title) + ' · Spark Hub</title>');

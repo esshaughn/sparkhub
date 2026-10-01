@@ -461,17 +461,30 @@
         <header style="position:relative;z-index:5">
           <div style="position:relative;height:180px;background:#2b303a url(photos/torrez-group.jpg) center 35%/cover">
             <div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.9) 0%, rgba(13,17,23,.45) 55%, rgba(13,17,23,.25) 100%)"></div>
-            <div style="position:absolute;top:14px;right:16px;display:flex;gap:8px"><div onClick="{{ goNotifs }}" role="button" aria-label="{{ bellLabel }}" style="position:relative;width:44px;height:44px;border-radius:999px;background:rgba(255,255,255,.18);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;color:#fff;cursor:pointer" style-hover="background:rgba(255,255,255,.28)"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16.5V11a6 6 0 1 1 12 0v5.5l1.6 2H4.4L6 16.5Z" /><path d="M10 21a2.2 2.2 0 0 0 4 0" /></svg><sc-if value="{{ bellHasBadge }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;top:-3px;right:-4px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;border:0;background:#e2556b;color:#fff;font-size:10.5px;font-weight:900;display:flex;align-items:center;justify-content:center">{{ bellCount }}</span></sc-if></div></div>
+            <div style="position:absolute;top:14px;right:16px;display:flex;gap:8px"><span onClick="{{ pplSearchToggle }}" role="button" aria-label="Search people and groups" style="flex:0 0 44px;width:44px;height:44px;border-radius:999px;background:rgba(255,255,255,.18);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;cursor:pointer" style-hover="background:rgba(255,255,255,.28)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5" /><path d="m20 20-4.2-4.2" /></svg></span><div onClick="{{ goNotifs }}" role="button" aria-label="{{ bellLabel }}" style="position:relative;width:44px;height:44px;border-radius:999px;background:rgba(255,255,255,.18);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;color:#fff;cursor:pointer" style-hover="background:rgba(255,255,255,.28)"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16.5V11a6 6 0 1 1 12 0v5.5l1.6 2H4.4L6 16.5Z" /><path d="M10 21a2.2 2.2 0 0 0 4 0" /></svg><sc-if value="{{ bellHasBadge }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;top:-3px;right:-4px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;border:0;background:#e2556b;color:#fff;font-size:10.5px;font-weight:900;display:flex;align-items:center;justify-content:center">{{ bellCount }}</span></sc-if></div></div>
+            <span onClick="{{ pplAddOpen }}" role="button" aria-label="Add a group or friend" style="position:absolute;right:16px;bottom:16px;z-index:3;width:52px;height:52px;border-radius:999px;background:#fff;box-shadow:0 6px 16px rgba(13,17,23,.35);display:flex;align-items:center;justify-content:center;cursor:pointer" style-hover="background:#f2f3f6"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0d1117" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="9.5" cy="8" r="3.5" /><path d="M3 20a6.5 6.5 0 0 1 13 0" /><path d="M19 8v6M16 11h6" /></svg></span>
             <div style="position:absolute;left:18px;right:90px;bottom:16px;color:#fff">
-              <div style="font-size:13px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:#cfc9ff">Your people</div>
-              <h1 style="margin:2px 0 0;font-size:40px;line-height:1;font-weight:900;letter-spacing:-1.4px;color:#fff">Groups</h1>
+              <div style="font-size:13px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:#cfc9ff">Groups &amp; friends</div>
+              <h1 style="margin:2px 0 0;font-size:40px;line-height:1;font-weight:900;letter-spacing:-1.4px;color:#fff">Your people</h1>
               <div style="margin-top:6px;font-size:14px;font-weight:700;color:rgba(255,255,255,.88)">{{ groupsSub }}</div>
             </div>
-            <span onClick="{{ openJoin }}" role="button" aria-label="Join a group" style="position:absolute;right:16px;bottom:18px;z-index:3;display:flex;align-items:center;gap:6px;height:40px;padding:0 16px 0 13px;border-radius:999px;background:#fff;color:#0d1117;font-size:14.5px;font-weight:900;box-shadow:0 6px 16px rgba(13,17,23,.3);cursor:pointer;white-space:nowrap" style-hover="background:#f2f3f6"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0d1117" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="9.5" cy="8" r="3.5" /><path d="M3 20a6.5 6.5 0 0 1 13 0" /><path d="M19 8v6M16 11h6" /></svg>Join</span>
+            
           </div>
           
         </header>
-        <div style="padding:16px 14px 26px;display:flex;flex-direction:column;gap:12px">
+        <div style="padding:14px 14px 26px;display:flex;flex-direction:column;gap:12px">
+          <sc-if value="{{ pplSearchOn }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;align-items:center;gap:8px;min-height:48px;padding:0 6px 0 14px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5" /><path d="m20 20-4.2-4.2" /></svg>
+              <input value="{{ pplQ }}" onChange="{{ onPplQ }}" ref="{{ pplQRef }}" placeholder="{{ pplQPlaceholder }}" aria-label="Search" style="flex:1;min-width:0;border:0;outline:0;background:transparent;font-family:inherit;font-size:15.5px;font-weight:600;color:#0d1117" />
+              <span onClick="{{ pplSearchClose }}" role="button" style="padding:8px 10px;font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">Cancel</span>
+            </div>
+          </sc-if>
+          <div role="tablist" style="display:flex;padding:4px;border-radius:999px;background:#dfe2e7">
+            <span onClick="{{ pplGoGroups }}" role="tab" aria-selected="{{ pplIsGroups }}" style="{{ pplSegGroups }}">{{ pplGroupsLabel }}</span>
+            <span onClick="{{ pplGoFriends }}" role="tab" aria-selected="{{ pplIsFriends }}" style="{{ pplSegFriends }}">{{ pplFriendsLabel }}</span>
+          </div>
+          <sc-if value="{{ pplIsGroups }}" hint-placeholder-val="{{ true }}">
           <sc-for list="{{ groupTop }}" as="g" hint-placeholder-count="1">
             <div onClick="{{ g.open }}" style="border-radius:22px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">
               <div style="{{ g.bigStyle }}">
@@ -483,7 +496,7 @@
                 </div>
                 <div style="position:absolute;left:16px;right:16px;bottom:12px;color:#fff"><div style="font-size:26px;line-height:1.05;font-weight:900;letter-spacing:-.7px;text-shadow:0 1px 8px rgba(0,0,0,.35);text-wrap:pretty">{{ g.name }}</div><div style="margin-top:3px;font-size:13px;font-weight:700;color:#dfe2e8">{{ g.members }}</div></div>
               </div>
-              <div style="padding:12px 16px;display:flex;gap:6px;flex-wrap:wrap">
+              <div style="padding:12px 16px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
                 <sc-if value="{{ g.hasNew }}" hint-placeholder-val="{{ false }}"><span style="border-radius:999px;padding:4px 10px;background:#ece9fd;color:#4a3ad4;font-size:12px;font-weight:800">{{ g.newLabel }}</span></sc-if>
                 <sc-if value="{{ g.hasCounts }}" hint-placeholder-val="{{ true }}"><span style="border-radius:999px;padding:4px 10px;background:#f2f3f6;color:#454b55;font-size:12px;font-weight:800">{{ g.counts }}</span></sc-if>
                 <sc-if value="{{ g.hasYou }}" hint-placeholder-val="{{ false }}"><span style="border-radius:999px;padding:4px 10px;background:#f2f3f6;color:#454b55;font-size:12px;font-weight:800">{{ g.you }}</span></sc-if>
@@ -497,12 +510,42 @@
                   <div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.88) 0%, rgba(13,17,23,.25) 60%, rgba(13,17,23,.05) 100%)"></div>
                   <span style="position:absolute;top:10px;left:10px;display:flex;gap:6px"><sc-if value="{{ g.ownChip }}" hint-placeholder-val="{{ false }}"><span style="border-radius:999px;padding:3px 8px;background:#ece9fd;color:#4a3ad4;font-size:10.5px;font-weight:900;letter-spacing:.6px">OWNER</span></sc-if><sc-if value="{{ g.admChip }}" hint-placeholder-val="{{ false }}"><span style="border-radius:999px;padding:3px 8px;background:#fdf1d6;color:#8f6405;font-size:10.5px;font-weight:900;letter-spacing:.6px">ADMIN</span></sc-if></span>
                   <span onClick="{{ g.togglePin }}" aria-label="{{ g.pinLabel }}" style="{{ g.pinBtn }}"><svg width="13" height="13" viewBox="0 0 24 24" fill="{{ g.pinFill }}" stroke="{{ g.pinStroke }}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6l-1 6 3 3v2H7v-2l3-3-1-6Z" /><path d="M12 14v7" /></svg></span>
-                  <div style="position:absolute;left:12px;right:12px;bottom:10px;color:#fff;display:flex;align-items:center;gap:6px"><sc-if value="{{ g.hasNew }}" hint-placeholder-val="{{ false }}"><span style="flex:0 0 9px;width:9px;height:9px;border-radius:999px;background:#9d93f7;box-shadow:0 0 0 2px rgba(255,255,255,.9)"></span></sc-if><span style="font-size:16px;line-height:1.1;font-weight:900;text-shadow:0 1px 6px rgba(0,0,0,.35)">{{ g.name }}</span></div>
+                  <div style="position:absolute;left:12px;right:12px;bottom:10px;color:#fff;display:flex;align-items:center;gap:6px"><sc-if value="{{ g.hasNew }}" hint-placeholder-val="{{ false }}"><span style="flex:0 0 9px;width:9px;height:9px;border-radius:999px;background:#9d93f7;box-shadow:0 0 0 2px rgba(255,255,255,.9)"></span></sc-if><div style="min-width:0;display:flex;flex-direction:column;gap:4px"><span style="font-size:16px;line-height:1.1;font-weight:900;text-shadow:0 1px 6px rgba(0,0,0,.35)">{{ g.name }}</span><span style="font-size:12px;font-weight:700;color:#dfe2e8">{{ g.membersShort }}</span></div></div>
                 </div>
               </sc-for>
             </div>
           </sc-if>
-          <div onClick="{{ startGroup }}" role="button" style="display:flex;align-items:center;justify-content:center;gap:6px;min-height:52px;margin-top:4px;border-radius:14px;border:1.5px dotted #9aa0aa;color:#6b7280;font-size:14.5px;font-weight:800;cursor:pointer" style-hover="background:#dfe2e7"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>Start a new group</div>
+          <sc-if value="{{ pplNoGroupHits }}" hint-placeholder-val="{{ false }}"><div style="padding:24px 8px;text-align:center;font-size:14.5px;font-weight:700;color:#6b7280">No groups match “{{ pplQ }}”</div></sc-if>
+          </sc-if>
+          <sc-if value="{{ pplIsFriends }}" hint-placeholder-val="{{ false }}">
+            <sc-for list="{{ frReqs }}" as="r" hint-placeholder-count="1">
+              <div style="background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08);padding:12px 14px;display:flex;align-items:center;gap:12px">
+                <span style="flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:#d6f0e0;color:#0f7a3c;font-size:14px;font-weight:900;display:flex;align-items:center;justify-content:center">{{ r.initials }}</span>
+                <div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:900;color:#0d1117">{{ r.name }}</div><div style="font-size:12.5px;font-weight:700;color:#6b7280">{{ r.sub }}</div></div>
+                <span onClick="{{ r.decline }}" role="button" aria-label="Decline" style="flex:0 0 34px;width:34px;height:34px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0d1117" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18" /></svg></span>
+                <span onClick="{{ r.accept }}" role="button" style="height:34px;padding:0 13px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:13.5px;font-weight:900;display:flex;align-items:center;cursor:pointer" style-hover="background:#4a3ad4">Accept</span>
+              </div>
+            </sc-for>
+            <div style="background:#fff;border-radius:22px;box-shadow:0 1px 3px rgba(15,18,25,.08);padding:14px 16px">
+              <div style="font-size:13px;font-weight:700;color:#6b7280;padding:0 0 12px">Tap friends to invite them together</div>
+              <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px 6px">
+                <sc-for list="{{ frTiles }}" as="f" hint-placeholder-count="8">
+                  <div onClick="{{ f.tap }}" role="button" aria-pressed="{{ f.on }}" aria-label="{{ f.name }}" style="display:flex;flex-direction:column;align-items:center;gap:5px;text-align:center;cursor:pointer">
+                    <span style="{{ f.ring }}"><span style="{{ f.face }}">{{ f.initials }}</span><sc-if value="{{ f.on }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;right:-3px;bottom:-3px;width:22px;height:22px;border-radius:999px;background:#5b4ae8;border:2px solid #fff;display:flex;align-items:center;justify-content:center"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10" /></svg></span></sc-if></span>
+                    <span style="font-size:13px;font-weight:900;color:#0d1117;line-height:1.1">{{ f.first }}</span>
+                    <span style="font-size:11px;font-weight:700;color:#6b7280;line-height:1.15">{{ f.shared }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+            <sc-if value="{{ pplNoFriendHits }}" hint-placeholder-val="{{ false }}"><div style="padding:8px;text-align:center;font-size:14.5px;font-weight:700;color:#6b7280">No friends match “{{ pplQ }}”</div></sc-if>
+            <sc-if value="{{ frHasSel }}" hint-placeholder-val="{{ false }}">
+              <div style="position:sticky;bottom:88px;z-index:4;display:flex;gap:8px;margin-top:4px">
+                <div onClick="{{ frOpenInvite }}" role="button" style="flex:1;min-width:0;min-height:52px;padding:0 14px;border-radius:14px;background:#5b4ae8;color:#fff;font-size:15px;font-weight:900;display:flex;align-items:center;justify-content:center;text-align:center;box-shadow:0 8px 20px rgba(91,74,232,.35);cursor:pointer" style-hover="background:#4a3ad4">{{ frInviteLabel }}</div>
+                <div onClick="{{ frClear }}" role="button" aria-label="Clear selection" style="flex:0 0 52px;height:52px;border-radius:14px;background:#fff;box-shadow:0 2px 8px rgba(13,17,23,.15);display:flex;align-items:center;justify-content:center;cursor:pointer" style-hover="background:#f2f3f6"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0d1117" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18" /></svg></div>
+              </div>
+            </sc-if>
+          </sc-if>
         </div>
         <div style="height:73px"></div>
       </div>
@@ -1696,6 +1739,46 @@
     </div>
   </sc-if>
 
+  <sc-if value="{{ pplAddIsOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ pplAddClose }}" style="position:absolute;inset:0;background:rgba(15,18,25,.45);display:flex;align-items:flex-end;z-index:30;animation:scrimIn 240ms ease-out both">
+      <div data-screen-label="Add people" onClick="{{ stop }}" style="position:relative;width:100%;background:#fff;border-radius:24px 24px 0 0;padding:10px 14px 22px">
+        <div style="width:40px;height:5px;border-radius:999px;background:#dcdfe6;margin:0 auto 12px"></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:0 6px 8px">
+          <h3 style="margin:0;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">Add people</h3>
+          <div onClick="{{ pplAddClose }}" role="button" aria-label="Close" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0d1117" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18" /></svg></div>
+        </div>
+        <div style="display:flex;flex-direction:column">
+          <div onClick="{{ pplAddFriend }}" role="button" style="display:flex;align-items:center;gap:14px;padding:14px 6px;border-top:1px solid #eceef1;cursor:pointer" style-hover="background:#f7f8fa"><span style="flex:0 0 44px;width:44px;height:44px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#0d1117" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9.5" cy="8" r="3.5" /><path d="M3 20a6.5 6.5 0 0 1 13 0" /><path d="M19 8v6M16 11h6" /></svg></span><div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:900;color:#0d1117">Add a friend</div><div style="font-size:13px;font-weight:600;color:#5c6270">Send them your friend link</div></div><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9aa0aa" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7" /></svg></div>
+          <div onClick="{{ pplAddJoin }}" role="button" style="display:flex;align-items:center;gap:14px;padding:14px 6px;border-top:1px solid #eceef1;cursor:pointer" style-hover="background:#f7f8fa"><span style="flex:0 0 44px;width:44px;height:44px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#0d1117" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="10" rx="2" /><path d="M7 12h.01M11 12h.01M15 12h.01" /></svg></span><div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:900;color:#0d1117">Join a group</div><div style="font-size:13px;font-weight:600;color:#5c6270">Have a code or link?</div></div><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9aa0aa" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7" /></svg></div>
+          <div onClick="{{ pplAddStart }}" role="button" style="display:flex;align-items:center;gap:14px;padding:14px 6px;border-top:1px solid #eceef1;cursor:pointer" style-hover="background:#f7f8fa"><span style="flex:0 0 44px;width:44px;height:44px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#0d1117" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg></span><div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:900;color:#0d1117">Start a group</div><div style="font-size:13px;font-weight:600;color:#5c6270">For your street, team, or crew</div></div><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9aa0aa" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7" /></svg></div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+  <sc-if value="{{ frSheetOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ frSheetClose }}" style="position:absolute;inset:0;background:rgba(15,18,25,.45);display:flex;align-items:flex-end;z-index:30;animation:scrimIn 240ms ease-out both">
+      <div data-screen-label="Invite friends" onClick="{{ stop }}" style="position:relative;width:100%;max-height:78%;overflow:auto;background:#fff;border-radius:24px 24px 0 0;padding:10px 14px 22px">
+        <div style="width:40px;height:5px;border-radius:999px;background:#dcdfe6;margin:0 auto 12px"></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 6px 4px">
+          <h3 style="margin:0;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">{{ frSheetTitle }}</h3>
+          <div onClick="{{ frSheetClose }}" role="button" aria-label="Close" style="flex:0 0 32px;width:32px;height:32px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0d1117" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18" /></svg></div>
+        </div>
+        <sc-if value="{{ frIsInvite }}" hint-placeholder-val="{{ true }}">
+          <div style="padding:0 6px 10px;font-size:14px;font-weight:600;color:#5c6270">Pick one of your upcoming events.</div>
+          <div style="display:flex;flex-direction:column">
+            <sc-for list="{{ frEvents }}" as="e" hint-placeholder-count="3">
+              <div onClick="{{ e.pick }}" role="button" style="display:flex;align-items:center;gap:12px;padding:12px 6px;border-top:1px solid #eceef1;cursor:pointer" style-hover="background:#f7f8fa">
+                <span style="{{ e.thumb }}"></span>
+                <div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:900;color:#0d1117;text-wrap:pretty">{{ e.title }}</div><div style="font-size:12.5px;font-weight:700;color:#6b7280">{{ e.meta }}</div></div>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9aa0aa" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7" /></svg>
+              </div>
+            </sc-for>
+            <sc-if value="{{ frNoEvents }}" hint-placeholder-val="{{ false }}"><div style="padding:14px 6px;border-top:1px solid #eceef1;font-size:14.5px;font-weight:600;color:#5c6270">You don’t have anything coming up yet.</div></sc-if>
+          </div>
+        </sc-if>
+      </div>
+    </div>
+  </sc-if>
   <sc-if value="{{ groupsSheetOpen }}" hint-placeholder-val="{{ false }}">
     <div onClick="{{ closeGroupsSheet }}" style="position:absolute;inset:0;background:rgba(15,18,25,.45);display:flex;align-items:flex-end;z-index:30;animation:scrimIn 240ms ease-out both">
       <div data-screen-label="All your groups" onClick="{{ stop }}" style="position:relative;width:100%;max-height:78%;overflow:auto;background:#fff;border-radius:24px 24px 0 0;padding:10px 14px 22px;box-shadow:0 -12px 40px rgba(15,18,25,.2);animation:sheetUp 380ms cubic-bezier(.32,.72,0,1) both;will-change:transform">
@@ -2248,7 +2331,7 @@
       <span style="{{ tabCalDisc }}"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5" /><path d="M3.5 10h17M8 3v4M16 3v4" /></svg></span>
     </div>
     <div onClick="{{ goGroups }}" style="{{ tabAllStyle }}">
-      <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="7" height="7" rx="1.8" /><rect x="13" y="4" width="7" height="7" rx="1.8" /><rect x="4" y="13" width="7" height="7" rx="1.8" /><rect x="13" y="13" width="7" height="7" rx="1.8" /></svg>
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20a6.5 6.5 0 0 1 13 0" /><path d="M15.5 4.6a3.5 3.5 0 0 1 0 6.8M18 14a6.5 6.5 0 0 1 3.5 6" /></svg>
     </div>
     <div onClick="{{ goProfile }}" aria-label="Profile" style="{{ tabProfStyle }}">
       <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.5" r="3.8" /><path d="M4.5 20a7.5 7.5 0 0 1 15 0" /></svg>
@@ -2333,6 +2416,7 @@ const FACTS = {
   resource: { yes: 'It hinges on something hard to come by.', no: 'Nothing hard to come by needed.' }
 };
 const GROUPS = [{ id: 'torrez', name: 'Torrez Fitness', fresh: 0, role: 'member', photo: 'photos/torrez-group.jpg', photoPos: { x: 50, y: 72, z: 1.35 } }, { id: 'hub', name: 'Hub on Hunters', fresh: 0, role: 'member', photo: 'photos/get-togethers-2.jpg' }, { id: 'wood', name: 'Woodcliff Neighborhood', fresh: 0, role: 'member', photo: 'photos/projects.jpg' }, { id: 'walnut', name: 'Walnut Creek Neighborhood', fresh: 0, role: 'member', photo: 'photos/walnut-creek-parade.jpg', photoPos: { x: 50, y: 55, z: 1.4 } }];
+const FRIENDS = [['Darnell Price', 'Darnell', ['Walnut Creek', 'Torrez Fitness']], ['Marisol Vega', 'Marisol', ['Torrez Fitness']], ['Hana Mori', 'Hana', ['Hub on Hunters', 'Walnut Creek']], ['Joseph Reyes', '', ['Woodcliff', 'Hub on Hunters']], ['Dee Carter', 'Dee', ['Woodcliff']], ['Auburn Kim', '', ['Walnut Creek']], ['Tanya Wells', '', ['Woodcliff']], ['Luis Ortega', '', ['Torrez Fitness']], ['Priya Shah', '', ['Hub on Hunters', 'Woodcliff']], ['Sam Okafor', '', ['Walnut Creek']]];
 const FACES = { Eric: 'photos/faces/eric.png', Darnell: 'photos/faces/darnell.png', Hana: 'photos/faces/hana.png', Marisol: 'photos/faces/marisol.png', Dee: 'photos/faces/dee.png' };
 const ADDRESSES = {
   'Mueller Lake Park': '4550 Mueller Blvd, Austin, TX 78723',
@@ -2455,7 +2539,7 @@ class Component extends DCLogic {
   backLabel = () => {
     const b = this._back; const s = b ? b.screen : 'browse';
     if (s === 'browse') return (this.state.groups[b ? b.group : this.state.group] || {}).name || 'Back';
-    return ({ home: 'Your tasks', sched: 'Your schedule', own: this.state.ownTab === 'idea' ? 'Your ideas' : 'Your plans', calendar: 'Calendar', notifs: 'Notifications', groups: 'Groups', profile: 'Profile' })[s] || 'Back';
+    return ({ home: 'Your tasks', sched: 'Your schedule', own: this.state.ownTab === 'idea' ? 'Your ideas' : 'Your plans', calendar: 'Calendar', notifs: 'Notifications', groups: 'Your people', profile: 'Profile' })[s] || 'Back';
   };
 
   scroller = () => {
@@ -2539,6 +2623,52 @@ class Component extends DCLogic {
   dayTime = (s) => { const m = s && s.day ? String(s.day).match(/([A-Za-z]{3})[a-z]*\.?\s+(\d{1,2})/) : null; const mi = m ? 'JanFebMarAprMayJunJulAugSepOctNovDec'.indexOf(m[1]) : -1; return mi < 0 || mi % 3 ? null : new Date(s.year || 2026, mi / 3, +m[2]).getTime(); };
   hasTime = (s) => !!(s && s.day) && /\d(:\d\d)?\s?(am|pm)/i.test(s.day);
   phase = (s) => { if (!s || !s.planned) return 'idea'; const t = this.dayTime(s); const t0 = new Date(); t0.setHours(0, 0, 0, 0); return t != null && t < t0.getTime() ? 'done' : 'plan'; };
+  friendsIn = (gname) => { const TINT = [['#dcd7fb', '#4a3ad4'], ['#fde4cf', '#9a4a0c'], ['#d6f0e0', '#0f7a3c'], ['#dbeafe', '#1d4ed8']];
+    const fs = FRIENDS.map((f, k) => [f, k]).filter(([f]) => f[2].some(s => (gname || '').startsWith(s)));
+    return { frCount: fs.length, hasFr: fs.length > 0, frLine: fs.length + (fs.length === 1 ? ' friend' : ' friends'),
+      frFaces: fs.slice(0, 3).map(([[name, face], k], j) => { const src = face && FACES[face], t = TINT[k % 4]; return { initials: src ? '' : name.split(' ').map(w => w[0]).join(''),
+        style: { flex: '0 0 22px', width: '22px', height: '22px', marginLeft: j ? '-7px' : 0, borderRadius: '999px', boxShadow: '0 0 0 2px #fff', background: src ? '#dcdfe6 url(' + src + ') center/cover' : t[0], color: t[1], fontSize: '8.5px', fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center' } }; }) }; };
+  friendVals = (st) => {
+    const FR = FRIENDS;
+    const TINT = [['#dcd7fb', '#4a3ad4'], ['#fde4cf', '#9a4a0c'], ['#d6f0e0', '#0f7a3c'], ['#dbeafe', '#1d4ed8']];
+    const added = (st.frAdded || []).map(n => [n, '', ['Woodcliff']]), list = FR.concat(added);
+    const q = st.pplSearch ? (st.pplQ || '').trim().toLowerCase() : '';
+    const sel = st.frSel || [], shown = q ? list.filter(f => f[0].toLowerCase().includes(q)) : list;
+    const firsts = sel.map(n => n.split(' ')[0]);
+    const who = firsts.length <= 2 ? firsts.join(' & ') : firsts.slice(0, 2).join(', ') + ' + ' + (firsts.length - 2);
+    const evs = (st.sparks || []).filter(s => this.phase(s) === 'plan' && (s.leadName === 'You' || s.meIn || s.myRsvp === 'going')).slice(0, 6);
+    return {
+      ...(() => { const pt = st.pplTab || 'groups', seg = (on) => ({ flex: '1 1 0', minWidth: 0, height: '38px', borderRadius: '999px', background: on ? '#fff' : 'transparent', boxShadow: on ? '0 1px 3px rgba(15,18,25,.12)' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14.5px', fontWeight: on ? 900 : 800, color: on ? '#0d1117' : '#5c6270', cursor: 'pointer', transition: 'background 160ms' });
+        return { pplIsGroups: pt === 'groups', pplIsFriends: pt === 'friends', pplSegGroups: seg(pt === 'groups'), pplSegFriends: seg(pt === 'friends'), pplGroupsLabel: 'Groups · ' + st.groups.length, pplFriendsLabel: 'Friends · ' + list.length,
+          pplGoGroups: () => this.setState({ pplTab: 'groups' }), pplGoFriends: () => this.setState({ pplTab: 'friends' }),
+          groupsSub: st.groups.length + (st.groups.length === 1 ? ' group' : ' groups') + ' · ' + list.length + ' friends' }; })(),
+      frReqs: [['Rosa Bell', 'Woodcliff']].filter(([n]) => !(st.frReqDone || []).includes(n)).map(([name, g]) => ({ name, initials: name.split(' ').map(w => w[0]).join(''), sub: 'Wants to be friends · ' + g,
+        accept: () => { this.setState({ frReqDone: (st.frReqDone || []).concat([name]), frAdded: (st.frAdded || []).concat([name]) }); this.showToast('You and ' + name.split(' ')[0] + ' are friends', true); },
+        decline: () => this.setState({ frReqDone: (st.frReqDone || []).concat([name]) }) })),
+      frTiles: shown.map(([name, face, gs], k) => { const on = sel.includes(name), src = face && FACES[face], t = TINT[k % 4];
+        return { name, on, first: name.split(' ')[0], shared: gs[0] + (gs.length > 1 ? ' +' + (gs.length - 1) : ''), initials: src ? '' : name.split(' ').map(w => w[0]).join(''),
+          ring: { position: 'relative', display: 'flex', borderRadius: '999px', boxShadow: on ? '0 0 0 3px #fff, 0 0 0 5.5px #5b4ae8' : 'none', transition: 'box-shadow 160ms' },
+          face: { width: '58px', height: '58px', borderRadius: '999px', background: src ? '#dcdfe6 url(' + src + ') center/cover' : t[0], color: t[1], fontSize: '20px', fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+          tap: () => this.setState(p => { const cur = p.frSel || []; return { frSel: cur.includes(name) ? cur.filter(x => x !== name) : cur.concat([name]) }; }) }; }),
+      pplSearchOn: !!st.pplSearch, pplQ: st.pplQ || '', pplQRef: (el) => { this._pplQ = el; }, pplQPlaceholder: (st.pplTab || 'groups') === 'friends' ? 'Search friends' : 'Search groups',
+      onPplQ: (e) => this.setState({ pplQ: e.target.value.slice(0, 40) }),
+      pplSearchToggle: () => { this.setState({ pplSearch: !st.pplSearch, pplQ: '' }); setTimeout(() => this._pplQ && this._pplQ.focus(), 50); },
+      pplSearchClose: () => this.setState({ pplSearch: false, pplQ: '' }),
+      pplNoFriendHits: !!q && shown.length === 0,
+      pplAddIsOpen: !!st.pplAdd, pplAddOpen: () => this.setState({ pplAdd: true }), pplAddClose: () => this.setState({ pplAdd: false }),
+      pplAddFriend: () => { this.setState({ pplAdd: false }); try { navigator.clipboard && navigator.clipboard.writeText('https://sparkhub.wereallneighbors.org/add/eric'); } catch (e) {} this.showToast('Friend link copied. Send it to someone you know.', true); },
+      pplAddJoin: () => { this.setState({ pplAdd: false }); this._pplJoin && this._pplJoin(); },
+      pplAddStart: () => { this.setState({ pplAdd: false }); this._pplStart && this._pplStart(); },
+      frHasSel: sel.length > 0, frInviteLabel: 'Invite ' + who + ' to…', frClear: () => this.setState({ frSel: [] }),
+      frAdd: () => { try { navigator.clipboard && navigator.clipboard.writeText('https://sparkhub.wereallneighbors.org/add/eric'); } catch (e) {} this.showToast('Friend link copied. Send it to someone you know.', true); },
+      frSheetOpen: !!st.frSheet, frSheetClose: () => this.setState({ frSheet: null }), frIsInvite: st.frSheet === 'invite',
+      frSheetTitle: 'Invite ' + who, frOpenInvite: () => this.setState({ frSheet: 'invite' }),
+      frEvents: evs.map(s => ({ title: s.text, meta: [s.day, this.groupNameOf(s)].filter(Boolean).join(' · '),
+        thumb: { flex: '0 0 48px', width: '48px', height: '48px', borderRadius: '12px', background: (s.photos && s.photos[0]) ? '#2b303a url(' + s.photos[0] + ') center/cover' : 'linear-gradient(135deg,#5b4ae8,#8a7cf0)' },
+        pick: () => { this.setState({ frSheet: null, frSel: [] }); this.showToast('Invited ' + who + ' to ' + s.text, true); } })),
+      frNoEvents: evs.length === 0
+    };
+  };
   subject = () => this.state.sparks.find(s => s.id === this.state.subjectId) || null;
 
   segStyle = (on) => ({ display: 'flex', alignItems: 'center', gap: '6px', minHeight: '34px', padding: '0 12px', borderRadius: '999px', background: on ? '#fff' : 'transparent', boxShadow: on ? '0 1px 3px rgba(15,18,25,.12)' : 'none', color: on ? '#0d1117' : '#6b7280', fontSize: '13.5px', fontWeight: 800, cursor: 'pointer' });
@@ -3245,7 +3375,7 @@ class Component extends DCLogic {
             toggle: (e) => { if (e) e.stopPropagation(); this.setState({ comingF: k, menu: null }); } }; }),
           homeJoinStyle: { flex: '0 0 auto', minHeight: '50px', padding: '0 18px', border: 0, borderRadius: '14px', background: st.joinCode.length === 6 ? '#5b4ae8' : '#b9bcc4', color: '#fff', fontFamily: 'inherit', fontSize: '15px', fontWeight: 800, cursor: st.joinCode.length === 6 ? 'pointer' : 'not-allowed' },
           homeJoin: () => { if (st.joinCode.length !== 6) return; this.needSignIn(() => this.setState({ join: true }), 'join'); },
-          startGroup: () => this.needSignIn(() => this.setState({ create: 'name', createName: '' }), 'group'),
+          startGroup: (this._pplStart = () => this.needSignIn(() => this.setState({ create: 'name', createName: '' }), 'group')),
           createOpen: !!st.create, createNameStep: st.create === 'name', createDoneStep: st.create === 'done',
           createName: st.createName, onCreateName: (e) => this.setState({ createName: e.target.value.slice(0, 40) }),
           createBtnStyle: { ...this.btn(nameOk && st.busy !== 'create'), marginTop: 0 },
@@ -3288,7 +3418,7 @@ class Component extends DCLogic {
           pick: () => this.setState({ group: i, menu: null, recent: [i].concat((st.recent || [st.group]).filter(x => x !== i)), groups: st.groups.map((x, j) => j === i ? { ...x, fresh: 0 } : x) }) };
       }),
       joinOpen: st.join, joinCode: st.joinCode, joinBad: st.joinBad,
-      openJoin: () => { this.setState({ menu: null, groupsSheet: false }); this.needSignIn(() => this.setState({ join: true, joinCode: '', joinBad: false }), 'join'); },
+      openJoin: (this._pplJoin = () => { this.setState({ menu: null, groupsSheet: false }); this.needSignIn(() => this.setState({ join: true, joinCode: '', joinBad: false }), 'join'); }),
       closeJoin: () => this.setState({ join: false }),
       onJoinCode: (e) => this.setState({ joinCode: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6), joinBad: false }),
       joinBtnStyle: this.btn(st.joinCode.length === 6),
@@ -3400,7 +3530,7 @@ class Component extends DCLogic {
       const plans = mine.filter(s => this.phase(s) === 'plan').map(s => ({ s, t: this.dayTime(s) })).filter(x => x.t != null && x.t >= t0.getTime()).sort((a, b) => a.t - b.t);
       const nPlan = mine.filter(s => this.phase(s) === 'plan').length, nIdea = mine.filter(s => this.phase(s) === 'idea').length;
       const next = plans[0]; const nd = next ? new Date(next.t) : null; const staff = this.lvl(i) !== 'member';
-      return { name: g.name, ...this.chipFlags(i), canEdit: staff, members: (g.members || [48, 112, 86, 140][i % 4]) + ' members',
+      return { name: g.name, ...this.chipFlags(i), ...this.friendsIn(g.name), canEdit: staff, members: (g.members || [48, 112, 86, 140][i % 4]) + ' members', membersShort: (g.members || [48, 112, 86, 140][i % 4]) + ' members',
         coverStyle: { position: 'relative', height: '150px', background: 'url(' + (g.photo || GROUP_PHOTO) + ') ' + (g.photoPos ? g.photoPos.x + '% ' + g.photoPos.y + '%' : '50% 40%') + '/cover' },
         hasNext: !!next, noNext: !next, nextDate: nd ? nd.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : '', nextText: next ? next.s.text : '',
         counts: [nPlan + (nPlan === 1 ? ' event' : ' events'), nIdea ? nIdea + (nIdea === 1 ? ' idea' : ' ideas') : ''].filter(Boolean).join(' · '),
@@ -3419,7 +3549,9 @@ class Component extends DCLogic {
     const nEv = st.sparks.filter(s => this.phase(s) === 'plan').length;
     const pinned = (st.pins || []).filter((k, j, a) => cards[k] && a.indexOf(k) === j); const topIdx = pinned;
     const rest = cards.filter((_, k) => !topIdx.includes(k));
-    return { groupCards: cards, groupTop: topIdx.map(k => cards[k]), groupRest: rest, hasGroupRest: rest.length > 0, groupsSub: st.groups.length + (st.groups.length === 1 ? ' group' : ' groups') };
+    const gq = st.pplSearch ? (st.pplQ || '').trim().toLowerCase() : '', hit = (c) => !gq || c.name.toLowerCase().includes(gq);
+    const topF = topIdx.map(k => cards[k]).filter(hit), restF = rest.filter(hit);
+    return { groupCards: cards, groupTop: topF, groupRest: restF, hasGroupRest: restF.length > 0, pplNoGroupHits: !!gq && topF.length + restF.length === 0, groupsSub: st.groups.length + (st.groups.length === 1 ? ' group' : ' groups'), ...this.friendVals(st) };
   }
 
   homeVals() {

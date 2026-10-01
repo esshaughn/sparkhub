@@ -79,6 +79,10 @@
     {
       "source": "/i/:id",
       "destination": "/api/preview?i=:id"
+    },
+    {
+      "source": "/add/:code",
+      "destination": "/api/preview?add=:code"
     }
   ]
 }

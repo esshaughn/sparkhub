@@ -40,7 +40,7 @@
   // PKCE keeps the Google round trip in the query string, clear of our #/ routes
   // "View as a user" (demo admin only) is look-only: while it's on, nothing but reads leaves the app
   let previewing = false;
-  const READ_RPCS = /\/rest\/v1\/rpc\/(my_group_sizes|demo_testers|new_accounts)(\?|$)/;
+  const READ_RPCS = /\/rest\/v1\/rpc\/(my_group_sizes|demo_testers|new_accounts|group_people)(\?|$)/;
   const guardedFetch = (url, opts) => {
     const m = String((opts && opts.method) || 'GET').toUpperCase(), u = String((url && url.url) || url);
     if (previewing && m !== 'GET' && m !== 'HEAD' && !/\/auth\/v1\//.test(u) && !READ_RPCS.test(u))
@@ -71,7 +71,7 @@
     const sparks = state.sparks.map(s => Object.assign({}, s, { contacts: s.contacts.map(c => ({ spark_id: c.spark_id, user_id: c.user_id, name: c.name })) }));
     try {
       localStorage.setItem(CACHE_KEY, JSON.stringify({ me: state.me, email: state.email, isGoogle: state.isGoogle, myName: state.myName, myAvatar: state.myAvatar, myPlace: state.myPlace, myBio: state.myBio, memberSince: state.memberSince,
-        groups: state.groups, sparks, profiles: state.profiles, sizes: state.sizes, notif: state.notif, demoAdmin: state.demoAdmin, at: Date.now() }));
+        groups: state.groups, sparks, profiles: state.profiles, sizes: state.sizes, notif: state.notif, demoAdmin: state.demoAdmin, fr: state.fr, at: Date.now() }));
     } catch (e) { /* storage full or blocked: the app just loads as before */ }
   };
   const clearCache = () => { try { localStorage.removeItem(CACHE_KEY); } catch (e) { /* blocked */ } };
@@ -158,6 +158,7 @@
     camera: (size) => svg(size, stroke('#0d1117', 2.2), '<path d="M4 8.5h3l1.5-2.5h7L17 8.5h3v10H4Z"/><circle cx="12" cy="13" r="3.2"/>'),
     offline: svg(16, stroke('#9b1c31', 2.2), '<path d="M4.5 9.5a11 11 0 0 1 15 0M7.5 13a6.5 6.5 0 0 1 9 0"/><circle cx="12" cy="17" r="1.2" fill="#9b1c31"/><path d="M4 4l16 16"/>'),
     tabTicket: svg(23, stroke('currentColor', 1.9), '<path d="M4 8.5V6a1.5 1.5 0 0 1 1.5-1.5h13A1.5 1.5 0 0 1 20 6v2.5a2.5 2.5 0 0 0 0 5V16a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 16v-2.5a2.5 2.5 0 0 0 0-5Z" transform="translate(0 1)"/><path d="m9.2 12.2 2 2 3.8-4"/>'),
+    tabPeople: svg(23, stroke('currentColor', 1.9), '<circle cx="9" cy="8.5" r="3.4"/><path d="M3 19.5a6 6 0 0 1 12 0"/><path d="M15.5 5.3a3.3 3.3 0 0 1 0 6.4M17.5 13.8a5.6 5.6 0 0 1 3.5 5.7"/>'),
     tabSquares: svg(23, stroke('currentColor', 1.9), '<rect x="4" y="4" width="7" height="7" rx="1.8"/><rect x="13" y="4" width="7" height="7" rx="1.8"/><rect x="4" y="13" width="7" height="7" rx="1.8"/><rect x="13" y="13" width="7" height="7" rx="1.8"/>'),
     google: '<svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true" style="flex:0 0 20px"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>'
   };
@@ -173,7 +174,7 @@
     evDate: '', evTime: '', evEnd: '', evEndOn: false, timeOpen: null,
     locText: '', locPlace: null, locSuggest: [],
     evBits: ['', '', ''], evNeed: null, evTags: [], evNeeds: [], evDatePoll: null, evSpotPoll: null, evLater: {},
-    evPriv: false, evGroups: null, evDraftId: null, evLeave: false, pollSheet: null, needSheet: null, evFromReview: false
+    evPriv: false, evNoGuestInv: false, evGroups: null, evDraftId: null, evLeave: false, pollSheet: null, needSheet: null, evFromReview: false
   });
   const state = Object.assign({
     screen: 'calendar', menu: null, subjectId: null, gpId: null, tag: null, zoom: null, membersOpen: null, membersList: null,
@@ -201,6 +202,9 @@
     startName: null, phaseTab: 'plan', sigDraft: '', sigNeed: '', sigTime: '', blast: null, invite: null,
     pe: null, confirm: null, interestList: false, thanksList: false, guestList: null, takeDown: null, albumEdit: null,
     gpCode: '', gpMembers: null,
+    // v6 Update 13: Your people (Groups · Friends), friend requests, the friend link, inviting friends
+    fr: { friends: [], incoming: [], outgoing: [], invites: [], loaded: false }, pplTab: 'groups', pplSearch: false, pplQ: '', pplAdd: false, frSel: [], frInvite: false,
+    frProfile: null, frAdd: null, myFriendCode: null,
     // v6: Profile / Notifications are sheets; Your tasks' "View all", expansions, the RSVP ask
     profSheet: false, notifSheet: false, dashAll: null, dashOpen: {}, schedOpen: {}, shiftPick: null, banner: null, sigAdding: false,
     // v6 Calendar: search, filters, sort, view, month, discovery cards
@@ -229,6 +233,7 @@
   };
   const JOIN_PATH = /^\/join\/([A-Za-z0-9]{6})\/?$/;
   const IDEA_PATH = /^\/i\/([0-9a-f-]{36})\/?$/;   // shared idea links (a real path so chat apps can preview them)
+  const ADD_PATH = /^\/add\/([A-Za-z0-9]{6})\/?$/;   // friend links (v6 Update 13)
   const fromUrl = () => {
     const h = location.hash;
     let m = h.match(/^#\/idea\/([0-9a-f-]{36})$/) || (!h && location.pathname.match(IDEA_PATH));
@@ -237,6 +242,8 @@
     if (m) return { screen: 'groupPage', gpId: m[1] };
     m = h.match(/^#\/join\/([A-Za-z0-9]{6})$/) || location.pathname.match(JOIN_PATH);
     if (m) return { screen: 'calendar', inviteCode: m[1].toUpperCase() };
+    m = h.match(/^#\/add\/([A-Za-z0-9]{6})$/) || location.pathname.match(ADD_PATH);
+    if (m) return { screen: 'calendar', friendCode: m[1].toUpperCase() };
     if (h === '#/ideas') return { screen: 'browse' };
     if (h === '#/how') return { screen: 'how' };
     if (h === '#/calendar') return { screen: 'calendar' };
@@ -272,7 +279,7 @@
       state.back = ORIGINS.indexOf(state.screen) > -1 ? { screen: state.screen, groupId: state.groupId, phaseTab: state.phaseTab, scroll: sc ? sc.scrollTop : 0 } : null;
     }
     // Going anywhere closes the v6 sheets (Profile, Notifications, View all, Could use a hand, Search)
-    setState(Object.assign({ screen, menu: null, zoom: null, sec: null, needEd: null, share: null, profSheet: false, notifSheet: false, dashAll: null, cHandSheet: false, cSearch: false, cq: '', gSearch: false, gq: '', gTry: null }, extra || {}));
+    setState(Object.assign({ screen, menu: null, zoom: null, sec: null, needEd: null, share: null, profSheet: false, notifSheet: false, dashAll: null, cHandSheet: false, cSearch: false, cq: '', gSearch: false, gq: '', gTry: null, pplAdd: false, frInvite: false, frProfile: null }, extra || {}));
     if (sc) sc.scrollTop = 0;
   };
 
@@ -402,7 +409,7 @@
     interestAt: interests.filter(i => i.spark_id === row.id).reduce((m, i) => { m[i.user_id] = Date.parse(i.created_at); return m; }, {}),
     contacts: contacts.filter(c => c.spark_id === row.id),
     demo: !!row.demo,   // seeded demo content: a DEMO pill before its title (demoTag), and counted for the owner's wipe
-    planned: !!row.planned, visibility: row.visibility || 'group', autoRemind: row.auto_remind !== false, minPeople: row.min_people || null,
+    planned: !!row.planned, visibility: row.visibility || 'group', guestInvites: row.guest_invites !== false, autoRemind: row.auto_remind !== false, minPeople: row.min_people || null,
     rsvps: (x.rsvps[row.id] || []).map(r => ({ userId: r.user_id, status: r.status, created: Date.parse(r.created_at) })),
     dateOpts: (x.dateOpts[row.id] || []).map(o => ({ id: o.id, dayDate: o.day_date, dayTime: o.day_time ? String(o.day_time).slice(0, 5) : null, who: o.who, createdBy: o.created_by, created: Date.parse(o.created_at), votes: (x.dateVotes[o.id] || []).map(v => v.user_id) })),
     spotOpts: (x.spotOpts[row.id] || []).map(o => ({ id: o.id, name: o.name, address: o.address || '', lat: o.lat, lon: o.lon, who: o.who, createdBy: o.created_by, created: Date.parse(o.created_at), votes: (x.spotVotes[o.id] || []).map(v => v.user_id) })),
@@ -427,6 +434,8 @@
     if (!sb) return;
     const seq = ++loadSeq, t0 = performance.now();
     diagNote('load started');
+    // v6 Update 13: friends, requests and the invites you've had (a database without them still loads)
+    const frP = state.email && !state.viewAs ? sb.rpc('friend_state').then(r => r, () => ({ error: true })) : Promise.resolve({ data: null });
     const [mem, grp, sp, of, it, gc, rs, dop, dvo, sop, svo, sui, scl, upd, org, alb, prp, rct, sgr, drf, nts] = await Promise.all([
       sb.from('memberships').select('group_id,role,last_seen_at,pinned'),
       sb.from('groups').select('id,name,photo,photo_pos,demo'),
@@ -495,13 +504,20 @@
       const res = must(await sb.from('profiles').select('id,name,avatar_path,place,bio').in('id', part));
       res.data.forEach(p => { profiles[p.id] = { name: p.name || '', avatar: PHOTO_PATH.test(p.avatar_path || '') ? p.avatar_path : null, place: p.place || '', bio: p.bio || '' }; });
     }
+    const frs = await frP, fd = !frs.error && frs.data;
+    const fr = fd ? {
+      friends: (fd.friends || []).map(f => ({ id: f.id, name: f.name || '', avatar: PHOTO_PATH.test(f.avatar || '') ? f.avatar : null, since: Date.parse(f.since) || 0, groups: f.groups || [] })),
+      incoming: (fd.incoming || []).map(f => ({ id: f.id, name: f.name || '', avatar: PHOTO_PATH.test(f.avatar || '') ? f.avatar : null, group: f.group || '', at: Date.parse(f.at) || 0 })),
+      outgoing: fd.outgoing || [], invites: (fd.invites || []).map(i => ({ spark: i.spark, by: i.by, at: Date.parse(i.at) || 0 })), loaded: true
+    } : state.viewAs ? { friends: [], incoming: [], outgoing: [], invites: [], loaded: true } : state.fr;
+    fr.friends.concat(fr.incoming).forEach(f => { if (!profiles[f.id]) profiles[f.id] = { name: f.name, avatar: f.avatar, place: '', bio: '' }; });
     if (seq < loadWritten) return;   // a newer load already wrote fresher data
     loadWritten = seq;
     const mine = profiles[state.me] || {};
     if (performance.now() - t0 > 3000) diag('slow load', performance.now() - t0, 'waiting on the network');
     document.documentElement.setAttribute('data-loaded', 'true');   // tests wait for this
     setState({
-      groups, sparks, profiles, drafts, notes, loaded: true, fromCache: false, error: null,
+      groups, sparks, profiles, drafts, notes, fr, loaded: true, fromCache: false, error: null,
       myName: mine.name || state.myName, myAvatar: mine.avatar || null, myPlace: mine.place || '', myBio: mine.bio || ''
     });
     writeCache();
@@ -756,6 +772,13 @@
     if (state.gpFrom === 'browse' && g) go('browse', { groupId: g.id }); else go('groups');
   };
   const openMembers = () => setState({ membersOpen: state.gpId, membersQ: '' });
+  // v6 Update 13: every member can open the list (to add friends); admins also get emails and role actions
+  const openMembersOf = (g) => {
+    setState({ membersOpen: g.id, membersQ: '', memberOpen: null, membersList: null });
+    sb.rpc(runs(g) ? 'group_members' : 'group_people', { p_group: g.id })
+      .then(r => { if (r.error) throw r.error; if (state.membersOpen === g.id) setState({ membersList: r.data || [] }); })
+      .catch(e => { console.error(e); setState({ membersOpen: null }); toast(FAILED); });
+  };
 
   // Owners set roles (five owners at most, never none); admins see the list
   const setRole = (g, m, role) => {
@@ -866,6 +889,64 @@
       toast(FAILED);
     }
   };
+
+  // ---- Friend links (/add/CODE; v6 Update 13) ----------------------------------------------------
+  // Opening someone's link asks "Add {name} as a friend?"; yes makes you friends straight away (sharing
+  // the link was their yes). Signed out: sign in first; the code waits in sessionStorage (Google reloads the page).
+  // state.frAdd = { code, who (undefined while loading, null if the code matches nothing), busy, self }
+  const PENDING_FRIEND = 'pendingFriend';
+  const pendingFriend = () => { try { return sessionStorage.getItem(PENDING_FRIEND) || ''; } catch (e) { return ''; } };
+  const setPendingFriend = (code) => { try { if (code) sessionStorage.setItem(PENDING_FRIEND, code); else sessionStorage.removeItem(PENDING_FRIEND); } catch (e) { /* fine */ } };
+  const startFriendAdd = (code) => {
+    setPendingFriend(code);
+    setState({ frAdd: { code, who: undefined, busy: false }, installPop: false, menu: null });
+    sb.rpc('friend_link_preview', { p_code: code }).then(r => {
+      if (r.error) throw r.error;
+      const w = (r.data || [])[0];
+      if (state.frAdd && state.frAdd.code === code) setState({ frAdd: Object.assign({}, state.frAdd, { self: !!(w && w.is_you), who: w ? { name: w.name, avatar: PHOTO_PATH.test(w.avatar_path || '') ? w.avatar_path : null } : null }) });
+    }).catch(e => { console.error(e); if (state.frAdd && state.frAdd.code === code) setState({ frAdd: Object.assign({}, state.frAdd, { who: { name: '', avatar: null } }) }); });
+  };
+  const takeFriendLink = (code) => { if (ADD_PATH.test(location.pathname) || /^#\/add\//.test(location.hash)) history.replaceState(null, '', '/'); startFriendAdd(code); };
+  const closeFrAdd = () => { setPendingFriend(''); setState({ frAdd: null }); };
+  const confirmFrAdd = () => {
+    const fa = state.frAdd;
+    if (!fa || fa.busy) return;
+    if (!state.email) { setState({ frAdd: null }); return openLogin('friend', () => startFriendAdd(fa.code)); }   // the code stays pending (Google reloads the page)
+    setState({ frAdd: Object.assign({}, fa, { busy: true }) });
+    (async () => {
+      try {
+        await ensureSession();
+        const r = (must(await sb.rpc('add_friend_by_code', { p_code: fa.code })).data || [])[0] || {};
+        const first = firstName((fa.who && fa.who.name) || '') || 'them';
+        if (r.result === 'self') return setState({ frAdd: Object.assign({}, fa, { busy: false, self: true }) });
+        if (r.result === 'bad') return setState({ frAdd: Object.assign({}, fa, { busy: false, who: null }) });
+        setPendingFriend('');
+        setState({ frAdd: null });
+        await loadFresh();
+        go('groups', { pplTab: 'friends', pplSearch: false, pplQ: '' });
+        toast(r.result === 'already' ? 'You and ' + first + ' are already friends' : 'You and ' + first + ' are friends', true);
+      } catch (e) {
+        console.error(e);
+        setState({ frAdd: Object.assign({}, fa, { busy: false }) });
+        toast(FAILED);
+      }
+    })();
+  };
+  function viewFrAdd() {
+    const fa = state.frAdd, w = fa.who, close = fa.busy ? null : closeFrAdd;
+    const ok = (label) => '<button type="button" ' + on(closeFrAdd) + ' style="' + primary(true) + '">' + label + '</button>';
+    if (w === undefined) return modal('Friend link', close, '<div role="status" style="padding:18px 0;text-align:center;font-size:15px;font-weight:600;color:#8a909b">Loading…</div>', { z: 46 });
+    if (w === null) return modal('Friend link', close, h3('That friend link doesn’t work anymore') + para('Ask them to send you a new one.') + ok('OK'), { z: 46 });
+    if (fa.self) return modal('Friend link', close, h3('That’s your link') + para('Send it to people you want to be friends with on Spark Hub.') + ok('OK'), { z: 46 });
+    const first = firstName(w.name) || 'them', url = w.avatar ? photoUrl(w.avatar) : null;
+    return modal('Add a friend', close,
+      '<span aria-hidden="true" style="align-self:center;width:72px;height:72px;border-radius:999px;background:' + (url ? '#dcdfe6 ' + bg(url) : FR_TINT[0][0]) + ';color:' + FR_TINT[0][1] + ';font-size:24px;font-weight:900;display:flex;align-items:center;justify-content:center">' + (url ? '' : esc(initialsOf(w.name))) + '</span>' +
+      '<h3 style="margin:0;text-align:center;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117;text-wrap:balance">' + (state.email ? 'Add ' + esc(w.name || 'them') + ' as a friend?' : esc(w.name || 'Someone') + ' wants to be friends on Spark Hub') + '</h3>' +
+      '<p style="margin:0;text-align:center;font-size:14.5px;line-height:1.45;font-weight:500;color:#5c6270;text-wrap:pretty">Friends can invite each other to events, even across groups.</p>' +
+      '<div style="margin-top:4px;display:flex;flex-direction:column;gap:8px">' +
+        '<button type="button" ' + on(confirmFrAdd) + ' aria-disabled="' + !!fa.busy + '" style="' + primary(!fa.busy) + '">' + (fa.busy ? 'Adding…' : state.email ? 'Add friend' : 'Sign in to add ' + esc(first)) + '</button>' +
+        '<button type="button" ' + on(() => { if (!fa.busy) closeFrAdd(); }) + ' style="' + SECONDARY + '">Not now</button></div>', { z: 46, max: 340 });
+  }
 
   // ---- Invite links (/join/CODE; design handoff "Invite flow", 2026-09-29) ------------------------
   // The group's name and photo lead every screen; the code itself is never shown. Signed out: the invite
@@ -1578,7 +1659,7 @@
 
   const GOOGLE_ON = !!CFG.googleSignIn;
   const RESUME_KEY = 'spark-hub-google-resume';
-  const DRAFT_KEYS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'locText', 'locPlace', 'evBits', 'evNeed', 'evTags', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evGroups', 'coverPos', 'evPhotoPath', 'evDraftId'];
+  const DRAFT_KEYS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'locText', 'locPlace', 'evBits', 'evNeed', 'evTags', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evNoGuestInv', 'evGroups', 'coverPos', 'evPhotoPath', 'evDraftId'];
   const readResume = () => {
     try {
       const r = JSON.parse(sessionStorage.getItem(RESUME_KEY));
@@ -2020,7 +2101,8 @@
   // An event can be posted to several groups (v6 Update 6): its home group first, then the rest
   const gIds = (s) => s.groupIds || [s.groupId];
   const inGroup = (s, gid) => gIds(s).indexOf(gid) > -1;
-  const inMine = (s) => gIds(s).some(id => { const g = groupById(id); return !!(g && g.role); });
+  const invitedTo = (s) => state.fr.invites.some(i => i.spark === s.id);   // a friend invited you (v6 Update 13): it's yours like your groups' events
+  const inMine = (s) => gIds(s).some(id => { const g = groupById(id); return !!(g && g.role); }) || invitedTo(s);
   const inScope = (s, gid) => inMine(s) && (!gid || inGroup(s, gid));
   const photoBg = (s) => s.photoPaths[0] ? bg(photoUrl(s.photoPaths[0]), posAt(s.coverPos, IDEA_POS)) : groupBg(groupById(s.groupId), "url('/photos/torrez-trail.jpg') center/cover");
   const monthDay = (iso) => new Date(iso + 'T12:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -2177,50 +2259,237 @@
     svg(18, stroke('#fff', 1.9), '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/>') + '</span>' : '';
   const GRAD = '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.85), rgba(13,17,23,.1) 60%)"></div>';
 
+  // v6 Update 13: Groups becomes Your people: Groups · Friends under one photo header, Search, and a white Add button
+  const FR_TINT = [['#dcd7fb', '#4a3ad4'], ['#fde4cf', '#9a4a0c'], ['#d6f0e0', '#0f7a3c'], ['#dbeafe', '#1d4ed8']];
+  const initialsOf = (n) => (n || '').trim().split(/\s+/).slice(0, 2).map(w => w.charAt(0).toUpperCase()).join('') || '?';
+  const frFace = (f, size, k) => {
+    const url = f.avatar ? photoUrl(f.avatar) : null, t = FR_TINT[(k == null ? (f.name || '').length : k) % FR_TINT.length];
+    return '<span aria-hidden="true" style="flex:0 0 ' + size + 'px;width:' + size + 'px;height:' + size + 'px;border-radius:999px;background:' + (url ? '#dcdfe6 ' + bg(url) : t[0]) + ';color:' + t[1] + ';font-size:' + Math.round(size * 0.34) + 'px;font-weight:900;display:flex;align-items:center;justify-content:center">' + (url ? '' : esc(initialsOf(f.name))) + '</span>';
+  };
+  const isFriend = (uid) => state.fr.friends.some(f => f.id === uid);
+  const friendById = (uid) => state.fr.friends.find(f => f.id === uid) || null;
+  const pplQ = () => state.pplSearch ? state.pplQ.trim().toLowerCase() : '';
+  const openPplSearch = () => { setState({ pplSearch: true, pplQ: '' }); setTimeout(() => { const el = document.querySelector('[data-ppl-q]'); if (el) el.focus(); }, 50); };
+  const pplTab = (k) => setState({ pplTab: k, frSel: k === 'friends' ? state.frSel : [] });
+  const toggleFriendSel = (id) => setState({ frSel: state.frSel.indexOf(id) > -1 ? state.frSel.filter(x => x !== id) : state.frSel.concat(id) });
+  // "Darnell & Marisol", or "Darnell, Marisol + 2"
+  const selNames = () => {
+    const firsts = state.frSel.map(id => firstName((friendById(id) || {}).name || 'Someone'));
+    return firsts.length <= 2 ? firsts.join(' & ') : firsts.slice(0, 2).join(', ') + ' + ' + (firsts.length - 2);
+  };
+
+  // Requests: Accept makes you friends; ✕ declines quietly
+  const answerRequest = (f, yes) => run(async () => {
+    must(await sb.rpc('answer_friend_request', { p_from: f.id, p_accept: yes }));
+    const fr = state.fr;
+    setState({ fr: Object.assign({}, fr, {
+      incoming: fr.incoming.filter(x => x.id !== f.id),
+      friends: yes ? fr.friends.concat({ id: f.id, name: f.name, avatar: f.avatar, since: Date.now(), groups: f.group ? [f.group] : [] }).sort((a, b) => a.name.localeCompare(b.name)) : fr.friends
+    }) });
+    if (yes) toast('You and ' + firstName(f.name) + ' are friends', true);
+  });
+  // From a member profile: you share a group. Returns 'requested', or 'friends' when they'd already asked you
+  const sendRequest = (uid, name) => run(async () => {
+    const r = must(await sb.rpc('send_friend_request', { p_to: uid })).data;
+    setState({ fr: Object.assign({}, state.fr, { outgoing: state.fr.outgoing.concat(uid) }) });
+    toast(r === 'friends' ? 'You and ' + firstName(name) + ' are friends' : 'Friend request sent to ' + firstName(name), true);
+  });
+  const removeFriend = (f) => setState({ confirm: { z: 60, title: 'Remove ' + firstName(f.name) + ' as a friend?', body: 'They won’t be told. You’ll still see each other in any groups you share.', cta: 'Remove friend', keep: 'Keep', danger: true,
+    run: () => run(async () => {
+      must(await sb.rpc('remove_friend', { p_other: f.id }));
+      setState({ frProfile: null, frSel: state.frSel.filter(x => x !== f.id), fr: Object.assign({}, state.fr, { friends: state.fr.friends.filter(x => x.id !== f.id), outgoing: state.fr.outgoing.filter(x => x !== f.id) }) });
+      toast('Removed ' + firstName(f.name), true);
+    }, { confirm: null }) } });
+
+  // Your friend link (/add/CODE). Fetched when the Add sheet opens, so the share sheet can open straight from the tap
+  const friendLink = (code) => location.origin + '/add/' + code;
+  const loadFriendCode = (fresh) => sb.rpc('my_friend_code', { p_new: !!fresh }).then(r => { if (r.error) throw r.error; setState({ myFriendCode: r.data }); return r.data; });
+  const openPplAdd = () => { setState({ pplAdd: true }); if (!state.myFriendCode) loadFriendCode().catch(e => console.error(e)); };
+  const TOUCH = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+  const shareFriendLink = async () => {
+    let code = state.myFriendCode;
+    try { if (!code) code = await loadFriendCode(); } catch (e) { console.error(e); return toast(FAILED); }
+    const url = friendLink(code), text = 'Let’s be friends on Spark Hub, so we can invite each other to things.';
+    setState({ pplAdd: false });
+    // Phones: the share sheet (Messages, WhatsApp…); computers: copy it
+    if (TOUCH && navigator.share) navigator.share({ title: 'Spark Hub', text, url }).catch(() => {});
+    else copy(url, 'Friend link copied. Send it to someone you know.');
+  };
+  const newFriendLink = () => setState({ pplAdd: false, confirm: { title: 'Get a new friend link?', body: 'Your old link stops working. People who already used it stay your friends.', cta: 'Get a new link', keep: 'Keep this one',
+    run: () => run(async () => { await loadFriendCode(true); toast('New friend link ready. The old one won’t work anymore.', true); }, { confirm: null }) } });
+
+  // Long-press a friend (or right-click): their short profile, with Remove friend
+  let frPress = null, frPressed = false;
+  document.addEventListener('pointerdown', (e) => {
+    const el = e.target.closest('[data-friend-id]');
+    if (!el) return;
+    const id = el.getAttribute('data-friend-id'), x = e.clientX, y = e.clientY;
+    clearTimeout(frPress && frPress.t);
+    frPressed = false;
+    frPress = { x, y, t: setTimeout(() => { frPressed = true; frPress = null; if (navigator.vibrate) navigator.vibrate(10); setState({ frProfile: id }); }, 500) };
+  });
+  const frPressEnd = () => { if (frPress) { clearTimeout(frPress.t); frPress = null; } };
+  document.addEventListener('pointerup', frPressEnd);
+  document.addEventListener('pointercancel', frPressEnd);
+  document.addEventListener('pointermove', (e) => { if (frPress && Math.hypot(e.clientX - frPress.x, e.clientY - frPress.y) > 10) frPressEnd(); });
+  document.addEventListener('contextmenu', (e) => {
+    const el = e.target.closest('[data-friend-id]');
+    if (!el) return;
+    e.preventDefault();
+    frPressEnd(); frPressed = true;
+    setState({ frProfile: el.getAttribute('data-friend-id') });
+  });
+  // The click after a long-press doesn't also select the friend
+  document.addEventListener('click', (e) => { if (frPressed && e.target.closest('[data-friend-id]')) { e.stopPropagation(); e.preventDefault(); frPressed = false; } }, true);
+
   function viewGroups() {
     // Pinned groups get the big photo cards; everything else (all of them, when nothing is pinned) is a tile
-    const groups = groupsInOrder(), big = groups.filter(g => g.pinned);
-    const rest = groups.filter(g => !g.pinned), hero = groups.find(groupPhoto) || null;   // the header photo: the first of your groups with one
+    const st = state, q = pplQ(), friendsTab = st.pplTab === 'friends';
+    const all = groupsInOrder(), groups = q ? all.filter(g => g.name.toLowerCase().includes(q)) : all, big = groups.filter(g => g.pinned);
+    const rest = groups.filter(g => !g.pinned), hero = all.find(groupPhoto) || null;   // the header photo: the first of your groups with one
+    const friends = st.fr.friends, nFr = friends.length;
     const newDot = (g) => newIn(g) ? '<span aria-label="New events" style="display:inline-block;width:9px;height:9px;border-radius:999px;background:#9d93f7;margin-right:6px;vertical-align:1px"></span>' : '';
-    const bigCard = (g) => {
-      const size = state.sizes[g.id];
-      return '<div ' + on(() => openGroup(g)) + ' aria-label="' + esc(g.name) + '" style="position:relative;height:170px;border-radius:22px;overflow:hidden;background:#e8a71c;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
+    const members = (g, px) => { const size = st.sizes[g.id]; return size ? '<div style="margin-top:3px;font-size:' + px + 'px;font-weight:700;color:#dfe2e8">' + size + (size === 1 ? ' member' : ' members') + '</div>' : ''; };
+    const bigCard = (g) => '<div ' + on(() => openGroup(g)) + ' aria-label="' + esc(g.name) + '" style="position:relative;height:170px;border-radius:22px;overflow:hidden;background:#e8a71c;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
         (groupPhoto(g) ? photoLayer(groupPhoto(g), g.photoPos, GROUP_POS) : '') + GRAD +
         '<div style="position:absolute;top:12px;left:12px">' + roleChip(g) + '</div>' +
         '<div style="position:absolute;top:10px;right:10px;display:flex;gap:8px">' + gearBtn(g) + pinBtn(g, 36) + '</div>' +
         '<div style="position:absolute;left:16px;right:16px;bottom:12px;color:#fff">' +
-          groupTagAbove(g) + '<div style="font-size:26px;line-height:1.05;font-weight:900;letter-spacing:-.6px">' + newDot(g) + esc(g.name) + '</div>' +
-          (size ? '<div style="margin-top:3px;font-size:13px;font-weight:700;color:#dfe2e8">' + size + (size === 1 ? ' member' : ' members') + '</div>' : '') +
+          groupTagAbove(g) + '<div style="font-size:26px;line-height:1.05;font-weight:900;letter-spacing:-.6px">' + newDot(g) + esc(g.name) + '</div>' + members(g, 13) +
         '</div>' +
       '</div>';
-    };
     const tile = (g) => '<div ' + on(() => openGroup(g)) + ' aria-label="' + esc(g.name) + '" style="position:relative;aspect-ratio:1 / 1;border-radius:20px;overflow:hidden;box-shadow:0 1px 3px rgba(15,18,25,.08);background:#e8a71c;cursor:pointer">' + (groupPhoto(g) ? photoLayer(groupPhoto(g), g.photoPos, GROUP_POS) : '') + GRAD +
       '<div style="position:absolute;top:10px;left:10px">' + roleChip(g) + '</div>' +
       '<div style="position:absolute;top:8px;right:8px">' + pinBtn(g, 32) + '</div>' +
       '<div style="position:absolute;left:12px;right:10px;bottom:10px;color:#fff;font-size:16px;line-height:1.15;font-weight:900">' +
-        groupTagAbove(g) + newDot(g) + esc(g.name) + '</div>' +
+        groupTagAbove(g) + newDot(g) + esc(g.name) + members(g, 12) + '</div>' +
     '</div>';
-    // v6 Update 2: a Calendar-style photo header (YOUR PEOPLE · Groups · N groups), the bell, a white Join pill
+    const frosted = (label, icon, fn) => '<span ' + on(fn) + ' aria-label="' + label + '" style="width:44px;height:44px;border-radius:999px;background:rgba(255,255,255,.18);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;cursor:pointer">' + icon + '</span>';
+    const sub = st.loaded ? all.length + (all.length === 1 ? ' group' : ' groups') + (st.fr.loaded ? ' · ' + nFr + (nFr === 1 ? ' friend' : ' friends') : '') : '';
     const header = '<header style="position:relative;height:calc(180px + var(--pt));overflow:hidden;background:#2b303a">' +
       (hero ? '<div style="position:absolute;inset:0;overflow:hidden">' + photoLayer(groupPhoto(hero), hero.photoPos, GROUP_POS) + '</div>' : '<div aria-hidden="true" style="position:absolute;inset:0;background:' + bg('/photos/walnut-creek.jpg', '50% 45%') + '"></div>') +
       '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.9) 0%, rgba(13,17,23,.45) 55%, rgba(13,17,23,.25) 100%)"></div>' +
-      '<div style="position:absolute;top:calc(14px + var(--pt));right:16px;z-index:2;display:flex;gap:8px">' + bellBtn(true) + '</div>' +
-      '<div style="position:absolute;left:18px;right:110px;bottom:16px;z-index:2;color:#fff">' +
-        '<div style="font-size:13px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:#cfc9ff">Your people</div>' +
-        '<h1 style="margin:2px 0 0;font-size:40px;line-height:1;font-weight:900;letter-spacing:-1.4px;color:#fff">Groups</h1>' +
-        '<div style="margin-top:6px;font-size:14px;font-weight:700;color:rgba(255,255,255,.88)">' + (state.loaded ? groups.length + (groups.length === 1 ? ' group' : ' groups') : '') + '</div></div>' +
-      '<span ' + on(() => openJoin()) + ' aria-label="Join a group" style="position:absolute;right:16px;bottom:18px;z-index:3;display:flex;align-items:center;gap:6px;height:40px;padding:0 16px 0 13px;border-radius:999px;background:#fff;color:#0d1117;font-size:14.5px;font-weight:900;box-shadow:0 6px 16px rgba(13,17,23,.3);cursor:pointer;white-space:nowrap" class="hov-fill-grey">' +
-        svg(16, stroke('#0d1117', 2.4), '<circle cx="9.5" cy="8" r="3.5"/><path d="M3 20a6.5 6.5 0 0 1 13 0"/><path d="M19 8v6M16 11h6"/>') + 'Join</span>' +
+      '<div style="position:absolute;top:calc(14px + var(--pt));right:16px;z-index:2;display:flex;gap:8px">' + frosted('Search your people', ic6('search', 19, '#fff', 2.4), openPplSearch) + bellBtn(true) + '</div>' +
+      '<div style="position:absolute;left:18px;right:90px;bottom:16px;z-index:2;color:#fff">' +
+        '<div style="font-size:13px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:#cfc9ff">Groups &amp; friends</div>' +
+        '<h1 style="margin:2px 0 0;font-size:40px;line-height:1;font-weight:900;letter-spacing:-1.4px;color:#fff">Your people</h1>' +
+        '<div data-ppl-sub style="margin-top:6px;font-size:14px;font-weight:700;color:rgba(255,255,255,.88)">' + sub + '</div></div>' +
+      '<span ' + on(openPplAdd) + ' aria-label="Add a group or friend" class="hov-fill-grey" style="position:absolute;right:16px;bottom:16px;z-index:3;width:52px;height:52px;border-radius:999px;background:#fff;box-shadow:0 6px 16px rgba(13,17,23,.35);display:flex;align-items:center;justify-content:center;cursor:pointer">' +
+        svg(22, stroke('#0d1117', 2.4), '<circle cx="9.5" cy="8" r="3.5"/><path d="M3 20a6.5 6.5 0 0 1 13 0"/><path d="M19 8v6M16 11h6"/>') + '</span>' +
     '</header>';
-    const startBox = '<div ' + on(startGroup) + ' aria-label="Start a new group" style="display:flex;align-items:center;justify-content:center;gap:6px;min-height:52px;margin-top:4px;border-radius:14px;border:1.5px dotted #9aa0aa;color:#6b7280;font-size:14.5px;font-weight:800;cursor:pointer">' + I.plus(14, '#6b7280', 2.6) + 'Start a new group</div>';
+    const search = st.pplSearch ? '<div style="display:flex;align-items:center;gap:8px;min-height:48px;padding:0 6px 0 14px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6">' +
+        svg(17, stroke('#6b7280', 2.4), '<circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/>') +
+        '<input data-ppl-q type="search" aria-label="' + (friendsTab ? 'Search friends' : 'Search groups') + '" placeholder="' + (friendsTab ? 'Search friends' : 'Search groups') + '" value="' + esc(st.pplQ) + '" ' + onInput(e => { if (e.type === 'input') setState({ pplQ: e.target.value.slice(0, 40) }); }) +
+          ' style="flex:1;min-width:0;border:0;outline:0;background:transparent;font-family:inherit;font-size:16px;font-weight:600;color:#0d1117">' +
+        '<span ' + on(() => setState({ pplSearch: false, pplQ: '' })) + ' style="padding:8px 10px;font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">Cancel</span></div>' : '';
+    const seg = (k, label) => { const onIt = (st.pplTab || 'groups') === k;
+      return '<span ' + on(() => pplTab(k), 'tab') + ' aria-selected="' + onIt + '" style="flex:1 1 0;min-width:0;height:38px;border-radius:999px;display:flex;align-items:center;justify-content:center;font-size:14.5px;cursor:pointer;transition:background 160ms;' +
+        (onIt ? 'background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.12);font-weight:900;color:#0d1117' : 'font-weight:800;color:#5c6270') + '">' + label + '</span>'; };
+    const tabs = '<div role="tablist" aria-label="Groups or friends" style="display:flex;padding:4px;border-radius:999px;background:#dfe2e7">' +
+      seg('groups', 'Groups · ' + all.length) + seg('friends', 'Friends' + (st.fr.loaded ? ' · ' + nFr : '')) + '</div>';
+    const none = (what) => '<div style="padding:8px;text-align:center;font-size:14.5px;font-weight:700;color:#6b7280">No ' + what + ' match “' + esc(st.pplQ.trim()) + '”</div>';
+    const groupsBody = !st.loaded ? skeleton(2, 200)
+      : !all.length ? noGroupCard()
+      : !groups.length ? none('groups')
+      : big.map(bigCard).join('') + (rest.length ? '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' + rest.map(tile).join('') + '</div>' : '');
     return '<div data-screen-label="Groups">' + header +
-      '<div style="padding:16px 14px 26px;display:flex;flex-direction:column;gap:12px">' +
-        (!state.loaded ? skeleton(2, 200) : groups.length ? big.map(bigCard).join('') : noGroupCard()) +
-        (rest.length ? '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' + rest.map(tile).join('') + '</div>' : '') +
-        (state.loaded ? startBox : '') +
+      '<div style="padding:14px 14px 26px;display:flex;flex-direction:column;gap:12px">' + search + tabs +
+        (friendsTab ? friendsBody(q, none) : groupsBody) +
       '</div>' +
       '<div style="height:var(--nav-h)"></div>' +
     '</div>';
+  }
+
+  // Friends: requests on top, then the grid (tap to pick people to invite together; long-press for their profile)
+  function friendsBody(q, none) {
+    const st = state, fr = st.fr, sel = st.frSel;
+    if (!fr.loaded) return skeleton(2, 120);
+    const shown = q ? fr.friends.filter(f => f.name.toLowerCase().includes(q)) : fr.friends;
+    const reqs = q ? [] : fr.incoming;
+    const req = (f) => '<div data-friend-request="' + esc(f.name) + '" style="' + CARD + ';padding:12px 14px;display:flex;align-items:center;gap:12px">' + frFace(f, 40) +
+      '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:900;color:#0d1117">' + esc(f.name) + '</div><div style="font-size:12.5px;font-weight:700;color:#6b7280">Wants to be friends' + (f.group ? ' · ' + esc(f.group) : '') + '</div></div>' +
+      '<span ' + on(() => answerRequest(f, false)) + ' aria-label="Decline ' + esc(f.name) + '" style="flex:0 0 34px;width:34px;height:34px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(13, '#0d1117', 2.6) + '</span>' +
+      '<span ' + on(() => answerRequest(f, true)) + ' aria-label="Accept ' + esc(f.name) + '" class="hov-primary" style="display:flex;align-items:center;height:34px;padding:0 13px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:13.5px;font-weight:900;cursor:pointer">Accept</span></div>';
+    const cell = (f, k) => {
+      const onIt = sel.indexOf(f.id) > -1;
+      return '<div ' + on(() => toggleFriendSel(f.id)) + ' data-friend-id="' + esc(f.id) + '" aria-pressed="' + onIt + '" aria-label="' + esc(f.name) + '" style="display:flex;flex-direction:column;align-items:center;gap:5px;text-align:center;cursor:pointer;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none">' +
+        '<span style="position:relative;display:flex;border-radius:999px;transition:box-shadow 160ms;box-shadow:' + (onIt ? '0 0 0 3px #fff, 0 0 0 5.5px #5b4ae8' : 'none') + '">' + frFace(f, 58, k) +
+          (onIt ? '<span aria-hidden="true" style="position:absolute;right:-3px;bottom:-3px;width:22px;height:22px;border-radius:999px;background:#5b4ae8;border:2px solid #fff;display:flex;align-items:center;justify-content:center">' + I.check(11, '#fff', 3.6) + '</span>' : '') + '</span>' +
+        '<span style="font-size:13px;font-weight:900;color:#0d1117;line-height:1.1;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(firstName(f.name)) + '</span>' +
+        (f.groups.length ? '<span style="font-size:11px;font-weight:700;color:#6b7280;line-height:1.15">' + esc(f.groups[0]) + (f.groups.length > 1 ? ' +' + (f.groups.length - 1) : '') + '</span>' : '') + '</div>';
+    };
+    const grid = shown.length ? '<div style="background:#fff;border-radius:22px;box-shadow:0 1px 3px rgba(15,18,25,.08);padding:14px 16px">' +
+        '<div style="font-size:13px;font-weight:700;color:#6b7280;padding:0 0 12px">Tap friends to invite them together</div>' +
+        '<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px 6px">' + shown.map((f, k) => cell(f, fr.friends.indexOf(f))).join('') + '</div></div>'
+      : q ? none('friends')
+      : '<div data-friends-empty style="' + CARD + ';padding:18px;display:flex;flex-direction:column;gap:14px">' +
+          '<div><div style="font-size:17px;font-weight:900;color:#0d1117">No friends here yet</div>' +
+          '<div style="margin-top:4px;font-size:14.5px;line-height:1.45;font-weight:500;color:#5c6270">Send your friend link to people you know, or add someone from a group’s Members list. Then you can invite them to things together.</div></div>' +
+          '<button type="button" class="hov-primary" ' + on(shareFriendLink) + ' style="min-height:50px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:15.5px;font-weight:900;cursor:pointer">Add a friend</button></div>';
+    const bar = sel.length ? '<div data-invite-bar style="position:sticky;bottom:calc(var(--nav-h) + 12px);z-index:4;display:flex;gap:8px;margin-top:4px">' +
+        '<div ' + on(() => setState({ frInvite: true })) + ' class="hov-primary" style="flex:1;min-width:0;min-height:52px;padding:0 14px;border-radius:14px;background:#5b4ae8;color:#fff;font-size:15px;font-weight:900;display:flex;align-items:center;justify-content:center;text-align:center;box-shadow:0 8px 20px rgba(91,74,232,.35);cursor:pointer">Invite ' + esc(selNames()) + ' to…</div>' +
+        '<div ' + on(() => setState({ frSel: [] })) + ' aria-label="Clear selection" class="hov-fill-grey" style="flex:0 0 52px;height:52px;border-radius:14px;background:#fff;box-shadow:0 2px 8px rgba(13,17,23,.15);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(15, '#0d1117', 2.4) + '</div></div>' : '';
+    return reqs.map(req).join('') + grid + bar;
+  }
+
+  // Add people (the round button): Add a friend · Join a group · Start a group
+  function viewPplAdd() {
+    const close = () => setState({ pplAdd: false });
+    const row = (label, sub, icon, fn) => '<div ' + on(fn) + ' aria-label="' + label + '" class="hov-grey-fill" style="display:flex;align-items:center;gap:14px;padding:14px 6px;border-top:1px solid #eceef1;cursor:pointer">' +
+      '<span style="flex:0 0 44px;width:44px;height:44px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center">' + icon + '</span>' +
+      '<div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:900;color:#0d1117">' + label + '</div><div style="font-size:13px;font-weight:600;color:#5c6270">' + sub + '</div></div>' + I.chevR(16, '#9aa0aa', 2.4) + '</div>';
+    return sheet('Add people', close, 'padding:10px 14px calc(22px + env(safe-area-inset-bottom, 0px))',
+      '<div style="display:flex;align-items:center;justify-content:space-between;padding:0 6px 8px"><h3 style="margin:0;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">Add people</h3>' + closeX(close, 'flex:0 0 36px;width:36px;height:36px') + '</div>' +
+      '<div style="display:flex;flex-direction:column">' +
+        row('Add a friend', 'Send them your friend link', svg(19, stroke('#0d1117', 2.2), '<circle cx="9.5" cy="8" r="3.5"/><path d="M3 20a6.5 6.5 0 0 1 13 0"/><path d="M19 8v6M16 11h6"/>'), shareFriendLink) +
+        row('Join a group', 'Have a code or link?', svg(19, stroke('#0d1117', 2.2), '<rect x="3" y="7" width="18" height="10" rx="2"/><path d="M7 12h.01M11 12h.01M15 12h.01"/>'), () => { setState({ pplAdd: false }); openJoin(); }) +
+        row('Start a group', 'For a team, a block, a crew', svg(19, stroke('#0d1117', 2.4), '<path d="M12 5v14M5 12h14"/>'), () => { setState({ pplAdd: false }); startGroup(); }) +
+      '</div>' +
+      '<span ' + on(newFriendLink) + ' data-new-friend-link style="align-self:center;display:flex;justify-content:center;min-height:40px;align-items:center;margin-top:6px;font-size:13px;font-weight:700;color:#8a909b;cursor:pointer">Get a new friend link</span>', 45);
+  }
+
+  // Invite the friends you picked to one of your upcoming events (leading or going; guests only where the lead allows it)
+  const canInviteTo = (s) => isLead(s) || isGroupAdmin(s) || (s.guestInvites !== false && myRsvp(s) === 'going');
+  const inviteList = () => state.sparks.filter(s => s.planned && !s.cancelledAt && phaseOf(s) === 'plan' && (isLead(s) || myRsvp(s) === 'going') && canInviteTo(s)).sort(byWhen);
+  const inviteFriends = (s) => {
+    const ids = state.frSel.slice();
+    run(async () => {
+      const r = must(await sb.rpc('invite_friends', { p_spark: s.id, p_people: ids })).data || {};
+      const names = (list) => namesList((list || []).map(id => firstName((friendById(id) || {}).name || 'Someone')));
+      const inv = r.invited || [], went = r.going || [], had = r.already || [];
+      const parts = [];
+      if (inv.length) parts.push('Invited ' + names(inv) + ' to ' + s.text + '.');
+      if (went.length) parts.push(names(went) + (went.length === 1 ? '’s' : ' are') + ' already going.');
+      if (had.length) parts.push(names(had) + (had.length === 1 ? ' was' : ' were') + ' already invited.');
+      setState({ frInvite: false, frSel: [] });
+      toast(parts.join(' ') || 'Invited', true);
+    });
+  };
+  function viewFrInvite() {
+    const close = () => setState({ frInvite: false }), list = inviteList();
+    const row = (s) => '<div ' + on(() => inviteFriends(s)) + ' data-invite-event="' + esc(s.text) + '" class="hov-grey-fill" style="display:flex;align-items:center;gap:12px;padding:12px 6px;border-top:1px solid #eceef1;cursor:pointer">' +
+      '<span aria-hidden="true" style="flex:0 0 48px;width:48px;height:48px;border-radius:10px;background:#2b303a ' + photoBg(s) + '"></span>' +
+      '<div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:900;color:#0d1117;text-wrap:pretty">' + esc(s.text) + '</div>' +
+        '<div style="font-size:12.5px;font-weight:700;color:#6b7280">' + esc([s.dayDate ? dayLabel(s.dayDate, s.dayTime) : 'Date TBD', (groupById(s.groupId) || {}).name].filter(Boolean).join(' · ')) + '</div></div>' + I.chevR(16, '#9aa0aa', 2.4) + '</div>';
+    return sheet('Invite friends', close, 'max-height:78%;overflow-y:auto;padding:10px 14px calc(22px + env(safe-area-inset-bottom, 0px))',
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 6px 4px"><h3 style="margin:0;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">Invite ' + esc(selNames()) + '</h3>' + closeX(close, 'flex:0 0 32px;width:32px;height:32px') + '</div>' +
+      '<div style="padding:0 6px 10px;font-size:14px;font-weight:600;color:#5c6270">Pick one of your upcoming events.</div>' +
+      '<div style="display:flex;flex-direction:column">' + (list.length ? list.map(row).join('')
+        : '<div style="padding:14px 6px;border-top:1px solid #eceef1;font-size:14.5px;line-height:1.45;font-weight:600;color:#5c6270">You don’t have anything coming up yet. Events you’re leading or going to show up here.</div>') + '</div>', 45);
+  }
+
+  // A friend's short profile (long-press): name, groups you share, friends since, Remove friend
+  function viewFrProfile() {
+    const f = friendById(state.frProfile), close = () => setState({ frProfile: null });
+    if (!f) return '';
+    const since = f.since ? new Date(f.since).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '';
+    return sheet(f.name, close, 'padding:10px 18px calc(22px + env(safe-area-inset-bottom, 0px));display:flex;flex-direction:column;gap:14px',
+      '<div style="display:flex;align-items:center;gap:14px">' + frFace(f, 56, state.fr.friends.indexOf(f)) +
+        '<div style="flex:1;min-width:0"><div style="font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.4px;color:#0d1117">' + esc(f.name) + '</div>' +
+        (since ? '<div style="margin-top:3px;font-size:13.5px;font-weight:600;color:#6b7280">Friends since ' + esc(since) + '</div>' : '') + '</div>' + closeX(close, 'flex:0 0 36px;width:36px;height:36px') + '</div>' +
+      '<div style="padding:12px 14px;border-radius:14px;background:#f7f7f9;font-size:14px;line-height:1.45;font-weight:600;color:#454b55">' +
+        (f.groups.length ? '<span style="font-size:12px;font-weight:900;letter-spacing:.6px;text-transform:uppercase;color:#8a909b">Both in</span><br>' + esc(namesList(f.groups)) : 'You’re not in any of the same groups.') + '</div>' +
+      '<span ' + on(() => removeFriend(f)) + ' class="hov-danger" style="align-self:flex-start;display:flex;align-items:center;min-height:40px;padding:0 16px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #f3c4cc;font-size:14px;font-weight:800;color:#c2334a;cursor:pointer">Remove friend</span>', 45);
   }
 
   const isoOf = (y, m, d) => y + '-' + pad2(m + 1) + '-' + pad2(d);
@@ -3003,13 +3272,16 @@
     interest: { bg: '#5b4ae8', glyph: '♥', cat: 'hosting', topic: 'hosting' },
     vote: { bg: '#e8a71c', glyph: '▲', cat: 'hosting', topic: 'hosting' },
     lead: { bg: '#7b6ef0', glyph: '★', cat: 'hosting', topic: 'hosting' },
-    note: { bg: '#e2556b', glyph: '!', cat: 'updates', topic: 'updates' }   // an event or job was taken down
+    note: { bg: '#e2556b', glyph: '!', cat: 'updates', topic: 'updates' },   // an event or job was taken down
+    friendreq: { bg: '#5b4ae8', glyph: '+', cat: 'invites', topic: 'friends' },   // v6 Update 13
+    invited: { bg: '#5b4ae8', glyph: '✉', cat: 'invites', topic: 'friends' }
   };
   const N_TOPICS = [
     ['newevents', 'New in your groups', 'New plans and ideas'],
     ['updates', 'Updates from leads', 'Changes on events you’re in'],
     ['reminders', 'Reminders', 'The day before and the morning of anything you’re going to or helping with'],
-    ['hosting', 'Things you’re leading', 'RSVPs, interest, sign-ups and suggestions']
+    ['hosting', 'Things you’re leading', 'RSVPs, interest, sign-ups and suggestions'],
+    ['friends', 'Friends', 'Friend requests, and friends inviting you to events']
   ];
   // A guest's name comes from what they left the lead; everyone else from their profile
   const personName = (s, uid) => {
@@ -3055,6 +3327,12 @@
       }
     });
     (state.notes || []).forEach(x => add({ key: 'n:' + x.id, type: 'note', s: null, t: x.created, uid: x.createdBy, who: nameOf(x.createdBy, 'The lead'), body: x.body }));
+    // v6 Update 13: friend requests (bell only, no push) and friends' invites (bell and push)
+    state.fr.incoming.forEach(f => add({ key: 'fr:' + f.id + ':' + f.at, type: 'friendreq', s: null, t: f.at, uid: f.id, who: f.name, text: 'wants to be friends', sub: f.group ? 'You’re both in ' + f.group : '' }));
+    state.fr.invites.forEach(i => {
+      const s = state.sparks.find(x => x.id === i.spark);
+      if (s && phaseOf(s) !== 'done') add({ key: 'fi:' + i.spark + ':' + i.by, type: 'invited', s, t: i.at, uid: i.by, who: nameOf(i.by), text: 'invited you to', sub: s.dayDate ? dayLabel(s.dayDate, s.dayTime) : '', rsvp: s.planned && !s.cancelledAt });
+    });
     const topics = state.notif.topics || {};
     return out.filter(n => topics[N_TYPES[n.type].topic] !== false).sort((a, b) => b.t - a.t);
   };
@@ -3074,7 +3352,7 @@
   const markRead = (n) => { if (isUnread(n)) saveNotif({ read: state.notif.read.concat([n.key]) }); };
   // Everything shown counts, even an item stamped a little ahead of this device's clock
   const markAllRead = () => saveNotif({ allReadAt: Math.max(Date.now(), ...notifList().map(n => n.t)), read: [] });
-  const openNotif = (n) => { markRead(n); if (n.s) openSpark(n.s); };
+  const openNotif = (n) => { markRead(n); if (n.s) openSpark(n.s); else if (n.type === 'friendreq') go('groups', { pplTab: 'friends', pplSearch: false, pplQ: '' }); };
   const rsvpFromFeed = (n, status) => (e) => { stop(e); markRead(n); setRsvp(n.s, status); };
 
   // ---- Web push: phone notifications (the service worker is /sw.js; the database decides who
@@ -3590,7 +3868,7 @@
       '<div style="position:absolute;top:calc(14px + var(--pt));right:16px;z-index:3;display:flex;gap:8px">' +
         (g ? '<span ' + on(openGroupSearch) + ' aria-label="Search this group" style="width:44px;height:44px;border-radius:999px;background:rgba(255,255,255,.18);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;cursor:pointer">' + ic6('search', 19, '#fff', 2.4) + '</span>' : '') + bellBtn(true) + '</div>' +
       '<div style="position:absolute;left:18px;right:90px;bottom:16px;z-index:2;color:#fff">' + groupTagAbove(g) +
-        (size ? '<div style="font-size:13px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:#cfc9ff">' + size + (size === 1 ? ' member' : ' members') + '</div>' : '') +
+        (size ? '<span ' + on(() => openMembersOf(g)) + ' aria-label="See members" style="display:inline-flex;align-items:center;gap:3px;min-height:28px;font-size:13px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:#cfc9ff;cursor:pointer">' + size + (size === 1 ? ' member' : ' members') + I.chevR(10, '#cfc9ff', 3.4) + '</span>' : '') +
         '<h1 style="margin:2px 0 0;font-size:34px;line-height:1.02;font-weight:900;letter-spacing:-1.1px;color:#fff;text-wrap:balance;text-shadow:0 1px 8px rgba(0,0,0,.3)">' + esc(g ? g.name : 'Spark Hub') +
           (runs(g) ? '<span ' + on((e) => { stop(e); openGroupPage(g.id, false, 'browse'); }) + ' aria-label="Edit group" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;margin-left:6px;vertical-align:4px;border-radius:999px;color:rgba(255,255,255,.6);cursor:pointer">' + svg(16, stroke('currentColor', 2.2), '<path d="M4 20h4L19 9l-4-4L4 16v4Z"/>') + '</span>' : '') +
         '</h1></div>' +
@@ -4150,7 +4428,7 @@
   const openSec = (s, kind) => {
     const bits = basicsOf(s).slice(0, 3).map(b => b.slice(0, 40));
     while (bits.length < 3) bits.push('');
-    setState({ sec: { id: s.id, kind, title: s.text, photo: null, d: s.dayDate || '', t: s.dayTime || '', e: s.dayEnd || '', bits, need: s.minPeople || null, tags: (s.tags || []).slice(), priv: s.visibility === 'invite', groups: gIds(s).slice() },
+    setState({ sec: { id: s.id, kind, title: s.text, photo: null, d: s.dayDate || '', t: s.dayTime || '', e: s.dayEnd || '', bits, need: s.minPeople || null, tags: (s.tags || []).slice(), priv: s.visibility === 'invite', guestInv: s.guestInvites !== false, groups: gIds(s).slice() },
       offerText: kind === 'when' ? s.spot || '' : '', offerPlace: s.spot && s.spotPoint ? { name: s.spot, address: s.spotAddress, lat: s.spotPoint[0], lon: s.spotPoint[1] } : null, offerSuggest: [], timeOpen: null, menu: null });
   };
   // Round 65a: what an edit tells people. A new date, time or place always goes out; a new title or
@@ -4221,6 +4499,7 @@
       const drop = extras.filter(id => ss.groups.indexOf(id) < 0);
       run(async () => {
         if (priv !== s.visibility) must(await sb.from('sparks').update({ visibility: priv }).eq('id', s.id));
+        if (isLead(s) && (ss.guestInv !== false) !== (s.guestInvites !== false)) must(await sb.from('sparks').update({ guest_invites: ss.guestInv !== false }).eq('id', s.id));
         if (add.length) must(await sb.from('spark_groups').insert(add.map(g => ({ spark_id: s.id, group_id: g }))));
         if (home !== old) must(await sb.rpc('set_home_group', { p_spark: s.id, p_group: home }));
         if (drop.length) must(await sb.from('spark_groups').delete().eq('spark_id', s.id).in('group_id', drop));
@@ -4318,6 +4597,10 @@
   };
 
   // The switch (title and Basic details) and the exact message people get (Round 65a)
+  // v6 Update 13: the lead decides whether guests can invite their friends (Who can see it, Create event)
+  const guestInvSwitch = (v, fn) => '<div ' + on(fn, 'switch') + ' aria-checked="' + v + '" aria-label="Guests can invite friends" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:16px;background:#f4f5f7;cursor:pointer">' +
+    '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">Guests can invite friends</div><div style="font-size:12.5px;font-weight:600;color:#6b7280">' + (v ? 'On: people going can invite their friends' : 'Off: only you and the group’s admins can') + '</div></div>' +
+    '<span aria-hidden="true" style="flex:0 0 46px;width:46px;height:28px;border-radius:999px;position:relative;transition:background 160ms;background:' + (v ? '#149a4b' : '#dcdfe6') + '"><span style="position:absolute;top:3px;left:' + (v ? 21 : 3) + 'px;width:22px;height:22px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:left 160ms"></span></span></div>';
   const secTell = (s, ss) => {
     if (!isLead(s) || !s.planned || ss.kind === 'vis') return '';
     const reach = updateReach(s), msg = secMessage(s, ss), quiet = ss.kind === 'title' || ss.kind === 'details', v = !!ss.tell;
@@ -4368,6 +4651,7 @@
           '<span style="font-size:15px;font-weight:900;color:' + (onIt ? '#5b4ae8' : '#0d1117') + '">' + name + '</span><span style="font-size:12.5px;line-height:1.35;font-weight:600;color:#6b7280">' + sub + '</span></div>'; };
       const mine = groupsInOrder();
       body = '<div style="display:flex;gap:8px">' + tile(false, 'Public', 'Everyone in your groups') + tile(true, 'Private', 'Only people you invite') + '</div>' +
+        (isLead(s) ? guestInvSwitch(ss.guestInv !== false, () => set({ guestInv: ss.guestInv === false })) : '') +
         '<div style="display:flex;flex-direction:column;gap:6px">' + label('Post to') +
           // Round 65c: the home group stays ticked; another ticked group can be made home, then the old one unticked
           mine.map(g => {
@@ -5014,7 +5298,7 @@
           photos: cover ? [cover.path] : [], cat: 'events', answers: {}, lead_id: st.me, lead_name: st.myName, created_by: st.me,
           spot, spot_open: !spot, spot_address: place ? place.address : null, spot_lat: place ? place.lat : null, spot_lon: place ? place.lon : null,
           day_date: st.evDate || null, day_time: st.evDate && st.evTime ? st.evTime : null, day_end: st.evDate && st.evTime && st.evEnd ? st.evEnd : null,
-          planned: dated, visibility: st.evPriv ? 'invite' : 'group', min_people: dated ? null : st.evNeed || null, tags: (st.evTags || []).slice(0, 2),
+          planned: dated, visibility: st.evPriv ? 'invite' : 'group', guest_invites: !st.evNoGuestInv, min_people: dated ? null : st.evNeed || null, tags: (st.evTags || []).slice(0, 2),
           cover_pos: cover && st.coverPos ? posOf(st.coverPos, IDEA_POS) : null
         };
         try {
@@ -5049,7 +5333,7 @@
   };
 
   // Drafts: the flow's own fields, saved to your account (only you see them)
-  const DRAFT_FIELDS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'locText', 'locPlace', 'evBits', 'evNeed', 'evTags', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evGroups', 'coverPos'];
+  const DRAFT_FIELDS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'locText', 'locPlace', 'evBits', 'evNeed', 'evTags', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evNoGuestInv', 'evGroups', 'coverPos'];
   const saveDraft = () => {
     const st = state;
     if (st.busy) return;
@@ -5087,7 +5371,7 @@
       locText: str(x.locText).slice(0, 80), locPlace: x.locPlace && typeof x.locPlace === 'object' ? x.locPlace : null,
       evBits: [0, 1, 2].map(i => str((x.evBits || [])[i]).slice(0, 40)), evNeed: Number.isInteger(x.evNeed) && x.evNeed > 0 ? Math.min(x.evNeed, 99) : null, evTags: (arr(x.evTags) || []).filter(k => TYPES6.some(t => t[0] === k)).slice(0, 2), evNeeds: arr(x.evNeeds) || [],
       evDatePoll: arr(x.evDatePoll), evSpotPoll: arr(x.evSpotPoll), evLater: x.evLater && typeof x.evLater === 'object' ? x.evLater : {},
-      evPriv: !!x.evPriv, evGroups: arr(x.evGroups), coverPos: x.coverPos || null,
+      evPriv: !!x.evPriv, evNoGuestInv: !!x.evNoGuestInv, evGroups: arr(x.evGroups), coverPos: x.coverPos || null,
       evPhotoPath: PHOTO_PATH.test(x.evPhoto || '') ? x.evPhoto : null, evDraftId: d.id
     });
     return out;
@@ -5220,7 +5504,8 @@
             (gOpen && myGroups().length > 1 ? '<div style="position:absolute;left:12px;right:12px;top:60px;z-index:20;background:#fff;border-radius:16px;box-shadow:0 12px 32px rgba(15,18,25,.18), 0 0 0 1px #e6e7eb;padding:6px">' +
               groupsInOrder().map(g => groupCheck(g, groups.indexOf(g.id) > -1, (e) => { stop(e); const nx = groups.indexOf(g.id) > -1 ? groups.filter(x => x !== g.id) : groups.concat(g.id); setState({ evGroups: nx.length ? nx : groups }); })).join('') + '</div>' : '') +
           '</div><div style="padding:12px 14px 14px;border-top:1px solid #f2f3f6;display:flex;gap:8px">' +
-            tile(false, 'Public', 'Everyone in your groups', PEOPLE_IC) + tile(true, 'Private', 'Only people you invite', LOCK_IC) + '</div></div></div>' +
+            tile(false, 'Public', 'Everyone in your groups', PEOPLE_IC) + tile(true, 'Private', 'Only people you invite', LOCK_IC) + '</div>' +
+            '<div style="padding:0 14px 14px">' + guestInvSwitch(!st.evNoGuestInv, () => setState({ evNoGuestInv: !st.evNoGuestInv })) + '</div></div></div>' +
         '</div>' +
         '<div style="position:sticky;bottom:0;margin-top:auto;padding:16px 14px;background:linear-gradient(to top,#e8eaee 70%,rgba(232,234,238,0))">' +
           // A date locks it in as a plan; without one it goes up as an idea
@@ -5425,7 +5710,7 @@
     if (st.loginStep === 'email') {
       // Opened from Welcome's "Continue with email": just the email field (owner, 2026-09-30)
       const emailOk = EMAIL_OK.test(st.loginEmail.trim()), withGoogle = GOOGLE_ON && !st.loginEmailOnly;
-      const lead = { post: 'Sign in to post your event. ', guest: 'Your name fills in, and everything you add is saved to your account. ', join: 'Sign in to join a group. ' }[st.loginFrom] ||
+      const lead = { post: 'Sign in to post your event. ', guest: 'Your name fills in, and everything you add is saved to your account. ', join: 'Sign in to join a group. ', friend: 'Sign in to add your friend. ' }[st.loginFrom] ||
         'Your events, groups and name are saved to your account. ';
       return modal('Sign in', closeLogin,
         h3(st.loginFrom === 'post' ? 'Sign in to post' : 'Sign in') +
@@ -5607,8 +5892,8 @@
   // Members of a group you run. Owners (up to two) set roles; admins see them
   function viewMembers() {
     const st = state, g = groupById(st.membersOpen), close = () => setState({ membersOpen: null, membersQ: '', memberOpen: null });
-    if (!runs(g)) return '';
-    const owner = g.role === 'owner', list = st.membersList || [], owners = list.filter(m => m.role === 'owner').length;
+    if (!g || !g.role) return '';
+    const admin = runs(g), owner = g.role === 'owner', list = st.membersList || [], owners = list.filter(m => m.role === 'owner').length;
     const q = st.membersQ.trim().toLowerCase();
     const rows = list.filter(m => m.user_id === st.me).concat(list.filter(m => m.user_id !== st.me)).filter(m => !q || m.name.toLowerCase().includes(q));
     const chip = (role) => role === 'member' ? '' : roleBadge(role, 'padding:3px 9px');
@@ -5624,16 +5909,26 @@
         if (m.role === 'owner') out.push(pill('Remove as owner', () => setRole(g, m, 'admin')));
       }
       if (owner && mine && owners > 1) out.push(pill('Step down as owner', () => setRole(g, m, 'admin')));
-      if (!mine && (owner || m.role === 'member')) out.push(redBtn('Remove from group', () => removeMember(g, m)));
+      if (admin && !mine && (owner || m.role === 'member')) out.push(redBtn('Remove from group', () => removeMember(g, m)));
       return out.join('');
+    };
+    // v6 Update 13: friend requests start here (you share this group)
+    const friendBtn = (m) => {
+      if (m.user_id === st.me || !st.fr.loaded) return '';
+      const asked = st.fr.incoming.find(f => f.id === m.user_id);
+      if (isFriend(m.user_id)) return '<span data-friend-state style="flex:0 0 auto;display:flex;align-items:center;gap:6px;min-height:36px;padding:0 14px;border-radius:999px;background:#e7f6ec;font-size:13.5px;font-weight:800;color:#0f7a3c">' + I.check(12, '#0f7a3c', 3.2) + 'Friends</span>';
+      if (asked) return '<span ' + on(() => answerRequest(asked, true)) + ' class="hov-primary" style="flex:0 0 auto;display:flex;align-items:center;min-height:36px;padding:0 14px;border-radius:999px;background:#5b4ae8;font-size:13.5px;font-weight:800;color:#fff;cursor:pointer">Accept friend request</span>';
+      if (st.fr.outgoing.indexOf(m.user_id) > -1) return '<span data-friend-state style="flex:0 0 auto;display:flex;align-items:center;min-height:36px;padding:0 14px;border-radius:999px;background:#f2f3f6;font-size:13.5px;font-weight:800;color:#6b7280">Requested</span>';
+      return '<span ' + on(() => sendRequest(m.user_id, m.name)) + ' class="hov-primary" style="flex:0 0 auto;display:flex;align-items:center;gap:6px;min-height:36px;padding:0 14px;border-radius:999px;background:#5b4ae8;font-size:13.5px;font-weight:800;color:#fff;cursor:pointer">' +
+        svg(14, stroke('#fff', 2.6), '<circle cx="9.5" cy="8" r="3.5"/><path d="M3 20a6.5 6.5 0 0 1 13 0"/><path d="M19 8v6M16 11h6"/>') + 'Add friend</span>';
     };
     const joined = (t) => t ? new Date(t).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '';
     const panel = (m) => '<div data-member-panel style="margin:0 6px 10px;padding:12px 14px;border-radius:14px;background:#f7f7f9;display:flex;flex-direction:column;gap:10px">' +
       '<div style="display:flex;flex-direction:column;gap:3px;font-size:14px;font-weight:600;color:#454b55">' +
-        '<div style="display:flex;align-items:center;gap:8px;min-width:0"><span style="flex:0 0 auto;font-size:12px;font-weight:900;letter-spacing:.6px;text-transform:uppercase;color:#8a909b">Email</span>' +
-          (m.email ? '<a href="mailto:' + esc(m.email) + '" style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#4a3ad4;font-weight:700;text-decoration:none">' + esc(m.email) + '</a>' : '<span style="color:#8a909b">Not shared</span>') + '</div>' +
+        (admin ? '<div style="display:flex;align-items:center;gap:8px;min-width:0"><span style="flex:0 0 auto;font-size:12px;font-weight:900;letter-spacing:.6px;text-transform:uppercase;color:#8a909b">Email</span>' +
+          (m.email ? '<a href="mailto:' + esc(m.email) + '" style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#4a3ad4;font-weight:700;text-decoration:none">' + esc(m.email) + '</a>' : '<span style="color:#8a909b">Not shared</span>') + '</div>' : '') +
         (m.joined_at ? '<div style="font-size:13px;color:#6b7280">Joined ' + esc(joined(m.joined_at)) + '</div>' : '') + '</div>' +
-      (actions(m) ? '<div style="display:flex;flex-wrap:wrap;gap:8px">' + actions(m) + '</div>' : '') + '</div>';
+      (friendBtn(m) || actions(m) ? '<div style="display:flex;flex-wrap:wrap;gap:8px">' + friendBtn(m) + actions(m) + '</div>' : '') + '</div>';
     const row = (m) => { const open = st.memberOpen === m.user_id;
       return '<div data-member="' + esc(m.name) + '" style="border-bottom:1px solid #f2f3f6">' +
         '<div ' + on(() => setState({ memberOpen: open ? null : m.user_id })) + ' aria-expanded="' + open + '" aria-label="' + esc(m.name) + (m.user_id === st.me ? ' (you)' : '') + '" style="display:flex;align-items:center;gap:12px;min-height:58px;padding:6px;cursor:pointer">' +
@@ -5798,7 +6093,7 @@
       '<div ' + on(() => go('calendar')) + ' aria-label="Calendar"' + (calOn ? ' aria-current="page"' : '') + ' style="display:flex;align-items:center;justify-content:center;width:100%;cursor:pointer">' +
         '<span style="width:48px;height:48px;border-radius:999px;display:flex;align-items:center;justify-content:center;box-shadow:inset 0 0 0 ' + (calOn ? '2px #5b4ae8' : '1.9px #c3c7d0') + ';color:' + (calOn ? '#5b4ae8' : '#6b7280') + '">' +
           svg(23, stroke('currentColor', 2.1), '<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>') + '</span></div>' +
-      tab(s === 'groups' && !prof, 'Groups', I.tabSquares, () => go('groups')) +
+      tab(s === 'groups' && !prof, 'Groups', I.tabPeople, () => go('groups')) +
       tab(prof, 'Profile', svg(23, stroke('currentColor', 1.9), P6.person), openProfileSheet) +
     '</nav>';
   }
@@ -5868,6 +6163,10 @@
       (st.joinOpen ? viewJoin() : '') +
       (st.nSettings && st.email ? viewNotifSettings() : '') +
       (st.membersOpen ? viewMembers() : '') +
+      (st.email && st.pplAdd ? viewPplAdd() : '') +
+      (st.email && st.frInvite && st.frSel.length ? viewFrInvite() : '') +
+      (st.email && st.frProfile ? viewFrProfile() : '') +
+      (st.frAdd ? viewFrAdd() : '') +
       (st.gpDel != null && s === 'groupPage' ? viewDeleteGroup() : '') +
       (st.ph ? viewPositioner() : '') +
       (st.invite ? viewInvite() : '') +
@@ -6088,6 +6387,11 @@
       if (state.loginStep) return closeLogin();
       if (state.joinOpen) return setState({ joinOpen: false });
       if (state.membersOpen) return setState({ membersOpen: null, membersQ: '' });
+      if (state.frAdd && !state.frAdd.busy) return closeFrAdd();
+      if (state.frProfile) return setState({ frProfile: null });
+      if (state.frInvite) return setState({ frInvite: false });
+      if (state.pplAdd) return setState({ pplAdd: false });
+      if (state.pplSearch) return setState({ pplSearch: false, pplQ: '' });
       if (state.pe) return setState({ pe: null });
       if (state.nameAsk) return setState({ nameAsk: null, nameText: '' });
       if (state.guestOpen) return setState({ guestOpen: false, guestThen: null });
@@ -6151,6 +6455,7 @@
     if (state.screen === 'compose' && location.hash === '#/new') return;   // Back's popstate re-pushed #/new; its hashchange follows
     const target = fromUrl();
     if (target.inviteCode) { takeInvite(target.inviteCode); return; }
+    if (target.friendCode) { takeFriendLink(target.friendCode); return; }
     let leaving = {};
     if (state.screen === 'compose') {
       if (composeBack()) { history.pushState(null, '', '#/new'); return; }   // stay in the flow
@@ -6355,6 +6660,7 @@
       }
       await loadForRoute();
       if (invite) takeInvite(invite);
+      if (pendingFriend()) startFriendAdd(pendingFriend());   // a friend link, or back from Google signing in for one
       if (state.inv && state.inv.step === 'confirm' && !state.email) setInv({ step: 'land' });   // the saved session had ended
       if (state.profSheet && !state.email) { setState({ profSheet: false }); openLogin('profile', () => go('calendar', { profSheet: true })); }
     } catch (e) {
@@ -6366,6 +6672,8 @@
   Object.assign(state, fromUrl());
   const bootInvite = state.inviteCode;
   delete state.inviteCode;
+  if (state.friendCode) { setPendingFriend(state.friendCode); history.replaceState(null, '', '/'); }
+  delete state.friendCode;
   // Back from Google in the middle of an invite: the Joining screen straight away
   const inviteTrip = sb && AUTH_RETURN.any && readResume();
   if (inviteTrip && inviteTrip.from === 'invite' && inviteTrip.joinCode) {
@@ -6379,7 +6687,7 @@
     const c = readCache(bootUser.id);
     Object.assign(state, { me: bootUser.id, email: bootUser.email, memberSince: bootUser.created_at ? new Date(bootUser.created_at).getFullYear() : null }, c
       ? { isGoogle: c.isGoogle, myName: c.myName || '', myAvatar: c.myAvatar, myPlace: c.myPlace || '', myBio: c.myBio || '', memberSince: c.memberSince || null, groups: c.groups || [], sparks: c.sparks || [], profiles: c.profiles || {},
-          sizes: c.sizes || {}, notif: c.notif || state.notif, demoAdmin: !!c.demoAdmin, loaded: true, fromCache: true }
+          sizes: c.sizes || {}, notif: c.notif || state.notif, demoAdmin: !!c.demoAdmin, fr: c.fr && c.fr.friends ? c.fr : state.fr, loaded: true, fromCache: true }
       : {});
   }
   // An invite link: its landing (or, signed in already, the confirm) from the first frame

@@ -335,15 +335,24 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
     await sw.getByRole('option', { name: /^Your tasks/ }).click();
     await expect(page.locator('[data-screen-label="Your tasks"]')).toBeVisible();
 
-    // Groups (Update 2): photo header (YOUR PEOPLE · Groups · N groups), Join pill, Start a new group at the bottom
+    // Your people (Update 13): photo header (GROUPS & FRIENDS · Your people · N groups · N friends), Search, the white Add button,
+    // the Groups · Friends switch; Join a group and Start a group live in the Add people sheet
     await page.getByRole('button', { name: 'Groups', exact: true }).click();
     const groups = page.locator('[data-screen-label=Groups]');
-    await expect(groups.getByRole('heading', { name: 'Groups', exact: true })).toBeVisible();
-    await expect(groups).toContainText(/\d+ groups?/);
-    await expect(groups.getByRole('button', { name: 'Join a group' })).toBeVisible();
-    await expect(groups.getByRole('button', { name: 'Start a new group' })).toBeVisible();
+    await expect(groups.getByRole('heading', { name: 'Your people', exact: true })).toBeVisible();
+    await expect(groups.locator('[data-ppl-sub]')).toHaveText(/^\d+ groups? · \d+ friends?$/);
+    await expect(groups.getByRole('tablist', { name: 'Groups or friends' }).getByRole('tab')).toHaveText([/^Groups · \d+$/, /^Friends · \d+$/]);
+    await groups.getByRole('button', { name: 'Add a group or friend' }).click();
+    const add = page.getByRole('dialog', { name: 'Add people' });
+    for (const name of ['Add a friend', 'Join a group', 'Start a group']) await expect(add.getByRole('button', { name })).toBeVisible();
+    await add.getByRole('button', { name: 'Close' }).click();
     await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Groups', exact: true })).toHaveAttribute('aria-current', 'page');
-    await expect(groups.getByRole('button', { name: 'Torrez Fitness', exact: true })).not.toContainText(/members/);   // unpinned: a tile, no member count
+    await expect(groups.getByRole('button', { name: 'Torrez Fitness', exact: true })).toContainText(/members/);   // tiles show the member count too (Update 13)
+    // Search filters the side that's showing
+    await groups.getByRole('button', { name: 'Search your people' }).click();
+    await groups.getByLabel('Search groups').fill('zzqq');
+    await expect(groups).toContainText('No groups match “zzqq”');
+    await groups.getByText('Cancel', { exact: true }).click();
     await groups.getByRole('button', { name: 'Torrez Fitness', exact: true }).click();
     const browse = page.locator('[data-screen-label=Browse]');
     await expect(browse.getByRole('heading', { name: 'Torrez Fitness' })).toBeVisible();

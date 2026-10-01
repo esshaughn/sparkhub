@@ -449,3 +449,82 @@ test('plans: replies, sign-ups, updates, notes and invite-only plans follow the 
     await anon.context.close();
   }
 });
+
+test('friends: requests, links and invites only go through the functions, with their rules', async ({ browser }) => {
+  const lead = await newLead(browser, 1, 'Owner');
+  const other = await newLead(browser, 2, 'Other');
+  const anon = await newMember(browser);
+  const L = lead.page, O = other.page, A = anon.page;
+  let group, sparkId;
+  try {
+    const leadUid = await uid(L), otherUid = await uid(O);
+    await asUser(L, async (c, _C, id) => c.rpc('remove_friend', { p_other: id }), otherUid);
+
+    // The tables aren't readable or writable directly; a visitor can't use any of it
+    const direct = await asUser(L, async (c, _C, other) => ({
+      friendships: (await c.from('friendships').select('*')).error ? 'refused' : 'ALLOWED',
+      requests: (await c.from('friend_requests').select('*')).error ? 'refused' : 'ALLOWED',
+      codes: (await c.from('friend_codes').select('*')).error ? 'refused' : 'ALLOWED',
+      insert: (await c.from('friendships').insert({ user_a: other, user_b: other })).error ? 'refused' : 'ALLOWED',
+      invite: (await c.from('event_invites').insert({ spark_id: '00000000-0000-0000-0000-000000000000', user_id: other, invited_by: other })).error ? 'refused' : 'ALLOWED',
+      self: (await c.rpc('send_friend_request', { p_to: (await c.auth.getUser()).data.user.id })).error ? 'refused' : 'ALLOWED'
+    }), otherUid);
+    expect(direct).toEqual({ friendships: 'refused', requests: 'refused', codes: 'refused', insert: 'refused', invite: 'refused', self: 'refused' });
+    const visitor = await asUser(A, async (c, _C, other) => ({
+      request: (await c.rpc('send_friend_request', { p_to: other })).error ? 'refused' : 'ALLOWED',
+      code: (await c.rpc('my_friend_code')).error ? 'refused' : 'ALLOWED'
+    }), otherUid);
+    expect(visitor).toEqual({ request: 'refused', code: 'refused' });
+
+    // A group of the lead's with the other lead in it, and a private plan there
+    group = await asUser(L, async (c, _C, name) => (await c.rpc('create_group', { p_name: name })).data[0], uniqueTitle('friends'));
+    await asUser(O, async (c, _C, code) => c.rpc('join_group', { p_code: code }), group.code);
+    const day = new Date(Date.now() + 8 * 864e5).toISOString().slice(0, 10);
+    sparkId = await asUser(L, async (c, _C, { g, me, day }) => {
+      const r = await c.from('sparks').insert({ group_id: g, author_name: 'Owner', lead_name: 'Owner', lead_id: me, created_by: me, text: '[E2E] friends only', planned: true, day_date: day, visibility: 'invite' }).select('id').single();
+      return r.error ? r.error.message : r.data.id;
+    }, { g: group.id, me: leadUid, day });
+    expect(sparkId).toMatch(/^[0-9a-f-]{36}$/);
+
+    // Not friends yet: no invite. Then a request, accepted
+    const early = await asUser(L, async (c, _C, { s, o }) => (await c.rpc('invite_friends', { p_spark: s, p_people: [o] })).data, { s: sparkId, o: otherUid });
+    expect(early.invited).toEqual([]);
+    expect(await asUser(L, async (c, _C, o) => (await c.rpc('send_friend_request', { p_to: o })).data, otherUid)).toBe('requested');
+    const seen = await asUser(O, async (c) => (await c.rpc('friend_state')).data);
+    expect(seen.incoming.map(f => f.id)).toContain(leadUid);
+    await asUser(O, async (c, _C, f) => c.rpc('answer_friend_request', { p_from: f, p_accept: true }), leadUid);
+    expect(await asUser(L, async (c, _C, o) => c.rpc('is_friend', { p_other: o }).then(r => r.data), otherUid)).toBe(true);
+
+    // The private plan is hidden from the other lead until they're invited; then they see it and can RSVP
+    const before = await asUser(O, async (c, _C, s) => (await c.from('sparks').select('id').eq('id', s)).data.length, sparkId);
+    expect(before).toBe(0);
+    const inv = await asUser(L, async (c, _C, { s, o }) => (await c.rpc('invite_friends', { p_spark: s, p_people: [o] })).data, { s: sparkId, o: otherUid });
+    expect(inv.invited).toEqual([otherUid]);
+    const after = await asUser(O, async (c, _C, { s, me }) => ({
+      sees: (await c.from('sparks').select('id').eq('id', s)).data.length,
+      rsvp: (await c.from('rsvps').insert({ spark_id: s, user_id: me, status: 'going' })).error ? 'refused' : 'ok'
+    }), { s: sparkId, me: otherUid });
+    expect(after).toEqual({ sees: 1, rsvp: 'ok' });
+
+    // Guest invites off: someone going (not the lead or an admin) can't invite
+    await asUser(L, async (c, _C, s) => c.from('sparks').update({ guest_invites: false }).eq('id', s), sparkId);
+    const guest = await asUser(O, async (c, _C, { s, l }) => (await c.rpc('invite_friends', { p_spark: s, p_people: [l] })).error ? 'refused' : 'ALLOWED', { s: sparkId, l: leadUid });
+    expect(guest).toBe('refused');
+
+    // Friend links: anyone holding one sees only the name; your own says self; a made-up one is bad
+    const code = await asUser(L, async (c) => (await c.rpc('my_friend_code')).data);
+    const preview = await asUser(A, async (c, _C, code) => (await c.rpc('friend_link_preview', { p_code: code })).data, code);
+    expect(preview.length).toBe(1);
+    expect(preview[0].name).toBe('Owner');
+    expect(await asUser(L, async (c, _C, code) => (await c.rpc('add_friend_by_code', { p_code: code })).data[0].result, code)).toBe('self');
+    expect(await asUser(O, async (c) => (await c.rpc('add_friend_by_code', { p_code: 'ZZZZ00' })).data[0].result)).toBe('bad');
+    await asUser(O, async (c, _C, id) => c.rpc('remove_friend', { p_other: id }), leadUid);
+    expect(await asUser(O, async (c, _C, code) => (await c.rpc('add_friend_by_code', { p_code: code })).data[0].result, code)).toBe('friends');
+  } finally {
+    await asUser(L, async (c, _C, id) => c.rpc('remove_friend', { p_other: id }), await uid(O)).catch(() => {});
+    if (group) await asUser(L, async (c, _C, id) => c.rpc('e2e_delete_group', { p_group: id }), group.id).catch(() => {});
+    await lead.context.close();
+    await other.context.close();
+    await anon.context.close();
+  }
+});
