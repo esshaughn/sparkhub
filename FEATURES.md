@@ -72,17 +72,17 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 
 | # | Feature | Status | Notes |
 |---|---|---|---|
-| 22 | Photo header (framed cover, or the group photo), back, group name, **Edit** (lead, or an admin of the group), **Photo** / **Add a photo** (lead → Photo positioner) | Test | |
-| 23 | Title sheet: lead's face, "Led by", **N interested** + face stack (+N) | Test | |
-| 24 | **I'm interested** / **You're interested** (not for the lead) | Test | Guests give name + phone first |
+| 22 | Photo header like the plan page's (audit, 2026-10-01): 300px photo with the title on it (36px, pencil for the lead or an admin), chips (*IDEA* gold, *YOU'RE LEADING*, *DEMO*, *PRIVATE*, *CANCELLED*), a gold date sticker once it has a date, back, **Share**, the lead's **Change photo / Add a photo** (→ Photo positioner, on plans too); the gold *Steps to a plan* strip sits under the photo | Test | |
+| 23 | **Who's interested** section (faces, *N interested*; the lead taps it for the list) and the **LED BY** card with *Say hi* (not for the lead), as on plans | Test | Audit 2026-10-01 |
+| 24 | **I'm interested** / **You're interested** in its own card where a plan has RSVP (not for the lead; not on a cancelled idea) | Test | Guests give name + phone first |
 | 25 | **Waiting on you** (lead): suggested locations/dates with **Use this location / Use this date** and **Not this time** | Test | |
-| 26 | Date & location card: date + time, location + address + **Directions**; **Suggest** (others) or **Set** (lead) while missing | Test | The lead's Set applies at once |
-| 27 | **Basic details** (up to 3 lines of 40; older one-line notes split into a bullet per sentence) with lead/member empty states; the lead edits them in the Basic details pop-up | Test | v6 Update 6 rename |
+| 26 | The plan's **date & place card** (audit, 2026-10-01): a set date/place, or *Voting on a date / spot* with each option's *Suggested by …*, votes and **Vote** / **✓ Voted** (the lead: **Pick**, which closes the poll); other suggestions stay under a set date/place; members get **+ Suggest a date / location**; *Date TBD* / *Location TBD* with the lead's **Add**; Add to calendar and Directions | Test | Replaced the Dates tiles and Location list |
+| 27 | **Details** as on plans (heading on the page, green dots, the gray pencil Edit, dashed empty box for the lead or an admin); hidden for members when empty. **Help out** as on plans: one card per job (#65) | Test | Replaced the one-card Sign-ups list (audit) |
 | 28 | (Removed 2026-09-30) What the lead is picturing + **Say more about what you're picturing**; Basic details (#27) is the one place for notes | Removed | Old demo text in `vision` shows as Basic details bullets |
 | 29 | **Who's pitching in** (accepted offers; your own waiting ones) | Test | |
-| 30 | **The vibe** mood board: up to 3 photos, lead adds/removes; tap one to see it full screen (arrows between, ✕ / Escape / tap to close) | Test | Members see it only with photos |
+| 30 | **Inspo**: up to 3 photos with *n / 3*; the lead adds/removes them on ideas **and plans** (plans were view-only); tap one to see it full screen | Test | Members see it only with photos |
 | 31 | Rotated tag after actions ("It's up", "You're interested", "Sent to the lead", "Location set"…) | Test | |
-| 32 | Lead's **Who's interested** list with guests' phone numbers (tap the count) | Test | Not designed yet |
+| 32 | Lead's **Who's interested** list with guests' phone numbers (tap the Who's interested row) | Test | Not designed yet |
 | 33 | "That event isn't up anymore" card for a dead link, or an event taken down while you're on it | Test | |
 
 ## Plans (V5)

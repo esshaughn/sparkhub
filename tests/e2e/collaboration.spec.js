@@ -14,12 +14,13 @@ test('a guest with the link takes part; everyone votes; the lead picks and makes
     const LD = L.locator('[data-screen-label="Idea page"]');
     await expect(LD.getByLabel('Steps to a plan')).toContainText('Details');
     await expect(LD).toContainText('Pick a date first. Then you can lock it in.');
-    await expect(LD.getByRole('button', { name: 'Add a date' })).toBeVisible();
+    await expect(LD.locator('#sec-when')).toContainText('Date TBD');   // the plan page's date & place card (audit, 2026-10-01)
+    await expect(LD.locator('#sec-when').getByRole('button', { name: 'Add' }).first()).toBeVisible();
 
     // The guest opens the shared link (they're not in the group)
     await openIdea(G, id);
     const GD = G.locator('[data-screen-label="Idea page"]');
-    await expect(GD).toContainText('Led by Lena');
+    await expect(GD.locator('[data-led-by]')).toContainText('Lena');
     await expect(GD).toContainText('Teams by class');
     await expect(GD.getByRole('button', { name: 'Edit' })).toHaveCount(0);
 
@@ -33,7 +34,7 @@ test('a guest with the link takes part; everyone votes; the lead picks and makes
     await expect(info.getByRole('button', { name: 'Continue' })).toHaveAttribute('aria-disabled', 'true');   // too short
     await answerGuestPrompt(G, 'Gus', '(512) 555-0142');
     await expect(button(G, 'You’re interested')).toBeVisible();
-    await expect(GD.getByLabel('1 interested')).toBeVisible();
+    await expect(GD.locator('#sec-people')).toContainText('1 interested');
 
     // Suggest a location and a date: they go on the idea's board for everyone to vote on
     await GD.getByRole('button', { name: 'Suggest a location' }).click();
@@ -50,26 +51,25 @@ test('a guest with the link takes part; everyone votes; the lead picks and makes
     await dateOffer.getByLabel('Date and time').fill('2026-11-14T18:30');
     await dateOffer.getByRole('button', { name: 'Suggest this date' }).click();
     await expect(G.getByRole('dialog')).toHaveCount(0);
-    const dateTile = GD.getByRole('button', { name: /Sat, Nov 14 6:30pm, 0 votes, suggested by Gus/ });
-    await dateTile.click();                                                          // a guest's tap is a vote
-    await expect(GD.getByRole('button', { name: /Sat, Nov 14 6:30pm, 1 votes/ })).toBeVisible();
+    await GD.getByRole('button', { name: /^Vote for Sat, Nov 14 · 6:30pm \(0 votes, suggested by Gus\)/ }).click();
+    await expect(GD.getByRole('button', { name: /^Remove your vote for Sat, Nov 14 · 6:30pm \(1 vote/ })).toBeVisible();
 
     // The lead sees who's interested (with the guest's number) and the suggestions, and picks
     await L.reload();
-    await LD.getByLabel('1 interested').click();
+    await LD.getByRole('button', { name: 'See who’s interested' }).click();
     const list = L.getByRole('dialog', { name: 'Who’s interested' });
     await expect(list).toContainText('Gus');
     await expect(list.getByRole('link', { name: '(512) 555-0142' })).toHaveAttribute('href', 'tel:5125550142');
     await list.getByRole('button', { name: 'Close' }).click();
-    await expect(LD).toContainText('Tap a suggestion to use it.');
-    await LD.getByText('The north lot at Zilker').click();
-    await confirm(L, 'Use this location');
-    await expect(L.getByText('Location set')).toBeVisible();
-    await expect(LD).toContainText('PICKED');
-    await LD.getByRole('button', { name: /Sat, Nov 14 6:30pm/ }).click();
+    // Pick closes each poll (as on a plan)
+    await LD.getByRole('button', { name: /^Pick The north lot at Zilker/ }).click();
+    await confirm(L, 'Use this spot');
+    await expect(LD.locator('[data-poll-opt]')).toHaveCount(1);
+    await LD.getByRole('button', { name: /^Pick Sat, Nov 14/ }).click();
     await confirm(L, 'Use this date');
-    await expect(L.getByText('Day set')).toBeVisible();
-    await expect(LD.getByRole('button', { name: /^Picked: Sat, Nov 14/ })).toBeVisible();
+    await expect(LD.locator('[data-poll-opt]')).toHaveCount(0);
+    await expect(LD.locator('#sec-when')).toContainText('Saturday, Nov 14');
+    await expect(LD.locator('#sec-when')).toContainText('The north lot at Zilker');
 
     // "What you're picturing" is retired (owner, 2026-09-30): Basic details is the one place for notes
     await expect(LD.getByText('Say more about what you’re picturing')).toHaveCount(0);
@@ -119,7 +119,7 @@ test('the Ideas board puts the idea with the most interest first', async ({ brow
     ids.push(await postIdea(poster.page, { title: newer }));
     await openIdea(fan.page, ids[0]);
     await button(fan.page, 'I’m interested').click();
-    await expect(fan.page.getByLabel('1 interested').first()).toBeVisible();
+    await expect(fan.page.locator('#sec-people')).toContainText('1 interested');
 
     const P = poster.page;
     await P.goto('/#/ideas');
@@ -159,7 +159,7 @@ test('Edit profile: a new name shows everywhere', async ({ browser }) => {
     await expect(me.page.getByText('Profile saved')).toBeVisible();
     await expect(me.page.locator('[data-screen-label=Profile]')).toContainText('Samira');
     await openIdea(me.page, id);
-    await expect(me.page.locator('[data-screen-label="Idea page"]')).toContainText('Led by Samira');
+    await expect(me.page.locator('[data-screen-label="Idea page"]')).toBeVisible();   // (the lead doesn't see a Led by card on their own event, as on plans)
     expect(me.errors).toEqual([]);
   } finally {
     if (id) await deleteIdea(me.page, id).catch(() => {});

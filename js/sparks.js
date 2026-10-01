@@ -1297,11 +1297,6 @@
     if (o.votes.indexOf(state.me) > -1) must(await sb.from(table).delete().eq('option_id', o.id).eq('user_id', state.me));
     else must(await sb.from(table).insert({ option_id: o.id, user_id: state.me }));
   }));
-  const pickDate = (s, o) => o.dayDate < todayISO() ? toast('That date has passed. Pick another, or set a new date.') : setState({ confirm: { title: 'Use ' + fmtDay(o.dayDate) + '?', body: 'It becomes the date on the event' + (o.dayTime ? ', at ' + fmtTime(o.dayTime) : '') + '. You can still change it.', cta: 'Use this date', keep: 'Not yet',
-    run: () => run(async () => { must(await sb.from('sparks').update({ day_date: o.dayDate, day_time: o.dayTime }).eq('id', s.id)); }, { confirm: null, tag: 'Day set' }) } });
-  const pickSpot = (s, o) => setState({ confirm: { title: 'Use ' + o.name + '?', body: 'It becomes the location on the event. You can still change it.', cta: 'Use this location', keep: 'Not yet',
-    run: () => run(async () => { must(await sb.from('sparks').update({ spot: o.name, spot_open: false, spot_address: o.address || null, spot_lat: o.lat, spot_lon: o.lon }).eq('id', s.id)); }, { confirm: null, tag: 'Location set' }) } });
-
   const makePlan = (s) => {
     const n = s.interested.length;
     setState({ confirm: { title: 'Make it a plan?', green: true, cta: 'Make it a plan', keep: 'Not yet',
@@ -4076,115 +4071,69 @@
           : '');
   };
 
+  // Audit 2026-10-01: the idea page uses the plan page's parts (photo header with the title on it, the
+  // date & place card, Details, Help out, section titles on the gray page); only what ideas need differs:
+  // "I'm interested" instead of RSVP, polls with Suggest, Who's interested, Make it a plan, the steps strip.
   function viewIdea(s) {
-    const st = state, lead = isLead(s), g = groupById(s.groupId);
-    const cover = s.photoPaths[0] ? photoUrl(s.photoPaths[0]) : null;
-    const leadName = nameOf(s.leadId, s.leadName);
-    const d = dayOf(s);
-    const meIn = s.interested.indexOf(st.me) > -1;
-
-    // Interested faces: you first once you're in, up to 3, then +N
-    const n = s.interested.length;
-    const people = (meIn ? [st.me] : []).concat(s.interested.filter(u => u !== st.me)).slice(0, 3);
-    const faceTile = (i) => 'width:26px;height:26px;border-radius:999px;border:2px solid #fff;margin-left:' + (i ? '-9px' : '0') + ';display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:900;color:#fff';
-    const faces = people.map((u, i) => {
-      const url = avatarOf(u);
-      return '<span style="' + faceTile(i) + ';background:' + (url ? bg(url) : FACE_COLORS[i % 3]) + '">' + (url ? '' : esc(initialOf(nameOf(u)) || '?')) + '</span>';
-    }).join('') + (n > people.length ? '<span style="' + faceTile(people.length) + ';background:#f2f3f6;color:#5c6270">+' + (n - people.length) + '</span>' : '');
-
+    const st = state, lead = isLead(s), edit = canEdit(s), off = !!s.cancelledAt, dp = dateParts(s.dayDate);
+    const meIn = s.interested.indexOf(st.me) > -1, n = s.interested.length;
     const myWaiting = lead ? [] : s.pending.filter(p => p.userId === st.me);
     const pitching = s.offers.map(o => ({ who: nameOf(o.userId, o.who), line: OFFER_LINES[o.kind] + offerText(o), waiting: false }))
       .concat(myWaiting.map(p => ({ who: nameOf(p.userId, p.who), line: OFFER_LINES[p.kind] + offerText(p), waiting: true })));
+    const sheetCard = (inner) => '<div style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:10px">' + inner + '</div>';
+    const chip = (label, bgc, ink, extra) => '<span ' + (extra || '') + ' style="display:flex;align-items:center;gap:6px;border-radius:999px;padding:5px 11px;background:' + bgc + ';color:' + (ink || '#fff') + ';font-size:12px;font-weight:900;letter-spacing:.9px">' + label + '</span>';
 
-    const mood = s.mood.slice(0, 3);
-    const showMood = mood.length > 0 || lead;
+    // I'm interested (members): the idea's version of the RSVP card
+    const interest = lead || off ? '' : '<div data-interest style="' + CARD + ';padding:16px">' +
+      '<button type="button" ' + on(() => { if (!st.busy) toggleInterest(s); }) + ' aria-pressed="' + meIn + '" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;min-height:52px;border-radius:999px;font-family:inherit;font-size:16px;font-weight:800;cursor:pointer;' +
+        (meIn ? 'border:2px solid #e8a71c;background:#fdf1d6;color:#8f6405' : 'border:2px solid #5b4ae8;background:#5b4ae8;color:#fff') + '">' +
+        I.person(16, 2.3) + (meIn ? 'You’re interested' : 'I’m interested') + '</button></div>';
+
+    // Who's interested: like Who's going (the lead taps it for the list)
+    const ids = (meIn ? [st.me] : []).concat(s.interested.filter(u => u !== st.me));
+    const interested = '<section id="sec-people">' + secTitle('Who’s interested', '<span style="font-size:13.5px;font-weight:800;color:#8f6405">' + n + ' interested</span>') + sheetCard(
+      '<div ' + (lead && n ? on(() => setState({ interestList: true })) + ' aria-label="See who’s interested" ' : '') + 'style="display:flex;align-items:center;gap:10px' + (lead && n ? ';cursor:pointer' : '') + '">' +
+        '<span style="display:flex">' + (n ? peopleFaces(ids.slice(0, 5), 40) + (n > 5 ? '<span style="width:40px;height:40px;border-radius:999px;border:2.5px solid #fff;margin-left:-10px;background:#fdf1d6;color:#8f6405;font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center">+' + (n - 5) + '</span>' : '')
+          : lead ? '<span style="font-size:14px;font-weight:600;color:#6b7280">No one yet. <span ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' style="font-weight:800;color:#5b4ae8;cursor:pointer">Share the link</span></span>'
+          : '<span style="font-size:14px;font-weight:600;color:#6b7280">Nobody yet. Be the first.</span>') + '</span>' +
+        (lead && n ? '<span style="margin-left:auto;display:flex">' + I.chevR(14, '#9aa0ac', 2.6) + '</span>' : '') + '</div>') + '</section>';
+
+    const pitchSec = !pitching.length ? '' : '<section>' + secTitle('Who’s pitching in') + sheetCard(pitching.map(o =>
+      '<div style="display:flex;gap:10px"><span style="flex:0 0 7px;width:7px;height:7px;border-radius:999px;background:' + (o.waiting ? '#e8c46a' : '#e8a71c') + ';margin-top:7px"></span>' +
+      '<span style="font-size:14.5px;line-height:1.42;font-weight:500;color:#454b55"><strong style="font-weight:800;color:#0d1117">' + esc(o.who) + '</strong> ' + esc(o.line) +
+      (o.waiting ? '<span style="font-weight:700;color:#8f6405"> · waiting on ' + esc(nameOf(s.leadId, s.leadName)) + '</span>' : '') + '</span></div>').join('')) + '</section>';
+
+    // The visibility row, like the plan's
+    const visRow = !lead ? '' : '<div data-vis style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:18px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08)">' +
+      '<span style="flex:0 0 36px;width:36px;height:36px;border-radius:11px;background:#f3f1fe;color:#5b4ae8;display:flex;align-items:center;justify-content:center">' + svg(18, stroke('currentColor', 2.2), s.visibility === 'invite' ? LOCK_IC : PEOPLE_IC) + '</span>' +
+      '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">' + (s.visibility === 'invite' ? 'Private' : 'Public') + '</div><div style="font-size:13px;font-weight:600;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(namesList(gIds(s).map(id => (groupById(id) || {}).name).filter(Boolean))) + '</div></div>' +
+      '<span ' + on(() => openSec(s, 'vis')) + ' aria-label="Edit who can see it" style="font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">Edit</span></div>';
 
     return '<div data-screen-label="Idea page">' +
-      '<div style="position:relative;height:calc(210px + var(--pt));overflow:hidden;background:#2b2413">' +
-        (cover ? photoLayer(cover, s.coverPos, IDEA_POS) : '<div aria-hidden="true" style="position:absolute;inset:0;background:' + groupBg(g, '#2b2413') + '"></div>') +
-        '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to bottom, rgba(13,17,23,.68) 0%, rgba(13,17,23,.18) 40%, rgba(13,17,23,.18) 70%, rgba(13,17,23,.45) 100%)"></div>' +
-        '<div style="position:absolute;top:calc(12px + var(--pt));left:12px;right:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;z-index:1">' +
-          backBtn(s) +
-          '<span style="flex:1"></span>' +
-          // The lead adds or changes the cover (then frames it), like the plan page's Change photo
-          (lead ? '<label style="' + EDIT_PILL + '">' + svg(15, stroke('#0d1117', 2.2), CAMERA) + (cover ? 'Change photo' : 'Add a photo') +
-            '<input type="file" accept="image/*" aria-label="' + (cover ? 'Change the cover photo' : 'Add a cover photo') + '" ' + onInput(e => { if (e.type !== 'change') return; const f = (e.target.files || [])[0]; e.target.value = ''; pickForPositioner(f, { kind: 'idea', id: s.id }); }) + ' style="display:none"></label>' : '') +
-        '</div>' +
-        (st.tag ? '<div style="position:absolute;right:16px;bottom:44px;z-index:1;transform:rotate(5deg);background:#fff;border-radius:999px;padding:8px 14px;font-size:13px;font-weight:800;color:#0d1117;box-shadow:0 8px 20px rgba(15,18,25,.18);animation:popIn 320ms cubic-bezier(.22,.9,.28,1) both">' + esc(st.tag) + '</div>' : '') +
-      '</div>' +
-
-      '<div style="position:relative;margin-top:-28px;background:#fff;border-radius:26px 26px 0 0;padding:22px 20px 20px;display:flex;flex-direction:column;gap:12px">' +
-        ideaBanner(s) +
-        (canEdit(s)
-          ? '<h1 ' + on(() => openSec(s, 'title')) + ' aria-label="' + esc(s.text) + ', edit the title" style="margin:0;font-size:30px;line-height:1.08;font-weight:900;letter-spacing:-.8px;color:#0d1117;text-wrap:pretty;cursor:pointer">' + esc(s.text) + demoTag(s, false, true) + svg(18, stroke('#6b7280', 2.4) + ' style="display:inline-block;margin-left:8px;vertical-align:2px"', PENCIL) + '</h1>'
-          : '<h1 style="margin:0;font-size:30px;line-height:1.08;font-weight:900;letter-spacing:-.8px;color:#0d1117;text-wrap:pretty">' + esc(s.text) + demoTag(s, false, true) + '</h1>') +
-        '<div id="sec-people" style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;color:#454b55">' +
-          face(s.leadId, leadName, 26) +
-          '<span style="flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Led by ' + esc(leadName) + '</span>' +
-          (n > 0
-            ? '<span ' + (lead ? on(() => setState({ interestList: true })) : '') + ' aria-label="' + n + ' interested" style="flex:0 0 auto;display:flex;align-items:center;gap:7px' + (lead ? ';cursor:pointer' : '') + '">' +
-                '<span style="font-size:14px;font-weight:600;color:#5c6270"><strong style="font-weight:800;color:#0d1117">' + n + '</strong> interested</span>' +
-                '<span style="display:flex">' + faces + '</span>' +
-              '</span>'
-            : '') +
-        '</div>' +
-        (lead || s.cancelledAt ? '' :
-          '<button type="button" ' + on(() => { if (!st.busy) toggleInterest(s); }) + ' style="width:100%;margin-top:4px;display:flex;align-items:center;justify-content:center;gap:8px;min-height:52px;border-radius:999px;font-family:inherit;font-size:16px;font-weight:800;cursor:pointer;' +
-            (meIn ? 'border:2px solid #e8a71c;background:#fdf1d6;color:#8f6405' : 'border:2px solid #5b4ae8;background:#5b4ae8;color:#fff') + '">' +
-            I.person(16, 2.3) + (meIn ? 'You’re interested' : 'I’m interested') + '</button>') +
-      '</div>' +
-
-      '<div style="padding:12px 14px 26px;display:flex;flex-direction:column;gap:12px">' +
+      phaseHeader(s, 300, 'linear-gradient(to bottom, rgba(13,17,23,.5) 0%, rgba(13,17,23,0) 30%, rgba(43,36,19,.55) 62%, rgba(43,36,19,.96) 100%)',
+        '<div style="position:absolute;left:20px;right:20px;bottom:20px;color:#fff;display:flex;align-items:flex-end;gap:14px"><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px">' +
+          '<div style="display:flex;gap:6px;flex-wrap:wrap">' + (off ? chip('CANCELLED', '#d92d4a', '#fff', 'data-cancelled') : '') +
+            (s.demo ? chip('DEMO', 'rgba(255,255,255,.24);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)', '#fff', 'data-chip data-demo-tag') : lead ? chip('YOU’RE LEADING', '#5b4ae8', '#fff', 'data-chip') : chip('IDEA', '#f3c55a', '#3d2a00', 'data-chip')) +
+            (s.visibility === 'invite' ? chip(svg(11, stroke('#fff', 2.6), '<rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>') + 'PRIVATE', 'rgba(255,255,255,.22)') : '') + '</div>' +
+          (edit
+            ? '<h1 ' + on(() => openSec(s, 'title'), 'button') + ' aria-label="' + esc(s.text) + ', edit the title" style="margin:0;font-size:36px;line-height:1;font-weight:900;letter-spacing:-1.2px;text-wrap:pretty;cursor:pointer">' + esc(s.text) + svg(20, stroke('#fff', 2.4) + ' style="display:inline-block;margin-left:8px;vertical-align:4px;opacity:.85"', PENCIL) + '</h1>'
+            : '<h1 style="margin:0;font-size:36px;line-height:1;font-weight:900;letter-spacing:-1.2px;text-wrap:pretty">' + esc(s.text) + '</h1>') + '</div>' +
+          (s.dayDate ? '<span aria-label="' + esc(fmtDay(s.dayDate)) + '" style="flex:0 0 70px;width:70px;border-radius:14px;overflow:hidden;text-align:center;background:#fff;box-shadow:0 8px 20px rgba(0,0,0,.3);transform:rotate(4deg)"><span style="display:block;background:#e8a71c;color:#fff;font-size:11.5px;font-weight:900;letter-spacing:1px;padding:3px 0">' + dp.mon + '</span><span style="display:block;font-size:32px;line-height:1.15;font-weight:900;color:#0d1117">' + dp.day + '</span><span style="display:block;padding-bottom:5px;font-size:11px;font-weight:800;color:#6b7280">' + dp.dow + '</span></span>' : '') +
+        '</div>', true) +
+      ideaBanner(s) +
+      '<div style="padding:16px 14px 26px;display:flex;flex-direction:column;gap:18px">' +
         cancelledCard(s) +
         pendingCard(s) +
-
-        (lead && !s.cancelledAt ? makePlanCard(s) : '') +   // a cancelled idea offers nothing to do (refuse_if_cancelled)
-        datesBoard(s) + spotsBoard(s) + signupsCard(s) +
-
-        (!basicsOf(s).length && !lead ? '' : '<div id="sec-details" style="' + CARD + ';padding:18px 16px;display:flex;flex-direction:column;gap:10px">' +
-          '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px">' +
-            '<span style="' + EYEBROW + '">Details</span>' +
-            (canEdit(s) && basicsOf(s).length ? '<span ' + on(() => openSec(s, 'details')) + ' style="font-size:13.5px;font-weight:800;color:#5b4ae8;cursor:pointer">Edit</span>' : '') +
-          '</div>' +
-          (basicsOf(s).length
-            ? '<div style="display:flex;flex-direction:column;gap:9px">' + basicsOf(s).slice(0, 3).map(h =>
-                '<div style="display:flex;align-items:center;gap:11px"><span style="flex:0 0 8px;width:8px;height:8px;border-radius:999px;background:#e8a71c"></span><span style="font-size:16.5px;line-height:1.35;font-weight:700;letter-spacing:-.2px;color:#0d1117">' + esc(h) + '</span></div>').join('') + '</div>'
-            : lead
-              ? '<p style="margin:0;font-size:14.5px;line-height:1.45;font-weight:500;color:#5c6270">Up to three quick notes on what to expect or the vibe.</p>' +
-                '<span ' + on(() => openSec(s, 'details')) + ' class="hov-outline" style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:40px;padding:0 15px;border:1.5px solid #dcdfe6;border-radius:999px;font-size:14.5px;font-weight:800;color:#0d1117;cursor:pointer">+ Add details</span>'
-              : '') +   // members: the section is hidden when empty (owner, 2026-09-30)
-        '</div>') +
-
-
-        (pitching.length
-          ? '<div style="' + CARD + ';padding:18px;display:flex;flex-direction:column;gap:10px">' +
-              '<div style="' + EYEBROW + '">Who’s pitching in</div>' +
-              pitching.map(o => '<div style="display:flex;gap:10px"><span style="flex:0 0 7px;width:7px;height:7px;border-radius:999px;background:' + (o.waiting ? '#e8c46a' : '#e8a71c') + ';margin-top:7px"></span>' +
-                '<span style="font-size:14.5px;line-height:1.42;font-weight:500;color:#454b55"><strong style="font-weight:800;color:#0d1117">' + esc(o.who) + '</strong> ' + esc(o.line) +
-                (o.waiting ? '<span style="font-weight:700;color:#8f6405"> · waiting on ' + esc(leadName) + '</span>' : '') + '</span></div>').join('') +
-            '</div>'
-          : '') +
-
-        (showMood
-          ? '<div style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:10px">' +
-              '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px">' +
-                '<span style="' + EYEBROW + '">Inspo</span>' +
-                (lead ? '<span style="font-size:12.5px;font-weight:700;color:#9aa0ac">' + mood.length + ' / 3</span>' : '') +
-              '</div>' +
-              (lead && !mood.length ? '<p style="margin:0;font-size:14px;line-height:1.45;font-weight:500;color:#5c6270">Add up to three photos that set the mood: the place, past years, the feel you’re going for.</p>' : '') +
-              '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">' +
-                mood.map((p, i) => '<div ' + on(() => setState({ zoom: { photos: mood.map(photoUrl), i } })) + ' aria-label="View mood photo ' + (i + 1) + '" style="position:relative;aspect-ratio:1;border-radius:12px;cursor:zoom-in;background:' + bg(photoUrl(p)) + '">' +
-                  (lead ? '<span ' + on((e) => { stop(e); if (!st.busy) removeMood(s, p); }) + ' aria-label="Remove photo" style="position:absolute;top:5px;right:5px;width:24px;height:24px;border-radius:999px;background:rgba(13,17,23,.6);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(11, '#fff', 3) + '</span>' : '') +
-                  '</div>').join('') +
-                (lead && mood.length < 3
-                  ? '<label class="hov-dash" style="aspect-ratio:1;border-radius:12px;border:1.5px dashed #cfd3db;background:#f7f7f9;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;cursor:pointer">' +
-                      I.plus(20, '#5b4ae8', 2.4) + '<span style="font-size:12.5px;font-weight:800;color:#5b4ae8">Add photo</span>' +
-                      '<input type="file" accept="image/*" aria-label="Add a mood photo" ' + onInput(e => { if (e.type !== 'change') return; const f = Array.from(e.target.files || []); e.target.value = ''; addMood(s, f); }) + ' style="display:none">' +
-                    '</label>'
-                  : '') +
-              '</div>' +
-            '</div>'
-          : '') +
+        interest +
+        (lead && !off ? makePlanCard(s) : '') +
+        whenWhereCard(s) +
+        basicDetailsSec(s) +
+        helpOut(s) +
+        interested +
+        pitchSec +
+        visRow +
+        ledByCard(s) +
+        inspoSec(s) +
         deleteLink(s) +
       '</div>' +
       '<div style="height:var(--nav-h)"></div>' +
@@ -4221,62 +4170,11 @@
       (met ? '<span style="width:18px;height:18px;border-radius:999px;display:flex;align-items:center;justify-content:center;background:#3d2a00;color:#fff;font-size:9.5px;font-weight:900">✓</span>'
            : '<span style="width:18px;height:18px;border-radius:999px;box-shadow:inset 0 0 0 2px rgba(61,42,0,.4)"></span>') +
       '<span style="font-size:10.5px;line-height:1.1;font-weight:800;color:' + (met ? '#0d1117' : '#6b4d00') + ';text-align:center">' + label + '</span></div>';
-    return '<div aria-label="Steps to a plan" style="margin:-22px -20px 2px;padding:8px 16px 7px;border-radius:26px 26px 0 0;background:#f3c55a;display:flex;align-items:flex-start">' +
+    return '<div aria-label="Steps to a plan" style="padding:10px 16px 9px;border-radius:0 0 24px 24px;background:#f3c55a;box-shadow:0 1px 3px rgba(15,18,25,.08);display:flex;align-items:flex-start">' +
       steps.map((x, k) => (k ? line : '') + step(x)).join('') + line +
       '<div style="flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:3px;width:52px">' +
         '<span style="width:18px;height:18px;display:flex;align-items:center;justify-content:center">' + svg(16, stroke('#0f7a3c', 2.2), '<path d="M5 21V4"/><path d="M5 4.5c2.5-1.5 5-1.5 7 0s4.5 1.5 7 0v9c-2.5 1.5-5 1.5-7 0s-4.5-1.5-7 0"/>') + '</span>' +
         '<span style="font-size:10.5px;line-height:1.1;font-weight:800;color:#0f7a3c;text-align:center">Plan</span></div>' +
-    '</div>';
-  };
-
-  // DATES: the lead's date first (picked), then everyone's suggestions by votes. Tap to vote; the lead taps to pick.
-  const datesBoard = (s) => {
-    const lead = isLead(s), off = !!s.cancelledAt;
-    const opts = s.dateOpts.filter(o => !(o.dayDate === s.dayDate && (o.dayTime || null) === (s.dayTime || null)))
-      .sort((a, b) => b.votes.length - a.votes.length || a.dayDate.localeCompare(b.dayDate));
-    const tile = (dp, time, votes, onIt, picked, fn, label) => '<div ' + on(fn) + ' aria-label="' + esc(label) + '" style="flex:0 0 138px;scroll-snap-align:start;border-radius:18px;background:' + (onIt ? '#5b4ae8' : '#fff') + ';color:' + (onIt ? '#fff' : '#0d1117') + ';padding:12px 12px 10px;display:flex;flex-direction:column;gap:2px;min-height:104px;box-shadow:' + (onIt ? '0 6px 16px rgba(91,74,232,.3)' : picked ? '0 0 0 2px #149a4b, 0 1px 3px rgba(15,18,25,.08)' : '0 1px 3px rgba(15,18,25,.08)') + ';cursor:pointer">' +
-      '<span style="display:flex;align-items:center;justify-content:space-between;font-size:11px;font-weight:900;letter-spacing:.8px;color:' + (onIt ? '#d9d4ff' : '#6b7280') + '">' + dp.dow + (picked ? '<span style="border-radius:999px;padding:1px 6px;background:#e7f6ec;color:#0f7a3c;font-size:9.5px">PICKED</span>' : '') + '</span>' +
-      '<span style="font-size:20px;line-height:1.15;font-weight:800;white-space:nowrap">' + dp.md + '</span>' +
-      '<span style="font-size:12px;font-weight:700;color:' + (onIt ? '#d9d4ff' : '#6b7280') + '">' + esc(time ? fmtTime(time) : 'Time TBD') + '</span>' +
-      (votes == null ? '' : '<span style="margin-top:auto;align-self:flex-end;display:flex;align-items:center;gap:3px;min-height:23px;padding:0 8px;border-radius:999px;font-size:12px;font-weight:900;' + (onIt ? 'background:rgba(255,255,255,.2);color:#fff' : 'box-shadow:inset 0 0 0 1.5px #e6e7eb;color:#5c6270') + '">' + svg(10, 'fill="currentColor"', '<path d="M12 5l7 9H5z"/>') + votes + '</span>') +
-    '</div>';
-    return '<div id="sec-dates" style="display:flex;flex-direction:column;gap:8px;margin:2px -14px 0">' +
-      '<div style="padding:0 18px"><span style="' + EYEBROW + '">Dates</span></div>' +
-      '<div class="no-scrollbar" style="display:flex;gap:8px;padding:0 14px 4px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding:0 14px">' +
-        (s.dayDate ? tile(dateParts(s.dayDate), s.dayTime, null, false, true, () => { if (lead && !off) openOffer(s, 'day'); }, 'Picked: ' + fmtDay(s.dayDate)) : '') +
-        opts.map(o => {
-          const mine = o.votes.indexOf(state.me) > -1;
-          return tile(dateParts(o.dayDate), o.dayTime, o.votes.length, mine, false, () => { if (state.busy || off) return; if (lead) pickDate(s, o); else vote('date_votes', s, o); },
-            fmtDay(o.dayDate) + (o.dayTime ? ' ' + fmtTime(o.dayTime) : '') + ', ' + o.votes.length + ' votes, suggested by ' + o.who);
-        }).join('') +
-        (off ? '' : '<div ' + on(() => openOffer(s, 'day')) + ' style="flex:0 0 118px;scroll-snap-align:start;border-radius:18px;border:1.5px dashed #b9b2f5;background:#f3f1fe;min-height:104px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:#5b4ae8;cursor:pointer"><span style="font-size:22px;line-height:1;font-weight:700">+</span><span style="font-size:13.5px;font-weight:800">' + (lead ? (s.dayDate ? 'Change date' : 'Add a date') : 'Suggest a date') + '</span></div>') +
-      '</div>' +
-      (lead && opts.length && !off ? '<div style="padding:0 18px;font-size:12.5px;font-weight:600;color:#8a909b">Tap a suggestion to use it.</div>' : '') +
-    '</div>';
-  };
-
-  // LOCATION: the picked spot, then suggestions with votes. The lead taps a suggestion to use it.
-  const spotsBoard = (s) => {
-    const lead = isLead(s), off = !!s.cancelledAt;
-    const opts = s.spotOpts.filter(o => o.name !== s.spot).sort((a, b) => b.votes.length - a.votes.length);
-    const directions = s.spotPoint ? '<a href="https://www.google.com/maps/dir/?api=1&amp;destination=' + s.spotPoint[0] + ',' + s.spotPoint[1] + '" target="_blank" rel="noopener noreferrer" style="flex:0 0 auto;font-size:13px;font-weight:800;color:#5b4ae8">Directions</a>' : '';
-    const row = (name, noteHtml, right, i, fn) => '<div ' + (fn ? on(fn) + ' ' : '') + 'style="display:flex;align-items:center;gap:12px;padding:10px 0;border-top:' + (i ? '1px solid #f2f3f6' : '0') + (fn ? ';cursor:pointer' : '') + '">' +
-      '<div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:800;color:#0d1117">' + esc(name) + '</div>' + noteHtml + '</div>' + right + '</div>';
-    const note = (t, extra) => '<div style="display:flex;align-items:baseline;gap:6px;min-width:0;font-size:13px;font-weight:500;color:#6b7280"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(t) + '</span>' + (extra || '') + '</div>';
-    let i = 0;
-    return '<div id="sec-loc" style="display:flex;flex-direction:column;gap:8px">' +
-      '<div style="padding:0 4px"><span style="' + EYEBROW + '">Location</span></div>' +
-      '<div style="' + CARD + ';padding:6px 16px;display:flex;flex-direction:column">' +
-        (s.spot ? row(s.spot, note([nameOf(s.leadId, s.leadName), s.spotAddress].filter(Boolean).join(' · '), directions ? '<span style="flex:0 0 auto">· ' + directions + '</span>' : ''),
-          '<span style="border-radius:999px;padding:3px 8px;background:#e7f6ec;font-size:11px;font-weight:900;color:#0f7a3c">PICKED</span>', i++) : '') +
-        opts.map(o => {
-          const mine = o.votes.indexOf(state.me) > -1;
-          const voteBtn = '<span ' + on((e) => { stop(e); if (!state.busy && !off) vote('spot_votes', s, o); }) + ' aria-label="' + (mine ? 'Remove your vote for ' : 'Vote for ') + esc(o.name) + '" aria-pressed="' + mine + '" style="flex:0 0 44px;height:52px;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;background:' + (mine ? '#5b4ae8' : '#fff') + ';color:' + (mine ? '#fff' : '#6b7280') + ';box-shadow:' + (mine ? 'none' : 'inset 0 0 0 1.5px #e6e7eb') + '">' + svg(14, 'fill="currentColor"', '<path d="M12 5l7 9H5z"/>') + '<span style="font-size:14px;font-weight:900">' + o.votes.length + '</span></span>';
-          return row(o.name, note(['Suggested by ' + o.who, o.address].filter(Boolean).join(' · ')), voteBtn, i++, lead && !off ? () => { if (!state.busy) pickSpot(s, o); } : null);
-        }).join('') +
-        (off ? '' : '<div ' + on(() => openOffer(s, 'spot')) + ' style="display:flex;align-items:center;gap:12px;min-height:52px;border-top:' + (i ? '1px solid #f2f3f6' : '0') + ';font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer"><span style="font-size:20px;line-height:1">+</span>' + (lead ? (s.spot ? 'Change location' : 'Add a location') : 'Suggest a location') + '</div>') +
-      '</div>' +
-      (lead && opts.length && !off ? '<div style="padding:0 4px;font-size:12.5px;font-weight:600;color:#8a909b">Tap a suggestion to use it.</div>' : '') +
     '</div>';
   };
 
@@ -4305,49 +4203,14 @@
         backBtn(s) +
         '<span style="flex:1"></span>' +
         (isLead(s)   // v6 Update 6: the old Edit button is gone; the host changes the photo here
-          ? '<label style="' + EDIT_PILL + '">' + svg(15, stroke('#0d1117', 2.2), CAMERA) + 'Change photo' + coverInput(s) + '</label>'
+          ? '<label style="' + EDIT_PILL + '">' + svg(15, stroke('#0d1117', 2.2), CAMERA) + (s.photoPaths[0] ? 'Change photo' : 'Add a photo') +
+              '<input type="file" accept="image/*" aria-label="' + (s.photoPaths[0] ? 'Change the cover photo' : 'Add a cover photo') + '" ' + onInput(e => { if (e.type !== 'change') return; const f = (e.target.files || [])[0]; e.target.value = ''; pickForPositioner(f, { kind: 'idea', id: s.id }); }) + ' style="display:none"></label>'
           : share ? '' : '<span style="flex:0 0 40px;width:40px"></span>') +
         (share ? '<span ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' aria-label="Share" style="flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:rgba(255,255,255,.94);box-shadow:0 2px 10px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(18, stroke('#0d1117', 2.4), P5.share) + '</span>' : '') +
       '</div>' + inner +
       (state.tag ? '<div style="position:absolute;right:16px;bottom:44px;z-index:2;transform:rotate(5deg);background:#fff;border-radius:999px;padding:8px 14px;font-size:13px;font-weight:800;color:#0d1117;box-shadow:0 8px 20px rgba(15,18,25,.18);animation:popIn 320ms cubic-bezier(.22,.9,.28,1) both">' + esc(state.tag) + '</div>' : '') +
     '</div>';
   };
-
-  // Sign-ups (plans) and roles (ideas): the lead adds items, anyone signs up
-  function signupsCard(s) {
-    const st = state, lead = isLead(s), off = !!s.cancelledAt;
-    const needOpen = s.signups.filter(i => i.need).reduce((a, i) => a + Math.max(0, i.need - i.claims.length), 0);
-    const sigReady = st.sigDraft.trim().length > 0;
-    return '<div id="sec-tasks" data-screen-label="Sign-ups" style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:4px">' +
-          eyebrowRow('Sign-ups', '<span style="font-size:13px;font-weight:800;color:#6b7280">' + (needOpen ? needOpen + ' spots open' : s.signups.length ? 'All covered' : '') + '</span>') +
-          (s.signups.length ? '' : '<p style="margin:8px 0 4px;font-size:14px;line-height:1.45;font-weight:500;color:#5c6270">' + (lead ? (s.planned ? 'Need people to bring things? Add what you need and anyone can grab a spot.' : 'What roles does this need? Add them now and people can grab one before there’s a date.') : 'Nothing on the list yet. Bringing something? Add it below.') + '</p>') +
-          s.signups.map((it, i) => {
-            const mine = it.claims.find(c => c.userId === st.me), cnt = it.claims.length, full = !!it.need && cnt >= it.need && !mine;
-            const countLine = it.need ? (cnt >= it.need ? (it.need === 1 ? 'Covered' : cnt + ' of ' + it.need + ' · all set') : (it.need === 1 ? 'Still needed' : cnt + ' of ' + it.need + ' · ' + (it.need - cnt) + ' still needed')) : (cnt ? cnt + ' signed up' : 'Nobody yet');
-            return '<div data-signup="' + esc(it.item) + '" style="display:flex;flex-direction:column;gap:9px;padding:12px 0;border-top:' + (i ? '1px solid #f2f3f6' : '0') + '">' +
-              '<div style="display:flex;align-items:center;gap:10px">' +
-                '<div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:800;color:#0d1117;text-wrap:pretty">' + esc(it.item) + (it.time ? ' <span style="display:inline-block;vertical-align:1px;margin-left:4px;padding:1px 8px;border-radius:999px;background:#fdf1d6;font-size:12px;font-weight:800;color:#8f6405">' + fmtTime(it.time) + '</span>' : '') + '</div><div style="margin-top:1px;font-size:13px;font-weight:600;color:#6b7280">' + countLine + '</div></div>' +
-                (lead || it.createdBy === st.me ? '<span ' + on(() => removeSignup(s, it)) + ' aria-label="Remove ' + esc(it.item) + '" style="flex:0 0 28px;width:28px;height:28px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(11, '#5c6270', 2.6) + '</span>' : '') +
-                (off ? '' : '<span ' + on(() => { if (!full && !st.busy) toggleClaim(s, it); }) + ' style="flex:0 0 auto;display:flex;align-items:center;min-height:38px;padding:0 14px;border-radius:999px;font-size:13.5px;font-weight:800;white-space:nowrap;cursor:' + (full ? 'default' : 'pointer') + ';background:' + (mine ? '#e7f6ec' : full ? '#f2f3f6' : '#0d1117') + ';color:' + (mine ? '#0f7a3c' : full ? '#9aa0ac' : '#fff') + '">' + (mine ? '✓ You’re on it' : full ? 'All set' : 'Sign up') + '</span>') +
-              '</div>' +
-              (it.need && it.need > 1 ? '<div style="height:6px;border-radius:999px;background:#f2f3f6;overflow:hidden"><div style="width:' + Math.min(100, cnt / it.need * 100) + '%;height:100%;border-radius:999px;background:' + (cnt >= it.need ? '#149a4b' : '#e8a71c') + '"></div></div>' : '') +
-              (cnt ? '<div style="display:flex;flex-wrap:wrap;gap:6px">' + it.claims.map(c => '<span style="display:flex;align-items:center;gap:6px;border-radius:999px;background:#f2f3f6;padding:3px 10px 3px 3px;font-size:13px;font-weight:700;color:#2b303a">' + face(c.userId, nameOf(c.userId), 24) + esc(nameOf(c.userId) + (c.note ? ' · ' + c.note : '')) + '</span>').join('') + '</div>' : '') +
-              (mine ? '<input class="fld" type="text" maxlength="60" aria-label="Note for ' + esc(it.item) + '" placeholder="Add a note, if you want" value="' + esc(mine.note) + '" ' + onInput(e => { if (e.type === 'change') saveClaimNote(it, e.target.value.trim()); }) + ' style="width:100%;min-height:40px;border:1.5px solid #dcdfe6;border-radius:14px;padding:10px 14px;font-family:inherit;font-size:16px;font-weight:600;color:#0d1117;background:#fff;outline:none">' : '') +
-            '</div>';
-          }).join('') +
-          (off ? '' : '<div style="display:flex;gap:8px;padding-top:12px;border-top:1px solid #f2f3f6">' +
-            '<input class="fld" type="text" maxlength="60" aria-label="' + (lead ? 'Add a sign-up' : 'Bringing something else?') + '" placeholder="' + (lead ? 'Add a thing, e.g. A dozen filled eggs' : 'Bringing something else?') + '" value="' + esc(st.sigDraft) + '" ' + onInput(e => { if (e.type === 'input') setState({ sigDraft: e.target.value.slice(0, 60) }); }) + ' style="flex:1 1 auto;min-width:0;min-height:46px;border:1.5px solid #dcdfe6;border-radius:14px;padding:10px 14px;font-family:inherit;font-size:16px;font-weight:600;color:#0d1117;background:#fff;outline:none">' +
-            (lead ? '<input class="fld" type="text" inputmode="numeric" maxlength="3" aria-label="How many needed" placeholder="How many" value="' + esc(st.sigNeed) + '" ' + onInput(e => { if (e.type === 'input') setState({ sigNeed: e.target.value.replace(/\D/g, '').slice(0, 3) }); }) + ' style="flex:0 0 74px;width:74px;min-height:46px;border:1.5px solid #dcdfe6;border-radius:14px;padding:10px 8px;text-align:center;font-family:inherit;font-size:16px;font-weight:600;color:#0d1117;background:#fff;outline:none">' : '') +
-            '<button type="button" ' + on(() => addSignup(s)) + ' aria-disabled="' + !sigReady + '" style="flex:0 0 auto;min-height:46px;padding:0 16px;border:0;border-radius:999px;font-family:inherit;font-size:15px;font-weight:800;cursor:' + (sigReady ? 'pointer' : 'default') + ';background:' + (sigReady ? '#5b4ae8' : '#e2e4e9') + ';color:' + (sigReady ? '#fff' : '#9aa0ac') + '">Add</button>' +
-          '</div>') +
-          (lead && st.sigDraft && !off
-            ? '<label style="display:flex;align-items:center;gap:8px;padding-top:8px;font-size:13px;font-weight:700;color:#6b7280">Time (optional)' +
-                '<select class="fld" aria-label="Sign-up time" ' + onInput(e => setState({ sigTime: e.target.value })) + ' style="min-height:38px;padding:0 10px;border:1.5px solid #dcdfe6;border-radius:12px;font-family:inherit;font-size:16px;font-weight:700;color:#0d1117;background:#fff;outline:none;color-scheme:light">' +
-                  '<option value="">No time</option>' + TIME_OPTS.map(([v, l]) => '<option value="' + v + '"' + (v === st.sigTime ? ' selected' : '') + '>' + l + '</option>').join('') +
-                '</select></label>'
-            : '') +
-        '</div>';
-  }
 
   // v6 Update 5 (Plan phase): a section title sits on the gray page above its white card
   const secTitle = (t, right, big) => '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:0 4px;margin-bottom:8px">' +
@@ -4523,19 +4386,6 @@
     }, { sec: null, offerText: '', offerPlace: null, offerSuggest: [] }).then(ok => { if (ok) toast(tell ? 'Saved. Everyone going gets an update.' : note, true); });
   };
   // Change photo on the event's header: the new cover goes up straight away
-  const changeCover = async (s, file) => {
-    if (!file) return;
-    let blob, path = null, old = null;
-    try { blob = await shrinkImage(file); } catch (e) { toast(BAD_PHOTO); return; }
-    const ok = await run(async () => {
-      path = await uploadBlob(blob);
-      try { old = must(await sb.rpc('set_idea_cover', { p_spark: s.id, p_photo: path, p_pos: null })).data; } catch (e) { deletePhotos([path]); throw e; }
-    });
-    if (!ok) return;
-    if (old) deletePhotos([old]);
-    toast('Photo saved', true);
-  };
-  const coverInput = (s) => '<input type="file" accept="image/*" aria-label="Change the cover photo" ' + onInput(e => { if (e.type !== 'change') return; const f = (e.target.files || [])[0]; e.target.value = ''; changeCover(s, f); }) + ' style="display:none">';
   // The host picks a poll's winner: it becomes the date (or place) and the poll closes
   // The host picks a poll's winner: confirm first (it closes the poll), then tell everyone, like a new date or place from the sheet
   const pickOpt = (s, kind, o) => {
@@ -4724,26 +4574,33 @@
   }
 
   // Date and location in one card: a value, "to be decided" (amber), or a poll (guests vote, the host picks)
+  // Ideas use it too (audit, 2026-10-01): members also get Suggest a date / location, and a set date or place keeps any other suggestions under it
   const whenWhereCard = (s) => {
-    const lead = isLead(s), P = '#5b4ae8';
+    const lead = isLead(s) && !s.cancelledAt, P = '#5b4ae8', off = !!s.cancelledAt, suggest = !s.planned && !isLead(s) && !off;
     const pollRows = (opts, kind) => opts.slice().sort((a, b) => b.votes.length - a.votes.length).map(o => {
       const mine = o.votes.indexOf(state.me) > -1, n = o.votes.length, label = kind === 'day' ? dayLabel(o.dayDate, o.dayTime) : o.name;
-      const act = () => { if (state.busy) return; if (lead) pickOpt(s, kind, o); else vote(kind === 'day' ? 'date_votes' : 'spot_votes', s, o); };
-      return '<div data-poll-opt="' + esc(label) + '" style="display:flex;align-items:center;gap:10px;min-height:46px;padding:0 6px 0 12px;border-radius:12px;background:#f4f5f7"><span style="flex:1;min-width:0;font-size:15px;font-weight:800;color:#0d1117">' + esc(label) + '</span>' +
+      const act = () => { if (state.busy || off) return; if (lead) pickOpt(s, kind, o); else vote(kind === 'day' ? 'date_votes' : 'spot_votes', s, o); };
+      const tip = label + ' (' + n + (n === 1 ? ' vote' : ' votes') + (o.who ? ', suggested by ' + o.who : '') + ')';
+      return '<div data-poll-opt="' + esc(label) + '" style="display:flex;align-items:center;gap:10px;min-height:46px;padding:6px 6px 6px 12px;border-radius:12px;background:#f4f5f7"><span style="flex:1;min-width:0"><span style="display:block;font-size:15px;font-weight:800;color:#0d1117">' + esc(label) + '</span>' +
+        (o.who ? '<span style="display:block;font-size:12.5px;font-weight:600;color:#6b7280">Suggested by ' + esc(o.who) + '</span>' : '') + '</span>' +
         '<span style="font-size:12.5px;font-weight:700;color:#6b7280;white-space:nowrap">' + n + (n === 1 ? ' vote' : ' votes') + '</span>' +
-        '<span ' + on(act) + ' aria-pressed="' + (!lead && mine) + '" style="flex:0 0 auto;display:flex;align-items:center;justify-content:center;min-width:70px;min-height:34px;padding:0 12px;border-radius:999px;font-size:13px;font-weight:800;cursor:pointer;white-space:nowrap;' +
-          (lead ? 'background:' + P + ';color:#fff' : mine ? 'background:#e7f5ec;color:#0f7a3c' : 'background:#fff;color:' + P + ';box-shadow:inset 0 0 0 1.5px ' + P) + '">' + (lead ? 'Pick' : mine ? '✓ Voted' : 'Vote') + '</span></div>';
+        (off ? '' : '<span ' + on(act) + ' aria-label="' + esc((lead ? 'Pick ' : mine ? 'Remove your vote for ' : 'Vote for ') + tip) + '" aria-pressed="' + (!lead && mine) + '" style="flex:0 0 auto;display:flex;align-items:center;justify-content:center;min-width:70px;min-height:34px;padding:0 12px;border-radius:999px;font-size:13px;font-weight:800;cursor:pointer;white-space:nowrap;' +
+          (lead ? 'background:' + P + ';color:#fff' : mine ? 'background:#e7f5ec;color:#0f7a3c' : 'background:#fff;color:' + P + ';box-shadow:inset 0 0 0 1.5px ' + P) + '">' + (lead ? 'Pick' : mine ? '✓ Voted' : 'Vote') + '</span>') + '</div>';
     }).join('');
     const tbd = (t) => '<div style="display:flex;align-items:center;gap:10px"><span style="flex:1;font-size:17px;line-height:1.25;font-weight:800;color:' + AMBER_INK + '">' + t + '</span>' +
       (lead ? '<span ' + on(() => openSec(s, 'when')) + ' style="font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">Add</span>' : '') + '</div>';
     const voting = (t, rows) => '<div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;font-weight:800;letter-spacing:1.1px;color:' + AMBER_INK + '">' + t + '</span>' + rows + '</div>';
     const whenTxt = s.dayDate ? new Date(s.dayDate + 'T12:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }) : '';
     const time = s.dayTime ? (s.dayEnd ? spanTime({ time: s.dayTime, endTime: s.dayEnd }) : fmtTime(s.dayTime)) : '';
-    const dayPart = s.dayDate ? '<div style="font-size:17px;line-height:1.25;font-weight:900;letter-spacing:-.3px;color:#0d1117;text-wrap:pretty">' + esc(whenTxt) + (time ? ' · <span style="color:#0f7a3c">' + esc(time) + '</span>' : '') + '</div>'
-      : s.dateOpts.length ? voting('VOTING ON A DATE', pollRows(s.dateOpts, 'day')) : tbd('Date TBD');
-    const spotPart = s.spot ? '<div style="font-size:17px;line-height:1.25;font-weight:900;letter-spacing:-.3px;color:#0d1117;text-wrap:pretty">' + esc(s.spot) + '</div>' +
-        (s.spotAddress ? '<div style="margin-top:2px;font-size:14.5px;line-height:1.35;font-weight:500;color:#6b7280;text-wrap:pretty">' + esc(s.spotAddress) + '</div>' : '')
-      : s.spotOpts.length ? voting('VOTING ON A SPOT', pollRows(s.spotOpts, 'spot')) : tbd('Location TBD');
+    const otherDays = s.dateOpts.filter(o => !(o.dayDate === s.dayDate && (o.dayTime || null) === (s.dayTime || null))), otherSpots = s.spotOpts.filter(o => o.name !== s.spot);
+    const sugg = (kind) => suggest ? '<span ' + on(() => openOffer(s, kind)) + ' data-suggest-' + kind + ' style="margin-top:6px;display:inline-flex;align-items:center;gap:6px;min-height:34px;font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(14, '#5b4ae8', 2.6) + (kind === 'day' ? 'Suggest a date' : 'Suggest a location') + '</span>' : '';
+    const dayPart = (s.dayDate ? '<div style="font-size:17px;line-height:1.25;font-weight:900;letter-spacing:-.3px;color:#0d1117;text-wrap:pretty">' + esc(whenTxt) + (time ? ' · <span style="color:#0f7a3c">' + esc(time) + '</span>' : '') + '</div>' +
+          (otherDays.length ? '<div style="margin-top:10px">' + voting('OTHER SUGGESTIONS', pollRows(otherDays, 'day')) + '</div>' : '')
+        : s.dateOpts.length ? voting('VOTING ON A DATE', pollRows(s.dateOpts, 'day')) : tbd('Date TBD')) + sugg('day');
+    const spotPart = (s.spot ? '<div style="font-size:17px;line-height:1.25;font-weight:900;letter-spacing:-.3px;color:#0d1117;text-wrap:pretty">' + esc(s.spot) + '</div>' +
+          (s.spotAddress ? '<div style="margin-top:2px;font-size:14.5px;line-height:1.35;font-weight:500;color:#6b7280;text-wrap:pretty">' + esc(s.spotAddress) + '</div>' : '') +
+          (otherSpots.length ? '<div style="margin-top:10px">' + voting('OTHER SUGGESTIONS', pollRows(otherSpots, 'spot')) + '</div>' : '')
+        : s.spotOpts.length ? voting('VOTING ON A SPOT', pollRows(s.spotOpts, 'spot')) : tbd('Location TBD')) + sugg('spot');
     const pill = 'flex:1 1 0;display:flex;align-items:center;justify-content:center;gap:8px;min-height:46px;border-radius:999px;background:#f3f1fe;color:#5b4ae8;font-size:14.5px;font-weight:800;text-decoration:none;cursor:pointer';
     return '<div id="sec-when" data-when-card style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:14px">' +
       '<div style="display:flex;gap:12px">' + svg(20, stroke('#0f7a3c', 2.2) + ' style="flex:0 0 20px;margin-top:1px"', P6.cal) + '<div style="flex:1;min-width:0">' + dayPart + '</div>' +
@@ -4765,6 +4622,37 @@
     '</section>';
   };
   const deleteLink = (s) => canEdit(s) ? '<span ' + on(() => askDelete(s)) + ' style="align-self:center;display:flex;align-items:center;justify-content:center;gap:7px;min-height:44px;padding:0 12px;font-size:14.5px;font-weight:800;color:#9b1c31;cursor:pointer">' + I.trash(15, '#9b1c31') + (!s.cancelledAt && peopleIn(s).some(u => u !== state.me) ? 'Cancel or delete this ' + (s.planned ? 'event' : 'idea') : 'Delete this ' + (s.planned ? 'event' : 'idea')) + '</span>' : '';
+
+  // "Led by" (not shown to the lead): plans and ideas
+  const ledByCard = (s) => {
+    if (isLead(s)) return '';
+    const leadName = nameOf(s.leadId, s.leadName);
+    return '<div data-led-by style="position:relative;display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:18px;background:linear-gradient(135deg,#f1edff,#e0d8ff);box-shadow:0 1px 3px rgba(15,18,25,.08)">' +
+        '<span aria-hidden="true" style="position:absolute;left:52%;top:6px;font-size:9px;color:#9d93f7">✦</span><span aria-hidden="true" style="position:absolute;left:64%;bottom:6px;font-size:7px;color:#7b6ef0">✦</span>' +
+        '<span style="position:relative;flex:0 0 56px;width:56px;height:56px;border-radius:999px;border:3px solid #fff;box-shadow:0 0 0 2.5px #7b6ef0, 0 6px 16px rgba(13,17,23,.25);display:flex">' + face(s.leadId, leadName, 50, '#7b6ef0') +
+          '<span aria-hidden="true" style="position:absolute;top:-10px;left:-8px;font-size:13px;color:#9d93f7">✦</span><span aria-hidden="true" style="position:absolute;top:-4px;right:-10px;font-size:10px;color:#b8aefc">✦</span><span aria-hidden="true" style="position:absolute;bottom:-4px;right:-10px;font-size:13px;color:#7b6ef0">✧</span></span>' +
+        '<div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:900;letter-spacing:.9px;color:#6b5ce7">LED BY</div><div style="font-size:20px;font-weight:900;letter-spacing:-.3px;color:#2a1f8f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(leadName) + '</div></div>' +
+        '<span ' + on(() => toast('Messages are coming soon. For now, say hi to ' + firstName(leadName) + ' at the event!')) + ' style="flex:0 0 auto;display:flex;align-items:center;min-height:40px;padding:0 14px;border-radius:999px;background:#fff;font-size:13.5px;font-weight:800;color:#4a3ad4;cursor:pointer">Say hi</span></div>';
+  };
+  // Inspo: up to three mood photos; the lead adds and removes them (ideas and plans alike), everyone else sees them when there are some
+  const inspoSec = (s) => {
+    const lead = isLead(s), mood = s.mood.slice(0, 3);
+    if (!mood.length && !lead) return '';
+    return '<section data-inspo>' + secTitle('Inspo', lead ? '<span style="font-size:13px;font-weight:700;color:#9aa0ac">' + mood.length + ' / 3</span>' : '') +
+      '<div style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:10px">' +
+        (lead && !mood.length ? '<p style="margin:0;font-size:14px;line-height:1.45;font-weight:500;color:#5c6270">Add up to three photos that set the mood: the place, past years, the feel you’re going for.</p>' : '') +
+        '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">' +
+          mood.map((p, i) => '<div ' + on(() => setState({ zoom: { photos: mood.map(photoUrl), i } })) + ' aria-label="View mood photo ' + (i + 1) + '" style="position:relative;aspect-ratio:1;border-radius:12px;cursor:zoom-in;background:' + bg(photoUrl(p)) + '">' +
+            (lead ? '<span ' + on((e) => { stop(e); if (!state.busy) removeMood(s, p); }) + ' aria-label="Remove photo" style="position:absolute;top:5px;right:5px;width:24px;height:24px;border-radius:999px;background:rgba(13,17,23,.6);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(11, '#fff', 3) + '</span>' : '') +
+            '</div>').join('') +
+          (lead && mood.length < 3
+            ? '<label class="hov-dash" style="aspect-ratio:1;border-radius:12px;border:1.5px dashed #cfd3db;background:#f7f7f9;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;cursor:pointer">' +
+                I.plus(20, '#5b4ae8', 2.4) + '<span style="font-size:12.5px;font-weight:800;color:#5b4ae8">Add photo</span>' +
+                '<input type="file" accept="image/*" aria-label="Add a mood photo" ' + onInput(e => { if (e.type !== 'change') return; const f = Array.from(e.target.files || []); e.target.value = ''; addMood(s, f); }) + ' style="display:none">' +
+              '</label>'
+            : '') +
+        '</div></div></section>';
+  };
 
   function viewPlan(s) {
     const st = state, lead = isLead(s), edit = canEdit(s), leadName = nameOf(s.leadId, s.leadName), my = myRsvp(s), dp = dateParts(s.dayDate);
@@ -4823,14 +4711,7 @@
       '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">' + (s.visibility === 'invite' ? 'Private' : 'Public') + '</div><div style="font-size:13px;font-weight:600;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(namesList(gIds(s).map(id => (groupById(id) || {}).name).filter(Boolean))) + '</div></div>' +
       '<span ' + on(() => openSec(s, 'vis')) + ' aria-label="Edit who can see it" style="font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">Edit</span></div>';
 
-    // "Hosted by" (not shown to the host)
-    const host = lead ? '' :
-      '<div style="position:relative;display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:18px;background:linear-gradient(135deg,#f1edff,#e0d8ff);box-shadow:0 1px 3px rgba(15,18,25,.08)">' +
-        '<span aria-hidden="true" style="position:absolute;left:52%;top:6px;font-size:9px;color:#9d93f7">✦</span><span aria-hidden="true" style="position:absolute;left:64%;bottom:6px;font-size:7px;color:#7b6ef0">✦</span>' +
-        '<span style="position:relative;flex:0 0 56px;width:56px;height:56px;border-radius:999px;border:3px solid #fff;box-shadow:0 0 0 2.5px #7b6ef0, 0 6px 16px rgba(13,17,23,.25);display:flex">' + face(s.leadId, leadName, 50, '#7b6ef0') +
-          '<span aria-hidden="true" style="position:absolute;top:-10px;left:-8px;font-size:13px;color:#9d93f7">✦</span><span aria-hidden="true" style="position:absolute;top:-4px;right:-10px;font-size:10px;color:#b8aefc">✦</span><span aria-hidden="true" style="position:absolute;bottom:-4px;right:-10px;font-size:13px;color:#7b6ef0">✧</span></span>' +
-        '<div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:900;letter-spacing:.9px;color:#6b5ce7">LED BY</div><div style="font-size:20px;font-weight:900;letter-spacing:-.3px;color:#2a1f8f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(leadName) + '</div></div>' +
-        '<span ' + on(() => toast('Messages are coming soon. For now, say hi to ' + firstName(leadName) + ' at the event!')) + ' style="flex:0 0 auto;display:flex;align-items:center;min-height:40px;padding:0 14px;border-radius:999px;background:#fff;font-size:13.5px;font-weight:800;color:#4a3ad4;cursor:pointer">Say hi</span></div>';
+    const host = ledByCard(s);
 
     return '<div data-screen-label="Plan page">' +
       phaseHeader(s, 340, 'linear-gradient(to bottom, rgba(13,17,23,.5) 0%, rgba(13,17,23,0) 30%, rgba(8,40,22,.55) 62%, rgba(8,40,22,.96) 100%)',
@@ -4861,8 +4742,7 @@
           '<div style="display:flex;align-items:center;gap:10px">' +
             '<span style="display:flex">' + (goingIds.length ? peopleFaces(goingIds.slice(0, 5), 40) + (goingIds.length > 5 ? '<span style="width:40px;height:40px;border-radius:999px;border:2.5px solid #fff;margin-left:-10px;background:#e7f6ec;color:#0f7a3c;font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center">+' + (goingIds.length - 5) + '</span>' : '') : lead ? '<span data-going-empty style="font-size:14px;font-weight:600;color:#6b7280">Nobody’s RSVP’d yet. <span ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' style="font-weight:800;color:#5b4ae8;cursor:pointer">Share the link</span></span>' : '<span style="font-size:14px;font-weight:600;color:#6b7280">Nobody yet. Be the first.</span>') + '</span>' +
           '</div>') + '</section>' +
-        (s.mood.length ? '<section>' + secTitle('Inspo') + sheetCard('<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">' +
-          s.mood.slice(0, 3).map((p, i) => '<div ' + on(() => setState({ zoom: { photos: s.mood.map(photoUrl), i } })) + ' aria-label="View mood photo ' + (i + 1) + '" style="aspect-ratio:1;border-radius:12px;cursor:zoom-in;background:' + bg(photoUrl(p)) + '"></div>').join('') + '</div>') + '</section>' : '') +
+        inspoSec(s) +
         deleteLink(s) +
       '</div>' +
       '<div style="height:var(--nav-h)"></div>' +
@@ -4884,7 +4764,7 @@
       phaseHeader(s, 300, 'linear-gradient(to bottom, rgba(13,17,23,.4), rgba(13,17,23,0) 30%, rgba(34,25,110,.92) 100%)',
         '<span aria-hidden="true" style="position:absolute;top:calc(66px + var(--pt));right:18px;display:flex;align-items:center;min-height:36px;padding:0 14px 0 44px;border-radius:999px;background:#5b4ae8;transform:rotate(-8deg);font-size:15px;font-weight:900;color:#fff;box-shadow:0 6px 16px rgba(15,18,25,.3)"><span style="position:absolute;left:-10px;top:50%;transform:translateY(-55%) rotate(-10deg);font-size:46px;line-height:1">🥳</span>It happened!</span>' +
         '<div style="position:absolute;left:20px;right:20px;bottom:18px;color:#fff"><div style="font-size:13px;font-weight:900;letter-spacing:1.2px;color:#cfc9ff">' + dp.dow + ', ' + dp.md + ' · ' + n + ' WENT</div>' +
-          '<h1 style="margin:6px 0 0;font-size:32px;line-height:1.02;font-weight:900;letter-spacing:-1px;text-wrap:pretty">' + esc(s.text) + demoTag(s, false, true) + '</h1></div>') +
+          '<h1 style="margin:6px 0 0;font-size:32px;line-height:1.02;font-weight:900;letter-spacing:-1px;text-wrap:pretty">' + esc(s.text) + demoTag(s, false, true) + '</h1></div>', true) +
       '<div style="padding:14px 14px 26px;display:flex;flex-direction:column;gap:12px">' +
         '<div style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:10px">' +
           eyebrowRow('The album' + (album.length ? ' · ' + album.length : ''),

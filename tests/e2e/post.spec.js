@@ -220,13 +220,13 @@ test('polls: the host posts a date poll (an idea), a member votes, the host pick
 
     await openIdea(O, id);
     const OI = O.locator('[data-screen-label="Idea page"]');
-    await OI.getByLabel(/, 0 votes, suggested by /).first().click();
-    await expect(OI.getByLabel(/, 1 votes, suggested by /)).toHaveCount(1);
+    await OI.getByRole('button', { name: /^Vote for .*\(0 votes, suggested by / }).first().click();
+    await expect(OI.getByRole('button', { name: /^Remove your vote for .*\(1 vote, suggested by / })).toHaveCount(1);
 
     // The host picks the winner, then locks it in
     await H.reload();
     const HI = H.locator('[data-screen-label="Idea page"]');
-    await HI.getByLabel(/, 1 votes, suggested by /).click();
+    await HI.getByRole('button', { name: /^Pick .*\(1 vote, suggested by / }).click();
     await confirm(H, 'Use this date');
     await expect(HI).toContainText('Ready when you are');
     await HI.getByRole('button', { name: 'Make it a plan' }).click();
