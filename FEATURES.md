@@ -135,6 +135,9 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 86 | **Freeze log** (temporary, owner's Profile only): notes when the app stops responding for over a second (screen, what ran last, image count), slow redraws (>150ms) and slow loads (>3s); kept on the device, last 40, Clear button | Test | Tracing the home-screen app freezes (2026-09-27); remove once found |
 | 87 | **Pull to refresh**: at the top of any screen, drag down and let go to reload; the header stays put while the feed under it slides down, with a spinner in the gap (screens without a header slide whole) | Test | Touch only; the 30-second background refresh still runs |
 | 88 | **Link previews**: shared idea links are `/i/<id>` and show the idea's title, when · where · group, and its photo (or the group's) in iMessage, WhatsApp and the like; invite links (`/join/CODE`) show *Join {group} on Spark Hub* with the group photo; everything else shows the Spark Hub card. Invite-only plans stay generic | Test | `api/preview.js` (Vercel function), `link_preview()` / `group_preview()`, `icons/share.jpg` (`scripts/make-share-image.js`) |
+| 112 | **Cancel or delete** (owner, 2026-09-30): Cancel marks it CANCELLED (stays up, closed to replies and sign-ups, no reminders) and notes everyone in it with an optional reason; Delete takes it down quietly | Test | `cancel_event()`, `delete_event(p_quiet)`, `sparks.cancelled_at` / `cancel_reason` |
+| 113 | **Remove account** (owner only, New accounts list): deletes an account and everything tied to it, its events quietly; refuses admins and a group's only owner | Test | `remove_account()` |
+| 114 | Audit leftovers (2026-09-30): Can't asks to free your job spots; updates show only to their audience (host can remove); album photos can be removed (adder or host); *You're off it* has Undo; Add to calendar uses the end time / all-day | Test | `20261024000000_leftovers.sql` |
 
 ## Posting and editing
 

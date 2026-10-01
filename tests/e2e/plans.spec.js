@@ -100,6 +100,7 @@ test('a plan: guest RSVPs, sign-ups, an update, the host’s notes, then clearin
     await GP.locator('[data-signup="Lemonade"]').getByLabel('You’re in. Tap to take yourself off').click();
     const off = G.locator('[data-banner="off"]');
     await expect(off).toContainText('You’re off it');
+    await expect(off.getByRole('button', { name: 'Undo' })).toBeVisible();   // takes you straight back on
     await off.getByRole('button', { name: 'Find a replacement' }).click();
     const rep = G.getByRole('dialog', { name: 'Find a replacement' });
     await expect(rep).toContainText('I can’t make it to lemonade');
@@ -124,6 +125,35 @@ test('a plan: guest RSVPs, sign-ups, an update, the host’s notes, then clearin
     await when.getByRole('button', { name: 'Save and send', exact: true }).click();
     await expect(H.getByText('Saved. Everyone going gets an update.')).toBeVisible();
     await expect(HP).toContainText('New date:');
+
+    // Can't while on two jobs: asked whether to free the spots too; Keep my spot keeps them
+    await GP.locator('[data-rsvp]').getByRole('button', { name: /^Can’t/ }).click();
+    const ask = G.getByRole('alertdialog');
+    await expect(ask).toContainText('Take you off your 2 jobs too?');
+    await ask.getByRole('button', { name: 'Keep my spot' }).click();
+    await expect(GP.locator('[data-rsvp]').getByRole('button', { name: /^Can’t/ })).toHaveAttribute('aria-pressed', 'true');
+    await expect(GP.locator('[data-signup="Lemonade"]')).toContainText('You’re in');
+
+    // Cancel (not delete): everyone in it, helpers included, gets a note with the reason; it stays up, marked Cancelled
+    await H.reload();
+    await HP.getByRole('button', { name: 'Cancel or delete this event' }).click();
+    const td = H.getByRole('dialog', { name: 'Cancel or delete' });
+    await expect(td.locator('[data-delete-opt]')).toContainText('No one is told.');
+    await td.getByLabel('Reason (optional)').fill('Rained out');
+    await td.getByRole('button', { name: 'Cancel and tell 1 person' }).click();
+    await expect(H.getByText('Cancelled. Everyone in it got a note.')).toBeVisible();
+    await expect(HP.locator('[data-cancelled]')).toHaveText('CANCELLED');
+    await expect(HP.locator('[data-cancelled-card]')).toContainText('Rained out');
+    const notes = await asUser(G, async (c) => (await c.from('notes').select('body').like('body', '%is cancelled.%')).data.map(n => n.body));
+    expect(notes.some(b => b.indexOf('Rained out') > -1)).toBe(true);
+    await G.reload();
+    await expect(GP.locator('[data-cancelled-card]')).toContainText('is cancelled');
+    await expect(GP.locator('[data-rsvp]')).toHaveCount(0);                      // no replies or sign-ups on a cancelled event
+    await expect(GP.locator('[data-signup="Lemonade"]').getByRole('button', { name: 'Sign up' })).toHaveCount(0);
+    // Then the host deletes it, quietly
+    await HP.getByRole('button', { name: 'Delete this event' }).click();
+    await confirm(H, 'Delete it');
+    id = null;
 
     expect(host.errors).toEqual([]);
     expect(guest.errors).toEqual([]);
@@ -254,6 +284,13 @@ test('it happened: the album and "do it again"; invite-only plans stay private',
     await expect(done).toContainText('No photos yet. Anyone who went can add theirs.');
     await done.getByLabel('Add a photo to the album').setInputFiles({ name: 'p.png', mimeType: 'image/png', buffer: PNG });
     await expect(H.getByText('Added to the album')).toBeVisible();
+    await expect(done).toContainText('The album · 1');
+    // The person who added it (or the host) can take it out again
+    await done.getByText('Remove', { exact: true }).click();
+    await done.locator('[data-album-edit]').getByRole('button', { name: 'Remove this photo' }).click();
+    await confirm(H, 'Remove it');
+    await expect(done).toContainText('No photos yet.');
+    await done.getByLabel('Add a photo to the album').setInputFiles({ name: 'p.png', mimeType: 'image/png', buffer: PNG });
     await expect(done).toContainText('The album · 1');
     await done.getByRole('button', { name: 'Do it again', exact: true }).click();
     const form = H.locator('[data-screen-label="New spark"]');

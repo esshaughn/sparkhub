@@ -516,6 +516,10 @@ test('a Spark Hub loading screen shows until the app is ready', async ({ browser
 test('freeze log (temporary): a 2-second stall is noted and shows on the owner\'s Profile', async ({ browser }) => {
   const { page, context, errors } = await newLead(browser, 1, 'Tester');
   try {
+    // Anyone else's device keeps no log
+    await page.evaluate(() => { localStorage.removeItem('spark-hub-diag'); const end = Date.now() + 2000; while (Date.now() < end) { /* freeze */ } });
+    await page.waitForTimeout(600);
+    expect(await page.evaluate(() => localStorage.getItem('spark-hub-diag'))).toBeNull();
     // Pretend this account is the owner (the only one who sees the log)
     await page.route('**/rest/v1/demo_admins*', r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ user_id: 'x' }) }));
     await page.reload();

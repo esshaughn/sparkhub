@@ -122,8 +122,11 @@ test('a group end to end: edit group, cover, rename, invite, pin, admin edits, r
     await sec.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(detail).toContainText('moved indoors');
     await expect(detail).toContainText('Led by Bo');
-    await button(A, 'Delete this event').click();
-    await confirm(A, 'Delete it');
+    // Someone's in it, so it's Cancel or delete; deleting tells no one
+    await button(A, /^(Cancel or delete|Delete) this (event|idea)$/).click();
+    const takeDown = A.getByRole('dialog', { name: 'Cancel or delete' });
+    if (await takeDown.count()) await takeDown.getByRole('button', { name: 'Delete without telling anyone' }).click();
+    else await confirm(A, 'Delete it');
     await expect(A.locator('[data-screen-label=Browse]')).not.toContainText('moved indoors');
     ideaId = null;
 

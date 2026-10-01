@@ -199,7 +199,7 @@
     joinOpen: false, joinCode: '', joinBad: false,
     notif: { allReadAt: 0, read: [], topics: {}, email: true, loaded: false }, nFilter: 'all', nSettings: false, demoAdmin: false, back: null, myPlace: '', myBio: '', memberSince: null, ownGrp: null, sizes: {}, membersQ: '', gpRename: null, gpDel: null, ph: null,
     startName: null, phaseTab: 'plan', sigDraft: '', sigNeed: '', sigTime: '', blast: null, invite: null,
-    pe: null, confirm: null, interestList: false, thanksList: false, guestList: null,
+    pe: null, confirm: null, interestList: false, thanksList: false, guestList: null, takeDown: null, albumEdit: null,
     gpCode: '', gpMembers: null,
     // v6: Profile / Notifications are sheets; Your tasks' "View all", expansions, the RSVP ask
     profSheet: false, notifSheet: false, dashAll: null, dashOpen: {}, schedOpen: {}, shiftPick: null, banner: null, sigAdding: false,
@@ -392,7 +392,7 @@
     dayText: row.day_date ? '' : (row.day || ''),
     vision: row.vision || '',
     photoPaths: (row.photos || []).filter(p => PHOTO_PATH.test(p)),
-    coverPos: row.cover_pos || null,
+    coverPos: row.cover_pos || null, cancelledAt: row.cancelled_at ? Date.parse(row.cancelled_at) : null, cancelReason: row.cancel_reason || '',
     mood: (row.mood || []).filter(p => PHOTO_PATH.test(p)),
     offers: offers.filter(o => o.spark_id === row.id && o.status === 'accepted')
       .map(o => ({ userId: o.user_id, who: o.who, kind: o.kind, body: o.body })),
@@ -422,6 +422,7 @@
   const chunks = (arr, n) => { const out = []; for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n)); return out; };
 
   let loadSeq = 0, loadWritten = 0;   // loads overlap (30s refresh, a write's reload); older data never lands over newer
+  let extrasFor = null, extrasAt = 0, notifAt = 0;
   async function loadAll() {
     if (!sb) return;
     const seq = ++loadSeq, t0 = performance.now();
@@ -443,7 +444,7 @@
         .then(r => r.error && r.error.code === '42703' ? sb.from('signup_items').select('id,spark_id,item,need,time,created_by,created_at') : r),
       sb.from('signup_claims').select('item_id,user_id,note,created_at'),
       sb.from('plan_updates').select('id,spark_id,body,audience,created_at'),
-      sb.from('organizers').select('spark_id,user_id,created_at'),
+      Promise.resolve({ data: [] }),   // organizers: "Offer to help organize" is retired (2026-09-30), nothing reads them
       sb.from('album_photos').select('id,spark_id,path,created_by,created_at'),
       sb.from('plan_prep').select('spark_id,answers'),
       sb.from('reactions').select('spark_id,user_id,kind'),
@@ -505,13 +506,18 @@
     });
     writeCache();
     if (state.email && !va) syncPush();
+    // The extras below change rarely: once per sign-in, then at most every 10 minutes (the 30-second refresh
+    // used to repeat them every time, against the Supabase quota). Read state and settings: every 2 minutes.
+    const who = state.me + ':' + (state.email || ''), now = Date.now(), extras = extrasFor !== who || now - extrasAt > 600000, notifDue = extras || now - notifAt > 120000;
+    if (extras) { extrasFor = who; extrasAt = now; }   // signing in (same id, now with an email) counts as new
+    if (notifDue) notifAt = now;
     // Whether you're the account that can wipe the demo content (Profile)
-    if (state.email && !va) {
+    if (extras && state.email && !va) {
       sb.from('demo_admins').select('user_id').eq('user_id', state.me).maybeSingle()
         .then(r => { if (!r.error) { setState({ demoAdmin: !!r.data }); writeCache(); if (r.data) { loadFeedback(); loadAccounts(); } } }, () => {});
     }
     // Notification read state and settings (signed-in people only)
-    if (state.email && !va) {
+    if (notifDue && state.email && !va) {
       const asked = Date.now();
       sb.from('notif_state').select('all_read_at,read_keys,topics,email').maybeSingle().then(r => {
         if (r.error || asked < notifSavedAt) return;   // a read/setting saved since then is newer than this answer
@@ -521,7 +527,7 @@
       }, () => {});
     }
     // Member counts for the Groups page (a nicety: the page works without them)
-    sb.rpc('my_group_sizes').then(r => {
+    if (extras) sb.rpc('my_group_sizes').then(r => {
       if (r.error) return;
       const sizes = {};
       (r.data || []).forEach(x => { sizes[x.group_id] = x.members; });
@@ -1083,22 +1089,53 @@
   // Posting and editing
   // ---------------------------------------------------------------------------
 
-  const askDelete = (s) => setState({ confirm: {
-    title: 'Delete this event?',
-    body: s.planned ? (() => { const n = going(s).filter(r => r.userId !== state.me).length;
-      return 'It comes down for everyone, along with its RSVPs and sign-ups. ' + (n ? (n === 1 ? 'The 1 person going gets' : 'The ' + n + ' people going get') + ' a note that it’s off. ' : '') + 'This can’t be undone.'; })()
-      : 'It comes down for everyone, along with its offers and interest. This can’t be undone.',
-    cta: 'Delete it', keep: 'Keep it', danger: true,
-    run: () => {
-      const photos = s.photoPaths.concat(s.mood);
-      run(async () => {
-        must(await sb.rpc('delete_event', { p_spark: s.id }));
-      }, () => {   // land where the Back button would have: where you came from, else the group's page, else the Calendar
-        const b = state.back, g = groupById(s.groupId), member = !!(g && g.role);
-        return { confirm: null, screen: b ? b.screen : member ? 'browse' : 'calendar', groupId: b ? (b.groupId || state.groupId) : member ? g.id : state.groupId, subjectId: null, tag: null, back: null };
-      }).then(ok => { if (ok) deletePhotos(photos); });
-    }
-  } });
+  const UPD_TO = { going: 'To people going', maybe: 'To maybes', noreply: 'To people who haven’t replied' };
+  const askRemoveUpdate = (s, u) => setState({ confirm: { title: 'Remove this update?', body: 'It comes off the event page and people’s notifications. Anyone who already saw it on their phone keeps that.', cta: 'Remove it', keep: 'Keep it', danger: true,
+    run: () => run(async () => { must(await sb.from('plan_updates').delete().eq('id', u.id)); }, { confirm: null }).then(ok => { if (ok) toast('Update removed', true); }) } });
+  const peopleIn = (s) => (s.planned ? s.rsvps.filter(r => r.status !== 'no').map(r => r.userId).concat(...s.signups.map(it => it.claims.map(c => c.userId))) : s.interested.slice())
+    .filter((u, i, a) => a.indexOf(u) === i);
+  // Cancel or delete (owner, 2026-09-30): Cancel tells everyone in it (going, maybe, helpers; an idea: the people
+  // interested) with an optional reason; Delete takes it down quietly. With nobody in it, it's just Delete.
+  // Cancel: marks it cancelled and tells everyone; it stays up (owner, 2026-09-30)
+  const cancelEvent = (s, reason) => run(async () => {
+    must(await sb.rpc('cancel_event', { p_spark: s.id, p_reason: (reason || '').trim().slice(0, 160) || null }));
+  }, { takeDown: null }).then(ok => { if (ok) toast('Cancelled. Everyone in it got a note.', true); });
+  const takeDown = (s, quiet, reason) => {
+    const photos = s.photoPaths.concat(s.mood);
+    run(async () => {
+      must(await sb.rpc('delete_event', { p_spark: s.id, p_quiet: !!quiet, p_reason: (reason || '').trim().slice(0, 160) || null }));
+    }, () => {   // land where the Back button would have: where you came from, else the group's page, else the Calendar
+      const b = state.back, g = groupById(s.groupId), member = !!(g && g.role);
+      return { confirm: null, takeDown: null, screen: b ? b.screen : member ? 'browse' : 'calendar', groupId: b ? (b.groupId || state.groupId) : member ? g.id : state.groupId, subjectId: null, tag: null, back: null };
+    }).then(ok => { if (!ok) return; deletePhotos(photos); toast(quiet ? 'Deleted' : 'Cancelled. Everyone in it got a note.', true); });
+  };
+  const askDelete = (s) => {
+    const n = peopleIn(s).filter(u => u !== state.me).length;
+    if (n && !s.cancelledAt) return setState({ takeDown: { id: s.id, reason: '' } });
+    setState({ confirm: { title: 'Delete this ' + (s.planned ? 'event' : 'idea') + '?', body: (s.cancelledAt ? 'Everyone already got the cancellation note; deleting tells no one.' : 'Nobody has replied yet, so no one needs telling.') + ' This can’t be undone.',
+      cta: 'Delete it', keep: 'Keep it', danger: true, run: () => takeDown(s, true) } });
+  };
+  function viewTakeDown() {
+    const td = state.takeDown, s = state.sparks.find(x => x.id === td.id);
+    if (!s) return '';
+    const close = () => setState({ takeDown: null }), n = peopleIn(s).filter(u => u !== state.me).length, word = s.planned ? 'event' : 'idea';
+    return modal('Cancel or delete', close,
+      h3('Cancel or delete?') +
+      '<div data-cancel-opt style="display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:16px;background:#fdeef0">' +
+        '<div><div style="font-size:16px;font-weight:900;color:#9b1c31">Cancel it</div>' +
+          '<div style="margin-top:2px;font-size:14px;line-height:1.4;font-weight:600;color:#7a1626">' + (n === 1 ? 'The 1 person in it gets' : 'The ' + n + ' people in it get') + ' a note that it’s off. It stays up, marked Cancelled, until you delete it.</div></div>' +
+        '<textarea class="fld" rows="2" maxlength="160" aria-label="Reason (optional)" placeholder="Add a reason (optional), e.g. Rained out, back next week!" ' + onInput(e => { if (e.type === 'input') setState({ takeDown: Object.assign({}, state.takeDown, { reason: e.target.value.slice(0, 160) }) }); }) +
+          ' style="width:100%;display:block;background:#fff;border:1.5px solid #f5c2cb;border-radius:12px;padding:10px 12px;font-family:inherit;font-size:15px;line-height:1.4;font-weight:600;color:#0d1117;resize:none;outline:none">' + esc(td.reason) + '</textarea>' +
+        '<button type="button" ' + on(() => { if (!state.busy) cancelEvent(s, td.reason); }) + ' style="' + primary(true) + ';background:#9b1c31">' + (state.busy ? 'Cancelling…' : 'Cancel and tell ' + (n === 1 ? '1 person' : n + ' people')) + '</button>' +
+      '</div>' +
+      '<div data-delete-opt style="display:flex;flex-direction:column;gap:8px;padding:14px;border-radius:16px;background:#f4f5f7">' +
+        '<div><div style="font-size:16px;font-weight:900;color:#0d1117">Delete quietly</div>' +
+          '<div style="margin-top:2px;font-size:14px;line-height:1.4;font-weight:600;color:#5c6270">No one is told. The ' + word + ' just disappears.</div></div>' +
+        '<button type="button" ' + on(() => { if (!state.busy) takeDown(s, true); }) + ' style="' + SECONDARY + '">Delete without telling anyone</button>' +
+      '</div>' +
+      '<span ' + on(close) + ' style="align-self:center;display:flex;align-items:center;min-height:40px;font-size:15px;font-weight:800;color:#5c6270;cursor:pointer">Keep it</span>',
+      { z: 34, max: 380 });
+  }
 
   // ---------------------------------------------------------------------------
   // Taking part: interest, suggestions, the lead's calls, mood board
@@ -1157,11 +1194,21 @@
   const setRsvp = (s, status) => {
     const cur = myRsvp(s), next = cur === status ? null : status, lead = nameOf(s.leadId, s.leadName);
     const note = { going: 'You’re going. See you there!', maybe: 'Marked as maybe', no: 'Thanks for letting ' + lead + ' know' }[next];
-    needGuest(() => run(async () => {
+    const jobs = next === 'no' ? myClaims(s) : [];
+    const save = (dropJobs) => { if (state.confirm) setState({ confirm: null }); needGuest(() => run(async () => {
       await saveGuestContact(s.id);
       if (!next) must(await sb.from('rsvps').delete().eq('spark_id', s.id).eq('user_id', state.me));
       else must(await sb.from('rsvps').upsert({ spark_id: s.id, user_id: state.me, status: next }, { onConflict: 'spark_id,user_id' }));
-    }).then(ok => { if (ok && note) toast(note, true); }));
+      if (dropJobs) must(await sb.from('signup_claims').delete().in('item_id', jobs.map(it => it.id)).eq('user_id', state.me));
+    }).then(ok => { if (ok && note) toast(dropJobs ? 'Thanks for letting ' + lead + ' know. You’re off the list too.' : note, true); })); };
+    // Can't, while signed up for a job: free the spot too? (owner, 2026-09-30)
+    if (jobs.length) {
+      const names = jobs.map(it => it.item).filter((x, k, a) => a.indexOf(x) === k);
+      return setState({ confirm: { title: 'Take you off ' + (names.length === 1 ? '“' + names[0] + '”' : 'your ' + names.length + ' jobs') + ' too?',
+        body: firstName(lead) + ' is counting on you for ' + namesList(names) + '. If you can’t make it, free the spot so someone else can grab it.',
+        cta: 'Take me off', keep: 'Keep my spot', run: () => save(true), alt: () => save(false) } });
+    }
+    save(false);
   };
 
   const vote = (table, s, o) => needGuest(() => run(async () => {
@@ -1197,7 +1244,14 @@
     bannerTimer = setTimeout(() => setState({ banner: null }), ms);
   };
   const onItBanner = (s, undo) => showBanner({ kind: 'on', id: s.id, undo }, 4000);
-  const offIt = (s, job) => isLead(s) ? toast('Removed you from ' + job.item.toLowerCase(), true) : showBanner({ kind: 'off', id: s.id, job: job.item }, 7000);
+  // back: the claims just removed, so Undo can put them back (with their note)
+  const offIt = (s, job, back) => isLead(s) ? toast('Removed you from ' + job.item.toLowerCase(), true) : showBanner({ kind: 'off', id: s.id, job: job.item, back }, 7000);
+  const redoClaim = (b) => {
+    clearTimeout(bannerTimer);
+    run(async () => {
+      must(await sb.from('signup_claims').insert(b.back.items.map(id => ({ item_id: id, user_id: state.me, note: b.back.note || null }))));
+    }, { banner: null }).then(ok => { if (ok) toast('You’re back on it', true); });
+  };
   const undoClaim = (b) => {
     clearTimeout(bannerTimer);
     run(async () => {
@@ -1233,12 +1287,12 @@
     must(await sb.from('rsvps').upsert({ spark_id: s.id, user_id: state.me, status: 'going' }, { onConflict: 'spark_id,user_id' }));
   };
   const toggleClaim = (s, it) => {
-    const mine = it.claims.some(c => c.userId === state.me), was = myRsvp(s);
+    const mine = it.claims.some(c => c.userId === state.me), was = myRsvp(s), myNote = (it.claims.find(c => c.userId === state.me) || {}).note || null;
     needGuest(() => run(async () => {
       await saveGuestContact(s.id);
       if (mine) must(await sb.from('signup_claims').delete().eq('item_id', it.id).eq('user_id', state.me));
       else { must(await sb.from('signup_claims').insert({ item_id: it.id, user_id: state.me })); await goingWithJob(s); }
-    }).then(ok => { if (ok) { if (mine) offIt(s, jobOf(s, it)); else onItBanner(s, { items: [it.id], was }); } }));
+    }).then(ok => { if (ok) { if (mine) offIt(s, jobOf(s, it), { items: [it.id], note: myNote }); else onItBanner(s, { items: [it.id], was }); } }));
   };
   // Pick a shift: tick any shifts (more than one is fine), an optional note, Done
   const openShifts = (s, job) => needGuest(() => {
@@ -1258,7 +1312,7 @@
     }, { shiftPick: null }).then(ok => {
       if (!ok) return;
       if (add.length) onItBanner(s, { items: add, back: drop, note, was });   // Undo takes back only this change: the new shifts go, dropped ones return
-      else if (drop.length) offIt(s, job);
+      else if (drop.length) offIt(s, job, { items: drop, note: (job.shifts.map(u => u.claims.find(x => x.userId === state.me)).find(Boolean) || {}).note || null });
     });
   };
   const saveClaimNote = (it, note) => {
@@ -1279,6 +1333,10 @@
       .then(ok => { if (ok) toast('Posted to the plan', true); });
   };
   // The album, once it's happened
+  // The person who added a photo, or the host, can take it out of the album (owner, 2026-09-30)
+  const askRemovePhoto = (s, a) => setState({ confirm: { title: 'Remove this photo?', body: 'It comes out of the album for everyone.', cta: 'Remove it', keep: 'Keep it', danger: true,
+    run: () => run(async () => { must(await sb.from('album_photos').delete().eq('id', a.id)); }, { confirm: null })
+      .then(ok => { if (!ok) return; if (a.path.indexOf(state.me + '/') === 0) deletePhotos([a.path]); toast('Photo removed', true); }) } });
   const addAlbumPhoto = async (s, file) => {
     if (!file) return;
     let blob;
@@ -1290,16 +1348,22 @@
     }).then(ok => { if (ok) toast('Added to the album', true); }));
   };
 
-  // "Add to calendar": a one-hour .ics event
+  // "Add to calendar": an .ics event to its end time (an hour if it has none); no time = an all-day event
   const addToCalendar = (s) => {
     if (!s.dayDate) return;
-    const t = (s.dayTime || '09:00').replace(':', '') + '00', d = s.dayDate.replace(/-/g, '');
-    const end = new Date(s.dayDate + 'T' + (s.dayTime || '09:00') + ':00'); end.setHours(end.getHours() + 1);
-    const p2 = (n) => String(n).padStart(2, '0');
-    const endStr = end.getFullYear() + p2(end.getMonth() + 1) + p2(end.getDate()) + 'T' + p2(end.getHours()) + p2(end.getMinutes()) + '00';
+    const d = s.dayDate.replace(/-/g, ''), p2 = (n) => String(n).padStart(2, '0');
+    const stamp = (dt) => dt.getFullYear() + p2(dt.getMonth() + 1) + p2(dt.getDate()) + 'T' + p2(dt.getHours()) + p2(dt.getMinutes()) + '00';
+    let startLine, endLine;
+    if (s.dayTime) {
+      const start = new Date(s.dayDate + 'T' + s.dayTime + ':00'), end = s.dayEnd && s.dayEnd > s.dayTime ? new Date(s.dayDate + 'T' + s.dayEnd + ':00') : new Date(start.getTime() + 3600000);
+      startLine = 'DTSTART:' + stamp(start); endLine = 'DTEND:' + stamp(end);
+    } else {
+      const next = new Date(s.dayDate + 'T00:00:00'); next.setDate(next.getDate() + 1);
+      startLine = 'DTSTART;VALUE=DATE:' + d; endLine = 'DTEND;VALUE=DATE:' + next.getFullYear() + p2(next.getMonth() + 1) + p2(next.getDate());
+    }
     const escIcs = (v) => String(v || '').replace(/[\\,;]/g, (m) => '\\' + m).replace(/\n/g, '\\n');
     const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Spark Hub//EN', 'BEGIN:VEVENT', 'UID:' + s.id + '@sparkhub',
-      'DTSTAMP:' + new Date().toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z', 'DTSTART:' + d + 'T' + t, 'DTEND:' + endStr,
+      'DTSTAMP:' + new Date().toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z', startLine, endLine,
       'SUMMARY:' + escIcs(s.text), 'LOCATION:' + escIcs([s.spot, s.spotAddress].filter(Boolean).join(', ')),
       'DESCRIPTION:' + escIcs(location.origin + '/i/' + s.id), 'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
     const a = document.createElement('a');
@@ -2097,7 +2161,9 @@
       sec('Ideas', ideas.map(s => { const l = ideaLine(s); return ev(s, l[0], l[1]); })) +
       sec('Planning', plans.map(s => ev(s, s.dayDate ? fmtDay(s.dayDate) : 'Date to be decided'))) +
       sec('Past', past.map(s => ev(s, monthDay(s.dayDate), null, true)));
-    return wrap(body || '<div style="background:#fff;border-radius:14px;padding:18px;box-shadow:0 1px 2px rgba(15,18,25,.06);font-size:15px;line-height:1.45;font-weight:600;color:#5c6270">Nothing you’re leading yet. Tap + to post an event or float an idea.</div>');
+    // Empty: there's no + on this screen, so the card has its own button
+    return wrap(body || '<div data-own-empty style="background:#fff;border-radius:14px;padding:18px;box-shadow:0 1px 2px rgba(15,18,25,.06);display:flex;flex-direction:column;gap:14px">' +
+      '<span style="font-size:15px;line-height:1.45;font-weight:600;color:#5c6270">Nothing you’re leading yet. Post an event, or float an idea and see who bites.</span>' + createBtn() + '</div>');
   }
 
   // Groups: pinned groups as big cards, the rest as a grid of square tiles
@@ -2254,12 +2320,12 @@
   // with (most to-dos first), and the ideas you lead
   const tasksData = () => {
     const mine = state.sparks.filter(inMine);
-    const leads = mine.filter(s => isLead(s) && (phaseOf(s) !== 'done' || dayDiff(s.dayDate) >= -3));
+    const leads = mine.filter(s => !s.cancelledAt && isLead(s) && (phaseOf(s) !== 'done' || dayDiff(s.dayDate) >= -3));
     const rank = (s) => phaseOf(s) === 'done' ? 1e6 : daysTo(s) == null ? 5e5 : daysTo(s);
     const plans = leads.filter(s => s.planned).map(s => ({ s, a: ownActs(s) })).filter(z => z.a.length)
       .sort((p, q) => rank(p.s) - rank(q.s) || byWhen(p.s, q.s));
     const ideas = leads.filter(s => !s.planned).sort((a, b) => b.created - a.created);
-    const help = mine.filter(s => !isLead(s) && phaseOf(s) === 'plan' && (['going', 'maybe'].indexOf(myRsvp(s)) > -1 || helpsOn(s)))
+    const help = mine.filter(s => !s.cancelledAt && !isLead(s) && phaseOf(s) === 'plan' && (['going', 'maybe'].indexOf(myRsvp(s)) > -1 || helpsOn(s)))
       .map(s => ({ s, a: helpActs(s) })).filter(z => z.a.length)
       .sort((p, q) => q.a.length - p.a.length || byWhen(p.s, q.s));
     return { plans, ideas, help, leadsAny: leads.some(s => s.planned) };
@@ -2299,7 +2365,10 @@
   // Groups page cards and the group page's title: the DEMO chip sits on its own line above the name
   const groupTagAbove = (g) => g && g.demo ? '<div style="margin-bottom:6px;line-height:1">' + demoTag({ demo: true }, true) + '</div>' : '';
   const groupTag = (g, onPhoto) => g && g.demo ? demoTag({ demo: true }, onPhoto, true) : '';
-  const demoTag = (s, onPhoto, after) => !s || !s.demo ? '' : '<span data-demo-tag style="display:inline-block;vertical-align:.15em;' + (after ? 'flex:0 0 auto;margin-left:7px' : 'margin-right:7px') + ';padding:2px 7px;border-radius:999px;font-size:10.5px;line-height:1.3;font-weight:900;letter-spacing:.8px;text-shadow:none;' +
+  const cancelTag = (s, onPhoto, after) => !s || !s.cancelledAt ? '' : '<span data-cancel-tag style="display:inline-block;vertical-align:.15em;' + (after ? 'flex:0 0 auto;margin-left:7px' : 'margin-right:7px') + ';padding:2px 7px;border-radius:999px;font-size:10.5px;line-height:1.3;font-weight:900;letter-spacing:.8px;text-shadow:none;' +
+    (onPhoto ? 'background:#d92d4a;color:#fff' : 'background:#fdeef0;color:#9b1c31') + '">CANCELLED</span>';
+  const demoTag = (s, onPhoto, after) => cancelTag(s, onPhoto, after) + demoTagOnly(s, onPhoto, after);
+  const demoTagOnly = (s, onPhoto, after) => !s || !s.demo ? '' : '<span data-demo-tag style="display:inline-block;vertical-align:.15em;' + (after ? 'flex:0 0 auto;margin-left:7px' : 'margin-right:7px') + ';padding:2px 7px;border-radius:999px;font-size:10.5px;line-height:1.3;font-weight:900;letter-spacing:.8px;text-shadow:none;' +
     (onPhoto ? 'background:rgba(255,255,255,.24);color:#fff;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)' : 'background:#eef0f3;color:#6b7280') + '">DEMO</span>';
   // A photo banner: title (up to two lines, growing upward) and the date line, with a chevron
   const banner6 = (s, R, h) => '<div style="position:relative;height:' + (h || 92) + 'px;background:' + photoBg(s) + '">' +
@@ -2619,7 +2688,7 @@
   };
   // "Could use a hand": plans you don't lead with open sign-ups, in two weeks from the first of them
   const handList = () => {
-    const cand = calBase().filter(s => s.dayDate && !isLead(s) && signupFill(s).open > 0).sort(byWhen);
+    const cand = calBase().filter(s => s.dayDate && !s.cancelledAt && !isLead(s) && signupFill(s).open > 0).sort(byWhen);
     if (!cand.length) return [];
     const from = cand[0].dayDate < todayISO() ? todayISO() : cand[0].dayDate, to = isoAdd(from, 14);
     return cand.filter(s => s.dayDate < to);
@@ -2920,6 +2989,7 @@
     return wrap('background:#fff6dc;box-shadow:0 10px 28px rgba(15,18,25,.18), inset 0 0 0 1.5px #f3d98b;display:flex;flex-direction:column;gap:12px',
       '<div style="display:flex;align-items:flex-start;gap:10px"><div style="flex:1;min-width:0"><div style="font-size:17px;font-weight:900;color:#0d1117">You’re off it</div>' +
         '<p style="margin:4px 0 0;font-size:14px;line-height:1.4;font-weight:600;color:#5c4a12">We’ll let ' + esc(hostFirst) + ' know. A quick check-in with them helps too, or find someone to take your spot.</p></div>' +
+        (b.back ? '<span ' + on(() => { if (!state.busy) redoClaim(b); }) + ' style="flex:0 0 auto;display:flex;align-items:center;min-height:32px;padding:0 12px;border-radius:999px;background:rgba(13,17,23,.06);font-size:13.5px;font-weight:800;color:#0d1117;cursor:pointer">Undo</span>' : '') +
         '<span ' + on(() => { clearTimeout(bannerTimer); setState({ banner: null }); }) + ' aria-label="Dismiss" style="flex:0 0 32px;width:32px;height:32px;border-radius:999px;background:rgba(13,17,23,.06);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(13, '#5c4a12', 2.6) + '</span></div>' +
       '<button type="button" ' + on(() => { clearTimeout(bannerTimer); setState({ banner: null, invite: { id: s.id, msg, title: 'Find a replacement', sub: [b.job, shortWhen(s)].filter(Boolean).join(' · ') } }); }) + ' style="min-height:44px;border:0;border-radius:999px;background:#0d1117;color:#fff;font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer">Find a replacement</button>');
   }
@@ -2964,7 +3034,7 @@
           add({ key: 'u:' + u.id, type: 'update', s, t: u.created, uid: s.leadId, who: nameOf(s.leadId, s.leadName), text: 'posted an update on', quote: u.body });
       });
       // Day-before reminder (and the day itself) for plans you're going to
-      if (ph === 'plan' && s.autoRemind && (my === 'going' || my === 'maybe') && !lead) {
+      if (ph === 'plan' && s.autoRemind && !s.cancelledAt && (my === 'going' || my === 'maybe') && !lead) {
         const d = dayDiff(s.dayDate);
         if (d === 0 || d === 1) add({ key: 'r:' + s.id + ':' + s.dayDate, type: 'reminder', s, t: Math.min(Date.now(), midnight(s.dayDate) - (d === 1 ? DAY_MS : 0) + 8 * 3600000),   // 8am on the day before (or the day)
           uid: s.leadId, who: d === 1 ? 'Tomorrow:' : 'Today:', text: '', after: (s.dayTime ? ' at ' + fmtTime(s.dayTime) : '') + (s.spot ? ' · ' + s.spot : '') });
@@ -3149,6 +3219,24 @@
     .then(r => { setState({ accts: r.error ? null : (r.data || []).map(x => ({ id: x.user_id, name: x.name || 'Someone', email: x.email || '', avatar: x.avatar_path,
       at: Date.parse(x.joined_at), google: x.method === 'google', groups: Array.isArray(x.groups) ? x.groups : [] })) }); }, () => {});
   const acctUnread = () => (state.accts || []).filter(x => x.at > acctSeenAt()).length;
+  // Remove an account entirely (owner, 2026-09-30): remove_account() refuses admins and a group's only owner
+  const askRemoveAccount = (x) => setState({ confirm: { z: 60, title: 'Remove ' + x.name + '?', danger: true, cta: 'Remove account', keep: 'Keep it',
+    body: 'Deletes ' + (x.email || 'this account') + ' and everything tied to it: group memberships, replies, sign-ups, photos they added, and any events they host (quietly). They can sign up again later as someone new. This can’t be undone.',
+    run: async () => {
+      if (state.busy) return;
+      setState({ busy: 'save' });
+      try {
+        must(await sb.rpc('remove_account', { p_user: x.id }));
+        setState({ busy: null, confirm: null, accts: (state.accts || []).filter(a => a.id !== x.id) });
+        toast(x.name + '’s account was removed', true);
+        loadFresh().catch(() => {});
+      } catch (e) {
+        console.error(e);
+        const m = /only owner of (.+)/.exec((e && e.message) || '');
+        setState({ busy: null });
+        toast(m ? x.name + ' is the only owner of ' + m[1] + '. Make someone else an owner first.' : FAILED);
+      }
+    } } });
   function viewAccounts() {
     const list = state.accts || [], seen = acctSeenAt();
     const close = () => { try { localStorage.setItem(ACCT_SEEN_KEY, String(Date.now())); } catch (e) { /* blocked */ } setState({ acctOpen: false }); };
@@ -3163,7 +3251,9 @@
           (x.at > seen ? '<span style="flex:0 0 auto;height:22px;padding:0 8px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:11px;font-weight:900;letter-spacing:.6px;display:flex;align-items:center">NEW</span>' : '') + '</div>' +
         '<div style="font-size:13.5px;font-weight:600;color:#454b55;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(x.email) + '</div>' +
         '<div style="font-size:12.5px;font-weight:600;color:#8a909b">' + esc(joined(x.at)) + ' · ' + (x.google ? 'Google' : 'Email') + '</div>' +
-        '<div style="font-size:12.5px;line-height:1.4;font-weight:600;color:#6b7280;overflow-wrap:break-word">' + esc(groupsLine(x)) + '</div></div></div>';
+        '<div style="font-size:12.5px;line-height:1.4;font-weight:600;color:#6b7280;overflow-wrap:break-word">' + esc(groupsLine(x)) + '</div>' +
+        (x.id === state.me ? '' : '<span ' + on(() => askRemoveAccount(x)) + ' aria-label="Remove ' + esc(x.name) + '’s account" style="align-self:flex-start;margin-top:4px;font-size:13px;font-weight:800;color:#9b1c31;cursor:pointer">Remove account</span>') +
+      '</div></div>';
     return sheet6('New accounts', close,
       '<div style="display:flex;align-items:flex-end;gap:10px"><div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:900;letter-spacing:1px;color:#8f6405">SUPER ADMIN</div>' +
         '<h2 style="margin:2px 0 0;font-size:24px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:#0d1117">New accounts</h2>' +
@@ -3671,8 +3761,18 @@
   // ---------------------------------------------------------------------------
 
   // The idea / plan / happened page, by phase
+  // A cancelled event stays up so people see it (owner, 2026-09-30): what happened, and for the host, Delete
+  const cancelledCard = (s) => !s.cancelledAt ? '' :
+    '<div data-cancelled-card style="border-radius:18px;background:#fdeef0;box-shadow:inset 0 0 0 1.5px #f5c2cb;padding:16px;display:flex;flex-direction:column;gap:6px">' +
+      '<div style="font-size:17px;font-weight:900;color:#9b1c31">This ' + (s.planned ? 'event' : 'idea') + ' is cancelled</div>' +
+      '<div style="font-size:14.5px;line-height:1.45;font-weight:600;color:#7a1626">' +
+        (s.cancelReason ? esc(firstName(nameOf(s.leadId, s.leadName))) + ': “' + esc(s.cancelReason) + '”' : esc(firstName(nameOf(s.leadId, s.leadName))) + ' called it off.') +
+        ' <span style="font-weight:600;color:#9b1c31">' + esc(ago(s.cancelledAt)) + '</span></div>' +
+      (canEdit(s) ? '<div style="font-size:13.5px;line-height:1.4;font-weight:600;color:#7a1626">It stays up so everyone sees it. Delete it whenever you like (that tells no one).</div>' : '') +
+    '</div>';
   function viewDetail(s) {
     const ph = phaseOf(s);
+    if (s.cancelledAt) return s.planned ? viewPlan(s) : viewIdea(s);   // it didn't happen: no album or reactions
     return ph === 'plan' ? viewPlan(s) : ph === 'done' ? viewDone(s) : viewIdea(s);
   }
 
@@ -3751,13 +3851,14 @@
               '</span>'
             : '') +
         '</div>' +
-        (lead ? '' :
+        (lead || s.cancelledAt ? '' :
           '<button type="button" ' + on(() => { if (!st.busy) toggleInterest(s); }) + ' style="width:100%;margin-top:4px;display:flex;align-items:center;justify-content:center;gap:8px;min-height:52px;border-radius:999px;font-family:inherit;font-size:16px;font-weight:800;cursor:pointer;' +
             (meIn ? 'border:2px solid #e8a71c;background:#fdf1d6;color:#8f6405' : 'border:2px solid #5b4ae8;background:#5b4ae8;color:#fff') + '">' +
             I.person(16, 2.3) + (meIn ? 'You’re interested' : 'I’m interested') + '</button>') +
       '</div>' +
 
       '<div style="padding:12px 14px 26px;display:flex;flex-direction:column;gap:12px">' +
+        cancelledCard(s) +
         pendingCard(s) +
 
         (lead ? makePlanCard(s) : '') +
@@ -3992,7 +4093,7 @@
       const subline = [when, !lead && j.createdBy === st.me ? 'You added this' : '', count].filter(Boolean).join(' · ');
       const bar = need && need <= 12 ? '<div aria-hidden="true" style="display:flex;gap:4px">' + Array.from({ length: need }, (_, i) => '<span style="flex:1 1 0;height:4px;border-radius:999px;background:' + (i < cnt ? '#5b4ae8' : '#e3e5ea') + '"></span>').join('') + '</div>' : '';
       const act = () => { if (st.busy) return; if (shifts) openShifts(s, j); else toggleClaim(s, j); };
-      const btn = mine
+      const btn = s.cancelledAt ? '' : mine
         ? '<span ' + on(act) + ' aria-label="You’re in. Tap to take yourself off" style="flex:0 0 auto;display:flex;align-items:center;justify-content:center;gap:4px;min-width:84px;min-height:36px;padding:0 14px;border-radius:999px;background:#fdf1d6;color:#8f6405;font-size:13.5px;font-weight:800;white-space:nowrap;cursor:pointer">' + svg(12, stroke('#8f6405', 3.2), P6.check) + 'You’re in</span>'
         : full ? '<span aria-disabled="true" style="flex:0 0 auto;display:flex;align-items:center;justify-content:center;min-width:84px;min-height:36px;padding:0 14px;border-radius:999px;box-shadow:inset 0 0 0 1.5px #d5d8df;color:#9aa0ac;font-size:13.5px;font-weight:800">Full</span>'
         : '<span ' + on(act) + ' style="flex:0 0 auto;display:flex;align-items:center;justify-content:center;min-width:84px;min-height:36px;padding:0 14px;border-radius:999px;box-shadow:inset 0 0 0 1.5px #5b4ae8;color:#5b4ae8;font-size:13.5px;font-weight:800;white-space:nowrap;cursor:pointer">Sign up</span>';
@@ -4043,7 +4144,7 @@
     return '<section id="sec-tasks" data-screen-label="Help out">' + secTitle('Help out', editBtn, true) +
       '<div style="display:flex;flex-direction:column;gap:8px">' +
         (jobs.length ? jobs.map(card).join('') : '<div ' + (lead ? on(() => openNeeds(s)) + ' ' : '') + 'style="' + CARD + ';padding:16px;font-size:14px;line-height:1.45;font-weight:500;color:#5c6270' + (lead ? ';cursor:pointer' : '') + '">' + (lead ? 'Need people to bring things? Add what you need and anyone can grab a spot.' : 'Nothing on the list yet. Bringing something? Add it below.') + '</div>') +
-        (lead ? '' : adder) + '</div></section>';
+        (lead || s.cancelledAt ? '' : adder) + '</div></section>';
   }
 
   // ---- v6 Update 6: the host edits one section at a time in a small sheet (the full-screen editor is retired)
@@ -4372,7 +4473,7 @@
         : '<div ' + on(() => openSec(s, 'details')) + ' style="padding:14px 16px;border-radius:18px;border:1.5px dashed #c9ccd3;font-size:14.5px;font-weight:700;color:#6b7280;cursor:pointer">Add up to three quick notes on what to expect.</div>') +
     '</section>';
   };
-  const deleteLink = (s) => canEdit(s) ? '<span ' + on(() => askDelete(s)) + ' style="align-self:center;display:flex;align-items:center;justify-content:center;gap:7px;min-height:44px;padding:0 12px;font-size:14.5px;font-weight:800;color:#9b1c31;cursor:pointer">' + I.trash(15, '#9b1c31') + 'Delete this event' + '</span>' : '';
+  const deleteLink = (s) => canEdit(s) ? '<span ' + on(() => askDelete(s)) + ' style="align-self:center;display:flex;align-items:center;justify-content:center;gap:7px;min-height:44px;padding:0 12px;font-size:14.5px;font-weight:800;color:#9b1c31;cursor:pointer">' + I.trash(15, '#9b1c31') + (!s.cancelledAt && peopleIn(s).some(u => u !== state.me) ? 'Cancel or delete this ' + (s.planned ? 'event' : 'idea') : 'Delete this ' + (s.planned ? 'event' : 'idea')) + '</span>' : '';
 
   function viewPlan(s) {
     const st = state, lead = isLead(s), edit = canEdit(s), leadName = nameOf(s.leadId, s.leadName), my = myRsvp(s), dp = dateParts(s.dayDate);
@@ -4393,7 +4494,7 @@
       myJobs.map(j => ({ item: j.item, meta: myTime(j) })));
     const tKey = (lead ? 'h:' : '') + s.id, tOpen = !!st.jobsOpen[tKey];
     const T = lead ? { bar: '#f5f3fe', ink: '#4a3ad4', dot: '#7b6ef0', line: '#e6e1fc', word: 'Your tasks' } : { bar: '#fefaef', ink: '#8f6405', dot: '#e8a71c', line: '#f3e2ad', word: 'You’re helping' };
-    const tab = !tasks.length ? '' :
+    const tab = !tasks.length || s.cancelledAt ? '' :
       '<div data-screen-label="' + T.word + '" style="border-radius:0 0 24px 24px;overflow:hidden;box-shadow:0 1px 3px rgba(15,18,25,.08)">' +
         (tOpen ? tasks.map((t, i) => '<div ' + (t.act ? on(t.act) + ' ' : '') + 'data-task-row style="display:flex;align-items:center;gap:12px;min-height:52px;padding:10px 18px;background:#fff;border-top:' + (i ? '1px solid #f2f3f6' : '0') + (t.act ? ';cursor:pointer' : '') + '">' +
             '<span style="flex:0 0 7px;width:7px;height:7px;border-radius:999px;background:' + T.dot + '"></span>' +
@@ -4413,7 +4514,9 @@
         (onIt ? 'background:' + RC[k] + ';color:#fff' : 'background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;color:#0d1117') + '">' +
         '<span style="font-size:17px;font-weight:800">' + label + '</span><span style="font-size:13px;font-weight:700;color:' + (onIt ? 'rgba(255,255,255,.85)' : '#6b7280') + '">' + n + '</span></button>';
     };
-    const rsvpBlock = lead ? '' : '<div data-rsvp style="' + CARD + ';padding:16px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">' +
+    // An update sent to Going, Maybe or people who haven't replied shows only to them; the host sees all, labelled
+    const shownUpdates = lead ? s.updates : s.updates.filter(u => { const a = u.audience || 'all'; return a === 'all' || a === my || (a === 'noreply' && !my); });
+    const rsvpBlock = lead || s.cancelledAt ? '' : '<div data-rsvp style="' + CARD + ';padding:16px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">' +
       rsvpBtn('going', 'Going', goingIds.length) + rsvpBtn('maybe', 'Maybe', maybeN) + rsvpBtn('no', 'Can’t', noN) + '</div>';
 
     // The host's guest list, with no title. Invites are a share link, so there's no Invited count (HANDOFF §1).
@@ -4442,7 +4545,7 @@
     return '<div data-screen-label="Plan page">' +
       phaseHeader(s, 340, 'linear-gradient(to bottom, rgba(13,17,23,.5) 0%, rgba(13,17,23,0) 30%, rgba(8,40,22,.55) 62%, rgba(8,40,22,.96) 100%)',
         '<div style="position:absolute;left:20px;right:20px;bottom:20px;color:#fff;display:flex;align-items:flex-end;gap:14px"><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px">' +
-          '<div style="display:flex;gap:6px;flex-wrap:wrap"><span data-chip' + (s.demo ? ' data-demo-tag' : '') + ' style="display:flex;align-items:center;gap:6px;border-radius:999px;padding:5px 11px;background:' + (s.demo ? 'rgba(255,255,255,.24);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)' : lead ? '#5b4ae8' : '#149a4b') + ';font-size:12px;font-weight:900;letter-spacing:.9px">' + (s.demo ? 'DEMO' : lead ? 'YOU’RE LEADING' : 'HAPPENING') + '</span>' +
+          '<div style="display:flex;gap:6px;flex-wrap:wrap">' + (s.cancelledAt ? '<span data-cancelled style="display:flex;align-items:center;border-radius:999px;padding:5px 11px;background:#d92d4a;font-size:12px;font-weight:900;letter-spacing:.9px">CANCELLED</span>' : '') + '<span data-chip' + (s.demo ? ' data-demo-tag' : '') + ' style="display:flex;align-items:center;gap:6px;border-radius:999px;padding:5px 11px;background:' + (s.demo ? 'rgba(255,255,255,.24);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)' : lead ? '#5b4ae8' : '#149a4b') + ';font-size:12px;font-weight:900;letter-spacing:.9px">' + (s.demo ? 'DEMO' : lead ? 'YOU’RE LEADING' : 'HAPPENING') + '</span>' +
             (s.visibility === 'invite' ? '<span style="display:flex;align-items:center;gap:5px;border-radius:999px;padding:5px 11px;background:rgba(255,255,255,.22);font-size:12px;font-weight:900;letter-spacing:.9px">' + svg(11, stroke('#fff', 2.6), '<rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>') + 'PRIVATE</span>' : '') + '</div>' +
           (edit
             ? '<h1 ' + on(() => openSec(s, 'title'), 'button') + ' aria-label="' + esc(s.text) + ', edit the title" style="margin:0;font-size:40px;line-height:.98;font-weight:900;letter-spacing:-1.3px;text-wrap:pretty;cursor:pointer">' + esc(s.text) + svg(20, stroke('#fff', 2.4) + ' style="display:inline-block;margin-left:8px;vertical-align:4px;opacity:.85"', PENCIL) + '</h1>'
@@ -4451,14 +4554,16 @@
         '</div>', true) +
       tab +
       '<div style="padding:16px 14px 26px;display:flex;flex-direction:column;gap:18px">' +
-        guests +
+        cancelledCard(s) +
+        (s.cancelledAt ? '' : guests) +
         pendingCard(s) +
         rsvpBlock +
         whenWhereCard(s) +
         basicDetailsSec(s) +
-        (s.updates.length ? '<section>' + secTitle('Updates') + sheetCard(
-          s.updates.map(u => '<div style="display:flex;gap:10px">' + face(s.leadId, leadName, 30) + '<div style="flex:1;border-radius:4px 14px 14px 14px;background:#f2f3f6;padding:10px 12px;font-size:14.5px;line-height:1.4;font-weight:500;color:#2b303a;white-space:pre-line">' + esc(u.body) +
-            '<div style="margin-top:4px;font-size:12px;font-weight:700;color:#8a909b">' + esc(ago(u.created)) + '</div></div></div>').join('')) + '</section>' : '') +
+        (shownUpdates.length ? '<section>' + secTitle('Updates') + sheetCard(
+          shownUpdates.map(u => '<div data-update style="display:flex;gap:10px">' + face(s.leadId, leadName, 30) + '<div style="flex:1;min-width:0;border-radius:4px 14px 14px 14px;background:#f2f3f6;padding:10px 12px;font-size:14.5px;line-height:1.4;font-weight:500;color:#2b303a;white-space:pre-line">' + esc(u.body) +
+            '<div style="margin-top:4px;display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:#8a909b"><span style="flex:1">' + esc(ago(u.created) + (lead && UPD_TO[u.audience] ? ' · ' + UPD_TO[u.audience] : '')) + '</span>' +
+              (lead ? '<span ' + on(() => askRemoveUpdate(s, u)) + ' aria-label="Remove this update" style="color:#9b1c31;font-weight:800;cursor:pointer">Remove</span>' : '') + '</div></div></div>').join('')) + '</section>' : '') +
         helpOut(s) +
         visRow +
         host +
@@ -4483,6 +4588,7 @@
   function viewDone(s) {
     const st = state, dp = dateParts(s.dayDate), n = going(s).length;
     const album = s.album.map(a => photoUrl(a.path));
+    const removable = s.album.filter(a => a.createdBy === st.me || isLead(s)), editing = st.albumEdit === s.id && removable.length > 0;
     const tileAt = (src, extra) => '<span style="position:relative;border-radius:12px;background:' + (src ? bg(src) : '#e4e7ec') + ';' + (extra || '') + '"></span>';
     return '<div data-screen-label="It happened">' +
       phaseHeader(s, 300, 'linear-gradient(to bottom, rgba(13,17,23,.4), rgba(13,17,23,0) 30%, rgba(34,25,110,.92) 100%)',
@@ -4492,8 +4598,15 @@
       '<div style="padding:14px 14px 26px;display:flex;flex-direction:column;gap:12px">' +
         '<div style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:10px">' +
           eyebrowRow('The album' + (album.length ? ' · ' + album.length : ''),
-            '<label style="font-size:13.5px;font-weight:800;color:#5b4ae8;cursor:pointer">+ Add yours<input type="file" accept="image/*" aria-label="Add a photo to the album" ' + onInput(e => { if (e.type !== 'change') return; const f = (e.target.files || [])[0]; e.target.value = ''; addAlbumPhoto(s, f); }) + ' style="display:none"></label>') +
-          (album.length
+            '<span style="display:flex;align-items:center;gap:14px">' +
+              (removable.length ? '<span ' + on(() => setState({ albumEdit: editing ? null : s.id })) + ' style="font-size:13.5px;font-weight:800;color:' + (editing ? '#0d1117' : '#9b1c31') + ';cursor:pointer">' + (editing ? 'Done' : 'Remove') + '</span>' : '') +
+              '<label style="font-size:13.5px;font-weight:800;color:#5b4ae8;cursor:pointer">+ Add yours<input type="file" accept="image/*" aria-label="Add a photo to the album" ' + onInput(e => { if (e.type !== 'change') return; const f = (e.target.files || [])[0]; e.target.value = ''; addAlbumPhoto(s, f); }) + ' style="display:none"></label></span>') +
+          // Remove mode: every photo as a square; ✕ on the ones you added (the host: all of them)
+          (editing ? '<div data-album-edit style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px">' + s.album.map(a =>
+              '<span style="position:relative;aspect-ratio:1;border-radius:12px;background:' + bg(photoUrl(a.path)) + '">' +
+                (removable.indexOf(a) > -1 ? '<span ' + on(() => askRemovePhoto(s, a)) + ' aria-label="Remove this photo" style="position:absolute;top:5px;right:5px;width:28px;height:28px;border-radius:999px;background:rgba(13,17,23,.7);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(11, '#fff', 3) + '</span>' : '') +
+              '</span>').join('') + '</div>' :
+          album.length
             ? '<div ' + on(() => setState({ zoom: { photos: album, i: 0 } })) + ' aria-label="Open the album" style="display:grid;grid-template-columns:' + (album.length === 1 ? '1fr' : album.length === 2 ? '1fr 1fr' : '2fr 1fr') + ';grid-template-rows:' + (album.length < 3 ? '186px' : '90px 90px') + ';gap:6px;cursor:zoom-in">' +
                 (album.length < 3 ? album.map(src => tileAt(src)).join('') :
                 tileAt(album[0], 'grid-row:span 2') + tileAt(album[1]) +
@@ -5315,7 +5428,7 @@
         '<input class="fld" type="email" inputmode="email" maxlength="80" autocomplete="email" autocapitalize="off" spellcheck="false" aria-label="Email" placeholder="you@example.com" value="' + esc(st.loginEmail) + '" ' +
           onInput(e => setState({ loginEmail: e.target.value.slice(0, 80) })) + ' style="' + FIELD + '">' +
         '<button type="button" ' + on(() => { if (emailOk && !busy) sendCode(false); }) + ' aria-disabled="' + !(emailOk && !busy) + '" style="' + primary(emailOk && !busy) + '">' + (busy === 'send' ? 'Sending…' : 'Email me a code') + '</button>' +
-        '<p style="margin:0;font-size:13px;line-height:1.45;font-weight:500;color:#6b7280">Only used to sign you in. Nobody else sees it. <a href="/privacy.html" target="_blank" rel="noopener" style="font-weight:800;color:#5b4ae8">Privacy</a></p>',
+        '<p style="margin:0;font-size:13px;line-height:1.45;font-weight:500;color:#6b7280">Used to sign you in. Your groups’ admins can see it; other members can’t. <a href="/privacy.html" target="_blank" rel="noopener" style="font-weight:800;color:#5b4ae8">Privacy</a></p>',
         { z: 32 });
     }
     const codeOk = st.loginCode.length >= 6 && !busy;
@@ -5466,9 +5579,9 @@
       '<p style="margin:0;font-size:15px;line-height:1.45;font-weight:500;color:#454b55">' + esc(c.body) + '</p>' +
       '<div style="margin-top:4px;display:flex;flex-direction:column;gap:8px">' +
         '<button type="button" ' + on(() => { if (!state.busy) c.run(); }) + ' style="' + primary(true) + ';background:' + (c.danger ? '#9b1c31' : c.green ? '#0f7a3c' : '#5b4ae8') + '">' + esc(c.cta) + '</button>' +
-        '<button type="button" ' + on(() => setState({ confirm: null })) + ' style="' + SECONDARY + '">' + esc(c.keep) + '</button>' +
+        '<button type="button" ' + on(() => { if (state.busy) return; if (c.alt) c.alt(); else setState({ confirm: null }); }) + ' style="' + SECONDARY + '">' + esc(c.keep) + '</button>' +   // alt: the second button does something too
       '</div>',
-      { z: 34, role: 'alertdialog', max: 330 });
+      { z: c.z || 34, role: 'alertdialog', max: 330 });
   }
 
   // A bottom sheet (Your groups, Members): slides up over a fading scrim; tapping the scrim closes it
@@ -5733,6 +5846,7 @@
       (st.offerKind && subj ? viewOffer(subj) : '') +
       (st.interestList && subj ? viewInterestList(subj) : '') +
       (st.guestList && subj && st.guestList === subj.id ? viewGuestList(subj) : '') +
+      (st.takeDown ? viewTakeDown() : '') +
       (st.thanksList && subj ? viewThanksList(subj) : '') +
       (st.guestOpen ? viewGuest() : '') +
       (st.nameAsk ? viewName() : '') +
@@ -5879,6 +5993,7 @@
   let diagTick = Date.now(), diagAway = false, diagWork = '';
   const diagRead = () => { try { return JSON.parse(localStorage.getItem(DIAG_KEY)) || []; } catch (e) { return []; } };
   const diag = (kind, ms, note) => {
+    if (!state.demoAdmin) return;   // only the owner's device keeps a log (it's only shown to them)
     const log = diagRead();
     log.unshift({ at: Date.now(), kind, ms: Math.round(ms), screen: state.screen, note: note || '' });
     try { localStorage.setItem(DIAG_KEY, JSON.stringify(log.slice(0, 40))); } catch (e) { /* storage blocked */ }
@@ -5965,6 +6080,7 @@
       if (state.offerKind) return setState({ offerKind: null, offerText: '' });
       if (state.interestList) return setState({ interestList: false });
       if (state.guestList) return setState({ guestList: null });
+      if (state.takeDown) return setState({ takeDown: null });
       if (state.thanksList) return setState({ thanksList: false });
       if (state.menu) return setState({ menu: null });
       if (state.cSearch) return setState(Object.assign({ cSearch: false, cq: '' }, state.cTry ? TRY_UNDO : {}));
@@ -6039,17 +6155,25 @@
   window.addEventListener('popstate', followUrl);
   window.addEventListener('hashchange', followUrl);
 
-  const refresh = () => {
+  // Every 30 seconds while someone's using it; every 2 minutes after 5 idle minutes; after failures, backing off
+  // to 5 minutes. Coming back to the app (and pull to refresh) loads at once.
+  let lastInput = Date.now(), lastRefresh = 0, refreshFails = 0;
+  ['pointerdown', 'keydown', 'touchstart', 'scroll'].forEach(ev => window.addEventListener(ev, () => { lastInput = Date.now(); }, { passive: true, capture: true }));
+  const refresh = (now) => {
     if (!state.me || state.busy || document.hidden) return;
+    const t = Date.now(), every = refreshFails ? Math.min(300000, 30000 * 2 ** refreshFails) : t - lastInput > 300000 ? 120000 : 30000;
+    if (now !== true && t - lastRefresh < every - 2000) return;
+    lastRefresh = t;
     loadFresh()
       .then(() => {
+        refreshFails = 0;
         if (state.error === 'load') setState({ error: null });
         // The event on screen was taken down (or you lost access): say so instead of showing a blank page
         if (state.screen === 'detail' && state.subjectId && !subject() && !routeLoading) setState({ screen: 'calendar', subjectId: null, goneOpen: true, sec: null, needEd: null });
       })
-      .catch(e => { console.error(e); if (!state.loaded || state.error) setState({ error: 'load', loaded: true }); });
+      .catch(e => { console.error(e); refreshFails++; if (!state.loaded || state.error) setState({ error: 'load', loaded: true }); });
   };
-  document.addEventListener('visibilitychange', refresh);
+  document.addEventListener('visibilitychange', () => refresh(true));
 
   // Pull to refresh: drag down from the top of a screen and let go to reload the data. The feed under
   // the header follows the finger (with resistance) while the header stays put; a spinner in the gap
