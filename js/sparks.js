@@ -4023,7 +4023,7 @@
         (isLead(s)   // v6 Update 6: the old Edit button is gone; the host changes the photo here
           ? '<label style="' + EDIT_PILL + '">' + svg(15, stroke('#0d1117', 2.2), CAMERA) + 'Change photo' + coverInput(s) + '</label>'
           : share ? '' : '<span style="flex:0 0 40px;width:40px"></span>') +
-        (share ? '<span ' + on(() => setState({ invite: { id: s.id } })) + ' aria-label="Share" style="flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:rgba(255,255,255,.94);box-shadow:0 2px 10px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(18, stroke('#0d1117', 2.4), P5.share) + '</span>' : '') +
+        (share ? '<span ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' aria-label="Share" style="flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:rgba(255,255,255,.94);box-shadow:0 2px 10px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(18, stroke('#0d1117', 2.4), P5.share) + '</span>' : '') +
       '</div>' + inner +
       (state.tag ? '<div style="position:absolute;right:16px;bottom:44px;z-index:2;transform:rotate(5deg);background:#fff;border-radius:999px;padding:8px 14px;font-size:13px;font-weight:800;color:#0d1117;box-shadow:0 8px 20px rgba(15,18,25,.18);animation:popIn 320ms cubic-bezier(.22,.9,.28,1) both">' + esc(state.tag) + '</div>' : '') +
     '</div>';
@@ -4404,16 +4404,23 @@
   }
 
   // Share link: copy it, or hand it to Messages, Mail, WhatsApp or the phone's share sheet
+  // The ready message (owner, 2026-09-30): warm and short; an idea asks who's interested
+  const inviteText = (s) => {
+    const when = s.dayDate ? fmtDay(s.dayDate) + (s.dayTime ? ' at ' + fmtTime(s.dayTime) : '') : '', where = s.spot ? ' at ' + s.spot : '';
+    if (!s.planned) return isLead(s) ? 'I’m floating an idea: ' + s.text + '. Interested?' : firstName(nameOf(s.leadId, s.leadName)) + ' is floating an idea: ' + s.text + '. Interested?';
+    return (isLead(s) ? 'I’m putting together ' + s.text + (when ? ', ' + when : '') : s.text + (when ? ' is ' + when : ' is coming up')) + where + '. Want to come?';
+  };
   function viewShareSheet() {
     const sh = state.share, s = state.sparks.find(x => x.id === sh.id);
     if (!s) return '';
     const close = () => setState({ share: null }), link = location.origin + '/i/' + s.id;
-    const msg = sh.msg ? sh.msg + ' ' + link : s.text + (s.dayDate ? ' · ' + dayLabel(s.dayDate, s.dayTime, s.dayEnd) : '') + '. RSVP here: ' + link;
+    const msg = (sh.msg || inviteText(s)) + ' ' + link, title = isLead(s) ? 'Invite people' : 'Share this event';
     const btn = (label, href, icon) => '<a href="' + esc(href) + '" target="_blank" rel="noopener noreferrer" aria-label="' + label + '" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 4px;border-radius:16px;background:#f7f8fa;text-decoration:none">' +
       '<span style="width:46px;height:46px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.1);display:flex;align-items:center;justify-content:center">' + svg(22, stroke('#5b4ae8', 2.1), icon) + '</span></a>';
     const more = () => { if (navigator.share) navigator.share({ title: s.text, text: msg, url: link }).catch(() => {}); else copy(msg, 'Invite copied. Paste it anywhere.'); };
-    return sheet('Share link', close, SHEET_PAD,
-      '<div style="display:flex;align-items:center;gap:10px"><div style="flex:1;min-width:0"><div style="font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.4px;color:#0d1117">Share link</div>' +
+    return sheet(title, close, SHEET_PAD,
+      '<div style="display:flex;align-items:center;gap:10px"><div style="flex:1;min-width:0"><div style="font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.4px;color:#0d1117">' + title + '</div>' +
+        '<div data-invite-msg style="margin-top:8px;padding:10px 12px;border-radius:12px;background:#f7f6ff;font-size:14px;line-height:1.4;font-weight:600;color:#2a1f8f">“' + esc(sh.msg || inviteText(s)) + '”</div>' +
         '<div style="margin-top:3px;font-size:13.5px;font-weight:600;color:#6b7280">' + esc([s.text, s.dayDate ? dayLabel(s.dayDate, s.dayTime, s.dayEnd) : ''].filter(Boolean).join(' · ')) + '</div></div>' + closeX(close, 'flex:0 0 36px;width:36px;height:36px') + '</div>' +
       '<div style="display:flex;align-items:center;gap:8px;border-radius:16px;background:#f2f3f6;padding:6px 6px 6px 14px"><span style="flex:1;min-width:0;font-size:14.5px;font-weight:700;color:#454b55;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(link.replace(/^https?:\/\//, '')) + '</span>' +
         '<span ' + on(() => { copy(link, 'Link copied'); setState({ share: Object.assign({}, sh, { copied: true }) }); }) + ' style="flex:0 0 auto;display:flex;align-items:center;min-height:42px;padding:0 16px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:14px;font-weight:800;cursor:pointer">' + (sh.copied ? '✓ Copied' : 'Copy') + '</span></div>' +
@@ -4517,9 +4524,8 @@
     const guests = !lead ? '' : '<div data-screen-label="Guest list" style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:14px">' +
       '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px">' + stat(goingIds.length, 'Going', '#e7f6ec', '#0f7a3c') + stat(maybeN, 'Maybe', '#fdf1d6', '#8f6405') + stat(noN, 'Can’t', '#f2f3f6', '#454b55') + '</div>' +
       '<span ' + on(() => setState({ blast: { id: s.id, to: 'all', text: '' } })) + ' style="align-self:center;display:flex;align-items:center;gap:7px;min-height:36px;font-size:14.5px;font-weight:800;color:#6b7280;cursor:pointer">' + ic6('bell', 15, 'currentColor', 2.2) + 'Send everyone an update</span>' +
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' +
-        '<button type="button" class="hov-primary" ' + on(() => setState({ invite: { id: s.id } })) + ' style="min-height:50px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:15.5px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;box-shadow:0 8px 20px rgba(91,74,232,.28)">' + I.plus(16, '#fff', 2.5) + 'Invite people</button>' +
-        '<button type="button" class="hov-outline" ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' style="min-height:50px;border:1.5px solid #dcdfe6;border-radius:999px;background:#fff;color:#0d1117;font-family:inherit;font-size:15.5px;font-weight:800;cursor:pointer">Share link</button>' +
+      '<div style="display:grid;grid-template-columns:1fr;gap:8px">' +
+        '<button type="button" class="hov-primary" ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' style="min-height:50px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:15.5px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;box-shadow:0 8px 20px rgba(91,74,232,.28)">' + I.plus(16, '#fff', 2.5) + 'Invite people</button>' +
       '</div></div>';
     // (The gold "N things left to decide" banner is gone: the host's tasks bar lists them, owner 2026-09-30)
     const visRow = !lead ? '' : '<div data-vis style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:18px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08)">' +
@@ -4647,7 +4653,7 @@
       '<div style="display:flex;gap:8px"><span style="' + WELL + ';flex:1;min-width:0;font-size:14px;font-weight:600;color:#5c6270;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(link.replace(/^https?:\/\//, '')) + '</span>' +
         '<button type="button" class="hov-outline" ' + on(() => copy(link, 'Link copied')) + ' style="' + COPY_BTN + '">Copy</button></div>' +
       '<button type="button" class="hov-primary" ' + on(() => { if (navigator.share) navigator.share({ title: s.text, text: msg, url: link }).catch(() => {}); else copy(msg, ask ? 'Message copied. Paste it anywhere.' : 'Invite copied. Paste it anywhere.'); }) + ' style="' + primary(true) + '">' + (ask ? 'Send the message' : 'Share the invite') + '</button>' +
-      '<p style="margin:0;font-size:13px;line-height:1.45;font-weight:500;color:#6b7280">Anyone with the link can see it and RSVP, even without an account. Email invites are coming.</p>',
+      '<p style="margin:0;font-size:13px;line-height:1.45;font-weight:500;color:#6b7280">Anyone with the link can see it and RSVP, even without an account.</p>',
       { z: 32 });
   }
 
@@ -4657,7 +4663,8 @@
     if (!s) return '';
     const g = going(s).length, m = s.rsvps.filter(r => r.status === 'maybe').length;
     const aud = [['all', 'Everyone', s.rsvps.length], ['going', 'Going', g], ['maybe', 'Maybe', m]];
-    const tpl = [['Reminder', 'Reminder: ' + s.text + ' is ' + whenLong(s) + (s.spot ? ' at ' + s.spot : '') + '. See you there!'], ['Change of plans', 'Heads up, small change for ' + s.text + ': '], ['Last call', 'Still room at ' + s.text + '! RSVP if you can make it.']];
+    // Shortcuts that fit the people who replied (owner, 2026-09-30): reminders are automatic now, so no Reminder or Last call
+    const tpl = [['Change of plans', 'Heads up, small change for ' + s.text + ': '], ['Running late', 'Running about 10 minutes late. Hang tight!'], ['Thank you', 'Thank you all for coming to ' + s.text + '!']];
     const ok = b.text.trim().length > 0 && !state.busy;
     return modal('Send an update', close,
       h3('Send an update') +
@@ -4665,7 +4672,7 @@
       '<div style="display:flex;gap:6px;flex-wrap:wrap">' + tpl.map(([label, text]) => '<span ' + on(() => setState({ blast: Object.assign({}, b, { text }) })) + ' style="display:flex;align-items:center;min-height:32px;padding:0 11px;border-radius:999px;background:#f3f1fe;font-size:13px;font-weight:800;color:#4a3ad4;cursor:pointer">' + label + '</span>').join('') + '</div>' +
       '<textarea class="fld" rows="4" maxlength="320" aria-label="Your update" placeholder="What should people know?" ' + onInput(e => { if (e.type === 'input') setState({ blast: Object.assign({}, state.blast, { text: e.target.value.slice(0, 320) }) }); }) + ' style="' + FIELD + ';resize:none;line-height:1.4">' + esc(b.text) + '</textarea>' +
       '<button type="button" ' + on(() => { if (ok) postUpdate(s); }) + ' aria-disabled="' + !ok + '" style="' + primary(ok) + '">' + (state.busy === 'save' ? 'Posting…' : 'Post update') + '</button>' +
-      '<p style="margin:0;font-size:13px;line-height:1.45;font-weight:500;color:#6b7280">It shows on the plan for everyone who can see it.</p>',
+      '<p style="margin:0;font-size:13px;line-height:1.45;font-weight:500;color:#6b7280">It goes to ' + ({ all: 'everyone who replied or signed up', going: 'the people going', maybe: 'the maybes' }[b.to] || 'them') + ', on the event and in their notifications.</p>',
       { z: 32 });
   }
 

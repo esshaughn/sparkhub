@@ -78,9 +78,12 @@ test('post an event with every step filled, then edit it in the pop-ups and dele
     await expect(P.locator('[data-signup="Bring cold water"]')).toContainText('0 of 4');
     await expect(P.locator('[data-signup="Folding chairs"]')).toContainText('0 of 2');
 
-    // Share link: copy, and the share intents
-    await P.getByRole('button', { name: 'Share link' }).click();
-    const share = page.getByRole('dialog', { name: 'Share link' });
+    // Invite people (one sheet; Share link is gone): the ready message, copy, and the share intents
+    await expect(P.getByRole('button', { name: 'Share link' })).toHaveCount(0);
+    await P.getByRole('button', { name: /Invite people/ }).click();
+    const share = page.getByRole('dialog', { name: 'Invite people' });
+    await expect(share.locator('[data-invite-msg]')).toContainText('I’m putting together');
+    await expect(share.locator('[data-invite-msg]')).toContainText('Want to come?');
     await expect(share.getByRole('link', { name: 'WhatsApp' })).toHaveAttribute('href', /^https:\/\/wa\.me\/\?text=/);
     await expect(share.getByRole('link', { name: 'Email' })).toHaveAttribute('href', /^mailto:/);
     await share.getByRole('button', { name: 'Close' }).click();

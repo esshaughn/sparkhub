@@ -20,7 +20,7 @@ test('a plan: guest RSVPs, sign-ups, an update, the host’s notes, then clearin
     await expect(HP).toContainText('5:30pm');
     await expect(HP).not.toContainText('LED BY');                           // not shown to the host
     await expect(HP.locator('[data-screen-label="Guest list"]')).toContainText('Going');
-    await expect(HP.getByRole('button', { name: 'Share link' })).toBeVisible();
+    await expect(HP.getByRole('button', { name: /Invite people/ })).toBeVisible();
     await expect(HP).not.toContainText('Remind everyone the day before');      // retired in Update 6
     await expect(HP.locator('[data-when-card]')).toContainText('Location TBD');
 

@@ -51,7 +51,7 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     await expect(lead).toContainText('3 spots open');
     // Share list opens the share sheet with the open jobs named
     await lead.locator('[data-todo-cta]', { hasText: 'Share list' }).click();
-    const shareSheet = H.getByRole('dialog', { name: 'Share link' });
+    const shareSheet = H.getByRole('dialog', { name: 'Invite people' });
     await expect(shareSheet.getByRole('link', { name: 'Text message' })).toHaveAttribute('href', /still%20needs%3A%20Folding%20chairs%20\(2\)%2C%20Ice/);
     await shareSheet.getByRole('button', { name: 'Close' }).click();
     await shot(H, '01-your-tasks-lead');
