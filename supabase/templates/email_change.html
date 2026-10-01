@@ -13,12 +13,12 @@
 </tr></table>
 <div style="margin-top:14px;font-size:28px;line-height:1.1;font-weight:900;letter-spacing:-.7px;color:#0d1117">Confirm your email</div>
 <p style="margin:14px 0 0;font-size:16px;line-height:1.55;font-weight:500;color:#454b55">Hi there,</p>
-<p style="margin:8px 0 0;font-size:16px;line-height:1.55;font-weight:500;color:#454b55">{{ if .Email }}You asked to change your Spark Hub email to this address. Enter this code in the app to confirm:{{ else }}Someone (hopefully you!) is signing up for Spark Hub with this email. If that’s you, enter this code in the app:{{ end }}</p>
+<p style="margin:8px 0 0;font-size:16px;line-height:1.55;font-weight:500;color:#454b55">{{ if .Email }}You asked to change your Spark Hub email to this address. Enter this code in the app to confirm:{{ else }}Someone (hopefully you!) is signing up for Spark Hub with this email. If that&rsquo;s you, enter this code in the app:{{ end }}</p>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:20px"><tr>
 <td align="center" style="background:#f3f1fe;border-radius:16px;padding:20px;font-size:36px;line-height:1;font-weight:900;letter-spacing:8px;color:#0d1117">{{ .Token }}</td>
 </tr></table>
-<p style="margin:20px 0 0;font-size:15px;line-height:1.55;font-weight:500;color:#454b55">{{ if .Email }}Until you confirm, you keep signing in with your old address.{{ else }}There’s no password. Next time, you’ll get a sign-in code like this one.{{ end }}</p>
-<div style="margin-top:22px;padding-top:18px;border-top:1px solid #eceef2;font-size:14.5px;line-height:1.55;font-weight:500;color:#5c6270">Didn’t ask for this? You can ignore this email. Nothing is set up without the code.</div>
+<p style="margin:20px 0 0;font-size:15px;line-height:1.55;font-weight:500;color:#454b55">{{ if .Email }}Until you confirm, you keep signing in with your old address.{{ else }}There&rsquo;s no password. Next time, you&rsquo;ll get a sign-in code like this one.{{ end }}</p>
+<div style="margin-top:22px;padding-top:18px;border-top:1px solid #eceef2;font-size:14.5px;line-height:1.55;font-weight:500;color:#5c6270">Didn&rsquo;t ask for this? You can ignore this email. Nothing is set up without the code.</div>
 </td></tr>
 <tr><td style="padding:18px 8px 0;font-size:12.5px;line-height:1.55;font-weight:500;color:#6b7280">Spark Hub is where groups make plans with their people and make them happen. We only email you when you ask for a sign-in code.</td></tr>
 <tr><td style="padding:6px 8px 0;font-size:12.5px;line-height:1.55;font-weight:500;color:#6b7280">Spark Hub &middot; <a href="{{ .SiteURL }}/privacy.html" style="color:#6b7280;text-decoration:underline">Privacy</a></td></tr>
