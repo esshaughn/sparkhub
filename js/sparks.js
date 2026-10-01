@@ -3708,7 +3708,7 @@
   };
 
   // ---------------------------------------------------------------------------
-  // 9. How this works (rewritten to match the app, owner 2026-09-30)
+  // 9. How this works (content still placeholder, as designed)
   // ---------------------------------------------------------------------------
 
   function viewHow() {
@@ -3719,20 +3719,19 @@
     return '<div data-screen-label="How this works" style="background:#fff;min-height:100%">' +
       head6('How this works', backBtn6(() => go(state.howFrom || 'calendar', state.howFrom && state.email ? { profSheet: true } : {}))) +
       '<section style="padding:20px 20px 26px">' +
-        '<h2 style="margin:0;font-size:28px;line-height:1.06;font-weight:900;letter-spacing:-.8px;color:#0d1117;text-wrap:pretty">Plan things with your group</h2>' +
-        '<p style="margin:12px 0 0;font-size:15.5px;line-height:1.45;font-weight:500;color:#454b55">Anyone in a group can start something, and everyone can pitch in.</p>' +
+        '<h2 style="margin:0;font-size:28px;line-height:1.06;font-weight:900;letter-spacing:-.8px;color:#0d1117;text-wrap:pretty">Ideas come to life when we build them together</h2>' +
+        '<p style="margin:12px 0 0;font-size:15.5px;line-height:1.45;font-weight:500;color:#454b55">Spark Hub is where your groups plan things. Anyone can start something, and everyone can help make it happen.</p>' +
         '<div style="margin-top:20px;display:flex;flex-direction:column;gap:16px">' +
-          step(1, '#efedfd', '#4a3ad4', 'Start an idea or an event', 'No date yet? It goes up as an idea: people tap I’m interested and suggest dates and spots. Once it has a date, the lead makes it a plan and it lands on the Calendar.') +
-          step(2, '#fdf4e2', '#8f6405', 'Reply and pitch in', 'Say Going, Maybe or Can’t. Grab a job, like bringing chairs or running the grill, and you’re counted as going.') +
-          step(3, '#e7f6ec', '#0f7a3c', 'Show up', 'You’ll get a reminder the day before and the morning of. Afterwards, add your photos and thank the people who helped.') +
+          step(1, '#efedfd', '#4a3ad4', 'Create an event', 'Add a title and whatever you know. Date, place and details can wait. Let the group vote on them.') +
+          step(2, '#fdf4e2', '#8f6405', 'RSVP &amp; pitch in', 'People RSVP, vote on dates and spots, and sign up to bring things or help out.') +
+          step(3, '#e7f6ec', '#0f7a3c', 'Make it happen', 'Everyone going gets a reminder the day before. Afterwards, add photos and thank whoever helped.') +
         '</div>' +
         '<div style="height:1px;background:#eceef2;margin:22px 0"></div>' +
         '<div style="' + EYEBROW + '">Good to know</div>' +
         '<div style="margin-top:12px;display:flex;flex-direction:column;gap:12px">' +
-          note(ic('<path d="M12 3.2 5 6v5.4c0 4.2 2.9 7.4 7 9.4 4.1-2 7-5.2 7-9.4V6l-7-2.8Z"/><path d="M9.2 12.1l2.1 2.1 3.6-3.9"/>'), 'Groups are private.', 'Only members see a group’s events. You join with an invite link from someone in it.') +
-          note(ic('<path d="M16.6 3.8l3.6 3.6L8.4 19.2 4 20.5l1.3-4.4L16.6 3.8Z"/>'), 'The lead decides.', 'Anyone can suggest a date or a spot; whoever leads the event picks.') +
-          note(ic('<circle cx="12" cy="12" r="8.4"/><path d="M12 7.6V12l3.2 2"/>'), 'Your tasks keeps track.', 'Everything you lead or signed up for, with what’s left to do.') +
-          note(ic('<path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/>'), 'You’ll hear about changes.', 'If an event moves or gets cancelled, everyone in it gets a note. Turn on phone notifications from the bell.') +
+          note(ic('<path d="M12 3.2 5 6v5.4c0 4.2 2.9 7.4 7 9.4 4.1-2 7-5.2 7-9.4V6l-7-2.8Z"/><path d="M9.2 12.1l2.1 2.1 3.6-3.9"/>'), 'Groups are private.', 'Only members see a group’s events, and you join with a code or a link.') +
+          note(ic('<path d="M16.6 3.8l3.6 3.6L8.4 19.2 4 20.5l1.3-4.4L16.6 3.8Z"/>'), 'Leads stay in charge.', 'People can suggest dates and spots. The lead decides what the event becomes.') +
+          note(ic('<circle cx="12" cy="12" r="8.4"/><path d="M12 7.6V12l3.2 2"/>'), 'Your tasks keeps track.', 'Anything you’re leading or signed up for shows up there with what’s left to do.') +
         '</div>' +
         ideaButton('margin-top:26px') +
       '</section>' +
