@@ -46,6 +46,10 @@ Where this doc and the design files disagree, **this doc is correct**.
 | 28 | **Event page host tasks:** no *Add basic details* task (Details are optional); *Fill open spots* opens the share sheet with the jobs named; the gold *N things left to decide* banner is gone (the tasks bar lists them) | Both banner and bar; Fill open spots scrolled to Help out | One place for the host's to-dos |
 | 29 | **Group Plans card:** *Do it again?* with up to 3 of the group's own past events (↻ chips that start Create event prefilled), then Create an event; just the button when the group has none | *What else could happen?* · Taco night? · Park hang · Board games | Real history beats made-up ideas (owner, 2026-09-30) |
 | 30 | **Create event:** the *FOR EXAMPLE* job list is gone, and a starter chip's bare verb (*Bring*, *Set up*, *Help with*, *Clean up*) can't be saved until it says what; the first Details placeholder is *e.g. Meet by the front desk* | The example list; *e.g. Let's all catch up!* | Less filler |
+| 31 | **Bell, new posts:** *New: {event}* (ideas: *New idea: {idea}*) with *{Host} is hosting · Sat, Oct 24 · 5:30pm* / *{Host} is floating it* under it (14px/600 `#5c6270`); I'm going / Maybe stay on plans. New ideas now reach the group too (phone: *New idea in {group}: …* · *{Host} is floating it. Tap I'm interested if you'd come.*) | *{Host} put an event on the books: {event}*; ideas never announced | Notification audit (owner, 2026-09-30) |
+| 32 | **Bell filter chips:** All · **New** · Updates · Hosting | *Invites* | Nobody is invited to anything; the chip lists new posts |
+| 33 | **Notification settings:** *New in your groups* · *New plans and ideas*; *Updates from hosts*; *Reminders* · *The day before and the morning of anything you're going to or helping with*; *Things you're hosting* · *Replies, interest, sign-ups and suggestions* | Leads wording; day-before only | Host wording; the new morning-of reminder |
+| 34 | **Offer to help organize is gone** from idea pages (and its *offered to help organize* notification) | A card with 🙋 and a toggle | It did nothing: offering gave no role or tools (owner, 2026-09-30) |
 
 ## 2. Things the build had to invent (please design these properly)
 
@@ -99,6 +103,8 @@ Where this doc and the design files disagree, **this doc is correct**.
 - **An event that isn't loaded yet** (a push tapped with the app open, a link) shows *Loading…* instead of flashing Your tasks; if it can't be opened, the Calendar with *Couldn't open that event. Check your connection and try again.*
 - **An event taken down while you're on it:** the next refresh goes to the Calendar with the *That event isn't up anymore* card (it used to turn into Your tasks with no word).
 - **A poll date that has passed can't be picked** (host's Pick, or Use this date on an idea): *That date has passed. Pick another, or set a new date.*
+- **Host notifications, fewer and fairer:** a job sign-up sends the host one notification (the automatic Going it adds is silent, on the phone and in the bell); replies moved by *Make it a plan* / *Back to an idea* don't notify; interest in an idea now reaches the host's phone (*{Name} is interested in {idea}*), like a reply.
+- **Morning-of reminder:** besides the day-before one, an 8am (Austin) phone notification *Today: {event}* with the time and place, for people going, maybe or helping (helpers now get the day-before one too).
 
 ## 4. Designed but not built or not working
 

@@ -1187,14 +1187,6 @@
       run: () => run(async () => { must(await sb.rpc('clear_plan', { p_spark: s.id })); }, { confirm: null, sec: null, tag: 'Back to an idea' }) } });
   };
 
-  const toggleOrganizer = (s) => {
-    const on = s.organizers.indexOf(state.me) > -1;
-    needGuest(() => run(async () => {
-      await saveGuestContact(s.id);
-      if (on) must(await sb.from('organizers').delete().eq('spark_id', s.id).eq('user_id', state.me));
-      else must(await sb.from('organizers').insert({ spark_id: s.id, user_id: state.me }));
-    }).then(ok => { if (ok && !on) toast('You’re helping organize. ' + nameOf(s.leadId, s.leadName) + ' will see it.', true); }));
-  };
 
   // v6 Update 5: signing up is one tap, then a "You're on it" banner with Undo (4s). Taking yourself
   // off later shows "You're off it" with Find a replacement (7s); on your own event, just a toast.
@@ -2947,10 +2939,10 @@
     note: { bg: '#e2556b', glyph: '!', cat: 'updates', topic: 'updates' }   // an event or job was taken down
   };
   const N_TOPICS = [
-    ['newevents', 'New events in your groups', 'When something goes on the books'],
-    ['updates', 'Updates from leads', 'Changes and last calls on plans you’re in'],
-    ['reminders', 'Day-before reminders', 'For anything you said you’re going to'],
-    ['hosting', 'Things you’re leading', 'Replies, sign-ups, suggestions and people pitching in']
+    ['newevents', 'New in your groups', 'New plans and ideas'],
+    ['updates', 'Updates from hosts', 'Changes and last calls on plans you’re in'],
+    ['reminders', 'Reminders', 'The day before and the morning of anything you’re going to or helping with'],
+    ['hosting', 'Things you’re hosting', 'Replies, interest, sign-ups and suggestions']
   ];
   // A guest's name comes from what they left the lead; everyone else from their profile
   const personName = (s, uid) => {
@@ -2977,19 +2969,22 @@
         if (d === 0 || d === 1) add({ key: 'r:' + s.id + ':' + s.dayDate, type: 'reminder', s, t: Math.min(Date.now(), midnight(s.dayDate) - (d === 1 ? DAY_MS : 0) + 8 * 3600000),   // 8am on the day before (or the day)
           uid: s.leadId, who: d === 1 ? 'Tomorrow:' : 'Today:', text: '', after: (s.dayTime ? ' at ' + fmtTime(s.dayTime) : '') + (s.spot ? ' · ' + s.spot : '') });
       }
-      // A new plan in one of your groups
-      if (!lead && s.planned && s.created && ph === 'plan')
-        add({ key: 'e:' + s.id, type: 'newevent', s, t: s.created, uid: s.leadId, who: nameOf(s.leadId, s.leadName), text: 'put an event on the books:', rsvp: !my });
+      // A new plan or idea in one of your groups (owner, 2026-09-30: ideas too); "New: {event}", the host under it
+      if (!lead && s.created && (ph === 'plan' || ph === 'idea'))
+        add({ key: 'e:' + s.id, type: 'newevent', s, t: s.created, uid: s.leadId, who: nameOf(s.leadId, s.leadName), idea: ph === 'idea',
+          sub: firstName(nameOf(s.leadId, s.leadName)) + (ph === 'idea' ? ' is floating it' : ' is hosting' + (s.dayDate ? ' · ' + dayLabel(s.dayDate, s.dayTime) : '')), rsvp: ph === 'plan' && !my });
       if (!lead) return;
       // Things you're hosting
-      s.rsvps.filter(r => r.userId !== me).forEach(r => add({ key: 'rv:' + s.id + ':' + r.userId, type: 'rsvp', s, t: r.created, uid: r.userId, who: personName(s, r.userId),
+      // A job sign-up marks you Going: the sign-up's row covers it, so that automatic Going isn't its own row
+      const claimAt = {};
+      s.signups.forEach(it => it.claims.forEach(c => { if (c.created) claimAt[c.userId] = Math.max(claimAt[c.userId] || 0, c.created); }));
+      s.rsvps.filter(r => r.userId !== me && !(r.status === 'going' && claimAt[r.userId] && Math.abs(r.created - claimAt[r.userId]) < 120000)).forEach(r => add({ key: 'rv:' + s.id + ':' + r.userId, type: 'rsvp', s, t: r.created, uid: r.userId, who: personName(s, r.userId),
         text: r.status === 'going' ? 'is going to' : r.status === 'maybe' ? 'might come to' : 'can’t make it to' }));
       s.signups.forEach(it => it.claims.filter(c => c.userId !== me && c.created).forEach(c => add({ key: 's:' + it.id + ':' + c.userId, type: 'signup', s, t: c.created, uid: c.userId, who: personName(s, c.userId), text: 'signed up to bring', item: it.item })));
       if (ph === 'idea') {
         s.interested.filter(u => u !== me && s.interestAt[u]).forEach(u => add({ key: 'i:' + s.id + ':' + u, type: 'interest', s, t: s.interestAt[u], uid: u, who: personName(s, u), text: 'is interested in' }));
         s.dateOpts.filter(o => o.createdBy !== me && o.created).forEach(o => add({ key: 'd:' + o.id, type: 'vote', s, t: o.created, uid: o.createdBy, who: o.who, text: 'suggested', item: fmtDay(o.dayDate) + (o.dayTime ? ' ' + fmtTime(o.dayTime) : ''), joiner: ' for ' }));
         s.spotOpts.filter(o => o.createdBy !== me && o.created).forEach(o => add({ key: 'p:' + o.id, type: 'vote', s, t: o.created, uid: o.createdBy, who: o.who, text: 'suggested', item: o.name, joiner: ' for ' }));
-        s.organizers.filter(u => u !== me && s.organizerAt[u]).forEach(u => add({ key: 'o:' + s.id + ':' + u, type: 'lead', s, t: s.organizerAt[u], uid: u, who: personName(s, u), text: 'offered to help organize' }));
       }
     });
     (state.notes || []).forEach(x => add({ key: 'n:' + x.id, type: 'note', s: null, t: x.created, uid: x.createdBy, who: nameOf(x.createdBy, 'The lead'), body: x.body }));
@@ -3286,6 +3281,7 @@
       const what = n.s ? '<b style="font-weight:800;color:#0d1117">' + esc(n.s.text) + '</b>' : '';
       const line = n.type === 'note' ? '<b style="font-weight:800;color:#0d1117">' + esc(n.body) + '</b>'
         : n.type === 'update' ? what + ' · ' + esc(n.quote)   // Round 65a
+        : n.type === 'newevent' ? (n.idea ? 'New idea: ' : 'New: ') + what
         : n.type === 'reminder'
         ? '<b style="font-weight:800;color:#0d1117">' + esc(n.who) + '</b> ' + what + esc(n.after)
         : '<b style="font-weight:800;color:#0d1117">' + esc(n.who) + '</b> ' + esc(n.text) + ' ' +
@@ -3295,6 +3291,7 @@
           '<span style="position:absolute;right:-3px;bottom:-3px;width:20px;height:20px;border-radius:999px;border:2px solid #fff;background:' + T.bg + ';color:#fff;font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center;line-height:1">' + T.glyph + '</span></span>' +
         '<div style="flex:1;min-width:0">' +
           '<div style="font-size:15px;line-height:1.35;font-weight:500;color:#2b303a">' + line + '</div>' +
+          (n.sub ? '<div style="margin-top:2px;font-size:14px;line-height:1.35;font-weight:600;color:#5c6270">' + esc(n.sub) + '</div>' : '') +
           (n.quote && n.type !== 'update' ? '<div style="margin-top:8px;padding:10px 12px;border-radius:12px;background:#f2f3f6;font-size:14px;line-height:1.4;font-weight:500;color:#2b303a">' + esc(n.quote) + '</div>' : '') +
           '<div style="margin-top:4px;font-size:12.5px;font-weight:600;color:#9aa0ac">' + esc((n.type === 'update' ? 'From ' + firstName(n.who) + ' · ' : '') + ago(n.t) + (g ? ' · ' + g.name : '')) + '</div>' +
           (n.rsvp && !myRsvp(n.s)
@@ -3312,7 +3309,7 @@
     const gear = round('Notification settings', svg(18, stroke('#0d1117', 2), '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/>'), () => setState({ nSettings: true }));
     return sheet6('Notifications', close,
       '<div style="display:flex;align-items:center;gap:10px">' + H1('Notifications', 'flex:1;min-width:0') + gear + closeX(close) + '</div>' +
-        '<div class="no-scrollbar" role="radiogroup" aria-label="Show" style="margin-top:14px;display:flex;gap:8px;overflow-x:auto">' + chip('all', 'All') + chip('invites', 'Invites') + chip('updates', 'Updates') + chip('hosting', 'Leading') + '</div>',
+        '<div class="no-scrollbar" role="radiogroup" aria-label="Show" style="margin-top:14px;display:flex;gap:8px;overflow-x:auto">' + chip('all', 'All') + chip('invites', 'New') + chip('updates', 'Updates') + chip('hosting', 'Leading') + '</div>',
       '<div style="padding:16px 14px 30px;display:flex;flex-direction:column;gap:16px">' + pushCard() +
         (!st.loaded ? skeleton(4, 76)
           : secs.length
@@ -3765,7 +3762,6 @@
 
         (lead ? makePlanCard(s) : '') +
         datesBoard(s) + spotsBoard(s) + signupsCard(s) +
-        (lead ? '' : organizerCard(s)) +
 
         '<div id="sec-details" style="' + CARD + ';padding:18px 16px;display:flex;flex-direction:column;gap:10px">' +
           '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px">' +
@@ -3919,16 +3915,6 @@
           '<p style="margin:0;font-size:14.5px;line-height:1.45;font-weight:500;color:#5c6270">Pick a date first. Then you can lock it in.</p>' +
           '<button type="button" aria-disabled="true" style="margin-top:8px;min-height:50px;border:0;border-radius:999px;background:#b9bcc4;color:#fff;font-family:inherit;font-size:16px;font-weight:800;cursor:not-allowed">Make it a plan</button>' +
         '</div>';
-  };
-
-  const organizerCard = (s) => {
-    const on_ = s.organizers.indexOf(state.me) > -1;
-    return '<div style="' + CARD + ';padding:16px;display:flex;align-items:center;gap:12px">' +
-      '<span aria-hidden="true" style="flex:0 0 auto;font-size:22px;line-height:1">🙋</span>' +
-      '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><strong style="font-size:15px;line-height:1.3;font-weight:800;color:#0d1117">Offer to help organize</strong>' +
-        '<span style="font-size:12.5px;line-height:1.4;font-weight:600;color:#6b7280">' + esc(nameOf(s.leadId, s.leadName)) + ' has the final say. You help get it over the line.</span></div>' +
-      '<span ' + on(() => { if (!state.busy) toggleOrganizer(s); }) + ' aria-pressed="' + on_ + '" style="flex:0 0 auto;display:flex;align-items:center;min-height:40px;padding:0 15px;border-radius:999px;font-size:14px;font-weight:800;cursor:pointer;' + (on_ ? 'background:#f3f1fe;color:#5b4ae8' : 'box-shadow:inset 0 0 0 1.5px #dcdfe6;color:#0d1117') + '">' + (on_ ? '✓ Helping' : 'I’ll help') + '</span>' +
-    '</div>';
   };
 
   // A photo header shared by the plan and "happened" pages
