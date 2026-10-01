@@ -113,7 +113,8 @@ group_ids = [] if ONLY else [torrez]
 ABC = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 for name, photo in [('Hub on Hunters', 'photos/hub-on-hunters-mask.jpg'), ('Woodcliff Neighborhood', 'photos/woodcliff-oaks.jpg'),
                     ('Walnut Creek Neighborhood', 'photos/walnut-creek.jpg')]:
-    have = rest('GET', 'groups', query='?name=eq.' + urllib.parse.quote(name) + '&select=id')
+    # The owner's own group by that name (anyone can start a group called anything)
+    have = rest('GET', 'groups', query='?name=eq.' + urllib.parse.quote(name) + '&created_by=eq.' + eric + '&select=id')
     if have:
         gid = have[0]['id']
     else:

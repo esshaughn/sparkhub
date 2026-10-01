@@ -33,3 +33,24 @@ returns boolean language sql security definer set search_path = public as $$
 $$;
 revoke execute on function public.e2e_delete_group(uuid) from public, anon;
 grant  execute on function public.e2e_delete_group(uuid) to authenticated;
+
+-- Tests check who a host's update would reach (private.update_recipients, 20261101000000_update_recipients.sql).
+-- Only the event's lead, and only for [E2E] events.
+create or replace function public.e2e_update_recipients(p_spark uuid, p_audience text)
+returns uuid[] language sql security definer set search_path = public as $$
+  select private.update_recipients(s.id, p_audience, auth.uid())
+    from sparks s where s.id = p_spark and s.lead_id = auth.uid() and s.text like '[E2E]%';
+$$;
+revoke execute on function public.e2e_update_recipients(uuid, text) from public, anon;
+grant  execute on function public.e2e_update_recipients(uuid, text) to authenticated;
+
+-- Declined friend requests never go away in the app (so the person turned down can't ask again), but the
+-- e2e lead accounts are reused run after run: tests clear the requests between two of them.
+create or replace function public.e2e_forget_requests(p_other uuid)
+returns void language sql security definer set search_path = public, auth as $$
+  delete from friend_requests r
+   where ((r.from_id = auth.uid() and r.to_id = p_other) or (r.from_id = p_other and r.to_id = auth.uid()))
+     and (select count(*) from auth.users u where u.id in (auth.uid(), p_other) and u.email like 'e2e-lead-%@example.com') = 2;
+$$;
+revoke execute on function public.e2e_forget_requests(uuid) from public, anon;
+grant  execute on function public.e2e_forget_requests(uuid) to authenticated;

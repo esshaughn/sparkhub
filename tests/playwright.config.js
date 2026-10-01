@@ -28,7 +28,8 @@ module.exports = defineConfig({
     // A click on a control that no longer exists fails here, not after the 90s test timeout
     actionTimeout: 15_000,
     navigationTimeout: 30_000,
-    trace: 'retain-on-failure',
+    // No traces on CI: they record request bodies (the leads' password) and the repo is public
+    trace: process.env.CI ? 'off' : 'retain-on-failure',
     screenshot: 'only-on-failure'
   },
   webServer: {

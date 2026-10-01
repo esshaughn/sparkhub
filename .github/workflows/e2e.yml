@@ -120,11 +120,19 @@ jobs:
         env:
           E2E_LEAD_PASSWORD: ${{ secrets.E2E_LEAD_PASSWORD }}
 
-      # Traces record page.evaluate arguments and request bodies, which include the leads' password;
-      # the repo is public, so keep only the report, screenshots and error context
+      # Traces record page.evaluate arguments and request bodies, which include the leads' password.
+      # CI records none (trace is off when CI is set, playwright.config.js), and as a second guard every
+      # zip is deleted before uploading: the HTML report keeps its own copies under playwright-report/data.
+      # The repo is public, so only the report, screenshots and error context are kept.
       - name: Drop traces before uploading
         if: failure()
-        run: find test-results -name 'trace.zip' -delete || true
+        run: |
+          find test-results playwright-report -name '*.zip' -delete 2>/dev/null || true
+          if [ -n "$E2E_LEAD_PASSWORD" ] && grep -rIl --exclude='*.png' -F "$E2E_LEAD_PASSWORD" test-results playwright-report 2>/dev/null; then
+            echo 'The leads password is in the files above; not uploading anything'; rm -rf test-results playwright-report
+          fi
+        env:
+          E2E_LEAD_PASSWORD: ${{ secrets.E2E_LEAD_PASSWORD }}
 
       - name: Keep the report if something failed
         if: failure()

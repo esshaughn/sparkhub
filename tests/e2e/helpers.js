@@ -141,11 +141,12 @@ async function answerNamePrompt(page, name) {
   await button(page, 'Continue').click();
 }
 
-async function answerGuestPrompt(page, name, phone) {
-  const d = page.getByRole('dialog', { name: 'Your info' });
+// Guests (no account) RSVP with just a name (owner, 2026-10-01); everything else asks them to make an account
+async function answerGuestPrompt(page, name) {
+  const d = page.getByRole('dialog', { name: 'RSVP as a guest' });
   await expect(d).toBeVisible();
+  await expect(d.getByRole('button', { name: 'Continue', exact: true })).toHaveAttribute('aria-disabled', 'true');
   await d.getByLabel('Your name').fill(name);
-  await d.getByLabel('Phone number').fill(phone);
   await d.getByRole('button', { name: 'Continue', exact: true }).click();
   await expect(d).toBeHidden();
 }

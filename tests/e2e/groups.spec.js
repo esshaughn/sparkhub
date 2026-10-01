@@ -187,15 +187,30 @@ test('a group end to end: edit group, cover, rename, invite, pin, admin edits, r
     await A.locator('[data-screen-label=Groups]').getByRole('button', { name: groupName, exact: true }).click();
     await expect(A.locator('[data-screen-label=Browse]').getByRole('button', { name: 'Edit group' })).toHaveCount(0);
 
-    // Bo removes Ada from the group; the database agrees she's gone
-    await ada.getByRole('button', { name: 'Remove from group' }).click();
-    await confirm(B, 'Remove');
-    await expect(B.getByText('Ada was removed')).toBeVisible();
+    // Bo removes Ada from the group and blocks her; the database agrees she's gone, and her code doesn't work
+    await ada.getByRole('button', { name: 'Remove and block' }).click();
+    await confirm(B, 'Remove and block');
+    await expect(B.getByText('Ada was removed and blocked')).toBeVisible();
     await expect(ada).toHaveCount(0);
     await expect.poll(() => asUser(A, async (c, _C, id) => (await c.from('memberships').select('group_id').eq('group_id', id)).data.length, g.id)).toBe(0);
+    expect(await asUser(A, async (c, _C, code) => (await c.rpc('join_group', { p_code: code })).data, g.code)).toBeNull();
+    // Members lists her under Blocked until someone unblocks her
+    const blocked = B.getByRole('dialog', { name: 'Members' }).locator('[data-blocked-row="Ada"]');
+    await expect(blocked).toBeVisible();
+    await blocked.getByRole('button', { name: 'Unblock' }).click();
+    await expect(B.getByText('Ada can rejoin with the link')).toBeVisible();
+    await expect(blocked).toHaveCount(0);
+
+    // Bo gets a new invite link: the code changes
+    await B.getByRole('dialog', { name: 'Members' }).getByRole('button', { name: 'Close' }).click();
+    const gpB = B.locator('[data-screen-label="Edit group"]');
+    await expect(gpB).toContainText(g.code);
+    await gpB.getByRole('button', { name: 'Get a new invite link' }).click();
+    await confirm(B, 'Get a new link');
+    await expect(B.getByText('New invite link ready')).toBeVisible();
+    await expect(gpB).not.toContainText(g.code);
 
     // Bo deletes the group: type DELETE
-    await B.getByRole('dialog', { name: 'Members' }).getByRole('button', { name: 'Close' }).click();
     await B.locator('[data-screen-label="Edit group"]').getByRole('button', { name: 'Delete group' }).click();
     const del = B.getByRole('dialog', { name: 'Delete group' });
     await expect(del.getByRole('heading')).toHaveText('Delete ' + groupName + '?');

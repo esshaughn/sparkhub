@@ -1,7 +1,7 @@
 // The database rules hold even if someone skips the app and calls Supabase directly.
 // These call the API the way a curious visitor or member could, from their own session.
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newMember, newLead, asUser } = require('./helpers');
+const { uniqueTitle, newMember, newLead, asUser, openIdea, PNG } = require('./helpers');
 
 const uid = (page) => asUser(page, async (c) => (await c.auth.getUser()).data.user.id);
 
@@ -243,6 +243,8 @@ test('plans: replies, sign-ups, updates, notes and invite-only plans follow the 
       out.planWithoutDate = (await c.from('sparks').insert({ ...base, text: '[E2E] no date', planned: true })).error ? 'refused' : 'ALLOWED';
       out.makePlanNoDate = (await c.rpc('make_plan', { p_spark: out.idea })).error ? 'refused' : 'ALLOWED';
       out.dropPlanDate = (await c.from('sparks').update({ day_date: null }).eq('id', out.planNoTime)).error ? 'refused' : 'ALLOWED';
+      // Even the lead can't flip planned directly: only make_plan / clear_plan (20261101060000_planned_by_function.sql)
+      out.leadFlipsPlanned = (await c.from('sparks').update({ planned: false }).eq('id', out.plan)).error ? 'refused' : 'ALLOWED';
       // The lead turns a plan back into an idea: the date comes off
       out.backToIdea = (await c.rpc('clear_plan', { p_spark: out.planNoTime })).error ? 'refused'
         : (await c.from('sparks').select('planned, day_date').eq('id', out.planNoTime).single()).data;
@@ -263,6 +265,7 @@ test('plans: replies, sign-ups, updates, notes and invite-only plans follow the 
     expect(made.planWithoutDate).toBe('refused');
     expect(made.makePlanNoDate).toBe('refused');
     expect(made.dropPlanDate).toBe('refused');
+    expect(made.leadFlipsPlanned).toBe('refused');
     expect(made.backToIdea).toEqual({ planned: false, day_date: null });
     expect(made.homeAgain).toBe('refused');
     expect(made.prep).toBe('ok');
@@ -371,19 +374,24 @@ test('plans: replies, sign-ups, updates, notes and invite-only plans follow the 
 
     // Web push: devices are saved only through save_push (signed in), each person sees and removes
     // only their own, and the send settings (private schema) aren't reachable at all
-    const ep = 'https://push.example.com/e2e-' + Date.now();
+    // (only the push services' own addresses are accepted; a device saved by someone else moves only with its keys)
+    const ep = 'https://fcm.googleapis.com/fcm/send/e2e-' + Date.now();
     const pushL = await asUser(L, async (c, _C, ep) => {
       const saved = (await c.rpc('save_push', { p_endpoint: ep, p_p256dh: 'B'.repeat(40), p_auth: 'a'.repeat(16) })).error ? 'refused' : 'ok';
-      return { saved, mine: (await c.from('push_subscriptions').select('endpoint').eq('endpoint', ep)).data.length };
+      return {
+        saved, mine: (await c.from('push_subscriptions').select('endpoint').eq('endpoint', ep)).data.length,
+        madeUp: (await c.rpc('save_push', { p_endpoint: 'https://push.example.com/e2e', p_p256dh: 'B'.repeat(40), p_auth: 'a'.repeat(16) })).error ? 'refused' : 'ALLOWED'
+      };
     }, ep);
-    expect(pushL).toEqual({ saved: 'ok', mine: 1 });
+    expect(pushL).toEqual({ saved: 'ok', mine: 1, madeUp: 'refused' });
     const pushO = await asUser(O, async (c, _C, ep) => ({
+      takeOver: (await c.rpc('save_push', { p_endpoint: ep, p_p256dh: 'C'.repeat(40), p_auth: 'c'.repeat(16) })).error ? 'refused' : 'ALLOWED',
       see: (await c.from('push_subscriptions').select('endpoint').eq('endpoint', ep)).data.length,
       remove: (await c.from('push_subscriptions').delete().eq('endpoint', ep).select()).data?.length ?? 'refused',
       insert: (await c.from('push_subscriptions').insert({ endpoint: ep + 'x', p256dh: 'B'.repeat(40), auth: 'a'.repeat(16) })).error ? 'refused' : 'ALLOWED',
       config: (await c.schema('private').from('push_config').select('*')).error ? 'refused' : 'ALLOWED'
     }), ep);
-    expect(pushO).toEqual({ see: 0, remove: 0, insert: 'refused', config: 'refused' });
+    expect(pushO).toEqual({ takeOver: 'refused', see: 0, remove: 0, insert: 'refused', config: 'refused' });
     const pushA = await asUser(A, async (c, _C, ep) => (await c.rpc('save_push', { p_endpoint: ep + 'anon', p_p256dh: 'B'.repeat(40), p_auth: 'a'.repeat(16) })).error ? 'refused' : 'ALLOWED', ep);
     expect(pushA).toBe('refused');
     await asUser(L, async (c, _C, ep) => { await c.from('push_subscriptions').delete().eq('endpoint', ep); }, ep);
@@ -524,6 +532,123 @@ test('friends: requests, links and invites only go through the functions, with t
   } finally {
     await asUser(L, async (c, _C, id) => c.rpc('remove_friend', { p_other: id }), await uid(O)).catch(() => {});
     if (group) await asUser(L, async (c, _C, id) => c.rpc('e2e_delete_group', { p_group: id }), group.id).catch(() => {});
+    await lead.context.close();
+    await other.context.close();
+    await anon.context.close();
+  }
+});
+
+test('groups and guests: leaving ends link access, blocks, new codes, who updates reach, guests only RSVP', async ({ browser }) => {
+  const lead = await newLead(browser, 1, 'Owner');
+  const other = await newLead(browser, 2, 'Other');
+  const anon = await newMember(browser);
+  const L = lead.page, O = other.page, A = anon.page;
+  let group, secret, open;
+  try {
+    const leadUid = await uid(L), otherUid = await uid(O);
+
+    // A group of the lead's with the other lead in it: an invite-only plan and a plan for the whole group
+    group = await asUser(L, async (c, _C, name) => (await c.rpc('create_group', { p_name: name })).data[0], uniqueTitle('access'));
+    expect(await asUser(O, async (c, _C, code) => (await c.rpc('join_group', { p_code: code })).data, group.code)).toBe(group.id);
+    const day = new Date(Date.now() + 9 * 864e5).toISOString().slice(0, 10);
+    const made = await asUser(L, async (c, _C, { g, me, day }) => {
+      const one = async (row) => (await c.from('sparks').insert({ group_id: g, author_name: 'Owner', lead_name: 'Owner', lead_id: me, created_by: me, planned: true, day_date: day, ...row }).select('id').single()).data.id;
+      return { secret: await one({ text: '[E2E] invite only', visibility: 'invite' }), open: await one({ text: '[E2E] whole group' }) };
+    }, { g: group.id, me: leadUid, day });
+    secret = made.secret; open = made.open;
+
+    // An event you already see as a member isn't recorded as a link (it would outlast leaving the group)
+    await openIdea(O, open);
+    expect(await asUser(O, async (c, _C, id) => (await c.from('link_access').select('spark_id').eq('spark_id', id)).data.length, open)).toBe(0);
+
+    // A host's update to "hasn't replied" on an invite-only plan reaches only people who can see it
+    const reach = () => asUser(L, async (c, _C, id) => (await c.rpc('e2e_update_recipients', { p_spark: id, p_audience: 'noreply' })).data, secret);
+    expect(await reach()).toEqual([]);
+    expect(await asUser(O, async (c, _C, id) => (await c.rpc('open_idea', { p_spark: id })).data, secret)).toBe(true);
+    expect(await reach()).toEqual([otherUid]);
+
+    // Removed and blocked: the link they opened stops working, and the code doesn't let them back in
+    const ownerOnly = await asUser(O, async (c, _C, g) => ({
+      rotate: (await c.rpc('rotate_group_code', { p_group: g })).error ? 'refused' : 'ALLOWED',
+      blocked: (await c.rpc('group_blocked', { p_group: g })).data?.length ?? 0,
+      bans: (await c.from('group_bans').select('*')).error ? 'refused' : 'ALLOWED'
+    }), group.id);
+    expect(ownerOnly).toEqual({ rotate: 'refused', blocked: 0, bans: 'refused' });
+    expect(await asUser(L, async (c, _C, { g, o }) => (await c.rpc('remove_member', { p_group: g, p_user: o, p_block: true })).error?.message || 'ok', { g: group.id, o: otherUid })).toBe('ok');
+    const removed = await asUser(O, async (c, _C, { s, code }) => ({
+      sees: (await c.from('sparks').select('id').eq('id', s)).data.length,
+      rejoin: (await c.rpc('join_group', { p_code: code })).data
+    }), { s: secret, code: group.code });
+    expect(removed).toEqual({ sees: 0, rejoin: null });
+
+    // A new code: the old one stops working; after an unblock the new one works
+    const fresh = await asUser(L, async (c, _C, { g, o }) => {
+      const blocked = (await c.rpc('group_blocked', { p_group: g })).data.map(b => b.user_id);
+      const code = (await c.rpc('rotate_group_code', { p_group: g })).data;
+      await c.rpc('unblock_member', { p_group: g, p_user: o });
+      return { blocked, code, after: (await c.rpc('group_blocked', { p_group: g })).data.length };
+    }, { g: group.id, o: otherUid });
+    expect(fresh.blocked).toEqual([otherUid]);
+    expect(fresh.code).toMatch(/^[A-HJ-NP-Z2-9]{6}$/);
+    expect(fresh.code).not.toBe(group.code);
+    expect(fresh.after).toBe(0);
+    const back = await asUser(O, async (c, _C, { old, code }) => ({
+      oldCode: (await c.rpc('join_group', { p_code: old })).data,
+      newCode: (await c.rpc('join_group', { p_code: code })).data
+    }), { old: group.code, code: fresh.code });
+    expect(back).toEqual({ oldCode: null, newCode: group.id });
+
+    // Groups can't take a demo group's name (the demo roster is keyed by group, 20261101050000_roster_by_id.sql)
+    const demoName = await asUser(L, async (c) => ((await c.from('groups').select('name').eq('demo', true).limit(1)).data || [])[0]?.name || null);
+    if (demoName) {
+      const copy = await asUser(L, async (c, _C, n) => { const r = await c.rpc('create_group', { p_name: n }); return r.error ? 'refused' : r.data[0].id; }, demoName);
+      if (copy !== 'refused') await asUser(L, async (c, _C, id) => c.rpc('delete_group', { p_group: id }), copy);
+      expect(copy).toBe('refused');
+    }
+
+    // Guests (no account, owner 2026-10-01): they see the event they were sent and RSVP with a name, nothing else.
+    // (Rate limits are checked in tests/db: the e2e leads are exempt, and guests can't post.)
+    await asUser(A, async (c, _C, id) => c.rpc('open_idea', { p_spark: id }), open);
+    const guest = await asUser(A, async (c, _C, { id, png }) => {
+      const me = (await c.auth.getUser()).data.user.id;
+      const ok = async (q) => (await q).error ? 'refused' : 'ok';
+      const blob = new Blob([Uint8Array.from(atob(png), ch => ch.charCodeAt(0))], { type: 'image/png' });
+      return {
+        sees: (await c.from('sparks').select('id').eq('id', id)).data.length,
+        rsvpNoName: await ok(c.from('rsvps').insert({ spark_id: id, user_id: me, status: 'going' })),
+        name: await ok(c.from('guest_contacts').insert({ spark_id: id, user_id: me, name: 'Gus' })),
+        rsvp: await ok(c.from('rsvps').insert({ spark_id: id, user_id: me, status: 'going' })),
+        interest: await ok(c.from('interests').insert({ spark_id: id, user_id: me })),
+        spot: await ok(c.from('spot_options').insert({ spark_id: id, name: 'Park', who: 'Gus', created_by: me })),
+        date: await ok(c.from('date_options').insert({ spark_id: id, day_date: '2026-12-01', who: 'Gus', created_by: me })),
+        job: await ok(c.from('signup_items').insert({ spark_id: id, item: 'Ice' })),
+        upload: await ok(c.storage.from('spark-photos').upload(me + '/' + crypto.randomUUID() + '.jpg', blob, { contentType: 'image/png' })),
+        avatar: await ok(c.from('profiles').upsert({ id: me, name: 'Gus', avatar_path: me + '/' + crypto.randomUUID() + '.jpg' }))
+      };
+    }, { id: open, png: PNG.toString('base64') });
+    expect(guest).toEqual({ sees: 1, rsvpNoName: 'refused', name: 'ok', rsvp: 'ok', interest: 'refused', spot: 'refused', date: 'refused', job: 'refused', upload: 'refused', avatar: 'refused' });
+    // Photo uploads into someone else's folder are refused for accounts too
+    const intoOthers = await asUser(L, async (c, _C, { png, other }) => {
+      const blob = new Blob([Uint8Array.from(atob(png), ch => ch.charCodeAt(0))], { type: 'image/png' });
+      return (await c.storage.from('spark-photos').upload(other + '/' + crypto.randomUUID() + '.jpg', blob, { contentType: 'image/png' })).error ? 'refused' : 'ALLOWED';
+    }, { png: PNG.toString('base64'), other: otherUid });
+    expect(intoOthers).toBe('refused');
+
+    // Friends: a declined request stays declined, whatever the sender does
+    const reset = async () => {
+      await asUser(L, async (c, _C, o) => { await c.rpc('remove_friend', { p_other: o }); await c.rpc('e2e_forget_requests', { p_other: o }); }, otherUid);
+      await asUser(O, async (c, _C, l) => c.rpc('remove_friend', { p_other: l }), leadUid);
+    };
+    await reset();
+    expect(await asUser(O, async (c, _C, l) => (await c.rpc('send_friend_request', { p_to: l })).data, leadUid)).toBe('requested');
+    await asUser(L, async (c, _C, o) => c.rpc('answer_friend_request', { p_from: o, p_accept: false }), otherUid);
+    await asUser(O, async (c, _C, l) => { await c.rpc('remove_friend', { p_other: l }); await c.rpc('send_friend_request', { p_to: l }); }, leadUid);
+    const incoming = await asUser(L, async (c) => (await c.rpc('friend_state')).data.incoming.map(f => f.id));
+    expect(incoming).not.toContain(otherUid);
+    await reset();
+  } finally {
+    if (group) await asUser(L, async (c, _C, id) => c.rpc('e2e_delete_group', { p_group: id }), group.id).catch(() => {});
+    await asUser(L, async (c, _C, o) => c.rpc('e2e_forget_requests', { p_other: o }), await uid(O)).catch(() => {});
     await lead.context.close();
     await other.context.close();
     await anon.context.close();

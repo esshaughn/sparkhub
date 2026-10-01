@@ -39,10 +39,13 @@
   // PKCE keeps the Google round trip in the query string, clear of our #/ routes
   // "View as a user" (demo admin only) is look-only: while it's on, nothing but reads leaves the app
   let previewing = false;
-  const READ_RPCS = /\/rest\/v1\/rpc\/(my_group_sizes|demo_testers|new_accounts|group_people)(\?|$)/;
+  const READ_RPCS = /\/rest\/v1\/rpc\/(my_group_sizes|demo_testers|new_accounts|group_people|group_blocked)(\?|$)/;
+  // Auth calls allowed while previewing: keeping the owner's own session fresh, and signing out. Not
+  // /auth/v1/user (that changes the account: name, email) or anything else.
+  const AUTH_KEEP = /\/auth\/v1\/(token|logout)(\?|$)/;
   const guardedFetch = (url, opts) => {
     const m = String((opts && opts.method) || 'GET').toUpperCase(), u = String((url && url.url) || url);
-    if (previewing && m !== 'GET' && m !== 'HEAD' && !/\/auth\/v1\//.test(u) && !READ_RPCS.test(u))
+    if (previewing && m !== 'GET' && m !== 'HEAD' && !(m === 'POST' && AUTH_KEEP.test(u)) && !READ_RPCS.test(u))
       return Promise.resolve(new Response(JSON.stringify({ message: 'Viewing as someone else: changes are off' }), { status: 403, headers: { 'Content-Type': 'application/json' } }));
     return fetch(url, opts);
   };
@@ -82,7 +85,7 @@
   };
   let lastPrefs = '';
   const savePrefs = () => {
-    const next = JSON.stringify({ groupId: state.groupId, view: state.view, homeView: state.homeView, cView: state.cView, sort: state.sort, guestName: state.guestName, guestPhone: state.guestPhone, pastStatsHidden: state.pastStatsHidden, jobsOpen: state.jobsOpen });
+    const next = JSON.stringify({ groupId: state.groupId, view: state.view, homeView: state.homeView, cView: state.cView, sort: state.sort, guestName: state.guestName, pastStatsHidden: state.pastStatsHidden, jobsOpen: state.jobsOpen });
     if (next === lastPrefs) return;
     lastPrefs = next;
     try { localStorage.setItem(PREFS_KEY, next); } catch (e) { /* storage blocked: conveniences only */ }
@@ -194,7 +197,7 @@
     resent: false, mergeToken: null, googleFailed: false,
     nameAsk: null, nameText: '',
     guestOpen: false, guestThen: null, guest: null,
-    guestName: prefs.guestName || '', guestPhone: prefs.guestPhone || '',
+    guestName: prefs.guestName || '',
     offerKind: null, offerText: '', offerPlace: null, offerSuggest: [],
     joinOpen: false, joinCode: '', joinBad: false,
     notif: { allReadAt: 0, read: [], topics: {}, email: true, loaded: false }, nFilter: 'all', nSettings: false, demoAdmin: false, back: null, myPlace: '', myBio: '', memberSince: null, ownGrp: null, sizes: {}, membersQ: '', gpRename: null, gpDel: null, ph: null,
@@ -296,6 +299,12 @@
     toastTimer = setTimeout(() => setState({ toast: null }), 3000);
   };
   const FAILED = 'That didn’t go through. Try again in a moment.';
+  // What to say when a save fails: the database's rate limits (PT429) and taken group names get their own words
+  const SLOW = 'You’re going a bit fast. Try again in a little while.';
+  const failed = (e) => !e ? FAILED
+    : e.code === 'PT429' || e.status === 429 ? SLOW
+    : e.code === '23505' && /name is taken/.test(e.message || '') ? 'That name is taken. Try another.'
+    : FAILED;
   const BAD_PHOTO = 'That photo couldn’t be read. Try a different one.';
 
   const must = (res) => { if (res.error) throw res.error; return res; };
@@ -619,15 +628,18 @@
     } catch (e) {
       console.error(e);
       setState({ busy: null });
-      toast(FAILED);
+      toast(failed(e));
       return false;
     }
   };
 
-  // Opening a shared idea link grants this session access to that one idea
+  // Opening a shared idea link grants this session access to that one idea. An event you already see
+  // (as a member of its group) isn't recorded: that access would outlast leaving or being removed from the group.
   const opened = new Set();
   const openLink = async (id) => {
     if (!id || opened.has(id) || previewing) return true;
+    const seen = await sb.from('sparks').select('id').eq('id', id);
+    if (!seen.error && seen.data && seen.data.length) { opened.add(id); return true; }
     const res = must(await sb.rpc('open_idea', { p_spark: id }));
     if (res.data) opened.add(id);
     return !!res.data;
@@ -660,18 +672,32 @@
 
   const needSignIn = (fn, from) => { if (state.email) fn(); else openLogin(from, fn); };
   const needName = (fn) => { if (state.myName) fn(); else setState({ nameAsk: fn, nameText: '' }); };
-  // Guests (not signed in) leave a name and number once per visit so the lead can reach them
+  // Guests (not signed in) can only RSVP, with a name (owner, 2026-10-01). They give it once; it's kept on their
+  // profile, so the next RSVP on this device doesn't ask again. The database refuses a guest's RSVP without it.
   const needGuest = (fn) => {
     if (state.email) { needName(fn); return; }
     if (state.guest) { fn(); return; }
-    setState({ guestOpen: true, guestThen: fn, guestName: state.guestName || state.myName || '' });
+    if (state.myName) { setState({ guest: { name: state.myName } }); fn(); return; }
+    setState({ guestOpen: true, guestThen: fn, guestName: state.guestName || '' });
   };
+  // Everything else (interest, suggestions, votes, jobs, photos) needs an account: sign-in, then the action
+  const needAccount = (fn) => { if (state.email) needName(fn); else openLogin('account', () => needName(fn)); };
   const saveGuestContact = async (sparkId) => {
     if (state.email || !state.guest || !sparkId) return;
-    must(await sb.from('guest_contacts').upsert({ spark_id: sparkId, user_id: state.me, name: state.guest.name, phone: state.guest.phone }, { onConflict: 'spark_id,user_id' }));
+    must(await sb.from('guest_contacts').upsert({ spark_id: sparkId, user_id: state.me, name: state.guest.name, phone: null }, { onConflict: 'spark_id,user_id' }));
+  };
+  // After a guest's first Going or Maybe on an event (this visit): what an account adds
+  const guestAsked = new Set();
+  const askGuestToJoin = (s) => {
+    if (state.email || guestAsked.has(s.id)) return;
+    guestAsked.add(s.id);
+    setTimeout(() => { if (!state.email && !state.confirm && !state.loginStep) setState({ confirm: {
+      title: 'You’re on the list', body: 'Make a free account to get a reminder the day before, hear about changes, and sign up to help. Your RSVP comes with you.',
+      cta: 'Create an account', keep: 'Not now', green: true, run: () => { setState({ confirm: null }); openLogin('account'); } } }); }, 900);
   };
 
   const saveName = async (name, stampEverywhere) => {
+    if (state.viewAs) return;   // previewing as someone else: their name isn't ours to change
     setState({ myName: name });
     if (!sb) return;
     sb.auth.updateUser({ data: { name, display_name: name } }).catch(() => {});
@@ -695,7 +721,7 @@
     g.pinned = pinned;
     toast(pinned ? 'Pinned' : 'Unpinned', true);
     sb.from('memberships').update({ pinned }).eq('group_id', g.id).eq('user_id', state.me)
-      .then(r => { if (r.error) throw r.error; }).catch(e => { console.error(e); g.pinned = !pinned; toast(FAILED); });
+      .then(r => { if (r.error) throw r.error; }).catch(e => { console.error(e); g.pinned = !pinned; toast(failed(e)); });
   };
 
   // The owner's one-tap removal of the seeded demo content (wipe_demo() checks it's them)
@@ -714,7 +740,7 @@
   const openTesters = () => {
     if (state.testers) return setState({ testers: null });
     sb.rpc('demo_testers').then(r => {
-      if (r.error) { console.error(r.error); toast(FAILED); return; }
+      if (r.error) { console.error(r.error); toast(failed(r.error)); return; }
       setState({ testers: r.data || [] });
     }, () => toast(FAILED));
   };
@@ -755,6 +781,20 @@
   };
 
   // Edit group (owners and admins): from a group's page or the Groups gear
+  // People removed and blocked from rejoining (admins see and lift them; group_blocked() checks)
+  const loadBlocked = (id) => sb.rpc('group_blocked', { p_group: id })
+    .then(r => { if (r.error) throw r.error; if (state.membersOpen === id) setState({ blockedList: r.data || [] }); })
+    .catch(e => console.error(e));
+  const unblock = (g, b) => run(async () => {
+    must(await sb.rpc('unblock_member', { p_group: g.id, p_user: b.user_id }));
+    await loadBlocked(g.id);
+  }).then(ok => { if (ok) toast((firstName(b.name) || b.name) + ' can rejoin with the link', true); });
+  // Owners: a new code and link; the old ones stop working (rotate_group_code())
+  const askNewCode = (g) => setState({ confirm: { title: 'Get a new invite link?', body: 'The current link and code stop working. Everyone already in ' + g.name + ' stays.', cta: 'Get a new link', keep: 'Not now',
+    run: () => run(async () => {
+      const code = must(await sb.rpc('rotate_group_code', { p_group: g.id })).data;
+      setState({ gpCode: code || '' });
+    }, { confirm: null }).then(ok => { if (ok) toast('New invite link ready', true); }) } });
   const loadMembers = async (id) => {
     const res = must(await sb.rpc('group_members', { p_group: id }));
     const list = res.data || [];
@@ -772,13 +812,14 @@
     const g = groupById(state.gpId);
     if (state.gpFrom === 'browse' && g) go('browse', { groupId: g.id }); else go('groups');
   };
-  const openMembers = () => setState({ membersOpen: state.gpId, membersQ: '' });
+  const openMembers = () => { setState({ membersOpen: state.gpId, membersQ: '', blockedList: null }); const g = groupById(state.gpId); if (g && runs(g)) loadBlocked(g.id); };
   // v6 Update 13: every member can open the list (to add friends); admins also get emails and role actions
   const openMembersOf = (g) => {
-    setState({ membersOpen: g.id, membersQ: '', memberOpen: null, membersList: null });
+    setState({ membersOpen: g.id, membersQ: '', memberOpen: null, membersList: null, blockedList: null });
+    if (runs(g)) loadBlocked(g.id);
     sb.rpc(runs(g) ? 'group_members' : 'group_people', { p_group: g.id })
       .then(r => { if (r.error) throw r.error; if (state.membersOpen === g.id) setState({ membersList: r.data || [] }); })
-      .catch(e => { console.error(e); setState({ membersOpen: null }); toast(FAILED); });
+      .catch(e => { console.error(e); setState({ membersOpen: null }); toast(failed(e)); });
   };
 
   // Owners set roles (five owners at most, never none); admins see the list
@@ -799,14 +840,20 @@
     } else apply();
   };
 
-  // Admins remove members; owners also remove admins and other owners (remove_member() checks)
-  const removeMember = (g, m) => {
+  // Admins remove members; owners also remove admins and other owners (remove_member() checks).
+  // Remove and block: they also can't rejoin with the link, even a new one, until an admin unblocks them.
+  const removeMember = (g, m, block) => {
     const first = firstName(m.name) || m.name;
-    setState({ confirm: { title: 'Remove ' + first + ' from ' + g.name + '?', body: 'They won’t see the group’s events any more. The events they posted and their RSVPs stay. They can rejoin with the group’s link.', cta: 'Remove', keep: 'Keep them', danger: true,
+    setState({ confirm: { title: (block ? 'Remove and block ' : 'Remove ') + first + (block ? '?' : ' from ' + g.name + '?'),
+      body: block
+        ? 'They won’t see the group’s events any more and can’t rejoin, even with a new link. The events they posted and their RSVPs stay. You can unblock them from Members.'
+        : 'They won’t see the group’s events any more. The events they posted and their RSVPs stay. They can rejoin with the group’s link.',
+      cta: block ? 'Remove and block' : 'Remove', keep: 'Keep them', danger: true,
       run: () => run(async () => {
-        must(await sb.rpc('remove_member', { p_group: g.id, p_user: m.user_id }));
+        must(await sb.rpc('remove_member', { p_group: g.id, p_user: m.user_id, p_block: !!block }));
         await loadMembers(g.id);
-      }, { confirm: null, memberOpen: null }).then(ok => { if (ok) toast(first + ' was removed', true); }) } });
+        if (block) await loadBlocked(g.id);
+      }, { confirm: null, memberOpen: null }).then(ok => { if (ok) toast(first + (block ? ' was removed and blocked' : ' was removed'), true); }) } });
   };
 
   const saveRename = async (g) => {
@@ -887,7 +934,7 @@
     } catch (e) {
       console.error(e);
       setState({ busy: null });
-      toast(FAILED);
+      toast(failed(e));
     }
   };
 
@@ -929,7 +976,7 @@
       } catch (e) {
         console.error(e);
         setState({ frAdd: Object.assign({}, fa, { busy: false }) });
-        toast(FAILED);
+        toast(failed(e));
       }
     })();
   };
@@ -937,8 +984,8 @@
     const fa = state.frAdd, w = fa.who, close = fa.busy ? null : closeFrAdd;
     const ok = (label) => '<button type="button" ' + on(closeFrAdd) + ' style="' + primary(true) + '">' + label + '</button>';
     if (w === undefined) return modal('Friend link', close, '<div role="status" style="padding:18px 0;text-align:center;font-size:15px;font-weight:600;color:#8a909b">Loading…</div>', { z: 46 });
-    if (w === null) return modal('Friend link', close, h3('That friend link doesn’t work anymore') + para('Ask them to send you a new one.') + ok('OK'), { z: 46 });
-    if (fa.self) return modal('Friend link', close, h3('That’s your link') + para('Send it to people you want to be friends with on Spark Hub.') + ok('OK'), { z: 46 });
+    if (w === null) return modal('Friend link', close, h3Html('That friend link doesn’t work anymore') + paraHtml('Ask them to send you a new one.') + ok('OK'), { z: 46 });
+    if (fa.self) return modal('Friend link', close, h3Html('That’s your link') + paraHtml('Send it to people you want to be friends with on Spark Hub.') + ok('OK'), { z: 46 });
     const first = firstName(w.name) || 'them', url = w.avatar ? photoUrl(w.avatar) : null;
     return modal('Add a friend', close,
       avatarSpan(w.name, w.name, url, 72, 'align-self:center') +
@@ -1202,7 +1249,7 @@
     if (!s) return '';
     const close = () => setState({ takeDown: null }), n = peopleIn(s).filter(u => u !== state.me).length, word = s.planned ? 'event' : 'idea';
     return modal('Cancel or delete', close,
-      h3('Cancel or delete?') +
+      h3Html('Cancel or delete?') +
       '<div data-cancel-opt style="display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:16px;background:#fdeef0">' +
         '<div><div style="font-size:16px;font-weight:900;color:#9b1c31">Cancel it</div>' +
           '<div style="margin-top:2px;font-size:14px;line-height:1.4;font-weight:600;color:#7a1626">' + (n === 1 ? 'The 1 person in it gets' : 'The ' + n + ' people in it get') + ' a note that it’s off. It stays up, marked Cancelled, until you delete it.</div></div>' +
@@ -1229,8 +1276,7 @@
       run(async () => { must(await sb.from('interests').delete().eq('spark_id', s.id).eq('user_id', state.me)); }, { tag: null });
       return;
     }
-    needGuest(() => run(async () => {
-      await saveGuestContact(s.id);
+    needAccount(() => run(async () => {
       must(await sb.from('interests').insert({ spark_id: s.id, user_id: state.me }));
     }, { tag: 'You’re interested' }));
   };
@@ -1238,7 +1284,7 @@
   // Non-leads suggest (waits for the lead); the lead sets it straight away
   const openOffer = (s, kind) => {
     const open = () => setState({ offerKind: kind, offerText: '', offerPlace: null, offerSuggest: [] });
-    if (isLead(s)) open(); else needGuest(open);
+    if (isLead(s)) open(); else needAccount(open);
   };
   const commitOffer = (s) => {
     const kind = state.offerKind, text = state.offerText.trim(), place = state.offerPlace;
@@ -1287,6 +1333,7 @@
       const before = (state.sparks.find(x => x.id === s.id) || s).rsvps;
       patchSpark(s.id, { rsvps: before.filter(r => r.userId !== state.me).concat(next ? [{ userId: state.me, status: next, created: Date.now() }] : []) });
       if (note) toast(dropJobs ? 'Thanks for letting ' + lead + ' know. You’re off the list too.' : note, true);
+      if (next === 'going' || next === 'maybe') askGuestToJoin(s);
       const mine = ++rsvpQueued;
       rsvpChain = rsvpChain.then(async () => {
         try {
@@ -1298,7 +1345,7 @@
         } catch (e) {
           console.error(e);
           patchSpark(s.id, { rsvps: before });
-          toast(FAILED);
+          toast(failed(e));
         }
         if (mine === rsvpQueued) loadFresh().catch(e => console.error(e));
       });
@@ -1313,7 +1360,7 @@
     save(false);
   };
 
-  const vote = (table, s, o) => needGuest(() => run(async () => {
+  const vote = (table, s, o) => needAccount(() => run(async () => {
     await saveGuestContact(s.id);
     if (o.votes.indexOf(state.me) > -1) must(await sb.from(table).delete().eq('option_id', o.id).eq('user_id', state.me));
     else must(await sb.from(table).insert({ option_id: o.id, user_id: state.me }));
@@ -1375,7 +1422,7 @@
       row = must(await sb.from('signup_items').insert({ spark_id: s.id, item, need, time }).select('id').single()).data;
       if (!isLead(s)) { must(await sb.from('signup_claims').insert({ item_id: row.id, user_id: state.me })); await goingWithJob(s); }
     }, { sigDraft: '', sigNeed: '', sigTime: '', sigAdding: false }).then(ok => { if (ok) { if (isLead(s)) toast('Added to sign-ups', true); else onItBanner(s, { del: row.id, was }); } });
-    if (isLead(s)) add(); else needGuest(add);
+    if (isLead(s)) add(); else needAccount(add);
   };
   // Taking a job means you're coming (owner, 2026-09-30): it marks you Going on a plan, whatever you'd said.
   // Undo puts your old answer back (`was`).
@@ -1385,14 +1432,14 @@
   };
   const toggleClaim = (s, it) => {
     const mine = it.claims.some(c => c.userId === state.me), was = myRsvp(s), myNote = (it.claims.find(c => c.userId === state.me) || {}).note || null;
-    needGuest(() => run(async () => {
+    needAccount(() => run(async () => {
       await saveGuestContact(s.id);
       if (mine) must(await sb.from('signup_claims').delete().eq('item_id', it.id).eq('user_id', state.me));
       else { must(await sb.from('signup_claims').insert({ item_id: it.id, user_id: state.me })); await goingWithJob(s); }
     }).then(ok => { if (ok) { if (mine) offIt(s, jobOf(s, it), { items: [it.id], note: myNote }); else onItBanner(s, { items: [it.id], was }); } }));
   };
   // Pick a shift: tick any shifts (more than one is fine), an optional note, Done
-  const openShifts = (s, job) => needGuest(() => {
+  const openShifts = (s, job) => needAccount(() => {
     const mine = myShiftIds(job), c = job.shifts.map(u => u.claims.find(x => x.userId === state.me)).find(Boolean);
     setState({ shiftPick: { id: s.id, job: job.id, sel: mine, note: c ? c.note : '' } });
   });
@@ -1414,7 +1461,7 @@
   };
   const saveClaimNote = (it, note) => {
     sb.from('signup_claims').update({ note: note.slice(0, 60) || null }).eq('item_id', it.id).eq('user_id', state.me)
-      .then(r => { if (r.error) throw r.error; }).catch(e => { console.error(e); toast(FAILED); });
+      .then(r => { if (r.error) throw r.error; }).catch(e => { console.error(e); toast(failed(e)); });
   };
   const removeSignup = (s, it) => {
     const n = new Set(it.claims.map(c => c.userId).filter(u => u !== state.me)).size;
@@ -1439,7 +1486,7 @@
     let blob;
     try { blob = await shrinkImage(file); } catch (e) { toast(BAD_PHOTO); return; }
     let path = null;
-    needGuest(() => run(async () => {
+    needAccount(() => run(async () => {
       path = await uploadBlob(blob);
       try { must(await sb.from('album_photos').insert({ spark_id: s.id, path })); } catch (e) { deletePhotos([path]); throw e; }
     }).then(ok => { if (ok) toast('Added to the album', true); }));
@@ -1700,7 +1747,7 @@
 
   const googleSignIn = async () => {
     const st = state;
-    if (st.busy) return;
+    if (st.busy || st.viewAs) return;
     setState({ busy: 'google', googleFailed: false });
     try {
       await ensureSession();
@@ -1789,6 +1836,7 @@
   const setPe = (p) => setState({ pe: Object.assign({}, state.pe, p) });
 
   const savePe = async () => {
+    if (state.viewAs) { toast('You’re viewing as ' + firstName(state.viewAs.name) + ', so nothing changes. Exit to make changes.'); return; }
     const pe = state.pe, name = cleanTitle(pe.name).slice(0, 30);
     const newEmail = pe.email.trim().toLowerCase();
     const emailChanged = !state.isGoogle && newEmail !== state.email.toLowerCase();
@@ -1855,7 +1903,21 @@
   const EYEBROW = 'font-size:12px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#6b7280';
   const FIELD = 'width:100%;background:#fff;border:2px solid #e6e7eb;border-radius:14px;padding:13px 16px;font-family:inherit;font-size:16px;font-weight:600;color:#0d1117;outline:none';
   const orDivider = () => '<div style="display:flex;align-items:center;gap:12px;margin:2px 0"><span style="flex:1 1 auto;height:1px;background:#dcdfe6"></span><span style="font-size:13px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#6b7280">or</span><span style="flex:1 1 auto;height:1px;background:#dcdfe6"></span></div>';
-  const bg = (url, pos) => url ? 'url(\'' + esc(url) + '\') ' + (pos || 'center') + '/cover' : '';
+  // A photo as a CSS background. Only our own photo addresses get in (photoUrl()'s storage URLs, the
+  // site's /photos/, a just-picked photo's blob: or data: URL), and only a plain position; anything else
+  // draws no photo rather than reaching a style attribute.
+  const STORAGE_PHOTO = CFG.supabaseUrl + '/storage/v1/object/public/' + PHOTO_BUCKET + '/';
+  const bgUrlOk = (u) => typeof u === 'string' && (
+    (u.indexOf(STORAGE_PHOTO) === 0 && PHOTO_PATH.test(u.slice(STORAGE_PHOTO.length))) ||
+    /^\/photos\/[a-z0-9-]+\.(jpg|png)$/.test(u) ||
+    /^blob:https?:\/\/[^\s'"()\\]+$/.test(u) ||
+    /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(u));
+  const BG_POS = /^(-?[0-9.]+% -?[0-9.]+%|center|(top|bottom|left|right|center) (top|bottom|left|right|center))$/;
+  const bg = (url, pos) => {
+    if (!url) return '';
+    if (!bgUrlOk(url)) { console.warn('Not a photo address, left out:', String(url).slice(0, 60)); return ''; }
+    return 'url(\'' + esc(url) + '\') ' + (BG_POS.test(pos || '') ? pos : 'center') + '/cover';
+  };
 
   // A person's face: photo, or a coloured initial
   // One face for a person everywhere (audit, 2026-10-01): their photo, or two initials on a pastel picked from their
@@ -1951,7 +2013,7 @@
   // The group's photo; no photo → its colour with the initial; still loading → grey
   const invPhoto = (g, h, initialSize) => g === undefined
     ? '<div aria-hidden="true" style="height:' + h + ';background:#e3e5ec;animation:skPulse 1.4s ease-in-out infinite"></div>'
-    : g && g.photo ? '<div aria-hidden="true" style="height:' + h + ';background:' + bg(g.photo) + '"></div>'
+    : g && g.photo ? '<div aria-hidden="true" style="height:' + h + ';background:' + bg(photoUrl(g.photo)) + '"></div>'
     : '<div aria-hidden="true" style="height:' + h + ';background:#e8a71c;display:flex;align-items:center;justify-content:center;font-size:' + initialSize + 'px;font-weight:900;color:#fff">' + esc(initialOf(g && g.name)) + '</div>';
   const invThumb = (g, size, ring) => '<span aria-hidden="true" style="flex:0 0 ' + size + 'px;width:' + size + 'px;height:' + size + 'px;border-radius:999px;overflow:hidden;display:block' + (ring ? ';box-shadow:' + ring : '') + '">' + invPhoto(g, size + 'px', Math.round(size * 0.45)) + '</span>';
   const invName = (g) => g && g.name ? esc(g.name) : g ? 'this group' : '';   // g with no name: the preview couldn't load
@@ -2163,7 +2225,6 @@
   const skeleton = (n, h) => '<div role="status" aria-label="Loading" style="display:flex;flex-direction:column;gap:14px">' +
     Array.from({ length: n }, () => '<div aria-hidden="true" style="height:' + h + 'px;border-radius:20px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);animation:skPulse 1.4s ease-in-out infinite"></div>').join('') + '</div>';
 
-  const H1 = (text, extra) => '<h1 style="margin:0;font-size:36px;line-height:1;font-weight:900;letter-spacing:-1.2px;color:#0d1117;' + (extra || '') + '">' + text + '</h1>';
   const VIEW_ICONS = {
     next: '<rect x="4" y="3.5" width="16" height="9" rx="1.6"/><path d="M4 16.5h16M4 20.5h16"/>',
     tiles: '<rect x="4" y="4.5" width="16" height="6" rx="1.6"/><rect x="4" y="13.5" width="16" height="6" rx="1.6"/>',
@@ -2212,8 +2273,8 @@
       '<div style="flex:1 1 0;min-width:0"><div style="display:flex;align-items:center;gap:6px;font-size:16px;font-weight:800;color:#0d1117">' + label + (badge || '') + '</div>' +
         '<div style="font-size:13px;font-weight:600;color:#6b7280">' + sub + '</div></div>' + (cur ? I.check(18, '#5b4ae8', 2.6) : '') + '</div>';
     const badge = n ? '<span aria-label="' + n + ' leading" style="min-width:19px;height:19px;padding:0 6px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center;box-sizing:border-box">' + (n > 9 ? '9+' : n) + '</span>' : '';
-    return '<h1 data-menu ' + on(() => setState({ menu: open ? null : 'vm' })) + ' aria-haspopup="listbox" aria-expanded="' + open + '" aria-label="' + title + ', switch view" style="flex:1 1 0;min-width:0;margin:0;display:flex;align-items:center;gap:6px;font-size:30px;line-height:1;font-weight:900;letter-spacing:-1px;color:#0d1117;cursor:pointer">' +
-        '<span>' + title + '</span><span style="display:flex;margin-top:4px;transition:transform .15s;transform:' + (open ? 'rotate(180deg)' : 'none') + '">' + I.chevD(18, '#0d1117', 3) + '</span></h1>' +
+    return '<h1 data-menu ' + on(() => setState({ menu: open ? null : 'vm' })) + ' aria-haspopup="listbox" aria-expanded="' + open + '" aria-label="' + esc(title) + ', switch view" style="flex:1 1 0;min-width:0;margin:0;display:flex;align-items:center;gap:6px;font-size:30px;line-height:1;font-weight:900;letter-spacing:-1px;color:#0d1117;cursor:pointer">' +
+        '<span>' + esc(title) + '</span><span style="display:flex;margin-top:4px;transition:transform .15s;transform:' + (open ? 'rotate(180deg)' : 'none') + '">' + I.chevD(18, '#0d1117', 3) + '</span></h1>' +
       (open
         ? '<div aria-hidden="true" style="position:fixed;inset:0;z-index:6;background:rgba(13,17,23,.35)"></div>' +
           '<div data-menu role="listbox" aria-label="Switch view" style="position:absolute;top:66px;left:12px;z-index:7;width:300px;max-width:calc(100% - 24px);padding:6px;border-radius:18px;background:#fff;box-shadow:0 18px 44px rgba(15,18,25,.25), 0 0 0 1px #e6e7eb;display:flex;flex-direction:column;gap:2px;animation:popIn 160ms ease both;box-sizing:border-box">' +
@@ -2324,7 +2385,7 @@
   const TOUCH = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
   const shareFriendLink = async () => {
     let code = state.myFriendCode;
-    try { if (!code) code = await loadFriendCode(); } catch (e) { console.error(e); return toast(FAILED); }
+    try { if (!code) code = await loadFriendCode(); } catch (e) { console.error(e); return toast(failed(e)); }
     const url = friendLink(code), text = 'Let’s be friends on Spark Hub, so we can invite each other to things.';
     setState({ pplAdd: false });
     // Phones: the share sheet (Messages, WhatsApp…); computers: copy it
@@ -2754,7 +2815,7 @@
   const searchBtn = () => '<span ' + on(openSearch) + ' aria-label="Search events" style="flex:0 0 44px;width:44px;height:44px;border-radius:999px;background:#f2f3f6;color:#0d1117;display:flex;align-items:center;justify-content:center;cursor:pointer">' + ic6('search', 20, 'currentColor', 2.1) + '</span>';
   const backBtn6 = (fn, label) => '<span ' + on(fn) + ' aria-label="' + (label || 'Back') + '" style="flex:0 0 44px;width:44px;height:44px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.chevL(20, '#0d1117', 2.6) + '</span>';
   const head6 = (title, left, sw) => '<header style="position:relative;z-index:5;background:#fff;padding:14px 16px;display:flex;align-items:center;gap:12px">' + (left || '') +
-    (sw ? titleSwitch(title) : '<h1 style="flex:1 1 0;min-width:0;margin:0;font-size:30px;line-height:1;font-weight:900;letter-spacing:-1px;color:#0d1117">' + title + '</h1>') +
+    (sw ? titleSwitch(title) : '<h1 style="flex:1 1 0;min-width:0;margin:0;font-size:30px;line-height:1;font-weight:900;letter-spacing:-1px;color:#0d1117">' + esc(title) + '</h1>') +
     '<div style="flex:0 0 auto;display:flex;gap:8px">' + (state.email ? searchBtn() : '') + bellBtn() + '</div></header>';
 
   // A slide-up sheet (v6): from a fixed top to the bottom, a white header block with the grab handle
@@ -2768,11 +2829,11 @@
   // ---- Screen 1: Your tasks (the default screen) ----------------------------------------------
   const secHead6 = (n, color, title, all) => '<div style="display:flex;align-items:center;gap:7px;padding:0 4px">' +
     '<span style="min-width:19px;height:19px;padding:0 6px;border-radius:999px;background:' + color + ';color:#fff;font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center">' + n + '</span>' +
-    '<h2 style="margin:0;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:#0d1117">' + title + '</h2>' +
-    (all ? '<span ' + on(all) + ' aria-label="View all ' + title.toLowerCase() + '" style="margin-left:auto;display:flex;align-items:center;gap:3px;min-height:32px;padding:0 2px 0 8px;font-size:14px;font-weight:800;color:#6b7280;cursor:pointer">View all' + I.chevR(12, 'currentColor', 3) + '</span>' : '') + '</div>';
+    '<h2 style="margin:0;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:#0d1117">' + esc(title) + '</h2>' +
+    (all ? '<span ' + on(all) + ' aria-label="View all ' + esc(title.toLowerCase()) + '" style="margin-left:auto;display:flex;align-items:center;gap:3px;min-height:32px;padding:0 2px 0 8px;font-size:14px;font-weight:800;color:#6b7280;cursor:pointer">View all' + I.chevR(12, 'currentColor', 3) + '</span>' : '') + '</div>';
   const inviteCard = (icon, title, sub, fn) => '<div ' + on(fn) + ' class="hov-grey-fill" style="display:flex;align-items:center;gap:12px;padding:14px 14px 14px 16px;border-radius:18px;background:#f4f5f7;box-shadow:inset 0 0 0 1.5px #dcdfe6;cursor:pointer">' +
     '<span style="flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;display:flex;align-items:center;justify-content:center">' + icon + '</span>' +
-    '<div style="flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-size:15.5px;font-weight:800;color:#0d1117">' + title + '</span><span style="font-size:13.5px;line-height:1.35;font-weight:600;color:#6b7280">' + sub + '</span></div>' +
+    '<div style="flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-size:15.5px;font-weight:800;color:#0d1117">' + esc(title) + '</span><span style="font-size:13.5px;line-height:1.35;font-weight:600;color:#6b7280">' + esc(sub) + '</span></div>' +
     I.chevR(16, '#b9bcc4', 2.6) + '</div>';
   // The Calendar with nothing coming up (owner, 2026-09-30): a next step, not just a sentence
   const calEmpty = () => {
@@ -2784,7 +2845,7 @@
       (ideas.length ? '<button type="button" class="hov-outline" ' + on(() => go('browse', { groupId: g ? g.id : state.groupId, phaseTab: 'idea' })) + ' style="' + SECONDARY + '">See ' + ideas.length + (ideas.length === 1 ? ' idea' : ' ideas') + '</button>' : '') +
     '</div>';
   };
-  const note6 = (t) => '<div style="' + CARD + ';padding:16px 18px;font-size:15px;line-height:1.45;font-weight:600;color:#6b7280">' + t + '</div>';
+  const note6 = (t) => '<div style="' + CARD + ';padding:16px 18px;font-size:15px;line-height:1.45;font-weight:600;color:#6b7280">' + esc(t) + '</div>';
   const CARD6 = 'align-self:flex-start;background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer';
 
   const ideaStepGrid = (s) => '<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));align-items:center;justify-items:center;padding:10px 14px 11px;border-top:1px solid #f2f3f6">' +
@@ -3175,7 +3236,7 @@
   }
 
   // "Could use a hand": each event's open roles, with Claim
-  const claimRole = (s, it) => needGuest(() => { const was = myRsvp(s); run(async () => {
+  const claimRole = (s, it) => needAccount(() => { const was = myRsvp(s); run(async () => {
     await saveGuestContact(s.id);
     must(await sb.from('signup_claims').insert({ item_id: it.id, user_id: state.me }));
     await goingWithJob(s);
@@ -3411,7 +3472,7 @@
     setState({ notif: n });
     writeCache();
     sb.from('notif_state').upsert({ user_id: state.me, all_read_at: n.allReadAt ? new Date(n.allReadAt).toISOString() : null, read_keys: n.read.slice(-300), topics: n.topics, email: n.email, updated_at: new Date().toISOString() }, { onConflict: 'user_id' })
-      .then(r => { if (r.error) throw r.error; }).catch(e => { console.error(e); toast(FAILED); });
+      .then(r => { if (r.error) throw r.error; }).catch(e => { console.error(e); toast(failed(e)); });
   };
   const markRead = (n) => { if (isUnread(n)) saveNotif({ read: state.notif.read.concat([n.key]) }); };
   // Everything shown counts, even an item stamped a little ahead of this device's clock
@@ -3445,7 +3506,7 @@
       await saveSub(sub);
       setState({ pushOn: true });
       toast('Notifications are on for this phone', true);
-    } catch (e) { console.error(e); toast(FAILED); }
+    } catch (e) { console.error(e); toast(failed(e)); }
   };
   const forgetPush = async () => {
     if (!PUSH_OK || !navigator.serviceWorker.controller) return;
@@ -3462,7 +3523,7 @@
       if (sub) { must(await sb.from('push_subscriptions').delete().eq('endpoint', sub.endpoint)); await sub.unsubscribe().catch(() => {}); }
       setState({ pushOn: false });
       toast('Notifications are off for this phone', true);
-    } catch (e) { console.error(e); toast(FAILED); }
+    } catch (e) { console.error(e); toast(failed(e)); }
   };
   // After each sign-in load: if this phone already allowed notifications, keep it tied to this account
   let pushSynced = false;
@@ -3518,7 +3579,7 @@
       must(await sb.from('feedback').insert({ body: f.text.trim().slice(0, 1000), screen: String(state.screen || '').slice(0, 60) }));
       setState({ busy: null, fb: { text: '', sent: true } });
       if (state.demoAdmin) loadFeedback();
-    } catch (e) { console.error(e); setState({ busy: null }); toast(FAILED); }   // what they typed stays
+    } catch (e) { console.error(e); setState({ busy: null }); toast(failed(e)); }   // what they typed stays
   };
   const ericFace = (size, extra) => '<span aria-hidden="true" style="flex:0 0 ' + size + 'px;width:' + size + 'px;height:' + size + 'px;border-radius:999px;background:#dcdfe6 url(' + ERIC_FACE + ') center/cover;' + (extra || '') + '"></span>';
   function viewFeedback() {
@@ -3572,7 +3633,7 @@
       } catch (e) {
         console.error(e);
         setState({ busy: null });
-        toast(FAILED);
+        toast(failed(e));
       }
     } } });
   function viewAccounts() {
@@ -4547,7 +4608,7 @@
     if (!s) return '';
     const close = () => setState({ sec: null, offerText: '', offerPlace: null, offerSuggest: [], timeOpen: null });
     const set = (patch) => setState({ sec: Object.assign({}, state.sec, patch) });
-    const label = (t) => '<span style="font-size:12px;font-weight:800;letter-spacing:1.1px;text-transform:uppercase;color:#6b7280">' + t + '</span>';
+    const label = (t) => '<span style="font-size:12px;font-weight:800;letter-spacing:1.1px;text-transform:uppercase;color:#6b7280">' + esc(t) + '</span>';
     const title = { title: 'Title & photo', when: 'Date, time & location', details: 'Details', vis: 'Who can see it' }[ss.kind];
     let body = '', ok = true;
     if (ss.kind === 'title') {
@@ -4559,7 +4620,7 @@
           '<span style="flex:1;font-size:15px;font-weight:800;color:#0d1117">Cover photo</span><label style="display:flex;align-items:center;gap:6px;font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">' + svg(16, stroke('currentColor', 2.2), CAMERA) + (cur ? 'Change' : 'Add') +
           '<input type="file" accept="image/*" aria-label="Cover photo" ' + onInput(e => { if (e.type !== 'change') return; const f = (e.target.files || [])[0]; e.target.value = ''; if (!f) return; shrinkImage(f).then(blob => { if (state.sec && state.sec.photo) URL.revokeObjectURL(state.sec.photo.url); set({ photo: { blob, url: URL.createObjectURL(blob) } }); }, () => toast(BAD_PHOTO)); }) + ' style="display:none"></label></div>' : '');
     } else if (ss.kind === 'when') {
-      body = '<div style="display:flex;flex-direction:column;gap:8px">' + label('Date &amp; time') +
+      body = '<div style="display:flex;flex-direction:column;gap:8px">' + label('Date & time') +
         '<div style="display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:8px">' + dateField(ss.d, 'Date', 'Pick a date', (v) => set({ d: v })) +
           timeField('secT', ss.t, EV_TIMES, 'Time', (v) => setState({ sec: Object.assign({}, state.sec, { t: v, e: ss.e && ss.e <= v ? '' : ss.e }), timeOpen: null })) + '</div>' +
         (ss.t ? timeField('secE', ss.e, EV_TIMES.filter(v => v > ss.t), 'End time (optional)', (v) => setState({ sec: Object.assign({}, state.sec, { e: v }), timeOpen: null })) : '') + '</div>' +
@@ -4791,8 +4852,8 @@
       '<div data-guest-nudge style="' + CARD + ';padding:16px;display:flex;align-items:center;gap:12px;background:#f7f6ff;box-shadow:inset 0 0 0 1.5px #dcd6fb">' +
         '<span style="flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center">' + ic6('bell', 18, '#5b4ae8', 2.2) + '</span>' +
         '<div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:800;color:#0d1117">Want a reminder?</div>' +
-          '<div style="margin-top:2px;font-size:13.5px;line-height:1.4;font-weight:600;color:#5c6270">Sign in and we’ll remind you the day before and that morning, and tell you if anything changes.</div></div>' +
-        '<span ' + on(() => openLogin('guest', () => {})) + ' style="flex:0 0 auto;display:flex;align-items:center;min-height:40px;padding:0 16px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:14px;font-weight:800;cursor:pointer">Sign in</span>' +
+          '<div style="margin-top:2px;font-size:13.5px;line-height:1.4;font-weight:600;color:#5c6270">Make a free account and we’ll remind you the day before and that morning, and tell you if anything changes.</div></div>' +
+        '<span ' + on(() => openLogin('account', () => {})) + ' style="flex:0 0 auto;display:flex;align-items:center;min-height:40px;padding:0 16px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:14px;font-weight:800;cursor:pointer">Create account</span>' +
       '</div>';
     const rsvpBlock = lead || s.cancelledAt ? '' : '<div data-rsvp style="' + CARD + ';padding:16px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">' +
       rsvpBtn('going', 'Going', goingIds.length) + rsvpBtn('maybe', 'Maybe', maybeN) + rsvpBtn('no', 'Can’t', noN) + '</div>';
@@ -4895,7 +4956,7 @@
   function viewStartGroup() {
     const st = state, ok = (st.startName || '').trim().length > 1 && !st.busy;
     return modal('Start a group', () => setState({ startName: null }),
-      h3('Start a group') + para('You’ll own it, and get a code to invite others.') +
+      h3Html('Start a group') + paraHtml('You’ll own it, and get a code to invite others.') +
       '<input class="fld" type="text" maxlength="40" aria-label="Group name" placeholder="E.g. Mueller Neighbors" value="' + esc(st.startName || '') + '" ' + onInput(e => { if (e.type === 'input') setState({ startName: e.target.value.slice(0, 40) }); }) + ' style="' + FIELD + '">' +
       '<button type="button" ' + on(submitStartGroup) + ' aria-disabled="' + !ok + '" style="' + primary(ok) + '">' + (st.busy === 'save' ? 'Creating…' : 'Create group') + '</button>',
       { z: 32 });
@@ -4909,14 +4970,14 @@
     const msg = ask ? ask + ' ' + link : 'Hey! ' + (lead ? 'I’m leading ' : 'Come to ') + s.text + (s.dayDate ? ' on ' + whenLong(s) : '') + (s.spot ? ' at ' + s.spot : '') + '. RSVP here: ' + link;
     const title = state.invite.title || (lead ? 'Invite people' : 'Share this event');
     if (ask) return modal(title, close,   // Round 64c
-      h3(title) + '<div style="margin-top:-6px;font-size:14px;font-weight:700;color:#6b7280">' + esc(state.invite.sub || s.text) + '</div>' +
+      h3Html(title) + '<div style="margin-top:-6px;font-size:14px;font-weight:700;color:#6b7280">' + esc(state.invite.sub || s.text) + '</div>' +
       '<div style="padding:14px 16px;border-radius:16px;background:#f4f5f7;font-size:15px;line-height:1.45;font-weight:600;color:#2b303a;overflow-wrap:anywhere">“' + esc(ask + ' ' + link.replace(/^https?:\/\//, '')) + '”</div>' +
       '<button type="button" class="hov-primary" ' + on(() => { if (navigator.share) navigator.share({ title: s.text, text: msg, url: link }).catch(() => {}); else copy(msg, 'Message copied. Paste it anywhere.'); }) + ' style="' + primary(true) + '">Send the message</button>' +
       '<span ' + on(() => copy(msg, 'Message copied. Paste it anywhere.')) + ' style="align-self:center;display:flex;align-items:center;min-height:36px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">Copy it instead</span>',
       { z: 32 });
     return modal(title, close,
-      h3(title) + (ask ? para('“' + esc(ask) + '”') : '') +
-      para(esc([s.text, whenLong(s)].filter(Boolean).join(' · '))) +
+      h3Html(title) + (ask ? paraHtml('“' + esc(ask) + '”') : '') +
+      paraHtml(esc([s.text, whenLong(s)].filter(Boolean).join(' · '))) +
       '<div style="display:flex;gap:8px"><span style="' + WELL + ';flex:1;min-width:0;font-size:14px;font-weight:600;color:#5c6270;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(link.replace(/^https?:\/\//, '')) + '</span>' +
         '<button type="button" class="hov-outline" ' + on(() => copy(link, 'Link copied')) + ' style="' + COPY_BTN + '">Copy</button></div>' +
       '<button type="button" class="hov-primary" ' + on(() => { if (navigator.share) navigator.share({ title: s.text, text: msg, url: link }).catch(() => {}); else copy(msg, ask ? 'Message copied. Paste it anywhere.' : 'Invite copied. Paste it anywhere.'); }) + ' style="' + primary(true) + '">' + (ask ? 'Send the message' : 'Share the invite') + '</button>' +
@@ -4934,7 +4995,7 @@
     const tpl = [['Change of plans', 'Heads up, small change for ' + s.text + ': '], ['Running late', 'Running about 10 minutes late. Hang tight!'], ['Thank you', 'Thank you all for coming to ' + s.text + '!']];
     const ok = b.text.trim().length > 0 && !state.busy;
     return modal('Send an update', close,
-      h3('Send an update') +
+      h3Html('Send an update') +
       '<div style="display:flex;gap:6px;flex-wrap:wrap">' + aud.map(([k, label, n]) => '<span ' + on(() => setState({ blast: Object.assign({}, b, { to: k }) })) + ' style="display:flex;align-items:center;min-height:38px;padding:0 13px;border-radius:999px;font-size:14px;font-weight:800;cursor:pointer;' + (b.to === k ? 'background:#0d1117;color:#fff' : 'background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;color:#0d1117') + '">' + label + ' · ' + n + '</span>').join('') + '</div>' +
       '<div style="display:flex;gap:6px;flex-wrap:wrap">' + tpl.map(([label, text]) => '<span ' + on(() => setState({ blast: Object.assign({}, b, { text }) })) + ' style="display:flex;align-items:center;min-height:32px;padding:0 11px;border-radius:999px;background:#f3f1fe;font-size:13px;font-weight:800;color:#4a3ad4;cursor:pointer">' + label + '</span>').join('') + '</div>' +
       '<textarea class="fld" rows="4" maxlength="320" aria-label="Your update" placeholder="What should people know?" ' + onInput(e => { if (e.type === 'input') setState({ blast: Object.assign({}, state.blast, { text: e.target.value.slice(0, 320) }) }); }) + ' style="' + FIELD + ';resize:none;line-height:1.4">' + esc(b.text) + '</textarea>' +
@@ -5088,6 +5149,7 @@
           '<span style="' + LABEL + '">Invite link</span>' +
           '<div style="display:flex;gap:8px"><span style="' + WELL + ';flex:1;min-width:0;font-size:14.5px;font-weight:600;color:#5c6270;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(link.replace(/^https?:\/\//, '')) + '</span>' +
             '<button type="button" class="hov-outline" ' + on(() => { if (link) copy(link, 'Invite link copied'); }) + ' aria-label="Copy invite link" style="' + COPY_BTN + '">Copy</button></div>' +
+          (owner ? '<span ' + on(() => askNewCode(g)) + ' style="align-self:flex-start;display:flex;align-items:center;min-height:36px;padding:0 2px;font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">Get a new invite link</span>' : '') +
         '</div>' +
         (owner
           ? '<div style="height:1px;background:#eceef2"></div>' +
@@ -5303,7 +5365,7 @@
       } catch (e) {
         console.error(e);
         setState({ busy: null });
-        toast(FAILED);
+        toast(failed(e));
       }
     })();
   };
@@ -5501,8 +5563,8 @@
         '</div></div></div>';
     }
 
-    const head = (t, sub) => '<div style="padding:26px 18px 0"><h2 style="margin:0;font-size:24px;line-height:1.05;font-weight:900;letter-spacing:-.8px;color:#0d1117">' + t + '</h2>' +
-      (sub ? '<p style="margin:8px 0 0;font-size:14.5px;line-height:1.4;font-weight:500;color:#5c6270;text-wrap:pretty">' + sub + '</p>' : '') + '</div>';
+    const head = (t, sub) => '<div style="padding:26px 18px 0"><h2 style="margin:0;font-size:24px;line-height:1.05;font-weight:900;letter-spacing:-.8px;color:#0d1117">' + esc(t) + '</h2>' +
+      (sub ? '<p style="margin:8px 0 0;font-size:14.5px;line-height:1.4;font-weight:500;color:#5c6270;text-wrap:pretty">' + esc(sub) + '</p>' : '') + '</div>';
     const pad = (inner) => '<div style="padding:12px 16px 0;display:flex;flex-direction:column;gap:10px">' + inner + '</div>';
     let body = '';
     if (cur === 'title') {
@@ -5518,7 +5580,7 @@
               '<span style="font-size:15px;font-weight:800;color:#0d1117">Upload a cover photo</span><span style="font-size:12.5px;font-weight:600;color:#6b7280">JPG or PNG · Optional</span>' + photoInput('Upload a cover photo') + '</label>'));
     } else if (cur === 'when') {
       const setD = (v) => setState({ evDate: v });
-      body = head('Date &amp; time') + (st.evDatePoll
+      body = head('Date & time') + (st.evDatePoll
         ? pad(pollCard(st.evDatePoll.map(r => dayLabel(r.d, r.t) || 'Date'), () => openPoll('when'), () => setState({ evDatePoll: null })))
         : pad(dateField(st.evDate, 'Date', 'Pick a date', setD) +
             timeField('start', st.evTime, EV_TIMES, 'Add a start time (optional)', (v) => setState({ evTime: v, evEnd: st.evEnd && st.evEnd <= v ? '' : st.evEnd, timeOpen: null })) +
@@ -5596,9 +5658,9 @@
     '<option value="">' + hint + '</option>' + opts.map(v => '<option value="' + v + '"' + (v === value ? ' selected' : '') + '>' + clock(v) + '</option>').join('') + '</select></div>';
   const SHEET_PAD = 'padding:10px 18px calc(24px + env(safe-area-inset-bottom, 0px));display:flex;flex-direction:column;gap:14px;max-height:88%;overflow-y:auto';
   const sheetHead = (eyebrow, title, sub, close) => '<div style="display:flex;align-items:flex-start;gap:10px"><div style="flex:1;min-width:0">' +
-    (eyebrow ? '<div style="font-size:12px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#6b7280">' + eyebrow + '</div>' : '') +
-    '<div style="margin-top:' + (eyebrow ? 2 : 0) + 'px;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.4px;color:#0d1117">' + title + '</div>' +
-    (sub ? '<div style="margin-top:4px;font-size:14px;line-height:1.4;font-weight:500;color:#5c6270">' + sub + '</div>' : '') + '</div>' + closeX(close) + '</div>';
+    (eyebrow ? '<div style="font-size:12px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#6b7280">' + esc(eyebrow) + '</div>' : '') +
+    '<div style="margin-top:' + (eyebrow ? 2 : 0) + 'px;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.4px;color:#0d1117">' + esc(title) + '</div>' +
+    (sub ? '<div style="margin-top:4px;font-size:14px;line-height:1.4;font-weight:500;color:#5c6270">' + esc(sub) + '</div>' : '') + '</div>' + closeX(close) + '</div>';
   const saveBtn = (ok, fn, label) => '<button type="button" ' + on(() => { if (ok) fn(); }) + ' aria-disabled="' + !ok + '" style="min-height:52px;border:0;border-radius:999px;background:' + (ok ? '#5b4ae8' : '#d5d8df') + ';color:#fff;font-family:inherit;font-size:16px;font-weight:800;cursor:' + (ok ? 'pointer' : 'default') + '">' + (label || 'Save') + '</button>';
 
   function viewComposeSheets() {
@@ -5618,7 +5680,7 @@
         else setState({ pollSheet: null, evSpotPoll: valid.map(r => ({ v: cleanTitle(r.v).slice(0, 80) })), locText: '', locPlace: null, locSuggest: [], evLater: Object.assign({}, st.evLater, { where: false }) });
       };
       return sheet('Poll the group', close, SHEET_PAD,
-        sheetHead(when ? 'Date &amp; time' : 'Location', 'Create a poll', when ? 'Add a few options. Everyone votes, and you pick the winner.' : 'Add a few spots. Everyone votes, and you pick the winner.', close) +
+        sheetHead(when ? 'Date & time' : 'Location', 'Create a poll', when ? 'Add a few options. Everyone votes, and you pick the winner.' : 'Add a few spots. Everyone votes, and you pick the winner.', close) +
         '<div style="display:flex;flex-direction:column;gap:8px">' + p.rows.map((r, k) => '<div style="display:flex;align-items:center;gap:8px">' +
           (when ? dateField(r.d, 'Date option ' + (k + 1), 'Date', (v) => setRow(k, { d: v }), 'flex:1.4 1 0') + timeSelect(r.t, EV_TIMES, 'Time', (v) => setRow(k, { t: v }), 'Time option ' + (k + 1))
             : '<input class="fld" type="text" maxlength="80" aria-label="Place option ' + (k + 1) + '" placeholder="Add a place" value="' + esc(r.v || '') + '" ' + onInput(e => { if (e.type === 'input') setRow(k, { v: e.target.value.slice(0, 80) }); }) + ' style="' + BIG + ';min-height:54px;flex:1 1 auto">') +
@@ -5655,7 +5717,7 @@
     const tag = idx == null ? '' : ' ' + (idx + 1);
     const setShift = (k, patch) => set({ shifts: r.shifts.map((q, j) => j === k ? Object.assign({}, q, patch) : q) });
     // Sign-ups belong to the job or to its shifts, and switching between them would drop them, so it's locked while anyone's on it
-    const held = r.n > 0, heldNote = (t) => '<span data-held style="font-size:13px;line-height:1.4;font-weight:600;color:#6b7280">' + t + '</span>';
+    const held = r.n > 0, heldNote = (t) => '<span data-held style="font-size:13px;line-height:1.4;font-weight:600;color:#6b7280">' + esc(t) + '</span>';
     return '<div style="display:flex;flex-direction:column;gap:10px">' +
       '<input class="fld" type="text" maxlength="60"' + (idx == null ? ' data-job-name' : '') + ' aria-label="Job name' + tag + '" placeholder="What you need, e.g. Bring a case of water" value="' + esc(r.item) + '" ' + onInput(e => { if (e.type === 'input') set({ item: e.target.value.slice(0, 60) }); }) + ' style="' + BIG + ';min-height:52px;font-size:16px">' +
       '<textarea class="fld" rows="2" maxlength="400" aria-label="Details' + tag + '" placeholder="Details (optional)" ' + onInput(e => { if (e.type === 'input') set({ desc: e.target.value.slice(0, 400) }); }) + ' style="' + BIG + ';min-height:52px;padding:12px 16px;font-size:16px;font-weight:500;line-height:1.4;resize:none">' + esc(r.desc || '') + '</textarea>' +
@@ -5684,8 +5746,9 @@
       (close ? '<div ' + on(close) + ' aria-label="Close" style="position:absolute;top:14px;right:14px;width:32px;height:32px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(15, '#0d1117', 2.4) + '</div>' : '') +
       inner +
     '</div></div>';
-  const h3 = (t, extra) => '<h3 style="margin:' + (extra || '0') + ';padding-right:36px;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117;text-wrap:pretty">' + t + '</h3>';
-  const para = (t, color) => '<p style="margin:0;font-size:14.5px;line-height:1.45;font-weight:500;color:' + (color || '#5c6270') + ';text-wrap:pretty;overflow-wrap:break-word">' + t + '</p>';
+  // h3Html / paraHtml take markup: escape any user text going in (esc())
+  const h3Html = (t, extra) => '<h3 style="margin:' + (extra || '0') + ';padding-right:36px;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117;text-wrap:pretty">' + t + '</h3>';
+  const paraHtml = (t, color) => '<p style="margin:0;font-size:14.5px;line-height:1.45;font-weight:500;color:' + (color || '#5c6270') + ';text-wrap:pretty;overflow-wrap:break-word">' + t + '</p>';
   const codeInput = (value, label, onChange, size) => '<input class="fld" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="8" aria-label="' + label + '" placeholder="000000" value="' + esc(value) + '" ' +
     onInput(e => onChange(e.target.value.replace(/\D/g, '').slice(0, 8))) +
     ' style="width:100%;background:#fff;border:2px solid #e6e7eb;border-radius:14px;padding:14px 16px;font-family:inherit;font-size:' + (size || 26) + 'px;font-weight:800;letter-spacing:10px;text-align:center;color:#0d1117;outline:none">';
@@ -5695,11 +5758,11 @@
     if (st.loginStep === 'email') {
       // Opened from Welcome's "Continue with email": just the email field (owner, 2026-09-30)
       const emailOk = EMAIL_OK.test(st.loginEmail.trim()), withGoogle = GOOGLE_ON && !st.loginEmailOnly;
-      const lead = { post: 'Sign in to post your event. ', guest: 'Your name fills in, and everything you add is saved to your account. ', join: 'Sign in to join a group. ', friend: 'Sign in to add your friend. ' }[st.loginFrom] ||
+      const lead = { post: 'Sign in to post your event. ', guest: 'Your name fills in, and everything you add is saved to your account. ', account: 'Guests can RSVP. To suggest, vote, sign up to help and get reminders, make a free account. ', join: 'Sign in to join a group. ', friend: 'Sign in to add your friend. ' }[st.loginFrom] ||
         'Your events, groups and name are saved to your account. ';
       return modal('Sign in', closeLogin,
-        h3(st.loginFrom === 'post' ? 'Sign in to post' : 'Sign in') +
-        para(lead + (withGoogle ? 'Use Google, or we’ll email you a 6-digit code. No password.' : 'We’ll email you a 6-digit code. No password.')) +
+        h3Html(st.loginFrom === 'post' ? 'Sign in to post' : st.loginFrom === 'account' ? 'Create a free account' : 'Sign in') +
+        paraHtml(lead + (withGoogle ? 'Use Google, or we’ll email you a 6-digit code. No password.' : 'We’ll email you a 6-digit code. No password.')) +
         (st.googleFailed
           ? '<div role="alert" style="display:flex;align-items:flex-start;gap:9px;background:#fdeef0;border:1.5px solid #f5c2cb;border-radius:14px;padding:11px 13px">' +
               '<span style="flex:0 0 18px;width:18px;height:18px;margin-top:1px;border-radius:999px;background:#9b1c31;color:#fff;font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center">!</span>' +
@@ -5717,8 +5780,8 @@
     }
     const codeOk = st.loginCode.length >= 6 && !busy;
     return modal('Enter the code', closeLogin,
-      h3('Enter the code') +
-      para('Sent to <strong style="font-weight:700;color:#0d1117">' + esc(st.loginEmail.trim()) + '</strong> · <span ' + on(() => setState({ loginStep: 'email' })) + ' style="font-weight:800;color:#5b4ae8;cursor:pointer">Change</span>') +
+      h3Html('Enter the code') +
+      paraHtml('Sent to <strong style="font-weight:700;color:#0d1117">' + esc(st.loginEmail.trim()) + '</strong> · <span ' + on(() => setState({ loginStep: 'email' })) + ' style="font-weight:800;color:#5b4ae8;cursor:pointer">Change</span>') +
       codeInput(st.loginCode, 'Code from the email', v => setState({ loginCode: v })) +
       '<button type="button" ' + on(() => { if (codeOk) verifyCode(); }) + ' aria-disabled="' + !codeOk + '" style="' + primary(codeOk) + '">' + (busy === 'signin' ? 'Signing in…' : 'Sign in') + '</button>' +
       '<div style="display:flex;justify-content:center;flex-wrap:wrap;gap:4px;font-size:14px;line-height:1.45;font-weight:500;color:#6b7280"><span>Not there? Check spam, or</span>' +
@@ -5738,7 +5801,7 @@
     };
     return modal('Your name', close,
       '<span aria-hidden="true" style="width:52px;height:52px;border-radius:999px;background:' + (ok ? '#e8a71c' : '#dfe2e8') + ';color:' + (ok ? '#fff' : '#6b7280') + ';font-size:21px;font-weight:900;display:flex;align-items:center;justify-content:center;transition:background .2s ease">' + esc(initialOf(st.nameText) || '?') + '</span>' +
-      h3(st.myName ? 'Change name' : 'Your name', '2px 0 0') +
+      h3Html(st.myName ? 'Change name' : 'Your name', '2px 0 0') +
       '<input class="fld" type="text" maxlength="30" autocomplete="given-name" aria-label="First name" placeholder="First name" value="' + esc(st.nameText) + '" ' + onInput(e => setState({ nameText: e.target.value.slice(0, 30) })) + ' style="' + FIELD + '">' +
       '<button type="button" ' + on(submit) + ' aria-disabled="' + !ok + '" style="' + primary(ok) + '">Continue</button>' +
       (!st.myName && !st.email
@@ -5749,28 +5812,25 @@
 
   function viewGuest() {
     const st = state, s = subject();
-    const nameOk = st.guestName.trim().length > 0;
-    const phoneOk = st.guestPhone.replace(/\D/g, '').length >= 10;
-    const ok = nameOk && phoneOk && !st.busy;
+    const ok = st.guestName.trim().length > 0 && !st.busy;
     const to = s ? firstName(nameOf(s.leadId, s.leadName)) : 'The lead';
     const close = () => setState({ guestOpen: false, guestThen: null });
     const submit = async () => {
       if (!ok) return;
-      const name = cleanTitle(st.guestName).slice(0, 30), phone = st.guestPhone.trim();
+      const name = cleanTitle(st.guestName).slice(0, 30);
       const then = st.guestThen;
-      setState({ guest: { name, phone }, guestOpen: false, guestThen: null, myName: st.myName || name });
+      setState({ guest: { name }, guestOpen: false, guestThen: null, myName: st.myName || name });
       try { await ensureSession(); must(await sb.from('profiles').upsert({ id: state.me, name }, { onConflict: 'id' })); } catch (e) { console.error(e); }
       if (typeof then === 'function') then();
     };
-    return modal('Your info', close,
-      h3('Your info') +
-      para('So ' + esc(to) + ' can reach you. Only they see it.') +
-      '<input class="fld" type="text" maxlength="30" autocomplete="name" aria-label="Your name" placeholder="Jane Smith" value="' + esc(st.guestName) + '" ' + onInput(e => setState({ guestName: e.target.value.slice(0, 30) })) + ' style="' + FIELD + '">' +
-      '<input class="fld" type="tel" inputmode="tel" maxlength="20" autocomplete="tel" aria-label="Phone number" placeholder="Phone number" value="' + esc(st.guestPhone) + '" ' + onInput(e => setState({ guestPhone: e.target.value.replace(/[^\d\s()+.-]/g, '').slice(0, 20) })) + ' style="' + FIELD + '">' +
+    return modal('RSVP as a guest', close,
+      h3Html('RSVP as a guest') +
+      paraHtml('Your name goes on the guest list, so ' + esc(to) + ' knows who’s coming.') +
+      '<input class="fld" type="text" maxlength="30" autocomplete="given-name" aria-label="Your name" placeholder="Your name" value="' + esc(st.guestName) + '" ' + onInput(e => setState({ guestName: e.target.value.slice(0, 30) })) + ' style="' + FIELD + '">' +
       '<button type="button" ' + on(submit) + ' aria-disabled="' + !ok + '" style="' + primary(ok) + '">Continue</button>' +
       '<div style="margin-top:4px;background:#f3f1fe;border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:12px">' +
         '<div style="flex:1 1 auto;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">Have an account?</div>' +
-        '<div style="margin-top:2px;font-size:13.5px;line-height:1.4;font-weight:500;color:#454b55">Sign in to skip this.</div></div>' +
+        '<div style="margin-top:2px;font-size:13.5px;line-height:1.4;font-weight:500;color:#454b55">Sign in to skip this and get reminders.</div></div>' +
         '<span ' + on(() => { const fn = st.guestThen; setState({ guestOpen: false, guestThen: null }); openLogin('guest', () => needName(fn || (() => {}))); }) + ' class="hov-primary" style="flex:0 0 auto;display:flex;align-items:center;min-height:40px;padding:0 16px;background:#5b4ae8;border-radius:999px;font-size:14.5px;font-weight:800;color:#fff;cursor:pointer">Sign in</span>' +
       '</div>');
   }
@@ -5797,7 +5857,7 @@
         ' style="width:100%;display:block;background:#fff;border:2px solid #e6e7eb;border-radius:16px;padding:14px 16px;font-size:16px;line-height:1.4;font-weight:600;color:#0d1117;resize:none;outline:none">' + esc(st.offerText) + '</textarea>';
     }
     return modal(copy.title, close,
-      h3(copy.title) + '<p style="margin:0;font-size:14.5px;line-height:1.45;font-weight:500;color:#6b7280">' + copy.hint + '</p>' + field +
+      h3Html(copy.title) + '<p style="margin:0;font-size:14.5px;line-height:1.45;font-weight:500;color:#6b7280">' + copy.hint + '</p>' + field +
       '<button type="button" ' + on(() => { if (ready) commitOffer(s); }) + ' aria-disabled="' + !ready + '" style="' + primary(ready) + ';margin-top:2px">' + (st.busy === 'save' ? 'Saving…' : copy.cta) + '</button>',
       { z: 25, max: 330 });
   }
@@ -5805,7 +5865,7 @@
   function viewJoin() {
     const st = state, ok = st.joinCode.length === 6 && !st.busy;
     return modal('Join a group', () => setState({ joinOpen: false }),
-      h3('Join a group') + para('Got a code from an organizer? Enter it here.') +
+      h3Html('Join a group') + paraHtml('Got a code from an organizer? Enter it here.') +
       '<input class="fld" type="text" maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Group code" placeholder="ABC123" value="' + esc(st.joinCode) + '" ' +
         onInput(e => { const v = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6); if (e.target.value !== v) e.target.value = v; setState({ joinCode: v, joinBad: false }); }) +
         ' style="' + FIELD + ';padding:14px 16px;font-size:24px;font-weight:800;letter-spacing:8px;text-align:center;text-transform:uppercase">' +
@@ -5821,8 +5881,8 @@
     if (pe.step === 'code') {
       const ok = pe.code.length >= 6 && !busy;
       return modal('Confirm your new email', close,
-        h3('Confirm your new email') +
-        para('We sent a code to <strong style="font-weight:700;color:#0d1117">' + esc(pe.email) + '</strong> · <span ' + on(() => setPe({ step: 'form' })) + ' style="font-weight:800;color:#5b4ae8;cursor:pointer">Change</span>') +
+        h3Html('Confirm your new email') +
+        paraHtml('We sent a code to <strong style="font-weight:700;color:#0d1117">' + esc(pe.email) + '</strong> · <span ' + on(() => setPe({ step: 'form' })) + ' style="font-weight:800;color:#5b4ae8;cursor:pointer">Change</span>') +
         codeInput(pe.code, 'Code from the email', v => setPe({ code: v })) +
         '<button type="button" ' + on(confirmPe) + ' aria-disabled="' + !ok + '" style="' + btn(ok) + '">' + (busy ? 'Confirming…' : 'Confirm') + '</button>' +
         '<p style="margin:0;font-size:13px;line-height:1.45;font-weight:500;color:#6b7280">Until you confirm, you keep signing in with ' + esc(st.email) + '.</p>', { z: 45 });
@@ -5832,7 +5892,7 @@
     const changed = !st.isGoogle && newEmail !== st.email.toLowerCase();
     const ok = nameOk && (!changed || EMAIL_OK.test(newEmail)) && !busy;
     return modal('Edit profile', close,
-      h3('Edit profile') +
+      h3Html('Edit profile') +
       '<div style="display:flex;align-items:center;gap:14px">' +
         avatarSpan(state.me, pe.name, pe.avatar ? pe.avatar.url : null, 64) +
         '<div style="display:flex;flex-wrap:wrap;gap:4px 14px">' +
@@ -5894,7 +5954,7 @@
         if (m.role === 'owner') out.push(pill('Remove as owner', () => setRole(g, m, 'admin')));
       }
       if (owner && mine && owners > 1) out.push(pill('Step down as owner', () => setRole(g, m, 'admin')));
-      if (admin && !mine && (owner || m.role === 'member')) out.push(redBtn('Remove from group', () => removeMember(g, m)));
+      if (admin && !mine && (owner || m.role === 'member')) out.push(redBtn('Remove from group', () => removeMember(g, m)), redBtn('Remove and block', () => removeMember(g, m, true)));
       return out.join('');
     };
     // v6 Update 13: friend requests start here (you share this group)
@@ -5941,6 +6001,12 @@
           ? '<div style="padding:28px 8px;text-align:center;font-size:15px;font-weight:600;color:#8a909b">Loading…</div>'
           : rows.map(row).join('') +
             (rows.length ? '' : '<div style="padding:28px 8px;text-align:center;font-size:15px;font-weight:600;color:#8a909b">No one by that name.</div>')) +
+        (admin && (st.blockedList || []).length && !q ? '<div data-blocked style="margin-top:18px;display:flex;flex-direction:column">' +
+          '<span style="padding:0 6px 6px;font-size:12px;font-weight:900;letter-spacing:.6px;text-transform:uppercase;color:#8a909b">Blocked</span>' +
+          st.blockedList.map(b => '<div data-blocked-row="' + esc(b.name) + '" style="display:flex;align-items:center;gap:12px;min-height:58px;padding:6px;border-bottom:1px solid #f2f3f6">' +
+            memberFace(b, 40) +
+            '<span style="flex:1;min-width:0;font-size:16px;font-weight:700;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(b.name) + '</span>' +
+            pill('Unblock', () => unblock(g, b)) + '</div>').join('') + '</div>' : '') +
       '</div>');
   }
 
@@ -5950,8 +6016,8 @@
     if (!g || g.role !== 'owner') return '';
     const ok = st.gpDel.trim() === 'DELETE' && !st.busy;
     return modal('Delete group', close,
-      h3('Delete ' + esc(g.name) + '?') +
-      para('This removes the group and every event in it, ' + (st.gpMembers === 1 ? 'for its 1 member' : 'for all ' + (st.gpMembers || 0) + ' members') + '. It can’t be undone.') +
+      h3Html('Delete ' + esc(g.name) + '?') +
+      paraHtml('This removes the group and every event in it, ' + (st.gpMembers === 1 ? 'for its 1 member' : 'for all ' + (st.gpMembers || 0) + ' members') + '. It can’t be undone.') +
       '<label style="display:flex;flex-direction:column;gap:6px"><span style="' + LABEL + '">Type <strong style="font-weight:900;color:#9b1c31">DELETE</strong> to confirm</span>' +
         '<input class="fld fld-danger" type="text" autocomplete="off" autocapitalize="characters" aria-label="Type DELETE to confirm" placeholder="DELETE" value="' + esc(st.gpDel) + '" ' +
           onInput(e => { const v = e.target.value.toUpperCase().slice(0, 12); if (e.target.value !== v) e.target.value = v; setState({ gpDel: v }); }) + ' style="' + FIELD + ';font-weight:800;letter-spacing:1px"></label>' +
@@ -5995,8 +6061,8 @@
   function viewInterestList(s) {
     const close = () => setState({ interestList: false }), lead = isLead(s);
     return modal('Who’s interested', close,
-      h3('Who’s interested') +
-      (lead ? para('Only you see phone numbers. They’re from people who took part without an account.') : '') +
+      h3Html('Who’s interested') +
+      (lead && s.contacts.some(c => c.phone && s.interested.indexOf(c.user_id) > -1) ? paraHtml('Only you see phone numbers. They’re from people who took part without an account.') : '') +
       '<div style="display:flex;flex-direction:column">' +
         s.interested.map((u, i) => {
           const c = lead && s.contacts.find(x => x.user_id === u);
@@ -6004,7 +6070,7 @@
           return '<div data-interested ' + (c ? '' : on(() => openPerson(u)) + ' aria-label="' + esc(name) + ', see profile" ') + 'style="display:flex;align-items:center;gap:12px;min-height:52px;border-top:' + (i ? '1px solid #f2f3f6' : '0') + (c ? '' : ';cursor:pointer') + '">' +
             face(u, name, 32, null) +
             '<span style="flex:1 1 auto;min-width:0;font-size:15.5px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(name) + '</span>' +
-            (c ? '<a href="tel:' + esc(c.phone.replace(/[^\d+]/g, '')) + '" style="flex:0 0 auto;font-size:14px;font-weight:800;color:#5b4ae8">' + esc(c.phone) + '</a>' : '') +
+            (c && c.phone ? '<a href="tel:' + esc(c.phone.replace(/[^\d+]/g, '')) + '" style="flex:0 0 auto;font-size:14px;font-weight:800;color:#5b4ae8">' + esc(c.phone) + '</a>' : c ? '<span style="flex:0 0 auto;padding:3px 9px;border-radius:999px;background:#f2f3f6;font-size:12px;font-weight:800;color:#6b7280">Guest</span>' : '') +
           '</div>';
         }).join('') +
       '</div>');
@@ -6019,7 +6085,7 @@
       return '<div data-guest ' + (c ? '' : on(() => openPerson(u)) + ' aria-label="' + esc(name) + ', see profile" ') + 'style="display:flex;align-items:center;gap:12px;min-height:50px;border-top:' + (i ? '1px solid #f2f3f6' : '0') + (c ? '' : ';cursor:pointer') + '">' +
         face(u, name, 32, null) +
         '<span style="flex:1 1 auto;min-width:0;font-size:15.5px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(name) + '</span>' +
-        (c ? '<a href="tel:' + esc(c.phone.replace(/[^\d+]/g, '')) + '" style="flex:0 0 auto;font-size:14px;font-weight:800;color:#5b4ae8">' + esc(c.phone) + '</a>' : '') + '</div>';
+        (c && c.phone ? '<a href="tel:' + esc(c.phone.replace(/[^\d+]/g, '')) + '" style="flex:0 0 auto;font-size:14px;font-weight:800;color:#5b4ae8">' + esc(c.phone) + '</a>' : c ? '<span style="flex:0 0 auto;padding:3px 9px;border-radius:999px;background:#f2f3f6;font-size:12px;font-weight:800;color:#6b7280">Guest</span>' : '') + '</div>';
     };
     const part = (k, label, ink) => {
       const ids = s.rsvps.filter(r => r.status === k).map(r => r.userId);
@@ -6029,10 +6095,10 @@
     const any = s.rsvps.some(r => lead || r.status !== 'no');
     // The lead's Guest list (with guests' numbers and Can't); everyone else sees who's going and who might
     return modal(lead ? 'Guest list' : 'Who’s going', close,
-      h3(lead ? 'Guest list' : 'Who’s going') +
-      (any ? (lead ? para('Phone numbers are from people who RSVP’d without an account. Only you see them.') : '') +
+      h3Html(lead ? 'Guest list' : 'Who’s going') +
+      (any ? (lead && s.contacts.some(c => c.phone && s.rsvps.some(r => r.userId === c.user_id)) ? paraHtml('Phone numbers are from people who RSVP’d without an account. Only you see them.') : '') +
         '<div style="display:flex;flex-direction:column;gap:14px">' + part('going', 'GOING', '#0f7a3c') + part('maybe', 'MAYBE', '#8f6405') + (lead ? part('no', 'CAN’T', '#454b55') : '') + '</div>'
-        : para(lead ? 'Nobody has RSVP’d yet. Share the link to get the word out.' : 'Nobody yet. Be the first.')));
+        : paraHtml(lead ? 'Nobody has RSVP’d yet. Share the link to get the word out.' : 'Nobody yet. Be the first.')));
   }
 
   // Who thanked the host (Round 64d): everyone can see it, as thank-yous are public
@@ -6040,7 +6106,7 @@
     const close = () => setState({ thanksList: false });
     const who = s.reactions.filter(r => r.kind === 'thanks').map(r => r.userId);
     return modal('Thanks for ' + firstName(nameOf(s.leadId, s.leadName)), close,
-      h3('Thanks for ' + esc(firstName(nameOf(s.leadId, s.leadName)))) +
+      h3Html('Thanks for ' + esc(firstName(nameOf(s.leadId, s.leadName)))) +
       '<div style="display:flex;flex-direction:column">' +
         who.map((u, i) => '<div style="display:flex;align-items:center;gap:12px;min-height:52px;border-top:' + (i ? '1px solid #f2f3f6' : '0') + '">' +
           face(u, nameOf(u), 36, '#7b6ef0') +
