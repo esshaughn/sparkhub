@@ -8,7 +8,8 @@
 #   - by hand, middle:    gh workflow run e2e.yml --ref test -f suite=some -f specs="groups post"
 #                         (the quick suite plus those spec files: e2e/groups.spec.js, e2e/post.spec.js)
 # Tests run 3 at a time on CI (workers: 3 in playwright.config.js); each worker signs in as its own leads.
-# Merging to main needs a green FULL run on that commit (the nightly one, or start one by hand).
+# Merging to main needs, on that commit: a green quick run (small change), a green middle run with the
+# touched specs (medium change) or a green full run (big change). The tiers are defined in CLAUDE.md (Tests).
 # Not on main: main only ever fast-forwards to a commit that already passed on test.
 # Commits that only touch docs, design, scripts, icons, email templates or test-only SQL skip the run.
 # Scheduled runs use this file as it is on main, so changes to the nightly only apply once merged.
