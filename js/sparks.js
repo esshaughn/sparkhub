@@ -1471,7 +1471,7 @@
   };
 
   // "Do it again": a new event with the place and details filled in
-  const doItAgain = (s) => goCompose({ activity: s.text.slice(0, 40), evTags: (s.tags || []).slice(0, 2), locText: s.spot || '', locPlace: s.spotAddress ? { name: s.spot, address: s.spotAddress, lat: s.spotPoint && s.spotPoint[0], lon: s.spotPoint && s.spotPoint[1] } : null,
+  const doItAgain = (s) => goCompose({ activity: s.text.slice(0, 40), evTags: (s.tags || []).slice(0, 2), evTest: !!(s.test || s.demo), locText: s.spot || '', locPlace: s.spotAddress ? { name: s.spot, address: s.spotAddress, lat: s.spotPoint && s.spotPoint[0], lon: s.spotPoint && s.spotPoint[1] } : null,
     evBits: [0, 1, 2].map(i => (basicsOf(s)[i] || '').slice(0, 40)) });
 
   const addMood = async (s, fileList) => {
@@ -1675,7 +1675,7 @@
 
   const GOOGLE_ON = !!CFG.googleSignIn;
   const RESUME_KEY = 'spark-hub-google-resume';
-  const DRAFT_KEYS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'locText', 'locPlace', 'evBits', 'evNeed', 'evTags', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evNoGuestInv', 'evGroups', 'coverPos', 'evPhotoPath', 'evDraftId'];
+  const DRAFT_KEYS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'locText', 'locPlace', 'evBits', 'evNeed', 'evTags', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evNoGuestInv', 'evTest', 'evGroups', 'coverPos', 'evPhotoPath', 'evDraftId'];
   const readResume = () => {
     try {
       const r = JSON.parse(sessionStorage.getItem(RESUME_KEY));
@@ -5291,7 +5291,7 @@
       locText: str(x.locText).slice(0, 80), locPlace: x.locPlace && typeof x.locPlace === 'object' ? x.locPlace : null,
       evBits: [0, 1, 2].map(i => str((x.evBits || [])[i]).slice(0, 40)), evNeed: Number.isInteger(x.evNeed) && x.evNeed > 0 ? Math.min(x.evNeed, 99) : null, evTags: (arr(x.evTags) || []).filter(k => TYPES6.some(t => t[0] === k)).slice(0, 2), evNeeds: arr(x.evNeeds) || [],
       evDatePoll: arr(x.evDatePoll), evSpotPoll: arr(x.evSpotPoll), evLater: x.evLater && typeof x.evLater === 'object' ? x.evLater : {},
-      evPriv: !!x.evPriv, evNoGuestInv: !!x.evNoGuestInv, evGroups: arr(x.evGroups), coverPos: x.coverPos || null,
+      evPriv: !!x.evPriv, evNoGuestInv: !!x.evNoGuestInv, evTest: typeof x.evTest === 'boolean' ? x.evTest : null, evGroups: arr(x.evGroups), coverPos: x.coverPos || null,
       evPhotoPath: PHOTO_PATH.test(x.evPhoto || '') ? x.evPhoto : null, evDraftId: d.id
     });
     return out;

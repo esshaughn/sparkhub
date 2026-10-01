@@ -50,7 +50,7 @@ test('coming back signed in posts the saved draft', async ({ browser }) => {
   try {
     await page.evaluate(({ k, title }) => sessionStorage.setItem(k, JSON.stringify({
       at: Date.now(), stage: 'link', from: 'post', anonId: null, name: 'Tester', mergeToken: null, screen: 'compose',
-      draft: { activity: title, evStep: 'review', evBits: ['Bring snacks', '', ''], evNeeds: [], evLater: {}, locText: '', locPlace: null, photos: [] }
+      draft: { activity: title, evTest: false, evStep: 'review', evBits: ['Bring snacks', '', ''], evNeeds: [], evLater: {}, locText: '', locPlace: null, photos: [] }   // evTest: the Real or test answer travels with the draft
     })), { k: RESUME_KEY, title });
     await page.goto('/?code=returned-from-google');
     await expect(page.getByText('It’s up')).toBeVisible();   // no date: it goes up as an idea

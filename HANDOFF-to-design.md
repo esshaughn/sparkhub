@@ -180,6 +180,7 @@ Where this doc and the design files disagree, **this doc is correct**.
 - **Add to calendar** uses the end time when there is one (an hour otherwise), and an event with no time is an all-day event.
 - **Background refresh:** every 30 seconds while someone's using the app, every 2 minutes after 5 idle minutes, backing off to 5 minutes after failures; coming back to the app refreshes at once. The owner check, group sizes and the owner's lists reload at most every 10 minutes, read state every 2. The freeze log records only on the owner's device.
 - **Hub on Hunters' invite link is `/join/HUNTER`** (owner, 2026-10-01; a fixed code so the pitch page can link to it). Torrez joiners also land in Hub on Hunters; Hub on Hunters joiners get only that group. **Test events** never push to the group (new event, *It's a plan*, reminders); replies to the host still do.
+- **Real or test? travels with the event:** a resumed draft, the trip through Google sign-in, and *Do it again* (from a real event: real; from a test or demo one: a test) keep the answer, so *Post it* / *Next* aren't stuck waiting for it.
 
 ## 4. Designed but not built or not working
 
