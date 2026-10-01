@@ -233,18 +233,13 @@
   const JOIN_PATH = /^\/join\/([A-Za-z0-9]{6})\/?$/;
   const IDEA_PATH = /^\/i\/([0-9a-f-]{36})\/?$/;   // shared idea links (a real path so chat apps can preview them)
   const ADD_PATH = /^\/add\/([A-Za-z0-9]{6})\/?$/;   // friend links (v6 Update 13)
-  // Named join links (owner, 2026-10-01): /torrez joins Torrez Fitness (and Hub on Hunters, via join_also),
-  // /hubonhunters joins only Hub on Hunters. Keep in step with the rewrites in vercel.json.
-  const GROUP_LINKS = { torrez: 'TORREZ', hubonhunters: 'HUNTER' };
-  const NAMED_PATH = /^\/([a-z]+)\/?$/i;
-  const namedCode = () => { const m = location.pathname.match(NAMED_PATH); return m && GROUP_LINKS[m[1].toLowerCase()] || null; };
   const fromUrl = () => {
     const h = location.hash;
     let m = h.match(/^#\/idea\/([0-9a-f-]{36})$/) || (!h && location.pathname.match(IDEA_PATH));
     if (m) return { screen: 'detail', subjectId: m[1], tag: null };
     m = h.match(/^#\/group\/([0-9a-f-]{36})$/);
     if (m) return { screen: 'groupPage', gpId: m[1] };
-    m = h.match(/^#\/join\/([A-Za-z0-9]{6})$/) || location.pathname.match(JOIN_PATH) || (!h && namedCode() && [0, namedCode()]);
+    m = h.match(/^#\/join\/([A-Za-z0-9]{6})$/) || location.pathname.match(JOIN_PATH);
     if (m) return { screen: 'calendar', inviteCode: m[1].toUpperCase() };
     m = h.match(/^#\/add\/([A-Za-z0-9]{6})$/) || location.pathname.match(ADD_PATH);
     if (m) return { screen: 'calendar', friendCode: m[1].toUpperCase() };
@@ -6381,7 +6376,7 @@
   // An invite link (/join/CODE): the invite flow (startInvite)
   const takeInvite = (code) => {
     if (!code) return;
-    if (JOIN_PATH.test(location.pathname) || namedCode() || /^#\/join\//.test(location.hash)) history.replaceState(null, '', '/');
+    if (JOIN_PATH.test(location.pathname) || /^#\/join\//.test(location.hash)) history.replaceState(null, '', '/');
     startInvite(code);
   };
 

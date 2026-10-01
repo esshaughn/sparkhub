@@ -77,14 +77,6 @@
       "destination": "/api/preview?join=:code"
     },
     {
-      "source": "/torrez",
-      "destination": "/api/preview?join=TORREZ"
-    },
-    {
-      "source": "/hubonhunters",
-      "destination": "/api/preview?join=HUNTER"
-    },
-    {
       "source": "/i/:id",
       "destination": "/api/preview?i=:id"
     },
