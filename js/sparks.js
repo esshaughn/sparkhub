@@ -267,6 +267,7 @@
       if (ov) ov.scrollTop = 0;
     }
     if (state.screen !== prevScreen || state.subjectId !== prevSubj || state.gpId !== prevGp) syncHash(prevScreen);
+    if (state.screen === 'browse' && prevScreen !== 'browse') hintVisit();   // the swipe arrows' first visits
   };
 
   const scroller = () => document.querySelector('.scroller');
@@ -3858,11 +3859,18 @@
       pane.style.animation = ((dir || (to > from ? 1 : -1)) > 0 ? 'paneFromRight' : 'paneFromLeft') + ' 240ms cubic-bezier(.2,.8,.2,1) both';
     }
   };
-  const stepTab = (d) => { const i = WORLDS.indexOf(state.phaseTab) + d; if (i >= 0 && i < WORLDS.length) switchTab(WORLDS[i], d); };
+  const stepTab = (d) => { hintLearned(); const i = WORLDS.indexOf(state.phaseTab) + d; if (i >= 0 && i < WORLDS.length) switchTab(WORLDS[i], d); };
+  // The edge arrows teach swiping (owner, 2026-10-01): only on someone's first 3 group-page visits on this device,
+  // and never again once they've swiped or used an arrow
+  const HINT_KEY = 'spark-hub-swipe-hint';
+  const hintCount = () => { try { return Number(localStorage.getItem(HINT_KEY)) || 0; } catch (e) { return 99; } };
+  const hintVisit = () => { try { localStorage.setItem(HINT_KEY, String(hintCount() + 1)); } catch (e) { /* blocked */ } };
+  const hintLearned = () => { try { localStorage.setItem(HINT_KEY, '99'); } catch (e) { /* blocked */ } };
   // Quiet chevrons on the screen's edges, nudging now and then toward the next tab
   const swipeHints = () => {
+    if (hintCount() > 3) return '';
     const i = WORLDS.indexOf(state.phaseTab), names = { idea: 'Ideas', plan: 'Plans', done: 'Past' };
-    const arrow = (d) => '<span ' + on(() => stepTab(d)) + ' aria-label="Go to ' + names[WORLDS[i + d]] + '" class="swipe-hint swipe-hint-' + (d < 0 ? 'l' : 'r') + '">' + (d < 0 ? I.chevL(16, '#454b55', 2.6) : I.chevR(16, '#454b55', 2.6)) + '</span>';
+    const arrow = (d) => '<span ' + on(() => stepTab(d)) + ' aria-label="Go to ' + names[WORLDS[i + d]] + '" class="swipe-hint swipe-hint-' + (d < 0 ? 'l' : 'r') + '">' + (d < 0 ? I.chevL(16, '#8f6405', 2.8) : I.chevR(16, '#8f6405', 2.8)) + '</span>';
     return (i > 0 ? arrow(-1) : '') + (i < WORLDS.length - 1 ? arrow(1) : '');
   };
 
@@ -6537,7 +6545,7 @@
     pane.style.transform = 'translateX(' + (go ? -dir * swipe.w : 0) + 'px)';
     setTimeout(() => {
       swipe = null;
-      if (go) switchTab(next, dir, true);   // the neighbour is already where it belongs, so no slide-in
+      if (go) { hintLearned(); switchTab(next, dir, true); }   // the neighbour is already where it belongs, so no slide-in
       swipeClear();
     }, ms + 20);
   };

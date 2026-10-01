@@ -389,7 +389,9 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
     await expect(tabs.filter({ hasText: 'Past' })).toHaveAttribute('aria-selected', 'true');
     await swipe(220);    // swipe right past 40%: back to Plans
     await expect(tabs.filter({ hasText: 'Plans' })).toHaveAttribute('aria-selected', 'true');
-    await expect(page.getByRole('button', { name: 'Go to Ideas' })).toBeVisible();
+    // Once someone has used an arrow or swiped, the arrows are gone for good (they only teach the first visits)
+    await expect(page.getByRole('button', { name: 'Go to Ideas' })).toHaveCount(0);
+    expect(await page.evaluate(() => localStorage.getItem('spark-hub-swipe-hint'))).toBe('99');
 
     // Plans: Sort · Filter · view on the first heading
     await expect(browse.getByRole('button', { name: 'Sort: Soonest' })).toBeVisible();

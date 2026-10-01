@@ -102,6 +102,7 @@ Where this doc and the design files disagree, **this doc is correct**.
 | 85 | **The bell's first section is *Today*** (*Today · N unread*) | *NEW · N* | The *New* chip means new events |
 | 86 | **Welcome to {group}:** *Ideas — float one, see who's up for it* | *suggest something, see who's up for it* | Wording |
 | 87 | **The Calendar's *Feeling wild?* card is gone** | *Feeling wild? We'll deal you a random event* | Filler |
+| 88 | **Group page edge arrows** (‹ › to the next tab) show only on someone's first 3 group-page visits on a device, and never again once they've swiped or used one; they're a see-through light yellow (`rgba(253,241,214,.72)` with a blur, gold border and `#8f6405` chevron) | Quiet frosted white arrows, always | They sat on the cards and read as stray buttons; now they teach swiping, then step aside (owner, 2026-10-01) |
 
 ## 2. Things the build had to invent (please design these properly)
 
