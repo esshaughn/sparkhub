@@ -336,3 +336,21 @@ reset role;
 select t.login('member'); set role authenticated;
 select t.must_allow('a member still takes a job', format($$insert into signup_claims (item_id, user_id) values ((select id from signup_items where item = 'Chairs'), %L)$$, t.id('member')));
 reset role;
+
+-- Nobody keeps a password (20261101100000_no_passwords.sql), except the TEST e2e leads -------------------
+insert into auth.users (id, email, encrypted_password, created_at, raw_user_meta_data)
+values (gen_random_uuid(), 'squatter@ericscott-creative.com', extensions.crypt('Throwaway-Pass-12345', extensions.gen_salt('bf')), now(), '{}'),
+       (gen_random_uuid(), 'e2e-lead-1@example.com', extensions.crypt('lead-pass', extensions.gen_salt('bf')), now(), '{}'),
+       (gen_random_uuid(), 'e2e-lead-7@example.com', extensions.crypt('lead-pass', extensions.gen_salt('bf')), now(), '{}');
+select t.check('a password given at sign-up is blanked',
+  (select encrypted_password from auth.users where email = 'squatter@ericscott-creative.com') = '');
+update auth.users set encrypted_password = extensions.crypt('Another-Pass-1', extensions.gen_salt('bf')) where email = 'squatter@ericscott-creative.com';
+select t.check('a password set later is blanked too',
+  (select encrypted_password from auth.users where email = 'squatter@ericscott-creative.com') = '');
+update auth.users set email_confirmed_at = now() where email = 'squatter@ericscott-creative.com';
+select t.check('confirming the address leaves it blank',
+  (select encrypted_password from auth.users where email = 'squatter@ericscott-creative.com') = '');
+select t.check('the e2e leads keep theirs',
+  (select encrypted_password = extensions.crypt('lead-pass', encrypted_password) from auth.users where email = 'e2e-lead-1@example.com'));
+select t.check('only leads 1 to 6',
+  (select encrypted_password from auth.users where email = 'e2e-lead-7@example.com') = '');
