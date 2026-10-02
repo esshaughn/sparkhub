@@ -13,12 +13,9 @@ select g.id, g.name from public.groups g
 union
 select g.id, 'Torrez Fitness' from public.groups g where g.code = 'TORREZ';
 
--- 1. The demo groups. Nobody is added automatically any more (since 20261011000000_demo_optin.sql):
---    people join them with their invite codes, which the owner shares by hand. Torrez Fitness is the real
---    pilot group and is NOT a demo group (see pilot-torrez.sql); nor is Hub on Hunters since 2026-10-01, a
---    real group that keeps some demo events (see hub-live.sql). Both stay in the roster below.
-update public.groups set demo = true
- where id in (select id from demo_groups_here where name not in ('Torrez Fitness', 'Hub on Hunters'));
+-- 1. No demo groups any more (owner, 2026-10-01): Torrez Fitness is the real pilot (pilot-torrez.sql), Hub on Hunters
+--    is a real group that keeps some demo events (hub-live.sql), and Walnut Creek and Woodcliff are ordinary groups
+--    (walnut-woodcliff-real.sql). Nothing here sets the demo flag on a group.
 
 -- 2. The owner's roles, keyed by group id. No testers since 2026-10-01 (scripts/demo/plain-testers.sql): Emily,
 --    Stacy, Auburn, Joseph and Tom are ordinary members whose groups and roles are set there.

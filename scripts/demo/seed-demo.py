@@ -16,6 +16,13 @@ Live use was the owner's call on 2026-09-25, "for now". To remove it later, dele
 the seed-*@example.com users (their ideas, offers and interest go with them) and
 the two groups if they're no longer wanted.
 """
+
+# Retired (owner, 2026-10-01): Walnut Creek and Woodcliff are ordinary groups now (scripts/demo/walnut-woodcliff-real.sql)
+# and the only demo content left is Hub on Hunters', which scripts/demo/seed-hub.py owns. The demo people it makes already exist; re-running it would add them back to every group (and on TEST delete every idea).
+# Kept for its history; delete this guard only if demo groups come back.
+import sys
+sys.exit('seed-demo.py is retired: use scripts/demo/seed-hub.py for Hub on Hunters\' demo events.')
+
 import json, os, random, secrets, string, subprocess, sys, urllib.parse, urllib.request, uuid
 from datetime import datetime, timedelta, timezone
 

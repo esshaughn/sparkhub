@@ -26,6 +26,13 @@ Run seed-demo.py once first (it creates the demo people and groups). Then:
   Live:  SEED_REF=xwrzfpgsazyrgieymtee python3 scripts/demo/seed-events.py
 Re-running rebuilds the same content. It supersedes seed-v5.py and seed-v5-update.py.
 """
+
+# Retired (owner, 2026-10-01): Walnut Creek and Woodcliff are ordinary groups now (scripts/demo/walnut-woodcliff-real.sql)
+# and the only demo content left is Hub on Hunters', which scripts/demo/seed-hub.py owns. Running this would re-create demo content in groups that no longer have any.
+# Kept for its history; delete this guard only if demo groups come back.
+import sys
+sys.exit('seed-events.py is retired: use scripts/demo/seed-hub.py for Hub on Hunters\' demo events.')
+
 import hashlib, json, os, subprocess, sys, urllib.parse, urllib.request, uuid
 from datetime import datetime, timedelta, timezone
 
