@@ -1,7 +1,7 @@
 // Create event (v6 Update 6): the 5-step flow with "Decide later", polls, jobs, Review, drafts,
 // then the host's edit pop-ups on the event page.
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newLead, button, postEvent, openIdea, confirm, startPost, asUser, closeAskFirst, pickKind, pickDate } = require('./helpers');
+const { uniqueTitle, newLead, button, postEvent, openIdea, confirm, startPost, asUser, closeAskFirst, pickKind, pickDate, deleteIdea, ideaIdFromUrl } = require('./helpers');
 
 const inDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 
@@ -529,5 +529,52 @@ test('an idea says how many it needs; a bare starter chip can’t be saved; its 
   } finally {
     if (id) await asUser(page, async (c, _C, id) => { await c.from('sparks').delete().eq('id', id); }, id).catch(() => {});
     await context.close();
+  }
+});
+
+// Just float the idea (owner, 2026-10-02): Review's Lead card opens Who's leading it?; leading it yourself is the one
+// already chosen. A floated idea goes up looking for a lead, and the next screen offers to ask someone
+test('Create event: just float the idea posts it without a lead and offers to ask someone', async ({ browser }) => {
+  const host = await newLead(browser, 1, 'Flo');
+  const page = host.page;
+  let id;
+  try {
+    await startPost(page);
+    await pickKind(page);
+    const flow = page.locator('[data-screen-label="New spark"]');
+    await flow.getByLabel('Event title').fill(uniqueTitle('Float'));
+    await flow.getByRole('button', { name: 'Next' }).click();
+    for (let i = 2; i <= 5; i++) {
+      await expect(flow).toContainText(i + ' of 5');
+      await flow.getByText('Decide later', { exact: true }).click();
+    }
+    await expect(flow).toContainText('LOOKS GOOD');
+    await expect(flow).toContainText('You’re leading it');
+    await expect(flow.getByRole('button', { name: 'Post as an idea' })).toBeVisible();
+    await flow.getByRole('button', { name: 'Edit lead' }).click();
+    const pick = page.getByRole('dialog', { name: 'Who’s leading it?' });
+    await expect(pick.getByRole('button', { name: /^I’ll lead it/ })).toHaveAttribute('aria-pressed', 'true');
+    await expect(pick.getByRole('button', { name: /^Just float the idea/ })).toContainText('no one gets notified');
+    await pick.getByRole('button', { name: /^Just float the idea/ }).click();
+    await expect(pick).toHaveCount(0);
+    await expect(flow).toContainText('Just floating it');
+    await expect(flow.locator('[data-posts-as]')).toContainText('This goes up as an idea that needs a lead');
+    await flow.getByRole('button', { name: 'Float the idea' }).click();
+    const I = page.locator('[data-screen-label="Idea page"]');
+    await expect(I).toBeVisible();
+    id = ideaIdFromUrl(page);
+    // Not Ask two people first: who could lead it?
+    const ask = page.getByRole('dialog', { name: 'Ask someone to lead' });
+    await expect(ask).toContainText('They get a note asking if they’d lead');
+    await ask.getByRole('button', { name: 'Close' }).click();
+    await expect(I.locator('[data-led-by]')).toContainText('FLOATED BY');
+    await expect(I.locator('[data-chip]')).toHaveText('IDEA');
+    await expect(I.locator('[data-plan-needs] [data-plan-row="lead"]')).toContainText('Someone to lead');
+    await expect(I.locator('[data-ask-lead]')).toHaveText('Ask someone to lead');
+    expect(await asUser(page, async (c, _C, id) => (await c.from('sparks').select('wants_host,planned').eq('id', id).single()).data, id)).toEqual({ wants_host: true, planned: false });
+    expect(host.errors).toEqual([]);
+  } finally {
+    if (id) await deleteIdea(page, id).catch(() => {});
+    await host.context.close();
   }
 });

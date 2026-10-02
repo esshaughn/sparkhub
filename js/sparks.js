@@ -175,7 +175,7 @@
     evDate: '', evTime: '', evEnd: '', evEndOn: false, timeOpen: null, dateOpen: null, calMonth: null,
     locText: '', locPlace: null, locSuggest: [],
     evBits: ['', '', ''], evNeed: null, evTags: [], evNeeds: [], evDatePoll: null, evSpotPoll: null, evLater: {},
-    evPriv: false, evNoGuestInv: true, evTest: null, evKindAsk: false, evGroups: null, evDraftId: null, evLeave: false, evLeaveTo: null, evFrom: null, pollSheet: null, needSheet: null, evFromReview: false
+    evPriv: false, evNoGuestInv: true, evTest: null, evKindAsk: false, evFloat: false, evLeadPick: false, evGroups: null, evDraftId: null, evLeave: false, evLeaveTo: null, evFrom: null, pollSheet: null, needSheet: null, evFromReview: false
   });
   const state = Object.assign({
     screen: 'calendar', menu: null, subjectId: null, gpId: null, zoom: null, membersOpen: null, membersList: null,
@@ -201,7 +201,7 @@
     joinOpen: false, joinCode: '', joinBad: false,
     notif: { allReadAt: 0, read: [], topics: {}, email: true, loaded: false }, nFilter: 'all', nSettings: false, demoAdmin: false, back: null, myPlace: '', myBio: '', memberSince: null, ownGrp: null, sizes: {}, membersQ: '', gpRename: null, gpDel: null, ph: null,
     startName: null, phaseTab: 'plan', sigDraft: '', sigNeed: '', sigTime: '', blast: null, invite: null,
-    pe: null, confirm: null, interestList: false, thanksList: false, guestList: null, cohostPick: null, leadsSheet: null, takeDown: null, albumEdit: null,
+    pe: null, confirm: null, interestList: false, thanksList: false, guestList: null, cohostPick: null, leadAsk: null, leadsSheet: null, takeDown: null, albumEdit: null,
     gpCode: '', gpMembers: null, gpFail: false, acctDel: null, voteAll: null, justAdded: null, offerVote: true,
     // v6 Update 13: Your people (Groups · Friends), friend requests, the friend link, inviting friends
     fr: { friends: [], incoming: [], outgoing: [], invites: [], loaded: false }, pplTab: 'groups', pplSearch: false, pplQ: '', pplAdd: false, frSel: [], frInvite: false,
@@ -282,7 +282,7 @@
       state.back = ORIGINS.indexOf(state.screen) > -1 ? { screen: state.screen, groupId: state.groupId, phaseTab: state.phaseTab, scroll: sc ? sc.scrollTop : 0 } : null;
     }
     // Going anywhere closes the v6 sheets (Profile, Notifications, View all, Could use a hand, Search)
-    setState(Object.assign({ screen, menu: null, zoom: null, sec: null, needEd: null, share: null, cohostPick: null, leadsSheet: null, pollSheet: null, profSheet: false, notifSheet: false, dashAll: null, cHandSheet: false, cSearch: false, cq: '', gSearch: false, gq: '', gTry: null, pplAdd: false, frInvite: false, person: null }, extra || {}));
+    setState(Object.assign({ screen, menu: null, zoom: null, sec: null, needEd: null, share: null, cohostPick: null, leadAsk: null, leadsSheet: null, pollSheet: null, profSheet: false, notifSheet: false, dashAll: null, cHandSheet: false, cSearch: false, cq: '', gSearch: false, gq: '', gTry: null, pplAdd: false, frInvite: false, person: null }, extra || {}));
     if (sc) sc.scrollTop = 0;
   };
 
@@ -433,6 +433,7 @@
     ...toSignups(x.signups[row.id] || [], x.claims),
     updates: (x.updates[row.id] || []).sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at)).map(u => ({ id: u.id, body: u.body, audience: u.audience, createdBy: u.created_by || null, created: Date.parse(u.created_at) })),
     cohosts: (x.cohosts[row.id] || []).map(o => o.user_id),
+    leadAsks: (x.leadAsks[row.id] || []).map(a => ({ userId: a.user_id, by: a.asked_by, at: Date.parse(a.created_at) })),   // asked to lead (20261102020000_float_and_ask.sql)
     album: (x.album[row.id] || []).sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at)).filter(a => PHOTO_PATH.test(a.path)).map(a => ({ id: a.id, path: a.path, createdBy: a.created_by })),
     prep: (x.prep[row.id] || [])[0] ? x.prep[row.id][0].answers || {} : {},
     reactions: (x.reactions[row.id] || []).map(r => ({ userId: r.user_id, kind: r.kind }))
@@ -453,7 +454,7 @@
     }
     // v6 Update 13: friends, requests and the invites you've had (a database without them still loads)
     const frP = state.email && !state.viewAs ? sb.rpc('friend_state').then(r => r, () => ({ error: true })) : Promise.resolve({ data: null });
-    const [mem, grp, sp, of, it, gc, rs, dop, dvo, sop, svo, sui, scl, upd, org, alb, prp, rct, sgr, drf, nts] = await Promise.all([
+    const [mem, grp, sp, of, it, gc, rs, dop, dvo, sop, svo, sui, scl, upd, org, alb, prp, rct, sgr, drf, nts, las] = await Promise.all([
       sb.from('memberships').select('group_id,role,last_seen_at,pinned'),
       sb.from('groups').select('id,name,photo,photo_pos,demo'),
       sb.from('sparks').select('*').order('created_at', { ascending: false }),
@@ -479,7 +480,9 @@
       sb.from('spark_groups').select('spark_id,group_id'),
       state.email ? sb.from('event_drafts').select('id,data,updated_at').order('updated_at', { ascending: false }) : Promise.resolve({ data: [] }),
       // v6 Update 7: notes about events and jobs that were taken down (a database without them still loads)
-      state.email ? sb.from('notes').select('id,body,created_by,created_at').order('created_at', { ascending: false }).limit(50) : Promise.resolve({ data: [] })
+      state.email ? sb.from('notes').select('id,body,created_by,created_at').order('created_at', { ascending: false }).limit(50) : Promise.resolve({ data: [] }),
+      // Asked to lead (20261102020000_float_and_ask.sql; a database without them still loads)
+      state.email ? sb.from('lead_asks').select('spark_id,user_id,asked_by,created_at').order('created_at') : Promise.resolve({ data: [] })
     ]);
     [mem, grp, sp, of, it, gc, rs, dop, dvo, sop, svo, sui, scl, upd, org, alb, prp].forEach(must);
     const rows = (r) => r.error ? [] : r.data || [];
@@ -487,13 +490,14 @@
       memberships: mem.data, groups: grp.data, sparks: sp.data, offers: of.data, interests: it.data, guest_contacts: gc.data, rsvps: rs.data,
       date_options: dop.data, date_votes: dvo.data, spot_options: sop.data, spot_votes: svo.data, signup_items: sui.data, signup_claims: scl.data,
       plan_updates: upd.data, cohosts: org.data, album_photos: alb.data, plan_prep: prp.data,
-      reactions: rows(rct), spark_groups: rows(sgr), event_drafts: rows(drf), notes: rows(nts), profiles: []
+      reactions: rows(rct), spark_groups: rows(sgr), event_drafts: rows(drf), notes: rows(nts), lead_asks: rows(las), profiles: []
     };
     // Names and photos of everyone on screen
     const ids = new Set([state.me]);
     d.sparks.forEach(s => ids.add(s.lead_id));
     [d.offers, d.interests, d.rsvps, d.cohosts, d.signup_claims, d.reactions].forEach(t => t.forEach(r => ids.add(r.user_id)));
     d.notes.forEach(n => ids.add(n.created_by));
+    d.lead_asks.forEach(a => { ids.add(a.user_id); ids.add(a.asked_by); });
     ids.delete(null); ids.delete(undefined);
     for (const part of chunks(Array.from(ids), 80)) {
       d.profiles.push(...must(await sb.from('profiles').select('id,name,avatar_path,place,bio').in('id', part)).data);
@@ -516,7 +520,8 @@
       claims: byKey(d.signup_claims, 'item_id'), updates: byKey(d.plan_updates, 'spark_id'), cohosts: byKey(d.cohosts, 'spark_id'),
       album: byKey(d.album_photos, 'spark_id'), prep: byKey(d.plan_prep, 'spark_id'),
       reactions: byKey(d.reactions, 'spark_id'),   // v6 Update 2 (reactions on past events)
-      groups: byKey(d.spark_groups, 'spark_id')
+      groups: byKey(d.spark_groups, 'spark_id'),
+      leadAsks: byKey(d.lead_asks || [], 'spark_id')   // a database without them still loads
     };
 
     const roles = {};
@@ -1330,6 +1335,25 @@
   const takeTheLead = (s) => (noteTap({ k: 'lead', id: s.id }), needAccount(() => setState({ confirm: { title: 'Lead ' + s.text + '?', green: true, cta: 'I’ll lead it', keep: 'Not now',
     body: 'You’ll lead it: pick a date and place, then make it a plan. ' + firstName(nameOf(s.leadId, s.leadName)) + ' stays interested and gets a note.',
     run: () => run(async () => { must(await sb.rpc('take_the_lead', { p_spark: s.id })); }, { confirm: null }) } })));
+  // Only someone in one of the event's groups can take the lead (20261102020000_float_and_ask.sql): a link holder
+  // from outside, or a guest, sees that it needs a lead but gets no I'll lead
+  const inItsGroups = (s) => s.groupIds.some(id => { const g = groupById(id); return !!(g && g.role); });
+  // Ask someone to lead (owner, 2026-10-02): the floater, a co-lead or a group admin picks a person from the event's
+  // groups. They get one push and a row in the bell, and the idea's lead row tells them who asked
+  const openLeadAsk = (s) => {
+    setState({ leadAsk: { id: s.id, people: null, q: '' } });
+    Promise.all(s.groupIds.map(g => sb.rpc('group_people', { p_group: g }).then(r => r, () => ({ error: true }))))
+      .then(rs => { const got = rs.filter(r => !r.error);   // an admin may not be in every group it's posted to
+        if (!got.length) throw (rs[0] && rs[0].error) || new Error('no groups');
+        const seen = {}, people = [].concat(...got.map(r => r.data || [])).filter(p => { const id = p.user_id || p.id; if (seen[id]) return false; seen[id] = 1; return true; });
+        if (state.leadAsk && state.leadAsk.id === s.id) setState({ leadAsk: Object.assign({}, state.leadAsk, { people }) }); })
+      .catch(e => { console.error(e); setState({ leadAsk: null }); toast(failed(e)); });
+  };
+  const askToLead = (s, u) => {
+    if (s.leadAsks.some(a => a.userId === u)) return;
+    quick(s, { leadAsks: s.leadAsks.concat({ userId: u, by: state.me, at: Date.now() }) },
+      async () => { must(await sb.rpc('ask_to_lead', { p_spark: s.id, p_user: u })); });
+  };
 
   // Non-leads suggest (waits for the lead); the lead sets it straight away
   const openOffer = (s, kind) => {
@@ -1832,7 +1856,7 @@
 
   const GOOGLE_ON = !!CFG.googleSignIn;
   const RESUME_KEY = 'spark-hub-google-resume';
-  const DRAFT_KEYS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'locText', 'locPlace', 'evBits', 'evNeed', 'evTags', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evNoGuestInv', 'evTest', 'evGroups', 'coverPos', 'evPhotoPath', 'evDraftId'];
+  const DRAFT_KEYS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'locText', 'locPlace', 'evBits', 'evNeed', 'evTags', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evNoGuestInv', 'evTest', 'evFloat', 'evGroups', 'coverPos', 'evPhotoPath', 'evDraftId'];
   const readResume = () => {
     try {
       const r = JSON.parse(sessionStorage.getItem(RESUME_KEY));
@@ -2822,7 +2846,7 @@
     const onPage = (fn) => () => { openSpark(s); setTimeout(fn, 0); };
     if (ph === 'idea') {   // only the next step
       const top = s.dateOpts.slice().sort((a, b) => b.votes.length - a.votes.length)[0];
-      if (s.wantsHost) return [{ act: 'Needs ' + missingText(s) + ' to make it a plan', cta: 'Find a lead', go: () => setState({ share: { id: s.id, copied: false } }) }];
+      if (s.wantsHost) return [{ act: 'Needs ' + missingText(s) + ' to make it a plan', cta: 'Find a lead', go: onPage(() => openLeadAsk(s)) }];
       if (!s.dayDate && top && top.votes.length) return [{ act: monthDay(top.dayDate) + ' has ' + top.votes.length + (top.votes.length === 1 ? ' vote' : ' votes'), cta: 'Pick', go: () => openToSection(s, 'sec-when') }];
       if (!s.dayDate) return [{ act: 'Needs a date to make it a plan', cta: 'Add date', go: () => openToSection(s, 'sec-when') }];
       if (!s.spot) return [{ act: 'Needs a location to make it a plan', cta: 'Add location', go: onPage(() => openSec(s, 'when')) }];
@@ -3564,14 +3588,15 @@
     lead: { bg: '#7b6ef0', glyph: '★', cat: 'hosting', topic: 'hosting' },
     note: { bg: '#e2556b', glyph: '!', cat: 'updates', topic: 'updates' },   // an event or job was taken down
     friendreq: { bg: '#5b4ae8', glyph: '+', cat: 'invites', topic: 'friends' },   // v6 Update 13
-    invited: { bg: '#5b4ae8', glyph: '✉', cat: 'invites', topic: 'friends' }
+    invited: { bg: '#5b4ae8', glyph: '✉', cat: 'invites', topic: 'friends' },
+    leadask: { bg: '#7b6ef0', glyph: '★', cat: 'invites', topic: 'friends' }   // someone asked you to lead an idea
   };
   const N_TOPICS = [
     ['newevents', 'New in your groups', 'New plans and ideas'],
     ['updates', 'Updates from leads', 'Changes on events you’re in'],
     ['reminders', 'Reminders', 'The day before and the morning of anything you’re going to or helping with'],
     ['hosting', 'Things you’re leading', 'RSVPs, interest, sign-ups and suggestions'],
-    ['friends', 'Friends', 'Friend requests, and friends inviting you to events']
+    ['friends', 'Friends', 'Friend requests, friends inviting you to events, and someone asking you to lead']
   ];
   // A guest's name comes from what they left the lead; everyone else from their profile
   const personName = (s, uid) => {
@@ -3601,9 +3626,13 @@
           uid: s.leadId, who: d === 1 ? 'Tomorrow:' : 'Today:', text: '', after: (s.dayTime ? ' at ' + fmtTime(s.dayTime) : '') + (s.spot ? ' · ' + s.spot : '') });
       }
       // A new plan or idea in one of your groups (owner, 2026-09-30: ideas too); "New: {event}", the host under it
-      if (!lead && s.created && (ph === 'plan' || ph === 'idea'))
+      // (not an idea that's looking for a lead: a floated idea is quieter than one someone leads, owner 2026-10-02)
+      if (!lead && s.created && (ph === 'plan' || ph === 'idea') && !s.wantsHost)
         add({ key: 'e:' + s.id, type: 'newevent', s, t: s.created, uid: s.leadId, who: nameOf(s.leadId, s.leadName), idea: ph === 'idea',
           sub: firstName(nameOf(s.leadId, s.leadName)) + (ph === 'idea' ? ' is floating it' : ' is leading' + (s.dayDate ? ' · ' + dayLabel(s.dayDate, s.dayTime) : '')), rsvp: ph === 'plan' && !my });
+      // Someone asked you to lead it, while it's still looking (20261102020000_float_and_ask.sql)
+      if (s.wantsHost && !s.cancelledAt) s.leadAsks.filter(a => a.userId === me).forEach(a =>
+        add({ key: 'la:' + s.id + ':' + a.at, type: 'leadask', s, t: a.at, uid: a.by, who: nameOf(a.by, 'Someone'), text: 'asked if you’d lead' }));
       if (!lead) return;
       // Things you're hosting
       // A job sign-up marks you Going: the sign-up's row covers it, so that automatic Going isn't its own row
@@ -4488,12 +4517,21 @@
     const row = (icon, title, sub, cta, fn, key) => '<div data-plan-row="' + key + '" style="display:flex;align-items:center;gap:12px;padding:12px 12px 12px 14px;border-radius:18px;background:rgba(255,255,255,.1);box-shadow:inset 0 0 0 1px rgba(255,255,255,.28)">' +
       '<span style="flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center">' + svg(18, stroke('#fff', 2.1), icon) + '</span>' +
       '<div style="flex:1;min-width:0"><div style="font-size:17px;font-weight:900;color:#fff">' + title + '</div><div style="margin-top:1px;font-size:13.5px;font-weight:600;color:rgba(255,255,255,.75)">' + sub + '</div></div>' +
-      '<button type="button" ' + on(() => { if (!state.busy) fn(); }) + ' style="flex:0 0 auto;min-height:42px;padding:0 18px;border:0;border-radius:999px;background:#fff;color:#4a3ad4;font-family:inherit;font-size:15px;font-weight:900;cursor:pointer">' + cta + '</button></div>';
+      (cta ? '<button type="button" ' + on(() => { if (!state.busy) fn(); }) + ' style="flex:0 0 auto;min-height:42px;padding:0 18px;border:0;border-radius:999px;background:#fff;color:#4a3ad4;font-family:inherit;font-size:15px;font-weight:900;cursor:pointer">' + cta + '</button>' : '') + '</div>';
+    // The lead row (owner, 2026-10-02): whoever was asked sees who asked; the floater, co-leads and admins see who's been
+    // asked and can ask someone; someone outside the event's groups sees it needs a lead, with no button
+    const askedMe = s.leadAsks.find(a => a.userId === state.me), mayAsk = canEdit(s) && !s.cancelledAt, mayLead = isTheLead(s) || inItsGroups(s);
+    const homeName = (groupById(s.groupId) || {}).name;
+    const leadSub = askedMe ? esc(firstName(nameOf(askedMe.by, 'Someone'))) + ' asked you'
+      : mayAsk && s.leadAsks.length ? 'Asked ' + (s.leadAsks.length === 1 ? esc(firstName(nameOf(s.leadAsks[0].userId, 'someone'))) : s.leadAsks.length + ' people')
+      : mayLead ? 'Could be you' : 'Open to people in ' + (homeName ? esc(homeName) : 'its group');
+    const leadRow = row(P6.person, 'Someone to lead', leadSub, mayLead ? 'I’ll lead' : '', () => isTheLead(s) ? setWantsHost(s, false) : takeTheLead(s), 'lead') +
+      (mayAsk ? '<span ' + on(() => openLeadAsk(s)) + ' data-ask-lead style="align-self:flex-start;margin-top:-4px;display:flex;align-items:center;gap:7px;min-height:40px;padding:0 6px;font-size:14.5px;font-weight:800;color:#fff;cursor:pointer">' + I.plus(14, '#ffd166', 2.8) + 'Ask someone to lead</span>' : '');
     return '<div data-plan-needs style="position:relative;overflow:hidden;padding:20px 16px 16px;border-radius:24px;background:linear-gradient(160deg,#4433cc,#6a5cf0);box-shadow:0 10px 26px rgba(74,58,212,.3);display:flex;flex-direction:column;gap:12px">' +
       '<span aria-hidden="true" style="position:absolute;right:28px;top:22px;font-size:20px;color:#ffd166">✦</span><span aria-hidden="true" style="position:absolute;right:120px;top:78px;font-size:9px;color:#fff;opacity:.8">✦</span><span aria-hidden="true" style="position:absolute;right:14px;top:120px;font-size:10px;color:#fff;opacity:.8">✦</span>' +
       '<div><div style="font-size:12.5px;font-weight:900;letter-spacing:1.2px;color:#ffd166">THIS COULD REALLY HAPPEN</div>' +
         '<div style="margin-top:2px;font-size:28px;line-height:1.1;font-weight:900;letter-spacing:-.6px;color:#fff">' + (n === 1 ? '1 thing to go' : n + ' things to go') + '</div></div>' +
-      (miss.indexOf('lead') > -1 ? row(P6.person, 'Someone to lead', 'Could be you', 'I’ll lead', () => isTheLead(s) ? setWantsHost(s, false) : takeTheLead(s), 'lead') : '') +
+      (miss.indexOf('lead') > -1 ? leadRow : '') +
       (miss.indexOf('location') > -1 ? (isLead(s) ? row(P6.pin, 'A location', s.spotOpts.length ? 'Pick from the votes' : 'Where it happens', s.spotOpts.length ? 'Pick' : 'Add', () => s.spotOpts.length ? openToSection(s, 'sec-when') : openSec(s, 'when'), 'location')
         : row(P6.pin, 'A location', 'Suggest one', 'Suggest', () => openOffer(s, 'spot'), 'location')) : '') +
       (miss.indexOf('details') > -1 && isLead(s) ? row(P6.roles, 'Details', 'A line on what to expect', 'Add', () => openSec(s, 'details'), 'details') : '') +
@@ -5224,6 +5262,29 @@
             face(p.id, p.name, 32, null) + '<span style="flex:1;min-width:0;font-size:15px;font-weight:800;color:#0d1117">' + esc(p.name) + '</span>' + I.plus(15, '#5b4ae8', 2.6) + '</div>').join('') + '</div>'));
   }
 
+  // Ask someone to lead (owner, 2026-10-02): the people in the idea's groups, the ones who said they could help first,
+  // then the interested, then everyone else; Ask becomes ✓ Asked and stays that way while the idea needs a lead
+  function viewLeadAsk() {
+    const la = state.leadAsk, s = state.sparks.find(x => x.id === la.id);
+    if (!s || !s.wantsHost || s.cancelledAt) return '';
+    const close = () => setState({ leadAsk: null }), q = (la.q || '').trim().toLowerCase();
+    const rank = (u) => s.canHelp.indexOf(u) > -1 ? 0 : s.interested.indexOf(u) > -1 ? 1 : 2;
+    const all = (la.people || []).map(p => ({ id: p.user_id || p.id, name: p.name || 'Someone' })).filter(p => p.id && p.id !== state.me && p.id !== s.leadId);
+    const list = all.filter(p => !q || p.name.toLowerCase().indexOf(q) > -1).sort((a, b) => rank(a.id) - rank(b.id) || a.name.localeCompare(b.name));
+    const tagOf = (u) => { const r = rank(u); return r === 2 ? '' : '<span style="display:block;margin-top:1px;font-size:12.5px;font-weight:800;color:' + (r ? '#6b7280' : '#0f7a3c') + '">' + (r ? 'Interested' : 'Can help') + '</span>'; };
+    const btn = (p) => s.leadAsks.some(a => a.userId === p.id)
+      ? '<span data-asked style="flex:0 0 auto;display:flex;align-items:center;gap:5px;min-height:38px;padding:0 6px;font-size:14px;font-weight:800;color:#0f7a3c">' + svg(13, stroke('currentColor', 3), P6.check) + 'Asked</span>'
+      : '<button type="button" class="hov-primary" ' + on(() => askToLead(s, p.id)) + ' aria-label="Ask ' + esc(p.name) + ' to lead" style="flex:0 0 auto;min-height:38px;padding:0 18px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer">Ask</button>';
+    return modal('Ask someone to lead', close,
+      h3Html('Ask someone to lead') + paraHtml('Know who’d be great at this? They get a note asking if they’d lead <b style="font-weight:800;color:#0d1117">' + esc(s.text) + '</b>. It’s theirs once they tap I’ll lead.') +
+      (all.length > 7 ? '<input class="fld" type="search" aria-label="Search people" placeholder="Search" value="' + esc(la.q || '') + '" ' + onInput(e => { if (e.type === 'input') setState({ leadAsk: Object.assign({}, state.leadAsk, { q: e.target.value.slice(0, 40) }) }); }) + ' style="' + FIELD + '">' : '') +
+      (la.people === null ? paraHtml('Loading…') : !list.length ? paraHtml(q ? 'Nobody by that name.' : 'No one else is in ' + esc(s.groupIds.length > 1 ? 'its groups' : 'the group') + ' yet.') :
+        '<div style="display:flex;flex-direction:column;max-height:46vh;overflow:auto">' + list.map((p, i) =>
+          '<div data-ask-row="' + esc(p.name) + '" data-ask-uid="' + esc(p.id) + '" style="display:flex;align-items:center;gap:12px;min-height:56px;border-top:' + (i ? '1px solid #f2f3f6' : '0') + '">' +
+            face(p.id, p.name, 34, null) + '<span style="flex:1;min-width:0"><span style="display:block;font-size:15px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(p.name) + '</span>' + tagOf(p.id) + '</span>' + btn(p) + '</div>').join('') + '</div>') +
+      '<span ' + on(() => setState({ leadAsk: null, share: { id: s.id, copied: false } })) + ' style="align-self:flex-start;display:flex;align-items:center;min-height:40px;font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">Or share the idea</span>');
+  }
+
   // Inspo: up to three mood photos; the lead adds and removes them (ideas and plans alike), everyone else sees them when there are some
   const inspoSec = (s) => {
     const lead = isLead(s) && !s.cancelledAt, mood = s.mood.slice(0, 3);
@@ -5750,12 +5811,29 @@
         opt(false, 'Real event', 'It’s happening. Your groups hear about it.', P6.cal) + opt(true, 'Just testing', 'Shows a DEMO tag. No one gets notified.', FLASK_IC) + '</div>' +
       (again ? '' : '<span ' + on(close) + ' data-ev-back-out style="align-self:center;display:flex;align-items:center;min-height:40px;font-size:14px;font-weight:800;color:#6b7280;cursor:pointer">Never mind</span>'), { z: 60 });
   }
+  // Who's leading it? (owner, 2026-10-02): opened from Review's Lead card. Leading it yourself is the big lavender
+  // option and the one already chosen; floating the idea is the plain, smaller one under it
+  function viewLeadPick() {
+    const st = state, close = () => setState({ evLeadPick: false });
+    const pick = (float) => setState({ evFloat: float, evLeadPick: false });
+    return modal('Who’s leading it?', close,
+      h3Html('Who’s leading it?') + paraHtml('Every event needs a lead: the person who picks the date and place and keeps it moving. It doesn’t all land on you. You can add co-leads, and jobs people sign up for.') +
+      '<div data-ev-leads style="display:flex;flex-direction:column;gap:10px">' +
+        '<button type="button" ' + on(() => pick(false)) + ' data-ev-lead="me" aria-pressed="' + !st.evFloat + '" style="position:relative;overflow:hidden;display:flex;align-items:center;gap:16px;width:100%;padding:18px 16px;border:0;border-radius:24px;font-family:inherit;text-align:left;cursor:pointer;background:linear-gradient(135deg,#f1edff,#e0d8ff);box-shadow:' + (st.evFloat ? 'none' : 'inset 0 0 0 2.5px #5b4ae8') + '">' +
+          '<span aria-hidden="true" style="position:absolute;right:20%;top:12%;font-size:11px;color:#9d93f7">✦</span><span aria-hidden="true" style="position:absolute;right:9%;top:48%;font-size:13px;color:#7b6ef0">✦</span><span aria-hidden="true" style="position:absolute;right:38%;bottom:10%;font-size:8px;color:#b8aefc">✦</span>' +
+          '<span style="position:relative;flex:0 0 54px;width:54px;height:54px;border-radius:18px;background:#5b4ae8;box-shadow:0 6px 14px rgba(91,74,232,.3);display:flex;align-items:center;justify-content:center;color:#fff">' + svg(24, stroke('currentColor', 2.2), P6.person) + '</span>' +
+          '<span style="position:relative;flex:1;min-width:0"><span style="display:block;font-size:19px;font-weight:900;letter-spacing:-.3px;color:#2a1f8f">I’ll lead it</span><span style="display:block;margin-top:3px;font-size:14.5px;line-height:1.4;font-weight:600;color:#4a3ad4">The surest way it happens. You pick the date and place.</span></span></button>' +
+        '<button type="button" ' + on(() => pick(true)) + ' data-ev-lead="float" aria-pressed="' + !!st.evFloat + '" style="display:block;width:100%;padding:14px 16px;border:0;border-radius:18px;font-family:inherit;text-align:left;cursor:pointer;background:#fff;box-shadow:inset 0 0 0 ' + (st.evFloat ? '2.5px #5b4ae8' : '1.5px #dcdfe6') + '">' +
+          '<span style="display:block;font-size:15.5px;font-weight:800;color:#0d1117">Just float the idea</span><span style="display:block;margin-top:2px;font-size:13.5px;line-height:1.4;font-weight:500;color:#6b7280">It goes up without a lead, and no one gets notified. It can’t become a plan until someone in your groups takes it on.</span></button>' +
+      '</div>', { z: 60 });
+  }
   // The phone's Back (or the browser's) inside the post flow: close the open sheet, else go back a step,
   // else ask about a draft. False only when there's nothing to lose, so the flow can close.
   const composeBack = () => {
     const st = state;
     if (st.busy) return true;
     if (st.evKindAsk) { setState({ evKindAsk: false }); return true; }
+    if (st.evLeadPick) { setState({ evLeadPick: false }); return true; }
     if (st.pollSheet || st.needSheet || st.evLeave || st.timeOpen || st.dateOpen) { setState({ pollSheet: null, needSheet: null, evLeave: false, evLeaveTo: null, timeOpen: null, dateOpen: null }); return true; }
     if (st.evStep === 'review') { evGo('help'); return true; }
     if (st.evFromReview) { evGo('review', { evFromReview: false }); return true; }
@@ -5811,7 +5889,7 @@
     if (!groups.length || st.busy || !cleanTitle(st.activity) || st.evTest == null) return;
     if (st.evDate && st.evDate < todayISO()) { evGo('when'); toast('That date has passed. Pick a new one.'); return; }
     const place = st.locPlace && cleanTitle(st.locText) ? st.locPlace : null, spot = cleanTitle(st.locText).slice(0, 80) || null;
-    const who = (st.myName || 'Someone').slice(0, 40), dated = !!st.evDate;   // a date posts it as a plan; without one it's an idea
+    const who = (st.myName || 'Someone').slice(0, 40), dated = !!st.evDate, float = !!st.evFloat, plan = dated && !float;   // a date posts it as a plan; without one, or floated (no lead yet), it's an idea
     let id = null, cover = null;
     setState({ busy: 'post' });
     (async () => {
@@ -5824,9 +5902,10 @@
           photos: cover ? [cover.path] : [], cat: 'events', answers: {}, lead_id: st.me, lead_name: st.myName, created_by: st.me,
           spot, spot_open: !spot, spot_address: place ? place.address : null, spot_lat: place ? place.lat : null, spot_lon: place ? place.lon : null,
           day_date: st.evDate || null, day_time: st.evDate && st.evTime ? st.evTime : null, day_end: st.evDate && st.evTime && st.evEnd ? st.evEnd : null,
-          planned: dated, visibility: st.evPriv ? 'invite' : 'group', guest_invites: !st.evNoGuestInv, min_people: dated ? null : st.evNeed || null, tags: (st.evTags || []).slice(0, 2),
+          planned: plan, visibility: st.evPriv ? 'invite' : 'group', guest_invites: !st.evNoGuestInv, min_people: dated ? null : st.evNeed || null, tags: (st.evTags || []).slice(0, 2),
           cover_pos: cover && st.coverPos ? posOf(st.coverPos, IDEA_POS) : null
         };
+        if (float) row.wants_host = true;   // Just float the idea: it goes up looking for a lead, and the group gets no push (20261102020000_float_and_ask.sql)
         if (st.evTest) row.test = true;   // Just testing: the DEMO chip, and no pushes (20261031000000_test_events.sql)
         try {
           id = must(await sb.from('sparks').insert(row).select('id').single()).data.id;
@@ -5849,10 +5928,13 @@
           }
         } catch (e) { console.error(e); }
         await freshAfterSave();
-        setState(Object.assign(composeReset(), { busy: null, phaseTab: dated ? 'plan' : 'idea' }));
+        setState(Object.assign(composeReset(), { busy: null, phaseTab: plan ? 'plan' : 'idea' }));
         // Then straight to asking people (research review, 2026-10-01): a host who lines up one or two people before
         // anyone else sees it makes the event far more likely to happen. Not for "Just testing" events
-        go('detail', Object.assign({ subjectId: id }, row.test ? {} : { share: { id, copied: false, ask: true } }));
+        // A floated idea asks for a lead instead (owner, 2026-10-02)
+        const floated = float && !row.test ? state.sparks.find(x => x.id === id) : null;
+        go('detail', Object.assign({ subjectId: id }, row.test || float ? {} : { share: { id, copied: false, ask: true } }));
+        if (floated) openLeadAsk(floated);
       } catch (e) {
         console.error(e);
         setState({ busy: null });
@@ -5862,7 +5944,7 @@
   };
 
   // Drafts: the flow's own fields, saved to your account (only you see them)
-  const DRAFT_FIELDS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'locText', 'locPlace', 'evBits', 'evNeed', 'evTags', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evNoGuestInv', 'evTest', 'evGroups', 'coverPos'];
+  const DRAFT_FIELDS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'locText', 'locPlace', 'evBits', 'evNeed', 'evTags', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evNoGuestInv', 'evTest', 'evFloat', 'evGroups', 'coverPos'];
   const saveDraft = () => {
     const st = state;
     if (st.busy) return;
@@ -5901,7 +5983,7 @@
       locText: str(x.locText).slice(0, 80), locPlace: x.locPlace && typeof x.locPlace === 'object' ? x.locPlace : null,
       evBits: [0, 1, 2].map(i => str((x.evBits || [])[i]).slice(0, 60)), evNeed: Number.isInteger(x.evNeed) && x.evNeed > 0 ? Math.min(x.evNeed, 99) : null, evTags: (arr(x.evTags) || []).filter(k => TYPES6.some(t => t[0] === k)).slice(0, 2), evNeeds: arr(x.evNeeds) || [],
       evDatePoll: arr(x.evDatePoll), evSpotPoll: arr(x.evSpotPoll), evLater: x.evLater && typeof x.evLater === 'object' ? x.evLater : {},
-      evPriv: !!x.evPriv, evNoGuestInv: !!x.evNoGuestInv, evTest: typeof x.evTest === 'boolean' ? x.evTest : null, evGroups: arr(x.evGroups), coverPos: x.coverPos || null,
+      evPriv: !!x.evPriv, evNoGuestInv: !!x.evNoGuestInv, evTest: typeof x.evTest === 'boolean' ? x.evTest : null, evFloat: !!x.evFloat, evGroups: arr(x.evGroups), coverPos: x.coverPos || null,
       evPhotoPath: PHOTO_PATH.test(x.evPhoto || '') ? x.evPhoto : null, evDraftId: d.id
     });
     return out;
@@ -6050,7 +6132,7 @@
       const card = (icon, label, has, act, step, inner) => '<div style="background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08);padding:14px 16px;display:flex;flex-direction:column;gap:10px">' +
         '<div style="display:flex;align-items:center;gap:10px"><span style="flex:0 0 20px;display:flex;color:' + (has ? '#0f7a3c' : '#b07a0a') + '">' + svg(18, stroke('currentColor', 2.2), icon) + '</span>' +
           '<span style="flex:1;font-size:12px;font-weight:800;letter-spacing:1.1px;text-transform:uppercase;color:#6b7280">' + label + '</span>' +
-          '<span ' + on(() => step === 'kind' ? setState({ evKindAsk: true }) : evGo(step, { evFromReview: true })) + ' aria-label="' + (has ? 'Edit ' : 'Add ') + label.toLowerCase() + '" style="font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">' + (has ? 'Edit' : 'Add') + '</span></div>' +
+          '<span ' + on(() => step === 'kind' ? setState({ evKindAsk: true }) : step === 'lead' ? setState({ evLeadPick: true }) : evGo(step, { evFromReview: true })) + ' aria-label="' + (has ? 'Edit ' : 'Add ') + label.toLowerCase() + '" style="font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">' + (has ? 'Edit' : 'Add') + '</span></div>' +
         '<div style="padding-left:28px">' + inner + '</div></div>';
       const main = (t, has, sub) => '<div style="font-size:15px;line-height:1.3;font-weight:800;color:' + (has ? '#0d1117' : AMBER_INK) + ';text-wrap:pretty">' + esc(t) + '</div>' +
         (sub ? '<div style="margin-top:2px;font-size:13.5px;line-height:1.35;font-weight:500;color:#6b7280">' + esc(sub) + '</div>' : '');
@@ -6062,7 +6144,7 @@
         return '<div ' + on(() => setState({ evPriv: priv }), 'radio') + ' aria-checked="' + onIt + '" style="flex:1 1 0;display:flex;flex-direction:column;gap:4px;padding:12px;border-radius:14px;cursor:pointer;' + (onIt ? 'background:#f3f1fe;box-shadow:inset 0 0 0 2px #5b4ae8' : 'background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6') + '">' +
           '<span style="display:flex;color:' + (onIt ? '#5b4ae8' : '#454b55') + '">' + svg(22, stroke('currentColor', 2.2), icon) + '</span>' +
           '<span style="font-size:15px;font-weight:900;color:' + (onIt ? '#5b4ae8' : '#0d1117') + '">' + label + '</span><span style="font-size:12.5px;line-height:1.35;font-weight:600;color:#6b7280">' + sub + '</span></div>'; };
-      const busy = st.busy === 'post', chosen = st.evTest != null;
+      const busy = st.busy === 'post', chosen = st.evTest != null, asPlan = !!st.evDate && !st.evFloat;   // a floated idea keeps its date but isn't a plan
       const pickKind = () => setState({ evKindAsk: true });
       return '<div class="overlay-screen" data-screen-label="New spark"><div style="min-height:100%;display:flex;flex-direction:column">' +
         '<div style="position:relative;flex:0 0 auto;height:210px;background:' + (url ? '#2b303a ' + bg(url) : EV_GRAD) + '">' +
@@ -6075,7 +6157,8 @@
               svg(18, stroke('#fff', 2.3) + ' style="flex:0 0 18px;margin-bottom:6px;opacity:.85"', PENCIL) + '</div></div>' +
         '</div>' +
         '<div style="padding:16px 14px 0;display:flex;flex-direction:column;gap:18px"><div style="display:flex;flex-direction:column;gap:10px">' +
-          card(st.evTest ? FLASK_IC : P6.cal, 'Real or test', chosen, '', 'kind', chosen ? main(st.evTest ? 'Just testing' : 'Real event', true, st.evTest ? 'Shows a DEMO tag. No one gets notified.' : 'Your groups hear about it.') : main('Not chosen yet', false)) +
+          card(st.evTest ? FLASK_IC : P6.cal, 'Real or test', chosen, '', 'kind', chosen ? main(st.evTest ? 'Just testing' : 'Real event', true, st.evTest ? 'Shows a DEMO tag. No one gets notified.' : st.evFloat ? 'It shows on the Ideas board.' : 'Your groups hear about it.') : main('Not chosen yet', false)) +
+          card(P6.person, 'Lead', true, '', 'lead', st.evFloat ? main('Just floating it', true, 'It goes up as an idea that needs a lead.') : main('You’re leading it', true, 'You pick the date and place and keep it moving.')) +
           card(P6.cal, 'Date &amp; time', filled.when, '', 'when', st.evDatePoll ? main('Poll: ' + st.evDatePoll.length + ' dates', true, 'People vote, you pick') : st.evDate ? main(dayLabel(st.evDate, st.evTime, st.evEnd), true) : main('Date TBD', false)) +
           card(P6.pin, 'Location', filled.where, '', 'where', st.evSpotPoll ? main('Poll: ' + st.evSpotPoll.length + ' locations', true, 'People vote, you pick') : place ? main(place, true, st.locPlace ? st.locPlace.address : '') : main('Location TBD', false)) +
           card(LINES_IC, 'Details', filled.details, '', 'details', bits.length || needLine ? list(bits.concat(needLine ? [needLine] : []).map(t => '<span style="flex:0 0 6px;width:6px;height:6px;border-radius:999px;background:#0f7a3c;transform:translateY(-2px)"></span><span style="font-size:15.5px;line-height:1.35;font-weight:800;color:#0d1117;text-wrap:pretty">' + esc(t) + '</span>')) : main('Details to be decided', false)) +
@@ -6096,15 +6179,17 @@
         // At the end of the page, not stuck over it (owner, 2026-10-01). A date locks it in as a plan (green); without one
         // it goes up as an idea: a gold card saying so, and a gold Post as an idea (owner's mock, 2026-10-01)
         '<div style="padding:18px 14px 24px">' +
-          (st.evDate
+          (asPlan
             ? '<div data-posts-as style="padding:0 6px 10px;text-align:center;font-size:13.5px;line-height:1.4;font-weight:600;color:#5c6270">It goes on the calendar as a plan.</div>'
             : '<div data-posts-as style="display:flex;gap:14px;margin-bottom:14px;padding:16px;border-radius:20px;background:#fdf5d6;box-shadow:inset 0 0 0 1.5px #efc95a">' +
                 '<span style="flex:0 0 46px;width:46px;height:46px;border-radius:999px;background:#efc95a;display:flex;align-items:center;justify-content:center">' + svg(22, stroke('#3d2a00', 2.2), BULB_IC) + '</span>' +
-                '<div style="flex:1;min-width:0"><div style="font-size:17px;font-weight:900;color:#0d1117">This goes up as an idea</div>' +
-                  '<div style="margin-top:3px;font-size:14.5px;line-height:1.45;font-weight:500;color:#454b55">No date yet, so people can vote and suggest times. Once it has a lead (you) and a date, tap <strong style="font-weight:800;color:#0d1117">Make it a plan</strong> to lock it in.</div></div></div>') +
-          '<button type="button" ' + on(() => { if (busy) return; if (!chosen) { pickKind(); return; } createEvent(); }) + ' aria-disabled="' + (busy || !chosen) + '" style="position:relative;overflow:hidden;width:100%;min-height:56px;border:0;border-radius:999px;background:' + (st.evDate ? '#149a4b;color:#fff' : '#efc95a;color:#3d2a00') + ';font-family:inherit;font-size:17px;font-weight:900;cursor:pointer;box-shadow:0 10px 24px ' + (st.evDate ? 'rgba(20,154,75,.32)' : 'rgba(176,132,20,.25)') + (busy ? ';opacity:.72;cursor:wait' : !chosen ? ';opacity:.5' : '') + '">' +
-            (st.evDate ? ['#ffd98a:6%:18%', '#cfc9ff:22%:68%', '#fff:78%:28%', '#ffb3c1:88%:64%', '#b8f0cd:62%:74%', '#ffd98a:40%:20%'] : ['#fff6d6:5%:12%', '#fff6d6:11%:30%', '#fff6d6:89%:12%', '#fff6d6:94%:32%']).map(c => { const [col, x, y] = c.split(':'); return '<span aria-hidden="true" style="position:absolute;left:' + x + ';top:' + y + ';width:' + (st.evDate ? 6 : 9) + 'px;height:' + (st.evDate ? 6 : 9) + 'px;border-radius:2px;background:' + col + ';transform:rotate(30deg);opacity:.9"></span>'; }).join('') +
-            '<span style="position:relative;display:inline-flex;align-items:center;gap:8px">' + (busy ? 'Posting…' : st.evDate ? 'Post it' : 'Post as an idea') + '</span></button>' +
+                '<div style="flex:1;min-width:0"><div style="font-size:17px;font-weight:900;color:#0d1117">' + (st.evFloat ? 'This goes up as an idea that needs a lead' : 'This goes up as an idea') + '</div>' +
+                  '<div style="margin-top:3px;font-size:14.5px;line-height:1.45;font-weight:500;color:#454b55">' + (st.evFloat
+                    ? 'It shows on the Ideas board, and no one gets notified. ' + (st.evPriv ? 'Someone you invite' : 'Anyone in your groups') + ' can take it on, and you can ask someone. It can’t become a plan until it has a lead.' + (st.evDate ? ' Your date stays on it.' : '')
+                    : 'No date yet, so people can vote and suggest times. Once it has a lead (you) and a date, tap <strong style="font-weight:800;color:#0d1117">Make it a plan</strong> to lock it in.') + '</div></div></div>') +
+          '<button type="button" ' + on(() => { if (busy) return; if (!chosen) { pickKind(); return; } createEvent(); }) + ' aria-disabled="' + (busy || !chosen) + '" style="position:relative;overflow:hidden;width:100%;min-height:56px;border:0;border-radius:999px;background:' + (asPlan ? '#149a4b;color:#fff' : '#efc95a;color:#3d2a00') + ';font-family:inherit;font-size:17px;font-weight:900;cursor:pointer;box-shadow:0 10px 24px ' + (asPlan ? 'rgba(20,154,75,.32)' : 'rgba(176,132,20,.25)') + (busy ? ';opacity:.72;cursor:wait' : !chosen ? ';opacity:.5' : '') + '">' +
+            (asPlan ? ['#ffd98a:6%:18%', '#cfc9ff:22%:68%', '#fff:78%:28%', '#ffb3c1:88%:64%', '#b8f0cd:62%:74%', '#ffd98a:40%:20%'] : ['#fff6d6:5%:12%', '#fff6d6:11%:30%', '#fff6d6:89%:12%', '#fff6d6:94%:32%']).map(c => { const [col, x, y] = c.split(':'); return '<span aria-hidden="true" style="position:absolute;left:' + x + ';top:' + y + ';width:' + (asPlan ? 6 : 9) + 'px;height:' + (asPlan ? 6 : 9) + 'px;border-radius:2px;background:' + col + ';transform:rotate(30deg);opacity:.9"></span>'; }).join('') +
+            '<span style="position:relative;display:inline-flex;align-items:center;gap:8px">' + (busy ? 'Posting…' : st.evFloat ? 'Float the idea' : st.evDate ? 'Post it' : 'Post as an idea') + '</span></button>' +
           '<button type="button" ' + on(saveDraft) + ' style="margin-top:12px;width:100%;min-height:50px;background:transparent;border:2px solid #c9ccd3;border-radius:999px;font-family:inherit;font-size:15.5px;font-weight:800;color:#0d1117;cursor:pointer">' + (st.busy === 'draft' ? 'Saving…' : 'Save as draft') + '</button>' +
         '</div></div></div>';
     }
@@ -6813,6 +6898,7 @@
       (st.banner ? viewBanner() : '') +
       (s === 'compose' ? viewCompose() : '') +
       (s === 'compose' && (st.evTest == null || st.evKindAsk) && !st.evLeave && !st.loginStep ? viewKindAsk() : '') +
+      (s === 'compose' && st.evLeadPick && !st.evLeave && !st.loginStep ? viewLeadPick() : '') +
       (s === 'compose' && st.email ? viewComposeSheets() : st.pollSheet && st.pollSheet.sparkId ? viewComposeSheets() : '') +
       (st.offerKind && subj ? viewOffer(subj) : '') +
       (st.voteAll ? viewVoteAll() : '') +
@@ -6820,6 +6906,7 @@
       (st.guestList && subj && st.guestList === subj.id ? viewGuestList(subj) : '') +
       (st.leadsSheet ? viewLeadsSheet() : '') +
       (st.cohostPick ? viewCohostPicker() : '') +
+      (st.leadAsk ? viewLeadAsk() : '') +
       (st.takeDown ? viewTakeDown() : '') +
       (st.thanksList && subj ? viewThanksList(subj) : '') +
       (st.guestOpen ? viewGuest() : '') +
@@ -7068,6 +7155,7 @@
       if (state.interestList) return setState({ interestList: false });
       if (state.guestList) return setState({ guestList: null });
       if (state.cohostPick) return setState({ cohostPick: null });
+      if (state.leadAsk) return setState({ leadAsk: null });
       if (state.leadsSheet) return setState({ leadsSheet: null });
       if (state.takeDown) return setState({ takeDown: null });
       if (state.thanksList) return setState({ thanksList: false });
@@ -7365,7 +7453,7 @@
   if (bootUser) {
     const c = readCache(bootUser.id);
     Object.assign(state, { me: bootUser.id, email: bootUser.email, memberSince: bootUser.created_at ? new Date(bootUser.created_at).getFullYear() : null }, c
-      ? { isGoogle: c.isGoogle, myName: c.myName || '', myAvatar: c.myAvatar, myPlace: c.myPlace || '', myBio: c.myBio || '', memberSince: c.memberSince || null, groups: c.groups || [], sparks: c.sparks || [], profiles: c.profiles || {},
+      ? { isGoogle: c.isGoogle, myName: c.myName || '', myAvatar: c.myAvatar, myPlace: c.myPlace || '', myBio: c.myBio || '', memberSince: c.memberSince || null, groups: c.groups || [], sparks: (c.sparks || []).map(x => Object.assign({ leadAsks: [] }, x)), profiles: c.profiles || {},
           sizes: c.sizes || {}, notif: c.notif || state.notif, demoAdmin: !!c.demoAdmin, fr: c.fr && c.fr.friends ? c.fr : state.fr, loaded: true, fromCache: true }
       : {});
   }

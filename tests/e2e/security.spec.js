@@ -108,6 +108,28 @@ test('groups, idea links, guests and leads: the database refuses what the app ne
     }), group.id);
     expect(admin).toEqual({ code: group.code, members: 1, codeColumn: 'refused' });
 
+    // --- A floated idea (20261102020000_float_and_ask.sql): it can be posted looking for a lead (a plan can't), and
+    // only someone in its groups takes the lead or is asked to, even with its link
+    const floated = await asUser(L, async (c, _C, { g, me, day }) => {
+      const base = { group_id: g, author_name: 'Owner', lead_name: 'Owner', lead_id: me, created_by: me, wants_host: true };
+      const idea = await c.from('sparks').insert({ ...base, text: '[E2E] floated' }).select('id, wants_host').single();
+      const plan = await c.from('sparks').insert({ ...base, text: '[E2E] floated plan', planned: true, day_date: day }).select('wants_host').single();
+      return idea.error || plan.error ? (idea.error || plan.error).message : { id: idea.data.id, idea: idea.data.wants_host, plan: plan.data.wants_host };
+    }, { g: group.id, me: leadUid, day: new Date(Date.now() + 9 * 864e5).toISOString().slice(0, 10) });
+    expect(floated).toMatchObject({ idea: true, plan: false });
+    const outsideLead = await asUser(O, async (c, _C, id) => ({
+      opened: (await c.rpc('open_idea', { p_spark: id })).data,
+      sees: (await c.from('sparks').select('id').eq('id', id)).data.length,
+      take: (await c.rpc('take_the_lead', { p_spark: id })).error ? 'refused' : 'ALLOWED'
+    }), floated.id);
+    expect(outsideLead).toEqual({ opened: true, sees: 1, take: 'refused' });
+    expect(await asUser(L, async (c, _C, { id, o }) => (await c.rpc('ask_to_lead', { p_spark: id, p_user: o })).error ? 'refused' : 'ALLOWED', { id: floated.id, o: otherUid })).toBe('refused');
+    // ...and the app shows them it needs a lead, without I'll lead
+    await openIdea(O, floated.id);
+    const needs = O.locator('[data-screen-label="Idea page"] [data-plan-row="lead"]');
+    await expect(needs).toContainText('Open to people in');
+    await expect(needs.getByRole('button')).toHaveCount(0);
+
     // --- A visitor with no link sees nothing; with the idea's link, just that idea --
     const before = await asUser(A, async (c, _C, id) => ({
       sparks: (await c.from('sparks').select('id').eq('id', id)).data.length,
@@ -723,6 +745,30 @@ test('hosts and who came: only an idea looking for a host can change hands, and 
     }, { m, otherUid });
     expect(host).toEqual({ markFuture: 'refused', mark: 'ALLOWED', attended: true, wantsHost: 'ALLOWED', wantsHostOnPlan: 'refused' });
 
+    // Asking someone to lead (20261102020000_float_and_ask.sql): only a host asks, through the function; the asker and the
+    // person asked see it, nobody removes it by hand, and taking the lead clears it
+    const askNotHost = await asUser(O, async (c, _C, { id, me, lead }) => {
+      const ok = async (q) => { const x = await q; return x.error ? 'refused' : 'ALLOWED'; };
+      return { ask: await ok(c.rpc('ask_to_lead', { p_spark: id, p_user: lead })), direct: await ok(c.from('lead_asks').insert({ spark_id: id, user_id: me, asked_by: me })) };
+    }, { id: m.idea, me: otherUid, lead: leadUid });
+    expect(askNotHost).toEqual({ ask: 'refused', direct: 'refused' });
+    const asked = await asUser(L, async (c, _C, { m, o, me }) => {
+      const ok = async (q) => { const x = await q; return x.error ? 'refused' : 'ALLOWED'; };
+      return {
+        self: await ok(c.rpc('ask_to_lead', { p_spark: m.idea, p_user: me })),
+        onPlan: await ok(c.rpc('ask_to_lead', { p_spark: m.soon, p_user: o })),
+        ask: await ok(c.rpc('ask_to_lead', { p_spark: m.idea, p_user: o })),
+        again: await ok(c.rpc('ask_to_lead', { p_spark: m.idea, p_user: o })),
+        rows: (await c.from('lead_asks').select('user_id').eq('spark_id', m.idea)).data.map(r => r.user_id)
+      };
+    }, { m, o: otherUid, me: leadUid });
+    expect(asked).toEqual({ self: 'refused', onPlan: 'refused', ask: 'ALLOWED', again: 'ALLOWED', rows: [otherUid] });
+    const mine = await asUser(O, async (c, _C, id) => ({
+      sees: (await c.from('lead_asks').select('user_id').eq('spark_id', id)).data.length,
+      remove: (await c.from('lead_asks').delete().eq('spark_id', id)).error ? 'refused' : 'ALLOWED'
+    }), m.idea);
+    expect(mine).toEqual({ sees: 1, remove: 'refused' });
+
     const took = await asUser(O, async (c, _C, id) => {
       const r = await c.rpc('take_the_lead', { p_spark: id });
       if (r.error) return r.error.message;
@@ -732,6 +778,7 @@ test('hosts and who came: only an idea looking for a host can change hands, and 
     }, m.idea);
     expect(took.s).toEqual({ lead_id: otherUid, lead_name: 'Omar', wants_host: false });
     expect(took.ints).toEqual([leadUid]);   // the floater stays interested; the new lead doesn't
+    expect(await asUser(O, async (c, _C, id) => (await c.from('lead_asks').select('user_id').eq('spark_id', id)).data.length, m.idea)).toBe(0);
     const again = await asUser(L, async (c, _C, id) => (await c.rpc('take_the_lead', { p_spark: id })).error ? 'refused' : 'ALLOWED', m.idea);
     expect(again).toBe('refused');
 

@@ -470,7 +470,8 @@ test('looking for a lead: the lead steps back, someone else takes the lead; "I c
   const ids = [];
   try {
     // Hope floats an idea and looks for a host
-    const id = await postIdea(H, { title: uniqueTitle('Kite day') });
+    const title = uniqueTitle('Kite day');
+    const id = await postIdea(H, { title });
     ids.push(id);
     const HI = H.locator('[data-screen-label="Idea page"]');
     // Looking for a lead is stepping back (owner, 2026-10-01: no Looking for a lead card): Edit → Leads → Step back
@@ -479,10 +480,28 @@ test('looking for a lead: the lead steps back, someone else takes the lead; "I c
     await confirm(H, 'Step back');
     await expect(HI.locator('[data-plan-needs] [data-plan-row="lead"]')).toContainText('Someone to lead');
 
-    // Otto sees it needs a host, is interested and could help
-    await openIdea(O, id);
+    // Hope asks Otto by name (owner, 2026-10-02): Ask someone to lead → Ask → Asked, and the row says who's been asked
+    const ottoId = await asUser(O, async (c) => (await c.auth.getUser()).data.user.id);
+    await HI.locator('[data-ask-lead]').click();
+    const ask = H.getByRole('dialog', { name: 'Ask someone to lead' });
+    const ottoRow = ask.locator('[data-ask-uid="' + ottoId + '"]');
+    await ottoRow.getByRole('button', { name: 'Ask Otto to lead' }).click();
+    await expect(ottoRow.locator('[data-asked]')).toHaveText('Asked');
+    await expect(H.locator('html[data-saving]')).toHaveCount(0);
+    await ask.getByRole('button', { name: 'Close' }).click();
+    await expect(HI.locator('[data-plan-needs] [data-plan-row="lead"]')).toContainText('Asked Otto');
+
+    // Otto's bell has the ask (and no New idea row: an idea that needs a lead isn't announced); it opens the idea,
+    // which says who asked. He's interested and could help
+    await O.reload();
+    await O.getByRole('button', { name: /^Notifications/ }).click();
+    const feed = O.getByRole('dialog', { name: 'Notifications' });
+    await expect(feed.locator('[data-notif=leadask]').filter({ hasText: title })).toContainText('Hope asked if you’d lead');
+    await expect(feed.locator('[data-notif=newevent]').filter({ hasText: title })).toHaveCount(0);
+    await feed.locator('[data-notif=leadask]').filter({ hasText: title }).click();
     const OI = O.locator('[data-screen-label="Idea page"]');
-    await expect(OI.locator('[data-plan-needs] [data-plan-row="lead"]')).toContainText('Could be you');
+    await expect(OI.locator('[data-plan-needs] [data-plan-row="lead"]')).toContainText('Hope asked you');
+    await expect(OI.locator('[data-ask-lead]')).toHaveCount(0);   // only the floater, co-leads and admins ask
     await expect(OI.locator('[data-led-by]')).toContainText('FLOATED BY');
     await expect(OI.locator('[data-can-help]')).toHaveCount(0);           // only once you're interested
     await OI.getByRole('button', { name: 'I’m interested' }).click();

@@ -613,6 +613,54 @@ select t.check('the co-led event passed to its co-lead, who is no longer listed 
   and not exists (select 1 from cohosts c join sparks s on s.id = c.spark_id where s.text = 'Handed on walk'));
 select t.check('the event with no co-lead went with them', not exists (select 1 from sparks where text = 'Goes with them walk'));
 
+-- Float an idea and ask someone to lead (20261102020000_float_and_ask.sql) -----------------------------------------
+select t.person('floater'), t.person('asked'), t.person('stranger');
+insert into memberships (group_id, user_id, role) values (t.id('g'), t.id('floater'), 'member'), (t.id('g'), t.id('asked'), 'member');
+select t.login('floater'); set role authenticated;
+insert into sparks (id, group_id, author_name, lead_name, lead_id, created_by, text, wants_host)
+values (gen_random_uuid(), t.id('g'), 'Floater', 'Floater', t.id('floater'), t.id('floater'), 'Floated idea', true),
+       (gen_random_uuid(), t.id('g'), 'Floater', 'Floater', t.id('floater'), t.id('floater'), 'Floated back idea', true);
+insert into sparks (id, group_id, author_name, lead_name, lead_id, created_by, text, planned, day_date, wants_host)
+values (gen_random_uuid(), t.id('g'), 'Floater', 'Floater', t.id('floater'), t.id('floater'), 'Plan not floated', true, current_date + 4, true);
+reset role;
+insert into t.ids select 'floated', id from sparks where text = 'Floated idea';
+insert into t.ids select 'floated_back', id from sparks where text = 'Floated back idea';
+select t.check('an idea can be posted already looking for a lead', (select wants_host and not planned from sparks where id = t.id('floated')));
+select t.check('a plan is never posted looking for a lead', (select planned and not wants_host from sparks where text = 'Plan not floated'));
+insert into link_access (user_id, spark_id, via) values (t.id('stranger'), t.id('floated'), 'link');
+select t.login('stranger'); set role authenticated;
+select t.check('a link holder from outside the group sees the floated idea', exists (select 1 from sparks where id = t.id('floated')));
+select t.must_refuse('someone outside the event''s groups taking the lead', format($$select public.take_the_lead(%L)$$, t.id('floated')));
+select t.must_refuse('someone who doesn''t lead it asking a person to lead', format($$select public.ask_to_lead(%L, %L)$$, t.id('floated'), t.id('asked')));
+reset role;
+select t.login('asked'); set role authenticated;
+select t.must_refuse('a member asking someone to lead an idea that isn''t theirs', format($$select public.ask_to_lead(%L, %L)$$, t.id('floated'), t.id('taker')));
+select t.must_refuse('writing an ask directly', format($$insert into lead_asks (spark_id, user_id, asked_by) values (%L, %L, %L)$$, t.id('floated'), t.id('asked'), t.id('asked')));
+reset role;
+select t.login('floater'); set role authenticated;
+select t.must_refuse('asking someone outside the event''s groups', format($$select public.ask_to_lead(%L, %L)$$, t.id('floated'), t.id('stranger')));
+select t.must_refuse('asking yourself', format($$select public.ask_to_lead(%L, %L)$$, t.id('floated'), t.id('floater')));
+select t.must_refuse('asking about a plan', format($$select public.ask_to_lead((select id from sparks where text = 'Plan not floated'), %L)$$, t.id('asked')));
+select t.must_allow('the floater asks a member to lead', format($$select public.ask_to_lead(%L, %L)$$, t.id('floated'), t.id('asked')));
+select t.must_allow('asking the same person again changes nothing', format($$select public.ask_to_lead(%L, %L)$$, t.id('floated'), t.id('asked')));
+select t.check('the floater sees one ask', (select count(*) = 1 from lead_asks where spark_id = t.id('floated') and user_id = t.id('asked')));
+select t.must_allow('the floater asks about a second idea', format($$select public.ask_to_lead(%L, %L)$$, t.id('floated_back'), t.id('asked')));
+select t.must_allow('the floater takes that one back', format($$select public.set_wants_host(%L, false)$$, t.id('floated_back')));
+reset role;
+select t.check('taking it back clears its asks', not exists (select 1 from lead_asks where spark_id = t.id('floated_back')));
+select t.login('taker'); set role authenticated;
+select t.check('another member doesn''t see the ask', not exists (select 1 from lead_asks where spark_id = t.id('floated')));
+reset role;
+select t.login('asked'); set role authenticated;
+select t.check('the person asked sees it', exists (select 1 from lead_asks where spark_id = t.id('floated') and user_id = t.id('asked')));
+select t.check('and gets it in load_all', public.load_all() -> 'lead_asks' @> jsonb_build_array(jsonb_build_object('spark_id', t.id('floated'), 'user_id', t.id('asked'))));
+select t.must_refuse('deleting an ask directly', format($$delete from lead_asks where spark_id = %L$$, t.id('floated')));
+select t.must_allow('the person asked takes the lead', format($$select public.take_the_lead(%L)$$, t.id('floated')));
+reset role;
+select t.check('they lead it, and its asks are gone',
+  (select lead_id = t.id('asked') and not wants_host from sparks where id = t.id('floated'))
+  and not exists (select 1 from lead_asks where spark_id = t.id('floated')));
+
 -- One request loads the app (20261101220000_load_all.sql): the same rows the caller could read table by table ----
 create function t.load_matches() returns boolean language sql as $$
   select jsonb_array_length(d -> 'memberships') = (select count(*) from memberships)
@@ -636,6 +684,7 @@ create function t.load_matches() returns boolean language sql as $$
      and jsonb_array_length(d -> 'spark_groups') = (select count(*) from spark_groups)
      and jsonb_array_length(d -> 'event_drafts') = (select count(*) from event_drafts)
      and jsonb_array_length(d -> 'notes') = least(50, (select count(*) from notes))
+     and jsonb_array_length(d -> 'lead_asks') = (select count(*) from lead_asks)
      and not exists (select 1 from jsonb_array_elements(d -> 'profiles') e where (e ->> 'id')::uuid not in (select id from profiles))
     from (select public.load_all() as d) x
 $$;
