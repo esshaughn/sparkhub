@@ -441,3 +441,29 @@ reset role;
 
 -- The demo wipe is gone (20261101140000_quiet_tests_no_wipe.sql): nothing can remove all demo content at once
 select t.check('wipe_demo() no longer exists', to_regprocedure('public.wipe_demo()') is null);
+
+-- The lead is Going to their own plan (20261101160000_lead_going.sql) ---------------------------------------------
+select t.login('host'); set role authenticated;
+insert into sparks (id, group_id, author_name, lead_name, lead_id, created_by, text, planned, day_date)
+values (gen_random_uuid(), t.id('g'), 'Host', 'Host', t.id('host'), t.id('host'), 'Lead going walk', true, current_date + 5);
+reset role;
+select t.check('posting a plan marks its lead Going',
+  exists (select 1 from rsvps r join sparks s on s.id = r.spark_id where s.text = 'Lead going walk' and r.user_id = t.id('host') and r.status = 'going'));
+select t.login('member'); set role authenticated;
+select t.must_allow('a member says Going', $$insert into rsvps (spark_id, user_id, status) select id, auth.uid(), 'going' from sparks where text = 'Lead going walk'$$);
+reset role;
+select t.login('host'); set role authenticated;
+select t.must_allow('the lead can change their answer', $$update rsvps set status = 'maybe' where user_id = auth.uid() and spark_id = (select id from sparks where text = 'Lead going walk')$$);
+select t.must_allow('the lead says Going again', $$update rsvps set status = 'going' where user_id = auth.uid() and spark_id = (select id from sparks where text = 'Lead going walk')$$);
+select t.must_allow('the lead turns it back into an idea', $$select public.clear_plan((select id from sparks where text = 'Lead going walk'))$$);
+reset role;
+select t.check('the member going is now interested',
+  exists (select 1 from interests i join sparks s on s.id = i.spark_id where s.text = 'Lead going walk' and i.user_id = t.id('member')));
+select t.check('the lead isn''t interested in their own idea',
+  not exists (select 1 from interests i join sparks s on s.id = i.spark_id where s.text = 'Lead going walk' and i.user_id = t.id('host')));
+update sparks set day_date = current_date + 6 where text = 'Lead going walk';
+select t.login('host'); set role authenticated;
+select t.must_allow('the lead makes it a plan again', $$select public.make_plan((select id from sparks where text = 'Lead going walk'))$$);
+reset role;
+select t.check('making it a plan marks the lead Going',
+  exists (select 1 from rsvps r join sparks s on s.id = r.spark_id where s.text = 'Lead going walk' and r.user_id = t.id('host') and r.status = 'going'));

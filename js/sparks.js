@@ -1337,7 +1337,7 @@
   const patchSpark = (id, patch) => setState({ sparks: state.sparks.map(x => x.id === id ? Object.assign({}, x, patch) : x) });
   const setRsvp = (s, status) => {
     const cur = myRsvp(s), next = cur === status ? null : status, lead = nameOf(s.leadId, s.leadName);
-    const note = { going: 'You’re going. See you there!', maybe: 'Marked as maybe', no: 'Thanks for letting ' + lead + ' know' }[next];
+    const note = { going: 'You’re going. See you there!', maybe: 'Marked as maybe', no: isLead(s) ? 'Marked as can’t make it' : 'Thanks for letting ' + lead + ' know' }[next];
     const jobs = next === 'no' ? myClaims(s) : [];
     // The button changes as soon as it's tapped (owner, 2026-10-01: it took a second or two). Saves queue in order without
     // blocking the next tap; one refresh follows the last of them, and a save that fails puts that answer back
@@ -4976,9 +4976,15 @@
     const rsvpBlock = lead || s.cancelledAt ? '' : '<div data-rsvp style="' + CARD + ';padding:16px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">' +
       rsvpBtn('going', 'Going', goingIds.length) + rsvpBtn('maybe', 'Maybe', maybeN) + rsvpBtn('no', 'Can’t', noN) + '</div>';
 
+    // The lead is Going to their own plan (20261101160000_lead_going.sql) and leads change their answer here (owner, 2026-10-01)
+    const myPill = (k, label) => '<button type="button" ' + on(() => setRsvp(s, k)) + ' aria-pressed="' + (my === k) + '" style="flex:1;min-height:36px;border:0;border-radius:999px;font-family:inherit;font-size:13.5px;font-weight:800;cursor:pointer;' +
+      (my === k ? 'background:' + RC[k] + ';color:#fff' : 'background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;color:#454b55') + '">' + label + '</button>';
+    const myAnswer = s.cancelledAt ? '' : '<div data-my-rsvp role="group" aria-label="Your answer" style="display:flex;align-items:center;gap:6px"><span style="flex:0 0 auto;padding-right:4px;font-size:13.5px;font-weight:800;color:#6b7280">You</span>' +
+      myPill('going', 'Going') + myPill('maybe', 'Maybe') + myPill('no', 'Can’t') + '</div>';
     // The host's guest list, with no title. Invites are a share link, so there's no Invited count (HANDOFF §1).
     const guests = !lead ? '' : '<div data-screen-label="Guest list" style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:14px">' +
       '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px">' + stat(goingIds.length, 'Going', '#e7f6ec', '#0f7a3c') + stat(maybeN, 'Maybe', '#fdf1d6', '#8f6405') + stat(noN, 'Can’t', '#f2f3f6', '#454b55') + '</div>' +
+      myAnswer +
       '<span ' + on(() => setState({ blast: { id: s.id, to: 'all', text: '' } })) + ' style="align-self:center;display:flex;align-items:center;gap:7px;min-height:36px;font-size:14.5px;font-weight:800;color:#6b7280;cursor:pointer">' + ic6('bell', 15, 'currentColor', 2.2) + 'Send everyone an update</span>' +
       '<div style="display:grid;grid-template-columns:1fr;gap:8px">' +
         '<button type="button" class="hov-primary" ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' style="min-height:50px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:15.5px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;box-shadow:0 8px 20px rgba(91,74,232,.28)">' + I.plus(16, '#fff', 2.5) + 'Invite people</button>' +
@@ -5508,7 +5514,7 @@
         setState(Object.assign(composeReset(), { busy: null, phaseTab: dated ? 'plan' : 'idea' }));
         // Then straight to asking people (research review, 2026-10-01): a host who lines up one or two people before
         // anyone else sees it makes the event far more likely to happen. Not for "Just testing" events
-        go('detail', Object.assign({ subjectId: id, tag: dated ? 'It’s on the books' : 'It’s up' }, row.test ? {} : { share: { id, copied: false, ask: true } }));
+        go('detail', Object.assign({ subjectId: id, tag: dated ? null : 'It’s up' }, row.test ? {} : { share: { id, copied: false, ask: true } }));
       } catch (e) {
         console.error(e);
         setState({ busy: null });

@@ -97,7 +97,7 @@ test('a member with the link takes part; everyone votes; the lead picks and make
     await confirm(L, 'Make it a plan');
     const LP = L.locator('[data-screen-label="Plan page"]');
     await expect(LP).toContainText('YOU’RE LEADING');
-    await expect(LP).toContainText('1 going');
+    await expect(LP).toContainText('2 going');   // the lead is going too (20261101160000_lead_going.sql)
     await G.reload();
     const GP = G.locator('[data-screen-label="Plan page"]');
     await expect(GP.locator('[data-rsvp]').getByRole('button', { name: /^Going/ })).toHaveAttribute('aria-pressed', 'true');

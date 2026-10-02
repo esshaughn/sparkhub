@@ -220,7 +220,7 @@ async function postEvent(page, { title, date, time, where, pick, details = [], j
   if (inviteOnly) await flow.getByRole('radio', { name: /^Private/ }).click();
   await flow.getByRole('button', { name: 'Post it' }).click();
   await expect(page.locator('[data-screen-label="Plan page"]')).toBeVisible();
-  await expect(page.getByText('It’s on the books')).toBeVisible();
+  await expect(page.getByText('It’s on the books')).toHaveCount(0);   // no chip over a new plan (owner, 2026-10-01)
   if (!test) await closeAskFirst(page);
   return ideaIdFromUrl(page);
 }

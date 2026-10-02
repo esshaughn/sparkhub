@@ -21,6 +21,13 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     await expect(HP).toContainText('5:30pm');
     await expect(HP.locator('[data-led-by]')).toContainText('LED BY');      // the lead sees the card too, asked to bring in a co-lead
     await expect(HP.locator('[data-colead-ask]')).toContainText('Bring in a co-lead.');
+    // The lead is Going to their own plan and can change it (20261101160000_lead_going.sql)
+    const mine = HP.locator('[data-my-rsvp]');
+    await expect(mine.getByRole('button', { name: 'Going' })).toHaveAttribute('aria-pressed', 'true');
+    await mine.getByRole('button', { name: 'Maybe' }).click();
+    await expect(mine.getByRole('button', { name: 'Maybe' })).toHaveAttribute('aria-pressed', 'true');
+    await mine.getByRole('button', { name: 'Going' }).click();
+    await expect(mine.getByRole('button', { name: 'Going' })).toHaveAttribute('aria-pressed', 'true');
     await expect(HP.locator('[data-screen-label="Guest list"]')).toContainText('Going');
     await expect(HP.getByRole('button', { name: /Invite people/ })).toBeVisible();
     await expect(HP).not.toContainText('Remind everyone the day before');      // retired in Update 6
@@ -60,7 +67,7 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     await expect(GP.locator('[data-guest-nudge]')).toHaveCount(0);
     // v6 Update 5: three buttons with counts; the pick is filled; tapping it again clears it
     await expect(rsvp('Going')).toHaveAttribute('aria-pressed', 'true');
-    await expect(rsvp('Going')).toContainText('1');
+    await expect(rsvp('Going')).toContainText('2');
     await rsvp('Maybe').click();
     await expect(G.getByText('Marked as maybe')).toBeVisible();
     await expect(rsvp('Maybe')).toHaveAttribute('aria-pressed', 'true');
@@ -93,7 +100,7 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     await H.reload();
     await expect(H.locator('html[data-loaded=true]')).toHaveCount(1);
     await expect(HP.locator('[data-signup="Folding chairs"] [data-who]')).toContainText('Gus');
-    await HP.getByRole('button', { name: '1 Going. See who' }).click();
+    await HP.getByRole('button', { name: '2 Going. See who' }).click();
     const list = H.getByRole('dialog', { name: 'Guest list' });
     await expect(list.locator('[data-guest-part="going"]')).toContainText('Gus');
     await list.getByRole('button', { name: 'Close' }).click();
@@ -125,7 +132,7 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     // The host sees them on the guest list as a guest
     await H.reload();
     await expect(H.locator('html[data-loaded=true]')).toHaveCount(1);
-    await HP.getByRole('button', { name: '2 Going. See who' }).click();
+    await HP.getByRole('button', { name: '3 Going. See who' }).click();
     const list2 = H.getByRole('dialog', { name: 'Guest list' });
     await expect(list2.locator('[data-guest-part="going"]')).toContainText('Vic');
     await expect(list2.locator('[data-guest-part="going"]')).toContainText('Guest');
@@ -156,7 +163,7 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
 
     // The host sees them; changing the date tells everyone going
     await H.reload();
-    await expect(HP).toContainText('1 going');
+    await expect(HP).toContainText('2 going');
     await expect(HP.locator('[data-signup="Folding chairs"]')).toContainText('1/2');
     await HP.getByRole('button', { name: 'Edit date, time and location' }).click();
     const when = H.getByRole('dialog', { name: 'Date, time & location' });
@@ -413,10 +420,10 @@ test('RSVP buttons change as soon as they are tapped (the save follows), and go 
     await expect(rsvp.getByRole('button', { name: /^Going/ })).toHaveAttribute('aria-pressed', 'true', { timeout: 1000 });
     release();
     await M.unroute('**/rest/v1/rsvps*');
-    await expect.poll(() => asUser(H, async (c, _C, id) => (await c.from('rsvps').select('status').eq('spark_id', id)).data.map(r => r.status), id)).toEqual(['going']);
+    await expect.poll(() => asUser(H, async (c, _C, id) => (await c.from('rsvps').select('status').eq('spark_id', id)).data.map(r => r.status), id)).toEqual(['going', 'going']);
     // Who's going: the count is inside the card, and tapping it lists everyone going (no phone numbers for members)
     const goingCard = M.locator('[data-going]');
-    await expect(goingCard).toContainText('1 going');
+    await expect(goingCard).toContainText('2 going');
     await goingCard.click();
     const list = M.getByRole('dialog', { name: 'Who’s going' });
     await expect(list.locator('[data-guest-part=going]')).toContainText('You');
@@ -495,11 +502,11 @@ test('looking for a lead: someone else takes the lead; "I could help"; the lead 
     await asUser(O, async (c, _C, id) => { await c.from('rsvps').insert({ spark_id: id, status: 'going' }); }, past);
     await openIdea(H, past);
     const done = H.locator('[data-screen-label="It happened"]');
-    await expect(done).toContainText('1 SAID YES');
+    await expect(done).toContainText('2 SAID YES');
     const card = done.locator('[data-who-came]');
-    await expect(card).toContainText('0 of 1');
+    await expect(card).toContainText('0 of 2');
     await card.getByRole('button', { name: 'Otto came' }).click();
-    await expect(card).toContainText('1 of 1');
+    await expect(card).toContainText('1 of 2');
     await expect(done).toContainText('1 CAME');
     await openIdea(H, past);
     await expect(done.locator('[data-who-came]').getByRole('button', { name: 'Otto came' })).toHaveAttribute('aria-pressed', 'true');

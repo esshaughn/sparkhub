@@ -43,7 +43,7 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     await expect(hSearch.locator('[data-result="' + title + '"]')).toBeVisible();
     await hSearch.getByRole('button', { name: 'Cancel' }).click();
     await expect(hSearch).toHaveCount(0);
-    await expect(lead.getByLabel('Going: 0')).toBeVisible();
+    await expect(lead.getByLabel('Going: 1')).toBeVisible();
     await expect(lead.getByLabel('Sign-ups: 0/3')).toBeVisible();
     await expect(lead.getByLabel(/^Reminder/)).toHaveCount(0);           // automatic now, so not shown (owner, 2026-09-30)
     await expect(lead).not.toContainText('Post an update');
@@ -179,7 +179,7 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
 
     // Hope's card: he's a maybe (so not going), and the chairs are half covered
     await H.reload();
-    await expect(lead.getByLabel('Going: 0')).toBeVisible();
+    await expect(lead.getByLabel('Going: 1')).toBeVisible();
     await expect(lead.getByLabel('Sign-ups: 2/3')).toBeVisible();
 
     expect(host.errors).toEqual([]);
