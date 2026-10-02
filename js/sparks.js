@@ -4485,10 +4485,11 @@
     setState({ sec: { id: s.id, kind, title: s.text, d: s.dayDate || '', t: s.dayTime || '', e: s.dayEnd || '', bits, need: s.minPeople || null, tags: (s.tags || []).slice(), priv: s.visibility === 'invite', guestInv: s.guestInvites !== false, groups: gIds(s).slice() },
       offerText: kind === 'when' ? s.spot || '' : '', offerPlace: s.spot && s.spotPoint ? { name: s.spot, address: s.spotAddress, lat: s.spotPoint[0], lon: s.spotPoint[1] } : null, offerSuggest: [], timeOpen: null, menu: null });
   };
-  // Round 65a: what an edit tells people. A new date, time or place always goes out; a new title or
+  // Round 65a: what an edit tells people. A new date, time or place always goes out; a new title never does
+  // (owner, 2026-10-01: Edit event has no Tell everyone going switch); new
   // Basic details only when the host turns on Tell everyone going; Who can see it tells no one.
   const secMessage = (s, ss) => {
-    if (ss.kind === 'title') { const t = cleanTitle(ss.title).slice(0, 40); return t && t !== s.text ? 'Renamed: ' + s.text + ' → ' + t : ''; }
+    if (ss.kind === 'title') return '';   // renaming saves quietly
     if (ss.kind === 'details') {
       const was = s.hopes || [], hopes = ss.bits.map(b => b.trim().slice(0, 40)).filter(Boolean);
       if (hopes.join('\n') === was.join('\n')) return '';
@@ -4632,14 +4633,14 @@
     }, { needEd: null }).then(ok => { if (ok) toast('Saved', true); });
   };
 
-  // The switch (title and Basic details) and the exact message people get (Round 65a)
+  // The switch (Basic details) and the exact message people get (Round 65a)
   // v6 Update 13: the lead decides whether guests can invite their friends (Who can see it, Create event)
   const guestInvSwitch = (v, fn) => '<div ' + on(fn, 'switch') + ' aria-checked="' + v + '" aria-label="Guests can invite friends" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:16px;background:#f4f5f7;cursor:pointer">' +
     '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">Guests can invite friends</div><div style="font-size:12.5px;font-weight:600;color:#6b7280">' + (v ? 'On: people going can invite their friends' : 'Off: only you and the group’s admins can') + '</div></div>' +
     '<span aria-hidden="true" style="flex:0 0 46px;width:46px;height:28px;border-radius:999px;position:relative;transition:background 160ms;background:' + (v ? '#149a4b' : '#dcdfe6') + '"><span style="position:absolute;top:3px;left:' + (v ? 21 : 3) + 'px;width:22px;height:22px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:left 160ms"></span></span></div>';
   const secTell = (s, ss) => {
-    if (!isLead(s) || !s.planned || ss.kind === 'vis') return '';
-    const reach = updateReach(s), msg = secMessage(s, ss), quiet = ss.kind === 'title' || ss.kind === 'details', v = !!ss.tell;
+    if (!isLead(s) || !s.planned || ss.kind === 'vis' || ss.kind === 'title') return '';
+    const reach = updateReach(s), msg = secMessage(s, ss), quiet = ss.kind === 'details', v = !!ss.tell;
     const sw = quiet && reach.n ? '<div ' + on(() => setState({ sec: Object.assign({}, state.sec, { tell: !v }) }), 'switch') + ' aria-checked="' + v + '" aria-label="Tell everyone going" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:16px;background:#f4f5f7;cursor:pointer">' +
       '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">Tell everyone going</div><div style="font-size:12.5px;font-weight:600;color:#6b7280">' + (v ? 'On: they get an update when you save' : 'Off: it saves quietly') + '</div></div>' +
       '<span aria-hidden="true" style="flex:0 0 46px;width:46px;height:28px;border-radius:999px;position:relative;transition:background 160ms;background:' + (v ? '#149a4b' : '#dcdfe6') + '"><span style="position:absolute;top:3px;left:' + (v ? 21 : 3) + 'px;width:22px;height:22px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:left 160ms"></span></span></div>' : '';

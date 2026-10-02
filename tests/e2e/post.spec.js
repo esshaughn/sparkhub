@@ -47,6 +47,7 @@ test('post an event with every step filled, then edit it in the pop-ups and dele
     await P.getByRole('button', { name: 'Edit event' }).click();
     const sec = page.getByRole('dialog', { name: 'Edit event' });
     await expect(sec.locator('[data-edit-photo]')).toBeVisible();
+    await expect(sec.getByRole('switch', { name: 'Tell everyone going' })).toHaveCount(0);   // a new title saves quietly
     await expect(sec.getByLabel(/^(Replace the|Add a) cover photo$/)).toHaveCount(1);
     await sec.getByLabel('Event title').fill(title + ' + stars');
     await sec.getByRole('button', { name: 'Save', exact: true }).click();
