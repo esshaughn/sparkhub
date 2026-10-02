@@ -202,7 +202,7 @@
     joinOpen: false, joinCode: '', joinBad: false,
     notif: { allReadAt: 0, read: [], topics: {}, email: true, loaded: false }, nFilter: 'all', nSettings: false, demoAdmin: false, back: null, myPlace: '', myBio: '', memberSince: null, ownGrp: null, sizes: {}, membersQ: '', gpRename: null, gpDel: null, ph: null,
     startName: null, phaseTab: 'plan', sigDraft: '', sigNeed: '', sigTime: '', blast: null, invite: null,
-    pe: null, confirm: null, interestList: false, thanksList: false, guestList: null, cohostPick: null, takeDown: null, albumEdit: null,
+    pe: null, confirm: null, interestList: false, thanksList: false, guestList: null, cohostPick: null, leadsSheet: null, takeDown: null, albumEdit: null,
     gpCode: '', gpMembers: null,
     // v6 Update 13: Your people (Groups · Friends), friend requests, the friend link, inviting friends
     fr: { friends: [], incoming: [], outgoing: [], invites: [], loaded: false }, pplTab: 'groups', pplSearch: false, pplQ: '', pplAdd: false, frSel: [], frInvite: false,
@@ -282,7 +282,7 @@
       state.back = ORIGINS.indexOf(state.screen) > -1 ? { screen: state.screen, groupId: state.groupId, phaseTab: state.phaseTab, scroll: sc ? sc.scrollTop : 0 } : null;
     }
     // Going anywhere closes the v6 sheets (Profile, Notifications, View all, Could use a hand, Search)
-    setState(Object.assign({ screen, menu: null, zoom: null, sec: null, needEd: null, share: null, cohostPick: null, profSheet: false, notifSheet: false, dashAll: null, cHandSheet: false, cSearch: false, cq: '', gSearch: false, gq: '', gTry: null, pplAdd: false, frInvite: false, frProfile: null, person: null }, extra || {}));
+    setState(Object.assign({ screen, menu: null, zoom: null, sec: null, needEd: null, share: null, cohostPick: null, leadsSheet: null, profSheet: false, notifSheet: false, dashAll: null, cHandSheet: false, cSearch: false, cq: '', gSearch: false, gq: '', gTry: null, pplAdd: false, frInvite: false, frProfile: null, person: null }, extra || {}));
     if (sc) sc.scrollTop = 0;
   };
 
@@ -1294,10 +1294,10 @@
     run(async () => { must(await sb.from('interests').update({ can_help: on_ }).eq('spark_id', s.id).eq('user_id', state.me)); }, { tag: null });
   };
   // Looking for a host (social-science review, 2026-10-01): floating an idea and hosting it are separate jobs
-  const setWantsHost = (s, on_) => run(async () => { must(await sb.rpc('set_wants_host', { p_spark: s.id, p_on: on_ })); }, { tag: on_ ? 'Looking for a host' : 'You’re hosting it' });
-  const takeTheLead = (s) => needAccount(() => setState({ confirm: { title: 'Host ' + s.text + '?', green: true, cta: 'I’ll host it', keep: 'Not now',
+  const setWantsHost = (s, on_) => run(async () => { must(await sb.rpc('set_wants_host', { p_spark: s.id, p_on: on_ })); }, { tag: on_ ? 'Looking for a lead' : 'You’re leading it' });
+  const takeTheLead = (s) => needAccount(() => setState({ confirm: { title: 'Lead ' + s.text + '?', green: true, cta: 'I’ll lead it', keep: 'Not now',
     body: 'You’ll lead it: pick the date and place and make it a plan. ' + firstName(nameOf(s.leadId, s.leadName)) + ' stays interested and gets a note.',
-    run: () => run(async () => { must(await sb.rpc('take_the_lead', { p_spark: s.id })); }, { confirm: null, tag: 'You’re hosting it' }) } }));
+    run: () => run(async () => { must(await sb.rpc('take_the_lead', { p_spark: s.id })); }, { confirm: null, tag: 'You’re leading it' }) } }));
 
   // Non-leads suggest (waits for the lead); the lead sets it straight away
   const openOffer = (s, kind) => {
@@ -3931,7 +3931,7 @@
         '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.9) 0%, rgba(13,17,23,.6) 28%, rgba(13,17,23,0) 55%)"></div>' +
         '<span aria-label="' + n + ' interested" style="position:absolute;top:6px;right:6px;display:flex;align-items:center;gap:3px;height:24px;padding:0 8px 0 6px;border-radius:999px;background:rgba(255,255,255,.92);box-shadow:0 1px 4px rgba(13,17,23,.2);font-size:12.5px;font-weight:900;color:#8f6405">' + svg(12, stroke('currentColor', 3), '<path d="M12 19V6M6 11.5 12 5.5l6 6"/>') + n + '</span>' +
         '<span aria-hidden="true" style="position:absolute;right:4px;top:0;bottom:0;display:flex;align-items:center;opacity:.9;filter:drop-shadow(0 1px 3px rgba(0,0,0,.4))">' + I.chevR(20, '#fff', 2.6) + '</span>' +
-        (s.wantsHost ? '<span data-needs-host style="position:absolute;top:6px;left:6px;display:flex;align-items:center;height:22px;padding:0 8px;border-radius:999px;background:#e8a71c;font-size:10.5px;font-weight:900;letter-spacing:.6px;color:#fff">NEEDS A HOST</span>' : '') +
+        (s.wantsHost ? '<span data-needs-host style="position:absolute;top:6px;left:6px;display:flex;align-items:center;height:22px;padding:0 8px;border-radius:999px;background:#e8a71c;font-size:10.5px;font-weight:900;letter-spacing:.6px;color:#fff">NEEDS A LEAD</span>' : '') +
         '<div style="position:absolute;left:9px;right:26px;bottom:8px;font-size:14.5px;line-height:1.15;font-weight:900;color:#fff;text-wrap:balance">' + esc(s.text) + demoTag(s, true, true) + '</div></div>' +
       '<span style="display:flex;align-items:center;padding:8px 0 0">' + ideaSteps6(s).map((st, i) => '<span aria-label="' + st.label + ': ' + (st.p >= 1 ? st.done : st.todo) + '" style="flex:1;height:22px;display:flex;align-items:center;justify-content:center;' + (i ? 'border-left:1px solid #dcdfe4' : '') + '">' + ic6(st.icon, 15, st.p >= 1 ? '#149a4b' : '#b07a0a', 2.3) + '</span>').join('') + '</span></div>';
   };
@@ -4279,11 +4279,11 @@
     const floater = firstName(nameOf(s.leadId, s.leadName)), theLead = isTheLead(s);
     const hostCard = off ? '' : s.wantsHost
       ? '<div data-wants-host style="border-radius:18px;background:#fdf1d6;padding:16px;display:flex;flex-direction:column;gap:10px;box-shadow:inset 0 0 0 1.5px #f3d98b">' +
-          '<div style="font-size:12px;font-weight:900;letter-spacing:1.1px;color:#8f6405">LOOKING FOR A HOST</div>' +
+          '<div style="font-size:12px;font-weight:900;letter-spacing:1.1px;color:#8f6405">LOOKING FOR A LEAD</div>' +
           '<p style="margin:0;font-size:14.5px;line-height:1.45;font-weight:600;color:#5c4a12">' + (theLead ? 'Anyone who can see this idea can take it on. You stay the lead until someone does.' : esc(floater) + ' floated this and would love someone to take it on.') + '</p>' +
-          (theLead ? '<button type="button" ' + on(() => { if (!st.busy) setWantsHost(s, false); }) + ' style="min-height:44px;border:0;border-radius:999px;background:#fff;color:#0d1117;font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer;box-shadow:inset 0 0 0 1.5px #e8c46a">I’ll host it myself</button>'
-            : '<button type="button" ' + on(() => { if (!st.busy) takeTheLead(s); }) + ' style="min-height:48px;border:0;border-radius:999px;background:#e8a71c;color:#fff;font-family:inherit;font-size:15.5px;font-weight:800;cursor:pointer">I’ll host it</button>') + '</div>'
-      : theLead && !s.planned ? '<div data-hand-off style="display:flex;align-items:center;gap:8px;padding:0 4px;font-size:14px;font-weight:600;color:#6b7280">Just floating it?<span ' + on(() => { if (!st.busy) setWantsHost(s, true); }) + ' style="font-weight:800;color:#5b4ae8;cursor:pointer">Look for a host</span></div>'
+          (theLead ? '<button type="button" ' + on(() => { if (!st.busy) setWantsHost(s, false); }) + ' style="min-height:44px;border:0;border-radius:999px;background:#fff;color:#0d1117;font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer;box-shadow:inset 0 0 0 1.5px #e8c46a">I’ll lead it myself</button>'
+            : '<button type="button" ' + on(() => { if (!st.busy) takeTheLead(s); }) + ' style="min-height:48px;border:0;border-radius:999px;background:#e8a71c;color:#fff;font-family:inherit;font-size:15.5px;font-weight:800;cursor:pointer">I’ll lead it</button>') + '</div>'
+      : theLead && !s.planned ? '<div data-hand-off style="display:flex;align-items:center;gap:8px;padding:0 4px;font-size:14px;font-weight:600;color:#6b7280">Just floating it?<span ' + on(() => { if (!st.busy) setWantsHost(s, true); }) + ' style="font-weight:800;color:#5b4ae8;cursor:pointer">Look for a lead</span></div>'
       : '';
 
     // Who's interested: like Who's going (the lead taps it for the list)
@@ -4305,7 +4305,7 @@
       phaseHeader(s, 300, 'linear-gradient(to bottom, rgba(13,17,23,.5) 0%, rgba(13,17,23,0) 30%, rgba(43,36,19,.55) 62%, rgba(43,36,19,.96) 100%)',
         '<div style="position:absolute;left:20px;right:20px;bottom:20px;color:#fff;display:flex;align-items:flex-end;gap:14px"><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px">' +
           '<div style="display:flex;gap:6px;flex-wrap:wrap">' + (off ? chip('CANCELLED', '#d92d4a', '#fff', 'data-cancelled') : '') +
-            (isDemo(s) ? chip('DEMO', 'rgba(255,255,255,.24);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)', '#fff', 'data-chip data-demo-tag') : lead ? chip(isTheLead(s) ? 'YOU’RE LEADING' : 'YOU’RE CO-HOSTING', '#5b4ae8', '#fff', 'data-chip') : chip('IDEA', '#f3c55a', '#3d2a00', 'data-chip')) +
+            (isDemo(s) ? chip('DEMO', 'rgba(255,255,255,.24);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)', '#fff', 'data-chip data-demo-tag') : lead ? chip(isTheLead(s) ? 'YOU’RE LEADING' : 'YOU’RE CO-LEADING', '#5b4ae8', '#fff', 'data-chip') : chip('IDEA', '#f3c55a', '#3d2a00', 'data-chip')) +
             (s.visibility === 'invite' ? chip(svg(11, stroke('#fff', 2.6), '<rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>') + 'PRIVATE', 'rgba(255,255,255,.22)') : '') + '</div>' +
           (edit
             ? '<h1 ' + on(() => openSec(s, 'title'), 'button') + ' aria-label="' + esc(s.text) + ', edit the title" style="margin:0;font-size:36px;line-height:1;font-weight:900;letter-spacing:-1.2px;text-wrap:pretty;cursor:pointer">' + esc(s.text) + svg(20, stroke('#fff', 2.4) + ' style="display:inline-block;margin-left:8px;vertical-align:4px;opacity:.85"', PENCIL) + '</h1>'
@@ -4326,7 +4326,6 @@
         interested +
         pitchSec +
         ledByCard(s) +
-        cohostSec(s) +
         inspoSec(s) +
         deleteLink(s) +
       '</div>' +
@@ -4840,36 +4839,53 @@
       (isLead(s) && !s.cancelledAt ? '<span ' + on(() => openSec(s, 'vis')) + ' aria-label="Edit who can see it" style="flex:0 0 auto;display:flex;align-items:center;gap:5px;color:#6b7280;font-size:14px;font-weight:700;cursor:pointer">' + svg(13, stroke('currentColor', 2.4), PENCIL) + 'Edit</span>' : '') +
     '</div>';
   };
-  // "Led by" (not shown to the lead): plans and ideas
-  const ledByCard = (s) => {
-    if (isTheLead(s)) return '';
-    const leadName = nameOf(s.leadId, s.leadName), lbl = s.wantsHost ? 'FLOATED BY' : 'LED BY';
-    const co = s.cohosts.map(u => u === state.me ? 'you' : firstName(nameOf(u)));
-    return '<div data-led-by ' + on(() => openPerson(s.leadId)) + ' aria-label="' + (s.wantsHost ? 'Floated by ' : 'Led by ') + esc(leadName) + ', see profile" style="cursor:pointer;position:relative;display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:18px;background:linear-gradient(135deg,#f1edff,#e0d8ff);box-shadow:0 1px 3px rgba(15,18,25,.08)">' +
-        '<span aria-hidden="true" style="position:absolute;left:52%;top:6px;font-size:9px;color:#9d93f7">✦</span><span aria-hidden="true" style="position:absolute;left:64%;bottom:6px;font-size:7px;color:#7b6ef0">✦</span>' +
-        '<span style="position:relative;flex:0 0 56px;width:56px;height:56px;border-radius:999px;border:3px solid #fff;box-shadow:0 0 0 2.5px #7b6ef0, 0 6px 16px rgba(13,17,23,.25);display:flex">' + face(s.leadId, leadName, 50, '#7b6ef0') +
-          '<span aria-hidden="true" style="position:absolute;top:-10px;left:-8px;font-size:13px;color:#9d93f7">✦</span><span aria-hidden="true" style="position:absolute;top:-4px;right:-10px;font-size:10px;color:#b8aefc">✦</span><span aria-hidden="true" style="position:absolute;bottom:-4px;right:-10px;font-size:13px;color:#7b6ef0">✧</span></span>' +
-        '<div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:900;letter-spacing:.9px;color:#6b5ce7">' + lbl + '</div><div style="font-size:20px;font-weight:900;letter-spacing:-.3px;color:#2a1f8f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(leadName) + '</div>' +
-          (co.length ? '<div data-cohost-names style="font-size:13.5px;font-weight:700;color:#4a3ad4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">with ' + esc(co.join(', ')) + '</div>' : '') + '</div>' +
-        '</div>';   // (Say hi is hidden until there's messaging, owner 2026-10-01)
+  // "Led by" with its co-leads in one card (owner's mock, 2026-10-01; the separate Hosts section is gone). The lead's face
+  // comes first with the ring, then up to two co-leads (a "+N" after that). Leads and group admins also get, with no
+  // co-lead yet, the prompt to bring one in; with co-leads, "Manage co-leads", which opens the Leads sheet.
+  const COLEAD_WHY = 'Someone to plan it with you, and keep it going if you can’t make it.';
+  const leadNames = (s) => {
+    const lead = nameOf(s.leadId, s.leadName), co = s.cohosts.map(u => firstName(nameOf(u)));
+    if (!co.length) return esc(lead);
+    const amp = '<span style="color:#7b6ef0"> &amp; </span>', all = [firstName(lead)].concat(co);
+    return all.length <= 3 ? all.slice(0, -1).map(esc).join(', ') + amp + esc(all[all.length - 1])
+      : all.slice(0, 2).map(esc).join(', ') + amp + (all.length - 2) + ' more';
   };
-  // Co-hosts (20261101130000_cohosts.sql): hosts and group admins see who's hosting and add people from the event's
-  // groups (up to 5); the lead and admins remove co-hosts, and a co-host can step down
-  const cohostSec = (s) => {
-    if (!canEdit(s) || s.cancelledAt) return '';
-    const lead = nameOf(s.leadId, s.leadName), mayRemove = canTakeDown(s);
-    const row = (u, name, tail) => '<div data-host-row="' + esc(name) + '" style="display:flex;align-items:center;gap:12px;min-height:50px">' + face(u, name, 34, null) +
-      '<span style="flex:1;min-width:0;font-size:15px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(name) + '</span>' + tail + '</div>';
+  const ledByCard = (s) => {
+    const leadName = nameOf(s.leadId, s.leadName), lbl = s.wantsHost ? 'FLOATED BY' : 'LED BY', co = s.cohosts;
+    const manage = canEdit(s) && !s.cancelledAt, ask = manage && !co.length && !s.wantsHost;
+    const ring = (u, name, size, edge) => '<span style="position:relative;flex:0 0 ' + (size + 6) + 'px;width:' + (size + 6) + 'px;height:' + (size + 6) + 'px;border-radius:999px;border:3px solid #fff;box-shadow:0 0 0 2.5px ' + edge + ', 0 6px 16px rgba(13,17,23,.2);display:flex;box-sizing:border-box;background:#fff">' + face(u, name, size) + '</span>';
+    const faces = '<span style="flex:0 0 auto;display:flex;align-items:center">' + ring(s.leadId, leadName, 50, '#7b6ef0') +
+      co.slice(0, co.length > 2 ? 1 : 2).map(u => '<span style="margin-left:-16px;display:flex">' + ring(u, nameOf(u), 40, '#b8aefc') + '</span>').join('') +
+      (co.length > 2 ? '<span style="position:relative;margin-left:-16px;flex:0 0 46px;width:46px;height:46px;border-radius:999px;border:3px solid #fff;box-shadow:0 0 0 2.5px #b8aefc;background:#fff;color:#4a3ad4;font-size:14px;font-weight:900;display:flex;align-items:center;justify-content:center;box-sizing:border-box">+' + (co.length - 1) + '</span>' : '') + '</span>';
+    const tap = co.length ? () => setState({ leadsSheet: s.id }) : () => openPerson(s.leadId);
+    return '<div data-led-by style="position:relative;display:flex;flex-direction:column;gap:12px;padding:14px 16px;border-radius:18px;background:linear-gradient(135deg,#f1edff,#e0d8ff);box-shadow:0 1px 3px rgba(15,18,25,.08)">' +
+        '<span aria-hidden="true" style="position:absolute;left:52%;top:6px;font-size:9px;color:#9d93f7">✦</span><span aria-hidden="true" style="position:absolute;right:16px;top:10px;font-size:11px;color:#b8aefc">✦</span><span aria-hidden="true" style="position:absolute;right:10px;bottom:6px;font-size:8px;color:#7b6ef0">✦</span>' +
+        '<div ' + on(tap) + ' aria-label="' + (s.wantsHost ? 'Floated by ' : 'Led by ') + esc(leadName) + (co.length ? ' and ' + co.length + ' co-lead' + (co.length > 1 ? 's' : '') + ', see who' : ', see profile') + '" style="display:flex;align-items:center;gap:14px;cursor:pointer">' + faces +
+          '<div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:900;letter-spacing:.9px;color:#6b5ce7">' + lbl + '</div><div data-lead-names style="font-size:20px;line-height:1.15;font-weight:900;letter-spacing:-.3px;color:#2a1f8f;overflow-wrap:anywhere">' + leadNames(s) + '</div></div></div>' +
+        (ask ? '<div data-colead-ask style="display:flex;align-items:center;gap:12px;padding:12px 12px 12px 14px;border-radius:16px;background:rgba(255,255,255,.72)">' +
+            '<div style="flex:1;min-width:0;font-size:13.5px;line-height:1.4;font-weight:600;color:#4a3ad4"><b style="font-weight:900">Bring in a co-lead.</b> ' + COLEAD_WHY + '</div>' +
+            '<button type="button" class="hov-primary" ' + on(() => openCohostPicker(s)) + ' style="flex:0 0 auto;min-height:44px;padding:0 16px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:14.5px;font-weight:800;display:flex;align-items:center;gap:6px;cursor:pointer">' + I.plus(14, '#fff', 2.8) + 'Co-lead</button></div>' : '') +
+        (manage && co.length ? '<span ' + on(() => setState({ leadsSheet: s.id })) + ' data-manage-coleads style="align-self:flex-end;display:flex;align-items:center;gap:4px;min-height:36px;font-size:14.5px;font-weight:800;color:#4a3ad4;cursor:pointer">Manage co-leads' + I.chevR(14, '#4a3ad4', 2.6) + '</span>' : '') +
+      '</div>';   // (Say hi is hidden until there's messaging, owner 2026-10-01)
+  };
+  // The Leads sheet (20261101130000_cohosts.sql): everyone sees who leads it; leads and group admins add co-leads from
+  // the event's groups (up to 5); the lead and admins remove them, and a co-lead can step down
+  function viewLeadsSheet() {
+    const s = state.sparks.find(x => x.id === state.leadsSheet);
+    if (!s) return '';
+    const close = () => setState({ leadsSheet: null }), manage = canEdit(s) && !s.cancelledAt, mayRemove = canTakeDown(s);
     const tag = (t) => '<span style="flex:0 0 auto;font-size:12.5px;font-weight:800;color:#6b7280">' + t + '</span>';
     const act = (label, fn) => '<span ' + on(fn) + ' style="flex:0 0 auto;font-size:13.5px;font-weight:800;color:#9b1c31;cursor:pointer">' + label + '</span>';
-    return '<section data-cohosts>' + secTitle('Hosts') + '<div style="' + CARD + ';padding:8px 16px 12px;display:flex;flex-direction:column">' +
-      row(s.leadId, s.leadId === state.me ? 'You' : lead, tag('Lead')) +
-      s.cohosts.map(u => { const me = u === state.me, name = me ? 'You' : nameOf(u);
-        return row(u, name, me ? act('Step down', () => askRemoveCohost(s, u, true)) : mayRemove ? act('Remove', () => askRemoveCohost(s, u, false)) : tag('Co-host')); }).join('') +
-      (s.cohosts.length < 5 ? '<span ' + on(() => openCohostPicker(s)) + ' style="margin-top:6px;display:flex;align-items:center;gap:7px;min-height:42px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(15, '#5b4ae8', 2.6) + 'Add a co-host</span>' +
-        '<span style="font-size:13px;line-height:1.4;font-weight:500;color:#6b7280">Co-hosts can edit it, post updates, run the sign-ups and check people in. Sharing the load makes it more likely to keep happening.</span>' : '') +
-    '</div></section>';
-  };
+    const row = (u, name, tail, i) => '<div data-lead-row="' + esc(name) + '" style="display:flex;align-items:center;gap:12px;min-height:52px;border-top:' + (i ? '1px solid #f2f3f6' : '0') + '">' +
+      '<span ' + on(() => { close(); openPerson(u); }) + ' style="flex:1;min-width:0;display:flex;align-items:center;gap:12px;cursor:pointer">' + face(u, name, 34) +
+        '<span style="flex:1;min-width:0;font-size:15px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(u === state.me ? 'You' : name) + '</span></span>' + tail + '</div>';
+    return modal('Leads', close,
+      h3Html('Leads') +
+      '<div style="display:flex;flex-direction:column">' + row(s.leadId, nameOf(s.leadId, s.leadName), tag('Lead'), 0) +
+        s.cohosts.map((u, i) => row(u, nameOf(u), !manage ? tag('Co-lead') : u === state.me ? act('Step down', () => { close(); askRemoveCohost(s, u, true); }) : mayRemove ? act('Remove', () => { close(); askRemoveCohost(s, u, false); }) : tag('Co-lead'), i + 1)).join('') + '</div>' +
+      (manage && s.cohosts.length < 5 ? '<span ' + on(() => { close(); openCohostPicker(s); }) + ' style="display:flex;align-items:center;gap:7px;min-height:44px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(15, '#5b4ae8', 2.6) + 'Add a co-lead</span>' : '') +
+      paraHtml('Co-leads plan it with the lead and keep it going if the lead can’t make it. They can do everything except cancel or delete it.'));
+  }
   const openCohostPicker = (s) => {
     setState({ cohostPick: { id: s.id, people: null, q: '' } });
     Promise.all(s.groupIds.map(g => sb.rpc('group_people', { p_group: g })))
@@ -4879,11 +4895,11 @@
       .catch(e => { console.error(e); setState({ cohostPick: null }); toast(failed(e)); });
   };
   const addCohost = (s, u, name) => run(async () => { must(await sb.rpc('add_cohost', { p_spark: s.id, p_user: u })); }, { cohostPick: null })
-    .then(ok => { if (ok) toast(firstName(name) + ' is a co-host now', true); });
+    .then(ok => { if (ok) toast(firstName(name) + ' is a co-lead now', true); });
   const askRemoveCohost = (s, u, self) => setState({ confirm: self
-    ? { title: 'Step down as co-host?', body: firstName(nameOf(s.leadId, s.leadName)) + ' keeps leading it. You stay on the guest list if you RSVP’d.', cta: 'Step down', keep: 'Stay on', danger: true,
+    ? { title: 'Step down as co-lead?', body: firstName(nameOf(s.leadId, s.leadName)) + ' keeps leading it. You stay on the guest list if you RSVP’d.', cta: 'Step down', keep: 'Stay on', danger: true,
         run: () => run(async () => { must(await sb.rpc('remove_cohost', { p_spark: s.id, p_user: u })); }, { confirm: null, tag: null }) }
-    : { title: 'Remove ' + firstName(nameOf(u)) + ' as co-host?', body: 'They won’t be able to edit it or see the guest list any more.', cta: 'Remove', keep: 'Keep them', danger: true,
+    : { title: 'Remove ' + firstName(nameOf(u)) + ' as co-lead?', body: 'They won’t be able to edit it or see the guest list any more.', cta: 'Remove', keep: 'Keep them', danger: true,
         run: () => run(async () => { must(await sb.rpc('remove_cohost', { p_spark: s.id, p_user: u })); }, { confirm: null }) } });
   function viewCohostPicker() {
     const cp = state.cohostPick, s = state.sparks.find(x => x.id === cp.id);
@@ -4891,12 +4907,12 @@
     const close = () => setState({ cohostPick: null }), q = (cp.q || '').trim().toLowerCase();
     const list = (cp.people || []).map(p => ({ id: p.user_id || p.id, name: p.name || 'Someone' }))
       .filter(p => p.id && p.id !== s.leadId && s.cohosts.indexOf(p.id) < 0 && (!q || p.name.toLowerCase().indexOf(q) > -1));
-    return modal('Add a co-host', close,
-      h3Html('Add a co-host') + paraHtml('Someone from ' + esc(s.groupIds.length > 1 ? 'its groups' : 'the group') + ' to share the hosting. They’ll get a note.') +
+    return modal('Add a co-lead', close,
+      h3Html('Add a co-lead') + paraHtml('Someone from ' + esc(s.groupIds.length > 1 ? 'its groups' : 'the group') + ' to plan it with you. They can do everything you can except cancel or delete it, and they’ll get a note.') +
       '<input class="fld" type="search" aria-label="Search people" placeholder="Search" value="' + esc(cp.q || '') + '" ' + onInput(e => { if (e.type === 'input') setState({ cohostPick: Object.assign({}, state.cohostPick, { q: e.target.value.slice(0, 40) }) }); }) + ' style="' + FIELD + '">' +
-      (cp.people === null ? paraHtml('Loading…') : !list.length ? paraHtml(q ? 'Nobody by that name.' : 'Everyone’s already hosting.') :
+      (cp.people === null ? paraHtml('Loading…') : !list.length ? paraHtml(q ? 'Nobody by that name.' : 'Everyone’s already leading it.') :
         '<div style="display:flex;flex-direction:column;max-height:50vh;overflow:auto">' + list.map((p, i) =>
-          '<div ' + on(() => { if (!state.busy) addCohost(s, p.id, p.name); }) + ' data-pick-cohost="' + esc(p.name) + '" aria-label="Make ' + esc(p.name) + ' a co-host" style="display:flex;align-items:center;gap:12px;min-height:52px;cursor:pointer;border-top:' + (i ? '1px solid #f2f3f6' : '0') + '">' +
+          '<div ' + on(() => { if (!state.busy) addCohost(s, p.id, p.name); }) + ' data-pick-cohost="' + esc(p.name) + '" aria-label="Make ' + esc(p.name) + ' a co-lead" style="display:flex;align-items:center;gap:12px;min-height:52px;cursor:pointer;border-top:' + (i ? '1px solid #f2f3f6' : '0') + '">' +
             face(p.id, p.name, 32, null) + '<span style="flex:1;min-width:0;font-size:15px;font-weight:800;color:#0d1117">' + esc(p.name) + '</span>' + I.plus(15, '#5b4ae8', 2.6) + '</div>').join('') + '</div>'));
   }
 
@@ -4986,7 +5002,7 @@
     return '<div data-screen-label="Plan page">' +
       phaseHeader(s, 340, 'linear-gradient(to bottom, rgba(13,17,23,.5) 0%, rgba(13,17,23,0) 30%, rgba(8,40,22,.55) 62%, rgba(8,40,22,.96) 100%)',
         '<div style="position:absolute;left:20px;right:20px;bottom:20px;color:#fff;display:flex;align-items:flex-end;gap:14px"><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px">' +
-          '<div style="display:flex;gap:6px;flex-wrap:wrap">' + (s.cancelledAt ? '<span data-cancelled style="display:flex;align-items:center;border-radius:999px;padding:5px 11px;background:#d92d4a;font-size:12px;font-weight:900;letter-spacing:.9px">CANCELLED</span>' : '') + '<span data-chip' + (isDemo(s) ? ' data-demo-tag' : '') + ' style="display:flex;align-items:center;gap:6px;border-radius:999px;padding:5px 11px;background:' + (isDemo(s) ? 'rgba(255,255,255,.24);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)' : lead ? '#5b4ae8' : '#149a4b') + ';font-size:12px;font-weight:900;letter-spacing:.9px">' + (isDemo(s) ? 'DEMO' : lead ? (isTheLead(s) ? 'YOU’RE LEADING' : 'YOU’RE CO-HOSTING') : 'HAPPENING') + '</span>' +
+          '<div style="display:flex;gap:6px;flex-wrap:wrap">' + (s.cancelledAt ? '<span data-cancelled style="display:flex;align-items:center;border-radius:999px;padding:5px 11px;background:#d92d4a;font-size:12px;font-weight:900;letter-spacing:.9px">CANCELLED</span>' : '') + '<span data-chip' + (isDemo(s) ? ' data-demo-tag' : '') + ' style="display:flex;align-items:center;gap:6px;border-radius:999px;padding:5px 11px;background:' + (isDemo(s) ? 'rgba(255,255,255,.24);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)' : lead ? '#5b4ae8' : '#149a4b') + ';font-size:12px;font-weight:900;letter-spacing:.9px">' + (isDemo(s) ? 'DEMO' : lead ? (isTheLead(s) ? 'YOU’RE LEADING' : 'YOU’RE CO-LEADING') : 'HAPPENING') + '</span>' +
             (s.visibility === 'invite' ? '<span style="display:flex;align-items:center;gap:5px;border-radius:999px;padding:5px 11px;background:rgba(255,255,255,.22);font-size:12px;font-weight:900;letter-spacing:.9px">' + svg(11, stroke('#fff', 2.6), '<rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>') + 'PRIVATE</span>' : '') + '</div>' +
           (edit
             ? '<h1 ' + on(() => openSec(s, 'title'), 'button') + ' aria-label="' + esc(s.text) + ', edit the title" style="margin:0;font-size:40px;line-height:.98;font-weight:900;letter-spacing:-1.3px;text-wrap:pretty;cursor:pointer">' + esc(s.text) + svg(20, stroke('#fff', 2.4) + ' style="display:inline-block;margin-left:8px;vertical-align:4px;opacity:.85"', PENCIL) + '</h1>'
@@ -5008,7 +5024,6 @@
               (lead && (!u.createdBy || u.createdBy === st.me) ? '<span ' + on(() => askRemoveUpdate(s, u)) + ' aria-label="Remove this update" style="color:#9b1c31;font-weight:800;cursor:pointer">Remove</span>' : '') + '</div></div></div>').join('')) + '</section>' : '') +
         helpOut(s) +
         host +
-        cohostSec(s) +
         '<section>' + secTitle('Who’s in') + sheetCard(
           // the count sits inside the card, and the card opens the full list (owner, 2026-10-01)
           '<div ' + (goingIds.length ? on(() => setState({ guestList: s.id })) + ' data-going aria-label="See everyone going (' + goingIds.length + ')" ' : '') + 'style="display:flex;align-items:center;gap:10px' + (goingIds.length ? ';cursor:pointer' : '') + '">' +
@@ -5035,7 +5050,7 @@
     if (!rs.length) return '';
     return '<div data-who-came style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:4px">' +
       eyebrowRow('Who came?', '<span style="font-size:13px;font-weight:800;color:#0f7a3c">' + came + ' of ' + rs.length + '</span>') +
-      '<p style="margin:0 0 6px;font-size:13.5px;line-height:1.4;font-weight:500;color:#6b7280">Tap everyone who made it. Only hosts see this.</p>' +
+      '<p style="margin:0 0 6px;font-size:13.5px;line-height:1.4;font-weight:500;color:#6b7280">Tap everyone who made it. Only leads see this.</p>' +
       rs.map((r, i) => { const name = r.userId === state.me ? 'You' : personName(s, r.userId), y = !!r.attended;
         return '<div data-came-row="' + esc(name) + '" style="display:flex;align-items:center;gap:12px;min-height:50px;border-top:' + (i ? '1px solid #f2f3f6' : '0') + '">' + face(r.userId, name, 32, null) +
           '<span style="flex:1 1 auto;min-width:0;font-size:15px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(name) + (r.status === 'maybe' ? ' <span style="font-size:12px;font-weight:700;color:#8f6405">maybe</span>' : '') + '</span>' +
@@ -6369,6 +6384,7 @@
       (st.offerKind && subj ? viewOffer(subj) : '') +
       (st.interestList && subj ? viewInterestList(subj) : '') +
       (st.guestList && subj && st.guestList === subj.id ? viewGuestList(subj) : '') +
+      (st.leadsSheet ? viewLeadsSheet() : '') +
       (st.cohostPick ? viewCohostPicker() : '') +
       (st.takeDown ? viewTakeDown() : '') +
       (st.thanksList && subj ? viewThanksList(subj) : '') +
@@ -6615,6 +6631,7 @@
       if (state.interestList) return setState({ interestList: false });
       if (state.guestList) return setState({ guestList: null });
       if (state.cohostPick) return setState({ cohostPick: null });
+      if (state.leadsSheet) return setState({ leadsSheet: null });
       if (state.takeDown) return setState({ takeDown: null });
       if (state.thanksList) return setState({ thanksList: false });
       if (state.menu) return setState({ menu: null });

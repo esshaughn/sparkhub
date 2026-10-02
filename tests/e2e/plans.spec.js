@@ -441,7 +441,7 @@ test('RSVP buttons change as soon as they are tapped (the save follows), and go 
 });
 
 // Social-science review (2026-10-01): floating an idea and hosting it are separate jobs; RSVPs aren't attendance
-test('looking for a host: someone else takes the lead; "I could help"; the host checks in who came', async ({ browser }) => {
+test('looking for a lead: someone else takes the lead; "I could help"; the lead checks in who came', async ({ browser }) => {
   test.setTimeout(150000);
   const host = await newLead(browser, 1, 'Hope');
   const other = await newLead(browser, 2, 'Otto');
@@ -452,8 +452,8 @@ test('looking for a host: someone else takes the lead; "I could help"; the host 
     const id = await postIdea(H, { title: uniqueTitle('Kite day') });
     ids.push(id);
     const HI = H.locator('[data-screen-label="Idea page"]');
-    await HI.locator('[data-hand-off]').getByRole('button', { name: 'Look for a host' }).click();
-    await expect(HI.locator('[data-wants-host]')).toContainText('LOOKING FOR A HOST');
+    await HI.locator('[data-hand-off]').getByRole('button', { name: 'Look for a lead' }).click();
+    await expect(HI.locator('[data-wants-host]')).toContainText('LOOKING FOR A LEAD');
     await expect(HI.locator('[data-wants-host]')).toContainText('You stay the lead until someone does');
 
     // Otto sees it needs a host, is interested and could help
@@ -473,8 +473,8 @@ test('looking for a host: someone else takes the lead; "I could help"; the host 
     await H.getByRole('dialog', { name: 'Who’s interested' }).getByRole('button', { name: 'Close' }).click();
 
     // Otto takes the lead
-    await OI.locator('[data-wants-host]').getByRole('button', { name: 'I’ll host it' }).click();
-    await confirm(O, 'I’ll host it');
+    await OI.locator('[data-wants-host]').getByRole('button', { name: 'I’ll lead it' }).click();
+    await confirm(O, 'I’ll lead it');
     await expect(OI).toContainText('YOU’RE LEADING');
     await expect(OI.locator('[data-wants-host]')).toHaveCount(0);
     await openIdea(H, id);
@@ -513,8 +513,9 @@ test('looking for a host: someone else takes the lead; "I could help"; the host 
   }
 });
 
-// Co-hosts (20261101130000_cohosts.sql): the lead adds one from the group; they host alongside, but can't delete it
-test('co-hosts: the lead adds one, who edits and posts updates but can’t delete it, then steps down', async ({ browser }) => {
+// Co-leads (20261101130000_cohosts.sql; one Led by card, owner's mock 2026-10-01): the lead adds one from the group;
+// they lead alongside, but can't delete it
+test('co-leads: the lead adds one, who edits and posts updates but can’t delete it, then steps down', async ({ browser }) => {
   test.setTimeout(150000);
   const host = await newLead(browser, 1, 'Hope');
   const other = await newLead(browser, 2, 'Otto');
@@ -530,20 +531,25 @@ test('co-hosts: the lead adds one, who edits and posts updates but can’t delet
     expect(id).toMatch(/^[0-9a-f-]{36}$/);
     await openIdea(H, id);
     const HP = H.locator('[data-screen-label="Plan page"]');
-    const hosts = HP.locator('[data-cohosts]');
-    await expect(hosts.locator('[data-host-row="You"]')).toContainText('Lead');
-    await hosts.getByRole('button', { name: 'Add a co-host' }).click();
-    const pick = H.getByRole('dialog', { name: 'Add a co-host' });
+    const card = HP.locator('[data-led-by]');
+    await expect(card.locator('[data-lead-names]')).toHaveText('Hope');
+    await card.locator('[data-colead-ask]').getByRole('button', { name: 'Co-lead' }).click();
+    const pick = H.getByRole('dialog', { name: 'Add a co-lead' });
     await pick.locator('[data-pick-cohost="Otto"]').click();
-    await expect(H.getByText('Otto is a co-host now')).toBeVisible();
-    await expect(hosts.locator('[data-host-row="Otto"]')).toContainText('Remove');
+    await expect(H.getByText('Otto is a co-lead now')).toBeVisible();
+    await expect(card.locator('[data-lead-names]')).toHaveText('Hope & Otto');
+    await expect(card.locator('[data-colead-ask]')).toHaveCount(0);
+    await card.getByRole('button', { name: 'Manage co-leads' }).click();
+    const leads = H.getByRole('dialog', { name: 'Leads' });
+    await expect(leads.locator('[data-lead-row="Hope"]')).toContainText('Lead');
+    await expect(leads.locator('[data-lead-row="Otto"]')).toContainText('Remove');
+    await leads.getByRole('button', { name: 'Close' }).click();
 
     // Otto hosts alongside Hope
     await openIdea(O, id);
     const OP = O.locator('[data-screen-label="Plan page"]');
-    await expect(OP).toContainText('YOU’RE CO-HOSTING');
-    await expect(OP.locator('[data-led-by]')).toContainText('Hope');
-    await expect(OP.locator('[data-cohost-names]')).toContainText('with you');
+    await expect(OP).toContainText('YOU’RE CO-LEADING');
+    await expect(OP.locator('[data-led-by] [data-lead-names]')).toHaveText('Hope & Otto');
     await expect(OP.getByRole('button', { name: 'Edit what you need' })).toBeVisible();
     await OP.getByRole('button', { name: 'Send everyone an update' }).click();
     const blast = O.getByRole('dialog', { name: 'Send an update' });
@@ -557,10 +563,12 @@ test('co-hosts: the lead adds one, who edits and posts updates but can’t delet
     await expect(HP.locator('[data-update]', { hasText: 'north gate' }).getByRole('button', { name: 'Remove this update' })).toHaveCount(0);
 
     // Otto steps down
-    await OP.locator('[data-cohosts] [data-host-row="You"]').getByRole('button', { name: 'Step down' }).click();
+    await OP.locator('[data-led-by]').getByRole('button', { name: 'Manage co-leads' }).click();
+    await O.getByRole('dialog', { name: 'Leads' }).locator('[data-lead-row="Otto"]').getByRole('button', { name: 'Step down' }).click();
     await confirm(O, 'Step down');
     await expect(OP).toContainText('HAPPENING');
-    await expect(OP.locator('[data-cohosts]')).toHaveCount(0);
+    await expect(OP.locator('[data-led-by] [data-lead-names]')).toHaveText('Hope');
+    await expect(OP.locator('[data-manage-coleads]')).toHaveCount(0);
     expect(host.errors).toEqual([]);
   } finally {
     if (id) await deleteIdea(H, id).catch(() => {});

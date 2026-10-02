@@ -416,7 +416,7 @@ select t.must_refuse('a co-host from outside the groups', format($$select public
 select t.must_refuse('a guest as co-host', format($$select public.add_cohost(%L, %L)$$, t.id('co_walk'), t.id('guest')));
 select t.must_allow('the lead adds a co-host', format($$select public.add_cohost(%L, %L)$$, t.id('co_walk'), t.id('cohost')));
 reset role;
-select t.check('the new co-host gets a note', exists (select 1 from notes where user_id = t.id('cohost') and body like '%co-host of Co walk%'));
+select t.check('the new co-host gets a note', exists (select 1 from notes where user_id = t.id('cohost') and body like '%co-lead of Co walk%'));
 select t.login('cohost'); set role authenticated;
 select t.check('a co-host sees the invite-only event', (select count(*) from sparks where id = t.id('co_walk')) = 1);
 select t.check('is_host for a co-host', public.is_host(t.id('co_walk')));
