@@ -1,5 +1,29 @@
 // Shared helpers for driving Spark Hub the way a member would.
 const { expect, devices, test } = require('@playwright/test');
+const fs = require('fs');
+const path = require('path');
+
+// The TEST project's address and public key, the way js/config.js gives them to a page on localhost
+const CONFIG = (() => {
+  const window = {};
+  // eslint-disable-next-line no-new-func
+  new Function('window', 'location', fs.readFileSync(path.join(__dirname, '../../js/config.js'), 'utf8'))(window, { hostname: 'localhost' });
+  return window.SPARKS_CONFIG;
+})();
+const SESSION_KEY = 'sb-' + new URL(CONFIG.supabaseUrl).host.split('.')[0] + '-auth-token';   // where supabase-js keeps the session
+
+// A request to the TEST project from Node (not from a page). Answers within 20 seconds or throws:
+// a stalled project then fails the test with a clear message, not a 90-second hang.
+async function api(method, url, token, body) {
+  const r = await fetch(CONFIG.supabaseUrl + url, {
+    method, signal: AbortSignal.timeout(20000),
+    headers: Object.assign({ apikey: CONFIG.supabaseKey, 'Content-Type': 'application/json' }, token ? { Authorization: 'Bearer ' + token } : {}),
+    body: body ? JSON.stringify(body) : undefined
+  });
+  const data = await r.json().catch(() => null);
+  if (!r.ok) throw new Error((data && (data.msg || data.message || data.error_description)) || 'HTTP ' + r.status);
+  return data;
+}
 
 // A 64×48 solid PNG. Enough for the app's resize-and-upload path.
 const PNG = Buffer.from(
@@ -38,7 +62,15 @@ function trackErrors(page) {
 
 // The app has loaded its data from the TEST database, with no error banner
 async function expectConnected(page, errors) {
-  await expect(page.locator('html[data-loaded=true]')).toHaveCount(1);
+  try {
+    await expect(page.locator('html[data-loaded=true]')).toHaveCount(1);
+  } catch (e) {
+    // The TEST project is a small free instance and has stalled for minutes under a full run (2026-10-01/02).
+    // Say so, so a stall isn't read as an app bug.
+    const up = await api('GET', '/auth/v1/health').then(() => true, () => false);
+    throw new Error((up ? '' : 'The TEST Supabase project is not answering (its health check failed), so the app could not load. Not an app bug.\n') +
+      (errors && errors.length ? 'Page errors: ' + errors.join(' | ') + '\n' : '') + e.message);
+  }
   if (errors && errors.length) throw new Error('Page errors while loading: ' + errors.join(' | '));
   await expect(page.locator('[data-load-failed]')).toHaveCount(0);
   expect(await page.evaluate(() => !!window.supabase && window.SPARKS_CONFIG.env)).toBe('test');
@@ -55,8 +87,10 @@ async function stubPhotos(target) {
 }
 
 // Fresh visitor: new browser context = new localStorage = new anonymous identity
-async function newMember(browser, path) {
-  const context = await browser.newContext({ ...devices['Pixel 7'] });
+// (`stored`: localStorage entries the browser starts with; newLead passes a signed-in session)
+async function newMember(browser, path, stored) {
+  const origin = new URL(test.info().project.use.baseURL).origin;
+  const context = await browser.newContext({ ...devices['Pixel 7'], ...(stored ? { storageState: { cookies: [], origins: [{ origin, localStorage: stored }] } } : {}) });
   // The Add to Home Screen pop-up counts as already shown, so it never covers what a test clicks (smoke.spec.js tests it)
   await context.addInitScript(() => {
     if (localStorage.getItem('e2e-install')) return;
@@ -78,27 +112,27 @@ async function newMember(browser, path) {
 // worker 0 → e2e-lead-1/2, worker 1 → 3/4, worker 2 → 5/6 (all on TEST; made by scripts/test-leads.py)
 const leadEmail = (n) => `e2e-lead-${n + 2 * test.info().parallelIndex}@example.com`;
 
+let torrezId;   // Torrez Fitness, the group every test lead belongs to (looked up once per worker)
 async function newLead(browser, n, name, path) {
   const password = process.env.E2E_LEAD_PASSWORD;
   if (!password) throw new Error('E2E_LEAD_PASSWORD is not set (tests/.env locally, a repo secret on CI)');
-  const m = await newMember(browser);
-  const err = await asUser(m.page, async (c, _C, { email, password, name }) => {
-    const r = await c.auth.signInWithPassword({ email, password });
-    if (r.error) return r.error.message;
-    const me = r.data.user.id;
-    const u = await c.auth.updateUser({ data: { name, display_name: name } });
-    if (u.error) return u.error.message;
-    const p = await c.rpc('rename_me', { p_name: name });
-    return p.error ? p.error.message : null;
-  }, { email: leadEmail(n), password, name });
-  if (err) throw new Error('Lead sign-in failed: ' + err);
-  // Start each test in Torrez Fitness, the group every test lead belongs to
-  const torrez = await asUser(m.page, async (c) => (await c.from('groups').select('id').eq('name', 'Torrez Fitness').single()).data.id);
-  await m.page.evaluate((id) => localStorage.setItem('spark-hub-prefs', JSON.stringify({ groupId: id })), torrez);
-  await m.page.goto(path || '/');
-  await m.page.reload();   // a hash-only goto doesn't reload, and the group choice is read at start-up
-  await expectConnected(m.page, m.errors);
-  return m;
+  // Sign in from Node and hand the browser the session, so the app loads once, already signed in and in
+  // Torrez Fitness. Signing in inside the page took three full loads and an anonymous account per lead,
+  // about a third of a full run's requests to the TEST project (2026-10-02).
+  let session;
+  try {
+    session = await api('POST', '/auth/v1/token?grant_type=password', null, { email: leadEmail(n), password });
+    session.user = await api('PUT', '/auth/v1/user', session.access_token, { data: { name, display_name: name } });
+    await api('POST', '/rest/v1/rpc/rename_me', session.access_token, { p_name: name });
+    if (!torrezId) torrezId = (await api('GET', '/rest/v1/groups?select=id&name=eq.' + encodeURIComponent('Torrez Fitness'), session.access_token))[0].id;
+  } catch (e) {
+    throw new Error('Lead sign-in failed: ' + e.message);
+  }
+  if (!session.expires_at) session.expires_at = Math.floor(Date.now() / 1000) + session.expires_in;
+  return newMember(browser, path, [
+    { name: SESSION_KEY, value: JSON.stringify(session) },
+    { name: 'spark-hub-prefs', value: JSON.stringify({ groupId: torrezId }) }
+  ]);
 }
 
 const button = (page, name) => page.getByRole('button', { name, exact: true });

@@ -21,6 +21,9 @@ module.exports = defineConfig({
   workers: process.env.PW_WORKERS ? +process.env.PW_WORKERS : process.env.CI ? 3 : 1,
   fullyParallel: false,
   retries: process.env.CI ? 1 : 0,
+  // When the TEST project stalls (a small free instance; it has frozen for minutes late in a full run), every
+  // test after that fails the same way. Stop the run there, not after retrying each one into the stall.
+  maxFailures: process.env.CI ? 8 : 0,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
   use: {
     ...devices['Pixel 7'],
