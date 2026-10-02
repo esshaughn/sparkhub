@@ -508,10 +508,11 @@
   }
 
   let loadSeq = 0, loadWritten = 0;   // loads overlap (30s refresh, a write's reload); older data never lands over newer
+  let tapSeq = 0;                     // taps that show at once (quick, setRsvp), counted by saving(1)
   let extrasFor = null, extrasAt = 0, notifAt = 0;
   async function loadAll() {
     if (!sb) return;
-    const seq = ++loadSeq, t0 = performance.now();
+    const seq = ++loadSeq, t0 = performance.now(), taps = tapSeq, midSave = savingN > 0;
     diagNote('load started');
     const d = await loadRows();
     const x = {
@@ -554,6 +555,10 @@
     } : state.viewAs ? { friends: [], incoming: [], outgoing: [], invites: [], loaded: true } : state.fr;
     fr.friends.concat(fr.incoming).forEach(f => { if (!profiles[f.id]) profiles[f.id] = { name: f.name, avatar: f.avatar, place: '', bio: '' }; });
     if (seq < loadWritten) return;   // a newer load already wrote fresher data
+    // A tap that shows at once was made while this load ran, or its save was (or still is) on its way: this data can be
+    // from before the save, and landing it undid the tap on screen until the next refresh (Going, then Maybe twice left
+    // Maybe on; the You're helping bar blinked out, 2026-10-02). The refresh that follows the last save lands instead.
+    if (state.loaded && (midSave || savingN > 0 || taps !== tapSeq)) return;
     loadWritten = seq;
     const mine = profiles[state.me] || {};
     if (performance.now() - t0 > 3000) diag('slow load', performance.now() - t0, 'waiting on the network');
@@ -1398,7 +1403,7 @@
   // reload, like RSVP used to): the event changes on screen, the save runs behind it in order, one refresh follows the
   // last of them, and a save that fails puts things back and says so. done(ok) runs after the save.
   let quickChain = Promise.resolve(), quickQueued = 0, savingN = 0;
-  const saving = (d) => { savingN = Math.max(0, savingN + d); if (savingN) document.documentElement.setAttribute('data-saving', ''); else document.documentElement.removeAttribute('data-saving'); };
+  const saving = (d) => { if (d > 0) tapSeq++; savingN = Math.max(0, savingN + d); if (savingN) document.documentElement.setAttribute('data-saving', ''); else document.documentElement.removeAttribute('data-saving'); };
   const quick = (s, patch, work, done) => {
     if (state.viewAs) return run(async () => {});   // previewing: run() says nothing changes
     const cur = state.sparks.find(x => x.id === s.id) || s, undo = {};

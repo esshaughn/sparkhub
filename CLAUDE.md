@@ -1,5 +1,7 @@
 # Spark Hub
 
+**Build version: v7** (owner, 2026-10-02: an idea is led or floated, and a floated one can be handed on by asking someone; `20261102020000_float_and_ask.sql`). "v6 Update N" in the docs and code names Claude Design's rounds; the next design baseline will be v7.
+
 One app, many groups (Torrez Fitness is one, code TORREZ). Static HTML/CSS/JS (no build step), Supabase for data, deployed by Vercel on every push to `main`. See README.md for structure.
 
 **Renamed 2026-09-25:** live address https://gosparkhub.vercel.app (since 2026-09-29 also https://sparkhub.wereallneighbors.org: an `A` record to Vercel in the domain's DNS at Hostinger (registered at Namecheap), listed in `LIVE_HOSTS` in `js/config.js` and `api/preview.js`) (the Vercel project is `gosparkhub`; the old torrezhub.vercel.app redirects), GitHub repo `esshaughn/sparkhub`, Supabase projects `sparkhub` / `sparkhub-test`, daily backups in `~/Backups/sparkhub` (launchd `com.sparkhub.backup`). The local folder was renamed from `sparks-torrez` to `sparkhub` on 2026-09-27.
