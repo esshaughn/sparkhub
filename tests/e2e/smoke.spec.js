@@ -295,7 +295,10 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
       const me = (await c.auth.getUser()).data.user.id;
       const g = (await c.from('groups').select('id').eq('name', 'Torrez Fitness').single()).data.id;
       const r = await c.from('sparks').insert({ group_id: g, author_name: 'Host', lead_name: 'Host', lead_id: me, created_by: me, text: title, planned: true, day_date: day, day_time: '09:00', spot: 'The track' }).select('id').single();
-      return r.error ? r.error.message : r.data.id;
+      // And one that's over, so the Past tab has its SO FAR recap (TEST's Torrez can have no past events of its own)
+      const past = new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10);
+      const p = await c.from('sparks').insert({ group_id: g, author_name: 'Host', lead_name: 'Host', lead_id: me, created_by: me, text: title + ' (past)', planned: true, day_date: past }).select('id').single();
+      return r.error || p.error ? (r.error || p.error).message : r.data.id;
     }, { day, title: PLAN });
     expect(planId).toMatch(/^[0-9a-f-]{36}$/);
     going = await asUser(page, async (c, _C, id) => {
@@ -488,7 +491,7 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
     expect(errors).toEqual([]);
   } finally {
     if (going) await asUser(page, async (c, _C, x) => { await c.from('rsvps').delete().eq('spark_id', x.id).eq('user_id', x.me); await c.from('profiles').update({ place: null, bio: null }).eq('id', x.me); }, going).catch(() => {});
-    if (host) { await asUser(host.page, async (c) => { await c.from('sparks').delete().eq('text', '[E2E] Schedule check'); }).catch(() => {}); await host.context.close(); }
+    if (host) { await asUser(host.page, async (c) => { await c.from('sparks').delete().in('text', ['[E2E] Schedule check', '[E2E] Schedule check (past)']); }).catch(() => {}); await host.context.close(); }
     await context.close();
   }
 });
