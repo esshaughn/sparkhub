@@ -161,6 +161,14 @@ EVENTS = [
          jobs=[('Flip pancakes', 2, None), ('Syrup and toppings', 2, None), ('Griddles', 2, None), ('Coffee and juice', 2, None)]),
 ]
 
+# Event types (up to two of active / outdoors / food / family / social)
+TAGS = {'club-quarantine': ['social'], 'writers-salon': ['social'], 'art-gallery': ['family', 'social'],
+        'middle-earth': ['social', 'food'], 'coworking': ['social'], 'walnut-squeak': ['social'],
+        'kung-fu': ['active', 'family'], 'cozy-craft': ['social'], 'lane-of-lights': ['outdoors', 'family'],
+        'christmas-reading': ['family'], 'artie-gras': ['family', 'social'], 'mini-gras': ['family', 'outdoors'],
+        'egg-hunt': ['family', 'outdoors'], 'hub-work-day': ['outdoors'], 'story-time': ['family'],
+        'hunters-hang': ['food', 'social'], 'pancake': ['food', 'family']}
+
 # --- Clear the group ------------------------------------------------------------------------------
 removed = '"' + '","'.join(REMOVE) + '"'
 old = rest('GET', 'sparks', query=f'?group_id=eq.{GID}&or=(demo.is.true,test.is.true,text.in.({q(removed)}))&select=id,text,photos,mood')
@@ -222,7 +230,7 @@ for i, d in enumerate(EVENTS):
         'hopes': [], 'cat': 'events', 'answers': {}, 'vision': d['vision'],
         'photos': cover, 'mood': [upload(lead, f) for f in extra] if d['kind'] != 'past' else [],
         'day_date': d.get('date'), 'day_time': d.get('time'), 'planned': is_plan, 'visibility': 'group',
-        'spot': d.get('spot', SPOT), 'spot_open': False,
+        'spot': d.get('spot', SPOT), 'spot_open': False, 'tags': TAGS.get(d['key'], []),
     }
     sid = rest('POST', 'sparks', row)[0]['id']
     x = dict(d, id=sid, lead_id=lead, items=[], taken={})
