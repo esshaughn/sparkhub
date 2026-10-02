@@ -403,6 +403,44 @@ test('location suggestions: 2 letters, 4 rows, Austin area, remembered, free tex
   }
 });
 
+// Owner, 2026-10-02 (review fixes): a tab tap inside Create event asks about a draft (it used to drop the event), Return
+// in the title presses Next, a greyed-out Next says what it's waiting for, and a reload brings the flow back where it
+// was (phones drop the tab while people look something up)
+test('Create event: a tab tap asks about a draft, Return goes on, and a reload picks the flow back up', async ({ browser }) => {
+  const { page, context, errors } = await newLead(browser, 1, 'Tester');
+  const title = uniqueTitle('Porch concert');
+  try {
+    await startPost(page);
+    const flow = page.locator('[data-screen-label="New spark"]');
+    await pickKind(page, true);
+    await expect(flow).toContainText('START AN EVENT');
+    await expect(flow.locator('[data-step-hint]')).toHaveText('Add a title to keep going.');
+    await flow.getByLabel('Event title').fill(title);
+    await expect(flow.locator('[data-step-hint]')).toHaveCount(0);
+    await flow.getByLabel('Event title').press('Enter');
+    await expect(flow).toContainText('2 of 5');
+    // A tab: the draft question, and Keep going stays put
+    await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Your schedule', exact: true }).click();
+    const leave = page.getByRole('dialog', { name: 'Save as draft' });
+    await expect(leave).toContainText('Save this as a draft?');
+    await leave.getByRole('button', { name: 'Keep going' }).click();
+    await expect(flow).toContainText('2 of 5');
+    // A reload comes back to the same step with the title
+    await page.reload();
+    await expect(flow).toContainText('2 of 5');
+    await expect(flow).toContainText(new RegExp(title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'));
+    // Discard from a tab tap goes to that tab, and nothing is kept for the next reload
+    await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Your schedule', exact: true }).click();
+    await leave.getByRole('button', { name: 'Discard' }).click();
+    await expect(page.locator('[data-screen-label="Your schedule"]')).toBeVisible();
+    await expect(flow).toHaveCount(0);
+    expect(await page.evaluate(() => sessionStorage.getItem('spark-hub-compose'))).toBeNull();
+    expect(errors).toEqual([]);
+  } finally {
+    await context.close();
+  }
+});
+
 test('an idea says how many it needs; a bare starter chip can’t be saved; its steps are Date · Location · Details · People', async ({ browser }) => {
   test.setTimeout(90000);
   const { page, context, errors } = await newLead(browser, 1, 'Tester');

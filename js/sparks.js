@@ -175,7 +175,7 @@
     evDate: '', evTime: '', evEnd: '', evEndOn: false, timeOpen: null, dateOpen: null, calMonth: null,
     locText: '', locPlace: null, locSuggest: [],
     evBits: ['', '', ''], evNeed: null, evTags: [], evNeeds: [], evDatePoll: null, evSpotPoll: null, evLater: {},
-    evPriv: false, evNoGuestInv: true, evTest: null, evKindAsk: false, evGroups: null, evDraftId: null, evLeave: false, pollSheet: null, needSheet: null, evFromReview: false
+    evPriv: false, evNoGuestInv: true, evTest: null, evKindAsk: false, evGroups: null, evDraftId: null, evLeave: false, evLeaveTo: null, evFrom: null, pollSheet: null, needSheet: null, evFromReview: false
   });
   const state = Object.assign({
     screen: 'calendar', menu: null, subjectId: null, gpId: null, tag: null, zoom: null, membersOpen: null, membersList: null,
@@ -263,6 +263,7 @@
     const prevStep = state.evStep, prevScreen = state.screen, prevSubj = state.subjectId, prevGp = state.gpId;
     Object.assign(state, patch);
     savePrefs();
+    if (state.screen === 'compose') keepCompose();
     render();
     if (state.evStep !== prevStep) {
       const ov = document.querySelector('.overlay-screen');
@@ -2027,7 +2028,7 @@
   // 1. Welcome (Home, signed out)
   // ---------------------------------------------------------------------------
 
-  const STEPS = [['#e8a71c', '1', 'Create an event'], ['#5b4ae8', '2', 'RSVP &amp; pitch in'], ['#0f7a3c', '3', 'Make it happen']];
+  const STEPS = [['#e8a71c', '1', 'Start an event'], ['#5b4ae8', '2', 'RSVP &amp; pitch in'], ['#0f7a3c', '3', 'Make it happen']];
 
   function viewWelcome() {
     const st = state, from = st.joinCode ? 'join' : 'default', then = st.joinCode ? () => openJoin(st.joinCode) : null;
@@ -2094,7 +2095,7 @@
     const email = '<input class="fld" data-inv-email type="email" inputmode="email" maxlength="80" autocomplete="email" autocapitalize="off" spellcheck="false" aria-label="Email" placeholder="you@example.com" value="' + esc(st.loginEmail) + '" ' +
         onInput(e => { if (e.type === 'input') setState({ loginEmail: e.target.value.slice(0, 80) }); }) +
         ' style="width:100%;height:54px;border:2px solid #e3e5ec;border-radius:16px;padding:0 18px;font-family:inherit;font-size:17px;font-weight:500;color:#11131f;background:#fff;outline:none">' +
-      '<button type="button" ' + on(invSendCode) + ' aria-disabled="' + !emailOk + '" style="margin-top:10px;' + invPrimary(emailOk) + '">' + (busy === 'send' ? 'Sending…' : 'Email me a code') + '</button>';
+      '<button type="button" data-enter ' + on(invSendCode) + ' aria-disabled="' + !emailOk + '" style="margin-top:10px;' + invPrimary(emailOk) + '">' + (busy === 'send' ? 'Sending…' : 'Email me a code') + '</button>';
     const body = IN_APP
       ? email +
         '<div style="margin-top:16px;display:flex;flex-direction:column;gap:10px;background:#fdf5e1;border-radius:18px;padding:14px 16px">' +
@@ -2143,7 +2144,7 @@
           '<input data-inv-code type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" aria-label="6-digit code" value="' + esc(code) + '" ' + onInput(onCode) +
             ' style="position:absolute;inset:0;width:100%;height:100%;border:0;padding:0;background:transparent;color:transparent;caret-color:transparent;font-size:16px;letter-spacing:40px;outline:none;opacity:.01"></div>' +
         (bad ? '<div role="alert" style="margin-top:10px;font-size:14px;line-height:1.4;color:#d93a3a">That code didn’t work. Check the newest email from Spark Hub.</div>' : '') +
-        '<button type="button" ' + on(() => { if (ok) verifyCode(); }) + ' aria-disabled="' + !ok + '" style="margin-top:18px;' + invPrimary(ok) + '">' + (st.busy === 'signin' ? 'Signing in…' : 'Sign in & join') + '</button>' +
+        '<button type="button" data-enter ' + on(() => { if (ok) verifyCode(); }) + ' aria-disabled="' + !ok + '" style="margin-top:18px;' + invPrimary(ok) + '">' + (st.busy === 'signin' ? 'Signing in…' : 'Sign in & join') + '</button>' +
         '<div style="margin-top:16px;display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:14px">' +
           (left > 0 ? '<span style="color:#6b7080">Resend in 0:' + pad2(left) + '</span>' : '<span ' + on(invResend) + ' style="font-weight:700;color:#5b4ae8;cursor:pointer">Send a new code</span>') +
           '<span ' + on(() => { close(); setTimeout(() => { const f = document.querySelector('[data-inv-email]'); if (f) f.focus(); }, 0); }) + ' style="font-weight:700;color:#5b4ae8;cursor:pointer">Use a different email</span></div>' +
@@ -2391,7 +2392,7 @@
       sec('Past', past.map(s => ev(s, monthDay(s.dayDate), null, true)));
     // Empty: there's no + on this screen, so the card has its own button
     return wrap(body || '<div data-own-empty style="background:#fff;border-radius:14px;padding:18px;box-shadow:0 1px 2px rgba(15,18,25,.06);display:flex;flex-direction:column;gap:14px">' +
-      '<span style="font-size:15px;line-height:1.45;font-weight:600;color:#5c6270">Nothing you’re leading yet. Post an event, or float an idea and see who bites.</span>' + createBtn() + '</div>');
+      '<span style="font-size:15px;line-height:1.45;font-weight:600;color:#5c6270">Nothing you’re leading yet. Start an event, or float an idea and see who bites.</span>' + createBtn() + '</div>');
   }
 
   // Groups: pinned groups as big cards, the rest as a grid of square tiles
@@ -2904,7 +2905,7 @@
     return '<div data-cal-empty style="' + CARD + ';padding:18px;display:flex;flex-direction:column;gap:12px">' +
       '<div><div style="font-size:16.5px;font-weight:800;color:#0d1117">Nothing on the calendar yet.</div>' +
       '<div style="margin-top:3px;font-size:14.5px;line-height:1.45;font-weight:500;color:#5c6270">' + (ideas.length ? 'Start something, or see what ideas people are floating.' : 'Start something and it shows up here for your group.') + '</div></div>' +
-      createBtn().replace('Create an event', 'Start an event') +
+      createBtn() +
       (ideas.length ? '<button type="button" class="hov-outline" ' + on(() => go('browse', { groupId: g ? g.id : state.groupId, phaseTab: 'idea' })) + ' style="' + SECONDARY + '">See ' + ideas.length + (ideas.length === 1 ? ' idea' : ' ideas') + '</button>' : '') +
     '</div>';
   };
@@ -3239,7 +3240,7 @@
         '<div style="font-size:13px;font-weight:900;letter-spacing:1px;color:#cfc9ff">COMMUNITY</div>' +
         '<h1 style="margin:2px 0 0;font-size:40px;line-height:1;font-weight:900;letter-spacing:-1.4px;color:#fff">Calendar</h1>' +
         '<div style="margin-top:6px;font-size:14px;font-weight:700;color:rgba(255,255,255,.88)">' + (groups.length ? 'All events from your ' + groups.length + (groups.length === 1 ? ' group' : ' groups') : st.error === 'load' ? 'Couldn’t load your groups' : 'Join a group to see its events') + '</div></div>' +
-      '<button type="button" class="hov-primary" ' + on(() => goCompose()) + ' aria-label="Post an event" style="position:absolute;right:16px;bottom:16px;z-index:2;width:52px;height:52px;border:0;border-radius:999px;background:#5b4ae8;box-shadow:0 6px 16px rgba(13,17,23,.35);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.plus(22, '#fff', 2.8) + '</button>' +
+      '<button type="button" class="hov-primary" ' + on(() => goCompose()) + ' data-new-event aria-label="Start an event" style="position:absolute;right:16px;bottom:16px;z-index:2;width:52px;height:52px;border:0;border-radius:999px;background:#5b4ae8;box-shadow:0 6px 16px rgba(13,17,23,.35);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.plus(22, '#fff', 2.8) + '</button>' +
     '</header>';
 
     // Filters: Groups · Type · Clear filters
@@ -3981,11 +3982,11 @@
     '<h2 style="margin:18px 0 0;font-size:26px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:#0d1117;text-wrap:balance">' + WE_SHOULD + '</h2>' +
     '<p style="margin:0;max-width:330px;font-size:15px;line-height:1.45;font-weight:500;color:#4b5160">An idea is an event without a date. Post it, people vote on when and where, and it turns into a plan once someone leads it.</p>' +
     '<button type="button" ' + on(() => goCompose({ evGroups: [g.id] })) + ' style="margin-top:6px;width:100%;min-height:56px;border:0;border-radius:999px;background:#efc95a;box-shadow:0 6px 16px rgba(201,143,22,.25);display:flex;align-items:center;justify-content:center;gap:8px;font-family:inherit;font-size:17px;font-weight:800;color:#3d2a00;cursor:pointer">' +
-      svg(20, stroke('#3d2a00', 2.3), BULB_IC) + 'Post an idea</button></div>';
-  const ideaPrompt6 = (g) => '<div ' + on(() => goCompose({ evGroups: [g.id] }), 'button') + ' data-idea-prompt aria-label="Post an idea" style="min-height:200px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:20px 10px;border-radius:18px;border:2px dashed #ecc85a;background:#fdf8ec;text-align:center;cursor:pointer">' +
+      svg(20, stroke('#3d2a00', 2.3), BULB_IC) + 'Start an event</button></div>';
+  const ideaPrompt6 = (g) => '<div ' + on(() => goCompose({ evGroups: [g.id] }), 'button') + ' data-idea-prompt aria-label="Start an event" style="min-height:200px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:20px 10px;border-radius:18px;border:2px dashed #ecc85a;background:#fdf8ec;text-align:center;cursor:pointer">' +
     ideaBulb6(54, '0 0 0 8px rgba(239,201,90,.25)') +
     '<span style="margin-top:4px;font-size:16.5px;line-height:1.15;font-weight:900;color:#3d2a00;text-wrap:balance">' + WE_SHOULD + '</span>' +
-    '<span style="font-size:14.5px;font-weight:800;color:#8a6510">Post an idea ›</span></div>';
+    '<span style="font-size:14.5px;font-weight:800;color:#8a6510">Start an event ›</span></div>';
   // The Ideas board's quiet sort row: Most interest (default) · Newest · Almost there (most checkpoints done)
   const ISORTS6 = [['interest', 'Most interest'], ['new', 'Newest'], ['almost', 'Almost there']];
   const stepsDone6 = (s) => ideaSteps6(s).filter(st => st.p >= 1).length;
@@ -4090,7 +4091,7 @@
         '<h1 style="margin:2px 0 0;font-size:34px;line-height:1.02;font-weight:900;letter-spacing:-1.1px;color:#fff;text-wrap:balance;text-shadow:0 1px 8px rgba(0,0,0,.3)">' + esc(g ? g.name : 'Spark Hub') +
           (runs(g) ? '<span ' + on((e) => { stop(e); openGroupPage(g.id, false, 'browse'); }) + ' aria-label="Edit group" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;margin-left:6px;vertical-align:4px;border-radius:999px;color:rgba(255,255,255,.6);cursor:pointer">' + svg(16, stroke('currentColor', 2.2), '<path d="M4 20h4L19 9l-4-4L4 16v4Z"/>') + '</span>' : '') +
         '</h1></div>' +
-      (g ? '<button type="button" class="hov-primary" ' + on(() => goCompose()) + ' aria-label="Post an event" style="position:absolute;right:16px;bottom:16px;z-index:3;width:52px;height:52px;border:0;border-radius:999px;background:#5b4ae8;box-shadow:0 6px 16px rgba(13,17,23,.35);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.plus(22, '#fff', 2.8) + '</button>' : '') +
+      (g ? '<button type="button" class="hov-primary" ' + on(() => goCompose()) + ' data-new-event aria-label="Start an event" style="position:absolute;right:16px;bottom:16px;z-index:3;width:52px;height:52px;border:0;border-radius:999px;background:#5b4ae8;box-shadow:0 6px 16px rgba(13,17,23,.35);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.plus(22, '#fff', 2.8) + '</button>' : '') +
     '</header>';
 
     const offline = st.error === 'load' ? loadFailCard('margin:14px 14px 0') : '';
@@ -4160,7 +4161,7 @@
   }
 
   // Plans tab (v6 Update 9, 80a): an empty state with a calendar fan, and "What else could happen?" under the list
-  const createBtn = () => '<button type="button" class="hov-primary" ' + on(() => goCompose()) + ' style="width:100%;min-height:52px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 6px 16px rgba(91,74,232,.3);cursor:pointer">' + I.plus(18, '#fff', 2.8) + 'Create an event</button>';
+  const createBtn = () => '<button type="button" class="hov-primary" ' + on(() => goCompose()) + ' style="width:100%;min-height:52px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 6px 16px rgba(91,74,232,.3);cursor:pointer">' + I.plus(18, '#fff', 2.8) + 'Start an event</button>';
   const fanPage = (w, rot, x, y, z) => '<span style="position:absolute;left:' + x + 'px;top:' + y + 'px;z-index:' + z + ';width:' + w + 'px;border-radius:14px;overflow:hidden;background:#fff;box-shadow:0 8px 22px rgba(15,18,25,.14);transform:rotate(' + rot + 'deg)">' +
     '<span style="display:flex;align-items:center;justify-content:center;height:' + Math.round(w * .26) + 'px;background:#e2556b;color:#fff;font-size:' + Math.round(w * .12) + 'px;font-weight:900;letter-spacing:1.5px">SAT</span>' +
     '<span style="display:flex;align-items:center;justify-content:center;height:' + Math.round(w * .74) + 'px;color:#0d1117;font-size:' + Math.round(w * .5) + 'px;line-height:1;font-weight:900">?</span></span>';
@@ -4170,7 +4171,7 @@
     '<div><div style="font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">No plans yet</div>' +
       '<div style="margin-top:6px;font-size:15px;font-weight:500;color:#5c6270;text-wrap:pretty">' + (sub || 'Start one, or turn an idea into a plan.') + '</div></div>' + (btns || createBtn()) + '</div>';
   const schedEmpty = () => plansEmpty('RSVP to something in your groups, or post your own.',
-    '<div style="width:100%;display:flex;flex-direction:column;gap:10px">' + createBtn().replace('Create an event', 'Post an event') +
+    '<div style="width:100%;display:flex;flex-direction:column;gap:10px">' + createBtn() +
       '<button type="button" class="hov-sec" ' + on(() => go('calendar')) + ' style="width:100%;min-height:52px;border:0;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;color:#0d1117;font-family:inherit;font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer">' + ic6('cal', 18, '#0d1117', 2.2) + 'View calendar</button></div>',
     'data-sched-empty');
   // Under a group's plans: just Create an event, on the page (owner, 2026-10-01: no Do it again? chips, no white card)
@@ -4226,15 +4227,15 @@
         '<h2 style="margin:0;font-size:28px;line-height:1.06;font-weight:900;letter-spacing:-.8px;color:#0d1117;text-wrap:pretty">Ideas come to life when we build them together</h2>' +
         '<p style="margin:12px 0 0;font-size:15.5px;line-height:1.45;font-weight:500;color:#454b55">Spark Hub is where your groups plan things. Anyone can start something, and everyone can help make it happen.</p>' +
         '<div style="margin-top:20px;display:flex;flex-direction:column;gap:16px">' +
-          step(1, '#efedfd', '#4a3ad4', 'Create an event', 'Add a title and whatever you know. Date, place and details can wait. Let the group vote on them.') +
-          step(2, '#fdf4e2', '#8f6405', 'RSVP &amp; pitch in', 'People RSVP, vote on dates and spots, and sign up to bring things or help out.') +
+          step(1, '#efedfd', '#4a3ad4', 'Start an event', 'Add a title and whatever you know. Date, place and details can wait. Let the group vote on them.') +
+          step(2, '#fdf4e2', '#8f6405', 'RSVP &amp; pitch in', 'People RSVP, vote on dates and locations, and sign up to bring things or help out.') +
           step(3, '#e7f6ec', '#0f7a3c', 'Make it happen', 'Everyone going gets a reminder the day before. Afterwards, add photos and thank whoever helped.') +
         '</div>' +
         '<div style="height:1px;background:#eceef2;margin:22px 0"></div>' +
         '<div style="' + EYEBROW + '">Good to know</div>' +
         '<div style="margin-top:12px;display:flex;flex-direction:column;gap:12px">' +
           note(ic('<path d="M12 3.2 5 6v5.4c0 4.2 2.9 7.4 7 9.4 4.1-2 7-5.2 7-9.4V6l-7-2.8Z"/><path d="M9.2 12.1l2.1 2.1 3.6-3.9"/>'), 'Groups are private.', 'Only members see a group’s events, and you join with a code or a link.') +
-          note(ic('<path d="M16.6 3.8l3.6 3.6L8.4 19.2 4 20.5l1.3-4.4L16.6 3.8Z"/>'), 'Leads stay in charge.', 'People can suggest dates and spots. The lead decides what the event becomes.') +
+          note(ic('<path d="M16.6 3.8l3.6 3.6L8.4 19.2 4 20.5l1.3-4.4L16.6 3.8Z"/>'), 'Leads stay in charge.', 'People can suggest dates and locations. The lead decides what the event becomes.') +
           note(ic('<circle cx="12" cy="12" r="8.4"/><path d="M12 7.6V12l3.2 2"/>'), 'Your tasks keeps track.', 'Anything you’re leading or signed up for shows up there with what’s left to do.') +
         '</div>' +
         ideaButton('margin-top:26px') +
@@ -4614,7 +4615,7 @@
     if (kind === 'day' && o.dayDate < todayISO()) { toast('That date has passed. Pick another, or set a new date.'); return; }
     const day = kind === 'day', label = day ? dayLabel(o.dayDate, o.dayTime) : o.name, reach = updateReach(s), send = s.planned && reach.n > 0;
     const msg = day ? 'New date: ' + label : 'New location: ' + label;
-    setState({ confirm: { title: 'Pick ' + label + '?', cta: day ? 'Use this date' : 'Use this spot', keep: 'Not yet',
+    setState({ confirm: { title: 'Pick ' + label + '?', cta: day ? 'Use this date' : 'Use this location', keep: 'Not yet',
       body: 'This closes the poll and clears its votes.' + (send ? ' ' + reach.text.replace(/^Goes to/, 'An update goes to') : ''),
       run: () => run(async () => {
         if (day) {
@@ -4670,8 +4671,8 @@
 
   // The switch (Basic details) and the exact message people get (Round 65a)
   // v6 Update 13: the lead decides whether guests can invite their friends (Who can see it, Create event)
-  const guestInvSwitch = (v, fn) => '<div ' + on(fn, 'switch') + ' aria-checked="' + v + '" aria-label="Guests can invite friends" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:16px;background:#f4f5f7;cursor:pointer">' +
-    '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">Guests can invite friends</div><div style="font-size:12.5px;font-weight:600;color:#6b7280">' + (v ? 'On: people going can invite their friends' : 'Off: only you and the group’s admins can') + '</div></div>' +
+  const guestInvSwitch = (v, fn) => '<div ' + on(fn, 'switch') + ' aria-checked="' + v + '" aria-label="People going can invite friends" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:16px;background:#f4f5f7;cursor:pointer">' +
+    '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">People going can invite friends</div><div style="font-size:12.5px;font-weight:600;color:#6b7280">' + (v ? 'On: they can pick friends and group members to invite' : 'Off: only leads and admins pick who to invite. Anyone can still share the link.') + '</div></div>' +
     '<span aria-hidden="true" style="flex:0 0 46px;width:46px;height:28px;border-radius:999px;position:relative;transition:background 160ms;background:' + (v ? '#149a4b' : '#dcdfe6') + '"><span style="position:absolute;top:3px;left:' + (v ? 21 : 3) + 'px;width:22px;height:22px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:left 160ms"></span></span></div>';
   const secTell = (s, ss) => {
     if (!isLead(s) || !s.planned || ss.kind === 'vis' || ss.kind === 'title') return '';
@@ -4874,7 +4875,7 @@
     const spotPart = (s.spot ? '<div style="font-size:17px;line-height:1.25;font-weight:900;letter-spacing:-.3px;color:#0d1117;text-wrap:pretty">' + esc(s.spot) + '</div>' +
           (s.spotAddress ? '<div style="margin-top:2px;font-size:14.5px;line-height:1.35;font-weight:500;color:#6b7280;text-wrap:pretty">' + esc(s.spotAddress) + '</div>' : '') +
           (otherSpots.length ? '<div style="margin-top:10px">' + voting('OTHER SUGGESTIONS', pollRows(otherSpots, 'spot')) + '</div>' : '')
-        : s.spotOpts.length ? voting('VOTING ON A SPOT', pollRows(s.spotOpts, 'spot')) : tbd('Location TBD')) + sugg('spot');
+        : s.spotOpts.length ? voting('VOTING ON A LOCATION', pollRows(s.spotOpts, 'spot')) : tbd('Location TBD')) + sugg('spot');
     const empty = (kind) => { const day = kind === 'day';
       return '<div data-empty-' + (day ? 'date' : 'spot') + ' style="display:flex;flex-direction:column;gap:14px;padding:16px;border-radius:18px;border:2px dashed #d6d0fb;background:#f8f7ff">' +
         '<div style="display:flex;gap:12px">' + svg(22, stroke('#5b4ae8', 2.1) + ' style="flex:0 0 22px;margin-top:1px"', day ? P6.cal : P6.pin) +
@@ -4987,9 +4988,9 @@
   const addCohost = (s, u, name) => run(async () => { must(await sb.rpc('add_cohost', { p_spark: s.id, p_user: u })); }, { cohostPick: null })
     .then(ok => { if (ok) toast(firstName(name) + ' is a co-lead now', true); });
   const askRemoveCohost = (s, u, self) => setState({ confirm: self
-    ? { title: 'Step down as co-lead?', body: firstName(nameOf(s.leadId, s.leadName)) + ' keeps leading it. You stay on the guest list if you RSVP’d.', cta: 'Step down', keep: 'Stay on', danger: true,
+    ? { title: 'Step down as co-lead?', body: firstName(nameOf(s.leadId, s.leadName)) + ' keeps leading it. Your RSVP stays.', cta: 'Step down', keep: 'Stay on', danger: true,
         run: () => run(async () => { must(await sb.rpc('remove_cohost', { p_spark: s.id, p_user: u })); }, { confirm: null, tag: null }) }
-    : { title: 'Remove ' + firstName(nameOf(u)) + ' as co-lead?', body: 'They won’t be able to edit it or see the guest list any more.', cta: 'Remove', keep: 'Keep them', danger: true,
+    : { title: 'Remove ' + firstName(nameOf(u)) + ' as co-lead?', body: 'They won’t be able to edit it or see everyone’s replies any more.', cta: 'Remove', keep: 'Keep them', danger: true,
         run: () => run(async () => { must(await sb.rpc('remove_cohost', { p_spark: s.id, p_user: u })); }, { confirm: null }) } });
   function viewCohostPicker() {
     const cp = state.cohostPick, s = state.sparks.find(x => x.id === cp.id);
@@ -5039,7 +5040,7 @@
       // With a poll running, go to its votes and Pick buttons (the pop-up's plain field would throw the poll away)
       s.wantsHost && !s.planned ? [{ item: 'Find a lead', act: () => setState({ share: { id: s.id, copied: false } }) }] : [],
       !s.dayDate ? [{ item: s.dateOpts.length ? 'Pick the winning date' : 'Pick a date', act: () => s.dateOpts.length ? openToSection(s, 'sec-when') : openSec(s, 'when') }] : [],
-      !s.spot ? [{ item: s.spotOpts.length ? 'Pick the winning spot' : 'Pick a location', act: () => s.spotOpts.length ? openToSection(s, 'sec-when') : openSec(s, 'when') }] : [],
+      !s.spot ? [{ item: s.spotOpts.length ? 'Pick the winning location' : 'Pick a location', act: () => s.spotOpts.length ? openToSection(s, 'sec-when') : openSec(s, 'when') }] : [],
       // Details are optional, so no task for them; open spots open the share sheet with the jobs named (owner, 2026-09-30)
       f.open > 0 ? [{ item: 'Fill open spots', meta: f.open + ' open', act: () => shareOpenJobs(s) }] : [],
       myJobs.map(j => ({ item: j.item, meta: myTime(j) })));
@@ -5197,7 +5198,7 @@
     return modal('Start a group', () => setState({ startName: null }),
       h3Html('Start a group') + paraHtml('You’ll own it, and get a link to invite others.') +
       '<input class="fld" type="text" maxlength="40" aria-label="Group name" placeholder="E.g. Mueller Neighbors" value="' + esc(st.startName || '') + '" ' + onInput(e => { if (e.type === 'input') setState({ startName: e.target.value.slice(0, 40) }); }) + ' style="' + FIELD + '">' +
-      '<button type="button" ' + on(submitStartGroup) + ' aria-disabled="' + !ok + '" style="' + primary(ok) + '">' + (st.busy === 'save' ? 'Creating…' : 'Create group') + '</button>',
+      '<button type="button" data-enter ' + on(submitStartGroup) + ' aria-disabled="' + !ok + '" style="' + primary(ok) + '">' + (st.busy === 'save' ? 'Creating…' : 'Create group') + '</button>',
       { z: 32 });
   }
 
@@ -5470,11 +5471,12 @@
   const basicsOf = (s) => s.hopes.length ? s.hopes.map(x => String(x || '').trim()).filter(Boolean) : splitBits([s.vision]);   // a line is never split at its sentences (owner, 2026-10-01)
   const evPhotoUrl = (st) => st.photos[0] ? st.photos[0].url : (PHOTO_PATH.test(st.evPhotoPath || '') ? photoUrl(st.evPhotoPath) : null);
   const evFilled = (st) => ({ title: !!cleanTitle(st.activity) && st.evTest != null, when: !!st.evDate || !!st.evDatePoll, where: !!cleanTitle(st.locText) || !!st.evSpotPoll,
-    details: st.evBits.some(b => b.trim()), help: st.evNeeds.length > 0 });
+    details: st.evBits.some(b => b.trim()) || (!st.evDate && st.evNeed > 0), help: st.evNeeds.length > 0 });
   // "Sat, Oct 24 · 10am", "Sat, Oct 24 · 10am – 12pm"
   const dayLabel = (d, t, e) => d ? fmtDay(d) + (t ? ' · ' + (e ? spanTime({ time: t, endTime: e }) : fmtTime(t)) : '') : '';
   const jobMeta = (j) => j.shifts ? j.shifts.length + (j.shifts.length === 1 ? ' shift' : ' shifts')
     : (j.need ? j.need + (j.need === 1 ? ' person' : ' people') : 'Anyone') + (j.time ? ' · ' + fmtTime(j.time) : '');
+  const evStarted = (st) => !!(cleanTitle(st.activity) || st.evDate || st.evDatePoll || cleanTitle(st.locText) || st.evSpotPoll || st.evBits.some(b => b.trim()) || st.evNeeds.length);
   const evGroupIds = (st) => {
     const mine = myGroups().map(g => g.id), list = (st.evGroups || []).filter(id => mine.indexOf(id) > -1), g = currentGroup();
     return list.length ? list : g ? [g.id] : [];
@@ -5483,7 +5485,27 @@
 
   const composeReset = () => {
     state.photos.forEach(p => URL.revokeObjectURL(p.url));
+    dropKept();
     return blankCompose();
+  };
+  // Create event, kept as it's typed (owner, 2026-10-02): a phone can drop the tab while someone looks up an address,
+  // and the reload used to lose the whole event. This tab's storage only, the same account only, half a day at most.
+  // A photo picked but not yet saved can't be kept (a saved draft's cover is).
+  const COMPOSE_KEEP = 'spark-hub-compose';
+  function keepCompose() {
+    try {
+      if (!state.email || !evStarted(state)) return;
+      const data = { me: state.me, at: Date.now(), evDraftId: state.evDraftId || null, evPhoto: state.evPhotoPath || null, evFrom: state.evFrom || null };
+      DRAFT_FIELDS.forEach(k => { data[k] = state[k]; });
+      sessionStorage.setItem(COMPOSE_KEEP, JSON.stringify(data));
+    } catch (e) { /* storage full or off: nothing kept */ }
+  }
+  function dropKept() { try { sessionStorage.removeItem(COMPOSE_KEEP); } catch (e) { /* fine */ } }
+  const keptCompose = (me) => {
+    try {
+      const d = JSON.parse(sessionStorage.getItem(COMPOSE_KEEP) || 'null');
+      return d && d.me === me && Date.now() - d.at < 12 * 3600 * 1000 ? d : null;
+    } catch (e) { return null; }
   };
   const goCompose = (extra) => {
     setState({ menu: null });
@@ -5492,10 +5514,15 @@
       if (state.loaded) openJoin(); return;   // groups still loading: wait
     }
     const pre = extra && !extra.type ? extra : {};   // on(goCompose) passes the click event
-    go('compose', Object.assign(composeReset(), pre));
+    const from = ORIGINS.indexOf(state.screen) > -1 || state.screen === 'detail' ? state.screen : null;   // where Never mind, X and Discard go back to
+    go('compose', Object.assign(composeReset(), pre, { evFrom: from }));
   };
   const evGo = (k, extra) => setState(Object.assign({ evStep: k, menu: null, timeOpen: null }, extra || {}));
-  const evExit = () => go('calendar', composeReset());
+  // Out of Create event without posting: on to the tab they tapped, else back where it was opened from
+  const evExit = () => {
+    const to = state.evLeaveTo, from = state.evFrom && (state.evFrom !== 'detail' || subject()) ? state.evFrom : 'calendar';
+    if (to) { setState(composeReset()); to(); } else go(from, composeReset());
+  };
   // Real or test? (owner, 2026-10-01): a pop-up over Create event until it's answered, no default, so nobody posts a test
   // as real by accident. Closing it before choosing backs out of Create event entirely; reopened from Review, it just closes
   function viewKindAsk() {
@@ -5524,12 +5551,12 @@
     const st = state;
     if (st.busy) return true;
     if (st.evKindAsk) { setState({ evKindAsk: false }); return true; }
-    if (st.pollSheet || st.needSheet || st.evLeave || st.timeOpen) { setState({ pollSheet: null, needSheet: null, evLeave: false, timeOpen: null }); return true; }
+    if (st.pollSheet || st.needSheet || st.evLeave || st.timeOpen || st.dateOpen) { setState({ pollSheet: null, needSheet: null, evLeave: false, evLeaveTo: null, timeOpen: null, dateOpen: null }); return true; }
     if (st.evStep === 'review') { evGo('help'); return true; }
     if (st.evFromReview) { evGo('review', { evFromReview: false }); return true; }
     const i = EV_STEPS.indexOf(st.evStep);
     if (i > 0) { evGo(EV_STEPS[i - 1]); return true; }
-    if (cleanTitle(st.activity)) { setState({ evLeave: true }); return true; }
+    if (evStarted(st)) { setState({ evLeave: true }); return true; }
     return false;
   };
 
@@ -5577,6 +5604,7 @@
   const postEvent = () => {
     const st = state, groups = evGroupIds(st);
     if (!groups.length || st.busy || !cleanTitle(st.activity) || st.evTest == null) return;
+    if (st.evDate && st.evDate < todayISO()) { evGo('when'); toast('That date has passed. Pick a new one.'); return; }
     const place = st.locPlace && cleanTitle(st.locText) ? st.locPlace : null, spot = cleanTitle(st.locText).slice(0, 80) || null;
     const who = (st.myName || 'Someone').slice(0, 40), dated = !!st.evDate;   // a date posts it as a plan; without one it's an idea
     let id = null, cover = null;
@@ -5633,7 +5661,7 @@
   const saveDraft = () => {
     const st = state;
     if (st.busy) return;
-    if (!cleanTitle(st.activity)) { setState({ evLeave: false }); evGo('title'); toast('Add a title first so you can find it later'); return; }
+    if (!cleanTitle(st.activity)) { setState({ evLeave: false, evLeaveTo: null }); evGo('title'); toast('Add a title first so you can find it later'); return; }
     setState({ busy: 'draft' });
     (async () => {
       let cover = null;
@@ -5648,8 +5676,9 @@
         cover = null;   // saved: the draft now points at this photo, so a later failure mustn't delete it
         if (st.evPhotoPath && data.evPhoto !== st.evPhotoPath) deletePhotos([st.evPhotoPath]);
         await freshAfterSave();
+        const to = state.evLeaveTo;
         setState(Object.assign(composeReset(), { busy: null }));
-        go('home');
+        if (to) to(); else go('home');
         toast('Saved as a draft', true);
       } catch (e) {
         console.error(e);
@@ -5663,7 +5692,7 @@
     const x = d.data || {}, out = {}, arr = (v) => Array.isArray(v) ? v : null, str = (v) => typeof v === 'string' ? v : '';
     Object.assign(out, {
       activity: str(x.activity).slice(0, 40), evStep: EV_STEPS.concat('review').indexOf(x.evStep) > -1 ? x.evStep : 'title',
-      evDate: /^\d{4}-\d{2}-\d{2}$/.test(x.evDate || '') ? x.evDate : '', evTime: str(x.evTime), evEnd: str(x.evEnd), evEndOn: !!x.evEndOn,
+      evDate: /^\d{4}-\d{2}-\d{2}$/.test(x.evDate || '') && x.evDate >= todayISO() ? x.evDate : '', evTime: str(x.evTime), evEnd: str(x.evEnd), evEndOn: !!x.evEndOn,
       locText: str(x.locText).slice(0, 80), locPlace: x.locPlace && typeof x.locPlace === 'object' ? x.locPlace : null,
       evBits: [0, 1, 2].map(i => str((x.evBits || [])[i]).slice(0, 60)), evNeed: Number.isInteger(x.evNeed) && x.evNeed > 0 ? Math.min(x.evNeed, 99) : null, evTags: (arr(x.evTags) || []).filter(k => TYPES6.some(t => t[0] === k)).slice(0, 2), evNeeds: arr(x.evNeeds) || [],
       evDatePoll: arr(x.evDatePoll), evSpotPoll: arr(x.evSpotPoll), evLater: x.evLater && typeof x.evLater === 'object' ? x.evLater : {},
@@ -5797,7 +5826,7 @@
     const st = state, cur = st.evStep, i = EV_STEPS.indexOf(cur), filled = evFilled(st), url = evPhotoUrl(st), title = cleanTitle(st.activity);
     const CLEAR = { when: { evDate: '', evTime: '', evEnd: '', evEndOn: false, evDatePoll: null }, where: { locText: '', locPlace: null, locSuggest: [], evSpotPoll: null }, details: { evBits: ['', '', ''] }, help: { evNeeds: [] } };
     const nextOf = (k) => EV_STEPS[EV_STEPS.indexOf(k) + 1] || 'review';
-    const close = () => { if (title) setState({ evLeave: true, timeOpen: null }); else evExit(); };
+    const close = () => { if (evStarted(st)) setState({ evLeave: true, timeOpen: null }); else evExit(); };
     const later = (k) => Object.assign({}, st.evLater, { [k]: false });
 
     if (cur === 'review') {
@@ -5810,6 +5839,7 @@
         (sub ? '<div style="margin-top:2px;font-size:13.5px;line-height:1.35;font-weight:500;color:#6b7280">' + esc(sub) + '</div>' : '');
       const list = (rows) => rows.map((r, k) => '<div style="display:flex;align-items:baseline;gap:10px;padding:8px 0;border-top:' + (k ? '1px solid #f2f3f6' : '0') + '">' + r + '</div>').join('');
       const bits = st.evBits.map(b => b.trim()).filter(Boolean), place = cleanTitle(st.locText);
+      const needLine = !st.evDate && st.evNeed > 0 ? 'It’s a go once ' + st.evNeed + (st.evNeed === 1 ? ' person is' : ' people are') + ' in.' : '';
       const groups = evGroupIds(st), names = groups.map(id => (groupById(id) || {}).name).filter(Boolean), gOpen = st.menu === 'evGroups', g0 = groupById(groups[0]);
       const tile = (priv, label, sub, icon) => { const onIt = !!st.evPriv === priv;
         return '<div ' + on(() => setState({ evPriv: priv }), 'radio') + ' aria-checked="' + onIt + '" style="flex:1 1 0;display:flex;flex-direction:column;gap:4px;padding:12px;border-radius:14px;cursor:pointer;' + (onIt ? 'background:#f3f1fe;box-shadow:inset 0 0 0 2px #5b4ae8' : 'background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6') + '">' +
@@ -5830,8 +5860,8 @@
         '<div style="padding:16px 14px 0;display:flex;flex-direction:column;gap:18px"><div style="display:flex;flex-direction:column;gap:10px">' +
           card(st.evTest ? FLASK_IC : P6.cal, 'Real or test', chosen, '', 'kind', chosen ? main(st.evTest ? 'Just testing' : 'Real event', true, st.evTest ? 'Shows a DEMO tag. No one gets notified.' : 'Your groups hear about it.') : main('Not chosen yet', false)) +
           card(P6.cal, 'Date &amp; time', filled.when, '', 'when', st.evDatePoll ? main('Poll: ' + st.evDatePoll.length + ' dates', true, 'People vote, you pick') : st.evDate ? main(dayLabel(st.evDate, st.evTime, st.evEnd), true) : main('Date TBD', false)) +
-          card(P6.pin, 'Location', filled.where, '', 'where', st.evSpotPoll ? main('Poll: ' + st.evSpotPoll.length + ' spots', true, 'People vote, you pick') : place ? main(place, true, st.locPlace ? st.locPlace.address : '') : main('Location TBD', false)) +
-          card(LINES_IC, 'Details', filled.details, '', 'details', bits.length ? list(bits.map(t => '<span style="flex:0 0 6px;width:6px;height:6px;border-radius:999px;background:#0f7a3c;transform:translateY(-2px)"></span><span style="font-size:15.5px;line-height:1.35;font-weight:800;color:#0d1117;text-wrap:pretty">' + esc(t) + '</span>')) : main('Details to be decided', false)) +
+          card(P6.pin, 'Location', filled.where, '', 'where', st.evSpotPoll ? main('Poll: ' + st.evSpotPoll.length + ' locations', true, 'People vote, you pick') : place ? main(place, true, st.locPlace ? st.locPlace.address : '') : main('Location TBD', false)) +
+          card(LINES_IC, 'Details', filled.details, '', 'details', bits.length || needLine ? list(bits.concat(needLine ? [needLine] : []).map(t => '<span style="flex:0 0 6px;width:6px;height:6px;border-radius:999px;background:#0f7a3c;transform:translateY(-2px)"></span><span style="font-size:15.5px;line-height:1.35;font-weight:800;color:#0d1117;text-wrap:pretty">' + esc(t) + '</span>')) : main('Details to be decided', false)) +
           card(HAND_IC, 'How people can help', filled.help, '', 'help', st.evNeeds.length ? list(st.evNeeds.map(j => '<span style="flex:1;min-width:0;font-size:15.5px;line-height:1.35;font-weight:800;color:#0d1117;text-wrap:pretty">' + esc(cleanTitle(j.item)) + '</span><span style="flex:0 0 auto;font-size:13px;font-weight:700;color:#6b7280">' + esc(jobMeta(j)) + '</span>')) : main('Help to be decided', false)) +
         '</div>' +
         '<div style="display:flex;flex-direction:column;gap:8px"><div style="padding:0 4px;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:#0d1117">Who can see it</div>' +
@@ -5917,6 +5947,8 @@
     const ok = filled[cur], back = st.evFromReview;
     const ahead = back ? 'review' : nextOf(cur), aheadX = back ? { evFromReview: false } : {};
     const next = () => { if (!ok) return; evGo(ahead, Object.assign({ evLater: later(cur) }, aheadX)); };
+    const hint = ok ? '' : cur === 'title' ? (st.evTest == null ? '' : back ? 'Add a title to go back to Review.' : 'Add a title to keep going.')
+      : cur === 'when' && st.evTime ? 'Pick a date to go with that time, or decide later.' : '';
     // Decide later only shows on an empty step (it used to wipe a filled one: every job, the poll…)
     const skip = () => evGo(ahead, Object.assign({}, CLEAR[cur] || {}, aheadX, { evLater: Object.assign({}, st.evLater, { [cur]: true }) }));
     return '<div class="overlay-screen" data-screen-label="New spark"><div style="display:flex;flex-direction:column;min-height:100%">' +
@@ -5926,15 +5958,16 @@
           '<div style="display:flex"><span ' + on(close) + ' aria-label="Close" style="flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;cursor:pointer">' + DARK_X + '</span></div>' +
           '<span style="font-size:14.5px;font-weight:800;color:#fff">' + (i + 1) + ' of ' + EV_STEPS.length + '</span><div></div></div>' +
           '<div aria-hidden="true" style="height:4px;background:rgba(255,255,255,.22)"><div style="width:' + ((i + 1) / EV_STEPS.length * 100) + '%;height:100%;background:#fff;border-radius:0 999px 999px 0;transition:width 240ms ease"></div></div></div>' +
-        '<div style="position:absolute;left:18px;right:18px;bottom:30px;z-index:1;color:#fff"><div style="font-size:11.5px;font-weight:900;letter-spacing:1.2px;color:#ffe7b3">CREATE EVENT</div>' +
+        '<div style="position:absolute;left:18px;right:18px;bottom:30px;z-index:1;color:#fff"><div style="font-size:11.5px;font-weight:900;letter-spacing:1.2px;color:#ffe7b3">START AN EVENT</div>' +
           '<div style="margin-top:2px;font-size:' + (cur === 'title' ? 30 : 24) + 'px;line-height:1.05;font-weight:900;letter-spacing:-.7px;color:' + (title ? '#fff' : 'rgba(255,255,255,.55)') + ';overflow-wrap:anywhere;text-wrap:balance">' + esc(title || 'Your event') + '</div></div>' +
       '</div>' +
       '<div style="margin-top:-16px;position:relative;z-index:1;flex:1 1 auto;display:flex;flex-direction:column;background:#e8eaee;border-radius:20px 20px 0 0">' + body +
         '<div style="margin-top:auto;padding:14px 16px 20px;display:flex;flex-direction:column;gap:4px">' +
+          (hint ? '<div data-step-hint role="status" style="text-align:center;padding-bottom:6px;font-size:13.5px;font-weight:700;color:#6b7280">' + hint + '</div>' : '') +
           (i > 0 && !ok ? '<div style="display:flex;justify-content:center;padding-bottom:4px"><span ' + on(skip) + ' data-later style="display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 14px;border-radius:999px;color:#6b7280;font-size:14.5px;font-weight:700;cursor:pointer">Decide later' + I.chevR(13, 'currentColor', 2.8) + '</span></div>' : '') +
           '<div style="display:flex;gap:8px">' +
             (i > 0 && !back ? '<button type="button" ' + on(() => evGo(EV_STEPS[i - 1])) + ' style="flex:0 0 auto;min-height:54px;padding:0 22px;background:transparent;border:2px solid #c9ccd3;border-radius:999px;font-family:inherit;font-size:16px;font-weight:800;color:#0d1117;cursor:pointer">Back</button>' : '') +
-            '<button type="button" ' + on(next) + ' aria-disabled="' + !ok + '" style="flex:1 1 auto;min-width:0;min-height:54px;border:0;border-radius:999px;background:' + (ok ? '#5b4ae8' : '#d5d8df') + ';color:#fff;font-family:inherit;font-size:16.5px;font-weight:800;cursor:' + (ok ? 'pointer' : 'default') + '">' + (back ? 'Back to review' : cur === 'help' ? 'Review' : 'Next') + '</button>' +
+            '<button type="button" data-enter ' + on(next) + ' aria-disabled="' + !ok + '" style="flex:1 1 auto;min-width:0;min-height:54px;border:0;border-radius:999px;background:' + (ok ? '#5b4ae8' : '#d5d8df') + ';color:#fff;font-family:inherit;font-size:16.5px;font-weight:800;cursor:' + (ok ? 'pointer' : 'default') + '">' + (back ? 'Back to review' : cur === 'help' ? 'Review' : 'Next') + '</button>' +
           '</div></div>' +
       '</div></div></div>';
   }
@@ -5984,12 +6017,12 @@
         else setState({ pollSheet: null, evSpotPoll: valid.map(r => ({ v: cleanTitle(r.v).slice(0, 80) })), locText: '', locPlace: null, locSuggest: [], evLater: Object.assign({}, st.evLater, { where: false }) });
       };
       return sheet('Poll the group', close, SHEET_PAD,
-        sheetHead(when ? 'Date & time' : 'Location', 'Create a poll', when ? 'Add a few options. Everyone votes, and you pick the winner.' : 'Add a few spots. Everyone votes, and you pick the winner.', close) +
+        sheetHead(when ? 'Date & time' : 'Location', 'Create a poll', when ? 'Add a few options. Everyone votes, and you pick the winner.' : 'Add a few locations. Everyone votes, and you pick the winner.', close) +
         '<div style="display:flex;flex-direction:column;gap:8px">' + p.rows.map((r, k) => '<div style="display:flex;align-items:center;gap:8px">' +
           (when ? dateField(r.d, 'Date option ' + (k + 1), 'Date', (v) => setRow(k, { d: v }), 'flex:1.4 1 0') + timeSelect(r.t, EV_TIMES, 'Time', (v) => setRow(k, { t: v }), 'Time option ' + (k + 1))
             : '<input class="fld" type="text" maxlength="80" aria-label="Place option ' + (k + 1) + '" placeholder="Add a place" value="' + esc(r.v || '') + '" ' + onInput(e => { if (e.type === 'input') setRow(k, { v: e.target.value.slice(0, 80) }); }) + ' style="' + BIG + ';min-height:54px;flex:1 1 auto">') +
           rmBtn(k) + '</div>').join('') + '</div>' +
-        (p.rows.length < 5 ? '<span ' + on(() => setState({ pollSheet: Object.assign({}, p, { rows: p.rows.concat([when ? { d: '', t: '' } : { v: '' }]) }) })) + ' style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:36px;font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(14, 'currentColor', 2.6) + (when ? 'Add another option' : 'Add another spot') + '</span>' : '') +
+        (p.rows.length < 5 ? '<span ' + on(() => setState({ pollSheet: Object.assign({}, p, { rows: p.rows.concat([when ? { d: '', t: '' } : { v: '' }]) }) })) + ' style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:36px;font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(14, 'currentColor', 2.6) + (when ? 'Add another option' : 'Add another location') + '</span>' : '') +
         saveBtn(valid.length >= 2, save), 36);
     }
     if (st.needSheet) {
@@ -6006,7 +6039,7 @@
         sheetHead('How people can help', ns.i != null ? 'Edit job' : 'Add a job', '', close) + jobFields(r, set) + saveBtn(jobNamed(r.item), save), 36);
     }
     if (st.evLeave) {
-      const close = () => setState({ evLeave: false });
+      const close = () => setState({ evLeave: false, evLeaveTo: null });
       return sheet('Save as draft', close, SHEET_PAD,
         sheetHead('', 'Save this as a draft?', 'Pick up right where you left off. Only you can see drafts.', close) +
         '<button type="button" ' + on(saveDraft) + ' style="min-height:52px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16px;font-weight:800;cursor:pointer">' + (st.busy === 'draft' ? 'Saving…' : 'Save draft') + '</button>' +
@@ -6078,7 +6111,7 @@
           : '') +
         '<input class="fld" type="email" inputmode="email" maxlength="80" autocomplete="email" autocapitalize="off" spellcheck="false" aria-label="Email" placeholder="you@example.com" value="' + esc(st.loginEmail) + '" ' +
           onInput(e => setState({ loginEmail: e.target.value.slice(0, 80) })) + ' style="' + FIELD + '">' +
-        '<button type="button" ' + on(() => { if (emailOk && !busy) sendCode(false); }) + ' aria-disabled="' + !(emailOk && !busy) + '" style="' + primary(emailOk && !busy) + '">' + (busy === 'send' ? 'Sending…' : 'Email me a code') + '</button>' +
+        '<button type="button" data-enter ' + on(() => { if (emailOk && !busy) sendCode(false); }) + ' aria-disabled="' + !(emailOk && !busy) + '" style="' + primary(emailOk && !busy) + '">' + (busy === 'send' ? 'Sending…' : 'Email me a code') + '</button>' +
         '<p style="margin:0;font-size:13px;line-height:1.45;font-weight:500;color:#6b7280">Used to sign you in. Your groups’ admins can see it; other members can’t. <a href="/privacy.html" target="_blank" rel="noopener" style="font-weight:800;color:#5b4ae8">Privacy</a></p>',
         { z: 32 });
     }
@@ -6087,7 +6120,7 @@
       h3Html('Enter the code') +
       paraHtml('Sent to <strong style="font-weight:700;color:#0d1117">' + esc(st.loginEmail.trim()) + '</strong> · <span ' + on(() => setState({ loginStep: 'email' })) + ' style="font-weight:800;color:#5b4ae8;cursor:pointer">Change</span>') +
       codeInput(st.loginCode, 'Code from the email', v => setState({ loginCode: v })) +
-      '<button type="button" ' + on(() => { if (codeOk) verifyCode(); }) + ' aria-disabled="' + !codeOk + '" style="' + primary(codeOk) + '">' + (busy === 'signin' ? 'Signing in…' : 'Sign in') + '</button>' +
+      '<button type="button" data-enter ' + on(() => { if (codeOk) verifyCode(); }) + ' aria-disabled="' + !codeOk + '" style="' + primary(codeOk) + '">' + (busy === 'signin' ? 'Signing in…' : 'Sign in') + '</button>' +
       '<div style="display:flex;justify-content:center;flex-wrap:wrap;gap:4px;font-size:14px;line-height:1.45;font-weight:500;color:#6b7280"><span>Not there? Check spam, or</span>' +
         '<span ' + on(() => { if (!busy) sendCode(true); }) + ' style="font-weight:800;color:#5b4ae8;cursor:pointer">' + (st.resent && Date.now() - (st.resentAt || 0) < 60000 ? 'Sent again' : 'Send it again') + '</span></div>',
       { z: 32 });
@@ -6107,7 +6140,7 @@
       '<span aria-hidden="true" style="width:52px;height:52px;border-radius:999px;background:' + (ok ? '#e8a71c' : '#dfe2e8') + ';color:' + (ok ? '#fff' : '#6b7280') + ';font-size:21px;font-weight:900;display:flex;align-items:center;justify-content:center;transition:background .2s ease">' + esc(initialOf(st.nameText) || '?') + '</span>' +
       h3Html(st.myName ? 'Change name' : 'Your name', '2px 0 0') +
       '<input class="fld" type="text" maxlength="30" autocomplete="given-name" aria-label="First name" placeholder="First name" value="' + esc(st.nameText) + '" ' + onInput(e => setState({ nameText: e.target.value.slice(0, 30) })) + ' style="' + FIELD + '">' +
-      '<button type="button" ' + on(submit) + ' aria-disabled="' + !ok + '" style="' + primary(ok) + '">Continue</button>' +
+      '<button type="button" data-enter ' + on(submit) + ' aria-disabled="' + !ok + '" style="' + primary(ok) + '">Continue</button>' +
       (!st.myName && !st.email
         ? '<div style="display:flex;justify-content:center;flex-wrap:wrap;gap:4px;font-size:13.5px;font-weight:500;color:#6b7280"><span>Been here before?</span><span ' + on(() => openLogin('default', st.nameAsk)) + ' style="font-weight:800;color:#5b4ae8;cursor:pointer">Sign in</span></div>'
         : ''),
@@ -6129,9 +6162,9 @@
     };
     return modal('RSVP as a guest', close,
       h3Html('RSVP as a guest') +
-      paraHtml('Your name goes on the guest list, so ' + esc(to) + ' knows who’s coming.') +
+      paraHtml('Your name goes on the list, so ' + esc(to) + ' knows who’s coming.') +
       '<input class="fld" type="text" maxlength="30" autocomplete="given-name" aria-label="Your name" placeholder="Your name" value="' + esc(st.guestName) + '" ' + onInput(e => setState({ guestName: e.target.value.slice(0, 30) })) + ' style="' + FIELD + '">' +
-      '<button type="button" ' + on(submit) + ' aria-disabled="' + !ok + '" style="' + primary(ok) + '">Continue</button>' +
+      '<button type="button" data-enter ' + on(submit) + ' aria-disabled="' + !ok + '" style="' + primary(ok) + '">Continue</button>' +
       '<div style="margin-top:4px;background:#f3f1fe;border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:12px">' +
         '<div style="flex:1 1 auto;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">Have an account?</div>' +
         '<div style="margin-top:2px;font-size:13.5px;line-height:1.4;font-weight:500;color:#454b55">Sign in to skip this and get reminders.</div></div>' +
@@ -6175,7 +6208,7 @@
         onInput(e => { const m = e.target.value.match(/\/join\/([A-Za-z0-9]{6})/); const v = (m ? m[1] : e.target.value).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6); if (e.target.value !== v) e.target.value = v; setState({ joinCode: v, joinBad: false }); }) +
         ' style="' + FIELD + ';padding:14px 16px;font-size:24px;font-weight:800;letter-spacing:8px;text-align:center;text-transform:uppercase">' +
       (st.joinBad ? '<div role="alert" style="font-size:14px;line-height:1.4;font-weight:700;color:#9b1c31">That code didn’t match a group. Check it with whoever sent it.</div>' : '') +
-      '<button type="button" ' + on(submitJoin) + ' aria-disabled="' + !ok + '" style="' + primary(ok) + '">' + (st.busy === 'join' ? 'Joining…' : 'Join') + '</button>' +
+      '<button type="button" data-enter ' + on(submitJoin) + ' aria-disabled="' + !ok + '" style="' + primary(ok) + '">' + (st.busy === 'join' ? 'Joining…' : 'Join') + '</button>' +
       '<button type="button" ' + on(() => { setState({ joinOpen: false }); startGroup(); }) + ' style="' + SECONDARY + '">Start a group instead</button>' +
       '<p style="margin:0;font-size:13px;line-height:1.45;font-weight:500;color:#6b7280">A group’s owners and admins find its code and link in the group’s settings.</p>',
       { z: 31, max: 330 });
@@ -6401,8 +6434,8 @@
     };
     const any = s.rsvps.some(r => lead || r.status !== 'no');
     // The lead's Guest list (with guests' numbers and Can't); everyone else sees who's going and who might
-    return modal(lead ? 'Guest list' : 'Who’s going', close,
-      h3Html(lead ? 'Guest list' : 'Who’s going') +
+    return modal(lead ? 'Who’s coming' : 'Who’s going', close,
+      h3Html(lead ? 'Who’s coming' : 'Who’s going') +
       (any ? (lead && s.contacts.some(c => c.phone && s.rsvps.some(r => r.userId === c.user_id)) ? paraHtml('Phone numbers are from people who RSVP’d without an account. Only you see them.') : '') +
         '<div style="display:flex;flex-direction:column;gap:14px">' + part('going', 'GOING', '#0f7a3c') + part('maybe', 'MAYBE', '#8f6405') + (lead ? part('no', 'CAN’T', '#454b55') : '') + '</div>'
         : paraHtml(lead ? 'Nobody has RSVP’d yet. Share the link to get the word out.' : 'Nobody yet. Be the first.')));
@@ -6444,14 +6477,20 @@
   // v6 tab bar: Your tasks · Your schedule · Calendar (centre, in a ring) · Groups · Profile (a sheet)
   function viewNav() {
     const s = state.screen, prof = state.profSheet, n = tasksBadge();
-    const tab = (active, label, icon, fn) => '<div ' + on(fn) + ' aria-label="' + label + '"' + (active ? ' aria-current="page"' : '') +
+    // In Create event with something typed, a tab asks about a draft first, then goes there (owner, 2026-10-02)
+    const leave = (fn) => () => {
+      if (s !== 'compose') return fn();
+      if (state.email && evStarted(state)) return setState({ evLeave: true, evLeaveTo: fn, timeOpen: null, dateOpen: null });
+      setState(composeReset()); fn();
+    };
+    const tab = (active, label, icon, fn) => '<div ' + on(leave(fn)) + ' aria-label="' + label + '"' + (active ? ' aria-current="page"' : '') +
       ' style="padding:9px 0;min-height:44px;display:flex;align-items:center;justify-content:center;width:100%;color:' + (active ? '#5b4ae8' : '#6b7280') + ';cursor:pointer">' + icon + '</div>';
     const calOn = s === 'calendar' && !prof;
     return '<nav class="tabbar" aria-label="Main">' +
       tab(s === 'home' && !prof, n ? 'Your tasks, ' + n : 'Your tasks', '<span style="position:relative;display:flex">' + svg(23, stroke('currentColor', 1.9), P6.tasks) +
         (n ? '<span aria-hidden="true" style="position:absolute;top:-6px;right:-9px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;border:2px solid #fff;background:#5b4ae8;color:#fff;font-size:10.5px;font-weight:900;display:flex;align-items:center;justify-content:center;box-sizing:border-box">' + (n > 9 ? '9+' : n) + '</span>' : '') + '</span>', () => go('home')) +
       tab(s === 'sched' && !prof, 'Your schedule', I.tabTicket, () => go('sched')) +
-      '<div ' + on(() => go('calendar')) + ' aria-label="Calendar"' + (calOn ? ' aria-current="page"' : '') + ' style="display:flex;align-items:center;justify-content:center;width:100%;cursor:pointer">' +
+      '<div ' + on(leave(() => go('calendar'))) + ' aria-label="Calendar"' + (calOn ? ' aria-current="page"' : '') + ' style="display:flex;align-items:center;justify-content:center;width:100%;cursor:pointer">' +
         '<span style="width:48px;height:48px;border-radius:999px;display:flex;align-items:center;justify-content:center;box-shadow:inset 0 0 0 ' + (calOn ? '2px #5b4ae8' : '1.9px #c3c7d0') + ';color:' + (calOn ? '#5b4ae8' : '#6b7280') + '">' +
           svg(23, stroke('currentColor', 2.1), '<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>') + '</span></div>' +
       tab(s === 'groups' && !prof, 'Groups', I.tabPeople, () => go('groups')) +
@@ -6744,7 +6783,7 @@
       if (state.share) return setState({ share: null });
       if (state.pollSheet) return setState({ pollSheet: null });
       if (state.needSheet) return setState({ needSheet: null });
-      if (state.evLeave) return setState({ evLeave: false });
+      if (state.evLeave) return setState({ evLeave: false, evLeaveTo: null });
       if (state.shiftPick) return setState({ shiftPick: null });
       if (state.startName != null) return setState({ startName: null });
       if (state.blast) return setState({ blast: null });
@@ -6780,6 +6819,12 @@
     if (state.zoom && state.zoom.photos.length > 1 && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
       const z = state.zoom, n = z.photos.length;
       return setState({ zoom: { photos: z.photos, i: (z.i + (e.key === 'ArrowLeft' ? -1 : 1) + n) % n } });
+    }
+    // Return / Go in a one-line field presses that screen's main button (the one marked data-enter)
+    if (e.key === 'Enter' && !e.isComposing && e.target.matches('input:not([type=file]):not([data-rename])')) {
+      const box = e.target.closest('[role="dialog"], .overlay-screen, [data-screen-label]') || root;
+      const btn = box.querySelector('[data-enter]:not([aria-disabled="true"])');
+      if (btn) { e.preventDefault(); btn.click(); return; }
     }
     if (e.key === 'Enter' && e.target.matches('[data-rename]')) {
       e.preventDefault();
@@ -7038,6 +7083,7 @@
     }
   }
 
+  const bootHash = location.hash;
   Object.assign(state, fromUrl());
   // The link, or an invite that was still open when the page reloaded (phones drop the tab while people fetch their code)
   const bootInvite = state.inviteCode || (sb && !AUTH_RETURN.any ? pendingInvite() : '');
@@ -7059,6 +7105,14 @@
       ? { isGoogle: c.isGoogle, myName: c.myName || '', myAvatar: c.myAvatar, myPlace: c.myPlace || '', myBio: c.myBio || '', memberSince: c.memberSince || null, groups: c.groups || [], sparks: c.sparks || [], profiles: c.profiles || {},
           sizes: c.sizes || {}, notif: c.notif || state.notif, demoAdmin: !!c.demoAdmin, fr: c.fr && c.fr.friends ? c.fr : state.fr, loaded: true, fromCache: true }
       : {});
+  }
+  // Create event was open when the page reloaded: pick it up where it was
+  if (bootUser && bootHash === '#/new' && !state.inv) {
+    const k = keptCompose(bootUser.id);
+    if (k) {
+      Object.assign(state, blankCompose(), draftState({ id: k.evDraftId, data: k }), { screen: 'compose', evFrom: ORIGINS.indexOf(k.evFrom) > -1 ? k.evFrom : null });
+      history.replaceState(null, '', location.pathname + location.search + '#/new');
+    }
   }
   // An invite link: its landing (or, signed in already, the confirm) from the first frame
   if (bootInvite && sb && !state.inv) {

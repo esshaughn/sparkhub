@@ -101,7 +101,7 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     await expect(H.locator('html[data-loaded=true]')).toHaveCount(1);
     await expect(HP.locator('[data-signup="Folding chairs"] [data-who]')).toContainText('Gus');
     await HP.locator('[data-going]').click();   // Who's in opens the guest list
-    const list = H.getByRole('dialog', { name: 'Guest list' });
+    const list = H.getByRole('dialog', { name: 'Who’s coming' });
     await expect(list.locator('[data-guest-part="going"]')).toContainText('Gus');
     await list.getByRole('button', { name: 'Close' }).click();
 
@@ -133,7 +133,7 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     await H.reload();
     await expect(H.locator('html[data-loaded=true]')).toHaveCount(1);
     await HP.locator('[data-going]').click();
-    const list2 = H.getByRole('dialog', { name: 'Guest list' });
+    const list2 = H.getByRole('dialog', { name: 'Who’s coming' });
     await expect(list2.locator('[data-guest-part="going"]')).toContainText('Vic');
     await expect(list2.locator('[data-guest-part="going"]')).toContainText('Guest');
     await list2.getByRole('button', { name: 'Close' }).click();

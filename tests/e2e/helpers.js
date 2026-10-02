@@ -140,7 +140,7 @@ const button = (page, name) => page.getByRole('button', { name, exact: true });
 // v6: posting starts from the Calendar's + button (the Create event flow); Profile is the last tab (a sheet)
 async function startPost(page) {
   await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Calendar', exact: true }).click();
-  await page.locator('[data-screen-label=Calendar]').getByRole('button', { name: 'Post an event' }).click();
+  await page.locator('[data-screen-label=Calendar] [data-new-event]').click();
 }
 // Create event opens with the Real or test? pop-up (owner, 2026-10-01)
 async function pickKind(page, test = false) {
@@ -211,7 +211,7 @@ async function openIdea(page, id) {
   await expect(page.locator('[data-screen-label="Idea page"], [data-screen-label="Plan page"], [data-screen-label="It happened"]')).toBeVisible();
 }
 
-// Post an event with the 5-step Create event flow (v6 Update 6). Anything left out is decided later.
+// Start an event with the 5-step Create event flow (v6 Update 6). Anything left out is decided later.
 // Returns its id.
 async function postEvent(page, { title, date, time, where, pick, details = [], jobs = [], inviteOnly = false, photo = false, test = false }) {
   await startPost(page);

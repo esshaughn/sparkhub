@@ -207,6 +207,8 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 59 | Automated end-to-end tests (28 tests: smoke, posting, groups, collaboration, plans, Your schedule, v6 and Update 2, notifications, link previews, Google, database security) | Test | `tests/` |
 | 60 | Nightly cleanup of test-database leftovers ([E2E] ideas and groups, old anonymous users) | Live | Test project only |
 | 132 | **A plan needs a lead and a date** (owner, 2026-10-01): the Lead step, the purple *things to go* card with a button per missing piece, Run a poll from an idea's When and where. In the app **Make it a plan!** waits for all four steps (Lead, Location, Details, Date; owner, 2026-10-01): it sits in the gold strip once they're done, and the card also lists *A location* and *Details* | Test | `make_plan()` refuses while `wants_host` (`20261101200000_plan_needs_lead.sql`) |
+| 133 | **Create event is kept as it's typed** (owner, 2026-10-02): a reload comes back to the same step with everything but a just-picked photo; a tab tapped inside the flow asks *Save this as a draft?* first; leaving goes back to the screen it was opened from | Test | sessionStorage `spark-hub-compose`, same account, 12 hours |
+| 134 | **Return / Go presses the main button** in one-line fields (sign-in email and code, join code, your name, a group's name, Create event's Next) | Test | `data-enter` |
 
 ## Removed in this rebuild
 

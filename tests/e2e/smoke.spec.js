@@ -8,7 +8,7 @@ test('visitors land on Welcome (no tab bar there) and sign in from there', async
     const welcome = page.locator('[data-screen-label=Welcome]');
     await expect(welcome.getByRole('heading', { name: /Plans with\s*your people\./ })).toBeVisible();
     await expect(welcome.getByText('New here? Either one creates your account.')).toBeVisible();
-    await expect(welcome.getByRole('listitem')).toHaveText(['1Create an event', '2RSVP & pitch in', '3Make it happen']);
+    await expect(welcome.getByRole('listitem')).toHaveText(['1Start an event', '2RSVP & pitch in', '3Make it happen']);
     await expect(welcome.getByRole('button', { name: 'Continue with Google' })).toBeVisible();
     await expect(page.getByRole('navigation', { name: 'Main' })).toHaveCount(0);   // no tab bar on Welcome
 
@@ -224,7 +224,7 @@ test('Give feedback (Update 9): a Help & info tile opens the sheet; Send to Eric
     const more = page.locator('[data-plans-more]'), empty = page.locator('[data-plans-empty]');
     await expect(more.or(empty)).toBeVisible();
     if (await more.count()) {
-      await expect(more.locator('[data-again]')).toHaveCount(0);   // just Create an event (owner, 2026-10-01)
+      await expect(more.locator('[data-again]')).toHaveCount(0);   // just Start an event (owner, 2026-10-01)
     } else {
       await expect(empty).toContainText('Start one, or turn an idea into a plan.');
     }
@@ -350,7 +350,7 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
     const browse = page.locator('[data-screen-label=Browse]');
     await expect(browse.getByRole('heading', { name: 'Torrez Fitness' })).toBeVisible();
     await expect(browse).toContainText(/\d+ members/i);
-    await expect(browse.getByRole('button', { name: 'Post an event' })).toBeVisible();
+    await expect(browse.locator('[data-new-event]')).toBeVisible();
     await expect(browse.getByRole('button', { name: 'Back to groups' })).toBeVisible();
     await expect(browse.getByRole('button', { name: 'Search this group' })).toBeVisible();
     // Inside a group the Groups tab isn't highlighted

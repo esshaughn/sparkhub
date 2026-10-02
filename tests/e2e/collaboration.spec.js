@@ -65,7 +65,7 @@ test('a member with the link takes part; everyone votes; the lead picks and make
     await list.getByRole('button', { name: 'Close' }).click();
     // Pick closes each poll (as on a plan)
     await LD.getByRole('button', { name: /^Pick The north lot at Zilker/ }).click();
-    await confirm(L, 'Use this spot');
+    await confirm(L, 'Use this location');
     await expect(LD.locator('[data-poll-opt]')).toHaveCount(1);
     await LD.getByRole('button', { name: /^Pick Sat, Nov 14/ }).click();
     await confirm(L, 'Use this date');
@@ -140,7 +140,7 @@ test('the Ideas board puts the idea with the most interest first', async ({ brow
     await sortRow.getByRole('button', { name: 'Newest' }).click();
     await expect(sortRow.getByRole('button', { name: 'Newest' })).toHaveAttribute('aria-pressed', 'true');
     await expect.poll(order).toEqual(['newer', 'older']);
-    // The board ends with the dashed Post an idea card (owner, 2026-10-01); it opens Create event
+    // The board ends with the dashed Start an event card (owner, 2026-10-01); it opens Create event
     const prompt = P.locator('[data-screen-label=Browse] [data-idea-prompt]');
     await expect(prompt).toContainText('Got a “we should…”?');
     await prompt.click();
