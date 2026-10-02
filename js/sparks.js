@@ -6107,9 +6107,9 @@
       : (st.evSpotPoll ? st.evSpotPoll.map(r => Object.assign({}, r)) : [{ v: cleanTitle(st.locText) }, { v: '' }]);
     setState({ pollSheet: { kind, rows }, timeOpen: null });
   };
-  // "How many people do you need?" (optional; an idea's People step fills against it; wording: owner, 2026-10-02)
+  // "How many people do you want?" (optional; an idea's People step fills against it; wording: owner, 2026-10-02)
   const needRow = (n, set) => '<div data-need-people style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:16px;background:#fff;box-shadow:inset 0 0 0 2px #dcdfe6">' +
-    '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">How many people do you need?</div>' +
+    '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">How many people do you want?</div>' +
       '<div style="margin-top:1px;font-size:12.5px;line-height:1.35;font-weight:600;color:#6b7280;text-wrap:pretty">' + (n ? 'It’s a go once ' + n + (n === 1 ? ' person is' : ' people are') + ' in.' : 'What’s the minimum number that would make this feel like a success?') + '</div></div>' +
     stepper(n, set, 'how many people needed') + '</div>';
   const bitRows = (bits, set) => bits.map((v, k) => '<label style="display:flex;align-items:center;gap:10px;min-height:58px;padding:0 16px;border-radius:16px;background:#fff;box-shadow:inset 0 0 0 2px #dcdfe6;cursor:text">' +
