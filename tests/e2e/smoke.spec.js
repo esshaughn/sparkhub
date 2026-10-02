@@ -741,3 +741,39 @@ test('a failed first load says so (never "not in a group"), and an event taken d
     await context.close();
   }
 });
+
+// Asking for feedback (owner, 2026-10-02): after ~10 minutes of use, once per account, a card points at Profile
+test('after about 10 minutes, a feedback card points at Profile, once', async ({ browser }) => {
+  const { page, context, errors } = await newLead(browser, 1, 'Tester');
+  try {
+    const me = await asUser(page, async (c) => (await c.auth.getUser()).data.user.id);
+    await expect(page.locator('[data-fb-nudge]')).toHaveCount(0);
+    // Nine minutes and fifty seconds so far: one more tick (after reopening) tips it over
+    await page.evaluate((me) => localStorage.setItem('spark-hub-fb-nudge-' + me, JSON.stringify({ used: 590000 })), me);
+    await page.reload();
+    await expect(page.locator('html[data-loaded=true]')).toHaveCount(1);
+    const card = page.getByRole('dialog', { name: 'Tell Eric what you think' });
+    await expect(card).toBeVisible({ timeout: 25000 });
+    await expect(card).toContainText('PSST… GOT A MINUTE?');
+    await expect(card).toContainText('🐛 Glitches');
+    await expect(page.locator('.fb-nudge-arrow')).toBeVisible();
+    // The arrow sits over the Profile tab
+    const arrow = await page.locator('.fb-nudge-arrow').boundingBox(), tab = await page.getByRole('navigation', { name: 'Main' }).getByLabel('Profile').boundingBox();
+    expect(Math.abs((arrow.x + arrow.width / 2) - (tab.x + tab.width / 2))).toBeLessThan(12);
+    // Profile → Give feedback opens Profile with the tile marked
+    await card.getByText('Profile → Give feedback').click();
+    await expect(card).toHaveCount(0);
+    const tile = page.getByRole('dialog', { name: 'Profile' }).locator('[data-fb-hint]');
+    await expect(tile).toContainText('RIGHT HERE');
+    await tile.click();
+    await expect(page.getByRole('dialog', { name: 'Give feedback' })).toBeVisible();
+    // Once: it doesn't come back
+    await page.reload();
+    await expect(page.locator('html[data-loaded=true]')).toHaveCount(1);
+    await page.waitForTimeout(5000);
+    await expect(page.locator('[data-fb-nudge]')).toHaveCount(0);
+    expect(errors).toEqual([]);
+  } finally {
+    await context.close();
+  }
+});

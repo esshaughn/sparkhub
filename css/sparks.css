@@ -232,3 +232,27 @@ html.tall-fix .app { bottom: auto; height: var(--true-h); }
 .hov-host:hover { background: #fafbfc !important; }
 .host-card > * + * { border-top: 1px solid #f2f3f6; }
 .hov-sec:hover { background: #f4f5f7 !important; }
+
+/* Asking for feedback after ~10 minutes (owner, 2026-10-02): a card over the screen (not the tab bar), and an arrow
+   bouncing at the Profile tab, the fifth of five columns inside the tab bar's 8px side padding */
+.fb-nudge-scrim {
+  position: absolute; left: 0; right: 0; top: 0; bottom: var(--nav-h); z-index: 40;
+  background: rgba(13, 17, 23, .38); animation: scrimIn 220ms ease-out both;
+  display: flex; align-items: flex-end; padding: 0 12px 44px;
+}
+.fb-nudge {
+  position: relative; width: 100%; max-width: 440px; margin: 0 auto; box-sizing: border-box;
+  background: #fff; border-radius: 24px; padding: 16px 16px 14px;
+  display: flex; flex-direction: column; gap: 12px;
+  box-shadow: 0 18px 50px rgba(15, 18, 25, .3);
+  animation: popIn 320ms cubic-bezier(.22, .9, .28, 1) both;
+}
+.fb-nudge-arrow {
+  position: absolute; bottom: 4px; right: calc(8px + (100% - 16px) / 10 - 15px);
+  display: flex; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .35));
+  animation: fbArrow 1s ease-in-out infinite;
+}
+@keyframes fbArrow { 0%, 100% { transform: translateY(-6px); } 50% { transform: translateY(4px); } }
+.fb-hint { animation: fbHint 1.4s ease-in-out infinite; }
+@keyframes fbHint { 0%, 100% { box-shadow: 0 0 0 0 rgba(232, 167, 28, .55), 0 1px 3px rgba(15, 18, 25, .08); } 50% { box-shadow: 0 0 0 7px rgba(232, 167, 28, 0), 0 1px 3px rgba(15, 18, 25, .08); } }
+@media (prefers-reduced-motion: reduce) { .fb-nudge-arrow, .fb-hint { animation: none; } }

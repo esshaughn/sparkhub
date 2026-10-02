@@ -282,7 +282,7 @@
       state.back = ORIGINS.indexOf(state.screen) > -1 ? { screen: state.screen, groupId: state.groupId, phaseTab: state.phaseTab, scroll: sc ? sc.scrollTop : 0 } : null;
     }
     // Going anywhere closes the v6 sheets (Profile, Notifications, View all, Could use a hand, Search)
-    setState(Object.assign({ screen, menu: null, zoom: null, sec: null, needEd: null, share: null, cohostPick: null, leadAsk: null, leadsSheet: null, pollSheet: null, profSheet: false, notifSheet: false, dashAll: null, cHandSheet: false, cSearch: false, cq: '', gSearch: false, gq: '', gTry: null, pplAdd: false, frInvite: false, person: null }, extra || {}));
+    setState(Object.assign({ screen, menu: null, zoom: null, sec: null, needEd: null, share: null, cohostPick: null, leadAsk: null, leadsSheet: null, pollSheet: null, profSheet: false, notifSheet: false, dashAll: null, cHandSheet: false, cSearch: false, cq: '', gSearch: false, gq: '', gTry: null, pplAdd: false, frInvite: false, person: null, fbNudge: null }, extra || {}));
     if (sc) sc.scrollTop = 0;
   };
 
@@ -2998,7 +2998,7 @@
       (frosted ? 'background:rgba(255,255,255,.18);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff' : 'background:#f2f3f6;color:#0d1117') + '">' + ic6('bell', 21, 'currentColor', 1.9) +
       (n ? '<span aria-hidden="true" style="position:absolute;top:-3px;right:-4px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#e2556b;color:#fff;font-size:10.5px;font-weight:900;display:flex;align-items:center;justify-content:center;box-sizing:border-box">' + (n > 9 ? '9+' : n) + '</span>' : '') + '</span>';
   };
-  const openProfileSheet = () => needSignIn(() => setState({ profSheet: true, menu: null }), 'profile');
+  const openProfileSheet = () => needSignIn(() => setState({ profSheet: true, menu: null, fbNudge: null, fbHint: !!state.fbNudge || state.fbHint }), 'profile');
   // Search (the Calendar's search sheet: every upcoming event in your groups)
   const openSearch = () => { setState({ cSearch: true, menu: null }); setTimeout(() => { const f = document.querySelector('[data-csearch]'); if (f) f.focus(); }, 30); };
   const searchBtn = () => '<span ' + on(openSearch) + ' aria-label="Search events" style="flex:0 0 44px;width:44px;height:44px;border-radius:999px;background:#f2f3f6;color:#0d1117;display:flex;align-items:center;justify-content:center;cursor:pointer">' + ic6('search', 20, 'currentColor', 2.1) + '</span>';
@@ -3801,6 +3801,47 @@
     return '<div class="v6-scrim" data-scrim="' + reg(close) + '" style="z-index:50">' +
       '<div role="dialog" aria-modal="true" aria-label="Give feedback" data-screen-label="Give feedback" style="position:absolute;left:0;right:0;bottom:0;max-height:calc(100% - 24px - var(--sat));overflow:auto;background:#fff;border-radius:24px 24px 0 0;padding:8px 18px calc(22px + env(safe-area-inset-bottom, 0px));display:flex;flex-direction:column;gap:16px;animation:sheetUp 320ms cubic-bezier(.2,.8,.2,1) both">' +
         '<div aria-hidden="true" style="width:40px;height:5px;border-radius:999px;background:#dcdfe6;margin:0 auto"></div>' + inner + '</div></div>';
+  }
+
+  // ---- Asking for feedback (owner, 2026-10-02): after about 10 minutes of using the app (counted only while it's on
+  // screen, across visits, per account), a playful card once, with an arrow bouncing at the Profile tab where Give
+  // feedback lives. Give feedback opens the sheet; Show me opens Profile with the tile marked RIGHT HERE
+  const FB_NUDGE_MS = 10 * 60 * 1000, FB_NUDGE_KEY = 'spark-hub-fb-nudge-';
+  let fbTickAt = Date.now();
+  const fbNudgeRead = () => { try { return JSON.parse(localStorage.getItem(FB_NUDGE_KEY + state.me) || '{}') || {}; } catch (e) { return {}; } };
+  const fbNudgeWrite = (o) => { try { localStorage.setItem(FB_NUDGE_KEY + state.me, JSON.stringify(o)); } catch (e) { /* blocked: it may ask again */ } };
+  // Only over a main screen with nothing else open, so it never lands on someone mid-task
+  const fbNudgeFits = () => ['calendar', 'home', 'sched', 'groups'].indexOf(state.screen) > -1 && state.loaded && !state.profSheet && !state.notifSheet &&
+    !state.fb && !state.confirm && !state.share && !state.loginStep && !state.inv && !state.toast && !state.banner && !state.cSearch && !state.dashAll && !state.cHandSheet && !state.zoom && !state.installPop;
+  function fbNudgeTick() {
+    const now = Date.now(), gap = Math.min(now - fbTickAt, 60000);   // a sleeping phone doesn't count
+    fbTickAt = now;
+    if (!state.me || !state.email || state.viewAs || document.hidden || state.fbNudge) return;
+    const o = fbNudgeRead();
+    if (o.done) return;
+    o.used = (o.used || 0) + gap;
+    if (o.used >= FB_NUDGE_MS && fbNudgeFits()) { o.done = Date.now(); setState({ fbNudge: true }); }
+    fbNudgeWrite(o);
+  }
+  function viewFbNudge() {
+    const close = () => setState({ fbNudge: null });
+    const chip = (t) => '<span style="display:inline-flex;align-items:center;min-height:28px;padding:0 10px;border-radius:999px;background:#f3f1fe;font-size:13px;font-weight:800;color:#4a3ad4;white-space:nowrap">' + t + '</span>';
+    return '<div class="fb-nudge-scrim" data-scrim="' + reg(close) + '">' +
+      '<div role="dialog" aria-modal="false" aria-label="Tell Eric what you think" data-fb-nudge class="fb-nudge">' +
+        '<div style="display:flex;align-items:flex-start;gap:12px">' + ericFace(46, 'box-shadow:0 0 0 3px #f3f1fe') +
+          '<div style="flex:1;min-width:0"><div style="font-size:11.5px;font-weight:900;letter-spacing:1.2px;color:#b07a0a">PSST… GOT A MINUTE?</div>' +
+            '<div style="margin-top:3px;font-size:19px;line-height:1.15;font-weight:900;letter-spacing:-.4px;color:#0d1117;text-wrap:balance">You’ve been poking around for a bit. What do you think?</div></div>' +
+          closeX(close, 'flex:0 0 32px;width:32px;height:32px') + '</div>' +
+        '<p style="margin:0;font-size:14.5px;line-height:1.45;font-weight:500;color:#454b55;text-wrap:pretty">Spark Hub is brand new, and Eric wants the honest truth: what’s great, what’s confusing, what broke, what you wish it did. You won’t hurt his feelings. (Okay, maybe a little. Tell him anyway.)</p>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:6px">' + chip('💡 Ideas') + chip('🐛 Glitches') + chip('🤔 Confusing bits') + chip('❤️ What you love') + '</div>' +
+        '<div style="display:flex;gap:8px">' +
+          '<button type="button" ' + on(() => setState({ fbNudge: null, fb: { text: '' } })) + ' style="flex:1 1 auto;min-height:50px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16px;font-weight:800;cursor:pointer">Give feedback</button>' +
+          '<button type="button" ' + on(close) + ' style="flex:0 0 auto;min-height:50px;padding:0 16px;border:2px solid #dcdfe6;border-radius:999px;background:#fff;color:#454b55;font-family:inherit;font-size:15px;font-weight:800;cursor:pointer">Maybe later</button></div>' +
+        '<div style="display:flex;align-items:center;justify-content:flex-end;gap:6px;font-size:13px;font-weight:700;color:#6b7280">Anytime: <span ' + on(openProfileSheet) + ' style="color:#5b4ae8;font-weight:800;cursor:pointer">Profile → Give feedback</span></div>' +
+      '</div>' +
+      // The arrow sits over the Profile tab (the fifth of five) and bounces at it
+      '<span aria-hidden="true" class="fb-nudge-arrow">' + svg(30, stroke('#e8a71c', 3.2), '<path d="M12 4v15M5.5 12.5 12 19l6.5-6.5"/>') + '</span>' +
+    '</div>';
   }
 
   // ---- Feedback inbox (v6 Update 9, 49 · 52): only the owner (demo_admins) can read the feedback table.
@@ -5545,13 +5586,14 @@
 
   // v6 Update 2: a compact Profile sheet (photo, name, a pencil to edit); Help & info tiles, then Settings
   function viewProfileSheet() {
-    const close = () => setState({ profSheet: false });
+    const close = () => setState({ profSheet: false, fbHint: false });
     const st = state, avatar = st.myAvatar ? photoUrl(st.myAvatar) : null;
     const ROW = 'display:flex;align-items:center;gap:12px;min-height:60px;padding:10px 16px;cursor:pointer;text-decoration:none';
     const line = (title, sub) => '<div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:800;color:#0d1117">' + title + '</div><div style="font-size:13px;font-weight:500;color:#6b7280">' + sub + '</div></div>';
     const section = (label, inner) => '<div style="display:flex;flex-direction:column;gap:8px"><span style="padding:0 4px;' + EYEBROW + '">' + label + '</span><div style="' + CARD + ';overflow:hidden">' + inner + '</div></div>';
     // The owner's mock (2026-10-02): each tile has its colour along the top edge and a solid icon square
-    const tile = (icon, title, sub, fn, color) => '<div ' + on(fn) + ' aria-label="' + esc(title) + '" data-help-tile class="hov-row" style="display:flex;flex-direction:column;gap:12px;padding:14px;border-radius:18px;border-top:3px solid ' + color + ';background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
+    const tile = (icon, title, sub, fn, color, hint) => '<div ' + on(fn) + ' aria-label="' + esc(title) + '" data-help-tile' + (hint ? ' data-fb-hint' : '') + ' class="hov-row' + (hint ? ' fb-hint' : '') + '" style="position:relative;display:flex;flex-direction:column;gap:12px;padding:14px;border-radius:18px;border-top:3px solid ' + color + ';background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
+      (hint ? '<span aria-hidden="true" style="position:absolute;top:-12px;right:10px;padding:3px 9px;border-radius:999px;background:#e8a71c;color:#fff;font-size:11.5px;font-weight:900;letter-spacing:.4px">RIGHT HERE</span>' : '') +
       '<span aria-hidden="true" style="width:42px;height:42px;border-radius:12px;background:' + color + ';color:#fff;display:flex;align-items:center;justify-content:center">' + icon + '</span>' +
       '<div><div style="font-size:16.5px;line-height:1.2;font-weight:900;letter-spacing:-.2px;color:#0d1117;text-wrap:balance">' + title + '</div><div style="margin-top:4px;font-size:13.5px;line-height:1.35;font-weight:500;color:#5c6270">' + sub + '</div></div></div>';
     return sheet6('Profile', close,
@@ -5565,7 +5607,7 @@
         '<div style="display:flex;flex-direction:column;gap:10px"><h2 style="margin:0;padding:0 4px;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:#0d1117">Help &amp; info</h2>' +
           '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">' +
             tile('<span style="font-size:17px;font-weight:900">?</span>', 'How this works', 'Events and pitching in', () => go('how', { howFrom: state.screen }), '#5b4ae8') +
-            tile(svg(17, stroke('currentColor', 2.4), '<path d="M4 20h4L19 9l-4-4L4 16v4Z"/>'), 'Give feedback', 'Tell Eric what you think', () => setState({ fb: { text: '' } }), '#149a4b') +
+            tile(svg(17, stroke('currentColor', 2.4), '<path d="M4 20h4L19 9l-4-4L4 16v4Z"/>'), 'Give feedback', 'Tell Eric what you think', () => setState({ fb: { text: '' }, fbHint: false }), '#149a4b', !!st.fbHint) +
           '</div></div>' +
         section('Settings',
           '<div ' + on(() => setState({ nSettings: true })) + ' class="hov-row" style="' + ROW + '">' + line('Notifications', 'In the app and on your phone') + I.chevR(16, '#9aa0ac', 2.4) + '</div>' +
@@ -6975,7 +7017,9 @@
       (st.fb && st.email ? viewFeedback() : '') +
       (st.installPop ? viewInstallPop() : '') +
       (st.toast ? viewToast() : '') +
-      (welcomeShown() || invFull() || (!state.email && state.screen === 'detail') ? '' : viewNav());   // no tab bar on Welcome, the invite screens, or for a guest on an event (it only led to sign-in)
+      // no tab bar on Welcome, the invite screens, or for a guest on an event (it only led to sign-in)
+      (welcomeShown() || invFull() || (!state.email && state.screen === 'detail') ? '' : viewNav()) +
+      (st.fbNudge && !st.profSheet && !st.fb ? viewFbNudge() : '');   // above the tab bar, pointing at Profile
   }
 
   // ---------------------------------------------------------------------------
@@ -7296,6 +7340,11 @@
       .catch(e => { console.error(e); refreshFails++; if (!state.loaded || state.error) setState({ error: 'load', loaded: true }); });
   };
   document.addEventListener('visibilitychange', () => refresh(true));
+  // Time toward the feedback nudge: counted every 15 seconds while the app is on screen (a check soon after opening
+  // picks up time from earlier visits)
+  document.addEventListener('visibilitychange', () => { fbTickAt = Date.now(); });
+  setInterval(fbNudgeTick, 15000);
+  setTimeout(fbNudgeTick, 4000);
 
   // Pull to refresh: drag down from the top of a screen and let go to reload the data. The feed under
   // the header follows the finger (with resistance) while the header stays put; a spinner in the gap
