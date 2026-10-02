@@ -28,7 +28,7 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 7 | **Helping** (green): plans where you still have something to do — *You said Maybe · Update RSVP* (last 3 days only), an amber row for 3 days after a date/time/place change, and each sign-up with its time (taking a job marks you Going, so no *Confirm RSVP*; task audit 2026-09-30). Your schedule's Helping strip opens to the same rows; most to-dos first. Empty: *Find something to help with* → Could use a hand | Test | |
 | 8 | **Ideas** you lead: the same steps as the idea page (Date · Location · Details, plus People when *How many do you need?* is set), each opening the idea at that part; the to-do is only the next step | Test | Idea pages now have a Sign-ups card |
 | 9 | **View all** sheet per section; leading nothing → *Start an event* card at the bottom; tab badge = events with to-dos | Test | |
-| 10 | Not in a group yet: **Join with a code** card | Test | Not designed |
+| 10 | Not in a group yet: a card with **Join with a code** and **Start a group**; the Join pop-up takes a code or a pasted invite link | Test | Owner, 2026-10-02 |
 
 ## Your schedule — v6
 
@@ -78,13 +78,10 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 22 | Photo header like the plan page's (audit, 2026-10-01): 300px photo with the title on it (36px, tappable for the lead or an admin; no pencil after it since 2026-10-01), chips (*IDEA* gold, *YOU'RE LEADING*, *DEMO*, *PRIVATE*, *CANCELLED*), a gold date sticker once it has a date, back, **Share**, a round **Edit event** pencil beside Share for the lead or an admin (owner, 2026-10-01; replaced the *Change photo* pill), on plans too; the gold *Steps to a plan* strip sits under the photo | Test | |
 | 23 | **Who's interested** section (faces, *N interested*; the lead taps it for the list) and the **LED BY** card with *Say hi* (not for the lead), as on plans | Test | Audit 2026-10-01 |
 | 24 | **I'm interested** / **You're interested** in its own card where a plan has RSVP (not for the lead; not on a cancelled idea) | Test | Guests are asked to make an account (#40) |
-| 25 | **Waiting on you** (lead): suggested locations/dates with **Use this location / Use this date** and **Not this time** | Test | |
 | 26 | The plan's **date & place card** (audit, 2026-10-01): a set date/place, or *Voting on a date / spot* with each option's *Suggested by …*, votes and **Vote** / **✓ Voted** (the lead: **Pick**, which closes the poll); other suggestions stay under a set date/place; members get **+ Suggest a date / location**; *Date TBD* / *Location TBD* with the lead's **Add**; Add to calendar and Directions | Test | Replaced the Dates tiles and Location list |
 | 27 | **Details** as on plans (heading on the page, green dots, the gray pencil Edit, dashed empty box for the lead or an admin); hidden for members when empty. **Help out** as on plans: one card per job (#65) | Test | Replaced the one-card Sign-ups list (audit) |
 | 28 | (Removed 2026-09-30) What the lead is picturing + **Say more about what you're picturing**; Basic details (#27) is the one place for notes | Removed | Old demo text in `vision` shows as Basic details bullets |
-| 29 | **Who's pitching in** (accepted offers; your own waiting ones) | Test | |
 | 30 | **Inspo**: up to 3 photos with *n / 3*; the lead adds/removes them on ideas **and plans** (plans were view-only); tap one to see it full screen | Test | Members see it only with photos |
-| 31 | Rotated tag after actions ("It's up", "You're interested", "Sent to the lead", "Location set"…) | Test | |
 | 32 | Lead's **Who's interested** list (tap the Who's interested row); older guest rows still show their phone number | Test | Not designed yet |
 | 33 | "That event isn't up anymore" card for a dead link, or an event taken down while you're on it | Test | |
 

@@ -723,6 +723,13 @@ test('the lead steps back from a plan: it is an idea again, looking for a lead',
     await expect(HI.locator('[data-plan-needs] [data-plan-row="lead"]')).toContainText('Someone to lead');
     await expect(HI.locator('[data-led-by]')).toContainText('FLOATED BY');
     await expect(HI.locator('#sec-when')).not.toContainText('No date yet');   // the date stays
+    // Whoever stepped back isn't told they still lead it: the IDEA chip, and no second Step back
+    await expect(HI.locator('[data-chip]')).toHaveText('IDEA');
+    await HI.locator('[data-led-by]').getByRole('button', { name: 'Manage co-leads' }).click();
+    const leads = H.getByRole('dialog', { name: 'Leads' });
+    await expect(leads.locator('[data-lead-row="Rae"]')).toContainText('Floated it');
+    await expect(leads.getByRole('button', { name: 'Step back' })).toHaveCount(0);
+    await leads.getByRole('button', { name: 'Close' }).click();
     expect(host.errors).toEqual([]);
   } finally {
     if (id) await deleteIdea(H, id).catch(() => {});

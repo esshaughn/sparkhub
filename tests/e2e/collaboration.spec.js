@@ -85,8 +85,9 @@ test('a member with the link takes part; everyone votes; the lead picks and make
     await expect(GD.getByRole('button', { name: /^View mood photo/ })).toHaveCount(1);
     await GD.getByRole('button', { name: 'View mood photo 1' }).click();
     const zoom = G.getByRole('dialog', { name: 'Photo' });
-    await expect(zoom.getByRole('img', { name: 'Mood photo 1 of 1' })).toBeVisible();
-    await zoom.getByRole('button', { name: 'Close' }).click();
+    await expect(zoom.getByRole('img', { name: 'Photo 1 of 1' })).toBeVisible();
+    await zoom.getByRole('img', { name: 'Photo 1 of 1' }).click();   // a tap on the photo closes it, like the ✕
+    await expect(zoom).toHaveCount(0);
     await LD.getByRole('button', { name: 'Remove photo' }).click();
     await expect(LD).toContainText('0 / 3');
 
