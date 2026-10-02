@@ -2343,6 +2343,26 @@
   const skeleton = (n, h) => '<div role="status" aria-label="Loading" style="display:flex;flex-direction:column;gap:14px">' +
     Array.from({ length: n }, () => '<div aria-hidden="true" style="height:' + h + 'px;border-radius:20px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);animation:skPulse 1.4s ease-in-out infinite"></div>').join('') + '</div>';
 
+  // An event link while it loads (owner, 2026-10-02: it was a bare "Loading…" on gray): the page's own shape, a photo
+  // header in the post flow's colours with the pulsing bolt and the name, then the cards that are coming
+  const eventLoading = () => {
+    const bar = (w, h, extra) => '<span aria-hidden="true" style="display:block;width:' + w + ';height:' + h + 'px;border-radius:999px;background:#e8eaee;' + (extra || '') + '"></span>';
+    const card = (inner, h) => '<div aria-hidden="true" style="' + CARD + ';padding:18px;min-height:' + h + 'px;display:flex;flex-direction:column;gap:12px;animation:skPulse 1.4s ease-in-out infinite">' + inner + '</div>';
+    return '<div role="status" aria-label="Loading" data-event-loading>' +
+      '<div style="position:relative;height:calc(300px + var(--pt));overflow:hidden;background:' + EV_GRAD + '">' +
+        '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to bottom, rgba(13,17,23,.25), rgba(13,17,23,0) 40%, rgba(13,17,23,.55))"></div>' +
+        '<div aria-hidden="true" style="position:absolute;left:0;right:0;top:var(--pt);bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px">' +
+          '<svg class="splash-bolt" width="56" height="56" viewBox="0 0 24 24"><path d="M13.2 2.2 7.2 13.1l3.9-.35-.9 8.8 6.9-11.2-4.1.4z" fill="#ffd166" stroke="#ffd166" stroke-width="1.7" stroke-linejoin="round"/></svg>' +
+          '<span style="font-size:20px;font-weight:900;letter-spacing:-.4px;color:#fff">Spark Hub</span></div>' +
+        '<div aria-hidden="true" style="position:absolute;left:20px;right:96px;bottom:22px;display:flex;flex-direction:column;gap:10px">' +
+          bar('42%', 12, 'background:rgba(255,255,255,.35)') + bar('88%', 26, 'background:rgba(255,255,255,.28)') + '</div>' +
+      '</div>' +
+      '<div style="padding:16px 14px 26px;display:flex;flex-direction:column;gap:14px">' +
+        card(bar('100%', 52, 'background:#efedfd'), 88) +
+        card(bar('38%', 12) + bar('70%', 18) + bar('55%', 14), 130) +
+        card(bar('30%', 12) + bar('90%', 14) + bar('75%', 14), 120) +
+      '</div></div>';
+  };
   const VIEW_ICONS = {
     next: '<rect x="4" y="3.5" width="16" height="9" rx="1.6"/><path d="M4 16.5h16M4 20.5h16"/>',
     tiles: '<rect x="4" y="4.5" width="16" height="6" rx="1.6"/><rect x="4" y="13.5" width="16" height="6" rx="1.6"/>',
@@ -6642,7 +6662,7 @@
     else if (s === 'own') main = st.email ? viewOwn() : home();
     else if (s === 'groups') main = st.email ? viewGroups() : home();
     else if (s === 'detail' && subj) main = viewDetail(subj);
-    else if (s === 'detail' && st.subjectId) main = '<div style="padding:40px 20px;font-size:15px;font-weight:600;color:#6b7280">Loading…</div>';
+    else if (s === 'detail' && st.subjectId) main = eventLoading();
     else if (s === 'compose') main = st.email ? '' : viewWelcome();   // the post flow covers the screen
     else main = home();
     // An invite link's full-screen steps take the place of the screen

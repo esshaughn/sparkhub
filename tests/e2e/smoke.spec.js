@@ -258,6 +258,16 @@ test('Profile: Delete my account asks for a typed DELETE', async ({ browser }) =
   }
 });
 
+// Owner, 2026-10-02: an event link shows the page's own shape while it loads, not a bare "Loading…"
+test('an event link while it loads: the photo header and card placeholders', async ({ page }) => {
+  await page.route('**/rest/v1/rpc/load_all', async r => { await new Promise(x => setTimeout(x, 3000)); r.continue(); });
+  await page.goto('/#/idea/00000000-0000-4000-8000-000000000001');
+  const ph = page.locator('[data-event-loading]');
+  await expect(ph).toBeVisible();
+  await expect(ph).toContainText('Spark Hub');
+  await expect(page.getByText('Loading…', { exact: true })).toHaveCount(0);
+});
+
 test('privacy page is public', async ({ request }) => {
   const res = await request.get('/privacy.html');
   expect(res.status()).toBe(200);
