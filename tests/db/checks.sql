@@ -484,6 +484,30 @@ select t.check('someone who can''t invite sees no invites',
   not exists (select 1 from public.event_invited((select id from sparks where text = 'Lead going walk'))));
 reset role;
 
+-- Invited and Nudge (20261102040000_invited_and_nudge.sql): the hosts read every invite and nudge once a day --------
+select t.login('host'); set role authenticated;
+select t.check('the lead reads the invites to their event',
+  exists (select 1 from event_invites where user_id = t.id('admin') and spark_id = (select id from sparks where text = 'Lead going walk')));
+select t.check('the lead nudges someone who hasn''t replied',
+  public.nudge_invitee((select id from sparks where text = 'Lead going walk'), t.id('admin')));
+select t.check('a second nudge the same day sends nothing',
+  not public.nudge_invitee((select id from sparks where text = 'Lead going walk'), t.id('admin')));
+select t.must_refuse('nudging someone who wasn''t invited',
+  format($$select public.nudge_invitee((select id from sparks where text = 'Lead going walk'), %L)$$, t.id('outsider')));
+select t.must_refuse('setting nudged_at directly',
+  $$update event_invites set nudged_at = null where spark_id = (select id from sparks where text = 'Lead going walk')$$);
+reset role;
+select t.check('the person nudged gets one note',
+  (select count(*) = 1 from notes where user_id = t.id('admin') and body like '% is hoping you can make Lead going walk. Going, Maybe or Can’t?'));
+select t.login('admin'); set role authenticated;
+select t.must_refuse('someone invited can''t nudge',
+  format($$select public.nudge_invitee((select id from sparks where text = 'Lead going walk'), %L)$$, t.id('admin')));
+reset role;
+select t.login('outsider'); set role authenticated;
+select t.check('someone else reads no invites to it',
+  not exists (select 1 from event_invites where spark_id = (select id from sparks where text = 'Lead going walk')));
+reset role;
+
 -- A plan needs a lead too (20261101200000_plan_needs_lead.sql) ----------------------------------------------------
 select t.login('host'); set role authenticated;
 insert into sparks (id, group_id, author_name, lead_name, lead_id, created_by, text, day_date)
@@ -703,6 +727,7 @@ create function t.load_matches() returns boolean language sql as $$
      and jsonb_array_length(d -> 'event_drafts') = (select count(*) from event_drafts)
      and jsonb_array_length(d -> 'notes') = least(50, (select count(*) from notes))
      and jsonb_array_length(d -> 'lead_asks') = (select count(*) from lead_asks)
+     and jsonb_array_length(d -> 'event_invites') = (select count(*) from event_invites)
      and not exists (select 1 from jsonb_array_elements(d -> 'profiles') e where (e ->> 'id')::uuid not in (select id from profiles))
     from (select public.load_all() as d) x
 $$;

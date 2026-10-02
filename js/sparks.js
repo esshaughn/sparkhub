@@ -436,6 +436,8 @@
     updates: (x.updates[row.id] || []).sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at)).map(u => ({ id: u.id, body: u.body, audience: u.audience, createdBy: u.created_by || null, created: Date.parse(u.created_at) })),
     cohosts: (x.cohosts[row.id] || []).map(o => o.user_id),
     leadAsks: (x.leadAsks[row.id] || []).map(a => ({ userId: a.user_id, by: a.asked_by, at: Date.parse(a.created_at) })),   // asked to lead (20261102020000_float_and_ask.sql)
+    // Who was invited: the hosts see every invite, anyone else only their own (20261102040000_invited_and_nudge.sql)
+    invites: (x.invites[row.id] || []).map(i => ({ userId: i.user_id, by: i.invited_by, at: Date.parse(i.created_at), nudgedAt: i.nudged_at ? Date.parse(i.nudged_at) : 0 })),
     album: (x.album[row.id] || []).sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at)).filter(a => PHOTO_PATH.test(a.path)).map(a => ({ id: a.id, path: a.path, createdBy: a.created_by })),
     prep: (x.prep[row.id] || [])[0] ? x.prep[row.id][0].answers || {} : {},
     reactions: (x.reactions[row.id] || []).map(r => ({ userId: r.user_id, kind: r.kind }))
@@ -456,7 +458,7 @@
     }
     // v6 Update 13: friends, requests and the invites you've had (a database without them still loads)
     const frP = state.email && !state.viewAs ? sb.rpc('friend_state').then(r => r, () => ({ error: true })) : Promise.resolve({ data: null });
-    const [mem, grp, sp, of, it, gc, rs, dop, dvo, sop, svo, sui, scl, upd, org, alb, prp, rct, sgr, drf, nts, las] = await Promise.all([
+    const [mem, grp, sp, of, it, gc, rs, dop, dvo, sop, svo, sui, scl, upd, org, alb, prp, rct, sgr, drf, nts, las, inv] = await Promise.all([
       sb.from('memberships').select('group_id,role,last_seen_at,pinned'),
       sb.from('groups').select('id,name,photo,photo_pos,demo'),
       sb.from('sparks').select('*').order('created_at', { ascending: false }),
@@ -484,7 +486,10 @@
       // v6 Update 7: notes about events and jobs that were taken down (a database without them still loads)
       state.email ? sb.from('notes').select('id,body,created_by,created_at').order('created_at', { ascending: false }).limit(50) : Promise.resolve({ data: [] }),
       // Asked to lead (20261102020000_float_and_ask.sql; a database without them still loads)
-      state.email ? sb.from('lead_asks').select('spark_id,user_id,asked_by,created_at').order('created_at') : Promise.resolve({ data: [] })
+      state.email ? sb.from('lead_asks').select('spark_id,user_id,asked_by,created_at').order('created_at') : Promise.resolve({ data: [] }),
+      // Invites (20261030000000_friends.sql; nudged_at since 20261102040000_invited_and_nudge.sql)
+      state.email ? sb.from('event_invites').select('spark_id,user_id,invited_by,created_at,nudged_at').order('created_at')
+        .then(r => r.error && r.error.code === '42703' ? sb.from('event_invites').select('spark_id,user_id,invited_by,created_at').order('created_at') : r) : Promise.resolve({ data: [] })
     ]);
     [mem, grp, sp, of, it, gc, rs, dop, dvo, sop, svo, sui, scl, upd, org, alb, prp].forEach(must);
     const rows = (r) => r.error ? [] : r.data || [];
@@ -492,7 +497,7 @@
       memberships: mem.data, groups: grp.data, sparks: sp.data, offers: of.data, interests: it.data, guest_contacts: gc.data, rsvps: rs.data,
       date_options: dop.data, date_votes: dvo.data, spot_options: sop.data, spot_votes: svo.data, signup_items: sui.data, signup_claims: scl.data,
       plan_updates: upd.data, cohosts: org.data, album_photos: alb.data, plan_prep: prp.data,
-      reactions: rows(rct), spark_groups: rows(sgr), event_drafts: rows(drf), notes: rows(nts), lead_asks: rows(las), profiles: []
+      reactions: rows(rct), spark_groups: rows(sgr), event_drafts: rows(drf), notes: rows(nts), lead_asks: rows(las), event_invites: rows(inv), profiles: []
     };
     // Names and photos of everyone on screen
     const ids = new Set([state.me]);
@@ -500,6 +505,7 @@
     [d.offers, d.interests, d.rsvps, d.cohosts, d.signup_claims, d.reactions].forEach(t => t.forEach(r => ids.add(r.user_id)));
     d.notes.forEach(n => ids.add(n.created_by));
     d.lead_asks.forEach(a => { ids.add(a.user_id); ids.add(a.asked_by); });
+    d.event_invites.forEach(i => ids.add(i.user_id));
     ids.delete(null); ids.delete(undefined);
     for (const part of chunks(Array.from(ids), 80)) {
       d.profiles.push(...must(await sb.from('profiles').select('id,name,avatar_path,place,bio').in('id', part)).data);
@@ -524,7 +530,8 @@
       album: byKey(d.album_photos, 'spark_id'), prep: byKey(d.plan_prep, 'spark_id'),
       reactions: byKey(d.reactions, 'spark_id'),   // v6 Update 2 (reactions on past events)
       groups: byKey(d.spark_groups, 'spark_id'),
-      leadAsks: byKey(d.lead_asks || [], 'spark_id')   // a database without them still loads
+      leadAsks: byKey(d.lead_asks || [], 'spark_id'),   // a database without them still loads
+      invites: byKey(d.event_invites || [], 'spark_id')
     };
 
     const roles = {};
@@ -2298,22 +2305,23 @@
       '</div></div>';
   }
 
-  // E1: a mistyped, rotated or deleted link (one message for all three)
+  // E1: a mistyped, rotated or deleted link (one message for all three). v7 Update 15: a centred white card on gray,
+  // a broken-link icon in a gray circle
   function viewInvBad() {
     const signedIn = !!state.email;
-    return '<div data-screen-label="Bad invite link" style="min-height:100%;display:flex;flex-direction:column;padding:calc(var(--pt) + 14px) 24px calc(40px + env(safe-area-inset-bottom, 0px));background:#fff">' +
-      '<div aria-label="Spark Hub" style="display:flex;align-items:center;gap:6px;font-size:15px;font-weight:800;color:#11131f">' + I.bolt(18, '#f2b51c') + 'Spark Hub</div>' +
-      '<div style="flex:1;display:flex;flex-direction:column;justify-content:center;padding:32px 0">' +
-        '<span aria-hidden="true" style="width:72px;height:72px;border-radius:999px;background:#fde8e8;color:#d93a3a;font-size:36px;font-weight:900;display:flex;align-items:center;justify-content:center">?</span>' +
-        '<h1 style="margin:22px 0 0;font-size:34px;line-height:1.08;font-weight:900;letter-spacing:-.025em;color:#11131f">This invite link isn’t working</h1>' +
-        '<p style="margin:12px 0 0;font-size:17px;line-height:1.45;color:#5f6475">It may have a typo, or the group may have made a new one. Ask the person who sent it for a fresh link.</p>' +
-      '</div>' +
-      '<div style="display:flex;flex-direction:column;gap:10px">' +
-        (signedIn
-          ? '<button type="button" ' + on(() => { closeInvite(); go('calendar'); }) + ' style="' + invPrimary(true) + '">Go to my calendar</button>'
-          : '<button type="button" ' + on(closeInvite) + ' style="' + invPrimary(true) + '">Go to Spark Hub</button>') +
-        '<button type="button" ' + on(() => { closeInvite(); openJoin(); }) + ' style="' + INV_OUTLINE + '">I have a new link or code</button>' +
-      '</div></div>';
+    const btn = 'align-self:stretch;min-height:52px;border:0;border-radius:999px;font-family:inherit;font-size:16px;font-weight:800;cursor:pointer;';
+    return '<div data-screen-label="Bad invite link" style="min-height:100%;display:flex;align-items:center;justify-content:center;padding:calc(var(--pt) + 24px) 24px calc(24px + env(safe-area-inset-bottom, 0px));background:#e8eaee">' +
+      '<div style="width:100%;max-width:340px;background:#fff;border-radius:22px;padding:26px 20px 20px;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;box-shadow:0 1px 3px rgba(15,18,25,.08)">' +
+        '<span aria-hidden="true" style="width:56px;height:56px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center">' +
+          svg(26, stroke('#6b7280', 2.2), '<path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1"/><path d="M4 4l16 16"/>') + '</span>' +
+        '<h1 style="margin:0;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117;text-wrap:balance">This invite link isn’t working</h1>' +
+        '<p style="margin:0;font-size:15px;line-height:1.45;font-weight:500;color:#5c6270;text-wrap:pretty">It may be old, or the group got a new link. Ask the person who sent it for a fresh one.</p>' +
+        '<div style="align-self:stretch;display:flex;flex-direction:column;gap:8px;margin-top:8px">' +
+          (signedIn
+            ? '<button type="button" ' + on(() => { closeInvite(); go('calendar'); }) + ' style="' + btn + 'background:#5b4ae8;color:#fff">Go to my calendar</button>'
+            : '<button type="button" ' + on(closeInvite) + ' style="' + btn + 'background:#5b4ae8;color:#fff">Go to Spark Hub</button>') +
+          '<button type="button" ' + on(() => { closeInvite(); openJoin(); }) + ' style="' + btn + 'background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;color:#0d1117">I have a new link or code</button>' +
+        '</div></div></div>';
   }
 
   // E3: signed in before the tap — join as this account, or switch
@@ -2829,7 +2837,8 @@
     heart: '<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z"/>',
     bolt: '<path d="M13.2 2.5 6.8 13.4l4.3-.4-1 8.5 7.1-11.3-4.4.4z"/>',
     check: '<path d="M5 12.5l4.5 4.5L19 7"/>',
-    person: '<circle cx="12" cy="8.5" r="3.8"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/>'
+    person: '<circle cx="12" cy="8.5" r="3.8"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/>',
+    mail: '<rect x="3.5" y="5.5" width="17" height="13" rx="2.5"/><path d="m4 7 8 6 8-6"/>'
   };
   const ic6 = (k, size, color, w) => svg(size, stroke(color || 'currentColor', w || 2.2) + ' style="flex:0 0 ' + size + 'px"', P6[k]);
   const chev6 = (size, color, up) => svg(size, stroke(color, 3) + ' style="flex:0 0 ' + size + 'px;transition:transform 160ms;transform:' + (up ? 'rotate(180deg)' : 'none') + '"', '<path d="m6 9 6 6 6-6"/>');
@@ -2845,8 +2854,8 @@
     return d === 0 ? 'Today' + t : d === 1 ? 'Tomorrow' + t : d === -1 ? 'Yesterday' : d < 0 ? -d + ' days ago' : fmtDay(s.dayDate) + t;
   };
 
-  // What the lead should do next (the prototype's ownActs). Invites are share links, so nothing counts
-  // them: no "N haven't replied · Nudge" or "No one invited yet" (HANDOFF §1 #4).
+  // What the lead should do next (the prototype's ownActs). Who hasn't replied, with Nudge, is in Who's coming
+  // (v7 Update 15), not a to-do here.
   const ownActs = (s) => {
     const ph = phaseOf(s), out = [];
     // Each to-do's button does its job (owner, 2026-09-30); `go` runs it, the row itself still opens the event
@@ -2914,12 +2923,13 @@
   };
   const tasksBadge = () => { if (!state.email || !state.loaded) return 0; const d = tasksData(); return d.plans.length + d.help.length; };
 
-  // Leading plans: Going · Maybe · Sign-ups (Maybe in place of Invited: invites aren't counted)
+  // Leading plans: Going · Maybe · Sign-ups · Invited (v7 Update 15, owner 2026-10-02; Invited replaced Reminder)
   const statsStrip = (s) => {
     const g = going(s).length, m = maybes(s).length, f = signupFill(s);
     const col = { ok: '#454b55', warn: '#b07a0a', off: '#9aa0ac' };
     const items = [['people', 'Going', String(g), 'ok'], ['maybe', 'Maybe', String(m), 'ok'],
-      ['clip', 'Sign-ups', f.counted ? f.filled + '/' + f.needed : '—', !f.counted ? 'off' : f.open <= 0 ? 'ok' : 'warn']];   // no Reminder: it's automatic (owner, 2026-09-30)
+      ['clip', 'Sign-ups', f.counted ? f.filled + '/' + f.needed : '—', !f.counted ? 'off' : f.open <= 0 ? 'ok' : 'warn'],
+      ['mail', 'Invited', String((s.invites || []).length), 'ok']];
     return '<div style="display:flex;align-items:center;justify-content:space-between;height:40px;padding:0 30px;border-top:1px solid #f2f3f6;background:#fafafb">' +
       items.map(([k, label, v, c]) => '<span aria-label="' + label + ': ' + esc(v) + '" style="display:flex;align-items:center;gap:5px;font-size:13px;font-weight:800;color:' + col[c] + '">' + ic6(k, 14) + esc(v) + '</span>').join('') + '</div>';
   };
@@ -5118,7 +5128,10 @@
     if (state.viewAs) { toast('You’re viewing as ' + firstName(state.viewAs.name) + ', so nothing changes. Exit to make changes.'); return; }
     const was = state.share.invited || [];
     setState({ share: Object.assign({}, state.share, { invited: was.concat(p.id) }) });
-    sb.rpc('invite_friends', { p_spark: s.id, p_people: [p.id] }).then(r => { if (r.error) throw r.error; })
+    // The Invited count and Who's coming show it at once; the refresh after the save settles it
+    const cur = state.sparks.find(x => x.id === s.id) || s;
+    if (!(cur.invites || []).some(i => i.userId === p.id)) patchSpark(s.id, { invites: (cur.invites || []).concat({ userId: p.id, by: state.me, at: Date.now(), nudgedAt: 0 }) });
+    sb.rpc('invite_friends', { p_spark: s.id, p_people: [p.id] }).then(r => { if (r.error) throw r.error; return loadFresh().catch(e => console.error(e)); })
       .catch(e => { console.error(e); if (state.share) setState({ share: Object.assign({}, state.share, { invited: (state.share.invited || []).filter(x => x !== p.id) }) }); toast(failed(e)); });
   };
   function viewShareSheet() {
@@ -5559,7 +5572,9 @@
               : lead ? '<span data-going-empty style="font-size:14px;font-weight:600;color:#6b7280">Nobody’s RSVP’d yet.' + (s.cancelledAt ? '' : ' <span ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' style="font-weight:800;color:#5b4ae8;cursor:pointer">Send invites</span>') + '</span>' : '<span style="font-size:14px;font-weight:600;color:#6b7280">Nobody yet. Be the first.</span>') + '</span>' +
             // Only the leads going (the lead is Going to their own plan, 20261101160000): the lead still gets the nudge to share
             (lead && goingIds.length && goingIds.every(u => u === s.leadId || s.cohosts.indexOf(u) > -1)
-              ? '<span data-going-empty style="flex:1;min-width:0;font-size:14px;font-weight:600;color:#6b7280">' + (goingIds.length === 1 && goingIds[0] === st.me ? 'Just you so far.' : 'Just the leads so far.') + ' <span ' + on((e) => { stop(e); setState({ share: { id: s.id, copied: false } }); }) + ' style="font-weight:800;color:#5b4ae8;cursor:pointer">Send invites</span></span>'
+              ? '<span data-going-empty style="flex:1;min-width:0;font-size:14px;font-weight:600;color:#6b7280">' + (goingIds.length === 1 && goingIds[0] === st.me ? 'Just you so far.' : 'Just the leads so far.') + ' <span ' + on((e) => { stop(e); setState({ share: { id: s.id, copied: false } }); }) + ' style="font-weight:800;color:#5b4ae8;cursor:pointer">Send invites</span></span>' +
+                // invited and not answered yet: the row still opens Who's coming, where they're listed with Nudge
+                (pendingInv(s) ? '<span data-invited-count style="flex:0 0 auto;display:flex;align-items:center;gap:6px;font-size:14.5px;font-weight:800;color:#4a3ad4;white-space:nowrap">' + pendingInv(s) + ' invited' + I.chevR(14, '#9aa0ac', 2.6) + '</span>' : '')
               : goingIds.length ? '<span style="margin-left:auto;display:flex;align-items:center;gap:6px;font-size:14.5px;font-weight:800;color:#0f7a3c;white-space:nowrap">' + goingIds.length + ' going' + I.chevR(14, '#9aa0ac', 2.6) + '</span>' : '') +
           '</div>' + groupRow(s)) + '</section>' +
         inspoSec(s) +
@@ -6966,19 +6981,47 @@
         '<span style="flex:1 1 auto;min-width:0;font-size:15.5px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(name) + '</span>' +
         (c && c.phone ? '<a href="tel:' + esc(c.phone.replace(/[^\d+]/g, '')) + '" style="flex:0 0 auto;font-size:14px;font-weight:800;color:#5b4ae8">' + esc(c.phone) + '</a>' : c ? '<span style="flex:0 0 auto;padding:3px 9px;border-radius:999px;background:#f2f3f6;font-size:12px;font-weight:800;color:#6b7280">Guest</span>' : '') + '</div>';
     };
-    const part = (k, label, ink) => {
-      const ids = s.rsvps.filter(r => r.status === k).map(r => r.userId);
-      return !ids.length ? '' : '<div data-guest-part="' + k + '" style="display:flex;flex-direction:column;gap:2px"><span style="font-size:12px;font-weight:900;letter-spacing:1px;color:' + ink + '">' + label + ' · ' + ids.length + '</span>' +
-        '<div style="display:flex;flex-direction:column">' + ids.map(row).join('') + '</div></div>';
+    const section = (k, label, ink, ids, rowFn) => !ids.length ? '' : '<div data-guest-part="' + k + '" style="display:flex;flex-direction:column;gap:2px"><span style="font-size:12px;font-weight:900;letter-spacing:1px;color:' + ink + '">' + label + ' · ' + ids.length + '</span>' +
+      '<div style="display:flex;flex-direction:column">' + ids.map(rowFn).join('') + '</div></div>';
+    const part = (k, label, ink) => section(k, label, ink, s.rsvps.filter(r => r.status === k).map(r => r.userId), row);
+    // Haven't replied (v7 Update 15, owner 2026-10-02): the people invited who haven't answered, each with a Nudge
+    // (once a day per person) while the plan is still ahead
+    const open = lead && s.planned && !s.cancelledAt && phaseOf(s) === 'plan';
+    const quiet = !open ? [] : notReplied(s);
+    const nudgeRow = (i, n) => {
+      const name = invitedName(i.userId), done = nudgedToday(i);
+      return '<div data-not-replied style="display:flex;align-items:center;gap:12px;min-height:52px;border-top:' + (n ? '1px solid #f2f3f6' : '0') + '">' +
+        '<span ' + on(() => openPerson(i.userId)) + ' aria-label="' + esc(name) + ', see profile" style="flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:12px;cursor:pointer">' + face(i.userId, name, 32, null) +
+          '<span style="flex:1 1 auto;min-width:0;font-size:15.5px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(name) + '</span></span>' +
+        '<button type="button" data-nudge ' + on(() => nudge(s, i)) + ' aria-label="' + (done ? 'Nudged ' : 'Nudge ') + esc(name) + '" style="flex:0 0 auto;display:flex;align-items:center;min-height:36px;padding:0 14px;border:0;border-radius:999px;font-family:inherit;font-size:13.5px;font-weight:800;cursor:pointer;' +
+          (done ? 'background:#f2f3f6;color:#8a909b' : 'background:#fff;box-shadow:inset 0 0 0 1.5px #c9c2fb;color:#4a3ad4') + '">' + (done ? 'Nudged' : 'Nudge') + '</button></div>';
     };
-    const any = s.rsvps.some(r => lead || r.status !== 'no');
-    // The lead's Guest list (with guests' numbers and Can't); everyone else sees who's going and who might
+    const any = s.rsvps.some(r => lead || r.status !== 'no') || quiet.length > 0;
+    // The lead's Guest list (with guests' numbers, Can't and Haven't replied); everyone else sees who's going and who might
     return modal(lead ? 'Who’s coming' : 'Who’s going', close,
       h3Html(lead ? 'Who’s coming' : 'Who’s going') +
       (any ? (lead && s.contacts.some(c => c.phone && s.rsvps.some(r => r.userId === c.user_id)) ? paraHtml('Phone numbers are from people who RSVP’d without an account. Only you see them.') : '') +
-        '<div style="display:flex;flex-direction:column;gap:14px">' + part('going', 'GOING', '#0f7a3c') + part('maybe', 'MAYBE', '#8f6405') + (lead ? part('no', 'CAN’T', '#454b55') : '') + '</div>'
-        : paraHtml(lead ? 'Nobody has RSVP’d yet. Share the link to get the word out.' : 'Nobody yet. Be the first.')));
+        '<div style="display:flex;flex-direction:column;gap:14px">' + part('going', 'GOING', '#0f7a3c') + part('maybe', 'MAYBE', '#b07a0a') + (lead ? part('no', 'CAN’T', '#6b7280') : '') +
+          section('none', 'HAVEN’T REPLIED', '#5b4ae8', quiet, nudgeRow) + '</div>'
+        : paraHtml(lead ? 'Nobody has replied yet. Share the link to get the word out.' : 'Nobody yet. Be the first.')));
   }
+
+  // People invited to a plan who haven't replied (not its leads)
+  const notReplied = (s) => (s.invites || []).filter(i => !s.rsvps.some(r => r.userId === i.userId) && i.userId !== s.leadId && s.cohosts.indexOf(i.userId) < 0);
+  const pendingInv = (s) => s.planned && !s.cancelledAt && phaseOf(s) === 'plan' ? notReplied(s).length : 0;
+  const invitedName = (u) => nameOf(u, (friendById(u) || {}).name);   // a friend's name comes with Friends
+  const nudgedToday = (i) => !!i.nudgedAt && new Date(i.nudgedAt).toDateString() === new Date().toDateString();
+  // Nudge someone invited who hasn't replied (nudge_invitee, 20261102040000_invited_and_nudge.sql): a fixed note,
+  // once a day per person
+  const nudge = (s, i) => {
+    const first = firstName(invitedName(i.userId)), today = 'You nudged ' + first + ' today. Try again tomorrow.';
+    if (nudgedToday(i)) return toast(today);
+    const line = firstName(state.myName || 'You') + ' is hoping you can make ' + s.text + '. Going, Maybe or Can’t?';
+    let sent = true;
+    quick(s, { invites: s.invites.map(x => x.userId === i.userId ? Object.assign({}, x, { nudgedAt: Date.now() }) : x) },
+      async () => { sent = must(await sb.rpc('nudge_invitee', { p_spark: s.id, p_user: i.userId })).data !== false; },
+      (ok) => { if (ok) toast(sent ? 'Nudged ' + first + ': “' + line + '”' : today, sent); });
+  };
 
   // Who thanked the host (Round 64d): everyone can see it, as thank-yous are public
   function viewThanksList(s) {
@@ -7656,7 +7699,7 @@
   if (bootUser) {
     const c = readCache(bootUser.id);
     Object.assign(state, { me: bootUser.id, email: bootUser.email, memberSince: bootUser.created_at ? new Date(bootUser.created_at).getFullYear() : null }, c
-      ? { isGoogle: c.isGoogle, myName: c.myName || '', myAvatar: c.myAvatar, myPlace: c.myPlace || '', myBio: c.myBio || '', memberSince: c.memberSince || null, groups: c.groups || [], sparks: (c.sparks || []).map(x => Object.assign({ leadAsks: [] }, x)), profiles: c.profiles || {},
+      ? { isGoogle: c.isGoogle, myName: c.myName || '', myAvatar: c.myAvatar, myPlace: c.myPlace || '', myBio: c.myBio || '', memberSince: c.memberSince || null, groups: c.groups || [], sparks: (c.sparks || []).map(x => Object.assign({ leadAsks: [], invites: [] }, x)), profiles: c.profiles || {},
           sizes: c.sizes || {}, notif: c.notif || state.notif, demoAdmin: !!c.demoAdmin, fr: c.fr && c.fr.friends ? c.fr : state.fr, loaded: true, fromCache: true }
       : {});
   }

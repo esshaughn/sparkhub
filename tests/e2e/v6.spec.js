@@ -45,6 +45,7 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     await expect(hSearch).toHaveCount(0);
     await expect(lead.getByLabel('Going: 1')).toBeVisible();
     await expect(lead.getByLabel('Sign-ups: 0/3')).toBeVisible();
+    await expect(lead.getByLabel('Invited: 0')).toBeVisible();   // v7 Update 15: Invited replaced Reminder
     await expect(lead.getByLabel(/^Reminder/)).toHaveCount(0);           // automatic now, so not shown (owner, 2026-09-30)
     await expect(lead).not.toContainText('Post an update');
     await expect(lead).toContainText('Location TBD');

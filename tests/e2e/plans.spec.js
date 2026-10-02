@@ -682,6 +682,18 @@ test('invite people: the lead invites a group member from the sheet; Invited sti
     await expect(sheet.locator('[data-invitee="' + nm + '"]')).toContainText('Invited');
     await expect(sheet.getByRole('link', { name: 'Messages' })).toHaveAttribute('href', /^sms:/);
     await sheet.getByRole('button', { name: 'Close' }).click();
+    // v7 Update 15: Who's coming lists her under Haven't replied; Nudge sends one note a day (then Nudged)
+    await HP.locator('[data-invited-count]').click();   // only the lead is going: "1 invited ›" opens the list
+    const list = H.getByRole('dialog', { name: 'Who’s coming' });
+    const quiet = list.locator('[data-guest-part="none"]');
+    await expect(quiet).toContainText('HAVEN’T REPLIED · 1');
+    await expect(quiet).toContainText(nm);
+    await quiet.getByRole('button', { name: 'Nudge ' + nm }).click();
+    await expect(H.getByText('Nudged ' + nm.split(' ')[0] + ':')).toBeVisible();
+    await expect(quiet.getByRole('button', { name: 'Nudged ' + nm })).toBeVisible();
+    await expect.poll(() => asUser(other.page, async (c) => ((await c.from('notes').select('body').like('body', '%is hoping you can make%').gte('created_at', new Date(Date.now() - 120000).toISOString())).data || []).length)).toBeGreaterThan(0);
+    await quiet.getByRole('button', { name: 'Nudged ' + nm }).click();
+    await expect(H.getByText('You nudged ' + nm.split(' ')[0] + ' today. Try again tomorrow.')).toBeVisible();
     expect(host.errors).toEqual([]);
   } finally {
     if (id) await deleteIdea(H, id).catch(() => {});

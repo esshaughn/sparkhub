@@ -1,12 +1,14 @@
 # Handoff: Spark Hub v6 — new screens, layouts & behaviors
 
+> **Latest: read `UPDATE_15.md`** (Version 7: the screens the build invented, designed properly — event preview slide-up 13a, guest list, came-down notes, phone notifications card, Remove and block, friend link pop-ups, and more). Read it after this README and UPDATE_2–14. Where they conflict, the newest update wins.
+
 ## ⚠️ Read first — scope rules
 - **Do NOT change any content.** Keep every existing event, idea, group, person, date, time, address, photo, RSVP, sign-up, notification and demo/seed record exactly as it is in the live app today (it was set from `EVENTS_CONTENT_HANDOFF.md` in the v5 handoff). Nothing in this brief replaces data.
 - **Only add/replace UI, layout and behavior** described below. Wherever this brief shows sample numbers/names, they are illustrations — always compute from the app's real data.
 - Where v6 introduces *new* fields (e.g. event "types"), derive them as described; don't edit event records to add them.
 
 ## About the design files
-`Spark Hub App Version 6.dc.html` is an **HTML design reference / prototype** (single-file, inline-styled, class-based logic), not production code. Recreate the look and behavior in the live app's existing stack and component patterns. Open the file in a browser (keep `support.js` and `photos/` beside it) to click through every state. `screenshots/` shows the key states at 393×852.
+`Spark Hub App Version 7.dc.html` is an **HTML design reference / prototype** (single-file, inline-styled, class-based logic), not production code. Recreate the look and behavior in the live app's existing stack and component patterns. Open the file in a browser (keep `support.js` and `photos/` beside it) to click through every state. `screenshots/` shows the key states at 393×852.
 
 ## Fidelity
 **High-fidelity.** Colors, type sizes, spacing, radii and copy below are final. Match them.
@@ -134,7 +136,7 @@ Purpose: browse **all** upcoming events across all your groups; discover things 
 All photos are the existing app photos (`photos/`, `photos/faces/`). Calendar header uses `walnut-creek-parade.jpg`; "Feeling wild?" cards use `poker-night.jpg`, `paintball.png`, `pumpkin-nights.png`. Icons are simple 24-grid stroke icons (inline SVG in the reference) — use the app's icon set equivalents: list-check, ticket-check, calendar, grid, person, bell, search, plus, tag, people, clipboard-check, spark/bolt (brand), dice not used.
 
 ## Files
-- `Spark Hub App Version 6.dc.html` — full interactive reference (open in browser).
+- `Spark Hub App Version 7.dc.html` — full interactive reference (open in browser).
 - `support.js` — runtime for the reference file.
 - `photos/` — images referenced by the reference file.
 - `screenshots/01…14` — key states:
