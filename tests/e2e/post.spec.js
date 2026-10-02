@@ -174,17 +174,29 @@ test('decide everything later: only the title is needed; the host is left with t
     // Review: every undecided part in amber
     await expect(flow).toContainText('LOOKS GOOD');
     for (const t of ['Date TBD', 'Location TBD', 'Details to be decided', 'Help to be decided']) await expect(flow).toContainText(t);
-    // Add / Edit on Review comes straight back to Review, not through the later steps
-    await flow.getByLabel('Add details').click();
-    await expect(flow).toContainText('4 of 5');
-    await flow.getByLabel('Details, line 1').fill('Bring a bowl');
-    await flow.getByRole('button', { name: 'Back to review' }).click();
-    await expect(flow).toContainText('LOOKS GOOD');
+    // Every part's link on Review says Edit and opens that part in a pop-up over Review (owner, 2026-10-02)
+    for (const part of ['date & time', 'location', 'details', 'how people can help']) await expect(flow.getByRole('button', { name: 'Edit ' + part, exact: true })).toHaveText('Edit');
+    await expect(flow.getByText('Add', { exact: true })).toHaveCount(0);
+    await flow.getByLabel('Edit details').click();
+    const pop = page.getByRole('dialog', { name: 'Details' });
+    await expect(flow).toContainText('LOOKS GOOD');   // still on Review, under the pop-up
+    await pop.getByLabel('Details, line 1').fill('Bring a bowl');
+    await pop.getByRole('button', { name: 'Done' }).click();
+    await expect(pop).toHaveCount(0);
     await expect(flow).toContainText('Bring a bowl');
     await flow.getByLabel('Edit details').click();
-    await flow.getByLabel('Details, line 1').fill('');
-    await flow.getByText('Decide later', { exact: true }).click();
+    await pop.getByLabel('Details, line 1').fill('');
+    await pop.getByRole('button', { name: 'Close' }).click();
     await expect(flow).toContainText('Details to be decided');
+    // Date & time in its pop-up: a start time's list opens inside it
+    await flow.getByLabel('Edit date & time').click();
+    const whenPop = page.getByRole('dialog', { name: 'Date & time' });
+    await expect(whenPop).toContainText('Pick a date');
+    await expect(whenPop).toContainText('Poll the group');
+    await whenPop.getByRole('button', { name: 'Done' }).click();
+    await expect(flow).toContainText('Date TBD');
+    // Real or test looks temporary whatever was picked: a dashed edge
+    await expect(flow.locator('[data-review-card="kind"]')).toHaveCSS('border-top-style', 'dashed');
     // No date: it goes up as an idea, not a plan
     await expect(flow.locator('[data-posts-as]')).toContainText('This goes up as an idea');
     await expect(flow).toContainText('Just testing');   // Review shows the choice from the pop-up

@@ -175,7 +175,7 @@
     evDate: '', evTime: '', evEnd: '', evEndOn: false, timeOpen: null, dateOpen: null, calMonth: null,
     locText: '', locPlace: null, locSuggest: [],
     evBits: ['', '', ''], evNeed: null, evTags: [], evNeeds: [], evDatePoll: null, evSpotPoll: null, evLater: {},
-    evPriv: false, evNoGuestInv: true, evTest: null, evKindAsk: false, evFloat: false, evLeadPick: false, evGroups: null, evDraftId: null, evLeave: false, evLeaveTo: null, evFrom: null, pollSheet: null, needSheet: null, evFromReview: false
+    evPriv: false, evNoGuestInv: true, evTest: null, evKindAsk: false, evFloat: false, evLeadPick: false, evPop: null, evGroups: null, evDraftId: null, evLeave: false, evLeaveTo: null, evFrom: null, pollSheet: null, needSheet: null, evFromReview: false
   });
   const state = Object.assign({
     screen: 'calendar', menu: null, subjectId: null, gpId: null, zoom: null, membersOpen: null, membersList: null,
@@ -5840,6 +5840,7 @@
     if (st.evKindAsk) { setState({ evKindAsk: false }); return true; }
     if (st.evLeadPick) { setState({ evLeadPick: false }); return true; }
     if (st.pollSheet || st.needSheet || st.evLeave || st.timeOpen || st.dateOpen) { setState({ pollSheet: null, needSheet: null, evLeave: false, evLeaveTo: null, timeOpen: null, dateOpen: null }); return true; }
+    if (st.evPop) { setState({ evPop: null }); return true; }
     if (st.evStep === 'review') { evGo('help'); return true; }
     if (st.evFromReview) { evGo('review', { evFromReview: false }); return true; }
     const i = EV_STEPS.indexOf(st.evStep);
@@ -6134,10 +6135,15 @@
     const later = (k) => Object.assign({}, st.evLater, { [k]: false });
 
     if (cur === 'review') {
-      const card = (icon, label, has, act, step, inner) => '<div style="background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08);padding:14px 16px;display:flex;flex-direction:column;gap:10px">' +
+      // Real or test is a stopgap while people try the app out, and looks it whatever is picked (owner, 2026-10-02):
+      // pale yellow, a dashed edge and a hazard-striped band along the top
+      const card = (icon, label, has, act, step, inner) => '<div data-review-card="' + step + '" style="' + (step === 'kind'
+          ? 'position:relative;overflow:hidden;background:#fffaea;border:2px dashed #d9a83a;border-radius:18px;padding:22px 14px 12px'
+          : 'background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08);padding:14px 16px') + ';display:flex;flex-direction:column;gap:10px">' +
+        (step === 'kind' ? '<span aria-hidden="true" style="position:absolute;left:0;right:0;top:0;height:9px;background:repeating-linear-gradient(135deg,#f5b729 0 10px,#3d2a00 10px 20px)"></span>' : '') +
         '<div style="display:flex;align-items:center;gap:10px"><span style="flex:0 0 20px;display:flex;color:' + (has ? '#0f7a3c' : '#b07a0a') + '">' + svg(18, stroke('currentColor', 2.2), icon) + '</span>' +
           '<span style="flex:1;font-size:12px;font-weight:800;letter-spacing:1.1px;text-transform:uppercase;color:#6b7280">' + label + '</span>' +
-          '<span ' + on(() => step === 'kind' ? setState({ evKindAsk: true }) : step === 'lead' ? setState({ evLeadPick: true }) : evGo(step, { evFromReview: true })) + ' aria-label="' + (has ? 'Edit ' : 'Add ') + label.toLowerCase() + '" style="font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">' + (has ? 'Edit' : 'Add') + '</span></div>' +
+          '<span ' + on(() => step === 'kind' ? setState({ evKindAsk: true }) : step === 'lead' ? setState({ evLeadPick: true }) : setState({ evPop: step, timeOpen: null, dateOpen: null })) + ' aria-label="Edit ' + label.toLowerCase() + '" style="font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">Edit</span></div>' +
         '<div style="padding-left:28px">' + inner + '</div></div>';
       const main = (t, has, sub) => '<div style="font-size:15px;line-height:1.3;font-weight:800;color:' + (has ? '#0d1117' : AMBER_INK) + ';text-wrap:pretty">' + esc(t) + '</div>' +
         (sub ? '<div style="margin-top:2px;font-size:13.5px;line-height:1.35;font-weight:500;color:#6b7280">' + esc(sub) + '</div>' : '');
@@ -6199,8 +6205,44 @@
         '</div></div></div>';
     }
 
-    const head = (t, sub) => '<div style="padding:26px 18px 0"><h2 style="margin:0;font-size:24px;line-height:1.05;font-weight:900;letter-spacing:-.8px;color:#0d1117">' + esc(t) + '</h2>' +
-      (sub ? '<p style="margin:8px 0 0;font-size:14.5px;line-height:1.4;font-weight:500;color:#5c6270;text-wrap:pretty">' + esc(sub) + '</p>' : '') + '</div>';
+    const body = evBody(st, cur, false);
+
+    // Opened from Review's Edit: Next and Back both return to Review, instead of walking the later steps again
+    const ok = filled[cur], back = st.evFromReview;
+    const ahead = back ? 'review' : nextOf(cur), aheadX = back ? { evFromReview: false } : {};
+    const next = () => { if (!ok) return; evGo(ahead, Object.assign({ evLater: later(cur) }, aheadX)); };
+    const hint = ok ? '' : cur === 'title' ? (st.evTest == null ? '' : back ? 'Add a title to go back to Review.' : 'Add a title to keep going.')
+      : cur === 'when' && st.evTime ? 'Pick a date to go with that time, or decide later.' : '';
+    // Decide later only shows on an empty step (it used to wipe a filled one: every job, the poll…)
+    const skip = () => evGo(ahead, Object.assign({}, CLEAR[cur] || {}, aheadX, { evLater: Object.assign({}, st.evLater, { [cur]: true }) }));
+    return '<div class="overlay-screen" data-screen-label="New spark"><div style="display:flex;flex-direction:column;min-height:100%">' +
+      '<div style="position:relative;flex:0 0 auto;height:' + (cur === 'title' ? 270 : 200) + 'px;transition:height 240ms ease;background:' + (url ? '#2b303a ' + bg(url) : EV_GRAD) + '">' +
+        '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top,rgba(13,17,23,.88),rgba(13,17,23,.12) 55%,rgba(13,17,23,.4))"></div>' +
+        '<div style="position:absolute;left:0;right:0;top:0;z-index:2"><div style="display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:10px;padding:12px 16px">' +
+          '<div style="display:flex"><span ' + on(close) + ' aria-label="Close" style="flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;cursor:pointer">' + DARK_X + '</span></div>' +
+          '<span style="font-size:14.5px;font-weight:800;color:#fff">' + (i + 1) + ' of ' + EV_STEPS.length + '</span><div></div></div>' +
+          '<div aria-hidden="true" style="height:4px;background:rgba(255,255,255,.22)"><div style="width:' + ((i + 1) / EV_STEPS.length * 100) + '%;height:100%;background:#fff;border-radius:0 999px 999px 0;transition:width 240ms ease"></div></div></div>' +
+        '<div style="position:absolute;left:18px;right:18px;bottom:30px;z-index:1;color:#fff"><div style="font-size:11.5px;font-weight:900;letter-spacing:1.2px;color:#ffe7b3">START AN EVENT</div>' +
+          '<div style="margin-top:2px;font-size:' + (cur === 'title' ? 30 : 24) + 'px;line-height:1.05;font-weight:900;letter-spacing:-.7px;color:' + (title ? '#fff' : 'rgba(255,255,255,.55)') + ';overflow-wrap:anywhere;text-wrap:balance">' + esc(title || 'Your event') + '</div></div>' +
+      '</div>' +
+      '<div style="margin-top:-16px;position:relative;z-index:1;flex:1 1 auto;display:flex;flex-direction:column;background:#e8eaee;border-radius:20px 20px 0 0">' + body +
+        '<div style="margin-top:auto;padding:14px 16px 20px;display:flex;flex-direction:column;gap:4px">' +
+          (hint ? '<div data-step-hint role="status" style="text-align:center;padding-bottom:6px;font-size:13.5px;font-weight:700;color:#6b7280">' + hint + '</div>' : '') +
+          (i > 0 && !ok ? '<div style="display:flex;justify-content:center;padding-bottom:4px"><span ' + on(skip) + ' data-later style="display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 14px;border-radius:999px;color:#6b7280;font-size:14.5px;font-weight:700;cursor:pointer">Decide later' + I.chevR(13, 'currentColor', 2.8) + '</span></div>' : '') +
+          '<div style="display:flex;gap:8px">' +
+            (i > 0 && !back ? '<button type="button" ' + on(() => evGo(EV_STEPS[i - 1])) + ' style="flex:0 0 auto;min-height:54px;padding:0 22px;background:transparent;border:2px solid #c9ccd3;border-radius:999px;font-family:inherit;font-size:16px;font-weight:800;color:#0d1117;cursor:pointer">Back</button>' : '') +
+            '<button type="button" data-enter ' + on(next) + ' aria-disabled="' + !ok + '" style="flex:1 1 auto;min-width:0;min-height:54px;border:0;border-radius:999px;background:' + (ok ? '#5b4ae8' : '#d5d8df') + ';color:#fff;font-family:inherit;font-size:16.5px;font-weight:800;cursor:' + (ok ? 'pointer' : 'default') + '">' + (back ? 'Back to review' : cur === 'help' ? 'Review' : 'Next') + '</button>' +
+          '</div></div>' +
+      '</div></div></div>';
+  }
+
+  // A step's fields: the page under the photo, or (pop) the same fields in Review's Edit pop-up, where the pop-up's
+  // own title stands in for the page's heading
+  function evBody(st, cur, pop) {
+    const url = evPhotoUrl(st);
+    const head = (t, sub) => pop ? (sub ? '<p style="margin:0;padding:2px 18px 0;font-size:14.5px;line-height:1.4;font-weight:500;color:#5c6270;text-wrap:pretty">' + esc(sub) + '</p>' : '')
+      : '<div style="padding:26px 18px 0"><h2 style="margin:0;font-size:24px;line-height:1.05;font-weight:900;letter-spacing:-.8px;color:#0d1117">' + esc(t) + '</h2>' +
+        (sub ? '<p style="margin:8px 0 0;font-size:14.5px;line-height:1.4;font-weight:500;color:#5c6270;text-wrap:pretty">' + esc(sub) + '</p>' : '') + '</div>';
     const pad = (inner) => '<div style="padding:12px 16px 0;display:flex;flex-direction:column;gap:10px">' + inner + '</div>';
     let body = '';
     if (cur === 'title') {
@@ -6260,34 +6302,21 @@
           [['Bring', 'Bring '], ['Set up', 'Set up '], ['Help with', 'Help with '], ['Clean up', 'Clean up '], ['Coordinate', 'Coordinate ']].map(([l, p]) => chip(l, () => openJob(null, blankJob(p)))).join('') +
           chip('Something else', () => openJob(null, blankJob('')), true) + '</div>';
     }
-
-    // Opened from Review's Edit: Next and Back both return to Review, instead of walking the later steps again
-    const ok = filled[cur], back = st.evFromReview;
-    const ahead = back ? 'review' : nextOf(cur), aheadX = back ? { evFromReview: false } : {};
-    const next = () => { if (!ok) return; evGo(ahead, Object.assign({ evLater: later(cur) }, aheadX)); };
-    const hint = ok ? '' : cur === 'title' ? (st.evTest == null ? '' : back ? 'Add a title to go back to Review.' : 'Add a title to keep going.')
-      : cur === 'when' && st.evTime ? 'Pick a date to go with that time, or decide later.' : '';
-    // Decide later only shows on an empty step (it used to wipe a filled one: every job, the poll…)
-    const skip = () => evGo(ahead, Object.assign({}, CLEAR[cur] || {}, aheadX, { evLater: Object.assign({}, st.evLater, { [cur]: true }) }));
-    return '<div class="overlay-screen" data-screen-label="New spark"><div style="display:flex;flex-direction:column;min-height:100%">' +
-      '<div style="position:relative;flex:0 0 auto;height:' + (cur === 'title' ? 270 : 200) + 'px;transition:height 240ms ease;background:' + (url ? '#2b303a ' + bg(url) : EV_GRAD) + '">' +
-        '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top,rgba(13,17,23,.88),rgba(13,17,23,.12) 55%,rgba(13,17,23,.4))"></div>' +
-        '<div style="position:absolute;left:0;right:0;top:0;z-index:2"><div style="display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:10px;padding:12px 16px">' +
-          '<div style="display:flex"><span ' + on(close) + ' aria-label="Close" style="flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;cursor:pointer">' + DARK_X + '</span></div>' +
-          '<span style="font-size:14.5px;font-weight:800;color:#fff">' + (i + 1) + ' of ' + EV_STEPS.length + '</span><div></div></div>' +
-          '<div aria-hidden="true" style="height:4px;background:rgba(255,255,255,.22)"><div style="width:' + ((i + 1) / EV_STEPS.length * 100) + '%;height:100%;background:#fff;border-radius:0 999px 999px 0;transition:width 240ms ease"></div></div></div>' +
-        '<div style="position:absolute;left:18px;right:18px;bottom:30px;z-index:1;color:#fff"><div style="font-size:11.5px;font-weight:900;letter-spacing:1.2px;color:#ffe7b3">START AN EVENT</div>' +
-          '<div style="margin-top:2px;font-size:' + (cur === 'title' ? 30 : 24) + 'px;line-height:1.05;font-weight:900;letter-spacing:-.7px;color:' + (title ? '#fff' : 'rgba(255,255,255,.55)') + ';overflow-wrap:anywhere;text-wrap:balance">' + esc(title || 'Your event') + '</div></div>' +
-      '</div>' +
-      '<div style="margin-top:-16px;position:relative;z-index:1;flex:1 1 auto;display:flex;flex-direction:column;background:#e8eaee;border-radius:20px 20px 0 0">' + body +
-        '<div style="margin-top:auto;padding:14px 16px 20px;display:flex;flex-direction:column;gap:4px">' +
-          (hint ? '<div data-step-hint role="status" style="text-align:center;padding-bottom:6px;font-size:13.5px;font-weight:700;color:#6b7280">' + hint + '</div>' : '') +
-          (i > 0 && !ok ? '<div style="display:flex;justify-content:center;padding-bottom:4px"><span ' + on(skip) + ' data-later style="display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 14px;border-radius:999px;color:#6b7280;font-size:14.5px;font-weight:700;cursor:pointer">Decide later' + I.chevR(13, 'currentColor', 2.8) + '</span></div>' : '') +
-          '<div style="display:flex;gap:8px">' +
-            (i > 0 && !back ? '<button type="button" ' + on(() => evGo(EV_STEPS[i - 1])) + ' style="flex:0 0 auto;min-height:54px;padding:0 22px;background:transparent;border:2px solid #c9ccd3;border-radius:999px;font-family:inherit;font-size:16px;font-weight:800;color:#0d1117;cursor:pointer">Back</button>' : '') +
-            '<button type="button" data-enter ' + on(next) + ' aria-disabled="' + !ok + '" style="flex:1 1 auto;min-width:0;min-height:54px;border:0;border-radius:999px;background:' + (ok ? '#5b4ae8' : '#d5d8df') + ';color:#fff;font-family:inherit;font-size:16.5px;font-weight:800;cursor:' + (ok ? 'pointer' : 'default') + '">' + (back ? 'Back to review' : cur === 'help' ? 'Review' : 'Next') + '</button>' +
-          '</div></div>' +
-      '</div></div></div>';
+    return body;
+  }
+  // Review's Edit (owner, 2026-10-02): each part opens in a pop-up over Review, not back on its step's page. The fields
+  // change the event as they're typed, so Done (or closing it) only goes back
+  function viewEvPop() {
+    const st = state, k = st.evPop;
+    const close = () => setState({ evPop: null, timeOpen: null, dateOpen: null, evLater: Object.assign({}, state.evLater, { [k]: !evFilled(state)[k] }) });
+    const tall = k === 'when' || k === 'where';   // room for the calendar, the time list and the suggested places under their fields
+    return '<div class="sheet-scrim" data-scrim="' + reg(close) + '">' +
+      '<div role="dialog" aria-modal="true" aria-label="' + esc(EV_NAMES[k]) + '" data-screen-label="' + esc(EV_NAMES[k]) + '" data-ev-pop="' + k + '" class="sheet" style="max-height:calc(100% - 56px);' + (tall ? 'min-height:min(88%,640px);' : '') + 'display:flex;flex-direction:column;background:#e8eaee">' +
+        '<div style="padding:10px 18px 2px;display:flex;flex-direction:column;gap:10px"><span aria-hidden="true" style="align-self:center;width:38px;height:5px;border-radius:999px;background:#c9ccd3"></span>' +
+          '<div style="display:flex;align-items:center;gap:10px"><div style="flex:1;min-width:0;font-size:22px;font-weight:900;letter-spacing:-.4px;color:#0d1117">' + esc(EV_NAMES[k]) + '</div>' + closeX(close, 'background:#fff') + '</div></div>' +
+        '<div style="flex:1 1 auto;min-height:0;overflow-y:auto;padding-bottom:10px">' + evBody(st, k, true) + '</div>' +
+        '<div style="padding:10px 16px calc(18px + env(safe-area-inset-bottom, 0px))"><button type="button" data-enter ' + on(close) + ' style="width:100%;min-height:54px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16.5px;font-weight:800;cursor:pointer">Done</button></div>' +
+      '</div></div>';
   }
 
   // A group row with a checkbox (Post to, Who can see it)
@@ -6904,6 +6933,7 @@
       (s === 'compose' ? viewCompose() : '') +
       (s === 'compose' && (st.evTest == null || st.evKindAsk) && !st.evLeave && !st.loginStep ? viewKindAsk() : '') +
       (s === 'compose' && st.evLeadPick && !st.evLeave && !st.loginStep ? viewLeadPick() : '') +
+      (s === 'compose' && st.evPop && st.evStep === 'review' && !st.evLeave && !st.loginStep ? viewEvPop() : '') +   // under the poll and job sheets it opens
       (s === 'compose' && st.email ? viewComposeSheets() : st.pollSheet && st.pollSheet.sparkId ? viewComposeSheets() : '') +
       (st.offerKind && subj ? viewOffer(subj) : '') +
       (st.voteAll ? viewVoteAll() : '') +
