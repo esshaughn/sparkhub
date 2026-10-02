@@ -52,7 +52,7 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     // Share list opens the share sheet with the open jobs named
     await lead.locator('[data-todo-cta]', { hasText: 'Share list' }).click();
     const shareSheet = H.getByRole('dialog', { name: 'Invite people' });
-    await expect(shareSheet.getByRole('link', { name: 'Text message' })).toHaveAttribute('href', /still%20needs%3A%20Folding%20chairs%20\(2\)%2C%20Ice/);
+    await expect(shareSheet.getByRole('link', { name: 'Messages' })).toHaveAttribute('href', /still%20needs%3A%20Folding%20chairs%20\(2\)%2C%20Ice/);
     await shareSheet.getByRole('button', { name: 'Close' }).click();
     await shot(H, '01-your-tasks-lead');
     await expect(nav(H).getByRole('button', { name: /^Your tasks, \d+$/ })).toBeVisible();   // the badge counts events with to-dos

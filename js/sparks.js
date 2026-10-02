@@ -39,7 +39,7 @@
   // PKCE keeps the Google round trip in the query string, clear of our #/ routes
   // "View as a user" (demo admin only) is look-only: while it's on, nothing but reads leaves the app
   let previewing = false;
-  const READ_RPCS = /\/rest\/v1\/rpc\/(my_group_sizes|demo_testers|new_accounts|group_people|group_blocked)(\?|$)/;
+  const READ_RPCS = /\/rest\/v1\/rpc\/(my_group_sizes|demo_testers|new_accounts|group_people|group_blocked|event_invited)(\?|$)/;
   // Auth calls allowed while previewing: keeping the owner's own session fresh, and signing out. Not
   // /auth/v1/user (that changes the account: name, email) or anything else.
   const AUTH_KEEP = /\/auth\/v1\/(token|logout)(\?|$)/;
@@ -1233,8 +1233,11 @@
       return { confirm: null, takeDown: null, screen: b ? b.screen : member ? 'browse' : 'calendar', groupId: b ? (b.groupId || state.groupId) : member ? g.id : state.groupId, subjectId: null, tag: null, back: null };
     }).then(ok => { if (!ok) return; deletePhotos(photos); toast(quiet ? 'Deleted' : 'Cancelled. Everyone in it got a note.', true); });
   };
-  const askDelete = (s) => {
+  // A past event is only deleted (owner, 2026-10-01: nothing left to cancel), quietly
+  const askDelete = (s, past) => {
     const n = peopleIn(s).filter(u => u !== state.me).length;
+    if (past) return setState({ confirm: { title: 'Delete this event?', body: 'It already happened, so no one is told. Its album and replies go too. This can’t be undone.',
+      cta: 'Delete it', keep: 'Keep it', danger: true, run: () => takeDown(s, true) } });
     if (n && !s.cancelledAt) return setState({ takeDown: { id: s.id, reason: '' } });
     setState({ confirm: { title: 'Delete this ' + (s.planned ? 'event' : 'idea') + '?', body: (s.cancelledAt ? 'Everyone already got the cancellation note; deleting tells no one.' : 'Nobody has RSVP’d yet, so no one needs telling.') + ' This can’t be undone.',
       cta: 'Delete it', keep: 'Keep it', danger: true, run: () => takeDown(s, true) } });
@@ -4741,28 +4744,71 @@
     if (!s.planned) return isLead(s) ? 'I’m floating an idea: ' + s.text + '. Interested?' : firstName(nameOf(s.leadId, s.leadName)) + ' is floating an idea: ' + s.text + '. Interested?';
     return (isLead(s) ? 'I’m putting together ' + s.text + (when ? ', ' + when : '') : s.text + (when ? ' is ' + when : ' is coming up')) + where + '. Want to come?';
   };
+  // Invite people (owner's mock, 2026-10-01): your friends and the people in the event's groups, each with Invite /
+  // ✓ Invited (invite_friends, event_invited: 20261101170000_invite_people.sql), then "or share a link" with Copy and
+  // Messages, Email, WhatsApp, More. Only someone who can invite (canInviteTo) gets the list.
+  const loadInvitees = (s) => {
+    const sh = state.share;
+    setState({ share: Object.assign({}, sh, { people: [], invited: [], loading: true }) });
+    const mine = s.groupIds.filter(g => myGroups().some(x => x.id === g));
+    Promise.all([sb.rpc('event_invited', { p_spark: s.id })].concat(mine.map(g => sb.rpc('group_people', { p_group: g }))))
+      .then(([inv, ...gs]) => {
+        const leads = [s.leadId].concat(s.cohosts), seen = {}, people = [];
+        const add = (id, name, avatar, sub, friend) => { if (!id || id === state.me || leads.indexOf(id) > -1 || seen[id]) return; seen[id] = 1; people.push({ id, name: name || 'Someone', avatar: PHOTO_PATH.test(avatar || '') ? avatar : null, sub, friend }); };
+        state.fr.friends.forEach(f => add(f.id, f.name, f.avatar, 'Friend', true));
+        gs.forEach((r, k) => (r.data || []).forEach(p => add(p.user_id, p.name, p.avatar_path, (groupById(mine[k]) || {}).name || 'Group', false)));
+        people.sort((a, b) => (b.friend - a.friend) || a.name.localeCompare(b.name));
+        if (state.share && state.share.id === s.id) setState({ share: Object.assign({}, state.share, { people, invited: (inv.data || []).map(x => typeof x === 'string' ? x : x.event_invited || Object.values(x)[0]), loading: false }) });
+      })
+      .catch(e => { console.error(e); if (state.share && state.share.id === s.id) setState({ share: Object.assign({}, state.share, { loading: false }) }); });
+  };
+  const invitePerson = (s, p) => {
+    if (state.viewAs) { toast('You’re viewing as ' + firstName(state.viewAs.name) + ', so nothing changes. Exit to make changes.'); return; }
+    const was = state.share.invited || [];
+    setState({ share: Object.assign({}, state.share, { invited: was.concat(p.id) }) });
+    sb.rpc('invite_friends', { p_spark: s.id, p_people: [p.id] }).then(r => { if (r.error) throw r.error; })
+      .catch(e => { console.error(e); if (state.share) setState({ share: Object.assign({}, state.share, { invited: (state.share.invited || []).filter(x => x !== p.id) }) }); toast(failed(e)); });
+  };
   function viewShareSheet() {
     const sh = state.share, s = state.sparks.find(x => x.id === sh.id);
     if (!s) return '';
     const close = () => setState({ share: null }), link = location.origin + '/i/' + s.id;
     const msg = (sh.msg || inviteText(s)) + ' ' + link, title = sh.ask ? 'Ask two people first' : isLead(s) ? 'Invite people' : 'Share this event';
-    const btn = (label, href, icon) => '<a href="' + esc(href) + '" target="_blank" rel="noopener noreferrer" aria-label="' + label + '" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 4px;border-radius:16px;background:#f7f8fa;text-decoration:none">' +
-      '<span style="width:46px;height:46px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.1);display:flex;align-items:center;justify-content:center">' + svg(22, stroke('#5b4ae8', 2.1), icon) + '</span></a>';
+    const canList = !!state.email && !s.cancelledAt && canInviteTo(s);
+    if (canList && !sh.people && !sh.loading) setTimeout(() => { if (state.share && state.share.id === s.id && !state.share.people && !state.share.loading) loadInvitees(s); }, 0);
+    const btn = (label, href, icon, fn) => '<' + (fn ? 'div ' + on(fn) : 'a href="' + esc(href) + '" target="_blank" rel="noopener noreferrer"') + ' aria-label="' + label + '" style="display:flex;flex-direction:column;align-items:center;gap:8px;text-decoration:none;cursor:pointer">' +
+      '<span style="width:52px;height:52px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center">' + svg(22, stroke('#5b4ae8', 2.1), icon) + '</span>' +
+      '<span style="font-size:13.5px;font-weight:600;color:#6b7280">' + label + '</span></' + (fn ? 'div' : 'a') + '>';
     const more = () => { if (navigator.share) navigator.share({ title: s.text, text: msg, url: link }).catch(() => {}); else copy(msg, 'Invite copied. Paste it anywhere.'); };
+    const q = (sh.q || '').trim().toLowerCase(), invited = sh.invited || [];
+    const going = (id) => s.rsvps.some(r => r.userId === id && r.status === 'going');
+    const people = (sh.people || []).filter(p => !q || p.name.toLowerCase().indexOf(q) > -1 || p.sub.toLowerCase().indexOf(q) > -1);
+    const row = (p) => '<div data-invitee="' + esc(p.name) + '" style="display:flex;align-items:center;gap:12px;min-height:58px">' + avatarSpan(p.id, p.name, p.avatar ? photoUrl(p.avatar) : null, 44) +
+      '<div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(p.name) + '</div>' +
+        '<div style="font-size:13.5px;font-weight:500;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(p.sub) + '</div></div>' +
+      (going(p.id) ? '<span style="flex:0 0 auto;font-size:14px;font-weight:800;color:#0f7a3c">Going</span>'
+        : invited.indexOf(p.id) > -1 ? '<span aria-label="' + esc(p.name) + ' is invited" style="flex:0 0 auto;display:flex;align-items:center;gap:5px;min-height:40px;padding:0 16px;border-radius:999px;background:#ece9fd;color:#5b4ae8;font-size:14.5px;font-weight:800">' + svg(13, stroke('#5b4ae8', 2.8), '<path d="m5 12.5 4.5 4.5L19 7.5"/>') + 'Invited</span>'
+        : '<button type="button" ' + on(() => invitePerson(s, p)) + ' aria-label="Invite ' + esc(p.name) + '" style="flex:0 0 auto;min-height:40px;padding:0 20px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer">Invite</button>') + '</div>';
+    const list = !canList ? '' :
+      '<label style="display:flex;align-items:center;gap:10px;min-height:48px;padding:0 16px;border-radius:999px;background:#f2f3f6">' + svg(18, stroke('#6b7280', 2.2), '<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/>') +
+        '<input type="search" aria-label="Search friends and groups" placeholder="Search friends and groups" value="' + esc(sh.q || '') + '" ' + onInput(e => { if (e.type === 'input') setState({ share: Object.assign({}, state.share, { q: e.target.value.slice(0, 40) }) }); }) +
+          ' style="flex:1;min-width:0;border:0;background:transparent;outline:none;font-family:inherit;font-size:16px;font-weight:500;color:#0d1117"></label>' +
+      '<div data-invitees style="display:flex;flex-direction:column;max-height:42vh;overflow-y:auto">' +
+        (sh.loading || !sh.people ? paraHtml('Loading…') : people.length ? people.map(row).join('') : paraHtml(q ? 'Nobody by that name.' : 'No friends or group members to invite yet.')) + '</div>' +
+      '<div style="display:flex;align-items:center;gap:12px"><span style="flex:1;height:1px;background:#e3e5e9"></span><span style="font-size:14px;font-weight:700;color:#6b7280">or share a link</span><span style="flex:1;height:1px;background:#e3e5e9"></span></div>';
     return sheet(title, close, SHEET_PAD,
-      '<div style="display:flex;align-items:center;gap:10px"><div style="flex:1;min-width:0"><div style="font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.4px;color:#0d1117">' + title + '</div>' +
-        (sh.ask ? '<p data-ask-first style="margin:6px 0 0;font-size:14px;line-height:1.4;font-weight:600;color:#454b55">Events that start with a friend or two already in are far more likely to happen. Send it to two people you think would come.</p>' : '') +
-        '<div data-invite-msg style="margin-top:8px;padding:10px 12px;border-radius:12px;background:#f7f6ff;font-size:14px;line-height:1.4;font-weight:600;color:#2a1f8f">“' + esc(sh.msg || inviteText(s)) + '”</div>' +
-        '<div style="margin-top:3px;font-size:13.5px;font-weight:600;color:#6b7280">' + esc([s.text, s.dayDate ? dayLabel(s.dayDate, s.dayTime, s.dayEnd) : ''].filter(Boolean).join(' · ')) + '</div></div>' + closeX(close) + '</div>' +
-      '<div style="display:flex;align-items:center;gap:8px;border-radius:16px;background:#f2f3f6;padding:6px 6px 6px 14px"><span style="flex:1;min-width:0;font-size:14.5px;font-weight:700;color:#454b55;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(link.replace(/^https?:\/\//, '')) + '</span>' +
-        '<span ' + on(() => { copy(link, 'Link copied'); setState({ share: Object.assign({}, sh, { copied: true }) }); }) + ' style="flex:0 0 auto;display:flex;align-items:center;min-height:42px;padding:0 16px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:14px;font-weight:800;cursor:pointer">' + (sh.copied ? '✓ Copied' : 'Copy') + '</span></div>' +
+      '<div style="display:flex;align-items:center;gap:10px"><div style="flex:1;min-width:0"><div style="font-size:26px;line-height:1.1;font-weight:900;letter-spacing:-.6px;color:#0d1117">' + title + '</div>' +
+        (sh.ask ? '<p data-ask-first style="margin:6px 0 0;font-size:14px;line-height:1.4;font-weight:600;color:#454b55">Events that start with a friend or two already in are far more likely to happen. Invite two people you think would come.</p>' : '') +
+        '</div>' + closeX(close) + '</div>' +
+      list +
+      '<div style="display:flex;align-items:center;gap:10px;border-radius:18px;background:#f2f3f6;padding:7px 7px 7px 16px">' + svg(18, stroke('#6b7280', 2.2) + ' style="flex:0 0 18px"', '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>') +
+        '<span style="flex:1;min-width:0;font-size:15px;font-weight:700;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(link.replace(/^https?:\/\//, '')) + '</span>' +
+        '<span ' + on(() => { copy(link, 'Link copied'); setState({ share: Object.assign({}, sh, { copied: true }) }); }) + ' style="flex:0 0 auto;display:flex;align-items:center;min-height:46px;padding:0 20px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:15px;font-weight:800;cursor:pointer">' + (sh.copied ? '✓ Copied' : 'Copy') + '</span></div>' +
       '<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px">' +
-        btn('Text message', 'sms:?&body=' + encodeURIComponent(msg), '<path d="M4 5.5h16v10H9l-5 4v-14Z"/>') +
+        btn('Messages', 'sms:?&body=' + encodeURIComponent(msg), '<path d="M4 5.5h16v10H9l-5 4v-14Z"/>') +
         btn('Email', 'mailto:?subject=' + encodeURIComponent(s.text) + '&body=' + encodeURIComponent(msg), '<rect x="3.5" y="5.5" width="17" height="13" rx="2"/><path d="m4 7 8 6 8-6"/>') +
         btn('WhatsApp', 'https://wa.me/?text=' + encodeURIComponent(msg), '<path d="M4.5 19.5l1.2-3.6A7.5 7.5 0 1 1 8.4 18.5L4.5 19.5Z"/><path d="M9.5 9.5c.3 2 2 3.8 4 4.2"/>') +
-        '<div ' + on(more) + ' aria-label="More" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 4px;border-radius:16px;background:#f7f8fa;cursor:pointer"><span style="width:46px;height:46px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.1);display:flex;align-items:center;justify-content:center">' +
-          svg(22, stroke('#5b4ae8', 2.1), '<circle cx="6" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="18" cy="12" r="1.4"/>') + '</span></div></div>' +
-      '<span style="font-size:13px;line-height:1.4;font-weight:500;color:#6b7280">Anyone with the link can see the event and RSVP.</span>', 36);
+        btn('More', null, '<circle cx="6" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="18" cy="12" r="1.4"/>', more) + '</div>', 36);
   }
 
   // Date and location in one card: a value (bold, with the time or address in gray under it), "TBD" (gray, owner 2026-10-01), or a poll (guests vote, the host picks)
@@ -4814,7 +4860,7 @@
         : '<div ' + on(() => openSec(s, 'details')) + ' style="padding:14px 16px;border-radius:18px;border:1.5px dashed #c9ccd3;font-size:14.5px;font-weight:700;color:#6b7280;cursor:pointer">Add up to three quick notes on what to expect.</div>') +
     '</section>';
   };
-  const deleteLink = (s) => canTakeDown(s) ? '<span ' + on(() => askDelete(s)) + ' style="align-self:center;display:flex;align-items:center;justify-content:center;gap:7px;min-height:44px;padding:0 12px;font-size:14.5px;font-weight:800;color:#9b1c31;cursor:pointer">' + I.trash(15, '#9b1c31') + (!s.cancelledAt && peopleIn(s).some(u => u !== state.me) ? 'Cancel or delete this ' + (s.planned ? 'event' : 'idea') : 'Delete this ' + (s.planned ? 'event' : 'idea')) + '</span>' : '';
+  const deleteLink = (s, past) => canTakeDown(s) ? '<span ' + on(() => askDelete(s, past)) + ' style="align-self:center;display:flex;align-items:center;justify-content:center;gap:7px;min-height:44px;padding:0 12px;font-size:14.5px;font-weight:800;color:#9b1c31;cursor:pointer">' + I.trash(15, '#9b1c31') + (!past && !s.cancelledAt && peopleIn(s).some(u => u !== state.me) ? 'Cancel or delete this ' + (s.planned ? 'event' : 'idea') : 'Delete this ' + (s.planned ? 'event' : 'idea')) + '</span>' : '';
 
   // Who's in: the group(s) it's posted to and Public / Private, under the people (owner, 2026-10-01: easy to see and change).
   // The lead's Edit opens Who can see it; anyone in a group can tap its name to open it.
@@ -4929,7 +4975,6 @@
   function viewPlan(s) {
     const st = state, lead = isLead(s), edit = canEdit(s), leadName = nameOf(s.leadId, s.leadName), my = myRsvp(s), dp = dateParts(s.dayDate);
     const goingIds = going(s).map(r => r.userId), maybeN = s.rsvps.filter(r => r.status === 'maybe').length, noN = s.rsvps.filter(r => r.status === 'no').length;
-    const stat = (num, label, bgc, ink) => '<div ' + on(() => setState({ guestList: s.id })) + ' aria-label="' + num + ' ' + label + '. See who" style="cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px;padding:12px 4px;border-radius:14px;background:' + bgc + ';color:' + ink + '"><span style="font-size:24px;line-height:1;font-weight:900;letter-spacing:-.5px">' + num + '</span><span style="font-size:11.5px;font-weight:800">' + label + '</span></div>';
     const sheetCard = (inner, extra) => '<div style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:10px;' + (extra || '') + '">' + inner + '</div>';
 
     // Under the photo: the host's "Your tasks" (purple), or a helper's "You're helping" (gold). Collapsed by default.
@@ -4975,18 +5020,12 @@
           '<div style="margin-top:2px;font-size:13.5px;line-height:1.4;font-weight:600;color:#5c6270">Make a free account and we’ll remind you the day before and that morning, and tell you if anything changes.</div></div>' +
         '<span ' + on(() => openLogin('account', () => {})) + ' style="flex:0 0 auto;display:flex;align-items:center;min-height:40px;padding:0 16px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:14px;font-weight:800;cursor:pointer">Create account</span>' +
       '</div>';
-    const rsvpBlock = lead || s.cancelledAt ? '' : '<div data-rsvp style="' + CARD + ';padding:16px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">' +
+    // Leads answer with the same buttons as everyone (owner, 2026-10-01; the lead is Going to their own plan, 20261101160000)
+    const rsvpBlock = s.cancelledAt ? '' : '<div data-rsvp style="' + CARD + ';padding:16px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">' +
       rsvpBtn('going', 'Going', goingIds.length) + rsvpBtn('maybe', 'Maybe', maybeN) + rsvpBtn('no', 'Can’t', noN) + '</div>';
 
-    // The lead is Going to their own plan (20261101160000_lead_going.sql) and leads change their answer here (owner, 2026-10-01)
-    const myPill = (k, label) => '<button type="button" ' + on(() => setRsvp(s, k)) + ' aria-pressed="' + (my === k) + '" style="flex:1;min-height:36px;border:0;border-radius:999px;font-family:inherit;font-size:13.5px;font-weight:800;cursor:pointer;' +
-      (my === k ? 'background:' + RC[k] + ';color:#fff' : 'background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;color:#454b55') + '">' + label + '</button>';
-    const myAnswer = s.cancelledAt ? '' : '<div data-my-rsvp role="group" aria-label="Your answer" style="display:flex;align-items:center;gap:6px"><span style="flex:0 0 auto;padding-right:4px;font-size:13.5px;font-weight:800;color:#6b7280">You</span>' +
-      myPill('going', 'Going') + myPill('maybe', 'Maybe') + myPill('no', 'Can’t') + '</div>';
     // The host's guest list, with no title. Invites are a share link, so there's no Invited count (HANDOFF §1).
     const guests = !lead ? '' : '<div data-screen-label="Guest list" style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:14px">' +
-      '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px">' + stat(goingIds.length, 'Going', '#e7f6ec', '#0f7a3c') + stat(maybeN, 'Maybe', '#fdf1d6', '#8f6405') + stat(noN, 'Can’t', '#f2f3f6', '#454b55') + '</div>' +
-      myAnswer +
       '<span ' + on(() => setState({ blast: { id: s.id, to: 'all', text: '' } })) + ' style="align-self:center;display:flex;align-items:center;gap:7px;min-height:36px;font-size:14.5px;font-weight:800;color:#6b7280;cursor:pointer">' + ic6('bell', 15, 'currentColor', 2.2) + 'Send everyone an update</span>' +
       '<div style="display:grid;grid-template-columns:1fr;gap:8px">' +
         '<button type="button" class="hov-primary" ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' style="min-height:50px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:15.5px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;box-shadow:0 8px 20px rgba(91,74,232,.28)">' + I.plus(16, '#fff', 2.5) + 'Invite people</button>' +
@@ -5008,9 +5047,9 @@
       tab +
       '<div style="padding:16px 14px 26px;display:flex;flex-direction:column;gap:18px">' +
         cancelledCard(s) +
+        rsvpBlock +
         (s.cancelledAt ? '' : guests) +
         pendingCard(s) +
-        rsvpBlock +
         guestNudge +
         whenWhereCard(s) +
         basicDetailsSec(s) +
@@ -5041,7 +5080,7 @@
     '<div data-done-fix style="display:flex;flex-direction:column;align-items:center;gap:2px;padding-top:4px">' +
       (isLead(s) ? '<span ' + on(() => openSec(s, 'when')) + ' style="display:flex;align-items:center;gap:7px;min-height:44px;padding:0 12px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">' +
         svg(15, stroke('currentColor', 2.2), PENCIL) + 'Wrong date? Change it</span>' : '') +
-      deleteLink(s) + '</div>';
+      deleteLink(s, true) + '</div>';
   // Who came? (20261101090000): the host or a group admin taps each person who came. Going and Maybe are listed
   const whoCameCard = (s) => {
     if (!canEdit(s) || s.cancelledAt) return '';
@@ -5088,11 +5127,12 @@
         '</div>' +
         whoCameCard(s) +
         reactionsCard(s) +
-        doneFixCard(s) +
+        // Do it again? above Wrong date and Delete (owner, 2026-10-01)
         '<div style="border-radius:18px;background:#fdf1d6;padding:16px;display:flex;align-items:center;gap:12px">' +
           '<div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:900;color:#3d2a00">Do it again?</div><div style="margin-top:2px;font-size:13.5px;line-height:1.4;font-weight:600;color:#6b5418">Starts a new event with the place and details filled in.</div></div>' +
           '<span ' + on(() => needSignIn(() => doItAgain(s), 'post')) + ' style="flex:0 0 auto;display:flex;align-items:center;gap:6px;min-height:42px;padding:0 16px;border-radius:999px;background:#e8a71c;font-size:14.5px;font-weight:800;color:#fff;cursor:pointer">' + svg(13, 'fill="#fff"', '<path d="M13.2 2.2 7.2 13.1l3.9-.35-.9 8.8 6.9-11.2-4.1.4z"/>') + 'Do it again</span>' +
         '</div>' +
+        doneFixCard(s) +
       '</div>' +
       '<div style="height:var(--nav-h)"></div>' +
     '</div>';

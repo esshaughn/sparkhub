@@ -228,7 +228,7 @@ async function postEvent(page, { title, date, time, where, pick, details = [], j
 async function closeAskFirst(page) {
   const ask = page.getByRole('dialog', { name: 'Ask two people first' });
   await expect(ask.locator('[data-ask-first]')).toContainText('a friend or two');
-  await expect(ask.locator('[data-invite-msg]')).toBeVisible();
+  await expect(ask.locator('[data-invitees]')).toBeVisible();   // friends and the event's groups to invite (owner's mock, 2026-10-01)
   await ask.getByRole('button', { name: 'Close' }).click();
   await expect(ask).toHaveCount(0);
 }

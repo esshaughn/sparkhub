@@ -21,14 +21,14 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     await expect(HP).toContainText('5:30pm');
     await expect(HP.locator('[data-led-by]')).toContainText('LED BY');      // the lead sees the card too, asked to bring in a co-lead
     await expect(HP.locator('[data-colead-ask]')).toContainText('Bring in a co-lead.');
-    // The lead is Going to their own plan and can change it (20261101160000_lead_going.sql)
-    const mine = HP.locator('[data-my-rsvp]');
-    await expect(mine.getByRole('button', { name: 'Going' })).toHaveAttribute('aria-pressed', 'true');
-    await mine.getByRole('button', { name: 'Maybe' }).click();
-    await expect(mine.getByRole('button', { name: 'Maybe' })).toHaveAttribute('aria-pressed', 'true');
-    await mine.getByRole('button', { name: 'Going' }).click();
-    await expect(mine.getByRole('button', { name: 'Going' })).toHaveAttribute('aria-pressed', 'true');
-    await expect(HP.locator('[data-screen-label="Guest list"]')).toContainText('Going');
+    // The lead is Going to their own plan, and answers with the same buttons as everyone (20261101160000_lead_going.sql)
+    const mine = HP.locator('[data-rsvp]');
+    await expect(mine.getByRole('button', { name: /^Going/ })).toHaveAttribute('aria-pressed', 'true');
+    await expect(mine.getByRole('button', { name: /^Going/ })).toContainText('1');
+    await mine.getByRole('button', { name: /^Maybe/ }).click();
+    await expect(mine.getByRole('button', { name: /^Maybe/ })).toHaveAttribute('aria-pressed', 'true');
+    await mine.getByRole('button', { name: /^Going/ }).click();
+    await expect(mine.getByRole('button', { name: /^Going/ })).toHaveAttribute('aria-pressed', 'true');
     await expect(HP.getByRole('button', { name: /Invite people/ })).toBeVisible();
     await expect(HP).not.toContainText('Remind everyone the day before');      // retired in Update 6
     await expect(HP.locator('[data-when-card]')).toContainText('Location TBD');
@@ -100,7 +100,7 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     await H.reload();
     await expect(H.locator('html[data-loaded=true]')).toHaveCount(1);
     await expect(HP.locator('[data-signup="Folding chairs"] [data-who]')).toContainText('Gus');
-    await HP.getByRole('button', { name: '2 Going. See who' }).click();
+    await HP.locator('[data-going]').click();   // Who's in opens the guest list
     const list = H.getByRole('dialog', { name: 'Guest list' });
     await expect(list.locator('[data-guest-part="going"]')).toContainText('Gus');
     await list.getByRole('button', { name: 'Close' }).click();
@@ -132,7 +132,7 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     // The host sees them on the guest list as a guest
     await H.reload();
     await expect(H.locator('html[data-loaded=true]')).toHaveCount(1);
-    await HP.getByRole('button', { name: '3 Going. See who' }).click();
+    await HP.locator('[data-going]').click();
     const list2 = H.getByRole('dialog', { name: 'Guest list' });
     await expect(list2.locator('[data-guest-part="going"]')).toContainText('Vic');
     await expect(list2.locator('[data-guest-part="going"]')).toContainText('Guest');
@@ -333,6 +333,11 @@ test('it happened: the album and "do it again"; invite-only plans stay private',
     // The host can still fix the date or take it down once it's past
     await expect(done.locator('[data-done-fix]')).toContainText('Wrong date? Change it');
     await expect(done.locator('[data-done-fix]')).toContainText('Delete this event');
+    // Do it again? sits above them, and a past event is only deleted, never cancelled (owner, 2026-10-01)
+    expect(await done.evaluate((el) => el.innerText.indexOf('Do it again?') < el.innerText.indexOf('Wrong date? Change it'))).toBe(true);
+    await done.locator('[data-done-fix]').getByRole('button', { name: 'Delete this event' }).click();
+    await expect(H.getByRole('alertdialog', { name: 'Delete this event?' })).toContainText('It already happened, so no one is told.');
+    await H.getByRole('alertdialog', { name: 'Delete this event?' }).getByRole('button', { name: 'Keep it' }).click();
     await done.getByText('Wrong date? Change it').click();
     await expect(H.getByRole('dialog', { name: 'Date, time & location' })).toBeVisible();
     await H.getByRole('dialog', { name: 'Date, time & location' }).getByRole('button', { name: 'Close' }).click();
@@ -619,5 +624,45 @@ test('a vote on a suggested date changes as soon as it is tapped (the save follo
   } finally {
     if (id) await asUser(H, async (c, _C, id) => c.rpc('delete_event', { p_spark: id, p_quiet: true }), id).catch(() => {});
     await host.context.close(); await mem.context.close();
+  }
+});
+
+// Invite people (owner's mock, 2026-10-01; 20261101170000_invite_people.sql): the sheet lists friends and the event's
+// groups' members; Invite turns into ✓ Invited, and stays that way when the sheet opens again
+test('invite people: the lead invites a group member from the sheet; Invited sticks', async ({ browser }) => {
+  const host = await newLead(browser, 1, 'Ivy');
+  const other = await newLead(browser, 2, 'Nedra');
+  const H = host.page;
+  let id;
+  try {
+    const nedra = await asUser(other.page, async (c) => (await c.auth.getUser()).data.user.id);
+    id = await asUser(H, async (c, _C, { title, day }) => {
+      const me = (await c.auth.getUser()).data.user.id;
+      const g = (await c.from('groups').select('id').eq('name', 'Torrez Fitness').single()).data.id;
+      const r = await c.from('sparks').insert({ group_id: g, author_name: 'Ivy', lead_name: 'Ivy', lead_id: me, created_by: me, text: title, planned: true, day_date: day }).select('id').single();
+      return r.error ? r.error.message : r.data.id;
+    }, { title: uniqueTitle('Invite walk'), day: inDays(9) });
+    expect(id).toMatch(/^[0-9a-f-]{36}$/);
+    await openIdea(H, id);
+    const HP = H.locator('[data-screen-label="Plan page"]');
+    const open = async () => { await HP.getByRole('button', { name: /Invite people/ }).click(); return H.getByRole('dialog', { name: 'Invite people' }); };
+    let sheet = await open();
+    await sheet.getByLabel('Search friends and groups').fill('Nedra');
+    const row = sheet.locator('[data-invitee="Nedra"]');
+    await expect(row).toContainText('Torrez Fitness');
+    await row.getByRole('button', { name: 'Invite Nedra' }).click();
+    await expect(row).toContainText('Invited');
+    await expect.poll(() => asUser(H, async (c, _C, sid) => (await c.rpc('event_invited', { p_spark: sid })).data, id)).toContainEqual(nedra);
+    await sheet.getByRole('button', { name: 'Close' }).click();
+    sheet = await open();
+    await sheet.getByLabel('Search friends and groups').fill('Nedra');
+    await expect(sheet.locator('[data-invitee="Nedra"]')).toContainText('Invited');
+    await expect(sheet.getByRole('link', { name: 'Messages' })).toHaveAttribute('href', /^sms:/);
+    await sheet.getByRole('button', { name: 'Close' }).click();
+    expect(host.errors).toEqual([]);
+  } finally {
+    if (id) await deleteIdea(H, id).catch(() => {});
+    await host.context.close();
+    await other.context.close();
   }
 });

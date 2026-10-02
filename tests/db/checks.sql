@@ -467,3 +467,19 @@ select t.must_allow('the lead makes it a plan again', $$select public.make_plan(
 reset role;
 select t.check('making it a plan marks the lead Going',
   exists (select 1 from rsvps r join sparks s on s.id = r.spark_id where s.text = 'Lead going walk' and r.user_id = t.id('host') and r.status = 'going'));
+
+-- Invite people (20261101170000_invite_people.sql): friends and people in the event's groups ---------------------
+select t.login('host'); set role authenticated;
+select t.check('the lead invites a group member who isn''t a friend',
+  (public.invite_friends((select id from sparks where text = 'Lead going walk'), array[t.id('admin')]) -> 'invited') = to_jsonb(array[t.id('admin')]));
+select t.check('someone outside the event''s groups is skipped',
+  (public.invite_friends((select id from sparks where text = 'Lead going walk'), array[t.id('outsider')]) -> 'invited') = '[]'::jsonb);
+select t.check('the lead sees who has an invite',
+  array(select public.event_invited((select id from sparks where text = 'Lead going walk'))) = array[t.id('admin')]);
+reset role;
+select t.check('the invited member can see the event through the invite',
+  exists (select 1 from link_access where user_id = t.id('admin') and via = 'invite' and spark_id = (select id from sparks where text = 'Lead going walk')));
+select t.login('outsider'); set role authenticated;
+select t.check('someone who can''t invite sees no invites',
+  not exists (select 1 from public.event_invited((select id from sparks where text = 'Lead going walk'))));
+reset role;
