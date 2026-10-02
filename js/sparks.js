@@ -33,7 +33,7 @@
   const AUTH_RETURN = (() => {
     try {
       const q = new URLSearchParams(location.search);
-      return { any: q.has('code') || q.has('error'), error: q.get('error'), errorCode: q.get('error_code') };
+      return { any: q.has('code') || q.has('error'), error: q.get('error') };
     } catch (e) { return {}; }
   })();
   // PKCE keeps the Google round trip in the query string, clear of our #/ routes
@@ -582,7 +582,6 @@
     const u = session.user, meta = u.user_metadata || {};
     const email = !u.is_anonymous && u.email ? u.email : '';
     const google = !u.is_anonymous && ((u.app_metadata || {}).provider === 'google' || ((u.app_metadata || {}).providers || []).indexOf('google') > -1);
-    if (google) { try { localStorage.setItem(GOOGLE_BEFORE_KEY, '1'); } catch (e) { /* storage blocked */ } }
     if (state.me && u.id !== state.me && state.fromCache) {   // cached data was someone else's: don't show it
       setState({ groups: [], sparks: [], profiles: {}, sizes: {}, loaded: false, fromCache: false, demoAdmin: false });
     }
@@ -1744,17 +1743,11 @@
   // ---------------------------------------------------------------------------
   // The page reloads on the way back, so anything in progress is parked in
   // sessionStorage first: the draft (photos as data URLs), a merge token, the
-  // name, and where to pick up. 'link' attaches Google to this anonymous
-  // identity. If that Google account already has an account, Supabase sends us
-  // back with identity_already_exists: sign in to it instead, then merge.
+  // name, and where to pick up. Back signed in, the merge token moves the
+  // guest's things (RSVPs, guest names, event links) to the account.
 
   const GOOGLE_ON = !!CFG.googleSignIn;
   const RESUME_KEY = 'spark-hub-google-resume';
-  // This device has had a Google account signed in before (kept through sign-out). Then 'link' would almost
-  // always come back identity_already_exists and send them to Google a second time, flashing Welcome in
-  // between (owner, 2026-10-01), so go straight to signing in; the merge token still brings the guest's things.
-  const GOOGLE_BEFORE_KEY = 'spark-hub-google-before';
-  const googleBefore = () => { try { return localStorage.getItem(GOOGLE_BEFORE_KEY) === '1'; } catch (e) { return false; } };
   const DRAFT_KEYS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'locText', 'locPlace', 'evBits', 'evNeed', 'evTags', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evNoGuestInv', 'evTest', 'evGroups', 'coverPos', 'evPhotoPath', 'evDraftId'];
   const readResume = () => {
     try {
@@ -1784,7 +1777,7 @@
     setState({ busy: 'google', googleFailed: false });
     try {
       await ensureSession();
-      const r = { at: Date.now(), stage: googleBefore() ? 'signin' : 'link', from: st.loginFrom, anonId: st.me, name: st.myName,
+      const r = { at: Date.now(), stage: 'signin', from: st.loginFrom, anonId: st.me, name: st.myName,
         subjectId: st.subjectId, joinCode: st.joinCode, screen: st.screen, draft: null };
       if (st.loginFrom === 'post') {
         r.draft = {};
@@ -1794,8 +1787,10 @@
       }
       r.mergeToken = must(await sb.rpc('prepare_merge')).data;
       writeResume(r);
-      const opts = { provider: 'google', options: { redirectTo: backHere() } };
-      must(await (r.stage === 'signin' ? sb.auth.signInWithOAuth(opts) : sb.auth.linkIdentity(opts)));
+      // Always a straight sign-in, one trip to Google (owner, 2026-10-01). Linking to the guest came back
+      // identity_already_exists for every returning account and sent them to Google twice, flashing Welcome in
+      // between; sometimes the second trip didn't finish. The merge token brings the guest's things across.
+      must(await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: backHere() } }));
       // The browser is now leaving for Google
     } catch (e) {
       console.error(e);
@@ -1827,11 +1822,6 @@
     const r = readResume();
     if (AUTH_RETURN.any) history.replaceState(null, '', backHere() + location.hash);
     if (!r) return false;
-    if (AUTH_RETURN.errorCode === 'identity_already_exists' && r.stage === 'link') {
-      writeResume(Object.assign(r, { stage: 'signin', at: Date.now() }));
-      const res = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: backHere() } });
-      if (!res.error) return true;
-    }
     clearResume();
     const session = (await sb.auth.getSession()).data.session;
     const back = Object.assign(restoreDraft(r), r.subjectId && r.screen === 'detail' ? { screen: 'detail', subjectId: r.subjectId } : {});

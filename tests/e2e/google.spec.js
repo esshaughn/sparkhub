@@ -10,21 +10,23 @@ const readResume = (page) => page.evaluate((k) => JSON.parse(sessionStorage.getI
 test('Welcome → Continue with Google: the trip is saved; cancelling comes back with a note', async ({ browser }) => {
   const { page, context } = await newMember(browser);
   try {
-    // Supabase is asked for a Google link for this visitor; we stop the trip there
-    let authorize = null;
-    await page.route('**/auth/v1/user/identities/authorize**', (route) => {
+    // Straight to signing in with Google, one trip (never a link to the guest first); we stop the trip there
+    let authorize = null, link = false;
+    await page.route('**/auth/v1/user/identities/authorize**', (route) => { link = true; route.abort(); });
+    await context.route('**/auth/v1/authorize**', (route) => {
       authorize = new URL(route.request().url());
-      route.fulfill({ json: { url: 'http://localhost:4173/fake-google' } });
+      route.fulfill({ status: 302, headers: { location: 'http://localhost:4173/fake-google' } });   // stays on our origin, so the saved trip can be read
     });
-    await page.route('http://localhost:4173/fake-google', (route) => route.fulfill({ contentType: 'text/html', body: '<p>Google</p>' }));
+    await context.route('http://localhost:4173/fake-google', (route) => route.fulfill({ contentType: 'text/html', body: '<p>Google</p>' }));
     await page.locator('[data-screen-label=Welcome]').getByRole('button', { name: 'Continue with Google' }).click();
     await expect(page.getByRole('dialog', { name: 'Sign in' })).toHaveCount(0);   // straight to Google, no pop-up first
     await page.waitForURL('**/fake-google');
     expect(authorize.searchParams.get('provider')).toBe('google');
     expect(authorize.searchParams.get('redirect_to')).toBe('http://localhost:4173/');
+    expect(link).toBe(false);
 
     const saved = await readResume(page);
-    expect(saved.stage).toBe('link');
+    expect(saved.stage).toBe('signin');
     expect(saved.from).toBe('default');
     expect(saved.draft).toBeNull();
     expect(saved.mergeToken).toMatch(/^[0-9a-f-]{36}$/);
@@ -42,30 +44,6 @@ test('Welcome → Continue with Google: the trip is saved; cancelling comes back
   }
 });
 
-test('a device that had Google signed in before: one trip, straight to signing in (no link, no second Google)', async ({ browser }) => {
-  const { page, context } = await newMember(browser);
-  try {
-    await page.evaluate(() => localStorage.setItem('spark-hub-google-before', '1'));
-    let link = false, authorize = null;
-    await page.route('**/auth/v1/user/identities/authorize**', (route) => { link = true; route.abort(); });
-    await context.route('**/auth/v1/authorize**', (route) => {
-      authorize = new URL(route.request().url());
-      route.fulfill({ status: 302, headers: { location: 'http://localhost:4173/fake-google' } });   // stays on our origin, so the saved trip can be read
-    });
-    await context.route('http://localhost:4173/fake-google', (route) => route.fulfill({ contentType: 'text/html', body: '<p>Google</p>' }));
-    await page.locator('[data-screen-label=Welcome]').getByRole('button', { name: 'Continue with Google' }).click();
-    await page.waitForURL('**/fake-google');
-    expect(authorize.searchParams.get('provider')).toBe('google');
-    expect(authorize.searchParams.get('redirect_to')).toBe('http://localhost:4173/');
-    expect(link).toBe(false);
-    const saved = await readResume(page);
-    expect(saved.stage).toBe('signin');
-    expect(saved.mergeToken).toMatch(/^[0-9a-f-]{36}$/);
-  } finally {
-    await context.close();
-  }
-});
-
 test('coming back signed in posts the saved draft', async ({ browser }) => {
   // A signed-in account stands in for "Google said yes"
   const { page, context, errors } = await newLead(browser, 1, 'Tester');
@@ -73,7 +51,7 @@ test('coming back signed in posts the saved draft', async ({ browser }) => {
   let id;
   try {
     await page.evaluate(({ k, title }) => sessionStorage.setItem(k, JSON.stringify({
-      at: Date.now(), stage: 'link', from: 'post', anonId: null, name: 'Tester', mergeToken: null, screen: 'compose',
+      at: Date.now(), stage: 'signin', from: 'post', anonId: null, name: 'Tester', mergeToken: null, screen: 'compose',
       draft: { activity: title, evTest: false, evStep: 'review', evBits: ['Bring snacks', '', ''], evNeeds: [], evLater: {}, locText: '', locPlace: null, photos: [] }   // evTest: the Real or test answer travels with the draft
     })), { k: RESUME_KEY, title });
     await page.goto('/?code=returned-from-google');
@@ -88,35 +66,6 @@ test('coming back signed in posts the saved draft', async ({ browser }) => {
     expect(errors.filter(e => !/code|pkce|verifier/i.test(e))).toEqual([]);
   } finally {
     if (id) await deleteIdea(page, id).catch(() => {});
-    await context.close();
-  }
-});
-
-test('Google account that already has an account: sign in to it instead', async ({ browser }) => {
-  const { page, context } = await newMember(browser);
-  try {
-    await page.evaluate((k) => sessionStorage.setItem(k, JSON.stringify({
-      at: Date.now(), stage: 'link', from: 'default', anonId: 'someone', name: '', mergeToken: '00000000-0000-0000-0000-000000000000', draft: null
-    })), RESUME_KEY);
-    // Record what the app saves as it leaves (the page itself is gone afterwards)
-    const writes = [];
-    await page.exposeFunction('__resumeWritten', (v) => writes.push(JSON.parse(v)));
-    await page.addInitScript((k) => {
-      const set = Storage.prototype.setItem;
-      Storage.prototype.setItem = function (key, value) { if (key === k) window.__resumeWritten(value); return set.call(this, key, value); };
-    }, RESUME_KEY);
-    let authorize = null;
-    await context.route('**/auth/v1/authorize**', (route) => {
-      authorize = new URL(route.request().url());
-      route.abort();
-    });
-    await page.goto('/?error=server_error&error_code=identity_already_exists');
-    await expect.poll(() => authorize && authorize.searchParams.get('provider')).toBe('google');
-    expect(authorize.searchParams.get('redirect_to')).toBe('http://localhost:4173/');
-    const saved = writes[writes.length - 1];
-    expect(saved.stage).toBe('signin');
-    expect(saved.mergeToken).toBe('00000000-0000-0000-0000-000000000000');
-  } finally {
     await context.close();
   }
 });
