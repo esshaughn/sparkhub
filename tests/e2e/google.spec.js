@@ -42,6 +42,30 @@ test('Welcome → Continue with Google: the trip is saved; cancelling comes back
   }
 });
 
+test('a device that had Google signed in before: one trip, straight to signing in (no link, no second Google)', async ({ browser }) => {
+  const { page, context } = await newMember(browser);
+  try {
+    await page.evaluate(() => localStorage.setItem('spark-hub-google-before', '1'));
+    let link = false, authorize = null;
+    await page.route('**/auth/v1/user/identities/authorize**', (route) => { link = true; route.abort(); });
+    await context.route('**/auth/v1/authorize**', (route) => {
+      authorize = new URL(route.request().url());
+      route.fulfill({ status: 302, headers: { location: 'http://localhost:4173/fake-google' } });   // stays on our origin, so the saved trip can be read
+    });
+    await context.route('http://localhost:4173/fake-google', (route) => route.fulfill({ contentType: 'text/html', body: '<p>Google</p>' }));
+    await page.locator('[data-screen-label=Welcome]').getByRole('button', { name: 'Continue with Google' }).click();
+    await page.waitForURL('**/fake-google');
+    expect(authorize.searchParams.get('provider')).toBe('google');
+    expect(authorize.searchParams.get('redirect_to')).toBe('http://localhost:4173/');
+    expect(link).toBe(false);
+    const saved = await readResume(page);
+    expect(saved.stage).toBe('signin');
+    expect(saved.mergeToken).toMatch(/^[0-9a-f-]{36}$/);
+  } finally {
+    await context.close();
+  }
+});
+
 test('coming back signed in posts the saved draft', async ({ browser }) => {
   // A signed-in account stands in for "Google said yes"
   const { page, context, errors } = await newLead(browser, 1, 'Tester');

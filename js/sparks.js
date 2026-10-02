@@ -582,6 +582,7 @@
     const u = session.user, meta = u.user_metadata || {};
     const email = !u.is_anonymous && u.email ? u.email : '';
     const google = !u.is_anonymous && ((u.app_metadata || {}).provider === 'google' || ((u.app_metadata || {}).providers || []).indexOf('google') > -1);
+    if (google) { try { localStorage.setItem(GOOGLE_BEFORE_KEY, '1'); } catch (e) { /* storage blocked */ } }
     if (state.me && u.id !== state.me && state.fromCache) {   // cached data was someone else's: don't show it
       setState({ groups: [], sparks: [], profiles: {}, sizes: {}, loaded: false, fromCache: false, demoAdmin: false });
     }
@@ -1749,6 +1750,11 @@
 
   const GOOGLE_ON = !!CFG.googleSignIn;
   const RESUME_KEY = 'spark-hub-google-resume';
+  // This device has had a Google account signed in before (kept through sign-out). Then 'link' would almost
+  // always come back identity_already_exists and send them to Google a second time, flashing Welcome in
+  // between (owner, 2026-10-01), so go straight to signing in; the merge token still brings the guest's things.
+  const GOOGLE_BEFORE_KEY = 'spark-hub-google-before';
+  const googleBefore = () => { try { return localStorage.getItem(GOOGLE_BEFORE_KEY) === '1'; } catch (e) { return false; } };
   const DRAFT_KEYS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'locText', 'locPlace', 'evBits', 'evNeed', 'evTags', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evNoGuestInv', 'evTest', 'evGroups', 'coverPos', 'evPhotoPath', 'evDraftId'];
   const readResume = () => {
     try {
@@ -1778,7 +1784,7 @@
     setState({ busy: 'google', googleFailed: false });
     try {
       await ensureSession();
-      const r = { at: Date.now(), stage: 'link', from: st.loginFrom, anonId: st.me, name: st.myName,
+      const r = { at: Date.now(), stage: googleBefore() ? 'signin' : 'link', from: st.loginFrom, anonId: st.me, name: st.myName,
         subjectId: st.subjectId, joinCode: st.joinCode, screen: st.screen, draft: null };
       if (st.loginFrom === 'post') {
         r.draft = {};
@@ -1788,7 +1794,8 @@
       }
       r.mergeToken = must(await sb.rpc('prepare_merge')).data;
       writeResume(r);
-      must(await sb.auth.linkIdentity({ provider: 'google', options: { redirectTo: backHere() } }));
+      const opts = { provider: 'google', options: { redirectTo: backHere() } };
+      must(await (r.stage === 'signin' ? sb.auth.signInWithOAuth(opts) : sb.auth.linkIdentity(opts)));
       // The browser is now leaving for Google
     } catch (e) {
       console.error(e);
