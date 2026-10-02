@@ -253,6 +253,12 @@ test('leaving a group: a member leaves from the bottom of its page; its only own
     await M.goto('/'); await M.reload();
     await M.getByRole('button', { name: 'Groups', exact: true }).click();
     await M.locator('[data-screen-label=Groups]').getByRole('button', { name: name, exact: true }).click();
+    // Only under Plans, not Ideas or Past (owner, 2026-10-01)
+    for (const t of [/^Ideas/, /^Past/]) {
+      await M.locator('[data-screen-label=Browse]').getByRole('tab', { name: t }).click();
+      await expect(M.locator('[data-screen-label=Browse] [data-leave-group]')).toHaveCount(0);
+    }
+    await M.locator('[data-screen-label=Browse]').getByRole('tab', { name: /^Plans/ }).click();
     await M.locator('[data-screen-label=Browse] [data-leave-group]').click();
     const c = M.getByRole('alertdialog', { name: 'Leave ' + name + '?' });
     await expect(c).toContainText('The events you posted and your RSVPs stay. You can rejoin with the group’s link.');

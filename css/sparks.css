@@ -33,6 +33,10 @@ textarea { font-family: inherit; }
 input[type="date"]::-webkit-date-and-time-value { text-align: left; }
 .date-fld[data-empty] { color: transparent !important; }
 .date-fld[data-empty]::-webkit-datetime-edit { color: transparent; }
+/* Focused, the browser's own mm/dd/yyyy shows and the hint steps aside (it overlapped them, owner 2026-10-01) */
+.date-fld[data-empty]:focus { color: #0d1117 !important; }
+.date-fld[data-empty]:focus::-webkit-datetime-edit { color: #0d1117; }
+.date-fld:focus + span { display: none; }
 input::placeholder, textarea::placeholder { color: #b9bcc4; font-weight: 400; font-style: italic; opacity: 1; }
 
 /* ---- Frame: full-bleed on phones, centred ~430px column on desktop ---- */

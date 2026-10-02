@@ -242,7 +242,7 @@ test('Help out: descriptions, time ranges and Pick a shift', async ({ browser })
     await sort.getByRole('button', { name: 'Details' }).click();   // Details opens the description
     await expect(sort.getByRole('button', { name: 'Details' })).toHaveAttribute('aria-expanded', 'true');
     const coat = OP.locator('[data-signup="Coat check table"]');
-    await expect(coat).toContainText('2 shifts · 6:00 – 8:00pm');
+    await expect(coat).toContainText('2 shifts');   // the owner's mock: just the count of shifts
     await expect(coat).toContainText('0/2');
 
     // Pick a shift: both shifts, with a note

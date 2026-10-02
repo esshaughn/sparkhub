@@ -398,11 +398,10 @@ test('an idea says how many it needs; a bare starter chip can’t be saved; its 
     await flow.getByRole('button', { name: 'Next' }).click();
     await flow.getByText('Decide later', { exact: true }).click();   // no date: it goes up as an idea
     await flow.getByText('Decide later', { exact: true }).click();
-    await flow.getByLabel('Details, line 1').fill('Bring cleats');
-    // Its type: up to two, picked by the host (a third replaces the oldest)
-    const tags = flow.locator('[data-tags]');
-    for (const t of ['Social', 'Active', 'Outdoors']) await tags.getByRole('checkbox', { name: t }).click();
-    await expect(tags.getByRole('checkbox', { name: 'Social' })).toHaveAttribute('aria-checked', 'false');
+    // A Details line holds up to 60 characters and stays one line, sentences and all (owner, 2026-10-01)
+    await expect(flow.getByLabel('Details, line 1')).toHaveAttribute('maxlength', '60');
+    await flow.getByLabel('Details, line 1').fill('Bring cleats. And water?');
+    await expect(flow.locator('[data-tags]')).toHaveCount(0);   // no "What kind of event?" (owner, 2026-10-01)
     const need = flow.locator('[data-need-people]');
     await expect(need).toContainText('Optional');
     for (let i = 0; i < 6; i++) await need.getByRole('button', { name: 'More for how many people needed' }).click();
@@ -423,10 +422,11 @@ test('an idea says how many it needs; a bare starter chip can’t be saved; its 
     id = await page.evaluate(() => location.hash.split('/').pop());
     const steps = page.getByLabel('Steps to a plan');
     for (const t of ['Date', 'Location', 'Details', 'People']) await expect(steps).toContainText(t);
+    await expect(page.locator('[data-basics] span', { hasText: 'Bring cleats. And water?' })).toHaveCount(1);   // one line, not two
     const saved = await asUser(page, async (c, _C, id) => (await c.from('sparks').select('min_people').eq('id', id).single()).data.min_people, id);
     expect(saved).toBe(6);
     const savedTags = await asUser(page, async (c, _C, id) => (await c.from('sparks').select('tags').eq('id', id).single()).data.tags, id);
-    expect(savedTags).toEqual(['active', 'outdoors']);
+    expect(savedTags).toEqual([]);
     expect(errors).toEqual([]);
   } finally {
     if (id) await asUser(page, async (c, _C, id) => { await c.from('sparks').delete().eq('id', id); }, id).catch(() => {});

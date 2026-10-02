@@ -1557,7 +1557,7 @@
 
   // "Do it again": a new event with the place and details filled in
   const doItAgain = (s) => goCompose({ activity: s.text.slice(0, 40), evTags: (s.tags || []).slice(0, 2), evTest: !!(s.test || s.demo), locText: s.spot || '', locPlace: s.spotAddress ? { name: s.spot, address: s.spotAddress, lat: s.spotPoint && s.spotPoint[0], lon: s.spotPoint && s.spotPoint[1] } : null,
-    evBits: [0, 1, 2].map(i => (basicsOf(s)[i] || '').slice(0, 40)) });
+    evBits: [0, 1, 2].map(i => (basicsOf(s)[i] || '').slice(0, 60)) });
 
   const addMood = async (s, fileList) => {
     const f = (fileList || [])[0];
@@ -4055,7 +4055,8 @@
     return '<div data-screen-label="Browse" style="' + pageStyle + '">' + header + offline + tabs +
       '<div data-tabpane style="padding:10px 14px 22px;display:flex;flex-direction:column;gap:22px">' +
         (loading ? '<div style="padding:0 4px;font-size:14px;font-weight:700;color:#6b7280">Loading events…</div>' : '') + body +
-        (g && g.role && !loading ? '<span ' + on(() => leaveGroup(g)) + ' data-leave-group style="align-self:center;display:flex;align-items:center;min-height:44px;padding:0 12px;font-size:14px;font-weight:700;color:#8a909b;cursor:pointer">Leave ' + esc(g.name) + '</span>' : '') +
+        // Leave {group} only under Plans, not Ideas or Past (owner, 2026-10-01)
+        (g && g.role && !loading && tab === 'plan' ? '<span ' + on(() => leaveGroup(g)) + ' data-leave-group style="align-self:center;display:flex;align-items:center;min-height:44px;padding:0 12px;font-size:14px;font-weight:700;color:#8a909b;cursor:pointer">Leave ' + esc(g.name) + '</span>' : '') +
       '</div>' +
       '<div style="height:var(--nav-h)"></div></div>';
   }
@@ -4413,46 +4414,50 @@
     const card = (j) => {
       const shifts = !!j.shifts, mine = shifts ? myShiftIds(j).length > 0 : j.claims.some(c => c.userId === st.me);
       const cnt = j.claims.length, need = j.need, full = !mine && !!need && (shifts ? j.shifts.every(u => u.need && u.claims.length >= u.need) : cnt >= need);
-      // One gray line (time · k still needed), then a bar with n/need beside it; faces, Details and the button along the bottom (owner, 2026-10-01)
-      const when = jobTime(j);
-      const left = need ? (cnt < need ? (need - cnt) + ' still needed' : 'All covered') : cnt ? cnt + ' in' : '';
-      const subline = [when, !lead && j.createdBy === st.me ? 'You added this' : '', left].filter(Boolean).join(' · ');
-      // The bar: lavender while empty, gold once you're in, green when others have signed up
-      const [fill, track] = mine ? ['#e8b84a', '#fcf0d8'] : cnt ? ['#4f9e6b', '#dff0e4'] : ['#5b4ae8', '#ebe8fd'];
-      const bar = !need ? '' : '<div style="display:flex;align-items:center;gap:12px">' +
-        '<div aria-hidden="true" style="flex:1;min-width:0;height:10px;border-radius:999px;background:' + track + ';overflow:hidden"><span style="display:block;height:100%;width:' + Math.round(Math.min(cnt, need) / need * 100) + '%;border-radius:999px;background:' + fill + '"></span></div>' +
-        '<span style="flex:0 0 auto;font-size:15px;font-weight:900;color:#0d1117">' + Math.min(cnt, need) + '/' + need + '</span></div>';
+      // The owner's mock (2026-10-01): title with an ⓘ for the description and the button on the right; one gray line
+      // (the time, or "N shifts"); then the faces, the bar and n/need
+      const when = shifts ? j.shifts.length + ' shifts' : jobTime(j);
+      const added = !lead && j.createdBy === st.me && !shifts;
+      const subline = [when, added ? 'You added this' : '', !need && cnt ? cnt + ' in' : ''].filter(Boolean).join(' · ');
+      // The bar: lavender while empty, gold once you're in, green when others have signed up, gray when it's full
+      const [fill, track] = mine ? ['#e3b84e', '#f8efd5'] : full ? ['#9aa0ac', '#9aa0ac'] : cnt ? ['#5a9c6e', '#dff0e4'] : ['#5b4ae8', '#ebe8fd'];
       const act = () => { if (st.busy) return; if (shifts) openShifts(s, j); else toggleClaim(s, j); };
+      const pill = 'flex:0 0 auto;display:flex;align-items:center;justify-content:center;gap:6px;min-height:42px;padding:0 18px;border-radius:999px;font-size:15px;font-weight:800;white-space:nowrap;';
       const btn = s.cancelledAt ? '' : mine
-        ? '<span ' + on(act) + ' aria-label="You’re in. Tap to take yourself off" style="flex:0 0 auto;margin-left:auto;display:flex;align-items:center;justify-content:center;gap:6px;min-height:42px;padding:0 18px;border-radius:999px;background:#fcf0d8;color:#8f6405;font-size:15px;font-weight:800;white-space:nowrap;cursor:pointer">' + svg(14, stroke('#8f6405', 3), P6.check) + 'You’re in</span>'
-        : full ? '<span aria-disabled="true" style="flex:0 0 auto;margin-left:auto;display:flex;align-items:center;justify-content:center;min-height:42px;padding:0 18px;border-radius:999px;box-shadow:inset 0 0 0 2px #d5d8df;color:#9aa0ac;font-size:15px;font-weight:800">Full</span>'
-        : '<span ' + on(act) + ' style="flex:0 0 auto;margin-left:auto;display:flex;align-items:center;justify-content:center;min-height:42px;padding:0 18px;border-radius:999px;box-shadow:inset 0 0 0 2px #5b4ae8;color:#5b4ae8;font-size:15px;font-weight:800;white-space:nowrap;cursor:pointer">Sign up</span>';
-      // Details opens the job's description
+        ? '<span ' + on(act) + ' aria-label="You’re in. Tap to take yourself off" style="' + pill + 'background:#e3b84e;color:#3d2a00;cursor:pointer">' + svg(14, stroke('#3d2a00', 3), P6.check) + 'You’re in</span>'
+        : full ? '<span aria-disabled="true" style="' + pill + 'box-shadow:inset 0 0 0 2px #d5d8df;color:#9aa0ac">Full</span>'
+        : '<span ' + on(act) + ' style="' + pill + 'box-shadow:inset 0 0 0 2px #5b4ae8;color:#5b4ae8;cursor:pointer">Sign up</span>';
+      // ⓘ opens the job's description
       const open = !!st.descOpen[j.id];
-      const details = !j.desc ? '' : '<span ' + on(() => setState({ descOpen: Object.assign({}, st.descOpen, { [j.id]: !open }) })) + ' aria-expanded="' + open + '" style="flex:0 0 auto;display:inline-flex;align-items:center;gap:4px;min-height:36px;font-size:15px;font-weight:800;color:#5b4ae8;cursor:pointer;white-space:nowrap">Details<span style="display:flex;transform:' + (open ? 'rotate(90deg)' : 'none') + '">' + I.chevR(14, '#5b4ae8', 2.8) + '</span></span>';
+      const info = !j.desc ? '' : '<span ' + on(() => setState({ descOpen: Object.assign({}, st.descOpen, { [j.id]: !open }) })) + ' aria-label="Details" aria-expanded="' + open + '" style="flex:0 0 26px;width:26px;height:26px;margin-left:8px;border-radius:999px;box-shadow:inset 0 0 0 2px ' + (open ? '#5b4ae8' : '#c9ccd3') + ';color:' + (open ? '#5b4ae8' : '#9aa0ac') + ';display:inline-flex;align-items:center;justify-content:center;font-family:Georgia,serif;font-style:italic;font-size:15px;font-weight:700;cursor:pointer;vertical-align:3px">i</span>';
       const desc = j.desc && open ? '<p style="margin:0;font-size:14px;line-height:1.45;font-weight:500;color:#5c6270">' + esc(j.desc) + '</p>' : '';
-      // Who's in: everyone sees the faces; the host also sees each person with their shift and note
+      // Who's in: two faces then +N (yours first, ringed in gold); the host also sees each person with their shift and note
       const ppl = shifts ? [].concat(...j.shifts.map(u => u.claims.map(c => Object.assign({ at: spanTime(u) }, c)))) : j.claims;
-      const uniq = ppl.map(c => c.userId).filter((u, i, a) => a.indexOf(u) === i);
+      const uniq = ppl.map(c => c.userId).filter((u, i, a) => a.indexOf(u) === i).sort((a, b) => (b === st.me) - (a === st.me));
       const names = uniq.map(u => u === st.me ? 'You' : firstName(personName(s, u)));
-      const faces = !uniq.length ? '' : '<span' + (lead ? '' : ' data-who') + ' style="flex:0 0 auto;display:flex">' + peopleFaces(uniq.slice(0, 4), 32) +
+      const shown = uniq.length > 3 ? uniq.slice(0, 2) : uniq;
+      const faces = !uniq.length ? '' : '<span' + (lead ? '' : ' data-who') + ' style="flex:0 0 auto;display:flex;align-items:center">' +
+        shown.map((u, k) => '<span style="display:flex;border-radius:999px;' + (k ? 'margin-left:-8px;' : '') + 'box-shadow:0 0 0 2.5px ' + (u === st.me ? '#e3b84e' : '#fff') + '">' + face(u, personName(s, u), 32) + '</span>').join('') +
+        (uniq.length > shown.length ? '<span style="margin-left:-8px;flex:0 0 32px;width:32px;height:32px;border-radius:999px;background:#eceef1;box-shadow:0 0 0 2.5px #fff;color:#454b55;font-size:12.5px;font-weight:900;display:flex;align-items:center;justify-content:center">+' + (uniq.length - shown.length) + '</span>' : '') +
         '<span style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap">' + esc(namesList(names)) + '</span></span>';
+      const bar = !need && !faces ? '' : '<div style="display:flex;align-items:center;gap:14px">' + faces +
+        (need ? '<div aria-hidden="true" style="flex:1;min-width:0;height:8px;border-radius:999px;background:' + track + ';overflow:hidden"><span style="display:block;height:100%;width:' + Math.round(Math.min(cnt, need) / need * 100) + '%;border-radius:999px;background:' + fill + '"></span></div>' +
+          '<span style="flex:0 0 auto;font-size:15px;font-weight:900;color:#0d1117">' + Math.min(cnt, need) + '/' + need + '</span>' : '') + '</div>';
       const hostList = !ppl.length || !lead ? '' : '<div data-who style="display:flex;flex-direction:column;gap:8px">' + ppl.map(c =>
         '<div style="display:flex;align-items:flex-start;gap:10px">' + face(c.userId, personName(s, c.userId), 26, null, 'margin-top:1px') +
           '<div style="flex:1;min-width:0"><div style="font-size:14.5px;line-height:1.35;font-weight:800;color:#0d1117">' + esc(c.userId === st.me ? 'You' : personName(s, c.userId)) +
             (c.at ? '<span style="font-weight:700;color:#6b7280"> · ' + esc(c.at) + '</span>' : '') + '</div>' +
             (c.note ? '<div style="margin-top:1px;font-size:13.5px;line-height:1.4;font-weight:500;color:#5c6270">“' + esc(c.note) + '”</div>' : '') + '</div></div>').join('') + '</div>';
-      const foot = faces || details || btn ? '<div style="display:flex;align-items:center;gap:14px">' + faces + details + btn + '</div>' : '';
-      return '<div data-signup="' + esc(j.item) + '" style="' + CARD + ';border-radius:20px;padding:18px;display:flex;flex-direction:column;gap:12px">' +
-        '<div style="display:flex;align-items:flex-start;gap:10px">' +
-          '<div style="flex:1;min-width:0"><div style="font-size:18px;line-height:1.25;font-weight:900;letter-spacing:-.3px;color:#0d1117;text-wrap:pretty">' + esc(j.item) + '</div>' +
-            (subline ? '<div style="margin-top:3px;font-size:14.5px;font-weight:700;color:#6b7280">' + esc(subline) + '</div>' : '') + '</div>' +
-          (lead || (j.createdBy === st.me && !shifts) ? '<span ' + on(() => removeSignup(s, j)) + ' aria-label="Remove ' + esc(j.item) + '" style="flex:0 0 28px;width:28px;height:28px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(11, '#6b7280', 2.6) + '</span>' : '') +
-        '</div>' + bar + desc + hostList + foot + '</div>';
+      return '<div data-signup="' + esc(j.item) + '" style="' + CARD + ';border-radius:20px;padding:18px;display:flex;flex-direction:column;gap:14px">' +
+        '<div style="display:flex;align-items:flex-start;gap:12px">' +
+          '<div style="flex:1;min-width:0"><div style="font-size:18px;line-height:1.3;font-weight:900;letter-spacing:-.3px;color:#0d1117;text-wrap:pretty">' + esc(j.item) + info + '</div>' +
+            (subline ? '<div style="margin-top:3px;font-size:14.5px;font-weight:700;color:#6b7280">' + esc(subline) +
+              (added ? ' · <span ' + on(() => removeSignup(s, j)) + ' aria-label="Remove ' + esc(j.item) + '" style="color:#9b1c31;cursor:pointer">Remove</span>' : '') + '</div>' : '') + '</div>' +
+          btn + '</div>' + bar + desc + hostList + '</div>';
     };
     const addLabel = lead ? 'Add a job or item' : 'Add something else';
     const adder = !st.sigAdding
-      ? '<div ' + on(() => setState({ sigAdding: true })) + ' data-add-signup style="display:flex;align-items:center;gap:8px;min-height:52px;padding:0 16px;border-radius:18px;border:1.5px dashed #e3c979;background:#fef7dd;font-size:14px;font-weight:800;color:#8f6405;cursor:pointer">' + I.plus(16, '#8f6405', 2.6) + addLabel + '</div>'
+      ? '<div ' + on(() => setState({ sigAdding: true })) + ' data-add-signup style="display:flex;align-items:center;justify-content:center;gap:8px;min-height:60px;padding:0 16px;border-radius:20px;border:2px dashed #e3c06a;background:#fdf8ea;font-size:15.5px;font-weight:800;color:#8f6405;cursor:pointer">' + I.plus(16, '#8f6405', 2.8) + addLabel + '</div>'
       : '<div style="' + CARD + ';padding:14px 16px;display:flex;flex-direction:column;gap:10px">' +
           '<div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:15px;font-weight:800;color:#0d1117">' + addLabel + '</span>' +
             '<span ' + on(() => setState({ sigAdding: false, sigDraft: '', sigNeed: '', sigTime: '' })) + ' aria-label="Cancel" style="width:28px;height:28px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(11, '#5c6270', 2.6) + '</span></div>' +
@@ -4480,7 +4485,7 @@
 
   // ---- v6 Update 6: the host edits one section at a time in a small sheet (the full-screen editor is retired)
   const openSec = (s, kind) => {
-    const bits = basicsOf(s).slice(0, 3).map(b => b.slice(0, 40));
+    const bits = basicsOf(s).slice(0, 3).map(b => b.slice(0, 60));
     while (bits.length < 3) bits.push('');
     setState({ sec: { id: s.id, kind, title: s.text, d: s.dayDate || '', t: s.dayTime || '', e: s.dayEnd || '', bits, need: s.minPeople || null, tags: (s.tags || []).slice(), priv: s.visibility === 'invite', guestInv: s.guestInvites !== false, groups: gIds(s).slice() },
       offerText: kind === 'when' ? s.spot || '' : '', offerPlace: s.spot && s.spotPoint ? { name: s.spot, address: s.spotAddress, lat: s.spotPoint[0], lon: s.spotPoint[1] } : null, offerSuggest: [], timeOpen: null, menu: null });
@@ -4491,7 +4496,7 @@
   const secMessage = (s, ss) => {
     if (ss.kind === 'title') return '';   // renaming saves quietly
     if (ss.kind === 'details') {
-      const was = s.hopes || [], hopes = ss.bits.map(b => b.trim().slice(0, 40)).filter(Boolean);
+      const was = s.hopes || [], hopes = ss.bits.map(b => b.trim().slice(0, 60)).filter(Boolean);
       if (hopes.join('\n') === was.join('\n')) return '';
       const line = hopes.find(h => was.indexOf(h) < 0) || hopes[0];
       return line ? 'Details updated: ' + line : '';
@@ -4533,7 +4538,7 @@
       return;
     }
     if (ss.kind === 'details') {
-      const hopes = ss.bits.map(b => b.trim().slice(0, 40)).filter(Boolean);
+      const hopes = ss.bits.map(b => b.trim().slice(0, 60)).filter(Boolean);
       run(async () => {
         if (lead) must(await sb.from('sparks').update(Object.assign({ hopes, vision: null, tags: (ss.tags || []).slice(0, 2) }, s.planned ? {} : { min_people: ss.need || null })).eq('id', s.id));
         else must(await sb.rpc('admin_edit_spark', { p_spark: s.id, p_text: s.text, p_hopes: hopes }));
@@ -4688,7 +4693,6 @@
     } else if (ss.kind === 'details') {
       body = '<div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:14px;line-height:1.4;font-weight:500;color:#5c6270">Up to three quick notes on what to expect or the vibe.</span>' +
         bitRows(ss.bits, (k, v) => { const b = state.sec.bits.slice(); b[k] = v; set({ bits: b }); }) +
-        (isLead(s) ? tagRow(ss.tags || [], (t) => set({ tags: t })) : '') +
         (!s.planned && isLead(s) ? needRow(ss.need, (n) => set({ need: n })) : '') + '</div>';
     } else {
       const tile = (priv, name, sub) => { const onIt = ss.priv === priv;
@@ -5413,7 +5417,7 @@
   // Older events kept several sentences in one line, or a paragraph in `vision` (the retired "What you're picturing";
   // only demo events have one): one bullet per sentence. Saving Basic details moves it into the bullets.
   const splitBits = (arr) => [].concat(...(arr || []).map(b => String(b || '').split(/(?<=[.!?])\s+/))).map(x => x.trim()).filter(Boolean);
-  const basicsOf = (s) => s.hopes.length ? splitBits(s.hopes) : splitBits([s.vision]);
+  const basicsOf = (s) => s.hopes.length ? s.hopes.map(x => String(x || '').trim()).filter(Boolean) : splitBits([s.vision]);   // a line is never split at its sentences (owner, 2026-10-01)
   const evPhotoUrl = (st) => st.photos[0] ? st.photos[0].url : (PHOTO_PATH.test(st.evPhotoPath || '') ? photoUrl(st.evPhotoPath) : null);
   const evFilled = (st) => ({ title: !!cleanTitle(st.activity) && st.evTest != null, when: !!st.evDate || !!st.evDatePoll, where: !!cleanTitle(st.locText) || !!st.evSpotPoll,
     details: st.evBits.some(b => b.trim()), help: st.evNeeds.length > 0 });
@@ -5677,26 +5681,20 @@
     '<span style="font-size:13px;line-height:1.4;font-weight:500;color:#6b7280">People vote once it’s posted. You pick the winner.</span></div>';
   const openPoll = (kind) => {
     const st = state, rows = kind === 'when'
-      ? (st.evDatePoll ? st.evDatePoll.map(r => Object.assign({}, r)) : [{ d: st.evDate || '', t: st.evTime || '' }, { d: '', t: '' }])
+      ? (st.evDatePoll ? st.evDatePoll.map(r => Object.assign({}, r)) : [{ d: st.evDate || '', t: st.evDate ? st.evTime || '' : '' }, { d: '', t: '' }])
       : (st.evSpotPoll ? st.evSpotPoll.map(r => Object.assign({}, r)) : [{ v: cleanTitle(st.locText) }, { v: '' }]);
     setState({ pollSheet: { kind, rows }, timeOpen: null });
   };
-  // "What kind of event?": up to two type chips (optional)
-  const tagRow = (tags, set) => '<div data-tags style="display:flex;flex-direction:column;gap:8px;padding:12px 14px;border-radius:16px;background:#fff;box-shadow:inset 0 0 0 2px #dcdfe6">' +
-    '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px"><span style="font-size:15px;font-weight:800;color:#0d1117">What kind of event?</span><span style="font-size:12.5px;font-weight:600;color:#6b7280">Up to 2 · helps people find it</span></div>' +
-    '<div style="display:flex;flex-wrap:wrap;gap:6px">' + TYPES6.map(([k, name]) => { const onIt = tags.indexOf(k) > -1;
-      return '<span ' + on(() => set(onIt ? tags.filter(x => x !== k) : tags.concat([k]).slice(-2)), 'checkbox') + ' aria-checked="' + onIt + '" style="display:flex;align-items:center;min-height:36px;padding:0 13px;border-radius:999px;font-size:14px;font-weight:800;cursor:pointer;' +
-        (onIt ? 'background:#5b4ae8;color:#fff' : 'background:#f2f3f6;color:#0d1117') + '">' + name + '</span>'; }).join('') + '</div></div>';
   // "How many do you need?" (optional; an idea's People step fills against it)
   const needRow = (n, set) => '<div data-need-people style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:16px;background:#fff;box-shadow:inset 0 0 0 2px #dcdfe6">' +
     '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">How many do you need?</div>' +
-      '<div style="font-size:12.5px;font-weight:600;color:#6b7280">' + (n ? 'It’s a go once ' + n + (n === 1 ? ' person is' : ' people are') + ' in. <span ' + on(() => set(null)) + ' style="color:#5b4ae8;font-weight:800;cursor:pointer">No minimum</span>' : 'Optional') + '</div></div>' +
+      '<div style="font-size:12.5px;font-weight:600;color:#6b7280">' + (n ? 'It’s a go once ' + n + (n === 1 ? ' person is' : ' people are') + ' in.' : 'Optional') + '</div></div>' +
     stepper(n, set, 'how many people needed') + '</div>';
   const bitRows = (bits, set) => bits.map((v, k) => '<label style="display:flex;align-items:center;gap:10px;min-height:58px;padding:0 16px;border-radius:16px;background:#fff;box-shadow:inset 0 0 0 2px #dcdfe6;cursor:text">' +
     '<span aria-hidden="true" style="flex:0 0 7px;width:7px;height:7px;border-radius:999px;background:' + (v.trim() ? '#0f7a3c' : '#c9ccd3') + '"></span>' +
-    '<input class="bit-fld" type="text" maxlength="40" aria-label="Details, line ' + (k + 1) + '" placeholder="' + esc(BIT_PH[k]) + '" value="' + esc(v) + '" ' + onInput(e => { if (e.type === 'input') set(k, e.target.value.slice(0, 40)); }) +
+    '<input class="bit-fld" type="text" maxlength="60" aria-label="Details, line ' + (k + 1) + '" placeholder="' + esc(BIT_PH[k]) + '" value="' + esc(v) + '" ' + onInput(e => { if (e.type === 'input') set(k, e.target.value.slice(0, 60)); }) +
       ' style="flex:1 1 auto;min-width:0;border:0;padding:0;background:transparent;font-family:inherit;font-size:17px;font-weight:800;color:#0d1117;outline:none">' +
-    (v.length ? '<span style="font-size:11.5px;font-weight:700;color:#9aa0ac">' + v.length + '/40</span>' : '') + '</label>').join('');
+    (v.length ? '<span style="font-size:11.5px;font-weight:700;color:#9aa0ac">' + v.length + '/60</span>' : '') + '</label>').join('');
   // A starter chip leaves just its verb ("Bring "): Save waits for what (owner, 2026-09-30)
   const JOB_VERBS = ['bring', 'set up', 'help with', 'clean up'];
   const jobNamed = (item) => { const t = cleanTitle(item || ''); return !!t && JOB_VERBS.indexOf(t.toLowerCase()) < 0; };
@@ -5802,7 +5800,6 @@
     } else if (cur === 'details') {
       body = head('Details', 'Up to three quick notes on what to expect or the vibe.') +
         '<div style="padding:12px 16px 0;display:flex;flex-direction:column;gap:8px">' + bitRows(st.evBits, (k, v) => { const b = state.evBits.slice(); b[k] = v; setState({ evBits: b }); }) +
-          tagRow(st.evTags || [], (t) => setState({ evTags: t })) +
           (st.evDate ? '' : needRow(st.evNeed, (n) => setState({ evNeed: n }))) + '</div>';   // no date: it goes up as an idea, which can say how many it needs
     } else if (cur === 'help') {
       const chip = (label, fn, dashed) => '<span ' + on(fn) + ' style="display:flex;align-items:center;gap:5px;min-height:38px;padding:0 13px;border-radius:999px;font-size:14px;font-weight:800;cursor:pointer;' +
@@ -5855,7 +5852,7 @@
 
   // The flow's sheets: Poll the group, Add a job, Save this as a draft? (one at a time, never stacked)
   const stepper = (n, set, label) => '<div style="flex:0 0 auto;display:flex;align-items:center;gap:8px">' +
-    '<span ' + on(() => set(Math.max(1, (n || 1) - 1))) + ' aria-label="Fewer' + (label ? ' for ' + label : '') + '" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#0d1117;font-size:18px;font-weight:800;line-height:1">−</span>' +
+    '<span ' + on(() => set(n > 1 ? n - 1 : null)) + ' aria-label="Fewer' + (label ? ' for ' + label : '') + '" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#0d1117;font-size:18px;font-weight:800;line-height:1">−</span>' +
     '<span style="min-width:22px;text-align:center;font-size:16px;font-weight:900;color:#0d1117">' + (n || 'Any') + '</span>' +
     '<span ' + on(() => set(Math.min(99, (n || 0) + 1))) + ' aria-label="More' + (label ? ' for ' + label : '') + '" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#0d1117;font-size:18px;font-weight:800;line-height:1">+</span></div>';
   const timeSelect = (value, opts, hint, set, label) => '<div style="position:relative;flex:1 1 0;min-width:0"><select class="fld" aria-label="' + label + '" ' + onInput(e => set(e.target.value)) +

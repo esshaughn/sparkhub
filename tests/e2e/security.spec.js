@@ -488,7 +488,6 @@ test('friends: requests, links and invites only go through the functions, with t
 
     // A group of the lead's with the other lead in it, and a private plan there
     group = await asUser(L, async (c, _C, name) => (await c.rpc('create_group', { p_name: name })).data[0], uniqueTitle('friends'));
-    await asUser(O, async (c, _C, code) => c.rpc('join_group', { p_code: code }), group.code);
     const day = new Date(Date.now() + 8 * 864e5).toISOString().slice(0, 10);
     sparkId = await asUser(L, async (c, _C, { g, me, day }) => {
       const r = await c.from('sparks').insert({ group_id: g, author_name: 'Owner', lead_name: 'Owner', lead_id: me, created_by: me, text: '[E2E] friends only', planned: true, day_date: day, visibility: 'invite' }).select('id').single();
@@ -496,9 +495,12 @@ test('friends: requests, links and invites only go through the functions, with t
     }, { g: group.id, me: leadUid, day });
     expect(sparkId).toMatch(/^[0-9a-f-]{36}$/);
 
-    // Not friends yet: no invite. Then a request, accepted
+    // Not a friend and not in the event's group: no invite (20261101170000_invite_people.sql: group members can be)
     const early = await asUser(L, async (c, _C, { s, o }) => (await c.rpc('invite_friends', { p_spark: s, p_people: [o] })).data, { s: sparkId, o: otherUid });
     expect(early.invited).toEqual([]);
+    expect(await asUser(O, async (c, _C, s) => (await c.rpc('event_invited', { p_spark: s })).data, sparkId)).toEqual([]);   // can't invite, so sees none
+    // They join the group (a friend request needs one), then a request, accepted
+    await asUser(O, async (c, _C, code) => c.rpc('join_group', { p_code: code }), group.code);
     expect(await asUser(L, async (c, _C, o) => (await c.rpc('send_friend_request', { p_to: o })).data, otherUid)).toBe('requested');
     const seen = await asUser(O, async (c) => (await c.rpc('friend_state')).data);
     expect(seen.incoming.map(f => f.id)).toContain(leadUid);
