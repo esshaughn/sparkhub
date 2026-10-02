@@ -13,11 +13,12 @@ select g.id, g.name from public.groups g
 union
 select g.id, 'Torrez Fitness' from public.groups g where g.code = 'TORREZ';
 
--- 1. The three demo groups. Nobody is added automatically any more (since 20261011000000_demo_optin.sql):
+-- 1. The demo groups. Nobody is added automatically any more (since 20261011000000_demo_optin.sql):
 --    people join them with their invite codes, which the owner shares by hand. Torrez Fitness is the real
---    pilot group and is NOT a demo group (see pilot-torrez.sql).
+--    pilot group and is NOT a demo group (see pilot-torrez.sql); nor is Hub on Hunters since 2026-10-01, a
+--    real group that keeps some demo events (see hub-live.sql). Both stay in the roster below.
 update public.groups set demo = true
- where id in (select id from demo_groups_here where name <> 'Torrez Fitness');
+ where id in (select id from demo_groups_here where name not in ('Torrez Fitness', 'Hub on Hunters'));
 
 -- 2. The testers' roles (the brief's roster; emails as the accounts actually exist), keyed by group id
 insert into public.demo_roster (email, group_id, role)

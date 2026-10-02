@@ -85,15 +85,12 @@ seed_ids = set(P.values()) | set(FANS)
 
 groups = {g['name']: g['id'] for g in rest('GET', 'groups', query='?demo=eq.true&select=id,name')}
 # Torrez Fitness is the real pilot group (owner, 2026-09-29): it gets no demo content, so it isn't here.
-NEEDED = ['Hub on Hunters', 'Walnut Creek Neighborhood', 'Woodcliff Neighborhood']
+# Hub on Hunters isn't here: it's a real group with its own demo set (seed-hub.py, owner 2026-10-01).
+NEEDED = ['Walnut Creek Neighborhood', 'Woodcliff Neighborhood']
 missing = [n for n in NEEDED if n not in groups]
 if missing:
     sys.exit(f'Not demo groups here (run demo-world.sql first): {missing}')
 gids = [groups[n] for n in NEEDED]
-# Hub on Hunters has its own demo set (seed-hub.py, owner 2026-10-01): its demo people stay members, but
-# nothing here clears, creates or replies to anything in it.
-CONTENT = ['Walnut Creek Neighborhood', 'Woodcliff Neighborhood']
-cgids = [groups[n] for n in CONTENT]
 
 # The demo people are in every demo group (as members)
 for gid in gids:
@@ -104,7 +101,7 @@ for gid in gids:
 real = [u for u in accounts if u.get('email') and not u.get('is_anonymous') and not u['email'].lower().endswith('@example.com')]
 ids = ','.join(u['id'] for u in real)
 prof = {p['id']: p['name'] for p in rest('GET', 'profiles', query=f'?id=in.({ids})&select=id,name')} if real else {}
-mem = rest('GET', 'memberships', query=f'?user_id=in.({ids})&group_id=in.({",".join(cgids)})&select=user_id,group_id,role') if real else []
+mem = rest('GET', 'memberships', query=f'?user_id=in.({ids})&group_id=in.({",".join(gids)})&select=user_id,group_id,role') if real else []
 ROSTER_ORDER = ['eric@ericscott-creative.com', 'torrez.fitness@gmail.com', 'ejshaughn@gmail.com',
                 'stacy.claye@gmail.com', 'auburn.layman@gmail.com']
 R = []
@@ -122,7 +119,8 @@ print('Real people:', ', '.join(f"{r['name']} <{r['email']}>" for r in R) or 'no
 # --- The handoff's content ------------------------------------------------------------------------
 # lead: a real person's email (used when they're here and in that group), else the seed person in `alt`.
 T = None   # Torrez: the events below that name it are dropped
-H, W, C = NEEDED
+W, C = NEEDED
+H = 'Hub on Hunters'   # its events below are dropped
 EVENTS = [
     # Torrez Fitness
     dict(g=T, text='Activate', date='2026-10-15', time='08:00', spot='Torrez Fitness', photo='activate.jpg',
@@ -260,7 +258,7 @@ for r in [r for r in R if r['email'] not in named]:
 
 # --- Clear the old demo content ------------------------------------------------------------------------
 seed_list = ','.join(seed_ids)
-gone = rest('DELETE', 'sparks', query=f'?group_id=in.({",".join(cgids)})&or=(demo.is.true,lead_id.in.({seed_list}),created_by.in.({seed_list}))')
+gone = rest('DELETE', 'sparks', query=f'?group_id=in.({",".join(gids)})&or=(demo.is.true,lead_id.in.({seed_list}),created_by.in.({seed_list}))')
 print(f'Cleared {len(gone)} old demo ideas and plans')
 
 # --- Create --------------------------------------------------------------------------------------------
@@ -463,7 +461,7 @@ V6_IDEA = ['Community garden plots', 'Block party planning', 'Little free librar
 PHOTOS = ['get-togethers.jpg', 'welcome-picnic.jpg', 'projects.jpg', 'get-togethers-2.jpg', 'mutual-aid.jpg', 'craft-night.jpg']
 for k, r in enumerate(R):
     me, n = r['id'], k % 6
-    g = [name for name in CONTENT if groups[name] in r['groups']][k % len(r['groups'])]
+    g = [name for name in NEEDED if groups[name] in r['groups']][k % len(r['groups'])]
     suffix = '' if k < 6 else ' ' + str(k // 6 + 1)
     a = make(dict(g=g, text=V6_TODAY[n] + suffix, date=day(0), time='19:00', photo=PHOTOS[n], vision='Low-key, come as you are.',
                   signups=[('Bring snacks', 3, None), ('Folding chairs', 2, '18:30')]), me, True)
