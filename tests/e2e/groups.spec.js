@@ -124,7 +124,7 @@ test('a group end to end: edit group, cover, rename, invite, pin, admin edits, r
     await expect(detail).toContainText('moved indoors');
     await expect(detail.locator('[data-led-by]')).toContainText('Bo');
     // Led by opens Bo's profile: name, the groups you share, a friend button (owner, 2026-10-01)
-    await detail.locator('[data-led-by]').click();
+    await detail.locator('[data-led-by]').getByRole('button', { name: /^Led by Bo/ }).click();   // the name row (an admin also sees the co-lead ask)
     const person = A.getByRole('dialog', { name: 'Bo' });
     await expect(person.locator('[data-screen-label="Person"]')).toContainText('Bo');
     await expect(person.locator('[data-person-groups]')).toContainText(groupName);

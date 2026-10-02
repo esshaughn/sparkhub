@@ -19,7 +19,8 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     const HP = H.locator('[data-screen-label="Plan page"]');
     await expect(HP).toContainText('YOU’RE LEADING');                          // v6 Update 6: the host's chip
     await expect(HP).toContainText('5:30pm');
-    await expect(HP).not.toContainText('LED BY');                           // not shown to the host
+    await expect(HP.locator('[data-led-by]')).toContainText('LED BY');      // the lead sees the card too, asked to bring in a co-lead
+    await expect(HP.locator('[data-colead-ask]')).toContainText('Bring in a co-lead.');
     await expect(HP.locator('[data-screen-label="Guest list"]')).toContainText('Going');
     await expect(HP.getByRole('button', { name: /Invite people/ })).toBeVisible();
     await expect(HP).not.toContainText('Remind everyone the day before');      // retired in Update 6
