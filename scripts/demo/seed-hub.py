@@ -87,9 +87,9 @@ ME = by_email[OWNER]['id']
 NAME = {uid: n for n, uid in P.items()}
 NAME[ME] = (rest('GET', 'profiles', query=f'?id=eq.{ME}&select=name') or [{}])[0].get('name') or 'Eric'
 
-hub = rest('GET', 'groups', query=f'?name=like.{q(GROUP)}*&select=id,name')
+hub = rest('GET', 'groups', query='?code=eq.HUNTER&select=id,name')   # by its fixed code, never by name alone
 if len(hub) != 1:
-    sys.exit(f'Expected one {GROUP} group, found {[g["name"] for g in hub]}')
+    sys.exit(f'Expected one group with code HUNTER, found {len(hub)}')
 GID = hub[0]['id']
 for uid in seed_ids:
     call('POST', '/rest/v1/memberships', {'group_id': GID, 'user_id': uid}, {'Prefer': 'resolution=ignore-duplicates'})
