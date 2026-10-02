@@ -1273,7 +1273,7 @@
     }
     needAccount(() => run(async () => {
       must(await sb.from('interests').insert({ spark_id: s.id, user_id: state.me }));
-    }, { tag: 'You’re interested' }));
+    }));
   };
 
   // "I could help make it happen": only on your own interest
@@ -1282,10 +1282,10 @@
     run(async () => { must(await sb.from('interests').update({ can_help: on_ }).eq('spark_id', s.id).eq('user_id', state.me)); }, { tag: null });
   };
   // Looking for a host (social-science review, 2026-10-01): floating an idea and hosting it are separate jobs
-  const setWantsHost = (s, on_) => run(async () => { must(await sb.rpc('set_wants_host', { p_spark: s.id, p_on: on_ })); }, { tag: on_ ? 'Looking for a lead' : 'You’re leading it' });
+  const setWantsHost = (s, on_) => run(async () => { must(await sb.rpc('set_wants_host', { p_spark: s.id, p_on: on_ })); });
   const takeTheLead = (s) => needAccount(() => setState({ confirm: { title: 'Lead ' + s.text + '?', green: true, cta: 'I’ll lead it', keep: 'Not now',
     body: 'You’ll lead it: pick the date and place and make it a plan. ' + firstName(nameOf(s.leadId, s.leadName)) + ' stays interested and gets a note.',
-    run: () => run(async () => { must(await sb.rpc('take_the_lead', { p_spark: s.id })); }, { confirm: null, tag: 'You’re leading it' }) } }));
+    run: () => run(async () => { must(await sb.rpc('take_the_lead', { p_spark: s.id })); }, { confirm: null }) } }));
 
   // Non-leads suggest (waits for the lead); the lead sets it straight away
   const openOffer = (s, kind) => {
@@ -1300,7 +1300,7 @@
         ? { day_date: text.slice(0, 10), day_time: text.length > 10 ? text.slice(11, 16) : null }
         : { spot: cleanTitle(text).slice(0, 80), spot_open: false, spot_address: place ? place.address : null, spot_lat: place ? place.lat : null, spot_lon: place ? place.lon : null };
       run(async () => { must(await sb.from('sparks').update(row).eq('id', s.id)); },
-        { offerKind: null, offerText: '', offerPlace: null, tag: kind === 'day' ? 'Day set' : 'Location set' });
+        { offerKind: null, offerText: '', offerPlace: null });
       return;
     }
     // Everyone else's suggestions go on the idea's board, where anyone can vote and the lead picks
@@ -1312,11 +1312,11 @@
       } else {
         must(await sb.from('spot_options').insert({ spark_id: s.id, name: cleanTitle(text).slice(0, 80), address: place ? place.address : null, lat: place ? place.lat : null, lon: place ? place.lon : null, who }));
       }
-    }, { offerKind: null, offerText: '', offerPlace: null, tag: kind === 'day' ? 'Date suggested' : 'Location suggested' });
+    }, { offerKind: null, offerText: '', offerPlace: null });
   };
   const resolveOffer = (s, p, accept) => run(async () => {
     must(await sb.rpc('resolve_offer', { p_offer: p.id, p_accept: accept }));
-  }, accept ? { tag: p.kind === 'spot' ? 'Location set' : 'Day set' } : {});
+  });
 
   // ---- V5 plans ----------------------------------------------------------------------
   // An idea is a plan once the lead locks in a day and a time; the day after, it "happened"
@@ -1404,13 +1404,13 @@
     const n = s.interested.length;
     setState({ confirm: { title: 'Make it a plan?', green: true, cta: 'Make it a plan', keep: 'Not yet',
       body: 'It’s on for ' + whenLong(s) + '. ' + (n ? (n === 1 ? 'The 1 person who’s interested shows as going.' : 'The ' + n + ' people who are interested show as going.') : 'Anyone who joins shows as going.') + ' It goes on the calendar.',
-      run: () => run(async () => { must(await sb.rpc('make_plan', { p_spark: s.id })); }, { confirm: null, tag: 'It’s a plan' }) } });
+      run: () => run(async () => { must(await sb.rpc('make_plan', { p_spark: s.id })); }, { confirm: null }) } });
   };
   const clearPlan = (s) => {
     const n = going(s).length;
     setState({ confirm: { title: 'Turn it back into an idea?', danger: true, cta: 'Back to an idea', keep: 'Keep the plan',
       body: 'The date comes off and it goes back to being an idea.' + (n ? (n === 1 ? ' The 1 person going shows as interested again and gets a note.' : ' The ' + n + ' people going show as interested again and get a note.') : ''),
-      run: () => run(async () => { must(await sb.rpc('clear_plan', { p_spark: s.id })); }, { confirm: null, sec: null, tag: 'Back to an idea' }) } });
+      run: () => run(async () => { must(await sb.rpc('clear_plan', { p_spark: s.id })); }, { confirm: null, sec: null }) } });
   };
 
 
@@ -4392,7 +4392,7 @@
           : share ? '' : '<span style="flex:0 0 44px;width:44px"></span>') +
         (share ? '<span ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' aria-label="Share" class="hov-fill-grey" style="flex:0 0 44px;width:44px;height:44px;border-radius:999px;background:#fff;box-shadow:0 2px 8px rgba(13,17,23,.25);display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(18, stroke('#0d1117', 2.4), P5.share) + '</span>' : '') +
       '</div>' + inner +
-      (state.tag ? '<div style="position:absolute;right:16px;bottom:44px;z-index:2;transform:rotate(5deg);background:#fff;border-radius:999px;padding:8px 14px;font-size:13px;font-weight:800;color:#0d1117;box-shadow:0 8px 20px rgba(15,18,25,.18);animation:popIn 320ms cubic-bezier(.22,.9,.28,1) both">' + esc(state.tag) + '</div>' : '') +
+      // (No chip over the photo after an action, owner 2026-10-01: the page already shows what changed)
     '</div>';
   };
 
@@ -5517,7 +5517,7 @@
         setState(Object.assign(composeReset(), { busy: null, phaseTab: dated ? 'plan' : 'idea' }));
         // Then straight to asking people (research review, 2026-10-01): a host who lines up one or two people before
         // anyone else sees it makes the event far more likely to happen. Not for "Just testing" events
-        go('detail', Object.assign({ subjectId: id, tag: dated ? null : 'It’s up' }, row.test ? {} : { share: { id, copied: false, ask: true } }));
+        go('detail', Object.assign({ subjectId: id }, row.test ? {} : { share: { id, copied: false, ask: true } }));
       } catch (e) {
         console.error(e);
         setState({ busy: null });

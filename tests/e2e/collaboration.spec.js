@@ -44,7 +44,6 @@ test('a member with the link takes part; everyone votes; the lead picks and make
     const offer = G.getByRole('dialog', { name: 'Suggest a location' });
     await offer.getByLabel('Location').fill('the north lot at Zilker');
     await offer.getByRole('button', { name: 'Suggest this location' }).click();
-    await expect(G.getByText('Location suggested')).toBeVisible();
     await expect(GD).toContainText('The north lot at Zilker');
     await expect(GD).toContainText('Suggested by Gus');
     await GD.getByRole('button', { name: 'Vote for The north lot at Zilker' }).click();
