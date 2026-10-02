@@ -202,7 +202,7 @@
     notif: { allReadAt: 0, read: [], topics: {}, email: true, loaded: false }, nFilter: 'all', nSettings: false, demoAdmin: false, back: null, myPlace: '', myBio: '', memberSince: null, ownGrp: null, sizes: {}, membersQ: '', gpRename: null, gpDel: null, ph: null,
     startName: null, phaseTab: 'plan', sigDraft: '', sigNeed: '', sigTime: '', blast: null, invite: null,
     pe: null, confirm: null, interestList: false, thanksList: false, guestList: null, cohostPick: null, leadsSheet: null, takeDown: null, albumEdit: null,
-    gpCode: '', gpMembers: null, gpFail: false, acctDel: null,
+    gpCode: '', gpMembers: null, gpFail: false, acctDel: null, voteAll: null, justAdded: null, offerVote: true,
     // v6 Update 13: Your people (Groups · Friends), friend requests, the friend link, inviting friends
     fr: { friends: [], incoming: [], outgoing: [], invites: [], loaded: false }, pplTab: 'groups', pplSearch: false, pplQ: '', pplAdd: false, frSel: [], frInvite: false,
     frAdd: null, myFriendCode: null, person: null,
@@ -287,10 +287,11 @@
   };
 
   let toastTimer = null;
-  const toast = (text, ok) => {
-    setState({ toast: { text, ok: !!ok } });
+  // act: { label, fn } puts a button on the toast (Undo), and keeps it up a little longer
+  const toast = (text, ok, act) => {
+    setState({ toast: { text, ok: !!ok, act: act || null } });
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => setState({ toast: null }), 3500);
+    toastTimer = setTimeout(() => setState({ toast: null }), act ? 5000 : 3500);
   };
   // The invite flow's larger toast ("You’re already in {group}"), 3s
   const toastIn = (text) => {
@@ -1339,16 +1340,22 @@
   const commitOffer = (s) => {
     const kind = state.offerKind, text = state.offerText.trim(), place = state.offerPlace;
     if (!text || state.busy) return;
-    // Everyone else's suggestions go on the idea's board, where anyone can vote and the lead picks
+    // A date or location goes on the vote, where anyone can tick it and the lead picks; my vote goes on it too unless unticked
+    const withVote = state.offerVote !== false, table = kind === 'day' ? 'date_options' : 'spot_options';
+    let id = null;
     run(async () => {
       await saveGuestContact(s.id);
       const who = (state.myName || (state.guest && state.guest.name) || 'Someone').slice(0, 40);
-      if (kind === 'day') {
-        must(await sb.from('date_options').insert({ spark_id: s.id, day_date: text.slice(0, 10), day_time: text.length > 10 ? text.slice(11, 16) : null, who }));
-      } else {
-        must(await sb.from('spot_options').insert({ spark_id: s.id, name: cleanTitle(text).slice(0, 80), address: place ? place.address : null, lat: place ? place.lat : null, lon: place ? place.lon : null, who }));
-      }
-    }, { offerKind: null, offerText: '', offerPlace: null });
+      id = must(await sb.from(table).insert(kind === 'day'
+        ? { spark_id: s.id, day_date: text.slice(0, 10), day_time: text.length > 10 ? text.slice(11, 16) : null, who }
+        : { spark_id: s.id, name: cleanTitle(text).slice(0, 80), address: place ? place.address : null, lat: place ? place.lat : null, lon: place ? place.lon : null, who }).select('id').single()).data.id;
+      if (withVote) must(await sb.from(kind === 'day' ? 'date_votes' : 'spot_votes').insert({ option_id: id, user_id: state.me }));
+    }, { offerKind: null, offerText: '', offerPlace: null, offerVote: true, timeOpen: null, dateOpen: null }).then(ok => {
+      if (!ok) return;
+      setState({ justAdded: id });
+      toast((kind === 'day' ? 'Date added. ' : 'Location added. ') + (isLead(s) ? 'Everyone can vote on it.' : firstName(nameOf(s.leadId, s.leadName)) + ' will see it.'), true,
+        { label: 'Undo', fn: () => run(async () => { must(await sb.from(table).delete().eq('id', id)); }) });
+    });
   };
   // ---- V5 plans ----------------------------------------------------------------------
   // An idea is a plan once the lead locks in a day and a time; the day after, it "happened"
@@ -1366,19 +1373,21 @@
   // A one-tap change that shows at once (owner, 2026-10-02: Interested, sign-ups and reactions waited for the save and a
   // reload, like RSVP used to): the event changes on screen, the save runs behind it in order, one refresh follows the
   // last of them, and a save that fails puts things back and says so. done(ok) runs after the save.
-  let quickChain = Promise.resolve(), quickQueued = 0;
+  let quickChain = Promise.resolve(), quickQueued = 0, savingN = 0;
+  const saving = (d) => { savingN = Math.max(0, savingN + d); if (savingN) document.documentElement.setAttribute('data-saving', ''); else document.documentElement.removeAttribute('data-saving'); };
   const quick = (s, patch, work, done) => {
     if (state.viewAs) return run(async () => {});   // previewing: run() says nothing changes
     const cur = state.sparks.find(x => x.id === s.id) || s, undo = {};
     Object.keys(patch).forEach(k => { undo[k] = cur[k]; });
     patchSpark(s.id, patch);
     const mine = ++quickQueued;
-    document.documentElement.setAttribute('data-saving', '');
+    saving(1);
     quickChain = quickChain.then(async () => {
       let ok = true;
       try { await ensureSession(); await work(); }
       catch (e) { ok = false; console.error(e); patchSpark(s.id, undo); toast(failed(e)); }
-      if (mine === quickQueued) { document.documentElement.removeAttribute('data-saving'); await loadFresh().catch(e => console.error(e)); }
+      saving(-1);
+      if (mine === quickQueued) await loadFresh().catch(e => console.error(e));
       if (done) done(ok);
     });
     return quickChain;
@@ -1405,6 +1414,7 @@
       if (next === 'going' && s.dayDate && !s.cancelledAt) showBanner({ kind: 'going', id: s.id }, 5000);
       else if (note) toast(dropJobs ? 'Thanks for letting ' + lead + ' know. You’re off the list too.' : note, true);
       const mine = ++rsvpQueued;
+      saving(1);
       rsvpChain = rsvpChain.then(async () => {
         try {
           await ensureSession();
@@ -1419,6 +1429,7 @@
           if (state.banner && state.banner.kind === 'going' && state.banner.id === s.id) setState({ banner: null });
           toast(failed(e));
         }
+        saving(-1);
         if (mine === rsvpQueued) loadFresh().catch(e => console.error(e));
       });
     }); };
@@ -1435,14 +1446,16 @@
   // A vote on a suggested date or place changes as soon as it's tapped, like RSVP (owner, 2026-10-01: it lagged the same way).
   // Saves queue in order; one refresh follows the last of them, and a save that fails puts that option's votes back
   let voteChain = Promise.resolve(), voteQueued = 0;
-  const vote = (table, s, o) => (noteTap({ k: 'vote', id: s.id, table, opt: o.id }), needAccount(() => {
+  const vote = (table, s, o, said) => (noteTap({ k: 'vote', id: s.id, table, opt: o.id }), needAccount(() => {
     if (state.viewAs) return run(async () => {});   // previewing: run() says nothing changes
     const key = table === 'date_votes' ? 'dateOpts' : 'spotOpts';
     const opts = () => (state.sparks.find(x => x.id === s.id) || s)[key];
     const before = (opts().find(x => x.id === o.id) || o).votes, had = before.indexOf(state.me) > -1;
     const setVotes = (votes) => patchSpark(s.id, { [key]: opts().map(x => x.id === o.id ? Object.assign({}, x, { votes }) : x) });
     setVotes(had ? before.filter(u => u !== state.me) : before.concat(state.me));
+    if (said) toast(had ? 'Vote taken back' : 'Vote saved. ' + firstName(nameOf(s.leadId, s.leadName)) + ' will see it.', true, { label: 'Undo', fn: () => vote(table, (state.sparks.find(x => x.id === s.id) || s), (opts().find(x => x.id === o.id) || o)) });
     const mine = ++voteQueued;
+    saving(1);
     voteChain = voteChain.then(async () => {
       try {
         await ensureSession();
@@ -1454,6 +1467,7 @@
         setVotes(before);
         toast(failed(e));
       }
+      saving(-1);
       if (mine === voteQueued) loadFresh().catch(e => console.error(e));
     });
   }));
@@ -4064,7 +4078,7 @@
     '<h2 style="margin:18px 0 0;font-size:26px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:#0d1117;text-wrap:balance">' + WE_SHOULD + '</h2>' +
     '<p style="margin:0;max-width:330px;font-size:15px;line-height:1.45;font-weight:500;color:#4b5160">An idea is an event without a date. Post it, people vote on when and where, and it turns into a plan once someone leads it.</p>' +
     '<button type="button" ' + on(() => goCompose({ evGroups: [g.id] })) + ' style="margin-top:6px;width:100%;min-height:56px;border:0;border-radius:999px;background:#efc95a;box-shadow:0 6px 16px rgba(201,143,22,.25);display:flex;align-items:center;justify-content:center;gap:8px;font-family:inherit;font-size:17px;font-weight:800;color:#3d2a00;cursor:pointer">' +
-      svg(20, stroke('#3d2a00', 2.3), BULB_IC) + 'Start an event</button></div>';
+      'Start an event</button></div>';
   const ideaPrompt6 = (g) => '<div ' + on(() => goCompose({ evGroups: [g.id] }), 'button') + ' data-idea-prompt aria-label="Start an event" style="min-height:200px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:20px 10px;border-radius:18px;border:2px dashed #ecc85a;background:#fdf8ec;text-align:center;cursor:pointer">' +
     ideaBulb6(54, '0 0 0 8px rgba(239,201,90,.25)') +
     '<span style="margin-top:4px;font-size:16.5px;line-height:1.15;font-weight:900;color:#3d2a00;text-wrap:balance">' + WE_SHOULD + '</span>' +
@@ -4443,11 +4457,11 @@
   const ideaBanner = (s) => {
     const steps = [['Lead', !s.wantsHost], ['Location', !!s.spot], ['Details', basicsOf(s).length > 0], ['Date', dateAhead(s)]]
       .concat(s.minPeople ? [['People', s.interested.length >= s.minPeople]] : []);
-    const bar = (on_) => '<span aria-hidden="true" style="flex:1 1 0;max-width:42px;height:4px;margin:13px 6px 0;border-radius:999px;background:' + (on_ ? '#3d2a00' : 'rgba(61,42,0,.22)') + '"></span>';
+    const bar = (on_) => '<span aria-hidden="true" style="flex:1 1 0;max-width:42px;height:3px;margin:10px 6px 0;border-radius:999px;background:' + (on_ ? '#3d2a00' : 'rgba(61,42,0,.22)') + '"></span>';
     const step = ([label, met]) => '<div style="flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:5px">' +
-      (met ? '<span style="width:30px;height:30px;border-radius:999px;display:flex;align-items:center;justify-content:center;background:#3d2a00">' + svg(14, stroke('#fff', 3.2), P6.check) + '</span>'
-           : '<span style="width:30px;height:30px;border-radius:999px;box-shadow:inset 0 0 0 3px rgba(61,42,0,.4)"></span>') +
-      '<span style="font-size:14px;line-height:1.1;font-weight:900;color:' + (met ? '#2a1d00' : '#8a6a1c') + ';text-align:center">' + label + '</span></div>';
+      (met ? '<span style="width:22px;height:22px;border-radius:999px;display:flex;align-items:center;justify-content:center;background:#3d2a00">' + svg(11, stroke('#fff', 3.4), P6.check) + '</span>'
+           : '<span style="width:22px;height:22px;border-radius:999px;box-shadow:inset 0 0 0 2.5px rgba(61,42,0,.4)"></span>') +
+      '<span style="font-size:13px;line-height:1.1;font-weight:900;color:' + (met ? '#2a1d00' : '#8a6a1c') + ';text-align:center">' + label + '</span></div>';
     const ready = isLead(s) && !s.cancelledAt && !planMissing(s).length;
     const spark = (l, t, size, col) => '<span aria-hidden="true" style="position:absolute;left:' + l + ';top:' + t + ';font-size:' + size + 'px;line-height:1;color:' + col + '">✦</span>';
     return '<div aria-label="Steps to a plan" style="padding:14px 16px 16px;border-radius:0 0 26px 26px;background:#efc95a;box-shadow:0 6px 16px rgba(160,110,10,.18)">' +
@@ -4952,7 +4966,107 @@
 
   // Date and location in one card: a value (bold, with the time or address in gray under it), "TBD" (gray, owner 2026-10-01), or a poll (guests vote, the host picks)
   // Ideas use it too (audit, 2026-10-01): members also get Suggest a date / location, and a set date or place keeps any other suggestions under it
+  // Help pick when and where (owner's mocks, 2026-10-02): while a date or a location is still being voted on, ideas and plans
+  // show the vote in one card: a gold box per vote (date tiles, location rows, a tick on each, "View all (N)", "+ Add"),
+  // a green box for whichever is already set, and a line on what you voted for. Members tick every one that works; the
+  // lead taps one to lock it in.
+  const VG = { box: '#fdf6dc', edge: '#e6d08c', ink: '#8a6510', on: '#ecc56a', dark: '#3d2a00', tick: '#e2cd8a' };
+  const voteTick = (onIt) => '<span aria-hidden="true" style="flex:0 0 auto;width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;box-sizing:border-box;' +
+    (onIt ? 'background:' + VG.dark : 'background:#fff;border:2.5px solid ' + VG.tick) + '">' + (onIt ? I.check(13, '#fff', 3.4) : '') + '</span>';
+  const votesN = (n) => n + (n === 1 ? ' vote' : ' votes');
+  // What a screen reader hears on an option (and what tests find): "Vote for Sat, Nov 14 · 6:30pm (1 vote, suggested by Gus)"
+  const optLabel = (s, o, label) => (isLead(s) ? 'Pick ' : o.votes.indexOf(state.me) > -1 ? 'Remove your vote for ' : 'Vote for ') + label + ' (' + votesN(o.votes.length) + (o.who ? ', suggested by ' + o.who : '') + ')';
+  const voteTap = (s, kind, o) => () => { if (state.busy) return; if (isLead(s)) pickOpt(s, kind, o); else vote(kind === 'day' ? 'date_votes' : 'spot_votes', s, o, true); };
+  // The ones shown in the card: the most-voted (dates then in date order); the rest are under View all
+  const topOpts = (opts, n, kind) => {
+    const top = opts.slice().sort((a, b) => b.votes.length - a.votes.length || a.created - b.created).slice(0, n);
+    return kind === 'day' ? top.sort((a, b) => (a.dayDate + (a.dayTime || '')).localeCompare(b.dayDate + (b.dayTime || ''))) : top;
+  };
+  const voteBox = (s, kind) => {
+    const day = kind === 'day', opts = day ? s.dateOpts : s.spotOpts, lead = isLead(s);
+    const shown = topOpts(opts, day ? 3 : 2, kind);
+    const head = '<div style="display:flex;align-items:center;gap:10px">' + svg(19, stroke(VG.ink, 2.1), day ? P6.cal : P6.pin) +
+      '<span style="flex:1;min-width:0;font-size:13px;font-weight:900;letter-spacing:1.4px;color:' + VG.ink + '">' + (day ? 'VOTE ON A DATE' : 'VOTE ON A LOCATION') + '</span>' +
+      (opts.length > shown.length || opts.length > 1 ? '<span ' + on(() => setState({ voteAll: { id: s.id, kind } })) + ' data-view-all-' + kind + ' style="display:flex;align-items:center;gap:4px;font-size:15px;font-weight:800;color:' + VG.ink + ';cursor:pointer;white-space:nowrap">View all (' + opts.length + ')' + I.chevR(12, VG.ink, 2.8) + '</span>' : '') + '</div>';
+    const newTag = (o) => state.justAdded === o.id ? '<span style="position:absolute;top:8px;right:10px;font-size:11.5px;font-weight:800;color:' + VG.dark + ';opacity:.75">New</span>' : '';
+    const tile = (o) => {
+      const mine = o.votes.indexOf(state.me) > -1, n = o.votes.length, dp = dateParts(o.dayDate), on_ = mine && !lead;
+      return '<div ' + on(voteTap(s, 'day', o)) + ' data-poll-opt="' + esc(dayLabel(o.dayDate, o.dayTime)) + '" aria-pressed="' + on_ + '" aria-label="' + esc(optLabel(s, o, dayLabel(o.dayDate, o.dayTime))) + '" style="position:relative;flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;gap:2px;padding:14px 4px 12px;border-radius:18px;text-align:center;cursor:pointer;background:' + (on_ ? VG.on : '#fff') + '">' +
+        newTag(o) + (lead ? '' : voteTick(on_)) +
+        '<span style="margin-top:' + (lead ? 2 : 8) + 'px;font-size:12.5px;font-weight:900;letter-spacing:1.3px;color:' + (on_ ? VG.dark : VG.ink) + '">' + esc(dp.dow) + '</span>' +
+        '<span style="font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:#0d1117;white-space:nowrap">' + esc(monthDay(o.dayDate)) + '</span>' +
+        '<span style="font-size:15px;font-weight:600;color:' + (on_ ? VG.dark : '#6b7280') + '">' + esc(o.dayTime ? fmtTime(o.dayTime) : 'Any time') + '</span>' +
+        '<span style="margin-top:6px;font-size:14.5px;font-weight:800;color:' + (on_ ? VG.dark : VG.ink) + '">' + votesN(n) + '</span>' +
+        (lead ? '<span style="margin-top:6px;font-size:13px;font-weight:900;color:#5b4ae8">Pick</span>' : '') + '</div>';
+    };
+    const row = (o) => {
+      const mine = o.votes.indexOf(state.me) > -1, n = o.votes.length, on_ = mine && !lead;
+      return '<div ' + on(voteTap(s, 'spot', o)) + ' data-poll-opt="' + esc(o.name) + '" aria-pressed="' + on_ + '" aria-label="' + esc(optLabel(s, o, o.name)) + '" style="position:relative;display:flex;align-items:center;gap:14px;min-height:58px;padding:8px 18px 8px 16px;border-radius:18px;cursor:pointer;background:' + (on_ ? VG.on : '#fff') + '">' +
+        (lead ? '' : voteTick(on_)) + '<span style="flex:1;min-width:0;font-size:17px;line-height:1.2;font-weight:800;color:#0d1117;overflow-wrap:anywhere">' + esc(o.name) + '</span>' +
+        '<span style="flex:0 0 auto;font-size:14.5px;font-weight:800;color:' + (on_ ? VG.dark : VG.ink) + '">' + votesN(n) + '</span>' +
+        (lead ? '<span style="flex:0 0 auto;font-size:13px;font-weight:900;color:#5b4ae8">Pick</span>' : '') + (state.justAdded === o.id ? '<span style="position:absolute;top:4px;right:12px;font-size:11px;font-weight:800;color:' + VG.dark + ';opacity:.75">New</span>' : '') + '</div>';
+    };
+    const add = '<span ' + on(() => openOffer(s, kind)) + ' data-add-' + kind + ' style="align-self:flex-start;display:flex;align-items:center;gap:8px;min-height:40px;font-size:16px;font-weight:800;color:' + VG.ink + ';cursor:pointer">' + I.plus(15, VG.ink, 2.8) + (day ? 'Add date' : 'Add location') + '</span>';
+    const none = '<div style="padding:14px 16px;border-radius:18px;background:rgba(255,255,255,.6);font-size:15px;font-weight:600;color:' + VG.ink + '">' + (day ? 'No dates suggested yet.' : 'No locations suggested yet.') + '</div>';
+    return '<div data-vote-box="' + kind + '" style="display:flex;flex-direction:column;gap:14px">' + head +
+      (!shown.length ? none : day ? '<div style="display:flex;gap:8px">' + shown.map(tile).join('') + '</div>' : '<div style="display:flex;flex-direction:column;gap:10px">' + shown.map(row).join('') + '</div>') + add + '</div>';
+  };
+  const setBox = (s, kind) => {
+    const day = kind === 'day', G = '#2f8a4c', o = day ? s.dateOpts.find(x => x.dayDate === s.dayDate && (x.dayTime || null) === (s.dayTime || null)) : s.spotOpts.find(x => x.name === s.spot);
+    const mine = o && o.votes.indexOf(state.me) > -1, by = firstName(nameOf(s.leadId, s.leadName));
+    const what = day ? fmtDay(s.dayDate) + (s.dayTime ? ' · ' + fmtTime(s.dayTime) : '') : s.spot;
+    const sub = o ? by + ' picked it · ' + votesN(o.votes.length) + (mine ? ', incl. yours' : '') : day ? (s.dayTime ? '' : 'Time to be decided') : (s.spotAddress || '');
+    const btn = 'display:flex;align-items:center;justify-content:center;min-height:48px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 2px #a9d8b6;color:' + G + ';font-size:16px;font-weight:800;text-decoration:none;cursor:pointer';
+    return '<div data-set-box="' + kind + '" style="display:flex;flex-direction:column;gap:12px;padding:16px;border-radius:20px;background:#ebf6ee;box-shadow:inset 0 0 0 2px #b9dfc4">' +
+      '<div style="display:flex;align-items:center;gap:10px">' + svg(19, stroke(G, 2.1), day ? P6.cal : P6.pin) + '<span style="font-size:13px;font-weight:900;letter-spacing:1.4px;color:' + G + '">' + (day ? 'DATE IS SET' : 'LOCATION IS SET') + '</span></div>' +
+      '<div style="display:flex;align-items:center;gap:12px"><span aria-hidden="true" style="flex:0 0 34px;width:34px;height:34px;border-radius:999px;background:#3c9a5a;display:flex;align-items:center;justify-content:center">' + I.check(15, '#fff', 3.2) + '</span>' +
+        '<div style="flex:1;min-width:0"><div style="font-size:18px;line-height:1.2;font-weight:900;color:#0d1117;overflow-wrap:anywhere">' + esc(what) + '</div>' + (sub ? '<div style="margin-top:2px;font-size:14px;font-weight:700;color:' + G + '">' + esc(sub) + '</div>' : '') + '</div></div>' +
+      (day ? '<span ' + on(() => addToCalendar(s)) + ' style="' + btn + '">Add to calendar</span>' : '<a href="' + esc(directionsUrl(s)) + '" target="_blank" rel="noopener noreferrer" style="' + btn + '">Directions</a>') + '</div>';
+  };
+  const pickingCard = (s) => {
+    const dayOpen = !s.dayDate, spotOpen = !s.spot, lead = isLead(s), by = firstName(nameOf(s.leadId, s.leadName));
+    const title = dayOpen && spotOpen ? 'Help pick when and where' : dayOpen ? 'Help pick when' : 'Help pick where';
+    const sub = lead ? 'People tick every one that works. Tap one to lock it in.'
+      : dayOpen && spotOpen ? 'Tick every one that works for you. ' + by + ' locks in the final pick.'
+      : dayOpen ? (s.spot ? 'The location is set. Still voting on a date.' : 'Tick every one that works for you. ' + by + ' locks in the final pick.')
+      : (s.dayDate ? 'The date is set. Still voting on a location.' : 'Tick every one that works for you. ' + by + ' locks in the final pick.');
+    const gold = (inner) => '<div style="display:flex;flex-direction:column;gap:16px;padding:18px 16px;border-radius:22px;background:' + VG.box + ';box-shadow:inset 0 0 0 2px ' + VG.edge + '">' + inner + '</div>';
+    const myD = s.dateOpts.filter(o => o.votes.indexOf(state.me) > -1).length, myS = s.spotOpts.filter(o => o.votes.indexOf(state.me) > -1).length;
+    const voters = new Set([].concat(...s.dateOpts.map(o => o.votes), ...s.spotOpts.map(o => o.votes))).size;
+    const foot = lead ? (voters ? voters + (voters === 1 ? ' person has' : ' people have') + ' voted' : 'No votes yet. Share it so people can vote.')
+      : !myD && !myS ? 'You haven’t voted yet'
+      : 'You voted for ' + [myD && (dayOpen ? myD + (myD === 1 ? ' date' : ' dates') : ''), myS && (spotOpen ? myS + (myS === 1 ? ' location' : ' locations') : '')].filter(Boolean).join(' and ');
+    return '<div id="sec-when" data-when-card data-picking style="' + CARD + ';border-radius:24px;padding:20px 18px 16px;display:flex;flex-direction:column;gap:14px">' +
+      '<div><h2 style="margin:0;font-size:24px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">' + title + '</h2>' +
+        '<p style="margin:4px 0 0;font-size:15.5px;line-height:1.4;font-weight:500;color:#5c6270">' + esc(sub) + '</p></div>' +
+      (s.dayDate && !dayOpen ? setBox(s, 'day') : '') + (s.spot && !spotOpen ? setBox(s, 'spot') : '') +
+      (dayOpen || spotOpen ? gold((dayOpen ? voteBox(s, 'day') : '') + (dayOpen && spotOpen ? '<div style="height:2px;background:' + VG.edge + ';opacity:.7"></div>' : '') + (spotOpen ? voteBox(s, 'spot') : '')) : '') +
+      '<div data-vote-foot style="text-align:center;font-size:15px;font-weight:600;color:#6b7280">' + esc(foot) + '</div>' +
+      (lead ? '<span ' + on(() => openSec(s, 'when')) + ' style="align-self:center;display:flex;align-items:center;gap:6px;min-height:36px;font-size:14px;font-weight:700;color:#6b7280;cursor:pointer">' + svg(13, stroke('currentColor', 2.4), PENCIL) + 'Set it yourself instead</span>' : '') +
+    '</div>';
+  };
+  // View all: every option, most votes first, with who suggested it
+  function viewVoteAll() {
+    const va = state.voteAll, s = state.sparks.find(x => x.id === va.id);
+    if (!s) return '';
+    const day = va.kind === 'day', lead = isLead(s), close = () => setState({ voteAll: null });
+    const opts = (day ? s.dateOpts : s.spotOpts).slice().sort((a, b) => b.votes.length - a.votes.length || a.created - b.created);
+    const row = (o) => {
+      const mine = o.votes.indexOf(state.me) > -1, on_ = mine && !lead, label = day ? dayLabel(o.dayDate, o.dayTime) : o.name;
+      return '<div ' + on(voteTap(s, va.kind, o)) + ' data-vote-all="' + esc(label) + '" aria-pressed="' + on_ + '" aria-label="' + esc(optLabel(s, o, label)) + '" style="display:flex;align-items:center;gap:14px;min-height:66px;padding:10px 18px 10px 16px;border-radius:18px;cursor:pointer;' + (on_ ? 'background:' + VG.on : 'background:' + VG.box + ';box-shadow:inset 0 0 0 2px ' + VG.edge) + '">' +
+        (lead ? '' : voteTick(on_)) + '<div style="flex:1;min-width:0"><div style="font-size:17px;line-height:1.2;font-weight:900;color:#0d1117;overflow-wrap:anywhere">' + esc(label) + '</div>' +
+          (o.who ? '<div style="margin-top:2px;font-size:14.5px;font-weight:600;color:' + (on_ ? VG.dark : VG.ink) + '">Suggested by ' + esc(firstName(o.who)) + '</div>' : '') + '</div>' +
+        '<span style="flex:0 0 auto;font-size:14.5px;font-weight:800;color:' + (on_ ? VG.dark : VG.ink) + '">' + votesN(o.votes.length) + '</span>' +
+        (lead ? '<span style="flex:0 0 auto;font-size:13px;font-weight:900;color:#5b4ae8">Pick</span>' : '') + '</div>';
+    };
+    return sheet(day ? 'Vote on a date' : 'Vote on a location', close, SHEET_PAD,
+      sheetHead('', day ? 'Vote on a date' : 'Vote on a location', lead ? 'Tap one to lock it in. Most votes first.' : 'Tick every one that works. Most votes first.', close) +
+      '<div style="display:flex;flex-direction:column;gap:10px">' + opts.map(row).join('') + '</div>' +
+      '<span ' + on(() => { close(); openOffer(s, va.kind); }) + ' style="display:flex;align-items:center;justify-content:center;gap:8px;min-height:56px;border-radius:18px;border:2px dashed ' + VG.tick + ';font-size:16px;font-weight:800;color:' + VG.ink + ';cursor:pointer">' + I.plus(15, VG.ink, 2.8) + (day ? 'Add date' : 'Add location') + '</span>' +
+      '<button type="button" ' + on(close) + ' style="min-height:56px;border:0;border-radius:999px;background:' + VG.on + ';color:' + VG.dark + ';font-family:inherit;font-size:17px;font-weight:900;cursor:pointer">Done</button>', 36);
+  }
   const whenWhereCard = (s) => {
+    if (!s.cancelledAt && phaseOf(s) !== 'done' && ((!s.dayDate && s.dateOpts.length) || (!s.spot && s.spotOpts.length))) return pickingCard(s);
     const lead = isLead(s) && !s.cancelledAt, P = '#5b4ae8', off = !!s.cancelledAt, suggest = !s.planned && !isLead(s) && !off;
     const pollRows = (opts, kind) => opts.slice().sort((a, b) => b.votes.length - a.votes.length).map(o => {
       const mine = o.votes.indexOf(state.me) > -1, n = o.votes.length, label = kind === 'day' ? dayLabel(o.dayDate, o.dayTime) : o.name;
@@ -4970,7 +5084,7 @@
     const whenTxt = s.dayDate ? new Date(s.dayDate + 'T12:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }) : '';
     const time = s.dayTime ? (s.dayEnd ? spanTime({ time: s.dayTime, endTime: s.dayEnd }) : fmtTime(s.dayTime)) : '';
     const otherDays = s.dateOpts.filter(o => !(o.dayDate === s.dayDate && (o.dayTime || null) === (s.dayTime || null))), otherSpots = s.spotOpts.filter(o => o.name !== s.spot);
-    const sugg = (kind) => suggest ? '<span ' + on(() => openOffer(s, kind)) + ' data-suggest-' + kind + ' style="margin-top:6px;display:inline-flex;align-items:center;gap:6px;min-height:34px;font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(14, '#5b4ae8', 2.6) + (kind === 'day' ? 'Suggest a date' : 'Suggest a location') + '</span>' : '';
+    const sugg = (kind) => suggest ? '<span ' + on(() => openOffer(s, kind)) + ' data-suggest-' + kind + ' style="margin-top:6px;display:inline-flex;align-items:center;gap:6px;min-height:34px;font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(14, '#5b4ae8', 2.6) + (kind === 'day' ? 'Add a date' : 'Add a location') + '</span>' : '';
     const dayPart = (s.dayDate ? '<div style="font-size:17px;line-height:1.25;font-weight:900;letter-spacing:-.3px;color:#0d1117;text-wrap:pretty">' + esc(whenTxt) + '</div>' +
           (time ? '<div style="margin-top:2px;font-size:15px;line-height:1.35;font-weight:500;color:#6b7280">' + esc(time) + '</div>' : '') +
           (otherDays.length ? '<div style="margin-top:10px">' + voting('OTHER SUGGESTIONS', pollRows(otherDays, 'day')) + '</div>' : '')
@@ -6276,28 +6390,28 @@
       '</div>');
   }
 
+  // Add a date / Add a location (owner's mock, 2026-10-02): a sheet with the app's own date and time lists, and "Add my
+  // vote to it too" (on by default)
   function viewOffer(s) {
-    const st = state, kind = st.offerKind;
-    const copy = (kind === 'day'
-          ? { title: 'Suggest a date', hint: 'Pick a day, and a time if you have one. It goes on the event for everyone to vote on, and the lead picks.', cta: 'Suggest this date' }
-          : { title: 'Suggest a location', hint: 'Somewhere this could actually happen. Everyone can vote on it, and the lead picks.', ph: 'e.g. the loop trail at the lake', cta: 'Suggest this location' });
+    const st = state, kind = st.offerKind, day = kind === 'day', voteOn = st.offerVote !== false;
     const ready = st.offerText.trim().length > 0 && !st.busy;
-    const close = () => setState({ offerKind: null, offerText: '', offerPlace: null, offerSuggest: [], dateOpen: null, timeOpen: null });
+    const close = () => setState({ offerKind: null, offerText: '', offerPlace: null, offerSuggest: [], dateOpen: null, timeOpen: null, offerVote: true });
+    const lbl = (t) => '<span style="font-size:13px;font-weight:800;letter-spacing:1.2px;color:#6b7280">' + t + '</span>';
     let field;
-    if (kind === 'day') {
+    if (day) {
       const d = st.offerText.slice(0, 10), t = st.offerText.length > 10 ? st.offerText.slice(11, 16) : '';
-      field = '<div style="display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:8px">' +
-          dateField(d, 'Date', 'Pick a date', (v) => setState({ offerText: v ? v + (t ? 'T' + t : '') : '' })) +
-          timeField('offT', t, EV_TIMES, 'Time', (v) => setState({ offerText: d ? d + (v ? 'T' + v : '') : '', timeOpen: null })) + '</div>' +
-        // room for the open calendar or time list, so the pop-up grows instead of scrolling inside itself
-        (st.dateOpen === 'Date' ? '<div aria-hidden="true" style="height:330px"></div>' : st.timeOpen === 'offT' ? '<div aria-hidden="true" style="height:236px"></div>' : '');
+      field = '<div style="display:flex;flex-direction:column;gap:8px">' + lbl('DAY') + dateField(d, 'Date', 'Pick a day', (v) => setState({ offerText: v ? v + (t ? 'T' + t : '') : '' })) + '</div>' +
+        '<div style="display:flex;flex-direction:column;gap:8px">' + lbl('START TIME') + timeField('offT', t, EV_TIMES, 'Optional', (v) => setState({ offerText: d ? d + (v ? 'T' + v : '') : '', timeOpen: null })) + '</div>' +
+        // room for the open calendar or time list, so the sheet grows instead of hiding it
+        (st.dateOpen === 'Date' ? '<div aria-hidden="true" style="height:300px"></div>' : st.timeOpen === 'offT' ? '<div aria-hidden="true" style="height:200px"></div>' : '');
     } else {
-      field = placeField('offer', { placeholder: copy.ph, style: FIELD });
+      field = '<div style="display:flex;flex-direction:column;gap:8px">' + lbl('LOCATION') + placeField('offer', { placeholder: 'Search a place or address', style: FIELD }) + '</div>';
     }
-    return modal(copy.title, close,
-      h3Html(copy.title) + '<p style="margin:0;font-size:14.5px;line-height:1.45;font-weight:500;color:#6b7280">' + copy.hint + '</p>' + field +
-      '<button type="button" ' + on(() => { if (ready) commitOffer(s); }) + ' aria-disabled="' + !ready + '" style="' + primary(ready) + ';margin-top:2px">' + (st.busy === 'save' ? 'Saving…' : copy.cta) + '</button>',
-      { z: 25, max: 330 });
+    const mine = '<div ' + on(() => setState({ offerVote: !voteOn }), 'checkbox') + ' aria-checked="' + voteOn + '" data-offer-vote style="display:flex;align-items:center;gap:14px;min-height:58px;padding:0 16px;border-radius:16px;background:' + VG.box + ';cursor:pointer">' +
+      voteTick(voteOn) + '<span style="font-size:16px;font-weight:700;color:' + VG.dark + '">Add my vote to it too</span></div>';
+    return sheet(day ? 'Add a date' : 'Add a location', close, SHEET_PAD,
+      sheetHead('', day ? 'Add a date' : 'Add a location', 'Everyone can vote on it.', close) + field + mine +
+      '<button type="button" data-enter ' + on(() => { if (ready) commitOffer(s); }) + ' aria-disabled="' + !ready + '" style="min-height:56px;border:0;border-radius:999px;font-family:inherit;font-size:17px;font-weight:900;cursor:' + (ready ? 'pointer' : 'default') + ';background:' + (ready ? VG.on : '#eceef1') + ';color:' + (ready ? VG.dark : '#9aa0ac') + '">' + (st.busy === 'save' ? 'Adding…' : day ? 'Add date' : 'Add location') + '</button>', 37);
   }
 
   function viewJoin() {
@@ -6600,6 +6714,7 @@
           ? '<span style="flex:0 0 18px;width:18px;height:18px;margin-top:1px;border-radius:999px;background:#149a4b;display:flex;align-items:center;justify-content:center">' + I.check(10, '#fff', 4) + '</span>'
           : '<span style="flex:0 0 18px;width:18px;height:18px;margin-top:1px;border-radius:999px;background:#e2556b;color:#fff;font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center">!</span>') +
         '<span style="font-size:14.5px;line-height:1.35;font-weight:700;color:#fff">' + esc(t.text) + '</span>' +
+        (t.act ? '<span ' + on(() => { clearTimeout(toastTimer); setState({ toast: null }); t.act.fn(); }) + ' style="pointer-events:auto;margin-left:6px;flex:0 0 auto;font-size:14.5px;font-weight:800;color:#ecc56a;cursor:pointer">' + esc(t.act.label) + '</span>' : '') +
       '</div></div>';
   }
 
@@ -6688,6 +6803,7 @@
       (s === 'compose' && (st.evTest == null || st.evKindAsk) && !st.evLeave && !st.loginStep ? viewKindAsk() : '') +
       (s === 'compose' && st.email ? viewComposeSheets() : st.pollSheet && st.pollSheet.sparkId ? viewComposeSheets() : '') +
       (st.offerKind && subj ? viewOffer(subj) : '') +
+      (st.voteAll ? viewVoteAll() : '') +
       (st.interestList && subj ? viewInterestList(subj) : '') +
       (st.guestList && subj && st.guestList === subj.id ? viewGuestList(subj) : '') +
       (st.leadsSheet ? viewLeadsSheet() : '') +
@@ -6936,6 +7052,7 @@
       if (state.nameAsk) return setState({ nameAsk: null, nameText: '' });
       if (state.guestOpen) return setState({ guestOpen: false, guestThen: null });
       if (state.offerKind) return setState({ offerKind: null, offerText: '' });
+      if (state.voteAll) return setState({ voteAll: null });
       if (state.interestList) return setState({ interestList: false });
       if (state.guestList) return setState({ guestList: null });
       if (state.cohostPick) return setState({ cohostPick: null });

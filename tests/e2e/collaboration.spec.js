@@ -1,7 +1,7 @@
 // A lead and a member on one idea: the shared link, "I'm interested", suggestions everyone votes on,
 // the lead picking, the mood board, making it a plan. A guest (no account) is asked to make one.
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newMember, newLead, leadEmail, button, pickDate, postIdea, openIdea, deleteIdea, answerGuestPrompt, confirm, PNG, openProfile } = require('./helpers');
+const { uniqueTitle, newMember, newLead, leadEmail, button, pickDate, saved, postIdea, openIdea, deleteIdea, answerGuestPrompt, confirm, PNG, openProfile } = require('./helpers');
 
 test('a member with the link takes part; everyone votes; the lead picks and makes it a plan', async ({ browser }) => {
   const lead = await newLead(browser, 1, 'Lena');
@@ -39,24 +39,30 @@ test('a member with the link takes part; everyone votes; the lead picks and make
     await expect(button(G, 'You’re interested')).toBeVisible({ timeout: 1000 });   // changes with the tap (owner, 2026-10-02), like RSVP
     await expect(GD.locator('#sec-people')).toContainText('1 interested');
 
-    // Suggest a location and a date: they go on the idea's board for everyone to vote on
-    await GD.getByRole('button', { name: 'Suggest a location' }).click();
-    const offer = G.getByRole('dialog', { name: 'Suggest a location' });
+    // Add a location and a date (owner's mock, 2026-10-02): they go on the vote, with my vote on them unless I untick it
+    await GD.locator('[data-suggest-spot]').click();   // before any vote, the date & place card's + Add a location
+    const offer = G.getByRole('dialog', { name: 'Add a location' });
+    await expect(offer.locator('[data-offer-vote]')).toHaveAttribute('aria-checked', 'true');
     await offer.getByLabel('Location').fill('the north lot at Zilker');
-    await offer.getByRole('button', { name: 'Suggest this location' }).click();
-    await expect(GD).toContainText('The north lot at Zilker');
-    await expect(GD).toContainText('Suggested by Gus');
-    await GD.getByRole('button', { name: 'Vote for The north lot at Zilker' }).click();
-    await expect(GD.getByRole('button', { name: 'Remove your vote for The north lot at Zilker' })).toHaveAttribute('aria-pressed', 'true');
-    await GD.getByRole('button', { name: 'Suggest a date' }).click();
-    const dateOffer = G.getByRole('dialog', { name: 'Suggest a date' });
-    await pickDate(dateOffer, '2026-11-14');   // our own date picker and time list (owner, 2026-10-02), not the browser's
-    await dateOffer.getByRole('button', { name: 'Time', exact: true }).click();
+    await offer.getByRole('button', { name: 'Add location', exact: true }).click();
+    await expect(G.getByText(/^Location added\./)).toBeVisible();
+    await expect(GD.locator('[data-picking]')).toContainText('Help pick');
+    await expect(GD.getByRole('button', { name: /^Remove your vote for The north lot at Zilker \(1 vote, suggested by Gus\)/ })).toHaveAttribute('aria-pressed', 'true');
+    // A tap takes the vote back, with Undo on the toast
+    await GD.getByRole('button', { name: /^Remove your vote for The north lot at Zilker/ }).click();
+    await expect(GD.getByRole('button', { name: /^Vote for The north lot at Zilker \(0 votes/ })).toHaveAttribute('aria-pressed', 'false', { timeout: 1000 });
+    await G.getByText('Undo', { exact: true }).click();
+    await expect(GD.getByRole('button', { name: /^Remove your vote for The north lot at Zilker \(1 vote/ })).toBeVisible();
+    await GD.locator('[data-add-day]').click();
+    const dateOffer = G.getByRole('dialog', { name: 'Add a date' });
+    await pickDate(dateOffer, '2026-11-14');   // our own date picker and time list, not the browser's
+    await dateOffer.getByRole('button', { name: 'Optional', exact: true }).click();
     await dateOffer.getByRole('option', { name: '6:30pm', exact: true }).click();
-    await dateOffer.getByRole('button', { name: 'Suggest this date' }).click();
+    await dateOffer.getByRole('button', { name: 'Add date', exact: true }).click();
     await expect(G.getByRole('dialog')).toHaveCount(0);
-    await GD.getByRole('button', { name: /^Vote for Sat, Nov 14 · 6:30pm \(0 votes, suggested by Gus\)/ }).click();
-    await expect(GD.getByRole('button', { name: /^Remove your vote for Sat, Nov 14 · 6:30pm \(1 vote/ })).toBeVisible();
+    await expect(GD.getByRole('button', { name: /^Remove your vote for Sat, Nov 14 · 6:30pm \(1 vote, suggested by Gus\)/ })).toBeVisible();
+    await expect(GD.locator('[data-vote-foot]')).toHaveText('You voted for 1 date and 1 location');
+    await saved(G);
 
     // The lead sees who's interested and the suggestions, and picks
     await L.reload();
@@ -127,6 +133,7 @@ test('the Ideas board puts the idea with the most interest first', async ({ brow
     await openIdea(fan.page, ids[0]);
     await button(fan.page, 'I’m interested').click();
     await expect(fan.page.locator('#sec-people')).toContainText('1 interested');
+    await saved(fan.page);
 
     const P = poster.page;
     await P.goto('/#/ideas');

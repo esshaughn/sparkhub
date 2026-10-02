@@ -612,17 +612,17 @@ test('a vote on a suggested date changes as soon as it is tapped (the save follo
     let release;
     const gate = new Promise(r => { release = r; });
     await M.route('**/rest/v1/date_votes*', async (route) => { if (route.request().method() !== 'GET') await gate; await route.continue().catch(() => {}); });
-    await opt.getByRole('button', { name: /^Vote for / }).click();
-    await expect(opt.getByRole('button', { name: /^Remove your vote for / })).toHaveAttribute('aria-pressed', 'true', { timeout: 1000 });
+    await M.getByRole('button', { name: /^Vote for / }).click();
+    await expect(M.getByRole('button', { name: /^Remove your vote for / })).toHaveAttribute('aria-pressed', 'true', { timeout: 1000 });
     await expect(opt).toContainText('1 vote');
     release();
     await M.unroute('**/rest/v1/date_votes*');
     await expect.poll(() => asUser(H, async (c, _C, id) => (await c.from('date_options').select('date_votes(user_id)').eq('spark_id', id)).data[0].date_votes.length, id)).toBe(1);
     // A failed save puts the vote back
     await M.route('**/rest/v1/date_votes*', (route) => route.request().method() === 'GET' ? route.continue() : route.fulfill({ status: 500, body: '{}' }));
-    await opt.getByRole('button', { name: /^Remove your vote for / }).click();
+    await M.getByRole('button', { name: /^Remove your vote for / }).click();
     await expect(M.getByText('That didn’t go through. Try again in a moment.')).toBeVisible();
-    await expect(opt.getByRole('button', { name: /^Remove your vote for / })).toHaveAttribute('aria-pressed', 'true');
+    await expect(M.getByRole('button', { name: /^Remove your vote for / })).toHaveAttribute('aria-pressed', 'true');
     await expect(opt).toContainText('1 vote');
   } finally {
     if (id) await asUser(H, async (c, _C, id) => c.rpc('delete_event', { p_spark: id, p_quiet: true }), id).catch(() => {});
@@ -693,7 +693,7 @@ test('no date yet: the lead runs a date poll from the idea; stepping back blocks
     await pickDate(poll, inDays(16), 'Date option 2');
     await poll.getByRole('button', { name: 'Save' }).click();
     await expect(H.getByText('Poll started. Everyone can vote now.')).toBeVisible();
-    await expect(HI.locator('#sec-when')).toContainText('VOTING ON A DATE');
+    await expect(HI.locator('#sec-when')).toContainText('VOTE ON A DATE');
     await expect(HI.locator('[data-empty-date]')).toHaveCount(0);
     // Looking for a lead: the card names every missing piece (all 4 steps, owner 2026-10-01)
     await HI.locator('[data-led-by]').getByRole('button', { name: 'Manage co-leads' }).click();

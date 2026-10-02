@@ -154,6 +154,9 @@ async function pickView(scope, name) {
   await scope.page().getByRole('menu', { name: 'View' }).getByRole('button', { name, exact: true }).click();
   await expect(scope.getByRole('button', { name: 'View: ' + name })).toBeVisible();
 }
+// Taps (RSVP, votes, Interested, sign-ups…) show at once and save behind the screen: wait for them to land before
+// another person looks
+async function saved(page) { await expect(page.locator('html[data-saving]')).toHaveCount(0, { timeout: 20000 }); }
 async function openProfile(page) {
   await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Profile', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'Profile', exact: true })).toBeVisible();
@@ -326,6 +329,6 @@ async function asUser(page, fn, args) {
 }
 
 module.exports = {
-  TAG, TORREZ, PNG, leadEmail, uniqueTitle, startPost, openProfile, pickView, mockPlaces, stubPhotos, trackErrors, expectConnected, newMember, newLead, button,
+  TAG, TORREZ, PNG, leadEmail, uniqueTitle, startPost, openProfile, saved, pickView, mockPlaces, stubPhotos, trackErrors, expectConnected, newMember, newLead, button,
   postIdea, postEvent, closeAskFirst, pickDate, pickKind, addJob, answerNamePrompt, answerGuestPrompt, ideaIdFromUrl, openIdea, confirm, deleteIdea, asUser
 };
