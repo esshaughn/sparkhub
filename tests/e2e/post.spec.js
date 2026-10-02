@@ -479,6 +479,11 @@ test('an idea says how many it needs; a bare starter chip can’t be saved; its 
     for (let i = 0; i < 6; i++) await need.getByRole('button', { name: 'More for how many people needed' }).click();
     await expect(need).toContainText('It’s a go once 6 people are in.');
     await flow.getByRole('button', { name: 'Next' }).click();
+    // How it works in three steps while the list is empty (owner's mock, 2026-10-02); then a job takes its place
+    const how = flow.locator('[data-help-how]');
+    await expect(how).toContainText('You list what’s needed');
+    await expect(how).toContainText('You see who’s on it');
+    await expect(flow).toContainText('START WITH ONE');
     // A starter chip alone ("Bring") can't be saved
     await flow.getByRole('button', { name: /Bring$/ }).click();
     const job = page.getByRole('dialog', { name: 'Add a job' });
@@ -501,6 +506,9 @@ test('an idea says how many it needs; a bare starter chip can’t be saved; its 
     await job.getByRole('option', { name: 'No time', exact: true }).click();   // clears it
     await job.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(flow).not.toContainText('FOR EXAMPLE');
+    await expect(flow.locator('[data-job="Bring a ball"]')).toBeVisible();
+    await expect(how).toHaveCount(0);
+    await expect(flow).toContainText('ADD ANOTHER');
     await flow.getByRole('button', { name: 'Review' }).click();
 
     await flow.getByRole('button', { name: /^Post (it|as an idea)$/ }).click();

@@ -6142,13 +6142,14 @@
         '<div style="padding:12px 16px 0;display:flex;flex-direction:column;gap:8px">' + bitRows(st.evBits, (k, v) => { const b = state.evBits.slice(); b[k] = v; setState({ evBits: b }); }) +
           (st.evDate ? '' : needRow(st.evNeed, (n) => setState({ evNeed: n }))) + '</div>';   // no date: it goes up as an idea, which can say how many it needs
     } else if (cur === 'help') {
-      const chip = (label, fn, dashed) => '<span ' + on(fn) + ' style="display:flex;align-items:center;gap:5px;min-height:38px;padding:0 13px;border-radius:999px;font-size:14px;font-weight:800;cursor:pointer;' +
-        (dashed ? 'border:1.5px dashed #b9bcc4;color:#454b55' : 'background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;color:#0d1117') + '"><span style="color:#5b4ae8;font-size:16px;line-height:1">+</span>' + label + '</span>';
-      body = head('How people can help', 'Jobs to do or things to bring.') +
-        '<div style="padding:12px 16px 0;display:flex;flex-wrap:wrap;gap:6px">' +
-          [['Bring', 'Bring '], ['Set up', 'Set up '], ['Help with', 'Help with '], ['Clean up', 'Clean up ']].map(([l, p]) => chip(l, () => openJob(null, blankJob(p)))).join('') +
-          chip('Something else', () => openJob(null, blankJob('')), true) + '</div>' +
-        '<div style="padding:12px 14px 0;display:flex;flex-direction:column;gap:8px">' + st.evNeeds.map((j, k) => {
+      // The owner's mock (2026-10-02): how it works in three steps while the list is empty, then bigger starter chips; purple numbered circles (owner, 2026-10-02)
+      const chip = (label, fn, dashed) => '<span ' + on(fn) + ' style="display:flex;align-items:center;gap:8px;min-height:46px;padding:0 18px;border-radius:999px;font-size:16px;font-weight:800;cursor:pointer;' +
+        (dashed ? 'border:1.5px dashed #b9bcc4;color:#5c6270' : 'background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.1);color:#0d1117') + '">' + I.plus(14, '#5b4ae8', 2.6) + label + '</span>';
+      const step = (n, t, sub) => '<div style="display:flex;align-items:center;gap:12px">' +
+        '<span aria-hidden="true" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#5b4ae8;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:900;color:#fff">' + n + '</span>' +
+        '<div style="min-width:0"><div style="font-size:16px;line-height:1.25;font-weight:900;letter-spacing:-.2px;color:#0d1117">' + t + '</div>' +
+          '<div style="margin-top:2px;font-size:13.5px;line-height:1.35;font-weight:500;color:#5c6270">' + sub + '</div></div></div>';
+      const jobs = st.evNeeds.map((j, k) => {
           const edit = () => openJob(k, JSON.parse(JSON.stringify(j)));
           return '<div data-job="' + esc(cleanTitle(j.item)) + '" style="background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08);padding:12px 8px 12px 14px;display:flex;align-items:center;gap:8px">' +
             '<div ' + on(edit) + ' style="flex:1;min-width:0;cursor:pointer"><div style="font-size:15.5px;font-weight:800;color:#0d1117;text-wrap:pretty">' + esc(cleanTitle(j.item)) + '</div>' +
@@ -6156,7 +6157,17 @@
               (j.desc ? '<div style="margin-top:3px;font-size:13px;line-height:1.4;font-weight:500;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(j.desc) + '</div>' : '') + '</div>' +
             '<span ' + on(edit) + ' style="flex:0 0 auto;display:flex;align-items:center;min-height:36px;padding:0 10px;font-size:13.5px;font-weight:800;color:#5b4ae8;cursor:pointer">Edit</span>' +
             '<span ' + on(() => setState({ evNeeds: state.evNeeds.filter((_, x) => x !== k) })) + ' aria-label="Remove ' + esc(cleanTitle(j.item)) + '" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#f4f5f7;display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(15, stroke('#9b1c31', 2.2), TRASH_IC) + '</span></div>';
-        }).join('') + '</div>';
+        }).join('');
+      body = head('How people can help', 'Optional, but it takes the load off you.') +
+        (jobs ? '<div style="padding:14px 14px 0;display:flex;flex-direction:column;gap:8px">' + jobs + '</div>'
+          : '<div style="padding:14px 16px 0"><div data-help-how style="display:flex;flex-direction:column;gap:14px;padding:16px 14px;border-radius:18px;background:#f3f1fe">' +
+              step(1, 'You list what’s needed', 'Like “Bring snacks” or “Set up chairs.”') +
+              step(2, 'People sign up', 'They tap a job on the event page.') +
+              step(3, 'You see who’s on it', 'No group texts to sort it out.') + '</div></div>') +
+        '<div style="padding:18px 16px 0;font-size:12.5px;font-weight:800;letter-spacing:1.2px;color:#6b7280">' + (jobs ? 'ADD ANOTHER' : 'START WITH ONE') + '</div>' +
+        '<div style="padding:10px 16px 0;display:flex;flex-wrap:wrap;gap:10px">' +
+          [['Bring', 'Bring '], ['Set up', 'Set up '], ['Help with', 'Help with '], ['Clean up', 'Clean up ']].map(([l, p]) => chip(l, () => openJob(null, blankJob(p)))).join('') +
+          chip('Something else', () => openJob(null, blankJob('')), true) + '</div>';
     }
 
     // Opened from Review's Edit: Next and Back both return to Review, instead of walking the later steps again
