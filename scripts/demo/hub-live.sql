@@ -7,6 +7,12 @@
 -- sign-in activity (demo_participate) no longer reaches into it.
 update public.groups set demo = false where code = 'HUNTER';
 
+-- The owner's titles for the 2027 events (they were typed as 2026)
+update public.sparks set text = 'Mini Gras 2027'
+ where demo and text = 'Mini Gras 2026' and group_id = (select id from public.groups where code = 'HUNTER');
+update public.sparks set text = 'Egg Hunt 2027'
+ where demo and text = 'Egg Hunt 2026' and group_id = (select id from public.groups where code = 'HUNTER');
+
 select name, demo,
        (select count(*) from public.sparks s where s.group_id = g.id and s.demo) as demo_events,
        (select count(*) from public.sparks s where s.group_id = g.id and not s.demo) as real_events

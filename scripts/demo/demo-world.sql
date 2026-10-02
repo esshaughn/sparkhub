@@ -20,21 +20,14 @@ select g.id, 'Torrez Fitness' from public.groups g where g.code = 'TORREZ';
 update public.groups set demo = true
  where id in (select id from demo_groups_here where name not in ('Torrez Fitness', 'Hub on Hunters'));
 
--- 2. The testers' roles (the brief's roster; emails as the accounts actually exist), keyed by group id
+-- 2. The owner's roles, keyed by group id. No testers since 2026-10-01 (scripts/demo/plain-testers.sql): Emily,
+--    Stacy, Auburn, Joseph and Tom are ordinary members whose groups and roles are set there.
 insert into public.demo_roster (email, group_id, role)
 select v.email, g.id, v.role from (values
   ('eric@ericscott-creative.com', 'Hub on Hunters', 'owner'),
   ('eric@ericscott-creative.com', 'Walnut Creek Neighborhood', 'owner'),
   ('eric@ericscott-creative.com', 'Woodcliff Neighborhood', 'owner'),
-  ('eric@ericscott-creative.com', 'Torrez Fitness', 'owner'),
-  ('ejshaughn@gmail.com', 'Hub on Hunters', 'owner'),                 -- Emily
-  ('ejshaughn@gmail.com', 'Walnut Creek Neighborhood', 'admin'),
-  ('stacy.claye@gmail.com', 'Hub on Hunters', 'admin'),               -- Stacy
-  ('stacy.claye@gmail.com', 'Woodcliff Neighborhood', 'admin'),
-  ('auburn.layman@gmail.com', 'Walnut Creek Neighborhood', 'owner'),  -- Auburn
-  ('auburn.layman@gmail.com', 'Hub on Hunters', 'admin'),
-  ('torrez.fitness@gmail.com', 'Woodcliff Neighborhood', 'owner'),    -- Joseph
-  ('torrez.fitness@gmail.com', 'Torrez Fitness', 'owner')
+  ('eric@ericscott-creative.com', 'Torrez Fitness', 'owner')
 ) as v(email, group_name, role) join demo_groups_here g on g.name = v.group_name
 on conflict (email, group_id) do update set role = excluded.role;
 

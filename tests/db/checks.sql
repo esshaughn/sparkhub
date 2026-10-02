@@ -438,3 +438,6 @@ reset role;
 select t.login('host'); set role authenticated;
 select t.must_allow('the lead removes a co-host', format($$select public.remove_cohost(%L, %L)$$, t.id('co_walk'), t.id('cohost')));
 reset role;
+
+-- The demo wipe is gone (20261101140000_quiet_tests_no_wipe.sql): nothing can remove all demo content at once
+select t.check('wipe_demo() no longer exists', to_regprocedure('public.wipe_demo()') is null);

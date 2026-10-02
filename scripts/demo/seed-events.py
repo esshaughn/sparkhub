@@ -110,7 +110,9 @@ for u in real:
     name = (prof.get(u['id']) or md.get('display_name') or md.get('full_name') or md.get('name') or u['email'].split('@')[0])[:40]
     R.append({'id': u['id'], 'email': u['email'].lower(), 'name': name,
               'groups': {m['group_id'] for m in mem if m['user_id'] == u['id']}})
-R = [r for r in R if r['groups']]   # only people in at least one demo group
+# Only the owner gets demo content of their own (owner, 2026-10-01: no more testers; Emily, Stacy, Auburn, Joseph
+# and Tom are ordinary members who host and answer nothing in the demo). Their named events go to the demo people.
+R = [r for r in R if r['groups'] and r['email'] == 'eric@ericscott-creative.com']
 R.sort(key=lambda r: (ROSTER_ORDER.index(r['email']) if r['email'] in ROSTER_ORDER else 99, r['email']))
 REAL = {r['email']: r for r in R}
 NAME = {uid: n for n, uid in P.items()} | {r['id']: r['name'] for r in R}

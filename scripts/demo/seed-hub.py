@@ -137,11 +137,11 @@ EVENTS = [
     dict(key='artie-gras', kind='plan', text='Arty Gras', date='2027-01-23', time='14:00', lead='Marisol', going=9, maybe=3,
          vision='Make masks, throws and float decorations for Mini Gras. Two weeks out, so there’s time to finish.',
          jobs=[('Bring art supplies', 3, None), ('Run the mask-making table', 2, '13:30'), ('Set up tables', 2, '13:00'), ('Snacks', 2, None)]),
-    dict(key='mini-gras', kind='plan', text='Mini Gras 2026', date='2027-02-06', time='16:00', lead='Dee', going=14, maybe=3,
+    dict(key='mini-gras', kind='plan', text='Mini Gras 2027', date='2027-02-06', time='16:00', lead='Dee', going=14, maybe=3,
          vision='A tiny Mardi Gras parade down the lane, then king cake at the Hub. Beads provided.',
          jobs=[('Decorate a wagon float', 4, '14:00'), ('Beads and throws', 3, None), ('Clean-up', 3, '18:00'), ('King cake', 2, None), ('Parade marshals', 2, '15:45')],
          update='Parade lines up at 3:45 by the mailboxes.'),
-    dict(key='egg-hunt', kind='plan', text='Egg Hunt 2026', date='2027-03-27', time='10:00', lead='Hana', going=12, maybe=2,
+    dict(key='egg-hunt', kind='plan', text='Egg Hunt 2027', date='2027-03-27', time='10:00', lead='Hana', going=12, maybe=2,
          vision='Eggs hidden all over the Hub yard. Little kids go first, then the big kids. Bring a basket.',
          jobs=[('Stuff eggs', 4, None), ('Hide eggs', 3, '09:00'), ('Spare baskets', 2, None), ('Snacks', 2, None), ('Clean-up', 2, '11:30')]),
     # Ideas (no date yet)

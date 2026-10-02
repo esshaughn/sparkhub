@@ -731,18 +731,6 @@
       .then(r => { if (r.error) throw r.error; }).catch(e => { console.error(e); g.pinned = !pinned; toast(failed(e)); });
   };
 
-  // The owner's one-tap removal of the seeded demo content (wipe_demo() checks it's them)
-  const wipeDemo = () => {
-    const n = state.sparks.filter(s => s.demo).length;
-    setState({ confirm: { title: 'Remove all demo content?', danger: true, cta: 'Remove it', keep: 'Keep it',
-      body: 'Deletes the ' + n + (n === 1 ? ' demo event' : ' demo events') + ' in your groups (with their RSVPs, sign-ups and photos), takes the demo people out of the groups, and stops adding new sign-ups to them. Real posts and people stay. This can’t be undone.',
-      run: () => run(async () => {
-        const r = must(await sb.rpc('wipe_demo')).data;
-        const row = (r && r[0]) || {};
-        toast('Removed ' + (row.ideas || 0) + ' demo events', true);
-      }, { confirm: null }) } });
-  };
-
   // "View as a user" (demo admin): pick anyone with an account, and the app draws itself as them (look only)
   const openTesters = () => {
     if (state.testers) return setState({ testers: null });
@@ -5217,13 +5205,6 @@
           (installMode() ? '<div ' + on(startInstall) + ' class="hov-row" style="' + ROW + ';border-top:1px solid #f2f3f6">' + line('Add to Home Screen', installMode() === 'prompt' ? 'Install Spark Hub on this phone' : 'A few taps in ' + IOS_BROWSER + '’s Share menu') + I.chevR(16, '#9aa0ac', 2.4) + '</div>' : '') +
           '<a href="/privacy.html" target="_blank" rel="noopener" class="hov-row" style="' + ROW + ';border-top:1px solid #f2f3f6">' + line('Privacy', 'Who sees your profile and events') + I.chevR(16, '#9aa0ac', 2.4) + '</a>') +
         '<div style="display:flex;flex-direction:column;gap:14px">' +
-          (st.demoAdmin && st.sparks.some(s => s.demo)
-            ? '<div style="' + CARD + ';padding:14px 16px;display:flex;flex-direction:column;gap:10px">' +
-                '<div><div style="font-size:15.5px;font-weight:800;color:#0d1117">Demo content</div>' +
-                '<div style="margin-top:2px;font-size:13.5px;line-height:1.4;font-weight:500;color:#6b7280">' + st.sparks.filter(s => s.demo).length + ' events in your groups are demo content. Only you can see this.</div></div>' +
-                '<button type="button" ' + on(wipeDemo) + ' style="align-self:flex-start;min-height:40px;padding:0 16px;border:1.5px solid #f5c2cb;border-radius:999px;background:#fff;color:#9b1c31;font-family:inherit;font-size:14px;font-weight:800;cursor:pointer">Remove all demo content</button>' +
-              '</div>'
-            : '') +
           testerCard() +
           (st.demoAdmin ? diagCard() : '') +
           '<div ' + on(signOut) + ' style="' + CARD + ';padding:0 16px;min-height:52px;display:flex;align-items:center;cursor:pointer"><span style="font-size:15.5px;font-weight:800;color:#9b1c31">Sign out</span></div>' +
