@@ -178,7 +178,7 @@
     evPriv: false, evNoGuestInv: true, evTest: null, evKindAsk: false, evGroups: null, evDraftId: null, evLeave: false, evLeaveTo: null, evFrom: null, pollSheet: null, needSheet: null, evFromReview: false
   });
   const state = Object.assign({
-    screen: 'calendar', menu: null, subjectId: null, gpId: null, tag: null, zoom: null, membersOpen: null, membersList: null,
+    screen: 'calendar', menu: null, subjectId: null, gpId: null, zoom: null, membersOpen: null, membersList: null,
     sort: SORTS.some(s => s[0] === prefs.sort) ? prefs.sort : 'popular',
     view: VIEWS.indexOf(prefs.view) > -1 ? prefs.view : 'tiles',                 // a group's page
     homeView: HOME_VIEWS.indexOf(prefs.homeView) > -1 ? prefs.homeView : 'next',   // Your schedule
@@ -205,7 +205,7 @@
     gpCode: '', gpMembers: null, gpFail: false,
     // v6 Update 13: Your people (Groups · Friends), friend requests, the friend link, inviting friends
     fr: { friends: [], incoming: [], outgoing: [], invites: [], loaded: false }, pplTab: 'groups', pplSearch: false, pplQ: '', pplAdd: false, frSel: [], frInvite: false,
-    frProfile: null, frAdd: null, myFriendCode: null, person: null,
+    frAdd: null, myFriendCode: null, person: null,
     // v6: Profile / Notifications are sheets; Your tasks' "View all", expansions, the RSVP ask
     profSheet: false, notifSheet: false, dashAll: null, dashOpen: {}, schedOpen: {}, shiftPick: null, banner: null, sigAdding: false,
     // v6 Calendar: search, filters, sort, view, month, discovery cards
@@ -238,7 +238,7 @@
   const fromUrl = () => {
     const h = location.hash;
     let m = h.match(/^#\/idea\/([0-9a-f-]{36})$/) || (!h && location.pathname.match(IDEA_PATH));
-    if (m) return { screen: 'detail', subjectId: m[1], tag: null };
+    if (m) return { screen: 'detail', subjectId: m[1] };
     m = h.match(/^#\/group\/([0-9a-f-]{36})$/);
     if (m) return { screen: 'groupPage', gpId: m[1] };
     m = h.match(/^#\/join\/([A-Za-z0-9]{6})$/) || location.pathname.match(JOIN_PATH);
@@ -282,7 +282,7 @@
       state.back = ORIGINS.indexOf(state.screen) > -1 ? { screen: state.screen, groupId: state.groupId, phaseTab: state.phaseTab, scroll: sc ? sc.scrollTop : 0 } : null;
     }
     // Going anywhere closes the v6 sheets (Profile, Notifications, View all, Could use a hand, Search)
-    setState(Object.assign({ screen, menu: null, zoom: null, sec: null, needEd: null, share: null, cohostPick: null, leadsSheet: null, pollSheet: null, profSheet: false, notifSheet: false, dashAll: null, cHandSheet: false, cSearch: false, cq: '', gSearch: false, gq: '', gTry: null, pplAdd: false, frInvite: false, frProfile: null, person: null }, extra || {}));
+    setState(Object.assign({ screen, menu: null, zoom: null, sec: null, needEd: null, share: null, cohostPick: null, leadsSheet: null, pollSheet: null, profSheet: false, notifSheet: false, dashAll: null, cHandSheet: false, cSearch: false, cq: '', gSearch: false, gq: '', gTry: null, pplAdd: false, frInvite: false, person: null }, extra || {}));
     if (sc) sc.scrollTop = 0;
   };
 
@@ -1031,6 +1031,7 @@
   // step: land · confirm · joining · neterr · welcome · bad, busy, gid, copied }.
   const PENDING_INVITE = 'pendingInvite', WELCOMED = 'spark-hub-welcomed-groups';
   const IN_APP = /Instagram|FBAN|FBAV|Messenger|Line\/|TikTok|Snapchat/i.test(navigator.userAgent);
+  const DEVICE = /iPhone|iPod|Android/i.test(navigator.userAgent) ? 'phone' : 'device';   // "this phone" reads wrong on a computer or tablet
   const pendingInvite = () => { try { const c = sessionStorage.getItem(PENDING_INVITE) || ''; return /^[A-Za-z0-9]{6}$/.test(c) ? c : ''; } catch (e) { return ''; } };
   const setPending = (code) => { try { if (code) sessionStorage.setItem(PENDING_INVITE, code); else sessionStorage.removeItem(PENDING_INVITE); } catch (e) { /* fine */ } };
   const welcomedIds = () => { try { return JSON.parse(localStorage.getItem(WELCOMED)) || []; } catch (e) { return []; } };
@@ -1263,7 +1264,7 @@
       must(await sb.rpc('delete_event', { p_spark: s.id, p_quiet: !!quiet, p_reason: (reason || '').trim().slice(0, 160) || null }));
     }, () => {   // land where the Back button would have: where you came from, else the group's page, else the Calendar
       const b = state.back, g = groupById(s.groupId), member = !!(g && g.role);
-      return { confirm: null, takeDown: null, screen: b ? b.screen : member ? 'browse' : 'calendar', groupId: b ? (b.groupId || state.groupId) : member ? g.id : state.groupId, subjectId: null, tag: null, back: null };
+      return { confirm: null, takeDown: null, screen: b ? b.screen : member ? 'browse' : 'calendar', groupId: b ? (b.groupId || state.groupId) : member ? g.id : state.groupId, subjectId: null, back: null };
     }).then(ok => { if (!ok) return; deletePhotos(photos); toast(quiet ? 'Deleted' : 'Cancelled. Everyone in it got a note.', true); });
   };
   // A past event is only deleted (owner, 2026-10-01: nothing left to cancel), quietly
@@ -1304,7 +1305,7 @@
   // Taking interest back needs nothing; showing interest asks a guest for their info
   const toggleInterest = (s) => {
     if (s.interested.indexOf(state.me) > -1) {
-      run(async () => { must(await sb.from('interests').delete().eq('spark_id', s.id).eq('user_id', state.me)); }, { tag: null });
+      run(async () => { must(await sb.from('interests').delete().eq('spark_id', s.id).eq('user_id', state.me)); });
       return;
     }
     needAccount(() => run(async () => {
@@ -1315,7 +1316,7 @@
   // "I could help make it happen": only on your own interest
   const toggleCanHelp = (s) => {
     const on_ = s.canHelp.indexOf(state.me) < 0;
-    run(async () => { must(await sb.from('interests').update({ can_help: on_ }).eq('spark_id', s.id).eq('user_id', state.me)); }, { tag: null });
+    run(async () => { must(await sb.from('interests').update({ can_help: on_ }).eq('spark_id', s.id).eq('user_id', state.me)); });
   };
   // Looking for a host (social-science review, 2026-10-01): floating an idea and hosting it are separate jobs
   const setWantsHost = (s, on_) => run(async () => { must(await sb.rpc('set_wants_host', { p_spark: s.id, p_on: on_ })); });
@@ -2270,7 +2271,7 @@
   };
   const myClaims = (s) => s.signups.filter(it => it.claims.some(c => c.userId === state.me));
   const maybes = (s) => s.rsvps.filter(r => r.status === 'maybe');
-  const openSpark = (s) => go('detail', { subjectId: s.id, tag: null, menu: null });
+  const openSpark = (s) => go('detail', { subjectId: s.id, menu: null });
   const backLabel = (s) => {
     const b = state.back, g = groupById(s.groupId);
     if (!b) return g && g.role ? g.name : 'Calendar';
@@ -2441,7 +2442,7 @@
   const removeFriend = (f) => setState({ confirm: { z: 60, title: 'Remove ' + firstName(f.name) + ' as a friend?', body: 'They won’t be told. You’ll still see each other in any groups you share.', cta: 'Remove friend', keep: 'Keep friend', danger: true,
     run: () => run(async () => {
       must(await sb.rpc('remove_friend', { p_other: f.id }));
-      setState({ frProfile: null, person: null, frSel: state.frSel.filter(x => x !== f.id), fr: Object.assign({}, state.fr, { friends: state.fr.friends.filter(x => x.id !== f.id), outgoing: state.fr.outgoing.filter(x => x !== f.id) }) });
+      setState({ person: null, frSel: state.frSel.filter(x => x !== f.id), fr: Object.assign({}, state.fr, { friends: state.fr.friends.filter(x => x.id !== f.id), outgoing: state.fr.outgoing.filter(x => x !== f.id) }) });
       toast('Removed ' + firstName(f.name), true);
     }, { confirm: null }) } });
 
@@ -3578,7 +3579,7 @@
       const sub = (await reg.pushManager.getSubscription()) || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: vapidKey(CFG.vapidPublicKey) });
       await saveSub(sub);
       setState({ pushOn: true });
-      toast('Notifications are on for this phone', true);
+      toast('Notifications are on for this ' + DEVICE, true);
     } catch (e) { console.error(e); toast(failed(e)); }
   };
   const forgetPush = async () => {
@@ -3595,7 +3596,7 @@
       const sub = await (await navigator.serviceWorker.ready).pushManager.getSubscription();
       if (sub) { must(await sb.from('push_subscriptions').delete().eq('endpoint', sub.endpoint)); await sub.unsubscribe().catch(() => {}); }
       setState({ pushOn: false });
-      toast('Notifications are off for this phone', true);
+      toast('Notifications are off for this ' + DEVICE, true);
     } catch (e) { console.error(e); toast(failed(e)); }
   };
   // After each sign-in load: if this phone already allowed notifications, keep it tied to this account
@@ -3900,7 +3901,7 @@
   // Phone notifications on this device (Notification settings)
   const phoneRow = () => {
     const ps = pushStatus(), v = ps === 'on';
-    const sub = { on: 'On for this phone', off: 'Off for this phone', denied: 'Blocked. Allow them for Spark Hub in your phone’s Settings.', install: 'On iPhone, add Spark Hub to your Home Screen first, then turn them on there.', none: 'This browser can’t show them.' }[ps];
+    const sub = { on: 'On for this ' + DEVICE, off: 'Off for this ' + DEVICE, denied: 'Blocked. Allow them for Spark Hub in your phone’s Settings.', install: 'On iPhone, add Spark Hub to your Home Screen first, then turn them on there.', none: 'This browser can’t show them.' }[ps];
     const canToggle = ps === 'on' || ps === 'off';
     return '<div ' + (canToggle ? on(v ? turnOffPush : turnOnPush, 'switch') + ' aria-checked="' + v + '" ' : '') + 'aria-label="Phone notifications" style="margin-top:12px;display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:16px;background:#f4f5f7;' + (canToggle ? 'cursor:pointer' : '') + '">' +
       '<div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:800;color:#0d1117">Phone notifications</div><div style="font-size:13px;line-height:1.35;font-weight:500;color:#6b7280">' + esc(sub) + '</div></div>' +
@@ -4235,7 +4236,7 @@
         '<div style="height:1px;background:#eceef2;margin:22px 0"></div>' +
         '<div style="' + EYEBROW + '">Good to know</div>' +
         '<div style="margin-top:12px;display:flex;flex-direction:column;gap:12px">' +
-          note(ic('<path d="M12 3.2 5 6v5.4c0 4.2 2.9 7.4 7 9.4 4.1-2 7-5.2 7-9.4V6l-7-2.8Z"/><path d="M9.2 12.1l2.1 2.1 3.6-3.9"/>'), 'Groups are private.', 'Only members see a group’s events, and you join with a code or a link.') +
+          note(ic('<path d="M12 3.2 5 6v5.4c0 4.2 2.9 7.4 7 9.4 4.1-2 7-5.2 7-9.4V6l-7-2.8Z"/><path d="M9.2 12.1l2.1 2.1 3.6-3.9"/>'), 'Groups are private.', 'A group’s events are for its members and the people they invite. You join with a link or a code.') +
           note(ic('<path d="M16.6 3.8l3.6 3.6L8.4 19.2 4 20.5l1.3-4.4L16.6 3.8Z"/>'), 'Leads stay in charge.', 'People can suggest dates and locations. The lead decides what the event becomes.') +
           note(ic('<circle cx="12" cy="12" r="8.4"/><path d="M12 7.6V12l3.2 2"/>'), 'Your tasks keeps track.', 'Anything you’re leading or signed up for shows up there with what’s left to do.') +
         '</div>' +
@@ -5000,7 +5001,7 @@
     .then(ok => { if (ok) toast(firstName(name) + ' is a co-lead now', true); });
   const askRemoveCohost = (s, u, self) => setState({ confirm: self
     ? { title: 'Step down as co-lead?', body: firstName(nameOf(s.leadId, s.leadName)) + ' keeps leading it. Your RSVP stays.', cta: 'Step down', keep: 'Stay on', danger: true,
-        run: () => run(async () => { must(await sb.rpc('remove_cohost', { p_spark: s.id, p_user: u })); }, { confirm: null, tag: null }) }
+        run: () => run(async () => { must(await sb.rpc('remove_cohost', { p_spark: s.id, p_user: u })); }, { confirm: null }) }
     : { title: 'Remove ' + firstName(nameOf(u)) + ' as co-lead?', body: 'They won’t be able to edit it or see everyone’s replies any more.', cta: 'Remove', keep: 'Keep them', danger: true,
         run: () => run(async () => { must(await sb.rpc('remove_cohost', { p_spark: s.id, p_user: u })); }, { confirm: null }) } });
   function viewCohostPicker() {
@@ -6796,7 +6797,6 @@
       if (state.joinOpen) return setState({ joinOpen: false });
       if (state.membersOpen) return setState({ membersOpen: null, membersQ: '' });
       if (state.frAdd && !state.frAdd.busy) return closeFrAdd();
-      if (state.frProfile) return setState({ frProfile: null });
       if (state.frInvite) return setState({ frInvite: false });
       if (state.pplAdd) return setState({ pplAdd: false });
       if (state.pplSearch) return setState({ pplSearch: false, pplQ: '' });
