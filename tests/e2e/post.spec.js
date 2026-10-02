@@ -270,7 +270,7 @@ test('polls: the host posts a date poll (an idea), a member votes, the host pick
     const HI = H.locator('[data-screen-label="Idea page"]');
     await HI.getByRole('button', { name: /^Pick .*\(1 vote, suggested by / }).click();
     await confirm(H, 'Use this date');
-    await expect(HI).toContainText('Ready when you are');
+    await expect(HI.getByLabel('Steps to a plan').locator('[data-make-plan]')).toContainText('Make it a plan!');   // in the gold strip (owner's mock, 2026-10-01)
     await HI.getByRole('button', { name: 'Make it a plan' }).click();
     await confirm(H, 'Make it a plan');
     await expect(H.locator('[data-screen-label="Plan page"]')).toBeVisible();

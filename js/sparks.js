@@ -3933,10 +3933,26 @@
         '<div style="position:absolute;left:9px;right:26px;bottom:8px;font-size:14.5px;line-height:1.15;font-weight:900;color:#fff;text-wrap:balance">' + (isDemo(s) ? '<div style="margin-bottom:5px">' + demoTagOnly(s, true) + '</div>' : '') + esc(s.text) + '</div></div>' +   // DEMO above the title (owner, 2026-10-01)
       '<span style="display:flex;align-items:center;padding:8px 0 0">' + ideaSteps6(s).map((st, i) => '<span aria-label="' + st.label + ': ' + (st.p >= 1 ? st.done : st.todo) + '" style="flex:1;height:22px;display:flex;align-items:center;justify-content:center;' + (i ? 'border-left:1px solid #dcdfe4' : '') + '">' + ic6(st.icon, 15, st.p >= 1 ? '#149a4b' : '#b07a0a', 2.3) + '</span>').join('') + '</span></div>';
   };
-  const ideaBoard6 = (ideas) => {
-    const col = (list, off) => '<div style="display:flex;flex-direction:column;gap:14px">' + list.map((s, i) => ideaCard6(s, i * 2 + off)).join('') + '</div>';
-    return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start;padding:6px 2px 20px">' + col(ideas.filter((_, i) => i % 2 === 0), 0) + col(ideas.filter((_, i) => i % 2 === 1), 1) + '</div>';
+  // `last`: a card after the ideas (the Post an idea prompt), at the foot of the shorter column
+  const ideaBoard6 = (ideas, last) => {
+    const col = (list, off, end) => '<div style="display:flex;flex-direction:column;gap:14px">' + list.map((s, i) => ideaCard6(s, i * 2 + off)).join('') + (end || '') + '</div>';
+    const odd = ideas.length % 2 === 1;
+    return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start;padding:6px 2px 20px">' + col(ideas.filter((_, i) => i % 2 === 0), 0, odd ? '' : last) + col(ideas.filter((_, i) => i % 2 === 1), 1, odd ? last : '') + '</div>';
   };
+  // Owner's mocks, 2026-10-01: the Ideas tab's empty state, and the same prompt as a dashed card at the end of the board.
+  // Both open Create event with this group picked (an event without a date posts as an idea)
+  const WE_SHOULD = 'Got a “we should…”?';
+  const ideaBulb6 = (size, ring) => '<span aria-hidden="true" style="flex:0 0 auto;width:' + size + 'px;height:' + size + 'px;border-radius:999px;background:#efc95a;display:flex;align-items:center;justify-content:center;box-shadow:' + ring + '">' + svg(Math.round(size * .42), stroke('#3d2a00', 2.2), BULB_IC) + '</span>';
+  const ideasEmpty6 = (g) => '<div data-ideas-empty style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;padding:34px 4px 24px">' +
+    ideaBulb6(64, '0 0 0 14px rgba(239,201,90,.28), 0 0 0 28px rgba(239,201,90,.13)') +
+    '<h2 style="margin:18px 0 0;font-size:26px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:#0d1117;text-wrap:balance">' + WE_SHOULD + '</h2>' +
+    '<p style="margin:0;max-width:330px;font-size:15px;line-height:1.45;font-weight:500;color:#4b5160">An idea is an event without a date. Post it, people vote on when and where, and it turns into a plan once someone leads it.</p>' +
+    '<button type="button" ' + on(() => goCompose({ evGroups: [g.id] })) + ' style="margin-top:6px;width:100%;min-height:56px;border:0;border-radius:999px;background:#efc95a;box-shadow:0 6px 16px rgba(201,143,22,.25);display:flex;align-items:center;justify-content:center;gap:8px;font-family:inherit;font-size:17px;font-weight:800;color:#3d2a00;cursor:pointer">' +
+      svg(20, stroke('#3d2a00', 2.3), BULB_IC) + 'Post an idea</button></div>';
+  const ideaPrompt6 = (g) => '<div ' + on(() => goCompose({ evGroups: [g.id] }), 'button') + ' data-idea-prompt aria-label="Post an idea" style="min-height:200px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:20px 10px;border-radius:18px;border:2px dashed #ecc85a;background:#fdf8ec;text-align:center;cursor:pointer">' +
+    ideaBulb6(54, '0 0 0 8px rgba(239,201,90,.25)') +
+    '<span style="margin-top:4px;font-size:16.5px;line-height:1.15;font-weight:900;color:#3d2a00;text-wrap:balance">' + WE_SHOULD + '</span>' +
+    '<span style="font-size:14.5px;font-weight:800;color:#8a6510">Post an idea ›</span></div>';
   // The Ideas board's quiet sort row: Most interest (default) · Newest · Almost there (most checkpoints done)
   const ISORTS6 = [['interest', 'Most interest'], ['new', 'Newest'], ['almost', 'Almost there']];
   const stepsDone6 = (s) => ideaSteps6(s).filter(st => st.p >= 1).length;
@@ -4081,7 +4097,7 @@
       // The Ideas board: graph paper, two tilted columns (no sort, filter or view here)
       pageStyle = 'min-height:100%;' + IDEA_PAPER;
       const ideas = sortIdeas6(visible('idea'), st.iSort);
-      body = ideas.length ? '<div style="display:flex;flex-direction:column;gap:6px">' + ideaSortRow6(st.iSort) + ideaBoard6(ideas) + '</div>' : '<div style="padding:24px 8px;text-align:center;font-size:15px;font-weight:700;color:#8a909b">No ideas yet. Got one? Post it without a date.</div>';
+      body = ideas.length ? '<div style="display:flex;flex-direction:column;gap:6px">' + ideaSortRow6(st.iSort) + ideaBoard6(ideas, ideaPrompt6(g)) + '</div>' : ideasEmpty6(g);
     } else if (tab === 'done') {
       // The Past scrapbook: the recap, then a memory card per event (newest first)
       const done = visible('done').slice().sort((a, b) => byWhen(b, a));
@@ -4335,20 +4351,25 @@
     return tap ? '<span ' + on(() => openPerson(u)) + ' data-person-face aria-label="' + esc(u === state.me ? 'You' : nameOf(u)) + ', see profile" style="display:flex;cursor:pointer">' + f + '</span>' : f;
   }).join('');
 
-  // Lead → Date → Location → Details → Plan, in the idea's gold strip (Lead: owner, 2026-10-01; done ones first)
+  // The idea's gold strip (owner's mock, 2026-10-01): Lead · Location · Details · Date in that order, a dark check or an
+  // empty ring each, joined by bars (dark once both ends are done); no Plan flag. Once it can be a plan (a lead and a
+  // date), the host gets Make it a plan! in the strip itself
+  const FLAG = '<path d="M5 21V4"/><path d="M5 4.5c2.5-1.5 5-1.5 7 0s4.5 1.5 7 0v9c-2.5 1.5-5 1.5-7 0s-4.5-1.5-7 0"/>';
   const ideaBanner = (s) => {
-    const steps = [['Lead', !s.wantsHost], ['Date', !!s.dayDate], ['Location', !!s.spot], ['Details', basicsOf(s).length > 0]].concat(s.minPeople ? [['People', s.interested.length >= s.minPeople]] : [])
-      .map((x, i) => x.concat(i)).sort((a, b) => (b[1] - a[1]) || (a[2] - b[2]));
-    const line = '<span style="flex:1;height:3px;margin-top:7.5px;border-radius:999px;background:rgba(61,42,0,.2)"></span>';
-    const step = ([label, met]) => '<div style="flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:3px;width:52px">' +
-      (met ? '<span style="width:18px;height:18px;border-radius:999px;display:flex;align-items:center;justify-content:center;background:#3d2a00;color:#fff;font-size:9.5px;font-weight:900">✓</span>'
-           : '<span style="width:18px;height:18px;border-radius:999px;box-shadow:inset 0 0 0 2px rgba(61,42,0,.4)"></span>') +
-      '<span style="font-size:10.5px;line-height:1.1;font-weight:800;color:' + (met ? '#0d1117' : '#6b4d00') + ';text-align:center">' + label + '</span></div>';
-    return '<div aria-label="Steps to a plan" style="padding:10px 16px 9px;border-radius:0 0 24px 24px;background:#f3c55a;box-shadow:0 1px 3px rgba(15,18,25,.08);display:flex;align-items:flex-start">' +
-      steps.map((x, k) => (k ? line : '') + step(x)).join('') + line +
-      '<div style="flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:3px;width:52px">' +
-        '<span style="width:18px;height:18px;display:flex;align-items:center;justify-content:center">' + svg(16, stroke('#0f7a3c', 2.2), '<path d="M5 21V4"/><path d="M5 4.5c2.5-1.5 5-1.5 7 0s4.5 1.5 7 0v9c-2.5 1.5-5 1.5-7 0s-4.5-1.5-7 0"/>') + '</span>' +
-        '<span style="font-size:10.5px;line-height:1.1;font-weight:800;color:#0f7a3c;text-align:center">Plan</span></div>' +
+    const steps = [['Lead', !s.wantsHost], ['Location', !!s.spot], ['Details', basicsOf(s).length > 0], ['Date', !!s.dayDate]]
+      .concat(s.minPeople ? [['People', s.interested.length >= s.minPeople]] : []);
+    const bar = (on_) => '<span aria-hidden="true" style="flex:1 1 0;max-width:42px;height:4px;margin:13px 6px 0;border-radius:999px;background:' + (on_ ? '#3d2a00' : 'rgba(61,42,0,.22)') + '"></span>';
+    const step = ([label, met]) => '<div style="flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:5px">' +
+      (met ? '<span style="width:30px;height:30px;border-radius:999px;display:flex;align-items:center;justify-content:center;background:#3d2a00">' + svg(14, stroke('#fff', 3.2), P6.check) + '</span>'
+           : '<span style="width:30px;height:30px;border-radius:999px;box-shadow:inset 0 0 0 3px rgba(61,42,0,.4)"></span>') +
+      '<span style="font-size:14px;line-height:1.1;font-weight:900;color:' + (met ? '#2a1d00' : '#8a6a1c') + ';text-align:center">' + label + '</span></div>';
+    const ready = isLead(s) && !s.cancelledAt && !planMissing(s).length;
+    const spark = (l, t, size, col) => '<span aria-hidden="true" style="position:absolute;left:' + l + ';top:' + t + ';font-size:' + size + 'px;line-height:1;color:' + col + '">✦</span>';
+    return '<div aria-label="Steps to a plan" style="padding:14px 16px 16px;border-radius:0 0 26px 26px;background:#efc95a;box-shadow:0 6px 16px rgba(160,110,10,.18)">' +
+      '<div style="display:flex;align-items:flex-start;justify-content:center">' + steps.map((x, k) => (k ? bar(x[1] && steps[k - 1][1]) : '') + step(x)).join('') + '</div>' +
+      (ready ? '<button type="button" data-make-plan ' + on(() => { if (!state.busy) makePlan(s); }) + ' style="position:relative;overflow:hidden;margin-top:14px;width:100%;min-height:56px;border:0;border-radius:999px;background:#2f9a4f;box-shadow:0 8px 18px rgba(20,110,50,.28);color:#fff;font-family:inherit;font-size:18px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:9px">' +
+        spark('7%', '22%', 12, '#ffe7a3') + spark('63%', '12%', 9, '#fff') + spark('86%', '58%', 11, '#fff') +
+        svg(18, stroke('#fff', 2.3), FLAG) + 'Make it a plan!</button>' : '') +
     '</div>';
   };
 
@@ -4356,14 +4377,7 @@
   const planMissing = (s) => (s.wantsHost ? ['lead'] : []).concat(s.dayDate ? [] : ['date']);
   const missingText = (s) => { const m = planMissing(s); return m.length === 2 ? 'a lead and a date' : m[0] === 'lead' ? 'a lead' : 'a date'; };
   const makePlanCard = (s) => {
-    const ready = !planMissing(s).length, n = s.interested.length;
-    return ready
-      ? '<div style="' + CARD + ';padding:18px;box-shadow:0 0 0 2px #bfe9cf, 0 1px 3px rgba(15,18,25,.08);display:flex;flex-direction:column;gap:6px">' +
-          '<div style="font-size:12px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#0f7a3c">Ready when you are</div>' +
-          '<p style="margin:0;font-size:14.5px;line-height:1.45;font-weight:500;color:#5c6270">It has a lead and a date. Make it a plan, and ' + (n ? (n === 1 ? 'the 1 person who’s interested shows as going' : 'the ' + n + ' people who are interested show as going') : 'anyone who joins sees it’s happening') + '.</p>' +
-          '<button type="button" ' + on(() => { if (!state.busy) makePlan(s); }) + ' style="margin-top:8px;min-height:50px;border:0;border-radius:999px;background:#0f7a3c;color:#fff;font-family:inherit;font-size:16px;font-weight:800;cursor:pointer;box-shadow:0 10px 24px rgba(15,122,60,.25)">Make it a plan</button>' +
-        '</div>'
-      : planToGo(s);
+    return planMissing(s).length ? planToGo(s) : '';   // ready: Make it a plan! is in the gold strip (owner's mock, 2026-10-01)
   };
   // Not ready yet (owner's mock, 2026-10-01): a purple card, "N things to go", a row for each missing piece with its own
   // button (Someone to lead · I'll lead; A date · Add), and Make it a plan locked until both are done
@@ -4381,7 +4395,7 @@
       (miss.indexOf('date') > -1 ? (isLead(s) ? row(P6.cal, 'A date', s.dateOpts.length ? 'Pick from the votes' : 'Pick one or run a poll', s.dateOpts.length ? 'Pick' : 'Add', () => s.dateOpts.length ? openToSection(s, 'sec-when') : openSec(s, 'when'), 'date')
         : row(P6.cal, 'A date', s.dateOpts.length ? 'Vote, or suggest another' : 'Suggest one', 'Suggest', () => openOffer(s, 'day'), 'date')) : '') +
       '<button type="button" aria-disabled="true" style="margin-top:4px;min-height:56px;border:0;border-radius:999px;background:rgba(255,255,255,.16);color:rgba(255,255,255,.62);font-family:inherit;font-size:17px;font-weight:900;cursor:not-allowed;display:flex;align-items:center;justify-content:center;gap:10px">' +
-        svg(18, stroke('rgba(255,255,255,.62)', 2.2), '<path d="M5 21V4"/><path d="M5 4.5c2.5-1.5 5-1.5 7 0s4.5 1.5 7 0v9c-2.5 1.5-5 1.5-7 0s-4.5-1.5-7 0"/>') + 'Make it a plan</button>' +
+        svg(18, stroke('rgba(255,255,255,.62)', 2.2), FLAG) + 'Make it a plan</button>' +
       '<div style="text-align:center;font-size:13.5px;font-weight:700;color:rgba(255,255,255,.75)">' + (n === 1 ? 'Unlocks when that’s done' : 'Unlocks when both are done') + '</div></div>';
   };
 
@@ -5832,8 +5846,8 @@
                 '<div style="flex:1;min-width:0"><div style="font-size:17px;font-weight:900;color:#0d1117">This goes up as an idea</div>' +
                   '<div style="margin-top:3px;font-size:14.5px;line-height:1.45;font-weight:500;color:#454b55">No date yet, so people can vote and suggest times. Once it has a lead (you) and a date, tap <strong style="font-weight:800;color:#0d1117">Make it a plan</strong> to lock it in.</div></div></div>') +
           '<button type="button" ' + on(() => { if (busy) return; if (!chosen) { pickKind(); return; } createEvent(); }) + ' aria-disabled="' + (busy || !chosen) + '" style="position:relative;overflow:hidden;width:100%;min-height:56px;border:0;border-radius:999px;background:' + (st.evDate ? '#149a4b;color:#fff' : '#efc95a;color:#3d2a00') + ';font-family:inherit;font-size:17px;font-weight:900;cursor:pointer;box-shadow:0 10px 24px ' + (st.evDate ? 'rgba(20,154,75,.32)' : 'rgba(176,132,20,.25)') + (busy ? ';opacity:.72;cursor:wait' : !chosen ? ';opacity:.5' : '') + '">' +
-            (st.evDate ? ['#ffd98a:6%:18%', '#cfc9ff:22%:68%', '#fff:78%:28%', '#ffb3c1:88%:64%', '#b8f0cd:62%:74%', '#ffd98a:40%:20%'] : ['#fff6d6:6%:24%', '#fff6d6:44%:66%', '#fff6d6:52%:30%', '#fff6d6:88%:58%']).map(c => { const [col, x, y] = c.split(':'); return '<span aria-hidden="true" style="position:absolute;left:' + x + ';top:' + y + ';width:' + (st.evDate ? 6 : 9) + 'px;height:' + (st.evDate ? 6 : 9) + 'px;border-radius:2px;background:' + col + ';transform:rotate(30deg);opacity:.9"></span>'; }).join('') +
-            '<span style="position:relative;display:inline-flex;align-items:center;gap:8px">' + (busy ? 'Posting…' : st.evDate ? 'Post it' : svg(20, stroke('#3d2a00', 2.3), BULB_IC) + 'Post as an idea') + '</span></button>' +
+            (st.evDate ? ['#ffd98a:6%:18%', '#cfc9ff:22%:68%', '#fff:78%:28%', '#ffb3c1:88%:64%', '#b8f0cd:62%:74%', '#ffd98a:40%:20%'] : ['#fff6d6:5%:12%', '#fff6d6:11%:30%', '#fff6d6:89%:12%', '#fff6d6:94%:32%']).map(c => { const [col, x, y] = c.split(':'); return '<span aria-hidden="true" style="position:absolute;left:' + x + ';top:' + y + ';width:' + (st.evDate ? 6 : 9) + 'px;height:' + (st.evDate ? 6 : 9) + 'px;border-radius:2px;background:' + col + ';transform:rotate(30deg);opacity:.9"></span>'; }).join('') +
+            '<span style="position:relative;display:inline-flex;align-items:center;gap:8px">' + (busy ? 'Posting…' : st.evDate ? 'Post it' : 'Post as an idea') + '</span></button>' +
           '<button type="button" ' + on(saveDraft) + ' style="margin-top:12px;width:100%;min-height:50px;background:transparent;border:2px solid #c9ccd3;border-radius:999px;font-family:inherit;font-size:15.5px;font-weight:800;color:#0d1117;cursor:pointer">' + (st.busy === 'draft' ? 'Saving…' : 'Save as draft') + '</button>' +
         '</div></div></div>';
     }

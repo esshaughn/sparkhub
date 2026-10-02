@@ -91,7 +91,7 @@ test('a member with the link takes part; everyone votes; the lead picks and make
     await expect(LD).toContainText('0 / 3');
 
     // Make it a plan: the interested member shows as going
-    await expect(LD).toContainText('Ready when you are');
+    await expect(LD.getByLabel('Steps to a plan').locator('[data-make-plan]')).toContainText('Make it a plan!');   // in the gold strip (owner's mock, 2026-10-01)
     await LD.getByRole('button', { name: 'Make it a plan' }).click();
     await confirm(L, 'Make it a plan');
     const LP = L.locator('[data-screen-label="Plan page"]');
@@ -139,6 +139,11 @@ test('the Ideas board puts the idea with the most interest first', async ({ brow
     await sortRow.getByRole('button', { name: 'Newest' }).click();
     await expect(sortRow.getByRole('button', { name: 'Newest' })).toHaveAttribute('aria-pressed', 'true');
     await expect.poll(order).toEqual(['newer', 'older']);
+    // The board ends with the dashed Post an idea card (owner, 2026-10-01); it opens Create event
+    const prompt = P.locator('[data-screen-label=Browse] [data-idea-prompt]');
+    await expect(prompt).toContainText('Got a “we should…”?');
+    await prompt.click();
+    await expect(P.getByRole('dialog', { name: 'Real or test?' })).toBeVisible();
     expect(poster.errors).toEqual([]);
     expect(fan.errors).toEqual([]);
   } finally {
