@@ -293,15 +293,14 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
     await expect(cal.locator(`[data-plan="${PLAN}"] [data-demo-tag]`)).toHaveCount(0);   // real events: no DEMO pill
     // Seeded demo content gets a DEMO pill before its title (clients can't set the flag, so fake it in the response)
     const flagDemo = async (r) => {
-      if (r.request().method() !== 'GET') return r.continue();
-      const res = await r.fetch(), rows = await res.json();
-      rows.forEach(x => { if (x.text === PLAN) x.demo = true; });
-      r.fulfill({ response: res, json: rows });
+      const res = await r.fetch(), d = await res.json();
+      d.sparks.forEach(x => { if (x.text === PLAN) x.demo = true; });
+      r.fulfill({ response: res, json: d });
     };
-    await context.route(/\/rest\/v1\/sparks\?/, flagDemo);
+    await context.route('**/rest/v1/rpc/load_all', flagDemo);
     await page.reload();
     await expect(cal.locator(`[data-plan="${PLAN}"] [data-demo-tag]`)).toHaveText('DEMO');
-    await context.unroute(/\/rest\/v1\/sparks\?/, flagDemo);
+    await context.unroute('**/rest/v1/rpc/load_all', flagDemo);
     await page.reload();
     await expect(cal.locator(`[data-plan="${PLAN}"]`)).toContainText('Change RSVP');
     await cal.getByRole('button', { name: /^Sort: / }).click();
@@ -497,6 +496,68 @@ test('opening the app: loading placeholders (never "empty"), then the last scree
 
     // (Sign-out clears the cache too; not exercised here: the test leads are shared with parallel tests)
     expect(errors).toEqual([]);
+  } finally {
+    await context.close();
+  }
+});
+
+// The whole app loads from one request, load_all() (20261101220000_load_all.sql). Until 2026-10-02 it was about
+// 24 (one per table), on every page load and after every write, which froze the free TEST database under a full
+// test run. A database that doesn't have the function yet still loads the old way.
+test('one request loads the app; a database without load_all still loads table by table', async ({ browser }) => {
+  const { page, context } = await newLead(browser, 1, 'Tester');
+  const home = page.locator('[data-screen-label=Calendar]');
+  const TABLES = /^GET (memberships|groups|sparks|offers|interests|guest_contacts|rsvps|date_options|date_votes|spot_options|spot_votes|signup_items|signup_claims|plan_updates|cohosts|album_photos|plan_prep|reactions|spark_groups|event_drafts|notes|profiles)$/;
+  let seen = [];
+  page.on('request', (r) => { const m = r.url().match(/\/rest\/v1\/([^?]+)/); if (m) seen.push(r.method() + ' ' + m[1]); });
+  try {
+    await page.reload();
+    await expect(page.locator('html[data-loaded=true]')).toHaveCount(1);
+    await expect(home.getByRole('heading', { name: 'Calendar' })).toBeVisible();
+    expect(seen.filter(x => x === 'POST rpc/load_all')).toHaveLength(1);
+    expect(seen.filter(x => TABLES.test(x))).toEqual([]);
+
+    // No such function (what PostgREST answers for a database without the migration): the tables, one by one
+    await page.route('**/rest/v1/rpc/load_all', (r) => r.fulfill({ status: 404, contentType: 'application/json',
+      body: JSON.stringify({ code: 'PGRST202', details: null, hint: null, message: 'Could not find the function public.load_all without parameters in the schema cache' }) }));
+    seen = [];
+    await page.reload();
+    await expect(page.locator('html[data-loaded=true]')).toHaveCount(1);
+    await expect(home.getByRole('heading', { name: 'Calendar' })).toBeVisible();
+    await expect(page.locator('[data-load-failed]')).toHaveCount(0);
+    expect(seen.filter(x => x === 'POST rpc/load_all')).toHaveLength(1);   // asked once, then not again this visit
+    expect(seen).toEqual(expect.arrayContaining(['GET sparks', 'GET memberships', 'GET rsvps', 'GET profiles']));
+  } finally {
+    await context.close();
+  }
+});
+
+// View as a user (the owner only): the app redraws itself as that person and lets nothing but reads out.
+// Its reload goes through load_all like every load, so load_all has to be on the look-only list (READ_RPCS).
+test('View as a user (owner only): the app reloads as that person', async ({ browser }) => {
+  const other = await newLead(browser, 2, 'Bo');
+  const them = await asUser(other.page, async (c) => { const u = (await c.auth.getUser()).data.user; return { id: u.id, email: u.email }; });
+  await other.context.close();
+  const { page, context } = await newLead(browser, 1, 'Tester');
+  try {
+    const torrez = await page.evaluate(() => JSON.parse(localStorage.getItem('spark-hub-prefs')).groupId);
+    // Pretend this account is the owner, with one person to pick
+    await page.route('**/rest/v1/demo_admins*', r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ user_id: 'x' }) }));
+    await page.route('**/rest/v1/rpc/demo_testers*', r => r.fulfill({ status: 200, contentType: 'application/json',
+      body: JSON.stringify([{ user_id: them.id, name: 'Bo', email: them.email, memberships: [{ group_id: torrez, role: 'member', pinned: false, last_seen_at: null }] }]) }));
+    await page.reload();
+    await expect(page.locator('html[data-loaded=true]')).toHaveCount(1);
+    await openProfile(page);
+    const card = page.locator('[data-screen-label="View as a user"]');
+    await card.getByRole('button', { name: 'Pick one' }).click();
+    const loaded = page.waitForResponse(r => r.url().includes('/rest/v1/rpc/load_all'));
+    await card.locator(`[data-tester="${them.email}"]`).click();
+    expect((await loaded).status()).toBe(200);
+    await expect(page.locator('[data-preview]')).toContainText('Viewing as Bo');
+    await expect(page.locator('[data-screen-label=Calendar]').getByRole('heading', { name: 'Calendar' })).toBeVisible();
+    await expect(page.locator('[data-load-failed]')).toHaveCount(0);
+    await page.locator('[data-preview]').getByText('Exit').click();
+    await expect(page.locator('[data-preview]')).toHaveCount(0);
   } finally {
     await context.close();
   }

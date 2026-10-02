@@ -506,3 +506,56 @@ select t.check('not planned, looking for a lead, date kept',
 select t.check('the old lead is interested, not going',
   exists (select 1 from interests i join sparks s on s.id = i.spark_id where s.text = 'Needs a lead walk' and i.user_id = t.id('host'))
   and not exists (select 1 from rsvps r join sparks s on s.id = r.spark_id where s.text = 'Needs a lead walk'));
+
+-- One request loads the app (20261101220000_load_all.sql): the same rows the caller could read table by table ----
+create function t.load_matches() returns boolean language sql as $$
+  select jsonb_array_length(d -> 'memberships') = (select count(*) from memberships)
+     and jsonb_array_length(d -> 'groups') = (select count(*) from groups)
+     and jsonb_array_length(d -> 'sparks') = (select count(*) from sparks)
+     and jsonb_array_length(d -> 'offers') = (select count(*) from offers)
+     and jsonb_array_length(d -> 'interests') = (select count(*) from interests)
+     and jsonb_array_length(d -> 'guest_contacts') = (select count(*) from guest_contacts)
+     and jsonb_array_length(d -> 'rsvps') = (select count(*) from rsvps)
+     and jsonb_array_length(d -> 'date_options') = (select count(*) from date_options)
+     and jsonb_array_length(d -> 'date_votes') = (select count(*) from date_votes)
+     and jsonb_array_length(d -> 'spot_options') = (select count(*) from spot_options)
+     and jsonb_array_length(d -> 'spot_votes') = (select count(*) from spot_votes)
+     and jsonb_array_length(d -> 'signup_items') = (select count(*) from signup_items)
+     and jsonb_array_length(d -> 'signup_claims') = (select count(*) from signup_claims)
+     and jsonb_array_length(d -> 'plan_updates') = (select count(*) from plan_updates)
+     and jsonb_array_length(d -> 'cohosts') = (select count(*) from cohosts)
+     and jsonb_array_length(d -> 'album_photos') = (select count(*) from album_photos)
+     and jsonb_array_length(d -> 'plan_prep') = (select count(*) from plan_prep)
+     and jsonb_array_length(d -> 'reactions') = (select count(*) from reactions)
+     and jsonb_array_length(d -> 'spark_groups') = (select count(*) from spark_groups)
+     and jsonb_array_length(d -> 'event_drafts') = (select count(*) from event_drafts)
+     and jsonb_array_length(d -> 'notes') = least(50, (select count(*) from notes))
+     and not exists (select 1 from jsonb_array_elements(d -> 'profiles') e where (e ->> 'id')::uuid not in (select id from profiles))
+    from (select public.load_all() as d) x
+$$;
+grant execute on function t.load_matches() to authenticated, anon;
+select t.check('load_all reads as the caller, not as its owner', (select not prosecdef from pg_proc where oid = 'public.load_all()'::regprocedure));
+select t.check('someone with no session can''t call load_all', not has_function_privilege('anon', 'public.load_all()', 'execute'));
+select t.login('host'); set role authenticated;
+select t.check('the host''s load_all holds what the host can read', t.load_matches());
+select t.check('the host gets the invite-only plan', public.load_all() -> 'sparks' @> jsonb_build_array(jsonb_build_object('id', t.id('invite_plan'))));
+select t.check('the host gets the guest''s name on it', public.load_all() -> 'guest_contacts' @> jsonb_build_array(jsonb_build_object('spark_id', t.id('invite_plan'), 'user_id', t.id('guest'))));
+select t.check('an account gets its friends list', jsonb_typeof(public.load_all() -> 'friend_state' -> 'friends') = 'array');
+reset role;
+select t.login('member'); set role authenticated;
+select t.check('a member''s load_all holds what the member can read', t.load_matches());
+select t.check('a member doesn''t get a guest''s name', not (public.load_all() -> 'guest_contacts' @> jsonb_build_array(jsonb_build_object('user_id', t.id('guest')))));
+reset role;
+select t.login('outsider'); set role authenticated;
+select t.check('an outsider''s load_all holds what the outsider can read', t.load_matches());
+select t.check('an outsider gets none of the group''s events',
+  not exists (select 1 from jsonb_array_elements(public.load_all() -> 'sparks') e where (e ->> 'group_id')::uuid = t.id('g')));
+select t.check('an outsider doesn''t get the group', not (public.load_all() -> 'groups' @> jsonb_build_array(jsonb_build_object('id', t.id('g')))));
+reset role;
+select t.login('guest'); set role authenticated;
+select t.check('a guest''s load_all holds what the guest can read', t.load_matches());
+select t.check('a guest gets the event they hold a link to, and their own name',
+  public.load_all() -> 'sparks' @> jsonb_build_array(jsonb_build_object('id', t.id('invite_plan')))
+  and public.load_all() -> 'profiles' @> jsonb_build_array(jsonb_build_object('id', t.id('guest'))));
+select t.check('a guest gets no friends list', public.load_all() -> 'friend_state' = 'null'::jsonb);
+reset role;

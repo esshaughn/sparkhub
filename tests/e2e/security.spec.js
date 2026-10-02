@@ -39,6 +39,19 @@ test('groups, idea links, guests and leads: the database refuses what the app ne
     }), { g: group.id, id: sparkId, me: otherUid });
     expect(outsider).toEqual({ sparks: 0, groups: 0, post: 'refused', selfJoin: 'refused', code: null, members: null, offer: 'refused', interest: 'refused', photo: 'refused', photoDirect: 'refused', adminEdit: 'refused' });
 
+    // One request loads the app (load_all, 20261101220000_load_all.sql). It reads as the caller, so the outsider
+    // and the visitor get nothing of the private group through it either; with no session at all it's refused
+    const viaLoad = (page) => asUser(page, async (c, _C, { g, id }) => {
+      const d = (await c.rpc('load_all')).data || {};
+      return { spark: (d.sparks || []).some(s => s.id === id), group: (d.groups || []).some(x => x.id === g) };
+    }, { g: group.id, id: sparkId });
+    expect(await viaLoad(O)).toEqual({ spark: false, group: false });
+    expect(await viaLoad(A)).toEqual({ spark: false, group: false });
+    expect(await viaLoad(L)).toEqual({ spark: true, group: true });
+    const cfg = await L.evaluate(() => ({ url: window.SPARKS_CONFIG.supabaseUrl, key: window.SPARKS_CONFIG.supabaseKey }));
+    const noSession = await L.request.post(cfg.url + '/rest/v1/rpc/load_all', { headers: { apikey: cfg.key, 'Content-Type': 'application/json' }, data: {} });
+    expect(noSession.status()).toBe(401);
+
     // The admin can set a group photo only from their own uploads
     const photos = await asUser(L, async (c, _C, { g, me, them }) => ({
       someoneElses: (await c.rpc('set_group_photo', { p_group: g, p_photo: them + '/00000000-0000-4000-8000-000000000000.jpg' })).error ? 'refused' : 'ALLOWED',

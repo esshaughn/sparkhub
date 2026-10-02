@@ -39,7 +39,7 @@
   // PKCE keeps the Google round trip in the query string, clear of our #/ routes
   // "View as a user" (demo admin only) is look-only: while it's on, nothing but reads leaves the app
   let previewing = false;
-  const READ_RPCS = /\/rest\/v1\/rpc\/(my_group_sizes|demo_testers|new_accounts|group_people|group_blocked|event_invited)(\?|$)/;
+  const READ_RPCS = /\/rest\/v1\/rpc\/(load_all|my_group_sizes|demo_testers|new_accounts|group_people|group_blocked|event_invited)(\?|$)/;
   // Auth calls allowed while previewing: keeping the owner's own session fresh, and signing out. Not
   // /auth/v1/user (that changes the account: name, email) or anything else.
   const AUTH_KEEP = /\/auth\/v1\/(token|logout)(\?|$)/;
@@ -444,12 +444,17 @@
 
   const chunks = (arr, n) => { const out = []; for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n)); return out; };
 
-  let loadSeq = 0, loadWritten = 0;   // loads overlap (30s refresh, a write's reload); older data never lands over newer
-  let extrasFor = null, extrasAt = 0, notifAt = 0;
-  async function loadAll() {
-    if (!sb) return;
-    const seq = ++loadSeq, t0 = performance.now();
-    diagNote('load started');
+  // The rows the app is built from, in one request: load_all() (20261101220000_load_all.sql) reads every
+  // table as the caller. A database without that function still loads, table by table (about 24 requests),
+  // the way the app did until 2026-10-02. A table the app starts reading belongs in both.
+  let oneLoad = true;
+  async function loadRows() {
+    if (oneLoad) {
+      const r = await sb.rpc('load_all');
+      if (!r.error) return r.data;
+      if (r.error.code !== 'PGRST202') throw r.error;   // anything but "no such function" is a real failure
+      oneLoad = false;
+    }
     // v6 Update 13: friends, requests and the invites you've had (a database without them still loads)
     const frP = state.email && !state.viewAs ? sb.rpc('friend_state').then(r => r, () => ({ error: true })) : Promise.resolve({ data: null });
     const [mem, grp, sp, of, it, gc, rs, dop, dvo, sop, svo, sui, scl, upd, org, alb, prp, rct, sgr, drf, nts] = await Promise.all([
@@ -481,47 +486,66 @@
       state.email ? sb.from('notes').select('id,body,created_by,created_at').order('created_at', { ascending: false }).limit(50) : Promise.resolve({ data: [] })
     ]);
     [mem, grp, sp, of, it, gc, rs, dop, dvo, sop, svo, sui, scl, upd, org, alb, prp].forEach(must);
+    const rows = (r) => r.error ? [] : r.data || [];
+    const d = {
+      memberships: mem.data, groups: grp.data, sparks: sp.data, offers: of.data, interests: it.data, guest_contacts: gc.data, rsvps: rs.data,
+      date_options: dop.data, date_votes: dvo.data, spot_options: sop.data, spot_votes: svo.data, signup_items: sui.data, signup_claims: scl.data,
+      plan_updates: upd.data, cohosts: org.data, album_photos: alb.data, plan_prep: prp.data,
+      reactions: rows(rct), spark_groups: rows(sgr), event_drafts: rows(drf), notes: rows(nts), profiles: []
+    };
+    // Names and photos of everyone on screen
+    const ids = new Set([state.me]);
+    d.sparks.forEach(s => ids.add(s.lead_id));
+    [d.offers, d.interests, d.rsvps, d.cohosts, d.signup_claims, d.reactions].forEach(t => t.forEach(r => ids.add(r.user_id)));
+    d.notes.forEach(n => ids.add(n.created_by));
+    ids.delete(null); ids.delete(undefined);
+    for (const part of chunks(Array.from(ids), 80)) {
+      d.profiles.push(...must(await sb.from('profiles').select('id,name,avatar_path,place,bio').in('id', part)).data);
+    }
+    const frs = await frP;
+    d.friend_state = frs.error ? null : frs.data;
+    return d;
+  }
+
+  let loadSeq = 0, loadWritten = 0;   // loads overlap (30s refresh, a write's reload); older data never lands over newer
+  let extrasFor = null, extrasAt = 0, notifAt = 0;
+  async function loadAll() {
+    if (!sb) return;
+    const seq = ++loadSeq, t0 = performance.now();
+    diagNote('load started');
+    const d = await loadRows();
     const x = {
-      rsvps: byKey(rs.data, 'spark_id'), dateOpts: byKey(dop.data, 'spark_id'), dateVotes: byKey(dvo.data, 'option_id'),
-      spotOpts: byKey(sop.data, 'spark_id'), spotVotes: byKey(svo.data, 'option_id'), signups: byKey(sui.data, 'spark_id'),
-      claims: byKey(scl.data, 'item_id'), updates: byKey(upd.data, 'spark_id'), cohosts: byKey(org.data, 'spark_id'),
-      album: byKey(alb.data, 'spark_id'), prep: byKey(prp.data, 'spark_id'),
-      reactions: byKey(rct.error ? [] : rct.data, 'spark_id'),   // v6 Update 2 (reactions on past events)
-      groups: byKey(sgr.error ? [] : sgr.data, 'spark_id')
+      rsvps: byKey(d.rsvps, 'spark_id'), dateOpts: byKey(d.date_options, 'spark_id'), dateVotes: byKey(d.date_votes, 'option_id'),
+      spotOpts: byKey(d.spot_options, 'spark_id'), spotVotes: byKey(d.spot_votes, 'option_id'), signups: byKey(d.signup_items, 'spark_id'),
+      claims: byKey(d.signup_claims, 'item_id'), updates: byKey(d.plan_updates, 'spark_id'), cohosts: byKey(d.cohosts, 'spark_id'),
+      album: byKey(d.album_photos, 'spark_id'), prep: byKey(d.plan_prep, 'spark_id'),
+      reactions: byKey(d.reactions, 'spark_id'),   // v6 Update 2 (reactions on past events)
+      groups: byKey(d.spark_groups, 'spark_id')
     };
 
     const roles = {};
-    mem.data.forEach(m => { roles[m.group_id] = { role: m.role, lastSeen: Date.parse(m.last_seen_at), pinned: !!m.pinned }; });
+    d.memberships.forEach(m => { roles[m.group_id] = { role: m.role, lastSeen: Date.parse(m.last_seen_at), pinned: !!m.pinned }; });
     const va = state.viewAs;
-    const drafts = va || drf.error ? [] : (drf.data || []).map(d => ({ id: d.id, data: d.data || {}, saved: Date.parse(d.updated_at) }));
-    const notes = va || nts.error ? [] : (nts.data || []).map(n => ({ id: n.id, body: n.body, createdBy: n.created_by, created: Date.parse(n.created_at) }));
-    const groups = grp.data.map(g => Object.assign({ id: g.id, name: g.name, photo: g.photo, photoPos: g.photo_pos || null, demo: !!g.demo, role: null, lastSeen: 0, pinned: false }, (va ? va.roles : roles)[g.id] || {}))
+    const drafts = va ? [] : d.event_drafts.map(d => ({ id: d.id, data: d.data || {}, saved: Date.parse(d.updated_at) }));
+    const notes = va ? [] : d.notes.map(n => ({ id: n.id, body: n.body, createdBy: n.created_by, created: Date.parse(n.created_at) }));
+    const groups = d.groups.map(g => Object.assign({ id: g.id, name: g.name, photo: g.photo, photoPos: g.photo_pos || null, demo: !!g.demo, role: null, lastSeen: 0, pinned: false }, (va ? va.roles : roles)[g.id] || {}))
       .filter(g => !va || va.roles[g.id])
       .sort((a, b) => runs(b) - runs(a) || a.name.localeCompare(b.name));
 
     // Previewing as someone else: only what they'd see (the rule in can_see_spark_row, minus shared links)
-    const sparks = sp.data.map(r => toSpark(r, of.data, it.data, gc.data, x)).filter(s => {
+    const sparks = d.sparks.map(r => toSpark(r, d.offers, d.interests, d.guest_contacts, x)).filter(s => {
       const m = va && va.roles[s.groupId];
       const m2 = va && s.groupIds.map(id => va.roles[id]).find(Boolean);
       return !va || ((m || m2) && (s.visibility === 'group' || s.leadId === va.id || [m, m2].some(x => x && (x.role === 'owner' || x.role === 'admin')) || s.rsvps.some(r => r.userId === va.id)));
     });
 
-    // Names and photos of everyone on screen
-    const ids = new Set([state.me]);
-    sparks.forEach(s => {
-      ids.add(s.leadId); s.interested.forEach(u => ids.add(u)); s.offers.concat(s.pending).forEach(o => ids.add(o.userId));
-      s.rsvps.forEach(r => ids.add(r.userId)); s.cohosts.forEach(u => ids.add(u));
-      s.signups.forEach(i => i.claims.forEach(c => ids.add(c.userId)));
-      s.reactions.forEach(r => ids.add(r.userId));
-    });
-    notes.forEach(n => ids.add(n.createdBy));
-    ids.delete(null); ids.delete(undefined);
-    const profiles = {};
-    for (const part of chunks(Array.from(ids), 80)) {
-      const res = must(await sb.from('profiles').select('id,name,avatar_path,place,bio').in('id', part));
-      res.data.forEach(p => { profiles[p.id] = { name: p.name || '', avatar: PHOTO_PATH.test(p.avatar_path || '') ? p.avatar_path : null, place: p.place || '', bio: p.bio || '' }; });
+    // Previewing as someone who isn't on any event on screen: their own name and photo aren't in the answer
+    if (va && !d.profiles.some(p => p.id === va.id)) {
+      d.profiles.push(...must(await sb.from('profiles').select('id,name,avatar_path,place,bio').eq('id', va.id)).data);
     }
-    const frs = await frP, fd = !frs.error && frs.data;
+    const profiles = {};
+    d.profiles.forEach(p => { profiles[p.id] = { name: p.name || '', avatar: PHOTO_PATH.test(p.avatar_path || '') ? p.avatar_path : null, place: p.place || '', bio: p.bio || '' }; });
+    const fd = !va && d.friend_state;
     const fr = fd ? {
       friends: (fd.friends || []).map(f => ({ id: f.id, name: f.name || '', avatar: PHOTO_PATH.test(f.avatar || '') ? f.avatar : null, since: Date.parse(f.since) || 0, groups: f.groups || [] })),
       incoming: (fd.incoming || []).map(f => ({ id: f.id, name: f.name || '', avatar: PHOTO_PATH.test(f.avatar || '') ? f.avatar : null, group: f.group || '', at: Date.parse(f.at) || 0 })),
