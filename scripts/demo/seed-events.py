@@ -1,7 +1,8 @@
 """Demo events, rebuilt to match the v5.2 events content handoff (2026-09-27), with every real tester
 seeing every state.
 
-Replaces ALL demo content in the demo groups: every demo idea/plan (and anything led or posted by the
+Hub on Hunters is skipped: seed-hub.py owns its demo content (owner, 2026-10-01).
+Replaces ALL demo content in the other demo groups: every demo idea/plan (and anything led or posted by the
 seed-*@example.com people) is deleted, then the handoff's events are recreated with the photos in
 events/. Real posts (not demo) stay. Roles and group memberships of real people are not touched.
 
@@ -89,6 +90,10 @@ missing = [n for n in NEEDED if n not in groups]
 if missing:
     sys.exit(f'Not demo groups here (run demo-world.sql first): {missing}')
 gids = [groups[n] for n in NEEDED]
+# Hub on Hunters has its own demo set (seed-hub.py, owner 2026-10-01): its demo people stay members, but
+# nothing here clears, creates or replies to anything in it.
+CONTENT = ['Walnut Creek Neighborhood', 'Woodcliff Neighborhood']
+cgids = [groups[n] for n in CONTENT]
 
 # The demo people are in every demo group (as members)
 for gid in gids:
@@ -99,7 +104,7 @@ for gid in gids:
 real = [u for u in accounts if u.get('email') and not u.get('is_anonymous') and not u['email'].lower().endswith('@example.com')]
 ids = ','.join(u['id'] for u in real)
 prof = {p['id']: p['name'] for p in rest('GET', 'profiles', query=f'?id=in.({ids})&select=id,name')} if real else {}
-mem = rest('GET', 'memberships', query=f'?user_id=in.({ids})&group_id=in.({",".join(gids)})&select=user_id,group_id,role') if real else []
+mem = rest('GET', 'memberships', query=f'?user_id=in.({ids})&group_id=in.({",".join(cgids)})&select=user_id,group_id,role') if real else []
 ROSTER_ORDER = ['eric@ericscott-creative.com', 'torrez.fitness@gmail.com', 'ejshaughn@gmail.com',
                 'stacy.claye@gmail.com', 'auburn.layman@gmail.com']
 R = []
@@ -230,8 +235,8 @@ IDEAS = [
                 ('Taco Deli on Spyglass', '1500 Spyglass Dr, Austin, TX 78746', 'Darnell', 2)]),
 ]
 
-EVENTS = [d for d in EVENTS if d['g'] is not None]
-IDEAS = [d for d in IDEAS if d['g'] is not None]
+EVENTS = [d for d in EVENTS if d['g'] not in (T, H)]
+IDEAS = [d for d in IDEAS if d['g'] not in (T, H)]
 
 
 def lead_of(d):
@@ -255,7 +260,7 @@ for r in [r for r in R if r['email'] not in named]:
 
 # --- Clear the old demo content ------------------------------------------------------------------------
 seed_list = ','.join(seed_ids)
-gone = rest('DELETE', 'sparks', query=f'?group_id=in.({",".join(gids)})&or=(demo.is.true,lead_id.in.({seed_list}),created_by.in.({seed_list}))')
+gone = rest('DELETE', 'sparks', query=f'?group_id=in.({",".join(cgids)})&or=(demo.is.true,lead_id.in.({seed_list}),created_by.in.({seed_list}))')
 print(f'Cleared {len(gone)} old demo ideas and plans')
 
 # --- Create --------------------------------------------------------------------------------------------
@@ -458,7 +463,7 @@ V6_IDEA = ['Community garden plots', 'Block party planning', 'Little free librar
 PHOTOS = ['get-togethers.jpg', 'welcome-picnic.jpg', 'projects.jpg', 'get-togethers-2.jpg', 'mutual-aid.jpg', 'craft-night.jpg']
 for k, r in enumerate(R):
     me, n = r['id'], k % 6
-    g = [name for name in NEEDED if groups[name] in r['groups']][k % len(r['groups'])]
+    g = [name for name in CONTENT if groups[name] in r['groups']][k % len(r['groups'])]
     suffix = '' if k < 6 else ' ' + str(k // 6 + 1)
     a = make(dict(g=g, text=V6_TODAY[n] + suffix, date=day(0), time='19:00', photo=PHOTOS[n], vision='Low-key, come as you are.',
                   signups=[('Bring snacks', 3, None), ('Folding chairs', 2, '18:30')]), me, True)
