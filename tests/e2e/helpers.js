@@ -320,12 +320,29 @@ async function confirm(page, cta) {
   await expect(dialog).toBeHidden();
 }
 
-// Delete an idea as its lead (cleanup)
+// Delete an idea as its lead (cleanup). With other people in it the button reads "Cancel or delete this event" and
+// opens the Cancel or delete sheet. Until 2026-10-02 this only knew the plain "Delete this event" + confirm, so every
+// event someone had joined stayed on TEST after a 10-second wait (222 of them by the afternoon, in the group every
+// lead loads: each load took three times as long and full runs timed out).
 async function deleteIdea(page, id) {
-  await openIdea(page, id);
-  await page.getByRole('button', { name: /^Delete this (event|idea)$/ }).click({ timeout: 10000 });
-  await confirm(page, 'Delete it');
-  await expect(page.locator('[data-screen-label=Browse]')).toBeVisible();
+  try {
+    await openIdea(page, id);
+    await page.getByRole('button', { name: /^(Cancel or delete|Delete) this (event|idea)$/ }).click({ timeout: 10000 });
+    const takeDown = page.getByRole('dialog', { name: 'Cancel or delete' });
+    const sure = page.getByRole('alertdialog');
+    await expect(takeDown.or(sure)).toBeVisible();
+    if (await takeDown.count()) await takeDown.getByRole('button', { name: 'Delete without telling anyone' }).click();
+    else await sure.getByRole('button', { name: 'Delete it', exact: true }).click();
+    await expect(page.locator('[data-screen-label=Browse]')).toBeVisible();
+  } catch (e) {
+    // A failed test can leave the page anywhere: ask the database, and say so if the event is still there
+    const left = await asUser(page, async (c, _C, id) => {
+      await c.rpc('delete_event', { p_spark: id, p_quiet: true });
+      const r = await c.from('sparks').select('id').eq('id', id);
+      return r.error ? r.error.message : r.data.length ? 'still there' : '';
+    }, id).catch((e2) => e2.message);
+    if (left) console.warn(`${TAG} event ${id} was not deleted (${String(left).split('\n')[0]}); the hourly e2e-cleanup will remove it`);
+  }
 }
 
 // Run supabase-js inside the page as the page's own signed-in identity.

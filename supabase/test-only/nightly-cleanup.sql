@@ -2,9 +2,12 @@
 -- on live, anonymous users are real members' identities.
 --
 -- The end-to-end tests delete the ideas they create, but every simulated member is a
--- new anonymous sign-in that nothing can remove from the browser. This nightly job
+-- new anonymous sign-in that nothing can remove from the browser. This job
 -- sweeps them, plus [E2E] ideas left behind by a crashed run and the [E2E] groups
 -- the group tests create (nothing in the app deletes a group).
+-- It runs every hour (nightly until 2026-10-02): every lead loads every [E2E] event in
+-- Torrez Fitness, so a day of leftovers (222 that afternoon) made each load three times
+-- as slow and full runs timed out, which left more behind.
 --
 -- Apply (or re-apply) with:
 --   supabase db query --linked --project-ref hroxgvxvafgikikviiud -f supabase/test-only/nightly-cleanup.sql
@@ -14,7 +17,7 @@ create extension if not exists pg_cron;
 select cron.unschedule('e2e-cleanup')
  where exists (select 1 from cron.job where jobname = 'e2e-cleanup');
 
-select cron.schedule('e2e-cleanup', '0 4 * * *', $job$
+select cron.schedule('e2e-cleanup', '0 * * * *', $job$
   delete from public.sparks where text like '[E2E]%' and created_at < now() - interval '2 hours';
   delete from public.groups where name like '[E2E]%' and created_at < now() - interval '2 hours';
   delete from public.feedback where body like '[E2E]%' and created_at < now() - interval '2 hours';
