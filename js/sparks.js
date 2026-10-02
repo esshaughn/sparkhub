@@ -1387,11 +1387,31 @@
     save(false);
   };
 
-  const vote = (table, s, o) => needAccount(() => run(async () => {
-    await saveGuestContact(s.id);
-    if (o.votes.indexOf(state.me) > -1) must(await sb.from(table).delete().eq('option_id', o.id).eq('user_id', state.me));
-    else must(await sb.from(table).insert({ option_id: o.id, user_id: state.me }));
-  }));
+  // A vote on a suggested date or place changes as soon as it's tapped, like RSVP (owner, 2026-10-01: it lagged the same way).
+  // Saves queue in order; one refresh follows the last of them, and a save that fails puts that option's votes back
+  let voteChain = Promise.resolve(), voteQueued = 0;
+  const vote = (table, s, o) => needAccount(() => {
+    if (state.viewAs) return run(async () => {});   // previewing: run() says nothing changes
+    const key = table === 'date_votes' ? 'dateOpts' : 'spotOpts';
+    const opts = () => (state.sparks.find(x => x.id === s.id) || s)[key];
+    const before = (opts().find(x => x.id === o.id) || o).votes, had = before.indexOf(state.me) > -1;
+    const setVotes = (votes) => patchSpark(s.id, { [key]: opts().map(x => x.id === o.id ? Object.assign({}, x, { votes }) : x) });
+    setVotes(had ? before.filter(u => u !== state.me) : before.concat(state.me));
+    const mine = ++voteQueued;
+    voteChain = voteChain.then(async () => {
+      try {
+        await ensureSession();
+        await saveGuestContact(s.id);
+        if (had) must(await sb.from(table).delete().eq('option_id', o.id).eq('user_id', state.me));
+        else must(await sb.from(table).insert({ option_id: o.id, user_id: state.me }));
+      } catch (e) {
+        console.error(e);
+        setVotes(before);
+        toast(failed(e));
+      }
+      if (mine === voteQueued) loadFresh().catch(e => console.error(e));
+    });
+  });
   const makePlan = (s) => {
     const n = s.interested.length;
     setState({ confirm: { title: 'Make it a plan?', green: true, cta: 'Make it a plan', keep: 'Not yet',

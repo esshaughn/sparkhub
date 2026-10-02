@@ -568,3 +568,40 @@ test('co-hosts: the lead adds one, who edits and posts updates but can’t delet
     await other.context.close();
   }
 });
+
+test('a vote on a suggested date changes as soon as it is tapped (the save follows), and goes back if it fails', async ({ browser }) => {
+  const host = await newLead(browser, 1, 'Host'), mem = await newLead(browser, 2, 'Omar');
+  const H = host.page, M = mem.page;
+  let id;
+  try {
+    id = await asUser(H, async (c, _C, day) => {
+      const me = (await c.auth.getUser()).data.user.id;
+      const g = (await c.from('groups').select('id').eq('name', 'Torrez Fitness').single()).data.id;
+      const sid = (await c.from('sparks').insert({ group_id: g, author_name: 'Host', lead_name: 'Host', lead_id: me, created_by: me, text: '[E2E] Quick vote ' + Date.now().toString(36) }).select('id').single()).data.id;
+      await c.from('date_options').insert({ spark_id: sid, day_date: day, day_time: '18:30', who: 'Host', created_by: me });
+      return sid;
+    }, inDays(9));
+    await M.goto('/#/idea/' + id);
+    const opt = M.locator('[data-poll-opt]');
+    await expect(opt).toContainText('0 votes');
+    // A slow save: the vote shows long before it lands
+    let release;
+    const gate = new Promise(r => { release = r; });
+    await M.route('**/rest/v1/date_votes*', async (route) => { if (route.request().method() !== 'GET') await gate; await route.continue().catch(() => {}); });
+    await opt.getByRole('button', { name: /^Vote for / }).click();
+    await expect(opt.getByRole('button', { name: /^Remove your vote for / })).toHaveAttribute('aria-pressed', 'true', { timeout: 1000 });
+    await expect(opt).toContainText('1 vote');
+    release();
+    await M.unroute('**/rest/v1/date_votes*');
+    await expect.poll(() => asUser(H, async (c, _C, id) => (await c.from('date_options').select('date_votes(user_id)').eq('spark_id', id)).data[0].date_votes.length, id)).toBe(1);
+    // A failed save puts the vote back
+    await M.route('**/rest/v1/date_votes*', (route) => route.request().method() === 'GET' ? route.continue() : route.fulfill({ status: 500, body: '{}' }));
+    await opt.getByRole('button', { name: /^Remove your vote for / }).click();
+    await expect(M.getByText('That didn’t go through. Try again in a moment.')).toBeVisible();
+    await expect(opt.getByRole('button', { name: /^Remove your vote for / })).toHaveAttribute('aria-pressed', 'true');
+    await expect(opt).toContainText('1 vote');
+  } finally {
+    if (id) await asUser(H, async (c, _C, id) => c.rpc('delete_event', { p_spark: id, p_quiet: true }), id).catch(() => {});
+    await host.context.close(); await mem.context.close();
+  }
+});
