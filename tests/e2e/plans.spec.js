@@ -32,7 +32,7 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     await needs.getByLabel('Job name 1').fill('Folding chairs');
     await needs.getByRole('button', { name: 'More for how many people' }).click();
     await needs.getByRole('button', { name: 'Save changes' }).click();
-    await expect(HP.locator('[data-signup="Folding chairs"]')).toContainText('0 of 2');
+    await expect(HP.locator('[data-signup="Folding chairs"]')).toContainText('0/2');
     await HP.getByRole('button', { name: 'Send everyone an update' }).click();
     const blast = H.getByRole('dialog', { name: 'Send an update' });
     await blast.getByLabel('Your update').fill('Parking is on the street.');
@@ -79,14 +79,14 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     await expect(GP.locator('[data-screen-label="You’re helping"]')).not.toContainText('Folding chairs');
     await bar.click();
     await expect(GP.locator('[data-screen-label="You’re helping"]')).toContainText('Folding chairs');
-    await expect(GP.locator('[data-signup="Folding chairs"]')).toContainText('1 of 2');
+    await expect(GP.locator('[data-signup="Folding chairs"]')).toContainText('1/2');
     await expect(GP.locator('[data-signup="Folding chairs"]')).toContainText('You’re in');
     // Undo takes it straight back
     await G.locator('[data-banner="on"]').getByRole('button', { name: 'Undo' }).click();
     await expect(G.getByText('Okay, you’re off it')).toBeVisible();
-    await expect(GP.locator('[data-signup="Folding chairs"]')).toContainText('0 of 2');
+    await expect(GP.locator('[data-signup="Folding chairs"]')).toContainText('0/2');
     await GP.locator('[data-signup="Folding chairs"]').getByRole('button', { name: 'Sign up' }).click();
-    await expect(GP.locator('[data-signup="Folding chairs"]')).toContainText('1 of 2');
+    await expect(GP.locator('[data-signup="Folding chairs"]')).toContainText('1/2');
     await expect(GP.locator('[data-signup="Folding chairs"] [data-who]')).toContainText('You');
     // The host sees who's on each job, and taps Going for the guest list with the guest's number
     await H.reload();
@@ -117,7 +117,7 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     await expect(signIn).toContainText('Create a free account');
     await expect(signIn).toContainText('Guests can RSVP.');
     await signIn.getByRole('button', { name: 'Close' }).click();
-    await expect(VP.locator('[data-signup="Folding chairs"]')).toContainText('1 of 2');   // still just Gus
+    await expect(VP.locator('[data-signup="Folding chairs"]')).toContainText('1/2');   // still just Gus
     // The answer is still there when they come back (this event only)
     await V.reload();
     await expect(vRsvp('Going')).toHaveAttribute('aria-pressed', 'true');
@@ -156,7 +156,7 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     // The host sees them; changing the date tells everyone going
     await H.reload();
     await expect(HP).toContainText('1 going');
-    await expect(HP.locator('[data-signup="Folding chairs"]')).toContainText('1 of 2');
+    await expect(HP.locator('[data-signup="Folding chairs"]')).toContainText('1/2');
     await HP.getByRole('button', { name: 'Edit date, time and location' }).click();
     const when = H.getByRole('dialog', { name: 'Date, time & location' });
     await when.getByLabel('Date', { exact: true }).fill(inDays(21));
@@ -230,12 +230,12 @@ test('Help out: descriptions, time ranges and Pick a shift', async ({ browser })
     const OP = O.locator('[data-screen-label="Plan page"]');
     const sort = OP.locator('[data-signup="Sort kids’ sizes"]');
     await expect(sort).toContainText('5:00 – 6:00pm');
-    await expect(sort).toContainText('0 of 3');
-    await sort.getByRole('button', { name: 'More' }).click();
-    await expect(sort.getByRole('button', { name: 'Less' })).toBeVisible();
+    await expect(sort).toContainText('0/3');
+    await sort.getByRole('button', { name: 'Details' }).click();   // Details opens the description
+    await expect(sort.getByRole('button', { name: 'Details' })).toHaveAttribute('aria-expanded', 'true');
     const coat = OP.locator('[data-signup="Coat check table"]');
     await expect(coat).toContainText('2 shifts · 6:00 – 8:00pm');
-    await expect(coat).toContainText('0 of 2');
+    await expect(coat).toContainText('0/2');
 
     // Pick a shift: both shifts, with a note
     await coat.getByRole('button', { name: 'Sign up' }).click();
@@ -246,7 +246,7 @@ test('Help out: descriptions, time ranges and Pick a shift', async ({ browser })
     await pick.getByLabel('Add a note, if you want').fill('Can bring hangers');
     await pick.getByRole('button', { name: 'Done' }).click();
     await expect(O.locator('[data-banner="on"]')).toContainText('You’re on it');
-    await expect(coat).toContainText('2 of 2');
+    await expect(coat).toContainText('2/2');
     await expect(coat).toContainText('You’re in');
     await O.locator('[data-helping-bar]').click();
     await expect(OP.locator('[data-screen-label="You’re helping"]')).toContainText('6:00 – 7:00pm, 7:00 – 8:00pm');
@@ -261,19 +261,19 @@ test('Help out: descriptions, time ranges and Pick a shift', async ({ browser })
 
     // Undo takes him off every shift on that job
     await O.locator('[data-banner="on"]').getByRole('button', { name: 'Undo' }).click();
-    await expect(coat).toContainText('0 of 2');
+    await expect(coat).toContainText('0/2');
     // One shift, then drop it: "You're off it"
     await coat.getByRole('button', { name: 'Sign up' }).click();
     await pick.locator('[data-shift="7:00 – 8:00pm"]').click();
     await pick.getByRole('button', { name: 'Done' }).click();
-    await expect(coat).toContainText('1 of 2');
+    await expect(coat).toContainText('1/2');
     // Adding a second shift, then Undo, takes back only the new one
     await coat.getByLabel('You’re in. Tap to take yourself off').click();
     await pick.locator('[data-shift="6:00 – 7:00pm"]').click();
     await pick.getByRole('button', { name: 'Done' }).click();
-    await expect(coat).toContainText('2 of 2');
+    await expect(coat).toContainText('2/2');
     await O.locator('[data-banner="on"]').getByRole('button', { name: 'Undo' }).click();
-    await expect(coat).toContainText('1 of 2');
+    await expect(coat).toContainText('1/2');
     // With someone signed up, the host can't merge the shifts (it would drop them)
     await H.reload();
     await expect(H.locator('html[data-loaded=true]')).toHaveCount(1);   // the jobs were added straight to the database
@@ -286,7 +286,7 @@ test('Help out: descriptions, time ranges and Pick a shift', async ({ browser })
     await pick.locator('[data-shift="7:00 – 8:00pm"]').click();
     await pick.getByRole('button', { name: 'Done' }).click();
     await expect(O.locator('[data-banner="off"]')).toContainText('We’ll let Hope know');
-    await expect(coat).toContainText('0 of 2');
+    await expect(coat).toContainText('0/2');
 
     expect(host.errors).toEqual([]);
     expect(helper.errors).toEqual([]);

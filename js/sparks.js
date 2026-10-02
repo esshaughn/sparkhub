@@ -4407,40 +4407,42 @@
     const card = (j) => {
       const shifts = !!j.shifts, mine = shifts ? myShiftIds(j).length > 0 : j.claims.some(c => c.userId === st.me);
       const cnt = j.claims.length, need = j.need, full = !mine && !!need && (shifts ? j.shifts.every(u => u.need && u.claims.length >= u.need) : cnt >= need);
-      // Round 64b: one gray line (time · n of need · k still needed, or "N in" with no limit), a segmented bar under the row
+      // One gray line (time · k still needed), then a bar with n/need beside it; faces, Details and the button along the bottom (owner, 2026-10-01)
       const when = jobTime(j);
-      const count = need ? Math.min(cnt, need) + ' of ' + need + (cnt < need ? ' · ' + (need - cnt) + ' still needed' : '') : cnt ? cnt + ' in' : '';
-      const subline = [when, !lead && j.createdBy === st.me ? 'You added this' : '', count].filter(Boolean).join(' · ');
-      const bar = need && need <= 12 ? '<div aria-hidden="true" style="display:flex;gap:4px">' + Array.from({ length: need }, (_, i) => '<span style="flex:1 1 0;height:4px;border-radius:999px;background:' + (i < cnt ? '#5b4ae8' : '#e3e5ea') + '"></span>').join('') + '</div>' : '';
+      const left = need ? (cnt < need ? (need - cnt) + ' still needed' : 'All covered') : cnt ? cnt + ' in' : '';
+      const subline = [when, !lead && j.createdBy === st.me ? 'You added this' : '', left].filter(Boolean).join(' · ');
+      // The bar: lavender while empty, gold once you're in, green when others have signed up
+      const [fill, track] = mine ? ['#e8b84a', '#fcf0d8'] : cnt ? ['#4f9e6b', '#dff0e4'] : ['#5b4ae8', '#ebe8fd'];
+      const bar = !need ? '' : '<div style="display:flex;align-items:center;gap:12px">' +
+        '<div aria-hidden="true" style="flex:1;min-width:0;height:10px;border-radius:999px;background:' + track + ';overflow:hidden"><span style="display:block;height:100%;width:' + Math.round(Math.min(cnt, need) / need * 100) + '%;border-radius:999px;background:' + fill + '"></span></div>' +
+        '<span style="flex:0 0 auto;font-size:15px;font-weight:900;color:#0d1117">' + Math.min(cnt, need) + '/' + need + '</span></div>';
       const act = () => { if (st.busy) return; if (shifts) openShifts(s, j); else toggleClaim(s, j); };
       const btn = s.cancelledAt ? '' : mine
-        ? '<span ' + on(act) + ' aria-label="You’re in. Tap to take yourself off" style="flex:0 0 auto;display:flex;align-items:center;justify-content:center;gap:4px;min-width:84px;min-height:36px;padding:0 14px;border-radius:999px;background:#fdf1d6;color:#8f6405;font-size:13.5px;font-weight:800;white-space:nowrap;cursor:pointer">' + svg(12, stroke('#8f6405', 3.2), P6.check) + 'You’re in</span>'
-        : full ? '<span aria-disabled="true" style="flex:0 0 auto;display:flex;align-items:center;justify-content:center;min-width:84px;min-height:36px;padding:0 14px;border-radius:999px;box-shadow:inset 0 0 0 1.5px #d5d8df;color:#9aa0ac;font-size:13.5px;font-weight:800">Full</span>'
-        : '<span ' + on(act) + ' style="flex:0 0 auto;display:flex;align-items:center;justify-content:center;min-width:84px;min-height:36px;padding:0 14px;border-radius:999px;box-shadow:inset 0 0 0 1.5px #5b4ae8;color:#5b4ae8;font-size:13.5px;font-weight:800;white-space:nowrap;cursor:pointer">Sign up</span>';
-      const long = j.desc.length > 90, open = !!st.descOpen[j.id];
-      const more = (label, up) => '<span ' + on(() => setState({ descOpen: Object.assign({}, st.descOpen, { [j.id]: !open }) })) + ' aria-expanded="' + open + '" style="flex:0 0 auto;display:inline-flex;align-items:center;gap:2px;font-size:13px;font-weight:800;color:#5b4ae8;cursor:pointer;white-space:nowrap">' + label + '<span style="display:flex;transform:' + (up ? 'rotate(180deg)' : 'none') + '">' + I.chevD(12, '#5b4ae8', 3) + '</span></span>';
-      const desc = !j.desc ? '' : !long ? '<p style="margin:0;font-size:14px;line-height:1.45;font-weight:500;color:#5c6270">' + esc(j.desc) + '</p>'
-        : open ? '<p style="margin:0;font-size:14px;line-height:1.45;font-weight:500;color:#5c6270">' + esc(j.desc) + ' ' + more('Less', true) + '</p>'
-        : '<div style="display:flex;align-items:flex-end;gap:8px"><p style="flex:1;min-width:0;margin:0;font-size:14px;line-height:1.45;font-weight:500;color:#5c6270;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">' + esc(j.desc) + '</p>' + more('More', false) + '</div>';
-      // Who's in: the host sees each person with their shift and note; everyone else a face stack and names
+        ? '<span ' + on(act) + ' aria-label="You’re in. Tap to take yourself off" style="flex:0 0 auto;margin-left:auto;display:flex;align-items:center;justify-content:center;gap:6px;min-height:42px;padding:0 18px;border-radius:999px;background:#fcf0d8;color:#8f6405;font-size:15px;font-weight:800;white-space:nowrap;cursor:pointer">' + svg(14, stroke('#8f6405', 3), P6.check) + 'You’re in</span>'
+        : full ? '<span aria-disabled="true" style="flex:0 0 auto;margin-left:auto;display:flex;align-items:center;justify-content:center;min-height:42px;padding:0 18px;border-radius:999px;box-shadow:inset 0 0 0 2px #d5d8df;color:#9aa0ac;font-size:15px;font-weight:800">Full</span>'
+        : '<span ' + on(act) + ' style="flex:0 0 auto;margin-left:auto;display:flex;align-items:center;justify-content:center;min-height:42px;padding:0 18px;border-radius:999px;box-shadow:inset 0 0 0 2px #5b4ae8;color:#5b4ae8;font-size:15px;font-weight:800;white-space:nowrap;cursor:pointer">Sign up</span>';
+      // Details opens the job's description
+      const open = !!st.descOpen[j.id];
+      const details = !j.desc ? '' : '<span ' + on(() => setState({ descOpen: Object.assign({}, st.descOpen, { [j.id]: !open }) })) + ' aria-expanded="' + open + '" style="flex:0 0 auto;display:inline-flex;align-items:center;gap:4px;min-height:36px;font-size:15px;font-weight:800;color:#5b4ae8;cursor:pointer;white-space:nowrap">Details<span style="display:flex;transform:' + (open ? 'rotate(90deg)' : 'none') + '">' + I.chevR(14, '#5b4ae8', 2.8) + '</span></span>';
+      const desc = j.desc && open ? '<p style="margin:0;font-size:14px;line-height:1.45;font-weight:500;color:#5c6270">' + esc(j.desc) + '</p>' : '';
+      // Who's in: everyone sees the faces; the host also sees each person with their shift and note
       const ppl = shifts ? [].concat(...j.shifts.map(u => u.claims.map(c => Object.assign({ at: spanTime(u) }, c)))) : j.claims;
       const uniq = ppl.map(c => c.userId).filter((u, i, a) => a.indexOf(u) === i);
       const names = uniq.map(u => u === st.me ? 'You' : firstName(personName(s, u)));
-      const who = !ppl.length ? '' : lead
-        ? '<div data-who style="display:flex;flex-direction:column;gap:8px;padding-top:2px">' + ppl.map((c, i) =>
-            '<div style="display:flex;align-items:flex-start;gap:10px">' + face(c.userId, personName(s, c.userId), 26, null, 'margin-top:1px') +
-              '<div style="flex:1;min-width:0"><div style="font-size:14.5px;line-height:1.35;font-weight:800;color:#0d1117">' + esc(c.userId === st.me ? 'You' : personName(s, c.userId)) +
-                (c.at ? '<span style="font-weight:700;color:#6b7280"> · ' + esc(c.at) + '</span>' : '') + '</div>' +
-                (c.note ? '<div style="margin-top:1px;font-size:13.5px;line-height:1.4;font-weight:500;color:#5c6270">“' + esc(c.note) + '”</div>' : '') + '</div></div>').join('') + '</div>'
-        : '<div data-who style="display:flex;align-items:center;gap:9px"><span style="display:flex">' + peopleFaces(uniq.slice(0, 4), 26) + '</span>' +
-            '<span style="flex:1;min-width:0;font-size:13.5px;font-weight:700;color:#454b55;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' +
-            esc(names.length > 3 ? names.slice(0, 2).join(', ') + ' and ' + (names.length - 2) + ' more' : namesList(names)) + '</span></div>';
-      return '<div data-signup="' + esc(j.item) + '" style="' + CARD + ';padding:14px 16px;display:flex;flex-direction:column;gap:10px">' +
-        '<div style="display:flex;align-items:center;gap:10px">' +
-          '<div style="flex:1;min-width:0"><div style="font-size:16px;line-height:1.3;font-weight:800;color:#0d1117;text-wrap:pretty">' + esc(j.item) + '</div>' +
-            (subline ? '<div style="margin-top:2px;font-size:13px;font-weight:700;color:#6b7280">' + esc(subline) + '</div>' : '') + '</div>' +
+      const faces = !uniq.length ? '' : '<span' + (lead ? '' : ' data-who') + ' style="flex:0 0 auto;display:flex">' + peopleFaces(uniq.slice(0, 4), 32) +
+        '<span style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap">' + esc(namesList(names)) + '</span></span>';
+      const hostList = !ppl.length || !lead ? '' : '<div data-who style="display:flex;flex-direction:column;gap:8px">' + ppl.map(c =>
+        '<div style="display:flex;align-items:flex-start;gap:10px">' + face(c.userId, personName(s, c.userId), 26, null, 'margin-top:1px') +
+          '<div style="flex:1;min-width:0"><div style="font-size:14.5px;line-height:1.35;font-weight:800;color:#0d1117">' + esc(c.userId === st.me ? 'You' : personName(s, c.userId)) +
+            (c.at ? '<span style="font-weight:700;color:#6b7280"> · ' + esc(c.at) + '</span>' : '') + '</div>' +
+            (c.note ? '<div style="margin-top:1px;font-size:13.5px;line-height:1.4;font-weight:500;color:#5c6270">“' + esc(c.note) + '”</div>' : '') + '</div></div>').join('') + '</div>';
+      const foot = faces || details || btn ? '<div style="display:flex;align-items:center;gap:14px">' + faces + details + btn + '</div>' : '';
+      return '<div data-signup="' + esc(j.item) + '" style="' + CARD + ';border-radius:20px;padding:18px;display:flex;flex-direction:column;gap:12px">' +
+        '<div style="display:flex;align-items:flex-start;gap:10px">' +
+          '<div style="flex:1;min-width:0"><div style="font-size:18px;line-height:1.25;font-weight:900;letter-spacing:-.3px;color:#0d1117;text-wrap:pretty">' + esc(j.item) + '</div>' +
+            (subline ? '<div style="margin-top:3px;font-size:14.5px;font-weight:700;color:#6b7280">' + esc(subline) + '</div>' : '') + '</div>' +
           (lead || (j.createdBy === st.me && !shifts) ? '<span ' + on(() => removeSignup(s, j)) + ' aria-label="Remove ' + esc(j.item) + '" style="flex:0 0 28px;width:28px;height:28px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(11, '#6b7280', 2.6) + '</span>' : '') +
-          btn + '</div>' + bar + desc + who + '</div>';
+        '</div>' + bar + desc + hostList + foot + '</div>';
     };
     const addLabel = lead ? 'Add a job or item' : 'Add something else';
     const adder = !st.sigAdding
@@ -4462,7 +4464,7 @@
         '</div>';
     const editBtn = lead ? '<span ' + on(() => openNeeds(s)) + ' aria-label="Edit what you need" style="flex:0 0 auto;display:flex;align-items:center;gap:5px;min-height:36px;padding:0 2px;color:#6b7280;font-size:14px;font-weight:700;cursor:pointer">' + svg(13, stroke('currentColor', 2.4), PENCIL) + 'Edit</span>' : '';
     return '<section id="sec-tasks" data-screen-label="Help out">' + secTitle('Help out', editBtn, true) +
-      '<div style="display:flex;flex-direction:column;gap:8px">' +
+      '<div style="display:flex;flex-direction:column;gap:12px">' +
         // Empty, for the lead: the same dashed box as an empty Details (owner, 2026-10-01)
         (jobs.length ? jobs.map(card).join('') : lead
           ? '<div ' + on(() => openNeeds(s)) + ' data-help-empty style="padding:14px 16px;border-radius:18px;border:1.5px dashed #c9ccd3;font-size:14.5px;font-weight:700;color:#6b7280;cursor:pointer">Add ways people can help.</div>'

@@ -25,7 +25,7 @@ test('post an event with every step filled, then edit it in the pop-ups and dele
     await expect(P).toContainText('2100 Barton Springs Road, Austin, TX 78746');
     await expect(P.locator('[data-basics]')).toContainText('Tacos after');
     await expect(P.locator('[data-basics]')).toContainText('Bring headlamps');
-    await expect(P.locator('[data-signup="Bring water"]')).toContainText('0 of 3');
+    await expect(P.locator('[data-signup="Bring water"]')).toContainText('0/3');
     await expect(P).not.toContainText('Before the day');
     await expect(P).not.toContainText('Remind everyone the day before');
     await expect(P.locator('[data-tbd]')).toHaveCount(0);                 // nothing left to decide
@@ -76,8 +76,8 @@ test('post an event with every step filled, then edit it in the pop-ups and dele
     await expect(P.locator('[data-signup="Folding chairs"]')).toHaveCount(1);
     await needs.getByRole('button', { name: 'Save changes' }).click();
     await expect(needs).toHaveCount(0);
-    await expect(P.locator('[data-signup="Bring cold water"]')).toContainText('0 of 4');
-    await expect(P.locator('[data-signup="Folding chairs"]')).toContainText('0 of 2');
+    await expect(P.locator('[data-signup="Bring cold water"]')).toContainText('0/4');
+    await expect(P.locator('[data-signup="Folding chairs"]')).toContainText('0/2');
 
     // Invite people (one sheet; Share link is gone): the ready message, copy, and the share intents
     await expect(P.getByRole('button', { name: 'Share link' })).toHaveCount(0);
