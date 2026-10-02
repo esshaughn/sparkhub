@@ -631,7 +631,8 @@ test('a vote on a suggested date changes as soon as it is tapped (the save follo
 // groups' members; Invite turns into ✓ Invited, and stays that way when the sheet opens again
 test('invite people: the lead invites a group member from the sheet; Invited sticks', async ({ browser }) => {
   const host = await newLead(browser, 1, 'Ivy');
-  const other = await newLead(browser, 2, 'Nedra');
+  const nm = 'Nedra ' + Date.now().toString(36).slice(-4);   // unique: other e2e leads may carry an old name
+  const other = await newLead(browser, 2, nm);
   const H = host.page;
   let id;
   try {
@@ -647,16 +648,16 @@ test('invite people: the lead invites a group member from the sheet; Invited sti
     const HP = H.locator('[data-screen-label="Plan page"]');
     const open = async () => { await HP.getByRole('button', { name: /Invite people/ }).click(); return H.getByRole('dialog', { name: 'Invite people' }); };
     let sheet = await open();
-    await sheet.getByLabel('Search friends and groups').fill('Nedra');
-    const row = sheet.locator('[data-invitee="Nedra"]');
+    await sheet.getByLabel('Search friends and groups').fill(nm);
+    const row = sheet.locator('[data-invitee="' + nm + '"]');
     await expect(row).toContainText('Torrez Fitness');
-    await row.getByRole('button', { name: 'Invite Nedra' }).click();
+    await row.getByRole('button', { name: 'Invite ' + nm }).click();
     await expect(row).toContainText('Invited');
     await expect.poll(() => asUser(H, async (c, _C, sid) => (await c.rpc('event_invited', { p_spark: sid })).data, id)).toContainEqual(nedra);
     await sheet.getByRole('button', { name: 'Close' }).click();
     sheet = await open();
-    await sheet.getByLabel('Search friends and groups').fill('Nedra');
-    await expect(sheet.locator('[data-invitee="Nedra"]')).toContainText('Invited');
+    await sheet.getByLabel('Search friends and groups').fill(nm);
+    await expect(sheet.locator('[data-invitee="' + nm + '"]')).toContainText('Invited');
     await expect(sheet.getByRole('link', { name: 'Messages' })).toHaveAttribute('href', /^sms:/);
     await sheet.getByRole('button', { name: 'Close' }).click();
     expect(host.errors).toEqual([]);
