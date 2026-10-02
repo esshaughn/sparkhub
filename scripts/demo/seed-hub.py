@@ -5,9 +5,9 @@ here is demo (DEMO pill and the striped Test event tab). The owner hosts four of
 rest. Real testers host nothing here and get no replies or sign-ups: they see the group the way a new member
 would. The demo people and fans fill the going/maybe counts and take some of the jobs.
 
-Clears, in Hub on Hunters only: every demo or test idea/plan, plus two tester posts the owner asked to remove
+Clears, in Hub on Hunters only: every demo idea/plan, plus two tester posts the owner asked to remove
 (Egg Hunt @ Hunters, Walk around yet another lake). Their photo files are deleted from storage too, unless
-something else still shows them. Real events stay. Other groups are not touched (seed-events.py skips Hub).
+something else still shows them. Real events and members' test events stay. Other groups are not touched (seed-events.py skips Hub).
 
 Photos come from hub/ next to this script: <key>-1.jpg is the cover, <key>-2.jpg and on go in the album (past
 events) or the mood board (plans and ideas). An event with no files gets no photo.
@@ -114,7 +114,7 @@ EVENTS = [
          vision='Hobbits, elves and the occasional orc. Costumes encouraged, second breakfast served at night.',
          jobs=[('Second breakfast spread', 3, None), ('Decorate the Shire', 3, '18:30'), ('Ale and mead', 2, None), ('Playlist', 1, None), ('Clean-up', 3, '23:00')]),
     # Upcoming plans
-    dict(key='coworking', kind='plan', text='Co-working at the Hub', date='2026-10-14', time='09:00', lead='me', going=4, maybe=2,
+    dict(key='coworking', kind='plan', text='Coworking @ the Hub', date='2026-10-14', time='09:00', lead='me', going=4, maybe=2,
          vision='Bring your laptop and work alongside neighbors. Wi-Fi, coffee and a quiet room. Come for an hour or all morning.',
          jobs=[('Bring coffee', 1, '08:45'), ('Pastries', 1, None), ('Set up tables', 1, '08:30')]),
     dict(key='walnut-squeak', kind='plan', text='Walnut Squeak Monthly Practice', date='2026-10-20', time='19:00', lead='me', going=7, maybe=3,
@@ -134,14 +134,14 @@ EVENTS = [
     dict(key='christmas-reading', kind='plan', text='Night Before Christmas Reading', date='2026-12-24', time='18:00', lead='Dee', going=10, maybe=2,
          vision='Pajamas, cocoa and ’Twas the Night Before Christmas read aloud by the fire. Little ones welcome.',
          jobs=[('Read a part', 3, None), ('Cookies', 3, None), ('Hot cocoa', 2, None), ('Blankets', 2, None)]),
-    dict(key='artie-gras', kind='plan', text='Artie Gras', date='2027-01-23', time='14:00', lead='Marisol', going=9, maybe=3,
+    dict(key='artie-gras', kind='plan', text='Arty Gras', date='2027-01-23', time='14:00', lead='Marisol', going=9, maybe=3,
          vision='Make masks, throws and float decorations for Mini Gras. Two weeks out, so there’s time to finish.',
          jobs=[('Bring art supplies', 3, None), ('Run the mask-making table', 2, '13:30'), ('Set up tables', 2, '13:00'), ('Snacks', 2, None)]),
-    dict(key='mini-gras', kind='plan', text='Mini Gras', date='2027-02-06', time='16:00', lead='Dee', going=14, maybe=3,
+    dict(key='mini-gras', kind='plan', text='Mini Gras 2026', date='2027-02-06', time='16:00', lead='Dee', going=14, maybe=3,
          vision='A tiny Mardi Gras parade down the lane, then king cake at the Hub. Beads provided.',
          jobs=[('Decorate a wagon float', 4, '14:00'), ('Beads and throws', 3, None), ('Clean-up', 3, '18:00'), ('King cake', 2, None), ('Parade marshals', 2, '15:45')],
          update='Parade lines up at 3:45 by the mailboxes.'),
-    dict(key='egg-hunt', kind='plan', text='Egg Hunt at the Hub', date='2027-03-27', time='10:00', lead='Hana', going=12, maybe=2,
+    dict(key='egg-hunt', kind='plan', text='Egg Hunt 2026', date='2027-03-27', time='10:00', lead='Hana', going=12, maybe=2,
          vision='Eggs hidden all over the Hub yard. Little kids go first, then the big kids. Bring a basket.',
          jobs=[('Stuff eggs', 4, None), ('Hide eggs', 3, '09:00'), ('Spare baskets', 2, None), ('Snacks', 2, None), ('Clean-up', 2, '11:30')]),
     # Ideas (no date yet)
@@ -171,7 +171,7 @@ TAGS = {'club-quarantine': ['social'], 'writers-salon': ['social'], 'art-gallery
 
 # --- Clear the group ------------------------------------------------------------------------------
 removed = '"' + '","'.join(REMOVE) + '"'
-old = rest('GET', 'sparks', query=f'?group_id=eq.{GID}&or=(demo.is.true,test.is.true,text.in.({q(removed)}))&select=id,text,photos,mood')
+old = rest('GET', 'sparks', query=f'?group_id=eq.{GID}&or=(demo.is.true,text.in.({q(removed)}))&select=id,text,photos,mood')
 old_ids = [s['id'] for s in old]
 old_paths = {p for s in old for p in (s['photos'] or []) + (s['mood'] or [])}
 if old_ids:
