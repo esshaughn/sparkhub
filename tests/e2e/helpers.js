@@ -331,6 +331,8 @@ async function deleteIdea(page, id) {
 // Run supabase-js inside the page as the page's own signed-in identity.
 // `fn` receives (client, config, args) and must return JSON-serialisable data.
 async function asUser(page, fn, args) {
+  // Read the database only once every open page's taps have finished saving
+  await othersSaved(null);
   return page.evaluate(async ({ src, args }) => {
     const C = window.SPARKS_CONFIG;
     const key = 'sb-' + new URL(C.supabaseUrl).host.split('.')[0] + '-auth-token';
