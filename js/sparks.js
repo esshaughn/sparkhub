@@ -282,7 +282,7 @@
       state.back = ORIGINS.indexOf(state.screen) > -1 ? { screen: state.screen, groupId: state.groupId, phaseTab: state.phaseTab, scroll: sc ? sc.scrollTop : 0 } : null;
     }
     // Going anywhere closes the v6 sheets (Profile, Notifications, View all, Could use a hand, Search)
-    setState(Object.assign({ screen, menu: null, zoom: null, sec: null, needEd: null, share: null, cohostPick: null, leadAsk: null, leadsSheet: null, pollSheet: null, profSheet: false, notifSheet: false, dashAll: null, cHandSheet: false, cSearch: false, cq: '', gSearch: false, gq: '', gTry: null, pplAdd: false, frInvite: false, person: null, fbNudge: null }, extra || {}));
+    setState(Object.assign({ screen, menu: null, zoom: null, sec: null, needEd: null, share: null, cohostPick: null, leadAsk: null, leadsSheet: null, pollSheet: null, profSheet: false, notifSheet: false, dashAll: null, cHandSheet: false, cSearch: false, cq: '', gSearch: false, gq: '', gTry: null, pplAdd: false, frInvite: false, person: null, fbNudge: null, peek: null }, extra || {}));
     if (sc) sc.scrollTop = 0;
   };
 
@@ -3132,9 +3132,11 @@
       (open ? '<div style="display:flex;flex-direction:column;background:#fff">' + P.rows.map(a => actRow(a, P.R)).join('') + '</div>' : '');
   };
   // Tiles: the photo with date, title and place; the strip under it
+  // Event preview (v7 Update 15, 13a; owner said build it, 2026-10-02): on the Calendar a plan opens a slide-up first
+  const peekOrOpen = (s) => s.planned ? setState({ peek: s.id, menu: null }) : openSpark(s);
   const tile6 = (s, P, h, cal) => {
     const g = groupById(s.groupId);
-    return '<div ' + on(() => openSpark(s)) + ' data-plan="' + esc(s.text) + '" aria-label="' + esc(s.text) + '" style="border-radius:20px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
+    return '<div ' + on(() => cal ? peekOrOpen(s) : openSpark(s)) + ' data-plan="' + esc(s.text) + '" aria-label="' + esc(s.text) + '" style="border-radius:20px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
       '<div style="position:relative;height:' + h + 'px;background:' + photoBg(s) + '">' +
         '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.95) 0%, rgba(13,17,23,.65) 45%, rgba(13,17,23,.3) 100%)"></div>' +
         (cal && g ? '<span style="position:absolute;top:10px;left:10px;display:flex;align-items:center;height:24px;padding:0 9px;border-radius:999px;background:rgba(13,17,23,.4);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);font-size:11.5px;font-weight:800;color:#fff">' + esc(groupsLabel(s)) + '</span>' : '') +
@@ -3147,7 +3149,7 @@
   // List: date block, role bar, title, time · street, the photo on the right, over the strip (the same on every list since the audit, 2026-10-01)
   const listCard6 = (s, P, cal, thumb) => {
     const dp = s.dayDate ? dateParts(s.dayDate) : null;
-    return '<div ' + on(() => openSpark(s)) + ' data-plan="' + esc(s.text) + '" aria-label="' + esc(s.text) + '" style="border-radius:16px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
+    return '<div ' + on(() => cal ? peekOrOpen(s) : openSpark(s)) + ' data-plan="' + esc(s.text) + '" aria-label="' + esc(s.text) + '" style="border-radius:16px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
       '<div style="display:flex;align-items:center;gap:12px;padding:12px 14px">' +
         '<div style="flex:0 0 40px;display:flex;flex-direction:column;align-items:center">' + (dp ? '<span style="font-size:10.5px;font-weight:900;letter-spacing:.6px;color:#6b7280">' + dp.dow + '</span><span style="font-size:20px;line-height:1.1;font-weight:900;color:#0d1117">' + dp.day + '</span>'
           : '<span style="font-size:10.5px;font-weight:900;letter-spacing:.6px;color:#8f6405">TBD</span><span style="font-size:20px;line-height:1.1;font-weight:900;color:#8f6405">?</span>') + '</div>' +
@@ -3445,6 +3447,40 @@
       must(await sb.from('signup_claims').insert({ item_id: it.id, user_id: state.me }));
       await goingWithJob(s);
     }, (ok) => { if (!ok) { clearTimeout(bannerTimer); setState({ banner: null }); } }); }));
+  // The event preview slide-up (13a): photo, group, title, Led by, date and place, who's going, the RSVP buttons
+  // (the lead sees You're leading this.) and See the full event
+  function viewPeek() {
+    const s = state.sparks.find(x => x.id === state.peek);
+    if (!s) return '';
+    const close = () => setState({ peek: null }), lead = isLead(s), my = myRsvp(s), ids = going(s).map(r => r.userId), n = ids.length;
+    const C = { going: ['#149a4b', '#fff'], maybe: ['#e8a71c', '#2a1d00'], no: ['#0d1117', '#fff'] };
+    const btn = (k, label) => { const sel = my === k; return '<button type="button" ' + on(() => setRsvp(s, k)) + ' aria-pressed="' + sel + '" style="flex:1 1 0;min-height:48px;border:0;border-radius:999px;font-family:inherit;font-size:15px;font-weight:800;cursor:pointer;' +
+      (sel ? 'background:' + C[k][0] + ';color:' + C[k][1] : 'background:#fff;color:#0d1117;box-shadow:inset 0 0 0 1.5px #dcdfe6') + '">' + label + '</button>'; };
+    return '<div class="v6-scrim" data-scrim="' + reg(close) + '" style="display:flex;align-items:flex-end">' +
+      '<div role="dialog" aria-modal="true" aria-label="Event preview" data-screen-label="Event preview" style="position:relative;width:100%;max-height:calc(100% - 48px - var(--sat));overflow-y:auto;background:#fff;border-radius:24px 24px 0 0;box-shadow:0 -10px 40px rgba(13,17,23,.25);display:flex;flex-direction:column;animation:sheetUp 260ms cubic-bezier(.2,.8,.2,1) both">' +
+        '<div style="position:relative;flex:0 0 190px;height:190px;border-radius:24px 24px 0 0;background:' + photoBg(s) + '">' +
+          '<div aria-hidden="true" style="position:absolute;top:8px;left:50%;transform:translateX(-50%);width:40px;height:5px;border-radius:999px;background:rgba(255,255,255,.85)"></div>' +
+          '<span ' + on(close) + ' role="button" aria-label="Close" style="position:absolute;top:14px;right:14px;width:40px;height:40px;border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(14, '#0d1117', 2.8) + '</span></div>' +
+        '<div style="padding:18px 18px calc(26px + env(safe-area-inset-bottom, 0px));display:flex;flex-direction:column;gap:14px">' +
+          '<div style="display:flex;flex-direction:column;gap:6px">' +
+            '<span style="font-size:12px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:#6b7280">' + esc(groupsLabel(s)) + '</span>' +
+            '<span data-peek-title style="font-size:24px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117;text-wrap:balance">' + esc(s.text) + '</span>' +
+            '<span style="font-size:14px;font-weight:700;color:#5c6270">Led by ' + esc(lead && isTheLead(s) ? 'you' : nameOf(s.leadId, s.leadName)) + '</span></div>' +
+          '<div style="display:flex;flex-direction:column;gap:8px;padding:14px;border-radius:16px;background:#f7f7f9">' +
+            '<div style="display:flex;align-items:center;gap:10px">' + svg(18, stroke('#5b4ae8', 2.2), '<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>') +
+              '<span style="font-size:15.5px;font-weight:800;color:#0d1117">' + esc(s.dayDate ? fmtDay(s.dayDate) : 'Date TBD') + '</span>' +
+              (s.dayDate && s.dayTime ? '<span style="font-size:15px;font-weight:700;color:#5c6270">· ' + esc(fmtTime(s.dayTime)) + '</span>' : '') + '</div>' +
+            '<div style="display:flex;align-items:center;gap:10px">' + svg(18, stroke('#5b4ae8', 2.2), '<path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/>') +
+              '<span style="font-size:15px;font-weight:700;color:#0d1117">' + esc(s.spot || 'Location TBD') + '</span></div></div>' +
+          '<div style="display:flex;align-items:center;gap:10px"><span style="display:flex">' +
+            ids.slice(0, 3).map((u, i) => '<span style="display:flex;border:2px solid #fff;border-radius:999px;margin-left:' + (i ? -8 : 0) + 'px">' + face(u, nameOf(u), 30) + '</span>').join('') + '</span>' +
+            '<span data-peek-going style="font-size:14.5px;font-weight:800;color:#0f7a3c">' + (n ? n + ' going' : 'Be the first') + '</span></div>' +
+          (lead ? '<span style="font-size:14px;font-weight:700;color:#5b4ae8">You’re leading this.</span>'
+            : s.cancelledAt ? '' : '<div style="display:flex;gap:8px">' + btn('going', 'Going') + btn('maybe', 'Maybe') + btn('no', 'Can’t') + '</div>') +
+          '<span ' + on(() => { setState({ peek: null }); openSpark(s); }) + ' role="button" style="align-self:center;display:flex;align-items:center;gap:4px;min-height:44px;font-size:15px;font-weight:800;color:#5b4ae8;cursor:pointer">See the full event' + I.chevR(14, 'currentColor', 2.8) + '</span>' +
+        '</div></div></div>';
+  }
+
   function viewHandSheet() {
     const list = handList(), close = () => setState({ cHandSheet: false });
     const card = (s) => {
@@ -7130,6 +7166,7 @@
       (st.email && st.dashAll ? viewDashAll() : '') +
       (st.email && st.cHandSheet ? viewHandSheet() : '') +
       (st.email && st.cSearch ? viewSearch() : '') +
+      (st.peek && s === 'calendar' ? viewPeek() : '') +
       (s === 'browse' && st.loaded && currentGroup() && !st.gSearch ? swipeHints() : '') +
       (st.email && st.gSearch && s === 'browse' ? viewGroupSearch() : '') +
       (st.shiftPick ? viewShiftSheet() : '') +
@@ -7364,6 +7401,7 @@
       if (state.inv && state.inv.step === 'confirm' && !state.inv.busy) return closeInvite();
       if (state.confirm) return setState({ confirm: null });
       if (state.person) return setState({ person: null });
+      if (state.peek) return setState({ peek: null });
       if (state.ph) return closePositioner();
       if (state.invite) return setState({ invite: null });
       if (state.dateOpen) return setState({ dateOpen: null });

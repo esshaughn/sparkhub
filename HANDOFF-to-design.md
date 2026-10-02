@@ -6,7 +6,7 @@
 - **Source:** github.com/esshaughn/sparkhub (`index.html`, `js/sparks.js`, `css/sparks.css`, `privacy.html`, `supabase/templates/`)
 - **Baseline:** Claude Design's **Spark Hub v7** (`design/spark-hub/Spark Hub App.dc.html`, the Version 7 file; `README-v6.md` with `README-v6-update-2.md` … `-14.md` and `README-v7-update-15.md`). Update 14 brought the design file in line with this doc as of midday 2026-10-02 (rows 1–118, §2, §3), and Update 15 designed §2's inventions and answered two open questions (*Invited* on the Leading card, *Haven't replied* with *Nudge*). Both are built (2026-10-02), so this doc was reset: everything below happened after Design's snapshot.
 - **Build version:** **v7** (owner, 2026-10-02): a lead is now a choice. An idea is either led (*I'll lead it*) or floated (*Just float the idea*, looking for a lead), and a floated one can be handed to someone by asking them. Design's Version 7 file predates this; it's in §2 and §3 below.
-- **As of:** 2026-10-02 (reset to the v7 baseline; since then: Invited and Nudge built, with *N invited ›* on Who's in, §2 and §3; the bad invite link and 404 cards as designed).
+- **As of:** 2026-10-02 (reset to the v7 baseline; since then: Invited and Nudge built, with *N invited ›* on Who's in, §2 and §3; the bad invite link and 404 cards as designed; the event preview slide-up 13a, owner's yes, row 4).
 
 Where this doc and the design files disagree, **this doc is correct**.
 
@@ -19,6 +19,7 @@ Where this doc and the design files disagree, **this doc is correct**.
 | 1 | **Create event's Review: every part says Edit and opens a pop-up** (owner, 2026-10-02): Date & time, Location, Details and How people can help each read **Edit** (never *Add*) and open a bottom sheet over Review with that step's own fields (gray `#e8eaee` like the steps, the part's name as its 22px title, a white close circle, a purple **Done** pill); the fields change the event as they're typed, so Done and close both just go back. Date & time and Location open tall (up to 640px) so the calendar, time list and suggested places fit. The title's pencil opens one too (*Event title*: the title field and the cover photo; Done waits for a title, *Add a title first*) | Edit walked through the later steps again; then (2026-09-30) it went back to that step's page with **Back to review** | Owner: Edit shouldn't send you to a different page |
 | 2 | **Create event, How people can help: a *Coordinate* starter chip** (owner, 2026-10-02) after *Bring*, *Set up*, *Help with* and *Clean up*; like them it can't be saved until it says what | Four starter chips | Owner's addition |
 | 3 | **Who's coming's section colours** follow Update 15: MAYBE `#b07a0a`, CAN'T `#6b7280` (were `#8f6405` / `#454b55`) | — | Built as designed; noted because the old build's tones differed |
+| 4 | **The event preview slide-up (13a) is on** (owner, 2026-10-02): tapping a plan's card on the Calendar (List, Tiles or a Month day) opens it; ideas still open their page. Built as designed, plus: *Led by you* when you're the lead (*You're leading this.* under it), the time only when there's a date, the Going button opens the usual *Add to calendar* banner, and Close, the scrim or Back dismiss it. Search results and *Could use a hand* on the Calendar still open the event page | Behind the prototype's tweak | The owner chose to build it |
 
 ## 2. Things the build had to invent (please design these properly)
 
@@ -39,7 +40,6 @@ Where this doc and the design files disagree, **this doc is correct**.
 
 ## 4. Designed but not built or not working
 
-- **The event preview slide-up (13a)** is designed in Update 15 (behind the prototype's *Calendar opens the event preview* tweak) but not built: the owner hasn't said yes to it yet. The Calendar still opens the event page.
 - **Leading filtered to a group** (the gray group line above the list) is built, but nothing opens it that way: the build's group pages have no *View all* into Leading.
 - **"Include ideas"** on the Calendar (in the prototype's code, not the README) isn't built; the Calendar lists plans.
 

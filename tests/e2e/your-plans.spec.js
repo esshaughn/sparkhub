@@ -70,6 +70,12 @@ test('Your schedule and the Calendar: role strips, a helper’s sign-ups with ti
 
     // Back from an event page returns to where it was opened from (here, the Calendar), then Your schedule
     await row.locator('div').first().click();
+    // The Calendar opens the event preview first (v7 Update 15, 13a); See the full event goes on to the page
+    const peek = O.getByRole('dialog', { name: 'Event preview' });
+    await expect(peek.locator('[data-peek-title]')).toHaveText(title);
+    await expect(peek).toContainText('Led by');
+    await expect(peek).toContainText('Hunters Lane');
+    await peek.getByRole('button', { name: 'See the full event' }).click();
     await O.locator('[data-screen-label="Plan page"]').getByRole('button', { name: 'Back to Calendar' }).click();
     await expect(oCal).toBeVisible();
     await O.getByRole('button', { name: 'Your schedule', exact: true }).click();
