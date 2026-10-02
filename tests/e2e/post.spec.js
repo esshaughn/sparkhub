@@ -195,6 +195,19 @@ test('decide everything later: only the title is needed; the host is left with t
     await expect(whenPop).toContainText('Poll the group');
     await whenPop.getByRole('button', { name: 'Done' }).click();
     await expect(flow).toContainText('Date TBD');
+    // The title is a pop-up too, and can't be left empty
+    await flow.getByLabel('Edit the title').click();
+    const titlePop = page.getByRole('dialog', { name: 'Event title' });
+    const before = await titlePop.getByLabel('Event title').inputValue();
+    await titlePop.getByLabel('Event title').fill('');
+    await titlePop.getByRole('button', { name: 'Done' }).click();
+    await expect(page.getByText('Add a title first')).toBeVisible();
+    await expect(titlePop).toBeVisible();
+    await titlePop.getByLabel('Event title').fill(before + ' 2');
+    await titlePop.getByRole('button', { name: 'Done' }).click();
+    await expect(titlePop).toHaveCount(0);
+    await expect(flow).toContainText('LOOKS GOOD');
+    await expect(flow.getByLabel('Edit the title')).toContainText(before + ' 2');
     // Real or test looks temporary whatever was picked: a dashed edge
     await expect(flow.locator('[data-review-card="kind"]')).toHaveCSS('border-top-style', 'dashed');
     // No date: it goes up as an idea, not a plan

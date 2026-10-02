@@ -5840,7 +5840,7 @@
     if (st.evKindAsk) { setState({ evKindAsk: false }); return true; }
     if (st.evLeadPick) { setState({ evLeadPick: false }); return true; }
     if (st.pollSheet || st.needSheet || st.evLeave || st.timeOpen || st.dateOpen) { setState({ pollSheet: null, needSheet: null, evLeave: false, evLeaveTo: null, timeOpen: null, dateOpen: null }); return true; }
-    if (st.evPop) { setState({ evPop: null }); return true; }
+    if (st.evPop) { if (st.evPop !== 'title' || cleanTitle(st.activity)) setState({ evPop: null }); else toast('Add a title first'); return true; }
     if (st.evStep === 'review') { evGo('help'); return true; }
     if (st.evFromReview) { evGo('review', { evFromReview: false }); return true; }
     const i = EV_STEPS.indexOf(st.evStep);
@@ -6164,7 +6164,7 @@
           '<label style="position:absolute;top:16px;right:14px;z-index:2;display:flex;align-items:center;gap:6px;min-height:38px;padding:0 13px;border-radius:999px;background:#fff;box-shadow:0 2px 8px rgba(13,17,23,.25);font-size:13px;font-weight:800;color:#0d1117;cursor:pointer">' +
             svg(15, stroke('currentColor', 2.2), CAMERA) + (url ? 'Change photo' : 'Add a cover photo') + photoInput('Cover photo') + '</label>' +
           '<div style="position:absolute;left:18px;right:18px;bottom:14px;color:#fff"><div style="font-size:12px;font-weight:900;letter-spacing:1px;color:#e4dfff">LOOKS GOOD</div>' +
-            '<div ' + on(() => evGo('title', { evFromReview: true })) + ' aria-label="Edit the title" style="margin-top:2px;display:flex;align-items:flex-end;gap:10px;cursor:pointer"><span style="font-size:30px;line-height:1.05;font-weight:900;letter-spacing:-.8px;text-wrap:balance;overflow-wrap:anywhere">' + esc(title) + '</span>' +
+            '<div ' + on(() => setState({ evPop: 'title', timeOpen: null, dateOpen: null })) + ' aria-label="Edit the title" style="margin-top:2px;display:flex;align-items:flex-end;gap:10px;cursor:pointer"><span style="font-size:30px;line-height:1.05;font-weight:900;letter-spacing:-.8px;text-wrap:balance;overflow-wrap:anywhere">' + esc(title) + '</span>' +
               svg(18, stroke('#fff', 2.3) + ' style="flex:0 0 18px;margin-bottom:6px;opacity:.85"', PENCIL) + '</div></div>' +
         '</div>' +
         '<div style="padding:16px 14px 0;display:flex;flex-direction:column;gap:18px"><div style="display:flex;flex-direction:column;gap:10px">' +
@@ -6308,7 +6308,9 @@
   // change the event as they're typed, so Done (or closing it) only goes back
   function viewEvPop() {
     const st = state, k = st.evPop;
-    const close = () => setState({ evPop: null, timeOpen: null, dateOpen: null, evLater: Object.assign({}, state.evLater, { [k]: !evFilled(state)[k] }) });
+    // The title can't be left empty (owner, 2026-10-02: the title is a pop-up too); the rest can be decided later
+    const close = () => k === 'title' && !cleanTitle(state.activity) ? toast('Add a title first')
+      : setState({ evPop: null, timeOpen: null, dateOpen: null, evLater: Object.assign({}, state.evLater, { [k]: !evFilled(state)[k] }) });
     const tall = k === 'when' || k === 'where';   // room for the calendar, the time list and the suggested places under their fields
     return '<div class="sheet-scrim" data-scrim="' + reg(close) + '">' +
       '<div role="dialog" aria-modal="true" aria-label="' + esc(EV_NAMES[k]) + '" data-screen-label="' + esc(EV_NAMES[k]) + '" data-ev-pop="' + k + '" class="sheet" style="max-height:calc(100% - 56px);' + (tall ? 'min-height:min(88%,640px);' : '') + 'display:flex;flex-direction:column;background:#e8eaee">' +
