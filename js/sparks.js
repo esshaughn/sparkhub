@@ -5814,16 +5814,19 @@
   };
 
   // A 30-minute time list that opens under its field (not a sheet), scrolled to the current value
-  const timeField = (key, value, opts, hint, pick) => {
+  // o: { label, slim: no clock icon (a narrow row), none: a first row that clears the time }
+  const timeField = (key, value, opts, hint, pick, o) => {
+    o = o || {};
     const open = state.timeOpen === key;
     const toggle = () => { setState({ timeOpen: open ? null : key, dateOpen: null }); if (!open) setTimeout(() => { const el = document.querySelector('[data-time-list] [data-cur]'); if (el) el.parentNode.scrollTop = el.offsetTop - 96; }, 0); };
     return '<div style="position:relative;min-width:0">' +
-      '<div ' + on(toggle) + ' aria-label="' + esc(hint) + '" aria-expanded="' + open + '" style="display:flex;align-items:center;gap:10px;min-height:58px;padding:0 14px;border-radius:16px;background:#fff;box-shadow:inset 0 0 0 2px ' + (open ? '#5b4ae8' : '#dcdfe6') + ';cursor:pointer">' +
-        '<span style="display:flex;color:' + (value ? '#5b4ae8' : '#9aa0ac') + '">' + svg(18, stroke('currentColor', 2.2), P5.clock) + '</span>' +
-        '<span style="flex:1;min-width:0;' + (value ? 'font-size:17px;font-weight:800;color:#0d1117' : 'font-size:16.5px;font-weight:400;font-style:italic;color:#b9bcc4') + '">' + esc(value ? clock(value) : hint) + '</span>' +
+      '<div ' + on(toggle) + ' aria-label="' + esc(o.label || hint) + '" aria-expanded="' + open + '" style="display:flex;align-items:center;gap:' + (o.slim ? 8 : 10) + 'px;min-height:58px;padding:0 ' + (o.slim ? 12 : 14) + 'px;border-radius:16px;background:#fff;box-shadow:inset 0 0 0 2px ' + (open ? '#5b4ae8' : '#dcdfe6') + ';cursor:pointer">' +
+        (o.slim ? '' : '<span style="display:flex;color:' + (value ? '#5b4ae8' : '#9aa0ac') + '">' + svg(18, stroke('currentColor', 2.2), P5.clock) + '</span>') +
+        '<span style="flex:1;min-width:0;' + (o.slim ? 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;' : '') + (value ? 'font-size:17px;font-weight:800;color:#0d1117' : 'font-size:16.5px;font-weight:400;font-style:italic;color:#b9bcc4') + '">' + esc(value ? clock(value) : hint) + '</span>' +
         I.chevD(14, '#9aa0ac', 2.6) + '</div>' +
       (open ? '<div ' + on(() => setState({ timeOpen: null })) + ' aria-hidden="true" style="position:fixed;inset:0;z-index:19"></div>' +
         '<div data-time-list role="listbox" style="position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:20;max-height:236px;overflow-y:auto;background:#fff;border-radius:16px;box-shadow:0 14px 34px rgba(15,18,25,.2), 0 0 0 1px #e6e7eb;padding:6px;display:flex;flex-direction:column;gap:2px">' +
+          (o.none && value ? '<div ' + on(() => pick(''), 'option') + ' aria-selected="false" style="display:flex;align-items:center;min-height:44px;padding:0 12px;border-radius:10px;flex:0 0 auto;font-size:16px;font-weight:700;color:#6b7280;cursor:pointer">' + esc(o.none) + '</div>' : '') +
           opts.map(v => '<div ' + on(() => pick(v), 'option') + ' aria-selected="' + (v === value) + '"' + (v === value ? ' data-cur' : '') + ' style="display:flex;align-items:center;justify-content:space-between;min-height:44px;padding:0 12px;border-radius:10px;flex:0 0 auto;font-size:16px;cursor:pointer;' +
             (v === value ? 'background:#f3f1fe;color:#5b4ae8;font-weight:900' : 'color:#0d1117;font-weight:700') + '"><span>' + clock(v) + '</span>' + (v === value ? I.check(16, '#5b4ae8', 3) : '') + '</div>').join('') + '</div>' : '') +
     '</div>';
@@ -6073,7 +6076,7 @@
     const st = state;
     if (st.pollSheet) {
       const p = st.pollSheet, when = p.kind === 'when', close = () => setState({ pollSheet: null });
-      const setRow = (k, patch) => setState({ pollSheet: Object.assign({}, state.pollSheet, { rows: state.pollSheet.rows.map((r, j) => j === k ? Object.assign({}, r, patch) : r) }) });
+      const setRow = (k, patch, more) => setState(Object.assign({ pollSheet: Object.assign({}, state.pollSheet, { rows: state.pollSheet.rows.map((r, j) => j === k ? Object.assign({}, r, patch) : r) }) }, more));
       const valid = when ? p.rows.filter(r => r.d) : p.rows.filter(r => cleanTitle(r.v || ''));
       const rm = (k) => () => { if (p.rows.length <= 2) setRow(k, when ? { d: '', t: '' } : { v: '' }); else setState({ pollSheet: Object.assign({}, p, { rows: p.rows.filter((_, j) => j !== k) }) }); };
       const rmBtn = (k) => '<span ' + on(rm(k)) + ' aria-label="Remove option ' + (k + 1) + '" style="flex:0 0 32px;width:32px;height:32px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(12, '#6b7280', 2.8) + '</span>';
@@ -6093,14 +6096,15 @@
         if (when) setState({ pollSheet: null, evDatePoll: valid.map(r => ({ d: r.d, t: r.t || '' })), evDate: '', evTime: '', evEnd: '', evEndOn: false, evLater: Object.assign({}, st.evLater, { when: false }) });
         else setState({ pollSheet: null, evSpotPoll: valid.map(r => ({ v: cleanTitle(r.v).slice(0, 80) })), locText: '', locPlace: null, locSuggest: [], evLater: Object.assign({}, st.evLater, { where: false }) });
       };
-      return sheet('Poll the group', close, SHEET_PAD,
+      // The date poll opens tall, so the calendar under an option isn't cut off by the pop-up's edge (owner, 2026-10-02)
+      return sheet('Poll the group', close, SHEET_PAD + (when ? ';min-height:min(88%,700px)' : ''),
         sheetHead(when ? 'Date & time' : 'Location', 'Create a poll', when ? 'Add a few options. Everyone votes, and you pick the winner.' : 'Add a few locations. Everyone votes, and you pick the winner.', close) +
         '<div style="display:flex;flex-direction:column;gap:8px">' + p.rows.map((r, k) => '<div style="display:flex;align-items:center;gap:8px">' +
-          (when ? dateField(r.d, 'Date option ' + (k + 1), 'Date', (v) => setRow(k, { d: v }), 'flex:1.4 1 0') + timeSelect(r.t, EV_TIMES, 'Time', (v) => setRow(k, { t: v }), 'Time option ' + (k + 1))
+          (when ? dateField(r.d, 'Date option ' + (k + 1), 'Date', (v) => setRow(k, { d: v }), 'flex:1.4 1 0') + '<div style="flex:1 1 0;min-width:0">' + timeField('poll' + k, r.t, EV_TIMES, 'Time', (v) => setRow(k, { t: v }, { timeOpen: null }), { label: 'Time option ' + (k + 1), slim: true, none: 'No time' }) + '</div>'
             : '<input class="fld" type="text" maxlength="80" aria-label="Place option ' + (k + 1) + '" placeholder="Add a place" value="' + esc(r.v || '') + '" ' + onInput(e => { if (e.type === 'input') setRow(k, { v: e.target.value.slice(0, 80) }); }) + ' style="' + BIG + ';min-height:54px;flex:1 1 auto">') +
           rmBtn(k) + '</div>').join('') + '</div>' +
         (p.rows.length < 5 ? '<span ' + on(() => setState({ pollSheet: Object.assign({}, p, { rows: p.rows.concat([when ? { d: '', t: '' } : { v: '' }]) }) })) + ' style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:36px;font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(14, 'currentColor', 2.6) + (when ? 'Add another option' : 'Add another location') + '</span>' : '') +
-        saveBtn(valid.length >= 2, save), 36);
+        '<div style="margin-top:auto;display:flex;flex-direction:column">' + saveBtn(valid.length >= 2, save) + '</div>', 36);
     }
     if (st.needSheet) {
       const ns = st.needSheet, r = ns.row, close = () => setState({ needSheet: null });

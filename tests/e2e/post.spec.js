@@ -247,6 +247,18 @@ test('polls: the host posts a date poll (an idea), a member votes, the host pick
     await pickDate(poll, inDays(15), 'Date option 2');
     await poll.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(H.getByText('Two options are the same date and time. Change or remove one.')).toBeVisible();
+    // The pop-up opens tall, so the calendar under an option isn't cut off by its edge
+    await poll.getByRole('button', { name: 'Date option 2', exact: true }).click();
+    const cal = await poll.locator('[data-calendar]').boundingBox(), edge = await poll.boundingBox();
+    expect(cal.y + cal.height).toBeLessThanOrEqual(edge.y + edge.height);
+    await poll.locator('[data-day="' + inDays(15) + '"]').click();
+    // The time is the app's own list, like the calendar (not the browser's menu); No time clears it
+    await poll.getByRole('button', { name: 'Time option 1' }).click();
+    await poll.getByRole('option', { name: '6:00pm', exact: true }).click();
+    await expect(poll.getByRole('button', { name: 'Time option 1' })).toContainText('6:00pm');
+    await poll.getByRole('button', { name: 'Time option 1' }).click();
+    await poll.getByRole('option', { name: 'No time', exact: true }).click();
+    await expect(poll.getByRole('button', { name: 'Time option 1' })).toContainText('Time');
     await pickDate(poll, inDays(16), 'Date option 2');
     await poll.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(flow.locator('[data-poll]')).toContainText('POLL · 2 OPTIONS');
