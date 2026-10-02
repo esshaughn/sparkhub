@@ -224,13 +224,7 @@ test('Give feedback (Update 9): a Help & info tile opens the sheet; Send to Eric
     const more = page.locator('[data-plans-more]'), empty = page.locator('[data-plans-empty]');
     await expect(more.or(empty)).toBeVisible();
     if (await more.count()) {
-      await expect(more).not.toContainText('What else could happen?');
-      const again = more.locator('[data-again]').first();
-      if (await again.count()) {
-        const t = await again.getAttribute('data-again');
-        await again.click();
-        await expect(page.getByLabel('Event title')).toHaveValue(t.slice(0, 40));
-      }
+      await expect(more.locator('[data-again]')).toHaveCount(0);   // just Create an event (owner, 2026-10-01)
     } else {
       await expect(empty).toContainText('Start one, or turn an idea into a plan.');
     }

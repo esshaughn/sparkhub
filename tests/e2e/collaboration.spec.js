@@ -14,9 +14,9 @@ test('a member with the link takes part; everyone votes; the lead picks and make
     id = await postIdea(L, { title, basics: ['teams by class'] });
     const LD = L.locator('[data-screen-label="Idea page"]');
     await expect(LD.getByLabel('Steps to a plan')).toContainText('Details');
-    await expect(LD).toContainText('Pick a date first. Then you can lock it in.');
-    await expect(LD.locator('#sec-when')).toContainText('Date TBD');   // the plan page's date & place card (audit, 2026-10-01)
-    await expect(LD.locator('#sec-when').getByRole('button', { name: 'Add' }).first()).toBeVisible();
+    await expect(LD.locator('[data-plan-needs]')).toContainText('1 thing to go');   // just the date (owner's purple card, 2026-10-01)
+    await expect(LD.locator('#sec-when [data-empty-date]')).toContainText('No date yet');   // the lead: Set a date or Run a poll (owner's mock, 2026-10-01)
+    await expect(LD.locator('#sec-when [data-empty-date]').getByRole('button', { name: 'Set a date' })).toBeVisible();
 
     // A guest (no account) with the link sees the idea, but "I'm interested" asks them to make an account
     await openIdea(V, id);

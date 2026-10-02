@@ -483,3 +483,26 @@ select t.login('outsider'); set role authenticated;
 select t.check('someone who can''t invite sees no invites',
   not exists (select 1 from public.event_invited((select id from sparks where text = 'Lead going walk'))));
 reset role;
+
+-- A plan needs a lead too (20261101200000_plan_needs_lead.sql) ----------------------------------------------------
+select t.login('host'); set role authenticated;
+insert into sparks (id, group_id, author_name, lead_name, lead_id, created_by, text, day_date)
+values (gen_random_uuid(), t.id('g'), 'Host', 'Host', t.id('host'), t.id('host'), 'Needs a lead walk', current_date + 5);
+select t.must_allow('the lead looks for a lead', $$select public.set_wants_host((select id from sparks where text = 'Needs a lead walk'), true)$$);
+select t.must_refuse('making it a plan while it''s looking for a lead', $$select public.make_plan((select id from sparks where text = 'Needs a lead walk'))$$);
+select t.must_allow('the lead takes it back', $$select public.set_wants_host((select id from sparks where text = 'Needs a lead walk'), false)$$);
+select t.must_allow('then it can be a plan', $$select public.make_plan((select id from sparks where text = 'Needs a lead walk'))$$);
+reset role;
+
+-- Step back as lead (20261101210000_step_back.sql) ----------------------------------------------------------------
+select t.login('member'); set role authenticated;
+select t.must_refuse('someone who isn''t the lead stepping back', $$select public.step_back((select id from sparks where text = 'Needs a lead walk'))$$);
+reset role;
+select t.login('host'); set role authenticated;
+select t.check('the lead steps back from a plan: it''s an idea again', public.step_back((select id from sparks where text = 'Needs a lead walk')) = 'idea');
+reset role;
+select t.check('not planned, looking for a lead, date kept',
+  exists (select 1 from sparks where text = 'Needs a lead walk' and not planned and wants_host and day_date is not null));
+select t.check('the old lead is interested, not going',
+  exists (select 1 from interests i join sparks s on s.id = i.spark_id where s.text = 'Needs a lead walk' and i.user_id = t.id('host'))
+  and not exists (select 1 from rsvps r join sparks s on s.id = r.spark_id where s.text = 'Needs a lead walk'));

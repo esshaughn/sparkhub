@@ -173,10 +173,10 @@
   // Create event (v6 Update 6): the flow's fields, its step, and its sheets (one at a time)
   const blankCompose = () => ({
     evStep: 'title', activity: '', photos: [], evPhotoPath: null, coverPos: null,
-    evDate: '', evTime: '', evEnd: '', evEndOn: false, timeOpen: null,
+    evDate: '', evTime: '', evEnd: '', evEndOn: false, timeOpen: null, dateOpen: null, calMonth: null,
     locText: '', locPlace: null, locSuggest: [],
     evBits: ['', '', ''], evNeed: null, evTags: [], evNeeds: [], evDatePoll: null, evSpotPoll: null, evLater: {},
-    evPriv: false, evNoGuestInv: false, evTest: null, evKindAsk: false, evGroups: null, evDraftId: null, evLeave: false, pollSheet: null, needSheet: null, evFromReview: false
+    evPriv: false, evNoGuestInv: true, evTest: null, evKindAsk: false, evGroups: null, evDraftId: null, evLeave: false, pollSheet: null, needSheet: null, evFromReview: false
   });
   const state = Object.assign({
     screen: 'calendar', menu: null, subjectId: null, gpId: null, tag: null, zoom: null, membersOpen: null, membersList: null,
@@ -282,7 +282,7 @@
       state.back = ORIGINS.indexOf(state.screen) > -1 ? { screen: state.screen, groupId: state.groupId, phaseTab: state.phaseTab, scroll: sc ? sc.scrollTop : 0 } : null;
     }
     // Going anywhere closes the v6 sheets (Profile, Notifications, View all, Could use a hand, Search)
-    setState(Object.assign({ screen, menu: null, zoom: null, sec: null, needEd: null, share: null, cohostPick: null, leadsSheet: null, profSheet: false, notifSheet: false, dashAll: null, cHandSheet: false, cSearch: false, cq: '', gSearch: false, gq: '', gTry: null, pplAdd: false, frInvite: false, frProfile: null, person: null }, extra || {}));
+    setState(Object.assign({ screen, menu: null, zoom: null, sec: null, needEd: null, share: null, cohostPick: null, leadsSheet: null, pollSheet: null, profSheet: false, notifSheet: false, dashAll: null, cHandSheet: false, cSearch: false, cq: '', gSearch: false, gq: '', gTry: null, pplAdd: false, frInvite: false, frProfile: null, person: null }, extra || {}));
     if (sc) sc.scrollTop = 0;
   };
 
@@ -739,6 +739,9 @@
       setState({ testers: r.data || [] });
     }, () => toast(FAILED));
   };
+  // Who they are in your groups (owner, 2026-10-01: view as any type of user): "Owner · Torrez Fitness, Member · Hub on Hunters"
+  const testerLine = (t) => (/@example\.com$/.test(t.email || '') ? 'Demo person · ' : '') +
+    ((t.memberships || []).map(m => ({ owner: 'Owner', admin: 'Admin' }[m.role] || 'Member') + ' · ' + ((groupById(m.group_id) || {}).name || 'a group')).join(', ') || t.email || '');
   const viewAsTester = (t) => {
     const roles = {};
     (t.memberships || []).forEach(m => { roles[m.group_id] = { role: m.role, pinned: !!m.pinned, lastSeen: Date.parse(m.last_seen_at) || 0 }; });
@@ -764,7 +767,7 @@
         '<div style="font-size:13.5px;line-height:1.4;font-weight:600;color:#5c6270">See the app the way anyone with an account sees it. Look only. Only you can see this.</div>' +
         '<button type="button" ' + on(openTesters) + ' aria-expanded="' + !!list + '" style="min-height:42px;padding:0 16px;border:1.5px solid #dcdfe6;border-radius:999px;background:#fff;color:#0d1117;font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer">' + (list ? 'Close' : 'Pick one') + '</button></div>' +
       (list ? '<div style="' + CARD + ';padding:4px 16px;display:flex;flex-direction:column">' + (list.length ? list.map((t, i) => '<div ' + on(() => viewAsTester(t)) + ' class="hov-row" data-tester="' + esc(t.email) + '" style="display:flex;align-items:center;gap:12px;min-height:54px;border-top:' + (i ? '1px solid #f2f3f6' : '0') + ';cursor:pointer">' +
-          face(t.user_id, t.name, 36, '#7b6ef0') + '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">' + esc(t.name) + '</div><div style="font-size:12.5px;font-weight:600;color:#8a909b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(t.email) + ' · ' + (t.memberships || []).length + ((t.memberships || []).length === 1 ? ' group' : ' groups') + '</div></div></div>').join('')
+          face(t.user_id, t.name, 36, '#7b6ef0') + '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">' + esc(t.name) + '</div><div style="font-size:12.5px;font-weight:600;color:#8a909b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(testerLine(t)) + '</div></div></div>').join('')
         : '<div style="padding:14px 0;font-size:14px;font-weight:600;color:#6b7280">No one else has an account yet.</div>') + '</div>' : '') +
     '</div>';
   };
@@ -1287,7 +1290,7 @@
   // Looking for a host (social-science review, 2026-10-01): floating an idea and hosting it are separate jobs
   const setWantsHost = (s, on_) => run(async () => { must(await sb.rpc('set_wants_host', { p_spark: s.id, p_on: on_ })); });
   const takeTheLead = (s) => needAccount(() => setState({ confirm: { title: 'Lead ' + s.text + '?', green: true, cta: 'I’ll lead it', keep: 'Not now',
-    body: 'You’ll lead it: pick the date and place and make it a plan. ' + firstName(nameOf(s.leadId, s.leadName)) + ' stays interested and gets a note.',
+    body: 'You’ll lead it: pick a date and place, then make it a plan. ' + firstName(nameOf(s.leadId, s.leadName)) + ' stays interested and gets a note.',
     run: () => run(async () => { must(await sb.rpc('take_the_lead', { p_spark: s.id })); }, { confirm: null }) } }));
 
   // Non-leads suggest (waits for the lead); the lead sets it straight away
@@ -2695,9 +2698,10 @@
     const onPage = (fn) => () => { openSpark(s); setTimeout(fn, 0); };
     if (ph === 'idea') {   // only the next step
       const top = s.dateOpts.slice().sort((a, b) => b.votes.length - a.votes.length)[0];
+      if (s.wantsHost) return [{ act: 'Needs ' + missingText(s) + ' to make it a plan', cta: 'Find a lead', go: () => setState({ share: { id: s.id, copied: false } }) }];
       if (!s.dayDate && top && top.votes.length) return [{ act: monthDay(top.dayDate) + ' has ' + top.votes.length + (top.votes.length === 1 ? ' vote' : ' votes'), cta: 'Pick', go: () => openToSection(s, 'sec-dates') }];
-      if (!s.dayDate) return [{ act: 'Pick a date to make it a plan', cta: 'Add date', go: () => openToSection(s, 'sec-dates') }];
-      return [{ act: 'It has a date', cta: 'Make it a plan', go: onPage(() => makePlan(s)) }];
+      if (!s.dayDate) return [{ act: 'Needs a date to make it a plan', cta: 'Add date', go: () => openToSection(s, 'sec-dates') }];
+      return [{ act: 'It has a lead and a date', cta: 'Make it a plan', go: onPage(() => makePlan(s)) }];
     }
     if (ph === 'done') {
       const helpers = helperIds(s);
@@ -2800,11 +2804,13 @@
       '<div style="font-size:11px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;color:' + (s.planned && !s.dayDate ? TBD_ON_PHOTO : R.kick) + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(when6(s)) + '</div>' +
     '</div></div>';
 
-  // An idea's steps, the same everywhere (owner, 2026-09-30): Date · Location · Details, and People when the host
-  // set how many they need. Only the date is needed to make it a plan.
+  // An idea's steps, the same everywhere (owner, 2026-09-30): Lead (first, owner 2026-10-01: done unless it's looking
+  // for a lead) · Date · Location · Details, and People when the host set how many they need. Only the date is needed
+  // to make it a plan.
   const ideaSteps6 = (s) => {
     const n = s.interested.length, top = s.dateOpts.reduce((m, o) => Math.max(m, o.votes.length), 0);
     return [
+      { label: 'Lead', icon: 'person', p: s.wantsHost ? 0 : 1, todo: 'Find a lead', done: 'Has a lead', sec: 'sec-lead' },
       { label: 'Date', icon: 'cal', p: s.dayDate ? 1 : top ? .5 : 0, todo: 'Pick a date', done: 'Date set', sec: 'sec-dates' },
       { label: 'Location', icon: 'pin', p: s.spot ? 1 : s.spotOpts.length ? .5 : 0, todo: 'Pick a location', done: 'Location set', sec: 'sec-loc' },
       { label: 'Details', icon: 'roles', p: basicsOf(s).length ? 1 : 0, todo: 'Add details', done: 'Details added', sec: 'sec-details' }
@@ -3196,10 +3202,11 @@
       '<div style="position:absolute;top:calc(14px + var(--pt));right:16px;display:flex;gap:8px;z-index:2">' +
         '<span ' + on(openSearch) + ' aria-label="Search events" style="width:44px;height:44px;border-radius:999px;background:rgba(255,255,255,.18);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;cursor:pointer">' + ic6('search', 19, '#fff', 2.4) + '</span>' +
         bellBtn(true) + '</div>' +
-      '<div style="position:absolute;left:18px;right:90px;bottom:16px;color:#fff;display:flex;flex-direction:column;gap:2px">' +
-        '<span style="font-size:13px;font-weight:900;letter-spacing:1px;color:#cfc9ff">COMMUNITY</span>' +
-        '<h1 style="margin:0;font-size:40px;line-height:1;font-weight:900;letter-spacing:-1.4px;color:#fff">Calendar</h1>' +
-        '<span style="font-size:14px;font-weight:700;color:rgba(255,255,255,.88)">' + (groups.length ? 'All events from your ' + groups.length + (groups.length === 1 ? ' group' : ' groups') : st.error === 'load' ? 'Couldn’t load your groups' : 'Join a group to see its events') + '</span></div>' +
+      // The same spacing as Your people's header (owner, 2026-10-01)
+      '<div style="position:absolute;left:18px;right:90px;bottom:16px;color:#fff">' +
+        '<div style="font-size:13px;font-weight:900;letter-spacing:1px;color:#cfc9ff">COMMUNITY</div>' +
+        '<h1 style="margin:2px 0 0;font-size:40px;line-height:1;font-weight:900;letter-spacing:-1.4px;color:#fff">Calendar</h1>' +
+        '<div style="margin-top:6px;font-size:14px;font-weight:700;color:rgba(255,255,255,.88)">' + (groups.length ? 'All events from your ' + groups.length + (groups.length === 1 ? ' group' : ' groups') : st.error === 'load' ? 'Couldn’t load your groups' : 'Join a group to see its events') + '</div></div>' +
       '<button type="button" class="hov-primary" ' + on(() => goCompose()) + ' aria-label="Post an event" style="position:absolute;right:16px;bottom:16px;z-index:2;width:52px;height:52px;border:0;border-radius:999px;background:#5b4ae8;box-shadow:0 6px 16px rgba(13,17,23,.35);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.plus(22, '#fff', 2.8) + '</button>' +
     '</header>';
 
@@ -3923,7 +3930,7 @@
         '<span aria-label="' + n + ' interested" style="position:absolute;top:6px;right:6px;display:flex;align-items:center;gap:3px;height:24px;padding:0 8px 0 6px;border-radius:999px;background:rgba(255,255,255,.92);box-shadow:0 1px 4px rgba(13,17,23,.2);font-size:12.5px;font-weight:900;color:#8f6405">' + svg(12, stroke('currentColor', 3), '<path d="M12 19V6M6 11.5 12 5.5l6 6"/>') + n + '</span>' +
         '<span aria-hidden="true" style="position:absolute;right:4px;top:0;bottom:0;display:flex;align-items:center;opacity:.9;filter:drop-shadow(0 1px 3px rgba(0,0,0,.4))">' + I.chevR(20, '#fff', 2.6) + '</span>' +
         (s.wantsHost ? '<span data-needs-host style="position:absolute;top:6px;left:6px;display:flex;align-items:center;height:22px;padding:0 8px;border-radius:999px;background:#e8a71c;font-size:10.5px;font-weight:900;letter-spacing:.6px;color:#fff">NEEDS A LEAD</span>' : '') +
-        '<div style="position:absolute;left:9px;right:26px;bottom:8px;font-size:14.5px;line-height:1.15;font-weight:900;color:#fff;text-wrap:balance">' + esc(s.text) + demoTag(s, true, true) + '</div></div>' +
+        '<div style="position:absolute;left:9px;right:26px;bottom:8px;font-size:14.5px;line-height:1.15;font-weight:900;color:#fff;text-wrap:balance">' + (isDemo(s) ? '<div style="margin-bottom:5px">' + demoTagOnly(s, true) + '</div>' : '') + esc(s.text) + '</div></div>' +   // DEMO above the title (owner, 2026-10-01)
       '<span style="display:flex;align-items:center;padding:8px 0 0">' + ideaSteps6(s).map((st, i) => '<span aria-label="' + st.label + ': ' + (st.p >= 1 ? st.done : st.todo) + '" style="flex:1;height:22px;display:flex;align-items:center;justify-content:center;' + (i ? 'border-left:1px solid #dcdfe4' : '') + '">' + ic6(st.icon, 15, st.p >= 1 ? '#149a4b' : '#b07a0a', 2.3) + '</span>').join('') + '</span></div>';
   };
   const ideaBoard6 = (ideas) => {
@@ -4117,17 +4124,8 @@
     '<div style="width:100%;display:flex;flex-direction:column;gap:10px">' + createBtn().replace('Create an event', 'Post an event') +
       '<button type="button" class="hov-sec" ' + on(() => go('calendar')) + ' style="width:100%;min-height:52px;border:0;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;color:#0d1117;font-family:inherit;font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer">' + ic6('cal', 18, '#0d1117', 2.2) + 'View calendar</button></div>',
     'data-sched-empty');
-  // Under a group's plans: its own past events to run again (owner, 2026-09-30: not made-up suggestions), then Create an event
-  const plansMore = () => {
-    const seen = {}, past = visible('done').slice().sort((a, b) => String(b.dayDate).localeCompare(String(a.dayDate)))
-      .filter(s => { const k = s.text.toLowerCase(); if (seen[k]) return false; seen[k] = 1; return true; }).slice(0, 3);
-    return '<div data-plans-more style="' + CARD + ';border-radius:20px;padding:16px;display:flex;flex-direction:column;gap:12px">' +
-      (past.length ? '<div style="font-size:16px;font-weight:900;color:#0d1117">Do it again?</div>' +
-        '<div style="display:flex;flex-wrap:wrap;gap:8px">' + past.map(p => '<span ' + on(() => needSignIn(() => doItAgain(p), 'post')) + ' data-again="' + esc(p.text) + '"' +
-          ' class="hov-chip" style="display:flex;align-items:center;gap:6px;height:36px;padding:0 14px;border-radius:999px;background:#f2f3f6;font-size:14px;font-weight:800;color:#0d1117;cursor:pointer">' +
-          svg(13, stroke('#5b4ae8', 2.6), '<path d="M4 12a8 8 0 0 1 13.7-5.6L20 8.5M20 4v4.5h-4.5M20 12a8 8 0 0 1-13.7 5.6L4 15.5M4 20v-4.5h4.5"/>') + esc(p.text) + '</span>').join('') + '</div>' : '') +
-      createBtn() + '</div>';
-  };
+  // Under a group's plans: just Create an event, on the page (owner, 2026-10-01: no Do it again? chips, no white card)
+  const plansMore = () => '<div data-plans-more style="display:flex;flex-direction:column">' + createBtn() + '</div>';
 
   // Search inside one group: Browse chips, "Or something unexpected", live results
   const openGroupSearch = () => { setState({ gSearch: true, menu: null }); setTimeout(() => { const f = document.querySelector('[data-csearch]'); if (f) f.focus(); }, 30); };
@@ -4267,23 +4265,13 @@
         return '<div ' + on(() => { if (!st.busy) toggleCanHelp(s); }, 'checkbox') + ' data-can-help aria-checked="' + h + '" style="margin-top:12px;display:flex;align-items:center;gap:10px;min-height:40px;cursor:pointer">' +
           '<span aria-hidden="true" style="flex:0 0 22px;width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;' + (h ? 'background:#5b4ae8' : 'box-shadow:inset 0 0 0 2px #c3c7d0') + '">' + (h ? I.check(12, '#fff', 3.4) : '') + '</span>' +
           '<span style="font-size:14.5px;font-weight:700;color:#0d1117">I could help make it happen</span></div>'; })() : '') + '</div>';
-    // Looking for a host: everyone else can take it on; the lead can say they're looking, or take it back
-    const floater = firstName(nameOf(s.leadId, s.leadName)), theLead = isTheLead(s);
-    const hostCard = off ? '' : s.wantsHost
-      ? '<div data-wants-host style="border-radius:18px;background:#fdf1d6;padding:16px;display:flex;flex-direction:column;gap:10px;box-shadow:inset 0 0 0 1.5px #f3d98b">' +
-          '<div style="font-size:12px;font-weight:900;letter-spacing:1.1px;color:#8f6405">LOOKING FOR A LEAD</div>' +
-          '<p style="margin:0;font-size:14.5px;line-height:1.45;font-weight:600;color:#5c4a12">' + (theLead ? 'Anyone who can see this idea can take it on. You stay the lead until someone does.' : esc(floater) + ' floated this and would love someone to take it on.') + '</p>' +
-          (theLead ? '<button type="button" ' + on(() => { if (!st.busy) setWantsHost(s, false); }) + ' style="min-height:44px;border:0;border-radius:999px;background:#fff;color:#0d1117;font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer;box-shadow:inset 0 0 0 1.5px #e8c46a">I’ll lead it myself</button>'
-            : '<button type="button" ' + on(() => { if (!st.busy) takeTheLead(s); }) + ' style="min-height:48px;border:0;border-radius:999px;background:#e8a71c;color:#fff;font-family:inherit;font-size:15.5px;font-weight:800;cursor:pointer">I’ll lead it</button>') + '</div>'
-      : theLead && !s.planned ? '<div data-hand-off style="display:flex;align-items:center;gap:8px;padding:0 4px;font-size:14px;font-weight:600;color:#6b7280">Just floating it?<span ' + on(() => { if (!st.busy) setWantsHost(s, true); }) + ' style="font-weight:800;color:#5b4ae8;cursor:pointer">Look for a lead</span></div>'
-      : '';
 
     // Who's interested: like Who's going (the lead taps it for the list)
     const ids = (meIn ? [st.me] : []).concat(s.interested.filter(u => u !== st.me));
     const interested = '<section id="sec-people">' + secTitle('Who’s in') + sheetCard(
       '<div ' + (n ? on(() => setState({ interestList: true })) + ' aria-label="See who’s interested" ' : '') + 'style="display:flex;align-items:center;gap:10px' + (n ? ';cursor:pointer' : '') + '">' +
         '<span style="display:flex">' + (n ? peopleFaces(ids.slice(0, 5), 40, null, true) + (n > 5 ? '<span style="width:40px;height:40px;border-radius:999px;border:2.5px solid #fff;margin-left:-10px;background:#fdf1d6;color:#8f6405;font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center">+' + (n - 5) + '</span>' : '')
-          : lead ? '<span style="font-size:14px;font-weight:600;color:#6b7280">No one yet. <span ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' style="font-weight:800;color:#5b4ae8;cursor:pointer">Share the link</span></span>'
+          : lead ? '<span style="font-size:14px;font-weight:600;color:#6b7280">No one yet. <span ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' style="font-weight:800;color:#5b4ae8;cursor:pointer">Send invites</span></span>'
           : '<span style="font-size:14px;font-weight:600;color:#6b7280">Nobody yet. Be the first.</span>') + '</span>' +
         (n ? '<span style="margin-left:auto;display:flex;align-items:center;gap:6px;font-size:14.5px;font-weight:800;color:#8f6405;white-space:nowrap">' + n + ' interested' + I.chevR(14, '#9aa0ac', 2.6) + '</span>' : '') + '</div>' + groupRow(s)) + '</section>';
 
@@ -4308,10 +4296,10 @@
       '<div style="padding:16px 14px 26px;display:flex;flex-direction:column;gap:18px">' +
         cancelledCard(s) +
         pendingCard(s) +
-        (s.wantsHost ? hostCard : '') +
         interest +
-        (lead && !off ? makePlanCard(s) : '') +
-        (s.wantsHost ? '' : hostCard) +
+        // No Looking for a lead card or Just floating it? row (owner, 2026-10-01): the purple card shows what's missing,
+        // to the lead, and to everyone else while it needs a lead (I'll lead)
+        (off ? '' : lead ? makePlanCard(s) : s.wantsHost ? planToGo(s) : '') +
         whenWhereCard(s) +
         basicDetailsSec(s) +
         helpOut(s) +
@@ -4347,9 +4335,9 @@
     return tap ? '<span ' + on(() => openPerson(u)) + ' data-person-face aria-label="' + esc(u === state.me ? 'You' : nameOf(u)) + ', see profile" style="display:flex;cursor:pointer">' + f + '</span>' : f;
   }).join('');
 
-  // Date → Location → Details → Plan, in the idea's gold strip
+  // Lead → Date → Location → Details → Plan, in the idea's gold strip (Lead: owner, 2026-10-01; done ones first)
   const ideaBanner = (s) => {
-    const steps = [['Date', !!s.dayDate], ['Location', !!s.spot], ['Details', basicsOf(s).length > 0]].concat(s.minPeople ? [['People', s.interested.length >= s.minPeople]] : [])
+    const steps = [['Lead', !s.wantsHost], ['Date', !!s.dayDate], ['Location', !!s.spot], ['Details', basicsOf(s).length > 0]].concat(s.minPeople ? [['People', s.interested.length >= s.minPeople]] : [])
       .map((x, i) => x.concat(i)).sort((a, b) => (b[1] - a[1]) || (a[2] - b[2]));
     const line = '<span style="flex:1;height:3px;margin-top:7.5px;border-radius:999px;background:rgba(61,42,0,.2)"></span>';
     const step = ([label, met]) => '<div style="flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:3px;width:52px">' +
@@ -4364,19 +4352,37 @@
     '</div>';
   };
 
+  // What an idea still needs to become a plan: a lead and a date (owner, 2026-10-01; make_plan() checks both)
+  const planMissing = (s) => (s.wantsHost ? ['lead'] : []).concat(s.dayDate ? [] : ['date']);
+  const missingText = (s) => { const m = planMissing(s); return m.length === 2 ? 'a lead and a date' : m[0] === 'lead' ? 'a lead' : 'a date'; };
   const makePlanCard = (s) => {
-    const ready = !!s.dayDate, n = s.interested.length;
+    const ready = !planMissing(s).length, n = s.interested.length;
     return ready
       ? '<div style="' + CARD + ';padding:18px;box-shadow:0 0 0 2px #bfe9cf, 0 1px 3px rgba(15,18,25,.08);display:flex;flex-direction:column;gap:6px">' +
           '<div style="font-size:12px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#0f7a3c">Ready when you are</div>' +
-          '<p style="margin:0;font-size:14.5px;line-height:1.45;font-weight:500;color:#5c6270">It has a date. Make it a plan, and ' + (n ? (n === 1 ? 'the 1 person who’s interested shows as going' : 'the ' + n + ' people who are interested show as going') : 'anyone who joins sees it’s happening') + '.</p>' +
+          '<p style="margin:0;font-size:14.5px;line-height:1.45;font-weight:500;color:#5c6270">It has a lead and a date. Make it a plan, and ' + (n ? (n === 1 ? 'the 1 person who’s interested shows as going' : 'the ' + n + ' people who are interested show as going') : 'anyone who joins sees it’s happening') + '.</p>' +
           '<button type="button" ' + on(() => { if (!state.busy) makePlan(s); }) + ' style="margin-top:8px;min-height:50px;border:0;border-radius:999px;background:#0f7a3c;color:#fff;font-family:inherit;font-size:16px;font-weight:800;cursor:pointer;box-shadow:0 10px 24px rgba(15,122,60,.25)">Make it a plan</button>' +
         '</div>'
-      : '<div style="' + CARD + ';padding:18px;display:flex;flex-direction:column;gap:6px">' +
-          '<div style="' + EYEBROW + '">Make it a plan</div>' +
-          '<p style="margin:0;font-size:14.5px;line-height:1.45;font-weight:500;color:#5c6270">Pick a date first. Then you can lock it in.</p>' +
-          '<button type="button" aria-disabled="true" style="margin-top:8px;min-height:50px;border:0;border-radius:999px;background:#d5d8df;color:#fff;font-family:inherit;font-size:16px;font-weight:800;cursor:not-allowed">Make it a plan</button>' +
-        '</div>';
+      : planToGo(s);
+  };
+  // Not ready yet (owner's mock, 2026-10-01): a purple card, "N things to go", a row for each missing piece with its own
+  // button (Someone to lead · I'll lead; A date · Add), and Make it a plan locked until both are done
+  const planToGo = (s) => {
+    const miss = planMissing(s), n = miss.length;
+    const row = (icon, title, sub, cta, fn, key) => '<div data-plan-row="' + key + '" style="display:flex;align-items:center;gap:12px;padding:12px 12px 12px 14px;border-radius:18px;background:rgba(255,255,255,.1);box-shadow:inset 0 0 0 1px rgba(255,255,255,.28)">' +
+      '<span style="flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center">' + svg(18, stroke('#fff', 2.1), icon) + '</span>' +
+      '<div style="flex:1;min-width:0"><div style="font-size:17px;font-weight:900;color:#fff">' + title + '</div><div style="margin-top:1px;font-size:13.5px;font-weight:600;color:rgba(255,255,255,.75)">' + sub + '</div></div>' +
+      '<button type="button" ' + on(() => { if (!state.busy) fn(); }) + ' style="flex:0 0 auto;min-height:42px;padding:0 18px;border:0;border-radius:999px;background:#fff;color:#4a3ad4;font-family:inherit;font-size:15px;font-weight:900;cursor:pointer">' + cta + '</button></div>';
+    return '<div data-plan-needs style="position:relative;overflow:hidden;padding:20px 16px 16px;border-radius:24px;background:linear-gradient(160deg,#4433cc,#6a5cf0);box-shadow:0 10px 26px rgba(74,58,212,.3);display:flex;flex-direction:column;gap:12px">' +
+      '<span aria-hidden="true" style="position:absolute;right:28px;top:22px;font-size:20px;color:#ffd166">✦</span><span aria-hidden="true" style="position:absolute;right:120px;top:78px;font-size:9px;color:#fff;opacity:.8">✦</span><span aria-hidden="true" style="position:absolute;right:14px;top:120px;font-size:10px;color:#fff;opacity:.8">✦</span>' +
+      '<div><div style="font-size:12.5px;font-weight:900;letter-spacing:1.2px;color:#ffd166">THIS COULD REALLY HAPPEN</div>' +
+        '<div style="margin-top:2px;font-size:28px;line-height:1.1;font-weight:900;letter-spacing:-.6px;color:#fff">' + (n === 1 ? '1 thing to go' : n + ' things to go') + '</div></div>' +
+      (miss.indexOf('lead') > -1 ? row(P6.person, 'Someone to lead', 'Could be you', 'I’ll lead', () => isTheLead(s) ? setWantsHost(s, false) : takeTheLead(s), 'lead') : '') +
+      (miss.indexOf('date') > -1 ? (isLead(s) ? row(P6.cal, 'A date', s.dateOpts.length ? 'Pick from the votes' : 'Pick one or run a poll', s.dateOpts.length ? 'Pick' : 'Add', () => s.dateOpts.length ? openToSection(s, 'sec-when') : openSec(s, 'when'), 'date')
+        : row(P6.cal, 'A date', s.dateOpts.length ? 'Vote, or suggest another' : 'Suggest one', 'Suggest', () => openOffer(s, 'day'), 'date')) : '') +
+      '<button type="button" aria-disabled="true" style="margin-top:4px;min-height:56px;border:0;border-radius:999px;background:rgba(255,255,255,.16);color:rgba(255,255,255,.62);font-family:inherit;font-size:17px;font-weight:900;cursor:not-allowed;display:flex;align-items:center;justify-content:center;gap:10px">' +
+        svg(18, stroke('rgba(255,255,255,.62)', 2.2), '<path d="M5 21V4"/><path d="M5 4.5c2.5-1.5 5-1.5 7 0s4.5 1.5 7 0v9c-2.5 1.5-5 1.5-7 0s-4.5-1.5-7 0"/>') + 'Make it a plan</button>' +
+      '<div style="text-align:center;font-size:13.5px;font-weight:700;color:rgba(255,255,255,.75)">' + (n === 1 ? 'Unlocks when that’s done' : 'Unlocks when both are done') + '</div></div>';
   };
 
   // A photo header shared by the plan and "happened" pages
@@ -4845,11 +4851,20 @@
           (s.spotAddress ? '<div style="margin-top:2px;font-size:14.5px;line-height:1.35;font-weight:500;color:#6b7280;text-wrap:pretty">' + esc(s.spotAddress) + '</div>' : '') +
           (otherSpots.length ? '<div style="margin-top:10px">' + voting('OTHER SUGGESTIONS', pollRows(otherSpots, 'spot')) + '</div>' : '')
         : s.spotOpts.length ? voting('VOTING ON A SPOT', pollRows(s.spotOpts, 'spot')) : tbd('Location TBD')) + sugg('spot');
+    const empty = (kind) => { const day = kind === 'day';
+      return '<div data-empty-' + (day ? 'date' : 'spot') + ' style="display:flex;flex-direction:column;gap:14px;padding:16px;border-radius:18px;border:2px dashed #d6d0fb;background:#f8f7ff">' +
+        '<div style="display:flex;gap:12px">' + svg(22, stroke('#5b4ae8', 2.1) + ' style="flex:0 0 22px;margin-top:1px"', day ? P6.cal : P6.pin) +
+          '<div><div style="font-size:17px;font-weight:900;color:#0d1117">' + (day ? 'No date yet' : 'No location yet') + '</div><div style="margin-top:2px;font-size:14px;font-weight:500;color:#6b7280">Set one, or let people vote.</div></div></div>' +
+        '<div style="display:flex;gap:10px">' +
+          '<button type="button" ' + on(() => openSec(s, 'when')) + ' style="flex:1 1 0;min-height:46px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:15px;font-weight:800;cursor:pointer">' + (day ? 'Set a date' : 'Set a location') + '</button>' +
+          '<button type="button" ' + on(() => setState({ pollSheet: { kind: day ? 'when' : 'where', rows: day ? [{ d: '', t: '' }, { d: '', t: '' }] : [{ v: '' }, { v: '' }], sparkId: s.id } })) + ' style="flex:1 1 0;min-height:46px;border:0;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 2px #5b4ae8;color:#5b4ae8;font-family:inherit;font-size:15px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px">' + svg(16, stroke('#5b4ae8', 2.4), POLL_IC) + 'Run a poll</button>' +
+        '</div></div>'; };
+    const noDay = lead && !s.dayDate && !s.dateOpts.length, noSpot = lead && !s.spot && !s.spotOpts.length;
+    const editLink = '<span ' + on(() => openSec(s, 'when')) + ' aria-label="Edit date, time and location" style="flex:0 0 auto;align-self:flex-start;display:flex;align-items:center;gap:5px;padding-top:2px;color:#6b7280;font-size:14px;font-weight:700;cursor:pointer">' + svg(13, stroke('currentColor', 2.4), PENCIL) + 'Edit</span>';
     const pill = 'flex:1 1 0;display:flex;align-items:center;justify-content:center;gap:8px;min-height:46px;border-radius:999px;background:#f3f1fe;color:#5b4ae8;font-size:14.5px;font-weight:800;text-decoration:none;cursor:pointer';
     return '<div id="sec-when" data-when-card style="' + CARD + ';border-radius:20px;padding:18px;display:flex;flex-direction:column;gap:16px">' +
-      '<div style="display:flex;gap:14px">' + svg(20, stroke('#6b7280', 2.1) + ' style="flex:0 0 20px;margin-top:1px"', P6.cal) + '<div style="flex:1;min-width:0">' + dayPart + '</div>' +
-        (lead ? '<span ' + on(() => openSec(s, 'when')) + ' aria-label="Edit date, time and location" style="flex:0 0 auto;align-self:flex-start;display:flex;align-items:center;gap:5px;padding-top:2px;color:#6b7280;font-size:14px;font-weight:700;cursor:pointer">' + svg(13, stroke('currentColor', 2.4), PENCIL) + 'Edit</span>' : '') + '</div>' +
-      '<div style="display:flex;gap:14px">' + svg(20, stroke('#6b7280', 2.1) + ' style="flex:0 0 20px;margin-top:1px"', P6.pin) + '<div style="flex:1;min-width:0">' + spotPart + '</div></div>' +
+      (noDay ? empty('day') : '<div style="display:flex;gap:14px">' + svg(20, stroke('#6b7280', 2.1) + ' style="flex:0 0 20px;margin-top:1px"', P6.cal) + '<div style="flex:1;min-width:0">' + dayPart + '</div>' + (lead ? editLink : '') + '</div>') +
+      (noSpot ? empty('spot') : '<div style="display:flex;gap:14px">' + svg(20, stroke('#6b7280', 2.1) + ' style="flex:0 0 20px;margin-top:1px"', P6.pin) + '<div style="flex:1;min-width:0">' + spotPart + '</div>' + (lead && noDay ? editLink : '') + '</div>') +
       (s.dayDate || s.spot ? '<div style="display:flex;gap:8px">' +
         (s.dayDate ? '<span ' + on(() => addToCalendar(s)) + ' style="' + pill + '">' + svg(18, stroke('#5b4ae8', 2.2), '<path d="M20 12V8a2.5 2.5 0 0 0-2.5-2.5h-11A2.5 2.5 0 0 0 4 8v9.5A2.5 2.5 0 0 0 6.5 20H12"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/><path d="M18 15v6M15 18h6"/>') + 'Add to calendar</span>' : '') +
         (s.spot ? '<a href="' + esc(directionsUrl(s)) + '" target="_blank" rel="noopener noreferrer" style="' + pill + '">' + svg(18, stroke('#5b4ae8', 2.2), '<path d="M12 2.8 21.2 12 12 21.2 2.8 12Z"/><path d="M9 14.5V12a1.5 1.5 0 0 1 1.5-1.5H15"/><path d="m13 8.5 2 2-2 2"/>') + 'Directions</a>' : '') + '</div>' : '') +
@@ -4899,18 +4914,28 @@
       co.slice(0, co.length > 2 ? 1 : 2).map(u => '<span style="margin-left:-16px;display:flex">' + ring(u, nameOf(u), 40, '#b8aefc') + '</span>').join('') +
       (co.length > 2 ? '<span style="position:relative;margin-left:-16px;flex:0 0 46px;width:46px;height:46px;border-radius:999px;border:3px solid #fff;box-shadow:0 0 0 2.5px #b8aefc;background:#fff;color:#4a3ad4;font-size:14px;font-weight:900;display:flex;align-items:center;justify-content:center;box-sizing:border-box">+' + (co.length - 1) + '</span>' : '') + '</span>';
     const tap = co.length ? () => setState({ leadsSheet: s.id }) : () => openPerson(s.leadId);
-    return '<div data-led-by style="position:relative;display:flex;flex-direction:column;gap:12px;padding:14px 16px;border-radius:18px;background:linear-gradient(135deg,#f1edff,#e0d8ff);box-shadow:0 1px 3px rgba(15,18,25,.08)">' +
+    return '<div id="sec-lead" data-led-by style="position:relative;display:flex;flex-direction:column;gap:12px;padding:14px 16px;border-radius:18px;background:linear-gradient(135deg,#f1edff,#e0d8ff);box-shadow:0 1px 3px rgba(15,18,25,.08)">' +
         '<span aria-hidden="true" style="position:absolute;left:52%;top:6px;font-size:9px;color:#9d93f7">✦</span><span aria-hidden="true" style="position:absolute;right:16px;top:10px;font-size:11px;color:#b8aefc">✦</span><span aria-hidden="true" style="position:absolute;right:10px;bottom:6px;font-size:8px;color:#7b6ef0">✦</span>' +
-        '<div ' + on(tap) + ' aria-label="' + (s.wantsHost ? 'Floated by ' : 'Led by ') + esc(leadName) + (co.length ? ' and ' + co.length + ' co-lead' + (co.length > 1 ? 's' : '') + ', see who' : ', see profile') + '" style="display:flex;align-items:center;gap:14px;cursor:pointer">' + faces +
+        '<div ' + on(tap) + ' aria-label="' + (s.wantsHost ? 'Floated by ' : 'Led by ') + esc(leadName) + (co.length ? ' and ' + co.length + ' co-lead' + (co.length > 1 ? 's' : '') + ', see who' : ', see profile') + '" style="display:flex;align-items:center;gap:14px;cursor:pointer' + (manage ? ';padding-right:52px' : '') + '">' + faces +
           '<div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:900;letter-spacing:.9px;color:#6b5ce7">' + lbl + '</div><div data-lead-names style="font-size:20px;line-height:1.15;font-weight:900;letter-spacing:-.3px;color:#2a1f8f;overflow-wrap:anywhere">' + leadNames(s) + '</div></div></div>' +
         (ask ? '<div data-colead-ask style="display:flex;align-items:center;gap:12px;padding:12px 12px 12px 14px;border-radius:16px;background:rgba(255,255,255,.72)">' +
             '<div style="flex:1;min-width:0;font-size:13.5px;line-height:1.4;font-weight:600;color:#4a3ad4"><b style="font-weight:900">Bring in a co-lead.</b> ' + COLEAD_WHY + '</div>' +
             '<button type="button" class="hov-primary" ' + on(() => openCohostPicker(s)) + ' style="flex:0 0 auto;min-height:44px;padding:0 16px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:14.5px;font-weight:800;display:flex;align-items:center;gap:6px;cursor:pointer">' + I.plus(14, '#fff', 2.8) + 'Co-lead</button></div>' : '') +
-        (manage && co.length ? '<span ' + on(() => setState({ leadsSheet: s.id })) + ' data-manage-coleads style="align-self:flex-end;display:flex;align-items:center;gap:4px;min-height:36px;font-size:14.5px;font-weight:800;color:#4a3ad4;cursor:pointer">Manage co-leads' + I.chevR(14, '#4a3ad4', 2.6) + '</span>' : '') +
+        // Manage co-leads is a small Edit in the card's top right, like the page's other Edit links, in dark purple (owner, 2026-10-01)
+        (manage ? '<span ' + on(() => setState({ leadsSheet: s.id })) + ' data-manage-coleads aria-label="Manage co-leads" style="position:absolute;top:12px;right:14px;z-index:1;display:flex;align-items:center;gap:5px;min-height:36px;padding:0 2px;color:#4a3ad4;font-size:14px;font-weight:700;cursor:pointer">' + svg(13, stroke('currentColor', 2.4), PENCIL) + 'Edit</span>' : '') +
       '</div>';   // (Say hi is hidden until there's messaging, owner 2026-10-01)
   };
   // The Leads sheet (20261101130000_cohosts.sql): everyone sees who leads it; leads and group admins add co-leads from
   // the event's groups (up to 5); the lead and admins remove them, and a co-lead can step down
+  // Step back as lead (20261101210000_step_back.sql): a co-lead takes over, or it goes back to an idea looking for a lead
+  const askStepBack = (s) => {
+    const co = s.cohosts[0], going = s.rsvps.filter(r => r.status === 'going' && r.userId !== state.me).length;
+    setState({ confirm: { title: 'Step back as lead?', danger: true, cta: 'Step back', keep: 'Stay on',
+      body: co ? firstName(nameOf(co)) + ' becomes the lead. Nothing else changes.'
+        : (s.planned ? 'It goes back to being an idea, looking for a lead. The date and place stay.' + (going ? ' ' + (going === 1 ? 'The 1 person going gets' : 'The ' + going + ' people going get') + ' a note and show as interested.' : '') : 'It stays up as an idea, looking for a lead.') + ' Anyone in the group can take it on.',
+      run: () => run(async () => { must(await sb.rpc('step_back', { p_spark: s.id })); }, { confirm: null })
+        .then(ok => { if (ok) toast(co ? firstName(nameOf(co)) + ' is leading it now' : 'It’s an idea again, looking for a lead', true); }) } });
+  };
   function viewLeadsSheet() {
     const s = state.sparks.find(x => x.id === state.leadsSheet);
     if (!s) return '';
@@ -4922,7 +4947,7 @@
         '<span style="flex:1;min-width:0;font-size:15px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(u === state.me ? 'You' : name) + '</span></span>' + tail + '</div>';
     return modal('Leads', close,
       h3Html('Leads') +
-      '<div style="display:flex;flex-direction:column">' + row(s.leadId, nameOf(s.leadId, s.leadName), tag('Lead'), 0) +
+      '<div style="display:flex;flex-direction:column">' + row(s.leadId, nameOf(s.leadId, s.leadName), tag('Lead') + (manage && s.leadId === state.me ? '<span style="color:#c9ccd3">·</span>' + act('Step back', () => { close(); askStepBack(s); }) : ''), 0) +
         s.cohosts.map((u, i) => row(u, nameOf(u), !manage ? tag('Co-lead') : u === state.me ? act('Step down', () => { close(); askRemoveCohost(s, u, true); }) : mayRemove ? act('Remove', () => { close(); askRemoveCohost(s, u, false); }) : tag('Co-lead'), i + 1)).join('') + '</div>' +
       (manage && s.cohosts.length < 5 ? '<span ' + on(() => { close(); openCohostPicker(s); }) + ' style="display:flex;align-items:center;gap:7px;min-height:44px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(15, '#5b4ae8', 2.6) + 'Add a co-lead</span>' : '') +
       paraHtml('Co-leads plan it with the lead and keep it going if the lead can’t make it. They can do everything except cancel or delete it.'));
@@ -4988,6 +5013,7 @@
     const f = signupFill(s);
     const tasks = !lead ? myJobs.map(j => ({ item: j.item, meta: myTime(j) })) : [].concat(
       // With a poll running, go to its votes and Pick buttons (the pop-up's plain field would throw the poll away)
+      s.wantsHost && !s.planned ? [{ item: 'Find a lead', act: () => setState({ share: { id: s.id, copied: false } }) }] : [],
       !s.dayDate ? [{ item: s.dateOpts.length ? 'Pick the winning date' : 'Pick a date', act: () => s.dateOpts.length ? openToSection(s, 'sec-when') : openSec(s, 'when') }] : [],
       !s.spot ? [{ item: s.spotOpts.length ? 'Pick the winning spot' : 'Pick a location', act: () => s.spotOpts.length ? openToSection(s, 'sec-when') : openSec(s, 'when') }] : [],
       // Details are optional, so no task for them; open spots open the share sheet with the jobs named (owner, 2026-09-30)
@@ -5067,10 +5093,10 @@
         '<section>' + secTitle('Who’s in') + sheetCard(
           // the count sits inside the card, and the card opens the full list (owner, 2026-10-01)
           '<div ' + (goingIds.length ? on(() => setState({ guestList: s.id })) + ' data-going aria-label="See everyone going (' + goingIds.length + ')" ' : '') + 'style="display:flex;align-items:center;gap:10px' + (goingIds.length ? ';cursor:pointer' : '') + '">' +
-            '<span style="display:flex">' + (goingIds.length ? peopleFaces(goingIds.slice(0, 5), 40, null, true) + (goingIds.length > 5 ? '<span style="width:40px;height:40px;border-radius:999px;border:2.5px solid #fff;margin-left:-10px;background:#e7f6ec;color:#0f7a3c;font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center">+' + (goingIds.length - 5) + '</span>' : '') : lead ? '<span data-going-empty style="font-size:14px;font-weight:600;color:#6b7280">Nobody’s RSVP’d yet. <span ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' style="font-weight:800;color:#5b4ae8;cursor:pointer">Share the link</span></span>' : '<span style="font-size:14px;font-weight:600;color:#6b7280">Nobody yet. Be the first.</span>') + '</span>' +
+            '<span style="display:flex">' + (goingIds.length ? peopleFaces(goingIds.slice(0, 5), 40, null, true) + (goingIds.length > 5 ? '<span style="width:40px;height:40px;border-radius:999px;border:2.5px solid #fff;margin-left:-10px;background:#e7f6ec;color:#0f7a3c;font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center">+' + (goingIds.length - 5) + '</span>' : '') : lead ? '<span data-going-empty style="font-size:14px;font-weight:600;color:#6b7280">Nobody’s RSVP’d yet. <span ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' style="font-weight:800;color:#5b4ae8;cursor:pointer">Send invites</span></span>' : '<span style="font-size:14px;font-weight:600;color:#6b7280">Nobody yet. Be the first.</span>') + '</span>' +
             // Only the leads going (the lead is Going to their own plan, 20261101160000): the lead still gets the nudge to share
             (lead && goingIds.length && goingIds.every(u => u === s.leadId || s.cohosts.indexOf(u) > -1)
-              ? '<span data-going-empty style="flex:1;min-width:0;font-size:14px;font-weight:600;color:#6b7280">' + (goingIds.length === 1 && goingIds[0] === st.me ? 'Just you so far.' : 'Just the leads so far.') + ' <span ' + on((e) => { stop(e); setState({ share: { id: s.id, copied: false } }); }) + ' style="font-weight:800;color:#5b4ae8;cursor:pointer">Share the link</span></span>'
+              ? '<span data-going-empty style="flex:1;min-width:0;font-size:14px;font-weight:600;color:#6b7280">' + (goingIds.length === 1 && goingIds[0] === st.me ? 'Just you so far.' : 'Just the leads so far.') + ' <span ' + on((e) => { stop(e); setState({ share: { id: s.id, copied: false } }); }) + ' style="font-weight:800;color:#5b4ae8;cursor:pointer">Send invites</span></span>'
               : goingIds.length ? '<span style="margin-left:auto;display:flex;align-items:center;gap:6px;font-size:14.5px;font-weight:800;color:#0f7a3c;white-space:nowrap">' + goingIds.length + ' going' + I.chevR(14, '#9aa0ac', 2.6) + '</span>' : '') +
           '</div>' + groupRow(s)) + '</section>' +
         inspoSec(s) +
@@ -5130,7 +5156,6 @@
               '</div>'
             : '<p style="margin:0;font-size:14px;line-height:1.45;font-weight:500;color:#5c6270">No photos yet. Anyone who went can add theirs.</p>') +
         '</div>' +
-        whoCameCard(s) +
         reactionsCard(s) +
         // Do it again? above Wrong date and Delete (owner, 2026-10-01)
         '<div style="border-radius:18px;background:#fdf1d6;padding:16px;display:flex;align-items:center;gap:12px">' +
@@ -5408,7 +5433,8 @@
   const CAMERA = '<path d="M4 8.5A2 2 0 0 1 6 6.5h1.8l1.4-2h5.6l1.4 2H18a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z"/><circle cx="12" cy="13" r="3.4"/>';
   const POLL_IC = '<path d="M5 20V11M12 20V5M19 20v-6"/>';
   const FLASK_IC = '<path d="M9.5 3.5h5M10.5 3.5v5.2L5.2 18a1.8 1.8 0 0 0 1.6 2.6h10.4a1.8 1.8 0 0 0 1.6-2.6l-5.3-9.3V3.5"/><path d="M7.6 14.5h8.8"/>';
-  const HAND_IC = '<path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V11M11 10.5V4.5a1.5 1.5 0 0 1 3 0v6M14 10.5V6a1.5 1.5 0 0 1 3 0v7.5a6.5 6.5 0 0 1-6.5 6.5A5.5 5.5 0 0 1 5.6 17L4 13.8a1.5 1.5 0 0 1 2.6-1.5L8 14"/>';
+  const BULB_IC = '<path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.6.5 1 1.2 1.1 2V16h5v-.2c.1-.8.5-1.5 1.1-2A6 6 0 0 0 12 3Z"/>';
+  const HAND_IC = P6.clip;   // the clipboard used for helping everywhere (owner, 2026-10-01)
   const LINES_IC = '<path d="M5 7h14M5 12h14M5 17h9"/>';
   const TRASH_IC = '<path d="M4.5 7h15M10 11v6M14 11v6M6 7l1 12.5A1.5 1.5 0 0 0 8.5 21h7a1.5 1.5 0 0 0 1.5-1.5L18 7M9 7V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V7"/>';
   const PEOPLE_IC = '<circle cx="9" cy="8.5" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><circle cx="17" cy="9.5" r="2.5"/><path d="M16 14.2a4.5 4.5 0 0 1 5 4.8"/>';
@@ -5452,14 +5478,19 @@
     const st = state, again = st.evTest != null;
     const close = () => again ? setState({ evKindAsk: false }) : evExit();
     const pick = (test) => setState({ evTest: test, evKindAsk: false });
+    // The owner's mock (2026-10-01): Real is the lavender Led by look with sparkles, Just testing is gold with confetti
     const opt = (test, label, sub, icon) => { const onIt = st.evTest === test;
-      return '<button type="button" ' + on(() => pick(test)) + ' data-ev-kind="' + (test ? 'test' : 'real') + '" aria-pressed="' + onIt + '" style="display:flex;align-items:center;gap:14px;width:100%;padding:14px;border:0;border-radius:16px;font-family:inherit;text-align:left;cursor:pointer;' +
-        (onIt ? 'background:#f3f1fe;box-shadow:inset 0 0 0 2px #5b4ae8' : 'background:#f7f8fa;box-shadow:inset 0 0 0 1.5px #e4e7ec') + '">' +
-        '<span style="flex:0 0 44px;width:44px;height:44px;border-radius:12px;background:#fff;display:flex;align-items:center;justify-content:center;color:#5b4ae8">' + svg(22, stroke('currentColor', 2.2), icon) + '</span>' +
-        '<span style="flex:1;min-width:0"><span style="display:block;font-size:16px;font-weight:900;color:#0d1117">' + label + '</span><span style="display:block;margin-top:2px;font-size:13px;line-height:1.35;font-weight:600;color:#6b7280">' + sub + '</span></span></button>'; };
+      const T = test ? { bg: 'linear-gradient(135deg,#fdf4d8,#fbe6b2)', tile: '#efc95a', ic: '#3d2a00', ink: '#3d2a00', sub: '#6b4d00', ring: '#d9a83a', shadow: 'rgba(176,132,20,.25)' }
+        : { bg: 'linear-gradient(135deg,#f1edff,#e0d8ff)', tile: '#5b4ae8', ic: '#fff', ink: '#2a1f8f', sub: '#4a3ad4', ring: '#5b4ae8', shadow: 'rgba(91,74,232,.3)' };
+      const bits = test
+        ? '<span aria-hidden="true" style="position:absolute;right:18%;top:16%;width:9px;height:9px;border-radius:2px;background:#e8b84a;transform:rotate(20deg)"></span><span aria-hidden="true" style="position:absolute;right:8%;top:58%;width:8px;height:5px;border-radius:2px;background:#f0a35a;transform:rotate(-25deg)"></span><span aria-hidden="true" style="position:absolute;right:30%;bottom:12%;width:6px;height:6px;border-radius:999px;background:#fff"></span>'
+        : '<span aria-hidden="true" style="position:absolute;right:20%;top:12%;font-size:11px;color:#9d93f7">✦</span><span aria-hidden="true" style="position:absolute;right:9%;top:48%;font-size:13px;color:#7b6ef0">✦</span><span aria-hidden="true" style="position:absolute;right:38%;bottom:10%;font-size:8px;color:#b8aefc">✦</span>';
+      return '<button type="button" ' + on(() => pick(test)) + ' data-ev-kind="' + (test ? 'test' : 'real') + '" aria-pressed="' + onIt + '" style="position:relative;overflow:hidden;display:flex;align-items:center;gap:16px;width:100%;padding:18px 16px;border:0;border-radius:24px;font-family:inherit;text-align:left;cursor:pointer;background:' + T.bg + ';box-shadow:' + (onIt ? 'inset 0 0 0 2.5px ' + T.ring : 'none') + '">' + bits +
+        '<span style="position:relative;flex:0 0 54px;width:54px;height:54px;border-radius:18px;background:' + T.tile + ';box-shadow:0 6px 14px ' + T.shadow + ';display:flex;align-items:center;justify-content:center;color:' + T.ic + '">' + svg(24, stroke('currentColor', 2.2), icon) + '</span>' +
+        '<span style="position:relative;flex:1;min-width:0"><span style="display:block;font-size:19px;font-weight:900;letter-spacing:-.3px;color:' + T.ink + '">' + label + '</span><span style="display:block;margin-top:3px;font-size:14.5px;line-height:1.4;font-weight:600;color:' + T.sub + '">' + sub + '</span></span></button>'; };
     return modal('Real or test?', close,
       h3Html('Real or test?') + paraHtml('Trying the app out? Post a test. It shows a DEMO tag and no one gets notified.') +
-      '<div data-ev-kinds style="display:flex;flex-direction:column;gap:10px">' +
+      '<div data-ev-kinds style="display:flex;flex-direction:column;gap:12px">' +
         opt(false, 'Real event', 'It’s happening. Your groups hear about it.', P6.cal) + opt(true, 'Just testing', 'Shows a DEMO tag. No one gets notified.', FLASK_IC) + '</div>' +
       (again ? '' : '<span ' + on(close) + ' data-ev-back-out style="align-self:center;display:flex;align-items:center;min-height:40px;font-size:14px;font-weight:800;color:#6b7280;cursor:pointer">Never mind</span>'), { z: 60 });
   }
@@ -5655,7 +5686,7 @@
   // A 30-minute time list that opens under its field (not a sheet), scrolled to the current value
   const timeField = (key, value, opts, hint, pick) => {
     const open = state.timeOpen === key;
-    const toggle = () => { setState({ timeOpen: open ? null : key }); if (!open) setTimeout(() => { const el = document.querySelector('[data-time-list] [data-cur]'); if (el) el.parentNode.scrollTop = el.offsetTop - 96; }, 0); };
+    const toggle = () => { setState({ timeOpen: open ? null : key, dateOpen: null }); if (!open) setTimeout(() => { const el = document.querySelector('[data-time-list] [data-cur]'); if (el) el.parentNode.scrollTop = el.offsetTop - 96; }, 0); };
     return '<div style="position:relative;min-width:0">' +
       '<div ' + on(toggle) + ' aria-label="' + esc(hint) + '" aria-expanded="' + open + '" style="display:flex;align-items:center;gap:10px;min-height:58px;padding:0 14px;border-radius:16px;background:#fff;box-shadow:inset 0 0 0 2px ' + (open ? '#5b4ae8' : '#dcdfe6') + ';cursor:pointer">' +
         '<span style="display:flex;color:' + (value ? '#5b4ae8' : '#9aa0ac') + '">' + svg(18, stroke('currentColor', 2.2), P5.clock) + '</span>' +
@@ -5667,10 +5698,44 @@
             (v === value ? 'background:#f3f1fe;color:#5b4ae8;font-weight:900' : 'color:#0d1117;font-weight:700') + '"><span>' + clock(v) + '</span>' + (v === value ? I.check(16, '#5b4ae8', 3) : '') + '</div>').join('') + '</div>' : '') +
     '</div>';
   };
-  const dateField = (value, label, hint, set, extra) => '<div style="position:relative;min-width:0;' + (extra || '') + '">' +
-    '<input class="fld date-fld" type="date" aria-label="' + label + '" min="' + todayISO() + '" value="' + esc(value) + '"' + (value ? '' : ' data-empty') + ' ' + onInput(e => set(e.target.value)) +
-      ' style="' + BIG + ';-webkit-appearance:none;appearance:none;height:58px;color-scheme:light;text-align:left">' +
-    (value ? '' : '<span aria-hidden="true" style="' + HINT + '">' + hint + '</span>') + '</div>';
+  // The date picker (owner, 2026-10-01: the browser's own calendar looked old next to the time list): a field like the
+  // time field that opens our month grid. Past days can't be picked; the chosen day is purple, today has a ring.
+  const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const dateField = (value, label, hint, set, extra) => {
+    const open = state.dateOpen === label, today = todayISO();
+    const month = (open && state.calMonth) || (value || today).slice(0, 7);
+    const toggle = () => setState({ dateOpen: open ? null : label, calMonth: (value || today).slice(0, 7), timeOpen: null });
+    const shift = (n) => { const [y, m] = month.split('-').map(Number), d = new Date(y, m - 1 + n, 1); setState({ calMonth: d.getFullYear() + '-' + pad2(d.getMonth() + 1) }); };
+    const pick = (iso) => { setState({ dateOpen: null }); set(iso); };
+    const grid = () => {
+      const [y, m] = month.split('-').map(Number), first = new Date(y, m - 1, 1).getDay(), days = new Date(y, m, 0).getDate(), cells = [];
+      for (let k = 0; k < first; k++) cells.push('<span></span>');
+      for (let d = 1; d <= days; d++) {
+        const iso = month + '-' + pad2(d), past = iso < today, on_ = iso === value, now = iso === today;
+        cells.push('<span ' + (past ? 'aria-disabled="true"' : on(() => pick(iso))) + ' data-day="' + iso + '" aria-label="' + esc(fmtDay(iso)) + '"' + (on_ ? ' aria-pressed="true"' : '') +
+          ' style="justify-self:center;width:40px;height:40px;border-radius:999px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:' + (on_ || now ? 800 : 700) + ';' +
+          (on_ ? 'background:#5b4ae8;color:#fff;cursor:pointer' : past ? 'color:#c9ccd3' : 'color:' + (now ? '#5b4ae8' : '#0d1117') + ';cursor:pointer' + (now ? ';box-shadow:inset 0 0 0 1.5px #5b4ae8' : '')) + '"' +
+          (past || on_ ? '' : ' class="hov-grey-fill"') + '>' + d + '</span>');
+      }
+      return cells.join('');
+    };
+    const roundBtn = (dis, fn, icon, lbl) => '<span ' + (dis ? 'aria-disabled="true"' : on(fn)) + ' aria-label="' + lbl + '" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;' + (dis ? 'opacity:.35' : 'cursor:pointer') + '">' + icon + '</span>';
+    return '<div style="position:relative;min-width:0;' + (extra || '') + '">' +
+      '<div ' + on(toggle) + ' aria-label="' + esc(label) + '" aria-expanded="' + open + '" data-date-field style="display:flex;align-items:center;gap:10px;min-height:58px;padding:0 14px;border-radius:16px;background:#fff;box-shadow:inset 0 0 0 2px ' + (open ? '#5b4ae8' : '#dcdfe6') + ';cursor:pointer">' +
+        '<span style="display:flex;color:' + (value ? '#5b4ae8' : '#9aa0ac') + '">' + svg(18, stroke('currentColor', 2.2), P6.cal) + '</span>' +
+        '<span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;' + (value ? 'font-size:17px;font-weight:800;color:#0d1117' : 'font-size:16.5px;font-weight:400;font-style:italic;color:#b9bcc4') + '">' + esc(value ? fmtDay(value) : hint) + '</span>' +
+        I.chevD(14, '#9aa0ac', 2.6) + '</div>' +
+      (open ? '<div ' + on(() => setState({ dateOpen: null })) + ' aria-hidden="true" style="position:fixed;inset:0;z-index:19"></div>' +
+        '<div data-calendar="' + month + '" role="dialog" aria-label="Pick a date" style="position:absolute;left:0;top:calc(100% + 6px);z-index:20;width:316px;max-width:calc(100vw - 40px);box-sizing:border-box;background:#fff;border-radius:18px;box-shadow:0 14px 34px rgba(15,18,25,.2), 0 0 0 1px #e6e7eb;padding:14px">' +
+          '<div style="display:flex;align-items:center;gap:8px;padding:0 2px 10px"><span style="flex:1;font-size:17px;font-weight:900;color:#0d1117">' + MONTH_NAMES[Number(month.slice(5)) - 1] + ' ' + month.slice(0, 4) + '</span>' +
+            roundBtn(month <= today.slice(0, 7), () => shift(-1), I.chevL(15, '#0d1117', 2.6), 'Previous month') + roundBtn(false, () => shift(1), I.chevR(15, '#0d1117', 2.6), 'Next month') + '</div>' +
+          '<div style="display:grid;grid-template-columns:repeat(7,1fr);row-gap:4px">' +
+            ['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(d => '<span style="justify-self:center;font-size:12px;font-weight:800;color:#9aa0ac;padding-bottom:4px">' + d + '</span>').join('') + grid() + '</div>' +
+          '<div style="display:flex;justify-content:space-between;padding:8px 4px 0">' +
+            (value ? '<span ' + on(() => pick('')) + ' aria-label="Clear the date" style="font-size:14px;font-weight:800;color:#9b1c31;cursor:pointer">Clear</span>' : '<span></span>') +
+            (value !== today ? '<span ' + on(() => pick(today)) + ' style="font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">Today</span>' : '') + '</div>' +
+        '</div>' : '') + '</div>';
+  };
   const orLine = () => '<div style="padding:14px 4px 0;display:flex;align-items:center;gap:10px"><span style="flex:1;height:1px;background:#d5d8df"></span><span style="font-size:12px;font-weight:800;letter-spacing:1px;color:#8a909b">OR</span><span style="flex:1;height:1px;background:#d5d8df"></span></div>';
   const pollRow = (fn) => '<div style="padding-top:10px"><div ' + on(fn) + ' class="hov-fill" style="display:flex;align-items:center;gap:12px;min-height:52px;padding:0 14px;border-radius:14px;box-shadow:inset 0 0 0 1.5px #c9ccd3;color:#454b55;cursor:pointer">' +
     svg(16, stroke('currentColor', 2.2), POLL_IC) + '<span style="flex:1;font-size:15px;font-weight:800">Poll the group</span>' + I.chevR(14, '#b9bcc4', 2.6) + '</div></div>';
@@ -5757,13 +5822,18 @@
             tile(false, 'Public', 'Everyone in your groups', PEOPLE_IC) + tile(true, 'Private', 'Only people you invite', LOCK_IC) + '</div>' +
             '<div style="padding:0 14px 14px">' + guestInvSwitch(!st.evNoGuestInv, () => setState({ evNoGuestInv: !st.evNoGuestInv })) + '</div></div></div>' +
         '</div>' +
-        '<div style="position:sticky;bottom:0;margin-top:auto;padding:16px 14px;background:linear-gradient(to top,#e8eaee 70%,rgba(232,234,238,0))">' +
-          // A date locks it in as a plan; without one it goes up as an idea
-          '<div data-posts-as style="padding:0 6px 10px;text-align:center;font-size:13.5px;line-height:1.4;font-weight:600;color:#5c6270">' +
-            (st.evDate ? 'It goes on the calendar as a plan.' : 'It goes up as an idea. Once there’s a date, tap <strong style="font-weight:800;color:#0d1117">Make it a plan</strong> to lock it in.') + '</div>' +
-          '<button type="button" ' + on(() => { if (busy) return; if (!chosen) { pickKind(); return; } createEvent(); }) + ' aria-disabled="' + (busy || !chosen) + '" style="position:relative;overflow:hidden;width:100%;min-height:56px;border:0;border-radius:999px;background:#149a4b;color:#fff;font-family:inherit;font-size:17px;font-weight:900;cursor:pointer;box-shadow:0 10px 24px rgba(20,154,75,.32)' + (busy ? ';opacity:.72;cursor:wait' : !chosen ? ';opacity:.5' : '') + '">' +
-            ['#ffd98a:6%:18%', '#cfc9ff:22%:68%', '#fff:78%:28%', '#ffb3c1:88%:64%', '#b8f0cd:62%:74%', '#ffd98a:40%:20%'].map(c => { const [col, x, y] = c.split(':'); return '<span aria-hidden="true" style="position:absolute;left:' + x + ';top:' + y + ';width:6px;height:6px;border-radius:2px;background:' + col + ';transform:rotate(30deg);opacity:.9"></span>'; }).join('') +
-            '<span style="position:relative">' + (busy ? 'Posting…' : 'Post it') + '</span></button>' +
+        // At the end of the page, not stuck over it (owner, 2026-10-01). A date locks it in as a plan (green); without one
+        // it goes up as an idea: a gold card saying so, and a gold Post as an idea (owner's mock, 2026-10-01)
+        '<div style="padding:18px 14px 24px">' +
+          (st.evDate
+            ? '<div data-posts-as style="padding:0 6px 10px;text-align:center;font-size:13.5px;line-height:1.4;font-weight:600;color:#5c6270">It goes on the calendar as a plan.</div>'
+            : '<div data-posts-as style="display:flex;gap:14px;margin-bottom:14px;padding:16px;border-radius:20px;background:#fdf5d6;box-shadow:inset 0 0 0 1.5px #efc95a">' +
+                '<span style="flex:0 0 46px;width:46px;height:46px;border-radius:999px;background:#efc95a;display:flex;align-items:center;justify-content:center">' + svg(22, stroke('#3d2a00', 2.2), BULB_IC) + '</span>' +
+                '<div style="flex:1;min-width:0"><div style="font-size:17px;font-weight:900;color:#0d1117">This goes up as an idea</div>' +
+                  '<div style="margin-top:3px;font-size:14.5px;line-height:1.45;font-weight:500;color:#454b55">No date yet, so people can vote and suggest times. Once it has a lead (you) and a date, tap <strong style="font-weight:800;color:#0d1117">Make it a plan</strong> to lock it in.</div></div></div>') +
+          '<button type="button" ' + on(() => { if (busy) return; if (!chosen) { pickKind(); return; } createEvent(); }) + ' aria-disabled="' + (busy || !chosen) + '" style="position:relative;overflow:hidden;width:100%;min-height:56px;border:0;border-radius:999px;background:' + (st.evDate ? '#149a4b;color:#fff' : '#efc95a;color:#3d2a00') + ';font-family:inherit;font-size:17px;font-weight:900;cursor:pointer;box-shadow:0 10px 24px ' + (st.evDate ? 'rgba(20,154,75,.32)' : 'rgba(176,132,20,.25)') + (busy ? ';opacity:.72;cursor:wait' : !chosen ? ';opacity:.5' : '') + '">' +
+            (st.evDate ? ['#ffd98a:6%:18%', '#cfc9ff:22%:68%', '#fff:78%:28%', '#ffb3c1:88%:64%', '#b8f0cd:62%:74%', '#ffd98a:40%:20%'] : ['#fff6d6:6%:24%', '#fff6d6:44%:66%', '#fff6d6:52%:30%', '#fff6d6:88%:58%']).map(c => { const [col, x, y] = c.split(':'); return '<span aria-hidden="true" style="position:absolute;left:' + x + ';top:' + y + ';width:' + (st.evDate ? 6 : 9) + 'px;height:' + (st.evDate ? 6 : 9) + 'px;border-radius:2px;background:' + col + ';transform:rotate(30deg);opacity:.9"></span>'; }).join('') +
+            '<span style="position:relative;display:inline-flex;align-items:center;gap:8px">' + (busy ? 'Posting…' : st.evDate ? 'Post it' : svg(20, stroke('#3d2a00', 2.3), BULB_IC) + 'Post as an idea') + '</span></button>' +
           '<button type="button" ' + on(saveDraft) + ' style="margin-top:12px;width:100%;min-height:50px;background:transparent;border:2px solid #c9ccd3;border-radius:999px;font-family:inherit;font-size:15.5px;font-weight:800;color:#0d1117;cursor:pointer">' + (st.busy === 'draft' ? 'Saving…' : 'Save as draft') + '</button>' +
         '</div></div></div>';
     }
@@ -5878,6 +5948,14 @@
         // Two identical dates made the whole post fail; two identical spots split the vote
         const keys = valid.map(r => when ? r.d + ' ' + (r.t || '') : cleanTitle(r.v).toLowerCase());
         if (keys.some((k, j) => keys.indexOf(k) !== j)) { toast(when ? 'Two options are the same date and time. Change or remove one.' : 'Two options are the same place. Change or remove one.'); return; }
+        if (p.sparkId) {   // Run a poll from an event's When and where (owner, 2026-10-01)
+          const who = (state.myName || 'Someone').slice(0, 40);
+          run(async () => {
+            if (when) must(await sb.from('date_options').insert(valid.map(o => ({ spark_id: p.sparkId, day_date: o.d, day_time: o.t || null, who }))));
+            else must(await sb.from('spot_options').insert(valid.map(o => ({ spark_id: p.sparkId, name: cleanTitle(o.v).slice(0, 80), who }))));
+          }, { pollSheet: null }).then(ok => { if (ok) toast('Poll started. Everyone can vote now.', true); });
+          return;
+        }
         if (when) setState({ pollSheet: null, evDatePoll: valid.map(r => ({ d: r.d, t: r.t || '' })), evDate: '', evTime: '', evEnd: '', evEndOn: false, evLater: Object.assign({}, st.evLater, { when: false }) });
         else setState({ pollSheet: null, evSpotPoll: valid.map(r => ({ v: cleanTitle(r.v).slice(0, 80) })), locText: '', locPlace: null, locSuggest: [], evLater: Object.assign({}, st.evLater, { where: false }) });
       };
@@ -6410,7 +6488,7 @@
       (st.banner ? viewBanner() : '') +
       (s === 'compose' ? viewCompose() : '') +
       (s === 'compose' && (st.evTest == null || st.evKindAsk) && !st.evLeave && !st.loginStep ? viewKindAsk() : '') +
-      (s === 'compose' && st.email ? viewComposeSheets() : '') +
+      (s === 'compose' && st.email ? viewComposeSheets() : st.pollSheet && st.pollSheet.sparkId ? viewComposeSheets() : '') +
       (st.offerKind && subj ? viewOffer(subj) : '') +
       (st.interestList && subj ? viewInterestList(subj) : '') +
       (st.guestList && subj && st.guestList === subj.id ? viewGuestList(subj) : '') +
@@ -6633,6 +6711,7 @@
       if (state.person) return setState({ person: null });
       if (state.ph) return closePositioner();
       if (state.invite) return setState({ invite: null });
+      if (state.dateOpen) return setState({ dateOpen: null });
       if (state.timeOpen) return setState({ timeOpen: null });
       if (state.sec) return setState({ sec: null });
       if (state.needEd) return setState({ needEd: null });

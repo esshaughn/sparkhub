@@ -163,6 +163,15 @@ function ideaIdFromUrl(page) {
   return m[1];
 }
 
+// The date picker is our own calendar (owner, 2026-10-01): open the field, page to the month, tap the day ('' clears it)
+async function pickDate(scope, iso, label = 'Date') {
+  await scope.getByRole('button', { name: label, exact: true }).click();
+  const cal = scope.locator('[data-calendar]');
+  if (!iso) { await cal.getByRole('button', { name: 'Clear the date' }).click(); return; }
+  for (let i = 0; i < 24 && (await cal.getAttribute('data-calendar')) < iso.slice(0, 7); i++) await cal.getByRole('button', { name: 'Next month' }).click();
+  await cal.locator('[data-day="' + iso + '"]').click();
+  await expect(cal).toHaveCount(0);
+}
 async function openIdea(page, id) {
   await page.goto('/#/idea/' + id);
   await expect(page.locator('[data-screen-label="Idea page"], [data-screen-label="Plan page"], [data-screen-label="It happened"]')).toBeVisible();
@@ -183,7 +192,7 @@ async function postEvent(page, { title, date, time, where, pick, details = [], j
 
   await expect(flow).toContainText('2 of 5');
   if (date) {
-    await flow.getByLabel('Date', { exact: true }).fill(date);
+    await pickDate(flow, date);
     if (time) {
       await flow.getByRole('button', { name: 'Add a start time (optional)' }).click();
       await flow.getByRole('option', { name: timeWord(time), exact: true }).click();
@@ -218,7 +227,7 @@ async function postEvent(page, { title, date, time, where, pick, details = [], j
 
   await expect(flow).toContainText('LOOKS GOOD');
   if (inviteOnly) await flow.getByRole('radio', { name: /^Private/ }).click();
-  await flow.getByRole('button', { name: 'Post it' }).click();
+  await flow.getByRole('button', { name: /^Post (it|as an idea)$/ }).click();
   await expect(page.locator('[data-screen-label="Plan page"]')).toBeVisible();
   await expect(page.getByText('It’s on the books')).toHaveCount(0);   // no chip over a new plan (owner, 2026-10-01)
   if (!test) await closeAskFirst(page);
@@ -281,5 +290,5 @@ async function asUser(page, fn, args) {
 
 module.exports = {
   TAG, TORREZ, PNG, leadEmail, uniqueTitle, startPost, openProfile, pickView, mockPlaces, stubPhotos, trackErrors, expectConnected, newMember, newLead, button,
-  postIdea, postEvent, closeAskFirst, pickKind, addJob, answerNamePrompt, answerGuestPrompt, ideaIdFromUrl, openIdea, confirm, deleteIdea, asUser
+  postIdea, postEvent, closeAskFirst, pickDate, pickKind, addJob, answerNamePrompt, answerGuestPrompt, ideaIdFromUrl, openIdea, confirm, deleteIdea, asUser
 };

@@ -1,7 +1,7 @@
 // V5 plans: RSVPs (going / maybe / can't) from a guest with the link, sign-ups, updates from
 // the host, a date change that tells everyone going, "it happened" with its album, and private plans.
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newMember, newLead, button, postEvent, openIdea, deleteIdea, answerGuestPrompt, confirm, asUser, postIdea, PNG } = require('./helpers');
+const { uniqueTitle, newMember, newLead, button, postEvent, openIdea, deleteIdea, answerGuestPrompt, confirm, asUser, postIdea, PNG, pickDate } = require('./helpers');
 
 // Local dates, like the app (toISOString would be UTC, a day ahead in the evening)
 const inDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
@@ -31,7 +31,7 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     await expect(mine.getByRole('button', { name: /^Going/ })).toHaveAttribute('aria-pressed', 'true');
     await expect(HP.getByRole('button', { name: /Invite people/ })).toBeVisible();
     await expect(HP).not.toContainText('Remind everyone the day before');      // retired in Update 6
-    await expect(HP.locator('[data-when-card]')).toContainText('Location TBD');
+    await expect(HP.locator('[data-when-card] [data-empty-spot]')).toContainText('No location yet');
 
     // The host adds sign-ups (with "how many") in Edit what you need, and posts an update
     await HP.getByRole('button', { name: 'Edit what you need' }).click();
@@ -167,7 +167,7 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     await expect(HP.locator('[data-signup="Folding chairs"]')).toContainText('1/2');
     await HP.getByRole('button', { name: 'Edit date, time and location' }).click();
     const when = H.getByRole('dialog', { name: 'Date, time & location' });
-    await when.getByLabel('Date', { exact: true }).fill(inDays(21));
+    await pickDate(when, inDays(21));
     // Round 65a: the sheet shows what they get, and the button says it sends
     await expect(when.locator('[data-update-preview]')).toContainText('New date:');
     await expect(when.locator('[data-update-preview]')).toContainText('Goes to the 1 person going.');
@@ -454,7 +454,7 @@ test('RSVP buttons change as soon as they are tapped (the save follows), and go 
 });
 
 // Social-science review (2026-10-01): floating an idea and hosting it are separate jobs; RSVPs aren't attendance
-test('looking for a lead: someone else takes the lead; "I could help"; the lead checks in who came', async ({ browser }) => {
+test('looking for a lead: the lead steps back, someone else takes the lead; "I could help"', async ({ browser }) => {
   test.setTimeout(150000);
   const host = await newLead(browser, 1, 'Hope');
   const other = await newLead(browser, 2, 'Otto');
@@ -465,14 +465,16 @@ test('looking for a lead: someone else takes the lead; "I could help"; the lead 
     const id = await postIdea(H, { title: uniqueTitle('Kite day') });
     ids.push(id);
     const HI = H.locator('[data-screen-label="Idea page"]');
-    await HI.locator('[data-hand-off]').getByRole('button', { name: 'Look for a lead' }).click();
-    await expect(HI.locator('[data-wants-host]')).toContainText('LOOKING FOR A LEAD');
-    await expect(HI.locator('[data-wants-host]')).toContainText('You stay the lead until someone does');
+    // Looking for a lead is stepping back (owner, 2026-10-01: no Looking for a lead card): Edit → Leads → Step back
+    await HI.locator('[data-led-by]').getByRole('button', { name: 'Manage co-leads' }).click();
+    await H.getByRole('dialog', { name: 'Leads' }).locator('[data-lead-row="Hope"]').getByRole('button', { name: 'Step back' }).click();
+    await confirm(H, 'Step back');
+    await expect(HI.locator('[data-plan-needs] [data-plan-row="lead"]')).toContainText('Someone to lead');
 
     // Otto sees it needs a host, is interested and could help
     await openIdea(O, id);
     const OI = O.locator('[data-screen-label="Idea page"]');
-    await expect(OI.locator('[data-wants-host]')).toContainText('Hope floated this and would love someone to take it on.');
+    await expect(OI.locator('[data-plan-needs] [data-plan-row="lead"]')).toContainText('Could be you');
     await expect(OI.locator('[data-led-by]')).toContainText('FLOATED BY');
     await expect(OI.locator('[data-can-help]')).toHaveCount(0);           // only once you're interested
     await OI.getByRole('button', { name: 'I’m interested' }).click();
@@ -486,10 +488,10 @@ test('looking for a lead: someone else takes the lead; "I could help"; the lead 
     await H.getByRole('dialog', { name: 'Who’s interested' }).getByRole('button', { name: 'Close' }).click();
 
     // Otto takes the lead
-    await OI.locator('[data-wants-host]').getByRole('button', { name: 'I’ll lead it' }).click();
+    await OI.locator('[data-plan-row="lead"]').getByRole('button', { name: 'I’ll lead' }).click();
     await confirm(O, 'I’ll lead it');
     await expect(OI).toContainText('YOU’RE LEADING');
-    await expect(OI.locator('[data-wants-host]')).toHaveCount(0);
+    await expect(OI.locator('[data-plan-row="lead"]')).toHaveCount(0);
     await openIdea(H, id);
     await expect(HI.locator('[data-led-by]')).toContainText('LED BY');
     await expect(HI.locator('[data-led-by]')).toContainText('Otto');
@@ -508,15 +510,7 @@ test('looking for a lead: someone else takes the lead; "I could help"; the lead 
     await openIdea(H, past);
     const done = H.locator('[data-screen-label="It happened"]');
     await expect(done).toContainText('2 SAID YES');
-    const card = done.locator('[data-who-came]');
-    await expect(card).toContainText('0 of 2');
-    await card.getByRole('button', { name: 'Otto came' }).click();
-    await expect(card).toContainText('1 of 2');
-    await expect(done).toContainText('1 CAME');
-    await openIdea(H, past);
-    await expect(done.locator('[data-who-came]').getByRole('button', { name: 'Otto came' })).toHaveAttribute('aria-pressed', 'true');
-    await openIdea(O, past);
-    await expect(O.locator('[data-screen-label="It happened"]')).toContainText('1 CAME');   // everyone sees the count
+    await expect(done.locator('[data-who-came]')).toHaveCount(0);   // Who came? is off the page for now (owner, 2026-10-01)
     expect(host.errors).toEqual([]);
   } finally {
     await asUser(O, async (c, _C, id) => { await c.from('sparks').delete().eq('id', id); }, ids[0]).catch(() => {});
@@ -665,5 +659,72 @@ test('invite people: the lead invites a group member from the sheet; Invited sti
     if (id) await deleteIdea(H, id).catch(() => {});
     await host.context.close();
     await other.context.close();
+  }
+});
+
+// An idea with no date: the lead sets one or runs a poll right from When and where (owner's mock, 2026-10-01).
+// It needs a lead and a date to become a plan (20261101200000_plan_needs_lead.sql)
+test('no date yet: the lead runs a date poll from the idea; stepping back blocks Make it a plan', async ({ browser }) => {
+  const host = await newLead(browser, 1, 'Pia');
+  const H = host.page;
+  let id;
+  try {
+    id = await asUser(H, async (c, _C, title) => {
+      const me = (await c.auth.getUser()).data.user.id;
+      const g = (await c.from('groups').select('id').eq('name', 'Torrez Fitness').single()).data.id;
+      const r = await c.from('sparks').insert({ group_id: g, author_name: 'Pia', lead_name: 'Pia', lead_id: me, created_by: me, text: title }).select('id').single();
+      return r.error ? r.error.message : r.data.id;
+    }, uniqueTitle('Poll walk'));
+    expect(id).toMatch(/^[0-9a-f-]{36}$/);
+    await openIdea(H, id);
+    const HI = H.locator('[data-screen-label="Idea page"]');
+    await HI.locator('[data-empty-date]').getByRole('button', { name: 'Run a poll' }).click();
+    const poll = H.getByRole('dialog', { name: 'Poll the group' });
+    await pickDate(poll, inDays(15), 'Date option 1');
+    await pickDate(poll, inDays(16), 'Date option 2');
+    await poll.getByRole('button', { name: 'Save' }).click();
+    await expect(H.getByText('Poll started. Everyone can vote now.')).toBeVisible();
+    await expect(HI.locator('#sec-when')).toContainText('VOTING ON A DATE');
+    await expect(HI.locator('[data-empty-date]')).toHaveCount(0);
+    // Looking for a lead: Make it a plan names both missing pieces
+    await HI.locator('[data-led-by]').getByRole('button', { name: 'Manage co-leads' }).click();
+    await H.getByRole('dialog', { name: 'Leads' }).locator('[data-lead-row="Pia"]').getByRole('button', { name: 'Step back' }).click();
+    await confirm(H, 'Step back');
+    await expect(HI.locator('[data-plan-needs]')).toContainText('2 things to go');
+    await expect(HI.locator('[data-plan-needs] [data-plan-row="lead"]')).toContainText('Someone to lead');
+    expect(await asUser(H, async (c, _C, sid) => { await c.from('sparks').update({ day_date: new Date(Date.now() + 9 * 864e5).toISOString().slice(0, 10) }).eq('id', sid); const r = await c.rpc('make_plan', { p_spark: sid }); return r.error ? 'refused' : 'ALLOWED'; }, id)).toBe('refused');
+    expect(host.errors.filter(e => !/status of 400/.test(e))).toEqual([]);   // the refused make_plan above
+  } finally {
+    if (id) await deleteIdea(H, id).catch(() => {});
+    await host.context.close();
+  }
+});
+
+// Step back as lead (owner, 2026-10-01; 20261101210000_step_back.sql): Edit on the Led by card → Leads → Step back.
+// With no co-lead, the plan goes back to an idea that's looking for a lead
+test('the lead steps back from a plan: it is an idea again, looking for a lead', async ({ browser }) => {
+  const host = await newLead(browser, 1, 'Rae');
+  const H = host.page;
+  let id;
+  try {
+    id = await asUser(H, async (c, _C, { title, day }) => {
+      const me = (await c.auth.getUser()).data.user.id;
+      const g = (await c.from('groups').select('id').eq('name', 'Torrez Fitness').single()).data.id;
+      const r = await c.from('sparks').insert({ group_id: g, author_name: 'Rae', lead_name: 'Rae', lead_id: me, created_by: me, text: title, planned: true, day_date: day }).select('id').single();
+      return r.error ? r.error.message : r.data.id;
+    }, { title: uniqueTitle('Step walk'), day: inDays(11) });
+    expect(id).toMatch(/^[0-9a-f-]{36}$/);
+    await openIdea(H, id);
+    await H.locator('[data-screen-label="Plan page"] [data-led-by]').getByRole('button', { name: 'Manage co-leads' }).click();
+    await H.getByRole('dialog', { name: 'Leads' }).locator('[data-lead-row="Rae"]').getByRole('button', { name: 'Step back' }).click();
+    await confirm(H, 'Step back');
+    const HI = H.locator('[data-screen-label="Idea page"]');
+    await expect(HI.locator('[data-plan-needs] [data-plan-row="lead"]')).toContainText('Someone to lead');
+    await expect(HI.locator('[data-led-by]')).toContainText('FLOATED BY');
+    await expect(HI.locator('#sec-when')).not.toContainText('No date yet');   // the date stays
+    expect(host.errors).toEqual([]);
+  } finally {
+    if (id) await deleteIdea(H, id).catch(() => {});
+    await host.context.close();
   }
 });
