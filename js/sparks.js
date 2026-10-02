@@ -5608,7 +5608,7 @@
         cover = await evCover(st);
         const row = {
           group_id: groups[0], author_name: st.myName, text: cleanTitle(st.activity).slice(0, 40),
-          hopes: st.evBits.map(b => b.trim().slice(0, 40)).filter(Boolean), vision: null,
+          hopes: st.evBits.map(b => b.trim().slice(0, 60)).filter(Boolean), vision: null,
           photos: cover ? [cover.path] : [], cat: 'events', answers: {}, lead_id: st.me, lead_name: st.myName, created_by: st.me,
           spot, spot_open: !spot, spot_address: place ? place.address : null, spot_lat: place ? place.lat : null, spot_lon: place ? place.lon : null,
           day_date: st.evDate || null, day_time: st.evDate && st.evTime ? st.evTime : null, day_end: st.evDate && st.evTime && st.evEnd ? st.evEnd : null,
@@ -5686,7 +5686,7 @@
       activity: str(x.activity).slice(0, 40), evStep: EV_STEPS.concat('review').indexOf(x.evStep) > -1 ? x.evStep : 'title',
       evDate: /^\d{4}-\d{2}-\d{2}$/.test(x.evDate || '') ? x.evDate : '', evTime: str(x.evTime), evEnd: str(x.evEnd), evEndOn: !!x.evEndOn,
       locText: str(x.locText).slice(0, 80), locPlace: x.locPlace && typeof x.locPlace === 'object' ? x.locPlace : null,
-      evBits: [0, 1, 2].map(i => str((x.evBits || [])[i]).slice(0, 40)), evNeed: Number.isInteger(x.evNeed) && x.evNeed > 0 ? Math.min(x.evNeed, 99) : null, evTags: (arr(x.evTags) || []).filter(k => TYPES6.some(t => t[0] === k)).slice(0, 2), evNeeds: arr(x.evNeeds) || [],
+      evBits: [0, 1, 2].map(i => str((x.evBits || [])[i]).slice(0, 60)), evNeed: Number.isInteger(x.evNeed) && x.evNeed > 0 ? Math.min(x.evNeed, 99) : null, evTags: (arr(x.evTags) || []).filter(k => TYPES6.some(t => t[0] === k)).slice(0, 2), evNeeds: arr(x.evNeeds) || [],
       evDatePoll: arr(x.evDatePoll), evSpotPoll: arr(x.evSpotPoll), evLater: x.evLater && typeof x.evLater === 'object' ? x.evLater : {},
       evPriv: !!x.evPriv, evNoGuestInv: !!x.evNoGuestInv, evTest: typeof x.evTest === 'boolean' ? x.evTest : null, evGroups: arr(x.evGroups), coverPos: x.coverPos || null,
       evPhotoPath: PHOTO_PATH.test(x.evPhoto || '') ? x.evPhoto : null, evDraftId: d.id

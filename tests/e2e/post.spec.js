@@ -337,11 +337,22 @@ test('drafts: X saves one, Your tasks lists it under Leading, Continue picks up 
     await expect(draft).toContainText('Up next: Location');
     await draft.getByRole('button', { name: 'Continue' }).click();
     await expect(flow).toContainText('3 of 5');
-    for (let i = 0; i < 3; i++) await flow.getByText('Decide later', { exact: true }).click();
+    await flow.getByText('Decide later', { exact: true }).click();
+    // A Details line longer than the old 40 comes back whole from a draft (resuming used to cut it at 40)
+    const longLine = 'Park on Elm Street and walk in through the side gate.';
+    await flow.getByLabel('Details, line 1').fill(longLine);
+    await flow.getByRole('button', { name: 'Close' }).click();
+    await leave.getByRole('button', { name: 'Save draft' }).click();
+    await draft.getByRole('button', { name: 'Continue' }).click();
+    await expect(flow).toContainText('4 of 5');
+    await expect(flow.getByLabel('Details, line 1')).toHaveValue(longLine);
+    await flow.getByRole('button', { name: 'Next' }).click();
+    await flow.getByText('Decide later', { exact: true }).click();
     await flow.getByRole('button', { name: /^Post (it|as an idea)$/ }).click();
     await expect(page.locator('[data-screen-label="Idea page"]')).toBeVisible();   // no date: an idea
     await closeAskFirst(page);
     id = await page.evaluate(() => location.hash.split('/').pop());
+    expect(await asUser(page, async (c, _C, id) => (await c.from('sparks').select('hopes').eq('id', id).single()).data.hopes, id)).toEqual([longLine]);
     const left = await asUser(page, async (c) => (await c.from('event_drafts').select('id')).data.length);
     expect(left).toBe(0);
     expect(errors).toEqual([]);
@@ -408,6 +419,9 @@ test('an idea says how many it needs; a bare starter chip can’t be saved; its 
     // A Details line holds up to 60 characters and stays one line, sentences and all (owner, 2026-10-01)
     await expect(flow.getByLabel('Details, line 1')).toHaveAttribute('maxlength', '60');
     await flow.getByLabel('Details, line 1').fill('Bring cleats. And water?');
+    // A line longer than the old 40 posts whole (posting used to cut it at 40)
+    const longLine = 'Shin guards help. We play on the turf behind the gym.';
+    await flow.getByLabel('Details, line 2').fill(longLine);
     await expect(flow.locator('[data-tags]')).toHaveCount(0);   // no "What kind of event?" (owner, 2026-10-01)
     const need = flow.locator('[data-need-people]');
     await expect(need).toContainText('Optional');
@@ -430,6 +444,9 @@ test('an idea says how many it needs; a bare starter chip can’t be saved; its 
     const steps = page.getByLabel('Steps to a plan');
     for (const t of ['Date', 'Location', 'Details', 'People']) await expect(steps).toContainText(t);
     await expect(page.locator('[data-basics] span', { hasText: 'Bring cleats. And water?' })).toHaveCount(1);   // one line, not two
+    await expect(page.locator('[data-basics] span', { hasText: longLine })).toHaveCount(1);
+    const savedHopes = await asUser(page, async (c, _C, id) => (await c.from('sparks').select('hopes').eq('id', id).single()).data.hopes, id);
+    expect(savedHopes).toEqual(['Bring cleats. And water?', longLine]);
     const saved = await asUser(page, async (c, _C, id) => (await c.from('sparks').select('min_people').eq('id', id).single()).data.min_people, id);
     expect(saved).toBe(6);
     const savedTags = await asUser(page, async (c, _C, id) => (await c.from('sparks').select('tags').eq('id', id).single()).data.tags, id);
