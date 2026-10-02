@@ -5484,9 +5484,10 @@
     const ROW = 'display:flex;align-items:center;gap:12px;min-height:60px;padding:10px 16px;cursor:pointer;text-decoration:none';
     const line = (title, sub) => '<div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:800;color:#0d1117">' + title + '</div><div style="font-size:13px;font-weight:500;color:#6b7280">' + sub + '</div></div>';
     const section = (label, inner) => '<div style="display:flex;flex-direction:column;gap:8px"><span style="padding:0 4px;' + EYEBROW + '">' + label + '</span><div style="' + CARD + ';overflow:hidden">' + inner + '</div></div>';
-    const tile = (icon, title, sub, fn) => '<div ' + on(fn) + ' aria-label="' + esc(title) + '" class="hov-row" style="display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:16px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
-      '<span style="width:40px;height:40px;border-radius:12px;background:#f3f1fe;color:#4a3ad4;display:flex;align-items:center;justify-content:center">' + icon + '</span>' +
-      '<div><div style="font-size:15.5px;line-height:1.2;font-weight:900;color:#0d1117;text-wrap:balance">' + title + '</div><div style="margin-top:3px;font-size:12.5px;line-height:1.35;font-weight:600;color:#6b7280">' + sub + '</div></div></div>';
+    // The owner's mock (2026-10-02): each tile has its colour along the top edge and a solid icon square
+    const tile = (icon, title, sub, fn, color) => '<div ' + on(fn) + ' aria-label="' + esc(title) + '" data-help-tile class="hov-row" style="display:flex;flex-direction:column;gap:12px;padding:14px;border-radius:18px;border-top:3px solid ' + color + ';background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
+      '<span aria-hidden="true" style="width:42px;height:42px;border-radius:12px;background:' + color + ';color:#fff;display:flex;align-items:center;justify-content:center">' + icon + '</span>' +
+      '<div><div style="font-size:16.5px;line-height:1.2;font-weight:900;letter-spacing:-.2px;color:#0d1117;text-wrap:balance">' + title + '</div><div style="margin-top:4px;font-size:13.5px;line-height:1.35;font-weight:500;color:#5c6270">' + sub + '</div></div></div>';
     return sheet6('Profile', close,
       '<div style="display:flex;align-items:center;gap:14px;padding:2px 2px 4px">' +
         '<span ' + on(openProfileEdit) + ' aria-label="Change photo" style="display:flex;cursor:pointer">' + avatarSpan(st.me, st.myName, avatar, 56) + '</span>' +
@@ -5497,8 +5498,8 @@
       '<div style="padding:18px 14px 30px;display:flex;flex-direction:column;gap:20px">' + (st.demoAdmin ? '<div style="display:flex;flex-direction:column;gap:10px">' + fbInboxCard() + acctCard() + '</div>' : '') +
         '<div style="display:flex;flex-direction:column;gap:10px"><h2 style="margin:0;padding:0 4px;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:#0d1117">Help &amp; info</h2>' +
           '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">' +
-            tile('<span style="font-size:17px;font-weight:900">?</span>', 'How this works', 'Events and pitching in', () => go('how', { howFrom: state.screen })) +
-            tile('<span style="font-size:18px;font-weight:900">✎</span>', 'Give feedback', 'Tell Eric what you think', () => setState({ fb: { text: '' } })) +
+            tile('<span style="font-size:17px;font-weight:900">?</span>', 'How this works', 'Events and pitching in', () => go('how', { howFrom: state.screen }), '#5b4ae8') +
+            tile(svg(17, stroke('currentColor', 2.4), '<path d="M4 20h4L19 9l-4-4L4 16v4Z"/>'), 'Give feedback', 'Tell Eric what you think', () => setState({ fb: { text: '' } }), '#149a4b') +
           '</div></div>' +
         section('Settings',
           '<div ' + on(() => setState({ nSettings: true })) + ' class="hov-row" style="' + ROW + '">' + line('Notifications', 'In the app and on your phone') + I.chevR(16, '#9aa0ac', 2.4) + '</div>' +

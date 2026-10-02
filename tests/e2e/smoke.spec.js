@@ -469,6 +469,7 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
     await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Profile', exact: true }).click();
     const profile = page.getByRole('dialog', { name: 'Profile', exact: true });
     await expect(profile.getByRole('heading', { name: 'Help & info' })).toBeVisible();
+    await expect(profile.locator('[data-help-tile]')).toHaveCount(2);   // the owner's mock: a coloured top edge and a solid icon square
     await expect(profile).not.toContainText('Member since');
     await expect(profile).not.toContainText('Hosted');
     // Notification settings (Settings → Notifications) opens above the Profile sheet
