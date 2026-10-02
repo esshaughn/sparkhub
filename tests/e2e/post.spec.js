@@ -16,8 +16,8 @@ test('post an event with every step filled, then edit it in the pop-ups and dele
       details: ['Tacos after', 'Bring headlamps'], jobs: [{ item: 'Bring water', need: 3 }], photo: true
     });
     const P = page.locator('[data-screen-label="Plan page"]');
-    // Nobody's replied: the lead gets a nudge to share, not "Be the first"
-    await expect(P.locator('[data-going-empty]')).toContainText('Nobody’s RSVP’d yet. Share the link');
+    // Only the lead is going (20261101160000_lead_going.sql): they get a nudge to share, not "Be the first"
+    await expect(P.locator('[data-going-empty]')).toContainText('Just you so far. Share the link');
     await expect(P.locator('[data-chip]')).toHaveText('YOU’RE LEADING');
     await expect(page.locator('[data-test-tab]')).toHaveCount(0);   // a real event: no Test event tab
     await expect(P).toContainText('5:30pm');
