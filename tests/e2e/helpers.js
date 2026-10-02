@@ -139,6 +139,9 @@ async function newLead(browser, n, name, path) {
     session = await api('POST', '/auth/v1/token?grant_type=password', null, { email: leadEmail(n), password });
     session.user = await api('PUT', '/auth/v1/user', session.access_token, { data: { name, display_name: name } });
     await api('POST', '/rest/v1/rpc/rename_me', session.access_token, { p_name: name });
+    // Every notification topic on: a run that stopped between the notifications test's switch off and back on left
+    // one lead with Updates off, so that test failed on every later run on that worker (2026-10-02)
+    await api('PATCH', '/rest/v1/notif_state?user_id=eq.' + session.user.id, session.access_token, { topics: {} });
     if (!torrezId) torrezId = (await api('GET', '/rest/v1/groups?select=id&name=eq.' + encodeURIComponent('Torrez Fitness'), session.access_token))[0].id;
   } catch (e) {
     throw new Error('Lead sign-in failed: ' + e.message);
