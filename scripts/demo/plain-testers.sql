@@ -47,8 +47,10 @@ update public.sparks s set lead_id = d.id, lead_name = p.name
   join public.profiles p on true
  where s.id = d.spark_id and p.id = d.id;
 
--- A demo person who now hosts an event isn't also one of its guests
-delete from public.rsvps r using public.sparks s where s.id = r.spark_id and s.demo and r.user_id = s.lead_id;
+-- A demo person who now leads an event is Going to it (20261101160000_lead_going.sql: the lead is Going to their own plan)
+insert into public.rsvps (spark_id, user_id, status)
+select s.id, s.lead_id, 'going' from public.sparks s where s.demo and s.planned and s.cancelled_at is null and s.lead_id is not null
+on conflict (spark_id, user_id) do update set status = 'going';
 
 -- 3. Their part in demo events
 delete from public.rsvps r using public.sparks s where s.id = r.spark_id and s.demo and r.user_id in (select id from people);
