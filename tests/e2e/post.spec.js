@@ -42,9 +42,12 @@ test('post an event with every step filled, then edit it in the pop-ups and dele
     await bar.click();
     await expect(P.locator('[data-screen-label="Your tasks"]')).toContainText('Fill open spots');
 
-    // Title & photo pop-up
-    await P.getByRole('button', { name: /edit the title$/ }).click();
-    const sec = page.getByRole('dialog', { name: 'Title & photo' });
+    // Edit event: a round pencil by Share (owner, 2026-10-01), no pencil after the title; the host gets the photo too
+    await expect(P.locator('h1 svg')).toHaveCount(0);
+    await P.getByRole('button', { name: 'Edit event' }).click();
+    const sec = page.getByRole('dialog', { name: 'Edit event' });
+    await expect(sec.locator('[data-edit-photo]')).toBeVisible();
+    await expect(sec.getByLabel(/^(Replace the|Add a) cover photo$/)).toHaveCount(1);
     await sec.getByLabel('Event title').fill(title + ' + stars');
     await sec.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(sec).toHaveCount(0);

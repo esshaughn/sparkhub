@@ -116,9 +116,9 @@ test('a group end to end: edit group, cover, rename, invite, pin, admin edits, r
     ideaId = await postIdea(B, { title: uniqueTitle('Tempo run') });
     await openIdea(A, ideaId);
     const detail = A.locator('[data-screen-label="Idea page"]');
-    await detail.getByRole('button', { name: /edit the title$/ }).click();   // v6 Update 6: the title's pencil opens its pop-up
-    const sec = A.getByRole('dialog', { name: 'Title & photo' });
-    await expect(sec.getByText('Cover photo')).toHaveCount(0);                   // only the lead changes the photo
+    await detail.getByRole('button', { name: 'Edit event' }).click();   // an admin gets the round pencil too (the title only)
+    const sec = A.getByRole('dialog', { name: 'Edit event' });
+    await expect(sec.locator('[data-edit-photo]')).toHaveCount(0);               // only the lead changes the photo
     await sec.getByLabel('Event title').fill('[E2E] Tempo run, moved indoors');
     await sec.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(detail).toContainText('moved indoors');

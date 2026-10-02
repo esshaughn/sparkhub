@@ -4296,7 +4296,7 @@
             (isDemo(s) ? chip('DEMO', 'rgba(255,255,255,.24);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)', '#fff', 'data-chip data-demo-tag') : lead ? chip(isTheLead(s) ? 'YOU’RE LEADING' : 'YOU’RE CO-LEADING', '#5b4ae8', '#fff', 'data-chip') : chip('IDEA', '#f3c55a', '#3d2a00', 'data-chip')) +
             (s.visibility === 'invite' ? chip(svg(11, stroke('#fff', 2.6), '<rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>') + 'PRIVATE', 'rgba(255,255,255,.22)') : '') + '</div>' +
           (edit
-            ? '<h1 ' + on(() => openSec(s, 'title'), 'button') + ' aria-label="' + esc(s.text) + ', edit the title" style="margin:0;font-size:36px;line-height:1;font-weight:900;letter-spacing:-1.2px;text-wrap:pretty;cursor:pointer">' + esc(s.text) + svg(20, stroke('#fff', 2.4) + ' style="display:inline-block;margin-left:8px;vertical-align:4px;opacity:.85"', PENCIL) + '</h1>'
+            ? '<h1 ' + on(() => openSec(s, 'title'), 'button') + ' aria-label="' + esc(s.text) + ', edit the title" style="margin:0;font-size:36px;line-height:1;font-weight:900;letter-spacing:-1.2px;text-wrap:pretty;cursor:pointer">' + esc(s.text) + '</h1>'
             : '<h1 style="margin:0;font-size:36px;line-height:1;font-weight:900;letter-spacing:-1.2px;text-wrap:pretty">' + esc(s.text) + '</h1>') + '</div>' +
           (s.dayDate ? '<span aria-label="' + esc(fmtDay(s.dayDate)) + '" style="flex:0 0 70px;width:70px;border-radius:14px;overflow:hidden;text-align:center;background:#fff;box-shadow:0 8px 20px rgba(0,0,0,.3);transform:rotate(4deg)"><span style="display:block;background:#e8a71c;color:#fff;font-size:11.5px;font-weight:900;letter-spacing:1px;padding:3px 0">' + dp.mon + '</span><span style="display:block;font-size:32px;line-height:1.15;font-weight:900;color:#0d1117">' + dp.day + '</span><span style="display:block;padding-bottom:5px;font-size:11px;font-weight:800;color:#6b7280">' + dp.dow + '</span></span>' : '') +
         '</div>', true) +
@@ -4376,6 +4376,7 @@
   };
 
   // A photo header shared by the plan and "happened" pages
+  const ROUND_BTN = 'flex:0 0 44px;width:44px;height:44px;border-radius:999px;background:#fff;box-shadow:0 2px 8px rgba(13,17,23,.25);display:flex;align-items:center;justify-content:center;cursor:pointer';
   const phaseHeader = (s, height, scrim, inner, share) => {
     const g = groupById(s.groupId), cover = s.photoPaths[0] ? photoUrl(s.photoPaths[0]) : null;
     return '<div style="position:relative;height:calc(' + height + 'px + var(--pt));overflow:hidden;background:#0b2a17">' +
@@ -4384,13 +4385,11 @@
       '<div style="position:absolute;top:calc(12px + var(--pt));left:12px;right:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;z-index:1">' +
         backBtn(s) +
         '<span style="flex:1"></span>' +
-        (isLead(s)   // v6 Update 6: the old Edit button is gone; the host changes the photo here
-          // On demo/test events it's a round camera button, so the Test event tab between the buttons stays clear
-          ? (isDemo(s) ? '<label title="' + (s.photoPaths[0] ? 'Change photo' : 'Add a photo') + '" class="hov-fill-grey" style="flex:0 0 44px;width:44px;height:44px;border-radius:999px;background:#fff;box-shadow:0 2px 8px rgba(13,17,23,.25);display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(18, stroke('#0d1117', 2.2), CAMERA)
-            : '<label style="' + EDIT_PILL + '">' + svg(15, stroke('#0d1117', 2.2), CAMERA) + (s.photoPaths[0] ? 'Change photo' : 'Add a photo')) +
-              '<input type="file" accept="image/*" aria-label="' + (s.photoPaths[0] ? 'Change the cover photo' : 'Add a cover photo') + '" ' + onInput(e => { if (e.type !== 'change') return; const f = (e.target.files || [])[0]; e.target.value = ''; pickForPositioner(f, { kind: 'idea', id: s.id }); }) + ' style="display:none"></label>'
+        // Owner, 2026-10-01: one round pencil (matching Share) opens Edit event: the title, and the cover photo for the host.
+        // Round, so the Test event tab between the buttons stays clear on demo/test events
+        (canEdit(s) ? '<span ' + on(() => openSec(s, 'title')) + ' aria-label="Edit event" class="hov-fill-grey" style="' + ROUND_BTN + '">' + svg(18, stroke('#0d1117', 2.4), PENCIL) + '</span>'
           : share ? '' : '<span style="flex:0 0 44px;width:44px"></span>') +
-        (share ? '<span ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' aria-label="Share" class="hov-fill-grey" style="flex:0 0 44px;width:44px;height:44px;border-radius:999px;background:#fff;box-shadow:0 2px 8px rgba(13,17,23,.25);display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(18, stroke('#0d1117', 2.4), P5.share) + '</span>' : '') +
+        (share ? '<span ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' aria-label="Share" class="hov-fill-grey" style="' + ROUND_BTN + '">' + svg(18, stroke('#0d1117', 2.4), P5.share) + '</span>' : '') +
       '</div>' + inner +
       // (No chip over the photo after an action, owner 2026-10-01: the page already shows what changed)
     '</div>';
@@ -4480,7 +4479,7 @@
   const openSec = (s, kind) => {
     const bits = basicsOf(s).slice(0, 3).map(b => b.slice(0, 40));
     while (bits.length < 3) bits.push('');
-    setState({ sec: { id: s.id, kind, title: s.text, photo: null, d: s.dayDate || '', t: s.dayTime || '', e: s.dayEnd || '', bits, need: s.minPeople || null, tags: (s.tags || []).slice(), priv: s.visibility === 'invite', guestInv: s.guestInvites !== false, groups: gIds(s).slice() },
+    setState({ sec: { id: s.id, kind, title: s.text, d: s.dayDate || '', t: s.dayTime || '', e: s.dayEnd || '', bits, need: s.minPeople || null, tags: (s.tags || []).slice(), priv: s.visibility === 'invite', guestInv: s.guestInvites !== false, groups: gIds(s).slice() },
       offerText: kind === 'when' ? s.spot || '' : '', offerPlace: s.spot && s.spotPoint ? { name: s.spot, address: s.spotAddress, lat: s.spotPoint[0], lon: s.spotPoint[1] } : null, offerSuggest: [], timeOpen: null, menu: null });
   };
   // Round 65a: what an edit tells people. A new date, time or place always goes out; a new title or
@@ -4522,16 +4521,11 @@
     if (ss.kind === 'title') {
       const text = cleanTitle(ss.title).slice(0, 40);
       if (!text) return;
-      let path = null, old = null;
       run(async () => {
         if (lead) { if (text !== s.text) must(await sb.from('sparks').update({ text }).eq('id', s.id)); }
         else must(await sb.rpc('admin_edit_spark', { p_spark: s.id, p_text: text, p_hopes: s.hopes }));
-        if (ss.photo && lead) {
-          path = await uploadBlob(ss.photo.blob);
-          try { old = must(await sb.rpc('set_idea_cover', { p_spark: s.id, p_photo: path, p_pos: null })).data; } catch (e) { deletePhotos([path]); throw e; }
-        }
         if (send) await sendUpdate(s, msg);
-      }, { sec: null }).then(ok => { if (!ok) return; if (old) deletePhotos([old]); toast(send ? 'Saved. Everyone going gets an update.' : note, true); });
+      }, { sec: null }).then(ok => { if (ok) toast(send ? 'Saved. Everyone going gets an update.' : note, true); });
       return;
     }
     if (ss.kind === 'details') {
@@ -4653,22 +4647,30 @@
     return sw + preview;
   };
 
+  const PHOTO_BTN = 'flex:1 1 0;display:flex;align-items:center;justify-content:center;gap:7px;min-height:44px;border-radius:999px;background:#f1effe;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer';
   function viewSecSheet() {
     const ss = state.sec, s = state.sparks.find(x => x.id === ss.id);
     if (!s) return '';
     const close = () => setState({ sec: null, offerText: '', offerPlace: null, offerSuggest: [], timeOpen: null });
     const set = (patch) => setState({ sec: Object.assign({}, state.sec, patch) });
     const label = (t) => '<span style="font-size:12px;font-weight:800;letter-spacing:1.1px;text-transform:uppercase;color:#6b7280">' + esc(t) + '</span>';
-    const title = { title: 'Title & photo', when: 'Date, time & location', details: 'Details', vis: 'Who can see it' }[ss.kind];
+    const title = { title: 'Edit event', when: 'Date, time & location', details: 'Details', vis: 'Who can see it' }[ss.kind];
     let body = '', ok = true;
     if (ss.kind === 'title') {
-      const cur = ss.photo ? ss.photo.url : s.photoPaths[0] ? photoUrl(s.photoPaths[0]) : null;
+      const cur = s.photoPaths[0] ? photoUrl(s.photoPaths[0]) : null;
       ok = !!cleanTitle(ss.title);
       body = '<div style="display:flex;flex-direction:column;gap:8px">' + label('Event title') +
         '<input class="fld big-fld" type="text" maxlength="40" aria-label="Event title" placeholder="Name your event" value="' + esc(ss.title) + '" ' + onInput(e => { if (e.type === 'input') set({ title: e.target.value.slice(0, 40) }); }) + ' style="' + BIG + '"></div>' +
-        (isLead(s) ? '<div style="display:flex;align-items:center;gap:12px;padding:8px 14px 8px 8px;border-radius:16px;background:#f4f5f7"><span aria-hidden="true" style="flex:0 0 56px;width:56px;height:42px;border-radius:10px;background:' + (cur ? bg(cur) : EV_GRAD) + '"></span>' +
-          '<span style="flex:1;font-size:15px;font-weight:800;color:#0d1117">Cover photo</span><label style="display:flex;align-items:center;gap:6px;font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">' + svg(16, stroke('currentColor', 2.2), CAMERA) + (cur ? 'Change' : 'Add') +
-          '<input type="file" accept="image/*" aria-label="Cover photo" ' + onInput(e => { if (e.type !== 'change') return; const f = (e.target.files || [])[0]; e.target.value = ''; if (!f) return; shrinkImage(f).then(blob => { if (state.sec && state.sec.photo) URL.revokeObjectURL(state.sec.photo.url); set({ photo: { blob, url: URL.createObjectURL(blob) } }); }, () => toast(BAD_PHOTO)); }) + ' style="display:none"></label></div>' : '');
+        // The photo (host only): Adjust re-frames the current one, Replace / Add a photo pick a new one. Both open the
+        // positioner on top of this pop-up and save straight away, so a title being edited here stays as typed
+        (isLead(s) ? '<div data-edit-photo style="display:flex;flex-direction:column;gap:8px">' + label('Photo') +
+          '<div aria-hidden="true" style="position:relative;height:150px;border-radius:16px;overflow:hidden;background:' + (cur ? '#2b303a' : EV_GRAD) + '">' +
+            (cur ? photoLayer(cur, s.coverPos, IDEA_POS) : '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:rgba(255,255,255,.8)">No photo yet</div>') + '</div>' +
+          '<div style="display:flex;gap:8px">' +
+            (cur ? '<span ' + on(() => openPositioner({ kind: 'idea', id: s.id, url: cur, pos: s.coverPos })) + ' style="' + PHOTO_BTN + '">' + svg(16, stroke('currentColor', 2.2), '<path d="M5 9V5h4M15 5h4v4M19 15v4h-4M9 19H5v-4"/>') + 'Adjust</span>' : '') +
+            '<label style="' + PHOTO_BTN + '">' + svg(16, stroke('currentColor', 2.2), CAMERA) + (cur ? 'Replace' : 'Add a photo') +
+              '<input type="file" accept="image/*" aria-label="' + (cur ? 'Replace the cover photo' : 'Add a cover photo') + '" ' + onInput(e => { if (e.type !== 'change') return; const f = (e.target.files || [])[0]; e.target.value = ''; pickForPositioner(f, { kind: 'idea', id: s.id }); }) + ' style="display:none"></label>' +
+          '</div></div>' : '');
     } else if (ss.kind === 'when') {
       body = '<div style="display:flex;flex-direction:column;gap:8px">' + label('Date & time') +
         '<div style="display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:8px">' + dateField(ss.d, 'Date', 'Pick a date', (v) => set({ d: v })) +
@@ -4999,7 +5001,7 @@
           '<div style="display:flex;gap:6px;flex-wrap:wrap">' + (s.cancelledAt ? '<span data-cancelled style="display:flex;align-items:center;border-radius:999px;padding:5px 11px;background:#d92d4a;font-size:12px;font-weight:900;letter-spacing:.9px">CANCELLED</span>' : '') + '<span data-chip' + (isDemo(s) ? ' data-demo-tag' : '') + ' style="display:flex;align-items:center;gap:6px;border-radius:999px;padding:5px 11px;background:' + (isDemo(s) ? 'rgba(255,255,255,.24);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)' : lead ? '#5b4ae8' : '#149a4b') + ';font-size:12px;font-weight:900;letter-spacing:.9px">' + (isDemo(s) ? 'DEMO' : lead ? (isTheLead(s) ? 'YOU’RE LEADING' : 'YOU’RE CO-LEADING') : 'HAPPENING') + '</span>' +
             (s.visibility === 'invite' ? '<span style="display:flex;align-items:center;gap:5px;border-radius:999px;padding:5px 11px;background:rgba(255,255,255,.22);font-size:12px;font-weight:900;letter-spacing:.9px">' + svg(11, stroke('#fff', 2.6), '<rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>') + 'PRIVATE</span>' : '') + '</div>' +
           (edit
-            ? '<h1 ' + on(() => openSec(s, 'title'), 'button') + ' aria-label="' + esc(s.text) + ', edit the title" style="margin:0;font-size:40px;line-height:.98;font-weight:900;letter-spacing:-1.3px;text-wrap:pretty;cursor:pointer">' + esc(s.text) + svg(20, stroke('#fff', 2.4) + ' style="display:inline-block;margin-left:8px;vertical-align:4px;opacity:.85"', PENCIL) + '</h1>'
+            ? '<h1 ' + on(() => openSec(s, 'title'), 'button') + ' aria-label="' + esc(s.text) + ', edit the title" style="margin:0;font-size:40px;line-height:.98;font-weight:900;letter-spacing:-1.3px;text-wrap:pretty;cursor:pointer">' + esc(s.text) + '</h1>'
             : '<h1 style="margin:0;font-size:40px;line-height:.98;font-weight:900;letter-spacing:-1.3px;text-wrap:pretty">' + esc(s.text) + '</h1>') + '</div>' +
           (s.dayDate ? '<span aria-label="' + esc(fmtDay(s.dayDate)) + '" style="flex:0 0 70px;width:70px;border-radius:14px;overflow:hidden;text-align:center;background:#fff;box-shadow:0 8px 20px rgba(0,0,0,.3);transform:rotate(4deg)"><span style="display:block;background:#149a4b;color:#fff;font-size:11.5px;font-weight:900;letter-spacing:1px;padding:3px 0">' + dp.mon + '</span><span style="display:block;font-size:32px;line-height:1.15;font-weight:900;color:#0d1117">' + dp.day + '</span><span style="display:block;padding-bottom:5px;font-size:11px;font-weight:800;color:#6b7280">' + dp.dow + '</span></span>' : '') +
         '</div>', true) +
@@ -6389,9 +6391,9 @@
       (st.email && st.person ? viewPerson() : '') +
       (st.frAdd ? viewFrAdd() : '') +
       (st.gpDel != null && s === 'groupPage' ? viewDeleteGroup() : '') +
-      (st.ph ? viewPositioner() : '') +
       (st.invite ? viewInvite() : '') +
       (st.sec && subj ? viewSecSheet() : '') +
+      (st.ph ? viewPositioner() : '') +   // above Edit event, which can open it
       (st.needEd && subj ? viewNeedsSheet() : '') +
       (st.share ? viewShareSheet() : '') +
       (st.startName != null ? viewStartGroup() : '') +
