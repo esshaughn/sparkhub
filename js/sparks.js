@@ -4793,7 +4793,11 @@
       body = '<div style="display:flex;flex-direction:column;gap:8px">' + label('Date & time') +
         '<div style="display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:8px">' + dateField(ss.d, 'Date', 'Pick a date', (v) => set({ d: v }), '', phaseOf(s) === 'done') +
           timeField('secT', ss.t, EV_TIMES, 'Time', (v) => setState({ sec: Object.assign({}, state.sec, { t: v, e: ss.e && ss.e <= v ? '' : ss.e }), timeOpen: null })) + '</div>' +
-        (ss.t ? timeField('secE', ss.e, EV_TIMES.filter(v => v > ss.t), 'End time (optional)', (v) => setState({ sec: Object.assign({}, state.sec, { e: v }), timeOpen: null })) : '') + '</div>' +
+        // The end time is a small "+ Add end time" link until it's asked for, as on Create event (owner, 2026-10-02)
+        (ss.t && (ss.e || ss.eOn)
+          ? '<div style="display:flex;align-items:center;gap:8px"><div style="flex:1;min-width:0">' + timeField('secE', ss.e, EV_TIMES.filter(v => v > ss.t), 'Add an end time', (v) => setState({ sec: Object.assign({}, state.sec, { e: v }), timeOpen: null })) + '</div>' +
+              '<span ' + on(() => setState({ sec: Object.assign({}, state.sec, { e: '', eOn: false }), timeOpen: null })) + ' aria-label="Remove end time" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#f1f2f5;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(12, '#6b7280', 2.8) + '</span></div>'
+          : ss.t ? '<span ' + on(() => setState({ sec: Object.assign({}, state.sec, { eOn: true }), timeOpen: 'secE' })) + ' style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:40px;padding:0 4px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(14, 'currentColor', 2.6) + 'Add end time</span>' : '') + '</div>' +
         '<div style="display:flex;flex-direction:column;gap:8px">' + label('Location') + placeField('offer', { placeholder: 'Search a place or address', style: BIG }) + '</div>' +
         // A plan keeps its date; taking it off turns the plan back into an idea (the host's call, with a confirm)
         (s.planned && isLead(s) ? (ss.d ? '' : '<span data-needs-date style="font-size:13.5px;line-height:1.4;font-weight:600;color:' + AMBER_INK + '">A plan needs a date. To take it off, turn it back into an idea.</span>') +

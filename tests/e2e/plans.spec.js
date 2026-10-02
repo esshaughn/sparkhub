@@ -167,6 +167,14 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     await expect(HP.locator('[data-signup="Folding chairs"]')).toContainText('1/2');
     await HP.getByRole('button', { name: 'Edit date, time and location' }).click();
     const when = H.getByRole('dialog', { name: 'Date, time & location' });
+    // The end time is a small "+ Add end time" link until it's asked for, as on Create event; the ✕ takes it off again
+    await expect(when.getByRole('button', { name: 'Add an end time' })).toHaveCount(0);
+    await when.getByText('Add end time').click();
+    await expect(when.getByRole('option', { name: '5:30pm', exact: true })).toHaveCount(0);   // only later times
+    await when.getByRole('option', { name: '7:00pm', exact: true }).click();
+    await expect(when.getByRole('button', { name: 'Add an end time' })).toContainText('7:00pm');
+    await when.getByRole('button', { name: 'Remove end time' }).click();
+    await expect(when.getByText('Add end time')).toBeVisible();
     await pickDate(when, inDays(21));
     // Round 65a: the sheet shows what they get, and the button says it sends
     await expect(when.locator('[data-update-preview]')).toContainText('New date:');
