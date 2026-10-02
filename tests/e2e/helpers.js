@@ -86,6 +86,13 @@ async function stubPhotos(target) {
       : route.continue());
 }
 
+const livePages = new Set();
+async function othersSaved(page) {
+  for (const p of livePages) {
+    if (p === page || p.isClosed()) continue;
+    await p.waitForFunction(() => !document.documentElement.hasAttribute('data-saving'), null, { timeout: 20000 }).catch(() => {});
+  }
+}
 // Fresh visitor: new browser context = new localStorage = new anonymous identity
 // (`stored`: localStorage entries the browser starts with; newLead passes a signed-in session)
 async function newMember(browser, path, stored) {
@@ -100,6 +107,14 @@ async function newMember(browser, path, stored) {
   await stubPhotos(context);
   const page = await context.newPage();
   const errors = trackErrors(page);
+  // Taps show at once and save behind the screen (RSVP, votes, sign-ups…), so before anyone reloads or opens a page,
+  // every other person's saves have to land, or they'd read the database too early
+  livePages.add(page);
+  page.on('close', () => livePages.delete(page));
+  for (const m of ['goto', 'reload']) {
+    const orig = page[m].bind(page);
+    page[m] = async (...a) => { await othersSaved(page); return orig(...a); };
+  }
   await page.goto(path || '/');
   await expectConnected(page, errors);
   return { context, page, errors };
