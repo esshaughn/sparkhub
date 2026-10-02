@@ -13,6 +13,11 @@ const DB = {
   test: { url: 'https://hroxgvxvafgikikviiud.supabase.co', key: 'sb_publishable_f7dwskaTS-TV42YC-p0lFw_9Pe8FY1O' }
 };
 const SITE = 'https://gosparkhub.vercel.app';
+// Groups whose invite link has its own preview card and title (owner, 2026-10-01). Fixed codes only (CLAUDE.md: TORREZ, HUNTER)
+const INVITE_CARDS = {
+  TORREZ: { title: 'Join Torrez Fitness | Spark Hub | Plans with your people', image: '/photos/share-torrez.jpg' },
+  HUNTER: { title: 'Join Hub on Hunters | Spark Hub | Plans with your people', image: '/photos/share-hub.jpg' }
+};
 const ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const CODE = /^[A-Za-z0-9]{6}$/;
 const PHOTO = /^[0-9a-f-]{36}\/[0-9a-f-]{36}\.jpg$/, SITE_PHOTO = /^photos\/[a-z0-9-]+\.(jpg|png)$/;
@@ -68,10 +73,12 @@ async function details(db, q) {
   if (q.join && CODE.test(q.join)) {
     const g = await rpc(db, 'group_preview', { p_code: q.join.toUpperCase() });
     if (!g) return null;
+    const card = INVITE_CARDS[q.join.toUpperCase()];
     return {
-      title: 'Join ' + g.name + ' on Spark Hub',
+      title: card ? card.title : 'Join ' + g.name + ' on Spark Hub',
+      tab: card ? card.title : null,
       description: 'You’re invited to ' + g.name + '. Make plans with your people and show up together.',
-      image: photoUrl(db, g.photo)
+      image: card ? SITE + card.image : photoUrl(db, g.photo)
     };
   }
   if (q.add && CODE.test(q.add)) {
@@ -108,7 +115,7 @@ module.exports = async (req, res) => {
       const url = 'https://' + host + (q.i ? '/i/' + q.i : q.add ? '/add/' + q.add : '/join/' + q.join);
       html = html
         .replace(/<!-- preview -->[\s\S]*?<!-- \/preview -->/, () => '<!-- preview -->\n' + tags(d, url) + '\n<!-- /preview -->')   // a function: "$&" in a title must stay text
-        .replace(/<title>[^<]*<\/title>/, () => '<title>' + esc(d.title) + ' · Spark Hub</title>');
+        .replace(/<title>[^<]*<\/title>/, () => '<title>' + esc(d.tab || d.title + ' · Spark Hub') + '</title>');
     }
   } catch (e) {
     console.error(e);
