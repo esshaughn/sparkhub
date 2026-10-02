@@ -478,11 +478,17 @@ test('plans: replies, sign-ups, updates, notes and invite-only plans follow the 
         asSomeoneElse: await ok(c.from('feedback').insert({ body: '[E2E] forged', user_id: '00000000-0000-0000-0000-000000000000' })),
         forgeName: await ok(c.from('feedback').insert({ body: '[E2E] forged name', name: 'Eric' })),
         readOwn: (await c.from('feedback').select('id')).data.length,
+        // Context and a screenshot (20261102030000_feedback_context.sql): only your own folder; nobody else's screenshots
+        withContext: await ok(c.from('feedback').insert({ body: '[E2E] with context', context: { device: 'test' } })),
+        othersShot: await ok(c.from('feedback').insert({ body: '[E2E] forged shot', shot: '00000000-0000-0000-0000-000000000000/00000000-0000-0000-0000-000000000000.jpg' })),
+        uploadElsewhere: await ok(c.storage.from('feedback-shots').upload('00000000-0000-0000-0000-000000000000/' + crypto.randomUUID() + '.jpg', new Blob(['x'], { type: 'image/jpeg' }))),
+        listOthers: ((await c.storage.from('feedback-shots').list('00000000-0000-0000-0000-000000000000')).data || []).length,
         edit: await ok(c.from('feedback').update({ body: 'x' }).eq('user_id', me)),
         remove: await ok(c.from('feedback').delete().eq('user_id', me))
       };
     });
-    expect(fb).toEqual({ send: 'ALLOWED', empty: 'refused', asSomeoneElse: 'refused', forgeName: 'refused', readOwn: 0, edit: 'refused', remove: 'refused' });
+    expect(fb).toEqual({ send: 'ALLOWED', empty: 'refused', asSomeoneElse: 'refused', forgeName: 'refused', readOwn: 0,
+      withContext: 'ALLOWED', othersShot: 'refused', uploadElsewhere: 'refused', listOthers: 0, edit: 'refused', remove: 'refused' });
 
     // New accounts (owner's Profile): new_accounts() lists everyone's email only for demo_admins; anyone else gets no rows
     const accts = await asUser(L, async (c) => { const r = await c.rpc('new_accounts'); return r.error ? 'refused' : r.data.length ? 'LISTED' : 'none'; });

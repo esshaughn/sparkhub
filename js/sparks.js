@@ -302,7 +302,9 @@
   const FAILED = 'That didn’t go through. Try again in a moment.';
   // What to say when a save fails: the database's rate limits (PT429) and taken group names get their own words
   const SLOW = 'You’re going a bit fast. Try again in a little while.';
-  const failed = (e) => !e ? FAILED
+  // Every failed save's message comes through here, so it's also kept for feedback (noteError)
+  const failed = (e) => { noteError(e); return failedMsg(e); };
+  const failedMsg = (e) => !e ? FAILED
     : e.code === 'PT429' || e.status === 429 ? SLOW
     : e.code === '23505' && /name is taken/.test(e.message || '') ? 'That name is taken. Try another.'
     : FAILED;
@@ -3766,6 +3768,61 @@
     '</div>';
   };
 
+  // ---- What feedback carries along (owner, 2026-10-02; 20261102030000_feedback_context.sql): the device and browser,
+  // installed app or browser tab, screen size, app version, where they were, their last few taps and recent errors.
+  // Taps are the label of what was tapped (never anything typed); all of it stays in this tab until feedback is sent
+  const fbTaps = [], fbErrs = [];
+  const noteTap6 = (el) => {
+    const label = (el.getAttribute('aria-label') || el.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 48);
+    if (!label) return;
+    fbTaps.push({ at: Date.now(), screen: state.screen, tap: label });
+    if (fbTaps.length > 12) fbTaps.shift();
+  };
+  function noteError(e) {
+    if (!e) return;
+    fbErrs.push({ at: Date.now(), screen: state.screen, error: String(e.code || e.status || '') + ' ' + String(e.message || e).slice(0, 160) });
+    if (fbErrs.length > 8) fbErrs.shift();
+  }
+  window.addEventListener('error', (ev) => noteError({ message: (ev.message || 'error') + ' @' + String(ev.filename || '').split('/').pop() + ':' + (ev.lineno || '') }));
+  window.addEventListener('unhandledrejection', (ev) => noteError(ev.reason || { message: 'unhandled rejection' }));
+  const appVersion = () => { const sc = document.querySelector('script[src*="sparks.js"]'); const m = sc && /[?&]v=(\d+)/.exec(sc.src); return m ? 'v' + m[1] : ''; };
+  // "iPhone · iOS 26 · Safari" from the browser's own description
+  const deviceName = (ua) => {
+    ua = ua || '';
+    const ios = /(iPhone|iPad|iPod)[^)]*OS (\d+)/.exec(ua), and = /Android (\d+)/.exec(ua);
+    const dev = ios ? ios[1] + ' · iOS ' + ios[2] : /Macintosh/.test(ua) ? 'Mac' : and ? 'Android ' + and[1] : /Windows/.test(ua) ? 'Windows' : /CrOS/.test(ua) ? 'Chromebook' : /Linux/.test(ua) ? 'Linux' : 'Unknown device';
+    const br = /EdgA?\//.test(ua) ? 'Edge' : /SamsungBrowser/.test(ua) ? 'Samsung Internet' : /CriOS|Chrome\//.test(ua) ? 'Chrome' : /FxiOS|Firefox\//.test(ua) ? 'Firefox' : /Safari\//.test(ua) ? 'Safari' : '';
+    return dev + (br ? ' · ' + br : '');
+  };
+  const SCREEN_NAMES = { calendar: 'Calendar', home: 'Your tasks', sched: 'Your schedule', groups: 'Groups', groupPage: 'Group page', detail: 'Event page', compose: 'Create event', own: 'Your plans & ideas', how: 'How this works' };
+  const fbWhere = () => { const s = state.screen === 'detail' ? subject() : null; return s ? (s.planned ? 'Plan page' : 'Idea page') : SCREEN_NAMES[state.screen] || state.screen || ''; };
+  const fbContext = () => {
+    const s = state.screen === 'detail' ? subject() : null, g = s ? groupById(s.groupId) : state.screen === 'groupPage' ? currentGroup() : null;
+    let used = 0;
+    try { used = Math.round(((JSON.parse(localStorage.getItem('spark-hub-fb-nudge-' + state.me) || '{}') || {}).used || 0) / 60000); } catch (e) { /* blocked */ }
+    return {
+      version: appVersion(), device: deviceName(navigator.userAgent), ua: navigator.userAgent.slice(0, 300),
+      app: STANDALONE ? 'Home Screen app' : 'browser tab',
+      size: innerWidth + '×' + innerHeight + ' @' + (window.devicePixelRatio || 1) + 'x',
+      dark: !!(window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches),
+      lang: navigator.language || '', tz: (Intl.DateTimeFormat().resolvedOptions().timeZone || ''),
+      online: navigator.onLine !== false, push: typeof Notification === 'undefined' ? 'unsupported' : Notification.permission,
+      where: fbWhere(), event: s ? { id: s.id, title: s.text } : null, group: g ? g.name : null,
+      minutes: used, fromNudge: !!(state.fb && state.fb.nudge),
+      taps: fbTaps.slice(-12).map(t => ({ ago: Math.round((Date.now() - t.at) / 1000) + 's', screen: t.screen, tap: t.tap })),
+      errors: fbErrs.slice(-8).map(x => ({ ago: Math.round((Date.now() - x.at) / 1000) + 's', screen: x.screen, error: x.error }))
+    };
+  };
+  const SHOT_BUCKET = 'feedback-shots';
+  const pickFbShot = async (file) => {
+    if (!file) return;
+    try {
+      const blob = await shrinkImage(file, 1600);
+      if (state.fb && state.fb.shot) URL.revokeObjectURL(state.fb.shot.url);
+      setState({ fb: Object.assign({}, state.fb, { shot: { blob, url: URL.createObjectURL(blob) } }) });
+    } catch (e) { toast(BAD_PHOTO); }
+  };
+
   // ---- Give feedback (v6 Update 9, 50 · 51): a bottom sheet to Eric; the note goes to the feedback table
   // (only the owner reads it) and buzzes the owner's phone
   const ERIC_FACE = '/photos/faces/eric.jpg';
@@ -3775,12 +3832,24 @@
     if (!f || f.sent || !f.text.trim() || state.busy) return;
     if (state.viewAs) { toast('You’re viewing as ' + firstName(state.viewAs.name) + ', so nothing is sent. Exit to send.'); return; }
     setState({ busy: 'feedback' });
+    let shot = null;
     try {
       await ensureSession();
-      must(await sb.from('feedback').insert({ body: f.text.trim().slice(0, 1000), screen: String(state.screen || '').slice(0, 60) }));
+      if (f.shot) {
+        shot = state.me + '/' + uuid() + '.jpg';
+        must(await sb.storage.from(SHOT_BUCKET).upload(shot, f.shot.blob, { contentType: 'image/jpeg', upsert: false }));
+      }
+      const row = { body: f.text.trim().slice(0, 1000), screen: String(state.screen || '').slice(0, 60), context: fbContext() };
+      if (shot) row.shot = shot;
+      must(await sb.from('feedback').insert(row));
+      if (f.shot) URL.revokeObjectURL(f.shot.url);
       setState({ busy: null, fb: { text: '', sent: true } });
       if (state.demoAdmin) loadFeedback();
-    } catch (e) { console.error(e); setState({ busy: null }); toast(failed(e)); }   // what they typed stays
+    } catch (e) {   // what they typed (and the screenshot) stays
+      console.error(e);
+      if (shot) sb.storage.from(SHOT_BUCKET).remove([shot]).catch(() => {});
+      setState({ busy: null }); toast(failed(e));
+    }
   };
   const ericFace = (size, extra) => '<span aria-hidden="true" style="flex:0 0 ' + size + 'px;width:' + size + 'px;height:' + size + 'px;border-radius:999px;background:#dcdfe6 url(' + ERIC_FACE + ') center/cover;' + (extra || '') + '"></span>';
   function viewFeedback() {
@@ -3795,8 +3864,19 @@
           '<h3 style="flex:1;min-width:0;margin:0;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117;text-wrap:balance">Tell Eric what you think about the app so far</h3>' +
           '<span ' + on(close) + ' style="flex:0 0 auto;display:flex;align-items:center;min-height:32px;font-size:15px;font-weight:700;color:#6b7280;cursor:pointer">Cancel</span></div>' +
         '<ul style="margin:0;padding:0 0 0 20px;display:flex;flex-direction:column;gap:6px;font-size:15.5px;line-height:1.4;font-weight:600;color:#2a2f38">' + FB_QS.map(q => '<li>' + q + '</li>').join('') + '</ul>' +
-        '<textarea rows="5" maxlength="1000" aria-label="Your feedback" placeholder="Write as much or as little as you like." ' + onInput(e => { if (e.type === 'input') setState({ fb: { text: e.target.value.slice(0, 1000) } }); }) +
+        '<textarea rows="5" maxlength="1000" aria-label="Your feedback" placeholder="Write as much or as little as you like." ' + onInput(e => { if (e.type === 'input') setState({ fb: Object.assign({}, state.fb, { text: e.target.value.slice(0, 1000) }) }); }) +
           ' style="width:100%;box-sizing:border-box;min-height:140px;padding:14px;border:2px solid #dcdfe6;border-radius:16px;font-family:inherit;font-size:16px;font-weight:500;line-height:1.4;color:#0d1117;resize:none;outline:none">' + esc(f.text) + '</textarea>' +
+        // A screenshot they took with the phone's buttons (a web page can't take one itself)
+        (f.shot
+          ? '<div data-fb-shot style="display:flex;align-items:center;gap:12px;padding:8px 10px 8px 8px;border-radius:16px;background:#f4f5f7">' +
+              '<span ' + on(() => setState({ zoom: { photos: [f.shot.url], i: 0 } })) + ' aria-label="See the screenshot" style="flex:0 0 44px;width:44px;height:64px;border-radius:8px;background:#dcdfe6 url(' + f.shot.url + ') center/cover;cursor:zoom-in"></span>' +
+              '<span style="flex:1;min-width:0;font-size:14.5px;font-weight:800;color:#0d1117">Screenshot added</span>' +
+              '<span ' + on(() => { URL.revokeObjectURL(f.shot.url); setState({ fb: Object.assign({}, state.fb, { shot: null }) }); }) + ' aria-label="Remove the screenshot" style="flex:0 0 32px;width:32px;height:32px;border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(12, '#6b7280', 2.8) + '</span></div>'
+          : '<label data-fb-add-shot style="display:flex;align-items:center;gap:10px;min-height:48px;padding:0 14px;border-radius:14px;border:1.5px dashed #c9ccd3;color:#454b55;font-size:14.5px;font-weight:800;cursor:pointer">' +
+              svg(17, stroke('currentColor', 2.2), CAMERA) + 'Add a screenshot<span style="font-weight:600;color:#8a909b">(optional)</span>' +
+              '<input type="file" accept="image/*" aria-label="Add a screenshot" ' + onInput(e => { if (e.type !== 'change') return; const fl = (e.target.files || [])[0]; e.target.value = ''; pickFbShot(fl); }) + ' style="display:none"></label>') +
+        // Said plainly: what comes along with it
+        '<p data-fb-sent-with style="margin:0;font-size:12.5px;line-height:1.45;font-weight:600;color:#8a909b;text-wrap:pretty">Sent with: ' + esc(deviceName(navigator.userAgent) + ' · ' + (STANDALONE ? 'Home Screen app' : 'browser') + ' · ' + fbWhere()) + '. Your last few taps and any errors come along too, to help track down glitches.</p>' +
         '<button type="button" ' + on(sendFeedback) + ' aria-disabled="' + !ok + '" style="width:100%;min-height:52px;border:0;border-radius:999px;background:' + (ok ? '#5b4ae8' : '#dcdfe6') + ';color:' + (ok ? '#fff' : '#8a909b') + ';font-family:inherit;font-size:16px;font-weight:800;cursor:' + (ok ? 'pointer' : 'default') + '">' + (state.busy === 'feedback' ? 'Sending…' : 'Send to Eric') + '</button>';
     return '<div class="v6-scrim" data-scrim="' + reg(close) + '" style="z-index:50">' +
       '<div role="dialog" aria-modal="true" aria-label="Give feedback" data-screen-label="Give feedback" style="position:absolute;left:0;right:0;bottom:0;max-height:calc(100% - 24px - var(--sat));overflow:auto;background:#fff;border-radius:24px 24px 0 0;padding:8px 18px calc(22px + env(safe-area-inset-bottom, 0px));display:flex;flex-direction:column;gap:16px;animation:sheetUp 320ms cubic-bezier(.2,.8,.2,1) both">' +
@@ -3835,7 +3915,7 @@
         '<p style="margin:0;font-size:14.5px;line-height:1.45;font-weight:500;color:#454b55;text-wrap:pretty">Spark Hub is brand new, and Eric wants the honest truth: what’s great, what’s confusing, what broke, what you wish it did. You won’t hurt his feelings. (Okay, maybe a little. Tell him anyway.)</p>' +
         '<div style="display:flex;flex-wrap:wrap;gap:6px">' + chip('💡 Ideas') + chip('🐛 Glitches') + chip('🤔 Confusing bits') + chip('❤️ What you love') + '</div>' +
         '<div style="display:flex;gap:8px">' +
-          '<button type="button" ' + on(() => setState({ fbNudge: null, fb: { text: '' } })) + ' style="flex:1 1 auto;min-height:50px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16px;font-weight:800;cursor:pointer">Give feedback</button>' +
+          '<button type="button" ' + on(() => setState({ fbNudge: null, fb: { text: '', nudge: true } })) + ' style="flex:1 1 auto;min-height:50px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16px;font-weight:800;cursor:pointer">Give feedback</button>' +
           '<button type="button" ' + on(close) + ' style="flex:0 0 auto;min-height:50px;padding:0 16px;border:2px solid #dcdfe6;border-radius:999px;background:#fff;color:#454b55;font-family:inherit;font-size:15px;font-weight:800;cursor:pointer">Maybe later</button></div>' +
         '<div style="display:flex;align-items:center;justify-content:flex-end;gap:6px;font-size:13px;font-weight:700;color:#6b7280">Anytime: <span ' + on(openProfileSheet) + ' style="color:#5b4ae8;font-weight:800;cursor:pointer">Profile → Give feedback</span></div>' +
       '</div>' +
@@ -3848,8 +3928,20 @@
   // "Unread" is newer than when the owner last closed the inbox on this device (no database field for it)
   const FB_SEEN_KEY = 'spark-hub-feedback-seen';
   const fbSeenAt = () => { try { return Number(localStorage.getItem(FB_SEEN_KEY)) || 0; } catch (e) { return 0; } };
-  const loadFeedback = () => sb.from('feedback').select('id, user_id, name, body, created_at').order('created_at', { ascending: false }).limit(200)
-    .then(r => { if (!r.error) setState({ fbInbox: r.data.map(x => ({ id: x.id, uid: x.user_id, name: x.name || 'Someone', text: x.body, at: Date.parse(x.created_at) })) }); }, () => {});
+  // With what it was sent with (20261102030000_feedback_context.sql; a database without those columns still loads) and
+  // signed links, good for an hour, to the screenshots in their private bucket
+  const loadFeedback = () => sb.from('feedback').select('id, user_id, name, body, created_at, screen, context, shot').order('created_at', { ascending: false }).limit(200)
+    .then(r => r.error && r.error.code === '42703' ? sb.from('feedback').select('id, user_id, name, body, created_at').order('created_at', { ascending: false }).limit(200) : r)
+    .then(async r => {
+      if (r.error) return;
+      const shots = r.data.map(x => x.shot).filter(Boolean), urls = {};
+      if (shots.length) {
+        const sg = await sb.storage.from(SHOT_BUCKET).createSignedUrls(shots, 3600).catch(() => ({ data: null }));
+        (sg.data || []).forEach(u => { if (u.path && typeof u.signedUrl === 'string' && u.signedUrl.indexOf(CFG.supabaseUrl + '/storage/v1/object/sign/' + SHOT_BUCKET + '/') === 0) urls[u.path] = u.signedUrl; });   // only our own storage's links get drawn
+      }
+      setState({ fbInbox: r.data.map(x => ({ id: x.id, uid: x.user_id, name: x.name || 'Someone', text: x.body, at: Date.parse(x.created_at),
+        ctx: x.context && typeof x.context === 'object' ? x.context : null, screen: x.screen || '', shot: x.shot ? urls[x.shot] || null : null, hasShot: !!x.shot })) });
+    }, () => {});
   const fbUnread = () => (state.fbInbox || []).filter(x => x.at > fbSeenAt()).length;
 
   // ---- New accounts (owner only, beside the Feedback inbox): everyone with a confirmed, non-anonymous email,
@@ -3901,6 +3993,26 @@
       '<div style="padding:14px 14px 30px;display:flex;flex-direction:column;gap:10px">' + (list.length ? list.map(row).join('')
         : '<div style="background:#fff;border-radius:18px;padding:26px 16px;text-align:center;font-size:15px;font-weight:700;color:#6b7280">No accounts yet.</div>') + '</div>');
   }
+  // What a piece of feedback was sent with: one summary line, and the taps and errors behind a Details toggle
+  const fbCtxBox = (x) => {
+    const c = x.ctx;
+    if (!c) return x.screen ? '<div style="font-size:12.5px;font-weight:600;color:#8a909b">On ' + esc(SCREEN_NAMES[x.screen] || x.screen) + '</div>' : '';
+    const open = (state.fbCtxOpen || {})[x.id];
+    const line = (t) => '<div style="font-size:12.5px;line-height:1.4;font-weight:600;color:#6b7280;overflow-wrap:anywhere">' + t + '</div>';
+    const where = [c.where, c.event && c.event.title ? '“' + c.event.title + '”' : '', c.group].filter(Boolean).join(' · ');
+    const list = (rows, key) => rows.length ? rows.map(r => '<div style="display:flex;gap:8px;font-size:12.5px;line-height:1.35;font-weight:600;color:#454b55"><span style="flex:0 0 46px;color:#9aa0ac">' + esc(r.ago) + ' ago</span><span style="flex:1;min-width:0;overflow-wrap:anywhere">' + esc((SCREEN_NAMES[r.screen] || r.screen || '') + ' · ' + r[key]) + '</span></div>').join('')
+      : '<div style="font-size:12.5px;font-weight:600;color:#9aa0ac">None</div>';
+    return '<div data-fb-context style="display:flex;flex-direction:column;gap:3px;padding:10px 12px;border-radius:12px;background:#f4f5f7">' +
+      line('<b style="font-weight:800;color:#2a2f38">' + esc(c.device || '') + '</b> · ' + esc(c.app || '') + ' · ' + esc(c.size || '') + (c.dark ? ' · dark mode' : '')) +
+      line('On ' + esc(where || '?') + ' · ' + esc(c.version || '') + (c.minutes ? ' · ' + c.minutes + ' min in the app' : '') + (c.fromNudge ? ' · from the 10-minute card' : '')) +
+      ((c.errors || []).length ? line('<b style="font-weight:800;color:#9b1c31">' + c.errors.length + (c.errors.length === 1 ? ' recent error' : ' recent errors') + '</b>') : '') +
+      (!c.online ? line('Was offline') : '') + (c.push && c.push !== 'granted' ? line('Phone notifications: ' + esc(c.push === 'default' ? 'not turned on' : c.push)) : '') +
+      '<span ' + on(() => setState({ fbCtxOpen: Object.assign({}, state.fbCtxOpen, { [x.id]: !open }) })) + ' aria-expanded="' + !!open + '" style="align-self:flex-start;margin-top:2px;font-size:13px;font-weight:800;color:#5b4ae8;cursor:pointer">' + (open ? 'Hide details' : 'Last taps and errors') + '</span>' +
+      (open ? '<div style="display:flex;flex-direction:column;gap:4px;margin-top:4px"><div style="font-size:11px;font-weight:900;letter-spacing:.8px;color:#8a909b">LAST TAPS, OLDEST FIRST</div>' + list(c.taps || [], 'tap') +
+        '<div style="margin-top:6px;font-size:11px;font-weight:900;letter-spacing:.8px;color:#8a909b">ERRORS</div>' + list(c.errors || [], 'error') +
+        '<div style="margin-top:6px;font-size:11.5px;line-height:1.35;font-weight:500;color:#9aa0ac;overflow-wrap:anywhere">' + esc((c.lang || '') + ' · ' + (c.tz || '') + ' · ' + (c.ua || '')) + '</div></div>' : '') +
+    '</div>';
+  };
   function viewFbInbox() {
     const list = state.fbInbox || [], seen = fbSeenAt();
     const close = () => { try { localStorage.setItem(FB_SEEN_KEY, String(Date.now())); } catch (e) { /* blocked */ } setState({ fbOpen: false }); };
@@ -3909,7 +4021,10 @@
       '<div style="display:flex;align-items:center;gap:10px">' + who(x) + '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(x.name) + '</div>' +
         '<div style="font-size:12.5px;font-weight:600;color:#8a909b">' + esc(ago(x.at)) + '</div></div>' +
         (x.at > seen ? '<span style="flex:0 0 auto;height:22px;padding:0 8px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:11px;font-weight:900;letter-spacing:.6px;display:flex;align-items:center">NEW</span>' : '') + '</div>' +
-      '<div style="font-size:15px;line-height:1.45;font-weight:500;color:#2a2f38;white-space:pre-wrap;overflow-wrap:break-word">' + esc(x.text) + '</div></div>';
+      '<div style="font-size:15px;line-height:1.45;font-weight:500;color:#2a2f38;white-space:pre-wrap;overflow-wrap:break-word">' + esc(x.text) + '</div>' +
+      (x.shot ? '<span ' + on(() => setState({ zoom: { photos: [x.shot], i: 0 } })) + ' data-fb-inbox-shot aria-label="See ' + esc(x.name) + '’s screenshot" style="align-self:flex-start;width:84px;height:120px;border-radius:10px;background:#dcdfe6 url(' + esc(x.shot) + ') center top/cover;box-shadow:inset 0 0 0 1px rgba(0,0,0,.08);cursor:zoom-in"></span>'
+        : x.hasShot ? '<span style="font-size:12.5px;font-weight:700;color:#8a909b">Screenshot couldn’t load</span>' : '') +
+      fbCtxBox(x) + '</div>';
     return sheet6('Feedback', close,
       '<div style="display:flex;align-items:flex-end;gap:10px"><div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:900;letter-spacing:1px;color:#8f6405">SUPER ADMIN</div>' +
         '<h2 style="margin:2px 0 0;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">Feedback</h2></div>' + closeX(close) + '</div>',
@@ -5607,7 +5722,7 @@
         '<div style="display:flex;flex-direction:column;gap:10px"><h2 style="margin:0;padding:0 4px;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:#0d1117">Help &amp; info</h2>' +
           '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">' +
             tile('<span style="font-size:17px;font-weight:900">?</span>', 'How this works', 'Events and pitching in', () => go('how', { howFrom: state.screen }), '#5b4ae8') +
-            tile(svg(17, stroke('currentColor', 2.4), '<path d="M4 20h4L19 9l-4-4L4 16v4Z"/>'), 'Give feedback', 'Tell Eric what you think', () => setState({ fb: { text: '' }, fbHint: false }), '#149a4b', !!st.fbHint) +
+            tile(svg(17, stroke('currentColor', 2.4), '<path d="M4 20h4L19 9l-4-4L4 16v4Z"/>'), 'Give feedback', 'Tell Eric what you think', () => setState({ fb: { text: '', nudge: !!st.fbHint }, fbHint: false }), '#149a4b', !!st.fbHint) +
           '</div></div>' +
         section('Settings',
           '<div ' + on(() => setState({ nSettings: true })) + ' class="hov-row" style="' + ROW + '">' + line('Notifications', 'In the app and on your phone') + I.chevR(16, '#9aa0ac', 2.4) + '</div>' +
@@ -7191,6 +7306,7 @@
     const fn = scrim && e.target === scrim
       ? handlerFor(scrim.getAttribute('data-scrim'))
       : el ? handlerFor(el.getAttribute('data-on')) : null;
+    if (el && fn && !(scrim && e.target === scrim)) noteTap6(el);   // for feedback: what was tapped, by its label
     // Clicking outside a menu closes it
     if (state.menu && !e.target.closest('[data-menu]')) setState({ menu: null });
     if (fn) fn(e);

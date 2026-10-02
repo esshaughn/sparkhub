@@ -1,6 +1,6 @@
 // The app loads for visitors and members, and its menus and links work.
 const { test, expect, devices } = require('@playwright/test');
-const { newMember, newLead, button, asUser, pickView, openProfile, postIdea, uniqueTitle } = require('./helpers');
+const { newMember, newLead, button, asUser, pickView, openProfile, postIdea, uniqueTitle, PNG } = require('./helpers');
 
 test('visitors land on Welcome (no tab bar there) and sign in from there', async ({ browser }) => {
   const { page, context, errors } = await newMember(browser);
@@ -205,8 +205,23 @@ test('Give feedback (Update 9): a Help & info tile opens the sheet; Send to Eric
     await expect(box.getByRole('button', { name: 'Send to Eric' })).toHaveAttribute('aria-disabled', 'true');   // nothing typed yet
     await box.getByLabel('Your feedback').fill('[E2E] The Join button was easy to find');
     await expect(box.getByRole('button', { name: 'Send to Eric' })).toHaveAttribute('aria-disabled', 'false');
+    // It says what comes along, and takes a screenshot the person picks (owner, 2026-10-02)
+    await expect(box.locator('[data-fb-sent-with]')).toContainText('Sent with:');
+    await expect(box.locator('[data-fb-sent-with]')).toContainText('Your last few taps and any errors come along too');
+    await box.getByLabel('Add a screenshot').setInputFiles({ name: 'shot.png', mimeType: 'image/png', buffer: PNG });
+    await expect(box.locator('[data-fb-shot]')).toContainText('Screenshot added');
+    await box.getByLabel('Your feedback').fill('[E2E] The Join button was easy to find, really');   // typing keeps the screenshot
+    await expect(box.locator('[data-fb-shot]')).toBeVisible();
     await box.getByRole('button', { name: 'Send to Eric' }).click();
     await expect(box).toContainText('Thank you!');
+    // Saved with its context (the last taps are labels, never anything typed) and the screenshot in the sender's own folder
+    const mine = await asUser(page, async (c) => {
+      const me = (await c.auth.getUser()).data.user.id;
+      const files = (await c.storage.from('feedback-shots').list(me)).data || [];
+      for (const f of files) await c.storage.from('feedback-shots').remove([me + '/' + f.name]);   // tidy up TEST
+      return { files: files.length };
+    });
+    expect(mine.files).toBe(1);
     await expect(box).toContainText('Got it. This really helps me figure out what to build next.');
     await box.getByRole('button', { name: 'Done' }).click();
     await expect(box).toHaveCount(0);

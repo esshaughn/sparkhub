@@ -661,6 +661,24 @@ select t.check('they lead it, and its asks are gone',
   (select lead_id = t.id('asked') and not wants_host from sparks where id = t.id('floated'))
   and not exists (select 1 from lead_asks where spark_id = t.id('floated')));
 
+-- Feedback carries its context and an optional screenshot (20261102030000_feedback_context.sql) ------------------------
+select t.person('fbsender');
+select t.login('fbsender'); set role authenticated;
+select t.must_allow('feedback with its context', $$insert into feedback (body, screen, context) values ('Works', 'calendar', '{"device": "iPhone · iOS 26 · Safari", "taps": []}')$$);
+select t.must_allow('feedback with a screenshot in your own folder', format($$insert into feedback (body, shot) values ('Look', %L)$$, t.id('fbsender') || '/11111111-1111-1111-1111-111111111111.jpg'));
+select t.must_refuse('feedback pointing at someone else''s screenshot', format($$insert into feedback (body, shot) values ('Look', %L)$$, t.id('host') || '/11111111-1111-1111-1111-111111111111.jpg'));
+select t.must_refuse('a screenshot path of the wrong shape', $$insert into feedback (body, shot) values ('Look', '../x.jpg')$$);
+select t.must_refuse('context that isn''t an object', $$insert into feedback (body, context) values ('x', '[1, 2]')$$);
+select t.must_refuse('a huge context', $$insert into feedback (body, context) values ('x', jsonb_build_object('pad', repeat('a', 9000)))$$);
+select t.must_allow('a screenshot upload to your own folder', format($$insert into storage.objects (bucket_id, name, owner) values ('feedback-shots', %L, %L)$$, t.id('fbsender') || '/22222222-2222-2222-2222-222222222222.jpg', t.id('fbsender')));
+select t.must_refuse('a screenshot upload to someone else''s folder', format($$insert into storage.objects (bucket_id, name) values ('feedback-shots', %L)$$, t.id('host') || '/33333333-3333-3333-3333-333333333333.jpg'));
+select t.check('the sender sees their own screenshot', exists (select 1 from storage.objects where bucket_id = 'feedback-shots' and name like t.id('fbsender') || '/%'));
+reset role;
+select t.login('host'); set role authenticated;
+select t.check('someone else can''t see it', not exists (select 1 from storage.objects where bucket_id = 'feedback-shots'));
+reset role;
+select t.check('the screenshot bucket is private', (select not public from storage.buckets where id = 'feedback-shots'));
+
 -- One request loads the app (20261101220000_load_all.sql): the same rows the caller could read table by table ----
 create function t.load_matches() returns boolean language sql as $$
   select jsonb_array_length(d -> 'memberships') = (select count(*) from memberships)
