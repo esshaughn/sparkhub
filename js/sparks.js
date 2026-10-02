@@ -5814,18 +5814,20 @@
   };
 
   // A 30-minute time list that opens under its field (not a sheet), scrolled to the current value
-  // o: { label, slim: no clock icon (a narrow row), none: a first row that clears the time }
+  // A list or calendar that would run past its pop-up's edge scrolls into view as it opens
+  const showDrop = (sel) => setTimeout(() => { const el = document.querySelector(sel); if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest' }); }, 0);
+  // o: { label, slim: no clock icon (a narrow row), h: the field's height (58), none: a first row that clears the time }
   const timeField = (key, value, opts, hint, pick, o) => {
     o = o || {};
     const open = state.timeOpen === key;
-    const toggle = () => { setState({ timeOpen: open ? null : key, dateOpen: null }); if (!open) setTimeout(() => { const el = document.querySelector('[data-time-list] [data-cur]'); if (el) el.parentNode.scrollTop = el.offsetTop - 96; }, 0); };
+    const toggle = () => { setState({ timeOpen: open ? null : key, dateOpen: null }); if (!open) { setTimeout(() => { const el = document.querySelector('[data-time-list] [data-cur]'); if (el) el.parentNode.scrollTop = el.offsetTop - 96; }, 0); showDrop('[data-time-list]'); } };
     return '<div style="position:relative;min-width:0">' +
-      '<div ' + on(toggle) + ' aria-label="' + esc(o.label || hint) + '" aria-expanded="' + open + '" style="display:flex;align-items:center;gap:' + (o.slim ? 8 : 10) + 'px;min-height:58px;padding:0 ' + (o.slim ? 12 : 14) + 'px;border-radius:16px;background:#fff;box-shadow:inset 0 0 0 2px ' + (open ? '#5b4ae8' : '#dcdfe6') + ';cursor:pointer">' +
+      '<div ' + on(toggle) + ' aria-label="' + esc(o.label || hint) + '" aria-expanded="' + open + '" style="display:flex;align-items:center;gap:' + (o.slim ? 8 : 10) + 'px;min-height:' + (o.h || 58) + 'px;padding:0 ' + (o.slim ? 12 : 14) + 'px;border-radius:16px;background:#fff;box-shadow:inset 0 0 0 2px ' + (open ? '#5b4ae8' : '#dcdfe6') + ';cursor:pointer">' +
         (o.slim ? '' : '<span style="display:flex;color:' + (value ? '#5b4ae8' : '#9aa0ac') + '">' + svg(18, stroke('currentColor', 2.2), P5.clock) + '</span>') +
         '<span style="flex:1;min-width:0;' + (o.slim ? 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;' : '') + (value ? 'font-size:17px;font-weight:800;color:#0d1117' : 'font-size:16.5px;font-weight:400;font-style:italic;color:#b9bcc4') + '">' + esc(value ? clock(value) : hint) + '</span>' +
         I.chevD(14, '#9aa0ac', 2.6) + '</div>' +
       (open ? '<div ' + on(() => setState({ timeOpen: null })) + ' aria-hidden="true" style="position:fixed;inset:0;z-index:19"></div>' +
-        '<div data-time-list role="listbox" style="position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:20;max-height:236px;overflow-y:auto;background:#fff;border-radius:16px;box-shadow:0 14px 34px rgba(15,18,25,.2), 0 0 0 1px #e6e7eb;padding:6px;display:flex;flex-direction:column;gap:2px">' +
+        '<div data-time-list role="listbox" style="scroll-margin:12px;position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:20;max-height:236px;overflow-y:auto;background:#fff;border-radius:16px;box-shadow:0 14px 34px rgba(15,18,25,.2), 0 0 0 1px #e6e7eb;padding:6px;display:flex;flex-direction:column;gap:2px">' +
           (o.none && value ? '<div ' + on(() => pick(''), 'option') + ' aria-selected="false" style="display:flex;align-items:center;min-height:44px;padding:0 12px;border-radius:10px;flex:0 0 auto;font-size:16px;font-weight:700;color:#6b7280;cursor:pointer">' + esc(o.none) + '</div>' : '') +
           opts.map(v => '<div ' + on(() => pick(v), 'option') + ' aria-selected="' + (v === value) + '"' + (v === value ? ' data-cur' : '') + ' style="display:flex;align-items:center;justify-content:space-between;min-height:44px;padding:0 12px;border-radius:10px;flex:0 0 auto;font-size:16px;cursor:pointer;' +
             (v === value ? 'background:#f3f1fe;color:#5b4ae8;font-weight:900' : 'color:#0d1117;font-weight:700') + '"><span>' + clock(v) + '</span>' + (v === value ? I.check(16, '#5b4ae8', 3) : '') + '</div>').join('') + '</div>' : '') +
@@ -5837,8 +5839,8 @@
   const dateField = (value, label, hint, set, extra, anyDay) => {   // anyDay: past days too (fixing a past event's date)
     const open = state.dateOpen === label, today = todayISO();
     const month = (open && state.calMonth) || (value || today).slice(0, 7);
-    const toggle = () => setState({ dateOpen: open ? null : label, calMonth: (value || today).slice(0, 7), timeOpen: null });
-    const shift = (n) => { const [y, m] = month.split('-').map(Number), d = new Date(y, m - 1 + n, 1); setState({ calMonth: d.getFullYear() + '-' + pad2(d.getMonth() + 1) }); };
+    const toggle = () => { setState({ dateOpen: open ? null : label, calMonth: (value || today).slice(0, 7), timeOpen: null }); if (!open) showDrop('[data-calendar]'); };
+    const shift = (n) => { const [y, m] = month.split('-').map(Number), d = new Date(y, m - 1 + n, 1); setState({ calMonth: d.getFullYear() + '-' + pad2(d.getMonth() + 1) }); showDrop('[data-calendar]'); };
     const pick = (iso) => { setState({ dateOpen: null }); set(iso); };
     const grid = () => {
       const [y, m] = month.split('-').map(Number), first = new Date(y, m - 1, 1).getDay(), days = new Date(y, m, 0).getDate(), cells = [];
@@ -5859,7 +5861,7 @@
         '<span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;' + (value ? 'font-size:17px;font-weight:800;color:#0d1117' : 'font-size:16.5px;font-weight:400;font-style:italic;color:#b9bcc4') + '">' + esc(value ? fmtDay(value) : hint) + '</span>' +
         I.chevD(14, '#9aa0ac', 2.6) + '</div>' +
       (open ? '<div ' + on(() => setState({ dateOpen: null })) + ' aria-hidden="true" style="position:fixed;inset:0;z-index:19"></div>' +
-        '<div data-calendar="' + month + '" role="dialog" aria-label="Pick a date" style="position:absolute;left:0;top:calc(100% + 6px);z-index:20;width:316px;max-width:calc(100vw - 40px);box-sizing:border-box;background:#fff;border-radius:18px;box-shadow:0 14px 34px rgba(15,18,25,.2), 0 0 0 1px #e6e7eb;padding:14px">' +
+        '<div data-calendar="' + month + '" role="dialog" aria-label="Pick a date" style="scroll-margin:12px;position:absolute;left:0;top:calc(100% + 6px);z-index:20;width:316px;max-width:calc(100vw - 40px);box-sizing:border-box;background:#fff;border-radius:18px;box-shadow:0 14px 34px rgba(15,18,25,.2), 0 0 0 1px #e6e7eb;padding:14px">' +
           '<div style="display:flex;align-items:center;gap:8px;padding:0 2px 10px"><span style="flex:1;font-size:17px;font-weight:900;color:#0d1117">' + MONTH_NAMES[Number(month.slice(5)) - 1] + ' ' + month.slice(0, 4) + '</span>' +
             roundBtn(!anyDay && month <= today.slice(0, 7), () => shift(-1), I.chevL(15, '#0d1117', 2.6), 'Previous month') + roundBtn(false, () => shift(1), I.chevR(15, '#0d1117', 2.6), 'Next month') + '</div>' +
           '<div style="display:grid;grid-template-columns:repeat(7,1fr);row-gap:4px">' +
@@ -6062,9 +6064,6 @@
     '<span ' + on(() => set(n > 1 ? n - 1 : null)) + ' aria-label="Fewer' + (label ? ' for ' + label : '') + '" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#0d1117;font-size:18px;font-weight:800;line-height:1">−</span>' +
     '<span style="min-width:22px;text-align:center;font-size:16px;font-weight:900;color:#0d1117">' + (n || 'Any') + '</span>' +
     '<span ' + on(() => set(Math.min(99, (n || 0) + 1))) + ' aria-label="More' + (label ? ' for ' + label : '') + '" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#0d1117;font-size:18px;font-weight:800;line-height:1">+</span></div>';
-  const timeSelect = (value, opts, hint, set, label) => '<div style="position:relative;flex:1 1 0;min-width:0"><select class="fld" aria-label="' + label + '" ' + onInput(e => set(e.target.value)) +
-    ' style="' + BIG + ';min-height:52px;height:52px;padding:0 10px;font-size:16px;-webkit-appearance:none;appearance:none;color-scheme:light;' + (value ? '' : 'color:#b9bcc4;font-weight:400;font-style:italic') + '">' +
-    '<option value="">' + hint + '</option>' + opts.map(v => '<option value="' + v + '"' + (v === value ? ' selected' : '') + '>' + clock(v) + '</option>').join('') + '</select></div>';
   const SHEET_PAD = 'padding:10px 18px calc(24px + env(safe-area-inset-bottom, 0px));display:flex;flex-direction:column;gap:14px;max-height:88%;overflow-y:auto';
   const sheetHead = (eyebrow, title, sub, close) => '<div style="display:flex;align-items:flex-start;gap:10px"><div style="flex:1;min-width:0">' +
     (eyebrow ? '<div style="font-size:12px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#6b7280">' + esc(eyebrow) + '</div>' : '') +
@@ -6116,8 +6115,9 @@
         if (ns.i != null) list[ns.i] = row; else list.push(row);
         setState({ evNeeds: list, needSheet: null });
       };
-      return sheet('Add a job', close, SHEET_PAD,
-        sheetHead('How people can help', ns.i != null ? 'Edit job' : 'Add a job', '', close) + jobFields(r, set) + saveBtn(jobNamed(r.item), save), 36);
+      return sheet('Add a job', close, SHEET_PAD + ';min-height:min(88%,580px)',   // room for the time list under its field
+        sheetHead('How people can help', ns.i != null ? 'Edit job' : 'Add a job', '', close) + jobFields(r, set) +
+        '<div style="margin-top:auto;display:flex;flex-direction:column">' + saveBtn(jobNamed(r.item), save) + '</div>', 36);
     }
     if (st.evLeave) {
       const close = () => setState({ evLeave: false, evLeaveTo: null });
@@ -6134,6 +6134,9 @@
   const jobFields = (r, set, idx) => {
     const tag = idx == null ? '' : ' ' + (idx + 1);
     const setShift = (k, patch) => set({ shifts: r.shifts.map((q, j) => j === k ? Object.assign({}, q, patch) : q) });
+    // The same time list as the date fields (owner, 2026-10-02: the browser's menu didn't match), as tall as the fields here
+    const jobTime = (key, value, opts, hint, pick, label, none) => '<div style="flex:1 1 0;min-width:0">' +
+      timeField('job' + tag + key, value, opts, hint, (v) => { setState({ timeOpen: null }); pick(v); }, { label, slim: true, h: 52, none }) + '</div>';
     // Sign-ups belong to the job or to its shifts, and switching between them would drop them, so it's locked while anyone's on it
     const held = r.n > 0, heldNote = (t) => '<span data-held style="font-size:13px;line-height:1.4;font-weight:600;color:#6b7280">' + esc(t) + '</span>';
     return '<div style="display:flex;flex-direction:column;gap:10px">' +
@@ -6142,15 +6145,15 @@
       (r.shifts
         ? r.shifts.map((q, k) => '<div data-shift-row style="display:flex;flex-direction:column;gap:8px;padding:10px;border-radius:14px;background:#fff;box-shadow:inset 0 0 0 1.5px #eef0f3">' +
             '<div style="display:flex;align-items:center;gap:6px">' +
-              timeSelect(q.time, EV_TIMES, 'Start', (v) => setShift(k, { time: v, end: q.end && q.end <= v ? '' : q.end }), 'Shift ' + (k + 1) + ' start') +
+              jobTime('s' + k, q.time, EV_TIMES, 'Start', (v) => setShift(k, { time: v, end: q.end && q.end <= v ? '' : q.end }), 'Shift ' + (k + 1) + ' start', 'No time') +
               '<span aria-hidden="true" style="font-weight:800;color:#9aa0ac">–</span>' +
-              timeSelect(q.end, EV_TIMES.filter(v => !q.time || v > q.time), 'End', (v) => setShift(k, { end: v }), 'Shift ' + (k + 1) + ' end') +
+              jobTime('e' + k, q.end, EV_TIMES.filter(v => !q.time || v > q.time), 'End', (v) => setShift(k, { end: v }), 'Shift ' + (k + 1) + ' end', 'No end time') +
               (held && r.shifts.length === 1 ? '' : '<span ' + on(() => set({ shifts: r.shifts.length > 1 ? r.shifts.filter((_, j) => j !== k) : null, time: r.shifts.length > 1 ? r.time : q.time, need: r.shifts.length > 1 ? r.need : q.need })) + ' aria-label="Remove shift ' + (k + 1) + '" style="flex:0 0 28px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(13, '#6b7280', 2.8) + '</span>') + '</div>' +
             (q.n ? heldNote(q.n + (q.n === 1 ? ' person is' : ' people are') + ' on this shift. Removing it lets them know.') : '') +
             '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><span style="font-size:13px;font-weight:800;color:#6b7280">People needed</span>' + stepper(q.need, (n) => setShift(k, { need: n }), 'shift ' + (k + 1)) + '</div></div>').join('') +
           '<span ' + on(() => set({ shifts: r.shifts.concat([{ time: '', end: '', need: 1 }]) })) + ' style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:36px;font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(14, 'currentColor', 2.6) + 'Add a shift</span>' +
           (held ? heldNote('People are signed up for these shifts, so they stay as shifts.') : '<span ' + on(() => set({ shifts: null, time: r.shifts[0].time, need: r.shifts[0].need || 1 })) + ' style="align-self:flex-start;display:flex;align-items:center;min-height:32px;font-size:13.5px;font-weight:700;color:#6b7280;cursor:pointer">Use one time instead</span>')
-        : '<div style="display:flex;align-items:center;gap:10px">' + timeSelect(r.time, EV_TIMES, 'Time (optional)', (v) => set({ time: v }), 'Time' + tag) + stepper(r.need, (n) => set({ need: n }), 'how many people') + '</div>' +
+        : '<div style="display:flex;align-items:center;gap:10px">' + jobTime('', r.time, EV_TIMES, 'Time (optional)', (v) => set({ time: v }), 'Time' + tag, 'No time') + stepper(r.need, (n) => set({ need: n }), 'how many people') + '</div>' +
           (held ? heldNote('People are signed up, so it can’t be split into shifts.') : '<span ' + on(() => set({ shifts: [{ time: r.time || '', end: '', need: r.need || 1 }, { time: '', end: '', need: r.need || 1 }] })) + ' style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:32px;font-size:13.5px;font-weight:700;color:#6b7280;cursor:pointer">' + svg(14, stroke('currentColor', 2.4), P5.clock) + 'Add a shift</span>')) +
     '</div>';
   };

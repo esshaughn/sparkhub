@@ -484,6 +484,21 @@ test('an idea says how many it needs; a bare starter chip can’t be saved; its 
     const job = page.getByRole('dialog', { name: 'Add a job' });
     await expect(job.getByRole('button', { name: 'Save', exact: true })).toHaveAttribute('aria-disabled', 'true');
     await job.getByLabel('Job name').fill('Bring a ball');
+    // The job's time is the app's own list (not the browser's menu), shown whole inside the pop-up
+    await job.getByRole('button', { name: 'Time', exact: true }).click();
+    const list = await job.locator('[data-time-list]').boundingBox(), jobEdge = await job.boundingBox();
+    expect(list.y + list.height).toBeLessThanOrEqual(jobEdge.y + jobEdge.height);
+    await job.getByRole('option', { name: '5:00pm', exact: true }).click();
+    await expect(job.getByRole('button', { name: 'Time', exact: true })).toContainText('5:00pm');
+    // Shifts use the same list: the end only offers later times
+    await job.getByText('Add a shift').click();
+    await job.getByRole('button', { name: 'Shift 1 end' }).click();
+    await expect(job.getByRole('option', { name: '5:00pm', exact: true })).toHaveCount(0);
+    await job.getByRole('option', { name: '6:00pm', exact: true }).click();
+    await expect(job.getByRole('button', { name: 'Shift 1 end' })).toContainText('6:00pm');
+    await job.getByText('Use one time instead').click();
+    await job.getByRole('button', { name: 'Time', exact: true }).click();
+    await job.getByRole('option', { name: 'No time', exact: true }).click();   // clears it
     await job.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(flow).not.toContainText('FOR EXAMPLE');
     await flow.getByRole('button', { name: 'Review' }).click();

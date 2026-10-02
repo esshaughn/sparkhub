@@ -284,7 +284,10 @@ async function addJob(page, { item, need = 1, time }) {
   await sheet.getByLabel('Job name ' + n).fill(item);
   const row = sheet.locator('[data-need-row]').nth(n - 1);
   for (let k = 1; k < need; k++) await row.getByRole('button', { name: 'More for how many people' }).click();
-  if (time) await row.getByLabel('Time ' + n).selectOption(time);
+  if (time) {   // the app's own time list, not a browser menu
+    await row.getByRole('button', { name: 'Time ' + n, exact: true }).click();
+    await row.getByRole('option', { name: timeWord(time), exact: true }).click();
+  }
   await sheet.getByRole('button', { name: 'Save changes' }).click();
   await expect(sheet).toHaveCount(0);
 }
