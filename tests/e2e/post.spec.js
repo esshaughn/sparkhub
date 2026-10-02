@@ -475,7 +475,8 @@ test('an idea says how many it needs; a bare starter chip can’t be saved; its 
     await flow.getByLabel('Details, line 2').fill(longLine);
     await expect(flow.locator('[data-tags]')).toHaveCount(0);   // no "What kind of event?" (owner, 2026-10-01)
     const need = flow.locator('[data-need-people]');
-    await expect(need).toContainText('Optional');
+    await expect(need).toContainText('How many people do you need?');
+    await expect(need).toContainText('What’s the minimum number that would make this feel like a success?');
     for (let i = 0; i < 6; i++) await need.getByRole('button', { name: 'More for how many people needed' }).click();
     await expect(need).toContainText('It’s a go once 6 people are in.');
     await flow.getByRole('button', { name: 'Next' }).click();
