@@ -6118,7 +6118,7 @@
       ' style="flex:1 1 auto;min-width:0;border:0;padding:0;background:transparent;font-family:inherit;font-size:17px;font-weight:800;color:#0d1117;outline:none">' +
     (v.length ? '<span style="font-size:11.5px;font-weight:700;color:#9aa0ac">' + v.length + '/60</span>' : '') + '</label>').join('');
   // A starter chip leaves just its verb ("Bring "): Save waits for what (owner, 2026-09-30)
-  const JOB_VERBS = ['bring', 'set up', 'help with', 'clean up'];
+  const JOB_VERBS = ['bring', 'set up', 'help with', 'clean up', 'coordinate'];
   const jobNamed = (item) => { const t = cleanTitle(item || ''); return !!t && JOB_VERBS.indexOf(t.toLowerCase()) < 0; };
   const blankJob = (item) => ({ item: item || '', desc: '', time: '', need: 1, shifts: null });
   const openJob = (i, row) => {
@@ -6257,7 +6257,7 @@
               step(3, 'You see who’s on it', 'No group texts to sort it out.') + '</div></div>') +
         '<div style="padding:18px 16px 0;font-size:12.5px;font-weight:800;letter-spacing:1.2px;color:#6b7280">' + (jobs ? 'ADD ANOTHER' : 'START WITH ONE') + '</div>' +
         '<div style="padding:10px 16px 0;display:flex;flex-wrap:wrap;gap:10px">' +
-          [['Bring', 'Bring '], ['Set up', 'Set up '], ['Help with', 'Help with '], ['Clean up', 'Clean up ']].map(([l, p]) => chip(l, () => openJob(null, blankJob(p)))).join('') +
+          [['Bring', 'Bring '], ['Set up', 'Set up '], ['Help with', 'Help with '], ['Clean up', 'Clean up '], ['Coordinate', 'Coordinate ']].map(([l, p]) => chip(l, () => openJob(null, blankJob(p)))).join('') +
           chip('Something else', () => openJob(null, blankJob('')), true) + '</div>';
     }
 

@@ -485,6 +485,13 @@ test('an idea says how many it needs; a bare starter chip can’t be saved; its 
     await expect(how).toContainText('You list what’s needed');
     await expect(how).toContainText('You see who’s on it');
     await expect(flow).toContainText('START WITH ONE');
+    // Coordinate is a starter chip too (owner, 2026-10-02); like the others, it waits for what
+    await flow.getByRole('button', { name: /Coordinate$/ }).click();
+    const cj = page.getByRole('dialog', { name: 'Add a job' });
+    await expect(cj.getByLabel('Job name')).toHaveValue(/^Coordinate/);
+    await expect(cj.getByRole('button', { name: 'Save', exact: true })).toHaveAttribute('aria-disabled', 'true');
+    await cj.getByRole('button', { name: 'Close' }).click();
+    await expect(cj).toHaveCount(0);
     // A starter chip alone ("Bring") can't be saved
     await flow.getByRole('button', { name: /Bring$/ }).click();
     const job = page.getByRole('dialog', { name: 'Add a job' });
