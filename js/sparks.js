@@ -2725,7 +2725,9 @@
       if (s.wantsHost) return [{ act: 'Needs ' + missingText(s) + ' to make it a plan', cta: 'Find a lead', go: () => setState({ share: { id: s.id, copied: false } }) }];
       if (!s.dayDate && top && top.votes.length) return [{ act: monthDay(top.dayDate) + ' has ' + top.votes.length + (top.votes.length === 1 ? ' vote' : ' votes'), cta: 'Pick', go: () => openToSection(s, 'sec-dates') }];
       if (!s.dayDate) return [{ act: 'Needs a date to make it a plan', cta: 'Add date', go: () => openToSection(s, 'sec-dates') }];
-      return [{ act: 'It has a lead and a date', cta: 'Make it a plan', go: onPage(() => makePlan(s)) }];
+      if (!s.spot) return [{ act: 'Needs a location to make it a plan', cta: 'Add location', go: onPage(() => openSec(s, 'when')) }];
+      if (!basicsOf(s).length) return [{ act: 'Needs details to make it a plan', cta: 'Add details', go: onPage(() => openSec(s, 'details')) }];
+      return [{ act: 'It’s all set', cta: 'Make it a plan', go: onPage(() => makePlan(s)) }];
     }
     if (ph === 'done') {
       const helpers = helperIds(s);
@@ -4397,9 +4399,11 @@
     '</div>';
   };
 
-  // What an idea still needs to become a plan: a lead and a date (owner, 2026-10-01; make_plan() checks both)
-  const planMissing = (s) => (s.wantsHost ? ['lead'] : []).concat(s.dayDate ? [] : ['date']);
-  const missingText = (s) => { const m = planMissing(s); return m.length === 2 ? 'a lead and a date' : m[0] === 'lead' ? 'a lead' : 'a date'; };
+  // What an idea still needs before Make it a plan! shows: all four steps (owner, 2026-10-01: it waits for all 4;
+  // make_plan() itself only checks a lead and a date)
+  const planMissing = (s) => (s.wantsHost ? ['lead'] : []).concat(s.spot ? [] : ['location'], basicsOf(s).length ? [] : ['details'], s.dayDate ? [] : ['date']);
+  const MISS_WORD = { lead: 'a lead', location: 'a location', details: 'details', date: 'a date' };
+  const missingText = (s) => namesList(planMissing(s).map(m => MISS_WORD[m]));
   const makePlanCard = (s) => {
     return planMissing(s).length ? planToGo(s) : '';   // ready: Make it a plan! is in the gold strip (owner's mock, 2026-10-01)
   };
@@ -4416,11 +4420,14 @@
       '<div><div style="font-size:12.5px;font-weight:900;letter-spacing:1.2px;color:#ffd166">THIS COULD REALLY HAPPEN</div>' +
         '<div style="margin-top:2px;font-size:28px;line-height:1.1;font-weight:900;letter-spacing:-.6px;color:#fff">' + (n === 1 ? '1 thing to go' : n + ' things to go') + '</div></div>' +
       (miss.indexOf('lead') > -1 ? row(P6.person, 'Someone to lead', 'Could be you', 'I’ll lead', () => isTheLead(s) ? setWantsHost(s, false) : takeTheLead(s), 'lead') : '') +
+      (miss.indexOf('location') > -1 ? (isLead(s) ? row(P6.pin, 'A location', s.spotOpts.length ? 'Pick from the votes' : 'Where it happens', s.spotOpts.length ? 'Pick' : 'Add', () => s.spotOpts.length ? openToSection(s, 'sec-when') : openSec(s, 'when'), 'location')
+        : row(P6.pin, 'A location', 'Suggest a spot', 'Suggest', () => openOffer(s, 'spot'), 'location')) : '') +
+      (miss.indexOf('details') > -1 && isLead(s) ? row(P6.roles, 'Details', 'A line on what to expect', 'Add', () => openSec(s, 'details'), 'details') : '') +
       (miss.indexOf('date') > -1 ? (isLead(s) ? row(P6.cal, 'A date', s.dateOpts.length ? 'Pick from the votes' : 'Pick one or run a poll', s.dateOpts.length ? 'Pick' : 'Add', () => s.dateOpts.length ? openToSection(s, 'sec-when') : openSec(s, 'when'), 'date')
         : row(P6.cal, 'A date', s.dateOpts.length ? 'Vote, or suggest another' : 'Suggest one', 'Suggest', () => openOffer(s, 'day'), 'date')) : '') +
       '<button type="button" aria-disabled="true" style="margin-top:4px;min-height:56px;border:0;border-radius:999px;background:rgba(255,255,255,.16);color:rgba(255,255,255,.62);font-family:inherit;font-size:17px;font-weight:900;cursor:not-allowed;display:flex;align-items:center;justify-content:center;gap:10px">' +
         svg(18, stroke('rgba(255,255,255,.62)', 2.2), FLAG) + 'Make it a plan</button>' +
-      '<div style="text-align:center;font-size:13.5px;font-weight:700;color:rgba(255,255,255,.75)">' + (n === 1 ? 'Unlocks when that’s done' : 'Unlocks when both are done') + '</div></div>';
+      '<div style="text-align:center;font-size:13.5px;font-weight:700;color:rgba(255,255,255,.75)">' + (n === 1 ? 'Unlocks when that’s done' : n === 2 ? 'Unlocks when both are done' : 'Unlocks when all ' + n + ' are done') + '</div></div>';
   };
 
   // A photo header shared by the plan and "happened" pages

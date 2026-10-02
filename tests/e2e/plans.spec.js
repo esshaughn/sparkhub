@@ -686,11 +686,12 @@ test('no date yet: the lead runs a date poll from the idea; stepping back blocks
     await expect(H.getByText('Poll started. Everyone can vote now.')).toBeVisible();
     await expect(HI.locator('#sec-when')).toContainText('VOTING ON A DATE');
     await expect(HI.locator('[data-empty-date]')).toHaveCount(0);
-    // Looking for a lead: Make it a plan names both missing pieces
+    // Looking for a lead: the card names every missing piece (all 4 steps, owner 2026-10-01)
     await HI.locator('[data-led-by]').getByRole('button', { name: 'Manage co-leads' }).click();
     await H.getByRole('dialog', { name: 'Leads' }).locator('[data-lead-row="Pia"]').getByRole('button', { name: 'Step back' }).click();
     await confirm(H, 'Step back');
-    await expect(HI.locator('[data-plan-needs]')).toContainText('2 things to go');
+    await expect(HI.locator('[data-plan-needs]')).toContainText('4 things to go');
+    await expect(HI.locator('[data-plan-needs]')).toContainText('Unlocks when all 4 are done');
     await expect(HI.locator('[data-plan-needs] [data-plan-row="lead"]')).toContainText('Someone to lead');
     expect(await asUser(H, async (c, _C, sid) => { await c.from('sparks').update({ day_date: new Date(Date.now() + 9 * 864e5).toISOString().slice(0, 10) }).eq('id', sid); const r = await c.rpc('make_plan', { p_spark: sid }); return r.error ? 'refused' : 'ALLOWED'; }, id)).toBe('refused');
     expect(host.errors.filter(e => !/status of 400/.test(e))).toEqual([]);   // the refused make_plan above

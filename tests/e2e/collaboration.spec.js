@@ -14,7 +14,7 @@ test('a member with the link takes part; everyone votes; the lead picks and make
     id = await postIdea(L, { title, basics: ['teams by class'] });
     const LD = L.locator('[data-screen-label="Idea page"]');
     await expect(LD.getByLabel('Steps to a plan')).toContainText('Details');
-    await expect(LD.locator('[data-plan-needs]')).toContainText('1 thing to go');   // just the date (owner's purple card, 2026-10-01)
+    await expect(LD.locator('[data-plan-needs]')).toContainText('2 things to go');   // a location and a date (owner, 2026-10-01: Make it a plan! waits for all 4)
     await expect(LD.locator('#sec-when [data-empty-date]')).toContainText('No date yet');   // the lead: Set a date or Run a poll (owner's mock, 2026-10-01)
     await expect(LD.locator('#sec-when [data-empty-date]').getByRole('button', { name: 'Set a date' })).toBeVisible();
 

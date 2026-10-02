@@ -209,7 +209,7 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 58 | Security headers + CSP; pinned, integrity-checked Supabase script | Live | |
 | 59 | Automated end-to-end tests (28 tests: smoke, posting, groups, collaboration, plans, Your schedule, v6 and Update 2, notifications, link previews, Google, database security) | Test | `tests/` |
 | 60 | Nightly cleanup of test-database leftovers ([E2E] ideas and groups, old anonymous users) | Live | Test project only |
-| 132 | **A plan needs a lead and a date** (owner, 2026-10-01): the Lead step, the purple *things to go* card with a button per missing piece, Run a poll from an idea's When and where | Test | `make_plan()` refuses while `wants_host` (`20261101200000_plan_needs_lead.sql`) |
+| 132 | **A plan needs a lead and a date** (owner, 2026-10-01): the Lead step, the purple *things to go* card with a button per missing piece, Run a poll from an idea's When and where. In the app **Make it a plan!** waits for all four steps (Lead, Location, Details, Date; owner, 2026-10-01): it sits in the gold strip once they're done, and the card also lists *A location* and *Details* | Test | `make_plan()` refuses while `wants_host` (`20261101200000_plan_needs_lead.sql`) |
 
 ## Removed in this rebuild
 
