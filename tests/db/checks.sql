@@ -571,6 +571,48 @@ select t.check('the Maybe is interested and got the stepped-back note',
   exists (select 1 from interests i join sparks s on s.id = i.spark_id where s.text = 'Maybe walk' and i.user_id = t.id('member'))
   and exists (select 1 from notes where user_id = t.id('member') and body like 'Maybe walk is an idea again%'));
 
+-- Your own account, a cover photo, deleting your only group (20261102010000_my_account_and_cover.sql) ----------------
+select t.person('solo'), t.person('leaver'), t.person('heir');
+select t.login('solo'); set role authenticated;
+select * from public.create_group('Solo crew');
+select t.must_allow('the only owner deletes their only group', $$select public.delete_group((select id from groups where name = 'Solo crew'))$$);
+reset role;
+select t.check('the group is gone', not exists (select 1 from groups where name = 'Solo crew'));
+-- A cover photo comes off (hosts only)
+update sparks set photos = array['00000000-0000-0000-0000-000000000000/11111111-1111-1111-1111-111111111111.jpg'] where text = 'Lead going walk';
+select t.login('member'); set role authenticated;
+select t.must_refuse('a member taking the cover off', $$select public.remove_idea_cover((select id from sparks where text = 'Lead going walk'))$$);
+reset role;
+select t.login('host'); set role authenticated;
+select t.check('the lead takes the cover off and gets its path back', public.remove_idea_cover((select id from sparks where text = 'Lead going walk')) like '%11111111-1111-1111-1111-111111111111.jpg');
+reset role;
+select t.check('no photo and no framing left', exists (select 1 from sparks where text = 'Lead going walk' and photos = '{}' and cover_pos is null));
+-- Deleting your own account
+select t.login('guest'); set role authenticated;
+select t.must_refuse('a guest deleting "their account"', $$select public.delete_my_account()$$);
+reset role;
+select t.login('leaver'); set role authenticated;
+select * from public.create_group('Leaver crew');
+reset role;
+insert into memberships (group_id, user_id, role) values ((select id from groups where name = 'Leaver crew'), t.id('heir'), 'member');
+select t.login('leaver'); set role authenticated;
+select t.must_refuse('deleting your account while you''re the only owner of a group with others in it', $$select public.delete_my_account()$$);
+insert into sparks (id, group_id, author_name, lead_name, lead_id, created_by, text, planned, day_date)
+values (gen_random_uuid(), (select id from groups where name = 'Leaver crew'), 'Leaver', 'Leaver', t.id('leaver'), t.id('leaver'), 'Handed on walk', true, current_date + 5),
+       (gen_random_uuid(), (select id from groups where name = 'Leaver crew'), 'Leaver', 'Leaver', t.id('leaver'), t.id('leaver'), 'Goes with them walk', true, current_date + 6);
+reset role;
+update memberships set role = 'owner' where user_id = t.id('heir') and group_id = (select id from groups where name = 'Leaver crew');
+insert into cohosts (spark_id, user_id, added_by) values ((select id from sparks where text = 'Handed on walk'), t.id('heir'), t.id('leaver'));
+select t.login('leaver'); set role authenticated;
+select t.must_allow('with another owner, the account can go', $$select public.delete_my_account()$$);
+reset role;
+select t.check('the account is gone', not exists (select 1 from auth.users where id = t.id('leaver')));
+select t.check('the group stays with its other owner', exists (select 1 from groups where name = 'Leaver crew'));
+select t.check('the co-led event passed to its co-lead, who is no longer listed as a co-lead',
+  exists (select 1 from sparks where text = 'Handed on walk' and lead_id = t.id('heir'))
+  and not exists (select 1 from cohosts c join sparks s on s.id = c.spark_id where s.text = 'Handed on walk'));
+select t.check('the event with no co-lead went with them', not exists (select 1 from sparks where text = 'Goes with them walk'));
+
 -- One request loads the app (20261101220000_load_all.sql): the same rows the caller could read table by table ----
 create function t.load_matches() returns boolean language sql as $$
   select jsonb_array_length(d -> 'memberships') = (select count(*) from memberships)

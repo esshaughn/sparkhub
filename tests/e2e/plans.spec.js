@@ -78,7 +78,7 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     await expect(GP.locator('[data-helping-bar]')).toHaveCount(0);
     // Signing up is one tap, then "You're on it" (no RSVP question)
     await GP.locator('[data-signup="Folding chairs"]').getByRole('button', { name: 'Sign up' }).click();
-    await expect(G.locator('[data-banner="on"]')).toContainText('You’re on it');
+    await expect(G.locator('[data-banner="on"]')).toContainText('You’re on it', { timeout: 1000 });   // with the tap (owner, 2026-10-02)
     await expect(G.locator('[data-banner="on"]')).toContainText('is counting on you');
     await expect(G.getByRole('dialog', { name: 'Will you be there?' })).toHaveCount(0);
     // "You're helping": under the photo, collapsed by default, opens to the jobs
@@ -480,6 +480,7 @@ test('looking for a lead: the lead steps back, someone else takes the lead; "I c
     await OI.getByRole('button', { name: 'I’m interested' }).click();
     await OI.locator('[data-can-help]').click();
     await expect(OI.locator('[data-can-help]')).toHaveAttribute('aria-checked', 'true');
+    await expect(O.locator('html[data-saving]')).toHaveCount(0);   // the taps show at once; wait for them to be saved before Hope looks
 
     // Hope sees who could help
     await openIdea(H, id);

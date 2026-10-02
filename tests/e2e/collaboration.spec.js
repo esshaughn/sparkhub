@@ -36,7 +36,7 @@ test('a member with the link takes part; everyone votes; the lead picks and make
 
     // "I'm interested" counts them
     await button(G, 'I’m interested').click();
-    await expect(button(G, 'You’re interested')).toBeVisible();
+    await expect(button(G, 'You’re interested')).toBeVisible({ timeout: 1000 });   // changes with the tap (owner, 2026-10-02), like RSVP
     await expect(GD.locator('#sec-people')).toContainText('1 interested');
 
     // Suggest a location and a date: they go on the idea's board for everyone to vote on

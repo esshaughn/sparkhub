@@ -234,6 +234,30 @@ test('Give feedback (Update 9): a Help & info tile opens the sheet; Send to Eric
   }
 });
 
+// Owner, 2026-10-02: anyone can delete their own account from Profile, behind a typed DELETE (the deleting itself is
+// checked in tests/db/checks.sql; the e2e leads' accounts are needed by every other test)
+test('Profile: Delete my account asks for a typed DELETE', async ({ browser }) => {
+  const { page, context, errors } = await newLead(browser, 1, 'Tester');
+  try {
+    await openProfile(page);
+    await page.getByRole('dialog', { name: 'Profile', exact: true }).locator('[data-delete-account]').click();
+    const del = page.getByRole('dialog', { name: 'Delete account' });
+    await expect(del).toContainText('Delete your account?');
+    await expect(del).toContainText('It can’t be undone.');
+    const go = del.getByRole('button', { name: 'Delete my account' });
+    await expect(go).toHaveAttribute('aria-disabled', 'true');
+    await del.getByLabel('Type DELETE to confirm').fill('delet');
+    await expect(go).toHaveAttribute('aria-disabled', 'true');
+    await del.getByLabel('Type DELETE to confirm').fill('delete');
+    await expect(go).toHaveAttribute('aria-disabled', 'false');
+    await del.getByRole('button', { name: 'Keep it' }).click();
+    await expect(del).toHaveCount(0);
+    expect(errors).toEqual([]);
+  } finally {
+    await context.close();
+  }
+});
+
 test('privacy page is public', async ({ request }) => {
   const res = await request.get('/privacy.html');
   expect(res.status()).toBe(200);

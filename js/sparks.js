@@ -202,7 +202,7 @@
     notif: { allReadAt: 0, read: [], topics: {}, email: true, loaded: false }, nFilter: 'all', nSettings: false, demoAdmin: false, back: null, myPlace: '', myBio: '', memberSince: null, ownGrp: null, sizes: {}, membersQ: '', gpRename: null, gpDel: null, ph: null,
     startName: null, phaseTab: 'plan', sigDraft: '', sigNeed: '', sigTime: '', blast: null, invite: null,
     pe: null, confirm: null, interestList: false, thanksList: false, guestList: null, cohostPick: null, leadsSheet: null, takeDown: null, albumEdit: null,
-    gpCode: '', gpMembers: null, gpFail: false,
+    gpCode: '', gpMembers: null, gpFail: false, acctDel: null,
     // v6 Update 13: Your people (Groups · Friends), friend requests, the friend link, inviting friends
     fr: { friends: [], incoming: [], outgoing: [], invites: [], loaded: false }, pplTab: 'groups', pplSearch: false, pplQ: '', pplAdd: false, frSel: [], frInvite: false,
     frAdd: null, myFriendCode: null, person: null,
@@ -690,8 +690,8 @@
   // Gates: sign-in, name, guest info
   // ---------------------------------------------------------------------------
 
-  const openLogin = (from, then) => setState({
-    loginStep: 'email', loginFrom: from || 'default', loginThen: then || null, loginMode: 'link',
+  const openLogin = (from, then, tap) => setState({
+    loginStep: 'email', loginFrom: from || 'default', loginThen: then || null, loginTap: tap || null, loginMode: 'link',
     loginCode: '', resent: false, googleFailed: false, loginEmailOnly: false, nameAsk: null, guestOpen: false, menu: null
   });
   const closeLogin = () => setState({ loginStep: null, loginCode: '', loginThen: null, googleFailed: false, busy: null });
@@ -707,7 +707,11 @@
     setState({ guestOpen: true, guestThen: fn, guestName: state.guestName || '' });
   };
   // Everything else (interest, suggestions, votes, jobs, photos) needs an account: sign-in, then the action
-  const needAccount = (fn) => { if (state.email) needName(fn); else openLogin('account', () => needName(fn)); };
+  // noteTap() just before needAccount() says what the tap was, in a form that survives the page reloading at Google
+  // (owner, 2026-10-02: the email code finished the tap, Google dropped it). replayTap() does it on the way back.
+  let tapNoted = null;
+  const noteTap = (t) => { tapNoted = t; };
+  const needAccount = (fn) => { const t = tapNoted; tapNoted = null; if (state.email) needName(fn); else openLogin('account', () => needName(fn), t); };
   const saveGuestContact = async (sparkId) => {
     if (state.email || !state.guest || !sparkId) return;
     must(await sb.from('guest_contacts').upsert({ spark_id: sparkId, user_id: state.me, name: state.guest.name, phone: null }, { onConflict: 'spark_id,user_id' }));
@@ -1305,41 +1309,36 @@
   // Taking interest back needs nothing; showing interest asks a guest for their info
   const toggleInterest = (s) => {
     if (s.interested.indexOf(state.me) > -1) {
-      run(async () => { must(await sb.from('interests').delete().eq('spark_id', s.id).eq('user_id', state.me)); });
+      quick(s, { interested: s.interested.filter(u => u !== state.me), canHelp: s.canHelp.filter(u => u !== state.me) },
+        async () => { must(await sb.from('interests').delete().eq('spark_id', s.id).eq('user_id', state.me)); });
       return;
     }
-    needAccount(() => run(async () => {
-      must(await sb.from('interests').insert({ spark_id: s.id, user_id: state.me }));
-    }));
+    noteTap({ k: 'interest', id: s.id });
+    needAccount(() => quick(s, { interested: [state.me].concat(s.interested.filter(u => u !== state.me)) },
+      async () => { must(await sb.from('interests').insert({ spark_id: s.id, user_id: state.me })); }));
   };
 
   // "I could help make it happen": only on your own interest
   const toggleCanHelp = (s) => {
     const on_ = s.canHelp.indexOf(state.me) < 0;
-    run(async () => { must(await sb.from('interests').update({ can_help: on_ }).eq('spark_id', s.id).eq('user_id', state.me)); });
+    quick(s, { canHelp: on_ ? s.canHelp.concat(state.me) : s.canHelp.filter(u => u !== state.me) },
+      async () => { must(await sb.from('interests').update({ can_help: on_ }).eq('spark_id', s.id).eq('user_id', state.me)); });
   };
   // Looking for a host (social-science review, 2026-10-01): floating an idea and hosting it are separate jobs
   const setWantsHost = (s, on_) => run(async () => { must(await sb.rpc('set_wants_host', { p_spark: s.id, p_on: on_ })); });
-  const takeTheLead = (s) => needAccount(() => setState({ confirm: { title: 'Lead ' + s.text + '?', green: true, cta: 'I’ll lead it', keep: 'Not now',
+  const takeTheLead = (s) => (noteTap({ k: 'lead', id: s.id }), needAccount(() => setState({ confirm: { title: 'Lead ' + s.text + '?', green: true, cta: 'I’ll lead it', keep: 'Not now',
     body: 'You’ll lead it: pick a date and place, then make it a plan. ' + firstName(nameOf(s.leadId, s.leadName)) + ' stays interested and gets a note.',
-    run: () => run(async () => { must(await sb.rpc('take_the_lead', { p_spark: s.id })); }, { confirm: null }) } }));
+    run: () => run(async () => { must(await sb.rpc('take_the_lead', { p_spark: s.id })); }, { confirm: null }) } })));
 
   // Non-leads suggest (waits for the lead); the lead sets it straight away
   const openOffer = (s, kind) => {
     const open = () => setState({ offerKind: kind, offerText: '', offerPlace: null, offerSuggest: [] });
-    if (isLead(s)) open(); else needAccount(open);
+    noteTap({ k: 'offer', id: s.id, kind });
+    needAccount(open);
   };
   const commitOffer = (s) => {
     const kind = state.offerKind, text = state.offerText.trim(), place = state.offerPlace;
     if (!text || state.busy) return;
-    if (isLead(s)) {
-      const row = kind === 'day'
-        ? { day_date: text.slice(0, 10), day_time: text.length > 10 ? text.slice(11, 16) : null }
-        : { spot: cleanTitle(text).slice(0, 80), spot_open: false, spot_address: place ? place.address : null, spot_lat: place ? place.lat : null, spot_lon: place ? place.lon : null };
-      run(async () => { must(await sb.from('sparks').update(row).eq('id', s.id)); },
-        { offerKind: null, offerText: '', offerPlace: null });
-      return;
-    }
     // Everyone else's suggestions go on the idea's board, where anyone can vote and the lead picks
     run(async () => {
       await saveGuestContact(s.id);
@@ -1364,6 +1363,34 @@
   // Change one event in place (for instant feedback before the next load replaces it)
   let rsvpChain = Promise.resolve(), rsvpQueued = 0;
   const patchSpark = (id, patch) => setState({ sparks: state.sparks.map(x => x.id === id ? Object.assign({}, x, patch) : x) });
+  // A one-tap change that shows at once (owner, 2026-10-02: Interested, sign-ups and reactions waited for the save and a
+  // reload, like RSVP used to): the event changes on screen, the save runs behind it in order, one refresh follows the
+  // last of them, and a save that fails puts things back and says so. done(ok) runs after the save.
+  let quickChain = Promise.resolve(), quickQueued = 0;
+  const quick = (s, patch, work, done) => {
+    if (state.viewAs) return run(async () => {});   // previewing: run() says nothing changes
+    const cur = state.sparks.find(x => x.id === s.id) || s, undo = {};
+    Object.keys(patch).forEach(k => { undo[k] = cur[k]; });
+    patchSpark(s.id, patch);
+    const mine = ++quickQueued;
+    document.documentElement.setAttribute('data-saving', '');
+    quickChain = quickChain.then(async () => {
+      let ok = true;
+      try { await ensureSession(); await work(); }
+      catch (e) { ok = false; console.error(e); patchSpark(s.id, undo); toast(failed(e)); }
+      if (mine === quickQueued) { document.documentElement.removeAttribute('data-saving'); await loadFresh().catch(e => console.error(e)); }
+      if (done) done(ok);
+    });
+    return quickChain;
+  };
+  // The event with my claim on one sign-up added or taken off, in both shapes it's kept in (signups: every unit;
+  // jobs: each job with its shifts)
+  const withClaim = (s, ids, add, note) => {
+    const unit = (u) => ids.indexOf(u.id) < 0 ? u : Object.assign({}, u, { claims: u.claims.filter(c => c.userId !== state.me).concat(add ? [{ userId: state.me, note: note || '', created: Date.now() }] : []) });
+    return { signups: s.signups.map(unit), jobs: (s.jobs || []).map(j => { if (!j.shifts) return unit(j); const shifts = j.shifts.map(unit); return Object.assign({}, j, { shifts, claims: [].concat(...shifts.map(u => u.claims)) }); }) };
+  };
+  // Taking a job on a plan marks you Going (goingWithJob does it in the database)
+  const goingToo = (s) => !s.planned || isLead(s) || myRsvp(s) === 'going' ? {} : { rsvps: s.rsvps.filter(r => r.userId !== state.me).concat([{ userId: state.me, status: 'going', created: Date.now(), attended: null }]) };
   const setRsvp = (s, status) => {
     const cur = myRsvp(s), next = cur === status ? null : status, lead = nameOf(s.leadId, s.leadName);
     const note = { going: 'You’re going. See you there!', maybe: 'Marked as maybe', no: isLead(s) ? 'Marked as can’t make it' : 'Thanks for letting ' + lead + ' know' }[next];
@@ -1408,7 +1435,7 @@
   // A vote on a suggested date or place changes as soon as it's tapped, like RSVP (owner, 2026-10-01: it lagged the same way).
   // Saves queue in order; one refresh follows the last of them, and a save that fails puts that option's votes back
   let voteChain = Promise.resolve(), voteQueued = 0;
-  const vote = (table, s, o) => needAccount(() => {
+  const vote = (table, s, o) => (noteTap({ k: 'vote', id: s.id, table, opt: o.id }), needAccount(() => {
     if (state.viewAs) return run(async () => {});   // previewing: run() says nothing changes
     const key = table === 'date_votes' ? 'dateOpts' : 'spotOpts';
     const opts = () => (state.sparks.find(x => x.id === s.id) || s)[key];
@@ -1429,7 +1456,7 @@
       }
       if (mine === voteQueued) loadFresh().catch(e => console.error(e));
     });
-  });
+  }));
   const makePlan = (s) => {
     const n = s.interested.length;
     setState({ confirm: { title: 'Make it a plan?', green: true, cta: 'Make it a plan', keep: 'Not yet',
@@ -1458,12 +1485,14 @@
   const redoClaim = (b) => {
     clearTimeout(bannerTimer);
     run(async () => {
+      await quickChain;   // the change being undone may still be saving
       must(await sb.from('signup_claims').insert(b.back.items.map(id => ({ item_id: id, user_id: state.me, note: b.back.note || null }))));
     }, { banner: null }).then(ok => { if (ok) toast('You’re back on it', true); else setState({ banner: null }); });
   };
   const undoClaim = (b) => {
     clearTimeout(bannerTimer);
     run(async () => {
+      await quickChain;   // the sign-up being undone may still be saving
       if (b.undo.del) must(await sb.from('signup_items').delete().eq('id', b.undo.del));
       else must(await sb.from('signup_claims').delete().in('item_id', b.undo.items).eq('user_id', state.me));
       if (b.undo.back && b.undo.back.length) must(await sb.from('signup_claims').insert(b.undo.back.map(id => ({ item_id: id, user_id: state.me, note: b.undo.note || null }))));
@@ -1497,32 +1526,39 @@
   };
   const toggleClaim = (s, it) => {
     const mine = it.claims.some(c => c.userId === state.me), was = myRsvp(s), myNote = (it.claims.find(c => c.userId === state.me) || {}).note || null;
-    needAccount(() => run(async () => {
-      await saveGuestContact(s.id);
-      if (mine) must(await sb.from('signup_claims').delete().eq('item_id', it.id).eq('user_id', state.me));
-      else { must(await sb.from('signup_claims').insert({ item_id: it.id, user_id: state.me })); await goingWithJob(s); }
-    }).then(ok => { if (ok) { if (mine) offIt(s, jobOf(s, it), { items: [it.id], note: myNote }); else onItBanner(s, { items: [it.id], was }); } }));
+    noteTap({ k: 'claim', id: s.id, item: it.id });
+    needAccount(() => {
+      // The button and the banner change with the tap; the save follows
+      if (!state.viewAs) { if (mine) offIt(s, jobOf(s, it), { items: [it.id], note: myNote }); else onItBanner(s, { items: [it.id], was }); }
+      quick(s, Object.assign(withClaim(s, [it.id], !mine), mine ? {} : goingToo(s)), async () => {
+        await saveGuestContact(s.id);
+        if (mine) must(await sb.from('signup_claims').delete().eq('item_id', it.id).eq('user_id', state.me));
+        else { must(await sb.from('signup_claims').insert({ item_id: it.id, user_id: state.me })); await goingWithJob(s); }
+      }, (ok) => { if (!ok) { clearTimeout(bannerTimer); setState({ banner: null }); } });
+    });
   };
   // Pick a shift: tick any shifts (more than one is fine), an optional note, Done
-  const openShifts = (s, job) => needAccount(() => {
+  const openShifts = (s, job) => (noteTap({ k: 'shifts', id: s.id, item: job.id }), needAccount(() => {
     const mine = myShiftIds(job), c = job.shifts.map(u => u.claims.find(x => x.userId === state.me)).find(Boolean);
     setState({ shiftPick: { id: s.id, job: job.id, sel: mine, note: c ? c.note : '' } });
-  });
+  }));
   const saveShifts = (s, job) => {
     const p = state.shiftPick, had = myShiftIds(job), sel = p.sel, was = myRsvp(s), note = (p.note || '').trim().slice(0, 60) || null;
     const add = sel.filter(id => had.indexOf(id) < 0), drop = had.filter(id => sel.indexOf(id) < 0), keep = had.filter(id => sel.indexOf(id) > -1);
     const noteChanged = keep.some(id => { const u = job.shifts.find(x => x.id === id), c = u && u.claims.find(x => x.userId === state.me); return c && (c.note || null) !== note; });
     if (!add.length && !drop.length && !noteChanged) return setState({ shiftPick: null });
-    run(async () => {
+    if (state.viewAs) return run(async () => {});
+    const oldNote = (job.shifts.map(u => u.claims.find(x => x.userId === state.me)).find(Boolean) || {}).note || null;
+    setState({ shiftPick: null });
+    if (add.length) onItBanner(s, { items: add, back: drop, note, was });   // Undo takes back only this change: the new shifts go, dropped ones return
+    else if (drop.length) offIt(s, job, { items: drop, note: oldNote });
+    const dropped = withClaim(s, drop, false), added = withClaim(Object.assign({}, s, dropped), add.concat(noteChanged ? keep : []), true, note);
+    quick(s, Object.assign(added, add.length ? goingToo(s) : {}), async () => {
       await saveGuestContact(s.id);
       if (drop.length) must(await sb.from('signup_claims').delete().in('item_id', drop).eq('user_id', state.me));
       if (add.length) { must(await sb.from('signup_claims').insert(add.map(id => ({ item_id: id, user_id: state.me, note })))); await goingWithJob(s); }
       if (keep.length && noteChanged) must(await sb.from('signup_claims').update({ note }).in('item_id', keep).eq('user_id', state.me));
-    }, { shiftPick: null }).then(ok => {
-      if (!ok) return;
-      if (add.length) onItBanner(s, { items: add, back: drop, note, was });   // Undo takes back only this change: the new shifts go, dropped ones return
-      else if (drop.length) offIt(s, job, { items: drop, note: (job.shifts.map(u => u.claims.find(x => x.userId === state.me)).find(Boolean) || {}).note || null });
-    });
+    }, (ok) => { if (!ok) { clearTimeout(bannerTimer); setState({ banner: null }); } });
   };
   const removeSignup = (s, it) => {
     const n = new Set(it.claims.map(c => c.userId).filter(u => u !== state.me)).size;
@@ -1812,7 +1848,7 @@
     try {
       await ensureSession();
       const r = { at: Date.now(), stage: 'signin', from: st.loginFrom, anonId: st.me, name: st.myName,
-        subjectId: st.subjectId, joinCode: st.joinCode, screen: st.screen, draft: null };
+        subjectId: st.subjectId, joinCode: st.joinCode, screen: st.screen, draft: null, tap: st.loginTap || null };
       if (st.loginFrom === 'post') {
         r.draft = {};
         DRAFT_KEYS.forEach(k => { r.draft[k] = st[k]; });
@@ -1848,8 +1884,22 @@
     if (r.from === 'join') return () => setState({ joinOpen: true, joinCode: r.joinCode || '', joinBad: false });
     if (r.from === 'invite') return () => { if (!state.inv) startInvite(r.joinCode, 'joining'); inviteJoin(); };
     if (r.from === 'profile') return () => go('calendar', { profSheet: true });
+    if (r.from === 'account' && r.tap) return () => replayTap(r.tap);
     if (r.from === 'account' || r.from === 'guest') return () => toast('You’re signed in. Tap it again to finish.', true);
     return null;
+  };
+  const replayTap = (t) => {
+    const s = state.sparks.find(x => x.id === t.id);
+    if (!s || s.cancelledAt) return;
+    const rows = [].concat(...(s.jobs || s.signups).map(j => [j].concat(j.shifts || [])));
+    const it = t.item ? rows.find(x => x.id === t.item) : null;
+    if (t.k === 'interest') { if (s.interested.indexOf(state.me) < 0) toggleInterest(s); }
+    else if (t.k === 'lead') { if (s.wantsHost) takeTheLead(s); }
+    else if (t.k === 'offer') openOffer(s, t.kind);
+    else if (t.k === 'vote') { const o = (t.table === 'date_votes' ? s.dateOpts : s.spotOpts).find(x => x.id === t.opt); if (o) vote(t.table, s, o); }
+    else if (t.k === 'claim') { if (it && !it.claims.some(c => c.userId === state.me)) toggleClaim(s, it); }
+    else if (t.k === 'role') { if (it && !it.claims.some(c => c.userId === state.me)) claimRole(s, it); }
+    else if (t.k === 'shifts') { if (it && it.shifts) openShifts(s, it); }
   };
 
   // Runs once at start-up, after the session is ready. Returns true if the page is leaving again.
@@ -2424,21 +2474,28 @@
   };
 
   // Requests: Accept makes you friends; ✕ declines quietly
-  const answerRequest = (f, yes) => run(async () => {
-    must(await sb.rpc('answer_friend_request', { p_from: f.id, p_accept: yes }));
+  const answerRequest = (f, yes) => {
+    if (state.viewAs) return run(async () => {});
     const fr = state.fr;
     setState({ fr: Object.assign({}, fr, {
       incoming: fr.incoming.filter(x => x.id !== f.id),
       friends: yes ? fr.friends.concat({ id: f.id, name: f.name, avatar: f.avatar, since: Date.now(), groups: f.group ? [f.group] : [] }).sort((a, b) => a.name.localeCompare(b.name)) : fr.friends
     }) });
     if (yes) toast('You and ' + firstName(f.name) + ' are friends', true);
-  });
+    ensureSession().then(() => sb.rpc('answer_friend_request', { p_from: f.id, p_accept: yes })).then(r => { if (r.error) throw r.error; if (yes) loadFresh().catch(e => console.error(e)); })
+      .catch(e => { console.error(e); setState({ fr }); toast(failed(e)); });
+  };
   // From a member profile: you share a group. Returns 'requested', or 'friends' when they'd already asked you
-  const sendRequest = (uid, name) => run(async () => {
-    const r = must(await sb.rpc('send_friend_request', { p_to: uid })).data;
-    setState({ fr: Object.assign({}, state.fr, { outgoing: state.fr.outgoing.concat(uid) }) });
-    toast(r === 'friends' ? 'You and ' + firstName(name) + ' are friends' : 'Friend request sent to ' + firstName(name), true);
-  });
+  const sendRequest = (uid, name) => {
+    if (state.viewAs) return run(async () => {});
+    const fr = state.fr;
+    setState({ fr: Object.assign({}, fr, { outgoing: fr.outgoing.concat(uid) }) });   // the button reads Requested at once
+    ensureSession().then(() => sb.rpc('send_friend_request', { p_to: uid })).then(r => {
+      if (r.error) throw r.error;
+      toast(r.data === 'friends' ? 'You and ' + firstName(name) + ' are friends' : 'Friend request sent to ' + firstName(name), true);
+      if (r.data === 'friends') loadFresh().catch(e => console.error(e));
+    }).catch(e => { console.error(e); setState({ fr }); toast(failed(e)); });
+  };
   const removeFriend = (f) => setState({ confirm: { z: 60, title: 'Remove ' + firstName(f.name) + ' as a friend?', body: 'They won’t be told. You’ll still see each other in any groups you share.', cta: 'Remove friend', keep: 'Keep friend', danger: true,
     run: () => run(async () => {
       must(await sb.rpc('remove_friend', { p_other: f.id }));
@@ -3306,11 +3363,13 @@
   }
 
   // "Could use a hand": each event's open roles, with Claim
-  const claimRole = (s, it) => needAccount(() => { const was = myRsvp(s); run(async () => {
-    await saveGuestContact(s.id);
-    must(await sb.from('signup_claims').insert({ item_id: it.id, user_id: state.me }));
-    await goingWithJob(s);
-  }).then(ok => { if (ok) onItBanner(s, { items: [it.id], was }); }); });
+  const claimRole = (s, it) => (noteTap({ k: 'role', id: s.id, item: it.id }), needAccount(() => { const was = myRsvp(s);
+    if (!state.viewAs) onItBanner(s, { items: [it.id], was });
+    quick(s, Object.assign(withClaim(s, [it.id], true), goingToo(s)), async () => {
+      await saveGuestContact(s.id);
+      must(await sb.from('signup_claims').insert({ item_id: it.id, user_id: state.me }));
+      await goingWithJob(s);
+    }, (ok) => { if (!ok) { clearTimeout(bannerTimer); setState({ banner: null }); } }); }));
   function viewHandSheet() {
     const list = handList(), close = () => setState({ cHandSheet: false });
     const card = (s) => {
@@ -3933,10 +3992,11 @@
   const toggleReact = (s, k, opts) => needSignIn(() => {
     const on_ = myReact(s, k), o = opts || {};
     if (on_ && o.once) return;
-    run(async () => {
+    if (!on_ && o.note && !state.viewAs) toast(o.note, true);
+    quick(s, { reactions: on_ ? s.reactions.filter(r => !(r.userId === state.me && r.kind === k)) : s.reactions.concat([{ userId: state.me, kind: k }]) }, async () => {
       if (on_) must(await sb.from('reactions').delete().eq('spark_id', s.id).eq('user_id', state.me).eq('kind', k));
       else must(await sb.from('reactions').insert({ spark_id: s.id, user_id: state.me, kind: k }));
-    }).then(ok => { if (ok && !on_ && o.note) toast(o.note, true); });
+    });
   }, 'default');
   const reactChip = (s, k, em, rot) => { const onIt = myReact(s, k), n = countReact(s, k);
     return '<span ' + on((e) => { stop(e); toggleReact(s, k); }, 'button') + ' aria-pressed="' + onIt + '" aria-label="' + esc({ heart: 'Love it', praise: 'Hands up', party: 'Party', thanks: 'Say thanks' }[k]) + ', ' + n + '" style="display:flex;align-items:center;gap:3px;height:30px;padding:0 9px 0 6px;border-radius:999px;font-size:15px;line-height:1;cursor:pointer;' +
@@ -4422,7 +4482,7 @@
         '<span style="flex:1"></span>' +
         // Owner, 2026-10-01: one round pencil (matching Share) opens Edit event: the title, and the cover photo for the host.
         // Round, so the Test event tab between the buttons stays clear on demo/test events
-        (canEdit(s) && !s.cancelledAt ? '<span ' + on(() => openSec(s, 'title')) + ' aria-label="Edit event" class="hov-fill-grey" style="' + ROUND_BTN + '">' + svg(18, stroke('#0d1117', 2.4), PENCIL) + '</span>'
+        (canEdit(s) && !s.cancelledAt ? '<span ' + on(() => openSec(s, 'title')) + ' aria-label="' + (s.planned ? 'Edit event' : 'Edit idea') + '" class="hov-fill-grey" style="' + ROUND_BTN + '">' + svg(18, stroke('#0d1117', 2.4), PENCIL) + '</span>'
           : share ? '' : '<span style="flex:0 0 44px;width:44px"></span>') +
         (share && !s.cancelledAt ? '<span ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' aria-label="Share" class="hov-fill-grey" style="' + ROUND_BTN + '">' + svg(18, stroke('#0d1117', 2.4), P5.share) + '</span>' : '') +
       '</div>' + inner +
@@ -4698,6 +4758,11 @@
     return sw + preview;
   };
 
+  // The photo comes off; the event shows its group's photo again. The file goes too when it's in your own folder
+  const removeCover = (s) => run(async () => {
+    const old = must(await sb.rpc('remove_idea_cover', { p_spark: s.id })).data;
+    if (old) deletePhotos([old]);
+  }).then(ok => { if (ok) toast('Photo removed', true); });
   const PHOTO_BTN = 'flex:1 1 0;display:flex;align-items:center;justify-content:center;gap:7px;min-height:44px;border-radius:999px;background:#f1effe;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer';
   function viewSecSheet() {
     const ss = state.sec, s = state.sparks.find(x => x.id === ss.id);
@@ -4705,13 +4770,14 @@
     const close = () => setState({ sec: null, offerText: '', offerPlace: null, offerSuggest: [], timeOpen: null });
     const set = (patch) => setState({ sec: Object.assign({}, state.sec, patch) });
     const label = (t) => '<span style="font-size:12px;font-weight:800;letter-spacing:1.1px;text-transform:uppercase;color:#6b7280">' + esc(t) + '</span>';
-    const title = { title: 'Edit event', when: 'Date, time & location', details: 'Details', vis: 'Who can see it' }[ss.kind];
+    const what = s.planned ? 'event' : 'idea';   // an idea's pop-ups say idea (owner, 2026-10-02)
+    const title = { title: 'Edit ' + what, when: 'Date, time & location', details: 'Details', vis: 'Who can see it' }[ss.kind];
     let body = '', ok = true;
     if (ss.kind === 'title') {
       const cur = s.photoPaths[0] ? photoUrl(s.photoPaths[0]) : null;
       ok = !!cleanTitle(ss.title);
-      body = '<div style="display:flex;flex-direction:column;gap:8px">' + label('Event title') +
-        '<input class="fld big-fld" type="text" maxlength="40" aria-label="Event title" placeholder="Name your event" value="' + esc(ss.title) + '" ' + onInput(e => { if (e.type === 'input') set({ title: e.target.value.slice(0, 40) }); }) + ' style="' + BIG + '"></div>' +
+      body = '<div style="display:flex;flex-direction:column;gap:8px">' + label(s.planned ? 'Event title' : 'Idea title') +
+        '<input class="fld big-fld" type="text" maxlength="40" aria-label="' + (s.planned ? 'Event title' : 'Idea title') + '" placeholder="Name your ' + what + '" value="' + esc(ss.title) + '" ' + onInput(e => { if (e.type === 'input') set({ title: e.target.value.slice(0, 40) }); }) + ' style="' + BIG + '"></div>' +
         // The photo (host only): Adjust re-frames the current one, Replace / Add a photo pick a new one. Both open the
         // positioner on top of this pop-up and save straight away, so a title being edited here stays as typed
         (isLead(s) ? '<div data-edit-photo style="display:flex;flex-direction:column;gap:8px">' + label('Photo') +
@@ -4721,6 +4787,7 @@
             (cur ? '<span ' + on(() => openPositioner({ kind: 'idea', id: s.id, url: cur, pos: s.coverPos })) + ' style="' + PHOTO_BTN + '">' + svg(16, stroke('currentColor', 2.2), '<path d="M5 9V5h4M15 5h4v4M19 15v4h-4M9 19H5v-4"/>') + 'Adjust</span>' : '') +
             '<label style="' + PHOTO_BTN + '">' + svg(16, stroke('currentColor', 2.2), CAMERA) + (cur ? 'Replace' : 'Add a photo') +
               '<input type="file" accept="image/*" aria-label="' + (cur ? 'Replace the cover photo' : 'Add a cover photo') + '" ' + onInput(e => { if (e.type !== 'change') return; const f = (e.target.files || [])[0]; e.target.value = ''; pickForPositioner(f, { kind: 'idea', id: s.id }); }) + ' style="display:none"></label>' +
+            (cur ? '<span ' + on(() => { if (!state.busy) removeCover(s); }) + ' aria-label="Remove the cover photo" style="' + PHOTO_BTN + ';flex:0 0 auto;padding:0 16px;background:#fdecee;color:#9b1c31">Remove</span>' : '') +
           '</div></div>' : '');
     } else if (ss.kind === 'when') {
       body = '<div style="display:flex;flex-direction:column;gap:8px">' + label('Date & time') +
@@ -4821,7 +4888,7 @@
     const sh = state.share, s = state.sparks.find(x => x.id === sh.id);
     if (!s) return '';
     const close = () => setState({ share: null }), link = location.origin + '/i/' + s.id;
-    const msg = (sh.msg || inviteText(s)) + ' ' + link, past = phaseOf(s) === 'done', title = sh.ask ? 'Ask two people first' : isLead(s) && !past ? 'Invite people' : 'Share this event';
+    const msg = (sh.msg || inviteText(s)) + ' ' + link, past = phaseOf(s) === 'done', title = sh.ask ? 'Ask two people first' : isLead(s) && !past ? 'Invite people' : s.planned ? 'Share this event' : 'Share this idea';
     const canList = !!state.email && !s.cancelledAt && !past && canInviteTo(s);
     if (canList && !sh.people && !sh.loading) setTimeout(() => { if (state.share && state.share.id === s.id && !state.share.people && !state.share.loading) loadInvitees(s); }, 0);
     const btn = (label, href, icon, fn) => '<' + (fn ? 'div ' + on(fn) : 'a href="' + esc(href) + '" target="_blank" rel="noopener noreferrer"') + ' aria-label="' + label + '" style="display:flex;flex-direction:column;align-items:center;gap:8px;text-decoration:none;cursor:pointer">' +
@@ -5050,7 +5117,6 @@
     const f = signupFill(s);
     const tasks = !lead ? myJobs.map(j => ({ item: j.item, meta: myTime(j) })) : [].concat(
       // With a poll running, go to its votes and Pick buttons (the pop-up's plain field would throw the poll away)
-      s.wantsHost && !s.planned ? [{ item: 'Find a lead', act: () => setState({ share: { id: s.id, copied: false } }) }] : [],
       !s.dayDate ? [{ item: s.dateOpts.length ? 'Pick the winning date' : 'Pick a date', act: () => s.dateOpts.length ? openToSection(s, 'sec-when') : openSec(s, 'when') }] : [],
       !s.spot ? [{ item: s.spotOpts.length ? 'Pick the winning location' : 'Pick a location', act: () => s.spotOpts.length ? openToSection(s, 'sec-when') : openSec(s, 'when') }] : [],
       // Details are optional, so no task for them; open spots open the share sheet with the jobs named (owner, 2026-09-30)
@@ -5203,23 +5269,16 @@
   function viewInvite() {
     const s = state.sparks.find(x => x.id === state.invite.id), close = () => setState({ invite: null });
     if (!s) return '';
-    const link = location.origin + '/i/' + s.id, lead = isLead(s), ask = state.invite.msg;   // ask: "Find a replacement"
-    const msg = ask ? ask + ' ' + link : 'Hey! ' + (lead ? 'I’m leading ' : 'Come to ') + s.text + (s.dayDate ? ' on ' + whenLong(s) : '') + (s.spot ? ' at ' + s.spot : '') + '. RSVP here: ' + link;
-    const title = state.invite.title || (lead ? 'Invite people' : 'Share this event');
+    const link = location.origin + '/i/' + s.id, ask = state.invite.msg;   // only opened as "Find a replacement"
+    const msg = ask + ' ' + link;
+    const title = state.invite.title || 'Find a replacement';
     if (ask) return modal(title, close,   // Round 64c
       h3Html(title) + '<div style="margin-top:-6px;font-size:14px;font-weight:700;color:#6b7280">' + esc(state.invite.sub || s.text) + '</div>' +
       '<div style="padding:14px 16px;border-radius:16px;background:#f4f5f7;font-size:15px;line-height:1.45;font-weight:600;color:#2b303a;overflow-wrap:anywhere">“' + esc(ask + ' ' + link.replace(/^https?:\/\//, '')) + '”</div>' +
       '<button type="button" class="hov-primary" ' + on(() => { if (navigator.share) navigator.share({ title: s.text, text: msg, url: link }).catch(() => {}); else copy(msg, 'Message copied. Paste it anywhere.'); }) + ' style="' + primary(true) + '">Send the message</button>' +
       '<span ' + on(() => copy(msg, 'Message copied. Paste it anywhere.')) + ' style="align-self:center;display:flex;align-items:center;min-height:36px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">Copy it instead</span>',
       { z: 32 });
-    return modal(title, close,
-      h3Html(title) + (ask ? paraHtml('“' + esc(ask) + '”') : '') +
-      paraHtml(esc([s.text, whenLong(s)].filter(Boolean).join(' · '))) +
-      '<div style="display:flex;gap:8px"><span style="' + WELL + ';flex:1;min-width:0;font-size:14px;font-weight:600;color:#5c6270;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(link.replace(/^https?:\/\//, '')) + '</span>' +
-        '<button type="button" class="hov-outline" ' + on(() => copy(link, 'Link copied')) + ' style="' + COPY_BTN + '">Copy</button></div>' +
-      '<button type="button" class="hov-primary" ' + on(() => { if (navigator.share) navigator.share({ title: s.text, text: msg, url: link }).catch(() => {}); else copy(msg, ask ? 'Message copied. Paste it anywhere.' : 'Invite copied. Paste it anywhere.'); }) + ' style="' + primary(true) + '">' + (ask ? 'Send the message' : 'Share the invite') + '</button>' +
-      '<p style="margin:0;font-size:13px;line-height:1.45;font-weight:500;color:#6b7280">Anyone with the link can see it and RSVP, even without an account.</p>',
-      { z: 32 });
+    return '';
   }
 
   // "Send an update" to people on the plan (posted on the plan now; delivery comes with notifications)
@@ -5311,6 +5370,7 @@
           testerCard() +
           (st.demoAdmin ? diagCard() : '') +
           '<div ' + on(signOut) + ' style="' + CARD + ';padding:0 16px;min-height:52px;display:flex;align-items:center;cursor:pointer"><span style="font-size:15.5px;font-weight:800;color:#9b1c31">Sign out</span></div>' +
+          (st.demoAdmin ? '' : '<span ' + on(() => setState({ acctDel: '' })) + ' data-delete-account style="align-self:center;display:flex;align-items:center;min-height:44px;padding:0 12px;font-size:14px;font-weight:700;color:#6b7280;text-decoration:underline;text-underline-offset:3px;cursor:pointer">Delete my account</span>') +
         '</div>' +
       '</div>', 48);
   }
@@ -5489,17 +5549,24 @@
   };
   // Create event, kept as it's typed (owner, 2026-10-02): a phone can drop the tab while someone looks up an address,
   // and the reload used to lose the whole event. This tab's storage only, the same account only, half a day at most.
-  // A photo picked but not yet saved can't be kept (a saved draft's cover is).
-  const COMPOSE_KEEP = 'spark-hub-compose';
+  // A picked photo is kept too (owner, 2026-10-02), under its own key and written once per photo, not on every keystroke.
+  const COMPOSE_KEEP = 'spark-hub-compose', COMPOSE_PHOTO = 'spark-hub-compose-photo';
+  let keptBlob = null;
   function keepCompose() {
     try {
+      const ph = state.photos[0] ? state.photos[0].blob : null;
+      if (ph !== keptBlob) {
+        keptBlob = ph;
+        if (!ph) sessionStorage.removeItem(COMPOSE_PHOTO);
+        else blobToDataUrl(ph).then(u => { try { if (keptBlob === ph) sessionStorage.setItem(COMPOSE_PHOTO, u); } catch (e) { /* too big for this tab's storage: the rest is still kept */ } }).catch(() => {});
+      }
       if (!state.email || !evStarted(state)) return;
       const data = { me: state.me, at: Date.now(), evDraftId: state.evDraftId || null, evPhoto: state.evPhotoPath || null, evFrom: state.evFrom || null };
       DRAFT_FIELDS.forEach(k => { data[k] = state[k]; });
       sessionStorage.setItem(COMPOSE_KEEP, JSON.stringify(data));
     } catch (e) { /* storage full or off: nothing kept */ }
   }
-  function dropKept() { try { sessionStorage.removeItem(COMPOSE_KEEP); } catch (e) { /* fine */ } }
+  function dropKept() { keptBlob = null; try { sessionStorage.removeItem(COMPOSE_KEEP); sessionStorage.removeItem(COMPOSE_PHOTO); } catch (e) { /* fine */ } }
   const keptCompose = (me) => {
     try {
       const d = JSON.parse(sessionStorage.getItem(COMPOSE_KEEP) || 'null');
@@ -5701,9 +5768,16 @@
     return out;
   };
   const resumeDraft = (d) => goCompose(draftState(d));
-  const deleteDraft = (d) => run(async () => {
-    must(await sb.from('event_drafts').delete().eq('id', d.id));
-  }).then(ok => { if (ok) { if (PHOTO_PATH.test((d.data || {}).evPhoto || '')) deletePhotos([d.data.evPhoto]); toast('Draft deleted', true); } });
+  const deleteDraft = (d) => {
+    if (state.viewAs) return run(async () => {});
+    const drafts = state.drafts;
+    setState({ drafts: drafts.filter(x => x.id !== d.id) });
+    toast('Draft deleted', true);
+    ensureSession().then(() => sb.from('event_drafts').delete().eq('id', d.id)).then(r => {
+      if (r.error) throw r.error;
+      if (PHOTO_PATH.test((d.data || {}).evPhoto || '')) deletePhotos([d.data.evPhoto]);
+    }).catch(e => { console.error(e); setState({ drafts }); toast(failed(e)); });
+  };
   const agoSaved = (t) => { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? 'Saved just now' : m < 60 ? 'Saved ' + m + ' min ago' : m < 1440 ? 'Saved ' + Math.round(m / 60) + 'h ago' : 'Saved ' + Math.round(m / 1440) + 'd ago'; };
   const draftStep = (x) => x.evStep === 'review' ? 5 : Math.max(0, EV_STEPS.indexOf(x.evStep));
   const draftCover = (x) => x.evPhotoPath ? '#2b303a ' + bg(photoUrl(x.evPhotoPath)) : EV_GRAD;
@@ -6172,12 +6246,8 @@
   }
 
   function viewOffer(s) {
-    const st = state, kind = st.offerKind, lead = isLead(s);
-    const copy = lead
-        ? (kind === 'day'
-          ? { title: 'Set the date', hint: 'Pick a day and time.', cta: 'Set date' }
-          : { title: 'Set the location', hint: 'Start typing and pick a place, or just write it in.', ph: 'Enter the location', cta: 'Set location' })
-        : (kind === 'day'
+    const st = state, kind = st.offerKind;
+    const copy = (kind === 'day'
           ? { title: 'Suggest a date', hint: 'Pick a day, and a time if you have one. It goes on the event for everyone to vote on, and the lead picks.', cta: 'Suggest this date' }
           : { title: 'Suggest a location', hint: 'Somewhere this could actually happen. Everyone can vote on it, and the lead picks.', ph: 'e.g. the loop trail at the lake', cta: 'Suggest this location' });
     const ready = st.offerText.trim().length > 0 && !st.busy;
@@ -6190,11 +6260,8 @@
           timeField('offT', t, EV_TIMES, 'Time', (v) => setState({ offerText: d ? d + (v ? 'T' + v : '') : '', timeOpen: null })) + '</div>' +
         // room for the open calendar or time list, so the pop-up grows instead of scrolling inside itself
         (st.dateOpen === 'Date' ? '<div aria-hidden="true" style="height:330px"></div>' : st.timeOpen === 'offT' ? '<div aria-hidden="true" style="height:236px"></div>' : '');
-    } else if (kind === 'spot') {
-      field = placeField('offer', { placeholder: copy.ph, style: FIELD });
     } else {
-      field = '<textarea class="fld" rows="' + 2 + '" maxlength="' + 80 + '" aria-label="' + esc(copy.title) + '" placeholder="' + esc(copy.ph) + '" ' + onInput(e => setState({ offerText: e.target.value })) +
-        ' style="width:100%;display:block;background:#fff;border:2px solid #e6e7eb;border-radius:16px;padding:14px 16px;font-size:16px;line-height:1.4;font-weight:600;color:#0d1117;resize:none;outline:none">' + esc(st.offerText) + '</textarea>';
+      field = placeField('offer', { placeholder: copy.ph, style: FIELD });
     }
     return modal(copy.title, close,
       h3Html(copy.title) + '<p style="margin:0;font-size:14.5px;line-height:1.45;font-weight:500;color:#6b7280">' + copy.hint + '</p>' + field +
@@ -6353,6 +6420,38 @@
   }
 
   // Delete {Name}?: type DELETE to confirm (owners)
+  // Delete your own account (owner, 2026-10-02): the same typed DELETE as a group. delete_my_account() refuses while
+  // you're the only owner of a group other people are in.
+  const deleteAccount = async () => {
+    if ((state.acctDel || '').trim() !== 'DELETE' || state.busy) return;
+    if (state.viewAs) { toast('You’re viewing as ' + firstName(state.viewAs.name) + ', so nothing changes. Exit to make changes.'); return; }
+    setState({ busy: 'save' });
+    try {
+      await ensureSession();
+      await forgetPush().catch(() => {});
+      must(await sb.rpc('delete_my_account'));
+      setState({ busy: null, acctDel: null, profSheet: false });
+      await signOut();
+      toast('Your account is deleted', true);
+    } catch (e) {
+      console.error(e);
+      const m = /only owner of: (.+)$/.exec(e.message || '');
+      setState({ busy: null, acctDel: m ? null : state.acctDel });
+      toast(m ? 'You’re the only owner of ' + m[1] + '. Make someone else an owner first (Edit group → Members), or delete the group.' : failed(e));
+    }
+  };
+  function viewDeleteAccount() {
+    const st = state, close = () => setState({ acctDel: null }), ok = st.acctDel.trim() === 'DELETE' && !st.busy;
+    return modal('Delete account', close,
+      h3Html('Delete your account?') +
+      paraHtml('This removes ' + esc(st.email) + ' from Spark Hub: your groups, replies, sign-ups and friends. Events you lead pass to a co-lead, or are deleted if there isn’t one. It can’t be undone.') +
+      '<label style="display:flex;flex-direction:column;gap:6px"><span style="' + LABEL + '">Type <strong style="font-weight:900;color:#9b1c31">DELETE</strong> to confirm</span>' +
+        '<input class="fld fld-danger" type="text" autocomplete="off" autocapitalize="characters" aria-label="Type DELETE to confirm" placeholder="DELETE" value="' + esc(st.acctDel) + '" ' +
+          onInput(e => { const v = e.target.value.toUpperCase().slice(0, 12); if (e.target.value !== v) e.target.value = v; setState({ acctDel: v }); }) + ' style="' + FIELD + ';font-weight:800;letter-spacing:1px"></label>' +
+      '<button type="button" data-enter ' + on(deleteAccount) + ' aria-disabled="' + !ok + '" style="' + primary(ok) + ';box-shadow:none;background:' + (ok ? '#9b1c31' : '#b9bcc4') + '">' + (st.busy === 'save' ? 'Deleting…' : 'Delete my account') + '</button>' +
+      '<button type="button" class="hov-outline" ' + on(close) + ' style="' + SECONDARY + '">Keep it</button>',
+      { z: 60 });
+  }
   function viewDeleteGroup() {
     const st = state, g = groupById(st.gpId), close = () => setState({ gpDel: null });
     if (!g || g.role !== 'owner') return '';
@@ -6575,6 +6674,7 @@
       (st.email && st.person ? viewPerson() : '') +
       (st.frAdd ? viewFrAdd() : '') +
       (st.gpDel != null && s === 'groupPage' ? viewDeleteGroup() : '') +
+      (st.acctDel != null && st.email ? viewDeleteAccount() : '') +
       (st.invite ? viewInvite() : '') +
       (st.sec && subj ? viewSecSheet() : '') +
       (st.ph ? viewPositioner() : '') +   // above Edit event, which can open it
@@ -6790,6 +6890,7 @@
       if (state.shiftPick) return setState({ shiftPick: null });
       if (state.startName != null) return setState({ startName: null });
       if (state.blast) return setState({ blast: null });
+      if (state.acctDel != null) return setState({ acctDel: null });
       if (state.gpDel != null) return setState({ gpDel: null });
       if (state.gpRename != null) return setState({ gpRename: null });
       if (state.nSettings) return setState({ nSettings: false });
@@ -7113,6 +7214,10 @@
     const k = keptCompose(bootUser.id);
     if (k) {
       Object.assign(state, blankCompose(), draftState({ id: k.evDraftId, data: k }), { screen: 'compose', evFrom: ORIGINS.indexOf(k.evFrom) > -1 ? k.evFrom : null });
+      try {
+        const u = sessionStorage.getItem(COMPOSE_PHOTO);
+        if (u) { keptBlob = dataUrlToBlob(u); state.photos = [{ blob: keptBlob, url: URL.createObjectURL(keptBlob) }]; }
+      } catch (e) { /* the photo didn't survive: they pick it again */ }
       history.replaceState(null, '', location.pathname + location.search + '#/new');
     }
   }

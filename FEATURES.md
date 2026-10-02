@@ -213,6 +213,10 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 136 | **A plan going back to an idea keeps its Maybes**: Going and Maybe both become interested and get the note (Turn it back into an idea, or the lead stepping back) | Test | `clear_plan()`, `step_back()`, `20261102000000_review_fixes.sql` |
 | 137 | **A friend's profile opens with a tap**; a round tick on the face picks friends to invite together (long-press still works) | Test | Owner, 2026-10-02 |
 | 138 | **Page not found** (`404.html`): *This page isn't here* with **Go to Spark Hub**, for a mistyped or old address | Live | |
+| 139 | **Delete my account** (Profile, under Sign out; owner 2026-10-02): a typed DELETE; events you lead pass to a co-lead or are deleted; refused while you're the only owner of a group other people are in | Test | `delete_my_account()`, `20261102010000_my_account_and_cover.sql`; not for owner accounts |
+| 140 | **Remove a cover photo**: *Remove* beside Adjust / Replace in Edit event; the event shows its group's photo | Test | `remove_idea_cover()` |
+| 141 | **Taps that show at once**: Interested, I could help, job sign-ups and shift picks, reactions, friend requests and deleting a draft change on the tap and save behind it (RSVP and votes already did) | Test | `quick()` in sparks.js; `html[data-saving]` while a save is on its way |
+| 142 | **Google sign-in finishes the tap** that asked for an account (Interested, a vote, a job, a shift, I'll lead, Suggest) | Test | `noteTap()` / `replayTap()` |
 
 ## Removed in this rebuild
 

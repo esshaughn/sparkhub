@@ -238,6 +238,7 @@ test('v6 update 2: the Past scrapbook and reactions', async ({ browser }) => {
     await done.getByRole('button', { name: 'Say thanks, 0' }).click();
     await expect(done.getByRole('button', { name: 'Say thanks, 1' })).toHaveAttribute('aria-pressed', 'true');
     await expect(done).toContainText('Thanks from Hal');
+    await expect(O.locator('html[data-saving]')).toHaveCount(0);   // the tap shows at once; wait for it to be saved before Hope looks
     await openIdea(H, id);
     await expect(H.locator('[data-screen-label="It happened"]')).toContainText('Thanks from Hal');
   } finally {

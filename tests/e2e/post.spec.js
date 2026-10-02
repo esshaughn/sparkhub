@@ -49,6 +49,7 @@ test('post an event with every step filled, then edit it in the pop-ups and dele
     await expect(sec.locator('[data-edit-photo]')).toBeVisible();
     await expect(sec.getByRole('switch', { name: 'Tell everyone going' })).toHaveCount(0);   // a new title saves quietly
     await expect(sec.getByLabel(/^(Replace the|Add a) cover photo$/)).toHaveCount(1);
+    await expect(sec.getByRole('button', { name: 'Remove the cover photo' })).toBeVisible();   // the cover can come off (owner, 2026-10-02)
     await sec.getByLabel('Event title').fill(title + ' + stars');
     await sec.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(sec).toHaveCount(0);

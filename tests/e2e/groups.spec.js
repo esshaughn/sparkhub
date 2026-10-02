@@ -116,10 +116,10 @@ test('a group end to end: edit group, cover, rename, invite, pin, admin edits, r
     ideaId = await postIdea(B, { title: uniqueTitle('Tempo run') });
     await openIdea(A, ideaId);
     const detail = A.locator('[data-screen-label="Idea page"]');
-    await detail.getByRole('button', { name: 'Edit event' }).click();   // an admin gets the round pencil too (the title only)
-    const sec = A.getByRole('dialog', { name: 'Edit event' });
+    await detail.getByRole('button', { name: 'Edit idea' }).click();   // an admin gets the round pencil too (the title only); an idea's pop-up says idea
+    const sec = A.getByRole('dialog', { name: 'Edit idea' });
     await expect(sec.locator('[data-edit-photo]')).toHaveCount(0);               // only the lead changes the photo
-    await sec.getByLabel('Event title').fill('[E2E] Tempo run, moved indoors');
+    await sec.getByLabel('Idea title').fill('[E2E] Tempo run, moved indoors');
     await sec.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(detail).toContainText('moved indoors');
     await expect(detail.locator('[data-led-by]')).toContainText('Bo');
