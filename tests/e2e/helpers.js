@@ -234,18 +234,18 @@ async function openIdea(page, id) {
 
 // Start an event with the 5-step Create event flow (v6 Update 6). Anything left out is decided later.
 // Returns its id.
-async function postEvent(page, { title, date, time, where, pick, details = [], jobs = [], inviteOnly = false, photo = false, test = false }) {
+async function postEvent(page, { title, date, time, where, pick, details = [], jobs = [], inviteOnly = false, photo = false, test = false, float = false }) {
   await startPost(page);
   const flow = page.locator('[data-screen-label="New spark"]');
   const next = () => flow.getByRole('button', { name: /^(Next|Review)$/ }).click();
   const later = () => flow.getByText('Decide later', { exact: true }).click();
   await pickKind(page, test);
-  await expect(flow).toContainText('1 of 5');
+  await expect(flow).toContainText('1 of 6');
   await flow.getByLabel('Event title').fill(title);
   if (photo) await flow.getByLabel('Upload a cover photo').setInputFiles({ name: 'photo.png', mimeType: 'image/png', buffer: PNG });
   await next();
 
-  await expect(flow).toContainText('2 of 5');
+  await expect(flow).toContainText('2 of 6');
   if (date) {
     await pickDate(flow, date);
     if (time) {
@@ -255,20 +255,20 @@ async function postEvent(page, { title, date, time, where, pick, details = [], j
     await next();
   } else await later();
 
-  await expect(flow).toContainText('3 of 5');
+  await expect(flow).toContainText('3 of 6');
   if (where) {
     await flow.getByLabel('Location').fill(where);
     if (pick) await page.getByRole('group', { name: 'Suggested places' }).getByRole('button', { name: new RegExp(pick) }).click();
     await next();
   } else await later();
 
-  await expect(flow).toContainText('4 of 5');
+  await expect(flow).toContainText('4 of 6');
   if (details.length) {
     for (let i = 0; i < details.length; i++) await flow.getByLabel('Details, line ' + (i + 1)).fill(details[i]);
     await next();
   } else await later();
 
-  await expect(flow).toContainText('5 of 5');
+  await expect(flow).toContainText('5 of 6');
   if (jobs.length) {
     for (const j of jobs) {
       await flow.getByRole('button', { name: /Something else$/ }).click();
@@ -279,6 +279,11 @@ async function postEvent(page, { title, date, time, where, pick, details = [], j
     }
     await next();
   } else await later();
+
+  // Who's leading it? (the last step; leading it yourself is already picked)
+  await expect(flow).toContainText('6 of 6');
+  if (float) await flow.getByRole('button', { name: /^Just float the idea/ }).click();
+  await flow.getByRole('button', { name: 'Review' }).click();
 
   await expect(flow).toContainText('LOOKS GOOD');
   if (inviteOnly) await flow.getByRole('radio', { name: /^Private/ }).click();

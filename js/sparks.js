@@ -175,7 +175,7 @@
     evDate: '', evTime: '', evEnd: '', evEndOn: false, timeOpen: null, dateOpen: null, calMonth: null,
     locText: '', locPlace: null, locSuggest: [],
     evBits: ['', '', ''], evNeed: null, evTags: [], evNeeds: [], evDatePoll: null, evSpotPoll: null, evLater: {},
-    evPriv: false, evNoGuestInv: true, evTest: null, evKindAsk: false, evFloat: false, evLeadPick: false, evPop: null, evGroups: null, evDraftId: null, evLeave: false, evLeaveTo: null, evFrom: null, pollSheet: null, needSheet: null, evFromReview: false
+    evPriv: false, evNoGuestInv: true, evTest: null, evKindAsk: false, evFloat: false, evPop: null, evGroups: null, evDraftId: null, evLeave: false, evLeaveTo: null, evFrom: null, pollSheet: null, needSheet: null, evFromReview: false
   });
   const state = Object.assign({
     screen: 'calendar', menu: null, subjectId: null, gpId: null, zoom: null, membersOpen: null, membersList: null,
@@ -2498,10 +2498,10 @@
       '<div class="host-card" style="background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 1px 2px rgba(15,18,25,.06)">' + rows.join('') + '</div></section>' : '';
     const ev = (s, line, ink, dim) => hostRow(hostThumb(photoBg(s), dim), s.text, line, ink, () => openSpark(s), 'data-host="' + esc(s.text) + '" aria-label="' + esc(s.text) + '"', s);
     const body = sec('Drafts', drafts.map(d => {
-        const x = draftState(d), j = x.evStep === 'review' ? 5 : Math.max(0, EV_STEPS.indexOf(x.evStep)), t = cleanTitle(x.activity) || 'Untitled event';
+        const x = draftState(d), j = x.evStep === 'review' ? EV_STEPS.length : Math.max(0, EV_STEPS.indexOf(x.evStep)), t = cleanTitle(x.activity) || 'Untitled event';
         const thumb = x.evPhotoPath ? hostThumb('#2b303a ' + bg(photoUrl(x.evPhotoPath)), true)
           : '<span aria-hidden="true" style="flex:0 0 40px;width:40px;height:40px;border-radius:10px;background:#f4f5f7;display:flex;align-items:center;justify-content:center">' + svg(16, stroke('#9aa0ac', 2.2), IMG_IC) + '</span>';
-        return hostRow(thumb, t, j + ' of 5 steps', null, () => resumeDraft(d), 'data-host-draft="' + esc(t) + '" aria-label="Draft: ' + esc(t) + '"');
+        return hostRow(thumb, t, j + ' of ' + EV_STEPS.length + ' steps', null, () => resumeDraft(d), 'data-host-draft="' + esc(t) + '" aria-label="Draft: ' + esc(t) + '"');
       })) +
       sec('Ideas', ideas.map(s => { const l = ideaLine(s); return ev(s, l[0], l[1]); })) +
       sec('Planning', plans.map(s => ev(s, s.dayDate ? fmtDay(s.dayDate) : 'Date to be decided'))) +
@@ -5710,8 +5710,8 @@
   });
   const clock = (v) => { if (!v) return ''; const [h, m] = v.split(':').map(Number); return (h % 12 || 12) + ':' + pad2(m) + (h < 12 ? 'am' : 'pm'); };
   const EV_TIMES = TIME_OPTS.map(o => o[0]).filter(v => v >= '06:00');   // every 30 min, 6:00am–11:30pm
-  const EV_STEPS = ['title', 'when', 'where', 'details', 'help'];
-  const EV_NAMES = { title: 'Event title', when: 'Date & time', where: 'Location', details: 'Details', help: 'How people can help', review: 'Review' };
+  const EV_STEPS = ['title', 'when', 'where', 'details', 'help', 'lead'];   // Who's leading it? is the last decision (owner, 2026-10-02)
+  const EV_NAMES = { title: 'Event title', when: 'Date & time', where: 'Location', details: 'Details', help: 'How people can help', lead: 'Who’s leading it?', review: 'Review' };
   const BIT_PH = ['e.g. Meet by the front desk', 'e.g. Coffee and donuts at 9:30', 'e.g. Kids and dogs welcome'];
   const EV_GRAD = 'linear-gradient(135deg,#5b4ae8,#8a6ff0 55%,#e8a71c)';
   const AMBER_INK = '#8f6405';
@@ -5735,7 +5735,7 @@
   const basicsOf = (s) => s.hopes.length ? s.hopes.map(x => String(x || '').trim()).filter(Boolean) : splitBits([s.vision]);   // a line is never split at its sentences (owner, 2026-10-01)
   const evPhotoUrl = (st) => st.photos[0] ? st.photos[0].url : (PHOTO_PATH.test(st.evPhotoPath || '') ? photoUrl(st.evPhotoPath) : null);
   const evFilled = (st) => ({ title: !!cleanTitle(st.activity) && st.evTest != null, when: !!st.evDate || !!st.evDatePoll, where: !!cleanTitle(st.locText) || !!st.evSpotPoll,
-    details: st.evBits.some(b => b.trim()) || (!st.evDate && st.evNeed > 0), help: st.evNeeds.length > 0 });
+    details: st.evBits.some(b => b.trim()) || (!st.evDate && st.evNeed > 0), help: st.evNeeds.length > 0, lead: true });   // leading it is already picked
   // "Sat, Oct 24 · 10am", "Sat, Oct 24 · 10am – 12pm"
   const dayLabel = (d, t, e) => d ? fmtDay(d) + (t ? ' · ' + (e ? spanTime({ time: t, endTime: e }) : fmtTime(t)) : '') : '';
   const jobMeta = (j) => j.shifts ? j.shifts.length + (j.shifts.length === 1 ? ' shift' : ' shifts')
@@ -5818,30 +5818,30 @@
   }
   // Who's leading it? (owner, 2026-10-02): opened from Review's Lead card. Leading it yourself is the big lavender
   // option and the one already chosen; floating the idea is the plain, smaller one under it
-  function viewLeadPick() {
-    const st = state, close = () => setState({ evLeadPick: false });
-    const pick = (float) => setState({ evFloat: float, evLeadPick: false });
-    return modal('Who’s leading it?', close,
-      h3Html('Who’s leading it?') + paraHtml('Every event needs a lead: the person who picks the date and place and keeps it moving. It doesn’t all land on you. You can add co-leads, and jobs people sign up for.') +
-      '<div data-ev-leads style="display:flex;flex-direction:column;gap:10px">' +
+  // Who's leading it? (owner, 2026-10-02): the last step of Create event, and Review's Lead card opens it in a pop-up.
+  // Leading it yourself is the big lavender option and the one already chosen; floating the idea is the plain, smaller
+  // one under it. In the pop-up a pick closes it
+  const LEAD_WHY = 'Every event needs a lead: the person who picks the date and place and keeps it moving. It doesn’t all land on you. You can add co-leads, and jobs people sign up for.';
+  const leadOptions = (st, pop) => {
+    const pick = (float) => setState(Object.assign({ evFloat: float }, pop ? { evPop: null } : {}));
+    return '<div data-ev-leads style="display:flex;flex-direction:column;gap:10px">' +
         '<button type="button" ' + on(() => pick(false)) + ' data-ev-lead="me" aria-pressed="' + !st.evFloat + '" style="position:relative;overflow:hidden;display:flex;align-items:center;gap:16px;width:100%;padding:18px 16px;border:0;border-radius:24px;font-family:inherit;text-align:left;cursor:pointer;background:linear-gradient(135deg,#f1edff,#e0d8ff);box-shadow:' + (st.evFloat ? 'none' : 'inset 0 0 0 2.5px #5b4ae8') + '">' +
           '<span aria-hidden="true" style="position:absolute;right:20%;top:12%;font-size:11px;color:#9d93f7">✦</span><span aria-hidden="true" style="position:absolute;right:9%;top:48%;font-size:13px;color:#7b6ef0">✦</span><span aria-hidden="true" style="position:absolute;right:38%;bottom:10%;font-size:8px;color:#b8aefc">✦</span>' +
           '<span style="position:relative;flex:0 0 54px;width:54px;height:54px;border-radius:18px;background:#5b4ae8;box-shadow:0 6px 14px rgba(91,74,232,.3);display:flex;align-items:center;justify-content:center;color:#fff">' + svg(24, stroke('currentColor', 2.2), P6.person) + '</span>' +
           '<span style="position:relative;flex:1;min-width:0"><span style="display:block;font-size:19px;font-weight:900;letter-spacing:-.3px;color:#2a1f8f">I’ll lead it</span><span style="display:block;margin-top:3px;font-size:14.5px;line-height:1.4;font-weight:600;color:#4a3ad4">The surest way it happens. You pick the date and place.</span></span></button>' +
         '<button type="button" ' + on(() => pick(true)) + ' data-ev-lead="float" aria-pressed="' + !!st.evFloat + '" style="display:block;width:100%;padding:14px 16px;border:0;border-radius:18px;font-family:inherit;text-align:left;cursor:pointer;background:#fff;box-shadow:inset 0 0 0 ' + (st.evFloat ? '2.5px #5b4ae8' : '1.5px #dcdfe6') + '">' +
           '<span style="display:block;font-size:15.5px;font-weight:800;color:#0d1117">Just float the idea</span><span style="display:block;margin-top:2px;font-size:13.5px;line-height:1.4;font-weight:500;color:#6b7280">It goes up without a lead, and no one gets notified. It can’t become a plan until someone in your groups takes it on.</span></button>' +
-      '</div>', { z: 60 });
-  }
+      '</div>';
+  };
   // The phone's Back (or the browser's) inside the post flow: close the open sheet, else go back a step,
   // else ask about a draft. False only when there's nothing to lose, so the flow can close.
   const composeBack = () => {
     const st = state;
     if (st.busy) return true;
     if (st.evKindAsk) { setState({ evKindAsk: false }); return true; }
-    if (st.evLeadPick) { setState({ evLeadPick: false }); return true; }
     if (st.pollSheet || st.needSheet || st.evLeave || st.timeOpen || st.dateOpen) { setState({ pollSheet: null, needSheet: null, evLeave: false, evLeaveTo: null, timeOpen: null, dateOpen: null }); return true; }
     if (st.evPop) { if (st.evPop !== 'title' || cleanTitle(st.activity)) setState({ evPop: null }); else toast('Add a title first'); return true; }
-    if (st.evStep === 'review') { evGo('help'); return true; }
+    if (st.evStep === 'review') { evGo(EV_STEPS[EV_STEPS.length - 1]); return true; }
     if (st.evFromReview) { evGo('review', { evFromReview: false }); return true; }
     const i = EV_STEPS.indexOf(st.evStep);
     if (i > 0) { evGo(EV_STEPS[i - 1]); return true; }
@@ -6006,7 +6006,7 @@
     }).catch(e => { console.error(e); setState({ drafts }); toast(failed(e)); });
   };
   const agoSaved = (t) => { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? 'Saved just now' : m < 60 ? 'Saved ' + m + ' min ago' : m < 1440 ? 'Saved ' + Math.round(m / 60) + 'h ago' : 'Saved ' + Math.round(m / 1440) + 'd ago'; };
-  const draftStep = (x) => x.evStep === 'review' ? 5 : Math.max(0, EV_STEPS.indexOf(x.evStep));
+  const draftStep = (x) => x.evStep === 'review' ? EV_STEPS.length : Math.max(0, EV_STEPS.indexOf(x.evStep));
   const draftCover = (x) => x.evPhotoPath ? '#2b303a ' + bg(photoUrl(x.evPhotoPath)) : EV_GRAD;
   // A draft as a card in Your tasks' Leading row (owner, 2026-10-01): the cover (or the post flow's gradient) with the
   // title and DRAFT · saved time, then the 5-step bar, Up next and Continue; a tap anywhere picks it up, the trash deletes it
@@ -6032,7 +6032,7 @@
     return '<div ' + on(() => { setState({ dashAll: null }); resumeDraft(d); }) + ' data-draft-all="' + esc(x.activity) + '" aria-label="Draft: ' + esc(t) + '" style="display:flex;align-items:center;gap:12px;padding:12px;background:#fff;border-radius:16px;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
       '<span aria-hidden="true" style="flex:0 0 40px;width:40px;height:40px;border-radius:10px;background:' + draftCover(x) + '"></span>' +
       '<div style="flex:1;min-width:0"><div style="font-size:15px;line-height:1.25;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(t) + '</div>' +
-        '<div style="margin-top:2px;font-size:12.5px;font-weight:600;color:' + R6.lead.ink + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Draft · ' + draftStep(x) + ' of 5 steps · Up next: ' + esc(EV_NAMES[x.evStep] || 'Event title') + '</div></div>' +
+        '<div style="margin-top:2px;font-size:12.5px;font-weight:600;color:' + R6.lead.ink + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Draft · ' + draftStep(x) + ' of ' + EV_STEPS.length + ' steps · Up next: ' + esc(EV_NAMES[x.evStep] || 'Event title') + '</div></div>' +
       I.chevR(14, '#b9bcc4', 2.6) + '</div>';
   };
 
@@ -6143,7 +6143,7 @@
         (step === 'kind' ? '<span aria-hidden="true" style="position:absolute;left:0;right:0;top:0;height:9px;background:repeating-linear-gradient(135deg,#f5b729 0 10px,#3d2a00 10px 20px)"></span>' : '') +
         '<div style="display:flex;align-items:center;gap:10px"><span style="flex:0 0 20px;display:flex;color:' + (has ? '#0f7a3c' : '#b07a0a') + '">' + svg(18, stroke('currentColor', 2.2), icon) + '</span>' +
           '<span style="flex:1;font-size:12px;font-weight:800;letter-spacing:1.1px;text-transform:uppercase;color:#6b7280">' + label + '</span>' +
-          '<span ' + on(() => step === 'kind' ? setState({ evKindAsk: true }) : step === 'lead' ? setState({ evLeadPick: true }) : setState({ evPop: step, timeOpen: null, dateOpen: null })) + ' aria-label="Edit ' + label.toLowerCase() + '" style="font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">Edit</span></div>' +
+          '<span ' + on(() => step === 'kind' ? setState({ evKindAsk: true }) : setState({ evPop: step, timeOpen: null, dateOpen: null })) + ' aria-label="Edit ' + label.toLowerCase() + '" style="font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">Edit</span></div>' +
         '<div style="padding-left:28px">' + inner + '</div></div>';
       const main = (t, has, sub) => '<div style="font-size:15px;line-height:1.3;font-weight:800;color:' + (has ? '#0d1117' : AMBER_INK) + ';text-wrap:pretty">' + esc(t) + '</div>' +
         (sub ? '<div style="margin-top:2px;font-size:13.5px;line-height:1.35;font-weight:500;color:#6b7280">' + esc(sub) + '</div>' : '');
@@ -6160,7 +6160,7 @@
       return '<div class="overlay-screen" data-screen-label="New spark"><div style="min-height:100%;display:flex;flex-direction:column">' +
         '<div style="position:relative;flex:0 0 auto;height:210px;background:' + (url ? '#2b303a ' + bg(url) : EV_GRAD) + '">' +
           '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.9) 0%, rgba(13,17,23,.2) 60%, rgba(13,17,23,.3) 100%)"></div>' +
-          '<span ' + on(() => evGo('help')) + ' aria-label="Back" style="position:absolute;top:14px;left:14px;width:40px;height:40px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.12);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.chevL(14, '#0d1117', 2.6) + '</span>' +
+          '<span ' + on(() => evGo(EV_STEPS[EV_STEPS.length - 1])) + ' aria-label="Back" style="position:absolute;top:14px;left:14px;width:40px;height:40px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.12);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.chevL(14, '#0d1117', 2.6) + '</span>' +
           '<label style="position:absolute;top:16px;right:14px;z-index:2;display:flex;align-items:center;gap:6px;min-height:38px;padding:0 13px;border-radius:999px;background:#fff;box-shadow:0 2px 8px rgba(13,17,23,.25);font-size:13px;font-weight:800;color:#0d1117;cursor:pointer">' +
             svg(15, stroke('currentColor', 2.2), CAMERA) + (url ? 'Change photo' : 'Add a cover photo') + photoInput('Cover photo') + '</label>' +
           '<div style="position:absolute;left:18px;right:18px;bottom:14px;color:#fff"><div style="font-size:12px;font-weight:900;letter-spacing:1px;color:#e4dfff">LOOKS GOOD</div>' +
@@ -6231,7 +6231,7 @@
           (i > 0 && !ok ? '<div style="display:flex;justify-content:center;padding-bottom:4px"><span ' + on(skip) + ' data-later style="display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 14px;border-radius:999px;color:#6b7280;font-size:14.5px;font-weight:700;cursor:pointer">Decide later' + I.chevR(13, 'currentColor', 2.8) + '</span></div>' : '') +
           '<div style="display:flex;gap:8px">' +
             (i > 0 && !back ? '<button type="button" ' + on(() => evGo(EV_STEPS[i - 1])) + ' style="flex:0 0 auto;min-height:54px;padding:0 22px;background:transparent;border:2px solid #c9ccd3;border-radius:999px;font-family:inherit;font-size:16px;font-weight:800;color:#0d1117;cursor:pointer">Back</button>' : '') +
-            '<button type="button" data-enter ' + on(next) + ' aria-disabled="' + !ok + '" style="flex:1 1 auto;min-width:0;min-height:54px;border:0;border-radius:999px;background:' + (ok ? '#5b4ae8' : '#d5d8df') + ';color:#fff;font-family:inherit;font-size:16.5px;font-weight:800;cursor:' + (ok ? 'pointer' : 'default') + '">' + (back ? 'Back to review' : cur === 'help' ? 'Review' : 'Next') + '</button>' +
+            '<button type="button" data-enter ' + on(next) + ' aria-disabled="' + !ok + '" style="flex:1 1 auto;min-width:0;min-height:54px;border:0;border-radius:999px;background:' + (ok ? '#5b4ae8' : '#d5d8df') + ';color:#fff;font-family:inherit;font-size:16.5px;font-weight:800;cursor:' + (ok ? 'pointer' : 'default') + '">' + (back ? 'Back to review' : cur === EV_STEPS[EV_STEPS.length - 1] ? 'Review' : 'Next') + '</button>' +
           '</div></div>' +
       '</div></div></div>';
   }
@@ -6301,6 +6301,8 @@
         '<div style="padding:10px 16px 0;display:flex;flex-wrap:wrap;gap:10px">' +
           [['Bring', 'Bring '], ['Set up', 'Set up '], ['Help with', 'Help with '], ['Clean up', 'Clean up '], ['Coordinate', 'Coordinate ']].map(([l, p]) => chip(l, () => openJob(null, blankJob(p)))).join('') +
           chip('Something else', () => openJob(null, blankJob('')), true) + '</div>';
+    } else if (cur === 'lead') {
+      body = head('Who’s leading it?', LEAD_WHY) + pad(leadOptions(st, pop));
     }
     return body;
   }
@@ -6934,7 +6936,6 @@
       (st.banner ? viewBanner() : '') +
       (s === 'compose' ? viewCompose() : '') +
       (s === 'compose' && (st.evTest == null || st.evKindAsk) && !st.evLeave && !st.loginStep ? viewKindAsk() : '') +
-      (s === 'compose' && st.evLeadPick && !st.evLeave && !st.loginStep ? viewLeadPick() : '') +
       (s === 'compose' && st.evPop && st.evStep === 'review' && !st.evLeave && !st.loginStep ? viewEvPop() : '') +   // under the poll and job sheets it opens
       (s === 'compose' && st.email ? viewComposeSheets() : st.pollSheet && st.pollSheet.sparkId ? viewComposeSheets() : '') +
       (st.offerKind && subj ? viewOffer(subj) : '') +
