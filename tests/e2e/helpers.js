@@ -117,8 +117,8 @@ async function newLead(browser, n, name, path) {
   const password = process.env.E2E_LEAD_PASSWORD;
   if (!password) throw new Error('E2E_LEAD_PASSWORD is not set (tests/.env locally, a repo secret on CI)');
   // Sign in from Node and hand the browser the session, so the app loads once, already signed in and in
-  // Torrez Fitness. Signing in inside the page took three full loads and an anonymous account per lead,
-  // about a third of a full run's requests to the TEST project (2026-10-02).
+  // Torrez Fitness. Signing in inside the page took three full loads (~24 requests each) and an anonymous
+  // account per lead: about a quarter of a full run's requests to the TEST project (2026-10-02).
   let session;
   try {
     session = await api('POST', '/auth/v1/token?grant_type=password', null, { email: leadEmail(n), password });
