@@ -250,7 +250,11 @@ test('Help out: descriptions, time ranges and Pick a shift', async ({ browser })
     await expect(coat).toContainText('You’re in');
     await O.locator('[data-helping-bar]').click();
     await expect(OP.locator('[data-screen-label="You’re helping"]')).toContainText('6:00 – 7:00pm, 7:00 – 8:00pm');
-    const notes = await asUser(O, async (c) => (await c.from('signup_claims').select('note').eq('note', 'Can bring hangers')).data.length);
+    // Only this event's claims (a stray [E2E] Coat drive from an interrupted run would count too)
+    const notes = await asUser(O, async (c, _C, id) => {
+      const items = (await c.from('signup_items').select('id').eq('spark_id', id)).data.map(r => r.id);
+      return (await c.from('signup_claims').select('note').eq('note', 'Can bring hangers').in('item_id', items)).data.length;
+    }, id);
     expect(notes).toBe(2);
     // The host sees each shift with the note
     await H.reload();
