@@ -49,8 +49,8 @@ test('friends: request, accept, invite to an event, remove, and the friend link'
     await nav(A).getByRole('button', { name: 'Groups', exact: true }).click();
     const aPeople = A.locator('[data-screen-label=Groups]');
     await aPeople.getByRole('tab', { name: /^Friends/ }).click();
-    await aPeople.getByRole('button', { name: 'Gus Friendly', exact: true }).click();
-    await expect(aPeople.getByRole('button', { name: 'Gus Friendly', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await aPeople.getByRole('checkbox', { name: 'Invite Gus Friendly' }).click();   // the round tick picks; a tap on the friend opens their profile (owner, 2026-10-02)
+    await expect(aPeople.getByRole('checkbox', { name: 'Invite Gus Friendly' })).toBeChecked();
     await aPeople.locator('[data-invite-bar]').getByText('Invite Gus to…').click();
     const pick = A.getByRole('dialog', { name: 'Invite friends' });
     await expect(pick).toContainText('Invite Gus');
@@ -58,7 +58,7 @@ test('friends: request, accept, invite to an event, remove, and the friend link'
     await expect(A.getByText('Invited Gus to ' + title + '.')).toBeVisible();
     await expect(aPeople.locator('[data-invite-bar]')).toHaveCount(0);
     // Inviting again skips them quietly
-    await aPeople.getByRole('button', { name: 'Gus Friendly', exact: true }).click();
+    await aPeople.getByRole('checkbox', { name: 'Invite Gus Friendly' }).click();
     await aPeople.locator('[data-invite-bar]').getByText('Invite Gus to…').click();
     await A.getByRole('dialog', { name: 'Invite friends' }).locator('[data-invite-event="' + title + '"]').click();
     await expect(A.getByText('Gus was already invited.')).toBeVisible();
@@ -70,9 +70,9 @@ test('friends: request, accept, invite to an event, remove, and the friend link'
     await expect(bell.locator('[data-notif=invited]').first()).toContainText('Fay Friendly invited you to ' + title);
     await bell.getByRole('button', { name: 'Close' }).click();
 
-    // B long-presses (right-click here) Fay: the short profile, Remove friend
+    // B taps Fay: the short profile, Remove friend
     await B.locator('[data-screen-label=Groups]').getByRole('tab', { name: /^Friends/ }).click();
-    await B.locator('[data-screen-label=Groups]').getByRole('button', { name: 'Fay Friendly', exact: true }).click({ button: 'right' });
+    await B.locator('[data-screen-label=Groups]').getByRole('button', { name: 'Fay Friendly', exact: true }).click();
     const prof = B.getByRole('dialog', { name: 'Fay Friendly' });
     await expect(prof).toContainText('Friends since');
     await prof.getByRole('button', { name: 'Remove friend' }).click();

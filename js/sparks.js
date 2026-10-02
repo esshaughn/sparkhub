@@ -202,7 +202,7 @@
     notif: { allReadAt: 0, read: [], topics: {}, email: true, loaded: false }, nFilter: 'all', nSettings: false, demoAdmin: false, back: null, myPlace: '', myBio: '', memberSince: null, ownGrp: null, sizes: {}, membersQ: '', gpRename: null, gpDel: null, ph: null,
     startName: null, phaseTab: 'plan', sigDraft: '', sigNeed: '', sigTime: '', blast: null, invite: null,
     pe: null, confirm: null, interestList: false, thanksList: false, guestList: null, cohostPick: null, leadsSheet: null, takeDown: null, albumEdit: null,
-    gpCode: '', gpMembers: null,
+    gpCode: '', gpMembers: null, gpFail: false,
     // v6 Update 13: Your people (Groups · Friends), friend requests, the friend link, inviting friends
     fr: { friends: [], incoming: [], outgoing: [], invites: [], loaded: false }, pplTab: 'groups', pplSearch: false, pplQ: '', pplAdd: false, frSel: [], frInvite: false,
     frProfile: null, frAdd: null, myFriendCode: null, person: null,
@@ -831,12 +831,12 @@
     setState({ membersList: list, gpMembers: list.length });
   };
   const openGroupPage = async (id, quiet, from) => {
-    if (!quiet) go('groupPage', { gpId: id, gpCode: '', gpMembers: null, membersList: null, gpRename: null, gpFrom: from || 'groups' });
+    if (!quiet) go('groupPage', { gpId: id, gpCode: '', gpMembers: null, membersList: null, gpRename: null, gpFail: false, gpFrom: from || 'groups' });
     try {
-      const code = await sb.rpc('group_code', { p_group: id });
-      setState({ gpCode: code.data || '' });
+      const code = must(await sb.rpc('group_code', { p_group: id }));
+      setState({ gpCode: code.data || '', gpFail: false });
       await loadMembers(id);
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error(e); if (state.gpId === id) setState({ gpFail: true }); }
   };
   const closeGroupPage = () => {
     const g = groupById(state.gpId);
@@ -1358,10 +1358,6 @@
   // Who came (20261101090000): once the host has checked anyone in, the count is who came, not who said yes
   const checkedIn = (s) => s.rsvps.some(r => r.attended !== null);
   const cameCount = (s) => checkedIn(s) ? s.rsvps.filter(r => r.attended).length : going(s).length;
-  const markCame = (s, u, came) => {
-    patchSpark(s.id, { rsvps: s.rsvps.map(r => r.userId === u ? Object.assign({}, r, { attended: came }) : r) });
-    run(async () => { must(await sb.rpc('mark_attended', { p_spark: s.id, p_user: u, p_came: came })); });
-  };
   const whenLong = (s) => s.dayDate ? fmtDay(s.dayDate) + (s.dayTime ? ' at ' + fmtTime(s.dayTime) : '') : '';
 
   // Change one event in place (for instant feedback before the next load replaces it)
@@ -1380,7 +1376,6 @@
       // Going to a dated event: the toast becomes a banner with Add to calendar, so the reminder is set while they're committing
       if (next === 'going' && s.dayDate && !s.cancelledAt) showBanner({ kind: 'going', id: s.id }, 5000);
       else if (note) toast(dropJobs ? 'Thanks for letting ' + lead + ' know. You’re off the list too.' : note, true);
-      if (next === 'going' || next === 'maybe') askGuestToJoin(s);
       const mine = ++rsvpQueued;
       rsvpChain = rsvpChain.then(async () => {
         try {
@@ -1389,9 +1384,11 @@
           if (!next) must(await sb.from('rsvps').delete().eq('spark_id', s.id).eq('user_id', state.me));
           else must(await sb.from('rsvps').upsert({ spark_id: s.id, user_id: state.me, status: next }, { onConflict: 'spark_id,user_id' }));
           if (dropJobs) must(await sb.from('signup_claims').delete().in('item_id', jobs.map(it => it.id)).eq('user_id', state.me));
+          if (next === 'going' || next === 'maybe') askGuestToJoin(s);   // only once it's saved (it used to say "You're on the list" over a failed save)
         } catch (e) {
           console.error(e);
           patchSpark(s.id, { rsvps: before });
+          if (state.banner && state.banner.kind === 'going' && state.banner.id === s.id) setState({ banner: null });
           toast(failed(e));
         }
         if (mine === rsvpQueued) loadFresh().catch(e => console.error(e));
@@ -1439,9 +1436,9 @@
       run: () => run(async () => { must(await sb.rpc('make_plan', { p_spark: s.id })); }, { confirm: null }) } });
   };
   const clearPlan = (s) => {
-    const n = going(s).length;
+    const n = s.rsvps.filter(r => r.status !== 'no' && r.userId !== s.leadId && s.cohosts.indexOf(r.userId) < 0).length;
     setState({ confirm: { title: 'Turn it back into an idea?', danger: true, cta: 'Back to an idea', keep: 'Keep the plan',
-      body: 'The date comes off and it goes back to being an idea.' + (n ? (n === 1 ? ' The 1 person going shows as interested again and gets a note.' : ' The ' + n + ' people going show as interested again and get a note.') : ''),
+      body: 'The date comes off and it goes back to being an idea.' + (n ? (n === 1 ? ' The 1 person who said Going or Maybe shows as interested again and gets a note.' : ' The ' + n + ' people who said Going or Maybe show as interested again and get a note.') : ''),
       run: () => run(async () => { must(await sb.rpc('clear_plan', { p_spark: s.id })); }, { confirm: null, sec: null }) } });
   };
 
@@ -1525,10 +1522,6 @@
       if (add.length) onItBanner(s, { items: add, back: drop, note, was });   // Undo takes back only this change: the new shifts go, dropped ones return
       else if (drop.length) offIt(s, job, { items: drop, note: (job.shifts.map(u => u.claims.find(x => x.userId === state.me)).find(Boolean) || {}).note || null });
     });
-  };
-  const saveClaimNote = (it, note) => {
-    sb.from('signup_claims').update({ note: note.slice(0, 60) || null }).eq('item_id', it.id).eq('user_id', state.me)
-      .then(r => { if (r.error) throw r.error; }).catch(e => { console.error(e); toast(failed(e)); });
   };
   const removeSignup = (s, it) => {
     const n = new Set(it.claims.map(c => c.userId).filter(u => u !== state.me)).size;
@@ -1850,10 +1843,11 @@
 
   // What to do once signed in, by where sign-in started
   const resumeAfter = (r) => {
-    if (r.from === 'post') return () => createEvent();
+    if (r.from === 'post') return () => { if (cleanTitle(state.activity)) createEvent(); else if (state.screen !== 'compose') goCompose(); };
     if (r.from === 'join') return () => setState({ joinOpen: true, joinCode: r.joinCode || '', joinBad: false });
     if (r.from === 'invite') return () => { if (!state.inv) startInvite(r.joinCode, 'joining'); inviteJoin(); };
     if (r.from === 'profile') return () => go('calendar', { profSheet: true });
+    if (r.from === 'account' || r.from === 'guest') return () => toast('You’re signed in. Tap it again to finish.', true);
     return null;
   };
 
@@ -1925,8 +1919,15 @@
     } catch (e) {
       console.error(e);
       setState({ busy: null });
-      toast(tooSoon(e) ? 'One code a minute. Wait a moment, then try again.' : FAILED);
+      toast(tooSoon(e) ? 'One code a minute. Wait a moment, then try again.'
+        : emailChanged && (e.code === 'email_exists' || /already|registered|exists|taken/i.test(e.message || '')) ? 'That email already has an account. Use a different one.' : FAILED);
     }
+  };
+  const resendPe = async () => {
+    if (state.busy || !state.pe) return;
+    setState({ busy: 'profile' });
+    try { must(await sb.auth.updateUser({ email: state.pe.email })); setState({ busy: null }); toast('Sent again', true); }
+    catch (e) { console.error(e); setState({ busy: null }); toast(tooSoon(e) ? 'One code a minute. Wait a moment, then try again.' : FAILED); }
   };
 
   const confirmPe = async () => {
@@ -2009,6 +2010,7 @@
     return '<div aria-hidden="true" style="position:absolute;inset:0;background:' + bg(url, q.x + '% ' + q.y + '%') + ';transform:scale(' + q.zoom + ');transform-origin:' + q.x + '% ' + q.y + '%;' + (extra || '') + '"></div>';
   };
   // Other shapes (tiles, cards, thumbnails): the same focal point
+  const HEAD_GOLD = 'linear-gradient(135deg,#c98f16,#e8a71c 55%,#f3c55a)';   // a header with no group photo to show
   const groupBg = (g, fallback) => groupPhoto(g) ? bg(groupPhoto(g), posAt(g.photoPos, GROUP_POS)) : (fallback || '#e8a71c');
 
   const ideaButton = (extra) => '<button type="button" class="hov-primary" ' + on(goCompose) + ' style="width:100%;min-height:54px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16.5px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:9px;box-shadow:0 10px 24px rgba(91,74,232,.32);cursor:pointer;' + (extra || '') + '">' +
@@ -2211,10 +2213,10 @@
         '<p style="margin:12px 0 0;font-size:17px;line-height:1.45;color:#5f6475">It may have a typo, or the group may have made a new one. Ask the person who sent it for a fresh link.</p>' +
       '</div>' +
       '<div style="display:flex;flex-direction:column;gap:10px">' +
-        '<button type="button" ' + on(() => { closeInvite(); openJoin(); }) + ' style="' + invPrimary(true) + '">Enter a group code</button>' +
         (signedIn
-          ? '<button type="button" ' + on(() => { closeInvite(); go('calendar'); }) + ' style="' + INV_OUTLINE + '">Go to my calendar</button>'
-          : '<button type="button" ' + on(closeInvite) + ' style="' + INV_OUTLINE + '">What’s Spark Hub?</button>') +
+          ? '<button type="button" ' + on(() => { closeInvite(); go('calendar'); }) + ' style="' + invPrimary(true) + '">Go to my calendar</button>'
+          : '<button type="button" ' + on(closeInvite) + ' style="' + invPrimary(true) + '">Go to Spark Hub</button>') +
+        '<button type="button" ' + on(() => { closeInvite(); openJoin(); }) + ' style="' + INV_OUTLINE + '">I have a new link or code</button>' +
       '</div></div>';
   }
 
@@ -2250,7 +2252,7 @@
   const invitedTo = (s) => state.fr.invites.some(i => i.spark === s.id);   // a friend invited you (v6 Update 13): it's yours like your groups' events
   const inMine = (s) => gIds(s).some(id => { const g = groupById(id); return !!(g && g.role); }) || invitedTo(s);
   const inScope = (s, gid) => inMine(s) && (!gid || inGroup(s, gid));
-  const photoBg = (s) => s.photoPaths[0] ? bg(photoUrl(s.photoPaths[0]), posAt(s.coverPos, IDEA_POS)) : groupBg(groupById(s.groupId), "url('/photos/torrez-trail.jpg') center/cover");
+  const photoBg = (s) => s.photoPaths[0] ? bg(photoUrl(s.photoPaths[0]), posAt(s.coverPos, IDEA_POS)) : groupBg(groupById(s.groupId));
   const monthDay = (iso) => new Date(iso + 'T12:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   const monthLabel = (iso) => new Date(iso + 'T12:00').toLocaleDateString('en-US', { month: 'long', year: iso.slice(0, 4) !== todayISO().slice(0, 4) ? 'numeric' : undefined });
   // v6 Update 6: an undecided date or place reads "… to be decided" (amber), or the poll's size
@@ -2509,7 +2511,7 @@
     const frosted = (label, icon, fn) => '<span ' + on(fn) + ' aria-label="' + label + '" style="width:44px;height:44px;border-radius:999px;background:rgba(255,255,255,.18);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;cursor:pointer">' + icon + '</span>';
     const sub = st.loaded ? all.length + (all.length === 1 ? ' group' : ' groups') + (st.fr.loaded ? ' · ' + nFr + (nFr === 1 ? ' friend' : ' friends') : '') : '';
     const header = '<header style="position:relative;height:calc(180px + var(--pt));overflow:hidden;background:#2b303a">' +
-      (hero ? '<div style="position:absolute;inset:0;overflow:hidden">' + photoLayer(groupPhoto(hero), hero.photoPos, GROUP_POS) + '</div>' : '<div aria-hidden="true" style="position:absolute;inset:0;background:' + bg('/photos/walnut-creek.jpg', '50% 45%') + '"></div>') +
+      (hero ? '<div style="position:absolute;inset:0;overflow:hidden">' + photoLayer(groupPhoto(hero), hero.photoPos, GROUP_POS) + '</div>' : '<div aria-hidden="true" style="position:absolute;inset:0;background:' + HEAD_GOLD + '"></div>') +
       '<div aria-hidden="true" style="position:absolute;inset:0;background:' + HEAD_WASH + '"></div>' +
       '<div style="position:absolute;top:calc(14px + var(--pt));right:16px;z-index:2;display:flex;gap:8px">' + frosted('Search your people', ic6('search', 19, '#fff', 2.4), openPplSearch) + bellBtn(true) + '</div>' +
       '<div style="position:absolute;left:18px;right:90px;bottom:16px;z-index:2;color:#fff">' +
@@ -2542,7 +2544,8 @@
     '</div>';
   }
 
-  // Friends: requests on top, then the grid (tap to pick people to invite together; long-press for their profile)
+  // Friends: requests on top, then the grid (tap for a friend's profile; the round tick picks people to invite together;
+  // owner, 2026-10-02: the profile used to be behind a long-press nobody found, which still works)
   function friendsBody(q, none) {
     const st = state, fr = st.fr, sel = st.frSel;
     if (!fr.loaded) return skeleton(2, 120);
@@ -2555,14 +2558,15 @@
       '<span ' + on(() => answerRequest(f, true)) + ' aria-label="Accept ' + esc(f.name) + '" class="hov-primary" style="display:flex;align-items:center;height:34px;padding:0 13px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:13.5px;font-weight:900;cursor:pointer">Accept</span></div>';
     const cell = (f, k) => {
       const onIt = sel.indexOf(f.id) > -1;
-      return '<div ' + on(() => toggleFriendSel(f.id)) + ' data-friend-id="' + esc(f.id) + '" aria-pressed="' + onIt + '" aria-label="' + esc(f.name) + '" style="display:flex;flex-direction:column;align-items:center;gap:5px;text-align:center;cursor:pointer;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none">' +
+      return '<div ' + on(() => openPerson(f.id)) + ' data-friend-id="' + esc(f.id) + '" aria-label="' + esc(f.name) + '" style="display:flex;flex-direction:column;align-items:center;gap:5px;text-align:center;cursor:pointer;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none">' +
         '<span style="position:relative;display:flex;border-radius:999px;transition:box-shadow 160ms;box-shadow:' + (onIt ? '0 0 0 3px #fff, 0 0 0 5.5px #5b4ae8' : 'none') + '">' + frFace(f, 58, k) +
-          (onIt ? '<span aria-hidden="true" style="position:absolute;right:-3px;bottom:-3px;width:22px;height:22px;border-radius:999px;background:#5b4ae8;border:2px solid #fff;display:flex;align-items:center;justify-content:center">' + I.check(11, '#fff', 3.6) + '</span>' : '') + '</span>' +
+          '<span ' + on(() => toggleFriendSel(f.id), 'checkbox') + ' aria-checked="' + onIt + '" aria-label="Invite ' + esc(f.name) + '" style="position:absolute;right:-7px;bottom:-7px;width:30px;height:30px;border-radius:999px;border:2.5px solid #fff;display:flex;align-items:center;justify-content:center;cursor:pointer;' +
+            (onIt ? 'background:#5b4ae8' : 'background:#fff;box-shadow:inset 0 0 0 2px #c3c7d0') + '">' + (onIt ? I.check(12, '#fff', 3.6) : '') + '</span></span>' +
         '<span style="font-size:13px;font-weight:900;color:#0d1117;line-height:1.1;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(firstName(f.name)) + '</span>' +
         (f.groups.length ? '<span style="font-size:11px;font-weight:700;color:#6b7280;line-height:1.15">' + esc(f.groups[0]) + (f.groups.length > 1 ? ' +' + (f.groups.length - 1) : '') + '</span>' : '') + '</div>';
     };
     const grid = shown.length ? '<div style="background:#fff;border-radius:22px;box-shadow:0 1px 3px rgba(15,18,25,.08);padding:14px 16px">' +
-        '<div style="font-size:13px;font-weight:700;color:#6b7280;padding:0 0 12px">Tap friends to invite them together</div>' +
+        '<div style="font-size:13px;font-weight:700;color:#6b7280;padding:0 0 12px">Tap a friend to see their profile. Tick the circle to invite people together.</div>' +
         '<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px 6px">' + shown.map((f, k) => cell(f, fr.friends.indexOf(f))).join('') + '</div></div>'
       : q ? none('friends')
       : '<div data-friends-empty style="' + CARD + ';padding:18px;display:flex;flex-direction:column;gap:14px">' +
@@ -3049,7 +3053,7 @@
   };
 
   // ---- v6 Update 2: Sort · Filter pills (Your schedule and group pages) ------------------------
-  const SORTS6 = [['soon', 'Soonest'], ['lively', 'Most lively'], ['new', 'Newest'], ['help', 'Needs you']];
+  const SORTS6 = [['soon', 'Soonest'], ['lively', 'Most lively'], ['new', 'Newest'], ['help', 'Could use a hand']];
   const sortName6 = (k) => (SORTS6.find(x => x[0] === k) || SORTS6[0])[1];
   const PILL6 = 'display:flex;align-items:center;gap:5px;min-height:32px;padding:0 11px 0 9px;border-radius:999px;font-size:13px;font-weight:800;cursor:pointer;white-space:nowrap';
   const FILTER_ICON = svg(14, stroke('currentColor', 2.4) + ' style="flex:0 0 14px"', '<path d="M4 6h16M7 12h10M10 18h4"/>');
@@ -3082,7 +3086,7 @@
     going: ['Going', (s) => !isLead(s) && myRsvp(s) === 'going'],
     maybe: ['Maybe', (s) => myRsvp(s) === 'maybe'],
     open: ['Not joined yet', (s) => !isLead(s) && !helpsOn(s) && !myRsvp(s)],
-    needs: ['Needs helpers', (s) => signupFill(s).open > 0],
+    needs: ['Could use a hand', (s) => signupFill(s).open > 0],
     week: ['This week', (s) => daysTo(s) != null && daysTo(s) < 7]
   };
   const filterOpts = (keys, all, sel) => keys.map(k => ({ k, name: FILTERS6[k][0], n: all.filter(FILTERS6[k][1]).length, on: sel.indexOf(k) > -1 }));
@@ -3185,7 +3189,7 @@
             '<span style="flex:1;font-size:15px;font-weight:' + (k === cur ? 900 : 700) + ';color:' + (k === cur ? '#5b4ae8' : '#0d1117') + '">' + name + '</span>' + (k === cur ? I.check(16, '#5b4ae8', 2.6) : '') + '</div>').join('') + '</div>' : '') +
     '</div>';
   };
-  const CSORTS = [['soon', 'Soonest'], ['lively', 'Most lively'], ['new', 'Newest'], ['help', 'Needs you']];
+  const CSORTS = [['soon', 'Soonest'], ['lively', 'Most lively'], ['new', 'Newest'], ['help', 'Could use a hand']];
   const calViewMenu = () => {
     const icon = (k, c) => svg(17, 'fill="none" stroke="' + c + '" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"', VIEW_ICONS[k]);
     return miniMenu('cView', 'View: ' + VIEW_NAMES[state.cView], icon(state.cView, 'currentColor') + I.chevD(12, 'currentColor', 2.8),
@@ -3229,8 +3233,9 @@
 
   function viewCalendar() {
     const st = state, groups = groupsInOrder(), base = calBase(), list = calResults(), hand = handList();
+    const calHero = currentGroup();   // the header shows the group last opened (owner, 2026-10-02: no pilot photo for everyone)
     const header = '<header style="position:relative;height:calc(180px + var(--pt));overflow:hidden;background:#2b303a">' +
-      '<div aria-hidden="true" style="position:absolute;inset:0;background:' + bg('/photos/walnut-creek.jpg', '50% 45%') + '"></div>' +
+      (calHero && groupPhoto(calHero) ? '<div style="position:absolute;inset:0;overflow:hidden">' + photoLayer(groupPhoto(calHero), calHero.photoPos, GROUP_POS) + '</div>' : '<div aria-hidden="true" style="position:absolute;inset:0;background:' + HEAD_GOLD + '"></div>') +
       '<div aria-hidden="true" style="position:absolute;inset:0;background:' + HEAD_WASH + '"></div>' +
       '<div style="position:absolute;top:calc(14px + var(--pt));right:16px;display:flex;gap:8px;z-index:2">' +
         '<span ' + on(openSearch) + ' aria-label="Search events" style="width:44px;height:44px;border-radius:999px;background:rgba(255,255,255,.18);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;cursor:pointer">' + ic6('search', 19, '#fff', 2.4) + '</span>' +
@@ -3250,12 +3255,8 @@
     const shown = base.filter(s => inGroups6(s) && inTypes6(s)).length;
     const gMenu = checkMenu('cGrp', gLabel, 'people', 'Groups', groups.map(g => ({ name: g.name, demo: g.demo, n: base.filter(s => inGroup(s, g.id)).length, on: !gSel || gSel.indexOf(g.id) > -1, toggle: () => toggleG(g.id) })),
       !gSel, () => setState({ cGrps: null }), () => setState({ cGrps: [] }), 'Show ' + shown + (shown === 1 ? ' event' : ' events'));
-    const tSel = st.cTypes, tLabel = !tSel.length ? 'All types' : tSel.length === 1 ? typeName(tSel[0]) : tSel.length + ' types';
-    const toggleT = (k) => setState({ cTypes: tSel.indexOf(k) > -1 ? tSel.filter(x => x !== k) : tSel.concat([k]) });
-    const tMenu = checkMenu('cType', tLabel, 'tag', 'Type of event', TYPES6.map(([k, name]) => ({ name, n: base.filter(s => inGroups6(s) && typesOf(s).indexOf(k) > -1).length, on: tSel.indexOf(k) > -1, toggle: () => toggleT(k) })),
-      false, null, () => setState({ cTypes: [] }), 'Show ' + shown + (shown === 1 ? ' event' : ' events'));
-    const filtered = !!gSel || tSel.length > 0;
-    const filters = '<div style="position:relative;z-index:6;display:flex;align-items:center;gap:8px;padding:14px 14px 0">' + gMenu + tMenu +
+    const filtered = !!gSel;   // no Type filter (owner, 2026-10-02: nothing sets an event's type since the picker went)
+    const filters = '<div style="position:relative;z-index:6;display:flex;align-items:center;gap:8px;padding:14px 14px 0">' + gMenu +
       (filtered ? '<span ' + on(clearFilters) + ' style="margin-left:auto;font-size:13.5px;font-weight:800;color:#5b4ae8;cursor:pointer;white-space:nowrap">Clear filters</span>' : '') + '</div>';
 
     // Discovery: "Feeling wild?" and "N events could use a hand" (each can be put away for the visit)
@@ -3338,7 +3339,7 @@
   }
 
   // Search (v6 Update 2): before typing, Try chips and "Or something unexpected"; live results as you type
-  const TRY6 = [['weekend', 'This weekend', { cWhen: 'weekend' }], ['help', 'Needs helpers', { cHelp: true }], ['active', 'Active', { cTypes: ['active'] }], ['outdoors', 'Outdoors', { cTypes: ['outdoors'] }], ['family', 'Family', { cTypes: ['family'] }]];
+  const TRY6 = [['weekend', 'This weekend', { cWhen: 'weekend' }], ['help', 'Could use a hand', { cHelp: true }]];
   const TRY_UNDO = { cTry: null, cWhen: 'any', cTypes: [], cHelp: false };
   // "This weekend": the coming Friday to Sunday (today included when it's one of them)
   const inWhen6 = (s) => {
@@ -3385,7 +3386,7 @@
     const magic = [
       { icon: 'moon', title: 'Soonest surprise', sub: 'The next thing happening that I’m not in', bg: '#1f2433', ink: '#cfc9ff', pick: pick(() => notMine.slice().sort(byWhen)[0]) },
       { icon: 'people', title: 'Tag along', sub: 'Where the most people are going', bg: '#fdf1d6', ink: '#8f6405', pick: pick(() => notMine.slice().sort((a, b) => going(b).length - going(a).length)[0]) },
-      { icon: 'compass', title: 'Lend a hand', sub: 'The soonest event still looking for helpers', bg: '#e7f6ec', ink: '#149a4b', pick: pick(() => notMine.filter(s => signupFill(s).open > 0).sort(byWhen)[0]) }
+      { icon: 'compass', title: 'Could use a hand', sub: 'The soonest event still looking for helpers', bg: '#e7f6ec', ink: '#149a4b', pick: pick(() => notMine.filter(s => signupFill(s).open > 0).sort(byWhen)[0]) }
     ];
     const hint = '<div style="display:flex;flex-direction:column;gap:4px;padding:0 4px">' +
       '<span style="font-size:11.5px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;color:#8a909b">Try</span>' +
@@ -3449,7 +3450,7 @@
     const msg = 'Hey! I can’t make it to ' + b.job.toLowerCase() + ' for ' + s.text + ' anymore. Any chance you could take my spot?';
     return wrap('background:#fff6dc;box-shadow:0 10px 28px rgba(15,18,25,.18), inset 0 0 0 1.5px #f3d98b;display:flex;flex-direction:column;gap:12px',
       '<div style="display:flex;align-items:flex-start;gap:10px"><div style="flex:1;min-width:0"><div style="font-size:17px;font-weight:900;color:#0d1117">You’re off it</div>' +
-        '<p style="margin:4px 0 0;font-size:14px;line-height:1.4;font-weight:600;color:#5c4a12">We’ll let ' + esc(hostFirst) + ' know. A quick check-in with them helps too, or find someone to take your spot.</p></div>' +
+        '<p style="margin:4px 0 0;font-size:14px;line-height:1.4;font-weight:600;color:#5c4a12">' + (isDemo(s) ? 'A quick check-in with ' + esc(hostFirst) + ' helps, or find someone to take your spot.' : 'We’ll let ' + esc(hostFirst) + ' know. A quick check-in with them helps too, or find someone to take your spot.') + '</p></div>' +
         (b.back ? '<span ' + on(() => { if (!state.busy) redoClaim(b); }) + ' style="flex:0 0 auto;display:flex;align-items:center;min-height:32px;padding:0 12px;border-radius:999px;background:rgba(13,17,23,.06);font-size:13.5px;font-weight:800;color:#0d1117;cursor:pointer">Undo</span>' : '') +
         '<span ' + on(() => { clearTimeout(bannerTimer); setState({ banner: null }); }) + ' aria-label="Dismiss" style="flex:0 0 32px;width:32px;height:32px;border-radius:999px;background:rgba(13,17,23,.06);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(13, '#5c4a12', 2.6) + '</span></div>' +
       '<button type="button" ' + on(() => { clearTimeout(bannerTimer); setState({ banner: null, invite: { id: s.id, msg, title: 'Find a replacement', sub: [b.job, shortWhen(s)].filter(Boolean).join(' · ') } }); }) + ' style="min-height:44px;border:0;border-radius:999px;background:#0d1117;color:#fff;font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer">Find a replacement</button>');
@@ -3852,7 +3853,7 @@
           (n.sub ? '<div style="margin-top:2px;font-size:14px;line-height:1.35;font-weight:600;color:#5c6270">' + esc(n.sub) + '</div>' : '') +
           (n.quote && n.type !== 'update' ? '<div style="margin-top:8px;padding:10px 12px;border-radius:12px;background:#f2f3f6;font-size:14px;line-height:1.4;font-weight:500;color:#2b303a">' + esc(n.quote) + '</div>' : '') +
           '<div style="margin-top:4px;font-size:12.5px;font-weight:600;color:#9aa0ac">' + esc((n.type === 'update' ? 'From ' + firstName(n.who) + ' · ' : '') + ago(n.t) + (g ? ' · ' + g.name : '')) + '</div>' +
-          (n.rsvp && !myRsvp(n.s)
+          (n.rsvp && !myRsvp(n.s) && !n.s.cancelledAt && phaseOf(n.s) === 'plan'
             ? '<div style="margin-top:10px;display:flex;gap:8px">' +
                 '<span ' + on(rsvpFromFeed(n, 'going')) + ' style="display:flex;align-items:center;min-height:36px;padding:0 14px;border-radius:999px;background:#149a4b;color:#fff;font-size:13.5px;font-weight:800;cursor:pointer">I’m going</span>' +
                 '<span ' + on(rsvpFromFeed(n, 'maybe')) + ' style="display:flex;align-items:center;min-height:36px;padding:0 14px;border-radius:999px;background:#fff;color:#0d1117;box-shadow:inset 0 0 0 1.5px #dcdfe6;font-size:13.5px;font-weight:800;cursor:pointer">Maybe</span>' +
@@ -4183,13 +4184,13 @@
     const st = state, g = currentGroup(), gname = g ? g.name : 'this group', q = st.gq.trim(), t = st.gTry;
     const close = () => setState({ gSearch: false, gq: '', gTry: null });
     const inG = st.sparks.filter(s => g && inGroup(s, g.id));
-    const BROWSE = { plan: ['Plans', (s) => phaseOf(s) === 'plan'], idea: ['Ideas', (s) => phaseOf(s) === 'idea'], done: ['Past events', (s) => phaseOf(s) === 'done'], needs: ['Needs helpers', (s) => phaseOf(s) === 'plan' && signupFill(s).open > 0] };
+    const BROWSE = { plan: ['Plans', (s) => phaseOf(s) === 'plan'], idea: ['Ideas', (s) => phaseOf(s) === 'idea'], done: ['Past events', (s) => phaseOf(s) === 'done'], needs: ['Could use a hand', (s) => phaseOf(s) === 'plan' && signupFill(s).open > 0] };
     const results = !q && !t ? [] : inG.filter(s => matchQ(s, q) && (!t || BROWSE[t][1](s))).slice(0, 30);
     const pick = (fn) => () => { const s = fn(); if (!s) { toast('Nothing like that here yet'); return; } close(); openSpark(s); };
     const up = inG.filter(s => phaseOf(s) === 'plan').sort(byWhen), ideas = inG.filter(s => phaseOf(s) === 'idea'), done = inG.filter(s => phaseOf(s) === 'done');
     const magic = [
       { icon: 'moon', title: 'Next up here', sub: 'The very next thing on', bg: '#1f2433', ink: '#cfc9ff', pick: pick(() => up[0]) },
-      { icon: 'people', title: 'They need you', sub: 'Most open helper spots', bg: '#fdf1d6', ink: '#8f6405', pick: pick(() => up.filter(s => signupFill(s).open > 0).sort((a, b) => signupFill(b).open - signupFill(a).open)[0]) },
+      { icon: 'people', title: 'Could use a hand', sub: 'Most open helper spots', bg: '#fdf1d6', ink: '#8f6405', pick: pick(() => up.filter(s => signupFill(s).open > 0).sort((a, b) => signupFill(b).open - signupFill(a).open)[0]) },
       { icon: 'sun', title: 'Fresh off the press', sub: 'The newest thing posted here', bg: '#e6f3fb', ink: '#1f7ab8', pick: pick(() => inG.slice().sort((a, b) => b.created - a.created)[0]) }
     ];
     const hint = '<div style="display:flex;flex-direction:column;gap:4px;padding:0 4px">' +
@@ -4254,7 +4255,7 @@
     '<div data-cancelled-card style="border-radius:18px;background:#fdeef0;box-shadow:inset 0 0 0 1.5px #f5c2cb;padding:16px;display:flex;flex-direction:column;gap:6px">' +
       '<div style="font-size:17px;font-weight:900;color:#9b1c31">This ' + (s.planned ? 'event' : 'idea') + ' is cancelled</div>' +
       '<div style="font-size:14.5px;line-height:1.45;font-weight:600;color:#7a1626">' +
-        (s.cancelReason ? esc(firstName(nameOf(s.leadId, s.leadName))) + ': “' + esc(s.cancelReason) + '”' : esc(firstName(nameOf(s.leadId, s.leadName))) + ' called it off.') +
+        (s.cancelReason ? '“' + esc(s.cancelReason) + '”' : 'It was called off.') +
         ' <span style="font-weight:600;color:#9b1c31">' + esc(ago(s.cancelledAt)) + '</span></div>' +
       (canTakeDown(s) ? '<div style="font-size:13.5px;line-height:1.4;font-weight:600;color:#7a1626">It stays up so everyone sees it. Delete it whenever you like (that tells no one).</div>' : '') +
     '</div>';
@@ -4554,6 +4555,7 @@
   const secSends = (s, ss) => isLead(s) && s.planned && !!secMessage(s, ss) && updateReach(s).n > 0 && (ss.kind === 'when' || !!ss.tell);
   const sendUpdate = async (s, body) => must(await sb.from('plan_updates').insert({ spark_id: s.id, body: body.slice(0, 320), audience: 'all' }));
 
+  const sentNote = (s) => isDemo(s) ? 'Saved. Test events don’t send phone notifications.' : 'Saved. Everyone going gets an update.';
   const saveSec = (s) => {
     const ss = state.sec, lead = isLead(s), msg = secMessage(s, ss), send = secSends(s, ss);
     if (!ss || state.busy) return;
@@ -4565,7 +4567,7 @@
         if (lead) { if (text !== s.text) must(await sb.from('sparks').update({ text }).eq('id', s.id)); }
         else must(await sb.rpc('admin_edit_spark', { p_spark: s.id, p_text: text, p_hopes: s.hopes }));
         if (send) await sendUpdate(s, msg);
-      }, { sec: null }).then(ok => { if (ok) toast(send ? 'Saved. Everyone going gets an update.' : note, true); });
+      }, { sec: null }).then(ok => { if (ok) toast(send ? sentNote(s) : note, true); });
       return;
     }
     if (ss.kind === 'details') {
@@ -4574,7 +4576,7 @@
         if (lead) must(await sb.from('sparks').update(Object.assign({ hopes, vision: null, tags: (ss.tags || []).slice(0, 2) }, s.planned ? {} : { min_people: ss.need || null })).eq('id', s.id));
         else must(await sb.rpc('admin_edit_spark', { p_spark: s.id, p_text: s.text, p_hopes: hopes }));
         if (send) await sendUpdate(s, msg);
-      }, { sec: null }).then(ok => { if (ok) toast(send ? 'Saved. Everyone going gets an update.' : note, true); });
+      }, { sec: null }).then(ok => { if (ok) toast(send ? sentNote(s) : note, true); });
       return;
     }
     if (ss.kind === 'vis') {
@@ -4606,7 +4608,7 @@
       if (patch.day_date && s.dateOpts.length) must(await sb.from('date_options').delete().eq('spark_id', s.id));
       if (patch.spot && s.spotOpts.length) must(await sb.from('spot_options').delete().eq('spark_id', s.id));
       if (tell) await sendUpdate(s, msg);
-    }, { sec: null, offerText: '', offerPlace: null, offerSuggest: [] }).then(ok => { if (ok) toast(tell ? 'Saved. Everyone going gets an update.' : note, true); });
+    }, { sec: null, offerText: '', offerPlace: null, offerSuggest: [] }).then(ok => { if (ok) toast(tell ? sentNote(s) : note, true); });
   };
   // Change photo on the event's header: the new cover goes up straight away
   // The host picks a poll's winner: it becomes the date (or place) and the poll closes
@@ -4626,7 +4628,7 @@
           must(await sb.from('spot_options').delete().eq('spark_id', s.id));
         }
         if (send) await sendUpdate(s, msg);
-      }, { confirm: null }).then(ok => { if (ok) toast(send ? 'Picked. Everyone gets an update.' : 'Picked ' + label, true); }) } });
+      }, { confirm: null }).then(ok => { if (ok) toast(send ? (isDemo(s) ? 'Picked. Test events don’t send phone notifications.' : 'Picked. Everyone gets an update.') : 'Picked ' + label, true); }) } });
   };
 
   // Edit what you need: every job editable in place (nothing opens on top)
@@ -4642,6 +4644,14 @@
     // Someone signed up since it opened: switching that job between one time and shifts would drop them
     const flips = ed.rows.filter(r => r.id).filter(r => { const o = orig.find(j => j.id === r.id); return o && o.claims.length && !!o.shifts !== (r.shifts || []).some(q => q.time); });
     if (flips.length) { toast('Someone just signed up for “' + cleanTitle(flips[0].item) + '”, so it can’t switch between one time and shifts. Close and open it again.'); return; }
+    const kept0 = ed.rows.filter(r => r.id).map(r => r.id), goneJobs = orig.filter(j => kept0.indexOf(j.id) < 0 && known(j.id));
+    const off = new Set([].concat(...goneJobs.map(j => [].concat(...(j.shifts || [j]).map(u => u.claims.map(c => c.userId))))).filter(u => u !== state.me)).size;
+    if (off && !ed.sure) {
+      setState({ confirm: { title: goneJobs.length === 1 ? 'Remove “' + goneJobs[0].item + '”?' : 'Remove ' + goneJobs.length + ' jobs?', danger: true, cta: 'Remove and save', keep: 'Go back',
+        body: (off === 1 ? 'The 1 person signed up gets' : 'The ' + off + ' people signed up get') + ' a note that it’s off the list.',
+        run: () => { setState({ confirm: null, needEd: Object.assign({}, state.needEd, { sure: true }) }); saveNeeds(s); } } });
+      return;
+    }
     run(async () => {
       const keep = ed.rows.filter(r => r.id).map(r => r.id), gone = orig.filter(j => keep.indexOf(j.id) < 0 && known(j.id)).map(j => j.id);
       for (const id of gone) must(await sb.rpc('remove_signup', { p_item: id }));   // tells the people signed up
@@ -4713,13 +4723,13 @@
           '</div></div>' : '');
     } else if (ss.kind === 'when') {
       body = '<div style="display:flex;flex-direction:column;gap:8px">' + label('Date & time') +
-        '<div style="display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:8px">' + dateField(ss.d, 'Date', 'Pick a date', (v) => set({ d: v })) +
+        '<div style="display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:8px">' + dateField(ss.d, 'Date', 'Pick a date', (v) => set({ d: v }), '', phaseOf(s) === 'done') +
           timeField('secT', ss.t, EV_TIMES, 'Time', (v) => setState({ sec: Object.assign({}, state.sec, { t: v, e: ss.e && ss.e <= v ? '' : ss.e }), timeOpen: null })) + '</div>' +
         (ss.t ? timeField('secE', ss.e, EV_TIMES.filter(v => v > ss.t), 'End time (optional)', (v) => setState({ sec: Object.assign({}, state.sec, { e: v }), timeOpen: null })) : '') + '</div>' +
         '<div style="display:flex;flex-direction:column;gap:8px">' + label('Location') + placeField('offer', { placeholder: 'Search a place or address', style: BIG }) + '</div>' +
         // A plan keeps its date; taking it off turns the plan back into an idea (the host's call, with a confirm)
         (s.planned && isLead(s) ? (ss.d ? '' : '<span data-needs-date style="font-size:13.5px;line-height:1.4;font-weight:600;color:' + AMBER_INK + '">A plan needs a date. To take it off, turn it back into an idea.</span>') +
-          '<span ' + on(() => { close(); clearPlan(s); }) + ' data-back-to-idea style="align-self:center;display:flex;align-items:center;min-height:44px;padding:0 12px;font-size:14.5px;font-weight:800;color:#9b1c31;cursor:pointer">Turn it back into an idea</span>' : '');
+          (phaseOf(s) === 'done' ? '' : '<span ' + on(() => { close(); clearPlan(s); }) + ' data-back-to-idea style="align-self:center;display:flex;align-items:center;min-height:44px;padding:0 12px;font-size:14.5px;font-weight:800;color:#9b1c31;cursor:pointer">Turn it back into an idea</span>') : '');
       ok = !(s.planned && !ss.d);
     } else if (ss.kind === 'details') {
       body = '<div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:14px;line-height:1.4;font-weight:500;color:#5c6270">Up to three quick notes on what to expect or the vibe.</span>' +
@@ -4777,6 +4787,7 @@
   // The ready message (owner, 2026-09-30): warm and short; an idea asks who's interested
   const inviteText = (s) => {
     const when = s.dayDate ? fmtDay(s.dayDate) + (s.dayTime ? ' at ' + fmtTime(s.dayTime) : '') : '', where = s.spot ? ' at ' + s.spot : '';
+    if (phaseOf(s) === 'done') return s.text + ': here’s how it went.';
     if (!s.planned) return isLead(s) ? 'I’m floating an idea: ' + s.text + '. Interested?' : firstName(nameOf(s.leadId, s.leadName)) + ' is floating an idea: ' + s.text + '. Interested?';
     return (isLead(s) ? 'I’m putting together ' + s.text + (when ? ', ' + when : '') : s.text + (when ? ' is ' + when : ' is coming up')) + where + '. Want to come?';
   };
@@ -4809,8 +4820,8 @@
     const sh = state.share, s = state.sparks.find(x => x.id === sh.id);
     if (!s) return '';
     const close = () => setState({ share: null }), link = location.origin + '/i/' + s.id;
-    const msg = (sh.msg || inviteText(s)) + ' ' + link, title = sh.ask ? 'Ask two people first' : isLead(s) ? 'Invite people' : 'Share this event';
-    const canList = !!state.email && !s.cancelledAt && canInviteTo(s);
+    const msg = (sh.msg || inviteText(s)) + ' ' + link, past = phaseOf(s) === 'done', title = sh.ask ? 'Ask two people first' : isLead(s) && !past ? 'Invite people' : 'Share this event';
+    const canList = !!state.email && !s.cancelledAt && !past && canInviteTo(s);
     if (canList && !sh.people && !sh.loading) setTimeout(() => { if (state.share && state.share.id === s.id && !state.share.people && !state.share.loading) loadInvitees(s); }, 0);
     const btn = (label, href, icon, fn) => '<' + (fn ? 'div ' + on(fn) : 'a href="' + esc(href) + '" target="_blank" rel="noopener noreferrer"') + ' aria-label="' + label + '" style="display:flex;flex-direction:column;align-items:center;gap:8px;text-decoration:none;cursor:pointer">' +
       '<span style="width:52px;height:52px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center">' + svg(22, stroke('#5b4ae8', 2.1), icon) + '</span>' +
@@ -4954,10 +4965,10 @@
   // the event's groups (up to 5); the lead and admins remove them, and a co-lead can step down
   // Step back as lead (20261101210000_step_back.sql): a co-lead takes over, or it goes back to an idea looking for a lead
   const askStepBack = (s) => {
-    const co = s.cohosts[0], going = s.rsvps.filter(r => r.status === 'going' && r.userId !== state.me).length;
+    const co = s.cohosts[0], going = s.rsvps.filter(r => r.status !== 'no' && r.userId !== state.me).length;
     setState({ confirm: { title: 'Step back as lead?', danger: true, cta: 'Step back', keep: 'Stay on',
       body: co ? firstName(nameOf(co)) + ' becomes the lead. Nothing else changes.'
-        : (s.planned ? 'It goes back to being an idea, looking for a lead. The date and place stay.' + (going ? ' ' + (going === 1 ? 'The 1 person going gets' : 'The ' + going + ' people going get') + ' a note and show as interested.' : '') : 'It stays up as an idea, looking for a lead.') + ' Anyone who can see it can take it on.',
+        : (s.planned ? 'It goes back to being an idea, looking for a lead. The date and place stay.' + (going ? ' ' + (going === 1 ? 'The 1 person who said Going or Maybe gets a note and shows' : 'The ' + going + ' people who said Going or Maybe get a note and show') + ' as interested.' : '') : 'It stays up as an idea, looking for a lead.') + ' Anyone who can see it can take it on.',
       run: () => run(async () => { must(await sb.rpc('step_back', { p_spark: s.id })); }, { confirm: null })
         .then(ok => { if (ok) toast(co ? firstName(nameOf(co)) + ' is leading it now' : s.planned ? 'It’s an idea again, looking for a lead' : 'It’s looking for a lead now', true); }) } });
   };
@@ -5137,21 +5148,6 @@
       (isLead(s) ? '<span ' + on(() => openSec(s, 'when')) + ' style="display:flex;align-items:center;gap:7px;min-height:44px;padding:0 12px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">' +
         svg(15, stroke('currentColor', 2.2), PENCIL) + 'Wrong date? Change it</span>' : '') +
       deleteLink(s, true) + '</div>';
-  // Who came? (20261101090000): the host or a group admin taps each person who came. Going and Maybe are listed
-  const whoCameCard = (s) => {
-    if (!canEdit(s) || s.cancelledAt) return '';
-    const rs = s.rsvps.filter(r => r.status !== 'no'), came = rs.filter(r => r.attended).length;
-    if (!rs.length) return '';
-    return '<div data-who-came style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:4px">' +
-      eyebrowRow('Who came?', '<span style="font-size:13px;font-weight:800;color:#0f7a3c">' + came + ' of ' + rs.length + '</span>') +
-      '<p style="margin:0 0 6px;font-size:13.5px;line-height:1.4;font-weight:500;color:#6b7280">Tap everyone who made it. Only leads see this.</p>' +
-      rs.map((r, i) => { const name = r.userId === state.me ? 'You' : personName(s, r.userId), y = !!r.attended;
-        return '<div data-came-row="' + esc(name) + '" style="display:flex;align-items:center;gap:12px;min-height:50px;border-top:' + (i ? '1px solid #f2f3f6' : '0') + '">' + face(r.userId, name, 32, null) +
-          '<span style="flex:1 1 auto;min-width:0;font-size:15px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(name) + (r.status === 'maybe' ? ' <span style="font-size:12px;font-weight:700;color:#8f6405">maybe</span>' : '') + '</span>' +
-          '<span ' + on(() => { if (!state.busy) markCame(s, r.userId, !y); }) + ' aria-pressed="' + y + '" aria-label="' + esc(name) + ' came" style="flex:0 0 auto;display:flex;align-items:center;gap:5px;min-height:34px;padding:0 12px;border-radius:999px;font-size:13px;font-weight:800;cursor:pointer;' +
-            (y ? 'background:#e7f5ec;color:#0f7a3c' : 'background:#fff;color:#6b7280;box-shadow:inset 0 0 0 1.5px #d5d8df') + '">' + (y ? I.check(12, '#0f7a3c', 3.2) + 'Came' : 'Came?') + '</span></div>'; }).join('') +
-    '</div>';
-  };
   function viewDone(s) {
     const st = state, dp = dateParts(s.dayDate), n = cameCount(s);
     const album = s.album.map(a => photoUrl(a.path));
@@ -5373,6 +5369,8 @@
             '<div style="font-size:13px;font-weight:600;color:#5c6270">' + (owner ? 'You’re the owner' : 'You’re an admin') + '</div></div>' +
           '<span style="font-size:15px;font-weight:800;color:#5b4ae8">See all</span>' +
         '</div>' +
+        (st.gpFail ? '<div role="alert" style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:14px;background:#fdecee;font-size:14px;line-height:1.4;font-weight:600;color:#9b1c31"><span style="flex:1;min-width:0">Couldn’t load the invite code and members.</span>' +
+          '<span ' + on(() => openGroupPage(g.id, true)) + ' style="flex:0 0 auto;font-weight:800;text-decoration:underline;text-underline-offset:3px;cursor:pointer">Try again</span></div>' : '') +
         '<div style="display:flex;flex-direction:column;gap:7px">' +
           '<span style="' + LABEL + '">Invite code</span>' +
           '<div style="display:flex;gap:8px"><span style="' + WELL + ';flex:1;font-size:18px;font-weight:900;letter-spacing:4px;color:#0d1117">' + esc(st.gpCode || '······') + '</span>' +
@@ -5754,7 +5752,7 @@
   // The date picker (owner, 2026-10-01: the browser's own calendar looked old next to the time list): a field like the
   // time field that opens our month grid. Past days can't be picked; the chosen day is purple, today has a ring.
   const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-  const dateField = (value, label, hint, set, extra) => {
+  const dateField = (value, label, hint, set, extra, anyDay) => {   // anyDay: past days too (fixing a past event's date)
     const open = state.dateOpen === label, today = todayISO();
     const month = (open && state.calMonth) || (value || today).slice(0, 7);
     const toggle = () => setState({ dateOpen: open ? null : label, calMonth: (value || today).slice(0, 7), timeOpen: null });
@@ -5764,7 +5762,7 @@
       const [y, m] = month.split('-').map(Number), first = new Date(y, m - 1, 1).getDay(), days = new Date(y, m, 0).getDate(), cells = [];
       for (let k = 0; k < first; k++) cells.push('<span></span>');
       for (let d = 1; d <= days; d++) {
-        const iso = month + '-' + pad2(d), past = iso < today, on_ = iso === value, now = iso === today;
+        const iso = month + '-' + pad2(d), past = !anyDay && iso < today, on_ = iso === value, now = iso === today;
         cells.push('<span ' + (past ? 'aria-disabled="true"' : on(() => pick(iso))) + ' data-day="' + iso + '" aria-label="' + esc(fmtDay(iso)) + '"' + (on_ ? ' aria-pressed="true"' : '') +
           ' style="justify-self:center;width:40px;height:40px;border-radius:999px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:' + (on_ || now ? 800 : 700) + ';' +
           (on_ ? 'background:#5b4ae8;color:#fff;cursor:pointer' : past ? 'color:#c9ccd3' : 'color:' + (now ? '#5b4ae8' : '#0d1117') + ';cursor:pointer' + (now ? ';box-shadow:inset 0 0 0 1.5px #5b4ae8' : '')) + '"' +
@@ -5781,7 +5779,7 @@
       (open ? '<div ' + on(() => setState({ dateOpen: null })) + ' aria-hidden="true" style="position:fixed;inset:0;z-index:19"></div>' +
         '<div data-calendar="' + month + '" role="dialog" aria-label="Pick a date" style="position:absolute;left:0;top:calc(100% + 6px);z-index:20;width:316px;max-width:calc(100vw - 40px);box-sizing:border-box;background:#fff;border-radius:18px;box-shadow:0 14px 34px rgba(15,18,25,.2), 0 0 0 1px #e6e7eb;padding:14px">' +
           '<div style="display:flex;align-items:center;gap:8px;padding:0 2px 10px"><span style="flex:1;font-size:17px;font-weight:900;color:#0d1117">' + MONTH_NAMES[Number(month.slice(5)) - 1] + ' ' + month.slice(0, 4) + '</span>' +
-            roundBtn(month <= today.slice(0, 7), () => shift(-1), I.chevL(15, '#0d1117', 2.6), 'Previous month') + roundBtn(false, () => shift(1), I.chevR(15, '#0d1117', 2.6), 'Next month') + '</div>' +
+            roundBtn(!anyDay && month <= today.slice(0, 7), () => shift(-1), I.chevL(15, '#0d1117', 2.6), 'Previous month') + roundBtn(false, () => shift(1), I.chevR(15, '#0d1117', 2.6), 'Next month') + '</div>' +
           '<div style="display:grid;grid-template-columns:repeat(7,1fr);row-gap:4px">' +
             ['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(d => '<span style="justify-self:center;font-size:12px;font-weight:800;color:#9aa0ac;padding-bottom:4px">' + d + '</span>').join('') + grid() + '</div>' +
           '<div style="display:flex;justify-content:space-between;padding:8px 4px 0">' +
@@ -6179,14 +6177,18 @@
           ? { title: 'Set the date', hint: 'Pick a day and time.', cta: 'Set date' }
           : { title: 'Set the location', hint: 'Start typing and pick a place, or just write it in.', ph: 'Enter the location', cta: 'Set location' })
         : (kind === 'day'
-          ? { title: 'Suggest a date', hint: 'Pick a day and time. It goes on the event for everyone to vote on, and the lead picks.', cta: 'Suggest this date' }
+          ? { title: 'Suggest a date', hint: 'Pick a day, and a time if you have one. It goes on the event for everyone to vote on, and the lead picks.', cta: 'Suggest this date' }
           : { title: 'Suggest a location', hint: 'Somewhere this could actually happen. Everyone can vote on it, and the lead picks.', ph: 'e.g. the loop trail at the lake', cta: 'Suggest this location' });
     const ready = st.offerText.trim().length > 0 && !st.busy;
-    const close = () => setState({ offerKind: null, offerText: '', offerPlace: null, offerSuggest: [] });
+    const close = () => setState({ offerKind: null, offerText: '', offerPlace: null, offerSuggest: [], dateOpen: null, timeOpen: null });
     let field;
     if (kind === 'day') {
-      field = '<input class="fld" type="datetime-local" aria-label="Date and time" min="' + todayISO() + 'T00:00" value="' + esc(st.offerText) + '" ' + onInput(e => setState({ offerText: e.target.value })) +
-        ' style="width:100%;min-height:52px;' + FIELD.replace('padding:13px 16px', 'padding:12px 14px') + ';color-scheme:light">';
+      const d = st.offerText.slice(0, 10), t = st.offerText.length > 10 ? st.offerText.slice(11, 16) : '';
+      field = '<div style="display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:8px">' +
+          dateField(d, 'Date', 'Pick a date', (v) => setState({ offerText: v ? v + (t ? 'T' + t : '') : '' })) +
+          timeField('offT', t, EV_TIMES, 'Time', (v) => setState({ offerText: d ? d + (v ? 'T' + v : '') : '', timeOpen: null })) + '</div>' +
+        // room for the open calendar or time list, so the pop-up grows instead of scrolling inside itself
+        (st.dateOpen === 'Date' ? '<div aria-hidden="true" style="height:330px"></div>' : st.timeOpen === 'offT' ? '<div aria-hidden="true" style="height:236px"></div>' : '');
     } else if (kind === 'spot') {
       field = placeField('offer', { placeholder: copy.ph, style: FIELD });
     } else {
@@ -6224,7 +6226,7 @@
         paraHtml('We sent a code to <strong style="font-weight:700;color:#0d1117">' + esc(pe.email) + '</strong> · <span ' + on(() => setPe({ step: 'form' })) + ' style="font-weight:800;color:#5b4ae8;cursor:pointer">Change</span>') +
         codeInput(pe.code, 'Code from the email', v => setPe({ code: v })) +
         '<button type="button" ' + on(confirmPe) + ' aria-disabled="' + !ok + '" style="' + btn(ok) + '">' + (busy ? 'Confirming…' : 'Confirm') + '</button>' +
-        '<p style="margin:0;font-size:13px;line-height:1.45;font-weight:500;color:#6b7280">Until you confirm, you keep signing in with ' + esc(st.email) + '.</p>', { z: 45 });
+        '<p style="margin:0;font-size:13px;line-height:1.45;font-weight:500;color:#6b7280">Until you confirm, you keep signing in with ' + esc(st.email) + '. Didn’t get it? <span ' + on(resendPe) + ' style="font-weight:800;color:#5b4ae8;cursor:pointer">Send it again</span></p>', { z: 45 });
     }
     const nameOk = pe.name.trim().length > 0;
     const newEmail = pe.email.trim().toLowerCase();

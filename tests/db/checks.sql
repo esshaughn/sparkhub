@@ -507,6 +507,70 @@ select t.check('the old lead is interested, not going',
   exists (select 1 from interests i join sparks s on s.id = i.spark_id where s.text = 'Needs a lead walk' and i.user_id = t.id('host'))
   and not exists (select 1 from rsvps r join sparks s on s.id = r.spark_id where s.text = 'Needs a lead walk'));
 
+-- Review fixes (20261102000000_review_fixes.sql) ------------------------------------------------------------------
+-- A Maybe is treated like Going when a plan goes back to an idea
+select t.login('host'); set role authenticated;
+insert into sparks (id, group_id, author_name, lead_name, lead_id, created_by, text, planned, day_date)
+values (gen_random_uuid(), t.id('g'), 'Host', 'Host', t.id('host'), t.id('host'), 'Maybe walk', true, current_date + 5);
+reset role;
+select t.login('member'); set role authenticated;
+select t.must_allow('a member says Maybe', $$insert into rsvps (spark_id, user_id, status) select id, auth.uid(), 'maybe' from sparks where text = 'Maybe walk'$$);
+reset role;
+delete from notes where user_id = t.id('member');
+select t.login('host'); set role authenticated;
+select t.must_allow('the lead turns it back into an idea', $$select public.clear_plan((select id from sparks where text = 'Maybe walk'))$$);
+reset role;
+select t.check('the Maybe is interested and got the note',
+  exists (select 1 from interests i join sparks s on s.id = i.spark_id where s.text = 'Maybe walk' and i.user_id = t.id('member'))
+  and exists (select 1 from notes where user_id = t.id('member') and body like 'Maybe walk is off the calendar%'));
+-- A date that has passed can't be made a plan (3 days back: clear of the Chicago / UTC day boundary)
+update sparks set day_date = current_date - 3 where text = 'Maybe walk';
+select t.login('host'); set role authenticated;
+select t.must_refuse('making it a plan on a date that has passed', $$select public.make_plan((select id from sparks where text = 'Maybe walk'))$$);
+reset role;
+update sparks set day_date = current_date + 5 where text = 'Maybe walk';
+select t.login('host'); set role authenticated;
+select t.must_allow('with a date ahead it can be a plan', $$select public.make_plan((select id from sparks where text = 'Maybe walk'))$$);
+insert into signup_items (id, spark_id, item, need) values (gen_random_uuid(), (select id from sparks where text = 'Maybe walk'), 'Bring chairs', 2);
+reset role;
+-- Stepping back from a plan: a Maybe becomes interested and gets the note too
+select t.login('member'); set role authenticated;
+select t.must_allow('the member changes to Maybe', $$update rsvps set status = 'maybe' where user_id = auth.uid() and spark_id = (select id from sparks where text = 'Maybe walk')$$);
+-- Taking yourself off a job tells the lead, but not in the first 2 minutes (Undo)
+select t.must_allow('the member takes a job', $$insert into signup_claims (item_id) select id from signup_items where item = 'Bring chairs'$$);
+reset role;
+delete from notes where user_id = t.id('host');
+select t.login('member'); set role authenticated;
+select t.must_allow('and undoes it straight away', $$delete from signup_claims where user_id = auth.uid() and item_id = (select id from signup_items where item = 'Bring chairs')$$);
+reset role;
+select t.check('an Undo right after signing up tells no one', not exists (select 1 from notes where user_id = t.id('host')));
+select t.login('member'); set role authenticated;
+select t.must_allow('the member takes the job again', $$insert into signup_claims (item_id) select id from signup_items where item = 'Bring chairs'$$);
+reset role;
+update signup_claims set created_at = now() - interval '10 minutes' where user_id = t.id('member') and item_id = (select id from signup_items where item = 'Bring chairs');
+select t.login('member'); set role authenticated;
+select t.must_allow('later, the member takes themselves off', $$delete from signup_claims where user_id = auth.uid() and item_id = (select id from signup_items where item = 'Bring chairs')$$);
+reset role;
+select t.check('the lead gets a note that the job is open again',
+  exists (select 1 from notes where user_id = t.id('host') and body like '%can’t do Bring chairs any more (Maybe walk).'));
+delete from notes where user_id = t.id('host');
+-- The lead removing the job tells the people signed up, not the lead
+select t.login('member'); set role authenticated;
+select t.must_allow('the member takes the job a third time', $$insert into signup_claims (item_id) select id from signup_items where item = 'Bring chairs'$$);
+reset role;
+update signup_claims set created_at = now() - interval '10 minutes' where user_id = t.id('member') and item_id = (select id from signup_items where item = 'Bring chairs');
+select t.login('host'); set role authenticated;
+select t.must_allow('the lead takes the job down', $$select public.remove_signup((select id from signup_items where item = 'Bring chairs'))$$);
+reset role;
+select t.check('taking a job down writes the lead no "can''t do" note', not exists (select 1 from notes where user_id = t.id('host') and body like '%can’t do%'));
+delete from notes where user_id = t.id('member');
+select t.login('host'); set role authenticated;
+select t.check('the lead steps back from the plan', public.step_back((select id from sparks where text = 'Maybe walk')) = 'idea');
+reset role;
+select t.check('the Maybe is interested and got the stepped-back note',
+  exists (select 1 from interests i join sparks s on s.id = i.spark_id where s.text = 'Maybe walk' and i.user_id = t.id('member'))
+  and exists (select 1 from notes where user_id = t.id('member') and body like 'Maybe walk is an idea again%'));
+
 -- One request loads the app (20261101220000_load_all.sql): the same rows the caller could read table by table ----
 create function t.load_matches() returns boolean language sql as $$
   select jsonb_array_length(d -> 'memberships') = (select count(*) from memberships)

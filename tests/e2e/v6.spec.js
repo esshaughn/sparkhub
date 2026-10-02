@@ -76,13 +76,8 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     await expect(card).toContainText('RSVP');
     await shot(O, '03-calendar');
 
-    // Type filter: types are what the host picked (none here), so Family hides it
-    await cal.getByRole('button', { name: /^Type of event:/ }).click();
-    await O.getByRole('menu', { name: 'Type of event' }).getByRole('menuitemcheckbox', { name: /^Family/ }).click();
-    await expect(card).toHaveCount(0);
-    await expect(cal.getByText('Clear filters').first()).toBeVisible();   // twice when nothing else matches (the empty state has its own)
-    await cal.getByText('Clear filters').first().click();
-    await expect(card).toBeVisible();
+    // No Type filter (owner, 2026-10-02: nothing sets an event's type any more)
+    await expect(cal.getByRole('button', { name: /^Type of event:/ })).toHaveCount(0);
 
     // Search finds it; a result opens the plan
     await cal.getByRole('button', { name: 'Search events' }).click();
@@ -91,9 +86,9 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     await expect(search.getByText('Try', { exact: true })).toBeVisible();
     await expect(search.getByText('Or something unexpected')).toBeVisible();
     await expect(search.locator('[data-magic]')).toHaveCount(3);   // three real ones (owner, 2026-09-30)
-    await search.getByRole('button', { name: 'Needs helpers', exact: true }).click();
+    await search.getByRole('button', { name: 'Could use a hand', exact: true }).click();
     await expect(search.locator('[data-result="' + title + '"]')).toBeVisible();   // it has open sign-ups
-    await search.getByRole('button', { name: 'Clear Needs helpers' }).click();
+    await search.getByRole('button', { name: 'Clear Could use a hand' }).click();
     await expect(search.locator('[data-magic]')).toHaveCount(3);   // three real ones (owner, 2026-09-30)
     await search.getByLabel('Search events').fill(title.slice(-12));
     await expect(search.locator('[data-result="' + title + '"]')).toBeVisible();

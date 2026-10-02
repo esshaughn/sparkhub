@@ -1,7 +1,7 @@
 // A lead and a member on one idea: the shared link, "I'm interested", suggestions everyone votes on,
 // the lead picking, the mood board, making it a plan. A guest (no account) is asked to make one.
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newMember, newLead, leadEmail, button, postIdea, openIdea, deleteIdea, answerGuestPrompt, confirm, PNG, openProfile } = require('./helpers');
+const { uniqueTitle, newMember, newLead, leadEmail, button, pickDate, postIdea, openIdea, deleteIdea, answerGuestPrompt, confirm, PNG, openProfile } = require('./helpers');
 
 test('a member with the link takes part; everyone votes; the lead picks and makes it a plan', async ({ browser }) => {
   const lead = await newLead(browser, 1, 'Lena');
@@ -50,7 +50,9 @@ test('a member with the link takes part; everyone votes; the lead picks and make
     await expect(GD.getByRole('button', { name: 'Remove your vote for The north lot at Zilker' })).toHaveAttribute('aria-pressed', 'true');
     await GD.getByRole('button', { name: 'Suggest a date' }).click();
     const dateOffer = G.getByRole('dialog', { name: 'Suggest a date' });
-    await dateOffer.getByLabel('Date and time').fill('2026-11-14T18:30');
+    await pickDate(dateOffer, '2026-11-14');   // our own date picker and time list (owner, 2026-10-02), not the browser's
+    await dateOffer.getByRole('button', { name: 'Time', exact: true }).click();
+    await dateOffer.getByRole('option', { name: '6:30pm', exact: true }).click();
     await dateOffer.getByRole('button', { name: 'Suggest this date' }).click();
     await expect(G.getByRole('dialog')).toHaveCount(0);
     await GD.getByRole('button', { name: /^Vote for Sat, Nov 14 · 6:30pm \(0 votes, suggested by Gus\)/ }).click();

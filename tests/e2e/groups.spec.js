@@ -297,12 +297,12 @@ test('an invite link for someone signed out: the group’s landing with sign-in 
     await expect(land.getByRole('button', { name: 'Email me a code' })).toHaveAttribute('aria-disabled', 'false');
     await expect(page.getByRole('navigation', { name: 'Main' })).toHaveCount(0);
 
-    // E1: a code that matches nothing; "What's Spark Hub?" goes to the usual Welcome
+    // E1: a code that matches nothing; Go to Spark Hub goes to the usual Welcome
     await page.goto('/#/join/ZZZZ99');
     const bad = page.locator('[data-screen-label="Bad invite link"]');
     await expect(bad).toContainText('This invite link isn’t working');
     await expect(bad).not.toContainText('ZZZZ99');
-    await bad.getByRole('button', { name: 'What’s Spark Hub?' }).click();
+    await bad.getByRole('button', { name: 'Go to Spark Hub' }).click();
     await expect(page.locator('[data-screen-label=Welcome]')).toBeVisible();
     expect(errors).toEqual([]);
 
