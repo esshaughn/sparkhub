@@ -4759,7 +4759,7 @@
       '<span style="font-size:13px;line-height:1.4;font-weight:500;color:#6b7280">Anyone with the link can see the event and RSVP.</span>', 36);
   }
 
-  // Date and location in one card: a value, "to be decided" (amber), or a poll (guests vote, the host picks)
+  // Date and location in one card: a value (bold, with the time or address in gray under it), "TBD" (gray, owner 2026-10-01), or a poll (guests vote, the host picks)
   // Ideas use it too (audit, 2026-10-01): members also get Suggest a date / location, and a set date or place keeps any other suggestions under it
   const whenWhereCard = (s) => {
     const lead = isLead(s) && !s.cancelledAt, P = '#5b4ae8', off = !!s.cancelledAt, suggest = !s.planned && !isLead(s) && !off;
@@ -4773,14 +4773,15 @@
         (off ? '' : '<span ' + on(act) + ' aria-label="' + esc((lead ? 'Pick ' : mine ? 'Remove your vote for ' : 'Vote for ') + tip) + '" aria-pressed="' + (!lead && mine) + '" style="flex:0 0 auto;display:flex;align-items:center;justify-content:center;min-width:70px;min-height:34px;padding:0 12px;border-radius:999px;font-size:13px;font-weight:800;cursor:pointer;white-space:nowrap;' +
           (lead ? 'background:' + P + ';color:#fff' : mine ? 'background:#e7f5ec;color:#0f7a3c' : 'background:#fff;color:' + P + ';box-shadow:inset 0 0 0 1.5px ' + P) + '">' + (lead ? 'Pick' : mine ? '✓ Voted' : 'Vote') + '</span>') + '</div>';
     }).join('');
-    const tbd = (t) => '<div style="display:flex;align-items:center;gap:10px"><span style="flex:1;font-size:17px;line-height:1.25;font-weight:800;color:' + AMBER_INK + '">' + t + '</span>' +
+    const tbd = (t) => '<div style="display:flex;align-items:center;gap:10px"><span style="flex:1;font-size:17px;line-height:1.25;font-weight:800;color:#6b7280">' + t + '</span>' +
       (lead ? '<span ' + on(() => openSec(s, 'when')) + ' style="font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">Add</span>' : '') + '</div>';
     const voting = (t, rows) => '<div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;font-weight:800;letter-spacing:1.1px;color:' + AMBER_INK + '">' + t + '</span>' + rows + '</div>';
     const whenTxt = s.dayDate ? new Date(s.dayDate + 'T12:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }) : '';
     const time = s.dayTime ? (s.dayEnd ? spanTime({ time: s.dayTime, endTime: s.dayEnd }) : fmtTime(s.dayTime)) : '';
     const otherDays = s.dateOpts.filter(o => !(o.dayDate === s.dayDate && (o.dayTime || null) === (s.dayTime || null))), otherSpots = s.spotOpts.filter(o => o.name !== s.spot);
     const sugg = (kind) => suggest ? '<span ' + on(() => openOffer(s, kind)) + ' data-suggest-' + kind + ' style="margin-top:6px;display:inline-flex;align-items:center;gap:6px;min-height:34px;font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(14, '#5b4ae8', 2.6) + (kind === 'day' ? 'Suggest a date' : 'Suggest a location') + '</span>' : '';
-    const dayPart = (s.dayDate ? '<div style="font-size:17px;line-height:1.25;font-weight:900;letter-spacing:-.3px;color:#0d1117;text-wrap:pretty">' + esc(whenTxt) + (time ? ' · <span style="color:#0f7a3c">' + esc(time) + '</span>' : '') + '</div>' +
+    const dayPart = (s.dayDate ? '<div style="font-size:17px;line-height:1.25;font-weight:900;letter-spacing:-.3px;color:#0d1117;text-wrap:pretty">' + esc(whenTxt) + '</div>' +
+          (time ? '<div style="margin-top:2px;font-size:15px;line-height:1.35;font-weight:500;color:#6b7280">' + esc(time) + '</div>' : '') +
           (otherDays.length ? '<div style="margin-top:10px">' + voting('OTHER SUGGESTIONS', pollRows(otherDays, 'day')) + '</div>' : '')
         : s.dateOpts.length ? voting('VOTING ON A DATE', pollRows(s.dateOpts, 'day')) : tbd('Date TBD')) + sugg('day');
     const spotPart = (s.spot ? '<div style="font-size:17px;line-height:1.25;font-weight:900;letter-spacing:-.3px;color:#0d1117;text-wrap:pretty">' + esc(s.spot) + '</div>' +
@@ -4788,10 +4789,10 @@
           (otherSpots.length ? '<div style="margin-top:10px">' + voting('OTHER SUGGESTIONS', pollRows(otherSpots, 'spot')) + '</div>' : '')
         : s.spotOpts.length ? voting('VOTING ON A SPOT', pollRows(s.spotOpts, 'spot')) : tbd('Location TBD')) + sugg('spot');
     const pill = 'flex:1 1 0;display:flex;align-items:center;justify-content:center;gap:8px;min-height:46px;border-radius:999px;background:#f3f1fe;color:#5b4ae8;font-size:14.5px;font-weight:800;text-decoration:none;cursor:pointer';
-    return '<div id="sec-when" data-when-card style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:14px">' +
-      '<div style="display:flex;gap:12px">' + svg(20, stroke('#0f7a3c', 2.2) + ' style="flex:0 0 20px;margin-top:1px"', P6.cal) + '<div style="flex:1;min-width:0">' + dayPart + '</div>' +
+    return '<div id="sec-when" data-when-card style="' + CARD + ';border-radius:20px;padding:18px;display:flex;flex-direction:column;gap:16px">' +
+      '<div style="display:flex;gap:14px">' + svg(20, stroke('#6b7280', 2.1) + ' style="flex:0 0 20px;margin-top:1px"', P6.cal) + '<div style="flex:1;min-width:0">' + dayPart + '</div>' +
         (lead ? '<span ' + on(() => openSec(s, 'when')) + ' aria-label="Edit date, time and location" style="flex:0 0 auto;align-self:flex-start;display:flex;align-items:center;gap:5px;padding-top:2px;color:#6b7280;font-size:14px;font-weight:700;cursor:pointer">' + svg(13, stroke('currentColor', 2.4), PENCIL) + 'Edit</span>' : '') + '</div>' +
-      '<div style="display:flex;gap:12px">' + svg(20, stroke('#0f7a3c', 2.2) + ' style="flex:0 0 20px;margin-top:1px"', P6.pin) + '<div style="flex:1;min-width:0">' + spotPart + '</div></div>' +
+      '<div style="display:flex;gap:14px">' + svg(20, stroke('#6b7280', 2.1) + ' style="flex:0 0 20px;margin-top:1px"', P6.pin) + '<div style="flex:1;min-width:0">' + spotPart + '</div></div>' +
       (s.dayDate || s.spot ? '<div style="display:flex;gap:8px">' +
         (s.dayDate ? '<span ' + on(() => addToCalendar(s)) + ' style="' + pill + '">' + svg(18, stroke('#5b4ae8', 2.2), '<path d="M20 12V8a2.5 2.5 0 0 0-2.5-2.5h-11A2.5 2.5 0 0 0 4 8v9.5A2.5 2.5 0 0 0 6.5 20H12"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/><path d="M18 15v6M15 18h6"/>') + 'Add to calendar</span>' : '') +
         (s.spot ? '<a href="' + esc(directionsUrl(s)) + '" target="_blank" rel="noopener noreferrer" style="' + pill + '">' + svg(18, stroke('#5b4ae8', 2.2), '<path d="M12 2.8 21.2 12 12 21.2 2.8 12Z"/><path d="M9 14.5V12a1.5 1.5 0 0 1 1.5-1.5H15"/><path d="m13 8.5 2 2-2 2"/>') + 'Directions</a>' : '') + '</div>' : '') +
