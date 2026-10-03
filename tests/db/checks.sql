@@ -523,7 +523,8 @@ insert into signup_items (id, spark_id, item, need, created_by) values
 create function t.job() returns uuid language sql stable as $$ select id from signup_items where item = 'Barricades' $$;
 grant execute on function t.job() to authenticated;
 select t.login('host'); set role authenticated;
-select t.must_refuse('asking without a line', format($$select public.ask_for_job(%L, %L, '  ')$$, t.job(), t.id('helper')));
+select t.check('a job ask''s note is optional (20261103020000)', (select is_nullable = 'YES' from information_schema.columns where table_schema = 'public' and table_name = 'job_asks' and column_name = 'message')
+  and not exists (select 1 from pg_proc where proname = 'ask_for_job' and prosrc like '%say why them%'));
 select t.must_allow('the lead asks someone, with why them', format($$select public.ask_for_job(%L, %L, 'I thought of you because you did it last year')$$, t.job(), t.id('helper')));
 select t.must_allow('and a second person', format($$select public.ask_for_job(%L, %L, 'I thought of you because you live next door')$$, t.job(), t.id('taker')));
 select t.must_refuse('a third while two are open', format($$select public.ask_for_job(%L, %L, 'I thought of you because why not')$$, t.job(), t.id('late')));

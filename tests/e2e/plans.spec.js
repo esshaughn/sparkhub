@@ -837,9 +837,9 @@ test('Calendar group filter: toggling works, and could use a hand follows it', a
   }
 });
 
-// Asking someone to take a job (owner, 2026-10-02, from Cynthia's demo): the lead finishes "I thought of you because…",
-// asks one or two people per job, and the person answers I'm in (signed up) or Can't this time
-test('ask someone to take a job: a personal line, two at a time, I’m in', async ({ browser }) => {
+// Asking someone to take a job (owner, 2026-10-02, from Cynthia's demo; reworked 2026-10-03): the lead ticks up to two
+// people, each with their own optional note, sends, and the person answers I'm in (signed up) or Can't this time
+test('ask someone to take a job: tick up to two, a note each, I’m in', async ({ browser }) => {
   const host = await newLead(browser, 1, 'Hope'), helper = await newLead(browser, 2, 'Lin ' + Date.now().toString(36).slice(-4));
   const H = host.page, O = helper.page, title = uniqueTitle('Parade');
   let id;
@@ -852,15 +852,16 @@ test('ask someone to take a job: a personal line, two at a time, I’m in', asyn
     const HP = H.locator('[data-screen-label="Plan page"]'), job = HP.locator('[data-signup="Barricades"]');
     await job.locator('[data-ask-job]').click();
     const ask = H.getByRole('dialog', { name: 'Ask someone to take it' });
-    await expect(ask.locator('[data-job-ask-count]')).toHaveText('0 of 2 asked');
+    // Tick up to two, a note field under each one ticked, then one Send asks (owner, 2026-10-03)
+    await expect(ask).toContainText('Ask up to 2 people. Add a note if you like.');
+    await expect(ask.getByRole('button', { name: 'Send asks' })).toHaveAttribute('aria-disabled', 'true');
     const row = ask.locator('[data-job-ask-row="' + linName + '"]');
-    await expect(row.getByRole('button', { name: 'Ask ' + linName })).toHaveAttribute('aria-disabled', 'true');   // the line comes first
-    await ask.getByLabel('I thought of you because').fill('you were great on barricades last year');
-    await row.getByRole('button', { name: 'Ask ' + linName }).click();
-    await expect(row).toContainText('Asked');
-    await expect(ask.locator('[data-job-ask-count]')).toHaveText('1 of 2 asked');
+    await row.getByRole('checkbox', { name: 'Ask ' + linName }).click();
+    await row.getByPlaceholder('I thought of you because…').fill('I thought of you because you were great on barricades last year');
+    await ask.getByRole('button', { name: 'Send asks · 1' }).click();
+    await expect(ask).toHaveCount(0);
+    await expect(H.getByText('Asked ' + linName.split(' ')[0], { exact: true })).toBeVisible();   // the toast
     await expect(H.locator('html[data-saving]')).toHaveCount(0);
-    await ask.getByRole('button', { name: 'Close' }).click();
     await expect(job.locator('[data-job-asks]')).toContainText('Asked ' + linName.split(' ')[0] + ' · waiting');
 
     // Lin's bell and the event page carry the ask and its line; I'm in signs Lin up

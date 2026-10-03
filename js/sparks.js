@@ -1378,9 +1378,9 @@
       .catch(e => { console.error(e); setState({ leadAsk: null }); toast(failed(e)); });
   };
   // ---- Asking someone to take a job, and handing the lead on (owner, 2026-10-02; 20261102070000_job_asks_and_handoff.sql).
-  // A job ask is personal: the lead finishes "I thought of you because…", asks one person at a time, two open at most
-  // per job; the person answers I'm in (signed up, Going) or Can't this time. Jobs with shifts can't be asked for yet.
-  const JOB_ASK_LEAD = 'I thought of you because ';
+  // A job ask is personal (owner, 2026-10-03): the lead ticks up to two people, each gets their own optional note
+  // (I thought of you because…), then one Send asks; two open at most per job. The person answers I'm in (signed up,
+  // Going) or Can't this time. Jobs with shifts can't be asked for yet.
   // The people a lead can pick: the event's groups' members and your friends
   const peopleFor = (s) => Promise.all(s.groupIds.map(g => sb.rpc('group_people', { p_group: g }).then(r => r.error ? [] : r.data || [], () => [])))
     .then(rs => { const seen = {}, out = [];
@@ -1389,16 +1389,18 @@
   const openAsks = (s, itemId) => s.jobAsks.filter(a => a.itemId === itemId && !a.answer && !onJob(s, itemId, a.userId));
   const onJob = (s, itemId, u) => s.signups.some(it => it.id === itemId && it.claims.some(c => c.userId === u));
   const openJobAsk = (s, j) => {
-    setState({ jobAsk: { id: s.id, item: j.id, people: null, q: '', why: '' } });
+    setState({ jobAsk: { id: s.id, item: j.id, people: null, q: '', picked: [], notes: {} } });
     peopleFor(s).then(people => { if (state.jobAsk && state.jobAsk.item === j.id) setState({ jobAsk: Object.assign({}, state.jobAsk, { people }) }); });
   };
-  const askForJob = (s, itemId, u) => {
-    const why = (state.jobAsk.why || '').trim();
-    if (!why) return toast('Finish the line first: I thought of you because…');
-    if (openAsks(s, itemId).length >= 2) return;
-    const msg = JOB_ASK_LEAD + why.replace(/^because\s+/i, '');
-    quick(s, { jobAsks: s.jobAsks.concat({ itemId, userId: u, by: state.me, message: msg, answer: null, at: Date.now() }) },
-      async () => { must(await sb.rpc('ask_for_job', { p_item: itemId, p_user: u, p_message: msg })); });
+  const sendJobAsks = (s, itemId) => {
+    const ja = state.jobAsk, ids = (ja.picked || []).slice(0, Math.max(0, 2 - openAsks(s, itemId).length));
+    if (!ids.length) return;
+    const note = (u) => ((ja.notes || {})[u] || '').trim().slice(0, 170);
+    const names = ids.map(u => firstName(((ja.people || []).find(p => p.id === u) || {}).name || nameOf(u)));
+    setState({ jobAsk: null });
+    toast('Asked ' + namesList(names));
+    quick(s, { jobAsks: s.jobAsks.concat(ids.map(u => ({ itemId, userId: u, by: state.me, message: note(u), answer: null, at: Date.now() }))) },
+      async () => { for (const u of ids) must(await sb.rpc('ask_for_job', { p_item: itemId, p_user: u, p_message: note(u) || null })); });
   };
   const withdrawJobAsk = (s, a) => quick(s, { jobAsks: s.jobAsks.filter(x => !(x.itemId === a.itemId && x.userId === a.userId)) },
     async () => { must(await sb.rpc('withdraw_job_ask', { p_item: a.itemId, p_user: a.userId })); });
@@ -1407,24 +1409,28 @@
   function viewJobAsk() {
     const ja = state.jobAsk, s = state.sparks.find(x => x.id === ja.id), j = s && s.signups.find(it => it.id === ja.item);
     if (!s || !j) return '';
-    const close = () => setState({ jobAsk: null }), q = (ja.q || '').trim().toLowerCase(), open = openAsks(s, j.id), two = open.length >= 2, ready = !!(ja.why || '').trim();
+    const close = () => setState({ jobAsk: null }), q = (ja.q || '').trim().toLowerCase(), open = openAsks(s, j.id);
+    const slots = Math.max(0, 2 - open.length), picked = ja.picked || [], notes = ja.notes || {}, n = picked.length;
+    const set = (patch) => setState({ jobAsk: Object.assign({}, state.jobAsk, patch) });
     const list = (ja.people || []).filter(p => p.id !== state.me && hostIds(s).indexOf(p.id) < 0 && !onJob(s, j.id, p.id) && (!q || p.name.toLowerCase().indexOf(q) > -1));
-    const btn = (p) => { const a = s.jobAsks.find(x => x.itemId === j.id && x.userId === p.id);
+    // A tick picks; once the slots are full the others grey out. A ticked person gets their own note field under them
+    const right = (p) => { const a = s.jobAsks.find(x => x.itemId === j.id && x.userId === p.id);
       if (a) return '<span data-asked style="flex:0 0 auto;font-size:14px;font-weight:800;color:' + (a.answer === 'cant' ? '#6b7280' : '#0f7a3c') + '">' + (a.answer === 'cant' ? 'Can’t this time' : '✓ Asked') + '</span>';
-      const ok = ready && !two;
-      return '<button type="button" ' + on(() => askForJob(s, j.id, p.id)) + ' aria-label="Ask ' + esc(p.name) + '" aria-disabled="' + !ok + '" style="flex:0 0 auto;min-height:38px;padding:0 18px;border:0;border-radius:999px;background:' + (ok ? '#5b4ae8' : '#d5d8df') + ';color:#fff;font-family:inherit;font-size:14.5px;font-weight:800;cursor:' + (ok ? 'pointer' : 'default') + '">Ask</button>'; };
+      const on_ = picked.indexOf(p.id) > -1, full = !on_ && n >= slots;
+      return '<span ' + (full ? '' : on(() => set({ picked: on_ ? picked.filter(x => x !== p.id) : picked.concat(p.id) }), 'checkbox')) + (full ? ' role="checkbox" aria-disabled="true"' : '') + ' aria-checked="' + on_ + '" aria-label="Ask ' + esc(p.name) + '" style="flex:0 0 26px;width:26px;height:26px;border-radius:999px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;cursor:' + (full ? 'default' : 'pointer') + ';' +
+        (on_ ? 'background:#5b4ae8' : 'background:#fff;border:2px solid ' + (full ? '#e3e5ec' : '#c9ccd3')) + '">' + (on_ ? I.check(13, '#fff', 3.2) : '') + '</span>'; };
+    const noteFld = (p) => picked.indexOf(p.id) < 0 ? '' :
+      '<textarea class="fld" rows="2" maxlength="170" data-job-note="' + esc(p.name) + '" aria-label="Why ' + esc(firstName(p.name)) + '? (optional)" placeholder="I thought of you because…" ' +
+        onInput(e => { if (e.type === 'input') set({ notes: Object.assign({}, state.jobAsk.notes, { [p.id]: e.target.value.slice(0, 170) }) }); }) + ' style="' + FIELD + ';display:block;height:auto;min-height:0;margin:0 0 10px 46px;width:calc(100% - 46px);padding:10px 14px;font-size:15px;line-height:1.4;resize:none">' + esc(notes[p.id] || '') + '</textarea>';
     return modal('Ask someone to take it', close,
       h3Html('Ask someone to take “' + esc(j.item) + '”') +
-      paraHtml('A personal ask lands better than a post to everyone. Ask one or two people at a time; they can say I’m in or Can’t this time.') +
-      '<label data-job-why style="display:flex;flex-direction:column;gap:6px"><span style="font-size:15px;font-weight:800;color:#0d1117">I thought of you because…</span>' +
-        '<input class="fld" type="text" maxlength="170" aria-label="I thought of you because" placeholder="you were great on barricades last year" value="' + esc(ja.why || '') + '" ' + onInput(e => { if (e.type === 'input') setState({ jobAsk: Object.assign({}, state.jobAsk, { why: e.target.value.slice(0, 170) }) }); }) +
-          ' style="' + FIELD + '"></label>' +
-      '<div data-job-ask-count role="status" style="font-size:13.5px;font-weight:800;color:' + (two ? '#b07a0a' : '#6b7280') + '">' + (two ? 'That’s two waiting. Wait for an answer, or withdraw one.' : open.length + ' of 2 asked') + '</div>' +
-      ((ja.people || []).length > 7 ? '<input class="fld" type="search" aria-label="Search people" placeholder="Search" value="' + esc(ja.q || '') + '" ' + onInput(e => { if (e.type === 'input') setState({ jobAsk: Object.assign({}, state.jobAsk, { q: e.target.value.slice(0, 40) }) }); }) + ' style="' + FIELD + '">' : '') +
+      paraHtml(slots === 2 ? 'Ask up to 2 people. Add a note if you like.' : slots === 1 ? 'One ask is waiting, so you can ask 1 more.' : 'Two asks are waiting. Wait for an answer, or withdraw one.') +
+      ((ja.people || []).length > 7 ? '<input class="fld" type="search" aria-label="Search people" placeholder="Search" value="' + esc(ja.q || '') + '" ' + onInput(e => { if (e.type === 'input') set({ q: e.target.value.slice(0, 40) }); }) + ' style="' + FIELD + '">' : '') +
       (ja.people === null ? paraHtml('Loading…') : !list.length ? paraHtml(q ? 'Nobody by that name.' : 'No one else to ask yet.') :
-        '<div style="display:flex;flex-direction:column;max-height:42vh;overflow:auto">' + list.map((p, i) =>
-          '<div data-job-ask-row="' + esc(p.name) + '" style="display:flex;align-items:center;gap:12px;min-height:54px;border-top:' + (i ? '1px solid #f2f3f6' : '0') + '">' +
-            face(p.id, p.name, 34) + '<span style="flex:1;min-width:0;font-size:15px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(p.name) + '</span>' + btn(p) + '</div>').join('') + '</div>'));
+        '<div style="display:flex;flex-direction:column;max-height:46vh;overflow:auto">' + list.map((p, i) =>
+          '<div data-job-ask-row="' + esc(p.name) + '" style="border-top:' + (i ? '1px solid #f2f3f6' : '0') + '"><div style="display:flex;align-items:center;gap:12px;min-height:54px">' +
+            face(p.id, p.name, 34) + '<span style="flex:1;min-width:0;font-size:15px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(p.name) + '</span>' + right(p) + '</div>' + noteFld(p) + '</div>').join('') + '</div>') +
+      (slots ? '<button type="button" data-send-asks ' + (n ? on(() => sendJobAsks(s, j.id)) : 'aria-disabled="true"') + ' style="width:100%;min-height:52px;border:0;border-radius:999px;background:' + (n ? '#5b4ae8' : '#d5d8df') + ';color:#fff;font-family:inherit;font-size:16px;font-weight:800;cursor:' + (n ? 'pointer' : 'default') + '">' + (n ? 'Send asks · ' + n : 'Send asks') + '</button>' : ''));
   }
   // Under a job, for the lead: who's been asked and how it went
   const jobAskLine = (s, j) => {
