@@ -7850,8 +7850,8 @@
     root.classList.toggle('no-nav', noNav);
     if (hadNoNav && !noNav) { nudgeSoon(); tallFix(); setTimeout(tallFix, 400); setTimeout(() => layoutNote('tab bar back'), 1500); }   // the tab bar is back
     hadNoNav = noNav;
-    // Screens that start with a photo run it up under the iPhone status bar
-    const sc = state.screen, photoTop = sc === 'browse' || (sc === 'detail' && !!subject()) || sc === 'calendar' || sc === 'groups' || welcomeShown() || (!state.email && sc === 'compose') ||
+    // Screens that start with a photo run it up under the iPhone status bar (Your people has a white header since 2026-10-03)
+    const sc = state.screen, photoTop = sc === 'browse' || (sc === 'detail' && !!subject()) || sc === 'calendar' || welcomeShown() || (!state.email && sc === 'compose') ||
       (invFull() && (state.inv.step === 'land' || state.inv.step === 'welcome'));
     root.classList.toggle('photo-top', photoTop);
     syncBadge();
