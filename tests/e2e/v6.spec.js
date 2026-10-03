@@ -51,7 +51,7 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     await expect(lead).toContainText('Location TBD');
     // Jobs still to fill are a lead's task, one row each; Ask opens the personal ask for that job (owner, 2026-10-02)
     await expect(lead).toContainText('Folding chairs: 2 spots to fill');
-    await expect(lead).toContainText('Ice: 1 spot to fill');
+    await expect(lead).toContainText('+1 more');   // the card shows two rows; View all has the rest
     await lead.locator('[data-todo-cta]', { hasText: 'Ask' }).first().click();
     const askSheet = H.getByRole('dialog', { name: 'Ask someone to take it' });
     await expect(askSheet).toContainText('Ask someone to take “Folding chairs”');
