@@ -175,7 +175,7 @@
     evStep: 'title', activity: '', photos: [], evPhotoPath: null, coverPos: null,
     evDate: '', evTime: '', evEnd: '', evEndOn: false, timeOpen: null, dateOpen: null, calMonth: null,
     locText: '', locPlace: null, locSuggest: [],
-    evBits: ['', '', ''], evNeed: null, evTags: [], evNeeds: [], evDatePoll: null, evSpotPoll: null, evLater: {}, evHelpNone: false,
+    evBits: ['', '', ''], evOverview: '', evNeed: null, evTags: [], evNeeds: [], evDatePoll: null, evSpotPoll: null, evLater: {}, evHelpNone: false,
     evPriv: false, evNoGuestInv: true, evTest: null, evKindAsk: false, evFloat: false, evPop: null, evGroups: null, evDraftId: null, evLeave: false, evLeaveTo: null, evFrom: null, pollSheet: null, needSheet: null, evFromReview: false
   });
   const state = Object.assign({
@@ -409,7 +409,7 @@
   const toSpark = (row, offers, interests, contacts, x) => ({
     id: row.id, groupId: row.group_id, text: row.text,
     groupIds: [row.group_id].concat((x.groups[row.id] || []).map(g => g.group_id).filter(g => g !== row.group_id)),
-    hopes: (row.hopes || []).filter(Boolean),
+    hopes: (row.hopes || []).filter(Boolean), overview: row.overview || '',
     createdBy: row.created_by, created: Date.parse(row.created_at),
     leadId: row.lead_id, leadName: row.lead_name || row.author_name || 'Someone',
     spot: row.spot || '', spotAddress: row.spot_address || '',
@@ -1432,18 +1432,6 @@
             face(p.id, p.name, 34) + '<span style="flex:1;min-width:0;font-size:15px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(p.name) + '</span>' + right(p) + '</div>' + noteFld(p) + '</div>').join('') + '</div>') +
       (slots ? '<button type="button" data-send-asks ' + (n ? on(() => sendJobAsks(s, j.id)) : 'aria-disabled="true"') + ' style="width:100%;min-height:52px;border:0;border-radius:999px;background:' + (n ? '#5b4ae8' : '#d5d8df') + ';color:#fff;font-family:inherit;font-size:16px;font-weight:800;cursor:' + (n ? 'pointer' : 'default') + '">' + (n ? 'Send asks · ' + n : 'Send asks') + '</button>' : ''));
   }
-  // Under a job, for the lead: who's been asked and how it went
-  const jobAskLine = (s, j) => {
-    const asks = s.jobAsks.filter(a => a.itemId === j.id && !onJob(s, j.id, a.userId)), open = openAsks(s, j.id);
-    const full = j.need && j.claims.length >= j.need;
-    const rows = asks.map(a => '<div data-job-asked="' + esc(firstName(nameOf(a.userId))) + '" style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;color:#5c6270">' + face(a.userId, nameOf(a.userId), 22) +
-      '<span style="flex:1;min-width:0">' + (a.answer === 'cant' ? esc(firstName(nameOf(a.userId))) + ' can’t this time' : 'Asked ' + esc(firstName(nameOf(a.userId))) + ' · waiting') + '</span>' +
-      (a.answer ? '' : '<span ' + on(() => withdrawJobAsk(s, a)) + ' style="font-size:13.5px;font-weight:800;color:#9b1c31;cursor:pointer">Withdraw</span>') + '</div>').join('');
-    const ask = full ? '' : open.length >= 2 ? '<span style="font-size:13.5px;font-weight:700;color:#8a909b">Two asked. Wait for an answer, or withdraw one.</span>'
-      : '<span ' + on(() => openJobAsk(s, j)) + ' data-ask-job role="button" style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:36px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(14, '#5b4ae8', 2.8) + 'Ask someone</span>';
-    return !rows && !ask ? '' : '<div data-job-asks style="display:flex;flex-direction:column;gap:8px;padding-top:10px;border-top:1px solid #f2f3f6">' + rows + ask + '</div>';
-  };
-
   // Hand the lead to someone: they lead it once they say yes; you stay on as a co-lead. One open offer at a time
   const openHandOff = (s) => {
     setState({ handOff: { id: s.id, people: null, q: '', note: '' }, leadsSheet: null });
@@ -1723,6 +1711,12 @@
     const mine = myShiftIds(job), c = job.shifts.map(u => u.claims.find(x => x.userId === state.me)).find(Boolean);
     setState({ shiftPick: { id: s.id, job: job.id, sel: mine, note: c ? c.note : '' } });
   }));
+  // A shift's own button on the job card (Design 7g): one shift per person per job, so taking one moves you off the others
+  const pickShift = (s, job, u) => (noteTap({ k: 'shift', id: s.id, item: u.id }), needAccount(() => {
+    const mine = myShiftIds(job), c = job.shifts.map(x => x.claims.find(y => y.userId === state.me)).find(Boolean);
+    state.shiftPick = { id: s.id, job: job.id, sel: mine.indexOf(u.id) > -1 ? [] : [u.id], note: c ? c.note || '' : '' };
+    saveShifts(s, job);
+  }));
   const saveShifts = (s, job) => {
     const p = state.shiftPick, had = myShiftIds(job), sel = p.sel, was = myRsvp(s), note = (p.note || '').trim().slice(0, 60) || null;
     const add = sel.filter(id => had.indexOf(id) < 0), drop = had.filter(id => sel.indexOf(id) < 0), keep = had.filter(id => sel.indexOf(id) > -1);
@@ -1797,7 +1791,7 @@
 
   // "Do it again": a new event with the place and details filled in
   const doItAgain = (s) => goCompose({ activity: s.text.slice(0, 40), evTags: (s.tags || []).slice(0, 2), evTest: !!(s.test || s.demo), locText: s.spot || '', locPlace: s.spotAddress ? { name: s.spot, address: s.spotAddress, lat: s.spotPoint && s.spotPoint[0], lon: s.spotPoint && s.spotPoint[1] } : null,
-    evBits: [0, 1, 2].map(i => (basicsOf(s)[i] || '').slice(0, 60)) });
+    evBits: [0, 1, 2].map(i => (basicsOf(s)[i] || '').slice(0, 60)), evOverview: (s.overview || '').slice(0, 80) });
 
   const addMood = async (s, fileList) => {
     const f = (fileList || [])[0];
@@ -1999,7 +1993,7 @@
 
   const GOOGLE_ON = !!CFG.googleSignIn;
   const RESUME_KEY = 'spark-hub-google-resume';
-  const DRAFT_KEYS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'locText', 'locPlace', 'evBits', 'evNeed', 'evTags', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evNoGuestInv', 'evTest', 'evFloat', 'evHelpNone', 'evGroups', 'coverPos', 'evPhotoPath', 'evDraftId'];
+  const DRAFT_KEYS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'locText', 'locPlace', 'evBits', 'evOverview', 'evNeed', 'evTags', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evNoGuestInv', 'evTest', 'evFloat', 'evHelpNone', 'evGroups', 'coverPos', 'evPhotoPath', 'evDraftId'];
   const readResume = () => {
     try {
       const r = JSON.parse(sessionStorage.getItem(RESUME_KEY));
@@ -2081,6 +2075,7 @@
     else if (t.k === 'claim') { if (it && !it.claims.some(c => c.userId === state.me)) toggleClaim(s, it); }
     else if (t.k === 'role') { if (it && !it.claims.some(c => c.userId === state.me)) claimRole(s, it); }
     else if (t.k === 'shifts') { if (it && it.shifts) openShifts(s, it); }
+    else if (t.k === 'shift') { const job = (s.jobs || []).find(j => j.shifts && j.shifts.some(u => u.id === t.item)); if (job && it && !it.claims.some(c => c.userId === state.me)) pickShift(s, job, it); }
   };
 
   // Runs once at start-up, after the session is ready. Returns true if the page is leaving again.
@@ -3121,7 +3116,7 @@
     return [
       { label: 'Lead', icon: 'person', p: s.wantsHost ? 0 : 1, todo: 'Find a lead', done: 'Has a lead', sec: 'sec-lead' },
       { label: 'Location', icon: 'pin', p: s.spot ? 1 : s.spotOpts.length ? .5 : 0, todo: 'Pick a location', done: 'Location set', sec: 'sec-when' },
-      { label: 'Details', icon: 'roles', p: basicsOf(s).length ? 1 : 0, todo: 'Add details', done: 'Details added', sec: 'sec-details' },
+      { label: 'Details', icon: 'roles', p: basicsOf(s).length || s.overview ? 1 : 0, todo: 'Add details', done: 'Details added', sec: 'sec-details' },
       // Design 23C1 (2026-10-03): the same five steps as the idea's gold strip
       { label: 'Jobs', icon: 'clip', p: s.signups.length || s.noHelp ? 1 : 0, todo: 'Add jobs, or say no help needed', done: s.signups.length ? 'Jobs added' : 'No help needed', sec: 'sec-tasks' },
       { label: 'Date', icon: 'cal', p: s.dayDate ? (s.dayDate >= todayISO() ? 1 : 0) : top ? .5 : 0, todo: 'Pick a date', done: 'Date set', sec: 'sec-when' }
@@ -4995,8 +4990,9 @@
           (edit && !off
             ? '<h1 ' + on(() => openSec(s, 'title'), 'button') + ' aria-label="' + esc(s.text) + ', edit the title" style="margin:0;font-size:36px;line-height:1;font-weight:900;letter-spacing:-1.2px;text-wrap:pretty;cursor:pointer">' + esc(s.text) + '</h1>'
             : '<h1 style="margin:0;font-size:36px;line-height:1;font-weight:900;letter-spacing:-1.2px;text-wrap:pretty">' + esc(s.text) + '</h1>') + '</div>' +
-          (s.dayDate ? '<span aria-label="' + esc(fmtDay(s.dayDate)) + '" style="flex:0 0 70px;width:70px;border-radius:14px;overflow:hidden;text-align:center;background:#fff;box-shadow:0 8px 20px rgba(0,0,0,.3);transform:rotate(4deg)"><span style="display:block;background:#e8a71c;color:#fff;font-size:11.5px;font-weight:900;letter-spacing:1px;padding:3px 0">' + dp.mon + '</span><span style="display:block;font-size:32px;line-height:1.15;font-weight:900;color:#0d1117">' + dp.day + '</span><span style="display:block;padding-bottom:5px;font-size:11px;font-weight:800;color:#6b7280">' + dp.dow + '</span></span>' : '') +
-        '</div>', true) +
+        '</div>' +
+          // The date tile sits top right, under Edit and Share (Design 13e, 2026-10-03), so the title has the full width
+          (s.dayDate ? '<span data-date-tile aria-label="' + esc(fmtDay(s.dayDate)) + '" style="position:absolute;right:20px;top:calc(72px + var(--pt));z-index:1;width:78px;border-radius:15px;overflow:hidden;text-align:center;background:#fff;box-shadow:0 8px 20px rgba(0,0,0,.3);transform:rotate(4deg)"><span style="display:block;background:#e8a71c;color:#fff;font-size:12.5px;font-weight:900;letter-spacing:1px;padding:4px 0">' + dp.mon + '</span><span style="display:block;font-size:36px;line-height:1.15;font-weight:900;color:#0d1117">' + dp.day + '</span><span style="display:block;padding-bottom:5px;font-size:12px;font-weight:800;color:#6b7280">' + dp.dow + '</span></span>' : ''), true) +
       (off ? '' : ideaBanner(s)) +
       '<div style="padding:16px 14px 26px;display:flex;flex-direction:column;gap:18px">' +
         cancelledCard(s) +
@@ -5044,7 +5040,7 @@
   const FLAG = '<path d="M5 21V4"/><path d="M5 4.5c2.5-1.5 5-1.5 7 0s4.5 1.5 7 0v9c-2.5 1.5-5 1.5-7 0s-4.5-1.5-7 0"/>';
   const ideaBanner = (s) => {
     // Jobs (Design 23C1): done by a job or No help needed; progress only, Make it a plan! still needs just a lead and a date
-    const steps = [['Lead', !s.wantsHost], ['Location', !!s.spot], ['Details', basicsOf(s).length > 0], ['Jobs', s.signups.length > 0 || s.noHelp], ['Date', dateAhead(s)]]
+    const steps = [['Lead', !s.wantsHost], ['Location', !!s.spot], ['Details', basicsOf(s).length > 0 || !!s.overview], ['Jobs', s.signups.length > 0 || s.noHelp], ['Date', dateAhead(s)]]
       .concat(MIN_PEOPLE && s.minPeople ? [['People', s.interested.length >= s.minPeople]] : []);
     const bar = (on_) => '<span aria-hidden="true" style="flex:1 1 0;max-width:42px;height:3px;margin:10px 6px 0;border-radius:999px;background:' + (on_ ? '#3d2a00' : 'rgba(61,42,0,.22)') + '"></span>';
     const step = ([label, met]) => '<div style="flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:5px">' +
@@ -5131,53 +5127,77 @@
   };
   const directionsUrl = (s) => 'https://www.google.com/maps/dir/?api=1&destination=' + (s.spotPoint ? s.spotPoint[0] + ',' + s.spotPoint[1] : encodeURIComponent(s.spotAddress || s.spot));
 
-  // Help out: one white card per job. Sign up is one tap (a shift job opens Pick a shift).
+  // Help out (Design 7g, members, and 12e, the lead; 2026-10-03): one white card per job. A seat per spot (faces, then
+  // dashed open spots; the first is a purple + that signs you up), the count, and Sign up / You're in / Full.
+  // A shift job has a row per shift, each with its own button; you take one shift per job.
   function helpOut(s) {
-    const st = state, lead = isLead(s), jobs = s.jobs || s.signups, sigReady = st.sigDraft.trim().length > 0;
+    const st = state, lead = isLead(s), jobs = s.jobs || s.signups, live = !s.cancelledAt, sigReady = st.sigDraft.trim().length > 0;
+    const sr = (t) => '<span style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap">' + esc(t) + '</span>';
+    const pill = 'flex:0 0 auto;display:flex;align-items:center;justify-content:center;gap:6px;height:34px;padding:0 14px;border-radius:999px;font-size:14px;font-weight:800;white-space:nowrap;';
+    const button = (mine, full, act) => !live ? ''
+      : mine ? '<span ' + on(act) + ' aria-label="You’re in. Tap to take yourself off" style="' + pill + 'background:#fdf1d6;color:#8f6405;cursor:pointer">' + svg(13, stroke('#8f6405', 3), P6.check) + 'You’re in</span>'
+      : full ? '<span aria-disabled="true" style="' + pill + 'background:#eef0f3;color:#8a909b">Full</span>'
+      : '<span ' + on(act) + ' style="' + pill + 'box-shadow:inset 0 0 0 2px #5b4ae8;color:#5b4ae8;cursor:pointer">Sign up</span>';
+    // The seats: ids signed up, need (null: no limit), canJoin (the first open spot is a purple +)
+    const seats = (ids, need, canJoin, size, act) => {
+      const ring = 'flex:0 0 ' + size + 'px;width:' + size + 'px;height:' + size + 'px;border-radius:999px;box-sizing:border-box;';
+      const items = ids.map(u => '<span style="display:flex;border-radius:999px;box-shadow:0 0 0 2px #fff">' + face(u, personName(s, u), size) + '</span>');
+      const open = need ? Math.max(0, need - ids.length) : canJoin ? 1 : 0;
+      for (let k = 0; k < open; k++) items.push(k === 0 && canJoin
+        ? '<span ' + on(act) + ' aria-label="Take an open spot" style="' + ring + 'border:2px dashed #5b4ae8;background:#f3f1fe;color:#5b4ae8;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.plus(Math.round(size * .4), '#5b4ae8', 2.8) + '</span>'
+        : '<span aria-hidden="true" style="' + ring + 'border:2px dashed #c9ccd3;background:#fff"></span>');
+      const shown = items.length > 6 ? items.slice(0, 4).concat('<span style="flex:0 0 auto;min-width:' + size + 'px;height:' + size + 'px;padding:0 8px;box-sizing:border-box;border-radius:999px;background:#eef0f3;color:#454b55;font-size:12.5px;font-weight:900;display:flex;align-items:center;justify-content:center">+' + (items.length - 4) + '</span>') : items;
+      return '<span data-who style="position:relative;flex:0 1 auto;min-width:0;display:flex;flex-wrap:wrap;align-items:center;gap:' + (size > 30 ? 6 : 4) + 'px">' + shown.join('') +
+        sr(ids.length ? namesList(ids.map(u => u === st.me ? 'You' : firstName(personName(s, u)))) : '') + '</span>';
+    };
+    const count = (n, need, full) => full ? '' : '<span style="flex:0 0 auto;font-size:13.5px;font-weight:700;color:#6b7280;white-space:nowrap">' +
+      (need ? (need === 1 ? '1 open' : Math.max(0, need - n) + ' of ' + need + ' open') : n ? n + ' signed up' : 'Nobody yet') + '</span>';
     const card = (j) => {
       const shifts = !!j.shifts, mine = shifts ? myShiftIds(j).length > 0 : j.claims.some(c => c.userId === st.me);
-      const cnt = j.claims.length, need = j.need, full = !mine && !!need && (shifts ? j.shifts.every(u => u.need && u.claims.length >= u.need) : cnt >= need);
-      // The owner's mock (2026-10-01): title with an ⓘ for the description and the button on the right; one gray line
-      // (the time, or "N shifts"); then the faces, the bar and n/need
-      const when = shifts ? j.shifts.length + ' shifts' : jobTime(j);
+      const ids = j.claims.map(c => c.userId).filter((u, i, a) => a.indexOf(u) === i), need = j.need;
+      const full = shifts ? j.shifts.every(u => u.need && u.claims.length >= u.need) : !!need && ids.length >= need;
+      const act = () => { if (!st.busy) toggleClaim(s, j); };
+      const when = shifts ? j.shifts.length + (j.shifts.length === 1 ? ' shift' : ' shifts') : spanTime(j);
       const added = !lead && j.createdBy === st.me && !shifts;
-      const subline = [when, added ? 'You added this' : '', !need && cnt ? cnt + ' in' : ''].filter(Boolean).join(' · ');
-      // The bar: lavender while empty, gold once you're in, green when others have signed up, gray when it's full
-      const [fill, track] = mine ? ['#e3b84e', '#f8efd5'] : full ? ['#9aa0ac', '#9aa0ac'] : cnt ? ['#5a9c6e', '#dff0e4'] : ['#5b4ae8', '#ebe8fd'];
-      const act = () => { if (st.busy) return; if (shifts) openShifts(s, j); else toggleClaim(s, j); };
-      const pill = 'flex:0 0 auto;display:flex;align-items:center;justify-content:center;gap:6px;min-height:42px;padding:0 18px;border-radius:999px;font-size:15px;font-weight:800;white-space:nowrap;';
-      const btn = s.cancelledAt ? '' : mine
-        ? '<span ' + on(act) + ' aria-label="You’re in. Tap to take yourself off" style="' + pill + 'background:#e3b84e;color:#3d2a00;cursor:pointer">' + svg(14, stroke('#3d2a00', 3), P6.check) + 'You’re in</span>'
-        : full ? '<span aria-disabled="true" style="' + pill + 'box-shadow:inset 0 0 0 2px #d5d8df;color:#9aa0ac">Full</span>'
-        : '<span ' + on(act) + ' style="' + pill + 'box-shadow:inset 0 0 0 2px #5b4ae8;color:#5b4ae8;cursor:pointer">Sign up</span>';
-      // ⓘ opens the job's description
+      const clk = lead ? 15 : 13;
+      const head = '<div style="display:flex;align-items:flex-start;gap:10px">' +
+        '<div style="flex:1;min-width:0"><div style="font-size:' + (lead ? 21 : 18) + 'px;line-height:1.25;font-weight:900;letter-spacing:' + (lead ? '-.4px' : '-.3px') + ';color:#0d1117;text-wrap:pretty">' + esc(j.item) + '</div>' +
+          (when || added ? '<div style="margin-top:3px;display:flex;align-items:center;gap:6px;font-size:' + (lead ? 15.5 : 13.5) + 'px;font-weight:600;color:' + (lead ? '#5c6270' : '#6b7280') + '">' +
+            (when ? svg(clk, stroke('currentColor', 2.2), P5.clock) + '<span>' + esc(when) + '</span>' : '') +
+            (added ? '<span>' + (when ? '· ' : '') + 'You added this · <span ' + on(() => removeSignup(s, j)) + ' aria-label="Remove ' + esc(j.item) + '" style="color:#9b1c31;font-weight:700;cursor:pointer">Remove</span></span>' : '') + '</div>' : '') + '</div>' +
+        // The lead's ✎ opens the jobs editor (the section's Edit link is gone); a member's button sits up here, pulled in
+        // by -6px so a one-line title doesn't push the seats down
+        (lead ? (live ? '<span ' + on(() => openNeeds(s)) + ' data-edit-jobs aria-label="Edit ' + esc(j.item) + '" style="flex:0 0 32px;width:32px;height:32px;margin:-4px -6px 0 0;display:flex;align-items:center;justify-content:center;color:#9aa0ac;cursor:pointer">' + svg(15, stroke('currentColor', 2.3), PENCIL) + '</span>' : '')
+          : shifts ? '' : '<div style="flex:0 0 auto;margin:-6px 0">' + button(mine, full, act) + '</div>') + '</div>';
+      const body = shifts
+        ? '<div style="display:flex;flex-direction:column;gap:8px">' + j.shifts.map(u => {
+            const uIds = u.claims.map(c => c.userId), uMine = uIds.indexOf(st.me) > -1, uFull = !uMine && !!u.need && uIds.length >= u.need;
+            const go = () => { if (!st.busy) pickShift(s, j, u); };
+            return '<div data-shift="' + esc(spanTime(u)) + '" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;background:#f7f8fa">' +
+              '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px"><span style="font-size:14.5px;font-weight:800;color:#0d1117">' + esc(spanTime(u)) + '</span>' +
+                '<div style="display:flex;align-items:center;gap:10px;min-width:0">' + seats(uIds, u.need, live && !uMine && !uFull, 26, go) + count(uIds.length, u.need, uFull || (!!u.need && uIds.length >= u.need)) + '</div></div>' +
+              button(uMine, uFull, go) + '</div>';
+          }).join('') + '</div>'
+        : '<div style="display:flex;align-items:center;gap:10px;min-width:0">' + seats(ids, need, live && !mine && !full, 34, act) + count(ids.length, need, full) +
+            (lead ? '<span style="flex:1"></span>' + button(mine, full, act) : '') + '</div>';
+      // The lead's note always shows; members open it from the More details bar
       const open = !!st.descOpen[j.id];
-      const info = !j.desc ? '' : '<span ' + on(() => setState({ descOpen: Object.assign({}, st.descOpen, { [j.id]: !open }) })) + ' aria-label="Details" aria-expanded="' + open + '" style="flex:0 0 26px;width:26px;height:26px;margin-left:8px;border-radius:999px;box-shadow:inset 0 0 0 2px ' + (open ? '#5b4ae8' : '#c9ccd3') + ';color:' + (open ? '#5b4ae8' : '#9aa0ac') + ';display:inline-flex;align-items:center;justify-content:center;font-family:Georgia,serif;font-style:italic;font-size:15px;font-weight:700;cursor:pointer;vertical-align:3px">i</span>';
-      const desc = j.desc && open ? '<p style="margin:0;font-size:14px;line-height:1.45;font-weight:500;color:#5c6270">' + esc(j.desc) + '</p>' : '';
-      // Who's in: two faces then +N (yours first, ringed in gold); the host also sees each person with their shift and note
-      const ppl = shifts ? [].concat(...j.shifts.map(u => u.claims.map(c => Object.assign({ at: spanTime(u) }, c)))) : j.claims;
-      const uniq = ppl.map(c => c.userId).filter((u, i, a) => a.indexOf(u) === i).sort((a, b) => (b === st.me) - (a === st.me));
-      const names = uniq.map(u => u === st.me ? 'You' : firstName(personName(s, u)));
-      const shown = uniq.length > 3 ? uniq.slice(0, 2) : uniq;
-      const faces = !uniq.length ? '' : '<span' + (lead ? '' : ' data-who') + ' style="flex:0 0 auto;display:flex;align-items:center">' +
-        shown.map((u, k) => '<span style="display:flex;border-radius:999px;' + (k ? 'margin-left:-8px;' : '') + 'box-shadow:0 0 0 2.5px ' + (u === st.me ? '#e3b84e' : '#fff') + '">' + face(u, personName(s, u), 32) + '</span>').join('') +
-        (uniq.length > shown.length ? '<span style="margin-left:-8px;flex:0 0 32px;width:32px;height:32px;border-radius:999px;background:#eceef1;box-shadow:0 0 0 2.5px #fff;color:#454b55;font-size:12.5px;font-weight:900;display:flex;align-items:center;justify-content:center">+' + (uniq.length - shown.length) + '</span>' : '') +
-        '<span style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap">' + esc(namesList(names)) + '</span></span>';
-      const bar = !need && !faces ? '' : '<div style="display:flex;align-items:center;gap:14px">' + faces +
-        (need ? '<div aria-hidden="true" style="flex:1;min-width:0;height:8px;border-radius:999px;background:' + track + ';overflow:hidden"><span style="display:block;height:100%;width:' + Math.round(Math.min(cnt, need) / need * 100) + '%;border-radius:999px;background:' + fill + '"></span></div>' +
-          '<span style="flex:0 0 auto;font-size:15px;font-weight:900;color:#0d1117">' + Math.min(cnt, need) + '/' + need + '</span>' : '') + '</div>';
-      const hostList = !ppl.length || !lead ? '' : '<div data-who style="display:flex;flex-direction:column;gap:8px">' + ppl.map(c =>
-        '<div style="display:flex;align-items:flex-start;gap:10px">' + face(c.userId, personName(s, c.userId), 26, null, 'margin-top:1px') +
-          '<div style="flex:1;min-width:0"><div style="font-size:14.5px;line-height:1.35;font-weight:800;color:#0d1117">' + esc(c.userId === st.me ? 'You' : personName(s, c.userId)) +
-            (c.at ? '<span style="font-weight:700;color:#6b7280"> · ' + esc(c.at) + '</span>' : '') + '</div>' +
-            (c.note ? '<div style="margin-top:1px;font-size:13.5px;line-height:1.4;font-weight:500;color:#5c6270">“' + esc(c.note) + '”</div>' : '') + '</div></div>').join('') + '</div>';
-      return '<div data-signup="' + esc(j.item) + '" style="' + CARD + ';border-radius:20px;padding:18px;display:flex;flex-direction:column;gap:14px">' +
-        '<div style="display:flex;align-items:flex-start;gap:12px">' +
-          '<div style="flex:1;min-width:0"><div style="font-size:18px;line-height:1.3;font-weight:900;letter-spacing:-.3px;color:#0d1117;text-wrap:pretty">' + esc(j.item) + info + '</div>' +
-            (subline ? '<div style="margin-top:3px;font-size:14.5px;font-weight:700;color:#6b7280">' + esc(subline) +
-              (added ? ' · <span ' + on(() => removeSignup(s, j)) + ' aria-label="Remove ' + esc(j.item) + '" style="color:#9b1c31;cursor:pointer">Remove</span>' : '') + '</div>' : '') + '</div>' +
-          btn + '</div>' + bar + desc + hostList + (lead && !shifts && !s.cancelledAt && phaseOf(s) !== 'done' ? jobAskLine(s, j) : '') + '</div>';
+      const note = j.desc && (lead || open) ? '<p data-job-note style="margin:0;font-size:14.5px;line-height:1.45;font-weight:500;color:#454b55;text-wrap:pretty">' + esc(j.desc) + '</p>' : '';
+      const more = !j.desc || lead ? '' : '<div ' + on(() => setState({ descOpen: Object.assign({}, st.descOpen, { [j.id]: !open }) })) + ' role="button" aria-expanded="' + open + '" style="margin:0 -16px -14px;height:44px;border-top:1px solid #f2f3f6;display:flex;align-items:center;justify-content:center;gap:6px;font-size:13.5px;font-weight:800;color:#6b7280;cursor:pointer">' +
+        (open ? 'Hide details ⌃' : 'More details ⌄') + '</div>';
+      // The lead asks someone for an open job (a shift job can't be asked for yet, so it shares the open jobs)
+      const asks = shifts ? [] : openAsks(s, j.id);
+      const ask = !lead || !live || full || phaseOf(s) === 'done' ? ''
+        : asks.length >= 2 ? '<span style="font-size:13.5px;font-weight:700;color:#8a909b">Two asked. Wait for an answer, or withdraw one.</span>'
+        : '<span ' + on(() => shifts ? shareOpenJobs(s) : openJobAsk(s, j)) + ' data-ask-job role="button" style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:36px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(14, '#5b4ae8', 2.8) + 'Ask someone</span>';
+      return '<div data-signup="' + esc(j.item) + '"' + (mine ? ' data-mine' : '') + ' style="' + CARD + ';' + (mine ? 'box-shadow:inset 0 0 0 2px #f0d48a;' : '') + 'overflow:hidden;padding:14px 16px;display:flex;flex-direction:column;gap:10px">' +
+        head + body + note + ask + more + '</div>';
     };
+    // Members see the jobs they're in first, then open ones, then full ones; the lead sees their own order
+    const rank = (j) => { const mine = j.shifts ? myShiftIds(j).length > 0 : j.claims.some(c => c.userId === st.me);
+      const full = j.shifts ? j.shifts.every(u => u.need && u.claims.length >= u.need) : !!j.need && j.claims.length >= j.need;
+      return mine ? 0 : full ? 2 : 1; };
+    const ordered = lead ? jobs : jobs.map((j, i) => [j, i]).sort((x, y) => rank(x[0]) - rank(y[0]) || x[1] - y[1]).map(x => x[0]);
     const addLabel = lead ? 'Add a job or item' : 'Add something else';
     const adder = !st.sigAdding
       ? '<div ' + on(() => setState({ sigAdding: true })) + ' data-add-signup style="display:flex;align-items:center;justify-content:center;gap:8px;min-height:60px;padding:0 16px;border-radius:20px;border:2px dashed #e3c06a;background:#fdf8ea;font-size:15.5px;font-weight:800;color:#8f6405;cursor:pointer">' + I.plus(16, '#8f6405', 2.8) + addLabel + '</div>'
@@ -5196,11 +5216,10 @@
                 '</select></label>'
             : '') +
         '</div>';
-    const editBtn = lead && !s.cancelledAt ? '<span ' + on(() => openNeeds(s)) + ' aria-label="Edit what you need" style="flex:0 0 auto;display:flex;align-items:center;gap:5px;min-height:36px;padding:0 2px;color:#6b7280;font-size:14px;font-weight:700;cursor:pointer">' + svg(13, stroke('currentColor', 2.4), PENCIL) + 'Edit</span>' : '';
-    return '<section id="sec-tasks" data-screen-label="Help out">' + secTitle('Help out', editBtn, true) +
+    return '<section id="sec-tasks" data-screen-label="Help out">' + secTitle('Help out', '', true) +
       '<div style="display:flex;flex-direction:column;gap:12px">' +
         // Empty, for the lead: the same dashed box as an empty Details (owner, 2026-10-01)
-        (jobs.length ? jobs.map(card).join('') : s.cancelledAt
+        (jobs.length ? ordered.map(card).join('') : s.cancelledAt
           ? '<div style="' + CARD + ';padding:16px;font-size:14px;line-height:1.45;font-weight:500;color:#5c6270">Nothing was on the list.</div>'
           : lead
           ? '<div ' + on(() => openNeeds(s)) + ' data-help-empty style="padding:14px 16px;border-radius:18px;border:1.5px dashed #c9ccd3;font-size:14.5px;font-weight:700;color:#6b7280;cursor:pointer">Add ways people can help.</div>'
@@ -5212,7 +5231,7 @@
   const openSec = (s, kind) => {
     const bits = basicsOf(s).slice(0, 3).map(b => b.slice(0, 60));
     while (bits.length < 3) bits.push('');
-    setState({ sec: { id: s.id, kind, title: s.text, d: s.dayDate || '', t: s.dayTime || '', e: s.dayEnd || '', bits, need: s.minPeople || null, tags: (s.tags || []).slice(), priv: s.visibility === 'invite', guestInv: s.guestInvites !== false, groups: gIds(s).slice() },
+    setState({ sec: { id: s.id, kind, title: s.text, d: s.dayDate || '', t: s.dayTime || '', e: s.dayEnd || '', bits, ov: s.overview || '', need: s.minPeople || null, tags: (s.tags || []).slice(), priv: s.visibility === 'invite', guestInv: s.guestInvites !== false, groups: gIds(s).slice() },
       offerText: kind === 'when' ? s.spot || '' : '', offerPlace: s.spot && s.spotPoint ? { name: s.spot, address: s.spotAddress, lat: s.spotPoint[0], lon: s.spotPoint[1] } : null, offerSuggest: [], timeOpen: null, menu: null });
   };
   // Round 65a: what an edit tells people. A new date, time or place always goes out; a new title never does
@@ -5221,10 +5240,10 @@
   const secMessage = (s, ss) => {
     if (ss.kind === 'title') return '';   // renaming saves quietly
     if (ss.kind === 'details') {
-      const was = s.hopes || [], hopes = ss.bits.map(b => b.trim().slice(0, 60)).filter(Boolean);
-      if (hopes.join('\n') === was.join('\n')) return '';
-      const line = hopes.find(h => was.indexOf(h) < 0) || hopes[0];
-      return line ? 'Details updated: ' + line : '';
+      const was = s.hopes || [], hopes = ss.bits.map(b => b.trim().slice(0, 60)).filter(Boolean), ov = (ss.ov || '').trim().slice(0, 80);
+      if (hopes.join('\n') === was.join('\n') && ov === (s.overview || '')) return '';
+      const line = (ov !== (s.overview || '') && ov) || hopes.find(h => was.indexOf(h) < 0) || hopes[0];
+      return line ? 'What to expect: ' + line : '';
     }
     if (ss.kind !== 'when') return '';
     const lines = [], d = ss.d || null, t = d && ss.t ? ss.t : null, e = t && ss.e && ss.e > t ? ss.e : null;
@@ -5264,10 +5283,10 @@
       return;
     }
     if (ss.kind === 'details') {
-      const hopes = ss.bits.map(b => b.trim().slice(0, 60)).filter(Boolean);
+      const hopes = ss.bits.map(b => b.trim().slice(0, 60)).filter(Boolean), overview = (ss.ov || '').trim().slice(0, 80);
       run(async () => {
-        if (lead) must(await sb.from('sparks').update(Object.assign({ hopes, vision: null, tags: (ss.tags || []).slice(0, 2) }, s.planned ? {} : { min_people: ss.need || null })).eq('id', s.id));
-        else must(await sb.rpc('admin_edit_spark', { p_spark: s.id, p_text: s.text, p_hopes: hopes }));
+        if (lead) must(await sb.from('sparks').update(Object.assign({ hopes, overview: overview || null, vision: null, tags: (ss.tags || []).slice(0, 2) }, s.planned ? {} : { min_people: ss.need || null })).eq('id', s.id));
+        else must(await sb.rpc('admin_edit_spark', { p_spark: s.id, p_text: s.text, p_hopes: hopes, p_overview: overview }));
         if (send) await sendUpdate(s, msg);
       }, { sec: null }).then(ok => { if (ok) toast(send ? sentNote(s) : note, true); });
       return;
@@ -5403,7 +5422,7 @@
     const set = (patch) => setState({ sec: Object.assign({}, state.sec, patch) });
     const label = (t) => '<span style="font-size:12px;font-weight:800;letter-spacing:1.1px;text-transform:uppercase;color:#6b7280">' + esc(t) + '</span>';
     const what = s.planned ? 'event' : 'idea';   // an idea's pop-ups say idea (owner, 2026-10-02)
-    const title = { title: 'Edit ' + what, when: 'Date, time & location', details: 'Details', vis: 'Who can see it' }[ss.kind];
+    const title = { title: 'Edit ' + what, when: 'Date, time & location', details: 'What to expect', vis: 'Who can see it' }[ss.kind];
     let body = '', ok = true;
     if (ss.kind === 'title') {
       const cur = s.photoPaths[0] ? photoUrl(s.photoPaths[0]) : null;
@@ -5436,8 +5455,8 @@
           (phaseOf(s) === 'done' ? '' : '<span ' + on(() => { close(); clearPlan(s); }) + ' data-back-to-idea style="align-self:center;display:flex;align-items:center;min-height:44px;padding:0 12px;font-size:14.5px;font-weight:800;color:#9b1c31;cursor:pointer">Turn it back into an idea</span>') : '');
       ok = !(s.planned && !ss.d);
     } else if (ss.kind === 'details') {
-      body = '<div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:14px;line-height:1.4;font-weight:500;color:#5c6270">Up to three quick notes on what to expect or the vibe.</span>' +
-        bitRows(ss.bits, (k, v) => { const b = state.sec.bits.slice(); b[k] = v; set({ bits: b }); }) +
+      body = '<div style="display:flex;flex-direction:column;gap:12px"><span style="font-size:14px;line-height:1.4;font-weight:500;color:#5c6270">Both parts are optional.</span>' +
+        wteFields(ss.ov || '', (v) => set({ ov: v }), ss.bits, (k, v) => { const b = state.sec.bits.slice(); b[k] = v; set({ bits: b }); }) +
         (!s.planned && isLead(s) ? needRow(ss.need, (n) => set({ need: n })) : '') + '</div>';
     } else {
       const tile = (priv, name, sub) => { const onIt = ss.priv === priv;
@@ -5738,14 +5757,17 @@
         (s.spot ? '<a href="' + esc(directionsUrl(s)) + '" target="_blank" rel="noopener noreferrer" style="' + pill + '">' + svg(18, stroke('#5b4ae8', 2.2), '<path d="M12 2.8 21.2 12 12 21.2 2.8 12Z"/><path d="M9 14.5V12a1.5 1.5 0 0 1 1.5-1.5H15"/><path d="m13 8.5 2 2-2 2"/>') + 'Directions</a>' : '') + '</div>' : '') +
     '</div>';
   };
+  // What to expect (Design 8a, 2026-10-03; was Details): the one-line overview, then the bullets. No dividers, nothing bold
   const basicDetailsSec = (s) => {
-    const bits = basicsOf(s), edit = canEdit(s) && !s.cancelledAt;
-    if (!bits.length && !edit) return '';
-    return '<section id="sec-details" data-basics><div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 4px;margin-bottom:8px"><h2 style="margin:0;font-size:24px;line-height:1.1;font-weight:900;letter-spacing:-.6px;color:#0d1117">Details</h2>' +
-        (edit ? '<span ' + on(() => openSec(s, 'details')) + ' aria-label="Edit details" style="display:flex;align-items:center;gap:5px;min-height:36px;padding:0 2px;color:#6b7280;font-size:14px;font-weight:700;cursor:pointer">' + svg(13, stroke('currentColor', 2.4), PENCIL) + 'Edit</span>' : '') + '</div>' +
-      (bits.length
-        ? '<div style="' + CARD + ';padding:4px 16px">' + bits.map((t, k) => '<div style="display:flex;align-items:baseline;gap:10px;padding:10px 0;border-top:' + (k ? '1px solid #f2f3f6' : '0') + '"><span style="flex:0 0 6px;width:6px;height:6px;border-radius:999px;background:#0f7a3c;transform:translateY(-3px)"></span><span style="font-size:16px;line-height:1.4;font-weight:700;color:#0d1117;text-wrap:pretty">' + esc(t) + '</span></div>').join('') + '</div>'
-        : '<div ' + on(() => openSec(s, 'details')) + ' style="padding:14px 16px;border-radius:18px;border:1.5px dashed #c9ccd3;font-size:14.5px;font-weight:700;color:#6b7280;cursor:pointer">Add up to three quick notes on what to expect.</div>') +
+    const bits = basicsOf(s), ov = s.overview || '', edit = canEdit(s) && !s.cancelledAt;
+    if (!bits.length && !ov && !edit) return '';
+    return '<section id="sec-details" data-basics><div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 4px;margin-bottom:8px"><h2 style="margin:0;font-size:24px;line-height:1.1;font-weight:900;letter-spacing:-.6px;color:#0d1117">What to expect</h2>' +
+        (edit ? '<span ' + on(() => openSec(s, 'details')) + ' aria-label="Edit what to expect" style="display:flex;align-items:center;gap:5px;min-height:36px;padding:0 2px;color:#6b7280;font-size:14px;font-weight:700;cursor:pointer">' + svg(13, stroke('currentColor', 2.4), PENCIL) + 'Edit</span>' : '') + '</div>' +
+      (bits.length || ov
+        ? '<div style="' + CARD + ';padding:16px 18px;display:flex;flex-direction:column;gap:6px">' +
+            (ov ? '<div data-overview style="font-size:18px;line-height:1.4;font-weight:500;color:#0d1117;text-wrap:pretty">' + esc(ov) + '</div>' : '') +
+            bits.map(t => '<div style="display:flex;align-items:baseline;gap:10px;padding:4px 0"><span style="flex:0 0 7px;width:7px;height:7px;border-radius:999px;background:#149a4b;transform:translateY(-3px)"></span><span style="font-size:17px;line-height:1.4;font-weight:500;color:#0d1117;text-wrap:pretty">' + esc(t) + '</span></div>').join('') + '</div>'
+        : '<div ' + on(() => openSec(s, 'details')) + ' style="padding:14px 16px;border-radius:18px;border:1.5px dashed #c9ccd3;font-size:14.5px;font-weight:700;color:#6b7280;cursor:pointer">Add a one-line overview and up to three quick notes.</div>') +
     '</section>';
   };
   const deleteLink = (s, past) => canTakeDown(s) ? '<span ' + on(() => askDelete(s, past)) + ' style="align-self:center;display:flex;align-items:center;justify-content:center;gap:7px;min-height:44px;padding:0 12px;font-size:14.5px;font-weight:800;color:#9b1c31;cursor:pointer">' + I.trash(15, '#9b1c31') + (!past && !s.cancelledAt && peopleIn(s).some(u => u !== state.me) ? 'Cancel or delete this ' + (s.planned ? 'event' : 'idea') : 'Delete this ' + (s.planned ? 'event' : 'idea')) + '</span>' : '';
@@ -5981,8 +6003,9 @@
           (edit
             ? '<h1 ' + on(() => openSec(s, 'title'), 'button') + ' aria-label="' + esc(s.text) + ', edit the title" style="margin:0;font-size:40px;line-height:.98;font-weight:900;letter-spacing:-1.3px;text-wrap:pretty;cursor:pointer">' + esc(s.text) + '</h1>'
             : '<h1 style="margin:0;font-size:40px;line-height:.98;font-weight:900;letter-spacing:-1.3px;text-wrap:pretty">' + esc(s.text) + '</h1>') + '</div>' +
-          (s.dayDate ? '<span aria-label="' + esc(fmtDay(s.dayDate)) + '" style="flex:0 0 70px;width:70px;border-radius:14px;overflow:hidden;text-align:center;background:#fff;box-shadow:0 8px 20px rgba(0,0,0,.3);transform:rotate(4deg)"><span style="display:block;background:#149a4b;color:#fff;font-size:11.5px;font-weight:900;letter-spacing:1px;padding:3px 0">' + dp.mon + '</span><span style="display:block;font-size:32px;line-height:1.15;font-weight:900;color:#0d1117">' + dp.day + '</span><span style="display:block;padding-bottom:5px;font-size:11px;font-weight:800;color:#6b7280">' + dp.dow + '</span></span>' : '') +
-        '</div>', true) +
+        '</div>' +
+          // The date tile sits top right, under Edit and Share (Design 13e, 2026-10-03), so the title has the full width
+          (s.dayDate ? '<span data-date-tile aria-label="' + esc(fmtDay(s.dayDate)) + '" style="position:absolute;right:20px;top:calc(72px + var(--pt));z-index:1;width:78px;border-radius:15px;overflow:hidden;text-align:center;background:#fff;box-shadow:0 8px 20px rgba(0,0,0,.3);transform:rotate(4deg)"><span style="display:block;background:#149a4b;color:#fff;font-size:12.5px;font-weight:900;letter-spacing:1px;padding:4px 0">' + dp.mon + '</span><span style="display:block;font-size:36px;line-height:1.15;font-weight:900;color:#0d1117">' + dp.day + '</span><span style="display:block;padding-bottom:5px;font-size:12px;font-weight:800;color:#6b7280">' + dp.dow + '</span></span>' : ''), true) +
       tab +
       '<div style="padding:16px 14px 26px;display:flex;flex-direction:column;gap:18px">' +
         cancelledCard(s) +
@@ -6306,7 +6329,7 @@
   const clock = (v) => { if (!v) return ''; const [h, m] = v.split(':').map(Number); return (h % 12 || 12) + ':' + pad2(m) + (h < 12 ? 'am' : 'pm'); };
   const EV_TIMES = TIME_OPTS.map(o => o[0]).filter(v => v >= '06:00');   // every 30 min, 6:00am–11:30pm
   const EV_STEPS = ['title', 'when', 'where', 'details', 'help', 'lead'];   // Who's leading it? is the last step before Review (owner, 2026-10-02, again over v7-4's step 2)
-  const EV_NAMES = { title: 'Event title', when: 'Date & time', where: 'Location', details: 'Details', help: 'Ask for help', lead: 'Who’s leading it?', review: 'Review' };
+  const EV_NAMES = { title: 'Event title', when: 'Date & time', where: 'Location', details: 'What to expect', help: 'Ask for help', lead: 'Who’s leading it?', review: 'Review' };
   const BIT_PH = ['e.g. Meet by the front desk', 'e.g. Coffee and donuts at 9:30', 'e.g. Kids and dogs welcome'];
   const EV_GRAD = 'linear-gradient(135deg,#5b4ae8,#8a6ff0 55%,#e8a71c)';
   const AMBER_INK = '#8f6405';
@@ -6330,12 +6353,12 @@
   const basicsOf = (s) => s.hopes.length ? s.hopes.map(x => String(x || '').trim()).filter(Boolean) : splitBits([s.vision]);   // a line is never split at its sentences (owner, 2026-10-01)
   const evPhotoUrl = (st) => st.photos[0] ? st.photos[0].url : (PHOTO_PATH.test(st.evPhotoPath || '') ? photoUrl(st.evPhotoPath) : null);
   const evFilled = (st) => ({ title: !!cleanTitle(st.activity) && st.evTest != null, when: !!st.evDate || !!st.evDatePoll, where: !!cleanTitle(st.locText) || !!st.evSpotPoll,
-    details: st.evBits.some(b => b.trim()) || (MIN_PEOPLE && !st.evDate && st.evNeed > 0), help: st.evNeeds.length > 0, lead: true });   // leading it is already picked
+    details: st.evBits.some(b => b.trim()) || !!(st.evOverview || '').trim() || (MIN_PEOPLE && !st.evDate && st.evNeed > 0), help: st.evNeeds.length > 0, lead: true });   // leading it is already picked
   // "Sat, Oct 24 · 10am", "Sat, Oct 24 · 10am – 12pm"
   const dayLabel = (d, t, e) => d ? fmtDay(d) + (t ? ' · ' + (e ? spanTime({ time: t, endTime: e }) : fmtTime(t)) : '') : '';
   const jobMeta = (j) => j.shifts ? j.shifts.length + (j.shifts.length === 1 ? ' shift' : ' shifts')
     : (j.need ? j.need + (j.need === 1 ? ' person' : ' people') : 'Anyone') + (j.time ? ' · ' + fmtTime(j.time) : '');
-  const evStarted = (st) => !!(cleanTitle(st.activity) || st.evDate || st.evDatePoll || cleanTitle(st.locText) || st.evSpotPoll || st.evBits.some(b => b.trim()) || st.evNeeds.length);
+  const evStarted = (st) => !!(cleanTitle(st.activity) || st.evDate || st.evDatePoll || cleanTitle(st.locText) || st.evSpotPoll || st.evBits.some(b => b.trim()) || !!(st.evOverview || '').trim() || st.evNeeds.length);
   const evGroupIds = (st) => {
     const mine = myGroups().map(g => g.id), list = (st.evGroups || []).filter(id => mine.indexOf(id) > -1), g = currentGroup();
     return list.length ? list : g ? [g.id] : [];
@@ -6505,7 +6528,7 @@
         cover = await evCover(st);
         const row = {
           group_id: groups[0], author_name: st.myName, text: cleanTitle(st.activity).slice(0, 40),
-          hopes: st.evBits.map(b => b.trim().slice(0, 60)).filter(Boolean), vision: null,
+          hopes: st.evBits.map(b => b.trim().slice(0, 60)).filter(Boolean), vision: null, overview: (st.evOverview || '').trim().slice(0, 80) || null,
           photos: cover ? [cover.path] : [], cat: 'events', answers: {}, lead_id: st.me, lead_name: st.myName, created_by: st.me,
           spot, spot_open: !spot, spot_address: place ? place.address : null, spot_lat: place ? place.lat : null, spot_lon: place ? place.lon : null,
           day_date: st.evDate || null, day_time: st.evDate && st.evTime ? st.evTime : null, day_end: st.evDate && st.evTime && st.evEnd ? st.evEnd : null,
@@ -6552,7 +6575,7 @@
   };
 
   // Drafts: the flow's own fields, saved to your account (only you see them)
-  const DRAFT_FIELDS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'locText', 'locPlace', 'evBits', 'evNeed', 'evTags', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evNoGuestInv', 'evTest', 'evFloat', 'evHelpNone', 'evGroups', 'coverPos'];
+  const DRAFT_FIELDS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'locText', 'locPlace', 'evBits', 'evOverview', 'evNeed', 'evTags', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evNoGuestInv', 'evTest', 'evFloat', 'evHelpNone', 'evGroups', 'coverPos'];
   const saveDraft = () => {
     const st = state;
     if (st.busy) return;
@@ -6589,7 +6612,7 @@
       activity: str(x.activity).slice(0, 40), evStep: EV_STEPS.concat('review').indexOf(x.evStep) > -1 ? x.evStep : 'title',
       evDate: /^\d{4}-\d{2}-\d{2}$/.test(x.evDate || '') && x.evDate >= todayISO() ? x.evDate : '', evTime: str(x.evTime), evEnd: str(x.evEnd), evEndOn: !!x.evEndOn,
       locText: str(x.locText).slice(0, 80), locPlace: x.locPlace && typeof x.locPlace === 'object' ? x.locPlace : null,
-      evBits: [0, 1, 2].map(i => str((x.evBits || [])[i]).slice(0, 60)), evNeed: Number.isInteger(x.evNeed) && x.evNeed > 0 ? Math.min(x.evNeed, 99) : null, evTags: (arr(x.evTags) || []).filter(k => TYPES6.some(t => t[0] === k)).slice(0, 2), evNeeds: arr(x.evNeeds) || [],
+      evBits: [0, 1, 2].map(i => str((x.evBits || [])[i]).slice(0, 60)), evOverview: str(x.evOverview).slice(0, 80), evNeed: Number.isInteger(x.evNeed) && x.evNeed > 0 ? Math.min(x.evNeed, 99) : null, evTags: (arr(x.evTags) || []).filter(k => TYPES6.some(t => t[0] === k)).slice(0, 2), evNeeds: arr(x.evNeeds) || [],
       evDatePoll: arr(x.evDatePoll), evSpotPoll: arr(x.evSpotPoll), evLater: x.evLater && typeof x.evLater === 'object' ? x.evLater : {},
       evPriv: !!x.evPriv, evNoGuestInv: !!x.evNoGuestInv, evTest: typeof x.evTest === 'boolean' ? x.evTest : null, evFloat: !!x.evFloat, evHelpNone: !!x.evHelpNone, evGroups: arr(x.evGroups), coverPos: x.coverPos || null,
       evPhotoPath: PHOTO_PATH.test(x.evPhoto || '') ? x.evPhoto : null, evDraftId: d.id
@@ -6721,8 +6744,20 @@
   const bitRows = (bits, set) => bits.map((v, k) => '<label style="display:flex;align-items:center;gap:10px;min-height:58px;padding:0 16px;border-radius:16px;background:#fff;box-shadow:inset 0 0 0 2px #dcdfe6;cursor:text">' +
     '<span aria-hidden="true" style="flex:0 0 7px;width:7px;height:7px;border-radius:999px;background:' + (v.trim() ? '#0f7a3c' : '#c9ccd3') + '"></span>' +
     '<input class="bit-fld" type="text" maxlength="60" aria-label="Details, line ' + (k + 1) + '" placeholder="' + esc(BIT_PH[k]) + '" value="' + esc(v) + '" ' + onInput(e => { if (e.type === 'input') set(k, e.target.value.slice(0, 60)); }) +
-      ' style="flex:1 1 auto;min-width:0;border:0;padding:0;background:transparent;font-family:inherit;font-size:17px;font-weight:800;color:#0d1117;outline:none">' +
+      ' style="flex:1 1 auto;min-width:0;border:0;padding:0;background:transparent;font-family:inherit;font-size:17px;font-weight:500;color:#0d1117;outline:none">' +
     (v.length ? '<span style="font-size:11.5px;font-weight:700;color:#9aa0ac">' + v.length + '/60</span>' : '') + '</label>').join('');
+  // What to expect (Design 8a/10a, 2026-10-03): two numbered parts, both optional: a one-line overview (80) and up to three details (60 each)
+  const OVERVIEW_PH = 'e.g. An evening of backyard games and food with whoever shows up';
+  const wtePart = (n, label, inner) => '<div style="display:flex;flex-direction:column;gap:8px">' +
+    '<div style="display:flex;align-items:center;gap:10px"><span aria-hidden="true" style="flex:0 0 26px;width:26px;height:26px;border-radius:999px;background:#5b4ae8;color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900">' + n + '</span>' +
+      '<span style="flex:1;font-size:17px;font-weight:900;color:#0d1117">' + label + '</span>' +
+      '<span style="padding:2px 8px;border-radius:999px;background:#eef0f3;font-size:11.5px;font-weight:800;color:#6b7280">Optional</span></div>' + inner + '</div>';
+  const wteFields = (ov, setOv, bits, setBit) => '<div data-wte style="display:flex;flex-direction:column;gap:18px">' +
+    wtePart(1, 'One-line overview', '<label style="display:flex;align-items:center;gap:10px;min-height:58px;padding:0 16px;border-radius:16px;background:#fff;box-shadow:inset 0 0 0 2px #dcdfe6;cursor:text">' +
+      '<input class="bit-fld" type="text" maxlength="80" data-overview-input aria-label="One-line overview" placeholder="' + esc(OVERVIEW_PH) + '" value="' + esc(ov) + '" ' + onInput(e => { if (e.type === 'input') setOv(e.target.value.slice(0, 80)); }) +
+        ' style="flex:1 1 auto;min-width:0;border:0;padding:0;background:transparent;font-family:inherit;font-size:18px;font-weight:500;color:#0d1117;outline:none">' +
+      (ov.length ? '<span style="font-size:11.5px;font-weight:700;color:#9aa0ac">' + ov.length + '/80</span>' : '') + '</label>') +
+    wtePart(2, 'Up to three details', '<div style="display:flex;flex-direction:column;gap:8px">' + bitRows(bits, setBit) + '</div>') + '</div>';
   // A starter chip leaves just its verb ("Bring "): Save waits for what (owner, 2026-09-30)
   const JOB_VERBS = ['bring', 'set up', 'help with', 'clean up', 'coordinate'];
   const jobNamed = (item) => { const t = cleanTitle(item || ''); return !!t && JOB_VERBS.indexOf(t.toLowerCase()) < 0; };
@@ -6745,7 +6780,7 @@
 
   function viewCompose() {
     const st = state, cur = st.evStep, i = EV_STEPS.indexOf(cur), filled = evFilled(st), url = evPhotoUrl(st), title = cleanTitle(st.activity);
-    const CLEAR = { when: { evDate: '', evTime: '', evEnd: '', evEndOn: false, evDatePoll: null }, where: { locText: '', locPlace: null, locSuggest: [], evSpotPoll: null }, details: { evBits: ['', '', ''] }, help: { evNeeds: [] } };
+    const CLEAR = { when: { evDate: '', evTime: '', evEnd: '', evEndOn: false, evDatePoll: null }, where: { locText: '', locPlace: null, locSuggest: [], evSpotPoll: null }, details: { evBits: ['', '', ''], evOverview: '' }, help: { evNeeds: [] } };
     const nextOf = (k) => EV_STEPS[EV_STEPS.indexOf(k) + 1] || 'review';
     const close = () => { if (evStarted(st)) setState({ evLeave: true, timeOpen: null }); else evExit(); };
     const later = (k) => Object.assign({}, st.evLater, { [k]: false });
@@ -6764,7 +6799,7 @@
       const main = (t, has, sub) => '<div style="font-size:15px;line-height:1.3;font-weight:800;color:' + (has ? '#0d1117' : AMBER_INK) + ';text-wrap:pretty">' + esc(t) + '</div>' +
         (sub ? '<div style="margin-top:2px;font-size:13.5px;line-height:1.35;font-weight:500;color:#6b7280">' + esc(sub) + '</div>' : '');
       const list = (rows) => rows.map((r, k) => '<div style="display:flex;align-items:baseline;gap:10px;padding:8px 0;border-top:' + (k ? '1px solid #f2f3f6' : '0') + '">' + r + '</div>').join('');
-      const bits = st.evBits.map(b => b.trim()).filter(Boolean), place = cleanTitle(st.locText);
+      const bits = st.evBits.map(b => b.trim()).filter(Boolean), ov = (st.evOverview || '').trim(), place = cleanTitle(st.locText);
       const needLine = MIN_PEOPLE && !st.evDate && st.evNeed > 0 ? 'It’s a go once ' + st.evNeed + (st.evNeed === 1 ? ' person is' : ' people are') + ' in.' : '';
       const groups = evGroupIds(st), names = groups.map(id => (groupById(id) || {}).name).filter(Boolean), gOpen = st.menu === 'evGroups', g0 = groupById(groups[0]);
       const tile = (priv, label, sub, icon) => { const onIt = !!st.evPriv === priv;
@@ -6788,7 +6823,8 @@
           card(P6.person, 'Lead', true, '', 'lead', st.evFloat ? main('Just floating it', true, 'It goes up as an idea that needs a lead.') : main('You’re leading it', true, 'You pick the date and place and keep it moving.')) +
           card(P6.cal, 'Date &amp; time', filled.when, '', 'when', st.evDatePoll ? main('Poll: ' + st.evDatePoll.length + ' dates', true, 'People vote, you pick') : st.evDate ? main(dayLabel(st.evDate, st.evTime, st.evEnd), true) : main('Date TBD', false)) +
           card(P6.pin, 'Location', filled.where, '', 'where', st.evSpotPoll ? main('Poll: ' + st.evSpotPoll.length + ' locations', true, 'People vote, you pick') : place ? main(place, true, st.locPlace ? st.locPlace.address : '') : main('Location TBD', false)) +
-          card(LINES_IC, 'Details', filled.details, '', 'details', bits.length || needLine ? list(bits.concat(needLine ? [needLine] : []).map(t => '<span style="flex:0 0 6px;width:6px;height:6px;border-radius:999px;background:#0f7a3c;transform:translateY(-2px)"></span><span style="font-size:15.5px;line-height:1.35;font-weight:800;color:#0d1117;text-wrap:pretty">' + esc(t) + '</span>')) : main('Details TBD', false)) +
+          card(LINES_IC, 'What to expect', filled.details, '', 'details', ov || bits.length || needLine ? (ov ? '<div data-overview style="font-size:15.5px;line-height:1.35;font-weight:500;color:#0d1117;text-wrap:pretty">' + esc(ov) + '</div>' : '') +
+            list(bits.concat(needLine ? [needLine] : []).map(t => '<span style="flex:0 0 6px;width:6px;height:6px;border-radius:999px;background:#149a4b;transform:translateY(-2px)"></span><span style="font-size:15.5px;line-height:1.35;font-weight:500;color:#0d1117;text-wrap:pretty">' + esc(t) + '</span>')) : main('Details TBD', false)) +
           card(HAND_IC, 'Ask for help', filled.help || (st.evHelpNone && !st.evNeeds.length), '', 'help', st.evNeeds.length ? list(st.evNeeds.map(j => '<span style="flex:1;min-width:0;font-size:15.5px;line-height:1.35;font-weight:800;color:#0d1117;text-wrap:pretty">' + esc(cleanTitle(j.item)) + '</span><span style="flex:0 0 auto;font-size:13px;font-weight:700;color:#6b7280">' + esc(jobMeta(j)) + '</span>')) : st.evHelpNone ? main('No help needed', true) : main('Help TBD', false)) +
         '</div>' +
         '<div style="display:flex;flex-direction:column;gap:8px"><div style="padding:0 4px;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:#0d1117">Who can see it</div>' +
@@ -6889,8 +6925,8 @@
         : pad(placeField('loc', { placeholder: 'Search a place or address', style: BIG, cls: 'fld big-fld' })) +
           '<div style="padding:0 16px">' + orLine() + pollRow(() => openPoll('where')) + '</div>');
     } else if (cur === 'details') {
-      body = head('Details', 'Up to three quick notes on what to expect or the vibe.') +
-        '<div style="padding:12px 16px 0;display:flex;flex-direction:column;gap:8px">' + bitRows(st.evBits, (k, v) => { const b = state.evBits.slice(); b[k] = v; setState({ evBits: b }); }) +
+      body = head('What to expect', 'Both parts are optional. Fill in either, both, or skip.') +
+        '<div style="padding:12px 16px 0;display:flex;flex-direction:column;gap:8px">' + wteFields(st.evOverview || '', (v) => setState({ evOverview: v }), st.evBits, (k, v) => { const b = state.evBits.slice(); b[k] = v; setState({ evBits: b }); }) +
           (st.evDate ? '' : needRow(st.evNeed, (n) => setState({ evNeed: n }))) + '</div>';   // no date: it goes up as an idea, which can say how many it needs
     } else if (cur === 'help') {
       // The owner's mock (2026-10-02): how it works in three steps while the list is empty, then bigger starter chips; purple numbered circles (owner, 2026-10-02)

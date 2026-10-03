@@ -861,3 +861,14 @@ select t.must_refuse('a member saying no help needed', format($$update sparks se
 reset role;
 select t.check('the daily job runs with the hold reminders', (select private.push_daily() is null or true));
 select t.check('joining Torrez Fitness adds no other group', not exists (select 1 from join_also j join groups g on g.id = j.group_id where g.code = 'TORREZ'));
+
+-- What to expect's overview (20261103030000_what_to_expect.sql) ------------------------------------------
+select t.login('host'); set role authenticated;
+select t.must_allow('the lead writes an overview', format($$update sparks set overview = 'Games and food with whoever shows up' where id = %L$$, t.id('poll_idea')));
+select t.must_refuse('an overview over 80 characters', format($$update sparks set overview = repeat('x', 81) where id = %L$$, t.id('poll_idea')));
+reset role;
+select t.login('member'); set role authenticated;
+select t.must_refuse('a member writing the overview', format($$update sparks set overview = 'Mine now' where id = %L$$, t.id('poll_idea')));
+select t.must_refuse('a member editing through admin_edit_spark', format($$select public.admin_edit_spark(%L, 'Poll idea', '{}', 'Mine now')$$, t.id('poll_idea')));
+reset role;
+select t.check('the overview is the lead''s', (select overview = 'Games and food with whoever shows up' from sparks where id = t.id('poll_idea')));

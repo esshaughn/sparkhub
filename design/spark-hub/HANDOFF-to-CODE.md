@@ -4,7 +4,7 @@
 
 - **Caught up with:** `HANDOFF-to-DESIGN.md` **as of 2026-10-03** (the reset to Update 16). Its §1 rows 1–4 are now in the prototype too, so the build can drop them.
 - **Baseline:** Update 16 (zip *SparkHub v7-5*). Everything below is new since then.
-- **Options files:** `Round 17 Options.dc.html` (picks made: Q24 a 24a2, b 24b3, c 24c3c, d no change; Q23 C 23C1; event RSVP 25b + 25c. Still open: Q23 B). `Help Out Options.dc.html` is a new exploration of the Help out section; **nothing to build from it yet**. `Soft Holds Options.dc.html` has the soft-holds explorations.
+- **Options files:** `Round 17 Options.dc.html` (picks made: Q24 a 24a2, b 24b3, c 24c3c, d no change; Q23 C 23C1; event RSVP 25b + 25c. Still open: Q23 B). `Help Out Options.dc.html`: **7g (Help out job cards, members), 12e (Help out, lead), 8a/10a (What to expect) and 13e (date tile) are picked and built**; the other turns are exploration. `Soft Holds Options.dc.html` has the soft-holds explorations.
 
 ---
 
@@ -25,8 +25,44 @@
 13. **§5 Q23 C Jobs joins the idea's steps, softly** (option 23C1). See *Idea page* below.
 14. **§5 Q24 (d) Smaller group header: no change.** The owner keeps the current 112px photo header (v7-3 6c). Nothing to build.
 15. **Event page: See who's going under the RSVP boxes; Who's in → Visibility** (25b faces + 25c Send invites). See *Event page RSVP* below.
+16. **Details → What to expect, with a one-line overview** (option 8a; create step and edit sheet split into two numbered optional parts, option 10a). See *What to expect* below.
+17. **Help out job cards: seats, counts and More details** (option 7g). See *Help out jobs* below.
+18. **Event header: date tile moves to the top right** (option 13e). See *Event header date tile* below.
+19. **Help out, lead's view** (option 12e). See *Help out jobs* below.
 
 ---
+
+## Event header date tile (option 13e)
+
+The tilted date tile leaves the title row and moves to the photo's **top right, under the Edit and Share buttons**: `position:absolute; right:20px; top:72px`, still rotated 4°. A little bigger: **78px** wide (was 70), radius 15, month band 12.5px/900 with 4px padding, day number 36px/900, weekday 12px/800. The title now has the full width at the bottom of the photo. Same show rule as before (only when the event has a date).
+
+## Help out jobs (option 7g)
+
+Each job is one white card (radius 18, padding 14/16, 10px gap). Replaces the bar, the faces + names line and the *Details ›* link.
+
+- **Top row:** title 18px/900. Under it, only when the job has a time: a 13px clock icon + the time (13.5px/600 `#6b7280`); a shift job reads *2 shifts*. **No empty line when there's no time:** the button sits in a wrapper with -6px top and bottom margin, so a 34px button doesn't push the seats down under a one-line title. Right side: **Sign up** (2px `#5b4ae8` outline), **✓ You're in** (`#fdf1d6` / `#8f6405`) or **Full** (`#eef0f3` / `#8a909b`); 34px tall, 14px/800. Shift jobs have no top button.
+- **Seat row:** one 34px circle per spot: a face (2px white border) for each person, dashed `#c9ccd3` for open spots. If you can join, the first open spot is a purple **+** (dashed `#5b4ae8`, `#f3f1fe` fill) and tapping it signs you up. Jobs with no limit show the faces plus one **+**. Over 6 circles: the first 4, then a gray **+N** chip. After the seats, the count (13.5px/700 `#6b7280`): *1 open* (one spot), *3 of 6 open*, *n signed up* or *Nobody yet* (no limit). **Full jobs show no count.**
+- **Shift jobs:** one `#f7f8fa` row per shift (radius 14): the time (14.5px/800), 26px seats + the count, and that shift's own Sign up / ✓ You're in / Full. Signing up for a shift moves you off any other shift of the same job (one shift per person per job).
+- **More details:** if the lead wrote a note, the card ends in a full-width footer bar (thin `#f2f3f6` top line, 44px, 13.5px/800 `#6b7280`): **More details ⌄** / **Hide details ⌃**. The note (14.5px/500 `#454b55`) shows above the bar when open.
+- **Jobs you're in:** the card gets a 2px `#f0d48a` outline. Your seat is your normal face, no ring.
+- **Order (people who aren't the lead):** jobs you're in, then open jobs, then full ones. The lead sees their own order.
+- **Lead's view (option 12e):** the lead signs up like anyone (Sign up / ✓ You're in / Full), with these differences:
+  - Title **21px**/900 (-.4px), time **15.5px**/600 `#5c6270` with a 15px clock.
+  - A small gray **✎** (32px tap area, 15px icon, `#9aa0ac`) at the end of the title row opens the jobs editor. **The section's own Edit link is removed.** The empty-state *Add ways people can help.* and **+ Add a job** stay.
+  - The button moves to the **right end of the seat row**, after the count. Shift jobs keep a button per shift.
+  - The lead's note **always shows** under the seats (no More details bar).
+  - Open jobs (shift jobs too) end in a plain left-aligned purple **+ Ask someone** link (14.5px/800, no divider). Full jobs have none.
+  - The roster with people's names and notes is gone, and the *Asked Hana · waiting · Withdraw* lines are hidden. Asking still works; the "two asked" limit message stays.
+  - The lead sees jobs in their own order.
+
+## What to expect (option 8a)
+
+The event page's **Details** section is renamed **What to expect** and gets an optional one-line **overview** (new field `overview`, max 80 characters) above the same up-to-three bullets.
+
+- **Event page card:** white, radius 18, padding 16/18, 6px gap. Overview first: 18px/500 `#0d1117`, wraps. Then the bullets: 7px `#149a4b` dot, 17px/500 `#0d1117`, 4px vertical padding each. **No dividers anywhere and nothing bold.** The section shows if there's an overview or any bullet. The lead's empty prompt reads *Add a one-line overview and up to three quick notes.*
+- **Start an event, step 4 (What to expect), option 10a:** the title is **What to expect**, sub *Both parts are optional. Fill in either, both, or skip.* Two numbered parts, each with a label row (26px purple `#5b4ae8` circle with the number in white 13px/900, label 17px/900 `#0d1117`, then a gray **Optional** tag: `#eef0f3` pill, 11.5px/800 `#6b7280`): **1 One-line overview** over the overview input, and **2 Up to three details** over the three bullet inputs (10px extra space between the parts). An overview input (18px/500, counter *n/80* once typing, placeholder *e.g. An evening of backyard games and food with whoever shows up*) sits above the three bullet inputs. The bullet inputs drop from 800 to 500 weight, and their limit goes from 40 to **60 characters** (counter *n/60*) to match the edit sheet, which already allowed 60. The step counts as filled if the overview or any bullet has text. The step is saved in drafts and cleared by Skip like the bullets.
+- **Edit sheet** (Edit on the section): titled **What to expect**, sub *Both parts are optional.*, same two numbered parts as the create step; saves `overview` with `bits`.
+- The idea's steps strip still says **Details** for now (that strip is being reworked).
 
 ## Soft holds (answers §5 Q20)
 

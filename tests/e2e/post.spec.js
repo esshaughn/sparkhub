@@ -28,7 +28,7 @@ test('post an event with every step filled, then edit it in the pop-ups and dele
     await expect(P).toContainText('2100 Barton Springs Road, Austin, TX 78746');
     await expect(P.locator('[data-basics]')).toContainText('Tacos after');
     await expect(P.locator('[data-basics]')).toContainText('Bring headlamps');
-    await expect(P.locator('[data-signup="Bring water"]')).toContainText('0/3');
+    await expect(P.locator('[data-signup="Bring water"]')).toContainText('3 of 3 open');
     await expect(P).not.toContainText('Before the day');
     await expect(P).not.toContainText('Remind everyone the day before');
     await expect(P.locator('[data-tbd]')).toHaveCount(0);                 // nothing left to decide
@@ -59,12 +59,17 @@ test('post an event with every step filled, then edit it in the pop-ups and dele
     await expect(sec).toHaveCount(0);
     await expect(P.locator('h1')).toContainText('+ stars');
 
-    // Basic details pop-up
-    await P.getByRole('button', { name: 'Edit details' }).click();
-    const bd = page.getByRole('dialog', { name: 'Details' });
+    // What to expect (Design 8a): a one-line overview over the details
+    await expect(P.getByRole('heading', { name: 'What to expect' })).toBeVisible();
+    await P.getByRole('button', { name: 'Edit what to expect' }).click();
+    const bd = page.getByRole('dialog', { name: 'What to expect' });
+    await expect(bd.getByLabel('One-line overview')).toHaveAttribute('maxlength', '80');
+    await bd.getByLabel('One-line overview').fill('A night run under the stars');
     await bd.getByLabel('Details, line 3').fill('Hot cocoa');
     await bd.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(P.locator('[data-basics]')).toContainText('Hot cocoa');
+    await expect(P.locator('[data-basics] [data-overview]')).toHaveText('A night run under the stars');
+    expect(await asUser(page, async (c, _C, id) => (await c.from('sparks').select('overview').eq('id', id).single()).data.overview, id)).toBe('A night run under the stars');
 
     // Who can see it: Private
     await P.getByRole('button', { name: 'Edit who can see it' }).click();
@@ -74,8 +79,9 @@ test('post an event with every step filled, then edit it in the pop-ups and dele
     await expect(P).toContainText('PRIVATE');
     await expect(P.locator('[data-vis]')).toContainText('Private');
 
-    // Edit what you need: rename the job and ask for one more
-    await P.getByRole('button', { name: 'Edit what you need' }).click();
+    // Edit what you need (the job's ✎; Design 12e): rename the job and ask for one more
+    await expect(P.getByRole('button', { name: 'Edit what you need' })).toHaveCount(0);   // no Edit link on the section
+    await P.locator('[data-signup="Bring water"] [data-edit-jobs]').click();
     const needs = page.getByRole('dialog', { name: 'Edit what you need' });
     await needs.getByLabel('Job name 1').fill('Bring cold water');
     await needs.getByRole('button', { name: 'More for how many people' }).click();
@@ -85,8 +91,8 @@ test('post an event with every step filled, then edit it in the pop-ups and dele
     await expect(P.locator('[data-signup="Folding chairs"]')).toHaveCount(1);
     await needs.getByRole('button', { name: 'Save changes' }).click();
     await expect(needs).toHaveCount(0);
-    await expect(P.locator('[data-signup="Bring cold water"]')).toContainText('0/4');
-    await expect(P.locator('[data-signup="Folding chairs"]')).toContainText('0/2');
+    await expect(P.locator('[data-signup="Bring cold water"]')).toContainText('4 of 4 open');
+    await expect(P.locator('[data-signup="Folding chairs"]')).toContainText('2 of 2 open');
 
     // Invite people (one sheet; Share link is gone): the ready message, copy, and the share intents
     await expect(P.getByRole('button', { name: 'Share link' })).toHaveCount(0);
@@ -194,16 +200,16 @@ test('decide everything later: only the title is needed; the host is left with t
     await expect(flow).toContainText('LOOKS GOOD');
     for (const t of ['Date TBD', 'Location TBD', 'Details TBD', 'No help needed']) await expect(flow).toContainText(t);
     // Every part's link on Review says Edit and opens that part in a pop-up over Review (owner, 2026-10-02)
-    for (const part of ['date & time', 'location', 'details', 'ask for help']) await expect(flow.getByRole('button', { name: 'Edit ' + part, exact: true })).toHaveText('Edit');
+    for (const part of ['date & time', 'location', 'what to expect', 'ask for help']) await expect(flow.getByRole('button', { name: 'Edit ' + part, exact: true })).toHaveText('Edit');
     await expect(flow.getByText('Add', { exact: true })).toHaveCount(0);
-    await flow.getByLabel('Edit details').click();
-    const pop = page.getByRole('dialog', { name: 'Details' });
+    await flow.getByLabel('Edit what to expect').click();
+    const pop = page.getByRole('dialog', { name: 'What to expect' });
     await expect(flow).toContainText('LOOKS GOOD');   // still on Review, under the pop-up
     await pop.getByLabel('Details, line 1').fill('Bring a bowl');
     await pop.getByRole('button', { name: 'Done' }).click();
     await expect(pop).toHaveCount(0);
     await expect(flow).toContainText('Bring a bowl');
-    await flow.getByLabel('Edit details').click();
+    await flow.getByLabel('Edit what to expect').click();
     await pop.getByLabel('Details, line 1').fill('');
     await pop.getByRole('button', { name: 'Close' }).click();
     await expect(flow).toContainText('Details TBD');
@@ -253,7 +259,7 @@ test('decide everything later: only the title is needed; the host is left with t
     await expect(I.locator('[data-plan-needs] [data-plan-row="date"]')).toBeVisible();
     await expect(I.getByRole('button', { name: /^Make it a plan/ })).toHaveCount(0);   // no locked button (Design, after Update 16)
     // Empty Details and Help out are the same dashed box for the host
-    await expect(I.locator('[data-basics]')).toContainText('Add up to three quick notes on what to expect.');
+    await expect(I.locator('[data-basics]')).toContainText('Add a one-line overview and up to three quick notes.');
     await expect(I.locator('[data-help-empty]')).toHaveText('Add ways people can help.');
     await I.locator('[data-help-empty]').click();
     await expect(page.getByRole('dialog', { name: 'Edit what you need' })).toBeVisible();
