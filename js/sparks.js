@@ -3671,9 +3671,11 @@
       body = secs.map((z, i) => '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(z.label, i ? '' : '<div style="display:flex;align-items:center">' + sortMenu + kindPill + calViewMenu() + '</div>') +
         z.items.map(card6).join('') + '</div>').join('');
     }
+    // Tighter under the groups chip (owner, 2026-10-03): the cards' row only takes room when it has something in it
+    const mid = goneCard() + (st.loaded && !groups.length ? noGroupCard() : '') + wild + needs;
     return '<div data-screen-label="Explore">' + header + filters +
-      '<div style="padding:10px 14px 0;display:flex;flex-direction:column;gap:10px">' + goneCard() + (st.loaded && !groups.length ? noGroupCard() : '') + wild + needs + '</div>' +
-      '<div style="padding:16px 14px 26px;display:flex;flex-direction:column;gap:22px">' + body + '</div>' +
+      (mid ? '<div style="padding:10px 14px 0;display:flex;flex-direction:column;gap:10px">' + mid + '</div>' : '') +
+      '<div style="padding:' + (mid ? 16 : 6) + 'px 14px 26px;display:flex;flex-direction:column;gap:22px">' + body + '</div>' +
       '<div style="height:var(--nav-h)"></div></div>';
   }
 
