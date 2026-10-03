@@ -29,8 +29,26 @@
 17. **Help out job cards: seats, counts and More details** (option 7g). See *Help out jobs* below.
 18. **Event header: date tile moves to the top right** (option 13e). See *Event header date tile* below.
 19. **Help out, lead's view** (option 12e). See *Help out jobs* below.
+20. **Groups tab: one page, smaller header.** See *Your people* below.
+21. **Your calendar / Your tasks header: less white.** Padding 22/16/16 → **14/16/10**.
 
 ---
+
+## Your people (Groups tab)
+
+- **Header** matches a group page's header: min 112px photo, same dark wash, padding 22/14/14. Kicker *GROUPS & FRIENDS* 12px/900, title **Your people** 34px/900 (-1.1px). No count line under it (the counts are on the Groups and Friends headings). Search and the bell sit **on the title row** at the right as 40px glass circles. **No add-person button in the header**: adding lives on the Groups and Friends heading rows. Replaces the 180px header with the buttons in the corners.
+- **Groups heading row:** **Groups** (24px/900) + count (15px/800 `#9aa0ac`) on the left; on the right a small gray **+ Join or add** pill (option 14c: 34px, `#dfe2e7` fill, no outline, `#454b55` 13.5px/800, 12px +). It opens the add sheet titled **Add a group** with only *Join a group* and *Start a group* (no *Add a friend*). **Start a group is blocked for now:** its row has a gold **SOON** tag (`#fdf1d6` / `#8f6405`, 10.5px/900) and tapping it opens a pop-up: **Starting groups is coming soon** · *For now, ask us to set one up for your team, block or club. You can join any group with its code or link.* · one button **Got it**.
+- **No Groups / Friends switcher.** One scrolling page: the groups (as now), then a **Friends** heading row (24px/900, count 15px/800 `#9aa0ac`) with the same small gray pill on the right, **+ Add**, which copies your friend link (same as *Add a friend* in the sheet), then friend requests, then a **summary card** (option 15e): up to 5 overlapping 44px faces (3px white ring, -12px overlap), *+N* (14px/800 `#6b7280`) if more, and a dark **See all ›** pill on the right (36px, `#0d1117`, white 13.5px/800); under it *Darnell, Marisol, Hana and 5 more* (14.5px/600 `#5c6270`). The whole card opens a slide-up **Friends · N** sheet. The sheet (option 16a, `#e8eaee` background):
+  - a **Search friends** field (46px pill, white, 1.5px `#dcdfe6`) matching names or shared groups; *No friends match "…"* when empty
+  - the line *Tap a name for their profile. Tick people to invite them together.* (13.5px/600 `#6b7280`)
+  - one white card (radius 20) with a row per friend, 62px, hairline between: 40px face, name 16px/900, shared groups joined with · (13px/600 `#6b7280`, one line). Tapping the face/name opens their profile; a **26px tick circle** on the right picks them (`#c9ccd3` ring → `#5b4ae8` with a white check)
+  - once anyone is ticked, the sticky purple **Invite N to an event…** bar (with the clear button) appears at the bottom, then the existing event picker
+  - *Get a new friend link* at the bottom
+  - closing the sheet clears the picks and the search
+  - replaces the 4-wide face grid with ticks on the faces
+- **Group tiles** (the two-column grid) are **4:3** (wider than tall), not square.
+- **Pinned group cards** (the big ones on top) lose their white strip of chips (*6 events · 4 ideas*, *Leading 2 · Helping 3*, *N new*): just the photo, name and members.
+- Search covers both: placeholder *Search groups and friends*.
 
 ## Event header date tile (option 13e)
 

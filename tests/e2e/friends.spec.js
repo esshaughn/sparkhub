@@ -36,30 +36,37 @@ test('friends: request, accept, invite to an event, remove, and the friend link'
     await B.reload();
     await nav(B).getByRole('button', { name: 'Groups', exact: true }).click();
     const people = B.locator('[data-screen-label=Groups]');
-    await people.getByRole('tab', { name: /^Friends/ }).click();
-    const req = people.locator('[data-friend-request="Fay Friendly"]');
+    const req = people.locator('[data-friend-request="Fay Friendly"]');   // one page: requests sit under the Friends heading (Design 20)
     await expect(req).toContainText('Wants to be friends');
     await req.getByRole('button', { name: 'Accept Fay Friendly' }).click();
     await expect(B.getByText('You and Fay are friends')).toBeVisible();
-    await expect(people.getByRole('button', { name: 'Fay Friendly', exact: true })).toBeVisible();
+    await expect(people.locator('[data-friends-card]')).toContainText('Fay');
+    await people.locator('[data-friends-card]').click();
+    const bAll = B.getByRole('dialog', { name: 'All friends' });
+    await expect(bAll.getByRole('button', { name: 'Fay Friendly', exact: true })).toBeVisible();
+    await bAll.getByRole('button', { name: 'Close' }).click();
 
     // A invites B to an event: tap the friend, the invite bar, pick the event
     const title = uniqueTitle('Friends night');
     id = await postEvent(A, { title, date: inDays(9), time: '18:00' });
     await nav(A).getByRole('button', { name: 'Groups', exact: true }).click();
     const aPeople = A.locator('[data-screen-label=Groups]');
-    await aPeople.getByRole('tab', { name: /^Friends/ }).click();
-    await aPeople.getByRole('checkbox', { name: 'Invite Gus Friendly' }).click();   // the round tick picks; a tap on the friend opens their profile (owner, 2026-10-02)
-    await expect(aPeople.getByRole('checkbox', { name: 'Invite Gus Friendly' })).toBeChecked();
-    await aPeople.locator('[data-invite-bar]').getByText('Invite Gus to…').click();
+    // Friends · N (Design 16a): a row per friend, the round tick picks, then Invite N to an event…
+    await aPeople.locator('[data-friends-card]').click();
+    const aAll = A.getByRole('dialog', { name: 'All friends' });
+    await aAll.getByLabel('Search friends').fill('Gus');
+    await aAll.getByRole('checkbox', { name: 'Invite Gus Friendly' }).click();
+    await expect(aAll.getByRole('checkbox', { name: 'Invite Gus Friendly' })).toBeChecked();
+    await aAll.locator('[data-invite-bar]').getByText('Invite 1 to an event…').click();
+    await expect(aAll).toHaveCount(0);
     const pick = A.getByRole('dialog', { name: 'Invite friends' });
     await expect(pick).toContainText('Invite Gus');
     await pick.locator('[data-invite-event="' + title + '"]').click();
     await expect(A.getByText('Invited Gus to ' + title + '.')).toBeVisible();
-    await expect(aPeople.locator('[data-invite-bar]')).toHaveCount(0);
     // Inviting again skips them quietly
-    await aPeople.getByRole('checkbox', { name: 'Invite Gus Friendly' }).click();
-    await aPeople.locator('[data-invite-bar]').getByText('Invite Gus to…').click();
+    await aPeople.locator('[data-friends-card]').click();
+    await aAll.getByRole('checkbox', { name: 'Invite Gus Friendly' }).click();
+    await aAll.locator('[data-invite-bar]').getByText('Invite 1 to an event…').click();
     await A.getByRole('dialog', { name: 'Invite friends' }).locator('[data-invite-event="' + title + '"]').click();
     await expect(A.getByText('Gus was already invited.')).toBeVisible();
 
@@ -71,14 +78,14 @@ test('friends: request, accept, invite to an event, remove, and the friend link'
     await bell.getByRole('button', { name: 'Close' }).click();
 
     // B taps Fay: the short profile, Remove friend
-    await B.locator('[data-screen-label=Groups]').getByRole('tab', { name: /^Friends/ }).click();
-    await B.locator('[data-screen-label=Groups]').getByRole('button', { name: 'Fay Friendly', exact: true }).click();
+    await people.locator('[data-friends-card]').click();
+    await bAll.getByRole('button', { name: 'Fay Friendly', exact: true }).click();
     const prof = B.getByRole('dialog', { name: 'Fay Friendly' });
     await expect(prof).toContainText('Friends since');
     await prof.getByRole('button', { name: 'Remove friend' }).click();
     await B.getByRole('alertdialog').getByRole('button', { name: 'Remove friend' }).click();
     await expect(B.getByText('Removed Fay')).toBeVisible();
-    await expect(B.locator('[data-screen-label=Groups]').getByRole('button', { name: 'Fay Friendly', exact: true })).toHaveCount(0);
+    await expect(bAll.getByRole('button', { name: 'Fay Friendly', exact: true })).toHaveCount(0);
 
     // The friend link: B opens A's link and says yes
     const code = await asUser(A, async (c) => (await c.rpc('my_friend_code')).data);
@@ -88,7 +95,7 @@ test('friends: request, accept, invite to an event, remove, and the friend link'
     await expect(ask).toContainText('Add Fay Friendly as a friend?');
     await ask.getByRole('button', { name: 'Add friend' }).click();
     await expect(B.getByText('You and Fay are friends')).toBeVisible();
-    await expect(B.locator('[data-screen-label=Groups]').getByRole('button', { name: 'Fay Friendly', exact: true })).toBeVisible();
+    await expect(B.locator('[data-screen-label=Groups] [data-friends-card]')).toContainText('Fay');
     // Your own link says so
     await A.goto('/#/add/' + code);
     await expect(A.getByRole('dialog', { name: 'Friend link' })).toContainText('That’s your link');

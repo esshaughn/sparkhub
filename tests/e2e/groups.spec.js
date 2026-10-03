@@ -70,8 +70,8 @@ test('a group end to end: edit group, cover, rename, invite, pin, admin edits, r
 
     // A wrong code, then the invite link
     await B.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Groups', exact: true }).click();
-    await B.getByRole('button', { name: 'Add a group or friend' }).click();
-    await B.getByRole('dialog', { name: 'Add people' }).getByRole('button', { name: 'Join a group' }).click();
+    await B.getByRole('button', { name: 'Join or add a group' }).click();
+    await B.getByRole('dialog', { name: 'Add a group' }).getByRole('button', { name: 'Join a group' }).click();
     const join = B.getByRole('dialog', { name: 'Join a group' });
     await join.getByLabel('Group code').fill('ZZZZ22');
     await join.getByRole('button', { name: 'Join' }).click();

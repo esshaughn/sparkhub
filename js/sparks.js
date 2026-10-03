@@ -206,7 +206,7 @@
     pe: null, confirm: null, interestList: false, thanksList: false, guestList: null, cohostPick: null, leadAsk: null, leadsSheet: null, takeDown: null, albumEdit: null,
     gpCode: '', gpMembers: null, gpFail: false, acctDel: null, voteAll: null, justAdded: null, offerVote: true,
     // v6 Update 13: Your people (Groups · Friends), friend requests, the friend link, inviting friends
-    fr: { friends: [], incoming: [], outgoing: [], invites: [], loaded: false }, pplTab: 'groups', pplSearch: false, pplQ: '', pplAdd: false, frSel: [], frInvite: false,
+    fr: { friends: [], incoming: [], outgoing: [], invites: [], loaded: false }, pplTab: 'groups', pplSearch: false, pplQ: '', pplAdd: false, frSel: [], frInvite: false, frAll: false, frAllQ: '',
     frAdd: null, myFriendCode: null, person: null,
     // v6: Profile / Notifications are sheets; Your tasks' "View all", expansions, the RSVP ask
     profSheet: false, notifSheet: false, dashAll: null, dashOpen: {}, schedOpen: {}, shiftPick: null, banner: null, sigAdding: false,
@@ -2664,7 +2664,6 @@
   const friendById = (uid) => state.fr.friends.find(f => f.id === uid) || null;
   const pplQ = () => state.pplSearch ? state.pplQ.trim().toLowerCase() : '';
   const openPplSearch = () => { setState({ pplSearch: true, pplQ: '' }); setTimeout(() => { const el = document.querySelector('[data-csearch]'); if (el) el.focus(); }, 50); };
-  const pplTab = (k) => setState({ pplTab: k, frSel: k === 'friends' ? state.frSel : [] });
   const toggleFriendSel = (id) => setState({ frSel: state.frSel.indexOf(id) > -1 ? state.frSel.filter(x => x !== id) : state.frSel.concat(id) });
   // "Darnell & Marisol", or "Darnell, Marisol + 2"
   const selNames = () => {
@@ -2705,7 +2704,6 @@
   // Your friend link (/add/CODE). Fetched when the Add sheet opens, so the share sheet can open straight from the tap
   const friendLink = (code) => location.origin + '/add/' + code;
   const loadFriendCode = (fresh) => sb.rpc('my_friend_code', { p_new: !!fresh }).then(r => { if (r.error) throw r.error; setState({ myFriendCode: r.data }); return r.data; });
-  const openPplAdd = () => { setState({ pplAdd: true }); if (!state.myFriendCode) loadFriendCode().catch(e => console.error(e)); };
   const TOUCH = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
   const shareFriendLink = async () => {
     let code = state.myFriendCode;
@@ -2743,12 +2741,19 @@
   // The click after a long-press doesn't also select the friend
   document.addEventListener('click', (e) => { if (frPressed && e.target.closest('[data-friend-id]')) { e.stopPropagation(); e.preventDefault(); frPressed = false; } }, true);
 
+  // Your people (Design 20, 2026-10-03): one page, groups then friends, under a group page's smaller header. Adding
+  // lives on each heading row (+ Join or add, + Add); all friends are in a slide-up sheet with ticks to invite
+  const headRow = (title, n, label, fn, attr, top) => '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:' + (top ? 14 : 2) + 'px 4px 0">' +
+    '<div style="display:flex;align-items:baseline;gap:8px"><h2 style="margin:0;font-size:24px;line-height:1.1;font-weight:900;letter-spacing:-.6px;color:#0d1117">' + title + '</h2>' +
+      (n != null ? '<span style="font-size:15px;font-weight:800;color:#9aa0ac">' + n + '</span>' : '') + '</div>' +
+    '<span ' + on(fn) + ' ' + attr + ' class="hov-fill-grey" style="flex:0 0 auto;display:flex;align-items:center;gap:5px;min-height:34px;padding:0 12px;border-radius:999px;background:#dfe2e7;color:#454b55;font-size:13.5px;font-weight:800;cursor:pointer">' + I.plus(12, 'currentColor', 2.8) + label + '</span></div>';
+  // "Darnell, Marisol and Hana", "Darnell, Marisol, Hana and 5 more"
+  const namesLine = (ns) => ns.length <= 3 ? ns.join(', ').replace(/, ([^,]*)$/, ' and $1') : ns.slice(0, 3).join(', ') + ' and ' + (ns.length - 3) + ' more';
   function viewGroups() {
-    // Pinned groups get the big photo cards; everything else (all of them, when nothing is pinned) is a tile
-    const st = state, q = pplQ(), friendsTab = st.pplTab === 'friends';
+    // Pinned groups get the big photo cards; everything else (all of them, when nothing is pinned) is a 4:3 tile
+    const st = state, q = pplQ();
     const all = groupsInOrder(), groups = q ? all.filter(g => g.name.toLowerCase().includes(q)) : all, big = groups.filter(g => g.pinned);
     const rest = groups.filter(g => !g.pinned), hero = all.find(groupPhoto) || null;   // the header photo: the first of your groups with one
-    const friends = st.fr.friends, nFr = friends.length;
     const newDot = (g) => newIn(g) ? '<span aria-label="New events" style="display:inline-block;width:9px;height:9px;border-radius:999px;background:#9d93f7;margin-right:6px;vertical-align:1px"></span>' : '';
     const members = (g, px) => { const size = st.sizes[g.id]; return size ? '<div style="margin-top:3px;font-size:' + px + 'px;font-weight:700;color:#dfe2e8">' + size + (size === 1 ? ' member' : ' members') + '</div>' : ''; };
     const bigCard = (g) => '<div ' + on(() => openGroup(g)) + ' aria-label="' + esc(g.name) + '" style="position:relative;height:170px;border-radius:22px;overflow:hidden;background:#e8a71c;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
@@ -2759,97 +2764,106 @@
           groupTagAbove(g) + '<div style="font-size:26px;line-height:1.05;font-weight:900;letter-spacing:-.6px">' + newDot(g) + esc(g.name) + '</div>' + members(g, 13) +
         '</div>' +
       '</div>';
-    const tile = (g) => '<div ' + on(() => openGroup(g)) + ' aria-label="' + esc(g.name) + '" style="position:relative;aspect-ratio:1 / 1;border-radius:20px;overflow:hidden;box-shadow:0 1px 3px rgba(15,18,25,.08);background:#e8a71c;cursor:pointer">' + (groupPhoto(g) ? photoLayer(groupPhoto(g), g.photoPos, GROUP_POS) : '') + GRAD +
+    const tile = (g) => '<div ' + on(() => openGroup(g)) + ' aria-label="' + esc(g.name) + '" style="position:relative;aspect-ratio:4 / 3;border-radius:20px;overflow:hidden;box-shadow:0 1px 3px rgba(15,18,25,.08);background:#e8a71c;cursor:pointer">' + (groupPhoto(g) ? photoLayer(groupPhoto(g), g.photoPos, GROUP_POS) : '') + GRAD +
       '<div style="position:absolute;top:10px;left:10px">' + roleChip(g) + '</div>' +
       '<div style="position:absolute;top:8px;right:8px">' + pinBtn(g, 32) + '</div>' +
       '<div style="position:absolute;left:12px;right:10px;bottom:10px;color:#fff;font-size:16px;line-height:1.15;font-weight:900">' +
         groupTagAbove(g) + newDot(g) + esc(g.name) + members(g, 12) + '</div>' +
     '</div>';
-    const frosted = (label, icon, fn) => '<span ' + on(fn) + ' aria-label="' + label + '" style="width:44px;height:44px;border-radius:999px;background:rgba(255,255,255,.18);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;cursor:pointer">' + icon + '</span>';
-    const sub = st.loaded ? all.length + (all.length === 1 ? ' group' : ' groups') + (st.fr.loaded ? ' · ' + nFr + (nFr === 1 ? ' friend' : ' friends') : '') : '';
-    const header = '<header style="position:relative;height:calc(180px + var(--pt));overflow:hidden;background:#2b303a">' +
+    const glass = (label, icon, fn) => '<span ' + on(fn) + ' aria-label="' + label + '" style="flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:rgba(255,255,255,.2);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;cursor:pointer">' + icon + '</span>';
+    // A group page's header: min 112px of photo, the same wash, the title row with Search and the bell on it
+    const header = '<header style="position:relative;z-index:5;min-height:calc(112px + var(--pt));overflow:hidden;background:#2b303a;display:flex;align-items:flex-end">' +
       (hero ? '<div style="position:absolute;inset:0;overflow:hidden">' + photoLayer(groupPhoto(hero), hero.photoPos, GROUP_POS) + '</div>' : '<div aria-hidden="true" style="position:absolute;inset:0;background:' + HEAD_GOLD + '"></div>') +
-      '<div aria-hidden="true" style="position:absolute;inset:0;background:' + HEAD_WASH + '"></div>' +
-      '<div style="position:absolute;top:calc(14px + var(--pt));right:16px;z-index:2;display:flex;gap:8px">' + frosted('Search your people', ic6('search', 19, '#fff', 2.4), openPplSearch) + bellBtn(true) + '</div>' +
-      '<div style="position:absolute;left:18px;right:90px;bottom:16px;z-index:2;color:#fff">' +
-        '<div style="font-size:13px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:#cfc9ff">Groups &amp; friends</div>' +
-        '<h1 style="margin:2px 0 0;font-size:40px;line-height:1;font-weight:900;letter-spacing:-1.4px;color:#fff">Your people</h1>' +
-        '<div data-ppl-sub style="margin-top:6px;font-size:14px;font-weight:700;color:rgba(255,255,255,.88)">' + sub + '</div></div>' +
-      '<span ' + on(openPplAdd) + ' aria-label="Add a group or friend" class="hov-fill-grey" style="position:absolute;right:16px;bottom:16px;z-index:3;width:52px;height:52px;border-radius:999px;background:#fff;box-shadow:0 6px 16px rgba(13,17,23,.35);display:flex;align-items:center;justify-content:center;cursor:pointer">' +
-        svg(22, stroke('#0d1117', 2.4), '<circle cx="9.5" cy="8" r="3.5"/><path d="M3 20a6.5 6.5 0 0 1 13 0"/><path d="M19 8v6M16 11h6"/>') + '</span>' +
+      '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.9) 0%, rgba(13,17,23,.55) 60%, rgba(13,17,23,.4) 100%)"></div>' +
+      '<div style="position:relative;z-index:2;flex:1;min-width:0;padding:calc(22px + var(--pt)) 14px 14px;display:flex;align-items:center;gap:8px">' +
+        '<div style="flex:1;min-width:0;color:#fff;display:flex;flex-direction:column;gap:3px">' +
+          '<span style="font-size:12px;line-height:1;font-weight:900;letter-spacing:1.2px;text-transform:uppercase;color:#cfc9ff">Groups &amp; friends</span>' +
+          '<h1 style="margin:0;font-size:34px;line-height:1;font-weight:900;letter-spacing:-1.1px;color:#fff">Your people</h1></div>' +
+        glass('Search your people', ic6('search', 18, '#fff', 2.4), openPplSearch) + bellBtn(true, 40) + '</div>' +
     '</header>';
-    // The Calendar's search field (audit, 2026-10-01)
-    const search = st.pplSearch ? searchHead(friendsTab ? 'Search friends' : 'Search groups', st.pplQ, friendsTab ? 'Search friends' : 'Search groups',
+    const search = st.pplSearch ? searchHead('Search groups and friends', st.pplQ, 'Search groups and friends',
       (v) => setState({ pplQ: v.slice(0, 40) }), () => setState({ pplQ: '' }), () => setState({ pplSearch: false, pplQ: '' })) : '';
-    // The group page's switch (audit, 2026-10-01): a 44px gray track, a white thumb that slides to the side that's on
-    const onFr = (st.pplTab || 'groups') === 'friends';
-    const seg = (k, label) => { const onIt = (st.pplTab || 'groups') === k;
-      return '<span ' + on(() => pplTab(k), 'tab') + ' aria-selected="' + onIt + '" style="position:relative;display:flex;align-items:center;justify-content:center;height:100%;font-size:14px;font-weight:900;white-space:nowrap;cursor:pointer;transition:color 180ms ease;color:' + (onIt ? '#0d1117' : '#6b7280') + '">' + label + '</span>'; };
-    const tabs = '<div role="tablist" aria-label="Groups or friends" style="position:relative;height:44px;border-radius:999px;background:#dfe2e7;display:grid;grid-template-columns:1fr 1fr;align-items:center">' +
-      '<span aria-hidden="true" style="position:absolute;top:4px;bottom:4px;width:calc(50% - 6px);left:' + (onFr ? 'calc(50% + 2px)' : '4px') + ';border-radius:999px;background:#fff;box-shadow:0 1px 4px rgba(13,17,23,.15);transition:left 220ms cubic-bezier(.2,.8,.2,1)"></span>' +
-      seg('groups', 'Groups · ' + all.length) + seg('friends', 'Friends' + (st.fr.loaded ? ' · ' + nFr : '')) + '</div>';
     const none = (what) => '<div style="padding:8px;text-align:center;font-size:14.5px;font-weight:700;color:#6b7280">No ' + what + ' match “' + esc(st.pplQ.trim()) + '”</div>';
     const groupsBody = !st.loaded ? skeleton(2, 200)
       : !all.length ? noGroupCard()
       : !groups.length ? none('groups')
       : big.map(bigCard).join('') + (rest.length ? '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' + rest.map(tile).join('') + '</div>' : '');
     return '<div data-screen-label="Groups">' + header +
-      '<div style="padding:14px 14px 26px;display:flex;flex-direction:column;gap:12px">' + search + tabs +
-        (friendsTab ? friendsBody(q, none) : groupsBody) +
+      '<div style="padding:14px 14px 26px;display:flex;flex-direction:column;gap:12px">' + search +
+        headRow('Groups', st.loaded ? all.length : null, 'Join or add', () => setState({ pplAdd: true }), 'data-add-group aria-label="Join or add a group"') + groupsBody +
+        headRow('Friends', st.fr.loaded ? st.fr.friends.length : null, 'Add', shareFriendLink, 'data-add-friend aria-label="Add a friend"', true) + friendsBody(q, none) +
       '</div>' +
       '<div style="height:var(--nav-h)"></div>' +
     '</div>';
   }
 
-  // Friends: requests on top, then the grid (tap for a friend's profile; the round tick picks people to invite together;
-  // owner, 2026-10-02: the profile used to be behind a long-press nobody found, which still works)
+  // Friends on the page: requests, then one summary card (up to 5 faces, See all) that opens every friend in a sheet
   function friendsBody(q, none) {
-    const st = state, fr = st.fr, sel = st.frSel;
-    if (!fr.loaded) return skeleton(2, 120);
-    const shown = q ? fr.friends.filter(f => f.name.toLowerCase().includes(q)) : fr.friends;
+    const st = state, fr = st.fr;
+    if (!fr.loaded) return st.loaded ? skeleton(1, 120) : '';   // one loading placeholder on the page at a time
+    const shown = q ? fr.friends.filter(f => f.name.toLowerCase().includes(q) || (f.groups || []).some(g => g.toLowerCase().includes(q))) : fr.friends;
     const reqs = q ? [] : fr.incoming;
     const req = (f) => '<div data-friend-request="' + esc(f.name) + '" style="' + CARD + ';padding:12px 14px;display:flex;align-items:center;gap:12px">' +
       '<span ' + on(() => openPerson(f.id)) + ' aria-label="' + esc(f.name) + ', see profile" style="flex:1;min-width:0;display:flex;align-items:center;gap:12px;cursor:pointer">' + frFace(f, 40) +
       '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:900;color:#0d1117">' + esc(f.name) + '</div><div style="font-size:12.5px;font-weight:700;color:#6b7280">Wants to be friends' + (f.group ? ' · ' + esc(f.group) : '') + '</div></div></span>' +
       '<span ' + on(() => answerRequest(f, false)) + ' aria-label="Decline ' + esc(f.name) + '" style="flex:0 0 34px;width:34px;height:34px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(13, '#0d1117', 2.6) + '</span>' +
       '<span ' + on(() => answerRequest(f, true)) + ' aria-label="Accept ' + esc(f.name) + '" class="hov-primary" style="display:flex;align-items:center;height:34px;padding:0 13px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:13.5px;font-weight:900;cursor:pointer">Accept</span></div>';
-    const cell = (f, k) => {
-      const onIt = sel.indexOf(f.id) > -1;
-      return '<div ' + on(() => openPerson(f.id)) + ' data-friend-id="' + esc(f.id) + '" aria-label="' + esc(f.name) + '" style="display:flex;flex-direction:column;align-items:center;gap:5px;text-align:center;cursor:pointer;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none">' +
-        '<span style="position:relative;display:flex;border-radius:999px;transition:box-shadow 160ms;box-shadow:' + (onIt ? '0 0 0 3px #fff, 0 0 0 5.5px #5b4ae8' : 'none') + '">' + frFace(f, 58, k) +
-          '<span ' + on(() => toggleFriendSel(f.id), 'checkbox') + ' aria-checked="' + onIt + '" aria-label="Invite ' + esc(f.name) + '" style="position:absolute;right:-7px;bottom:-7px;width:30px;height:30px;border-radius:999px;border:2.5px solid #fff;display:flex;align-items:center;justify-content:center;cursor:pointer;' +
-            (onIt ? 'background:#5b4ae8' : 'background:#fff;box-shadow:inset 0 0 0 2px #c3c7d0') + '">' + (onIt ? I.check(12, '#fff', 3.6) : '') + '</span></span>' +
-        '<span style="font-size:13px;font-weight:900;color:#0d1117;line-height:1.1;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(firstName(f.name)) + '</span>' +
-        (f.groups.length ? '<span style="font-size:11px;font-weight:700;color:#6b7280;line-height:1.15">' + esc(f.groups[0]) + (f.groups.length > 1 ? ' +' + (f.groups.length - 1) : '') + '</span>' : '') + '</div>';
-    };
-    const grid = shown.length ? '<div style="background:#fff;border-radius:22px;box-shadow:0 1px 3px rgba(15,18,25,.08);padding:14px 16px">' +
-        '<div style="font-size:13px;font-weight:700;color:#6b7280;padding:0 0 12px">Tap a friend to see their profile. Tick the circle to invite people together.</div>' +
-        '<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px 6px">' + shown.map((f, k) => cell(f, fr.friends.indexOf(f))).join('') + '</div></div>'
-      : q ? none('friends')
-      : '<div data-friends-empty style="' + CARD + ';padding:18px;display:flex;flex-direction:column;gap:14px">' +
-          '<div><div style="font-size:17px;font-weight:900;color:#0d1117">No friends here yet</div>' +
-          '<div style="margin-top:4px;font-size:14.5px;line-height:1.45;font-weight:500;color:#5c6270">Send your friend link to people you know, or add someone from a group’s Members list. Then you can invite them to things together.</div></div>' +
-          '<button type="button" class="hov-primary" ' + on(shareFriendLink) + ' style="min-height:50px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:15.5px;font-weight:900;cursor:pointer">Add a friend</button></div>';
-    const bar = sel.length ? '<div data-invite-bar style="position:sticky;bottom:calc(var(--nav-h) + 12px);z-index:4;display:flex;gap:8px;margin-top:4px">' +
-        '<div ' + on(() => setState({ frInvite: true })) + ' class="hov-primary" style="flex:1;min-width:0;min-height:52px;padding:0 14px;border-radius:14px;background:#5b4ae8;color:#fff;font-size:15px;font-weight:900;display:flex;align-items:center;justify-content:center;text-align:center;box-shadow:0 8px 20px rgba(91,74,232,.35);cursor:pointer">Invite ' + esc(selNames()) + ' to…</div>' +
-        '<div ' + on(() => setState({ frSel: [] })) + ' aria-label="Clear selection" class="hov-fill-grey" style="flex:0 0 52px;height:52px;border-radius:14px;background:#fff;box-shadow:0 2px 8px rgba(13,17,23,.15);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(15, '#0d1117', 2.4) + '</div></div>' : '';
-    return reqs.map(req).join('') + grid + bar;
+    const card = !shown.length ? '' : '<div ' + on(() => setState({ frAll: true, frAllQ: q })) + ' data-friends-card role="button" aria-label="See all friends (' + shown.length + ')" style="' + CARD + ';border-radius:22px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;cursor:pointer">' +
+        '<div style="display:flex;align-items:center;gap:10px"><div aria-hidden="true" style="display:flex">' +
+          shown.slice(0, 5).map((f, j) => '<span style="display:flex;border-radius:999px;box-shadow:0 0 0 3px #fff;' + (j ? 'margin-left:-12px;' : '') + '">' + frFace(f, 44) + '</span>').join('') + '</div>' +
+          (shown.length > 5 ? '<span style="font-size:14px;font-weight:800;color:#6b7280">+' + (shown.length - 5) + '</span>' : '') +
+          '<span style="flex:0 0 auto;margin-left:auto;display:flex;align-items:center;gap:4px;min-height:36px;padding:0 12px 0 14px;border-radius:999px;background:#0d1117;color:#fff;font-size:13.5px;font-weight:800">See all' + I.chevR(12, '#fff', 2.8) + '</span></div>' +
+        '<div style="font-size:14.5px;font-weight:600;color:#5c6270">' + esc(namesLine(shown.map(f => firstName(f.name)))) + '</div></div>';
+    const empty = q ? (shown.length ? '' : none('friends'))
+      : fr.friends.length ? ''
+      : '<div data-friends-empty style="' + CARD + ';padding:18px;display:flex;flex-direction:column;align-items:flex-start;gap:6px">' +
+          '<span style="font-size:17px;font-weight:900;color:#0d1117">No friends here yet</span>' +
+          '<span style="font-size:14.5px;line-height:1.45;font-weight:500;color:#5c6270;text-wrap:pretty">Send your friend link to people you know, or add someone from a group’s Members list. Then you can invite them to things together.</span>' +
+          '<span ' + on(shareFriendLink) + ' class="hov-primary" style="margin-top:8px;display:flex;align-items:center;min-height:44px;padding:0 18px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:15px;font-weight:800;cursor:pointer">Add a friend</span></div>';
+    return reqs.map(req).join('') + card + empty;
   }
 
-  // Add people (the round button): Add a friend · Join a group · Start a group
+  // Friends · N (Design 16a): search by name or shared group, a row per friend (tap for the profile, the tick picks),
+  // then Invite N to an event…; closing it clears the picks and the search
+  function viewFriendsAll() {
+    const st = state, fr = st.fr, sel = st.frSel, qq = (st.frAllQ || '').trim().toLowerCase();
+    const close = () => setState({ frAll: false, frSel: [], frAllQ: '' });
+    const rows = fr.friends.filter(f => !qq || f.name.toLowerCase().includes(qq) || (f.groups || []).some(g => g.toLowerCase().includes(qq)));
+    const row = (f, k) => { const onIt = sel.indexOf(f.id) > -1;
+      return '<div data-friend-row="' + esc(f.name) + '" style="display:flex;align-items:center;gap:12px;min-height:62px;border-top:' + (k ? '1px solid #f2f3f6' : '0') + '">' +
+        '<div ' + on(() => openPerson(f.id)) + ' data-friend-id="' + esc(f.id) + '" aria-label="' + esc(f.name) + '" style="flex:1;min-width:0;display:flex;align-items:center;gap:12px;cursor:pointer">' + frFace(f, 40) +
+          '<div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:900;color:#0d1117">' + esc(f.name) + '</div>' +
+            ((f.groups || []).length ? '<div style="font-size:13px;font-weight:600;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(f.groups.join(' · ')) + '</div>' : '') + '</div></div>' +
+        '<span ' + on(() => toggleFriendSel(f.id), 'checkbox') + ' aria-checked="' + onIt + '" aria-label="Invite ' + esc(f.name) + '" style="flex:0 0 26px;width:26px;height:26px;box-sizing:border-box;border-radius:999px;display:flex;align-items:center;justify-content:center;cursor:pointer;' +
+          (onIt ? 'background:#5b4ae8' : 'background:#fff;border:2px solid #c9ccd3') + '">' + (onIt ? I.check(13, '#fff', 3.6) : '') + '</span></div>'; };
+    const bar = sel.length ? '<div data-invite-bar style="position:sticky;bottom:0;z-index:4;display:flex;gap:8px;margin-top:4px">' +
+        '<div ' + on(() => setState({ frAll: false, frAllQ: '', frInvite: true })) + ' role="button" class="hov-primary" style="flex:1;min-width:0;min-height:52px;padding:0 14px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:15px;font-weight:900;display:flex;align-items:center;justify-content:center;text-align:center;cursor:pointer">Invite ' + sel.length + ' to an event…</div>' +
+        '<div ' + on(() => setState({ frSel: [] })) + ' aria-label="Clear selection" class="hov-fill-grey" style="flex:0 0 52px;height:52px;border-radius:14px;background:#fff;box-shadow:0 2px 8px rgba(13,17,23,.15);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(15, '#0d1117', 2.4) + '</div></div>' : '';
+    return sheet('All friends', close, 'max-height:82%;overflow-y:auto;background:#e8eaee;padding:10px 14px calc(22px + env(safe-area-inset-bottom, 0px));display:flex;flex-direction:column;gap:12px',
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 4px"><h3 style="margin:0;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">Friends · ' + fr.friends.length + '</h3>' + closeX(close, 'background:#fff') + '</div>' +
+      '<label style="display:flex;align-items:center;gap:8px;min-height:46px;padding:0 14px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6">' + ic6('search', 16, '#6b7280', 2.4) +
+        '<input class="fld" type="search" aria-label="Search friends" placeholder="Search friends" value="' + esc(st.frAllQ || '') + '" ' + onInput(e => { if (e.type === 'input') setState({ frAllQ: e.target.value.slice(0, 40) }); }) + ' style="flex:1;min-width:0;border:0;outline:0;background:transparent;font-family:inherit;font-size:16px;font-weight:600;color:#0d1117"></label>' +
+      '<span style="padding:0 4px;font-size:13.5px;font-weight:600;color:#6b7280">Tap a name for their profile. Tick people to invite them together.</span>' +
+      '<div style="background:#fff;border-radius:20px;box-shadow:0 1px 3px rgba(15,18,25,.08);padding:2px 16px">' + rows.map(row).join('') +
+        (qq && !rows.length ? '<div style="padding:18px 0;text-align:center;font-size:14.5px;font-weight:700;color:#6b7280">No friends match “' + esc(st.frAllQ.trim()) + '”</div>' : '') + '</div>' +
+      bar +
+      '<span ' + on(newFriendLink) + ' data-new-friend-link style="align-self:center;display:flex;align-items:center;min-height:40px;font-size:13px;font-weight:700;color:#8a909b;cursor:pointer">Get a new friend link</span>', 44);
+  }
+
+  // Add a group (+ Join or add): Join a group, and Start a group, which is coming soon (Design 20, 2026-10-03)
+  const startGroupSoon = () => setState({ pplAdd: false, confirm: { title: 'Starting groups is coming soon', body: 'For now, ask us to set one up for your team, block or club. You can join any group with its code or link.', cta: 'Got it', run: () => setState({ confirm: null }) } });
   function viewPplAdd() {
     const close = () => setState({ pplAdd: false });
-    const row = (label, sub, icon, fn) => '<div ' + on(fn) + ' aria-label="' + label + '" class="hov-grey-fill" style="display:flex;align-items:center;gap:14px;padding:14px 6px;border-top:1px solid #eceef1;cursor:pointer">' +
+    const row = (label, sub, icon, fn, tag) => '<div ' + on(fn) + ' aria-label="' + label + '" class="hov-grey-fill" style="display:flex;align-items:center;gap:14px;padding:14px 6px;border-top:1px solid #eceef1;cursor:pointer">' +
       '<span style="flex:0 0 44px;width:44px;height:44px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center">' + icon + '</span>' +
-      '<div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:900;color:#0d1117">' + label + '</div><div style="font-size:13px;font-weight:600;color:#5c6270">' + sub + '</div></div>' + I.chevR(16, '#9aa0aa', 2.4) + '</div>';
-    return sheet('Add people', close, 'padding:10px 14px calc(22px + env(safe-area-inset-bottom, 0px))',
-      '<div style="display:flex;align-items:center;justify-content:space-between;padding:0 6px 8px"><h3 style="margin:0;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">Add people</h3>' + closeX(close) + '</div>' +
+      '<div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:16px;font-weight:900;color:#0d1117">' + label + '</span>' + (tag || '') + '</div><div style="font-size:13px;font-weight:600;color:#5c6270">' + sub + '</div></div>' + I.chevR(16, '#9aa0aa', 2.4) + '</div>';
+    return sheet('Add a group', close, 'padding:10px 14px calc(22px + env(safe-area-inset-bottom, 0px))',
+      '<div style="display:flex;align-items:center;justify-content:space-between;padding:0 6px 8px"><h3 style="margin:0;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">Add a group</h3>' + closeX(close) + '</div>' +
       '<div style="display:flex;flex-direction:column">' +
-        row('Add a friend', 'Send them your friend link', svg(19, stroke('#0d1117', 2.2), '<circle cx="9.5" cy="8" r="3.5"/><path d="M3 20a6.5 6.5 0 0 1 13 0"/><path d="M19 8v6M16 11h6"/>'), shareFriendLink) +
         row('Join a group', 'Have a code or link?', svg(19, stroke('#0d1117', 2.2), '<rect x="3" y="7" width="18" height="10" rx="2"/><path d="M7 12h.01M11 12h.01M15 12h.01"/>'), () => { setState({ pplAdd: false }); openJoin(); }) +
-        row('Start a group', 'For a team, a block, a crew', svg(19, stroke('#0d1117', 2.4), '<path d="M12 5v14M5 12h14"/>'), () => { setState({ pplAdd: false }); startGroup(); }) +
-      '</div>' +
-      '<span ' + on(newFriendLink) + ' data-new-friend-link style="align-self:center;display:flex;justify-content:center;min-height:40px;align-items:center;margin-top:6px;font-size:13px;font-weight:700;color:#8a909b;cursor:pointer">Get a new friend link</span>', 45);
+        row('Start a group', 'For a team, a block, a crew', svg(19, stroke('#0d1117', 2.4), '<path d="M12 5v14M5 12h14"/>'), startGroupSoon,
+          '<span style="padding:2px 7px;border-radius:999px;background:#fdf1d6;color:#8f6405;font-size:10.5px;font-weight:900;letter-spacing:.6px">SOON</span>') +
+      '</div>', 45);
   }
 
   // Invite the friends you picked to one of your upcoming events (leading or going; guests only where the lead allows it)
@@ -3143,9 +3157,9 @@
   };
 
   // Headers: the bell opens Notifications (Profile is only on the tab bar since Update 3)
-  const bellBtn = (frosted) => {
-    const n = state.email ? unreadCount() : 0;
-    return '<span ' + on(() => setState({ notifSheet: true, menu: null })) + ' aria-label="' + (n ? 'Notifications, ' + n + ' new' : 'Notifications') + '" style="position:relative;flex:0 0 44px;width:44px;height:44px;border-radius:999px;display:flex;align-items:center;justify-content:center;cursor:pointer;' +
+  const bellBtn = (frosted, px) => {
+    const n = state.email ? unreadCount() : 0, z = px || 44;
+    return '<span ' + on(() => setState({ notifSheet: true, menu: null })) + ' aria-label="' + (n ? 'Notifications, ' + n + ' new' : 'Notifications') + '" style="position:relative;flex:0 0 ' + z + 'px;width:' + z + 'px;height:' + z + 'px;border-radius:999px;display:flex;align-items:center;justify-content:center;cursor:pointer;' +
       (frosted ? 'background:rgba(255,255,255,.18);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff' : 'background:#f2f3f6;color:#0d1117') + '">' + ic6('bell', 21, 'currentColor', 1.9) +
       (n ? '<span aria-hidden="true" style="position:absolute;top:-3px;right:-4px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#e2556b;color:#fff;font-size:10.5px;font-weight:900;display:flex;align-items:center;justify-content:center;box-sizing:border-box">' + (n > 9 ? '9+' : n) + '</span>' : '') + '</span>';
   };
@@ -3156,7 +3170,7 @@
   const backBtn6 = (fn, label) => '<span ' + on(fn) + ' aria-label="' + (label || 'Back') + '" style="flex:0 0 44px;width:44px;height:44px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.chevL(20, '#0d1117', 2.6) + '</span>';
   const head6 = (title, left, sw, grp) => {
     const h1 = sw ? titleSwitch(title) : '<h1 style="flex:1 1 0;min-width:0;margin:0;font-size:30px;line-height:1;font-weight:900;letter-spacing:-1px;color:#0d1117">' + esc(title) + '</h1>';
-    return '<header style="position:relative;z-index:5;background:#fff;padding:' + (grp != null ? '22px 16px 16px' : '14px 16px') + ';display:flex;align-items:center;gap:12px">' + (left || '') +
+    return '<header style="position:relative;z-index:5;background:#fff;padding:' + (grp != null ? '14px 16px 10px' : '14px 16px') + ';display:flex;align-items:center;gap:12px">' + (left || '') +
     (grp ? '<div style="flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:1px">' + h1 + grp + '</div>' : h1) +
     '<div style="flex:0 0 auto;display:flex;gap:8px">' + (state.email ? searchBtn() : '') + bellBtn() + '</div></header>';
   };
@@ -7285,7 +7299,7 @@
       '<p style="margin:0;font-size:15px;line-height:1.45;font-weight:500;color:#454b55">' + esc(c.body) + '</p>' +
       '<div style="margin-top:4px;display:flex;flex-direction:column;gap:8px">' +
         '<button type="button" ' + on(() => { if (!state.busy) c.run(); }) + ' style="' + primary(true) + ';background:' + (c.danger ? '#9b1c31' : c.green ? '#0f7a3c' : '#5b4ae8') + '">' + esc(c.cta) + '</button>' +
-        '<button type="button" ' + on(() => { if (state.busy) return; if (c.alt) c.alt(); else setState({ confirm: null }); }) + ' style="' + SECONDARY + '">' + esc(c.keep) + '</button>' +   // alt: the second button does something too
+        (c.keep ? '<button type="button" ' + on(() => { if (state.busy) return; if (c.alt) c.alt(); else setState({ confirm: null }); }) + ' style="' + SECONDARY + '">' + esc(c.keep) + '</button>' : '') +   // alt: the second button does something too
       '</div>',
       { z: c.z || 34, role: 'alertdialog', max: 330 });
   }
@@ -7660,6 +7674,7 @@
       (st.nSettings && st.email ? viewNotifSettings() : '') +
       (st.membersOpen ? viewMembers() : '') +
       (st.email && st.pplAdd ? viewPplAdd() : '') +
+      (st.email && st.frAll ? viewFriendsAll() : '') +
       (st.email && st.frInvite && st.frSel.length ? viewFrInvite() : '') +
       (st.email && st.person ? viewPerson() : '') +
       (st.frAdd ? viewFrAdd() : '') +
