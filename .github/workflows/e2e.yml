@@ -40,7 +40,9 @@ on:
 permissions:
   contents: read
 
-# Runs share one test database, so never run two at once
+# Runs share one test database, so never run two at once. GitHub already drops a waiting run when a
+# newer one queues; a push run that has started but sees a newer push on test cancels itself before
+# its tests start (step "Skip if test has moved on"), so it never stops tests halfway and leaves [E2E] rows.
 concurrency:
   group: e2e
   cancel-in-progress: false
@@ -83,6 +85,9 @@ jobs:
     if: needs.pick.outputs.run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: write   # only so a superseded push run can cancel itself
     defaults:
       run:
         working-directory: tests
@@ -115,6 +120,20 @@ jobs:
       - name: Install Chromium's system libraries
         if: steps.pw-cache.outputs.cache-hit == 'true'
         run: npx playwright install-deps chromium
+
+      # A newer push on test gets its own run, so testing this older commit would only use up TEST
+      - name: Skip if test has moved on
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          head=$(git ls-remote origin refs/heads/test | cut -f1)
+          if [ -n "$head" ] && [ "$head" != "${{ github.sha }}" ]; then
+            echo "test is now at $head; cancelling this run for ${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
+            gh run cancel ${{ github.run_id }} --repo ${{ github.repository }}
+            sleep 60   # the cancel lands while this waits, so the tests never start
+            exit 1
+          fi
 
       - name: Run tests
         run: npx playwright test ${{ needs.pick.outputs.files }}
