@@ -7,6 +7,10 @@ Parked work. Newest first. When you pick something up, move it to a branch and d
 - **Ask someone to take a job, on jobs with shifts.** Built for single jobs only; a shift job's task row says Share and opens the share sheet instead. Needs a pick-a-shift step in the ask (or ask for the whole job, the person picks the shift on I'm in).
 - **The TEST project's size.** It's a free nano instance (~400 MB) and swaps under busy test nights (2026-10-02: three restarts' worth). CI now runs 2 at a time and full runs once per batch. If that's not enough, moving the `sparkhub-test` organization to Pro ($25/month) gives it 1 GB.
 
+## Welcome tour (parked 2026-10-03)
+
+The owner's intro walkthrough: 5–8 simple slides in his voice (who he is and why he made it, ideas becoming plans, nobody doing it alone, the prototype disclaimers, what he's asking, where things are), replayable from Profile → Help & info. Brainstorm and draft copy in `WELCOME-TOUR-for-design.md` (HANDOFF §5 Q26). Tagged for later by the owner; not for Design or the build until he picks it up.
+
 ## Joseph and Cynthia's feedback (logged 2026-10-03)
 
 From watching them use the live app. Order is the build's suggested priority (owner hasn't picked yet). Design questions are in HANDOFF §5 #24.

@@ -1,6 +1,6 @@
 # The welcome tour: brief for Claude Design
 
-For Claude Design, 2026-10-03. **Brainstorm, not built.** The owner wants a short welcome walkthrough that introduces him, the app's purpose and what he's asking of people. It replaces the idea of a feature-by-feature tutorial. The copy below is a first draft in his voice, to be shaped together. What's needed from Design: the look, the flow, and a call on the open questions in §6.
+For Claude Design, 2026-10-03. **Parked for later (owner, 2026-10-03): don't design it this round.** **Brainstorm, not built.** The owner wants a short welcome walkthrough that introduces him, the app's purpose and what he's asking of people. It replaces the idea of a feature-by-feature tutorial. The copy below is a first draft in his voice, to be shaped together. What's needed from Design: the look, the flow, and a call on the open questions in §6.
 
 ---
 
