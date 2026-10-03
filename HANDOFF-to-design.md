@@ -47,6 +47,7 @@ Where this doc and the design files disagree, **this doc is correct**.
 - **Only someone in an idea's groups can take the lead** (2026-10-02): a guest or a link holder from outside the group no longer gets *I'll lead*.
 - **Invited and Nudge** (`20261102040000_invited_and_nudge.sql`): the event's hosts (lead and co-leads) read every invite to it, including ones sent by people going, so *Invited* counts all of them. *Haven't replied* lists invited people with no RSVP (leads excluded), only on upcoming, uncancelled plans. **Nudge** (`nudge_invitee()`, hosts only) sends the person a note in the bell and a push (title = the event, body = the note, *Friends* topic) once per person per day (Central time); a second tap that day sends nothing and toasts *You nudged {name} today. Try again tomorrow.* Test and demo events record the nudge but stay quiet.
 - **Notes on asks** (`20261102050000_ask_notes.sql`): `event_invites.message` and `lead_asks.message` (≤ 140, trimmed; empty means none). `invite_friends(p_spark, p_people, p_message)` and `ask_to_lead(p_spark, p_user, p_message)` take it; `friend_state()` returns it with your invites and `load_all()` with asks. Requiring it and the two-person limit are the app's (the database takes asks without a note).
+- **Could use a hand follows the Calendar's group filter** (Joseph's demo, 2026-10-02): the count and its sheet only take in the groups that are picked, like the list under it.
 
 ## 4. Designed but not built or not working
 

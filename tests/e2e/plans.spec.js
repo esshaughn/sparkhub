@@ -810,3 +810,35 @@ test('a sign-up shows on the group page, the Calendar and the lead’s card', as
     await host.context.close(); await helper.context.close();
   }
 });
+
+// The Calendar's group filter (Joseph's demo, 2026-10-02): toggling groups never freezes the screen (an empty result
+// threw on a removed Type filter), and "N events could use a hand" follows the groups that are picked
+test('Calendar group filter: toggling works, and could use a hand follows it', async ({ browser }) => {
+  const host = await newLead(browser, 2, 'Hope'), viewer = await newLead(browser, 1, 'Ivy');
+  const H = host.page, V = viewer.page, title = uniqueTitle('Barricade hand');
+  let id, gid;
+  try {
+    id = await postEvent(H, { title, date: inDays(3), time: '17:00' });
+    await asUser(H, async (c, _C, id) => { await c.from('signup_items').insert({ spark_id: id, item: 'Barricades', need: 2 }); }, id);
+    gid = await asUser(V, async (c) => { const r = await c.rpc('create_group', { p_name: '[E2E] Filter ' + Date.now().toString(36) }); return r.data[0].id || r.data[0].group_id; });
+    await V.reload(); await expect(V.locator('html[data-loaded=true]')).toHaveCount(1);
+    await V.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Calendar', exact: true }).click();
+    const cal = V.locator('[data-screen-label=Calendar]'), hand = cal.getByLabel(/^\d+ events? could use a hand$/);
+    await expect(hand).toBeVisible();
+    await cal.getByRole('button', { name: /^Groups:/ }).click();
+    const rows = V.getByRole('menu', { name: 'Groups' }).getByRole('menuitemcheckbox');
+    const torrez = rows.filter({ hasText: 'Torrez Fitness' });
+    await torrez.click();   // only the new, empty group: nothing to show, and the screen keeps working
+    await expect(torrez).toHaveAttribute('aria-checked', 'false');
+    await expect(cal).toContainText('No events match these filters.');
+    await expect(hand).toHaveCount(0);   // the banner follows the filter
+    await torrez.click();
+    await expect(torrez).toHaveAttribute('aria-checked', 'true');
+    await expect(hand).toBeVisible();
+    expect(viewer.errors).toEqual([]);
+  } finally {
+    if (id) await deleteIdea(H, id).catch(() => {});
+    if (gid) await asUser(V, async (c, _C, g) => c.rpc('e2e_delete_group', { p_group: g }), gid).catch(() => {});
+    await host.context.close(); await viewer.context.close();
+  }
+});

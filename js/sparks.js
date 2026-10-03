@@ -3296,8 +3296,9 @@
     return out.filter(s => s.dayDate).concat(out.filter(s => !s.dayDate));   // undecided dates last
   };
   // "Could use a hand": plans you don't lead with open sign-ups, in two weeks from the first of them
+  // Follows the Calendar's group filter, like the list under it (Joseph's demo, 2026-10-02)
   const handList = () => {
-    const cand = calBase().filter(s => s.dayDate && !s.cancelledAt && !isLead(s) && signupFill(s).open > 0).sort(byWhen);
+    const cand = calBase().filter(s => inGroups6(s) && s.dayDate && !s.cancelledAt && !isLead(s) && signupFill(s).open > 0).sort(byWhen);
     if (!cand.length) return [];
     const from = cand[0].dayDate < todayISO() ? todayISO() : cand[0].dayDate, to = isoAdd(from, 14);
     return cand.filter(s => s.dayDate < to);
@@ -3435,7 +3436,7 @@
       set: (cMon, cDay) => setState({ cMon, cDay }), toTbd: () => setState({ cView: 'list', cSort: 'soon', menu: null, cMon: null, cDay: null }) });
     else if (!list.length) {
       body = st.loaded && !groups.length ? '' : '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(st.cSort === 'soon' ? 'Coming up' : (CSORTS.find(x => x[0] === st.cSort) || CSORTS[0])[1], '<div style="display:flex;align-items:center">' + sortMenu + calViewMenu() + '</div>') +
-        (filtered ? filterEmpty(clearFilters, (gSel ? groups.filter(g => gSel.indexOf(g.id) > -1).map(g => g.name) : []).concat(tSel.map(typeName))) : calEmpty()) + '</div>';
+        (filtered ? filterEmpty(clearFilters, (gSel ? groups.filter(g => gSel.indexOf(g.id) > -1).map(g => g.name) : [])) : calEmpty())   // (tSel went with the Type filter; it froze this screen, 2026-10-02) + '</div>';
     } else {
       body = secs.map((z, i) => '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(z.label, i ? '' : '<div style="display:flex;align-items:center">' + sortMenu + calViewMenu() + '</div>') +
         z.items.map(card6).join('') + '</div>').join('');
