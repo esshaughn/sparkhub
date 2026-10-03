@@ -15,7 +15,8 @@ Three questions for this round. Each one gives what we heard, what the build doe
 2. Below it, a separate personal "what did I commit to" feed (bring the fruit tray, set up chairs…).
 
 **What the build does today.**
-- **Your tasks** is the default screen. It shows Leading, Helping and Ideas as three horizontal carousels, each with its own colour and count badge. Your role's to-dos are on the cards.
+- **Correction (2026-10-03):** the app opens on the **Calendar** (FEATURES #90), not Your tasks. **Owner, 2026-10-03: this whole section is parked; don't draw it this round.**
+- **Your tasks** shows Leading, Helping and Ideas as three horizontal carousels, each with its own colour and count badge. Your role's to-dos are on the cards.
 - **Your schedule's Up next** is already close to her first ask. It's one date-ordered list: the soonest event as a big tile with a countdown, then This week · Next week · Later in {month} · {Month}. Each card carries a coloured role strip (*Leading · 2 tasks ⌄*, *Helping*, *Going*). It has no ideas.
 - The **Calendar** (List) is date-ordered with the same role strips, across all your groups. It includes events you haven't joined.
 

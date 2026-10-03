@@ -40,7 +40,7 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 
 | # | Feature | Status | Notes |
 |---|---|---|---|
-| 90 | **The home screen** (the app opens here). Photo header (search, bell, **+** to post), every upcoming plan in your groups; **Groups** and **Type** checklists (types guessed from titles), **Clear filters**; **Sort** Soonest / Most lively / Newest / Could use a hand; **List** · **Tiles** · **Month**; not-joined cards say *N spots left · N going · RSVP* | Test | Types are placeholders until hosts tag events |
+| 90 | **The home screen** (the app opens here). Photo header (search, bell, **+** to post), every upcoming plan in your groups; a **Groups** checklist, kept between visits on the device (a new member starts on the group they joined; one group picked is named in the chip and under the title), **Clear filters**; **Sort** Soonest / Most lively / Newest / Could use a hand; **List** · **Tiles** · **Month**; not-joined cards say *N spots left · N going · RSVP* | Test | Types are placeholders until hosts tag events |
 | 91 | **N events could use a hand** on the Calendar (open sign-ups in the next two weeks, **Claim** in a sheet), dismissible for the visit. *Feeling wild?* is gone (owner, 2026-10-01) | Test | |
 | 92 | **Search** sheet: before typing, **Try** chips (This weekend, Could use a hand; the type chips went with the type filter, owner 2026-10-02) and **Or something unexpected** (three real cards); live results by name, place or group; gray Cancel | Test | v6 Update 2; no recent searches |
 

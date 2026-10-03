@@ -340,6 +340,18 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
     const cal = page.locator('[data-screen-label=Calendar]');
     await expect(cal.getByRole('heading', { name: 'Calendar' })).toBeVisible();
     await expect(cal.getByRole('button', { name: 'Groups: All groups' })).toBeVisible();
+    // One group picked is named, and the pick is kept for the next visit (Joseph, 2026-10-03)
+    await cal.getByRole('button', { name: 'Groups: All groups' }).click();
+    const gMenu = page.getByRole('menu', { name: 'Groups' });
+    if (await gMenu.getByRole('menuitemcheckbox').count() > 1) {
+      await gMenu.getByText('Clear', { exact: true }).click();
+      await gMenu.getByRole('menuitemcheckbox', { name: /Torrez Fitness/ }).click();
+      await page.reload();
+      await expect(cal.getByRole('button', { name: 'Groups: Torrez Fitness' })).toBeVisible();
+      await expect(cal).toContainText('Events from Torrez Fitness');
+      await cal.getByText('Clear filters', { exact: true }).click();
+      await expect(cal).toContainText(/All events from your \d+ groups/);
+    } else await page.keyboard.press('Escape');
     await expect(cal.getByRole('button', { name: /^Type of event:/ })).toHaveCount(0);   // gone (owner, 2026-10-02)
     await expect(cal.locator(`[data-plan="${PLAN}"]`)).toContainText('Change RSVP');
     await expect(cal.locator(`[data-plan="${PLAN}"] [data-demo-tag]`)).toHaveCount(0);   // real events: no DEMO pill
