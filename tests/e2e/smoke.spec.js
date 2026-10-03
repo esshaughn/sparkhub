@@ -478,6 +478,11 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
     await expect(browse.getByRole('button', { name: /^Sort/ })).toHaveCount(0);
     await tabs.filter({ hasText: 'Past' }).click();
     await expect(browse).toContainText('TORREZ FITNESS · SO FAR');
+    // Opening a group again always lands on Plans (owner, 2026-10-03), not the tab you left it on
+    await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Groups', exact: true }).click();
+    await page.locator('[data-screen-label=Groups]').getByRole('button', { name: 'Torrez Fitness', exact: true }).click();
+    await expect(tabs.filter({ hasText: 'Plans' })).toHaveAttribute('aria-selected', 'true');
+    await tabs.filter({ hasText: 'Past' }).click();
 
     // Group search: Browse chips and "Or something unexpected"
     await browse.getByRole('button', { name: 'Group options' }).click();

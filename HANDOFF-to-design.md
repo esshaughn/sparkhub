@@ -32,6 +32,7 @@ Where this doc and the design files disagree, **this doc is correct**.
 | 14 | **Post to with several groups reads *Torrez Fitness & 1 other* / *& 2 others*** (Create event's Review, owner 2026-10-02) | *Torrez Fitness and Walnut Creek Neighborhood* | Owner |
 | 15 | **Jobs still to fill are a lead's task** (owner, 2026-10-02): on Your tasks' Leading cards (plans, and ideas under their next step) and the event page's purple Your tasks, one row per job with spots left, *Barricades: 2 spots to fill* (*· 1 asked* while asks are open), with **Ask** opening the personal ask for that job (a job with shifts says **Share** and opens the share sheet). Replaces the single *N spots open · Share list* / *Fill open spots* row | One *spots open* row with Share list | Owner |
 | 16 | **Create event's Review says *Details TBD* and *Help TBD*** for empty parts, like *Date TBD* / *Location TBD* (owner, 2026-10-02/03) | *Details to be decided*, *Help to be decided* | Owner |
+| 17 | **A group always opens on its Plans tab** (owner, 2026-10-03), wherever you come from; it used to reopen on the tab you left it on | — | Owner |
 
 ## 2. Things the build had to invent (please design these properly)
 
