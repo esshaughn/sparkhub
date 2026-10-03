@@ -84,7 +84,7 @@
   };
   let lastPrefs = '';
   const savePrefs = () => {
-    const next = JSON.stringify({ groupId: state.groupId, view: state.view, gView: state.gView, homeView: state.homeView, cView: state.cView, cGrps: state.cGrps && state.cGrps.length ? state.cGrps : null, sort: state.sort, guestName: state.guestName, pastStatsHidden: state.pastStatsHidden, jobsOpen: state.jobsOpen });
+    const next = JSON.stringify({ groupId: state.groupId, view: state.view, gView: state.gView, homeView: state.homeView, cView: state.cView, sort: state.sort, guestName: state.guestName, pastStatsHidden: state.pastStatsHidden, jobsOpen: state.jobsOpen });
     if (next === lastPrefs) return;
     lastPrefs = next;
     try { localStorage.setItem(PREFS_KEY, next); } catch (e) { /* storage blocked: conveniences only */ }
@@ -210,7 +210,7 @@
     // v6: Profile / Notifications are sheets; Your tasks' "View all", expansions, the RSVP ask
     profSheet: false, notifSheet: false, dashAll: null, dashOpen: {}, schedOpen: {}, shiftPick: null, banner: null, sigAdding: false,
     // v6 Calendar: search, filters, sort, view, month, discovery cards
-    cq: '', cSearch: false, cGrps: Array.isArray(prefs.cGrps) && prefs.cGrps.length ? prefs.cGrps : null, cTypes: [], cSort: 'soon', cView: CVIEWS.indexOf(prefs.cView) > -1 ? prefs.cView : 'list',
+    cq: '', cSearch: false, cGrps: null, cTypes: [], cSort: 'soon', cView: CVIEWS.indexOf(prefs.cView) > -1 ? prefs.cView : 'list',
     cMon: null, cDay: null, cWildHidden: false, cNeedsHidden: false, cHandSheet: false, hMon: null, hDay: null, gMon: null, gDay: null,
     // v6 Update 2: search's Try chips; Your schedule and group pages' Sort · Filter; a group's search
     cTry: null, cWhen: 'any', cHelp: false, sSort: 'soon', sFilt: [], gSort: 'soon', gFilt: [], iSort: 'interest', pastStatsHidden: prefs.pastStatsHidden || {}, jobsOpen: prefs.jobsOpen || {}, descOpen: {}, viewAs: null, testers: null, gSearch: false, gq: '', gTry: null
@@ -990,11 +990,9 @@
     if (code.length !== 6 || state.busy) return;
     setState({ busy: 'join' });
     try {
-      const before = myGroups().map(g => g.id);
       const res = must(await sb.rpc('join_group', { p_code: code }));
       if (!res.data) { setState({ busy: null, joinBad: true }); return; }
       await loadFresh();
-      if (before.indexOf(res.data) < 0) calAfterJoin(res.data, before, false);
       const g = groupById(res.data);
       setState({ busy: null, joinOpen: false, joinCode: '' });
       openGroup(g);
@@ -1122,7 +1120,6 @@
       // A brand-new account can't have been a member before (the demo world may add it to groups on sign-up)
       const created = Date.parse((session.user || {}).created_at || '') || 0;
       const isNew = Date.now() - created < 20 * 60 * 1000;
-      if (before.indexOf(id) < 0 || isNew) calAfterJoin(id, before, isNew);
       if (before.indexOf(id) > -1 && !isNew) {   // E2: nothing to decide, go to the group
         setState({ inv: null });
         if (g) { markSeen(g); go('browse', { groupId: g.id, phaseTab: 'plan' }); }
@@ -3403,20 +3400,7 @@
   const typeName = (k) => (TYPES6.find(x => x[0] === k) || [])[1] || k;
   // Upcoming plans in your groups (invite-only ones only show if you can see them)
   const calBase = () => state.sparks.filter(s => inMine(s) && phaseOf(s) === 'plan');
-  // The Calendar's group pick, kept between visits (Joseph, 2026-10-03). A group you've left drops out; none left, or all, is everything
-  const calSel = () => {
-    const c = state.cGrps;
-    if (!c || !c.length) return c;
-    const ids = myGroups().map(g => g.id), k = c.filter(id => ids.indexOf(id) > -1);
-    return k.length && k.length < ids.length ? k : null;
-  };
-  // After joining a group: a new member's Calendar opens on it (join_also adds groups they didn't pick); a pick already made takes it in
-  const calAfterJoin = (id, before, isNew) => {
-    if (isNew || !before.filter(x => x !== id).length) return setState({ cGrps: [id] });
-    const sel = calSel();
-    if (sel && sel.indexOf(id) < 0) setState({ cGrps: sel.concat([id]) });
-  };
-  const inGroups6 = (s) => { const sel = calSel(); return !sel || gIds(s).some(id => sel.indexOf(id) > -1); };
+  const inGroups6 = (s) => !state.cGrps || gIds(s).some(id => state.cGrps.indexOf(id) > -1);
   const inTypes6 = (s) => !state.cTypes.length || typesOf(s).some(t => state.cTypes.indexOf(t) > -1);
   const matchQ = (s, q) => { q = (q || '').trim().toLowerCase(); return !q || [s.text, s.spot, s.spotAddress].concat(gIds(s).map(id => (groupById(id) || {}).name)).some(v => (v || '').toLowerCase().indexOf(q) > -1); };
   const lively = (s) => going(s).length * 2 + maybes(s).length + s.signups.reduce((a, i) => a + i.claims.length, 0) + s.updates.length +
@@ -3509,15 +3493,6 @@
         (sel >= today ? '<span ' + on(() => goCompose({ evDate: sel })) + ' style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:32px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(15, '#5b4ae8', 2.8) + 'Start an event on ' + esc(new Date(sel + 'T12:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })) + '</span>' : '') + '</div>') + '</div>';
   };
 
-  // Under the Calendar's title: what the group filter shows (it said "all 4 groups" with one picked, 2026-10-03)
-  const calSub = (groups) => {
-    const sel = calSel();
-    if (!sel) return 'All events from your ' + groups.length + (groups.length === 1 ? ' group' : ' groups');
-    if (!sel.length) return 'No groups picked';
-    if (sel.length === 1) return 'Events from ' + esc((groupById(sel[0]) || {}).name || '1 group');
-    return 'Events from ' + sel.length + ' of your ' + groups.length + ' groups';
-  };
-
   function viewCalendar() {
     const st = state, groups = groupsInOrder(), base = calBase(), list = calResults(), hand = handList();
     const calHero = currentGroup();   // the header shows the group last opened (owner, 2026-10-02: no pilot photo for everyone)
@@ -3531,14 +3506,14 @@
       '<div style="position:absolute;left:18px;right:90px;bottom:16px;color:#fff">' +
         '<div style="font-size:13px;font-weight:900;letter-spacing:1px;color:#cfc9ff">COMMUNITY</div>' +
         '<h1 style="margin:2px 0 0;font-size:40px;line-height:1;font-weight:900;letter-spacing:-1.4px;color:#fff">Calendar</h1>' +
-        '<div style="margin-top:6px;font-size:14px;font-weight:700;color:rgba(255,255,255,.88)">' + (groups.length ? calSub(groups) : st.error === 'load' ? 'Couldn’t load your groups' : 'Join a group to see its events') + '</div></div>' +
+        '<div style="margin-top:6px;font-size:14px;font-weight:700;color:rgba(255,255,255,.88)">' + (groups.length ? 'All events from your ' + groups.length + (groups.length === 1 ? ' group' : ' groups') : st.error === 'load' ? 'Couldn’t load your groups' : 'Join a group to see its events') + '</div></div>' +
       '<button type="button" class="hov-primary" ' + on(() => goCompose()) + ' data-new-event aria-label="Start an event" style="position:absolute;right:16px;bottom:16px;z-index:2;width:52px;height:52px;border:0;border-radius:999px;background:#5b4ae8;box-shadow:0 6px 16px rgba(13,17,23,.35);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.plus(22, '#fff', 2.8) + '</button>' +
     '</header>';
 
     // Filters: Groups · Type · Clear filters
-    const gSel = calSel(), nG = gSel ? gSel.length : groups.length;
-    const gLabel = !gSel ? 'All groups' : !nG ? 'No groups' : nG === 1 ? ((groupById(gSel[0]) || {}).name || '1 group') : nG + ' groups';
-    const toggleG = (id) => { const cur = gSel || groups.map(g => g.id), next = cur.indexOf(id) > -1 ? cur.filter(x => x !== id) : cur.concat([id]); setState({ cGrps: next.length === groups.length ? null : next }); };
+    const gSel = st.cGrps, nG = gSel ? gSel.length : groups.length;
+    const gLabel = !gSel ? 'All groups' : !nG ? 'No groups' : nG === 1 ? '1 group' : nG + ' groups';
+    const toggleG = (id) => { const cur = st.cGrps || groups.map(g => g.id), next = cur.indexOf(id) > -1 ? cur.filter(x => x !== id) : cur.concat([id]); setState({ cGrps: next.length === groups.length ? null : next }); };
     const shown = base.filter(s => inGroups6(s) && inTypes6(s)).length;
     const gMenu = checkMenu('cGrp', gLabel, 'people', 'Groups', groups.map(g => ({ name: g.name, demo: g.demo, n: base.filter(s => inGroup(s, g.id)).length, on: !gSel || gSel.indexOf(g.id) > -1, toggle: () => toggleG(g.id) })),
       !gSel, () => setState({ cGrps: null }), () => setState({ cGrps: [] }), 'Show ' + shown + (shown === 1 ? ' event' : ' events'));
