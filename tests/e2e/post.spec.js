@@ -44,7 +44,7 @@ test('post an event with every step filled, then edit it in the pop-ups and dele
     await expect(bar).toContainText('1 task');
     await bar.click();
     await expect(P.locator('[data-screen-label="Your tasks"]')).toContainText('Bring water');
-    await expect(P.locator('[data-screen-label="Your tasks"]')).toContainText('3 spots to fill');
+    await expect(P.locator('[data-screen-label="Your tasks"]')).toContainText('Fill 3 spots: Bring water');
 
     // Edit event: a round pencil by Share (owner, 2026-10-01), no pencil after the title; the host gets the photo too
     await expect(P.locator('h1 svg')).toHaveCount(0);

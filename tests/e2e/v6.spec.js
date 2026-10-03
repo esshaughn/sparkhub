@@ -50,7 +50,7 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     await expect(lead).not.toContainText('Post an update');
     await expect(lead).toContainText('Location TBD');
     // Jobs still to fill are a lead's task, one row each; Ask opens the personal ask for that job (owner, 2026-10-02)
-    await expect(lead).toContainText('Folding chairs: 2 spots to fill');
+    await expect(lead).toContainText('Fill 2 spots: Folding chairs');
     await expect(lead).toContainText('+1 more');   // the card shows two rows; View all has the rest
     await lead.locator('[data-todo-cta]', { hasText: 'Ask' }).first().click();
     const askSheet = H.getByRole('dialog', { name: 'Ask someone to take it' });
@@ -63,7 +63,7 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     // View all: every to-do listed, the stats strip too
     await H.locator('[data-screen-label="Your tasks"]').getByRole('button', { name: 'View all leading' }).click();
     const all = H.getByRole('dialog', { name: 'Leading' });
-    await expect(all.locator('[data-task="' + title + '"]')).toContainText('Ice: 1 spot to fill');
+    await expect(all.locator('[data-task="' + title + '"]')).toContainText('Fill spot: Ice');
     await shot(H, '02-view-all');
     await all.getByRole('button', { name: 'Close' }).click();
     await expect(all).toHaveCount(0);

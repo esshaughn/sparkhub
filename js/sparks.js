@@ -3019,7 +3019,9 @@
     const units = j.shifts || [j], left = units.reduce((a, u) => a + (u.need ? Math.max(0, u.need - u.claims.length) : 0), 0);
     if (!left) return null;
     const waiting = j.shifts ? 0 : openAsks(s, j.id).length;
-    return { act: j.item + ': ' + left + (left === 1 ? ' spot' : ' spots') + ' to fill' + (waiting ? ' · ' + waiting + ' asked' : ''), cta: j.shifts ? 'Share' : 'Ask',
+    // "Fill spot:" / "Fill 2 spots:" in bold, then the job in regular weight (owner, 2026-10-03)
+    const label = left === 1 ? 'Fill spot:' : 'Fill ' + left + ' spots:', rest = j.item + (waiting ? ' · ' + waiting + ' asked' : '');
+    return { act: label + ' ' + rest, label, rest, cta: j.shifts ? 'Share' : 'Ask',
       go: j.shifts ? () => shareOpenJobs(s) : onPage(() => openJobAsk(s, j)) };
   }).filter(Boolean);
   // Everyone who took a job (not the host), for "Thank helpers"
@@ -3075,7 +3077,7 @@
   // To-do rows: a role dot, the text, a pill (or a sign-up's time as plain text)
   const actRow = (a, R) => '<div style="display:flex;align-items:center;gap:10px;min-height:46px;padding:9px 12px;border-top:1px solid #f2f3f6">' +
     '<span style="flex:0 0 7px;width:7px;height:7px;border-radius:999px;background:' + R.dot + '"></span>' +
-    '<span style="flex:1 1 0;min-width:0;font-size:14.5px;line-height:1.3;font-weight:' + (a.warn ? 800 : 700) + ';color:' + (a.warn ? '#8f6405' : '#2a2f38') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(a.act) + '</span>' +
+    '<span style="flex:1 1 0;min-width:0;font-size:14.5px;line-height:1.3;font-weight:' + (a.warn ? 800 : 700) + ';color:' + (a.warn ? '#8f6405' : '#2a2f38') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (a.label ? '<b style="font-weight:800;color:#0d1117">' + esc(a.label) + '</b> <span style="font-weight:500">' + esc(a.rest) + '</span>' : esc(a.act)) + '</span>' +
     (a.time ? '<span style="flex:0 0 auto;font-size:13.5px;font-weight:800;color:' + R.ink + '">' + esc(a.cta) + '</span>'
       : '<span ' + (a.go ? on((e) => { stop(e); a.go(); }) + ' ' : '') + 'data-todo-cta style="flex:0 0 auto;display:flex;align-items:center;min-height:28px;padding:0 11px;border-radius:999px;background:' + R.pill + ';color:' + R.ink + ';font-size:13px;font-weight:800;white-space:nowrap' + (a.go ? ';cursor:pointer' : '') + '">' + esc(a.cta) + '</span>') + '</div>';
   // Two rows, then "+N more ⌄"; a tap anywhere here expands them in place (with two or fewer, it opens the event)
@@ -5914,7 +5916,7 @@
       !s.dayDate ? [{ item: s.dateOpts.length ? 'Pick the winning date' : 'Pick a date', act: () => s.dateOpts.length ? openToSection(s, 'sec-when') : openSec(s, 'when') }] : [],
       !s.spot ? [{ item: s.spotOpts.length ? 'Pick the winning location' : 'Pick a location', act: () => s.spotOpts.length ? openToSection(s, 'sec-when') : openSec(s, 'when') }] : [],
       // Details are optional, so no task for them; each job still to fill is one, and opens its personal ask (owner, 2026-10-02)
-      jobActs(s, (fn) => fn).map(a => ({ item: a.act.split(':')[0], meta: a.act.split(': ')[1], act: a.go })),
+      jobActs(s, (fn) => fn).map(a => ({ label: a.label, item: a.rest, cta: a.cta, act: a.go })),
       myJobs.map(j => ({ item: j.item, meta: myTime(j) })));
     const tKey = (lead ? 'h:' : '') + s.id, tOpen = !!st.jobsOpen[tKey];
     const T = lead ? { bar: '#f5f3fe', ink: '#4a3ad4', dot: '#7b6ef0', line: '#e6e1fc', word: 'Your tasks' } : { bar: '#fefaef', ink: '#8f6405', dot: '#e8a71c', line: '#f3e2ad', word: 'You’re helping' };
@@ -5922,7 +5924,9 @@
       '<div data-screen-label="' + T.word + '" style="border-radius:0 0 24px 24px;overflow:hidden;box-shadow:0 1px 3px rgba(15,18,25,.08)">' +
         (tOpen ? tasks.map((t, i) => '<div ' + (t.act ? on(t.act) + ' ' : '') + 'data-task-row style="display:flex;align-items:center;gap:12px;min-height:52px;padding:10px 18px;background:#fff;border-top:' + (i ? '1px solid #f2f3f6' : '0') + (t.act ? ';cursor:pointer' : '') + '">' +
             '<span style="flex:0 0 7px;width:7px;height:7px;border-radius:999px;background:' + T.dot + '"></span>' +
-            '<span style="flex:1;min-width:0;font-size:16px;font-weight:700;color:#2a2f38;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(t.item) + '</span>' +
+            '<span style="flex:1;min-width:0;font-size:16px;font-weight:700;color:#2a2f38;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (t.label ? '<b style="font-weight:800;color:#0d1117">' + esc(t.label) + '</b> <span style="font-weight:500">' + esc(t.item) + '</span>' : esc(t.item)) + '</span>' +
+            // a job to fill ends in its Ask (or Share) pill, like Your tasks (owner, 2026-10-03)
+            (t.cta ? '<span data-todo-cta style="flex:0 0 auto;display:flex;align-items:center;min-height:30px;padding:0 13px;border-radius:999px;background:#f3f1fe;color:' + T.ink + ';font-size:14px;font-weight:800">' + esc(t.cta) + '</span>' : '') +
             (t.meta ? '<span style="flex:0 0 auto;font-size:14.5px;font-weight:800;color:' + T.ink + '">' + esc(t.meta) + '</span>' : '') + '</div>').join('') : '') +
         '<div ' + on(() => setState({ jobsOpen: Object.assign({}, st.jobsOpen, { [tKey]: !tOpen }) })) + ' aria-expanded="' + tOpen + '" data-' + (lead ? 'host-tasks' : 'helping') + '-bar style="display:flex;align-items:center;gap:8px;min-height:48px;padding:0 18px;background:' + T.bar + ';color:' + T.ink + ';font-size:15.5px;font-weight:800;cursor:pointer' + (tOpen ? ';border-top:1px solid ' + T.line : '') + '">' +
           ic6('clip', 18, T.ink, 2.2) + '<span style="flex:1">' + T.word + '</span>' +
