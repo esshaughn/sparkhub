@@ -44,7 +44,7 @@ One entry per held date, among the plans in date order. It needs to read as **pe
 - its votes: *3 votes*, and *You voted* with a tick if you did
 - the group name, as on plan entries
 
-Tapping it opens the idea page, scrolled to its *Help pick when and where* card (row 116 in HANDOFF-to-design.md). No RSVP buttons and no Add to calendar on a hold.
+Tapping it opens the idea page, scrolled to its *Help pick when and where* card (row 116 in HANDOFF-to-DESIGN.md). No RSVP buttons and no Add to calendar on a hold.
 
 **Question for Design:** a 4-option poll puts four entries on the List, possibly in the same week. Is that fine, or should options in the same week fold into one entry (*Book club · Tue, Thu or Sat*)? The owner asked for every option to show; folding would still show every date.
 

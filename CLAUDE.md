@@ -10,16 +10,16 @@ One app, many groups (Torrez Fitness is one, code TORREZ). Static HTML/CSS/JS (n
 
 Handoffs with Claude Design are two files, one per direction (owner, 2026-10-03; they replace the `SparkHub v7-N` zip downloads):
 
-- **`HANDOFF-to-design.md`** (repo root, build → Design). Ours: keep it current (below). Design reads it straight from GitHub.
-- **`design/spark-hub/HANDOFF-to-code.md`** (Design → build). Design's: **never edit it.** Its *New since …* list at the top says what changed since the last build. Where it disagrees with the older READMEs or UPDATE files, it wins.
+- **`HANDOFF-to-DESIGN.md`** (repo root, build → Design). Ours: keep it current (below). Design reads it straight from GitHub.
+- **`design/spark-hub/HANDOFF-to-CODE.md`** (Design → build). Design's: **never edit it.** Its *New since …* list at the top says what changed since the last build. Where it disagrees with the older READMEs or UPDATE files, it wins.
 
 `design/spark-hub/` also holds the clickable prototype `Spark Hub App Version 7.dc.html` (open it with `support.js` beside it) and the older READMEs. Photos, screenshots and explorations stay with Design.
 
-**Each round:** the owner puts `HANDOFF-to-code.md` and the latest `Spark Hub App Version 7.dc.html` in `design/spark-hub/`. Read `HANDOFF-to-code.md` and build from its *New since …* list, with the design file as the visual reference. Record what you built, and anything you had to change or invent, in `HANDOFF-to-design.md` as usual. To answer one of Design's questions, write the answer in our file and name the section it answers (*Soft holds: built as specced, except …*). **Don't copy text from one file into the other**: each file only describes its own side's changes. Commit both of Design's files into `design/spark-hub/` with the build.
+**Each round:** the owner puts `HANDOFF-to-CODE.md` and the latest `Spark Hub App Version 7.dc.html` in `design/spark-hub/`. Read `HANDOFF-to-CODE.md` and build from its *New since …* list, with the design file as the visual reference. Record what you built, and anything you had to change or invent, in `HANDOFF-to-DESIGN.md` as usual. To answer one of Design's questions, write the answer in our file and name the section it answers (*Soft holds: built as specced, except …*). **Don't copy text from one file into the other**: each file only describes its own side's changes. Commit both of Design's files into `design/spark-hub/` with the build.
 
-## Keep HANDOFF-to-design.md current
+## Keep HANDOFF-to-DESIGN.md current
 
-`HANDOFF-to-design.md` tells Claude Design how the live app differs from the last design file. Update it **in the same commit** as any change a user could see or do differently: layout, copy, screens, flows, states (empty/loading/error), what data is shown and to whom.
+`HANDOFF-to-DESIGN.md` tells Claude Design how the live app differs from the last design file. Update it **in the same commit** as any change a user could see or do differently: layout, copy, screens, flows, states (empty/loading/error), what data is shown and to whom.
 
 - New visible change → add a row to **§1 What changed** (change · what the design said · why).
 - New UI the design never specified → add it to **§2 Things the build had to invent**, with the exact copy and key colors/sizes.
@@ -29,7 +29,7 @@ Handoffs with Claude Design are two files, one per direction (owner, 2026-10-03;
 - Bump the **As of** date.
 - Skip it for pure refactors, performance, dependency bumps or infra changes with no user-facing effect.
 
-When a design round has absorbed the doc (Design's `HANDOFF-to-code.md` says it caught up with ours, or the user says "design synced"), reset it: make that round the **Baseline**, clear §1–§4 of what Design took in, and keep only the §5 questions that are still open.
+When a design round has absorbed the doc (Design's `HANDOFF-to-CODE.md` says it caught up with ours, or the user says "design synced"), reset it: make that round the **Baseline**, clear §1–§4 of what Design took in, and keep only the §5 questions that are still open.
 
 ## Branches and deploys
 

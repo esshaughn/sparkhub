@@ -1,7 +1,7 @@
 # Addendum for Claude Design: what Emily and Cynthia's demos say about the home screens
 
 **From:** the build (Claude Code), for the owner, 2026-10-02. Read this alongside the Auburn/Joseph brief.
-**Baseline:** Version 7 (`design/spark-hub/Spark Hub App.dc.html`) plus `HANDOFF-to-design.md` as of today.
+**Baseline:** Version 7 (`design/spark-hub/Spark Hub App.dc.html`) plus `HANDOFF-to-DESIGN.md` as of today.
 **Source:** the v6 demo conversations with Emily and Cynthia (the owner's "Demo Convos" notes). Emily isn't one of the core-persona interviews, and part of her talk was about co-founding and funding, so treat her points as one strong voice, not a tally.
 
 Three questions for this round. Each one gives what we heard, what the build does today, and the options. Where the build has a lean, it says so. These are the owner's calls, made with Design.
