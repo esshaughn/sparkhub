@@ -6131,7 +6131,7 @@
         '<span aria-hidden="true" style="flex:0 0 26px;width:26px;height:26px;box-sizing:border-box;border-radius:7px;background:' + (onIt ? C.main : '#fff') + ';border:2px solid ' + (onIt ? C.main : C.ring) + ';display:flex;align-items:center;justify-content:center">' +
           (onIt ? svg(14, stroke('#fff', 3.6), '<path d="m5 12 5 5 9-10"/>') : '') + '</span></button>'; };
     return '<div data-ev-leads role="radiogroup" aria-label="Who’s leading it?" style="display:flex;flex-direction:column;gap:10px">' +
-      card(false, 'I’ll lead it', 'You make sure it happens', '<circle cx="12" cy="8" r="4"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/>',
+      card(false, 'I’ll lead it', 'You make sure it happens and make final calls. Others can help!', '<circle cx="12" cy="8" r="4"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/>',
         { main: '#5b4ae8', bg: '#f1eefe', ring: '#c9c2fb', glow: 'rgba(91,74,232,.18)', ink: '#2b1f9e', sub: '#4a3ad4' }) +
       card(true, 'Just float the idea', 'Someone else might pick it up', '<path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.7.5 1.1 1.3 1.1 2.2h5c0-.9.4-1.7 1.1-2.2A6 6 0 0 0 12 3Z"/>',
         { main: '#e8a71c', bg: '#fdf4dc', ring: '#f3d58a', glow: 'rgba(232,167,28,.2)', ink: '#5c3f00', sub: '#8f6405' }) +
