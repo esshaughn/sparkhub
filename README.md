@@ -22,6 +22,8 @@ scripts/            weekly backup of the live database (runs on the owner's Mac)
 .github/workflows/  daily ping that keeps the free Supabase projects from pausing
 ```
 
+`LEARNINGS.md` collects what outside research says Spark Hub should and shouldn't be. Check it before proposing a feature.
+
 ## Run locally
 
 Any static file server works. Locally the app uses the **test** database:
