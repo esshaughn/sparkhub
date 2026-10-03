@@ -99,3 +99,8 @@ New design file: `Spark Hub App Version 7.dc.html` (Version 6 + everything below
 - The *How people can help* step stays as it is (title, *Optional, but it takes the load off you.*, the 1-2-3 explainer, START WITH ONE chips, *Decide later ›*, Back).
 - While no job is added, the grey **Next/Review** button becomes an outlined **No help needed →** (white, 2px `#c9ccd3` ring, ink text, right arrow). It goes straight to Review. Add a job and it's the purple **Review** again.
 - Review's *How people can help* row then reads **No help needed** (answered, *Edit*), not *Help to be decided*. *Decide later* still gives *Help to be decided*.
+
+## Start an event: Who's leading it? (2026-10-02; options in `Lead Step Options.dc.html`, picked 1a)
+- New step 2 of 6, after the title. **Who's leading it?** · *The lead picks the date and place. You can add co-leads and jobs later.*
+- Two tinted cards: **I'll lead it** — *You make sure it happens and make final calls. Others can help!* (pale purple `#f1eefe`, 48px `#5b4ae8` icon square with a person, `#2b1f9e` title) and **Just float the idea** — *Someone else might pick it up* (pale yellow `#fdf4dc`, `#e8a71c` square with a bulb, `#5c3f00` title). 26px rounded checkbox at the right, filled in the card's colour when picked. Picked card: 2px ring + soft shadow in its colour; the other fades (62% opacity, desaturated). No sparkles, no periods.
+- I'll lead it is picked by default. Just float the idea posts with no lead, so it stays an idea even with a date.

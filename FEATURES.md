@@ -228,6 +228,7 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 151 | **Group Up next** (v7-3): Up next · Tiles · Month on group pages, Up next the default | Test | smoke.spec |
 | 152 | **Feedback ask** (v7-3, 1c): replaces the PSST card; a sheet with a text box, Send to Eric / Not now, then a tip at Profile | Test | smoke.spec |
 | 153 | **No help needed →** (v7-3, 1b) on Create event's How people can help while no job is added; Review reads No help needed | Test | post.spec |
+| 154 | **Who's leading it? cards** (v7-4, 1a): purple I'll lead it and yellow Just float the idea with checkboxes; still the last step before Review (owner) | Test | post.spec |
 
 ## Removed in this rebuild
 

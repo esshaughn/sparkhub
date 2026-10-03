@@ -6010,7 +6010,7 @@
   });
   const clock = (v) => { if (!v) return ''; const [h, m] = v.split(':').map(Number); return (h % 12 || 12) + ':' + pad2(m) + (h < 12 ? 'am' : 'pm'); };
   const EV_TIMES = TIME_OPTS.map(o => o[0]).filter(v => v >= '06:00');   // every 30 min, 6:00am–11:30pm
-  const EV_STEPS = ['title', 'when', 'where', 'details', 'help', 'lead'];   // Who's leading it? is the last decision (owner, 2026-10-02)
+  const EV_STEPS = ['title', 'when', 'where', 'details', 'help', 'lead'];   // Who's leading it? is the last step before Review (owner, 2026-10-02, again over v7-4's step 2)
   const EV_NAMES = { title: 'Event title', when: 'Date & time', where: 'Location', details: 'Details', help: 'How people can help', lead: 'Who’s leading it?', review: 'Review' };
   const BIT_PH = ['e.g. Meet by the front desk', 'e.g. Coffee and donuts at 9:30', 'e.g. Kids and dogs welcome'];
   const EV_GRAD = 'linear-gradient(135deg,#5b4ae8,#8a6ff0 55%,#e8a71c)';
@@ -6116,21 +6116,25 @@
         opt(false, 'Real event', 'It’s happening. Your groups hear about it.', P6.cal) + opt(true, 'Just testing', 'Shows a DEMO tag. No one gets notified.', FLASK_IC) + '</div>' +
       (again ? '' : '<span ' + on(close) + ' data-ev-back-out style="align-self:center;display:flex;align-items:center;min-height:40px;font-size:14px;font-weight:800;color:#6b7280;cursor:pointer">Never mind</span>'), { z: 60 });
   }
-  // Who's leading it? (owner, 2026-10-02): opened from Review's Lead card. Leading it yourself is the big lavender
-  // option and the one already chosen; floating the idea is the plain, smaller one under it
-  // Who's leading it? (owner, 2026-10-02): the last step of Create event, and Review's Lead card opens it in a pop-up.
-  // Leading it yourself is the big lavender option and the one already chosen; floating the idea is the plain, smaller
-  // one under it. In the pop-up a pick closes it
-  const LEAD_WHY = 'Every event needs a lead: the person who picks the date and place and keeps it moving. It doesn’t all land on you. You can add co-leads, and jobs people sign up for.';
+  // Who's leading it? (v7-4's cards, 1a): the last step of Create event before Review (owner, 2026-10-02), and Review's
+  // Lead card opens it in a pop-up. Two tinted cards, I'll lead it (purple, chosen to begin with) and Just float the idea (yellow), each with a
+  // rounded checkbox; the one not picked fades. In the pop-up a pick closes it
+  const LEAD_WHY = 'The lead picks the date and place. You can add co-leads and jobs later.';
   const leadOptions = (st, pop) => {
     const pick = (float) => setState(Object.assign({ evFloat: float }, pop ? { evPop: null } : {}));
-    return '<div data-ev-leads style="display:flex;flex-direction:column;gap:10px">' +
-        '<button type="button" ' + on(() => pick(false)) + ' data-ev-lead="me" aria-pressed="' + !st.evFloat + '" style="position:relative;overflow:hidden;display:flex;align-items:center;gap:16px;width:100%;padding:18px 16px;border:0;border-radius:24px;font-family:inherit;text-align:left;cursor:pointer;background:linear-gradient(135deg,#f1edff,#e0d8ff);box-shadow:' + (st.evFloat ? 'none' : 'inset 0 0 0 2.5px #5b4ae8') + '">' +
-          '<span aria-hidden="true" style="position:absolute;right:20%;top:12%;font-size:11px;color:#9d93f7">✦</span><span aria-hidden="true" style="position:absolute;right:9%;top:48%;font-size:13px;color:#7b6ef0">✦</span><span aria-hidden="true" style="position:absolute;right:38%;bottom:10%;font-size:8px;color:#b8aefc">✦</span>' +
-          '<span style="position:relative;flex:0 0 54px;width:54px;height:54px;border-radius:18px;background:#5b4ae8;box-shadow:0 6px 14px rgba(91,74,232,.3);display:flex;align-items:center;justify-content:center;color:#fff">' + svg(24, stroke('currentColor', 2.2), P6.person) + '</span>' +
-          '<span style="position:relative;flex:1;min-width:0"><span style="display:block;font-size:19px;font-weight:900;letter-spacing:-.3px;color:#2a1f8f">I’ll lead it</span><span style="display:block;margin-top:3px;font-size:14.5px;line-height:1.4;font-weight:600;color:#4a3ad4">The surest way it happens. You pick the date and place.</span></span></button>' +
-        '<button type="button" ' + on(() => pick(true)) + ' data-ev-lead="float" aria-pressed="' + !!st.evFloat + '" style="display:block;width:100%;padding:14px 16px;border:0;border-radius:18px;font-family:inherit;text-align:left;cursor:pointer;background:#fff;box-shadow:inset 0 0 0 ' + (st.evFloat ? '2.5px #5b4ae8' : '1.5px #dcdfe6') + '">' +
-          '<span style="display:block;font-size:15.5px;font-weight:800;color:#0d1117">Just float the idea</span><span style="display:block;margin-top:2px;font-size:13.5px;line-height:1.4;font-weight:500;color:#6b7280">It goes up without a lead, and no one gets notified. It can’t become a plan until someone in your groups takes it on.</span></button>' +
+    const card = (float, title, sub, icon, C) => { const onIt = !!st.evFloat === float;
+      return '<button type="button" ' + on(() => pick(float)) + ' data-ev-lead="' + (float ? 'float' : 'me') + '" aria-pressed="' + onIt + '" style="display:flex;align-items:center;gap:14px;width:100%;padding:16px;border:0;border-radius:20px;font-family:inherit;text-align:left;cursor:pointer;transition:opacity .2s,filter .2s,box-shadow .2s;background:' + C.bg + ';box-shadow:' +
+          (onIt ? 'inset 0 0 0 2px ' + C.main + ', 0 8px 20px ' + C.glow : 'inset 0 0 0 1.5px ' + C.ring + ';opacity:.62;filter:saturate(.55)') + '">' +
+        '<span style="flex:0 0 48px;width:48px;height:48px;border-radius:14px;background:' + C.main + ';display:flex;align-items:center;justify-content:center">' + svg(24, stroke('#fff', 2.3), icon) + '</span>' +
+        '<span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px"><span style="font-size:18px;font-weight:900;color:' + C.ink + '">' + title + '</span>' +
+          '<span style="font-size:14px;line-height:1.4;font-weight:600;color:' + C.sub + '">' + sub + '</span></span>' +
+        '<span aria-hidden="true" style="flex:0 0 26px;width:26px;height:26px;box-sizing:border-box;border-radius:7px;background:' + (onIt ? C.main : '#fff') + ';border:2px solid ' + (onIt ? C.main : C.ring) + ';display:flex;align-items:center;justify-content:center">' +
+          (onIt ? svg(14, stroke('#fff', 3.6), '<path d="m5 12 5 5 9-10"/>') : '') + '</span></button>'; };
+    return '<div data-ev-leads role="radiogroup" aria-label="Who’s leading it?" style="display:flex;flex-direction:column;gap:10px">' +
+      card(false, 'I’ll lead it', 'You make sure it happens', '<circle cx="12" cy="8" r="4"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/>',
+        { main: '#5b4ae8', bg: '#f1eefe', ring: '#c9c2fb', glow: 'rgba(91,74,232,.18)', ink: '#2b1f9e', sub: '#4a3ad4' }) +
+      card(true, 'Just float the idea', 'Someone else might pick it up', '<path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.7.5 1.1 1.3 1.1 2.2h5c0-.9.4-1.7 1.1-2.2A6 6 0 0 0 12 3Z"/>',
+        { main: '#e8a71c', bg: '#fdf4dc', ring: '#f3d58a', glow: 'rgba(232,167,28,.2)', ink: '#5c3f00', sub: '#8f6405' }) +
       '</div>';
   };
   // The phone's Back (or the browser's) inside the post flow: close the open sheet, else go back a step,

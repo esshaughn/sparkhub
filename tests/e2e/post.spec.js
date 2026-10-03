@@ -601,7 +601,7 @@ test('Create event: just float the idea posts it without a lead and offers to as
     await expect(flow).toContainText('6 of 6');
     await expect(flow).toContainText('Who’s leading it?');
     await expect(flow.getByRole('button', { name: /^I’ll lead it/ })).toHaveAttribute('aria-pressed', 'true');
-    await expect(flow.getByRole('button', { name: /^Just float the idea/ })).toContainText('no one gets notified');
+    await expect(flow.getByRole('button', { name: /^Just float the idea/ })).toContainText('Someone else might pick it up');   // v7-4's cards
     await flow.getByRole('button', { name: 'Review' }).click();
     await expect(flow).toContainText('LOOKS GOOD');
     await expect(flow).toContainText('You’re leading it');

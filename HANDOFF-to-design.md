@@ -6,7 +6,7 @@
 - **Source:** github.com/esshaughn/sparkhub (`index.html`, `js/sparks.js`, `css/sparks.css`, `privacy.html`, `supabase/templates/`)
 - **Baseline:** Claude Design's **Spark Hub v7** (`design/spark-hub/Spark Hub App.dc.html`, the Version 7 file; `README-v6.md` with `README-v6-update-2.md` … `-14.md` and `README-v7-update-15.md`). Update 14 brought the design file in line with this doc as of midday 2026-10-02 (rows 1–118, §2, §3), and Update 15 designed §2's inventions and answered two open questions (*Invited* on the Leading card, *Haven't replied* with *Nudge*). Both are built (2026-10-02), so this doc was reset: everything below happened after Design's snapshot.
 - **Build version:** **v7** (owner, 2026-10-02): a lead is now a choice. An idea is either led (*I'll lead it*) or floated (*Just float the idea*, looking for a lead), and a floated one can be handed to someone by asking them. Design's Version 7 file predates this; it's in §2 and §3 below.
-- **As of:** 2026-10-02 (reset to the v7 baseline; since then: Invited and Nudge built, with *N invited ›* on Who's in, §2 and §3; the bad invite link and 404 cards as designed; the event preview slide-up 13a, owner's yes, row 4; v7-3's group header and ⋯ menu, chevrons, group Up next, feedback ask and No help needed, rows 5–9).
+- **As of:** 2026-10-02 (reset to the v7 baseline; since then: Invited and Nudge built, with *N invited ›* on Who's in, §2 and §3; the bad invite link and 404 cards as designed; the event preview slide-up 13a, owner's yes, row 4; v7-3's group header and ⋯ menu, chevrons, group Up next, feedback ask and No help needed, rows 5–9; v7-4's lead cards, row 10).
 
 Where this doc and the design files disagree, **this doc is correct**.
 
@@ -25,6 +25,7 @@ Where this doc and the design files disagree, **this doc is correct**.
 | 7 | **Group Up next** built as designed (Up next · Tiles · Month, Up next the default; a saved List or Tiles opens Up next once). Section names everywhere Up next is used: *Later in {this month}*, then a later month by its name alone | — | — |
 | 8 | **Feedback ask (1c)** built as designed, still after about 10 minutes in the app (the prototype's 8 seconds was for the demo), once per account on the device. The tip sits over the Profile tab | — | Owner's 10-minute rule |
 | 9 | **No help needed → (1b)** goes on to step 6, *Who's leading it?*, not straight to Review: that's the last step in the build. Review then reads *No help needed*. The step's subtitle *Optional, but it takes the load off you.* is gone (owner, 2026-10-02) | Straight to Review; the subtitle stays | Who's leading it? is the last decision (owner) |
+| 10 | **Who's leading it? (v7-4, 1a)**: the tinted cards are built (purple *I'll lead it* · *You make sure it happens*, yellow *Just float the idea* · *Someone else might pick it up*, 26px checkbox, the other card fades), with the subtitle *The lead picks the date and place. You can add co-leads and jobs later.* It stays the **last step before Review** (6 of 6), not step 2 (owner, 2026-10-02). The shorter I'll lead it line is the owner's (from their screenshot) | Step 2; *You make sure it happens and make final calls. Others can help!* | Owner |
 
 ## 2. Things the build had to invent (please design these properly)
 
