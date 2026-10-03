@@ -3,11 +3,13 @@ const { expect, devices, test } = require('@playwright/test');
 const fs = require('fs');
 const path = require('path');
 
-// The TEST project's address and public key, the way js/config.js gives them to a page on localhost
+// The test database's address and public key, the way js/config.js gives them to the test page
+// (TEST on localhost; the Supabase on this computer on 127.0.0.1, with E2E_DB=local)
+const HOST = process.env.E2E_DB === 'local' ? '127.0.0.1' : 'localhost';
 const CONFIG = (() => {
   const window = {};
   // eslint-disable-next-line no-new-func
-  new Function('window', 'location', fs.readFileSync(path.join(__dirname, '../../js/config.js'), 'utf8'))(window, { hostname: 'localhost' });
+  new Function('window', 'location', fs.readFileSync(path.join(__dirname, '../../js/config.js'), 'utf8'))(window, { hostname: HOST });
   return window.SPARKS_CONFIG;
 })();
 const SESSION_KEY = 'sb-' + new URL(CONFIG.supabaseUrl).host.split('.')[0] + '-auth-token';   // where supabase-js keeps the session

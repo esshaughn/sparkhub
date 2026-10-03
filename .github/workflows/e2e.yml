@@ -1,25 +1,23 @@
-# End-to-end tests: a real browser clicks through the app against the TEST database.
-# Every run counts against the Supabase free plan that live and test share (logs, photo egress),
-# so runs are sized to what they're for:
-#   - push to test:       the quick suite (smoke + database security), a minute or two
-#   - nightly:            the full suite on test, only if test changed in the last 24 hours
-#   - pull request:       the full suite
-#   - by hand:            gh workflow run e2e.yml --ref test -f suite=full   (or suite=quick)
+# End-to-end tests: a real browser clicks through the app.
+# By default the runner starts its own throwaway Supabase (tests/local/start.sh: every migration, the test-only
+# SQL, the e2e leads) and tests against that, so a run costs the TEST project nothing (owner, 2026-10-03:
+# stop clogging Supabase). db=test runs against the TEST project instead: the check before a big change goes live.
+#   - push to test:       nothing (owner, 2026-10-03); start a run by hand when a batch is ready
+#   - nightly:            the full suite (local), only if test changed in the last 24 hours
+#   - pull request:       the full suite (local)
+#   - by hand:            gh workflow run e2e.yml --ref test -f suite=quick   (smoke + security; or suite=full)
 #   - by hand, middle:    gh workflow run e2e.yml --ref test -f suite=some -f specs="groups post"
 #                         (the quick suite plus those spec files: e2e/groups.spec.js, e2e/post.spec.js)
-# Tests run 2 at a time on CI (workers: 2 in playwright.config.js, since 2026-10-03; was 3); each worker signs in as its own leads.
+#   - on TEST:            add -f db=test (e.g. gh workflow run e2e.yml --ref test -f suite=full -f db=test)
+# Tests run 2 at a time on CI (workers: 2 in playwright.config.js); each worker signs in as its own leads.
 # Merging to main needs, on that commit: a green quick run (small change), a green middle run with the
-# touched specs (medium change) or a green full run (big change). The tiers are defined in CLAUDE.md (Tests).
+# touched specs (medium change) or a green full run on TEST (big change). The tiers are in CLAUDE.md (Tests).
 # Not on main: main only ever fast-forwards to a commit that already passed on test.
-# Commits that only touch docs, design, scripts, icons, email templates or test-only SQL skip the run.
 # Scheduled runs use this file as it is on main, so changes to the nightly only apply once merged.
 
 name: End-to-end tests
 
 on:
-  push:
-    branches: [test]
-    paths-ignore: ['**.md', 'design/**', 'scripts/**', 'icons/**', 'supabase/templates/**', 'supabase/test-only/**', '.vercelignore', '.github/workflows/keep-supabase-awake.yml']
   pull_request:
     paths-ignore: ['**.md', 'design/**', 'scripts/**', 'icons/**', 'supabase/templates/**', 'supabase/test-only/**', '.vercelignore', '.github/workflows/keep-supabase-awake.yml']
   schedule:
@@ -35,16 +33,20 @@ on:
         description: 'for some: spec names, space-separated (e.g. groups post)'
         type: string
         default: ''
+      db:
+        description: 'local (a throwaway Supabase on the runner) or test (the TEST project)'
+        type: choice
+        options: [local, test]
+        default: local
 
 # The workflow only needs to read the repo
 permissions:
   contents: read
 
-# Runs share one test database, so never run two at once. GitHub already drops a waiting run when a
-# newer one queues; a push run that has started but sees a newer push on test cancels itself before
-# its tests start (step "Skip if test has moved on"), so it never stops tests halfway and leaves [E2E] rows.
+# db=test runs share the TEST project, so never run two at once (GitHub drops a waiting run when a newer one queues).
+# Local runs each have their own database, so they don't wait for each other.
 concurrency:
-  group: e2e
+  group: ${{ inputs.db == 'test' && 'e2e' || format('e2e-local-{0}', github.run_id) }}
   cancel-in-progress: false
 
 jobs:
@@ -64,7 +66,6 @@ jobs:
         run: |
           suite=full; run=true
           case "${{ github.event_name }}" in
-            push) suite=quick ;;
             workflow_dispatch) suite="${{ inputs.suite }}" ;;
             schedule) [ $(( $(date +%s) - $(git log -1 --format=%ct) )) -lt 86400 ] || run=false ;;
           esac
@@ -78,16 +79,13 @@ jobs:
             done
           fi
           echo "run=$run" >> "$GITHUB_OUTPUT"; echo "files=$files" >> "$GITHUB_OUTPUT"
-          echo "Suite: $suite${files:+ ($files)}, run: $run" >> "$GITHUB_STEP_SUMMARY"
+          echo "Suite: $suite${files:+ ($files)}, database: ${{ inputs.db == 'test' && 'TEST' || 'local' }}, run: $run" >> "$GITHUB_STEP_SUMMARY"
 
   e2e:
     needs: pick
     if: needs.pick.outputs.run == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    permissions:
-      contents: read
-      actions: write   # only so a superseded push run can cancel itself
+    timeout-minutes: 25   # starting the local Supabase adds a few minutes
     defaults:
       run:
         working-directory: tests
@@ -121,24 +119,22 @@ jobs:
         if: steps.pw-cache.outputs.cache-hit == 'true'
         run: npx playwright install-deps chromium
 
-      # A newer push on test gets its own run, so testing this older commit would only use up TEST
-      - name: Skip if test has moved on
-        if: github.event_name == 'push'
+      # The runner's own Supabase (Docker): the default, so the run never touches TEST
+      - uses: supabase/setup-cli@v1
+        if: inputs.db != 'test'
+        with:
+          version: 2.119.0
+      - name: Start a local Supabase
+        if: inputs.db != 'test'
+        run: local/start.sh
         env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          head=$(git ls-remote origin refs/heads/test | cut -f1)
-          if [ -n "$head" ] && [ "$head" != "${{ github.sha }}" ]; then
-            echo "test is now at $head; cancelling this run for ${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
-            gh run cancel ${{ github.run_id }} --repo ${{ github.repository }}
-            sleep 60   # the cancel lands while this waits, so the tests never start
-            exit 1
-          fi
+          E2E_LEAD_PASSWORD: ${{ secrets.E2E_LEAD_PASSWORD }}
 
       - name: Run tests
         run: npx playwright test ${{ needs.pick.outputs.files }}
         env:
           E2E_LEAD_PASSWORD: ${{ secrets.E2E_LEAD_PASSWORD }}
+          E2E_DB: ${{ inputs.db == 'test' && 'test' || 'local' }}
 
       # Traces record page.evaluate arguments and request bodies, which include the leads' password.
       # CI records none (trace is off when CI is set, playwright.config.js), and as a second guard every

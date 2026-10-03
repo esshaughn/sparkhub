@@ -3,6 +3,9 @@
 const { defineConfig, devices } = require('@playwright/test');
 
 const PORT = 4173;
+// E2E_DB=local: the page is served as 127.0.0.1, which makes js/config.js use the Supabase on this computer
+// (tests/local/start.sh) instead of TEST
+const HOST = process.env.E2E_DB === 'local' ? '127.0.0.1' : 'localhost';
 
 // Local secrets (git-ignored): E2E_LEAD_PASSWORD for the test project's lead accounts
 try {
@@ -28,7 +31,7 @@ module.exports = defineConfig({
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
   use: {
     ...devices['Pixel 7'],
-    baseURL: `http://localhost:${PORT}`,
+    baseURL: `http://${HOST}:${PORT}`,
     // A click on a control that no longer exists fails here, not after the 90s test timeout
     actionTimeout: 15_000,
     navigationTimeout: 30_000,
@@ -38,7 +41,7 @@ module.exports = defineConfig({
   },
   webServer: {
     command: `python3 -m http.server ${PORT} --bind 127.0.0.1 --directory ..`,
-    url: `http://localhost:${PORT}/index.html`,
+    url: `http://${HOST}:${PORT}/index.html`,
     reuseExistingServer: !process.env.CI,
     timeout: 20_000
   }

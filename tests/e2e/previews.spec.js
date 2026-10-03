@@ -7,7 +7,7 @@ const preview = require('../../api/preview.js');
 
 const serve = async (query) => {
   const res = { headers: {}, setHeader(k, v) { this.headers[k] = v; }, end(body) { this.body = body; } };
-  await preview({ headers: { host: 'localhost' }, query, url: '/' }, res);
+  await preview({ headers: { host: process.env.E2E_DB === 'local' ? '127.0.0.1' : 'localhost' }, query, url: '/' }, res);
   return res;
 };
 const og = (html, prop) => ((html.match(new RegExp('<meta property="og:' + prop + '" content="([^"]*)"')) || [])[1]) || null;

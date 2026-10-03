@@ -10,7 +10,9 @@ const path = require('path');
 const LIVE_HOSTS = ['gosparkhub.vercel.app', 'sparkhub.wereallneighbors.org', 'torrezhub.vercel.app'];   // keep in step with js/config.js
 const DB = {
   live: { url: 'https://xwrzfpgsazyrgieymtee.supabase.co', key: 'sb_publishable_NrnRB0SC3-dzeCJTU6vUjQ_328Q1BJC' },
-  test: { url: 'https://hroxgvxvafgikikviiud.supabase.co', key: 'sb_publishable_f7dwskaTS-TV42YC-p0lFw_9Pe8FY1O' }
+  test: { url: 'https://hroxgvxvafgikikviiud.supabase.co', key: 'sb_publishable_f7dwskaTS-TV42YC-p0lFw_9Pe8FY1O' },
+  // The Supabase on a developer's computer (tests/local/start.sh), for the previews test with E2E_DB=local
+  local: { url: 'http://127.0.0.1:54321', key: 'sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH' }
 };
 const SITE = 'https://gosparkhub.vercel.app';
 // Groups whose invite link has its own preview card and title (owner, 2026-10-01). Fixed codes only (CLAUDE.md: TORREZ, HUNTER)
@@ -108,7 +110,7 @@ module.exports = async (req, res) => {
   let html = indexHtml();
   try {
     const host = String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim();
-    const db = DB[LIVE_HOSTS.indexOf(host) > -1 ? 'live' : 'test'];
+    const db = host === '127.0.0.1' ? DB.local : DB[LIVE_HOSTS.indexOf(host) > -1 ? 'live' : 'test'];
     const q = req.query || Object.fromEntries(new URL(req.url, 'http://x').searchParams);
     const d = await details(db, q);
     if (d) {

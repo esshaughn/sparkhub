@@ -12,6 +12,9 @@
     test: { supabaseUrl: 'https://hroxgvxvafgikikviiud.supabase.co', supabaseKey: 'sb_publishable_f7dwskaTS-TV42YC-p0lFw_9Pe8FY1O' }
   };
   var env = LIVE_HOSTS.indexOf(location.hostname) > -1 ? 'live' : 'test';
+  // 127.0.0.1 (not localhost) is the throwaway Supabase on this computer that tests/local/start.sh runs, so local
+  // test runs never touch TEST. It still counts as the test database. The key is the Supabase CLI's fixed local one.
+  if (location.hostname === '127.0.0.1') projects.test = { supabaseUrl: 'http://127.0.0.1:54321', supabaseKey: 'sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH' };
 
   // Location suggestions (Geoapify). The key is meant to be public: it's locked
   // to our domains in the Geoapify dashboard. Free plan: 3,000 lookups a day.

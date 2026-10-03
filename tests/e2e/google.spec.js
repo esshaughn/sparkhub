@@ -5,6 +5,7 @@ const { test, expect } = require('@playwright/test');
 const { uniqueTitle, newMember, newLead, deleteIdea, asUser, closeAskFirst } = require('./helpers');
 
 const RESUME_KEY = 'spark-hub-google-resume';
+const ORIGIN = 'http://' + (process.env.E2E_DB === 'local' ? '127.0.0.1' : 'localhost') + ':4173';   // playwright.config.js baseURL
 const readResume = (page) => page.evaluate((k) => JSON.parse(sessionStorage.getItem(k)), RESUME_KEY);
 
 test('Welcome → Continue with Google: the trip is saved; cancelling comes back with a note', async ({ browser }) => {
@@ -15,14 +16,14 @@ test('Welcome → Continue with Google: the trip is saved; cancelling comes back
     await page.route('**/auth/v1/user/identities/authorize**', (route) => { link = true; route.abort(); });
     await context.route('**/auth/v1/authorize**', (route) => {
       authorize = new URL(route.request().url());
-      route.fulfill({ status: 302, headers: { location: 'http://localhost:4173/fake-google' } });   // stays on our origin, so the saved trip can be read
+      route.fulfill({ status: 302, headers: { location: ORIGIN + '/fake-google' } });   // stays on our origin, so the saved trip can be read
     });
-    await context.route('http://localhost:4173/fake-google', (route) => route.fulfill({ contentType: 'text/html', body: '<p>Google</p>' }));
+    await context.route(ORIGIN + '/fake-google', (route) => route.fulfill({ contentType: 'text/html', body: '<p>Google</p>' }));
     await page.locator('[data-screen-label=Welcome]').getByRole('button', { name: 'Continue with Google' }).click();
     await expect(page.getByRole('dialog', { name: 'Sign in' })).toHaveCount(0);   // straight to Google, no pop-up first
     await page.waitForURL('**/fake-google');
     expect(authorize.searchParams.get('provider')).toBe('google');
-    expect(authorize.searchParams.get('redirect_to')).toBe('http://localhost:4173/');
+    expect(authorize.searchParams.get('redirect_to')).toBe(ORIGIN + '/');
     expect(link).toBe(false);
 
     const saved = await readResume(page);
