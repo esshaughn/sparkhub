@@ -801,8 +801,9 @@ test('a sign-up shows on the group page, the Calendar and the lead’s card', as
     await expect(card).toContainText('Helping');
     await O.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Calendar', exact: true }).click();
     await expect(O.locator('[data-screen-label=Calendar] [data-plan="' + title + '"]')).toContainText('Helping');
-    await H.reload(); await expect(H.locator('html[data-loaded=true]')).toHaveCount(1);
-    await expect(await groupCard(H)).toContainText('1 spot open');
+    // The lead's page counts the sign-up (the group card's layout depends on what else is coming up)
+    await openIdea(H, id);
+    await expect(H.locator('[data-screen-label="Plan page"] [data-signup="Barricades"]')).toContainText('1/2');
     expect(helper.errors).toEqual([]);
   } finally {
     if (id) await deleteIdea(H, id).catch(() => {});
