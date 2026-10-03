@@ -192,7 +192,7 @@ test('Add to Home Screen: at most once a visit, back 48 hours after Got it and 2
 });
 
 test('Give feedback (Update 9): a Help & info tile opens the sheet; Send to Eric, then Thank you; Cancel closes it; group Plans suggestions', async ({ browser }) => {
-  const m = await newLead(browser, 6, 'Fern');
+  const m = await newLead(browser, 2, 'Fern');
   try {
     const page = m.page;
     await openProfile(page);
@@ -772,8 +772,7 @@ test('a failed first load says so (never "not in a group"), and an event taken d
 // Asking for feedback (owner, 2026-10-02; v7 Update 15, 1c): after ~10 minutes of use, once, a sheet with a text box;
 // sending it (or Not now) leaves a dark tip pointing at Profile
 test('after about 10 minutes, the feedback ask: write, Send to Eric, a tip at Profile, once', async ({ browser }) => {
-  // Lead 6: feedback is capped at 10 an hour per person, and lead 1 sends it in other tests too
-  const { page, context, errors } = await newLead(browser, 6, 'Tester');
+  const { page, context, errors } = await newLead(browser, 1, 'Tester');
   try {
     const me = await asUser(page, async (c) => (await c.auth.getUser()).data.user.id);
     await expect(page.locator('[data-fb-nudge]')).toHaveCount(0);

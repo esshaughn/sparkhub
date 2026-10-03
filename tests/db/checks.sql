@@ -710,6 +710,18 @@ select t.check('someone else can''t see it', not exists (select 1 from storage.o
 reset role;
 select t.check('the screenshot bucket is private', (select not public from storage.buckets where id = 'feedback-shots'));
 
+-- Ten an hour, except the e2e leads (20261102060000_feedback_cap_exempt.sql)
+select t.person('chatty'), t.person('exempt');
+insert into private.rate_exempt (user_id) values (t.id('exempt'));
+select t.login('chatty'); set role authenticated;
+do $c$ begin for i in 1..10 loop insert into feedback (body) values ('Note ' || i); end loop; end $c$;
+select t.must_refuse('an eleventh note in an hour', $$insert into feedback (body) values ('One more')$$);
+reset role;
+select t.login('exempt'); set role authenticated;
+do $c$ begin for i in 1..11 loop insert into feedback (body) values ('Note ' || i); end loop; end $c$;
+reset role;
+select t.check('an exempt account isn''t capped', (select count(*) = 11 from feedback where user_id = t.id('exempt')));
+
 -- One request loads the app (20261101220000_load_all.sql): the same rows the caller could read table by table ----
 create function t.load_matches() returns boolean language sql as $$
   select jsonb_array_length(d -> 'memberships') = (select count(*) from memberships)
