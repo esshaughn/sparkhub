@@ -2755,7 +2755,7 @@
     // Pinned groups get the big photo cards; everything else (all of them, when nothing is pinned) is a 4:3 tile
     const st = state, q = pplQ();
     const all = groupsInOrder(), groups = q ? all.filter(g => g.name.toLowerCase().includes(q)) : all, big = groups.filter(g => g.pinned);
-    const rest = groups.filter(g => !g.pinned), hero = all.find(groupPhoto) || null;   // the header photo: the first of your groups with one
+    const rest = groups.filter(g => !g.pinned);
     const newDot = (g) => newIn(g) ? '<span aria-label="New events" style="display:inline-block;width:9px;height:9px;border-radius:999px;background:#9d93f7;margin-right:6px;vertical-align:1px"></span>' : '';
     const members = (g, px) => { const size = st.sizes[g.id]; return size ? '<div style="margin-top:3px;font-size:' + px + 'px;font-weight:700;color:#dfe2e8">' + size + (size === 1 ? ' member' : ' members') + '</div>' : ''; };
     const bigCard = (g) => '<div ' + on(() => openGroup(g)) + ' aria-label="' + esc(g.name) + '" style="position:relative;height:170px;border-radius:22px;overflow:hidden;background:#e8a71c;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
@@ -2772,17 +2772,17 @@
       '<div style="position:absolute;left:12px;right:10px;bottom:10px;color:#fff;font-size:16px;line-height:1.15;font-weight:900">' +
         groupTagAbove(g) + newDot(g) + esc(g.name) + members(g, 12) + '</div>' +
     '</div>';
-    const glass = (label, icon, fn) => '<span ' + on(fn) + ' aria-label="' + label + '" style="flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:rgba(255,255,255,.2);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;cursor:pointer">' + icon + '</span>';
-    // A group page's header: min 112px of photo, the same wash, the title row with Search and the bell on it
-    const header = '<header style="position:relative;z-index:5;min-height:calc(112px + var(--pt));overflow:hidden;background:#2b303a;display:flex;align-items:flex-end">' +
-      (hero ? '<div style="position:absolute;inset:0;overflow:hidden">' + photoLayer(groupPhoto(hero), hero.photoPos, GROUP_POS) + '</div>' : '<div aria-hidden="true" style="position:absolute;inset:0;background:' + HEAD_GOLD + '"></div>') +
-      '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.9) 0%, rgba(13,17,23,.55) 60%, rgba(13,17,23,.4) 100%)"></div>' +
-      '<div style="position:relative;z-index:2;flex:1;min-width:0;padding:calc(22px + var(--pt)) 14px 14px;display:flex;align-items:center;gap:8px">' +
-        '<div style="flex:1;min-width:0;color:#fff;display:flex;flex-direction:column;gap:3px">' +
-          '<span style="font-size:12px;line-height:1;font-weight:900;letter-spacing:1.2px;text-transform:uppercase;color:#cfc9ff">Groups &amp; friends</span>' +
-          '<h1 style="margin:0;font-size:34px;line-height:1;font-weight:900;letter-spacing:-1.1px;color:#fff">Your people</h1></div>' +
-        glass('Search your people', ic6('search', 18, '#fff', 2.4), openPplSearch) + bellBtn(true, 40) + '</div>' +
-    '</header>';
+    // Your calendar's white header (owner, 2026-10-03; Design 20 had a group page's photo header): the title, and under
+    // it *N groups · N friends* where Your calendar has its group pick; Search (groups and friends) and the bell
+    const nFr = st.fr.friends.length;
+    const sub = st.loaded ? all.length + (all.length === 1 ? ' group' : ' groups') + (st.fr.loaded ? ' · ' + nFr + (nFr === 1 ? ' friend' : ' friends') : '') : '';
+    const header = '<header style="position:relative;z-index:5;background:#fff;padding:14px 16px 10px;display:flex;align-items:center;gap:12px">' +
+      '<div style="flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:1px">' +
+        '<h1 style="margin:0;font-size:30px;line-height:1;font-weight:900;letter-spacing:-1px;color:#0d1117">Your people</h1>' +
+        (sub ? '<div data-ppl-sub style="display:flex;align-items:center;gap:5px;min-height:26px;font-size:14.5px;font-weight:800;color:#6b7280">' + svg(14, stroke('currentColor', 2.4), P6.people) + '<span>' + sub + '</span></div>' : '') + '</div>' +
+      '<div style="flex:0 0 auto;display:flex;gap:8px">' +
+        '<span ' + on(openPplSearch) + ' aria-label="Search your people" style="flex:0 0 44px;width:44px;height:44px;border-radius:999px;background:#f2f3f6;color:#0d1117;display:flex;align-items:center;justify-content:center;cursor:pointer">' + ic6('search', 20, 'currentColor', 2.1) + '</span>' +
+        bellBtn() + '</div></header>';
     const search = st.pplSearch ? searchHead('Search groups and friends', st.pplQ, 'Search groups and friends',
       (v) => setState({ pplQ: v.slice(0, 40) }), () => setState({ pplQ: '' }), () => setState({ pplSearch: false, pplQ: '' })) : '';
     const none = (what) => '<div style="padding:8px;text-align:center;font-size:14.5px;font-weight:700;color:#6b7280">No ' + what + ' match “' + esc(st.pplQ.trim()) + '”</div>';
@@ -3428,10 +3428,11 @@
     return wrap(goneCard() + secs.map((z, i) => '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(z.label, i ? '' : controls) +
       '<div style="display:flex;flex-direction:column;gap:' + (view === 'next' ? 10 : 14) + 'px">' + (z.hero ? nextCard6(z.hero, partOf(z.hero)) : z.items.map(card).join('')) + '</div></div>').join('') + findMore());
   }
-  // The end of Your calendar (Up next and Tiles): a green dashed slot that opens Explore (Design, after Update 16)
-  const findMore = () => '<div ' + on(() => go('calendar')) + ' data-find-more role="button" style="display:flex;align-items:center;gap:12px;padding:16px;border-radius:18px;background:#f3fbf6;border:2px dashed #a9d6ba;cursor:pointer">' +
+  // The end of Your calendar (Up next and Tiles): Design's green dashed slot, which now asks people to start something
+  // (owner, 2026-10-03; it was Find more events, opening Explore)
+  const findMore = () => '<div ' + on(() => goCompose()) + ' data-start-slot role="button" style="display:flex;align-items:center;gap:12px;padding:16px;border-radius:18px;background:#f3fbf6;border:2px dashed #a9d6ba;cursor:pointer">' +
     '<span style="flex:0 0 44px;width:44px;height:44px;border-radius:999px;background:#149a4b;display:flex;align-items:center;justify-content:center">' + I.plus(20, '#fff', 2.8) + '</span>' +
-    '<div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:900;color:#0d4a26">Find more events</div><div style="margin-top:2px;font-size:13.5px;font-weight:600;color:#0f7a3c">See what else is happening in your groups</div></div>' +
+    '<div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:900;color:#0d4a26">Start an event</div><div style="margin-top:2px;font-size:13.5px;font-weight:600;color:#0f7a3c">Got a “we should…”? Post it and see who’s in</div></div>' +
     I.chevR(16, '#0f7a3c', 2.6) + '</div>';
 
   // ---- Screen 3: Explore (the community Calendar until v7 Update 16) ---------------------------

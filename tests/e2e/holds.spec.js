@@ -93,10 +93,16 @@ test('Explore shows Plans, Ideas or Past; Your calendar ends with Find more even
     await M.reload();
     await expect(M.locator('html[data-loaded=true]')).toHaveCount(1);
 
-    // Your calendar: the plan, then the green Find more events slot, which opens Explore
+    // Your calendar: the plan, then the green slot, which asks you to start an event (owner, 2026-10-03)
     const yc = M.locator('[data-screen-label="Your calendar"]');
     await expect(yc.locator('[data-plan="' + plan + '"]')).toBeVisible();
-    await yc.locator('[data-find-more]').click();
+    await expect(yc.locator('[data-start-slot]')).toContainText('Start an event');
+    await yc.locator('[data-start-slot]').click();
+    const kind = M.getByRole('dialog', { name: 'Real or test?' });   // Start an event opens on Real or test?
+    await expect(kind).toBeVisible();
+    await kind.getByRole('button', { name: 'Close' }).click();   // closing it leaves the flow
+    await expect(M.locator('[data-screen-label="New spark"]')).toHaveCount(0);
+    await M.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Explore', exact: true }).click();
     const cal = M.locator('[data-screen-label=Explore]');
     await expect(cal.getByRole('heading', { name: 'Explore' })).toBeVisible();
 

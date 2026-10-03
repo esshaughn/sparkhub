@@ -415,11 +415,12 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
     await sw.getByRole('option', { name: /^Your tasks/ }).click();
     await expect(page.locator('[data-screen-label="Your tasks"]')).toBeVisible();
 
-    // Your people (Design 20, 2026-10-03): one page under a group page's header (Search and the bell on the title row),
+    // Your people (Design 20, 2026-10-03): one page under Your calendar's white header with *N groups · N friends* (owner),
     // Groups then Friends, each heading with its own small gray add pill; Start a group is coming soon
     await page.getByRole('button', { name: 'Groups', exact: true }).click();
     const groups = page.locator('[data-screen-label=Groups]');
     await expect(groups.getByRole('heading', { name: 'Your people', exact: true })).toBeVisible();
+    await expect(groups.locator('[data-ppl-sub]')).toHaveText(/^\d+ groups? · \d+ friends?$/);
     await expect(groups.getByRole('tablist')).toHaveCount(0);   // no Groups / Friends switch
     await expect(groups.getByRole('heading', { name: 'Groups', exact: true })).toBeVisible();
     await expect(groups.getByRole('heading', { name: 'Friends', exact: true })).toBeVisible();
