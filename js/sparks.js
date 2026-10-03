@@ -283,7 +283,7 @@
       state.back = ORIGINS.indexOf(state.screen) > -1 ? { screen: state.screen, groupId: state.groupId, phaseTab: state.phaseTab, scroll: sc ? sc.scrollTop : 0 } : null;
     }
     // Going anywhere closes the v6 sheets (Profile, Notifications, View all, Could use a hand, Search)
-    setState(Object.assign({ screen, menu: null, zoom: null, sec: null, needEd: null, share: null, cohostPick: null, leadAsk: null, leadsSheet: null, pollSheet: null, profSheet: false, notifSheet: false, dashAll: null, cHandSheet: false, cSearch: false, cq: '', gSearch: false, gq: '', gTry: null, pplAdd: false, frInvite: false, person: null, fbNudge: null, peek: null, gMenu: null }, extra || {}));
+    setState(Object.assign({ screen, menu: null, zoom: null, sec: null, needEd: null, share: null, cohostPick: null, leadAsk: null, leadsSheet: null, pollSheet: null, profSheet: false, notifSheet: false, dashAll: null, cHandSheet: false, cSearch: false, cq: '', gSearch: false, gq: '', gTry: null, pplAdd: false, frInvite: false, person: null, fbNudge: null, peek: null, gMenu: null, jobAsk: null, handOff: null }, extra || {}));
     if (sc) sc.scrollTop = 0;
   };
 
@@ -334,6 +334,7 @@
   const isTheLead = (s) => !!s && !!state.me && s.leadId === state.me;
   const isCohost = (s) => !!s && !!state.me && (s.cohosts || []).indexOf(state.me) > -1;
   const isLead = (s) => isTheLead(s) || isCohost(s);
+  const hostIds = (s) => [s.leadId].concat(s.cohosts || []);
   // The lead, or an admin of the idea's group, can edit or delete it
   const isGroupAdmin = (s) => { const g = s && groupById(s.groupId); return runs(g); };
   const canEdit = (s) => isLead(s) || isGroupAdmin(s);
@@ -439,6 +440,9 @@
     leadAsks: (x.leadAsks[row.id] || []).map(a => ({ userId: a.user_id, by: a.asked_by, at: Date.parse(a.created_at), message: a.message || '' })),   // asked to lead (20261102020000_float_and_ask.sql)
     // Who was invited: the hosts see every invite, anyone else only their own (20261102040000_invited_and_nudge.sql)
     invites: (x.invites[row.id] || []).map(i => ({ userId: i.user_id, by: i.invited_by, at: Date.parse(i.created_at), nudgedAt: i.nudged_at ? Date.parse(i.nudged_at) : 0 })),
+    // Asked to take a job, and the lead offered to someone (20261102070000_job_asks_and_handoff.sql)
+    jobAsks: (x.jobAsks[row.id] || []).map(a => ({ itemId: a.item_id, userId: a.user_id, by: a.asked_by, message: a.message || '', answer: a.answer || null, at: Date.parse(a.created_at) })),
+    leadOffer: (x.leadOffers[row.id] || []).map(o => ({ userId: o.user_id, by: o.offered_by, message: o.message || '', at: Date.parse(o.created_at) }))[0] || null,
     album: (x.album[row.id] || []).sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at)).filter(a => PHOTO_PATH.test(a.path)).map(a => ({ id: a.id, path: a.path, createdBy: a.created_by })),
     prep: (x.prep[row.id] || [])[0] ? x.prep[row.id][0].answers || {} : {},
     reactions: (x.reactions[row.id] || []).map(r => ({ userId: r.user_id, kind: r.kind }))
@@ -459,7 +463,7 @@
     }
     // v6 Update 13: friends, requests and the invites you've had (a database without them still loads)
     const frP = state.email && !state.viewAs ? sb.rpc('friend_state').then(r => r, () => ({ error: true })) : Promise.resolve({ data: null });
-    const [mem, grp, sp, of, it, gc, rs, dop, dvo, sop, svo, sui, scl, upd, org, alb, prp, rct, sgr, drf, nts, las, inv] = await Promise.all([
+    const [mem, grp, sp, of, it, gc, rs, dop, dvo, sop, svo, sui, scl, upd, org, alb, prp, rct, sgr, drf, nts, las, inv, jas, lof] = await Promise.all([
       sb.from('memberships').select('group_id,role,last_seen_at,pinned'),
       sb.from('groups').select('id,name,photo,photo_pos,demo'),
       sb.from('sparks').select('*').order('created_at', { ascending: false }),
@@ -491,7 +495,10 @@
         .then(r => r.error && r.error.code === '42703' ? sb.from('lead_asks').select('spark_id,user_id,asked_by,created_at').order('created_at') : r) : Promise.resolve({ data: [] }),
       // Invites (20261030000000_friends.sql; nudged_at since 20261102040000_invited_and_nudge.sql)
       state.email ? sb.from('event_invites').select('spark_id,user_id,invited_by,created_at,nudged_at').order('created_at')
-        .then(r => r.error && r.error.code === '42703' ? sb.from('event_invites').select('spark_id,user_id,invited_by,created_at').order('created_at') : r) : Promise.resolve({ data: [] })
+        .then(r => r.error && r.error.code === '42703' ? sb.from('event_invites').select('spark_id,user_id,invited_by,created_at').order('created_at') : r) : Promise.resolve({ data: [] }),
+      // Job asks and lead offers (20261102070000_job_asks_and_handoff.sql; a database without them still loads)
+      state.email ? sb.from('job_asks').select('item_id,spark_id,user_id,asked_by,message,answer,created_at,answered_at').then(r => r.error ? { data: [] } : r) : Promise.resolve({ data: [] }),
+      state.email ? sb.from('lead_offers').select('spark_id,user_id,offered_by,message,created_at').then(r => r.error ? { data: [] } : r) : Promise.resolve({ data: [] })
     ]);
     [mem, grp, sp, of, it, gc, rs, dop, dvo, sop, svo, sui, scl, upd, org, alb, prp].forEach(must);
     const rows = (r) => r.error ? [] : r.data || [];
@@ -499,7 +506,7 @@
       memberships: mem.data, groups: grp.data, sparks: sp.data, offers: of.data, interests: it.data, guest_contacts: gc.data, rsvps: rs.data,
       date_options: dop.data, date_votes: dvo.data, spot_options: sop.data, spot_votes: svo.data, signup_items: sui.data, signup_claims: scl.data,
       plan_updates: upd.data, cohosts: org.data, album_photos: alb.data, plan_prep: prp.data,
-      reactions: rows(rct), spark_groups: rows(sgr), event_drafts: rows(drf), notes: rows(nts), lead_asks: rows(las), event_invites: rows(inv), profiles: []
+      reactions: rows(rct), spark_groups: rows(sgr), event_drafts: rows(drf), notes: rows(nts), lead_asks: rows(las), event_invites: rows(inv), job_asks: rows(jas), lead_offers: rows(lof), profiles: []
     };
     // Names and photos of everyone on screen
     const ids = new Set([state.me]);
@@ -508,6 +515,8 @@
     d.notes.forEach(n => ids.add(n.created_by));
     d.lead_asks.forEach(a => { ids.add(a.user_id); ids.add(a.asked_by); });
     d.event_invites.forEach(i => ids.add(i.user_id));
+    d.job_asks.forEach(a => { ids.add(a.user_id); ids.add(a.asked_by); });
+    d.lead_offers.forEach(o => ids.add(o.user_id));
     ids.delete(null); ids.delete(undefined);
     for (const part of chunks(Array.from(ids), 80)) {
       d.profiles.push(...must(await sb.from('profiles').select('id,name,avatar_path,place,bio').in('id', part)).data);
@@ -533,7 +542,8 @@
       reactions: byKey(d.reactions, 'spark_id'),   // v6 Update 2 (reactions on past events)
       groups: byKey(d.spark_groups, 'spark_id'),
       leadAsks: byKey(d.lead_asks || [], 'spark_id'),   // a database without them still loads
-      invites: byKey(d.event_invites || [], 'spark_id')
+      invites: byKey(d.event_invites || [], 'spark_id'),
+      jobAsks: byKey(d.job_asks || [], 'spark_id'), leadOffers: byKey(d.lead_offers || [], 'spark_id')
     };
 
     const roles = {};
@@ -1360,18 +1370,119 @@
         if (state.leadAsk && state.leadAsk.id === s.id) setState({ leadAsk: Object.assign({}, state.leadAsk, { people }) }); })
       .catch(e => { console.error(e); setState({ leadAsk: null }); toast(failed(e)); });
   };
-  // A specific ask carries a line on why them (research, 2026-10-02: a personal ask got a yes where the same post to
-  // everyone got silence). Asking someone to lead needs one; the Invite people sheet asks for one (20261102050000_ask_notes.sql)
-  const whyThem = (val, set, required) => '<label data-why-them style="display:flex;flex-direction:column;gap:6px">' +
-    '<span style="font-size:12px;font-weight:900;letter-spacing:1px;color:#6b7280">WHY THEM?' + (required ? '' : ' <span style="font-weight:700;letter-spacing:0;color:#9aa0ac">(optional)</span>') + '</span>' +
-    '<input class="fld" type="text" maxlength="140" aria-label="Why them?" placeholder="e.g. You were great at the last one" value="' + esc(val || '') + '" ' + onInput(e => { if (e.type === 'input') set(e.target.value.slice(0, 140)); }) +
-      ' style="width:100%;box-sizing:border-box;min-height:48px;padding:0 14px;border:2px solid #dcdfe6;border-radius:14px;font-family:inherit;font-size:16px;font-weight:600;color:#0d1117;outline:none"></label>';
-  const NEED_WHY = 'Add a line on why them first';
-  const askToLead = (s, u, note) => {
+  // ---- Asking someone to take a job, and handing the lead on (owner, 2026-10-02; 20261102070000_job_asks_and_handoff.sql).
+  // A job ask is personal: the lead finishes "I thought of you because…", asks one person at a time, two open at most
+  // per job; the person answers I'm in (signed up, Going) or Can't this time. Jobs with shifts can't be asked for yet.
+  const JOB_ASK_LEAD = 'I thought of you because ';
+  // The people a lead can pick: the event's groups' members and your friends
+  const peopleFor = (s) => Promise.all(s.groupIds.map(g => sb.rpc('group_people', { p_group: g }).then(r => r.error ? [] : r.data || [], () => [])))
+    .then(rs => { const seen = {}, out = [];
+      [].concat(...rs).concat(state.fr.friends || []).forEach(p => { const id = p.user_id || p.id; if (id && !seen[id]) { seen[id] = 1; out.push({ id, name: p.name || 'Someone', avatar: p.avatar_path || p.avatar || null }); } });
+      return out.sort((a, b) => a.name.localeCompare(b.name)); });
+  const openAsks = (s, itemId) => s.jobAsks.filter(a => a.itemId === itemId && !a.answer && !onJob(s, itemId, a.userId));
+  const onJob = (s, itemId, u) => s.signups.some(it => it.id === itemId && it.claims.some(c => c.userId === u));
+  const openJobAsk = (s, j) => {
+    setState({ jobAsk: { id: s.id, item: j.id, people: null, q: '', why: '' } });
+    peopleFor(s).then(people => { if (state.jobAsk && state.jobAsk.item === j.id) setState({ jobAsk: Object.assign({}, state.jobAsk, { people }) }); });
+  };
+  const askForJob = (s, itemId, u) => {
+    const why = (state.jobAsk.why || '').trim();
+    if (!why) return toast('Finish the line first: I thought of you because…');
+    if (openAsks(s, itemId).length >= 2) return;
+    const msg = JOB_ASK_LEAD + why.replace(/^because\s+/i, '');
+    quick(s, { jobAsks: s.jobAsks.concat({ itemId, userId: u, by: state.me, message: msg, answer: null, at: Date.now() }) },
+      async () => { must(await sb.rpc('ask_for_job', { p_item: itemId, p_user: u, p_message: msg })); });
+  };
+  const withdrawJobAsk = (s, a) => quick(s, { jobAsks: s.jobAsks.filter(x => !(x.itemId === a.itemId && x.userId === a.userId)) },
+    async () => { must(await sb.rpc('withdraw_job_ask', { p_item: a.itemId, p_user: a.userId })); });
+  const answerJobAsk = (s, a, yes) => run(async () => { must(await sb.rpc('answer_job_ask', { p_item: a.itemId, p_in: yes })); })
+    .then(ok => { if (ok) toast(yes ? 'You’re on it. ' + firstName(nameOf(a.by)) + ' will see you’re in.' : 'Thanks for letting ' + firstName(nameOf(a.by)) + ' know.', true); });
+  function viewJobAsk() {
+    const ja = state.jobAsk, s = state.sparks.find(x => x.id === ja.id), j = s && s.signups.find(it => it.id === ja.item);
+    if (!s || !j) return '';
+    const close = () => setState({ jobAsk: null }), q = (ja.q || '').trim().toLowerCase(), open = openAsks(s, j.id), two = open.length >= 2, ready = !!(ja.why || '').trim();
+    const list = (ja.people || []).filter(p => p.id !== state.me && hostIds(s).indexOf(p.id) < 0 && !onJob(s, j.id, p.id) && (!q || p.name.toLowerCase().indexOf(q) > -1));
+    const btn = (p) => { const a = s.jobAsks.find(x => x.itemId === j.id && x.userId === p.id);
+      if (a) return '<span data-asked style="flex:0 0 auto;font-size:14px;font-weight:800;color:' + (a.answer === 'cant' ? '#6b7280' : '#0f7a3c') + '">' + (a.answer === 'cant' ? 'Can’t this time' : '✓ Asked') + '</span>';
+      const ok = ready && !two;
+      return '<button type="button" ' + on(() => askForJob(s, j.id, p.id)) + ' aria-label="Ask ' + esc(p.name) + '" aria-disabled="' + !ok + '" style="flex:0 0 auto;min-height:38px;padding:0 18px;border:0;border-radius:999px;background:' + (ok ? '#5b4ae8' : '#d5d8df') + ';color:#fff;font-family:inherit;font-size:14.5px;font-weight:800;cursor:' + (ok ? 'pointer' : 'default') + '">Ask</button>'; };
+    return modal('Ask someone to take it', close,
+      h3Html('Ask someone to take “' + esc(j.item) + '”') +
+      paraHtml('A personal ask lands better than a post to everyone. Ask one or two people at a time; they can say I’m in or Can’t this time.') +
+      '<label data-job-why style="display:flex;flex-direction:column;gap:6px"><span style="font-size:15px;font-weight:800;color:#0d1117">I thought of you because…</span>' +
+        '<input class="fld" type="text" maxlength="170" aria-label="I thought of you because" placeholder="you were great on barricades last year" value="' + esc(ja.why || '') + '" ' + onInput(e => { if (e.type === 'input') setState({ jobAsk: Object.assign({}, state.jobAsk, { why: e.target.value.slice(0, 170) }) }); }) +
+          ' style="' + FIELD + '"></label>' +
+      '<div data-job-ask-count role="status" style="font-size:13.5px;font-weight:800;color:' + (two ? '#b07a0a' : '#6b7280') + '">' + (two ? 'That’s two waiting. Wait for an answer, or withdraw one.' : open.length + ' of 2 asked') + '</div>' +
+      ((ja.people || []).length > 7 ? '<input class="fld" type="search" aria-label="Search people" placeholder="Search" value="' + esc(ja.q || '') + '" ' + onInput(e => { if (e.type === 'input') setState({ jobAsk: Object.assign({}, state.jobAsk, { q: e.target.value.slice(0, 40) }) }); }) + ' style="' + FIELD + '">' : '') +
+      (ja.people === null ? paraHtml('Loading…') : !list.length ? paraHtml(q ? 'Nobody by that name.' : 'No one else to ask yet.') :
+        '<div style="display:flex;flex-direction:column;max-height:42vh;overflow:auto">' + list.map((p, i) =>
+          '<div data-job-ask-row="' + esc(p.name) + '" style="display:flex;align-items:center;gap:12px;min-height:54px;border-top:' + (i ? '1px solid #f2f3f6' : '0') + '">' +
+            face(p.id, p.name, 34) + '<span style="flex:1;min-width:0;font-size:15px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(p.name) + '</span>' + btn(p) + '</div>').join('') + '</div>'));
+  }
+  // Under a job, for the lead: who's been asked and how it went
+  const jobAskLine = (s, j) => {
+    const asks = s.jobAsks.filter(a => a.itemId === j.id && !onJob(s, j.id, a.userId)), open = openAsks(s, j.id);
+    const full = j.need && j.claims.length >= j.need;
+    const rows = asks.map(a => '<div data-job-asked="' + esc(firstName(nameOf(a.userId))) + '" style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;color:#5c6270">' + face(a.userId, nameOf(a.userId), 22) +
+      '<span style="flex:1;min-width:0">' + (a.answer === 'cant' ? esc(firstName(nameOf(a.userId))) + ' can’t this time' : 'Asked ' + esc(firstName(nameOf(a.userId))) + ' · waiting') + '</span>' +
+      (a.answer ? '' : '<span ' + on(() => withdrawJobAsk(s, a)) + ' style="font-size:13.5px;font-weight:800;color:#9b1c31;cursor:pointer">Withdraw</span>') + '</div>').join('');
+    const ask = full ? '' : open.length >= 2 ? '<span style="font-size:13.5px;font-weight:700;color:#8a909b">Two asked. Wait for an answer, or withdraw one.</span>'
+      : '<span ' + on(() => openJobAsk(s, j)) + ' data-ask-job role="button" style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:36px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(14, '#5b4ae8', 2.8) + 'Ask someone</span>';
+    return !rows && !ask ? '' : '<div data-job-asks style="display:flex;flex-direction:column;gap:8px;padding-top:10px;border-top:1px solid #f2f3f6">' + rows + ask + '</div>';
+  };
+
+  // Hand the lead to someone: they lead it once they say yes; you stay on as a co-lead. One open offer at a time
+  const openHandOff = (s) => {
+    setState({ handOff: { id: s.id, people: null, q: '', note: '' }, leadsSheet: null });
+    peopleFor(s).then(people => { if (state.handOff && state.handOff.id === s.id) setState({ handOff: Object.assign({}, state.handOff, { people }) }); });
+  };
+  const offerLead = (s, u) => {
+    const note = (state.handOff.note || '').trim();
+    quick(s, { leadOffer: { userId: u, by: state.me, message: note, at: Date.now() } },
+      async () => { must(await sb.rpc('offer_lead', { p_spark: s.id, p_user: u, p_message: note || null })); },
+      (ok) => { if (ok) { setState({ handOff: null }); toast('Asked ' + firstName(nameOf(u)) + ' to take it over. You lead it until they say yes.', true); } });
+  };
+  const withdrawLeadOffer = (s) => quick(s, { leadOffer: null }, async () => { must(await sb.rpc('withdraw_lead_offer', { p_spark: s.id })); });
+  const answerLeadOffer = (s, yes) => run(async () => { must(await sb.rpc('answer_lead_offer', { p_spark: s.id, p_yes: yes })); })
+    .then(ok => { if (ok) toast(yes ? 'You’re leading it now. ' + firstName(nameOf(s.leadId, s.leadName)) + ' stays on as a co-lead.' : 'Thanks for letting ' + firstName(nameOf(s.leadId, s.leadName)) + ' know.', true); });
+  function viewHandOff() {
+    const ho = state.handOff, s = state.sparks.find(x => x.id === ho.id);
+    if (!s) return '';
+    const close = () => setState({ handOff: null }), q = (ho.q || '').trim().toLowerCase();
+    const list = (ho.people || []).filter(p => p.id !== state.me && (!q || p.name.toLowerCase().indexOf(q) > -1));
+    return modal('Hand it to someone', close,
+      h3Html('Hand it to someone') +
+      paraHtml('They lead <b style="font-weight:800;color:#0d1117">' + esc(s.text) + '</b> once they say yes. Until then it’s yours, and after, you stay on as a co-lead.') +
+      '<label style="display:flex;flex-direction:column;gap:6px"><span style="font-size:15px;font-weight:800;color:#0d1117">A note <span style="font-weight:600;color:#8a909b">(optional)</span></span>' +
+        '<input class="fld" type="text" maxlength="200" aria-label="A note" placeholder="e.g. You know this crowd better than I do" value="' + esc(ho.note || '') + '" ' + onInput(e => { if (e.type === 'input') setState({ handOff: Object.assign({}, state.handOff, { note: e.target.value.slice(0, 200) }) }); }) + ' style="' + FIELD + '"></label>' +
+      ((ho.people || []).length > 7 ? '<input class="fld" type="search" aria-label="Search people" placeholder="Search" value="' + esc(ho.q || '') + '" ' + onInput(e => { if (e.type === 'input') setState({ handOff: Object.assign({}, state.handOff, { q: e.target.value.slice(0, 40) }) }); }) + ' style="' + FIELD + '">' : '') +
+      (ho.people === null ? paraHtml('Loading…') : !list.length ? paraHtml(q ? 'Nobody by that name.' : 'No one else to hand it to yet.') :
+        '<div style="display:flex;flex-direction:column;max-height:42vh;overflow:auto">' + list.map((p, i) =>
+          '<div data-hand-row="' + esc(p.name) + '" style="display:flex;align-items:center;gap:12px;min-height:54px;border-top:' + (i ? '1px solid #f2f3f6' : '0') + '">' +
+            face(p.id, p.name, 34) + '<span style="flex:1;min-width:0;font-size:15px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(p.name) + '</span>' +
+            '<button type="button" ' + on(() => offerLead(s, p.id)) + ' aria-label="Hand it to ' + esc(p.name) + '" style="flex:0 0 auto;min-height:38px;padding:0 16px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer">Ask</button></div>').join('') + '</div>'));
+  }
+  // On the event page, for the person asked: a job ask or a lead offer, with its note and the two answers
+  const askCards = (s) => {
+    if (!state.me || s.cancelledAt || phaseOf(s) === 'done') return '';
+    const card = (attr, uid, head, quote, yes, no, onYes, onNo) => '<div ' + attr + ' style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:12px;box-shadow:inset 0 0 0 2px #f3d58a,0 1px 3px rgba(15,18,25,.08);background:#fffaf0">' +
+      '<div style="display:flex;align-items:center;gap:12px">' + face(uid, nameOf(uid), 40) + '<div style="flex:1;min-width:0;font-size:16px;line-height:1.35;font-weight:800;color:#0d1117">' + head + '</div></div>' +
+      (quote ? '<div style="padding:10px 12px;border-radius:12px;background:#fff;font-size:14.5px;line-height:1.4;font-weight:500;color:#2b303a">“' + esc(quote) + '”</div>' : '') +
+      '<div style="display:flex;gap:8px"><button type="button" ' + on(onYes) + ' style="flex:1 1 0;min-height:48px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:15.5px;font-weight:800;cursor:pointer">' + yes + '</button>' +
+        '<button type="button" ' + on(onNo) + ' style="flex:1 1 0;min-height:48px;border:0;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;color:#0d1117;font-family:inherit;font-size:15.5px;font-weight:800;cursor:pointer">' + no + '</button></div></div>';
+    const jobs = s.jobAsks.filter(a => a.userId === state.me && !a.answer && !onJob(s, a.itemId, state.me)).map(a => {
+      const it = s.signups.find(x => x.id === a.itemId);
+      return !it ? '' : card('data-job-ask-card', a.by, esc(firstName(nameOf(a.by))) + ' asked if you’d take <span style="color:#8f6405">' + esc(it.item) + '</span>', a.message, 'I’m in', 'Can’t this time', () => answerJobAsk(s, a, true), () => answerJobAsk(s, a, false));
+    }).join('');
+    const o = s.leadOffer, lead = o && o.userId === state.me
+      ? card('data-lead-offer-card', o.by, esc(firstName(nameOf(o.by))) + ' asked if you’d take over leading this', o.message, 'I’ll take it', 'Not this time', () => answerLeadOffer(s, true), () => answerLeadOffer(s, false)) : '';
+    return jobs + lead;
+  };
+
+  const askToLead = (s, u) => {
     if (s.leadAsks.some(a => a.userId === u)) return;
-    if (!(note || '').trim()) return toast(NEED_WHY);
-    quick(s, { leadAsks: s.leadAsks.concat({ userId: u, by: state.me, at: Date.now(), message: note.trim() }) },
-      async () => { must(await sb.rpc('ask_to_lead', { p_spark: s.id, p_user: u, p_message: note.trim() })); });
+    quick(s, { leadAsks: s.leadAsks.concat({ userId: u, by: state.me, at: Date.now() }) },
+      async () => { must(await sb.rpc('ask_to_lead', { p_spark: s.id, p_user: u })); });
   };
 
   // Non-leads suggest (waits for the lead); the lead sets it straight away
@@ -3650,7 +3761,9 @@
     note: { bg: '#e2556b', glyph: '!', cat: 'updates', topic: 'updates' },   // an event or job was taken down
     friendreq: { bg: '#5b4ae8', glyph: '+', cat: 'invites', topic: 'friends' },   // v6 Update 13
     invited: { bg: '#5b4ae8', glyph: '✉', cat: 'invites', topic: 'friends' },
-    leadask: { bg: '#7b6ef0', glyph: '★', cat: 'invites', topic: 'friends' }   // someone asked you to lead an idea
+    leadask: { bg: '#7b6ef0', glyph: '★', cat: 'invites', topic: 'friends' },   // someone asked you to lead an idea
+    jobask: { bg: '#e8a71c', glyph: '✋', cat: 'invites', topic: 'friends' },   // someone asked you to take a job
+    leadoffer: { bg: '#7b6ef0', glyph: '★', cat: 'invites', topic: 'friends' }   // the lead asked you to take over
   };
   const N_TOPICS = [
     ['newevents', 'New in your groups', 'New plans and ideas'],
@@ -3694,6 +3807,12 @@
       // Someone asked you to lead it, while it's still looking (20261102020000_float_and_ask.sql)
       if (s.wantsHost && !s.cancelledAt) s.leadAsks.filter(a => a.userId === me).forEach(a =>
         add({ key: 'la:' + s.id + ':' + a.at, type: 'leadask', s, t: a.at, uid: a.by, who: nameOf(a.by, 'Someone'), text: 'asked if you’d lead', quote: a.message || '' }));
+      // Asked to take a job, or to take over leading it (20261102070000_job_asks_and_handoff.sql)
+      if (!s.cancelledAt && phaseOf(s) !== 'done') {
+        s.jobAsks.filter(a => a.userId === me && !a.answer).forEach(a => { const it = s.signups.find(x => x.id === a.itemId);
+          if (it) add({ key: 'ja:' + a.itemId + ':' + a.at, type: 'jobask', s, t: a.at, uid: a.by, who: nameOf(a.by, 'Someone'), text: 'asked if you’d take', item: it.item, joiner: ' for ', quote: a.message }); });
+        if (s.leadOffer && s.leadOffer.userId === me) add({ key: 'lo:' + s.id + ':' + s.leadOffer.at, type: 'leadoffer', s, t: s.leadOffer.at, uid: s.leadOffer.by, who: nameOf(s.leadOffer.by, 'Someone'), text: 'asked if you’d take over leading', quote: s.leadOffer.message });
+      }
       if (!lead) return;
       // Things you're hosting
       // A job sign-up marks you Going: the sign-up's row covers it, so that automatic Going isn't its own row
@@ -4748,7 +4867,7 @@
         (off ? '' : lead ? makePlanCard(s) : s.wantsHost ? planToGo(s) : '') +
         whenWhereCard(s) +
         basicDetailsSec(s) +
-        helpOut(s) +
+        askCards(s) + helpOut(s) +
         interested +
         ledByCard(s) +
         inspoSec(s) +
@@ -4917,7 +5036,7 @@
           '<div style="flex:1;min-width:0"><div style="font-size:18px;line-height:1.3;font-weight:900;letter-spacing:-.3px;color:#0d1117;text-wrap:pretty">' + esc(j.item) + info + '</div>' +
             (subline ? '<div style="margin-top:3px;font-size:14.5px;font-weight:700;color:#6b7280">' + esc(subline) +
               (added ? ' · <span ' + on(() => removeSignup(s, j)) + ' aria-label="Remove ' + esc(j.item) + '" style="color:#9b1c31;cursor:pointer">Remove</span>' : '') + '</div>' : '') + '</div>' +
-          btn + '</div>' + bar + desc + hostList + '</div>';
+          btn + '</div>' + bar + desc + hostList + (lead && !shifts && !s.cancelledAt && phaseOf(s) !== 'done' ? jobAskLine(s, j) : '') + '</div>';
     };
     const addLabel = lead ? 'Add a job or item' : 'Add something else';
     const adder = !st.sigAdding
@@ -5256,15 +5375,12 @@
   };
   const invitePerson = (s, p) => {
     if (state.viewAs) { toast('You’re viewing as ' + firstName(state.viewAs.name) + ', so nothing changes. Exit to make changes.'); return; }
-    const sh = state.share, was = sh.invited || [];
-    // Ask two people first: a line on why them, and two people (then the link is for everyone else)
-    if (sh.ask && !(sh.note || '').trim()) return toast(NEED_WHY);
-    if (sh.ask && (sh.asked || 0) >= 2) return;
-    setState({ share: Object.assign({}, sh, { invited: was.concat(p.id), asked: (sh.asked || 0) + 1 }) });
+    const was = state.share.invited || [];
+    setState({ share: Object.assign({}, state.share, { invited: was.concat(p.id) }) });
     // The Invited count and Who's coming show it at once; the refresh after the save settles it
     const cur = state.sparks.find(x => x.id === s.id) || s;
     if (!(cur.invites || []).some(i => i.userId === p.id)) patchSpark(s.id, { invites: (cur.invites || []).concat({ userId: p.id, by: state.me, at: Date.now(), nudgedAt: 0 }) });
-    sb.rpc('invite_friends', { p_spark: s.id, p_people: [p.id], p_message: (state.share.note || '').trim() || null }).then(r => { if (r.error) throw r.error; return loadFresh().catch(e => console.error(e)); })
+    sb.rpc('invite_friends', { p_spark: s.id, p_people: [p.id] }).then(r => { if (r.error) throw r.error; return loadFresh().catch(e => console.error(e)); })
       .catch(e => { console.error(e); if (state.share) setState({ share: Object.assign({}, state.share, { invited: (state.share.invited || []).filter(x => x !== p.id) }) }); toast(failed(e)); });
   };
   function viewShareSheet() {
@@ -5278,8 +5394,7 @@
       '<span style="width:52px;height:52px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center">' + svg(22, stroke('#5b4ae8', 2.1), icon) + '</span>' +
       '<span style="font-size:13.5px;font-weight:600;color:#6b7280">' + label + '</span></' + (fn ? 'div' : 'a') + '>';
     const more = () => { if (navigator.share) navigator.share({ title: s.text, text: msg, url: link }).catch(() => {}); else copy(msg, 'Invite copied. Paste it anywhere.'); };
-    const q = (sh.q || '').trim().toLowerCase(), invited = sh.invited || [], asked = sh.asked || 0;
-    const canAsk = !sh.ask || (!!(sh.note || '').trim() && asked < 2);
+    const q = (sh.q || '').trim().toLowerCase(), invited = sh.invited || [];
     const going = (id) => s.rsvps.some(r => r.userId === id && r.status === 'going');
     const people = (sh.people || []).filter(p => !q || p.name.toLowerCase().indexOf(q) > -1 || p.sub.toLowerCase().indexOf(q) > -1);
     const row = (p) => '<div data-invitee="' + esc(p.name) + '" style="display:flex;align-items:center;gap:12px;min-height:58px">' + avatarSpan(p.id, p.name, p.avatar ? photoUrl(p.avatar) : null, 44) +
@@ -5287,10 +5402,8 @@
         '<div style="font-size:13.5px;font-weight:500;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(p.sub) + '</div></div>' +
       (going(p.id) ? '<span style="flex:0 0 auto;font-size:14px;font-weight:800;color:#0f7a3c">Going</span>'
         : invited.indexOf(p.id) > -1 ? '<span aria-label="' + esc(p.name) + ' is invited" style="flex:0 0 auto;display:flex;align-items:center;gap:5px;min-height:40px;padding:0 16px;border-radius:999px;background:#ece9fd;color:#5b4ae8;font-size:14.5px;font-weight:800">' + svg(13, stroke('#5b4ae8', 2.8), '<path d="m5 12.5 4.5 4.5L19 7.5"/>') + 'Invited</span>'
-        : '<button type="button" ' + on(() => invitePerson(s, p)) + ' aria-label="Invite ' + esc(p.name) + '" aria-disabled="' + !canAsk + '" style="flex:0 0 auto;min-height:40px;padding:0 20px;border:0;border-radius:999px;background:' + (canAsk ? '#5b4ae8' : '#d5d8df') + ';color:#fff;font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer">Invite</button>') + '</div>';
+        : '<button type="button" ' + on(() => invitePerson(s, p)) + ' aria-label="Invite ' + esc(p.name) + '" style="flex:0 0 auto;min-height:40px;padding:0 20px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer">Invite</button>') + '</div>';
     const list = !canList ? '' :
-      whyThem(sh.note, (v) => setState({ share: Object.assign({}, state.share, { note: v }) }), !!sh.ask) +
-      (sh.ask ? '<div data-ask-count role="status" style="font-size:13.5px;font-weight:800;color:' + (asked >= 2 ? '#0f7a3c' : '#6b7280') + '">' + (asked >= 2 ? 'That’s your two. Share the link below for everyone else.' : asked + ' of 2 asked') + '</div>' : '') +
       '<label style="display:flex;align-items:center;gap:10px;min-height:48px;padding:0 16px;border-radius:999px;background:#f2f3f6">' + svg(18, stroke('#6b7280', 2.2), '<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/>') +
         '<input type="search" aria-label="Search friends and groups" placeholder="Search friends and groups" value="' + esc(sh.q || '') + '" ' + onInput(e => { if (e.type === 'input') setState({ share: Object.assign({}, state.share, { q: e.target.value.slice(0, 40) }) }); }) +
           ' style="flex:1;min-width:0;border:0;background:transparent;outline:none;font-family:inherit;font-size:16px;font-weight:500;color:#0d1117"></label>' +
@@ -5540,6 +5653,15 @@
       '<div style="display:flex;flex-direction:column">' + row(s.leadId, nameOf(s.leadId, s.leadName), tag(s.wantsHost ? 'Floated it' : 'Lead') + (manage && s.leadId === state.me && !s.wantsHost ? '<span style="color:#c9ccd3">·</span>' + act('Step back', () => { close(); askStepBack(s); }) : ''), 0) +
         s.cohosts.map((u, i) => row(u, nameOf(u), !manage ? tag('Co-lead') : u === state.me ? act('Step down', () => { close(); askRemoveCohost(s, u, true); }) : mayRemove ? act('Remove', () => { close(); askRemoveCohost(s, u, false); }) : tag('Co-lead'), i + 1)).join('') + '</div>' +
       (manage && s.cohosts.length < 5 ? '<span ' + on(() => { close(); openCohostPicker(s); }) + ' style="display:flex;align-items:center;gap:7px;min-height:44px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(15, '#5b4ae8', 2.6) + 'Add a co-lead</span>' : '') +
+      // Hand it to someone (owner, 2026-10-02): the lead only; the plan stays as it is until they say yes
+      (s.leadId === state.me && !s.wantsHost && !s.cancelledAt && phaseOf(s) !== 'done'
+        ? (s.leadOffer
+          ? '<div data-lead-offered style="display:flex;align-items:center;gap:8px;min-height:44px;font-size:14.5px;font-weight:700;color:#5c6270">' + face(s.leadOffer.userId, nameOf(s.leadOffer.userId), 24) +
+              '<span style="flex:1;min-width:0">Asked ' + esc(firstName(nameOf(s.leadOffer.userId))) + ' to take over · waiting</span>' +
+              '<span ' + on(() => withdrawLeadOffer(s)) + ' style="font-size:13.5px;font-weight:800;color:#9b1c31;cursor:pointer">Withdraw</span></div>'
+          : '<span ' + on(() => openHandOff(s)) + ' data-hand-off role="button" style="display:flex;align-items:center;gap:7px;min-height:44px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">' +
+              svg(15, stroke('#5b4ae8', 2.4), '<path d="M5 12h14M13 6l6 6-6 6"/>') + 'Hand it to someone</span>')
+        : '') +
       paraHtml('Co-leads plan it with the lead and keep it going if the lead can’t make it. They can do everything except cancel or delete it.'));
   }
   const openCohostPicker = (s) => {
@@ -5578,16 +5700,15 @@
     const la = state.leadAsk, s = state.sparks.find(x => x.id === la.id);
     if (!s || !s.wantsHost || s.cancelledAt) return '';
     const close = () => setState({ leadAsk: null }), q = (la.q || '').trim().toLowerCase();
-    const rank = (u) => s.canHelp.indexOf(u) > -1 ? 0 : s.interested.indexOf(u) > -1 ? 1 : 2, noted = !!(la.note || '').trim();
+    const rank = (u) => s.canHelp.indexOf(u) > -1 ? 0 : s.interested.indexOf(u) > -1 ? 1 : 2;
     const all = (la.people || []).map(p => ({ id: p.user_id || p.id, name: p.name || 'Someone' })).filter(p => p.id && p.id !== state.me && p.id !== s.leadId);
     const list = all.filter(p => !q || p.name.toLowerCase().indexOf(q) > -1).sort((a, b) => rank(a.id) - rank(b.id) || a.name.localeCompare(b.name));
     const tagOf = (u) => { const r = rank(u); return r === 2 ? '' : '<span style="display:block;margin-top:1px;font-size:12.5px;font-weight:800;color:' + (r ? '#6b7280' : '#0f7a3c') + '">' + (r ? 'Interested' : 'Can help') + '</span>'; };
     const btn = (p) => s.leadAsks.some(a => a.userId === p.id)
       ? '<span data-asked style="flex:0 0 auto;display:flex;align-items:center;gap:5px;min-height:38px;padding:0 6px;font-size:14px;font-weight:800;color:#0f7a3c">' + svg(13, stroke('currentColor', 3), P6.check) + 'Asked</span>'
-      : '<button type="button" class="hov-primary" ' + on(() => askToLead(s, p.id, la.note)) + ' aria-label="Ask ' + esc(p.name) + ' to lead" aria-disabled="' + !noted + '" style="flex:0 0 auto;min-height:38px;padding:0 18px;border:0;border-radius:999px;background:' + (noted ? '#5b4ae8' : '#d5d8df') + ';color:#fff;font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer">Ask</button>';
+      : '<button type="button" class="hov-primary" ' + on(() => askToLead(s, p.id)) + ' aria-label="Ask ' + esc(p.name) + ' to lead" style="flex:0 0 auto;min-height:38px;padding:0 18px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer">Ask</button>';
     return modal('Ask someone to lead', close,
       h3Html('Ask someone to lead') + paraHtml('Know who’d be great at this? They get a note asking if they’d lead <b style="font-weight:800;color:#0d1117">' + esc(s.text) + '</b>. It’s theirs once they tap I’ll lead.') +
-      whyThem(la.note, (v) => setState({ leadAsk: Object.assign({}, state.leadAsk, { note: v }) }), true) +
       (all.length > 7 ? '<input class="fld" type="search" aria-label="Search people" placeholder="Search" value="' + esc(la.q || '') + '" ' + onInput(e => { if (e.type === 'input') setState({ leadAsk: Object.assign({}, state.leadAsk, { q: e.target.value.slice(0, 40) }) }); }) + ' style="' + FIELD + '">' : '') +
       (la.people === null ? paraHtml('Loading…') : !list.length ? paraHtml(q ? 'Nobody by that name.' : 'No one else is in ' + esc(s.groupIds.length > 1 ? 'its groups' : 'the group') + ' yet.') :
         '<div style="display:flex;flex-direction:column;max-height:46vh;overflow:auto">' + list.map((p, i) =>
@@ -5700,7 +5821,7 @@
           shownUpdates.map(u => '<div data-update style="display:flex;gap:10px">' + (u.createdBy && u.createdBy !== s.leadId ? face(u.createdBy, nameOf(u.createdBy), 30) : face(s.leadId, leadName, 30)) + '<div style="flex:1;min-width:0;border-radius:4px 14px 14px 14px;background:#f2f3f6;padding:10px 12px;font-size:14.5px;line-height:1.4;font-weight:500;color:#2b303a;white-space:pre-line">' + esc(u.body) +
             '<div style="margin-top:4px;display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:#8a909b"><span style="flex:1">' + esc(ago(u.created) + (lead && UPD_TO[u.audience] ? ' · ' + UPD_TO[u.audience] : '')) + '</span>' +
               (lead && (!u.createdBy || u.createdBy === st.me) ? '<span ' + on(() => askRemoveUpdate(s, u)) + ' aria-label="Remove this update" style="color:#9b1c31;font-weight:800;cursor:pointer">Remove</span>' : '') + '</div></div></div>').join('')) + '</section>' : '') +
-        helpOut(s) +
+        askCards(s) + helpOut(s) +
         host +
         '<section>' + secTitle('Who’s in') + sheetCard(
           // the count sits inside the card, and the card opens the full list (owner, 2026-10-01)
@@ -7293,6 +7414,8 @@
       (st.interestList && subj ? viewInterestList(subj) : '') +
       (st.guestList && subj && st.guestList === subj.id ? viewGuestList(subj) : '') +
       (st.leadsSheet ? viewLeadsSheet() : '') +
+      (st.jobAsk ? viewJobAsk() : '') +
+      (st.handOff ? viewHandOff() : '') +
       (st.cohostPick ? viewCohostPicker() : '') +
       (st.leadAsk ? viewLeadAsk() : '') +
       (st.takeDown ? viewTakeDown() : '') +
@@ -7517,6 +7640,8 @@
       if (state.person) return setState({ person: null });
       if (state.peek) return setState({ peek: null });
       if (state.gMenu) return setState({ gMenu: null });
+      if (state.jobAsk) return setState({ jobAsk: null });
+      if (state.handOff) return setState({ handOff: null });
       if (state.ph) return closePositioner();
       if (state.invite) return setState({ invite: null });
       if (state.dateOpen) return setState({ dateOpen: null });
@@ -7852,7 +7977,7 @@
   if (bootUser) {
     const c = readCache(bootUser.id);
     Object.assign(state, { me: bootUser.id, email: bootUser.email, memberSince: bootUser.created_at ? new Date(bootUser.created_at).getFullYear() : null }, c
-      ? { isGoogle: c.isGoogle, myName: c.myName || '', myAvatar: c.myAvatar, myPlace: c.myPlace || '', myBio: c.myBio || '', memberSince: c.memberSince || null, groups: c.groups || [], sparks: (c.sparks || []).map(x => Object.assign({ leadAsks: [], invites: [] }, x)), profiles: c.profiles || {},
+      ? { isGoogle: c.isGoogle, myName: c.myName || '', myAvatar: c.myAvatar, myPlace: c.myPlace || '', myBio: c.myBio || '', memberSince: c.memberSince || null, groups: c.groups || [], sparks: (c.sparks || []).map(x => Object.assign({ leadAsks: [], invites: [], jobAsks: [], leadOffer: null }, x)), profiles: c.profiles || {},
           sizes: c.sizes || {}, notif: c.notif || state.notif, demoAdmin: !!c.demoAdmin, fr: c.fr && c.fr.friends ? c.fr : state.fr, loaded: true, fromCache: true }
       : {});
   }

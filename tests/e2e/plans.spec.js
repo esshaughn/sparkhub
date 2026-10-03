@@ -485,9 +485,6 @@ test('looking for a lead: the lead steps back, someone else takes the lead', asy
     await HI.locator('[data-ask-lead]').click();
     const ask = H.getByRole('dialog', { name: 'Ask someone to lead' });
     const ottoRow = ask.locator('[data-ask-uid="' + ottoId + '"]');
-    // A specific ask needs a line on why them (research, 2026-10-02)
-    await expect(ottoRow.getByRole('button', { name: 'Ask Otto to lead' })).toHaveAttribute('aria-disabled', 'true');
-    await ask.getByLabel('Why them?').fill('You ran the last walk so well');
     await ottoRow.getByRole('button', { name: 'Ask Otto to lead' }).click();
     await expect(ottoRow.locator('[data-asked]')).toHaveText('Asked');
     await expect(H.locator('html[data-saving]')).toHaveCount(0);
@@ -500,7 +497,6 @@ test('looking for a lead: the lead steps back, someone else takes the lead', asy
     await O.getByRole('button', { name: /^Notifications/ }).click();
     const feed = O.getByRole('dialog', { name: 'Notifications' });
     await expect(feed.locator('[data-notif=leadask]').filter({ hasText: title })).toContainText('Hope asked if you’d lead');
-    await expect(feed.locator('[data-notif=leadask]').filter({ hasText: title })).toContainText('You ran the last walk so well');
     await expect(feed.locator('[data-notif=newevent]').filter({ hasText: title })).toHaveCount(0);
     await feed.locator('[data-notif=leadask]').filter({ hasText: title }).click();
     const OI = O.locator('[data-screen-label="Idea page"]');
@@ -670,10 +666,8 @@ test('invite people: the lead invites a group member from the sheet; Invited sti
     await sheet.getByLabel('Search friends and groups').fill(nm);
     const row = sheet.locator('[data-invitee="' + nm + '"]');
     await expect(row).toContainText('Torrez Fitness');
-    await sheet.getByLabel('Why them?').fill('You know the trail');   // optional here; it rides along with the invite
     await row.getByRole('button', { name: 'Invite ' + nm }).click();
     await expect(row).toContainText('Invited');
-    await expect.poll(() => asUser(H, async (c, _C, { sid, u }) => ((await c.from('event_invites').select('message').eq('spark_id', sid).eq('user_id', u)).data || [])[0], { sid: id, u: nedra })).toEqual({ message: 'You know the trail' });
     await expect.poll(() => asUser(H, async (c, _C, sid) => (await c.rpc('event_invited', { p_spark: sid })).data, id)).toContainEqual(nedra);
     await sheet.getByRole('button', { name: 'Close' }).click();
     sheet = await open();
@@ -840,5 +834,90 @@ test('Calendar group filter: toggling works, and could use a hand follows it', a
     if (id) await deleteIdea(H, id).catch(() => {});
     if (gid) await asUser(V, async (c, _C, g) => c.rpc('e2e_delete_group', { p_group: g }), gid).catch(() => {});
     await host.context.close(); await viewer.context.close();
+  }
+});
+
+// Asking someone to take a job (owner, 2026-10-02, from Cynthia's demo): the lead finishes "I thought of you because…",
+// asks one or two people per job, and the person answers I'm in (signed up) or Can't this time
+test('ask someone to take a job: a personal line, two at a time, I’m in', async ({ browser }) => {
+  const host = await newLead(browser, 1, 'Hope'), helper = await newLead(browser, 2, 'Lin ' + Date.now().toString(36).slice(-4));
+  const H = host.page, O = helper.page, title = uniqueTitle('Parade');
+  let id;
+  try {
+    const lin = await asUser(O, async (c) => (await c.auth.getUser()).data.user);
+    const linName = lin.user_metadata.name;
+    id = await postEvent(H, { title, date: inDays(6), time: '10:00' });
+    await asUser(H, async (c, _C, id) => { await c.from('signup_items').insert({ spark_id: id, item: 'Barricades', need: 2 }); }, id);
+    await openIdea(H, id);
+    const HP = H.locator('[data-screen-label="Plan page"]'), job = HP.locator('[data-signup="Barricades"]');
+    await job.locator('[data-ask-job]').click();
+    const ask = H.getByRole('dialog', { name: 'Ask someone to take it' });
+    await expect(ask.locator('[data-job-ask-count]')).toHaveText('0 of 2 asked');
+    const row = ask.locator('[data-job-ask-row="' + linName + '"]');
+    await expect(row.getByRole('button', { name: 'Ask ' + linName })).toHaveAttribute('aria-disabled', 'true');   // the line comes first
+    await ask.getByLabel('I thought of you because').fill('you were great on barricades last year');
+    await row.getByRole('button', { name: 'Ask ' + linName }).click();
+    await expect(row).toContainText('Asked');
+    await expect(ask.locator('[data-job-ask-count]')).toHaveText('1 of 2 asked');
+    await expect(H.locator('html[data-saving]')).toHaveCount(0);
+    await ask.getByRole('button', { name: 'Close' }).click();
+    await expect(job.locator('[data-job-asks]')).toContainText('Asked ' + linName.split(' ')[0] + ' · waiting');
+
+    // Lin's bell and the event page carry the ask and its line; I'm in signs Lin up
+    await O.reload(); await expect(O.locator('html[data-loaded=true]')).toHaveCount(1);
+    await O.getByRole('button', { name: /^Notifications/ }).click();
+    const feed = O.getByRole('dialog', { name: 'Notifications' });
+    const bell = feed.locator('[data-notif=jobask]').filter({ hasText: title });
+    await expect(bell).toContainText('asked if you’d take Barricades for');
+    await expect(bell).toContainText('I thought of you because you were great on barricades last year');
+    await bell.click();
+    const card = O.locator('[data-screen-label="Plan page"] [data-job-ask-card]');
+    await expect(card).toContainText('asked if you’d take Barricades');
+    await card.getByRole('button', { name: 'I’m in' }).click();
+    await expect(card).toHaveCount(0);
+    await expect(O.locator('[data-screen-label="Plan page"] [data-signup="Barricades"]')).toContainText('You’re in');
+    expect(await asUser(O, async (c, _C, id) => (await c.from('rsvps').select('status').eq('spark_id', id).eq('user_id', (await c.auth.getUser()).data.user.id)).data[0].status, id)).toBe('going');
+    expect(helper.errors).toEqual([]);
+  } finally {
+    if (id) await deleteIdea(H, id).catch(() => {});
+    await host.context.close(); await helper.context.close();
+  }
+});
+
+// Handing the lead to someone (owner, 2026-10-02): nothing changes until they say yes; then they lead and you're a co-lead
+test('hand the lead to someone: they say yes, and the old lead is a co-lead', async ({ browser }) => {
+  const host = await newLead(browser, 1, 'Hope'), other = await newLead(browser, 2, 'Otto');
+  const H = host.page, O = other.page, title = uniqueTitle('Handover');
+  let id;
+  try {
+    id = await postEvent(H, { title, date: inDays(7), time: '09:00' });
+    await openIdea(H, id);
+    const HP = H.locator('[data-screen-label="Plan page"]');
+    await HP.locator('[data-led-by]').getByRole('button', { name: 'Manage co-leads' }).click();
+    await H.getByRole('dialog', { name: 'Leads' }).locator('[data-hand-off]').click();
+    const hand = H.getByRole('dialog', { name: 'Hand it to someone' });
+    await hand.getByLabel('A note').fill('You know the route');
+    await hand.locator('[data-hand-row="Otto"]').getByRole('button', { name: 'Hand it to Otto' }).click();
+    await expect(H.getByText('Asked Otto to take it over.')).toBeVisible();
+    await expect(H.locator('html[data-saving]')).toHaveCount(0);
+    expect(await asUser(H, async (c, _C, id) => (await c.from('sparks').select('lead_id').eq('id', id).single()).data.lead_id === (await c.auth.getUser()).data.user.id, id)).toBe(true);
+
+    await openIdea(O, id);
+    const card = O.locator('[data-screen-label="Plan page"] [data-lead-offer-card]');
+    await expect(card).toContainText('asked if you’d take over leading this');
+    await expect(card).toContainText('You know the route');
+    await card.getByRole('button', { name: 'I’ll take it' }).click();
+    await expect(O.getByText('You’re leading it now.')).toBeVisible();
+    await expect(O.locator('[data-screen-label="Plan page"]')).toContainText('YOU’RE LEADING');
+    const ids = await asUser(O, async (c, _C, id) => {
+      const me = (await c.auth.getUser()).data.user.id, s = (await c.from('sparks').select('lead_id').eq('id', id).single()).data;
+      const co = (await c.from('cohosts').select('user_id').eq('spark_id', id)).data.map(r => r.user_id);
+      return { lead: s.lead_id === me, cohosts: co.length };
+    }, id);
+    expect(ids).toEqual({ lead: true, cohosts: 1 });
+    expect(other.errors).toEqual([]);
+  } finally {
+    if (id) await deleteIdea(O, id).catch(() => {});
+    await host.context.close(); await other.context.close();
   }
 });

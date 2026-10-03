@@ -229,7 +229,8 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 152 | **Feedback ask** (v7-3, 1c): replaces the PSST card; a sheet with a text box, Send to Eric / Not now, then a tip at Profile | Test | smoke.spec |
 | 153 | **No help needed →** (v7-3, 1b) on Create event's How people can help while no job is added; Review reads No help needed | Test | post.spec |
 | 154 | **Who's leading it? cards** (v7-4, 1a): purple I'll lead it and yellow Just float the idea with checkboxes; still the last step before Review (owner) | Test | post.spec |
-| 155 | **Why them? on specific asks** (research, 2026-10-02): Ask someone to lead and Ask two people first need a line on why them (Ask two people first also stops at two); Invite people offers it; it goes in the push and the bell | Test | `20261102050000_ask_notes.sql`; plans.spec, helpers `closeAskFirst`, db checks |
+| 155 | **Ask someone to take a job** (owner, 2026-10-02): the lead's + Ask someone under a job, a required *I thought of you because…* line, two open asks per job; the person answers I'm in (signed up, Going) or Can't this time | Test | `ask_for_job()` (`20261102070000_job_asks_and_handoff.sql`); plans.spec, db checks |
+| 156 | **Hand it to someone** (owner, 2026-10-02): the lead offers the lead from the Leads sheet; they lead once they say yes, and the old lead stays as a co-lead | Test | `offer_lead()`; plans.spec, db checks |
 
 ## Removed in this rebuild
 

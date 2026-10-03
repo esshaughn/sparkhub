@@ -298,9 +298,6 @@ async function closeAskFirst(page) {
   const ask = page.getByRole('dialog', { name: 'Ask two people first' });
   await expect(ask.locator('[data-ask-first]')).toContainText('a friend or two');
   await expect(ask.locator('[data-invitees]')).toBeVisible();   // friends and the event's groups to invite (owner's mock, 2026-10-01)
-  // A line on why them comes first, and it's two people (research, 2026-10-02)
-  await expect(ask.locator('[data-ask-count]')).toHaveText('0 of 2 asked');
-  await expect(ask.locator('[data-invitees] button').first()).toHaveAttribute('aria-disabled', 'true');
   await ask.getByRole('button', { name: 'Close' }).click();
   await expect(ask).toHaveCount(0);
 }

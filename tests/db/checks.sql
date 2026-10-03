@@ -514,6 +514,64 @@ select t.check('someone else reads no invites to it',
   not exists (select 1 from event_invites where spark_id = (select id from sparks where text = 'Lead going walk')));
 reset role;
 
+-- Job asks and the lead handover (20261102070000_job_asks_and_handoff.sql) ------------------------------------
+insert into sparks (id, group_id, author_name, lead_name, lead_id, created_by, text, visibility, planned, day_date) values
+  (gen_random_uuid(), t.id('g'), 'Host', 'Host', t.id('host'), t.id('host'), 'Job ask walk', 'group', true, current_date + 5),
+  (gen_random_uuid(), t.id('g'), 'Host', 'Host', t.id('host'), t.id('host'), 'Handover walk', 'group', true, current_date + 6);
+insert into signup_items (id, spark_id, item, need, created_by) values
+  (gen_random_uuid(), (select id from sparks where text = 'Job ask walk'), 'Barricades', 3, t.id('host'));
+create function t.job() returns uuid language sql stable as $$ select id from signup_items where item = 'Barricades' $$;
+grant execute on function t.job() to authenticated;
+select t.login('host'); set role authenticated;
+select t.must_refuse('asking without a line', format($$select public.ask_for_job(%L, %L, '  ')$$, t.job(), t.id('helper')));
+select t.must_allow('the lead asks someone, with why them', format($$select public.ask_for_job(%L, %L, 'I thought of you because you did it last year')$$, t.job(), t.id('helper')));
+select t.must_allow('and a second person', format($$select public.ask_for_job(%L, %L, 'I thought of you because you live next door')$$, t.job(), t.id('taker')));
+select t.must_refuse('a third while two are open', format($$select public.ask_for_job(%L, %L, 'I thought of you because why not')$$, t.job(), t.id('late')));
+select t.must_refuse('asking someone outside the groups', format($$select public.ask_for_job(%L, %L, 'I thought of you')$$, t.job(), t.id('outsider')));
+select t.must_refuse('writing an ask directly', format($$insert into job_asks (item_id, spark_id, user_id, asked_by, message) values (%L, (select id from sparks where text = 'Job ask walk'), %L, %L, 'x')$$, t.job(), t.id('late'), t.id('host')));
+reset role;
+select t.login('admin'); set role authenticated;
+select t.must_refuse('someone who doesn''t lead it asking', format($$select public.ask_for_job(%L, %L, 'I thought of you')$$, t.job(), t.id('late')));
+select t.check('a member sees no asks that aren''t theirs', not exists (select 1 from job_asks));
+reset role;
+select t.login('helper'); set role authenticated;
+select t.check('the person asked sees the ask and its line', (select message from job_asks where user_id = t.id('helper')) = 'I thought of you because you did it last year');
+select t.must_allow('I''m in', format($$select public.answer_job_ask(%L, true)$$, t.job()));
+select t.check('I''m in signs them up', exists (select 1 from signup_claims where item_id = t.job() and user_id = t.id('helper')));
+select t.check('and marks them Going', exists (select 1 from rsvps where spark_id = (select id from sparks where text = 'Job ask walk') and user_id = t.id('helper') and status = 'going'));
+reset role;
+select t.login('host'); set role authenticated;
+select t.must_allow('an answer frees a slot for someone else', format($$select public.ask_for_job(%L, %L, 'I thought of you because you''re handy')$$, t.job(), t.id('late')));
+select t.must_allow('the lead withdraws an open ask', format($$select public.withdraw_job_ask(%L, %L)$$, t.job(), t.id('taker')));
+select t.check('the withdrawn ask is gone', not exists (select 1 from job_asks where item_id = t.job() and user_id = t.id('taker')));
+reset role;
+select t.login('late'); set role authenticated;
+select t.must_allow('Can''t this time', format($$select public.answer_job_ask(%L, false)$$, t.job()));
+reset role;
+select t.check('the asker gets a quiet note', exists (select 1 from notes where user_id = t.id('host') and body like '% can’t take Barricades this time (Job ask walk).'));
+select t.check('Can''t this time signs nobody up', not exists (select 1 from signup_claims where item_id = t.job() and user_id = t.id('late')));
+
+select t.login('admin'); set role authenticated;
+select t.must_refuse('only the lead hands it on', format($$select public.offer_lead((select id from sparks where text = 'Handover walk'), %L)$$, t.id('taker')));
+reset role;
+select t.login('host'); set role authenticated;
+select t.must_refuse('handing it to someone outside the groups', format($$select public.offer_lead((select id from sparks where text = 'Handover walk'), %L)$$, t.id('outsider')));
+select t.must_allow('the lead offers it to a member', format($$select public.offer_lead((select id from sparks where text = 'Handover walk'), %L, 'You know the route')$$, t.id('taker')));
+select t.check('nothing changes yet', (select lead_id from sparks where text = 'Handover walk') = t.id('host'));
+reset role;
+select t.login('helper'); set role authenticated;
+select t.must_refuse('someone else can''t accept it', $$select public.answer_lead_offer((select id from sparks where text = 'Handover walk'), true)$$);
+reset role;
+select t.login('taker'); set role authenticated;
+select t.check('the person offered sees it', exists (select 1 from lead_offers where user_id = t.id('taker')));
+select t.must_allow('they take it', $$select public.answer_lead_offer((select id from sparks where text = 'Handover walk'), true)$$);
+reset role;
+select t.check('they lead it now', (select lead_id from sparks where text = 'Handover walk') = t.id('taker'));
+select t.check('the old lead is a co-lead', exists (select 1 from cohosts where spark_id = (select id from sparks where text = 'Handover walk') and user_id = t.id('host')));
+select t.check('the new lead is Going', exists (select 1 from rsvps where spark_id = (select id from sparks where text = 'Handover walk') and user_id = t.id('taker') and status = 'going'));
+select t.check('the old lead gets a note', exists (select 1 from notes where user_id = t.id('host') and body like '% is leading Handover walk now. You’re a co-lead.'));
+select t.check('the offer is gone', not exists (select 1 from lead_offers where spark_id = (select id from sparks where text = 'Handover walk')));
+
 -- A plan needs a lead too (20261101200000_plan_needs_lead.sql) ----------------------------------------------------
 select t.login('host'); set role authenticated;
 insert into sparks (id, group_id, author_name, lead_name, lead_id, created_by, text, day_date)
@@ -747,6 +805,8 @@ create function t.load_matches() returns boolean language sql as $$
      and jsonb_array_length(d -> 'notes') = least(50, (select count(*) from notes))
      and jsonb_array_length(d -> 'lead_asks') = (select count(*) from lead_asks)
      and jsonb_array_length(d -> 'event_invites') = (select count(*) from event_invites)
+     and jsonb_array_length(d -> 'job_asks') = (select count(*) from job_asks)
+     and jsonb_array_length(d -> 'lead_offers') = (select count(*) from lead_offers)
      and not exists (select 1 from jsonb_array_elements(d -> 'profiles') e where (e ->> 'id')::uuid not in (select id from profiles))
     from (select public.load_all() as d) x
 $$;
