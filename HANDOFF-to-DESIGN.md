@@ -20,6 +20,7 @@ Where this doc and the design files disagree, **this doc is correct**.
 | 2 | **Invite people:** a person already invited reads *✓ Invited* as purple text (no pill). After Send invites the toast is *Invited Hana and Joseph* for one or two, *Invited Hana, Joseph and 2 more* for three or more | — | Build's reading of *Invite people* |
 | 3 | **Explore's *Needs help* card** reads *3 events need help* / *1 event needs help*; its sheet is titled *Needs help* | — | *Sort and filter words* |
 | 4 | **The voting card's hold line wraps** to two lines on a phone when the lead's *Keep holding* pill sits beside it (*Holding until Sat, Oct / 10*) | One line | Width; worth a look |
+| 5 | **The feedback ask comes after about 5 minutes in the app** (owner, 2026-10-03), still counted only while it's on screen, across visits, once per account on a device; the owner's inbox now says *from the feedback card* | About 10 minutes | Owner |
 
 ## 2. Things the build had to invent (please design these properly)
 

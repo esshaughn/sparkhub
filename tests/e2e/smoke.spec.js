@@ -809,15 +809,15 @@ test('a failed first load says so (never "not in a group"), and an event taken d
   }
 });
 
-// Asking for feedback (owner, 2026-10-02; v7 Update 15, 1c): after ~10 minutes of use, once, a sheet with a text box;
+// Asking for feedback (owner, 2026-10-02; v7 Update 15, 1c): after ~5 minutes of use (10 until 2026-10-03), once, a sheet with a text box;
 // sending it (or Not now) leaves a dark tip pointing at Profile
-test('after about 10 minutes, the feedback ask: write, Send to Eric, a tip at Profile, once', async ({ browser }) => {
+test('after about 5 minutes, the feedback ask: write, Send to Eric, a tip at Profile, once', async ({ browser }) => {
   const { page, context, errors } = await newLead(browser, 1, 'Tester');
   try {
     const me = await asUser(page, async (c) => (await c.auth.getUser()).data.user.id);
     await expect(page.locator('[data-fb-nudge]')).toHaveCount(0);
     // Nine minutes and fifty seconds so far: one more tick (after reopening) tips it over
-    await page.evaluate((me) => localStorage.setItem('spark-hub-fb-nudge-' + me, JSON.stringify({ used: 590000 })), me);
+    await page.evaluate((me) => localStorage.setItem('spark-hub-fb-nudge-' + me, JSON.stringify({ used: 290000 })), me);
     await page.reload();
     await expect(page.locator('html[data-loaded=true]')).toHaveCount(1);
     const ask = page.getByRole('dialog', { name: 'Help Eric improve the app' });

@@ -4182,10 +4182,10 @@
         '<div aria-hidden="true" style="width:40px;height:5px;border-radius:999px;background:#dcdfe6;margin:0 auto"></div>' + inner + '</div></div>';
   }
 
-  // ---- Asking for feedback (owner, 2026-10-02): after about 10 minutes of using the app (counted only while it's on
+  // ---- Asking for feedback (owner, 2026-10-02; 5 minutes since 2026-10-03, was 10): after about 5 minutes of using the app (counted only while it's on
   // screen, across visits, per account), a playful card once, with an arrow bouncing at the Profile tab where Give
   // feedback lives. Give feedback opens the sheet; Show me opens Profile with the tile marked RIGHT HERE
-  const FB_NUDGE_MS = 10 * 60 * 1000, FB_NUDGE_KEY = 'spark-hub-fb-nudge-';
+  const FB_NUDGE_MS = 5 * 60 * 1000, FB_NUDGE_KEY = 'spark-hub-fb-nudge-';
   let fbTickAt = Date.now();
   const fbNudgeRead = () => { try { return JSON.parse(localStorage.getItem(FB_NUDGE_KEY + state.me) || '{}') || {}; } catch (e) { return {}; } };
   const fbNudgeWrite = (o) => { try { localStorage.setItem(FB_NUDGE_KEY + state.me, JSON.stringify(o)); } catch (e) { /* blocked: it may ask again */ } };
@@ -4319,7 +4319,7 @@
       : '<div style="font-size:12.5px;font-weight:600;color:#9aa0ac">None</div>';
     return '<div data-fb-context style="display:flex;flex-direction:column;gap:3px;padding:10px 12px;border-radius:12px;background:#f4f5f7">' +
       line('<b style="font-weight:800;color:#2a2f38">' + esc(c.device || '') + '</b> · ' + esc(c.app || '') + ' · ' + esc(c.size || '') + (c.dark ? ' · dark mode' : '')) +
-      line('On ' + esc(where || '?') + ' · ' + esc(c.version || '') + (c.minutes ? ' · ' + c.minutes + ' min in the app' : '') + (c.fromNudge ? ' · from the 10-minute card' : '')) +
+      line('On ' + esc(where || '?') + ' · ' + esc(c.version || '') + (c.minutes ? ' · ' + c.minutes + ' min in the app' : '') + (c.fromNudge ? ' · from the feedback card' : '')) +
       ((c.errors || []).length ? line('<b style="font-weight:800;color:#9b1c31">' + c.errors.length + (c.errors.length === 1 ? ' recent error' : ' recent errors') + '</b>') : '') +
       (!c.online ? line('Was offline') : '') + (c.push && c.push !== 'granted' ? line('Phone notifications: ' + esc(c.push === 'default' ? 'not turned on' : c.push)) : '') +
       '<span ' + on(() => setState({ fbCtxOpen: Object.assign({}, state.fbCtxOpen, { [x.id]: !open }) })) + ' aria-expanded="' + !!open + '" style="align-self:flex-start;margin-top:2px;font-size:13px;font-weight:800;color:#5b4ae8;cursor:pointer">' + (open ? 'Hide details' : 'Last taps and errors') + '</span>' +
