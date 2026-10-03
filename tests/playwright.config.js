@@ -16,9 +16,10 @@ module.exports = defineConfig({
   testDir: './e2e',
   timeout: 90_000,
   expect: { timeout: 15_000 },
-  // CI runs 3 tests at a time: each worker signs in as its own pair of leads (leadEmail() in helpers.js,
+  // CI runs 2 tests at a time: each worker signs in as its own pair of leads (leadEmail() in helpers.js,
   // accounts from scripts/test-leads.py), so nothing collides. Locally one at a time (PW_WORKERS to change it).
-  workers: process.env.PW_WORKERS ? +process.env.PW_WORKERS : process.env.CI ? 3 : 1,
+  // 2 on CI since 2026-10-03 (was 3): three at once pushed the TEST project's small instance into swap (owner)
+  workers: process.env.PW_WORKERS ? +process.env.PW_WORKERS : process.env.CI ? 2 : 1,
   fullyParallel: false,
   retries: process.env.CI ? 1 : 0,
   // When the TEST project stalls (a small free instance; it has frozen for minutes late in a full run), every
