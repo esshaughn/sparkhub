@@ -1,6 +1,6 @@
 # Spark Hub
 
-A mobile-first web app where a group (a gym, a neighbourhood, a PTA…) posts rough ideas ("laser tag night") and everyone else fills in the details until the idea becomes a plan. One account works across groups; Torrez Fitness is one group. Built from the Claude Design handoff "Spark Torrez - Full Site 3" (`Spark Hub App.dc.html`).
+A mobile-first web app where a group (a gym, a neighbourhood, a PTA…) posts rough ideas ("laser tag night") and everyone else fills in the details until the idea becomes a plan. One account works across groups; Torrez Fitness is one group. Built from the Claude Design handoff "Spark Torrez - Full Site 3" (`Spark Hub App Version 7.dc.html`).
 
 ## Stack
 

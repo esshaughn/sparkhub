@@ -6,9 +6,16 @@ One app, many groups (Torrez Fitness is one, code TORREZ). Static HTML/CSS/JS (n
 
 **Renamed 2026-09-25:** live address https://gosparkhub.vercel.app (since 2026-09-29 also https://sparkhub.wereallneighbors.org: an `A` record to Vercel in the domain's DNS at Hostinger (registered at Namecheap), listed in `LIVE_HOSTS` in `js/config.js` and `api/preview.js`) (the Vercel project is `gosparkhub`; the old torrezhub.vercel.app redirects), GitHub repo `esshaughn/sparkhub`, Supabase projects `sparkhub` / `sparkhub-test`, daily backups in `~/Backups/sparkhub` (launchd `com.sparkhub.backup`). The local folder was renamed from `sparks-torrez` to `sparkhub` on 2026-09-27.
 
-## Design files
+## Design files and the two handoffs
 
-`design/spark-hub/` holds the current design spec (`README.md`, the decision log, and the clickable `Spark Hub App.dc.html` prototype; open it with `support.js` beside it). Photos, screenshots and explorations stay in the design zip. Where the README and `HANDOFF-to-design.md` disagree, the handoff records the owner's later decisions.
+Handoffs with Claude Design are two files, one per direction (owner, 2026-10-03; they replace the `SparkHub v7-N` zip downloads):
+
+- **`HANDOFF-to-design.md`** (repo root, build → Design). Ours: keep it current (below). Design reads it straight from GitHub.
+- **`design/spark-hub/HANDOFF-to-code.md`** (Design → build). Design's: **never edit it.** Its *New since …* list at the top says what changed since the last build. Where it disagrees with the older READMEs or UPDATE files, it wins.
+
+`design/spark-hub/` also holds the clickable prototype `Spark Hub App Version 7.dc.html` (open it with `support.js` beside it) and the older READMEs. Photos, screenshots and explorations stay with Design.
+
+**Each round:** the owner puts `HANDOFF-to-code.md` and the latest `Spark Hub App Version 7.dc.html` in `design/spark-hub/`. Read `HANDOFF-to-code.md` and build from its *New since …* list, with the design file as the visual reference. Record what you built, and anything you had to change or invent, in `HANDOFF-to-design.md` as usual. To answer one of Design's questions, write the answer in our file and name the section it answers (*Soft holds: built as specced, except …*). **Don't copy text from one file into the other**: each file only describes its own side's changes. Commit both of Design's files into `design/spark-hub/` with the build.
 
 ## Keep HANDOFF-to-design.md current
 
@@ -22,7 +29,7 @@ One app, many groups (Torrez Fitness is one, code TORREZ). Static HTML/CSS/JS (n
 - Bump the **As of** date.
 - Skip it for pure refactors, performance, dependency bumps or infra changes with no user-facing effect.
 
-When the user says a design round has absorbed the doc ("design synced", a new .dc.html handoff arrives, etc.), reset it: make the new design file the **Baseline**, clear §1–§4, and keep only the §5 questions that are still open.
+When a design round has absorbed the doc (Design's `HANDOFF-to-code.md` says it caught up with ours, or the user says "design synced"), reset it: make that round the **Baseline**, clear §1–§4 of what Design took in, and keep only the §5 questions that are still open.
 
 ## Branches and deploys
 
