@@ -31,6 +31,7 @@ Where this doc and the design files disagree, **this doc is correct**.
 | 13 | **Make it a plan! needs a lead and a date** (owner, 2026-10-02): the strip still shows Lead · Location · Details · Date, but the button appears once there's a lead and a date; the purple card lists only those (*Unlocks when that's done* / *both*), and the lead's Your tasks no longer asks for a location or details first. From 06:41 that morning it had waited for all four, a misreading of the strip mock | All four (as built from the mock) | Owner: only lead and date are required |
 | 14 | **Post to with several groups reads *Torrez Fitness & 1 other* / *& 2 others*** (Create event's Review, owner 2026-10-02) | *Torrez Fitness and Walnut Creek Neighborhood* | Owner |
 | 15 | **Jobs still to fill are a lead's task** (owner, 2026-10-02): on Your tasks' Leading cards (plans, and ideas under their next step) and the event page's purple Your tasks, one row per job with spots left, *Barricades: 2 spots to fill* (*· 1 asked* while asks are open), with **Ask** opening the personal ask for that job (a job with shifts says **Share** and opens the share sheet). Replaces the single *N spots open · Share list* / *Fill open spots* row | One *spots open* row with Share list | Owner |
+| 16 | **Create event's Review says *Details TBD*** for empty details, like *Date TBD* / *Location TBD* (owner, 2026-10-02) | *Details to be decided* | Owner |
 
 ## 2. Things the build had to invent (please design these properly)
 
