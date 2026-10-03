@@ -436,7 +436,7 @@
     ...toSignups(x.signups[row.id] || [], x.claims),
     updates: (x.updates[row.id] || []).sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at)).map(u => ({ id: u.id, body: u.body, audience: u.audience, createdBy: u.created_by || null, created: Date.parse(u.created_at) })),
     cohosts: (x.cohosts[row.id] || []).map(o => o.user_id),
-    leadAsks: (x.leadAsks[row.id] || []).map(a => ({ userId: a.user_id, by: a.asked_by, at: Date.parse(a.created_at) })),   // asked to lead (20261102020000_float_and_ask.sql)
+    leadAsks: (x.leadAsks[row.id] || []).map(a => ({ userId: a.user_id, by: a.asked_by, at: Date.parse(a.created_at), message: a.message || '' })),   // asked to lead (20261102020000_float_and_ask.sql)
     // Who was invited: the hosts see every invite, anyone else only their own (20261102040000_invited_and_nudge.sql)
     invites: (x.invites[row.id] || []).map(i => ({ userId: i.user_id, by: i.invited_by, at: Date.parse(i.created_at), nudgedAt: i.nudged_at ? Date.parse(i.nudged_at) : 0 })),
     album: (x.album[row.id] || []).sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at)).filter(a => PHOTO_PATH.test(a.path)).map(a => ({ id: a.id, path: a.path, createdBy: a.created_by })),
@@ -487,7 +487,8 @@
       // v6 Update 7: notes about events and jobs that were taken down (a database without them still loads)
       state.email ? sb.from('notes').select('id,body,created_by,created_at').order('created_at', { ascending: false }).limit(50) : Promise.resolve({ data: [] }),
       // Asked to lead (20261102020000_float_and_ask.sql; a database without them still loads)
-      state.email ? sb.from('lead_asks').select('spark_id,user_id,asked_by,created_at').order('created_at') : Promise.resolve({ data: [] }),
+      state.email ? sb.from('lead_asks').select('spark_id,user_id,asked_by,created_at,message').order('created_at')
+        .then(r => r.error && r.error.code === '42703' ? sb.from('lead_asks').select('spark_id,user_id,asked_by,created_at').order('created_at') : r) : Promise.resolve({ data: [] }),
       // Invites (20261030000000_friends.sql; nudged_at since 20261102040000_invited_and_nudge.sql)
       state.email ? sb.from('event_invites').select('spark_id,user_id,invited_by,created_at,nudged_at').order('created_at')
         .then(r => r.error && r.error.code === '42703' ? sb.from('event_invites').select('spark_id,user_id,invited_by,created_at').order('created_at') : r) : Promise.resolve({ data: [] })
@@ -561,7 +562,7 @@
     const fr = fd ? {
       friends: (fd.friends || []).map(f => ({ id: f.id, name: f.name || '', avatar: PHOTO_PATH.test(f.avatar || '') ? f.avatar : null, since: Date.parse(f.since) || 0, groups: f.groups || [] })),
       incoming: (fd.incoming || []).map(f => ({ id: f.id, name: f.name || '', avatar: PHOTO_PATH.test(f.avatar || '') ? f.avatar : null, group: f.group || '', at: Date.parse(f.at) || 0 })),
-      outgoing: fd.outgoing || [], invites: (fd.invites || []).map(i => ({ spark: i.spark, by: i.by, at: Date.parse(i.at) || 0 })), loaded: true
+      outgoing: fd.outgoing || [], invites: (fd.invites || []).map(i => ({ spark: i.spark, by: i.by, at: Date.parse(i.at) || 0, note: i.note || '' })), loaded: true
     } : state.viewAs ? { friends: [], incoming: [], outgoing: [], invites: [], loaded: true } : state.fr;
     fr.friends.concat(fr.incoming).forEach(f => { if (!profiles[f.id]) profiles[f.id] = { name: f.name, avatar: f.avatar, place: '', bio: '' }; });
     if (seq < loadWritten) return;   // a newer load already wrote fresher data
@@ -1359,10 +1360,18 @@
         if (state.leadAsk && state.leadAsk.id === s.id) setState({ leadAsk: Object.assign({}, state.leadAsk, { people }) }); })
       .catch(e => { console.error(e); setState({ leadAsk: null }); toast(failed(e)); });
   };
-  const askToLead = (s, u) => {
+  // A specific ask carries a line on why them (research, 2026-10-02: a personal ask got a yes where the same post to
+  // everyone got silence). Asking someone to lead needs one; the Invite people sheet asks for one (20261102050000_ask_notes.sql)
+  const whyThem = (val, set, required) => '<label data-why-them style="display:flex;flex-direction:column;gap:6px">' +
+    '<span style="font-size:12px;font-weight:900;letter-spacing:1px;color:#6b7280">WHY THEM?' + (required ? '' : ' <span style="font-weight:700;letter-spacing:0;color:#9aa0ac">(optional)</span>') + '</span>' +
+    '<input class="fld" type="text" maxlength="140" aria-label="Why them?" placeholder="e.g. You were great at the last one" value="' + esc(val || '') + '" ' + onInput(e => { if (e.type === 'input') set(e.target.value.slice(0, 140)); }) +
+      ' style="width:100%;box-sizing:border-box;min-height:48px;padding:0 14px;border:2px solid #dcdfe6;border-radius:14px;font-family:inherit;font-size:16px;font-weight:600;color:#0d1117;outline:none"></label>';
+  const NEED_WHY = 'Add a line on why them first';
+  const askToLead = (s, u, note) => {
     if (s.leadAsks.some(a => a.userId === u)) return;
-    quick(s, { leadAsks: s.leadAsks.concat({ userId: u, by: state.me, at: Date.now() }) },
-      async () => { must(await sb.rpc('ask_to_lead', { p_spark: s.id, p_user: u })); });
+    if (!(note || '').trim()) return toast(NEED_WHY);
+    quick(s, { leadAsks: s.leadAsks.concat({ userId: u, by: state.me, at: Date.now(), message: note.trim() }) },
+      async () => { must(await sb.rpc('ask_to_lead', { p_spark: s.id, p_user: u, p_message: note.trim() })); });
   };
 
   // Non-leads suggest (waits for the lead); the lead sets it straight away
@@ -3683,7 +3692,7 @@
           sub: firstName(nameOf(s.leadId, s.leadName)) + (ph === 'idea' ? ' is floating it' : ' is leading' + (s.dayDate ? ' · ' + dayLabel(s.dayDate, s.dayTime) : '')), rsvp: ph === 'plan' && !my });
       // Someone asked you to lead it, while it's still looking (20261102020000_float_and_ask.sql)
       if (s.wantsHost && !s.cancelledAt) s.leadAsks.filter(a => a.userId === me).forEach(a =>
-        add({ key: 'la:' + s.id + ':' + a.at, type: 'leadask', s, t: a.at, uid: a.by, who: nameOf(a.by, 'Someone'), text: 'asked if you’d lead' }));
+        add({ key: 'la:' + s.id + ':' + a.at, type: 'leadask', s, t: a.at, uid: a.by, who: nameOf(a.by, 'Someone'), text: 'asked if you’d lead', quote: a.message || '' }));
       if (!lead) return;
       // Things you're hosting
       // A job sign-up marks you Going: the sign-up's row covers it, so that automatic Going isn't its own row
@@ -3703,7 +3712,7 @@
     state.fr.incoming.forEach(f => add({ key: 'fr:' + f.id + ':' + f.at, type: 'friendreq', s: null, t: f.at, uid: f.id, who: f.name, text: 'wants to be friends', sub: f.group ? 'You’re both in ' + f.group : '' }));
     state.fr.invites.forEach(i => {
       const s = state.sparks.find(x => x.id === i.spark);
-      if (s && phaseOf(s) !== 'done') add({ key: 'fi:' + i.spark + ':' + i.by, type: 'invited', s, t: i.at, uid: i.by, who: nameOf(i.by), text: 'invited you to', sub: s.dayDate ? dayLabel(s.dayDate, s.dayTime) : '', rsvp: s.planned && !s.cancelledAt });
+      if (s && phaseOf(s) !== 'done') add({ key: 'fi:' + i.spark + ':' + i.by, type: 'invited', s, t: i.at, uid: i.by, who: nameOf(i.by), text: 'invited you to', sub: s.dayDate ? dayLabel(s.dayDate, s.dayTime) : '', rsvp: s.planned && !s.cancelledAt, quote: i.note || '' });
     });
     const topics = state.notif.topics || {};
     return out.filter(n => topics[N_TYPES[n.type].topic] !== false).sort((a, b) => b.t - a.t);
@@ -5246,12 +5255,15 @@
   };
   const invitePerson = (s, p) => {
     if (state.viewAs) { toast('You’re viewing as ' + firstName(state.viewAs.name) + ', so nothing changes. Exit to make changes.'); return; }
-    const was = state.share.invited || [];
-    setState({ share: Object.assign({}, state.share, { invited: was.concat(p.id) }) });
+    const sh = state.share, was = sh.invited || [];
+    // Ask two people first: a line on why them, and two people (then the link is for everyone else)
+    if (sh.ask && !(sh.note || '').trim()) return toast(NEED_WHY);
+    if (sh.ask && (sh.asked || 0) >= 2) return;
+    setState({ share: Object.assign({}, sh, { invited: was.concat(p.id), asked: (sh.asked || 0) + 1 }) });
     // The Invited count and Who's coming show it at once; the refresh after the save settles it
     const cur = state.sparks.find(x => x.id === s.id) || s;
     if (!(cur.invites || []).some(i => i.userId === p.id)) patchSpark(s.id, { invites: (cur.invites || []).concat({ userId: p.id, by: state.me, at: Date.now(), nudgedAt: 0 }) });
-    sb.rpc('invite_friends', { p_spark: s.id, p_people: [p.id] }).then(r => { if (r.error) throw r.error; return loadFresh().catch(e => console.error(e)); })
+    sb.rpc('invite_friends', { p_spark: s.id, p_people: [p.id], p_message: (state.share.note || '').trim() || null }).then(r => { if (r.error) throw r.error; return loadFresh().catch(e => console.error(e)); })
       .catch(e => { console.error(e); if (state.share) setState({ share: Object.assign({}, state.share, { invited: (state.share.invited || []).filter(x => x !== p.id) }) }); toast(failed(e)); });
   };
   function viewShareSheet() {
@@ -5265,7 +5277,8 @@
       '<span style="width:52px;height:52px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center">' + svg(22, stroke('#5b4ae8', 2.1), icon) + '</span>' +
       '<span style="font-size:13.5px;font-weight:600;color:#6b7280">' + label + '</span></' + (fn ? 'div' : 'a') + '>';
     const more = () => { if (navigator.share) navigator.share({ title: s.text, text: msg, url: link }).catch(() => {}); else copy(msg, 'Invite copied. Paste it anywhere.'); };
-    const q = (sh.q || '').trim().toLowerCase(), invited = sh.invited || [];
+    const q = (sh.q || '').trim().toLowerCase(), invited = sh.invited || [], asked = sh.asked || 0;
+    const canAsk = !sh.ask || (!!(sh.note || '').trim() && asked < 2);
     const going = (id) => s.rsvps.some(r => r.userId === id && r.status === 'going');
     const people = (sh.people || []).filter(p => !q || p.name.toLowerCase().indexOf(q) > -1 || p.sub.toLowerCase().indexOf(q) > -1);
     const row = (p) => '<div data-invitee="' + esc(p.name) + '" style="display:flex;align-items:center;gap:12px;min-height:58px">' + avatarSpan(p.id, p.name, p.avatar ? photoUrl(p.avatar) : null, 44) +
@@ -5273,8 +5286,10 @@
         '<div style="font-size:13.5px;font-weight:500;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(p.sub) + '</div></div>' +
       (going(p.id) ? '<span style="flex:0 0 auto;font-size:14px;font-weight:800;color:#0f7a3c">Going</span>'
         : invited.indexOf(p.id) > -1 ? '<span aria-label="' + esc(p.name) + ' is invited" style="flex:0 0 auto;display:flex;align-items:center;gap:5px;min-height:40px;padding:0 16px;border-radius:999px;background:#ece9fd;color:#5b4ae8;font-size:14.5px;font-weight:800">' + svg(13, stroke('#5b4ae8', 2.8), '<path d="m5 12.5 4.5 4.5L19 7.5"/>') + 'Invited</span>'
-        : '<button type="button" ' + on(() => invitePerson(s, p)) + ' aria-label="Invite ' + esc(p.name) + '" style="flex:0 0 auto;min-height:40px;padding:0 20px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer">Invite</button>') + '</div>';
+        : '<button type="button" ' + on(() => invitePerson(s, p)) + ' aria-label="Invite ' + esc(p.name) + '" aria-disabled="' + !canAsk + '" style="flex:0 0 auto;min-height:40px;padding:0 20px;border:0;border-radius:999px;background:' + (canAsk ? '#5b4ae8' : '#d5d8df') + ';color:#fff;font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer">Invite</button>') + '</div>';
     const list = !canList ? '' :
+      whyThem(sh.note, (v) => setState({ share: Object.assign({}, state.share, { note: v }) }), !!sh.ask) +
+      (sh.ask ? '<div data-ask-count role="status" style="font-size:13.5px;font-weight:800;color:' + (asked >= 2 ? '#0f7a3c' : '#6b7280') + '">' + (asked >= 2 ? 'That’s your two. Share the link below for everyone else.' : asked + ' of 2 asked') + '</div>' : '') +
       '<label style="display:flex;align-items:center;gap:10px;min-height:48px;padding:0 16px;border-radius:999px;background:#f2f3f6">' + svg(18, stroke('#6b7280', 2.2), '<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/>') +
         '<input type="search" aria-label="Search friends and groups" placeholder="Search friends and groups" value="' + esc(sh.q || '') + '" ' + onInput(e => { if (e.type === 'input') setState({ share: Object.assign({}, state.share, { q: e.target.value.slice(0, 40) }) }); }) +
           ' style="flex:1;min-width:0;border:0;background:transparent;outline:none;font-family:inherit;font-size:16px;font-weight:500;color:#0d1117"></label>' +
@@ -5562,15 +5577,16 @@
     const la = state.leadAsk, s = state.sparks.find(x => x.id === la.id);
     if (!s || !s.wantsHost || s.cancelledAt) return '';
     const close = () => setState({ leadAsk: null }), q = (la.q || '').trim().toLowerCase();
-    const rank = (u) => s.canHelp.indexOf(u) > -1 ? 0 : s.interested.indexOf(u) > -1 ? 1 : 2;
+    const rank = (u) => s.canHelp.indexOf(u) > -1 ? 0 : s.interested.indexOf(u) > -1 ? 1 : 2, noted = !!(la.note || '').trim();
     const all = (la.people || []).map(p => ({ id: p.user_id || p.id, name: p.name || 'Someone' })).filter(p => p.id && p.id !== state.me && p.id !== s.leadId);
     const list = all.filter(p => !q || p.name.toLowerCase().indexOf(q) > -1).sort((a, b) => rank(a.id) - rank(b.id) || a.name.localeCompare(b.name));
     const tagOf = (u) => { const r = rank(u); return r === 2 ? '' : '<span style="display:block;margin-top:1px;font-size:12.5px;font-weight:800;color:' + (r ? '#6b7280' : '#0f7a3c') + '">' + (r ? 'Interested' : 'Can help') + '</span>'; };
     const btn = (p) => s.leadAsks.some(a => a.userId === p.id)
       ? '<span data-asked style="flex:0 0 auto;display:flex;align-items:center;gap:5px;min-height:38px;padding:0 6px;font-size:14px;font-weight:800;color:#0f7a3c">' + svg(13, stroke('currentColor', 3), P6.check) + 'Asked</span>'
-      : '<button type="button" class="hov-primary" ' + on(() => askToLead(s, p.id)) + ' aria-label="Ask ' + esc(p.name) + ' to lead" style="flex:0 0 auto;min-height:38px;padding:0 18px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer">Ask</button>';
+      : '<button type="button" class="hov-primary" ' + on(() => askToLead(s, p.id, la.note)) + ' aria-label="Ask ' + esc(p.name) + ' to lead" aria-disabled="' + !noted + '" style="flex:0 0 auto;min-height:38px;padding:0 18px;border:0;border-radius:999px;background:' + (noted ? '#5b4ae8' : '#d5d8df') + ';color:#fff;font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer">Ask</button>';
     return modal('Ask someone to lead', close,
       h3Html('Ask someone to lead') + paraHtml('Know who’d be great at this? They get a note asking if they’d lead <b style="font-weight:800;color:#0d1117">' + esc(s.text) + '</b>. It’s theirs once they tap I’ll lead.') +
+      whyThem(la.note, (v) => setState({ leadAsk: Object.assign({}, state.leadAsk, { note: v }) }), true) +
       (all.length > 7 ? '<input class="fld" type="search" aria-label="Search people" placeholder="Search" value="' + esc(la.q || '') + '" ' + onInput(e => { if (e.type === 'input') setState({ leadAsk: Object.assign({}, state.leadAsk, { q: e.target.value.slice(0, 40) }) }); }) + ' style="' + FIELD + '">' : '') +
       (la.people === null ? paraHtml('Loading…') : !list.length ? paraHtml(q ? 'Nobody by that name.' : 'No one else is in ' + esc(s.groupIds.length > 1 ? 'its groups' : 'the group') + ' yet.') :
         '<div style="display:flex;flex-direction:column;max-height:46vh;overflow:auto">' + list.map((p, i) =>

@@ -476,6 +476,12 @@ select t.check('someone outside the event''s groups is skipped',
   (public.invite_friends((select id from sparks where text = 'Lead going walk'), array[t.id('outsider')]) -> 'invited') = '[]'::jsonb);
 select t.check('the lead sees who has an invite',
   array(select public.event_invited((select id from sparks where text = 'Lead going walk'))) = array[t.id('admin')]);
+select t.check('the lead invites with a note',
+  (public.invite_friends((select id from sparks where text = 'Lead going walk'), array[t.id('late')], '  ' || repeat('x', 150)) -> 'invited') ? t.id('late')::text);
+select t.check('an invite carries its note, trimmed and cut to 140 characters',
+  (select message from event_invites where user_id = t.id('late') and spark_id = (select id from sparks where text = 'Lead going walk')) = repeat('x', 140));
+select t.check('an invite without a note has none',
+  (select message from event_invites where user_id = t.id('admin') and spark_id = (select id from sparks where text = 'Lead going walk')) is null);
 reset role;
 select t.check('the invited member can see the event through the invite',
   exists (select 1 from link_access where user_id = t.id('admin') and via = 'invite' and spark_id = (select id from sparks where text = 'Lead going walk')));
@@ -665,7 +671,8 @@ select t.login('floater'); set role authenticated;
 select t.must_refuse('asking someone outside the event''s groups', format($$select public.ask_to_lead(%L, %L)$$, t.id('floated'), t.id('stranger')));
 select t.must_refuse('asking yourself', format($$select public.ask_to_lead(%L, %L)$$, t.id('floated'), t.id('floater')));
 select t.must_refuse('asking about a plan', format($$select public.ask_to_lead((select id from sparks where text = 'Plan not floated'), %L)$$, t.id('asked')));
-select t.must_allow('the floater asks a member to lead', format($$select public.ask_to_lead(%L, %L)$$, t.id('floated'), t.id('asked')));
+select t.must_allow('the floater asks a member to lead, with a note', format($$select public.ask_to_lead(%L, %L, 'You ran the last one so well')$$, t.id('floated'), t.id('asked')));
+select t.check('the ask keeps its note', (select message = 'You ran the last one so well' from lead_asks where spark_id = t.id('floated') and user_id = t.id('asked')));
 select t.must_allow('asking the same person again changes nothing', format($$select public.ask_to_lead(%L, %L)$$, t.id('floated'), t.id('asked')));
 select t.check('the floater sees one ask', (select count(*) = 1 from lead_asks where spark_id = t.id('floated') and user_id = t.id('asked')));
 select t.must_allow('the floater asks about a second idea', format($$select public.ask_to_lead(%L, %L)$$, t.id('floated_back'), t.id('asked')));

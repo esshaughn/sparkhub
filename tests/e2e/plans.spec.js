@@ -485,6 +485,9 @@ test('looking for a lead: the lead steps back, someone else takes the lead', asy
     await HI.locator('[data-ask-lead]').click();
     const ask = H.getByRole('dialog', { name: 'Ask someone to lead' });
     const ottoRow = ask.locator('[data-ask-uid="' + ottoId + '"]');
+    // A specific ask needs a line on why them (research, 2026-10-02)
+    await expect(ottoRow.getByRole('button', { name: 'Ask Otto to lead' })).toHaveAttribute('aria-disabled', 'true');
+    await ask.getByLabel('Why them?').fill('You ran the last walk so well');
     await ottoRow.getByRole('button', { name: 'Ask Otto to lead' }).click();
     await expect(ottoRow.locator('[data-asked]')).toHaveText('Asked');
     await expect(H.locator('html[data-saving]')).toHaveCount(0);
@@ -497,6 +500,7 @@ test('looking for a lead: the lead steps back, someone else takes the lead', asy
     await O.getByRole('button', { name: /^Notifications/ }).click();
     const feed = O.getByRole('dialog', { name: 'Notifications' });
     await expect(feed.locator('[data-notif=leadask]').filter({ hasText: title })).toContainText('Hope asked if you’d lead');
+    await expect(feed.locator('[data-notif=leadask]').filter({ hasText: title })).toContainText('You ran the last walk so well');
     await expect(feed.locator('[data-notif=newevent]').filter({ hasText: title })).toHaveCount(0);
     await feed.locator('[data-notif=leadask]').filter({ hasText: title }).click();
     const OI = O.locator('[data-screen-label="Idea page"]');
@@ -666,8 +670,10 @@ test('invite people: the lead invites a group member from the sheet; Invited sti
     await sheet.getByLabel('Search friends and groups').fill(nm);
     const row = sheet.locator('[data-invitee="' + nm + '"]');
     await expect(row).toContainText('Torrez Fitness');
+    await sheet.getByLabel('Why them?').fill('You know the trail');   // optional here; it rides along with the invite
     await row.getByRole('button', { name: 'Invite ' + nm }).click();
     await expect(row).toContainText('Invited');
+    await expect.poll(() => asUser(H, async (c, _C, { sid, u }) => ((await c.from('event_invites').select('message').eq('spark_id', sid).eq('user_id', u)).data || [])[0], { sid: id, u: nedra })).toEqual({ message: 'You know the trail' });
     await expect.poll(() => asUser(H, async (c, _C, sid) => (await c.rpc('event_invited', { p_spark: sid })).data, id)).toContainEqual(nedra);
     await sheet.getByRole('button', { name: 'Close' }).click();
     sheet = await open();
@@ -767,5 +773,39 @@ test('the lead steps back from a plan: it is an idea again, looking for a lead',
   } finally {
     if (id) await deleteIdea(H, id).catch(() => {});
     await host.context.close();
+  }
+});
+
+// A sign-up shows on the group page straight away (Cynthia's demo, 2026-10-02: "it didn't reflect back in the group view").
+// Not reproducible after af15e80 (a late refresh could undo a tap); this keeps it that way
+test('a sign-up shows on the group page, the Calendar and the lead’s card', async ({ browser }) => {
+  const host = await newLead(browser, 1, 'Hope'), helper = await newLead(browser, 2, 'Omar');
+  const H = host.page, O = helper.page, title = uniqueTitle('Barricades');
+  const groupCard = async (P) => {
+    await P.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Groups', exact: true }).click();
+    await P.locator('[data-screen-label=Groups]').getByRole('button', { name: 'Torrez Fitness', exact: true }).click();
+    return P.locator('[data-screen-label=Browse] [data-plan="' + title + '"]');
+  };
+  let id;
+  try {
+    id = await postEvent(H, { title, date: inDays(8), time: '17:00' });
+    await asUser(H, async (c, _C, id) => { await c.from('signup_items').insert({ spark_id: id, item: 'Barricades', need: 2 }); }, id);
+    await O.reload(); await expect(O.locator('html[data-loaded=true]')).toHaveCount(1);
+    const card = await groupCard(O);
+    await expect(card).not.toContainText('Helping');
+    await card.click();
+    await O.locator('[data-screen-label="Plan page"] [data-signup="Barricades"]').getByRole('button', { name: 'Sign up' }).click();
+    await O.locator('[data-screen-label="Plan page"]').getByRole('button', { name: /^Back/ }).first().click();
+    await expect(card).toContainText('Helping');
+    await O.waitForTimeout(3000);   // the refresh after the save doesn't undo it
+    await expect(card).toContainText('Helping');
+    await O.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Calendar', exact: true }).click();
+    await expect(O.locator('[data-screen-label=Calendar] [data-plan="' + title + '"]')).toContainText('Helping');
+    await H.reload(); await expect(H.locator('html[data-loaded=true]')).toHaveCount(1);
+    await expect(await groupCard(H)).toContainText('1 spot open');
+    expect(helper.errors).toEqual([]);
+  } finally {
+    if (id) await deleteIdea(H, id).catch(() => {});
+    await host.context.close(); await helper.context.close();
   }
 });
