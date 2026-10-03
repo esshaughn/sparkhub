@@ -6,7 +6,6 @@ Parked work. Newest first. When you pick something up, move it to a branch and d
 
 - **Ask someone to take a job, on jobs with shifts.** Built for single jobs only; a shift job's task row says Share and opens the share sheet instead. Needs a pick-a-shift step in the ask (or ask for the whole job, the person picks the shift on I'm in).
 - **The TEST project's size.** It's a free nano instance (~400 MB) and swaps under busy test nights (2026-10-02: three restarts' worth). CI now runs 2 at a time and full runs once per batch. If that's not enough, moving the `sparkhub-test` organization to Pro ($25/month) gives it 1 GB.
-- **"Help to be decided" on Create event's Review** next to the new *Details TBD*: asked the owner whether it should read *Help TBD* too (2026-10-03).
 
 ## Turning guests into members (parked 2026-10-01)
 

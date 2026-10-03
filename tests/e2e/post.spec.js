@@ -187,7 +187,7 @@ test('decide everything later: only the title is needed; the host is left with t
     await flow.getByRole('button', { name: 'Review' }).click();
     // Review: every undecided part in amber
     await expect(flow).toContainText('LOOKS GOOD');
-    for (const t of ['Date TBD', 'Location TBD', 'Details TBD', 'Help to be decided']) await expect(flow).toContainText(t);
+    for (const t of ['Date TBD', 'Location TBD', 'Details TBD', 'Help TBD']) await expect(flow).toContainText(t);
     // Every part's link on Review says Edit and opens that part in a pop-up over Review (owner, 2026-10-02)
     for (const part of ['date & time', 'location', 'details', 'how people can help']) await expect(flow.getByRole('button', { name: 'Edit ' + part, exact: true })).toHaveText('Edit');
     await expect(flow.getByText('Add', { exact: true })).toHaveCount(0);
