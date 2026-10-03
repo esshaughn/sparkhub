@@ -2956,13 +2956,17 @@
   // v6 (design/spark-hub/README-v6.md): Your tasks · Your schedule · the community Calendar
   // ---------------------------------------------------------------------------
 
+  // Diagonal stripes mean Maybe (Design 22–23, 2026-10-03): a Maybe's fill is 45° bands of 5px in its own colours
+  const STRIPE = (a, b) => 'repeating-linear-gradient(-45deg,' + a + ' 0 5px,' + b + ' 5px 10px)';
+  const edge = (c) => c.charAt(0) === '#' ? c : 'transparent';   // a border in a fill's colour (stripes can't be a border)
+  const MAYBE_GREEN = STRIPE('#f7fcf9', '#e9f6ee'), MAYBE_GOLD = STRIPE('#fdf1d6', '#f9e4b0'), MAYBE_SOLID = STRIPE('#e8a71c', '#f1bb45');
   // Role colours: dot/bar, strip, pill, ink, the date line on photos, the "+N more" sliver
   const R6 = {
     lead: { dot: '#5b4ae8', strip: '#f7f6ff', pill: '#f3f1fe', ink: '#4a3ad4', kick: '#cfc9ff', sliver: '#f9f8ff', word: 'Leading' },
     help: { dot: '#e8a71c', strip: '#fefaef', pill: '#fdf1d6', ink: '#8f6405', kick: '#ffd98a', sliver: '#fefaef', word: 'Helping' },
     go: { dot: '#149a4b', strip: '#f3fbf6', pill: '#e7f6ec', ink: '#0f7a3c', kick: '#9eecbc', sliver: '#f4fbf6', word: 'Going' },
-    // Maybe reads lighter than Going (v7 Update 16)
-    maybe: { dot: '#a9d6ba', strip: '#fbfcfb', pill: '#eef6f1', ink: '#3c7a55', kick: '#a9d6ba', sliver: '#fbfcfb', word: 'Maybe' },
+    // Maybe reads lighter than Going (v7 Update 16), on pale green stripes (Design 22)
+    maybe: { dot: '#a9d6ba', strip: MAYBE_GREEN, pill: MAYBE_GREEN, ink: '#2f6e49', kick: '#a9d6ba', sliver: MAYBE_GREEN, word: 'Maybe' },
     open: { dot: '#c3c7d0', strip: '#fafafb', pill: '#f2f3f6', ink: '#454b55', kick: '#dfe2e8', sliver: '#fafafb', word: '' }
   };
   const P6 = {
@@ -3098,7 +3102,7 @@
     const tap = (e) => { stop(e); if (acts.length < 3) openSpark(s); else setState({ [key]: Object.assign({}, state[key], { [s.id]: !open }) }); };
     return '<div ' + on(tap) + ' aria-label="' + (acts.length < 3 ? 'Open ' + esc(s.text) : open ? 'Show fewer to-dos' : 'Show all ' + acts.length + ' to-dos') + '" aria-expanded="' + (acts.length < 3 ? 'false' : open) + '" style="display:flex;flex-direction:column">' +
       shown.map(a => actRow(a, R)).join('') +
-      (acts.length > 2 ? '<div style="height:26px;padding:0 12px;border-top:1px solid ' + R.sliver + ';background:' + R.sliver + ';display:flex;align-items:center;justify-content:center;gap:3px;font-size:12px;font-weight:800;color:' + R.ink + '">' +
+      (acts.length > 2 ? '<div style="height:26px;padding:0 12px;border-top:1px solid ' + edge(R.sliver) + ';background:' + R.sliver + ';display:flex;align-items:center;justify-content:center;gap:3px;font-size:12px;font-weight:800;color:' + R.ink + '">' +
         (open ? 'Show less' : '+' + (acts.length - 2) + ' more') + chev6(11, R.ink, open) + '</div>' : '') +
     '</div>';
   };
@@ -3287,7 +3291,7 @@
       const word = P.right || (P.rows.length ? P.rows.length + (P.rows.length === 1 ? ' task' : ' tasks') : 'All set');
       right = '<span style="display:flex;align-items:center;gap:4px">' + (open ? '' : word) + (expands || P.k === 'go' ? chev6(11, P.R.ink, open) : '') + '</span>';
     }
-    return '<div ' + on(tap) + ' aria-expanded="' + open + '" style="display:flex;align-items:center;justify-content:space-between;gap:10px;height:' + h + 'px;padding:0 14px;background:' + P.R.strip + ';border-top:1px solid ' + P.R.strip + ';font-size:' + (h > 30 ? 13.5 : 12) + 'px;font-weight:800;color:' + P.R.ink + ';cursor:pointer">' + '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + left + '</span>' + right + '</div>' +
+    return '<div ' + on(tap) + ' aria-expanded="' + open + '" style="display:flex;align-items:center;justify-content:space-between;gap:10px;height:' + h + 'px;padding:0 14px;background:' + P.R.strip + ';border-top:1px solid ' + edge(P.R.strip) + ';font-size:' + (h > 30 ? 13.5 : 12) + 'px;font-weight:800;color:' + P.R.ink + ';cursor:pointer">' + '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + left + '</span>' + right + '</div>' +
       (open ? '<div style="display:flex;flex-direction:column;background:#fff">' + P.rows.map(a => actRow(a, P.R)).join('') + '</div>' : '');
   };
   // Tiles: the photo with date, title and place; the strip under it
@@ -3711,7 +3715,7 @@
     const s = state.sparks.find(x => x.id === state.peek);
     if (!s) return '';
     const close = () => setState({ peek: null }), lead = isLead(s), my = myRsvp(s), ids = going(s).map(r => r.userId), n = ids.length;
-    const C = { going: ['#149a4b', '#fff'], maybe: ['#e8a71c', '#2a1d00'], no: ['#0d1117', '#fff'] };
+    const C = { going: ['#149a4b', '#fff'], maybe: [MAYBE_SOLID, '#2a1d00'], no: ['#0d1117', '#fff'] };
     const btn = (k, label) => { const sel = my === k; return '<button type="button" ' + on(() => setRsvp(s, k)) + ' aria-pressed="' + sel + '" style="flex:1 1 0;min-height:48px;border:0;border-radius:999px;font-family:inherit;font-size:15px;font-weight:800;cursor:pointer;' +
       (sel ? 'background:' + C[k][0] + ';color:' + C[k][1] : 'background:#fff;color:#0d1117;box-shadow:inset 0 0 0 1.5px #dcdfe6') + '">' + label + '</button>'; };
     return '<div class="v6-scrim" data-scrim="' + reg(close) + '" style="display:flex;align-items:flex-end">' +
@@ -5578,7 +5582,9 @@
       '<span style="font-size:13.5px;font-weight:600;color:#6b7280">' + label + '</span></' + (fn ? 'div' : 'a') + '>';
     const more = () => { if (navigator.share) navigator.share({ title: s.text, text: msg, url: link }).catch(() => {}); else copy(msg, 'Invite copied. Paste it anywhere.'); };
     const q = (sh.q || '').trim().toLowerCase(), invited = sh.invited || [];
-    const going = (id) => s.rsvps.some(r => r.userId === id && r.status === 'going');
+    // Anyone who has answered shows their answer and can't be picked (owner, 2026-10-03: Can't and Maybe were still invitable / read Invited)
+    const answer = (id) => { const r = s.rsvps.find(x => x.userId === id); return r ? r.status : null; };
+    const ANS = { going: ['Going', '#0f7a3c'], maybe: ['Maybe', '#b07a0a'], no: ['Can’t', '#6b7280'] };
     const people = (sh.people || []).filter(p => !q || p.name.toLowerCase().indexOf(q) > -1 || p.sub.toLowerCase().indexOf(q) > -1);
     const picked = sh.picked || [], nPick = picked.length;
     const tick = (p) => { const on_ = picked.indexOf(p.id) > -1;
@@ -5587,7 +5593,7 @@
     const row = (p) => '<div data-invitee="' + esc(p.name) + '" style="display:flex;align-items:center;gap:12px;min-height:58px">' + avatarSpan(p.id, p.name, p.avatar ? photoUrl(p.avatar) : null, 44) +
       '<div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(p.name) + '</div>' +
         '<div style="font-size:13.5px;font-weight:500;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(p.sub) + '</div></div>' +
-      (going(p.id) ? '<span style="flex:0 0 auto;font-size:14px;font-weight:800;color:#0f7a3c">Going</span>'
+      (ANS[answer(p.id)] ? '<span data-answered style="flex:0 0 auto;font-size:14px;font-weight:800;color:' + ANS[answer(p.id)][1] + '">' + ANS[answer(p.id)][0] + '</span>'
         : invited.indexOf(p.id) > -1 ? '<span aria-label="' + esc(p.name) + ' is invited" style="flex:0 0 auto;display:flex;align-items:center;gap:5px;font-size:14px;font-weight:800;color:#5b4ae8">' + svg(13, stroke('#5b4ae8', 2.8), '<path d="m5 12.5 4.5 4.5L19 7.5"/>') + 'Invited</span>'
         : tick(p)) + '</div>';
     const list = !canList ? '' :
@@ -5977,12 +5983,12 @@
       '</div>';
 
     // RSVP: three buttons, no checkmarks; tapping your pick again clears it
-    const RC = { going: '#149a4b', maybe: '#e8a71c', no: '#6b7280' };
+    const RC = { going: '#149a4b', maybe: MAYBE_SOLID, no: '#6b7280' };
     const rsvpBtn = (k, label, n) => {
       const onIt = my === k;
       return '<button type="button" ' + on(() => setRsvp(s, k)) + ' aria-pressed="' + onIt + '" style="min-height:60px;border:0;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-family:inherit;cursor:pointer;' +
-        (onIt ? 'background:' + RC[k] + ';color:#fff' : 'background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;color:#0d1117') + '">' +
-        '<span style="font-size:17px;font-weight:800">' + label + '</span><span style="font-size:13px;font-weight:700;color:' + (onIt ? 'rgba(255,255,255,.85)' : '#6b7280') + '">' + n + '</span></button>';
+        (onIt ? 'background:' + RC[k] + ';color:' + (k === 'maybe' ? '#2a1d00' : '#fff') : 'background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;color:#0d1117') + '">' +   // dark on the gold stripes, to read
+        '<span style="font-size:17px;font-weight:800">' + label + '</span><span style="font-size:13px;font-weight:700;color:' + (onIt ? (k === 'maybe' ? 'rgba(42,29,0,.75)' : 'rgba(255,255,255,.85)') : '#6b7280') + '">' + n + '</span></button>';
     };
     // An update sent to Going, Maybe or people who haven't replied shows only to them; the host sees all, labelled
     const shownUpdates = lead ? s.updates : s.updates.filter(u => { const a = u.audience || 'all'; return a === 'all' || a === my || (a === 'noreply' && !my); });
@@ -6847,17 +6853,7 @@
             list(bits.concat(needLine ? [needLine] : []).map(t => '<span style="flex:0 0 6px;width:6px;height:6px;border-radius:999px;background:#149a4b;transform:translateY(-2px)"></span><span style="font-size:15.5px;line-height:1.35;font-weight:500;color:#0d1117;text-wrap:pretty">' + esc(t) + '</span>')) : main('Details TBD', false)) +
           card(HAND_IC, 'Ask for help', filled.help || (st.evHelpNone && !st.evNeeds.length), '', 'help', st.evNeeds.length ? list(st.evNeeds.map(j => '<span style="flex:1;min-width:0;font-size:15.5px;line-height:1.35;font-weight:800;color:#0d1117;text-wrap:pretty">' + esc(cleanTitle(j.item)) + '</span><span style="flex:0 0 auto;font-size:13px;font-weight:700;color:#6b7280">' + esc(jobMeta(j)) + '</span>')) : st.evHelpNone ? main('No help needed', true) : main('Help TBD', false)) +
         '</div>' +
-        '<div style="display:flex;flex-direction:column;gap:8px"><div style="padding:0 4px;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:#0d1117">Who can see it</div>' +
-          '<div style="background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08)"><div data-menu style="position:relative">' +
-            '<div ' + on((e) => { stop(e); setState({ menu: gOpen ? null : 'evGroups' }); }) + ' aria-label="Post to" aria-expanded="' + gOpen + '" style="display:flex;align-items:center;gap:12px;min-height:58px;padding:10px 14px;cursor:pointer">' +
-              '<span aria-hidden="true" style="flex:0 0 36px;width:36px;height:36px;border-radius:11px;background:' + groupBg(g0, '#f3f1fe') + '"></span>' +
-              '<div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:900;letter-spacing:.7px;text-transform:uppercase;color:#8a909b">Post to</div><div style="font-size:15px;font-weight:800;color:#0d1117">' + esc(groupsShort(names)) + '</div></div>' +
-              (myGroups().length > 1 ? '<span style="font-size:13px;font-weight:800;color:#5b4ae8">Choose</span>' : '') + '</div>' +
-            (gOpen && myGroups().length > 1 ? '<div style="position:absolute;left:12px;right:12px;top:60px;z-index:20;background:#fff;border-radius:16px;box-shadow:0 12px 32px rgba(15,18,25,.18), 0 0 0 1px #e6e7eb;padding:6px">' +
-              groupsInOrder().map(g => groupCheck(g, groups.indexOf(g.id) > -1, (e) => { stop(e); const nx = groups.indexOf(g.id) > -1 ? groups.filter(x => x !== g.id) : groups.concat(g.id); setState({ evGroups: nx.length ? nx : groups }); })).join('') + '</div>' : '') +
-          '</div><div style="padding:12px 14px 14px;border-top:1px solid #f2f3f6;display:flex;gap:8px">' +
-            tile(false, 'Public', 'Everyone in your groups', PEOPLE_IC) + tile(true, 'Private', 'Only people you invite', LOCK_IC) + '</div>' +
-            '<div style="padding:0 14px 14px">' + guestInvSwitch(!st.evNoGuestInv, () => setState({ evNoGuestInv: !st.evNoGuestInv })) + '</div></div></div>' +
+        // Who can see it moved to step 1 (Design 22a + 23a, 2026-10-03)
         '</div>' +
         // At the end of the page, not stuck over it (owner, 2026-10-01). A date locks it in as a plan (green); without one
         // it goes up as an idea: a gold card saying so, and a gold Post as an idea (owner's mock, 2026-10-01)
@@ -6889,14 +6885,14 @@
     const skip = () => evGo(ahead, Object.assign({}, CLEAR[cur] || {}, aheadX, { evLater: Object.assign({}, st.evLater, { [cur]: true }) }, cur === 'help' ? { evHelpNone: false } : {}));
     // Ask for help (Design 24c3c): no Decide later and no No help needed → in the footer; the step's own radio row answers it
     return '<div class="overlay-screen" data-screen-label="New spark"><div style="display:flex;flex-direction:column;min-height:100%">' +
-      '<div style="position:relative;flex:0 0 auto;height:' + (cur === 'title' ? 270 : 200) + 'px;transition:height 240ms ease;background:' + (url ? '#2b303a ' + bg(url) : EV_GRAD) + '">' +
+      '<div style="position:relative;flex:0 0 auto;height:' + (cur === 'title' ? 150 : 200) + 'px;transition:height 240ms ease;background:' + (url ? '#2b303a ' + bg(url) : EV_GRAD) + '">' +
         '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top,rgba(13,17,23,.88),rgba(13,17,23,.12) 55%,rgba(13,17,23,.4))"></div>' +
         '<div style="position:absolute;left:0;right:0;top:0;z-index:2"><div style="display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:10px;padding:12px 16px">' +
           '<div style="display:flex"><span ' + on(close) + ' aria-label="Close" style="flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;cursor:pointer">' + DARK_X + '</span></div>' +
           '<span style="font-size:14.5px;font-weight:800;color:#fff">' + (i + 1) + ' of ' + EV_STEPS.length + '</span><div></div></div>' +
           '<div aria-hidden="true" style="height:4px;background:rgba(255,255,255,.22)"><div style="width:' + ((i + 1) / EV_STEPS.length * 100) + '%;height:100%;background:#fff;border-radius:0 999px 999px 0;transition:width 240ms ease"></div></div></div>' +
         '<div style="position:absolute;left:18px;right:18px;bottom:30px;z-index:1;color:#fff"><div style="font-size:11.5px;font-weight:900;letter-spacing:1.2px;color:#ffe7b3">START AN EVENT</div>' +
-          '<div style="margin-top:2px;font-size:' + (cur === 'title' ? 30 : 24) + 'px;line-height:1.05;font-weight:900;letter-spacing:-.7px;color:' + (title ? '#fff' : 'rgba(255,255,255,.55)') + ';overflow-wrap:anywhere;text-wrap:balance">' + esc(title || 'Your event') + '</div></div>' +
+          '<div style="margin-top:2px;font-size:24px;line-height:1.05;font-weight:900;letter-spacing:-.7px;color:' + (title ? '#fff' : 'rgba(255,255,255,.55)') + ';overflow-wrap:anywhere;text-wrap:balance">' + esc(title || 'Your event') + '</div></div>' +
       '</div>' +
       '<div style="margin-top:-16px;position:relative;z-index:1;flex:1 1 auto;display:flex;flex-direction:column;background:#e8eaee;border-radius:20px 20px 0 0">' + body +
         '<div style="margin-top:auto;padding:14px 16px 20px;display:flex;flex-direction:column;gap:4px">' +
@@ -6907,6 +6903,25 @@
             '<button type="button" data-enter ' + on(next) + ' aria-disabled="' + !ok + '" style="flex:1 1 auto;min-width:0;min-height:54px;border:0;border-radius:999px;background:' + (ok ? '#5b4ae8' : '#d5d8df') + ';color:#fff;font-family:inherit;font-size:16.5px;font-weight:800;cursor:' + (ok ? 'pointer' : 'default') + '">' + (back ? 'Back to review' : cur === EV_STEPS[EV_STEPS.length - 1] ? 'Review' : 'Next') + '</button>' +
           '</div></div>' +
       '</div></div></div>';
+  }
+
+  // Step 1's Post to (one row per group, a square tick; at least one stays picked) and the Public / Private tiles
+  function evWhoFields(st) {
+    const groups = evGroupIds(st);
+    const row = (g, k) => { const onIt = groups.indexOf(g.id) > -1;
+      return '<div ' + on(() => { const nx = onIt ? groups.filter(x => x !== g.id) : groups.concat(g.id); setState({ evGroups: nx.length ? nx : groups }); }, 'checkbox') + ' aria-checked="' + onIt + '" aria-label="Post to ' + esc(g.name) + '" style="display:flex;align-items:center;gap:12px;min-height:56px;border-top:' + (k ? '1px solid #f2f3f6' : '0') + ';cursor:pointer">' +
+        '<span aria-hidden="true" style="flex:0 0 36px;width:36px;height:36px;border-radius:11px;background:' + groupBg(g, '#f3f1fe') + '"></span>' +
+        '<span style="flex:1;min-width:0;font-size:15px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(g.name) + groupTag(g) + '</span>' +
+        '<span aria-hidden="true" style="flex:0 0 22px;width:22px;height:22px;border-radius:7px;display:flex;align-items:center;justify-content:center;' + (onIt ? 'background:#5b4ae8' : 'background:#fff;box-shadow:inset 0 0 0 2px #c9ccd3') + '">' + (onIt ? I.check(12, '#fff', 3.4) : '') + '</span></div>'; };
+    const tile = (priv, label, sub, icon) => { const onIt = !!st.evPriv === priv;
+      return '<div ' + on(() => setState({ evPriv: priv }), 'radio') + ' aria-checked="' + onIt + '" style="flex:1 1 0;display:flex;flex-direction:column;gap:4px;padding:12px;border-radius:14px;cursor:pointer;' + (onIt ? 'background:#f3f1fe;box-shadow:inset 0 0 0 2px #5b4ae8' : 'background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6') + '">' +
+        '<span style="display:flex;color:' + (onIt ? '#5b4ae8' : '#454b55') + '">' + svg(22, stroke('currentColor', 2.2), icon) + '</span>' +
+        '<span style="font-size:15px;font-weight:900;color:' + (onIt ? '#5b4ae8' : '#0d1117') + '">' + label + '</span><span style="font-size:12.5px;line-height:1.35;font-weight:600;color:#6b7280">' + sub + '</span></div>'; };
+    return '<div style="display:flex;flex-direction:column;gap:4px;margin-top:12px"><h3 style="margin:0;font-size:20px;line-height:1.05;font-weight:900;letter-spacing:-.6px;color:#0d1117">Post to</h3>' +
+        '<span style="font-size:14px;font-weight:600;color:#6b7280">Pick one or more groups.</span></div>' +
+      '<div data-post-to style="background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08);padding:2px 14px">' + groupsInOrder().map(row).join('') + '</div>' +
+      '<div style="display:flex;gap:8px">' + tile(false, 'Public', 'Anyone in these groups', PEOPLE_IC) + tile(true, 'Private', 'Only people you invite', LOCK_IC) + '</div>' +
+      guestInvSwitch(!st.evNoGuestInv, () => setState({ evNoGuestInv: !st.evNoGuestInv }));
   }
 
   // A step's fields: the page under the photo, or (pop) the same fields in Review's Edit pop-up, where the pop-up's
@@ -6924,9 +6939,11 @@
         (url
           ? '<div style="display:flex;align-items:center;gap:12px;padding:8px 14px 8px 8px;border-radius:16px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08)"><span aria-hidden="true" style="flex:0 0 56px;width:56px;height:42px;border-radius:10px;background:' + bg(url) + '"></span>' +
               '<span style="flex:1;font-size:15px;font-weight:800;color:#0d1117">Cover photo added</span><label style="font-size:13.5px;font-weight:800;color:#5b4ae8;cursor:pointer">Change' + photoInput('Change the cover photo') + '</label></div>'
-          : '<label class="hov-drop" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:118px;border-radius:16px;border:2px dashed #b9bcc4;background:#f4f5f7;cursor:pointer">' +
-              svg(30, stroke('#5b4ae8', 2), '<path d="M7 18a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 18 8.5a4 4 0 0 1-.5 9.5"/><path d="M12 12v8M9 15l3-3 3 3"/>') +
-              '<span style="font-size:15px;font-weight:800;color:#0d1117">Upload a cover photo</span><span style="font-size:12.5px;font-weight:600;color:#6b7280">JPG or PNG · Optional</span>' + photoInput('Upload a cover photo') + '</label>'));
+          : '<label class="hov-drop" style="display:flex;align-items:center;gap:12px;min-height:56px;padding:0 14px;border-radius:16px;border:2px dashed #b9bcc4;background:#f4f5f7;cursor:pointer">' +
+              svg(22, stroke('#5b4ae8', 2.1), CAMERA) +
+              '<span style="flex:1;font-size:15px;font-weight:800;color:#0d1117">Add a cover photo</span><span style="font-size:12.5px;font-weight:600;color:#6b7280">Optional</span>' + photoInput('Upload a cover photo') + '</label>') +
+        // Post to and who can see it, up front (Design 22a + 23a, 2026-10-03; they were at the bottom of Review)
+        evWhoFields(st));
     } else if (cur === 'when') {
       const setD = (v) => setState({ evDate: v });
       body = head('Date & time') + (st.evDatePoll

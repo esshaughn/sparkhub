@@ -669,6 +669,14 @@ test('invite people: the lead invites a group member from the sheet; Invited sti
     await expect.poll(() => asUser(other.page, async (c) => ((await c.from('notes').select('body').like('body', '%is hoping you can make%').gte('created_at', new Date(Date.now() - 120000).toISOString())).data || []).length)).toBeGreaterThan(0);
     await quiet.getByRole('button', { name: 'Nudged ' + nm }).click();
     await expect(H.getByText('You nudged ' + nm.split(' ')[0] + ' today. Try again tomorrow.')).toBeVisible();
+    await list.getByRole('button', { name: 'Close' }).click();
+    // Once she answers (Can't), Invite people shows her answer instead of Invited, and she can't be picked (owner, 2026-10-03)
+    await asUser(other.page, async (c, _C, sid) => c.from('rsvps').upsert({ spark_id: sid, user_id: (await c.auth.getUser()).data.user.id, status: 'no' }, { onConflict: 'spark_id,user_id' }), id);
+    await H.reload(); await expect(H.locator('html[data-loaded=true]')).toHaveCount(1);
+    sheet = await open();
+    await sheet.getByLabel('Search friends and groups').fill(nm);
+    await expect(sheet.locator('[data-invitee="' + nm + '"] [data-answered]')).toHaveText('Can’t');
+    await expect(sheet.locator('[data-invitee="' + nm + '"]').getByRole('checkbox')).toHaveCount(0);
     expect(host.errors).toEqual([]);
   } finally {
     if (id) await deleteIdea(H, id).catch(() => {});

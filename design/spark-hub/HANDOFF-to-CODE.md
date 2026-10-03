@@ -4,7 +4,7 @@
 
 - **Caught up with:** `HANDOFF-to-DESIGN.md` **as of 2026-10-03** (the reset to Update 16). Its §1 rows 1–4 are now in the prototype too, so the build can drop them.
 - **Baseline:** Update 16 (zip *SparkHub v7-5*). Everything below is new since then.
-- **Options files:** `Round 17 Options.dc.html` (picks made: Q24 a 24a2, b 24b3, c 24c3c, d no change; Q23 C 23C1; event RSVP 25b + 25c. Still open: Q23 B). `Help Out Options.dc.html`: **7g (Help out job cards, members), 12e (Help out, lead), 8a/10a (What to expect) and 13e (date tile) are picked and built**; the other turns are exploration. `Soft Holds Options.dc.html` has the soft-holds explorations.
+- **Options files:** `Round 17 Options.dc.html` (picks made: Q24 a 24a2, b 24b3, c 24c3c, d no change; Q23 C 23C1; event RSVP 25b + 25c. Still open: Q23 B). `Help Out Options.dc.html` (turns 11+; turns 1–10 moved to `Help Out Options Turns 1-10.dc.html`): **7g (Help out job cards, members), 12e (Help out, lead), 8a/10a (What to expect) and 13e (date tile) are picked and built**; the other turns are exploration. `Soft Holds Options.dc.html` has the soft-holds explorations.
 
 ---
 
@@ -31,6 +31,9 @@
 19. **Help out, lead's view** (option 12e). See *Help out jobs* below.
 20. **Groups tab: one page, smaller header.** See *Your people* below.
 21. **Your calendar / Your tasks header: less white.** Padding 22/16/16 → **14/16/10**.
+22. **Maybe events: pale green striped strip** (option 19l, in green). In Your calendar's Up next (list, tiles and the Month day list), an event you said **Maybe** to gets a strip with soft diagonal pale green stripes: `repeating-linear-gradient(-45deg, #f7fcf9 0 5px, #e9f6ee 5px 10px)`, text `#2f6e49` (*Maybe* · *Update RSVP ⌄*), thin date line `#a9d6ba`. Going keeps its solid `#f3fbf6` strip. Replaces the pale near-white maybe strip.
+23. **Diagonal stripes mean Maybe, everywhere.** Wherever a Maybe has a coloured fill, that fill becomes 45° stripes (5px bands) in its own colour: pale green strips on event cards in Explore, Your calendar and group pages (`#f7fcf9` / `#e9f6ee`, text `#2f6e49`); pale gold Maybe pills and the picked Maybe RSVP button, the status pill, the calendar day list's Maybe pill and the helper RSVP sheet (`#fdf1d6` / `#f9e4b0`); solid gold Maybe on the RSVP segment and the event preview's Maybe (`#e8a71c` / `#f1bb45`). Borders and text colours are unchanged.
+24. **Start an event, step 1: shorter header, groups and visibility up front** (options 21a + 22a + 23a in `Start Event Options.dc.html`). The photo header on step 1 drops from 270px to **150px** (hero title 24px on every step). The big upload box becomes a one-line dashed row: camera icon, **Add a cover photo**, *Optional* (56px, 2px dashed `#b9bcc4`, `#f4f5f7`). Under it: **Post to** (20px/900) · *Pick one or more groups.*, a white card with one row per group (36px photo, name 15px/800, 22px square tick; at least one stays picked), then the **Public** / **Private** tiles (Public now reads *Anyone in these groups*). **Review's *Who can see it* section is removed**; Edit event still has its own Visibility sheet.
 
 ---
 

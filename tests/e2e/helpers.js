@@ -245,6 +245,7 @@ async function postEvent(page, { title, date, time, where, pick, details = [], j
   await expect(flow).toContainText('1 of 6');
   await flow.getByLabel('Event title').fill(title);
   if (photo) await flow.getByLabel('Upload a cover photo').setInputFiles({ name: 'photo.png', mimeType: 'image/png', buffer: PNG });
+  if (inviteOnly) await flow.getByRole('radio', { name: /^Private/ }).click();   // step 1 since Design 23a (was on Review)
   await next();
 
   await expect(flow).toContainText('2 of 6');
@@ -291,7 +292,7 @@ async function postEvent(page, { title, date, time, where, pick, details = [], j
   await flow.getByRole('button', { name: 'Review' }).click();
 
   await expect(flow).toContainText('LOOKS GOOD');
-  if (inviteOnly) await flow.getByRole('radio', { name: /^Private/ }).click();
+  await expect(flow.getByText('Who can see it', { exact: true })).toHaveCount(0);   // not on Review any more
   await flow.getByRole('button', { name: /^Post (it|as an idea)$/ }).click();
   await expect(page.locator('[data-screen-label="Plan page"]')).toBeVisible();
   await expect(page.getByText('It’s on the books')).toHaveCount(0);   // no chip over a new plan (owner, 2026-10-01)
