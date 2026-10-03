@@ -1340,12 +1340,6 @@
       async () => { must(await sb.from('interests').insert({ spark_id: s.id, user_id: state.me })); }));
   };
 
-  // "I could help make it happen": only on your own interest
-  const toggleCanHelp = (s) => {
-    const on_ = s.canHelp.indexOf(state.me) < 0;
-    quick(s, { canHelp: on_ ? s.canHelp.concat(state.me) : s.canHelp.filter(u => u !== state.me) },
-      async () => { must(await sb.from('interests').update({ can_help: on_ }).eq('spark_id', s.id).eq('user_id', state.me)); });
-  };
   // Looking for a host (social-science review, 2026-10-01): floating an idea and hosting it are separate jobs
   const setWantsHost = (s, on_) => run(async () => { must(await sb.rpc('set_wants_host', { p_spark: s.id, p_on: on_ })); });
   const takeTheLead = (s) => (noteTap({ k: 'lead', id: s.id }), needAccount(() => setState({ confirm: { title: 'Lead ' + s.text + '?', green: true, cta: 'I’ll lead it', keep: 'Not now',
@@ -4709,10 +4703,8 @@
       '<button type="button" ' + on(() => { if (!st.busy) toggleInterest(s); }) + ' aria-pressed="' + meIn + '" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;min-height:52px;border-radius:999px;font-family:inherit;font-size:16px;font-weight:800;cursor:pointer;' +
         (meIn ? 'border:2px solid #e8a71c;background:#fdf1d6;color:#8f6405' : 'border:2px solid #5b4ae8;background:#5b4ae8;color:#fff') + '">' +
         I.person(16, 2.3) + (meIn ? 'You’re interested' : 'I’m interested') + '</button>' +
-      (meIn ? (() => { const h = s.canHelp.indexOf(st.me) > -1;
-        return '<div ' + on(() => { if (!st.busy) toggleCanHelp(s); }, 'checkbox') + ' data-can-help aria-checked="' + h + '" style="margin-top:12px;display:flex;align-items:center;gap:10px;min-height:40px;cursor:pointer">' +
-          '<span aria-hidden="true" style="flex:0 0 22px;width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;' + (h ? 'background:#5b4ae8' : 'box-shadow:inset 0 0 0 2px #c3c7d0') + '">' + (h ? I.check(12, '#fff', 3.4) : '') + '</span>' +
-          '<span style="font-size:14.5px;font-weight:700;color:#0d1117">I could help make it happen</span></div>'; })() : '') + '</div>';
+      // No "I could help make it happen" checkbox any more (owner, 2026-10-02); Can help chips from before still show
+      '</div>';
 
     // Who's interested: like Who's going (the lead taps it for the list)
     const ids = (meIn ? [st.me] : []).concat(s.interested.filter(u => u !== st.me));

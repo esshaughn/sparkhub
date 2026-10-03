@@ -26,6 +26,7 @@ Where this doc and the design files disagree, **this doc is correct**.
 | 8 | **Feedback ask (1c)** built as designed, still after about 10 minutes in the app (the prototype's 8 seconds was for the demo), once per account on the device. The tip sits over the Profile tab | — | Owner's 10-minute rule |
 | 9 | **No help needed → (1b)** goes on to step 6, *Who's leading it?*, not straight to Review: that's the last step in the build. Review then reads *No help needed*. The step's subtitle *Optional, but it takes the load off you.* is gone (owner, 2026-10-02) | Straight to Review; the subtitle stays | Who's leading it? is the last decision (owner) |
 | 10 | **Who's leading it? (v7-4, 1a)**: the tinted cards are built (purple *I'll lead it* · *You make sure it happens and make final calls. Others can help!*, yellow *Just float the idea* · *Someone else might pick it up*, 26px checkbox, the other card fades), with the subtitle *The lead picks the date and place. You can add co-leads and jobs later.* It stays the **last step before Review** (6 of 6), not step 2 (owner, 2026-10-02). | Step 2 | Owner |
+| 11 | **No *I could help make it happen* checkbox** under *You're interested* on ideas (owner, 2026-10-02). Can help chips people already set still show in Who's interested and sort first in Ask someone to lead; nobody can add new ones | The checkbox (§2 v6) | Owner |
 
 ## 2. Things the build had to invent (please design these properly)
 

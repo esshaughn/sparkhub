@@ -462,7 +462,7 @@ test('RSVP buttons change as soon as they are tapped (the save follows), and go 
 });
 
 // Social-science review (2026-10-01): floating an idea and hosting it are separate jobs; RSVPs aren't attendance
-test('looking for a lead: the lead steps back, someone else takes the lead; "I could help"', async ({ browser }) => {
+test('looking for a lead: the lead steps back, someone else takes the lead', async ({ browser }) => {
   test.setTimeout(150000);
   const host = await newLead(browser, 1, 'Hope');
   const other = await newLead(browser, 2, 'Otto');
@@ -503,17 +503,10 @@ test('looking for a lead: the lead steps back, someone else takes the lead; "I c
     await expect(OI.locator('[data-plan-needs] [data-plan-row="lead"]')).toContainText('Hope asked you');
     await expect(OI.locator('[data-ask-lead]')).toHaveCount(0);   // only the floater, co-leads and admins ask
     await expect(OI.locator('[data-led-by]')).toContainText('FLOATED BY');
-    await expect(OI.locator('[data-can-help]')).toHaveCount(0);           // only once you're interested
     await OI.getByRole('button', { name: 'I’m interested' }).click();
-    await OI.locator('[data-can-help]').click();
-    await expect(OI.locator('[data-can-help]')).toHaveAttribute('aria-checked', 'true');
-    await expect(O.locator('html[data-saving]')).toHaveCount(0);   // the taps show at once; wait for them to be saved before Hope looks
-
-    // Hope sees who could help
-    await openIdea(H, id);
-    await HI.getByRole('button', { name: 'See who’s interested' }).click();
-    await expect(H.getByRole('dialog', { name: 'Who’s interested' }).locator('[data-interested]', { hasText: 'Otto' })).toContainText('Can help');
-    await H.getByRole('dialog', { name: 'Who’s interested' }).getByRole('button', { name: 'Close' }).click();
+    await expect(OI.getByRole('button', { name: 'You’re interested' })).toBeVisible();
+    await expect(OI.locator('[data-can-help]')).toHaveCount(0);   // no "I could help make it happen" (owner, 2026-10-02)
+    await expect(O.locator('html[data-saving]')).toHaveCount(0);   // the taps show at once; wait for them to be saved
 
     // Otto takes the lead
     await OI.locator('[data-plan-row="lead"]').getByRole('button', { name: 'I’ll lead' }).click();
