@@ -859,3 +859,4 @@ select t.must_refuse('a member keeping the dates held', format($$select public.k
 select t.must_refuse('a member saying no help needed', format($$update sparks set no_help = false where id = %L$$, t.id('poll_idea')));
 reset role;
 select t.check('the daily job runs with the hold reminders', (select private.push_daily() is null or true));
+select t.check('joining Torrez Fitness adds no other group', not exists (select 1 from join_also j join groups g on g.id = j.group_id where g.code = 'TORREZ'));
