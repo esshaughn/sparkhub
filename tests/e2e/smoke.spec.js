@@ -192,7 +192,7 @@ test('Add to Home Screen: at most once a visit, back 48 hours after Got it and 2
 });
 
 test('Give feedback (Update 9): a Help & info tile opens the sheet; Send to Eric, then Thank you; Cancel closes it; group Plans suggestions', async ({ browser }) => {
-  const m = await newLead(browser, 1, 'Fern');
+  const m = await newLead(browser, 6, 'Fern');
   try {
     const page = m.page;
     await openProfile(page);
