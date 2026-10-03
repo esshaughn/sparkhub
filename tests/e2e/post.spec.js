@@ -166,11 +166,19 @@ test('decide everything later: only the title is needed; the host is left with t
     await expect(flow.getByRole('button', { name: 'Date', exact: true })).toContainText('Pick a date');
     await expect(flow.getByRole('button', { name: 'Add a start time (optional)' })).toBeVisible();
     await flow.getByText('Decide later', { exact: true }).click();
-    for (const n of ['3 of 6', '4 of 6', '5 of 6']) {
+    for (const n of ['3 of 6', '4 of 6']) {
       await expect(flow).toContainText(n);
       await expect(flow.getByRole('button', { name: 'Next' })).toHaveAttribute('aria-disabled', 'true');
       await flow.getByText('Decide later', { exact: true }).click();
     }
+    // How people can help, with no job: No help needed → instead of a grey Next (v7 Update 15, 1b); no subtitle (owner)
+    await expect(flow).toContainText('5 of 6');
+    await expect(flow).not.toContainText('Optional, but it takes the load off you.');
+    await expect(flow.getByRole('button', { name: 'Next' })).toHaveCount(0);
+    await flow.getByRole('button', { name: 'No help needed' }).click();
+    await expect(flow).toContainText('6 of 6');
+    await flow.getByRole('button', { name: 'Back' }).click();
+    await flow.getByText('Decide later', { exact: true }).click();   // Decide later still means "to be decided"
     // The last step, Who's leading it?: already answered (you lead it), so no Decide later and Review is ready
     await expect(flow).toContainText('6 of 6');
     await expect(flow.getByRole('button', { name: /^I’ll lead it/ })).toHaveAttribute('aria-pressed', 'true');

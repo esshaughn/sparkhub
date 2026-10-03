@@ -1,6 +1,6 @@
 # Handoff: Spark Hub v6 — new screens, layouts & behaviors
 
-> **Latest: read `UPDATE_15.md`** (Version 7: the screens the build invented, designed properly — event preview slide-up 13a, guest list, came-down notes, phone notifications card, Remove and block, friend link pop-ups, and more). Read it after this README and UPDATE_2–14. Where they conflict, the newest update wins.
+> **Latest: read `UPDATE_15.md`** — Version 7. Since v7-2 it also covers: the group page header (112px photo, quiet ‹ Back, YOUR GROUP eyebrow, Invite + ⋯) and its ⋯ menu; Up next as the group's default view (Up next · Tiles · Month); faint nudging ‹ › swipe chevrons plus chevrons inside the Ideas · Plans · Past bar; the new feedback ask (Help Eric improve the app); and "No help needed →" on Start an event's helpers step. Option canvases for those picks are included (`Group Header Options`, `Swipe Button Options`, `Feedback Prompt Options`, `Helpers Step Options`) — the chosen id is noted in UPDATE_15. Read after this README and UPDATE_2–14; where they conflict, the newest update wins.
 
 ## ⚠️ Read first — scope rules
 - **Do NOT change any content.** Keep every existing event, idea, group, person, date, time, address, photo, RSVP, sign-up, notification and demo/seed record exactly as it is in the live app today (it was set from `EVENTS_CONTENT_HANDOFF.md` in the v5 handoff). Nothing in this brief replaces data.

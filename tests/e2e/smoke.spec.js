@@ -404,7 +404,8 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
     await expect(browse).toContainText(/\d+ members/i);
     await expect(browse.locator('[data-new-event]')).toBeVisible();
     await expect(browse.getByRole('button', { name: 'Back to groups' })).toBeVisible();
-    await expect(browse.getByRole('button', { name: 'Search this group' })).toBeVisible();
+    await expect(browse.getByRole('button', { name: 'Group options' })).toBeVisible();   // v7 Update 15: Search is in the ⋯ menu
+    await expect(browse).toContainText(/your group/i);
     // Inside a group the Groups tab isn't highlighted
     await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Groups', exact: true })).not.toHaveAttribute('aria-current', 'page');
 
@@ -437,6 +438,12 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
     // Once someone has used an arrow or swiped, the arrows are gone for good (they only teach the first visits)
     await expect(page.getByRole('button', { name: 'Go to Ideas' })).toHaveCount(0);
     expect(await page.evaluate(() => localStorage.getItem('spark-hub-swipe-hint'))).toBe('99');
+    // The bar's own ‹ › step one tab (faded at the ends)
+    await browse.getByRole('button', { name: 'Next tab' }).click();
+    await expect(tabs.filter({ hasText: 'Past' })).toHaveAttribute('aria-selected', 'true');
+    await expect(browse.getByRole('button', { name: 'Next tab' })).toHaveAttribute('aria-disabled', 'true');
+    await browse.getByRole('button', { name: 'Previous tab' }).click();
+    await expect(tabs.filter({ hasText: 'Plans' })).toHaveAttribute('aria-selected', 'true');
 
     // Plans: Sort · Filter · view on the first heading
     await expect(browse.getByRole('button', { name: 'Sort: Soonest' })).toBeVisible();
@@ -457,11 +464,12 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
     await page.keyboard.press('Escape');
     await expect(browse.getByRole('button', { name: 'Filter', exact: true })).toBeVisible();
 
-    // View: Tiles → List, remembered after a reload
-    await pickView(browse, 'List');
-    await page.reload();
-    await expect(browse.getByRole('button', { name: 'View: List' })).toBeVisible();
+    // View: Up next by default (v7 Update 15: Up next · Tiles · Month); Tiles is remembered after a reload
+    await expect(browse.getByRole('button', { name: 'View: Up next' })).toBeVisible();
     await pickView(browse, 'Tiles');
+    await page.reload();
+    await expect(browse.getByRole('button', { name: 'View: Tiles' })).toBeVisible();
+    await pickView(browse, 'Up next');
 
     // Ideas: the board; Past: the scrapbook with the "SO FAR" recap
     await tabs.filter({ hasText: 'Ideas' }).click();
@@ -471,7 +479,11 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
     await expect(browse).toContainText('TORREZ FITNESS · SO FAR');
 
     // Group search: Browse chips and "Or something unexpected"
-    await browse.getByRole('button', { name: 'Search this group' }).click();
+    await browse.getByRole('button', { name: 'Group options' }).click();
+    const gm = page.getByRole('dialog', { name: 'Group options' });
+    await expect(gm.getByRole('button', { name: 'Members, see all' })).toBeVisible();
+    await expect(gm.locator('[data-leave-group]')).toBeVisible();
+    await gm.getByRole('button', { name: 'Search' }).click();
     const gs = page.getByRole('dialog', { name: 'Group search' });
     await expect(gs.getByText('Browse', { exact: true })).toBeVisible();
     await expect(gs.locator('[data-magic]')).toHaveCount(3);
@@ -757,8 +769,9 @@ test('a failed first load says so (never "not in a group"), and an event taken d
   }
 });
 
-// Asking for feedback (owner, 2026-10-02): after ~10 minutes of use, once per account, a card points at Profile
-test('after about 10 minutes, a feedback card points at Profile, once', async ({ browser }) => {
+// Asking for feedback (owner, 2026-10-02; v7 Update 15, 1c): after ~10 minutes of use, once, a sheet with a text box;
+// sending it (or Not now) leaves a dark tip pointing at Profile
+test('after about 10 minutes, the feedback ask: write, Send to Eric, a tip at Profile, once', async ({ browser }) => {
   const { page, context, errors } = await newLead(browser, 1, 'Tester');
   try {
     const me = await asUser(page, async (c) => (await c.auth.getUser()).data.user.id);
@@ -767,21 +780,22 @@ test('after about 10 minutes, a feedback card points at Profile, once', async ({
     await page.evaluate((me) => localStorage.setItem('spark-hub-fb-nudge-' + me, JSON.stringify({ used: 590000 })), me);
     await page.reload();
     await expect(page.locator('html[data-loaded=true]')).toHaveCount(1);
-    const card = page.getByRole('dialog', { name: 'Tell Eric what you think' });
-    await expect(card).toBeVisible({ timeout: 25000 });
-    await expect(card).toContainText('PSST… GOT A MINUTE?');
-    await expect(card).toContainText('🐛 Glitches');
-    await expect(page.locator('.fb-nudge-arrow')).toBeVisible();
-    // The arrow sits over the Profile tab
-    const arrow = await page.locator('.fb-nudge-arrow').boundingBox(), tab = await page.getByRole('navigation', { name: 'Main' }).getByLabel('Profile').boundingBox();
-    expect(Math.abs((arrow.x + arrow.width / 2) - (tab.x + tab.width / 2))).toBeLessThan(12);
-    // Profile → Give feedback opens Profile with the tile marked
-    await card.getByText('Profile → Give feedback').click();
-    await expect(card).toHaveCount(0);
-    const tile = page.getByRole('dialog', { name: 'Profile' }).locator('[data-fb-hint]');
-    await expect(tile).toContainText('RIGHT HERE');
-    await tile.click();
-    await expect(page.getByRole('dialog', { name: 'Give feedback' })).toBeVisible();
+    const ask = page.getByRole('dialog', { name: 'Help Eric improve the app' });
+    await expect(ask).toBeVisible({ timeout: 25000 });
+    await expect(ask).toContainText(/feedback needed/i);
+    await expect(ask.getByRole('button', { name: 'Send to Eric' })).toHaveAttribute('aria-disabled', 'true');
+    const note = '[E2E] the calendar is confusing ' + Date.now().toString(36);
+    await ask.getByLabel('Your feedback').fill(note);
+    await ask.getByRole('button', { name: 'Send to Eric' }).click();
+    await expect(ask).toHaveCount(0);
+    const tip = page.locator('[data-fb-tip]');
+    await expect(tip).toContainText('Thanks, Eric got it.');
+    await expect(tip).toContainText('Add more anytime in your profile.');
+    // The tip sits over the Profile tab
+    const tb = await tip.boundingBox(), tab = await page.getByRole('navigation', { name: 'Main' }).getByLabel('Profile').boundingBox();
+    expect(tb.x + tb.width).toBeGreaterThan(tab.x + tab.width / 2);
+    await tip.click();
+    await expect(tip).toHaveCount(0);
     // Once: it doesn't come back
     await page.reload();
     await expect(page.locator('html[data-loaded=true]')).toHaveCount(1);

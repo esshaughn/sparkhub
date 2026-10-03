@@ -4,6 +4,10 @@ const { uniqueTitle, newMember, newLead, button, postIdea, openIdea, deleteIdea,
 
 const rx = (t) => new RegExp(t.replace(/[[\]]/g, '\\$&'));
 
+// v7 Update 15: Edit group and Leave group live in the group page's ⋯ menu
+const groupMenu = async (P) => { await P.locator('[data-screen-label=Browse]').getByRole('button', { name: 'Group options' }).click(); return P.getByRole('dialog', { name: 'Group options' }); };
+const editGroup = async (P) => (await groupMenu(P)).getByRole('button', { name: 'Edit group' }).click();
+
 test('a group end to end: edit group, cover, rename, invite, pin, admin edits, roles, delete', async ({ browser }) => {
   const admin = await newLead(browser, 1, 'Ada');
   const other = await newLead(browser, 2, 'Bo');
@@ -25,7 +29,7 @@ test('a group end to end: edit group, cover, rename, invite, pin, admin edits, r
     // A new group's Plans tab (Update 9, 80a): the calendar fan, No plans yet, Start an event
     await expect(A.locator('[data-plans-empty]')).toContainText('No plans yet');
     await expect(A.locator('[data-plans-empty]').getByRole('button', { name: 'Start an event' })).toBeVisible();
-    await A.locator('[data-screen-label=Browse]').getByRole('button', { name: 'Edit group' }).click();
+    await editGroup(A);
     const gp = A.locator('[data-screen-label="Edit group"]');
     await expect(gp).toContainText('You’re the owner');
     await expect(gp).toContainText(code);
@@ -141,7 +145,7 @@ test('a group end to end: edit group, cover, rename, invite, pin, admin edits, r
 
     // All ideas → Edit (admins) → Members: a row's chevron opens a short profile (email, joined) and actions;
     // Bo becomes an admin, then a second owner
-    await A.locator('[data-screen-label=Browse]').getByRole('button', { name: 'Edit group' }).click();
+    await editGroup(A);
     await expect(gp).toContainText('2 members');
     await gp.getByRole('button', { name: 'See all members' }).click();
     const members = A.getByRole('dialog', { name: 'Members' });
@@ -169,7 +173,7 @@ test('a group end to end: edit group, cover, rename, invite, pin, admin edits, r
     const cardB = B.locator('[data-screen-label=Groups]').getByRole('button', { name: groupName, exact: true });
     await expect(cardB).toContainText('OWNER');
     await cardB.click();
-    await B.locator('[data-screen-label=Browse]').getByRole('button', { name: 'Edit group' }).click();
+    await editGroup(B);
     await B.getByRole('button', { name: 'See all members' }).click();
     const ada = B.getByRole('dialog', { name: 'Members' }).locator('[data-member="Ada"]');
     await ada.getByRole('button', { name: 'Ada', exact: true }).click();
@@ -185,7 +189,10 @@ test('a group end to end: edit group, cover, rename, invite, pin, admin edits, r
     await A.getByRole('button', { name: 'Groups', exact: true }).click();
     await expect(A.locator('[data-screen-label=Groups]').getByRole('button', { name: groupName, exact: true })).not.toContainText(/OWNER|ADMIN/);
     await A.locator('[data-screen-label=Groups]').getByRole('button', { name: groupName, exact: true }).click();
-    await expect(A.locator('[data-screen-label=Browse]').getByRole('button', { name: 'Edit group' })).toHaveCount(0);
+    const plainMenu = await groupMenu(A);
+    await expect(plainMenu.getByRole('button', { name: 'Edit group' })).toHaveCount(0);
+    await expect(plainMenu).not.toContainText('ADMINS ONLY');
+    await plainMenu.getByRole('button', { name: 'Close' }).click();
 
     // Bo removes Ada from the group and blocks her; the database agrees she's gone, and her code doesn't work
     await ada.getByRole('button', { name: 'Remove and block' }).click();
@@ -253,13 +260,8 @@ test('leaving a group: a member leaves from the bottom of its page; its only own
     await M.goto('/'); await M.reload();
     await M.getByRole('button', { name: 'Groups', exact: true }).click();
     await M.locator('[data-screen-label=Groups]').getByRole('button', { name: name, exact: true }).click();
-    // Only under Plans, not Ideas or Past (owner, 2026-10-01)
-    for (const t of [/^Ideas/, /^Past/]) {
-      await M.locator('[data-screen-label=Browse]').getByRole('tab', { name: t }).click();
-      await expect(M.locator('[data-screen-label=Browse] [data-leave-group]')).toHaveCount(0);
-    }
-    await M.locator('[data-screen-label=Browse]').getByRole('tab', { name: /^Plans/ }).click();
-    await M.locator('[data-screen-label=Browse] [data-leave-group]').click();
+    // At the foot of the ⋯ menu (v7 Update 15; it was a link under Plans)
+    await (await groupMenu(M)).locator('[data-leave-group]').click();
     const c = M.getByRole('alertdialog', { name: 'Leave ' + name + '?' });
     await expect(c).toContainText('The events you posted and your RSVPs stay. You can rejoin with the group’s link.');
     await c.getByRole('button', { name: 'Leave', exact: true }).click();
@@ -271,7 +273,7 @@ test('leaving a group: a member leaves from the bottom of its page; its only own
     await O.goto('/'); await O.reload();
     await O.getByRole('button', { name: 'Groups', exact: true }).click();
     await O.locator('[data-screen-label=Groups]').getByRole('button', { name: name, exact: true }).click();
-    await O.locator('[data-screen-label=Browse] [data-leave-group]').click();
+    await (await groupMenu(O)).locator('[data-leave-group]').click();
     await O.getByRole('alertdialog').getByRole('button', { name: 'Leave', exact: true }).click();
     await expect(O.getByText('You’re its only owner. Make someone else an owner first (Edit group → Members), or delete the group.')).toBeVisible();
     expect(await asUser(O, async (c, _C, id) => (await c.from('memberships').select('group_id').eq('group_id', id)).data.length, gid)).toBe(1);

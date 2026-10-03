@@ -215,17 +215,17 @@ html.tall-fix .app { bottom: auto; height: var(--true-h); }
 /* Group pages (Ideas · Plans · Past): the pane slides in on a tab change; quiet edge arrows hint at swiping */
 @keyframes paneFromRight { from { opacity: .3; transform: translateX(48px); } to { opacity: 1; transform: none; } }
 @keyframes paneFromLeft { from { opacity: .3; transform: translateX(-48px); } to { opacity: 1; transform: none; } }
-.swipe-hint {
-  position: absolute; top: 58%; z-index: 4; width: 26px; height: 44px;
-  display: flex; align-items: center; justify-content: center; cursor: pointer;
-  background: rgba(253, 241, 214, .72); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
-  box-shadow: 0 1px 4px rgba(143, 100, 5, .22), inset 0 0 0 1.5px rgba(241, 213, 143, .8); opacity: 1;   /* see-through light yellow (owner, 2026-10-01) */
+.swipe-hint {   /* v7 Update 15 (1d): a faint gray chevron in the side margin, no shape behind it */
+  position: absolute; top: 58%; z-index: 4; width: 28px; height: 60px;
+  display: flex; align-items: center; justify-content: center; cursor: pointer; opacity: .55;
 }
-.swipe-hint-l { left: 0; border-radius: 0 12px 12px 0; animation: nudgeL 3.2s ease-in-out infinite; }
-.swipe-hint-r { right: 0; border-radius: 12px 0 0 12px; animation: nudgeR 3.2s ease-in-out infinite; }
-.swipe-hint:hover { background: rgba(251, 230, 181, .9); }
-@keyframes nudgeR { 0%, 70%, 100% { transform: translateX(0); } 78% { transform: translateX(-5px); } 86% { transform: translateX(0); } 92% { transform: translateX(-3px); } }
-@keyframes nudgeL { 0%, 70%, 100% { transform: translateX(0); } 78% { transform: translateX(5px); } 86% { transform: translateX(0); } 92% { transform: translateX(3px); } }
+.swipe-hint-l { left: 0; animation: nudgeL 2.6s ease-in-out 1s infinite; }
+.swipe-hint-r { right: 0; animation: nudgeR 2.6s ease-in-out 1s infinite; }
+.swipe-hint:hover { opacity: .9; }
+/* slides 4px outward and brightens, then rests for the rest of the loop */
+@keyframes nudgeR { 0%, 45%, 100% { transform: translateX(0); opacity: .55; } 15% { transform: translateX(4px); opacity: .9; } 30% { transform: translateX(0); opacity: .55; } }
+@keyframes nudgeL { 0%, 45%, 100% { transform: translateX(0); opacity: .55; } 15% { transform: translateX(-4px); opacity: .9; } 30% { transform: translateX(0); opacity: .55; } }
+@media (prefers-reduced-motion: reduce) { .swipe-hint { animation: none; } }
 /* The page follows a sideways drag (JS); the browser keeps vertical scrolling and pinch-zoom */
 [data-tabpane] { touch-action: pan-y pinch-zoom; }
 .app.swiping .swipe-hint { opacity: 0; transition: opacity 120ms ease; }
@@ -233,26 +233,25 @@ html.tall-fix .app { bottom: auto; height: var(--true-h); }
 .host-card > * + * { border-top: 1px solid #f2f3f6; }
 .hov-sec:hover { background: #f4f5f7 !important; }
 
-/* Asking for feedback after ~10 minutes (owner, 2026-10-02): a card over the screen (not the tab bar), and an arrow
-   bouncing at the Profile tab, the fifth of five columns inside the tab bar's 8px side padding */
+/* Asking for feedback after ~10 minutes (v7 Update 15, 1c): a sheet sliding up above the tab bar (the scrim covers the
+   page, not the tab bar), then a dark tip pointing at the Profile tab, the fifth of five columns */
 .fb-nudge-scrim {
   position: absolute; left: 0; right: 0; top: 0; bottom: var(--nav-h); z-index: 40;
-  background: rgba(13, 17, 23, .38); animation: scrimIn 220ms ease-out both;
-  display: flex; align-items: flex-end; padding: 0 12px 44px;
+  background: rgba(13, 17, 23, .4); animation: scrimIn 200ms ease-out both;
 }
 .fb-nudge {
-  position: relative; width: 100%; max-width: 440px; margin: 0 auto; box-sizing: border-box;
-  background: #fff; border-radius: 24px; padding: 16px 16px 14px;
+  position: absolute; left: 0; right: 0; bottom: 0; box-sizing: border-box;
+  background: #fff; border-radius: 24px 24px 0 0; padding: 10px 18px 18px;
   display: flex; flex-direction: column; gap: 12px;
-  box-shadow: 0 18px 50px rgba(15, 18, 25, .3);
-  animation: popIn 320ms cubic-bezier(.22, .9, .28, 1) both;
+  box-shadow: 0 -12px 36px rgba(13, 17, 23, .25);
+  animation: sheetUp 280ms cubic-bezier(.2, .8, .2, 1) both;
 }
-.fb-nudge-arrow {
-  position: absolute; bottom: 4px; right: calc(8px + (100% - 16px) / 10 - 15px);
-  display: flex; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .35));
-  animation: fbArrow 1s ease-in-out infinite;
+.fb-tip {
+  position: absolute; right: 10px; bottom: calc(var(--nav-h) + 12px); z-index: 41; max-width: 270px;
+  background: #0d1117; color: #fff; border-radius: 16px; padding: 12px 14px;
+  display: flex; flex-direction: column; gap: 2px; box-shadow: 0 10px 28px rgba(13, 17, 23, .3); cursor: pointer;
+  animation: popIn 240ms cubic-bezier(.22, .9, .28, 1) both;
 }
-@keyframes fbArrow { 0%, 100% { transform: translateY(-6px); } 50% { transform: translateY(4px); } }
 .fb-hint { animation: fbHint 1.4s ease-in-out infinite; }
 @keyframes fbHint { 0%, 100% { box-shadow: 0 0 0 0 rgba(232, 167, 28, .55), 0 1px 3px rgba(15, 18, 25, .08); } 50% { box-shadow: 0 0 0 7px rgba(232, 167, 28, 0), 0 1px 3px rgba(15, 18, 25, .08); } }
-@media (prefers-reduced-motion: reduce) { .fb-nudge-arrow, .fb-hint { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .fb-hint { animation: none; } }

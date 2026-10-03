@@ -73,3 +73,29 @@ New design file: `Spark Hub App Version 7.dc.html` (Version 6 + everything below
 
 ## Not designed yet
 - One dark wash on photo headers (75): the plan header's green wash vs the group's dark one — which wins?
+
+## Swipe hint: faint chevrons (2026-10-02; options in `Swipe Button Options.dc.html`, picked 1d)
+- The floating light-purple edge tabs are gone. Group pages show a small gray ‹ › (18px, `#6b7280`, 55% opacity, no shape or color behind it) in the 14px side margins, 28×60 tap area. ‹ shows when there's a tab to the left, › when there's one to the right. They hide once one is used (row 88). Swiping still works.
+- **Tab picker chevrons:** the Ideas · Plans · Past bar also has a 16px gray ‹ at its left end and › at its right end (28×44 tap area each, inside the gray pill). They switch tabs one step; at the first/last tab that side fades to 30% and does nothing. Always shown.
+- **Nudge animation:** each chevron slides 4px outward and brightens to 90%, then settles back (2.6s loop, motion in the first ~0.8s, then rest; starts after 1s). Off when the phone's Reduce Motion is on.
+
+## Group header 6c + menu 3b (2026-10-02; options in `Group Header Options.dc.html`)
+- **Header:** 112px photo (was 210px) with the standard dark wash. One row at the bottom: quiet ‹ **Back** (plain white chevron, no circle, 85% opacity, 28×44 tap area) · purple **YOUR GROUP** eyebrow (12px/900, 1.2px tracking, `#cfc9ff`) above **{group}** (28px/900, wraps to 2 lines then clips; the header grows past 112px when it wraps) over *48 members* (13px/700, white at 78%) · see-through **Invite** icon · see-through **⋯**. Invite and ⋯ are 40px, `rgba(255,255,255,.2)` + blur. No bell here (it stays in Your tasks and Leading).
+- **+** moves next to the Ideas · Plans · Past tabs (44px purple) for everyone; the admin Search button there is gone (Search is in the menu).
+- **⋯ menu** (sheet from the bottom): 44px photo + name + ✕; four round actions **Invite** (purple) · **Copy link** · **Search** · **Alerts**; **Members** row with faces + *See all N*; **ADMINS ONLY** (owners/admins): Edit group · Invite link & code · Blocked N (when any); red **Leave group** at the bottom (replaces the Leave link under Plans).
+
+## Group page: Up next view (2026-10-02)
+- The group's view menu is now **Up next · Tiles · Month** (List is gone); Up next is first and the default. Old List picks map to Up next, Grid to Tiles.
+- **Up next** (on Plans, sorted Soonest): the soonest upcoming event as one big photo tile with a countdown chip (*Today / Tomorrow / In N days*, top right, dark glass), then the rest as List rows under *This week · Next week · Later in {this month} · {Month} · Date TBD* (a later month is just its name, e.g. *November*; also on Your schedule) — same as Your schedule's Up next. With another sort picked, sections keep the sort's grouping and show as tiles.
+- The view button shows the Up next icon (tall card over two lines).
+
+## Feedback ask (2026-10-02; options in `Feedback Prompt Options.dc.html`, picked 1c)
+- Replaces the build's *PSST… GOT A MINUTE?* card. A sheet slides up above the tab bar (scrim over the page, not the tab bar): Eric's 36px face · purple **FEEDBACK NEEDED** eyebrow (12px/900) · **Help Eric improve the app** (19px/900) · a text box with the hint *What's something we should fix or add? Any feedback helps, even "the calendar is confusing."* · **Send to Eric** (grey until there's text) and a quiet **Not now**. No chips, no paragraph.
+- Send adds the note to the Feedback inbox like the Profile sheet does.
+- After **Send** or **Not now** (or tapping the scrim) the sheet closes and one dark tip points at the profile tab: *Thanks, Eric got it.* / *No problem.* + *Add more anytime in your profile.* It goes after 5s or a tap. The ask shows once per device.
+- Prototype: shows 8s after landing on the Calendar. Tweak *Feedback ask* = now shows it at once; off hides it.
+
+## Start an event: "No help needed" (2026-10-02; options in `Helpers Step Options.dc.html`, picked 1b)
+- The *How people can help* step stays as it is (title, *Optional, but it takes the load off you.*, the 1-2-3 explainer, START WITH ONE chips, *Decide later ›*, Back).
+- While no job is added, the grey **Next/Review** button becomes an outlined **No help needed →** (white, 2px `#c9ccd3` ring, ink text, right arrow). It goes straight to Review. Add a job and it's the purple **Review** again.
+- Review's *How people can help* row then reads **No help needed** (answered, *Edit*), not *Help to be decided*. *Decide later* still gives *Help to be decided*.

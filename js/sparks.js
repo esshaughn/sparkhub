@@ -18,7 +18,7 @@
 
   const SORTS = [['popular', 'Most popular'], ['soon', 'Happening soon'], ['new', 'Newest'], ['old', 'Oldest']];
   const VIEWS = ['tiles', 'list', 'month'];
-  const SCHED_VIEWS = ['tiles', 'list', 'month'];  // v6 group pages (Grid is gone there; Month added 2026-09-30)
+  const GROUP_VIEWS = ['next', 'tiles', 'month'];  // v7 Update 15: group pages, Up next first and the default (List is gone)
   const HOME_VIEWS = ['next', 'tiles', 'month'];   // v6 Update 9: Your schedule (List is gone; a saved List opens Up next)
   const CVIEWS = ['list', 'tiles', 'month'];       // v6 Calendar
   const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
@@ -84,7 +84,7 @@
   };
   let lastPrefs = '';
   const savePrefs = () => {
-    const next = JSON.stringify({ groupId: state.groupId, view: state.view, homeView: state.homeView, cView: state.cView, sort: state.sort, guestName: state.guestName, pastStatsHidden: state.pastStatsHidden, jobsOpen: state.jobsOpen });
+    const next = JSON.stringify({ groupId: state.groupId, view: state.view, gView: state.gView, homeView: state.homeView, cView: state.cView, sort: state.sort, guestName: state.guestName, pastStatsHidden: state.pastStatsHidden, jobsOpen: state.jobsOpen });
     if (next === lastPrefs) return;
     lastPrefs = next;
     try { localStorage.setItem(PREFS_KEY, next); } catch (e) { /* storage blocked: conveniences only */ }
@@ -174,13 +174,14 @@
     evStep: 'title', activity: '', photos: [], evPhotoPath: null, coverPos: null,
     evDate: '', evTime: '', evEnd: '', evEndOn: false, timeOpen: null, dateOpen: null, calMonth: null,
     locText: '', locPlace: null, locSuggest: [],
-    evBits: ['', '', ''], evNeed: null, evTags: [], evNeeds: [], evDatePoll: null, evSpotPoll: null, evLater: {},
+    evBits: ['', '', ''], evNeed: null, evTags: [], evNeeds: [], evDatePoll: null, evSpotPoll: null, evLater: {}, evHelpNone: false,
     evPriv: false, evNoGuestInv: true, evTest: null, evKindAsk: false, evFloat: false, evPop: null, evGroups: null, evDraftId: null, evLeave: false, evLeaveTo: null, evFrom: null, pollSheet: null, needSheet: null, evFromReview: false
   });
   const state = Object.assign({
     screen: 'calendar', menu: null, subjectId: null, gpId: null, zoom: null, membersOpen: null, membersList: null,
     sort: SORTS.some(s => s[0] === prefs.sort) ? prefs.sort : 'popular',
-    view: VIEWS.indexOf(prefs.view) > -1 ? prefs.view : 'tiles',                 // a group's page
+    view: VIEWS.indexOf(prefs.view) > -1 ? prefs.view : 'tiles',                 // a group's page (before v7)
+    gView: GROUP_VIEWS.indexOf(prefs.gView) > -1 ? prefs.gView : prefs.view === 'month' ? 'month' : 'next',   // v7: an old List or Tiles opens Up next
     homeView: HOME_VIEWS.indexOf(prefs.homeView) > -1 ? prefs.homeView : 'next',   // Your schedule
     groupId: prefs.groupId || null,
 
@@ -282,7 +283,7 @@
       state.back = ORIGINS.indexOf(state.screen) > -1 ? { screen: state.screen, groupId: state.groupId, phaseTab: state.phaseTab, scroll: sc ? sc.scrollTop : 0 } : null;
     }
     // Going anywhere closes the v6 sheets (Profile, Notifications, View all, Could use a hand, Search)
-    setState(Object.assign({ screen, menu: null, zoom: null, sec: null, needEd: null, share: null, cohostPick: null, leadAsk: null, leadsSheet: null, pollSheet: null, profSheet: false, notifSheet: false, dashAll: null, cHandSheet: false, cSearch: false, cq: '', gSearch: false, gq: '', gTry: null, pplAdd: false, frInvite: false, person: null, fbNudge: null, peek: null }, extra || {}));
+    setState(Object.assign({ screen, menu: null, zoom: null, sec: null, needEd: null, share: null, cohostPick: null, leadAsk: null, leadsSheet: null, pollSheet: null, profSheet: false, notifSheet: false, dashAll: null, cHandSheet: false, cSearch: false, cq: '', gSearch: false, gq: '', gTry: null, pplAdd: false, frInvite: false, person: null, fbNudge: null, peek: null, gMenu: null }, extra || {}));
     if (sc) sc.scrollTop = 0;
   };
 
@@ -847,6 +848,7 @@
   const askNewCode = (g) => setState({ confirm: { title: 'Get a new invite link?', body: 'The current link and code stop working. Everyone already in ' + g.name + ' stays.', cta: 'Get a new link', keep: 'Not now',
     run: () => run(async () => {
       const code = must(await sb.rpc('rotate_group_code', { p_group: g.id })).data;
+      groupCodes[g.id] = code || null;
       setState({ gpCode: code || '' });
     }, { confirm: null }).then(ok => { if (ok) toast('New invite link ready', true); }) } });
   const loadMembers = async (id) => {
@@ -1870,7 +1872,7 @@
 
   const GOOGLE_ON = !!CFG.googleSignIn;
   const RESUME_KEY = 'spark-hub-google-resume';
-  const DRAFT_KEYS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'locText', 'locPlace', 'evBits', 'evNeed', 'evTags', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evNoGuestInv', 'evTest', 'evFloat', 'evGroups', 'coverPos', 'evPhotoPath', 'evDraftId'];
+  const DRAFT_KEYS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'locText', 'locPlace', 'evBits', 'evNeed', 'evTags', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evNoGuestInv', 'evTest', 'evFloat', 'evHelpNone', 'evGroups', 'coverPos', 'evPhotoPath', 'evDraftId'];
   const readResume = () => {
     try {
       const r = JSON.parse(sessionStorage.getItem(RESUME_KEY));
@@ -3181,7 +3183,9 @@
   const nextSections = (list) => {
     const n = list.find(s => s.dayDate && daysTo(s) >= 0), out = n ? [{ label: 'Up next', hero: n, items: [] }] : [];
     list.filter(s => s !== n).forEach(s => {
-      const d = daysTo(s), label = d == null ? 'Date TBD' : d < 7 ? 'This week' : d < 14 ? 'Next week' : 'Later in ' + new Date(s.dayDate + 'T12:00').toLocaleDateString('en-US', { month: 'long' });
+      // v7 Update 15: Later in {this month}, then a later month by its name alone (November)
+      const d = daysTo(s), mon = s.dayDate && new Date(s.dayDate + 'T12:00').toLocaleDateString('en-US', { month: 'long' });
+      const label = d == null ? 'Date TBD' : d < 7 ? 'This week' : d < 14 ? 'Next week' : s.dayDate.slice(0, 7) === todayISO().slice(0, 7) ? 'Later in ' + mon : mon;
       let z = out.find(q => q.label === label); if (!z) { z = { label, items: [] }; out.push(z); } z.items.push(s);
     });
     return out;
@@ -3854,7 +3858,7 @@
       lang: navigator.language || '', tz: (Intl.DateTimeFormat().resolvedOptions().timeZone || ''),
       online: navigator.onLine !== false, push: typeof Notification === 'undefined' ? 'unsupported' : Notification.permission,
       where: fbWhere(), event: s ? { id: s.id, title: s.text } : null, group: g ? g.name : null,
-      minutes: used, fromNudge: !!(state.fb && state.fb.nudge),
+      minutes: used, fromNudge: !!(state.fb && state.fb.nudge) || !!state.fbNudge,
       taps: fbTaps.slice(-12).map(t => ({ ago: Math.round((Date.now() - t.at) / 1000) + 's', screen: t.screen, tap: t.tap })),
       errors: fbErrs.slice(-8).map(x => ({ ago: Math.round((Date.now() - x.at) / 1000) + 's', screen: x.screen, error: x.error }))
     };
@@ -3949,26 +3953,42 @@
     if (o.used >= FB_NUDGE_MS && fbNudgeFits()) { o.done = Date.now(); setState({ fbNudge: true }); }
     fbNudgeWrite(o);
   }
+  // v7 Update 15 (1c): a sheet above the tab bar with a text box, Send to Eric and Not now; then one dark tip at Profile
+  const fbTipLater = () => setTimeout(() => { if (state.fbTip) setState({ fbTip: null }); }, 5000);
+  const fbAskLater = () => { setState({ fbNudge: null, fbAsk: '', fbTip: 'No problem.' }); fbTipLater(); };
+  const fbAskSend = async () => {
+    const text = (state.fbAsk || '').trim();
+    if (!text || state.busy) return;
+    if (state.viewAs) { toast('You’re viewing as ' + firstName(state.viewAs.name) + ', so nothing is sent. Exit to send.'); return; }
+    setState({ busy: 'feedback' });
+    try {
+      await ensureSession();
+      must(await sb.from('feedback').insert({ body: text.slice(0, 1000), screen: String(state.screen || '').slice(0, 60), context: fbContext() }));
+      setState({ busy: null, fbNudge: null, fbAsk: '', fbTip: 'Thanks, Eric got it.' });
+      fbTipLater();
+      if (state.demoAdmin) loadFeedback();
+    } catch (e) { console.error(e); setState({ busy: null }); toast(failed(e)); }   // what they typed stays
+  };
   function viewFbNudge() {
-    const close = () => setState({ fbNudge: null });
-    const chip = (t) => '<span style="display:inline-flex;align-items:center;min-height:28px;padding:0 10px;border-radius:999px;background:#f3f1fe;font-size:13px;font-weight:800;color:#4a3ad4;white-space:nowrap">' + t + '</span>';
-    return '<div class="fb-nudge-scrim" data-scrim="' + reg(close) + '">' +
-      '<div role="dialog" aria-modal="false" aria-label="Tell Eric what you think" data-fb-nudge class="fb-nudge">' +
-        '<div style="display:flex;align-items:flex-start;gap:12px">' + ericFace(46, 'box-shadow:0 0 0 3px #f3f1fe') +
-          '<div style="flex:1;min-width:0"><div style="font-size:11.5px;font-weight:900;letter-spacing:1.2px;color:#b07a0a">PSST… GOT A MINUTE?</div>' +
-            '<div style="margin-top:3px;font-size:19px;line-height:1.15;font-weight:900;letter-spacing:-.4px;color:#0d1117;text-wrap:balance">You’ve been poking around for a bit. What do you think?</div></div>' +
-          closeX(close, 'flex:0 0 32px;width:32px;height:32px') + '</div>' +
-        '<p style="margin:0;font-size:14.5px;line-height:1.45;font-weight:500;color:#454b55;text-wrap:pretty">Spark Hub is brand new, and Eric wants the honest truth: what’s great, what’s confusing, what broke, what you wish it did. You won’t hurt his feelings. (Okay, maybe a little. Tell him anyway.)</p>' +
-        '<div style="display:flex;flex-wrap:wrap;gap:6px">' + chip('💡 Ideas') + chip('🐛 Glitches') + chip('🤔 Confusing bits') + chip('❤️ What you love') + '</div>' +
-        '<div style="display:flex;gap:8px">' +
-          '<button type="button" ' + on(() => setState({ fbNudge: null, fb: { text: '', nudge: true } })) + ' style="flex:1 1 auto;min-height:50px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16px;font-weight:800;cursor:pointer">Give feedback</button>' +
-          '<button type="button" ' + on(close) + ' style="flex:0 0 auto;min-height:50px;padding:0 16px;border:2px solid #dcdfe6;border-radius:999px;background:#fff;color:#454b55;font-family:inherit;font-size:15px;font-weight:800;cursor:pointer">Maybe later</button></div>' +
-        '<div style="display:flex;align-items:center;justify-content:flex-end;gap:6px;font-size:13px;font-weight:700;color:#6b7280">Anytime: <span ' + on(openProfileSheet) + ' style="color:#5b4ae8;font-weight:800;cursor:pointer">Profile → Give feedback</span></div>' +
-      '</div>' +
-      // The arrow sits over the Profile tab (the fifth of five) and bounces at it
-      '<span aria-hidden="true" class="fb-nudge-arrow">' + svg(30, stroke('#e8a71c', 3.2), '<path d="M12 4v15M5.5 12.5 12 19l6.5-6.5"/>') + '</span>' +
-    '</div>';
+    const ok = !!(state.fbAsk || '').trim() && !state.busy;
+    return '<div class="fb-nudge-scrim" data-scrim="' + reg(fbAskLater) + '">' +
+      '<div role="dialog" aria-modal="false" aria-label="Help Eric improve the app" data-fb-nudge data-screen-label="Feedback ask" class="fb-nudge">' +
+        '<span aria-hidden="true" style="align-self:center;width:40px;height:5px;border-radius:999px;background:#dcdfe6"></span>' +
+        '<div style="display:flex;align-items:center;gap:12px">' + ericFace(36) +
+          '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px"><span style="font-size:12px;font-weight:900;letter-spacing:1.1px;text-transform:uppercase;color:#5b4ae8">Feedback needed</span>' +
+            '<span style="font-size:19px;line-height:1.2;font-weight:900;letter-spacing:-.4px;color:#0d1117">Help Eric improve the app</span></div></div>' +
+        '<textarea rows="3" maxlength="1000" aria-label="Your feedback" placeholder="What’s something we should fix or add? Any feedback helps, even “the calendar is confusing.”" ' + onInput(e => { if (e.type === 'input') setState({ fbAsk: e.target.value.slice(0, 1000) }); }) +
+          ' style="min-height:96px;box-sizing:border-box;resize:none;border:0;border-radius:16px;box-shadow:inset 0 0 0 2px #dcdfe6;padding:12px 14px;font-family:inherit;font-size:15.5px;line-height:1.4;font-weight:500;color:#0d1117;outline:none">' + esc(state.fbAsk || '') + '</textarea>' +
+        '<div style="display:flex;align-items:center;gap:6px">' +
+          '<button type="button" ' + on(fbAskSend) + ' aria-disabled="' + !ok + '" style="flex:1 1 auto;min-height:50px;border:0;border-radius:999px;font-family:inherit;font-size:16px;font-weight:800;' + (ok ? 'background:#5b4ae8;color:#fff;cursor:pointer' : 'background:#dcdfe6;color:#8a909b;cursor:default') + '">' + (state.busy === 'feedback' ? 'Sending…' : 'Send to Eric') + '</button>' +
+          '<button type="button" ' + on(fbAskLater) + ' style="flex:0 0 auto;min-height:50px;padding:0 18px;border:0;border-radius:999px;background:transparent;font-family:inherit;font-size:15.5px;font-weight:800;color:#6b7280;cursor:pointer">Not now</button></div>' +
+      '</div></div>';
   }
+  // The tip points at the Profile tab (the fifth of five); a tap or 5 seconds closes it
+  const viewFbTip = () => '<div ' + on(() => setState({ fbTip: null })) + ' role="status" data-fb-tip class="fb-tip">' +
+    '<span style="font-size:14.5px;font-weight:800">' + esc(state.fbTip) + '</span>' +
+    '<span style="font-size:13.5px;line-height:1.4;font-weight:600;color:rgba(255,255,255,.8)">Add more anytime in your profile.</span>' +
+    '<span aria-hidden="true" style="position:absolute;right:30px;bottom:-7px;width:14px;height:14px;background:#0d1117;transform:rotate(45deg);border-radius:2px"></span></div>';
 
   // ---- Feedback inbox (v6 Update 9, 49 · 52): only the owner (demo_admins) can read the feedback table.
   // "Unread" is newer than when the owner last closed the inbox on this device (no database field for it)
@@ -4403,27 +4423,90 @@
   const swipeHints = () => {
     if (hintCount() > 3) return '';
     const i = WORLDS.indexOf(state.phaseTab), names = { idea: 'Ideas', plan: 'Plans', done: 'Past' };
-    const arrow = (d) => '<span ' + on(() => stepTab(d)) + ' aria-label="Go to ' + names[WORLDS[i + d]] + '" class="swipe-hint swipe-hint-' + (d < 0 ? 'l' : 'r') + '">' + (d < 0 ? I.chevL(16, '#8f6405', 2.8) : I.chevR(16, '#8f6405', 2.8)) + '</span>';
+    // v7 Update 15 (1d): a faint gray ‹ › in the side margins, no shape behind it
+    const arrow = (d) => '<span ' + on(() => stepTab(d)) + ' aria-label="Go to ' + names[WORLDS[i + d]] + '" class="swipe-hint swipe-hint-' + (d < 0 ? 'l' : 'r') + '">' + (d < 0 ? I.chevL(18, '#6b7280', 2.8) : I.chevR(18, '#6b7280', 2.8)) + '</span>';
     return (i > 0 ? arrow(-1) : '') + (i < WORLDS.length - 1 ? arrow(1) : '');
   };
+
+  // v7 Update 15 (6c / 3b): the group's Invite (owners and admins hold the link) and its ⋯ menu
+  const GROUP_INV_ICON = '<circle cx="9.5" cy="8" r="3.5"/><path d="M3 20a6.5 6.5 0 0 1 13 0"/><path d="M19 8v6M16 11h6"/>';
+  // The link is fetched when an admin opens the group, so a tap can open the phone's share sheet straight away
+  // (Safari only allows that from the tap itself, not after waiting on the database)
+  const groupCodes = {};
+  const groupLink = async (g) => { if (!groupCodes[g.id]) groupCodes[g.id] = must(await sb.rpc('group_code', { p_group: g.id })).data; if (!groupCodes[g.id]) throw new Error('no code'); return inviteLink(groupCodes[g.id]); };
+  const primeGroupLink = (g) => { if (g && runs(g) && !groupCodes[g.id] && !state.viewAs && sb) groupLink(g).catch(() => {}); };
+  // Phones: the share sheet; computers: copy the link
+  const groupInvite = (g, copyOnly) => {
+    const send = (url) => {
+      setState({ gMenu: null });
+      if (!copyOnly && TOUCH && navigator.share) navigator.share({ title: g.name, text: 'You’re invited to ' + g.name + '. Make plans with your people and show up together.', url }).catch(() => {});
+      else copy(url, 'Invite link copied');
+    };
+    if (groupCodes[g.id]) return send(inviteLink(groupCodes[g.id]));
+    groupLink(g).then(send, e => { console.error(e); toast(failed(e)); });
+  };
+  const openGroupMenu = (g) => {
+    setState({ gMenu: g.id, gMenuPeople: null, gMenuBlocked: 0, menu: null });
+    sb.rpc('group_people', { p_group: g.id }).then(r => { if (!r.error && state.gMenu === g.id) setState({ gMenuPeople: r.data || [] }); });
+    if (runs(g)) sb.rpc('group_blocked', { p_group: g.id }).then(r => { if (!r.error && state.gMenu === g.id) setState({ gMenuBlocked: (r.data || []).length }); });
+  };
+  function viewGroupMenu() {
+    const g = groupById(state.gMenu);
+    if (!g) return '';
+    const close = () => setState({ gMenu: null }), admin = runs(g), people = state.gMenuPeople || [], n = state.sizes[g.id] || people.length;
+    const round = (label, icon, fn, main) => '<div ' + on(fn) + ' role="button" aria-label="' + label + '" style="display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer">' +
+      '<span style="width:52px;height:52px;border-radius:999px;background:' + (main ? '#5b4ae8' : '#f3f1fe') + ';display:flex;align-items:center;justify-content:center">' + svg(20, stroke(main ? '#fff' : '#4a3ad4', 2.3), icon) + '</span>' +
+      '<span style="font-size:13px;font-weight:800;color:#0d1117">' + label + '</span></div>';
+    const row = (label, fn, right, first) => '<div ' + on(fn) + ' role="button" style="min-height:48px;padding:0 14px;' + (first ? '' : 'border-top:1px solid #eceef2;') + 'display:flex;align-items:center;gap:12px;font-size:15.5px;font-weight:800;color:#0d1117;cursor:pointer">' +
+      '<span style="flex:1">' + label + '</span>' + (right ? '<span style="font-size:14px;font-weight:700;color:#8a909b">' + right + '</span>' : '') + I.chevR(13, '#b9bcc4', 3) + '</div>';
+    const then = (fn) => () => { close(); fn(); };
+    // Invite and Copy link need the group's link, which owners and admins hold (group_code()); everyone gets Search and Alerts
+    const actions = (admin ? [round('Invite', GROUP_INV_ICON, () => groupInvite(g), true),
+      round('Copy link', '<path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1"/>', () => groupInvite(g, true))] : [])
+      .concat([round('Search', '<circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/>', then(openGroupSearch), !admin),
+        round('Alerts', '<path d="M6 16.5V11a6 6 0 1 1 12 0v5.5l1.6 2H4.4L6 16.5Z"/><path d="M10 21a2.2 2.2 0 0 0 4 0"/>', then(() => setState({ notifSheet: true, nSettings: true })))]);
+    return '<div class="v6-scrim" data-scrim="' + reg(close) + '" style="z-index:38">' +
+      '<div role="dialog" aria-modal="true" aria-label="Group options" data-screen-label="Group options" style="position:absolute;left:0;right:0;bottom:0;max-height:88%;overflow:auto;background:#fff;border-radius:24px 24px 0 0;box-shadow:0 -10px 30px rgba(13,17,23,.2);display:flex;flex-direction:column;align-items:center;gap:14px;padding:8px 18px calc(22px + env(safe-area-inset-bottom, 0px));animation:sheetUp 260ms cubic-bezier(.2,.8,.2,1) both">' +
+        '<span aria-hidden="true" style="width:40px;height:5px;border-radius:999px;background:#dcdfe6"></span>' +
+        '<div style="align-self:stretch;display:flex;align-items:center;gap:12px"><span aria-hidden="true" style="flex:0 0 44px;width:44px;height:44px;border-radius:12px;background:' + groupBg(g, HEAD_GOLD) + '"></span>' +
+          '<span style="flex:1;min-width:0;font-size:20px;font-weight:900;letter-spacing:-.4px;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(g.name) + '</span>' +
+          '<span ' + on(close) + ' role="button" aria-label="Close" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(13, '#0d1117', 2.8) + '</span></div>' +
+        '<div style="align-self:stretch;display:grid;grid-template-columns:repeat(' + actions.length + ',minmax(0,1fr));gap:8px">' + actions.join('') + '</div>' +
+        '<div ' + on(then(() => openMembersOf(g))) + ' role="button" aria-label="Members, see all" style="align-self:stretch;display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:16px;background:#f7f7f9;cursor:pointer">' +
+          '<span style="display:flex">' + people.slice(0, 3).map((m, i) => memberFace(m, 30, 'border:2px solid #f7f7f9;' + (i ? 'margin-left:-8px;' : ''))).join('') + '</span>' +
+          '<span style="flex:1;font-size:15px;font-weight:800;color:#0d1117">Members</span><span style="font-size:14px;font-weight:800;color:#5b4ae8">' + (n ? 'See all ' + n : 'See all') + '</span></div>' +
+        (admin ? '<div style="align-self:stretch;display:flex;flex-direction:column;gap:6px;padding-top:12px;border-top:1px solid #f2f3f6"><span style="padding:0 4px;font-size:12px;font-weight:900;letter-spacing:1px;color:#6b7280">ADMINS ONLY</span>' +
+          '<div style="border-radius:16px;background:#f7f7f9;display:flex;flex-direction:column">' +
+            row('Edit group', then(() => openGroupPage(g.id, false, 'browse')), '', true) +
+            row('Invite link &amp; code', then(() => openGroupPage(g.id, false, 'browse'))) +
+            (state.gMenuBlocked ? row('Blocked', then(() => openMembersOf(g)), String(state.gMenuBlocked)) : '') +
+          '</div></div>' : '') +
+        (g.role ? '<span ' + on(then(() => leaveGroup(g))) + ' role="button" data-leave-group style="min-height:44px;display:flex;align-items:center;font-size:15px;font-weight:800;color:#9b1c31;cursor:pointer">Leave group</span>' : '') +
+      '</div></div>';
+  }
 
   function viewBrowse() {
     const st = state, g = currentGroup(), tab = st.phaseTab;
     const loading = !st.loaded;
+    if (g && runs(g) && !groupCodes[g.id]) setTimeout(() => primeGroupLink(g), 0);
     const gPhoto = groupPhoto(g), size = g ? st.sizes[g.id] : null;
 
-    const header = '<header style="position:relative;height:calc(210px + var(--pt));background:#2b303a;overflow:hidden">' +
-      (gPhoto ? '<div style="position:absolute;inset:0;overflow:hidden">' + photoLayer(gPhoto, g.photoPos, GROUP_POS) + '</div>' : '<div aria-hidden="true" style="position:absolute;inset:0;background:#e8a71c"></div>') +
-      '<div aria-hidden="true" style="position:absolute;inset:0;background:' + HEAD_WASH + '"></div>' +
-      '<span ' + on(() => go('groups')) + ' aria-label="Back to groups" style="position:absolute;top:calc(14px + var(--pt));left:14px;z-index:3;width:44px;height:44px;border-radius:999px;background:#fff;box-shadow:0 2px 8px rgba(13,17,23,.25);display:flex;align-items:center;justify-content:center;cursor:pointer" class="hov-fill-grey">' + I.chevL(18, '#0d1117', 2.6) + '</span>' +
-      '<div style="position:absolute;top:calc(14px + var(--pt));right:16px;z-index:3;display:flex;gap:8px">' +
-        (g ? '<span ' + on(openGroupSearch) + ' aria-label="Search this group" style="width:44px;height:44px;border-radius:999px;background:rgba(255,255,255,.18);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;cursor:pointer">' + ic6('search', 19, '#fff', 2.4) + '</span>' : '') + bellBtn(true) + '</div>' +
-      '<div style="position:absolute;left:18px;right:90px;bottom:16px;z-index:2;color:#fff">' + groupTagAbove(g) +
-        (size ? '<span ' + on(() => openMembersOf(g)) + ' aria-label="See members" style="display:inline-flex;align-items:center;gap:3px;min-height:28px;font-size:13px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:#cfc9ff;cursor:pointer">' + size + (size === 1 ? ' member' : ' members') + I.chevR(10, '#cfc9ff', 3.4) + '</span>' : '') +
-        '<h1 style="margin:2px 0 0;font-size:34px;line-height:1.02;font-weight:900;letter-spacing:-1.1px;color:#fff;text-wrap:balance;text-shadow:0 1px 8px rgba(0,0,0,.3)">' + esc(g ? g.name : 'Spark Hub') +
-          (runs(g) ? '<span ' + on((e) => { stop(e); openGroupPage(g.id, false, 'browse'); }) + ' aria-label="Edit group" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;margin-left:6px;vertical-align:4px;border-radius:999px;color:rgba(255,255,255,.6);cursor:pointer">' + svg(16, stroke('currentColor', 2.2), '<path d="M4 20h4L19 9l-4-4L4 16v4Z"/>') + '</span>' : '') +
-        '</h1></div>' +
-      (g ? '<button type="button" class="hov-primary" ' + on(() => goCompose()) + ' data-new-event aria-label="Start an event" style="position:absolute;right:16px;bottom:16px;z-index:3;width:52px;height:52px;border:0;border-radius:999px;background:#5b4ae8;box-shadow:0 6px 16px rgba(13,17,23,.35);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.plus(22, '#fff', 2.8) + '</button>' : '') +
+    // v7 Update 15 (6c): a 112px photo; one row: quiet ‹ Back, YOUR GROUP over the name and members, Invite (admins) and ⋯
+    const glass = 'flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:rgba(255,255,255,.2);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;cursor:pointer';
+    const header = '<header style="position:relative;z-index:5">' +
+      '<div style="position:relative;min-height:calc(112px + var(--pt));background:#2b303a;overflow:hidden;display:flex;align-items:flex-end">' +
+      (gPhoto ? '<div aria-hidden="true" style="position:absolute;inset:0;overflow:hidden">' + photoLayer(gPhoto, g.photoPos, GROUP_POS) + '</div>' : '<div aria-hidden="true" style="position:absolute;inset:0;background:' + HEAD_GOLD + '"></div>') +
+      '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.9) 0%, rgba(13,17,23,.55) 60%, rgba(13,17,23,.4) 100%)"></div>' +
+      '<div style="position:relative;flex:1;min-width:0;padding:calc(22px + var(--pt)) 14px 14px;z-index:3;display:flex;align-items:center;gap:10px">' +
+        '<span ' + on(() => go('groups')) + ' role="button" aria-label="Back to groups" style="flex:0 0 28px;width:28px;height:44px;margin-left:-6px;margin-right:-4px;display:flex;align-items:center;justify-content:center;opacity:.85;cursor:pointer">' + I.chevL(20, '#fff', 2.6) + '</span>' +
+        '<div style="flex:1;min-width:0;color:#fff;display:flex;flex-direction:column;gap:3px">' + groupTagAbove(g) +
+          '<span style="font-size:12px;line-height:1;font-weight:900;letter-spacing:1.2px;text-transform:uppercase;color:#cfc9ff">Your group</span>' +
+          '<h1 style="margin:0;font-size:28px;line-height:1.05;font-weight:900;letter-spacing:-.8px;color:#fff;text-wrap:balance;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">' + esc(g ? g.name : 'Spark Hub') + '</h1>' +
+          (size ? '<span ' + on(() => openMembersOf(g)) + ' role="button" aria-label="See members" style="align-self:flex-start;font-size:13px;font-weight:700;color:rgba(255,255,255,.78);cursor:pointer">' + size + (size === 1 ? ' member' : ' members') + '</span>' : '') +
+        '</div>' +
+        (g && runs(g) ? '<span ' + on(() => groupInvite(g)) + ' role="button" aria-label="Invite people" style="' + glass + '">' + svg(18, stroke('#fff', 2.4), GROUP_INV_ICON) + '</span>' : '') +
+        (g ? '<span ' + on(() => openGroupMenu(g)) + ' role="button" aria-label="Group options" style="' + glass + '">' + svg(20, 'fill="#fff"', '<circle cx="5" cy="12" r="2.1"/><circle cx="12" cy="12" r="2.1"/><circle cx="19" cy="12" r="2.1"/>') + '</span>' : '') +
+      '</div></div>' +
     '</header>';
 
     const offline = st.error === 'load' ? loadFailCard('margin:14px 14px 0') : '';
@@ -4431,21 +4514,25 @@
     // The world switcher: Ideas N · Plans N · Past N on a gray track, a white thumb sliding to the one that's on
     const counts = { idea: visible('idea').length, plan: visible('plan').length, done: visible('done').length };
     const thumbPos = { idea: 'left:4px;width:calc(100% / 3.4 - 6px)', plan: 'left:calc(100% / 3.4 + 2px);width:calc(100% * 1.4 / 3.4 - 4px)', done: 'left:calc(100% * 2.4 / 3.4 + 2px);width:calc(100% / 3.4 - 6px)' }[tab] || '';
-    const tabs = g ? '<div style="position:relative;padding:14px 14px 0;z-index:3"><div role="tablist" aria-label="Ideas, plans and past events" style="position:relative;height:44px;border-radius:999px;background:#dfe2e7;display:grid;grid-template-columns:1fr 1.4fr 1fr;align-items:center">' +
+    // v7 Update 15: a ‹ › at each end of the bar (one tab a step; faded at the ends) and the + beside it
+    const ti = WORLDS.indexOf(tab), tch = (d) => { const en = ti + d >= 0 && ti + d < WORLDS.length;
+      return '<span ' + on((e) => { stop(e); if (en) stepTab(d); }) + ' role="button" aria-label="' + (d < 0 ? 'Previous tab' : 'Next tab') + '"' + (en ? '' : ' aria-disabled="true"') + ' style="flex:0 0 28px;width:28px;height:44px;display:flex;align-items:center;justify-content:center;opacity:' + (en ? 1 : .3) + ';cursor:' + (en ? 'pointer' : 'default') + '">' + (d < 0 ? I.chevL(16, '#6b7280', 2.8) : I.chevR(16, '#6b7280', 2.8)) + '</span>'; };
+    const tabs = g ? '<div style="position:relative;padding:14px 14px 0;z-index:3;display:flex;gap:8px;align-items:center"><div style="flex:1 1 auto;min-width:0;height:44px;border-radius:999px;background:#dfe2e7;display:flex;align-items:center">' + tch(-1) +
+      '<div role="tablist" aria-label="Ideas, plans and past events" style="flex:1 1 auto;min-width:0;position:relative;height:44px;display:grid;grid-template-columns:1fr 1.4fr 1fr;align-items:center">' +
       '<span aria-hidden="true" style="position:absolute;top:4px;bottom:4px;border-radius:999px;background:#fff;box-shadow:0 1px 4px rgba(13,17,23,.15);transition:left 220ms cubic-bezier(.2,.8,.2,1),width 220ms cubic-bezier(.2,.8,.2,1);' + thumbPos + '"></span>' +
       [['idea', 'Ideas'], ['plan', 'Plans'], ['done', 'Past']].map(([k, label]) => {
         const onIt = tab === k;
         return '<span ' + on((e) => { stop(e); switchTab(k); }, 'tab') + ' aria-selected="' + onIt + '" style="position:relative;display:flex;align-items:baseline;justify-content:center;gap:5px;height:100%;line-height:44px;font-size:' + (k === 'plan' ? 14.5 : 13) + 'px;font-weight:900;cursor:pointer;white-space:nowrap;transition:color 180ms ease;color:' + (onIt ? '#0d1117' : '#6b7280') + '">' +
           label + '<span style="font-size:11.5px;font-weight:800;color:' + (onIt ? '#6b7280' : '#9aa0aa') + '">' + counts[k] + '</span></span>';
-      }).join('') + '</div></div>' : '';
+      }).join('') + '</div>' + tch(1) + '</div>' +
+      '<button type="button" class="hov-primary" ' + on(() => goCompose()) + ' data-new-event aria-label="Start an event" style="flex:0 0 44px;width:44px;height:44px;border:0;border-radius:999px;background:#5b4ae8;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.plus(20, '#fff', 2.8) + '</button></div>' : '';
 
     const { body, pageStyle } = browseBody(tab, g);
 
     return '<div data-screen-label="Browse" style="' + pageStyle + '">' + header + offline + tabs +
       '<div data-tabpane style="padding:10px 14px 22px;display:flex;flex-direction:column;gap:22px">' +
         (loading ? '<div style="padding:0 4px;font-size:14px;font-weight:700;color:#6b7280">Loading events…</div>' : '') + body +
-        // Leave {group} only under Plans, not Ideas or Past (owner, 2026-10-01)
-        (g && g.role && !loading && tab === 'plan' ? '<span ' + on(() => leaveGroup(g)) + ' data-leave-group style="align-self:center;display:flex;align-items:center;min-height:44px;padding:0 12px;font-size:14px;font-weight:700;color:#8a909b;cursor:pointer">Leave ' + esc(g.name) + '</span>' : '') +
+        // Leave group is in the ⋯ menu now (v7 Update 15)
       '</div>' +
       '<div style="height:var(--nav-h)"></div></div>';
   }
@@ -4453,7 +4540,7 @@
   // One tab's content on a group page (also drawn beside the page while it's being swiped)
   const IDEA_PAPER = 'background:#fbfaf6;background-image:linear-gradient(#eeeae0 1px, transparent 1px), linear-gradient(90deg, #eeeae0 1px, transparent 1px);background-size:18px 18px';
   function browseBody(tab, g) {
-    const st = state, gv = st.view === 'list' || st.view === 'month' ? st.view : 'tiles';
+    const st = state, gv = GROUP_VIEWS.indexOf(st.gView) > -1 ? st.gView : 'next';
     let body, pageStyle = '';
     if (!st.loaded) {
       body = [0, 1, 2].map(() => '<div aria-hidden="true" style="height:180px;border-radius:20px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);animation:skPulse 1.4s ease-in-out infinite"></div>').join('');
@@ -4476,17 +4563,22 @@
         sortPill('gSort', st.gSort, (k) => setState({ gSort: k, menu: null })) +
         filterPill('gFilt', filterOpts(['lead', 'help', 'going', 'open', 'needs', 'week'], all, st.gFilt), st.gFilt,
           (k) => setState({ gFilt: st.gFilt.indexOf(k) > -1 ? st.gFilt.filter(x => x !== k) : st.gFilt.concat([k]) }), clear, plans.length) +
-        viewPicker('gview', gv, (k) => setState({ view: k, menu: null, gMon: null, gDay: null }), SCHED_VIEWS) + '</div>';
+        viewPicker('gview', gv, (k) => setState({ gView: k, menu: null, gMon: null, gDay: null }), GROUP_VIEWS) + '</div>';
       if (!all.length) body = plansEmpty();
       // Month (owner, 2026-09-30): the group's plans on a month grid, the chosen day's below; the filter and view menu beside the arrows
       else if (gv === 'month') body = monthBody(plans, { mon: st.gMon, day: st.gDay, cal: true, card: (s) => listCard6(s, partOf(s, true), false, true),
         menu: '<div style="display:flex;align-items:center;gap:6px">' + filterPill('gFilt', filterOpts(['lead', 'help', 'going', 'open', 'needs', 'week'], all, st.gFilt), st.gFilt,
           (k) => setState({ gFilt: st.gFilt.indexOf(k) > -1 ? st.gFilt.filter(x => x !== k) : st.gFilt.concat([k]) }), clear, plans.length) +
-          viewPicker('gview', gv, (k) => setState({ view: k, menu: null, gMon: null, gDay: null }), SCHED_VIEWS) + '</div>',
-        set: (gMon, gDay) => setState({ gMon, gDay }), toTbd: () => setState({ view: 'list', gSort: 'soon', menu: null, gMon: null, gDay: null }) });
+          viewPicker('gview', gv, (k) => setState({ gView: k, menu: null, gMon: null, gDay: null }), GROUP_VIEWS) + '</div>',
+        set: (gMon, gDay) => setState({ gMon, gDay }), toTbd: () => setState({ gView: 'next', gSort: 'soon', menu: null, gMon: null, gDay: null }) });
       else if (!plans.length) body = '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(st.gSort === 'soon' ? 'Coming up' : sortName6(st.gSort), controls) + filterEmpty(clear) + '</div>';
-      else body = sections6(plans, st.gSort, 'Date TBD').map((z, i) => '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(z.label, i ? '' : controls) +
-        '<div style="display:flex;flex-direction:column;gap:' + (gv === 'list' ? 10 : 14) + 'px">' + z.items.map(s => gv === 'list' ? listCard6(s, partOf(s, true)) : tile6(s, partOf(s, true), 180)).join('') + '</div></div>').join('');
+      // Up next (Soonest): the soonest as one big tile with its countdown, the rest as list rows by This week · Next week · …
+      // (Your schedule's Up next); another sort keeps its own grouping, as tiles
+      else {
+        const next = gv === 'next' && st.gSort === 'soon', rows = gv === 'next' && next;
+        body = (next ? nextSections(plans) : sections6(plans, st.gSort, 'Date TBD')).map((z, i) => '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(z.label, i ? '' : controls) +
+          '<div style="display:flex;flex-direction:column;gap:' + (rows ? 10 : 14) + 'px">' + (z.hero ? nextCard6(z.hero, partOf(z.hero, true)) : z.items.map(s => rows ? listCard6(s, partOf(s, true), false, true) : tile6(s, partOf(s, true), 180)).join('')) + '</div></div>').join('');
+      }
       if (all.length) body += plansMore();
     }
     return { body, pageStyle };
@@ -6158,7 +6250,7 @@
   };
 
   // Drafts: the flow's own fields, saved to your account (only you see them)
-  const DRAFT_FIELDS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'locText', 'locPlace', 'evBits', 'evNeed', 'evTags', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evNoGuestInv', 'evTest', 'evFloat', 'evGroups', 'coverPos'];
+  const DRAFT_FIELDS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'locText', 'locPlace', 'evBits', 'evNeed', 'evTags', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evNoGuestInv', 'evTest', 'evFloat', 'evHelpNone', 'evGroups', 'coverPos'];
   const saveDraft = () => {
     const st = state;
     if (st.busy) return;
@@ -6197,7 +6289,7 @@
       locText: str(x.locText).slice(0, 80), locPlace: x.locPlace && typeof x.locPlace === 'object' ? x.locPlace : null,
       evBits: [0, 1, 2].map(i => str((x.evBits || [])[i]).slice(0, 60)), evNeed: Number.isInteger(x.evNeed) && x.evNeed > 0 ? Math.min(x.evNeed, 99) : null, evTags: (arr(x.evTags) || []).filter(k => TYPES6.some(t => t[0] === k)).slice(0, 2), evNeeds: arr(x.evNeeds) || [],
       evDatePoll: arr(x.evDatePoll), evSpotPoll: arr(x.evSpotPoll), evLater: x.evLater && typeof x.evLater === 'object' ? x.evLater : {},
-      evPriv: !!x.evPriv, evNoGuestInv: !!x.evNoGuestInv, evTest: typeof x.evTest === 'boolean' ? x.evTest : null, evFloat: !!x.evFloat, evGroups: arr(x.evGroups), coverPos: x.coverPos || null,
+      evPriv: !!x.evPriv, evNoGuestInv: !!x.evNoGuestInv, evTest: typeof x.evTest === 'boolean' ? x.evTest : null, evFloat: !!x.evFloat, evHelpNone: !!x.evHelpNone, evGroups: arr(x.evGroups), coverPos: x.coverPos || null,
       evPhotoPath: PHOTO_PATH.test(x.evPhoto || '') ? x.evPhoto : null, evDraftId: d.id
     });
     return out;
@@ -6381,7 +6473,7 @@
           card(P6.cal, 'Date &amp; time', filled.when, '', 'when', st.evDatePoll ? main('Poll: ' + st.evDatePoll.length + ' dates', true, 'People vote, you pick') : st.evDate ? main(dayLabel(st.evDate, st.evTime, st.evEnd), true) : main('Date TBD', false)) +
           card(P6.pin, 'Location', filled.where, '', 'where', st.evSpotPoll ? main('Poll: ' + st.evSpotPoll.length + ' locations', true, 'People vote, you pick') : place ? main(place, true, st.locPlace ? st.locPlace.address : '') : main('Location TBD', false)) +
           card(LINES_IC, 'Details', filled.details, '', 'details', bits.length || needLine ? list(bits.concat(needLine ? [needLine] : []).map(t => '<span style="flex:0 0 6px;width:6px;height:6px;border-radius:999px;background:#0f7a3c;transform:translateY(-2px)"></span><span style="font-size:15.5px;line-height:1.35;font-weight:800;color:#0d1117;text-wrap:pretty">' + esc(t) + '</span>')) : main('Details to be decided', false)) +
-          card(HAND_IC, 'How people can help', filled.help, '', 'help', st.evNeeds.length ? list(st.evNeeds.map(j => '<span style="flex:1;min-width:0;font-size:15.5px;line-height:1.35;font-weight:800;color:#0d1117;text-wrap:pretty">' + esc(cleanTitle(j.item)) + '</span><span style="flex:0 0 auto;font-size:13px;font-weight:700;color:#6b7280">' + esc(jobMeta(j)) + '</span>')) : main('Help to be decided', false)) +
+          card(HAND_IC, 'How people can help', filled.help || (st.evHelpNone && !st.evNeeds.length), '', 'help', st.evNeeds.length ? list(st.evNeeds.map(j => '<span style="flex:1;min-width:0;font-size:15.5px;line-height:1.35;font-weight:800;color:#0d1117;text-wrap:pretty">' + esc(cleanTitle(j.item)) + '</span><span style="flex:0 0 auto;font-size:13px;font-weight:700;color:#6b7280">' + esc(jobMeta(j)) + '</span>')) : st.evHelpNone ? main('No help needed', true) : main('Help to be decided', false)) +
         '</div>' +
         '<div style="display:flex;flex-direction:column;gap:8px"><div style="padding:0 4px;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:#0d1117">Who can see it</div>' +
           '<div style="background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08)"><div data-menu style="position:relative">' +
@@ -6422,7 +6514,10 @@
     const hint = ok ? '' : cur === 'title' ? (st.evTest == null ? '' : back ? 'Add a title to go back to Review.' : 'Add a title to keep going.')
       : cur === 'when' && st.evTime ? 'Pick a date to go with that time, or decide later.' : '';
     // Decide later only shows on an empty step (it used to wipe a filled one: every job, the poll…)
-    const skip = () => evGo(ahead, Object.assign({}, CLEAR[cur] || {}, aheadX, { evLater: Object.assign({}, st.evLater, { [cur]: true }) }));
+    const skip = () => evGo(ahead, Object.assign({}, CLEAR[cur] || {}, aheadX, { evLater: Object.assign({}, st.evLater, { [cur]: true }) }, cur === 'help' ? { evHelpNone: false } : {}));
+    // v7 Update 15 (1b): with no job yet, How people can help offers No help needed → (an answer, unlike Decide later)
+    const noHelp = cur === 'help' && !st.evNeeds.length;
+    const helpNone = () => evGo(ahead, Object.assign({ evHelpNone: true, evLater: Object.assign({}, st.evLater, { help: false }) }, aheadX));
     return '<div class="overlay-screen" data-screen-label="New spark"><div style="display:flex;flex-direction:column;min-height:100%">' +
       '<div style="position:relative;flex:0 0 auto;height:' + (cur === 'title' ? 270 : 200) + 'px;transition:height 240ms ease;background:' + (url ? '#2b303a ' + bg(url) : EV_GRAD) + '">' +
         '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top,rgba(13,17,23,.88),rgba(13,17,23,.12) 55%,rgba(13,17,23,.4))"></div>' +
@@ -6439,7 +6534,8 @@
           (i > 0 && !ok ? '<div style="display:flex;justify-content:center;padding-bottom:4px"><span ' + on(skip) + ' data-later style="display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 14px;border-radius:999px;color:#6b7280;font-size:14.5px;font-weight:700;cursor:pointer">Decide later' + I.chevR(13, 'currentColor', 2.8) + '</span></div>' : '') +
           '<div style="display:flex;gap:8px">' +
             (i > 0 && !back ? '<button type="button" ' + on(() => evGo(EV_STEPS[i - 1])) + ' style="flex:0 0 auto;min-height:54px;padding:0 22px;background:transparent;border:2px solid #c9ccd3;border-radius:999px;font-family:inherit;font-size:16px;font-weight:800;color:#0d1117;cursor:pointer">Back</button>' : '') +
-            '<button type="button" data-enter ' + on(next) + ' aria-disabled="' + !ok + '" style="flex:1 1 auto;min-width:0;min-height:54px;border:0;border-radius:999px;background:' + (ok ? '#5b4ae8' : '#d5d8df') + ';color:#fff;font-family:inherit;font-size:16.5px;font-weight:800;cursor:' + (ok ? 'pointer' : 'default') + '">' + (back ? 'Back to review' : cur === EV_STEPS[EV_STEPS.length - 1] ? 'Review' : 'Next') + '</button>' +
+            (noHelp ? '<button type="button" data-enter data-no-help ' + on(helpNone) + ' style="flex:1 1 auto;min-width:0;min-height:54px;background:#fff;border:2px solid #c9ccd3;border-radius:999px;font-family:inherit;font-size:16.5px;font-weight:800;color:#0d1117;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer">No help needed' + svg(17, stroke('currentColor', 2.6), '<path d="M5 12h14M13 6l6 6-6 6"/>') + '</button>' :
+            '<button type="button" data-enter ' + on(next) + ' aria-disabled="' + !ok + '" style="flex:1 1 auto;min-width:0;min-height:54px;border:0;border-radius:999px;background:' + (ok ? '#5b4ae8' : '#d5d8df') + ';color:#fff;font-family:inherit;font-size:16.5px;font-weight:800;cursor:' + (ok ? 'pointer' : 'default') + '">' + (back ? 'Back to review' : cur === EV_STEPS[EV_STEPS.length - 1] ? 'Review' : 'Next') + '</button>') +
           '</div></div>' +
       '</div></div></div>';
   }
@@ -6499,7 +6595,7 @@
             '<span ' + on(edit) + ' style="flex:0 0 auto;display:flex;align-items:center;min-height:36px;padding:0 10px;font-size:13.5px;font-weight:800;color:#5b4ae8;cursor:pointer">Edit</span>' +
             '<span ' + on(() => setState({ evNeeds: state.evNeeds.filter((_, x) => x !== k) })) + ' aria-label="Remove ' + esc(cleanTitle(j.item)) + '" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#f4f5f7;display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(15, stroke('#9b1c31', 2.2), TRASH_IC) + '</span></div>';
         }).join('');
-      body = head('How people can help', 'Optional, but it takes the load off you.') +
+      body = head('How people can help') +   // no subtitle (owner, 2026-10-02)
         (jobs ? '<div style="padding:14px 14px 0;display:flex;flex-direction:column;gap:8px">' + jobs + '</div>'
           : '<div style="padding:14px 16px 0"><div data-help-how style="display:flex;flex-direction:column;gap:14px;padding:16px 14px;border-radius:18px;background:#f3f1fe">' +
               step(1, 'You list what’s needed', 'Like “Bring snacks” or “Set up chairs.”') +
@@ -7167,8 +7263,9 @@
       (st.email && st.cHandSheet ? viewHandSheet() : '') +
       (st.email && st.cSearch ? viewSearch() : '') +
       (st.peek && s === 'calendar' ? viewPeek() : '') +
-      (s === 'browse' && st.loaded && currentGroup() && !st.gSearch ? swipeHints() : '') +
+      (s === 'browse' && st.loaded && currentGroup() && !st.gSearch && !st.gMenu ? swipeHints() : '') +
       (st.email && st.gSearch && s === 'browse' ? viewGroupSearch() : '') +
+      (st.gMenu && s === 'browse' ? viewGroupMenu() : '') +
       (st.shiftPick ? viewShiftSheet() : '') +
       (st.banner ? viewBanner() : '') +
       (s === 'compose' ? viewCompose() : '') +
@@ -7214,7 +7311,8 @@
       (st.toast ? viewToast() : '') +
       // no tab bar on Welcome, the invite screens, or for a guest on an event (it only led to sign-in)
       (welcomeShown() || invFull() || (!state.email && state.screen === 'detail') ? '' : viewNav()) +
-      (st.fbNudge && !st.profSheet && !st.fb ? viewFbNudge() : '');   // above the tab bar, pointing at Profile
+      (st.fbNudge && !st.profSheet && !st.fb ? viewFbNudge() : '') +   // above the tab bar
+      (st.fbTip && !st.fbNudge ? viewFbTip() : '');                    // pointing at Profile
   }
 
   // ---------------------------------------------------------------------------
@@ -7402,6 +7500,7 @@
       if (state.confirm) return setState({ confirm: null });
       if (state.person) return setState({ person: null });
       if (state.peek) return setState({ peek: null });
+      if (state.gMenu) return setState({ gMenu: null });
       if (state.ph) return closePositioner();
       if (state.invite) return setState({ invite: null });
       if (state.dateOpen) return setState({ dateOpen: null });
