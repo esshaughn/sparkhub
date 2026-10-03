@@ -1087,7 +1087,7 @@
     try {
       const g = (must(await sb.rpc('group_preview', { p_code: code })).data || [])[0];
       if (!state.inv || state.inv.code !== code) return;
-      if (g) setInv({ group: { name: g.name, photo: photoUrl(g.photo) } });
+      if (g) setInv({ group: { name: g.name, photo: g.photo } });   // the stored path: invPhoto makes the address (it was made twice, so no photo showed, 2026-10-03)
       else if (state.inv.step !== 'joining') setInv({ group: null, step: 'bad' });
     } catch (e) {
       console.error(e);
@@ -1121,7 +1121,7 @@
       setPending('');
       if (!id) { setState({ inv: { code, group: null, step: 'bad' } }); return; }
       await loadFresh();
-      const g = groupById(id), group = state.inv && state.inv.group ? state.inv.group : { name: g ? g.name : '', photo: groupPhoto(g) };
+      const g = groupById(id), group = state.inv && state.inv.group ? state.inv.group : { name: g ? g.name : '', photo: g ? g.photo : null };
       // A brand-new account can't have been a member before (the demo world may add it to groups on sign-up)
       const created = Date.parse((session.user || {}).created_at || '') || 0;
       const isNew = Date.now() - created < 20 * 60 * 1000;
@@ -2305,7 +2305,7 @@
   // The group's photo; no photo → its colour with the initial; still loading → grey
   const invPhoto = (g, h, initialSize) => g === undefined
     ? '<div aria-hidden="true" style="height:' + h + ';background:#e3e5ec;animation:skPulse 1.4s ease-in-out infinite"></div>'
-    : g && g.photo ? '<div aria-hidden="true" style="height:' + h + ';background:' + bg(photoUrl(g.photo)) + '"></div>'
+    : g && g.photo ? '<div aria-hidden="true" data-inv-photo style="height:' + h + ';background:' + bg(photoUrl(g.photo)) + '"></div>'
     : '<div aria-hidden="true" style="height:' + h + ';background:#e8a71c;display:flex;align-items:center;justify-content:center;font-size:' + initialSize + 'px;font-weight:900;color:#fff">' + esc(initialOf(g && g.name)) + '</div>';
   const invThumb = (g, size, ring) => '<span aria-hidden="true" style="flex:0 0 ' + size + 'px;width:' + size + 'px;height:' + size + 'px;border-radius:999px;overflow:hidden;display:block' + (ring ? ';box-shadow:' + ring : '') + '">' + invPhoto(g, size + 'px', Math.round(size * 0.45)) + '</span>';
   const invName = (g) => g && g.name ? esc(g.name) : g ? 'this group' : '';   // g with no name: the preview couldn't load

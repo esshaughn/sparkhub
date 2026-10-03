@@ -288,6 +288,12 @@ test('leaving a group: a member leaves from the bottom of its page; its only own
 test('an invite link for someone signed out: the group’s landing with sign-in on it; a bad link; inside Instagram', async ({ browser }) => {
   const { page, context, errors } = await newMember(browser, '/#/join/TORREZ');
   try {
+    // The group's photo shows at the top (it was turned into an address twice and came out blank, 2026-10-03)
+    const fakePhoto = async (r) => { const res = await r.fetch(), d = await res.json(); (Array.isArray(d) ? d : [d]).forEach(x => { x.photo = 'photos/torrez-group.jpg'; }); r.fulfill({ response: res, json: d }); };
+    await context.route('**/rest/v1/rpc/group_preview', fakePhoto);
+    await page.reload();
+    await expect(page.locator('[data-screen-label=Invite] [data-inv-photo]').first()).toHaveAttribute('style', /\/photos\/torrez-group\.jpg/);
+    await context.unroute('**/rest/v1/rpc/group_preview', fakePhoto);
     // 1a: the group's name leads; the code never shows; Google, or an email code
     const land = page.locator('[data-screen-label=Invite]');
     await expect(land).toContainText('You’re invited to');
