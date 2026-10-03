@@ -1523,7 +1523,9 @@
   const whenLong = (s) => s.dayDate ? fmtDay(s.dayDate) + (s.dayTime ? ' at ' + fmtTime(s.dayTime) : '') : '';
 
   // Change one event in place (for instant feedback before the next load replaces it)
-  let rsvpChain = Promise.resolve(), rsvpQueued = 0;
+  // RSVPs save on quickChain too (below), in tap order with sign-ups: taking a job marks you Going, so a Maybe tapped
+  // right after Sign up used to land first and be overwritten by that Going (CI, 2026-10-03)
+  let rsvpQueued = 0;
   const patchSpark = (id, patch) => setState({ sparks: state.sparks.map(x => x.id === id ? Object.assign({}, x, patch) : x) });
   // A one-tap change that shows at once (owner, 2026-10-02: Interested, sign-ups and reactions waited for the save and a
   // reload, like RSVP used to): the event changes on screen, the save runs behind it in order, one refresh follows the
@@ -1570,7 +1572,7 @@
       else if (note) toast(dropJobs ? 'Thanks for letting ' + lead + ' know. You’re off the list too.' : note, true);
       const mine = ++rsvpQueued;
       saving(1);
-      rsvpChain = rsvpChain.then(async () => {
+      quickChain = quickChain.then(async () => {
         try {
           await ensureSession();
           await saveGuestContact(s.id);
