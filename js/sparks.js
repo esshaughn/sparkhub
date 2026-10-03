@@ -5147,7 +5147,7 @@
         ? '<span ' + on(act) + ' aria-label="Take an open spot" style="' + ring + 'border:2px dashed #5b4ae8;background:#f3f1fe;color:#5b4ae8;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.plus(Math.round(size * .4), '#5b4ae8', 2.8) + '</span>'
         : '<span aria-hidden="true" style="' + ring + 'border:2px dashed #c9ccd3;background:#fff"></span>');
       const shown = items.length > 6 ? items.slice(0, 4).concat('<span style="flex:0 0 auto;min-width:' + size + 'px;height:' + size + 'px;padding:0 8px;box-sizing:border-box;border-radius:999px;background:#eef0f3;color:#454b55;font-size:12.5px;font-weight:900;display:flex;align-items:center;justify-content:center">+' + (items.length - 4) + '</span>') : items;
-      return '<span data-who style="position:relative;flex:0 1 auto;min-width:0;display:flex;flex-wrap:wrap;align-items:center;gap:' + (size > 30 ? 6 : 4) + 'px">' + shown.join('') +
+      return '<span data-who style="position:relative;flex:0 0 auto;display:flex;align-items:center;gap:' + (size > 30 ? 6 : 4) + 'px">' + shown.join('') +
         sr(ids.length ? namesList(ids.map(u => u === st.me ? 'You' : firstName(personName(s, u)))) : '') + '</span>';
     };
     const count = (n, need, full) => full ? '' : '<span style="flex:0 0 auto;font-size:13.5px;font-weight:700;color:#6b7280;white-space:nowrap">' +
@@ -5175,11 +5175,11 @@
             const go = () => { if (!st.busy) pickShift(s, j, u); };
             return '<div data-shift="' + esc(spanTime(u)) + '" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;background:#f7f8fa">' +
               '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px"><span style="font-size:14.5px;font-weight:800;color:#0d1117">' + esc(spanTime(u)) + '</span>' +
-                '<div style="display:flex;align-items:center;gap:10px;min-width:0">' + seats(uIds, u.need, live && !uMine && !uFull, 26, go) + count(uIds.length, u.need, uFull || (!!u.need && uIds.length >= u.need)) + '</div></div>' +
+                '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;min-width:0">' + seats(uIds, u.need, live && !uMine && !uFull, 26, go) + count(uIds.length, u.need, uFull || (!!u.need && uIds.length >= u.need)) + '</div></div>' +
               button(uMine, uFull, go) + '</div>';
           }).join('') + '</div>'
-        : '<div style="display:flex;align-items:center;gap:10px;min-width:0">' + seats(ids, need, live && !mine && !full, 34, act) + count(ids.length, need, full) +
-            (lead ? '<span style="flex:1"></span>' + button(mine, full, act) : '') + '</div>';
+        : '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;min-width:0">' + seats(ids, need, live && !mine && !full, 34, act) + count(ids.length, need, full) +
+            (lead ? '<span style="margin-left:auto;display:flex">' + button(mine, full, act) + '</span>' : '') + '</div>';
       // The lead's note always shows; members open it from the More details bar
       const open = !!st.descOpen[j.id];
       const note = j.desc && (lead || open) ? '<p data-job-note style="margin:0;font-size:14.5px;line-height:1.45;font-weight:500;color:#454b55;text-wrap:pretty">' + esc(j.desc) + '</p>' : '';

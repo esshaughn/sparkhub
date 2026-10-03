@@ -845,7 +845,9 @@ test('ask someone to take a job: tick up to two, a note each, I’m in', async (
     await expect(ask).toHaveCount(0);
     await expect(H.getByText('Asked ' + linName.split(' ')[0], { exact: true })).toBeVisible();   // the toast
     await expect(H.locator('html[data-saving]')).toHaveCount(0);
-    await expect(HP).toContainText('Barricades · 1 asked');   // the asked lines under the job are gone (Design 12e); the Fill spot row counts it
+    // The asked lines under the job are gone (Design 12e); Your tasks' Fill spot row counts it
+    await HP.locator('[data-host-tasks-bar]').click();
+    await expect(HP.locator('[data-screen-label="Your tasks"]')).toContainText('Barricades · 1 asked');
 
     // Lin's bell and the event page carry the ask and its line; I'm in signs Lin up
     await O.reload(); await expect(O.locator('html[data-loaded=true]')).toHaveCount(1);
