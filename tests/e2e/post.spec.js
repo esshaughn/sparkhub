@@ -494,7 +494,7 @@ test('Create event: a tab tap asks about a draft, Return goes on, and a reload p
   }
 });
 
-test('an idea says how many it needs; a bare starter chip can’t be saved; its steps are Date · Location · Details · People', async ({ browser }) => {
+test('an idea’s Details (no How many people for now); a bare starter chip can’t be saved; its steps are Date · Location · Details', async ({ browser }) => {
   test.setTimeout(90000);
   const { page, context, errors } = await newLead(browser, 1, 'Tester');
   const title = uniqueTitle('Pickup soccer');
@@ -514,11 +514,7 @@ test('an idea says how many it needs; a bare starter chip can’t be saved; its 
     const longLine = 'Shin guards help. We play on the turf behind the gym.';
     await flow.getByLabel('Details, line 2').fill(longLine);
     await expect(flow.locator('[data-tags]')).toHaveCount(0);   // no "What kind of event?" (owner, 2026-10-01)
-    const need = flow.locator('[data-need-people]');
-    await expect(need).toContainText('How many people do you want?');
-    await expect(need).toContainText('What’s the minimum number that would make this feel like a success?');
-    for (let i = 0; i < 6; i++) await need.getByRole('button', { name: 'More for how many people needed' }).click();
-    await expect(need).toContainText('It’s a go once 6 people are in.');
+    await expect(flow.locator('[data-need-people]')).toHaveCount(0);   // How many people do you want? is hidden for now (owner, 2026-10-02)
     await flow.getByRole('button', { name: 'Next' }).click();
     // How it works in three steps while the list is empty (owner's mock, 2026-10-02); then a job takes its place
     const how = flow.locator('[data-help-how]');
@@ -565,13 +561,14 @@ test('an idea says how many it needs; a bare starter chip can’t be saved; its 
     await closeAskFirst(page);
     id = await page.evaluate(() => location.hash.split('/').pop());
     const steps = page.getByLabel('Steps to a plan');
-    for (const t of ['Date', 'Location', 'Details', 'People']) await expect(steps).toContainText(t);
+    for (const t of ['Date', 'Location', 'Details']) await expect(steps).toContainText(t);
+    await expect(steps).not.toContainText('People');
     await expect(page.locator('[data-basics] span', { hasText: 'Bring cleats. And water?' })).toHaveCount(1);   // one line, not two
     await expect(page.locator('[data-basics] span', { hasText: longLine })).toHaveCount(1);
     const savedHopes = await asUser(page, async (c, _C, id) => (await c.from('sparks').select('hopes').eq('id', id).single()).data.hopes, id);
     expect(savedHopes).toEqual(['Bring cleats. And water?', longLine]);
     const saved = await asUser(page, async (c, _C, id) => (await c.from('sparks').select('min_people').eq('id', id).single()).data.min_people, id);
-    expect(saved).toBe(6);
+    expect(saved).toBe(null);
     const savedTags = await asUser(page, async (c, _C, id) => (await c.from('sparks').select('tags').eq('id', id).single()).data.tags, id);
     expect(savedTags).toEqual([]);
     expect(errors).toEqual([]);

@@ -2988,7 +2988,7 @@
       { label: 'Date', icon: 'cal', p: s.dayDate ? (s.dayDate >= todayISO() ? 1 : 0) : top ? .5 : 0, todo: 'Pick a date', done: 'Date set', sec: 'sec-when' },
       { label: 'Location', icon: 'pin', p: s.spot ? 1 : s.spotOpts.length ? .5 : 0, todo: 'Pick a location', done: 'Location set', sec: 'sec-when' },
       { label: 'Details', icon: 'roles', p: basicsOf(s).length ? 1 : 0, todo: 'Add details', done: 'Details added', sec: 'sec-details' }
-    ].concat(s.minPeople ? [{ label: 'People', icon: 'people', p: Math.min(1, n / s.minPeople), todo: n + ' of ' + s.minPeople + ' people in', done: 'Enough people in', sec: 'sec-people' }] : []);
+    ].concat(MIN_PEOPLE && s.minPeople ? [{ label: 'People', icon: 'people', p: Math.min(1, n / s.minPeople), todo: n + ' of ' + s.minPeople + ' people in', done: 'Enough people in', sec: 'sec-people' }] : []);
   };
   const ring6 = (st, size) => {
     const done = st.p >= 1, r = size * 17 / 40, C = 2 * Math.PI * r, sw = size > 34 ? 3.5 : 3;
@@ -4785,7 +4785,7 @@
   const FLAG = '<path d="M5 21V4"/><path d="M5 4.5c2.5-1.5 5-1.5 7 0s4.5 1.5 7 0v9c-2.5 1.5-5 1.5-7 0s-4.5-1.5-7 0"/>';
   const ideaBanner = (s) => {
     const steps = [['Lead', !s.wantsHost], ['Location', !!s.spot], ['Details', basicsOf(s).length > 0], ['Date', dateAhead(s)]]
-      .concat(s.minPeople ? [['People', s.interested.length >= s.minPeople]] : []);
+      .concat(MIN_PEOPLE && s.minPeople ? [['People', s.interested.length >= s.minPeople]] : []);
     const bar = (on_) => '<span aria-hidden="true" style="flex:1 1 0;max-width:42px;height:3px;margin:10px 6px 0;border-radius:999px;background:' + (on_ ? '#3d2a00' : 'rgba(61,42,0,.22)') + '"></span>';
     const step = ([label, met]) => '<div style="flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:5px">' +
       (met ? '<span style="width:22px;height:22px;border-radius:999px;display:flex;align-items:center;justify-content:center;background:#3d2a00">' + svg(11, stroke('#fff', 3.4), P6.check) + '</span>'
@@ -6043,7 +6043,7 @@
   const basicsOf = (s) => s.hopes.length ? s.hopes.map(x => String(x || '').trim()).filter(Boolean) : splitBits([s.vision]);   // a line is never split at its sentences (owner, 2026-10-01)
   const evPhotoUrl = (st) => st.photos[0] ? st.photos[0].url : (PHOTO_PATH.test(st.evPhotoPath || '') ? photoUrl(st.evPhotoPath) : null);
   const evFilled = (st) => ({ title: !!cleanTitle(st.activity) && st.evTest != null, when: !!st.evDate || !!st.evDatePoll, where: !!cleanTitle(st.locText) || !!st.evSpotPoll,
-    details: st.evBits.some(b => b.trim()) || (!st.evDate && st.evNeed > 0), help: st.evNeeds.length > 0, lead: true });   // leading it is already picked
+    details: st.evBits.some(b => b.trim()) || (MIN_PEOPLE && !st.evDate && st.evNeed > 0), help: st.evNeeds.length > 0, lead: true });   // leading it is already picked
   // "Sat, Oct 24 · 10am", "Sat, Oct 24 · 10am – 12pm"
   const dayLabel = (d, t, e) => d ? fmtDay(d) + (t ? ' · ' + (e ? spanTime({ time: t, endTime: e }) : fmtTime(t)) : '') : '';
   const jobMeta = (j) => j.shifts ? j.shifts.length + (j.shifts.length === 1 ? ' shift' : ' shifts')
@@ -6220,7 +6220,7 @@
           photos: cover ? [cover.path] : [], cat: 'events', answers: {}, lead_id: st.me, lead_name: st.myName, created_by: st.me,
           spot, spot_open: !spot, spot_address: place ? place.address : null, spot_lat: place ? place.lat : null, spot_lon: place ? place.lon : null,
           day_date: st.evDate || null, day_time: st.evDate && st.evTime ? st.evTime : null, day_end: st.evDate && st.evTime && st.evEnd ? st.evEnd : null,
-          planned: plan, visibility: st.evPriv ? 'invite' : 'group', guest_invites: !st.evNoGuestInv, min_people: dated ? null : st.evNeed || null, tags: (st.evTags || []).slice(0, 2),
+          planned: plan, visibility: st.evPriv ? 'invite' : 'group', guest_invites: !st.evNoGuestInv, min_people: dated || !MIN_PEOPLE ? null : st.evNeed || null, tags: (st.evTags || []).slice(0, 2),
           cover_pos: cover && st.coverPos ? posOf(st.coverPos, IDEA_POS) : null
         };
         if (float) row.wants_host = true;   // Just float the idea: it goes up looking for a lead, and the group gets no push (20261102020000_float_and_ask.sql)
@@ -6420,8 +6420,11 @@
       : (st.evSpotPoll ? st.evSpotPoll.map(r => Object.assign({}, r)) : [{ v: cleanTitle(st.locText) }, { v: '' }]);
     setState({ pollSheet: { kind, rows }, timeOpen: null });
   };
-  // "How many people do you want?" (optional; an idea's People step fills against it; wording: owner, 2026-10-02)
-  const needRow = (n, set) => '<div data-need-people style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:16px;background:#fff;box-shadow:inset 0 0 0 2px #dcdfe6">' +
+  // "How many people do you want?" (optional; an idea's People step fills against it; wording: owner, 2026-10-02).
+  // Hidden everywhere for now (owner, 2026-10-02): the row, Review's line and the People step. min_people stays in
+  // the database and is kept as it is; set MIN_PEOPLE to true to bring it all back
+  const MIN_PEOPLE = false;
+  const needRow = (n, set) => !MIN_PEOPLE ? '' : '<div data-need-people style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:16px;background:#fff;box-shadow:inset 0 0 0 2px #dcdfe6">' +
     '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">How many people do you want?</div>' +
       '<div style="margin-top:1px;font-size:12.5px;line-height:1.35;font-weight:600;color:#6b7280;text-wrap:pretty">' + (n ? 'It’s a go once ' + n + (n === 1 ? ' person is' : ' people are') + ' in.' : 'What’s the minimum number that would make this feel like a success?') + '</div></div>' +
     stepper(n, set, 'how many people needed') + '</div>';
@@ -6461,7 +6464,7 @@
         (sub ? '<div style="margin-top:2px;font-size:13.5px;line-height:1.35;font-weight:500;color:#6b7280">' + esc(sub) + '</div>' : '');
       const list = (rows) => rows.map((r, k) => '<div style="display:flex;align-items:baseline;gap:10px;padding:8px 0;border-top:' + (k ? '1px solid #f2f3f6' : '0') + '">' + r + '</div>').join('');
       const bits = st.evBits.map(b => b.trim()).filter(Boolean), place = cleanTitle(st.locText);
-      const needLine = !st.evDate && st.evNeed > 0 ? 'It’s a go once ' + st.evNeed + (st.evNeed === 1 ? ' person is' : ' people are') + ' in.' : '';
+      const needLine = MIN_PEOPLE && !st.evDate && st.evNeed > 0 ? 'It’s a go once ' + st.evNeed + (st.evNeed === 1 ? ' person is' : ' people are') + ' in.' : '';
       const groups = evGroupIds(st), names = groups.map(id => (groupById(id) || {}).name).filter(Boolean), gOpen = st.menu === 'evGroups', g0 = groupById(groups[0]);
       const tile = (priv, label, sub, icon) => { const onIt = !!st.evPriv === priv;
         return '<div ' + on(() => setState({ evPriv: priv }), 'radio') + ' aria-checked="' + onIt + '" style="flex:1 1 0;display:flex;flex-direction:column;gap:4px;padding:12px;border-radius:14px;cursor:pointer;' + (onIt ? 'background:#f3f1fe;box-shadow:inset 0 0 0 2px #5b4ae8' : 'background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6') + '">' +
