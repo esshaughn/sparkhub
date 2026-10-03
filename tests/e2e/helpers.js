@@ -159,8 +159,8 @@ const button = (page, name) => page.getByRole('button', { name, exact: true });
 
 // v6: posting starts from the Calendar's + button (the Create event flow); Profile is the last tab (a sheet)
 async function startPost(page) {
-  await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Calendar', exact: true }).click();
-  await page.locator('[data-screen-label=Calendar] [data-new-event]').click();
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Explore', exact: true }).click();
+  await page.locator('[data-screen-label=Explore] [data-new-event]').click();
 }
 // Create event opens with the Real or test? pop-up (owner, 2026-10-01)
 async function pickKind(page, test = false) {

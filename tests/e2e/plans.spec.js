@@ -793,8 +793,8 @@ test('a sign-up shows on the group page, the Calendar and the lead’s card', as
     await expect(card).toContainText('Helping');
     await O.waitForTimeout(3000);   // the refresh after the save doesn't undo it
     await expect(card).toContainText('Helping');
-    await O.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Calendar', exact: true }).click();
-    await expect(O.locator('[data-screen-label=Calendar] [data-plan="' + title + '"]')).toContainText('Helping');
+    await O.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Explore', exact: true }).click();
+    await expect(O.locator('[data-screen-label=Explore] [data-plan="' + title + '"]')).toContainText('Helping');
     // The lead's page counts the sign-up (the group card's layout depends on what else is coming up)
     await openIdea(H, id);
     await expect(H.locator('[data-screen-label="Plan page"] [data-signup="Barricades"]')).toContainText('1/2');
@@ -816,8 +816,8 @@ test('Calendar group filter: toggling works, and could use a hand follows it', a
     await asUser(H, async (c, _C, id) => { await c.from('signup_items').insert({ spark_id: id, item: 'Barricades', need: 2 }); }, id);
     gid = await asUser(V, async (c) => { const r = await c.rpc('create_group', { p_name: '[E2E] Filter ' + Date.now().toString(36) }); return r.data[0].id || r.data[0].group_id; });
     await V.reload(); await expect(V.locator('html[data-loaded=true]')).toHaveCount(1);
-    await V.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Calendar', exact: true }).click();
-    const cal = V.locator('[data-screen-label=Calendar]'), hand = cal.getByLabel(/^\d+ events? could use a hand$/);
+    await V.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Explore', exact: true }).click();
+    const cal = V.locator('[data-screen-label=Explore]'), hand = cal.getByLabel(/^\d+ events? could use a hand$/);
     await expect(hand).toBeVisible();
     await cal.getByRole('button', { name: /^Groups:/ }).click();
     const rows = V.getByRole('menu', { name: 'Groups' }).getByRole('menuitemcheckbox');

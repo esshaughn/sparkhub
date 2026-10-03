@@ -227,7 +227,7 @@ test('a group end to end: edit group, cover, rename, invite, pin, admin edits, r
     await expect(del.getByLabel('Type DELETE to confirm')).toHaveValue('DELETE');
     await del.getByRole('button', { name: 'Delete group' }).click();
     await expect(B.getByText(groupName + ' was deleted')).toBeVisible();
-    await expect(B.locator('[data-screen-label=Calendar]')).toBeVisible();
+    await expect(B.locator('[data-screen-label="Your calendar"]')).toBeVisible();
 
     expect(admin.errors).toEqual([]);
     expect(other.errors).toEqual([]);

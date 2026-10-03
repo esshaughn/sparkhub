@@ -29,8 +29,8 @@ test('visitors land on Welcome (no tab bar there) and sign in from there', async
     await expect(page.getByText('You’re not in a group yet.')).toBeVisible();
     await expect(page.getByRole('navigation', { name: 'Main' })).toBeVisible();   // …but everywhere else, signed in or not
     await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('button')).toHaveText(['', '', '', '', '']);
-    for (const name of ['Your tasks', 'Your schedule', 'Calendar', 'Groups', 'Profile']) await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name, exact: true })).toBeVisible();
-    await page.getByRole('button', { name: 'Calendar', exact: true }).click();   // the signed-in tabs show Welcome
+    for (const name of ['Explore', 'Your tasks', 'Your calendar', 'Groups', 'Profile']) await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name, exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Explore', exact: true }).click();   // the signed-in tabs show Welcome
     await expect(page.locator('[data-screen-label=Welcome]')).toBeVisible();
     await expect(page.getByRole('navigation', { name: 'Main' })).toHaveCount(0);
     expect(errors).toEqual([]);
@@ -172,7 +172,7 @@ test('Add to Home Screen: at most once a visit, back 48 hours after Got it and 2
     const pop = page.getByRole('dialog', { name: 'Add to Home Screen' });
     await expect(pop).toContainText('no App Store needed.');
     await expect(pop).not.toContainText('Choose Add to Home Screen');   // Android: Chrome's own dialog, no steps
-    await expect(page.locator('[data-screen-label=Calendar] [data-install-card]')).toHaveCount(0);   // no card on the Calendar
+    await expect(page.locator('[data-screen-label=Explore] [data-install-card]')).toHaveCount(0);   // no card on the Calendar
     await pop.getByRole('button', { name: 'Add to Home Screen' }).click();
     await expect.poll(() => page.evaluate(() => window.__prompted)).toBe(1);
     await expect(pop).toHaveCount(0);
@@ -297,11 +297,12 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
   let going = null, host = null;
   const PLAN = '[E2E] Schedule check';
   try {
-    // Signed in, the app opens on the Calendar (the home screen)
-    await expect(page.locator('[data-screen-label=Calendar]').getByRole('heading', { name: 'Calendar' })).toBeVisible();
-    await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Your schedule', exact: true }).click();
-    const home = page.locator('[data-screen-label="Your schedule"]');
-    await expect(home.getByRole('heading', { name: 'Your schedule' })).toBeVisible();
+    // Signed in, the app opens on Your calendar (v7 Update 16, owner 2026-10-03)
+    await expect(page.locator('[data-screen-label="Your calendar"]').getByRole('heading', { name: 'Your calendar' })).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Your calendar', exact: true })).toHaveAttribute('aria-current', 'page');
+    await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Your calendar', exact: true }).click();
+    const home = page.locator('[data-screen-label="Your calendar"]');
+    await expect(home.getByRole('heading', { name: 'Your calendar' })).toBeVisible();
     await expect(home.getByRole('button', { name: 'Show groups' })).toHaveCount(0);   // no group picker in v6
 
     // With something on the schedule (going to another lead's plan in Torrez), the first month row carries the view picker.
@@ -325,7 +326,7 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
     }, planId);
     await page.reload();
     await expect(page.locator('html[data-loaded=true]')).toHaveCount(1);
-    await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Your schedule', exact: true }).click();
+    await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Your calendar', exact: true }).click();
     await expect(home.getByRole('button', { name: 'View: Up next' })).toBeVisible();   // Up next by default (v6 Update 9)
     await expect(home.locator('[data-next]')).toHaveCount(1);   // the hero card
     await expect(home.locator(`[data-plan="${PLAN}"]`)).toContainText('Going');
@@ -337,10 +338,10 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
     await expect(home.getByRole('button', { name: 'Next month' })).toBeVisible();
     await pickView(home, 'Up next');
 
-    // Calendar (the ringed center tab): the community calendar, List by default, then Month
-    await page.getByRole('button', { name: 'Calendar', exact: true }).click();
-    const cal = page.locator('[data-screen-label=Calendar]');
-    await expect(cal.getByRole('heading', { name: 'Calendar' })).toBeVisible();
+    // Explore (the old Calendar, first tab): every event in your groups, List by default, then Month
+    await page.getByRole('button', { name: 'Explore', exact: true }).click();
+    const cal = page.locator('[data-screen-label=Explore]');
+    await expect(cal.getByRole('heading', { name: 'Explore' })).toBeVisible();
     await expect(cal.getByRole('button', { name: 'Groups: All groups' })).toBeVisible();
     // One group picked is named, and the pick is kept for the next visit (Joseph, 2026-10-03).
     // The lead is only in Torrez on a fresh database, so a second group of their own makes the pick mean something
@@ -352,10 +353,24 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
       await gMenu.getByText('Clear', { exact: true }).click();
       await gMenu.getByRole('menuitemcheckbox', { name: /Torrez Fitness/ }).click();
       await page.reload();
-      await expect(cal.getByRole('button', { name: 'Groups: Torrez Fitness' })).toBeVisible();
-      await expect(cal).toContainText('Events from Torrez Fitness');
-      await cal.getByText('Clear filters', { exact: true }).click();
-      await expect(cal).toContainText(/All events from your \d+ groups/);
+      await expect(cal.getByRole('button', { name: 'Groups: 1 group' })).toBeVisible();
+      await expect(cal.getByRole('button', { name: 'Show all groups' })).toHaveText('Showing: Torrez Fitness');
+      await expect(cal).toContainText(/Everything happening in your \d+ groups/);   // the line under the title doesn't change (Update 16)
+      // Your calendar keeps a pick of its own (the group line under its title, option 1b), here still all groups
+      await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Your calendar', exact: true }).click();
+      const yc = page.locator('[data-screen-label="Your calendar"]');
+      await yc.getByRole('button', { name: 'Groups: All groups' }).click();
+      await page.getByRole('menu', { name: 'Groups' }).getByRole('menuitemcheckbox', { name: 'Torrez Fitness' }).click();
+      await page.getByRole('menu', { name: 'Groups' }).getByRole('button', { name: 'Done' }).click();
+      await page.reload();
+      await expect(yc.getByRole('button', { name: 'Groups: Torrez Fitness' })).toBeVisible();
+      await expect(yc.locator(`[data-plan="${PLAN}"]`)).toHaveCount(1);   // a Torrez plan stays
+      await yc.getByRole('button', { name: 'Groups: Torrez Fitness' }).click();
+      await page.getByRole('menu', { name: 'Groups' }).getByRole('menuitemcheckbox', { name: 'All groups' }).click();
+      await expect(yc.getByRole('button', { name: 'Groups: All groups' })).toBeVisible();
+      await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Explore', exact: true }).click();
+      await cal.getByRole('button', { name: 'Show all groups' }).click();
+      await expect(cal.getByRole('button', { name: 'Groups: All groups' })).toBeVisible();
     } finally {
       await asUser(page, async (c, _C, id) => c.rpc('e2e_delete_group', { p_group: id }), extra).catch(() => {});
     }
@@ -550,7 +565,7 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
 
 test('opening the app: loading placeholders (never "empty"), then the last screen straight away next time', async ({ browser }) => {
   const { page, context, errors } = await newLead(browser, 1, 'Tester');   // signed in, loaded once (so cached)
-  const home = page.locator('[data-screen-label=Calendar]');
+  const home = page.locator('[data-screen-label="Your calendar"]');
   const hold = async () => {   // hold every data request until released
     let release; const gate = new Promise(r => { release = r; });
     await page.route('**/rest/v1/**', async (route) => { await gate; await route.continue().catch(() => {}); });
@@ -567,17 +582,17 @@ test('opening the app: loading placeholders (never "empty"), then the last scree
     await expect(page.locator('[data-sched-empty]')).toHaveCount(0);
     await page.getByRole('button', { name: 'Groups', exact: true }).click();
     await expect(page.locator('[data-screen-label=Groups]').getByRole('status', { name: 'Loading' })).toBeVisible();
-    await page.getByRole('button', { name: 'Calendar', exact: true }).click();
+    await page.getByRole('button', { name: 'Your calendar', exact: true }).click();
     release();
     await expect(page.locator('html[data-loaded=true]')).toHaveCount(1);
     await page.unroute('**/rest/v1/**');
     await expect(home.getByRole('status', { name: 'Loading' })).toHaveCount(0);
-    await expect(home.getByRole('heading', { name: 'Calendar' })).toBeVisible();
+    await expect(home.getByRole('heading', { name: 'Your calendar' })).toBeVisible();
 
     // Next open: the cached screen shows at once, while the fresh data is still on its way
     release = await hold();
     await page.reload();
-    await expect(home.getByRole('heading', { name: 'Calendar' })).toBeVisible();
+    await expect(home.getByRole('heading', { name: 'Your calendar' })).toBeVisible();
     await expect(home.getByRole('status', { name: 'Loading' })).toHaveCount(0);
     await expect(page.locator('html[data-loaded=true]')).toHaveCount(0);
     release();
@@ -596,14 +611,14 @@ test('opening the app: loading placeholders (never "empty"), then the last scree
 // test run. A database that doesn't have the function yet still loads the old way.
 test('one request loads the app; a database without load_all still loads table by table', async ({ browser }) => {
   const { page, context } = await newLead(browser, 1, 'Tester');
-  const home = page.locator('[data-screen-label=Calendar]');
+  const home = page.locator('[data-screen-label="Your calendar"]');
   const TABLES = /^GET (memberships|groups|sparks|offers|interests|guest_contacts|rsvps|date_options|date_votes|spot_options|spot_votes|signup_items|signup_claims|plan_updates|cohosts|album_photos|plan_prep|reactions|spark_groups|event_drafts|notes|profiles)$/;
   let seen = [];
   page.on('request', (r) => { const m = r.url().match(/\/rest\/v1\/([^?]+)/); if (m) seen.push(r.method() + ' ' + m[1]); });
   try {
     await page.reload();
     await expect(page.locator('html[data-loaded=true]')).toHaveCount(1);
-    await expect(home.getByRole('heading', { name: 'Calendar' })).toBeVisible();
+    await expect(home.getByRole('heading', { name: 'Your calendar' })).toBeVisible();
     expect(seen.filter(x => x === 'POST rpc/load_all')).toHaveLength(1);
     expect(seen.filter(x => TABLES.test(x))).toEqual([]);
 
@@ -613,7 +628,7 @@ test('one request loads the app; a database without load_all still loads table b
     seen = [];
     await page.reload();
     await expect(page.locator('html[data-loaded=true]')).toHaveCount(1);
-    await expect(home.getByRole('heading', { name: 'Calendar' })).toBeVisible();
+    await expect(home.getByRole('heading', { name: 'Your calendar' })).toBeVisible();
     await expect(page.locator('[data-load-failed]')).toHaveCount(0);
     expect(seen.filter(x => x === 'POST rpc/load_all')).toHaveLength(1);   // asked once, then not again this visit
     expect(seen).toEqual(expect.arrayContaining(['GET sparks', 'GET memberships', 'GET rsvps', 'GET profiles']));
@@ -644,7 +659,7 @@ test('View as a user (owner only): the app reloads as that person', async ({ bro
     await card.locator(`[data-tester="${them.email}"]`).click();
     expect((await loaded).status()).toBe(200);
     await expect(page.locator('[data-preview]')).toContainText('Viewing as Bo');
-    await expect(page.locator('[data-screen-label=Calendar]').getByRole('heading', { name: 'Calendar' })).toBeVisible();
+    await expect(page.locator('[data-screen-label="Your calendar"]').getByRole('heading', { name: 'Your calendar' })).toBeVisible();
     await expect(page.locator('[data-load-failed]')).toHaveCount(0);
     await page.locator('[data-preview]').getByText('Exit').click();
     await expect(page.locator('[data-preview]')).toHaveCount(0);
