@@ -211,7 +211,7 @@
     // v6: Profile / Notifications are sheets; Your tasks' "View all", expansions, the RSVP ask
     profSheet: false, notifSheet: false, dashAll: null, dashOpen: {}, schedOpen: {}, shiftPick: null, banner: null, sigAdding: false,
     // v6 Calendar: search, filters, sort, view, month, discovery cards
-    cq: '', cSearch: false, cGrps: keepGrps(prefs.cGrps), tGrps: keepGrps(prefs.tGrps), sGrps: keepGrps(prefs.sGrps), cTypes: [], cSort: 'soon', cView: CVIEWS.indexOf(prefs.cView) > -1 ? prefs.cView : 'list',
+    cq: '', cSearch: false, cGrps: keepGrps(prefs.cGrps), tGrps: keepGrps(prefs.tGrps), sGrps: keepGrps(prefs.sGrps), cTypes: [], cKind: 'plan', cSort: 'soon', cView: CVIEWS.indexOf(prefs.cView) > -1 ? prefs.cView : 'list',
     cMon: null, cDay: null, cWildHidden: false, cNeedsHidden: false, cHandSheet: false, hMon: null, hDay: null, gMon: null, gDay: null,
     // v6 Update 2: search's Try chips; Your schedule and group pages' Sort · Filter; a group's search
     cTry: null, cWhen: 'any', cHelp: false, sSort: 'soon', sFilt: [], gSort: 'soon', gFilt: [], iSort: 'interest', pastStatsHidden: prefs.pastStatsHidden || {}, jobsOpen: prefs.jobsOpen || {}, descOpen: {}, viewAs: null, testers: null, gSearch: false, gq: '', gTry: null
@@ -427,6 +427,8 @@
     interested: interests.filter(i => i.spark_id === row.id).sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at)).map(i => i.user_id),
     canHelp: interests.filter(i => i.spark_id === row.id && i.can_help).map(i => i.user_id),   // "I could help make it happen"
     wantsHost: !!row.wants_host && !row.planned,   // the floater is looking for someone else to host (20261101090000)
+    holdUntil: row.hold_until || null, holdNudgedAt: row.hold_nudged_at ? Date.parse(row.hold_nudged_at) : 0,   // soft holds (20261103000000)
+    noHelp: !!row.no_help,   // the lead said No help needed in Start an event (Design 23C1)
     interestAt: interests.filter(i => i.spark_id === row.id).reduce((m, i) => { m[i.user_id] = Date.parse(i.created_at); return m; }, {}),
     contacts: contacts.filter(c => c.spark_id === row.id),
     demo: !!row.demo,   // seeded demo content: a DEMO pill before its title (demoTag), and counted for the owner's wipe
@@ -3110,9 +3112,11 @@
     const n = s.interested.length, top = s.dateOpts.reduce((m, o) => Math.max(m, o.votes.length), 0);
     return [
       { label: 'Lead', icon: 'person', p: s.wantsHost ? 0 : 1, todo: 'Find a lead', done: 'Has a lead', sec: 'sec-lead' },
-      { label: 'Date', icon: 'cal', p: s.dayDate ? (s.dayDate >= todayISO() ? 1 : 0) : top ? .5 : 0, todo: 'Pick a date', done: 'Date set', sec: 'sec-when' },
       { label: 'Location', icon: 'pin', p: s.spot ? 1 : s.spotOpts.length ? .5 : 0, todo: 'Pick a location', done: 'Location set', sec: 'sec-when' },
-      { label: 'Details', icon: 'roles', p: basicsOf(s).length ? 1 : 0, todo: 'Add details', done: 'Details added', sec: 'sec-details' }
+      { label: 'Details', icon: 'roles', p: basicsOf(s).length ? 1 : 0, todo: 'Add details', done: 'Details added', sec: 'sec-details' },
+      // Design 23C1 (2026-10-03): the same five steps as the idea's gold strip
+      { label: 'Jobs', icon: 'clip', p: s.signups.length || s.noHelp ? 1 : 0, todo: 'Add jobs, or say no help needed', done: s.signups.length ? 'Jobs added' : 'No help needed', sec: 'sec-tasks' },
+      { label: 'Date', icon: 'cal', p: s.dayDate ? (s.dayDate >= todayISO() ? 1 : 0) : top ? .5 : 0, todo: 'Pick a date', done: 'Date set', sec: 'sec-when' }
     ].concat(MIN_PEOPLE && s.minPeople ? [{ label: 'People', icon: 'people', p: Math.min(1, n / s.minPeople), todo: n + ' of ' + s.minPeople + ' people in', done: 'Enough people in', sec: 'sec-people' }] : []);
   };
   const ring6 = (st, size) => {
@@ -3182,7 +3186,7 @@
   const note6 = (t) => '<div style="' + CARD + ';padding:16px 18px;font-size:15px;line-height:1.45;font-weight:600;color:#6b7280">' + esc(t) + '</div>';
   const CARD6 = 'align-self:flex-start;background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer';
 
-  const ideaStepGrid = (s) => '<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));align-items:center;justify-items:center;padding:10px 14px 11px;border-top:1px solid #f2f3f6">' +
+  const ideaStepGrid = (s) => '<div style="display:grid;grid-template-columns:repeat(' + ideaSteps6(s).length + ',minmax(0,1fr));align-items:center;justify-items:center;padding:10px 14px 11px;border-top:1px solid #f2f3f6">' +
     ideaSteps6(s).map(st => '<span ' + on((e) => { stop(e); openToSection(s, st.sec); }) + ' aria-label="' + st.label + ': ' + (st.p >= 1 ? st.done : st.todo) + '" style="display:flex;flex-direction:column;align-items:center;gap:5px;min-width:56px;padding:2px 0;border-radius:12px;cursor:pointer">' +
       ring6(st, 40) + '<span style="font-size:11.5px;font-weight:800;color:' + (st.p >= 1 ? '#0f7a3c' : '#454b55') + '">' + st.label + '</span></span>').join('') + '</div>';
 
@@ -3209,8 +3213,10 @@
         : inviteCard(ic6('heart', 18, '#454b55', 2.4), 'Find something to help with', 'Leads in your groups need a hand. Sign up to bring something or pitch in.', () => handList().length ? setState({ cHandSheet: true }) : go('calendar'))) + '</section>';
     const invite = d.leadsAny || drafts.length ? '' : '<section aria-label="Leading" style="display:flex;flex-direction:column;gap:8px">' + secHead6(0, '#5b4ae8', 'Leading') +
       inviteCard(I.plus(18, '#454b55', 2.6), 'Start an event', 'You’re not leading anything yet. Got an idea for your group?', () => goCompose()) + '</section>';
-    const ideas = d.ideas.length ? '<section aria-label="Ideas" style="display:flex;flex-direction:column;gap:8px">' + secHead6(d.ideas.length, '#e8a71c', 'Ideas', () => setState({ dashAll: 'idea' })) +
-      row(d.ideas.map(ideaCard).join('')) + '</section>' : '';
+    // With no ideas you lead, Ideas still shows: a 0 badge and an invite to post one (Design, after Update 16)
+    const ideas = '<section aria-label="Ideas" style="display:flex;flex-direction:column;gap:8px">' + secHead6(d.ideas.length, '#e8a71c', 'Ideas', d.ideas.length ? () => setState({ dashAll: 'idea' }) : null) +
+      (d.ideas.length ? row(d.ideas.map(ideaCard).join(''))
+        : inviteCard(svg(18, stroke('#e8a71c', 2.2), BULB_IC), WE_SHOULD, 'Post an idea with only rough details and see who’s in.', () => goCompose())) + '</section>';
     return wrap(goneCard() + lead + help + invite + ideas);
   }
 
@@ -3323,7 +3329,7 @@
   };
 
   // ---- v6 Update 2: Sort · Filter pills (Your schedule and group pages) ------------------------
-  const SORTS6 = [['soon', 'Soonest'], ['lively', 'Most lively'], ['new', 'Newest'], ['help', 'Could use a hand']];
+  const SORTS6 = [['soon', 'By date'], ['lively', 'Popular'], ['new', 'Newest'], ['help', 'Needs help']];
   const sortName6 = (k) => (SORTS6.find(x => x[0] === k) || SORTS6[0])[1];
   const PILL6 = 'display:flex;align-items:center;gap:5px;min-height:32px;padding:0 11px 0 9px;border-radius:999px;font-size:13px;font-weight:800;cursor:pointer;white-space:nowrap';
   const FILTER_ICON = svg(14, stroke('currentColor', 2.4) + ' style="flex:0 0 14px"', '<path d="M4 6h16M7 12h10M10 18h4"/>');
@@ -3356,7 +3362,7 @@
     going: ['Going', (s) => !isLead(s) && myRsvp(s) === 'going'],
     maybe: ['Maybe', (s) => myRsvp(s) === 'maybe'],
     open: ['Not joined yet', (s) => !isLead(s) && !helpsOn(s) && !myRsvp(s)],
-    needs: ['Could use a hand', (s) => signupFill(s).open > 0],
+    needs: ['Needs help', (s) => signupFill(s).open > 0],
     week: ['This week', (s) => daysTo(s) != null && daysTo(s) < 7]
   };
   const filterOpts = (keys, all, sel) => keys.map(k => ({ k, name: FILTERS6[k][0], n: all.filter(FILTERS6[k][1]).length, on: sel.indexOf(k) > -1 }));
@@ -3387,7 +3393,7 @@
     // Sort · Filter · view, on the first heading row
     const viewPick = () => viewPicker('hview', view, (k) => setState({ homeView: k, menu: null, hMon: null, hDay: null }), HOME_VIEWS);
     const plans = applySort(applyFilters(all, st.sFilt), st.sSort), clear = () => setState({ sFilt: [], menu: null });
-    const filt = () => filterPill('sFilt', filterOpts(['lead', 'help', 'going', 'maybe', 'needs', 'week'], all, st.sFilt), st.sFilt,
+    const filt = () => filterPill('sFilt', filterOpts(['lead', 'help', 'going', 'maybe'], all, st.sFilt), st.sFilt,
       (k) => setState({ sFilt: st.sFilt.indexOf(k) > -1 ? st.sFilt.filter(x => x !== k) : st.sFilt.concat([k]) }), clear, plans.length);
     const controls = '<div style="display:flex;align-items:center;gap:6px">' +
       sortPill('sSort', st.sSort, (k) => setState({ sSort: k, menu: null })) + filt() + viewPick() + '</div>';
@@ -3400,8 +3406,13 @@
     const secs = view === 'next' && st.sSort === 'soon' ? nextSections(plans) : sections6(plans, st.sSort, 'Date TBD');
     const card = (s) => view === 'next' ? listCard6(s, partOf(s), false, true) : tile6(s, partOf(s), 180);
     return wrap(goneCard() + secs.map((z, i) => '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(z.label, i ? '' : controls) +
-      '<div style="display:flex;flex-direction:column;gap:' + (view === 'next' ? 10 : 14) + 'px">' + (z.hero ? nextCard6(z.hero, partOf(z.hero)) : z.items.map(card).join('')) + '</div></div>').join(''));
+      '<div style="display:flex;flex-direction:column;gap:' + (view === 'next' ? 10 : 14) + 'px">' + (z.hero ? nextCard6(z.hero, partOf(z.hero)) : z.items.map(card).join('')) + '</div></div>').join('') + findMore());
   }
+  // The end of Your calendar (Up next and Tiles): a green dashed slot that opens Explore (Design, after Update 16)
+  const findMore = () => '<div ' + on(() => go('calendar')) + ' data-find-more role="button" style="display:flex;align-items:center;gap:12px;padding:16px;border-radius:18px;background:#f3fbf6;border:2px dashed #a9d6ba;cursor:pointer">' +
+    '<span style="flex:0 0 44px;width:44px;height:44px;border-radius:999px;background:#149a4b;display:flex;align-items:center;justify-content:center">' + I.plus(20, '#fff', 2.8) + '</span>' +
+    '<div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:900;color:#0d4a26">Find more events</div><div style="margin-top:2px;font-size:13.5px;font-weight:600;color:#0f7a3c">See what else is happening in your groups</div></div>' +
+    I.chevR(16, '#0f7a3c', 2.6) + '</div>';
 
   // ---- Screen 3: Explore (the community Calendar until v7 Update 16) ---------------------------
   // Event types: the host picks up to two in Create event or the Details pop-up (owner, 2026-09-30; `sparks.tags`)
@@ -3450,8 +3461,28 @@
   const matchQ = (s, q) => { q = (q || '').trim().toLowerCase(); return !q || [s.text, s.spot, s.spotAddress].concat(gIds(s).map(id => (groupById(id) || {}).name)).some(v => (v || '').toLowerCase().indexOf(q) > -1); };
   const lively = (s) => going(s).length * 2 + maybes(s).length + s.signups.reduce((a, i) => a + i.claims.length, 0) + s.updates.length +
     ((Date.now() - s.created) < 48 * 3600000 ? 4 : (Date.now() - s.created) < 120 * 3600000 ? 2 : 0);
+  // Soft holds: while an idea's date poll is open, its dates are pencilled in (Explore's Month and a group page's Month only)
+  // until hold_until; once a date is set, or the idea is cancelled, the holds go (20261103000000_soft_holds.sql)
+  const holdOn = (s) => !s.planned && !s.dayDate && !s.cancelledAt && s.dateOpts.length > 0 && !!s.holdUntil && s.holdUntil >= todayISO();
+  const holdItems = (keep) => state.sparks.filter(s => inMine(s) && holdOn(s) && keep(s))
+    .reduce((out, s) => out.concat(s.dateOpts.filter(o => o.dayDate >= todayISO()).map(o => ({ s, o }))), []);
+  // Start an event's Date & time: a picked date that an idea is holding gets a pale gold heads-up. Information only;
+  // Next works as usual (Design, soft holds)
+  const holdNote = (iso) => {
+    if (!iso) return '';
+    const hs = holdItems(() => true).filter(h => h.o.dayDate === iso), ideas = hs.map(h => h.s).filter((x, k, a) => a.indexOf(x) === k);
+    if (!ideas.length) return '';
+    const until = ideas.map(x => x.holdUntil).sort()[0], dow = new Date(until + 'T12:00').toLocaleDateString('en-US', { weekday: 'short' });
+    const t = ideas.length > 1 ? ideas.length + ' ideas are holding this date' : esc(ideas[0].text) + ' is holding ' + (hs[0].o.dayTime ? esc(fmtTime(hs[0].o.dayTime)) : 'this date');
+    return '<div data-hold-note style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:14px;background:#fdf6dc;border:1.5px solid #e6d08c">' +
+      svg(18, stroke('#8a6510', 2.2) + ' style="flex:0 0 18px"', PENCIL_IC) + '<span style="flex:1;min-width:0;font-size:14px;line-height:1.35;font-weight:700;color:#5c4510">' + t + ' · voting until ' + dow + '</span></div>';
+  };
+  const PENCIL_IC = '<path d="M4 20h4L19 9l-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/>';
+  // Explore's Plans · Ideas · Past (Design, after Update 16): upcoming plans, the groups' ideas, or events that happened
+  const calPool = (k) => (k || state.cKind) === 'plan' ? calBase() : state.sparks.filter(s => inMine(s) && !s.cancelledAt && phaseOf(s) === (k || state.cKind));
   const calResults = () => {
-    const out = calBase().filter(s => inGroups6(s) && inTypes6(s));
+    const out = calPool().filter(s => inGroups6(s) && inTypes6(s));
+    if (state.cKind === 'done' && state.cSort === 'soon') return out.sort((a, b) => byWhen(b, a));   // Past: newest first
     const f = (s) => signupFill(s).open;
     if (state.cSort === 'help') out.sort((a, b) => f(b) - f(a) || byWhen(a, b));
     else if (state.cSort === 'lively') out.sort((a, b) => lively(b) - lively(a) || byWhen(a, b));
@@ -3496,7 +3527,7 @@
             '<span style="flex:1;font-size:15px;font-weight:' + (k === cur ? 900 : 700) + ';color:' + (k === cur ? '#5b4ae8' : '#0d1117') + '">' + name + '</span>' + (k === cur ? I.check(16, '#5b4ae8', 2.6) : '') + '</div>').join('') + '</div>' : '') +
     '</div>';
   };
-  const CSORTS = [['soon', 'Soonest'], ['lively', 'Most lively'], ['new', 'Newest'], ['help', 'Could use a hand']];
+  const CSORTS = [['soon', 'By date'], ['lively', 'Popular'], ['new', 'Newest'], ['help', 'Needs help']];
   const calViewMenu = () => {
     const icon = (k, c) => svg(17, 'fill="none" stroke="' + c + '" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"', VIEW_ICONS[k]);
     return miniMenu('cView', 'View: ' + VIEW_NAMES[state.cView], icon(state.cView, 'currentColor') + I.chevD(12, 'currentColor', 2.8),
@@ -3505,6 +3536,7 @@
 
   // Month grid, then the chosen day's events (the Calendar, and Your schedule since v6 Update 9)
   const monthBody = (list, o) => {
+    const holds = o.holds || [];
     const first = list.find(s => s.dayDate) || null, cm = o.mon || (first ? first.dayDate.slice(0, 7) : todayISO().slice(0, 7));
     const [y, m] = cm.split('-').map(Number), start = new Date(y, m - 1, 1), nDays = new Date(y, m, 0).getDate(), today = todayISO();
     const inMonth = list.filter(s => s.dayDate && s.dayDate.slice(0, 7) === cm), undatedN = list.filter(s => !s.dayDate).length;
@@ -3514,32 +3546,45 @@
     const cells = [];
     for (let i = 0; i < start.getDay(); i++) cells.push('<span></span>');
     for (let d = 1; d <= nDays; d++) {
-      const iso = cm + '-' + pad2(d), onIt = iso === sel, day = inMonth.filter(s => s.dayDate === iso);
+      const iso = cm + '-' + pad2(d), onIt = iso === sel, day = inMonth.filter(s => s.dayDate === iso), held = holds.filter(h => h.o.dayDate === iso);
       const dot = (s) => { const P = partOf(s, o.cal); return onIt ? '#fff' : P.k === 'open' ? '#9aa0ac' : P.R.dot; };
-      cells.push('<span ' + on(() => o.set(cm, iso)) + ' aria-label="' + esc(fmtDay(iso) + (day.length ? ', ' + day.length + (day.length === 1 ? ' event' : ' events') : '')) + '" aria-pressed="' + onIt + '" style="height:46px;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;background:' + (onIt ? '#0d1117' : 'transparent') + '">' +
+      cells.push('<span ' + on(() => o.set(cm, iso)) + ' aria-label="' + esc(fmtDay(iso) + (day.length ? ', ' + day.length + (day.length === 1 ? ' event' : ' events') : '') + (held.length ? ', ' + held.length + ' pencilled in' : '')) + '" aria-pressed="' + onIt + '" style="height:46px;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;background:' + (onIt ? '#0d1117' : 'transparent') + '">' +
         '<span style="font-size:15px;font-weight:' + (day.length || onIt ? 900 : 700) + ';color:' + (onIt ? '#fff' : iso === today ? '#5b4ae8' : day.length ? '#0d1117' : '#9aa0ac') + '">' + d + '</span>' +
-        '<span style="display:flex;gap:3px;height:5px">' + day.slice(0, 3).map(s => '<span style="width:5px;height:5px;border-radius:999px;background:' + dot(s) + '"></span>').join('') + '</span></span>');
+        // a hold is a hollow gold dot after the plans' dots; only a plan makes the day number bold
+        '<span style="display:flex;gap:3px;height:5px">' + day.slice(0, 3).map(s => '<span style="width:5px;height:5px;border-radius:999px;background:' + dot(s) + '"></span>').join('') +
+          held.slice(0, Math.max(0, 3 - Math.min(3, day.length))).map(() => '<span data-hold-dot style="width:5px;height:5px;border-radius:999px;box-sizing:border-box;border:1.3px solid ' + (onIt ? '#ecc56a' : '#e8a71c') + '"></span>').join('') + '</span></span>');
     }
-    const dayList = list.filter(s => s.dayDate === sel);
+    const dayList = list.filter(s => s.dayDate === sel), dayHolds = holds.filter(h => h.o.dayDate === sel);
+    const monthHolds = holds.some(h => h.o.dayDate.slice(0, 7) === cm);
+    const holdRow = (h) => { const mine = h.o.votes.indexOf(state.me) > -1, n = h.o.votes.length;
+      return '<div ' + on(() => openToSection(h.s, 'sec-when')) + ' data-hold="' + esc(h.s.text) + '" role="button" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;background:rgba(255,255,255,.55);border:1.5px dashed #d9c58a;cursor:pointer">' +
+        '<div style="flex:1;min-width:0"><div style="font-size:15px;line-height:1.3;font-weight:800;color:#454b55;overflow-wrap:anywhere">' + esc(h.s.text) + '</div>' +
+          '<div style="margin-top:2px;font-size:12.5px;font-weight:600;color:#8a909b">' + esc([h.o.dayTime ? fmtTime(h.o.dayTime) : '', n + (n === 1 ? ' vote so far' : ' votes so far')].filter(Boolean).join(' · ')) +
+            (mine ? '<span style="color:#8a6510"> · ✓ You voted</span>' : '') + '</div></div>' +
+        '<span style="flex:0 0 auto;font-size:13px;font-weight:800;color:#8a6510">Vote ›</span></div>'; };
+    const pencilled = dayHolds.length ? '<div style="padding:6px 4px 0;font-size:12px;font-weight:900;letter-spacing:1px;color:#8a6510">PENCILLED IN</div>' + dayHolds.map(holdRow).join('') : '';
     return '<div style="display:flex;flex-direction:column;gap:10px">' +
       '<div style="display:flex;align-items:center;gap:8px;padding:0 4px"><h2 style="flex:1;margin:0;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:#0d1117">' + esc(start.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })) + '</h2>' +
         navBtn(shift(-1), 'Previous month', I.chevL(15, '#0d1117', 2.6)) + navBtn(shift(1), 'Next month', I.chevR(15, '#0d1117', 2.6)) + o.menu + '</div>' +
       '<div style="' + CARD + ';padding:10px 8px">' +
         '<div aria-hidden="true" style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));padding-bottom:4px">' + ['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(x => '<span style="text-align:center;font-size:11px;font-weight:800;letter-spacing:.6px;color:#6b7280">' + x + '</span>').join('') + '</div>' +
-        '<div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px">' + cells.join('') + '</div></div>' +
+        '<div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px">' + cells.join('') + '</div>' +
+        (monthHolds ? '<div data-hold-key style="display:flex;align-items:center;justify-content:center;gap:14px;padding:8px 0 2px;font-size:12.5px;font-weight:700;color:#6b7280">' +
+          '<span style="display:flex;align-items:center;gap:6px"><span style="width:6px;height:6px;border-radius:999px;background:#9aa0ac"></span>Plan</span>' +
+          '<span style="display:flex;align-items:center;gap:6px"><span style="width:6px;height:6px;border-radius:999px;box-sizing:border-box;border:1.3px solid #9aa0ac"></span>Pencilled in</span></div>' : '') + '</div>' +
       // Undated events stay out of the grid; the strip opens List at "Date TBD" (Round 65d)
       (undatedN ? '<div ' + on(() => { o.toTbd(); setTimeout(() => { const el = document.querySelector('[data-sec-tbd]'); if (el) el.scrollIntoView({ block: 'start' }); }, 0); }) + ' data-no-date style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:14px;background:#fef7dd;box-shadow:inset 0 0 0 1.5px #e3c979;cursor:pointer">' +
         svg(18, stroke('#8f6405', 2.2), '<rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>') +
         '<span style="flex:1;font-size:14px;font-weight:800;color:#8f6405">' + undatedN + (undatedN === 1 ? ' event with no date yet' : ' events with no date yet') + '</span>' + I.chevR(14, '#8f6405', 2.6) + '</div>' : '') +
       '<div style="padding:6px 4px 0;font-size:16px;font-weight:900;color:#0d1117">' + esc(new Date(sel + 'T12:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })) + '</div>' +
-      (dayList.length ? dayList.map(o.card).join('') : '<div style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:10px">' +
+      (dayList.length || dayHolds.length ? dayList.map(o.card).join('') + pencilled : '<div style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:10px">' +
         '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px"><span style="font-size:17px;font-weight:900;color:#0d1117">' + esc(fmtDay(sel)) + '</span><span style="font-size:13px;font-weight:700;color:#9aa0ac">0 events</span></div>' +
         '<div style="font-size:15px;font-weight:700;color:#6b7280">Nothing on this day.</div>' +
         (sel >= today ? '<span ' + on(() => goCompose({ evDate: sel })) + ' style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:32px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(15, '#5b4ae8', 2.8) + 'Start an event on ' + esc(new Date(sel + 'T12:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })) + '</span>' : '') + '</div>') + '</div>';
   };
 
   function viewCalendar() {
-    const st = state, groups = groupsInOrder(), base = calBase(), list = calResults(), hand = handList();
+    const st = state, groups = groupsInOrder(), kind = st.cKind, base = calPool(), list = calResults(), hand = kind === 'plan' ? handList() : [];
     const calHero = currentGroup();   // the header shows the group last opened (owner, 2026-10-02: no pilot photo for everyone)
     const header = '<header style="position:relative;height:calc(180px + var(--pt));overflow:hidden;background:#2b303a">' +
       (calHero && groupPhoto(calHero) ? '<div style="position:absolute;inset:0;overflow:hidden">' + photoLayer(groupPhoto(calHero), calHero.photoPos, GROUP_POS) + '</div>' : '<div aria-hidden="true" style="position:absolute;inset:0;background:' + HEAD_GOLD + '"></div>') +
@@ -3579,33 +3624,48 @@
         '<span style="display:block;width:100%;height:100%;border-radius:4px;background:' + (s ? photoBg(s) : '#e8eaee') + '"></span></span>';
     };
     const wild = '';   // "Feeling wild?" is gone (owner, 2026-10-01): filler, like Search's old surprise cards
-    const needs = !st.cNeedsHidden && hand.length ? '<div ' + on(() => setState({ cHandSheet: true, menu: null })) + ' aria-label="' + hand.length + (hand.length === 1 ? ' event could' : ' events could') + ' use a hand" style="display:flex;align-items:center;gap:10px;padding:8px 8px 8px 14px;border-radius:18px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
+    const needs = !st.cNeedsHidden && hand.length ? '<div ' + on(() => setState({ cHandSheet: true, menu: null })) + ' aria-label="' + hand.length + (hand.length === 1 ? ' event needs' : ' events need') + ' help" style="display:flex;align-items:center;gap:10px;padding:8px 8px 8px 14px;border-radius:18px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
       '<span style="display:flex">' + hand.slice(0, 3).map((s, i) => '<span aria-hidden="true" style="width:26px;height:26px;border-radius:999px;border:2px solid #fff;margin-left:' + (i ? -9 : 0) + 'px;background:' + photoBg(s) + '"></span>').join('') + '</span>' +
-      '<span style="flex:1;min-width:0;font-size:14.5px;font-weight:700;color:#0d1117"><b style="font-weight:900;color:#b07a0a">' + hand.length + (hand.length === 1 ? ' event' : ' events') + '</b> could use a hand</span>' +
-      I.chevR(14, '#b9bcc4', 2.6) + xBtn(() => setState({ cNeedsHidden: true }), 'Hide could use a hand') + '</div>' : '';
+      '<span style="flex:1;min-width:0;font-size:14.5px;font-weight:700;color:#0d1117"><b style="font-weight:900;color:#b07a0a">' + hand.length + (hand.length === 1 ? ' event' : ' events') + '</b> ' + (hand.length === 1 ? 'needs' : 'need') + ' help</span>' +
+      I.chevR(14, '#b9bcc4', 2.6) + xBtn(() => setState({ cNeedsHidden: true }), 'Hide needs help') + '</div>' : '';
 
     // Sections: Today / This week / Month (Soonest); Could use a hand / All covered (Needs you)
     const sortMenu = miniMenu('cSort', 'Sort: ' + (CSORTS.find(x => x[0] === st.cSort) || CSORTS[0])[1], ic6('sort', 15, 'currentColor', 2.2) + (CSORTS.find(x => x[0] === st.cSort) || CSORTS[0])[1],
       CSORTS, st.cSort, (k) => setState({ cSort: k, menu: null }));
     const secOf = (s) => {
-      if (st.cSort === 'help') return signupFill(s).open > 0 ? 'Could use a hand' : 'All covered';
-      if (st.cSort === 'lively') return 'Most lively';
+      if (kind === 'idea' && st.cSort === 'soon') return 'Ideas';
+      if (kind === 'done' && st.cSort === 'soon') return s.dayDate ? monthLabel(s.dayDate) : 'Earlier';
+      if (st.cSort === 'help') return signupFill(s).open > 0 ? 'Needs help' : 'All covered';
+      if (st.cSort === 'lively') return 'Popular';
       if (st.cSort === 'new') return 'Newest';
       const d = daysTo(s);
       return d == null ? 'Date TBD' : d === 0 ? 'Today' : d < 7 ? 'This week' : monthLabel(s.dayDate);
     };
     const secs = [];
     list.forEach(s => { const l = secOf(s); let z = secs.find(q => q.label === l); if (!z) { z = { label: l, items: [] }; secs.push(z); } z.items.push(s); });
-    const card6 = (s) => st.cView === 'tiles' ? tile6(s, partOf(s, true), 170, true) : listCard6(s, partOf(s, true), true);
+    // An idea or a past event says what it is, not RSVP
+    const P = (s) => kind === 'idea' ? { k: 'idea', R: R6.help, word: 'Idea', rows: [], right: 'See' }
+      : kind === 'done' ? { k: 'past', R: R6.open, word: myRsvp(s) === 'going' || isLead(s) ? 'You went' : 'Happened', rows: [], right: 'See' } : partOf(s, true);
+    const card6 = (s) => st.cView === 'tiles' ? tile6(s, P(s), 170, true) : listCard6(s, P(s), true);
+    const KIND_IC = { plan: '<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path d="m9 15 2 2 4-4"/>', idea: BULB_IC,
+      done: '<path d="M3.5 12a8.5 8.5 0 1 0 2.5-6"/><path d="M3.5 4v4h4"/><path d="M12 7.5V12l3 2"/>' };
+    const kOpen = st.menu === 'cKind', kName = { plan: 'Plans', idea: 'Ideas', done: 'Past' };
+    const kindPill = '<div data-menu style="position:relative;flex:0 0 auto;margin-left:6px">' +
+      '<span ' + on((e) => { stop(e); setState({ menu: kOpen ? null : 'cKind' }); }) + ' aria-label="Show: ' + kName[kind] + '" aria-haspopup="menu" aria-expanded="' + kOpen + '" style="' + PILL6 + ';background:transparent;box-shadow:inset 0 0 0 1.5px #c3c7d0;color:#454b55">' +
+        svg(14, stroke('currentColor', 2.2), KIND_IC[kind]) + kName[kind] + I.chevD(10, 'currentColor', 3) + '</span>' +
+      (kOpen ? '<div role="menu" aria-label="Show" style="position:absolute;top:44px;right:0;z-index:25;width:200px;padding:6px;border-radius:16px;background:#fff;box-shadow:0 12px 32px rgba(15,18,25,.18),0 0 0 1px #e6e7eb;animation:popIn 160ms ease both">' +
+        ['plan', 'idea', 'done'].map(k => '<div ' + on((e) => { stop(e); setState({ cKind: k, menu: null, cMon: null, cDay: null }); }, 'menuitemradio') + ' aria-checked="' + (k === kind) + '" style="display:flex;align-items:center;gap:10px;min-height:42px;padding:0 12px;border-radius:10px;font-size:14.5px;font-weight:' + (k === kind ? 900 : 700) + ';color:' + (k === kind ? '#5b4ae8' : '#0d1117') + ';cursor:pointer">' +
+          svg(16, stroke('currentColor', 2.2), KIND_IC[k]) + '<span style="flex:1">' + kName[k] + '</span><span style="font-size:13px;font-weight:600;color:#b9bcc4">' + calPool(k).filter(inGroups6).length + '</span></div>').join('') + '</div>' : '') +
+    '</div>';
     let body;
     if (!st.loaded) body = skeleton(3, 90);
-    else if (st.cView === 'month') body = monthBody(list, { mon: st.cMon, day: st.cDay, cal: true, menu: calViewMenu(), card: card6,
+    else if (st.cView === 'month') body = monthBody(list, { holds: kind === 'plan' ? holdItems(inGroups6) : [], mon: st.cMon, day: st.cDay, cal: true, menu: '<div style="display:flex;align-items:center">' + kindPill + calViewMenu() + '</div>', card: card6,
       set: (cMon, cDay) => setState({ cMon, cDay }), toTbd: () => setState({ cView: 'list', cSort: 'soon', menu: null, cMon: null, cDay: null }) });
     else if (!list.length) {
-      body = st.loaded && !groups.length ? '' : '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(st.cSort === 'soon' ? 'Coming up' : (CSORTS.find(x => x[0] === st.cSort) || CSORTS[0])[1], '<div style="display:flex;align-items:center">' + sortMenu + calViewMenu() + '</div>') +
-        (filtered ? filterEmpty(clearFilters, (gSel ? groups.filter(g => gSel.indexOf(g.id) > -1).map(g => g.name) : [])) : calEmpty())   // (tSel went with the Type filter; it froze this screen, 2026-10-02) + '</div>';
+      body = st.loaded && !groups.length ? '' : '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(st.cSort === 'soon' ? 'Coming up' : (CSORTS.find(x => x[0] === st.cSort) || CSORTS[0])[1], '<div style="display:flex;align-items:center">' + sortMenu + kindPill + calViewMenu() + '</div>') +
+        (filtered ? filterEmpty(clearFilters, (gSel ? groups.filter(g => gSel.indexOf(g.id) > -1).map(g => g.name) : [])) : kind === 'idea' ? note6('No ideas in your groups yet.') : kind === 'done' ? note6('Nothing has happened in your groups yet.') : calEmpty())   // (tSel went with the Type filter; it froze this screen, 2026-10-02) + '</div>';
     } else {
-      body = secs.map((z, i) => '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(z.label, i ? '' : '<div style="display:flex;align-items:center">' + sortMenu + calViewMenu() + '</div>') +
+      body = secs.map((z, i) => '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(z.label, i ? '' : '<div style="display:flex;align-items:center">' + sortMenu + kindPill + calViewMenu() + '</div>') +
         z.items.map(card6).join('') + '</div>').join('');
     }
     return '<div data-screen-label="Explore">' + header + filters +
@@ -3676,8 +3736,8 @@
               : '<button type="button" ' + on(() => { if (!state.busy) claimRole(s, it); }) + ' style="flex:0 0 auto;min-height:32px;padding:0 14px;border:0;border-radius:999px;background:#0d1117;color:#fff;font-family:inherit;font-size:13.5px;font-weight:800;cursor:pointer">Claim</button>') + '</div>';
         }).join('') + '</div>';
     };
-    return sheet6('Could use a hand', close,
-      '<div style="display:flex;align-items:center;gap:10px"><h2 style="flex:1;margin:0;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">Could use a hand</h2>' + closeX(close) + '</div>' +
+    return sheet6('Needs help', close,
+      '<div style="display:flex;align-items:center;gap:10px"><h2 style="flex:1;margin:0;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">Needs help</h2>' + closeX(close) + '</div>' +
         '<div style="margin-top:6px;font-size:14px;font-weight:600;color:#6b7280">' + list.length + (list.length === 1 ? ' event' : ' events') + ' coming up in the next 2 weeks</div>',
       '<div style="padding:14px 14px 30px;display:flex;flex-direction:column;gap:10px">' + (list.length ? list.map(card).join('') : '<div style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:10px"><span style="font-size:11.5px;font-weight:900;letter-spacing:1px;color:#8f6405">COULD USE A HAND</span>' +
         '<div style="display:flex;gap:12px;align-items:center"><span aria-hidden="true" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#e7f6ec;display:flex;align-items:center;justify-content:center">' + svg(18, stroke('#149a4b', 2.8), P6.check) + '</span>' +
@@ -3685,7 +3745,7 @@
   }
 
   // Search (v6 Update 2): before typing, Try chips and "Or something unexpected"; live results as you type
-  const TRY6 = [['weekend', 'This weekend', { cWhen: 'weekend' }], ['help', 'Could use a hand', { cHelp: true }]];
+  const TRY6 = [['weekend', 'This weekend', { cWhen: 'weekend' }], ['help', 'Needs help', { cHelp: true }]];
   const TRY_UNDO = { cTry: null, cWhen: 'any', cTypes: [], cHelp: false };
   // "This weekend": the coming Friday to Sunday (today included when it's one of them)
   const inWhen6 = (s) => {
@@ -3732,7 +3792,7 @@
     const magic = [
       { icon: 'moon', title: 'Soonest surprise', sub: 'The next thing happening that I’m not in', bg: '#1f2433', ink: '#cfc9ff', pick: pick(() => notMine.slice().sort(byWhen)[0]) },
       { icon: 'people', title: 'Tag along', sub: 'Where the most people are going', bg: '#fdf1d6', ink: '#8f6405', pick: pick(() => notMine.slice().sort((a, b) => going(b).length - going(a).length)[0]) },
-      { icon: 'compass', title: 'Could use a hand', sub: 'The soonest event still looking for helpers', bg: '#e7f6ec', ink: '#149a4b', pick: pick(() => notMine.filter(s => signupFill(s).open > 0).sort(byWhen)[0]) }
+      { icon: 'compass', title: 'Needs help', sub: 'The soonest event still looking for helpers', bg: '#e7f6ec', ink: '#149a4b', pick: pick(() => notMine.filter(s => signupFill(s).open > 0).sort(byWhen)[0]) }
     ];
     const hint = '<div style="display:flex;flex-direction:column;gap:4px;padding:0 4px">' +
       '<span style="font-size:11.5px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;color:#8a909b">Try</span>' +
@@ -3819,7 +3879,8 @@
     invited: { bg: '#5b4ae8', glyph: '✉', cat: 'invites', topic: 'friends' },
     leadask: { bg: '#7b6ef0', glyph: '★', cat: 'invites', topic: 'friends' },   // someone asked you to lead an idea
     jobask: { bg: '#e8a71c', glyph: '✋', cat: 'invites', topic: 'friends' },   // someone asked you to take a job
-    leadoffer: { bg: '#7b6ef0', glyph: '★', cat: 'invites', topic: 'friends' }   // the lead asked you to take over
+    leadoffer: { bg: '#7b6ef0', glyph: '★', cat: 'invites', topic: 'friends' },   // the lead asked you to take over
+    hold: { bg: '#7b6ef0', glyph: '★', cat: 'hosting', topic: 'hosting' }   // soft holds: Lock it in? / stop holding tomorrow (the daily job pushes them too)
   };
   const N_TOPICS = [
     ['newevents', 'New in your groups', 'New plans and ideas'],
@@ -3877,6 +3938,15 @@
       s.rsvps.filter(r => r.userId !== me && !(r.status === 'going' && claimAt[r.userId] && Math.abs(r.created - claimAt[r.userId]) < 120000)).forEach(r => add({ key: 'rv:' + s.id + ':' + r.userId, type: 'rsvp', s, t: r.created, uid: r.userId, who: personName(s, r.userId),
         text: r.status === 'going' ? 'is going to' : r.status === 'maybe' ? 'might come to' : 'can’t make it to' }));
       s.signups.forEach(it => it.claims.filter(c => c.userId !== me && c.created).forEach(c => add({ key: 's:' + it.id + ':' + c.userId, type: 'signup', s, t: c.created, uid: c.userId, who: personName(s, c.userId), text: 'signed up to bring', item: it.item })));
+      // Soft holds, the lead's two reminders (20261103000000_soft_holds.sql): once a date leads with 3+ votes (after the
+      // morning job sent the push), and the day before the holds lapse
+      if (ph === 'idea' && holdOn(s) && !s.wantsHost) {
+        if (s.holdNudgedAt) {
+          const top = s.dateOpts.slice().sort((a, b) => b.votes.length - a.votes.length)[0], voters = new Set([].concat(...s.dateOpts.map(o => o.votes))).size;
+          if (top) add({ key: 'hv:' + s.id, type: 'hold', s, t: s.holdNudgedAt, body: voters + ' voted, ' + new Date(top.dayDate + 'T12:00').toLocaleDateString('en-US', { weekday: 'long' }) + ' leads. Lock it in?' });
+        }
+        if (s.holdUntil === isoAdd(todayISO(), 1)) add({ key: 'hl:' + s.id + ':' + s.holdUntil, type: 'hold', s, t: midnight(todayISO()) + 8 * 3600000, body: 'Your dates for ' + s.text + ' stop holding tomorrow. Keep holding?' });
+      }
       if (ph === 'idea') {
         s.interested.filter(u => u !== me && s.interestAt[u]).forEach(u => add({ key: 'i:' + s.id + ':' + u, type: 'interest', s, t: s.interestAt[u], uid: u, who: personName(s, u), text: 'is interested in' }));
         s.dateOpts.filter(o => o.createdBy !== me && o.created).forEach(o => add({ key: 'd:' + o.id, type: 'vote', s, t: o.created, uid: o.createdBy, who: o.who, text: 'suggested', item: fmtDay(o.dayDate) + (o.dayTime ? ' ' + fmtTime(o.dayTime) : ''), joiner: ' for ' }));
@@ -3909,7 +3979,7 @@
   const markRead = (n) => { if (isUnread(n)) saveNotif({ read: state.notif.read.concat([n.key]) }); };
   // Everything shown counts, even an item stamped a little ahead of this device's clock
   const markAllRead = () => saveNotif({ allReadAt: Math.max(Date.now(), ...notifList().map(n => n.t)), read: [] });
-  const openNotif = (n) => { markRead(n); if (n.s) openSpark(n.s); else if (n.type === 'friendreq') go('groups', { pplTab: 'friends', pplSearch: false, pplQ: '' }); };
+  const openNotif = (n) => { markRead(n); if (n.type === 'hold') openToSection(n.s, 'sec-when'); else if (n.s) openSpark(n.s); else if (n.type === 'friendreq') go('groups', { pplTab: 'friends', pplSearch: false, pplQ: '' }); };
   const rsvpFromFeed = (n, status) => (e) => { stop(e); markRead(n); setRsvp(n.s, status); };
 
   // ---- Web push: phone notifications (the service worker is /sw.js; the database decides who
@@ -4368,6 +4438,7 @@
       const T = N_TYPES[n.type], g = n.s && groupById(n.s.groupId), unr = isUnread(n), face = n.uid ? avatarOf(n.uid) : null;
       const what = n.s ? '<b style="font-weight:800;color:#0d1117">' + esc(n.s.text) + '</b>' : '';
       const line = n.type === 'note' ? '<b style="font-weight:800;color:#0d1117">' + esc(n.body) + '</b>'
+        : n.type === 'hold' ? what + ' · ' + esc(n.body)
         : n.type === 'update' ? what + ' · ' + esc(n.quote)   // Round 65a
         : n.type === 'newevent' ? (n.idea ? 'New idea: ' : 'New: ') + what
         : n.type === 'reminder'
@@ -4375,8 +4446,11 @@
         : '<b style="font-weight:800;color:#0d1117">' + esc(n.who) + '</b> ' + esc(n.text) + ' ' +
           (n.item ? '<b style="font-weight:800;color:#0d1117">' + esc(n.item) + '</b>' + (n.joiner ? esc(n.joiner) + what : ' on ' + what) : what);
       return '<div ' + on(() => openNotif(n)) + ' data-notif="' + esc(n.type) + '" style="display:flex;align-items:flex-start;gap:12px;padding:14px;border-top:' + (k ? '1px solid #f2f3f6' : '0') + ';background:' + (unr ? '#faf9ff' : '#fff') + ';cursor:pointer">' +
-        avatarSpan(n.type === 'reminder' ? n.s.id : n.uid, n.type === 'reminder' ? n.s.text : n.who, face, 44, 'position:relative',
-          '<span style="position:absolute;right:-3px;bottom:-3px;width:20px;height:20px;border-radius:999px;border:2px solid #fff;background:' + T.bg + ';color:#fff;font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center;line-height:1">' + T.glyph + '</span>') +
+        (n.type === 'hold'   // a dashed gold pencil tile, with the ★ badge (Design, soft holds)
+          ? '<span aria-hidden="true" style="position:relative;flex:0 0 44px;width:44px;height:44px;border-radius:999px;box-sizing:border-box;border:1.5px dashed #d9c58a;background:#fdf6dc;display:flex;align-items:center;justify-content:center">' + svg(19, stroke('#8a6510', 2.2), PENCIL_IC) +
+              '<span style="position:absolute;right:-3px;bottom:-3px;width:20px;height:20px;border-radius:999px;border:2px solid #fff;background:' + T.bg + ';color:#fff;font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center;line-height:1">' + T.glyph + '</span></span>'
+          : avatarSpan(n.type === 'reminder' ? n.s.id : n.uid, n.type === 'reminder' ? n.s.text : n.who, face, 44, 'position:relative',
+          '<span style="position:absolute;right:-3px;bottom:-3px;width:20px;height:20px;border-radius:999px;border:2px solid #fff;background:' + T.bg + ';color:#fff;font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center;line-height:1">' + T.glyph + '</span>')) +
         '<div style="flex:1;min-width:0">' +
           '<div style="font-size:15px;line-height:1.35;font-weight:500;color:#2b303a">' + line + '</div>' +
           (n.sub ? '<div style="margin-top:2px;font-size:14px;line-height:1.35;font-weight:600;color:#5c6270">' + esc(n.sub) + '</div>' : '') +
@@ -4745,7 +4819,7 @@
         viewPicker('gview', gv, (k) => setState({ gView: k, menu: null, gMon: null, gDay: null }), GROUP_VIEWS) + '</div>';
       if (!all.length) body = plansEmpty();
       // Month (owner, 2026-09-30): the group's plans on a month grid, the chosen day's below; the filter and view menu beside the arrows
-      else if (gv === 'month') body = monthBody(plans, { mon: st.gMon, day: st.gDay, cal: true, card: (s) => listCard6(s, partOf(s, true), false, true),
+      else if (gv === 'month') body = monthBody(plans, { holds: holdItems(s => inGroup(s, currentGroup().id)), mon: st.gMon, day: st.gDay, cal: true, card: (s) => listCard6(s, partOf(s, true), false, true),
         menu: '<div style="display:flex;align-items:center;gap:6px">' + filterPill('gFilt', filterOpts(['lead', 'help', 'going', 'open', 'needs', 'week'], all, st.gFilt), st.gFilt,
           (k) => setState({ gFilt: st.gFilt.indexOf(k) > -1 ? st.gFilt.filter(x => x !== k) : st.gFilt.concat([k]) }), clear, plans.length) +
           viewPicker('gview', gv, (k) => setState({ gView: k, menu: null, gMon: null, gDay: null }), GROUP_VIEWS) + '</div>',
@@ -4787,13 +4861,13 @@
     const st = state, g = currentGroup(), gname = g ? g.name : 'this group', q = st.gq.trim(), t = st.gTry;
     const close = () => setState({ gSearch: false, gq: '', gTry: null });
     const inG = st.sparks.filter(s => g && inGroup(s, g.id));
-    const BROWSE = { plan: ['Plans', (s) => phaseOf(s) === 'plan'], idea: ['Ideas', (s) => phaseOf(s) === 'idea'], done: ['Past events', (s) => phaseOf(s) === 'done'], needs: ['Could use a hand', (s) => phaseOf(s) === 'plan' && signupFill(s).open > 0] };
+    const BROWSE = { plan: ['Plans', (s) => phaseOf(s) === 'plan'], idea: ['Ideas', (s) => phaseOf(s) === 'idea'], done: ['Past events', (s) => phaseOf(s) === 'done'], needs: ['Needs help', (s) => phaseOf(s) === 'plan' && signupFill(s).open > 0] };
     const results = !q && !t ? [] : inG.filter(s => matchQ(s, q) && (!t || BROWSE[t][1](s))).slice(0, 30);
     const pick = (fn) => () => { const s = fn(); if (!s) { toast('Nothing like that here yet'); return; } close(); openSpark(s); };
     const up = inG.filter(s => phaseOf(s) === 'plan').sort(byWhen), ideas = inG.filter(s => phaseOf(s) === 'idea'), done = inG.filter(s => phaseOf(s) === 'done');
     const magic = [
       { icon: 'moon', title: 'Next up here', sub: 'The very next thing on', bg: '#1f2433', ink: '#cfc9ff', pick: pick(() => up[0]) },
-      { icon: 'people', title: 'Could use a hand', sub: 'Most open helper spots', bg: '#fdf1d6', ink: '#8f6405', pick: pick(() => up.filter(s => signupFill(s).open > 0).sort((a, b) => signupFill(b).open - signupFill(a).open)[0]) },
+      { icon: 'people', title: 'Needs help', sub: 'Most open helper spots', bg: '#fdf1d6', ink: '#8f6405', pick: pick(() => up.filter(s => signupFill(s).open > 0).sort((a, b) => signupFill(b).open - signupFill(a).open)[0]) },
       { icon: 'sun', title: 'Fresh off the press', sub: 'The newest thing posted here', bg: '#e6f3fb', ink: '#1f7ab8', pick: pick(() => inG.slice().sort((a, b) => b.created - a.created)[0]) }
     ];
     const hint = '<div style="display:flex;flex-direction:column;gap:4px;padding:0 4px">' +
@@ -4961,7 +5035,8 @@
   // date), the host gets Make it a plan! in the strip itself
   const FLAG = '<path d="M5 21V4"/><path d="M5 4.5c2.5-1.5 5-1.5 7 0s4.5 1.5 7 0v9c-2.5 1.5-5 1.5-7 0s-4.5-1.5-7 0"/>';
   const ideaBanner = (s) => {
-    const steps = [['Lead', !s.wantsHost], ['Location', !!s.spot], ['Details', basicsOf(s).length > 0], ['Date', dateAhead(s)]]
+    // Jobs (Design 23C1): done by a job or No help needed; progress only, Make it a plan! still needs just a lead and a date
+    const steps = [['Lead', !s.wantsHost], ['Location', !!s.spot], ['Details', basicsOf(s).length > 0], ['Jobs', s.signups.length > 0 || s.noHelp], ['Date', dateAhead(s)]]
       .concat(MIN_PEOPLE && s.minPeople ? [['People', s.interested.length >= s.minPeople]] : []);
     const bar = (on_) => '<span aria-hidden="true" style="flex:1 1 0;max-width:42px;height:3px;margin:10px 6px 0;border-radius:999px;background:' + (on_ ? '#3d2a00' : 'rgba(61,42,0,.22)') + '"></span>';
     const step = ([label, met]) => '<div style="flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:5px">' +
@@ -4990,7 +5065,7 @@
     return planMissing(s).length ? planToGo(s) : '';   // ready: Make it a plan! is in the gold strip (owner's mock, 2026-10-01)
   };
   // Not ready yet (owner's mock, 2026-10-01): a purple card, "N things to go", a row for each missing piece with its own
-  // button (Someone to lead · I'll lead; A date · Add), and Make it a plan locked until both are done
+  // button (Someone to lead · I'll lead; A date · Add)
   const planToGo = (s) => {
     const miss = planMissing(s), n = miss.length;
     const row = (icon, title, sub, cta, fn, key) => '<div data-plan-row="' + key + '" style="display:flex;align-items:center;gap:12px;padding:12px 12px 12px 14px;border-radius:18px;background:rgba(255,255,255,.1);box-shadow:inset 0 0 0 1px rgba(255,255,255,.28)">' +
@@ -5016,9 +5091,7 @@
       (miss.indexOf('details') > -1 && isLead(s) ? row(P6.roles, 'Details', 'A line on what to expect', 'Add', () => openSec(s, 'details'), 'details') : '') +
       (miss.indexOf('date') > -1 ? (isLead(s) ? row(P6.cal, s.dayDate ? 'A new date' : 'A date', s.dayDate ? monthDay(s.dayDate) + ' has passed' : s.dateOpts.length ? 'Pick from the votes' : 'Pick one or run a poll', s.dateOpts.length ? 'Pick' : s.dayDate ? 'Change' : 'Add', () => s.dateOpts.length ? openToSection(s, 'sec-when') : openSec(s, 'when'), 'date')
         : row(P6.cal, 'A date', s.dateOpts.length ? 'Vote, or suggest another' : 'Suggest one', 'Suggest', () => openOffer(s, 'day'), 'date')) : '') +
-      '<button type="button" aria-disabled="true" style="margin-top:4px;min-height:56px;border:0;border-radius:999px;background:rgba(255,255,255,.16);color:rgba(255,255,255,.62);font-family:inherit;font-size:17px;font-weight:900;cursor:not-allowed;display:flex;align-items:center;justify-content:center;gap:10px">' +
-        svg(18, stroke('rgba(255,255,255,.62)', 2.2), FLAG) + 'Make it a plan</button>' +
-      '<div style="text-align:center;font-size:13.5px;font-weight:700;color:rgba(255,255,255,.75)">' + (n === 1 ? 'Unlocks when that’s done' : n === 2 ? 'Unlocks when both are done' : 'Unlocks when all ' + n + ' are done') + '</div></div>';
+      '</div>';   // no locked Make it a plan here: the green one shows in the gold strip once it's ready (Design, after Update 16)
   };
 
   // A photo header shared by the plan and "happened" pages
@@ -5432,15 +5505,19 @@
       })
       .catch(e => { console.error(e); if (state.share && state.share.id === s.id) setState({ share: Object.assign({}, state.share, { loading: false }) }); });
   };
-  const invitePerson = (s, p) => {
+  // Pick, then Send invites (Design 24a2, 2026-10-03; Cynthia tapped a share button thinking the invite wasn't sent yet):
+  // the ticks only pick, Send invites invites everyone ticked at once, closes the sheet and says who
+  const sendInvites = (s) => {
     if (state.viewAs) { toast('You’re viewing as ' + firstName(state.viewAs.name) + ', so nothing changes. Exit to make changes.'); return; }
-    const was = state.share.invited || [];
-    setState({ share: Object.assign({}, state.share, { invited: was.concat(p.id) }) });
-    // The Invited count and Who's coming show it at once; the refresh after the save settles it
-    const cur = state.sparks.find(x => x.id === s.id) || s;
-    if (!(cur.invites || []).some(i => i.userId === p.id)) patchSpark(s.id, { invites: (cur.invites || []).concat({ userId: p.id, by: state.me, at: Date.now(), nudgedAt: 0 }) });
-    sb.rpc('invite_friends', { p_spark: s.id, p_people: [p.id] }).then(r => { if (r.error) throw r.error; return loadFresh().catch(e => console.error(e)); })
-      .catch(e => { console.error(e); if (state.share) setState({ share: Object.assign({}, state.share, { invited: (state.share.invited || []).filter(x => x !== p.id) }) }); toast(failed(e)); });
+    const sh = state.share, ids = (sh.picked || []).slice();
+    if (!ids.length) return;
+    const names = ids.map(id => firstName(((sh.people || []).find(p => p.id === id) || {}).name || 'Someone'));
+    const cur = state.sparks.find(x => x.id === s.id) || s, have = (cur.invites || []).map(i => i.userId);
+    patchSpark(s.id, { invites: (cur.invites || []).concat(ids.filter(id => have.indexOf(id) < 0).map(id => ({ userId: id, by: state.me, at: Date.now(), nudgedAt: 0 }))) });
+    setState({ share: null });
+    toast('Invited ' + (names.length > 2 ? names.slice(0, 2).join(', ') + ' and ' + (names.length - 2) + ' more' : namesList(names)));
+    sb.rpc('invite_friends', { p_spark: s.id, p_people: ids }).then(r => { if (r.error) throw r.error; return loadFresh().catch(e => console.error(e)); })
+      .catch(e => { console.error(e); toast(failed(e)); loadFresh().catch(() => {}); });
   };
   function viewShareSheet() {
     const sh = state.share, s = state.sparks.find(x => x.id === sh.id);
@@ -5456,19 +5533,24 @@
     const q = (sh.q || '').trim().toLowerCase(), invited = sh.invited || [];
     const going = (id) => s.rsvps.some(r => r.userId === id && r.status === 'going');
     const people = (sh.people || []).filter(p => !q || p.name.toLowerCase().indexOf(q) > -1 || p.sub.toLowerCase().indexOf(q) > -1);
+    const picked = sh.picked || [], nPick = picked.length;
+    const tick = (p) => { const on_ = picked.indexOf(p.id) > -1;
+      return '<span ' + on(() => setState({ share: Object.assign({}, state.share, { picked: on_ ? picked.filter(x => x !== p.id) : picked.concat(p.id) }) }), 'checkbox') + ' aria-checked="' + on_ + '" aria-label="Invite ' + esc(p.name) + '" style="flex:0 0 26px;width:26px;height:26px;border-radius:999px;display:flex;align-items:center;justify-content:center;box-sizing:border-box;cursor:pointer;' +
+        (on_ ? 'background:#5b4ae8' : 'background:#fff;border:2px solid #c9ccd3') + '">' + (on_ ? I.check(13, '#fff', 3.2) : '') + '</span>'; };
     const row = (p) => '<div data-invitee="' + esc(p.name) + '" style="display:flex;align-items:center;gap:12px;min-height:58px">' + avatarSpan(p.id, p.name, p.avatar ? photoUrl(p.avatar) : null, 44) +
       '<div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(p.name) + '</div>' +
         '<div style="font-size:13.5px;font-weight:500;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(p.sub) + '</div></div>' +
       (going(p.id) ? '<span style="flex:0 0 auto;font-size:14px;font-weight:800;color:#0f7a3c">Going</span>'
-        : invited.indexOf(p.id) > -1 ? '<span aria-label="' + esc(p.name) + ' is invited" style="flex:0 0 auto;display:flex;align-items:center;gap:5px;min-height:40px;padding:0 16px;border-radius:999px;background:#ece9fd;color:#5b4ae8;font-size:14.5px;font-weight:800">' + svg(13, stroke('#5b4ae8', 2.8), '<path d="m5 12.5 4.5 4.5L19 7.5"/>') + 'Invited</span>'
-        : '<button type="button" ' + on(() => invitePerson(s, p)) + ' aria-label="Invite ' + esc(p.name) + '" style="flex:0 0 auto;min-height:40px;padding:0 20px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer">Invite</button>') + '</div>';
+        : invited.indexOf(p.id) > -1 ? '<span aria-label="' + esc(p.name) + ' is invited" style="flex:0 0 auto;display:flex;align-items:center;gap:5px;font-size:14px;font-weight:800;color:#5b4ae8">' + svg(13, stroke('#5b4ae8', 2.8), '<path d="m5 12.5 4.5 4.5L19 7.5"/>') + 'Invited</span>'
+        : tick(p)) + '</div>';
     const list = !canList ? '' :
       '<label style="display:flex;align-items:center;gap:10px;min-height:48px;padding:0 16px;border-radius:999px;background:#f2f3f6">' + svg(18, stroke('#6b7280', 2.2), '<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/>') +
         '<input type="search" aria-label="Search friends and groups" placeholder="Search friends and groups" value="' + esc(sh.q || '') + '" ' + onInput(e => { if (e.type === 'input') setState({ share: Object.assign({}, state.share, { q: e.target.value.slice(0, 40) }) }); }) +
           ' style="flex:1;min-width:0;border:0;background:transparent;outline:none;font-family:inherit;font-size:16px;font-weight:500;color:#0d1117"></label>' +
       '<div data-invitees style="display:flex;flex-direction:column;max-height:42vh;overflow-y:auto">' +
         (sh.loading || !sh.people ? paraHtml('Loading…') : people.length ? people.map(row).join('') : paraHtml(q ? 'Nobody by that name.' : 'No friends or group members to invite yet.')) + '</div>' +
-      '<div style="display:flex;align-items:center;gap:12px"><span style="flex:1;height:1px;background:#e3e5e9"></span><span style="font-size:14px;font-weight:700;color:#6b7280">or share a link</span><span style="flex:1;height:1px;background:#e3e5e9"></span></div>';
+      '<button type="button" data-send-invites ' + (nPick ? on(() => sendInvites(s)) : 'aria-disabled="true"') + ' style="width:100%;min-height:52px;border:0;border-radius:999px;background:' + (nPick ? '#5b4ae8' : '#d5d8df') + ';color:#fff;font-family:inherit;font-size:16px;font-weight:800;cursor:' + (nPick ? 'pointer' : 'default') + '">' + (nPick ? 'Send invites · ' + nPick : 'Send invites') + '</button>' +
+      '<div style="display:flex;align-items:center;gap:12px"><span style="flex:1;height:1px;background:#e3e5e9"></span><span style="font-size:12px;font-weight:800;letter-spacing:1px;color:#9aa0ac">OR SEND DIRECT LINK</span><span style="flex:1;height:1px;background:#e3e5e9"></span></div>';
     return sheet(title, close, SHEET_PAD,
       '<div style="display:flex;align-items:center;gap:10px"><div style="flex:1;min-width:0"><div style="font-size:26px;line-height:1.1;font-weight:900;letter-spacing:-.6px;color:#0d1117">' + title + '</div>' +
         (sh.ask ? '<p data-ask-first style="margin:6px 0 0;font-size:14px;line-height:1.4;font-weight:600;color:#454b55">Events that start with a friend or two already in are far more likely to happen. Invite two people you think would come.</p>' : '') +
@@ -5497,11 +5579,8 @@
   // What a screen reader hears on an option (and what tests find): "Vote for Sat, Nov 14 · 6:30pm (1 vote, suggested by Gus)"
   const optLabel = (s, o, label) => (isLead(s) ? 'Pick ' : o.votes.indexOf(state.me) > -1 ? 'Remove your vote for ' : 'Vote for ') + label + ' (' + votesN(o.votes.length) + (o.who ? ', suggested by ' + o.who : '') + ')';
   const voteTap = (s, kind, o) => () => { if (state.busy) return; if (isLead(s)) pickOpt(s, kind, o); else vote(kind === 'day' ? 'date_votes' : 'spot_votes', s, o, true); };
-  // The ones shown in the card: the most-voted (dates then in date order); the rest are under View all
-  const topOpts = (opts, n, kind) => {
-    const top = opts.slice().sort((a, b) => b.votes.length - a.votes.length || a.created - b.created).slice(0, n);
-    return kind === 'day' ? top.sort((a, b) => (a.dayDate + (a.dayTime || '')).localeCompare(b.dayDate + (b.dayTime || ''))) : top;
-  };
+  // The ones shown in the card: the most-voted first (dates too, since they became rows); the rest are under View all
+  const topOpts = (opts, n) => opts.slice().sort((a, b) => b.votes.length - a.votes.length || a.created - b.created).slice(0, n);
   const voteBox = (s, kind) => {
     const day = kind === 'day', opts = day ? s.dateOpts : s.spotOpts, lead = isLead(s);
     const shown = topOpts(opts, day ? 3 : 2, kind);
@@ -5509,15 +5588,16 @@
       '<span style="flex:1;min-width:0;font-size:13px;font-weight:900;letter-spacing:1.4px;color:' + VG.ink + '">' + (day ? 'VOTE ON A DATE' : 'VOTE ON A LOCATION') + '</span>' +
       (opts.length > shown.length || opts.length > 1 ? '<span ' + on(() => setState({ voteAll: { id: s.id, kind } })) + ' data-view-all-' + kind + ' style="display:flex;align-items:center;gap:4px;font-size:15px;font-weight:800;color:' + VG.ink + ';cursor:pointer;white-space:nowrap">View all (' + opts.length + ')' + I.chevR(12, VG.ink, 2.8) + '</span>' : '') + '</div>';
     const newTag = (o) => state.justAdded === o.id ? '<span style="position:absolute;top:8px;right:10px;font-size:11.5px;font-weight:800;color:' + VG.dark + ';opacity:.75">New</span>' : '';
+    // Dates are full-width rows, most votes first, like the locations (Design, after Update 16; they were three tiles)
     const tile = (o) => {
-      const mine = o.votes.indexOf(state.me) > -1, n = o.votes.length, dp = dateParts(o.dayDate), on_ = mine && !lead;
-      return '<div ' + on(voteTap(s, 'day', o)) + ' data-poll-opt="' + esc(dayLabel(o.dayDate, o.dayTime)) + '" aria-pressed="' + on_ + '" aria-label="' + esc(optLabel(s, o, dayLabel(o.dayDate, o.dayTime))) + '" style="position:relative;flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;gap:2px;padding:14px 4px 12px;border-radius:18px;text-align:center;cursor:pointer;background:' + (on_ ? VG.on : '#fff') + '">' +
-        newTag(o) + (lead ? '' : voteTick(on_)) +
-        '<span style="margin-top:' + (lead ? 2 : 8) + 'px;font-size:12.5px;font-weight:900;letter-spacing:1.3px;color:' + (on_ ? VG.dark : VG.ink) + '">' + esc(dp.dow) + '</span>' +
-        '<span style="font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:#0d1117;white-space:nowrap">' + esc(monthDay(o.dayDate)) + '</span>' +
-        '<span style="font-size:15px;font-weight:600;color:' + (on_ ? VG.dark : '#6b7280') + '">' + esc(o.dayTime ? fmtTime(o.dayTime) : 'Any time') + '</span>' +
-        '<span style="margin-top:6px;font-size:14.5px;font-weight:800;color:' + (on_ ? VG.dark : VG.ink) + '">' + votesN(n) + '</span>' +
-        (lead ? '<span style="margin-top:6px;font-size:13px;font-weight:900;color:#5b4ae8">Pick</span>' : '') + '</div>';
+      const mine = o.votes.indexOf(state.me) > -1, n = o.votes.length, on_ = mine && !lead;
+      return '<div ' + on(voteTap(s, 'day', o)) + ' data-poll-opt="' + esc(dayLabel(o.dayDate, o.dayTime)) + '" aria-pressed="' + on_ + '" aria-label="' + esc(optLabel(s, o, dayLabel(o.dayDate, o.dayTime))) + '" style="display:flex;align-items:center;gap:14px;min-height:56px;padding:8px 14px 8px 16px;border-radius:16px;cursor:pointer;background:' + (on_ ? VG.on : '#fff') + '">' +
+        (lead ? '' : voteTick(on_)) +
+        '<div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:8px;font-size:16px;font-weight:900;color:#0d1117">' + esc(fmtDay(o.dayDate)) +
+          (state.justAdded === o.id ? '<span style="font-size:11px;font-weight:900;letter-spacing:.8px;color:' + VG.ink + '">NEW</span>' : '') + '</div>' +
+          '<div style="font-size:13.5px;font-weight:600;color:#5c6270">' + esc(o.dayTime ? fmtTime(o.dayTime) : 'Any time') + '</div></div>' +
+        '<span style="flex:0 0 auto;font-size:14.5px;font-weight:800;color:' + (on_ ? VG.dark : VG.ink) + '">' + votesN(n) + '</span>' +
+        (lead ? '<span style="flex:0 0 auto;display:flex;align-items:center;min-height:32px;padding:0 14px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:13.5px;font-weight:900">Pick</span>' : '') + '</div>';
     };
     const row = (o) => {
       const mine = o.votes.indexOf(state.me) > -1, n = o.votes.length, on_ = mine && !lead;
@@ -5529,7 +5609,7 @@
     const add = '<span ' + on(() => openOffer(s, kind)) + ' data-add-' + kind + ' style="align-self:flex-start;display:flex;align-items:center;gap:8px;min-height:40px;font-size:16px;font-weight:800;color:' + VG.ink + ';cursor:pointer">' + I.plus(15, VG.ink, 2.8) + (day ? 'Add date' : 'Add location') + '</span>';
     const none = '<div style="padding:14px 16px;border-radius:18px;background:rgba(255,255,255,.6);font-size:15px;font-weight:600;color:' + VG.ink + '">' + (day ? 'No dates suggested yet.' : 'No locations suggested yet.') + '</div>';
     return '<div data-vote-box="' + kind + '" style="display:flex;flex-direction:column;gap:14px">' + head +
-      (!shown.length ? none : day ? '<div style="display:flex;gap:8px">' + shown.map(tile).join('') + '</div>' : '<div style="display:flex;flex-direction:column;gap:10px">' + shown.map(row).join('') + '</div>') + add + '</div>';
+      (!shown.length ? none : '<div style="display:flex;flex-direction:column;gap:10px">' + shown.map(day ? tile : row).join('') + '</div>') + add + '</div>';
   };
   const setBox = (s, kind) => {
     const day = kind === 'day', G = '#2f8a4c', o = day ? s.dateOpts.find(x => x.dayDate === s.dayDate && (x.dayTime || null) === (s.dayTime || null)) : s.spotOpts.find(x => x.name === s.spot);
@@ -5542,6 +5622,24 @@
       '<div style="display:flex;align-items:center;gap:12px"><span aria-hidden="true" style="flex:0 0 34px;width:34px;height:34px;border-radius:999px;background:#3c9a5a;display:flex;align-items:center;justify-content:center">' + I.check(15, '#fff', 3.2) + '</span>' +
         '<div style="flex:1;min-width:0"><div style="font-size:18px;line-height:1.2;font-weight:900;color:#0d1117;overflow-wrap:anywhere">' + esc(what) + '</div>' + (sub ? '<div style="margin-top:2px;font-size:14px;font-weight:700;color:' + G + '">' + esc(sub) + '</div>' : '') + '</div></div>' +
       (day ? '<span ' + on(() => addToCalendar(s)) + ' style="' + btn + '">Add to calendar</span>' : '<a href="' + esc(directionsUrl(s)) + '" target="_blank" rel="noopener noreferrer" style="' + btn + '">Directions</a>') + '</div>';
+  };
+  // The poll's hold, at the bottom of VOTE ON A DATE (Design, soft holds): holding until a date (the lead can Keep holding,
+  // 7 more days from today), or lapsed (the lead can Hold them again). Ideas only; gone once a date is set
+  const keepHolding = (s) => run(async () => {
+    const v = must(await sb.rpc('keep_holding', { p_spark: s.id })).data;
+    patchSpark(s.id, { holdUntil: v });
+    toast('Holding until ' + fmtDay(v));
+  });
+  const holdLine = (s) => {
+    if (s.planned || s.dayDate || s.cancelledAt || !s.dateOpts.length || !s.holdUntil) return '';
+    const lead = isLead(s), on_ = holdOn(s);
+    if (on_) return '<div data-hold-line style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;background:#fff;border:1.5px dashed ' + VG.edge + '">' +
+      svg(17, stroke(VG.ink, 2.2) + ' style="flex:0 0 17px"', PENCIL_IC) +
+      '<span style="flex:1;min-width:0;font-size:14px;line-height:1.35;font-weight:700;color:' + VG.ink + '">' + (lead ? 'Holding until ' : 'Holding these dates on the Calendar until ') + esc(fmtDay(s.holdUntil)) + '</span>' +
+      (lead ? '<button type="button" ' + on(() => keepHolding(s)) + ' style="flex:0 0 auto;min-height:34px;padding:0 14px;border:0;border-radius:999px;background:#e8a71c;color:#3d2a00;font-family:inherit;font-size:13.5px;font-weight:900;cursor:pointer">Keep holding</button>' : '') + '</div>';
+    return '<div data-hold-line="lapsed" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;background:#f4f5f7">' +
+      '<span style="flex:1;min-width:0;font-size:14px;line-height:1.35;font-weight:700;color:#6b7280">These dates aren’t held on the Calendar any more.</span>' +
+      (lead ? '<button type="button" ' + on(() => keepHolding(s)) + ' style="flex:0 0 auto;min-height:34px;padding:0 14px;border:0;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #c9ccd3;color:#0d1117;font-family:inherit;font-size:13.5px;font-weight:800;cursor:pointer">Hold them again</button>' : '') + '</div>';
   };
   const pickingCard = (s) => {
     const dayOpen = !s.dayDate, spotOpen = !s.spot, lead = isLead(s), by = firstName(nameOf(s.leadId, s.leadName));
@@ -5560,7 +5658,7 @@
       '<div><h2 style="margin:0;font-size:24px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">' + title + '</h2>' +
         '<p style="margin:4px 0 0;font-size:15.5px;line-height:1.4;font-weight:500;color:#5c6270">' + esc(sub) + '</p></div>' +
       (s.dayDate && !dayOpen ? setBox(s, 'day') : '') + (s.spot && !spotOpen ? setBox(s, 'spot') : '') +
-      (dayOpen || spotOpen ? gold((dayOpen ? voteBox(s, 'day') : '') + (dayOpen && spotOpen ? '<div style="height:2px;background:' + VG.edge + ';opacity:.7"></div>' : '') + (spotOpen ? voteBox(s, 'spot') : '')) : '') +
+      (dayOpen || spotOpen ? gold((dayOpen ? voteBox(s, 'day') + holdLine(s) : '') + (dayOpen && spotOpen ? '<div style="height:2px;background:' + VG.edge + ';opacity:.7"></div>' : '') + (spotOpen ? voteBox(s, 'spot') : '')) : '') +
       '<div data-vote-foot style="text-align:center;font-size:15px;font-weight:600;color:#6b7280">' + esc(foot) + '</div>' +
       (lead ? '<span ' + on(() => openSec(s, 'when')) + ' style="align-self:center;display:flex;align-items:center;gap:6px;min-height:36px;font-size:14px;font-weight:700;color:#6b7280;cursor:pointer">' + svg(13, stroke('currentColor', 2.4), PENCIL) + 'Set it yourself instead</span>' : '') +
     '</div>';
@@ -6200,7 +6298,7 @@
   const clock = (v) => { if (!v) return ''; const [h, m] = v.split(':').map(Number); return (h % 12 || 12) + ':' + pad2(m) + (h < 12 ? 'am' : 'pm'); };
   const EV_TIMES = TIME_OPTS.map(o => o[0]).filter(v => v >= '06:00');   // every 30 min, 6:00am–11:30pm
   const EV_STEPS = ['title', 'when', 'where', 'details', 'help', 'lead'];   // Who's leading it? is the last step before Review (owner, 2026-10-02, again over v7-4's step 2)
-  const EV_NAMES = { title: 'Event title', when: 'Date & time', where: 'Location', details: 'Details', help: 'How people can help', lead: 'Who’s leading it?', review: 'Review' };
+  const EV_NAMES = { title: 'Event title', when: 'Date & time', where: 'Location', details: 'Details', help: 'Ask for help', lead: 'Who’s leading it?', review: 'Review' };
   const BIT_PH = ['e.g. Meet by the front desk', 'e.g. Coffee and donuts at 9:30', 'e.g. Kids and dogs welcome'];
   const EV_GRAD = 'linear-gradient(135deg,#5b4ae8,#8a6ff0 55%,#e8a71c)';
   const AMBER_INK = '#8f6405';
@@ -6406,7 +6504,8 @@
           planned: plan, visibility: st.evPriv ? 'invite' : 'group', guest_invites: !st.evNoGuestInv, min_people: dated || !MIN_PEOPLE ? null : st.evNeed || null, tags: (st.evTags || []).slice(0, 2),
           cover_pos: cover && st.coverPos ? posOf(st.coverPos, IDEA_POS) : null
         };
-        if (float) row.wants_host = true;   // Just float the idea: it goes up looking for a lead, and the group gets no push (20261102020000_float_and_ask.sql)
+        if (float) row.wants_host = true;
+        if (st.evHelpNone && !st.evNeeds.length) row.no_help = true;   // No help needed counts as the Jobs step (Design 23C1)   // Just float the idea: it goes up looking for a lead, and the group gets no push (20261102020000_float_and_ask.sql)
         if (st.evTest) row.test = true;   // Just testing: the DEMO chip, and no pushes (20261031000000_test_events.sql)
         try {
           id = must(await sb.from('sparks').insert(row).select('id').single()).data.id;
@@ -6620,8 +6719,19 @@
   const JOB_VERBS = ['bring', 'set up', 'help with', 'clean up', 'coordinate'];
   const jobNamed = (item) => { const t = cleanTitle(item || ''); return !!t && JOB_VERBS.indexOf(t.toLowerCase()) < 0; };
   const blankJob = (item) => ({ item: item || '', desc: '', time: '', need: 1, shifts: null });
+  // After a starter chip (Design 24b3, 2026-10-03; Cynthia typed "snacks" in the description and left the title as "Bring"):
+  // gray filler after the verb, five chips that finish the title, and the description behind + Add details or a time.
+  // Design gave Bring's chips; the other four verbs' are the build's
+  const JOB_FILL = {
+    bring: ['snacks, chairs, ice…', ['snacks', 'drinks', 'ice', 'chairs', 'plates & cups']],
+    'set up': ['chairs, tables…', ['chairs', 'tables', 'the canopy', 'signs', 'music']],
+    'help with': ['check-in, the grill…', ['check-in', 'the grill', 'parking', 'kids’ games', 'photos']],
+    'clean up': ['trash, tables…', ['trash', 'tables', 'chairs', 'dishes', 'recycling']],
+    coordinate: ['food, rides…', ['food', 'rides', 'the schedule', 'supplies', 'helpers']]
+  };
+  const verbOnly = (item) => { const t = (item || '').trim().toLowerCase(); return JOB_FILL[t] ? t : null; };
   const openJob = (i, row) => {
-    setState({ needSheet: { i, row } });
+    setState({ needSheet: { i, row }, jobMore: false });
     setTimeout(() => { const f = document.querySelector('[data-job-name]'); if (f) { f.focus(); const n = f.value.length; try { f.setSelectionRange(n, n); } catch (e) { /* ignore */ } } }, 60);
   };
 
@@ -6671,7 +6781,7 @@
           card(P6.cal, 'Date &amp; time', filled.when, '', 'when', st.evDatePoll ? main('Poll: ' + st.evDatePoll.length + ' dates', true, 'People vote, you pick') : st.evDate ? main(dayLabel(st.evDate, st.evTime, st.evEnd), true) : main('Date TBD', false)) +
           card(P6.pin, 'Location', filled.where, '', 'where', st.evSpotPoll ? main('Poll: ' + st.evSpotPoll.length + ' locations', true, 'People vote, you pick') : place ? main(place, true, st.locPlace ? st.locPlace.address : '') : main('Location TBD', false)) +
           card(LINES_IC, 'Details', filled.details, '', 'details', bits.length || needLine ? list(bits.concat(needLine ? [needLine] : []).map(t => '<span style="flex:0 0 6px;width:6px;height:6px;border-radius:999px;background:#0f7a3c;transform:translateY(-2px)"></span><span style="font-size:15.5px;line-height:1.35;font-weight:800;color:#0d1117;text-wrap:pretty">' + esc(t) + '</span>')) : main('Details TBD', false)) +
-          card(HAND_IC, 'How people can help', filled.help || (st.evHelpNone && !st.evNeeds.length), '', 'help', st.evNeeds.length ? list(st.evNeeds.map(j => '<span style="flex:1;min-width:0;font-size:15.5px;line-height:1.35;font-weight:800;color:#0d1117;text-wrap:pretty">' + esc(cleanTitle(j.item)) + '</span><span style="flex:0 0 auto;font-size:13px;font-weight:700;color:#6b7280">' + esc(jobMeta(j)) + '</span>')) : st.evHelpNone ? main('No help needed', true) : main('Help TBD', false)) +
+          card(HAND_IC, 'Ask for help', filled.help || (st.evHelpNone && !st.evNeeds.length), '', 'help', st.evNeeds.length ? list(st.evNeeds.map(j => '<span style="flex:1;min-width:0;font-size:15.5px;line-height:1.35;font-weight:800;color:#0d1117;text-wrap:pretty">' + esc(cleanTitle(j.item)) + '</span><span style="flex:0 0 auto;font-size:13px;font-weight:700;color:#6b7280">' + esc(jobMeta(j)) + '</span>')) : st.evHelpNone ? main('No help needed', true) : main('Help TBD', false)) +
         '</div>' +
         '<div style="display:flex;flex-direction:column;gap:8px"><div style="padding:0 4px;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:#0d1117">Who can see it</div>' +
           '<div style="background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08)"><div data-menu style="position:relative">' +
@@ -6706,16 +6816,14 @@
     const body = evBody(st, cur, false);
 
     // Opened from Review's Edit: Next and Back both return to Review, instead of walking the later steps again
-    const ok = filled[cur], back = st.evFromReview;
+    const ok = cur === 'help' ? !!(st.evNeeds.length || st.evHelpNone) : filled[cur], back = st.evFromReview;
     const ahead = back ? 'review' : nextOf(cur), aheadX = back ? { evFromReview: false } : {};
     const next = () => { if (!ok) return; evGo(ahead, Object.assign({ evLater: later(cur) }, aheadX)); };
     const hint = ok ? '' : cur === 'title' ? (st.evTest == null ? '' : back ? 'Add a title to go back to Review.' : 'Add a title to keep going.')
-      : cur === 'when' && st.evTime ? 'Pick a date to go with that time, or decide later.' : '';
+      : cur === 'when' && st.evTime ? 'Pick a date to go with that time, or decide later.' : cur === 'help' ? 'Add a job, or pick No help needed.' : '';
     // Decide later only shows on an empty step (it used to wipe a filled one: every job, the poll…)
     const skip = () => evGo(ahead, Object.assign({}, CLEAR[cur] || {}, aheadX, { evLater: Object.assign({}, st.evLater, { [cur]: true }) }, cur === 'help' ? { evHelpNone: false } : {}));
-    // v7 Update 15 (1b): with no job yet, How people can help offers No help needed → (an answer, unlike Decide later)
-    const noHelp = cur === 'help' && !st.evNeeds.length;
-    const helpNone = () => evGo(ahead, Object.assign({ evHelpNone: true, evLater: Object.assign({}, st.evLater, { help: false }) }, aheadX));
+    // Ask for help (Design 24c3c): no Decide later and no No help needed → in the footer; the step's own radio row answers it
     return '<div class="overlay-screen" data-screen-label="New spark"><div style="display:flex;flex-direction:column;min-height:100%">' +
       '<div style="position:relative;flex:0 0 auto;height:' + (cur === 'title' ? 270 : 200) + 'px;transition:height 240ms ease;background:' + (url ? '#2b303a ' + bg(url) : EV_GRAD) + '">' +
         '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top,rgba(13,17,23,.88),rgba(13,17,23,.12) 55%,rgba(13,17,23,.4))"></div>' +
@@ -6729,11 +6837,10 @@
       '<div style="margin-top:-16px;position:relative;z-index:1;flex:1 1 auto;display:flex;flex-direction:column;background:#e8eaee;border-radius:20px 20px 0 0">' + body +
         '<div style="margin-top:auto;padding:14px 16px 20px;display:flex;flex-direction:column;gap:4px">' +
           (hint ? '<div data-step-hint role="status" style="text-align:center;padding-bottom:6px;font-size:13.5px;font-weight:700;color:#6b7280">' + hint + '</div>' : '') +
-          (i > 0 && !ok ? '<div style="display:flex;justify-content:center;padding-bottom:4px"><span ' + on(skip) + ' data-later style="display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 14px;border-radius:999px;color:#6b7280;font-size:14.5px;font-weight:700;cursor:pointer">Decide later' + I.chevR(13, 'currentColor', 2.8) + '</span></div>' : '') +
+          (i > 0 && !ok && cur !== 'help' ? '<div style="display:flex;justify-content:center;padding-bottom:4px"><span ' + on(skip) + ' data-later style="display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 14px;border-radius:999px;color:#6b7280;font-size:14.5px;font-weight:700;cursor:pointer">Decide later' + I.chevR(13, 'currentColor', 2.8) + '</span></div>' : '') +
           '<div style="display:flex;gap:8px">' +
             (i > 0 && !back ? '<button type="button" ' + on(() => evGo(EV_STEPS[i - 1])) + ' style="flex:0 0 auto;min-height:54px;padding:0 22px;background:transparent;border:2px solid #c9ccd3;border-radius:999px;font-family:inherit;font-size:16px;font-weight:800;color:#0d1117;cursor:pointer">Back</button>' : '') +
-            (noHelp ? '<button type="button" data-enter data-no-help ' + on(helpNone) + ' style="flex:1 1 auto;min-width:0;min-height:54px;background:#fff;border:2px solid #c9ccd3;border-radius:999px;font-family:inherit;font-size:16.5px;font-weight:800;color:#0d1117;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer">No help needed' + svg(17, stroke('currentColor', 2.6), '<path d="M5 12h14M13 6l6 6-6 6"/>') + '</button>' :
-            '<button type="button" data-enter ' + on(next) + ' aria-disabled="' + !ok + '" style="flex:1 1 auto;min-width:0;min-height:54px;border:0;border-radius:999px;background:' + (ok ? '#5b4ae8' : '#d5d8df') + ';color:#fff;font-family:inherit;font-size:16.5px;font-weight:800;cursor:' + (ok ? 'pointer' : 'default') + '">' + (back ? 'Back to review' : cur === EV_STEPS[EV_STEPS.length - 1] ? 'Review' : 'Next') + '</button>') +
+            '<button type="button" data-enter ' + on(next) + ' aria-disabled="' + !ok + '" style="flex:1 1 auto;min-width:0;min-height:54px;border:0;border-radius:999px;background:' + (ok ? '#5b4ae8' : '#d5d8df') + ';color:#fff;font-family:inherit;font-size:16.5px;font-weight:800;cursor:' + (ok ? 'pointer' : 'default') + '">' + (back ? 'Back to review' : cur === EV_STEPS[EV_STEPS.length - 1] ? 'Review' : 'Next') + '</button>' +
           '</div></div>' +
       '</div></div></div>';
   }
@@ -6766,6 +6873,7 @@
               ? '<div style="display:flex;align-items:center;gap:8px"><div style="flex:1;min-width:0">' + timeField('end', st.evEnd, EV_TIMES.filter(v => v > st.evTime), 'Add an end time', (v) => setState({ evEnd: v, timeOpen: null })) + '</div>' +
                   '<span ' + on(() => setState({ evEndOn: false, evEnd: '', timeOpen: null })) + ' aria-label="Remove end time" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.1);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(12, '#6b7280', 2.8) + '</span></div>'
               : st.evTime ? '<span ' + on(() => setState({ evEndOn: true, timeOpen: 'end' })) + ' style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:40px;padding:0 4px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(14, 'currentColor', 2.6) + 'Add end time</span>' : '')) +
+          (holdNote(st.evDate) ? pad(holdNote(st.evDate)) : '') +
           '<div style="padding:0 16px">' + orLine() + pollRow(() => openPoll('when')) + '</div>');
     } else if (cur === 'where') {
       body = head('Location') + (st.evSpotPoll
@@ -6793,7 +6901,7 @@
             '<span ' + on(edit) + ' style="flex:0 0 auto;display:flex;align-items:center;min-height:36px;padding:0 10px;font-size:13.5px;font-weight:800;color:#5b4ae8;cursor:pointer">Edit</span>' +
             '<span ' + on(() => setState({ evNeeds: state.evNeeds.filter((_, x) => x !== k) })) + ' aria-label="Remove ' + esc(cleanTitle(j.item)) + '" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#f4f5f7;display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(15, stroke('#9b1c31', 2.2), TRASH_IC) + '</span></div>';
         }).join('');
-      body = head('How people can help') +   // no subtitle (owner, 2026-10-02)
+      body = head('Ask for help') +   // was How people can help (Design 24c3c, 2026-10-03); no subtitle (owner, 2026-10-02)
         (jobs ? '<div style="padding:14px 14px 0;display:flex;flex-direction:column;gap:8px">' + jobs + '</div>'
           : '<div style="padding:14px 16px 0"><div data-help-how style="display:flex;flex-direction:column;gap:14px;padding:16px 14px;border-radius:18px;background:#f3f1fe">' +
               step(1, 'You list what’s needed', 'Like “Bring snacks” or “Set up chairs.”') +
@@ -6802,7 +6910,14 @@
         '<div style="padding:18px 16px 0;font-size:12.5px;font-weight:800;letter-spacing:1.2px;color:#6b7280">' + (jobs ? 'ADD ANOTHER' : 'START WITH ONE') + '</div>' +
         '<div style="padding:10px 16px 0;display:flex;flex-wrap:wrap;gap:10px">' +
           [['Bring', 'Bring '], ['Set up', 'Set up '], ['Help with', 'Help with '], ['Clean up', 'Clean up '], ['Coordinate', 'Coordinate ']].map(([l, p]) => chip(l, () => openJob(null, blankJob(p)))).join('') +
-          chip('Something else', () => openJob(null, blankJob('')), true) + '</div>';
+          chip('Something else', () => openJob(null, blankJob('')), true) + '</div>' +
+        // No help needed is a real answer, not a skip, without looking like a win (Design 24c3c; Joseph read Decide later as an open tab)
+        '<div style="padding:0 12px">' + orLine() + '</div>' +
+        '<div style="padding:12px 16px 0;display:flex;flex-direction:column;gap:8px">' +
+          '<div ' + on(() => setState({ evHelpNone: !state.evHelpNone, evNeeds: state.evHelpNone ? state.evNeeds : [] }), 'radio') + ' data-no-help aria-checked="' + !!st.evHelpNone + '" style="display:flex;align-items:center;gap:12px;min-height:56px;padding:0 16px;border-radius:16px;background:#fff;box-sizing:border-box;cursor:pointer;' + (st.evHelpNone ? 'box-shadow:inset 0 0 0 2px #5b4ae8' : 'box-shadow:inset 0 0 0 1.5px #dcdfe6') + '">' +
+            '<span aria-hidden="true" style="flex:0 0 22px;width:22px;height:22px;border-radius:999px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;' + (st.evHelpNone ? 'border:2px solid #5b4ae8' : 'border:2px solid #c9ccd3') + '">' + (st.evHelpNone ? '<span style="width:11px;height:11px;border-radius:999px;background:#5b4ae8"></span>' : '') + '</span>' +
+            '<span style="flex:1;font-size:16px;font-weight:800;color:#0d1117">No help needed</span></div>' +
+          '<div style="text-align:center;font-size:12.5px;font-weight:600;color:#9aa0ac">Most events go better with a few helpers!</div></div>';
     } else if (cur === 'lead') {
       body = head('Who’s leading it?', LEAD_WHY) + pad(leadOptions(st, pop));
     }
@@ -6884,10 +6999,10 @@
         if (row.shifts) { row.shifts = row.shifts.filter(q => q.time); if (!row.shifts.length) row.shifts = null; }
         const list = state.evNeeds.slice();
         if (ns.i != null) list[ns.i] = row; else list.push(row);
-        setState({ evNeeds: list, needSheet: null });
+        setState({ evNeeds: list, needSheet: null, evHelpNone: false });
       };
       return sheet('Add a job', close, SHEET_PAD + ';min-height:min(88%,580px)',   // room for the time list under its field
-        sheetHead('How people can help', ns.i != null ? 'Edit job' : 'Add a job', '', close) + jobFields(r, set) +
+        sheetHead('Ask for help', ns.i != null ? 'Edit job' : 'Add a job', '', close) + jobFields(r, set) +
         '<div style="margin-top:auto;display:flex;flex-direction:column">' + saveBtn(jobNamed(r.item), save) + '</div>', 36);
     }
     if (st.evLeave) {
@@ -6910,8 +7025,16 @@
       timeField('job' + tag + key, value, opts, hint, (v) => { setState({ timeOpen: null }); pick(v); }, { label, slim: true, h: 52, none }) + '</div>';
     // Sign-ups belong to the job or to its shifts, and switching between them would drop them, so it's locked while anyone's on it
     const held = r.n > 0, heldNote = (t) => '<span data-held style="font-size:13px;line-height:1.4;font-weight:600;color:#6b7280">' + esc(t) + '</span>';
-    return '<div style="display:flex;flex-direction:column;gap:10px">' +
-      '<input class="fld" type="text" maxlength="60"' + (idx == null ? ' data-job-name' : '') + ' aria-label="Job name' + tag + '" placeholder="What you need, e.g. Bring a case of water" value="' + esc(r.item) + '" ' + onInput(e => { if (e.type === 'input') set({ item: e.target.value.slice(0, 60) }); }) + ' style="' + BIG + ';min-height:52px;font-size:16px">' +
+    const verb = idx == null ? verbOnly(r.item) : null;
+    const fresh = idx == null && state.needSheet && state.needSheet.i == null && !state.jobMore && !(r.desc || '').trim() && !r.time && !r.shifts;
+    const nameFld = '<div style="position:relative">' +
+      '<input class="fld" type="text" maxlength="60"' + (idx == null ? ' data-job-name' : '') + ' aria-label="Job name' + tag + '" placeholder="What you need, e.g. Bring a case of water" value="' + esc(r.item) + '" ' + onInput(e => { if (e.type === 'input') set({ item: e.target.value.slice(0, 60) }); }) + ' style="' + BIG + ';min-height:52px;font-size:' + (idx == null ? 17 : 16) + 'px">' +
+      (verb ? '<span aria-hidden="true" data-job-filler style="position:absolute;left:18px;right:18px;top:0;bottom:0;display:flex;align-items:center;pointer-events:none;white-space:pre;overflow:hidden;font-size:17px;font-weight:800"><span style="visibility:hidden">' + esc(r.item) + (/\s$/.test(r.item) ? '' : ' ') + '</span><span style="font-style:italic;font-weight:600;color:#9aa0ac">' + esc(JOB_FILL[verb][0]) + '</span></span>' : '') + '</div>' +
+      (verb ? '<div data-job-chips style="display:flex;flex-wrap:wrap;gap:6px">' + JOB_FILL[verb][1].map(w => '<span ' + on(() => set({ item: r.item.trim() + ' ' + w })) + ' role="button" style="display:flex;align-items:center;min-height:34px;padding:0 13px;border-radius:999px;background:#f3f1fe;font-size:14px;font-weight:800;color:#4a3ad4;cursor:pointer">' + esc(w) + '</span>').join('') + '</div>' : '');
+    if (fresh) return '<div style="display:flex;flex-direction:column;gap:10px">' + nameFld +
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><span ' + on(() => setState({ jobMore: true })) + ' role="button" data-job-more style="display:flex;align-items:center;gap:6px;min-height:40px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(14, 'currentColor', 2.6) + 'Add details or a time</span>' +
+        stepper(r.need, (n) => set({ need: n }), 'how many people') + '</div></div>';
+    return '<div style="display:flex;flex-direction:column;gap:10px">' + nameFld +
       '<textarea class="fld" rows="2" maxlength="400" aria-label="Details' + tag + '" placeholder="Details (optional)" ' + onInput(e => { if (e.type === 'input') set({ desc: e.target.value.slice(0, 400) }); }) + ' style="' + BIG + ';min-height:52px;padding:12px 16px;font-size:16px;font-weight:500;line-height:1.4;resize:none">' + esc(r.desc || '') + '</textarea>' +
       (r.shifts
         ? r.shifts.map((q, k) => '<div data-shift-row style="display:flex;flex-direction:column;gap:8px;padding:10px;border-radius:14px;background:#fff;box-shadow:inset 0 0 0 1.5px #eef0f3">' +

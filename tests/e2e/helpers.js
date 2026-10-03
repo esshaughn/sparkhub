@@ -280,7 +280,10 @@ async function postEvent(page, { title, date, time, where, pick, details = [], j
       await sheet.getByRole('button', { name: 'Save', exact: true }).click();
     }
     await next();
-  } else await later();
+  } else {   // Ask for help has no Decide later (Design 24c3c): No help needed is the answer
+    await flow.getByRole('radio', { name: 'No help needed' }).click();
+    await next();
+  }
 
   // Who's leading it? (the last step; leading it yourself is already picked)
   await expect(flow).toContainText('6 of 6');

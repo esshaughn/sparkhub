@@ -390,8 +390,8 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
     await page.reload();
     await expect(cal.locator(`[data-plan="${PLAN}"]`)).toContainText('Change RSVP');
     await cal.getByRole('button', { name: /^Sort: / }).click();
-    await page.getByRole('menu', { name: 'Sort' }).getByRole('button', { name: 'Could use a hand' }).click();
-    await expect(cal.getByRole('heading', { name: 'Could use a hand' }).or(cal.getByRole('heading', { name: 'All covered' })).first()).toBeVisible();
+    await page.getByRole('menu', { name: 'Sort' }).getByRole('button', { name: 'Needs help' }).click();
+    await expect(cal.getByRole('heading', { name: 'Needs help' }).or(cal.getByRole('heading', { name: 'All covered' })).first()).toBeVisible();
     await pickView(cal, 'Month');
     await expect(cal.getByRole('button', { name: 'Previous month' })).toBeVisible();
     await pickView(cal, 'List');
@@ -481,17 +481,17 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
     await expect(tabs.filter({ hasText: 'Plans' })).toHaveAttribute('aria-selected', 'true');
 
     // Plans: Sort · Filter · view on the first heading
-    await expect(browse.getByRole('button', { name: 'Sort: Soonest' })).toBeVisible();
-    await browse.getByRole('button', { name: 'Sort: Soonest' }).click();
-    await expect(page.getByRole('menu', { name: 'Sort' }).getByRole('menuitemradio')).toHaveText(['Soonest', 'Most lively', 'Newest', 'Could use a hand']);
-    await page.getByRole('menu', { name: 'Sort' }).getByRole('menuitemradio', { name: 'Could use a hand' }).click();
-    await expect(browse.getByRole('heading', { name: 'Could use a hand' })).toBeVisible();   // one section, named after the sort
-    await browse.getByRole('button', { name: 'Sort: Could use a hand' }).click();
-    await page.getByRole('menu', { name: 'Sort' }).getByRole('menuitemradio', { name: 'Soonest' }).click();
+    await expect(browse.getByRole('button', { name: 'Sort: By date' })).toBeVisible();
+    await browse.getByRole('button', { name: 'Sort: By date' }).click();
+    await expect(page.getByRole('menu', { name: 'Sort' }).getByRole('menuitemradio')).toHaveText(['By date', 'Popular', 'Newest', 'Needs help']);
+    await page.getByRole('menu', { name: 'Sort' }).getByRole('menuitemradio', { name: 'Needs help' }).click();
+    await expect(browse.getByRole('heading', { name: 'Needs help' })).toBeVisible();   // one section, named after the sort
+    await browse.getByRole('button', { name: 'Sort: Needs help' }).click();
+    await page.getByRole('menu', { name: 'Sort' }).getByRole('menuitemradio', { name: 'By date' }).click();
     await browse.getByRole('button', { name: 'Filter' }).click();
     const show = page.getByRole('menu', { name: 'Show only' });
-    await expect(show.getByRole('menuitemcheckbox')).toHaveText([/^Leading/, /^Helping/, /^Going/, /^Not joined yet/, /^Could use a hand/, /^This week/]);
-    await show.getByRole('menuitemcheckbox', { name: /^Could use a hand/ }).click();
+    await expect(show.getByRole('menuitemcheckbox')).toHaveText([/^Leading/, /^Helping/, /^Going/, /^Not joined yet/, /^Needs help/, /^This week/]);
+    await show.getByRole('menuitemcheckbox', { name: /^Needs help/ }).click();
     await expect(browse.getByRole('button', { name: 'Filter, 1 on' })).toContainText('Filter · 1');
     await show.getByRole('button', { name: /^Show \d+ events?$/ }).click();
     await browse.getByRole('button', { name: 'Filter, 1 on' }).click();

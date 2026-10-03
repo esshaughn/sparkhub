@@ -172,14 +172,16 @@ test('decide everything later: only the title is needed; the host is left with t
       await expect(flow.getByRole('button', { name: 'Next' })).toHaveAttribute('aria-disabled', 'true');
       await flow.getByText('Decide later', { exact: true }).click();
     }
-    // How people can help, with no job: No help needed → instead of a grey Next (v7 Update 15, 1b); no subtitle (owner)
+    // Ask for help (Design 24c3c): no Decide later; Next waits for a job or No help needed, a plain radio row under OR
     await expect(flow).toContainText('5 of 6');
-    await expect(flow).not.toContainText('Optional, but it takes the load off you.');
-    await expect(flow.getByRole('button', { name: 'Next' })).toHaveCount(0);
-    await flow.getByRole('button', { name: 'No help needed' }).click();
-    await expect(flow).toContainText('6 of 6');
-    await flow.getByRole('button', { name: 'Back' }).click();
-    await flow.getByText('Decide later', { exact: true }).click();   // Decide later still means "to be decided"
+    await expect(flow).toContainText('Ask for help');
+    await expect(flow.getByText('Decide later', { exact: true })).toHaveCount(0);
+    await expect(flow.getByRole('button', { name: 'Next' })).toHaveAttribute('aria-disabled', 'true');
+    await expect(flow).toContainText('Add a job, or pick No help needed.');
+    await expect(flow).toContainText('Most events go better with a few helpers!');
+    await flow.getByRole('radio', { name: 'No help needed' }).click();
+    await expect(flow.getByRole('radio', { name: 'No help needed' })).toHaveAttribute('aria-checked', 'true');
+    await flow.getByRole('button', { name: 'Next' }).click();
     // The last step, Who's leading it?: already answered (you lead it), so no Decide later and Review is ready
     await expect(flow).toContainText('6 of 6');
     await expect(flow.getByRole('button', { name: /^I’ll lead it/ })).toHaveAttribute('aria-pressed', 'true');
@@ -187,9 +189,9 @@ test('decide everything later: only the title is needed; the host is left with t
     await flow.getByRole('button', { name: 'Review' }).click();
     // Review: every undecided part in amber
     await expect(flow).toContainText('LOOKS GOOD');
-    for (const t of ['Date TBD', 'Location TBD', 'Details TBD', 'Help TBD']) await expect(flow).toContainText(t);
+    for (const t of ['Date TBD', 'Location TBD', 'Details TBD', 'No help needed']) await expect(flow).toContainText(t);
     // Every part's link on Review says Edit and opens that part in a pop-up over Review (owner, 2026-10-02)
-    for (const part of ['date & time', 'location', 'details', 'how people can help']) await expect(flow.getByRole('button', { name: 'Edit ' + part, exact: true })).toHaveText('Edit');
+    for (const part of ['date & time', 'location', 'details', 'ask for help']) await expect(flow.getByRole('button', { name: 'Edit ' + part, exact: true })).toHaveText('Edit');
     await expect(flow.getByText('Add', { exact: true })).toHaveCount(0);
     await flow.getByLabel('Edit details').click();
     const pop = page.getByRole('dialog', { name: 'Details' });
@@ -246,7 +248,7 @@ test('decide everything later: only the title is needed; the host is left with t
     await page.locator('.scroller').evaluate(el => el.scrollTo(0, 0));
     expect(await asUser(page, async (c, _C, id) => (await c.from('sparks').select('test,demo').eq('id', id).single()).data, id)).toEqual({ test: true, demo: false });
     await expect(I.locator('[data-plan-needs] [data-plan-row="date"]')).toBeVisible();
-    await expect(I.getByRole('button', { name: 'Make it a plan' })).toHaveAttribute('aria-disabled', 'true');
+    await expect(I.getByRole('button', { name: /^Make it a plan/ })).toHaveCount(0);   // no locked button (Design, after Update 16)
     // Empty Details and Help out are the same dashed box for the host
     await expect(I.locator('[data-basics]')).toContainText('Add up to three quick notes on what to expect.');
     await expect(I.locator('[data-help-empty]')).toHaveText('Add ways people can help.');
@@ -303,7 +305,8 @@ test('polls: the host posts a date poll (an idea), a member votes, the host pick
     await expect(flow.locator('[data-poll]')).toContainText('POLL · 2 OPTIONS');
     await expect(flow).toContainText('2 of 6');                                  // saving doesn't move on
     await flow.getByRole('button', { name: 'Next' }).click();
-    for (let i = 0; i < 3; i++) await flow.getByText('Decide later', { exact: true }).click();
+    for (let i = 0; i < 2; i++) await flow.getByText('Decide later', { exact: true }).click();
+    await flow.getByRole('radio', { name: 'No help needed' }).click(); await flow.getByRole('button', { name: 'Next' }).click();   // Ask for help has no Decide later (24c3c)
     await flow.getByRole('button', { name: 'Review' }).click();   // past Who's leading it?
     await expect(flow).toContainText('Poll: 2 dates');
     await expect(flow.locator('[data-posts-as]')).toContainText('This goes up as an idea');
@@ -395,7 +398,7 @@ test('drafts: X saves one, Your tasks lists it under Leading, Continue picks up 
     await expect(flow).toContainText('4 of 6');
     await expect(flow.getByLabel('Details, line 1')).toHaveValue(longLine);
     await flow.getByRole('button', { name: 'Next' }).click();
-    await flow.getByText('Decide later', { exact: true }).click();
+    await flow.getByRole('radio', { name: 'No help needed' }).click(); await flow.getByRole('button', { name: 'Next' }).click();   // Ask for help has no Decide later (24c3c)
     await flow.getByRole('button', { name: 'Review' }).click();   // past Who's leading it?
     await flow.getByRole('button', { name: /^Post (it|as an idea)$/ }).click();
     await expect(page.locator('[data-screen-label="Idea page"]')).toBeVisible();   // no date: an idea
@@ -528,7 +531,17 @@ test('an idea’s Details (no How many people for now); a bare starter chip can�
     await flow.getByRole('button', { name: /Bring$/ }).click();
     const job = page.getByRole('dialog', { name: 'Add a job' });
     await expect(job.getByRole('button', { name: 'Save', exact: true })).toHaveAttribute('aria-disabled', 'true');
+    // Design 24b3: gray filler after the verb, five chips that finish the title, and the details behind a link
+    await expect(job.locator('[data-job-filler]')).toContainText('snacks, chairs, ice…');
+    await expect(job.locator('[data-job-chips]').getByRole('button')).toHaveText(['snacks', 'drinks', 'ice', 'chairs', 'plates & cups']);
+    await expect(job.getByLabel('Details', { exact: true })).toHaveCount(0);
+    await job.locator('[data-job-chips]').getByRole('button', { name: 'ice', exact: true }).click();
+    await expect(job.getByLabel('Job name')).toHaveValue('Bring ice');
+    await expect(job.locator('[data-job-chips]')).toHaveCount(0);
+    await expect(job.locator('[data-job-filler]')).toHaveCount(0);
     await job.getByLabel('Job name').fill('Bring a ball');
+    await job.getByText('Add details or a time').click();
+    await expect(job.getByLabel('Details', { exact: true })).toBeVisible();
     // The job's time is the app's own list (not the browser's menu), shown whole inside the pop-up
     await job.getByRole('button', { name: 'Time', exact: true }).click();
     const list = await job.locator('[data-time-list]').boundingBox(), jobEdge = await job.boundingBox();
@@ -586,10 +599,12 @@ test('Create event: just float the idea posts it without a lead and offers to as
     const flow = page.locator('[data-screen-label="New spark"]');
     await flow.getByLabel('Event title').fill(uniqueTitle('Float'));
     await flow.getByRole('button', { name: 'Next' }).click();
-    for (let i = 2; i <= 5; i++) {
+    for (let i = 2; i <= 4; i++) {
       await expect(flow).toContainText(i + ' of 6');
       await flow.getByText('Decide later', { exact: true }).click();
     }
+    await expect(flow).toContainText('5 of 6');
+    await flow.getByRole('radio', { name: 'No help needed' }).click(); await flow.getByRole('button', { name: 'Next' }).click();   // Ask for help has no Decide later (24c3c)
     // The last step is its own page, Who's leading it? (owner, 2026-10-02): leading it is picked to begin with
     await expect(flow).toContainText('6 of 6');
     await expect(flow).toContainText('Who’s leading it?');

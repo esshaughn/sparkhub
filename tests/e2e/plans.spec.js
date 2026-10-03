@@ -666,10 +666,14 @@ test('invite people: the lead invites a group member from the sheet; Invited sti
     await sheet.getByLabel('Search friends and groups').fill(nm);
     const row = sheet.locator('[data-invitee="' + nm + '"]');
     await expect(row).toContainText('Torrez Fitness');
-    await row.getByRole('button', { name: 'Invite ' + nm }).click();
-    await expect(row).toContainText('Invited');
+    // Design 24a2: the tick only picks; Send invites · N sends to everyone ticked, closes the sheet and says who
+    await expect(sheet.getByRole('button', { name: 'Send invites' })).toHaveAttribute('aria-disabled', 'true');
+    await row.getByRole('checkbox', { name: 'Invite ' + nm }).click();
+    await expect(row.getByRole('checkbox', { name: 'Invite ' + nm })).toHaveAttribute('aria-checked', 'true');
+    await sheet.getByRole('button', { name: 'Send invites · 1' }).click();
+    await expect(sheet).toHaveCount(0);
+    await expect(H.getByText('Invited ' + nm.split(' ')[0])).toBeVisible();
     await expect.poll(() => asUser(H, async (c, _C, sid) => (await c.rpc('event_invited', { p_spark: sid })).data, id)).toContainEqual(nedra);
-    await sheet.getByRole('button', { name: 'Close' }).click();
     sheet = await open();
     await sheet.getByLabel('Search friends and groups').fill(nm);
     await expect(sheet.locator('[data-invitee="' + nm + '"]')).toContainText('Invited');
@@ -724,7 +728,8 @@ test('no date yet: the lead runs a date poll from the idea; stepping back blocks
     await H.getByRole('dialog', { name: 'Leads' }).locator('[data-lead-row="Pia"]').getByRole('button', { name: 'Step back' }).click();
     await confirm(H, 'Step back');
     await expect(HI.locator('[data-plan-needs]')).toContainText('2 things to go');
-    await expect(HI.locator('[data-plan-needs]')).toContainText('Unlocks when both are done');
+    await expect(HI.locator('[data-plan-needs]')).not.toContainText('Unlocks when');   // no locked button since Design's post-Update 16 round
+    await expect(HI.locator('[data-plan-needs]').getByRole('button', { name: 'Make it a plan' })).toHaveCount(0);
     await expect(HI.locator('[data-plan-needs] [data-plan-row="lead"]')).toContainText('Someone to lead');
     expect(await asUser(H, async (c, _C, sid) => { await c.from('sparks').update({ day_date: new Date(Date.now() + 9 * 864e5).toISOString().slice(0, 10) }).eq('id', sid); const r = await c.rpc('make_plan', { p_spark: sid }); return r.error ? 'refused' : 'ALLOWED'; }, id)).toBe('refused');
     expect(host.errors.filter(e => !/status of 400/.test(e))).toEqual([]);   // the refused make_plan above
@@ -817,7 +822,7 @@ test('Calendar group filter: toggling works, and could use a hand follows it', a
     gid = await asUser(V, async (c) => { const r = await c.rpc('create_group', { p_name: '[E2E] Filter ' + Date.now().toString(36) }); return r.data[0].id || r.data[0].group_id; });
     await V.reload(); await expect(V.locator('html[data-loaded=true]')).toHaveCount(1);
     await V.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Explore', exact: true }).click();
-    const cal = V.locator('[data-screen-label=Explore]'), hand = cal.getByLabel(/^\d+ events? could use a hand$/);
+    const cal = V.locator('[data-screen-label=Explore]'), hand = cal.getByLabel(/^\d+ events? needs? help$/);
     await expect(hand).toBeVisible();
     await cal.getByRole('button', { name: /^Groups:/ }).click();
     const rows = V.getByRole('menu', { name: 'Groups' }).getByRole('menuitemcheckbox');

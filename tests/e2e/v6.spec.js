@@ -98,9 +98,9 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     await expect(search.getByText('Try', { exact: true })).toBeVisible();
     await expect(search.getByText('Or something unexpected')).toBeVisible();
     await expect(search.locator('[data-magic]')).toHaveCount(3);   // three real ones (owner, 2026-09-30)
-    await search.getByRole('button', { name: 'Could use a hand', exact: true }).click();
+    await search.getByRole('button', { name: 'Needs help', exact: true }).click();
     await expect(search.locator('[data-result="' + title + '"]')).toBeVisible();   // it has open sign-ups
-    await search.getByRole('button', { name: 'Clear Could use a hand' }).click();
+    await search.getByRole('button', { name: 'Clear Needs help' }).click();
     await expect(search.locator('[data-magic]')).toHaveCount(3);   // three real ones (owner, 2026-09-30)
     await search.getByLabel('Search events').fill(title.slice(-12));
     await expect(search.locator('[data-result="' + title + '"]')).toBeVisible();
@@ -143,8 +143,8 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
 
     // Could use a hand: claim the chairs; "You're on it", and no RSVP question
     await nav(O).getByRole('button', { name: 'Explore', exact: true }).click();
-    await cal.getByRole('button', { name: /^\d+ events? could use a hand$/ }).click();
-    const hand = O.getByRole('dialog', { name: 'Could use a hand' });
+    await cal.getByRole('button', { name: /^\d+ events? needs? help$/ }).click();
+    const hand = O.getByRole('dialog', { name: 'Needs help' });
     const row = hand.locator('[data-hand="' + title + '"] [data-signup="Folding chairs"]');
     await expect(row).toContainText('2 of 2 open');
     await shot(O, '08-could-use-a-hand');

@@ -836,3 +836,26 @@ select t.check('a guest gets the event they hold a link to, and their own name',
   and public.load_all() -> 'profiles' @> jsonb_build_array(jsonb_build_object('id', t.id('guest'))));
 select t.check('a guest gets no friends list', public.load_all() -> 'friend_state' = 'null'::jsonb);
 reset role;
+
+-- Soft holds and No help needed (20261103000000_soft_holds.sql) ---------------------------------------
+select t.login('host'); set role authenticated;
+insert into sparks (group_id, author_name, lead_name, lead_id, created_by, text, hold_until, hold_nudged_at)
+values (t.id('g'), 'Host', 'Host', t.id('host'), t.id('host'), 'Poll idea', '2030-01-01', now());
+reset role;
+insert into t.ids select 'poll_idea', id from sparks where text = 'Poll idea';
+select t.check('posting can''t set a hold or the nudge stamp', (select hold_until is null and hold_nudged_at is null from sparks where id = t.id('poll_idea')));
+select t.login('host'); set role authenticated;
+insert into date_options (spark_id, day_date, who) values (t.id('poll_idea'), current_date + 10, 'Host');
+reset role;
+select t.check('the poll''s first date holds it for 7 days',
+  (select hold_until = (now() at time zone 'America/Chicago')::date + 7 from sparks where id = t.id('poll_idea')));
+select t.login('host'); set role authenticated;
+select t.must_refuse('the lead setting the hold by hand', format($$update sparks set hold_until = '2030-01-01' where id = %L$$, t.id('poll_idea')));
+select t.must_allow('the lead keeps holding', format($$select public.keep_holding(%L)$$, t.id('poll_idea')));
+select t.must_allow('the lead says no help needed', format($$update sparks set no_help = true where id = %L$$, t.id('poll_idea')));
+reset role;
+select t.login('member'); set role authenticated;
+select t.must_refuse('a member keeping the dates held', format($$select public.keep_holding(%L)$$, t.id('poll_idea')));
+select t.must_refuse('a member saying no help needed', format($$update sparks set no_help = false where id = %L$$, t.id('poll_idea')));
+reset role;
+select t.check('the daily job runs with the hold reminders', (select private.push_daily() is null or true));

@@ -6,7 +6,7 @@
 - **Source:** github.com/esshaughn/sparkhub (`index.html`, `js/sparks.js`, `css/sparks.css`, `privacy.html`, `supabase/templates/`)
 - **Baseline:** Claude Design's **Spark Hub v7, Update 16** (`design/spark-hub/Spark Hub App Version 7.dc.html`; `README.md`, `README-v6-update-2.md` … `-14.md`, `README-v7-update-15.md` and `README-v7-update-16.md`). Update 16 (zip *Spark Hub v7-5*, 2026-10-03) brought the design file in line with this doc's rows 1–17 and §2 and added the new tab bar and opening screen (Explore · Your tasks · Your calendar · Groups · Profile; the app opens on Your calendar; a group pick per screen). It's built, so this doc was reset: everything below is where the build differs from Update 16.
 - **Build version:** **v7** (owner, 2026-10-02): a lead is now a choice. An idea is either led (*I'll lead it*) or floated (*Just float the idea*, looking for a lead), and a floated one can be handed to someone by asking them. Design's Version 7 file predates this; it's in §2 and §3 below.
-- **As of:** 2026-10-03 (reset to Update 16; its tab bar, opening screen and group lines built the same day).
+- **As of:** 2026-10-03, afternoon: built everything in `design/spark-hub/HANDOFF-to-CODE.md`'s *New since 2026-10-03* list (items 1–13; 14 needs nothing). Design took in this doc's earlier §1 rows 1–4, so they're gone. Below is only where the build differs or had to fill a gap.
 
 Where this doc and the design files disagree, **this doc is correct**.
 
@@ -16,29 +16,33 @@ Where this doc and the design files disagree, **this doc is correct**.
 
 | # | Change | Design said | Why |
 |---|---|---|---|
-| 1 | **The group line only shows when you're in two or more groups** (Your tasks and Your calendar): with one group there's nothing to pick, so the header is just the title | Always shown | Build's call |
-| 2 | **Your tasks' drafts aren't narrowed by its group line**: a draft has no group until it's posted, so drafts always show in Leading | — | Build's call |
-| 3 | **Explore with nothing coming up** reads *Nothing coming up in your groups yet.* (it said *Nothing on the calendar yet.*, which now reads like Your calendar) | Not in Update 16 | Build's call |
-| 4 | **The Your tasks tab icon moves 3px left only while it has a count badge**, so the bare icon stays centred | Always 3px left | Build's call |
+| 1 | **Ask for help** also names Review's card (*Edit ask for help*), its Edit pop-up and the Add a job sheet's eyebrow, not only step 5's title | Step 5's title | One name for the step everywhere |
+| 2 | **Invite people:** a person already invited reads *✓ Invited* as purple text (no pill). After Send invites the toast is *Invited Hana and Joseph* for one or two, *Invited Hana, Joseph and 2 more* for three or more | — | Build's reading of *Invite people* |
+| 3 | **Explore's *Needs help* card** reads *3 events need help* / *1 event needs help*; its sheet is titled *Needs help* | — | *Sort and filter words* |
+| 4 | **The voting card's hold line wraps** to two lines on a phone when the lead's *Keep holding* pill sits beside it (*Holding until Sat, Oct / 10*) | One line | Width; worth a look |
 
 ## 2. Things the build had to invent (please design these properly)
 
-(Nothing since Update 16.)
+- **Add a job, the other four verbs' chips** (*Add a job* gives Bring's only). Set up: *chairs · tables · the canopy · signs · music*. Help with: *check-in · the grill · parking · kids' games · photos*. Clean up: *trash · tables · chairs · dishes · recycling*. Coordinate: *food · rides · the schedule · supplies · helpers*. Same lavender `#f3f1fe` / `#4a3ad4` 34px chips as Bring. With the details hidden, the head count (− 1 +) sits on the right of the *+ Add details or a time* row.
+- **Explore's Ideas and Past cards** (*Explore: Plans · Ideas · Past* says what's listed, not how a card reads). Ideas: the usual list card with the gold bar and a strip reading **Idea** · *See*, under one heading *Ideas*. Past: a gray strip reading **You went** (you went or led it) or **Happened** · *See*, grouped by month, newest first. The menu's icons are the build's (a calendar with a check, the bulb, a clock with a back arrow). Empty: *No ideas in your groups yet.* / *Nothing has happened in your groups yet.* The pill sits in Month's header too.
+- **The lead's two hold reminders in the bell** (*Soft holds*, drawn as 5a but not wired): the row is the idea's title, a dot, then *6 voted, Saturday leads. Lock it in?* or *Your dates for Book club stop holding tomorrow. Keep holding?*, under *Things you're leading*. The face is a 44px dashed `#d9c58a` circle on `#fdf6dc` with the gold pencil and the ★ badge. Tapping opens the idea at its voting card.
 
 ## 3. Behaviour added in the build (no visual change)
 
 - **Links:** Explore is `#/explore` (`#/calendar` still opens it); Your calendar is the bare address, so a reload, Back with no history, signing out and the old fallbacks (an event that's gone, a group you deleted) land there. *See what's up now →* on the gone card goes to Explore.
 - **A new member's Explore starts on the group they joined** (joining Torrez Fitness also adds Hub on Hunters); Your calendar and Your tasks start on all groups. Each screen's pick is saved on the device, and a group you've left drops out of it.
+- **Soft holds** (`20261103000000_soft_holds.sql`), built as specced in *Soft holds*, with these rules: the poll's first date sets the hold to 7 days on (later dates share it); *Keep holding* and *Hold them again* are the same action, 7 days from today, for the lead and co-leads; a date that has passed drops off; a set date or a cancelled idea ends the holds at once. Polls already running got 7 days from their first date, so most show as lapsed until the lead holds them again. The two reminders go out in the 8am job, never for test or demo events or an idea that's looking for a lead; *Lock it in?* goes once per hold (Keep holding lets it go again), counts the people who voted on any date, and shows in the bell only after the push went.
+- **No help needed is saved on the event** (Jobs in the idea's steps): picking it in Start an event marks the idea's *Jobs* step done, like a job would. Adding a job in the flow clears the pick.
+- **Your calendar's Filter** dropped *Needs help* and *This week*; a group page's Filter still has them.
 
 ## 4. Designed but not built or not working
 
 - **Leading filtered to a group** (the gray group line above the list) is built, but nothing opens it that way: the build's group pages have no *View all* into Leading.
-- **"Include ideas"** on Explore (in the prototype's code, not the README) isn't built; Explore lists plans.
 - **Maybe's pale-green tile chip** (`#a9d6ba` on `#0f3d22`): the build's tiles have no role chip on the photo, only the strip under it, so Maybe's lighter colours show on the strip, the list cards' bar and the date line.
 
 ## 5. Open questions for the next round
 
-(Numbers kept from before the reset; 2, 3, 5, 14 and 17 were answered by Updates 14–15, and 25 (the tab bar and opening screen) by Update 16.)
+(Numbers kept from before the reset; 2, 3, 5, 14 and 17 were answered by Updates 14–15, 25 (the tab bar and opening screen) by Update 16, and 20 (soft holds) by Design's HANDOFF-to-CODE.)
 
 1. Everything in the README's **Open / not designed yet** list still stands (categories, first-run view for an empty group, Suggest vs Offer wording, first vs full names).
 4. **Invite link 1b** (*Ana Torrez invited you · 20 members*) needs a public read of the inviter and member count by code. Worth a migration for the pilot, or leave it at 1a?
@@ -53,9 +57,8 @@ Where this doc and the design files disagree, **this doc is correct**.
 16. **Test events:** they share the seeded content's *DEMO* pill, and the host can't switch one to real after posting (they delete and post again). Should tests get their own look (*TEST*), and should the host be able to make a test real?
 18. **Give feedback's green** (old row 118): the build uses the app's Going green `#149a4b`; the owner's mock was a softer green. Pick one for the tile and its top edge.
 19. **Pop-up heights:** Create a poll (dates) and Add a job now open tall (up to 700 / 580px) so a list or calendar fits; everything else still fits its content and scrolls. One rule for pop-ups with drop-downs?
-20. **Soft holds on the Calendar** (decided by the owner 2026-10-02, not built): every date in an open date poll pencils itself in on the Calendar and the group's page for 7 days. Behaviour is settled; the look isn't. See `SOFT-HOLDS-for-design.md` §6 for what to draw: the held entry in List, Tiles and Month (dashed ring), the heads-up in Create event, and the hold's states on the voting card.
-23. **Emily and Cynthia's demos (2026-10-02),** in `FEEDBACK-ADDENDUM-for-design.md`: **A** (one date-ordered view with your commitments under it; Your tasks as one to-do feed) is **parked by the owner (2026-10-03), don't draw it**. Still open: **B**, keeping undated things out of date-ordered lists, and **C**, whether jobs join the idea→plan steps.
-24. **Joseph and Cynthia's feedback (2026-10-03)**, full list in `BACKLOG.md`. For Design: (a) Invite's finish: show that the app already invited the people picked, so the share buttons (Messages, Email, WhatsApp, More) read as optional extras, not the next step (Cynthia tapped one); (b) the job pop-up after a starter chip: Cynthia finished *Bring* in the description, not the title; (c) How people can help: *No help needed* as a normal, equal answer, and whether *Decide later* stays on that step (Joseph: it feels like an open tab); (d) a smaller group header (smaller photo, collapsing or drop-down, or a sidebar menu); (e) choosing your own opening screen (*Start here*) is **parked** (owner, Update 16); the app opens on Your calendar for everyone; (f) telling people an event link works without joining the group; (g) later: a per-event chat or lead updates for on-the-day changes.
+23. **Emily and Cynthia's demos (2026-10-02),** in `FEEDBACK-ADDENDUM-for-design.md`: **A** (one date-ordered view with your commitments under it; Your tasks as one to-do feed) is **parked by the owner (2026-10-03), don't draw it**. **C** (Jobs in the idea's steps) is built from Design's file. Still open: **B**, keeping undated things out of date-ordered lists.
+24. **Joseph and Cynthia's feedback (2026-10-03)**, full list in `BACKLOG.md`. (a)–(d) are answered in Design's file and built (§1–§3 above; (d) was no change). Still open: (e) choosing your own opening screen (*Start here*) stays **parked** (owner); (f) telling people an event link works without joining the group; (g) later: a per-event chat or lead updates for on-the-day changes.
 22. **Inviting to a group:** only owners and admins can read a group's link, so plain members don't get Invite or Copy link in the ⋯ menu (row 5). Should every member be able to share the group's link?
 21. **Ideas that need a lead** (owner, 2026-10-02: *less important than ideas with leads*, and no notification): where should members be reminded of them? Today only the *NEEDS A LEAD* chip on the Ideas board says so. Options to draw: a quiet *N ideas need a lead* row at the top of the Ideas board, floated ideas sorted after led ones, a line in a weekly digest. Also: should *Just float the idea* stay behind Review's Lead card, and should the group hear once a floated idea gets a lead (nobody was told when it was posted)?
 

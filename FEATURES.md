@@ -233,6 +233,15 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 156 | **Hand it to someone** (owner, 2026-10-02): the lead offers the lead from the Leads sheet; they lead once they say yes, and the old lead stays as a co-lead | Test | `offer_lead()`; plans.spec, db checks |
 | 157 | **A group line on Your tasks and Your calendar** (v7 Update 16, option 1b): under the title, gray *All groups ⌄*, purple once narrowed (the group's name, or *2 groups*); it opens a checklist (*All groups* first, black **Done**). Each screen keeps its own pick on the device, separate from Explore's. Only shown in two or more groups; drafts aren't narrowed | Test | `tGrps` / `sGrps` in `spark-hub-prefs` |
 | 158 | **Maybe reads lighter than Going** (v7 Update 16): strip `#fbfcfb`, text `#3c7a55`, bar `#a9d6ba` | Test | `R6.maybe` |
+| 159 | **Soft holds** (Design, after Update 16): an open date poll pencils its dates in on Explore's Month and a group page's Month (hollow gold dot, *Plan · Pencilled in* key, *PENCILLED IN* rows with *Vote ›* opening the voting card) until 7 days after its first date; Start an event's Date step says when a picked date is held; the voting card shows *Holding … until* with **Keep holding** for the lead, or *These dates aren't held … any more* with **Hold them again**; the lead gets *Lock it in?* and *stop holding tomorrow* pushes and bell rows | Test | `sparks.hold_until`, `keep_holding()`, `private.start_hold()`, `push_daily()` (`20261103000000_soft_holds.sql`) |
+| 160 | **Explore: Plans · Ideas · Past** pill beside the sort, with counts that follow the group filter; Needs help only on Plans | Test | `cKind` |
+| 161 | **Find more events** at the end of Your calendar (Up next and Tiles) opens Explore | Test | |
+| 162 | **Sorts read By date · Popular · Newest · Needs help**; *Needs help* replaced *Could use a hand* everywhere; Your calendar's Filter is Leading · Helping · Going · Maybe | Test | |
+| 163 | **Voting card dates are full-width rows**, most votes first; the lead gets a purple **Pick** pill | Test | |
+| 164 | **Invite people: pick, then Send invites · N** (Design 24a2): round ticks pick, one button sends, a toast says who; the link and share buttons under *OR SEND DIRECT LINK* | Test | |
+| 165 | **Add a job after a starter chip** (24b3): gray filler after the verb, five chips that finish the title, details and time behind *+ Add details or a time* | Test | `JOB_FILL` |
+| 166 | **Ask for help** (24c3c, was How people can help): no Decide later; a *No help needed* radio row under OR; Next waits for a job or that answer. It's saved on the event and counts as the idea's **Jobs** step (Lead · Location · Details · Jobs · Date, progress only; 23C1) | Test | `sparks.no_help` |
+| 167 | **Your tasks always shows Ideas**: with none, a *Got a "we should…"?* card that opens Start an event. The idea page has no locked *Make it a plan* button | Test | |
 
 ## Removed in this rebuild
 
