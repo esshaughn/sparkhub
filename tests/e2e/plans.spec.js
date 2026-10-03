@@ -41,11 +41,8 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     await needs.getByRole('button', { name: 'More for how many people' }).click();
     await needs.getByRole('button', { name: 'Save changes' }).click();
     await expect(HP.locator('[data-signup="Folding chairs"]')).toContainText('0/2');
-    await HP.getByRole('button', { name: 'Send everyone an update' }).click();
-    const blast = H.getByRole('dialog', { name: 'Send an update' });
-    await blast.getByLabel('Your update').fill('Parking is on the street.');
-    await blast.getByRole('button', { name: 'Post update' }).click();
-    await expect(H.getByText('Posted to the event')).toBeVisible();
+    await asUser(H, async (c, _C, { id, b }) => c.from('plan_updates').insert({ spark_id: id, body: b, audience: 'all' }), { id: id, b: 'Parking is on the street.' });   // no Send everyone an update on the page for now (owner, 2026-10-03)
+    await H.reload();
     await expect(HP).toContainText('Parking is on the street.');
 
     // A member opens the link: RSVP, then they sign up for things
@@ -163,7 +160,7 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
 
     // The host sees them; changing the date tells everyone going
     await H.reload();
-    await expect(HP).toContainText('2 going');
+    await expect(HP.locator('[data-going]')).toHaveAttribute('aria-label', 'See everyone going (2)');
     await expect(HP.locator('[data-signup="Folding chairs"]')).toContainText('1/2');
     await HP.getByRole('button', { name: 'Edit date, time and location' }).click();
     const when = H.getByRole('dialog', { name: 'Date, time & location' });
@@ -436,7 +433,7 @@ test('RSVP buttons change as soon as they are tapped (the save follows), and go 
     await expect.poll(() => asUser(H, async (c, _C, id) => (await c.from('rsvps').select('status').eq('spark_id', id)).data.map(r => r.status), id)).toEqual(['going', 'going']);
     // Who's going: the count is inside the card, and tapping it lists everyone going (no phone numbers for members)
     const goingCard = M.locator('[data-going]');
-    await expect(goingCard).toContainText('2 going');
+    await expect(goingCard).toHaveAttribute('aria-label', 'See everyone going (2)');
     await goingCard.click();
     const list = M.getByRole('dialog', { name: 'Who’s going' });
     await expect(list.locator('[data-guest-part=going]')).toContainText('You');
@@ -579,10 +576,8 @@ test('co-leads: the lead adds one, who edits and posts updates but can’t delet
     await expect(OP).toContainText('YOU’RE CO-LEADING');
     await expect(OP.locator('[data-led-by] [data-lead-names]')).toHaveText('Hope & Otto');
     await expect(OP.getByRole('button', { name: 'Edit what you need' })).toBeVisible();
-    await OP.getByRole('button', { name: 'Send everyone an update' }).click();
-    const blast = O.getByRole('dialog', { name: 'Send an update' });
-    await blast.getByLabel('Your update').fill('Meet at the north gate.');
-    await blast.getByRole('button', { name: 'Post update' }).click();
+    await asUser(O, async (c, _C, { id, b }) => c.from('plan_updates').insert({ spark_id: id, body: b, audience: 'all' }), { id: id, b: 'Meet at the north gate.' });   // no Send everyone an update on the page for now (owner, 2026-10-03)
+    await O.reload();
     await expect(OP).toContainText('Meet at the north gate.');
     await expect(OP.getByRole('button', { name: 'Delete this event' })).toHaveCount(0);   // only the lead or an admin
     // Hope sees the update, but it's Otto's to remove
@@ -680,7 +675,7 @@ test('invite people: the lead invites a group member from the sheet; Invited sti
     await expect(sheet.getByRole('link', { name: 'Messages' })).toHaveAttribute('href', /^sms:/);
     await sheet.getByRole('button', { name: 'Close' }).click();
     // v7 Update 15: Who's coming lists her under Haven't replied; Nudge sends one note a day (then Nudged)
-    await HP.locator('[data-invited-count]').click();   // only the lead is going: "1 invited ›" opens the list
+    await HP.locator('[data-going]').click();   // See all › under the RSVP buttons opens Who's coming (Design 25b)
     const list = H.getByRole('dialog', { name: 'Who’s coming' });
     const quiet = list.locator('[data-guest-part="none"]');
     await expect(quiet).toContainText('HAVEN’T REPLIED · 1');

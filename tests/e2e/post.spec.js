@@ -16,8 +16,11 @@ test('post an event with every step filled, then edit it in the pop-ups and dele
       details: ['Tacos after', 'Bring headlamps'], jobs: [{ item: 'Bring water', need: 3 }], photo: true
     });
     const P = page.locator('[data-screen-label="Plan page"]');
-    // Only the lead is going (20261101160000_lead_going.sql): they get a nudge to share, not "Be the first"
-    await expect(P.locator('[data-going-empty]')).toContainText('Just you so far. Send invites');
+    // The RSVP card (Design 25b + 25c): the going faces with See all ›, and the lead's Invite people; Who's in is now Visibility
+    await expect(P.locator('[data-rsvp] [data-going]')).toContainText('See all ›');
+    await expect(P.locator('[data-rsvp]').getByRole('button', { name: 'Invite people' })).toBeVisible();
+    await expect(P.getByRole('button', { name: 'Send everyone an update' })).toHaveCount(0);   // hidden for now (owner, 2026-10-03)
+    await expect(P.getByRole('heading', { name: 'Visibility' })).toBeVisible();
     await expect(P.locator('[data-chip]')).toHaveText('YOU’RE LEADING');
     await expect(page.locator('[data-test-tab]')).toHaveCount(0);   // a real event: no Test event tab
     await expect(P).toContainText('5:30pm');

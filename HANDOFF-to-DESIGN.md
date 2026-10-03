@@ -6,7 +6,7 @@
 - **Source:** github.com/esshaughn/sparkhub (`index.html`, `js/sparks.js`, `css/sparks.css`, `privacy.html`, `supabase/templates/`)
 - **Baseline:** Claude Design's **Spark Hub v7, Update 16** (`design/spark-hub/Spark Hub App Version 7.dc.html`; `README.md`, `README-v6-update-2.md` … `-14.md`, `README-v7-update-15.md` and `README-v7-update-16.md`). Update 16 (zip *Spark Hub v7-5*, 2026-10-03) brought the design file in line with this doc's rows 1–17 and §2 and added the new tab bar and opening screen (Explore · Your tasks · Your calendar · Groups · Profile; the app opens on Your calendar; a group pick per screen). It's built, so this doc was reset: everything below is where the build differs from Update 16.
 - **Build version:** **v7** (owner, 2026-10-02): a lead is now a choice. An idea is either led (*I'll lead it*) or floated (*Just float the idea*, looking for a lead), and a floated one can be handed to someone by asking them. Design's Version 7 file predates this; it's in §2 and §3 below.
-- **As of:** 2026-10-03, afternoon: built everything in `design/spark-hub/HANDOFF-to-CODE.md`'s *New since 2026-10-03* list (items 1–13; 14 needs nothing). Design took in this doc's earlier §1 rows 1–4, so they're gone. Below is only where the build differs or had to fill a gap.
+- **As of:** 2026-10-03, afternoon: built everything in `design/spark-hub/HANDOFF-to-CODE.md`'s *New since 2026-10-03* list (items 1–13 and 15; 14 needs nothing). Design took in this doc's earlier §1 rows 1–4, so they're gone. Below is only where the build differs or had to fill a gap.
 
 Where this doc and the design files disagree, **this doc is correct**.
 
@@ -37,6 +37,7 @@ Where this doc and the design files disagree, **this doc is correct**.
 
 ## 4. Designed but not built or not working
 
+- **Send everyone an update has no way in** (*Event page RSVP*). Your file says the lead's Your tasks rows and Edit event still send updates, but the build's Edit event never had it, and the only task row that sends one is *Thank your helpers* after the event. The owner said hide it anyway for now (2026-10-03), so leads can't post an update to an upcoming event until it has a place. Please give it one.
 - **Leading filtered to a group** (the gray group line above the list) is built, but nothing opens it that way: the build's group pages have no *View all* into Leading.
 - **Maybe's pale-green tile chip** (`#a9d6ba` on `#0f3d22`): the build's tiles have no role chip on the photo, only the strip under it, so Maybe's lighter colours show on the strip, the list cards' bar and the date line.
 

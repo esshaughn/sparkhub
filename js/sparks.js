@@ -5943,10 +5943,17 @@
         '<span ' + on(() => openLogin('account', () => {})) + ' style="flex:0 0 auto;display:flex;align-items:center;min-height:40px;padding:0 16px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:14px;font-weight:800;cursor:pointer">Create account</span>' +
       '</div>';
     // Leads answer with the same buttons as everyone (owner, 2026-10-01; the lead is Going to their own plan, 20261101160000)
-    const rsvpBlock = s.cancelledAt ? '' : '<div data-rsvp style="' + CARD + ';padding:16px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">' +
-      rsvpBtn('going', 'Going', goingIds.length) + rsvpBtn('maybe', 'Maybe', maybeN) + rsvpBtn('no', 'Can’t', noN) + '</div>';
+    // Under the buttons (Design 25b + 25c, 2026-10-03): the going faces and See all ›, opening Who's coming / Who's going;
+    // the lead also gets Invite people here (the lead tools card and Who's in's people row are gone)
+    const rsvpBlock = s.cancelledAt ? '' : '<div data-rsvp style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:12px">' +
+      '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">' + rsvpBtn('going', 'Going', goingIds.length) + rsvpBtn('maybe', 'Maybe', maybeN) + rsvpBtn('no', 'Can’t', noN) + '</div>' +
+      (goingIds.length ? '<div ' + on(() => setState({ guestList: s.id })) + ' data-going role="button" aria-label="See everyone going (' + goingIds.length + ')" style="align-self:center;display:flex;align-items:center;gap:10px;min-height:36px;cursor:pointer">' +
+        '<span style="display:flex">' + peopleFaces(goingIds.slice(0, 4), 30, null, false) + '</span>' +
+        '<span style="font-size:14.5px;font-weight:800;color:#4a3ad4">See all ›</span></div>' : '') +
+      (lead ? '<button type="button" ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' style="min-height:46px;border:2px solid #c9c2fb;border-radius:999px;background:#fff;color:#4a3ad4;font-family:inherit;font-size:15px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer">' +
+        svg(17, stroke('currentColor', 2.2), '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M19 8v6M16 11h6"/>') + 'Invite people</button>' : '') + '</div>';
 
-    // The host's guest list, with no title. Invites are a share link, so there's no Invited count (HANDOFF §1).
+    // The lead tools card: hidden for now (owner, 2026-10-03; not rendered) until Design places Send everyone an update again
     const guests = !lead ? '' : '<div data-screen-label="Guest list" style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:14px">' +
       '<span ' + on(() => setState({ blast: { id: s.id, to: 'all', text: '' } })) + ' style="align-self:center;display:flex;align-items:center;gap:7px;min-height:36px;font-size:14.5px;font-weight:800;color:#6b7280;cursor:pointer">' + ic6('bell', 15, 'currentColor', 2.2) + 'Send everyone an update</span>' +
       '<div style="display:grid;grid-template-columns:1fr;gap:8px">' +
@@ -5970,7 +5977,8 @@
       '<div style="padding:16px 14px 26px;display:flex;flex-direction:column;gap:18px">' +
         cancelledCard(s) +
         rsvpBlock +
-        (s.cancelledAt ? '' : guests) +
+        // the lead tools card (Invite people, Send everyone an update) is hidden for now (owner, 2026-10-03); Invite people is in the RSVP card
+
         guestNudge +
         whenWhereCard(s) +
         basicDetailsSec(s) +
@@ -5980,18 +5988,8 @@
               (lead && (!u.createdBy || u.createdBy === st.me) ? '<span ' + on(() => askRemoveUpdate(s, u)) + ' aria-label="Remove this update" style="color:#9b1c31;font-weight:800;cursor:pointer">Remove</span>' : '') + '</div></div></div>').join('')) + '</section>' : '') +
         askCards(s) + helpOut(s) +
         host +
-        '<section>' + secTitle('Who’s in') + sheetCard(
-          // the count sits inside the card, and the card opens the full list (owner, 2026-10-01)
-          '<div ' + (goingIds.length ? on(() => setState({ guestList: s.id })) + ' data-going aria-label="See everyone going (' + goingIds.length + ')" ' : '') + 'style="display:flex;align-items:center;gap:10px' + (goingIds.length ? ';cursor:pointer' : '') + '">' +
-            '<span style="display:flex">' + (goingIds.length ? peopleFaces(goingIds.slice(0, 5), 40, null, true) + (goingIds.length > 5 ? '<span style="width:40px;height:40px;border-radius:999px;border:2.5px solid #fff;margin-left:-10px;background:#e7f6ec;color:#0f7a3c;font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center">+' + (goingIds.length - 5) + '</span>' : '') : lead && s.rsvps.length ? '<span data-going-empty style="font-size:14px;font-weight:600;color:#6b7280">Nobody’s going yet. <span ' + on(() => setState({ guestList: s.id })) + ' style="font-weight:800;color:#5b4ae8;cursor:pointer">See ' + s.rsvps.length + (s.rsvps.length === 1 ? ' reply' : ' replies') + '</span></span>'
-              : lead ? '<span data-going-empty style="font-size:14px;font-weight:600;color:#6b7280">Nobody’s RSVP’d yet.' + (s.cancelledAt ? '' : ' <span ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' style="font-weight:800;color:#5b4ae8;cursor:pointer">Send invites</span>') + '</span>' : '<span style="font-size:14px;font-weight:600;color:#6b7280">Nobody yet. Be the first.</span>') + '</span>' +
-            // Only the leads going (the lead is Going to their own plan, 20261101160000): the lead still gets the nudge to share
-            (lead && goingIds.length && goingIds.every(u => u === s.leadId || s.cohosts.indexOf(u) > -1)
-              ? '<span data-going-empty style="flex:1;min-width:0;font-size:14px;font-weight:600;color:#6b7280">' + (goingIds.length === 1 && goingIds[0] === st.me ? 'Just you so far.' : 'Just the leads so far.') + ' <span ' + on((e) => { stop(e); setState({ share: { id: s.id, copied: false } }); }) + ' style="font-weight:800;color:#5b4ae8;cursor:pointer">Send invites</span></span>' +
-                // invited and not answered yet: the row still opens Who's coming, where they're listed with Nudge
-                (pendingInv(s) ? '<span data-invited-count style="flex:0 0 auto;display:flex;align-items:center;gap:6px;font-size:14.5px;font-weight:800;color:#4a3ad4;white-space:nowrap">' + pendingInv(s) + ' invited' + I.chevR(14, '#9aa0ac', 2.6) + '</span>' : '')
-              : goingIds.length ? '<span style="margin-left:auto;display:flex;align-items:center;gap:6px;font-size:14.5px;font-weight:800;color:#0f7a3c;white-space:nowrap">' + goingIds.length + ' going' + I.chevR(14, '#9aa0ac', 2.6) + '</span>' : '') +
-          '</div>' + groupRow(s)) + '</section>' +
+        // Visibility (was Who's in; Design 25c): the posted-to group(s) and Public / Private; the people moved into the RSVP card
+        '<section>' + secTitle('Visibility') + sheetCard(groupRow(s)) + '</section>' +
         inspoSec(s) +
         deleteLink(s) +
       '</div>' +

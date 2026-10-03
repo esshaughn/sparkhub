@@ -4,7 +4,7 @@
 
 - **Caught up with:** `HANDOFF-to-DESIGN.md` **as of 2026-10-03** (the reset to Update 16). Its §1 rows 1–4 are now in the prototype too, so the build can drop them.
 - **Baseline:** Update 16 (zip *SparkHub v7-5*). Everything below is new since then.
-- **Options file this round:** `Round 17 Options.dc.html`. Picks made: Q24 a (24a2), b (24b3), c (24c3c), d (no change), Q23 C (23C1). Still open: Q23 B. `Soft Holds Options.dc.html` has the soft-holds explorations; the picks are named below.
+- **Options files:** `Round 17 Options.dc.html` (picks made: Q24 a 24a2, b 24b3, c 24c3c, d no change; Q23 C 23C1; event RSVP 25b + 25c. Still open: Q23 B). `Help Out Options.dc.html` is a new exploration of the Help out section; **nothing to build from it yet**. `Soft Holds Options.dc.html` has the soft-holds explorations.
 
 ---
 
@@ -24,6 +24,7 @@
 12. **§5 Q24 (c) No help needed as an equal answer** (option 24c3c). See *Ask for help step* below.
 13. **§5 Q23 C Jobs joins the idea's steps, softly** (option 23C1). See *Idea page* below.
 14. **§5 Q24 (d) Smaller group header: no change.** The owner keeps the current 112px photo header (v7-3 6c). Nothing to build.
+15. **Event page: See who's going under the RSVP boxes; Who's in → Visibility** (25b faces + 25c Send invites). See *Event page RSVP* below.
 
 ---
 
@@ -120,6 +121,13 @@ Joseph read *Decide later* as an open tab and *No help needed →* as a skip. Th
 - Under the chips: an **OR** divider (as on the Date step), then a plain radio row **No help needed** (white, radius 16, min 56px, 1.5px `#dcdfe6`; picked: 2px `#5b4ae8` ring, filled purple dot). Under it, centred, light gray *Most events go better with a few helpers!* (12.5px/600 `#9aa0ac`). No green, no tick.
 - **Decide later is gone from this step.** The main button is the usual purple **Next**: gray until a job is added or No help needed is picked, with *Add a job, or pick No help needed.* above it. Adding a job clears the No help needed pick.
 - Review's row still reads *No help needed* when picked.
+
+## Event page RSVP (options 25b + 25c in `Round 17 Options.dc.html`)
+
+- Inside the RSVP card, under Going · Maybe · Can't, a centred row: the going faces (30px, overlapping, up to 4) and **See all ›** (14.5px/800 `#4a3ad4`). Tapping the row opens Who's coming (lead) / Who's going (members).
+- **The lead** also gets an outlined **Invite people** button under it (46px, 2px `#c9c2fb`, `#4a3ad4` 15px/800, person-plus icon), opening Invite people.
+- **The lead tools card is hidden for now** (owner, 2026-10-03): the purple *Invite people* button and *Send everyone an update* link under the RSVP card. Invite people lives in the RSVP card now; *Send everyone an update* has no entry point on the page for the moment (the lead's Your tasks rows and Edit event still send updates).
+- The section below is renamed **Visibility** (was *Who's in*). Its faces row, *Just the leads so far · Send invites*, *N invited ›* and *N going ›* are gone; it keeps the posted-to group(s) and Public / Private with the lead's Edit.
 
 ## Your tasks: Ideas empty state
 

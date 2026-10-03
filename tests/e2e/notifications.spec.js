@@ -1,7 +1,7 @@
 // V5 notifications: built from what's stored. A new plan shows for the group with RSVP buttons;
 // the host hears about replies; updates show with their text; read state and settings persist.
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newLead, postEvent, deleteIdea, confirm } = require('./helpers');
+const { uniqueTitle, newLead, postEvent, deleteIdea, confirm, asUser } = require('./helpers');
 
 const esc = (t) => t.replace(/[[\]]/g, '\\$&');
 // Local dates, like the app (toISOString would be UTC, a day ahead in the evening)
@@ -41,11 +41,8 @@ test('notifications: a new plan, replying from the feed, the host hears back, up
     await expect(hfeed.locator('[data-notif=rsvp]').filter({ hasText: title })).toContainText(new RegExp('\\w+ is going to ' + esc(title)));
     await hfeed.locator('[data-notif=rsvp]').filter({ hasText: title }).click();
     await expect(H.locator('[data-screen-label="Plan page"]')).toBeVisible();
-    await H.getByRole('button', { name: 'Send everyone an update' }).click();
-    const blast = H.getByRole('dialog', { name: 'Send an update' });
-    await blast.getByLabel('Your update').fill('Helmets on, please.');
-    await blast.getByRole('button', { name: 'Post update' }).click();
-    await expect(H.getByText('Posted to the event')).toBeVisible();
+    await asUser(H, async (c, _C, { id, b }) => c.from('plan_updates').insert({ spark_id: id, body: b, audience: 'all' }), { id: id, b: 'Helmets on, please.' });   // no Send everyone an update on the page for now (owner, 2026-10-03)
+    await H.reload();
 
     // Omar: the update, with its text, under Updates; Mark all read sticks after a reload
     await O.reload();

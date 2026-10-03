@@ -242,6 +242,7 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 165 | **Add a job after a starter chip** (24b3): gray filler after the verb, five chips that finish the title, details and time behind *+ Add details or a time* | Test | `JOB_FILL` |
 | 166 | **Ask for help** (24c3c, was How people can help): no Decide later; a *No help needed* radio row under OR; Next waits for a job or that answer. It's saved on the event and counts as the idea's **Jobs** step (Lead · Location · Details · Jobs · Date, progress only; 23C1) | Test | `sparks.no_help` |
 | 167 | **Your tasks always shows Ideas**: with none, a *Got a "we should…"?* card that opens Start an event. The idea page has no locked *Make it a plan* button | Test | |
+| 168 | **The event page's RSVP card** (Design 25b + 25c): the going faces and *See all ›* under Going · Maybe · Can't (Who's coming / Who's going), and the lead's outlined **Invite people**. The lead tools card (*Send everyone an update*) is hidden for now (owner, 2026-10-03); *Who's in* is now **Visibility** (posted-to groups and Public / Private only) | Test | No way to post an update before the event until it's placed again |
 
 ## Removed in this rebuild
 
