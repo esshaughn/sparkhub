@@ -184,9 +184,10 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     await notifs.getByRole('button', { name: 'Close' }).click();
     await expect(notifs).toHaveCount(0);
 
-    // Hope's card: he's a maybe (so not going), and the chairs are half covered
+    // Hope's card: claiming the chairs made Hal Going again, though he'd said Maybe (taking a job means you're coming,
+    // whatever you'd said: owner, 2026-09-30, confirmed 2026-10-03), and the chairs are half covered
     await H.reload();
-    await expect(lead.getByLabel('Going: 1')).toBeVisible();
+    await expect(lead.getByLabel('Going: 2')).toBeVisible();
     await expect(lead.getByLabel('Sign-ups: 2/3')).toBeVisible();
 
     expect(host.errors).toEqual([]);
