@@ -54,12 +54,12 @@ Three questions for this round. Each one gives what we heard, what the build doe
 
 **Why decide it deliberately.** This gates *promotion to a plan*, not posting an idea, so it doesn't collide with the locked principle that ideas are bare and ungated. But it's close enough in shape to the admin-gate argument in the Auburn/Joseph brief that it should be chosen, not drifted into.
 
-**What the build does today.** Most of the gate already exists. An idea shows a gold strip of steps: **Lead · Location · Details · Date** (30px circles joined by bars). **Make it a plan!** only appears once all four are done. A purple *things to go* card lists what's missing. The *People* step (a minimum head count) was hidden by the owner today. **Jobs** (how people can help) aren't part of the gate. Start an event now offers **No help needed →** when no job is added.
+**What the build does today.** An idea shows a gold strip of steps: **Lead · Location · Details · Date** (30px circles joined by bars). **Make it a plan!** appears once there's a **lead and a date** (the owner's rule, 2026-10-02; for a few hours that day it waited for all four, a misreading of the mock). Location and Details show progress but don't block. A purple *things to go* card lists what's missing. The *People* step (a minimum head count) was hidden by the owner today. **Jobs** (how people can help) aren't in the strip. Start an event now offers **No help needed →** when no job is added.
 
 **Options to draw.**
-- **C1. Soft (the build's lean):** a fifth step, **Jobs**, in the strip. It's done when the lead adds a job *or* taps *No help needed*. It shows progress but doesn't block Make it a plan!
-- **C2. Hard:** Jobs (or No help needed) is required, like the other four.
-- **C3. Leave it:** four steps; jobs stay optional and outside the gate.
+- **C1. Soft (the build's lean):** a fifth step, **Jobs**, in the strip, done when the lead adds a job *or* taps *No help needed*. Like Location and Details, it shows progress but doesn't block Make it a plan!
+- **C2. Hard:** Jobs (or No help needed) is required, alongside the lead and the date.
+- **C3. Leave it:** a lead and a date; jobs stay outside the strip.
 
 **To decide:** C1 vs C2. Whichever is chosen, the No help needed answer from Start an event should count, so a lead who already said "no help needed" isn't asked again.
 

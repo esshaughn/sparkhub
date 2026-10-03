@@ -2976,15 +2976,14 @@
     const ph = phaseOf(s), out = [];
     // Each to-do's button does its job (owner, 2026-09-30); `go` runs it, the row itself still opens the event
     const onPage = (fn) => () => { openSpark(s); setTimeout(fn, 0); };
-    if (ph === 'idea') {   // only the next step
+    if (ph === 'idea') {   // the next step, then the jobs still to fill
       const top = s.dateOpts.slice().sort((a, b) => b.votes.length - a.votes.length)[0];
-      if (s.wantsHost) return [{ act: 'Needs ' + missingText(s) + ' to make it a plan', cta: 'Find a lead', go: onPage(() => openLeadAsk(s)) }];
-      if (!s.dayDate && top && top.votes.length) return [{ act: monthDay(top.dayDate) + ' has ' + top.votes.length + (top.votes.length === 1 ? ' vote' : ' votes'), cta: 'Pick', go: () => openToSection(s, 'sec-when') }];
-      if (!s.dayDate) return [{ act: 'Needs a date to make it a plan', cta: 'Add date', go: () => openToSection(s, 'sec-when') }];
-      if (!s.spot) return [{ act: 'Needs a location to make it a plan', cta: 'Add location', go: onPage(() => openSec(s, 'when')) }];
-      if (!basicsOf(s).length) return [{ act: 'Needs details to make it a plan', cta: 'Add details', go: onPage(() => openSec(s, 'details')) }];
-      if (s.dayDate < todayISO()) return [{ act: 'That date has passed', cta: 'New date', go: onPage(() => openSec(s, 'when')) }];
-      return [{ act: 'It’s all set', cta: 'Make it a plan', go: onPage(() => makePlan(s)) }];
+      const next = s.wantsHost ? { act: 'Needs ' + missingText(s) + ' to make it a plan', cta: 'Find a lead', go: onPage(() => openLeadAsk(s)) }
+        : !s.dayDate && top && top.votes.length ? { act: monthDay(top.dayDate) + ' has ' + top.votes.length + (top.votes.length === 1 ? ' vote' : ' votes'), cta: 'Pick', go: () => openToSection(s, 'sec-when') }
+        : !s.dayDate ? { act: 'Needs a date to make it a plan', cta: 'Add date', go: () => openToSection(s, 'sec-when') }
+        : s.dayDate < todayISO() ? { act: 'That date has passed', cta: 'New date', go: onPage(() => openSec(s, 'when')) }
+        : { act: 'It’s all set', cta: 'Make it a plan', go: onPage(() => makePlan(s)) };
+      return [next].concat(s.wantsHost ? [] : jobActs(s, onPage));
     }
     if (ph === 'done') {
       // Done once there's a photo in the album / an update went out on the day or after (the thank-you is one)
@@ -2997,9 +2996,17 @@
     if (!s.dayDate) out.push({ act: dateTbd(s), cta: s.dateOpts.length ? 'Pick' : 'Add it', go: s.dateOpts.length ? () => openToSection(s, 'sec-when') : onPage(() => openSec(s, 'when')) });
     if (!s.spot && sug.length) out.push({ act: firstName(sug[0].who || 'Someone') + ' suggested a location', cta: 'Review', go: () => openToSection(s, 'sec-when') });
     else if (!s.spot) out.push({ act: spotTbd(s), cta: s.spotOpts.length ? 'Pick' : 'Add it', go: s.spotOpts.length ? () => openToSection(s, 'sec-when') : onPage(() => openSec(s, 'when')) });
-    if (f.open > 0) out.push({ act: f.open + (f.open === 1 ? ' spot open' : ' spots open'), cta: 'Share list', go: () => shareOpenJobs(s) });
-    return out;
+    return out.concat(jobActs(s, onPage));
   };
+  // Jobs still to fill are a lead's task (owner, 2026-10-02): one row per job with spots left, and Ask opens the
+  // personal ask for it (a job with shifts can't be asked for yet, so it shares the list)
+  const jobActs = (s, onPage) => (s.jobs || s.signups).map(j => {
+    const units = j.shifts || [j], left = units.reduce((a, u) => a + (u.need ? Math.max(0, u.need - u.claims.length) : 0), 0);
+    if (!left) return null;
+    const waiting = j.shifts ? 0 : openAsks(s, j.id).length;
+    return { act: j.item + ': ' + left + (left === 1 ? ' spot' : ' spots') + ' to fill' + (waiting ? ' · ' + waiting + ' asked' : ''), cta: j.shifts ? 'Share' : 'Ask',
+      go: j.shifts ? () => shareOpenJobs(s) : onPage(() => openJobAsk(s, j)) };
+  }).filter(Boolean);
   // Everyone who took a job (not the host), for "Thank helpers"
   const helperIds = (s) => [].concat(...s.signups.map(it => it.claims.map(c => c.userId))).filter((u, i, a) => u !== s.leadId && s.cohosts.indexOf(u) < 0 && a.indexOf(u) === i);
   const thanksText = (s, ids) => 'Thank you ' + namesList(ids.map(u => firstName(personName(s, u)))) + ' for helping make ' + s.text + ' happen!';
@@ -4923,7 +4930,9 @@
 
   // What an idea still needs before Make it a plan! shows: all four steps (owner, 2026-10-01: it waits for all 4;
   // make_plan() itself only checks a lead and a date)
-  const planMissing = (s) => (s.wantsHost ? ['lead'] : []).concat(s.spot ? [] : ['location'], basicsOf(s).length ? [] : ['details'], dateAhead(s) ? [] : ['date']);
+  // What an idea needs before Make it a plan!: a lead and a date (owner, 2026-10-02; from 2026-10-02 06:41 it also waited
+  // for a location and details, a misreading of the strip mock). Location and Details stay in the strip as progress
+  const planMissing = (s) => (s.wantsHost ? ['lead'] : []).concat(dateAhead(s) ? [] : ['date']);
   const dateAhead = (s) => !!s.dayDate && s.dayDate >= todayISO();   // an idea's date that hasn't passed
   const MISS_WORD = { lead: 'a lead', location: 'a location', details: 'details', date: 'a date' };
   const missingText = (s) => namesList(planMissing(s).map(m => MISS_WORD[m]));
@@ -5750,8 +5759,8 @@
       // With a poll running, go to its votes and Pick buttons (the pop-up's plain field would throw the poll away)
       !s.dayDate ? [{ item: s.dateOpts.length ? 'Pick the winning date' : 'Pick a date', act: () => s.dateOpts.length ? openToSection(s, 'sec-when') : openSec(s, 'when') }] : [],
       !s.spot ? [{ item: s.spotOpts.length ? 'Pick the winning location' : 'Pick a location', act: () => s.spotOpts.length ? openToSection(s, 'sec-when') : openSec(s, 'when') }] : [],
-      // Details are optional, so no task for them; open spots open the share sheet with the jobs named (owner, 2026-09-30)
-      f.open > 0 ? [{ item: 'Fill open spots', meta: f.open + ' open', act: () => shareOpenJobs(s) }] : [],
+      // Details are optional, so no task for them; each job still to fill is one, and opens its personal ask (owner, 2026-10-02)
+      jobActs(s, (fn) => fn).map(a => ({ item: a.act.split(':')[0], meta: a.act.split(': ')[1], act: a.go })),
       myJobs.map(j => ({ item: j.item, meta: myTime(j) })));
     const tKey = (lead ? 'h:' : '') + s.id, tOpen = !!st.jobsOpen[tKey];
     const T = lead ? { bar: '#f5f3fe', ink: '#4a3ad4', dot: '#7b6ef0', line: '#e6e1fc', word: 'Your tasks' } : { bar: '#fefaef', ink: '#8f6405', dot: '#e8a71c', line: '#f3e2ad', word: 'You’re helping' };
@@ -6175,6 +6184,8 @@
     const mine = myGroups().map(g => g.id), list = (st.evGroups || []).filter(id => mine.indexOf(id) > -1), g = currentGroup();
     return list.length ? list : g ? [g.id] : [];
   };
+  // Several groups in one line: "Torrez Fitness & 1 other", "… & 2 others" (owner, 2026-10-02)
+  const groupsShort = (names) => names.length <= 1 ? (names[0] || '') : names[0] + ' & ' + (names.length - 1) + (names.length === 2 ? ' other' : ' others');
   const namesList = (names) => names.length > 2 ? names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] : names.join(' and ');
 
   const composeReset = () => {
@@ -6616,7 +6627,7 @@
           '<div style="background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08)"><div data-menu style="position:relative">' +
             '<div ' + on((e) => { stop(e); setState({ menu: gOpen ? null : 'evGroups' }); }) + ' aria-label="Post to" aria-expanded="' + gOpen + '" style="display:flex;align-items:center;gap:12px;min-height:58px;padding:10px 14px;cursor:pointer">' +
               '<span aria-hidden="true" style="flex:0 0 36px;width:36px;height:36px;border-radius:11px;background:' + groupBg(g0, '#f3f1fe') + '"></span>' +
-              '<div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:900;letter-spacing:.7px;text-transform:uppercase;color:#8a909b">Post to</div><div style="font-size:15px;font-weight:800;color:#0d1117">' + esc(namesList(names)) + '</div></div>' +
+              '<div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:900;letter-spacing:.7px;text-transform:uppercase;color:#8a909b">Post to</div><div style="font-size:15px;font-weight:800;color:#0d1117">' + esc(groupsShort(names)) + '</div></div>' +
               (myGroups().length > 1 ? '<span style="font-size:13px;font-weight:800;color:#5b4ae8">Choose</span>' : '') + '</div>' +
             (gOpen && myGroups().length > 1 ? '<div style="position:absolute;left:12px;right:12px;top:60px;z-index:20;background:#fff;border-radius:16px;box-shadow:0 12px 32px rgba(15,18,25,.18), 0 0 0 1px #e6e7eb;padding:6px">' +
               groupsInOrder().map(g => groupCheck(g, groups.indexOf(g.id) > -1, (e) => { stop(e); const nx = groups.indexOf(g.id) > -1 ? groups.filter(x => x !== g.id) : groups.concat(g.id); setState({ evGroups: nx.length ? nx : groups }); })).join('') + '</div>' : '') +

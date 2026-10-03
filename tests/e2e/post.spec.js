@@ -36,11 +36,12 @@ test('post an event with every step filled, then edit it in the pop-ups and dele
     const url = await page.evaluate(() => getComputedStyle(document.querySelector('[data-screen-label="Plan page"] > div > div[aria-hidden]')).backgroundImage.match(/url\("([^"]+)"/)[1]);
     expect((await page.request.get(url)).status()).toBe(200);
 
-    // Your tasks (purple): only open spots are left
+    // Your tasks (purple): only the job still to fill is left (owner, 2026-10-02: one task per job)
     const bar = P.locator('[data-host-tasks-bar]');
     await expect(bar).toContainText('1 task');
     await bar.click();
-    await expect(P.locator('[data-screen-label="Your tasks"]')).toContainText('Fill open spots');
+    await expect(P.locator('[data-screen-label="Your tasks"]')).toContainText('Bring water');
+    await expect(P.locator('[data-screen-label="Your tasks"]')).toContainText('3 spots to fill');
 
     // Edit event: a round pencil by Share (owner, 2026-10-01), no pencil after the title; the host gets the photo too
     await expect(P.locator('h1 svg')).toHaveCount(0);
@@ -322,13 +323,8 @@ test('polls: the host posts a date poll (an idea), a member votes, the host pick
     const HI = H.locator('[data-screen-label="Idea page"]');
     await HI.getByRole('button', { name: /^Pick .*\(1 vote, suggested by / }).click();
     await confirm(H, 'Use this date');
-    // Make it a plan! waits for all four steps (owner, 2026-10-01): a location and details are still to go
-    await expect(HI.locator('[data-plan-needs]')).toContainText('2 things to go');
-    await expect(HI.locator('[data-plan-needs] [data-plan-row="location"]')).toBeVisible();
-    await expect(HI.locator('[data-plan-needs] [data-plan-row="details"]')).toBeVisible();
-    await expect(HI.locator('[data-make-plan]')).toHaveCount(0);
-    await asUser(H, async (c, _C, id) => { await c.from('sparks').update({ spot: 'The rec center', hopes: ['Bring a game'] }).eq('id', id); }, id);
-    await H.reload();
+    // A lead and a date are all it takes (owner, 2026-10-02): no location or details yet, and Make it a plan! is there
+    await expect(HI.locator('[data-plan-needs]')).toHaveCount(0);
     await expect(HI.getByLabel('Steps to a plan').locator('[data-make-plan]')).toContainText('Make it a plan!');   // in the gold strip (owner's mock, 2026-10-01)
     await HI.getByRole('button', { name: 'Make it a plan' }).click();
     await confirm(H, 'Make it a plan');

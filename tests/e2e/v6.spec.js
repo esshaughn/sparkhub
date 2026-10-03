@@ -49,19 +49,21 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     await expect(lead.getByLabel(/^Reminder/)).toHaveCount(0);           // automatic now, so not shown (owner, 2026-09-30)
     await expect(lead).not.toContainText('Post an update');
     await expect(lead).toContainText('Location TBD');
-    await expect(lead).toContainText('3 spots open');
-    // Share list opens the share sheet with the open jobs named
-    await lead.locator('[data-todo-cta]', { hasText: 'Share list' }).click();
-    const shareSheet = H.getByRole('dialog', { name: 'Invite people' });
-    await expect(shareSheet.getByRole('link', { name: 'Messages' })).toHaveAttribute('href', /still%20needs%3A%20Folding%20chairs%20\(2\)%2C%20Ice/);
-    await shareSheet.getByRole('button', { name: 'Close' }).click();
+    // Jobs still to fill are a lead's task, one row each; Ask opens the personal ask for that job (owner, 2026-10-02)
+    await expect(lead).toContainText('Folding chairs: 2 spots to fill');
+    await expect(lead).toContainText('Ice: 1 spot to fill');
+    await lead.locator('[data-todo-cta]', { hasText: 'Ask' }).first().click();
+    const askSheet = H.getByRole('dialog', { name: 'Ask someone to take it' });
+    await expect(askSheet).toContainText('Ask someone to take “Folding chairs”');
+    await askSheet.getByRole('button', { name: 'Close' }).click();
+    await nav(H).getByRole('button', { name: /^Your tasks/ }).click();
     await shot(H, '01-your-tasks-lead');
     await expect(nav(H).getByRole('button', { name: /^Your tasks, \d+$/ })).toBeVisible();   // the badge counts events with to-dos
 
     // View all: every to-do listed, the stats strip too
     await H.locator('[data-screen-label="Your tasks"]').getByRole('button', { name: 'View all leading' }).click();
     const all = H.getByRole('dialog', { name: 'Leading' });
-    await expect(all.locator('[data-task="' + title + '"]')).toContainText('3 spots open');
+    await expect(all.locator('[data-task="' + title + '"]')).toContainText('Ice: 1 spot to fill');
     await shot(H, '02-view-all');
     await all.getByRole('button', { name: 'Close' }).click();
     await expect(all).toHaveCount(0);
