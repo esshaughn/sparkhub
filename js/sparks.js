@@ -966,7 +966,9 @@
   };
 
   // Start a group (V5 brings it back): name it, then land on its Edit group page with the code
-  const startGroup = () => { setState({ menu: null }); needSignIn(() => setState({ startName: '' }), 'profile'); };
+  // Starting groups is coming soon everywhere (owner, 2026-10-03): every Start a group says so. The naming pop-up
+  // (startName) stays for when it comes back: setState({ startName: '' }) behind needSignIn(…, 'profile')
+  const startGroup = () => setState({ menu: null, pplAdd: false, joinOpen: false, confirm: { title: 'Starting groups is coming soon', body: 'For now, ask us to set one up for your team, block or club. You can join any group with its code or link.', cta: 'Got it', run: () => setState({ confirm: null }) } });
   const submitStartGroup = async () => {
     const name = titleCase(state.startName || '').slice(0, 40);
     if (name.length < 2 || state.busy) return;
@@ -2851,7 +2853,6 @@
   }
 
   // Add a group (+ Join or add): Join a group, and Start a group, which is coming soon (Design 20, 2026-10-03)
-  const startGroupSoon = () => setState({ pplAdd: false, confirm: { title: 'Starting groups is coming soon', body: 'For now, ask us to set one up for your team, block or club. You can join any group with its code or link.', cta: 'Got it', run: () => setState({ confirm: null }) } });
   function viewPplAdd() {
     const close = () => setState({ pplAdd: false });
     const row = (label, sub, icon, fn, tag) => '<div ' + on(fn) + ' aria-label="' + label + '" class="hov-grey-fill" style="display:flex;align-items:center;gap:14px;padding:14px 6px;border-top:1px solid #eceef1;cursor:pointer">' +
@@ -2861,7 +2862,7 @@
       '<div style="display:flex;align-items:center;justify-content:space-between;padding:0 6px 8px"><h3 style="margin:0;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">Add a group</h3>' + closeX(close) + '</div>' +
       '<div style="display:flex;flex-direction:column">' +
         row('Join a group', 'Have a code or link?', svg(19, stroke('#0d1117', 2.2), '<rect x="3" y="7" width="18" height="10" rx="2"/><path d="M7 12h.01M11 12h.01M15 12h.01"/>'), () => { setState({ pplAdd: false }); openJoin(); }) +
-        row('Start a group', 'For a team, a block, a crew', svg(19, stroke('#0d1117', 2.4), '<path d="M12 5v14M5 12h14"/>'), startGroupSoon,
+        row('Start a group', 'For a team, a block, a crew', svg(19, stroke('#0d1117', 2.4), '<path d="M12 5v14M5 12h14"/>'), startGroup,
           '<span style="padding:2px 7px;border-radius:999px;background:#fdf1d6;color:#8f6405;font-size:10.5px;font-weight:900;letter-spacing:.6px">SOON</span>') +
       '</div>', 45);
   }
@@ -4544,7 +4545,7 @@
   const noGroupCard = () => state.error === 'load' ? loadFailCard() :
     '<div style="' + CARD + ';padding:18px;display:flex;flex-direction:column;gap:12px">' +
       '<div style="font-size:16.5px;font-weight:800;letter-spacing:-.2px;color:#0d1117">You’re not in a group yet.</div>' +
-      '<div style="font-size:15px;line-height:1.45;font-weight:500;color:#5c6270">Join one with a code from someone in it, or start your own.</div>' +
+      '<div style="font-size:15px;line-height:1.45;font-weight:500;color:#5c6270">Join one with a code or link from someone in it.</div>' +
       '<button type="button" class="hov-primary" ' + on(() => openJoin()) + ' style="' + primary(true) + '">Join with a code</button>' +
       '<button type="button" ' + on(() => startGroup()) + ' style="' + SECONDARY + '">Start a group</button>' +
     '</div>';
@@ -5792,10 +5793,10 @@
 
   // Who's in: the group(s) it's posted to and Public / Private, under the people (owner, 2026-10-01: easy to see and change).
   // The lead's Edit opens Who can see it; anyone in a group can tap its name to open it.
-  const groupRow = (s) => {
+  const groupRow = (s, alone) => {   // alone: the only row in its card (Visibility), so no divider above it
     const ids = gIds(s), known = ids.map(groupById).filter(Boolean), more = ids.length - known.length, priv = s.visibility === 'invite';
     const name = (g) => g.role ? '<span ' + on((e) => { stop(e); openGroup(g); }) + ' data-group-link style="font-weight:800;color:#0d1117;cursor:pointer">' + esc(g.name) + '</span>' : '<span style="font-weight:800;color:#0d1117">' + esc(g.name) + '</span>';
-    return '<div data-vis style="display:flex;align-items:center;gap:10px;padding-top:12px;border-top:1px solid #f2f3f6">' +
+    return '<div data-vis style="display:flex;align-items:center;gap:10px' + (alone ? '' : ';padding-top:12px;border-top:1px solid #f2f3f6') + '">' +
       '<span aria-hidden="true" style="flex:0 0 32px;width:32px;height:32px;border-radius:10px;background:#f3f1fe;color:#5b4ae8;display:flex;align-items:center;justify-content:center">' + svg(16, stroke('currentColor', 2.2), priv ? LOCK_IC : PEOPLE_IC) + '</span>' +
       '<div style="flex:1;min-width:0;font-size:14px;line-height:1.35;font-weight:600;color:#6b7280">' +
         '<div style="font-size:14.5px;color:#0d1117">' + (known.length ? known.map(name).join(', ') : '') + (more ? (known.length ? ' + ' + more : more + (more === 1 ? ' group' : ' groups')) : '') + '</div>' +
@@ -6040,7 +6041,7 @@
         askCards(s) + helpOut(s) +
         host +
         // Visibility (was Who's in; Design 25c): the posted-to group(s) and Public / Private; the people moved into the RSVP card
-        '<section>' + secTitle('Visibility') + sheetCard(groupRow(s)) + '</section>' +
+        '<section>' + secTitle('Visibility') + sheetCard(groupRow(s, true)) + '</section>' +
         inspoSec(s) +
         deleteLink(s) +
       '</div>' +
