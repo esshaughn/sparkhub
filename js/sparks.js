@@ -6940,8 +6940,7 @@
       return '<div ' + on(() => setState({ evPriv: priv }), 'radio') + ' aria-checked="' + onIt + '" style="flex:1 1 0;display:flex;flex-direction:column;gap:4px;padding:12px;border-radius:14px;cursor:pointer;' + (onIt ? 'background:#f3f1fe;box-shadow:inset 0 0 0 2px #5b4ae8' : 'background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6') + '">' +
         '<span style="display:flex;color:' + (onIt ? '#5b4ae8' : '#454b55') + '">' + svg(22, stroke('currentColor', 2.2), icon) + '</span>' +
         '<span style="font-size:15px;font-weight:900;color:' + (onIt ? '#5b4ae8' : '#0d1117') + '">' + label + '</span><span style="font-size:12.5px;line-height:1.35;font-weight:600;color:#6b7280">' + sub + '</span></div>'; };
-    return '<div style="display:flex;flex-direction:column;gap:4px;margin-top:12px"><h3 style="margin:0;font-size:20px;line-height:1.05;font-weight:900;letter-spacing:-.6px;color:#0d1117">Post to</h3>' +
-        '<span style="font-size:14px;font-weight:600;color:#6b7280">Pick one or more groups.</span></div>' +
+    return '<h3 style="margin:12px 0 0;font-size:20px;line-height:1.05;font-weight:900;letter-spacing:-.6px;color:#0d1117">Post to</h3>' +   // no sub line (owner, 2026-10-03)
       '<div data-post-to style="background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08);padding:2px 14px">' + groupsInOrder().map(row).join('') + '</div>' +
       '<div style="display:flex;gap:8px">' + tile(false, 'Public', 'Anyone in these groups', PEOPLE_IC) + tile(true, 'Private', 'Only people you invite', LOCK_IC) + '</div>' +
       guestInvSwitch(!st.evNoGuestInv, () => setState({ evNoGuestInv: !st.evNoGuestInv }));
@@ -6962,8 +6961,8 @@
         (url
           ? '<div style="display:flex;align-items:center;gap:12px;padding:8px 14px 8px 8px;border-radius:16px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08)"><span aria-hidden="true" style="flex:0 0 56px;width:56px;height:42px;border-radius:10px;background:' + bg(url) + '"></span>' +
               '<span style="flex:1;font-size:15px;font-weight:800;color:#0d1117">Cover photo added</span><label style="font-size:13.5px;font-weight:800;color:#5b4ae8;cursor:pointer">Change' + photoInput('Change the cover photo') + '</label></div>'
-          : '<label class="hov-drop" style="display:flex;align-items:center;gap:12px;min-height:56px;padding:0 14px;border-radius:16px;border:2px dashed #b9bcc4;background:#f4f5f7;cursor:pointer">' +
-              svg(22, stroke('#5b4ae8', 2.1), CAMERA) +
+          : '<label class="hov-drop" style="display:flex;align-items:center;gap:14px;min-height:84px;padding:0 16px;border-radius:16px;border:2px dashed #b9bcc4;background:#f4f5f7;cursor:pointer">' +   // taller, a bigger camera (owner, 2026-10-03)
+              svg(32, stroke('#5b4ae8', 1.9), CAMERA) +
               '<span style="flex:1;font-size:15px;font-weight:800;color:#0d1117">Add a cover photo</span><span style="font-size:12.5px;font-weight:600;color:#6b7280">Optional</span>' + photoInput('Upload a cover photo') + '</label>') +
         // Post to and who can see it, up front (Design 22a + 23a, 2026-10-03; they were at the bottom of Review)
         evWhoFields(st));
