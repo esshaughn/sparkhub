@@ -99,6 +99,20 @@ test('a member with the link takes part; everyone votes; the lead picks and make
     await expect(zoom).toHaveCount(0);
     await LD.getByRole('button', { name: 'Remove photo' }).click();
     await expect(LD).toContainText('0 / 3');
+    // Several at once (Joseph, 2026-10-03): two in one pick, one save; then only the room that's left is used
+    const moodPng = (n) => ({ name: 'mood' + n + '.png', mimeType: 'image/png', buffer: PNG });
+    await LD.getByLabel('Add a mood photo').setInputFiles([moodPng(1), moodPng(2)]);
+    await expect(LD).toContainText('2 / 3');
+    await expect(LD.getByRole('button', { name: 'View mood photo 1' })).toBeVisible();
+    await expect(LD.getByRole('button', { name: 'View mood photo 2' })).toBeVisible();
+    await LD.getByLabel('Add a mood photo').setInputFiles([moodPng(3), moodPng(4)]);
+    await expect(L.getByText('Only 3 photos fit. Added the first 1.')).toBeVisible();
+    await expect(LD).toContainText('3 / 3');
+    await expect(LD.getByRole('button', { name: /^View mood photo/ })).toHaveCount(3);
+    for (const n of ['2 / 3', '1 / 3', '0 / 3']) {
+      await LD.getByRole('button', { name: 'Remove photo' }).first().click();
+      await expect(LD).toContainText(n);
+    }
 
     // Make it a plan: the interested member shows as going
     await expect(LD.getByLabel('Steps to a plan').locator('[data-make-plan]')).toContainText('Make it a plan!');   // in the gold strip (owner's mock, 2026-10-01)

@@ -338,8 +338,9 @@ test('it happened: the album and "do it again"; invite-only plans stay private',
     await done.locator('[data-album-edit]').getByRole('button', { name: 'Remove this photo' }).click();
     await confirm(H, 'Remove it');
     await expect(done).toContainText('No photos yet.');
-    await done.getByLabel('Add a photo to the album').setInputFiles({ name: 'p.png', mimeType: 'image/png', buffer: PNG });
-    await expect(done).toContainText('The album · 1');
+    await done.getByLabel('Add a photo to the album').setInputFiles([{ name: 'p.png', mimeType: 'image/png', buffer: PNG }, { name: 'q.png', mimeType: 'image/png', buffer: PNG }]);
+    await expect(H.getByText('Added 2 photos to the album')).toBeVisible();   // several in one pick (Joseph, 2026-10-03)
+    await expect(done).toContainText('The album · 2');
     await done.getByRole('button', { name: 'Do it again', exact: true }).click();
     const form = H.locator('[data-screen-label="New spark"]');
     await expect(form.getByLabel('Event title')).toHaveValue(title.charAt(0).toUpperCase() + title.slice(1));

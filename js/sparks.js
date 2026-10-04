@@ -1757,15 +1757,34 @@
   const askRemovePhoto = (s, a) => setState({ confirm: { title: 'Remove this photo?', body: 'It comes out of the album for everyone.', cta: 'Remove it', keep: 'Keep it', danger: true,
     run: () => run(async () => { must(await sb.from('album_photos').delete().eq('id', a.id)); }, { confirm: null })
       .then(ok => { if (!ok) return; if (a.path.indexOf(state.me + '/') === 0) deletePhotos([a.path]); toast('Photo removed', true); }) } });
-  const addAlbumPhoto = async (s, file) => {
-    if (!file) return;
-    let blob;
-    try { blob = await shrinkImage(file); } catch (e) { toast(BAD_PHOTO); return; }
-    let path = null;
-    needAccount(() => run(async () => {
-      path = await uploadBlob(blob);
-      try { must(await sb.from('album_photos').insert({ spark_id: s.id, path })); } catch (e) { deletePhotos([path]); throw e; }
-    }).then(ok => { if (ok) toast('Added to the album', true); }));
+  // Several photos picked at once (Joseph, 2026-10-03): shrink them all, skipping unreadable ones (one toast for all)
+  const shrinkAll = async (files) => {
+    const blobs = [];
+    for (const f of files) { try { blobs.push(await shrinkImage(f)); } catch (e) { /* skipped below */ } }
+    if (blobs.length < files.length) toast(BAD_PHOTO);
+    return blobs;
+  };
+  // Up to 10 per pick (uploads are limited to 50 a day); one insert for the lot
+  const ALBUM_PICK = 10;
+  const addAlbumPhoto = async (s, fileList) => {
+    const all = Array.from(fileList || []), files = all.slice(0, ALBUM_PICK);
+    if (!files.length || state.busy) return;
+    needAccount(async () => {
+      setState({ busy: 'save' });
+      const blobs = await shrinkAll(files);
+      setState({ busy: null });
+      if (!blobs.length) return;
+      const paths = [];
+      run(async () => {
+        try {
+          for (const b of blobs) paths.push(await uploadBlob(b));
+          must(await sb.from('album_photos').insert(paths.map(path => ({ spark_id: s.id, path }))));
+        } catch (e) { deletePhotos(paths); throw e; }
+      }).then(ok => {
+        if (!ok) return;
+        toast(all.length > files.length ? 'Added the first ' + files.length + ' to the album. Add the rest in another go.' : paths.length === 1 ? 'Added to the album' : 'Added ' + paths.length + ' photos to the album', true);
+      });
+    });
   };
 
   // "Add to calendar": an .ics event to its end time (an hour if it has none); no time = an all-day event
@@ -1797,19 +1816,23 @@
   const doItAgain = (s) => goCompose({ activity: s.text.slice(0, 40), evTags: (s.tags || []).slice(0, 2), evTest: !!(s.test || s.demo), locText: s.spot || '', locPlace: s.spotAddress ? { name: s.spot, address: s.spotAddress, lat: s.spotPoint && s.spotPoint[0], lon: s.spotPoint && s.spotPoint[1] } : null,
     evBits: [0, 1, 2].map(i => (basicsOf(s)[i] || '').slice(0, 60)), evOverview: (s.overview || '').slice(0, 80) });
 
+  // Several at once: as many as there's room for, then one save
   const addMood = async (s, fileList) => {
-    const f = (fileList || [])[0];
-    if (!f || s.mood.length >= 3) return;
-    let blob;
-    try { blob = await shrinkImage(f); } catch (e) { toast(BAD_PHOTO); return; }
-    let path = null;
+    const all = Array.from(fileList || []), room = 3 - s.mood.length;
+    if (!all.length || room <= 0 || state.busy) return;
+    const files = all.slice(0, room);
+    setState({ busy: 'save' });
+    const blobs = await shrinkAll(files);
+    setState({ busy: null });
+    if (!blobs.length) return;
+    const paths = [];
     run(async () => {
-      path = await uploadBlob(blob);
-      const cur = (subject() || s).mood;
       try {
-        must(await sb.from('sparks').update({ mood: cur.concat([path]).slice(0, 3) }).eq('id', s.id));
-      } catch (e) { deletePhotos([path]); throw e; }
-    });
+        for (const b of blobs) paths.push(await uploadBlob(b));
+        const cur = (subject() || s).mood;
+        must(await sb.from('sparks').update({ mood: cur.concat(paths).slice(0, 3) }).eq('id', s.id));
+      } catch (e) { deletePhotos(paths); throw e; }
+    }).then(ok => { if (ok && all.length > files.length) toast('Only 3 photos fit. Added the first ' + files.length + '.'); });
   };
   // Files are removed after the page has stopped showing them
   const removeMood = (s, path) => run(async () => {
@@ -4657,7 +4680,7 @@
         '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.88) 0%, rgba(13,17,23,0) 50%)"></div>' +
         '<label ' + on(stop) + ' aria-label="Add photos" style="position:absolute;bottom:10px;right:10px;z-index:2;width:34px;height:34px;border-radius:999px;background:rgba(255,255,255,.8);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;cursor:pointer">' +
           '<span style="position:relative;display:flex">' + I.photo(22, '#5b4ae8', 2.1) + '<span style="position:absolute;right:-6px;bottom:-5px;width:14px;height:14px;border-radius:999px;background:#5b4ae8;border:1.5px solid #fff;display:flex;align-items:center;justify-content:center">' + I.plus(8, '#fff', 4.5) + '</span></span>' +
-          '<input type="file" accept="image/*" ' + onInput(e => { if (e.type !== 'change') return; const f = (e.target.files || [])[0]; e.target.value = ''; if (f) addAlbumPhoto(s, f); }) + ' style="display:none"></label>' +
+          '<input type="file" accept="image/*" multiple ' + onInput(e => { if (e.type !== 'change') return; const f = Array.from(e.target.files || []); e.target.value = ''; addAlbumPhoto(s, f); }) + ' style="display:none"></label>' +
         '<span style="position:absolute;top:10px;right:10px;display:flex;align-items:center;gap:5px;height:34px;padding:0 13px 0 10px;border-radius:999px;background:linear-gradient(135deg,' + WENT6[(i || 0) % 5] + ');color:#fff;font-size:14.5px;font-weight:900;transform:rotate(4deg);box-shadow:0 3px 8px rgba(0,0,0,.25)"><span style="font-size:17px">🎉</span>' + n + (checkedIn(s) ? ' came!' : ' said yes!') + '</span>' +
         '<div style="position:absolute;left:12px;bottom:10px;right:56px;color:#fff"><div style="font-size:24px;line-height:1.1;font-weight:900;letter-spacing:-.5px;text-wrap:balance">' + esc(s.text) + demoTag(s, true, true) + '</div></div>' +
       '</div>' +
@@ -5942,9 +5965,9 @@
             (lead ? '<span ' + on((e) => { stop(e); if (!state.busy) removeMood(s, p); }) + ' aria-label="Remove photo" style="position:absolute;top:5px;right:5px;width:24px;height:24px;border-radius:999px;background:rgba(13,17,23,.6);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(11, '#fff', 3) + '</span>' : '') +
             '</div>').join('') +
           (lead && mood.length < 3
-            ? '<label class="hov-dash" style="aspect-ratio:1;border-radius:12px;border:1.5px dashed #cfd3db;background:#f7f7f9;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;cursor:pointer">' +
-                I.plus(20, '#5b4ae8', 2.4) + '<span style="font-size:12.5px;font-weight:800;color:#5b4ae8">Add photo</span>' +
-                '<input type="file" accept="image/*" aria-label="Add a mood photo" ' + onInput(e => { if (e.type !== 'change') return; const f = Array.from(e.target.files || []); e.target.value = ''; addMood(s, f); }) + ' style="display:none">' +
+            ? '<label class="hov-dash"' + (state.busy ? ' aria-busy="true"' : '') + ' style="aspect-ratio:1;border-radius:12px;border:1.5px dashed #cfd3db;background:#f7f7f9;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;cursor:' + (state.busy ? 'wait;opacity:.6' : 'pointer') + '">' +
+                (state.busy ? '' : I.plus(20, '#5b4ae8', 2.4)) + '<span style="font-size:12.5px;font-weight:800;color:#5b4ae8">' + (state.busy ? 'Adding…' : 'Add photo') + '</span>' +
+                '<input type="file" accept="image/*" multiple' + (state.busy ? ' disabled' : '') + ' aria-label="Add a mood photo" ' + onInput(e => { if (e.type !== 'change') return; const f = Array.from(e.target.files || []); e.target.value = ''; addMood(s, f); }) + ' style="display:none">' +
               '</label>'
             : '') +
         '</div></div></section>';
@@ -6077,7 +6100,7 @@
           eyebrowRow('The album' + (album.length ? ' · ' + album.length : ''),
             '<span style="display:flex;align-items:center;gap:14px">' +
               (removable.length ? '<span ' + on(() => setState({ albumEdit: editing ? null : s.id })) + ' style="font-size:13.5px;font-weight:800;color:' + (editing ? '#0d1117' : '#9b1c31') + ';cursor:pointer">' + (editing ? 'Done' : 'Remove') + '</span>' : '') +
-              '<label style="font-size:13.5px;font-weight:800;color:#5b4ae8;cursor:pointer">+ Add yours<input type="file" accept="image/*" aria-label="Add a photo to the album" ' + onInput(e => { if (e.type !== 'change') return; const f = (e.target.files || [])[0]; e.target.value = ''; addAlbumPhoto(s, f); }) + ' style="display:none"></label></span>') +
+              '<label style="font-size:13.5px;font-weight:800;color:#5b4ae8;cursor:pointer">+ Add yours<input type="file" accept="image/*" multiple aria-label="Add a photo to the album" ' + onInput(e => { if (e.type !== 'change') return; const f = Array.from(e.target.files || []); e.target.value = ''; addAlbumPhoto(s, f); }) + ' style="display:none"></label></span>') +
           // Remove mode: every photo as a square; ✕ on the ones you added (the host: all of them)
           (editing ? '<div data-album-edit style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px">' + s.album.map(a =>
               '<span style="position:relative;aspect-ratio:1;border-radius:12px;background:' + bg(photoUrl(a.path)) + '">' +
