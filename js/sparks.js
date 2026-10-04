@@ -202,7 +202,7 @@
     offerKind: null, offerText: '', offerPlace: null, offerSuggest: [],
     joinOpen: false, joinCode: '', joinBad: false,
     notif: { allReadAt: 0, read: [], topics: {}, email: true, loaded: false }, nFilter: 'all', nSettings: false, demoAdmin: false, back: null, myPlace: '', myBio: '', memberSince: null, ownGrp: null, sizes: {}, membersQ: '', gpRename: null, gpDel: null, ph: null,
-    startName: null, phaseTab: 'plan', sigDraft: '', sigNeed: '', sigTime: '', blast: null, invite: null,
+    startName: null, phaseTab: 'plan', sigDraft: '', sigNeed: '', sigTime: '', blast: null, updAll: null, invite: null,
     pe: null, confirm: null, interestList: false, thanksList: false, guestList: null, cohostPick: null, leadAsk: null, leadsSheet: null, takeDown: null, albumEdit: null,
     gpCode: '', gpMembers: null, gpFail: false, acctDel: null, voteAll: null, justAdded: null, offerVote: true,
     // v6 Update 13: Your people (Groups · Friends), friend requests, the friend link, inviting friends
@@ -1293,9 +1293,8 @@
   // Posting and editing
   // ---------------------------------------------------------------------------
 
-  const UPD_TO = { going: 'To people going', maybe: 'To maybes', noreply: 'To people who haven’t RSVP’d' };
-  const askRemoveUpdate = (s, u) => setState({ confirm: { title: 'Remove this update?', body: 'It comes off the event page and people’s notifications. Anyone who already saw it on their phone keeps that.', cta: 'Remove it', keep: 'Keep it', danger: true,
-    run: () => run(async () => { must(await sb.from('plan_updates').delete().eq('id', u.id)); }, { confirm: null }).then(ok => { if (ok) toast('Update removed', true); }) } });
+  const askRemoveUpdate = (s, u) => setState({ confirm: { title: 'Delete this update?', body: 'It comes off the event page. Notifications already sent can’t be taken back.', cta: 'Delete update', keep: 'Keep it', danger: true,
+    run: () => run(async () => { must(await sb.from('plan_updates').delete().eq('id', u.id)); }, { confirm: null, updAll: s.updates.length > 1 ? state.updAll : null }).then(ok => { if (ok) toast('Update deleted', true); }) } });
   const peopleIn = (s) => (s.planned ? s.rsvps.filter(r => r.status !== 'no').map(r => r.userId).concat(...s.signups.map(it => it.claims.map(c => c.userId))) : s.interested.slice())
     .filter((u, i, a) => a.indexOf(u) === i);
   // Cancel or delete (owner, 2026-09-30): Cancel tells everyone in it (going, maybe, helpers; an idea: the people
@@ -1745,13 +1744,20 @@
       run: () => run(async () => { must(await sb.rpc('remove_signup', { p_item: it.id })); }, { confirm: null }) } });
   };
 
-  // Updates from the host (they show on the plan; delivery comes with notifications)
+  // Event updates, one way (Design 29, 2026-10-04): a host posts to Going, or Going and Maybe ('coming'); everyone who can
+  // see the event sees it on the page. A third update within the hour asks first; test and demo events push nothing.
+  const updAudience = (s, to) => s.rsvps.filter(r => r.userId !== state.me && (r.status === 'going' || (to === 'coming' && r.status === 'maybe'))).length;
   const postUpdate = (s) => {
     const b = state.blast;
     if (!b || !b.text.trim() || state.busy) return;
-    run(async () => { must(await sb.from('plan_updates').insert({ spark_id: s.id, body: b.text.trim().slice(0, 320), audience: b.to })); }, { blast: null })
-      .then(ok => { if (ok) toast('Posted to the event', true); });
+    const to = b.to === 'coming' ? 'coming' : 'going', n = updAudience(s, to);
+    const post = () => run(async () => { must(await sb.from('plan_updates').insert({ spark_id: s.id, body: b.text.trim().slice(0, 200), audience: to })); }, { blast: null, confirm: null })
+      .then(ok => { if (ok) toast(isDemo(s) ? 'Posted. It’s a test event, so no notifications went out' : n ? 'Sent to ' + n + (n === 1 ? ' person' : ' people') : 'Posted. No one else is coming yet', true); });
+    const recent = s.updates.filter(u => u.createdBy === state.me && Date.now() - u.created < 36e5).length;
+    if (recent >= 2) return setState({ confirm: { title: 'That’s your third update this hour', body: 'Everyone going gets a notification each time. Post it anyway?', cta: 'Post anyway', keep: 'Edit first', run: post } });
+    post();
   };
+  const openBlast = (s) => setState({ blast: { id: s.id, to: 'going', text: '', chip: null }, updAll: null });
   // The album, once it's happened
   // The person who added a photo, or the host, can take it out of the album (owner, 2026-09-30)
   const askRemovePhoto = (s, a) => setState({ confirm: { title: 'Remove this photo?', body: 'It comes out of the album for everyone.', cta: 'Remove it', keep: 'Keep it', danger: true,
@@ -3042,7 +3048,7 @@
       // Done once there's a photo in the album / an update went out on the day or after (the thank-you is one)
       const helpers = helperIds(s), thanked = s.updates.some(u => u.created >= Date.parse(s.dayDate + 'T00:00:00'));
       if (!s.album.length) out.push({ act: 'Add photos', cta: 'Add', go: () => openSpark(s) });
-      if (helpers.length && !thanked) out.push({ act: 'Thank ' + (helpers.length === 1 ? firstName(personName(s, helpers[0])) : 'your ' + helpers.length + ' helpers'), cta: 'Thank', go: () => setState({ blast: { id: s.id, to: 'all', text: thanksText(s, helpers) } }) });
+      if (helpers.length && !thanked) out.push({ act: 'Thank ' + (helpers.length === 1 ? firstName(personName(s, helpers[0])) : 'your ' + helpers.length + ' helpers'), cta: 'Thank', go: () => setState({ blast: { id: s.id, to: 'coming', text: thanksText(s, helpers).slice(0, 200) } }) });
       return out;
     }
     const f = signupFill(s), sug = s.spotOpts.filter(o => o.createdBy !== state.me);
@@ -5041,15 +5047,13 @@
     return '<div data-screen-label="Idea page">' +
       phaseHeader(s, 300, 'linear-gradient(to bottom, rgba(13,17,23,.5) 0%, rgba(13,17,23,0) 30%, rgba(43,36,19,.55) 62%, rgba(43,36,19,.96) 100%)',
         '<div style="position:absolute;left:20px;right:20px;bottom:20px;color:#fff;display:flex;align-items:flex-end;gap:14px"><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px">' +
+          dateTile(s, '#e8a71c') +
           '<div style="display:flex;gap:6px;flex-wrap:wrap">' + (off ? chip('CANCELLED', '#d92d4a', '#fff', 'data-cancelled') : '') +
             (isDemo(s) ? chip('DEMO', 'rgba(255,255,255,.24);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)', '#fff', 'data-chip data-demo-tag') : lead && !(isTheLead(s) && s.wantsHost) ? chip(isTheLead(s) ? 'YOU’RE LEADING' : 'YOU’RE CO-LEADING', '#5b4ae8', '#fff', 'data-chip') : chip('IDEA', '#f3c55a', '#3d2a00', 'data-chip')) +
             (s.visibility === 'invite' ? chip(svg(11, stroke('#fff', 2.6), '<rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>') + 'PRIVATE', 'rgba(255,255,255,.22)') : '') + '</div>' +
-          (edit && !off
-            ? '<h1 ' + on(() => openSec(s, 'title'), 'button') + ' aria-label="' + esc(s.text) + ', edit the title" style="margin:0;font-size:36px;line-height:1;font-weight:900;letter-spacing:-1.2px;text-wrap:pretty;cursor:pointer">' + esc(s.text) + '</h1>'
-            : '<h1 style="margin:0;font-size:36px;line-height:1;font-weight:900;letter-spacing:-1.2px;text-wrap:pretty">' + esc(s.text) + '</h1>') + '</div>' +
-        '</div>' +
-          // The date tile sits top right, under Edit and Share (Design 13e, 2026-10-03), so the title has the full width
-          (s.dayDate ? '<span data-date-tile aria-label="' + esc(fmtDay(s.dayDate)) + '" style="position:absolute;right:20px;top:calc(72px + var(--pt));z-index:1;width:78px;border-radius:15px;overflow:hidden;text-align:center;background:#fff;box-shadow:0 8px 20px rgba(0,0,0,.3);transform:rotate(4deg)"><span style="display:block;background:#e8a71c;color:#fff;font-size:12.5px;font-weight:900;letter-spacing:1px;padding:4px 0">' + dp.mon + '</span><span style="display:block;font-size:36px;line-height:1.15;font-weight:900;color:#0d1117">' + dp.day + '</span><span style="display:block;padding-bottom:5px;font-size:12px;font-weight:800;color:#6b7280">' + dp.dow + '</span></span>' : ''), true) +
+          // The title isn't tappable any more (Design 31): editing goes through the ✎ at the top right
+          '<h1 style="margin:0;font-size:36px;line-height:1;font-weight:900;letter-spacing:-1.2px;text-wrap:pretty">' + esc(s.text) + '</h1></div>' +
+        '</div>', true) +
       (off ? '' : ideaBanner(s)) +
       '<div style="padding:16px 14px 26px;display:flex;flex-direction:column;gap:18px">' +
         cancelledCard(s) +
@@ -5291,9 +5295,8 @@
     setState({ sec: { id: s.id, kind, title: s.text, d: s.dayDate || '', t: s.dayTime || '', e: s.dayEnd || '', bits, ov: s.overview || '', need: s.minPeople || null, tags: (s.tags || []).slice(), priv: s.visibility === 'invite', guestInv: s.guestInvites !== false, groups: gIds(s).slice() },
       offerText: kind === 'when' ? s.spot || '' : '', offerPlace: s.spot && s.spotPoint ? { name: s.spot, address: s.spotAddress, lat: s.spotPoint[0], lon: s.spotPoint[1] } : null, offerSuggest: [], timeOpen: null, menu: null });
   };
-  // Round 65a: what an edit tells people. A new date, time or place always goes out; a new title never does
-  // (owner, 2026-10-01: Edit event has no Tell everyone going switch); new
-  // Basic details only when the host turns on Tell everyone going; Who can see it tells no one.
+  // Round 65a: what an edit would tell people. Since 2026-10-04 (owner, Design 30) saving an edit tells no one (secSends),
+  // so this is kept only for the day an edit offers to post its change as an update.
   const secMessage = (s, ss) => {
     if (ss.kind === 'title') return '';   // renaming saves quietly
     if (ss.kind === 'details') {
@@ -5310,19 +5313,13 @@
     if (p && p !== (s.spot || '')) lines.push('New location: ' + p);
     return lines.join(' · ');
   };
-  // Who an update reaches (audience "all"): everyone who RSVP’d or signed up, but you
+  // Picking a poll's winner still tells people (pickOpt): going and maybe, but you ('coming', 20261104000000)
   const updateReach = (s) => {
-    const ids = new Set();
-    s.rsvps.forEach(r => ids.add(r.userId)); s.signups.forEach(it => it.claims.forEach(c => ids.add(c.userId)));
-    ids.delete(state.me);
     const g = s.rsvps.filter(r => r.status === 'going' && r.userId !== state.me).length, m = s.rsvps.filter(r => r.status === 'maybe' && r.userId !== state.me).length;
-    const text = !ids.size ? '' : ids.size === g + m
-      ? 'Goes to ' + [g ? (g === 1 ? 'the 1 person going' : 'the ' + g + ' people going') : '', m ? (m === 1 ? 'the 1 maybe' : 'the ' + m + ' maybes') : ''].filter(Boolean).join(' and ') + '.'
-      : 'Goes to the ' + ids.size + (ids.size === 1 ? ' person who RSVP’d or signed up.' : ' people who RSVP’d or signed up.');
-    return { n: ids.size, text };
+    return { n: g + m, text: g + m ? 'Goes to ' + [g ? (g === 1 ? 'the 1 person going' : 'the ' + g + ' people going') : '', m ? (m === 1 ? 'the 1 maybe' : 'the ' + m + ' maybes') : ''].filter(Boolean).join(' and ') + '.' : '' };
   };
-  const secSends = (s, ss) => isLead(s) && s.planned && !!secMessage(s, ss) && updateReach(s).n > 0 && (ss.kind === 'when' || !!ss.tell);
-  const sendUpdate = async (s, body) => must(await sb.from('plan_updates').insert({ spark_id: s.id, body: body.slice(0, 320), audience: 'all' }));
+  const secSends = () => false;   // saving an edit never posts an update (owner, 2026-10-04, Design 30): leads use Post an update
+  const sendUpdate = async (s, body) => must(await sb.from('plan_updates').insert({ spark_id: s.id, body: body.slice(0, 200), audience: 'coming' }));
 
   const sentNote = (s) => isDemo(s) ? 'Saved. Test events don’t send phone notifications.' : 'Saved. Everyone going gets an update.';
   const saveSec = (s) => {
@@ -5448,23 +5445,10 @@
     }, { needEd: null }).then(ok => { if (ok) toast('Saved', true); });
   };
 
-  // The switch (Basic details) and the exact message people get (Round 65a)
   // v6 Update 13: the lead decides whether guests can invite their friends (Who can see it, Create event)
   const guestInvSwitch = (v, fn) => '<div ' + on(fn, 'switch') + ' aria-checked="' + v + '" aria-label="People going can invite friends" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:16px;background:#f4f5f7;cursor:pointer">' +
     '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">People going can invite friends</div><div style="font-size:12.5px;font-weight:600;color:#6b7280">' + (v ? 'On: they can pick friends and group members to invite' : 'Off: only leads and admins pick who to invite. Anyone can still share the link.') + '</div></div>' +
     '<span aria-hidden="true" style="flex:0 0 46px;width:46px;height:28px;border-radius:999px;position:relative;transition:background 160ms;background:' + (v ? '#149a4b' : '#dcdfe6') + '"><span style="position:absolute;top:3px;left:' + (v ? 21 : 3) + 'px;width:22px;height:22px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:left 160ms"></span></span></div>';
-  const secTell = (s, ss) => {
-    if (!isLead(s) || !s.planned || ss.kind === 'vis' || ss.kind === 'title') return '';
-    const reach = updateReach(s), msg = secMessage(s, ss), quiet = ss.kind === 'details', v = !!ss.tell;
-    const sw = quiet && reach.n ? '<div ' + on(() => setState({ sec: Object.assign({}, state.sec, { tell: !v }) }), 'switch') + ' aria-checked="' + v + '" aria-label="Tell everyone going" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:16px;background:#f4f5f7;cursor:pointer">' +
-      '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">Tell everyone going</div><div style="font-size:12.5px;font-weight:600;color:#6b7280">' + (v ? 'On: they get an update when you save' : 'Off: it saves quietly') + '</div></div>' +
-      '<span aria-hidden="true" style="flex:0 0 46px;width:46px;height:28px;border-radius:999px;position:relative;transition:background 160ms;background:' + (v ? '#149a4b' : '#dcdfe6') + '"><span style="position:absolute;top:3px;left:' + (v ? 21 : 3) + 'px;width:22px;height:22px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:left 160ms"></span></span></div>' : '';
-    const preview = secSends(s, ss) ? '<div data-update-preview style="display:flex;flex-direction:column;gap:6px;padding:12px 14px;border-radius:16px;background:#f7f6ff;box-shadow:inset 0 0 0 1.5px #dcd6fb">' +
-      '<span style="font-size:11px;font-weight:900;letter-spacing:1px;color:#4a3ad4">WHAT THEY GET</span>' +
-      '<span style="font-size:14.5px;line-height:1.4;font-weight:700;color:#2a1f8f">' + esc(msg) + '</span>' +
-      '<span style="font-size:13px;line-height:1.4;font-weight:600;color:#6b7280">' + esc(reach.text) + '</span></div>' : '';
-    return sw + preview;
-  };
 
   // The photo comes off; the event shows its group's photo again. The file goes too when it's in your own folder
   const removeCover = (s) => run(async () => {
@@ -5536,8 +5520,10 @@
     }
     return sheet(title, close, SHEET_PAD,
       '<div style="display:flex;align-items:center;gap:10px"><div style="flex:1;min-width:0;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.4px;color:#0d1117">' + esc(title) + '</div>' + closeX(close) + '</div>' +
-      body + secTell(s, ss) +
-      saveBtn(ok && !state.busy, () => saveSec(s), state.busy === 'save' ? 'Saving…' : secSends(s, ss) ? 'Save and send' : 'Save'), 36);
+      body +
+      saveBtn(ok && !state.busy, () => saveSec(s), state.busy === 'save' ? 'Saving…' : 'Save') +
+      // Under Save, the lead's way to cancel or delete (Design 30): closes this and opens the usual flow
+      (ss.kind === 'title' && s.planned && isTheLead(s) && !s.cancelledAt ? '<span ' + on(() => { close(); askDelete(s); }) + ' data-sec-delete style="align-self:center;display:flex;align-items:center;justify-content:center;gap:7px;min-height:44px;padding:0 12px;font-size:14.5px;font-weight:800;color:#c0364d;cursor:pointer">' + I.trash(15, '#c0364d') + 'Cancel or delete event</span>' : ''), 36);
   }
 
   function viewNeedsSheet() {
@@ -5983,6 +5969,35 @@
         '</div></div></section>';
   };
 
+  // The event header's date tile (Design 31, 2026-10-04; was top right, 13e): first in the bottom-left block, above the
+  // chips, tilted -4°; the plan's month band is green, the idea's gold
+  const dateTile = (s, band) => { if (!s.dayDate) return ''; const dp = dateParts(s.dayDate);
+    return '<span data-date-tile aria-label="' + esc(fmtDay(s.dayDate)) + '" style="align-self:flex-start;margin-bottom:-2px;width:82px;border-radius:16px;overflow:hidden;text-align:center;background:#fff;box-shadow:0 8px 20px rgba(0,0,0,.3);transform:rotate(-4deg)">' +
+      '<span style="display:block;background:' + band + ';color:#fff;font-size:13px;font-weight:900;letter-spacing:1px;padding:4px 0">' + dp.mon + '</span><span style="display:block;font-size:38px;line-height:1.15;font-weight:900;color:#0d1117">' + dp.day + '</span><span style="display:block;padding-bottom:5px;font-size:12.5px;font-weight:800;color:#6b7280">' + dp.dow + '</span></span>'; };
+
+  // ---- Event updates (Design 29, card 2e + bullhorn 3b) ----
+  const BULLHORN = '<path d="M4 9.5h3l9-5v15l-9-5H4a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1Z"/><path d="M7 14.5 8.5 20h2.5l-1-5"/><path d="M19.5 9.5v5"/>';
+  const updWho = (s, u) => u.createdBy || s.leadId;
+  const updName = (s, u) => u.createdBy && u.createdBy !== s.leadId ? nameOf(u.createdBy) : nameOf(s.leadId, s.leadName);
+  const updFace = (s, u, size) => face(updWho(s, u), updName(s, u), size);
+  // A host's ⋯ on their own update: delete it (the only thing it does, so it asks straight away)
+  const updMore = (s, u) => isLead(s) && (!u.createdBy || u.createdBy === state.me) ? '<span ' + on((e) => { stop(e); askRemoveUpdate(s, u); }) + ' aria-label="Delete this update" style="flex:0 0 32px;width:32px;height:32px;margin:-6px -6px -6px 0;display:flex;align-items:center;justify-content:center;color:#6b7280;cursor:pointer">' + svg(18, stroke('currentColor', 2.6), '<path d="M5 12h.01M12 12h.01M19 12h.01"/>') + '</span>' : '';
+  // First on the event page, for everyone who can see it: the newest update, then N earlier updates ›; nothing with none
+  const updatesCard = (s) => {
+    const list = s.updates, n = list.length;
+    if (!n) return '';
+    const u = list[0], today = daysTo(s) === 0;
+    const head = today
+      ? '<div style="display:flex;align-items:center;gap:8px;height:36px;padding:0 16px;background:#5b4ae8;color:#fff;font-size:12.5px;font-weight:900;letter-spacing:1px">' + svg(18, stroke('currentColor', 2.2), BULLHORN) + 'TODAY · UPDATE</div>'
+      : '<div style="display:flex;align-items:center;gap:8px;padding:16px 16px 0;font-size:13px;font-weight:900;letter-spacing:1.2px;color:#5b4ae8">' + svg(20, stroke('currentColor', 2.2), BULLHORN) + 'UPDATE</div>';
+    return '<div data-screen-label="Updates" data-updates style="background:#f7f6ff;border-radius:18px;overflow:hidden;box-shadow:' + (today ? '0 0 0 2px #5b4ae8, 0 6px 18px rgba(91,74,232,.18)' : 'inset 0 0 0 1.5px #dcd7fb') + '">' + head +
+      '<div style="padding:10px 16px 14px;display:flex;flex-direction:column;gap:8px">' +
+        '<div data-update style="font-size:19px;line-height:1.3;font-weight:800;letter-spacing:-.2px;color:#0d1117;white-space:pre-line;overflow-wrap:anywhere">' + esc(u.body) + '</div>' +
+        '<div style="display:flex;align-items:center;gap:7px">' + updFace(s, u, 20) + '<span style="flex:1;min-width:0;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><b style="font-weight:800;color:#5c6270">' + esc(updName(s, u)) + '</b><span style="font-weight:500;color:#6b7280"> · ' + esc(ago(u.created)) + '</span></span>' + updMore(s, u) + '</div></div>' +
+      (n > 1 ? '<div ' + on(() => setState({ updAll: s.id })) + ' data-upd-more style="display:flex;align-items:center;justify-content:space-between;min-height:44px;padding:0 16px;border-top:1px solid #ece9fb;font-size:13.5px;font-weight:700;color:#4a3ad4;cursor:pointer">' + (n - 1) + (n === 2 ? ' earlier update' : ' earlier updates') + I.chevR(14, '#4a3ad4', 2.6) + '</div>' : '') +
+    '</div>';
+  };
+
   function viewPlan(s) {
     const st = state, lead = isLead(s), edit = canEdit(s), leadName = nameOf(s.leadId, s.leadName), my = myRsvp(s), dp = dateParts(s.dayDate);
     const goingIds = going(s).map(r => r.userId), maybeN = s.rsvps.filter(r => r.status === 'maybe').length, noN = s.rsvps.filter(r => r.status === 'no').length;
@@ -6024,8 +6039,6 @@
         (onIt ? 'background:' + RC[k] + ';color:' + (k === 'maybe' ? '#2a1d00' : '#fff') : 'background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;color:#0d1117') + '">' +   // dark on the gold stripes, to read
         '<span style="font-size:17px;font-weight:800">' + label + '</span><span style="font-size:13px;font-weight:700;color:' + (onIt ? (k === 'maybe' ? 'rgba(42,29,0,.75)' : 'rgba(255,255,255,.85)') : '#6b7280') + '">' + n + '</span></button>';
     };
-    // An update sent to Going, Maybe or people who haven't replied shows only to them; the host sees all, labelled
-    const shownUpdates = lead ? s.updates : s.updates.filter(u => { const a = u.audience || 'all'; return a === 'all' || a === my || (a === 'noreply' && !my); });
     // A guest who RSVP'd or took a job gets no reminders or updates without an account: offer them (owner, 2026-10-01)
     const guestNudge = st.email || lead || s.cancelledAt || !(my === 'going' || my === 'maybe' || s.signups.some(it => it.claims.some(c => c.userId === st.me))) ? '' :
       '<div data-guest-nudge style="' + CARD + ';padding:16px;display:flex;align-items:center;gap:12px;background:#f7f6ff;box-shadow:inset 0 0 0 1.5px #dcd6fb">' +
@@ -6042,15 +6055,13 @@
       (goingIds.length ? '<div ' + on(() => setState({ guestList: s.id })) + ' data-going role="button" aria-label="See everyone going (' + goingIds.length + ')" style="align-self:center;display:flex;align-items:center;gap:10px;min-height:36px;cursor:pointer">' +
         '<span style="display:flex">' + peopleFaces(goingIds.slice(0, 4), 30, null, false) + '</span>' +
         '<span style="font-size:14.5px;font-weight:800;color:#4a3ad4">See all ›</span></div>' : '') +
-      (lead ? '<button type="button" ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' style="min-height:46px;border:2px solid #c9c2fb;border-radius:999px;background:#fff;color:#4a3ad4;font-family:inherit;font-size:15px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer">' +
-        svg(17, stroke('currentColor', 2.2), '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M19 8v6M16 11h6"/>') + 'Invite people</button>' : '') + '</div>';
+      // The lead's two buttons (Design 29, option 5d): Invite people solid, Post an update outlined under it
+      (lead ? '<div style="display:flex;flex-direction:column;gap:8px">' +
+        '<button type="button" class="hov-primary" ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' style="min-height:48px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:15px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer">' +
+          svg(17, stroke('currentColor', 2.2), '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M19 8v6M16 11h6"/>') + 'Invite people</button>' +
+        '<button type="button" class="hov-tint" ' + on(() => openBlast(s)) + ' data-post-update style="min-height:48px;border:0;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 2px #c9c2fb;color:#4a3ad4;font-family:inherit;font-size:15px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer">' +
+          svg(18, stroke('currentColor', 2.2), BULLHORN) + 'Post an update</button></div>' : '') + '</div>';
 
-    // The lead tools card: hidden for now (owner, 2026-10-03; not rendered) until Design places Send everyone an update again
-    const guests = !lead ? '' : '<div data-screen-label="Guest list" style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:14px">' +
-      '<span ' + on(() => setState({ blast: { id: s.id, to: 'all', text: '' } })) + ' style="align-self:center;display:flex;align-items:center;gap:7px;min-height:36px;font-size:14.5px;font-weight:800;color:#6b7280;cursor:pointer">' + ic6('bell', 15, 'currentColor', 2.2) + 'Send everyone an update</span>' +
-      '<div style="display:grid;grid-template-columns:1fr;gap:8px">' +
-        '<button type="button" class="hov-primary" ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' style="min-height:50px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:15.5px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;box-shadow:0 8px 20px rgba(91,74,232,.28)">' + I.plus(16, '#fff', 2.5) + 'Invite people</button>' +
-      '</div></div>';
     // (The gold "N things left to decide" banner is gone: the host's tasks bar lists them, owner 2026-09-30)
 
     const host = ledByCard(s);
@@ -6058,27 +6069,21 @@
     return '<div data-screen-label="Plan page">' +
       phaseHeader(s, 340, 'linear-gradient(to bottom, rgba(13,17,23,.5) 0%, rgba(13,17,23,0) 30%, rgba(8,40,22,.55) 62%, rgba(8,40,22,.96) 100%)',
         '<div style="position:absolute;left:20px;right:20px;bottom:20px;color:#fff;display:flex;align-items:flex-end;gap:14px"><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px">' +
+          dateTile(s, '#149a4b') +
           '<div style="display:flex;gap:6px;flex-wrap:wrap">' + (s.cancelledAt ? '<span data-cancelled style="display:flex;align-items:center;border-radius:999px;padding:5px 11px;background:#d92d4a;font-size:12px;font-weight:900;letter-spacing:.9px">CANCELLED</span>' : '') + '<span data-chip' + (isDemo(s) ? ' data-demo-tag' : '') + ' style="display:flex;align-items:center;gap:6px;border-radius:999px;padding:5px 11px;background:' + (isDemo(s) ? 'rgba(255,255,255,.24);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)' : lead ? '#5b4ae8' : '#149a4b') + ';font-size:12px;font-weight:900;letter-spacing:.9px">' + (isDemo(s) ? 'DEMO' : lead ? (isTheLead(s) ? 'YOU’RE LEADING' : 'YOU’RE CO-LEADING') : 'HAPPENING') + '</span>' +
             (s.visibility === 'invite' ? '<span style="display:flex;align-items:center;gap:5px;border-radius:999px;padding:5px 11px;background:rgba(255,255,255,.22);font-size:12px;font-weight:900;letter-spacing:.9px">' + svg(11, stroke('#fff', 2.6), '<rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>') + 'PRIVATE</span>' : '') + '</div>' +
-          (edit
-            ? '<h1 ' + on(() => openSec(s, 'title'), 'button') + ' aria-label="' + esc(s.text) + ', edit the title" style="margin:0;font-size:40px;line-height:.98;font-weight:900;letter-spacing:-1.3px;text-wrap:pretty;cursor:pointer">' + esc(s.text) + '</h1>'
-            : '<h1 style="margin:0;font-size:40px;line-height:.98;font-weight:900;letter-spacing:-1.3px;text-wrap:pretty">' + esc(s.text) + '</h1>') + '</div>' +
-        '</div>' +
-          // The date tile sits top right, under Edit and Share (Design 13e, 2026-10-03), so the title has the full width
-          (s.dayDate ? '<span data-date-tile aria-label="' + esc(fmtDay(s.dayDate)) + '" style="position:absolute;right:20px;top:calc(72px + var(--pt));z-index:1;width:78px;border-radius:15px;overflow:hidden;text-align:center;background:#fff;box-shadow:0 8px 20px rgba(0,0,0,.3);transform:rotate(4deg)"><span style="display:block;background:#149a4b;color:#fff;font-size:12.5px;font-weight:900;letter-spacing:1px;padding:4px 0">' + dp.mon + '</span><span style="display:block;font-size:36px;line-height:1.15;font-weight:900;color:#0d1117">' + dp.day + '</span><span style="display:block;padding-bottom:5px;font-size:12px;font-weight:800;color:#6b7280">' + dp.dow + '</span></span>' : ''), true) +
+          // The title isn't tappable any more (Design 31): editing goes through the ✎ at the top right
+          '<h1 style="margin:0;font-size:40px;line-height:.98;font-weight:900;letter-spacing:-1.3px;text-wrap:pretty">' + esc(s.text) + '</h1></div>' +
+        '</div>', true) +
       tab +
       '<div style="padding:16px 14px 26px;display:flex;flex-direction:column;gap:18px">' +
         cancelledCard(s) +
+        updatesCard(s) +
         rsvpBlock +
-        // the lead tools card (Invite people, Send everyone an update) is hidden for now (owner, 2026-10-03); Invite people is in the RSVP card
 
         guestNudge +
         whenWhereCard(s) +
         basicDetailsSec(s) +
-        (shownUpdates.length ? '<section>' + secTitle('Updates') + sheetCard(
-          shownUpdates.map(u => '<div data-update style="display:flex;gap:10px">' + (u.createdBy && u.createdBy !== s.leadId ? face(u.createdBy, nameOf(u.createdBy), 30) : face(s.leadId, leadName, 30)) + '<div style="flex:1;min-width:0;border-radius:4px 14px 14px 14px;background:#f2f3f6;padding:10px 12px;font-size:14.5px;line-height:1.4;font-weight:500;color:#2b303a;white-space:pre-line">' + esc(u.body) +
-            '<div style="margin-top:4px;display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:#8a909b"><span style="flex:1">' + esc(ago(u.created) + (lead && UPD_TO[u.audience] ? ' · ' + UPD_TO[u.audience] : '')) + '</span>' +
-              (lead && (!u.createdBy || u.createdBy === st.me) ? '<span ' + on(() => askRemoveUpdate(s, u)) + ' aria-label="Remove this update" style="color:#9b1c31;font-weight:800;cursor:pointer">Remove</span>' : '') + '</div></div></div>').join('')) + '</section>' : '') +
         askCards(s) + helpOut(s) +
         host +
         // Visibility (was Who's in; Design 25c): the posted-to group(s) and Public / Private; the people moved into the RSVP card
@@ -6163,22 +6168,39 @@
   }
 
   // "Send an update" to people on the plan (posted on the plan now; delivery comes with notifications)
+  // Post an update (Design 29): quick-start chips, 200 characters, Going or Going and Maybe
   function viewBlast() {
     const b = state.blast, s = state.sparks.find(x => x.id === b.id), close = () => setState({ blast: null });
     if (!s) return '';
-    const g = going(s).length, m = s.rsvps.filter(r => r.status === 'maybe').length;
-    const aud = [['all', 'Everyone', s.rsvps.length], ['going', 'Going', g], ['maybe', 'Maybe', m]];
-    // Shortcuts that fit the people who replied (owner, 2026-09-30): reminders are automatic now, so no Reminder or Last call
-    const tpl = [['Change of plans', 'Heads up, small change for ' + s.text + ': '], ['Running late', 'Running about 10 minutes late. Hang tight!'], ['Thank you', 'Thank you all for coming to ' + s.text + '!']];
-    const ok = b.text.trim().length > 0 && !state.busy;
-    return modal('Send an update', close,
-      h3Html('Send an update') +
-      '<div style="display:flex;gap:6px;flex-wrap:wrap">' + aud.map(([k, label, n]) => '<span ' + on(() => setState({ blast: Object.assign({}, b, { to: k }) })) + ' style="display:flex;align-items:center;min-height:38px;padding:0 13px;border-radius:999px;font-size:14px;font-weight:800;cursor:pointer;' + (b.to === k ? 'background:#0d1117;color:#fff' : 'background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;color:#0d1117') + '">' + label + ' · ' + n + '</span>').join('') + '</div>' +
-      '<div style="display:flex;gap:6px;flex-wrap:wrap">' + tpl.map(([label, text]) => '<span ' + on(() => setState({ blast: Object.assign({}, b, { text }) })) + ' style="display:flex;align-items:center;min-height:32px;padding:0 11px;border-radius:999px;background:#f3f1fe;font-size:13px;font-weight:800;color:#4a3ad4;cursor:pointer">' + label + '</span>').join('') + '</div>' +
-      '<textarea class="fld" rows="4" maxlength="320" aria-label="Your update" placeholder="What should people know?" ' + onInput(e => { if (e.type === 'input') setState({ blast: Object.assign({}, state.blast, { text: e.target.value.slice(0, 320) }) }); }) + ' style="' + FIELD + ';resize:none;line-height:1.4">' + esc(b.text) + '</textarea>' +
-      '<button type="button" ' + on(() => { if (ok) postUpdate(s); }) + ' aria-disabled="' + !ok + '" style="' + primary(ok) + '">' + (state.busy === 'save' ? 'Posting…' : 'Post update') + '</button>' +
-      '<p style="margin:0;font-size:13px;line-height:1.45;font-weight:500;color:#6b7280">It goes to ' + ({ all: 'everyone who RSVP’d or signed up', going: 'the people going', maybe: 'the maybes' }[b.to] || 'them') + ', on the event and in their notifications.</p>',
-      { z: 32 });
+    const to = b.to === 'coming' ? 'coming' : 'going', ok = b.text.trim().length > 0 && !state.busy;
+    const chips = [['Running late', 'Running late, '], ['We’re here: ___', 'We’re here: '], ['Moved to ___', 'Moved to '], ['Bring ___', 'Bring '], ['Can someone ___', 'Can someone '], ['Cancelled', 'Cancelled: ']];
+    const aud = [['going', 'Going'], ['coming', 'Going and Maybe']];
+    const quiet = isDemo(s) ? 'Test event: it shows on the page, but no one gets a notification.' : to === 'coming' ? 'Everyone going or maybe gets a notification.' : 'Everyone going gets a notification.';
+    return sheet('Post an update', close, SHEET_PAD,
+      sheetHead('', 'Post an update', '', close) +
+      '<div style="display:flex;flex-wrap:wrap;gap:6px">' + chips.map(([label, text]) => { const onIt = b.chip === label;
+        return '<span ' + on(() => setState({ blast: Object.assign({}, state.blast, { text, chip: label }) })) + ' data-upd-chip style="display:flex;align-items:center;min-height:36px;padding:0 13px;border-radius:999px;font-size:14px;font-weight:800;cursor:pointer;' + (onIt ? 'background:#5b4ae8;color:#fff' : 'background:#f3f1fe;color:#4a3ad4') + '">' + esc(label) + '</span>'; }).join('') + '</div>' +
+      '<div style="position:relative"><textarea class="fld" rows="3" maxlength="200" aria-label="Your update" placeholder="What do people need to know?" ' + onInput(e => { if (e.type === 'input') setState({ blast: Object.assign({}, state.blast, { text: e.target.value.slice(0, 200) }) }); }) + ' style="' + FIELD + ';min-height:108px;padding:12px 14px 28px;resize:none;line-height:1.4">' + esc(b.text) + '</textarea>' +
+        '<span style="position:absolute;right:12px;bottom:9px;font-size:12px;font-weight:700;color:#9aa0aa">' + b.text.length + '/200</span></div>' +
+      '<div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:12px;font-weight:800;letter-spacing:1.2px;color:#6b7280">WHO GETS IT</span>' +
+        '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px">' + aud.map(([k, label]) => { const onIt = to === k, n = updAudience(s, k);
+          return '<div ' + on(() => setState({ blast: Object.assign({}, state.blast, { to: k }) }), 'radio') + ' aria-checked="' + onIt + '" aria-label="' + label + '" style="display:flex;flex-direction:column;justify-content:center;gap:1px;min-height:58px;padding:0 14px;border-radius:14px;cursor:pointer;' + (onIt ? 'background:#f1effd;box-shadow:inset 0 0 0 2px #5b4ae8' : 'background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6') + '">' +
+            '<span style="font-size:15px;font-weight:800;color:' + (onIt ? '#4a3ad4' : '#0d1117') + '">' + label + '</span><span style="font-size:12.5px;font-weight:700;color:#6b7280">' + n + (n === 1 ? ' person' : ' people') + '</span></div>'; }).join('') + '</div></div>' +
+      '<span style="font-size:13.5px;line-height:1.4;font-weight:600;color:#5c6270">' + quiet + '</span>' +
+      '<button type="button" ' + on(() => { if (ok) postUpdate(s); }) + ' aria-disabled="' + !ok + '" style="' + primary(ok) + '">' + (state.busy === 'save' ? 'Posting…' : 'Post update') + '</button>', 32);
+  }
+  // Updates · N (Design 29): every update, newest first; hosts post from here and delete their own
+  function viewUpdAll() {
+    const s = state.sparks.find(x => x.id === state.updAll), close = () => setState({ updAll: null });
+    if (!s || !s.updates.length) return '';
+    const host = isLead(s) && !s.cancelledAt && phaseOf(s) === 'plan';
+    return sheet('All updates', close, SHEET_PAD,
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><span style="font-size:22px;font-weight:900;letter-spacing:-.5px;color:#0d1117">Updates · ' + s.updates.length + '</span>' +
+        '<span style="display:flex;align-items:center;gap:8px">' + (host ? '<span ' + on(() => openBlast(s)) + ' style="display:flex;align-items:center;gap:6px;min-height:36px;padding:0 13px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:13.5px;font-weight:800;cursor:pointer">' + I.plus(14, '#fff', 2.6) + 'Post</span>' : '') + closeX(close) + '</span></div>' +
+      '<span style="margin-top:-8px;font-size:13.5px;font-weight:600;color:#6b7280">From the event’s leads. Newest first.</span>' +
+      '<div style="display:flex;flex-direction:column">' + s.updates.map((u, k) => '<div data-update style="display:flex;flex-direction:column;gap:6px;padding:14px 0;border-top:' + (k ? '1px solid #f0f1f4' : '0') + '">' +
+        '<div style="display:flex;align-items:center;gap:10px">' + updFace(s, u, 28) + '<span style="flex:1;min-width:0;font-size:13.5px;font-weight:800;color:#0d1117">' + esc(updName(s, u)) + '</span><span style="font-size:12.5px;font-weight:700;color:#8a909b">' + esc(ago(u.created)) + '</span>' + updMore(s, u) + '</div>' +
+        '<div style="font-size:15.5px;line-height:1.4;font-weight:600;color:#0d1117;white-space:pre-line;overflow-wrap:anywhere">' + esc(u.body) + '</div></div>').join('') + '</div>', 31);
   }
 
   // ---------------------------------------------------------------------------
@@ -7784,6 +7806,7 @@
       (st.needEd && subj ? viewNeedsSheet() : '') +
       (st.share ? viewShareSheet() : '') +
       (st.startName != null ? viewStartGroup() : '') +
+      (st.updAll ? viewUpdAll() : '') +
       (st.blast ? viewBlast() : '') +
       (st.loginStep ? (st.inv && st.inv.step === 'land' && st.loginStep === 'code' ? viewInvCode() : viewLogin()) : '') +
       (st.inv && st.inv.step === 'confirm' && st.email ? viewInvConfirm() : '') +
@@ -8002,6 +8025,7 @@
       if (state.shiftPick) return setState({ shiftPick: null });
       if (state.startName != null) return setState({ startName: null });
       if (state.blast) return setState({ blast: null });
+      if (state.updAll) return setState({ updAll: null });
       if (state.acctDel != null) return setState({ acctDel: null });
       if (state.gpDel != null) return setState({ gpDel: null });
       if (state.gpRename != null) return setState({ gpRename: null });

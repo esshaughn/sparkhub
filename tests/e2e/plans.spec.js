@@ -176,12 +176,11 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     await when.getByRole('button', { name: 'Remove end time' }).click();
     await expect(when.getByText('Add end time')).toBeVisible();
     await pickDate(when, inDays(21));
-    // Round 65a: the sheet shows what they get, and the button says it sends
-    await expect(when.locator('[data-update-preview]')).toContainText('New date:');
-    await expect(when.locator('[data-update-preview]')).toContainText('Goes to the 1 person going.');
-    await when.getByRole('button', { name: 'Save and send', exact: true }).click();
-    await expect(H.getByText('Saved. Everyone going gets an update.')).toBeVisible();
-    await expect(HP).toContainText('New date:');
+    // Saving an edit tells no one (owner, 2026-10-04, Design 30): no preview, and no update posted
+    await expect(when.locator('[data-update-preview]')).toHaveCount(0);
+    await when.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(H.getByText('Saved', { exact: true })).toBeVisible();
+    await expect(HP).not.toContainText('New date:');
 
     // Can't while on two jobs: asked whether to free the spots too; Keep my spot keeps them
     await GP.locator('[data-rsvp]').getByRole('button', { name: /^Can’t/ }).click();
@@ -569,8 +568,8 @@ test('co-leads: the lead adds one, who edits and posts updates but can’t delet
     await expect(OP.getByRole('button', { name: 'Delete this event' })).toHaveCount(0);   // only the lead or an admin
     // Hope sees the update, but it's Otto's to remove
     await openIdea(H, id);
-    await expect(HP.locator('[data-update]', { hasText: 'north gate' })).toBeVisible();
-    await expect(HP.locator('[data-update]', { hasText: 'north gate' }).getByRole('button', { name: 'Remove this update' })).toHaveCount(0);
+    await expect(HP.locator('[data-updates] [data-update]', { hasText: 'north gate' })).toBeVisible();   // first on the page (Design 29)
+    await expect(HP.locator('[data-updates]').getByRole('button', { name: 'Delete this update' })).toHaveCount(0);
 
     // Otto steps down
     await OP.locator('[data-led-by]').getByRole('button', { name: 'Manage co-leads' }).click();

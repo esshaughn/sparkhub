@@ -19,7 +19,44 @@ test('post an event with every step filled, then edit it in the pop-ups and dele
     // The RSVP card (Design 25b + 25c): the going faces with See all ›, and the lead's Invite people; Who's in is now Visibility
     await expect(P.locator('[data-rsvp] [data-going]')).toContainText('See all ›');
     await expect(P.locator('[data-rsvp]').getByRole('button', { name: 'Invite people' })).toBeVisible();
-    await expect(P.getByRole('button', { name: 'Send everyone an update' })).toHaveCount(0);   // hidden for now (owner, 2026-10-03)
+    // Event updates, one way (Design 29): the lead's Post an update under Invite people; no card until there's one
+    await expect(P.locator('[data-updates]')).toHaveCount(0);
+    await P.locator('[data-rsvp]').getByRole('button', { name: 'Post an update' }).click();
+    const comp = page.getByRole('dialog', { name: 'Post an update' });
+    await comp.locator('[data-upd-chip]', { hasText: 'Bring ___' }).click();
+    await expect(comp.getByLabel('Your update')).toHaveValue('Bring ');
+    await comp.getByLabel('Your update').fill('Bring a headlamp, it gets dark early');
+    await expect(comp).toContainText('36/200');
+    await expect(comp.getByRole('radio', { name: 'Going', exact: true })).toHaveAttribute('aria-checked', 'true');
+    await comp.getByRole('radio', { name: 'Going and Maybe' }).click();
+    await expect(comp).toContainText('Everyone going or maybe gets a notification.');
+    await comp.getByRole('button', { name: 'Post update' }).click();
+    await expect(page.getByText('Posted. No one else is coming yet')).toBeVisible();   // nobody else has replied
+    const upd = P.locator('[data-updates]');
+    await expect(upd).toContainText('UPDATE');
+    await expect(upd.locator('[data-update]')).toHaveText('Bring a headlamp, it gets dark early');
+    await expect(upd.locator('[data-upd-more]')).toHaveCount(0);   // one update: no earlier row
+    // A second, then the third within the hour asks first
+    for (const [text, third] of [['Parking is on Barton Springs Rd', false], ['Meet at the big oak', true]]) {
+      await P.locator('[data-rsvp]').getByRole('button', { name: 'Post an update' }).click();
+      await comp.getByLabel('Your update').fill(text);
+      await comp.getByRole('button', { name: 'Post update' }).click();
+      if (third) {
+        const guard = page.getByRole('alertdialog');
+        await expect(guard).toContainText('That’s your third update this hour');
+        await guard.getByRole('button', { name: 'Post anyway' }).click();
+      }
+      await expect(upd.locator('[data-update]')).toHaveText(text);
+    }
+    await upd.locator('[data-upd-more]').click();
+    const all = page.getByRole('dialog', { name: 'All updates' });
+    await expect(all).toContainText('Updates · 3');
+    await expect(all.locator('[data-update]').first()).toContainText('Meet at the big oak');
+    await all.locator('[data-update]', { hasText: 'Parking' }).getByRole('button', { name: 'Delete this update' }).click();
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Delete update' }).click();
+    await expect(all).toContainText('Updates · 2');
+    await all.getByRole('button', { name: 'Close' }).click();
+    await expect(upd.locator('[data-upd-more]')).toHaveText(/1 earlier update/);
     await expect(P.getByRole('heading', { name: 'Visibility' })).toBeVisible();
     await expect(P.locator('[data-chip]')).toHaveText('YOU’RE LEADING');
     await expect(page.locator('[data-test-tab]')).toHaveCount(0);   // a real event: no Test event tab
@@ -47,12 +84,14 @@ test('post an event with every step filled, then edit it in the pop-ups and dele
     await expect(bar).toContainText('1 task');
     await expect(P.locator('[data-screen-label="Your tasks"]')).not.toContainText('Bring water');
 
-    // Edit event: a round pencil by Share (owner, 2026-10-01), no pencil after the title; the host gets the photo too
+    // Edit event: a round pencil by Share (owner, 2026-10-01), no pencil after the title and the title isn't a button (Design 31)
     await expect(P.locator('h1 svg')).toHaveCount(0);
+    await expect(P.locator('h1[data-on]')).toHaveCount(0);
     await P.getByRole('button', { name: 'Edit event' }).click();
     const sec = page.getByRole('dialog', { name: 'Edit event' });
     await expect(sec.locator('[data-edit-photo]')).toBeVisible();
-    await expect(sec.getByRole('switch', { name: 'Tell everyone going' })).toHaveCount(0);   // a new title saves quietly
+    await expect(sec.getByRole('switch', { name: 'Tell everyone going' })).toHaveCount(0);   // edits save quietly (Design 30)
+    await expect(sec.locator('[data-sec-delete]')).toHaveText('Cancel or delete event');   // under Save, the lead's
     await expect(sec.getByLabel(/^(Replace the|Add a) cover photo$/)).toHaveCount(1);
     await expect(sec.getByRole('button', { name: 'Remove the cover photo' })).toBeVisible();   // the cover can come off (owner, 2026-10-02)
     await sec.getByLabel('Event title').fill(title + ' + stars');

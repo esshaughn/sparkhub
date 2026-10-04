@@ -2,21 +2,22 @@
 
 **Direction:** design → code. Claude Design keeps this file current; it replaces the `SparkHub v7-N` zips. Ship it with `Spark Hub App Version 7.dc.html` (the prototype). Where this file disagrees with older READMEs or UPDATE files, **this file wins**.
 
-- **Caught up with:** `HANDOFF-to-DESIGN.md` **as of 2026-10-04** (its §1 row 23, several photos at once). The build has items 1–24 below; only **25–28** are new this round.
+- **Caught up with:** `HANDOFF-to-DESIGN.md` **as of 2026-10-04, morning** (items 25–28 built from *SparkHub v7-14*; its §1 rows 27–31). The build has items 1–28; only **29–31** are new this round.
+- **The build's §1 rows 28–31 stand** (shorter tab bar with centred labels, only Up next opens on the day, the event page's tasks box remembers being folded, no *Get a new friend link*). The prototype hasn't been changed to match; the build is right. **§5 Q27 (Settings or Profile?)** is still open.
 - **Baseline:** Update 16 (zip *SparkHub v7-5*). Everything below is new since then.
-- **Options files (this round):** `Poll Button Options.dc.html` (pick 1g), `Add Event Button Options.dc.html` (pick 1b), `Tab Bar Options.dc.html` (pick 2a; the rest, incl. the purpose line, first-run tour and empty states, is not picked yet).
+- **Options files (this round):** `Event Updates Options.dc.html` (picks: card **2e**, icon **3b**, lead's buttons **5d**; turn 1 for the composer, list, guard, test events, bell and Got it).
+- **Last round's options files:** `Poll Button Options.dc.html` (1g), `Add Event Button Options.dc.html` (1b), `Tab Bar Options.dc.html` (2a; purpose line, first-run tour and empty states not picked yet).
 - **Earlier options files:** `Round 17 Options.dc.html` (picks made: Q24 a 24a2, b 24b3, c 24c3c, d no change; Q23 C 23C1; event RSVP 25b + 25c. Still open: Q23 B). `Help Out Options.dc.html` (turns 11+; turns 1–10 moved to `Help Out Options Turns 1-10.dc.html`): **7g (Help out job cards, members), 12e (Help out, lead), 8a/10a (What to expect) and 13e (date tile) are picked and built**; the other turns are exploration. `Soft Holds Options.dc.html` has the soft-holds explorations.
 
 ---
 
-## New since 2026-10-04 (the build's last round)
+## New since 2026-10-04, morning (the build's last round)
 
-25. **Poll the group button is a yellow tinted row** (pick 1g).
-26. **Your calendar: floating add event button that tucks away** (pick 1b).
-27. **Tasks on cards: strip on top, collapsed by default (open if today); event page expanded; pale row fills, no dividers.**
-28. **Tab bar labels: Discover · Tasks · Calendar · Groups · Settings** (pick 2a); Explore is renamed Discover.
+29. **Event updates, one way** (owner brief 2026-10-04; `Event Updates Options.dc.html`, card 2e + icon 3b). Answers §4 *Send everyone an update has no way in*.
+30. **Edit event sheet: no *Tell everyone going*; *Cancel or delete event* at the bottom** (owner, 2026-10-04). The switch is gone (saving an edit never posts an update; leads use *Post an update*, item 29). Under **Save**: a centred red link, trash icon + **Cancel or delete event** (14.5px/800 `#c0364d`, 44px tall), lead only. It closes the sheet and opens the existing cancel-or-delete flow.
+31. **Event header: date tile moves to the left, above the role chip** (owner, 2026-10-04; replaces 13e's top-right spot). In the header photo's bottom-left text block, the tile sits first, stacked above the chip row (*You're leading* / *Helping* / *Going* … and *PRIVATE*), then the title. 82px wide, 16px radius, white, shadow `0 8px 20px rgba(0,0,0,.3)`, **tilted −4°** (was +4°). Month band `#149a4b` 13px/900, date 38px/900, weekday 12.5px/800 `#6b7280`. 6px gap below it, then the chips. With no chip, it sits right above the title. **The pencil after the event title is removed** (and the title is no longer tappable); editing goes through the ✎ button at the top right.
 
-Details are under *Details for 25–28* below.
+Item 29's details are under *Details for 25–29* below (25–28 are built).
 
 ---
 
@@ -49,12 +50,25 @@ Details are under *Details for 25–28* below.
 
 ---
 
-## Details for 25–28 (new)
+## Details for 25–29 (new)
 
 25. **Poll the group button (Date & time and Location steps) is a yellow tinted row** (pick 1g, `Poll Button Options.dc.html`): 58px tall, 18px radius, fill `#fdf6dc`, 1.5px inset `#e6d08c`, text `#5c4300` 16px/800, icon and chevron `#8a6510`, hover `#faefc8`. Same yellow as the held-date heads-up.
 26. **Your calendar has a floating add event button** (pick 1b, `Add Event Button Options.dc.html`): 48px purple `#5b4ae8` circle with a white plus, 18px from the right, 16px above the tab bar (bottom 89px; **now 100px with item 28's taller bar**), shadow `0 8px 20px rgba(91,74,232,.38)`. Opens Start an event. Only on Your calendar; sits under sheets and pop-ups. **Tucks right after 0.75s with no scroll or touch** (slides 50px right, leaving a 16px sliver; 320ms ease). Any scroll or touch brings it back; tapping the sliver only brings it back, it doesn’t open Start an event.
 27. **Your calendar's Up next card: tasks start collapsed** (Eric, 2026-10-04). The role strip (e.g. *Leading*) now reads *2 tasks ▾* on the right, like the cards below it; tap the strip to show the task rows (*Fill spot: …* + Ask), tap again to hide. Same for **Helping** cards (your job rows). **Exception: an event that's today opens with its tasks showing.** Open/closed is remembered per event for the session. **On the event page itself, the tasks box starts expanded** (lead's tasks and a helper's jobs alike; tap its header to collapse). **The header (*You're helping* / *Your tasks*) sits at the top of the box, right under the photo, and the rows open downward below it**; the box keeps its 24px rounded bottom corners. **Same order on every event card with a role strip** (Your calendar list / tiles, Explore, group pages): the strip (*Leading* / *Helping* + *2 tasks ▾*) sits directly under the event's title row or photo, and the task rows open below it. **Helping task rows get a paler yellow fill, `#fffefb`** (the strip stays `#fefaef`), on the event page and on every card. Leading task rows get the same treatment in pale purple, `#fdfcff` (strip stays `#f7f6ff` / `#f5f3fe`). No divider lines between the strip and the task rows, or between rows. No tasks: strip reads *All set* and tapping opens the event. Going: *Change RSVP* / *Update RSVP* as before.
 28. **Tab bar: labels under every icon** (pick 2a, `Tab Bar Options.dc.html`, owner 2026-10-04). Left to right: **Discover** (compass) · **Tasks** (checklist + badge) · **Calendar** (centre ring, calendar icon, opens first) · **Groups** · **Settings** (gear, opens the profile & settings sheet). Labels always shown: 11.5px / 13px line, 800, no wrap, colour = tab colour (active `#5b4ae8`, inactive `#6b7280`). Icons 24px. Each tab is a column: 8px top padding, 4px gap, min 52px tall, full column width (≥75px at 375). Bar: 84px tall incl. 26px bottom safe padding, white 96% + blur, 1px `#e8eaef` top line. Centre ring: 44px, white fill, rises 20px above its column (`margin-top:-20px`) with a 3px white halo so it cuts the bar's top line; inset ring 2px `#5b4ae8` active / 1.9px `#c3c7d0` inactive; label sits on the same baseline as the others. Add event button moves up to bottom 100px (16px above the bar). The Explore screen is renamed **Discover** (hero title, back labels, empty-state button *Discover events*).
+29. **Event updates, one way** (card 2e + bullhorn icon 3b, the rest from turn 1 in `Event Updates Options.dc.html`). The lead (and co-leads) broadcast to people coming; **no replies**. Replaces the hidden *Send everyone an update* button and the old Updates list lower on the page.
+   - **Updates card** sits first on the event page, under the photo header and above the RSVP card. Visible to anyone who can see the event. Card: fill `#f7f6ff`, 1.5px inset `#dcd7fb`, 18px radius. Head: bullhorn icon 20px + **UPDATE** 13px/900, 1.2px tracking, `#5b4ae8`. Then the **newest update's text** 19px/800 `#0d1117`. Under it a byline: 20px face, **Name** (13px/800 `#5c6270`) · *45m ago* (13px/500 `#6b7280`). Below, a quiet row **N earlier updates ›** (44px, 13.5px/700 `#4a3ad4`, 1px `#ece9fb` line above) opens the full list. With only one update there's no row. The lead also gets a ⋯ at the right of the card's byline (delete).
+   - **Day of the event:** the head becomes a 36px `#5b4ae8` band, white bullhorn + **TODAY · UPDATE**; the card gets a 2px `#5b4ae8` edge and a soft purple shadow.
+   - **No updates:** nothing shows (members and lead alike).
+   - **Where the lead posts** (option 5d, `Event Updates Options.dc.html`): in the RSVP card under the faces, two stacked full-width 48px pills, 8px apart: **Invite people** becomes **solid purple** (`#5b4ae8`, white text, person-plus icon; hover `#4a3ad4`), and **Post an update** under it is the **outlined** one (2px inset `#c9c2fb`, `#4a3ad4` text, bullhorn 18px; hover fill `#f7f6ff`). Lead and co-leads, plan phase, not cancelled. Opens the composer. There's no Post row in the Updates card and no separate empty-state row.
+   - **Composer** (sheet, lead and co-leads only): **Post an update** · ×; quick-start chips *Running late · We're here: ___ · Moved to ___ · Bring ___ · Can someone ___ · Cancelled* (lavender `#f3f1fe`/`#4a3ad4`, picked one purple; a chip fills in the start of the text); one field, **200 characters**, counter bottom right; **WHO GETS IT**: two tiles *Going · N people* (default) / *Going and Maybe · N people*; quiet line *Everyone going gets a notification.* (or *…going or maybe…*); **Post update** (purple; gray until there's text).
+   - **After posting:** toast *Sent to N people*; the update is at the top of the card at once.
+   - **Gentle guard:** a **third update within 60 minutes** opens a confirm: **That's your third update this hour** · *Everyone going gets a notification each time. Post it anyway?* · **Post anyway** / *Edit first*. No hard limit.
+   - **Test and demo events:** updates show on the page, nothing is pushed; quiet line *Test event: it shows on the page, but no one gets a notification.*; toast *Posted. It's a test event, so no notifications went out*.
+   - **All updates sheet:** **Updates · N** (lead: **+ Post** pill), *From the event's leads. Newest first.*, each update with face, name, time, text. The lead has ⋯ on each → **Delete this update?** · *It comes off the event page. Notifications already sent can't be taken back.* · **Delete update** / *Keep it*.
+   - **Notifications:** push to the chosen audience; title = event name, body = *Joseph: <update>*. Bell row as today's update row (*Joseph posted an update on Trail run*, text quoted under it); tapping opens the event at the card.
+   - **Got it (optional, owner to decide; a Tweak in the prototype, on by default):** members get an outline **Got it** pill (thumbs-up) under the newest update; tapped, it turns green `#e7f6ec`/`#0f7a3c` with a check (tap again to undo). The lead sees a quiet **12 got it** count on each update instead. A count, not a list.
+   - **Later:** if a chat is added, it goes directly under this card; nothing else moves.
 
 
 ## Your people (Groups tab)

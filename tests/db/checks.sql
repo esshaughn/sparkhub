@@ -87,6 +87,12 @@ select t.check('update to "hasn''t replied" on a group plan: every member who ha
 update sparks set visibility = 'invite' where id = t.id('invite_plan');
 select t.check('update to everyone going: the one who replied',
   private.update_recipients(t.id('invite_plan'), 'going', t.id('host')) = array[t.id('replied')]);
+-- Going and Maybe (20261104000000_event_updates.sql): a maybe gets it, a Can't doesn't
+insert into rsvps (spark_id, user_id, status) values (t.id('invite_plan'), t.id('member'), 'maybe'), (t.id('invite_plan'), t.id('linked'), 'no');
+select t.check('update to going and maybe: going and maybe, not Can''t',
+  (select array_agg(x order by x) from unnest(private.update_recipients(t.id('invite_plan'), 'coming', t.id('host'))) x)
+  = (select array_agg(x order by x) from unnest(array[t.id('replied'), t.id('member')]) x));
+delete from rsvps where spark_id = t.id('invite_plan') and user_id in (t.id('member'), t.id('linked'));
 
 -- Photo uploads: own folder only, accounts only, 50 a day --------------------------------------------
 select t.login('member'); set role authenticated;
