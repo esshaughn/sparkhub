@@ -28,9 +28,9 @@ test('visitors land on Welcome (no tab bar there) and sign in from there', async
     await page.goto('/#/ideas');
     await expect(page.getByText('You’re not in a group yet.')).toBeVisible();
     await expect(page.getByRole('navigation', { name: 'Main' })).toBeVisible();   // …but everywhere else, signed in or not
-    await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('button')).toHaveText(['', '', '', '', '']);
-    for (const name of ['Explore', 'Your tasks', 'Your calendar', 'Groups', 'Profile']) await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name, exact: true })).toBeVisible();
-    await page.getByRole('button', { name: 'Explore', exact: true }).click();   // the signed-in tabs show Welcome
+    await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('button')).toHaveText(['Discover', 'Tasks', 'Calendar', 'Groups', 'Settings']);   // a word under every icon (Design pick 2a)
+    for (const name of ['Discover', 'Tasks', 'Calendar', 'Groups', 'Settings']) await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name, exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Discover', exact: true }).click();   // the signed-in tabs show Welcome
     await expect(page.locator('[data-screen-label=Welcome]')).toBeVisible();
     await expect(page.getByRole('navigation', { name: 'Main' })).toHaveCount(0);
     expect(errors).toEqual([]);
@@ -172,7 +172,7 @@ test('Add to Home Screen: at most once a visit, back 48 hours after Got it and 2
     const pop = page.getByRole('dialog', { name: 'Add to Home Screen' });
     await expect(pop).toContainText('no App Store needed.');
     await expect(pop).not.toContainText('Choose Add to Home Screen');   // Android: Chrome's own dialog, no steps
-    await expect(page.locator('[data-screen-label=Explore] [data-install-card]')).toHaveCount(0);   // no card on the Calendar
+    await expect(page.locator('[data-screen-label=Discover] [data-install-card]')).toHaveCount(0);   // no card on the Calendar
     await pop.getByRole('button', { name: 'Add to Home Screen' }).click();
     await expect.poll(() => page.evaluate(() => window.__prompted)).toBe(1);
     await expect(pop).toHaveCount(0);
@@ -299,8 +299,8 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
   try {
     // Signed in, the app opens on Your calendar (v7 Update 16, owner 2026-10-03)
     await expect(page.locator('[data-screen-label="Your calendar"]').getByRole('heading', { name: 'Your calendar' })).toBeVisible();
-    await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Your calendar', exact: true })).toHaveAttribute('aria-current', 'page');
-    await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Your calendar', exact: true }).click();
+    await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Calendar', exact: true })).toHaveAttribute('aria-current', 'page');
+    await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Calendar', exact: true }).click();
     const home = page.locator('[data-screen-label="Your calendar"]');
     await expect(home.getByRole('heading', { name: 'Your calendar' })).toBeVisible();
     await expect(home.getByRole('button', { name: 'Show groups' })).toHaveCount(0);   // no group picker in v6
@@ -326,7 +326,7 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
     }, planId);
     await page.reload();
     await expect(page.locator('html[data-loaded=true]')).toHaveCount(1);
-    await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Your calendar', exact: true }).click();
+    await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Calendar', exact: true }).click();
     await expect(home.getByRole('button', { name: 'View: Up next' })).toBeVisible();   // Up next by default (v6 Update 9)
     await expect(home.locator('[data-next]')).toHaveCount(1);   // the hero card
     await expect(home.locator(`[data-plan="${PLAN}"]`)).toContainText('Going');
@@ -339,9 +339,9 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
     await pickView(home, 'Up next');
 
     // Explore (the old Calendar, first tab): every event in your groups, List by default, then Month
-    await page.getByRole('button', { name: 'Explore', exact: true }).click();
-    const cal = page.locator('[data-screen-label=Explore]');
-    await expect(cal.getByRole('heading', { name: 'Explore' })).toBeVisible();
+    await page.getByRole('button', { name: 'Discover', exact: true }).click();
+    const cal = page.locator('[data-screen-label=Discover]');
+    await expect(cal.getByRole('heading', { name: 'Discover' })).toBeVisible();
     await expect(cal.getByRole('button', { name: 'Groups: All groups' })).toBeVisible();
     // One group picked is named, and the pick is kept for the next visit (Joseph, 2026-10-03).
     // The lead is only in Torrez on a fresh database, so a second group of their own makes the pick mean something
@@ -357,7 +357,7 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
       await expect(cal.getByRole('button', { name: 'Show all groups' })).toHaveText('Showing: Torrez Fitness');
       await expect(cal).toContainText(/Everything happening in your \d+ groups/);   // the line under the title doesn't change (Update 16)
       // Your calendar keeps a pick of its own (the group line under its title, option 1b), here still all groups
-      await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Your calendar', exact: true }).click();
+      await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Calendar', exact: true }).click();
       const yc = page.locator('[data-screen-label="Your calendar"]');
       await yc.getByRole('button', { name: 'Groups: All groups' }).click();
       await page.getByRole('menu', { name: 'Groups' }).getByRole('menuitemcheckbox', { name: 'Torrez Fitness' }).click();
@@ -368,7 +368,7 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
       await yc.getByRole('button', { name: 'Groups: Torrez Fitness' }).click();
       await page.getByRole('menu', { name: 'Groups' }).getByRole('menuitemcheckbox', { name: 'All groups' }).click();
       await expect(yc.getByRole('button', { name: 'Groups: All groups' })).toBeVisible();
-      await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Explore', exact: true }).click();
+      await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Discover', exact: true }).click();
       await cal.getByRole('button', { name: 'Show all groups' }).click();
       await expect(cal.getByRole('button', { name: 'Groups: All groups' })).toBeVisible();
     } finally {
@@ -541,9 +541,9 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
 
     // Profile (Update 2, compact): photo, name and a pencil; Help & info tiles first, then Settings
     // Update 3: no photo button on Your tasks; Profile is the last tab
-    await page.getByRole('button', { name: /^Your tasks/ }).click();
-    await expect(page.locator('[data-screen-label="Your tasks"]').getByRole('button', { name: 'Profile' })).toHaveCount(0);
-    await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Profile', exact: true }).click();
+    await page.getByRole('button', { name: /^Tasks/ }).click();
+    await expect(page.locator('[data-screen-label="Your tasks"]').getByRole('button', { name: 'Settings' })).toHaveCount(0);
+    await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Settings', exact: true }).click();
     const profile = page.getByRole('dialog', { name: 'Profile', exact: true });
     await expect(profile.getByRole('heading', { name: 'Help & info' })).toBeVisible();
     await expect(profile.locator('[data-help-tile]')).toHaveCount(2);   // the owner's mock: a coloured top edge and a solid icon square
@@ -589,7 +589,7 @@ test('opening the app: loading placeholders (never "empty"), then the last scree
     await expect(page.locator('[data-sched-empty]')).toHaveCount(0);
     await page.getByRole('button', { name: 'Groups', exact: true }).click();
     await expect(page.locator('[data-screen-label=Groups]').getByRole('status', { name: 'Loading' })).toBeVisible();
-    await page.getByRole('button', { name: 'Your calendar', exact: true }).click();
+    await page.getByRole('button', { name: 'Calendar', exact: true }).click();
     release();
     await expect(page.locator('html[data-loaded=true]')).toHaveCount(1);
     await page.unroute('**/rest/v1/**');
@@ -704,7 +704,7 @@ test('freeze log (temporary): a 2-second stall is noted and shows on the owner\'
     await expect(page.locator('html[data-loaded=true]')).toHaveCount(1);
     await page.evaluate(() => { localStorage.removeItem('spark-hub-diag'); const end = Date.now() + 2000; while (Date.now() < end) { /* freeze */ } });
     await expect.poll(() => page.evaluate(() => (JSON.parse(localStorage.getItem('spark-hub-diag')) || []).map(e => e.kind))).toContain('stall');
-    await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Profile', exact: true }).click();
+    await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Settings', exact: true }).click();
     const log = page.locator('[data-screen-label="Freeze log"]');
     await expect(log).toContainText(/stall [12]\.\d+s/);
     await log.getByRole('button', { name: 'Clear' }).click();
@@ -838,8 +838,8 @@ test('after about 5 minutes, the feedback ask: write, Send to Eric, a tip at Pro
     const tip = page.locator('[data-fb-tip]');
     await expect(tip).toContainText('Thanks, Eric got it.');
     await expect(tip).toContainText('Add more anytime in your profile.');
-    // The tip sits over the Profile tab
-    const tb = await tip.boundingBox(), tab = await page.getByRole('navigation', { name: 'Main' }).getByLabel('Profile').boundingBox();
+    // The tip sits over the Settings tab
+    const tb = await tip.boundingBox(), tab = await page.getByRole('navigation', { name: 'Main' }).getByLabel('Settings').boundingBox();
     expect(tb.x + tb.width).toBeGreaterThan(tab.x + tab.width / 2);
     await tip.click();
     await expect(tip).toHaveCount(0);

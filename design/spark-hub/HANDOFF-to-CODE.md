@@ -2,13 +2,25 @@
 
 **Direction:** design → code. Claude Design keeps this file current; it replaces the `SparkHub v7-N` zips. Ship it with `Spark Hub App Version 7.dc.html` (the prototype). Where this file disagrees with older READMEs or UPDATE files, **this file wins**.
 
-- **Caught up with:** `HANDOFF-to-DESIGN.md` **as of 2026-10-03** (the reset to Update 16). Its §1 rows 1–4 are now in the prototype too, so the build can drop them.
+- **Caught up with:** `HANDOFF-to-DESIGN.md` **as of 2026-10-04** (its §1 row 23, several photos at once). The build has items 1–24 below; only **25–28** are new this round.
 - **Baseline:** Update 16 (zip *SparkHub v7-5*). Everything below is new since then.
-- **Options files:** `Round 17 Options.dc.html` (picks made: Q24 a 24a2, b 24b3, c 24c3c, d no change; Q23 C 23C1; event RSVP 25b + 25c. Still open: Q23 B). `Help Out Options.dc.html` (turns 11+; turns 1–10 moved to `Help Out Options Turns 1-10.dc.html`): **7g (Help out job cards, members), 12e (Help out, lead), 8a/10a (What to expect) and 13e (date tile) are picked and built**; the other turns are exploration. `Soft Holds Options.dc.html` has the soft-holds explorations.
+- **Options files (this round):** `Poll Button Options.dc.html` (pick 1g), `Add Event Button Options.dc.html` (pick 1b), `Tab Bar Options.dc.html` (pick 2a; the rest, incl. the purpose line, first-run tour and empty states, is not picked yet).
+- **Earlier options files:** `Round 17 Options.dc.html` (picks made: Q24 a 24a2, b 24b3, c 24c3c, d no change; Q23 C 23C1; event RSVP 25b + 25c. Still open: Q23 B). `Help Out Options.dc.html` (turns 11+; turns 1–10 moved to `Help Out Options Turns 1-10.dc.html`): **7g (Help out job cards, members), 12e (Help out, lead), 8a/10a (What to expect) and 13e (date tile) are picked and built**; the other turns are exploration. `Soft Holds Options.dc.html` has the soft-holds explorations.
 
 ---
 
-## New since 2026-10-03 (Update 16)
+## New since 2026-10-04 (the build's last round)
+
+25. **Poll the group button is a yellow tinted row** (pick 1g).
+26. **Your calendar: floating add event button that tucks away** (pick 1b).
+27. **Tasks on cards: strip on top, collapsed by default (open if today); event page expanded; pale row fills, no dividers.**
+28. **Tab bar labels: Discover · Tasks · Calendar · Groups · Settings** (pick 2a); Explore is renamed Discover.
+
+Details are under *Details for 25–28* below.
+
+---
+
+## Done in the build's last round (2026-10-03): items 1–24, already built
 
 1. **§5 Q20 Soft holds: designed, Month view only for now** (owner, 2026-10-03). See *Soft holds* below.
 2. **Voting card dates are full-width rows**, not three tiles.
@@ -36,6 +48,14 @@
 24. **Start an event, step 1: shorter header, groups and visibility up front** (options 21a + 22a + 23a in `Start Event Options.dc.html`). The photo header on step 1 drops from 270px to **150px** (hero title 24px on every step). The big upload box becomes a one-line dashed row: camera icon, **Add a cover photo**, *Optional* (56px, 2px dashed `#b9bcc4`, `#f4f5f7`). Under it: **Post to** (20px/900) · *Pick one or more groups.*, a white card with one row per group (36px photo, name 15px/800, 22px square tick; at least one stays picked), then the **Public** / **Private** tiles (Public now reads *Anyone in these groups*). **Review's *Who can see it* section is removed**; Edit event still has its own Visibility sheet.
 
 ---
+
+## Details for 25–28 (new)
+
+25. **Poll the group button (Date & time and Location steps) is a yellow tinted row** (pick 1g, `Poll Button Options.dc.html`): 58px tall, 18px radius, fill `#fdf6dc`, 1.5px inset `#e6d08c`, text `#5c4300` 16px/800, icon and chevron `#8a6510`, hover `#faefc8`. Same yellow as the held-date heads-up.
+26. **Your calendar has a floating add event button** (pick 1b, `Add Event Button Options.dc.html`): 48px purple `#5b4ae8` circle with a white plus, 18px from the right, 16px above the tab bar (bottom 89px; **now 100px with item 28's taller bar**), shadow `0 8px 20px rgba(91,74,232,.38)`. Opens Start an event. Only on Your calendar; sits under sheets and pop-ups. **Tucks right after 0.75s with no scroll or touch** (slides 50px right, leaving a 16px sliver; 320ms ease). Any scroll or touch brings it back; tapping the sliver only brings it back, it doesn’t open Start an event.
+27. **Your calendar's Up next card: tasks start collapsed** (Eric, 2026-10-04). The role strip (e.g. *Leading*) now reads *2 tasks ▾* on the right, like the cards below it; tap the strip to show the task rows (*Fill spot: …* + Ask), tap again to hide. Same for **Helping** cards (your job rows). **Exception: an event that's today opens with its tasks showing.** Open/closed is remembered per event for the session. **On the event page itself, the tasks box starts expanded** (lead's tasks and a helper's jobs alike; tap its header to collapse). **The header (*You're helping* / *Your tasks*) sits at the top of the box, right under the photo, and the rows open downward below it**; the box keeps its 24px rounded bottom corners. **Same order on every event card with a role strip** (Your calendar list / tiles, Explore, group pages): the strip (*Leading* / *Helping* + *2 tasks ▾*) sits directly under the event's title row or photo, and the task rows open below it. **Helping task rows get a paler yellow fill, `#fffefb`** (the strip stays `#fefaef`), on the event page and on every card. Leading task rows get the same treatment in pale purple, `#fdfcff` (strip stays `#f7f6ff` / `#f5f3fe`). No divider lines between the strip and the task rows, or between rows. No tasks: strip reads *All set* and tapping opens the event. Going: *Change RSVP* / *Update RSVP* as before.
+28. **Tab bar: labels under every icon** (pick 2a, `Tab Bar Options.dc.html`, owner 2026-10-04). Left to right: **Discover** (compass) · **Tasks** (checklist + badge) · **Calendar** (centre ring, calendar icon, opens first) · **Groups** · **Settings** (gear, opens the profile & settings sheet). Labels always shown: 11.5px / 13px line, 800, no wrap, colour = tab colour (active `#5b4ae8`, inactive `#6b7280`). Icons 24px. Each tab is a column: 8px top padding, 4px gap, min 52px tall, full column width (≥75px at 375). Bar: 84px tall incl. 26px bottom safe padding, white 96% + blur, 1px `#e8eaef` top line. Centre ring: 44px, white fill, rises 20px above its column (`margin-top:-20px`) with a 3px white halo so it cuts the bar's top line; inset ring 2px `#5b4ae8` active / 1.9px `#c3c7d0` inactive; label sits on the same baseline as the others. Add event button moves up to bottom 100px (16px above the bar). The Explore screen is renamed **Discover** (hero title, back labels, empty-state button *Discover events*).
+
 
 ## Your people (Groups tab)
 

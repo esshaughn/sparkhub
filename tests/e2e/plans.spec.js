@@ -78,8 +78,10 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     await expect(G.locator('[data-banner="on"]')).toContainText('You’re on it', { timeout: 1000 });   // with the tap (owner, 2026-10-02)
     await expect(G.locator('[data-banner="on"]')).toContainText('is counting on you');
     await expect(G.getByRole('dialog', { name: 'Will you be there?' })).toHaveCount(0);
-    // "You're helping": under the photo, collapsed by default, opens to the jobs
+    // "You're helping": under the photo, open to start with the jobs below it (Design 27); its header collapses it to a count
     const bar = GP.locator('[data-helping-bar]');
+    await expect(GP.locator('[data-screen-label="You’re helping"]')).toContainText('Folding chairs');
+    await bar.click();
     await expect(bar).toContainText('1 task');
     await expect(GP.locator('[data-screen-label="You’re helping"]')).not.toContainText('Folding chairs');
     await bar.click();
@@ -786,8 +788,8 @@ test('a sign-up shows on the group page, the Calendar and the lead’s card', as
     await expect(card).toContainText('Helping');
     await O.waitForTimeout(3000);   // the refresh after the save doesn't undo it
     await expect(card).toContainText('Helping');
-    await O.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Explore', exact: true }).click();
-    await expect(O.locator('[data-screen-label=Explore] [data-plan="' + title + '"]')).toContainText('Helping');
+    await O.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Discover', exact: true }).click();
+    await expect(O.locator('[data-screen-label=Discover] [data-plan="' + title + '"]')).toContainText('Helping');
     // The lead's page counts the sign-up (the group card's layout depends on what else is coming up)
     await openIdea(H, id);
     await expect(H.locator('[data-screen-label="Plan page"] [data-signup="Barricades"]')).toContainText('1 of 2 open');
@@ -809,8 +811,8 @@ test('Calendar group filter: toggling works, and could use a hand follows it', a
     await asUser(H, async (c, _C, id) => { await c.from('signup_items').insert({ spark_id: id, item: 'Barricades', need: 2 }); }, id);
     gid = await asUser(V, async (c) => { const r = await c.rpc('create_group', { p_name: '[E2E] Filter ' + Date.now().toString(36) }); return r.data[0].id || r.data[0].group_id; });
     await V.reload(); await expect(V.locator('html[data-loaded=true]')).toHaveCount(1);
-    await V.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Explore', exact: true }).click();
-    const cal = V.locator('[data-screen-label=Explore]'), hand = cal.getByLabel(/^\d+ events? needs? help$/);
+    await V.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Discover', exact: true }).click();
+    const cal = V.locator('[data-screen-label=Discover]'), hand = cal.getByLabel(/^\d+ events? needs? help$/);
     await expect(hand).toBeVisible();
     await cal.getByRole('button', { name: /^Groups:/ }).click();
     const rows = V.getByRole('menu', { name: 'Groups' }).getByRole('menuitemcheckbox');
@@ -856,8 +858,7 @@ test('ask someone to take a job: tick up to two, a note each, I’m in', async (
     await expect(H.getByText('Asked ' + linName.split(' ')[0], { exact: true })).toBeVisible();   // the toast
     await expect(H.locator('html[data-saving]')).toHaveCount(0);
     // The asked lines under the job are gone (Design 12e); Your tasks' Fill spot row counts it
-    await HP.locator('[data-host-tasks-bar]').click();
-    await expect(HP.locator('[data-screen-label="Your tasks"]')).toContainText('Barricades · 1 asked');
+    await expect(HP.locator('[data-screen-label="Your tasks"]')).toContainText('Barricades · 1 asked');   // open to start (Design 27)
 
     // Lin's bell and the event page carry the ask and its line; I'm in signs Lin up
     await O.reload(); await expect(O.locator('html[data-loaded=true]')).toHaveCount(1);

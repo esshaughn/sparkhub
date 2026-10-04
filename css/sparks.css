@@ -40,8 +40,8 @@ input[type="date"]::-webkit-date-and-time-value { text-align: left; }
 input::placeholder, textarea::placeholder { color: #b9bcc4; font-weight: 400; font-style: italic; opacity: 1; }
 
 /* ---- Frame: full-bleed on phones, centred ~430px column on desktop ---- */
-/* Tab bar: 13px above the icons; below them only as much as the iPhone home indicator
-   needs (its inset less 8px, at least 14px), so the bar doesn't look bottom-heavy */
+/* Tab bar: 58px of labelled tabs (8px, the icon, 4px, the label), then only as much as the iPhone home indicator
+   needs (its inset less 8px, at least 14px): 84px on an iPhone, as Design's pick 2a */
 :root {
   --nav-bottom: max(14px, calc(env(safe-area-inset-bottom, 0px) - 8px));
   --nav-h: calc(58px + var(--nav-bottom));
@@ -123,13 +123,24 @@ html.tall-fix .app { bottom: auto; height: var(--true-h); }
 
 .tabbar {
   position: absolute; left: 0; right: 0; bottom: 0; height: var(--nav-h);
-  display: grid; grid-template-columns: repeat(5, 1fr); align-items: center; justify-items: center;
-  background: rgba(255, 255, 255, .94);
+  display: grid; grid-template-columns: repeat(5, 1fr); align-items: start; justify-items: center;
+  background: rgba(255, 255, 255, .96);
   -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
   border-top: 1px solid #e8eaef;
-  padding: 13px 8px var(--nav-bottom);
+  /* Labelled tabs (Design pick 2a): each column carries its own 8px top padding */
+  padding: 0 0 var(--nav-bottom);
   z-index: 10;
 }
+
+/* Your calendar's add event button (Design pick 1b): 16px above the tab bar; .tucked slides it right, leaving a 16px sliver */
+.add-fab {
+  position: absolute; right: 18px; bottom: calc(var(--nav-h) + 16px); z-index: 9;
+  width: 48px; height: 48px; border-radius: 999px; background: #5b4ae8;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  box-shadow: 0 8px 20px rgba(91, 74, 232, .38), 0 2px 6px rgba(13, 17, 23, .18);
+  transition: transform 320ms cubic-bezier(.2, .8, .2, 1), box-shadow 320ms;
+}
+.add-fab.tucked { transform: translateX(50px); box-shadow: 0 2px 6px rgba(13, 17, 23, .18); }
 
 .modal-scrim {
   position: absolute; inset: 0; background: rgba(13, 17, 23, .45);
@@ -191,6 +202,7 @@ html.tall-fix .app { bottom: auto; height: var(--true-h); }
 .hov-white-line:hover { border-color: #fff !important; }
 .hov-danger:hover { background: #fdeef0 !important; }
 .hov-grey-fill:hover { background: #eef0f3 !important; }
+.hov-yellow:hover { background: #faefc8 !important; }
 .fld:focus { border-color: #5b4ae8 !important; }
 [data-inv-email]::placeholder { color: #9a9fae; font-style: normal; }
 .fld-danger:focus { border-color: #9b1c31 !important; }

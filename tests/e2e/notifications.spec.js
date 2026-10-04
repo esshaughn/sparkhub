@@ -34,7 +34,7 @@ test('notifications: a new plan, replying from the feed, the host hears back, up
 
     // Hope hears about it (Hosting) and posts an update
     await H.reload();
-    await H.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: /^Your tasks/ }).click();
+    await H.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: /^Tasks/ }).click();
     await H.getByRole('button', { name: /^Notifications/ }).click();
     const hfeed = H.getByRole('dialog', { name: 'Notifications' });
     await hfeed.getByRole('radio', { name: 'Leading' }).click();

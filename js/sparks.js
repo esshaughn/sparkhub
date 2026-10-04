@@ -160,7 +160,7 @@
     camera: (size) => svg(size, stroke('#0d1117', 2.2), '<path d="M4 8.5h3l1.5-2.5h7L17 8.5h3v10H4Z"/><circle cx="12" cy="13" r="3.2"/>'),
     offline: svg(16, stroke('#9b1c31', 2.2), '<path d="M4.5 9.5a11 11 0 0 1 15 0M7.5 13a6.5 6.5 0 0 1 9 0"/><circle cx="12" cy="17" r="1.2" fill="#9b1c31"/><path d="M4 4l16 16"/>'),
     tabTicket: svg(23, stroke('currentColor', 1.9), '<path d="M4 8.5V6a1.5 1.5 0 0 1 1.5-1.5h13A1.5 1.5 0 0 1 20 6v2.5a2.5 2.5 0 0 0 0 5V16a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 16v-2.5a2.5 2.5 0 0 0 0-5Z" transform="translate(0 1)"/><path d="m9.2 12.2 2 2 3.8-4"/>'),
-    tabPeople: svg(23, stroke('currentColor', 1.9), '<circle cx="9" cy="8.5" r="3.4"/><path d="M3 19.5a6 6 0 0 1 12 0"/><path d="M15.5 5.3a3.3 3.3 0 0 1 0 6.4M17.5 13.8a5.6 5.6 0 0 1 3.5 5.7"/>'),
+    tabPeople: svg(24, stroke('currentColor', 1.9), '<circle cx="9" cy="8.5" r="3.4"/><path d="M3 19.5a6 6 0 0 1 12 0"/><path d="M15.5 5.3a3.3 3.3 0 0 1 0 6.4M17.5 13.8a5.6 5.6 0 0 1 3.5 5.7"/>'),
     tabSquares: svg(23, stroke('currentColor', 1.9), '<rect x="4" y="4" width="7" height="7" rx="1.8"/><rect x="13" y="4" width="7" height="7" rx="1.8"/><rect x="4" y="13" width="7" height="7" rx="1.8"/><rect x="13" y="13" width="7" height="7" rx="1.8"/>'),
     google: '<svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true" style="flex:0 0 20px"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>'
   };
@@ -2529,7 +2529,7 @@
   const backLabel = (s) => {
     const b = state.back, g = groupById(s.groupId);
     if (!b) return g && g.role ? g.name : 'Your calendar';
-    return { home: 'Your tasks', sched: 'Your calendar', own: 'Leading', calendar: 'Explore', groups: 'Groups', browse: (groupById(b.groupId) || g || {}).name || 'the group' }[b.screen];
+    return { home: 'Your tasks', sched: 'Your calendar', own: 'Leading', calendar: 'Discover', groups: 'Groups', browse: (groupById(b.groupId) || g || {}).name || 'the group' }[b.screen];
   };
   const goBack = (s) => {
     const b = state.back, g = groupById(s.groupId);
@@ -3113,7 +3113,8 @@
   };
 
   // To-do rows: a role dot, the text, a pill (or a sign-up's time as plain text)
-  const actRow = (a, R) => '<div style="display:flex;align-items:center;gap:10px;min-height:46px;padding:9px 12px;border-top:1px solid #f2f3f6">' +
+  // `bg`: a role strip's task rows (Design 27, 2026-10-04): a pale fill and no divider lines
+  const actRow = (a, R, bg) => '<div style="display:flex;align-items:center;gap:10px;min-height:46px;padding:9px 12px;' + (bg ? 'background:' + bg : 'border-top:1px solid #f2f3f6') + '">' +
     '<span style="flex:0 0 7px;width:7px;height:7px;border-radius:999px;background:' + R.dot + '"></span>' +
     '<span style="flex:1 1 0;min-width:0;font-size:14.5px;line-height:1.3;font-weight:' + (a.warn ? 800 : 700) + ';color:' + (a.warn ? '#8f6405' : '#2a2f38') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (a.label ? '<b style="font-weight:800;color:#0d1117">' + esc(a.label) + '</b> <span style="font-weight:500">' + esc(a.rest) + '</span>' : esc(a.act)) + '</span>' +
     (a.time ? '<span style="flex:0 0 auto;font-size:13.5px;font-weight:800;color:' + R.ink + '">' + esc(a.cta) + '</span>'
@@ -3314,8 +3315,10 @@
       right = '<span style="display:flex;align-items:center;gap:4px">' + (open ? '' : word) + (expands || P.k === 'go' ? chev6(11, P.R.ink, open) : '') + '</span>';
     }
     return '<div ' + on(tap) + ' aria-expanded="' + open + '" style="display:flex;align-items:center;justify-content:space-between;gap:10px;height:' + h + 'px;padding:0 14px;background:' + P.R.strip + ';border-top:1px solid ' + edge(P.R.strip) + ';font-size:' + (h > 30 ? 13.5 : 12) + 'px;font-weight:800;color:' + P.R.ink + ';cursor:pointer">' + '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + left + '</span>' + right + '</div>' +
-      (open ? '<div style="display:flex;flex-direction:column;background:#fff">' + P.rows.map(a => actRow(a, P.R)).join('') + '</div>' : '');
+      (open ? '<div style="display:flex;flex-direction:column">' + P.rows.map(a => actRow(a, P.R, rowFill(P))).join('') + '</div>' : '');
   };
+  // Task rows under a role strip: paler than the strip (Design 27): Helping gold, Leading purple
+  const rowFill = (P) => P.k === 'help' ? '#fffefb' : P.k === 'lead' ? '#fdfcff' : '#fff';
   // Tiles: the photo with date, title and place; the strip under it
   // Event preview (v7 Update 15, 13a; owner said build it, 2026-10-02): on the Calendar a plan opens a slide-up first
   const peekOrOpen = (s) => s.planned ? setState({ peek: s.id, menu: null }) : openSpark(s);
@@ -3358,9 +3361,17 @@
           '<div style="margin-top:3px;font-size:25px;line-height:1.1;font-weight:900;letter-spacing:-.6px;text-wrap:balance">' + esc(s.text) + demoTag(s, true, true) + '</div>' +
           '<div style="margin-top:6px;display:flex;align-items:center;gap:6px;font-size:14.5px;font-weight:700;color:rgba(255,255,255,.9);min-width:0">' + ic6('pin', 13, 'currentColor', 2.6) + '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (s.spot ? esc(s.spot) : tbdSpan(spotTbd(s), TBD_ON_PHOTO)) + '</span></div>' +
         '</div></div>' +
-      '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;height:40px;padding:0 14px;background:' + P.R.strip + ';font-size:13.5px;font-weight:800;color:' + P.R.ink + '"><span>' + P.word + '</span>' +
-        (P.k === 'go' ? '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + P.right + '</span>' : '') + '</div>' +
-      P.rows.map(a => actRow(a, P.R)).join('') + '</div>';
+      nextStrip(s, P) + '</div>';
+  };
+  // Up next's strip (Design 27, Eric 2026-10-04): N tasks ▾ on the right, tap to show the rows; closed to start except on
+  // the day itself; open or closed is kept per event for the session (schedOpen, shared with the cards below)
+  const nextStrip = (s, P) => {
+    const n = P.rows.length, saved = state.schedOpen[s.id], open = (saved == null ? daysTo(s) === 0 : !!saved) && n > 0;
+    const tap = (e) => { stop(e); if (!n) openSpark(s); else setState({ schedOpen: Object.assign({}, state.schedOpen, { [s.id]: !open }) }); };
+    const word = P.k === 'go' ? P.right : n ? n + (n === 1 ? ' task' : ' tasks') : 'All set';
+    return '<div ' + on(tap) + ' aria-expanded="' + open + '" style="display:flex;align-items:center;justify-content:space-between;gap:10px;height:40px;padding:0 14px;background:' + P.R.strip + ';font-size:13.5px;font-weight:800;color:' + P.R.ink + ';cursor:pointer"><span>' + P.word + '</span>' +
+        '<span style="display:flex;align-items:center;gap:4px;min-width:0;white-space:nowrap">' + (open ? '' : word) + (n || P.k === 'go' ? chev6(11, P.R.ink, open) : '') + '</span></div>' +
+      (open ? '<div style="display:flex;flex-direction:column">' + P.rows.map(a => actRow(a, P.R, rowFill(P))).join('') + '</div>' : '');
   };
   // Soonest in Up next: the hero, then This week / Next week / Later in {month} / Date TBD
   const nextSections = (list) => {
@@ -3642,7 +3653,7 @@
       // The same spacing as Your people's header (owner, 2026-10-01)
       '<div style="position:absolute;left:18px;right:90px;bottom:16px;color:#fff">' +
         '<div style="font-size:13px;font-weight:900;letter-spacing:1px;color:#cfc9ff">ALL EVENTS</div>' +
-        '<h1 style="margin:2px 0 0;font-size:40px;line-height:1;font-weight:900;letter-spacing:-1.4px;color:#fff">Explore</h1>' +
+        '<h1 style="margin:2px 0 0;font-size:40px;line-height:1;font-weight:900;letter-spacing:-1.4px;color:#fff">Discover</h1>' +
         '<div style="margin-top:6px;font-size:14px;font-weight:700;color:rgba(255,255,255,.88)">' + (groups.length ? 'Everything happening in your ' + groups.length + (groups.length === 1 ? ' group' : ' groups') : st.error === 'load' ? 'Couldn’t load your groups' : 'Join a group to see its events') + '</div></div>' +
       '<button type="button" class="hov-primary" ' + on(() => goCompose()) + ' data-new-event aria-label="Start an event" style="position:absolute;right:16px;bottom:16px;z-index:2;width:52px;height:52px;border:0;border-radius:999px;background:#5b4ae8;box-shadow:0 6px 16px rgba(13,17,23,.35);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.plus(22, '#fff', 2.8) + '</button>' +
     '</header>';
@@ -3717,7 +3728,7 @@
     }
     // Tighter under the groups chip (owner, 2026-10-03): the cards' row only takes room when it has something in it
     const mid = goneCard() + (st.loaded && !groups.length ? noGroupCard() : '') + wild + needs;
-    return '<div data-screen-label="Explore">' + header + filters +
+    return '<div data-screen-label="Discover">' + header + filters +
       (mid ? '<div style="padding:10px 14px 0;display:flex;flex-direction:column;gap:10px">' + mid + '</div>' : '') +
       '<div style="padding:' + (mid ? 16 : 6) + 'px 14px 26px;display:flex;flex-direction:column;gap:22px">' + body + '</div>' +
       '<div style="height:var(--nav-h)"></div></div>';
@@ -4142,7 +4153,7 @@
     const br = /EdgA?\//.test(ua) ? 'Edge' : /SamsungBrowser/.test(ua) ? 'Samsung Internet' : /CriOS|Chrome\//.test(ua) ? 'Chrome' : /FxiOS|Firefox\//.test(ua) ? 'Firefox' : /Safari\//.test(ua) ? 'Safari' : '';
     return dev + (br ? ' · ' + br : '');
   };
-  const SCREEN_NAMES = { calendar: 'Explore', home: 'Your tasks', sched: 'Your calendar', groups: 'Groups', groupPage: 'Group page', detail: 'Event page', compose: 'Create event', own: 'Your plans & ideas', how: 'How this works' };
+  const SCREEN_NAMES = { calendar: 'Discover', home: 'Your tasks', sched: 'Your calendar', groups: 'Groups', groupPage: 'Group page', detail: 'Event page', compose: 'Create event', own: 'Your plans & ideas', how: 'How this works' };
   const fbWhere = () => { const s = state.screen === 'detail' ? subject() : null; return s ? (s.planned ? 'Plan page' : 'Idea page') : SCREEN_NAMES[state.screen] || state.screen || ''; };
   const fbContext = () => {
     const s = state.screen === 'detail' ? subject() : null, g = s ? groupById(s.groupId) : state.screen === 'groupPage' ? currentGroup() : null;
@@ -4898,7 +4909,7 @@
       '<div style="margin-top:6px;font-size:15px;font-weight:500;color:#5c6270;text-wrap:pretty">' + (sub || 'Start one, or turn an idea into a plan.') + '</div></div>' + (btns || createBtn()) + '</div>';
   const schedEmpty = () => plansEmpty('Anything you say yes or maybe to lands here. See what’s happening in your groups and pick something.',
     '<div style="width:100%;display:flex;flex-direction:column;gap:10px">' +
-      '<button type="button" class="hov-primary" ' + on(() => go('calendar')) + ' style="width:100%;min-height:52px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 6px 16px rgba(91,74,232,.3);cursor:pointer">' + svg(18, stroke('#fff', 2.2), '<circle cx="12" cy="12" r="8.75"/><path d="m15.6 8.4-2.2 5-5 2.2 2.2-5 5-2.2Z"/>') + 'Explore events</button>' +
+      '<button type="button" class="hov-primary" ' + on(() => go('calendar')) + ' style="width:100%;min-height:52px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 6px 16px rgba(91,74,232,.3);cursor:pointer">' + svg(18, stroke('#fff', 2.2), '<circle cx="12" cy="12" r="8.75"/><path d="m15.6 8.4-2.2 5-5 2.2 2.2-5 5-2.2Z"/>') + 'Discover events</button>' +
       '<button type="button" class="hov-sec" ' + on(() => goCompose()) + ' style="width:100%;min-height:52px;border:0;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;color:#0d1117;font-family:inherit;font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer">' + I.plus(18, '#0d1117', 2.8) + 'Start an event</button></div>',
     'data-sched-empty', 'Nothing on your calendar yet');
   // Under a group's plans: just Create an event, on the page (owner, 2026-10-01: no Do it again? chips, no white card)
@@ -5977,7 +5988,8 @@
     const goingIds = going(s).map(r => r.userId), maybeN = s.rsvps.filter(r => r.status === 'maybe').length, noN = s.rsvps.filter(r => r.status === 'no').length;
     const sheetCard = (inner, extra) => '<div style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:10px;' + (extra || '') + '">' + inner + '</div>';
 
-    // Under the photo: the host's "Your tasks" (purple), or a helper's "You're helping" (gold). Collapsed by default.
+    // Under the photo: the host's "Your tasks" (purple), or a helper's "You're helping" (gold). Since Design 27 (2026-10-04)
+    // the header is on top with the rows opening below it, open to start, on a pale fill with no divider lines
     const myJobs = (s.jobs || s.signups).filter(j => j.shifts ? myShiftIds(j).length : j.claims.some(c => c.userId === st.me));
     const myTime = (j) => j.shifts ? j.shifts.filter(u => u.claims.some(c => c.userId === st.me)).map(spanTime).filter(Boolean).join(', ') : spanTime(j);
     const f = signupFill(s);
@@ -5988,20 +6000,20 @@
       // Details are optional, so no task for them; each job still to fill is one, and opens its personal ask (owner, 2026-10-02)
       jobActs(s, (fn) => fn).map(a => ({ label: a.label, item: a.rest, cta: a.cta, act: a.go })),
       myJobs.map(j => ({ item: j.item, meta: myTime(j) })));
-    const tKey = (lead ? 'h:' : '') + s.id, tOpen = !!st.jobsOpen[tKey];
-    const T = lead ? { bar: '#f5f3fe', ink: '#4a3ad4', dot: '#7b6ef0', line: '#e6e1fc', word: 'Your tasks' } : { bar: '#fefaef', ink: '#8f6405', dot: '#e8a71c', line: '#f3e2ad', word: 'You’re helping' };
+    const tKey = (lead ? 'h:' : '') + s.id, tOpen = st.jobsOpen[tKey] == null ? true : !!st.jobsOpen[tKey];
+    const T = lead ? { bar: '#f5f3fe', ink: '#4a3ad4', dot: '#7b6ef0', row: '#fdfcff', word: 'Your tasks' } : { bar: '#fefaef', ink: '#8f6405', dot: '#e8a71c', row: '#fffefb', word: 'You’re helping' };
     const tab = !tasks.length || s.cancelledAt ? '' :
       '<div data-screen-label="' + T.word + '" style="border-radius:0 0 24px 24px;overflow:hidden;box-shadow:0 1px 3px rgba(15,18,25,.08)">' +
-        (tOpen ? tasks.map((t, i) => '<div ' + (t.act ? on(t.act) + ' ' : '') + 'data-task-row style="display:flex;align-items:center;gap:12px;min-height:52px;padding:10px 18px;background:#fff;border-top:' + (i ? '1px solid #f2f3f6' : '0') + (t.act ? ';cursor:pointer' : '') + '">' +
+        '<div ' + on(() => setState({ jobsOpen: Object.assign({}, st.jobsOpen, { [tKey]: !tOpen }) })) + ' aria-expanded="' + tOpen + '" data-' + (lead ? 'host-tasks' : 'helping') + '-bar style="display:flex;align-items:center;gap:8px;min-height:48px;padding:0 18px;background:' + T.bar + ';color:' + T.ink + ';font-size:15.5px;font-weight:800;cursor:pointer">' +
+          ic6('clip', 18, T.ink, 2.2) + '<span style="flex:1">' + T.word + '</span>' +
+          (tOpen ? '' : '<span style="font-size:14.5px;font-weight:800">' + tasks.length + (tasks.length === 1 ? ' task' : ' tasks') + '</span>') +
+          '<span style="display:flex;transition:transform .15s;transform:' + (tOpen ? 'rotate(180deg)' : 'none') + '">' + I.chevD(14, T.ink, 2.8) + '</span></div>' +
+        (tOpen ? tasks.map(t => '<div ' + (t.act ? on(t.act) + ' ' : '') + 'data-task-row style="display:flex;align-items:center;gap:12px;min-height:52px;padding:10px 18px;background:' + T.row + (t.act ? ';cursor:pointer' : '') + '">' +
             '<span style="flex:0 0 7px;width:7px;height:7px;border-radius:999px;background:' + T.dot + '"></span>' +
             '<span style="flex:1;min-width:0;font-size:16px;font-weight:700;color:#2a2f38;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (t.label ? '<b style="font-weight:800;color:#0d1117">' + esc(t.label) + '</b> <span style="font-weight:500">' + esc(t.item) + '</span>' : esc(t.item)) + '</span>' +
             // a job to fill ends in its Ask (or Share) pill, like Your tasks (owner, 2026-10-03)
             (t.cta ? '<span data-todo-cta style="flex:0 0 auto;display:flex;align-items:center;min-height:30px;padding:0 13px;border-radius:999px;background:#f3f1fe;color:' + T.ink + ';font-size:14px;font-weight:800">' + esc(t.cta) + '</span>' : '') +
             (t.meta ? '<span style="flex:0 0 auto;font-size:14.5px;font-weight:800;color:' + T.ink + '">' + esc(t.meta) + '</span>' : '') + '</div>').join('') : '') +
-        '<div ' + on(() => setState({ jobsOpen: Object.assign({}, st.jobsOpen, { [tKey]: !tOpen }) })) + ' aria-expanded="' + tOpen + '" data-' + (lead ? 'host-tasks' : 'helping') + '-bar style="display:flex;align-items:center;gap:8px;min-height:48px;padding:0 18px;background:' + T.bar + ';color:' + T.ink + ';font-size:15.5px;font-weight:800;cursor:pointer' + (tOpen ? ';border-top:1px solid ' + T.line : '') + '">' +
-          ic6('clip', 18, T.ink, 2.2) + '<span style="flex:1">' + T.word + '</span>' +
-          (tOpen ? '' : '<span style="font-size:14.5px;font-weight:800">' + tasks.length + (tasks.length === 1 ? ' task' : ' tasks') + '</span>') +
-          '<span style="display:flex;transition:transform .15s;transform:' + (tOpen ? 'rotate(180deg)' : 'none') + '">' + I.chevD(14, T.ink, 2.8) + '</span></div>' +
       '</div>';
 
     // RSVP: three buttons, no checkmarks; tapping your pick again clears it
@@ -6789,8 +6801,9 @@
         '</div>' : '') + '</div>';
   };
   const orLine = () => '<div style="padding:14px 4px 0;display:flex;align-items:center;gap:10px"><span style="flex:1;height:1px;background:#d5d8df"></span><span style="font-size:12px;font-weight:800;letter-spacing:1px;color:#8a909b">OR</span><span style="flex:1;height:1px;background:#d5d8df"></span></div>';
-  const pollRow = (fn) => '<div style="padding-top:10px"><div ' + on(fn) + ' class="hov-fill" style="display:flex;align-items:center;gap:12px;min-height:52px;padding:0 14px;border-radius:14px;box-shadow:inset 0 0 0 1.5px #c9ccd3;color:#454b55;cursor:pointer">' +
-    svg(16, stroke('currentColor', 2.2), POLL_IC) + '<span style="flex:1;font-size:15px;font-weight:800">Poll the group</span>' + I.chevR(14, '#b9bcc4', 2.6) + '</div></div>';
+  // A yellow tinted row, the held-date heads-up's yellow (Design pick 1g, 2026-10-04)
+  const pollRow = (fn) => '<div style="padding-top:10px"><div ' + on(fn) + ' class="hov-yellow" style="display:flex;align-items:center;gap:12px;min-height:58px;padding:0 16px;border-radius:18px;background:#fdf6dc;box-shadow:inset 0 0 0 1.5px #e6d08c;color:#5c4300;cursor:pointer">' +
+    svg(18, stroke('#8a6510', 2.4), POLL_IC) + '<span style="flex:1;font-size:16px;font-weight:800">Poll the group</span>' + I.chevR(14, '#8a6510', 2.6) + '</div></div>';
   const pollCard = (labels, edit, remove) => '<div data-poll style="background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08);padding:14px;display:flex;flex-direction:column;gap:8px">' +
     '<div style="display:flex;align-items:center;gap:10px">' + svg(16, stroke('#5b4ae8', 2.2), POLL_IC) + '<span style="flex:1;font-size:12px;font-weight:800;letter-spacing:1.1px;color:#5b4ae8">POLL · ' + labels.length + ' OPTIONS</span>' +
       '<span ' + on(edit) + ' style="font-size:13.5px;font-weight:800;color:#5b4ae8;cursor:pointer">Edit</span><span ' + on(remove) + ' style="font-size:13.5px;font-weight:800;color:#9b1c31;cursor:pointer">Remove</span></div>' +
@@ -7633,7 +7646,9 @@
   // Tab bar and the whole view
   // ---------------------------------------------------------------------------
 
-  // v7 Update 16 tab bar (owner, 2026-10-03): Explore · Your tasks · Your calendar (centre, in a ring) · Groups · Profile (a sheet)
+  // Tab bar with a label under every icon (Design pick 2a, owner 2026-10-04): Discover · Tasks · Calendar (centre, in a
+  // ring that rises above the bar) · Groups · Settings (the profile & settings sheet). Was Explore · Your tasks · Your
+  // calendar · Groups · Profile, icons only (v7 Update 16)
   function viewNav() {
     const s = state.screen, prof = state.profSheet, n = tasksBadge();
     // In Create event with something typed, a tab asks about a draft first, then goes there (owner, 2026-10-02)
@@ -7642,21 +7657,43 @@
       if (state.email && evStarted(state)) return setState({ evLeave: true, evLeaveTo: fn, timeOpen: null, dateOpen: null });
       setState(composeReset()); fn();
     };
-    const tab = (active, label, icon, fn) => '<div ' + on(leave(fn)) + ' aria-label="' + label + '"' + (active ? ' aria-current="page"' : '') +
-      ' style="padding:9px 0;min-height:44px;display:flex;align-items:center;justify-content:center;width:100%;color:' + (active ? '#5b4ae8' : '#6b7280') + ';cursor:pointer">' + icon + '</div>';
+    const lbl = (text) => '<span style="font-size:11.5px;line-height:13px;font-weight:800;white-space:nowrap">' + text + '</span>';
+    const tab = (active, label, text, icon, fn) => '<div ' + on(leave(fn)) + ' aria-label="' + label + '"' + (active ? ' aria-current="page"' : '') +
+      ' style="padding-top:8px;min-height:52px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;gap:4px;width:100%;color:' + (active ? '#5b4ae8' : '#6b7280') + ';cursor:pointer">' +
+      '<span style="height:24px;display:flex;align-items:center">' + icon + '</span>' + lbl(text) + '</div>';
     const calOn = s === 'sched' && !prof;
     return '<nav class="tabbar" aria-label="Main">' +
-      tab(s === 'calendar' && !prof, 'Explore', svg(23, stroke('currentColor', 1.9), '<circle cx="12" cy="12" r="8.75"/><path d="m15.6 8.4-2.2 5-5 2.2 2.2-5 5-2.2Z"/>'), () => go('calendar')) +
-      // the icon sits 3px left so the icon and its count read as centred
-      tab(s === 'home' && !prof, n ? 'Your tasks, ' + n : 'Your tasks', '<span style="position:relative;display:flex' + (n ? ';margin-left:-6px' : '') + '">' + svg(23, stroke('currentColor', 1.9), P6.tasks) +
+      tab(s === 'calendar' && !prof, 'Discover', 'Discover', svg(24, stroke('currentColor', 1.9), '<circle cx="12" cy="12" r="8.75"/><path d="m15.6 8.4-2.2 5-5 2.2 2.2-5 5-2.2Z"/>'), () => go('calendar')) +
+      tab(s === 'home' && !prof, n ? 'Tasks, ' + n : 'Tasks', 'Tasks', '<span style="position:relative;display:flex">' + svg(24, stroke('currentColor', 1.9), P6.tasks) +
         (n ? '<span aria-hidden="true" style="position:absolute;top:-6px;right:-9px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;border:2px solid #fff;background:#5b4ae8;color:#fff;font-size:10.5px;font-weight:900;display:flex;align-items:center;justify-content:center;box-sizing:border-box">' + (n > 9 ? '9+' : n) + '</span>' : '') + '</span>', () => go('home')) +
-      '<div ' + on(leave(() => go('sched'))) + ' aria-label="Your calendar"' + (calOn ? ' aria-current="page"' : '') + ' style="display:flex;align-items:center;justify-content:center;width:100%;cursor:pointer">' +
-        '<span style="width:48px;height:48px;border-radius:999px;display:flex;align-items:center;justify-content:center;box-shadow:inset 0 0 0 ' + (calOn ? '2px #5b4ae8' : '1.9px #c3c7d0') + ';color:' + (calOn ? '#5b4ae8' : '#6b7280') + '">' +
-          svg(23, stroke('currentColor', 2.1), '<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>') + '</span></div>' +
-      tab(s === 'groups' && !prof, 'Groups', I.tabPeople, () => go('groups')) +
-      // Gear, not a person: the sheet is profile + settings (owner, 2026-10-01)
-      tab(prof, 'Profile', svg(23, stroke('currentColor', 1.9), '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>'), openProfileSheet) +
+      // The ring rises 20px out of its column, with a white halo that cuts the bar's top line; its label keeps the others' baseline
+      '<div ' + on(leave(() => go('sched'))) + ' aria-label="Calendar"' + (calOn ? ' aria-current="page"' : '') + ' style="padding-top:8px;min-height:52px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;gap:4px;width:100%;color:' + (calOn ? '#5b4ae8' : '#6b7280') + ';cursor:pointer">' +
+        '<span style="width:44px;height:44px;margin-top:-20px;border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 3px #fff, inset 0 0 0 ' + (calOn ? '2px #5b4ae8' : '1.9px #c3c7d0') + '">' +
+          svg(24, stroke('currentColor', 2.1), '<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>') + '</span>' + lbl('Calendar') + '</div>' +
+      tab(s === 'groups' && !prof, 'Groups', 'Groups', I.tabPeople, () => go('groups')) +
+      // Gear: the sheet is profile + settings (owner, 2026-10-01); the word is Settings since pick 2a
+      tab(prof, 'Settings', 'Settings', svg(24, stroke('currentColor', 1.9), '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>'), openProfileSheet) +
     '</nav>';
+  }
+
+  // Your calendar's floating add event button (Design pick 1b, 2026-10-04): opens Start an event, sits under sheets and
+  // pop-ups, and tucks right 0.75s after the last scroll or touch, leaving a sliver. Any scroll or touch brings it back;
+  // a tap on the sliver only brings it back. The DOM morph keeps the element, so `tucked` is a class flipped in place.
+  let fabTucked = false, fabWasTucked = false, fabTimer = null;
+  const fabEl = () => root.querySelector('[data-add-fab]');
+  const fabTuck = (on) => { fabTucked = on; const el = fabEl(); if (el) el.classList.toggle('tucked', on); };
+  const fabWake = (e) => {
+    if (e && e.type === 'pointerdown') fabWasTucked = fabTucked;
+    clearTimeout(fabTimer);
+    if (fabTucked) fabTuck(false);
+    fabTimer = setTimeout(() => { fabTimer = null; fabTuck(true); }, 750);
+  };
+  ['scroll', 'wheel', 'touchmove', 'pointerdown'].forEach(k => document.addEventListener(k, fabWake, { capture: true, passive: true }));
+  const fabTap = () => { if (fabWasTucked) { fabWasTucked = false; return; } goCompose(); };
+  function viewAddFab() {
+    if (state.screen !== 'sched' || !state.email || state.profSheet) return '';
+    return '<div ' + on(fabTap) + ' role="button" aria-label="Start an event" data-add-fab class="add-fab' + (fabTucked ? ' tucked' : '') + '">' +
+      svg(22, stroke('#fff', 2.8), '<path d="M12 5v14M5 12h14"/>') + '</div>';
   }
 
   // Full-screen photo (the vibe photos): tap anywhere or ✕ to close, arrows between them
@@ -7758,7 +7795,7 @@
       (st.installPop ? viewInstallPop() : '') +
       (st.toast ? viewToast() : '') +
       // no tab bar on Welcome, the invite screens, or for a guest on an event (it only led to sign-in)
-      (welcomeShown() || invFull() || (!state.email && state.screen === 'detail') ? '' : viewNav()) +
+      (welcomeShown() || invFull() || (!state.email && state.screen === 'detail') ? '' : viewAddFab() + viewNav()) +
       (st.fbNudge && !st.profSheet && !st.fb ? viewFbNudge() : '') +   // above the tab bar
       (st.fbTip && !st.fbNudge ? viewFbTip() : '');                    // pointing at Profile
   }
@@ -7913,6 +7950,7 @@
     const sc = state.screen, photoTop = sc === 'browse' || (sc === 'detail' && !!subject()) || sc === 'calendar' || welcomeShown() || (!state.email && sc === 'compose') ||
       (invFull() && (state.inv.step === 'land' || state.inv.step === 'welcome'));
     root.classList.toggle('photo-top', photoTop);
+    if (!fabTimer && !fabTucked && fabEl()) fabWake();   // the add event button just appeared: tuck it after 0.75s
     syncBadge();
     maybeInstallPop();
     placeInvPop();

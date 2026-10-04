@@ -36,8 +36,8 @@ test('soft holds: a date poll pencils its dates in on Month, warns Start an even
 
     // Milo's Explore Month: a hollow dot on the day, and PENCILLED IN under the grid once it's picked
     await M.reload();
-    await nav(M).getByRole('button', { name: 'Explore', exact: true }).click();
-    const cal = M.locator('[data-screen-label=Explore]');
+    await nav(M).getByRole('button', { name: 'Discover', exact: true }).click();
+    const cal = M.locator('[data-screen-label=Discover]');
     await pickView(cal, 'Month');
     if (day.slice(0, 7) !== inDays(0).slice(0, 7)) await cal.getByRole('button', { name: 'Next month' }).click();
     await expect(cal.locator('[data-hold-key]')).toContainText('Pencilled in');
@@ -50,9 +50,9 @@ test('soft holds: a date poll pencils its dates in on Month, warns Start an even
     await expect(M.locator('[data-hold-line]')).toContainText('Holding these dates on the Calendar until');
     await expect(M.locator('[data-hold-line]').getByRole('button', { name: 'Keep holding' })).toHaveCount(0);
     // Your calendar doesn't show holds
-    await nav(M).getByRole('button', { name: 'Your calendar', exact: true }).click();
+    await nav(M).getByRole('button', { name: 'Calendar', exact: true }).click();
     await expect(M.locator('[data-hold]')).toHaveCount(0);
-    await nav(M).getByRole('button', { name: 'Explore', exact: true }).click();
+    await nav(M).getByRole('button', { name: 'Discover', exact: true }).click();
     await pickView(cal, 'List');
 
     // The voting card's dates are rows, most votes first; Hana keeps holding
@@ -104,9 +104,9 @@ test('Explore shows Plans, Ideas or Past; Your calendar ends with Find more even
     await expect(kind).toBeVisible();
     await kind.getByRole('button', { name: 'Close' }).click();   // closing it leaves the flow
     await expect(M.locator('[data-screen-label="New spark"]')).toHaveCount(0);
-    await M.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Explore', exact: true }).click();
-    const cal = M.locator('[data-screen-label=Explore]');
-    await expect(cal.getByRole('heading', { name: 'Explore' })).toBeVisible();
+    await M.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Discover', exact: true }).click();
+    const cal = M.locator('[data-screen-label=Discover]');
+    await expect(cal.getByRole('heading', { name: 'Discover' })).toBeVisible();
 
     // Plans (the default) · Ideas · Past
     await expect(cal.locator('[data-plan="' + plan + '"]')).toBeVisible();

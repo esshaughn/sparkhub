@@ -20,9 +20,21 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
   try {
     // Signed in, the app opens on Your calendar; the tab bar is Update 16's five (owner, 2026-10-03)
     await expect(H.locator('[data-screen-label="Your calendar"]')).toBeVisible();
-    await expect(H.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Your calendar', exact: true })).toHaveAttribute('aria-current', 'page');
+    await expect(H.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Calendar', exact: true })).toHaveAttribute('aria-current', 'page');
     await expect(nav(H).getByRole('button')).toHaveCount(5);
-    for (const name of ['Explore', /^Your tasks/, 'Your calendar', 'Groups', 'Profile']) await expect(nav(H).getByRole('button', { name, exact: typeof name === 'string' })).toBeVisible();
+    for (const name of ['Discover', /^Tasks/, 'Calendar', 'Groups', 'Settings']) await expect(nav(H).getByRole('button', { name, exact: typeof name === 'string' })).toBeVisible();
+    // Every tab has its word under the icon (Design pick 2a, 2026-10-04)
+    await expect(nav(H)).toHaveText(/Discover\s*Tasks\s*Calendar\s*Groups\s*Settings/);
+    // Your calendar's add event button tucks away after 0.75s; a tap on the sliver only brings it back, then it opens Start an event (pick 1b)
+    const fab = H.locator('[data-add-fab]');
+    await expect(fab).toHaveClass(/tucked/);
+    const fb = await fab.boundingBox(), vw = H.viewportSize().width;
+    await H.mouse.click(vw - 6, fb.y + fb.height / 2);
+    await expect(fab).not.toHaveClass(/tucked/);
+    await expect(H.getByRole('dialog', { name: 'Real or test?' })).toHaveCount(0);
+    await fab.click();
+    await H.getByRole('dialog', { name: 'Real or test?' }).getByRole('button', { name: 'Close' }).click();
+    await expect(H.locator('[data-screen-label="Your calendar"]')).toBeVisible();
 
     // Hope posts an event for today with no location, then adds sign-ups (one with a time)
     id = await postEvent(H, { title, date: inDays(0), time: '23:30' });
@@ -33,7 +45,7 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     }
 
     // Her Your tasks: a Leading card with the stats strip (no Reminder) and only real to-dos, each button doing its job
-    await nav(H).getByRole('button', { name: /^Your tasks/ }).click();
+    await nav(H).getByRole('button', { name: /^Tasks/ }).click();
     const lead = H.locator('[data-screen-label="Your tasks"] section[aria-label=Leading] [data-task="' + title + '"]');
     await expect(lead).toContainText('Today');
     // Your tasks and Your calendar have Search beside the bell (Explore's search sheet, over the screen)
@@ -56,9 +68,9 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     const askSheet = H.getByRole('dialog', { name: 'Ask someone to take it' });
     await expect(askSheet).toContainText('Ask someone to take “Folding chairs”');
     await askSheet.getByRole('button', { name: 'Close' }).click();
-    await nav(H).getByRole('button', { name: /^Your tasks/ }).click();
+    await nav(H).getByRole('button', { name: /^Tasks/ }).click();
     await shot(H, '01-your-tasks-lead');
-    await expect(nav(H).getByRole('button', { name: /^Your tasks, \d+$/ })).toBeVisible();   // the badge counts events with to-dos
+    await expect(nav(H).getByRole('button', { name: /^Tasks, \d+$/ })).toBeVisible();   // the badge counts events with to-dos
 
     // View all: every to-do listed, the stats strip too
     await H.locator('[data-screen-label="Your tasks"]').getByRole('button', { name: 'View all leading' }).click();
@@ -70,9 +82,9 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
 
     // Hal finds it on the Calendar: not joined, so "3 spots left · 0 going" and RSVP
     await O.reload();
-    await nav(O).getByRole('button', { name: 'Explore', exact: true }).click();
-    const cal = O.locator('[data-screen-label=Explore]');
-    await expect(cal.getByRole('heading', { name: 'Explore' })).toBeVisible();
+    await nav(O).getByRole('button', { name: 'Discover', exact: true }).click();
+    const cal = O.locator('[data-screen-label=Discover]');
+    await expect(cal.getByRole('heading', { name: 'Discover' })).toBeVisible();
     await expect(cal).toContainText(/Everything happening in your \d+ groups?/);
     const card = cal.locator('[data-plan="' + title + '"]');
     await expect(card).toContainText('3 spots left');
@@ -119,7 +131,7 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     await expect(O.getByText('Marked as maybe')).toBeVisible();
 
     // His Your tasks: a Helping card with just "You said Maybe" (it's in the last 3 days) and his sign-up
-    await nav(O).getByRole('button', { name: /^Your tasks/ }).click();
+    await nav(O).getByRole('button', { name: /^Tasks/ }).click();
     const help = O.locator('[data-screen-label="Your tasks"] section[aria-label=Helping] [data-task="' + title + '"]');
     await expect(help).toContainText('You said Maybe');
     await expect(help).toContainText('Update RSVP');
@@ -129,7 +141,7 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     await shot(O, '06-your-tasks-help');
 
     // Your schedule (Tiles): Helping strip, "2 tasks" expands in place; Up next has the same strip
-    await nav(O).getByRole('button', { name: 'Your calendar', exact: true }).click();
+    await nav(O).getByRole('button', { name: 'Calendar', exact: true }).click();
     const sched = O.locator('[data-screen-label="Your calendar"]');
     await pickView(sched, 'Tiles');
     const tile = sched.locator('[data-plan="' + title + '"]');
@@ -139,10 +151,15 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     await expect(tile).toContainText('Ice');
     await pickView(sched, 'Up next');
     await expect(tile).toContainText('Helping');
+    // Up next's strip folds the same way (Design 27): open here (it's today, and he opened it above), a tap shows the count
+    await expect(tile).toContainText('Ice');
+    await tile.getByText('Helping', { exact: true }).click();
+    await expect(tile).toContainText('2 tasks');
+    await expect(tile).not.toContainText('Ice');
     await shot(O, '07-your-schedule-up-next');
 
     // Could use a hand: claim the chairs; "You're on it", and no RSVP question
-    await nav(O).getByRole('button', { name: 'Explore', exact: true }).click();
+    await nav(O).getByRole('button', { name: 'Discover', exact: true }).click();
     await cal.getByRole('button', { name: /^\d+ events? needs? help$/ }).click();
     const hand = O.getByRole('dialog', { name: 'Needs help' });
     const row = hand.locator('[data-hand="' + title + '"] [data-signup="Folding chairs"]');
@@ -168,10 +185,10 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     await expect(gp.getByRole('button', { name: 'Next month' })).toBeVisible();
     await expect(gp.locator('[data-plan="' + title + '"]')).toBeVisible();
     await pickView(gp, 'Tiles');
-    await nav(O).getByRole('button', { name: 'Explore', exact: true }).click();
+    await nav(O).getByRole('button', { name: 'Discover', exact: true }).click();
 
     // Profile and Notifications are sheets
-    await nav(O).getByRole('button', { name: 'Profile', exact: true }).click();
+    await nav(O).getByRole('button', { name: 'Settings', exact: true }).click();
     const prof = O.getByRole('dialog', { name: 'Profile', exact: true });
     await expect(prof.getByRole('button', { name: 'Edit profile' })).toBeVisible();
     await shot(O, '10-profile-sheet');

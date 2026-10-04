@@ -159,8 +159,8 @@ const button = (page, name) => page.getByRole('button', { name, exact: true });
 
 // v6: posting starts from the Calendar's + button (the Create event flow); Profile is the last tab (a sheet)
 async function startPost(page) {
-  await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Explore', exact: true }).click();
-  await page.locator('[data-screen-label=Explore] [data-new-event]').click();
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Discover', exact: true }).click();
+  await page.locator('[data-screen-label=Discover] [data-new-event]').click();
 }
 // Create event opens with the Real or test? pop-up (owner, 2026-10-01)
 async function pickKind(page, test = false) {
@@ -178,7 +178,7 @@ async function pickView(scope, name) {
 // another person looks
 async function saved(page) { await expect(page.locator('html[data-saving]')).toHaveCount(0, { timeout: 20000 }); }
 async function openProfile(page) {
-  await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Profile', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Settings', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'Profile', exact: true })).toBeVisible();
 }
 

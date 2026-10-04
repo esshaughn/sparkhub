@@ -40,11 +40,12 @@ test('post an event with every step filled, then edit it in the pop-ups and dele
     expect((await page.request.get(url)).status()).toBe(200);
 
     // Your tasks (purple): only the job still to fill is left (owner, 2026-10-02: one task per job)
+    // Open to start, header on top (Design 27); tapping the header folds it to a count
     const bar = P.locator('[data-host-tasks-bar]');
-    await expect(bar).toContainText('1 task');
-    await bar.click();
-    await expect(P.locator('[data-screen-label="Your tasks"]')).toContainText('Bring water');
     await expect(P.locator('[data-screen-label="Your tasks"]')).toContainText('Fill 3 spots: Bring water');
+    await bar.click();
+    await expect(bar).toContainText('1 task');
+    await expect(P.locator('[data-screen-label="Your tasks"]')).not.toContainText('Bring water');
 
     // Edit event: a round pencil by Share (owner, 2026-10-01), no pencil after the title; the host gets the photo too
     await expect(P.locator('h1 svg')).toHaveCount(0);
@@ -130,10 +131,10 @@ test('decide everything later: only the title is needed; the host is left with t
     const ask = page.getByRole('dialog', { name: 'Real or test?' });
     await expect(ask.getByRole('button', { name: /^Real event/ })).toHaveAttribute('aria-pressed', 'false');
     await ask.getByText('Never mind', { exact: true }).click();
-    await expect(page.locator('[data-screen-label=Explore]')).toBeVisible();
+    await expect(page.locator('[data-screen-label=Discover]')).toBeVisible();
     await startPost(page);
     await ask.getByRole('button', { name: 'Close' }).click();
-    await expect(page.locator('[data-screen-label=Explore]')).toBeVisible();
+    await expect(page.locator('[data-screen-label=Discover]')).toBeVisible();
     await startPost(page);
     await pickKind(page, true);
     await expect(flow).toContainText('1 of 6');
@@ -142,7 +143,7 @@ test('decide everything later: only the title is needed; the host is left with t
     await expect(flow.getByText('Decide later', { exact: true })).toHaveCount(0);   // the title can't wait
     // With no title, X just closes
     await flow.getByRole('button', { name: 'Close' }).click();
-    await expect(page.locator('[data-screen-label=Explore]')).toBeVisible();
+    await expect(page.locator('[data-screen-label=Discover]')).toBeVisible();
 
     await startPost(page);
     await pickKind(page, true);
@@ -267,9 +268,9 @@ test('decide everything later: only the title is needed; the host is left with t
     await expect(page.getByRole('dialog', { name: 'Edit what you need' })).toBeVisible();
     await page.keyboard.press('Escape');
     // Not on the Calendar until the host makes it a plan
-    await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Explore', exact: true }).click();
-    await expect(page.locator('[data-screen-label=Explore]')).toBeVisible();
-    await expect(page.locator('[data-screen-label=Explore] [data-plan="' + title.charAt(0).toUpperCase() + title.slice(1) + '"]')).toHaveCount(0);
+    await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Discover', exact: true }).click();
+    await expect(page.locator('[data-screen-label=Discover]')).toBeVisible();
+    await expect(page.locator('[data-screen-label=Discover] [data-plan="' + title.charAt(0).toUpperCase() + title.slice(1) + '"]')).toHaveCount(0);
     expect(errors).toEqual([]);
   } finally {
     if (id) await asUser(page, async (c, _C, id) => { await c.from('sparks').delete().eq('id', id); }, id).catch(() => {});
@@ -389,11 +390,11 @@ test('drafts: X saves one, Your tasks lists it under Leading, Continue picks up 
     await all.getByRole('button', { name: 'Close' }).click();
     await expect(page.locator('[aria-label="Your drafts"]')).toHaveCount(0);
     // ...and not on Your schedule either (owner, 2026-10-01)
-    await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Your calendar', exact: true }).click();
+    await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Calendar', exact: true }).click();
     await expect(page.locator('[data-screen-label="Your calendar"]')).toBeVisible();
     await expect(page.locator('[aria-label="Your drafts"]')).toHaveCount(0);
     await expect(page.locator('[data-screen-label="Your calendar"] [data-draft]')).toHaveCount(0);
-    await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: /^Your tasks/ }).click();
+    await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: /^Tasks/ }).click();
     const draft = leading.locator('[data-draft="' + title + '"]');
     await expect(draft).toContainText('DRAFT');
     await expect(draft).toContainText('Up next: Location');
@@ -483,7 +484,7 @@ test('Create event: a tab tap asks about a draft, Return goes on, and a reload p
     await flow.getByLabel('Event title').press('Enter');
     await expect(flow).toContainText('2 of 6');
     // A tab: the draft question, and Keep going stays put
-    await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Your calendar', exact: true }).click();
+    await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Calendar', exact: true }).click();
     const leave = page.getByRole('dialog', { name: 'Save as draft' });
     await expect(leave).toContainText('Save this as a draft?');
     await leave.getByRole('button', { name: 'Keep going' }).click();
@@ -493,7 +494,7 @@ test('Create event: a tab tap asks about a draft, Return goes on, and a reload p
     await expect(flow).toContainText('2 of 6');
     await expect(flow).toContainText(new RegExp(title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'));
     // Discard from a tab tap goes to that tab, and nothing is kept for the next reload
-    await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Your calendar', exact: true }).click();
+    await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Calendar', exact: true }).click();
     await leave.getByRole('button', { name: 'Discard' }).click();
     await expect(page.locator('[data-screen-label="Your calendar"]')).toBeVisible();
     await expect(flow).toHaveCount(0);
