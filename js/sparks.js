@@ -3933,7 +3933,7 @@
   // Topics (Settings) → filter chips: new events = Invites; updates + reminders = Updates; the rest = Hosting
   const N_TYPES = {
     newevent: { bg: '#149a4b', glyph: '●', cat: 'invites', topic: 'newevents' },
-    update: { bg: '#0d1117', glyph: '“', cat: 'updates', topic: 'updates' },
+    update: { bg: '#d6246e', glyph: '“', cat: 'updates', topic: 'updates' },   // magenta: the lead telling you something (Design 32)
     reminder: { bg: '#e2556b', glyph: '⏰', cat: 'updates', topic: 'reminders' },
     rsvp: { bg: '#149a4b', glyph: '✓', cat: 'hosting', topic: 'hosting' },
     signup: { bg: '#e8a71c', glyph: '+', cat: 'hosting', topic: 'hosting' },
@@ -5976,6 +5976,9 @@
       '<span style="display:block;background:' + band + ';color:#fff;font-size:13px;font-weight:900;letter-spacing:1px;padding:4px 0">' + dp.mon + '</span><span style="display:block;font-size:38px;line-height:1.15;font-weight:900;color:#0d1117">' + dp.day + '</span><span style="display:block;padding-bottom:5px;font-size:12.5px;font-weight:800;color:#6b7280">' + dp.dow + '</span></span>'; };
 
   // ---- Event updates (Design 29, card 2e + bullhorn 3b) ----
+  // Magenta is the attention colour (Design 32, 6b/6g): only for the lead telling you something (this card, its day-of
+  // band, Post an update, the bell's badge on update rows)
+  const MAG = { strong: '#d6246e', ink: '#a8164f', line: '#f5c4d7', tint: '#fdf0f5' };
   const BULLHORN = '<path d="M4 9.5h3l9-5v15l-9-5H4a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1Z"/><path d="M7 14.5 8.5 20h2.5l-1-5"/><path d="M19.5 9.5v5"/>';
   const updWho = (s, u) => u.createdBy || s.leadId;
   const updName = (s, u) => u.createdBy && u.createdBy !== s.leadId ? nameOf(u.createdBy) : nameOf(s.leadId, s.leadName);
@@ -5988,13 +5991,13 @@
     if (!n) return '';
     const u = list[0], today = daysTo(s) === 0;
     const head = today
-      ? '<div style="display:flex;align-items:center;gap:8px;height:36px;padding:0 16px;background:#5b4ae8;color:#fff;font-size:12.5px;font-weight:900;letter-spacing:1px">' + svg(18, stroke('currentColor', 2.2), BULLHORN) + 'TODAY · UPDATE</div>'
-      : '<div style="display:flex;align-items:center;gap:8px;padding:16px 16px 0;font-size:13px;font-weight:900;letter-spacing:1.2px;color:#5b4ae8">' + svg(20, stroke('currentColor', 2.2), BULLHORN) + 'UPDATE</div>';
-    return '<div data-screen-label="Updates" data-updates style="background:#f7f6ff;border-radius:18px;overflow:hidden;box-shadow:' + (today ? '0 0 0 2px #5b4ae8, 0 6px 18px rgba(91,74,232,.18)' : 'inset 0 0 0 1.5px #dcd7fb') + '">' + head +
-      '<div style="padding:10px 16px 14px;display:flex;flex-direction:column;gap:8px">' +
+      ? '<div style="display:flex;align-items:center;gap:8px;height:36px;padding:0 16px;background:' + MAG.strong + ';color:#fff;font-size:12.5px;font-weight:900;letter-spacing:1px">' + svg(18, stroke('currentColor', 2.2), BULLHORN) + 'TODAY · UPDATE</div>'
+      : '<div style="display:flex;align-items:center;gap:8px;height:40px;padding:0 16px;background:' + MAG.tint + ';border-bottom:1px solid ' + MAG.line + ';font-size:13px;font-weight:900;letter-spacing:1.2px;color:' + MAG.ink + '">' + svg(20, stroke('currentColor', 2.2), BULLHORN) + 'UPDATE</div>';
+    return '<div data-screen-label="Updates" data-updates style="background:#fff;border-radius:18px;overflow:hidden;box-shadow:' + (today ? '0 0 0 2px ' + MAG.strong + ', 0 6px 18px rgba(214,36,110,.2)' : 'inset 0 0 0 1.5px ' + MAG.line) + '">' + head +
+      '<div style="padding:14px 16px;display:flex;flex-direction:column;gap:8px">' +
         '<div data-update style="font-size:19px;line-height:1.3;font-weight:800;letter-spacing:-.2px;color:#0d1117;white-space:pre-line;overflow-wrap:anywhere">' + esc(u.body) + '</div>' +
         '<div style="display:flex;align-items:center;gap:7px">' + updFace(s, u, 20) + '<span style="flex:1;min-width:0;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><b style="font-weight:800;color:#5c6270">' + esc(updName(s, u)) + '</b><span style="font-weight:500;color:#6b7280"> · ' + esc(ago(u.created)) + '</span></span>' + updMore(s, u) + '</div></div>' +
-      (n > 1 ? '<div ' + on(() => setState({ updAll: s.id })) + ' data-upd-more style="display:flex;align-items:center;justify-content:space-between;min-height:44px;padding:0 16px;border-top:1px solid #ece9fb;font-size:13.5px;font-weight:700;color:#4a3ad4;cursor:pointer">' + (n - 1) + (n === 2 ? ' earlier update' : ' earlier updates') + I.chevR(14, '#4a3ad4', 2.6) + '</div>' : '') +
+      (n > 1 ? '<div ' + on(() => setState({ updAll: s.id })) + ' data-upd-more style="display:flex;align-items:center;justify-content:space-between;min-height:44px;padding:0 16px;border-top:1px solid ' + MAG.line + ';font-size:13.5px;font-weight:700;color:' + MAG.ink + ';cursor:pointer">' + (n - 1) + (n === 2 ? ' earlier update' : ' earlier updates') + I.chevR(14, MAG.ink, 2.6) + '</div>' : '') +
     '</div>';
   };
 
@@ -6059,7 +6062,7 @@
       (lead ? '<div style="display:flex;flex-direction:column;gap:8px">' +
         '<button type="button" class="hov-primary" ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' style="min-height:48px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:15px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer">' +
           svg(17, stroke('currentColor', 2.2), '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M19 8v6M16 11h6"/>') + 'Invite people</button>' +
-        '<button type="button" class="hov-tint" ' + on(() => openBlast(s)) + ' data-post-update style="min-height:48px;border:0;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 2px #c9c2fb;color:#4a3ad4;font-family:inherit;font-size:15px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer">' +
+        '<button type="button" class="hov-mag" ' + on(() => openBlast(s)) + ' data-post-update style="min-height:48px;border:0;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 2px ' + MAG.line + ';color:' + MAG.ink + ';font-family:inherit;font-size:15px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer">' +
           svg(18, stroke('currentColor', 2.2), BULLHORN) + 'Post an update</button></div>' : '') + '</div>';
 
     // (The gold "N things left to decide" banner is gone: the host's tasks bar lists them, owner 2026-09-30)
