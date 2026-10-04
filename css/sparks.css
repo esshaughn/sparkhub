@@ -40,11 +40,11 @@ input[type="date"]::-webkit-date-and-time-value { text-align: left; }
 input::placeholder, textarea::placeholder { color: #b9bcc4; font-weight: 400; font-style: italic; opacity: 1; }
 
 /* ---- Frame: full-bleed on phones, centred ~430px column on desktop ---- */
-/* Tab bar: 51px of labelled tabs (10px, the icon, 4px, the label), then 10px under the labels so they sit centred,
-   or as much as the iPhone home indicator needs (its inset less 16px: 18px on an iPhone 15). Owner, 2026-10-04: the
-   84px of Design's pick 2a left a gap under the labels */
+/* Tab bar: 51px of labelled tabs (10px, the icon, 4px, the label), then 10px under the labels so they sit centred
+   (computers, Android), or on an iPhone the home indicator's inset less 8px (26px on an iPhone 15). Owner, 2026-10-04:
+   less gap under the labels on a computer, but on an iPhone 18px let the screen's curved corners clip the end labels */
 :root {
-  --nav-bottom: max(10px, calc(env(safe-area-inset-bottom, 0px) - 16px));
+  --nav-bottom: max(10px, calc(env(safe-area-inset-bottom, 0px) - 8px));
   --nav-h: calc(51px + var(--nav-bottom));
 }
 /* iPhone status bar: the page runs under it (black-translucent, white time/battery).
