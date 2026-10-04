@@ -5,6 +5,8 @@ const { test, expect } = require('@playwright/test');
 const { uniqueTitle, newLead, openIdea, deleteIdea, asUser, pickView, pickDate, startPost, pickKind } = require('./helpers');
 
 // Local dates, like the app
+// The database counts holds in Central time (America/Chicago): after 7pm Central the runner's UTC date is a day ahead
+const chicagoInDays = (n) => { const [y, m, d] = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }).split('-').map(Number); const t = new Date(Date.UTC(y, m - 1, d + n)); return t.toISOString().slice(0, 10); };
 const inDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 const nav = (p) => p.getByRole('navigation', { name: 'Main' });
 // An idea (or a plan) in Torrez Fitness, led by whoever's page this is
@@ -30,7 +32,7 @@ test('soft holds: a date poll pencils its dates in on Month, warns Start an even
       return a.data.id;
     }, { id, day, day2: inDays(6) });
     await asUser(M, async (c, _C, o) => c.from('date_votes').insert({ option_id: o }), opt);
-    expect(await asUser(H, async (c, _C, id) => (await c.from('sparks').select('hold_until').eq('id', id).single()).data.hold_until, id)).toBe(inDays(7));
+    expect(await asUser(H, async (c, _C, id) => (await c.from('sparks').select('hold_until').eq('id', id).single()).data.hold_until, id)).toBe(chicagoInDays(7));
 
     // Milo's Explore Month: a hollow dot on the day, and PENCILLED IN under the grid once it's picked
     await M.reload();

@@ -5959,7 +5959,7 @@
     if (!mood.length && !lead) return '';
     return '<section data-inspo>' + secTitle('Inspo', lead ? '<span style="font-size:13px;font-weight:700;color:#9aa0ac">' + mood.length + ' / 3</span>' : '') +
       '<div style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:10px">' +
-        (lead && !mood.length ? '<p style="margin:0;font-size:14px;line-height:1.45;font-weight:500;color:#5c6270">Add up to three photos that set the mood: the place, past years, the feel you’re going for.</p>' : '') +
+        (lead && !mood.length ? '<p style="margin:0;font-size:14px;line-height:1.45;font-weight:500;color:#5c6270">Add photos that set the mood: the place, past years, the feel you’re going for</p>' : '') +
         '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">' +
           mood.map((p, i) => '<div ' + on(() => setState({ zoom: { photos: mood.map(photoUrl), i } })) + ' aria-label="View mood photo ' + (i + 1) + '" style="position:relative;aspect-ratio:1;border-radius:12px;cursor:zoom-in;background:' + bg(photoUrl(p)) + '">' +
             (lead ? '<span ' + on((e) => { stop(e); if (!state.busy) removeMood(s, p); }) + ' aria-label="Remove photo" style="position:absolute;top:5px;right:5px;width:24px;height:24px;border-radius:999px;background:rgba(13,17,23,.6);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(11, '#fff', 3) + '</span>' : '') +

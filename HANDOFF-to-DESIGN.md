@@ -33,6 +33,7 @@ Where this doc and the design files disagree, **this doc is correct**.
 | 21 | **Step 1 keeps *People going can invite friends*** (*Start an event, step 1*): the switch moved from Review with Post to and Public / Private, under the tiles | Not shown on step 1 | Review's section is gone and the setting still needs a home |
 | 23 | **Step 1's Post to has no sub line** (owner, 2026-10-03): just the heading over the groups | *Pick one or more groups.* under it | Owner |
 | 24 | **Step 1's cover photo row is taller** (owner, 2026-10-03): 84px with a 32px camera | 56px, 22px camera | Owner |
+| 25 | **Inspo's empty line** (owner, 2026-10-03): *Add photos that set the mood: the place, past years, the feel you’re going for* (no *up to three*, no full stop) | *Add up to three photos…* | Owner |
 | 22 | **Invite people shows answers** (owner, 2026-10-03): anyone who has replied shows *Going* (green), *Maybe* (gold `#b07a0a`) or *Can’t* (gray) instead of a tick or *✓ Invited*, and can't be picked | Only *Going* | Owner: a Can't was still invitable and a Maybe read *Invited* |
 | 14 | **Friends' + Add shares on a phone** (*Your people*): it opens the phone's share sheet with the friend link, and copies it on a computer, as *Add a friend* always has | Copies the link | Same action as before |
 | 15 | **The friends card follows Search** (*Your people*): with a search, it shows only the matching friends (or *No friends match …*), and See all opens the sheet with that search filled in | Not specified | One search for the page |
