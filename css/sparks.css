@@ -40,11 +40,12 @@ input[type="date"]::-webkit-date-and-time-value { text-align: left; }
 input::placeholder, textarea::placeholder { color: #b9bcc4; font-weight: 400; font-style: italic; opacity: 1; }
 
 /* ---- Frame: full-bleed on phones, centred ~430px column on desktop ---- */
-/* Tab bar: 58px of labelled tabs (8px, the icon, 4px, the label), then only as much as the iPhone home indicator
-   needs (its inset less 8px, at least 14px): 84px on an iPhone, as Design's pick 2a */
+/* Tab bar: 51px of labelled tabs (10px, the icon, 4px, the label), then 10px under the labels so they sit centred,
+   or as much as the iPhone home indicator needs (its inset less 16px: 18px on an iPhone 15). Owner, 2026-10-04: the
+   84px of Design's pick 2a left a gap under the labels */
 :root {
-  --nav-bottom: max(14px, calc(env(safe-area-inset-bottom, 0px) - 8px));
-  --nav-h: calc(58px + var(--nav-bottom));
+  --nav-bottom: max(10px, calc(env(safe-area-inset-bottom, 0px) - 16px));
+  --nav-h: calc(51px + var(--nav-bottom));
 }
 /* iPhone status bar: the page runs under it (black-translucent, white time/battery).
    Photo-topped screens let the photo show through (--pt pushes their controls down);
@@ -95,7 +96,7 @@ html.tall-fix .app { bottom: auto; height: var(--true-h); }
     border-radius: 30px;
     box-shadow: 0 20px 60px rgba(15, 18, 25, .12);
   }
-  :root { --nav-bottom: 15px; }
+  :root { --nav-bottom: 10px; }
 }
 
 .scroller { position: absolute; inset: 0; overflow: auto; -webkit-overflow-scrolling: touch; }

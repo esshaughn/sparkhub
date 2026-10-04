@@ -7659,7 +7659,7 @@
     };
     const lbl = (text) => '<span style="font-size:11.5px;line-height:13px;font-weight:800;white-space:nowrap">' + text + '</span>';
     const tab = (active, label, text, icon, fn) => '<div ' + on(leave(fn)) + ' aria-label="' + label + '"' + (active ? ' aria-current="page"' : '') +
-      ' style="padding-top:8px;min-height:52px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;gap:4px;width:100%;color:' + (active ? '#5b4ae8' : '#6b7280') + ';cursor:pointer">' +
+      ' style="padding-top:10px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;gap:4px;width:100%;color:' + (active ? '#5b4ae8' : '#6b7280') + ';cursor:pointer">' +
       '<span style="height:24px;display:flex;align-items:center">' + icon + '</span>' + lbl(text) + '</div>';
     const calOn = s === 'sched' && !prof;
     return '<nav class="tabbar" aria-label="Main">' +
@@ -7667,7 +7667,7 @@
       tab(s === 'home' && !prof, n ? 'Tasks, ' + n : 'Tasks', 'Tasks', '<span style="position:relative;display:flex">' + svg(24, stroke('currentColor', 1.9), P6.tasks) +
         (n ? '<span aria-hidden="true" style="position:absolute;top:-6px;right:-9px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;border:2px solid #fff;background:#5b4ae8;color:#fff;font-size:10.5px;font-weight:900;display:flex;align-items:center;justify-content:center;box-sizing:border-box">' + (n > 9 ? '9+' : n) + '</span>' : '') + '</span>', () => go('home')) +
       // The ring rises 20px out of its column, with a white halo that cuts the bar's top line; its label keeps the others' baseline
-      '<div ' + on(leave(() => go('sched'))) + ' aria-label="Calendar"' + (calOn ? ' aria-current="page"' : '') + ' style="padding-top:8px;min-height:52px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;gap:4px;width:100%;color:' + (calOn ? '#5b4ae8' : '#6b7280') + ';cursor:pointer">' +
+      '<div ' + on(leave(() => go('sched'))) + ' aria-label="Calendar"' + (calOn ? ' aria-current="page"' : '') + ' style="padding-top:10px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;gap:4px;width:100%;color:' + (calOn ? '#5b4ae8' : '#6b7280') + ';cursor:pointer">' +
         '<span style="width:44px;height:44px;margin-top:-20px;border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 3px #fff, inset 0 0 0 ' + (calOn ? '2px #5b4ae8' : '1.9px #c3c7d0') + '">' +
           svg(24, stroke('currentColor', 2.1), '<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>') + '</span>' + lbl('Calendar') + '</div>' +
       tab(s === 'groups' && !prof, 'Groups', 'Groups', I.tabPeople, () => go('groups')) +
