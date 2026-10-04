@@ -2871,8 +2871,7 @@
       '<span style="padding:0 4px;font-size:13.5px;font-weight:600;color:#6b7280">Tap a name for their profile. Tick people to invite them together.</span>' +
       '<div style="background:#fff;border-radius:20px;box-shadow:0 1px 3px rgba(15,18,25,.08);padding:2px 16px">' + rows.map(row).join('') +
         (qq && !rows.length ? '<div style="padding:18px 0;text-align:center;font-size:14.5px;font-weight:700;color:#6b7280">No friends match “' + esc(st.frAllQ.trim()) + '”</div>' : '') + '</div>' +
-      bar +
-      '<span ' + on(newFriendLink) + ' data-new-friend-link style="align-self:center;display:flex;align-items:center;min-height:40px;font-size:13px;font-weight:700;color:#8a909b;cursor:pointer">Get a new friend link</span>', 44);
+      bar, 44);   // Get a new friend link (newFriendLink) is hidden for now (owner, 2026-10-03)
   }
 
   // Add a group (+ Join or add): Join a group, and Start a group, which is coming soon (Design 20, 2026-10-03)
