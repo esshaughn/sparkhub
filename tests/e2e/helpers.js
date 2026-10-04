@@ -253,7 +253,7 @@ async function postEvent(page, { title, date, time, where, pick, details = [], j
     await pickDate(flow, date);
     if (time) {
       await flow.getByRole('button', { name: 'Add a start time (optional)' }).click();
-      await flow.getByRole('option', { name: timeWord(time), exact: true }).click();
+      await pickTime(flow, time);
     }
     await next();
   } else await later();
@@ -319,12 +319,19 @@ async function addJob(page, { item, need = 1, time }) {
   for (let k = 1; k < need; k++) await row.getByRole('button', { name: 'More for how many people' }).click();
   if (time) {   // the app's own time list, not a browser menu
     await row.getByRole('button', { name: 'Time ' + n, exact: true }).click();
-    await row.getByRole('option', { name: timeWord(time), exact: true }).click();
+    await pickTime(row, time);
   }
   await sheet.getByRole('button', { name: 'Save changes' }).click();
   await expect(sheet).toHaveCount(0);
 }
 // "17:30" → "5:30pm", as the time list shows it
+// The time grid (owner, 2026-10-03): am / pm, the hour, then the minute picks it. t is "17:30"
+async function pickTime(scope, t) {
+  const [h, m] = t.split(':').map(Number), grid = scope.locator('[data-time-list]');
+  await grid.getByRole('radio', { name: h < 12 ? 'am' : 'pm', exact: true }).click();
+  await grid.locator('[data-hour="' + (h % 12 || 12) + '"]').click();
+  await grid.locator('[data-minute="' + String(m).padStart(2, '0') + '"]').click();
+}
 const timeWord = (t) => { const [h, m] = t.split(':').map(Number); return (h % 12 || 12) + ':' + String(m).padStart(2, '0') + (h < 12 ? 'am' : 'pm'); };
 
 // Confirm dialogs: click the action, then the confirm button in the dialog.
@@ -379,5 +386,5 @@ async function asUser(page, fn, args) {
 
 module.exports = {
   TAG, TORREZ, PNG, leadEmail, uniqueTitle, startPost, openProfile, saved, pickView, mockPlaces, stubPhotos, trackErrors, expectConnected, newMember, newLead, button,
-  postIdea, postEvent, closeAskFirst, pickDate, pickKind, addJob, answerNamePrompt, answerGuestPrompt, ideaIdFromUrl, openIdea, confirm, deleteIdea, asUser
+  postIdea, postEvent, closeAskFirst, pickDate, pickTime, pickKind, addJob, answerNamePrompt, answerGuestPrompt, ideaIdFromUrl, openIdea, confirm, deleteIdea, asUser
 };

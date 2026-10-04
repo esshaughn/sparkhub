@@ -6714,20 +6714,41 @@
   // A list or calendar that would run past its pop-up's edge scrolls into view as it opens
   const showDrop = (sel) => setTimeout(() => { const el = document.querySelector(sel); if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest' }); }, 0);
   // o: { label, slim: no clock icon (a narrow row), h: the field's height (58), none: a first row that clears the time }
+  // The time field opens a tap grid (owner, 2026-10-03: scrolling the half-hour list took too long): am / pm, the hour,
+  // then the minute (:00 :15 :30 :45), which picks it. Only times inside opts' range can be tapped (an end after its start)
   const timeField = (key, value, opts, hint, pick, o) => {
     o = o || {};
-    const open = state.timeOpen === key;
-    const toggle = () => { setState({ timeOpen: open ? null : key, dateOpen: null }); if (!open) { setTimeout(() => { const el = document.querySelector('[data-time-list] [data-cur]'); if (el) el.parentNode.scrollTop = el.offsetTop - 96; }, 0); showDrop('[data-time-list]'); } };
+    const open = state.timeOpen === key, lo = opts[0] || '00:00', hi = opts[opts.length - 1] || '23:59';
+    const ok = (v) => v >= lo && (v <= hi || hi >= '23:30');
+    const from = (v) => { const h = +v.slice(0, 2); return { h: h % 12 || 12, ap: h < 12 ? 'am' : 'pm' }; };
+    const toggle = () => { setState({ timeOpen: open ? null : key, dateOpen: null, timeDraft: value ? from(value) : { h: null, ap: lo >= '12:00' || !value ? 'pm' : 'am' } }); if (!open) showDrop('[data-time-list]'); };
+    const d = (open && state.timeDraft) || (value ? from(value) : { h: null, ap: 'pm' });
+    const hv = (h, ap) => pad2((h % 12) + (ap === 'pm' ? 12 : 0));
+    const at = (h, ap, m) => hv(h, ap) + ':' + m;
+    const MINS = ['00', '15', '30', '45'];
+    const setD = (patch) => setState({ timeDraft: Object.assign({}, d, patch) });
+    const cell = (label, onIt, off, fn, attrs, role) => '<span ' + (off ? 'aria-disabled="true"' + (role ? ' role="' + role + '"' : '') : on(fn, role)) + ' ' + (attrs || '') + ' style="display:flex;align-items:center;justify-content:center;min-height:44px;border-radius:12px;font-size:16px;font-weight:' + (onIt ? 900 : 700) + ';' +
+      (onIt ? 'background:#5b4ae8;color:#fff' : off ? 'color:#c9ccd3' : 'background:#f4f5f7;color:#0d1117;cursor:pointer') + '">' + label + '</span>';
+    const valH = value ? from(value) : null, valM = value ? value.slice(3, 5) : null;
     return '<div style="position:relative;min-width:0">' +
       '<div ' + on(toggle) + ' aria-label="' + esc(o.label || hint) + '" aria-expanded="' + open + '" style="display:flex;align-items:center;gap:' + (o.slim ? 8 : 10) + 'px;min-height:' + (o.h || 58) + 'px;padding:0 ' + (o.slim ? 12 : 14) + 'px;border-radius:16px;background:#fff;box-shadow:inset 0 0 0 2px ' + (open ? '#5b4ae8' : '#dcdfe6') + ';cursor:pointer">' +
         (o.slim ? '' : '<span style="display:flex;color:' + (value ? '#5b4ae8' : '#9aa0ac') + '">' + svg(18, stroke('currentColor', 2.2), P5.clock) + '</span>') +
         '<span style="flex:1;min-width:0;' + (o.slim ? 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;' : '') + (value ? 'font-size:17px;font-weight:800;color:#0d1117' : 'font-size:16.5px;font-weight:400;font-style:italic;color:#b9bcc4') + '">' + esc(value ? clock(value) : hint) + '</span>' +
         I.chevD(14, '#9aa0ac', 2.6) + '</div>' +
       (open ? '<div ' + on(() => setState({ timeOpen: null })) + ' aria-hidden="true" style="position:fixed;inset:0;z-index:19"></div>' +
-        '<div data-time-list role="listbox" style="scroll-margin:12px;position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:20;max-height:236px;overflow-y:auto;background:#fff;border-radius:16px;box-shadow:0 14px 34px rgba(15,18,25,.2), 0 0 0 1px #e6e7eb;padding:6px;display:flex;flex-direction:column;gap:2px">' +
-          (o.none && value ? '<div ' + on(() => pick(''), 'option') + ' aria-selected="false" style="display:flex;align-items:center;min-height:44px;padding:0 12px;border-radius:10px;flex:0 0 auto;font-size:16px;font-weight:700;color:#6b7280;cursor:pointer">' + esc(o.none) + '</div>' : '') +
-          opts.map(v => '<div ' + on(() => pick(v), 'option') + ' aria-selected="' + (v === value) + '"' + (v === value ? ' data-cur' : '') + ' style="display:flex;align-items:center;justify-content:space-between;min-height:44px;padding:0 12px;border-radius:10px;flex:0 0 auto;font-size:16px;cursor:pointer;' +
-            (v === value ? 'background:#f3f1fe;color:#5b4ae8;font-weight:900' : 'color:#0d1117;font-weight:700') + '"><span>' + clock(v) + '</span>' + (v === value ? I.check(16, '#5b4ae8', 3) : '') + '</div>').join('') + '</div>' : '') +
+        '<div data-time-list role="group" aria-label="Pick a time" style="scroll-margin:12px;position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:20;min-width:252px;background:#fff;border-radius:16px;box-shadow:0 14px 34px rgba(15,18,25,.2), 0 0 0 1px #e6e7eb;padding:10px;display:flex;flex-direction:column;gap:10px">' +
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">' + ['am', 'pm'].map(ap => {
+            const off = !Array.from({ length: 12 }, (_, i) => i + 1).some(h => MINS.some(m => ok(at(h, ap, m))));
+            return cell(ap, d.ap === ap, off, () => setD({ ap }), 'aria-checked="' + (d.ap === ap) + '" aria-label="' + ap + '"', 'radio'); }).join('') + '</div>' +
+          '<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px">' + Array.from({ length: 12 }, (_, i) => i + 1).map(h => {
+            const off = !MINS.some(m => ok(at(h, d.ap, m)));
+            return cell(String(h), d.h === h, off, () => setD({ h }), 'data-hour="' + h + '" aria-pressed="' + (d.h === h) + '"'); }).join('') + '</div>' +
+          '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">' + MINS.map(m => {
+            const v = d.h ? at(d.h, d.ap, m) : null, cur = !!valH && valH.h === d.h && valH.ap === d.ap && valM === m;
+            return cell(':' + m, cur, !v || !ok(v), () => pick(v), 'data-minute="' + m + '"' + (v ? ' aria-label="' + clock(v) + '"' : '')); }).join('') + '</div>' +
+          (d.h ? '' : '<div style="text-align:center;font-size:12.5px;font-weight:600;color:#8a909b">Tap the hour, then the minutes</div>') +
+          (o.none && value ? '<span ' + on(() => pick('')) + ' style="align-self:center;min-height:36px;display:flex;align-items:center;font-size:14.5px;font-weight:800;color:#6b7280;cursor:pointer">' + esc(o.none) + '</span>' : '') +
+        '</div>' : '') +
     '</div>';
   };
   // The date picker (owner, 2026-10-01: the browser's own calendar looked old next to the time list): a field like the

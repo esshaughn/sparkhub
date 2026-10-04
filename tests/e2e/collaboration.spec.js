@@ -1,7 +1,7 @@
 // A lead and a member on one idea: the shared link, "I'm interested", suggestions everyone votes on,
 // the lead picking, the mood board, making it a plan. A guest (no account) is asked to make one.
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newMember, newLead, leadEmail, button, pickDate, saved, postIdea, openIdea, deleteIdea, answerGuestPrompt, confirm, PNG, openProfile } = require('./helpers');
+const { uniqueTitle, newMember, newLead, leadEmail, button, pickDate, pickTime, saved, postIdea, openIdea, deleteIdea, answerGuestPrompt, confirm, PNG, openProfile } = require('./helpers');
 
 test('a member with the link takes part; everyone votes; the lead picks and makes it a plan', async ({ browser }) => {
   const lead = await newLead(browser, 1, 'Lena');
@@ -58,7 +58,7 @@ test('a member with the link takes part; everyone votes; the lead picks and make
     const dateOffer = G.getByRole('dialog', { name: 'Add a date' });
     await pickDate(dateOffer, '2026-11-14');   // our own date picker and time list, not the browser's
     await dateOffer.getByRole('button', { name: 'Optional', exact: true }).click();
-    await dateOffer.getByRole('option', { name: '6:30pm', exact: true }).click();
+    await pickTime(dateOffer, '18:30');
     await dateOffer.getByRole('button', { name: 'Add date', exact: true }).click();
     await expect(G.getByRole('dialog')).toHaveCount(0);
     await expect(GD.getByRole('button', { name: /^Remove your vote for Sat, Nov 14 · 6:30pm \(1 vote, suggested by Gus\)/ })).toBeVisible();

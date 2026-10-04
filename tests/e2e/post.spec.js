@@ -1,7 +1,7 @@
 // Create event (v6 Update 6): the 5-step flow with "Decide later", polls, jobs, Review, drafts,
 // then the host's edit pop-ups on the event page.
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newLead, button, postEvent, openIdea, confirm, startPost, asUser, closeAskFirst, pickKind, pickDate, deleteIdea, ideaIdFromUrl } = require('./helpers');
+const { uniqueTitle, newLead, button, postEvent, openIdea, confirm, startPost, asUser, closeAskFirst, pickKind, pickDate, pickTime, deleteIdea, ideaIdFromUrl } = require('./helpers');
 
 const inDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 
@@ -163,10 +163,12 @@ test('decide everything later: only the title is needed; the host is left with t
     await expect(flow).toContainText('Date & time');
     await pickDate(flow, inDays(10));
     await flow.getByRole('button', { name: 'Add a start time (optional)' }).click();
-    await flow.getByRole('option', { name: '6:00pm', exact: true }).click();
+    await expect(flow.locator('[data-time-list] [data-hour]')).toHaveCount(12);   // the tap grid: am / pm, hour, minute (owner, 2026-10-03)
+    await pickTime(flow, '18:00');
     await flow.getByText('Add end time').click();
-    await expect(flow.getByRole('option', { name: '5:30pm', exact: true })).toHaveCount(0);
-    await flow.getByRole('option', { name: '8:00pm', exact: true }).click();
+    await flow.locator('[data-time-list]').getByRole('radio', { name: 'pm', exact: true }).click();
+    await expect(flow.locator('[data-time-list] [data-hour="5"]')).toHaveAttribute('aria-disabled', 'true');
+    await pickTime(flow, '20:00');
     // Decide later only shows while the step is empty, so it can't wipe what's filled in
     await expect(flow.getByText('Decide later', { exact: true })).toHaveCount(0);
     await pickDate(flow, '');
@@ -304,10 +306,10 @@ test('polls: the host posts a date poll (an idea), a member votes, the host pick
     await poll.locator('[data-day="' + inDays(15) + '"]').click();
     // The time is the app's own list, like the calendar (not the browser's menu); No time clears it
     await poll.getByRole('button', { name: 'Time option 1' }).click();
-    await poll.getByRole('option', { name: '6:00pm', exact: true }).click();
+    await pickTime(poll, '18:00');
     await expect(poll.getByRole('button', { name: 'Time option 1' })).toContainText('6:00pm');
     await poll.getByRole('button', { name: 'Time option 1' }).click();
-    await poll.getByRole('option', { name: 'No time', exact: true }).click();
+    await poll.locator('[data-time-list]').getByRole('button', { name: 'No time', exact: true }).click();
     await expect(poll.getByRole('button', { name: 'Time option 1' })).toContainText('Time');
     await pickDate(poll, inDays(16), 'Date option 2');
     await poll.getByRole('button', { name: 'Save', exact: true }).click();
@@ -555,17 +557,19 @@ test('an ideaâ€™s Details (no How many people for now); a bare starter chip canâ
     await job.getByRole('button', { name: 'Time', exact: true }).click();
     const list = await job.locator('[data-time-list]').boundingBox(), jobEdge = await job.boundingBox();
     expect(list.y + list.height).toBeLessThanOrEqual(jobEdge.y + jobEdge.height);
-    await job.getByRole('option', { name: '5:00pm', exact: true }).click();
+    await pickTime(job, '17:00');
     await expect(job.getByRole('button', { name: 'Time', exact: true })).toContainText('5:00pm');
     // Shifts use the same list: the end only offers later times
     await job.getByText('Add a shift').click();
     await job.getByRole('button', { name: 'Shift 1 end' }).click();
-    await expect(job.getByRole('option', { name: '5:00pm', exact: true })).toHaveCount(0);
-    await job.getByRole('option', { name: '6:00pm', exact: true }).click();
+    await job.locator('[data-time-list]').getByRole('radio', { name: 'pm', exact: true }).click();
+    await job.locator('[data-time-list] [data-hour="5"]').click();
+    await expect(job.locator('[data-time-list] [data-minute="00"]')).toHaveAttribute('aria-disabled', 'true');
+    await pickTime(job, '18:00');
     await expect(job.getByRole('button', { name: 'Shift 1 end' })).toContainText('6:00pm');
     await job.getByText('Use one time instead').click();
     await job.getByRole('button', { name: 'Time', exact: true }).click();
-    await job.getByRole('option', { name: 'No time', exact: true }).click();   // clears it
+    await job.locator('[data-time-list]').getByRole('button', { name: 'No time', exact: true }).click();   // clears it
     await job.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(flow).not.toContainText('FOR EXAMPLE');
     await expect(flow.locator('[data-job="Bring a ball"]')).toBeVisible();

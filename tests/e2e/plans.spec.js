@@ -1,7 +1,7 @@
 // V5 plans: RSVPs (going / maybe / can't) from a guest with the link, sign-ups, updates from
 // the host, a date change that tells everyone going, "it happened" with its album, and private plans.
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newMember, newLead, button, postEvent, openIdea, deleteIdea, answerGuestPrompt, confirm, asUser, postIdea, PNG, pickDate } = require('./helpers');
+const { uniqueTitle, newMember, newLead, button, postEvent, openIdea, deleteIdea, answerGuestPrompt, confirm, asUser, postIdea, PNG, pickDate, pickTime } = require('./helpers');
 
 // Local dates, like the app (toISOString would be UTC, a day ahead in the evening)
 const inDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
@@ -167,8 +167,9 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     // The end time is a small "+ Add end time" link until it's asked for, as on Create event; the ✕ takes it off again
     await expect(when.getByRole('button', { name: 'Add an end time' })).toHaveCount(0);
     await when.getByText('Add end time').click();
-    await expect(when.getByRole('option', { name: '5:30pm', exact: true })).toHaveCount(0);   // only later times
-    await when.getByRole('option', { name: '7:00pm', exact: true }).click();
+    await when.locator('[data-time-list]').getByRole('radio', { name: 'pm', exact: true }).click();
+    await expect(when.locator('[data-time-list] [data-hour="5"]')).toHaveAttribute('aria-disabled', 'true');   // only later times
+    await pickTime(when, '19:00');
     await expect(when.getByRole('button', { name: 'Add an end time' })).toContainText('7:00pm');
     await when.getByRole('button', { name: 'Remove end time' }).click();
     await expect(when.getByText('Add end time')).toBeVisible();

@@ -248,6 +248,7 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 171 | **Diagonal stripes mean Maybe** (Design 22–23, 2026-10-03): a Maybe's strip, pill and sliver are pale green stripes (`#f7fcf9` / `#e9f6ee`, text `#2f6e49`); the picked Maybe RSVP button and the preview's Maybe are gold stripes (`#e8a71c` / `#f1bb45`, dark text) | Test | |
 | 172 | **Start an event, step 1** (Design 21a + 22a + 23a): a 150px header (titles 24px on every step), a one-line *Add a cover photo* row, **Post to** (a row per group with a square tick; one stays picked), Public (*Anyone in these groups*) / Private and *People going can invite friends*; Review has no *Who can see it* | Test | |
 | 173 | **Invite people shows who answered** (owner, 2026-10-03): *Going* / *Maybe* / *Can’t* in place of the tick or *✓ Invited*; they can't be picked | Test | |
+| 174 | **Time tap grid** (owner, 2026-10-03): every time field (start, end, polls, jobs, shifts) opens am / pm, hours 1–12 and :00 :15 :30 :45; the minute picks it; out-of-range times are greyed | Test | |
 
 ## Removed in this rebuild
 
