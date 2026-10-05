@@ -196,6 +196,7 @@ html.tall-fix .app { bottom: auto; height: var(--true-h); }
 .hov-outline:hover { border-color: #5b4ae8 !important; color: #5b4ae8 !important; }
 .hov-dash:hover { border-color: #5b4ae8 !important; }
 .hov-row:hover { background: #f7f7f9 !important; }
+.hov-lift:hover { box-shadow: 0 2px 8px rgba(15,18,25,.12) !important; }
 .hov-chip:hover { background: #e8eaee !important; }
 .hov-tint2:hover { background: #e9e5fd !important; }
 .hov-grey:hover { border-color: #b9bcc4 !important; }

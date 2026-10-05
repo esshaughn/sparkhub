@@ -85,7 +85,7 @@
   let lastPrefs = '';
   const keepGrps = (v) => Array.isArray(v) && v.length ? v : null;
   const savePrefs = () => {
-    const next = JSON.stringify({ groupId: state.groupId, view: state.view, gView: state.gView, homeView: state.homeView, cView: state.cView, cGrps: keepGrps(state.cGrps), tGrps: keepGrps(state.tGrps), sGrps: keepGrps(state.sGrps), sort: state.sort, guestName: state.guestName, pastStatsHidden: state.pastStatsHidden, jobsOpen: state.jobsOpen });
+    const next = JSON.stringify({ groupId: state.groupId, view: state.view, gView: state.gView, homeView: state.homeView, cView: state.cView, cGrps: keepGrps(state.cGrps), tGrps: keepGrps(state.tGrps), sGrps: keepGrps(state.sGrps), sort: state.sort, guestName: state.guestName, pastStatsHidden: state.pastStatsHidden, jobsOpen: state.jobsOpen, tkView: state.tkView });
     if (next === lastPrefs) return;
     lastPrefs = next;
     try { localStorage.setItem(PREFS_KEY, next); } catch (e) { /* storage blocked: conveniences only */ }
@@ -209,7 +209,7 @@
     fr: { friends: [], incoming: [], outgoing: [], invites: [], loaded: false }, pplTab: 'groups', pplSearch: false, pplQ: '', pplAdd: false, frSel: [], frInvite: false, frAll: false, frAllQ: '',
     frAdd: null, myFriendCode: null, person: null,
     // v6: Profile / Notifications are sheets; Your tasks' "View all", expansions, the RSVP ask
-    profSheet: false, notifSheet: false, dashAll: null, dashOpen: {}, schedOpen: {}, shiftPick: null, banner: null, sigAdding: false,
+    profSheet: false, notifSheet: false, dashAll: null, dashOpen: {}, schedOpen: {}, tkCat: 'all', tkView: prefs.tkView === 'dense' ? 'dense' : 'time', frList: null, frListEd: null, meImp: null, meList: null, shiftPick: null, banner: null, sigAdding: false,
     // v6 Calendar: search, filters, sort, view, month, discovery cards
     cq: '', cSearch: false, cGrps: keepGrps(prefs.cGrps), tGrps: keepGrps(prefs.tGrps), sGrps: keepGrps(prefs.sGrps), cTypes: [], cKind: 'plan', cSort: 'soon', cView: CVIEWS.indexOf(prefs.cView) > -1 ? prefs.cView : 'list',
     cMon: null, cDay: null, cWildHidden: false, cNeedsHidden: false, cHandSheet: false, hMon: null, hDay: null, gMon: null, gDay: null,
@@ -225,7 +225,7 @@
     if (s === 'groupPage' && state.gpId) return '#/group/' + state.gpId;
     if (s === 'compose') return '#/new';   // its own history entry, so the phone's Back stays in the flow (followUrl)
     // Your calendar is the home screen (v7 Update 16, owner 2026-10-03; the Calendar, now Explore, was until then)
-    const plain = { calendar: '#/explore', home: '#/tasks', sched: '', browse: '#/ideas', how: '#/how', own: '#/own', groups: '#/groups' };
+    const plain = { calendar: '#/explore', home: '#/tasks', sched: '', browse: '#/ideas', how: '#/how', own: '#/own', groups: '#/groups', friends: '#/friends', me: '#/me' };
     return plain[s] != null ? plain[s] : null;
   };
   const syncHash = (prevScreen) => {
@@ -254,10 +254,11 @@
     if (h === '#/tasks') return { screen: 'home' };
     if (h === '#/own') return { screen: 'own' };
     if (h === '#/groups') return { screen: 'groups' };
+    if (h === '#/friends') return { screen: 'friends' };
     if (h === '#/new') { history.replaceState(null, '', location.pathname + location.search); return { screen: 'sched' }; }   // a post flow left behind by a reload
     // v6: Profile and Notifications are sheets over the opening screen
     if (h === '#/notifications') return { screen: 'sched', notifSheet: true };
-    if (h === '#/me') return { screen: 'sched', profSheet: true };
+    if (h === '#/me') return { screen: 'me' };   // Me is a tab (v8); it was a sheet over the opening screen
     return { screen: 'sched' };   // the app opens on Your calendar (v7 Update 16, owner 2026-10-03; it was the Calendar, now Explore)
   };
 
@@ -277,21 +278,21 @@
 
   const scroller = () => document.querySelector('.scroller');
   // Screens an event page can come back to, with their scroll position; anywhere else falls back to the group's page
-  const ORIGINS = ['home', 'sched', 'own', 'calendar', 'groups', 'browse'];
+  const ORIGINS = ['home', 'sched', 'own', 'calendar', 'groups', 'friends', 'me', 'browse'];
   const go = (screen, extra) => {
     const sc = scroller();
     if (screen === 'detail' && state.screen !== 'detail') {
       state.back = ORIGINS.indexOf(state.screen) > -1 ? { screen: state.screen, groupId: state.groupId, phaseTab: state.phaseTab, scroll: sc ? sc.scrollTop : 0 } : null;
     }
     // Going anywhere closes the v6 sheets (Profile, Notifications, View all, Could use a hand, Search)
-    setState(Object.assign({ screen, menu: null, zoom: null, sec: null, needEd: null, share: null, cohostPick: null, leadAsk: null, leadsSheet: null, pollSheet: null, profSheet: false, notifSheet: false, dashAll: null, cHandSheet: false, cSearch: false, cq: '', gSearch: false, gq: '', gTry: null, pplAdd: false, frInvite: false, person: null, fbNudge: null, peek: null, gMenu: null, jobAsk: null, handOff: null }, extra || {}));
+    setState(Object.assign({ screen, menu: null, zoom: null, sec: null, needEd: null, share: null, cohostPick: null, leadAsk: null, leadsSheet: null, pollSheet: null, profSheet: false, notifSheet: false, dashAll: null, cHandSheet: false, cSearch: false, cq: '', gSearch: false, gq: '', gTry: null, pplAdd: false, frInvite: false, frList: null, frListEd: null, meImp: null, meList: null, pplSearch: false, pplQ: '', person: null, fbNudge: null, peek: null, gMenu: null, jobAsk: null, handOff: null }, extra || {}));
     if (sc) sc.scrollTop = 0;
   };
 
   let toastTimer = null;
   // act: { label, fn } puts a button on the toast (Undo), and keeps it up a little longer
   const toast = (text, ok, act) => {
-    setState({ toast: { text, ok: !!ok, act: act || null } });
+    setState({ toast: { text, ok: ok === 'soon' ? 'soon' : !!ok, act: act || null } });
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => setState({ toast: null }), act ? 5000 : 3500);
   };
@@ -1424,7 +1425,7 @@
       '<textarea class="fld" rows="2" maxlength="170" data-job-note="' + esc(p.name) + '" aria-label="Why ' + esc(firstName(p.name)) + '? (optional)" placeholder="I thought of you because…" ' +
         onInput(e => { if (e.type === 'input') set({ notes: Object.assign({}, state.jobAsk.notes, { [p.id]: e.target.value.slice(0, 170) }) }); }) + ' style="' + FIELD + ';display:block;height:auto;min-height:0;margin:0 0 10px 46px;width:calc(100% - 46px);padding:10px 14px;font-size:15px;line-height:1.4;resize:none">' + esc(notes[p.id] || '') + '</textarea>';
     return modal('Ask someone to take it', close,
-      h3Html('Ask someone to take “' + esc(j.item) + '”') +
+      h3Html('<span style="font-weight:500;letter-spacing:-.3px">Ask someone to take </span>“' + esc(j.item) + '”') +
       paraHtml(slots === 2 ? 'Ask up to 2 people. Add a note if you like.' : slots === 1 ? 'One ask is waiting, so you can ask 1 more.' : 'Two asks are waiting. Wait for an answer, or withdraw one.') +
       ((ja.people || []).length > 7 ? '<input class="fld" type="search" aria-label="Search people" placeholder="Search" value="' + esc(ja.q || '') + '" ' + onInput(e => { if (e.type === 'input') set({ q: e.target.value.slice(0, 40) }); }) + ' style="' + FIELD + '">' : '') +
       (ja.people === null ? paraHtml('Loading…') : !list.length ? paraHtml(q ? 'Nobody by that name.' : 'No one else to ask yet.') :
@@ -2091,7 +2092,7 @@
     if (r.from === 'post') return () => { if (cleanTitle(state.activity)) createEvent(); else if (state.screen !== 'compose') goCompose(); };
     if (r.from === 'join') return () => setState({ joinOpen: true, joinCode: r.joinCode || '', joinBad: false });
     if (r.from === 'invite') return () => { if (!state.inv) startInvite(r.joinCode, 'joining'); inviteJoin(); };
-    if (r.from === 'profile') return () => go('sched', { profSheet: true });
+    if (r.from === 'profile') return () => go('me');
     if (r.from === 'account' && r.tap) return () => replayTap(r.tap);
     if (r.from === 'account' || r.from === 'guest') return () => toast('You’re signed in. Tap it again to finish.', true);
     return null;
@@ -2534,8 +2535,8 @@
   const openSpark = (s) => go('detail', { subjectId: s.id, menu: null });
   const backLabel = (s) => {
     const b = state.back, g = groupById(s.groupId);
-    if (!b) return g && g.role ? g.name : 'Your calendar';
-    return { home: 'Your tasks', sched: 'Your calendar', own: 'Leading', calendar: 'Discover', groups: 'Groups', browse: (groupById(b.groupId) || g || {}).name || 'the group' }[b.screen];
+    if (!b) return g && g.role ? g.name : 'My calendar';
+    return { home: 'My tasks', sched: 'My calendar', own: 'Leading', calendar: 'All groups', groups: 'My groups', friends: 'My friends', me: 'Me', browse: (groupById(b.groupId) || g || {}).name || 'the group' }[b.screen];
   };
   const goBack = (s) => {
     const b = state.back, g = groupById(s.groupId);
@@ -2626,7 +2627,7 @@
       (open
         ? '<div aria-hidden="true" style="position:fixed;inset:0;z-index:6;background:rgba(13,17,23,.35)"></div>' +
           '<div data-menu role="listbox" aria-label="Switch view" style="position:absolute;top:66px;left:12px;z-index:7;width:300px;max-width:calc(100% - 24px);padding:6px;border-radius:18px;background:#fff;box-shadow:0 18px 44px rgba(15,18,25,.25), 0 0 0 1px #e6e7eb;display:flex;flex-direction:column;gap:2px;animation:popIn 160ms ease both;box-sizing:border-box">' +
-            row(!onH, 'Your tasks', 'What needs you, across everything', '', () => go('home')) +
+            row(!onH, 'My tasks', 'What needs you, across everything', '', () => go('home')) +
             row(onH, 'Leading', 'Every event you’re leading, drafts too', badge, () => go('own')) + '</div>'
         : '');
   };
@@ -2780,78 +2781,197 @@
     '<span ' + on(fn) + ' ' + attr + ' class="hov-fill-grey" style="flex:0 0 auto;display:flex;align-items:center;gap:5px;min-height:34px;padding:0 12px;border-radius:999px;background:#dfe2e7;color:#454b55;font-size:13.5px;font-weight:800;cursor:pointer">' + I.plus(12, 'currentColor', 2.8) + label + '</span></div>';
   // "Darnell, Marisol and Hana", "Darnell, Marisol, Hana and 5 more"
   const namesLine = (ns) => ns.length <= 3 ? ns.join(', ').replace(/, ([^,]*)$/, ' and $1') : ns.slice(0, 3).join(', ') + ' and ' + (ns.length - 3) + ' more';
+  // v8: the white header of the four tab pages (My groups, My friends, My tasks): the title, Search and the bell
+  const tabHead = (title, searchFn, searchLabel) => '<header style="position:relative;z-index:5;background:#fff;padding:14px 16px 10px;display:flex;align-items:center;gap:12px">' +
+    '<div style="flex:1 1 0;min-width:0"><h1 style="min-width:0;margin:0;font-size:30px;line-height:1;font-weight:900;letter-spacing:-1px;color:#0d1117">' + esc(title) + '</h1></div>' +
+    '<div style="flex:0 0 auto;display:flex;gap:8px">' +
+      '<span ' + on(searchFn) + ' aria-label="' + searchLabel + '" style="flex:0 0 44px;width:44px;height:44px;border-radius:999px;background:#f2f3f6;color:#0d1117;display:flex;align-items:center;justify-content:center;cursor:pointer">' + ic6('search', 20, 'currentColor', 2.1) + '</span>' +
+      bellBtn() + '</div></header>';
+  // The groups page's and friends page's search: one field under the header with Cancel
+  const pplSearchField = (placeholder) => !state.pplSearch ? '' :
+    '<div style="display:flex;align-items:center;gap:8px;min-height:48px;padding:0 6px 0 14px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6">' + ic6('search', 17, '#6b7280', 2.4) +
+      '<input class="fld" type="search" data-csearch aria-label="Search" placeholder="' + placeholder + '" value="' + esc(state.pplQ) + '" ' + onInput(e => { if (e.type === 'input') setState({ pplQ: e.target.value.slice(0, 40) }); }) + ' style="flex:1;min-width:0;border:0;outline:0;background:transparent;font-family:inherit;font-size:16px;font-weight:600;color:#0d1117">' +
+      '<span ' + on(() => setState({ pplSearch: false, pplQ: '' })) + ' style="padding:8px 10px;font-size:14px;font-weight:800;color:#6b7280;cursor:pointer">Cancel</span></div>';
+
+  // A small photo square's background: the photo on dark while it loads, or the group's colour when there's none
+  const thumbBg = (s, g) => { const b = s ? photoBg(s) : groupBg(g); return b.indexOf('url(') === 0 ? '#2b303a ' + b : b; };
+  // Your part in an event, for Next up and the Tasks list: leading, helping (a job taken) or going
+  const myPart = (s) => isLead(s) ? 'lead' : helpsOn(s) ? 'help' : myRsvp(s) === 'going' ? 'going' : null;
+  // 4-point sparkles on the gradient cards (v8 9b, 11a), kept off the text
+  const SPARK4 = '<path d="M12 0c.8 6.4 5.6 11.2 12 12-6.4.8-11.2 5.6-12 12-.8-6.4-5.6-11.2-12-12C6.4 11.2 11.2 6.4 12 0Z"/>';
+  const sparkles = (list) => list.map(([x, y, size, fill, op]) => size > 4
+    ? '<svg aria-hidden="true" width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="' + fill + '" style="position:absolute;left:' + x + '%;top:' + y + '%;opacity:' + op + '">' + SPARK4 + '</svg>'
+    : '<span aria-hidden="true" style="position:absolute;left:' + x + '%;top:' + y + '%;width:' + size + 'px;height:' + size + 'px;border-radius:999px;background:' + fill + ';opacity:' + op + '"></span>').join('');
+  const SPARKLE_GRAD = 'linear-gradient(115deg,#5b4ae8 0%,#a03bc8 45%,#d6246e 75%,#f5b428 120%)';
+
   function viewGroups() {
-    // Pinned groups get the big photo cards; everything else (all of them, when nothing is pinned) is a 4:3 tile
+    // My groups (v8): Next up (8b), pinned groups as big photo cards, the rest as square tiles, then All groups (9b)
     const st = state, q = pplQ();
     const all = groupsInOrder(), groups = q ? all.filter(g => g.name.toLowerCase().includes(q)) : all, big = groups.filter(g => g.pinned);
     const rest = groups.filter(g => !g.pinned);
-    const newDot = (g) => newIn(g) ? '<span aria-label="New events" style="display:inline-block;width:9px;height:9px;border-radius:999px;background:#9d93f7;margin-right:6px;vertical-align:1px"></span>' : '';
+    const newDot = (g) => newIn(g) ? '<span aria-label="New events" style="flex:0 0 9px;width:9px;height:9px;border-radius:999px;background:#9d93f7;box-shadow:0 0 0 2px rgba(255,255,255,.9)"></span>' : '';
     const members = (g, px) => { const size = st.sizes[g.id]; return size ? '<div style="margin-top:3px;font-size:' + px + 'px;font-weight:700;color:#dfe2e8">' + size + (size === 1 ? ' member' : ' members') + '</div>' : ''; };
-    const bigCard = (g) => '<div ' + on(() => openGroup(g)) + ' aria-label="' + esc(g.name) + '" style="position:relative;height:170px;border-radius:22px;overflow:hidden;background:#e8a71c;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
+    const bigCard = (g) => '<div ' + on(() => openGroup(g)) + ' aria-label="' + esc(g.name) + '" style="position:relative;height:170px;border-radius:22px;overflow:hidden;background:#2b303a;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
         (groupPhoto(g) ? photoLayer(groupPhoto(g), g.photoPos, GROUP_POS) : '') + GRAD +
         '<div style="position:absolute;top:12px;left:12px">' + roleChip(g) + '</div>' +
         '<div style="position:absolute;top:10px;right:10px;display:flex;gap:8px">' + gearBtn(g) + pinBtn(g, 36) + '</div>' +
         '<div style="position:absolute;left:16px;right:16px;bottom:12px;color:#fff">' +
-          groupTagAbove(g) + '<div style="font-size:26px;line-height:1.05;font-weight:900;letter-spacing:-.6px">' + newDot(g) + esc(g.name) + '</div>' + members(g, 13) +
+          groupTagAbove(g) + '<div style="display:flex;align-items:center;gap:6px">' + newDot(g) + '<span style="font-size:26px;line-height:1.05;font-weight:900;letter-spacing:-.7px;text-shadow:0 1px 8px rgba(0,0,0,.35)">' + esc(g.name) + '</span></div>' + members(g, 13) +
         '</div>' +
       '</div>';
-    const tile = (g) => '<div ' + on(() => openGroup(g)) + ' aria-label="' + esc(g.name) + '" style="position:relative;aspect-ratio:4 / 3;border-radius:20px;overflow:hidden;box-shadow:0 1px 3px rgba(15,18,25,.08);background:#e8a71c;cursor:pointer">' + (groupPhoto(g) ? photoLayer(groupPhoto(g), g.photoPos, GROUP_POS) : '') + GRAD +
+    const tile = (g) => '<div ' + on(() => openGroup(g)) + ' aria-label="' + esc(g.name) + '" style="position:relative;aspect-ratio:1 / 1;border-radius:20px;overflow:hidden;box-shadow:0 1px 3px rgba(15,18,25,.08);background:#2b303a;cursor:pointer">' + (groupPhoto(g) ? photoLayer(groupPhoto(g), g.photoPos, GROUP_POS) : '') + GRAD +
       '<div style="position:absolute;top:10px;left:10px">' + roleChip(g) + '</div>' +
-      '<div style="position:absolute;top:8px;right:8px">' + pinBtn(g, 32) + '</div>' +
-      '<div style="position:absolute;left:12px;right:10px;bottom:10px;color:#fff;font-size:16px;line-height:1.15;font-weight:900">' +
-        groupTagAbove(g) + newDot(g) + esc(g.name) + members(g, 12) + '</div>' +
+      '<div style="position:absolute;top:6px;right:6px">' + pinBtn(g, 32) + '</div>' +
+      '<div style="position:absolute;left:12px;right:12px;bottom:10px;color:#fff;display:flex;align-items:center;gap:6px">' + newDot(g) +
+        '<div style="min-width:0">' + groupTagAbove(g) + '<div style="font-size:16px;line-height:1.1;font-weight:900;text-shadow:0 1px 6px rgba(0,0,0,.35)">' + esc(g.name) + '</div>' + members(g, 12) + '</div></div>' +
     '</div>';
-    // Your calendar's white header (owner, 2026-10-03; Design 20 had a group page's photo header): the title, and under
-    // it *N groups · N friends* where Your calendar has its group pick; Search (groups and friends) and the bell
-    const nFr = st.fr.friends.length;
-    const sub = st.loaded ? all.length + (all.length === 1 ? ' group' : ' groups') + (st.fr.loaded ? ' · ' + nFr + (nFr === 1 ? ' friend' : ' friends') : '') : '';
-    const header = '<header style="position:relative;z-index:5;background:#fff;padding:14px 16px 10px;display:flex;align-items:center;gap:12px">' +
-      '<div style="flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:1px">' +
-        '<h1 style="margin:0;font-size:30px;line-height:1;font-weight:900;letter-spacing:-1px;color:#0d1117">Your people</h1>' +
-        (sub ? '<div data-ppl-sub style="display:flex;align-items:center;gap:5px;min-height:26px;font-size:14.5px;font-weight:800;color:#6b7280">' + svg(14, stroke('currentColor', 2.4), P6.people) + '<span>' + sub + '</span></div>' : '') + '</div>' +
-      '<div style="flex:0 0 auto;display:flex;gap:8px">' +
-        '<span ' + on(openPplSearch) + ' aria-label="Search your people" style="flex:0 0 44px;width:44px;height:44px;border-radius:999px;background:#f2f3f6;color:#0d1117;display:flex;align-items:center;justify-content:center;cursor:pointer">' + ic6('search', 20, 'currentColor', 2.1) + '</span>' +
-        bellBtn() + '</div></header>';
-    const search = st.pplSearch ? searchHead('Search groups and friends', st.pplQ, 'Search groups and friends',
-      (v) => setState({ pplQ: v.slice(0, 40) }), () => setState({ pplQ: '' }), () => setState({ pplSearch: false, pplQ: '' })) : '';
-    const none = (what) => '<div style="padding:8px;text-align:center;font-size:14.5px;font-weight:700;color:#6b7280">No ' + what + ' match “' + esc(st.pplQ.trim()) + '”</div>';
-    const groupsBody = !st.loaded ? skeleton(2, 200)
+    // Next up (8b): your soonest event you're leading, helping with or going to
+    const next = q || !st.loaded ? null : st.sparks.filter(s => !s.cancelledAt && inMine(s) && phaseOf(s) === 'plan' && s.dayDate && myPart(s)).sort(byWhen)[0];
+    const nextCard = !next ? '' : (() => { const part = myPart(next), g = groupById(next.groupId);
+      const when = (fmtDay(next.dayDate) + (next.dayTime ? ' · ' + fmtTime(next.dayTime) : '')).toUpperCase();
+      return '<div ' + on(() => openSpark(next)) + ' data-next-up data-screen-label="Next up" aria-label="Next up: ' + esc(next.text) + '" class="hov-lift" style="display:flex;align-items:center;gap:12px;padding:10px 12px 10px 10px;border-radius:20px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
+        '<span aria-hidden="true" style="flex:0 0 64px;width:64px;height:64px;border-radius:14px;background:' + thumbBg(next) + '"></span>' +
+        '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">' +
+          '<span style="font-size:11px;font-weight:900;letter-spacing:.8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><span style="color:#149a4b">NEXT UP</span><span style="color:#8a909b"> · ' + esc(when) + '</span></span>' +
+          '<span style="font-size:17px;font-weight:900;letter-spacing:-.3px;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(next.text) + '</span>' +
+          '<span style="font-size:13px;font-weight:600;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc((g ? g.name + ' · ' : '') + ({ lead: 'you’re leading', help: 'you’re helping', going: 'you’re going' })[part]) + '</span></div>' +
+        I.chevR(16, '#b9bcc4', 2.6) + '</div>'; })();
+    // All groups (9b): every group's events, plans and ideas in one list (the old Discover)
+    const faces = all.slice(0, 3).map((g, i) => '<span style="width:38px;height:38px;border-radius:999px;' + (i ? 'margin-left:-15px;' : '') + 'box-shadow:0 0 0 2px rgba(255,255,255,.9);background:' + thumbBg(null, g) + '"></span>').join('');
+    const allCard = q || !all.length ? '' : '<div ' + on(() => go('calendar')) + ' data-all-groups data-screen-label="All groups card" aria-label="All groups: all events, plans and ideas" style="position:relative;overflow:hidden;display:flex;align-items:center;gap:12px;padding:22px 16px;border-radius:20px;background:' + SPARKLE_GRAD + ';color:#fff;cursor:pointer;box-shadow:0 6px 18px rgba(160,59,200,.22)">' +
+      sparkles([[66, 4, 14, '#fff', 1], [86, 6, 10, '#ffe7a6', 1], [93, 62, 8, '#fff', .9], [80, 4, 9, '#ffd0e4', 1], [90, 84, 3, '#fff', .9], [72, 86, 2.5, '#fff', .7], [96, 30, 3, '#fff', .8]]) +
+      '<span aria-hidden="true" style="position:relative;display:flex">' + faces +
+        (all.length > 3 ? '<span style="width:38px;height:38px;margin-left:-15px;border-radius:999px;background:#fff;box-shadow:0 0 0 2px rgba(255,255,255,.9);display:flex;align-items:center;justify-content:center;color:#a03bc8;font-size:13.5px;font-weight:900">+' + (all.length - 3) + '</span>' : '') + '</span>' +
+      '<div style="position:relative;flex:1;min-width:0;display:flex;flex-direction:column;gap:1px"><span style="font-size:19px;line-height:1.15;font-weight:900;letter-spacing:-.4px">All groups</span><span style="font-size:13px;font-weight:600;color:rgba(255,255,255,.88)">All events, plans &amp; ideas</span></div>' +
+      '<span style="position:relative;display:flex">' + I.chevR(16, '#fff', 2.6) + '</span></div>';
+    const none = '<div style="padding:24px 8px;text-align:center;font-size:14.5px;font-weight:700;color:#6b7280">No groups match “' + esc(st.pplQ.trim()) + '”</div>';
+    const body = !st.loaded ? skeleton(2, 200)
       : !all.length ? noGroupCard()
-      : !groups.length ? none('groups')
-      : big.map(bigCard).join('') + (rest.length ? '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' + rest.map(tile).join('') + '</div>' : '');
-    return '<div data-screen-label="Groups">' + header +
-      '<div style="padding:14px 14px 26px;display:flex;flex-direction:column;gap:12px">' + search +
-        headRow('Groups', st.loaded ? all.length : null, 'Join or add', () => setState({ pplAdd: true }), 'data-add-group aria-label="Join or add a group"') + groupsBody +
-        headRow('Friends', st.fr.loaded ? st.fr.friends.length : null, 'Add', shareFriendLink, 'data-add-friend aria-label="Add a friend"', true) + friendsBody(q, none) +
-      '</div>' +
+      : !groups.length ? none
+      : nextCard + big.map(bigCard).join('') + (rest.length ? '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">' + rest.map(tile).join('') + '</div>' : '') + allCard +
+        '<span ' + on(() => setState({ pplAdd: true })) + ' data-add-group aria-label="Join or add a group" style="display:flex;align-items:center;justify-content:center;gap:6px;min-height:48px;color:#454b55;font-size:15px;font-weight:800;cursor:pointer">' + I.plus(16, 'currentColor', 2.6) + 'Join or add a group</span>';
+    return '<div data-screen-label="Groups">' + tabHead('My groups', openPplSearch, 'Search your groups') +
+      '<div style="padding:14px 14px 26px;display:flex;flex-direction:column;gap:12px">' + pplSearchField('Search your groups') + goneCard() + body + '</div>' +
       '<div style="height:var(--nav-h)"></div>' +
     '</div>';
   }
 
-  // Friends on the page: requests, then one summary card (up to 5 faces, See all) that opens every friend in a sheet
-  function friendsBody(q, none) {
-    const st = state, fr = st.fr;
-    if (!fr.loaded) return st.loaded ? skeleton(1, 120) : '';   // one loading placeholder on the page at a time
-    const shown = q ? fr.friends.filter(f => f.name.toLowerCase().includes(q) || (f.groups || []).some(g => g.toLowerCase().includes(q))) : fr.friends;
-    const reqs = q ? [] : fr.incoming;
-    const req = (f) => '<div data-friend-request="' + esc(f.name) + '" style="' + CARD + ';padding:12px 14px;display:flex;align-items:center;gap:12px">' +
-      '<span ' + on(() => openPerson(f.id)) + ' aria-label="' + esc(f.name) + ', see profile" style="flex:1;min-width:0;display:flex;align-items:center;gap:12px;cursor:pointer">' + frFace(f, 40) +
-      '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:900;color:#0d1117">' + esc(f.name) + '</div><div style="font-size:12.5px;font-weight:700;color:#6b7280">Wants to be friends' + (f.group ? ' · ' + esc(f.group) : '') + '</div></div></span>' +
-      '<span ' + on(() => answerRequest(f, false)) + ' aria-label="Decline ' + esc(f.name) + '" style="flex:0 0 34px;width:34px;height:34px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(13, '#0d1117', 2.6) + '</span>' +
-      '<span ' + on(() => answerRequest(f, true)) + ' aria-label="Accept ' + esc(f.name) + '" class="hov-primary" style="display:flex;align-items:center;height:34px;padding:0 13px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:13.5px;font-weight:900;cursor:pointer">Accept</span></div>';
-    const card = !shown.length ? '' : '<div ' + on(() => setState({ frAll: true, frAllQ: q })) + ' data-friends-card role="button" aria-label="See all friends (' + shown.length + ')" style="' + CARD + ';border-radius:22px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;cursor:pointer">' +
-        '<div style="display:flex;align-items:center;gap:10px"><div aria-hidden="true" style="display:flex">' +
-          shown.slice(0, 5).map((f, j) => '<span style="display:flex;border-radius:999px;box-shadow:0 0 0 3px #fff;' + (j ? 'margin-left:-12px;' : '') + '">' + frFace(f, 44) + '</span>').join('') + '</div>' +
-          (shown.length > 5 ? '<span style="font-size:14px;font-weight:800;color:#6b7280">+' + (shown.length - 5) + '</span>' : '') +
-          '<span style="flex:0 0 auto;margin-left:auto;display:flex;align-items:center;gap:4px;min-height:36px;padding:0 12px 0 14px;border-radius:999px;background:#0d1117;color:#fff;font-size:13.5px;font-weight:800">See all' + I.chevR(12, '#fff', 2.8) + '</span></div>' +
-        '<div style="font-size:14.5px;font-weight:600;color:#5c6270">' + esc(namesLine(shown.map(f => firstName(f.name)))) + '</div></div>';
-    const empty = q ? (shown.length ? '' : none('friends'))
+  // ---- My friends (v8): requests, Your lists (4a), then your friends with the next thing they're going to
+  // Private friend lists live on this device only (v8: "lists persist in the browser"), per account
+  const FR_LISTS_KEY = 'spark-hub-friend-lists-';
+  const frLists = () => {
+    if (state.frListsMem && state.frListsMem.me === state.me) return state.frListsMem.lists;
+    let v = [];
+    try { v = JSON.parse(localStorage.getItem(FR_LISTS_KEY + state.me) || '[]'); } catch (e) { v = []; }
+    const lists = (Array.isArray(v) ? v : []).filter(l => l && typeof l.name === 'string' && Array.isArray(l.people)).map(l => ({ id: String(l.id || Math.random()), name: l.name.slice(0, 32), people: l.people.filter(x => typeof x === 'string') }));
+    state.frListsMem = { me: state.me, lists };
+    return lists;
+  };
+  const saveFrLists = (lists) => {
+    try { localStorage.setItem(FR_LISTS_KEY + state.me, JSON.stringify(lists)); } catch (e) { /* private mode: kept for this visit */ }
+    state.frListsMem = { me: state.me, lists };
+  };
+  // A list only shows people who are still your friends
+  const listPeople = (l) => l.people.map(friendById).filter(Boolean);
+  // The next thing a friend is going to (or leading) that you can see
+  const friendNext = (f) => state.sparks.filter(s => !s.cancelledAt && phaseOf(s) === 'plan' && s.dayDate &&
+    (s.leadId === f.id || s.cohosts.indexOf(f.id) > -1 || s.rsvps.some(r => r.userId === f.id && r.status === 'going'))).sort(byWhen)[0] || null;
+  // "Thu 15": a friend's next event, short
+  const shortDay = (iso) => new Date(iso + 'T12:00').toLocaleDateString('en-US', { weekday: 'short' }) + ' ' + +iso.slice(8);
+  const inviteOne = (ids) => setState({ frSel: ids.slice(), frInvite: true, frList: null, frAll: false });
+
+  function viewFriends() {
+    const st = state, fr = st.fr, q = pplQ();
+    const shown = !fr.loaded ? [] : q ? fr.friends.filter(f => f.name.toLowerCase().includes(q) || (f.groups || []).some(g => g.toLowerCase().includes(q))) : fr.friends;
+    // Requests on the sparkle wash (v8 Friend request)
+    const req = (f) => '<div data-friend-request="' + esc(f.name) + '" data-screen-label="Friend request" style="position:relative;overflow:hidden;border-radius:20px;padding:16px;display:flex;align-items:center;gap:12px;background:linear-gradient(115deg,#ece9fd 0%,#f6e6f5 50%,#fdeaf2 75%,#fff4dc 115%);box-shadow:inset 0 0 0 1.5px rgba(91,74,232,.14), 0 4px 14px rgba(160,59,200,.10)">' +
+      sparkles([[4, 6, 9, '#b7adf5', 1], [44, 6, 8, '#f5b428', .9], [60, 78, 7, '#f39cc4', 1], [30, 80, 6, '#5b4ae8', .5], [52, 18, 3, '#d6246e', .5]]) +
+      '<span ' + on(() => openPerson(f.id)) + ' aria-label="' + esc(f.name) + ', see profile" style="position:relative;flex:1;min-width:0;display:flex;align-items:center;gap:12px;cursor:pointer"><span style="display:flex;border-radius:999px;box-shadow:0 0 0 2.5px #fff">' + frFace(f, 44) + '</span>' +
+        '<div style="flex:1;min-width:0"><div style="font-size:17px;line-height:1.15;font-weight:900;letter-spacing:-.3px;color:#0d1117">' + esc(f.name) + '</div><div style="font-size:13px;font-weight:700;color:#5c4f8a">Wants to be friends' + (f.group ? ' · ' + esc(f.group) : '') + '</div></div></span>' +
+      '<span ' + on(() => answerRequest(f, false)) + ' aria-label="Decline ' + esc(f.name) + '" style="position:relative;flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(13, '#0d1117', 2.6) + '</span>' +
+      '<span ' + on(() => answerRequest(f, true)) + ' aria-label="Accept ' + esc(f.name) + '" class="hov-primary" style="position:relative;display:flex;align-items:center;min-height:38px;padding:0 15px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:14.5px;font-weight:900;cursor:pointer">Accept</span></div>';
+    const label = (t, right) => '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 6px 0"><span style="font-size:13px;font-weight:900;letter-spacing:1px;color:#6b7280">' + t + '</span>' + (right || '') + '</div>';
+    // Your lists (4a): swipe cards, + New list
+    const lists = frLists();
+    const listCard = (l) => { const ppl = listPeople(l);
+      return '<div ' + on(() => setState({ frList: l.id })) + ' data-friend-list="' + esc(l.name) + '" class="hov-lift" style="flex:0 0 150px;scroll-snap-align:start;display:flex;flex-direction:column;gap:12px;padding:14px;border-radius:18px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
+        '<span aria-hidden="true" style="display:flex;min-height:30px">' + ppl.slice(0, 4).map((f, i) => '<span style="display:flex;border-radius:999px;box-shadow:0 0 0 2px #fff;' + (i ? 'margin-left:-8px' : '') + '">' + frFace(f, 30) + '</span>').join('') + '</span>' +
+        '<div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:15.5px;font-weight:900;letter-spacing:-.2px;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(l.name) + '</span><span style="font-size:13px;font-weight:600;color:#6b7280">' + ppl.length + (ppl.length === 1 ? ' person' : ' people') + '</span></div></div>'; };
+    // No lists yet: one dashed card that makes the first (Design shows lists only with sample ones)
+    const firstList = '<div ' + on(() => setState({ frListEd: { id: null, name: '', people: [] } })) + ' data-friend-list-new style="flex:0 0 150px;display:flex;flex-direction:column;gap:6px;padding:14px;border-radius:18px;background:#f4f5f7;box-shadow:inset 0 0 0 1.5px #dcdfe6;cursor:pointer">' +
+      '<span style="width:30px;height:30px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;display:flex;align-items:center;justify-content:center">' + I.plus(14, '#454b55', 2.6) + '</span>' +
+      '<span style="font-size:15px;font-weight:900;color:#0d1117">Make a list</span><span style="font-size:12.5px;line-height:1.3;font-weight:600;color:#6b7280">People you invite together. Only you see it.</span></div>';
+    const listsSec = q || !fr.friends.length ? '' : '<div data-screen-label="Your lists" style="display:flex;flex-direction:column;gap:8px">' +
+      label('YOUR LISTS', '<span ' + on(() => setState({ frListEd: { id: null, name: '', people: [] } })) + ' data-new-list style="display:flex;align-items:center;gap:4px;min-height:32px;font-size:13.5px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(13, 'currentColor', 2.8) + 'New list</span>') +
+      '<div class="snap-row" style="margin:0 -14px;padding:2px 14px 4px;gap:10px;scroll-padding:0 14px">' + (lists.length ? lists.map(listCard).join('') : firstList) + '</div></div>';
+    // Your friends: 5 rows, then See all N
+    const row = (f, k) => { const nx = friendNext(f);
+      return '<div ' + on(() => openPerson(f.id)) + ' data-friend-row="' + esc(f.name) + '" class="hov-row" style="display:flex;align-items:center;gap:12px;min-height:62px;padding:8px 12px 8px 14px;border-top:' + (k ? '1px solid #f2f3f6' : '0') + ';cursor:pointer">' + frFace(f, 40) +
+        '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px"><span style="font-size:15.5px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(f.name) + '</span>' +
+          '<span style="font-size:13px;font-weight:' + (nx ? '500;color:#454b55' : '600;color:#6b7280') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(nx ? nx.text + ' · ' + shortDay(nx.dayDate) : 'Nothing coming up') + '</span></div>' +
+        '<span ' + on((e) => { stop(e); inviteOne([f.id]); }) + ' aria-label="Invite ' + esc(f.name) + ' to an event" style="flex:0 0 auto;display:flex;align-items:center;gap:3px;min-height:40px;padding:0 14px;border-radius:999px;box-shadow:inset 0 0 0 2px #c9c2fb;color:#4a3ad4;font-size:14px;font-weight:800;cursor:pointer">Invite' + I.chevR(12, 'currentColor', 2.8) + '</span></div>'; };
+    const list = q ? shown : shown.slice(0, 5);
+    const friendsSec = !shown.length ? '' : label('YOUR FRIENDS · ' + shown.length) +
+      '<div data-friends-card style="background:#fff;border-radius:20px;box-shadow:0 1px 3px rgba(15,18,25,.08);overflow:hidden">' + list.map(row).join('') +
+        (!q && shown.length > 5 ? '<div ' + on(() => setState({ frAll: true, frAllQ: '' })) + ' aria-label="See all ' + shown.length + ' friends" class="hov-row" style="display:flex;align-items:center;justify-content:center;gap:6px;min-height:50px;border-top:1px solid #f2f3f6;font-size:15px;font-weight:800;color:#5b4ae8;cursor:pointer">See all ' + shown.length + I.chevR(12, 'currentColor', 2.8) + '</div>' : '') + '</div>';
+    const empty = !fr.loaded ? '' : q ? (shown.length ? '' : '<div style="padding:8px;text-align:center;font-size:14.5px;font-weight:700;color:#6b7280">No friends match “' + esc(st.pplQ.trim()) + '”</div>')
       : fr.friends.length ? ''
       : '<div data-friends-empty style="' + CARD + ';padding:18px;display:flex;flex-direction:column;align-items:flex-start;gap:6px">' +
           '<span style="font-size:17px;font-weight:900;color:#0d1117">No friends here yet</span>' +
           '<span style="font-size:14.5px;line-height:1.45;font-weight:500;color:#5c6270;text-wrap:pretty">Send your friend link to people you know, or add someone from a group’s Members list. Then you can invite them to things together.</span>' +
           '<span ' + on(shareFriendLink) + ' class="hov-primary" style="margin-top:8px;display:flex;align-items:center;min-height:44px;padding:0 18px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:15px;font-weight:800;cursor:pointer">Add a friend</span></div>';
-    return reqs.map(req).join('') + card + empty;
+    const addLink = !fr.loaded || !fr.friends.length || q ? '' : '<span ' + on(shareFriendLink) + ' data-add-friend aria-label="Add a friend" style="display:flex;align-items:center;justify-content:center;gap:6px;min-height:48px;color:#454b55;font-size:15px;font-weight:800;cursor:pointer">' + I.plus(16, 'currentColor', 2.6) + 'Add a friend</span>';
+    return '<div data-screen-label="Friends">' + tabHead('My friends', openPplSearch, 'Search your friends') +
+      '<div style="padding:14px 14px 26px;display:flex;flex-direction:column;gap:12px">' + pplSearchField('Search your friends') +
+        (!fr.loaded ? skeleton(2, 120) : (q ? '' : fr.incoming.map(req).join('')) + listsSec + friendsSec + empty + addLink) +
+      '</div><div style="height:var(--nav-h)"></div></div>';
+  }
+
+  // A friend list (4a): its people, Edit, Add people, Invite all N to an event…
+  function viewFrList() {
+    const l = frLists().find(x => x.id === state.frList), close = () => setState({ frList: null });
+    if (!l) return '';
+    const ppl = listPeople(l), edit = () => setState({ frList: null, frListEd: { id: l.id, name: l.name, people: ppl.map(f => f.id) } });
+    return sheet(l.name, close, 'max-height:82%;overflow-y:auto;background:#e8eaee;padding:10px 14px calc(24px + env(safe-area-inset-bottom, 0px));display:flex;flex-direction:column;gap:14px',
+      '<div style="display:flex;align-items:center;gap:10px;padding:0 4px"><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><h3 style="margin:0;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">' + esc(l.name) + '</h3>' +
+        '<span style="font-size:13.5px;font-weight:600;color:#6b7280">' + ppl.length + (ppl.length === 1 ? ' person' : ' people') + ' · only you can see this list</span></div>' +
+        '<span ' + on(edit) + ' style="display:flex;align-items:center;min-height:36px;padding:0 14px;border-radius:999px;background:#fff;font-size:14px;font-weight:800;color:#0d1117;cursor:pointer">Edit</span></div>' +
+      '<div style="background:#fff;border-radius:20px;box-shadow:0 1px 3px rgba(15,18,25,.08);overflow:hidden">' +
+        ppl.map((f, i) => '<div ' + on(() => { close(); openPerson(f.id); }) + ' class="hov-row" style="display:flex;align-items:center;gap:12px;min-height:58px;padding:0 14px;border-top:' + (i ? '1px solid #f2f3f6' : '0') + ';cursor:pointer">' + frFace(f, 36) + '<span style="flex:1;min-width:0;font-size:15.5px;font-weight:800;color:#0d1117">' + esc(f.name) + '</span></div>').join('') +
+        '<div ' + on(edit) + ' style="display:flex;align-items:center;gap:8px;min-height:50px;padding:0 14px;border-top:' + (ppl.length ? '1px solid #f2f3f6' : '0') + ';font-size:15px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(15, 'currentColor', 2.6) + 'Add people</div></div>' +
+      (ppl.length ? '<span ' + on(() => inviteOne(ppl.map(f => f.id))) + ' class="hov-primary" style="display:flex;align-items:center;justify-content:center;min-height:52px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:16px;font-weight:800;cursor:pointer">' + (ppl.length === 1 ? 'Invite ' + esc(firstName(ppl[0].name)) + ' to an event…' : 'Invite all ' + ppl.length + ' to an event…') + '</span>' : ''), 44);
+  }
+  // New list / Edit list: LIST NAME, PEOPLE ticks, Cancel and Make list / Save list; editing can delete it
+  function viewFrListEd() {
+    const ed = state.frListEd, close = () => setState({ frListEd: null }), isEdit = ed.id != null;
+    const ok = !!ed.name.trim() && ed.people.length > 0;
+    const toggle = (id) => setState({ frListEd: Object.assign({}, state.frListEd, { people: ed.people.indexOf(id) > -1 ? ed.people.filter(x => x !== id) : ed.people.concat(id) }) });
+    const save = () => {
+      if (!ok) return;
+      const lists = frLists().slice(), item = { id: ed.id || String(Date.now()), name: ed.name.trim().slice(0, 32), people: ed.people.slice() };
+      const k = lists.findIndex(x => x.id === ed.id);
+      if (k > -1) lists[k] = item; else lists.push(item);
+      saveFrLists(lists);
+      setState({ frListEd: null, frList: item.id });
+      toast(isEdit ? 'List saved' : 'List made', true);
+    };
+    const del = () => setState({ confirm: { z: 60, title: 'Delete “' + ed.name.trim() + '”?', body: 'The people stay your friends. Only the list goes away.', cta: 'Delete list', keep: 'Keep it', danger: true,
+      run: () => { saveFrLists(frLists().filter(x => x.id !== ed.id)); setState({ frListEd: null, confirm: null }); toast('List deleted', true); } } });
+    const rows = state.fr.friends.map((f, i) => { const onIt = ed.people.indexOf(f.id) > -1;
+      return '<div ' + on(() => toggle(f.id), 'checkbox') + ' aria-checked="' + onIt + '" aria-label="' + esc(f.name) + '" class="hov-row" style="display:flex;align-items:center;gap:12px;min-height:56px;padding:0 14px;border-top:' + (i ? '1px solid #f2f3f6' : '0') + ';cursor:pointer">' + frFace(f, 36) +
+        '<span style="flex:1;min-width:0;font-size:15.5px;font-weight:800;color:#0d1117">' + esc(f.name) + '</span>' +
+        '<span aria-hidden="true" style="flex:0 0 22px;width:22px;height:22px;box-sizing:border-box;border-radius:7px;display:flex;align-items:center;justify-content:center;' + (onIt ? 'background:#5b4ae8' : 'background:#fff;box-shadow:inset 0 0 0 2px #c9ccd3') + '">' + (onIt ? I.check(12, '#fff', 3.6) : '') + '</span></div>'; }).join('');
+    return sheet(isEdit ? 'Edit list' : 'New list', close, 'max-height:88%;overflow-y:auto;background:#e8eaee;padding:10px 14px 0;display:flex;flex-direction:column;gap:14px',
+      '<div style="display:flex;align-items:center;gap:10px;padding:0 4px"><h3 style="flex:1;margin:0;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">' + (isEdit ? 'Edit list' : 'New list') + '</h3>' + closeX(close, 'background:#fff') + '</div>' +
+      '<label style="display:flex;flex-direction:column;gap:6px"><span style="padding:0 6px;font-size:12.5px;font-weight:900;letter-spacing:1px;color:#6b7280">LIST NAME</span>' +
+        '<input class="fld" type="text" maxlength="32" data-list-name placeholder="Pickleball crew" value="' + esc(ed.name) + '" ' + onInput(e => { if (e.type === 'input') setState({ frListEd: Object.assign({}, state.frListEd, { name: e.target.value.slice(0, 32) }) }); }) +
+          ' style="min-height:52px;box-sizing:border-box;padding:0 16px;border:0;border-radius:16px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;font-family:inherit;font-size:16px;font-weight:700;color:#0d1117;outline:none"></label>' +
+      '<div style="display:flex;flex-direction:column;gap:6px"><div style="display:flex;align-items:baseline;justify-content:space-between;padding:0 6px"><span style="font-size:12.5px;font-weight:900;letter-spacing:1px;color:#6b7280">PEOPLE</span><span style="font-size:13px;font-weight:700;color:#6b7280">' + (ed.people.length ? ed.people.length + ' picked' : 'Pick at least one') + '</span></div>' +
+        '<div style="background:#fff;border-radius:20px;box-shadow:0 1px 3px rgba(15,18,25,.08);overflow:hidden">' + rows + '</div></div>' +
+      (isEdit ? '<span ' + on(del) + ' style="display:flex;align-items:center;justify-content:center;min-height:44px;font-size:14.5px;font-weight:800;color:#9b1c31;cursor:pointer">Delete this list</span>' : '') +
+      '<div style="position:sticky;bottom:0;display:flex;gap:8px;margin:0 -14px;padding:12px 14px calc(22px + env(safe-area-inset-bottom, 0px));background:#e8eaee">' +
+        '<span ' + on(close) + ' style="flex:0 0 auto;display:flex;align-items:center;justify-content:center;min-height:52px;padding:0 22px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;font-size:16px;font-weight:800;color:#0d1117;cursor:pointer">Cancel</span>' +
+        '<span ' + on(save) + ' data-enter aria-disabled="' + !ok + '" style="flex:1;display:flex;align-items:center;justify-content:center;min-height:52px;border-radius:999px;background:' + (ok ? '#5b4ae8' : '#d5d8df') + ';color:#fff;font-size:16px;font-weight:800;cursor:' + (ok ? 'pointer' : 'default') + '">' + (isEdit ? 'Save list' : 'Make list') + '</span></div>', 46);
   }
 
   // Friends · N (Design 16a): search by name or shared group, a row per friend (tap for the profile, the tick picks),
@@ -2915,7 +3035,7 @@
   function viewFrInvite() {
     const close = () => setState({ frInvite: false }), list = inviteList();
     const row = (s) => '<div ' + on(() => inviteFriends(s)) + ' data-invite-event="' + esc(s.text) + '" class="hov-grey-fill" style="display:flex;align-items:center;gap:12px;padding:12px 6px;border-top:1px solid #eceef1;cursor:pointer">' +
-      '<span aria-hidden="true" style="flex:0 0 40px;width:40px;height:40px;border-radius:10px;background:#2b303a ' + photoBg(s) + '"></span>' +
+      '<span aria-hidden="true" style="flex:0 0 40px;width:40px;height:40px;border-radius:10px;background:' + thumbBg(s) + '"></span>' +
       '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(s.text) + '</div>' +
         '<div style="font-size:12.5px;font-weight:600;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc([s.dayDate ? dayLabel(s.dayDate, s.dayTime) : 'Date TBD', (groupById(s.groupId) || {}).name].filter(Boolean).join(' · ')) + '</div></div>' + I.chevR(14, '#b9bcc4', 2.6) + '</div>';
     return sheet('Invite friends', close, 'max-height:78%;overflow-y:auto;padding:10px 14px calc(22px + env(safe-area-inset-bottom, 0px))',
@@ -2931,7 +3051,8 @@
   // Your own face opens your own profile sheet instead.
   const openPerson = (uid) => {
     if (!uid) return;
-    if (uid === state.me) { openProfileSheet(); return; }
+    // Your own face shows how people see you (v8: About you on your own profile view), with Edit profile
+    if (uid === state.me) { setState({ person: { id: uid, self: true, loading: false, name: state.myName, avatar: state.myAvatar ? photoUrl(state.myAvatar) : null, place: state.myPlace, bio: state.myBio, groups: myGroups().map(g => g.name) } }); return; }
     const mine = myGroups();
     setState({ person: { id: uid, loading: true } });
     Promise.all([sb.from('profiles').select('name,avatar_path,place,bio').eq('id', uid).maybeSingle()]
@@ -2952,7 +3073,8 @@
     const name = p.name || nameOf(p.id), f = friendById(p.id), asked = st.fr.incoming.find(x => x.id === p.id);
     const since = f && f.since ? new Date(f.since).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '';
     const btn = 'display:flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 18px;border-radius:999px;font-size:15px;font-weight:900';
-    const friendRow = p.loading || !st.fr.loaded ? ''
+    const friendRow = p.self ? '<span ' + on(() => { close(); openProfileEdit(); }) + ' data-person-edit class="hov-outline" style="' + btn + ';background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;color:#0d1117;cursor:pointer">Edit profile</span>'
+      : p.loading || !st.fr.loaded ? ''
       : f ? '<span data-person-friend style="' + btn + ';background:#e7f6ec;color:#0f7a3c">' + I.check(13, '#0f7a3c', 3) + 'Friends' + (since ? ' since ' + esc(since) : '') + '</span>' +
           '<span ' + on(() => removeFriend(f)) + ' class="hov-danger" style="' + btn + ';min-height:40px;background:#fff;box-shadow:inset 0 0 0 1.5px #f5c2cb;font-size:14px;font-weight:800;color:#9b1c31;cursor:pointer">Remove friend</span>'
       : asked ? '<span ' + on(() => answerRequest(asked, true)) + ' data-person-friend class="hov-primary" style="' + btn + ';background:#5b4ae8;color:#fff;cursor:pointer">Accept friend request</span>'
@@ -2963,6 +3085,7 @@
     // A pop-up in the middle of the screen, not a slide-up (owner, 2026-10-01); above lists and sheets, under confirms
     return modal(name, close,
       '<div data-screen-label="Person" style="display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center;padding-top:6px">' +
+        (p.self ? '<span data-person-self style="font-size:13.5px;font-weight:700;color:#6b7280">This is how people see you.</span>' : '') +
         avatarSpan(p.id, name, p.avatar || avatarOf(p.id) || (f && f.avatar ? photoUrl(f.avatar) : null), 84) +
         '<div style="max-width:100%"><div style="font-size:24px;line-height:1.1;font-weight:900;letter-spacing:-.4px;color:#0d1117;overflow-wrap:anywhere">' + esc(name) + '</div>' +
           (p.place ? '<div data-person-place style="margin-top:6px;display:flex;align-items:center;justify-content:center;gap:5px;font-size:14px;font-weight:700;color:#6b7280">' +
@@ -2970,7 +3093,7 @@
         (p.loading ? '<div style="font-size:14px;font-weight:600;color:#9aa0ac">Loading…</div>'
           : (p.bio ? '<p data-person-bio style="margin:0;font-size:15.5px;line-height:1.45;font-weight:500;color:#2a2f38;white-space:pre-line">' + esc(p.bio) + '</p>' : '') +
             '<div data-person-groups style="align-self:stretch;padding:12px 14px;border-radius:14px;background:#f7f7f9;font-size:14px;line-height:1.45;font-weight:600;color:#454b55">' +
-              (p.groups.length ? '<span style="font-size:12px;font-weight:900;letter-spacing:.6px;text-transform:uppercase;color:#8a909b">Both in</span><br>' + esc(namesList(p.groups))
+              (p.groups.length ? '<span style="font-size:12px;font-weight:900;letter-spacing:.6px;text-transform:uppercase;color:#8a909b">' + (p.self ? 'In' : 'Both in') + '</span><br>' + esc(namesList(p.groups))
                 : 'You’re not in a group together.') + '</div>' +
             (friendRow ? '<div style="align-self:stretch;display:flex;flex-direction:column;gap:8px">' + friendRow + '</div>' : '')) +
       '</div>', { z: 45, max: 360 });
@@ -3197,7 +3320,7 @@
       (frosted ? 'background:rgba(255,255,255,.18);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff' : 'background:#f2f3f6;color:#0d1117') + '">' + ic6('bell', 21, 'currentColor', 1.9) +
       (n ? '<span aria-hidden="true" style="position:absolute;top:-3px;right:-4px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#e2556b;color:#fff;font-size:10.5px;font-weight:900;display:flex;align-items:center;justify-content:center;box-sizing:border-box">' + (n > 9 ? '9+' : n) + '</span>' : '') + '</span>';
   };
-  const openProfileSheet = () => needSignIn(() => setState({ profSheet: true, menu: null, fbNudge: null, fbHint: !!state.fbNudge || state.fbHint }), 'profile');
+  const openProfileSheet = () => needSignIn(() => go('me', { fbHint: !!state.fbNudge || state.fbHint }), 'profile');
   // Search (the Calendar's search sheet: every upcoming event in your groups)
   const openSearch = () => { setState({ cSearch: true, menu: null }); setTimeout(() => { const f = document.querySelector('[data-csearch]'); if (f) f.focus(); }, 30); };
   const searchBtn = () => '<span ' + on(openSearch) + ' aria-label="Search events" style="flex:0 0 44px;width:44px;height:44px;border-radius:999px;background:#f2f3f6;color:#0d1117;display:flex;align-items:center;justify-content:center;cursor:pointer">' + ic6('search', 20, 'currentColor', 2.1) + '</span>';
@@ -3243,34 +3366,91 @@
     ideaSteps6(s).map(st => '<span ' + on((e) => { stop(e); openToSection(s, st.sec); }) + ' aria-label="' + st.label + ': ' + (st.p >= 1 ? st.done : st.todo) + '" style="display:flex;flex-direction:column;align-items:center;gap:5px;min-width:56px;padding:2px 0;border-radius:12px;cursor:pointer">' +
       ring6(st, 40) + '<span style="font-size:11.5px;font-weight:800;color:' + (st.p >= 1 ? '#0f7a3c' : '#454b55') + '">' + st.label + '</span></span>').join('') + '</div>';
 
+  // ---- My tasks (v8 6h/6k, 6j, 7a): one list grouped by event, soonest first. Chips All · Leading · Helping · Ideas;
+  // Timeline (a date line, the event name with its role bar, a white card of rows) or Condensed (one card).
+  const TK_INK = { lead: '#5b4ae8', help: '#f5b428', idea: '#1f5fa8' };
+  const tkRows = () => {
+    const d = tasksData(), out = [];
+    // A job to fill reads NEED, the job, its open spots; Ask opens the ask right here (shifts can't be asked: Share)
+    const leadRows = (s, kind) => {
+      const acts = ownActs(s).map(a => {
+        if (!a.label) return { title: a.act, cta: a.cta, go: a.go, warn: a.warn };
+        const j = (s.jobs || s.signups).find(x => a.rest.indexOf(x.item) === 0), units = j ? j.shifts || [j] : [];
+        const left = units.reduce((n, u) => n + (u.need ? Math.max(0, u.need - u.claims.length) : 0), 0), waiting = j && !j.shifts ? openAsks(s, j.id).length : 0;
+        return { pre: 'NEED', title: j ? j.item : a.rest, cnt: '(' + left + ')', asked: waiting ? waiting + ' asked' : '', cta: a.cta,
+          go: j && !j.shifts ? () => openJobAsk(s, j) : a.go };
+      });
+      return acts.length ? acts : [{ title: 'Check who’s coming', cta: 'See list', go: () => { openSpark(s); setState({ guestList: s.id }); } }];
+    };
+    // Every upcoming plan you lead is listed (with nothing to do: Check who's coming)
+    const leads = state.sparks.filter(s => inMine(s) && !s.cancelledAt && isLead(s) && s.planned && (phaseOf(s) !== 'done' || dayDiff(s.dayDate) >= -3));
+    leads.forEach(s => out.push({ s, kind: 'lead', rows: leadRows(s, 'lead') }));
+    d.ideas.forEach(s => out.push({ s, kind: 'idea', rows: leadRows(s, 'idea') }));
+    d.help.forEach(z => out.push({ s: z.s, kind: 'help', rows: z.a.map(a => a.time ? { title: a.act, sub: a.cta === 'Any time' ? '' : a.cta } : { title: a.act, cta: a.cta, go: a.go, warn: a.warn }) }));
+    const when = (s) => s.dayDate ? s.dayDate + (s.dayTime || '') : '9999';
+    return out.sort((a, b) => when(a.s).localeCompare(when(b.s)) || b.s.created - a.s.created);
+  };
+
   function viewTasks() {
-    const st = state;
-    const wrap = (inner) => '<div data-screen-label="Your tasks">' + head6('Your tasks', '', true, grpLine('tGrps')) +
-      '<div style="padding:14px 14px 22px;display:flex;flex-direction:column;gap:16px">' + inner + '</div><div style="height:var(--nav-h)"></div></div>';
+    const st = state, cat = st.tkCat || 'all', dense = st.tkView === 'dense';
+    const wrap = (inner) => '<div data-screen-label="Your tasks">' + tabHead('My tasks', openSearch, 'Search events') +
+      '<div style="padding:14px 14px 22px;display:flex;flex-direction:column;gap:12px">' + inner + '</div><div style="height:var(--nav-h)"></div></div>';
     if (!st.loaded) return wrap(skeleton(2, 200));
     if (!myGroups().length) return wrap(goneCard() + noGroupCard());
-    const d = tasksData(grpSel(st.tGrps));
-    const row = (cards) => '<div class="snap-row" style="margin:0 -14px">' + cards + '</div>';
-    const leadCard = (z) => '<div ' + on(() => openSpark(z.s)) + ' data-task="' + esc(z.s.text) + '" style="' + CARD6 + '">' + banner6(z.s, R6.lead) +
-      (phaseOf(z.s) === 'plan' ? statsStrip(z.s) : '') + actBlock(z.s, z.a, R6.lead, 'dashOpen') + '</div>';
-    const helpCard = (z) => '<div ' + on(() => openSpark(z.s)) + ' data-task="' + esc(z.s.text) + '" style="' + CARD6 + '">' + banner6(z.s, R6.go) + actBlock(z.s, z.a, R6.go, 'dashOpen') + '</div>';
-    const ideaCard = (s) => '<div ' + on(() => openSpark(s)) + ' data-task="' + esc(s.text) + '" style="' + CARD6 + '">' + banner6(s, R6.help) + ideaStepGrid(s) + '</div>';
-    // Drafts join the Leading row after the events with to-dos (owner, 2026-10-01; they were a Your drafts list above it)
-    const drafts = st.drafts, nLead = d.plans.length + drafts.length;
-    const lead = d.leadsAny || drafts.length
-      ? '<section aria-label="Leading" style="display:flex;flex-direction:column;gap:8px">' + secHead6(nLead, '#5b4ae8', 'Leading', nLead ? () => setState({ dashAll: 'lead' }) : null) +
-          (nLead ? row(d.plans.map(leadCard).join('') + drafts.map(draftCard6).join('')) : note6('Nothing needs you on the events you lead.')) + '</section>'
-      : '';
-    const help = '<section aria-label="Helping" style="display:flex;flex-direction:column;gap:8px">' + secHead6(d.help.length, '#149a4b', 'Helping', d.help.length ? () => setState({ dashAll: 'help' }) : null) +
-      (d.help.length ? row(d.help.map(helpCard).join(''))
-        : inviteCard(ic6('heart', 18, '#454b55', 2.4), 'Find something to help with', 'Leads in your groups need a hand. Sign up to bring something or pitch in.', () => handList().length ? setState({ cHandSheet: true }) : go('calendar'))) + '</section>';
-    const invite = d.leadsAny || drafts.length ? '' : '<section aria-label="Leading" style="display:flex;flex-direction:column;gap:8px">' + secHead6(0, '#5b4ae8', 'Leading') +
-      inviteCard(I.plus(18, '#454b55', 2.6), 'Start an event', 'You’re not leading anything yet. Got an idea for your group?', () => goCompose()) + '</section>';
-    // With no ideas you lead, Ideas still shows: a 0 badge and an invite to post one (Design, after Update 16)
-    const ideas = '<section aria-label="Ideas" style="display:flex;flex-direction:column;gap:8px">' + secHead6(d.ideas.length, '#e8a71c', 'Ideas', d.ideas.length ? () => setState({ dashAll: 'idea' }) : null) +
-      (d.ideas.length ? row(d.ideas.map(ideaCard).join(''))
-        : inviteCard(svg(18, stroke('#e8a71c', 2.2), BULB_IC), WE_SHOULD, 'Post an idea with only rough details and see who’s in.', () => goCompose())) + '</section>';
-    return wrap(goneCard() + lead + help + invite + ideas);
+    const all = tkRows(), shown = all.filter(g => cat === 'all' || g.kind === cat);
+    const n = (k) => all.filter(g => k === 'all' || g.kind === k).reduce((z, g) => z + g.rows.length, 0);
+    const chip = (k, label, bgc, ink) => { const onIt = cat === k;
+      return '<span ' + on(() => setState({ tkCat: k })) + ' aria-pressed="' + onIt + '" data-tk-chip="' + label + '" style="flex:0 0 auto;display:flex;align-items:center;gap:6px;min-height:36px;padding:0 10px;border-radius:999px;font-size:13.5px;font-weight:800;cursor:pointer;' +
+        (onIt ? 'background:#0d1117;color:#fff' : 'background:#fff;color:#454b55;box-shadow:inset 0 0 0 1.5px #e3e5ea') + '">' + label +
+        '<span style="min-width:20px;height:20px;padding:0 6px;box-sizing:border-box;border-radius:999px;font-size:11.5px;font-weight:900;display:flex;align-items:center;justify-content:center;' + (onIt ? 'background:rgba(255,255,255,.2);color:#fff' : 'background:' + bgc + ';color:' + ink) + '">' + n(k) + '</span></span>'; };
+    const chips = '<div style="display:flex;gap:5px;flex-wrap:wrap">' + chip('all', 'All', '#eef0f3', '#0d1117') + chip('lead', 'Leading', '#ece9fd', '#5b4ae8') + chip('help', 'Helping', '#fdf1d6', '#8f6405') + chip('idea', 'Ideas', '#eaf3fc', '#1f5fa8') + '</div>';
+    // Timeline / Condensed (7a): a gray pill with two icons
+    const vt = (k, label, icon) => { const onIt = (k === 'dense') === dense;
+      return '<span ' + on(() => setState({ tkView: k }), 'tab') + ' aria-label="' + label + '" title="' + label + '" aria-selected="' + onIt + '" style="display:flex;align-items:center;justify-content:center;width:32px;height:26px;border-radius:999px;cursor:pointer;' + (onIt ? 'background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.12);color:#0d1117' : 'color:#6b7280') + '">' + svg(16, stroke('currentColor', 2.2), icon) + '</span>'; };
+    const viewSw = '<div role="tablist" aria-label="View" style="flex:0 0 auto;display:flex;gap:2px;padding:3px;border-radius:999px;background:#dcdfe6">' +
+      vt('time', 'Timeline', '<rect x="4" y="4" width="16" height="6" rx="2"/><rect x="4" y="14" width="16" height="6" rx="2"/>') + vt('dense', 'Condensed', '<path d="M4 5h16M4 9.7h16M4 14.3h16M4 19h16"/>') + '</div>';
+    if (!shown.length) {
+      // Empty (per chip): a tappable gray card with the next step; All has a plain note
+      const E = { lead: ['Start an event', 'You’re not leading anything yet. Got an idea for your group?', () => goCompose(), I.plus(18, 'currentColor', 2.4), '#454b55'],
+        help: ['Find something to help with', 'Events on the Calendar that need help.', () => handList().length ? setState({ cHandSheet: true }) : go('calendar'), ic6('heart', 18, 'currentColor', 2.2), '#454b55'],
+        idea: [WE_SHOULD, 'Post an idea with only rough details and see who’s in.', () => goCompose(), svg(18, stroke('currentColor', 2.2), BULB_IC), '#8f6405'] }[cat];
+      return wrap(goneCard() + chips + (E
+        ? '<div ' + on(E[2]) + ' data-screen-label="Tasks empty" class="hov-grey-fill" style="display:flex;align-items:center;gap:14px;padding:16px 14px 16px 16px;border-radius:20px;background:#f4f5f7;box-shadow:inset 0 0 0 1.5px #dfe2e7;cursor:pointer">' +
+            '<span style="flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dfe2e7;display:flex;align-items:center;justify-content:center;color:' + E[4] + '">' + E[3] + '</span>' +
+            '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-size:16px;font-weight:900;color:#0d1117">' + E[0] + '</span><span style="font-size:14px;line-height:1.35;font-weight:500;color:#6b7280;text-wrap:pretty">' + E[1] + '</span></div>' + I.chevR(16, '#b9bcc4', 2.6) + '</div>'
+        : '<div style="' + CARD + ';border-radius:20px;padding:18px;display:flex;flex-direction:column;gap:4px"><span style="font-size:16.5px;font-weight:900;color:#0d1117">Nothing needs you right now.</span><span style="font-size:14px;line-height:1.4;font-weight:500;color:#5c6270;text-wrap:pretty">Things you’re leading, jobs you’ve taken, and ideas to move along show up here.</span></div>'));
+    }
+    const dateOf = (s) => s.dayDate ? fmtDay(s.dayDate).toUpperCase() : 'IDEA';
+    const soon = (s) => { if (!s.dayDate) return ''; const d = dayDiff(s.dayDate); return d < 0 ? (d === -1 ? 'Yesterday' : -d + ' days ago') : d === 0 ? 'Today' : d === 1 ? 'Tomorrow' : d < 14 ? 'In ' + d + ' days' : 'In ' + Math.round(d / 7) + ' weeks'; };
+    const pre = (r, px) => r.pre ? '<span style="font-size:' + px + 'px;font-weight:900;letter-spacing:.8px;color:#6b7280;vertical-align:1px">' + r.pre + '</span>&nbsp; ' : '';
+    const cnt = (r) => (r.cnt ? ' <span style="font-weight:600;color:#9aa0ac">' + esc(r.cnt) + '</span>' : '') + (r.asked ? ' <span style="font-weight:600;color:#9aa0ac">· ' + esc(r.asked) + '</span>' : '');
+    const act = (r, px) => r.cta && r.go ? '<span ' + on((e) => { stop(e); r.go(); }) + ' data-todo-cta style="flex:0 0 auto;display:flex;align-items:center;min-height:32px;padding:0 2px 0 8px;color:#5b4ae8;font-size:' + px + 'px;font-weight:800;white-space:nowrap;cursor:pointer">' + esc(r.cta) + '</span>' : '';
+    const dot = (k) => '<span style="flex:0 0 6px;width:6px;height:6px;border-radius:999px;background:' + TK_INK[k] + '"></span>';
+    let body;
+    if (!dense) {
+      body = '<div style="display:flex;flex-direction:column;gap:18px">' + shown.map((g, q) =>
+        '<section data-task="' + esc(g.s.text) + '" aria-label="' + esc(g.s.text) + '" style="display:flex;flex-direction:column;gap:6px">' +
+          '<div style="display:flex;align-items:center;gap:8px;padding:0 4px;min-height:32px"><span style="font-size:12px;font-weight:900;letter-spacing:.8px;color:#6b7280">' + dateOf(g.s) + '</span>' +
+            (soon(g.s) ? '<span style="font-size:12px;font-weight:700;color:#8a909b">' + soon(g.s) + '</span>' : '') +
+            (q ? '<span style="flex:1;height:1px;border-radius:2px;background:#c9ccd3"></span>' : '<span style="flex:1"></span>' + viewSw) + '</div>' +
+          '<div ' + on(() => openSpark(g.s)) + ' style="display:flex;align-items:center;gap:8px;padding:0 4px;cursor:pointer"><span style="flex:0 0 3px;width:3px;height:18px;border-radius:2px;background:' + TK_INK[g.kind] + '"></span>' +
+            '<span style="flex:1;min-width:0;font-size:16px;font-weight:900;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(g.s.text) + demoTag(g.s, false, true) + '</span></div>' +
+          '<div style="background:#fff;border-radius:16px;box-shadow:0 1px 3px rgba(15,18,25,.08);overflow:hidden">' + g.rows.map((r, j) =>
+            '<div ' + on(() => openSpark(g.s)) + ' class="hov-row" style="display:flex;align-items:center;gap:12px;min-height:46px;padding:5px 14px;' + (j ? 'border-top:1px solid #f0f1f4;' : '') + 'cursor:pointer">' + dot(g.kind) +
+              '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px"><span style="font-size:15px;font-weight:700;color:' + (r.warn ? '#8f6405' : '#0d1117') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + pre(r, 11) + esc(r.title) + cnt(r) + '</span>' +
+                (r.sub ? '<span style="font-size:12.5px;font-weight:600;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(r.sub) + '</span>' : '') + '</div>' + act(r, 14) + '</div>').join('') + '</div>' +
+        '</section>').join('') + '</div>';
+    } else {
+      body = '<div style="display:flex;align-items:center;justify-content:flex-end;padding:2px 0 0">' + viewSw + '</div>' +
+        '<div style="background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08);overflow:hidden;padding:4px 0 6px">' + shown.map((g, q) =>
+          '<div ' + on(() => openSpark(g.s)) + ' data-task="' + esc(g.s.text) + '" style="display:flex;align-items:center;gap:7px;padding:' + (q ? '12px' : '8px') + ' 12px 2px;' + (q ? 'border-top:1px solid #eef0f3;margin-top:4px;' : '') + 'cursor:pointer">' +
+            '<span style="flex:1;min-width:0;font-size:11px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(g.s.text) + '</span>' +
+            '<span style="flex:0 0 auto;font-size:10.5px;font-weight:900;letter-spacing:.7px;color:#8a909b">' + dateOf(g.s) + '</span></div>' +
+          g.rows.map(r => '<div ' + on(() => openSpark(g.s)) + ' class="hov-row" style="display:flex;align-items:center;gap:10px;min-height:30px;padding:0 12px;cursor:pointer">' + dot(g.kind) +
+            '<span style="flex:1;min-width:0;font-size:15px;font-weight:700;color:' + (r.warn ? '#8f6405' : '#0d1117') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + pre(r, 10.5) + esc(r.title) + cnt(r) +
+              (r.sub ? ' <span style="font-weight:600;color:#9aa0ac">· ' + esc(r.sub) + '</span>' : '') + '</span>' + act(r, 13) + '</div>').join('')).join('') + '</div>';
+    }
+    return wrap(goneCard() + chips + body);
   }
 
   // "View all": one card per event with every to-do (ideas: the four checkpoints as rows)
@@ -3447,7 +3627,7 @@
 
   function viewSched() {
     const st = state, view = HOME_VIEWS.indexOf(st.homeView) > -1 ? st.homeView : 'next';
-    const wrap = (inner) => '<div data-screen-label="Your calendar">' + head6('Your calendar', '', false, grpLine('sGrps')) + '<div style="padding:14px 14px 24px;display:flex;flex-direction:column;gap:22px">' + inner + '</div><div style="height:var(--nav-h)"></div></div>';
+    const wrap = (inner) => '<div data-screen-label="Your calendar">' + head6('My calendar', '', false, grpLine('sGrps')) + '<div style="padding:14px 14px 24px;display:flex;flex-direction:column;gap:22px">' + inner + '</div><div style="height:var(--nav-h)"></div></div>';
     if (!st.loaded) return wrap(skeleton(2, 220));
     if (!myGroups().length) return wrap(goneCard() + noGroupCard());
     const sel = grpSel(st.sGrps), every = schedList(), all = every.filter(inPick(sel));
@@ -3565,13 +3745,15 @@
   const clearFilters = () => setState({ cGrps: null, cTypes: [], cq: '', menu: null });
 
   // A checklist dropdown (Groups, Type of event)
-  const checkMenu = (key, label, icon, title, rows, allOn, onAll, onClear, footer) => {
+  // frost: the trigger is a frosted pill on a photo, and the list opens under it on the right (All groups' switcher, v8)
+  const checkMenu = (key, label, icon, title, rows, allOn, onAll, onClear, footer, frost) => {
     const open = state.menu === key;
     const box = (on_) => '<span aria-hidden="true" style="flex:0 0 20px;width:20px;height:20px;border-radius:6px;display:flex;align-items:center;justify-content:center;' + (on_ ? 'background:#5b4ae8' : 'box-shadow:inset 0 0 0 2px #c3c7d0') + '">' + (on_ ? svg(12, stroke('#fff', 3.4), P6.check) : '') + '</span>';
     return '<div data-menu style="position:relative;flex:0 0 auto">' +
-      '<span ' + on((e) => { stop(e); setState({ menu: open ? null : key }); }) + ' aria-label="' + esc(title) + ': ' + esc(label) + '" aria-expanded="' + open + '" style="display:flex;align-items:center;gap:7px;min-height:36px;padding:0 12px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;font-size:13.5px;font-weight:800;color:#0d1117;cursor:pointer;white-space:nowrap">' +
-        ic6(icon, 15, '#454b55', 2.2) + esc(label) + I.chevD(11, '#454b55', 3) + '</span>' +
-      (open ? '<div role="menu" aria-label="' + esc(title) + '" style="position:absolute;top:calc(100% + 6px);left:0;z-index:25;width:278px;padding:8px;border-radius:16px;background:#fff;box-shadow:0 18px 44px rgba(15,18,25,.2),0 0 0 1px #eceef2;animation:popIn 160ms ease both">' +
+      '<span ' + on((e) => { stop(e); setState({ menu: open ? null : key }); }) + ' aria-label="' + esc(title) + ': ' + esc(label) + '" aria-expanded="' + open + '" style="display:flex;align-items:center;gap:7px;min-height:36px;padding:0 12px;border-radius:999px;font-size:13.5px;font-weight:800;cursor:pointer;white-space:nowrap;' +
+        (frost ? 'background:rgba(255,255,255,.18);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff">' + ic6(icon, 15, '#fff', 2.2) + esc(label) + I.chevD(11, '#fff', 3)
+          : 'background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;color:#0d1117">' + ic6(icon, 15, '#454b55', 2.2) + esc(label) + I.chevD(11, '#454b55', 3)) + '</span>' +
+      (open ? '<div role="menu" aria-label="' + esc(title) + '" style="position:absolute;top:calc(100% + 6px);' + (frost ? 'right:0' : 'left:0') + ';z-index:25;width:278px;padding:8px;border-radius:16px;background:#fff;box-shadow:0 18px 44px rgba(15,18,25,.2),0 0 0 1px #eceef2;animation:popIn 160ms ease both">' +
           '<div style="display:flex;align-items:center;gap:14px;padding:4px 10px 8px"><span style="flex:1;font-size:11.5px;font-weight:900;letter-spacing:1.1px;text-transform:uppercase;color:#8a909b">' + esc(title) + '</span>' +
             (onAll ? '<span ' + on((e) => { stop(e); onAll(); }) + ' style="font-size:13.5px;font-weight:800;color:' + (allOn ? '#b9b2f5' : '#5b4ae8') + ';cursor:pointer">Select all</span>' : '') +
             '<span ' + on((e) => { stop(e); onClear(); }) + ' style="font-size:13.5px;font-weight:800;color:#6b7280;cursor:pointer">Clear</span></div>' +
@@ -3650,33 +3832,32 @@
   function viewCalendar() {
     const st = state, groups = groupsInOrder(), kind = st.cKind, base = calPool(), list = calResults(), hand = kind === 'plan' ? handList() : [];
     const calHero = currentGroup();   // the header shows the group last opened (owner, 2026-10-02: no pilot photo for everyone)
-    const header = '<header style="position:relative;height:calc(180px + var(--pt));overflow:hidden;background:#2b303a">' +
-      (calHero && groupPhoto(calHero) ? '<div style="position:absolute;inset:0;overflow:hidden">' + photoLayer(groupPhoto(calHero), calHero.photoPos, GROUP_POS) + '</div>' : '<div aria-hidden="true" style="position:absolute;inset:0;background:' + HEAD_GOLD + '"></div>') +
-      '<div aria-hidden="true" style="position:absolute;inset:0;background:' + HEAD_WASH + '"></div>' +
-      '<div style="position:absolute;top:calc(14px + var(--pt));right:16px;display:flex;gap:8px;z-index:2">' +
-        '<span ' + on(openSearch) + ' aria-label="Search events" style="width:44px;height:44px;border-radius:999px;background:rgba(255,255,255,.18);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;cursor:pointer">' + ic6('search', 19, '#fff', 2.4) + '</span>' +
-        bellBtn(true) + '</div>' +
-      // The same spacing as Your people's header (owner, 2026-10-01)
-      '<div style="position:absolute;left:18px;right:90px;bottom:16px;color:#fff">' +
-        '<div style="font-size:13px;font-weight:900;letter-spacing:1px;color:#cfc9ff">ALL EVENTS</div>' +
-        '<h1 style="margin:2px 0 0;font-size:40px;line-height:1;font-weight:900;letter-spacing:-1.4px;color:#fff">Discover</h1>' +
-        '<div style="margin-top:6px;font-size:14px;font-weight:700;color:rgba(255,255,255,.88)">' + (groups.length ? 'Everything happening in your ' + groups.length + (groups.length === 1 ? ' group' : ' groups') : st.error === 'load' ? 'Couldn’t load your groups' : 'Join a group to see its events') + '</div></div>' +
-      '<button type="button" class="hov-primary" ' + on(() => goCompose()) + ' data-new-event aria-label="Start an event" style="position:absolute;right:16px;bottom:16px;z-index:2;width:52px;height:52px;border:0;border-radius:999px;background:#5b4ae8;box-shadow:0 6px 16px rgba(13,17,23,.35);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.plus(22, '#fff', 2.8) + '</button>' +
-    '</header>';
-
-    // Filters: Groups · Type · Clear filters
+    // v8: a 136px photo header, Back to My groups, Search and the bell; the title bottom-left and the frosted group
+    // switcher bottom-right (it reads All, or N groups when narrowed). Adding an event is the floating + button
     const gSel = calSel(), nG = gSel ? gSel.length : groups.length;
-    const gLabel = !gSel ? 'All groups' : !nG ? 'No groups' : nG === 1 ? '1 group' : nG + ' groups';
     const toggleG = (id) => { const cur = gSel || groups.map(g => g.id), next = cur.indexOf(id) > -1 ? cur.filter(x => x !== id) : cur.concat([id]); setState({ cGrps: next.length === groups.length ? null : next }); };
     const shown = base.filter(s => inGroups6(s) && inTypes6(s)).length;
-    const gMenu = checkMenu('cGrp', gLabel, 'people', 'Groups', groups.map(g => ({ name: g.name, demo: g.demo, n: base.filter(s => inGroup(s, g.id)).length, on: !gSel || gSel.indexOf(g.id) > -1, toggle: () => toggleG(g.id) })),
-      !gSel, () => setState({ cGrps: null }), () => setState({ cGrps: [] }), 'Show ' + shown + (shown === 1 ? ' event' : ' events'));
+    const gMenu = checkMenu('cGrp', !gSel ? 'All' : nG === 1 ? '1 group' : nG + ' groups', 'people', 'Groups', groups.map(g => ({ name: g.name, demo: g.demo, n: base.filter(s => inGroup(s, g.id)).length, on: !gSel || gSel.indexOf(g.id) > -1, toggle: () => toggleG(g.id) })),
+      !gSel, () => setState({ cGrps: null }), () => setState({ cGrps: [] }), 'Show ' + shown + (shown === 1 ? ' event' : ' events'), true);
+    const frostBtn = 'width:44px;height:44px;border-radius:999px;background:rgba(255,255,255,.18);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;cursor:pointer';
+    const header = '<header style="position:relative;z-index:7;height:calc(136px + var(--pt));background:#2b303a">' +
+      '<div aria-hidden="true" style="position:absolute;inset:0;overflow:hidden">' + (calHero && groupPhoto(calHero) ? photoLayer(groupPhoto(calHero), calHero.photoPos, GROUP_POS) : '<div style="position:absolute;inset:0;background:' + HEAD_GOLD + '"></div>') +
+        '<div style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.9) 0%, rgba(13,17,23,.45) 55%, rgba(13,17,23,.25) 100%)"></div></div>' +
+      '<span ' + on(() => go('groups')) + ' aria-label="Back to My groups" style="position:absolute;top:calc(14px + var(--pt));left:16px;z-index:2;' + frostBtn + '">' + I.chevL(20, '#fff', 2.6) + '</span>' +
+      '<div style="position:absolute;top:calc(14px + var(--pt));right:16px;display:flex;gap:8px;z-index:2">' +
+        '<span ' + on(openSearch) + ' aria-label="Search events" style="' + frostBtn + '">' + ic6('search', 19, '#fff', 2.4) + '</span>' +
+        bellBtn(true) + '</div>' +
+      '<div style="position:absolute;left:18px;right:130px;bottom:16px;color:#fff"><h1 style="margin:0;font-size:40px;line-height:1;font-weight:900;letter-spacing:-1.4px;color:#fff;white-space:nowrap">All groups</h1></div>' +
+      (groups.length ? '<div style="position:absolute;right:16px;bottom:18px;z-index:3">' + gMenu + '</div>' : '') +
+    '</header>';
+
+    // Under the header: *Showing: …* and Clear filters when narrowed (the switcher is in the header since v8)
     const filtered = !!gSel;   // no Type filter (owner, 2026-10-02: nothing sets an event's type since the picker went)
     // Narrowed: a lavender *Showing: Torrez Fitness ✕* (or *Showing: 2 of 3 groups ✕*) that goes back to all groups (Update 16)
     const showing = gSel && nG ? '<span ' + on(() => setState({ cGrps: null, menu: null })) + ' aria-label="Show all groups" style="flex:0 1 auto;min-width:0;display:flex;align-items:center;gap:6px;min-height:36px;padding:0 8px 0 12px;border-radius:999px;background:#f3f1fe;box-shadow:inset 0 0 0 1.5px #c9c2fb;color:#4a3ad4;font-size:13.5px;font-weight:800;cursor:pointer">' +
       '<span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Showing: ' + esc(nG === 1 ? (groupById(gSel[0]) || {}).name || '1 group' : nG + ' of ' + groups.length + ' groups') + '</span>' + I.x(12, '#4a3ad4', 3) + '</span>' : '';
-    const filters = '<div style="position:relative;z-index:6;display:flex;align-items:center;gap:8px;padding:14px 14px 0">' + gMenu + showing +
-      (filtered ? '<span ' + on(clearFilters) + ' style="margin-left:auto;font-size:13.5px;font-weight:800;color:#5b4ae8;cursor:pointer;white-space:nowrap">Clear filters</span>' : '') + '</div>';
+    const filters = !filtered ? '' : '<div style="position:relative;z-index:6;display:flex;align-items:center;gap:8px;padding:12px 14px 0">' + showing +
+      '<span ' + on(clearFilters) + ' style="margin-left:auto;font-size:13.5px;font-weight:800;color:#5b4ae8;cursor:pointer;white-space:nowrap">Clear filters</span></div>';
 
     // Discovery: "Feeling wild?" and "N events could use a hand" (each can be put away for the visit)
     const xBtn = (fn, label) => '<span ' + on((e) => { stop(e); fn(); }) + ' aria-label="' + label + '" style="flex:0 0 32px;width:32px;height:32px;border-radius:999px;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(13, '#6b7280', 2.6) + '</span>';
@@ -3734,7 +3915,7 @@
     }
     // Tighter under the groups chip (owner, 2026-10-03): the cards' row only takes room when it has something in it
     const mid = goneCard() + (st.loaded && !groups.length ? noGroupCard() : '') + wild + needs;
-    return '<div data-screen-label="Discover">' + header + filters +
+    return '<div data-screen-label="All groups">' + header + filters +
       (mid ? '<div style="padding:10px 14px 0;display:flex;flex-direction:column;gap:10px">' + mid + '</div>' : '') +
       '<div style="padding:' + (mid ? 16 : 6) + 'px 14px 26px;display:flex;flex-direction:column;gap:22px">' + body + '</div>' +
       '<div style="height:var(--nav-h)"></div></div>';
@@ -4159,7 +4340,7 @@
     const br = /EdgA?\//.test(ua) ? 'Edge' : /SamsungBrowser/.test(ua) ? 'Samsung Internet' : /CriOS|Chrome\//.test(ua) ? 'Chrome' : /FxiOS|Firefox\//.test(ua) ? 'Firefox' : /Safari\//.test(ua) ? 'Safari' : '';
     return dev + (br ? ' · ' + br : '');
   };
-  const SCREEN_NAMES = { calendar: 'Discover', home: 'Your tasks', sched: 'Your calendar', groups: 'Groups', groupPage: 'Group page', detail: 'Event page', compose: 'Create event', own: 'Your plans & ideas', how: 'How this works' };
+  const SCREEN_NAMES = { calendar: 'All groups', home: 'My tasks', sched: 'My calendar', groups: 'My groups', friends: 'My friends', me: 'Me', groupPage: 'Group page', detail: 'Event page', compose: 'Create event', own: 'Your plans & ideas', how: 'How this works' };
   const fbWhere = () => { const s = state.screen === 'detail' ? subject() : null; return s ? (s.planned ? 'Plan page' : 'Idea page') : SCREEN_NAMES[state.screen] || state.screen || ''; };
   const fbContext = () => {
     const s = state.screen === 'detail' ? subject() : null, g = s ? groupById(s.groupId) : state.screen === 'groupPage' ? currentGroup() : null;
@@ -4256,7 +4437,7 @@
   const fbNudgeRead = () => { try { return JSON.parse(localStorage.getItem(FB_NUDGE_KEY + state.me) || '{}') || {}; } catch (e) { return {}; } };
   const fbNudgeWrite = (o) => { try { localStorage.setItem(FB_NUDGE_KEY + state.me, JSON.stringify(o)); } catch (e) { /* blocked: it may ask again */ } };
   // Only over a main screen with nothing else open, so it never lands on someone mid-task
-  const fbNudgeFits = () => ['calendar', 'home', 'sched', 'groups'].indexOf(state.screen) > -1 && state.loaded && !state.profSheet && !state.notifSheet &&
+  const fbNudgeFits = () => ['calendar', 'home', 'sched', 'groups', 'friends'].indexOf(state.screen) > -1 && state.loaded && !state.notifSheet &&
     !state.fb && !state.confirm && !state.share && !state.loginStep && !state.inv && !state.toast && !state.banner && !state.cSearch && !state.dashAll && !state.cHandSheet && !state.zoom && !state.installPop;
   function fbNudgeTick() {
     const now = Date.now(), gap = Math.min(now - fbTickAt, 60000);   // a sleeping phone doesn't count
@@ -4428,7 +4609,7 @@
   const installMode = () => STANDALONE || IN_APP ? '' : state.canInstall && installEvt ? 'prompt' : IOS_BROWSER ? 'ios' : '';
   const startInstall = async () => {
     const mode = installMode();
-    if (mode === 'ios') return setState({ installPop: true, profSheet: false });
+    if (mode === 'ios') return setState({ installPop: true });
     if (mode !== 'prompt') return;
     const e = installEvt;
     installEvt = null;   // Chrome's prompt works once; it offers a fresh one on a later visit
@@ -4450,7 +4631,7 @@
   const maybeInstallPop = () => {
     const st = state;
     if (popTimer || st.installPop || !installMode() || st.viewAs || st.screen === 'compose' || st.inv) return;   // never over the invite screens
-    if (st.loginStep || st.nameAsk || st.confirm || st.guestOpen || st.joinOpen || st.pe || st.invite || st.profSheet || st.notifSheet) return;
+    if (st.loginStep || st.nameAsk || st.confirm || st.guestOpen || st.joinOpen || st.pe || st.invite || st.notifSheet) return;
     if (!(welcomeShown() || (st.email && st.loaded)) || a2hsSeen()) return;
     popTimer = setTimeout(() => {
       popTimer = null;
@@ -4915,7 +5096,7 @@
       '<div style="margin-top:6px;font-size:15px;font-weight:500;color:#5c6270;text-wrap:pretty">' + (sub || 'Start one, or turn an idea into a plan.') + '</div></div>' + (btns || createBtn()) + '</div>';
   const schedEmpty = () => plansEmpty('Anything you say yes or maybe to lands here. See what’s happening in your groups and pick something.',
     '<div style="width:100%;display:flex;flex-direction:column;gap:10px">' +
-      '<button type="button" class="hov-primary" ' + on(() => go('calendar')) + ' style="width:100%;min-height:52px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 6px 16px rgba(91,74,232,.3);cursor:pointer">' + svg(18, stroke('#fff', 2.2), '<circle cx="12" cy="12" r="8.75"/><path d="m15.6 8.4-2.2 5-5 2.2 2.2-5 5-2.2Z"/>') + 'Discover events</button>' +
+      '<button type="button" class="hov-primary" ' + on(() => go('calendar')) + ' style="width:100%;min-height:52px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 6px 16px rgba(91,74,232,.3);cursor:pointer">' + 'Find an event</button>' +
       '<button type="button" class="hov-sec" ' + on(() => goCompose()) + ' style="width:100%;min-height:52px;border:0;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;color:#0d1117;font-family:inherit;font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer">' + I.plus(18, '#0d1117', 2.8) + 'Start an event</button></div>',
     'data-sched-empty', 'Nothing on your calendar yet');
   // Under a group's plans: just Create an event, on the page (owner, 2026-10-01: no Do it again? chips, no white card)
@@ -4966,7 +5147,7 @@
     const note = (icon, strong, p) => '<div style="display:flex;gap:12px">' + icon + '<p style="margin:0;font-size:14.5px;line-height:1.42;font-weight:500;color:#454b55"><strong style="font-weight:800;color:#0d1117">' + strong + '</strong> ' + p + '</p></div>';
     const ic = (body) => '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5c6270" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 20px;margin-top:2px" aria-hidden="true">' + body + '</svg>';
     return '<div data-screen-label="How this works" style="background:#fff;min-height:100%">' +
-      head6('How this works', backBtn6(() => go(state.howFrom || 'calendar', state.howFrom && state.email ? { profSheet: true } : {}))) +
+      head6('How this works', backBtn6(() => go(state.howFrom || 'calendar'))) +
       '<section style="padding:20px 20px 26px">' +
         '<h2 style="margin:0;font-size:28px;line-height:1.06;font-weight:900;letter-spacing:-.8px;color:#0d1117;text-wrap:pretty">Ideas come to life when we build them together</h2>' +
         '<p style="margin:12px 0 0;font-size:15.5px;line-height:1.45;font-weight:500;color:#454b55">Spark Hub is where your groups plan things. Anyone can start something, and everyone can help make it happen.</p>' +
@@ -6246,41 +6427,155 @@
   };
 
   // v6 Update 2: a compact Profile sheet (photo, name, a pencil to edit); Help & info tiles, then Settings
-  function viewProfileSheet() {
-    const close = () => setState({ profSheet: false, fbHint: false });
-    const st = state, avatar = st.myAvatar ? photoUrl(st.myAvatar) : null;
-    const ROW = 'display:flex;align-items:center;gap:12px;min-height:60px;padding:10px 16px;cursor:pointer;text-decoration:none';
-    const line = (title, sub) => '<div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:800;color:#0d1117">' + title + '</div><div style="font-size:13px;font-weight:500;color:#6b7280">' + sub + '</div></div>';
-    const section = (label, inner) => '<div style="display:flex;flex-direction:column;gap:8px"><span style="padding:0 4px;' + EYEBROW + '">' + label + '</span><div style="' + CARD + ';overflow:hidden">' + inner + '</div></div>';
-    // The owner's mock (2026-10-02): each tile has its colour along the top edge and a solid icon square
-    const tile = (icon, title, sub, fn, color, hint) => '<div ' + on(fn) + ' aria-label="' + esc(title) + '" data-help-tile' + (hint ? ' data-fb-hint' : '') + ' class="hov-row' + (hint ? ' fb-hint' : '') + '" style="position:relative;display:flex;flex-direction:column;gap:12px;padding:14px;border-radius:18px;border-top:3px solid ' + color + ';background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
-      (hint ? '<span aria-hidden="true" style="position:absolute;top:-12px;right:10px;padding:3px 9px;border-radius:999px;background:#e8a71c;color:#fff;font-size:11.5px;font-weight:900;letter-spacing:.4px">RIGHT HERE</span>' : '') +
-      '<span aria-hidden="true" style="width:42px;height:42px;border-radius:12px;background:' + color + ';color:#fff;display:flex;align-items:center;justify-content:center">' + icon + '</span>' +
-      '<div><div style="font-size:16.5px;line-height:1.2;font-weight:900;letter-spacing:-.2px;color:#0d1117;text-wrap:balance">' + title + '</div><div style="margin-top:4px;font-size:13.5px;line-height:1.35;font-weight:500;color:#5c6270">' + sub + '</div></div></div>';
-    return sheet6('Profile', close,
-      '<div style="display:flex;align-items:center;gap:14px;padding:2px 2px 4px">' +
-        '<span ' + on(openProfileEdit) + ' aria-label="Change photo" style="display:flex;cursor:pointer">' + avatarSpan(st.me, st.myName, avatar, 56) + '</span>' +
-        '<div style="flex:1;min-width:0;display:flex;align-items:center;gap:4px">' +
-          '<span style="min-width:0;font-size:20px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(st.myName || 'No name yet') + '</span>' +
-          '<span ' + on(openProfileEdit) + ' aria-label="Edit profile" style="flex:0 0 32px;width:32px;height:32px;border-radius:999px;color:#9aa0ac;display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(15, stroke('currentColor', 2.2), '<path d="M4 20h4L19 9l-4-4L4 16v4Z"/>') + '</span></div>' +
-        closeX(close) + '</div>',
-      '<div style="padding:18px 14px 30px;display:flex;flex-direction:column;gap:20px">' + (st.demoAdmin ? '<div style="display:flex;flex-direction:column;gap:10px">' + fbInboxCard() + acctCard() + '</div>' : '') +
-        '<div style="display:flex;flex-direction:column;gap:10px"><h2 style="margin:0;padding:0 4px;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:#0d1117">Help &amp; info</h2>' +
-          '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">' +
-            tile('<span style="font-size:17px;font-weight:900">?</span>', 'How this works', 'Events and pitching in', () => go('how', { howFrom: state.screen }), '#5b4ae8') +
-            tile(svg(17, stroke('currentColor', 2.4), '<path d="M4 20h4L19 9l-4-4L4 16v4Z"/>'), 'Give feedback', 'Tell Eric what you think', () => setState({ fb: { text: '', nudge: !!st.fbHint }, fbHint: false }), '#149a4b', !!st.fbHint) +
-          '</div></div>' +
-        section('Settings',
-          '<div ' + on(() => setState({ nSettings: true })) + ' class="hov-row" style="' + ROW + '">' + line('Notifications', 'In the app and on your phone') + I.chevR(16, '#9aa0ac', 2.4) + '</div>' +
-          (installMode() ? '<div ' + on(startInstall) + ' class="hov-row" style="' + ROW + ';border-top:1px solid #f2f3f6">' + line('Add to Home Screen', installMode() === 'prompt' ? 'Install Spark Hub on this phone' : 'A few taps in ' + IOS_BROWSER + '’s Share menu') + I.chevR(16, '#9aa0ac', 2.4) + '</div>' : '') +
-          '<a href="/privacy.html" target="_blank" rel="noopener" class="hov-row" style="' + ROW + ';border-top:1px solid #f2f3f6">' + line('Privacy', 'Who sees your profile and events') + I.chevR(16, '#9aa0ac', 2.4) + '</a>') +
-        '<div style="display:flex;flex-direction:column;gap:14px">' +
-          testerCard() +
-          (st.demoAdmin ? diagCard() : '') +
-          '<div ' + on(signOut) + ' style="' + CARD + ';padding:0 16px;min-height:52px;display:flex;align-items:center;cursor:pointer"><span style="font-size:15.5px;font-weight:800;color:#9b1c31">Sign out</span></div>' +
-          (st.demoAdmin ? '' : '<span ' + on(() => setState({ acctDel: '' })) + ' data-delete-account style="align-self:center;display:flex;align-items:center;min-height:44px;padding:0 12px;font-size:14px;font-weight:700;color:#6b7280;text-decoration:underline;text-underline-offset:3px;cursor:pointer">Delete my account</span>') +
-        '</div>' +
-      '</div>', 48);
+  // ---- Me (v8 11a): the profile and settings page, a tab (it was the Profile sheet)
+  // What you've done: led (not ideas), helped (took a job on someone else's event), attended (went, after the day)
+  const guestsGoing = (s) => going(s).filter(r => hostIds(s).indexOf(r.userId) < 0).length;   // not counting the leads
+  const meStats = () => {
+    const live = state.sparks.filter(s => !s.cancelledAt && inMine(s));
+    const led = live.filter(s => isLead(s) && s.planned).sort((a, b) => byWhen(b, a));
+    const helped = live.filter(s => !isLead(s) && s.planned && helpsOn(s)).sort((a, b) => byWhen(b, a));
+    const went = live.filter(s => !isLead(s) && phaseOf(s) === 'done' && myRsvp(s) === 'going').sort((a, b) => byWhen(b, a));
+    const came = led.concat(helped).filter(s => phaseOf(s) === 'done').reduce((n, s) => n + guestsGoing(s), 0);
+    return { led, helped, went, came };
+  };
+  // YOUR STUFF's lists: drafts, ideas you lead, events you lead, and past events you led, helped with or went to
+  const meLists = () => {
+    const live = state.sparks.filter(s => !s.cancelledAt && inMine(s));
+    const ideas = live.filter(s => isLead(s) && phaseOf(s) === 'idea').sort((a, b) => b.created - a.created);
+    const lead = live.filter(s => isLead(s) && phaseOf(s) === 'plan').sort((a, b) => (!a.dayDate) - (!b.dayDate) || byWhen(a, b));
+    const past = live.filter(s => phaseOf(s) === 'done' && (isLead(s) || helpsOn(s) || myRsvp(s) === 'going')).sort((a, b) => byWhen(b, a));
+    return { drafts: state.drafts, ideas, lead, past };
+  };
+  // The two dismissible alerts: Add to Home Screen (until dismissed) and feedback (back every 4 visits after ✕)
+  const ME_ALERT_KEY = 'spark-hub-me-alert-';
+  const meAlertGet = (k) => { try { return localStorage.getItem(ME_ALERT_KEY + k); } catch (e) { return null; } };
+  const meAlertSet = (k, v) => { try { localStorage.setItem(ME_ALERT_KEY + k, String(v)); } catch (e) { /* shows again next visit */ } render(); };
+  const meVisits = () => +(meAlertGet('visits') || 0);
+  let meVisitCounted = false;
+  const countMeVisit = () => { if (meVisitCounted) return; meVisitCounted = true; try { localStorage.setItem(ME_ALERT_KEY + 'visits', String(meVisits() + 1)); } catch (e) { /* not counted */ } };
+  const soonToast = () => toast('Coming soon', 'soon');
+  const openFeedback = () => setState({ fb: { text: '', nudge: !!state.fbHint }, fbHint: false });
+
+  function viewMe() {
+    const st = state, avatar = st.myAvatar ? photoUrl(st.myAvatar) : null, x = meStats(), L = meLists();
+    countMeVisit();
+    const roundBtn = (fn, label, icon) => '<span ' + on(fn) + ' aria-label="' + label + '" style="position:relative;flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;color:#0d1117;cursor:pointer">' + icon + '</span>';
+    const stat = (n, label, big) => '<div style="display:flex;flex-direction:column;gap:2px"><b style="font-size:' + (big ? 32 : 26) + 'px;line-height:1;font-weight:900;letter-spacing:-.6px;color:#fff">' + n + '</b><span style="font-size:' + (big ? 12.5 : 12) + 'px;line-height:1.2;font-weight:700;color:rgba(255,255,255,.88)">' + label + '</span></div>';
+    const impact = '<div ' + on(() => setState({ meImp: 'led' })) + ' data-impact data-screen-label="Your impact" aria-label="Your impact: ' + x.led.length + ' led, ' + x.helped.length + ' helped, ' + x.went.length + ' attended" style="position:relative;overflow:hidden;display:flex;align-items:center;gap:10px;padding:14px 12px 14px 16px;border-radius:18px;color:#fff;cursor:pointer;background:' + SPARKLE_GRAD + '">' +
+      sparkles([[93, 8, 10, '#fff', 1], [86, 78, 7, '#ffe7a6', 1]]) +
+      '<div style="position:relative;flex:1;min-width:0;display:grid;grid-template-columns:repeat(3,1fr);gap:8px">' + stat(x.led.length, 'you’ve led') + stat(x.helped.length, 'you’ve helped') + stat(x.went.length, 'you’ve attended') + '</div>' +
+      '<span style="position:relative;display:flex">' + I.chevR(16, '#fff', 2.6) + '</span></div>';
+    const head = '<div style="background:#fff;padding:16px;display:flex;flex-direction:column;gap:14px;box-shadow:0 1px 0 #e8eaef">' +
+      '<div style="display:flex;align-items:center;gap:12px">' +
+        '<span ' + on(() => openPerson(st.me)) + ' aria-label="See your profile" style="display:flex;cursor:pointer">' + avatarSpan(st.me, st.myName, avatar, 56) + '</span>' +
+        '<div style="flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:2px">' +
+          '<span style="min-width:0;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(st.myName || 'No name yet') + '</span>' +
+          '<span ' + on(openProfileEdit) + ' data-edit-profile style="align-self:flex-start;font-size:13.5px;font-weight:700;color:#5b4ae8;cursor:pointer">Edit profile</span></div>' +
+        roundBtn(openSearch, 'Search events', ic6('search', 18, 'currentColor', 2.2)) +
+        bellBtn(false, 40) + '</div>' + impact + '</div>';
+    // Alerts: the home screen one only where the app can be added; feedback comes back every 4 visits
+    const a2hsOn = !!installMode() && !meAlertGet('a2hs');
+    const fbAt = meAlertGet('fb'), fbOn = st.fbHint || fbAt == null || meVisits() - +fbAt >= 4;
+    const alert = (bg, ink, icon, title, sub, fn, x, attr) => '<div ' + (attr || '') + ' style="display:flex;align-items:center;gap:12px;padding:10px 10px 10px 12px;border-radius:16px;background:' + bg + '">' +
+      '<div ' + on(fn) + ' style="flex:1;min-width:0;display:flex;align-items:center;gap:12px;cursor:pointer"><span style="flex:0 0 36px;width:36px;height:36px;border-radius:11px;background:#fff;color:' + ink + ';display:flex;align-items:center;justify-content:center">' + icon + '</span>' +
+        '<div style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:14.5px;font-weight:800;color:#0d1117">' + title + '</span><span style="font-size:12.5px;font-weight:600;color:#5c6270">' + sub + '</span></div></div>' +
+      '<span ' + on(x) + ' aria-label="Dismiss" style="flex:0 0 32px;width:32px;height:32px;margin-right:-4px;border-radius:999px;display:flex;align-items:center;justify-content:center;color:#8a909b;cursor:pointer">' + I.x(13, 'currentColor', 2.6) + '</span></div>';
+    const alerts = a2hsOn || fbOn ? '<div data-screen-label="Me alerts" style="padding:12px 14px 0;display:flex;flex-direction:column;gap:8px">' +
+      (a2hsOn ? alert('#f3f1fe', '#5b4ae8', svg(18, stroke('currentColor', 2.2), '<rect x="6" y="3" width="12" height="18" rx="2.5"/><path d="M12 9v6M9 12h6"/>'), 'Add Spark Hub to your home screen', 'Open it like an app, one tap away.', startInstall, () => meAlertSet('a2hs', 'x')) : '') +
+      (fbOn ? alert('#fff4dc', '#8f6405', svg(18, stroke('currentColor', 2.2), '<path d="M5 5h14a1.5 1.5 0 0 1 1.5 1.5v9A1.5 1.5 0 0 1 19 17H10l-4.5 3.5V17H5a1.5 1.5 0 0 1-1.5-1.5v-9A1.5 1.5 0 0 1 5 5Z"/><path d="M8 10h8M8 13h5"/>'), 'Give Eric feedback', 'What’s working, what’s confusing?', openFeedback, () => { setState({ fbHint: false }); meAlertSet('fb', meVisits()); }, st.fbHint ? 'data-fb-hint class="fb-hint"' : '') : '') + '</div>' : '';
+    // YOUR STUFF: Drafts · Ideas · Leading · Past, each a slide-up list
+    const nextLead = L.lead.find(s => s.dayDate) || L.lead[0], interested = L.ideas.reduce((n, s) => n + s.interested.length, 0);
+    const stuff = (k, color, title, n, sub) => '<div ' + on(() => setState({ meList: k })) + ' data-stuff="' + title + '" aria-label="' + title + ', ' + n + '" class="hov-row" style="display:flex;flex-direction:column;gap:6px;padding:14px;border-radius:18px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
+      '<div style="display:flex;align-items:center;gap:8px"><span style="flex:0 0 3px;width:3px;height:16px;border-radius:2px;background:' + color + '"></span><span style="flex:1;font-size:15px;font-weight:800;color:#0d1117">' + title + '</span><b style="font-size:20px;line-height:1;font-weight:900;color:#0d1117">' + n + '</b></div>' +
+      '<span style="font-size:12.5px;line-height:1.3;font-weight:600;color:#6b7280;text-wrap:pretty">' + esc(sub) + '</span></div>';
+    const d0 = L.drafts[0] ? cleanTitle(draftState(L.drafts[0]).activity) || 'Untitled event' : '';
+    const yourStuff = '<div style="padding:14px 14px 0"><div style="display:flex;flex-direction:column;gap:8px"><span style="padding:0 6px;font-size:12.5px;font-weight:900;letter-spacing:1px;color:#6b7280">YOUR STUFF</span>' +
+      '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">' +
+        stuff('draft', '#c9ccd3', 'Drafts', L.drafts.length, L.drafts.length ? d0 + (L.drafts.length > 1 ? ' + ' + (L.drafts.length - 1) + ' more' : '') : 'Nothing saved') +
+        stuff('idea', '#1f5fa8', 'Ideas', L.ideas.length, L.ideas.length ? interested + (interested === 1 ? ' person' : ' people') + ' interested' : 'Float one any time') +
+        stuff('lead', '#5b4ae8', 'Leading', L.lead.length, nextLead ? 'Next: ' + nextLead.text : 'Nothing planned') +
+        stuff('past', '#9aa0ac', 'Past', L.past.length, L.past.length ? 'Last: ' + L.past[0].text : 'Nothing yet') +
+      '</div></div></div>';
+    // Settings and Help & info rows: a gray icon square, the title (SOON chip), a line under it
+    const SOON = '<span style="display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:999px;background:#fff4dc;color:#8f6405;font-size:10.5px;font-weight:900;letter-spacing:.6px">SOON</span>';
+    const row = (icon, title, sub, fn, k, soon, href) => (href ? '<a href="' + href + '" target="_blank" rel="noopener"' : '<div ' + on(fn)) + ' aria-label="' + esc(title) + '" class="hov-row" style="display:flex;align-items:center;gap:12px;min-height:54px;padding:8px 14px;' + (k ? 'border-top:1px solid #f0f1f4;' : '') + 'cursor:pointer;text-decoration:none">' +
+      '<span style="flex:0 0 34px;width:34px;height:34px;border-radius:10px;background:#f2f3f6;color:#454b55;display:flex;align-items:center;justify-content:center">' + svg(18, stroke('currentColor', 2), icon) + '</span>' +
+      '<div style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="display:flex;align-items:center;gap:8px;font-size:15.5px;font-weight:800;color:#0d1117">' + esc(title) + (soon ? SOON : '') + '</span>' + (sub ? '<span style="font-size:12.5px;font-weight:600;color:#6b7280">' + esc(sub) + '</span>' : '') + '</div>' +
+      I.chevR(14, '#b9bcc4', 2.6) + (href ? '</a>' : '</div>');
+    const group = (label, rows) => '<span style="padding:8px 6px 0;font-size:13px;font-weight:900;letter-spacing:1px;color:#6b7280">' + label + '</span><div style="background:#fff;border-radius:20px;box-shadow:0 1px 3px rgba(15,18,25,.08);overflow:hidden">' + rows + '</div>';
+    const settings = group('SETTINGS',
+      row('<path d="M6 16.5V11a6 6 0 1 1 12 0v5.5l1.6 2H4.4L6 16.5Z"/><path d="M10 21a2.2 2.2 0 0 0 4 0"/>', 'Notifications', 'Events, updates, reminders', () => setState({ nSettings: true }), 0) +
+      row('<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>', 'Sync to your calendar', 'Google Calendar', soonToast, 1, true) +
+      (installMode() ? row('<path d="M4 11.5 12 5l8 6.5V20H4z"/><path d="M10 20v-5h4v5"/>', 'Add to Home Screen', installMode() === 'prompt' ? 'Install Spark Hub on this phone' : 'A few taps in ' + IOS_BROWSER + '’s Share menu', startInstall, 1) : ''));
+    const help = group('HELP &amp; INFO',
+      row('<path d="M5 5h14a1.5 1.5 0 0 1 1.5 1.5v9A1.5 1.5 0 0 1 19 17H10l-4.5 3.5V17H5a1.5 1.5 0 0 1-1.5-1.5v-9A1.5 1.5 0 0 1 5 5Z"/>', 'Send feedback to Eric', '', openFeedback, 0) +
+      row('<circle cx="12" cy="12" r="8.75"/><path d="m15.6 8.4-2.2 5-5 2.2 2.2-5 5-2.2Z"/>', 'Take the tour', 'The five tabs, in a minute', soonToast, 1, true) +
+      row('<circle cx="12" cy="12" r="8.75"/><path d="M9.6 9.3a2.5 2.5 0 0 1 4.8 1c0 1.7-2.4 2.1-2.4 3.4M12 16.6h.01"/>', 'How Spark Hub works', '', soonToast, 1, true) +
+      row('<path d="M12 3 5 6v5c0 4.4 3 8.3 7 9.5 4-1.2 7-5.1 7-9.5V6z"/>', 'Privacy', 'Who sees your profile and events', null, 1, false, '/privacy.html'));
+    return '<div data-screen-label="Me">' + head + alerts + yourStuff +
+      '<div style="padding:16px 14px 26px;display:flex;flex-direction:column;gap:10px">' +
+        (st.demoAdmin ? '<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:12px">' + fbInboxCard() + acctCard() + '</div>' : '') +
+        settings + help +
+        '<div style="display:flex;flex-direction:column;gap:14px;margin-top:12px">' + testerCard() + (st.demoAdmin ? diagCard() : '') + '</div>' +
+        '<div style="display:flex;justify-content:center;padding:8px 0 4px"><span ' + on(signOut) + ' data-sign-out style="min-height:44px;display:flex;align-items:center;font-size:15px;font-weight:800;color:#c0283f;cursor:pointer">Sign out</span></div>' +
+        (st.demoAdmin ? '' : '<span ' + on(() => setState({ acctDel: '' })) + ' data-delete-account style="align-self:center;display:flex;align-items:center;min-height:36px;padding:0 10px;font-size:13.5px;font-weight:700;color:#6b7280;text-decoration:underline;text-underline-offset:3px;cursor:pointer">Delete my account</span>') +
+      '</div><div style="height:var(--nav-h)"></div></div>';
+  }
+
+  // Your impact (v8): the gradient header with the three counts and how many people came, then Led · Helped · Attended
+  function viewImpact() {
+    const st = state, x = meStats(), k = st.meImp, close = () => setState({ meImp: null });
+    const list = k === 'help' ? x.helped : k === 'went' ? x.went : x.led;
+    const stat = (n, label) => '<div style="display:flex;flex-direction:column;gap:2px"><b style="font-size:32px;line-height:1;font-weight:900;letter-spacing:-.8px">' + n + '</b><span style="font-size:12.5px;font-weight:700;color:rgba(255,255,255,.9)">' + label + '</span></div>';
+    const tab = (key, label) => '<span ' + on(() => setState({ meImp: key })) + ' aria-pressed="' + (k === key) + '" style="flex:0 0 auto;display:flex;align-items:center;height:34px;padding:0 13px;border-radius:999px;font-size:13.5px;font-weight:800;cursor:pointer;' + (k === key ? 'background:#0d1117;color:#fff' : 'background:#fff;color:#0d1117;box-shadow:inset 0 0 0 1.5px #dcdfe6') + '">' + label + '</span>';
+    const row = (s, i) => { const up = phaseOf(s) === 'plan', n = guestsGoing(s), jobs = myClaims(s).length;
+      return '<div ' + on(() => { close(); openSpark(s); }) + ' class="hov-row" style="display:flex;align-items:center;gap:12px;min-height:64px;padding:0 14px;' + (i ? 'border-top:1px solid #f2f3f6;' : '') + 'cursor:pointer">' +
+        '<span aria-hidden="true" style="flex:0 0 44px;width:44px;height:44px;border-radius:12px;background:' + thumbBg(s) + '"></span>' +
+        '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px"><span style="font-size:15px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(s.text) + '</span>' +
+          '<span style="font-size:12.5px;font-weight:600;color:#6b7280">' + esc((s.dayDate ? fmtDay(s.dayDate) : 'Date TBD') + (up ? ' · coming up' : '')) + '</span></div>' +
+        '<span style="font-size:13px;font-weight:800;color:#454b55;white-space:nowrap">' + (k === 'help' ? jobs + (jobs === 1 ? ' job' : ' jobs') : n + (up ? ' going' : ' came')) + '</span></div>'; };
+    const since = st.memberSince ? 'Member since ' + st.memberSince : '';
+    return '<div class="v6-scrim" data-scrim="' + reg(close) + '"><div role="dialog" aria-modal="true" aria-label="Your impact" data-screen-label="Your impact sheet" class="v6-sheet" style="--sheet-top:64px">' +
+      '<div style="position:relative;overflow:hidden;flex:0 0 auto;padding:10px 16px 18px;color:#fff;background:' + SPARKLE_GRAD + '">' +
+        sparkles([[70, 14, 12, '#fff', 1], [88, 30, 8, '#ffe7a6', 1], [80, 70, 9, '#ffd0e4', .9]]) +
+        '<div aria-hidden="true" style="position:relative;width:40px;height:5px;border-radius:999px;background:rgba(255,255,255,.55);margin:0 auto 12px"></div>' +
+        '<div style="position:relative;display:flex;align-items:center;gap:10px"><span style="flex:1;font-size:24px;font-weight:900;letter-spacing:-.6px">Your Spark Hub</span>' +
+          '<span ' + on(close) + ' aria-label="Close" style="width:36px;height:36px;border-radius:999px;background:rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(14, '#fff', 2.6) + '</span></div>' +
+        (since ? '<span style="position:relative;font-size:13.5px;font-weight:700;color:rgba(255,255,255,.9)">' + since + '</span>' : '') +
+        '<div style="position:relative;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px">' + stat(x.led.length, 'you’ve led') + stat(x.helped.length, 'you’ve helped') + stat(x.went.length, 'you’ve attended') + '</div>' +
+        '<div style="position:relative;margin-top:14px;padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.16);font-size:14px;font-weight:700"><b style="font-weight:900">' + x.came + (x.came === 1 ? ' person' : ' people') + '</b> came to things you led or helped with</div></div>' +
+      '<div class="v6-sheet-body" style="padding:14px 14px 30px;display:flex;flex-direction:column;gap:10px">' +
+        '<div style="display:flex;gap:6px">' + tab('led', 'Led · ' + x.led.length) + tab('help', 'Helped · ' + x.helped.length) + tab('went', 'Attended · ' + x.went.length) + '</div>' +
+        '<div style="background:#fff;border-radius:20px;box-shadow:0 1px 3px rgba(15,18,25,.08);overflow:hidden">' + (list.length ? list.map(row).join('') : '<div style="padding:22px;text-align:center;font-size:14.5px;font-weight:600;color:#6b7280">Nothing here yet.</div>') + '</div>' +
+      '</div></div></div>';
+  }
+
+  // YOUR STUFF's slide-ups: a row per item, or an empty state with a next step
+  function viewMeList() {
+    const k = state.meList, L = meLists(), close = () => setState({ meList: null });
+    const title = { draft: 'Drafts', idea: 'Your ideas', lead: 'Leading', past: 'Past events' }[k];
+    const row = (thumb, t, sub, fn, i, dim) => '<div ' + on(() => { close(); fn(); }) + ' class="hov-row" style="display:flex;align-items:center;gap:12px;min-height:64px;padding:8px 4px;' + (i ? 'border-top:1px solid #f0f1f4;' : '') + 'cursor:pointer">' +
+      '<span aria-hidden="true" style="flex:0 0 44px;width:44px;height:44px;border-radius:11px;background:' + thumb + (dim ? ';filter:saturate(.4)' : '') + '"></span>' +
+      '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px"><span style="font-size:15.5px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(t) + '</span>' +
+        '<span style="font-size:13px;font-weight:600;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(sub) + '</span></div>' + I.chevR(14, '#b9bcc4', 2.6) + '</div>';
+    const gName = (s) => (groupById(s.groupId) || {}).name || '';
+    const fd = (s) => s.dayDate ? fmtDay(s.dayDate) : 'Date TBD';
+    const rows = k === 'draft' ? L.drafts.map((d, i) => { const x = draftState(d); return row(x.evPhotoPath ? '#2b303a ' + bg(photoUrl(x.evPhotoPath)) : '#f2f3f6', cleanTitle(x.activity) || 'Untitled event', draftStep(x) + ' of ' + EV_STEPS.length + ' steps · ' + agoSaved(d.saved), () => resumeDraft(d), i); })
+      : k === 'idea' ? L.ideas.map((s, i) => row(thumbBg(s), s.text, s.interested.length + ' interested · ' + gName(s), () => openSpark(s), i))
+      : k === 'lead' ? L.lead.map((s, i) => row(thumbBg(s), s.text, fd(s) + ' · ' + gName(s), () => openSpark(s), i))
+      : L.past.map((s, i) => row(thumbBg(s), s.text, (isLead(s) ? 'You led · ' : helpsOn(s) ? 'You helped · ' : 'You went · ') + fd(s), () => openSpark(s), i, true));
+    const E = { draft: ['No drafts', 'Anything you save partway through shows up here.', 'Start an event', () => goCompose(), '#454b55', '#f2f3f6', I.plus(22, 'currentColor', 2.6)],
+      lead: ['Start an event', 'You’re not leading anything yet. Got an idea for your group?', 'Start an event', () => goCompose(), '#5b4ae8', '#f3f1fe', I.plus(22, 'currentColor', 2.6)],
+      idea: [WE_SHOULD, 'Post an idea with only rough details and see who’s in.', 'Float an idea', () => goCompose(), '#8f6405', '#fff4dc', svg(22, stroke('currentColor', 2.2), BULB_IC)],
+      past: ['Nothing here yet', 'Events you lead or go to land here once they’ve happened.', 'Find an event', () => go('calendar'), '#454b55', '#f2f3f6', svg(22, stroke('currentColor', 2.2), '<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>')] }[k];
+    const empty = '<div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:18px 12px 8px;text-align:center">' +
+      '<span style="width:56px;height:56px;border-radius:999px;background:' + E[5] + ';color:' + E[4] + ';display:flex;align-items:center;justify-content:center">' + E[6] + '</span>' +
+      '<span style="margin-top:6px;font-size:17px;font-weight:900;color:#0d1117">' + E[0] + '</span>' +
+      '<span style="max-width:280px;font-size:14px;line-height:1.4;font-weight:500;color:#6b7280;text-wrap:pretty">' + E[1] + '</span>' +
+      '<span ' + on(() => { close(); E[3](); }) + ' class="hov-primary" style="margin-top:10px;display:flex;align-items:center;min-height:46px;padding:0 20px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:15px;font-weight:800;cursor:pointer">' + E[2] + '</span></div>';
+    return sheet6(title, close,
+      '<div style="display:flex;align-items:center;gap:10px"><h2 style="flex:1;margin:0;font-size:22px;font-weight:900;letter-spacing:-.5px;color:#0d1117">' + title + ' · ' + rows.length + '</h2>' + closeX(close) + '</div>',
+      '<div style="background:#fff;min-height:100%;padding:0 16px 34px">' + (rows.length ? rows.join('') : empty) + '</div>', 120);
   }
 
   // ---------------------------------------------------------------------------
@@ -7496,7 +7791,7 @@
       await ensureSession();
       await forgetPush().catch(() => {});
       must(await sb.rpc('delete_my_account'));
-      setState({ busy: null, acctDel: null, profSheet: false });
+      setState({ busy: null, acctDel: null });
       await signOut();
       toast('Your account is deleted', true);
     } catch (e) {
@@ -7659,7 +7954,9 @@
         '<span style="font-size:16px;line-height:1.3;font-weight:600;color:#fff">' + esc(t.text) + '</span></div></div>';
     return '<div role="status" style="position:absolute;left:14px;right:14px;bottom:calc(var(--nav-h) + 12px);z-index:50;display:flex;justify-content:center;pointer-events:none">' +
       '<div style="display:flex;align-items:flex-start;gap:10px;max-width:100%;background:#0d1117;border-radius:14px;padding:13px 16px;box-shadow:0 12px 30px rgba(15,18,25,.3);animation:popIn 240ms cubic-bezier(.22,.9,.28,1) both">' +
-        (t.ok
+        (t.ok === 'soon'
+          ? '<span aria-hidden="true" style="flex:0 0 18px;display:flex;margin-top:1px">' + svg(18, 'fill="#f5b428"', '<path d="M10.3 3.6a2 2 0 0 1 3.4 0l8 13.9A2 2 0 0 1 20 20.5H4a2 2 0 0 1-1.7-3l8-13.9Z"/><path d="M12 9v4.5M12 17h.01" stroke="#0d1117" stroke-width="2.4" stroke-linecap="round"/>') + '</span>'
+          : t.ok
           ? '<span style="flex:0 0 18px;width:18px;height:18px;margin-top:1px;border-radius:999px;background:#149a4b;display:flex;align-items:center;justify-content:center">' + I.check(10, '#fff', 4) + '</span>'
           : '<span style="flex:0 0 18px;width:18px;height:18px;margin-top:1px;border-radius:999px;background:#e2556b;color:#fff;font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center">!</span>') +
         '<span style="font-size:14.5px;line-height:1.35;font-weight:700;color:#fff">' + esc(t.text) + '</span>' +
@@ -7671,37 +7968,34 @@
   // Tab bar and the whole view
   // ---------------------------------------------------------------------------
 
-  // Tab bar with a label under every icon (Design pick 2a, owner 2026-10-04): Discover · Tasks · Calendar (centre, in a
-  // ring that rises above the bar) · Groups · Settings (the profile & settings sheet). Was Explore · Your tasks · Your
-  // calendar · Groups · Profile, icons only (v7 Update 16)
+  // Tab bar (Design v8, 2026-10-05): Groups · Friends · Calendar · Tasks · Me. Was Discover · Tasks · Calendar (in a ring) ·
+  // Groups · Settings (pick 2a); Discover is now All groups, under Groups
   function viewNav() {
-    const s = state.screen, prof = state.profSheet, n = tasksBadge();
+    const s = state.screen, n = tasksBadge();
     // In Create event with something typed, a tab asks about a draft first, then goes there (owner, 2026-10-02)
     const leave = (fn) => () => {
       if (s !== 'compose') return fn();
       if (state.email && evStarted(state)) return setState({ evLeave: true, evLeaveTo: fn, timeOpen: null, dateOpen: null });
       setState(composeReset()); fn();
     };
-    const lbl = (text) => '<span style="font-size:11.5px;line-height:13px;font-weight:800;white-space:nowrap">' + text + '</span>';
+    // v8: five flat tabs of the same weight, labels 11.5px/600, the active one purple; nothing rises above the bar
+    const lbl = (text) => '<span style="font-size:11.5px;line-height:13px;font-weight:600;letter-spacing:-.1px;white-space:nowrap">' + text + '</span>';
     const tab = (active, label, text, icon, fn) => '<div ' + on(leave(fn)) + ' aria-label="' + label + '"' + (active ? ' aria-current="page"' : '') +
       ' style="padding-top:10px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;gap:4px;width:100%;color:' + (active ? '#5b4ae8' : '#6b7280') + ';cursor:pointer">' +
       '<span style="height:24px;display:flex;align-items:center">' + icon + '</span>' + lbl(text) + '</div>';
-    const calOn = s === 'sched' && !prof;
+    const ic = (paths) => svg(24, stroke('currentColor', 1.9), paths);
+    const reqDot = state.fr.incoming.length ? '<span aria-hidden="true" style="position:absolute;top:-2px;right:-4px;width:10px;height:10px;box-sizing:border-box;border-radius:999px;background:#5b4ae8;border:2px solid #fff"></span>' : '';
     return '<nav class="tabbar" aria-label="Main">' +
-      tab(s === 'calendar' && !prof, 'Discover', 'Discover', svg(24, stroke('currentColor', 1.9), '<circle cx="12" cy="12" r="8.75"/><path d="m15.6 8.4-2.2 5-5 2.2 2.2-5 5-2.2Z"/>'), () => go('calendar')) +
-      tab(s === 'home' && !prof, n ? 'Tasks, ' + n : 'Tasks', 'Tasks', '<span style="position:relative;display:flex">' + svg(24, stroke('currentColor', 1.9), P6.tasks) +
+      tab(['groups', 'calendar', 'browse', 'groupPage'].indexOf(s) > -1, 'Groups', 'Groups', ic('<rect x="4" y="4" width="7" height="7" rx="1.6"/><rect x="13" y="4" width="7" height="7" rx="1.6"/><rect x="4" y="13" width="7" height="7" rx="1.6"/><rect x="13" y="13" width="7" height="7" rx="1.6"/>'), () => go('groups')) +
+      tab(s === 'friends', state.fr.incoming.length ? 'Friends, new request' : 'Friends', 'Friends', '<span style="position:relative;display:flex">' + ic('<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M15.5 4.6a3.5 3.5 0 0 1 0 6.8M18 14a6.5 6.5 0 0 1 3.5 6"/>') + reqDot + '</span>', () => go('friends')) +
+      tab(s === 'sched', 'Calendar', 'Calendar', ic('<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>'), () => go('sched')) +
+      tab(s === 'home' || s === 'own', n ? 'Tasks, ' + n : 'Tasks', 'Tasks', '<span style="position:relative;display:flex">' + ic('<path d="M10 6.5h10M10 12h10M10 17.5h10"/><path d="m3.5 6.5 1.5 1.5 2.5-3M3.5 12l1.5 1.5 2.5-3M3.5 17.5l1.5 1.5 2.5-3"/>') +
         (n ? '<span aria-hidden="true" style="position:absolute;top:-6px;right:-9px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;border:2px solid #fff;background:#5b4ae8;color:#fff;font-size:10.5px;font-weight:900;display:flex;align-items:center;justify-content:center;box-sizing:border-box">' + (n > 9 ? '9+' : n) + '</span>' : '') + '</span>', () => go('home')) +
-      // The ring rises 20px out of its column, with a white halo that cuts the bar's top line; its label keeps the others' baseline
-      '<div ' + on(leave(() => go('sched'))) + ' aria-label="Calendar"' + (calOn ? ' aria-current="page"' : '') + ' style="padding-top:10px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;gap:4px;width:100%;color:' + (calOn ? '#5b4ae8' : '#6b7280') + ';cursor:pointer">' +
-        '<span style="width:44px;height:44px;margin-top:-20px;border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 3px #fff, inset 0 0 0 ' + (calOn ? '2px #5b4ae8' : '1.9px #c3c7d0') + '">' +
-          svg(24, stroke('currentColor', 2.1), '<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>') + '</span>' + lbl('Calendar') + '</div>' +
-      tab(s === 'groups' && !prof, 'Groups', 'Groups', I.tabPeople, () => go('groups')) +
-      // Gear: the sheet is profile + settings (owner, 2026-10-01); the word is Settings since pick 2a
-      tab(prof, 'Settings', 'Settings', svg(24, stroke('currentColor', 1.9), '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>'), openProfileSheet) +
+      tab(s === 'me', 'Me', 'Me', ic('<circle cx="12" cy="8.2" r="3.8"/><path d="M4.5 20.5a7.5 7.5 0 0 1 15 0"/>'), openProfileSheet) +
     '</nav>';
   }
 
-  // Your calendar's floating add event button (Design pick 1b, 2026-10-04): opens Start an event, sits under sheets and
+  // The floating add event button (Design pick 1b, 2026-10-04; on every tab since v8): opens Plan an event, sits under sheets and
   // pop-ups, and tucks right 0.75s after the last scroll or touch, leaving a sliver. Any scroll or touch brings it back;
   // a tap on the sliver only brings it back. The DOM morph keeps the element, so `tucked` is a class flipped in place.
   let fabTucked = false, fabWasTucked = false, fabTimer = null;
@@ -7714,9 +8008,10 @@
     fabTimer = setTimeout(() => { fabTimer = null; fabTuck(true); }, 750);
   };
   ['scroll', 'wheel', 'touchmove', 'pointerdown'].forEach(k => document.addEventListener(k, fabWake, { capture: true, passive: true }));
+  const TAB_SCREENS = ['groups', 'friends', 'sched', 'home', 'me', 'calendar'];
   const fabTap = () => { if (fabWasTucked) { fabWasTucked = false; return; } goCompose(); };
   function viewAddFab() {
-    if (state.screen !== 'sched' || !state.email || state.profSheet) return '';
+    if (TAB_SCREENS.indexOf(state.screen) < 0 || !state.email) return '';
     return '<div ' + on(fabTap) + ' role="button" aria-label="Start an event" data-add-fab class="add-fab' + (fabTucked ? ' tucked' : '') + '">' +
       svg(22, stroke('#fff', 2.8), '<path d="M12 5v14M5 12h14"/>') + '</div>';
   }
@@ -7737,7 +8032,7 @@
   }
 
   // Welcome is what signed-out visitors see for Home (and Profile / a group page, which need an account)
-  const welcomeShown = () => !state.email && ['home', 'sched', 'groupPage', 'calendar', 'own', 'groups'].indexOf(state.screen) > -1;
+  const welcomeShown = () => !state.email && ['home', 'sched', 'groupPage', 'calendar', 'own', 'groups', 'friends', 'me'].indexOf(state.screen) > -1;
 
   function view() {
     const st = state, s = st.screen, subj = subject();
@@ -7750,6 +8045,8 @@
     else if (s === 'calendar') main = st.email ? viewCalendar() : home();
     else if (s === 'own') main = st.email ? viewOwn() : home();
     else if (s === 'groups') main = st.email ? viewGroups() : home();
+    else if (s === 'friends') main = st.email ? viewFriends() : home();
+    else if (s === 'me') main = st.email ? viewMe() : home();
     else if (s === 'detail' && subj) main = viewDetail(subj);
     else if (s === 'detail' && st.subjectId) main = eventLoading();
     else if (s === 'compose') main = st.email ? '' : viewWelcome();   // the post flow covers the screen
@@ -7764,8 +8061,7 @@
       '<div class="scroller">' + main + '</div>' +
       (st.viewAs ? previewBar() : '') +
       // v6 sheets sit under the pop-ups they open (Edit profile, Notification settings, sign-in, guest info)
-      (st.email && st.profSheet ? viewProfileSheet() : '') +
-      (st.email && st.notifSheet ? viewNotifSheet() : '') +
+            (st.email && st.notifSheet ? viewNotifSheet() : '') +
       (st.email && st.dashAll ? viewDashAll() : '') +
       (st.email && st.cHandSheet ? viewHandSheet() : '') +
       (st.email && st.cSearch ? viewSearch() : '') +
@@ -7798,6 +8094,10 @@
       (st.membersOpen ? viewMembers() : '') +
       (st.email && st.pplAdd ? viewPplAdd() : '') +
       (st.email && st.frAll ? viewFriendsAll() : '') +
+      (st.email && st.frList ? viewFrList() : '') +
+      (st.email && st.frListEd ? viewFrListEd() : '') +
+      (st.email && st.meImp && s === 'me' ? viewImpact() : '') +
+      (st.email && st.meList && s === 'me' ? viewMeList() : '') +
       (st.email && st.frInvite && st.frSel.length ? viewFrInvite() : '') +
       (st.email && st.person ? viewPerson() : '') +
       (st.frAdd ? viewFrAdd() : '') +
@@ -7822,7 +8122,7 @@
       (st.toast ? viewToast() : '') +
       // no tab bar on Welcome, the invite screens, or for a guest on an event (it only led to sign-in)
       (welcomeShown() || invFull() || (!state.email && state.screen === 'detail') ? '' : viewAddFab() + viewNav()) +
-      (st.fbNudge && !st.profSheet && !st.fb ? viewFbNudge() : '') +   // above the tab bar
+      (st.fbNudge && st.screen !== 'me' && !st.fb ? viewFbNudge() : '') +   // above the tab bar
       (st.fbTip && !st.fbNudge ? viewFbTip() : '');                    // pointing at Profile
   }
 
@@ -8058,7 +8358,10 @@
       if (state.cHandSheet) return setState({ cHandSheet: false });
       if (state.dashAll) return setState({ dashAll: null });
       if (state.notifSheet) return setState({ notifSheet: false });
-      if (state.profSheet) return setState({ profSheet: false });
+      if (state.frListEd) return setState({ frListEd: null });
+      if (state.frList) return setState({ frList: null });
+      if (state.meImp) return setState({ meImp: null });
+      if (state.meList) return setState({ meList: null });
     }
     if (state.zoom && state.zoom.photos.length > 1 && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
       const z = state.zoom, n = z.photos.length;
@@ -8325,7 +8628,7 @@
       if (invite) takeInvite(invite);
       if (pendingFriend()) startFriendAdd(pendingFriend());   // a friend link, or back from Google signing in for one
       if (state.inv && state.inv.step === 'confirm' && !state.email) setInv({ step: 'land' });   // the saved session had ended
-      if (state.profSheet && !state.email) { setState({ profSheet: false }); openLogin('profile', () => go('sched', { profSheet: true })); }
+      if (state.screen === 'me' && !state.email) { setState({ screen: 'sched' }); openLogin('profile', () => go('me')); }
     } catch (e) {
       console.error(e);
       setState(Object.assign({ error: 'load', loaded: true }, state.screen === 'detail' && !subject() ? { screen: 'sched', subjectId: null } : {}));
