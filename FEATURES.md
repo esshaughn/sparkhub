@@ -253,6 +253,19 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 173 | **Invite people shows who answered** (owner, 2026-10-03): *Going* / *Maybe* / *Can’t* in place of the tick or *✓ Invited*; they can't be picked | Test | |
 | 174 | **Time tap grid** (owner, 2026-10-03): every time field (start, end, polls, jobs, shifts) opens am / pm, hours 1–12 and :00 :15 :30 :45; the minute picks it; out-of-range times are greyed | Test | |
 
+## Design v8, round 1 (2026-10-05)
+
+| # | Feature | Status | Notes |
+|---|---|---|---|
+| 178 | **Tab bar v8**: Groups · Friends · Calendar · Tasks · Me, five flat tabs (purple when active, a dot on Friends while a request waits, the Tasks badge); the floating + opens Plan an event on every tab and All groups | Test | Replaces Discover · Tasks · Calendar · Groups · Settings |
+| 179 | **My groups**: Next up (your soonest event you lead, help with or go to), pinned groups as big cards, the rest as square tiles, the **All groups** gradient card, *+ Join or add a group*; Search filters the tiles | Test | `#/groups` |
+| 180 | **All groups** (the old Discover): 136px photo header with Back to My groups, Search, the bell, the title and a frosted group switcher (*All* / *N groups*) | Test | `#/explore` |
+| 181 | **My friends**: requests on the sparkle wash, **Your lists** (private friend lists on this device: New list, Edit, Delete, *Invite all N to an event…*), your friends with the next thing each is going to and *Invite ›*, See all past 5, *+ Add a friend* | Test | `#/friends` |
+| 182 | **My tasks**: chips All · Leading · Helping · Ideas with counts; grouped by event, soonest first (Timeline: date line, role bar, rows with role dots; Condensed: one card); NEED rows with Ask right on the screen; empty states per chip | Test | View kept on the device |
+| 183 | **Me** (a tab): photo, name, Edit profile, Search, the bell; **Your impact** card and sheet (led · helped · attended, people who came, Led / Helped / Attended lists); alerts (home screen, feedback); **YOUR STUFF** (Drafts · Ideas · Leading · Past lists); Settings and Help & info rows with SOON items; Sign out; Delete my account | Test | `#/me`; replaces the Profile sheet |
+| 184 | **Plan an event v8**: one sparkle header with step dots on every step; Title with I'll lead it / Float the idea and *What's the difference?*; When; Where; What to expect; Join in (HELP chips, None needed); **Review 19f** (title edited in place, lead card, Details · What to expect · Join in with Edit, Visibility with the POST TO picker, Public / Private, guests can invite) | Test | No Real or test (owner, 2026-10-05) |
+| 185 | **Help out seats**: 28px; open seats plain gray dashed circles (the first one still signs you up) | Test | |
+
 ## Removed in this rebuild
 
 - The old date voting (ranks, lock-in) and the RSVP pop-up (V5 brought back simpler date votes and RSVPs).

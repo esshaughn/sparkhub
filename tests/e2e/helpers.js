@@ -157,17 +157,22 @@ async function newLead(browser, n, name, path) {
 
 const button = (page, name) => page.getByRole('button', { name, exact: true });
 
-// v6: posting starts from the Calendar's + button (the Create event flow); Profile is the last tab (a sheet)
+// v8: posting starts from the floating + on any tab (here My calendar). The button tucks away after a moment, and a tap
+// on the tucked sliver only brings it back, so a second tap may be needed
 async function startPost(page) {
-  await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Discover', exact: true }).click();
-  await page.locator('[data-screen-label=Discover] [data-new-event]').click();
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Calendar', exact: true }).click();
+  const fab = page.locator('[data-add-fab]'), flow = page.locator('[data-screen-label="New spark"]');
+  await fab.click();
+  try { await expect(flow).toBeVisible({ timeout: 1500 }); } catch (e) { await fab.click(); await expect(flow).toBeVisible(); }
 }
-// Create event opens with the Real or test? pop-up (owner, 2026-10-01)
-async function pickKind(page, test = false) {
-  const ask = page.getByRole('dialog', { name: 'Real or test?' });
-  await ask.getByRole('button', { name: test ? /^Just testing/ : /^Real event/ }).click();
-  await expect(ask).toHaveCount(0);
+// All groups (v8; the old Discover tab): My groups' gradient card
+async function openAllGroups(page) {
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Groups', exact: true }).click();
+  await page.locator('[data-all-groups]').click();
+  await expect(page.locator('[data-screen-label="All groups"]')).toBeVisible();
 }
+// Real or test? is gone (v8, owner 2026-10-05): kept so older specs still read, it does nothing
+async function pickKind() {}
 // Tiles · List · Grid: the picker on the first month row
 async function pickView(scope, name) {
   await scope.getByRole('button', { name: /^View: / }).click();
@@ -177,9 +182,10 @@ async function pickView(scope, name) {
 // Taps (RSVP, votes, Interested, sign-ups…) show at once and save behind the screen: wait for them to land before
 // another person looks
 async function saved(page) { await expect(page.locator('html[data-saving]')).toHaveCount(0, { timeout: 20000 }); }
+// Me is a tab (v8; it was the Profile sheet behind Settings)
 async function openProfile(page) {
-  await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Settings', exact: true }).click();
-  await expect(page.getByRole('dialog', { name: 'Profile', exact: true })).toBeVisible();
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Me', exact: true }).click();
+  await expect(page.locator('[data-screen-label="Me"]')).toBeVisible();
 }
 
 // An idea (not yet a plan) in the current group. v6 Update 6 retired the idea-posting flow (everything
@@ -234,21 +240,20 @@ async function openIdea(page, id) {
   await expect(page.locator('[data-screen-label="Idea page"], [data-screen-label="Plan page"], [data-screen-label="It happened"]')).toBeVisible();
 }
 
-// Start an event with the 5-step Create event flow (v6 Update 6). Anything left out is decided later.
-// Returns its id.
-async function postEvent(page, { title, date, time, where, pick, details = [], jobs = [], inviteOnly = false, photo = false, test = false, float = false }) {
+// Plan an event (v8): Title (with I'll lead it / Float the idea) · When · Where · What to expect · Join in, then Review.
+// Anything left out is decided later; Join in's None needed skips it. `test` is ignored (Real or test is gone). Returns its id.
+async function postEvent(page, { title, date, time, where, pick, details = [], jobs = [], inviteOnly = false, photo = false, float = false }) {
   await startPost(page);
   const flow = page.locator('[data-screen-label="New spark"]');
-  const next = () => flow.getByRole('button', { name: /^(Next|Review)$/ }).click();
+  const next = () => flow.getByRole('button', { name: 'Next', exact: true }).click();
   const later = () => flow.getByText('Decide later', { exact: true }).click();
-  await pickKind(page, test);
-  await expect(flow).toContainText('1 of 6');
+  await expect(flow).toContainText('1/6');
   await flow.getByLabel('Event title').fill(title);
-  if (photo) await flow.getByLabel('Upload a cover photo').setInputFiles({ name: 'photo.png', mimeType: 'image/png', buffer: PNG });
-  if (inviteOnly) await flow.getByRole('radio', { name: /^Private/ }).click();   // step 1 since Design 23a (was on Review)
+  if (photo) await flow.getByLabel('Add a cover photo').setInputFiles({ name: 'photo.png', mimeType: 'image/png', buffer: PNG });
+  if (float) await flow.getByRole('button', { name: /^Float the idea/ }).click();
   await next();
 
-  await expect(flow).toContainText('2 of 6');
+  await expect(flow).toContainText('2/6');
   if (date) {
     await pickDate(flow, date);
     if (time) {
@@ -258,45 +263,39 @@ async function postEvent(page, { title, date, time, where, pick, details = [], j
     await next();
   } else await later();
 
-  await expect(flow).toContainText('3 of 6');
+  await expect(flow).toContainText('3/6');
   if (where) {
     await flow.getByLabel('Location').fill(where);
     if (pick) await page.getByRole('group', { name: 'Suggested places' }).getByRole('button', { name: new RegExp(pick) }).click();
     await next();
   } else await later();
 
-  await expect(flow).toContainText('4 of 6');
+  await expect(flow).toContainText('4/6');
   if (details.length) {
     for (let i = 0; i < details.length; i++) await flow.getByLabel('Details, line ' + (i + 1)).fill(details[i]);
     await next();
   } else await later();
 
-  await expect(flow).toContainText('5 of 6');
+  await expect(flow).toContainText('5/6');
   if (jobs.length) {
     for (const j of jobs) {
-      await flow.getByRole('button', { name: /Something else$/ }).click();
+      await flow.getByRole('button', { name: /Other$/ }).click();
       const sheet = page.getByRole('dialog', { name: 'Add a job' });
       await sheet.getByLabel('Job name').fill(j.item);
       for (let n = 1; n < (j.need || 1); n++) await sheet.getByRole('button', { name: 'More for how many people' }).click();
       await sheet.getByRole('button', { name: 'Save', exact: true }).click();
     }
     await next();
-  } else {   // Ask for help has no Decide later (Design 24c3c): No help needed is the answer
-    await flow.getByRole('radio', { name: 'No help needed' }).click();
-    await next();
-  }
+  } else await flow.getByText('None needed', { exact: true }).click();   // Join in has None needed, not Decide later
 
-  // Who's leading it? (the last step; leading it yourself is already picked)
-  await expect(flow).toContainText('6 of 6');
-  if (float) await flow.getByRole('button', { name: /^Just float the idea/ }).click();
-  await flow.getByRole('button', { name: 'Review' }).click();
-
-  await expect(flow).toContainText('LOOKS GOOD');
-  await expect(flow.getByText('Who can see it', { exact: true })).toHaveCount(0);   // not on Review any more
-  await flow.getByRole('button', { name: /^Post (it|as an idea)$/ }).click();
+  // Review (19f): who can see it is here since v8 (it was on step 1)
+  await expect(flow).toContainText('REVIEW');
+  await expect(flow).toContainText('6/6');
+  if (inviteOnly) await flow.getByRole('radio', { name: /^Private/ }).click();
+  await flow.locator('[data-post]').click();
   await expect(page.locator('[data-screen-label="Plan page"]')).toBeVisible();
   await expect(page.getByText('It’s on the books')).toHaveCount(0);   // no chip over a new plan (owner, 2026-10-01)
-  if (!test) await closeAskFirst(page);
+  if (!float) await closeAskFirst(page);
   return ideaIdFromUrl(page);
 }
 // Posting a real event opens the invite sheet as "Ask two people first" (research review, 2026-10-01)
@@ -385,6 +384,6 @@ async function asUser(page, fn, args) {
 }
 
 module.exports = {
-  TAG, TORREZ, PNG, leadEmail, uniqueTitle, startPost, openProfile, saved, pickView, mockPlaces, stubPhotos, trackErrors, expectConnected, newMember, newLead, button,
+  TAG, TORREZ, PNG, leadEmail, uniqueTitle, startPost, openAllGroups, openProfile, saved, pickView, mockPlaces, stubPhotos, trackErrors, expectConnected, newMember, newLead, button,
   postIdea, postEvent, closeAskFirst, pickDate, pickTime, pickKind, addJob, answerNamePrompt, answerGuestPrompt, ideaIdFromUrl, openIdea, confirm, deleteIdea, asUser
 };

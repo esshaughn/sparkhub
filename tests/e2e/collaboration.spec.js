@@ -168,7 +168,7 @@ test('the Ideas board puts the idea with the most interest first', async ({ brow
     const prompt = P.locator('[data-screen-label=Browse] [data-idea-prompt]');
     await expect(prompt).toContainText('Got a “we should…”?');
     await prompt.click();
-    await expect(P.getByRole('dialog', { name: 'Real or test?' })).toBeVisible();
+    await expect(P.locator('[data-screen-label="New spark"]')).toContainText('1/6');
     expect(poster.errors).toEqual([]);
     expect(fan.errors).toEqual([]);
   } finally {
@@ -191,7 +191,7 @@ test('Edit profile: a new name shows everywhere', async ({ browser }) => {
     await pe.getByPlaceholder('First name').fill('Samira');
     await pe.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(me.page.getByText('Profile saved')).toBeVisible();
-    await expect(me.page.locator('[data-screen-label=Profile]')).toContainText('Samira');
+    await expect(me.page.locator('[data-screen-label=Me]')).toContainText('Samira');
     await openIdea(me.page, id);
     await expect(me.page.locator('[data-screen-label="Idea page"]')).toBeVisible();   // (the lead doesn't see a Led by card on their own event, as on plans)
     expect(me.errors).toEqual([]);

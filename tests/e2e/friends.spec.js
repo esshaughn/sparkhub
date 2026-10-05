@@ -32,60 +32,62 @@ test('friends: request, accept, invite to an event, remove, and the friend link'
     await expect(members.locator('[data-member-panel]')).toContainText('Requested');
     await members.getByRole('button', { name: 'Close' }).click();
 
-    // B sees it on the Friends tab and accepts
+    // B sees it on My friends (v8: its own tab, with a dot while a request waits) and accepts
     await B.reload();
-    await nav(B).getByRole('button', { name: 'Groups', exact: true }).click();
-    const people = B.locator('[data-screen-label=Groups]');
-    const req = people.locator('[data-friend-request="Fay Friendly"]');   // one page: requests sit under the Friends heading (Design 20)
+    await expect(nav(B).getByRole('button', { name: 'Friends, new request' })).toBeVisible();
+    await nav(B).getByRole('button', { name: /^Friends/ }).click();
+    const people = B.locator('[data-screen-label=Friends]');
+    const req = people.locator('[data-friend-request="Fay Friendly"]');
     await expect(req).toContainText('Wants to be friends');
     await req.getByRole('button', { name: 'Accept Fay Friendly' }).click();
     await expect(B.getByText('You and Fay are friends')).toBeVisible();
-    await expect(people.locator('[data-friends-card]')).toContainText('Fay');
-    await people.locator('[data-friends-card]').click();
-    const bAll = B.getByRole('dialog', { name: 'All friends' });
-    await expect(bAll.getByRole('button', { name: 'Fay Friendly', exact: true })).toBeVisible();
-    await bAll.getByRole('button', { name: 'Close' }).click();
+    await expect(people.locator('[data-friend-row="Fay Friendly"]')).toBeVisible();
+    // Your lists (4a): a private list, kept on this device; Make list waits for a name and someone
+    await people.locator('[data-new-list]').click();
+    const ed = B.getByRole('dialog', { name: 'New list' });
+    await expect(ed.getByRole('button', { name: 'Make list' })).toHaveAttribute('aria-disabled', 'true');
+    await ed.getByLabel('LIST NAME').fill('Trail crew');
+    await ed.getByRole('checkbox', { name: 'Fay Friendly' }).click();
+    await ed.getByRole('button', { name: 'Make list' }).click();
+    const list = B.getByRole('dialog', { name: 'Trail crew' });
+    await expect(list).toContainText('1 person · only you can see this list');
+    await expect(list).toContainText('Invite Fay to an event…');
+    await B.keyboard.press('Escape');
+    await expect(people.locator('[data-friend-list="Trail crew"]')).toContainText('1 person');
+    await B.reload();
+    await expect(people.locator('[data-friend-list="Trail crew"]')).toBeVisible();   // still there after a reload
 
-    // A invites B to an event: tap the friend, the invite bar, pick the event
+    // A invites B to an event: Invite › on Gus's row, then pick the event
     const title = uniqueTitle('Friends night');
     id = await postEvent(A, { title, date: inDays(9), time: '18:00' });
-    await nav(A).getByRole('button', { name: 'Groups', exact: true }).click();
-    const aPeople = A.locator('[data-screen-label=Groups]');
-    // Friends · N (Design 16a): a row per friend, the round tick picks, then Invite N to an event…
-    await aPeople.locator('[data-friends-card]').click();
-    const aAll = A.getByRole('dialog', { name: 'All friends' });
-    await aAll.getByLabel('Search friends').fill('Gus');
-    await aAll.getByRole('checkbox', { name: 'Invite Gus Friendly' }).click();
-    await expect(aAll.getByRole('checkbox', { name: 'Invite Gus Friendly' })).toBeChecked();
-    await aAll.locator('[data-invite-bar]').getByText('Invite 1 to an event…').click();
-    await expect(aAll).toHaveCount(0);
+    await nav(A).getByRole('button', { name: /^Friends/ }).click();
+    const aPeople = A.locator('[data-screen-label=Friends]');
+    await expect(aPeople.locator('[data-friend-row="Gus Friendly"]')).toContainText(/ · |Nothing coming up/);   // the next thing he's going to (no "Going to"), or Nothing coming up
     const pick = A.getByRole('dialog', { name: 'Invite friends' });
+    await aPeople.getByRole('button', { name: 'Invite Gus Friendly to an event', exact: true }).click();
     await expect(pick).toContainText('Invite Gus');
     await pick.locator('[data-invite-event="' + title + '"]').click();
     await expect(A.getByText('Invited Gus to ' + title + '.')).toBeVisible();
     // Inviting again skips them quietly
-    await aPeople.locator('[data-friends-card]').click();
-    await aAll.getByRole('checkbox', { name: 'Invite Gus Friendly' }).click();
-    await aAll.locator('[data-invite-bar]').getByText('Invite 1 to an event…').click();
-    await A.getByRole('dialog', { name: 'Invite friends' }).locator('[data-invite-event="' + title + '"]').click();
+    await aPeople.getByRole('button', { name: 'Invite Gus Friendly to an event', exact: true }).click();
+    await pick.locator('[data-invite-event="' + title + '"]').click();
     await expect(A.getByText('Gus was already invited.')).toBeVisible();
 
     // B hears about it in the bell
     await B.reload();
-    await B.locator('[data-screen-label=Groups]').getByRole('button', { name: /^Notifications/ }).click();
+    await B.locator('[data-screen-label=Friends]').getByRole('button', { name: /^Notifications/ }).click();
     const bell = B.getByRole('dialog', { name: 'Notifications' });
     await expect(bell.locator('[data-notif=invited]').first()).toContainText('Fay Friendly invited you to ' + title);
     await bell.getByRole('button', { name: 'Close' }).click();
 
     // B taps Fay: the short profile, Remove friend
-    await people.locator('[data-friends-card]').click();
-    await bAll.getByRole('button', { name: 'Fay Friendly', exact: true }).click();
+    await people.locator('[data-friend-row="Fay Friendly"]').click();
     const prof = B.getByRole('dialog', { name: 'Fay Friendly' });
     await expect(prof).toContainText('Friends since');
     await prof.getByRole('button', { name: 'Remove friend' }).click();
     await B.getByRole('alertdialog').getByRole('button', { name: 'Remove friend' }).click();
     await expect(B.getByText('Removed Fay')).toBeVisible();
-    await expect(bAll.getByRole('button', { name: 'Fay Friendly', exact: true })).toHaveCount(0);
+    await expect(people.locator('[data-friend-row="Fay Friendly"]')).toHaveCount(0);
 
     // The friend link: B opens A's link and says yes
     const code = await asUser(A, async (c) => (await c.rpc('my_friend_code')).data);
@@ -95,7 +97,7 @@ test('friends: request, accept, invite to an event, remove, and the friend link'
     await expect(ask).toContainText('Add Fay Friendly as a friend?');
     await ask.getByRole('button', { name: 'Add friend' }).click();
     await expect(B.getByText('You and Fay are friends')).toBeVisible();
-    await expect(B.locator('[data-screen-label=Groups] [data-friends-card]')).toContainText('Fay');
+    await expect(B.locator('[data-screen-label=Friends] [data-friend-row="Fay Friendly"]')).toBeVisible();
     // Your own link says so
     await A.goto('/#/add/' + code);
     await expect(A.getByRole('dialog', { name: 'Friend link' })).toContainText('That’s your link');

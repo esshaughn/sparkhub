@@ -2,7 +2,7 @@
 // the community Calendar (filters, search, Could use a hand, Month), the "You're on it" banner,
 // and Profile / Notifications as sheets.
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newLead, postEvent, openIdea, deleteIdea, pickView, asUser, addJob } = require('./helpers');
+const { uniqueTitle, newLead, postEvent, openIdea, deleteIdea, pickView, asUser, addJob, openAllGroups } = require('./helpers');
 
 // Local dates, like the app (toISOString would be UTC, a day ahead in the evening)
 const inDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
@@ -22,18 +22,17 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     await expect(H.locator('[data-screen-label="Your calendar"]')).toBeVisible();
     await expect(H.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Calendar', exact: true })).toHaveAttribute('aria-current', 'page');
     await expect(nav(H).getByRole('button')).toHaveCount(5);
-    for (const name of ['Discover', /^Tasks/, 'Calendar', 'Groups', 'Settings']) await expect(nav(H).getByRole('button', { name, exact: typeof name === 'string' })).toBeVisible();
+    for (const name of ['Groups', 'Friends', 'Calendar', /^Tasks/, 'Me']) await expect(nav(H).getByRole('button', { name, exact: typeof name === 'string' })).toBeVisible();
     // Every tab has its word under the icon (Design pick 2a, 2026-10-04)
-    await expect(nav(H)).toHaveText(/Discover\s*Tasks\s*Calendar\s*Groups\s*Settings/);
+    await expect(nav(H)).toHaveText(/Groups\s*Friends\s*Calendar\s*Tasks\s*Me/);
     // Your calendar's add event button tucks away after 0.75s; a tap on the sliver only brings it back, then it opens Start an event (pick 1b)
     const fab = H.locator('[data-add-fab]');
     await expect(fab).toHaveClass(/tucked/);
     const fb = await fab.boundingBox(), vw = H.viewportSize().width;
     await H.mouse.click(vw - 6, fb.y + fb.height / 2);
     await expect(fab).not.toHaveClass(/tucked/);
-    await expect(H.getByRole('dialog', { name: 'Real or test?' })).toHaveCount(0);
-    await fab.click();
-    await H.getByRole('dialog', { name: 'Real or test?' }).getByRole('button', { name: 'Close' }).click();
+    await fab.click();   // straight into Plan an event (v8); nothing typed, so X just leaves
+    await H.locator('[data-screen-label="New spark"]').getByRole('button', { name: 'Close' }).click();
     await expect(H.locator('[data-screen-label="Your calendar"]')).toBeVisible();
 
     // Hope posts an event for today with no location, then adds sign-ups (one with a time)
@@ -44,48 +43,50 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
       await expect(HP.locator('[data-signup="' + item + '"]')).toBeVisible();
     }
 
-    // Her Your tasks: a Leading card with the stats strip (no Reminder) and only real to-dos, each button doing its job
+    // Her My tasks (v8 6h): grouped by event, a date line, the event with its purple bar, then its rows. A job to fill
+    // reads NEED, the job and its open spots, with Ask right there; Location TBD is a row with Add it
     await nav(H).getByRole('button', { name: /^Tasks/ }).click();
-    const lead = H.locator('[data-screen-label="Your tasks"] section[aria-label=Leading] [data-task="' + title + '"]');
+    const tasks = H.locator('[data-screen-label="Your tasks"]');
+    const lead = tasks.locator('[data-task="' + title + '"]');
     await expect(lead).toContainText('Today');
-    // Your tasks and Your calendar have Search beside the bell (Explore's search sheet, over the screen)
-    await H.locator('[data-screen-label="Your tasks"]').getByRole('button', { name: 'Search events' }).click();
+    await expect(tasks.getByRole('heading', { name: 'My tasks' })).toBeVisible();
+    await expect(tasks.locator('[data-tk-chip]')).toHaveText([/^All\d+$/, /^Leading\d+$/, /^Helping\d+$/, /^Ideas\d+$/]);
+    // My tasks has Search beside the bell (the events search sheet, over the screen)
+    await tasks.getByRole('button', { name: 'Search events' }).click();
     const hSearch = H.getByRole('dialog', { name: 'Search' });
     await hSearch.getByLabel('Search events').fill(title.slice(-12));
     await expect(hSearch.locator('[data-result="' + title + '"]')).toBeVisible();
     await hSearch.getByRole('button', { name: 'Cancel' }).click();
     await expect(hSearch).toHaveCount(0);
-    await expect(lead.getByLabel('Going: 1')).toBeVisible();
-    await expect(lead.getByLabel('Sign-ups: 0/3')).toBeVisible();
-    await expect(lead.getByLabel('Invited: 0')).toBeVisible();   // v7 Update 15: Invited replaced Reminder
-    await expect(lead.getByLabel(/^Reminder/)).toHaveCount(0);           // automatic now, so not shown (owner, 2026-09-30)
     await expect(lead).not.toContainText('Post an update');
     await expect(lead).toContainText('Location TBD');
-    // Jobs still to fill are a lead's task, one row each; Ask opens the personal ask for that job (owner, 2026-10-02)
-    await expect(lead).toContainText('Fill 2 spots: Folding chairs');
-    await expect(lead).toContainText('+1 more');   // the card shows two rows; View all has the rest
+    await expect(lead).toContainText('NEED  Folding chairs (2)');
+    await expect(lead).toContainText('NEED  Ice (1)');
     await lead.locator('[data-todo-cta]', { hasText: 'Ask' }).first().click();
     const askSheet = H.getByRole('dialog', { name: 'Ask someone to take it' });
     await expect(askSheet).toContainText('Ask someone to take “Folding chairs”');
     await askSheet.getByRole('button', { name: 'Close' }).click();
-    await nav(H).getByRole('button', { name: /^Tasks/ }).click();
+    await expect(tasks).toBeVisible();   // the ask opens right on My tasks
     await shot(H, '01-your-tasks-lead');
     await expect(nav(H).getByRole('button', { name: /^Tasks, \d+$/ })).toBeVisible();   // the badge counts events with to-dos
-
-    // View all: every to-do listed, the stats strip too
-    await H.locator('[data-screen-label="Your tasks"]').getByRole('button', { name: 'View all leading' }).click();
-    const all = H.getByRole('dialog', { name: 'Leading' });
-    await expect(all.locator('[data-task="' + title + '"]')).toContainText('Fill spot: Ice');
-    await shot(H, '02-view-all');
-    await all.getByRole('button', { name: 'Close' }).click();
-    await expect(all).toHaveCount(0);
+    // Condensed (6j): one card, the event as a small header, the same rows; the switch is remembered
+    await tasks.getByRole('tab', { name: 'Condensed' }).click();
+    await expect(tasks.locator('[data-task="' + title + '"]')).toBeVisible();
+    await expect(tasks).toContainText('Folding chairs');
+    await H.reload();
+    await expect(tasks.getByRole('tab', { name: 'Condensed' })).toHaveAttribute('aria-selected', 'true');
+    await tasks.getByRole('tab', { name: 'Timeline' }).click();
+    // Each chip narrows the list; Ideas has its own empty card
+    await tasks.locator('[data-tk-chip="Ideas"]').click();
+    await expect(lead).toHaveCount(0);
+    await tasks.locator('[data-tk-chip="All"]').click();
+    await expect(lead).toBeVisible();
 
     // Hal finds it on the Calendar: not joined, so "3 spots left · 0 going" and RSVP
     await O.reload();
-    await nav(O).getByRole('button', { name: 'Discover', exact: true }).click();
-    const cal = O.locator('[data-screen-label=Discover]');
-    await expect(cal.getByRole('heading', { name: 'Discover' })).toBeVisible();
-    await expect(cal).toContainText(/Everything happening in your \d+ groups?/);
+    await openAllGroups(O);
+    const cal = O.locator('[data-screen-label="All groups"]');
+    await expect(cal.getByRole('heading', { name: 'All groups' })).toBeVisible();
     const card = cal.locator('[data-plan="' + title + '"]');
     await expect(card).toContainText('3 spots left');
     await expect(card).toContainText('RSVP');
@@ -132,7 +133,7 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
 
     // His Your tasks: a Helping card with just "You said Maybe" (it's in the last 3 days) and his sign-up
     await nav(O).getByRole('button', { name: /^Tasks/ }).click();
-    const help = O.locator('[data-screen-label="Your tasks"] section[aria-label=Helping] [data-task="' + title + '"]');
+    const help = O.locator('[data-screen-label="Your tasks"] [data-task="' + title + '"]');
     await expect(help).toContainText('You said Maybe');
     await expect(help).toContainText('Update RSVP');
     await expect(help).toContainText('Ice');
@@ -159,7 +160,7 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     await shot(O, '07-your-schedule-up-next');
 
     // Could use a hand: claim the chairs; "You're on it", and no RSVP question
-    await nav(O).getByRole('button', { name: 'Discover', exact: true }).click();
+    await openAllGroups(O);
     await cal.getByRole('button', { name: /^\d+ events? needs? help$/ }).click();
     const hand = O.getByRole('dialog', { name: 'Needs help' });
     const row = hand.locator('[data-hand="' + title + '"] [data-signup="Folding chairs"]');
@@ -185,15 +186,15 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     await expect(gp.getByRole('button', { name: 'Next month' })).toBeVisible();
     await expect(gp.locator('[data-plan="' + title + '"]')).toBeVisible();
     await pickView(gp, 'Tiles');
-    await nav(O).getByRole('button', { name: 'Discover', exact: true }).click();
+    await openAllGroups(O);
 
-    // Profile and Notifications are sheets
-    await nav(O).getByRole('button', { name: 'Settings', exact: true }).click();
-    const prof = O.getByRole('dialog', { name: 'Profile', exact: true });
+    // Me is a tab (v8); Notifications is a sheet
+    await nav(O).getByRole('button', { name: 'Me', exact: true }).click();
+    const prof = O.locator('[data-screen-label="Me"]');
     await expect(prof.getByRole('button', { name: 'Edit profile' })).toBeVisible();
-    await shot(O, '10-profile-sheet');
-    await prof.getByRole('button', { name: 'Close' }).click();
-    await expect(prof).toHaveCount(0);
+    await expect(prof.locator('[data-impact]')).toContainText(/[1-9]\d*you’ve helped/);
+    await shot(O, '10-me');
+    await openAllGroups(O);
     await cal.getByRole('button', { name: /^Notifications/ }).click();
     const notifs = O.getByRole('dialog', { name: 'Notifications' });
     await expect(notifs.getByRole('radio', { name: 'All' })).toBeVisible();
@@ -204,8 +205,8 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     // Hope's card: claiming the chairs made Hal Going again, though he'd said Maybe (taking a job means you're coming,
     // whatever you'd said: owner, 2026-09-30, confirmed 2026-10-03), and the chairs are half covered
     await H.reload();
-    await expect(lead.getByLabel('Going: 2')).toBeVisible();
-    await expect(lead.getByLabel('Sign-ups: 2/3')).toBeVisible();
+    await expect(lead).toContainText('NEED  Folding chairs (1)');   // Hal took Ice and one of the chairs
+    await expect(lead).not.toContainText('Ice (');
 
     expect(host.errors).toEqual([]);
     expect(helper.errors).toEqual([]);

@@ -207,6 +207,7 @@ html.tall-fix .app { bottom: auto; height: var(--true-h); }
 .hov-yellow:hover { background: #faefc8 !important; }
 .hov-mag:hover { background: #fdf0f5 !important; }
 .fld:focus { border-color: #5b4ae8 !important; }
+.title-fld:focus { box-shadow: 0 0 0 4px rgba(91,74,232,.16); }
 [data-inv-email]::placeholder { color: #9a9fae; font-style: normal; }
 .fld-danger:focus { border-color: #9b1c31 !important; }
 

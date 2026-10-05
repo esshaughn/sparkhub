@@ -1,7 +1,7 @@
 // Your schedule's strips (v6), the sign-up time, the Calendar's role strips, back navigation,
 // and the host's Hosting list.
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newLead, postEvent, openIdea, deleteIdea, pickView, addJob } = require('./helpers');
+const { uniqueTitle, newLead, postEvent, openIdea, deleteIdea, pickView, addJob, openAllGroups } = require('./helpers');
 
 // Local dates, like the app (toISOString would be UTC, a day ahead in the evening)
 const inDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
@@ -57,13 +57,13 @@ test('Your schedule and the Calendar: role strips, a helper’s sign-ups with ti
     await expect(hTile).toContainText(/\d+ tasks?|All set/);
 
     // Calendar: the same strip as Your schedule (audit, 2026-10-01: no "Manage"); Hal's says Helping
-    await H.getByRole('button', { name: 'Discover', exact: true }).click();
-    const hCard = H.locator('[data-screen-label=Discover] [data-plan="' + title + '"]');
+    await openAllGroups(H);
+    const hCard = H.locator('[data-screen-label="All groups"] [data-plan="' + title + '"]');
     await expect(hCard).toContainText('Leading');
     await expect(hCard).toContainText(/\d+ tasks?|All set/);
     await expect(hCard).not.toContainText('Manage');
-    await O.getByRole('button', { name: 'Discover', exact: true }).click();
-    const oCal = O.locator('[data-screen-label=Discover]');
+    await openAllGroups(O);
+    const oCal = O.locator('[data-screen-label="All groups"]');
     const row = oCal.locator('[data-plan="' + title + '"]');
     await expect(row).toContainText('Helping');
     await expect(row).toContainText('4pm · Hunters Lane');
@@ -76,12 +76,12 @@ test('Your schedule and the Calendar: role strips, a helper’s sign-ups with ti
     await expect(peek).toContainText('Led by');
     await expect(peek).toContainText('Hunters Lane');
     await peek.getByRole('button', { name: 'See the full event' }).click();
-    await O.locator('[data-screen-label="Plan page"]').getByRole('button', { name: 'Back to Discover' }).click();
+    await O.locator('[data-screen-label="Plan page"]').getByRole('button', { name: 'Back to All groups' }).click();
     await expect(oCal).toBeVisible();
     await O.getByRole('button', { name: 'Calendar', exact: true }).click();
     await tile.click({ position: { x: 30, y: 30 } });   // the photo: the strip under it folds the tasks (Design 27)
-    await O.locator('[data-screen-label="Plan page"]').getByRole('button', { name: 'Back to Your calendar' }).click();
-    await expect(oHome.getByRole('heading', { name: 'Your calendar' })).toBeVisible();
+    await O.locator('[data-screen-label="Plan page"]').getByRole('button', { name: 'Back to My calendar' }).click();
+    await expect(oHome.getByRole('heading', { name: 'My calendar' })).toBeVisible();
 
     // Hope's Hosting (Update 8): her plan under Planning with its date; a tap opens it
     await H.goto('/#/own');

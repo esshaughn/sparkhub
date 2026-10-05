@@ -2,7 +2,7 @@
 // event heads-up and the voting card's hold line (20261103000000_soft_holds.sql); Explore's Plans · Ideas · Past;
 // Find more events at the end of Your calendar.
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newLead, openIdea, deleteIdea, asUser, pickView, pickDate, startPost, pickKind } = require('./helpers');
+const { uniqueTitle, newLead, openIdea, deleteIdea, asUser, pickView, pickDate, startPost, pickKind, openAllGroups } = require('./helpers');
 
 // Local dates, like the app
 // The database counts holds in Central time (America/Chicago): after 7pm Central the runner's UTC date is a day ahead
@@ -36,8 +36,8 @@ test('soft holds: a date poll pencils its dates in on Month, warns Start an even
 
     // Milo's Explore Month: a hollow dot on the day, and PENCILLED IN under the grid once it's picked
     await M.reload();
-    await nav(M).getByRole('button', { name: 'Discover', exact: true }).click();
-    const cal = M.locator('[data-screen-label=Discover]');
+    await openAllGroups(M);
+    const cal = M.locator('[data-screen-label="All groups"]');
     await pickView(cal, 'Month');
     if (day.slice(0, 7) !== inDays(0).slice(0, 7)) await cal.getByRole('button', { name: 'Next month' }).click();
     await expect(cal.locator('[data-hold-key]')).toContainText('Pencilled in');
@@ -52,7 +52,7 @@ test('soft holds: a date poll pencils its dates in on Month, warns Start an even
     // Your calendar doesn't show holds
     await nav(M).getByRole('button', { name: 'Calendar', exact: true }).click();
     await expect(M.locator('[data-hold]')).toHaveCount(0);
-    await nav(M).getByRole('button', { name: 'Discover', exact: true }).click();
+    await openAllGroups(M);
     await pickView(cal, 'List');
 
     // The voting card's dates are rows, most votes first; Hana keeps holding
@@ -100,13 +100,13 @@ test('Explore shows Plans, Ideas or Past; Your calendar ends with Find more even
     await expect(yc.locator('[data-plan="' + plan + '"]')).toBeVisible();
     await expect(yc.locator('[data-start-slot]')).toContainText('Start an event');
     await yc.locator('[data-start-slot]').click();
-    const kind = M.getByRole('dialog', { name: 'Real or test?' });   // Start an event opens on Real or test?
-    await expect(kind).toBeVisible();
-    await kind.getByRole('button', { name: 'Close' }).click();   // closing it leaves the flow
-    await expect(M.locator('[data-screen-label="New spark"]')).toHaveCount(0);
-    await M.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Discover', exact: true }).click();
-    const cal = M.locator('[data-screen-label=Discover]');
-    await expect(cal.getByRole('heading', { name: 'Discover' })).toBeVisible();
+    const flow = M.locator('[data-screen-label="New spark"]');   // straight into Plan an event (v8: no Real or test)
+    await expect(flow).toContainText('1/6');
+    await flow.getByRole('button', { name: 'Close' }).click();   // nothing typed: X just leaves
+    await expect(flow).toHaveCount(0);
+    await openAllGroups(M);
+    const cal = M.locator('[data-screen-label="All groups"]');
+    await expect(cal.getByRole('heading', { name: 'All groups' })).toBeVisible();
 
     // Plans (the default) · Ideas · Past
     await expect(cal.locator('[data-plan="' + plan + '"]')).toBeVisible();
