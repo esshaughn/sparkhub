@@ -8172,7 +8172,8 @@
   const fabEl = () => root.querySelector('[data-add-fab]');
   const fabTuck = (on) => { fabTucked = on; const el = fabEl(); if (el) el.classList.toggle('tucked', on); };
   const fabWake = (e) => {
-    if (e && e.type === 'pointerdown') fabWasTucked = fabTucked;
+    // only a tap on the tucked button itself just brings it back (a tap elsewhere used to swallow the next + tap)
+    if (e && e.type === 'pointerdown') fabWasTucked = fabTucked && !!(e.target && e.target.closest && e.target.closest('[data-add-fab]'));
     clearTimeout(fabTimer);
     if (fabTucked) fabTuck(false);
     fabTimer = setTimeout(() => { fabTimer = null; fabTuck(true); }, 750);

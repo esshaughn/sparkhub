@@ -157,13 +157,12 @@ async function newLead(browser, n, name, path) {
 
 const button = (page, name) => page.getByRole('button', { name, exact: true });
 
-// v8: posting starts from the floating + on any tab (here My calendar). The button tucks away after a moment, and a tap
-// on the tucked sliver only brings it back, so a second tap may be needed
+// v8: posting starts from the floating + on any tab (here My calendar). It tucks away after a moment and a real tap on
+// the tucked sliver only brings it back (v6.spec checks that), so here the click is sent straight to it
 async function startPost(page) {
   await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Calendar', exact: true }).click();
-  const fab = page.locator('[data-add-fab]'), flow = page.locator('[data-screen-label="New spark"]');
-  await fab.click();
-  try { await expect(flow).toBeVisible({ timeout: 1500 }); } catch (e) { await fab.click(); await expect(flow).toBeVisible(); }
+  await page.locator('[data-add-fab]').dispatchEvent('click');
+  await expect(page.locator('[data-screen-label="New spark"]')).toBeVisible();
 }
 // All groups (v8; the old Discover tab): My groups' gradient card
 async function openAllGroups(page) {
