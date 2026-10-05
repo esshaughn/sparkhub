@@ -468,6 +468,23 @@ test('plans: replies, sign-ups, updates, notes and invite-only plans follow the 
     }, made.plan);
     expect(demo).toEqual({ wipe: 'refused', makeMeWiper: 'refused', flagMyIdea: 'refused', flipTest: 'refused', postAsDemo: 'reset', flagGroup: 'refused', readGroupFlag: 'read', readRoster: 'refused', readJoinAlso: 'refused', addJoinAlso: 'refused', listTesters: 'none' });
 
+    // Discussion (20261105000000_event_comments.sql): hosts and people coming write (not coming: tests/db/checks.sql);
+    // everyone who can see it reads; nobody edits; only authors and hosts delete
+    const cmt = (await asUser(L, async (c, _C, id) => (await c.from('event_comments').insert({ spark_id: id, body: '[E2E] Lead says hi' }).select('id').single()).data, made.plan)) || {};
+    expect(cmt.id).toMatch(/^[0-9a-f-]{36}$/);
+    const disc = await asUser(O, async (c, _C, { plan, secret, cid }) => {
+      const ok = async (q) => { const x = await q; return x.error ? 'refused' : 'ALLOWED'; };
+      return {
+        goingWrites: await ok(c.from('event_comments').insert({ spark_id: plan, body: '[E2E] Going says hi' })),   // he said Going above
+        reads: (await c.from('event_comments').select('id').eq('spark_id', plan)).data.length,
+        edit: (await c.from('event_comments').update({ body: 'Edited' }).eq('id', cid).select()).data?.length ?? 'refused',
+        removeLeads: (await c.from('event_comments').delete().eq('id', cid).select()).data?.length ?? 'refused',
+        inviteOnly: await ok(c.from('event_comments').insert({ spark_id: secret, body: 'Hi' }))
+      };
+    }, { plan: made.plan, secret: made.secret, cid: cmt.id });
+    expect(disc).toEqual({ goingWrites: 'ALLOWED', reads: 2, edit: 'refused', removeLeads: 0, inviteOnly: 'refused' });
+    expect(await asUser(A, async (c, _C, id) => (await c.from('event_comments').select('id').eq('spark_id', id)).data?.length ?? 'refused', made.plan)).toBe(0);
+
     // Feedback (Profile → Send feedback): anyone signed in can send their own, nobody but the owner can read any, and names can't be forged
     const fb = await asUser(L, async (c) => {
       const me = (await c.auth.getUser()).data.user.id;

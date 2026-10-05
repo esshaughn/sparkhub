@@ -878,3 +878,43 @@ select t.must_refuse('a member writing the overview', format($$update sparks set
 select t.must_refuse('a member editing through admin_edit_spark', format($$select public.admin_edit_spark(%L, 'Poll idea', '{}', 'Mine now')$$, t.id('poll_idea')));
 reset role;
 select t.check('the overview is the lead''s', (select overview = 'Games and food with whoever shows up' from sparks where id = t.id('poll_idea')));
+
+-- Discussion (20261105000000_event_comments.sql): read by anyone who can see the plan; written by hosts and people
+-- coming; one level of replies (under a comment or an update); authors and hosts delete; nobody edits ----------------
+reset role;
+insert into sparks (id, group_id, author_name, lead_name, lead_id, created_by, text, visibility, planned, day_date) values
+  (gen_random_uuid(), t.id('g'), 'Host', 'Host', t.id('host'), t.id('host'), 'Chat walk', 'group', true, current_date + 6);
+insert into t.ids select 'chat_walk', id from sparks where text = 'Chat walk';
+insert into plan_updates (spark_id, body, created_by) values (t.id('chat_walk'), 'Meet at the gate', t.id('host'));
+insert into t.ids select 'chat_upd', id from plan_updates where spark_id = t.id('chat_walk');
+select t.login('member'); set role authenticated;
+select t.must_refuse('a member who hasn''t replied comments', format($$insert into event_comments (spark_id, body) values (%L, 'Hi!')$$, t.id('chat_walk')));
+select t.must_allow('a member says Going', format($$insert into rsvps (spark_id, user_id, status) values (%L, %L, 'going')$$, t.id('chat_walk'), t.id('member')));
+select t.must_allow('someone going comments', format($$insert into event_comments (spark_id, body) values (%L, 'Is there parking?')$$, t.id('chat_walk')));
+select t.must_refuse('commenting as someone else', format($$insert into event_comments (spark_id, body, created_by) values (%L, 'Hi', %L)$$, t.id('chat_walk'), t.id('host')));
+select t.must_refuse('an empty comment', format($$insert into event_comments (spark_id, body) values (%L, '   ')$$, t.id('chat_walk')));
+select t.must_refuse('a comment over 500 characters', format($$insert into event_comments (spark_id, body) values (%L, repeat('x', 501))$$, t.id('chat_walk')));
+select t.must_allow('a reply under the lead''s update', format($$insert into event_comments (spark_id, update_id, body) values (%L, %L, 'Which gate?')$$, t.id('chat_walk'), t.id('chat_upd')));
+reset role;
+insert into t.ids select 'chat_c1', id from event_comments where body = 'Is there parking?';
+select t.login('host'); set role authenticated;
+select t.must_allow('the lead replies', format($$insert into event_comments (spark_id, parent_id, body) values (%L, %L, 'The lot on 51st')$$, t.id('chat_walk'), t.id('chat_c1')));
+reset role;
+insert into t.ids select 'chat_r1', id from event_comments where body = 'The lot on 51st';
+select t.login('member'); set role authenticated;
+select t.must_refuse('a reply to a reply', format($$insert into event_comments (spark_id, parent_id, body) values (%L, %L, 'Thanks')$$, t.id('chat_walk'), t.id('chat_r1')));
+select t.must_refuse('editing a comment', format($$update event_comments set body = 'Edited' where id = %L$$, t.id('chat_c1')));
+select t.must_refuse('deleting the lead''s reply', format($$delete from event_comments where id = %L$$, t.id('chat_r1')));
+select t.check('a member reads the discussion', (select count(*) from event_comments where spark_id = t.id('chat_walk')) = 3);
+reset role;
+select t.login('outsider'); set role authenticated;
+select t.check('an outsider reads none of it', (select count(*) from event_comments where spark_id = t.id('chat_walk')) = 0);
+select t.must_refuse('an outsider comments', format($$insert into event_comments (spark_id, body) values (%L, 'Hello')$$, t.id('chat_walk')));
+reset role;
+select t.login('host'); set role authenticated;
+select t.must_allow('the lead deletes a comment on their plan', format($$delete from event_comments where id = %L$$, t.id('chat_c1')));
+reset role;
+select t.check('its replies go with it', not exists (select 1 from event_comments where id = t.id('chat_r1')));
+select t.login('member'); set role authenticated;
+select t.must_allow('you delete your own', format($$delete from event_comments where spark_id = %L and created_by = %L$$, t.id('chat_walk'), t.id('member')));
+reset role;

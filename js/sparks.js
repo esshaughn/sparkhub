@@ -6183,6 +6183,155 @@
     '</div>';
   };
 
+  // ---- Discussion (Design v8-1): comments on a plan, with one level of replies under a comment or a lead's update.
+  // Read when the plan's page opens (not part of load_all); the hosts and people coming (Going or Maybe) write
+  // (20261105000000_event_comments.sql). Nobody is notified yet: the lead's comment notification isn't designed.
+  const comments = {};   // spark id → { list, loading }
+  const loadComments = (sid, force) => {
+    const c = comments[sid];
+    if (c && (c.loading || (!force && c.list))) return;
+    comments[sid] = Object.assign({ list: null }, c, { loading: true });
+    ensureSession()
+      .then(() => sb.from('event_comments').select('id,parent_id,update_id,body,created_by,created_at').eq('spark_id', sid).order('created_at'))
+      .then(async (r) => {
+        if (r.error) throw r.error;
+        const list = (r.data || []).map(x => ({ id: x.id, parent: x.parent_id, upd: x.update_id, body: x.body, by: x.created_by, created: Date.parse(x.created_at) }));
+        // Names and faces for people the app hasn't loaded (someone invited by link, say)
+        const missing = list.map(x => x.by).filter((u, i, a) => a.indexOf(u) === i && u !== state.me && !state.profiles[u]);
+        if (missing.length) {
+          const p = await sb.from('profiles').select('id,name,avatar_path').in('id', missing);
+          (p.data || []).forEach(x => { state.profiles[x.id] = Object.assign({}, state.profiles[x.id], { name: x.name, avatar: PHOTO_PATH.test(x.avatar_path || '') ? x.avatar_path : null }); });
+        }
+        comments[sid] = { list, loading: false };
+        render();
+      })
+      .catch(e => {
+        // A database without the table yet (PGRST205 / 42P01): no Discussion, the Update card as before
+        if (e && (e.code === 'PGRST205' || e.code === '42P01')) { comments[sid] = { list: [], loading: false, missing: true }; render(); return; }
+        console.error(e); comments[sid] = { list: (c && c.list) || [], loading: false }; render();
+      });
+  };
+  const discMissing = (s) => !!(comments[s.id] && comments[s.id].missing);
+  const canComment = (s) => !s.cancelledAt && (isLead(s) || ['going', 'maybe'].indexOf(myRsvp(s)) > -1);
+  const postComment = (s, body, extra, after, field) => {
+    const text = (body || '').trim().slice(0, 500);
+    if (!text || state.busy) return;
+    if (state.viewAs) { toast('You’re viewing as ' + firstName(state.viewAs.name) + ', so nothing changes. Exit to make changes.'); return; }
+    setState({ busy: 'comment' });
+    ensureSession().then(() => sb.from('event_comments').insert(Object.assign({ spark_id: s.id, body: text }, extra || {})))
+      .then(r => {
+        if (r.error) throw r.error;
+        const f = field && document.querySelector(field); if (f) f.value = '';   // a focused field keeps its text through a redraw
+        setState(Object.assign({ busy: null }, after ? after() : {})); loadComments(s.id, true);
+      })
+      .catch(e => { console.error(e); setState({ busy: null }); toast(failed(e)); });
+  };
+  const askDeleteComment = (s, x) => setState({ confirm: { title: 'Delete this comment?', body: x.reply ? 'It comes off the discussion.' : 'It comes off the discussion, with any replies under it.', cta: 'Delete', keep: 'Keep it', danger: true,
+    run: () => { setState({ confirm: null, busy: 'comment' });
+      ensureSession().then(() => sb.from('event_comments').delete().eq('id', x.id))
+        .then(r => { if (r.error) throw r.error; setState({ busy: null }); toast('Comment deleted', true); loadComments(s.id, true); })
+        .catch(e => { console.error(e); setState({ busy: null }); toast(failed(e)); }); } } });
+  // Updates seen on this device, per account: the banner counts the ones since
+  const UPD_SEEN_KEY = 'spark-hub-upd-seen-';
+  const updSeen = () => { try { return JSON.parse(localStorage.getItem(UPD_SEEN_KEY + state.me) || '{}') || {}; } catch (e) { return {}; } };
+  const newUpdates = (s) => { const at = updSeen()[s.id] || 0; return s.updates.filter(u => u.created > at && u.createdBy !== state.me).length; };
+  const seeDiscussion = (s) => {
+    const m = updSeen(); m[s.id] = Math.max.apply(null, s.updates.map(u => u.created).concat(Date.now()));
+    try { localStorage.setItem(UPD_SEEN_KEY + state.me, JSON.stringify(m)); } catch (e) { /* the banner comes back next time */ }
+    render();
+    setTimeout(() => { const el = document.querySelector('[data-discussion]'), sc = scroller(); if (el && sc) sc.scrollTo({ top: sc.scrollTop + el.getBoundingClientRect().top - sc.getBoundingClientRect().top - 60, behavior: 'smooth' }); }, 30);
+  };
+  // The new-updates banner near the top, for people coming (leads never see it): "2 new updates · View ↓"
+  const discBanner = (s) => {
+    if (isLead(s) || s.cancelledAt || ['going', 'maybe'].indexOf(myRsvp(s)) < 0) return '';
+    const n = newUpdates(s);
+    return !n ? '' : '<div ' + on(() => seeDiscussion(s)) + ' data-screen-label="New updates banner" data-upd-banner style="display:flex;align-items:center;gap:12px;min-height:56px;padding:0 14px 0 16px;border-radius:18px;background:' + MAG.strong + ';color:#fff;box-shadow:0 6px 18px rgba(214,36,110,.25);cursor:pointer">' +
+      svg(20, stroke('currentColor', 2.2), BULLHORN) + '<span style="flex:1;min-width:0;font-size:16px;font-weight:900;letter-spacing:-.2px">' + n + (n === 1 ? ' new update' : ' new updates') + '</span>' +
+      '<span style="display:flex;align-items:center;gap:4px;font-size:13.5px;font-weight:800;color:#ffe3ee">View' + I.chevD(12, '#ffe3ee', 3) + '</span></div>';
+  };
+  const SEND_IC = '<path d="M12 19V5M6 11l6-6 6 6"/>';
+  // Discussion, above Led by: the writing box (and the lead's Send an update), the lead's updates together in a gray panel,
+  // then comments newest first; past 3 posts, Show N more. Replies stay folded until opened
+  function discussionSec(s) {
+    loadComments(s.id);
+    if (discMissing(s)) return '';
+    const st = state, c = comments[s.id] || {}, list = c.list || [], lead = isLead(s), can = canComment(s), hosts = hostIds(s);
+    const items = s.updates.map(u => ({ kind: 'upd', id: u.id, by: updWho(s, u), name: updName(s, u), body: u.body, created: u.created, u, replies: list.filter(x => x.upd === u.id) }))
+      .concat(list.filter(x => !x.parent && !x.upd).slice().reverse().map(x => ({ kind: 'cmt', id: x.id, by: x.by, name: nameOf(x.by), body: x.body, created: x.created, replies: list.filter(r => r.parent === x.id) })));
+    const total = items.length + items.reduce((n, x) => n + x.replies.length, 0);
+    const all = !!(st.discAll || {})[s.id], over = items.length > 3, shown = all || !over ? items : items.slice(0, 3);
+    const flag = (k, key, v) => setState({ [k]: Object.assign({}, st[k], { [key]: v }) });
+    const lnk = (label, fn, color, attr) => '<span ' + on(fn) + ' ' + (attr || '') + ' style="display:flex;align-items:center;min-height:32px;font-size:13px;font-weight:800;color:' + color + ';cursor:pointer">' + label + '</span>';
+    const tag = (x) => x.kind === 'upd'
+      ? '<span style="display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:999px;background:' + MAG.strong + ';color:#fff;font-size:10px;font-weight:900;letter-spacing:.7px">UPDATE</span>'
+      : hosts.indexOf(x.by) > -1 ? '<span style="font-size:10.5px;font-weight:900;letter-spacing:.6px;color:#5b4ae8">LEAD</span>' : '';
+    const sendBtn = (ok, fn, label, size) => '<span ' + on(fn) + ' aria-label="' + label + '" aria-disabled="' + !ok + '" style="flex:0 0 ' + size + 'px;width:' + size + 'px;height:' + size + 'px;margin-left:auto;border-radius:999px;display:flex;align-items:center;justify-content:center;' +
+      (ok ? 'background:#5b4ae8;color:#fff;cursor:pointer' : 'background:#e2e4e9;color:#9aa0ac;cursor:default') + '">' + svg(size > 38 ? 18 : 16, stroke('currentColor', 2.6), SEND_IC) + '</span>';
+    // A post's replies: folded (faces, View N replies, Reply), or open (the replies, Reply / Cancel, Hide replies, the box)
+    const thread = (x, inPanel) => {
+      const key = x.kind + ':' + x.id, ex = !!(st.discExp || {})[key], op = !!(st.discOpen || {})[key], rs = x.replies;
+      const draft = (st.discReply || {})[key] || '', ok = !!draft.trim() && st.busy !== 'comment';
+      const send = () => { if (!ok) return; postComment(s, draft, x.kind === 'upd' ? { update_id: x.id } : { parent_id: x.id },
+        () => ({ discReply: Object.assign({}, state.discReply, { [key]: '' }), discExp: Object.assign({}, state.discExp, { [key]: true }), discOpen: Object.assign({}, state.discOpen, { [key]: false }) }), '[data-reply-to="' + key + '"]'); };
+      const delOwn = (r, reply) => r.by === st.me || lead ? lnk('Delete', () => askDeleteComment(s, { id: r.id, reply }), '#9aa0ac', 'data-delete-comment') : '';
+      if (!ex) {
+        const faces = rs.map(r => r.by).filter((u, i, a) => a.indexOf(u) === i).slice(0, 3);
+        return '<div style="display:flex;align-items:center;gap:16px">' +
+          (rs.length ? '<span ' + on(() => flag('discExp', key, true)) + ' data-view-replies style="display:flex;align-items:center;gap:6px;min-height:32px;font-size:13px;font-weight:800;color:#5c6270;cursor:pointer"><span style="display:flex">' +
+            faces.map((u, i) => avatarSpan(u, nameOf(u), avatarOf(u), 22, 'border:2px solid ' + (inPanel ? '#f2f3f6' : '#fff') + ';box-sizing:border-box;' + (i ? 'margin-left:-7px' : ''))).join('') + '</span>' +
+            (rs.length === 1 ? 'View 1 reply' : 'View ' + rs.length + ' replies') + '</span>' : '') +
+          (can ? lnk('Reply', () => setState({ discExp: Object.assign({}, st.discExp, { [key]: true }), discOpen: Object.assign({}, st.discOpen, { [key]: true }) }), '#5b4ae8', 'data-reply') : '') +
+          (x.kind === 'cmt' ? delOwn(x, false) : '') + '</div>';
+      }
+      return '<div style="display:flex;flex-direction:column;gap:8px">' +
+        rs.map(r => '<div data-reply-row style="display:flex;align-items:flex-start;gap:8px">' + avatarSpan(r.by, nameOf(r.by), avatarOf(r.by), 24) +
+          '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;padding-top:2px"><span style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:13.5px;font-weight:800;color:#0d1117">' + esc(nameOf(r.by)) +
+            (hosts.indexOf(r.by) > -1 ? '<span style="font-size:10px;font-weight:900;letter-spacing:.6px;color:#5b4ae8">LEAD</span>' : '') + '<span style="font-size:12px;font-weight:600;color:#8a909b">· ' + esc(ago(r.created)) + '</span></span>' +
+            '<span style="font-size:14px;line-height:1.4;font-weight:500;color:#2a2f38;white-space:pre-line;overflow-wrap:anywhere">' + esc(r.body) + '</span></div>' +
+          (r.by === st.me || lead ? '<span ' + on(() => askDeleteComment(s, { id: r.id, reply: true })) + ' aria-label="Delete this reply" style="flex:0 0 28px;height:28px;display:flex;align-items:center;justify-content:center;color:#b9bcc4;cursor:pointer">' + I.x(11, 'currentColor', 2.6) + '</span>' : '') + '</div>').join('') +
+        '<div style="display:flex;align-items:center;gap:16px">' +
+          (can ? lnk(op ? 'Cancel' : 'Reply', () => flag('discOpen', key, !op), '#5b4ae8', 'data-reply') : '') +
+          (rs.length ? lnk('Hide replies', () => setState({ discExp: Object.assign({}, st.discExp, { [key]: false }), discOpen: Object.assign({}, st.discOpen, { [key]: false }) }), '#6b7280') : '') +
+          (x.kind === 'cmt' ? delOwn(x, false) : '') + '</div>' +
+        (op ? '<div style="display:flex;align-items:center;gap:8px"><input class="fld" type="text" maxlength="500" data-reply-input data-reply-to="' + esc(key) + '" aria-label="Reply to ' + esc(x.name) + '" placeholder="Reply to ' + esc(firstName(x.name)) + '…" value="' + esc(draft) + '" ' +
+            onInput(e => { if (e.type === 'input') setState({ discReply: Object.assign({}, state.discReply, { [key]: e.target.value.slice(0, 500) }) }); }) +
+            ' style="flex:1;min-width:0;min-height:38px;box-sizing:border-box;padding:0 14px;border:0;border-radius:999px;background:' + (inPanel ? '#fff' : '#f2f3f6') + ';font-family:inherit;font-size:15px;font-weight:600;color:#0d1117;outline:none">' +
+            sendBtn(ok, send, 'Send reply', 36) + '</div>' : '') +
+      '</div>';
+    };
+    const post = (x, inPanel) => '<div data-post-row="' + x.kind + '" style="display:flex;gap:10px;padding:' + (inPanel ? '12px 2px' : '10px 14px 12px') + '">' +
+      '<div style="display:flex;flex-direction:column;align-items:center;gap:6px">' + avatarSpan(x.by, x.name, avatarOf(x.by), 36) +
+        (x.replies.length ? '<span aria-hidden="true" style="flex:1;width:1.5px;min-height:12px;margin-bottom:4px;border-radius:1px;background:' + (inPanel ? '#dcdfe6' : '#e3e5ea') + '"></span>' : '') + '</div>' +
+      '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">' +
+        '<div style="display:flex;align-items:flex-start;gap:6px"><span style="flex:1;min-width:0;display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:14px;font-weight:800;color:#0d1117">' + esc(x.name) + tag(x) +
+          '<span style="font-size:12.5px;font-weight:600;color:#8a909b">· ' + esc(ago(x.created)) + '</span></span>' + (x.kind === 'upd' ? updMore(s, x.u) : '') + '</div>' +
+        '<span ' + (x.kind === 'upd' ? 'data-update ' : 'data-comment ') + 'style="font-size:15px;line-height:1.4;font-weight:500;color:#2a2f38;white-space:pre-line;overflow-wrap:anywhere;text-wrap:pretty">' + esc(x.body) + '</span>' +
+        thread(x, inPanel) + '</div></div>';
+    const ups = shown.filter(x => x.kind === 'upd'), cms = shown.filter(x => x.kind === 'cmt');
+    const draft = (st.discDraft || {})[s.id] || '', ok = !!draft.trim() && st.busy !== 'comment';
+    const send = () => { if (ok) postComment(s, draft, null, () => ({ discDraft: Object.assign({}, state.discDraft, { [s.id]: '' }) }), '[data-comment-input]'); };
+    const avatar = st.myAvatar ? photoUrl(st.myAvatar) : null;
+    const box = !can ? '' : '<div style="display:flex;flex-direction:column;gap:4px;padding:14px 14px 6px"><div style="display:flex;align-items:center;gap:10px">' + avatarSpan(st.me, st.myName, avatar, 36) +
+        '<label style="flex:1;min-width:0;display:flex;align-items:center;gap:6px;min-height:50px;box-sizing:border-box;padding:5px 5px 5px 18px;border-radius:999px;background:#f2f3f6">' +
+          '<input class="fld" type="text" maxlength="500" data-comment-input aria-label="Write a comment" placeholder="' + (lead ? 'Write to everyone going…' : 'Ask a question or say hi…') + '" value="' + esc(draft) + '" ' +
+            onInput(e => { if (e.type === 'input') setState({ discDraft: Object.assign({}, state.discDraft, { [s.id]: e.target.value.slice(0, 500) }) }); }) +
+            ' style="flex:1;min-width:0;border:0;padding:0;background:transparent;outline:none;font-family:inherit;font-size:15.5px;font-weight:500;color:#0d1117">' +
+          sendBtn(ok, send, 'Post', 40) + '</label></div>' +
+      // The lead's other way to say something: an update, which notifies people (it opens Post an update with what's typed)
+      (lead && phaseOf(s) === 'plan' ? '<div style="display:flex;flex-direction:column;gap:10px;padding-top:6px"><div style="display:flex;align-items:center;justify-content:center;gap:12px;padding:2px 4px"><span style="flex:0 0 48px;height:1px;background:#e3e5ea"></span><span style="font-size:13px;font-weight:700;color:#8a909b">or</span><span style="flex:0 0 48px;height:1px;background:#e3e5ea"></span></div>' +
+        '<div style="display:flex;justify-content:center"><span ' + on(() => setState({ blast: { id: s.id, to: 'going', text: draft.trim().slice(0, 200), chip: null }, updAll: null, discDraft: Object.assign({}, st.discDraft, { [s.id]: '' }) })) + ' data-send-update style="display:flex;align-items:center;gap:6px;min-height:34px;color:' + MAG.strong + ';font-size:13.5px;font-weight:800;cursor:pointer">' + svg(16, stroke('currentColor', 2.2), BULLHORN) + 'Send an update</span></div></div>' : '') +
+      '</div>';
+    return '<section data-discussion style="display:flex;flex-direction:column;gap:8px"><div style="display:flex;align-items:baseline;gap:8px;padding:0 4px"><h2 style="margin:0;font-size:24px;line-height:1.1;font-weight:900;letter-spacing:-.6px;color:#0d1117">Discussion</h2>' +
+        (total ? '<span style="font-size:15px;font-weight:800;color:#8a909b">' + total + '</span>' : '') + '</div>' +
+      '<div data-screen-label="Discussion" style="background:#fff;border-radius:20px;box-shadow:0 1px 3px rgba(15,18,25,.08);display:flex;flex-direction:column">' + box +
+        (!items.length ? '<div style="display:flex;align-items:center;justify-content:center;padding:18px 16px 22px;font-size:14.5px;font-weight:600;color:#6b7280;text-align:center">' + (c.list ? 'No comments yet.' : 'Loading…') + '</div>' : '') +
+        (ups.length ? '<div data-updates style="margin:8px 8px 4px;padding:2px 12px;border-radius:18px;background:#f2f3f6;display:flex;flex-direction:column">' + ups.map((x, k) => (k ? '<div style="height:1px;margin:0 0 0 48px;background:#dcdfe6"></div>' : '') + post(x, true)).join('') + '</div>' : '') +
+        cms.map(x => post(x, false)).join('') +
+        (over ? '<div style="padding:4px 14px 14px"><span ' + on(() => flag('discAll', s.id, !all)) + ' data-disc-more style="display:flex;align-items:center;justify-content:center;gap:6px;min-height:44px;border-radius:999px;background:#f2f3f6;font-size:14px;font-weight:800;color:#454b55;cursor:pointer">' +
+          (all ? 'Show less' + chev6(12, '#454b55', true) : 'Show ' + (items.length - 3) + ' more' + chev6(12, '#454b55', false)) + '</span></div>' : '') +
+      '</div></section>';
+  }
+
   function viewPlan(s) {
     const st = state, lead = isLead(s), edit = canEdit(s), leadName = nameOf(s.leadId, s.leadName), my = myRsvp(s), dp = dateParts(s.dayDate);
     const goingIds = going(s).map(r => r.userId), maybeN = s.rsvps.filter(r => r.status === 'maybe').length, noN = s.rsvps.filter(r => r.status === 'no').length;
@@ -6263,13 +6412,14 @@
       tab +
       '<div style="padding:16px 14px 26px;display:flex;flex-direction:column;gap:18px">' +
         cancelledCard(s) +
-        updatesCard(s) +
+        (discMissing(s) ? updatesCard(s) : discBanner(s)) +   // v8: the banner; the updates live in Discussion
         rsvpBlock +
 
         guestNudge +
         whenWhereCard(s) +
         basicDetailsSec(s) +
         askCards(s) + helpOut(s) +
+        discussionSec(s) +
         host +
         // Visibility (was Who's in; Design 25c): the posted-to group(s) and Public / Private; the people moved into the RSVP card
         '<section>' + secTitle('Visibility') + sheetCard(groupRow(s, true)) + '</section>' +
@@ -8324,6 +8474,9 @@
 
   root.addEventListener('keydown', (e) => {
     if ((e.key === 'Enter' || e.key === 'Escape') && e.target.matches && e.target.matches('[data-title-inline]')) { e.preventDefault(); evTitleDone(); return; }
+    if (e.key === 'Enter' && !e.isComposing && e.target.matches && e.target.matches('[data-comment-input], [data-reply-input]')) {
+      e.preventDefault(); const b = e.target.parentElement.querySelector('[aria-disabled="false"]'); if (b) b.click(); return;
+    }
     if (e.key === 'Escape') {
       if (state.leadInfo) return setState({ leadInfo: false });
       if (state.zoom) return setState({ zoom: null });

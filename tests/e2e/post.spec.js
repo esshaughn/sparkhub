@@ -32,10 +32,10 @@ test('post an event with every step filled, then edit it in the pop-ups and dele
     await expect(comp).toContainText('Everyone going or maybe gets a notification.');
     await comp.getByRole('button', { name: 'Post update' }).click();
     await expect(page.getByText('Posted. No one else is coming yet')).toBeVisible();   // nobody else has replied
-    const upd = P.locator('[data-updates]');
+    // Updates live in Discussion (v8): the lead's together in a gray panel, newest first, each with UPDATE
+    const upd = P.locator('[data-discussion] [data-updates]');
     await expect(upd).toContainText('UPDATE');
-    await expect(upd.locator('[data-update]')).toHaveText('Bring a headlamp, it gets dark early');
-    await expect(upd.locator('[data-upd-more]')).toHaveCount(0);   // one update: no earlier row
+    await expect(upd.locator('[data-update]')).toHaveText(['Bring a headlamp, it gets dark early']);
     // A second, then the third within the hour asks first
     for (const [text, third] of [['Parking is on Barton Springs Rd', false], ['Meet at the big oak', true]]) {
       await P.locator('[data-rsvp]').getByRole('button', { name: 'Post an update' }).click();
@@ -46,17 +46,13 @@ test('post an event with every step filled, then edit it in the pop-ups and dele
         await expect(guard).toContainText('That’s your third update this hour');
         await guard.getByRole('button', { name: 'Post anyway' }).click();
       }
-      await expect(upd.locator('[data-update]')).toHaveText(text);
+      await expect(upd.locator('[data-update]').first()).toHaveText(text);
     }
-    await upd.locator('[data-upd-more]').click();
-    const all = page.getByRole('dialog', { name: 'All updates' });
-    await expect(all).toContainText('Updates · 3');
-    await expect(all.locator('[data-update]').first()).toContainText('Meet at the big oak');
-    await all.locator('[data-update]', { hasText: 'Parking' }).getByRole('button', { name: 'Delete this update' }).click();
+    await expect(upd.locator('[data-update]')).toHaveCount(3);
+    await expect(P.locator('[data-upd-banner]')).toHaveCount(0);   // leads never get the banner
+    await upd.locator('[data-post-row="upd"]', { hasText: 'Parking' }).getByRole('button', { name: 'Delete this update' }).click();
     await page.getByRole('alertdialog').getByRole('button', { name: 'Delete update' }).click();
-    await expect(all).toContainText('Updates · 2');
-    await all.getByRole('button', { name: 'Close' }).click();
-    await expect(upd.locator('[data-upd-more]')).toHaveText(/1 earlier update/);
+    await expect(upd.locator('[data-update]')).toHaveText(['Meet at the big oak', 'Bring a headlamp, it gets dark early']);
     await expect(P.getByRole('heading', { name: 'Visibility' })).toBeVisible();
     await expect(P.locator('[data-chip]')).toHaveText('YOU’RE LEADING');
     await expect(page.locator('[data-test-tab]')).toHaveCount(0);   // a real event: no Test event tab
