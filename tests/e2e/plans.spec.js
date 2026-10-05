@@ -122,7 +122,7 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     await VP.locator('[data-signup="Folding chairs"]').getByRole('button', { name: 'Sign up' }).click();
     const signIn = V.getByRole('dialog', { name: 'Sign in' });
     await expect(signIn).toContainText('Create a free account');
-    await expect(signIn).toContainText('Guests can RSVP.');
+    await expect(signIn).toContainText('It takes a minute, and you can vote, sign up and get reminders.');   // Design v8
     await signIn.getByRole('button', { name: 'Close' }).click();
     await expect(VP.locator('[data-signup="Folding chairs"]')).toContainText('1 of 2 open');   // still just Gus
     // The answer is still there when they come back (this event only)
@@ -199,7 +199,9 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     await td.getByRole('button', { name: 'Cancel and tell 1 person' }).click();
     await expect(H.getByText('Cancelled. Everyone in it got a note.')).toBeVisible();
     await expect(HP.locator('[data-cancelled]')).toHaveText('CANCELLED');
-    await expect(HP.locator('[data-cancelled-card]')).toContainText('Rained out');
+    await expect(HP.locator('[data-cancelled-card]')).toContainText(': “Rained out”');   // {Lead}: “reason” (Design v8)
+    await expect(HP.locator('[data-chip]')).toHaveCount(0);                              // CANCELLED replaces the role chip
+    await expect(HP.getByRole('button', { name: 'Share' })).toBeVisible();               // Share stays
     const notes = await asUser(G, async (c) => (await c.from('notes').select('body').like('body', '%is cancelled.%')).data.map(n => n.body));
     expect(notes.some(b => b.indexOf('Rained out') > -1)).toBe(true);
     await G.reload();
@@ -559,7 +561,9 @@ test('co-leads: the lead adds one, who edits and posts updates but can’t delet
     // Otto hosts alongside Hope
     await openIdea(O, id);
     const OP = O.locator('[data-screen-label="Plan page"]');
-    await expect(OP).toContainText('YOU’RE CO-LEADING');
+    await expect(OP.locator('[data-chip]')).toHaveText('HAPPENING');   // Design v8: no YOU'RE CO-LEADING chip
+    await expect(OP.locator('[data-rsvp]').getByRole('button', { name: 'Invite people' })).toHaveCount(0);   // only the main lead invites from here
+    await expect(OP.locator('[data-help-edit]')).toBeVisible();   // Help out's section Edit pill (Design v8)
     await expect(OP.locator('[data-led-by] [data-lead-names]')).toHaveText('Hope & Otto');
     await expect(OP.locator('[data-help-empty], [data-edit-jobs]').first()).toBeVisible();   // a co-lead edits the jobs too
     await asUser(O, async (c, _C, { id, b }) => c.from('plan_updates').insert({ spark_id: id, body: b, audience: 'all' }), { id: id, b: 'Meet at the north gate.' });   // no Send everyone an update on the page for now (owner, 2026-10-03)
@@ -818,7 +822,7 @@ test('Calendar group filter: toggling works, and could use a hand follows it', a
     const torrez = rows.filter({ hasText: 'Torrez Fitness' });
     await torrez.click();   // only the new, empty group: nothing to show, and the screen keeps working
     await expect(torrez).toHaveAttribute('aria-checked', 'false');
-    await expect(cal).toContainText('No events match these filters.');
+    await expect(cal).toContainText('Nothing matches that.');   // Design v8's narrowed empty state
     await expect(hand).toHaveCount(0);   // the banner follows the filter
     await torrez.click();
     await expect(torrez).toHaveAttribute('aria-checked', 'true');

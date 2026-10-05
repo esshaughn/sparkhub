@@ -234,7 +234,8 @@ test('decide everything later: only the title is needed; the host is left with t
     await expect(flow).toContainText('REVIEW');
     await expect(flow).toContainText('6/6');
     await expect(flow.locator('[data-review-lead]')).toContainText('You’re leading it');
-    for (const t of ['No date yet', 'No location yet', 'Nothing added.', 'None needed']) await expect(flow).toContainText(t);
+    for (const t of ['No date yet', 'No location yet', 'Nothing added.']) await expect(flow).toContainText(t);
+    await expect(flow.getByText('Nothing added.', { exact: true })).toHaveCount(2);   // Join in reads Nothing added. after None needed too (Design v8)
     for (const k of ['when', 'details', 'help']) await expect(flow.locator('[data-review-edit="' + k + '"]')).toHaveText('Edit');
     await expect(flow).not.toContainText('Real or test');
     await flow.locator('[data-review-edit="details"]').click();
@@ -633,7 +634,7 @@ test('Create event: just float the idea posts it without a lead and offers to as
     await expect(flow.locator('[data-post]')).toHaveText('Post as an idea');
     // Review's Lead card opens the same choice in a pop-up; a pick closes it
     await flow.getByRole('button', { name: 'Change who leads it' }).click();
-    const pick = page.getByRole('dialog', { name: 'Who’s leading it?' });
+    const pick = page.getByRole('dialog', { name: 'Lead' });   // Design v8: the pop-up is titled Lead
     await expect(pick.getByRole('button', { name: /^I’ll lead it/ })).toHaveAttribute('aria-pressed', 'true');
     await pick.getByRole('button', { name: /^Float the idea/ }).click();
     await expect(pick).toHaveCount(0);

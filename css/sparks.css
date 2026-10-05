@@ -272,3 +272,13 @@ html.tall-fix .app { bottom: auto; height: var(--true-h); }
 .fb-hint { animation: fbHint 1.4s ease-in-out infinite; }
 @keyframes fbHint { 0%, 100% { box-shadow: 0 0 0 0 rgba(232, 167, 28, .55), 0 1px 3px rgba(15, 18, 25, .08); } 50% { box-shadow: 0 0 0 7px rgba(232, 167, 28, 0), 0 1px 3px rgba(15, 18, 25, .08); } }
 @media (prefers-reduced-motion: reduce) { .fb-hint { animation: none; } }
+
+/* Group poster (Design v8, ⋯ → QR code → Print a poster): print only the poster, larger, on a letter page */
+@media print {
+  @page { size: letter; margin: 0.5in; }
+  body * { visibility: hidden !important; }
+  [data-print-poster], [data-print-poster] * { visibility: visible !important; }
+  [data-print-poster] { position: fixed !important; left: 50% !important; top: 0 !important; transform: translateX(-50%) scale(1.55); transform-origin: top center; box-shadow: none !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+/* Discussion's writing box: a purple ring while typing (Design v8) */
+.disc-field:focus-within { box-shadow: inset 0 0 0 2px #5b4ae8; }

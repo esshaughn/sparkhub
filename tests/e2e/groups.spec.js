@@ -29,6 +29,19 @@ test('a group end to end: edit group, cover, rename, invite, pin, admin edits, r
     // A new group's Plans tab (Update 9, 80a): the calendar fan, No plans yet, Start an event
     await expect(A.locator('[data-plans-empty]')).toContainText('No plans yet');
     await expect(A.locator('[data-plans-empty]').getByRole('button', { name: 'Start an event' })).toBeVisible();
+    // ⋯ → QR code (Design v8, owners and admins): the code for the group's link, then the poster step
+    const qm = await groupMenu(A);
+    await qm.getByRole('button', { name: 'QR code' }).click();
+    const qr = A.getByRole('dialog', { name: 'Group QR' });
+    await expect(qr).toContainText('Scan to join ' + groupName + ' on Spark Hub');
+    await expect(qr.locator('[data-group-qr] svg[aria-label="QR code"]')).toBeVisible();
+    await qr.getByRole('button', { name: 'Print' }).click();
+    const poster = A.getByRole('dialog', { name: 'Group poster' });
+    await expect(poster).toContainText('JOIN US ON SPARK HUB');
+    await expect(poster.getByRole('button', { name: 'Print (letter size)' })).toBeVisible();
+    await poster.getByRole('button', { name: 'Back' }).click();
+    await qr.getByRole('button', { name: 'Close' }).click();
+    await expect(qr).toHaveCount(0);
     await editGroup(A);
     const gp = A.locator('[data-screen-label="Edit group"]');
     await expect(gp).toContainText('You’re the owner');
@@ -191,6 +204,7 @@ test('a group end to end: edit group, cover, rename, invite, pin, admin edits, r
     await A.locator('[data-screen-label=Groups]').getByRole('button', { name: groupName, exact: true }).click();
     const plainMenu = await groupMenu(A);
     await expect(plainMenu.getByRole('button', { name: 'Edit group' })).toHaveCount(0);
+    await expect(plainMenu.getByRole('button', { name: 'QR code' })).toHaveCount(0);   // only owners and admins hold the link
     await expect(plainMenu).not.toContainText('ADMINS ONLY');
     await plainMenu.getByRole('button', { name: 'Close' }).click();
 

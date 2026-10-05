@@ -20,10 +20,12 @@ test('friends: request, accept, invite to an event, remove, and the friend link'
     await B.reload();
     await A.reload();
 
-    // A asks from Torrez Fitness's Members list (the member count on the group's header opens it, for everyone)
+    // A asks from Torrez Fitness's Members list (⋯ → Members; the header's member count is plain text since Design v8)
     await nav(A).getByRole('button', { name: 'Groups', exact: true }).click();
     await A.locator('[data-screen-label=Groups]').getByRole('button', { name: 'Torrez Fitness', exact: true }).click();
-    await A.locator('[data-screen-label=Browse]').getByRole('button', { name: 'See members' }).click();
+    await expect(A.locator('[data-screen-label=Browse]').getByRole('button', { name: 'See members' })).toHaveCount(0);
+    await A.locator('[data-screen-label=Browse]').getByRole('button', { name: 'Group options' }).click();
+    await A.getByRole('dialog', { name: 'Group options' }).getByRole('button', { name: 'Members, see all' }).click();
     const members = A.getByRole('dialog', { name: 'Members' });
     await members.getByLabel('Search members').fill('Gus Friendly');
     await members.getByRole('button', { name: 'Gus Friendly', exact: true }).click();
@@ -79,6 +81,13 @@ test('friends: request, accept, invite to an event, remove, and the friend link'
     const bell = B.getByRole('dialog', { name: 'Notifications' });
     await expect(bell.locator('[data-notif=invited]').first()).toContainText('Fay Friendly invited you to ' + title);
     await bell.getByRole('button', { name: 'Close' }).click();
+    // FRIENDS ARE GOING (Design v8): Fay leads it and Gus hasn't answered, so it's a card with her face and name; a tap opens it
+    const goingCard = people.locator('[data-friends-going="' + title + '"]');
+    await expect(people.getByText('FRIENDS ARE GOING', { exact: true })).toBeVisible();
+    await expect(goingCard).toContainText('Fay');
+    await goingCard.click();
+    await expect(B.locator('[data-screen-label="Plan page"]')).toBeVisible();
+    await nav(B).getByRole('button', { name: /^Friends/ }).click();
 
     // B taps Fay: the short profile, Remove friend
     await people.locator('[data-friend-row="Fay Friendly"]').click();

@@ -15,7 +15,7 @@ test('visitors land on Welcome (no tab bar there) and sign in from there', async
     // "Continue with email": the sign-in pop-up with just the email field, focused (no Google button there)
     await welcome.getByRole('button', { name: 'Continue with email' }).click();
     const dialog = page.getByRole('dialog', { name: 'Sign in' });
-    await expect(dialog).toContainText('Your events, groups and name are saved to your account. We’ll email you a 6-digit code. No password.');
+    await expect(dialog).toContainText('Your ideas, groups and name are saved to your account. We’ll email you a 6-digit code. No password.');
     await expect(dialog.getByLabel('Email')).toBeFocused();
     await expect(dialog.getByRole('button', { name: 'Continue with Google' })).toHaveCount(0);
     await expect(dialog.getByRole('link', { name: 'Privacy' })).toHaveAttribute('href', '/privacy.html');
@@ -234,16 +234,12 @@ test('Give feedback (Update 9): a Help & info tile opens the sheet; Send to Eric
     await expect(profile).not.toContainText('Feedback inbox');   // only the owner sees the inbox
     await expect(profile).not.toContainText('New accounts');     // nor the accounts list
 
-    // A group's Plans tab (80a): the empty state, or the card under the plans: "Do it again?" with the group's own past events (no made-up ideas)
+    // A group's Plans tab (80a): the empty state, or the plans with nothing under them (Design v8: the floating + adds an event)
     await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Groups', exact: true }).click();
     await page.locator('[data-screen-label=Groups]').getByRole('button', { name: 'Torrez Fitness', exact: true }).click();
-    const more = page.locator('[data-plans-more]'), empty = page.locator('[data-plans-empty]');
-    await expect(more.or(empty)).toBeVisible();
-    if (await more.count()) {
-      await expect(more.locator('[data-again]')).toHaveCount(0);   // just Start an event (owner, 2026-10-01)
-    } else {
-      await expect(empty).toContainText('Start one, or turn an idea into a plan.');
-    }
+    await expect(page.locator('[data-plans-more]')).toHaveCount(0);
+    const empty = page.locator('[data-plans-empty]');
+    if (await empty.count()) await expect(empty).toContainText('Start one, or turn an idea into a plan.');
     expect(m.errors).toEqual([]);
   } finally {
     await m.context.close();
@@ -359,6 +355,9 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
       // Your calendar keeps a pick of its own (the group line under its title, option 1b), here still all groups
       await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Calendar', exact: true }).click();
       const yc = page.locator('[data-screen-label="Your calendar"]');
+      // Design v8: an icon-only pill on the title row (not a line under it), and no Filter on My calendar
+      await expect(yc.locator('header').getByRole('button', { name: 'Groups: All groups' })).toBeVisible();
+      await expect(yc.getByRole('button', { name: /^Filter/ })).toHaveCount(0);
       await yc.getByRole('button', { name: 'Groups: All groups' }).click();
       await page.getByRole('menu', { name: 'Groups' }).getByRole('menuitemcheckbox', { name: 'Torrez Fitness' }).click();
       await page.getByRole('menu', { name: 'Groups' }).getByRole('button', { name: 'Done' }).click();
@@ -390,7 +389,7 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
     await page.reload();
     await expect(cal.locator(`[data-plan="${PLAN}"]`)).toContainText('Change RSVP');
     await cal.getByRole('button', { name: /^Sort: / }).click();
-    await page.getByRole('menu', { name: 'Sort' }).getByRole('button', { name: 'Needs help' }).click();
+    await page.getByRole('menu', { name: 'Sort' }).getByRole('menuitemradio', { name: 'Needs help' }).click();
     await expect(cal.getByRole('heading', { name: 'Needs help' }).or(cal.getByRole('heading', { name: 'All covered' })).first()).toBeVisible();
     await pickView(cal, 'Month');
     await expect(cal.getByRole('button', { name: 'Previous month' })).toBeVisible();
@@ -429,7 +428,8 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
     const browse = page.locator('[data-screen-label=Browse]');
     await expect(browse.getByRole('heading', { name: 'Torrez Fitness' })).toBeVisible();
     await expect(browse).toContainText(/\d+ members/i);
-    await expect(browse.locator('[data-new-event]')).toBeVisible();
+    await expect(browse.locator('[data-new-event]')).toHaveCount(0);   // Design v8: no inline + beside the tabs…
+    await expect(page.locator('[data-add-fab]')).toHaveCount(1);       // …the floating + instead
     await expect(browse.getByRole('button', { name: 'Back to groups' })).toBeVisible();
     await expect(browse.getByRole('button', { name: 'Group options' })).toBeVisible();   // v7 Update 15: Search is in the ⋯ menu
     await expect(browse).toContainText(/your group/i);
@@ -538,7 +538,7 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
     // Notification settings (Settings → Notifications) opens over Me
     await profile.locator('[data-me-row="Notifications"]').click();
     await expect(page.getByRole('dialog', { name: 'Notification settings' })).toBeVisible();
-    await page.getByRole('dialog', { name: 'Notification settings' }).getByRole('button', { name: 'Close' }).click();
+    await page.getByRole('dialog', { name: 'Notification settings' }).getByRole('button', { name: 'Done' }).click();
     await profile.getByRole('button', { name: 'Edit profile' }).click();
     const pe = page.getByRole('dialog', { name: 'Edit profile' });
     await pe.getByLabel('Place').fill('East Austin');

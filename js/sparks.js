@@ -216,7 +216,7 @@
     cq: '', cSearch: false, cGrps: keepGrps(prefs.cGrps), tGrps: keepGrps(prefs.tGrps), sGrps: keepGrps(prefs.sGrps), cTypes: [], cKind: 'plan', cSort: 'soon', cView: CVIEWS.indexOf(prefs.cView) > -1 ? prefs.cView : 'list',
     cMon: null, cDay: null, cWildHidden: false, cNeedsHidden: false, cHandSheet: false, hMon: null, hDay: null, gMon: null, gDay: null,
     // v6 Update 2: search's Try chips; Your schedule and group pages' Sort · Filter; a group's search
-    cTry: null, cWhen: 'any', cHelp: false, sSort: 'soon', sFilt: [], gSort: 'soon', gFilt: [], iSort: 'interest', pastStatsHidden: prefs.pastStatsHidden || {}, jobsOpen: prefs.jobsOpen || {}, descOpen: {}, viewAs: null, testers: null, gSearch: false, gq: '', gTry: null
+    cTry: null, cWhen: 'any', cHelp: false, sSort: 'soon', gSort: 'soon', gFilt: [], iSort: 'interest', pastStatsHidden: prefs.pastStatsHidden || {}, jobsOpen: prefs.jobsOpen || {}, descOpen: {}, viewAs: null, testers: null, gSearch: false, gq: '', gTry: null
   }, blankCompose());
 
   // ---- URL <-> screen, so ideas and invites can be shared and the back button works
@@ -287,7 +287,7 @@
       state.back = ORIGINS.indexOf(state.screen) > -1 ? { screen: state.screen, groupId: state.groupId, phaseTab: state.phaseTab, scroll: sc ? sc.scrollTop : 0 } : null;
     }
     // Going anywhere closes the v6 sheets (Profile, Notifications, View all, Could use a hand, Search)
-    setState(Object.assign({ screen, menu: null, zoom: null, sec: null, needEd: null, share: null, cohostPick: null, leadAsk: null, leadsSheet: null, pollSheet: null, profSheet: false, notifSheet: false, dashAll: null, cHandSheet: false, cSearch: false, cq: '', gSearch: false, gq: '', gTry: null, pplAdd: false, frInvite: false, frList: null, frListEd: null, meImp: null, meList: null, pplSearch: false, pplQ: '', person: null, fbNudge: null, peek: null, gMenu: null, jobAsk: null, handOff: null, partRoster: null, partGuest: null }, extra || {}));
+    setState(Object.assign({ screen, menu: null, zoom: null, sec: null, needEd: null, share: null, cohostPick: null, leadAsk: null, leadsSheet: null, pollSheet: null, profSheet: false, notifSheet: false, dashAll: null, cHandSheet: false, cSearch: false, cq: '', gSearch: false, gq: '', gTry: null, pplAdd: false, frInvite: false, frList: null, frListEd: null, meImp: null, meList: null, pplSearch: false, pplQ: '', person: null, fbNudge: null, peek: null, gMenu: null, gQr: null, jobAsk: null, handOff: null, partRoster: null, partGuest: null }, extra || {}));
     if (sc) sc.scrollTop = 0;
   };
 
@@ -1492,11 +1492,12 @@
   // On the event page, for the person asked: a job ask or a lead offer, with its note and the two answers
   const askCards = (s) => {
     if (!state.me || s.cancelledAt || phaseOf(s) === 'done') return '';
-    const card = (attr, uid, head, quote, yes, no, onYes, onNo) => '<div ' + attr + ' style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:12px;box-shadow:inset 0 0 0 2px #f3d58a,0 1px 3px rgba(15,18,25,.08);background:#fffaf0">' +
-      '<div style="display:flex;align-items:center;gap:12px">' + face(uid, nameOf(uid), 40) + '<div style="flex:1;min-width:0;font-size:16px;line-height:1.35;font-weight:800;color:#0d1117">' + head + '</div></div>' +
-      (quote ? '<div style="padding:10px 12px;border-radius:12px;background:#fff;font-size:14.5px;line-height:1.4;font-weight:500;color:#2b303a">“' + esc(quote) + '”</div>' : '') +
+    // Design v8: a 44px face, a 16.5/900 heading, the note as plain italic text, a 2px gold ring, radius 20
+    const card = (attr, uid, head, quote, yes, no, onYes, onNo) => '<div ' + attr + ' style="border-radius:20px;padding:16px;display:flex;flex-direction:column;gap:12px;box-shadow:inset 0 0 0 2px #efc95a;background:#fffaf0">' +
+      '<div style="display:flex;align-items:center;gap:12px">' + face(uid, nameOf(uid), 44) + '<div style="flex:1;min-width:0;font-size:16.5px;line-height:1.3;font-weight:900;color:#0d1117;text-wrap:pretty">' + head + '</div></div>' +
+      (quote ? '<div style="font-size:15px;line-height:1.45;font-weight:500;font-style:italic;color:#454b55;text-wrap:pretty">“' + esc(quote) + '”</div>' : '') +
       '<div style="display:flex;gap:8px"><button type="button" ' + on(onYes) + ' style="flex:1 1 0;min-height:48px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:15.5px;font-weight:800;cursor:pointer">' + yes + '</button>' +
-        '<button type="button" ' + on(onNo) + ' style="flex:1 1 0;min-height:48px;border:0;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;color:#0d1117;font-family:inherit;font-size:15.5px;font-weight:800;cursor:pointer">' + no + '</button></div></div>';
+        '<button type="button" ' + on(onNo) + ' style="flex:1 1 0;min-height:48px;border:0;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 2px #dcdfe6;color:#0d1117;font-family:inherit;font-size:15.5px;font-weight:800;cursor:pointer">' + no + '</button></div></div>';
     const jobs = s.jobAsks.filter(a => a.userId === state.me && !a.answer && !onJob(s, a.itemId, state.me)).map(a => {
       const it = askUnits(s).find(x => x.id === a.itemId);
       return !it ? '' : card('data-job-ask-card', a.by, esc(firstName(nameOf(a.by))) + ' asked if you’d take <span style="color:#8f6405">' + esc(it.item) + '</span>', a.message, 'I’m in', 'Can’t this time', () => answerJobAsk(s, a, true), () => answerJobAsk(s, a, false));
@@ -2719,14 +2720,15 @@
 
   // Groups: pinned groups as big cards, the rest as a grid of square tiles
   const newIn = (g) => state.sparks.filter(s => inGroup(s, g.id) && s.createdBy !== state.me && s.created > (g.lastSeen || 0)).length;
-  const pinBtn = (g, size) => '<span ' + on((e) => { stop(e); togglePin(g); }) + ' aria-label="' + (g.pinned ? 'Unpin ' : 'Pin ') + esc(g.name) + '" aria-pressed="' + g.pinned + '" style="width:' + size + 'px;height:' + size + 'px;border-radius:999px;display:flex;align-items:center;justify-content:center;cursor:pointer;' +
+  // the pin icon is 15px on the big cards and 13px on the square tiles (Design v8)
+  const pinBtn = (g, size) => { const ic = size > 32 ? 15 : 13; return '<span ' + on((e) => { stop(e); togglePin(g); }) + ' aria-label="' + (g.pinned ? 'Unpin ' : 'Pin ') + esc(g.name) + '" aria-pressed="' + g.pinned + '" style="width:' + size + 'px;height:' + size + 'px;border-radius:999px;display:flex;align-items:center;justify-content:center;cursor:pointer;' +
     (g.pinned ? 'background:#fff;box-shadow:0 2px 8px rgba(15,18,25,.2)' : 'background:rgba(13,17,23,.35);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.55);opacity:.85') + '">' +
-    (g.pinned ? PIN('#5b4ae8', '#5b4ae8').replace(/width="11" height="11"/, 'width="15" height="15"') : PIN('none', '#fff').replace(/width="11" height="11"/, 'width="15" height="15"')) + '</span>';
+    (g.pinned ? PIN('#5b4ae8', '#5b4ae8') : PIN('none', '#fff')).replace(/width="11" height="11"/, 'width="' + ic + '" height="' + ic + '"') + '</span>'; };
   const roleChip = (g) => runs(g) ? '<span style="display:inline-flex;align-items:center;min-height:22px;padding:0 8px;border-radius:999px;font-size:10.5px;font-weight:900;letter-spacing:.6px;' +
     (g.role === 'owner' ? 'background:#ece9fd;color:#4a3ad4' : 'background:#fdf1d6;color:#8f6405') + '">' + (g.role === 'owner' ? 'OWNER' : 'ADMIN') + '</span>' : '';
   const gearBtn = (g) => runs(g) ? '<span ' + on((e) => { stop(e); openGroupPage(g.id, false, 'groups'); }) + ' aria-label="Edit ' + esc(g.name) + '" style="width:36px;height:36px;border-radius:999px;background:rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;cursor:pointer">' +
     svg(18, stroke('#fff', 1.9), '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/>') + '</span>' : '';
-  const GRAD = '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.85), rgba(13,17,23,.1) 60%)"></div>';
+  const GRAD = '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.88) 0%, rgba(13,17,23,.25) 60%, rgba(13,17,23,.05) 100%)"></div>';
 
   // v6 Update 13: Groups becomes Your people: Groups · Friends under one photo header, Search, and a white Add button
   const frFace = (f, size) => avatarSpan(f.id, f.name, f.avatar ? photoUrl(f.avatar) : null, size);
@@ -2822,7 +2824,7 @@
   // v8: the white header of the four tab pages (My groups, My friends, My tasks): the title, Search and the bell
   const tabHead = (title, searchFn, searchLabel) => '<header style="position:relative;z-index:5;background:#fff;padding:14px 16px 10px;display:flex;align-items:center;gap:12px">' +
     '<div style="flex:1 1 0;min-width:0"><h1 style="min-width:0;margin:0;font-size:30px;line-height:1;font-weight:900;letter-spacing:-1px;color:#0d1117">' + esc(title) + '</h1></div>' +
-    '<div style="flex:0 0 auto;display:flex;gap:8px">' +
+    '<div style="flex:0 0 auto;display:flex;gap:12px">' +   // 12px apart (Design v8)
       '<span ' + on(searchFn) + ' aria-label="' + searchLabel + '" style="flex:0 0 44px;width:44px;height:44px;border-radius:999px;background:#f2f3f6;color:#0d1117;display:flex;align-items:center;justify-content:center;cursor:pointer">' + ic6('search', 20, 'currentColor', 2.1) + '</span>' +
       bellBtn() + '</div></header>';
   // The groups page's and friends page's search: one field under the header with Cancel
@@ -2854,7 +2856,8 @@
         '<div style="position:absolute;top:12px;left:12px">' + roleChip(g) + '</div>' +
         '<div style="position:absolute;top:10px;right:10px;display:flex;gap:8px">' + gearBtn(g) + pinBtn(g, 36) + '</div>' +
         '<div style="position:absolute;left:16px;right:16px;bottom:12px;color:#fff">' +
-          groupTagAbove(g) + '<div style="display:flex;align-items:center;gap:6px">' + newDot(g) + '<span style="font-size:26px;line-height:1.05;font-weight:900;letter-spacing:-.7px;text-shadow:0 1px 8px rgba(0,0,0,.35)">' + esc(g.name) + '</span></div>' + members(g, 13) +
+          // no new-events dot on the big cards, only on the tiles (Design v8)
+          groupTagAbove(g) + '<div style="display:flex;align-items:center;gap:6px"><span style="font-size:26px;line-height:1.05;font-weight:900;letter-spacing:-.7px;text-shadow:0 1px 8px rgba(0,0,0,.35)">' + esc(g.name) + '</span></div>' + members(g, 13) +
         '</div>' +
       '</div>';
     const tile = (g) => '<div ' + on(() => openGroup(g)) + ' aria-label="' + esc(g.name) + '" style="position:relative;aspect-ratio:1 / 1;border-radius:20px;overflow:hidden;box-shadow:0 1px 3px rgba(15,18,25,.08);background:#2b303a;cursor:pointer">' + (groupPhoto(g) ? photoLayer(groupPhoto(g), g.photoPos, GROUP_POS) : '') + GRAD +
@@ -2864,7 +2867,8 @@
         '<div style="min-width:0">' + groupTagAbove(g) + '<div style="font-size:16px;line-height:1.1;font-weight:900;text-shadow:0 1px 6px rgba(0,0,0,.35)">' + esc(g.name) + '</div>' + members(g, 12) + '</div></div>' +
     '</div>';
     // Next up (8b): your soonest event you're leading, helping with or going to
-    const next = q || !st.loaded ? null : st.sparks.filter(s => !s.cancelledAt && inMine(s) && phaseOf(s) === 'plan' && s.dayDate && myPart(s)).sort(byWhen)[0];
+    // Next up, the All groups card and Join or add a group stay while searching (Design v8)
+    const next = !st.loaded ? null : st.sparks.filter(s => !s.cancelledAt && inMine(s) && phaseOf(s) === 'plan' && s.dayDate && myPart(s)).sort(byWhen)[0];
     const nextCard = !next ? '' : (() => { const part = myPart(next), g = groupById(next.groupId);
       const when = (fmtDay(next.dayDate) + (next.dayTime ? ' · ' + fmtTime(next.dayTime) : '')).toUpperCase();
       return '<div ' + on(() => openSpark(next)) + ' data-next-up data-screen-label="Next up" aria-label="Next up: ' + esc(next.text) + '" class="hov-lift" style="display:flex;align-items:center;gap:12px;padding:10px 12px 10px 10px;border-radius:20px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
@@ -2876,7 +2880,7 @@
         I.chevR(16, '#b9bcc4', 2.6) + '</div>'; })();
     // All groups (9b): every group's events, plans and ideas in one list (the old Discover)
     const faces = all.slice(0, 3).map((g, i) => '<span style="width:38px;height:38px;border-radius:999px;' + (i ? 'margin-left:-15px;' : '') + 'box-shadow:0 0 0 2px rgba(255,255,255,.9);background:' + thumbBg(null, g) + '"></span>').join('');
-    const allCard = q || !all.length ? '' : '<div ' + on(() => go('calendar')) + ' data-all-groups data-screen-label="All groups card" aria-label="All groups: all events, plans and ideas" style="position:relative;overflow:hidden;display:flex;align-items:center;gap:12px;padding:22px 16px;border-radius:20px;background:' + SPARKLE_GRAD + ';color:#fff;cursor:pointer;box-shadow:0 6px 18px rgba(160,59,200,.22)">' +
+    const allCard = !all.length ? '' : '<div ' + on(() => go('calendar')) + ' data-all-groups data-screen-label="All groups card" aria-label="All groups: all events, plans and ideas" style="position:relative;overflow:hidden;display:flex;align-items:center;gap:12px;padding:22px 16px;border-radius:20px;background:' + SPARKLE_GRAD + ';color:#fff;cursor:pointer;box-shadow:0 6px 18px rgba(160,59,200,.22)">' +
       sparkles([[66, 4, 14, '#fff', 1], [86, 6, 10, '#ffe7a6', 1], [93, 62, 8, '#fff', .9], [80, 4, 9, '#ffd0e4', 1], [90, 84, 3, '#fff', .9], [72, 86, 2.5, '#fff', .7], [96, 30, 3, '#fff', .8]]) +
       '<span aria-hidden="true" style="position:relative;display:flex">' + faces +
         (all.length > 3 ? '<span style="width:38px;height:38px;margin-left:-15px;border-radius:999px;background:#fff;box-shadow:0 0 0 2px rgba(255,255,255,.9);display:flex;align-items:center;justify-content:center;color:#a03bc8;font-size:13.5px;font-weight:900">+' + (all.length - 3) + '</span>' : '') + '</span>' +
@@ -2885,8 +2889,7 @@
     const none = '<div style="padding:24px 8px;text-align:center;font-size:14.5px;font-weight:700;color:#6b7280">No groups match “' + esc(st.pplQ.trim()) + '”</div>';
     const body = !st.loaded ? skeleton(2, 200)
       : !all.length ? noGroupCard()
-      : !groups.length ? none
-      : nextCard + big.map(bigCard).join('') + (rest.length ? '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">' + rest.map(tile).join('') + '</div>' : '') + allCard +
+      : nextCard + (!groups.length ? none : big.map(bigCard).join('')) + (rest.length ? '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">' + rest.map(tile).join('') + '</div>' : '') + allCard +
         '<span ' + on(() => setState({ pplAdd: true })) + ' data-add-group aria-label="Join or add a group" style="display:flex;align-items:center;justify-content:center;gap:6px;min-height:48px;color:#454b55;font-size:15px;font-weight:800;cursor:pointer">' + I.plus(16, 'currentColor', 2.6) + 'Join or add a group</span>';
     return '<div data-screen-label="Groups">' + tabHead('My groups', openPplSearch, 'Search your groups') +
       '<div style="padding:14px 14px 26px;display:flex;flex-direction:column;gap:12px">' + pplSearchField('Search your groups') + goneCard() + body + '</div>' +
@@ -2927,8 +2930,21 @@
       '<span ' + on(() => openPerson(f.id)) + ' aria-label="' + esc(f.name) + ', see profile" style="position:relative;flex:1;min-width:0;display:flex;align-items:center;gap:12px;cursor:pointer"><span style="display:flex;border-radius:999px;box-shadow:0 0 0 2.5px #fff">' + frFace(f, 44) + '</span>' +
         '<div style="flex:1;min-width:0"><div style="font-size:17px;line-height:1.15;font-weight:900;letter-spacing:-.3px;color:#0d1117">' + esc(f.name) + '</div><div style="font-size:13px;font-weight:700;color:#5c4f8a">Wants to be friends' + (f.group ? ' · ' + esc(f.group) : '') + '</div></div></span>' +
       '<span ' + on(() => answerRequest(f, false)) + ' aria-label="Decline ' + esc(f.name) + '" style="position:relative;flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(13, '#0d1117', 2.6) + '</span>' +
-      '<span ' + on(() => answerRequest(f, true)) + ' aria-label="Accept ' + esc(f.name) + '" class="hov-primary" style="position:relative;display:flex;align-items:center;min-height:38px;padding:0 15px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:14.5px;font-weight:900;cursor:pointer">Accept</span></div>';
+      '<span ' + on(() => answerRequest(f, true)) + ' aria-label="Accept ' + esc(f.name) + '" class="hov-primary" style="position:relative;display:flex;align-items:center;height:36px;padding:0 15px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:13.5px;font-weight:900;box-shadow:0 2px 8px rgba(91,74,232,.3);cursor:pointer">Accept</span></div>';
     const label = (t, right) => '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 6px 0"><span style="font-size:13px;font-weight:900;letter-spacing:1px;color:#6b7280">' + t + '</span>' + (right || '') + '</div>';
+    // FRIENDS ARE GOING (Design v8): up to 4 upcoming events friends lead or are going to that you aren't leading or
+    // going / maybe to, one card per event, soonest first; hidden while searching
+    const goingEvs = q || !fr.friends.length ? [] : state.sparks.filter(s => !s.cancelledAt && phaseOf(s) === 'plan' && s.dayDate && s.dayDate >= todayISO() && !isLead(s) && ['going', 'maybe'].indexOf(myRsvp(s)) < 0)
+      .map(s => ({ s, fs: fr.friends.filter(f => s.leadId === f.id || s.cohosts.indexOf(f.id) > -1 || s.rsvps.some(r => r.userId === f.id && r.status === 'going')) }))
+      .filter(x => x.fs.length).sort((a, b) => byWhen(a.s, b.s)).slice(0, 4);
+    const goingCard = ({ s, fs }) => { const dp = dateParts(s.dayDate);
+      return '<div ' + on(() => openSpark(s)) + ' role="button" data-friends-going="' + esc(s.text) + '" class="hov-row" style="flex:0 0 220px;display:flex;flex-direction:column;gap:10px;padding:12px;border-radius:20px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer;box-sizing:border-box">' +
+        '<div style="display:flex;align-items:center;gap:10px"><div aria-hidden="true" style="flex:0 0 40px;border-radius:10px;overflow:hidden;text-align:center;box-shadow:0 0 0 1px #eceef2"><div style="background:#149a4b;color:#fff;font-size:9.5px;font-weight:900;padding:2px 0">' + dp.dow + '</div><div style="font-size:16px;font-weight:900;padding:2px 0;color:#0d1117">' + dp.day + '</div></div>' +
+          '<span style="min-width:0;font-size:15px;line-height:1.2;font-weight:800;color:#0d1117;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">' + esc(s.text) + '</span></div>' +
+        '<div style="display:flex;align-items:center;gap:8px"><span aria-hidden="true" style="display:flex">' + fs.slice(0, 3).map((f, i) => '<span style="display:flex;border-radius:999px;box-shadow:0 0 0 2px #fff;' + (i ? 'margin-left:-8px' : '') + '">' + frFace(f, 26) + '</span>').join('') + '</span>' +
+          '<span style="min-width:0;font-size:12.5px;font-weight:700;color:#5c6270;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(fs.slice(0, 2).map(f => firstName(f.name)).join(', ') + (fs.length > 2 ? ' +' + (fs.length - 2) : '')) + '</span></div></div>'; };
+    const goingSec = !goingEvs.length ? '' : '<div data-screen-label="Friends are going" style="display:flex;flex-direction:column;gap:8px"><span style="padding:6px 6px 0;font-size:13px;font-weight:900;letter-spacing:1px;color:#6b7280">FRIENDS ARE GOING</span>' +
+      '<div class="snap-row" style="margin:0 -14px;padding:0 14px 4px;gap:10px;scroll-padding:0 14px">' + goingEvs.map(goingCard).join('') + '</div></div>';
     // Your lists (4a): swipe cards, + New list
     const lists = frLists();
     const listCard = (l) => { const ppl = listPeople(l);
@@ -2944,12 +2960,13 @@
       '<div class="snap-row" style="margin:0 -14px;padding:2px 14px 4px;gap:10px;scroll-padding:0 14px">' + (lists.length ? lists.map(listCard).join('') : firstList) + '</div></div>';
     // Your friends: 5 rows, then See all N
     const row = (f, k) => { const nx = friendNext(f);
-      return '<div ' + on(() => openPerson(f.id)) + ' data-friend-row="' + esc(f.name) + '" aria-label="' + esc(f.name) + '" class="hov-row" style="display:flex;align-items:center;gap:12px;min-height:62px;padding:8px 12px 8px 14px;border-top:' + (k ? '1px solid #f2f3f6' : '0') + ';cursor:pointer">' + frFace(f, 40) +
+      return '<div ' + on(() => openPerson(f.id)) + ' data-friend-row="' + esc(f.name) + '" aria-label="' + esc(f.name) + '" class="hov-row" style="display:flex;align-items:center;gap:12px;min-height:60px;padding:8px 14px;border-top:' + (k ? '1px solid #f2f3f6' : '0') + ';cursor:pointer">' + frFace(f, 40) +
         '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px"><span style="font-size:15.5px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(f.name) + '</span>' +
           '<span style="font-size:13px;font-weight:' + (nx ? '500;color:#454b55' : '600;color:#6b7280') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(nx ? nx.text + ' · ' + shortDay(nx.dayDate) : 'Nothing coming up') + '</span></div>' +
         '<span ' + on((e) => { stop(e); inviteOne([f.id]); }) + ' aria-label="Invite ' + esc(f.name) + ' to an event" style="flex:0 0 auto;display:flex;align-items:center;gap:3px;min-height:40px;padding:0 14px;border-radius:999px;box-shadow:inset 0 0 0 2px #c9c2fb;color:#4a3ad4;font-size:14px;font-weight:800;cursor:pointer">Invite' + I.chevR(12, 'currentColor', 2.8) + '</span></div>'; };
     const list = q ? shown : shown.slice(0, 5);
-    const friendsSec = !shown.length ? '' : label('YOUR FRIENDS · ' + shown.length) +
+    // the count is always the total, searching or not (Design v8)
+    const friendsSec = !shown.length ? '' : label('YOUR FRIENDS · ' + fr.friends.length) +
       '<div data-friends-card style="background:#fff;border-radius:20px;box-shadow:0 1px 3px rgba(15,18,25,.08);overflow:hidden">' + list.map(row).join('') +
         (!q && shown.length > 5 ? '<div ' + on(() => setState({ frAll: true, frAllQ: '' })) + ' aria-label="See all ' + shown.length + ' friends" class="hov-row" style="display:flex;align-items:center;justify-content:center;gap:6px;min-height:50px;border-top:1px solid #f2f3f6;font-size:15px;font-weight:800;color:#5b4ae8;cursor:pointer">See all ' + shown.length + I.chevR(12, 'currentColor', 2.8) + '</div>' : '') + '</div>';
     const empty = !fr.loaded ? '' : q ? (shown.length ? '' : '<div style="padding:8px;text-align:center;font-size:14.5px;font-weight:700;color:#6b7280">No friends match “' + esc(st.pplQ.trim()) + '”</div>')
@@ -2961,7 +2978,7 @@
     const addLink = !fr.loaded || !fr.friends.length || q ? '' : '<span ' + on(shareFriendLink) + ' data-add-friend aria-label="Add a friend" style="display:flex;align-items:center;justify-content:center;gap:6px;min-height:48px;color:#454b55;font-size:15px;font-weight:800;cursor:pointer">' + I.plus(16, 'currentColor', 2.6) + 'Add a friend</span>';
     return '<div data-screen-label="Friends">' + tabHead('My friends', openPplSearch, 'Search your friends') +
       '<div style="padding:14px 14px 26px;display:flex;flex-direction:column;gap:12px">' + pplSearchField('Search your friends') +
-        (!fr.loaded ? skeleton(2, 120) : (q ? '' : fr.incoming.map(req).join('')) + listsSec + friendsSec + empty + addLink) +
+        (!fr.loaded ? skeleton(2, 120) : (q ? '' : fr.incoming.map(req).join('')) + goingSec + listsSec + friendsSec + empty + addLink) +
       '</div><div style="height:var(--nav-h)"></div></div>';
   }
 
@@ -3352,22 +3369,25 @@
   };
 
   // Headers: the bell opens Notifications (Profile is only on the tab bar since Update 3)
-  const bellBtn = (frosted, px) => {
+  // ring: a white ring round the badge (Me, Design v8)
+  const bellBtn = (frosted, px, ring) => {
     const n = state.email ? unreadCount() : 0, z = px || 44;
     return '<span ' + on(() => setState({ notifSheet: true, menu: null })) + ' aria-label="' + (n ? 'Notifications, ' + n + ' new' : 'Notifications') + '" style="position:relative;flex:0 0 ' + z + 'px;width:' + z + 'px;height:' + z + 'px;border-radius:999px;display:flex;align-items:center;justify-content:center;cursor:pointer;' +
       (frosted ? 'background:rgba(255,255,255,.18);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff' : 'background:#f2f3f6;color:#0d1117') + '">' + ic6('bell', 21, 'currentColor', 1.9) +
-      (n ? '<span aria-hidden="true" style="position:absolute;top:-3px;right:-4px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#e2556b;color:#fff;font-size:10.5px;font-weight:900;display:flex;align-items:center;justify-content:center;box-sizing:border-box">' + (n > 9 ? '9+' : n) + '</span>' : '') + '</span>';
+      (n ? '<span aria-hidden="true" style="position:absolute;top:-3px;right:-4px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#e2556b;color:#fff;font-size:10.5px;font-weight:900;display:flex;align-items:center;justify-content:center;box-sizing:border-box' + (ring ? ';box-shadow:0 0 0 2px #fff' : '') + '">' + (n > 9 ? '9+' : n) + '</span>' : '') + '</span>';
   };
   const openProfileSheet = () => needSignIn(() => go('me', { fbHint: !!state.fbNudge || state.fbHint }), 'profile');
   // Search (the Calendar's search sheet: every upcoming event in your groups)
   const openSearch = () => { setState({ cSearch: true, menu: null }); setTimeout(() => { const f = document.querySelector('[data-csearch]'); if (f) f.focus(); }, 30); };
   const searchBtn = () => '<span ' + on(openSearch) + ' aria-label="Search events" style="flex:0 0 44px;width:44px;height:44px;border-radius:999px;background:#f2f3f6;color:#0d1117;display:flex;align-items:center;justify-content:center;cursor:pointer">' + ic6('search', 20, 'currentColor', 2.1) + '</span>';
   const backBtn6 = (fn, label) => '<span ' + on(fn) + ' aria-label="' + (label || 'Back') + '" style="flex:0 0 44px;width:44px;height:44px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.chevL(20, '#0d1117', 2.6) + '</span>';
-  const head6 = (title, left, sw, grp) => {
-    const h1 = sw ? titleSwitch(title) : '<h1 style="flex:1 1 0;min-width:0;margin:0;font-size:30px;line-height:1;font-weight:900;letter-spacing:-1px;color:#0d1117">' + esc(title) + '</h1>';
-    return '<header style="position:relative;z-index:5;background:#fff;padding:' + (grp != null ? '14px 16px 10px' : '14px 16px') + ';display:flex;align-items:center;gap:12px">' + (left || '') +
-    (grp ? '<div style="flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:1px">' + h1 + grp + '</div>' : h1) +
-    '<div style="flex:0 0 auto;display:flex;gap:8px">' + (state.email ? searchBtn() : '') + bellBtn() + '</div></header>';
+  // pill: markup that sits on the title row right after the title (My calendar's group switcher, Design v8)
+  const head6 = (title, left, sw, grp, pill) => {
+    const h1 = sw ? titleSwitch(title) : '<h1 style="' + (pill != null ? '' : 'flex:1 1 0;') + 'min-width:0;margin:0;font-size:30px;line-height:1;font-weight:900;letter-spacing:-1px;color:#0d1117">' + esc(title) + '</h1>';
+    return '<header style="position:relative;z-index:5;background:#fff;padding:' + (grp != null || pill != null ? '14px 16px 10px' : '14px 16px') + ';display:flex;align-items:center;gap:12px">' + (left || '') +
+    (pill != null ? '<div style="flex:1 1 0;min-width:0;display:flex;align-items:center;gap:8px">' + h1 + pill + '</div>' : grp ? '<div style="flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:1px">' + h1 + grp + '</div>' : h1) +
+    // Search and the bell 12px apart (Design v8)
+    '<div style="flex:0 0 auto;display:flex;gap:12px">' + (state.email ? searchBtn() : '') + bellBtn() + '</div></header>';
   };
 
   // A slide-up sheet (v6): from a fixed top to the bottom, a white header block with the grab handle
@@ -3390,12 +3410,14 @@
   // The Calendar with nothing coming up (owner, 2026-09-30): a next step, not just a sentence
   const calEmpty = () => {
     const ideas = state.sparks.filter(s => inMine(s) && phaseOf(s) === 'idea' && !s.cancelledAt), g = ideas.length ? groupById(ideas[0].groupId) : null;
-    return '<div data-cal-empty style="' + CARD + ';padding:18px;display:flex;flex-direction:column;gap:12px">' +
-      '<div><div style="font-size:16.5px;font-weight:800;color:#0d1117">Nothing coming up in your groups yet.</div>' +
-      '<div style="margin-top:3px;font-size:14.5px;line-height:1.45;font-weight:500;color:#5c6270">' + (ideas.length ? 'Start something, or see what ideas people are floating.' : 'Start something and it shows up here for your group.') + '</div></div>' +
-      createBtn() +
-      (ideas.length ? '<button type="button" class="hov-outline" ' + on(() => go('browse', { groupId: g ? g.id : state.groupId, phaseTab: 'idea' })) + ' style="' + SECONDARY + '">See ' + ideas.length + (ideas.length === 1 ? ' idea' : ' ideas') + '</button>' : '') +
-    '</div>';
+    // Design v8: Start an event and See N ideas as 44px pills side by side
+    const pill = 'display:flex;align-items:center;min-height:44px;padding:0 18px;border-radius:999px;font-family:inherit;font-size:15px;font-weight:800;cursor:pointer;border:0';
+    return '<div data-cal-empty style="' + CARD + ';padding:18px;display:flex;flex-direction:column;gap:6px">' +
+      '<div style="font-size:17px;font-weight:900;color:#0d1117">Nothing coming up in your groups yet.</div>' +
+      '<div style="font-size:14.5px;line-height:1.45;font-weight:500;color:#5c6270;text-wrap:pretty">' + (ideas.length ? 'Start something, or see what ideas people are floating.' : 'Start something and it shows up here for your group.') + '</div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px"><button type="button" class="hov-primary" ' + on(() => goCompose()) + ' style="' + pill + ';background:#5b4ae8;color:#fff">Start an event</button>' +
+      (ideas.length ? '<button type="button" class="hov-outline" ' + on(() => go('browse', { groupId: g ? g.id : state.groupId, phaseTab: 'idea' })) + ' style="' + pill + ';background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;color:#0d1117">See ' + ideas.length + (ideas.length === 1 ? ' idea' : ' ideas') + '</button>' : '') +
+    '</div></div>';
   };
   const note6 = (t) => '<div style="' + CARD + ';padding:16px 18px;font-size:15px;line-height:1.45;font-weight:600;color:#6b7280">' + esc(t) + '</div>';
   const CARD6 = 'align-self:flex-start;background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer';
@@ -3539,7 +3561,8 @@
     return cal ? { k: 'open', R: R6.open, word: '', rows: [], right: 'RSVP' } : null;
   };
   // The strip under a card: your role on the left; tasks (tap to expand in place), All set, or Change / Update RSVP
-  const strip6 = (s, P, h, cal) => {
+  // fs (Design v8): the strip's font size; with it the role word shows without its icon, the right side at rfs
+  const strip6 = (s, P, h, cal, fs, rfs) => {
     const open = !!state.schedOpen[s.id] && P.rows.length > 0;
     const expands = P.rows.length > 0;   // the same on every list (audit, 2026-10-01: the Calendar said "Manage" and opened the event)
     const tap = (e) => { stop(e); if (!expands) openSpark(s); else setState({ schedOpen: Object.assign({}, state.schedOpen, { [s.id]: !open }) }); };
@@ -3549,31 +3572,35 @@
       left = f.open > 0 ? '<b style="font-weight:800">' + f.open + (f.open === 1 ? ' spot left' : ' spots left') + '</b><span style="font-weight:600;color:#8a909b"> · ' + n + ' going</span>' : '<b style="font-weight:800">' + n + ' going</b>';
       right = '<span style="color:#0d1117">RSVP</span>';
     } else {
-      left = '<span style="display:flex;align-items:center;gap:6px">' + (h > 30 && P.icon ? ic6(P.icon, 14, P.R.ink, 2.4) : '') + P.word + '</span>';
+      left = '<span style="display:flex;align-items:center;gap:6px">' + (h > 30 && P.icon && !fs ? ic6(P.icon, 14, P.R.ink, 2.4) : '') + P.word + '</span>';
       const word = P.right || (P.rows.length ? P.rows.length + (P.rows.length === 1 ? ' task' : ' tasks') : 'All set');
-      right = '<span style="display:flex;align-items:center;gap:4px">' + (open ? '' : word) + (expands || P.k === 'go' ? chev6(11, P.R.ink, open) : '') + '</span>';
+      right = '<span style="display:flex;align-items:center;gap:4px' + (rfs ? ';font-size:' + rfs + 'px' : '') + '">' + (open ? '' : word) + (expands || P.k === 'go' ? chev6(11, P.R.ink, open) : '') + '</span>';
     }
-    return '<div ' + on(tap) + ' aria-expanded="' + open + '" style="display:flex;align-items:center;justify-content:space-between;gap:10px;height:' + h + 'px;padding:0 14px;background:' + P.R.strip + ';border-top:1px solid ' + edge(P.R.strip) + ';font-size:' + (h > 30 ? 13.5 : 12) + 'px;font-weight:800;color:' + P.R.ink + ';cursor:pointer">' + '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + left + '</span>' + right + '</div>' +
+    return '<div ' + on(tap) + ' aria-expanded="' + open + '" style="display:flex;align-items:center;justify-content:space-between;gap:10px;height:' + h + 'px;padding:0 14px;background:' + P.R.strip + ';border-top:1px solid ' + edge(P.R.strip) + ';font-size:' + (fs || (h > 30 ? 13.5 : 12)) + 'px;font-weight:800;color:' + P.R.ink + ';cursor:pointer">' + '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + left + '</span>' + right + '</div>' +
       (open ? '<div style="display:flex;flex-direction:column">' + P.rows.map(a => actRow(a, P.R, rowFill(P))).join('') + '</div>' : '');
   };
   // Task rows under a role strip: paler than the strip (Design 27): Helping gold, Leading purple
   const rowFill = (P) => P.k === 'help' ? '#fffefb' : P.k === 'lead' ? '#fdfcff' : '#fff';
   // Tiles: the photo with date, title and place; the strip under it
   // Event preview (v7 Update 15, 13a; owner said build it, 2026-10-02): on the Calendar a plan opens a slide-up first
-  const peekOrOpen = (s) => s.planned ? setState({ peek: s.id, menu: null }) : openSpark(s);
-  const tile6 = (s, P, h, cal) => {
+  // Only an upcoming plan gets the preview; a past one opens its full page (Design v8)
+  const peekOrOpen = (s) => s.planned && phaseOf(s) === 'plan' ? setState({ peek: s.id, menu: null }) : openSpark(s);
+  // mode 'mine' (My calendar, Design v8): a 34px strip at 12.5px, the role word only. All groups (cal): a 23px title,
+  // 14px place, a 28px strip at 11.5px and a lighter group chip
+  const tile6 = (s, P, h, cal, mode) => {
     const g = groupById(s.groupId);
     return '<div ' + on(() => cal ? peekOrOpen(s) : openSpark(s)) + ' data-plan="' + esc(s.text) + '" aria-label="' + esc(s.text) + '" style="border-radius:20px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
       '<div style="position:relative;height:' + h + 'px;background:' + photoBg(s) + '">' +
         '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.95) 0%, rgba(13,17,23,.65) 45%, rgba(13,17,23,.3) 100%)"></div>' +
-        (cal && g ? '<span style="position:absolute;top:10px;left:10px;display:flex;align-items:center;height:24px;padding:0 9px;border-radius:999px;background:rgba(13,17,23,.4);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);font-size:11.5px;font-weight:800;color:#fff">' + esc(groupsLabel(s)) + '</span>' : '') +
+        (cal && g ? '<span style="position:absolute;top:12px;left:14px;display:flex;align-items:center;height:24px;padding:0 10px;border-radius:999px;background:rgba(13,17,23,.4);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);font-size:11.5px;font-weight:700;color:rgba(255,255,255,.84)">' + esc(groupsLabel(s)) + '</span>' : '') +
         '<div style="position:absolute;left:16px;right:16px;bottom:14px;color:#fff;display:flex;flex-direction:column;gap:3px">' +
           '<div style="font-size:13px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;color:' + (!s.dayDate ? TBD_ON_PHOTO : P.k === 'open' ? '#dfe2e8' : P.R.kick) + '">' + esc(when6(s)) + '</div>' +
-          '<div style="font-size:25px;line-height:1.05;font-weight:900;letter-spacing:-.6px;text-wrap:balance">' + esc(s.text) + demoTag(s, true, true) + '</div>' +
-          '<div style="display:flex;align-items:center;gap:5px;font-size:14.5px;font-weight:700;color:rgba(255,255,255,.9);min-width:0">' + ic6('pin', 14, 'currentColor', 2.3) + '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (s.spot ? esc(s.spot) : tbdSpan(spotTbd(s), TBD_ON_PHOTO)) + '</span></div>' +
-        '</div></div>' + strip6(s, P, 40, cal) + '</div>';
+          '<div style="font-size:' + (cal ? 23 : 25) + 'px;line-height:1.05;font-weight:900;letter-spacing:' + (cal ? -.5 : -.6) + 'px;text-wrap:balance">' + esc(s.text) + demoTag(s, true, true) + '</div>' +
+          '<div style="display:flex;align-items:center;gap:5px;font-size:' + (cal ? 14 : 14.5) + 'px;font-weight:700;color:rgba(255,255,255,.9);min-width:0">' + ic6('pin', 14, 'currentColor', 2.3) + '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (s.spot ? esc(s.spot) : tbdSpan(spotTbd(s), TBD_ON_PHOTO)) + '</span></div>' +
+        '</div></div>' + (mode === 'mine' ? strip6(s, P, 34, cal, 12.5, 12) : cal ? strip6(s, P, 28, cal, 11.5) : strip6(s, P, 40, cal)) + '</div>';
   };
   // List: date block, role bar, title, time · street, the photo on the right, over the strip (the same on every list since the audit, 2026-10-01)
+  // thumb 'chev' (My calendar's Month, Design v8): a gray chevron instead of the photo
   const listCard6 = (s, P, cal, thumb) => {
     const dp = s.dayDate ? dateParts(s.dayDate) : null;
     return '<div ' + on(() => cal ? peekOrOpen(s) : openSpark(s)) + ' data-plan="' + esc(s.text) + '" aria-label="' + esc(s.text) + '" style="border-radius:16px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
@@ -3583,12 +3610,13 @@
         '<span aria-hidden="true" style="flex:0 0 3px;align-self:stretch;border-radius:999px;background:' + P.R.dot + '"></span>' +
         '<div style="flex:1;min-width:0"><div style="display:flex;align-items:center;min-width:0"><span style="min-width:0;font-size:15px;line-height:1.3;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(s.text) + '</span>' + demoTag(s, false, true) + '</div>' +
           '<div style="font-size:12.5px;font-weight:600;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + [s.dayDate ? esc(fmtTime(s.dayTime)) : tbdSpan(dateTbd(s)), s.spot ? esc(street(s)) : tbdSpan(spotTbd(s))].filter(Boolean).join(' · ') + '</div></div>' +
-        '<span aria-hidden="true" style="flex:0 0 44px;width:44px;height:44px;border-radius:10px;background:' + photoBg(s) + '"></span>' +
+        (thumb === 'chev' ? '<span aria-hidden="true" style="flex:0 0 auto;display:flex">' + I.chevR(14, '#b9bcc4', 2.6) + '</span>' : '<span aria-hidden="true" style="flex:0 0 44px;width:44px;height:44px;border-radius:10px;background:' + photoBg(s) + '"></span>') +
       '</div>' + strip6(s, P, 28, cal) + '</div>';
   };
 
   // Up next (v6 Update 9): the next plan as a big photo with a countdown; your role strip, then its to-dos listed open
-  const nextCard6 = (s, P) => {
+  // mode 'mine': My calendar's hero (34px strip at 12.5px, Design v8); otherwise a group page's (28px at 11.5px)
+  const nextCard6 = (s, P, mode) => {
     const d = daysTo(s), when = d <= 0 ? 'Today' : d === 1 ? 'Tomorrow' : 'In ' + d + ' days';
     return '<div ' + on(() => openSpark(s)) + ' data-plan="' + esc(s.text) + '" data-next aria-label="' + esc(s.text) + '" style="border-radius:20px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
       '<div style="position:relative;height:170px;background:' + photoBg(s) + '">' +
@@ -3600,25 +3628,26 @@
           '<div style="margin-top:3px;font-size:25px;line-height:1.1;font-weight:900;letter-spacing:-.6px;text-wrap:balance">' + esc(s.text) + demoTag(s, true, true) + '</div>' +
           '<div style="margin-top:6px;display:flex;align-items:center;gap:6px;font-size:14.5px;font-weight:700;color:rgba(255,255,255,.9);min-width:0">' + ic6('pin', 13, 'currentColor', 2.6) + '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (s.spot ? esc(s.spot) : tbdSpan(spotTbd(s), TBD_ON_PHOTO)) + '</span></div>' +
         '</div></div>' +
-      nextStrip(s, P) + '</div>';
+      nextStrip(s, P, mode) + '</div>';
   };
   // Up next's strip (Design 27, Eric 2026-10-04): N tasks ▾ on the right, tap to show the rows; closed to start except on
   // the day itself; open or closed is kept per event for the session (schedOpen, shared with the cards below)
-  const nextStrip = (s, P) => {
+  const nextStrip = (s, P, mode) => {
     const n = P.rows.length, saved = state.schedOpen[s.id], open = (saved == null ? daysTo(s) === 0 : !!saved) && n > 0;
     const tap = (e) => { stop(e); if (!n) openSpark(s); else setState({ schedOpen: Object.assign({}, state.schedOpen, { [s.id]: !open }) }); };
     const word = P.k === 'go' ? P.right : n ? n + (n === 1 ? ' task' : ' tasks') : 'All set';
-    return '<div ' + on(tap) + ' aria-expanded="' + open + '" style="display:flex;align-items:center;justify-content:space-between;gap:10px;height:40px;padding:0 14px;background:' + P.R.strip + ';font-size:13.5px;font-weight:800;color:' + P.R.ink + ';cursor:pointer"><span>' + P.word + '</span>' +
-        '<span style="display:flex;align-items:center;gap:4px;min-width:0;white-space:nowrap">' + (open ? '' : word) + (n || P.k === 'go' ? chev6(11, P.R.ink, open) : '') + '</span></div>' +
+    const mine = mode === 'mine';
+    return '<div ' + on(tap) + ' aria-expanded="' + open + '" style="display:flex;align-items:center;justify-content:space-between;gap:10px;height:' + (mine ? 34 : 28) + 'px;padding:0 14px;background:' + P.R.strip + ';font-size:' + (mine ? 12.5 : 11.5) + 'px;font-weight:800;color:' + P.R.ink + ';cursor:pointer"><span>' + P.word + '</span>' +
+        '<span style="display:flex;align-items:center;gap:4px;min-width:0;white-space:nowrap' + (mine ? ';font-size:12px' : '') + '">' + (open ? '' : word) + (n || P.k === 'go' ? chev6(11, P.R.ink, open) : '') + '</span></div>' +
       (open ? '<div style="display:flex;flex-direction:column">' + P.rows.map(a => actRow(a, P.R, rowFill(P))).join('') + '</div>' : '');
   };
-  // Soonest in Up next: the hero, then This week / Next week / Later in {month} / Date TBD
+  // Soonest in Up next: the hero, then This week / {month} / Date TBD
   const nextSections = (list) => {
     const n = list.find(s => s.dayDate && daysTo(s) >= 0), out = n ? [{ label: 'Up next', hero: n, items: [] }] : [];
     list.filter(s => s !== n).forEach(s => {
-      // v7 Update 15: Later in {this month}, then a later month by its name alone (November)
+      // Design v8: after This week, each month by its bare name, the current one included (no Next week or Later in …)
       const d = daysTo(s), mon = s.dayDate && new Date(s.dayDate + 'T12:00').toLocaleDateString('en-US', { month: 'long' });
-      const label = d == null ? 'Date TBD' : d < 7 ? 'This week' : d < 14 ? 'Next week' : s.dayDate.slice(0, 7) === todayISO().slice(0, 7) ? 'Later in ' + mon : mon;
+      const label = d == null ? 'Date TBD' : d < 7 ? 'This week' : mon;
       let z = out.find(q => q.label === label); if (!z) { z = { label, items: [] }; out.push(z); } z.items.push(s);
     });
     return out;
@@ -3656,7 +3685,6 @@
     lead: ['Leading', (s) => isLead(s)],
     help: ['Helping', (s) => !isLead(s) && helpsOn(s)],
     going: ['Going', (s) => !isLead(s) && myRsvp(s) === 'going'],
-    maybe: ['Maybe', (s) => myRsvp(s) === 'maybe'],
     open: ['Not joined yet', (s) => !isLead(s) && !helpsOn(s) && !myRsvp(s)],
     needs: ['Needs help', (s) => signupFill(s).open > 0],
     week: ['This week', (s) => daysTo(s) != null && daysTo(s) < 7]
@@ -3680,29 +3708,27 @@
 
   function viewSched() {
     const st = state, view = HOME_VIEWS.indexOf(st.homeView) > -1 ? st.homeView : 'next';
-    const wrap = (inner) => '<div data-screen-label="Your calendar">' + head6('My calendar', '', false, grpLine('sGrps')) + '<div style="padding:14px 14px 24px;display:flex;flex-direction:column;gap:22px">' + inner + '</div><div style="height:var(--nav-h)"></div></div>';
+    const wrap = (inner) => '<div data-screen-label="Your calendar">' + head6('My calendar', '', false, null, grpPill('sGrps')) + '<div style="padding:14px 14px 24px;display:flex;flex-direction:column;gap:22px">' + inner + '</div><div style="height:var(--nav-h)"></div></div>';
     if (!st.loaded) return wrap(skeleton(2, 220));
     if (!myGroups().length) return wrap(goneCard() + noGroupCard());
     const sel = grpSel(st.sGrps), every = schedList(), all = every.filter(inPick(sel));
     if (!every.length) return wrap(goneCard() + schedEmpty());
     if (!all.length) return wrap(goneCard() + filterEmpty(() => setState({ sGrps: null, menu: null }), sel.map(id => (groupById(id) || {}).name).filter(Boolean)));
-    // Sort · Filter · view, on the first heading row
+    // Sort · view on the first heading row (Design v8: no Filter on My calendar; the group pill narrows it)
     const viewPick = () => viewPicker('hview', view, (k) => setState({ homeView: k, menu: null, hMon: null, hDay: null }), HOME_VIEWS);
-    const plans = applySort(applyFilters(all, st.sFilt), st.sSort), clear = () => setState({ sFilt: [], menu: null });
-    const filt = () => filterPill('sFilt', filterOpts(['lead', 'help', 'going', 'maybe'], all, st.sFilt), st.sFilt,
-      (k) => setState({ sFilt: st.sFilt.indexOf(k) > -1 ? st.sFilt.filter(x => x !== k) : st.sFilt.concat([k]) }), clear, plans.length);
+    const plans = applySort(all, st.sSort);
     const controls = '<div style="display:flex;align-items:center;gap:6px">' +
-      sortPill('sSort', st.sSort, (k) => setState({ sSort: k, menu: null })) + filt() + viewPick() + '</div>';
-    if (!plans.length) return wrap(goneCard() + '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(st.sSort === 'soon' ? 'Coming up' : sortName6(st.sSort), controls) + filterEmpty(clear) + '</div>');
+      sortPill('sSort', st.sSort, (k) => setState({ sSort: k, menu: null })) + viewPick() + '</div>';
     // Month: the grid with the chosen day's plans; the view menu sits beside the month arrows
     if (view === 'month') return wrap(goneCard() +
-      monthBody(plans, { mon: st.hMon, day: st.hDay, cal: false, menu: '<div style="display:flex;align-items:center;gap:6px">' + filt() + viewPick() + '</div>', card: (s) => listCard6(s, partOf(s), false, true),
+      monthBody(plans, { mode: 'mine', mon: st.hMon, day: st.hDay, cal: false, menu: viewPick(), card: (s) => listCard6(s, partOf(s), false, 'chev'),
         set: (hMon, hDay) => setState({ hMon, hDay }), toTbd: () => setState({ homeView: 'next', sSort: 'soon', menu: null, hMon: null, hDay: null }) }));
-    // Up next (Soonest only): the hero card, then list cards by This week / Next week / Later in {month}
+    // Up next (Soonest only): the hero card, then list cards by This week / {month} / Date TBD
     const secs = view === 'next' && st.sSort === 'soon' ? nextSections(plans) : sections6(plans, st.sSort, 'Date TBD');
-    const card = (s) => view === 'next' ? listCard6(s, partOf(s), false, true) : tile6(s, partOf(s), 180);
+    // Tiles (Design v8): a 170px photo over a 34px strip with the role word only
+    const card = (s) => view === 'next' ? listCard6(s, partOf(s), false, true) : tile6(s, partOf(s), 170, false, 'mine');
     return wrap(goneCard() + secs.map((z, i) => '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(z.label, i ? '' : controls) +
-      '<div style="display:flex;flex-direction:column;gap:' + (view === 'next' ? 10 : 14) + 'px">' + (z.hero ? nextCard6(z.hero, partOf(z.hero)) : z.items.map(card).join('')) + '</div></div>').join('') + findMore());
+      '<div style="display:flex;flex-direction:column;gap:' + (view === 'next' ? 10 : 14) + 'px">' + (z.hero ? nextCard6(z.hero, partOf(z.hero), 'mine') : z.items.map(card).join('')) + '</div></div>').join('') + findMore());
   }
   // The end of Your calendar (Up next and Tiles): Design's green dashed slot, which now asks people to start something
   // (owner, 2026-10-03; it was Find more events, opening Explore)
@@ -3727,22 +3753,24 @@
   };
   const calSel = () => grpSel(state.cGrps);
   const inPick = (sel) => (s) => !sel || gIds(s).some(id => sel.indexOf(id) > -1);
-  // Your tasks and Your calendar: the group line under the title (Update 16, option 1b). Gray *All groups ⌄*; purple once
-  // narrowed, with the group's name or *2 groups*. It opens a checklist (All groups first) with a black Done
-  const grpLine = (key) => {
+  // My calendar's group switcher (Design v8): an icon-only ringed pill on the title row, a people icon (all groups or
+  // several) or the picked group's 20px photo, then a chevron. The checklist (All groups first, a hairline under it)
+  // has a black Done. Only with more than one group; the pick is kept per screen as before
+  const grpPill = (key) => {
     const groups = groupsInOrder();
     if (groups.length < 2) return '';
-    const sel = grpSel(state[key]), open = state.menu === key;
-    const label = !sel ? 'All groups' : sel.length === 1 ? (groupById(sel[0]) || {}).name || '1 group' : sel.length + ' groups';
+    const sel = grpSel(state[key]), open = state.menu === key, one = sel && sel.length === 1 ? groupById(sel[0]) : null;
+    const label = !sel ? 'All groups' : one ? one.name || '1 group' : sel.length + ' groups';
     const set = (next) => setState({ [key]: next && next.length && next.length < groups.length ? next : null });
     const box = (on_) => '<span aria-hidden="true" style="flex:0 0 20px;width:20px;height:20px;border-radius:6px;display:flex;align-items:center;justify-content:center;' + (on_ ? 'background:#5b4ae8' : 'background:#fff;box-shadow:inset 0 0 0 2px #c9ccd3') + '">' + (on_ ? svg(12, stroke('#fff', 3.6), P6.check) : '') + '</span>';
-    const row = (name, on_, fn) => '<div ' + on((e) => { stop(e); fn(); }, 'menuitemcheckbox') + ' aria-checked="' + on_ + '" class="hov-grey-fill" style="display:flex;align-items:center;gap:10px;min-height:42px;padding:0 12px;border-radius:10px;font-size:14.5px;font-weight:' + (on_ ? 900 : 700) + ';color:#0d1117;cursor:pointer">' +
+    const row = (name, on_, fn, line) => '<div ' + on((e) => { stop(e); fn(); }, 'menuitemcheckbox') + ' aria-checked="' + on_ + '" class="hov-grey-fill" style="display:flex;align-items:center;gap:10px;min-height:42px;padding:0 12px;border-radius:10px;font-size:14.5px;font-weight:' + (on_ ? 900 : 700) + ';color:#0d1117;cursor:pointer' + (line ? ';border-bottom:1px solid #f2f3f6' : '') + '">' +
       box(on_) + '<span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(name) + '</span></div>';
-    return '<div data-menu style="position:relative;align-self:flex-start;min-width:0;max-width:100%">' +
-      '<span ' + on((e) => { stop(e); setState({ menu: open ? null : key }); }) + ' aria-label="Groups: ' + esc(label) + '" aria-expanded="' + open + '" style="display:flex;align-items:center;gap:5px;min-height:26px;max-width:100%;font-size:14.5px;font-weight:800;color:' + (sel ? '#4a3ad4' : '#6b7280') + ';cursor:pointer">' +
-        svg(14, stroke('currentColor', 2.4), P6.people) + '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(label) + '</span>' + I.chevD(11, 'currentColor', 3) + '</span>' +
-      (open ? '<div role="menu" aria-label="Groups" style="position:absolute;top:30px;left:0;z-index:25;width:260px;padding:6px;border-radius:16px;background:#fff;box-shadow:0 12px 32px rgba(15,18,25,.18),0 0 0 1px #e6e7eb;animation:popIn 160ms ease both">' +
-        row('All groups', !sel, () => set(null)) +
+    const thumb = one ? '<span aria-hidden="true" style="flex:0 0 20px;width:20px;height:20px;border-radius:6px;background:' + thumbBg(null, one) + '"></span>' : svg(15, stroke('currentColor', 2.2) + ' style="flex:0 0 15px"', P6.people);
+    return '<div data-menu style="position:relative;flex:0 0 auto">' +
+      '<span ' + on((e) => { stop(e); setState({ menu: open ? null : key }); }) + ' role="button" aria-label="Groups: ' + esc(label) + '" aria-expanded="' + open + '" style="display:flex;align-items:center;gap:4px;min-height:32px;padding:0 9px 0 10px;border-radius:999px;box-shadow:inset 0 0 0 1.5px #c3c7d0;color:#454b55;cursor:pointer;box-sizing:border-box">' +
+        thumb + svg(12, stroke('currentColor', 2.8) + ' style="flex:0 0 12px"', '<path d="m6 9 6 6 6-6"/>') + '</span>' +
+      (open ? '<div role="menu" aria-label="Groups" style="position:absolute;top:44px;left:-150px;z-index:25;width:260px;padding:6px;border-radius:16px;background:#fff;box-shadow:0 12px 32px rgba(15,18,25,.18),0 0 0 1px #e6e7eb;animation:popIn 160ms ease both">' +
+        row('All groups', !sel, () => set(null), true) +
         groups.map(g => { const on_ = !!sel && sel.indexOf(g.id) > -1; return row(g.name, on_, () => set(on_ ? sel.filter(x => x !== g.id) : (sel || []).concat([g.id]))); }).join('') +
         '<div style="padding:6px 4px 2px"><button type="button" ' + on((e) => { stop(e); setState({ menu: null }); }) + ' style="width:100%;min-height:40px;border:0;border-radius:999px;background:#0d1117;color:#fff;font-family:inherit;font-size:14px;font-weight:800;cursor:pointer">Done</button></div></div>' : '') +
     '</div>';
@@ -3771,8 +3799,9 @@
     if (!ideas.length) return '';
     const until = ideas.map(x => x.holdUntil).sort()[0], dow = new Date(until + 'T12:00').toLocaleDateString('en-US', { weekday: 'short' });
     const t = ideas.length > 1 ? ideas.length + ' ideas are holding this date' : esc(ideas[0].text) + ' is holding ' + (hs[0].o.dayTime ? esc(fmtTime(hs[0].o.dayTime)) : 'this date');
-    return '<div data-hold-note style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:14px;background:#fdf6dc;border:1.5px solid #e6d08c">' +
-      svg(18, stroke('#8a6510', 2.2) + ' style="flex:0 0 18px"', PENCIL_IC) + '<span style="flex:1;min-width:0;font-size:14px;line-height:1.35;font-weight:700;color:#5c4510">' + t + ' · voting until ' + dow + '</span></div>';
+    // Design v8: 14.5/600 dark gold, top-aligned
+    return '<div data-hold-note style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:14px;background:#fdf6dc;border:1.5px solid #e6d08c">' +
+      svg(18, stroke('#8a6510', 2.2) + ' style="flex:0 0 18px;margin-top:1px"', PENCIL_IC) + '<span style="flex:1;min-width:0;font-size:14.5px;line-height:1.35;font-weight:600;color:#3d2a00">' + t + ' · voting until ' + dow + '</span></div>';
   };
   const PENCIL_IC = '<path d="M4 20h4L19 9l-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/>';
   // Explore's Plans · Ideas · Past (Design, after Update 16): upcoming plans, the groups' ideas, or events that happened
@@ -3834,12 +3863,15 @@
   };
 
   // Month grid, then the chosen day's events (the Calendar, and Your schedule since v6 Update 9)
+  // o.mode (Design v8): 'mine' (My calendar), 'all' (All groups) or 'group' (a group page)
   const monthBody = (list, o) => {
-    const holds = o.holds || [];
-    const first = list.find(s => s.dayDate) || null, cm = o.mon || (first ? first.dayDate.slice(0, 7) : todayISO().slice(0, 7));
-    const [y, m] = cm.split('-').map(Number), start = new Date(y, m - 1, 1), nDays = new Date(y, m, 0).getDate(), today = todayISO();
+    const holds = o.holds || [], today = todayISO();
+    // Opens on the month of the first upcoming event, on its first event day (Design v8)
+    const first = list.filter(s => s.dayDate && s.dayDate >= today).map(s => s.dayDate).sort()[0], cm = o.mon || (first ? first.slice(0, 7) : today.slice(0, 7));
+    const [y, m] = cm.split('-').map(Number), start = new Date(y, m - 1, 1), nDays = new Date(y, m, 0).getDate();
     const inMonth = list.filter(s => s.dayDate && s.dayDate.slice(0, 7) === cm), undatedN = list.filter(s => !s.dayDate).length;
-    const sel = o.day && o.day.slice(0, 7) === cm ? o.day : (today.slice(0, 7) === cm ? today : (inMonth[0] ? inMonth[0].dayDate : cm + '-01'));
+    const firstDay = inMonth.map(s => s.dayDate).sort()[0];
+    const sel = o.day && o.day.slice(0, 7) === cm ? o.day : (firstDay || cm + '-01');
     const shift = (d) => () => { const x = new Date(y, m - 1 + d, 1); o.set(x.getFullYear() + '-' + pad2(x.getMonth() + 1), null); };
     const navBtn = (fn, label, icon) => '<span ' + on(fn) + ' aria-label="' + label + '" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + icon + '</span>';
     const cells = [];
@@ -3871,15 +3903,16 @@
         (monthHolds ? '<div data-hold-key style="display:flex;align-items:center;justify-content:center;gap:14px;padding:8px 0 2px;font-size:12.5px;font-weight:700;color:#6b7280">' +
           '<span style="display:flex;align-items:center;gap:6px"><span style="width:6px;height:6px;border-radius:999px;background:#9aa0ac"></span>Plan</span>' +
           '<span style="display:flex;align-items:center;gap:6px"><span style="width:6px;height:6px;border-radius:999px;box-sizing:border-box;border:1.3px solid #9aa0ac"></span>Pencilled in</span></div>' : '') + '</div>' +
-      // Undated events stay out of the grid; the strip opens List at "Date TBD" (Round 65d)
-      (undatedN ? '<div ' + on(() => { o.toTbd(); setTimeout(() => { const el = document.querySelector('[data-sec-tbd]'); if (el) el.scrollIntoView({ block: 'start' }); }, 0); }) + ' data-no-date style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:14px;background:#fef7dd;box-shadow:inset 0 0 0 1.5px #e3c979;cursor:pointer">' +
-        svg(18, stroke('#8f6405', 2.2), '<rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>') +
-        '<span style="flex:1;font-size:14px;font-weight:800;color:#8f6405">' + undatedN + (undatedN === 1 ? ' event with no date yet' : ' events with no date yet') + '</span>' + I.chevR(14, '#8f6405', 2.6) + '</div>' : '') +
       '<div style="padding:6px 4px 0;font-size:16px;font-weight:900;color:#0d1117">' + esc(new Date(sel + 'T12:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })) + '</div>' +
-      (dayList.length || dayHolds.length ? dayList.map(o.card).join('') + pencilled : '<div style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:10px">' +
-        '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px"><span style="font-size:17px;font-weight:900;color:#0d1117">' + esc(fmtDay(sel)) + '</span><span style="font-size:13px;font-weight:700;color:#9aa0ac">0 events</span></div>' +
-        '<div style="font-size:15px;font-weight:700;color:#6b7280">Nothing on this day.</div>' +
-        (sel >= today ? '<span ' + on(() => goCompose({ evDate: sel })) + ' style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:32px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(15, '#5b4ae8', 2.8) + 'Start an event on ' + esc(new Date(sel + 'T12:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })) + '</span>' : '') + '</div>') + '</div>';
+      (dayList.length || dayHolds.length ? dayList.map(o.card).join('') + pencilled
+        // An empty day (Design v8): one line on My calendar and All groups; a group page offers a dashed + Start an event on {day}
+        // (a day already gone keeps the one line)
+        : o.mode === 'group' && sel >= today ? '<div ' + on(() => goCompose({ evDate: sel })) + ' role="button" style="display:flex;align-items:center;justify-content:center;gap:6px;min-height:52px;border-radius:16px;border:1.5px dashed #c9ccd3;color:#454b55;font-size:15px;font-weight:800;cursor:pointer"><span style="color:#5b4ae8;font-size:18px;line-height:1">+</span>Start an event on ' + esc(new Date(sel + 'T12:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })) + '</div>'
+        : '<div style="background:#fff;border-radius:16px;padding:14px 16px;font-size:14.5px;font-weight:600;color:#6b7280">' + (o.mode === 'group' ? 'Nothing on this day.' : 'Nothing on this day. Pick a day with a dot.') + '</div>') +
+      // Undated events stay out of the grid; on a group page the strip comes after the day's list and opens the list at
+      // "Date TBD" (Design v8: My calendar and All groups have no strip)
+      (undatedN && o.mode === 'group' ? '<div ' + on(() => { o.toTbd(); setTimeout(() => { const el = document.querySelector('[data-sec-tbd]'); if (el) el.scrollIntoView({ block: 'start' }); }, 0); }) + ' data-no-date role="button" style="display:flex;align-items:center;gap:10px;min-height:48px;padding:0 14px;border-radius:14px;background:#fef7dd;color:#8f6405;font-size:14.5px;font-weight:800;cursor:pointer">' +
+        '<span style="flex:1">' + undatedN + (undatedN === 1 ? ' event with no date yet' : ' events with no date yet') + '</span>' + I.chevR(14, '#8f6405', 2.8) + '</div>' : '') + '</div>';
   };
 
   function viewCalendar() {
@@ -3890,7 +3923,7 @@
     const gSel = calSel(), nG = gSel ? gSel.length : groups.length;
     const toggleG = (id) => { const cur = gSel || groups.map(g => g.id), next = cur.indexOf(id) > -1 ? cur.filter(x => x !== id) : cur.concat([id]); setState({ cGrps: next.length === groups.length ? null : next }); };
     const shown = base.filter(s => inGroups6(s) && inTypes6(s)).length;
-    const gMenu = checkMenu('cGrp', !gSel ? 'All' : nG === 1 ? '1 group' : nG + ' groups', 'people', 'Groups', groups.map(g => ({ name: g.name, demo: g.demo, n: base.filter(s => inGroup(s, g.id)).length, on: !gSel || gSel.indexOf(g.id) > -1, toggle: () => toggleG(g.id) })),
+    const gMenu = checkMenu('cGrp', !gSel ? 'All' : nG === 0 ? 'No groups' : nG === 1 ? '1 group' : nG + ' groups', 'people', 'Groups', groups.map(g => ({ name: g.name, demo: g.demo, n: base.filter(s => inGroup(s, g.id)).length, on: !gSel || gSel.indexOf(g.id) > -1, toggle: () => toggleG(g.id) })),
       !gSel, () => setState({ cGrps: null }), () => setState({ cGrps: [] }), 'Show ' + shown + (shown === 1 ? ' event' : ' events'), true);
     const frostBtn = 'width:44px;height:44px;border-radius:999px;background:rgba(255,255,255,.18);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;cursor:pointer';
     const header = '<header style="position:relative;z-index:7;height:calc(136px + var(--pt));background:#2b303a">' +
@@ -3922,14 +3955,15 @@
         '<span style="display:block;width:100%;height:100%;border-radius:4px;background:' + (s ? photoBg(s) : '#e8eaee') + '"></span></span>';
     };
     const wild = '';   // "Feeling wild?" is gone (owner, 2026-10-01): filler, like Search's old surprise cards
-    const needs = !st.cNeedsHidden && hand.length ? '<div ' + on(() => setState({ cHandSheet: true, menu: null })) + ' aria-label="' + hand.length + (hand.length === 1 ? ' event needs' : ' events need') + ' help" style="display:flex;align-items:center;gap:10px;padding:8px 8px 8px 14px;border-radius:18px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
+    // Design v8: radius 14, the count in gold, the line at 800; ✕ hides it for the visit with a toast
+    const needs = !st.cNeedsHidden && hand.length ? '<div ' + on(() => setState({ cHandSheet: true, menu: null })) + ' aria-label="' + hand.length + (hand.length === 1 ? ' event needs' : ' events need') + ' help" style="display:flex;align-items:center;gap:10px;min-height:46px;padding:0 6px 0 12px;border-radius:14px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
       '<span style="display:flex">' + hand.slice(0, 3).map((s, i) => '<span aria-hidden="true" style="width:26px;height:26px;border-radius:999px;border:2px solid #fff;margin-left:' + (i ? -9 : 0) + 'px;background:' + photoBg(s) + '"></span>').join('') + '</span>' +
-      '<span style="flex:1;min-width:0;font-size:14.5px;font-weight:700;color:#0d1117"><b style="font-weight:900;color:#b07a0a">' + hand.length + (hand.length === 1 ? ' event' : ' events') + '</b> ' + (hand.length === 1 ? 'needs' : 'need') + ' help</span>' +
-      I.chevR(14, '#b9bcc4', 2.6) + xBtn(() => setState({ cNeedsHidden: true }), 'Hide needs help') + '</div>' : '';
+      '<span style="flex:1;min-width:0;font-size:14.5px;font-weight:800;color:#0d1117"><b style="font-weight:800;color:#8f6405">' + hand.length + (hand.length === 1 ? ' event' : ' events') + '</b> ' + (hand.length === 1 ? 'needs' : 'need') + ' help</span>' +
+      I.chevR(16, '#b9bcc4', 2.6) + xBtn(() => { setState({ cNeedsHidden: true }); toast('Hidden. You can still find these with search.', true); }, 'Hide needs help') + '</div>' : '';
 
     // Sections: Today / This week / Month (Soonest); Could use a hand / All covered (Needs you)
-    const sortMenu = miniMenu('cSort', 'Sort: ' + (CSORTS.find(x => x[0] === st.cSort) || CSORTS[0])[1], ic6('sort', 15, 'currentColor', 2.2) + (CSORTS.find(x => x[0] === st.cSort) || CSORTS[0])[1],
-      CSORTS, st.cSort, (k) => setState({ cSort: k, menu: null }));
+    // Design v8: the ringed 32px Sort pill, as on My calendar and group pages
+    const sortMenu = sortPill('cSort', st.cSort, (k) => setState({ cSort: k, menu: null }));
     const secOf = (s) => {
       if (kind === 'idea' && st.cSort === 'soon') return 'Ideas';
       if (kind === 'done' && st.cSort === 'soon') return s.dayDate ? monthLabel(s.dayDate) : 'Earlier';
@@ -3950,18 +3984,19 @@
     const kOpen = st.menu === 'cKind', kName = { plan: 'Plans', idea: 'Ideas', done: 'Past' };
     const kindPill = '<div data-menu style="position:relative;flex:0 0 auto;margin-left:6px">' +
       '<span ' + on((e) => { stop(e); setState({ menu: kOpen ? null : 'cKind' }); }) + ' aria-label="Show: ' + kName[kind] + '" aria-haspopup="menu" aria-expanded="' + kOpen + '" style="' + PILL6 + ';background:transparent;box-shadow:inset 0 0 0 1.5px #c3c7d0;color:#454b55">' +
-        svg(14, stroke('currentColor', 2.2), KIND_IC[kind]) + kName[kind] + I.chevD(10, 'currentColor', 3) + '</span>' +
+        svg(14, stroke('currentColor', 2.2), KIND_IC[kind]) + kName[kind] + '</span>' +   // no chevron (Design v8)
       (kOpen ? '<div role="menu" aria-label="Show" style="position:absolute;top:44px;right:0;z-index:25;width:200px;padding:6px;border-radius:16px;background:#fff;box-shadow:0 12px 32px rgba(15,18,25,.18),0 0 0 1px #e6e7eb;animation:popIn 160ms ease both">' +
         ['plan', 'idea', 'done'].map(k => '<div ' + on((e) => { stop(e); setState({ cKind: k, menu: null, cMon: null, cDay: null }); }, 'menuitemradio') + ' aria-checked="' + (k === kind) + '" style="display:flex;align-items:center;gap:10px;min-height:42px;padding:0 12px;border-radius:10px;font-size:14.5px;font-weight:' + (k === kind ? 900 : 700) + ';color:' + (k === kind ? '#5b4ae8' : '#0d1117') + ';cursor:pointer">' +
-          svg(16, stroke('currentColor', 2.2), KIND_IC[k]) + '<span style="flex:1">' + kName[k] + '</span><span style="font-size:13px;font-weight:600;color:#b9bcc4">' + calPool(k).filter(inGroups6).length + '</span></div>').join('') + '</div>' : '') +
+          svg(16, stroke('currentColor', 2.2), KIND_IC[k]) + '<span style="flex:1">' + kName[k] + '</span><span style="font-size:13px;font-weight:600;color:#9aa0ac">' + calPool(k).filter(inGroups6).length + '</span></div>').join('') + '</div>' : '') +
     '</div>';
     let body;
     if (!st.loaded) body = skeleton(3, 90);
-    else if (st.cView === 'month') body = monthBody(list, { holds: kind === 'plan' ? holdItems(inGroups6) : [], mon: st.cMon, day: st.cDay, cal: true, menu: '<div style="display:flex;align-items:center">' + kindPill + calViewMenu() + '</div>', card: card6,
+    else if (st.cView === 'month') body = monthBody(list, { mode: 'all', holds: kind === 'plan' ? holdItems(inGroups6) : [], mon: st.cMon, day: st.cDay, cal: true, menu: '<div style="display:flex;align-items:center">' + kindPill + calViewMenu() + '</div>', card: card6,
       set: (cMon, cDay) => setState({ cMon, cDay }), toTbd: () => setState({ cView: 'list', cSort: 'soon', menu: null, cMon: null, cDay: null }) });
     else if (!list.length) {
       body = st.loaded && !groups.length ? '' : '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(st.cSort === 'soon' ? 'Coming up' : (CSORTS.find(x => x[0] === st.cSort) || CSORTS[0])[1], '<div style="display:flex;align-items:center">' + sortMenu + kindPill + calViewMenu() + '</div>') +
-        (filtered ? filterEmpty(clearFilters, (gSel ? groups.filter(g => gSel.indexOf(g.id) > -1).map(g => g.name) : [])) : kind === 'idea' ? note6('No ideas in your groups yet.') : kind === 'done' ? note6('Nothing has happened in your groups yet.') : calEmpty())   // (tSel went with the Type filter; it froze this screen, 2026-10-02) + '</div>';
+        // Narrowed with nothing showing (Design v8): one card, no button (Clear filters sits above)
+        (filtered ? '<div data-filter-empty style="' + CARD + ';padding:18px;display:flex;flex-direction:column;gap:4px"><div style="font-size:16px;font-weight:800;color:#0d1117">Nothing matches that.</div><div style="font-size:14px;line-height:1.45;font-weight:500;color:#6b7280">Try a different search or time range — or float an idea yourself.</div></div>' : kind === 'idea' ? note6('No ideas in your groups yet.') : kind === 'done' ? note6('Nothing has happened in your groups yet.') : calEmpty())   // (tSel went with the Type filter; it froze this screen, 2026-10-02) + '</div>';
     } else {
       body = secs.map((z, i) => '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(z.label, i ? '' : '<div style="display:flex;align-items:center">' + sortMenu + kindPill + calViewMenu() + '</div>') +
         z.items.map(card6).join('') + '</div>').join('');
@@ -4064,7 +4099,7 @@
     sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M2.5 12h2M19.5 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/>'
   };
   const magicGrid = (cards) => '<span style="margin-top:16px;font-size:11.5px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;color:#8a909b">Or something unexpected</span>' +
-    '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding-top:4px">' + cards.map((m, i) => '<div ' + on(m.pick) + ' data-magic="' + esc(m.title) + '" style="' + (cards.length % 2 && i === cards.length - 1 ? 'grid-column:span 2;' : '') + 'display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:16px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
+    '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding-top:4px">' + cards.map((m) => '<div ' + on(m.pick) + ' data-magic="' + esc(m.title) + '" style="display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:16px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
       '<span style="width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:' + m.bg + ';color:' + m.ink + '">' + svg(20, stroke('currentColor', 2), MAGIC_ICON[m.icon]) + '</span>' +
       '<div><div style="font-size:14.5px;line-height:1.2;font-weight:900;color:#0d1117">' + m.title + '</div><div style="margin-top:2px;font-size:12px;line-height:1.35;font-weight:600;color:#6b7280">' + m.sub + '</div></div></div>').join('') + '</div>';
   const tryChip = (label, fn) => '<span ' + on(fn) + ' style="display:flex;align-items:center;min-height:34px;padding:0 13px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #e6e7eb;font-size:13.5px;font-weight:800;color:#454b55;cursor:pointer">' + label + '</span>';
@@ -4076,8 +4111,9 @@
     '</label>' +
     '<span ' + on(close) + ' style="flex:0 0 auto;font-size:14.5px;font-weight:800;color:#454b55;cursor:pointer">Cancel</span></div>';
   const searchRow = (s, sub) => '<div ' + on(() => openSpark(s)) + ' data-result="' + esc(s.text) + '" style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:14px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
-    '<span aria-hidden="true" style="flex:0 0 40px;width:40px;height:40px;border-radius:10px;background:' + photoBg(s) + '"></span>' +
-    '<div style="flex:1;min-width:0"><div style="display:flex;align-items:center;min-width:0"><span style="min-width:0;font-size:15px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(s.text) + '</span>' + demoTag(s, false, true) + '</div>' +
+    // Design v8: 44px thumbnails, 14.5px titles
+    '<span aria-hidden="true" style="flex:0 0 44px;width:44px;height:44px;border-radius:10px;background:' + photoBg(s) + '"></span>' +
+    '<div style="flex:1;min-width:0"><div style="display:flex;align-items:center;min-width:0"><span style="min-width:0;font-size:14.5px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(s.text) + '</span>' + demoTag(s, false, true) + '</div>' +
       '<div style="font-size:12.5px;font-weight:600;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(sub) + '</div></div>' + I.chevR(14, '#b9bcc4', 2.6) + '</div>';
   const rnd6 = (a) => a.length ? a[Math.floor(Math.random() * a.length)] : null;
   function viewSearch() {
@@ -4092,7 +4128,7 @@
     const magic = [
       { icon: 'moon', title: 'Soonest surprise', sub: 'The next thing happening that I’m not in', bg: '#1f2433', ink: '#cfc9ff', pick: pick(() => notMine.slice().sort(byWhen)[0]) },
       { icon: 'people', title: 'Tag along', sub: 'Where the most people are going', bg: '#fdf1d6', ink: '#8f6405', pick: pick(() => notMine.slice().sort((a, b) => going(b).length - going(a).length)[0]) },
-      { icon: 'compass', title: 'Needs help', sub: 'The soonest event still looking for helpers', bg: '#e7f6ec', ink: '#149a4b', pick: pick(() => notMine.filter(s => signupFill(s).open > 0).sort(byWhen)[0]) }
+      { icon: 'cup', title: 'Needs help', sub: 'The soonest event still looking for helpers', bg: '#e7f6ec', ink: '#149a4b', pick: pick(() => notMine.filter(s => signupFill(s).open > 0).sort(byWhen)[0]) }
     ];
     const hint = '<div style="display:flex;flex-direction:column;gap:4px;padding:0 4px">' +
       '<span style="font-size:11.5px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;color:#8a909b">Try</span>' +
@@ -4103,7 +4139,7 @@
       '<div style="padding:14px 14px 28px;display:flex;flex-direction:column;gap:8px">' +
         (!q && !tr ? hint : '') +
         (tr ? tryOn(tr[1], () => setState(TRY_UNDO)) : '') +
-        ((q || tr) && !results.length ? (q ? '<div style="background:#fff;border-radius:16px;padding:16px;font-size:15px;font-weight:600;color:#6b7280">No events match “' + esc(q) + '”.</div>'
+        ((q || tr) && !results.length ? (q ? '<div style="background:#fff;border-radius:16px;padding:16px;font-size:15px;font-weight:800;color:#0d1117">No events match “' + esc(q) + '”.</div>'
           : '<div style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:4px"><div style="font-size:15.5px;font-weight:800;color:#0d1117">No events match ' + esc(tr[1]) + '.</div><div style="font-size:13.5px;font-weight:600;color:#6b7280">Try taking it off.</div></div>') : '') +
         results.map(s => searchRow(s, (s.dayDate ? shortWhen(s) : dateTbd(s)) + ' · ' + groupsLabel(s))).join('') +
       '</div>', 64, '8px 14px 12px');
@@ -4174,7 +4210,7 @@
     interest: { bg: '#5b4ae8', glyph: '♥', cat: 'hosting', topic: 'hosting' },
     vote: { bg: '#e8a71c', glyph: '▲', cat: 'hosting', topic: 'hosting' },
     lead: { bg: '#7b6ef0', glyph: '★', cat: 'hosting', topic: 'hosting' },
-    note: { bg: '#e2556b', glyph: '!', cat: 'updates', topic: 'updates' },   // an event or job was taken down
+    note: { bg: '#9b1c31', glyph: '!', cat: 'updates', topic: 'updates' },   // an event or job was taken down (dark red, Design v8)
     friendreq: { bg: '#5b4ae8', glyph: '+', cat: 'invites', topic: 'friends' },   // v6 Update 13
     invited: { bg: '#5b4ae8', glyph: '✉', cat: 'invites', topic: 'friends' },
     leadask: { bg: '#7b6ef0', glyph: '★', cat: 'invites', topic: 'friends' },   // someone asked you to lead an idea
@@ -4184,10 +4220,10 @@
   };
   const N_TOPICS = [
     ['newevents', 'New in your groups', 'New plans and ideas'],
-    ['updates', 'Updates from leads', 'Changes on events you’re in'],
+    ['updates', 'Updates from leads', 'Changes to events you’re in'],
     ['reminders', 'Reminders', 'The day before and the morning of anything you’re going to or helping with'],
-    ['hosting', 'Things you’re leading', 'RSVPs, interest, sign-ups and suggestions'],
-    ['friends', 'Friends', 'Friend requests, friends inviting you to events, and someone asking you to lead']
+    ['hosting', 'Things you’re leading', 'Replies, interest, sign-ups and suggestions'],
+    ['friends', 'Friends', 'Friend requests, and friends inviting you to events']   // Design v8's lines
   ];
   // A guest's name comes from what they left the lead; everyone else from their profile
   const personName = (s, uid) => {
@@ -4358,14 +4394,15 @@
     const ps = pushStatus();
     if (state.pushCardHidden || (ps !== 'off' && ps !== 'install')) return '';
     const hide = () => { try { localStorage.setItem('spark-hub-push-card', 'hidden'); } catch (e) { /* fine */ } setState({ pushCardHidden: true }); };
-    return '<div data-push-card style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:10px">' +
-      '<div style="display:flex;align-items:flex-start;gap:12px"><span aria-hidden="true" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#f3f1fe;display:flex;align-items:center;justify-content:center">' + svg(18, stroke('#5b4ae8', 2.2), '<path d="M6 16.5V11a6 6 0 1 1 12 0v5.5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>') + '</span>' +
-        '<div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:800;color:#0d1117">' + (ps === 'install' ? 'Get these on your iPhone' : 'Get these on your phone') + '</div>' +
-          '<div style="margin-top:2px;font-size:13.5px;line-height:1.4;font-weight:600;color:#6b7280">' + (ps === 'install'
-            ? 'Add Spark Hub to your Home Screen first: tap Share, then Add to Home Screen. Open it from there and turn them on.'
-            : 'We’ll buzz you when an event changes, something new goes up, and the day before and morning of anything you’re going to.') + '</div></div>' +
-        '<span ' + on(hide) + ' aria-label="Not now" style="flex:0 0 28px;width:28px;height:28px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(11, '#6b7280', 2.6) + '</span></div>' +
-      (ps === 'off' ? '<button type="button" class="hov-primary" ' + on(turnOnPush) + ' style="align-self:flex-start;margin-left:48px;min-height:42px;padding:0 18px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer">Turn on notifications</button>' : '') +
+    // Design v8: a 16/900 title, a 14/500 body, the button inside the text column, a bare gray ✕
+    return '<div data-push-card style="' + CARD + ';position:relative;padding:16px 16px 16px 14px;display:flex;align-items:flex-start;gap:12px">' +
+      '<span aria-hidden="true" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#f3f1fe;display:flex;align-items:center;justify-content:center">' + svg(18, stroke('#5b4ae8', 2.2), '<path d="M6 16.5V11a6 6 0 1 1 12 0v5.5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>') + '</span>' +
+      '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;padding-right:22px"><span style="font-size:16px;font-weight:900;color:#0d1117">' + (ps === 'install' ? 'Get these on your iPhone' : 'Get these on your phone') + '</span>' +
+        '<span style="font-size:14px;line-height:1.45;font-weight:500;color:#5c6270;text-wrap:pretty">' + (ps === 'install'
+          ? 'Add Spark Hub to your Home Screen first: tap Share, then Add to Home Screen. Open it from there and turn them on.'
+          : 'We’ll buzz you when a plan changes, something new goes up, or the day before you’re going.') + '</span>' +
+        (ps === 'off' ? '<button type="button" class="hov-primary" ' + on(turnOnPush) + ' style="align-self:flex-start;margin-top:8px;min-height:40px;padding:0 16px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer">Turn on notifications</button>' : '') + '</div>' +
+      '<span ' + on(hide) + ' aria-label="Not now" style="position:absolute;top:10px;right:10px;width:32px;height:32px;border-radius:999px;display:flex;align-items:center;justify-content:center;color:#8a909b;cursor:pointer">' + I.x(13, 'currentColor', 2.8) + '</span>' +
     '</div>';
   };
 
@@ -4742,8 +4779,7 @@
       const what = n.s ? '<b style="font-weight:800;color:#0d1117">' + esc(n.s.text) + '</b>' : '';
       const line = n.type === 'note' ? '<b style="font-weight:800;color:#0d1117">' + esc(n.body) + '</b>'
         : n.type === 'hold' ? what + ' · ' + esc(n.body)
-        : n.type === 'update' ? what + ' · ' + esc(n.quote)   // Round 65a
-        : n.type === 'newevent' ? (n.idea ? 'New idea: ' : 'New: ') + what
+        : n.type === 'newevent' ? '<b style="font-weight:800;color:#0d1117">' + (n.idea ? 'New idea:' : 'New:') + '</b> ' + what   // bold (Design v8)
         : n.type === 'reminder'
         ? '<b style="font-weight:800;color:#0d1117">' + esc(n.who) + '</b> ' + what + esc(n.after)
         : '<b style="font-weight:800;color:#0d1117">' + esc(n.who) + '</b> ' + esc(n.text) + ' ' +
@@ -4755,11 +4791,13 @@
           : avatarSpan(n.type === 'reminder' ? n.s.id : n.uid, n.type === 'reminder' ? n.s.text : n.who, face, 44, 'position:relative',
           '<span style="position:absolute;right:-3px;bottom:-3px;width:20px;height:20px;border-radius:999px;border:2px solid #fff;background:' + T.bg + ';color:#fff;font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center;line-height:1">' + T.glyph + '</span>')) +
         '<div style="flex:1;min-width:0">' +
-          '<div style="font-size:15px;line-height:1.35;font-weight:500;color:#2b303a">' + line + '</div>' +
-          (n.sub ? '<div style="margin-top:2px;font-size:14px;line-height:1.35;font-weight:600;color:#5c6270">' + esc(n.sub) + '</div>' : '') +
-          (n.quote && n.type !== 'update' ? '<div style="margin-top:8px;padding:10px 12px;border-radius:12px;background:#f2f3f6;font-size:14px;line-height:1.4;font-weight:500;color:#2b303a">' + esc(n.quote) + '</div>' : '') +
-          '<div style="margin-top:4px;font-size:12.5px;font-weight:600;color:#9aa0ac">' + esc((n.type === 'update' ? 'From ' + firstName(n.who) + ' · ' : '') + ago(n.t) + (g ? ' · ' + g.name : '')) + '</div>' +
-          (n.rsvp && !myRsvp(n.s) && !n.s.cancelledAt && phaseOf(n.s) === 'plan'
+          // Design v8: 14.5px text, a quote (an update too) in a gray chat bubble, the meta at 12.5/700
+          '<div style="display:flex;flex-direction:column;gap:3px"><div style="font-size:14.5px;line-height:1.38;font-weight:500;color:#2b303a;text-wrap:pretty">' + line + '</div>' +
+          (n.sub ? '<div style="font-size:14px;line-height:1.35;font-weight:600;color:#5c6270">' + esc(n.sub) + '</div>' : '') +
+          (n.quote ? '<div data-notif-quote style="border-radius:4px 12px 12px 12px;background:#f2f3f6;padding:8px 10px;font-size:14px;line-height:1.4;font-weight:500;color:#2b303a">' + esc(n.quote) + '</div>' : '') +
+          '<div style="font-size:12.5px;font-weight:700;color:#8a909b">' + esc(ago(n.t) + (g ? ' · ' + g.name : '')) + '</div></div>' +
+          // I'm going / Maybe only on a friend's invite (Design v8: not on New: rows)
+          (n.rsvp && n.type === 'invited' && !myRsvp(n.s) && !n.s.cancelledAt && phaseOf(n.s) === 'plan'
             ? '<div style="margin-top:10px;display:flex;gap:8px">' +
                 '<span ' + on(rsvpFromFeed(n, 'going')) + ' style="display:flex;align-items:center;min-height:36px;padding:0 14px;border-radius:999px;background:#149a4b;color:#fff;font-size:13.5px;font-weight:800;cursor:pointer">I’m going</span>' +
                 '<span ' + on(rsvpFromFeed(n, 'maybe')) + ' style="display:flex;align-items:center;min-height:36px;padding:0 14px;border-radius:999px;background:#fff;color:#0d1117;box-shadow:inset 0 0 0 1.5px #dcdfe6;font-size:13.5px;font-weight:800;cursor:pointer">Maybe</span>' +
@@ -4773,35 +4811,36 @@
     const close = () => setState({ notifSheet: false });
     const gear = round('Notification settings', svg(18, stroke('#0d1117', 2), '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/>'), () => setState({ nSettings: true }));
     return sheet6('Notifications', close,
-      '<div style="display:flex;align-items:center;gap:10px">' + '<h2 style="flex:1;min-width:0;margin:0;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">Notifications</h2>' + gear + closeX(close) + '</div>' +
+      '<div style="display:flex;align-items:center;gap:10px">' + '<h1 style="flex:1;min-width:0;margin:0;font-size:36px;line-height:1;font-weight:900;letter-spacing:-1.2px;color:#0d1117">Notifications</h1>' + gear + closeX(close) + '</div>' +
         '<div class="no-scrollbar" role="radiogroup" aria-label="Show" style="margin-top:14px;display:flex;gap:8px;overflow-x:auto">' + chip('all', 'All') + chip('invites', 'New') + chip('updates', 'Updates') + chip('hosting', 'Leading') + '</div>',
       '<div style="padding:16px 14px 30px;display:flex;flex-direction:column;gap:16px">' + pushCard() +
         (!st.loaded ? skeleton(4, 76)
           : secs.length
           ? secs.map(([label, items], i) => '<div><div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 4px 6px;min-height:32px"><span style="' + EYEBROW + '">' + label + (!i && unread ? ' · ' + unread + ' unread' : '') + '</span>' +
               (!i && unread ? '<span ' + on(markAllRead) + ' style="font-size:13.5px;font-weight:800;color:#5b4ae8;cursor:pointer">Mark all read</span>' : '') + '</div><div style="' + CARD + ';overflow:hidden">' + items.map(row).join('') + '</div></div>').join('')
-          : '<div style="' + CARD + ';padding:18px;font-size:14.5px;line-height:1.45;font-weight:500;color:#6b7280">' + (f === 'all' ? 'You’re all caught up. New events, updates and RSVPs from the last week show up here.' : 'Nothing here this week.') + '</div>') +
+          : f === 'all' ? '<div data-notif-empty style="' + CARD + ';padding:22px 18px;display:flex;flex-direction:column;gap:4px"><div style="font-size:16px;font-weight:800;color:#0d1117">You’re all caught up.</div><div style="font-size:14.5px;line-height:1.45;font-weight:500;color:#6b7280">Invites, updates from hosts, and reminders show up here.</div></div>'
+          : '<div style="' + CARD + ';padding:18px;font-size:14.5px;line-height:1.45;font-weight:500;color:#6b7280">Nothing here this week.</div>') +
       '</div>', 48);
   }
 
   function viewNotifSettings() {
     const n = state.notif, topics = n.topics || {}, close = () => setState({ nSettings: false });
     const toggle = (k) => () => saveNotif({ topics: Object.assign({}, topics, { [k]: topics[k] === false }) });
-    return sheet('Notification settings', close, 'max-height:88%;overflow:auto;padding:10px 18px 26px',
+    // Design v8: Notify me about with a purple Done, then the five topics. The phone row stays only where nothing else
+    // turns phone notifications on or off: when they're on, or off with the bell's phone card put away
+    const ps = pushStatus(), phone = ps === 'on' || (ps === 'off' && state.pushCardHidden);
+    return sheet('Notification settings', close, 'max-height:88%;overflow:auto;padding:10px 16px 22px',
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">' +
-        '<h3 style="margin:0;font-size:22px;font-weight:900;letter-spacing:-.5px;color:#0d1117">Notifications</h3>' +
-        closeX(close) +
+        '<h3 style="margin:0;font-size:22px;font-weight:900;letter-spacing:-.5px;color:#0d1117">Notify me about</h3>' +
+        '<span ' + on(close) + ' role="button" style="display:flex;align-items:center;min-height:40px;font-size:15px;font-weight:800;color:#5b4ae8;cursor:pointer">Done</span>' +
       '</div>' +
-      '<div style="font-size:14px;line-height:1.4;font-weight:500;color:#6b7280">What shows up in the app, and on your phone when that’s on.</div>' +
-      phoneRow() +
-      '<div style="margin-top:10px">' + N_TOPICS.map(([k, label, sub], i) => {
+      '<div style="margin-top:6px">' + N_TOPICS.map(([k, label, sub], i) => {
         const v = topics[k] !== false;
         return '<div ' + on(toggle(k), 'switch') + ' aria-checked="' + v + '" aria-label="' + esc(label) + '" style="display:flex;align-items:center;gap:12px;min-height:64px;border-top:' + (i ? '1px solid #f2f3f6' : '0') + ';cursor:pointer">' +
           '<div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:800;color:#0d1117">' + esc(label) + '</div><div style="font-size:13px;font-weight:500;color:#6b7280">' + esc(sub) + '</div></div>' +
           '<span aria-hidden="true" style="flex:0 0 46px;width:46px;height:28px;border-radius:999px;position:relative;transition:background 160ms;background:' + (v ? '#149a4b' : '#dcdfe6') + '"><span style="position:absolute;top:3px;left:' + (v ? 21 : 3) + 'px;width:22px;height:22px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:left 160ms"></span></span>' +
         '</div>';
-      }).join('') + '</div>' +
-      '<div style="margin-top:14px;padding-top:14px;border-top:1px solid #f2f3f6;font-size:13px;line-height:1.4;font-weight:500;color:#6b7280">A topic that’s off is off in the app and on your phone.</div>', 45);
+      }).join('') + '</div>' + (phone ? phoneRow() : ''), 45);
   }
   // Phone notifications on this device (Notification settings)
   const phoneRow = () => {
@@ -4884,17 +4923,18 @@
   // Owner's mocks, 2026-10-01: the Ideas tab's empty state, and the same prompt as a dashed card at the end of the board.
   // Both open Create event with this group picked (an event without a date posts as an idea)
   const WE_SHOULD = 'Got a “we should…”?';
-  const ideaBulb6 = (size, ring) => '<span aria-hidden="true" style="flex:0 0 auto;width:' + size + 'px;height:' + size + 'px;border-radius:999px;background:#efc95a;display:flex;align-items:center;justify-content:center;box-shadow:' + ring + '">' + svg(Math.round(size * .42), stroke('#3d2a00', 2.2), BULB_IC) + '</span>';
-  const ideasEmpty6 = (g) => '<div data-ideas-empty style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;padding:34px 4px 24px">' +
-    ideaBulb6(64, '0 0 0 14px rgba(239,201,90,.28), 0 0 0 28px rgba(239,201,90,.13)') +
-    '<h2 style="margin:18px 0 0;font-size:26px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:#0d1117;text-wrap:balance">' + WE_SHOULD + '</h2>' +
-    '<p style="margin:0;max-width:330px;font-size:15px;line-height:1.45;font-weight:500;color:#4b5160">An idea is an event without a date. Post it, people vote on when and where, and it turns into a plan once someone leads it.</p>' +
-    '<button type="button" ' + on(() => goCompose({ evGroups: [g.id] })) + ' style="margin-top:6px;width:100%;min-height:56px;border:0;border-radius:999px;background:#efc95a;box-shadow:0 6px 16px rgba(201,143,22,.25);display:flex;align-items:center;justify-content:center;gap:8px;font-family:inherit;font-size:17px;font-weight:800;color:#3d2a00;cursor:pointer">' +
-      'Start an event</button></div>';
-  const ideaPrompt6 = (g) => '<div ' + on(() => goCompose({ evGroups: [g.id] }), 'button') + ' data-idea-prompt aria-label="Start an event" style="min-height:200px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:20px 10px;border-radius:18px;border:2px dashed #ecc85a;background:#fdf8ec;text-align:center;cursor:pointer">' +
-    ideaBulb6(54, '0 0 0 8px rgba(239,201,90,.25)') +
-    '<span style="margin-top:4px;font-size:16.5px;line-height:1.15;font-weight:900;color:#3d2a00;text-wrap:balance">' + WE_SHOULD + '</span>' +
-    '<span style="font-size:14.5px;font-weight:800;color:#8a6510">Start an event ›</span></div>';
+  // Design v8: a blue bulb disc with blue rings and a blue Post an idea button (it opens Plan an event; the quick
+  // Float an idea sheet isn't built)
+  const ideasEmpty6 = (g) => '<div data-ideas-empty style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;padding:28px 12px 12px">' +
+    '<span aria-hidden="true" style="width:64px;height:64px;border-radius:999px;background:#2f7ed8;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 10px rgba(47,126,216,.18),0 0 0 20px rgba(47,126,216,.08)">' + svg(30, stroke('#fff', 2), BULB_IC) + '</span>' +
+    '<h2 style="margin:14px 0 0;font-size:26px;line-height:1.1;font-weight:900;letter-spacing:-.7px;color:#0d1117;text-wrap:balance">' + WE_SHOULD + '</h2>' +
+    '<p style="margin:0;max-width:320px;font-size:15px;line-height:1.45;font-weight:500;color:#4b5160;text-wrap:pretty">An idea is an event without a date. Post it, people vote on when and where, and it turns into a plan once someone leads it.</p>' +
+    '<button type="button" ' + on(() => goCompose({ evGroups: [g.id] })) + ' style="margin-top:6px;align-self:stretch;min-height:56px;border:0;border-radius:999px;background:#2f7ed8;display:flex;align-items:center;justify-content:center;gap:8px;font-family:inherit;font-size:16.5px;font-weight:900;color:#fff;cursor:pointer">' +
+      svg(20, stroke('#fff', 2), BULB_IC) + 'Post an idea</button></div>';
+  const ideaPrompt6 = (g) => '<div ' + on(() => goCompose({ evGroups: [g.id] }), 'button') + ' data-idea-prompt aria-label="Post an idea" style="min-height:170px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:12px;border-radius:18px;border:2px dashed #f6c945;background:#fffaf0;text-align:center;cursor:pointer">' +
+    '<span aria-hidden="true" style="width:44px;height:44px;border-radius:999px;background:#f6c945;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 7px rgba(246,201,69,.2)">' + svg(22, stroke('#0d1117', 2.1), BULB_IC) + '</span>' +
+    '<span style="margin-top:4px;font-size:15px;line-height:1.15;font-weight:900;color:#0d1117;text-wrap:balance">' + WE_SHOULD + '</span>' +
+    '<span style="font-size:12.5px;line-height:1.3;font-weight:700;color:#1f5fa8">Post an idea ›</span></div>';
   // The Ideas board's quiet sort row: Most interest (default) · Newest · Almost there (most checkpoints done)
   const ISORTS6 = [['interest', 'Most interest'], ['new', 'Newest'], ['almost', 'Almost there']];
   const stepsDone6 = (s) => ideaSteps6(s).filter(st => st.p >= 1).length;
@@ -5012,22 +5052,24 @@
     const close = () => setState({ gMenu: null }), admin = runs(g), people = state.gMenuPeople || [], n = state.sizes[g.id] || people.length;
     const round = (label, icon, fn, main) => '<div ' + on(fn) + ' role="button" aria-label="' + label + '" style="display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer">' +
       '<span style="width:52px;height:52px;border-radius:999px;background:' + (main ? '#5b4ae8' : '#f3f1fe') + ';display:flex;align-items:center;justify-content:center">' + svg(20, stroke(main ? '#fff' : '#4a3ad4', 2.3), icon) + '</span>' +
-      '<span style="font-size:13px;font-weight:800;color:#0d1117">' + label + '</span></div>';
+      '<span style="font-size:13px;font-weight:800;color:#0d1117;white-space:nowrap">' + label + '</span></div>';
     const row = (label, fn, right, first) => '<div ' + on(fn) + ' role="button" style="min-height:48px;padding:0 14px;' + (first ? '' : 'border-top:1px solid #eceef2;') + 'display:flex;align-items:center;gap:12px;font-size:15.5px;font-weight:800;color:#0d1117;cursor:pointer">' +
       '<span style="flex:1">' + label + '</span>' + (right ? '<span style="font-size:14px;font-weight:700;color:#8a909b">' + right + '</span>' : '') + I.chevR(13, '#b9bcc4', 3) + '</div>';
     const then = (fn) => () => { close(); fn(); };
-    // Invite and Copy link need the group's link, which owners and admins hold (group_code()); everyone gets Search and Alerts
+    // Invite, Copy link and QR code need the group's link, which owners and admins hold (group_code()); everyone gets Search
+    // and Alerts, which opens the Notifications list (Design v8; it opened notification settings)
     const actions = (admin ? [round('Invite', GROUP_INV_ICON, () => groupInvite(g), true),
-      round('Copy link', '<path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1"/>', () => groupInvite(g, true))] : [])
+      round('Copy link', '<path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1"/>', () => groupInvite(g, true)),
+      round('QR code', QR_IC, () => openGroupQr(g))] : [])
       .concat([round('Search', '<circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/>', then(openGroupSearch), !admin),
-        round('Alerts', '<path d="M6 16.5V11a6 6 0 1 1 12 0v5.5l1.6 2H4.4L6 16.5Z"/><path d="M10 21a2.2 2.2 0 0 0 4 0"/>', then(() => setState({ notifSheet: true, nSettings: true })))]);
+        round('Alerts', '<path d="M6 16.5V11a6 6 0 1 1 12 0v5.5l1.6 2H4.4L6 16.5Z"/><path d="M10 21a2.2 2.2 0 0 0 4 0"/>', then(() => setState({ notifSheet: true, nSettings: false })))]);
     return '<div class="v6-scrim" data-scrim="' + reg(close) + '" style="z-index:38">' +
       '<div role="dialog" aria-modal="true" aria-label="Group options" data-screen-label="Group options" style="position:absolute;left:0;right:0;bottom:0;max-height:88%;overflow:auto;background:#fff;border-radius:24px 24px 0 0;box-shadow:0 -10px 30px rgba(13,17,23,.2);display:flex;flex-direction:column;align-items:center;gap:14px;padding:8px 18px calc(22px + env(safe-area-inset-bottom, 0px));animation:sheetUp 260ms cubic-bezier(.2,.8,.2,1) both">' +
         '<span aria-hidden="true" style="width:40px;height:5px;border-radius:999px;background:#dcdfe6"></span>' +
         '<div style="align-self:stretch;display:flex;align-items:center;gap:12px"><span aria-hidden="true" style="flex:0 0 44px;width:44px;height:44px;border-radius:12px;background:' + groupBg(g, HEAD_GOLD) + '"></span>' +
           '<span style="flex:1;min-width:0;font-size:20px;font-weight:900;letter-spacing:-.4px;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(g.name) + '</span>' +
           '<span ' + on(close) + ' role="button" aria-label="Close" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(13, '#0d1117', 2.8) + '</span></div>' +
-        '<div style="align-self:stretch;display:grid;grid-template-columns:repeat(' + actions.length + ',minmax(0,1fr));gap:8px">' + actions.join('') + '</div>' +
+        '<div style="align-self:stretch;display:grid;grid-template-columns:repeat(' + actions.length + ',minmax(0,1fr));gap:' + (actions.length > 4 ? 6 : 8) + 'px">' + actions.join('') + '</div>' +
         '<div ' + on(then(() => openMembersOf(g))) + ' role="button" aria-label="Members, see all" style="align-self:stretch;display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:16px;background:#f7f7f9;cursor:pointer">' +
           '<span style="display:flex">' + people.slice(0, 3).map((m, i) => memberFace(m, 30, 'border:2px solid #f7f7f9;' + (i ? 'margin-left:-8px;' : ''))).join('') + '</span>' +
           '<span style="flex:1;font-size:15px;font-weight:800;color:#0d1117">Members</span><span style="font-size:14px;font-weight:800;color:#5b4ae8">' + (n ? 'See all ' + n : 'See all') + '</span></div>' +
@@ -5040,6 +5082,197 @@
         (g.role ? '<span ' + on(then(() => leaveGroup(g))) + ' role="button" data-leave-group style="min-height:44px;display:flex;align-items:center;font-size:15px;font-weight:800;color:#9b1c31;cursor:pointer">Leave group</span>' : '') +
       '</div></div>';
   }
+
+  // ---- Group QR code (Design v8: ⋯ → QR code, Group QR and Group poster) ---------------------------------------
+  // A small QR encoder (byte mode, error correction M, versions 1–10, so up to 213 bytes), after Project Nayuki's
+  // QR Code generator (MIT). Inlined so the CSP needs no new script host. Returns rows of booleans (true = dark)
+  const qrMatrix = (text) => {
+    const ECC = [0, 10, 16, 26, 18, 24, 16, 18, 22, 22, 26], BLK = [0, 1, 1, 1, 2, 2, 4, 4, 4, 5, 5];
+    const bytes = Array.from(new TextEncoder().encode(text));
+    const rawMods = (v) => { let r = (16 * v + 128) * v + 64; if (v >= 2) { const na = Math.floor(v / 7) + 2; r -= (25 * na - 10) * na - 55; if (v >= 7) r -= 36; } return r; };
+    const dataCw = (v) => Math.floor(rawMods(v) / 8) - ECC[v] * BLK[v];
+    let ver = 1;
+    while (ver <= 10 && 4 + (ver < 10 ? 8 : 16) + bytes.length * 8 > dataCw(ver) * 8) ver++;
+    if (ver > 10) return null;
+    const bits = [], put = (val, len) => { for (let i = len - 1; i >= 0; i--) bits.push((val >>> i) & 1); };
+    put(4, 4); put(bytes.length, ver < 10 ? 8 : 16); bytes.forEach(b => put(b, 8));
+    const cap = dataCw(ver) * 8;
+    put(0, Math.min(4, cap - bits.length)); put(0, (8 - bits.length % 8) % 8);
+    for (let p = 0xEC; bits.length < cap; p ^= 0xEC ^ 0x11) put(p, 8);
+    const data = [];
+    for (let i = 0; i < bits.length; i += 8) data.push(bits.slice(i, i + 8).reduce((a, b) => (a << 1) | b, 0));
+    // Reed–Solomon error correction, split into blocks and interleaved
+    const mul = (x, y) => { let z = 0; for (let i = 7; i >= 0; i--) { z = (z << 1) ^ ((z >>> 7) * 0x11D); z ^= ((y >>> i) & 1) * x; } return z; };
+    const deg = ECC[ver], div = new Array(deg).fill(0); div[deg - 1] = 1;
+    for (let i = 0, root = 1; i < deg; i++) { for (let j = 0; j < deg; j++) { div[j] = mul(div[j], root); if (j + 1 < deg) div[j] ^= div[j + 1]; } root = mul(root, 2); }
+    const rem = (dat) => { const r = new Array(deg).fill(0); dat.forEach(b => { const f = b ^ r.shift(); r.push(0); div.forEach((c, i) => { r[i] ^= mul(c, f); }); }); return r; };
+    const nb = BLK[ver], raw = Math.floor(rawMods(ver) / 8), nShort = nb - raw % nb, shortLen = Math.floor(raw / nb), blocks = [];
+    for (let i = 0, k = 0; i < nb; i++) {
+      const dat = data.slice(k, k + shortLen - deg + (i < nShort ? 0 : 1)); k += dat.length;
+      const e = rem(dat); if (i < nShort) dat.push(0); blocks.push(dat.concat(e));
+    }
+    const all = [];
+    for (let i = 0; i < blocks[0].length; i++) blocks.forEach((b, j) => { if (i !== shortLen - deg || j >= nShort) all.push(b[i]); });
+    // The grid: finders, timing, alignment, format and version areas, then the data in the zigzag
+    const n = ver * 4 + 17, mod = [], fn = [];
+    for (let y = 0; y < n; y++) { mod.push(new Array(n).fill(false)); fn.push(new Array(n).fill(false)); }
+    const setF = (x, y, d) => { mod[y][x] = d; fn[y][x] = true; };
+    for (let i = 0; i < n; i++) { setF(6, i, i % 2 === 0); setF(i, 6, i % 2 === 0); }
+    [[3, 3], [n - 4, 3], [3, n - 4]].forEach(([x, y]) => {
+      for (let dy = -4; dy <= 4; dy++) for (let dx = -4; dx <= 4; dx++) {
+        const d = Math.max(Math.abs(dx), Math.abs(dy)), xx = x + dx, yy = y + dy;
+        if (xx >= 0 && xx < n && yy >= 0 && yy < n) setF(xx, yy, d !== 2 && d !== 4);
+      }
+    });
+    if (ver > 1) {
+      const na = Math.floor(ver / 7) + 2, step = Math.ceil((ver * 4 + 4) / (na * 2 - 2)) * 2, pos = [6];
+      for (let p = n - 7; pos.length < na; p -= step) pos.splice(1, 0, p);
+      pos.forEach((a, i) => pos.forEach((b, j) => {
+        if ((i === 0 && j === 0) || (i === 0 && j === na - 1) || (i === na - 1 && j === 0)) return;
+        for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) setF(a + dx, b + dy, Math.max(Math.abs(dx), Math.abs(dy)) !== 1);
+      }));
+    }
+    const format = (mask) => {
+      const d = mask;   // error correction M is 00
+      let r = d; for (let i = 0; i < 10; i++) r = (r << 1) ^ ((r >>> 9) * 0x537);
+      const b = ((d << 10) | r) ^ 0x5412, bit = (i) => ((b >>> i) & 1) !== 0;
+      for (let i = 0; i <= 5; i++) setF(8, i, bit(i));
+      setF(8, 7, bit(6)); setF(8, 8, bit(7)); setF(7, 8, bit(8));
+      for (let i = 9; i < 15; i++) setF(14 - i, 8, bit(i));
+      for (let i = 0; i < 8; i++) setF(n - 1 - i, 8, bit(i));
+      for (let i = 8; i < 15; i++) setF(8, n - 15 + i, bit(i));
+      setF(8, n - 8, true);
+    };
+    format(0);
+    if (ver >= 7) {
+      let r = ver; for (let i = 0; i < 12; i++) r = (r << 1) ^ ((r >>> 11) * 0x1F25);
+      const b = (ver << 12) | r;
+      for (let i = 0; i < 18; i++) { const d = ((b >>> i) & 1) !== 0, a = n - 11 + i % 3, c = Math.floor(i / 3); setF(a, c, d); setF(c, a, d); }
+    }
+    for (let right = n - 1, i = 0; right >= 1; right -= 2) {
+      if (right === 6) right = 5;
+      for (let v = 0; v < n; v++) for (let j = 0; j < 2; j++) {
+        const x = right - j, y = ((right + 1) & 2) === 0 ? n - 1 - v : v;
+        if (!fn[y][x] && i < all.length * 8) { mod[y][x] = ((all[i >>> 3] >>> (7 - (i & 7))) & 1) !== 0; i++; }
+      }
+    }
+    // Pick the mask with the lowest penalty (runs, 2×2 blocks, finder-like patterns, balance)
+    const MASKS = [(x, y) => (x + y) % 2 === 0, (x, y) => y % 2 === 0, (x) => x % 3 === 0, (x, y) => (x + y) % 3 === 0,
+      (x, y) => (Math.floor(x / 3) + Math.floor(y / 2)) % 2 === 0, (x, y) => x * y % 2 + x * y % 3 === 0,
+      (x, y) => (x * y % 2 + x * y % 3) % 2 === 0, (x, y) => ((x + y) % 2 + x * y % 3) % 2 === 0];
+    const flip = (m) => { for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) if (!fn[y][x] && MASKS[m](x, y)) mod[y][x] = !mod[y][x]; };
+    const penalty = () => {
+      let p = 0, dark = 0;
+      const line = (get) => { for (let a = 0; a < n; a++) { let run = 1; const s = []; for (let b = 0; b < n; b++) s.push(get(a, b) ? 1 : 0);
+        for (let b = 1; b <= n; b++) { if (b < n && s[b] === s[b - 1]) run++; else { if (run >= 5) p += run - 2; run = 1; } }
+        const str = s.join(''); let k = -1; while ((k = str.indexOf('1011101', k + 1)) > -1) { if (str.slice(Math.max(0, k - 4), k) === '0000' || str.slice(k + 7, k + 11) === '0000' || k < 4 || k + 7 > n - 4) p += 40; } } };
+      line((a, b) => mod[a][b]); line((a, b) => mod[b][a]);
+      for (let y = 0; y < n - 1; y++) for (let x = 0; x < n - 1; x++) { const c = mod[y][x]; if (c === mod[y][x + 1] && c === mod[y + 1][x] && c === mod[y + 1][x + 1]) p += 3; }
+      mod.forEach(r => r.forEach(c => { if (c) dark++; }));
+      return p + Math.max(0, Math.ceil(Math.abs(dark * 20 - n * n * 10) / (n * n)) - 1) * 10;
+    };
+    let best = 0, low = Infinity;
+    for (let m = 0; m < 8; m++) { flip(m); format(m); const pn = penalty(); if (pn < low) { low = pn; best = m; } flip(m); }
+    flip(best); format(best);
+    return mod;
+  };
+  // The code as an SVG (a white margin of 4 modules, as scanners want)
+  const qrSvg = (text, px) => {
+    const m = qrMatrix(text);
+    if (!m) return '';
+    const n = m.length, q = n + 8;
+    let d = '';
+    m.forEach((r, y) => r.forEach((c, x) => { if (c) d += 'M' + (x + 4) + ' ' + (y + 4) + 'h1v1h-1z'; }));
+    return '<svg width="' + px + '" height="' + px + '" viewBox="0 0 ' + q + ' ' + q + '" shape-rendering="crispEdges" role="img" aria-label="QR code" style="display:block"><rect width="' + q + '" height="' + q + '" fill="#fff"/><path d="' + d + '" fill="#0d1117"/></svg>';
+  };
+  const QR_IC = '<rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><path d="M14 14h2.5v2.5H14zM18 18h2.5v2.5H18zM14 18.5h2M18.5 14h2"/>';
+  // Opens once the group's link is known (owners and admins hold it, group_code())
+  const openGroupQr = (g) => {
+    const show = (url) => setState({ gMenu: null, gQr: { id: g.id, url, poster: null } });
+    if (groupCodes[g.id]) return show(inviteLink(groupCodes[g.id]));
+    groupLink(g).then(show, e => { console.error(e); toast(failed(e)); });
+  };
+  // The group's next three plans for the poster (no test events)
+  const qrEvents = (g) => state.sparks.filter(s => inGroup(s, g.id) && phaseOf(s) === 'plan' && s.dayDate && s.dayDate >= todayISO() && !s.cancelledAt && !s.test).sort(byWhen).slice(0, 3);
+  const POSTER_HOST = 'sparkhub.wereallneighbors.org';
+  function viewGroupQr() {
+    const q = state.gQr, g = q && groupById(q.id);
+    if (!g) return '';
+    const n = state.sizes[g.id] || 0, photo = groupBg(g, HEAD_GOLD);
+    const close = () => setState({ gQr: null });
+    if (q.poster) {
+      const evs = qrEvents(g), print = q.poster === 'print';
+      return '<div role="dialog" aria-modal="true" aria-label="Group poster" data-screen-label="Group poster" style="position:fixed;inset:0;z-index:46;background:#e8eaee;display:flex;flex-direction:column;align-items:center;gap:14px;padding:calc(16px + var(--pt)) 16px calc(30px + env(safe-area-inset-bottom, 0px));overflow-y:auto">' +
+        '<div style="align-self:stretch;display:flex;align-items:center;gap:10px"><span ' + on(() => setState({ gQr: Object.assign({}, q, { poster: null }) })) + ' role="button" aria-label="Back" style="flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.chevL(20, '#0d1117', 2.6) + '</span>' +
+          '<span style="flex:1;font-size:18px;font-weight:900;color:#0d1117">' + (print ? 'Print a poster' : 'Save as image') + '</span></div>' +
+        '<div data-print-poster style="width:330px;flex:0 0 auto;background:#fff;border-radius:14px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 2px 4px rgba(13,17,23,.06),0 18px 40px rgba(13,17,23,.22),0 40px 60px -20px rgba(13,17,23,.25)">' +
+          '<div style="position:relative;height:150px;background:#2b303a ' + photo + '"><div style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.85), rgba(13,17,23,.15))"></div>' +
+            '<div style="position:absolute;left:18px;right:18px;bottom:14px;color:#fff"><div style="font-size:11px;font-weight:900;letter-spacing:1.2px;color:#cfc9ff">JOIN US ON SPARK HUB</div><div style="font-size:27px;line-height:1.02;font-weight:900;letter-spacing:-.9px">' + esc(g.name) + '</div></div></div>' +
+          '<div style="display:flex;flex-direction:column;align-items:center;padding:16px 20px 14px;gap:11px">' +
+            '<div style="padding:9px;border-radius:16px;box-shadow:0 0 0 2px #0d1117">' + qrSvg(q.url, 150) + '</div>' +
+            '<span style="font-size:17.5px;line-height:1.2;font-weight:900;color:#0d1117;text-align:center;text-wrap:balance">Scan to see what’s happening and join in</span>' +
+            (evs.length ? '<div style="align-self:stretch;display:flex;flex-direction:column"><span style="font-size:11px;font-weight:900;letter-spacing:1px;color:#6b7280;padding-bottom:4px">COMING UP</span>' +
+              evs.map(s => { const dp = dateParts(s.dayDate); return '<div style="display:flex;align-items:center;gap:11px;padding:7px 0;border-top:1px solid #eceef2"><div style="flex:0 0 38px;border-radius:9px;overflow:hidden;text-align:center;box-shadow:0 0 0 1px #e3e5ea"><div style="background:#149a4b;color:#fff;font-size:9px;font-weight:900;padding:2px 0">' + dp.dow + '</div><div style="font-size:15px;font-weight:900;padding:2px 0;color:#0d1117">' + dp.day + '</div></div>' +
+                '<div style="min-width:0;display:flex;flex-direction:column"><span style="font-size:14px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(s.text) + '</span><span style="font-size:12px;font-weight:600;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc([s.dayTime ? fmtTime(s.dayTime) : '', s.spot || ''].filter(Boolean).join(' · ')) + '</span></div></div>'; }).join('') + '</div>' : '') +
+            '<span style="font-size:11.5px;font-weight:700;color:#6b7280">' + POSTER_HOST + '</span></div></div>' +
+        '<button type="button" class="hov-primary" ' + on(() => print ? window.print() : savePoster(g, q.url)) + ' style="align-self:stretch;flex:0 0 auto;display:flex;align-items:center;justify-content:center;gap:7px;min-height:52px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:15.5px;font-weight:800;cursor:pointer">' + (print ? 'Print (letter size)' : TOUCH && navigator.canShare ? 'Save to Photos' : 'Download image') + '</button></div>';
+    }
+    const btn = 'flex:1;display:flex;align-items:center;justify-content:center;gap:7px;min-height:52px;border:0;border-radius:999px;font-family:inherit;font-size:15.5px;font-weight:800;cursor:pointer';
+    return '<div role="dialog" aria-modal="true" aria-label="Group QR" data-screen-label="Group QR" style="position:fixed;inset:0;z-index:44;background:#fff;overflow-y:auto;animation:sheetUp 260ms cubic-bezier(.2,.8,.2,1) both">' +
+      '<div style="position:relative;height:calc(250px + var(--pt));background:#2b303a ' + photo + '"><div style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.85) 0%, rgba(13,17,23,.25) 70%)"></div>' +
+        '<span ' + on(close) + ' role="button" aria-label="Close" style="position:absolute;top:calc(14px + var(--pt));right:14px;width:44px;height:44px;border-radius:999px;background:rgba(255,255,255,.95);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(17, '#0d1117', 2.8) + '</span>' +
+        '<div style="position:absolute;left:20px;right:20px;bottom:58px;color:#fff;text-align:center;font-size:30px;line-height:1.05;font-weight:900;letter-spacing:-1px;text-wrap:balance">' + esc(g.name) + '</div></div>' +
+      '<div data-group-qr style="position:relative;margin:-44px auto 0;width:300px;padding:20px;box-sizing:border-box;border-radius:28px;background:#fff;box-shadow:0 14px 36px rgba(13,17,23,.18)">' + qrSvg(q.url, 260) + '</div>' +
+      '<div style="padding:20px 26px 0;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center"><span style="font-size:20px;line-height:1.25;font-weight:900;letter-spacing:-.3px;color:#0d1117;text-wrap:balance">Scan to join ' + esc(g.name) + ' on Spark Hub</span>' +
+        (n ? '<span style="font-size:15px;font-weight:800;color:#5c6270">' + n + (n === 1 ? ' person already here' : ' people already here') + '</span>' : '') + '</div>' +
+      '<div style="display:flex;gap:10px;padding:28px 18px calc(34px + env(safe-area-inset-bottom, 0px))">' +
+        '<button type="button" ' + on(() => setState({ gQr: Object.assign({}, q, { poster: 'save' }) })) + ' style="' + btn + ';background:#fff;color:#0d1117;box-shadow:inset 0 0 0 2px #dcdfe6">' + svg(17, stroke('currentColor', 2.2), '<path d="M12 4v11M7 10l5 5 5-5"/><path d="M5 20h14"/>') + 'Save as image</button>' +
+        '<button type="button" ' + on(() => setState({ gQr: Object.assign({}, q, { poster: 'print' }) })) + ' style="' + btn + ';background:#5b4ae8;color:#fff">' + svg(17, stroke('currentColor', 2.2), '<path d="M7 9V4h10v5"/><rect x="4" y="9" width="16" height="8" rx="2"/><path d="M7 14h10v6H7z"/>') + 'Print</button></div></div>';
+  }
+  // Save as image: the poster drawn on a canvas (660×… at 2×), shared to Photos on a phone that can, otherwise downloaded
+  const savePoster = async (g, url) => {
+    const W = 330, S = 2, evs = qrEvents(g), H = 150 + 16 + 168 + 11 + 44 + (evs.length ? 20 + evs.length * 52 : 0) + 30;
+    const cv = document.createElement('canvas'); cv.width = W * S; cv.height = H * S;
+    const c = cv.getContext('2d'); c.scale(S, S);
+    const font = (w, px) => w + ' ' + px + 'px Inter, -apple-system, system-ui, sans-serif';
+    const fit = (t, max) => { let s = t; while (s.length > 1 && c.measureText(s).width > max) s = s.slice(0, -2) + '…'; return s; };
+    c.fillStyle = '#fff'; c.fillRect(0, 0, W, H);
+    c.fillStyle = '#2b303a'; c.fillRect(0, 0, W, 150);
+    const src = groupPhoto(g);
+    if (src) await new Promise(res => { const im = new Image(); im.crossOrigin = 'anonymous'; im.onload = () => { const r = Math.max(W / im.width, 150 / im.height), w = im.width * r, h = im.height * r; c.drawImage(im, (W - w) / 2, (150 - h) * .4, w, h); res(); }; im.onerror = res; im.src = src; });
+    const gr = c.createLinearGradient(0, 150, 0, 0); gr.addColorStop(0, 'rgba(13,17,23,.85)'); gr.addColorStop(1, 'rgba(13,17,23,.15)'); c.fillStyle = gr; c.fillRect(0, 0, W, 150);
+    c.fillStyle = '#cfc9ff'; c.font = font(900, 11); c.fillText('JOIN US ON SPARK HUB', 18, 106);
+    c.fillStyle = '#fff'; c.font = font(900, 27); c.fillText(fit(g.name, W - 36), 18, 136);
+    const m = qrMatrix(url), qn = m ? m.length : 21, box = 150, cell = box / qn, qx = (W - box) / 2, qy = 166 + 9;
+    c.strokeStyle = '#0d1117'; c.lineWidth = 2; c.beginPath(); c.roundRect ? c.roundRect(qx - 9, qy - 9, box + 18, box + 18, 16) : c.rect(qx - 9, qy - 9, box + 18, box + 18); c.stroke();
+    c.fillStyle = '#0d1117';
+    if (m) m.forEach((r, y) => r.forEach((d, x) => { if (d) c.fillRect(qx + x * cell, qy + y * cell, cell + .3, cell + .3); }));
+    let y = qy + box + 9 + 11 + 18;
+    c.textAlign = 'center'; c.font = font(900, 17.5); c.fillText('Scan to see what’s happening and join in', W / 2, y, W - 40);
+    y += 24;
+    c.textAlign = 'left';
+    if (evs.length) {
+      c.fillStyle = '#6b7280'; c.font = font(900, 11); c.fillText('COMING UP', 20, y + 8); y += 16;
+      evs.forEach(s => {
+        const dp = dateParts(s.dayDate);
+        c.fillStyle = '#eceef2'; c.fillRect(20, y, W - 40, 1);
+        c.fillStyle = '#149a4b'; c.fillRect(20, y + 8, 38, 15); c.fillStyle = '#fff'; c.font = font(900, 9); c.textAlign = 'center'; c.fillText(dp.dow, 39, y + 19);
+        c.fillStyle = '#0d1117'; c.font = font(900, 15); c.fillText(String(dp.day), 39, y + 40); c.textAlign = 'left';
+        c.font = font(800, 14); c.fillText(fit(s.text, W - 109), 69, y + 24);
+        c.fillStyle = '#6b7280'; c.font = font(600, 12); c.fillText(fit([s.dayTime ? fmtTime(s.dayTime) : '', s.spot || ''].filter(Boolean).join(' · '), W - 109), 69, y + 41);
+        y += 52;
+      });
+    }
+    c.fillStyle = '#6b7280'; c.font = font(700, 11.5); c.textAlign = 'center'; c.fillText(POSTER_HOST, W / 2, H - 14);
+    const blob = await new Promise(r => { try { cv.toBlob(r, 'image/png'); } catch (e) { r(null); } });
+    if (!blob) return toast('That poster couldn’t be saved. Try Print instead.');
+    const name = (g.name || 'group').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase() + '-qr.png';
+    const file = typeof File === 'function' ? new File([blob], name, { type: 'image/png' }) : null;
+    if (TOUCH && file && navigator.canShare && navigator.canShare({ files: [file] })) { navigator.share({ files: [file], title: g.name }).catch(() => {}); return; }
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    toast('Poster saved', true);
+  };
 
   function viewBrowse() {
     const st = state, g = currentGroup(), tab = st.phaseTab;
@@ -5058,7 +5291,8 @@
         '<div style="flex:1;min-width:0;color:#fff;display:flex;flex-direction:column;gap:3px">' + groupTagAbove(g) +
           '<span style="font-size:12px;line-height:1;font-weight:900;letter-spacing:1.2px;text-transform:uppercase;color:#cfc9ff">Your group</span>' +
           '<h1 style="margin:0;font-size:28px;line-height:1.05;font-weight:900;letter-spacing:-.8px;color:#fff;text-wrap:balance;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">' + esc(g ? g.name : 'Spark Hub') + '</h1>' +
-          (size ? '<span ' + on(() => openMembersOf(g)) + ' role="button" aria-label="See members" style="align-self:flex-start;font-size:13px;font-weight:700;color:rgba(255,255,255,.78);cursor:pointer">' + size + (size === 1 ? ' member' : ' members') + '</span>' : '') +
+          // plain text (Design v8); Members is in the ⋯ menu
+          (size ? '<span style="align-self:flex-start;font-size:13px;font-weight:700;color:rgba(255,255,255,.78)">' + size + (size === 1 ? ' member' : ' members') + '</span>' : '') +
         '</div>' +
         (g && runs(g) ? '<span ' + on(() => groupInvite(g)) + ' role="button" aria-label="Invite people" style="' + glass + '">' + svg(18, stroke('#fff', 2.4), GROUP_INV_ICON) + '</span>' : '') +
         (g ? '<span ' + on(() => openGroupMenu(g)) + ' role="button" aria-label="Group options" style="' + glass + '">' + svg(20, 'fill="#fff"', '<circle cx="5" cy="12" r="2.1"/><circle cx="12" cy="12" r="2.1"/><circle cx="19" cy="12" r="2.1"/>') + '</span>' : '') +
@@ -5080,8 +5314,8 @@
         const onIt = tab === k;
         return '<span ' + on((e) => { stop(e); switchTab(k); }, 'tab') + ' aria-selected="' + onIt + '" style="position:relative;display:flex;align-items:baseline;justify-content:center;gap:5px;height:100%;line-height:44px;font-size:' + (k === 'plan' ? 14.5 : 13) + 'px;font-weight:900;cursor:pointer;white-space:nowrap;transition:color 180ms ease;color:' + (onIt ? '#0d1117' : '#6b7280') + '">' +
           label + '<span style="font-size:11.5px;font-weight:800;color:' + (onIt ? '#6b7280' : '#9aa0aa') + '">' + counts[k] + '</span></span>';
-      }).join('') + '</div>' + tch(1) + '</div>' +
-      '<button type="button" class="hov-primary" ' + on(() => goCompose()) + ' data-new-event aria-label="Start an event" style="flex:0 0 44px;width:44px;height:44px;border:0;border-radius:999px;background:#5b4ae8;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.plus(20, '#fff', 2.8) + '</button></div>' : '';
+      // no inline + beside the bar: group pages have the floating + (Design v8)
+      }).join('') + '</div>' + tch(1) + '</div></div>' : '';
 
     const { body, pageStyle } = browseBody(tab, g);
 
@@ -5122,7 +5356,7 @@
         viewPicker('gview', gv, (k) => setState({ gView: k, menu: null, gMon: null, gDay: null }), GROUP_VIEWS) + '</div>';
       if (!all.length) body = plansEmpty();
       // Month (owner, 2026-09-30): the group's plans on a month grid, the chosen day's below; the filter and view menu beside the arrows
-      else if (gv === 'month') body = monthBody(plans, { holds: holdItems(s => inGroup(s, currentGroup().id)), mon: st.gMon, day: st.gDay, cal: true, card: (s) => listCard6(s, partOf(s, true), false, true),
+      else if (gv === 'month') body = monthBody(plans, { mode: 'group', holds: holdItems(s => inGroup(s, currentGroup().id)), mon: st.gMon, day: st.gDay, cal: true, card: (s) => listCard6(s, partOf(s, true), false, true),
         menu: '<div style="display:flex;align-items:center;gap:6px">' + filterPill('gFilt', filterOpts(['lead', 'help', 'going', 'open', 'needs', 'week'], all, st.gFilt), st.gFilt,
           (k) => setState({ gFilt: st.gFilt.indexOf(k) > -1 ? st.gFilt.filter(x => x !== k) : st.gFilt.concat([k]) }), clear, plans.length) +
           viewPicker('gview', gv, (k) => setState({ gView: k, menu: null, gMon: null, gDay: null }), GROUP_VIEWS) + '</div>',
@@ -5135,7 +5369,6 @@
         body = (next ? nextSections(plans) : sections6(plans, st.gSort, 'Date TBD')).map((z, i) => '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(z.label, i ? '' : controls) +
           '<div style="display:flex;flex-direction:column;gap:' + (rows ? 10 : 14) + 'px">' + (z.hero ? nextCard6(z.hero, partOf(z.hero, true)) : z.items.map(s => rows ? listCard6(s, partOf(s, true), false, true) : tile6(s, partOf(s, true), 180)).join('')) + '</div></div>').join('');
       }
-      if (all.length) body += plansMore();
     }
     return { body, pageStyle };
   }
@@ -5155,8 +5388,6 @@
       '<button type="button" class="hov-primary" ' + on(() => go('calendar')) + ' style="width:100%;min-height:52px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 6px 16px rgba(91,74,232,.3);cursor:pointer">' + 'Find an event</button>' +
       '<button type="button" class="hov-sec" ' + on(() => goCompose()) + ' style="width:100%;min-height:52px;border:0;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;color:#0d1117;font-family:inherit;font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer">' + I.plus(18, '#0d1117', 2.8) + 'Start an event</button></div>',
     'data-sched-empty', 'Nothing on your calendar yet');
-  // Under a group's plans: just Create an event, on the page (owner, 2026-10-01: no Do it again? chips, no white card)
-  const plansMore = () => '<div data-plans-more style="display:flex;flex-direction:column">' + createBtn() + '</div>';
 
   // Search inside one group: Browse chips, "Or something unexpected", live results
   const openGroupSearch = () => { setState({ gSearch: true, menu: null }); setTimeout(() => { const f = document.querySelector('[data-csearch]'); if (f) f.focus(); }, 30); };
@@ -5232,12 +5463,13 @@
   // The idea / plan / happened page, by phase
   // A cancelled event stays up so people see it (owner, 2026-09-30): what happened, and for the host, Delete
   const cancelledCard = (s) => !s.cancelledAt ? '' :
-    '<div data-cancelled-card style="border-radius:18px;background:#fdeef0;box-shadow:inset 0 0 0 1.5px #f5c2cb;padding:16px;display:flex;flex-direction:column;gap:6px">' +
-      '<div style="font-size:17px;font-weight:900;color:#9b1c31">This ' + (s.planned ? 'event' : 'idea') + ' is cancelled</div>' +
-      '<div style="font-size:14.5px;line-height:1.45;font-weight:600;color:#7a1626">' +
-        (s.cancelReason ? '“' + esc(s.cancelReason) + '”' : 'It was called off.') +
-        ' <span style="font-weight:600;color:#9b1c31">' + esc(ago(s.cancelledAt)) + '</span></div>' +
-      (canTakeDown(s) ? '<div style="font-size:13.5px;line-height:1.4;font-weight:600;color:#7a1626">It stays up so everyone sees it. Delete it whenever you like (that tells no one).</div>' : '') +
+    // Design v8: an 18px title, the reason as {Lead}: “reason”, the time on its own 13px line
+    '<div data-cancelled-card style="border-radius:20px;background:#fdeef0;box-shadow:inset 0 0 0 1.5px #f5c2cb;padding:16px 18px;display:flex;flex-direction:column;gap:6px">' +
+      '<div style="font-size:18px;font-weight:900;letter-spacing:-.3px;color:#9b1c31">This ' + (s.planned ? 'event' : 'idea') + ' is cancelled</div>' +
+      '<div style="font-size:15px;line-height:1.4;font-weight:600;color:#5c2430;text-wrap:pretty">' +
+        (s.cancelReason ? esc(firstName(nameOf(s.leadId, s.leadName)) || 'The lead') + ': “' + esc(s.cancelReason) + '”' : 'It was called off.') + '</div>' +
+      '<div style="font-size:13px;font-weight:600;color:#9b4a58">' + esc(ago(s.cancelledAt)) + '</div>' +
+      (canTakeDown(s) ? '<div style="margin-top:4px;font-size:13.5px;line-height:1.4;font-weight:600;color:#5c2430">It stays up so everyone sees it. Delete it whenever you like (that tells no one).</div>' : '') +
     '</div>';
   function viewDetail(s) {
     const ph = phaseOf(s);
@@ -5410,7 +5642,8 @@
         // Round, so the Test event tab between the buttons stays clear on demo/test events
         (canEdit(s) && !s.cancelledAt ? '<span ' + on(() => openSec(s, 'title')) + ' aria-label="' + (s.planned ? 'Edit event' : 'Edit idea') + '" class="hov-fill-grey" style="' + ROUND_BTN + '">' + svg(18, stroke('#0d1117', 2.4), PENCIL) + '</span>'
           : share ? '' : '<span style="flex:0 0 44px;width:44px"></span>') +
-        (share && !s.cancelledAt ? '<span ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' aria-label="Share" class="hov-fill-grey" style="' + ROUND_BTN + '">' + svg(18, stroke('#0d1117', 2.4), P5.share) + '</span>' : '') +
+        // Share stays on a cancelled plan (Design v8)
+        (share ? '<span ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' aria-label="Share" class="hov-fill-grey" style="' + ROUND_BTN + '">' + svg(18, stroke('#0d1117', 2.4), P5.share) + '</span>' : '') +
       '</div>' + inner +
       // (No chip over the photo after an action, owner 2026-10-01: the page already shows what changed)
     '</div>';
@@ -5701,9 +5934,8 @@
     const adder = !st.sigAdding
       // v8-2: quiet gray, no fill (was gold)
       ? '<div ' + on(() => setState({ sigAdding: true })) + ' data-add-signup style="display:flex;align-items:center;justify-content:center;gap:8px;min-height:60px;padding:0 16px;border-radius:20px;border:1.5px dashed #d5d8df;background:transparent;font-size:14px;font-weight:800;color:#6b7280;cursor:pointer">' + I.plus(15, '#6b7280', 2.8) + addLabel + '</div>'
-      : '<div style="' + CARD + ';padding:14px 16px;display:flex;flex-direction:column;gap:10px">' +
-          '<div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:15px;font-weight:800;color:#0d1117">' + addLabel + '</span>' +
-            '<span ' + on(() => setState({ sigAdding: false, sigDraft: '', sigNeed: '', sigTime: '' })) + ' aria-label="Cancel" style="width:28px;height:28px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(11, '#5c6270', 2.6) + '</span></div>' +
+      // Design v8: open, it's one inline row, the field and Add (no title or ✕)
+      : '<div style="' + CARD + ';padding:12px;display:flex;flex-direction:column;gap:10px">' +
           '<div style="display:flex;gap:8px">' +
             '<input class="fld" type="text" maxlength="60" data-autofocus aria-label="' + (lead ? 'Add a sign-up' : 'Bringing something else?') + '" placeholder="' + (lead ? 'Add a thing, like a dozen filled eggs' : 'Bringing something else?') + '" value="' + esc(st.sigDraft) + '" ' + onInput(e => { if (e.type === 'input') setState({ sigDraft: e.target.value.slice(0, 60) }); }) + ' style="flex:1 1 auto;min-width:0;min-height:46px;border:1.5px solid #dcdfe6;border-radius:14px;padding:10px 14px;font-family:inherit;font-size:16px;font-weight:600;color:#0d1117;background:#fff;outline:none">' +
             (lead ? '<input class="fld" type="text" inputmode="numeric" maxlength="3" aria-label="How many needed" placeholder="How many" value="' + esc(st.sigNeed) + '" ' + onInput(e => { if (e.type === 'input') setState({ sigNeed: e.target.value.replace(/\D/g, '').slice(0, 3) }); }) + ' style="flex:0 0 74px;width:74px;min-height:46px;border:1.5px solid #dcdfe6;border-radius:14px;padding:10px 8px;text-align:center;font-family:inherit;font-size:16px;font-weight:600;color:#0d1117;background:#fff;outline:none">' : '') +
@@ -5716,7 +5948,11 @@
                 '</select></label>'
             : '') +
         '</div>';
-    return '<section id="sec-tasks" data-screen-label="Help out">' + secTitle('Help out', '', true) +
+    // Design v8: members don't see Help out on a plan with no jobs, and nobody does on a cancelled one
+    if (!jobs.length && phaseOf(s) !== 'idea' && (!lead || s.cancelledAt)) return '';
+    // The lead's section Edit pill opens the jobs editor (each job's ✎ stays)
+    const edit = lead && live ? '<span ' + on(() => openNeeds(s)) + ' data-help-edit role="button" aria-label="Edit Help out" class="hov-outline" style="flex:0 0 auto;display:flex;align-items:center;gap:6px;min-height:36px;padding:0 14px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;font-size:14px;font-weight:800;color:#0d1117;cursor:pointer">' + svg(14, stroke('currentColor', 2.4), PENCIL) + 'Edit</span>' : '';
+    return '<section id="sec-tasks" data-screen-label="Help out">' + secTitle('Help out', edit, true) +
       '<div style="display:flex;flex-direction:column;gap:12px">' +
         // Empty, for the lead: the same dashed box as an empty Details (owner, 2026-10-01)
         (jobs.length ? ordered.map(card).join('') : s.cancelledAt
@@ -6057,12 +6293,12 @@
     const sh = state.share, s = state.sparks.find(x => x.id === sh.id);
     if (!s) return '';
     const close = () => setState({ share: null }), link = location.origin + '/i/' + s.id;
-    const msg = (sh.msg || inviteText(s)) + ' ' + link, past = phaseOf(s) === 'done', title = sh.ask ? 'Ask two people first' : isLead(s) && !past ? 'Invite people' : s.planned ? 'Share this event' : 'Share this idea';
+    const msg = (sh.msg || inviteText(s)) + ' ' + link, past = phaseOf(s) === 'done', title = sh.ask ? 'Ask two people first' : canInviteTo(s) && !past ? 'Invite people' : 'Share this event';   // Design v8: whoever can invite
     const canList = !!state.email && !s.cancelledAt && !past && canInviteTo(s);
     if (canList && !sh.people && !sh.loading) setTimeout(() => { if (state.share && state.share.id === s.id && !state.share.people && !state.share.loading) loadInvitees(s); }, 0);
     const btn = (label, href, icon, fn) => '<' + (fn ? 'div ' + on(fn) : 'a href="' + esc(href) + '" target="_blank" rel="noopener noreferrer"') + ' aria-label="' + label + '" style="display:flex;flex-direction:column;align-items:center;gap:8px;text-decoration:none;cursor:pointer">' +
       '<span style="width:52px;height:52px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center">' + svg(22, stroke('#5b4ae8', 2.1), icon) + '</span>' +
-      '<span style="font-size:13.5px;font-weight:600;color:#6b7280">' + label + '</span></' + (fn ? 'div' : 'a') + '>';
+      '<span style="font-size:12.5px;font-weight:800;color:#454b55">' + label + '</span></' + (fn ? 'div' : 'a') + '>';
     const more = () => { if (navigator.share) navigator.share({ title: s.text, text: msg, url: link }).catch(() => {}); else copy(msg, 'Invite copied. Paste it anywhere.'); };
     const q = (sh.q || '').trim().toLowerCase(), invited = sh.invited || [];
     // Anyone who has answered shows their answer and can't be picked (owner, 2026-10-03: Can't and Maybe were still invitable / read Invited)
@@ -6073,7 +6309,7 @@
     const tick = (p) => { const on_ = picked.indexOf(p.id) > -1;
       return '<span ' + on(() => setState({ share: Object.assign({}, state.share, { picked: on_ ? picked.filter(x => x !== p.id) : picked.concat(p.id) }) }), 'checkbox') + ' aria-checked="' + on_ + '" aria-label="Invite ' + esc(p.name) + '" style="flex:0 0 26px;width:26px;height:26px;border-radius:999px;display:flex;align-items:center;justify-content:center;box-sizing:border-box;cursor:pointer;' +
         (on_ ? 'background:#5b4ae8' : 'background:#fff;border:2px solid #c9ccd3') + '">' + (on_ ? I.check(13, '#fff', 3.2) : '') + '</span>'; };
-    const row = (p) => '<div data-invitee="' + esc(p.name) + '" style="display:flex;align-items:center;gap:12px;min-height:58px">' + avatarSpan(p.id, p.name, p.avatar ? photoUrl(p.avatar) : null, 44) +
+    const row = (p, k) => '<div data-invitee="' + esc(p.name) + '" style="display:flex;align-items:center;gap:12px;min-height:60px;border-top:' + (k ? '1px solid #f2f3f6' : '0') + '">' + avatarSpan(p.id, p.name, p.avatar ? photoUrl(p.avatar) : null, 44) +
       '<div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(p.name) + '</div>' +
         '<div style="font-size:13.5px;font-weight:500;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(p.sub) + '</div></div>' +
       (ANS[answer(p.id)] ? '<span data-answered style="flex:0 0 auto;font-size:14px;font-weight:800;color:' + ANS[answer(p.id)][1] + '">' + ANS[answer(p.id)][0] + '</span>'
@@ -6084,17 +6320,19 @@
         '<input type="search" aria-label="Search friends and groups" placeholder="Search friends and groups" value="' + esc(sh.q || '') + '" ' + onInput(e => { if (e.type === 'input') setState({ share: Object.assign({}, state.share, { q: e.target.value.slice(0, 40) }) }); }) +
           ' style="flex:1;min-width:0;border:0;background:transparent;outline:none;font-family:inherit;font-size:16px;font-weight:500;color:#0d1117"></label>' +
       '<div data-invitees style="display:flex;flex-direction:column;max-height:42vh;overflow-y:auto">' +
-        (sh.loading || !sh.people ? paraHtml('Loading…') : people.length ? people.map(row).join('') : paraHtml(q ? 'Nobody by that name.' : 'No friends or group members to invite yet.')) + '</div>' +
+        (sh.loading || !sh.people ? paraHtml('Loading…') : people.length ? people.map((p, k) => row(p, k)).join('') : paraHtml(q ? 'Nobody by that name.' : 'No friends or group members to invite yet.')) + '</div>' +
       '<button type="button" data-send-invites ' + (nPick ? on(() => sendInvites(s)) : 'aria-disabled="true"') + ' style="width:100%;min-height:52px;border:0;border-radius:999px;background:' + (nPick ? '#5b4ae8' : '#d5d8df') + ';color:#fff;font-family:inherit;font-size:16px;font-weight:800;cursor:' + (nPick ? 'pointer' : 'default') + '">' + (nPick ? 'Send invites · ' + nPick : 'Send invites') + '</button>' +
       '<div style="display:flex;align-items:center;gap:12px"><span style="flex:1;height:1px;background:#e3e5e9"></span><span style="font-size:12px;font-weight:800;letter-spacing:1px;color:#9aa0ac">OR SEND DIRECT LINK</span><span style="flex:1;height:1px;background:#e3e5e9"></span></div>';
+    // Design v8: a 22px title; a past event gets "{Title}: here's how it went."; the link row white with a ring
     return sheet(title, close, SHEET_PAD,
-      '<div style="display:flex;align-items:center;gap:10px"><div style="flex:1;min-width:0"><div style="font-size:26px;line-height:1.1;font-weight:900;letter-spacing:-.6px;color:#0d1117">' + title + '</div>' +
-        (sh.ask ? '<p data-ask-first style="margin:6px 0 0;font-size:14px;line-height:1.4;font-weight:600;color:#454b55">Events that start with a friend or two already in are far more likely to happen. Invite two people you think would come.</p>' : '') +
+      '<div style="display:flex;align-items:flex-start;gap:10px"><div style="flex:1;min-width:0"><div style="font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">' + title + '</div>' +
+        (sh.ask ? '<p data-ask-first style="margin:6px 0 0;font-size:14px;line-height:1.4;font-weight:600;color:#454b55;text-wrap:pretty">Events that start with a friend or two already in are far more likely to happen. <b style="font-weight:800">Send it</b> to two people you think would come.</p>' : '') +
         '</div>' + closeX(close) + '</div>' +
+      (past ? '<div data-share-past style="padding:12px 14px;border-radius:14px;background:#f7f7f9;font-size:14.5px;line-height:1.4;font-weight:600;color:#2b303a">' + esc(s.text) + ': here’s how it went.</div>' : '') +
       list +
-      '<div style="display:flex;align-items:center;gap:10px;border-radius:18px;background:#f2f3f6;padding:7px 7px 7px 16px">' + svg(18, stroke('#6b7280', 2.2) + ' style="flex:0 0 18px"', '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>') +
+      '<div style="display:flex;align-items:center;gap:10px;min-height:52px;box-sizing:border-box;border-radius:16px;background:#fff;box-shadow:inset 0 0 0 1.5px #e6e7eb;padding:4px 6px 4px 14px">' + svg(18, stroke('#5b4ae8', 2.3) + ' style="flex:0 0 18px"', '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>') +
         '<span style="flex:1;min-width:0;font-size:15px;font-weight:700;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(link.replace(/^https?:\/\//, '')) + '</span>' +
-        '<span ' + on(() => { copy(link, 'Link copied'); setState({ share: Object.assign({}, sh, { copied: true }) }); }) + ' style="flex:0 0 auto;display:flex;align-items:center;min-height:46px;padding:0 20px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:15px;font-weight:800;cursor:pointer">' + (sh.copied ? '✓ Copied' : 'Copy') + '</span></div>' +
+        '<span ' + on(() => { copy(link, 'Link copied'); setState({ share: Object.assign({}, sh, { copied: true }) }); }) + ' style="flex:0 0 auto;display:flex;align-items:center;min-height:42px;padding:0 16px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:14px;font-weight:800;cursor:pointer">' + (sh.copied ? '✓ Copied' : 'Copy') + '</span></div>' +
       '<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px">' +
         btn('Messages', 'sms:?&body=' + encodeURIComponent(msg), '<path d="M4 5.5h16v10H9l-5 4v-14Z"/>') +
         btn('Email', 'mailto:?subject=' + encodeURIComponent(s.text) + '&body=' + encodeURIComponent(msg), '<rect x="3.5" y="5.5" width="17" height="13" rx="2"/><path d="m4 7 8 6 8-6"/>') +
@@ -6239,8 +6477,9 @@
     const time = s.dayTime ? (s.dayEnd ? spanTime({ time: s.dayTime, endTime: s.dayEnd }) : fmtTime(s.dayTime)) : '';
     const otherDays = s.dateOpts.filter(o => !(o.dayDate === s.dayDate && (o.dayTime || null) === (s.dayTime || null))), otherSpots = s.spotOpts.filter(o => o.name !== s.spot);
     const sugg = (kind) => suggest ? '<span ' + on(() => openOffer(s, kind)) + ' data-suggest-' + kind + ' style="margin-top:6px;display:inline-flex;align-items:center;gap:6px;min-height:34px;font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(14, '#5b4ae8', 2.6) + (kind === 'day' ? 'Add a date' : 'Add a location') + '</span>' : '';
-    const dayPart = (s.dayDate ? '<div style="font-size:17px;line-height:1.25;font-weight:900;letter-spacing:-.3px;color:#0d1117;text-wrap:pretty">' + esc(whenTxt) + '</div>' +
-          (time ? '<div style="margin-top:2px;font-size:15px;line-height:1.35;font-weight:500;color:#6b7280">' + esc(time) + '</div>' : '') +
+    // Design v8: the date 17/800, the time 14.5px in #5c6270
+    const dayPart = (s.dayDate ? '<div style="font-size:17px;line-height:1.25;font-weight:800;letter-spacing:-.3px;color:#0d1117;text-wrap:pretty">' + esc(whenTxt) + '</div>' +
+          (time ? '<div style="margin-top:2px;font-size:14.5px;line-height:1.35;font-weight:500;color:#5c6270">' + esc(time) + '</div>' : '') +
           (otherDays.length ? '<div style="margin-top:10px">' + voting('OTHER SUGGESTIONS', pollRows(otherDays, 'day')) + '</div>' : '')
         : s.dateOpts.length ? voting('VOTING ON A DATE', pollRows(s.dateOpts, 'day')) : tbd('Date TBD')) + sugg('day');
     const spotPart = (s.spot ? '<div style="font-size:17px;line-height:1.25;font-weight:900;letter-spacing:-.3px;color:#0d1117;text-wrap:pretty">' + esc(s.spot) + '</div>' +
@@ -6277,6 +6516,10 @@
             (ov ? '<div data-overview style="font-size:18px;line-height:1.4;font-weight:500;color:#0d1117;text-wrap:pretty">' + esc(ov) + '</div>' : '') +
             bits.map(t => '<div style="display:flex;align-items:baseline;gap:10px;padding:4px 0"><span style="flex:0 0 7px;width:7px;height:7px;border-radius:999px;background:#149a4b;transform:translateY(-3px)"></span><span style="font-size:17px;line-height:1.4;font-weight:500;color:#0d1117;text-wrap:pretty">' + esc(t) + '</span></div>').join('') + '</div>'
         : '<div ' + on(() => openSec(s, 'details')) + ' style="padding:14px 16px;border-radius:18px;border:1.5px dashed #c9ccd3;font-size:14.5px;font-weight:700;color:#6b7280;cursor:pointer">Add a one-line overview and up to three quick notes.</div>') +
+      // The way in to a plan's first Inspo photo (owner, 2026-10-05: Inspo stays hidden on a plan until it has one)
+      (isLead(s) && s.planned && !s.cancelledAt && !s.mood.length ? '<label data-add-inspo class="hov-fill-grey"' + (state.busy ? ' aria-busy="true"' : '') + ' style="margin-top:8px;align-self:flex-start;display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 4px;font-size:14px;font-weight:800;color:#5b4ae8;cursor:' + (state.busy ? 'wait;opacity:.6' : 'pointer') + '">' +
+          svg(15, stroke('currentColor', 2.2), '<rect x="3.5" y="5" width="17" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.6"/><path d="m20.5 16-5-5-8 8"/>') + (state.busy ? 'Adding…' : 'Add inspo photos') +
+          '<input type="file" accept="image/*" multiple' + (state.busy ? ' disabled' : '') + ' aria-label="Add inspo photos" ' + onInput(e => { if (e.type !== 'change') return; const f = Array.from(e.target.files || []); e.target.value = ''; addMood(s, f); }) + ' style="display:none"></label>' : '') +
     '</section>';
   };
   const deleteLink = (s, past) => canTakeDown(s) ? '<span ' + on(() => askDelete(s, past)) + ' style="align-self:center;display:flex;align-items:center;justify-content:center;gap:7px;min-height:44px;padding:0 12px;font-size:14.5px;font-weight:800;color:#9b1c31;cursor:pointer">' + I.trash(15, '#9b1c31') + (!past && !s.cancelledAt && peopleIn(s).some(u => u !== state.me) ? 'Cancel or delete this ' + (s.planned ? 'event' : 'idea') : 'Delete this ' + (s.planned ? 'event' : 'idea')) + '</span>' : '';
@@ -6288,8 +6531,9 @@
     const name = (g) => g.role ? '<span ' + on((e) => { stop(e); openGroup(g); }) + ' data-group-link style="font-weight:800;color:#0d1117;cursor:pointer">' + esc(g.name) + '</span>' : '<span style="font-weight:800;color:#0d1117">' + esc(g.name) + '</span>';
     return '<div data-vis style="display:flex;align-items:center;gap:10px' + (alone ? '' : ';padding-top:12px;border-top:1px solid #f2f3f6') + '">' +
       '<span aria-hidden="true" style="flex:0 0 32px;width:32px;height:32px;border-radius:10px;background:#f3f1fe;color:#5b4ae8;display:flex;align-items:center;justify-content:center">' + svg(16, stroke('currentColor', 2.2), priv ? LOCK_IC : PEOPLE_IC) + '</span>' +
-      '<div style="flex:1;min-width:0;font-size:14px;line-height:1.35;font-weight:600;color:#6b7280">' +
-        '<div style="font-size:14.5px;color:#0d1117">' + (known.length ? known.map(name).join(', ') : '') + (more ? (known.length ? ' + ' + more : more + (more === 1 ? ' group' : ' groups')) : '') + '</div>' +
+      // Design v8: the groups line 15/800 on one line with an ellipsis, the status line 13px
+      '<div style="flex:1;min-width:0;font-size:13px;line-height:1.35;font-weight:600;color:#6b7280">' +
+        '<div style="font-size:15px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (known.length ? known.map(name).join(', ') : '') + (more ? (known.length ? ' + ' + more : more + (more === 1 ? ' group' : ' groups')) : '') + '</div>' +
         '<div>' + (priv ? 'Private · only people invited' : 'Public · everyone in ' + (ids.length > 1 ? 'these groups' : 'the group')) + '</div></div>' +
       (isLead(s) && !s.cancelledAt ? '<span ' + on(() => openSec(s, 'vis')) + ' aria-label="Edit who can see it" style="flex:0 0 auto;display:flex;align-items:center;gap:5px;color:#6b7280;font-size:14px;font-weight:700;cursor:pointer">' + svg(13, stroke('currentColor', 2.4), PENCIL) + 'Edit</span>' : '') +
     '</div>';
@@ -6313,15 +6557,16 @@
       co.slice(0, co.length > 2 ? 1 : 2).map(u => '<span style="margin-left:-16px;display:flex">' + ring(u, nameOf(u), 40, '#b8aefc') + '</span>').join('') +
       (co.length > 2 ? '<span style="position:relative;margin-left:-16px;flex:0 0 46px;width:46px;height:46px;border-radius:999px;border:3px solid #fff;box-shadow:0 0 0 2.5px #b8aefc;background:#fff;color:#4a3ad4;font-size:14px;font-weight:900;display:flex;align-items:center;justify-content:center;box-sizing:border-box">+' + (co.length - 1) + '</span>' : '') + '</span>';
     const tap = co.length ? () => setState({ leadsSheet: s.id }) : () => openPerson(s.leadId);
-    return '<div id="sec-lead" data-led-by style="position:relative;display:flex;flex-direction:column;gap:12px;padding:14px 16px;border-radius:18px;background:linear-gradient(135deg,#f1edff,#e0d8ff);box-shadow:0 1px 3px rgba(15,18,25,.08)">' +
+    // Design v8: padding 18, radius 22, a 12px LED BY; Edit is a white pill; the co-lead nudge stacks its title over its line
+    return '<div id="sec-lead" data-led-by style="position:relative;display:flex;flex-direction:column;gap:14px;padding:18px;border-radius:22px;background:linear-gradient(135deg,#f1edff,#e0d8ff);box-shadow:0 1px 3px rgba(15,18,25,.08)">' +
         '<span aria-hidden="true" style="position:absolute;left:52%;top:6px;font-size:9px;color:#9d93f7">✦</span><span aria-hidden="true" style="position:absolute;right:16px;top:10px;font-size:11px;color:#b8aefc">✦</span><span aria-hidden="true" style="position:absolute;right:10px;bottom:6px;font-size:8px;color:#7b6ef0">✦</span>' +
-        '<div ' + on(tap) + ' aria-label="' + (s.wantsHost ? 'Floated by ' : 'Led by ') + esc(leadName) + (co.length ? ' and ' + co.length + ' co-lead' + (co.length > 1 ? 's' : '') + ', see who' : ', see profile') + '" style="display:flex;align-items:center;gap:14px;cursor:pointer' + (manage ? ';padding-right:52px' : '') + '">' + faces +
-          '<div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:900;letter-spacing:.9px;color:#6b5ce7">' + lbl + '</div><div data-lead-names style="font-size:20px;line-height:1.15;font-weight:900;letter-spacing:-.3px;color:#2a1f8f;overflow-wrap:anywhere">' + leadNames(s) + '</div></div></div>' +
+        '<div ' + on(tap) + ' aria-label="' + (s.wantsHost ? 'Floated by ' : 'Led by ') + esc(leadName) + (co.length ? ' and ' + co.length + ' co-lead' + (co.length > 1 ? 's' : '') + ', see who' : ', see profile') + '" style="display:flex;align-items:center;gap:14px;cursor:pointer' + (manage ? ';padding-right:64px' : '') + '">' + faces +
+          '<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:900;letter-spacing:1.2px;color:#6b5ce7">' + lbl + '</div><div data-lead-names style="font-size:20px;line-height:1.15;font-weight:900;letter-spacing:-.3px;color:#2a1f8f;overflow-wrap:anywhere">' + leadNames(s) + '</div></div></div>' +
         (ask ? '<div data-colead-ask style="display:flex;align-items:center;gap:12px;padding:12px 12px 12px 14px;border-radius:16px;background:rgba(255,255,255,.72)">' +
-            '<div style="flex:1;min-width:0;font-size:13.5px;line-height:1.4;font-weight:600;color:#4a3ad4"><b style="font-weight:900">Bring in a co-lead.</b> ' + COLEAD_WHY + '</div>' +
+            '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-size:15px;font-weight:900;color:#2a1f8f">Bring in a co-lead.</span><span style="font-size:13.5px;line-height:1.35;font-weight:600;color:#4a3ad4;text-wrap:pretty">' + COLEAD_WHY + '</span></div>' +
             '<button type="button" class="hov-primary" ' + on(() => openCohostPicker(s)) + ' style="flex:0 0 auto;min-height:44px;padding:0 16px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:14.5px;font-weight:800;display:flex;align-items:center;gap:6px;cursor:pointer">' + I.plus(14, '#fff', 2.8) + 'Co-lead</button></div>' : '') +
         // Manage co-leads is a small Edit in the card's top right, like the page's other Edit links, in dark purple (owner, 2026-10-01)
-        (manage ? '<span ' + on(() => setState({ leadsSheet: s.id })) + ' data-manage-coleads aria-label="Manage co-leads" style="position:absolute;top:12px;right:14px;z-index:1;display:flex;align-items:center;gap:5px;min-height:36px;padding:0 2px;color:#4a3ad4;font-size:14px;font-weight:700;cursor:pointer">' + svg(13, stroke('currentColor', 2.4), PENCIL) + 'Edit</span>' : '') +
+        (manage ? '<span ' + on(() => setState({ leadsSheet: s.id })) + ' data-manage-coleads aria-label="Manage co-leads" style="position:absolute;top:14px;right:14px;z-index:1;display:flex;align-items:center;gap:5px;min-height:36px;padding:0 12px;border-radius:999px;background:rgba(255,255,255,.72);color:#2a1f8f;font-size:13.5px;font-weight:800;cursor:pointer">' + svg(13, stroke('currentColor', 2.4), PENCIL) + 'Edit</span>' : '') +
       '</div>';   // (Say hi is hidden until there's messaging, owner 2026-10-01)
   };
   // The Leads sheet (20261101130000_cohosts.sql): everyone sees who leads it; leads and group admins add co-leads from
@@ -6416,7 +6661,9 @@
   // Inspo: up to three mood photos; the lead adds and removes them (ideas and plans alike), everyone else sees them when there are some
   const inspoSec = (s) => {
     const lead = isLead(s) && !s.cancelledAt, mood = s.mood.slice(0, 3);
-    if (!mood.length && !lead) return '';
+    // A plan hides Inspo while it has no photos, the lead included (owner, 2026-10-05); the lead adds the first one from
+    // the Add inspo photos link under What to expect. An idea keeps the empty card for the lead
+    if (!mood.length && (!lead || s.planned)) return '';
     return '<section data-inspo>' + secTitle('Inspo', lead ? '<span style="font-size:13px;font-weight:700;color:#9aa0ac">' + mood.length + ' / 3</span>' : '') +
       '<div style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:10px">' +
         (lead && !mood.length ? '<p style="margin:0;font-size:14px;line-height:1.45;font-weight:500;color:#5c6270">Add photos that set the mood: the place, past years, the feel you’re going for</p>' : '') +
@@ -6436,7 +6683,7 @@
   // The event header's date tile (Design 31, 2026-10-04; was top right, 13e): first in the bottom-left block, above the
   // chips, tilted -4°; the plan's month band is green, the idea's gold
   const dateTile = (s, band) => { if (!s.dayDate) return ''; const dp = dateParts(s.dayDate);
-    return '<span data-date-tile aria-label="' + esc(fmtDay(s.dayDate)) + '" style="align-self:flex-start;margin-bottom:-2px;width:82px;border-radius:16px;overflow:hidden;text-align:center;background:#fff;box-shadow:0 8px 20px rgba(0,0,0,.3);transform:rotate(-4deg)">' +
+    return '<span data-date-tile aria-label="' + esc(fmtDay(s.dayDate)) + '" style="align-self:flex-start;margin:0 0 6px 2px;width:82px;border-radius:16px;overflow:hidden;text-align:center;background:#fff;box-shadow:0 8px 20px rgba(0,0,0,.3);transform:rotate(-4deg)">' +
       '<span style="display:block;background:' + band + ';color:#fff;font-size:13px;font-weight:900;letter-spacing:1px;padding:4px 0">' + dp.mon + '</span><span style="display:block;font-size:38px;line-height:1.15;font-weight:900;color:#0d1117">' + dp.day + '</span><span style="display:block;padding-bottom:5px;font-size:12.5px;font-weight:800;color:#6b7280">' + dp.dow + '</span></span>'; };
 
   // ---- Event updates (Design 29, card 2e + bullhorn 3b) ----
@@ -6594,7 +6841,7 @@
     const send = () => { if (ok) postComment(s, draft, null, () => ({ discDraft: Object.assign({}, state.discDraft, { [s.id]: '' }) }), '[data-comment-input]'); };
     const avatar = st.myAvatar ? photoUrl(st.myAvatar) : null;
     const box = !can ? '' : '<div style="display:flex;flex-direction:column;gap:4px;padding:14px 14px 6px"><div style="display:flex;align-items:center;gap:10px">' + avatarSpan(st.me, st.myName, avatar, 36) +
-        '<label style="flex:1;min-width:0;display:flex;align-items:center;gap:6px;min-height:50px;box-sizing:border-box;padding:5px 5px 5px 18px;border-radius:999px;background:#f2f3f6">' +
+        '<label class="disc-field" style="flex:1;min-width:0;display:flex;align-items:center;gap:6px;min-height:50px;box-sizing:border-box;padding:5px 5px 5px 18px;border-radius:999px;background:#f2f3f6">' +
           '<input class="fld" type="text" maxlength="500" data-comment-input aria-label="Write a comment" placeholder="' + (lead ? 'Write to everyone going…' : 'Ask a question or say hi…') + '" value="' + esc(draft) + '" ' +
             onInput(e => { if (e.type === 'input') setState({ discDraft: Object.assign({}, state.discDraft, { [s.id]: e.target.value.slice(0, 500) }) }); }) +
             ' style="flex:1;min-width:0;border:0;padding:0;background:transparent;outline:none;font-family:inherit;font-size:15.5px;font-weight:500;color:#0d1117">' +
@@ -6604,7 +6851,7 @@
         '<div style="display:flex;justify-content:center"><span ' + on(() => setState({ blast: { id: s.id, to: 'going', text: draft.trim().slice(0, 200), chip: null }, updAll: null, discDraft: Object.assign({}, st.discDraft, { [s.id]: '' }) })) + ' data-send-update style="display:flex;align-items:center;gap:6px;min-height:34px;color:' + MAG.strong + ';font-size:13.5px;font-weight:800;cursor:pointer">' + svg(16, stroke('currentColor', 2.2), BULLHORN) + 'Send an update</span></div></div>' : '') +
       '</div>';
     return '<section data-discussion style="display:flex;flex-direction:column;gap:8px"><div style="display:flex;align-items:baseline;gap:8px;padding:0 4px"><h2 style="margin:0;font-size:24px;line-height:1.1;font-weight:900;letter-spacing:-.6px;color:#0d1117">Discussion</h2>' +
-        (total ? '<span style="font-size:15px;font-weight:800;color:#8a909b">' + total + '</span>' : '') + '</div>' +
+        '<span data-disc-count style="font-size:15px;font-weight:800;color:#8a909b">' + total + '</span></div>' +   // 0 too (Design v8)
       '<div data-screen-label="Discussion" style="background:#fff;border-radius:20px;box-shadow:0 1px 3px rgba(15,18,25,.08);display:flex;flex-direction:column">' + box +
         (!items.length ? '<div style="display:flex;align-items:center;justify-content:center;padding:18px 16px 22px;font-size:14.5px;font-weight:600;color:#6b7280;text-align:center">' + (c.list ? 'No comments yet.' : 'Loading…') + '</div>' : '') +
         (ups.length ? '<div data-updates style="margin:8px 8px 4px;padding:2px 12px;border-radius:18px;background:#f2f3f6;display:flex;flex-direction:column">' + ups.map((x, k) => (k ? '<div style="height:1px;margin:0 0 0 48px;background:#dcdfe6"></div>' : '') + post(x, true)).join('') + '</div>' : '') +
@@ -6656,25 +6903,27 @@
         '<span style="font-size:17px;font-weight:800">' + label + '</span><span style="font-size:13px;font-weight:700;color:' + (onIt ? (k === 'maybe' ? 'rgba(42,29,0,.75)' : 'rgba(255,255,255,.85)') : '#6b7280') + '">' + n + '</span></button>';
     };
     // A guest who RSVP'd or took a job gets no reminders or updates without an account: offer them (owner, 2026-10-01)
+    // Design v8: lavender with no ring, Sign in under the text; it opens sign-in as from the guest sheet
     const guestNudge = st.email || lead || s.cancelledAt || !(my === 'going' || my === 'maybe' || s.signups.some(it => it.claims.some(c => c.userId === st.me))) ? '' :
-      '<div data-guest-nudge style="' + CARD + ';padding:16px;display:flex;align-items:center;gap:12px;background:#f7f6ff;box-shadow:inset 0 0 0 1.5px #dcd6fb">' +
-        '<span style="flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center">' + ic6('bell', 18, '#5b4ae8', 2.2) + '</span>' +
-        '<div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:800;color:#0d1117">Want a reminder?</div>' +
-          '<div style="margin-top:2px;font-size:13.5px;line-height:1.4;font-weight:600;color:#5c6270">Make a free account and we’ll remind you the day before and that morning, and tell you if anything changes.</div></div>' +
-        '<span ' + on(() => openLogin('account', () => {})) + ' style="flex:0 0 auto;display:flex;align-items:center;min-height:40px;padding:0 16px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:14px;font-weight:800;cursor:pointer">Create account</span>' +
+      '<div data-guest-nudge style="display:flex;gap:12px;padding:14px 16px;border-radius:18px;background:#f3f1fe">' +
+        '<span style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center">' + ic6('bell', 18, '#5b4ae8', 2.2) + '</span>' +
+        '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px"><span style="font-size:15.5px;font-weight:900;color:#2a1f8f">Want a reminder?</span>' +
+          '<span style="font-size:13.5px;line-height:1.4;font-weight:600;color:#4a3ad4;text-wrap:pretty">Sign in and we’ll remind you the day before and that morning, and tell you if anything changes.</span>' +
+          '<span ' + on(() => openLogin('guest', () => {})) + ' role="button" style="margin-top:4px;align-self:flex-start;display:flex;align-items:center;min-height:38px;padding:0 16px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:14px;font-weight:800;cursor:pointer">Sign in</span></div>' +
       '</div>';
     // Leads answer with the same buttons as everyone (owner, 2026-10-01; the lead is Going to their own plan, 20261101160000)
     // Under the buttons (Design 25b + 25c, 2026-10-03): the going faces and See all ›, opening Who's coming / Who's going;
     // the lead also gets Invite people here (the lead tools card and Who's in's people row are gone)
     const rsvpBlock = s.cancelledAt ? '' : '<div data-rsvp style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:12px">' +
       '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">' + rsvpBtn('going', 'Going', goingIds.length) + rsvpBtn('maybe', 'Maybe', maybeN) + rsvpBtn('no', 'Can’t', noN) + '</div>' +
-      (goingIds.length ? '<div ' + on(() => setState({ guestList: s.id })) + ' data-going role="button" aria-label="See everyone going (' + goingIds.length + ')" style="align-self:center;display:flex;align-items:center;gap:10px;min-height:36px;cursor:pointer">' +
-        '<span style="display:flex">' + peopleFaces(goingIds.slice(0, 4), 30, null, false) + '</span>' +
-        '<span style="font-size:14.5px;font-weight:800;color:#4a3ad4">See all ›</span></div>' : '') +
-      // The lead's two buttons (Design 29, option 5d): Invite people solid, Post an update outlined under it
+      // The faces row always draws (Design v8), See all › opening Who's coming
+      '<div ' + on(() => setState({ guestList: s.id })) + ' data-going role="button" aria-label="See everyone going (' + goingIds.length + ')" style="align-self:center;display:flex;align-items:center;gap:10px;min-height:36px;cursor:pointer">' +
+        (goingIds.length ? '<span style="display:flex">' + peopleFaces(goingIds.slice(0, 4), 30, null, false) + '</span>' : '') +
+        '<span style="font-size:14.5px;font-weight:800;color:#4a3ad4">See all ›</span></div>' +
+      // The lead's two buttons (Design 29, option 5d): Invite people solid (the main lead only, Design v8), Post an update outlined under it
       (lead ? '<div style="display:flex;flex-direction:column;gap:8px">' +
-        '<button type="button" class="hov-primary" ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' style="min-height:48px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:15px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer">' +
-          svg(17, stroke('currentColor', 2.2), '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M19 8v6M16 11h6"/>') + 'Invite people</button>' +
+        (isTheLead(s) ? '<button type="button" class="hov-primary" ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' style="min-height:48px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:15px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer">' +
+          svg(17, stroke('currentColor', 2.2), '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M19 8v6M16 11h6"/>') + 'Invite people</button>' : '') +
         '<button type="button" class="hov-mag" ' + on(() => openBlast(s)) + ' data-post-update style="min-height:48px;border:0;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 2px ' + MAG.line + ';color:' + MAG.ink + ';font-family:inherit;font-size:15px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer">' +
           svg(18, stroke('currentColor', 2.2), BULLHORN) + 'Post an update</button></div>' : '') + '</div>';
 
@@ -6683,10 +6932,13 @@
     const host = ledByCard(s);
 
     return '<div data-screen-label="Plan page">' +
-      phaseHeader(s, 340, 'linear-gradient(to bottom, rgba(13,17,23,.5) 0%, rgba(13,17,23,0) 30%, rgba(8,40,22,.55) 62%, rgba(8,40,22,.96) 100%)',
+      // a neutral scrim (Design v8; it was green)
+      phaseHeader(s, 340, 'linear-gradient(to top, rgba(13,17,23,.9) 0%, rgba(13,17,23,.45) 55%, rgba(13,17,23,.3) 100%)',
         '<div style="position:absolute;left:20px;right:20px;bottom:20px;color:#fff;display:flex;align-items:flex-end;gap:14px"><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px">' +
           dateTile(s, '#149a4b') +
-          '<div style="display:flex;gap:6px;flex-wrap:wrap">' + (s.cancelledAt ? '<span data-cancelled style="display:flex;align-items:center;border-radius:999px;padding:5px 11px;background:#d92d4a;font-size:12px;font-weight:900;letter-spacing:.9px">CANCELLED</span>' : '') + '<span data-chip' + (isDemo(s) ? ' data-demo-tag' : '') + ' style="display:flex;align-items:center;gap:6px;border-radius:999px;padding:5px 11px;background:' + (isDemo(s) ? 'rgba(255,255,255,.24);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)' : lead ? '#5b4ae8' : '#149a4b') + ';font-size:12px;font-weight:900;letter-spacing:.9px">' + (isDemo(s) ? 'DEMO' : lead ? (isTheLead(s) ? 'YOU’RE LEADING' : 'YOU’RE CO-LEADING') : 'HAPPENING') + '</span>' +
+          // Design v8: CANCELLED takes the role chip's place; a co-lead's chip reads HAPPENING (no YOU'RE CO-LEADING)
+          '<div style="display:flex;gap:6px;flex-wrap:wrap">' + (s.cancelledAt ? '<span data-cancelled style="display:flex;align-items:center;border-radius:999px;padding:5px 11px;background:#9b1c31;font-size:12px;font-weight:900;letter-spacing:.9px">CANCELLED</span>'
+            : '<span data-chip' + (isDemo(s) ? ' data-demo-tag' : '') + ' style="display:flex;align-items:center;gap:6px;border-radius:999px;padding:5px 11px;background:' + (isDemo(s) ? 'rgba(255,255,255,.24);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)' : isTheLead(s) ? '#5b4ae8' : '#149a4b') + ';font-size:12px;font-weight:900;letter-spacing:.9px">' + (isDemo(s) ? 'DEMO' : isTheLead(s) ? 'YOU’RE LEADING' : 'HAPPENING') + '</span>') +
             (s.visibility === 'invite' ? '<span style="display:flex;align-items:center;gap:5px;border-radius:999px;padding:5px 11px;background:rgba(255,255,255,.22);font-size:12px;font-weight:900;letter-spacing:.9px">' + svg(11, stroke('#fff', 2.6), '<rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>') + 'PRIVATE</span>' : '') + '</div>' +
           // The title isn't tappable any more (Design 31): editing goes through the ✎ at the top right
           '<h1 style="margin:0;font-size:40px;line-height:.98;font-weight:900;letter-spacing:-1.3px;text-wrap:pretty">' + esc(s.text) + '</h1></div>' +
@@ -6905,7 +7157,7 @@
           '<span style="min-width:0;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(st.myName || 'No name yet') + '</span>' +
           '<span ' + on(openProfileEdit) + ' data-edit-profile style="align-self:flex-start;font-size:13.5px;font-weight:700;color:#5b4ae8;cursor:pointer">Edit profile</span></div>' +
         roundBtn(openSearch, 'Search events', ic6('search', 18, 'currentColor', 2.2)) +
-        bellBtn(false, 40) + '</div>' + impact + '</div>';
+        bellBtn(false, 40, true) + '</div>' + impact + '</div>';
     // Alerts: the home screen one only where the app can be added; feedback comes back every 4 visits
     const a2hsOn = !!installMode() && !meAlertGet('a2hs');
     const fbAt = meAlertGet('fb'), fbOn = st.fbHint || fbAt == null || meVisits() - +fbAt >= 4;
@@ -6944,7 +7196,7 @@
       row('<path d="M5 5h14a1.5 1.5 0 0 1 1.5 1.5v9A1.5 1.5 0 0 1 19 17H10l-4.5 3.5V17H5a1.5 1.5 0 0 1-1.5-1.5v-9A1.5 1.5 0 0 1 5 5Z"/>', 'Send feedback to Eric', '', openFeedback, 0) +
       row('<circle cx="12" cy="12" r="8.75"/><path d="m15.6 8.4-2.2 5-5 2.2 2.2-5 5-2.2Z"/>', 'Take the tour', 'The five tabs, in a minute', soonToast, 1, true) +
       row('<circle cx="12" cy="12" r="8.75"/><path d="M9.6 9.3a2.5 2.5 0 0 1 4.8 1c0 1.7-2.4 2.1-2.4 3.4M12 16.6h.01"/>', 'How Spark Hub works', '', soonToast, 1, true) +
-      row('<path d="M12 3 5 6v5c0 4.4 3 8.3 7 9.5 4-1.2 7-5.1 7-9.5V6z"/>', 'Privacy', 'Who sees your profile and events', null, 1, false, '/privacy.html'));
+      row('<path d="M12 3 5 6v5c0 4.4 3 8.3 7 9.5 4-1.2 7-5.1 7-9.5V6z"/>', 'Privacy', '', null, 1, false, '/privacy.html'));   // one line (Design v8)
     return '<div data-screen-label="Me">' + head + alerts + yourStuff +
       '<div style="padding:16px 14px 26px;display:flex;flex-direction:column;gap:10px">' +
         (st.demoAdmin ? '<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:12px">' + fbInboxCard() + acctCard() + '</div>' : '') +
@@ -7391,7 +7643,7 @@
   const saveDraft = () => {
     const st = state;
     if (st.busy) return;
-    if (!cleanTitle(st.activity)) { setState({ evLeave: false, evLeaveTo: null }); evGo('title'); toast('Add a title first so you can find it later'); return; }
+    if (!cleanTitle(st.activity)) { setState({ evLeave: false, evLeaveTo: null }); evGo('title'); toast('Add a title first'); return; }
     setState({ busy: 'draft' });
     (async () => {
       let cover = null;
@@ -7585,7 +7837,7 @@
   const wtePart = (n, label, inner) => '<div style="display:flex;flex-direction:column;gap:8px">' +
     '<div style="display:flex;align-items:center;gap:10px"><span aria-hidden="true" style="flex:0 0 26px;width:26px;height:26px;border-radius:999px;background:#5b4ae8;color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900">' + n + '</span>' +
       '<span style="flex:1;display:flex;align-items:baseline;gap:8px;font-size:17px;font-weight:900;color:#0d1117">' + label + '<span style="font-size:13.5px;font-weight:600;color:#9aa0ac">Optional</span></span></div>' + inner + '</div>';
-  const wteFields = (ov, setOv, bits, setBit) => '<div data-wte style="display:flex;flex-direction:column;gap:18px">' +
+  const wteFields = (ov, setOv, bits, setBit) => '<div data-wte style="display:flex;flex-direction:column;gap:10px">' +   // 10px apart (Design v8)
     wtePart(1, 'One-line overview', '<label style="display:flex;align-items:center;gap:10px;min-height:58px;padding:0 16px;border-radius:16px;background:#fff;box-shadow:inset 0 0 0 2px #dcdfe6;cursor:text">' +
       '<input class="bit-fld" type="text" maxlength="80" data-overview-input aria-label="One-line overview" placeholder="' + esc(OVERVIEW_PH) + '" value="' + esc(ov) + '" ' + onInput(e => { if (e.type === 'input') setOv(e.target.value.slice(0, 80)); }) +
         ' style="flex:1 1 auto;min-width:0;border:0;padding:0;background:transparent;font-family:inherit;font-size:18px;font-weight:500;color:#0d1117;outline:none">' +
@@ -7696,7 +7948,7 @@
       const jrow = (j) => '<span style="flex:1;min-width:0;font-size:15px;line-height:1.35;font-weight:700;color:#0d1117;text-wrap:pretty">' + esc(cleanTitle(j.item)) + '</span><span style="flex:0 0 auto;font-size:13px;font-weight:700;color:' + (j.kind ? '#0f7a3c' : '#6b7280') + '">' + esc(j.kind ? partMeta(j).replace(/^Take part · /, '') : jobMeta(j)) + '</span>';
       const evParts = st.evNeeds.filter(j => j.kind), evJobs = st.evNeeds.filter(j => !j.kind);
       const sub = (t) => '<span style="padding:2px 4px 0;font-size:12px;font-weight:800;letter-spacing:1.1px;color:#6b7280">' + t + '</span>';
-      const jobs = !st.evNeeds.length ? blank(st.evHelpNone ? 'None needed' : 'Nothing added.')
+      const jobs = !st.evNeeds.length ? blank('Nothing added.')   // after None needed too (Design v8)
         : evParts.length && evJobs.length ? '<div data-review-joinin style="display:flex;flex-direction:column;gap:8px">' + sub('PARTICIPATE') + rows(evParts.map(jrow)) + sub('HELP') + rows(evJobs.map(jrow)) + '</div>'
         : rows(st.evNeeds.map(jrow));
       // Visibility: POST TO folds open into the group list (it closes on any tap outside); every group can be unticked,
@@ -7716,9 +7968,9 @@
             '<span style="display:flex;color:#6b7280">' + chev6(14, '#6b7280', gOpen) + '</span></div>' +
           (gOpen ? mine.map(gRow).join('') : '') + '</div>';
       const tile = (priv, label, sub, icon) => { const onIt = !!st.evPriv === priv;
-        return '<div ' + on(() => setState({ evPriv: priv }), 'radio') + ' aria-checked="' + onIt + '" style="flex:1 1 0;display:flex;flex-direction:column;gap:4px;padding:12px;border-radius:14px;cursor:pointer;' + (onIt ? 'background:#f3f1fe;box-shadow:inset 0 0 0 2px #5b4ae8' : 'background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6') + '">' +
-          '<span style="display:flex;color:' + (onIt ? '#5b4ae8' : '#454b55') + '">' + svg(22, stroke('currentColor', 2.2), icon) + '</span>' +
-          '<span style="font-size:15px;font-weight:900;color:' + (onIt ? '#5b4ae8' : '#0d1117') + '">' + label + '</span><span style="font-size:12.5px;line-height:1.35;font-weight:600;color:#6b7280">' + sub + '</span></div>'; };
+        return '<div ' + on(() => setState({ evPriv: priv }), 'radio') + ' aria-checked="' + onIt + '" style="flex:1 1 0;display:flex;flex-direction:column;gap:6px;padding:14px;border-radius:16px;cursor:pointer;' + (onIt ? 'background:#f3f1fe;box-shadow:inset 0 0 0 2px #5b4ae8' : 'background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6') + '">' +
+          '<span style="display:flex;color:' + (onIt ? '#5b4ae8' : '#6b7280') + '">' + svg(22, stroke('currentColor', 2.2), icon) + '</span>' +
+          '<span style="font-size:16px;font-weight:900;color:' + (onIt ? '#5b4ae8' : '#0d1117') + '">' + label + '</span><span style="font-size:12.5px;line-height:1.35;font-weight:600;color:#6b7280">' + sub + '</span></div>'; };
       const busy = st.busy === 'post', asPlan = !!st.evDate && !st.evFloat, ok = groups.length > 0 && !busy;
       const ink = asPlan ? '#149a4b' : '#2f7ed8';
       const note = asPlan ? '<div data-posts-as style="margin-bottom:12px;text-align:center;font-size:13.5px;font-weight:600;color:#5c6270">It goes on the calendar as a plan.</div>'
@@ -7731,7 +7983,8 @@
       // Quiet confetti on the button (Design 19f, no bulb)
       const confetti = '<span aria-hidden="true" style="position:absolute;inset:0;opacity:.4">' + [[0, 0, 7, '#ffd98a', 0], [74, 8, 5, '#fff', 80], [52, 16, 5, '#b8f0cd', 160], [30, 24, 7, '#cfc9ff', 240], [8, 32, 5, '#ffb3c1', 320], [82, 40, 5, '#ffd98a', 400], [60, 48, 7, '#fff', 480]]
         .map(([x, y, w, c, r]) => '<span style="position:absolute;left:' + x + '%;top:' + y + 'px;width:' + w + 'px;height:7px;border-radius:999px;background:' + c + ';transform:rotate(' + r + 'deg)"></span>').join('') + '</span>';
-      const post = () => { if (busy) return; if (!groups.length) { toast('Pick at least one group'); return; } createEvent(); };
+      // No group ticked: the toast, and POST TO opens its list (Design v8)
+      const post = () => { if (busy) return; if (!groups.length) { setState({ menu: 'evGroups' }); toast('Pick at least one group'); return; } createEvent(); };
       return '<div class="overlay-screen" data-screen-label="New spark"><div style="min-height:100%;display:flex;flex-direction:column">' + hero +
         sheetTop('<div style="padding:20px 14px 0;display:flex;flex-direction:column;gap:12px">' +
           leadCard + headRowR('Details', 'when') + details + headRowR('What to expect', 'details') + wte + headRowR('Join in', 'help') + jobs +
@@ -7819,7 +8072,7 @@
         : pad(dateField(st.evDate, 'Date', 'Pick a date', setD) +
             timeField('start', st.evTime, EV_TIMES, 'Add a start time (optional)', (v) => setState({ evTime: v, evEnd: st.evEnd && st.evEnd <= v ? '' : st.evEnd, timeOpen: null })) +
             (st.evTime && st.evEndOn
-              ? '<div style="display:flex;align-items:center;gap:8px"><div style="flex:1;min-width:0">' + timeField('end', st.evEnd, EV_TIMES.filter(v => v > st.evTime), 'Add an end time', (v) => setState({ evEnd: v, timeOpen: null })) + '</div>' +
+              ? '<div style="display:flex;align-items:center;gap:8px"><div style="flex:1;min-width:0">' + timeField('end', st.evEnd, EV_TIMES.filter(v => v > st.evTime), 'Pick an end time', (v) => setState({ evEnd: v, timeOpen: null })) + '</div>' +
                   '<span ' + on(() => setState({ evEndOn: false, evEnd: '', timeOpen: null })) + ' aria-label="Remove end time" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.1);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(12, '#6b7280', 2.8) + '</span></div>'
               : st.evTime ? '<span ' + on(() => setState({ evEndOn: true, timeOpen: 'end' })) + ' style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:40px;padding:0 4px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(14, 'currentColor', 2.6) + 'Add end time</span>' : '')) +
           (holdNote(st.evDate) ? pad(holdNote(st.evDate)) : '') +
@@ -7857,14 +8110,16 @@
       body = head('Join in', 'Ask for help or list specific ways to participate.') +
         (jobs ? '<div style="padding:12px 14px 0;display:flex;flex-direction:column;gap:8px">' + jobs + '</div>' : '') +
         '<div style="padding:16px 16px 0;display:flex;flex-direction:column;gap:10px">' + label('HELP') + chips(!!jobs) + '</div>' +
-        '<div style="padding:16px 16px 0;display:flex;flex-direction:column;gap:10px">' + label('PARTICIPATE') + pchips(!!jobs) + '</div>';
+        '<div style="padding:16px 16px 0;display:flex;flex-direction:column;gap:10px">' + label('PARTICIPATE') + pchips(false) + '</div>';   // only HELP's chips grow (Design v8)
     } else if (cur === 'lead') {
-      body = head('Who’s leading it?', LEAD_WHY) + pad(leadOptions(st, pop));
+      body = head('Who’s leading it?', pop ? '' : LEAD_WHY) + pad(leadOptions(st, pop));   // the Lead pop-up: just the two choices (Design v8)
     }
     return body;
   }
   // Review's Edit (owner, 2026-10-02): each part opens in a pop-up over Review, not back on its step's page. The fields
   // change the event as they're typed, so Done (or closing it) only goes back
+  // Review's edit sheets name Join in "How people can join" and the lead card's sheet "Lead" (Design v8)
+  const POP_NAMES = Object.assign({}, EV_NAMES, { help: 'How people can join', lead: 'Lead' });
   function viewEvPop() {
     const st = state, k = st.evPop;
     // The title can't be left empty (owner, 2026-10-02: the title is a pop-up too); the rest can be decided later
@@ -7872,9 +8127,9 @@
       : setState({ evPop: null, timeOpen: null, dateOpen: null, evLater: Object.assign({}, state.evLater, { [k]: !evFilled(state)[k] }) });
     const tall = k === 'when' || k === 'where';   // room for the calendar, the time list and the suggested places under their fields
     return '<div class="sheet-scrim" data-scrim="' + reg(close) + '">' +
-      '<div role="dialog" aria-modal="true" aria-label="' + esc(EV_NAMES[k]) + '" data-screen-label="' + esc(EV_NAMES[k]) + '" data-ev-pop="' + k + '" class="sheet" style="max-height:calc(100% - 56px);' + (tall ? 'min-height:min(88%,640px);' : '') + 'display:flex;flex-direction:column;background:#e8eaee">' +
+      '<div role="dialog" aria-modal="true" aria-label="' + esc(POP_NAMES[k]) + '" data-screen-label="' + esc(POP_NAMES[k]) + '" data-ev-pop="' + k + '" class="sheet" style="max-height:calc(100% - 56px);' + (tall ? 'min-height:min(88%,640px);' : '') + 'display:flex;flex-direction:column;background:#e8eaee">' +
         '<div style="padding:10px 18px 2px;display:flex;flex-direction:column;gap:10px"><span aria-hidden="true" style="align-self:center;width:38px;height:5px;border-radius:999px;background:#c9ccd3"></span>' +
-          '<div style="display:flex;align-items:center;gap:10px"><div style="flex:1;min-width:0;font-size:22px;font-weight:900;letter-spacing:-.4px;color:#0d1117">' + esc(EV_NAMES[k]) + '</div>' + closeX(close, 'background:#fff') + '</div></div>' +
+          '<div style="display:flex;align-items:center;gap:10px"><div style="flex:1;min-width:0;font-size:22px;font-weight:900;letter-spacing:-.4px;color:#0d1117">' + esc(POP_NAMES[k]) + '</div>' + closeX(close, 'background:#fff') + '</div></div>' +
         '<div style="flex:1 1 auto;min-height:0;overflow-y:auto;padding-bottom:10px">' + evBody(st, k, true) + '</div>' +
         '<div style="padding:10px 16px calc(18px + env(safe-area-inset-bottom, 0px))"><button type="button" data-enter ' + on(close) + ' style="width:100%;min-height:54px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16.5px;font-weight:800;cursor:pointer">Done</button></div>' +
       '</div></div>';
@@ -7928,7 +8183,7 @@
           (when ? dateField(r.d, 'Date option ' + (k + 1), 'Date', (v) => setRow(k, { d: v }), 'flex:1.4 1 0') + '<div style="flex:1 1 0;min-width:0">' + timeField('poll' + k, r.t, EV_TIMES, 'Time', (v) => setRow(k, { t: v }, { timeOpen: null }), { label: 'Time option ' + (k + 1), slim: true, none: 'No time' }) + '</div>'
             : '<input class="fld" type="text" maxlength="80" aria-label="Place option ' + (k + 1) + '" placeholder="Add a place" value="' + esc(r.v || '') + '" ' + onInput(e => { if (e.type === 'input') setRow(k, { v: e.target.value.slice(0, 80) }); }) + ' style="' + BIG + ';min-height:54px;flex:1 1 auto">') +
           rmBtn(k) + '</div>').join('') + '</div>' +
-        (p.rows.length < 5 ? '<span ' + on(() => setState({ pollSheet: Object.assign({}, p, { rows: p.rows.concat([when ? { d: '', t: '' } : { v: '' }]) }) })) + ' style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:36px;font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(14, 'currentColor', 2.6) + (when ? 'Add another option' : 'Add another location') + '</span>' : '') +
+        (p.rows.length < 5 ? '<span ' + on(() => setState({ pollSheet: Object.assign({}, p, { rows: p.rows.concat([when ? { d: '', t: '' } : { v: '' }]) }) })) + ' style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:36px;font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(14, 'currentColor', 2.6) + (when ? 'Add another option' : 'Add another spot') + '</span>' : '') +
         '<div style="margin-top:auto;display:flex;flex-direction:column">' + saveBtn(valid.length >= 2, save) + '</div>', 36);
     }
     if (st.needSheet) {
@@ -7944,7 +8199,7 @@
       };
       if (r.kind) return sheet((ns.i != null ? 'Edit ' : 'Add ') + PART_KINDS[r.kind].title, close, SHEET_PAD + ';min-height:min(88%,580px)',
         partHead(r.kind, ns.i != null, close) + partFields(r, set) +
-        '<div style="margin-top:auto;display:flex;flex-direction:column">' + saveBtn(partReady(r), save, ns.i != null ? 'Save' : 'Add') + '</div>', 36);
+        '<div style="margin-top:auto;display:flex;flex-direction:column">' + saveBtn(partReady(r), save, 'Save') + '</div>', 36);   // always Save (Design v8)
       return sheet('Add a job', close, SHEET_PAD + ';min-height:min(88%,580px)',   // room for the time list under its field
         sheetHead('How people can join', ns.i != null ? 'Edit job' : 'Add a job', '', close) + jobFields(r, set) +
         '<div style="margin-top:auto;display:flex;flex-direction:column">' + saveBtn(jobNamed(r.item), save) + '</div>', 36);
@@ -7972,8 +8227,8 @@
     const verb = idx == null ? verbOnly(r.item) : null;
     const fresh = idx == null && state.needSheet && state.needSheet.i == null && !state.jobMore && !(r.desc || '').trim() && !r.time && !r.shifts;
     const nameFld = '<div style="position:relative">' +
-      '<input class="fld" type="text" maxlength="60"' + (idx == null ? ' data-job-name' : '') + ' aria-label="Job name' + tag + '" placeholder="Bring a case of water" value="' + esc(r.item) + '" ' + onInput(e => { if (e.type === 'input') set({ item: e.target.value.slice(0, 60) }); }) + ' style="' + BIG + ';min-height:52px;font-size:' + (idx == null ? 17 : 16) + 'px">' +
-      (verb ? '<span aria-hidden="true" data-job-filler style="position:absolute;left:18px;right:18px;top:0;bottom:0;display:flex;align-items:center;pointer-events:none;white-space:pre;overflow:hidden;font-size:17px;font-weight:800"><span style="visibility:hidden">' + esc(r.item) + (/\s$/.test(r.item) ? '' : ' ') + '</span><span style="font-style:italic;font-weight:600;color:#9aa0ac">' + esc(JOB_FILL[verb][0]) + '</span></span>' : '') + '</div>' +
+      '<input class="fld" type="text" maxlength="60"' + (idx == null ? ' data-job-name' : '') + ' aria-label="Job name' + tag + '" placeholder="What you need" value="' + esc(r.item) + '" ' + onInput(e => { if (e.type === 'input') set({ item: e.target.value.slice(0, 60) }); }) + ' style="' + BIG + ';min-height:52px;font-size:' + (idx == null ? 17 : 16) + 'px">' +
+      (verb ? '<span aria-hidden="true" data-job-filler style="position:absolute;left:18px;right:18px;top:0;bottom:0;display:flex;align-items:center;pointer-events:none;white-space:pre;overflow:hidden;font-size:17px;font-weight:800"><span style="visibility:hidden">' + esc(r.item) + (/\s$/.test(r.item) ? '' : ' ') + '</span><span style="font-style:italic;font-weight:400;color:#b9bcc4">' + esc(JOB_FILL[verb][0]) + '</span></span>' : '') + '</div>' +
       '';   // no suggestion chips under the name (v8); the gray filler after the verb stays
     if (fresh) return '<div style="display:flex;flex-direction:column;gap:10px">' + nameFld +
       '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><span ' + on(() => setState({ jobMore: true })) + ' role="button" data-job-more style="display:flex;align-items:center;gap:6px;min-height:40px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(14, 'currentColor', 2.6) + 'Add details or a time</span>' +
@@ -8063,10 +8318,11 @@
     if (st.loginStep === 'email') {
       // Opened from Welcome's "Continue with email": just the email field (owner, 2026-09-30)
       const emailOk = EMAIL_OK.test(st.loginEmail.trim()), withGoogle = GOOGLE_ON && !st.loginEmailOnly;
-      const lead = { post: 'Sign in to post your event. ', guest: 'Your name fills in, and everything you add is saved to your account. ', account: 'Guests can RSVP. To suggest, vote, sign up to help and get reminders, make a free account. ', join: 'Sign in to join a group. ', friend: 'Sign in to add your friend. ' }[st.loginFrom] ||
-        'Your events, groups and name are saved to your account. ';
+      // Design v8's lines (the privacy line under the form waits on the owner)
+      const lead = { post: 'Sign in to put your idea up. ', guest: 'Your name fills in, and everything you add is saved to your account. ', account: 'It takes a minute, and you can vote, sign up and get reminders. ', join: 'Sign in to join a group. ', friend: 'Sign in to add your friend. ' }[st.loginFrom] ||
+        'Your ideas, groups and name are saved to your account. ';
       return modal('Sign in', closeLogin,
-        h3Html(st.loginFrom === 'post' ? 'Sign in to post' : st.loginFrom === 'account' ? 'Create a free account' : 'Sign in') +
+        h3Html(st.loginFrom === 'post' ? 'Sign in to post your event' : st.loginFrom === 'account' ? 'Create a free account' : 'Sign in') +
         paraHtml(lead + (withGoogle ? 'Use Google, or we’ll email you a 6-digit code. No password.' : 'We’ll email you a 6-digit code. No password.')) +
         (st.googleFailed
           ? '<div role="alert" style="display:flex;align-items:flex-start;gap:9px;background:#fdeef0;border:1.5px solid #f5c2cb;border-radius:14px;padding:11px 13px">' +
@@ -8130,7 +8386,7 @@
     };
     return modal('RSVP as a guest', close,
       h3Html('RSVP as a guest') +
-      paraHtml('Your name goes on the list, so ' + esc(to) + ' knows who’s coming.') +
+      paraHtml('Your name goes on the guest list, so ' + esc(to) + ' knows who’s coming.') +   // Design v8
       '<input class="fld" type="text" maxlength="30" autocomplete="given-name" aria-label="Your name" placeholder="Your name" value="' + esc(st.guestName) + '" ' + onInput(e => setState({ guestName: e.target.value.slice(0, 30) })) + ' style="' + FIELD + '">' +
       '<button type="button" data-enter ' + on(submit) + ' aria-disabled="' + !ok + '" style="' + primary(ok) + '">Continue</button>' +
       '<div style="margin-top:4px;background:#f3f1fe;border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:12px">' +
@@ -8546,7 +8802,8 @@
     fabTimer = setTimeout(() => { fabTimer = null; fabTuck(true); }, 750);
   };
   ['scroll', 'wheel', 'touchmove', 'pointerdown'].forEach(k => document.addEventListener(k, fabWake, { capture: true, passive: true }));
-  const TAB_SCREENS = ['groups', 'friends', 'sched', 'home', 'me', 'calendar'];
+  // group pages (browse) too since Design v8, in place of their inline + and Start an event button
+  const TAB_SCREENS = ['groups', 'friends', 'sched', 'home', 'me', 'calendar', 'browse'];
   const fabTap = () => { if (fabWasTucked) { fabWasTucked = false; return; } goCompose(); };
   function viewAddFab() {
     if (TAB_SCREENS.indexOf(state.screen) < 0 || !state.email) return '';
@@ -8607,6 +8864,7 @@
       (s === 'browse' && st.loaded && currentGroup() && !st.gSearch && !st.gMenu ? swipeHints() : '') +
       (st.email && st.gSearch && s === 'browse' ? viewGroupSearch() : '') +
       (st.gMenu && s === 'browse' ? viewGroupMenu() : '') +
+      (st.gQr && s === 'browse' ? viewGroupQr() : '') +
       (st.shiftPick ? viewShiftSheet() : '') +
       (st.banner ? viewBanner() : '') +
       (s === 'compose' ? viewCompose() : '') +
@@ -8857,6 +9115,7 @@
       if (state.person) return setState({ person: null });
       if (state.peek) return setState({ peek: null });
       if (state.gMenu) return setState({ gMenu: null });
+      if (state.gQr) return setState({ gQr: state.gQr.poster ? Object.assign({}, state.gQr, { poster: null }) : null });
       if (state.jobAsk) return setState({ jobAsk: null });
       if (state.handOff) return setState({ handOff: null });
       if (state.ph) return closePositioner();
