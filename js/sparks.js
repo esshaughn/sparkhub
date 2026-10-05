@@ -3283,7 +3283,6 @@
       .sort((p, q) => q.a.length - p.a.length || byWhen(p.s, q.s));
     return { plans, ideas, help, leadsAny: leads.some(s => s.planned) };
   };
-  const tasksBadge = () => { if (!state.email || !state.loaded) return 0; const d = tasksData(); return d.plans.length + d.help.length; };
 
   // Leading plans: Going · Maybe · Sign-ups · Invited (v7 Update 15, owner 2026-10-02; Invited replaced Reminder)
   const statsStrip = (s) => {
@@ -5569,18 +5568,11 @@
   // date), the host gets Make it a plan! in the strip itself
   const FLAG = '<path d="M5 21V4"/><path d="M5 4.5c2.5-1.5 5-1.5 7 0s4.5 1.5 7 0v9c-2.5 1.5-5 1.5-7 0s-4.5-1.5-7 0"/>';
   const ideaBanner = (s) => {
-    // Jobs (Design 23C1): done by a job or No help needed; progress only, Make it a plan! still needs just a lead and a date
-    const steps = [['Lead', !s.wantsHost], ['Location', !!s.spot], ['Details', basicsOf(s).length > 0 || !!s.overview], ['Jobs', s.signups.length > 0 || s.noHelp], ['Date', dateAhead(s)]]
-      .concat(MIN_PEOPLE && s.minPeople ? [['People', s.interested.length >= s.minPeople]] : []);
-    const bar = (on_) => '<span aria-hidden="true" style="flex:1 1 0;max-width:42px;height:3px;margin:10px 6px 0;border-radius:999px;background:' + (on_ ? '#3d2a00' : 'rgba(61,42,0,.22)') + '"></span>';
-    const step = ([label, met]) => '<div style="flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:5px">' +
-      (met ? '<span style="width:22px;height:22px;border-radius:999px;display:flex;align-items:center;justify-content:center;background:#3d2a00">' + svg(11, stroke('#fff', 3.4), P6.check) + '</span>'
-           : '<span style="width:22px;height:22px;border-radius:999px;box-shadow:inset 0 0 0 2.5px rgba(61,42,0,.4)"></span>') +
-      '<span style="font-size:13px;line-height:1.1;font-weight:900;color:' + (met ? '#2a1d00' : '#8a6a1c') + ';text-align:center">' + label + '</span></div>';
     const ready = isLead(s) && !s.cancelledAt && !planMissing(s).length;
     const spark = (l, t, size, col) => '<span aria-hidden="true" style="position:absolute;left:' + l + ';top:' + t + ';font-size:' + size + 'px;line-height:1;color:' + col + '">✦</span>';
-    return '<div aria-label="Steps to a plan" style="padding:14px 16px 16px;border-radius:0 0 26px 26px;background:#efc95a;box-shadow:0 6px 16px rgba(160,110,10,.18)">' +
-      '<div style="display:flex;align-items:flex-start;justify-content:center">' + steps.map((x, k) => (k ? bar(x[1] && steps[k - 1][1]) : '') + step(x)).join('') + '</div>' +
+    // No steps strip on the idea page (owner, 2026-10-05): only the lead's Make it a plan! once it's ready
+    if (!ready) return '';
+    return '<div data-make-plan-wrap style="padding:0 14px">' +
       (ready ? '<button type="button" data-make-plan ' + on(() => { if (!state.busy) makePlan(s); }) + ' style="position:relative;overflow:hidden;margin-top:14px;width:100%;min-height:56px;border:0;border-radius:999px;background:#2f9a4f;box-shadow:0 8px 18px rgba(20,110,50,.28);color:#fff;font-family:inherit;font-size:18px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:9px">' +
         spark('7%', '22%', 12, '#ffe7a3') + spark('63%', '12%', 9, '#fff') + spark('86%', '58%', 11, '#fff') +
         svg(18, stroke('#fff', 2.3), FLAG) + 'Make it a plan!</button>' : '') +
@@ -8764,7 +8756,7 @@
   // Tab bar (Design v8, 2026-10-05): Groups · Friends · Calendar · Tasks · Me. Was Discover · Tasks · Calendar (in a ring) ·
   // Groups · Settings (pick 2a); Discover is now All groups, under Groups
   function viewNav() {
-    const s = state.screen, n = tasksBadge();
+    const s = state.screen, n = 0;   // no count on the Tasks tab (owner, 2026-10-05)
     // In Create event with something typed, a tab asks about a draft first, then goes there (owner, 2026-10-02)
     const leave = (fn) => () => {
       if (s !== 'compose') return fn();

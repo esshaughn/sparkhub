@@ -68,7 +68,7 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     await askSheet.getByRole('button', { name: 'Close' }).click();
     await expect(tasks).toBeVisible();   // the ask opens right on My tasks
     await shot(H, '01-your-tasks-lead');
-    await expect(nav(H).getByRole('button', { name: /^Tasks, \d+$/ })).toBeVisible();   // the badge counts events with to-dos
+    await expect(nav(H).getByRole('button', { name: 'Tasks', exact: true })).toBeVisible();   // no count on the Tasks tab (owner, 2026-10-05)
     // Condensed (6j): one card, the event as a small header, the same rows; the switch is remembered
     await tasks.getByRole('tab', { name: 'Condensed' }).click();
     await expect(tasks.locator('[data-task="' + title + '"]')).toBeVisible();

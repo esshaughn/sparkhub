@@ -359,7 +359,7 @@ test('polls: the host posts a date poll (an idea), a member votes, the host pick
     await confirm(H, 'Use this date');
     // A lead and a date are all it takes (owner, 2026-10-02): no location or details yet, and Make it a plan! is there
     await expect(HI.locator('[data-plan-needs]')).toHaveCount(0);
-    await expect(HI.getByLabel('Steps to a plan').locator('[data-make-plan]')).toContainText('Make it a plan!');   // in the gold strip (owner's mock, 2026-10-01)
+    await expect(HI.locator('[data-make-plan]')).toContainText('Make it a plan!');   // in the gold strip (owner's mock, 2026-10-01)
     await HI.getByRole('button', { name: 'Make it a plan' }).click();
     await confirm(H, 'Make it a plan');
     await expect(H.locator('[data-screen-label="Plan page"]')).toBeVisible();
@@ -592,9 +592,7 @@ test('an ideaâ€™s Details (no How many people for now); a bare starter chip canâ
     await expect(page.locator('[data-screen-label="Idea page"]')).toBeVisible();
     await closeAskFirst(page);
     id = await page.evaluate(() => location.hash.split('/').pop());
-    const steps = page.getByLabel('Steps to a plan');
-    for (const t of ['Date', 'Location', 'Details']) await expect(steps).toContainText(t);
-    await expect(steps).not.toContainText('People');
+    await expect(page.getByLabel('Steps to a plan')).toHaveCount(0);   // no steps strip on ideas (owner, 2026-10-05)
     await expect(page.locator('[data-basics] span', { hasText: 'Bring cleats. And water?' })).toHaveCount(1);   // one line, not two
     await expect(page.locator('[data-basics] span', { hasText: longLine })).toHaveCount(1);
     const savedHopes = await asUser(page, async (c, _C, id) => (await c.from('sparks').select('hopes').eq('id', id).single()).data.hopes, id);

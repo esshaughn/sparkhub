@@ -13,7 +13,7 @@ test('a member with the link takes part; everyone votes; the lead picks and make
   try {
     id = await postIdea(L, { title, basics: ['teams by class'] });
     const LD = L.locator('[data-screen-label="Idea page"]');
-    await expect(LD.getByLabel('Steps to a plan')).toContainText('Details');
+    await expect(LD.getByLabel('Steps to a plan')).toHaveCount(0);   // no steps strip on ideas (owner, 2026-10-05)
     await expect(LD.locator('[data-plan-needs]')).toContainText('1 thing to go');   // a date: a plan needs a lead and a date (owner, 2026-10-02)
     await expect(LD.locator('[data-plan-needs] [data-plan-row="location"]')).toHaveCount(0);
     await expect(LD.locator('#sec-when [data-empty-date]')).toContainText('No date yet');   // the lead: Set a date or Run a poll (owner's mock, 2026-10-01)
@@ -115,7 +115,7 @@ test('a member with the link takes part; everyone votes; the lead picks and make
     }
 
     // Make it a plan: the interested member shows as going
-    await expect(LD.getByLabel('Steps to a plan').locator('[data-make-plan]')).toContainText('Make it a plan!');   // in the gold strip (owner's mock, 2026-10-01)
+    await expect(LD.locator('[data-make-plan]')).toContainText('Make it a plan!');   // in the gold strip (owner's mock, 2026-10-01)
     await LD.getByRole('button', { name: 'Make it a plan' }).click();
     await confirm(L, 'Make it a plan');
     const LP = L.locator('[data-screen-label="Plan page"]');
