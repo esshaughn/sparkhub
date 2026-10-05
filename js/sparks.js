@@ -7427,9 +7427,11 @@
   const groupsShort = (names) => names.length <= 1 ? (names[0] || '') : names[0] + ' & ' + (names.length - 1) + (names.length === 2 ? ' other' : ' others');
   const namesList = (names) => names.length > 2 ? names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] : names.join(' and ');
 
+  let preUp = null;   // a cover uploading early (pickEvPhoto): { blob, p: the path, or null if it failed }
   const composeReset = () => {
     state.photos.forEach(p => URL.revokeObjectURL(p.url));
     dropKept();
+    dropPreUp();
     return blankCompose();
   };
   // Create event, kept as it's typed (owner, 2026-10-02): a phone can drop the tab while someone looks up an address,
@@ -7527,12 +7529,22 @@
     return false;
   };
 
+  // A picked cover starts uploading straight away, while the rest is filled in (Jeni Wade's demo, 2026-10-05: on a slow
+  // phone connection the upload was most of Post's wait). Post or Save as a draft takes it over (evCover); one that's
+  // never used is deleted when another photo is picked or the flow is closed. Accounts only (guests can't upload)
+  function dropPreUp() { const u = preUp; preUp = null; if (u) u.p.then(path => { if (path) deletePhotos([path]); }); }
+  const preUpload = (blob) => {
+    dropPreUp();
+    if (!state.email || state.viewAs) return;
+    preUp = { blob, p: ensureSession().then(() => uploadBlob(blob)).catch(e => { console.error(e); return null; }) };
+  };
   const pickEvPhoto = async (file) => {
     if (!file) return;
     try {
       const blob = await shrinkImage(file);
       state.photos.forEach(p => URL.revokeObjectURL(p.url));
       setState({ photos: [{ blob, url: URL.createObjectURL(blob) }], coverPos: null });
+      preUpload(blob);
     } catch (e) { toast(BAD_PHOTO); }
   };
   const photoInput = (label) => '<input type="file" accept="image/*" aria-label="' + label + '" ' + onInput(e => { if (e.type !== 'change') return; const f = (e.target.files || [])[0]; e.target.value = ''; pickEvPhoto(f); }) + ' style="display:none">';
@@ -7545,7 +7557,11 @@
 
   // The cover: a new photo is uploaded; a draft's saved one is reused as it is
   const evCover = async (st) => {
-    if (st.photos[0]) return { path: await uploadBlob(st.photos[0].blob), fresh: true };
+    if (st.photos[0]) {
+      const u = preUp && preUp.blob === st.photos[0].blob ? preUp : null, early = u ? await u.p : null;
+      if (u) preUp = null;   // taken over: a failed post deletes it, and trying again uploads afresh
+      return { path: early || await uploadBlob(st.photos[0].blob), fresh: true };
+    }
     return PHOTO_PATH.test(st.evPhotoPath || '') ? { path: st.evPhotoPath, fresh: false } : null;
   };
   // Jobs from the flow, or from Edit what you need, as signup_items rows (a shift job, then its shifts)
@@ -7598,10 +7614,14 @@
           id = must(await sb.from('sparks').insert(row).select('id').single()).data.id;
         } catch (e) { if (cover && cover.fresh) deletePhotos([cover.path]); throw e; }
         try {
-          if (groups.length > 1) must(await sb.from('spark_groups').insert(groups.slice(1).map(g => ({ spark_id: id, group_id: g }))));
-          if (st.evDatePoll) must(await sb.from('date_options').insert(st.evDatePoll.map(o => ({ spark_id: id, day_date: o.d, day_time: o.t || null, who }))));
-          if (st.evSpotPoll) must(await sb.from('spot_options').insert(st.evSpotPoll.map(o => ({ spark_id: id, name: cleanTitle(o.v).slice(0, 80), who }))));
-          for (const j of st.evNeeds) await insertJob(id, j);
+          // The extra groups, the polls and the jobs don't depend on each other, so they go at once (one wait on a slow
+          // connection instead of one each; Jeni Wade's demo, 2026-10-05). Jobs stay in order among themselves
+          const rest = [(async () => { for (const j of st.evNeeds) await insertJob(id, j); })()];
+          if (groups.length > 1) rest.push(sb.from('spark_groups').insert(groups.slice(1).map(g => ({ spark_id: id, group_id: g }))).then(must));
+          if (st.evDatePoll) rest.push(sb.from('date_options').insert(st.evDatePoll.map(o => ({ spark_id: id, day_date: o.d, day_time: o.t || null, who }))).then(must));
+          if (st.evSpotPoll) rest.push(sb.from('spot_options').insert(st.evSpotPoll.map(o => ({ spark_id: id, name: cleanTitle(o.v).slice(0, 80), who }))).then(must));
+          const done = await Promise.allSettled(rest), bad = done.find(r => r.status === 'rejected');
+          if (bad) throw bad.reason;
         } catch (e) {   // don't leave half an event up
           await sb.from('sparks').delete().eq('id', id);
           if (cover && cover.fresh) deletePhotos([cover.path]);
@@ -7618,10 +7638,9 @@
         setState(Object.assign(composeReset(), { busy: null, phaseTab: plan ? 'plan' : 'idea' }));
         // Then straight to asking people (research review, 2026-10-01): a host who lines up one or two people before
         // anyone else sees it makes the event far more likely to happen. Not for "Just testing" events
-        // A floated idea asks for a lead instead (owner, 2026-10-02)
-        const floated = float ? state.sparks.find(x => x.id === id) : null;
+        // A floated idea just opens its page (Jeni Wade's demo, owner 2026-10-05: no Ask someone to lead pop-up; the page's
+        // + Ask someone to lead stays)
         go('detail', Object.assign({ subjectId: id }, float ? {} : { share: { id, copied: false, ask: true } }));
-        if (floated) openLeadAsk(floated);
       } catch (e) {
         console.error(e);
         setState({ busy: null });
@@ -7869,7 +7888,8 @@
     'set up': ['chairs, tables…', ['chairs', 'tables', 'the canopy', 'signs', 'music']],
     'help with': ['check-in, the grill…', ['check-in', 'the grill', 'parking', 'kids’ games', 'photos']],
     'clean up': ['trash, tables…', ['trash', 'tables', 'chairs', 'dishes', 'recycling']],
-    coordinate: ['food, rides…', ['food', 'rides', 'the schedule', 'supplies', 'helpers']]
+    coordinate: ['food, rides…', ['food', 'rides', 'the schedule', 'supplies', 'helpers']],
+    'thought partner': ['to brainstorm with…', []]   // someone to think it through with, not logistics (Jeni Wade's demo, 2026-10-05)
   };
   const verbOnly = (item) => { const t = (item || '').trim().toLowerCase(); return JOB_FILL[t] ? t : null; };
   const openJob = (i, row) => {
@@ -8040,9 +8060,14 @@
   // own title stands in for the page's heading
   function evBody(st, cur, pop) {
     const url = evPhotoUrl(st);
-    const head = (t, sub) => pop ? (sub ? '<p style="margin:0;padding:2px 18px 0;font-size:14.5px;line-height:1.4;font-weight:500;color:#5c6270;text-wrap:pretty">' + esc(sub) + '</p>' : '')
-      : '<div style="padding:26px 18px 0"><h2 style="margin:0;font-size:24px;line-height:1.05;font-weight:900;letter-spacing:-.8px;color:#0d1117">' + esc(t) + '</h2>' +
-        (sub ? '<p style="margin:8px 0 0;font-size:14.5px;line-height:1.4;font-weight:500;color:#5c6270;text-wrap:pretty">' + esc(sub) + '</p>' : '') + '</div>';
+    // Floating it (Jeni Wade's demo, 2026-10-05: she thought she had to fill everything in): Date, Location and Details
+    // say (optional) and You can change this later.
+    const opt = !!st.evFloat && (cur === 'when' || cur === 'where' || cur === 'details');
+    const later = opt ? '<p data-step-optional style="margin:' + (pop ? '4px 0 0;padding:0 18px' : '6px 0 0') + ';font-size:13.5px;line-height:1.4;font-weight:600;color:#8a909b">You can change this later.</p>' : '';
+    const head = (t, sub) => pop ? (sub ? '<p style="margin:0;padding:2px 18px 0;font-size:14.5px;line-height:1.4;font-weight:500;color:#5c6270;text-wrap:pretty">' + esc(sub) + '</p>' : '') + later
+      : '<div style="padding:26px 18px 0"><h2 style="margin:0;font-size:24px;line-height:1.05;font-weight:900;letter-spacing:-.8px;color:#0d1117">' + esc(t) +
+          (opt ? '<span data-opt-tag style="margin-left:8px;font-size:15px;font-weight:700;letter-spacing:0;color:#8a909b">(optional)</span>' : '') + '</h2>' +
+        (sub ? '<p style="margin:8px 0 0;font-size:14.5px;line-height:1.4;font-weight:500;color:#5c6270;text-wrap:pretty">' + esc(sub) + '</p>' : '') + later + '</div>';
     const pad = (inner) => '<div style="padding:12px 16px 0;display:flex;flex-direction:column;gap:10px">' + inner + '</div>';
     let body = '';
     if (cur === 'title') {
@@ -8070,9 +8095,9 @@
           (holdNote(st.evDate) ? pad(holdNote(st.evDate)) : '') +
           '<div style="padding:0 16px">' + orLine() + pollRow(() => openPoll('when')) + '</div>');
     } else if (cur === 'where') {
-      body = head('Location') + (st.evSpotPoll
+      body = head('Location', st.evFloat ? 'Share what locations could work, or what you’re happy to offer.' : '') + (st.evSpotPoll
         ? pad(pollCard(st.evSpotPoll.map(r => r.v), () => openPoll('where'), () => setState({ evSpotPoll: null })))
-        : pad(placeField('loc', { placeholder: 'Search a place or address', style: BIG, cls: 'fld big-fld' })) +
+        : pad(placeField('loc', { placeholder: st.evFloat ? 'A place, an address, or “my yard”' : 'Search a place or address', style: BIG, cls: 'fld big-fld' })) +
           '<div style="padding:0 16px">' + orLine() + pollRow(() => openPoll('where')) + '</div>');
     } else if (cur === 'details') {
       body = head('What to expect', 'Give people the basic idea and the vibe.') +
@@ -8094,7 +8119,7 @@
             '<span ' + on(() => setState({ evNeeds: state.evNeeds.filter((_, x) => x !== k) })) + ' aria-label="Remove ' + esc(cleanTitle(j.item)) + '" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#f4f5f7;display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(15, stroke('#9b1c31', 2.2), TRASH_IC) + '</span></div>';
         }).join('');
       const chips = (big) => '<div style="display:flex;flex-wrap:wrap;gap:' + (big ? 8 : 6) + 'px">' +
-        [['Bring', 'Bring '], ['Set up', 'Set up '], ['Help', 'Help with '], ['Clean up', 'Clean up '], ['Coordinate', 'Coordinate ']].map(([l, p]) => chip(l, () => openJob(null, blankJob(p)), false, big)).join('') +
+        [['Bring', 'Bring '], ['Set up', 'Set up '], ['Help', 'Help with '], ['Clean up', 'Clean up '], ['Coordinate', 'Coordinate '], ['Thought partner', 'Thought partner ']].map(([l, p]) => chip(l, () => openJob(null, blankJob(p)), false, big)).join('') +
         chip('Other', () => openJob(null, blankJob('')), true, big) + '</div>';
       const pchips = (big) => '<div style="display:flex;flex-wrap:wrap;gap:' + (big ? 8 : 6) + 'px">' +
         ['time', 'seat', 'other'].map(k => chip(PART_KINDS[k].chip, () => openJob(null, blankPart(k, st.evTime)), k === 'other', big, true, 'data-part-chip')).join('') + '</div>';

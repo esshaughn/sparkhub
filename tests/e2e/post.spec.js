@@ -550,6 +550,13 @@ test('an idea’s Details (no How many people for now); a bare starter chip can�
     await expect(cj.getByRole('button', { name: 'Save', exact: true })).toHaveAttribute('aria-disabled', 'true');
     await cj.getByRole('button', { name: 'Close' }).click();
     await expect(cj).toHaveCount(0);
+    // Thought partner: someone to think it through with (Jeni Wade's demo, 2026-10-05), with its own filler
+    await flow.getByRole('button', { name: /Thought partner$/ }).click();
+    await expect(cj.getByLabel('Job name')).toHaveValue(/^Thought partner/);
+    await expect(cj.locator('[data-job-filler]')).toContainText('to brainstorm with…');
+    await expect(cj.getByRole('button', { name: 'Save', exact: true })).toHaveAttribute('aria-disabled', 'false');   // a whole title on its own
+    await cj.getByRole('button', { name: 'Close' }).click();
+    await expect(cj).toHaveCount(0);
     // A starter chip alone ("Bring") can't be saved
     await flow.getByRole('button', { name: /Bring$/ }).click();
     const job = page.getByRole('dialog', { name: 'Add a job' });
@@ -609,8 +616,9 @@ test('an idea’s Details (no How many people for now); a bare starter chip can�
 });
 
 // Float the idea (v8): the title step's second card, explained by What's the difference?; Review's Lead card changes it.
-// A floated idea goes up looking for a lead, and the next screen offers to ask someone
-test('Create event: just float the idea posts it without a lead and offers to ask someone', async ({ browser }) => {
+// A floated idea goes up looking for a lead and opens its page, with + Ask someone to lead there (no pop-up: Jeni Wade's
+// demo, owner 2026-10-05). On the float path Date, Location and What to expect say (optional)
+test('Create event: just float the idea posts it without a lead, its steps read optional', async ({ browser }) => {
   const host = await newLead(browser, 1, 'Flo');
   const page = host.page;
   let id;
@@ -620,20 +628,33 @@ test('Create event: just float the idea posts it without a lead and offers to as
     await flow.getByLabel('Event title').fill(uniqueTitle('Float'));
     await expect(flow.getByRole('button', { name: /^I’ll lead it/ })).toHaveAttribute('aria-pressed', 'true');
     await expect(flow.getByRole('button', { name: /^Float the idea/ })).toContainText('Someone else might pick it up');
+    // Leading it: Date & time has no (optional) tag
+    await flow.getByRole('button', { name: 'Next' }).click();
+    await expect(flow).toContainText('2/6');
+    await expect(flow.locator('[data-opt-tag]')).toHaveCount(0);
+    await flow.getByRole('button', { name: 'Back' }).click();
+    await flow.getByRole('button', { name: /^Float the idea/ }).click();
     await flow.getByRole('button', { name: 'Next' }).click();
     for (let i = 2; i <= 4; i++) {
       await expect(flow).toContainText(i + '/6');
+      await expect(flow.locator('[data-opt-tag]')).toHaveText('(optional)');
+      await expect(flow.locator('[data-step-optional]')).toHaveText('You can change this later.');
+      if (i === 3) await expect(flow).toContainText('Share what locations could work, or what you’re happy to offer.');
       await flow.getByText('Decide later', { exact: true }).click();
     }
     await expect(flow).toContainText('5/6');
     await flow.getByText('None needed', { exact: true }).click();
     await expect(flow).toContainText('REVIEW');
-    await expect(flow.locator('[data-review-lead]')).toContainText('You’re leading it');
-    await expect(flow.locator('[data-post]')).toHaveText('Post as an idea');
+    await expect(flow.locator('[data-review-lead]')).toContainText('Just floating it');
     // Review's Lead card opens the same choice in a pop-up; a pick closes it
     await flow.getByRole('button', { name: 'Change who leads it' }).click();
     const pick = page.getByRole('dialog', { name: 'Lead' });   // Design v8: the pop-up is titled Lead
-    await expect(pick.getByRole('button', { name: /^I’ll lead it/ })).toHaveAttribute('aria-pressed', 'true');
+    await expect(pick.getByRole('button', { name: /^Float the idea/ })).toHaveAttribute('aria-pressed', 'true');
+    await pick.getByRole('button', { name: /^I’ll lead it/ }).click();
+    await expect(pick).toHaveCount(0);
+    await expect(flow.locator('[data-review-lead]')).toContainText('You’re leading it');
+    await expect(flow.locator('[data-post]')).toHaveText('Post as an idea');
+    await flow.getByRole('button', { name: 'Change who leads it' }).click();
     await pick.getByRole('button', { name: /^Float the idea/ }).click();
     await expect(pick).toHaveCount(0);
     await expect(flow.locator('[data-review-lead]')).toContainText('Just floating it');
@@ -642,14 +663,17 @@ test('Create event: just float the idea posts it without a lead and offers to as
     const I = page.locator('[data-screen-label="Idea page"]');
     await expect(I).toBeVisible();
     id = ideaIdFromUrl(page);
-    // Not Ask two people first: who could lead it?
+    // No pop-up (neither Ask two people first nor Ask someone to lead); the page's link opens the ask
     const ask = page.getByRole('dialog', { name: 'Ask someone to lead' });
-    await expect(ask).toContainText('They get a note asking if they’d lead');
-    await ask.getByRole('button', { name: 'Close' }).click();
     await expect(I.locator('[data-led-by]')).toContainText('FLOATED BY');
+    await expect(ask).toHaveCount(0);
+    await expect(page.getByRole('dialog')).toHaveCount(0);
     await expect(I.locator('[data-chip]')).toHaveText('IDEA');
     await expect(I.locator('[data-plan-needs] [data-plan-row="lead"]')).toContainText('Someone to lead');
     await expect(I.locator('[data-ask-lead]')).toHaveText('Ask someone to lead');
+    await I.locator('[data-ask-lead]').click();
+    await expect(ask).toContainText('They get a note asking if they’d lead');
+    await ask.getByRole('button', { name: 'Close' }).click();
     expect(await asUser(page, async (c, _C, id) => (await c.from('sparks').select('wants_host,planned').eq('id', id).single()).data, id)).toEqual({ wants_host: true, planned: false });
     expect(host.errors).toEqual([]);
   } finally {
