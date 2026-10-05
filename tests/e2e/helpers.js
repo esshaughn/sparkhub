@@ -278,7 +278,7 @@ async function postEvent(page, { title, date, time, where, pick, details = [], j
   await expect(flow).toContainText('5/6');
   if (jobs.length) {
     for (const j of jobs) {
-      await flow.getByRole('button', { name: /Other$/ }).click();
+      await flow.locator('[data-job-chip="Other"]').click();   // HELP's Other (PARTICIPATE has one too)
       const sheet = page.getByRole('dialog', { name: 'Add a job' });
       await sheet.getByLabel('Job name').fill(j.item);
       for (let n = 1; n < (j.need || 1); n++) await sheet.getByRole('button', { name: 'More for how many people' }).click();

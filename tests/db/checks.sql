@@ -802,6 +802,7 @@ create function t.load_matches() returns boolean language sql as $$
      and jsonb_array_length(d -> 'spot_votes') = (select count(*) from spot_votes)
      and jsonb_array_length(d -> 'signup_items') = (select count(*) from signup_items)
      and jsonb_array_length(d -> 'signup_claims') = (select count(*) from signup_claims)
+     and jsonb_array_length(d -> 'signup_waits') = (select count(*) from signup_waits)
      and jsonb_array_length(d -> 'plan_updates') = (select count(*) from plan_updates)
      and jsonb_array_length(d -> 'cohosts') = (select count(*) from cohosts)
      and jsonb_array_length(d -> 'album_photos') = (select count(*) from album_photos)
@@ -918,3 +919,77 @@ select t.check('its replies go with it', not exists (select 1 from event_comment
 select t.login('member'); set role authenticated;
 select t.must_allow('you delete your own', format($$delete from event_comments where spark_id = %L and created_by = %L$$, t.id('chat_walk'), t.id('member')));
 reset role;
+
+-- Take part (20261106000000_take_part.sql): spots with a waitlist and a per-person cap; guests claim with a phone ----
+reset role;
+select t.person('player1'), t.person('player2'), t.person('player3'), t.person('guest2', true);
+insert into memberships (group_id, user_id, role) values
+  (t.id('g'), t.id('player1'), 'member'), (t.id('g'), t.id('player2'), 'member'), (t.id('g'), t.id('player3'), 'member');
+insert into sparks (id, group_id, author_name, lead_name, lead_id, created_by, text, visibility, planned, day_date) values
+  (gen_random_uuid(), t.id('g'), 'Host', 'Host', t.id('host'), t.id('host'), 'Open play', 'group', true, current_date + 5);
+insert into t.ids select 'play', id from sparks where text = 'Open play';
+insert into link_access (user_id, spark_id) values (t.id('guest2'), t.id('play'));
+select t.login('member'); set role authenticated;
+select t.must_refuse('a member adding a spot', format($$insert into signup_items (spark_id, item, kind) values (%L, 'Court time', 'seat')$$, t.id('play')));
+reset role;
+select t.login('host'); set role authenticated;
+select t.must_allow('the lead adds court times (a time spot with two rows)',
+  format($$insert into signup_items (spark_id, item, kind, per_person) values (%L, 'Court time', 'time', 1)$$, t.id('play')));
+reset role;
+insert into t.ids select 'court', id from signup_items where item = 'Court time' and shift_of is null;
+select t.login('host'); set role authenticated;
+select t.must_allow('its first time', format($$insert into signup_items (spark_id, item, kind, shift_of, time, end_time, need) values (%L, 'Court time', 'time', %L, '09:00', '09:30', 1)$$, t.id('play'), t.id('court')));
+select t.must_allow('its second time', format($$insert into signup_items (spark_id, item, kind, shift_of, time, end_time, need) values (%L, 'Court time', 'time', %L, '09:30', '10:00', 1)$$, t.id('play'), t.id('court')));
+select t.must_refuse('a time row of another kind', format($$insert into signup_items (spark_id, item, kind, shift_of, time, need) values (%L, 'Court time', 'job', %L, '10:00', 1)$$, t.id('play'), t.id('court')));
+reset role;
+insert into t.ids select 'c900', id from signup_items where shift_of = t.id('court') and time = '09:00';
+insert into t.ids select 'c930', id from signup_items where shift_of = t.id('court') and time = '09:30';
+select t.login('player1'); set role authenticated;
+select t.must_allow('a member claims 9:00', format($$insert into signup_claims (item_id) values (%L)$$, t.id('c900')));
+select t.must_refuse('a second time past the cap of 1', format($$insert into signup_claims (item_id) values (%L)$$, t.id('c930')));
+select t.must_refuse('the waitlist for a time with room', format($$insert into signup_waits (item_id) values (%L)$$, t.id('c930')));
+reset role;
+select t.login('player2'); set role authenticated;
+select t.must_refuse('claiming a full time', format($$insert into signup_claims (item_id) values (%L)$$, t.id('c900')));
+select t.must_refuse('jumping the line with an old created_at', format($$insert into signup_waits (item_id, created_at) values (%L, now() - interval '1 day')$$, t.id('c900')));
+select t.must_allow('joining the full time''s waitlist', format($$insert into signup_waits (item_id) values (%L)$$, t.id('c900')));
+reset role;
+select t.login('player3'); set role authenticated;
+select t.must_allow('a second person in line', format($$insert into signup_waits (item_id) values (%L)$$, t.id('c900')));
+select t.check('people see the line', (select count(*) from signup_waits where item_id = t.id('c900')) = 2);
+reset role;
+update signup_claims set created_at = now() - interval '10 minutes' where item_id = t.id('c900');
+select t.login('player1'); set role authenticated;
+select t.must_allow('the holder gives it up', format($$delete from signup_claims where item_id = %L and user_id = auth.uid()$$, t.id('c900')));
+reset role;
+select t.check('the first in line moved up', exists (select 1 from signup_claims where item_id = t.id('c900') and user_id = t.id('player2')));
+select t.check('and left the line', not exists (select 1 from signup_waits where item_id = t.id('c900') and user_id = t.id('player2')));
+select t.check('and is going', exists (select 1 from rsvps where spark_id = t.id('play') and user_id = t.id('player2') and status = 'going'));
+select t.check('they heard about it', exists (select 1 from notes where user_id = t.id('player2') and body like 'You’re in: 9:00am court time opened up%'));
+select t.check('the lead heard who gave it up and who moved up', exists (select 1 from notes where user_id = t.id('host') and body like '% gave up 9:00am. % moved up.%'));
+select t.check('the second is still in line', exists (select 1 from signup_waits where item_id = t.id('c900') and user_id = t.id('player3')));
+select t.login('player1'); set role authenticated;
+select t.must_refuse('taking someone else off', format($$select public.remove_part_claim(%L, %L)$$, t.id('c900'), t.id('player2')));
+reset role;
+select t.login('host'); set role authenticated;
+select t.must_allow('the lead takes someone off', format($$select public.remove_part_claim(%L, %L)$$, t.id('c900'), t.id('player2')));
+reset role;
+select t.check('they''re told', exists (select 1 from notes where user_id = t.id('player2') and body like 'The lead took you off 9:00am court time%'));
+select t.check('and the next in line moves up', exists (select 1 from signup_claims where item_id = t.id('c900') and user_id = t.id('player3')));
+-- Guests: a spot with a name and phone, never a job
+insert into signup_items (spark_id, item, kind, need, created_by) values (t.id('play'), 'Beginner clinic', 'seat', 8, t.id('host'));
+insert into signup_items (spark_id, item, need, created_by) values (t.id('play'), 'Bring balls', 2, t.id('host'));
+insert into t.ids select 'clinic', id from signup_items where item = 'Beginner clinic';
+insert into t.ids select 'balls', id from signup_items where item = 'Bring balls';
+select t.login('guest2'); set role authenticated;
+select t.must_allow('a guest leaves a name only', format($$insert into guest_contacts (spark_id, user_id, name) values (%L, %L, 'Sam')$$, t.id('play'), t.id('guest2')));
+select t.must_refuse('a guest claims a seat without a phone', format($$insert into signup_claims (item_id) values (%L)$$, t.id('clinic')));
+select t.must_allow('a guest adds a phone', format($$update guest_contacts set phone = '512-555-0100' where spark_id = %L and user_id = %L$$, t.id('play'), t.id('guest2')));
+select t.must_allow('then claims a seat', format($$insert into signup_claims (item_id) values (%L)$$, t.id('clinic')));
+select t.must_refuse('a guest still can''t take a job', format($$insert into signup_claims (item_id) values (%L)$$, t.id('balls')));
+reset role;
+-- Removing a time tells the people holding it
+select t.login('host'); set role authenticated;
+select t.must_allow('the lead removes 9:00', format($$select public.remove_signup(%L)$$, t.id('c900')));
+reset role;
+select t.check('the holder hears 9:00am court time was removed', exists (select 1 from notes where user_id = t.id('player3') and body like '9:00am court time was removed%'));

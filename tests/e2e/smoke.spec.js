@@ -200,8 +200,10 @@ test('Give feedback (Update 9): a Help & info tile opens the sheet; Send to Eric
     await expect(profile.getByRole('button', { name: 'Notification settings' })).toHaveCount(0);   // the tile it replaced
     await profile.getByRole('button', { name: 'Send feedback to Eric' }).click();
     const box = page.getByRole('dialog', { name: 'Give feedback' });
-    await expect(box).toContainText('Tell Eric what you think about the app so far');
-    await expect(box).toContainText('How useful does it feel?');
+    await expect(box).toContainText('FEEDBACK WANTED');   // v8-2 (1a): eyebrow, title, one line, no prompt list
+    await expect(box).toContainText('What do you think of the app so far?');
+    await expect(box).toContainText('Tell me honestly: what’s working and what would make it better?');
+    await expect(box).not.toContainText('How useful does it feel?');
     await expect(box.getByRole('button', { name: 'Send to Eric' })).toHaveAttribute('aria-disabled', 'true');   // nothing typed yet
     await box.getByLabel('Your feedback').fill('[E2E] The Join button was easy to find');
     await expect(box.getByRole('button', { name: 'Send to Eric' })).toHaveAttribute('aria-disabled', 'false');

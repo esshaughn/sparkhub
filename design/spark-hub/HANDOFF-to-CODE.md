@@ -1,109 +1,120 @@
-# Spark Hub v8 · HANDOFF-to-CODE (round v8-1)
+# Spark Hub v8 · HANDOFF-to-CODE (round v8-2)
 
-**Caught up with the design project as of Oct 5, 2026.**
+**Caught up with the design project, and with the build's `HANDOFF-to-DESIGN.md` (as of 2026-10-05, later), as of Oct 5, 2026.**
 
-## About these files
-Everything here is a **design reference built in HTML**, not production code. `Spark Hub App Version 8.dc.html` is a single clickable prototype (393×852 phone) with inline styles and fake sample data. Rebuild it in the real app's stack and patterns; lift exact colours, sizes, copy and behaviour from it. Fidelity: **high** (final colours, type, spacing and copy).
+Same setup as v8-1: `Spark Hub App Version 8.dc.html` is a clickable HTML reference (393×852) with inline styles and sample data. Rebuild it in the real stack, lifting colours, sizes, copy and behaviour from it. Keep `support.js` and `photos/` next to it to open it. Where this doc and the prototype disagree, **this doc wins**.
 
-Open the HTML in a browser (keep `support.js` and `photos/` next to it). The `*Options.dc.html` files are side-by-side explorations; the picked option is noted below by its id.
+## New since v8-1 (Oct 5)
+1. **⚠ Give feedback slide-up: please re-check against the build.** It looks like the last update missed it. Full spec in §1.
+2. **Take part (PARTICIPATE) is designed.** Show the chips and build the whole path: §2. Picks are **1b** (setup) and **1c** (event page) in `options/Take Part Options.dc.html`.
+3. **Help out: "Add something else"** (the member's add-a-thing row on the event page) is now quiet grey. Same shape and dashed outline, 1.5px dashed `#d5d8df`, no fill, text `#6b7280` 14px/800 (was gold `#fef7dd` / `#e3c979` / `#8f6405`).
 
-## New since v7 (this round)
-- **Bottom bar:** five flat tabs Groups · Friends · Calendar · Tasks · Me, labels 11.5px weight 600, active purple. Floating + (straight to Plan an event) on every tab including Me; it sits behind every slide-up.
-- **Groups:** invite card (8c) and a "Next up" card (8b) above the grid; "All groups" card on the sparkle gradient (9b) with round photos and a solid white "+N".
-- **Friends:** "Your lists" swipe cards (4a) with a list sheet and list editor; lists persist in the browser.
-- **Tasks:** grouped by event (6h/6k) with role dots, Timeline / Condensed icon switch (7a, condensed = 6j); empty states per tab as tappable grey cards.
-- **Me (11a):** header with search + bell, gradient "Your impact" card that opens a full sheet, YOUR STUFF 2×2 (Drafts · Ideas · Leading · Past, each opens a slide-up with its own empty state), SOON chips, Privacy row, dismissible "home screen" + "feedback" alerts (feedback returns every 4 visits), About you on Edit profile and on your own profile view.
-- **Plan an event, rebuilt:** shared sparkle header with step dots on every step, title-first screen with lead cards at the bottom, Join in step with HELP + PARTICIPATE chips, Review rebuilt as 19f with inline title editing and a twirl-down group picker. "Real or test" removed everywhere; separate Lead step removed.
-- **Copy:** no "e.g." in any placeholder; "Float the idea"; "Create event"; "Join in" / "How people can join".
+---
 
-## Design tokens
-- Font: Figtree (400–900).
-- Purple #5b4ae8 (hover #4a3ad4), lavender #f3f1fe / ring #d9d3fb. Ink #0d1117. Greys #6b7280 · #454b55 · #8a909b · #9aa0ac · #c3c7d0 · #dcdfe6 · #e8eaee (page) · #f2f3f6.
-- Green (going / take part) #149a4b · #0f7a3c · #f3fbf6. Amber (helping) #f5b428 / #e8a71c · #8f6405 · #fdf6e3. Update pink #d6246e / #fdf0f5. Idea blue #1f5fa8 / #eaf3fc.
-- Sparkle gradient: linear-gradient(115deg, #5b4ae8 0%, #a03bc8 45%, #d6246e 75%, #f5b428 120%) with small 4-point white / #ffe7a6 / #ffd0e4 sparkles kept off text.
-- Radii: cards 18–20px, sheets 24px top, pills 999px. Card shadow 0 1px 3px rgba(15,18,25,.08). Toasts for short feedback ("Add a title first", "Choose an option", "Pick at least one group").
+## 1. Give feedback slide-up ⚠
 
-## Screens and behaviour (full spec)
-## App structure (v8)
-Bottom bar, five tabs, all flat icons with the same weight; the active tab is purple and no tab rises above the bar:
-**Groups · Friends · Calendar · Tasks · Me**
+There are two slide-ups. Check both against the build; the first is the one most likely out of date.
 
-- **Groups**: above the grid, an invite card when someone has invited you ("Hana invited you to Mueller Pickleball", Join / Not now; 8c in `Groups Top Options.dc.html`), then a "Next up" card for your soonest event (photo, green "NEXT UP · date · time", name, "Group · you're leading/helping/going"; 8b). Then a 2×2 grid of photo tiles for your groups, plus an "All groups" card on a purple→pink→amber gradient with small white sparkles (9b in `Groups Top Options.dc.html`; round group photos with a "+N" circle past three, "All events, plans & ideas", arrow). Group pages use a 112px photo header.
-- **All groups** (screen `calendar`, label "Explore"): a 136px photo header with a back button, search and bell at the top. The title "All groups" sits bottom-left. A frosted group switcher pill sits bottom-right, centred on the title; it reads "All", or "N groups" when narrowed. The floating + button is the same one as on the other tabs.
-- **Friends**: friend rows show the next event they're going to as "{event title} · {date}", with no "Going to" prefix.
-- **Friends · Your lists** (4a in `Friend Lists Options.dc.html`): above "Your friends", swipeable cards for private friend lists (face stack, name, count) with "+ New list". Tapping a card opens a sheet with the people, Edit, Add people and "Invite all N to an event…". "+ New list", Edit and Add people open a list editor sheet (LIST NAME, PEOPLE checkboxes, Cancel / Make list or Save list; editing also has "Delete this list" with a confirm). Hidden while searching. The friends list shows 5, then "See all N ›".
-- **Calendar** ("My calendar"): month/list views with a group filter line.
-- **Tasks** ("My tasks"):
-  - Chips: All · Leading · Helping · Ideas. No "Tasks" heading; an icon-only Timeline / Condensed switch (7a in `Task List Options.dc.html`: grey pill, stacked-cards icon / four-lines icon). In Timeline it sits at the right end of the first date line, replacing that line's rule; in Condensed it sits right-aligned above the card.
-  - **Condensed** (6j in `Task List Options.dc.html`): one white card, each event a small sub-header (name, date), 30px rows with role dots, times inline; Ask / See list are plain purple text.
-  - **Tasks list** (6h in `Task List Options.dc.html`): grouped by event, soonest first. Each group has a grey date line ("THU, OCT 15 · In 11 days") with a thin rule running right, then the event name with a 3px vertical role bar on its left (purple = leading, amber = helping, blue = idea), then a white card of task rows, each led by a small dot in the role colour (6k; no checkboxes). No LEADING/HELPING tags.
-    - Lead job rows read a small grey caps **NEED**, then the job in bold, with open spots in light grey, e.g. "NEED  Bring a main dish (2)".
-    - Lead rows have a plain purple-text **Ask** button that opens the "Ask someone to take…" sheet for that job, right on the Tasks screen.
-    - "Check who's coming" rows have a **See list** button instead.
-    - Helping rows show the job time under it, if there is one.
-- **Me** (11a in `Me Page Options.dc.html`): header with photo, name, "Edit profile" link, search and bell; a gradient "Your impact" card (you’ve led / you’ve helped / you’ve attended) that opens a full sheet with Led / Helped / Attended tabs and a "N people came" total; then YOUR STUFF as a 2×2 grid (Drafts · Ideas · Leading · Past); then Settings, Help & info. "Coming soon" items show a toast with an **amber warning triangle**, not the green check.
+### 1a. Give feedback (Me → Help & info → Give feedback, and the Me "feedback" alert)
+- **Sheet:** white, 24px top corners, grabber 40×5 `#dcdfe6`, padding 10/16/22, 16px gaps, max height 90%, slides up over a 45% ink scrim. Tapping the scrim closes it.
+- **Header row:** Eric's photo (48px round, `faces/eric.jpg`); eyebrow **FEEDBACK WANTED** 11.5px/900, letter-spacing 1px, amber `#8f6405`; title **What do you think of the app so far?** 22px/900, -0.5px; a grey **Cancel** text button (15px/800 `#6b7280`) top-right. No ✕.
+- **Line:** *Tell me honestly: what’s working and what would make it better?* 15.5px/600 `#2a2f38`.
+- **Text box:** 6 rows, min height 140px, 2px `#dcdfe6` border, radius 16. Placeholder *Write as much or as little as you like.*
+- **No prompt rows.** The old tap-to-insert prompts (*Does it make sense? · Is it interesting? · Would you actually use it? · Biggest risks or issues you see?*) are **gone** in v8. If the build still shows them, remove them.
+- **Add a screenshot (optional):** a 48px row with a 1.5px dashed `#c9ccd3` border, radius 14, camera icon, **Add a screenshot** (15px/800) and *(optional)* in grey. Once picked, it becomes a grey `#f4f5f7` row with a 44×64 thumbnail, *Screenshot added* and a round ✕ to remove it.
+- **Sent-with line:** 12.5px/600 `#8a909b`: *Sent with: {device · OS · browser · Home Screen app · screen}. Your last few taps and any errors come along too, to help track down glitches.*
+- **Button:** full-width **Send to Eric**, 52px, purple `#5b4ae8`. It's grey `#dcdfe6` with `#8a909b` text until something is typed.
+- **Sent state:** in the same sheet, centred: Eric's photo (64px) with a green `#149a4b` check badge, **Thank you!** (22px/900), *Got it. This really helps me figure out what to build next.*, and a black **Done** button (52px, `#0d1117`).
 
-## Event page
-- **Help out**:
-  - Jobs show seat circles at 28px. Filled seats show faces; open seats are plain grey dashed circles, with no purple dashed "+".
-  - The first open seat is still tappable to sign up.
-  - Leads see "+ Ask someone".
-- **"Ask someone to take" sheet** (job asks):
-  - Title: "Ask someone to take" in regular weight, then the job name in quotes in bold.
-  - Each person row has an **Ask** button. Tapping it opens, inside that row, an **"I THOUGHT OF YOU BECAUSE… (optional)"** box with **Cancel** and **Send ask**.
-  - The note is optional, and it shows in italics under that person once they've been asked.
-  - At most 2 can be waiting at once ("0 of 2 asked").
-- **New-updates banner**:
-  - Instead of the big Update card, people going see a pink banner, "**X new update(s) · View ↓**", near the top.
-  - Tapping it marks the updates seen and smoothly scrolls to Discussion.
-  - Leads never see it.
-- **Discussion** (near the bottom, above "Led by"): the full comment section.
-  - **Writing box:** a single grey pill ("Ask a question or say hi…" with a round arrow send button inside it, same as reply), placed at the top of Discussion, above the lead-updates panel. People going see "Ask a question or say hi…". Leads also see a short-lined grey "or" divider under the box, then a centred pink megaphone "**Send an update**" text button (3f in `Discussion Options.dc.html`), which opens the Post an update sheet (carrying over any typed text).
-  - **Flat feed (1b in `Discussion Options.dc.html`):** no cards or dividers between posts. **Lead updates** sit together first in one light-grey panel (#f2f3f6, thin #dcdfe6 lines between them; 2b in `Discussion Options.dc.html`), each with a solid pink "UPDATE" chip on the same row as "Name · time"; body text matches comments (15px, 500, #2a2f38). Replies have no grey bubble. A thin grey thread line runs down from the avatar when a post has replies, and "View N replies" shows a small stack of the repliers' faces. Regular comments follow, newest first, with a purple LEAD tag on leads' comments.
-  - **Show more:** past 3 top-level posts (updates + comments), Discussion shows the first 3 and a grey "Show N more ⌄" pill at the bottom; open, it reads "Show less ⌃". Replies don't count toward the 3.
-  - **Replies** are indented and **collapsed by default**. Collapsed posts show "—— View N replies · Reply"; open threads show "Reply · Hide replies". Posting a reply keeps that thread open.
-  - **Sample data:** on Activate (Thu Oct 15), Dee asks about parking under Joseph's update and Joseph answers. Marisol asks about bringing her 12-year-old and the lead replies. Luis is running late.
+### 1b. Feedback ask (the timed one; build row 5: about 5 minutes in, once per account per device)
+- **Sheet:** sits **above the tab bar** (bottom 73px) with a 40% scrim over the content only, so the tab bar stays visible. 24px top corners, shadow `0 -12px 36px rgba(13,17,23,.25)`.
+- **Header:** Eric's photo (36px), eyebrow **FEEDBACK NEEDED** 12px/900 purple `#5b4ae8`, title **Help Eric improve the app** 19px/900.
+- **Text box:** 3 rows, min height 96px, placeholder *What’s something we should fix or add? Any feedback helps, even “the calendar is confusing.”*, max 1000 characters, with a purple ring when focused.
+- **Buttons, one row:** **Send to Eric** (flex, 50px, purple; grey `#d5d8df` until typed), then a grey text **Not now**.
+- **After either button:** a dark tooltip pops up above the Me tab for 5s. It reads **Thanks, Eric got it.** (sent) or **No problem.** (not now), with *Add more anytime in your profile.* under it.
 
-## Creating
-- **Plan an event** (6 steps: Title · When · Where · Details · Join in · Review):
-  - **Header (every step):** 180px, purple→pink→amber sparkle gradient (or the cover photo with a dark tint), × close (back arrow on Review), centred step dots with a small "N/6" above, heading ("Create event" on step 1, then the typed title), frosted "Add photo" pill on the title row. Content sits on a grey sheet with 20px rounded top corners overlapping the header.
-  - **Title step:** "Event title" (28px), field auto-focused with purple glow, placeholder "Fall cleanup day", "N/40" counter. The I'll lead it / Float the idea cards sit at the bottom above Next, no heading, with a quiet "What's the difference?" link that opens a "Lead it or float it?" explainer. Next always reads "Next"; tapping it with no title toasts "Add a title first". The separate Lead step and "Real or test" were removed.
-  - **When:** date picker closes on any outside tap (sheet or header). "Decide later" is 16px.
-  - **Details ("What to expect"):** "Give people the basic idea and the vibe." Numbered 1 One-line overview (0/80) and 2 Up to three details (0/60 each), "Optional" as light grey text; counters always visible. No "e.g." anywhere in placeholders.
-  - **Join in:** "Ask for help or list specific ways to participate." HELP chips (Bring · Set up · Help · Clean up · Coordinate · Other) then PARTICIPATE chips (Claim time · Claim seat · Other, green +); each section fits two rows. No 1-2-3 explainer, no "No help needed" row: a "None needed ›" text button (like Decide later) skips; tapping grey Next toasts "Choose an option". The add-a-job sheet has no suggestion chips.
-  - **Review (19f in `Review Options.dc.html`):** REVIEW eyebrow + title with an inline pencil; tapping edits the title in place in the header (Enter/blur saves). Lead card ("You're leading it", Change), then "Details" (date/time + location rows), "What to expect", "Join in" headings with Edit links; blanks read grey "Nothing added." / "No date yet" / "No location yet". Visibility: a collapsed "POST TO" group picker (twirl-down, closes on outside tap; all groups can be unticked but Post then toasts "Pick at least one group"), then Public ("Anyone in this group" / "…these groups") / Private tiles. Post button has quiet confetti, no bulb.
-  - **Save draft** link removed from the footer (drafts still save from the leave prompt).
-- The + button (and the floating + button on every tab) goes **straight to Plan an event**. The two-door "What do you have?" sheet is hidden behind a Tweak.
-- **Float an idea** (the quick idea sheet, formerly "Share an idea"):
-  - **Fields:** YOUR IDEA, WHY OR WHAT (optional), WHEN-ISH chips, GROUPS, and WHO LEADS IT (Just float it / I'll lead it).
-  - **GROUPS** is multi-select. Its list **opens upward** from the field, with checkboxes and Done, and at least one group always stays picked. The field shows the picked names, with a purple count when more than one is picked.
-  - **Posting:** "Post idea" posts to every picked group. The toast reads "Posted to A and B", or "Posted to N groups" for three or more.
-  - **"Add more details ›"** (above Post idea) opens the full Plan an event flow. It carries over the title, why/what, groups and lead choice, and starts at the date step.
+---
 
-## Tweaks (root props)
-- `discussion` (default **on**): the Discussion section and new-updates banner. Off brings back the old Update card with inline comments under each update.
-- `ideaDoor` (default **off**): + asks "Plan an event or Float an idea".
-- Older ones carried from v7: feedbackAsk, eventPreview, pushMode, demoData, dataState, friendLinkKind, friendLink, startSignedIn, googleOutcome, ericRole, inviteLink, noGroups, failSaves, leadActionBar, sectionTitles and others.
+## 2. Take part
 
-## Wording to follow
-- "lead", not "host"; "people", not "neighbors"; "event" as the umbrella word.
-- "What to expect" for the event page's details section; "Details" elsewhere.
-- "location", not "spot".
-- "Start an event", "Needs help", "Who's coming", "People going can invite friends", "RSVP".
-- Exception: "NEED" is used on purpose for open job spots on Tasks.
-- Public address: sparkhub.wereallneighbors.org.
+Options file: `options/Take Part Options.dc.html` (1b + 1c picked; the bottom row covers Review, guest claim, the lead's view, Tasks + tile, and notifications).
 
+### Rules
+- **Claiming a spot RSVPs you Going.** The toast is *8:30pm court time is yours. You’re going.*, with Undo.
+- **Several spots per person.** The lead can set **Most per person** (Any, or 1–20). Past the cap, the toast reads *Up to N per person for court time*.
+- **Guests can claim** with a name and a **required phone**. They get a text reminder, **so this needs SMS on the back end**.
+- One event can have **both** spots and help jobs. Spots are stored apart from jobs (prototype: `s.parts`), so Helping counts and the Needs help counts stay jobs-only. Reusing `signup_items` with a `kind = 'part'` flag is fine.
+- **Waitlist** is per time/kind, **on by default**. When a spot opens, the first in line moves up automatically and gets a push.
+- **Giving up is allowed anytime**, with no cutoff.
+- Switching RSVP to **Can’t or Maybe** while holding spots asks: **Give up your spot?** / **Give up your N spots?** · *You have {8:30pm court time, Beginner clinic}. Spots are for people going, so it/they will go to the next person on the waitlist.* · **Give it up** / **Never mind**.
 
-## Still open / next rounds
-- The notification a lead gets when someone comments isn't designed yet.
-- Plan an event steps are now Title (with the lead picker) · When · Where · Details · Jobs · Review (with Post to); the separate Lead step was removed. See `Event Creation Steps.dc.html`.
-- Handoff round 1 shipped as `SparkHub v8-1` (Oct 5, 2026). For later rounds, write `HANDOFF-to-CODE.md` here with a *New since {date}* list at the top, details below, and a *Caught up with … as of {date}* line, and ship each round as one zip folder: `SparkHub v8-1`, `v8-2`, …
+### Setup (Plan an event → Join in), 1b
+- PARTICIPATE chips (Claim time · Claim seat · Other, green +) now show, both before and after something's added. The "ADD ANOTHER" heading is now **HELP**, with PARTICIPATE under it.
+- Each chip opens the existing job sheet in **take-part mode**:
+  - **Eyebrow:** green `#149a4b`, **TAKE PART · CLAIM TIME** / **· CLAIM SEAT** / **· OTHER**.
+  - **Title:** *Add time slots* / *Add seats* / *Add spots* (*Edit …* when editing).
+  - **Name placeholder:** *Name the time slots* / *Name the seats* / *Name the spots*.
+- **Claim time** uses the shift rows (start–end + count each). The add link reads **Add a time**. It starts with two 30-minute rows of 4.
+- **Claim seat / Other:** name, details (optional), time (optional), count. The seat default is 8, Other is 6.
+- **Under a divider (take part only):**
+  - **Waitlist when full**: a green switch, on, with *First in line gets the next open spot*.
+  - **Most per person**: − Any/N +, with *People can claim as many as they like* / *Each person can claim up to N*.
+- **The Join in list row** reads *Take part · 4 times · 16 spots* or *Take part · 8 seats · 7:30pm*.
+- **"Other" under PARTICIPATE** means any fixed-count spot that isn't a time or a seat: a carpool place, a table at a sale, a team. HELP's Other is still a job that helps the lead.
 
-- **Take part vs Help out** (brief in this round's chat): only the PARTICIPATE chips are built. Event page CTA, green Take part section, Review split, Tasks/role strips and Ask for take-part spots are not built yet. Step options: `Sign-ups Step Options.dc.html` (18a–18d).
+### Review
+- Join in shows **PARTICIPATE** (green counts) above **HELP** when both exist. With one kind only, there's no sub-label.
 
-## Files in this folder
-- `Spark Hub App Version 8.dc.html` · the prototype (main reference)
-- `support.js` · runtime the HTML needs to open; not part of the app
-- `photos/web/…` · every image the prototype loads (event photos, `faces/`)
-- `design-notes.md` · the design project's running notes (copy of its CLAUDE.md)
-- `options/` · exploration canvases: Task List, Groups Top, Me Page, Friend Lists, Review, Event Title, Sign-ups Step, Discussion, Event Creation Steps
+### Event page, 1c
+- A **Take part** section (24px/900 heading) sits **above Help out**, on plans only and not on cancelled events. RSVP stays the main button.
+- **Each kind is a white card** (18px radius): the name 18px/900, a grey sub (*4 times · 4 each*, *7:30pm · 8 seats*, *· up to 2 per person*), then details if any.
+- **Each time is a grey `#f7f8fa` row** (14px radius): the time (14.5px/800), 28px seat circles (faces, then plain grey dashed open seats; tapping the first open seat claims it), *N open*, and a pill at the right:
+  - **Open:** green **Claim** pill (`#149a4b`, white).
+  - **Yours:** the row turns `#f3fbf6` with a `#b9e3c8` ring; the time reads *8:30pm · You’re in* in `#0f7a3c`; your face gets a green ring; the button is grey text **Give up**.
+  - **Full:** *Full · N waiting*, with a white ringed **Waitlist** pill.
+  - **On the waitlist:** *You’re 2nd in line* and grey text **Leave**. The waitlist is **grey, not amber**.
+- **Show more:** past 3 times, *N more times ⌄* / *Show less ⌃*.
+- **Lead's view:**
+  - There's no Claim pill.
+  - Names show under each row (*Dee, Theo · Waiting: Luis*).
+  - **+ Ask someone** shows while any spot is open. It opens the same ask sheet as jobs, with up to two asks waiting.
+  - Tapping a row opens the roster sheet: *12 of 16 claimed*, a **Remove** per person, *GUEST* tags, and the waitlist order.
+- **Removing someone, and editing:**
+  - Removing someone **notifies them**.
+  - Leads add spots after posting through Edit event → Join in.
+  - Removing a time someone holds asks first, then notifies them (*10:30am court time was removed*).
+- **Guest claim sheet:** green eyebrow with the slot (*COURT TIME · 10:00AM*), **Claim this spot**, *Your name*, *Phone number*, *Only the lead sees this. We’ll text a reminder before your time.*, a green **Claim 10:00am** button, and *Have an account? Sign in*.
+
+### Tasks, tiles, Who's coming
+- **My tasks:** green rows (dot and role bar `#149a4b`), the kind as the title and the time under it.
+  - A waitlist row reads **Waitlist for 8:00pm** · *2nd in line*.
+  - A **Taking part** chip (`#e7f6ec` / `#0f7a3c`) sits between Helping and Ideas, shown only once you hold a spot.
+- **Tile and card strips:** still **Going** (green), with your spot: *Going · 10:00am court*, plus *+N more* if you hold several.
+- **Who's coming:** your spot sits after the name, e.g. *Lead · Court time 8:30pm* or *Beginner clinic*.
+
+### Notifications (push + bell)
+- **To the lead:**
+  - *Dee claimed 9:00am court time*.
+  - *Hana gave up 9:30am. Luis moved up.*
+  - *Beginner clinic is full (8 of 8)*.
+  - Several claims within an hour group into *3 people claimed court times*.
+- **To the member:**
+  - *You’re in: 9:30am court opened up* (moved off the waitlist).
+  - A reminder before their time (*Your court time is at 10:00am today*): 2 hours before, or the evening before for morning times.
+  - Guests get these reminders as texts.
+
+### Sample data
+- **Darnell’s Pickleball** (Fri, Nov 6) has **Court time**: 7:30 (2 of 4), 8:00 (full, Luis waiting), 8:30 (empty), 9:00 (1).
+- It also has **Beginner clinic**: 8 seats, 3 taken.
+
+---
+
+## Still open (unchanged)
+- The comment notification to leads.
+- Group invites: the brief is answered next round.
+- Where Withdraw lives for job asks.
+
+## Files
+- `Spark Hub App Version 8.dc.html`: the prototype (main file).
+- `options/Take Part Options.dc.html`: this round's Take part options.
+- `support.js`, `photos/web/…`.

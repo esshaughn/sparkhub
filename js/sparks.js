@@ -116,6 +116,8 @@
     const [h, m] = hhmm.split(':').map(Number);
     return (h % 12 || 12) + (m ? ':' + pad2(m) : '') + (h < 12 ? 'am' : 'pm');
   };
+  // Take part's times always show minutes, as Design and the notes do ("9:00am court time")
+  const slotTime = (hhmm) => { if (!hhmm) return ''; const [h, m] = hhmm.split(':').map(Number); return (h % 12 || 12) + ':' + pad2(m) + (h < 12 ? 'am' : 'pm'); };
   const fmtDay = (iso) => new Date(iso + 'T12:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 
   const uuid = () => (crypto.randomUUID && crypto.randomUUID()) ||
@@ -192,7 +194,7 @@
     groups: [], sparks: [], profiles: {},
 
     drafts: [], notes: [], pushOn: false, pushCardHidden: (() => { try { return localStorage.getItem('spark-hub-push-card') === 'hidden'; } catch (e) { return false; } })(),
-    canInstall: false, installPop: false, fb: null, sec: null, needEd: null, share: null,
+    canInstall: false, installPop: false, fb: null, sec: null, needEd: null, share: null, partMore: {}, partRoster: null, partGuest: null,
 
     loginStep: null, loginFrom: 'default', loginThen: null, loginMode: 'link', loginEmail: '', loginCode: '',
     resent: false, mergeToken: null, googleFailed: false,
@@ -285,7 +287,7 @@
       state.back = ORIGINS.indexOf(state.screen) > -1 ? { screen: state.screen, groupId: state.groupId, phaseTab: state.phaseTab, scroll: sc ? sc.scrollTop : 0 } : null;
     }
     // Going anywhere closes the v6 sheets (Profile, Notifications, View all, Could use a hand, Search)
-    setState(Object.assign({ screen, menu: null, zoom: null, sec: null, needEd: null, share: null, cohostPick: null, leadAsk: null, leadsSheet: null, pollSheet: null, profSheet: false, notifSheet: false, dashAll: null, cHandSheet: false, cSearch: false, cq: '', gSearch: false, gq: '', gTry: null, pplAdd: false, frInvite: false, frList: null, frListEd: null, meImp: null, meList: null, pplSearch: false, pplQ: '', person: null, fbNudge: null, peek: null, gMenu: null, jobAsk: null, handOff: null }, extra || {}));
+    setState(Object.assign({ screen, menu: null, zoom: null, sec: null, needEd: null, share: null, cohostPick: null, leadAsk: null, leadsSheet: null, pollSheet: null, profSheet: false, notifSheet: false, dashAll: null, cHandSheet: false, cSearch: false, cq: '', gSearch: false, gq: '', gTry: null, pplAdd: false, frInvite: false, frList: null, frListEd: null, meImp: null, meList: null, pplSearch: false, pplQ: '', person: null, fbNudge: null, peek: null, gMenu: null, jobAsk: null, handOff: null, partRoster: null, partGuest: null }, extra || {}));
     if (sc) sc.scrollTop = 0;
   };
 
@@ -407,6 +409,22 @@
     return (am(it.time) === am(it.endTime) ? whole(it.time) : a) + ' – ' + whole(it.endTime) + (am(it.endTime) ? 'am' : 'pm');
   };
   const jobTime = (j) => j.shifts ? j.shifts.length + (j.shifts.length === 1 ? ' shift' : ' shifts') +(j.time ? ' · ' + spanTime(j) : '') : spanTime(j);
+  // Take part (Design v8-2, 20261106000000_take_part.sql): spots people claim to take part, kept apart from Help out's
+  // jobs. kind time: a row per time (shift rows); seat / other: one row. Each row has its claims and its waitlist
+  // (in line order); the spot has waitlist on/off and perPerson (null: any)
+  const toParts = (rows, claims, waits) => {
+    const unit = (i, part) => ({ id: i.id, item: i.item, need: i.need || null, time: hm(i.time), endTime: hm(i.end_time), part,
+      claims: (claims[i.id] || []).map(c => ({ userId: c.user_id, created: Date.parse(c.created_at) })),
+      waits: (waits[i.id] || []).slice().sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at)).map(w => w.user_id) });
+    const byAge = rows.slice().sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at));
+    const kids = byKey(byAge.filter(i => i.shift_of), 'shift_of');
+    return byAge.filter(i => !i.shift_of).map(i => {
+      const part = { id: i.id, item: i.item, kind: i.kind, desc: i.descr || '', time: hm(i.time), endTime: hm(i.end_time), need: i.need || null,
+        waitlist: i.waitlist !== false, perPerson: i.per_person || null, rows: [] };
+      part.rows = i.kind === 'time' ? (kids[i.id] || []).sort((a, b) => String(a.time || '').localeCompare(String(b.time || ''))).map(k => unit(k, part)) : [unit(i, part)];
+      return part;
+    }).filter(p => p.rows.length);
+  };
   const toSpark = (row, offers, interests, contacts, x) => ({
     id: row.id, groupId: row.group_id, text: row.text,
     groupIds: [row.group_id].concat((x.groups[row.id] || []).map(g => g.group_id).filter(g => g !== row.group_id)),
@@ -438,7 +456,8 @@
     rsvps: (x.rsvps[row.id] || []).map(r => ({ userId: r.user_id, status: r.status, created: Date.parse(r.created_at), attended: r.attended == null ? null : !!r.attended })),
     dateOpts: (x.dateOpts[row.id] || []).map(o => ({ id: o.id, dayDate: o.day_date, dayTime: o.day_time ? String(o.day_time).slice(0, 5) : null, who: o.who, createdBy: o.created_by, created: Date.parse(o.created_at), votes: (x.dateVotes[o.id] || []).map(v => v.user_id) })),
     spotOpts: (x.spotOpts[row.id] || []).map(o => ({ id: o.id, name: o.name, address: o.address || '', lat: o.lat, lon: o.lon, who: o.who, createdBy: o.created_by, created: Date.parse(o.created_at), votes: (x.spotVotes[o.id] || []).map(v => v.user_id) })),
-    ...toSignups(x.signups[row.id] || [], x.claims),
+    ...toSignups((x.signups[row.id] || []).filter(i => !i.kind || i.kind === 'job'), x.claims),
+    parts: toParts((x.signups[row.id] || []).filter(i => i.kind && i.kind !== 'job'), x.claims, x.waits),
     updates: (x.updates[row.id] || []).sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at)).map(u => ({ id: u.id, body: u.body, audience: u.audience, createdBy: u.created_by || null, created: Date.parse(u.created_at) })),
     cohosts: (x.cohosts[row.id] || []).map(o => o.user_id),
     leadAsks: (x.leadAsks[row.id] || []).map(a => ({ userId: a.user_id, by: a.asked_by, at: Date.parse(a.created_at), message: a.message || '' })),   // asked to lead (20261102020000_float_and_ask.sql)
@@ -467,7 +486,7 @@
     }
     // v6 Update 13: friends, requests and the invites you've had (a database without them still loads)
     const frP = state.email && !state.viewAs ? sb.rpc('friend_state').then(r => r, () => ({ error: true })) : Promise.resolve({ data: null });
-    const [mem, grp, sp, of, it, gc, rs, dop, dvo, sop, svo, sui, scl, upd, org, alb, prp, rct, sgr, drf, nts, las, inv, jas, lof] = await Promise.all([
+    const [mem, grp, sp, of, it, gc, rs, dop, dvo, sop, svo, sui, scl, upd, org, alb, prp, rct, sgr, drf, nts, las, inv, jas, lof, swt] = await Promise.all([
       sb.from('memberships').select('group_id,role,last_seen_at,pinned'),
       sb.from('groups').select('id,name,photo,photo_pos,demo'),
       sb.from('sparks').select('*').order('created_at', { ascending: false }),
@@ -480,7 +499,8 @@
       sb.from('spot_options').select('id,spark_id,name,address,lat,lon,who,created_by,created_at'),
       sb.from('spot_votes').select('option_id,user_id'),
       // Descriptions, end times and shifts came with v6 Update 5; a database without them still loads
-      sb.from('signup_items').select('id,spark_id,item,need,time,end_time,descr,shift_of,created_by,created_at')
+      sb.from('signup_items').select('id,spark_id,item,need,time,end_time,descr,shift_of,kind,waitlist,per_person,created_by,created_at')
+        .then(r => r.error && r.error.code === '42703' ? sb.from('signup_items').select('id,spark_id,item,need,time,end_time,descr,shift_of,created_by,created_at') : r)
         .then(r => r.error && r.error.code === '42703' ? sb.from('signup_items').select('id,spark_id,item,need,time,created_by,created_at') : r),
       sb.from('signup_claims').select('item_id,user_id,note,created_at'),
       sb.from('plan_updates').select('id,spark_id,body,audience,created_by,created_at'),
@@ -502,7 +522,9 @@
         .then(r => r.error && r.error.code === '42703' ? sb.from('event_invites').select('spark_id,user_id,invited_by,created_at').order('created_at') : r) : Promise.resolve({ data: [] }),
       // Job asks and lead offers (20261102070000_job_asks_and_handoff.sql; a database without them still loads)
       state.email ? sb.from('job_asks').select('item_id,spark_id,user_id,asked_by,message,answer,created_at,answered_at').then(r => r.error ? { data: [] } : r) : Promise.resolve({ data: [] }),
-      state.email ? sb.from('lead_offers').select('spark_id,user_id,offered_by,message,created_at').then(r => r.error ? { data: [] } : r) : Promise.resolve({ data: [] })
+      state.email ? sb.from('lead_offers').select('spark_id,user_id,offered_by,message,created_at').then(r => r.error ? { data: [] } : r) : Promise.resolve({ data: [] }),
+      // Take part's waitlists (20261106000000_take_part.sql; a database without them still loads)
+      sb.from('signup_waits').select('item_id,user_id,created_at').order('created_at').then(r => r.error ? { data: [] } : r)
     ]);
     [mem, grp, sp, of, it, gc, rs, dop, dvo, sop, svo, sui, scl, upd, org, alb, prp].forEach(must);
     const rows = (r) => r.error ? [] : r.data || [];
@@ -510,12 +532,12 @@
       memberships: mem.data, groups: grp.data, sparks: sp.data, offers: of.data, interests: it.data, guest_contacts: gc.data, rsvps: rs.data,
       date_options: dop.data, date_votes: dvo.data, spot_options: sop.data, spot_votes: svo.data, signup_items: sui.data, signup_claims: scl.data,
       plan_updates: upd.data, cohosts: org.data, album_photos: alb.data, plan_prep: prp.data,
-      reactions: rows(rct), spark_groups: rows(sgr), event_drafts: rows(drf), notes: rows(nts), lead_asks: rows(las), event_invites: rows(inv), job_asks: rows(jas), lead_offers: rows(lof), profiles: []
+      reactions: rows(rct), spark_groups: rows(sgr), event_drafts: rows(drf), notes: rows(nts), lead_asks: rows(las), event_invites: rows(inv), job_asks: rows(jas), lead_offers: rows(lof), signup_waits: rows(swt), profiles: []
     };
     // Names and photos of everyone on screen
     const ids = new Set([state.me]);
     d.sparks.forEach(s => ids.add(s.lead_id));
-    [d.offers, d.interests, d.rsvps, d.cohosts, d.signup_claims, d.reactions].forEach(t => t.forEach(r => ids.add(r.user_id)));
+    [d.offers, d.interests, d.rsvps, d.cohosts, d.signup_claims, d.signup_waits, d.reactions].forEach(t => t.forEach(r => ids.add(r.user_id)));
     d.notes.forEach(n => ids.add(n.created_by));
     d.lead_asks.forEach(a => { ids.add(a.user_id); ids.add(a.asked_by); });
     d.event_invites.forEach(i => ids.add(i.user_id));
@@ -541,7 +563,7 @@
     const x = {
       rsvps: byKey(d.rsvps, 'spark_id'), dateOpts: byKey(d.date_options, 'spark_id'), dateVotes: byKey(d.date_votes, 'option_id'),
       spotOpts: byKey(d.spot_options, 'spark_id'), spotVotes: byKey(d.spot_votes, 'option_id'), signups: byKey(d.signup_items, 'spark_id'),
-      claims: byKey(d.signup_claims, 'item_id'), updates: byKey(d.plan_updates, 'spark_id'), cohosts: byKey(d.cohosts, 'spark_id'),
+      claims: byKey(d.signup_claims, 'item_id'), waits: byKey(d.signup_waits || [], 'item_id'), updates: byKey(d.plan_updates, 'spark_id'), cohosts: byKey(d.cohosts, 'spark_id'),
       album: byKey(d.album_photos, 'spark_id'), prep: byKey(d.plan_prep, 'spark_id'),
       reactions: byKey(d.reactions, 'spark_id'),   // v6 Update 2 (reactions on past events)
       groups: byKey(d.spark_groups, 'spark_id'),
@@ -750,7 +772,7 @@
   const needAccount = (fn) => { const t = tapNoted; tapNoted = null; if (state.email) needName(fn); else openLogin('account', () => needName(fn), t); };
   const saveGuestContact = async (sparkId) => {
     if (state.email || !state.guest || !sparkId) return;
-    must(await sb.from('guest_contacts').upsert({ spark_id: sparkId, user_id: state.me, name: state.guest.name, phone: null }, { onConflict: 'spark_id,user_id' }));
+    must(await sb.from('guest_contacts').upsert({ spark_id: sparkId, user_id: state.me, name: state.guest.name }, { onConflict: 'spark_id,user_id' }));   // a phone left for Take part stays
   };
   // After a guest's first Going or Maybe on an event (this visit): what an account adds
   const guestAsked = new Set();
@@ -1389,7 +1411,9 @@
       [].concat(...rs).concat(state.fr.friends || []).forEach(p => { const id = p.user_id || p.id; if (id && !seen[id]) { seen[id] = 1; out.push({ id, name: p.name || 'Someone', avatar: p.avatar_path || p.avatar || null }); } });
       return out.sort((a, b) => a.name.localeCompare(b.name)); });
   const openAsks = (s, itemId) => s.jobAsks.filter(a => a.itemId === itemId && !a.answer && !onJob(s, itemId, a.userId));
-  const onJob = (s, itemId, u) => s.signups.some(it => it.id === itemId && it.claims.some(c => c.userId === u));
+  const onJob = (s, itemId, u) => askUnits(s).some(it => it.id === itemId && it.claims.some(c => c.userId === u));
+  // What can be asked for: jobs, and Take part's rows (v8-2: "+ Ask someone", like jobs), named "9:00am court time"
+  const askUnits = (s) => s.signups.concat(...(s.parts || []).map(p => p.rows.map(u => ({ id: u.id, item: partLabel(u), claims: u.claims }))));
   const openJobAsk = (s, j) => {
     setState({ jobAsk: { id: s.id, item: j.id, people: null, q: '', picked: [], notes: {} } });
     peopleFor(s).then(people => { if (state.jobAsk && state.jobAsk.item === j.id) setState({ jobAsk: Object.assign({}, state.jobAsk, { people }) }); });
@@ -1409,7 +1433,7 @@
   const answerJobAsk = (s, a, yes) => run(async () => { must(await sb.rpc('answer_job_ask', { p_item: a.itemId, p_in: yes })); })
     .then(ok => { if (ok) toast(yes ? 'You’re on it. ' + firstName(nameOf(a.by)) + ' will see you’re in.' : 'Thanks for letting ' + firstName(nameOf(a.by)) + ' know.', true); });
   function viewJobAsk() {
-    const ja = state.jobAsk, s = state.sparks.find(x => x.id === ja.id), j = s && s.signups.find(it => it.id === ja.item);
+    const ja = state.jobAsk, s = state.sparks.find(x => x.id === ja.id), j = s && askUnits(s).find(it => it.id === ja.item);
     if (!s || !j) return '';
     const close = () => setState({ jobAsk: null }), q = (ja.q || '').trim().toLowerCase(), open = openAsks(s, j.id);
     const slots = Math.max(0, 2 - open.length), picked = ja.picked || [], notes = ja.notes || {}, n = picked.length;
@@ -1474,7 +1498,7 @@
       '<div style="display:flex;gap:8px"><button type="button" ' + on(onYes) + ' style="flex:1 1 0;min-height:48px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:15.5px;font-weight:800;cursor:pointer">' + yes + '</button>' +
         '<button type="button" ' + on(onNo) + ' style="flex:1 1 0;min-height:48px;border:0;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;color:#0d1117;font-family:inherit;font-size:15.5px;font-weight:800;cursor:pointer">' + no + '</button></div></div>';
     const jobs = s.jobAsks.filter(a => a.userId === state.me && !a.answer && !onJob(s, a.itemId, state.me)).map(a => {
-      const it = s.signups.find(x => x.id === a.itemId);
+      const it = askUnits(s).find(x => x.id === a.itemId);
       return !it ? '' : card('data-job-ask-card', a.by, esc(firstName(nameOf(a.by))) + ' asked if you’d take <span style="color:#8f6405">' + esc(it.item) + '</span>', a.message, 'I’m in', 'Can’t this time', () => answerJobAsk(s, a, true), () => answerJobAsk(s, a, false));
     }).join('');
     const o = s.leadOffer, lead = o && o.userId === state.me
@@ -1563,12 +1587,17 @@
     const cur = myRsvp(s), next = cur === status ? null : status, lead = nameOf(s.leadId, s.leadName);
     const note = { going: 'You’re going. See you there!', maybe: 'Marked as maybe', no: isLead(s) ? 'Marked as can’t make it' : 'Thanks for letting ' + lead + ' know' }[next];
     const jobs = next === 'no' ? myClaims(s) : [];
+    // Take part (v8-2): Can't or Maybe while holding spots asks first; a waitlist place just goes with it
+    const away = (next === 'no' || next === 'maybe') && !isLead(s), spots = away ? myPartRows(s) : [], waits = away ? myWaitRows(s) : [];
     // The button changes as soon as it's tapped (owner, 2026-10-01: it took a second or two). Saves queue in order without
     // blocking the next tap; one refresh follows the last of them, and a save that fails puts that answer back
-    const save = (dropJobs) => { if (state.confirm) setState({ confirm: null }); needGuest(() => {
+    const save = (dropJobs, dropSpots) => { if (state.confirm) setState({ confirm: null }); needGuest(() => {
       if (state.viewAs) return run(async () => {});   // previewing: run() says nothing changes
-      const before = (state.sparks.find(x => x.id === s.id) || s).rsvps;
-      patchSpark(s.id, { rsvps: before.filter(r => r.userId !== state.me).concat(next ? [{ userId: state.me, status: next, created: Date.now() }] : []) });
+      const now = state.sparks.find(x => x.id === s.id) || s, before = now.rsvps, partsBefore = now.parts;
+      const offSpots = (dropSpots ? spots : []).map(u => u.id), offWaits = waits.map(u => u.id);
+      patchSpark(s.id, Object.assign({ rsvps: before.filter(r => r.userId !== state.me).concat(next ? [{ userId: state.me, status: next, created: Date.now() }] : []) },
+        offSpots.length || offWaits.length ? { parts: (partsBefore || []).map(p => Object.assign({}, p, { rows: p.rows.map(u => Object.assign({}, u, {
+          claims: offSpots.indexOf(u.id) > -1 ? u.claims.filter(c => c.userId !== state.me) : u.claims, waits: offWaits.indexOf(u.id) > -1 ? u.waits.filter(w => w !== state.me) : u.waits })) })) } : {}));
       // Going to a dated event: the toast becomes a banner with Add to calendar, so the reminder is set while they're committing
       if (next === 'going' && s.dayDate && !s.cancelledAt) showBanner({ kind: 'going', id: s.id }, 5000);
       else if (note) toast(dropJobs ? 'Thanks for letting ' + lead + ' know. You’re off the list too.' : note, true);
@@ -1581,10 +1610,12 @@
           if (!next) must(await sb.from('rsvps').delete().eq('spark_id', s.id).eq('user_id', state.me));
           else must(await sb.from('rsvps').upsert({ spark_id: s.id, user_id: state.me, status: next }, { onConflict: 'spark_id,user_id' }));
           if (dropJobs) must(await sb.from('signup_claims').delete().in('item_id', jobs.map(it => it.id)).eq('user_id', state.me));
+          if (offSpots.length) must(await sb.from('signup_claims').delete().in('item_id', offSpots).eq('user_id', state.me));
+          if (offWaits.length) must(await sb.from('signup_waits').delete().in('item_id', offWaits).eq('user_id', state.me));
           if (next === 'going' || next === 'maybe') askGuestToJoin(s);   // only once it's saved (it used to say "You're on the list" over a failed save)
         } catch (e) {
           console.error(e);
-          patchSpark(s.id, { rsvps: before });
+          patchSpark(s.id, Object.assign({ rsvps: before }, offSpots.length || offWaits.length ? { parts: partsBefore } : {}));
           if (state.banner && state.banner.kind === 'going' && state.banner.id === s.id) setState({ banner: null });
           toast(failed(e));
         }
@@ -1593,13 +1624,20 @@
       });
     }); };
     // Can't, while signed up for a job: free the spot too? (owner, 2026-09-30)
-    if (jobs.length) {
+    const askJobs = (dropSpots) => {
       const names = jobs.map(it => it.item).filter((x, k, a) => a.indexOf(x) === k);
-      return setState({ confirm: { title: 'Take you off ' + (names.length === 1 ? '“' + names[0] + '”' : 'your ' + names.length + ' jobs') + ' too?',
+      setState({ confirm: { title: 'Take you off ' + (names.length === 1 ? '“' + names[0] + '”' : 'your ' + names.length + ' jobs') + ' too?',
         body: firstName(lead) + ' is counting on you for ' + namesList(names) + '. If you can’t make it, free the spot so someone else can grab it.',
-        cta: 'Take me off', keep: 'Keep my spot', run: () => save(true), alt: () => save(false) } });
+        cta: 'Take me off', keep: 'Keep my spot', run: () => save(true, dropSpots), alt: () => save(false, dropSpots) } });
+    };
+    // Holding spots (Design v8-2): give them up, or Never mind keeps your answer as it was
+    if (spots.length) {
+      return setState({ confirm: { title: spots.length === 1 ? 'Give up your spot?' : 'Give up your ' + spots.length + ' spots?',
+        body: 'You have ' + namesList(spots.map(partLabel)) + '. Spots are for people going, so ' + (spots.length === 1 ? 'it' : 'they') + ' will go to the next person on the waitlist.',
+        cta: 'Give it up', keep: 'Never mind', run: () => jobs.length ? askJobs(true) : save(false, true) } });
     }
-    save(false);
+    if (jobs.length) return askJobs(false);
+    save(false, false);
   };
 
   // A vote on a suggested date or place changes as soon as it's tapped, like RSVP (owner, 2026-10-01: it lagged the same way).
@@ -3368,7 +3406,7 @@
 
   // ---- My tasks (v8 6h/6k, 6j, 7a): one list grouped by event, soonest first. Chips All · Leading · Helping · Ideas;
   // Timeline (a date line, the event name with its role bar, a white card of rows) or Condensed (one card).
-  const TK_INK = { lead: '#5b4ae8', help: '#f5b428', idea: '#1f5fa8' };
+  const TK_INK = { lead: '#5b4ae8', help: '#f5b428', idea: '#1f5fa8', part: '#149a4b' };
   const tkRows = () => {
     const d = tasksData(), out = [];
     // A job to fill reads NEED, the job, its open spots; Ask opens the ask right here (shifts can't be asked: Share)
@@ -3387,6 +3425,16 @@
     leads.forEach(s => out.push({ s, kind: 'lead', rows: leadRows(s, 'lead') }));
     d.ideas.forEach(s => out.push({ s, kind: 'idea', rows: leadRows(s, 'idea') }));
     d.help.forEach(z => out.push({ s: z.s, kind: 'help', rows: z.a.map(a => a.time ? { title: a.act, sub: a.cta === 'Any time' ? '' : a.cta } : { title: a.act, cta: a.cta, go: a.go, warn: a.warn }) }));
+    // Taking part (v8-2): each spot you hold (its times under it), and each waitlist you're on with your place
+    state.sparks.filter(s => inMine(s) && s.planned && !s.cancelledAt && !isLead(s) && phaseOf(s) !== 'done').forEach(s => {
+      const rows = [];
+      (s.parts || []).forEach(p => {
+        const mine = p.rows.filter(u => u.claims.some(c => c.userId === state.me));
+        if (mine.length) rows.push({ title: p.item, sub: p.kind === 'time' ? namesList(mine.map(u => slotTime(u.time))) : p.time ? slotTime(p.time) : '' });
+        p.rows.filter(u => u.waits.indexOf(state.me) > -1).forEach(u => rows.push({ title: 'Waitlist for ' + (u.time ? slotTime(u.time) : p.item), sub: ordinal(u.waits.indexOf(state.me) + 1) + ' in line', cta: 'Leave', go: () => leaveWait(s, u) }));
+      });
+      if (rows.length) out.push({ s, kind: 'part', rows });
+    });
     const when = (s) => s.dayDate ? s.dayDate + (s.dayTime || '') : '9999';
     return out.sort((a, b) => when(a.s).localeCompare(when(b.s)) || b.s.created - a.s.created);
   };
@@ -3403,7 +3451,9 @@
       return '<span ' + on(() => setState({ tkCat: k })) + ' aria-pressed="' + onIt + '" data-tk-chip="' + label + '" style="flex:0 0 auto;display:flex;align-items:center;gap:6px;min-height:36px;padding:0 10px;border-radius:999px;font-size:13.5px;font-weight:800;cursor:pointer;' +
         (onIt ? 'background:#0d1117;color:#fff' : 'background:#fff;color:#454b55;box-shadow:inset 0 0 0 1.5px #e3e5ea') + '">' + label +
         '<span style="min-width:20px;height:20px;padding:0 6px;box-sizing:border-box;border-radius:999px;font-size:11.5px;font-weight:900;display:flex;align-items:center;justify-content:center;' + (onIt ? 'background:rgba(255,255,255,.2);color:#fff' : 'background:' + bgc + ';color:' + ink) + '">' + n(k) + '</span></span>'; };
-    const chips = '<div style="display:flex;gap:5px;flex-wrap:wrap">' + chip('all', 'All', '#eef0f3', '#0d1117') + chip('lead', 'Leading', '#ece9fd', '#5b4ae8') + chip('help', 'Helping', '#fdf1d6', '#8f6405') + chip('idea', 'Ideas', '#eaf3fc', '#1f5fa8') + '</div>';
+    // Taking part (v8-2) shows only once you hold a spot or a waitlist place
+    const chips = '<div style="display:flex;gap:5px;flex-wrap:wrap">' + chip('all', 'All', '#eef0f3', '#0d1117') + chip('lead', 'Leading', '#ece9fd', '#5b4ae8') + chip('help', 'Helping', '#fdf1d6', '#8f6405') +
+      (all.some(g => g.kind === 'part') ? chip('part', 'Taking part', '#e7f6ec', '#0f7a3c') : '') + chip('idea', 'Ideas', '#eaf3fc', '#1f5fa8') + '</div>';
     // Timeline / Condensed (7a): a gray pill with two icons
     const vt = (k, label, icon) => { const onIt = (k === 'dense') === dense;
       return '<span ' + on(() => setState({ tkView: k }), 'tab') + ' aria-label="' + label + '" title="' + label + '" aria-selected="' + onIt + '" style="display:flex;align-items:center;justify-content:center;width:32px;height:26px;border-radius:999px;cursor:pointer;' + (onIt ? 'background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.12);color:#0d1117' : 'color:#6b7280') + '">' + svg(16, stroke('currentColor', 2.2), icon) + '</span>'; };
@@ -3482,6 +3532,9 @@
     if (s.cancelledAt) return { k: 'off', R: R6.open, word: 'Cancelled', rows: [], right: 'See' };
     if (isLead(s)) return { k: 'lead', R: R6.lead, word: 'Leading', icon: 'bolt', rows: ownActs(s) };
     if (helpsOn(s)) return { k: 'help', R: R6.help, word: 'Helping', icon: 'clip', rows: helpActs(s) };
+    // Holding Take part spots (v8-2): still Going, with your spot ("Going · 10:00am court time", +N more)
+    const spots = my === 'going' ? myPartRows(s) : [];
+    if (spots.length) return { k: 'go', R: R6.go, word: 'Going · ' + esc(partLabel(spots[0])), icon: 'check', rows: [], right: spots.length > 1 ? '+' + (spots.length - 1) + ' more' : 'Change RSVP' };
     if (my === 'going' || my === 'maybe') return { k: 'go', R: my === 'maybe' ? R6.maybe : R6.go, word: my === 'maybe' ? 'Maybe' : 'Going', icon: 'check', rows: [], right: my === 'maybe' ? 'Update RSVP' : 'Change RSVP' };
     return cal ? { k: 'open', R: R6.open, word: '', rows: [], right: 'RSVP' } : null;
   };
@@ -4173,7 +4226,7 @@
         add({ key: 'la:' + s.id + ':' + a.at, type: 'leadask', s, t: a.at, uid: a.by, who: nameOf(a.by, 'Someone'), text: 'asked if you’d lead', quote: a.message || '' }));
       // Asked to take a job, or to take over leading it (20261102070000_job_asks_and_handoff.sql)
       if (!s.cancelledAt && phaseOf(s) !== 'done') {
-        s.jobAsks.filter(a => a.userId === me && !a.answer).forEach(a => { const it = s.signups.find(x => x.id === a.itemId);
+        s.jobAsks.filter(a => a.userId === me && !a.answer).forEach(a => { const it = askUnits(s).find(x => x.id === a.itemId);
           if (it) add({ key: 'ja:' + a.itemId + ':' + a.at, type: 'jobask', s, t: a.at, uid: a.by, who: nameOf(a.by, 'Someone'), text: 'asked if you’d take', item: it.item, joiner: ' for ', quote: a.message }); });
         if (s.leadOffer && s.leadOffer.userId === me) add({ key: 'lo:' + s.id + ':' + s.leadOffer.at, type: 'leadoffer', s, t: s.leadOffer.at, uid: s.leadOffer.by, who: nameOf(s.leadOffer.by, 'Someone'), text: 'asked if you’d take over leading', quote: s.leadOffer.message });
       }
@@ -4181,10 +4234,12 @@
       // Things you're hosting
       // A job sign-up marks you Going: the sign-up's row covers it, so that automatic Going isn't its own row
       const claimAt = {};
-      s.signups.forEach(it => it.claims.forEach(c => { if (c.created) claimAt[c.userId] = Math.max(claimAt[c.userId] || 0, c.created); }));
+      s.signups.concat(...(s.parts || []).map(p => p.rows)).forEach(it => it.claims.forEach(c => { if (c.created) claimAt[c.userId] = Math.max(claimAt[c.userId] || 0, c.created); }));
       s.rsvps.filter(r => r.userId !== me && !(r.status === 'going' && claimAt[r.userId] && Math.abs(r.created - claimAt[r.userId]) < 120000)).forEach(r => add({ key: 'rv:' + s.id + ':' + r.userId, type: 'rsvp', s, t: r.created, uid: r.userId, who: personName(s, r.userId),
         text: r.status === 'going' ? 'is going to' : r.status === 'maybe' ? 'might come to' : 'can’t make it to' }));
       s.signups.forEach(it => it.claims.filter(c => c.userId !== me && c.created).forEach(c => add({ key: 's:' + it.id + ':' + c.userId, type: 'signup', s, t: c.created, uid: c.userId, who: personName(s, c.userId), text: 'signed up to bring', item: it.item })));
+      // Take part (v8-2): "Dee claimed 9:00am court time"
+      (s.parts || []).forEach(p => p.rows.forEach(u => u.claims.filter(c => c.userId !== me && c.created).forEach(c => add({ key: 'pc:' + u.id + ':' + c.userId, type: 'signup', s, t: c.created, uid: c.userId, who: personName(s, c.userId), text: 'claimed', item: partLabel(u) }))));
       // Soft holds, the lead's two reminders (20261103000000_soft_holds.sql): once a date leads with 3+ votes (after the
       // morning job sent the push), and the day before the holds lapse
       if (ph === 'idea' && holdOn(s) && !s.wantsHost) {
@@ -4372,7 +4427,6 @@
   // ---- Give feedback (v6 Update 9, 50 · 51): a bottom sheet to Eric; the note goes to the feedback table
   // (only the owner reads it) and buzzes the owner's phone
   const ERIC_FACE = '/photos/faces/eric.jpg';
-  const FB_QS = ['What’s your overall sense of it?', 'How useful does it feel?', 'What would make you excited to use it?', 'Any issues I should be considering?'];
   const sendFeedback = async () => {
     const f = state.fb;
     if (!f || f.sent || !f.text.trim() || state.busy) return;
@@ -4406,11 +4460,13 @@
           '<h3 style="margin:6px 0 0;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">Thank you!</h3>' +
           '<p style="margin:0;font-size:15px;line-height:1.45;font-weight:500;color:#5c6270;text-wrap:pretty">Got it. This really helps me figure out what to build next.</p>' +
           '<button type="button" ' + on(close) + ' style="margin-top:8px;width:100%;min-height:52px;border:0;border-radius:999px;background:#0d1117;color:#fff;font-family:inherit;font-size:16px;font-weight:800;cursor:pointer">Done</button></div>'
+      // v8-2 (1a): eyebrow and title beside Eric's photo, one plain line, no prompt list
       : '<div style="display:flex;align-items:flex-start;gap:12px">' + ericFace(48) +
-          '<h3 style="flex:1;min-width:0;margin:0;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117;text-wrap:balance">Tell Eric what you think about the app so far</h3>' +
-          '<span ' + on(close) + ' style="flex:0 0 auto;display:flex;align-items:center;min-height:32px;font-size:15px;font-weight:700;color:#6b7280;cursor:pointer">Cancel</span></div>' +
-        '<ul style="margin:0;padding:0 0 0 20px;display:flex;flex-direction:column;gap:6px;font-size:15.5px;line-height:1.4;font-weight:600;color:#2a2f38">' + FB_QS.map(q => '<li>' + q + '</li>').join('') + '</ul>' +
-        '<textarea rows="5" maxlength="1000" aria-label="Your feedback" placeholder="Write as much or as little as you like." ' + onInput(e => { if (e.type === 'input') setState({ fb: Object.assign({}, state.fb, { text: e.target.value.slice(0, 1000) }) }); }) +
+          '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px"><span style="font-size:11.5px;font-weight:900;letter-spacing:1px;color:#8f6405">FEEDBACK WANTED</span>' +
+            '<h3 style="margin:0;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117;text-wrap:balance">What do you think of the app so far?</h3></div>' +
+          '<span ' + on(close) + ' style="flex:0 0 auto;display:flex;align-items:center;min-height:32px;font-size:15px;font-weight:800;color:#6b7280;cursor:pointer">Cancel</span></div>' +
+        '<p style="margin:0;font-size:15.5px;line-height:1.45;font-weight:600;color:#2a2f38;text-wrap:pretty">Tell me honestly: what’s working and what would make it better?</p>' +
+        '<textarea rows="6" maxlength="1000" aria-label="Your feedback" placeholder="Write as much or as little as you like." ' + onInput(e => { if (e.type === 'input') setState({ fb: Object.assign({}, state.fb, { text: e.target.value.slice(0, 1000) }) }); }) +
           ' style="width:100%;box-sizing:border-box;min-height:140px;padding:14px;border:2px solid #dcdfe6;border-radius:16px;font-family:inherit;font-size:16px;font-weight:500;line-height:1.4;color:#0d1117;resize:none;outline:none">' + esc(f.text) + '</textarea>' +
         // A screenshot they took with the phone's buttons (a web page can't take one itself)
         (f.shot
@@ -4418,14 +4474,14 @@
               '<span ' + on(() => setState({ zoom: { photos: [f.shot.url], i: 0 } })) + ' aria-label="See the screenshot" style="flex:0 0 44px;width:44px;height:64px;border-radius:8px;background:#dcdfe6 url(' + f.shot.url + ') center/cover;cursor:zoom-in"></span>' +
               '<span style="flex:1;min-width:0;font-size:14.5px;font-weight:800;color:#0d1117">Screenshot added</span>' +
               '<span ' + on(() => { URL.revokeObjectURL(f.shot.url); setState({ fb: Object.assign({}, state.fb, { shot: null }) }); }) + ' aria-label="Remove the screenshot" style="flex:0 0 32px;width:32px;height:32px;border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(12, '#6b7280', 2.8) + '</span></div>'
-          : '<label data-fb-add-shot style="display:flex;align-items:center;gap:10px;min-height:48px;padding:0 14px;border-radius:14px;border:1.5px dashed #c9ccd3;color:#454b55;font-size:14.5px;font-weight:800;cursor:pointer">' +
+          : '<label data-fb-add-shot style="display:flex;align-items:center;gap:10px;min-height:48px;padding:0 14px;border-radius:14px;border:1.5px dashed #c9ccd3;color:#454b55;font-size:15px;font-weight:800;cursor:pointer">' +
               svg(17, stroke('currentColor', 2.2), CAMERA) + 'Add a screenshot<span style="font-weight:600;color:#8a909b">(optional)</span>' +
               '<input type="file" accept="image/*" aria-label="Add a screenshot" ' + onInput(e => { if (e.type !== 'change') return; const fl = (e.target.files || [])[0]; e.target.value = ''; pickFbShot(fl); }) + ' style="display:none"></label>') +
         // Said plainly: what comes along with it
         '<p data-fb-sent-with style="margin:0;font-size:12.5px;line-height:1.45;font-weight:600;color:#8a909b;text-wrap:pretty">Sent with: ' + esc(deviceName(navigator.userAgent) + ' · ' + (STANDALONE ? 'Home Screen app' : 'browser') + ' · ' + fbWhere()) + '. Your last few taps and any errors come along too, to help track down glitches.</p>' +
         '<button type="button" ' + on(sendFeedback) + ' aria-disabled="' + !ok + '" style="width:100%;min-height:52px;border:0;border-radius:999px;background:' + (ok ? '#5b4ae8' : '#dcdfe6') + ';color:' + (ok ? '#fff' : '#8a909b') + ';font-family:inherit;font-size:16px;font-weight:800;cursor:' + (ok ? 'pointer' : 'default') + '">' + (state.busy === 'feedback' ? 'Sending…' : 'Send to Eric') + '</button>';
     return '<div class="v6-scrim" data-scrim="' + reg(close) + '" style="z-index:50">' +
-      '<div role="dialog" aria-modal="true" aria-label="Give feedback" data-screen-label="Give feedback" style="position:absolute;left:0;right:0;bottom:0;max-height:calc(100% - 24px - var(--sat));overflow:auto;background:#fff;border-radius:24px 24px 0 0;padding:8px 18px calc(22px + env(safe-area-inset-bottom, 0px));display:flex;flex-direction:column;gap:16px;animation:sheetUp 320ms cubic-bezier(.2,.8,.2,1) both">' +
+      '<div role="dialog" aria-modal="true" aria-label="Give feedback" data-screen-label="Give feedback" style="position:absolute;left:0;right:0;bottom:0;max-height:min(90%, calc(100% - 24px - var(--sat)));overflow:auto;background:#fff;border-radius:24px 24px 0 0;padding:10px 16px calc(22px + env(safe-area-inset-bottom, 0px));display:flex;flex-direction:column;gap:16px;animation:sheetUp 320ms cubic-bezier(.2,.8,.2,1) both">' +
         '<div aria-hidden="true" style="width:40px;height:5px;border-radius:999px;background:#dcdfe6;margin:0 auto"></div>' + inner + '</div></div>';
   }
 
@@ -5369,6 +5425,206 @@
   };
   const directionsUrl = (s) => 'https://www.google.com/maps/dir/?api=1&destination=' + (s.spotPoint ? s.spotPoint[0] + ',' + s.spotPoint[1] : encodeURIComponent(s.spotAddress || s.spot));
 
+  // ---- Take part (Design v8-2, 1c; 20261106000000_take_part.sql). Spots people claim to take part: a time row per court
+  // time, or one row for a seat or any other spot. Claiming one RSVPs you Going (Undo puts your answer back), you may
+  // hold several up to the lead's Most per person, and a full one has a waitlist (gray) whose first in line moves up on
+  // their own (the database does it). Guests claim with a name and a phone, which only the lead sees; no texts yet
+  // (owner, 2026-10-05). Hosts see who has which spot and don't claim.
+  const partLabel = (u) => u.part.kind === 'time' && u.time ? slotTime(u.time) + ' ' + u.part.item.toLowerCase() : u.part.item;
+  const capFirst = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+  const ordinal = (n) => n + (n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th');
+  const myPartRows = (s) => [].concat(...(s.parts || []).map(p => p.rows.filter(u => u.claims.some(c => c.userId === state.me))));
+  const myWaitRows = (s) => [].concat(...(s.parts || []).map(p => p.rows.filter(u => u.waits.indexOf(state.me) > -1)));
+  const partHeld = (p, withWaits) => [].concat(...p.rows.map(u => u.claims.filter(c => c.userId === state.me).concat(withWaits ? u.waits.filter(w => w === state.me) : []))).length;
+  // The event with one row changed (claims or waitlist), and the same row as the page has it now
+  const withPart = (s, rowId, fn) => ({ parts: (s.parts || []).map(p => p.rows.some(u => u.id === rowId) ? Object.assign({}, p, { rows: p.rows.map(u => u.id === rowId ? fn(u) : u) }) : p) });
+  const freshRow = (s, u) => { const t = state.sparks.find(x => x.id === s.id) || s; for (const p of t.parts || []) { const r = p.rows.find(x => x.id === u.id); if (r) return [t, r]; } return [t, u]; };
+  // Signed in: a name. A guest: a name and phone for this event, once (the database checks it)
+  const guestPhone = (s) => { const c = s.contacts.find(x => x.user_id === state.me); return c && c.phone ? c.phone : state.partGuestSaved && state.partGuestSaved.id === s.id ? state.partGuestSaved.phone : ''; };
+  const partGate = (s, u, act, fn) => {
+    if (state.email) { needName(fn); return; }
+    if (guestPhone(s) && (state.guest || state.myName)) { if (!state.guest) state.guest = { name: state.myName }; fn(); return; }
+    setState({ partGuest: { id: s.id, row: u.id, act, name: (state.guest && state.guest.name) || state.myName || state.guestName || '', phone: '' } });
+  };
+  const savePartGuest = async (s) => {
+    if (state.email || !state.guest) return;
+    const g = state.partGuestSaved && state.partGuestSaved.id === s.id ? state.partGuestSaved : null;
+    must(await sb.from('guest_contacts').upsert(Object.assign({ spark_id: s.id, user_id: state.me, name: state.guest.name }, g ? { phone: g.phone } : {}), { onConflict: 'spark_id,user_id' }));
+  };
+  const overCap = (p, withWaits) => p.perPerson && partHeld(p, withWaits) >= p.perPerson
+    ? (toast('Up to ' + p.perPerson + ' per person for ' + p.item.toLowerCase()), true) : false;
+  const claimPart = (s0, u0) => partGate(s0, u0, 'claim', () => {
+    const [s, u] = freshRow(s0, u0);
+    if (overCap(u.part, false)) return;
+    const was = myRsvp(s), lbl = partLabel(u), lead = isLead(s);
+    if (!state.viewAs) toast(capFirst(lbl) + ' is yours.' + (s.planned && !lead ? ' You’re going.' : ''), true, { label: 'Undo', fn: () => undoPart(s.id, u.id, was) });
+    quick(s, Object.assign(withPart(s, u.id, x => Object.assign({}, x, { claims: x.claims.concat([{ userId: state.me, created: Date.now() }]), waits: x.waits.filter(w => w !== state.me) })), goingToo(s)), async () => {
+      await savePartGuest(s);
+      must(await sb.from('signup_claims').insert({ item_id: u.id, user_id: state.me }));
+      await goingWithJob(s);
+    });
+  });
+  const undoPart = (sparkId, rowId, was) => run(async () => {
+    await quickChain;   // the claim being undone may still be saving
+    must(await sb.from('signup_claims').delete().eq('item_id', rowId).eq('user_id', state.me));
+    if (was !== 'going') {
+      if (was) must(await sb.from('rsvps').upsert({ spark_id: sparkId, user_id: state.me, status: was }, { onConflict: 'spark_id,user_id' }));
+      else must(await sb.from('rsvps').delete().eq('spark_id', sparkId).eq('user_id', state.me));
+    }
+  }, { toast: null }).then(ok => { if (ok) toast('Okay, it’s open again', true); });
+  const giveUpPart = (s0, u0) => {
+    const [s, u] = freshRow(s0, u0);
+    toast('You gave up ' + partLabel(u) + '.', true);
+    quick(s, withPart(s, u.id, x => Object.assign({}, x, { claims: x.claims.filter(c => c.userId !== state.me) })), async () => {
+      must(await sb.from('signup_claims').delete().eq('item_id', u.id).eq('user_id', state.me));
+    });
+  };
+  const joinWait = (s0, u0) => partGate(s0, u0, 'wait', () => {
+    const [s, u] = freshRow(s0, u0);
+    if (overCap(u.part, true)) return;
+    toast('You’re on the waitlist, ' + ordinal(u.waits.length + 1) + ' in line. If a spot opens, it’s yours.', true);
+    quick(s, Object.assign(withPart(s, u.id, x => Object.assign({}, x, { waits: x.waits.concat([state.me]) })), goingToo(s)), async () => {
+      await savePartGuest(s);
+      must(await sb.from('signup_waits').insert({ item_id: u.id, user_id: state.me }));
+      await goingWithJob(s);
+    });
+  });
+  const leaveWait = (s0, u0) => {
+    const [s, u] = freshRow(s0, u0);
+    toast('You left the waitlist', true);
+    quick(s, withPart(s, u.id, x => Object.assign({}, x, { waits: x.waits.filter(w => w !== state.me) })), async () => {
+      must(await sb.from('signup_waits').delete().eq('item_id', u.id).eq('user_id', state.me));
+    });
+  };
+  // The lead takes someone off (they're told; the next in line moves up)
+  const removeFromPart = (s, u, uid) => setState({ partRoster: null, confirm: { title: 'Take ' + firstName(personName(s, uid)) + ' off ' + partLabel(u) + '?', danger: true, cta: 'Remove', keep: 'Keep them',
+    body: 'They’ll get a note.' + (u.waits.length ? ' ' + firstName(personName(s, u.waits[0])) + ', first in line, moves up.' : ''),
+    run: () => run(async () => { must(await sb.rpc('remove_part_claim', { p_item: u.id, p_user: uid })); }, { confirm: null }) } });
+
+  function takePart(s) {
+    const parts = s.parts || [];
+    if (!parts.length || !s.planned || s.cancelledAt) return '';
+    const st = state, lead = isLead(s), live = phaseOf(s) !== 'done';
+    const pill = 'flex:0 0 auto;display:flex;align-items:center;justify-content:center;height:34px;padding:0 16px;border-radius:999px;font-size:14px;font-weight:800;white-space:nowrap;cursor:pointer;';
+    const textBtn = (label, fn, attr) => '<span ' + on(fn) + ' ' + attr + ' role="button" style="flex:0 0 auto;display:flex;align-items:center;min-height:34px;padding:0 4px;font-size:14px;font-weight:800;color:#6b7280;cursor:pointer">' + label + '</span>';
+    const seats = (u, canTap, act) => {
+      const ids = u.claims.map(c => c.userId), ring = 'flex:0 0 28px;width:28px;height:28px;border-radius:999px;box-sizing:border-box;border:2px dashed #c9ccd3;background:#fff;';
+      const items = ids.map(id => '<span style="display:flex;border-radius:999px;box-shadow:0 0 0 2px ' + (id === st.me ? '#149a4b' : '#fff') + '">' + face(id, personName(s, id), 28) + '</span>');
+      const open = u.need ? Math.max(0, u.need - ids.length) : 0;
+      for (let k = 0; k < open; k++) items.push(k === 0 && canTap ? '<span ' + on(act) + ' aria-label="Claim an open spot" style="' + ring + 'cursor:pointer"></span>' : '<span aria-hidden="true" style="' + ring + '"></span>');
+      const shown = items.length > 6 ? items.slice(0, 4).concat('<span style="flex:0 0 auto;min-width:28px;height:28px;padding:0 8px;box-sizing:border-box;border-radius:999px;background:#eef0f3;color:#454b55;font-size:12.5px;font-weight:900;display:flex;align-items:center;justify-content:center">+' + (items.length - 4) + '</span>') : items;
+      return '<span style="flex:0 0 auto;display:flex;align-items:center;gap:4px">' + shown.join('') + '</span>';
+    };
+    // One row: its seats, a count, and Claim / Give up / Waitlist / Leave (members), or who has it (hosts)
+    const row = (u, single) => {
+      const p = u.part, ids = u.claims.map(c => c.userId), mine = ids.indexOf(st.me) > -1, wpos = u.waits.indexOf(st.me);
+      const full = !!u.need && ids.length >= u.need, canClaim = live && !lead && !mine && !full;
+      const claim = () => { if (!st.busy) claimPart(s, u); };
+      const count = wpos > -1 ? '<span style="font-size:13.5px;font-weight:700;color:#6b7280">You’re ' + ordinal(wpos + 1) + ' in line</span>'
+        : full ? '<span style="font-size:13.5px;font-weight:700;color:#6b7280">Full' + (u.waits.length ? ' · ' + u.waits.length + ' waiting' : '') + '</span>'
+        : '<span style="font-size:13.5px;font-weight:700;color:#6b7280">' + Math.max(0, u.need - ids.length) + ' open</span>';
+      const btn = !live || lead ? ''
+        : mine ? textBtn('Give up', () => giveUpPart(s, u), 'data-part-give-up')
+        : wpos > -1 ? textBtn('Leave', () => leaveWait(s, u), 'data-part-leave')
+        : full ? (p.waitlist ? '<span ' + on(() => joinWait(s, u)) + ' data-part-waitlist-btn role="button" style="' + pill + 'background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;color:#0d1117">Waitlist</span>'
+                             : '<span aria-disabled="true" style="' + pill + 'cursor:default;background:#eef0f3;color:#8a909b">Full</span>')
+        : '<span ' + on(claim) + ' data-part-claim role="button" style="' + pill + 'background:#149a4b;color:#fff">Claim</span>';
+      const who = lead && (ids.length || u.waits.length) ? '<span data-part-names style="font-size:13px;line-height:1.35;font-weight:600;color:#6b7280">' +
+        esc(ids.map(id => firstName(personName(s, id))).join(', ')) + (u.waits.length ? (ids.length ? ' · ' : '') + 'Waiting: ' + esc(u.waits.map(id => firstName(personName(s, id))).join(', ')) : '') + '</span>' : '';
+      const top = single ? '' : '<span style="font-size:14.5px;font-weight:800;color:' + (mine ? '#0f7a3c' : '#0d1117') + '">' + esc(u.time ? slotTime(u.time) : p.item) + (mine ? ' · You’re in' : '') + '</span>';
+      const inner = (top ? top : '') +
+        '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;min-width:0">' + seats(u, canClaim, claim) + count + '</div>' + who;
+      const box = single ? 'padding:0' : 'padding:10px 12px;border-radius:14px;' + (mine ? 'background:#f3fbf6;box-shadow:inset 0 0 0 1.5px #b9e3c8' : 'background:#f7f8fa');
+      return '<div data-part-row="' + esc(u.time ? slotTime(u.time) : p.item) + '"' + (mine ? ' data-mine' : '') + (wpos > -1 ? ' data-waiting' : '') + (lead ? ' ' + on(() => setState({ partRoster: { id: s.id, part: p.id } })) : '') +
+        ' style="display:flex;align-items:center;gap:10px;' + box + (lead ? ';cursor:pointer' : '') + '">' +
+        '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px">' + inner + '</div>' + (single ? '' : btn) + '</div>';
+    };
+    const card = (p) => {
+      const single = p.kind !== 'time', u0 = p.rows[0], more = !!st.partMore[p.id];
+      const each = p.rows.every(u => u.need === u0.need) ? u0.need + ' each' : p.rows.reduce((a, u) => a + (u.need || 0), 0) + ' spots';
+      const sub = (p.kind === 'time' ? p.rows.length + (p.rows.length === 1 ? ' time' : ' times') + ' · ' + each
+        : (p.time ? slotTime(p.time) + ' · ' : '') + (p.need || 0) + ' ' + (p.kind === 'seat' ? (p.need === 1 ? 'seat' : 'seats') : (p.need === 1 ? 'spot' : 'spots'))) +
+        (p.perPerson ? ' · up to ' + p.perPerson + ' per person' : '');
+      const mineSingle = single && u0.claims.some(c => c.userId === st.me);
+      const shown = single || more || p.rows.length <= 3 ? p.rows : p.rows.slice(0, 3);
+      const anyOpen = p.rows.some(u => !u.need || u.claims.length < u.need);
+      // A seat's (or any single spot's) button sits on its title line, like a job's
+      const btnFor = (u) => { const ids = u.claims.map(c => c.userId), mine = ids.indexOf(st.me) > -1, w = u.waits.indexOf(st.me) > -1, full = !!u.need && ids.length >= u.need;
+        if (!live || lead) return '';
+        if (mine) return textBtn('Give up', () => giveUpPart(s, u), 'data-part-give-up');
+        if (w) return textBtn('Leave', () => leaveWait(s, u), 'data-part-leave');
+        if (full) return p.waitlist ? '<span ' + on(() => joinWait(s, u)) + ' data-part-waitlist-btn role="button" style="' + pill + 'background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;color:#0d1117">Waitlist</span>' : '<span aria-disabled="true" style="' + pill + 'cursor:default;background:#eef0f3;color:#8a909b">Full</span>';
+        return '<span ' + on(() => { if (!st.busy) claimPart(s, u); }) + ' data-part-claim role="button" style="' + pill + 'background:#149a4b;color:#fff">Claim</span>'; };
+      const head = '<div style="display:flex;align-items:flex-start;gap:10px"><div style="flex:1;min-width:0">' +
+          '<div style="font-size:18px;line-height:1.25;font-weight:900;letter-spacing:-.3px;color:' + (mineSingle ? '#0f7a3c' : '#0d1117') + ';text-wrap:pretty">' + esc(p.item) + (mineSingle ? '<span style="font-size:14px;font-weight:800"> · You’re in</span>' : '') + '</div>' +
+          '<div style="margin-top:2px;font-size:13.5px;font-weight:600;color:#6b7280">' + esc(sub) + '</div></div>' +
+        (lead && live ? '<span ' + on(() => openNeeds(s)) + ' data-edit-parts aria-label="Edit ' + esc(p.item) + '" style="flex:0 0 32px;width:32px;height:32px;margin:-4px -6px 0 0;display:flex;align-items:center;justify-content:center;color:#9aa0ac;cursor:pointer">' + svg(15, stroke('currentColor', 2.3), PENCIL) + '</span>'
+          : single ? '<div style="flex:0 0 auto;margin:-4px 0">' + btnFor(u0) + '</div>' : '') + '</div>';
+      const desc = p.desc ? '<p style="margin:0;font-size:14.5px;line-height:1.45;font-weight:500;color:#454b55;text-wrap:pretty">' + esc(p.desc) + '</p>' : '';
+      const toggle = !single && p.rows.length > 3 ? '<span ' + on(() => setState({ partMore: Object.assign({}, st.partMore, { [p.id]: !more }) })) + ' role="button" aria-expanded="' + more + '" data-part-more style="align-self:center;min-height:32px;display:flex;align-items:center;font-size:13.5px;font-weight:800;color:#6b7280;cursor:pointer">' +
+        (more ? 'Show less ⌃' : (p.rows.length - 3) + (p.rows.length - 3 === 1 ? ' more time ⌄' : ' more times ⌄')) + '</span>' : '';
+      const ask = lead && live && anyOpen ? '<span ' + on(() => single ? openJobAsk(s, { id: u0.id }) : setState({ partRoster: { id: s.id, part: p.id } })) + ' data-ask-part role="button" style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:36px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(14, '#5b4ae8', 2.8) + 'Ask someone</span>' : '';
+      return '<div data-part="' + esc(p.item) + '" style="' + CARD + ';' + (mineSingle ? 'box-shadow:inset 0 0 0 1.5px #b9e3c8,0 1px 3px rgba(15,18,25,.08);' : '') + 'padding:14px 16px;display:flex;flex-direction:column;gap:10px">' +
+        head + desc + (single ? row(u0, true) : '<div style="display:flex;flex-direction:column;gap:8px">' + shown.map(u => row(u, false)).join('') + '</div>') + toggle + ask + '</div>';
+    };
+    return '<section id="sec-take-part" data-screen-label="Take part">' + secTitle('Take part', '', true) +
+      '<div style="display:flex;flex-direction:column;gap:12px">' + parts.map(card).join('') + '</div></section>';
+  }
+
+  // Who has which spot (the lead taps a row): each time with its people (Remove; GUEST for someone without an account),
+  // + Ask someone while it has room, and the waitlist in order
+  function viewPartRoster() {
+    const r = state.partRoster, s = state.sparks.find(x => x.id === r.id), p = s && (s.parts || []).find(x => x.id === r.part);
+    if (!s || !p) return '';
+    const close = () => setState({ partRoster: null });
+    const total = p.rows.reduce((a, u) => a + (u.need || 0), 0), have = p.rows.reduce((a, u) => a + u.claims.length, 0);
+    const isGuest = (id) => s.contacts.some(c => c.user_id === id && c.phone);
+    const person = (u, id) => '<div data-roster-person style="display:flex;align-items:center;gap:10px;min-height:44px">' + face(id, personName(s, id), 32) +
+      '<span style="flex:1;min-width:0;display:flex;align-items:center;gap:8px;font-size:15.5px;font-weight:800;color:#0d1117"><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(personName(s, id)) + '</span>' +
+        (isGuest(id) ? '<span style="flex:0 0 auto;padding:2px 7px;border-radius:999px;background:#eef0f3;font-size:11px;font-weight:900;letter-spacing:.6px;color:#6b7280">GUEST</span>' : '') + '</span>' +
+      (id === state.me ? '' : '<span ' + on(() => removeFromPart(s, u, id)) + ' data-roster-remove role="button" style="flex:0 0 auto;min-height:36px;display:flex;align-items:center;font-size:14px;font-weight:700;color:#8a909b;cursor:pointer">Remove</span>') + '</div>';
+    const block = (u) => { const open = Math.max(0, (u.need || 0) - u.claims.length), live = phaseOf(s) !== 'done';
+      return '<div data-roster-row style="display:flex;flex-direction:column;gap:2px;padding:10px 0;border-top:1px solid #f2f3f6">' +
+        '<div style="font-size:14px;font-weight:600;color:#6b7280"><b style="font-weight:900;color:#0d1117">' + esc(u.time ? slotTime(u.time) : p.item) + '</b> · ' + (open ? open + ' open' : 'full') + (u.waits.length ? ' · ' + u.waits.length + ' waiting' : '') + '</div>' +
+        u.claims.map(c => person(u, c.userId)).join('') +
+        (open && live ? '<span ' + on(() => { setState({ partRoster: null }); openJobAsk(s, { id: u.id }); }) + ' data-roster-ask role="button" style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:36px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(14, '#5b4ae8', 2.8) + 'Ask someone</span>' : '') +
+        (u.waits.length ? '<div data-roster-waiting style="font-size:13.5px;font-weight:700;color:#6b7280">Waiting: ' + esc(u.waits.map(id => firstName(personName(s, id))).join(', then ')) + '</div>' : '') + '</div>'; };
+    return sheet('Who has which spot', close, SHEET_PAD,
+      '<div style="display:flex;align-items:flex-start;gap:10px"><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:800;letter-spacing:1.2px;color:#149a4b">' + esc(p.item.toUpperCase()) + '</div>' +
+        '<div style="margin-top:2px;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.4px;color:#0d1117">' + have + ' of ' + total + ' claimed</div></div>' +
+        '<span ' + on(() => { setState({ partRoster: null }); openNeeds(s); }) + ' role="button" style="flex:0 0 auto;min-height:36px;display:flex;align-items:center;gap:5px;font-size:14px;font-weight:800;color:#6b7280;cursor:pointer">' + svg(13, stroke('currentColor', 2.3), PENCIL) + 'Edit</span>' + closeX(close) + '</div>' +
+      '<div style="display:flex;flex-direction:column">' + p.rows.map(block).join('') + '</div>', 36);
+  }
+
+  // A guest claiming (or joining a waitlist): a name and a phone, for the lead only. No text reminder yet (owner, 2026-10-05)
+  function viewPartGuest() {
+    const g = state.partGuest, s = state.sparks.find(x => x.id === g.id);
+    let u = null;
+    (s && s.parts || []).forEach(p => p.rows.forEach(x => { if (x.id === g.row) u = x; }));
+    if (!s || !u) return '';
+    const close = () => setState({ partGuest: null }), set = (patch) => setState({ partGuest: Object.assign({}, state.partGuest, patch) });
+    const name = cleanTitle(g.name || '').slice(0, 40), phone = (g.phone || '').trim(), ok = !!name && phone.replace(/\D/g, '').length >= 7 && !state.busy;
+    const when = u.time ? slotTime(u.time) : '', wait = g.act === 'wait';
+    const go = () => {
+      if (!ok) return;
+      state.partGuestSaved = { id: s.id, phone: phone.slice(0, 30) };
+      setState({ partGuest: null, guest: { name }, guestName: name });
+      if (!state.myName) saveName(name).catch(() => {});
+      if (wait) joinWait(s, u); else claimPart(s, u);
+    };
+    const signIn = () => { setState({ partGuest: null }); openLogin('account', () => needName(() => wait ? joinWait(s, u) : claimPart(s, u))); };
+    const fld = 'width:100%;box-sizing:border-box;min-height:52px;padding:0 16px;border:2px solid #dcdfe6;border-radius:16px;font-family:inherit;font-size:16px;font-weight:600;color:#0d1117;background:#fff;outline:none';
+    return sheet('Claim this spot', close, SHEET_PAD,
+      '<div style="display:flex;align-items:flex-start;gap:10px"><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:800;letter-spacing:1.2px;color:#149a4b">' + esc((u.part.item + (when ? ' · ' + when : '')).toUpperCase()) + '</div>' +
+        '<div style="margin-top:2px;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.4px;color:#0d1117">' + (wait ? 'Join the waitlist' : 'Claim this spot') + '</div></div>' + closeX(close) + '</div>' +
+      '<input class="fld" type="text" maxlength="40" autocomplete="name" data-autofocus aria-label="Your name" placeholder="Your name" value="' + esc(g.name || '') + '" ' + onInput(e => { if (e.type === 'input') set({ name: e.target.value.slice(0, 40) }); }) + ' style="' + fld + '">' +
+      '<input class="fld" type="tel" maxlength="30" autocomplete="tel" aria-label="Phone number" placeholder="Phone number" value="' + esc(g.phone || '') + '" ' + onInput(e => { if (e.type === 'input') set({ phone: e.target.value.slice(0, 30) }); }) + ' style="' + fld + '">' +
+      '<p style="margin:0;font-size:13px;line-height:1.4;font-weight:600;color:#6b7280">Only the lead sees this.</p>' +
+      '<button type="button" data-enter ' + on(go) + ' aria-disabled="' + !ok + '" style="min-height:52px;border:0;border-radius:999px;font-family:inherit;font-size:16px;font-weight:800;color:#fff;background:' + (ok ? '#149a4b' : '#c9ccd3') + ';cursor:' + (ok ? 'pointer' : 'default') + '">' +
+        (wait ? 'Join the waitlist' : 'Claim ' + (when || (u.part.kind === 'seat' ? 'a seat' : 'a spot'))) + '</button>' +
+      '<span ' + on(signIn) + ' role="button" style="align-self:center;min-height:36px;display:flex;align-items:center;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">Have an account? Sign in</span>', 36);
+  }
+
   // Help out (Design 7g, members, and 12e, the lead; 2026-10-03): one white card per job. A seat per spot (faces, then
   // dashed open spots; the first is a purple + that signs you up), the count, and Sign up / You're in / Full.
   // A shift job has a row per shift, each with its own button; you take one shift per job.
@@ -5443,7 +5699,8 @@
     const ordered = lead ? jobs : jobs.map((j, i) => [j, i]).sort((x, y) => rank(x[0]) - rank(y[0]) || x[1] - y[1]).map(x => x[0]);
     const addLabel = lead ? 'Add a job or item' : 'Add something else';
     const adder = !st.sigAdding
-      ? '<div ' + on(() => setState({ sigAdding: true })) + ' data-add-signup style="display:flex;align-items:center;justify-content:center;gap:8px;min-height:60px;padding:0 16px;border-radius:20px;border:2px dashed #e3c06a;background:#fdf8ea;font-size:15.5px;font-weight:800;color:#8f6405;cursor:pointer">' + I.plus(16, '#8f6405', 2.8) + addLabel + '</div>'
+      // v8-2: quiet gray, no fill (was gold)
+      ? '<div ' + on(() => setState({ sigAdding: true })) + ' data-add-signup style="display:flex;align-items:center;justify-content:center;gap:8px;min-height:60px;padding:0 16px;border-radius:20px;border:1.5px dashed #d5d8df;background:transparent;font-size:14px;font-weight:800;color:#6b7280;cursor:pointer">' + I.plus(15, '#6b7280', 2.8) + addLabel + '</div>'
       : '<div style="' + CARD + ';padding:14px 16px;display:flex;flex-direction:column;gap:10px">' +
           '<div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:15px;font-weight:800;color:#0d1117">' + addLabel + '</span>' +
             '<span ' + on(() => setState({ sigAdding: false, sigDraft: '', sigNeed: '', sigTime: '' })) + ' aria-label="Cancel" style="width:28px;height:28px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(11, '#5c6270', 2.6) + '</span></div>' +
@@ -5582,18 +5839,37 @@
   // Edit what you need: every job editable in place (nothing opens on top)
   // `known`: the jobs and shifts on screen when it opened. Save only removes those, so a job or shift that
   // arrived later (the sheet opened on cached data, or someone added one meanwhile) is never taken down.
-  const openNeeds = (s) => setState({ needEd: { id: s.id, known: [].concat(...(s.jobs || []).map(j => [j.id].concat((j.shifts || []).map(u => u.id)))), rows: (s.jobs || []).map(j => j.shifts
-    ? { id: j.id, item: j.item, desc: j.desc, n: j.claims.length, shifts: j.shifts.map(u => ({ id: u.id, time: u.time || '', end: u.endTime || '', need: u.need || null, n: u.claims.length })) }
-    : { id: j.id, item: j.item, desc: j.desc, n: j.claims.length, time: j.time || '', end: j.endTime || '', need: j.need || null, shifts: null }) } });
+  // Take part's spots (v8-2) edit here too, as job-shaped rows with their kind: a time spot's rows are its shifts
+  const partAsJob = (p) => p.kind === 'time'
+    ? { id: p.id, item: p.item, kind: p.kind, claims: [].concat(...p.rows.map(u => u.claims)), shifts: p.rows }
+    : { id: p.id, item: p.item, kind: p.kind, claims: p.rows[0].claims, shifts: null };
+  const openNeeds = (s) => setState({ needEd: { id: s.id,
+    known: [].concat(...(s.jobs || []).map(j => [j.id].concat((j.shifts || []).map(u => u.id))), ...(s.parts || []).map(p => [p.id].concat(p.rows.map(u => u.id)))),
+    rows: (s.jobs || []).map(j => j.shifts
+      ? { id: j.id, item: j.item, desc: j.desc, n: j.claims.length, shifts: j.shifts.map(u => ({ id: u.id, time: u.time || '', end: u.endTime || '', need: u.need || null, n: u.claims.length })) }
+      : { id: j.id, item: j.item, desc: j.desc, n: j.claims.length, time: j.time || '', end: j.endTime || '', need: j.need || null, shifts: null })
+    .concat((s.parts || []).map(p => p.kind === 'time'
+      ? { id: p.id, kind: p.kind, item: p.item, desc: p.desc, waitlist: p.waitlist, perPerson: p.perPerson, n: [].concat(...p.rows.map(u => u.claims)).length,
+          shifts: p.rows.map(u => ({ id: u.id, time: u.time || '', end: u.endTime || '', need: u.need || null, n: u.claims.length })) }
+      : { id: p.id, kind: p.kind, item: p.item, desc: p.desc, waitlist: p.waitlist, perPerson: p.perPerson, n: p.rows[0].claims.length, time: p.time || '', end: p.endTime || '', need: p.need || null, shifts: null })) } });
   const saveNeeds = (s) => {
     const ed = state.needEd;
     if (!ed || state.busy) return;
-    const orig = s.jobs || [], known = (id) => (ed.known || []).indexOf(id) > -1;
+    const orig = (s.jobs || []).concat((s.parts || []).map(partAsJob)), known = (id) => (ed.known || []).indexOf(id) > -1;
     // Someone signed up since it opened: switching that job between one time and shifts would drop them
-    const flips = ed.rows.filter(r => r.id).filter(r => { const o = orig.find(j => j.id === r.id); return o && o.claims.length && !!o.shifts !== (r.shifts || []).some(q => q.time); });
+    const flips = ed.rows.filter(r => r.id && !r.kind).filter(r => { const o = orig.find(j => j.id === r.id); return o && o.claims.length && !!o.shifts !== (r.shifts || []).some(q => q.time); });
     if (flips.length) { toast('Someone just signed up for “' + cleanTitle(flips[0].item) + '”, so it can’t switch between one time and shifts. Close and open it again.'); return; }
     const kept0 = ed.rows.filter(r => r.id).map(r => r.id), goneJobs = orig.filter(j => kept0.indexOf(j.id) < 0 && known(j.id));
     const off = new Set([].concat(...goneJobs.map(j => [].concat(...(j.shifts || [j]).map(u => u.claims.map(c => c.userId))))).filter(u => u !== state.me)).size;
+    // A time someone holds, taken out of a spot that stays (v8-2: asks first, then tells them)
+    const goneTimes = [].concat(...ed.rows.filter(r => r.id && r.kind === 'time').map(r => { const o = orig.find(j => j.id === r.id), kept = (r.shifts || []).filter(q => q.id && q.time).map(q => q.id);
+      return o ? (o.shifts || []).filter(u => known(u.id) && kept.indexOf(u.id) < 0 && u.claims.some(c => c.userId !== state.me)).map(u => slotTime(u.time) + ' ' + o.item.toLowerCase()) : []; }));
+    if (goneTimes.length && !off && !ed.sure) {
+      setState({ confirm: { title: 'Remove ' + (goneTimes.length === 1 ? goneTimes[0] : goneTimes.length + ' times') + '?', danger: true, cta: 'Remove and save', keep: 'Go back',
+        body: 'People have ' + (goneTimes.length === 1 ? 'that time' : 'those times') + '. They’ll get a note that it was removed.',
+        run: () => { setState({ confirm: null, needEd: Object.assign({}, state.needEd, { sure: true }) }); saveNeeds(s); } } });
+      return;
+    }
     if (off && !ed.sure) {
       setState({ confirm: { title: goneJobs.length === 1 ? 'Remove “' + goneJobs[0].item + '”?' : 'Remove ' + goneJobs.length + ' jobs?', danger: true, cta: 'Remove and save', keep: 'Go back',
         body: (off === 1 ? 'The 1 person signed up gets' : 'The ' + off + ' people signed up get') + ' a note that it’s off the list.',
@@ -5610,18 +5886,20 @@
         const o = orig.find(j => j.id === r.id);
         if (!o) continue;   // taken down since the sheet opened
         const shifts = (r.shifts || []).filter(q => q.time), oldShifts = (o.shifts || []).map(u => u.id).filter(known);
+        const partCols = r.kind ? { waitlist: r.waitlist !== false, per_person: r.perPerson || null } : {};
         if (!shifts.length) {
-          must(await sb.from('signup_items').update({ item, descr, time: r.time || null, end_time: r.time && r.end && r.end > r.time ? r.end : null, need: r.need || null }).eq('id', r.id));
+          if (r.kind === 'time') continue;   // every time taken out: Remove takes the spot down
+          must(await sb.from('signup_items').update(Object.assign({ item, descr, time: r.time || null, end_time: r.time && r.end && r.end > r.time ? r.end : null, need: r.need || null }, partCols)).eq('id', r.id));
           for (const id of oldShifts) must(await sb.rpc('remove_signup', { p_item: id }));   // tells anyone signed up
           continue;
         }
-        must(await sb.from('signup_items').update({ item, descr, time: null, end_time: null, need: null }).eq('id', r.id));
+        must(await sb.from('signup_items').update(Object.assign({ item, descr, time: null, end_time: null, need: null }, partCols)).eq('id', r.id));
         const kept = shifts.filter(q => q.id).map(q => q.id), dropped = oldShifts.filter(id => kept.indexOf(id) < 0);
         for (const id of dropped) must(await sb.rpc('remove_signup', { p_item: id }));   // tells the people on that shift
         for (const q of shifts) {
           const row = { item, time: q.time, end_time: q.end && q.end > q.time ? q.end : null, need: q.need || null };
           if (q.id) must(await sb.from('signup_items').update(row).eq('id', q.id));
-          else must(await sb.from('signup_items').insert(Object.assign({ spark_id: s.id, shift_of: r.id }, row)));
+          else must(await sb.from('signup_items').insert(Object.assign({ spark_id: s.id, shift_of: r.id }, row, r.kind ? { kind: r.kind } : {})));
         }
       }
     }, { needEd: null }).then(ok => { if (ok) toast('Saved', true); });
@@ -5719,11 +5997,15 @@
           '<div style="display:flex;align-items:center;gap:10px"><div style="flex:1;min-width:0;font-size:22px;font-weight:900;letter-spacing:-.4px;color:#0d1117">Edit what you need</div>' + closeX(close) + '</div></div>' +
         '<div style="flex:1 1 auto;min-height:0;overflow-y:auto;padding:16px 18px;display:flex;flex-direction:column;gap:14px">' +
           ed.rows.map((r, k) => '<div data-need-row style="background:#f4f5f7;border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:10px">' +
-            '<div style="display:flex;align-items:center;gap:10px"><span style="font-size:11.5px;font-weight:900;letter-spacing:1.2px;color:#6b7280">JOB ' + (k + 1) + (r.shifts ? ' · SHIFTS' : '') + '</span>' +
-              (r.n ? '<span style="font-size:12.5px;font-weight:800;color:#0f7a3c">' + r.n + ' signed up</span>' : '') + '<span style="flex:1"></span>' +
+            '<div style="display:flex;align-items:center;gap:10px"><span style="font-size:11.5px;font-weight:900;letter-spacing:1.2px;color:' + (r.kind ? '#149a4b' : '#6b7280') + '">' + (r.kind ? 'TAKE PART · ' + PART_KINDS[r.kind].eyebrow : 'JOB ' + (k + 1) + (r.shifts ? ' · SHIFTS' : '')) + '</span>' +
+              (r.n ? '<span style="font-size:12.5px;font-weight:800;color:#0f7a3c">' + r.n + (r.kind ? ' claimed' : ' signed up') + '</span>' : '') + '<span style="flex:1"></span>' +
               '<span ' + on(() => setState({ needEd: Object.assign({}, ed, { rows: ed.rows.filter((_, j) => j !== k) }) })) + ' aria-label="Remove job ' + (k + 1) + '" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(16, stroke('#9b1c31', 2.2), TRASH_IC) + '</span></div>' +
-            jobFields(r, (patch) => setRow(k, patch), k) + '</div>').join('') +
+            (r.kind ? partFields(r, (patch) => setRow(k, patch), k) : jobFields(r, (patch) => setRow(k, patch), k)) + '</div>').join('') +
           '<div ' + on(() => setState({ needEd: Object.assign({}, ed, { rows: ed.rows.concat([blankJob('')]) }) })) + ' style="display:flex;align-items:center;justify-content:center;gap:8px;min-height:52px;border-radius:18px;border:1.5px dashed #c9ccd3;font-size:14.5px;font-weight:800;color:#454b55;cursor:pointer">' + I.plus(16, 'currentColor', 2.6) + 'Add a job or item</div>' +
+          // Take part after posting (v8-2): the same three PARTICIPATE kinds
+          '<div data-needs-participate style="display:flex;flex-direction:column;gap:8px"><span style="font-size:12px;font-weight:800;letter-spacing:1.2px;color:#6b7280">PARTICIPATE</span><div style="display:flex;flex-wrap:wrap;gap:6px">' +
+            ['time', 'seat', 'other'].map(kk => '<span ' + on(() => setState({ needEd: Object.assign({}, state.needEd, { rows: state.needEd.rows.concat([blankPart(kk, s.dayTime)]) }) })) + ' data-part-chip="' + PART_KINDS[kk].chip + '" style="display:flex;align-items:center;gap:5px;min-height:40px;padding:0 12px;border-radius:999px;font-size:15px;font-weight:800;cursor:pointer;' +
+              (kk === 'other' ? 'border:1.5px dashed #b9bcc4;color:#454b55' : 'background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.1);color:#0d1117') + '"><span style="color:#149a4b;font-size:17px;line-height:1;font-weight:700">+</span>' + PART_KINDS[kk].chip + '</span>').join('') + '</div></div>' +
         '</div>' +
         '<div style="padding:12px 18px calc(24px + env(safe-area-inset-bottom, 0px));border-top:1px solid #f2f3f6;display:flex;gap:10px">' +
           '<button type="button" ' + on(close) + ' style="flex:0 0 auto;min-height:52px;padding:0 22px;background:#fff;border:1.5px solid #dcdfe6;border-radius:999px;font-family:inherit;font-size:15.5px;font-weight:800;color:#0d1117;cursor:pointer">Cancel</button>' +
@@ -6418,7 +6700,7 @@
         guestNudge +
         whenWhereCard(s) +
         basicDetailsSec(s) +
-        askCards(s) + helpOut(s) +
+        askCards(s) + takePart(s) + helpOut(s) +
         discussionSec(s) +
         host +
         // Visibility (was Who's in; Design 25c): the posted-to group(s) and Public / Private; the people moved into the RSVP card
@@ -6889,7 +7171,7 @@
     details: st.evBits.some(b => b.trim()) || !!(st.evOverview || '').trim() || (MIN_PEOPLE && !st.evDate && st.evNeed > 0), help: st.evNeeds.length > 0, lead: true });   // leading it is already picked
   // "Sat, Oct 24 · 10am", "Sat, Oct 24 · 10am – 12pm"
   const dayLabel = (d, t, e) => d ? fmtDay(d) + (t ? ' · ' + (e ? spanTime({ time: t, endTime: e }) : fmtTime(t)) : '') : '';
-  const jobMeta = (j) => j.shifts ? j.shifts.length + (j.shifts.length === 1 ? ' shift' : ' shifts')
+  const jobMeta = (j) => j.kind ? partMeta(j) : j.shifts ? j.shifts.length + (j.shifts.length === 1 ? ' shift' : ' shifts')
     : (j.need ? j.need + (j.need === 1 ? ' person' : ' people') : 'Anyone') + (j.time ? ' · ' + fmtTime(j.time) : '');
   const evStarted = (st) => !!(cleanTitle(st.activity) || st.evDate || st.evDatePoll || cleanTitle(st.locText) || st.evSpotPoll || st.evBits.some(b => b.trim()) || !!(st.evOverview || '').trim() || st.evNeeds.length);
   const evGroupIds = (st) => {
@@ -7023,16 +7305,19 @@
     return PHOTO_PATH.test(st.evPhotoPath || '') ? { path: st.evPhotoPath, fresh: false } : null;
   };
   // Jobs from the flow, or from Edit what you need, as signup_items rows (a shift job, then its shifts)
+  // Take part's spots (v8-2) carry their kind, waitlist and most per person; a time spot's rows are its shifts
   const insertJob = async (sparkId, j) => {
     const item = cleanTitle(j.item).slice(0, 60), descr = (j.desc || '').trim().slice(0, 400) || null;
     if (!item) return;
+    const part = j.kind ? { kind: j.kind, waitlist: j.waitlist !== false, per_person: j.perPerson || null } : {};
     const shifts = (j.shifts || []).filter(q => q.time);
     if (!shifts.length) {
-      must(await sb.from('signup_items').insert({ spark_id: sparkId, item, descr, need: j.need || null, time: j.time || null }));
+      if (j.kind === 'time') return;
+      must(await sb.from('signup_items').insert(Object.assign({ spark_id: sparkId, item, descr, need: j.need || null, time: j.time || null }, part)));
       return;
     }
-    const job = must(await sb.from('signup_items').insert({ spark_id: sparkId, item, descr }).select('id').single()).data;
-    must(await sb.from('signup_items').insert(shifts.map(q => ({ spark_id: sparkId, item, shift_of: job.id, time: q.time, end_time: q.end && q.end > q.time ? q.end : null, need: q.need || null }))));
+    const job = must(await sb.from('signup_items').insert(Object.assign({ spark_id: sparkId, item, descr }, part)).select('id').single()).data;
+    must(await sb.from('signup_items').insert(shifts.map(q => Object.assign({ spark_id: sparkId, item, shift_of: job.id, time: q.time, end_time: q.end && q.end > q.time ? q.end : null, need: q.need || null }, j.kind ? { kind: j.kind } : {}))));
   };
 
   // After a save that worked: refresh, tolerating one failed try (the next background refresh catches up)
@@ -7310,6 +7595,28 @@
   const JOB_VERBS = ['bring', 'set up', 'help with', 'clean up', 'coordinate'];
   const jobNamed = (item) => { const t = cleanTitle(item || ''); return !!t && JOB_VERBS.indexOf(t.toLowerCase()) < 0; };
   const blankJob = (item) => ({ item: item || '', desc: '', time: '', need: 1, shifts: null });
+  // Take part (Design v8-2, 1b): PARTICIPATE's chips open the job sheet in take-part mode. Claim time starts with two
+  // 30-minute rows of 4 (from the event's time, or 9am); a seat starts at 8, any other spot at 6. Waitlist on, any number each
+  const PART_KINDS = {
+    time: { chip: 'Claim time', eyebrow: 'CLAIM TIME', title: 'time slots', ph: 'Name the time slots', count: 'Spots' },
+    seat: { chip: 'Claim seat', eyebrow: 'CLAIM SEAT', title: 'seats', ph: 'Name the seats', count: 'How many seats' },
+    other: { chip: 'Other', eyebrow: 'OTHER', title: 'spots', ph: 'Name the spots', count: 'How many spots' }
+  };
+  const addMins = (t, m) => { const [h, mm] = String(t || '09:00').split(':').map(Number), x = Math.max(0, Math.min(23 * 60 + 30, h * 60 + mm + m)); return pad2(Math.floor(x / 60)) + ':' + pad2(x % 60); };
+  const blankPart = (kind, start) => {
+    const t0 = start && start >= '06:00' ? start : '09:00';
+    return kind === 'time'
+      ? { kind, item: '', desc: '', time: '', need: null, waitlist: true, perPerson: null, shifts: [{ time: t0, end: addMins(t0, 30), need: 4 }, { time: addMins(t0, 30), end: addMins(t0, 60), need: 4 }] }
+      : { kind, item: '', desc: '', time: '', need: kind === 'seat' ? 8 : 6, waitlist: true, perPerson: null, shifts: null };
+  };
+  // The Join in list row: "Take part · 4 times · 16 spots", "Take part · 8 seats · 7:30pm"
+  const partMeta = (j) => {
+    const sh = (j.shifts || []).filter(q => q.time);
+    if (j.kind === 'time') return 'Take part · ' + sh.length + (sh.length === 1 ? ' time' : ' times') + ' · ' + sh.reduce((a, q) => a + (q.need || 0), 0) + ' spots';
+    const n = j.need || 0;
+    return 'Take part · ' + n + ' ' + (j.kind === 'seat' ? (n === 1 ? 'seat' : 'seats') : (n === 1 ? 'spot' : 'spots')) + (j.time ? ' · ' + slotTime(j.time) : '');
+  };
+  const partReady = (r) => !!cleanTitle(r.item || '') && (r.kind !== 'time' || (r.shifts || []).some(q => q.time));
   // After a starter chip (Design 24b3, 2026-10-03; Cynthia typed "snacks" in the description and left the title as "Bring"):
   // gray filler after the verb, five chips that finish the title, and the description behind + Add details or a time.
   // Design gave Bring's chips; the other four verbs' are the build's
@@ -7385,8 +7692,13 @@
       const wte = ov || bits.length ? box((ov ? '<div data-overview style="padding:14px 14px ' + (bits.length ? 4 : 14) + 'px;font-size:15.5px;line-height:1.35;font-weight:500;color:#0d1117;text-wrap:pretty">' + esc(ov) + '</div>' : '') +
           (bits.length ? '<div style="padding:4px 14px;display:flex;flex-direction:column">' + bits.map((t, k) => '<div style="display:flex;align-items:baseline;gap:10px;padding:10px 0;border-top:' + (k || ov ? '1px solid #f2f3f6' : '0') + '"><span style="flex:0 0 6px;width:6px;height:6px;border-radius:999px;background:#9aa0ac;transform:translateY(-2px)"></span><span style="font-size:15px;line-height:1.35;font-weight:700;color:#0d1117;text-wrap:pretty">' + esc(t) + '</span></div>').join('') + '</div>' : ''))
         : blank('Nothing added.');
-      const jobs = st.evNeeds.length ? rows(st.evNeeds.map(j => '<span style="flex:1;min-width:0;font-size:15px;line-height:1.35;font-weight:700;color:#0d1117;text-wrap:pretty">' + esc(cleanTitle(j.item)) + '</span><span style="flex:0 0 auto;font-size:13px;font-weight:700;color:#6b7280">' + esc(jobMeta(j)) + '</span>'))
-        : blank(st.evHelpNone ? 'None needed' : 'Nothing added.');
+      // Join in (v8-2): PARTICIPATE (green counts) above HELP when there are both; one kind alone has no sub-label
+      const jrow = (j) => '<span style="flex:1;min-width:0;font-size:15px;line-height:1.35;font-weight:700;color:#0d1117;text-wrap:pretty">' + esc(cleanTitle(j.item)) + '</span><span style="flex:0 0 auto;font-size:13px;font-weight:700;color:' + (j.kind ? '#0f7a3c' : '#6b7280') + '">' + esc(j.kind ? partMeta(j).replace(/^Take part · /, '') : jobMeta(j)) + '</span>';
+      const evParts = st.evNeeds.filter(j => j.kind), evJobs = st.evNeeds.filter(j => !j.kind);
+      const sub = (t) => '<span style="padding:2px 4px 0;font-size:12px;font-weight:800;letter-spacing:1.1px;color:#6b7280">' + t + '</span>';
+      const jobs = !st.evNeeds.length ? blank(st.evHelpNone ? 'None needed' : 'Nothing added.')
+        : evParts.length && evJobs.length ? '<div data-review-joinin style="display:flex;flex-direction:column;gap:8px">' + sub('PARTICIPATE') + rows(evParts.map(jrow)) + sub('HELP') + rows(evJobs.map(jrow)) + '</div>'
+        : rows(st.evNeeds.map(jrow));
       // Visibility: POST TO folds open into the group list (it closes on any tap outside); every group can be unticked,
       // and Post then asks for one. Then Public / Private, and who going can invite
       const groups = evGroupIds(st), mine = groupsInOrder(), gOpen = st.menu === 'evGroups', g0 = groupById(groups[0]);
@@ -7524,9 +7836,9 @@
     } else if (cur === 'help') {
       // Join in (v8): HELP chips, Bring · Set up · Help · Clean up · Coordinate · Other; once there's a job, the list and
       // bigger chips under ADD ANOTHER. None needed is in the footer (no 1-2-3 explainer, no No help needed row).
-      // PARTICIPATE (Claim time · Claim seat) waits for Design's Take part (owner, 2026-10-05)
-      const chip = (label, fn, dashed, big) => '<span ' + on(fn) + ' data-job-chip="' + label + '" style="display:flex;align-items:center;gap:' + (big ? 7 : 5) + 'px;min-height:' + (big ? 46 : 40) + 'px;padding:0 ' + (big ? 16 : 12) + 'px;border-radius:999px;font-size:' + (big ? 16 : 15) + 'px;font-weight:800;cursor:pointer;' +
-        (dashed ? 'border:1.5px dashed #b9bcc4;color:#454b55' : 'background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.1);color:#0d1117') + '"><span style="color:#5b4ae8;font-size:' + (big ? 19 : 17) + 'px;line-height:1;font-weight:700">+</span>' + label + '</span>';
+      // PARTICIPATE (Design v8-2, 1b): Claim time · Claim seat · Other, with a green +, under HELP before and after
+      const chip = (label, fn, dashed, big, green, attr) => '<span ' + on(fn) + ' ' + (attr || 'data-job-chip') + '="' + label + '" style="display:flex;align-items:center;gap:' + (big ? 7 : 5) + 'px;min-height:' + (big ? 46 : 40) + 'px;padding:0 ' + (big ? 16 : 12) + 'px;border-radius:999px;font-size:' + (big ? 16 : 15) + 'px;font-weight:800;cursor:pointer;' +
+        (dashed ? 'border:1.5px dashed #b9bcc4;color:#454b55' : 'background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.1);color:#0d1117') + '"><span style="color:' + (green ? '#149a4b' : '#5b4ae8') + ';font-size:' + (big ? 19 : 17) + 'px;line-height:1;font-weight:700">+</span>' + label + '</span>';
       const jobs = st.evNeeds.map((j, k) => {
           const edit = () => openJob(k, JSON.parse(JSON.stringify(j)));
           return '<div data-job="' + esc(cleanTitle(j.item)) + '" style="background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08);padding:12px 8px 12px 14px;display:flex;align-items:center;gap:8px">' +
@@ -7539,11 +7851,13 @@
       const chips = (big) => '<div style="display:flex;flex-wrap:wrap;gap:' + (big ? 8 : 6) + 'px">' +
         [['Bring', 'Bring '], ['Set up', 'Set up '], ['Help', 'Help with '], ['Clean up', 'Clean up '], ['Coordinate', 'Coordinate ']].map(([l, p]) => chip(l, () => openJob(null, blankJob(p)), false, big)).join('') +
         chip('Other', () => openJob(null, blankJob('')), true, big) + '</div>';
+      const pchips = (big) => '<div style="display:flex;flex-wrap:wrap;gap:' + (big ? 8 : 6) + 'px">' +
+        ['time', 'seat', 'other'].map(k => chip(PART_KINDS[k].chip, () => openJob(null, blankPart(k, st.evTime)), k === 'other', big, true, 'data-part-chip')).join('') + '</div>';
       const label = (t) => '<span style="font-size:12.5px;font-weight:800;letter-spacing:1.2px;color:#6b7280">' + t + '</span>';
       body = head('Join in', 'Ask for help or list specific ways to participate.') +
-        (jobs ? '<div style="padding:12px 14px 0;display:flex;flex-direction:column;gap:8px">' + jobs + '</div>' +
-            '<div style="padding:16px 16px 0;display:flex;flex-direction:column;gap:10px">' + label('ADD ANOTHER') + chips(true) + '</div>'
-          : '<div style="padding:16px 16px 0;display:flex;flex-direction:column;gap:10px">' + label('HELP') + chips(false) + '</div>');
+        (jobs ? '<div style="padding:12px 14px 0;display:flex;flex-direction:column;gap:8px">' + jobs + '</div>' : '') +
+        '<div style="padding:16px 16px 0;display:flex;flex-direction:column;gap:10px">' + label('HELP') + chips(!!jobs) + '</div>' +
+        '<div style="padding:16px 16px 0;display:flex;flex-direction:column;gap:10px">' + label('PARTICIPATE') + pchips(!!jobs) + '</div>';
     } else if (cur === 'lead') {
       body = head('Who’s leading it?', LEAD_WHY) + pad(leadOptions(st, pop));
     }
@@ -7623,10 +7937,14 @@
       const save = () => {
         const row = Object.assign({}, r, { item: cleanTitle(r.item).slice(0, 60), desc: (r.desc || '').trim().slice(0, 400) });
         if (row.shifts) { row.shifts = row.shifts.filter(q => q.time); if (!row.shifts.length) row.shifts = null; }
+        if (row.kind === 'time' && !row.shifts) { toast('Add a time first'); return; }
         const list = state.evNeeds.slice();
         if (ns.i != null) list[ns.i] = row; else list.push(row);
         setState({ evNeeds: list, needSheet: null, evHelpNone: false });
       };
+      if (r.kind) return sheet((ns.i != null ? 'Edit ' : 'Add ') + PART_KINDS[r.kind].title, close, SHEET_PAD + ';min-height:min(88%,580px)',
+        partHead(r.kind, ns.i != null, close) + partFields(r, set) +
+        '<div style="margin-top:auto;display:flex;flex-direction:column">' + saveBtn(partReady(r), save, ns.i != null ? 'Save' : 'Add') + '</div>', 36);
       return sheet('Add a job', close, SHEET_PAD + ';min-height:min(88%,580px)',   // room for the time list under its field
         sheetHead('How people can join', ns.i != null ? 'Edit job' : 'Add a job', '', close) + jobFields(r, set) +
         '<div style="margin-top:auto;display:flex;flex-direction:column">' + saveBtn(jobNamed(r.item), save) + '</div>', 36);
@@ -7677,6 +7995,52 @@
           (held ? heldNote('People are signed up, so it can’t be split into shifts.') : '<span ' + on(() => set({ shifts: [{ time: r.time || '', end: '', need: r.need || 1 }, { time: '', end: '', need: r.need || 1 }] })) + ' style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:32px;font-size:13.5px;font-weight:700;color:#6b7280;cursor:pointer">' + svg(14, stroke('currentColor', 2.4), P5.clock) + 'Add a shift</span>')) +
     '</div>';
   };
+
+  // Take part's fields (Design v8-2, 1b): a name and details, then Claim time's rows (start – end and a count each,
+  // + Add a time starting where the last one ended) or a seat's time and count; under a divider, Waitlist when full and
+  // Most per person. idx is set inside Edit what you need (several rows at once)
+  const partFields = (r, set, idx) => {
+    const k0 = PART_KINDS[r.kind] || PART_KINDS.other, tag = idx == null ? '' : ' ' + (idx + 1);
+    const setShift = (k, patch) => set({ shifts: r.shifts.map((q, j) => j === k ? Object.assign({}, q, patch) : q) });
+    const tf = (key, value, opts, hint, pick, label, none) => '<div style="flex:1 1 0;min-width:0">' +
+      timeField('part' + tag + key, value, opts, hint, (v) => { setState({ timeOpen: null }); pick(v); }, { label, slim: true, h: 48, none }) + '</div>';
+    const held = (t) => '<span data-held style="font-size:13px;line-height:1.4;font-weight:600;color:#6b7280">' + esc(t) + '</span>';
+    const count = (n, fn, label) => stepper(n, (v) => fn(Math.max(1, Math.min(99, v || 1))), label);
+    const sw = (v, fn, label, sub) => '<div ' + on(fn, 'switch') + ' aria-checked="' + v + '" aria-label="' + esc(label) + '" data-part-waitlist style="display:flex;align-items:center;gap:12px;cursor:pointer">' +
+      '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">' + esc(label) + '</div><div style="font-size:12.5px;font-weight:600;color:#6b7280">' + esc(sub) + '</div></div>' +
+      '<span aria-hidden="true" style="flex:0 0 46px;width:46px;height:28px;border-radius:999px;position:relative;background:' + (v ? '#149a4b' : '#dcdfe6') + '"><span style="position:absolute;top:3px;left:' + (v ? 21 : 3) + 'px;width:22px;height:22px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2)"></span></span></div>';
+    const last = r.shifts && r.shifts.length ? r.shifts[r.shifts.length - 1] : null;
+    const nextStart = last && (last.end || last.time) ? (last.end || addMins(last.time, 30)) : '';
+    const len = last && last.time && last.end ? (() => { const [a, b] = [last.time, last.end].map(t => t.split(':').map(Number)); return (b[0] * 60 + b[1]) - (a[0] * 60 + a[1]); })() : 30;
+    const times = r.kind === 'time'
+      ? '<div style="display:flex;align-items:center;justify-content:space-between;padding:0 2px"><span style="font-size:12px;font-weight:800;letter-spacing:1.1px;color:#6b7280">TIMES</span><span style="font-size:12px;font-weight:800;letter-spacing:1.1px;color:#6b7280;margin-right:' + (36 + 2) + 'px">SPOTS</span></div>' +
+        (r.shifts || []).map((q, k) => '<div data-part-time style="display:flex;flex-direction:column;gap:4px"><div style="display:flex;align-items:center;gap:6px">' +
+            tf('s' + k, q.time, EV_TIMES, 'Start', (v) => setShift(k, { time: v, end: q.end && q.end <= v ? addMins(v, 30) : q.end }), 'Time ' + (k + 1) + ' start', 'No time') +
+            '<span aria-hidden="true" style="font-weight:800;color:#9aa0ac">–</span>' +
+            tf('e' + k, q.end, EV_TIMES.filter(v => !q.time || v > q.time), 'End', (v) => setShift(k, { end: v }), 'Time ' + (k + 1) + ' end', 'No end time') +
+            count(q.need, (n) => setShift(k, { need: n }), 'time ' + (k + 1)) +
+            (r.shifts.length > 1 ? '<span ' + on(() => set({ shifts: r.shifts.filter((_, j) => j !== k) })) + ' aria-label="Remove time ' + (k + 1) + '" style="flex:0 0 24px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(12, '#9aa0ac', 2.8) + '</span>' : '<span style="flex:0 0 24px"></span>') + '</div>' +
+            (q.n ? held(q.n + (q.n === 1 ? ' person has' : ' people have') + ' this time. Removing it lets them know.') : '') + '</div>').join('') +
+        '<span ' + on(() => set({ shifts: (r.shifts || []).concat([{ time: nextStart, end: nextStart ? addMins(nextStart, len > 0 ? len : 30) : '', need: last ? last.need || 4 : 4 }]) })) + ' data-part-add-time style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:36px;font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(14, 'currentColor', 2.6) + 'Add a time' +
+          (nextStart ? '<span style="font-weight:600;color:#8a909b">· starts ' + esc(slotTime(nextStart)) + '</span>' : '') + '</span>'
+      : '<div style="display:flex;align-items:center;gap:10px">' + tf('', r.time, EV_TIMES, 'Time (optional)', (v) => set({ time: v }), 'Time' + tag, 'No time') + '</div>' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><span style="font-size:15px;font-weight:800;color:#0d1117">' + k0.count + '</span>' + count(r.need, (n) => set({ need: n }), k0.count.toLowerCase()) + '</div>' +
+        (r.n ? held(r.n + (r.n === 1 ? ' person has' : ' people have') + ' a spot. Fewer than that leaves them in it.') : '');
+    return '<div style="display:flex;flex-direction:column;gap:10px">' +
+      '<input class="fld" type="text" maxlength="60"' + (idx == null ? ' data-job-name' : '') + ' aria-label="' + esc(k0.ph) + tag + '" placeholder="' + esc(k0.ph) + '" value="' + esc(r.item) + '" ' + onInput(e => { if (e.type === 'input') set({ item: e.target.value.slice(0, 60) }); }) + ' style="' + BIG + ';min-height:52px;font-size:' + (idx == null ? 17 : 16) + 'px">' +
+      '<textarea class="fld" rows="2" maxlength="400" aria-label="Details' + tag + '" placeholder="Details (optional)" ' + onInput(e => { if (e.type === 'input') set({ desc: e.target.value.slice(0, 400) }); }) + ' style="' + BIG + ';min-height:52px;padding:12px 16px;font-size:16px;font-weight:500;line-height:1.4;resize:none">' + esc(r.desc || '') + '</textarea>' +
+      times +
+      '<div style="height:1px;background:#e8eaee;margin:4px 0"></div>' +
+      sw(r.waitlist !== false, () => set({ waitlist: r.waitlist === false }), 'Waitlist when full', 'First in line gets the next open spot') +
+      '<div data-part-cap style="display:flex;align-items:center;gap:12px"><div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">Most per person</div>' +
+        '<div style="font-size:12.5px;font-weight:600;color:#6b7280">' + (r.perPerson ? 'Each person can claim up to ' + r.perPerson : 'People can claim as many as they like') + '</div></div>' +
+        stepper(r.perPerson, (v) => set({ perPerson: v ? Math.min(20, v) : null }), 'most per person') + '</div>' +
+    '</div>';
+  };
+  // The green eyebrow and title over Take part's sheet
+  const partHead = (kind, editing, close) => '<div style="display:flex;align-items:flex-start;gap:10px"><div style="flex:1;min-width:0">' +
+    '<div style="font-size:12px;font-weight:800;letter-spacing:1.2px;color:#149a4b">TAKE PART · ' + (PART_KINDS[kind] || PART_KINDS.other).eyebrow + '</div>' +
+    '<div style="margin-top:2px;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.4px;color:#0d1117">' + (editing ? 'Edit ' : 'Add ') + (PART_KINDS[kind] || PART_KINDS.other).title + '</div></div>' + closeX(close) + '</div>';
 
   // ---------------------------------------------------------------------------
   // Pop-ups
@@ -8052,12 +8416,15 @@
   // The host's guest list: everyone who replied, by answer, with guests' phone numbers (only the host can read those)
   function viewGuestList(s) {
     const close = () => setState({ guestList: null }), lead = isLead(s);
+    // Take part (v8-2): someone's spots after their name ("Court time 8:30pm", "Beginner clinic")
+    const spotsOf = (u) => [].concat(...(s.parts || []).map(p => p.rows.filter(x => x.claims.some(c => c.userId === u)).map(x => p.kind === 'time' && x.time ? p.item + ' ' + slotTime(x.time) : p.item))).join(', ');
     const row = (u, i) => {
       const c = lead && s.contacts.find(x => x.user_id === u), name = u === state.me ? 'You' : personName(s, u);
       // Tap someone for their profile (guests without an account have none)
       return '<div data-guest ' + (c ? '' : on(() => openPerson(u)) + ' aria-label="' + esc(name) + ', see profile" ') + 'style="display:flex;align-items:center;gap:12px;min-height:50px;border-top:' + (i ? '1px solid #f2f3f6' : '0') + (c ? '' : ';cursor:pointer') + '">' +
         face(u, name, 32, null) +
-        '<span style="flex:1 1 auto;min-width:0;font-size:15.5px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(name) + '</span>' +
+        '<span style="flex:1 1 auto;min-width:0;font-size:15.5px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(name) +
+          (spotsOf(u) ? '<span data-guest-spot style="font-weight:600;color:#6b7280"> · ' + esc(spotsOf(u)) + '</span>' : '') + '</span>' +
         (c && c.phone ? '<a href="tel:' + esc(c.phone.replace(/[^\d+]/g, '')) + '" style="flex:0 0 auto;font-size:14px;font-weight:800;color:#5b4ae8">' + esc(c.phone) + '</a>' : c ? '<span style="flex:0 0 auto;padding:3px 9px;border-radius:999px;background:#f2f3f6;font-size:12px;font-weight:800;color:#6b7280">Guest</span>' : '') + '</div>';
     };
     const section = (k, label, ink, ids, rowFn) => !ids.length ? '' : '<div data-guest-part="' + k + '" style="display:flex;flex-direction:column;gap:2px"><span style="font-size:12px;font-weight:900;letter-spacing:1px;color:' + ink + '">' + label + ' · ' + ids.length + '</span>' +
@@ -8278,6 +8645,7 @@
       (st.sec && subj ? viewSecSheet() : '') +
       (st.ph ? viewPositioner() : '') +   // above Edit event, which can open it
       (st.needEd && subj ? viewNeedsSheet() : '') +
+      (st.partRoster ? viewPartRoster() : '') + (st.partGuest ? viewPartGuest() : '') +
       (st.share ? viewShareSheet() : '') +
       (st.startName != null ? viewStartGroup() : '') +
       (st.updAll ? viewUpdAll() : '') +
@@ -8496,6 +8864,8 @@
       if (state.dateOpen) return setState({ dateOpen: null });
       if (state.timeOpen) return setState({ timeOpen: null });
       if (state.sec) return setState({ sec: null });
+      if (state.partGuest) return setState({ partGuest: null });
+      if (state.partRoster) return setState({ partRoster: null });
       if (state.needEd) return setState({ needEd: null });
       if (state.share) return setState({ share: null });
       if (state.pollSheet) return setState({ pollSheet: null });

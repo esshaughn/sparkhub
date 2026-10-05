@@ -226,7 +226,7 @@ test('decide everything later: only the title is needed; the host is left with t
     await expect(flow).toContainText('Join in');
     await expect(flow).toContainText('Ask for help or list specific ways to participate.');
     await expect(flow.getByText('Decide later', { exact: true })).toHaveCount(0);
-    await expect(flow.getByText('Claim time')).toHaveCount(0);
+    await expect(flow.locator('[data-part-chip]')).toHaveText(['+Claim time', '+Claim seat', '+Other']);   // PARTICIPATE (v8-2)
     await flow.getByRole('button', { name: 'Next' }).click({ force: true });
     await expect(page.getByRole('status')).toContainText('Choose an option');
     await flow.getByText('None needed', { exact: true }).click();
@@ -539,7 +539,7 @@ test('an ideaâ€™s Details (no How many people for now); a bare starter chip canâ
     await expect(flow.locator('[data-tags]')).toHaveCount(0);   // no "What kind of event?" (owner, 2026-10-01)
     await expect(flow.locator('[data-need-people]')).toHaveCount(0);   // How many people do you want? is hidden for now (owner, 2026-10-02)
     await flow.getByRole('button', { name: 'Next' }).click();
-    // Join in (v8): HELP chips, no 1-2-3 explainer; then the job list and ADD ANOTHER
+    // Join in (v8): HELP chips, no 1-2-3 explainer; then the job list, HELP and PARTICIPATE (v8-2)
     await expect(flow.locator('[data-help-how]')).toHaveCount(0);
     await expect(flow).toContainText('HELP');
     // Coordinate is a starter chip too (owner, 2026-10-02); like the others, it waits for what
@@ -583,7 +583,8 @@ test('an ideaâ€™s Details (no How many people for now); a bare starter chip canâ
     await job.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(flow).not.toContainText('FOR EXAMPLE');
     await expect(flow.locator('[data-job="Bring a ball"]')).toBeVisible();
-    await expect(flow).toContainText('ADD ANOTHER');
+    await expect(flow).toContainText('HELP');
+    await expect(flow).toContainText('PARTICIPATE');
     await flow.getByRole('button', { name: 'Next' }).click();
 
     await flow.locator('[data-post]').click();
