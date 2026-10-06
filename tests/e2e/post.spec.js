@@ -1,7 +1,7 @@
 // Create event (v6 Update 6): the 5-step flow with "Decide later", polls, jobs, Review, drafts,
 // then the host's edit pop-ups on the event page.
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newLead, button, postEvent, openIdea, confirm, startPost, asUser, closeAskFirst, pickKind, pickDate, pickTime, deleteIdea, ideaIdFromUrl, openAllGroups } = require('./helpers');
+const { uniqueTitle, newLead, button, postEvent, openIdea, confirm, startPost, startFloat, asUser, closeAskFirst, pickKind, pickDate, pickTime, deleteIdea, ideaIdFromUrl, openAllGroups } = require('./helpers');
 
 const inDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 
@@ -615,66 +615,90 @@ test('an idea’s Details (no How many people for now); a bare starter chip can�
   }
 });
 
-// Float the idea (v8): the title step's second card, explained by What's the difference?; Review's Lead card changes it.
-// A floated idea goes up looking for a lead and opens its page, with + Ask someone to lead there (no pop-up: Jeni Wade's
-// demo, owner 2026-10-05). On the float path Date, Location and What to expect say (optional)
-test('Create event: just float the idea posts it without a lead, its steps read optional', async ({ browser }) => {
+// Float an idea (v8-4 §5, v8-5 items 1–5): the + menu's Float an idea opens the two-page Float sheet. Page 1 sketches it
+// (a date set with a time chip, a location poll behind Add more details); leaving with something typed offers a draft,
+// which comes back next time; page 2 says where it goes and how people can help. Posting opens the starter's slide-up on
+// the Ideas tab. Plan an event's Float the idea card opens the same sheet over it, title carried over
+test('Float an idea: the Float sheet, a draft, and the starter’s slide-up', async ({ browser }) => {
+  test.setTimeout(120000);
   const host = await newLead(browser, 1, 'Flo');
   const page = host.page;
+  const title = uniqueTitle('Kite day');
   let id;
   try {
+    await startFloat(page);
+    const sheet = page.locator('[data-screen-label="Float an idea"]');
+    await expect(sheet).toContainText('Sketch out what you know so far.');
+    await sheet.locator('[data-qi-next]').click();
+    await expect(page.getByRole('status')).toContainText('Add a title first');
+    await sheet.getByLabel('Your idea').fill(title);
+    await expect(sheet).toContainText(title.length + '/60');
+    await sheet.getByLabel('Short description').fill('Bring a kite or borrow one');
+    await sheet.locator('[data-qi-more]').click();
+    await expect(sheet.locator('[data-qi-more]')).toHaveCount(0);   // it goes once tapped
+    // DATE: Set date → a centred pop-up with the time chips
+    await sheet.locator('[data-qi-date-set]').click();
+    const setDate = page.getByRole('dialog', { name: 'Set date' });
+    await expect(setDate).toContainText('You can change this later.');
+    await setDate.getByLabel('Date').fill(inDays(9));
+    await setDate.getByRole('button', { name: 'Evening' }).click();
+    await setDate.locator('[data-qi-pop-done]').click();
+    await expect(sheet.locator('[data-qi-date-sum]')).toContainText('· Evening');
+    // LOCATION: Create poll needs two
+    await sheet.locator('[data-qi-loc-poll]').click();
+    const poll = page.getByRole('dialog', { name: 'Location poll' });
+    await poll.getByLabel('Location 1').fill('Zilker Park');
+    await poll.locator('[data-qi-pop-done]').click();
+    await expect(page.getByRole('status')).toContainText('Add at least two locations');
+    await poll.getByLabel('Location 2').fill('Butler Park');
+    await poll.locator('[data-qi-pop-done]').click();
+    await expect(sheet.locator('[data-qi-loc-sum]')).toContainText('2 locations · Zilker Park, Butler Park');
+    // Leaving with something typed: Pick this up later? → Save draft; opening it again picks the draft up
+    await sheet.getByRole('button', { name: 'Close' }).first().click();
+    const leave = page.getByRole('dialog', { name: 'Pick this up later?' });
+    await expect(leave).toContainText('Only you can see drafts.');
+    await leave.locator('[data-qi-save-draft]').click();
+    await expect(sheet).toHaveCount(0);
+    await startFloat(page);
+    await expect(page.getByRole('status')).toContainText('Picked up your draft');
+    await expect(sheet.getByLabel('Your idea')).toHaveValue(title);
+    await expect(sheet.locator('[data-qi-loc-sum]')).toContainText('Butler Park');
+    // Page 2: the recap, WHERE IT GOES, HOW PEOPLE CAN HELP; Talk it through on, Who leads it: Anyone
+    await sheet.locator('[data-qi-next]').click();
+    await expect(sheet).toContainText('WHERE IT GOES');
+    await expect(sheet.locator('[data-qi-post-to]')).toContainText('Torrez Fitness');
+    await sheet.locator('[data-talk-toggle]').click();
+    await expect(sheet.locator('[data-talk-toggle]')).toHaveAttribute('aria-checked', 'true');
+    await sheet.locator('[data-rule="any"]').click();
+    await sheet.locator('[data-qi-post]').click();
+    // It opens on the Ideas tab as the starter's slide-up
+    const ip = page.locator('[data-screen-label="Idea sheet"]');
+    await expect(ip).toContainText(title);
+    await expect(ip).toContainText('You floated this');
+    await expect(page.getByRole('status')).toContainText('Posted to Torrez Fitness');
+    await expect(ip.locator('[data-make-this-plan]')).toContainText('Choose lead');
+    id = await asUser(page, async (c, _C, title) => (await c.from('sparks').select('id').eq('text', title).single()).data.id, title);
+    const row = await asUser(page, async (c, _C, id) => (await c.from('sparks').select('wants_host,planned,talk,lead_rule,overview,date_options(day_part),spot_options(name)').eq('id', id).single()).data, id);
+    expect(row).toMatchObject({ wants_host: true, planned: false, talk: true, lead_rule: 'any', overview: 'Bring a kite or borrow one', date_options: [{ day_part: 'evening' }] });
+    expect(row.spot_options.map(o => o.name).sort()).toEqual(['Butler Park', 'Zilker Park']);
+    // Swipe up for more: When? (with the time on its calendar page), Where?, and the starter's settings
+    await ip.locator('[data-ip-more]').click();
+    await expect(ip.locator('[data-when] [data-cal-page]')).toContainText('Evening');
+    await expect(ip.locator('[data-where] [data-loc-row]')).toHaveCount(2);
+    await expect(ip.locator('[data-idea-post-to]')).toContainText('Torrez Fitness');
+    await expect(ip.locator('[data-talk-toggle]')).toHaveAttribute('aria-checked', 'true');
+    await ip.getByRole('button', { name: 'Close' }).first().click();
+    await expect(page.locator('[data-idea-card="' + title + '"]')).toBeVisible();   // on the board
+
+    // Plan an event's Float the idea opens the Float sheet over it with the title; × goes back to Plan an event untouched
     await startPost(page);
     const flow = page.locator('[data-screen-label="New spark"]');
-    await flow.getByLabel('Event title').fill(uniqueTitle('Float'));
-    await expect(flow.getByRole('button', { name: /^I’ll lead it/ })).toHaveAttribute('aria-pressed', 'true');
-    await expect(flow.getByRole('button', { name: /^Float the idea/ })).toContainText('Someone else might pick it up');
-    // Leading it: Date & time has no (optional) tag
-    await flow.getByRole('button', { name: 'Next' }).click();
-    await expect(flow).toContainText('2/6');
-    await expect(flow.locator('[data-opt-tag]')).toHaveCount(0);
-    await flow.getByRole('button', { name: 'Back' }).click();
+    await flow.getByLabel('Event title').fill('Pottery wheel night');
     await flow.getByRole('button', { name: /^Float the idea/ }).click();
-    await flow.getByRole('button', { name: 'Next' }).click();
-    for (let i = 2; i <= 4; i++) {
-      await expect(flow).toContainText(i + '/6');
-      await expect(flow.locator('[data-opt-tag]')).toHaveText('(optional)');
-      await expect(flow.locator('[data-step-optional]')).toHaveText('You can change this later.');
-      if (i === 3) await expect(flow).toContainText('Share what locations could work, or what you’re happy to offer.');
-      await flow.getByText('Decide later', { exact: true }).click();
-    }
-    await expect(flow).toContainText('5/6');
-    await flow.getByText('None needed', { exact: true }).click();
-    await expect(flow).toContainText('REVIEW');
-    await expect(flow.locator('[data-review-lead]')).toContainText('Just floating it');
-    // Review's Lead card opens the same choice in a pop-up; a pick closes it
-    await flow.getByRole('button', { name: 'Change who leads it' }).click();
-    const pick = page.getByRole('dialog', { name: 'Lead' });   // Design v8: the pop-up is titled Lead
-    await expect(pick.getByRole('button', { name: /^Float the idea/ })).toHaveAttribute('aria-pressed', 'true');
-    await pick.getByRole('button', { name: /^I’ll lead it/ }).click();
-    await expect(pick).toHaveCount(0);
-    await expect(flow.locator('[data-review-lead]')).toContainText('You’re leading it');
-    await expect(flow.locator('[data-post]')).toHaveText('Post as an idea');
-    await flow.getByRole('button', { name: 'Change who leads it' }).click();
-    await pick.getByRole('button', { name: /^Float the idea/ }).click();
-    await expect(pick).toHaveCount(0);
-    await expect(flow.locator('[data-review-lead]')).toContainText('Just floating it');
-    await expect(flow.locator('[data-posts-as]')).toContainText('This goes up as an idea that needs a lead');
-    await flow.locator('[data-post]').click();
-    const I = page.locator('[data-screen-label="Idea page"]');
-    await expect(I).toBeVisible();
-    id = ideaIdFromUrl(page);
-    // No pop-up (neither Ask two people first nor Ask someone to lead); the page's link opens the ask
-    const ask = page.getByRole('dialog', { name: 'Ask someone to lead' });
-    await expect(I.locator('[data-led-by]')).toContainText('FLOATED BY');
-    await expect(ask).toHaveCount(0);
-    await expect(page.getByRole('dialog')).toHaveCount(0);
-    await expect(I.locator('[data-chip]')).toHaveText('IDEA');
-    await expect(I.locator('[data-plan-needs] [data-plan-row="lead"]')).toContainText('Someone to lead');
-    await expect(I.locator('[data-ask-lead]')).toHaveText('Ask someone to lead');
-    await I.locator('[data-ask-lead]').click();
-    await expect(ask).toContainText('They get a note asking if they’d lead');
-    await ask.getByRole('button', { name: 'Close' }).click();
-    expect(await asUser(page, async (c, _C, id) => (await c.from('sparks').select('wants_host,planned').eq('id', id).single()).data, id)).toEqual({ wants_host: true, planned: false });
+    await expect(sheet.getByLabel('Your idea')).toHaveValue('Pottery wheel night');
+    await sheet.getByRole('button', { name: 'Close' }).first().click();
+    await expect(sheet).toHaveCount(0);
+    await expect(flow.getByLabel('Event title')).toHaveValue('Pottery wheel night');
     expect(host.errors).toEqual([]);
   } finally {
     if (id) await deleteIdea(page, id).catch(() => {});

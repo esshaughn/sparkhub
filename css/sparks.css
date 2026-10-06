@@ -141,7 +141,18 @@ html.tall-fix .app { bottom: auto; height: var(--true-h); }
   box-shadow: 0 8px 20px rgba(91, 74, 232, .38), 0 2px 6px rgba(13, 17, 23, .18);
   transition: transform 320ms cubic-bezier(.2, .8, .2, 1), box-shadow 320ms;
 }
-.add-fab.tucked { transform: translateX(50px); box-shadow: 0 2px 6px rgba(13, 17, 23, .18); }
+.add-fab svg { transition: transform .2s cubic-bezier(.2, .8, .2, 1); }
+.add-fab.open { background: #0d1117; z-index: 10; }
+.add-fab.open svg { transform: rotate(45deg); }
+.add-fab-gold { background: #f5b428; box-shadow: 0 8px 20px rgba(245, 180, 40, .4), 0 2px 6px rgba(13, 17, 23, .18); }
+/* The idea slide-up (v8-4 9d + 10c-5): hugs its content, then grows to 54px from the top */
+.ip-sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 30; max-height: 92%; height: auto; overflow: hidden; border-radius: 24px 24px 0 0;
+  background: #e8eaee; box-shadow: 0 -10px 40px rgba(13, 17, 23, .3); display: flex; flex-direction: column; animation: sheetUp 280ms cubic-bezier(.2, .8, .2, 1) both; }
+.ip-sheet.open { max-height: calc(100% - 54px); height: calc(100% - 54px); transition: height 420ms cubic-bezier(.2, .8, .2, 1), max-height 420ms cubic-bezier(.2, .8, .2, 1); }
+@keyframes swipeBounce { 0%, 100% { transform: translateY(0); } 45% { transform: translateY(-7px); } 60% { transform: translateY(0); } 72% { transform: translateY(-3px); } 84% { transform: translateY(0); } }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+.plus-scrim { position: absolute; inset: 0; z-index: 8; background: rgba(13, 17, 23, .45); animation: scrimIn 180ms ease-out both; }
+@keyframes plusPop { from { opacity: 0; transform: translateY(16px) scale(.6); } to { opacity: 1; transform: none; } }
 
 .modal-scrim {
   position: absolute; inset: 0; background: rgba(13, 17, 23, .45);

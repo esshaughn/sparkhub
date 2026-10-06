@@ -124,11 +124,24 @@ test('groups, idea links, guests and leads: the database refuses what the app ne
     }), floated.id);
     expect(outsideLead).toEqual({ opened: true, sees: 1, take: 'refused' });
     expect(await asUser(L, async (c, _C, { id, o }) => (await c.rpc('ask_to_lead', { p_spark: id, p_user: o })).error ? 'refused' : 'ALLOWED', { id: floated.id, o: otherUid })).toBe('refused');
-    // ...and the app shows them it needs a lead, without I'll lead
+    // ...and the app's idea page (v8-4, floated ideas) offers them no way to lead it
     await openIdea(O, floated.id);
-    const needs = O.locator('[data-screen-label="Idea page"] [data-plan-row="lead"]');
-    await expect(needs).toContainText('Open to people in');
-    await expect(needs.getByRole('button')).toHaveCount(0);
+    const page8 = O.locator('[data-screen-label="Idea page (8b)"]');
+    await expect(page8.locator('[data-help-make-plan]')).toBeVisible();
+    await expect(page8.locator('[data-lead-it], [data-offer-lead]')).toHaveCount(0);
+    // --- Talk it through (20261107000000_float_sheet.sql): only offer_to_talk writes talk_offers, and only while the
+    // starter has it on; the person offering and the starter read it, nobody else
+    const talkOff = await asUser(O, async (c, _C, id) => (await c.rpc('offer_to_talk', { p_spark: id })).error ? 'refused' : 'ALLOWED', floated.id);
+    expect(talkOff).toBe('refused');
+    expect(await asUser(L, async (c, _C, id) => (await c.from('sparks').update({ talk: true, lead_rule: 'any' }).eq('id', id).select('talk, lead_rule')).data, floated.id)).toEqual([{ talk: true, lead_rule: 'any' }]);
+    const talk = await asUser(O, async (c, _C, { id, me }) => ({
+      direct: (await c.from('talk_offers').insert({ spark_id: id, user_id: me })).error ? 'refused' : 'ALLOWED',
+      offer: (await c.rpc('offer_to_talk', { p_spark: id })).error ? 'refused' : 'ok',
+      mine: (await c.from('talk_offers').select('user_id').eq('spark_id', id)).data.length,
+      undo: ((await c.from('talk_offers').delete().eq('spark_id', id).select()).data || []).length
+    }), { id: floated.id, me: otherUid });
+    expect(talk).toEqual({ direct: 'refused', offer: 'ok', mine: 1, undo: 0 });
+    expect(await asUser(L, async (c, _C, id) => (await c.from('talk_offers').select('user_id').eq('spark_id', id)).data.length, floated.id)).toBe(1);
 
     // --- A visitor with no link sees nothing; with the idea's link, just that idea --
     const before = await asUser(A, async (c, _C, id) => ({

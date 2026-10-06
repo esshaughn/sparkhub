@@ -25,11 +25,11 @@ test('visitors land on Welcome (no tab bar there) and sign in from there', async
     await dialog.getByRole('button', { name: 'Close' }).click();
 
     // Group screens reached by URL still ask signed-out visitors to join first
-    await page.goto('/#/ideas');
+    await page.goto('/#/browse');
     await expect(page.getByText('You’re not in a group yet.')).toBeVisible();
     await expect(page.getByRole('navigation', { name: 'Main' })).toBeVisible();   // …but everywhere else, signed in or not
-    await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('button')).toHaveText(['Groups', 'Friends', 'Calendar', 'Tasks', 'Me']);   // v8's five flat tabs
-    for (const name of ['Groups', 'Friends', 'Calendar', 'Tasks', 'Me']) await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name, exact: true })).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('button')).toHaveText(['Groups', 'Friends', 'Calendar', 'Ideas', 'Me']);   // v8-4's five flat tabs
+    for (const name of ['Groups', 'Friends', 'Calendar', 'Ideas', 'Me']) await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name, exact: true })).toBeVisible();
     await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Groups', exact: true }).click();   // the signed-in tabs show Welcome
     await expect(page.locator('[data-screen-label=Welcome]')).toBeVisible();
     await expect(page.getByRole('navigation', { name: 'Main' })).toHaveCount(0);
@@ -181,9 +181,10 @@ test('Add to Home Screen: at most once a visit, back 48 hours after Got it and 2
     await page.waitForTimeout(1200);
     await expect(pop).toHaveCount(0);   // installing counts as Got it (48 hours; once installed it never shows)
 
-    // Profile keeps the way in (on Android it opens Chrome's dialog straight away)
+    // Me's Settings keeps the way in (on Android it opens Chrome's dialog straight away)
     await openProfile(page);
-    await page.locator('[data-screen-label="Me"]').getByRole('button', { name: /^Add to Home Screen/ }).click();
+    await page.locator('[data-me-settings]').click();
+    await page.getByRole('dialog', { name: 'Settings' }).getByRole('button', { name: /^Add to Home Screen/ }).click();
     await expect.poll(() => page.evaluate(() => window.__prompted)).toBe(1);
     expect(m.errors).toEqual([]);
   } finally {
@@ -525,20 +526,23 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
     await expect(gs).toHaveCount(0);
 
     // Me (v8 11a): a tab, not a sheet: the header with Edit profile, the impact card, YOUR STUFF, Settings, Help & info
-    await page.getByRole('button', { name: /^Tasks/ }).click();
+    await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Ideas', exact: true }).click();
     await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Me', exact: true }).click();
     const profile = page.locator('[data-screen-label="Me"]');
     await expect(profile.locator('[data-impact]')).toContainText('you’ve led');
-    await expect(profile.locator('[data-stuff]')).toHaveCount(4);   // Drafts · Ideas · Leading · Past
+    await expect(profile.locator('[data-stuff]')).toHaveCount(5);   // My tasks (v8-4), then Drafts · Ideas · Leading · Past
     await expect(profile).toContainText('HELP & INFO');
     await expect(profile).not.toContainText('Hosted');
-    // Coming soon rows toast with the amber triangle
-    await profile.getByRole('button', { name: 'Sync to your calendar' }).click();
+    // Settings is a slide-up from the gear (v8-4); Coming soon rows toast with the amber triangle
+    await profile.locator('[data-me-settings]').click();
+    const settings = page.getByRole('dialog', { name: 'Settings' });
+    await settings.getByRole('button', { name: 'Sync to your calendar' }).click();
     await expect(page.getByRole('status')).toContainText('Coming soon');
     // Notification settings (Settings → Notifications) opens over Me
-    await profile.locator('[data-me-row="Notifications"]').click();
+    await settings.locator('[data-me-row="Notifications"]').click();
     await expect(page.getByRole('dialog', { name: 'Notification settings' })).toBeVisible();
     await page.getByRole('dialog', { name: 'Notification settings' }).getByRole('button', { name: 'Done' }).click();
+    await settings.getByRole('button', { name: 'Close' }).click();
     await profile.getByRole('button', { name: 'Edit profile' }).click();
     const pe = page.getByRole('dialog', { name: 'Edit profile' });
     await pe.getByLabel('Place').fill('East Austin');

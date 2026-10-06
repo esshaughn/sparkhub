@@ -1,120 +1,119 @@
-# Spark Hub v8 · HANDOFF-to-CODE (round v8-2)
+# Spark Hub v8 · HANDOFF-to-CODE (round v8-5)
 
-**Caught up with the design project, and with the build's `HANDOFF-to-DESIGN.md` (as of 2026-10-05, later), as of Oct 5, 2026.**
+**Caught up with the build's `HANDOFF-to-DESIGN-5.md` as of Oct 5, 2026 (late night).** v8-4 is below and still stands unless changed here.
 
-Same setup as v8-1: `Spark Hub App Version 8.dc.html` is a clickable HTML reference (393×852) with inline styles and sample data. Rebuild it in the real stack, lifting colours, sizes, copy and behaviour from it. Keep `support.js` and `photos/` next to it to open it. Where this doc and the prototype disagree, **this doc wins**.
+## New since v8-4
+1. **+ menu (17d).** On every tab except Ideas, the purple + turns into a dark × and two pills pop up: **Make a plan** (purple, calendar icon, left of the +) → Plan an event; **Float an idea** (gold, bulb, above the +) → Float sheet. Scrim/×/navigation closes it. The Ideas tab keeps its gold + straight to Float. The old Two doors sheet and the `ideaDoor` Tweak are **deleted**.
+2. **Plan an event → Float the idea** no longer switches tabs: the Float sheet slides up over Plan an event with title, overview and photo carried over. × returns to Plan an event untouched; posting clears it.
+3. **Float sheet, page 1:** YOUR IDEA is a single line (54px, N/60 inside); SHORT DESCRIPTION placeholder "Casual games for all levels. Bring a paddle if you have one."; field labels #454b55; header line "**Sketch out what you know so far.**" (bold) / "You can change it all later."; **Add more details** (with light "(optional)", no chevron) disappears once tapped and the sheet grows only to fit.
+   - **DATE (optional):** two buttons **Set date** (calendar) · **Create poll** (bars). Set date → centred "Set date · You can change this later." pop-up: date + time chips. Create poll → centred "Create poll · Which dates could work?": 2–6 dates, each with time chips, Done needs 2.
+   - **LOCATION (optional):** **Set location** · **Create poll**, same pattern ("Set location · You can change this later."; poll 2–6 locations).
+   - Once set, the two buttons are replaced by a summary row ("Sat, Oct 4 · Evening", "3 dates · …") with ✎ Edit and × (clears).
+   - **Time chips** (everywhere dates are entered): row 1 **Any time · Set time** (+ time picker), row 2 **Morning · Afternoon · Evening**.
+   - **Next**: pale gold (#f6d985) until a title, then solid gold with soft shadow.
+   - Spacing: 16px sides, 18px between fields, 8px label→field, 52px fields, 14px radius (both pages).
+4. **Leaving the Float sheet** with anything entered opens a centred **"Pick this up later?" · "Only you can see drafts."** with Save draft (gold) / Keep going / Discard. One idea draft is kept; opening Float again restores it ("Picked up your draft"). Not listed in Me → Drafts yet.
+5. **Posting an idea** opens it in the Ideas tab slide-up (your view, §6 below).
+6. **Starter's idea page (18b + 19a + 20a)** — what the person who floated it sees, in the same note-paper slide-up as members (tap your own card on Ideas):
+   - Note top: snapshot photo, IDEA chip with **✎ Edit** (edits title ≤60 and description ≤120 in place; fields auto-grow; Save/Cancel), "You floated this · {when}".
+   - **Top card:** faces + "N interested ›" (who's interested) and a full-width **Share** (white, 2px gold outline, #8f6405 text).
+   - **Make this a plan**: graph paper with a **light gold header band** (gradient #fde39a→#f8c94f, small sparkles, 26px title). Rows: **Date** (leading date + Pick / Add), **Location** (leading + Pick / Add), **Choose lead** (spark icon) → centred "Choose a lead": gold **I'll lead it** + "Or choose someone who offered". Done rows show a gold ✓ and a quiet grey **Change**. **Make it a plan** (gold) appears only when a date is picked and you lead → opens Plan an event at When with everything carried over. If someone else leads: "{name} will make it a plan."
+   - **When? / Where?** (26px titles): ✎ **Edit** → centred "Edit dates/locations" (remove options showing votes; add dates with time chips or locations; Save). "+ Add a date / Suggest a location" links hidden for starters. **See votes ›** centred below each poll → "Date/Location votes · N votes so far", per option: count, bar, voter chips.
+   - **Bottom:** WHERE IT GOES (Post to → "Who can see it" group picker, ≥1 group; shows "First group & N more") and HOW PEOPLE CAN HELP (Talk it through toggle → hides the members' Talk card; **Who leads it** ⓘ I decide / Anyone, saved as `leadRule`). Lead icons are a lightning bolt (Float) / spark (starter).
+7. **Member idea page** is fully gold now (no purple), wherever it's reached. Section titles on idea pages are 26px (When?, Where?, Help make this a plan, Make this a plan, Talk it through with X).
+8. **Calendar pages** show a time (small gold) under the date when one is set.
 
-## New since v8-1 (Oct 5)
-1. **⚠ Give feedback slide-up: please re-check against the build.** It looks like the last update missed it. Full spec in §1.
-2. **Take part (PARTICIPATE) is designed.** Show the chips and build the whole path: §2. Picks are **1b** (setup) and **1c** (event page) in `options/Take Part Options.dc.html`.
-3. **Help out: "Add something else"** (the member's add-a-thing row on the event page) is now quiet grey. Same shape and dashed outline, 1.5px dashed `#d5d8df`, no fill, text `#6b7280` 14px/800 (was gold `#fef7dd` / `#e3c979` / `#8f6405`).
-
----
-
-## 1. Give feedback slide-up ⚠
-
-There are two slide-ups. Check both against the build; the first is the one most likely out of date.
-
-### 1a. Give feedback (Me → Help & info → Give feedback, and the Me "feedback" alert)
-- **Sheet:** white, 24px top corners, grabber 40×5 `#dcdfe6`, padding 10/16/22, 16px gaps, max height 90%, slides up over a 45% ink scrim. Tapping the scrim closes it.
-- **Header row:** Eric's photo (48px round, `faces/eric.jpg`); eyebrow **FEEDBACK WANTED** 11.5px/900, letter-spacing 1px, amber `#8f6405`; title **What do you think of the app so far?** 22px/900, -0.5px; a grey **Cancel** text button (15px/800 `#6b7280`) top-right. No ✕.
-- **Line:** *Tell me honestly: what’s working and what would make it better?* 15.5px/600 `#2a2f38`.
-- **Text box:** 6 rows, min height 140px, 2px `#dcdfe6` border, radius 16. Placeholder *Write as much or as little as you like.*
-- **No prompt rows.** The old tap-to-insert prompts (*Does it make sense? · Is it interesting? · Would you actually use it? · Biggest risks or issues you see?*) are **gone** in v8. If the build still shows them, remove them.
-- **Add a screenshot (optional):** a 48px row with a 1.5px dashed `#c9ccd3` border, radius 14, camera icon, **Add a screenshot** (15px/800) and *(optional)* in grey. Once picked, it becomes a grey `#f4f5f7` row with a 44×64 thumbnail, *Screenshot added* and a round ✕ to remove it.
-- **Sent-with line:** 12.5px/600 `#8a909b`: *Sent with: {device · OS · browser · Home Screen app · screen}. Your last few taps and any errors come along too, to help track down glitches.*
-- **Button:** full-width **Send to Eric**, 52px, purple `#5b4ae8`. It's grey `#dcdfe6` with `#8a909b` text until something is typed.
-- **Sent state:** in the same sheet, centred: Eric's photo (64px) with a green `#149a4b` check badge, **Thank you!** (22px/900), *Got it. This really helps me figure out what to build next.*, and a black **Done** button (52px, `#0d1117`).
-
-### 1b. Feedback ask (the timed one; build row 5: about 5 minutes in, once per account per device)
-- **Sheet:** sits **above the tab bar** (bottom 73px) with a 40% scrim over the content only, so the tab bar stays visible. 24px top corners, shadow `0 -12px 36px rgba(13,17,23,.25)`.
-- **Header:** Eric's photo (36px), eyebrow **FEEDBACK NEEDED** 12px/900 purple `#5b4ae8`, title **Help Eric improve the app** 19px/900.
-- **Text box:** 3 rows, min height 96px, placeholder *What’s something we should fix or add? Any feedback helps, even “the calendar is confusing.”*, max 1000 characters, with a purple ring when focused.
-- **Buttons, one row:** **Send to Eric** (flex, 50px, purple; grey `#d5d8df` until typed), then a grey text **Not now**.
-- **After either button:** a dark tooltip pops up above the Me tab for 5s. It reads **Thanks, Eric got it.** (sent) or **No problem.** (not now), with *Add more anytime in your profile.* under it.
+## Still open
+- Offers to lead and voter names are placeholders; date/location/lead picks on the starter page are session-only in the prototype.
+- Idea drafts aren't in Me → Drafts. Photo isn't editable from the starter page.
+- Event page section titles (Discussion 24px, What to expect 18px) don't match the 26px idea titles yet.
 
 ---
 
-## 2. Take part
+# Spark Hub v8 · HANDOFF-to-CODE (round v8-4)
 
-Options file: `options/Take Part Options.dc.html` (1b + 1c picked; the bottom row covers Review, guest claim, the lead's view, Tasks + tile, and notifications).
+**Caught up with the build's `HANDOFF-to-DESIGN-5.md` as of Oct 5, 2026 (night).** Round v8-3 is in `SparkHub v8-3/`; everything there still stands unless changed below.
 
-### Rules
-- **Claiming a spot RSVPs you Going.** The toast is *8:30pm court time is yours. You’re going.*, with Undo.
-- **Several spots per person.** The lead can set **Most per person** (Any, or 1–20). Past the cap, the toast reads *Up to N per person for court time*.
-- **Guests can claim** with a name and a **required phone**. They get a text reminder, **so this needs SMS on the back end**.
-- One event can have **both** spots and help jobs. Spots are stored apart from jobs (prototype: `s.parts`), so Helping counts and the Needs help counts stay jobs-only. Reusing `signup_items` with a `kind = 'part'` flag is fine.
-- **Waitlist** is per time/kind, **on by default**. When a spot opens, the first in line moves up automatically and gets a push.
-- **Giving up is allowed anytime**, with no cutoff.
-- Switching RSVP to **Can’t or Maybe** while holding spots asks: **Give up your spot?** / **Give up your N spots?** · *You have {8:30pm court time, Beginner clinic}. Spots are for people going, so it/they will go to the next person on the waitlist.* · **Give it up** / **Never mind**.
+`Spark Hub App Version 8.dc.html` is a clickable HTML reference (393×852) with inline styles and sample data. Rebuild it in the real stack. Keep `support.js` and `photos/` next to it. Where this doc and the prototype disagree, **this doc wins**. Option files are in `options/` (mostly `Ideas Board Options.dc.html`; round numbers below refer to it).
 
-### Setup (Plan an event → Join in), 1b
-- PARTICIPATE chips (Claim time · Claim seat · Other, green +) now show, both before and after something's added. The "ADD ANOTHER" heading is now **HELP**, with PARTICIPATE under it.
-- Each chip opens the existing job sheet in **take-part mode**:
-  - **Eyebrow:** green `#149a4b`, **TAKE PART · CLAIM TIME** / **· CLAIM SEAT** / **· OTHER**.
-  - **Title:** *Add time slots* / *Add seats* / *Add spots* (*Edit …* when editing).
-  - **Name placeholder:** *Name the time slots* / *Name the seats* / *Name the spots*.
-- **Claim time** uses the shift rows (start–end + count each). The add link reads **Add a time**. It starts with two 30-minute rows of 4.
-- **Claim seat / Other:** name, details (optional), time (optional), count. The seat default is 8, Other is 6.
-- **Under a divider (take part only):**
-  - **Waitlist when full**: a green switch, on, with *First in line gets the next open spot*.
-  - **Most per person**: − Any/N +, with *People can claim as many as they like* / *Each person can claim up to N*.
-- **The Join in list row** reads *Take part · 4 times · 16 spots* or *Take part · 8 seats · 7:30pm*.
-- **"Other" under PARTICIPATE** means any fixed-count spot that isn't a time or a seat: a carpool place, a table at a sale, a team. HELP's Other is still a job that helps the lead.
-
-### Review
-- Join in shows **PARTICIPATE** (green counts) above **HELP** when both exist. With one kind only, there's no sub-label.
-
-### Event page, 1c
-- A **Take part** section (24px/900 heading) sits **above Help out**, on plans only and not on cancelled events. RSVP stays the main button.
-- **Each kind is a white card** (18px radius): the name 18px/900, a grey sub (*4 times · 4 each*, *7:30pm · 8 seats*, *· up to 2 per person*), then details if any.
-- **Each time is a grey `#f7f8fa` row** (14px radius): the time (14.5px/800), 28px seat circles (faces, then plain grey dashed open seats; tapping the first open seat claims it), *N open*, and a pill at the right:
-  - **Open:** green **Claim** pill (`#149a4b`, white).
-  - **Yours:** the row turns `#f3fbf6` with a `#b9e3c8` ring; the time reads *8:30pm · You’re in* in `#0f7a3c`; your face gets a green ring; the button is grey text **Give up**.
-  - **Full:** *Full · N waiting*, with a white ringed **Waitlist** pill.
-  - **On the waitlist:** *You’re 2nd in line* and grey text **Leave**. The waitlist is **grey, not amber**.
-- **Show more:** past 3 times, *N more times ⌄* / *Show less ⌃*.
-- **Lead's view:**
-  - There's no Claim pill.
-  - Names show under each row (*Dee, Theo · Waiting: Luis*).
-  - **+ Ask someone** shows while any spot is open. It opens the same ask sheet as jobs, with up to two asks waiting.
-  - Tapping a row opens the roster sheet: *12 of 16 claimed*, a **Remove** per person, *GUEST* tags, and the waitlist order.
-- **Removing someone, and editing:**
-  - Removing someone **notifies them**.
-  - Leads add spots after posting through Edit event → Join in.
-  - Removing a time someone holds asks first, then notifies them (*10:30am court time was removed*).
-- **Guest claim sheet:** green eyebrow with the slot (*COURT TIME · 10:00AM*), **Claim this spot**, *Your name*, *Phone number*, *Only the lead sees this. We’ll text a reminder before your time.*, a green **Claim 10:00am** button, and *Have an account? Sign in*.
-
-### Tasks, tiles, Who's coming
-- **My tasks:** green rows (dot and role bar `#149a4b`), the kind as the title and the time under it.
-  - A waitlist row reads **Waitlist for 8:00pm** · *2nd in line*.
-  - A **Taking part** chip (`#e7f6ec` / `#0f7a3c`) sits between Helping and Ideas, shown only once you hold a spot.
-- **Tile and card strips:** still **Going** (green), with your spot: *Going · 10:00am court*, plus *+N more* if you hold several.
-- **Who's coming:** your spot sits after the name, e.g. *Lead · Court time 8:30pm* or *Beginner clinic*.
-
-### Notifications (push + bell)
-- **To the lead:**
-  - *Dee claimed 9:00am court time*.
-  - *Hana gave up 9:30am. Luis moved up.*
-  - *Beginner clinic is full (8 of 8)*.
-  - Several claims within an hour group into *3 people claimed court times*.
-- **To the member:**
-  - *You’re in: 9:30am court opened up* (moved off the waitlist).
-  - A reminder before their time (*Your court time is at 10:00am today*): 2 hours before, or the evening before for morning times.
-  - Guests get these reminders as texts.
-
-### Sample data
-- **Darnell’s Pickleball** (Fri, Nov 6) has **Court time**: 7:30 (2 of 4), 8:00 (full, Luis waiting), 8:30 (empty), 9:00 (1).
-- It also has **Beginner clinic**: 8 seats, 3 taken.
+## New since v8-3 (Oct 5, night)
+1. **Bottom bar is now Groups · Friends · Calendar · Ideas · Me.** Tasks moved under Me. §1
+2. **Me header** gets a settings icon on the far left that opens Settings as a slide-up. §1
+3. **Ideas tab** (all groups' ideas on one board). §2
+4. **Idea slide-up**: tapping an idea card opens the idea page as a sheet over the board, then expands in place. §3
+5. **Idea page changes**: date poll as calendar pages, location poll rows, empty When/Where cards, Contact {name}, gold pop-ups. §4
+6. **Float an idea is a two-page sheet** (15f + 15f-2), and it's now the only float flow. §5
+7. **Fixes**: closing Plan an event returns to where you started it; your own floated idea opens the lead/starter page. §6
+8. **Removed**: How this works (screen and Me row), Real or test?, the old Float sheet fields. §6
 
 ---
 
-## Still open (unchanged)
-- The comment notification to leads.
-- Group invites: the brief is answered next round.
-- Where Withdraw lives for job asks.
+## 1. Navigation
 
-## Files
-- `Spark Hub App Version 8.dc.html`: the prototype (main file).
-- `options/Take Part Options.dc.html`: this round's Take part options.
-- `support.js`, `photos/web/…`.
+- **Tabs:** Groups · Friends · Calendar · **Ideas** · Me. Same flat icons, active tab purple. Ideas uses a bulb icon.
+- **Tasks** lives under Me (YOUR STUFF). Its screen is unchanged.
+- **Me header:** settings gear at the far left, then photo/name; tapping it opens the Settings list as a bottom sheet (max 88%).
+- **Floating +:** purple on every tab, straight to Plan an event. **On Ideas only** it is a **gold #f5b428 round +** (dark #2a1d00 glyph) that opens the Float an idea sheet.
+
+## 2. Ideas tab (Rounds 1–4, 6–8)
+
+- **Page:** graph-paper background (`#f5f9fe`, 18px `#dfeaf7` grid). White header with a tilted gold bulb tile, "Ideas" (30px/900) and small gold/pink/purple sparkles.
+- **Under the header:** a group picker pill (All groups ⌄, multi-select) on the left and a quiet sort on the right (**Popular** · Newest · **Closest**). The sort is text + ⌄, no pill.
+- **View switch:** grid ⇄ full tiles.
+  - **Grid:** two staggered columns of cards, each slightly rotated (±1–2°). Cards are cream lined paper (`#fffdf5`, faint `#f2eee1` rules every 22px). With a photo, it sits at the top and fades out top-to-bottom (strong top-right, lighter bottom-left so the title reads). Title 16px/900, no description. Bottom row: "by {first name}" left (12px grey), gold "↑ N" right.
+  - **Full tiles:** one per row, photo on the left 36% (if any), title, description, bottom row "by X" left and "N interested" right. Height hugs content (min 96px with a photo).
+- **End of board:** a small gold bulb with a sparkle, "That's every idea for now." and a gold-outlined "+ Float an idea" (opens the Float sheet).
+- **Card tap** opens the idea slide-up (§3).
+
+## 3. Idea slide-up (9d + 10c-5)
+
+- **Closed state:** bottom sheet (`#e8eaee`, 24px top corners) over a dark scrim; the board stays behind.
+  - **Note paper top:** cream lined paper, grab handle (`#d8d2bd`), white round × top right. The photo sits on the paper as a snapshot (6px white border, shadow) tilted 1–3° either way; the angle comes from the idea id so it's stable.
+  - Gold IDEA chip (bulb), title 34px/900, description 23px/500, "Floated by {first} · {when}" (when in regular weight).
+  - The paper ends in an **organic torn edge** (irregular clip-path).
+  - On the grey: a white card (soft shadow) with full-width gold **I'm interested** and centred faces + "N people so far ›" (opens who's interested).
+  - Single gold chevron bouncing gently, "Swipe up for more" (14.5px/800, `#8f6405`).
+- **Expanding:** swipe up, scroll, tap the chevron, or tap I'm interested → the same sheet animates its height (≈420ms) to **54px from the top** (never full screen) and the rest of the idea page fades up below: Help make this a plan, Invite a friend, When?, Where?, Talk it through. It then scrolls inside. Swipe down at the top, ×, or tap the strip of board to close.
+- **On the slide-up, everything that was purple is gold** (icons `#b07a0a`, buttons `#f5b428` with `#2a1d00` text, soft fills `#fdf1d6`).
+- **All pop-ups opened from an idea are centred cards** (max 353px wide, 24px radius, z above the sheet): dates, suggest a location, invite people, talk it through, What's a plan, who's interested, Who leads it.
+
+## 4. Idea page details (slide-up and full page)
+
+- **When? (13c-3):** subline "Choose all dates you could attend." Each date is a small calendar page: header strip with the weekday (pale gold; solid gold when picked), the date large ("Oct 4"), "N can go". Picked: gold ring + small ✓ in the header. Tap to vote.
+  - More than two dates: the pages slide off the card's right edge (snap scroll) and "View all N ›" (quiet grey) appears; it opens a centred pop-up with all pages in two columns and a gold Done.
+  - Under the pages, one row: "+ Suggest a date" (or Add a date for leads).
+- **"When would you attend?" pop-up:** after tapping I'm interested on an idea that has dates, a centred pop-up shows the same calendar pages; Done toasts "Thanks! {first} will see your dates."; Not sure yet closes.
+- **Where?:** rows like the date rows but without faces: name, "N votes" / "Be the first", round toggle right; picked = pale gold fill, gold ring, filled ✓. "+ Suggest a location" under it.
+- **Empty When? / Where? (12a):** the whole card is one button: dashed gold edge, icon in a pale gold circle, "When?" + "Suggest a date ›" / "Where?" + "Suggest a location ›". Both empty: the two cards stack full width.
+- **Talk it through:** the button reads **Contact {first}** (solid); after: "✓ {first} will be in touch", toast "We've notified {first}!". The card and its Help-make-this-a-plan row are hidden when the starter said no to Talk it through.
+- **Invite people from an idea:** friends who are already interested show a gold **Interested** (not Going).
+
+## 5. Float an idea (15f + 15f-2) — the only float flow
+
+Opens from the Ideas tab's gold + and "+ Float an idea", and from Plan an event's **Float the idea** card (which closes Plan an event, goes to Ideas and opens this sheet with the title, overview and photo carried over).
+
+**Page 1**
+- Note paper top with torn edge: IDEA chip, "Sketch out what you know so far. / You can change it all later." (17px).
+- On grey: **YOUR IDEA** (60 chars, gold ring once typed), **SHORT DESCRIPTION (optional)** (120), **ADD A PHOTO (optional)** (dashed tile → device photo; then thumbnail + Remove).
+- **Add more details ›** grows the sheet to ~58px from the top and fades in **A DATE TO VOTE ON** (date picker) and **A LOCATION TO VOTE ON** (text). Becomes "Fewer details ⌃".
+- **Next** (gold; grey until there's a title, which toasts "Add a title first").
+
+**Page 2**
+- Note top shows the photo as a tilted snapshot, the IDEA chip, the title (26px) and the description.
+- **WHERE IT GOES:** Post to → groups (opens inline, multi-select, gold ticks, at least one stays picked).
+- **HOW PEOPLE CAN HELP:** **Talk it through with someone?** toggle ("People can offer to brainstorm", default off), then **Who leads it** with ⓘ and **I decide** (default) / **Anyone**. ⓘ opens: *I decide* — people can offer to lead it; you pick who, or keep it for yourself later. *Anyone* — the first person to step up becomes the lead and can turn it into a plan; you get a heads-up.
+- Bottom row: white **‹ Back** and gold **Float the idea** (bulb).
+
+**On post:** saves title, description, photo, the date (first option in When?), the location (first option in Where?), `talk`, `leadRule` ('me'|'any'), groups; toasts "Posted to …" and **opens your new idea page** (no invite sheet). No "lead" wording anywhere on this path; the old When-ish chips and Just float it / I'll lead it toggle are gone.
+
+## 6. Fixes and removals
+
+- **Plan an event ×** and **Save draft** from the leave prompt return to the screen you started from (Groups, Friends, Calendar, Ideas, a group page, or Me); from an event page, to My calendar. Closing an event opened from Me reopens Me (and the list you were in).
+- **Your own floated idea** opens the lead/starter idea page (not the member page with I'm interested / Contact yourself).
+- **Removed:** How this works screen and its Me row (copy still needs a home, Q12); Real or test?; the old Float sheet fields; the "Who can go when" results pop-up.
+
+## Not built / open
+- **Starter view in the new idea style.** Starters still get the older idea page.
+- **Who leads it isn't acted on yet.** `leadRule` is saved; Offer to lead / Lead it waits for `BRIEF-float-the-idea (later).md`.
+- **Voter faces and names are placeholders** in the prototype; use real votes.
+- Plan an event's first-screen Make it a plan / Float the idea redesign (float brief) is still for later.

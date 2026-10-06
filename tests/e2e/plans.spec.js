@@ -463,39 +463,43 @@ test('looking for a lead: the lead steps back, someone else takes the lead', asy
     await HI.locator('[data-led-by]').getByRole('button', { name: 'Manage co-leads' }).click();
     await H.getByRole('dialog', { name: 'Leads' }).locator('[data-lead-row="Hope"]').getByRole('button', { name: 'Step back' }).click();
     await confirm(H, 'Step back');
-    await expect(HI.locator('[data-plan-needs] [data-plan-row="lead"]')).toContainText('Someone to lead');
+    // Floated (no lead) it has the v8 idea page: Hope is its starter, so Make this a plan reads Choose lead
+    const HS = H.locator('[data-screen-label="Idea page (8b)"]');
+    await expect(HS.locator('[data-make-this-plan]')).toContainText('Choose lead');
 
-    // Hope asks Otto by name (owner, 2026-10-02): Ask someone to lead → Ask → Asked, and the row says who's been asked
+    // Hope asks Otto by name (owner, 2026-10-02): Choose lead → Ask someone else → Ask → Asked, and the row says who
     const ottoId = await asUser(O, async (c) => (await c.auth.getUser()).data.user.id);
-    await HI.locator('[data-ask-lead]').click();
+    await HS.locator('[data-plan-lead]').click();
+    const choose = H.getByRole('dialog', { name: 'Choose a lead' });
+    await expect(choose).toContainText('No one has offered yet.');
+    await choose.locator('[data-ask-someone-else]').click();
     const ask = H.getByRole('dialog', { name: 'Ask someone to lead' });
     const ottoRow = ask.locator('[data-ask-uid="' + ottoId + '"]');
     await ottoRow.getByRole('button', { name: 'Ask Otto to lead' }).click();
     await expect(ottoRow.locator('[data-asked]')).toHaveText('Asked');
     await expect(H.locator('html[data-saving]')).toHaveCount(0);
     await ask.getByRole('button', { name: 'Close' }).click();
-    await expect(HI.locator('[data-plan-needs] [data-plan-row="lead"]')).toContainText('Asked Otto');
+    await expect(HS.locator('[data-make-this-plan]')).toContainText('Asked Otto');
 
-    // Otto's bell has the ask (and no New idea row: an idea that needs a lead isn't announced); it opens the idea,
-    // which says who asked. He's interested and could help
+    // Otto's bell has the ask (and no New idea row: an idea that needs a lead isn't announced); it opens the idea's
+    // member page, where Help make this a plan says Hope asked him. He's interested
     await O.reload();
     await O.getByRole('button', { name: /^Notifications/ }).click();
     const feed = O.getByRole('dialog', { name: 'Notifications' });
     await expect(feed.locator('[data-notif=leadask]').filter({ hasText: title })).toContainText('Hope asked if you’d lead');
     await expect(feed.locator('[data-notif=newevent]').filter({ hasText: title })).toHaveCount(0);
     await feed.locator('[data-notif=leadask]').filter({ hasText: title }).click();
-    const OI = O.locator('[data-screen-label="Idea page"]');
-    await expect(OI.locator('[data-plan-needs] [data-plan-row="lead"]')).toContainText('Hope asked you');
-    await expect(OI.locator('[data-ask-lead]')).toHaveCount(0);   // only the floater, co-leads and admins ask
-    await expect(OI.locator('[data-led-by]')).toContainText('FLOATED BY');
-    await OI.getByRole('button', { name: 'I’m interested' }).click();
-    await expect(OI.getByRole('button', { name: 'You’re interested' })).toBeVisible();
-    await expect(OI.locator('[data-can-help]')).toHaveCount(0);   // no "I could help make it happen" (owner, 2026-10-02)
+    const OS = O.locator('[data-screen-label="Idea page (8b)"]');
+    await expect(OS).toContainText('Floated by Hope');
+    await expect(OS.locator('[data-lead-it]')).toContainText('Hope asked you');
+    await OS.locator('[data-im-interested]').click();
+    await expect(OS.locator('[data-im-interested]')).toHaveText('✓ You’re interested');
     await expect(O.locator('html[data-saving]')).toHaveCount(0);   // the taps show at once; wait for them to be saved
 
-    // Otto takes the lead
-    await OI.locator('[data-plan-row="lead"]').getByRole('button', { name: 'I’ll lead' }).click();
+    // Otto takes the lead: it has a lead now, so it's back on the plan-style idea page
+    await OS.locator('[data-lead-it]').click();
     await confirm(O, 'I’ll lead it');
+    const OI = O.locator('[data-screen-label="Idea page"]');
     await expect(OI).toContainText('YOU’RE LEADING');
     await expect(OI.locator('[data-plan-row="lead"]')).toHaveCount(0);
     await openIdea(H, id);
@@ -720,10 +724,13 @@ test('no date yet: the lead runs a date poll from the idea; stepping back blocks
     await HI.locator('[data-led-by]').getByRole('button', { name: 'Manage co-leads' }).click();
     await H.getByRole('dialog', { name: 'Leads' }).locator('[data-lead-row="Pia"]').getByRole('button', { name: 'Step back' }).click();
     await confirm(H, 'Step back');
-    await expect(HI.locator('[data-plan-needs]')).toContainText('2 things to go');
-    await expect(HI.locator('[data-plan-needs]')).not.toContainText('Unlocks when');   // no locked button since Design's post-Update 16 round
-    await expect(HI.locator('[data-plan-needs]').getByRole('button', { name: 'Make it a plan' })).toHaveCount(0);
-    await expect(HI.locator('[data-plan-needs] [data-plan-row="lead"]')).toContainText('Someone to lead');
+    // Looking for a lead (and no jobs), it has the v8 idea page: Pia floated it, so Make this a plan says what's missing,
+    // with no Make it a plan until someone leads it
+    const HS = H.locator('[data-screen-label="Idea page (8b)"]');
+    await expect(HS.locator('[data-make-this-plan]')).toContainText('No votes yet');
+    await expect(HS.locator('[data-make-this-plan]')).toContainText('Choose lead');
+    await expect(HS.locator('[data-make-it-plan]')).toHaveCount(0);
+    await expect(HS.locator('[data-when] [data-cal-page]')).toHaveCount(2);
     expect(await asUser(H, async (c, _C, sid) => { await c.from('sparks').update({ day_date: new Date(Date.now() + 9 * 864e5).toISOString().slice(0, 10) }).eq('id', sid); const r = await c.rpc('make_plan', { p_spark: sid }); return r.error ? 'refused' : 'ALLOWED'; }, id)).toBe('refused');
     expect(host.errors.filter(e => !/status of 400/.test(e))).toEqual([]);   // the refused make_plan above
   } finally {
@@ -750,17 +757,12 @@ test('the lead steps back from a plan: it is an idea again, looking for a lead',
     await H.locator('[data-screen-label="Plan page"] [data-led-by]').getByRole('button', { name: 'Manage co-leads' }).click();
     await H.getByRole('dialog', { name: 'Leads' }).locator('[data-lead-row="Rae"]').getByRole('button', { name: 'Step back' }).click();
     await confirm(H, 'Step back');
-    const HI = H.locator('[data-screen-label="Idea page"]');
-    await expect(HI.locator('[data-plan-needs] [data-plan-row="lead"]')).toContainText('Someone to lead');
-    await expect(HI.locator('[data-led-by]')).toContainText('FLOATED BY');
-    await expect(HI.locator('#sec-when')).not.toContainText('No date yet');   // the date stays
-    // Whoever stepped back isn't told they still lead it: the IDEA chip, and no second Step back
-    await expect(HI.locator('[data-chip]')).toHaveText('IDEA');
-    await HI.locator('[data-led-by]').getByRole('button', { name: 'Manage co-leads' }).click();
-    const leads = H.getByRole('dialog', { name: 'Leads' });
-    await expect(leads.locator('[data-lead-row="Rae"]')).toContainText('Floated it');
-    await expect(leads.getByRole('button', { name: 'Step back' })).toHaveCount(0);
-    await leads.getByRole('button', { name: 'Close' }).click();
+    // An idea again, looking for a lead, with no jobs: the v8 idea page, where Rae is the one who floated it (not its
+    // lead) and the date stays
+    const HS = H.locator('[data-screen-label="Idea page (8b)"]');
+    await expect(HS).toContainText('You floated this');
+    await expect(HS.locator('[data-make-this-plan]')).toContainText('Choose lead');
+    await expect(HS.locator('[data-plan-date]')).toHaveText('Change');   // the date stays
     expect(host.errors).toEqual([]);
   } finally {
     if (id) await deleteIdea(H, id).catch(() => {});

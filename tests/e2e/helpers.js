@@ -157,12 +157,25 @@ async function newLead(browser, n, name, path) {
 
 const button = (page, name) => page.getByRole('button', { name, exact: true });
 
-// v8: posting starts from the floating + on any tab (here My calendar). It tucks away after a moment and a real tap on
-// the tucked sliver only brings it back (v6.spec checks that), so here the click is sent straight to it
+// v8-5: the floating + on any tab (here My calendar) opens two pills; Make a plan starts Plan an event
 async function startPost(page) {
   await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Calendar', exact: true }).click();
-  await page.locator('[data-add-fab]').dispatchEvent('click');
+  await page.locator('[data-add-fab]').click();
+  await page.locator('[data-plus-plan]').click();
   await expect(page.locator('[data-screen-label="New spark"]')).toBeVisible();
+}
+// …and Float an idea opens the Float sheet (v8-4 §5)
+async function startFloat(page) {
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Calendar', exact: true }).click();
+  await page.locator('[data-add-fab]').click();
+  await page.locator('[data-plus-float]').click();
+  await expect(page.locator('[data-screen-label="Float an idea"]')).toBeVisible();
+}
+// My tasks lives under Me since v8-4 (YOUR STUFF's first row)
+async function openTasks(page) {
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Me', exact: true }).click();
+  await page.locator('[data-stuff="My tasks"]').click();
+  await expect(page.locator('[data-screen-label="Your tasks"]')).toBeVisible();
 }
 // All groups (v8; the old Discover tab): My groups' gradient card
 async function openAllGroups(page) {
@@ -236,7 +249,7 @@ async function pickDate(scope, iso, label = 'Date') {
 }
 async function openIdea(page, id) {
   await page.goto('/#/idea/' + id);
-  await expect(page.locator('[data-screen-label="Idea page"], [data-screen-label="Plan page"], [data-screen-label="It happened"]')).toBeVisible();
+  await expect(page.locator('[data-screen-label="Idea page"], [data-screen-label="Idea page (8b)"], [data-screen-label="Plan page"], [data-screen-label="It happened"]')).toBeVisible();   // (8b): a floated idea (v8-4)
 }
 
 // Plan an event (v8): Title (with I'll lead it / Float the idea) · When · Where · What to expect · Join in, then Review.
@@ -383,6 +396,6 @@ async function asUser(page, fn, args) {
 }
 
 module.exports = {
-  TAG, TORREZ, PNG, leadEmail, uniqueTitle, startPost, openAllGroups, openProfile, saved, pickView, mockPlaces, stubPhotos, trackErrors, expectConnected, newMember, newLead, button,
+  TAG, TORREZ, PNG, leadEmail, uniqueTitle, startPost, startFloat, openTasks, openAllGroups, openProfile, saved, pickView, mockPlaces, stubPhotos, trackErrors, expectConnected, newMember, newLead, button,
   postIdea, postEvent, closeAskFirst, pickDate, pickTime, pickKind, addJob, answerNamePrompt, answerGuestPrompt, ideaIdFromUrl, openIdea, confirm, deleteIdea, asUser
 };

@@ -85,7 +85,7 @@
   let lastPrefs = '';
   const keepGrps = (v) => Array.isArray(v) && v.length ? v : null;
   const savePrefs = () => {
-    const next = JSON.stringify({ groupId: state.groupId, view: state.view, gView: state.gView, homeView: state.homeView, cView: state.cView, cGrps: keepGrps(state.cGrps), tGrps: keepGrps(state.tGrps), sGrps: keepGrps(state.sGrps), sort: state.sort, guestName: state.guestName, pastStatsHidden: state.pastStatsHidden, jobsOpen: state.jobsOpen, tkView: state.tkView });
+    const next = JSON.stringify({ groupId: state.groupId, view: state.view, gView: state.gView, homeView: state.homeView, cView: state.cView, cGrps: keepGrps(state.cGrps), tGrps: keepGrps(state.tGrps), sGrps: keepGrps(state.sGrps), sort: state.sort, guestName: state.guestName, pastStatsHidden: state.pastStatsHidden, jobsOpen: state.jobsOpen, tkView: state.tkView, iaView: state.iaView, iaSort: state.iaSort, iaGrps: keepGrps(state.iaGrps) });
     if (next === lastPrefs) return;
     lastPrefs = next;
     try { localStorage.setItem(PREFS_KEY, next); } catch (e) { /* storage blocked: conveniences only */ }
@@ -211,7 +211,7 @@
     fr: { friends: [], incoming: [], outgoing: [], invites: [], loaded: false }, pplTab: 'groups', pplSearch: false, pplQ: '', pplAdd: false, frSel: [], frInvite: false, frAll: false, frAllQ: '',
     frAdd: null, myFriendCode: null, person: null,
     // v6: Profile / Notifications are sheets; Your tasks' "View all", expansions, the RSVP ask
-    profSheet: false, notifSheet: false, dashAll: null, dashOpen: {}, schedOpen: {}, tkCat: 'all', tkView: prefs.tkView === 'dense' ? 'dense' : 'time', frList: null, frListEd: null, meImp: null, meList: null, shiftPick: null, banner: null, sigAdding: false,
+    profSheet: false, notifSheet: false, dashAll: null, dashOpen: {}, schedOpen: {}, tkCat: 'all', tkView: prefs.tkView === 'dense' ? 'dense' : 'time', iaView: prefs.iaView === 'full' ? 'full' : 'grid', iaSort: ['new', 'close'].indexOf(prefs.iaSort) > -1 ? prefs.iaSort : 'interest', iaGrps: keepGrps(prefs.iaGrps) || [], frList: null, frListEd: null, meImp: null, meList: null, shiftPick: null, banner: null, sigAdding: false,
     // v6 Calendar: search, filters, sort, view, month, discovery cards
     cq: '', cSearch: false, cGrps: keepGrps(prefs.cGrps), tGrps: keepGrps(prefs.tGrps), sGrps: keepGrps(prefs.sGrps), cTypes: [], cKind: 'plan', cSort: 'soon', cView: CVIEWS.indexOf(prefs.cView) > -1 ? prefs.cView : 'list',
     cMon: null, cDay: null, cWildHidden: false, cNeedsHidden: false, cHandSheet: false, hMon: null, hDay: null, gMon: null, gDay: null,
@@ -227,7 +227,7 @@
     if (s === 'groupPage' && state.gpId) return '#/group/' + state.gpId;
     if (s === 'compose') return '#/new';   // its own history entry, so the phone's Back stays in the flow (followUrl)
     // Your calendar is the home screen (v7 Update 16, owner 2026-10-03; the Calendar, now Explore, was until then)
-    const plain = { calendar: '#/explore', home: '#/tasks', sched: '', browse: '#/ideas', how: '#/how', own: '#/own', groups: '#/groups', friends: '#/friends', me: '#/me' };
+    const plain = { calendar: '#/explore', home: '#/tasks', sched: '', ideas: '#/ideas', browse: '#/browse', how: '#/how', own: '#/own', groups: '#/groups', friends: '#/friends', me: '#/me' };
     return plain[s] != null ? plain[s] : null;
   };
   const syncHash = (prevScreen) => {
@@ -249,7 +249,8 @@
     if (m) return { screen: 'sched', inviteCode: m[1].toUpperCase() };
     m = h.match(/^#\/add\/([A-Za-z0-9]{6})$/) || location.pathname.match(ADD_PATH);
     if (m) return { screen: 'sched', friendCode: m[1].toUpperCase() };
-    if (h === '#/ideas') return { screen: 'browse' };
+    if (h === '#/ideas') return { screen: 'ideas' };   // the Ideas tab (v8-4); until then #/ideas was a group's Ideas · Plans · Past
+    if (h === '#/browse') return { screen: 'browse' };
     if (h === '#/how') return { screen: 'how' };
     if (h === '#/calendar' || h === '#/explore') return { screen: 'calendar' };
     if (h === '#/schedule') return { screen: 'sched' };
@@ -280,14 +281,14 @@
 
   const scroller = () => document.querySelector('.scroller');
   // Screens an event page can come back to, with their scroll position; anywhere else falls back to the group's page
-  const ORIGINS = ['home', 'sched', 'own', 'calendar', 'groups', 'friends', 'me', 'browse'];
+  const ORIGINS = ['home', 'sched', 'own', 'calendar', 'groups', 'friends', 'me', 'browse', 'ideas'];
   const go = (screen, extra) => {
     const sc = scroller();
     if (screen === 'detail' && state.screen !== 'detail') {
       state.back = ORIGINS.indexOf(state.screen) > -1 ? { screen: state.screen, groupId: state.groupId, phaseTab: state.phaseTab, scroll: sc ? sc.scrollTop : 0 } : null;
     }
     // Going anywhere closes the v6 sheets (Profile, Notifications, View all, Could use a hand, Search)
-    setState(Object.assign({ screen, menu: null, zoom: null, sec: null, needEd: null, share: null, cohostPick: null, leadAsk: null, leadsSheet: null, pollSheet: null, profSheet: false, notifSheet: false, dashAll: null, cHandSheet: false, cSearch: false, cq: '', gSearch: false, gq: '', gTry: null, pplAdd: false, frInvite: false, frList: null, frListEd: null, meImp: null, meList: null, pplSearch: false, pplQ: '', person: null, fbNudge: null, peek: null, gMenu: null, gQr: null, jobAsk: null, handOff: null, partRoster: null, partGuest: null }, extra || {}));
+    setState(Object.assign({ screen, menu: null, plusMenu: false, ip: null, ipPop: null, ipEd: null, zoom: null, sec: null, needEd: null, share: null, cohostPick: null, leadAsk: null, leadsSheet: null, pollSheet: null, profSheet: false, notifSheet: false, dashAll: null, cHandSheet: false, cSearch: false, cq: '', gSearch: false, gq: '', gTry: null, pplAdd: false, frInvite: false, frList: null, frListEd: null, meImp: null, meList: null, meSet: false, pplSearch: false, pplQ: '', person: null, fbNudge: null, peek: null, gMenu: null, gQr: null, jobAsk: null, handOff: null, partRoster: null, partGuest: null }, extra || {}));
     if (sc) sc.scrollTop = 0;
   };
 
@@ -447,6 +448,8 @@
     canHelp: interests.filter(i => i.spark_id === row.id && i.can_help).map(i => i.user_id),   // "I could help make it happen"
     wantsHost: !!row.wants_host && !row.planned,   // the floater is looking for someone else to host (20261101090000)
     holdUntil: row.hold_until || null, holdNudgedAt: row.hold_nudged_at ? Date.parse(row.hold_nudged_at) : 0,   // soft holds (20261103000000)
+    talkOffers: (x.talkOffers[row.id] || []).map(o => o.user_id),   // who tapped Contact {starter} (you see your own; the starter sees all)
+    talk: !!row.talk, leadRule: row.lead_rule === 'any' ? 'any' : 'me',   // the starter's Talk it through and Who leads it (20261107000000_float_sheet)
     noHelp: !!row.no_help,   // the lead said No help needed in Start an event (Design 23C1)
     interestAt: interests.filter(i => i.spark_id === row.id).reduce((m, i) => { m[i.user_id] = Date.parse(i.created_at); return m; }, {}),
     contacts: contacts.filter(c => c.spark_id === row.id),
@@ -454,7 +457,7 @@
     test: !!row.test,   // a member's test event (chosen when posting): the same DEMO pill, never wiped with the demo content
     planned: !!row.planned, visibility: row.visibility || 'group', guestInvites: row.guest_invites !== false, autoRemind: row.auto_remind !== false, minPeople: row.min_people || null,
     rsvps: (x.rsvps[row.id] || []).map(r => ({ userId: r.user_id, status: r.status, created: Date.parse(r.created_at), attended: r.attended == null ? null : !!r.attended })),
-    dateOpts: (x.dateOpts[row.id] || []).map(o => ({ id: o.id, dayDate: o.day_date, dayTime: o.day_time ? String(o.day_time).slice(0, 5) : null, who: o.who, createdBy: o.created_by, created: Date.parse(o.created_at), votes: (x.dateVotes[o.id] || []).map(v => v.user_id) })),
+    dateOpts: (x.dateOpts[row.id] || []).map(o => ({ id: o.id, dayDate: o.day_date, dayTime: o.day_time ? String(o.day_time).slice(0, 5) : null, dayPart: o.day_part || null, who: o.who, createdBy: o.created_by, created: Date.parse(o.created_at), votes: (x.dateVotes[o.id] || []).map(v => v.user_id) })),
     spotOpts: (x.spotOpts[row.id] || []).map(o => ({ id: o.id, name: o.name, address: o.address || '', lat: o.lat, lon: o.lon, who: o.who, createdBy: o.created_by, created: Date.parse(o.created_at), votes: (x.spotVotes[o.id] || []).map(v => v.user_id) })),
     ...toSignups((x.signups[row.id] || []).filter(i => !i.kind || i.kind === 'job'), x.claims),
     parts: toParts((x.signups[row.id] || []).filter(i => i.kind && i.kind !== 'job'), x.claims, x.waits),
@@ -486,7 +489,7 @@
     }
     // v6 Update 13: friends, requests and the invites you've had (a database without them still loads)
     const frP = state.email && !state.viewAs ? sb.rpc('friend_state').then(r => r, () => ({ error: true })) : Promise.resolve({ data: null });
-    const [mem, grp, sp, of, it, gc, rs, dop, dvo, sop, svo, sui, scl, upd, org, alb, prp, rct, sgr, drf, nts, las, inv, jas, lof, swt] = await Promise.all([
+    const [mem, grp, sp, of, it, gc, rs, dop, dvo, sop, svo, sui, scl, upd, org, alb, prp, rct, sgr, drf, nts, las, inv, jas, lof, swt, tlk] = await Promise.all([
       sb.from('memberships').select('group_id,role,last_seen_at,pinned'),
       sb.from('groups').select('id,name,photo,photo_pos,demo'),
       sb.from('sparks').select('*').order('created_at', { ascending: false }),
@@ -494,7 +497,8 @@
       sb.from('interests').select('spark_id,user_id,created_at,can_help'),
       sb.from('guest_contacts').select('spark_id,user_id,name,phone'),
       sb.from('rsvps').select('spark_id,user_id,status,created_at,attended'),
-      sb.from('date_options').select('id,spark_id,day_date,day_time,who,created_by,created_at'),
+      sb.from('date_options').select('id,spark_id,day_date,day_time,day_part,who,created_by,created_at')
+        .then(r => r.error && r.error.code === '42703' ? sb.from('date_options').select('id,spark_id,day_date,day_time,who,created_by,created_at') : r),   // day_part: 20261107000000
       sb.from('date_votes').select('option_id,user_id'),
       sb.from('spot_options').select('id,spark_id,name,address,lat,lon,who,created_by,created_at'),
       sb.from('spot_votes').select('option_id,user_id'),
@@ -524,7 +528,9 @@
       state.email ? sb.from('job_asks').select('item_id,spark_id,user_id,asked_by,message,answer,created_at,answered_at').then(r => r.error ? { data: [] } : r) : Promise.resolve({ data: [] }),
       state.email ? sb.from('lead_offers').select('spark_id,user_id,offered_by,message,created_at').then(r => r.error ? { data: [] } : r) : Promise.resolve({ data: [] }),
       // Take part's waitlists (20261106000000_take_part.sql; a database without them still loads)
-      sb.from('signup_waits').select('item_id,user_id,created_at').order('created_at').then(r => r.error ? { data: [] } : r)
+      sb.from('signup_waits').select('item_id,user_id,created_at').order('created_at').then(r => r.error ? { data: [] } : r),
+      // Talk it through's offers (20261107000000_float_sheet.sql; a database without them still loads)
+      state.email ? sb.from('talk_offers').select('spark_id,user_id,created_at').order('created_at').then(r => r.error ? { data: [] } : r) : Promise.resolve({ data: [] })
     ]);
     [mem, grp, sp, of, it, gc, rs, dop, dvo, sop, svo, sui, scl, upd, org, alb, prp].forEach(must);
     const rows = (r) => r.error ? [] : r.data || [];
@@ -532,7 +538,7 @@
       memberships: mem.data, groups: grp.data, sparks: sp.data, offers: of.data, interests: it.data, guest_contacts: gc.data, rsvps: rs.data,
       date_options: dop.data, date_votes: dvo.data, spot_options: sop.data, spot_votes: svo.data, signup_items: sui.data, signup_claims: scl.data,
       plan_updates: upd.data, cohosts: org.data, album_photos: alb.data, plan_prep: prp.data,
-      reactions: rows(rct), spark_groups: rows(sgr), event_drafts: rows(drf), notes: rows(nts), lead_asks: rows(las), event_invites: rows(inv), job_asks: rows(jas), lead_offers: rows(lof), signup_waits: rows(swt), profiles: []
+      reactions: rows(rct), spark_groups: rows(sgr), event_drafts: rows(drf), notes: rows(nts), lead_asks: rows(las), event_invites: rows(inv), job_asks: rows(jas), lead_offers: rows(lof), signup_waits: rows(swt), talk_offers: rows(tlk), profiles: []
     };
     // Names and photos of everyone on screen
     const ids = new Set([state.me]);
@@ -543,6 +549,7 @@
     d.event_invites.forEach(i => ids.add(i.user_id));
     d.job_asks.forEach(a => { ids.add(a.user_id); ids.add(a.asked_by); });
     d.lead_offers.forEach(o => ids.add(o.user_id));
+    d.talk_offers.forEach(o => ids.add(o.user_id));
     ids.delete(null); ids.delete(undefined);
     for (const part of chunks(Array.from(ids), 80)) {
       d.profiles.push(...must(await sb.from('profiles').select('id,name,avatar_path,place,bio').in('id', part)).data);
@@ -569,7 +576,7 @@
       groups: byKey(d.spark_groups, 'spark_id'),
       leadAsks: byKey(d.lead_asks || [], 'spark_id'),   // a database without them still loads
       invites: byKey(d.event_invites || [], 'spark_id'),
-      jobAsks: byKey(d.job_asks || [], 'spark_id'), leadOffers: byKey(d.lead_offers || [], 'spark_id')
+      jobAsks: byKey(d.job_asks || [], 'spark_id'), leadOffers: byKey(d.lead_offers || [], 'spark_id'), talkOffers: byKey(d.talk_offers || [], 'spark_id')
     };
 
     const roles = {};
@@ -1438,7 +1445,8 @@
     const close = () => setState({ jobAsk: null }), q = (ja.q || '').trim().toLowerCase(), open = openAsks(s, j.id);
     const slots = Math.max(0, 2 - open.length), picked = ja.picked || [], notes = ja.notes || {}, n = picked.length;
     const set = (patch) => setState({ jobAsk: Object.assign({}, state.jobAsk, patch) });
-    const list = (ja.people || []).filter(p => p.id !== state.me && hostIds(s).indexOf(p.id) < 0 && !onJob(s, j.id, p.id) && (!q || p.name.toLowerCase().indexOf(q) > -1));
+    const asked = s.jobAsks.filter(a => a.itemId === j.id);
+    const list = (ja.people || []).filter(p => p.id !== state.me && hostIds(s).indexOf(p.id) < 0 && !onJob(s, j.id, p.id) && !asked.some(a => a.userId === p.id && !a.answer) && (!q || p.name.toLowerCase().indexOf(q) > -1));
     // A tick picks; once the slots are full the others grey out. A ticked person gets their own note field under them
     const right = (p) => { const a = s.jobAsks.find(x => x.itemId === j.id && x.userId === p.id);
       if (a) return '<span data-asked style="flex:0 0 auto;font-size:14px;font-weight:800;color:' + (a.answer === 'cant' ? '#6b7280' : '#0f7a3c') + '">' + (a.answer === 'cant' ? 'Can’t this time' : '✓ Asked') + '</span>';
@@ -1451,6 +1459,13 @@
     return modal('Ask someone to take it', close,
       h3Html('<span style="font-weight:500;letter-spacing:-.3px">Ask someone to take </span>“' + esc(j.item) + '”') +
       paraHtml(slots === 2 ? 'Ask up to 2 people. Add a note if you like.' : slots === 1 ? 'One ask is waiting, so you can ask 1 more.' : 'Two asks are waiting. Wait for an answer, or withdraw one.') +
+      // Who's been asked, with Withdraw while they haven't answered (Design v8-3 placed the way in, HANDOFF §4)
+      (asked.length ? '<div data-asked-box style="display:flex;flex-direction:column;gap:2px;padding:4px 14px;border-radius:18px;background:#f2f3f6">' + asked.map((a, i) =>
+        '<div style="display:flex;flex-direction:column;border-top:' + (i ? '1px solid #dcdfe6' : '0') + '"><div style="display:flex;align-items:center;gap:12px;min-height:54px">' + face(a.userId, nameOf(a.userId), 40) +
+          '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px"><span style="font-size:15px;font-weight:800;color:#0d1117">' + esc(nameOf(a.userId)) + '</span>' +
+            '<span style="font-size:13px;font-weight:700;color:' + (a.answer === 'yes' ? '#0f7a3c' : a.answer === 'cant' ? '#9aa0ac' : '#6b7280') + '">' + (a.answer === 'yes' ? 'Said yes' : a.answer === 'cant' ? 'Can’t this time' : 'Asked · waiting') + '</span></div>' +
+          (!a.answer && (a.by === state.me || isLead(s)) ? '<span ' + on(() => withdrawJobAsk(s, a)) + ' data-withdraw-ask style="flex:0 0 auto;display:flex;align-items:center;min-height:40px;padding:0 4px 0 10px;font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">Withdraw</span>' : '') + '</div>' +
+          (a.message ? '<span style="margin:-6px 0 10px 52px;font-size:13.5px;line-height:1.4;font-weight:600;font-style:italic;color:#5c6270">' + esc(a.message) + '</span>' : '') + '</div>').join('') + '</div>' : '') +
       ((ja.people || []).length > 7 ? '<input class="fld" type="search" aria-label="Search people" placeholder="Search" value="' + esc(ja.q || '') + '" ' + onInput(e => { if (e.type === 'input') set({ q: e.target.value.slice(0, 40) }); }) + ' style="' + FIELD + '">' : '') +
       (ja.people === null ? paraHtml('Loading…') : !list.length ? paraHtml(q ? 'Nobody by that name.' : 'No one else to ask yet.') :
         '<div style="display:flex;flex-direction:column;max-height:46vh;overflow:auto">' + list.map((p, i) =>
@@ -2575,7 +2590,7 @@
   const backLabel = (s) => {
     const b = state.back, g = groupById(s.groupId);
     if (!b) return g && g.role ? g.name : 'My calendar';
-    return { home: 'My tasks', sched: 'My calendar', own: 'Leading', calendar: 'All groups', groups: 'My groups', friends: 'My friends', me: 'Me', browse: (groupById(b.groupId) || g || {}).name || 'the group' }[b.screen];
+    return { home: 'My tasks', sched: 'My calendar', own: 'Leading', calendar: 'All groups', groups: 'My groups', friends: 'My friends', me: 'Me', ideas: 'Ideas', browse: (groupById(b.groupId) || g || {}).name || 'the group' }[b.screen];
   };
   const goBack = (s) => {
     const b = state.back, g = groupById(s.groupId);
@@ -2822,7 +2837,8 @@
   // "Darnell, Marisol and Hana", "Darnell, Marisol, Hana and 5 more"
   const namesLine = (ns) => ns.length <= 3 ? ns.join(', ').replace(/, ([^,]*)$/, ' and $1') : ns.slice(0, 3).join(', ') + ' and ' + (ns.length - 3) + ' more';
   // v8: the white header of the four tab pages (My groups, My friends, My tasks): the title, Search and the bell
-  const tabHead = (title, searchFn, searchLabel) => '<header style="position:relative;z-index:5;background:#fff;padding:14px 16px 10px;display:flex;align-items:center;gap:12px">' +
+  const tabHead = (title, searchFn, searchLabel, back) => '<header style="position:relative;z-index:5;background:#fff;padding:14px 16px 10px;display:flex;align-items:center;gap:12px">' +
+    (back ? '<span ' + on(back) + ' aria-label="Back to Me" style="flex:0 0 40px;width:40px;height:40px;margin-left:-6px;border-radius:999px;display:flex;align-items:center;justify-content:center;color:#0d1117;cursor:pointer">' + svg(20, stroke('currentColor', 2.6), '<path d="M15 5l-7 7 7 7"/>') + '</span>' : '') +
     '<div style="flex:1 1 0;min-width:0"><h1 style="min-width:0;margin:0;font-size:30px;line-height:1;font-weight:900;letter-spacing:-1px;color:#0d1117">' + esc(title) + '</h1></div>' +
     '<div style="flex:0 0 auto;display:flex;gap:12px">' +   // 12px apart (Design v8)
       '<span ' + on(searchFn) + ' aria-label="' + searchLabel + '" style="flex:0 0 44px;width:44px;height:44px;border-radius:999px;background:#f2f3f6;color:#0d1117;display:flex;align-items:center;justify-content:center;cursor:pointer">' + ic6('search', 20, 'currentColor', 2.1) + '</span>' +
@@ -3462,7 +3478,7 @@
 
   function viewTasks() {
     const st = state, cat = st.tkCat || 'all', dense = st.tkView === 'dense';
-    const wrap = (inner) => '<div data-screen-label="Your tasks">' + tabHead('My tasks', openSearch, 'Search events') +
+    const wrap = (inner) => '<div data-screen-label="Your tasks">' + tabHead('My tasks', openSearch, 'Search events', openProfileSheet) +
       '<div style="padding:14px 14px 22px;display:flex;flex-direction:column;gap:12px">' + inner + '</div><div style="height:var(--nav-h)"></div></div>';
     if (!st.loaded) return wrap(skeleton(2, 200));
     if (!myGroups().length) return wrap(goneCard() + noGroupCard());
@@ -4529,7 +4545,7 @@
   const fbNudgeRead = () => { try { return JSON.parse(localStorage.getItem(FB_NUDGE_KEY + state.me) || '{}') || {}; } catch (e) { return {}; } };
   const fbNudgeWrite = (o) => { try { localStorage.setItem(FB_NUDGE_KEY + state.me, JSON.stringify(o)); } catch (e) { /* blocked: it may ask again */ } };
   // Only over a main screen with nothing else open, so it never lands on someone mid-task
-  const fbNudgeFits = () => ['calendar', 'home', 'sched', 'groups', 'friends'].indexOf(state.screen) > -1 && state.loaded && !state.notifSheet &&
+  const fbNudgeFits = () => ['calendar', 'home', 'sched', 'groups', 'friends', 'ideas'].indexOf(state.screen) > -1 && state.loaded && !state.notifSheet &&
     !state.fb && !state.confirm && !state.share && !state.loginStep && !state.inv && !state.toast && !state.banner && !state.cSearch && !state.dashAll && !state.cHandSheet && !state.zoom && !state.installPop;
   function fbNudgeTick() {
     const now = Date.now(), gap = Math.min(now - fbTickAt, 60000);   // a sleeping phone doesn't count
@@ -5473,7 +5489,7 @@
   function viewDetail(s) {
     const ph = phaseOf(s);
     const page = s.cancelledAt ? (s.planned ? viewPlan(s) : viewIdea(s))   // it didn't happen: no album or reactions
-      : ph === 'plan' ? viewPlan(s) : ph === 'done' ? viewDone(s) : viewIdea(s);
+      : ph === 'plan' ? viewPlan(s) : ph === 'done' ? viewDone(s) : useIdea8(s) ? viewIdea8(s) : viewIdea(s);
     return isDemo(s) ? '<div>' + testTab() + page + '</div>' : page;
   }
   // Demo and test events: a striped yellow tab hanging from the top edge between the back and share
@@ -6294,8 +6310,8 @@
     const more = () => { if (navigator.share) navigator.share({ title: s.text, text: msg, url: link }).catch(() => {}); else copy(msg, 'Invite copied. Paste it anywhere.'); };
     const q = (sh.q || '').trim().toLowerCase(), invited = sh.invited || [];
     // Anyone who has answered shows their answer and can't be picked (owner, 2026-10-03: Can't and Maybe were still invitable / read Invited)
-    const answer = (id) => { const r = s.rsvps.find(x => x.userId === id); return r ? r.status : null; };
-    const ANS = { going: ['Going', '#0f7a3c'], maybe: ['Maybe', '#b07a0a'], no: ['Can’t', '#6b7280'] };
+    const answer = (id) => { const r = s.rsvps.find(x => x.userId === id); return r ? r.status : phaseOf(s) === 'idea' && s.interested.indexOf(id) > -1 ? 'interested' : null; };
+    const ANS = { going: ['Going', '#0f7a3c'], maybe: ['Maybe', '#b07a0a'], no: ['Can’t', '#6b7280'], interested: ['Interested', '#8f6405'] };   // an idea's interested friends (v8-4 §4)
     const people = (sh.people || []).filter(p => !q || p.name.toLowerCase().indexOf(q) > -1 || p.sub.toLowerCase().indexOf(q) > -1);
     const picked = sh.picked || [], nPick = picked.length;
     const tick = (p) => { const on_ = picked.indexOf(p.id) > -1;
@@ -6871,7 +6887,7 @@
       jobActs(s, (fn) => fn).map(a => ({ label: a.label, item: a.rest, cta: a.cta, act: a.go })),
       myJobs.map(j => ({ item: j.item, meta: myTime(j) })));
     const tKey = (lead ? 'h:' : '') + s.id, tOpen = st.jobsOpen[tKey] == null ? true : !!st.jobsOpen[tKey];
-    const T = lead ? { bar: '#f5f3fe', ink: '#4a3ad4', dot: '#7b6ef0', row: '#fdfcff', word: 'Your tasks' } : { bar: '#fefaef', ink: '#8f6405', dot: '#e8a71c', row: '#fffefb', word: 'You’re helping' };
+    const T = lead ? { bar: '#f5f3fe', ink: '#4a3ad4', dot: '#7b6ef0', row: '#fdfcff', word: 'Your tasks' } : { bar: '#e6f6f4', ink: '#0b6f6a', dot: '#0e8a84', row: '#fbfefe', word: 'You’re helping' };
     const tab = !tasks.length || s.cancelledAt ? '' :
       '<div data-screen-label="' + T.word + '" style="border-radius:0 0 24px 24px;overflow:hidden;box-shadow:0 1px 3px rgba(15,18,25,.08)">' +
         '<div ' + on(() => setState({ jobsOpen: Object.assign({}, st.jobsOpen, { [tKey]: !tOpen }) })) + ' aria-expanded="' + tOpen + '" data-' + (lead ? 'host-tasks' : 'helping') + '-bar style="display:flex;align-items:center;gap:8px;min-height:48px;padding:0 18px;background:' + T.bar + ';color:' + T.ink + ';font-size:15.5px;font-weight:800;cursor:pointer">' +
@@ -7133,6 +7149,651 @@
   const soonToast = () => toast('Coming soon', 'soon');
   const openFeedback = () => setState({ fb: { text: '', nudge: !!state.fbHint }, fbHint: false });
 
+  const GRAPH_BG = 'background-color:#f5f9fe;background-image:linear-gradient(#dfeaf7 1px,transparent 1px),linear-gradient(90deg,#dfeaf7 1px,transparent 1px);background-size:18px 18px';
+  const NOTE_BG = 'background-color:#fffdf5;background-image:repeating-linear-gradient(#fffdf5 0 21px,#f2eee1 21px 22px)';
+  const BULB = '<path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V16h5v-.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/>';
+  const ideaPics = (s) => s.photoPaths.concat(s.mood).map(photoUrl);
+  const floaterName = (s) => nameOf(s.createdBy, s.leadName);
+  // ---- Float an idea (v8-4 §5, v8-5 items 2–5): the only float flow. A two-page sheet: page 1 sketches it (YOUR IDEA,
+  // SHORT DESCRIPTION, ADD A PHOTO, and behind Add more details a DATE and a LOCATION, each set or put to a poll);
+  // page 2 says where it goes and how people can help. It opens from the + menu, the Ideas tab's gold +, the board's
+  // + Float an idea, and Plan an event's Float the idea card (over Plan an event, which stays as it was).
+  const TORN = 'clip-path:polygon(0 0,100% 0,100% calc(100% - 6px),97.23% calc(100% - 11.6px),95.25% calc(100% - 6.4px),93.80% calc(100% - 10.8px),91.28% calc(100% - 4.8px),87.98% calc(100% - 2.8px),86.03% calc(100% - 8.7px),83.03% calc(100% - 6.9px),81.67% calc(100% - 11.4px),80.09% calc(100% - 6.4px),78.28% calc(100% - 6.2px),74.93% calc(100% - 4.8px),70.58% calc(100% - 6.5px),67.63% calc(100% - 5.3px),63.96% calc(100% - 5.5px),62.50% calc(100% - 11.3px),58.47% calc(100% - 6.7px),55.34% calc(100% - 6.0px),52.05% calc(100% - 3.4px),49.41% calc(100% - 6.9px),46.89% calc(100% - 8.8px),42.64% calc(100% - 5.2px),39.85% calc(100% - 6.4px),37.21% calc(100% - 6.4px),35.25% calc(100% - 13.4px),33.18% calc(100% - 9.7px),28.89% calc(100% - 11.3px),25.29% calc(100% - 8.4px),24.02% calc(100% - 5.2px),22.13% calc(100% - 5.9px),18.57% calc(100% - 4.7px),17.35% calc(100% - 5.6px),14.73% calc(100% - 2.9px),12.07% calc(100% - 10.7px),9.37% calc(100% - 3.3px),5.31% calc(100% - 8.6px),3.61% calc(100% - 9.1px),0.30% calc(100% - 10.7px),0.00% calc(100% - 7.7px))';
+  const PAPER = 'position:relative;flex-shrink:0;background-color:#fffdf5;background-image:repeating-linear-gradient(#fffdf5 0 21px,#ece6d2 21px 22px);filter:drop-shadow(0 1px 1px rgba(13,17,23,.08));' + TORN;
+  const GRAB = '<span aria-hidden="true" style="position:absolute;top:9px;left:50%;margin-left:-20px;width:40px;height:5px;border-radius:999px;background:#d8d2bd"></span>';
+  const IDEA_CHIP = '<span style="align-self:flex-start;display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;background:#f5b428;color:#3d2a00;font-size:14px;font-weight:900;letter-spacing:1.4px">' + svg(15, stroke('#3d2a00', 2.6), '<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9V16h7v-2.1A6 6 0 0 0 12 3z"/>') + 'IDEA</span>';
+  const CAL_P = '<rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16M9 3v4M15 3v4"/>', PIN_P = '<path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>';
+  const EDIT_PEN = svg(14, stroke('currentColor', 2.3) + ' style="margin-right:4px"', '<path d="M4 20h4L19 9l-4-4L4 16v4z"/>');
+  // A centred pop-up (everything opened from an idea, v8-4 §3): 353px wide at most, a round × top right
+  const popCard = (label, close, title, sub, body, z) => '<div class="modal-scrim" data-scrim="' + reg(close) + '" style="z-index:' + (z || 45) + ';background:rgba(13,17,23,.5);animation:scrimIn 200ms ease-out both">' +
+    '<div role="dialog" aria-modal="true" aria-label="' + esc(label) + '" data-screen-label="' + esc(label) + '" style="position:relative;width:100%;max-width:353px;max-height:88%;overflow:auto;box-sizing:border-box;border-radius:24px;background:#fff;padding:22px 18px 18px;display:flex;flex-direction:column;gap:12px;box-shadow:0 20px 50px rgba(13,17,23,.35);animation:popIn 220ms cubic-bezier(.2,.8,.2,1) both">' +
+      '<span ' + on(close) + ' aria-label="Close" style="position:absolute;top:12px;right:12px;width:40px;height:40px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(13, '#0d1117', 2.8) + '</span>' +
+      (title ? '<div style="display:flex;flex-direction:column;gap:2px;padding-right:40px;margin-bottom:4px"><span style="font-size:22px;font-weight:900;letter-spacing:-.4px;color:#0d1117">' + title + '</span>' +
+        (sub ? '<span style="font-size:15px;font-weight:500;color:#454b55">' + sub + '</span>' : '') + '</div>' : '') +
+      body + '</div></div>';
+  const goldBtn = (fn, label, attr) => '<button type="button" ' + on(fn) + ' ' + (attr || '') + ' style="margin-top:4px;width:100%;min-height:52px;border:0;border-radius:999px;background:#f5b428;color:#2a1d00;font-family:inherit;font-size:16px;font-weight:900;cursor:pointer">' + label + '</button>';
+  // Time chips, everywhere an idea's dates are entered (v8-5): Any time · Set time (+ a time field) / Morning · Afternoon · Evening.
+  // A time is '' (any), 'morning' | 'afternoon' | 'evening', 'set' (Set time picked, no time yet) or 'HH:MM'
+  const PARTS = ['morning', 'afternoon', 'evening'];
+  const timeLabel = (t) => !t || t === 'set' ? '' : PARTS.indexOf(t) > -1 ? t.charAt(0).toUpperCase() + t.slice(1) : fmtTime(t);
+  const timeChips = (cur, set) => {
+    const custom = cur === 'set' || /^\d\d:\d\d$/.test(cur || '');
+    const chip = (label, onIt, fn) => '<span ' + on(fn) + ' aria-pressed="' + onIt + '" style="display:flex;align-items:center;min-height:32px;padding:0 11px;border-radius:999px;font-size:13px;font-weight:800;cursor:pointer;background:' + (onIt ? '#fdf1d6' : '#f6f7f9') + ';color:' + (onIt ? '#8f6405' : '#454b55') + ';box-shadow:' + (onIt ? 'inset 0 0 0 1.5px #f5b428' : 'none') + '">' + label + '</span>';
+    return '<div style="display:flex;flex-direction:column;gap:6px;padding:0 2px 4px">' +
+      '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px">' + chip('Any time', !cur, () => set('')) + chip('Set time', custom, () => set(custom ? cur : 'set')) +
+        (custom ? '<input type="time" aria-label="Time" value="' + (cur === 'set' ? '' : esc(cur)) + '" ' + onInput(e => { if (e.type === 'change' || e.type === 'input') set(e.target.value || 'set', true); }) + ' style="min-height:32px;padding:0 10px;border:0;outline:0;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #f5b428;font-family:inherit;font-size:13.5px;font-weight:800;color:#0d1117">' : '') + '</div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:6px">' + PARTS.map(p => chip(timeLabel(p), cur === p, () => set(p))).join('') + '</div></div>';
+  };
+  const ideaDateField = (val, fn, label) => '<span style="flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:10px;min-height:52px;padding:0 14px;border-radius:14px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6">' + svg(20, stroke('#b07a0a', 2.2), CAL_P) +
+    '<input type="date" aria-label="' + (label || 'Date') + '" min="' + todayISO() + '" value="' + esc(val || '') + '" ' + onInput(e => { if (e.type === 'change' || e.type === 'input') fn(e.target.value); }) + ' style="flex:1;min-width:0;border:0;outline:0;background:transparent;font-family:inherit;font-size:16px;font-weight:700;color:#0d1117"></span>';
+  const ideaPlaceField = (val, fn, ph, label) => '<span style="flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:10px;min-height:52px;padding:0 14px;border-radius:14px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6">' + svg(20, stroke('#b07a0a', 2.2), PIN_P) +
+    '<input type="text" maxlength="60" aria-label="' + (label || 'Location') + '" placeholder="' + esc(ph) + '" value="' + esc(val || '') + '" ' + onInput(e => { if (e.type === 'input') fn(e.target.value.slice(0, 60)); }) + ' style="flex:1;min-width:0;border:0;outline:0;background:transparent;font-family:inherit;font-size:16px;font-weight:700;color:#0d1117"></span>';
+  const rowXBtn = (fn, label) => '<span ' + on(fn) + ' aria-label="' + label + '" style="flex:0 0 40px;width:40px;height:40px;border-radius:999px;display:flex;align-items:center;justify-content:center;color:#9aa0ac;font-size:20px;font-weight:800;cursor:pointer">×</span>';
+  const shortDate = (iso) => new Date(iso + 'T12:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  const toggleStyle = (onIt) => ['flex:0 0 46px;width:46px;height:28px;border-radius:999px;position:relative;transition:background .15s;background:' + (onIt ? '#f5b428' : '#dcdfe6'),
+    'position:absolute;left:' + (onIt ? 21 : 3) + 'px;top:3px;width:22px;height:22px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(13,17,23,.25);transition:left .15s'];
+  const segBtn = (onIt, label, fn, attr) => '<span ' + on(fn) + ' ' + (attr || '') + ' aria-pressed="' + onIt + '" style="flex:1 1 0;display:flex;align-items:center;justify-content:center;min-height:38px;border-radius:999px;font-size:14.5px;font-weight:' + (onIt ? 800 : 700) + ';cursor:pointer;background:' + (onIt ? '#fff' : 'transparent') + ';color:' + (onIt ? '#0d1117' : '#6b7280') + ';box-shadow:' + (onIt ? '0 1px 3px rgba(13,17,23,.12)' : 'none') + '">' + label + '</span>';
+  // HOW PEOPLE CAN HELP: Talk it through with someone? and Who leads it (the Float sheet's page 2 and the starter's page)
+  const helpCard = (talk, rule, onTalk, onRule, onInfo) => { const [tr, kn] = toggleStyle(talk);
+    return '<div style="background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08);overflow:hidden">' +
+      '<div ' + on(onTalk, 'switch') + ' aria-checked="' + talk + '" data-talk-toggle style="display:flex;align-items:center;gap:12px;min-height:60px;padding:0 14px;cursor:pointer">' + svg(20, stroke('#b07a0a', 2.2), '<path d="M5 18l-1.5 3 4-1.6A8 8 0 1 0 5 18z"/>') +
+        '<div style="flex:1;display:flex;flex-direction:column"><span style="font-size:15.5px;font-weight:800;color:#0d1117">Talk it through with someone?</span><span style="font-size:13px;font-weight:600;color:#6b7280">People can offer to brainstorm</span></div>' +
+        '<span style="' + tr + '"><span style="' + kn + '"></span></span></div>' +
+      '<span style="display:block;height:1px;margin:0 14px;background:#eceef2"></span>' +
+      '<div style="display:flex;flex-direction:column;gap:10px;padding:12px 14px 14px"><div style="display:flex;align-items:center;gap:12px">' + svg(20, stroke('#b07a0a', 2.2), '<path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/>') +
+        '<span style="flex:1;font-size:15.5px;font-weight:800;color:#0d1117">Who leads it</span>' +
+        '<span ' + on(onInfo) + ' aria-label="What’s the difference?" style="display:flex;width:32px;height:32px;align-items:center;justify-content:center;cursor:pointer"><span style="display:flex;width:18px;height:18px;border-radius:999px;box-shadow:inset 0 0 0 1.6px #9aa0ac;align-items:center;justify-content:center;font-size:11px;font-weight:900;color:#6b7280">i</span></span></div>' +
+        '<div style="display:flex;gap:3px;padding:3px;border-radius:999px;background:#e8eaee">' + segBtn(rule !== 'any', 'I decide', () => onRule('me'), 'data-rule="me"') + segBtn(rule === 'any', 'Anyone', () => onRule('any'), 'data-rule="any"') + '</div></div></div>'; };
+  const ruleInfo = (close) => popCard('Who leads it?', close, '', '',
+    '<span style="font-size:22px;font-weight:900;letter-spacing:-.4px;color:#0d1117;padding-right:40px">Who leads it?</span>' +
+    '<div style="display:flex;flex-direction:column;gap:4px;padding:12px 14px;border-radius:14px;background:#f6f7f9"><span style="font-size:16px;font-weight:900;color:#0d1117">I decide</span><span style="font-size:15px;line-height:1.45;font-weight:500;color:#454b55">People can offer to lead it. You pick who, or keep it for yourself later.</span></div>' +
+    '<div style="display:flex;flex-direction:column;gap:4px;padding:12px 14px;border-radius:14px;background:#f6f7f9"><span style="font-size:16px;font-weight:900;color:#0d1117">Anyone</span><span style="font-size:15px;line-height:1.45;font-weight:500;color:#454b55">The first person to step up becomes the lead and can turn it into a plan. You’ll get a heads-up.</span></div>' +
+    goldBtn(close, 'Got it'), 47);
+  const sectionLabel = (t) => '<span style="font-size:12.5px;font-weight:900;letter-spacing:1px;color:#454b55">' + t + '</span>';
+
+  // One idea draft, kept on this device for this account ("Only you can see drafts"); the photo goes along as a data URL
+  const ideaDraftKey = () => 'spark-hub-idea-draft-' + (state.me || 'guest');
+  const readIdeaDraft = () => { try { return JSON.parse(localStorage.getItem(ideaDraftKey())); } catch (e) { return null; } };
+  const writeIdeaDraft = (d) => { try { if (d) localStorage.setItem(ideaDraftKey(), JSON.stringify(d)); else localStorage.removeItem(ideaDraftKey()); return true; } catch (e) { return false; } };
+  const qiBlank = () => ({ page: 1, title: '', why: '', photo: null, more: false, date: null, dpoll: null, loc: null, lpoll: null, groups: currentGroup() ? [currentGroup().id] : myGroups().slice(0, 1).map(g => g.id), gOpen: false, talk: false, rule: 'me', fromCompose: false });
+  const openFloat = (pre) => needSignIn(() => {
+    if (!myGroups().length) { if (state.loaded) openJoin(); return; }
+    const d = !pre ? readIdeaDraft() : null;
+    if (d) {
+      writeIdeaDraft(null);
+      const photo = d.photo ? (() => { try { const blob = dataUrlToBlob(d.photo); return { blob, url: URL.createObjectURL(blob) }; } catch (e) { return null; } })() : null;
+      setState({ plusMenu: false, qi: Object.assign(qiBlank(), d, { page: 1, gOpen: false, fromCompose: false, photo, groups: (d.groups || []).filter(id => groupById(id)).length ? d.groups.filter(id => groupById(id)) : qiBlank().groups }), qiPop: null });
+      toast('Picked up your draft', true);
+      return;
+    }
+    setState({ plusMenu: false, qi: Object.assign(qiBlank(), pre || {}), qiPop: null });
+    setTimeout(() => { const f = document.querySelector('[data-qi-title]'); if (f && !f.value) { try { f.focus({ preventScroll: true }); } catch (e) { /* ignore */ } } }, 300);
+  }, 'post');
+  const qiSet = (patch, quiet) => { Object.assign(state.qi, patch); if (!quiet) render(); };
+  const qiDirty = (q) => !!(cleanTitle(q.title) || q.why.trim() || q.photo || q.date || q.dpoll || (q.loc || '').trim() || q.lpoll);
+  const qiClose = () => {
+    const q = state.qi; if (!q) return;
+    if (q.fromCompose || !qiDirty(q)) { setState({ qi: null, qiPop: null }); return; }   // from Plan an event, × goes back to it untouched
+    setState({ qiPop: { k: 'leave' } });
+  };
+  const qiSaveDraft = async () => {
+    const q = state.qi; if (!q) return;
+    const d = { title: q.title, why: q.why, more: q.more, date: q.date, dpoll: q.dpoll, loc: q.loc, lpoll: q.lpoll, groups: q.groups, talk: q.talk, rule: q.rule, photo: null };
+    if (q.photo) { try { d.photo = await blobToDataUrl(q.photo.blob); } catch (e) { d.photo = null; } }
+    if (!writeIdeaDraft(d)) { d.photo = null; if (!writeIdeaDraft(d)) { toast('Couldn’t save the draft on this phone'); return; } }
+    setState({ qi: null, qiPop: null });
+    toast('Saved as a draft', true);
+  };
+  const qiPhoto = async (file) => {
+    if (!file) return;
+    try { const blob = await shrinkImage(file); setState({ qi: Object.assign(state.qi, { photo: { blob, url: URL.createObjectURL(blob) } }) }); } catch (e) { toast(BAD_PHOTO); }
+  };
+  const qiPost = () => needName(qiPostNow);   // a name goes on the idea, as with Plan an event
+  const qiPostNow = () => {
+    const st = state, q = st.qi;
+    if (!q || st.busy) return;
+    const title = cleanTitle(q.title).slice(0, 60), groups = q.groups.filter(id => groupById(id));
+    if (!title) { qiSet({ page: 1 }); toast('Add a title first'); return; }
+    if (!groups.length) { toast('Pick at least one group'); return; }
+    const who = (st.myName || 'Someone').slice(0, 40);
+    const dates = (q.dpoll || (q.date ? [q.date] : [])).filter(o => o && o.d).filter((o, i, a) => a.findIndex(x => x.d === o.d && x.t === o.t) === i);
+    const spots = (q.lpoll || (cleanTitle(q.loc || '') ? [q.loc] : [])).map(v => cleanTitle(v).slice(0, 80)).filter(Boolean).filter((v, i, a) => a.indexOf(v) === i);
+    let id = null, path = null;
+    setState({ busy: 'post' });
+    (async () => {
+      try {
+        await ensureSession();
+        if (q.photo) path = await uploadBlob(q.photo.blob);
+        const row = { group_id: groups[0], author_name: st.myName, text: title, hopes: [], vision: null, overview: q.why.trim().slice(0, 120) || null,
+          photos: path ? [path] : [], cat: 'events', answers: {}, lead_id: st.me, lead_name: st.myName, created_by: st.me, spot: null, spot_open: true,
+          planned: false, visibility: 'group', wants_host: true, talk: !!q.talk, lead_rule: q.rule === 'any' ? 'any' : 'me' };
+        try { id = must(await sb.from('sparks').insert(row).select('id').single()).data.id; } catch (e) { if (path) deletePhotos([path]); throw e; }
+        try {
+          const rest = [];
+          if (groups.length > 1) rest.push(sb.from('spark_groups').insert(groups.slice(1).map(g => ({ spark_id: id, group_id: g }))).then(must));
+          if (dates.length) rest.push(sb.from('date_options').insert(dates.map(o => ({ spark_id: id, day_date: o.d, day_time: /^\d\d:\d\d$/.test(o.t || '') ? o.t : null, day_part: PARTS.indexOf(o.t) > -1 ? o.t : null, who }))).then(must));
+          if (spots.length) rest.push(sb.from('spot_options').insert(spots.map(v => ({ spark_id: id, name: v, who }))).then(must));
+          const done = await Promise.allSettled(rest), bad = done.find(r => r.status === 'rejected');
+          if (bad) throw bad.reason;
+        } catch (e) { await sb.from('sparks').delete().eq('id', id); if (path) deletePhotos([path]); throw e; }
+        await freshAfterSave();
+        const names = groups.map(g => groupById(g).name);
+        const fromC = q.fromCompose;
+        if (fromC) state.photos.forEach(p => URL.revokeObjectURL(p.url));
+        setState(Object.assign(fromC ? composeReset() : {}, { busy: null, qi: null, qiPop: null }));
+        go('ideas');
+        const s = state.sparks.find(x => x.id === id);
+        if (s) openIdeaSheet(s);
+        toast('Posted to ' + (names.length > 2 ? names.length + ' groups' : names.join(' and ')), true);
+      } catch (e) {
+        console.error(e);
+        setState({ busy: null });
+        toast(failed(e));
+      }
+    })();
+  };
+
+  function viewFloat() {
+    const st = state, q = st.qi, pop = st.qiPop, ok = !!cleanTitle(q.title);
+    const set = (patch) => setState({ qi: Object.assign(q, patch) });
+    const popSet = (patch) => setState({ qiPop: Object.assign(st.qiPop, patch) });
+    const label = (t, opt) => '<span style="font-size:13px;font-weight:900;letter-spacing:.8px;color:#454b55">' + t + (opt ? ' <span style="font-weight:700;letter-spacing:0;color:#9aa0ac">(optional)</span>' : '') + '</span>';
+    const FLD = 'width:100%;box-sizing:border-box;border:0;outline:0;border-radius:14px;background:#fff;font-family:inherit;resize:none;color:#0d1117;';
+    const ring = (has) => 'box-shadow:inset 0 0 0 ' + (has ? '2px #f5b428' : '1.5px #dcdfe6') + ';';
+    const twoBtns = (onA, labelA, iconA, onB, iconB, attr) => { const b = (fn, l, ic, a) => '<span ' + on(fn) + ' ' + a + ' style="flex:1 1 0;display:flex;align-items:center;justify-content:center;min-height:48px;border-radius:14px;font-size:15px;font-weight:800;cursor:pointer;background:#fff;color:#454b55;box-shadow:inset 0 0 0 1.5px #dcdfe6">' + svg(16, stroke('currentColor', 2.2) + ' style="opacity:.6;margin-right:6px"', ic) + l + '</span>';
+      return '<div style="display:flex;gap:8px">' + b(onA, labelA, iconA, 'data-' + attr + '-set') + b(onB, 'Create poll', iconB, 'data-' + attr + '-poll') + '</div>'; };
+    const summary = (icon, text, onEdit, onClear, attr) => '<div ' + on(onEdit) + ' ' + attr + ' style="display:flex;align-items:center;gap:10px;min-height:52px;padding:0 14px;border-radius:14px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;cursor:pointer">' + svg(20, stroke('#b07a0a', 2.2), icon) +
+      '<span style="flex:1;min-width:0;font-size:15px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(text) + '</span>' +
+      '<span style="display:flex;align-items:center;font-size:14px;font-weight:800;color:#8f6405">' + EDIT_PEN + 'Edit</span>' +
+      '<span ' + on((e) => { stop(e); onClear(); }) + ' aria-label="Clear" style="display:flex;width:32px;height:32px;margin-right:-8px;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#9aa0ac;cursor:pointer">×</span></div>';
+    const POLL_I = '<path d="M5 20V11M12 20V5M19 20v-6"/>';
+    const dateSum = q.date ? shortDate(q.date.d) + (timeLabel(q.date.t) ? ' · ' + timeLabel(q.date.t) : '') : '';
+    const pollSum = q.dpoll ? q.dpoll.length + (q.dpoll.length === 1 ? ' date' : ' dates') + ' · ' + q.dpoll.map(o => monthDay(o.d)).join(', ') : '';
+    const lpollSum = q.lpoll ? q.lpoll.length + ' locations · ' + q.lpoll.join(', ') : '';
+    const openDPick = () => setState({ qiPop: { k: 'dpick', d: q.date ? q.date.d : '', t: q.date ? q.date.t : '' } });
+    const openDPoll = () => setState({ qiPop: { k: 'dpoll', rows: q.dpoll ? q.dpoll.map(o => Object.assign({}, o)) : [{ d: '', t: '' }, { d: '', t: '' }] } });
+    const openLPick = () => setState({ qiPop: { k: 'lpick', v: q.loc || '' } });
+    const openLPoll = () => setState({ qiPop: { k: 'lpoll', rows: q.lpoll ? q.lpoll.slice() : ['', ''] } });
+    const more = q.more ? '<div style="padding:18px 16px 4px;display:flex;flex-direction:column;gap:18px;animation:fadeUp 380ms 140ms cubic-bezier(.2,.8,.2,1) both">' +
+      '<div style="display:flex;flex-direction:column;gap:8px">' + label('DATE', true) +
+        (q.date ? summary(CAL_P, dateSum, openDPick, () => set({ date: null }), 'data-qi-date-sum') : q.dpoll ? summary(CAL_P, pollSum, openDPoll, () => set({ dpoll: null }), 'data-qi-date-sum') : twoBtns(openDPick, 'Set date', CAL_P, openDPoll, POLL_I, 'qi-date')) + '</div>' +
+      '<div style="display:flex;flex-direction:column;gap:8px">' + label('LOCATION', true) +
+        (q.loc ? summary(PIN_P, q.loc, openLPick, () => set({ loc: null }), 'data-qi-loc-sum') : q.lpoll ? summary(PIN_P, lpollSum, openLPoll, () => set({ lpoll: null }), 'data-qi-loc-sum') : twoBtns(openLPick, 'Set location', PIN_P, openLPoll, POLL_I, 'qi-loc')) + '</div></div>' : '';
+    const page1 = '<div style="flex:1 1 auto;min-height:0;overflow-y:auto;scrollbar-width:none;display:flex;flex-direction:column">' +
+        '<div style="' + PAPER + ';padding:34px 16px 28px;display:flex;flex-direction:column;gap:12px">' + GRAB + IDEA_CHIP +
+          '<span style="font-size:17px;line-height:1.4;font-weight:600;color:#454b55;text-wrap:pretty"><span style="font-weight:900;color:#0d1117">Sketch out what you know so far.</span><br>You can change it all later.</span></div>' +
+        '<div style="padding:20px 16px 0;display:flex;flex-direction:column;gap:18px">' +
+          '<label style="display:flex;flex-direction:column;gap:8px">' + label('YOUR IDEA') + '<span style="position:relative;display:block">' +
+            '<input type="text" data-qi-title maxlength="60" aria-label="Your idea" placeholder="Pickleball on Sunday mornings" value="' + esc(q.title) + '" ' + onInput(e => { if (e.type === 'input') set({ title: e.target.value.slice(0, 60) }); }) + ' style="' + FLD + ring(!!q.title) + 'padding:0 58px 0 14px;height:54px;font-size:18px;font-weight:800">' +
+            '<span style="position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:11.5px;font-weight:700;color:#9aa0ac">' + q.title.length + '/60</span></span></label>' +
+          '<label style="display:flex;flex-direction:column;gap:8px">' + label('SHORT DESCRIPTION', true) + '<span style="position:relative;display:block">' +
+            '<textarea data-qi-why rows="2" maxlength="120" aria-label="Short description" placeholder="Casual games for all levels. Bring a paddle if you have one." ' + onInput(e => { if (e.type === 'input') set({ why: e.target.value.slice(0, 120) }); }) + ' style="' + FLD + ring(!!q.why) + 'padding:12px 14px 24px;font-size:15.5px;font-weight:600;line-height:1.35;display:block">' + esc(q.why) + '</textarea>' +
+            '<span style="position:absolute;right:12px;bottom:8px;font-size:11.5px;font-weight:700;color:#9aa0ac">' + q.why.length + '/120</span></span></label>' +
+          '<div style="display:flex;flex-direction:column;gap:8px">' + label('ADD A PHOTO', true) +
+            (q.photo ? '<div style="display:flex;align-items:center;gap:12px"><span style="width:96px;height:72px;border-radius:10px;background:' + bg(q.photo.url) + ';box-shadow:0 2px 6px rgba(13,17,23,.15)"></span>' +
+                '<span ' + on(() => set({ photo: null })) + ' style="display:flex;align-items:center;min-height:40px;font-size:14.5px;font-weight:800;color:#8f6405;cursor:pointer">Remove</span></div>'
+              : '<label style="display:flex;align-items:center;justify-content:center;gap:8px;min-height:60px;border-radius:14px;background:#fff;outline:2px dashed #dcd3b8;outline-offset:-6px;cursor:pointer">' + svg(20, stroke('#b07a0a', 2.2), '<rect x="3" y="5" width="18" height="14" rx="3"/><circle cx="9" cy="10" r="1.8"/><path d="m21 16-5-5-8 8"/>') +
+                '<span style="font-size:15px;font-weight:800;color:#8f6405">Add a photo</span><input type="file" accept="image/*" aria-label="Add a photo" ' + onInput(e => { if (e.type !== 'change') return; const f = (e.target.files || [])[0]; e.target.value = ''; qiPhoto(f); }) + ' style="display:none"></label>') + '</div>' +
+        '</div>' + more + '</div>' +
+      '<div style="flex-shrink:0;padding:12px 16px 28px;display:flex;flex-direction:column;gap:4px;background:#e8eaee">' +
+        (q.more ? '' : '<span ' + on(() => set({ more: true })) + ' data-qi-more style="align-self:center;display:flex;align-items:center;min-height:40px;font-size:14.5px;font-weight:800;color:#8f6405;cursor:pointer">Add more details<span style="margin-left:5px;font-weight:600;color:#b9a77a">(optional)</span></span>') +
+        '<button type="button" data-qi-next ' + on(() => { if (!ok) { toast('Add a title first'); return; } set({ page: 2, gOpen: false }); }) + ' style="width:100%;min-height:54px;border:0;border-radius:999px;background:' + (ok ? '#f5b428' : '#f6d985') + ';color:' + (ok ? '#2a1d00' : '#6b5418') + ';box-shadow:' + (ok ? '0 6px 16px rgba(245,180,40,.4)' : 'none') + ';font-family:inherit;font-size:16.5px;font-weight:900;cursor:pointer">Next</button></div>';
+    // Page 2: the snapshot recap, WHERE IT GOES and HOW PEOPLE CAN HELP
+    const G = myGroups(), sel = q.groups.filter(id => groupById(id)), g0 = groupById(sel[0]);
+    const gName = sel.length > 1 ? sel.map(id => groupById(id).name).join(', ') : g0 ? g0.name : 'Pick groups';
+    const gRow = (g) => { const onIt = sel.indexOf(g.id) > -1;
+      return '<div ' + on(() => { const nx = onIt ? sel.filter(x => x !== g.id) : sel.concat([g.id]); if (!nx.length) return; set({ groups: nx }); }, 'checkbox') + ' aria-checked="' + onIt + '" style="display:flex;align-items:center;gap:10px;min-height:48px;padding:0 12px;border-radius:12px;cursor:pointer;background:' + (onIt ? '#fdf1d6' : 'transparent') + ';font-size:15px;font-weight:' + (onIt ? 900 : 700) + ';color:' + (onIt ? '#5a3d00' : '#0d1117') + '">' +
+        '<span style="flex:0 0 30px;width:30px;height:30px;border-radius:8px;background:' + groupBg(g, '#2b303a') + '"></span><span style="flex:1;min-width:0">' + esc(g.name) + '</span>' +
+        '<span style="flex:0 0 24px;width:24px;height:24px;box-sizing:border-box;border-radius:7px;display:flex;align-items:center;justify-content:center;background:' + (onIt ? '#f5b428' : '#fff') + ';box-shadow:' + (onIt ? 'none' : 'inset 0 0 0 2px #c9ccd3') + '">' + (onIt ? svg(13, stroke('#2a1d00', 3.4), '<path d="m5 12.5 4.5 4.5L19 7.5"/>') : '') + '</span></div>'; };
+    const page2 = '<div style="flex:1 1 auto;min-height:0;overflow-y:auto;scrollbar-width:none;display:flex;flex-direction:column">' +
+        '<div style="' + PAPER + ';padding:34px 16px 28px;display:flex;flex-direction:column;gap:12px">' + GRAB +
+          (q.photo ? '<div aria-hidden="true" style="position:relative;margin:0 12px 0 4px;height:130px;border:6px solid #fff;background:' + bg(q.photo.url) + ';transform:rotate(1.6deg);box-shadow:0 4px 12px rgba(13,17,23,.18)"></div>' : '') + IDEA_CHIP +
+          '<span style="font-size:26px;line-height:1.1;font-weight:900;letter-spacing:-.6px;color:#0d1117;text-wrap:balance">' + esc(cleanTitle(q.title)) + '</span>' +
+          (q.why.trim() ? '<span style="margin-top:-4px;font-size:19px;line-height:1.4;font-weight:500;color:#2a2f38;text-wrap:pretty">' + esc(q.why.trim()) + '</span>' : '') + '</div>' +
+        '<div style="padding:20px 16px 8px;display:flex;flex-direction:column;gap:8px">' + sectionLabel('WHERE IT GOES') +
+          '<div style="background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08);overflow:hidden">' +
+            '<div ' + on(() => set({ gOpen: !q.gOpen })) + ' data-qi-post-to style="display:flex;align-items:center;gap:12px;min-height:56px;padding:0 14px;cursor:pointer">' + svg(20, stroke('#b07a0a', 2.2), '<circle cx="9" cy="9" r="3"/><circle cx="17" cy="10" r="2.4"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0M14.5 19a4 4 0 0 1 7 -2.6"/>') +
+              '<span style="flex:0 0 auto;font-size:15.5px;font-weight:800;color:#0d1117">Post to</span>' +
+              '<span style="flex:1;min-width:0;display:flex;align-items:center;justify-content:flex-end;gap:6px;font-size:15px;font-weight:700;color:#454b55"><span style="flex:0 0 22px;width:22px;height:22px;border-radius:6px;background:' + groupBg(g0, '#2b303a') + '"></span>' +
+                '<span style="min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(gName) + '</span><span style="color:#9aa0ac">' + (q.gOpen ? '⌃' : '›') + '</span></span></div>' +
+            (q.gOpen ? '<div style="padding:0 8px 8px;display:flex;flex-direction:column;gap:2px;border-top:1px solid #eceef2">' + G.map(gRow).join('') + '</div>' : '') + '</div>' +
+          '<span style="height:10px"></span>' + sectionLabel('HOW PEOPLE CAN HELP') +
+          helpCard(!!q.talk, q.rule, () => set({ talk: !q.talk }), (r) => set({ rule: r }), () => setState({ qiPop: { k: 'rule' } })) + '</div></div>' +
+      '<div style="flex-shrink:0;padding:12px 16px 28px;display:flex;align-items:center;gap:10px;background:#e8eaee">' +
+        '<span ' + on(() => set({ page: 1, gOpen: false })) + ' style="display:flex;align-items:center;justify-content:center;gap:4px;min-height:54px;padding:0 20px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;font-size:16px;font-weight:800;color:#0d1117;cursor:pointer">' + svg(16, stroke('#0d1117', 2.8), '<path d="m15 6-6 6 6 6"/>') + 'Back</span>' +
+        '<button type="button" data-qi-post ' + on(qiPost) + (st.busy === 'post' ? ' disabled' : '') + ' style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;min-height:54px;border:0;border-radius:999px;background:#f5b428;font-family:inherit;font-size:16.5px;font-weight:900;color:#2a1d00;cursor:pointer;opacity:' + (st.busy === 'post' ? .6 : 1) + '">' +
+          svg(18, stroke('#2a1d00', 2.6), '<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9V16h7v-2.1A6 6 0 0 0 12 3z"/>') + (st.busy === 'post' ? 'Floating…' : 'Float the idea') + '</button></div>';
+    // The pop-ups: Set date, Create poll (dates), Set location, Create poll (locations), Pick this up later?, Who leads it?
+    let popHtml = '';
+    const closePop = () => setState({ qiPop: null });
+    if (pop && pop.k === 'dpick') popHtml = popCard('Set date', closePop, 'Set date', 'You can change this later.',
+      '<div style="display:flex">' + ideaDateField(pop.d, (v) => { pop.d = v; render(); }) + '</div>' + timeChips(pop.t, (v, quiet) => { pop.t = v; if (!quiet) render(); }) +
+      goldBtn(() => { if (!pop.d) { toast('Pick a date'); return; } setState({ qi: Object.assign(q, { date: { d: pop.d, t: pop.t === 'set' ? '' : pop.t }, dpoll: null }), qiPop: null }); }, 'Done', 'data-qi-pop-done'));
+    else if (pop && pop.k === 'dpoll') { const rows = pop.rows;
+      popHtml = popCard('Date poll', closePop, 'Create poll', 'Which dates could work?',
+        rows.map((r, i) => '<div style="display:flex;align-items:center;gap:8px">' + ideaDateField(r.d, (v) => { r.d = v; render(); }, 'Date ' + (i + 1)) + (rows.length > 2 ? rowXBtn(() => { rows.splice(i, 1); render(); }, 'Remove date') : '') + '</div>' +
+          timeChips(r.t, (v, quiet) => { r.t = v; if (!quiet) render(); })).join('') +
+        (rows.length < 6 ? '<span ' + on(() => { rows.push({ d: '', t: '' }); render(); }) + ' style="align-self:flex-start;display:flex;align-items:center;min-height:40px;font-size:14.5px;font-weight:800;color:#8f6405;cursor:pointer">+ Add another date</span>' : '') +
+        goldBtn(() => { const ds = rows.filter(r => r.d).map(r => ({ d: r.d, t: r.t === 'set' ? '' : r.t })).filter((o, i, a) => a.findIndex(x => x.d === o.d && x.t === o.t) === i);
+          if (ds.length < 2) { toast('Add at least two dates'); return; }
+          setState({ qi: Object.assign(q, { dpoll: ds, date: null }), qiPop: null }); }, 'Done', 'data-qi-pop-done')); }
+    else if (pop && pop.k === 'lpick') popHtml = popCard('Set location', closePop, 'Set location', 'You can change this later.',
+      '<div style="display:flex">' + ideaPlaceField(pop.v, (v) => { pop.v = v; }, 'Lady Bird Lake, Rainey St') + '</div>' +
+      goldBtn(() => { if (!cleanTitle(pop.v || '')) { toast('Add a location'); return; } setState({ qi: Object.assign(q, { loc: cleanTitle(pop.v), lpoll: null }), qiPop: null }); }, 'Done', 'data-qi-pop-done'));
+    else if (pop && pop.k === 'lpoll') { const rows = pop.rows;
+      popHtml = popCard('Location poll', closePop, 'Create poll', 'Which locations could work?',
+        rows.map((v, i) => '<div style="display:flex;align-items:center;gap:8px">' + ideaPlaceField(v, (x) => { rows[i] = x; }, 'Add a location', 'Location ' + (i + 1)) + (rows.length > 2 ? rowXBtn(() => { rows.splice(i, 1); render(); }, 'Remove location') : '') + '</div>').join('') +
+        (rows.length < 6 ? '<span ' + on(() => { rows.push(''); render(); }) + ' style="align-self:flex-start;display:flex;align-items:center;min-height:40px;font-size:14.5px;font-weight:800;color:#8f6405;cursor:pointer">+ Add another location</span>' : '') +
+        goldBtn(() => { const ls = rows.map(v => cleanTitle(v || '')).filter(Boolean).filter((v, i, a) => a.indexOf(v) === i);
+          if (ls.length < 2) { toast('Add at least two locations'); return; }
+          setState({ qi: Object.assign(q, { lpoll: ls, loc: null }), qiPop: null }); }, 'Done', 'data-qi-pop-done')); }
+    else if (pop && pop.k === 'rule') popHtml = ruleInfo(closePop);
+    else if (pop && pop.k === 'leave') popHtml = '<div class="modal-scrim" data-scrim="' + reg(closePop) + '" style="z-index:46;background:rgba(13,17,23,.5);animation:scrimIn 180ms ease-out both">' +
+      '<div role="dialog" aria-modal="true" aria-label="Pick this up later?" data-screen-label="Save idea as draft" style="position:relative;width:100%;max-width:353px;box-sizing:border-box;background:#fff;border-radius:24px;padding:22px 18px 16px;display:flex;flex-direction:column;gap:12px;box-shadow:0 20px 50px rgba(13,17,23,.35);animation:popIn 220ms cubic-bezier(.2,.8,.2,1) both">' +
+        '<div style="display:flex;align-items:flex-start;gap:10px"><div style="flex:1;min-width:0"><div style="font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.4px;color:#0d1117">Pick this up later?</div>' +
+          '<div style="margin-top:4px;font-size:14px;line-height:1.4;font-weight:500;color:#5c6270">Only you can see drafts.</div></div>' +
+          '<span ' + on(closePop) + ' aria-label="Close" style="flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(14, '#0d1117', 2.8) + '</span></div>' +
+        '<button type="button" data-qi-save-draft ' + on(qiSaveDraft) + ' style="min-height:52px;border:0;border-radius:999px;background:#f5b428;color:#2a1d00;font-family:inherit;font-size:16px;font-weight:900;cursor:pointer">Save draft</button>' +
+        '<button type="button" ' + on(closePop) + ' style="min-height:48px;background:#fff;border:1.5px solid #dcdfe6;border-radius:999px;font-family:inherit;font-size:15.5px;font-weight:800;color:#0d1117;cursor:pointer">Keep going</button>' +
+        '<button type="button" data-qi-discard ' + on(() => { writeIdeaDraft(null); setState({ qi: null, qiPop: null }); }) + ' style="min-height:44px;background:transparent;border:0;font-family:inherit;font-size:15px;font-weight:800;color:#9b1c31;cursor:pointer">Discard</button></div></div>';
+    void popSet;
+    return '<div class="sheet-scrim" data-scrim="' + reg(qiClose) + '" style="z-index:36;align-items:flex-end"></div>' +
+      '<div role="dialog" aria-modal="true" aria-label="Float an idea" data-screen-label="Float an idea" style="position:absolute;left:0;right:0;bottom:0;z-index:37;max-height:92%;background:#e8eaee;border-radius:24px 24px 0 0;overflow:hidden;box-shadow:0 -10px 40px rgba(13,17,23,.3);display:flex;flex-direction:column;animation:sheetUp 260ms cubic-bezier(.2,.8,.2,1) both">' +
+        '<span ' + on(qiClose) + ' aria-label="Close" style="position:absolute;top:12px;right:14px;z-index:3;width:40px;height:40px;border-radius:999px;background:#fff;box-shadow:0 2px 8px rgba(13,17,23,.15);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(14, '#0d1117', 2.8) + '</span>' +
+        (q.page === 2 ? page2 : page1) + '</div>' + popHtml;
+  }
+
+  // ---- The idea page (v8-4 §3–4, v8-5 items 5–8): all gold. The Ideas tab opens it as a note-paper slide-up over the
+  // board; anywhere else it's a full page. Members get I'm interested, Help make this a plan, When? / Where? and Talk it
+  // through; the person who floated it (the starter) gets the starter page (18b + 19a + 20a). Only floated ideas (no lead
+  // yet, and no jobs or spots) use it: the new page has no Help out, Take part, Discussion or ⋯, so an idea with a lead keeps
+  // the plan-style page the owner kept on 2026-10-05 (HANDOFF-to-DESIGN Q31).
+  const isStarter = (s) => s.createdBy === state.me;
+  const useIdea8 = (s) => !!s && phaseOf(s) === 'idea' && !s.cancelledAt && s.wantsHost && !s.signups.length && !s.parts.length;   // a stepped-back plan with jobs or spots keeps them
+  const iVoted = (o) => o.votes.indexOf(state.me) > -1;
+  const optTime = (o) => o.dayTime ? fmtTime(o.dayTime) : o.dayPart ? timeLabel(o.dayPart) : '';
+  const optDay = (o) => shortDate(o.dayDate);
+  const byDate = (a, b) => a.dayDate < b.dayDate ? -1 : a.dayDate > b.dayDate ? 1 : (a.dayTime || '') < (b.dayTime || '') ? -1 : 1;
+  const tilt = (id) => { let h = 0; String(id).split('').forEach(ch => { h = (h * 31 + ch.charCodeAt(0)) % 997; }); const v = 0.9 + (h % 20) / 10; return h % 2 ? v : -v; };
+  const starterFirst = (s) => firstName(floaterName(s)) || 'They';
+  const ideaH = (t) => '<span style="font-size:26px;font-weight:900;letter-spacing:-.6px;color:#0d1117">' + t + '</span>';
+  const CARD8 = 'background:#fff;border-radius:20px;padding:16px;display:flex;flex-direction:column;gap:12px;box-shadow:0 1px 3px rgba(15,18,25,.08)';
+  const GRAPH_CARD = 'position:relative;margin:4px;' + GRAPH_BG + ';border-radius:6px;padding:18px 16px 12px;display:flex;flex-direction:column;gap:4px;transform:rotate(-1deg);box-shadow:0 4px 14px rgba(13,17,23,.14)';
+  const goldFaces = (ids, size, ring) => ids.slice(0, 3).map((u, k) => avatarSpan(u, nameOf(u), avatarOf(u), size, 'border:2px solid ' + (ring || '#fff') + ';margin-left:' + (k ? -8 : 0) + 'px')).join('');
+  const openIdeaSheet = (s) => useIdea8(s) ? setState({ ip: { id: s.id, exp: false }, subjectId: s.id, ipPop: null, ipEd: null }) : openSpark(s);
+  const ipPop = (p) => setState({ ipPop: p });
+
+  // Calendar pages (13c-3): a weekday strip (pale gold, solid when picked), the date large, the time in small gold, "N can go"
+  const calPage = (s, o, n, grid) => { const onIt = iVoted(o), v = o.votes.length, t = optTime(o);
+    return '<span ' + on(() => vote('date_votes', s, o)) + ' aria-pressed="' + onIt + '" data-cal-page="' + o.dayDate + '" style="position:relative;' + (grid ? '' : 'flex:' + (n > 2 ? '0 0 42%' : '1 1 0') + ';min-width:0;scroll-snap-align:start;') + 'display:flex;flex-direction:column;border-radius:12px;overflow:hidden;background:#fff;cursor:pointer;box-shadow:' + (onIt ? '0 0 0 2.5px #f5b428,' : '') + '0 2px 6px rgba(13,17,23,.14)">' +
+      '<span style="background:' + (onIt ? '#f5b428' : '#fdf1d6') + ';padding:5px 0;text-align:center;font-size:12px;font-weight:900;letter-spacing:1px;color:' + (onIt ? '#2a1d00' : '#8f6405') + '">' + new Date(o.dayDate + 'T12:00').toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase() + '</span>' +
+      '<span style="padding:10px 4px 2px;text-align:center;font-size:24px;line-height:1.05;font-weight:900;color:#0d1117">' + monthDay(o.dayDate) + '</span>' +
+      (t ? '<span style="margin-top:-2px;text-align:center;font-size:12px;font-weight:800;color:#8f6405">' + esc(t) + '</span>' : '') +
+      '<span style="padding-bottom:10px;text-align:center;font-size:12.5px;font-weight:700;color:#6b7280">' + (v ? v + ' can go' : 'Be the first') + '</span>' +
+      (onIt ? '<span style="position:absolute;right:6px;top:3px;width:20px;height:20px;border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center">' + svg(11, stroke('#2a1d00', 3.6), '<path d="m5 12.5 4.5 4.5L19 7.5"/>') + '</span>' : '') + '</span>'; };
+  const calGrid = (s) => '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:2px">' + s.dateOpts.slice().sort(byDate).map(o => calPage(s, o, 0, true)).join('') + '</div>';
+  const locRow = (s, o) => { const onIt = iVoted(o), v = o.votes.length;
+    return '<div ' + on(() => vote('spot_votes', s, o)) + ' aria-pressed="' + onIt + '" data-loc-row="' + esc(o.name) + '" style="display:flex;align-items:center;gap:12px;min-height:56px;padding:0 12px 0 14px;border-radius:14px;cursor:pointer;background:' + (onIt ? '#fdf1d6' : '#fff') + ';box-shadow:' + (onIt ? 'inset 0 0 0 2px #f5b428' : 'inset 0 0 0 1.5px #dcdfe6') + '">' +
+      '<div style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:16px;font-weight:900;color:#0d1117">' + esc(o.name) + '</span><span style="font-size:12.5px;font-weight:700;color:#6b7280">' + (v ? v + (v === 1 ? ' vote' : ' votes') : 'Be the first') + '</span></div>' +
+      '<span style="flex:0 0 30px;width:30px;height:30px;border-radius:999px;display:flex;align-items:center;justify-content:center;background:' + (onIt ? '#f5b428' : 'transparent') + ';box-shadow:' + (onIt ? 'none' : 'inset 0 0 0 2px #c3c7d0') + '">' + (onIt ? svg(15, stroke('#2a1d00', 3.2), '<path d="m5 12.5 4.5 4.5L19 7.5"/>') : '') + '</span></div>'; };
+  const dashedCard = (fn, icon, title, sub, attr) => '<div ' + on(fn) + ' ' + (attr || '') + ' style="display:flex;align-items:center;gap:14px;min-height:76px;padding:14px 16px;border-radius:20px;background:#fff;box-shadow:inset 0 0 0 2px #f3dc9e;outline:2px dashed #f5b428;outline-offset:-2px;cursor:pointer">' +
+    '<span style="flex:0 0 44px;width:44px;height:44px;border-radius:999px;background:#fdf1d6;display:flex;align-items:center;justify-content:center">' + svg(22, stroke('#b07a0a', 2.3), icon) + '</span>' +
+    '<div style="flex:1;display:flex;flex-direction:column;gap:2px">' + ideaH(title) + '<span style="font-size:15px;font-weight:700;color:#8f6405">' + sub + '</span></div>' + I.chevR(18, '#8f6405', 2.6) + '</div>';
+  const seeVotes = (fn) => '<span ' + on(fn) + ' style="align-self:center;display:flex;align-items:center;gap:3px;min-height:36px;font-size:14px;font-weight:700;color:#6b7280;cursor:pointer">See votes' + I.chevR(14, 'currentColor', 2.6) + '</span>';
+  const editLink8 = (fn, attr) => '<span ' + on(fn) + ' ' + (attr || '') + ' style="display:flex;align-items:center;min-height:36px;font-size:14px;font-weight:800;color:#8f6405;cursor:pointer">' + EDIT_PEN + 'Edit</span>';
+  // When? and Where? (members vote and suggest; the starter edits and sees the votes)
+  const whenWhere = (s) => {
+    const st8 = isStarter(s), lead = isLead(s), dates = s.dateOpts.slice().sort(byDate), locs = s.spotOpts;
+    const sugD = () => st8 ? ipPop({ k: 'edit', kind: 'd', id: s.id }) : ipPop({ k: 'sugD', id: s.id, d: '', t: '' });
+    const sugL = () => st8 ? ipPop({ k: 'edit', kind: 'l', id: s.id }) : ipPop({ k: 'sugL', id: s.id, v: '' });
+    const dLabel = lead || st8 ? 'Add a date' : 'Suggest a date', lLabel = lead || st8 ? 'Add a location' : 'Suggest a location';
+    if (!dates.length && !locs.length) return '<div style="display:flex;flex-direction:column;gap:12px">' + dashedCard(sugD, CAL_P, 'When?', dLabel, 'data-when-empty') + dashedCard(sugL, PIN_P, 'Where?', lLabel, 'data-where-empty') + '</div>';
+    const when = dates.length ? '<div style="' + CARD8 + '" data-when>' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px">' + ideaH('When?') +
+          (st8 ? editLink8(() => ipPop({ k: 'edit', kind: 'd', id: s.id }), 'data-edit-dates') : dates.length > 2 ? '<span ' + on(() => ipPop({ k: 'allDates', id: s.id })) + ' style="display:flex;align-items:center;gap:2px;min-height:36px;font-size:14px;font-weight:700;color:#6b7280;cursor:pointer">View all ' + dates.length + I.chevR(14, 'currentColor', 2.6) + '</span>' : '') + '</div>' +
+        '<span style="margin-top:-6px;font-size:14px;font-weight:600;color:#6b7280">Choose all dates you could attend.</span>' +
+        '<div style="margin:0 -16px;padding:4px 16px 8px;display:flex;gap:10px;overflow-x:auto;scrollbar-width:none;scroll-snap-type:x mandatory;scroll-padding:0 16px">' + dates.map(o => calPage(s, o, dates.length)).join('') + '</div>' +
+        (st8 ? seeVotes(() => ipPop({ k: 'votes', kind: 'd', id: s.id })) : '<div style="display:flex;align-items:center;margin-top:-4px"><span ' + on(sugD) + ' style="display:flex;align-items:center;min-height:36px;font-size:14px;font-weight:800;color:#8f6405;cursor:pointer">+ ' + dLabel + '</span></div>') + '</div>'
+      : dashedCard(sugD, CAL_P, 'When?', dLabel, 'data-when-empty');
+    const where = locs.length ? '<div style="' + CARD8 + '" data-where>' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px">' + ideaH('Where?') + (st8 ? editLink8(() => ipPop({ k: 'edit', kind: 'l', id: s.id }), 'data-edit-locs') : '') + '</div>' +
+        '<div style="display:flex;flex-direction:column;gap:8px">' + locs.map(o => locRow(s, o)).join('') + '</div>' +
+        (st8 ? seeVotes(() => ipPop({ k: 'votes', kind: 'l', id: s.id })) : '<span ' + on(sugL) + ' style="align-self:flex-start;font-size:14px;font-weight:800;color:#8f6405;cursor:pointer">+ ' + lLabel + '</span>') + '</div>'
+      : dashedCard(sugL, PIN_P, 'Where?', lLabel, 'data-where-empty');
+    return when + where;
+  };
+  // Members: I'm interested + faces; Help make this a plan; Invite a friend; Talk it through with {starter}
+  const showTalk = (s) => s.talk && !isStarter(s);
+  const talkLine = (s) => starterFirst(s) + ' is looking for someone to brainstorm about this idea.';
+  const offeredTalk = (s) => s.talkOffers.indexOf(state.me) > -1;
+  const contactBtn = (s) => { const done = offeredTalk(s), first = starterFirst(s);
+    return '<span ' + on(() => offerTalk(s)) + ' data-contact-starter style="display:flex;align-items:center;justify-content:center;min-height:50px;border-radius:999px;font-size:15.5px;font-weight:800;cursor:' + (done ? 'default' : 'pointer') + ';background:' + (done ? '#fdf1d6' : '#f5b428') + ';box-shadow:' + (done ? 'inset 0 0 0 2px #e0a01a' : 'none') + ';color:' + (done ? '#8f6405' : '#2a1d00') + '">' + (done ? '✓ ' + esc(first) + ' will be in touch' : 'Contact ' + esc(first)) + '</span>'; };
+  const offerTalk = (s) => { if (offeredTalk(s)) return; needAccount(() => run(async () => { must(await sb.rpc('offer_to_talk', { p_spark: s.id })); }, { ipPop: null }).then(ok => { if (ok) toast('We’ve notified ' + starterFirst(s) + '!', true); })); };
+  const ideaInterest = (s) => {
+    const was = s.interested.indexOf(state.me) > -1;
+    toggleInterest(s);
+    if (!was && state.email) {
+      if (state.ip && state.ip.id === s.id) setState({ ip: Object.assign(state.ip, { exp: true }) });
+      if (s.dateOpts.length) ipPop({ k: 'voteAsk', id: s.id });
+      toast('You’re interested. ' + starterFirst(s) + ' will see it.', true);
+    }
+  };
+  const interestCard = (s, lift) => { const n = s.interested.length, inIt = s.interested.indexOf(state.me) > -1;
+    return '<div style="' + CARD8 + (lift ? ';box-shadow:0 6px 16px rgba(13,17,23,.12)' : '') + '">' +
+      '<button type="button" ' + on(() => ideaInterest(s)) + ' data-im-interested aria-pressed="' + inIt + '" style="width:100%;border:0;display:flex;align-items:center;justify-content:center;min-height:52px;border-radius:999px;font-family:inherit;font-size:16px;font-weight:900;cursor:pointer;background:' + (inIt ? '#fdf1d6' : '#f5b428') + ';color:' + (inIt ? '#8f6405' : '#2a1d00') + ';box-shadow:' + (inIt ? 'inset 0 0 0 2px #f5b428' : 'none') + '">' + (inIt ? '✓ You’re interested' : 'I’m interested') + '</button>' +
+      '<div ' + (n ? on(() => setState({ interestList: true })) : '') + ' aria-label="See who’s interested" style="display:flex;align-items:center;justify-content:center;gap:8px;min-height:36px;' + (n ? 'cursor:pointer' : '') + '">' +
+        '<div style="display:flex">' + goldFaces(s.interested, 26, '#fffdf5') + '</div>' +
+        '<span style="display:flex;align-items:center;gap:3px;font-size:14px;font-weight:700;color:#454b55">' + (n === 0 ? 'Be the first' : n === 1 ? '1 person so far' : n + ' people so far') + (n ? I.chevR(14, '#6b7280', 2.8) : '') + '</span></div></div>'; };
+  const helpRow = (fn, icon, label, first, attr) => '<div ' + on(fn) + ' ' + (attr || '') + ' style="display:flex;align-items:center;gap:12px;min-height:46px;cursor:pointer;' + (first ? '' : 'border-top:1px solid #d3e2f3;') + '">' +
+    '<span style="width:30px;height:30px;flex:0 0 30px;border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center">' + svg(17, stroke('#b07a0a', 2.2), icon) + '</span>' +
+    '<span style="flex:1;font-size:17px;font-weight:800;color:#0d1117">' + label + '</span>' + I.chevR(16, '#9aa0ac', 2.8) + '</div>';
+  const share8 = (s) => setState({ share: { id: s.id, copied: false } });
+  // The member's way to lead it (the build's bridge until BRIEF-float-the-idea is drawn): with Who leads it = Anyone, or once
+  // asked, Lead it takes the lead; with I decide, Offer to lead marks you (interested, can help) for the starter's
+  // Choose a lead, and the row reads "You offered · {starter} decides". Only people in the idea's groups
+  const offerToLead = (s) => needAccount(() => {
+    const was = s.interested.indexOf(state.me) > -1;
+    quick(s, { interested: was ? s.interested : [state.me].concat(s.interested), canHelp: s.canHelp.concat(state.me) },
+      async () => { must(was ? await sb.from('interests').update({ can_help: true }).eq('spark_id', s.id).eq('user_id', state.me) : await sb.from('interests').insert({ spark_id: s.id, user_id: state.me, can_help: true })); });
+    toast('You offered. ' + starterFirst(s) + ' decides.', true);
+  });
+  const leadRow8 = (s) => {
+    if (!state.email || !inItsGroups(s) || isStarter(s)) return '';
+    const asked = s.leadAsks.some(a => a.userId === state.me), offered = s.canHelp.indexOf(state.me) > -1, BOLT = '<path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/>';
+    if (s.leadRule === 'any' || asked) return helpRow(() => takeTheLead(s), BOLT, asked ? 'Lead it · ' + esc(starterFirst(s)) + ' asked you' : 'Lead it', false, 'data-lead-it');
+    if (offered) return '<div style="display:flex;align-items:center;gap:12px;min-height:46px;border-top:1px solid #d3e2f3"><span style="width:30px;height:30px;flex:0 0 30px;border-radius:999px;background:#fdf1d6;display:flex;align-items:center;justify-content:center">' + svg(17, stroke('#b07a0a', 2.2), BOLT) + '</span>' +
+      '<span data-offered-lead style="flex:1;font-size:16px;font-weight:700;color:#454b55">You offered · ' + esc(starterFirst(s)) + ' decides</span></div>';
+    return helpRow(() => offerToLead(s), BOLT, 'Offer to lead', false, 'data-offer-lead');
+  };
+  const helpMakePlan = (s) => '<div style="' + GRAPH_CARD + '" data-help-make-plan>' +
+    '<div style="display:flex;align-items:center;gap:6px">' + ideaH('Help make this a plan') +
+      '<span ' + on(() => ipPop({ k: 'whatPlan' })) + ' aria-label="What’s a plan?" style="width:32px;height:32px;margin:-6px 0;display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(18, stroke('#6b7280', 2.2), '<circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".6" fill="#6b7280"/>') + '</span></div>' +
+    helpRow(() => share8(s), '<circle cx="9" cy="8.5" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M18 8v6M15 11h6"/>', 'Invite a friend', true) +
+    helpRow(() => s.dateOpts.length ? ipPop({ k: 'allDates', id: s.id }) : ipPop({ k: 'sugD', id: s.id, d: '', t: '' }), CAL_P, 'Vote on a date') +
+    helpRow(() => ipPop({ k: 'sugL', id: s.id, v: '' }), PIN_P, 'Suggest a location') + leadRow8(s) +
+    (showTalk(s) ? helpRow(() => ipPop({ k: 'talk', id: s.id }), '<path d="M5 18l-1.5 3 4-1.6A8 8 0 1 0 5 18z"/><path d="M9 11h6M9 14h4"/>', 'Talk it through with ' + esc(starterFirst(s))) : '') + '</div>';
+  const inviteCard8 = (s) => '<div style="' + CARD8 + ';flex-direction:row;align-items:center;padding:12px 16px"><span style="flex:1;font-size:16px;font-weight:800;color:#0d1117">Invite a friend</span>' +
+    '<span ' + on(() => share8(s)) + ' style="display:flex;align-items:center;min-height:40px;padding:0 18px;border-radius:999px;background:#f5b428;color:#2a1d00;font-size:14px;font-weight:800;cursor:pointer">Invite</span></div>';
+  const talkCard = (s) => !showTalk(s) ? '' : '<div style="' + CARD8 + '" data-talk-card>' + ideaH('Talk it through with ' + esc(starterFirst(s))) +
+    '<div style="display:flex;align-items:flex-start;gap:12px">' + avatarSpan(s.createdBy, floaterName(s), avatarOf(s.createdBy), 40) +
+      '<span style="flex:1;font-size:16px;line-height:1.45;font-weight:500;color:#2a2f38;text-wrap:pretty">' + esc(talkLine(s)) + '</span></div>' + contactBtn(s) + '</div>';
+  // The starter: faces + N interested, Share; Make this a plan (Date · Location · Choose lead); and at the bottom
+  // WHERE IT GOES and HOW PEOPLE CAN HELP
+  const starterTop = (s) => { const n = s.interested.length;
+    return '<div style="background:#fff;border-radius:20px;box-shadow:0 1px 3px rgba(15,18,25,.08);overflow:hidden">' +
+      '<div ' + (n ? on(() => setState({ interestList: true })) : '') + ' style="display:flex;align-items:center;gap:12px;min-height:64px;padding:0 16px;' + (n ? 'cursor:pointer' : '') + '">' +
+        '<div style="display:flex">' + goldFaces(s.interested, 30) + '</div><span style="flex:1;font-size:20px;font-weight:900;letter-spacing:-.3px;color:#0d1117">' + n + ' interested</span>' + (n ? I.chevR(16, '#9aa0ac', 2.6) : '') + '</div>' +
+      '<div style="padding:4px 16px 16px"><span ' + on(() => share8(s)) + ' data-starter-share style="display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 2px #f5b428;font-size:15.5px;font-weight:900;color:#8f6405;cursor:pointer">' +
+        svg(16, stroke('#8f6405', 2.3), '<path d="M12 3v13M7 8l5-5 5 5"/><path d="M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5"/>') + 'Share</span></div></div>'; };
+  const leadsIt = (s) => !s.wantsHost;   // someone leads it (the starter, or whoever took it on)
+  const iLead = (s) => isTheLead(s) && !s.wantsHost;
+  const makeThisPlan = (s) => {
+    const dates = s.dateOpts, locs = s.spotOpts, tot = dates.reduce((a, o) => a + o.votes.length, 0);
+    const top = (arr) => arr.slice().sort((a, b) => b.votes.length - a.votes.length)[0];
+    const topD = top(dates), topL = top(locs), dDone = !!s.dayDate, lDone = !!s.spot, ldDone = leadsIt(s);
+    const helpers = s.canHelp.filter(u => u !== state.me);
+    const dot = (done, icon) => '<span style="width:30px;height:30px;flex:0 0 30px;border-radius:999px;background:' + (done ? '#f5b428' : '#fff') + ';display:flex;align-items:center;justify-content:center">' +
+      (done ? svg(16, stroke('#2a1d00', 2.3), '<path d="m5 12.5 4.5 4.5L19 7.5"/>') : svg(16, stroke('#b07a0a', 2.3), icon)) + '</span>';
+    const act = (done, label, fn, attr) => !fn ? '' : '<span ' + on(fn) + ' ' + attr + ' style="display:flex;align-items:center;min-height:36px;cursor:pointer;' + (done ? 'padding:0 4px;font-size:14px;font-weight:700;color:#6b7280' : 'padding:0 14px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #f5b428;font-size:14px;font-weight:800;color:#8f6405') + '">' + label + '</span>';
+    const row = (first, done, icon, title, sub, a) => '<div style="display:flex;align-items:center;gap:12px;min-height:58px;' + (first ? '' : 'border-top:1px solid #d3e2f3;') + '">' + dot(done, icon) +
+      '<div style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:16px;font-weight:900;color:#0d1117">' + title + '</span><span style="font-size:13px;font-weight:600;color:#6b7280">' + sub + '</span></div>' + a + '</div>';
+    const SPARK_P = '<path d="M12 3c.6 4.8 3.2 7.4 8 8-4.8.6-7.4 3.2-8 8-.6-4.8-3.2-7.4-8-8 4.8-.6 7.4-3.2 8-8Z"/>';
+    const leadName = iLead(s) ? 'You' : firstName(nameOf(s.leadId, s.leadName));
+    return '<div style="margin:4px;' + GRAPH_BG + ';border-radius:8px;padding:0 16px 14px;overflow:hidden;display:flex;flex-direction:column;gap:4px;transform:rotate(-1deg);box-shadow:0 4px 14px rgba(13,17,23,.14)" data-make-this-plan>' +
+      '<div style="position:relative;overflow:hidden;margin:0 -16px 6px;padding:13px 16px 11px;background:linear-gradient(160deg,#fde39a 0%,#fbd56b 55%,#f8c94f 100%)">' + sparkles([[78, 18, 16, '#fff', .9], [88, 54, 9, '#fff', .7], [68, 60, 7, '#d6246e', .8]]) +
+        '<span style="position:relative;font-size:26px;font-weight:900;letter-spacing:-.6px;color:#2a1d00">Make this a plan</span></div>' +
+      row(true, dDone, CAL_P, 'Date', dDone ? esc(dayLabel(s.dayDate, s.dayTime)) : topD ? (tot ? esc(optDay(topD)) + ' is ahead (' + topD.votes.length + ' of ' + tot + ')' : 'No votes yet') : 'No date yet',
+        act(dDone, dDone ? 'Change' : topD ? 'Pick' : 'Add', dDone ? () => ipPop({ k: 'setD', id: s.id, d: s.dayDate, t: s.dayTime || '' }) : topD ? () => pickOpt(s, 'day', topD) : () => ipPop({ k: 'edit', kind: 'd', id: s.id }), 'data-plan-date')) +
+      row(false, lDone, PIN_P, 'Location', lDone ? esc(s.spot) : topL ? (topL.votes.length ? esc(topL.name) + ' is ahead' : 'No votes yet') : 'No location yet',
+        act(lDone, lDone ? 'Change' : topL ? 'Pick' : 'Add', lDone ? () => ipPop({ k: 'setL', id: s.id, v: s.spot }) : topL ? () => pickOpt(s, 'spot', topL) : () => ipPop({ k: 'edit', kind: 'l', id: s.id }), 'data-plan-loc')) +
+      row(false, ldDone, SPARK_P, ldDone ? (iLead(s) ? 'You’re leading it' : esc(nameOf(s.leadId, s.leadName)) + ' is leading it') : 'Choose lead',
+        ldDone ? (iLead(s) ? 'You set the details' : 'We let them know') : s.leadAsks.length ? 'Asked ' + esc(s.leadAsks.map(a => firstName(nameOf(a.userId))).join(' and ')) : helpers.length ? esc(helpers.slice(0, 2).map(u => firstName(nameOf(u))).join(' and ')) + ' offered' : 'No offers yet',
+        ldDone && !iLead(s) ? '' : act(ldDone, ldDone ? 'Change' : 'Choose', () => ipPop({ k: 'lead', id: s.id }), 'data-plan-lead')) +
+      (dDone && iLead(s) ? '<span ' + on(() => makePlan(s)) + ' data-make-it-plan style="margin-top:10px;display:flex;align-items:center;justify-content:center;min-height:52px;border-radius:999px;background:#f5b428;font-size:16px;font-weight:900;color:#2a1d00;box-shadow:0 6px 16px rgba(245,180,40,.4);cursor:pointer">Make it a plan</span>' : '') +
+      (ldDone && !iLead(s) ? '<span style="margin-top:8px;font-size:13.5px;font-weight:600;color:#6b7280">' + esc(leadName) + ' will make it a plan.</span>' : '') + '</div>';
+  };
+  const ideaGroups = (s) => gIds(s).filter(id => groupById(id));
+  const starterSettings = (s) => { const gs = ideaGroups(s), g0 = groupById(gs[0]);
+    return '<div style="display:flex;flex-direction:column;gap:8px;margin-top:6px">' + sectionLabel('WHERE IT GOES') +
+      '<div style="background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08);overflow:hidden"><div ' + on(() => ipPop({ k: 'vis', id: s.id, sel: gs.slice() })) + ' data-idea-post-to style="display:flex;align-items:center;gap:12px;min-height:56px;padding:0 14px;cursor:pointer">' +
+        svg(20, stroke('#b07a0a', 2.2), '<circle cx="9" cy="9" r="3"/><circle cx="17" cy="10" r="2.4"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0M14.5 19a4 4 0 0 1 7 -2.6"/>') + '<span style="flex:0 0 auto;font-size:15.5px;font-weight:800;color:#0d1117">Post to</span>' +
+        '<span style="flex:1;min-width:0;display:flex;align-items:center;justify-content:flex-end;gap:6px;font-size:15px;font-weight:700;color:#454b55"><span style="min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(g0 ? g0.name + (gs.length > 1 ? ' & ' + (gs.length - 1) + ' more' : '') : 'No groups') + '</span><span style="color:#9aa0ac">›</span></span></div></div>' +
+      '<span style="height:10px"></span>' + sectionLabel('HOW PEOPLE CAN HELP') +
+      helpCard(s.talk, s.leadRule, () => { const v = !s.talk; quick(s, { talk: v }, async () => { must(await sb.from('sparks').update({ talk: v }).eq('id', s.id)); }); toast(v ? 'People can offer to brainstorm' : 'Brainstorm offers turned off', true); },
+        (r) => { if (r === s.leadRule) return; quick(s, { leadRule: r }, async () => { must(await sb.from('sparks').update({ lead_rule: r }).eq('id', s.id)); }); }, () => ipPop({ k: 'rule' })) +
+      // The new page has no ⋯, so taking it down is a quiet link at the bottom (the build's, HANDOFF §2)
+      (canTakeDown(s) ? '<span ' + on(() => { setState({ ip: null }); askDelete(s); }) + ' data-delete-idea style="align-self:center;display:flex;align-items:center;min-height:40px;margin-top:8px;padding:0 10px;font-size:14px;font-weight:700;color:#9b1c31;cursor:pointer">Delete this idea</span>' : '') + '</div>'; };
+  // The note-paper top (slide-up) with the starter's ✎ Edit in place
+  const saveIdeaEdit = (s) => { const e = state.ipEd, text = cleanTitle(e.title).slice(0, 60), why = e.why.trim().slice(0, 120);
+    if (!text) { toast('Add a title first'); return; }
+    run(async () => { must(await sb.from('sparks').update({ text, overview: why || null }).eq('id', s.id)); }, { ipEd: null }).then(ok => { if (ok) toast('Saved', true); }); };
+  const paperTop = (s) => { const pics = ideaPics(s), st8 = isStarter(s), ed = state.ipEd && state.ipEd.id === s.id ? state.ipEd : null;
+    const TA = 'width:100%;box-sizing:border-box;border:0;outline:0;border-radius:10px;background:rgba(255,255,255,.75);box-shadow:inset 0 0 0 2px #f5b428;font-family:inherit;resize:none;color:#0d1117;';
+    return '<div style="' + PAPER + ';padding:' + (pics[0] ? 30 : 34) + 'px 14px 30px;display:flex;flex-direction:column;gap:18px">' + GRAB +
+      (pics[0] ? '<div aria-hidden="true" style="position:relative;flex:0 0 auto;margin:0 14px 0 6px;height:150px;border:6px solid #fff;background:' + bg(pics[0], posAt(s.coverPos, IDEA_POS)) + ';transform:rotate(' + tilt(s.id) + 'deg);box-shadow:0 4px 12px rgba(13,17,23,.18)"></div>' : '') +
+      '<div style="display:flex;flex-direction:column;gap:8px;padding:0 4px">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between">' + IDEA_CHIP +
+          (st8 && !ed ? '<span ' + on(() => setState({ ipEd: { id: s.id, title: s.text, why: s.overview || '' } })) + ' data-idea-edit style="display:flex;align-items:center;gap:5px;min-height:36px;margin-right:46px;font-size:14px;font-weight:800;color:#8f6405;cursor:pointer">' + EDIT_PEN + 'Edit</span>' : '') + '</div>' +
+        (ed ? '<textarea rows="1" maxlength="60" aria-label="Idea title" data-ip-ed-title ' + onInput(e => { if (e.type === 'input') { state.ipEd.title = e.target.value.replace(/\n/g, ' ').slice(0, 60); e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; } }) + ' style="' + TA + 'padding:6px 10px;font-size:30px;line-height:1.1;font-weight:900;letter-spacing:-.8px;field-sizing:content">' + esc(ed.title) + '</textarea>' +
+            '<textarea rows="1" maxlength="120" placeholder="Add a short description" aria-label="Short description" ' + onInput(e => { if (e.type === 'input') { state.ipEd.why = e.target.value.slice(0, 120); e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; } }) + ' style="' + TA + 'padding:6px 10px;font-size:20px;line-height:1.38;font-weight:500;field-sizing:content">' + esc(ed.why) + '</textarea>' +
+            '<div style="display:flex;gap:8px"><span ' + on(() => setState({ ipEd: null })) + ' style="display:flex;align-items:center;justify-content:center;min-height:44px;padding:0 18px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;font-size:15px;font-weight:800;color:#0d1117;cursor:pointer">Cancel</span>' +
+              '<span ' + on(() => saveIdeaEdit(s)) + ' data-ip-ed-save style="flex:1;display:flex;align-items:center;justify-content:center;min-height:44px;border-radius:999px;background:#f5b428;font-size:15px;font-weight:900;color:#2a1d00;cursor:pointer">Save</span></div>'
+          : '<span style="font-size:34px;line-height:1.05;font-weight:900;letter-spacing:-1px;color:#0d1117;text-wrap:balance">' + esc(s.text) + '</span>' +
+            (s.overview ? '<span style="font-size:23px;line-height:1.38;font-weight:500;color:#2a2f38;text-wrap:pretty">' + esc(s.overview) + '</span>' : '')) +
+        '<span style="font-size:13.5px;font-weight:700;color:#6b7280">' + (st8 ? 'You floated this' : 'Floated by ' + esc(starterFirst(s))) + ' <span style="font-weight:500">· ' + ago(s.created) + '</span></span></div></div>'; };
+  const ideaBodyRest = (s) => isStarter(s) ? whenWhere(s) + starterSettings(s) : helpMakePlan(s) + inviteCard8(s) + whenWhere(s) + talkCard(s);
+
+  // The slide-up (9d + 10c-5): closed it hugs the note top and one card; swipe up, scroll, the chevron or I'm interested
+  // grows it to 54px from the top and the rest fades in below
+  const ipClose = () => setState({ ip: null, ipPop: null, ipEd: null });
+  const ipExpand = () => { if (state.ip && !state.ip.exp) setState({ ip: Object.assign(state.ip, { exp: true }) }); };
+  function viewIdeaSheet() {
+    const s = state.sparks.find(x => x.id === state.ip.id);
+    if (!useIdea8(s)) return '';   // it got a lead, became a plan or was taken down while open
+    const exp = state.ip.exp, st8 = isStarter(s);
+    return '<div class="sheet-scrim" data-scrim="' + reg(ipClose) + '" style="z-index:30"></div>' +
+      '<div role="dialog" aria-modal="true" aria-label="' + esc(s.text) + '" data-screen-label="Idea sheet" data-ip-sheet class="ip-sheet' + (exp ? ' open' : '') + '">' +
+        '<span ' + on(ipClose) + ' aria-label="Close" style="position:absolute;top:12px;right:14px;z-index:3;width:40px;height:40px;border-radius:999px;background:#fff;box-shadow:0 2px 8px rgba(13,17,23,.15);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(14, '#0d1117', 2.8) + '</span>' +
+        '<div data-ip-scroll style="flex:1 1 auto;min-height:0;overflow-y:' + (exp ? 'auto' : 'hidden') + ';scrollbar-width:none;display:flex;flex-direction:column">' + paperTop(s) +
+          '<div style="position:relative;padding:22px 14px 28px;display:flex;flex-direction:column;gap:12px;flex-shrink:0">' +
+            (st8 ? starterTop(s) + makeThisPlan(s) : interestCard(s, true)) +
+            (!exp ? '<div ' + on(ipExpand) + ' aria-label="Swipe up for more" data-ip-more style="display:flex;flex-direction:column;align-items:center;margin-top:20px;min-height:52px;cursor:pointer"><span aria-hidden="true" style="display:flex;animation:swipeBounce 1.6s ease-in-out infinite">' + svg(26, stroke('#f5b428', 3.2), '<path d="m6 15 6-6 6 6"/>') + '</span>' +
+                '<span style="margin-top:2px;font-size:14.5px;font-weight:800;color:#8f6405">Swipe up for more</span></div>'
+              : '<div style="display:flex;flex-direction:column;gap:12px;animation:fadeUp 360ms 120ms cubic-bezier(.2,.8,.2,1) both">' + ideaBodyRest(s) + '</div>') +
+          '</div></div></div>';
+  }
+  // Swipe up (or scroll) to grow the slide-up; swipe down at the top to close it
+  let ipY0 = null;
+  document.addEventListener('touchstart', (e) => { ipY0 = e.target.closest && e.target.closest('[data-ip-sheet]') ? e.touches[0].clientY : null; }, { passive: true });
+  document.addEventListener('touchend', (e) => {
+    if (ipY0 == null || !state.ip) return;
+    const dy = e.changedTouches[0].clientY - ipY0, sc = document.querySelector('[data-ip-scroll]');
+    ipY0 = null;
+    if (dy < -40 && !state.ip.exp) ipExpand();
+    else if (dy > 60 && (!sc || sc.scrollTop <= 0)) ipClose();
+  }, { passive: true });
+  document.addEventListener('wheel', (e) => { if (state.ip && !state.ip.exp && e.deltaY > 0 && e.target.closest && e.target.closest('[data-ip-sheet]')) ipExpand(); }, { passive: true });
+
+  // The full idea page (8b): a 180px photo with Back and Share, then the same parts
+  function viewIdea8(s) {
+    const pics = ideaPics(s), st8 = isStarter(s);
+    const head = '<div style="position:relative;height:180px;flex:0 0 180px;background:' + (pics[0] ? bg(pics[0], posAt(s.coverPos, IDEA_POS)) : photoBg(s)) + '">' +
+      '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(13,17,23,.4),rgba(13,17,23,.15))"></div>' +
+      '<div style="position:absolute;top:calc(var(--safe-top, 0px) + 54px);left:16px;right:16px;display:flex;justify-content:space-between">' +
+        '<span ' + on(goBack) + ' aria-label="Back" style="width:44px;height:44px;border-radius:999px;background:rgba(255,255,255,.92);display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(18, stroke('#0d1117', 2.6), '<path d="M15 5l-7 7 7 7"/>') + '</span>' +
+        '<span ' + on(() => share8(s)) + ' aria-label="Share" style="width:44px;height:44px;border-radius:999px;background:rgba(255,255,255,.92);display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(18, stroke('#0d1117', 2.4), '<path d="M12 3v12M7 8l5-5 5 5M5 14v6h14v-6"/>') + '</span></div></div>';
+    return '<div data-screen-label="Idea page (8b)" style="position:relative;display:flex;flex-direction:column;background:#e8eaee;min-height:100%">' + head +
+      '<div style="position:relative;margin-top:-22px;border-radius:22px 22px 0 0;background:#e8eaee;display:flex;flex-direction:column;gap:12px;padding:18px 14px 0">' +
+        '<div style="display:flex;flex-direction:column;gap:8px;padding:0 4px">' + IDEA_CHIP +
+          '<span style="font-size:28px;line-height:1.05;font-weight:900;letter-spacing:-.7px;color:#0d1117;text-wrap:balance">' + esc(s.text) + '</span>' +
+          (s.overview ? '<span style="font-size:20px;line-height:1.4;font-weight:500;color:#2a2f38;text-wrap:pretty">' + esc(s.overview) + '</span>' : '') +
+          '<div style="display:flex;align-items:center;gap:8px;margin-top:2px">' + avatarSpan(s.createdBy, floaterName(s), avatarOf(s.createdBy), 24) +
+            '<span style="font-size:13.5px;font-weight:700;color:#6b7280">' + (st8 ? 'You floated this' : 'Floated by ' + esc(floaterName(s))) + ' · ' + ago(s.created) + '</span></div></div>' +
+        (st8 ? starterTop(s) + makeThisPlan(s) : interestCard(s)) + ideaBodyRest(s) +
+      '</div><div style="height:calc(var(--nav-h) + 30px)"></div></div>';
+  }
+
+  // The idea pop-ups, all centred and gold
+  function viewIdeaPop() {
+    const p = state.ipPop, s = p.id ? state.sparks.find(x => x.id === p.id) : subject(), close = () => setState({ ipPop: null });
+    if (!s && p.k !== 'whatPlan' && p.k !== 'rule') return '';
+    const first = s ? starterFirst(s) : '';
+    const who = (state.myName || 'Someone').slice(0, 40);
+    if (p.k === 'whatPlan') return popCard('What’s a plan?', close, 'What’s a plan?', '', '<span style="font-size:16px;line-height:1.5;font-weight:500;color:#2a2f38;text-wrap:pretty">An idea becomes a plan once it has a date, a location and someone to lead it. Then people can RSVP and sign up to help.</span>' + goldBtn(close, 'Got it'));
+    if (p.k === 'rule') return ruleInfo(close);
+    if (p.k === 'talk') return popCard('Talk it through', close, 'Talk it through with ' + esc(first), '', '<div style="display:flex;align-items:flex-start;gap:12px">' + avatarSpan(s.createdBy, floaterName(s), avatarOf(s.createdBy), 40) + '<span style="flex:1;font-size:16px;line-height:1.45;font-weight:500;color:#2a2f38;text-wrap:pretty">' + esc(talkLine(s)) + '</span></div>' + contactBtn(s));
+    if (p.k === 'allDates') return popCard('All dates', close, 'When?', 'Choose all dates you could attend.', calGrid(s) + goldBtn(close, 'Done'));
+    if (p.k === 'voteAsk') return popCard('When would you attend', close, '', '',
+      '<div style="display:flex;flex-direction:column;gap:4px;padding-right:40px"><span style="font-size:13px;font-weight:900;letter-spacing:1.2px;color:#8f6405">YOU’RE INTERESTED</span><span style="font-size:24px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">When would you attend?</span>' +
+        '<span style="font-size:15px;line-height:1.4;font-weight:500;color:#454b55">' + esc(first) + ' will see which dates work for you.</span></div>' + calGrid(s) +
+      goldBtn(() => { close(); toast('Thanks! ' + first + ' will see your dates.', true); }, 'Done') +
+      '<span ' + on(close) + ' style="align-self:center;display:flex;align-items:center;min-height:40px;font-size:14.5px;font-weight:800;color:#6b7280;cursor:pointer">Not sure yet</span>');
+    if (p.k === 'votes') { const day = p.kind === 'd', opts = day ? s.dateOpts.slice().sort(byDate) : s.spotOpts, tot = opts.reduce((a, o) => a + o.votes.length, 0), max = Math.max(1, ...opts.map(o => o.votes.length));
+      return popCard('See the votes', close, day ? 'Date votes' : 'Location votes', '', '<span style="margin-top:-10px;font-size:14.5px;font-weight:600;color:#6b7280">' + tot + (tot === 1 ? ' vote' : ' votes') + ' so far</span>' +
+        opts.map(o => { const v = o.votes.length;
+          return '<div style="display:flex;flex-direction:column;gap:8px;padding-top:12px;border-top:1px solid #f0f1f4"><div style="display:flex;align-items:baseline;gap:8px"><span style="flex:1;font-size:16px;font-weight:900;color:#0d1117">' + esc(day ? optDay(o) + (optTime(o) ? ' · ' + optTime(o) : '') : o.name) + '</span><span style="font-size:13px;font-weight:800;color:#8f6405">' + v + (v === 1 ? ' vote' : ' votes') + '</span></div>' +
+            '<span style="height:6px;border-radius:999px;background:#f2f3f6;overflow:hidden"><span style="display:block;height:100%;width:' + Math.round(v / max * 100) + '%;border-radius:999px;background:#f5b428"></span></span>' +
+            (v ? '<div style="display:flex;flex-wrap:wrap;gap:6px">' + o.votes.map(u => '<span style="display:flex;align-items:center;gap:6px;min-height:30px;padding:0 10px 0 3px;border-radius:999px;background:#f6f7f9">' + avatarSpan(u, nameOf(u), avatarOf(u), 24) + '<span style="font-size:13.5px;font-weight:700;color:#0d1117">' + esc(firstName(nameOf(u))) + '</span></span>').join('') + '</div>' : '<span style="font-size:13.5px;font-weight:600;color:#9aa0ac">No votes yet.</span>') + '</div>'; }).join('')); }
+    if (p.k === 'sugD' || p.k === 'setD') { const set = p.k === 'setD';
+      return popCard(set ? 'Set date' : 'Suggest a date', close, set ? 'Set date' : 'Suggest a date', set ? 'You can change this later.' : 'Everyone can vote on it.',
+        '<div style="display:flex">' + ideaDateField(p.d, (v) => { p.d = v; render(); }) + '</div>' + timeChips(p.t, (v, quiet) => { p.t = v; if (!quiet) render(); }) +
+        goldBtn(() => { if (!p.d) { toast('Pick a date'); return; } const t = p.t === 'set' ? '' : p.t, hm = /^\d\d:\d\d$/.test(t) ? t : null, part = PARTS.indexOf(t) > -1 ? t : null;
+          if (set) { run(async () => { must(await sb.from('sparks').update({ day_date: p.d, day_time: hm, day_end: null }).eq('id', s.id)); }, { ipPop: null }); return; }
+          needAccount(() => run(async () => { await saveGuestContact(s.id); const id = must(await sb.from('date_options').insert({ spark_id: s.id, day_date: p.d, day_time: hm, day_part: part, who }).select('id').single()).data.id;
+            must(await sb.from('date_votes').insert({ option_id: id, user_id: state.me })); }, { ipPop: null }).then(ok => { if (ok) toast('Date added. ' + first + ' will see it.', true); })); }, 'Done', 'data-ip-pop-done')); }
+    if (p.k === 'sugL' || p.k === 'setL') { const set = p.k === 'setL';
+      return popCard(set ? 'Set location' : 'Suggest a location', close, set ? 'Set location' : 'Suggest a location', set ? 'You can change this later.' : 'Everyone can vote on it.',
+        '<div style="display:flex">' + ideaPlaceField(p.v, (v) => { p.v = v; }, 'Lady Bird Lake, Rainey St') + '</div>' +
+        goldBtn(() => { const v = cleanTitle(p.v || '').slice(0, 80); if (!v) { toast('Add a location'); return; }
+          if (set) { run(async () => { must(await sb.from('sparks').update({ spot: v, spot_open: false, spot_address: null, spot_lat: null, spot_lon: null }).eq('id', s.id)); }, { ipPop: null }); return; }
+          needAccount(() => run(async () => { await saveGuestContact(s.id); const id = must(await sb.from('spot_options').insert({ spark_id: s.id, name: v, who }).select('id').single()).data.id;
+            must(await sb.from('spot_votes').insert({ option_id: id, user_id: state.me })); }, { ipPop: null }).then(ok => { if (ok) toast('Location added. ' + first + ' will see it.', true); })); }, 'Done', 'data-ip-pop-done')); }
+    if (p.k === 'edit') { const day = p.kind === 'd', src = day ? s.dateOpts.slice().sort(byDate) : s.spotOpts;
+      if (!p.keep) { p.keep = src.map(o => o.id); p.add = src.length ? [] : [day ? { d: '', t: '' } : '']; }
+      const kept = src.filter(o => p.keep.indexOf(o.id) > -1);
+      const rowsHtml = kept.map(o => '<div style="display:flex;align-items:center;gap:10px;min-height:52px;padding:0 6px 0 14px;border-radius:14px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6">' +
+          '<span style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:15.5px;font-weight:800;color:#0d1117">' + esc(day ? optDay(o) + (optTime(o) ? ' · ' + optTime(o) : '') : o.name) + '</span><span style="font-size:12.5px;font-weight:700;color:#6b7280">' + o.votes.length + (o.votes.length === 1 ? ' vote' : ' votes') + '</span></span>' +
+          rowXBtn(() => { p.keep = p.keep.filter(k => k !== o.id); render(); }, 'Remove') + '</div>').join('') +
+        p.add.map((r, i) => '<div style="display:flex;align-items:center;gap:8px">' + (day ? ideaDateField(r.d, (v) => { r.d = v; render(); }) : ideaPlaceField(r, (v) => { p.add[i] = v; }, 'Add a location')) + rowXBtn(() => { p.add.splice(i, 1); render(); }, 'Remove') + '</div>' +
+          (day ? timeChips(r.t, (v, quiet) => { r.t = v; if (!quiet) render(); }) : '')).join('');
+      return popCard('Edit when or where', close, day ? 'Edit dates' : 'Edit locations', day ? 'People vote on the dates that work.' : 'People vote on the location they like.', rowsHtml +
+        '<span ' + on(() => { p.add.push(day ? { d: '', t: '' } : ''); render(); }) + ' style="align-self:flex-start;display:flex;align-items:center;min-height:40px;font-size:14.5px;font-weight:800;color:#8f6405;cursor:pointer">' + (day ? '+ Add a date' : '+ Add a location') + '</span>' +
+        goldBtn(() => { const gone = src.filter(o => p.keep.indexOf(o.id) < 0).map(o => o.id);
+          const adds = day ? p.add.filter(r => r.d).map(r => { const t = r.t === 'set' ? '' : r.t; return { spark_id: s.id, day_date: r.d, day_time: /^\d\d:\d\d$/.test(t) ? t : null, day_part: PARTS.indexOf(t) > -1 ? t : null, who }; })
+            : p.add.map(v => cleanTitle(v || '').slice(0, 80)).filter(Boolean).map(v => ({ spark_id: s.id, name: v, who }));
+          run(async () => {
+            if (gone.length) must(await sb.from(day ? 'date_options' : 'spot_options').delete().in('id', gone));
+            if (adds.length) must(await sb.from(day ? 'date_options' : 'spot_options').insert(adds));
+          }, { ipPop: null }).then(ok => { if (ok) toast('Saved', true); }); }, 'Save', 'data-ip-pop-done')); }
+    if (p.k === 'lead') { const helpers = s.canHelp.filter(u => u !== state.me && u !== s.leadId);
+      return popCard('Choose a lead', close, 'Choose a lead', 'The lead sets the details and makes it a plan.',
+        (iLead(s) ? '' : '<span ' + on(() => { close(); setWantsHost(s, false).then(ok => { if (!ok) return; toast('You’re leading it', true); if (state.ip) { setState({ ip: null }); openSpark(state.sparks.find(x => x.id === s.id) || s); } }); }) + ' data-lead-me style="display:flex;align-items:center;justify-content:center;gap:8px;min-height:52px;border-radius:999px;background:#f5b428;font-size:16px;font-weight:900;color:#2a1d00;cursor:pointer">' + svg(18, stroke('#2a1d00', 2.4), '<path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/>') + 'I’ll lead it</span>') +
+        '<span style="margin-top:6px;font-size:12.5px;font-weight:900;letter-spacing:1px;color:#454b55">OR CHOOSE SOMEONE WHO OFFERED</span>' +
+        (helpers.length ? helpers.map(u => { const asked = s.leadAsks.some(a => a.userId === u);
+          return '<div style="display:flex;align-items:center;gap:12px;min-height:60px;padding:0 14px;border-radius:14px;box-shadow:inset 0 0 0 1.5px #dcdfe6">' + avatarSpan(u, nameOf(u), avatarOf(u), 40) +
+            '<div style="flex:1;display:flex;flex-direction:column"><span style="font-size:16px;font-weight:800;color:#0d1117">' + esc(nameOf(u)) + '</span><span style="font-size:13px;font-weight:600;color:#6b7280">Offered to lead</span></div>' +
+            (asked ? '<span style="font-size:14px;font-weight:800;color:#8f6405">Asked</span>' : '<span ' + on(() => { askToLead(s, u); close(); toast('Asked ' + firstName(nameOf(u)) + ' to lead. We let them know.', true); }) + ' style="display:flex;align-items:center;min-height:36px;padding:0 14px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #f5b428;font-size:14px;font-weight:800;color:#8f6405;cursor:pointer">Ask</span>') + '</div>'; }).join('')
+          : '<span style="font-size:14px;font-weight:600;color:#6b7280;text-align:center">No one has offered yet. Share it to find someone.</span>') +
+        '<span ' + on(() => { close(); openLeadAsk(s); }) + ' data-ask-someone-else style="align-self:center;display:flex;align-items:center;min-height:40px;font-size:14.5px;font-weight:800;color:#8f6405;cursor:pointer">Ask someone else</span>'); }
+    if (p.k === 'vis') { const home = s.groupId;
+      return popCard('Idea visibility', close, 'Who can see it', 'Members of the groups you pick.',
+        '<div style="display:flex;flex-direction:column;gap:4px">' + myGroups().map(g => { const onIt = p.sel.indexOf(g.id) > -1, locked = g.id === home;
+          return '<div ' + on(() => { if (locked) { toast('It stays in ' + g.name + ', where it was posted'); return; } p.sel = onIt ? p.sel.filter(x => x !== g.id) : p.sel.concat([g.id]); render(); }, 'checkbox') + ' aria-checked="' + onIt + '" style="display:flex;align-items:center;gap:10px;min-height:52px;padding:0 12px;border-radius:12px;cursor:pointer;background:' + (onIt ? '#fdf1d6' : 'transparent') + ';font-size:15.5px;font-weight:' + (onIt ? 900 : 700) + ';color:' + (onIt ? '#5a3d00' : '#0d1117') + '">' +
+            '<span style="flex:0 0 30px;width:30px;height:30px;border-radius:8px;background:' + groupBg(g, '#2b303a') + '"></span><span style="flex:1;min-width:0">' + esc(g.name) + '</span>' +
+            '<span style="flex:0 0 24px;width:24px;height:24px;box-sizing:border-box;border-radius:7px;display:flex;align-items:center;justify-content:center;background:' + (onIt ? '#f5b428' : '#fff') + ';box-shadow:' + (onIt ? 'none' : 'inset 0 0 0 2px #c9ccd3') + '">' + (onIt ? svg(13, stroke('#2a1d00', 3.4), '<path d="m5 12.5 4.5 4.5L19 7.5"/>') : '') + '</span></div>'; }).join('') + '</div>' +
+        goldBtn(() => { const cur = ideaGroups(s), add = p.sel.filter(id => cur.indexOf(id) < 0 && id !== home), drop = cur.filter(id => p.sel.indexOf(id) < 0 && id !== home);
+          run(async () => {
+            if (add.length) must(await sb.from('spark_groups').insert(add.map(g => ({ spark_id: s.id, group_id: g }))));
+            if (drop.length) must(await sb.from('spark_groups').delete().eq('spark_id', s.id).in('group_id', drop));
+          }, { ipPop: null }).then(ok => { if (ok) { const names = p.sel.map(id => groupById(id).name); toast('Visible to ' + (names.length > 2 ? names.length + ' groups' : names.join(' and ')), true); } }); }, 'Done', 'data-ip-pop-done')); }
+    return '';
+  }
+
+  // ---- Ideas tab (v8-4 Rounds 1–4, 6–8): every idea from your groups on one graph-paper board. A group picker
+  // (multi-select), a quiet sort (Popular · Newest · Closest), grid ⇄ full tiles; a card opens the idea slide-up.
+  const stepsDone = (s) => (s.dayDate ? 1 : 0) + (s.spot ? 1 : 0) + (s.wantsHost ? 0 : 1);
+  const boardIdeas = () => state.sparks.filter(s => !s.cancelledAt && inMine(s) && phaseOf(s) === 'idea');
+  function viewIdeas() {
+    const st = state, G = myGroups(), pickG = (st.iaGrps || []).filter(id => groupById(id)), all = boardIdeas();
+    const inG = (s) => !pickG.length || gIds(s).some(id => pickG.indexOf(id) > -1);
+    const IS = st.iaSort || 'interest', VW = st.iaView || 'grid';
+    const ideas = all.filter(inG).sort((a, b) => IS === 'new' ? b.created - a.created : IS === 'close' ? stepsDone(b) - stepsDone(a) || b.interested.length - a.interested.length : b.interested.length - a.interested.length || b.created - a.created);
+    const ROT = [-2, 1.5, 1, -1.5, 2, -1], ROTF = [-1, .8, -.5, 1];
+    const tag = (s) => '<span style="flex:0 0 auto;display:flex;align-items:center;height:22px;padding:0 7px;border-radius:999px;background:#fdf1d6;font-size:12px;font-weight:900;color:#8f6405">↑ ' + s.interested.length + '</span>';
+    const by = (s, size) => '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:' + size + 'px;font-weight:700;color:#8a909b">by ' + esc(firstName(floaterName(s))) + '</span>';
+    const MASK = 'linear-gradient(to bottom,#000 20%,rgba(0,0,0,.35) 55%,transparent 85%),linear-gradient(to bottom left,#000 25%,rgba(0,0,0,.3) 100%)';
+    const tile = (s, k) => { const P0 = ideaPics(s)[0];
+      return '<div ' + on(() => openIdeaSheet(s)) + ' role="button" data-idea-card="' + esc(s.text) + '" style="position:relative;border-radius:4px;overflow:hidden;' + NOTE_BG + ';box-shadow:0 3px 10px rgba(13,17,23,.14);transform:rotate(' + ROT[k % 6] + 'deg);cursor:pointer">' +
+        (P0 ? '<div aria-hidden="true" style="position:absolute;left:0;right:0;top:0;height:92px;background:' + bg(P0, posAt(s.coverPos, IDEA_POS)) + ';-webkit-mask-image:' + MASK + ';-webkit-mask-composite:source-in;mask-image:' + MASK + ';mask-composite:intersect"></div>' : '') +
+        '<div style="position:relative;padding:' + (P0 ? 56 : 12) + 'px 10px 12px;display:flex;flex-direction:column;gap:6px">' +
+          '<span style="font-size:16px;line-height:1.3;font-weight:900;color:#0d1117;text-wrap:balance">' + esc(s.text) + '</span>' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:2px">' + by(s, 12) + tag(s) + '</div></div></div>'; };
+    const full = (s, k) => { const P0 = ideaPics(s)[0];
+      return '<div ' + on(() => openIdeaSheet(s)) + ' role="button" data-idea-card="' + esc(s.text) + '" style="position:relative;display:flex;min-height:' + (P0 ? 96 : 0) + 'px;border-radius:4px;overflow:hidden;' + NOTE_BG + ';box-shadow:0 3px 10px rgba(13,17,23,.14);transform:rotate(' + ROTF[k % 4] + 'deg);cursor:pointer;padding-left:' + (P0 ? 0 : 8) + 'px">' +
+        (P0 ? '<div aria-hidden="true" style="position:relative;flex:0 0 36%;background:' + bg(P0, posAt(s.coverPos, IDEA_POS)) + ';-webkit-mask-image:linear-gradient(to right,#000 40%,transparent 100%);mask-image:linear-gradient(to right,#000 40%,transparent 100%)"></div>' : '') +
+        '<div style="position:relative;flex:1;min-width:0;padding:10px 12px 10px 6px;display:flex;flex-direction:column;gap:4px">' +
+          '<span style="font-size:17px;line-height:1.25;font-weight:900;color:#0d1117;text-wrap:balance">' + esc(s.text) + '</span>' +
+          (s.overview ? '<span style="font-size:13px;line-height:1.4;font-weight:600;color:#6b7280">' + esc(s.overview) + '</span>' : '') +
+          '<div style="margin-top:auto;padding-top:4px;display:flex;align-items:center;justify-content:space-between;gap:8px">' + by(s, 12.5) + tag(s) + '</div></div></div>'; };
+    // Group picker: All groups or any mix, with each group's count; Done closes
+    const thumbs = (pickG.length ? pickG.map(groupById) : G).slice(0, 3).map((g, j) => '<span style="width:24px;height:24px;margin-left:' + (j ? -8 : 0) + 'px;border-radius:999px;border:2px solid #fff;background:' + groupBg(g, '#c3c7d0') + '"></span>').join('');
+    const grpLabel = !pickG.length ? 'All groups' : pickG.length === 1 ? groupById(pickG[0]).name : pickG.length + ' groups';
+    const opt = (label, n, onIt, fn) => '<div role="option" aria-selected="' + onIt + '" ' + on(fn) + ' class="hov-row" style="display:flex;align-items:center;gap:10px;min-height:44px;padding:0 10px;border-radius:10px;cursor:pointer">' +
+      '<span style="flex:0 0 20px;width:20px;height:20px;border-radius:6px;display:flex;align-items:center;justify-content:center;' + (onIt ? 'background:#5b4ae8' : 'background:#fff;box-shadow:inset 0 0 0 1.5px #c3c7d0') + '">' + (onIt ? svg(12, stroke('#fff', 3.6), '<path d="M5 12.5l4.5 4.5L19 7.5"/>') : '') + '</span>' +
+      '<span style="flex:1;font-size:14.5px;font-weight:700;color:#0d1117">' + esc(label) + '</span><span style="font-size:13px;font-weight:700;color:#9aa0ac">' + n + '</span></div>';
+    const toggleG = (id) => { const cur = (state.iaGrps || []).filter(x => groupById(x)); setState({ iaGrps: cur.indexOf(id) > -1 ? cur.filter(x => x !== id) : cur.concat([id]) }); };
+    const grpMenu = st.menu === 'iaGrp' ? '<div ' + on(() => setState({ menu: null })) + ' style="position:fixed;inset:0;z-index:1"></div>' +
+      '<div role="listbox" style="position:absolute;top:calc(100% + 6px);left:0;z-index:2;min-width:240px;background:#fff;border:1px solid #eceef2;border-radius:16px;padding:6px;box-shadow:0 18px 44px rgba(15,18,25,.2);display:flex;flex-direction:column">' +
+        opt('All groups', all.length, !pickG.length, () => setState({ iaGrps: [] })) +
+        G.map(g => opt(g.name, all.filter(s => inGroup(s, g.id)).length, pickG.indexOf(g.id) > -1, () => toggleG(g.id))).join('') +
+        '<span ' + on(() => setState({ menu: null })) + ' role="button" style="margin-top:4px;display:flex;align-items:center;justify-content:center;min-height:40px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:14px;font-weight:800;cursor:pointer">Done</span></div>' : '';
+    const SORTS = [['interest', 'Popular'], ['new', 'Newest'], ['close', 'Closest']];
+    const sortMenu = st.menu === 'iaSort' ? '<div ' + on(() => setState({ menu: null })) + ' style="position:fixed;inset:0;z-index:1"></div>' +
+      '<div role="listbox" style="position:absolute;top:calc(100% + 4px);right:0;z-index:2;min-width:170px;background:#fff;border:1px solid #eceef2;border-radius:16px;padding:6px;box-shadow:0 18px 44px rgba(15,18,25,.2);display:flex;flex-direction:column">' +
+        SORTS.map(([k, l]) => '<span role="option" ' + on(() => setState({ iaSort: k, menu: null })) + ' style="display:flex;align-items:center;min-height:40px;padding:0 12px;border-radius:10px;font-size:14.5px;font-weight:' + (IS === k ? 800 : 600) + ';color:' + (IS === k ? '#5b4ae8' : '#0d1117') + ';background:' + (IS === k ? '#f3f1fe' : 'transparent') + ';cursor:pointer">' + l + '</span>').join('') + '</div>' : '';
+    const vb = (onIt, k, label, icon) => '<span ' + on(() => setState({ iaView: k })) + ' role="button" aria-label="' + label + '" aria-pressed="' + onIt + '" style="width:32px;height:26px;border-radius:999px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:' + (onIt ? '#fff' : 'transparent') + ';color:' + (onIt ? '#0d1117' : '#8a909b') + ';box-shadow:' + (onIt ? '0 1px 3px rgba(13,17,23,.15)' : 'none') + '">' + svg(15, stroke('currentColor', 2.2), icon) + '</span>';
+    const head = '<header style="position:relative;z-index:5;overflow:hidden;background:#fff;padding:16px;display:flex;align-items:center;gap:12px;box-shadow:0 1px 0 #e8eaef">' +
+      sparkles([[56, 24, 14, '#f5b428', 1], [66, 12, 9, '#d6246e', 1], [62, 64, 8, '#5b4ae8', 1], [48, 52, 7, '#f5b428', .8]]) +
+      '<span aria-hidden="true" style="position:relative;flex:0 0 48px;width:48px;height:48px;border-radius:14px;background:#f5b428;transform:rotate(-6deg);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 10px rgba(245,180,40,.4)">' + svg(24, stroke('#3d2a00', 2.4), BULB) + '</span>' +
+      '<div style="position:relative;flex:1 1 0;min-width:0"><h1 style="margin:0;font-size:30px;line-height:1;font-weight:900;letter-spacing:-1px;color:#0d1117">Ideas</h1></div>' +
+      '<div style="position:relative;flex:0 0 auto;display:flex;gap:12px"><span ' + on(openSearch) + ' aria-label="Search events" style="flex:0 0 44px;width:44px;height:44px;border-radius:999px;background:#f2f3f6;color:#0d1117;display:flex;align-items:center;justify-content:center;cursor:pointer">' + ic6('search', 20, 'currentColor', 2.1) + '</span>' + bellBtn() + '</div></header>';
+    const bar = '<div style="position:relative;z-index:4;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 0 6px">' +
+      '<div style="position:relative"><span ' + on((e) => { stop(e); setState({ menu: st.menu === 'iaGrp' ? null : 'iaGrp' }); }) + ' role="button" aria-haspopup="listbox" data-ia-groups style="display:flex;align-items:center;gap:6px;white-space:nowrap;min-height:38px;padding:0 10px 0 6px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;font-size:14px;font-weight:800;color:#0d1117;cursor:pointer">' +
+        '<span style="display:flex">' + thumbs + '</span>' + esc(grpLabel) + '<span style="display:flex;color:#6b7280">' + I.chevD(13, 'currentColor', 2.8) + '</span></span>' + grpMenu + '</div>' +
+      '<div style="display:flex;align-items:center;gap:6px">' +
+        (ideas.length ? '<div style="position:relative"><span ' + on((e) => { stop(e); setState({ menu: st.menu === 'iaSort' ? null : 'iaSort' }); }) + ' role="button" aria-haspopup="listbox" data-ia-sort style="display:flex;align-items:center;gap:4px;white-space:nowrap;min-height:38px;padding:0 2px;font-size:13px;font-weight:700;color:#8a909b;cursor:pointer">' +
+          svg(14, stroke('currentColor', 2.4), '<path d="M7 4v16M3.5 16.5 7 20l3.5-3.5M17 20V4M13.5 7.5 17 4l3.5 3.5"/>') + '<span style="color:#0d1117;font-weight:800">' + SORTS.find(x => x[0] === IS)[1] + '</span>' + I.chevD(13, 'currentColor', 2.8) + '</span>' + sortMenu + '</div>' : '') +
+        '<div role="group" aria-label="View" style="display:flex;align-items:center;gap:2px;padding:3px;border-radius:999px;background:#e8eaee">' +
+          vb(VW === 'grid', 'grid', 'Grid', '<rect x="4" y="4" width="7" height="7" rx="1.6"/><rect x="13" y="4" width="7" height="7" rx="1.6"/><rect x="4" y="13" width="7" height="7" rx="1.6"/><rect x="13" y="13" width="7" height="7" rx="1.6"/>') +
+          vb(VW === 'full', 'full', 'Full tiles', '<rect x="4" y="4.5" width="16" height="6" rx="1.6"/><rect x="4" y="13.5" width="16" height="6" rx="1.6"/>') + '</div></div></div>';
+    let body;
+    if (!st.loaded) body = skeleton(2, 160);
+    else if (!G.length) body = goneCard() + noGroupCard();
+    else if (!ideas.length) body = '<span style="padding:10px 4px 4px;font-size:15px;font-weight:600;color:#6b7280">No ideas in your groups yet.</span>';
+    else body = (VW === 'grid'
+      ? '<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;align-items:start;padding-top:6px">' +
+          '<div style="display:flex;flex-direction:column;gap:20px">' + ideas.map((s, k) => k % 2 ? '' : tile(s, k)).join('') + '</div>' +
+          '<div style="display:flex;flex-direction:column;gap:20px;margin-top:20px">' + ideas.map((s, k) => k % 2 ? tile(s, k) : '').join('') + '</div></div>'
+      : '<div style="display:flex;flex-direction:column;gap:16px;padding-top:6px">' + ideas.map(full).join('') + '</div>');
+    const end = st.loaded && ideas.length ? '<div style="margin-top:34px;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center">' +
+      '<span style="position:relative;display:flex">' + svg(26, stroke('#b07a0a', 2.2), BULB) + '<svg aria-hidden="true" style="position:absolute;left:22px;top:-6px" width="9" height="9" viewBox="0 0 24 24" fill="#f5b428">' + SPARK4 + '</svg></span>' +
+      '<span style="font-size:17px;font-weight:900;color:#0d1117">That’s every idea for now.</span>' +
+      '<span ' + on(() => openFloat()) + ' role="button" data-board-float style="margin-top:4px;display:flex;align-items:center;min-height:44px;padding:0 18px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #f5b428;font-size:14.5px;font-weight:800;color:#8f6405;cursor:pointer">+ Float an idea</span></div>' : '';
+    return '<div data-screen-label="Ideas" style="min-height:100%;' + GRAPH_BG + '">' + head +
+      '<div style="position:relative;padding:16px 16px 20px;display:flex;flex-direction:column;gap:12px">' + bar + body + end + '</div><div style="height:calc(var(--nav-h) + 30px)"></div></div>';
+  }
+
+  let meSettingsRows = () => '';
+  // Settings (v8-4): a slide-up from the Me header's gear, with Notifications, Sync to your calendar and Add to Home Screen
+  function viewMeSettings() {
+    const close = () => setState({ meSet: false });
+    return '<div class="sheet-scrim" data-scrim="' + reg(close) + '"><div role="dialog" aria-modal="true" aria-label="Settings" data-screen-label="Settings sheet" class="sheet" style="max-height:88%;overflow:auto;background:#e8eaee;padding:10px 14px 30px;display:flex;flex-direction:column;gap:14px;animation:sheetUp 260ms cubic-bezier(.2,.8,.2,1) both">' +
+      '<span style="align-self:center;width:40px;height:5px;border-radius:999px;background:#c9ccd3"></span>' +
+      '<div style="display:flex;align-items:center;gap:10px;padding:0 4px"><span style="flex:1;font-size:22px;font-weight:900;letter-spacing:-.5px;color:#0d1117">Settings</span>' +
+        '<span ' + on(close) + ' aria-label="Close" style="flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(14, '#0d1117', 2.8) + '</span></div>' +
+      '<div style="background:#fff;border-radius:20px;box-shadow:0 1px 3px rgba(15,18,25,.08);overflow:hidden">' + meSettingsRows() + '</div></div></div>';
+  }
+
   function viewMe() {
     const st = state, avatar = st.myAvatar ? photoUrl(st.myAvatar) : null, x = meStats(), L = meLists();
     countMeVisit();
@@ -7149,7 +7810,11 @@
           '<span style="min-width:0;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(st.myName || 'No name yet') + '</span>' +
           '<span ' + on(openProfileEdit) + ' data-edit-profile style="align-self:flex-start;font-size:13.5px;font-weight:700;color:#5b4ae8;cursor:pointer">Edit profile</span></div>' +
         roundBtn(openSearch, 'Search events', ic6('search', 18, 'currentColor', 2.2)) +
-        bellBtn(false, 40, true) + '</div>' + impact + '</div>';
+        bellBtn(false, 40, true) +
+        // v8-4: Settings is a slide-up from the gear (the prototype puts it right of the bell; HANDOFF said far left)
+        '<span ' + on(() => setState({ meSet: true })) + ' aria-label="Settings" data-me-settings style="flex:0 0 44px;width:44px;height:44px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;color:#0d1117;cursor:pointer">' +
+          svg(21, stroke('currentColor', 1.9), '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>') + '</span>' +
+        '</div>' + impact + '</div>';
     // Alerts: the home screen one only where the app can be added; feedback comes back every 4 visits
     const a2hsOn = !!installMode() && !meAlertGet('a2hs');
     const fbAt = meAlertGet('fb'), fbOn = st.fbHint || fbAt == null || meVisits() - +fbAt >= 4;
@@ -7166,7 +7831,14 @@
       '<div style="display:flex;align-items:center;gap:8px"><span style="flex:0 0 3px;width:3px;height:16px;border-radius:2px;background:' + color + '"></span><span style="flex:1;font-size:15px;font-weight:800;color:#0d1117">' + title + '</span><b style="font-size:20px;line-height:1;font-weight:900;color:#0d1117">' + n + '</b></div>' +
       '<span style="font-size:12.5px;line-height:1.3;font-weight:600;color:#6b7280;text-wrap:pretty">' + esc(sub) + '</span></div>';
     const d0 = L.drafts[0] ? cleanTitle(draftState(L.drafts[0]).activity) || 'Untitled event' : '';
-    const yourStuff = '<div style="padding:14px 14px 0"><div style="display:flex;flex-direction:column;gap:8px"><span style="padding:0 6px;font-size:12.5px;font-weight:900;letter-spacing:1px;color:#6b7280">YOUR STUFF</span>' +
+    // My tasks moved here from the tab bar (v8-4): a full-width row first, then the 2×2 cards
+    const tkN = state.sparks.filter(s => !s.cancelledAt && inMine(s) && phaseOf(s) === 'plan' && (isLead(s) || myClaims(s).length)).length;
+    const tasksRow = '<div ' + on(() => go('home')) + ' data-stuff="My tasks" aria-label="My tasks" class="hov-row" style="display:flex;align-items:center;gap:12px;min-height:60px;padding:0 14px;border-radius:18px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
+      '<span style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#f3f1fe;color:#5b4ae8;display:flex;align-items:center;justify-content:center">' + svg(20, stroke('currentColor', 2), '<path d="M10 6.5h10M10 12h10M10 17.5h10"/><path d="m3.5 6.5 1.5 1.5 2.5-3M3.5 12l1.5 1.5 2.5-3M3.5 17.5l1.5 1.5 2.5-3"/>') + '</span>' +
+      '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px"><span style="font-size:16px;font-weight:800;color:#0d1117">My tasks</span>' +
+        '<span style="font-size:12.5px;font-weight:600;color:#6b7280">' + (tkN ? 'Leading and helping · ' + tkN + (tkN === 1 ? ' event' : ' events') : 'Nothing on your list') + '</span></div>' +
+      I.chevR(16, '#9aa0ac', 2.8) + '</div>';
+    const yourStuff = '<div style="padding:14px 14px 0"><div style="display:flex;flex-direction:column;gap:8px"><span style="padding:0 6px;font-size:12.5px;font-weight:900;letter-spacing:1px;color:#6b7280">YOUR STUFF</span>' + tasksRow +
       '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">' +
         stuff('draft', '#c9ccd3', 'Drafts', L.drafts.length, L.drafts.length ? d0 + (L.drafts.length > 1 ? ' + ' + (L.drafts.length - 1) + ' more' : '') : 'Nothing saved') +
         stuff('idea', '#1f5fa8', 'Ideas', L.ideas.length, L.ideas.length ? interested + (interested === 1 ? ' person' : ' people') + ' interested' : 'Float one any time') +
@@ -7180,7 +7852,7 @@
       '<div style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="display:flex;align-items:center;gap:8px;font-size:15.5px;font-weight:800;color:#0d1117">' + esc(title) + (soon ? SOON : '') + '</span>' + (sub ? '<span style="font-size:12.5px;font-weight:600;color:#6b7280">' + esc(sub) + '</span>' : '') + '</div>' +
       I.chevR(14, '#b9bcc4', 2.6) + (href ? '</a>' : '</div>');
     const group = (label, rows) => '<span style="padding:8px 6px 0;font-size:13px;font-weight:900;letter-spacing:1px;color:#6b7280">' + label + '</span><div style="background:#fff;border-radius:20px;box-shadow:0 1px 3px rgba(15,18,25,.08);overflow:hidden">' + rows + '</div>';
-    const settings = group('SETTINGS',
+    meSettingsRows = () => (
       row('<path d="M6 16.5V11a6 6 0 1 1 12 0v5.5l1.6 2H4.4L6 16.5Z"/><path d="M10 21a2.2 2.2 0 0 0 4 0"/>', 'Notifications', 'Events, updates, reminders', () => setState({ nSettings: true }), 0) +
       row('<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>', 'Sync to your calendar', 'Google Calendar', soonToast, 1, true) +
       (installMode() ? row('<path d="M4 11.5 12 5l8 6.5V20H4z"/><path d="M10 20v-5h4v5"/>', 'Add to Home Screen', installMode() === 'prompt' ? 'Install Spark Hub on this phone' : 'A few taps in ' + IOS_BROWSER + '’s Share menu', startInstall, 1) : ''));
@@ -7192,7 +7864,7 @@
     return '<div data-screen-label="Me">' + head + alerts + yourStuff +
       '<div style="padding:16px 14px 26px;display:flex;flex-direction:column;gap:10px">' +
         (st.demoAdmin ? '<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:12px">' + fbInboxCard() + acctCard() + '</div>' : '') +
-        settings + help +
+        help +
         '<div style="display:flex;flex-direction:column;gap:14px;margin-top:12px">' + testerCard() + (st.demoAdmin ? diagCard() : '') + '</div>' +
         '<div style="display:flex;justify-content:center;padding:8px 0 4px"><span ' + on(signOut) + ' data-sign-out style="min-height:44px;display:flex;align-items:center;font-size:15px;font-weight:800;color:#c0283f;cursor:pointer">Sign out</span></div>' +
         (st.demoAdmin ? '' : '<span ' + on(() => setState({ acctDel: '' })) + ' data-delete-account style="align-self:center;display:flex;align-items:center;min-height:36px;padding:0 10px;font-size:13.5px;font-weight:700;color:#6b7280;text-decoration:underline;text-underline-offset:3px;cursor:pointer">Delete my account</span>') +
@@ -7483,7 +8155,13 @@
   // rounded checkbox; the one not picked fades. In the pop-up a pick closes it
   const LEAD_WHY = 'The lead picks the date and place. You can add co-leads and jobs later.';
   const leadOptions = (st, pop) => {
-    const pick = (float) => setState(Object.assign({ evFloat: float }, pop ? { evPop: null } : {}));
+    // v8-5: Float the idea opens the Float sheet over Plan an event with the title, overview and photo carried over
+    const pick = (float) => {
+      if (!float) { setState(Object.assign({ evFloat: false }, pop ? { evPop: null } : {})); return; }
+      if (pop) setState({ evPop: null });
+      const ph = st.photos[0] ? { blob: st.photos[0].blob, url: URL.createObjectURL(st.photos[0].blob) } : null;
+      openFloat({ title: (st.activity || '').slice(0, 60), why: (st.evOverview || '').slice(0, 120), photo: ph, groups: evGroupIds(st).length ? evGroupIds(st) : qiBlank().groups, fromCompose: true });
+    };
     const card = (float, title, sub, icon, C) => { const onIt = !!st.evFloat === float;
       return '<button type="button" ' + on(() => pick(float)) + ' data-ev-lead="' + (float ? 'float' : 'me') + '" aria-pressed="' + onIt + '" style="display:flex;align-items:center;gap:14px;width:100%;padding:16px;border:0;border-radius:20px;font-family:inherit;text-align:left;cursor:pointer;transition:opacity .2s,filter .2s,box-shadow .2s;background:' + C.bg + ';box-shadow:' +
           (onIt ? 'inset 0 0 0 2px ' + C.main + ', 0 8px 20px ' + C.glow : 'inset 0 0 0 1.5px ' + C.ring + ';opacity:.62;filter:saturate(.55)') + '">' +
@@ -8385,7 +9063,7 @@
       (!st.myName && !st.email
         ? '<div style="display:flex;justify-content:center;flex-wrap:wrap;gap:4px;font-size:13.5px;font-weight:500;color:#6b7280"><span>Been here before?</span><span ' + on(() => openLogin('default', st.nameAsk)) + ' style="font-weight:800;color:#5b4ae8;cursor:pointer">Sign in</span></div>'
         : ''),
-      { max: 330 });
+      { max: 330, z: 48 });   // above the Float sheet (z 37), which can ask for it
   }
 
   function viewGuest() {
@@ -8781,7 +9459,7 @@
   // Tab bar (Design v8, 2026-10-05): Groups · Friends · Calendar · Tasks · Me. Was Discover · Tasks · Calendar (in a ring) ·
   // Groups · Settings (pick 2a); Discover is now All groups, under Groups
   function viewNav() {
-    const s = state.screen, n = 0;   // no count on the Tasks tab (owner, 2026-10-05)
+    const s = state.screen;   // v8-4: Groups · Friends · Calendar · Ideas · Me; My tasks lives under Me
     // In Create event with something typed, a tab asks about a draft first, then goes there (owner, 2026-10-02)
     const leave = (fn) => () => {
       if (s !== 'compose') return fn();
@@ -8799,32 +9477,25 @@
       tab(['groups', 'calendar', 'browse', 'groupPage'].indexOf(s) > -1, 'Groups', 'Groups', ic('<rect x="4" y="4" width="7" height="7" rx="1.6"/><rect x="13" y="4" width="7" height="7" rx="1.6"/><rect x="4" y="13" width="7" height="7" rx="1.6"/><rect x="13" y="13" width="7" height="7" rx="1.6"/>'), () => go('groups')) +
       tab(s === 'friends', state.fr.incoming.length ? 'Friends, new request' : 'Friends', 'Friends', '<span style="position:relative;display:flex">' + ic('<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M15.5 4.6a3.5 3.5 0 0 1 0 6.8M18 14a6.5 6.5 0 0 1 3.5 6"/>') + reqDot + '</span>', () => go('friends')) +
       tab(s === 'sched', 'Calendar', 'Calendar', ic('<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>'), () => go('sched')) +
-      tab(s === 'home' || s === 'own', n ? 'Tasks, ' + n : 'Tasks', 'Tasks', '<span style="position:relative;display:flex">' + ic('<path d="M10 6.5h10M10 12h10M10 17.5h10"/><path d="m3.5 6.5 1.5 1.5 2.5-3M3.5 12l1.5 1.5 2.5-3M3.5 17.5l1.5 1.5 2.5-3"/>') +
-        (n ? '<span aria-hidden="true" style="position:absolute;top:-6px;right:-9px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;border:2px solid #fff;background:#5b4ae8;color:#fff;font-size:10.5px;font-weight:900;display:flex;align-items:center;justify-content:center;box-sizing:border-box">' + (n > 9 ? '9+' : n) + '</span>' : '') + '</span>', () => go('home')) +
-      tab(s === 'me', 'Me', 'Me', ic('<circle cx="12" cy="8.2" r="3.8"/><path d="M4.5 20.5a7.5 7.5 0 0 1 15 0"/>'), openProfileSheet) +
+      tab(s === 'ideas', 'Ideas', 'Ideas', ic('<path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V16h5v-.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/>'), () => go('ideas')) +
+      tab(s === 'me' || s === 'home' || s === 'own', 'Me', 'Me', ic('<circle cx="12" cy="8.2" r="3.8"/><path d="M4.5 20.5a7.5 7.5 0 0 1 15 0"/>'), openProfileSheet) +
     '</nav>';
   }
 
-  // The floating add event button (Design pick 1b, 2026-10-04; on every tab since v8): opens Plan an event, sits under sheets and
-  // pop-ups, and tucks right 0.75s after the last scroll or touch, leaving a sliver. Any scroll or touch brings it back;
-  // a tap on the sliver only brings it back. The DOM morph keeps the element, so `tucked` is a class flipped in place.
-  let fabTucked = false, fabWasTucked = false, fabTimer = null;
-  const fabEl = () => root.querySelector('[data-add-fab]');
-  const fabTuck = (on) => { fabTucked = on; const el = fabEl(); if (el) el.classList.toggle('tucked', on); };
-  const fabWake = (e) => {
-    // only a tap on the tucked button itself just brings it back (a tap elsewhere used to swallow the next + tap)
-    if (e && e.type === 'pointerdown') fabWasTucked = fabTucked && !!(e.target && e.target.closest && e.target.closest('[data-add-fab]'));
-    clearTimeout(fabTimer);
-    if (fabTucked) fabTuck(false);
-    fabTimer = setTimeout(() => { fabTimer = null; fabTuck(true); }, 750);
-  };
-  ['scroll', 'wheel', 'touchmove', 'pointerdown'].forEach(k => document.addEventListener(k, fabWake, { capture: true, passive: true }));
-  // group pages (browse) too since Design v8, in place of their inline + and Start an event button
-  const TAB_SCREENS = ['groups', 'friends', 'sched', 'home', 'me', 'calendar', 'browse'];
-  const fabTap = () => { if (fabWasTucked) { fabWasTucked = false; return; } goCompose(); };
+  // The floating + (v8-5, 17d): on every tab and group page it turns into a dark × and pops up two pills, Make a plan (purple,
+  // left of the +) and Float an idea (gold, above it). The Ideas tab has a gold + straight to the Float sheet instead.
+  // It no longer tucks away on scroll (the prototype dropped 1b's tuck in v8-5).
+  const TAB_SCREENS = ['groups', 'friends', 'sched', 'home', 'me', 'calendar', 'browse', 'ideas'];
   function viewAddFab() {
     if (TAB_SCREENS.indexOf(state.screen) < 0 || !state.email) return '';
-    return '<div ' + on(fabTap) + ' role="button" aria-label="Start an event" data-add-fab class="add-fab' + (fabTucked ? ' tucked' : '') + '">' +
+    if (state.screen === 'ideas') return '<div ' + on(() => openFloat()) + ' role="button" aria-label="Float an idea" data-float-fab class="add-fab add-fab-gold">' +
+      svg(22, stroke('#2a1d00', 2.8), '<path d="M12 5v14M5 12h14"/>') + '</div>';
+    const open = !!state.plusMenu, close = () => setState({ plusMenu: false });
+    const pill = (fn, bg, ink, icon, label, pos, delay, attr) => '<div style="position:absolute;' + pos + ';z-index:10"><span ' + on(fn) + ' role="button" ' + attr + ' style="display:flex;align-items:center;gap:9px;min-height:52px;padding:0 20px 0 16px;border-radius:999px;background:' + bg + ';color:' + ink + ';box-shadow:0 8px 20px rgba(13,17,23,.22);font-size:16px;font-weight:900;white-space:nowrap;cursor:pointer;animation:plusPop 260ms ' + delay + 'ms cubic-bezier(.2,1.4,.4,1) both">' + icon + label + '</span></div>';
+    return (open ? '<div ' + on(close) + ' data-screen-label="Plus menu" class="plus-scrim"></div>' +
+        pill(() => { close(); openFloat(); }, '#f5b428', '#2a1d00', svg(20, stroke('#2a1d00', 2.4), '<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9V16h7v-2.1A6 6 0 0 0 12 3z"/>'), 'Float an idea', 'right:18px;bottom:calc(var(--nav-h) + 76px)', 60, 'data-plus-float') +
+        pill(() => { close(); goCompose(); }, '#5b4ae8', '#fff', svg(20, stroke('#fff', 2.3), '<rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16M9 3v4M15 3v4"/>'), 'Make a plan', 'right:78px;bottom:calc(var(--nav-h) + 14px)', 0, 'data-plus-plan') : '') +
+      '<div ' + on(() => setState({ plusMenu: !open })) + ' role="button" aria-label="Create" aria-expanded="' + open + '" data-add-fab class="add-fab' + (open ? ' open' : '') + '">' +
       svg(22, stroke('#fff', 2.8), '<path d="M12 5v14M5 12h14"/>') + '</div>';
   }
 
@@ -8844,7 +9515,7 @@
   }
 
   // Welcome is what signed-out visitors see for Home (and Profile / a group page, which need an account)
-  const welcomeShown = () => !state.email && ['home', 'sched', 'groupPage', 'calendar', 'own', 'groups', 'friends', 'me'].indexOf(state.screen) > -1;
+  const welcomeShown = () => !state.email && ['home', 'sched', 'groupPage', 'calendar', 'own', 'groups', 'friends', 'me', 'ideas'].indexOf(state.screen) > -1;
 
   function view() {
     const st = state, s = st.screen, subj = subject();
@@ -8859,6 +9530,7 @@
     else if (s === 'groups') main = st.email ? viewGroups() : home();
     else if (s === 'friends') main = st.email ? viewFriends() : home();
     else if (s === 'me') main = st.email ? viewMe() : home();
+    else if (s === 'ideas') main = st.email ? viewIdeas() : home();
     else if (s === 'detail' && subj) main = viewDetail(subj);
     else if (s === 'detail' && st.subjectId) main = eventLoading();
     else if (s === 'compose') main = st.email ? '' : viewWelcome();   // the post flow covers the screen
@@ -8878,6 +9550,7 @@
       (st.email && st.cHandSheet ? viewHandSheet() : '') +
       (st.email && st.cSearch ? viewSearch() : '') +
       (st.peek && s === 'calendar' ? viewPeek() : '') +
+      (st.ip && s === 'ideas' ? viewIdeaSheet() : '') +
       (s === 'browse' && st.loaded && currentGroup() && !st.gSearch && !st.gMenu ? swipeHints() : '') +
       (st.email && st.gSearch && s === 'browse' ? viewGroupSearch() : '') +
       (st.gMenu && s === 'browse' ? viewGroupMenu() : '') +
@@ -8885,6 +9558,7 @@
       (st.shiftPick ? viewShiftSheet() : '') +
       (st.banner ? viewBanner() : '') +
       (s === 'compose' ? viewCompose() : '') +
+      (st.qi && st.email ? viewFloat() : '') +
       (s === 'compose' && st.leadInfo ? viewLeadInfo() : '') +
       (s === 'compose' && st.evPop && st.evStep === 'review' && !st.evLeave && !st.loginStep ? viewEvPop() : '') +   // under the poll and job sheets it opens
       (s === 'compose' && st.email ? viewComposeSheets() : st.pollSheet && st.pollSheet.sparkId ? viewComposeSheets() : '') +
@@ -8911,6 +9585,7 @@
       (st.email && st.frListEd ? viewFrListEd() : '') +
       (st.email && st.meImp && s === 'me' ? viewImpact() : '') +
       (st.email && st.meList && s === 'me' ? viewMeList() : '') +
+      (st.email && st.meSet && s === 'me' ? viewMeSettings() : '') +
       (st.email && st.frInvite && st.frSel.length ? viewFrInvite() : '') +
       (st.email && st.person ? viewPerson() : '') +
       (st.frAdd ? viewFrAdd() : '') +
@@ -8925,6 +9600,7 @@
       (st.startName != null ? viewStartGroup() : '') +
       (st.updAll ? viewUpdAll() : '') +
       (st.blast ? viewBlast() : '') +
+      (st.ipPop ? viewIdeaPop() : '') +
       (st.loginStep ? (st.inv && st.inv.step === 'land' && st.loginStep === 'code' ? viewInvCode() : viewLogin()) : '') +
       (st.inv && st.inv.step === 'confirm' && st.email ? viewInvConfirm() : '') +
       (st.confirm ? viewConfirm() : '') +
@@ -9090,7 +9766,6 @@
     const sc = state.screen, photoTop = sc === 'browse' || (sc === 'detail' && !!subject()) || sc === 'calendar' || welcomeShown() || (!state.email && sc === 'compose') ||
       (invFull() && (state.inv.step === 'land' || state.inv.step === 'welcome'));
     root.classList.toggle('photo-top', photoTop);
-    if (!fabTimer && !fabTucked && fabEl()) fabWake();   // the add event button just appeared: tuck it after 0.75s
     syncBadge();
     maybeInstallPop();
     placeInvPop();

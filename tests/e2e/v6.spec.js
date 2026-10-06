@@ -2,7 +2,7 @@
 // the community Calendar (filters, search, Could use a hand, Month), the "You're on it" banner,
 // and Profile / Notifications as sheets.
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newLead, postEvent, openIdea, deleteIdea, pickView, asUser, addJob, openAllGroups } = require('./helpers');
+const { uniqueTitle, newLead, postEvent, openIdea, deleteIdea, pickView, asUser, addJob, openAllGroups, openTasks } = require('./helpers');
 
 // Local dates, like the app (toISOString would be UTC, a day ahead in the evening)
 const inDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
@@ -22,16 +22,19 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     await expect(H.locator('[data-screen-label="Your calendar"]')).toBeVisible();
     await expect(H.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Calendar', exact: true })).toHaveAttribute('aria-current', 'page');
     await expect(nav(H).getByRole('button')).toHaveCount(5);
-    for (const name of ['Groups', 'Friends', 'Calendar', /^Tasks/, 'Me']) await expect(nav(H).getByRole('button', { name, exact: typeof name === 'string' })).toBeVisible();
+    for (const name of ['Groups', 'Friends', 'Calendar', 'Ideas', 'Me']) await expect(nav(H).getByRole('button', { name, exact: true })).toBeVisible();
     // Every tab has its word under the icon (Design pick 2a, 2026-10-04)
-    await expect(nav(H)).toHaveText(/Groups\s*Friends\s*Calendar\s*Tasks\s*Me/);
-    // Your calendar's add event button tucks away after 0.75s; a tap on the sliver only brings it back, then it opens Start an event (pick 1b)
+    await expect(nav(H)).toHaveText(/Groups\s*Friends\s*Calendar\s*Ideas\s*Me/);   // Tasks moved under Me (v8-4)
+    // The floating + (v8-5, 17d) turns into a dark × with Make a plan and Float an idea; the scrim closes it
     const fab = H.locator('[data-add-fab]');
-    await expect(fab).toHaveClass(/tucked/);
-    const fb = await fab.boundingBox(), vw = H.viewportSize().width;
-    await H.mouse.click(vw - 6, fb.y + fb.height / 2);
-    await expect(fab).not.toHaveClass(/tucked/);
-    await fab.click();   // straight into Plan an event (v8); nothing typed, so X just leaves
+    await fab.click();
+    await expect(fab).toHaveAttribute('aria-expanded', 'true');
+    await expect(H.locator('[data-plus-plan]')).toHaveText('Make a plan');
+    await expect(H.locator('[data-plus-float]')).toHaveText('Float an idea');
+    await H.locator('[data-screen-label="Plus menu"]').click({ position: { x: 20, y: 200 } });
+    await expect(H.locator('[data-plus-plan]')).toHaveCount(0);
+    await fab.click();
+    await H.locator('[data-plus-plan]').click();   // Plan an event; nothing typed, so X just leaves
     await H.locator('[data-screen-label="New spark"]').getByRole('button', { name: 'Close' }).click();
     await expect(H.locator('[data-screen-label="Your calendar"]')).toBeVisible();
 
@@ -45,7 +48,7 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
 
     // Her My tasks (v8 6h): grouped by event, a date line, the event with its purple bar, then its rows. A job to fill
     // reads NEED, the job and its open spots, with Ask right there; Location TBD is a row with Add it
-    await nav(H).getByRole('button', { name: /^Tasks/ }).click();
+    await openTasks(H);
     const tasks = H.locator('[data-screen-label="Your tasks"]');
     const lead = tasks.locator('[data-task="' + title + '"]');
     await expect(lead).toContainText('Today');
@@ -68,7 +71,7 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     await askSheet.getByRole('button', { name: 'Close' }).click();
     await expect(tasks).toBeVisible();   // the ask opens right on My tasks
     await shot(H, '01-your-tasks-lead');
-    await expect(nav(H).getByRole('button', { name: 'Tasks', exact: true })).toBeVisible();   // no count on the Tasks tab (owner, 2026-10-05)
+    await expect(tasks.getByRole('button', { name: 'Back to Me' })).toBeVisible();   // under Me since v8-4
     // Condensed (6j): one card, the event as a small header, the same rows; the switch is remembered
     await tasks.getByRole('tab', { name: 'Condensed' }).click();
     await expect(tasks.locator('[data-task="' + title + '"]')).toBeVisible();
@@ -132,7 +135,7 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     await expect(O.getByText('Marked as maybe')).toBeVisible();
 
     // His Your tasks: a Helping card with just "You said Maybe" (it's in the last 3 days) and his sign-up
-    await nav(O).getByRole('button', { name: /^Tasks/ }).click();
+    await openTasks(O);
     const help = O.locator('[data-screen-label="Your tasks"] [data-task="' + title + '"]');
     await expect(help).toContainText('You said Maybe');
     await expect(help).toContainText('Update RSVP');

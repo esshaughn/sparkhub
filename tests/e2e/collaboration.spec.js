@@ -151,7 +151,7 @@ test('the Ideas board puts the idea with the most interest first', async ({ brow
     await saved(fan.page);
 
     const P = poster.page;
-    await P.goto('/#/ideas');
+    await P.goto('/#/browse');   // a group's Ideas · Plans · Past (#/ideas is the Ideas tab since v8-4)
     await P.locator('[data-screen-label=Browse]').getByRole('tab', { name: /^Ideas/ }).click();
     // The Ideas board (v6 Update 2) keeps Most popular order across its two columns: read it by rank
     const order = async () => (await P.locator('[data-screen-label=Browse] [data-card]').evaluateAll(els => els
