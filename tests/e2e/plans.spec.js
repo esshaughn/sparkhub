@@ -34,7 +34,7 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     await expect(HP.locator('[data-when-card] [data-empty-spot]')).toContainText('No location yet');
 
     // The host adds sign-ups (with "how many") in Edit what you need, and posts an update
-    await HP.locator('[data-help-empty], [data-edit-jobs]').first().click();
+    await HP.locator('[data-help-empty], [data-help-edit]').first().click();
     const needs = H.getByRole('dialog', { name: 'Edit what you need' });
     await needs.getByText('Add a job or item').click();
     await needs.getByLabel('Job name 1').fill('Folding chairs');
@@ -285,7 +285,7 @@ test('Help out: More details, time ranges and one shift per job', async ({ brows
     await H.reload();
     await expect(H.locator('html[data-loaded=true]')).toHaveCount(1);
     await H.locator('[data-screen-label="Plan page"] [data-signup="Coat check table"] [data-edit-jobs]').click();
-    const needs = H.getByRole('dialog', { name: 'Edit what you need' });
+    const needs = H.getByRole('dialog', { name: 'Edit job' });
     await expect(needs).toContainText('People are signed up for these shifts, so they stay as shifts.');
     await expect(needs.getByText('Use one time instead')).toHaveCount(0);
     await needs.getByRole('button', { name: 'Close' }).click();

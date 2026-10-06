@@ -311,8 +311,8 @@ async function closeAskFirst(page) {
 }
 // The host adds a job in Edit what you need (v6 Update 6): name, how many, an optional time
 async function addJob(page, { item, need = 1, time }) {
-  // No jobs yet: the empty box; otherwise any job's ✎ (Design 12e: the section's Edit link is gone)
-  await page.locator('[data-screen-label="Plan page"]').locator('[data-help-empty], [data-edit-jobs]').first().click();
+  // No jobs yet: the empty box; otherwise the section's Edit pill (a job's ✎ opens Edit job, that job only: Design v8-8)
+  await page.locator('[data-screen-label="Plan page"]').locator('[data-help-empty], [data-help-edit]').first().click();
   const sheet = page.getByRole('dialog', { name: 'Edit what you need' });
   const n = await sheet.locator('[data-need-row]').count() + 1;
   await sheet.getByText('Add a job or item').click();

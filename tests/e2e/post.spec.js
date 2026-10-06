@@ -115,10 +115,10 @@ test('post an event with every step filled, then edit it in the pop-ups and dele
     await expect(P).toContainText('PRIVATE');
     await expect(P.locator('[data-vis]')).toContainText('Private');
 
-    // Edit what you need (the job's ✎; Design 12e): rename the job and ask for one more
+    // Edit job (the job's ✎ opens that job only; Design v8-8): rename the job and ask for one more
     await expect(P.getByRole('button', { name: 'Edit what you need' })).toHaveCount(0);   // no Edit link on the section
     await P.locator('[data-signup="Bring water"] [data-edit-jobs]').click();
-    const needs = page.getByRole('dialog', { name: 'Edit what you need' });
+    const needs = page.getByRole('dialog', { name: 'Edit job' });
     await needs.getByLabel('Job name 1').fill('Bring cold water');
     await needs.getByRole('button', { name: 'More for how many people' }).click();
     // A job that arrives while the sheet is open (another device, or the sheet opened on cached data) survives Save
