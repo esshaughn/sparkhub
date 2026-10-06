@@ -259,6 +259,7 @@ html.tall-fix .app { bottom: auto; height: var(--true-h); }
 .hov-host:hover { background: #fafbfc !important; }
 .host-card > * + * { border-top: 1px solid #f2f3f6; }
 .hov-sec:hover { background: #f4f5f7 !important; }
+.hov-findmore:hover { box-shadow: inset 0 0 0 1.5px #c9c2fb !important; }
 
 /* Asking for feedback after ~10 minutes (v7 Update 15, 1c): a sheet sliding up above the tab bar (the scrim covers the
    page, not the tab bar), then a dark tip pointing at the Profile tab, the fifth of five columns */

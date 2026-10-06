@@ -3886,7 +3886,7 @@
   }
   // The end of Your calendar (Up next and Tiles): Design v8's pill, Find more events with two small sparkles; it opens
   // All groups on Month with every group (v8-6 fix 5). Was the green Start an event slot (owner, 2026-10-03); the + covers that now
-  const findMore = () => '<div style="margin:10px 0 8px;display:flex;justify-content:center"><span ' + on(() => { setState({ cKind: 'plan', cView: 'month', cGrps: null, cMon: null, cDay: null }); go('calendar'); }) + ' data-find-more role="button" class="hov-findmore" style="position:relative;display:flex;align-items:center;gap:8px;min-height:44px;padding:0 18px;border-radius:999px;background:linear-gradient(115deg,#efecfe 0%,#f7ecf8 50%,#fdeef4 80%,#fef6e2 110%);box-shadow:inset 0 0 0 1.5px #e3defb;font-size:15px;font-weight:800;color:#4a3ad4;cursor:pointer">' +
+  const findMore = () => '<div style="margin:10px 0 8px;display:flex;justify-content:center"><span ' + on(() => go('calendar', { cKind: 'plan', cView: 'month', cGrps: null, cMon: null, cDay: null })) + ' data-find-more role="button" class="hov-findmore" style="position:relative;display:flex;align-items:center;gap:8px;min-height:44px;padding:0 18px;border-radius:999px;background:linear-gradient(115deg,#efecfe 0%,#f7ecf8 50%,#fdeef4 80%,#fef6e2 110%);box-shadow:inset 0 0 0 1.5px #e3defb;font-size:15px;font-weight:800;color:#4a3ad4;cursor:pointer">' +
     '<span aria-hidden="true" style="position:absolute;left:-10px;top:-6px;font-size:11px;color:#f5b428">✦</span><span aria-hidden="true" style="position:absolute;right:-8px;bottom:-4px;font-size:9px;color:#d6246e;opacity:.7">✦</span>Find more events</span></div>';
 
   // ---- Screen 3: Explore (the community Calendar until v7 Update 16) ---------------------------

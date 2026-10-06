@@ -93,18 +93,15 @@ test('Explore shows Plans, Ideas or Past; Your calendar ends with Find more even
     await M.reload();
     await expect(M.locator('html[data-loaded=true]')).toHaveCount(1);
 
-    // Your calendar: the plan, then the green slot, which asks you to start an event (owner, 2026-10-03)
+    // Your calendar: the plan, then Design v8's Find more events pill (owner, 2026-10-06), which opens All groups on Month
     const yc = M.locator('[data-screen-label="Your calendar"]');
     await expect(yc.locator('[data-plan="' + plan + '"]')).toBeVisible();
-    await expect(yc.locator('[data-start-slot]')).toContainText('Start an event');
-    await yc.locator('[data-start-slot]').click();
-    const flow = M.locator('[data-screen-label="New spark"]');   // straight into Plan an event (v8: no Real or test)
-    await expect(flow).toContainText('1/4');
-    await flow.getByRole('button', { name: 'Close' }).click();   // nothing typed: X just leaves
-    await expect(flow).toHaveCount(0);
-    await openAllGroups(M);
+    await expect(yc.locator('[data-find-more]')).toHaveText('✦✦Find more events');
+    await yc.locator('[data-find-more]').click();
     const cal = M.locator('[data-screen-label="All groups"]');
     await expect(cal.getByRole('heading', { name: 'All groups' })).toBeVisible();
+    await expect(cal.getByRole('button', { name: 'Next month' })).toBeVisible();
+    await pickView(cal, 'List');
 
     // Plans (the default) · Ideas · Past
     await expect(cal.locator('[data-plan="' + plan + '"]')).toBeVisible();
