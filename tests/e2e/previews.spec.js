@@ -93,3 +93,46 @@ test('a short link opens the event; a wrong one says it isn’t working', async 
     await visitor.context.close();
   }
 });
+
+// What a signed-out visitor sees on an event (v8-8 short links spec): a count, not who; See all asks them to RSVP; the
+// lead's first name with no profile; no Visibility card or group name; Discussion behind sign-in. The guest sheet (1c)
+// leads with an account; after a guest RSVP the names show
+test('a signed-out visitor sees the event only, and names once they RSVP', async ({ browser }) => {
+  const { page, context } = await newLead(browser, 1, 'Lena Lead');
+  const visitor = await newMember(browser);
+  let id;
+  try {
+    id = await asUser(page, async (c, _C, { title, day }) => {
+      const me = (await c.auth.getUser()).data.user.id;
+      const g = (await c.from('groups').select('id').eq('name', 'Torrez Fitness').single()).data.id;
+      return (await c.from('sparks').insert({ group_id: g, author_name: 'Lena Lead', lead_name: 'Lena Lead', lead_id: me, created_by: me, text: title, planned: true, day_date: day }).select('id').single()).data.id;
+    }, { title: uniqueTitle('Visitor walk'), day: new Date(Date.now() + 8 * 864e5).toISOString().slice(0, 10) });
+    const V = visitor.page;
+    await V.goto('/#/idea/' + id);
+    const P = V.locator('[data-screen-label="Plan page"]');
+    await expect(P).toBeVisible();
+    await expect(P.locator('[data-going]')).toContainText('1 going');
+    await expect(P.locator('[data-grey-face]')).toHaveCount(1);
+    await P.locator('[data-going]').click();
+    await expect(V.getByRole('status')).toContainText('RSVP to see who’s going');
+    await expect(P.locator('[data-lead-names]')).toHaveText('Lena');
+    await expect(P).not.toContainText('Visibility');
+    await expect(P).not.toContainText('Torrez Fitness');
+    await expect(P.locator('[data-disc-signin]')).toBeVisible();
+    // Going → the guest sheet: You're going!, the account card, RSVP without an account
+    await P.locator('[data-rsvp]').getByRole('button', { name: /^Going/ }).click();
+    const d = V.getByRole('dialog', { name: 'RSVP as a guest' });
+    await expect(d).toContainText('You’re going!');
+    await expect(d.locator('[data-guest-account]')).toContainText('Get updates and a reminder');
+    await expect(d.locator('[data-guest-rsvp]')).toContainText('No updates or reminders. Only the lead sees your name.');
+    await d.getByLabel('Your name').fill('Jo');
+    await d.locator('[data-guest-rsvp]').click();
+    await expect(P.locator('[data-grey-face]')).toHaveCount(0);
+    await expect(P.locator('[data-going]')).toContainText('See all');
+    expect(visitor.errors).toEqual([]);
+  } finally {
+    if (id) await deleteIdea(page, id).catch(() => {});
+    await context.close();
+    await visitor.context.close();
+  }
+});

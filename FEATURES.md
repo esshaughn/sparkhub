@@ -289,6 +289,7 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 207 | **Location name + Address** on Plan an event's page 1 (v8-8 item 8; a picked place fills both), shown on Review; the Review page has no REVIEW eyebrow, its card is titled *Review*, a cover photo gets the purple-pink tint; **Discussion behind sign-in**: signed out (guests too) see *N posts · Sign in to read and join in* | Test | |
 | 208 | **Comment notifications** (v8-8 decided): hosts get a push per comment or reply (grouped per event per hour, *N new comments*); a post's author gets *{name} replied: …*. `20261109010000_comment_pushes.sql` | Test | DB checks |
 | 209 | **Short links** (v8-8): `sparkhub.wereallneighbors.org/e/{code}` (8 random letters and numbers) in every share, invite, text and .ics; the message *{title} · {day} {link}*; previews show the event only; old `/i/{id}` links redirect until 2027-04-06; a wrong code says *This link isn’t working*. `20261109020000_link_codes.sql`, `api/preview.js` | Test | previews.spec |
+| 210 | **Visitor view** (v8-8): signed out and not replied, an event shows grey faces and *N going* (See all → *RSVP to see who’s going*), the lead's first name (no profile), no Visibility card or group name; the guest sheet (1c) offers an account first (*Get updates and a reminder*: Continue with Google / Use my email), then *RSVP without an account* | Test | previews.spec |
 
 ## Removed in this rebuild
 

@@ -226,9 +226,9 @@ async function answerNamePrompt(page, name) {
 async function answerGuestPrompt(page, name) {
   const d = page.getByRole('dialog', { name: 'RSVP as a guest' });
   await expect(d).toBeVisible();
-  await expect(d.getByRole('button', { name: 'Continue', exact: true })).toHaveAttribute('aria-disabled', 'true');
+  await expect(d.locator('[data-guest-rsvp]')).toHaveAttribute('aria-disabled', 'true');   // RSVP without an account (v8-8 1c)
   await d.getByLabel('Your name').fill(name);
-  await d.getByRole('button', { name: 'Continue', exact: true }).click();
+  await d.locator('[data-guest-rsvp]').click();
   await expect(d).toBeHidden();
 }
 

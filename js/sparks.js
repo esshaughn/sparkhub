@@ -869,11 +869,11 @@
   const needName = (fn) => { if (state.myName) fn(); else setState({ nameAsk: fn, nameText: '' }); };
   // Guests (not signed in) can only RSVP, with a name (owner, 2026-10-01). They give it once; it's kept on their
   // profile, so the next RSVP on this device doesn't ask again. The database refuses a guest's RSVP without it.
-  const needGuest = (fn) => {
+  const needGuest = (fn, kind) => {   // kind: the RSVP that opened it (going / maybe / no), for the sheet's title
     if (state.email) { needName(fn); return; }
     if (state.guest) { fn(); return; }
     if (state.myName) { setState({ guest: { name: state.myName } }); fn(); return; }
-    setState({ guestOpen: true, guestThen: fn, guestName: state.guestName || '' });
+    setState({ guestOpen: true, guestThen: fn, guestKind: kind || null, guestName: state.guestName || '' });
   };
   // Everything else (interest, suggestions, votes, jobs, photos) needs an account: sign-in, then the action
   // noteTap() just before needAccount() says what the tap was, in a form that survives the page reloading at Google
@@ -1749,7 +1749,7 @@
         saving(-1);
         if (mine === rsvpQueued) loadFresh().catch(e => console.error(e));
       });
-    }); };
+    }, next); };
     // Can't, while signed up for a job: free the spot too? (owner, 2026-09-30)
     const askJobs = (dropSpots) => {
       const names = jobs.map(it => it.item).filter((x, k, a) => a.indexOf(x) === k);
@@ -3783,10 +3783,10 @@
         '</div></div>' +
       nextStrip(s, P, mode) + '</div>';
   };
-  // Up next's strip (Design 27, Eric 2026-10-04): N tasks ▾ on the right, tap to show the rows; closed to start except on
-  // the day itself; open or closed is kept per event for the session (schedOpen, shared with the cards below)
+  // Up next's strip (Design 27): N tasks ▾ on the right, tap to show the rows; always closed to start, even on the day
+  // (owner, 2026-10-06); open or closed is kept per event for the session (schedOpen, shared with the cards below)
   const nextStrip = (s, P, mode) => {
-    const n = P.rows.length, saved = state.schedOpen[s.id], open = (saved == null ? daysTo(s) === 0 : !!saved) && n > 0;
+    const n = P.rows.length, saved = state.schedOpen[s.id], open = !!saved && n > 0;
     const tap = (e) => { stop(e); if (!n) openSpark(s); else setState({ schedOpen: Object.assign({}, state.schedOpen, { [s.id]: !open }) }); };
     const word = P.k === 'go' ? P.right : n ? n + (n === 1 ? ' task' : ' tasks') : 'All set';
     const mine = mode === 'mine';
@@ -3884,12 +3884,10 @@
     return wrap(goneCard() + secs.map((z, i) => '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(z.label, i ? '' : controls) +
       '<div style="display:flex;flex-direction:column;gap:' + (view === 'next' ? 10 : 14) + 'px">' + (z.hero ? nextCard6(z.hero, partOf(z.hero), 'mine') : z.items.map(card).join('')) + '</div></div>').join('') + findMore());
   }
-  // The end of Your calendar (Up next and Tiles): Design's green dashed slot, which now asks people to start something
-  // (owner, 2026-10-03; it was Find more events, opening Explore)
-  const findMore = () => '<div ' + on(() => goCompose()) + ' data-start-slot role="button" style="display:flex;align-items:center;gap:12px;padding:16px;border-radius:18px;background:#f3fbf6;border:2px dashed #a9d6ba;cursor:pointer">' +
-    '<span style="flex:0 0 44px;width:44px;height:44px;border-radius:999px;background:#149a4b;display:flex;align-items:center;justify-content:center">' + I.plus(20, '#fff', 2.8) + '</span>' +
-    '<div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:900;color:#0d4a26">Start an event</div><div style="margin-top:2px;font-size:13.5px;font-weight:600;color:#0f7a3c">Got a “we should…”? Post it and see who’s in</div></div>' +
-    I.chevR(16, '#0f7a3c', 2.6) + '</div>';
+  // The end of Your calendar (Up next and Tiles): Design v8's pill, Find more events with two small sparkles; it opens
+  // All groups on Month with every group (v8-6 fix 5). Was the green Start an event slot (owner, 2026-10-03); the + covers that now
+  const findMore = () => '<div style="margin:10px 0 8px;display:flex;justify-content:center"><span ' + on(() => { setState({ cKind: 'plan', cView: 'month', cGrps: null, cMon: null, cDay: null }); go('calendar'); }) + ' data-find-more role="button" class="hov-findmore" style="position:relative;display:flex;align-items:center;gap:8px;min-height:44px;padding:0 18px;border-radius:999px;background:linear-gradient(115deg,#efecfe 0%,#f7ecf8 50%,#fdeef4 80%,#fef6e2 110%);box-shadow:inset 0 0 0 1.5px #e3defb;font-size:15px;font-weight:800;color:#4a3ad4;cursor:pointer">' +
+    '<span aria-hidden="true" style="position:absolute;left:-10px;top:-6px;font-size:11px;color:#f5b428">✦</span><span aria-hidden="true" style="position:absolute;right:-8px;bottom:-4px;font-size:9px;color:#d6246e;opacity:.7">✦</span>Find more events</span></div>';
 
   // ---- Screen 3: Explore (the community Calendar until v7 Update 16) ---------------------------
   // Event types: the host picks up to two in Create event or the Details pop-up (owner, 2026-09-30; `sparks.tags`)
@@ -6669,12 +6667,13 @@
     const faces = '<span style="flex:0 0 auto;display:flex;align-items:center">' + ring(s.leadId, leadName, 50, '#7b6ef0') +
       co.slice(0, co.length > 2 ? 1 : 2).map(u => '<span style="margin-left:-16px;display:flex">' + ring(u, nameOf(u), 40, '#b8aefc') + '</span>').join('') +
       (co.length > 2 ? '<span style="position:relative;margin-left:-16px;flex:0 0 46px;width:46px;height:46px;border-radius:999px;border:3px solid #fff;box-shadow:0 0 0 2.5px #b8aefc;background:#fff;color:#4a3ad4;font-size:14px;font-weight:900;display:flex;align-items:center;justify-content:center;box-sizing:border-box">+' + (co.length - 1) + '</span>' : '') + '</span>';
-    const tap = co.length ? () => setState({ leadsSheet: s.id }) : () => openPerson(s.leadId);
+    // Signed out (short links spec, v8-8): the lead's first name and photo only, and no profile to open
+    const vis = !state.email, tap = vis ? () => {} : co.length ? () => setState({ leadsSheet: s.id }) : () => openPerson(s.leadId);
     // Design v8: padding 18, radius 22, a 12px LED BY; Edit is a white pill; the co-lead nudge stacks its title over its line
     return '<div id="sec-lead" data-led-by style="position:relative;display:flex;flex-direction:column;gap:14px;padding:18px;border-radius:22px;background:linear-gradient(135deg,#f1edff,#e0d8ff);box-shadow:0 1px 3px rgba(15,18,25,.08)">' +
         '<span aria-hidden="true" style="position:absolute;left:52%;top:6px;font-size:9px;color:#9d93f7">✦</span><span aria-hidden="true" style="position:absolute;right:16px;top:10px;font-size:11px;color:#b8aefc">✦</span><span aria-hidden="true" style="position:absolute;right:10px;bottom:6px;font-size:8px;color:#7b6ef0">✦</span>' +
-        '<div ' + on(tap) + ' aria-label="' + (s.wantsHost ? 'Floated by ' : 'Led by ') + esc(leadName) + (co.length ? ' and ' + co.length + ' co-lead' + (co.length > 1 ? 's' : '') + ', see who' : ', see profile') + '" style="display:flex;align-items:center;gap:14px;cursor:pointer' + (manage ? ';padding-right:64px' : '') + '">' + faces +
-          '<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:900;letter-spacing:1.2px;color:#6b5ce7">' + lbl + '</div><div data-lead-names style="font-size:20px;line-height:1.15;font-weight:900;letter-spacing:-.3px;color:#2a1f8f;overflow-wrap:anywhere">' + leadNames(s) + '</div></div></div>' +
+        '<div ' + (vis ? '' : on(tap)) + ' aria-label="' + (s.wantsHost ? 'Floated by ' : 'Led by ') + esc(vis ? firstName(leadName) : leadName) + (vis ? '' : co.length ? ' and ' + co.length + ' co-lead' + (co.length > 1 ? 's' : '') + ', see who' : ', see profile') + '" style="display:flex;align-items:center;gap:14px;cursor:' + (vis ? 'default' : 'pointer') + (manage ? ';padding-right:64px' : '') + '">' + faces +
+          '<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:900;letter-spacing:1.2px;color:#6b5ce7">' + lbl + '</div><div data-lead-names style="font-size:20px;line-height:1.15;font-weight:900;letter-spacing:-.3px;color:#2a1f8f;overflow-wrap:anywhere">' + (vis ? esc(firstName(leadName)) : leadNames(s)) + '</div></div></div>' +
         (ask ? '<div data-colead-ask style="display:flex;align-items:center;gap:12px;padding:12px 12px 12px 14px;border-radius:16px;background:rgba(255,255,255,.72)">' +
             '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-size:15px;font-weight:900;color:#2a1f8f">Bring in a co-lead.</span><span style="font-size:13.5px;line-height:1.35;font-weight:600;color:#4a3ad4;text-wrap:pretty">' + COLEAD_WHY + '</span></div>' +
             '<button type="button" class="hov-primary" ' + on(() => openCohostPicker(s)) + ' style="flex:0 0 auto;min-height:44px;padding:0 16px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:14.5px;font-weight:800;display:flex;align-items:center;gap:6px;cursor:pointer">' + I.plus(14, '#fff', 2.8) + 'Co-lead</button></div>' : '') +
@@ -7049,12 +7048,14 @@
     // Leads answer with the same buttons as everyone (owner, 2026-10-01; the lead is Going to their own plan, 20261101160000)
     // Under the buttons (Design 25b + 25c, 2026-10-03): the going faces and See all ›, opening Who's coming / Who's going;
     // the lead also gets Invite people here (the lead tools card and Who's in's people row are gone)
+    const hidden = !st.email && !my && !lead;   // a visitor who hasn't replied sees a count, not who
     const rsvpBlock = s.cancelledAt ? '' : '<div data-rsvp style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:12px">' +
       '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">' + rsvpBtn('going', 'Going', goingIds.length) + rsvpBtn('maybe', 'Maybe', maybeN) + rsvpBtn('no', 'Can’t', noN) + '</div>' +
       // The faces row always draws (Design v8), See all › opening Who's coming
-      '<div ' + on(() => setState({ guestList: s.id })) + ' data-going role="button" aria-label="See everyone going (' + goingIds.length + ')" style="align-self:center;display:flex;align-items:center;gap:10px;min-height:36px;cursor:pointer">' +
-        (goingIds.length ? '<span style="display:flex">' + peopleFaces(goingIds.slice(0, 4), 30, null, false) + '</span>' : '') +
-        '<span style="font-size:14.5px;font-weight:800;color:#4a3ad4">See all ›</span></div>' +
+      // Signed out and no reply yet (short links spec, v8-8): grey circles, and See all asks them to RSVP first
+      '<div ' + on(() => hidden ? toast('RSVP to see who’s going') : setState({ guestList: s.id })) + ' data-going role="button" aria-label="See everyone going (' + goingIds.length + ')" style="align-self:center;display:flex;align-items:center;gap:10px;min-height:36px;cursor:pointer">' +
+        (goingIds.length ? '<span style="display:flex">' + (hidden ? goingIds.slice(0, 4).map((u, i) => '<span data-grey-face style="width:30px;height:30px;border-radius:999px;background:#d5d8df;border:2.5px solid #fff;margin-left:' + (i ? -10 : 0) + 'px"></span>').join('') : peopleFaces(goingIds.slice(0, 4), 30, null, false)) + '</span>' : '') +
+        '<span style="font-size:14.5px;font-weight:800;color:#4a3ad4">' + (hidden ? goingIds.length + ' going' : 'See all ›') + '</span></div>' +
       // The lead's two buttons (Design 29, option 5d): Invite people solid (the main lead only, Design v8), Post an update outlined under it
       (lead ? '<div style="display:flex;flex-direction:column;gap:8px">' +
         (isTheLead(s) ? '<button type="button" class="hov-primary" ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' style="min-height:48px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:15px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer">' +
@@ -7091,7 +7092,7 @@
         discussionSec(s) +
         host +
         // Visibility (was Who's in; Design 25c): the posted-to group(s) and Public / Private; the people moved into the RSVP card
-        '<section>' + secTitle('Visibility') + sheetCard(groupRow(s, true)) + '</section>' +
+        (st.email ? '<section>' + secTitle('Visibility') + sheetCard(groupRow(s, true)) + '</section>' : '') +   // signed out: no group name or Visibility card (v8-8)
         inspoSec(s) +
         deleteLink(s) +
       '</div>' +
@@ -9418,29 +9419,39 @@
       { max: 330, z: 48 });   // above the Float sheet (z 37), which can ask for it
   }
 
+  // The guest sheet (Design v8-8 1c): after Going, Maybe or Can't on an event without an account. Making an account is
+  // the main path (updates, reminders, names); RSVP without an account just takes a name. No guest emails or texts
   function viewGuest() {
-    const st = state, s = subject();
+    const st = state, s = subject(), kind = st.guestKind;
     const ok = st.guestName.trim().length > 0 && !st.busy;
-    const to = s ? firstName(nameOf(s.leadId, s.leadName)) : 'The lead';
-    const close = () => setState({ guestOpen: false, guestThen: null });
+    const close = () => setState({ guestOpen: false, guestThen: null, guestKind: null });
     const submit = async () => {
       if (!ok) return;
       const name = cleanTitle(st.guestName).slice(0, 30);
       const then = st.guestThen;
-      setState({ guest: { name }, guestOpen: false, guestThen: null, myName: st.myName || name });
+      setState({ guest: { name }, guestOpen: false, guestThen: null, guestKind: null, myName: st.myName || name });
       try { await ensureSession(); must(await sb.from('profiles').upsert({ id: state.me, name }, { onConflict: 'id' })); } catch (e) { console.error(e); }
       if (typeof then === 'function') then();
     };
+    const after = () => { const fn = st.guestThen; return () => needName(fn || (() => {})); };
+    const google = () => { if (st.busy) return; const then = after(); setState({ guestOpen: false, guestThen: null, guestKind: null, loginFrom: 'guest', loginThen: then, loginMode: 'link', googleFailed: false }); googleSignIn(); };
+    const email = () => { const then = after(); setState({ guestOpen: false, guestThen: null, guestKind: null }); openLogin('guest', then); };
+    const gold = kind === 'maybe', head = kind === 'going' ? 'You’re going!' : gold ? 'Maybe, then' : 'RSVP as a guest';
+    const sub = s ? esc(s.text) + (s.dayDate ? ' · ' + esc(fmtDay(s.dayDate)) : '') : '';
+    const acct = kind === 'no' ? '' : '<div data-guest-account style="background:' + (gold ? '#fdf6dc' : '#f3f1fe') + ';border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:12px">' +
+        '<div style="display:flex;gap:10px;align-items:flex-start">' + ic6('bell', 20, gold ? '#8f6405' : '#5b4ae8', 2.2) +
+          '<div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:16px;font-weight:900;color:#0d1117">Get updates and a reminder</span><span style="font-size:14px;font-weight:600;color:#454b55;text-wrap:pretty">Sign in or create a free account</span></div></div>' +
+        (GOOGLE_ON ? '<button type="button" ' + on(google) + ' style="min-height:50px;border:0;border-radius:999px;background:' + (gold ? '#f5b428' : '#5b4ae8') + ';color:' + (gold ? '#2a1d00' : '#fff') + ';display:flex;align-items:center;justify-content:center;gap:8px;font-family:inherit;font-size:16px;font-weight:800;cursor:pointer">Continue with Google</button>' : '') +
+        '<button type="button" ' + on(email) + ' data-guest-email style="min-height:46px;border:0;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px ' + (gold ? '#f3dc9e' : '#d9d4fb') + ';color:' + (gold ? '#8f6405' : '#5b4ae8') + ';display:flex;align-items:center;justify-content:center;font-family:inherit;font-size:15px;font-weight:800;cursor:pointer">Use my email</button></div>';
     return modal('RSVP as a guest', close,
-      h3Html('RSVP as a guest') +
-      paraHtml('Your name goes on the guest list, so ' + esc(to) + ' knows who’s coming.') +   // Design v8
-      '<input class="fld" type="text" maxlength="30" autocomplete="given-name" aria-label="Your name" placeholder="Your name" value="' + esc(st.guestName) + '" ' + onInput(e => setState({ guestName: e.target.value.slice(0, 30) })) + ' style="' + FIELD + '">' +
-      '<button type="button" data-enter ' + on(submit) + ' aria-disabled="' + !ok + '" style="' + primary(ok) + '">Continue</button>' +
-      '<div style="margin-top:4px;background:#f3f1fe;border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:12px">' +
-        '<div style="flex:1 1 auto;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">Have an account?</div>' +
-        '<div style="margin-top:2px;font-size:13.5px;line-height:1.4;font-weight:500;color:#454b55">Sign in to skip this and get reminders.</div></div>' +
-        '<span ' + on(() => { const fn = st.guestThen; setState({ guestOpen: false, guestThen: null }); openLogin('guest', () => needName(fn || (() => {}))); }) + ' class="hov-primary" style="flex:0 0 auto;display:flex;align-items:center;min-height:40px;padding:0 16px;background:#5b4ae8;border-radius:999px;font-size:14.5px;font-weight:800;color:#fff;cursor:pointer">Sign in</span>' +
-      '</div>');
+      '<div style="display:flex;flex-direction:column;gap:4px;padding-right:40px"><span style="font-size:24px;font-weight:900;letter-spacing:-.4px;color:#0d1117">' + head + '</span>' +
+        (sub ? '<span style="font-size:15px;font-weight:600;color:#454b55">' + sub + '</span>' : '') + '</div>' +
+      '<div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;font-weight:800;letter-spacing:.6px;color:#6b7280">YOUR NAME</span>' +
+        '<input class="fld" type="text" maxlength="30" autocomplete="given-name" aria-label="Your name" placeholder="First name is fine" value="' + esc(st.guestName) + '" ' + onInput(e => setState({ guestName: e.target.value.slice(0, 30) })) + ' style="' + FIELD + '"></div>' +
+      acct +
+      '<button type="button" data-enter ' + on(submit) + ' data-guest-rsvp aria-disabled="' + !ok + '" style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 0;border:0;background:transparent;font-family:inherit;cursor:' + (ok ? 'pointer' : 'default') + '">' +
+        '<span style="font-size:15px;font-weight:800;color:' + (ok ? '#454b55' : '#9aa0ac') + '">' + (kind === 'no' ? 'Send' : 'RSVP without an account') + '</span>' +
+        '<span style="font-size:13px;font-weight:600;color:#6b7280">' + (kind === 'no' ? 'Only the lead sees your name.' : 'No updates or reminders. Only the lead sees your name.') + '</span></button>');
   }
 
   // Add a date / Add a location (owner's mock, 2026-10-02): a sheet with the app's own date and time lists, and "Add my
