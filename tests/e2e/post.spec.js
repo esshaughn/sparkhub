@@ -181,8 +181,8 @@ test('page 1 needs a title and a date; What to expect folds its details; Reviewâ
 
     await startPost(page);
     await flow.getByLabel('Event title').fill(title);
-    await expect(flow.getByLabel('Event title')).toHaveAttribute('maxlength', '40');
-    await expect(flow).toContainText(title.length + '/40');
+    await expect(flow.getByLabel('Event title')).toHaveAttribute('maxlength', '60');
+    await expect(flow).toContainText(title.length + '/60');
     await flow.getByRole('button', { name: 'Next' }).click({ force: true });
     await expect(page.getByRole('status')).toContainText('Pick a date first');
     await expect(flow).toContainText('1/4');

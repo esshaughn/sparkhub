@@ -1874,7 +1874,7 @@
   };
 
   // "Do it again": a new event with the place and details filled in
-  const doItAgain = (s) => goCompose({ activity: s.text.slice(0, 40), evTags: (s.tags || []).slice(0, 2), evTest: !!(s.test || s.demo), locText: s.spot || '', locPlace: s.spotAddress ? { name: s.spot, address: s.spotAddress, lat: s.spotPoint && s.spotPoint[0], lon: s.spotPoint && s.spotPoint[1] } : null,
+  const doItAgain = (s) => goCompose({ activity: s.text.slice(0, 60), evTags: (s.tags || []).slice(0, 2), evTest: !!(s.test || s.demo), locText: s.spot || '', locPlace: s.spotAddress ? { name: s.spot, address: s.spotAddress, lat: s.spotPoint && s.spotPoint[0], lon: s.spotPoint && s.spotPoint[1] } : null,
     evBits: [0, 1, 2].map(i => (basicsOf(s)[i] || '').slice(0, 60)), evOverview: (s.overview || '').slice(0, 80) });
 
   // Several at once: as many as there's room for, then one save
@@ -6017,7 +6017,7 @@
     if (!ss || state.busy) return;
     let note = 'Saved';
     if (ss.kind === 'title') {
-      const text = cleanTitle(ss.title).slice(0, 40);
+      const text = cleanTitle(ss.title).slice(0, 60);
       if (!text) return;
       run(async () => {
         if (lead) { if (text !== s.text) must(await sb.from('sparks').update({ text }).eq('id', s.id)); }
@@ -6180,7 +6180,7 @@
       const cur = s.photoPaths[0] ? photoUrl(s.photoPaths[0]) : null;
       ok = !!cleanTitle(ss.title);
       body = '<div style="display:flex;flex-direction:column;gap:8px">' + label(s.planned ? 'Event title' : 'Idea title') +
-        '<input class="fld big-fld" type="text" maxlength="40" aria-label="' + (s.planned ? 'Event title' : 'Idea title') + '" placeholder="Name your ' + what + '" value="' + esc(ss.title) + '" ' + onInput(e => { if (e.type === 'input') set({ title: e.target.value.slice(0, 40) }); }) + ' style="' + BIG + '"></div>' +
+        '<input class="fld big-fld" type="text" maxlength="60" aria-label="' + (s.planned ? 'Event title' : 'Idea title') + '" placeholder="Name your ' + what + '" value="' + esc(ss.title) + '" ' + onInput(e => { if (e.type === 'input') set({ title: e.target.value.slice(0, 60) }); }) + ' style="' + BIG + '"></div>' +
         // The photo (host only): Adjust re-frames the current one, Replace / Add a photo pick a new one. Both open the
         // positioner on top of this pop-up and save straight away, so a title being edited here stays as typed
         (isLead(s) ? '<div data-edit-photo style="display:flex;flex-direction:column;gap:8px">' + label('Photo') +
@@ -8250,7 +8250,7 @@
         await ensureSession();
         cover = await evCover(st);
         const row = {
-          group_id: groups[0], author_name: st.myName, text: cleanTitle(st.activity).slice(0, 40),
+          group_id: groups[0], author_name: st.myName, text: cleanTitle(st.activity).slice(0, 60),
           hopes: st.evBits.map(b => b.trim().slice(0, 60)).filter(Boolean), vision: null, overview: (st.evOverview || '').trim().slice(0, 80) || null,
           photos: cover ? [cover.path] : [], cat: 'events', answers: {}, lead_id: st.me, lead_name: st.myName, created_by: st.me,
           spot, spot_open: !spot, spot_address: place ? place.address : null, spot_lat: place ? place.lat : null, spot_lon: place ? place.lon : null,
@@ -8334,7 +8334,7 @@
   const draftState = (d) => {
     const x = d.data || {}, out = {}, arr = (v) => Array.isArray(v) ? v : null, str = (v) => typeof v === 'string' ? v : '';
     Object.assign(out, {
-      activity: str(x.activity).slice(0, 40), evStep: x.evStep === 'lead' ? 'review' : EV_STEPS.concat('review').indexOf(x.evStep) > -1 ? x.evStep : 'title',   // an older draft on When or Where opens on page 1
+      activity: str(x.activity).slice(0, 60), evStep: x.evStep === 'lead' ? 'review' : EV_STEPS.concat('review').indexOf(x.evStep) > -1 ? x.evStep : 'title',   // an older draft on When or Where opens on page 1
       evDate: /^\d{4}-\d{2}-\d{2}$/.test(x.evDate || '') && x.evDate >= todayISO() ? x.evDate : '', evTime: str(x.evTime), evEnd: str(x.evEnd), evEndOn: !!x.evEndOn,
       locText: str(x.locText).slice(0, 80), locPlace: x.locPlace && typeof x.locPlace === 'object' ? x.locPlace : null,
       evBits: [0, 1, 2].map(i => str((x.evBits || [])[i]).slice(0, 60)), evOverview: str(x.evOverview).slice(0, 80), evNeed: Number.isInteger(x.evNeed) && x.evNeed > 0 ? Math.min(x.evNeed, 99) : null, evTags: (arr(x.evTags) || []).filter(k => TYPES6.some(t => t[0] === k)).slice(0, 2), evNeeds: arr(x.evNeeds) || [],
@@ -8565,7 +8565,7 @@
     const heading = review
       ? '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px"><span style="font-size:12px;font-weight:900;letter-spacing:1px;color:#ffe7b3">REVIEW</span>' +
           (st.evTitleEd
-            ? '<input class="fld" type="text" maxlength="40" data-title-inline aria-label="Event title" value="' + esc(st.activity) + '" ' + onInput(e => { if (e.type === 'input') setState({ activity: e.target.value.slice(0, 40) }); }) +
+            ? '<input class="fld" type="text" maxlength="60" data-title-inline aria-label="Event title" value="' + esc(st.activity) + '" ' + onInput(e => { if (e.type === 'input') setState({ activity: e.target.value.slice(0, 60) }); }) +
                 ' style="width:100%;min-width:0;box-sizing:border-box;margin:0;padding:2px 10px;border:0;border-radius:12px;background:rgba(255,255,255,.18);box-shadow:inset 0 0 0 2px rgba(255,255,255,.75);font-family:inherit;font-size:26px;line-height:1.15;font-weight:900;letter-spacing:-.7px;color:#fff;outline:none">'
             : '<div style="display:flex;align-items:flex-end;min-width:0"><span ' + on(editTitleInline) + ' data-review-title style="min-width:0;font-size:28px;line-height:1.05;font-weight:900;letter-spacing:-.8px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere;cursor:text">' + esc(title) + '</span>' +
                 '<span ' + on(editTitleInline) + ' aria-label="Edit title" style="flex:0 0 30px;width:30px;height:30px;margin-left:8px;margin-bottom:1px;border-radius:999px;background:rgba(255,255,255,.2);display:inline-flex;align-items:center;justify-content:center;cursor:pointer">' + svg(14, stroke('#fff', 2.3), PENCIL) + '</span></div>') + '</div>'
@@ -8739,8 +8739,8 @@
             '<span style="display:flex;color:#6b7280">' + svg(24, stroke('currentColor', 2), CAMERA) + '</span>' +
             '<span style="margin-top:2px;font-size:15.5px;font-weight:800;color:#454b55">Add a cover photo</span><span style="font-size:13px;font-weight:600;color:#9aa0ac">(optional)</span>' + photoInput('Add a cover photo') + '</label>';
       body = (pop ? '' : '<div style="padding:16px 16px 0">' + cover + '</div>' + sec('Event title')) +
-        '<div style="padding:8px 16px 0"><div style="position:relative"><input class="fld title-fld" type="text" maxlength="40" data-ev-title aria-label="Event title" placeholder="Fall cleanup day" value="' + esc(st.activity) + '" ' + onInput(e => { if (e.type === 'input') setState({ activity: e.target.value.slice(0, 40) }); }) + ' style="' + MID + ';padding-right:64px">' +
-          '<span aria-hidden="true" style="position:absolute;right:16px;top:50%;transform:translateY(-50%);font-size:11.5px;font-weight:700;color:#9aa0ac;pointer-events:none">' + n + '/40</span></div></div>' +
+        '<div style="padding:8px 16px 0"><div style="position:relative"><input class="fld title-fld" type="text" maxlength="60" data-ev-title aria-label="Event title" placeholder="Fall cleanup day" value="' + esc(st.activity) + '" ' + onInput(e => { if (e.type === 'input') setState({ activity: e.target.value.slice(0, 60) }); }) + ' style="' + MID + ';padding-right:64px">' +
+          '<span aria-hidden="true" style="position:absolute;right:16px;top:50%;transform:translateY(-50%);font-size:11.5px;font-weight:700;color:#9aa0ac;pointer-events:none">' + n + '/60</span></div></div>' +
         (pop ? '' : sec('Date &amp; time', false, st.evDatePoll ? '' : pollLink('when')) + whenPart() + sec('Location', true, st.evSpotPoll ? '' : pollLink('where')) + wherePart() + '<div style="height:12px"></div>');
     } else if (cur === 'when') {   // Review's Date & time pop-up
       body = (st.evDatePoll ? '' : sec('', false, pollLink('when'))) + whenPart();

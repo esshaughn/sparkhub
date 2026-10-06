@@ -18,7 +18,7 @@ Where this doc and the design files disagree, **this doc is correct**. One file 
 
 | v8-6 item | Status |
 |---|---|
-| 1. Plan an event in 4 steps | Done: page 1 (cover box, Event title, Date & time with Create a poll, Location (optional) with Create a poll), Add photo pill on pages 2–4, *Pick a date first* / *Add a title first*, 7b's Overview + *Add quick details · Up to 3*, *Add later*, purple skip links, 22px headings and 46px fields, italic placeholders, the sheet over the screen you tapped + on. No lead card anywhere. Changes: rows 98–102 |
+| 1. Plan an event in 4 steps | Done: page 1 (cover box, Event title, Date & time with Create a poll, Location (optional) with Create a poll), Add photo pill on pages 2–4, *Pick a date first* / *Add a title first*, 7b's Overview + *Add quick details · Up to 3*, *Add later*, purple skip links, 22px headings and 46px fields, italic placeholders, the sheet over the screen you tapped + on. No lead card anywhere. Event titles are 60 characters, as drawn. Changes: rows 99–102 |
 | 2. Review (20c + 21b) | Done: *Ready to post* with *N of 4 added* and the green bar, Edit / Add rows opening centred pop-ups, Post to with the Public / Private radio rows, purple *Post it* with six sparkles, gold *Post as an idea*. Changes: rows 100–102 |
 | 3. Helping is orange (14a) | Done everywhere the build shows Helping (row 103) |
 | 4. No floating + on Friends | Already true in the build |
@@ -35,7 +35,6 @@ Where this doc and the design files disagree, **this doc is correct**. One file 
 |---|---|---|---|
 | 96 | **My calendar's Up next has no *This week* heading**: after the big card, the list goes straight into months (*October*, *November*…, then *Date TBD*). Group pages keep *This week* | v8: This week, then each month | Owner, 2026-10-06 |
 | 97 | **The Add to Home Screen pop-up (*Make this an app (kinda)*) never opens on its own**: not on Welcome, not after signing in. Tapping Me → Settings → Add to Home Screen still opens it (iPhone steps) or Chrome's dialog (Android) | Once a visit on Welcome and after signing in | Owner, 2026-10-06 |
-| 98 | **Event titles stay at 40 characters** (*N/40*) | *N/60* | Every title in the build (cards, the event page's Edit, drafts) is 40; 60 would need its own pass |
 | 99 | **Page 1's cover photo** has *Change* and a trash button; there's no *Adjust* (move up / down) on page 1 | Change, remove and adjust | The cover can still be positioned from the event page after posting |
 | 100 | **Review's *What to expect* row counts the overview too**: with no quick details it shows the overview line | Done only with a quick detail | Someone who only wrote an overview has filled in that step |
 | 101 | **Review's *Join in* row** stays *Add · optional* after *None needed* | (Not drawn) | Nothing was added, so it isn't counted in *N of 4* |
