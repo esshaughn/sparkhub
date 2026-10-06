@@ -1,4 +1,22 @@
-# Spark Hub v8 · HANDOFF-to-CODE (round v8-9)
+# Spark Hub v8 · HANDOFF-to-CODE (round v8-10)
+
+**Caught up with the build's `HANDOFF-to-DESIGN-7.md` (baseline v8-6) as of Oct 6, 2026.** Build *New since v8-9* (top), then v8-9, v8-8 and v8-7 below if not done yet. New options file: `options/Event Invite Options.dc.html` (1c picked).
+
+## New since v8-9 (Oct 6, mid-morning)
+1. **Invite people sheet, condensed (1c in `Event Invite Options`).** Same sheet for events (purple) and ideas (gold).
+   - **Search:** 44px pill, 16px icon, placeholder just **"Search"** (15px).
+   - **People rows:** 52px, no dividers, 36px faces. One line: name (16px/800) then the group name in light grey (13px/600, `#9aa0aa`) inline. **"Friend" is dropped** (blank for friends). Tick / Going / ✓ Invited on the right as before.
+   - **See N more / Show fewer:** plain purple text link, left-aligned (no grey pill).
+   - **Footer:** a hairline, then one row: grey **Share link** pill (link icon, 54px) on the left, **Send · N** filling the rest (purple when someone's ticked, grey `#d5d8df` otherwise; was "Send invites · N").
+   - **Removed:** the "OR SEND DIRECT LINK" divider, the URL field with Copy, and the four circles (Messages · Email · WhatsApp · More).
+   - **Share link** opens the phone's share sheet (`navigator.share`, message "{title} · {day} {link}"); with no share sheet it copies the link, reads "✓ Copied" and toasts "Link copied".
+   - When you can't invite people (past event, no invite rights), the sheet is just a full-width **Share link** button.
+2. **"Private" chip on event photo cards.** Private events (`priv: true`) show a frosted chip top-left of the photo: lock icon + **"Private"** (24px tall, `rgba(13,17,23,.4)` + 8px blur, white 11.5px/800), the same style as the countdown chip top-right. On the Groups "Next up" card and the Up next / tile cards on group pages and All groups. Public events show nothing.
+3. **Me, Settings button:** the floating button on Me is **white** with a grey `#454b55` gear and a soft shadow (hover `#f2f3f6`), replacing the purple one in v8-9 item 4.
+
+---
+
+# Round v8-9
 
 **Caught up with the build's `HANDOFF-to-DESIGN-7.md` (baseline v8-6) as of Oct 6, 2026.** Build *New since v8-8* (top), then v8-8 and v8-7 below if not done yet. Options: `options/Send Update Options.dc.html`, `options/Your Stuff Options.dc.html`, `options/Impact Card Options.dc.html`.
 

@@ -130,16 +130,19 @@ test('post an event with every step filled, then edit it in the pop-ups and dele
     await expect(P.locator('[data-signup="Bring cold water"]')).toContainText('4 of 4 open');
     await expect(P.locator('[data-signup="Folding chairs"]')).toContainText('2 of 2 open');
 
-    // Invite people (one sheet; Share link is gone): the ready message, copy, and the share intents
-    await expect(P.getByRole('button', { name: 'Share link' })).toHaveCount(0);
+    // Invite people (one sheet): v8-10's footer is Share link + Send; Share link carries the ready message
     await P.getByRole('button', { name: /Invite people/ }).click();
     const share = page.getByRole('dialog', { name: 'Invite people' });
-    // The ready message rides in the share links (the sheet shows people to invite, then "or share a link")
-    const sms = decodeURIComponent(await share.getByRole('link', { name: 'Messages' }).getAttribute('href'));
-    expect(sms).toMatch(/· \w{3}, \w{3} \d+ http:\/\/127\.0\.0\.1:\d+\/e\/[a-z0-9]{8}|· \w{3}, \w{3} \d+ https?:\/\/[^ ]+\/e\/[a-z0-9]{8}/);   // "{title} · {day} {link}", the short link (v8-8)
-    expect(sms).not.toContain('Torrez');
-    await expect(share.getByRole('link', { name: 'WhatsApp' })).toHaveAttribute('href', /^https:\/\/wa\.me\/\?text=/);
-    await expect(share.getByRole('link', { name: 'Email' })).toHaveAttribute('href', /^mailto:/);
+    const link = share.getByRole('button', { name: 'Share link' });
+    const msg = await link.getAttribute('data-share-msg');
+    expect(msg).toMatch(/· \w{3}, \w{3} \d+ http:\/\/127\.0\.0\.1:\d+\/e\/[a-z0-9]{8}|· \w{3}, \w{3} \d+ https?:\/\/[^ ]+\/e\/[a-z0-9]{8}/);   // "{title} · {day} {link}", the short link (v8-8)
+    expect(msg).not.toContain('Torrez');
+    await expect(share.getByRole('link', { name: 'WhatsApp' })).toHaveCount(0);   // the four share circles are gone (v8-10)
+    // With no share sheet, Share link copies the link and says so
+    await page.evaluate(() => { try { delete Navigator.prototype.share; } catch (e) {} });
+    await link.click();
+    await expect(page.getByText('Link copied')).toBeVisible();
+    await expect(share.getByRole('button', { name: 'Share link' })).toContainText('✓ Copied');
     await share.getByRole('button', { name: 'Close' }).click();
 
     // Delete: the event and its photo both go

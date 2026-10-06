@@ -270,16 +270,20 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
       await c.from('rsvps').upsert({ spark_id: id, user_id: me, status: 'going' });
       return { id, me };
     }, planId);
+    // Private once she's replied (she still sees it), for the Private chip on its photo (v8-10 item 2)
+    expect(await asUser(host.page, async (c, _C, id) => (await c.from('sparks').update({ visibility: 'invite' }).eq('id', id)).error, planId)).toBeNull();
     await page.reload();
     await expect(page.locator('html[data-loaded=true]')).toHaveCount(1);
     await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Calendar', exact: true }).click();
     await expect(home.getByRole('button', { name: 'View: Up next' })).toBeVisible();   // Up next by default (v6 Update 9)
     await expect(home.locator('[data-next]')).toHaveCount(1);   // the hero card
+    await expect(home.locator('[data-next] [data-private-chip]')).toHaveText('Private');
     await expect(home.locator(`[data-plan="${PLAN}"]`)).toContainText('Going');
     await pickView(home, 'Tiles');
     await expect(home.getByRole('heading', { name: new Date().toLocaleDateString('en-US', { month: 'long' }), exact: true }).or(home.getByRole('heading', { name: 'October', exact: true })).first()).toBeVisible();
     await expect(home.locator(`[data-plan="${PLAN}"]`)).toContainText('Going');   // the strip under the tile
     await expect(home.locator(`[data-plan="${PLAN}"]`)).toContainText('Change RSVP');
+    await expect(home.locator(`[data-plan="${PLAN}"] [data-private-chip]`)).toHaveCount(1);   // on the tile's photo too
     await pickView(home, 'Month');
     await expect(home.getByRole('button', { name: 'Next month' })).toBeVisible();
     await pickView(home, 'Up next');

@@ -652,21 +652,21 @@ test('invite people: the lead invites a group member from the sheet; Invited sti
     const HP = H.locator('[data-screen-label="Plan page"]');
     const open = async () => { await HP.getByRole('button', { name: /Invite people/ }).click(); return H.getByRole('dialog', { name: 'Invite people' }); };
     let sheet = await open();
-    await sheet.getByLabel('Search friends and groups').fill(nm);
+    await sheet.getByLabel('Search', { exact: true }).fill(nm);
     const row = sheet.locator('[data-invitee="' + nm + '"]');
     await expect(row).toContainText('Torrez Fitness');
     // Design 24a2: the tick only picks; Send invites · N sends to everyone ticked, closes the sheet and says who
-    await expect(sheet.getByRole('button', { name: 'Send invites' })).toHaveAttribute('aria-disabled', 'true');
+    await expect(sheet.getByRole('button', { name: 'Send', exact: true })).toHaveAttribute('aria-disabled', 'true');   // Send · N (v8-10; was Send invites)
     await row.getByRole('checkbox', { name: 'Invite ' + nm }).click();
     await expect(row.getByRole('checkbox', { name: 'Invite ' + nm })).toHaveAttribute('aria-checked', 'true');
-    await sheet.getByRole('button', { name: 'Send invites · 1' }).click();
+    await sheet.getByRole('button', { name: 'Send · 1' }).click();
     await expect(sheet).toHaveCount(0);
     await expect(H.getByText('Invited ' + nm.split(' ')[0])).toBeVisible();
     await expect.poll(() => asUser(H, async (c, _C, sid) => (await c.rpc('event_invited', { p_spark: sid })).data, id)).toContainEqual(nedra);
     sheet = await open();
-    await sheet.getByLabel('Search friends and groups').fill(nm);
-    await expect(sheet.locator('[data-invitee="' + nm + '"]')).toContainText('Invited');
-    await expect(sheet.getByRole('link', { name: 'Messages' })).toHaveAttribute('href', /^sms:/);
+    await sheet.getByLabel('Search', { exact: true }).fill(nm);
+    await expect(sheet.locator('[data-invitee="' + nm + '"]')).toContainText('✓ Invited');
+    await expect(sheet.getByRole('button', { name: 'Share link' })).toBeVisible();   // v8-10: Share link + Send in one footer row
     await sheet.getByRole('button', { name: 'Close' }).click();
     // v7 Update 15: Who's coming lists her under Haven't replied; Nudge sends one note a day (then Nudged)
     await HP.locator('[data-going]').click();   // See all › under the RSVP buttons opens Who's coming (Design 25b)
@@ -685,7 +685,7 @@ test('invite people: the lead invites a group member from the sheet; Invited sti
     await asUser(other.page, async (c, _C, sid) => c.from('rsvps').upsert({ spark_id: sid, user_id: (await c.auth.getUser()).data.user.id, status: 'no' }, { onConflict: 'spark_id,user_id' }), id);
     await H.reload(); await expect(H.locator('html[data-loaded=true]')).toHaveCount(1);
     sheet = await open();
-    await sheet.getByLabel('Search friends and groups').fill(nm);
+    await sheet.getByLabel('Search', { exact: true }).fill(nm);
     await expect(sheet.locator('[data-invitee="' + nm + '"] [data-answered]')).toHaveText('Can’t');
     await expect(sheet.locator('[data-invitee="' + nm + '"]').getByRole('checkbox')).toHaveCount(0);
     expect(host.errors).toEqual([]);

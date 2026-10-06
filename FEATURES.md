@@ -292,6 +292,7 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 210 | **Visitor view** (v8-8): signed out and not replied, an event shows grey faces and *See all ›* (→ the amber *RSVP to see who’s going*), the lead's first name (no profile), no Visibility card or group name; the guest sheet (1c) offers an account first (*Get updates and a reminder*: Continue with Google / Use my email), then *RSVP without an account* | Test | previews.spec |
 | 211 | **Prototype audit** (2026-10-06): about 60 spots across My calendar, All groups, the event page, Groups, Friends, Me, Ideas and Plan an event now match the v8-8 prototype (Find more events, closed Up next strips, Settings › ACCOUNT, the new-ideas dot, Create a poll pop-up, Edit job, Invite people sheet …); list in HANDOFF-to-DESIGN *Audit 2026-10-06* | Test | full suite |
 | 212 | **v8-9** (2026-10-06): Discussion's Send update pill and no empty line; the green Today chip on Up next; Me reworked (bell, impact pill, rows card, My tasks slide-up, floating Settings) | Test | discussion, smoke, v6 |
+| 213 | **v8-10** (2026-10-06): Invite people condensed (Search, 52px rows with the group inline, *Share link* + *Send · N* in one footer; no link field or share circles), gold for ideas; a frosted *Private* chip on private events' photos (Up next, tiles) | Test | |
 
 ## Removed in this rebuild
 

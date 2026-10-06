@@ -3764,12 +3764,16 @@
   // an idea on All groups says "Idea · no date yet" in gold
   const tileWhen = (s, P) => P.k === 'idea' ? 'Idea · ' + (s.dayDate ? fmtDay(s.dayDate) : 'no date yet')
     : s.dayDate ? fmtDay(s.dayDate) + (s.dayTime ? ' · ' + fmtTime(s.dayTime) : '') : when6(s);
+  // "Private" on a private event's photo (v8-10 item 2): frosted like the countdown chip, top left; public events show nothing
+  const privChip = (s, inRow) => s.visibility !== 'invite' ? '' : '<span data-private-chip style="' + (inRow ? 'flex:0 0 auto' : 'position:absolute;top:12px;left:14px') + ';display:flex;align-items:center;gap:5px;height:24px;padding:0 10px 0 8px;border-radius:999px;background:rgba(13,17,23,.4);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff;font-size:11.5px;font-weight:800">' +
+    svg(12, stroke('currentColor', 2.6), '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>') + 'Private</span>';
   const tile6 = (s, P, h, cal, mode) => {
     const g = groupById(s.groupId);
     return '<div ' + on(() => openSpark(s)) + ' data-plan="' + esc(s.text) + '" aria-label="' + esc(s.text) + '" style="border-radius:20px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
       '<div style="position:relative;height:' + h + 'px;background:' + photoBg(s) + '">' +
         '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.95) 0%, rgba(13,17,23,.65) 45%, rgba(13,17,23,.3) 100%)"></div>' +
-        (cal && g ? '<span style="position:absolute;top:12px;left:14px;display:flex;align-items:center;height:24px;padding:0 10px;border-radius:999px;background:rgba(13,17,23,.4);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);font-size:11.5px;font-weight:700;color:rgba(255,255,255,.84)">' + esc(groupsLabel(s)) + '</span>' : '') +
+        // All groups' tiles keep their group chip; Private sits beside it (the prototype's tiles have no group chip)
+        (cal && g ? '<div style="position:absolute;top:12px;left:14px;right:14px;display:flex;align-items:center;gap:6px;min-width:0"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;height:24px;padding:0 10px;border-radius:999px;background:rgba(13,17,23,.4);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);font-size:11.5px;font-weight:700;color:rgba(255,255,255,.84)">' + esc(groupsLabel(s)) + '</span>' + privChip(s, true) + '</div>' : privChip(s)) +
         '<div style="position:absolute;left:16px;right:16px;bottom:14px;color:#fff;display:flex;flex-direction:column;gap:3px">' +
           '<div style="font-size:13px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;color:' + (P.k === 'idea' ? '#ffd98a' : !s.dayDate ? TBD_ON_PHOTO : P.k === 'open' ? '#dfe2e8' : P.R.kick) + '">' + esc(tileWhen(s, P)) + '</div>' +
           '<div style="font-size:' + (cal ? 23 : 25) + 'px;line-height:1.05;font-weight:900;letter-spacing:' + (cal ? -.5 : -.6) + 'px;text-wrap:balance">' + esc(s.text) + demoTag(s, true, true) + '</div>' +
@@ -3816,6 +3820,7 @@
     return '<div ' + on(() => openSpark(s)) + ' data-plan="' + esc(s.text) + '" data-next aria-label="' + esc(s.text) + '" style="border-radius:20px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
       '<div style="position:relative;height:170px;background:' + photoBg(s) + '">' +
         '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.95) 0%, rgba(13,17,23,.6) 45%, rgba(13,17,23,.25) 100%)"></div>' +
+        privChip(s) +
         // Today is a solid green chip with a white dot (v8-9 item 3); Tomorrow / In N days stay the quiet frosted one
         (d <= 0 ? '<span data-today style="position:absolute;top:12px;right:14px;display:flex;align-items:center;gap:7px;height:30px;padding:0 13px 0 11px;border-radius:999px;background:#149a4b;box-shadow:0 2px 10px rgba(20,154,75,.45);color:#fff;font-size:13.5px;font-weight:900;letter-spacing:.2px"><span style="width:8px;height:8px;border-radius:50%;background:#fff;box-shadow:0 0 0 3px rgba(255,255,255,.3)"></span>Today</span>'
           : '<span style="position:absolute;top:12px;right:14px;display:flex;align-items:center;height:24px;padding:0 10px;border-radius:999px;background:rgba(13,17,23,.4);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff;font-size:11.5px;font-weight:800">' + when + '</span>') +
@@ -6468,10 +6473,16 @@
     const msg = (sh.msg || inviteText(s)) + ' ' + link, past = phaseOf(s) === 'done', title = sh.ask || (canInviteTo(s) && !past) ? 'Invite people' : 'Share this event';   // v8-7: after posting it's Invite people too   // Design v8: whoever can invite
     const canList = !!state.email && !s.cancelledAt && !past && canInviteTo(s);
     if (canList && !sh.people && !sh.loading) setTimeout(() => { if (state.share && state.share.id === s.id && !state.share.people && !state.share.loading) loadInvitees(s); }, 0);
-    const btn = (label, href, icon, fn) => '<' + (fn ? 'div ' + on(fn) : 'a href="' + esc(href) + '" target="_blank" rel="noopener noreferrer"') + ' aria-label="' + label + '" style="display:flex;flex-direction:column;align-items:center;gap:8px;text-decoration:none;cursor:pointer">' +
-      '<span style="width:52px;height:52px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center">' + svg(22, stroke('#5b4ae8', 2.1), icon) + '</span>' +
-      '<span style="font-size:12.5px;font-weight:800;color:#454b55">' + label + '</span></' + (fn ? 'div' : 'a') + '>';
-    const more = () => { if (navigator.share) navigator.share({ title: s.text, text: msg, url: link }).catch(() => {}); else copy(msg, 'Invite copied. Paste it anywhere.'); };
+    // v8-10 (1c, Event Invite Options): one sheet, purple for events and gold for ideas (Design's goldRc colours)
+    const gold = phaseOf(s) === 'idea';
+    const A = gold ? { fill: '#f5b428', ink: '#2a1d00', text: '#8f6405', link: '#b07a0a' } : { fill: '#5b4ae8', ink: '#fff', text: '#5b4ae8', link: '#5b4ae8' };
+    // Share link: the phone's share sheet ("{title} · {day} {link}"); with none it copies the link (✓ Copied, Link copied)
+    const shareLink = () => {
+      if (navigator.share) { navigator.share({ title: s.text, text: msg }).catch(() => {}); return; }
+      copy(link, 'Link copied'); setState({ share: Object.assign({}, state.share, { copied: true }) });
+    };
+    const linkBtn = (wide) => '<span ' + on(shareLink) + ' data-share-link data-share-msg="' + esc(msg) + '" aria-label="Share link" class="hov-grey-fill" style="' + (wide ? 'flex:1;justify-content:center' : 'flex:0 0 auto;padding:0 18px') + ';height:54px;box-sizing:border-box;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;gap:7px;font-size:15px;font-weight:800;color:#0d1117;cursor:pointer">' +
+      svg(17, stroke(A.link, 2.4), '<path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1"/>') + (sh.copied ? '✓ Copied' : 'Share link') + '</span>';
     const q = (sh.q || '').trim().toLowerCase(), invited = sh.invited || [];
     // Anyone who has answered shows their answer and can't be picked (owner, 2026-10-03: Can't and Maybe were still invitable / read Invited)
     const answer = (id) => { const r = s.rsvps.find(x => x.userId === id); return r ? r.status : phaseOf(s) === 'idea' && s.interested.indexOf(id) > -1 ? 'interested' : null; };
@@ -6480,38 +6491,34 @@
     const picked = sh.picked || [], nPick = picked.length;
     const tick = (p) => { const on_ = picked.indexOf(p.id) > -1;
       return '<span ' + on(() => setState({ share: Object.assign({}, state.share, { picked: on_ ? picked.filter(x => x !== p.id) : picked.concat(p.id) }) }), 'checkbox') + ' aria-checked="' + on_ + '" aria-label="Invite ' + esc(p.name) + '" style="flex:0 0 26px;width:26px;height:26px;border-radius:999px;display:flex;align-items:center;justify-content:center;box-sizing:border-box;cursor:pointer;' +
-        (on_ ? 'background:#5b4ae8' : 'background:#fff;border:2px solid #c9ccd3') + '">' + (on_ ? I.check(13, '#fff', 3.2) : '') + '</span>'; };
-    const row = (p, k) => '<div data-invitee="' + esc(p.name) + '" style="display:flex;align-items:center;gap:12px;min-height:60px;border-top:' + (k ? '1px solid #f2f3f6' : '0') + '">' + avatarSpan(p.id, p.name, p.avatar ? photoUrl(p.avatar) : null, 44) +
-      '<div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(p.name) + '</div>' +
-        '<div style="font-size:13.5px;font-weight:500;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(p.sub) + '</div></div>' +
+        (on_ ? 'background:' + A.fill : 'background:#fff;border:2px solid #c9ccd3') + '">' + (on_ ? I.check(13, A.ink, 3.2) : '') + '</span>'; };
+    // 52px rows, no dividers, 36px faces; the name then the group in light grey on one line ("Friend" is dropped: blank)
+    const row = (p) => '<div data-invitee="' + esc(p.name) + '" style="display:flex;align-items:center;gap:12px;min-height:52px">' + avatarSpan(p.id, p.name, p.avatar ? photoUrl(p.avatar) : null, 36) +
+      '<div style="flex:1;min-width:0;display:flex;align-items:baseline;gap:6px;white-space:nowrap;overflow:hidden"><span style="flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;font-size:16px;font-weight:800;color:#0d1117">' + esc(p.name) + '</span>' +
+        (p.friend ? '' : '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;font-size:13px;font-weight:600;color:#9aa0aa">' + esc(p.sub) + '</span>') + '</div>' +
       (ANS[answer(p.id)] ? '<span data-answered style="flex:0 0 auto;font-size:14px;font-weight:800;color:' + ANS[answer(p.id)][1] + '">' + ANS[answer(p.id)][0] + '</span>'
-        : invited.indexOf(p.id) > -1 ? '<span aria-label="' + esc(p.name) + ' is invited" style="flex:0 0 auto;display:flex;align-items:center;gap:5px;font-size:14px;font-weight:800;color:#5b4ae8">' + svg(13, stroke('#5b4ae8', 2.8), '<path d="m5 12.5 4.5 4.5L19 7.5"/>') + 'Invited</span>'
+        : invited.indexOf(p.id) > -1 ? '<span aria-label="' + esc(p.name) + ' is invited" style="flex:0 0 auto;font-size:13.5px;font-weight:800;color:' + A.text + '">✓ Invited</span>'
         : tick(p)) + '</div>';
     const list = !canList ? '' :
-      '<label style="display:flex;align-items:center;gap:10px;min-height:48px;padding:0 16px;border-radius:999px;background:#f2f3f6">' + svg(18, stroke('#6b7280', 2.2), '<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/>') +
-        '<input type="search" aria-label="Search friends and groups" placeholder="Search friends and groups" value="' + esc(sh.q || '') + '" ' + onInput(e => { if (e.type === 'input') setState({ share: Object.assign({}, state.share, { q: e.target.value.slice(0, 40) }) }); }) +
-          ' style="flex:1;min-width:0;border:0;background:transparent;outline:none;font-family:inherit;font-size:16px;font-weight:500;color:#0d1117"></label>' +
+      '<label style="display:flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border-radius:999px;background:#f2f3f6">' + svg(16, stroke('#6b7280', 2.4), '<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/>') +
+        // 16px, not the design's 15px: an iPhone zooms the page into any smaller input
+        '<input type="search" aria-label="Search" placeholder="Search" value="' + esc(sh.q || '') + '" ' + onInput(e => { if (e.type === 'input') setState({ share: Object.assign({}, state.share, { q: e.target.value.slice(0, 40) }) }); }) +
+          ' style="flex:1;min-width:0;border:0;background:transparent;outline:none;font-family:inherit;font-size:16px;font-weight:600;color:#0d1117"></label>' +
       '<div data-invitees style="display:flex;flex-direction:column;max-height:42vh;overflow-y:auto">' +
-        (sh.loading || !sh.people ? paraHtml('Loading…') : people.length ? (q || sh.more ? people : people.slice(0, 3)).map((p, k) => row(p, k)).join('') : paraHtml(q ? 'Nobody by that name.' : 'No friends or group members to invite yet.')) +
-        // Three to start, then See N more (v8-7 item 10); a search shows everyone who matches
-        (!q && people.length > 3 ? '<span ' + on(() => setState({ share: Object.assign({}, state.share, { more: !sh.more }) })) + ' data-see-more style="align-self:center;display:flex;align-items:center;gap:6px;min-height:36px;margin-top:2px;padding:0 14px;border-radius:999px;background:#f2f3f6;font-size:13.5px;font-weight:800;color:#454b55;cursor:pointer">' + (sh.more ? 'Show fewer' : 'See ' + (people.length - 3) + ' more') + '</span>' : '') + '</div>' +
-      '<button type="button" data-send-invites ' + (nPick ? on(() => sendInvites(s)) : 'aria-disabled="true"') + ' style="width:100%;min-height:52px;border:0;border-radius:999px;background:' + (nPick ? '#5b4ae8' : '#d5d8df') + ';color:#fff;font-family:inherit;font-size:16px;font-weight:800;cursor:' + (nPick ? 'pointer' : 'default') + '">' + (nPick ? 'Send invites · ' + nPick : 'Send invites') + '</button>' +
-      '<div style="display:flex;align-items:center;gap:12px"><span style="flex:1;height:1px;background:#e3e5e9"></span><span style="font-size:12px;font-weight:800;letter-spacing:1px;color:#9aa0ac">OR SEND DIRECT LINK</span><span style="flex:1;height:1px;background:#e3e5e9"></span></div>';
-    // Design v8: a 22px title; a past event gets "{Title}: here's how it went."; the link row white with a ring
+        (sh.loading || !sh.people ? paraHtml('Loading…') : people.length ? (q || sh.more ? people : people.slice(0, 3)).map(row).join('') : paraHtml(q ? 'Nobody by that name.' : 'No friends or group members to invite yet.')) +
+        // Three to start, then See N more (v8-7 item 10) as a plain text link (v8-10); a search shows everyone who matches
+        (!q && people.length > 3 ? '<span ' + on(() => setState({ share: Object.assign({}, state.share, { more: !sh.more }) })) + ' data-see-more style="align-self:flex-start;display:flex;align-items:center;min-height:36px;font-size:14px;font-weight:800;color:' + A.text + ';cursor:pointer">' + (sh.more ? 'Show fewer' : 'See ' + (people.length - 3) + ' more') + '</span>' : '') + '</div>' +
+      // The footer: a hairline, then Share link and Send · N in one row
+      '<div style="margin:2px -18px 0;padding:12px 18px 0;border-top:1px solid #f2f3f6;display:flex;align-items:center;gap:10px">' + linkBtn(false) +
+        '<button type="button" data-send-invites ' + (nPick ? on(() => sendInvites(s)) : 'aria-disabled="true"') + ' style="flex:1;min-width:0;min-height:54px;border:0;border-radius:999px;background:' + (nPick ? A.fill : '#d5d8df') + ';color:' + (nPick ? A.ink : '#fff') + ';font-family:inherit;font-size:16px;font-weight:800;cursor:' + (nPick ? 'pointer' : 'default') + '">' + (nPick ? 'Send · ' + nPick : 'Send') + '</button></div>';
+    // Design v8: a 22px title; a past event gets "{Title}: here's how it went."
     return sheet(title, close, SHEET_PAD,
       '<div style="display:flex;align-items:flex-start;gap:10px"><div style="flex:1;min-width:0"><div style="font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">' + title + '</div>' +
-        (sh.ask ? '<p data-ask-first style="margin:6px 0 0;font-size:14px;line-height:1.4;font-weight:600;color:#454b55;text-wrap:pretty">Events with a friend or two in are more likely to happen.</p>' : '') +
+        (sh.ask ? '<p data-ask-first style="margin:6px 0 0;font-size:14px;line-height:1.4;font-weight:600;color:#454b55;text-wrap:pretty">' + (gold ? 'Events that start with a friend or two already in are far more likely to happen. Send it to two people you think would come.' : 'Events with a friend or two in are more likely to happen.') + '</p>' : '') +
         '</div>' + closeX(close) + '</div>' +
       (past ? '<div data-share-past style="padding:12px 14px;border-radius:14px;background:#f7f7f9;font-size:14.5px;line-height:1.4;font-weight:600;color:#2b303a">' + esc(s.text) + ': here’s how it went.</div>' : '') +
-      list +
-      '<div style="display:flex;align-items:center;gap:10px;min-height:52px;box-sizing:border-box;border-radius:16px;background:#fff;box-shadow:inset 0 0 0 1.5px #e6e7eb;padding:4px 6px 4px 14px">' + svg(18, stroke('#5b4ae8', 2.3) + ' style="flex:0 0 18px"', '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>') +
-        '<span style="flex:1;min-width:0;font-size:15px;font-weight:700;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(link.replace(/^https?:\/\//, '')) + '</span>' +
-        '<span ' + on(() => { copy(link, 'Link copied'); setState({ share: Object.assign({}, sh, { copied: true }) }); }) + ' style="flex:0 0 auto;display:flex;align-items:center;min-height:42px;padding:0 16px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:14px;font-weight:800;cursor:pointer">' + (sh.copied ? '✓ Copied' : 'Copy') + '</span></div>' +
-      '<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px">' +
-        btn('Messages', 'sms:?&body=' + encodeURIComponent(msg), '<path d="M4 5.5h16v10H9l-5 4v-14Z"/>') +
-        btn('Email', 'mailto:?subject=' + encodeURIComponent(s.text) + '&body=' + encodeURIComponent(msg), '<rect x="3.5" y="5.5" width="17" height="13" rx="2"/><path d="m4 7 8 6 8-6"/>') +
-        btn('WhatsApp', 'https://wa.me/?text=' + encodeURIComponent(msg), '<path d="M4.5 19.5l1.2-3.6A7.5 7.5 0 1 1 8.4 18.5L4.5 19.5Z"/><path d="M9.5 9.5c.3 2 2 3.8 4 4.2"/>') +
-        btn('More', null, '<circle cx="6" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="18" cy="12" r="1.4"/>', more) + '</div>', 36);
+      // Can't invite (a past event, no invite rights): just a full-width Share link
+      (canList ? list : '<div style="display:flex;padding-top:4px">' + linkBtn(true) + '</div>'), 36);
   }
 
   // Date and location in one card: a value (bold, with the time or address in gray under it), "TBD" (gray, owner 2026-10-01), or a poll (guests vote, the host picks)

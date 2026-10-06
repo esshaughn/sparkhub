@@ -4,13 +4,23 @@
 
 - **Built (test):** https://gosparkhub-git-test-eric-5958s-projects.vercel.app · **Live:** https://gosparkhub.vercel.app (also https://sparkhub.wereallneighbors.org)
 - **Source:** github.com/esshaughn/sparkhub (`index.html`, `js/sparks.js`, `css/sparks.css`, `privacy.html`, `supabase/templates/`)
-- **Baseline:** Claude Design's **round v8-9** (zip *Spark Hub v8-9*, 2026-10-06; v8-8 before it: `design/spark-hub/Spark Hub App Version 8.dc.html` and `design/spark-hub/HANDOFF-to-CODE.md`). It approved rows 96–105, §2 and §3 of *HANDOFF-to-DESIGN-7*, so those are cleared; rows 106–114 (v8-7) stay until Design has seen them.
+- **Baseline:** Claude Design's **round v8-10** (zip *Spark Hub v8-10*, 2026-10-06; v8-9 before it: `design/spark-hub/Spark Hub App Version 8.dc.html` and `design/spark-hub/HANDOFF-to-CODE.md`). It approved rows 96–105, §2 and §3 of *HANDOFF-to-DESIGN-7*, so those are cleared; rows 106–114 (v8-7) stay until Design has seen them.
 - **Build version:** **v7** (owner, 2026-10-02): a lead is a choice. Since v8-8 an idea is led from the start (*Who leads it · Me*) or floated (*I'll decide*), and both use the new idea page.
-- **As of:** 2026-10-06 (later: the prototype audit and *Owner calls that stand*, below). Earlier 2026-10-06: built round **v8-8**'s *New since v8-7* list (items 1–9, table below; migration `20261109000000_led_ideas.sql`). The *Answered* and *Already decided* items in the same file are listed in §4 until they're built.
+- **As of:** 2026-10-06 (latest: built round **v8-10**'s *New since v8-9* list, table below). Before that: the prototype audit and *Owner calls that stand* (below). Earlier 2026-10-06: built round **v8-8**'s *New since v8-7* list (items 1–9, table below; migration `20261109000000_led_ideas.sql`). The *Answered* and *Already decided* items in the same file are listed in §4 until they're built.
 
 Where this doc and the design files disagree, **this doc is correct**. One file per side: please keep sending `HANDOFF-to-CODE.md`; this file is the reply (call it *HANDOFF-to-DESIGN-8*).
 
 ---
+
+## Round v8-10 in short
+
+*Built from HANDOFF-to-CODE v8-10 (New since v8-9) on 2026-10-06. The prototype was diffed against v8-9's: nothing changed beyond items 1 and 2.*
+
+| v8-10 item | Status |
+|---|---|
+| 1. Invite people, condensed (1c) | Done, purple for events and gold for ideas (your gold recolour: `#f5b428` Send and ticks with `#2a1d00` ink, `#8f6405` *✓ Invited* and *See N more*, `#b07a0a` link icon). Two changes: the search field's text is **16px, not 15px**, because an iPhone zooms the whole page into any input under 16px; and the gold sheet keeps **See N more / Show fewer** after three people (the prototype's gold sheet lists everyone), since a group can have dozens of members. *Share link* copies the link (✓ Copied, *Link copied*) where the phone has no share sheet |
+| 2. *Private* chip | Done on the Up next hero (My calendar and group pages) and on photo tiles everywhere. **All groups' tiles already have the group chip top left**, so *Private* sits right after it in the same row. The **Groups tab's Next up card isn't a photo card in the build** (a 64px thumbnail row, 8b), so it has no chip: please say if it should get one, and where |
+| 3. Settings button | Already white with the grey gear since v8-9 (our row 4 above): no change |
 
 ## Round v8-9 in short
 
@@ -140,7 +150,6 @@ Never cleared on a reset. These are places where the owner chose differently fro
 
 - **Decided in HANDOFF-to-CODE v8-8 but not built yet** (next): group invites (Q22 + Q33); Invite link 1b (Q4); showing sparkhub.wereallneighbors.org (Q8); NO DATE YET (Q23 3a); dropping Place (Q28); retiring `#/own` (Q29); Morning · Afternoon · Evening start times (Q34, waits on the prototype).
 - **Led ideas lost what the old page had:** the vibe board (mood photos; plans keep it), co-leads and *Step back* (the starter's *I'll decide* stands in), Cancel (Delete is the quiet link at the bottom, not in Edit's ⋯), and editing What to expect's quick details (Edit changes title and description only). Where should they go? Kept from the old page, in the build's own way: quick details show as gold-dot lines under the description; the soft hold line (*Holding until… · Keep holding*) sits in When?; a group admin gets *Edit* by the IDEA chip (the title pop-up) and the *Delete this idea* link.
-- **The gold Invite people sheet** for ideas.
 - **Guest text reminders** (*Take part*): not built, no SMS service yet (owner, 2026-10-05).
 - **Leading filtered to a group** is built, but nothing opens it that way.
 - **Maybe's pale-green tile chip** shows on the strip only.
