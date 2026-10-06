@@ -69,8 +69,7 @@ test('soft holds: a date poll pencils its dates in on Month, warns Start an even
     await pickKind(H);
     const flow = H.locator('[data-screen-label="New spark"]');
     await flow.getByLabel('Event title').fill('Something else');
-    await flow.getByRole('button', { name: 'Next' }).click();
-    await pickDate(flow, day);
+    await pickDate(flow, day);   // page 1 (v8-6)
     await expect(flow.locator('[data-hold-note]')).toContainText(new RegExp(title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ' is holding 7(:00)?pm · voting until'));
     await expect(flow.getByRole('button', { name: 'Next' })).toHaveAttribute('aria-disabled', 'false');
     await flow.getByRole('button', { name: 'Close' }).click();
@@ -101,7 +100,7 @@ test('Explore shows Plans, Ideas or Past; Your calendar ends with Find more even
     await expect(yc.locator('[data-start-slot]')).toContainText('Start an event');
     await yc.locator('[data-start-slot]').click();
     const flow = M.locator('[data-screen-label="New spark"]');   // straight into Plan an event (v8: no Real or test)
-    await expect(flow).toContainText('1/6');
+    await expect(flow).toContainText('1/4');
     await flow.getByRole('button', { name: 'Close' }).click();   // nothing typed: X just leaves
     await expect(flow).toHaveCount(0);
     await openAllGroups(M);

@@ -219,7 +219,7 @@ html.tall-fix .app { bottom: auto; height: var(--true-h); }
 .hov-mag:hover { background: #fdf0f5 !important; }
 .fld:focus { border-color: #5b4ae8 !important; }
 .title-fld:focus { box-shadow: 0 0 0 4px rgba(91,74,232,.16); }
-[data-inv-email]::placeholder { color: #9a9fae; font-style: normal; }
+[data-inv-email]::placeholder { color: #9a9fae; }   /* italic like every placeholder (Design v8-6) */
 .fld-danger:focus { border-color: #9b1c31 !important; }
 
 [data-on] { cursor: pointer; }
@@ -293,3 +293,8 @@ html.tall-fix .app { bottom: auto; height: var(--true-h); }
 }
 /* Discussion's writing box: a purple ring while typing (Design v8) */
 .disc-field:focus-within { box-shadow: inset 0 0 0 2px #5b4ae8; }
+
+/* Plan an event (v8-6): a sheet over the screen + was tapped on, which stays drawn underneath, dimmed */
+.compose-scrim { position: absolute; inset: 0; z-index: 27; background: rgba(13, 17, 23, .55); animation: fadeIn 200ms ease-out both; }
+.overlay-screen.compose-sheet { top: calc(var(--sat) + 54px); bottom: 0; z-index: 28; border-radius: 22px 22px 0 0; padding-bottom: env(safe-area-inset-bottom, 0px);
+  box-shadow: 0 -10px 30px rgba(13, 17, 23, .25); animation: sheetUp 320ms cubic-bezier(.2, .8, .2, 1) both; }

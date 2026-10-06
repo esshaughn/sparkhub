@@ -4,29 +4,26 @@
 
 - **Built (test):** https://gosparkhub-git-test-eric-5958s-projects.vercel.app · **Live:** https://gosparkhub.vercel.app (also https://sparkhub.wereallneighbors.org)
 - **Source:** github.com/esshaughn/sparkhub (`index.html`, `js/sparks.js`, `css/sparks.css`, `privacy.html`, `supabase/templates/`)
-- **Baseline:** Claude Design's **round v8-5** (zip *Spark Hub v8-5*, 2026-10-05: `design/spark-hub/Spark Hub App Version 8.dc.html` and `design/spark-hub/HANDOFF-to-CODE.md`). Its HANDOFF-to-CODE says it caught up with this doc as of Oct 5, late night (the copy Design has calls it *HANDOFF-to-DESIGN-5*, through row 77), so this doc was reset: everything below is where the build differs from v8-5, plus the three rows (78–80) that came after Design's copy.
-- **Build version:** **v7** (owner, 2026-10-02): a lead is a choice. An idea is either led (*I'll lead it*) or floated (no lead yet), and a floated one can be handed to someone.
-- **As of:** 2026-10-06: no *This week* on My calendar (row 96); no automatic Add to Home Screen pop-up (row 97). 2026-10-05, night: built round **v8-5**, which also carried v8-3 and v8-4 (they never reached the build on their own): the five tabs with Ideas, Me's Settings slide-up, the Ideas board, the idea slide-up and idea page, the Float sheet, the + menu, idea drafts, the starter's page and times on calendar pages.
+- **Baseline:** Claude Design's **round v8-6** (zip *Spark Hub v8-6*, 2026-10-06: `design/spark-hub/Spark Hub App Version 8.dc.html` and `design/spark-hub/HANDOFF-to-CODE.md`). Its HANDOFF-to-CODE says it caught up with this doc as of Oct 6, early morning (*HANDOFF-to-DESIGN-5*), so this doc was reset: rows 80–95 are gone from §1. Rows 96–97 landed around the time Design read it, so they stay.
+- **Build version:** **v7** (owner, 2026-10-02): a lead is a choice. An idea is either led (*I'll lead it*) or floated (no lead yet), and a floated one can be handed to someone. Since v8-6, Plan an event is always led by whoever makes it; floating is the + menu's *Float an idea*.
+- **As of:** 2026-10-06: built round **v8-6**: Plan an event in 4 steps (page 1 with the cover box, title, date & time and location; What to expect with quick details folded; Join in; Review's *Ready to post*), centred edit pop-ups, Post to with Public / Private rows, the sparkle *Post it*, the sheet over the screen you came from, Helping in orange, 46px fields in Create a poll. Earlier the same day: no *This week* on My calendar (row 96); no automatic Add to Home Screen pop-up (row 97).
 
-Where this doc and the design files disagree, **this doc is correct**. One file per side: please keep sending `HANDOFF-to-CODE.md`; this file is the reply (Design's instructions asked for a `HANDOFF-to-DESIGN-6.md`, and this is that file).
+Where this doc and the design files disagree, **this doc is correct**. One file per side: please keep sending `HANDOFF-to-CODE.md`; this file is the reply (call it *HANDOFF-to-DESIGN-6*).
 
 ---
 
-## Round v8-5 in short
+## Round v8-6 in short
 
-*Caught up with HANDOFF-to-CODE v8-5 as of 2026-10-05.*
+*Caught up with HANDOFF-to-CODE v8-6 as of 2026-10-06.*
 
-| v8-5 item | Status |
+| v8-6 item | Status |
 |---|---|
-| 1. + menu (17d) | Done: Make a plan / Float an idea pills, dark ×; the Ideas tab keeps its gold + to Float. Two doors is gone |
-| 2. Plan an event → Float the idea | Done: the Float sheet opens over Plan an event with the title, overview and photo; × goes back to it untouched |
-| 3. Float sheet page 1 | Done, with the Set date / Create poll and Set location / Create poll pop-ups and the time chips |
-| 4. Pick this up later? | Done: one idea draft per account on the device; *Picked up your draft* |
-| 5. Posting opens the slide-up | Done |
-| 6. Starter's idea page (18b + 19a + 20a) | Done for floated ideas, with changes (rows 81, 83–87) |
-| 7. Member idea page all gold | Done for floated ideas (row 81) |
-| 8. Times on calendar pages | Done |
-| v8-4 1–8 and the v8-3 changes in the prototype | Done, except the group *Invite people* flow (§4) |
+| 1. Plan an event in 4 steps | Done: page 1 (cover box, Event title, Date & time with Create a poll, Location (optional) with Create a poll), Add photo pill on pages 2–4, *Pick a date first* / *Add a title first*, 7b's Overview + *Add quick details · Up to 3*, *Add later*, purple skip links, 22px headings and 46px fields, italic placeholders, the sheet over the screen you tapped + on. No lead card anywhere. Changes: rows 98–102 |
+| 2. Review (20c + 21b) | Done: *Ready to post* with *N of 4 added* and the green bar, Edit / Add rows opening centred pop-ups, Post to with the Public / Private radio rows, purple *Post it* with six sparkles, gold *Post as an idea*. Changes: rows 100–102 |
+| 3. Helping is orange (14a) | Done everywhere the build shows Helping (row 103) |
+| 4. No floating + on Friends | Already true in the build |
+| 5. Fixes | Create a poll: the build's own date picker (no *mm/dd/yyyy*), 46px fields, *+ Add time* with the chevron only once a time is set. *Find more events* doesn't exist in the build (it became the *Start an event* slot in 2026-10-03), so there was nothing to fix |
+| Still open: switching the lead after posting | Not built (nothing designed yet) |
 
 ---
 
@@ -36,24 +33,16 @@ Where this doc and the design files disagree, **this doc is correct**. One file 
 
 | # | Change | Design said | Why |
 |---|---|---|---|
-| 80 | **A Thought partner starter chip** on Plan an event's Join in, HELP, after Coordinate: *Thought partner*, gray filler *to brainstorm with…*; unlike the verb chips it can be saved as it is | v8: Bring · Set up · Help · Clean up · Coordinate · Other | Jeni Wade's demo, 2026-10-05: she read *Coordinate* as logistics and wanted someone to think it through with. (Rows 78–79, Plan an event's own float path, are gone: Float the idea now opens the Float sheet) |
-| 81 | **Only floated ideas (no lead yet) get the new idea page** (slide-up and full page, member and starter), unless they have jobs or spots (a plan whose lead stepped back can). An idea with a lead keeps the plan-style idea page: Led by, Help out, Take part, What to expect, Discussion, ⋯ Edit / Cancel or delete. When a floated idea gets a lead, it moves to that page | v8-5: the new page for every idea except one you lead but didn't float | The new page has no Help out, Take part, Discussion, Edit or delete, which led ideas use today; the owner kept the plan-style page for them on 2026-10-05 (Q30). §5 Q31 |
-| 82 | **Members can lead a floated idea** (the build's stand-in until the float brief is drawn): a fourth row in *Help make this a plan*, with the lightning bolt. *Who leads it: Anyone*, or once the starter asked you: **Lead it** (*Lead it · Hana asked you*), which takes the lead after the usual *Lead …?* confirm. *I decide*: **Offer to lead** → toast *You offered. Hana decides.*, then the row reads *You offered · Hana decides* (16px/700 `#454b55`, pale gold icon circle). Only for people in the idea's groups | No lead row (BRIEF-float-the-idea, parked) | Without it nobody but the starter could ever lead a floated idea |
-| 83 | **Choose a lead** lists the people who offered (*Offered to lead*), each with a gold-outlined **Ask** (it sends the build's ask to lead; they say yes with *Lead it*), *Asked* once sent; toast *Asked Hana to lead. We let them know.* Under the list, **Ask someone else** (14.5px/800 `#8f6405`) opens the build's *Ask someone to lead* sheet (anyone in the idea's groups). The Choose lead row's sub line reads *Asked Otto* while an ask waits | *Pick* (they lead straight away) | Someone becomes the lead only once they agree |
-| 84 | **Make this a plan acts on the real idea:** *Pick* on Date or Location uses the build's *Pick …?* confirm, which sets it and closes that poll; *Change* opens *Set date* / *Set location*; *Add* opens *Edit dates* / *Edit locations*. With no votes yet the sub line reads *No votes yet* (not *(0 of 0)*). *I'll lead it* makes the starter the lead, so the idea moves to the plan-style page, where *Make it a plan!* lives | Picks kept for the session; Make it a plan opens Plan an event | One idea, not a second event made from it |
-| 85 | **Edit dates:** an existing date can be removed (its votes go with it) but not re-timed; the time chips are on the dates you add | Time chips on every row | Changing a date's time would wipe its votes |
-| 86 | **Who can see it:** the group it was posted to can't be unticked (toast *It stays in Torrez Fitness, where it was posted*); the others tick on and off | Any group, at least one | Moving an idea's home group is its own action in the build |
-| 87 | **Delete this idea** sits at the very bottom of the starter's page (14px/700 `#9b1c31`, centred), and asks first as usual | No way to delete | The new page has no ⋯ |
-| 88 | **Me's gear sits right of the bell** (44px gray circle) | HANDOFF: far left | The prototype puts it on the right |
-| 89 | **The floating + no longer tucks away** on scroll | v7 pick 1b | The v8-5 prototype dropped the tuck |
-| 90 | **The time chips are on idea dates only** (the Float sheet, Suggest a date, Edit dates, Set date). Plan an event keeps the owner's tap grid for times | *Everywhere dates are entered* | An event's start time needs a clock time; the owner chose the grid (2026-10-03) |
-| 91 | **From Plan an event, × on the Float sheet closes it without asking** about a draft | The prototype asks *Pick this up later?* | HANDOFF: × returns to Plan an event untouched (the typing is still there) |
-| 92 | **When an idea was floated** reads the build's way: *Floated by Vic · 17m ago*, *Yesterday*, *3 days ago* | *2 hours ago* | One style across the app |
-| 93 | **Invite a friend** on an idea opens the build's Invite people sheet (purple), where friends already interested show a gold **Interested** and can't be picked | The gold Invite people variant | The variant isn't built yet |
-| 94 | **Suggest a date / Suggest a location on an idea** are centred gold pop-ups (*Everyone can vote on it.*; the date with the time chips). The location is plain text (no place search) | Not drawn for v8-4's page | All idea pop-ups are centred and gold |
-| 95 | **Ask someone to take a job** shows who's been asked at the top in a gray box (*Asked · waiting*, *Said yes*, *Can't this time*, the note in italics) with **Withdraw** while they haven't answered; they drop out of the list below | As drawn (v8-3) | Built from the prototype; answers old §4 *Withdrawing an ask* |
 | 96 | **My calendar's Up next has no *This week* heading**: after the big card, the list goes straight into months (*October*, *November*…, then *Date TBD*). Group pages keep *This week* | v8: This week, then each month | Owner, 2026-10-06 |
 | 97 | **The Add to Home Screen pop-up (*Make this an app (kinda)*) never opens on its own**: not on Welcome, not after signing in. Tapping Me → Settings → Add to Home Screen still opens it (iPhone steps) or Chrome's dialog (Android) | Once a visit on Welcome and after signing in | Owner, 2026-10-06 |
+| 98 | **Event titles stay at 40 characters** (*N/40*) | *N/60* | Every title in the build (cards, the event page's Edit, drafts) is 40; 60 would need its own pass |
+| 99 | **Page 1's cover photo** has *Change* and a trash button; there's no *Adjust* (move up / down) on page 1 | Change, remove and adjust | The cover can still be positioned from the event page after posting |
+| 100 | **Review's *What to expect* row counts the overview too**: with no quick details it shows the overview line | Done only with a quick detail | Someone who only wrote an overview has filled in that step |
+| 101 | **Review's *Join in* row** stays *Add · optional* after *None needed* | (Not drawn) | Nothing was added, so it isn't counted in *N of 4* |
+| 102 | **Review keeps *People going can invite friends*** (the switch) under the Post to card | Not on v8-6's Review | It sets who can invite people; nothing else in the flow does |
+| 103 | **Helping is orange (`#e8661c` / `#b8480c` / `#fff1e8`) everywhere the build used gold or teal for it**: My tasks' Helping chip and dots, the Helping strip and its task rows, the event page's *You're helping* band | 14a: replaces teal / sky | The build had kept Helping gold (shared with ideas) in most places; ideas stay gold |
+| 104 | **Plan an event covers the tab bar** (the sheet runs to the bottom), so a tab can't be tapped mid-flow; × still asks *Save this as a draft?* | As drawn | Before v8-6 a tab tap asked about a draft; now × is the only way out |
+| 105 | **An older draft saved on the old Date & time or Location step opens on page 1** | — | Those steps are part of page 1 now |
 
 ## 2. Things the build had to invent (please design these properly)
 
@@ -74,7 +63,7 @@ Where this doc and the design files disagree, **this doc is correct**. One file 
 
 - **The group Invite people flow** in the v8-5 prototype (Share your invite link, Show QR code, Add friends, *You've invited* with Take back, the invite card on My groups): it needs personal group invites, which the build doesn't have (a new table and rules; `GROUP-INVITES-for-design.md`). Held for its own round; the HANDOFF's *New since* lists didn't mention it, so §5 Q33 asks how it should work.
 - **Short event links** (`sparkhub.wereallneighbors.org/e/…` in the prototype's share sheet): the build's links stay `/i/{id}`.
-- **The gold Invite people sheet** for ideas (row 93).
+- **The gold Invite people sheet** for ideas (was row 93).
 - **The comment notification** (v8-1 *Still open*): nobody is told about a comment or a reply yet, not even the lead.
 - **Guest text reminders** (*Take part*): not built, no SMS service yet (owner, 2026-10-05).
 - **Leading filtered to a group** is built, but nothing opens it that way.
@@ -103,12 +92,12 @@ Where this doc and the design files disagree, **this doc is correct**. One file 
 26. **A welcome tour** (parked by the owner): `WELCOME-TOUR-for-design.md`.
 28. **Place on profiles:** v8's Edit profile has no Place. Drop it everywhere, or keep it?
 29. **The Leading page** (`#/own`, with its title switch) has no way in since v8. Retire it?
-31. **Ideas with a lead** (row 81): should they move to the new idea page? If so, where do Help out, Take part, What to expect, Discussion and the lead's Edit / Cancel or delete go on it, and where does *Make it a plan!* sit for the lead?
-32. **Lead it / Offer to lead** for members (row 82) and the starter's *Pick* (row 83) are the build's stand-ins. Please draw them with BRIEF-float-the-idea, including what the person who offered sees while they wait.
+31. **Ideas with a lead** (was row 81): should they move to the new idea page? If so, where do Help out, Take part, What to expect, Discussion and the lead's Edit / Cancel or delete go on it, and where does *Make it a plan!* sit for the lead?
+32. **Lead it / Offer to lead** for members (was row 82) and the starter's *Pick* (was row 83) are the build's stand-ins. Please draw them with BRIEF-float-the-idea, including what the person who offered sees while they wait.
 33. **Group invites** (§4): who can invite, whether *Add friends* reaches people outside your friends, what the invited person sees and can do (Join / Not now), whether Take back tells anyone, and whether invites expire. The prototype draws the screens; the rules behind them aren't written in HANDOFF-to-CODE.
-34. **The time chips in Plan an event** (row 90): should an event's start time also allow Morning / Afternoon / Evening?
+34. **The time chips in Plan an event** (was row 90): should an event's start time also allow Morning / Afternoon / Evening?
 35. **A mismatch in the zip:** `screens/02 Plus menu.png` shows the starter's slide-up, not the + menu; the prototype was followed.
 
 ## 6. Design tokens
 
-As listed in the v8-5 INSTRUCTIONS: purple `#5b4ae8`, ink `#0d1117`, greys `#6b7280` `#454b55` `#e8eaee` `#f2f3f6`, green `#149a4b`, gold `#f5b428` / `#8f6405` (ideas), teal `#0e8a84` / `#e6f6f4` (Helping, now on the event page's *You're helping* band too), pink `#d6246e` (updates). Idea screens are all gold.
+As listed in the v8-5 INSTRUCTIONS, with v8-6's orange: purple `#5b4ae8`, ink `#0d1117`, greys `#6b7280` `#454b55` `#e8eaee` `#f2f3f6`, green `#149a4b`, gold `#f5b428` / `#8f6405` (ideas), orange `#e8661c` / `#b8480c` / `#fff1e8` (Helping, since v8-6; it replaced teal), pink `#d6246e` (updates). Idea screens are all gold.

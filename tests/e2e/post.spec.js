@@ -1,4 +1,4 @@
-// Create event (v6 Update 6): the 5-step flow with "Decide later", polls, jobs, Review, drafts,
+// Plan an event (v8-6): the 4-step flow (title, date & location · What to expect · Join in · Review), polls, jobs, drafts,
 // then the host's edit pop-ups on the event page.
 const { test, expect } = require('@playwright/test');
 const { uniqueTitle, newLead, button, postEvent, openIdea, confirm, startPost, startFloat, asUser, closeAskFirst, pickKind, pickDate, pickTime, deleteIdea, ideaIdFromUrl, openAllGroups } = require('./helpers');
@@ -154,7 +154,7 @@ test('post an event with every step filled, then edit it in the pop-ups and dele
   }
 });
 
-test('decide everything later: only the title is needed; the host is left with tasks', async ({ browser }) => {
+test('page 1 needs a title and a date; What to expect folds its details; Review’s checklist and pop-ups', async ({ browser }) => {
   test.setTimeout(90000);
   const { page, context, errors } = await newLead(browser, 2, 'Guard');
   const title = uniqueTitle('Chili cook-off');
@@ -162,23 +162,20 @@ test('decide everything later: only the title is needed; the host is left with t
   try {
     await startPost(page);
     const flow = page.locator('[data-screen-label="New spark"]');
-    // v8: no Real or test; the title step first, Create event in the sparkle header, the field focused
+    // v8-6: page 1 is the cover box, the title, Date & time and Location; Create event in the sparkle header, the title focused
     await expect(page.getByRole('dialog', { name: 'Real or test?' })).toHaveCount(0);
-    await expect(flow).toContainText('1/6');
+    await expect(flow).toContainText('1/4');
     await expect(flow).toContainText('Create event');
     await expect(flow.getByLabel('Event title')).toBeFocused();
+    await expect(flow.locator('[data-cover-add]')).toContainText('Add a cover photo');
+    await expect(flow.getByLabel('Add a cover photo')).toHaveCount(1);   // page 1 has the box, not the header's pill
+    await expect(flow.getByText('Add photo', { exact: true })).toHaveCount(0);
+    await expect(flow.locator('[data-ev-lead]')).toHaveCount(0);       // whoever makes it leads it: no lead cards
+    // Next stays gray until there's a title and a date; a tap says which is missing
     await expect(flow.getByRole('button', { name: 'Next' })).toHaveAttribute('aria-disabled', 'true');
-    await flow.getByRole('button', { name: 'Next' }).click({ force: true });   // gray, but a tap says what's missing (v8)
+    await flow.getByRole('button', { name: 'Next' }).click({ force: true });
     await expect(page.getByRole('status')).toContainText('Add a title first');
-    await expect(flow.getByText('Decide later', { exact: true })).toHaveCount(0);   // the title can't wait
-    // I'll lead it / Float the idea sit at the bottom of the title step (the Lead step is gone), I'll lead it picked
-    await expect(flow.getByRole('button', { name: /^I’ll lead it/ })).toHaveAttribute('aria-pressed', 'true');
-    await flow.getByText('What’s the difference?', { exact: true }).click();
-    const why = page.getByRole('dialog', { name: 'Lead it or float it?' });
-    await expect(why).toContainText('It goes up as an idea that needs a lead.');
-    await why.getByRole('button', { name: 'Got it' }).click();
-    await expect(why).toHaveCount(0);
-    // With no title, X just closes
+    // With no title, X just closes, back to the screen the sheet was over
     await flow.getByRole('button', { name: 'Close' }).click();
     await expect(page.locator('[data-screen-label="Your calendar"]')).toBeVisible();
 
@@ -186,76 +183,68 @@ test('decide everything later: only the title is needed; the host is left with t
     await flow.getByLabel('Event title').fill(title);
     await expect(flow.getByLabel('Event title')).toHaveAttribute('maxlength', '40');
     await expect(flow).toContainText(title.length + '/40');
+    await flow.getByRole('button', { name: 'Next' }).click({ force: true });
+    await expect(page.getByRole('status')).toContainText('Pick a date first');
+    await expect(flow).toContainText('1/4');
     // The phone's Back with a title asks about a draft instead of dropping it
     await page.goBack();
     const leave = page.getByRole('dialog', { name: 'Save as draft' });
     await expect(leave).toContainText('Save this as a draft?');
     await leave.getByRole('button', { name: 'Keep going' }).click();
     await expect(flow.getByLabel('Event title')).toHaveValue(title);
-    await flow.getByRole('button', { name: 'Next' }).click();
-    // …and on a later step it goes back a step
-    await page.goBack();
-    await expect(flow).toContainText('1/6');
-    await flow.getByRole('button', { name: 'Next' }).click();
-    // Date & time: the start list, then an end time that only offers later times
-    await expect(flow).toContainText('Date & time');
+    // Date & time: the start time's tap grid, then an end time that only offers later times
     await pickDate(flow, inDays(10));
-    await flow.getByRole('button', { name: 'Add a start time (optional)' }).click();
-    await expect(flow.locator('[data-time-list] [data-hour]')).toHaveCount(12);   // the tap grid: am / pm, hour, minute (owner, 2026-10-03)
+    await flow.getByRole('button', { name: 'Start time' }).click();
+    await expect(flow.locator('[data-time-list] [data-hour]')).toHaveCount(12);   // am / pm, hour, minute (owner, 2026-10-03)
     await pickTime(flow, '18:00');
     await flow.getByText('Add end time').click();
     await flow.locator('[data-time-list]').getByRole('radio', { name: 'pm', exact: true }).click();
     await expect(flow.locator('[data-time-list] [data-hour="5"]')).toHaveAttribute('aria-disabled', 'true');
     await pickTime(flow, '20:00');
-    // Decide later only shows while the step is empty, so it can't wipe what's filled in
-    await expect(flow.getByText('Decide later', { exact: true })).toHaveCount(0);
-    await pickDate(flow, '');
-    await flow.getByText('Decide later', { exact: true }).click();   // clears the leftover times too
-    await expect(flow).toContainText('3/6');
-    await flow.getByRole('button', { name: 'Back' }).click();
-    await expect(flow.getByRole('button', { name: 'Date', exact: true })).toContainText('Pick a date');
-    await expect(flow.getByRole('button', { name: 'Add a start time (optional)' })).toBeVisible();
-    await flow.getByText('Decide later', { exact: true }).click();
-    for (const n of ['3/6', '4/6']) {
-      await expect(flow).toContainText(n);
-      await expect(flow.getByRole('button', { name: 'Next' })).toHaveAttribute('aria-disabled', 'true');
-      await flow.getByText('Decide later', { exact: true }).click();
-    }
-    // Join in (v8): no Decide later; gray Next says Choose an option; None needed skips. PARTICIPATE waits for Take part
-    await expect(flow).toContainText('5/6');
-    await expect(flow).toContainText('Join in');
+    await expect(flow.locator('[data-create-poll]')).toHaveCount(2);   // Date & time and Location each have Create a poll
+    await flow.getByRole('button', { name: 'Next' }).click();
+    // …and on a later step Back goes back a step
+    await expect(flow).toContainText('2/4');
+    await page.goBack();
+    await expect(flow).toContainText('1/4');
+    await flow.getByRole('button', { name: 'Next' }).click();
+    // What to expect (7b): Overview, then + Add quick details · Up to 3; the skip link reads Add later
+    await expect(flow).toContainText('What to expect');
+    await expect(flow.locator('[data-add-details]')).toContainText('Up to 3');
+    await expect(flow.getByLabel('Details, line 1')).toHaveCount(0);
+    await expect(flow.getByText('Add photo', { exact: true })).toBeVisible();   // pages 2–4 have the header's pill
+    await flow.getByText('Add later', { exact: true }).click();
+    // Join in (v8): gray Next says Choose an option; None needed skips. PARTICIPATE waits for Take part
+    await expect(flow).toContainText('3/4');
     await expect(flow).toContainText('Ask for help or list specific ways to participate.');
-    await expect(flow.getByText('Decide later', { exact: true })).toHaveCount(0);
     await expect(flow.locator('[data-part-chip]')).toHaveText(['+Claim time', '+Claim seat', '+Other']);   // PARTICIPATE (v8-2)
     await flow.getByRole('button', { name: 'Next' }).click({ force: true });
     await expect(page.getByRole('status')).toContainText('Choose an option');
     await flow.getByText('None needed', { exact: true }).click();
-    // Review (19f): REVIEW over the title, the lead card, then Details · What to expect · Join in, blanks in gray
+    // Review (20c + 21b): REVIEW over the title, Ready to post with 1 of 4 added, Edit on what's done and Add on the rest
     await expect(flow).toContainText('REVIEW');
-    await expect(flow).toContainText('6/6');
-    await expect(flow.locator('[data-review-lead]')).toContainText('You’re leading it');
-    for (const t of ['No date yet', 'No location yet', 'Nothing added.']) await expect(flow).toContainText(t);
-    await expect(flow.getByText('Nothing added.', { exact: true })).toHaveCount(2);   // Join in reads Nothing added. after None needed too (Design v8)
-    for (const k of ['when', 'details', 'help']) await expect(flow.locator('[data-review-edit="' + k + '"]')).toHaveText('Edit');
-    await expect(flow).not.toContainText('Real or test');
+    await expect(flow).toContainText('4/4');
+    await expect(flow.locator('[data-review-lead]')).toHaveCount(0);
+    await expect(flow.locator('[data-ready-count]')).toHaveText('1 of 4 added');
+    await expect(flow.locator('[data-review-edit="when"]')).toContainText('Edit');
+    for (const k of ['where', 'details', 'help']) await expect(flow.locator('[data-review-edit="' + k + '"]')).toContainText('Add');
+    await expect(flow).not.toContainText('It goes on the calendar as a plan.');
     await flow.locator('[data-review-edit="details"]').click();
     const pop = page.getByRole('dialog', { name: 'What to expect' });
     await expect(flow).toContainText('REVIEW');   // still on Review, under the pop-up
+    await pop.locator('[data-add-details]').click();
     await pop.getByLabel('Details, line 1').fill('Bring a bowl');
+    await pop.getByLabel('Details, line 2').fill('Spoons too');
     await pop.getByRole('button', { name: 'Done' }).click();
     await expect(pop).toHaveCount(0);
-    await expect(flow).toContainText('Bring a bowl');
-    await flow.locator('[data-review-edit="details"]').click();
-    await pop.getByLabel('Details, line 1').fill('');
-    await pop.getByRole('button', { name: 'Close' }).click();
-    await expect(flow).not.toContainText('Bring a bowl');
-    // Date & time in its pop-up: a start time's list opens inside it
+    await expect(flow.locator('[data-review-edit="details"]')).toContainText('Bring a bowl + 1 more');
+    await expect(flow.locator('[data-ready-count]')).toHaveText('2 of 4 added');
+    // Date & time in its pop-up, with Create a poll
     await flow.locator('[data-review-edit="when"]').click();
     const whenPop = page.getByRole('dialog', { name: 'Date & time' });
-    await expect(whenPop).toContainText('Pick a date');
-    await expect(whenPop).toContainText('Poll the group');
+    await expect(whenPop.locator('[data-create-poll="when"]')).toBeVisible();
     await whenPop.getByRole('button', { name: 'Done' }).click();
-    await expect(flow).toContainText('No date yet');
+    await expect(flow.locator('[data-review-edit="when"]')).toContainText('6:00 – 8:00pm');
     // The title is edited in place in the header, and can't be left empty
     const before = await flow.locator('[data-review-title]').innerText();
     await flow.getByRole('button', { name: 'Edit title' }).click();
@@ -269,28 +258,17 @@ test('decide everything later: only the title is needed; the host is left with t
     await inline.press('Enter');
     await expect(inline).toHaveCount(0);
     await expect(flow.locator('[data-review-title]')).toHaveText(before + ' 2');
-    // No date: it goes up as an idea, not a plan
-    await expect(flow.locator('[data-posts-as]')).toContainText('This goes up as an idea');
+    // Post to: Public / Private radio rows; Post it is purple
+    await expect(flow.getByRole('radio', { name: /^Public/ })).toHaveAttribute('aria-checked', 'true');
+    await expect(flow.locator('[data-post]')).toHaveText('Post it');
     await flow.locator('[data-post]').click();
-    const I = page.locator('[data-screen-label="Idea page"]');
-    await expect(I).toBeVisible();
+    await expect(page.locator('[data-screen-label="Plan page"]')).toBeVisible();
     id = await page.evaluate(() => location.hash.split('/').pop());
     await closeAskFirst(page);
     // Every event is real now (v8): no DEMO chip, no Test event tab
     await expect(page.locator('[data-test-tab]')).toHaveCount(0);
-    expect(await asUser(page, async (c, _C, id) => (await c.from('sparks').select('test,demo').eq('id', id).single()).data, id)).toEqual({ test: false, demo: false });
-    await expect(I.locator('[data-plan-needs] [data-plan-row="date"]')).toBeVisible();
-    await expect(I.getByRole('button', { name: /^Make it a plan/ })).toHaveCount(0);   // no locked button (Design, after Update 16)
-    // Empty Details and Help out are the same dashed box for the host
-    await expect(I.locator('[data-basics]')).toContainText('Add a one-line overview and up to three quick notes.');
-    await expect(I.locator('[data-help-empty]')).toHaveText('Add ways people can help.');
-    await I.locator('[data-help-empty]').click();
-    await expect(page.getByRole('dialog', { name: 'Edit what you need' })).toBeVisible();
-    await page.keyboard.press('Escape');
-    // Not on the Calendar until the host makes it a plan
-    await openAllGroups(page);
-    await expect(page.locator('[data-screen-label="All groups"]')).toBeVisible();
-    await expect(page.locator('[data-screen-label="All groups"] [data-plan="' + title.charAt(0).toUpperCase() + title.slice(1) + '"]')).toHaveCount(0);
+    expect(await asUser(page, async (c, _C, id) => (await c.from('sparks').select('test,demo,planned,lead_id,hopes').eq('id', id).single()).data, id))
+      .toMatchObject({ test: false, demo: false, planned: true, hopes: ['Bring a bowl', 'Spoons too'] });
     expect(errors).toEqual([]);
   } finally {
     if (id) await asUser(page, async (c, _C, id) => { await c.from('sparks').delete().eq('id', id); }, id).catch(() => {});
@@ -310,8 +288,7 @@ test('polls: the host posts a date poll (an idea), a member votes, the host pick
     const flow = H.locator('[data-screen-label="New spark"]');
     await pickKind(H);
     await flow.getByLabel('Event title').fill(title);
-    await flow.getByRole('button', { name: 'Next' }).click();
-    await flow.getByText('Poll the group').click();
+    await flow.locator('[data-create-poll="when"]').click();   // page 1's Date & time (v8-6)
     const poll = H.getByRole('dialog', { name: 'Poll the group' });
     await expect(poll).toContainText('Create a poll');
     await expect(poll.getByRole('button', { name: 'Save', exact: true })).toHaveAttribute('aria-disabled', 'true');
@@ -331,15 +308,16 @@ test('polls: the host posts a date poll (an idea), a member votes, the host pick
     await expect(poll.getByRole('button', { name: 'Time option 1' })).toContainText('6:00pm');
     await poll.getByRole('button', { name: 'Time option 1' }).click();
     await poll.locator('[data-time-list]').getByRole('button', { name: 'No time', exact: true }).click();
-    await expect(poll.getByRole('button', { name: 'Time option 1' })).toContainText('Time');
+    await expect(poll.getByRole('button', { name: 'Time option 1' })).toContainText('+ Add time');
     await pickDate(poll, inDays(16), 'Date option 2');
     await poll.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(flow.locator('[data-poll]')).toContainText('POLL · 2 OPTIONS');
-    await expect(flow).toContainText('2/6');                                  // saving doesn't move on
-    await flow.getByRole('button', { name: 'Next' }).click();
-    for (let i = 0; i < 2; i++) await flow.getByText('Decide later', { exact: true }).click();
+    await expect(flow).toContainText('1/4');                                  // saving doesn't move on
+    await flow.getByRole('button', { name: 'Next' }).click();                // a date poll counts as the date
+    await flow.getByText('Add later', { exact: true }).click();
     await flow.getByText('None needed', { exact: true }).click();   // Join in: None needed goes on to Review
-    await expect(flow).toContainText('Poll: 2 dates');
+    await expect(flow.locator('[data-review-edit="when"]')).toContainText('Voting on 2 dates');
+    await expect(flow.locator('[data-post]')).toHaveText('Post as an idea');
     await expect(flow.locator('[data-posts-as]')).toContainText('This goes up as an idea');
 
     await flow.locator('[data-post]').click();
@@ -393,8 +371,8 @@ test('drafts: X saves one, Your tasks lists it under Leading, Continue picks up 
     const flow = page.locator('[data-screen-label="New spark"]');
     await pickKind(page);
     await flow.getByLabel('Event title').fill(title);
+    await pickDate(flow, inDays(5));
     await flow.getByRole('button', { name: 'Next' }).click();
-    await flow.getByText('Decide later', { exact: true }).click();
     await flow.getByRole('button', { name: 'Close' }).click();
     const leave = page.getByRole('dialog', { name: 'Save as draft' });
     await expect(leave).toContainText('Save this as a draft?');
@@ -414,8 +392,8 @@ test('drafts: X saves one, Your tasks lists it under Leading, Continue picks up 
     await expect(page.locator('[data-screen-label="Your calendar"]')).toBeVisible();
     await expect(page.locator('[data-screen-label="Your calendar"] [data-draft]')).toHaveCount(0);
     await openDraft();
-    await expect(flow).toContainText('3/6');
-    await flow.getByText('Decide later', { exact: true }).click();
+    await expect(flow).toContainText('2/4');
+    await flow.locator('[data-add-details]').click();
     // A Details line longer than the old 40 comes back whole from a draft (resuming used to cut it at 40)
     const longLine = 'Park on Elm Street and walk in through the side gate.';
     await flow.getByLabel('Details, line 1').fill(longLine);
@@ -423,12 +401,12 @@ test('drafts: X saves one, Your tasks lists it under Leading, Continue picks up 
     await leave.getByRole('button', { name: 'Save draft' }).click();
     await expect(page.getByText('Saved as a draft')).toBeVisible();
     await openDraft();
-    await expect(flow).toContainText('4/6');
-    await expect(flow.getByLabel('Details, line 1')).toHaveValue(longLine);
+    await expect(flow).toContainText('2/4');
+    await expect(flow.getByLabel('Details, line 1')).toHaveValue(longLine);   // a filled detail keeps Quick details open
     await flow.getByRole('button', { name: 'Next' }).click();
     await flow.getByText('None needed', { exact: true }).click();
     await flow.locator('[data-post]').click();
-    await expect(page.locator('[data-screen-label="Idea page"]')).toBeVisible();   // no date: an idea
+    await expect(page.locator('[data-screen-label="Plan page"]')).toBeVisible();
     await closeAskFirst(page);
     id = await page.evaluate(() => location.hash.split('/').pop());
     expect(await asUser(page, async (c, _C, id) => (await c.from('sparks').select('hopes').eq('id', id).single()).data.hopes, id)).toEqual([longLine]);
@@ -449,9 +427,8 @@ test('location suggestions: 2 letters, 4 rows, Austin area, remembered, free tex
     const flow = page.locator('[data-screen-label="New spark"]');
     await pickKind(page);
     await flow.getByLabel('Event title').fill('Anything');
-    await flow.getByRole('button', { name: 'Next' }).click();
-    await flow.getByText('Decide later', { exact: true }).click();
-
+    await pickDate(flow, inDays(5));
+    // Location is on page 1 (v8-6)
     await page.getByLabel('Location').fill('z');
     await page.waitForTimeout(400);
     expect(context.placeRequests).toHaveLength(0);
@@ -485,7 +462,7 @@ test('location suggestions: 2 letters, 4 rows, Austin area, remembered, free tex
 // Owner, 2026-10-02 (review fixes): a tab tap inside Create event asks about a draft (it used to drop the event), Return
 // in the title presses Next, a greyed-out Next says what it's waiting for, and a reload brings the flow back where it
 // was (phones drop the tab while people look something up)
-test('Create event: a tab tap asks about a draft, Return goes on, and a reload picks the flow back up', async ({ browser }) => {
+test('Plan an event: × asks about a draft, Return goes on, and a reload picks the flow back up', async ({ browser }) => {
   const { page, context, errors } = await newLead(browser, 1, 'Tester');
   const title = uniqueTitle('Porch concert');
   try {
@@ -494,20 +471,21 @@ test('Create event: a tab tap asks about a draft, Return goes on, and a reload p
     await expect(flow).toContainText('Create event');
     await expect(flow.locator('[data-step-hint]')).toHaveCount(0);   // v8: Next says it with a toast instead
     await flow.getByLabel('Event title').fill(title);
+    await pickDate(flow, inDays(5));
     await flow.getByLabel('Event title').press('Enter');
-    await expect(flow).toContainText('2/6');
-    // A tab: the draft question, and Keep going stays put
-    await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Calendar', exact: true }).click();
+    await expect(flow).toContainText('2/4');
+    // The sheet covers the tab bar (v8-6), so × asks: the draft question, and Keep going stays put
+    await flow.getByRole('button', { name: 'Close' }).click();
     const leave = page.getByRole('dialog', { name: 'Save as draft' });
     await expect(leave).toContainText('Save this as a draft?');
     await leave.getByRole('button', { name: 'Keep going' }).click();
-    await expect(flow).toContainText('2/6');
+    await expect(flow).toContainText('2/4');
     // A reload comes back to the same step with the title
     await page.reload();
-    await expect(flow).toContainText('2/6');
+    await expect(flow).toContainText('2/4');
     await expect(flow).toContainText(new RegExp(title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'));
-    // Discard from a tab tap goes to that tab, and nothing is kept for the next reload
-    await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Calendar', exact: true }).click();
+    // Discard goes back to the screen under the sheet, and nothing is kept for the next reload
+    await flow.getByRole('button', { name: 'Close' }).click();
     await leave.getByRole('button', { name: 'Discard' }).click();
     await expect(page.locator('[data-screen-label="Your calendar"]')).toBeVisible();
     await expect(flow).toHaveCount(0);
@@ -518,7 +496,7 @@ test('Create event: a tab tap asks about a draft, Return goes on, and a reload p
   }
 });
 
-test('an idea’s Details (no How many people for now); a bare starter chip can’t be saved; its steps are Date · Location · Details', async ({ browser }) => {
+test('What to expect’s quick details (no How many people for now); a bare starter chip can’t be saved', async ({ browser }) => {
   test.setTimeout(90000);
   const { page, context, errors } = await newLead(browser, 1, 'Tester');
   const title = uniqueTitle('Pickup soccer');
@@ -528,9 +506,9 @@ test('an idea’s Details (no How many people for now); a bare starter chip can�
     const flow = page.locator('[data-screen-label="New spark"]');
     await pickKind(page);
     await flow.getByLabel('Event title').fill(title);
+    await pickDate(flow, inDays(8));
     await flow.getByRole('button', { name: 'Next' }).click();
-    await flow.getByText('Decide later', { exact: true }).click();   // no date: it goes up as an idea
-    await flow.getByText('Decide later', { exact: true }).click();
+    await flow.locator('[data-add-details]').click();
     // A Details line holds up to 60 characters and stays one line, sentences and all (owner, 2026-10-01)
     await expect(flow.getByLabel('Details, line 1')).toHaveAttribute('maxlength', '60');
     await flow.getByLabel('Details, line 1').fill('Bring cleats. And water?');
@@ -596,10 +574,9 @@ test('an idea’s Details (no How many people for now); a bare starter chip can�
     await flow.getByRole('button', { name: 'Next' }).click();
 
     await flow.locator('[data-post]').click();
-    await expect(page.locator('[data-screen-label="Idea page"]')).toBeVisible();
+    await expect(page.locator('[data-screen-label="Plan page"]')).toBeVisible();
     await closeAskFirst(page);
     id = await page.evaluate(() => location.hash.split('/').pop());
-    await expect(page.getByLabel('Steps to a plan')).toHaveCount(0);   // no steps strip on ideas (owner, 2026-10-05)
     await expect(page.locator('[data-basics] span', { hasText: 'Bring cleats. And water?' })).toHaveCount(1);   // one line, not two
     await expect(page.locator('[data-basics] span', { hasText: longLine })).toHaveCount(1);
     const savedHopes = await asUser(page, async (c, _C, id) => (await c.from('sparks').select('hopes').eq('id', id).single()).data.hopes, id);
@@ -618,7 +595,7 @@ test('an idea’s Details (no How many people for now); a bare starter chip can�
 // Float an idea (v8-4 §5, v8-5 items 1–5): the + menu's Float an idea opens the two-page Float sheet. Page 1 sketches it
 // (a date set with a time chip, a location poll behind Add more details); leaving with something typed offers a draft,
 // which comes back next time; page 2 says where it goes and how people can help. Posting opens the starter's slide-up on
-// the Ideas tab. Plan an event's Float the idea card opens the same sheet over it, title carried over
+// the Ideas tab. (Plan an event's Float the idea card is gone since v8-6.)
 test('Float an idea: the Float sheet, a draft, and the starter’s slide-up', async ({ browser }) => {
   test.setTimeout(120000);
   const host = await newLead(browser, 1, 'Flo');
@@ -690,15 +667,9 @@ test('Float an idea: the Float sheet, a draft, and the starter’s slide-up', as
     await ip.getByRole('button', { name: 'Close' }).first().click();
     await expect(page.locator('[data-idea-card="' + title + '"]')).toBeVisible();   // on the board
 
-    // Plan an event's Float the idea opens the Float sheet over it with the title; × goes back to Plan an event untouched
+    // Plan an event has no Float the idea card any more (v8-6: whoever makes it leads it)
     await startPost(page);
-    const flow = page.locator('[data-screen-label="New spark"]');
-    await flow.getByLabel('Event title').fill('Pottery wheel night');
-    await flow.getByRole('button', { name: /^Float the idea/ }).click();
-    await expect(sheet.getByLabel('Your idea')).toHaveValue('Pottery wheel night');
-    await sheet.getByRole('button', { name: 'Close' }).first().click();
-    await expect(sheet).toHaveCount(0);
-    await expect(flow.getByLabel('Event title')).toHaveValue('Pottery wheel night');
+    await expect(page.locator('[data-screen-label="New spark"] [data-ev-lead]')).toHaveCount(0);
     expect(host.errors).toEqual([]);
   } finally {
     if (id) await deleteIdea(page, id).catch(() => {});

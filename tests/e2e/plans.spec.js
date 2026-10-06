@@ -348,9 +348,7 @@ test('it happened: the album and "do it again"; invite-only plans stay private',
     await done.getByRole('button', { name: 'Do it again', exact: true }).click();
     const form = H.locator('[data-screen-label="New spark"]');
     await expect(form.getByLabel('Event title')).toHaveValue(title.charAt(0).toUpperCase() + title.slice(1));
-    await form.getByRole('button', { name: 'Next' }).click();
-    await form.getByText('Decide later', { exact: true }).click();
-    await expect(form.getByLabel('Location')).toHaveValue('Pease Park');
+    await expect(form.getByLabel('Location')).toHaveValue('Pease Park');   // on page 1 (v8-6)
 
     // Invite-only: Otto (in the same group) doesn't see it until he has the link
     await H.goto('/');

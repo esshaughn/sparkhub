@@ -252,43 +252,34 @@ async function openIdea(page, id) {
   await expect(page.locator('[data-screen-label="Idea page"], [data-screen-label="Idea page (8b)"], [data-screen-label="Plan page"], [data-screen-label="It happened"]')).toBeVisible();   // (8b): a floated idea (v8-4)
 }
 
-// Plan an event (v8): Title (with I'll lead it / Float the idea) · When · Where · What to expect · Join in, then Review.
-// Anything left out is decided later; Join in's None needed skips it. `test` is ignored (Real or test is gone). Returns its id.
-async function postEvent(page, { title, date, time, where, pick, details = [], jobs = [], inviteOnly = false, photo = false, float = false }) {
+// Plan an event (v8-6): 1 · Title, date & location · 2 · What to expect · 3 · Join in · 4 · Review. The date is required;
+// What to expect has Add later and Join in has None needed. Whoever posts it leads it. Returns its id.
+async function postEvent(page, { title, date, time, where, pick, details = [], jobs = [], inviteOnly = false, photo = false }) {
   await startPost(page);
   const flow = page.locator('[data-screen-label="New spark"]');
   const next = () => flow.getByRole('button', { name: 'Next', exact: true }).click();
-  const later = () => flow.getByText('Decide later', { exact: true }).click();
-  await expect(flow).toContainText('1/6');
-  await flow.getByLabel('Event title').fill(title);
+  await expect(flow).toContainText('1/4');
   if (photo) await flow.getByLabel('Add a cover photo').setInputFiles({ name: 'photo.png', mimeType: 'image/png', buffer: PNG });
-  if (float) await flow.getByRole('button', { name: /^Float the idea/ }).click();
-  await next();
-
-  await expect(flow).toContainText('2/6');
-  if (date) {
-    await pickDate(flow, date);
-    if (time) {
-      await flow.getByRole('button', { name: 'Add a start time (optional)' }).click();
-      await pickTime(flow, time);
-    }
-    await next();
-  } else await later();
-
-  await expect(flow).toContainText('3/6');
+  await flow.getByLabel('Event title').fill(title);
+  await pickDate(flow, date);
+  if (time) {
+    await flow.getByRole('button', { name: 'Start time' }).click();
+    await pickTime(flow, time);
+  }
   if (where) {
     await flow.getByLabel('Location').fill(where);
     if (pick) await page.getByRole('group', { name: 'Suggested places' }).getByRole('button', { name: new RegExp(pick) }).click();
-    await next();
-  } else await later();
+  }
+  await next();
 
-  await expect(flow).toContainText('4/6');
+  await expect(flow).toContainText('2/4');
   if (details.length) {
+    await flow.locator('[data-add-details]').click();
     for (let i = 0; i < details.length; i++) await flow.getByLabel('Details, line ' + (i + 1)).fill(details[i]);
     await next();
-  } else await later();
+  } else await flow.getByText('Add later', { exact: true }).click();
 
-  await expect(flow).toContainText('5/6');
+  await expect(flow).toContainText('3/4');
   if (jobs.length) {
     for (const j of jobs) {
       await flow.locator('[data-job-chip="Other"]').click();   // HELP's Other (PARTICIPATE has one too)
@@ -298,16 +289,16 @@ async function postEvent(page, { title, date, time, where, pick, details = [], j
       await sheet.getByRole('button', { name: 'Save', exact: true }).click();
     }
     await next();
-  } else await flow.getByText('None needed', { exact: true }).click();   // Join in has None needed, not Decide later
+  } else await flow.getByText('None needed', { exact: true }).click();
 
-  // Review (19f): who can see it is here since v8 (it was on step 1)
+  // Review (v8-6): Ready to post, then Post to with Public / Private
   await expect(flow).toContainText('REVIEW');
-  await expect(flow).toContainText('6/6');
+  await expect(flow).toContainText('4/4');
   if (inviteOnly) await flow.getByRole('radio', { name: /^Private/ }).click();
   await flow.locator('[data-post]').click();
   await expect(page.locator('[data-screen-label="Plan page"]')).toBeVisible();
   await expect(page.getByText('It’s on the books')).toHaveCount(0);   // no chip over a new plan (owner, 2026-10-01)
-  if (!float) await closeAskFirst(page);
+  await closeAskFirst(page);
   return ideaIdFromUrl(page);
 }
 // Posting a real event opens the invite sheet as "Ask two people first" (research review, 2026-10-01)

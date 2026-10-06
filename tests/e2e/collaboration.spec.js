@@ -168,7 +168,7 @@ test('the Ideas board puts the idea with the most interest first', async ({ brow
     const prompt = P.locator('[data-screen-label=Browse] [data-idea-prompt]');
     await expect(prompt).toContainText('Got a “we should…”?');
     await prompt.click();
-    await expect(P.locator('[data-screen-label="New spark"]')).toContainText('1/6');
+    await expect(P.locator('[data-screen-label="New spark"]')).toContainText('1/4');
     expect(poster.errors).toEqual([]);
     expect(fan.errors).toEqual([]);
   } finally {
