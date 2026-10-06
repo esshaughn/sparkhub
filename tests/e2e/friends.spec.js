@@ -68,11 +68,16 @@ test('friends: request, accept, invite to an event, remove, and the friend link'
     const pick = A.getByRole('dialog', { name: 'Invite friends' });
     await aPeople.getByRole('button', { name: 'Invite Gus Friendly to an event', exact: true }).click();
     await expect(pick).toContainText('Invite Gus');
+    // A row picks the event (a radio); the sticky button sends (Design v8 prototype)
+    await expect(pick.locator('[data-invite-send]')).toHaveText('Send invite');
     await pick.locator('[data-invite-event="' + title + '"]').click();
+    await expect(pick.locator('[data-invite-event="' + title + '"]')).toHaveAttribute('aria-checked', 'true');
+    await pick.getByRole('button', { name: 'Invite to ' + title }).click();
     await expect(A.getByText('Invited Gus to ' + title + '.')).toBeVisible();
     // Inviting again skips them quietly
     await aPeople.getByRole('button', { name: 'Invite Gus Friendly to an event', exact: true }).click();
     await pick.locator('[data-invite-event="' + title + '"]').click();
+    await pick.getByRole('button', { name: 'Invite to ' + title }).click();
     await expect(A.getByText('Gus was already invited.')).toBeVisible();
 
     // B hears about it in the bell
@@ -92,7 +97,8 @@ test('friends: request, accept, invite to an event, remove, and the friend link'
     // B taps Fay: the short profile, Remove friend
     await people.locator('[data-friend-row="Fay Friendly"]').click();
     const prof = B.getByRole('dialog', { name: 'Fay Friendly' });
-    await expect(prof).toContainText('Friends since');
+    await expect(prof.locator('[data-person-invite]')).toHaveText('Invite to…');   // a friend gets Invite to… (Design v8 prototype)
+    await expect(prof.locator('[data-person-going]')).toBeVisible();   // FAY IS GOING TO, or Fay isn't going to anything yet
     await prof.getByRole('button', { name: 'Remove friend' }).click();
     await B.getByRole('alertdialog').getByRole('button', { name: 'Remove friend' }).click();
     await expect(B.getByText('Removed Fay')).toBeVisible();
