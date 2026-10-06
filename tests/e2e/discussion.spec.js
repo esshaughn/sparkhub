@@ -1,7 +1,7 @@
 // Discussion on a plan (Design v8-1, 20261105000000_event_comments.sql): the new-updates banner for people coming,
 // comments and replies (folded until opened), the lead's Send an update, and deleting your own comment.
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newLead, postEvent, openIdea, deleteIdea, asUser, confirm } = require('./helpers');
+const { uniqueTitle, newLead, postEvent, openIdea, deleteIdea, asUser, confirm, donePlus } = require('./helpers');
 
 const inDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
 
@@ -34,6 +34,7 @@ test('discussion: the new-update banner, comments, replies, Send an update and d
     await expect(od.getByLabel('Write a comment')).toHaveCount(0);
     await expect(OP.locator('[data-upd-banner]')).toHaveCount(0);
     await OP.locator('[data-rsvp]').getByRole('button', { name: /^Going/ }).click();
+    await donePlus(O);
     await expect(OP.locator('[data-upd-banner]')).toHaveText(/1 new update/);
     await OP.locator('[data-upd-banner]').click();
     await expect(OP.locator('[data-upd-banner]')).toHaveCount(0);   // seen on this device

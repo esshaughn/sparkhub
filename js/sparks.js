@@ -551,7 +551,8 @@
     test: !!row.test,   // a member's test event (chosen when posting): the same DEMO pill, never wiped with the demo content
     planned: !!row.planned, visibility: row.visibility || 'group', guestInvites: row.guest_invites !== false, autoRemind: row.auto_remind !== false, minPeople: row.min_people || null,
     rsvps: (x.rsvps[row.id] || []).map(r => ({ userId: r.user_id, status: r.status, created: Date.parse(r.created_at), attended: r.attended == null ? null : !!r.attended,
-      days: Array.isArray(r.days) ? r.days.slice().sort() : null, maybeDays: Array.isArray(r.maybe_days) ? r.maybe_days.slice().sort() : null })),   // an Each day event's picked days (v8-7)
+      days: Array.isArray(r.days) ? r.days.slice().sort() : null, maybeDays: Array.isArray(r.maybe_days) ? r.maybe_days.slice().sort() : null,   // an Each day event's picked days (v8-7)
+      plus: Math.max(0, Math.min(10, r.plus_count | 0)), plusNote: r.plus_note || '' })),   // people they're bringing (v8-11 6a)
     dateOpts: (x.dateOpts[row.id] || []).map(o => ({ id: o.id, dayDate: o.day_date, dayTime: o.day_time ? String(o.day_time).slice(0, 5) : null, dayPart: o.day_part || null, who: o.who, createdBy: o.created_by, created: Date.parse(o.created_at), votes: (x.dateVotes[o.id] || []).map(v => v.user_id) })),
     spotOpts: (x.spotOpts[row.id] || []).map(o => ({ id: o.id, name: o.name, address: o.address || '', lat: o.lat, lon: o.lon, who: o.who, createdBy: o.created_by, created: Date.parse(o.created_at), votes: (x.spotVotes[o.id] || []).map(v => v.user_id) })),
     ...toSignups((x.signups[row.id] || []).filter(i => !i.kind || i.kind === 'job'), x.claims),
@@ -591,7 +592,8 @@
       sb.from('offers').select('*').order('created_at'),
       sb.from('interests').select('spark_id,user_id,created_at,can_help'),
       sb.from('guest_contacts').select('spark_id,user_id,name,phone'),
-      sb.from('rsvps').select('spark_id,user_id,status,created_at,attended,days,maybe_days')
+      sb.from('rsvps').select('spark_id,user_id,status,created_at,attended,days,maybe_days,plus_count,plus_note')
+        .then(r => r.error && r.error.code === '42703' ? sb.from('rsvps').select('spark_id,user_id,status,created_at,attended,days,maybe_days') : r)   // plus_count: 20261110000000
         .then(r => r.error && r.error.code === '42703' ? sb.from('rsvps').select('spark_id,user_id,status,created_at,attended') : r),   // days: 20261108000000
       sb.from('date_options').select('id,spark_id,day_date,day_time,day_part,who,created_by,created_at')
         .then(r => r.error && r.error.code === '42703' ? sb.from('date_options').select('id,spark_id,day_date,day_time,who,created_by,created_at') : r),   // day_part: 20261107000000
@@ -887,15 +889,74 @@
     if (state.email || !state.guest || !sparkId) return;
     must(await sb.from('guest_contacts').upsert({ spark_id: sparkId, user_id: state.me, name: state.guest.name }, { onConflict: 'spark_id,user_id' }));   // a phone left for Take part stays
   };
-  // After a guest's first Going or Maybe on an event (this visit): what an account adds
-  const guestAsked = new Set();
-  const askGuestToJoin = (s) => {
-    if (state.email || guestAsked.has(s.id)) return;
-    guestAsked.add(s.id);
-    setTimeout(() => { if (!state.email && !state.confirm && !state.loginStep) setState({ confirm: {
-      title: 'You’re on the list', body: 'Make a free account to get a reminder the day before, hear about changes, and sign up to help. Your RSVP comes with you.',
-      cta: 'Create an account', keep: 'Not now', green: true, run: () => { setState({ confirm: null }); openLogin('account'); } } }); }, 900);
+  // Bringing others (Design v8-11, 6a): how many come along (0-10) and, optionally, who. While someone picks, the
+  // numbers live in state.plusN / plusNote per event; otherwise they're the saved reply's
+  const myPlus = (s) => { const r = s.rsvps.find(x => x.userId === state.me); return { n: r ? r.plus || 0 : 0, note: r ? r.plusNote || '' : '' }; };
+  const plusOf = (s) => { const m = myPlus(s), n = (state.plusN || {})[s.id], note = (state.plusNote || {})[s.id]; return { n: n == null ? m.n : n, note: note == null ? m.note : note }; };
+  const setPlus = (id, n) => setState({ plusN: Object.assign({}, state.plusN, { [id]: Math.max(0, Math.min(10, n)) }) });
+  const clearPlus = (id) => ({ plusN: Object.assign({}, state.plusN, { [id]: null }), plusNote: Object.assign({}, state.plusNote, { [id]: null }) });
+  // What a reply saves: only when there's something to say (or to take back), so a database without the columns still takes plain replies
+  const plusFields = (s) => { const p = plusOf(s), was = myPlus(s); return p.n || was.n || p.note ? { plus_count: p.n, plus_note: p.n && p.note.trim() ? p.note.trim().slice(0, 80) : null } : {}; };
+  // The stepper: − count + (32px round buttons). light: the guest sheet's quieter row (no grey box, a wider count)
+  const plusStepper = (s, light) => {
+    const n = plusOf(s).n, btn = (ok) => 'flex:0 0 32px;width:32px;height:32px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;color:' + (ok ? '#0d1117' : '#c4c8d0') + ';display:flex;align-items:center;justify-content:center;cursor:' + (ok ? 'pointer' : 'default');
+    return '<div data-plus-row style="display:flex;align-items:center;gap:' + (light ? '10px;padding:2px 2px 0 4px' : '8px;padding:8px 8px 8px 14px;border-radius:14px;background:#f7f8fa') + ';white-space:nowrap">' +
+      '<span style="flex:1;font-size:' + (light ? '14.5px;font-weight:700;color:#454b55' : '15.5px;font-weight:800;color:#0d1117') + '">Bringing anyone?</span>' +
+      '<div style="display:flex;align-items:center;gap:4px"><span ' + (n > 0 ? on(() => setPlus(s.id, n - 1)) : 'role="button" aria-disabled="true"') + ' aria-label="One less" style="' + btn(n > 0) + '">' + svg(14, stroke('currentColor', 2.8), '<path d="M5 12h14"/>') + '</span>' +
+        '<span data-plus-count style="min-width:' + (light ? '62px;font-size:15px;font-weight:800' : '22px;font-size:16px;font-weight:900') + ';text-align:center;color:#0d1117">' + n + '</span>' +
+        '<span ' + (n < 10 ? on(() => setPlus(s.id, n + 1)) : 'role="button" aria-disabled="true"') + ' aria-label="One more" style="' + btn(n < 10) + '">' + svg(14, stroke('currentColor', 2.8), '<path d="M12 5v14M5 12h14"/>') + '</span></div></div>';
   };
+  // Done on "You're going!": save a changed count, then the usual going banner (or toast)
+  const plusDone = () => {
+    const pp = state.plusPop, s = pp && state.sparks.find(x => x.id === pp.id);
+    if (!s) return setState({ plusPop: null });
+    const p = plusOf(s), was = myPlus(s), note = p.n && p.note.trim() ? p.note.trim().slice(0, 80) : '';
+    setState(Object.assign({ plusPop: null }, clearPlus(s.id)));
+    if (pp.guest) return;
+    if (p.n !== was.n || note !== was.note) {
+      patchSpark(s.id, { rsvps: s.rsvps.map(r => r.userId === state.me ? Object.assign({}, r, { plus: p.n, plusNote: note }) : r) });
+      if (!state.viewAs) {
+        saving(1);
+        quickChain = quickChain.then(async () => {
+          try { must(await sb.from('rsvps').update({ plus_count: p.n, plus_note: note || null }).eq('spark_id', s.id).eq('user_id', state.me)); }
+          catch (e) { console.error(e); toast(failed(e)); }
+          saving(-1); loadFresh().catch(e => console.error(e));
+        });
+      }
+    }
+    if (pp.note) toast(pp.note, true);
+    else if (pp.banner) showBanner({ kind: 'going', id: s.id }, 5000);
+    else toast(p.n ? 'You’re going, plus ' + p.n + '. See you there!' : 'You’re going. See you there!', true);
+  };
+  // "You're going!" (members, after Going) and "You're on the list, {name}!" (guests, after Going or Maybe, once saved): Design v8-11 6a / 2b
+  function viewPlusPop() {
+    const pp = state.plusPop, s = state.sparks.find(x => x.id === pp.id);
+    if (!s) return '';
+    const guest = !!pp.guest, p = plusOf(s), r = s.rsvps.find(x => x.userId === state.me);
+    const chip = (bg, ink, label, ring) => '<span style="display:flex;align-items:center;height:26px;padding:0 10px;border-radius:999px;background:' + bg + ';color:' + ink + ';font-size:13px;font-weight:800' + (ring ? ';box-shadow:inset 0 0 0 1.5px #dcdfe6' : '') + '">' + esc(label) + '</span>';
+    const short = (d) => fmtDay(d);
+    const chips = !guest ? '' : (r && ((r.days && r.days.length) || (r.maybeDays && r.maybeDays.length))
+      ? (r.days || []).map(d => chip('#e7f6ec', '#0f7a3c', 'Going · ' + short(d))).join('') + (r.maybeDays || []).map(d => chip('#fdf1d6', '#8f6405', 'Maybe · ' + short(d))).join('')
+      : r && r.status === 'maybe' ? chip('#fdf1d6', '#8f6405', 'Maybe' + (s.dayDate ? ' · ' + short(s.dayDate) : '')) : chip('#e7f6ec', '#0f7a3c', 'Going' + (s.dayDate ? ' · ' + short(s.dayDate) : ''))) +
+      (r && r.plus ? chip('#fff', '#454b55', 'You + ' + r.plus, true) : '');
+    const first = firstName((state.guest && state.guest.name) || state.myName || '') || 'friend';
+    const change = () => { setState(Object.assign({ plusPop: null }, clearPlus(s.id))); const el = document.querySelector('[data-rsvp]'); if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' }); };
+    const link = (fn, color, icon, label, data) => '<span ' + on(fn) + ' ' + data + ' style="display:flex;align-items:center;gap:5px;min-height:32px;color:' + color + ';cursor:pointer">' + icon + label + '</span>';
+    return '<div class="modal-scrim" data-scrim="' + reg(plusDone) + '" style="z-index:45">' +
+      '<div role="dialog" aria-modal="true" aria-label="' + (guest ? 'You’re on the list' : 'You’re going') + '" data-screen-label="' + (guest ? 'You’re on the list' : 'You’re going pop-up') + '" style="position:relative;width:100%;max-width:360px;box-sizing:border-box;background:#fff;border-radius:22px;padding:20px;display:flex;flex-direction:column;gap:12px;box-shadow:0 20px 50px rgba(13,17,23,.35)">' +
+        '<div style="display:flex;align-items:center;gap:10px"><span style="flex:0 0 30px;width:30px;height:30px;border-radius:50%;background:#149a4b;display:flex;align-items:center;justify-content:center">' + svg(16, stroke('#fff', 3.2), '<path d="M5 12.5 9.5 17 19 7"/>') + '</span>' +
+          '<span style="font-size:20px;font-weight:900;letter-spacing:-.3px;color:#0d1117;text-wrap:pretty">' + (guest ? 'You’re on the list, ' + esc(first) + '!' : 'You’re going!') + '</span></div>' +
+        (guest ? '<div data-plus-summary style="display:flex;flex-direction:column;gap:6px;padding:12px 14px;border-radius:14px;background:#f7f8fa"><span style="font-size:15px;font-weight:800;color:#0d1117">' + esc(s.text) + '</span><div style="display:flex;flex-wrap:wrap;gap:6px">' + chips + '</div></div>'
+          : '<div style="display:flex;flex-direction:column;gap:8px;' + (p.n ? 'padding-bottom:0' : '') + '">' + plusStepper(s) +
+            (p.n ? '<input class="fld" type="text" maxlength="80" aria-label="Who’s coming with you" placeholder="Who’s coming with you? (optional)" value="' + esc(p.note) + '" ' + onInput(e => setState({ plusNote: Object.assign({}, state.plusNote, { [s.id]: e.target.value.slice(0, 80) }) })) +
+              ' style="width:100%;box-sizing:border-box;height:42px;border:0;border-radius:12px;padding:0 12px;background:#fff;box-shadow:inset 0 0 0 1.5px #e3e5ea;font-family:inherit;font-size:16px;font-weight:600;color:#0d1117;outline:none">' : '') + '</div>') +
+        '<button type="button" data-plus-done ' + on(plusDone) + ' style="height:50px;margin-top:2px;border:0;border-radius:999px;background:#149a4b;color:#fff;font-family:inherit;font-size:16px;font-weight:800;cursor:pointer">Done</button>' +
+        '<div style="display:flex;align-items:center;justify-content:center;gap:10px;font-size:14.5px;font-weight:800">' +
+          (guest ? link(() => { setState(Object.assign({ plusPop: null }, clearPlus(s.id))); openLogin('guest', () => {}); }, '#5b4ae8', svg(15, stroke('currentColor', 2.4), '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/>'), 'Get a reminder · Sign in', 'data-plus-signin')
+            : link(() => { plusDone(); setState({ share: { id: s.id, copied: false } }); }, '#1f5fa8', svg(15, stroke('currentColor', 2.4), '<circle cx="9.5" cy="8" r="3.5"/><path d="M3 20a6.5 6.5 0 0 1 13 0"/><path d="M19 8v6M16 11h6"/>'), 'Invite others', 'data-plus-invite')) +
+          '<span style="color:#c4c8d0">·</span><span ' + on(change) + ' style="min-height:32px;display:flex;align-items:center;color:#6b7280;cursor:pointer">Change RSVP</span></div>' +
+      '</div></div>';
+  }
 
   const saveName = async (name, stampEverywhere) => {
     if (state.viewAs) return;   // previewing as someone else: their name isn't ours to change
@@ -1670,6 +1731,8 @@
   const phaseOf = (s) => !s.planned ? 'idea' : (s.dayDate && s.dayDate < todayISO() ? 'done' : 'plan');
   const myRsvp = (s) => { const r = s.rsvps.find(x => x.userId === state.me); return r ? r.status : null; };
   const going = (s) => s.rsvps.filter(r => r.status === 'going');
+  // How many are coming: everyone going plus the people they're bringing (v8-11 6a: going counts include plus-ones)
+  const headN = (s) => going(s).reduce((a, r) => a + 1 + (r.plus || 0), 0);
   // Who came (20261101090000): once the host has checked anyone in, the count is who came, not who said yes
   const checkedIn = (s) => s.rsvps.some(r => r.attended !== null);
   const cameCount = (s) => checkedIn(s) ? s.rsvps.filter(r => r.attended).length : going(s).length;
@@ -1729,11 +1792,18 @@
       if (state.viewAs) return run(async () => {});   // previewing: run() says nothing changes
       const now = state.sparks.find(x => x.id === s.id) || s, before = now.rsvps, partsBefore = now.parts;
       const offSpots = (dropSpots ? spots : []).map(u => u.id), offWaits = waits.map(u => u.id);
-      patchSpark(s.id, Object.assign({ rsvps: before.filter(r => r.userId !== state.me).concat(next ? [{ userId: state.me, status: next, created: Date.now(), days: days.days || null, maybeDays: days.maybe_days || null }] : []) },
+      // A guest picks who they're bringing before the reply (the guest sheet, When will you attend?); a member, after (v8-11)
+      const guest = !state.email, plusF = guest && (next === 'going' || next === 'maybe') ? plusFields(now) : {}, mineWas = myPlus(now);
+      const plusRow = guest ? { plus: plusF.plus_count != null ? plusF.plus_count : mineWas.n, plusNote: plusF.plus_count != null ? plusF.plus_note || '' : mineWas.note } : mineWas.n ? { plus: mineWas.n, plusNote: mineWas.note } : {};
+      patchSpark(s.id, Object.assign({ rsvps: before.filter(r => r.userId !== state.me).concat(next ? [Object.assign({ userId: state.me, status: next, created: Date.now(), days: days.days || null, maybeDays: days.maybe_days || null }, plusRow)] : []) },
         offSpots.length || offWaits.length ? { parts: (partsBefore || []).map(p => Object.assign({}, p, { rows: p.rows.map(u => Object.assign({}, u, {
           claims: offSpots.indexOf(u.id) > -1 ? u.claims.filter(c => c.userId !== state.me) : u.claims, waits: offWaits.indexOf(u.id) > -1 ? u.waits.filter(w => w !== state.me) : u.waits })) })) } : {}));
+      // Going (a member): "You're going!" asks who's coming along first (v8-11 6a); Done brings the banner or toast below.
+      // A guest's Going or Maybe: "You're on the list" once it's saved (2b)
+      if (!guest && next === 'going' && !s.cancelledAt && s.planned) setState(Object.assign({ plusPop: { id: s.id, note: pick ? note : null, banner: !!(s.dayDate && !pick) }, toast: null }, clearPlus(s.id)));
+      else if (guest && (next === 'going' || next === 'maybe') && !s.cancelledAt) {}
       // Going to a dated event: the toast becomes a banner with Add to calendar, so the reminder is set while they're committing
-      if (next === 'going' && s.dayDate && !s.cancelledAt && !pick) showBanner({ kind: 'going', id: s.id }, 5000);
+      else if (next === 'going' && s.dayDate && !s.cancelledAt && !pick) showBanner({ kind: 'going', id: s.id }, 5000);
       else if (note) toast(dropJobs ? 'Thanks for letting ' + lead + ' know. You’re off the list too.' : note, true);
       const mine = ++rsvpQueued;
       saving(1);
@@ -1742,11 +1812,12 @@
           await ensureSession();
           await saveGuestContact(s.id);
           if (!next) must(await sb.from('rsvps').delete().eq('spark_id', s.id).eq('user_id', state.me));
-          else must(await sb.from('rsvps').upsert(Object.assign({ spark_id: s.id, user_id: state.me, status: next }, days), { onConflict: 'spark_id,user_id' }));
+          else must(await sb.from('rsvps').upsert(Object.assign({ spark_id: s.id, user_id: state.me, status: next }, days, plusF), { onConflict: 'spark_id,user_id' }));
           if (dropJobs) must(await sb.from('signup_claims').delete().in('item_id', jobs.map(it => it.id)).eq('user_id', state.me));
           if (offSpots.length) must(await sb.from('signup_claims').delete().in('item_id', offSpots).eq('user_id', state.me));
           if (offWaits.length) must(await sb.from('signup_waits').delete().in('item_id', offWaits).eq('user_id', state.me));
-          if (next === 'going' || next === 'maybe') askGuestToJoin(s);   // only once it's saved (it used to say "You're on the list" over a failed save)
+          // only once it's saved (it used to say "You're on the list" over a failed save)
+          if (guest && (next === 'going' || next === 'maybe') && !s.cancelledAt && !state.loginStep) setState(Object.assign({ plusPop: { id: s.id, guest: true } }, clearPlus(s.id)));
         } catch (e) {
           console.error(e);
           patchSpark(s.id, Object.assign({ rsvps: before }, offSpots.length || offWaits.length ? { parts: partsBefore } : {}));
@@ -2620,7 +2691,7 @@
     const rows = [['#e8a317', 'Plans', 'see what’s coming up and RSVP'], ['#5b4ae8', 'Ideas', 'float one, see who’s up for it'], ['#1f8a4c', 'Pitch in', 'bring something or lend a hand']];
     let card;
     if (next) {
-      const f = signupFill(next), n = going(next).length;
+      const f = signupFill(next), n = headN(next);
       const rsvp = () => { const s = next; leaveWelcome('plan'); if (myRsvp(s) !== 'going') setRsvp(s, 'going'); };
       card = '<div style="margin-top:22px;display:flex;align-items:center;gap:12px;border-radius:22px;padding:16px 18px;color:#fff;background:' +
           (next.photoPaths[0] ? 'linear-gradient(rgba(13,17,23,.5),rgba(13,17,23,.72)),' + photoBg(next) : 'linear-gradient(180deg,#a57a1c,#4a3a1a)') + '">' +
@@ -3455,7 +3526,7 @@
 
   // Leading plans: Going · Maybe · Sign-ups · Invited (v7 Update 15, owner 2026-10-02; Invited replaced Reminder)
   const statsStrip = (s) => {
-    const g = going(s).length, m = maybes(s).length, f = signupFill(s);
+    const g = headN(s), m = maybes(s).length, f = signupFill(s);
     const col = { ok: '#454b55', warn: '#b07a0a', off: '#9aa0ac' };
     const items = [['people', 'Going', String(g), 'ok'], ['maybe', 'Maybe', String(m), 'ok'],
       ['clip', 'Sign-ups', f.counted ? f.filled + '/' + f.needed : '—', !f.counted ? 'off' : f.open <= 0 ? 'ok' : 'warn'],
@@ -3742,7 +3813,7 @@
     const open = !!state.schedOpen[s.id] && P.rows.length > 0;
     const expands = P.rows.length > 0;   // the same on every list (audit, 2026-10-01: the Calendar said "Manage" and opened the event)
     const tap = (e) => { stop(e); if (!expands) openSpark(s); else setState({ schedOpen: Object.assign({}, state.schedOpen, { [s.id]: !open }) }); };
-    const f = signupFill(s), n = going(s).length;
+    const f = signupFill(s), n = headN(s);
     let left, right;
     if (P.k === 'open') {
       left = f.open > 0 ? '<b style="font-weight:800">' + f.open + (f.open === 1 ? ' spot left' : ' spots left') + '</b><span style="font-weight:600;color:#8a909b"> · ' + n + ' going</span>' : '<b style="font-weight:800">' + n + ' going</b>';
@@ -4182,7 +4253,7 @@
     // nothing on the right; Helping shows just the number of your jobs, with the chevron
     const P = (s) => {
       if (kind === 'idea') return { k: 'idea', R: R6.help, word: isLead(s) ? 'Idea' : s.interested.length + ' interested', rows: [], right: 'Take a look' };
-      if (kind === 'done') return { k: 'past', R: R6.open, word: going(s).length + ' went', rows: [], right: '' };
+      if (kind === 'done') return { k: 'past', R: R6.open, word: headN(s) + ' went', rows: [], right: '' };
       const p = partOf(s, true);
       return p.k === 'help' ? Object.assign({}, p, { right: String(myClaims(s).length) }) : p;
     };
@@ -4307,7 +4378,7 @@
     // Three real ones (owner, 2026-09-30): the next thing you're not in, where people are going, where help is needed
     const magic = [
       { icon: 'moon', title: 'Soonest surprise', sub: 'The next thing happening that I’m not in', bg: '#1f2433', ink: '#cfc9ff', pick: pick(() => notMine.slice().sort(byWhen)[0]) },
-      { icon: 'people', title: 'Tag along', sub: 'Where the most people are going', bg: '#fdf1d6', ink: '#8f6405', pick: pick(() => notMine.slice().sort((a, b) => going(b).length - going(a).length)[0]) },
+      { icon: 'people', title: 'Tag along', sub: 'Where the most people are going', bg: '#fdf1d6', ink: '#8f6405', pick: pick(() => notMine.slice().sort((a, b) => headN(b) - headN(a))[0]) },
       { icon: 'cup', title: 'Needs help', sub: 'The soonest event still looking for helpers', bg: '#e7f6ec', ink: '#149a4b', pick: pick(() => pool.filter(s => !s.cancelledAt && signupFill(s).open > 0).sort(byWhen)[0]) }
     ];
     const hint = '<div style="display:flex;flex-direction:column;gap:4px;padding:0 4px">' +
@@ -7146,13 +7217,15 @@
     // the lead also gets Invite people here (the lead tools card and Who's in's people row are gone)
     const hidden = !st.email && !my && !lead;   // a visitor who hasn't replied sees a count, not who
     const rsvpBlock = s.cancelledAt ? '' : '<div data-rsvp style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:12px">' +
-      '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">' + rsvpBtn('going', 'Going', goingIds.length) + rsvpBtn('maybe', 'Maybe', maybeN) + rsvpBtn('no', 'Can’t', noN) + '</div>' +
+      '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">' + rsvpBtn('going', 'Going', headN(s)) + rsvpBtn('maybe', 'Maybe', maybeN) + rsvpBtn('no', 'Can’t', noN) + '</div>' +
       // The faces row always draws (Design v8), See all › opening Who's coming
       // Signed out and no reply yet (short links spec, v8-8): grey circles in five shades, still See all ›, which asks them
       // to RSVP first in the amber toast (Design v8-8 prototype visitorLocked)
-      '<div ' + on(() => hidden ? toast('RSVP to see who’s going', 'soon') : setState({ guestList: s.id })) + ' data-going role="button" aria-label="See everyone going (' + goingIds.length + ')" style="align-self:center;display:flex;align-items:center;gap:10px;min-height:36px;cursor:pointer">' +
-        (goingIds.length ? '<span style="display:flex">' + (hidden ? goingIds.slice(0, 4).map((u, i) => '<span data-grey-face style="width:30px;height:30px;border-radius:999px;background:' + ['#dfe2e8', '#d3d7de', '#c9ccd3', '#bfc3cb', '#b5b9c2'][i % 5] + ';border:2.5px solid #fff;margin-left:' + (i ? -10 : 0) + 'px"></span>').join('') : peopleFaces(goingIds.slice(0, 4), 30, null, false)) + '</span>' : '') +
-        '<span style="font-size:14.5px;font-weight:800;color:#4a3ad4">See all ›</span></div>' +
+      // v8-11: a visitor who hasn't replied gets a quiet grey line with a lock instead (not tappable)
+      (hidden ? '<span data-who-locked style="align-self:center;display:flex;align-items:center;gap:6px;min-height:36px;font-size:14.5px;font-weight:700;color:#6b7280">' + svg(14, stroke('currentColor', 2.4), '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>') + 'RSVP to view guest list</span>' :
+      '<div ' + on(() => setState({ guestList: s.id })) + ' data-going role="button" aria-label="See everyone going (' + headN(s) + ')" style="align-self:center;display:flex;align-items:center;gap:10px;min-height:36px;cursor:pointer">' +
+        (goingIds.length ? '<span style="display:flex">' + peopleFaces(goingIds.slice(0, 4), 30, null, false) + '</span>' : '') +
+        '<span style="font-size:14.5px;font-weight:800;color:#4a3ad4">See all ›</span></div>') +
       // The lead's two buttons (Design 29, option 5d): Invite people solid (the main lead only, Design v8), Post an update outlined under it
       (lead ? '<div style="display:flex;flex-direction:column;gap:8px">' +
         (isTheLead(s) ? '<button type="button" class="hov-primary" ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' style="min-height:48px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:15px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer">' +
@@ -7346,7 +7419,7 @@
   // v6 Update 2: a compact Profile sheet (photo, name, a pencil to edit); Help & info tiles, then Settings
   // ---- Me (v8 11a): the profile and settings page, a tab (it was the Profile sheet)
   // What you've done: led (not ideas), helped (took a job on someone else's event), attended (went, after the day)
-  const guestsGoing = (s) => going(s).filter(r => hostIds(s).indexOf(r.userId) < 0).length;   // not counting the leads
+  const guestsGoing = (s) => going(s).filter(r => hostIds(s).indexOf(r.userId) < 0).reduce((a, r) => a + 1 + (r.plus || 0), 0);   // not counting the leads (their plus-ones count)
   const meStats = () => {
     const live = state.sparks.filter(s => !s.cancelledAt && inMine(s));
     const led = live.filter(s => isLead(s) && s.planned).sort((a, b) => byWhen(b, a));
@@ -9569,6 +9642,12 @@
       { max: 330, z: 48 });   // above the Float sheet (z 37), which can ask for it
   }
 
+  // A guest gives their name once (the guest sheet, or When will you attend?): kept on their profile
+  const becomeGuest = async (raw) => {
+    const name = cleanTitle(raw).slice(0, 30);
+    setState({ guest: { name }, guestName: name, myName: state.myName || name });
+    try { await ensureSession(); must(await sb.from('profiles').upsert({ id: state.me, name }, { onConflict: 'id' })); } catch (e) { console.error(e); }
+  };
   // The guest sheet (Design v8-8 1c): after Going, Maybe or Can't on an event without an account. Making an account is
   // the main path (updates, reminders, names); RSVP without an account just takes a name. No guest emails or texts
   function viewGuest() {
@@ -9577,10 +9656,9 @@
     const close = () => setState({ guestOpen: false, guestThen: null, guestKind: null });
     const submit = async () => {
       if (!ok) return;
-      const name = cleanTitle(st.guestName).slice(0, 30);
       const then = st.guestThen;
-      setState({ guest: { name }, guestOpen: false, guestThen: null, guestKind: null, myName: st.myName || name });
-      try { await ensureSession(); must(await sb.from('profiles').upsert({ id: state.me, name }, { onConflict: 'id' })); } catch (e) { console.error(e); }
+      setState({ guestOpen: false, guestThen: null, guestKind: null });
+      await becomeGuest(st.guestName);
       if (typeof then === 'function') then();
     };
     const after = () => { const fn = st.guestThen; return () => needName(fn || (() => {})); };
@@ -9598,6 +9676,8 @@
         (sub ? '<span style="font-size:15px;font-weight:600;color:#454b55">' + sub + '</span>' : '') + '</div>' +
       '<div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;font-weight:800;letter-spacing:.6px;color:#6b7280">YOUR NAME</span>' +
         '<input class="fld" type="text" maxlength="30" autocomplete="given-name" aria-label="Your name" placeholder="First name is fine" value="' + esc(st.guestName) + '" ' + onInput(e => setState({ guestName: e.target.value.slice(0, 30) })) + ' style="' + FIELD + '"></div>' +
+      // Bringing anyone? (v8-11): the same stepper, quieter, for a Going or Maybe on a plan
+      (kind !== 'no' && s && s.planned && !s.cancelledAt ? plusStepper(s, true) : '') +
       acct +
       '<button type="button" data-enter ' + on(submit) + ' data-guest-rsvp aria-disabled="' + !ok + '" style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 0;border:0;background:transparent;font-family:inherit;cursor:' + (ok ? 'pointer' : 'default') + '">' +
         '<span style="font-size:15px;font-weight:800;color:' + (ok ? '#454b55' : '#9aa0ac') + '">' + (kind === 'no' ? 'Send' : 'RSVP without an account') + '</span>' +
@@ -9705,11 +9785,23 @@
         '<div style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:15.5px;font-weight:900;color:#0d1117">' + esc(fmtDay(r.d)) + '</span>' +
           (dayTimes(r) ? '<span style="font-size:13px;font-weight:600;color:#6b7280">' + esc(dayTimes(r)) + '</span>' : '') + '</div>' +
         chip(v === 'go', ['#149a4b', '#fff'], 'Going', () => setM(r.d, 'go')) + chip(v === 'maybe', ['#f5b428', '#2a1d00'], 'Maybe', () => setM(r.d, 'maybe')) + '</div>'; }).join('');
-    const label = none ? (had ? 'I can’t make it' : 'Pick at least one day') : dayPickLabel(s, pick);
-    const bgc = none ? (had ? '#0d1117' : '#d5d8df') : pick.go.length ? '#149a4b' : '#f5b428';
-    const go = () => { if (none && !had) return; setState({ dayPick: null }); setRsvp(s, 'going', pick); };
-    return popCard('When will you attend?', close, 'When will you attend?', esc(s.text), '<div style="display:flex;flex-direction:column;gap:8px">' + rows + '</div>' +
-      '<button type="button" ' + (none && !had ? 'aria-disabled="true"' : on(go)) + ' data-day-pick-go style="margin-top:4px;min-height:50px;padding:0 14px;border:0;border-radius:999px;background:' + bgc + ';color:' + (!none && !pick.go.length ? '#2a1d00' : '#fff') + ';font-family:inherit;font-size:16px;font-weight:900;cursor:' + (none && !had ? 'default' : 'pointer') + '">' + esc(label) + '</button>', 60);
+    // Signed out (v8-11 1d): YOUR NAME and Bringing anyone? under the days; Add your name, then RSVP as a guest
+    const gst = !state.email && !state.guest, gName = cleanTitle(state.guestName || ''), needName = gst && !none && !gName;
+    const label = gst && !none ? (gName ? 'RSVP as a guest' : 'Add your name') : none ? (had ? 'I can’t make it' : 'Pick at least one day') : dayPickLabel(s, pick);
+    const bgc = needName ? '#d5d8df' : none ? (had ? '#0d1117' : '#d5d8df') : pick.go.length ? '#149a4b' : '#f5b428';
+    const go = async () => {
+      if (none && !had) return;
+      if (needName) return toast('Add your name first');
+      setState({ dayPick: null });
+      if (gst && !none) await becomeGuest(gName);
+      setRsvp(s, 'going', pick);
+    };
+    const guestBits = !gst ? '' : '<div style="display:flex;flex-direction:column;gap:6px;padding-top:4px"><span style="font-size:12px;font-weight:800;letter-spacing:.8px;color:#6b7280">YOUR NAME</span>' +
+        '<input class="fld" type="text" maxlength="30" autocomplete="given-name" aria-label="Your name" placeholder="First name" value="' + esc(state.guestName || '') + '" ' + onInput(e => setState({ guestName: e.target.value.slice(0, 30) })) + ' style="' + FIELD + '"></div>' +
+      plusStepper(s);
+    return popCard('When will you attend?', close, 'When will you attend?', esc(s.text), '<div style="display:flex;flex-direction:column;gap:8px">' + rows + '</div>' + guestBits +
+      '<button type="button" ' + (none && !had ? 'aria-disabled="true"' : on(go)) + ' data-day-pick-go style="margin-top:4px;min-height:50px;padding:0 14px;border:0;border-radius:999px;background:' + bgc + ';color:' + (!needName && !none && !pick.go.length ? '#2a1d00' : '#fff') + ';font-family:inherit;font-size:16px;font-weight:900;cursor:' + (none && !had ? 'default' : 'pointer') + '">' + esc(label) + '</button>' +
+      (gst ? '<span style="align-self:center;padding:2px 0;font-size:14px;font-weight:700;color:#6b7280">Have an account? <span ' + on(() => { setState({ dayPick: null }); openLogin('guest', () => {}); }) + ' style="color:#5b4ae8;font-weight:800;cursor:pointer">Sign in</span></span>' : ''), 60);
   }
   // icon: a tile above the title; x: a × close; soft: the action is a pink outline and Keep the purple button (Leave group)
   function viewConfirm() {
@@ -9917,20 +10009,23 @@
     // Take part (v8-2): someone's spots after their name ("Court time 8:30pm", "Beginner clinic")
     const spotsOf = (u) => [].concat(...(s.parts || []).map(p => p.rows.filter(x => x.claims.some(c => c.userId === u)).map(x => p.kind === 'time' && x.time ? p.item + ' ' + slotTime(x.time) : p.item))).join(', ');
     const row = (u, i) => {
-      const c = lead && s.contacts.find(x => x.user_id === u), name = u === state.me ? 'You' : personName(s, u);
+      const c = lead && s.contacts.find(x => x.user_id === u), name = u === state.me ? 'You' : personName(s, u), rv = s.rsvps.find(r => r.userId === u);
       // Tap someone for their profile (guests without an account have none)
       // A member's view: 36px faces in 54px rows, and on the right "Lead · {spot}" in grey (Design v8-8 prototype whoRows)
       const sub = lead ? '' : [u === s.leadId ? 'Lead' : '', spotsOf(u)].filter(Boolean).join(' · ');
       return '<div data-guest ' + (c ? '' : on(() => openPerson(u)) + ' aria-label="' + esc(name) + ', see profile" ') + 'style="display:flex;align-items:center;gap:12px;min-height:' + (lead ? 50 : 54) + 'px;border-top:' + (i ? '1px solid #f2f3f6' : '0') + (c ? '' : ';cursor:pointer') + '">' +
         face(u, name, lead ? 32 : 36, null) +
         '<span style="flex:1 1 auto;min-width:0;font-size:' + (lead ? 15.5 : 16) + 'px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(name) +
+          // who they're bringing (v8-11 6a): "+2", and for the hosts what they wrote ("my kids")
+          (rv && rv.plus && rv.status !== 'no' ? '<span data-plus-tag style="font-weight:800;color:#0f7a3c"> +' + rv.plus + '</span>' + (lead && rv.plusNote ? '<span style="font-weight:600;color:#6b7280"> · ' + esc(rv.plusNote) + '</span>' : '') : '') +
           (lead && spotsOf(u) ? '<span data-guest-spot style="font-weight:600;color:#6b7280"> · ' + esc(spotsOf(u)) + '</span>' : '') + '</span>' +
         (sub ? '<span data-guest-sub style="flex:0 1 auto;min-width:0;font-size:13px;font-weight:700;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(sub) + '</span>' : '') +
         // Each day events (v8-7 item 6): a small green tag with their days ("Both days", "Sat", "Sat · Maybe Sun")
         (s.daysEach && daysTag(s, rsvpDays(s, u)) ? '<span data-day-tag style="flex:0 0 auto;padding:3px 9px;border-radius:999px;background:#e6f5ec;font-size:12px;font-weight:800;color:#0f6b35;white-space:nowrap">' + esc(daysTag(s, rsvpDays(s, u))) + '</span>' : '') +
         (c && c.phone ? '<a href="tel:' + esc(c.phone.replace(/[^\d+]/g, '')) + '" style="flex:0 0 auto;font-size:14px;font-weight:800;color:#5b4ae8">' + esc(c.phone) + '</a>' : c ? '<span style="flex:0 0 auto;padding:3px 9px;border-radius:999px;background:#f2f3f6;font-size:12px;font-weight:800;color:#6b7280">Guest</span>' : '') + '</div>';
     };
-    const section = (k, label, ink, ids, rowFn) => !ids.length ? '' : '<div data-guest-part="' + k + '" style="display:flex;flex-direction:column;gap:2px"><span style="font-size:12px;font-weight:900;letter-spacing:1px;color:' + ink + '">' + label + ' · ' + ids.length + '</span>' +
+    // GOING · N counts the people they're bringing too (v8-11)
+    const section = (k, label, ink, ids, rowFn) => !ids.length ? '' : '<div data-guest-part="' + k + '" style="display:flex;flex-direction:column;gap:2px"><span style="font-size:12px;font-weight:900;letter-spacing:1px;color:' + ink + '">' + label + ' · ' + (k === 'going' ? headN(s) : ids.length) + '</span>' +
       '<div style="display:flex;flex-direction:column">' + ids.map(rowFn).join('') + '</div></div>';
     const part = (k, label, ink) => section(k, label, ink, s.rsvps.filter(r => r.status === k).map(r => r.userId), row);
     // Haven't replied (v7 Update 15, owner 2026-10-02): the people invited who haven't answered, each with a Nudge
@@ -10128,6 +10223,7 @@
       (st.voteAll ? viewVoteAll() : '') +
       (st.interestList && subj ? viewInterestList(subj) : '') +
       (st.guestList && subj && st.guestList === subj.id ? viewGuestList(subj) : '') +
+      (st.plusPop ? viewPlusPop() : '') +
       (st.leadsSheet ? viewLeadsSheet() : '') +
       (st.jobAsk ? viewJobAsk() : '') +
       (st.handOff ? viewHandOff() : '') +

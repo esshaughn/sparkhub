@@ -111,10 +111,9 @@ test('a signed-out visitor sees the event only, and names once they RSVP', async
     await V.goto('/#/idea/' + id);
     const P = V.locator('[data-screen-label="Plan page"]');
     await expect(P).toBeVisible();
-    await expect(P.locator('[data-going]')).toContainText('See all ›');
-    await expect(P.locator('[data-grey-face]')).toHaveCount(1);
-    await P.locator('[data-going]').click();
-    await expect(V.getByRole('status')).toContainText('RSVP to see who’s going');
+    // v8-11: no faces or See all for a visitor who hasn't replied, just the locked line
+    await expect(P.locator('[data-who-locked]')).toHaveText('RSVP to view guest list');
+    await expect(P.locator('[data-going]')).toHaveCount(0);
     await expect(P.locator('[data-lead-names]')).toHaveText('Lena');
     await expect(P).not.toContainText('Visibility');
     await expect(P).not.toContainText('Torrez Fitness');
@@ -127,7 +126,8 @@ test('a signed-out visitor sees the event only, and names once they RSVP', async
     await expect(d.locator('[data-guest-rsvp]')).toContainText('No updates or reminders. Only the lead sees your name.');
     await d.getByLabel('Your name').fill('Jo');
     await d.locator('[data-guest-rsvp]').click();
-    await expect(P.locator('[data-grey-face]')).toHaveCount(0);
+    await V.getByRole('dialog', { name: 'You’re on the list' }).locator('[data-plus-done]').click();
+    await expect(P.locator('[data-who-locked]')).toHaveCount(0);
     await expect(P.locator('[data-going]')).toContainText('See all');
     expect(visitor.errors).toEqual([]);
   } finally {

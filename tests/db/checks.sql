@@ -379,6 +379,11 @@ select t.must_refuse('moving your reply to an invite-only event', format($$updat
 select t.must_refuse('marking yourself as came', format($$select public.mark_attended(%L, %L, true)$$, t.id('came_walk'), t.id('taker')));
 select t.must_allow('changing your answer', format($$update rsvps set status = 'maybe' where spark_id = %L$$, t.id('came_walk')));
 select t.must_allow('re-saving your reply the way an upsert does (spark_id and user_id unchanged)', format($$insert into rsvps (spark_id, user_id, status) values (%L, %L, 'going') on conflict (spark_id, user_id) do update set spark_id = excluded.spark_id, user_id = excluded.user_id, status = excluded.status$$, t.id('came_walk'), t.id('taker')));
+-- Bringing others (20261110000000_plus_ones.sql)
+select t.must_allow('saying you''re bringing two', format($$update rsvps set plus_count = 2, plus_note = 'My kids' where spark_id = %L$$, t.id('came_walk')));
+select t.must_refuse('bringing more than ten', format($$update rsvps set plus_count = 11 where spark_id = %L$$, t.id('came_walk')));
+select t.must_refuse('a who-is-coming line over 80 characters', format($$update rsvps set plus_note = repeat('x', 81) where spark_id = %L$$, t.id('came_walk')));
+select t.check('and load_all carries them', public.load_all() -> 'rsvps' @> jsonb_build_array(jsonb_build_object('spark_id', t.id('came_walk'), 'plus_count', 2, 'plus_note', 'My kids')));
 select t.must_refuse('taking the lead of an idea that isn''t looking for a host', format($$select public.take_the_lead(%L)$$, t.id('host_idea')));
 select t.must_refuse('saying someone else''s idea is looking for a host', format($$select public.set_wants_host(%L, true)$$, t.id('host_idea')));
 select t.must_refuse('flipping wants_host directly', format($$update sparks set wants_host = true where id = %L$$, t.id('host_idea')));

@@ -232,6 +232,13 @@ async function answerGuestPrompt(page, name) {
   await expect(d).toBeHidden();
 }
 
+// A member's Going opens "You're going!" with Bringing anyone? (Design v8-11 6a); Done closes it (and brings the banner)
+async function donePlus(page) {
+  const d = page.getByRole('dialog', { name: 'You’re going' });
+  await d.locator('[data-plus-done]').click();
+  await expect(d).toHaveCount(0);
+}
+
 function ideaIdFromUrl(page) {
   const m = page.url().match(/#\/idea\/([0-9a-f-]{36})$/);
   if (!m) throw new Error('Not on an idea page: ' + page.url());
@@ -387,5 +394,5 @@ async function asUser(page, fn, args) {
 
 module.exports = {
   TAG, TORREZ, PNG, leadEmail, uniqueTitle, startPost, startFloat, openTasks, openAllGroups, openProfile, saved, pickView, mockPlaces, stubPhotos, trackErrors, expectConnected, newMember, newLead, button,
-  postIdea, postEvent, closeAskFirst, pickDate, pickTime, timeBox, pickKind, addJob, answerNamePrompt, answerGuestPrompt, ideaIdFromUrl, openIdea, confirm, deleteIdea, asUser
+  postIdea, postEvent, closeAskFirst, pickDate, pickTime, timeBox, pickKind, addJob, answerNamePrompt, answerGuestPrompt, donePlus, ideaIdFromUrl, openIdea, confirm, deleteIdea, asUser
 };

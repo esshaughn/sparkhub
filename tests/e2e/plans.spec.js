@@ -1,7 +1,7 @@
 // V5 plans: RSVPs (going / maybe / can't) from a guest with the link, sign-ups, updates from
 // the host, a date change that tells everyone going, "it happened" with its album, and private plans.
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newMember, newLead, button, postEvent, openIdea, deleteIdea, answerGuestPrompt, confirm, asUser, postIdea, PNG, pickDate, pickTime, timeBox, openAllGroups } = require('./helpers');
+const { uniqueTitle, newMember, newLead, button, postEvent, openIdea, deleteIdea, answerGuestPrompt, donePlus, confirm, asUser, postIdea, PNG, pickDate, pickTime, timeBox, openAllGroups } = require('./helpers');
 
 // Local dates, like the app (toISOString would be UTC, a day ahead in the evening)
 const inDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
@@ -28,6 +28,7 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     await mine.getByRole('button', { name: /^Maybe/ }).click();
     await expect(mine.getByRole('button', { name: /^Maybe/ })).toHaveAttribute('aria-pressed', 'true');
     await mine.getByRole('button', { name: /^Going/ }).click();
+    await donePlus(H);
     await expect(mine.getByRole('button', { name: /^Going/ })).toHaveAttribute('aria-pressed', 'true');
     await expect(HP.getByRole('button', { name: /Invite people/ })).toBeVisible();
     await expect(HP).not.toContainText('Remind everyone the day before');      // retired in Update 6
@@ -57,6 +58,14 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     await expect(GP).not.toContainText('Before the day');                     // just for the host
     const rsvp = (k) => GP.locator('[data-rsvp]').getByRole('button', { name: new RegExp('^' + k) });
     await rsvp('Going').click();
+    // You're going! (Design v8-11 6a): Bringing anyone? with a stepper, and who once it's above 0; Done brings the banner
+    const plusPop = G.getByRole('dialog', { name: 'You’re going' });
+    await expect(plusPop.getByLabel('Who’s coming with you')).toHaveCount(0);
+    await plusPop.getByRole('button', { name: 'One more' }).click();
+    await expect(plusPop.locator('[data-plus-count]')).toHaveText('1');
+    await plusPop.getByLabel('Who’s coming with you').fill('My sister');
+    await plusPop.locator('[data-plus-done]').click();
+    await expect(plusPop).toHaveCount(0);
     await expect(G.getByText('You’re going. See you there!')).toBeVisible();
     // A dated event: the banner offers Add to calendar right away (research review, 2026-10-01)
     const calDownload = G.waitForEvent('download');
@@ -66,13 +75,15 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     await expect(GP.locator('[data-guest-nudge]')).toHaveCount(0);
     // v6 Update 5: three buttons with counts; the pick is filled; tapping it again clears it
     await expect(rsvp('Going')).toHaveAttribute('aria-pressed', 'true');
-    await expect(rsvp('Going')).toContainText('2');
+    await expect(rsvp('Going')).toContainText('3');   // Hope, Gus and the one he's bringing
+    await expect.poll(() => asUser(G, async (c, _C, id) => (await c.from('rsvps').select('plus_count, plus_note').eq('spark_id', id).eq('user_id', (await c.auth.getUser()).data.user.id).single()).data, id)).toEqual({ plus_count: 1, plus_note: 'My sister' });
     await rsvp('Maybe').click();
     await expect(G.getByText('Marked as maybe')).toBeVisible();
     await expect(rsvp('Maybe')).toHaveAttribute('aria-pressed', 'true');
     await rsvp('Maybe').click();
     await expect(rsvp('Maybe')).toHaveAttribute('aria-pressed', 'false');
     await rsvp('Going').click();
+    await donePlus(G);
     await expect(rsvp('Going')).toHaveAttribute('aria-pressed', 'true');
     await expect(GP.locator('[data-helping-bar]')).toHaveCount(0);
     // Signing up is one tap, then "You're on it" (no RSVP question)
@@ -111,12 +122,16 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     const VP = V.locator('[data-screen-label="Plan page"]');
     const vRsvp = (k) => VP.locator('[data-rsvp]').getByRole('button', { name: new RegExp('^' + k) });
     await vRsvp('Going').click();
+    // The guest sheet has the same Bringing anyone? stepper (v8-11)
+    await V.getByRole('dialog', { name: 'RSVP as a guest' }).getByRole('button', { name: 'One more' }).click();
     await answerGuestPrompt(V, 'Vic');
-    await expect(V.getByText('You’re going. See you there!')).toBeVisible();
-    const join = V.getByRole('alertdialog');
-    await expect(join).toContainText('You’re on the list');
-    await expect(join.getByRole('button', { name: 'Create an account' })).toBeVisible();
-    await join.getByRole('button', { name: 'Not now' }).click();
+    // Then You're on the list, Vic! (2b): the event, Going · {date} and You + 1, Done, Get a reminder · Sign in
+    const join = V.getByRole('dialog', { name: 'You’re on the list' });
+    await expect(join).toContainText('You’re on the list, Vic!');
+    await expect(join.locator('[data-plus-summary]')).toContainText('Going ·');
+    await expect(join.locator('[data-plus-summary]')).toContainText('You + 1');
+    await expect(join.locator('[data-plus-signin]')).toContainText('Get a reminder · Sign in');
+    await join.locator('[data-plus-done]').click();
     await expect(join).toHaveCount(0);
     // No reminders without an account, so the page offers one; and no tab bar (it only led to sign-in)
     await expect(VP.locator('[data-guest-nudge]')).toContainText('Want a reminder?');
@@ -135,7 +150,7 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     await expect(H.locator('html[data-loaded=true]')).toHaveCount(1);
     await HP.locator('[data-going]').click();
     const list2 = H.getByRole('dialog', { name: 'Who’s coming' });
-    await expect(list2.locator('[data-guest-part="going"]')).toContainText('Vic');
+    await expect(list2.locator('[data-guest-part="going"]')).toContainText('Vic +1');   // who they're bringing (v8-11)
     await expect(list2.locator('[data-guest-part="going"]')).toContainText('Guest');
     await list2.getByRole('button', { name: 'Close' }).click();
     // The guest takes it back, so the counts below are the member's
@@ -417,6 +432,7 @@ test('RSVP buttons change as soon as they are tapped (the save follows), and go 
     await M.route('**/rest/v1/rsvps*', async (route) => { if (route.request().method() !== 'GET') await gate; await route.continue().catch(() => {}); });
     await rsvp.getByRole('button', { name: /^Going/ }).click();
     await expect(rsvp.getByRole('button', { name: /^Going/ })).toHaveAttribute('aria-pressed', 'true', { timeout: 1000 });
+    await donePlus(M);
     release();
     await M.unroute('**/rest/v1/rsvps*');
     await expect.poll(() => asUser(H, async (c, _C, id) => (await c.from('rsvps').select('status').eq('spark_id', id)).data.map(r => r.status), id)).toEqual(['going', 'going']);

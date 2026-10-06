@@ -3,7 +3,7 @@
 // will you attend?, a job on one day (WHICH DAY) that adds that day to your RSVP, Who's coming's day tags, and a
 // recurring event set from the event's Edit.
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newLead, startPost, pickDate, timeBox, closeAskFirst, ideaIdFromUrl, openIdea, deleteIdea, asUser } = require('./helpers');
+const { uniqueTitle, newLead, startPost, pickDate, timeBox, closeAskFirst, ideaIdFromUrl, openIdea, deleteIdea, asUser, donePlus, newMember } = require('./helpers');
 
 const inDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
 const wk = (iso, long) => new Date(iso + 'T12:00').toLocaleDateString('en-US', { weekday: long ? 'long' : 'short' });
@@ -92,6 +92,7 @@ test('multi-day: separate days, each-day RSVP, a job on one day, and a weekly ev
     await expect(pick.locator('[data-day-pick-go]')).toHaveText('Going ' + wk(d1) + ' · Maybe ' + wk(d2));
     await pick.locator('[data-day-pick-go]').click();
     await expect(pick).toHaveCount(0);
+    await donePlus(M);   // You're going! (v8-11), then the days toast
     await expect(MP.locator('[data-my-days]')).toContainText('You’re going ' + wk(d1) + ' · maybe ' + wk(d2));
     // Holding the Day 2 job adds Day 2 to the RSVP
     await MP.locator('[data-signup="Pack up leftovers"]').getByRole('button', { name: 'Sign up' }).click();
@@ -99,6 +100,28 @@ test('multi-day: separate days, each-day RSVP, a job on one day, and a weekly ev
     await expect(MP.locator('[data-my-days]')).toContainText('You’re going both days');
     const reply = await asUser(M, async (c, _C, id) => (await c.from('rsvps').select('status, days, maybe_days').eq('spark_id', id).eq('user_id', (await c.auth.getUser()).data.user.id).single()).data, id);
     expect(reply).toEqual({ status: 'going', days: [d1, d2], maybe_days: [] });
+
+    // A guest (signed out, v8-11 1d + 2b): When will you attend? asks for a name and Bringing anyone?, then You're on the list
+    const visitor = await newMember(browser);
+    try {
+      const V = visitor.page;
+      await V.goto('/#/idea/' + id);
+      await V.locator('[data-screen-label="Plan page"] [data-rsvp]').getByRole('button', { name: /^Going/ }).click();
+      const gp = V.getByRole('dialog', { name: 'When will you attend?' });
+      await gp.locator('[data-day-card="' + d1 + '"]').getByRole('button', { name: 'Going' }).click();
+      await expect(gp.locator('[data-day-pick-go]')).toHaveText('Add your name');
+      await expect(gp).toContainText('Have an account? Sign in');
+      await gp.getByLabel('Your name').fill('Gia');
+      await gp.getByRole('button', { name: 'One more' }).click();
+      await expect(gp.locator('[data-day-pick-go]')).toHaveText('RSVP as a guest');
+      await gp.locator('[data-day-pick-go]').click();
+      const listed = V.getByRole('dialog', { name: 'You’re on the list' });
+      await expect(listed).toContainText('You’re on the list, Gia!');
+      await expect(listed.locator('[data-plus-summary]')).toContainText('Going · ' + wk(d1, true).slice(0, 3));
+      await expect(listed.locator('[data-plus-summary]')).toContainText('You + 1');
+      await listed.locator('[data-plus-done]').click();
+      await expect(listed).toHaveCount(0);
+    } finally { await visitor.context.close(); }
 
     // Who's coming: the member's day tag
     await H.reload();
