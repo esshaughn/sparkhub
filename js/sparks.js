@@ -1564,7 +1564,8 @@
         onInput(e => { if (e.type === 'input') set({ notes: Object.assign({}, state.jobAsk.notes, { [p.id]: e.target.value.slice(0, 170) }) }); }) + ' style="' + FIELD + ';display:block;height:auto;min-height:0;margin:0 0 10px 46px;width:calc(100% - 46px);padding:10px 14px;font-size:15px;line-height:1.4;resize:none">' + esc(notes[p.id] || '') + '</textarea>';
     return modal('Ask someone to take it', close,
       h3Html('<span style="font-weight:500;letter-spacing:-.3px">Ask someone to take </span>“' + esc(j.item) + '”') +
-      paraHtml(slots === 2 ? 'Ask up to 2 people. Add a note if you like.' : slots === 1 ? 'One ask is waiting, so you can ask 1 more.' : 'Two asks are waiting. Wait for an answer, or withdraw one.') +
+      // (Design v8-8 prototype askSub)
+      paraHtml(slots === 2 ? 'Ask up to 2 people. Add a note if you like.' : slots === 1 ? 'Ask one more. Add a note if you like.' : 'That’s two waiting. Withdraw one to ask someone else.') +
       // Who's been asked, with Withdraw while they haven't answered (Design v8-3 placed the way in, HANDOFF §4)
       (asked.length ? '<div data-asked-box style="display:flex;flex-direction:column;gap:2px;padding:4px 14px;border-radius:18px;background:#f2f3f6">' + asked.map((a, i) =>
         '<div style="display:flex;flex-direction:column;border-top:' + (i ? '1px solid #dcdfe6' : '0') + '"><div style="display:flex;align-items:center;gap:12px;min-height:54px">' + face(a.userId, nameOf(a.userId), 40) +
@@ -1576,8 +1577,9 @@
       (ja.people === null ? paraHtml('Loading…') : !list.length ? paraHtml(q ? 'Nobody by that name.' : 'No one else to ask yet.') :
         '<div style="display:flex;flex-direction:column;max-height:46vh;overflow:auto">' + list.map((p, i) =>
           '<div data-job-ask-row="' + esc(p.name) + '" style="border-top:' + (i ? '1px solid #f2f3f6' : '0') + '"><div style="display:flex;align-items:center;gap:12px;min-height:54px">' +
-            face(p.id, p.name, 34) + '<span style="flex:1;min-width:0;font-size:15px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(p.name) + '</span>' + right(p) + '</div>' + noteFld(p) + '</div>').join('') + '</div>') +
-      (slots ? '<button type="button" data-send-asks ' + (n ? on(() => sendJobAsks(s, j.id)) : 'aria-disabled="true"') + ' style="width:100%;min-height:52px;border:0;border-radius:999px;background:' + (n ? '#5b4ae8' : '#d5d8df') + ';color:#fff;font-family:inherit;font-size:16px;font-weight:800;cursor:' + (n ? 'pointer' : 'default') + '">' + (n ? 'Send asks · ' + n : 'Send asks') + '</button>' : ''));
+            face(p.id, p.name, 40) + '<span style="flex:1;min-width:0;font-size:15px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(p.name) + '</span>' + right(p) + '</div>' + noteFld(p) + '</div>').join('') + '</div>') +
+      // Send asks always shows, greyed until someone is ticked (with no slots left nobody can be) (Design v8-8 prototype askHasSend)
+      '<button type="button" data-send-asks ' + (n && slots ? on(() => sendJobAsks(s, j.id)) : 'aria-disabled="true"') + ' style="width:100%;min-height:54px;border:0;border-radius:999px;background:' + (n && slots ? '#5b4ae8' : '#e2e4e9') + ';color:' + (n && slots ? '#fff' : '#9aa0ac') + ';font-family:inherit;font-size:16px;font-weight:800;cursor:' + (n && slots ? 'pointer' : 'default') + '">' + (n ? 'Send asks · ' + n : 'Send asks') + '</button>');
   }
   // Hand the lead to someone: they lead it once they say yes; you stay on as a co-lead. One open offer at a time
   const openHandOff = (s) => {
@@ -5607,11 +5609,11 @@
   // The idea / plan / happened page, by phase
   // A cancelled event stays up so people see it (owner, 2026-09-30): what happened, and for the host, Delete
   const cancelledCard = (s) => !s.cancelledAt ? '' :
-    // Design v8: an 18px title, the reason as {Lead}: “reason”, the time on its own 13px line
+    // Design v8: an 18px title, the reason as {Lead's full name}: “reason” (Design v8-8 prototype cancelLine), the time on its own 13px line
     '<div data-cancelled-card style="border-radius:20px;background:#fdeef0;box-shadow:inset 0 0 0 1.5px #f5c2cb;padding:16px 18px;display:flex;flex-direction:column;gap:6px">' +
       '<div style="font-size:18px;font-weight:900;letter-spacing:-.3px;color:#9b1c31">This ' + (s.planned ? 'event' : 'idea') + ' is cancelled</div>' +
       '<div style="font-size:15px;line-height:1.4;font-weight:600;color:#5c2430;text-wrap:pretty">' +
-        (s.cancelReason ? esc(firstName(nameOf(s.leadId, s.leadName)) || 'The lead') + ': “' + esc(s.cancelReason) + '”' : 'It was called off.') + '</div>' +
+        (s.cancelReason ? esc(nameOf(s.leadId, s.leadName) || 'The lead') + ': “' + esc(s.cancelReason) + '”' : 'It was called off.') + '</div>' +
       '<div style="font-size:13px;font-weight:600;color:#9b4a58">' + esc(ago(s.cancelledAt)) + '</div>' +
       (canTakeDown(s) ? '<div style="margin-top:4px;font-size:13.5px;line-height:1.4;font-weight:600;color:#5c2430">It stays up so everyone sees it. Delete it whenever you like (that tells no one).</div>' : '') +
     '</div>';
@@ -5901,13 +5903,15 @@
         : '<span ' + on(claim) + ' data-part-claim role="button" style="' + pill + 'background:#149a4b;color:#fff">Claim</span>';
       const who = lead && (ids.length || u.waits.length) ? '<span data-part-names style="font-size:13px;line-height:1.35;font-weight:600;color:#6b7280">' +
         esc(ids.map(id => firstName(personName(s, id))).join(', ')) + (u.waits.length ? (ids.length ? ' · ' : '') + 'Waiting: ' + esc(u.waits.map(id => firstName(personName(s, id))).join(', ')) : '') + '</span>' : '';
-      const top = single ? '' : '<span style="font-size:14.5px;font-weight:800;color:' + (mine ? '#0f7a3c' : '#0d1117') + '">' + esc(u.time ? slotTime(u.time) : p.item) + (mine ? ' · You’re in' : '') + '</span>';
+      // A single spot is a grey row too, its button on the right and You're in as its label (Design v8-8 prototype partVals)
+      const top = single ? (mine ? '<span style="font-size:14.5px;font-weight:800;color:#0f7a3c">You’re in</span>' : '')
+        : '<span style="font-size:14.5px;font-weight:800;color:' + (mine ? '#0f7a3c' : '#0d1117') + '">' + esc(u.time ? slotTime(u.time) : p.item) + (mine ? ' · You’re in' : '') + '</span>';
       const inner = (top ? top : '') +
         '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;min-width:0">' + seats(u, canClaim, claim) + count + '</div>' + who;
-      const box = single ? 'padding:0' : 'padding:10px 12px;border-radius:14px;' + (mine ? 'background:#f3fbf6;box-shadow:inset 0 0 0 1.5px #b9e3c8' : 'background:#f7f8fa');
+      const box = 'padding:8px 8px 8px 12px;border-radius:14px;' + (mine ? 'background:#f3fbf6;box-shadow:inset 0 0 0 1.5px #b9e3c8' : 'background:#f7f8fa');
       return '<div data-part-row="' + esc(u.time ? slotTime(u.time) : p.item) + '"' + (mine ? ' data-mine' : '') + (wpos > -1 ? ' data-waiting' : '') + (lead ? ' ' + on(() => setState({ partRoster: { id: s.id, part: p.id } })) : '') +
         ' style="display:flex;align-items:center;gap:10px;' + box + (lead ? ';cursor:pointer' : '') + '">' +
-        '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px">' + inner + '</div>' + (single ? '' : btn) + '</div>';
+        '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px">' + inner + '</div>' + btn + '</div>';
     };
     const card = (p) => {
       const single = p.kind !== 'time', u0 = p.rows[0], more = !!st.partMore[p.id];
@@ -5915,26 +5919,19 @@
       const sub = (p.kind === 'time' ? p.rows.length + (p.rows.length === 1 ? ' time' : ' times') + ' · ' + each
         : (p.time ? slotTime(p.time) + ' · ' : '') + (p.need || 0) + ' ' + (p.kind === 'seat' ? (p.need === 1 ? 'seat' : 'seats') : (p.need === 1 ? 'spot' : 'spots'))) +
         (p.perPerson ? ' · up to ' + p.perPerson + ' per person' : '');
-      const mineSingle = single && u0.claims.some(c => c.userId === st.me);
       const shown = single || more || p.rows.length <= 3 ? p.rows : p.rows.slice(0, 3);
       const anyOpen = p.rows.some(u => !u.need || u.claims.length < u.need);
-      // A seat's (or any single spot's) button sits on its title line, like a job's
-      const btnFor = (u) => { const ids = u.claims.map(c => c.userId), mine = ids.indexOf(st.me) > -1, w = u.waits.indexOf(st.me) > -1, full = !!u.need && ids.length >= u.need;
-        if (!live || lead) return '';
-        if (mine) return textBtn('Give up', () => giveUpPart(s, u), 'data-part-give-up');
-        if (w) return textBtn('Leave', () => leaveWait(s, u), 'data-part-leave');
-        if (full) return p.waitlist ? '<span ' + on(() => joinWait(s, u)) + ' data-part-waitlist-btn role="button" style="' + pill + 'background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;color:#0d1117">Waitlist</span>' : '<span aria-disabled="true" style="' + pill + 'cursor:default;background:#eef0f3;color:#8a909b">Full</span>';
-        return '<span ' + on(() => { if (!st.busy) claimPart(s, u); }) + ' data-part-claim role="button" style="' + pill + 'background:#149a4b;color:#fff">Claim</span>'; };
+      // A single spot's button sits in its grey row, not on the title line (Design v8-8 prototype partVals)
       const head = '<div style="display:flex;align-items:flex-start;gap:10px"><div style="flex:1;min-width:0">' +
-          '<div style="font-size:18px;line-height:1.25;font-weight:900;letter-spacing:-.3px;color:' + (mineSingle ? '#0f7a3c' : '#0d1117') + ';text-wrap:pretty">' + esc(p.item) + (mineSingle ? '<span style="font-size:14px;font-weight:800"> · You’re in</span>' : '') + '</div>' +
+          '<div style="font-size:18px;line-height:1.25;font-weight:900;letter-spacing:-.3px;color:#0d1117;text-wrap:pretty">' + esc(p.item) + '</div>' +
           '<div style="margin-top:2px;font-size:13.5px;font-weight:600;color:#6b7280">' + esc(sub) + '</div></div>' +
         (lead && live ? '<span ' + on(() => openNeeds(s)) + ' data-edit-parts aria-label="Edit ' + esc(p.item) + '" style="flex:0 0 32px;width:32px;height:32px;margin:-4px -6px 0 0;display:flex;align-items:center;justify-content:center;color:#9aa0ac;cursor:pointer">' + svg(15, stroke('currentColor', 2.3), PENCIL) + '</span>'
-          : single ? '<div style="flex:0 0 auto;margin:-4px 0">' + btnFor(u0) + '</div>' : '') + '</div>';
+          : '') + '</div>';
       const desc = p.desc ? '<p style="margin:0;font-size:14.5px;line-height:1.45;font-weight:500;color:#454b55;text-wrap:pretty">' + esc(p.desc) + '</p>' : '';
       const toggle = !single && p.rows.length > 3 ? '<span ' + on(() => setState({ partMore: Object.assign({}, st.partMore, { [p.id]: !more }) })) + ' role="button" aria-expanded="' + more + '" data-part-more style="align-self:center;min-height:32px;display:flex;align-items:center;font-size:13.5px;font-weight:800;color:#6b7280;cursor:pointer">' +
         (more ? 'Show less ⌃' : (p.rows.length - 3) + (p.rows.length - 3 === 1 ? ' more time ⌄' : ' more times ⌄')) + '</span>' : '';
       const ask = lead && live && anyOpen ? '<span ' + on(() => single ? openJobAsk(s, { id: u0.id }) : setState({ partRoster: { id: s.id, part: p.id } })) + ' data-ask-part role="button" style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:36px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(14, '#5b4ae8', 2.8) + 'Ask someone</span>' : '';
-      return '<div data-part="' + esc(p.item) + '" style="' + CARD + ';' + (mineSingle ? 'box-shadow:inset 0 0 0 1.5px #b9e3c8,0 1px 3px rgba(15,18,25,.08);' : '') + 'padding:14px 16px;display:flex;flex-direction:column;gap:10px">' +
+      return '<div data-part="' + esc(p.item) + '" style="' + CARD + ';padding:14px 16px;display:flex;flex-direction:column;gap:10px">' +
         head + desc + (single ? row(u0, true) : '<div style="display:flex;flex-direction:column;gap:8px">' + shown.map(u => row(u, false)).join('') + '</div>') + toggle + ask + '</div>';
     };
     return '<section id="sec-take-part" data-screen-label="Take part">' + secTitle('Take part', '', true) +
@@ -6034,9 +6031,9 @@
           (when || added ? '<div style="margin-top:3px;display:flex;align-items:center;gap:6px;font-size:' + (lead ? 15.5 : 13.5) + 'px;font-weight:600;color:' + (lead ? '#5c6270' : '#6b7280') + '">' +
             (when ? svg(clk, stroke('currentColor', 2.2), P5.clock) + '<span>' + esc(when) + '</span>' : '') +
             (added ? '<span>' + (when ? '· ' : '') + 'You added this · <span ' + on(() => removeSignup(s, j)) + ' aria-label="Remove ' + esc(j.item) + '" style="color:#9b1c31;font-weight:700;cursor:pointer">Remove</span></span>' : '') + '</div>' : '') + '</div>' +
-        // The lead's ✎ opens the jobs editor (the section's Edit link is gone); a member's button sits up here, pulled in
-        // by -6px so a one-line title doesn't push the seats down
-        (lead ? (live ? '<span ' + on(() => openNeeds(s)) + ' data-edit-jobs aria-label="Edit ' + esc(j.item) + '" style="flex:0 0 32px;width:32px;height:32px;margin:-4px -6px 0 0;display:flex;align-items:center;justify-content:center;color:#9aa0ac;cursor:pointer">' + svg(15, stroke('currentColor', 2.3), PENCIL) + '</span>' : '')
+        // The lead's ✎ opens Edit job with only this job (Design v8-8 prototype openNeedEd(r.id)); a member's button sits
+        // up here, pulled in by -6px so a one-line title doesn't push the seats down
+        (lead ? (live ? '<span ' + on(() => openNeeds(s, j.id)) + ' data-edit-jobs aria-label="Edit ' + esc(j.item) + '" style="flex:0 0 32px;width:32px;height:32px;margin:-4px -6px 0 0;display:flex;align-items:center;justify-content:center;color:#9aa0ac;cursor:pointer">' + svg(15, stroke('currentColor', 2.3), PENCIL) + '</span>' : '')
           : shifts ? '' : '<div style="flex:0 0 auto;display:flex">' + button(mine, full, act) + '</div>') + '</div>';
       const body = shifts
         ? '<div style="display:flex;flex-direction:column;gap:8px">' + j.shifts.map(u => {
@@ -6067,16 +6064,15 @@
       const full = j.shifts ? j.shifts.every(u => u.need && u.claims.length >= u.need) : !!j.need && j.claims.length >= j.need;
       return mine ? 0 : full ? 2 : 1; };
     const ordered = lead ? jobs : jobs.map((j, i) => [j, i]).sort((x, y) => rank(x[0]) - rank(y[0]) || x[1] - y[1]).map(x => x[0]);
-    // Design v8: members don't see Help out on a plan with no jobs, and nobody does on a cancelled one
-    if (!jobs.length && phaseOf(s) !== 'idea' && (!lead || s.cancelledAt)) return '';
+    // Design v8: members don't see Help out on a plan with no jobs, and nobody sees it on a cancelled one, jobs or not
+    // (Design v8-8 prototype hasSignup)
+    if (s.cancelledAt || (!jobs.length && phaseOf(s) !== 'idea' && !lead)) return '';
     // The lead's section Edit pill opens the jobs editor (each job's ✎ stays)
     const edit = lead && live ? '<span ' + on(() => openNeeds(s)) + ' data-help-edit role="button" aria-label="Edit Help out" class="hov-outline" style="flex:0 0 auto;display:flex;align-items:center;gap:6px;min-height:36px;padding:0 14px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;font-size:14px;font-weight:800;color:#0d1117;cursor:pointer">' + svg(14, stroke('currentColor', 2.4), PENCIL) + 'Edit</span>' : '';
     return '<section id="sec-tasks" data-screen-label="Help out">' + secTitle('Help out', edit, true) +
       '<div style="display:flex;flex-direction:column;gap:12px">' +
         // Empty, for the lead: the same dashed box as an empty Details (owner, 2026-10-01)
-        (jobs.length ? ordered.map(card).join('') : s.cancelledAt
-          ? '<div style="' + CARD + ';padding:16px;font-size:14px;line-height:1.45;font-weight:500;color:#5c6270">Nothing was on the list.</div>'
-          : lead
+        (jobs.length ? ordered.map(card).join('') : lead
           ? '<div ' + on(() => openNeeds(s)) + ' data-help-empty style="padding:14px 16px;border-radius:18px;border:1.5px dashed #c9ccd3;font-size:14.5px;font-weight:700;color:#6b7280;cursor:pointer">Add ways people can help.</div>'
           : '<div style="' + CARD + ';padding:16px;font-size:14px;line-height:1.45;font-weight:500;color:#5c6270">Nothing on the list yet.</div>') +
         '</div></section>';   // members no longer add their own things (v8-7 item 9): no Add something else
@@ -6199,7 +6195,9 @@
   const partAsJob = (p) => p.kind === 'time'
     ? { id: p.id, item: p.item, kind: p.kind, claims: [].concat(...p.rows.map(u => u.claims)), shifts: p.rows }
     : { id: p.id, item: p.item, kind: p.kind, claims: p.rows[0].claims, shifts: null };
-  const openNeeds = (s) => setState({ needEd: { id: s.id,
+  // `only`: a job's id, from its ✎: the sheet shows just that job as Edit job (Design v8-8 prototype needEdTitle);
+  // every row is still held, so Save leaves the others as they were
+  const openNeeds = (s, only) => setState({ needEd: { id: s.id, only: typeof only === 'string' ? only : null,
     known: [].concat(...(s.jobs || []).map(j => [j.id].concat((j.shifts || []).map(u => u.id))), ...(s.parts || []).map(p => [p.id].concat(p.rows.map(u => u.id)))),
     rows: (s.jobs || []).map(j => j.shifts
       ? { id: j.id, item: j.item, desc: j.desc, day: j.day || null, n: j.claims.length, shifts: j.shifts.map(u => ({ id: u.id, time: u.time || '', end: u.endTime || '', need: u.need || null, n: u.claims.length })) }
@@ -6303,8 +6301,8 @@
         whenFields(ss, secWhenSet, { k: 'sec', anyDay: phaseOf(s) === 'done' }) + '</div>' +
         '<div style="display:flex;flex-direction:column;gap:8px">' + label('Location') + placeField('offer', { placeholder: 'Search a place or address', style: BIG }) + '</div>' +
         // A plan keeps its date; taking it off turns the plan back into an idea (the host's call, with a confirm)
-        (s.planned && isLead(s) ? (ss.d ? '' : '<span data-needs-date style="font-size:13.5px;line-height:1.4;font-weight:600;color:' + AMBER_INK + '">A plan needs a date. To take it off, turn it back into an idea.</span>') +
-          (phaseOf(s) === 'done' ? '' : '<span ' + on(() => { close(); clearPlan(s); }) + ' data-back-to-idea style="align-self:center;display:flex;align-items:center;min-height:44px;padding:0 12px;font-size:14.5px;font-weight:800;color:#9b1c31;cursor:pointer">Turn it back into an idea</span>') : '');
+        // (Turn it back into an idea sits under Save: Design v8-8 prototype secBackIdeaOn)
+        (s.planned && isLead(s) ? (ss.d ? '' : '<span data-needs-date style="font-size:13.5px;line-height:1.4;font-weight:600;color:' + AMBER_INK + '">A plan needs a date. To take it off, turn it back into an idea.</span>') : '');
       ok = !(s.planned && !ss.d);
     } else if (ss.kind === 'details') {
       body = '<div style="display:flex;flex-direction:column;gap:12px"><span style="font-size:14px;line-height:1.4;font-weight:500;color:#5c6270">Both parts are optional.</span>' +
@@ -6333,8 +6331,11 @@
       '<div style="display:flex;align-items:center;gap:10px"><div style="flex:1;min-width:0;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.4px;color:#0d1117">' + esc(title) + '</div>' + closeX(close) + '</div>' +
       body +
       saveBtn(ok && !state.busy, () => saveSec(s), state.busy === 'save' ? 'Saving…' : 'Save') +
-      // Under Save, the lead's way to cancel or delete (Design 30): closes this and opens the usual flow
-      (ss.kind === 'title' && s.planned && isTheLead(s) && !s.cancelledAt ? '<span ' + on(() => { close(); askDelete(s); }) + ' data-sec-delete style="align-self:center;display:flex;align-items:center;justify-content:center;gap:7px;min-height:44px;padding:0 12px;font-size:14.5px;font-weight:800;color:#c0364d;cursor:pointer">' + I.trash(15, '#c0364d') + 'Cancel or delete event</span>' : ''), 36);
+      // Under Save, the lead's way to cancel or delete (Design 30), on every section sheet (Design v8-8 prototype secDelOn):
+      // closes this and opens the usual flow
+      (s.planned && isTheLead(s) && !s.cancelledAt ? '<span ' + on(() => { close(); askDelete(s); }) + ' data-sec-delete style="align-self:center;display:flex;align-items:center;justify-content:center;gap:7px;min-height:44px;padding:0 12px;font-size:14.5px;font-weight:800;color:#c0364d;cursor:pointer">' + I.trash(15, '#c0364d') + 'Cancel or delete event</span>' : '') +
+      // Date, time & location: then Turn it back into an idea (Design v8-8 prototype 2251)
+      (ss.kind === 'when' && s.planned && isLead(s) && phaseOf(s) !== 'done' ? '<span ' + on(() => { close(); clearPlan(s); }) + ' data-back-to-idea style="align-self:center;display:flex;align-items:center;min-height:44px;padding:0 12px;font-size:14.5px;font-weight:800;color:#9b1c31;cursor:pointer">Turn it back into an idea</span>' : ''), 36);
   }
 
   function viewNeedsSheet() {
@@ -6342,21 +6343,23 @@
     if (!s) return '';
     const close = () => setState({ needEd: null });
     const setRow = (k, patch) => setState({ needEd: Object.assign({}, state.needEd, { rows: state.needEd.rows.map((r, j) => j === k ? Object.assign({}, r, patch) : r) }) });
+    const title = ed.only ? 'Edit job' : 'Edit what you need';
     return '<div class="sheet-scrim" data-scrim="' + reg(close) + '" style="z-index:36">' +
-      '<div role="dialog" aria-modal="true" aria-label="Edit what you need" data-screen-label="Edit what you need" class="sheet" style="height:calc(100% - 56px);display:flex;flex-direction:column">' +
+      '<div role="dialog" aria-modal="true" aria-label="' + title + '" data-screen-label="' + title + '" class="sheet" style="height:calc(100% - 56px);display:flex;flex-direction:column">' +
         '<div style="padding:10px 18px 12px;display:flex;flex-direction:column;gap:10px;border-bottom:1px solid #f2f3f6"><span aria-hidden="true" style="align-self:center;width:38px;height:5px;border-radius:999px;background:#dcdfe6"></span>' +
-          '<div style="display:flex;align-items:center;gap:10px"><div style="flex:1;min-width:0;font-size:22px;font-weight:900;letter-spacing:-.4px;color:#0d1117">Edit what you need</div>' + closeX(close) + '</div></div>' +
+          '<div style="display:flex;align-items:center;gap:10px"><div style="flex:1;min-width:0;font-size:22px;font-weight:900;letter-spacing:-.4px;color:#0d1117">' + title + '</div>' + closeX(close) + '</div></div>' +
         '<div style="flex:1 1 auto;min-height:0;overflow-y:auto;padding:16px 18px;display:flex;flex-direction:column;gap:14px">' +
-          ed.rows.map((r, k) => '<div data-need-row style="background:#f4f5f7;border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:10px">' +
+          ed.rows.map((r, k) => ed.only && r.id !== ed.only ? '' : '<div data-need-row style="background:#f4f5f7;border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:10px">' +
             '<div style="display:flex;align-items:center;gap:10px"><span style="font-size:11.5px;font-weight:900;letter-spacing:1.2px;color:' + (r.kind ? '#149a4b' : '#6b7280') + '">' + (r.kind ? 'TAKE PART · ' + PART_KINDS[r.kind].eyebrow : 'JOB ' + (k + 1) + (r.shifts ? ' · SHIFTS' : '')) + '</span>' +
               (r.n ? '<span style="font-size:12.5px;font-weight:800;color:#0f7a3c">' + r.n + (r.kind ? ' claimed' : ' signed up') + '</span>' : '') + '<span style="flex:1"></span>' +
               '<span ' + on(() => setState({ needEd: Object.assign({}, ed, { rows: ed.rows.filter((_, j) => j !== k) }) })) + ' aria-label="Remove job ' + (k + 1) + '" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(16, stroke('#9b1c31', 2.2), TRASH_IC) + '</span></div>' +
             (r.kind ? partFields(r, (patch) => setRow(k, patch), k) : jobFields(r, (patch) => setRow(k, patch), k, s.sched && s.sched.kind === 'days' && s.days ? s.days.map(x => x.d) : null)) + '</div>').join('') +
-          '<div ' + on(() => setState({ needEd: Object.assign({}, ed, { rows: ed.rows.concat([blankJob('')]) }) })) + ' style="display:flex;align-items:center;justify-content:center;gap:8px;min-height:52px;border-radius:18px;border:1.5px dashed #c9ccd3;font-size:14.5px;font-weight:800;color:#454b55;cursor:pointer">' + I.plus(16, 'currentColor', 2.6) + 'Add a job or item</div>' +
+          // Edit job (one job) has no Add or PARTICIPATE (Design v8-8 prototype needEdAll)
+          (ed.only ? '' : '<div ' + on(() => setState({ needEd: Object.assign({}, ed, { rows: ed.rows.concat([blankJob('')]) }) })) + ' style="display:flex;align-items:center;justify-content:center;gap:8px;min-height:52px;border-radius:18px;border:1.5px dashed #c9ccd3;font-size:14.5px;font-weight:800;color:#454b55;cursor:pointer">' + I.plus(16, 'currentColor', 2.6) + 'Add a job or item</div>' +
           // Take part after posting (v8-2): the same three PARTICIPATE kinds
           '<div data-needs-participate style="display:flex;flex-direction:column;gap:8px"><span style="font-size:12px;font-weight:800;letter-spacing:1.2px;color:#6b7280">PARTICIPATE</span><div style="display:flex;flex-wrap:wrap;gap:6px">' +
             ['time', 'seat', 'other'].map(kk => '<span ' + on(() => setState({ needEd: Object.assign({}, state.needEd, { rows: state.needEd.rows.concat([blankPart(kk, s.dayTime)]) }) })) + ' data-part-chip="' + PART_KINDS[kk].chip + '" style="display:flex;align-items:center;gap:5px;min-height:40px;padding:0 12px;border-radius:999px;font-size:15px;font-weight:800;cursor:pointer;' +
-              (kk === 'other' ? 'border:1.5px dashed #b9bcc4;color:#454b55' : 'background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.1);color:#0d1117') + '"><span style="color:#149a4b;font-size:17px;line-height:1;font-weight:700">+</span>' + PART_KINDS[kk].chip + '</span>').join('') + '</div></div>' +
+              (kk === 'other' ? 'border:1.5px dashed #b9bcc4;color:#454b55' : 'background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.1);color:#0d1117') + '"><span style="color:#149a4b;font-size:17px;line-height:1;font-weight:700">+</span>' + PART_KINDS[kk].chip + '</span>').join('') + '</div></div>') +
         '</div>' +
         '<div style="padding:12px 18px calc(24px + env(safe-area-inset-bottom, 0px));border-top:1px solid #f2f3f6;display:flex;gap:10px">' +
           '<button type="button" ' + on(close) + ' style="flex:0 0 auto;min-height:52px;padding:0 22px;background:#fff;border:1.5px solid #dcdfe6;border-radius:999px;font-family:inherit;font-size:15.5px;font-weight:800;color:#0d1117;cursor:pointer">Cancel</button>' +
@@ -6541,13 +6544,16 @@
     const gold = (inner) => '<div style="display:flex;flex-direction:column;gap:16px;padding:18px 16px;border-radius:22px;background:' + VG.box + ';box-shadow:inset 0 0 0 2px ' + VG.edge + '">' + inner + '</div>';
     const myD = s.dateOpts.filter(o => o.votes.indexOf(state.me) > -1).length, myS = s.spotOpts.filter(o => o.votes.indexOf(state.me) > -1).length;
     const voters = new Set([].concat(...s.dateOpts.map(o => o.votes), ...s.spotOpts.map(o => o.votes))).size;
-    const foot = lead ? (voters ? voters + (voters === 1 ? ' person has' : ' people have') + ' voted' : 'No votes yet. Share it so people can vote.')
+    const foot = lead ? (voters ? voters + (voters === 1 ? ' person has' : ' people have') + ' voted' : 'Nobody has voted yet')   // (Design v8-8 prototype hpFoot)
       : !myD && !myS ? 'You haven’t voted yet'
       : 'You voted for ' + [myD && (dayOpen ? myD + (myD === 1 ? ' date' : ' dates') : ''), myS && (spotOpen ? myS + (myS === 1 ? ' location' : ' locations') : '')].filter(Boolean).join(' and ');
-    return '<div id="sec-when" data-when-card data-picking style="' + CARD + ';border-radius:24px;padding:20px 18px 16px;display:flex;flex-direction:column;gap:14px">' +
+    // On a plan, Help pick sits above the When/Where card (which keeps the id) and has no DATE IS SET box: the date
+    // shows in that card (Design v8-8 prototype hpShowPlan, hpDateSet is ideas only)
+    const plan = !!s.planned;
+    return '<div ' + (plan ? '' : 'id="sec-when" data-when-card ') + 'data-picking style="' + CARD + ';border-radius:24px;padding:20px 18px 16px;display:flex;flex-direction:column;gap:14px">' +
       '<div><h2 style="margin:0;font-size:24px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">' + title + '</h2>' +
         '<p style="margin:4px 0 0;font-size:15.5px;line-height:1.4;font-weight:500;color:#5c6270">' + esc(sub) + '</p></div>' +
-      (s.dayDate && !dayOpen ? setBox(s, 'day') : '') + (s.spot && !spotOpen ? setBox(s, 'spot') : '') +
+      (s.dayDate && !dayOpen && !plan ? setBox(s, 'day') : '') + (s.spot && !spotOpen ? setBox(s, 'spot') : '') +
       (dayOpen || spotOpen ? gold((dayOpen ? voteBox(s, 'day') + holdLine(s) : '') + (dayOpen && spotOpen ? '<div style="height:2px;background:' + VG.edge + ';opacity:.7"></div>' : '') + (spotOpen ? voteBox(s, 'spot') : '')) : '') +
       '<div data-vote-foot style="text-align:center;font-size:15px;font-weight:600;color:#6b7280">' + esc(foot) + '</div>' +
       (lead ? '<span ' + on(() => openSec(s, 'when')) + ' style="align-self:center;display:flex;align-items:center;gap:6px;min-height:36px;font-size:14px;font-weight:700;color:#6b7280;cursor:pointer">' + svg(13, stroke('currentColor', 2.4), PENCIL) + 'Set it yourself instead</span>' : '') +
@@ -6574,7 +6580,10 @@
       '<button type="button" ' + on(close) + ' style="min-height:56px;border:0;border-radius:999px;background:' + VG.on + ';color:' + VG.dark + ';font-family:inherit;font-size:17px;font-weight:900;cursor:pointer">Done</button>', 36);
   }
   const whenWhereCard = (s) => {
-    if (!s.cancelledAt && phaseOf(s) !== 'done' && ((!s.dayDate && s.dateOpts.length) || (!s.spot && s.spotOpts.length))) return pickingCard(s);
+    const picking = !s.cancelledAt && phaseOf(s) !== 'done' && ((!s.dayDate && s.dateOpts.length) || (!s.spot && s.spotOpts.length));
+    // A plan keeps its When/Where card under Help pick, with the date row, Edit and the pills (Design v8-8 prototype 989–1000);
+    // an idea's Help pick stands in for it
+    if (picking && !s.planned) return pickingCard(s);
     const lead = isLead(s) && !s.cancelledAt, P = '#5b4ae8', off = !!s.cancelledAt, suggest = !s.planned && !isLead(s) && !off;
     const pollRows = (opts, kind) => opts.slice().sort((a, b) => b.votes.length - a.votes.length).map(o => {
       const mine = o.votes.indexOf(state.me) > -1, n = o.votes.length, label = kind === 'day' ? dayLabel(o.dayDate, o.dayTime) : o.name;
@@ -6588,7 +6597,9 @@
     }).join('');
     const tbd = (t) => '<div style="display:flex;align-items:center;gap:10px"><span style="flex:1;font-size:17px;line-height:1.25;font-weight:800;color:#6b7280">' + t + '</span>' +
       (lead ? '<span ' + on(() => openSec(s, 'when')) + ' style="font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">Add</span>' : '') + '</div>';
-    const voting = (t, rows) => '<div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;font-weight:800;letter-spacing:1.1px;color:' + AMBER_INK + '">' + t + '</span>' + rows + '</div>';
+    // Voting in Help pick above: this row just says it's open (the prototype leaves it blank; no Add, the vote decides)
+    const tbdOpen = (t) => '<div style="font-size:17px;line-height:1.25;font-weight:800;color:#6b7280">' + t + '</div>';
+    const voting = (t, rows) =>'<div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;font-weight:800;letter-spacing:1.1px;color:' + AMBER_INK + '">' + t + '</span>' + rows + '</div>';
     const whenTxt = s.dayDate ? new Date(s.dayDate + 'T12:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }) : '';
     const time = s.dayTime ? (s.dayEnd ? spanTime({ time: s.dayTime, endTime: s.dayEnd }) : fmtTime(s.dayTime)) : '';
     const otherDays = s.dateOpts.filter(o => !(o.dayDate === s.dayDate && (o.dayTime || null) === (s.dayTime || null))), otherSpots = s.spotOpts.filter(o => o.name !== s.spot);
@@ -6609,14 +6620,15 @@
     const repeatTxt = s.repeat ? repeatLine(s.repeat.every, s.startDate, s.repeat.until) : '';
     // Design v8: the date 17/800, the time 14.5px in #5c6270
     const dayPart = s.days ? timeline : (s.dayDate ? '<div style="font-size:17px;line-height:1.25;font-weight:800;letter-spacing:-.3px;color:#0d1117;text-wrap:pretty">' + esc(whenTxt) + '</div>' +
-          (time ? '<div style="margin-top:2px;font-size:14.5px;line-height:1.35;font-weight:500;color:#5c6270">' + esc(time) + '</div>' : '') +
+          // No time yet: TBD under the date (Design v8-8 prototype planTimeStr)
+          '<div style="margin-top:2px;font-size:14.5px;line-height:1.35;font-weight:500;color:#5c6270">' + esc(time || 'TBD') + '</div>' +
           (repeatTxt ? '<div data-repeat-line style="margin-top:2px;font-size:14.5px;line-height:1.35;font-weight:600;color:#0f7a3c">' + esc(repeatTxt) + '</div>' : '') +
           (otherDays.length ? '<div style="margin-top:10px">' + voting('OTHER SUGGESTIONS', pollRows(otherDays, 'day')) + '</div>' : '')
-        : s.dateOpts.length ? voting('VOTING ON A DATE', pollRows(s.dateOpts, 'day')) : tbd('Date TBD')) + sugg('day');
+        : s.dateOpts.length ? (picking ? tbdOpen('Date TBD') : voting('VOTING ON A DATE', pollRows(s.dateOpts, 'day'))) : tbd('Date TBD')) + sugg('day');
     const spotPart = (s.spot ? '<div style="font-size:17px;line-height:1.25;font-weight:900;letter-spacing:-.3px;color:#0d1117;text-wrap:pretty">' + esc(s.spot) + '</div>' +
           (s.spotAddress ? '<div style="margin-top:2px;font-size:14.5px;line-height:1.35;font-weight:500;color:#6b7280;text-wrap:pretty">' + esc(s.spotAddress) + '</div>' : '') +
           (otherSpots.length ? '<div style="margin-top:10px">' + voting('OTHER SUGGESTIONS', pollRows(otherSpots, 'spot')) + '</div>' : '')
-        : s.spotOpts.length ? voting('VOTING ON A LOCATION', pollRows(s.spotOpts, 'spot')) : tbd('Location TBD')) + sugg('spot');
+        : s.spotOpts.length ? (picking ? tbdOpen('Location TBD') : voting('VOTING ON A LOCATION', pollRows(s.spotOpts, 'spot'))) : tbd('Location TBD')) + sugg('spot');
     const empty = (kind) => { const day = kind === 'day';
       return '<div data-empty-' + (day ? 'date' : 'spot') + ' style="display:flex;flex-direction:column;gap:14px;padding:16px;border-radius:18px;border:2px dashed #d6d0fb;background:#f8f7ff">' +
         '<div style="display:flex;gap:12px">' + svg(22, stroke('#5b4ae8', 2.1) + ' style="flex:0 0 22px;margin-top:1px"', day ? P6.cal : P6.pin) +
@@ -6628,7 +6640,7 @@
     const noDay = lead && !s.dayDate && !s.dateOpts.length, noSpot = lead && !s.spot && !s.spotOpts.length;
     const editLink = '<span ' + on(() => openSec(s, 'when')) + ' aria-label="Edit date, time and location" style="flex:0 0 auto;align-self:flex-start;display:flex;align-items:center;gap:5px;padding-top:2px;color:#6b7280;font-size:14px;font-weight:700;cursor:pointer">' + svg(13, stroke('currentColor', 2.4), PENCIL) + 'Edit</span>';
     const pill = 'flex:1 1 0;display:flex;align-items:center;justify-content:center;gap:8px;min-height:46px;border-radius:999px;background:#f3f1fe;color:#5b4ae8;font-size:14.5px;font-weight:800;text-decoration:none;cursor:pointer';
-    return '<div id="sec-when" data-when-card style="' + CARD + ';border-radius:20px;padding:18px;display:flex;flex-direction:column;gap:16px">' +
+    return (picking ? pickingCard(s) : '') + '<div id="sec-when" data-when-card style="' + CARD + ';border-radius:20px;padding:18px;display:flex;flex-direction:column;gap:16px">' +
       (noDay ? empty('day') : '<div style="display:flex;gap:14px">' + svg(20, stroke('#6b7280', 2.1) + ' style="flex:0 0 20px;margin-top:1px"', P6.cal) + '<div style="flex:1;min-width:0">' + dayPart + '</div>' + (lead ? editLink : '') + '</div>') +
       (noSpot ? empty('spot') : '<div style="display:flex;gap:14px">' + svg(20, stroke('#6b7280', 2.1) + ' style="flex:0 0 20px;margin-top:1px"', P6.pin) + '<div style="flex:1;min-width:0">' + spotPart + '</div>' + (lead && noDay ? editLink : '') + '</div>') +
       (!off && (s.dayDate || s.spot) ? '<div style="display:flex;gap:8px">' +
@@ -6688,11 +6700,12 @@
       co.slice(0, co.length > 2 ? 1 : 2).map(u => '<span style="margin-left:-16px;display:flex">' + ring(u, nameOf(u), 40, '#b8aefc') + '</span>').join('') +
       (co.length > 2 ? '<span style="position:relative;margin-left:-16px;flex:0 0 46px;width:46px;height:46px;border-radius:999px;border:3px solid #fff;box-shadow:0 0 0 2.5px #b8aefc;background:#fff;color:#4a3ad4;font-size:14px;font-weight:900;display:flex;align-items:center;justify-content:center;box-sizing:border-box">+' + (co.length - 1) + '</span>' : '') + '</span>';
     // Signed out (short links spec, v8-8): the lead's first name and photo only, and no profile to open
-    const vis = !state.email, tap = vis ? () => {} : co.length ? () => setState({ leadsSheet: s.id }) : () => openPerson(s.leadId);
+    // Your own lead with no co-leads opens Leads too, not your profile (Design v8-8 prototype ledOpen)
+    const vis = !state.email, sheet_ = co.length || s.leadId === state.me, tap = vis ? () => {} : sheet_ ? () => setState({ leadsSheet: s.id }) : () => openPerson(s.leadId);
     // Design v8: padding 18, radius 22, a 12px LED BY; Edit is a white pill; the co-lead nudge stacks its title over its line
     return '<div id="sec-lead" data-led-by style="position:relative;display:flex;flex-direction:column;gap:14px;padding:18px;border-radius:22px;background:linear-gradient(135deg,#f1edff,#e0d8ff);box-shadow:0 1px 3px rgba(15,18,25,.08)">' +
         '<span aria-hidden="true" style="position:absolute;left:52%;top:6px;font-size:9px;color:#9d93f7">✦</span><span aria-hidden="true" style="position:absolute;right:16px;top:10px;font-size:11px;color:#b8aefc">✦</span><span aria-hidden="true" style="position:absolute;right:10px;bottom:6px;font-size:8px;color:#7b6ef0">✦</span>' +
-        '<div ' + (vis ? '' : on(tap)) + ' aria-label="' + (s.wantsHost ? 'Floated by ' : 'Led by ') + esc(vis ? firstName(leadName) : leadName) + (vis ? '' : co.length ? ' and ' + co.length + ' co-lead' + (co.length > 1 ? 's' : '') + ', see who' : ', see profile') + '" style="display:flex;align-items:center;gap:14px;cursor:' + (vis ? 'default' : 'pointer') + (manage ? ';padding-right:64px' : '') + '">' + faces +
+        '<div ' + (vis ? '' : on(tap)) + ' aria-label="' + (s.wantsHost ? 'Floated by ' : 'Led by ') + esc(vis ? firstName(leadName) : leadName) + (vis ? '' : co.length ? ' and ' + co.length + ' co-lead' + (co.length > 1 ? 's' : '') + ', see who' : sheet_ ? ', see leads' : ', see profile') + '" style="display:flex;align-items:center;gap:14px;cursor:' + (vis ? 'default' : 'pointer') + (manage ? ';padding-right:64px' : '') + '">' + faces +
           '<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:900;letter-spacing:1.2px;color:#6b5ce7">' + lbl + '</div><div data-lead-names style="font-size:20px;line-height:1.15;font-weight:900;letter-spacing:-.3px;color:#2a1f8f;overflow-wrap:anywhere">' + (vis ? esc(firstName(leadName)) : leadNames(s)) + '</div></div></div>' +
         (ask ? '<div data-colead-ask style="display:flex;align-items:center;gap:12px;padding:12px 12px 12px 14px;border-radius:16px;background:rgba(255,255,255,.72)">' +
             '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-size:15px;font-weight:900;color:#2a1f8f">Bring in a co-lead.</span><span style="font-size:13.5px;line-height:1.35;font-weight:600;color:#4a3ad4;text-wrap:pretty">' + COLEAD_WHY + '</span></div>' +
@@ -6935,9 +6948,10 @@
     // Signed out, guests who RSVP'd without an account too: a count card that opens sign-in (v8-8, short links spec)
     if (!state.email) { const n = (comments[s.id] || {}).count || 0;
       return '<section data-discussion style="display:flex;flex-direction:column;gap:8px"><div style="padding:0 4px"><h2 style="margin:0;font-size:24px;line-height:1.1;font-weight:900;letter-spacing:-.6px;color:#0d1117">Discussion</h2></div>' +
-        '<div ' + on(() => openLogin('discussion', () => {})) + ' role="button" data-disc-signin style="display:flex;align-items:center;gap:12px;min-height:64px;padding:12px 16px;border-radius:20px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
-          '<span style="flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:#f3f1fe;display:flex;align-items:center;justify-content:center">' + svg(19, stroke('#5b4ae8', 2.2), '<path d="M5 18l-1.5 3 4-1.6A8 8 0 1 0 5 18z"/>') + '</span>' +
-          '<div style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:16px;font-weight:900;color:#0d1117">' + (n === 1 ? '1 post' : n + ' posts') + '</span><span style="font-size:13.5px;font-weight:600;color:#6b7280">Sign in to read and join in</span></div>' + I.chevR(16, '#9aa0ac', 2.6) + '</div></section>'; }
+        // (Design v8-8 prototype discLocked: radius 18, a grey rounded-square tile, N posts or No posts yet, no chevron)
+        '<div ' + on(() => openLogin('discussion', () => {})) + ' role="button" data-disc-signin style="display:flex;align-items:center;gap:12px;padding:16px;border-radius:18px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
+          '<span style="flex:0 0 40px;width:40px;height:40px;border-radius:12px;background:#f2f3f6;display:flex;align-items:center;justify-content:center">' + svg(20, stroke('#454b55', 2.4), '<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/>') + '</span>' +
+          '<div style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:16px;font-weight:800;color:#0d1117">' + (n === 1 ? '1 post' : n ? n + ' posts' : 'No posts yet') + '</span><span style="font-size:14px;font-weight:600;color:#6b7280">Sign in to read and join in</span></div></div></section>'; }
     const st = state, c = comments[s.id] || {}, list = c.list || [], lead = isLead(s), can = canComment(s), hosts = hostIds(s);
     const items = s.updates.map(u => ({ kind: 'upd', id: u.id, by: updWho(s, u), name: updName(s, u), body: u.body, created: u.created, u, replies: list.filter(x => x.upd === u.id) }))
       .concat(list.filter(x => !x.parent && !x.upd).slice().reverse().map(x => ({ kind: 'cmt', id: x.id, by: x.by, name: nameOf(x.by), body: x.body, created: x.created, replies: list.filter(r => r.parent === x.id) })));
@@ -7072,10 +7086,11 @@
     const rsvpBlock = s.cancelledAt ? '' : '<div data-rsvp style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:12px">' +
       '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">' + rsvpBtn('going', 'Going', goingIds.length) + rsvpBtn('maybe', 'Maybe', maybeN) + rsvpBtn('no', 'Can’t', noN) + '</div>' +
       // The faces row always draws (Design v8), See all › opening Who's coming
-      // Signed out and no reply yet (short links spec, v8-8): grey circles, and See all asks them to RSVP first
-      '<div ' + on(() => hidden ? toast('RSVP to see who’s going') : setState({ guestList: s.id })) + ' data-going role="button" aria-label="See everyone going (' + goingIds.length + ')" style="align-self:center;display:flex;align-items:center;gap:10px;min-height:36px;cursor:pointer">' +
-        (goingIds.length ? '<span style="display:flex">' + (hidden ? goingIds.slice(0, 4).map((u, i) => '<span data-grey-face style="width:30px;height:30px;border-radius:999px;background:#d5d8df;border:2.5px solid #fff;margin-left:' + (i ? -10 : 0) + 'px"></span>').join('') : peopleFaces(goingIds.slice(0, 4), 30, null, false)) + '</span>' : '') +
-        '<span style="font-size:14.5px;font-weight:800;color:#4a3ad4">' + (hidden ? goingIds.length + ' going' : 'See all ›') + '</span></div>' +
+      // Signed out and no reply yet (short links spec, v8-8): grey circles in five shades, still See all ›, which asks them
+      // to RSVP first in the amber toast (Design v8-8 prototype visitorLocked)
+      '<div ' + on(() => hidden ? toast('RSVP to see who’s going', 'soon') : setState({ guestList: s.id })) + ' data-going role="button" aria-label="See everyone going (' + goingIds.length + ')" style="align-self:center;display:flex;align-items:center;gap:10px;min-height:36px;cursor:pointer">' +
+        (goingIds.length ? '<span style="display:flex">' + (hidden ? goingIds.slice(0, 4).map((u, i) => '<span data-grey-face style="width:30px;height:30px;border-radius:999px;background:' + ['#dfe2e8', '#d3d7de', '#c9ccd3', '#bfc3cb', '#b5b9c2'][i % 5] + ';border:2.5px solid #fff;margin-left:' + (i ? -10 : 0) + 'px"></span>').join('') : peopleFaces(goingIds.slice(0, 4), 30, null, false)) + '</span>' : '') +
+        '<span style="font-size:14.5px;font-weight:800;color:#4a3ad4">See all ›</span></div>' +
       // The lead's two buttons (Design 29, option 5d): Invite people solid (the main lead only, Design v8), Post an update outlined under it
       (lead ? '<div style="display:flex;flex-direction:column;gap:8px">' +
         (isTheLead(s) ? '<button type="button" class="hov-primary" ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' style="min-height:48px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:15px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer">' +
@@ -7103,9 +7118,8 @@
       '<div style="padding:16px 14px 26px;display:flex;flex-direction:column;gap:18px">' +
         cancelledCard(s) +
         (discMissing(s) ? updatesCard(s) : discBanner(s)) +   // v8: the banner; the updates live in Discussion
-        rsvpBlock +
-
-        guestNudge +
+        // Want a reminder? sits with the RSVP card, 8px under it (Design v8-8 prototype 976)
+        (rsvpBlock && guestNudge ? '<div style="display:flex;flex-direction:column;gap:8px">' + rsvpBlock + guestNudge + '</div>' : rsvpBlock + guestNudge) +
         whenWhereCard(s) +
         basicDetailsSec(s) +
         askCards(s) + takePart(s) + helpOut(s) +
@@ -9812,10 +9826,13 @@
     const row = (u, i) => {
       const c = lead && s.contacts.find(x => x.user_id === u), name = u === state.me ? 'You' : personName(s, u);
       // Tap someone for their profile (guests without an account have none)
-      return '<div data-guest ' + (c ? '' : on(() => openPerson(u)) + ' aria-label="' + esc(name) + ', see profile" ') + 'style="display:flex;align-items:center;gap:12px;min-height:50px;border-top:' + (i ? '1px solid #f2f3f6' : '0') + (c ? '' : ';cursor:pointer') + '">' +
-        face(u, name, 32, null) +
-        '<span style="flex:1 1 auto;min-width:0;font-size:15.5px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(name) +
-          (spotsOf(u) ? '<span data-guest-spot style="font-weight:600;color:#6b7280"> · ' + esc(spotsOf(u)) + '</span>' : '') + '</span>' +
+      // A member's view: 36px faces in 54px rows, and on the right "Lead · {spot}" in grey (Design v8-8 prototype whoRows)
+      const sub = lead ? '' : [u === s.leadId ? 'Lead' : '', spotsOf(u)].filter(Boolean).join(' · ');
+      return '<div data-guest ' + (c ? '' : on(() => openPerson(u)) + ' aria-label="' + esc(name) + ', see profile" ') + 'style="display:flex;align-items:center;gap:12px;min-height:' + (lead ? 50 : 54) + 'px;border-top:' + (i ? '1px solid #f2f3f6' : '0') + (c ? '' : ';cursor:pointer') + '">' +
+        face(u, name, lead ? 32 : 36, null) +
+        '<span style="flex:1 1 auto;min-width:0;font-size:' + (lead ? 15.5 : 16) + 'px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(name) +
+          (lead && spotsOf(u) ? '<span data-guest-spot style="font-weight:600;color:#6b7280"> · ' + esc(spotsOf(u)) + '</span>' : '') + '</span>' +
+        (sub ? '<span data-guest-sub style="flex:0 1 auto;min-width:0;font-size:13px;font-weight:700;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(sub) + '</span>' : '') +
         // Each day events (v8-7 item 6): a small green tag with their days ("Both days", "Sat", "Sat · Maybe Sun")
         (s.daysEach && daysTag(s, rsvpDays(s, u)) ? '<span data-day-tag style="flex:0 0 auto;padding:3px 9px;border-radius:999px;background:#e6f5ec;font-size:12px;font-weight:800;color:#0f6b35;white-space:nowrap">' + esc(daysTag(s, rsvpDays(s, u))) + '</span>' : '') +
         (c && c.phone ? '<a href="tel:' + esc(c.phone.replace(/[^\d+]/g, '')) + '" style="flex:0 0 auto;font-size:14px;font-weight:800;color:#5b4ae8">' + esc(c.phone) + '</a>' : c ? '<span style="flex:0 0 auto;padding:3px 9px;border-radius:999px;background:#f2f3f6;font-size:12px;font-weight:800;color:#6b7280">Guest</span>' : '') + '</div>';

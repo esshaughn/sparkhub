@@ -111,7 +111,7 @@ test('a signed-out visitor sees the event only, and names once they RSVP', async
     await V.goto('/#/idea/' + id);
     const P = V.locator('[data-screen-label="Plan page"]');
     await expect(P).toBeVisible();
-    await expect(P.locator('[data-going]')).toContainText('1 going');
+    await expect(P.locator('[data-going]')).toContainText('See all ›');
     await expect(P.locator('[data-grey-face]')).toHaveCount(1);
     await P.locator('[data-going]').click();
     await expect(V.getByRole('status')).toContainText('RSVP to see who’s going');
