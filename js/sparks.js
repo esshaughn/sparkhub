@@ -8725,6 +8725,7 @@
   // One model for Plan an event (state.ev…) and the event page's Edit (state.sec): d, t, e, eOn, type ('one' | 'repeat' |
   // 'span' | 'days'), rep ('week' | '2week' | 'month'), until, endD, endT (a span's end), days (day 2 on: [{ d, t, e }]), each
   const DAY_TYPES = [['one', 'One day', 'Starts and ends same day.'], ['repeat', 'Recurring event', 'Repeats on a schedule.'], ['span', 'Runs across days', 'Starts one day, ends another.'], ['days', 'Separate days', 'Each day has its own times.']];
+  const SOON_TYPES = ['repeat', 'span'];
   const DAY_TYPE_NAME = { one: 'One day', repeat: 'Recurring', span: 'Runs across days', days: 'Separate days' };
   const DAY_TYPE_IC = { one: '<rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16M9 3v4M15 3v4"/><rect x="10" y="13" width="4" height="3" rx=".6"/>', repeat: '<path d="M17 2.5 20.5 6 17 9.5"/><path d="M3.5 11.5V10a4 4 0 0 1 4-4h13"/><path d="M7 21.5 3.5 18 7 14.5"/><path d="M20.5 12.5V14a4 4 0 0 1-4 4h-13"/>',
     span: '<circle cx="5" cy="12" r="2.2"/><circle cx="19" cy="12" r="2.2"/><path d="M7.2 12h9.6"/>', days: '<rect x="2.5" y="7" width="5" height="10" rx="1.4"/><rect x="9.5" y="7" width="5" height="10" rx="1.4"/><rect x="16.5" y="7" width="5" height="10" rx="1.4"/>' };
@@ -8811,8 +8812,11 @@
     if (!M) return '';
     const cur = M.type || 'one', next0 = M.d ? plusDays(M.d, 1) : '', close = () => setState({ dayTypePop: null });
     const pick = (v) => set(Object.assign({ type: v }, v === 'days' && !(M.days || []).length ? { days: [{ d: next0, t: M.t || '', e: M.e || '' }] } : {}, v === 'span' && !M.endD ? { endD: next0 } : {}));
-    return popCard('How long is it?', close, 'How long is it?', '', '<div role="radiogroup" aria-label="How long is it?" style="display:flex;flex-direction:column;gap:8px">' + DAY_TYPES.map(([v, t1, t2]) => { const onIt = cur === v;
-      return '<div ' + on(() => pick(v), 'radio') + ' aria-checked="' + onIt + '" data-day-type-opt="' + v + '" style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:16px;background:' + (onIt ? '#f3f1fe' : '#fff') + ';box-shadow:inset 0 0 0 ' + (onIt ? '2px #5b4ae8' : '1.5px #dcdfe6') + ';cursor:pointer">' +
+    // Recurring and Runs across days are Coming soon (Design, HANDOFF v8-8 Answered Oct 6): dimmed, the amber toast. One
+    // that already is one (made before) still shows as picked and can be changed to another
+    return popCard('How long is it?', close, 'How long is it?', '', '<div role="radiogroup" aria-label="How long is it?" style="display:flex;flex-direction:column;gap:8px">' + DAY_TYPES.map(([v, t1, t2]) => { const onIt = cur === v, soon = SOON_TYPES.indexOf(v) > -1 && !onIt;
+      if (soon) t2 = 'Coming soon';
+      return '<div ' + on(() => soon ? toast(t1 + ' is coming soon', 'soon') : pick(v), 'radio') + ' aria-checked="' + onIt + '"' + (soon ? ' data-soon' : '') + ' data-day-type-opt="' + v + '" style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:16px;background:' + (onIt ? '#f3f1fe' : '#fff') + ';box-shadow:inset 0 0 0 ' + (onIt ? '2px #5b4ae8' : '1.5px #dcdfe6') + ';cursor:pointer' + (soon ? ';opacity:.5' : '') + '">' +
         '<span style="flex:0 0 40px;width:40px;height:40px;border-radius:12px;background:' + (onIt ? '#5b4ae8' : '#f2f3f6') + ';color:' + (onIt ? '#fff' : '#454b55') + ';display:flex;align-items:center;justify-content:center">' + svg(18, stroke('currentColor', 2.2), DAY_TYPE_IC[v]) + '</span>' +
         '<span style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:15.5px;font-weight:900;color:' + (onIt ? '#5b4ae8' : '#0d1117') + '">' + t1 + '</span><span style="font-size:13px;font-weight:600;color:#6b7280">' + t2 + '</span></span>' +
         '<span aria-hidden="true" style="flex:0 0 22px;width:22px;height:22px;box-sizing:border-box;border-radius:999px;border:' + (onIt ? '6px solid #5b4ae8' : '1.5px solid #c9ccd3') + '"></span></div>'; }).join('') + '</div>' +

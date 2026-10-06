@@ -74,6 +74,7 @@ Where this doc and the design files disagree, **this doc is correct**. One file 
 | 118 | **A led idea's Help make this a plan** keeps Invite a friend, Vote on a date (*Suggest a date* while there's one or none), Suggest a location; no Lead it / Offer to lead or Talk it through rows | 1a drops Talk it through | It already has a lead |
 | 119 | **× on Plan an event opened from Make it a plan! just closes** (no *Pick this up later?*) | (Not drawn) | The idea is still there; a draft would make a second event |
 | 120 | **Picking a suggested place fills Location name and Address**; renaming keeps the address. A typed address is saved as typed (no map pin) | Two plain fields | The place search was already on that field |
+| 121 | **Recurring event and Runs across days are *Coming soon*** in How long is it?: dimmed, the line reads *Coming soon*, a tap toasts (amber) *Recurring event is coming soon* / *Runs across days is coming soon*. An event that already is one still shows it picked and can switch to another | (Answered Oct 6, as specced) | Built as specced; listed so the older-event case is known |
 
 ## 2. Things the build had to invent (please design these properly)
 
@@ -89,7 +90,7 @@ Where this doc and the design files disagree, **this doc is correct**. One file 
 
 ## 4. Designed but not built or not working
 
-- **Decided in HANDOFF-to-CODE v8-8 but not built yet** (next): short links `/e/{code}` and the visitor view (count-only Who's coming, grey faces, Led by not tappable, guest sheet 1c, link preview tags, .ics); *Coming soon* on Recurring / Runs across days; group invites (Q22 + Q33); comment notifications; Invite link 1b (Q4); showing sparkhub.wereallneighbors.org (Q8); NO DATE YET (Q23 3a); dropping Place (Q28); retiring `#/own` (Q29); Morning · Afternoon · Evening start times (Q34, waits on the prototype).
+- **Decided in HANDOFF-to-CODE v8-8 but not built yet** (next): short links `/e/{code}` and the visitor view (count-only Who's coming, grey faces, Led by not tappable, guest sheet 1c, link preview tags, .ics); group invites (Q22 + Q33); comment notifications; Invite link 1b (Q4); showing sparkhub.wereallneighbors.org (Q8); NO DATE YET (Q23 3a); dropping Place (Q28); retiring `#/own` (Q29); Morning · Afternoon · Evening start times (Q34, waits on the prototype).
 - **Led ideas lost what the old page had:** the vibe board (mood photos; plans keep it), co-leads and *Step back* (the starter's *I'll decide* stands in), Cancel (Delete is the quiet link at the bottom, not in Edit's ⋯), and editing What to expect's quick details (Edit changes title and description only). Where should they go? Kept from the old page, in the build's own way: quick details show as gold-dot lines under the description; the soft hold line (*Holding until… · Keep holding*) sits in When?; a group admin gets *Edit* by the IDEA chip (the title pop-up) and the *Delete this idea* link.
 - **The gold Invite people sheet** for ideas.
 - **Guest text reminders** (*Take part*): not built, no SMS service yet (owner, 2026-10-05).

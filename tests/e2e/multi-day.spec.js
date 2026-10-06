@@ -108,19 +108,17 @@ test('multi-day: separate days, each-day RSVP, a job on one day, and a weekly ev
     await expect(who.locator('[data-guest-part="going"]')).toContainText('Both days');
     await who.getByRole('button', { name: 'Close' }).click();
 
-    // The host makes it weekly from Edit: Recurring event, Weekly, and the event says how it repeats
+    // Recurring and Runs across days are Coming soon (Design v8-8): dimmed, an amber toast, nothing changes
     await HP.getByRole('button', { name: 'Edit date, time and location' }).click();
     const when = H.getByRole('dialog', { name: 'Date, time & location' });
     await when.locator('[data-day-type]').click();
-    await H.getByRole('dialog', { name: 'How long is it?' }).getByRole('radio', { name: /Recurring event/ }).click();
-    await H.getByRole('dialog', { name: 'How long is it?' }).getByRole('button', { name: 'Done' }).click();
-    await expect(when.getByRole('radiogroup', { name: 'Repeats' }).getByRole('radio', { name: 'Weekly' })).toHaveAttribute('aria-checked', 'true');
-    await expect(when.locator('[data-when-line]')).toHaveText('Every ' + wk(d1, true));
-    await when.getByRole('button', { name: 'Save', exact: true }).click();
-    await expect(when).toHaveCount(0);
-    await expect(HP.locator('[data-repeat-line]')).toHaveText('Every ' + wk(d1, true));
-    const weekly = await asUser(H, async (c, _C, id) => (await c.from('sparks').select('schedule').eq('id', id).single()).data.schedule, id);
-    expect(weekly).toEqual({ kind: 'repeat', every: 'week', until: null });
+    const types = H.getByRole('dialog', { name: 'How long is it?' });
+    await expect(types.locator('[data-soon]')).toHaveCount(2);
+    await expect(types.locator('[data-day-type-opt="repeat"]')).toContainText('Coming soon');
+    await types.getByRole('radio', { name: /Recurring event/ }).click();
+    await expect(H.getByRole('status')).toContainText('Recurring event is coming soon');
+    await expect(types.locator('[data-day-type-opt="days"]')).toHaveAttribute('aria-checked', 'true');
+    await types.getByRole('button', { name: 'Done' }).click();
 
     expect(host.errors).toEqual([]);
     expect(member.errors).toEqual([]);
