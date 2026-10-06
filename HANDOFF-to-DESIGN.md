@@ -4,11 +4,34 @@
 
 - **Built (test):** https://gosparkhub-git-test-eric-5958s-projects.vercel.app · **Live:** https://gosparkhub.vercel.app (also https://sparkhub.wereallneighbors.org)
 - **Source:** github.com/esshaughn/sparkhub (`index.html`, `js/sparks.js`, `css/sparks.css`, `privacy.html`, `supabase/templates/`)
-- **Baseline:** Claude Design's **round v8-6** (zip *Spark Hub v8-6*, 2026-10-06: `design/spark-hub/Spark Hub App Version 8.dc.html` and `design/spark-hub/HANDOFF-to-CODE.md`). Its HANDOFF-to-CODE says it caught up with this doc as of Oct 6, early morning (*HANDOFF-to-DESIGN-5*), so this doc was reset: rows 80–95 are gone from §1. Rows 96–97 landed around the time Design read it, so they stay.
+- **Baseline:** Claude Design's **round v8-7** (zip *Spark Hub v8-7*, 2026-10-06: `design/spark-hub/Spark Hub App Version 8.dc.html` and `design/spark-hub/HANDOFF-to-CODE.md`). Its HANDOFF-to-CODE caught up with *HANDOFF-to-DESIGN-5* (Oct 6, ~1am), before rows 96–105 were written, so they stay below.
 - **Build version:** **v7** (owner, 2026-10-02): a lead is a choice. An idea is either led (*I'll lead it*) or floated (no lead yet), and a floated one can be handed to someone. Since v8-6, Plan an event is always led by whoever makes it; floating is the + menu's *Float an idea*.
-- **As of:** 2026-10-06: built round **v8-6**: Plan an event in 4 steps (page 1 with the cover box, title, date & time and location; What to expect with quick details folded; Join in; Review's *Ready to post*), centred edit pop-ups, Post to with Public / Private rows, the sparkle *Post it*, the sheet over the screen you came from, Helping in orange, 46px fields in Create a poll. Earlier the same day: no *This week* on My calendar (row 96); no automatic Add to Home Screen pop-up (row 97).
+- **As of:** 2026-10-06: built round **v8-7** (multi-day events; rows 106–118 and the table below). Before that, round **v8-6**: Plan an event in 4 steps (page 1 with the cover box, title, date & time and location; What to expect with quick details folded; Join in; Review's *Ready to post*), centred edit pop-ups, Post to with Public / Private rows, the sparkle *Post it*, the sheet over the screen you came from, Helping in orange, 46px fields in Create a poll. Earlier the same day: no *This week* on My calendar (row 96); no automatic Add to Home Screen pop-up (row 97).
 
-Where this doc and the design files disagree, **this doc is correct**. One file per side: please keep sending `HANDOFF-to-CODE.md`; this file is the reply (call it *HANDOFF-to-DESIGN-6*).
+Where this doc and the design files disagree, **this doc is correct**. One file per side: please keep sending `HANDOFF-to-CODE.md`; this file is the reply (call it *HANDOFF-to-DESIGN-7*).
+
+---
+
+## Round v8-7 in short
+
+*Built from HANDOFF-to-CODE v8-7 on 2026-10-06 (migration `20261108000000_multi_day.sql`).*
+
+| v8-7 item | Status |
+|---|---|
+| 1. Event length (23c-2) | Done: *Date & time · {type} ⌄*, the How long is it? pop-up with its four radio cards and Done, One day (quiet grey *+ Add end time*), Recurring (REPEATS, UNTIL (optional), green line), Runs across days (STARTS / ENDS, *3 days · Fri to Sun*), Separate days (one line a day, Day 2 has no ×, *+ Add another day*, 30 at most, each date picker starts after the day before, People RSVP for). The same fields and pop-up are in the event page's Edit (rows 106–107) |
+| 2. Date & time pickers | Done: every time field is typeable with *Try a time like 10am or 4:30pm*; the white month card everywhere. Change: the chevron opens the build's am/pm · hour · minute grid, not a 30-minute list (row 108) |
+| 3. Review / labels | Done: *Sat–Sun, Oct 10–11 · 2 days*, *Thu, Oct 8 · 6:30pm · Weekly* |
+| 4. Event page, multi-day | Done: two fanned pages (−6° / +8°), the timeline and *You're going Sat · maybe Sun · Change*. Add to calendar: one entry per day for separate days; a span and a repeat are one entry each (row 109) |
+| 5. Each day RSVP (24c) | Done as drawn: When will you attend?, the summing button, *Pick at least one day*, *I can't make it* after clearing. Guests get it too |
+| 6. Who's coming | Day tags done; the build keeps its Going / Maybe / Can't sections (row 110) |
+| 7. Jobs tied to a day | Done: WHICH DAY in Add a job and Edit what you need, *Sat · 9:00 – 10:00am*, holding a job adds that day; *Added Sunday to your RSVP* (from *Decided*) shows when you'd already picked days |
+| 8. My calendar | Done: the hero's *SAT, OCT 10 · 2 DAYS*, *Day 1 of 2 · 10am–4pm* on cards, Month view on every day (only your days once you've picked). Up next and Tiles list an event once, on its next day (row 111) |
+| 9. Help out | Done: orange *✓ You're in*, the member's button centred, no *Add something else* for members |
+| 10. Invite pop-up | Done: *Invite people* after posting too, the new line, 3 people + *See N more* / *Show fewer* |
+| 11. Leave prompt | Done: centred *Pick this up later?* |
+| 12. Event preview | Removed everywhere: tapping an event opens its page |
+| 13. Demo event `md2` | Not added: there's no demo content since 2026-10-03 (owner) |
+| *Decided, not built* | Built: a reminder before each day you're going (for a repeat, before each date; a span, before its first day) and guests' pop-up. Not built yet: telling only that day's people when a day moves or is cancelled, and Tasks filtered to your days (§4) |
 
 ---
 
@@ -40,8 +63,17 @@ Where this doc and the design files disagree, **this doc is correct**. One file 
 | 101 | **Review's *Join in* row** stays *Add · optional* after *None needed* | (Not drawn) | Nothing was added, so it isn't counted in *N of 4* |
 | 102 | **Review keeps *People going can invite friends*** (the switch) under the Post to card | Not on v8-6's Review | It sets who can invite people; nothing else in the flow does |
 | 103 | **Helping is orange (`#e8661c` / `#b8480c` / `#fff1e8`) everywhere the build used gold or teal for it**: My tasks' Helping chip and dots, the Helping strip and its task rows, the event page's *You're helping* band | 14a: replaces teal / sky | The build had kept Helping gold (shared with ideas) in most places; ideas stay gold |
-| 104 | **Plan an event covers the tab bar** (the sheet runs to the bottom), so a tab can't be tapped mid-flow; × still asks *Save this as a draft?* | As drawn | Before v8-6 a tab tap asked about a draft; now × is the only way out |
+| 104 | **Plan an event covers the tab bar** (the sheet runs to the bottom), so a tab can't be tapped mid-flow; × still asks *Pick this up later?* | As drawn | Before v8-6 a tab tap asked about a draft; now × is the only way out |
 | 105 | **An older draft saved on the old Date & time or Location step opens on page 1** | — | Those steps are part of page 1 now |
+| 106 | **The event page's Edit (Date, time & location) has the same Date & time fields** as Plan an event, with *· {type} ⌄* beside DATE & TIME and the How long is it? pop-up | v8-7 drew them in Plan an event only | A posted event can change length too |
+| 107 | **Day rows use compact fields**: dates read *Oct 10* (no weekday) inside DAY 1 / DAY 2 rows; a × on Day 3 onwards sits at the right of its DAY N label | One-line rows | Three fields fit a phone row |
+| 108 | **A time field's chevron opens the am/pm · hour · minute grid**, not a 30-minute list (6am–11:30pm). Typed times show with minutes (*10:00am*) | 30-min list | The owner picked the grid on 2026-10-03; typing covers any time |
+| 109 | **Add to calendar for a span or a repeat makes one entry**: a span runs from its first day to its last; a repeat is one entry that repeats (Weekly / Every 2 weeks / Monthly, until its end date). Separate days get one per day you're going, with the toast *Added Sat & Sun to your calendar (2 entries)* | One entry per day | Calendars handle spans and repeats themselves |
+| 110 | **Who's coming keeps its GOING / MAYBE / CAN'T sections**; the green day tag sits on the right of each name | One list | The sections were already there; the tag says the rest |
+| 111 | **Up next and Tiles list a multi-day event once**, on its current or next day (*Day 2 of 2 · 12pm–5pm* once Day 1 has passed); Month view puts it on each day, and a repeat on each of its dates in that month | Every day | A weekend event twice in one list looked like two events |
+| 112 | **A recurring event's date card** has a green line under the time: *Every Thursday until Dec 3* | (Not drawn on the event page) | Says how it repeats |
+| 113 | **A repeat keeps going**: it counts as upcoming on its next date, until its end date | — | It would otherwise drop into Past after the first date |
+| 114 | **Members can't add their own jobs on ideas either**: an idea with nothing on Help out reads *Nothing on the list yet.* | — | Item 9 took *Add something else* away |
 
 ## 2. Things the build had to invent (please design these properly)
 
@@ -50,6 +82,12 @@ Where this doc and the design files disagree, **this doc is correct**. One file 
 - **Suggesting on an idea:** toasts *Date added. Vic will see it.* / *Location added. Vic will see it.*; editing dates or locations, title or description: *Saved*.
 
 ## 3. Behaviour added in the build (no visual change)
+
+- **Migration `20261108000000_multi_day.sql`:** `sparks.schedule` (null for one day; repeat `{every, until}`, span `{to, to_time}` or days `{days: [{d, t, e}], each}`, checked by the database; `day_date` stays the first day), `rsvps.days` / `maybe_days` (an Each day reply), `signup_items.day` (hosts only). Taking the date off clears the schedule.
+- **Reminders:** one before each day: separate days remind the people going (or maybe) that day, the whole thing, or holding a job that day; a repeat reminds before each date; a span before its first day.
+- **A reply without days** on an Each day event (the lead's own Going, or a reply from before it became Each day) counts as every day. Maybe or Can't on the RSVP buttons answers for the whole event.
+- **Separate days that don't add up** (no second date) save as one day; a span without a later end date too. Days are sorted and duplicates dropped when saved.
+- **Unreadable times** put the field back as it was. A typed end time before the start says *Pick a time after {start}*.
 
 - **Migration `20261107000000_float_sheet.sql`:** `sparks.talk` (Talk it through, default off) and `sparks.lead_rule` (`me` | `any`); the overview (SHORT DESCRIPTION) is up to 120 characters (was 80); `date_options.day_part` (`morning` | `afternoon` | `evening`, instead of a clock time); `talk_offers` and `offer_to_talk()` (Contact {starter}: kept so the button reads *✓ Vic will be in touch*; 10 an hour; you see your own, the starter sees all on their ideas).
 - **A floated idea:** the starter is its lead in the database, with *looking for a lead* on (as before), so the starter can edit it, remove dates and locations, and delete it. *Talk it through* and *Who leads it* are saved on the idea; *Anyone* lets a member's *Lead it* take the lead straight away (the database doesn't check the rule yet). Floating sends no push and no bell row (owner, 2026-10-02).
@@ -67,6 +105,7 @@ Where this doc and the design files disagree, **this doc is correct**. One file 
 - **Guest text reminders** (*Take part*): not built, no SMS service yet (owner, 2026-10-05).
 - **Leading filtered to a group** is built, but nothing opens it that way.
 - **Maybe's pale-green tile chip** shows on the strip only (the build's tiles have no role chip on the photo).
+- **v8-7 *Decided*, not built yet:** a lead moving or cancelling one day (push only to that day's people, who re-pick); Tasks filtered to your days (only My calendar is).
 
 ## 5. Open questions for the next round
 
@@ -96,6 +135,7 @@ Where this doc and the design files disagree, **this doc is correct**. One file 
 33. **Group invites** (§4): who can invite, whether *Add friends* reaches people outside your friends, what the invited person sees and can do (Join / Not now), whether Take back tells anyone, and whether invites expire. The prototype draws the screens; the rules behind them aren't written in HANDOFF-to-CODE.
 34. **The time chips in Plan an event** (was row 90): should an event's start time also allow Morning / Afternoon / Evening?
 35. **A mismatch in the zip:** `screens/02 Plus menu.png` shows the starter's slide-up, not the + menu; the prototype was followed.
+36. **Recurring events (v8-7):** one RSVP covers every date and jobs aren't per date. Should people answer date by date (like Each day), and should a weekly event show on My calendar's Up next more than once?
 
 ## 6. Design tokens
 

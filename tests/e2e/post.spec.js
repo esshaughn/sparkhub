@@ -1,7 +1,7 @@
 // Plan an event (v8-6): the 4-step flow (title, date & location · What to expect · Join in · Review), polls, jobs, drafts,
 // then the host's edit pop-ups on the event page.
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newLead, button, postEvent, openIdea, confirm, startPost, startFloat, asUser, closeAskFirst, pickKind, pickDate, pickTime, deleteIdea, ideaIdFromUrl, openAllGroups } = require('./helpers');
+const { uniqueTitle, newLead, button, postEvent, openIdea, confirm, startPost, startFloat, asUser, closeAskFirst, pickKind, pickDate, pickTime, timeBox, deleteIdea, ideaIdFromUrl, openAllGroups } = require('./helpers');
 
 const inDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 
@@ -188,8 +188,8 @@ test('page 1 needs a title and a date; What to expect folds its details; Review�
     await expect(flow).toContainText('1/4');
     // The phone's Back with a title asks about a draft instead of dropping it
     await page.goBack();
-    const leave = page.getByRole('dialog', { name: 'Save as draft' });
-    await expect(leave).toContainText('Save this as a draft?');
+    const leave = page.getByRole('dialog', { name: 'Pick this up later?' });
+    await expect(leave).toContainText('Only you can see drafts.');
     await leave.getByRole('button', { name: 'Keep going' }).click();
     await expect(flow.getByLabel('Event title')).toHaveValue(title);
     // Date & time: the start time's tap grid, then an end time that only offers later times
@@ -305,10 +305,11 @@ test('polls: the host posts a date poll (an idea), a member votes, the host pick
     // The time is the app's own list, like the calendar (not the browser's menu); No time clears it
     await poll.getByRole('button', { name: 'Time option 1' }).click();
     await pickTime(poll, '18:00');
-    await expect(poll.getByRole('button', { name: 'Time option 1' })).toContainText('6:00pm');
+    await expect(timeBox(poll, 'Time option 1')).toHaveValue('6:00pm');
     await poll.getByRole('button', { name: 'Time option 1' }).click();
     await poll.locator('[data-time-list]').getByRole('button', { name: 'No time', exact: true }).click();
-    await expect(poll.getByRole('button', { name: 'Time option 1' })).toContainText('+ Add time');
+    await expect(timeBox(poll, 'Time option 1')).toHaveValue('');
+    await expect(timeBox(poll, 'Time option 1')).toHaveAttribute('placeholder', '+ Add time');
     await pickDate(poll, inDays(16), 'Date option 2');
     await poll.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(flow.locator('[data-poll]')).toContainText('POLL · 2 OPTIONS');
@@ -374,8 +375,8 @@ test('drafts: X saves one, Your tasks lists it under Leading, Continue picks up 
     await pickDate(flow, inDays(5));
     await flow.getByRole('button', { name: 'Next' }).click();
     await flow.getByRole('button', { name: 'Close' }).click();
-    const leave = page.getByRole('dialog', { name: 'Save as draft' });
-    await expect(leave).toContainText('Save this as a draft?');
+    const leave = page.getByRole('dialog', { name: 'Pick this up later?' });
+    await expect(leave).toContainText('Only you can see drafts.');
     await leave.getByRole('button', { name: 'Save draft' }).click();
     await expect(page.getByText('Saved as a draft')).toBeVisible();
 
@@ -476,8 +477,8 @@ test('Plan an event: × asks about a draft, Return goes on, and a reload picks t
     await expect(flow).toContainText('2/4');
     // The sheet covers the tab bar (v8-6), so × asks: the draft question, and Keep going stays put
     await flow.getByRole('button', { name: 'Close' }).click();
-    const leave = page.getByRole('dialog', { name: 'Save as draft' });
-    await expect(leave).toContainText('Save this as a draft?');
+    const leave = page.getByRole('dialog', { name: 'Pick this up later?' });
+    await expect(leave).toContainText('Only you can see drafts.');
     await leave.getByRole('button', { name: 'Keep going' }).click();
     await expect(flow).toContainText('2/4');
     // A reload comes back to the same step with the title
@@ -554,7 +555,7 @@ test('What to expect’s quick details (no How many people for now); a bare star
     const list = await job.locator('[data-time-list]').boundingBox(), jobEdge = await job.boundingBox();
     expect(list.y + list.height).toBeLessThanOrEqual(jobEdge.y + jobEdge.height);
     await pickTime(job, '17:00');
-    await expect(job.getByRole('button', { name: 'Time', exact: true })).toContainText('5:00pm');
+    await expect(timeBox(job, 'Time')).toHaveValue('5:00pm');
     // Shifts use the same list: the end only offers later times
     await job.getByText('Add a shift').click();
     await job.getByRole('button', { name: 'Shift 1 end' }).click();
@@ -562,7 +563,7 @@ test('What to expect’s quick details (no How many people for now); a bare star
     await job.locator('[data-time-list] [data-hour="5"]').click();
     await expect(job.locator('[data-time-list] [data-minute="00"]')).toHaveAttribute('aria-disabled', 'true');
     await pickTime(job, '18:00');
-    await expect(job.getByRole('button', { name: 'Shift 1 end' })).toContainText('6:00pm');
+    await expect(timeBox(job, 'Shift 1 end')).toHaveValue('6:00pm');
     await job.getByText('Use one time instead').click();
     await job.getByRole('button', { name: 'Time', exact: true }).click();
     await job.locator('[data-time-list]').getByRole('button', { name: 'No time', exact: true }).click();   // clears it

@@ -301,9 +301,9 @@ async function postEvent(page, { title, date, time, where, pick, details = [], j
   await closeAskFirst(page);
   return ideaIdFromUrl(page);
 }
-// Posting a real event opens the invite sheet as "Ask two people first" (research review, 2026-10-01)
+// Posting a real event opens Invite people with "Events with a friend or two in…" (research review, 2026-10-01; v8-7 title)
 async function closeAskFirst(page) {
-  const ask = page.getByRole('dialog', { name: 'Ask two people first' });
+  const ask = page.getByRole('dialog', { name: 'Invite people' });
   await expect(ask.locator('[data-ask-first]')).toContainText('a friend or two');
   await expect(ask.locator('[data-invitees]')).toBeVisible();   // friends and the event's groups to invite (owner's mock, 2026-10-01)
   await ask.getByRole('button', { name: 'Close' }).click();
@@ -334,6 +334,8 @@ async function pickTime(scope, t) {
   await grid.locator('[data-hour="' + (h % 12 || 12) + '"]').click();
   await grid.locator('[data-minute="' + String(m).padStart(2, '0') + '"]').click();
 }
+// A time field's typeable box (v8-7): its value is the time as shown ("5:00pm"); type into it and press Enter
+const timeBox = (scope, label) => scope.getByRole('textbox', { name: label + ', type a time', exact: true });
 const timeWord = (t) => { const [h, m] = t.split(':').map(Number); return (h % 12 || 12) + ':' + String(m).padStart(2, '0') + (h < 12 ? 'am' : 'pm'); };
 
 // Confirm dialogs: click the action, then the confirm button in the dialog.
@@ -388,5 +390,5 @@ async function asUser(page, fn, args) {
 
 module.exports = {
   TAG, TORREZ, PNG, leadEmail, uniqueTitle, startPost, startFloat, openTasks, openAllGroups, openProfile, saved, pickView, mockPlaces, stubPhotos, trackErrors, expectConnected, newMember, newLead, button,
-  postIdea, postEvent, closeAskFirst, pickDate, pickTime, pickKind, addJob, answerNamePrompt, answerGuestPrompt, ideaIdFromUrl, openIdea, confirm, deleteIdea, asUser
+  postIdea, postEvent, closeAskFirst, pickDate, pickTime, timeBox, pickKind, addJob, answerNamePrompt, answerGuestPrompt, ideaIdFromUrl, openIdea, confirm, deleteIdea, asUser
 };

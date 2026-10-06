@@ -116,9 +116,91 @@
     const [h, m] = hhmm.split(':').map(Number);
     return (h % 12 || 12) + (m ? ':' + pad2(m) : '') + (h < 12 ? 'am' : 'pm');
   };
+  // A typed time (v8-7 item 2) as HH:MM: "10am", "4:30pm", "16:00", "1030", "7p"; a bare hour up to 6 is pm. null = unreadable
+  const parseTyped = (raw) => {
+    const m = String(raw || '').trim().toLowerCase().replace(/\s+/g, '').replace(/\./g, '').match(/^(\d{1,2})(?::?(\d{2}))?(a|p|am|pm)?$/);
+    if (!m) return null;
+    let h = +m[1]; const mi = m[2] ? +m[2] : 0, ap = m[3] ? m[3][0] : null;
+    if (mi > 59 || h > 23) return null;
+    if (ap) { if (h > 12 || h === 0) return null; h = h % 12 + (ap === 'p' ? 12 : 0); } else if (h <= 6 && h > 0) h += 12;
+    return pad2(h) + ':' + pad2(mi);
+  };
   // Take part's times always show minutes, as Design and the notes do ("9:00am court time")
   const slotTime = (hhmm) => { if (!hhmm) return ''; const [h, m] = hhmm.split(':').map(Number); return (h % 12 || 12) + ':' + pad2(m) + (h < 12 ? 'am' : 'pm'); };
   const fmtDay = (iso) => new Date(iso + 'T12:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  const wkDay = (iso, long) => new Date(iso + 'T12:00').toLocaleDateString('en-US', { weekday: long ? 'long' : 'short' });
+  const plusDays = (iso, n) => { const d = new Date(iso + 'T12:00'); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); };
+  const daysApart = (a, b) => Math.round((new Date(b + 'T12:00') - new Date(a + 'T12:00')) / 864e5);
+  // Multi-day events (Design v8-7, 20261108000000_multi_day.sql). sparks.schedule is null for one day, or
+  // repeat {every, until} / span {to, to_time} / days {days: [{d, t, e}], each}. On the spark: startDate/startTime/startEnd
+  // are what's saved (day_date…), `days` lists every day of a span or separate days ({d, t, e, n: 'from'|'until'|'all'}),
+  // and dayDate/dayTime/dayEnd become the current or next day (a repeat's next date), so sorting, Up next and past/upcoming
+  // keep working from them. A day is past once it's over: the event is done after its last day.
+  const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/, HHMM = /^\d{2}:\d{2}$/;
+  const REPEATS = { week: 'Weekly', '2week': 'Every 2 weeks', month: 'Monthly' };
+  const repeatDates = (d0, every, until, to) => {   // a repeat's dates from d0 up to `to` (or its end date), at most 400
+    const out = [], [y, m, dd] = d0.split('-').map(Number), last = until && until < to ? until : to;
+    for (let k = 0; out.length < 400; k++) {
+      let iso;
+      if (every === 'month') { const n = new Date(y, m - 1 + k + 1, 0).getDate(), q = new Date(y, m - 1 + k, Math.min(dd, n)); iso = q.getFullYear() + '-' + pad2(q.getMonth() + 1) + '-' + pad2(q.getDate()); }
+      else iso = plusDays(d0, k * (every === '2week' ? 14 : 7));
+      if (iso > last) break;
+      out.push(iso);
+    }
+    return out;
+  };
+  const schedOf = (row) => {
+    const d0 = row.day_date || null, t0 = row.day_time ? String(row.day_time).slice(0, 5) : null, e0 = row.day_end ? String(row.day_end).slice(0, 5) : null;
+    const base = { startDate: d0, startTime: t0, startEnd: e0, sched: null, days: null, daysEach: false, repeat: null };
+    const p = row.schedule, today = todayISO();
+    if (!d0 || !p || typeof p !== 'object') return base;
+    let days = null;
+    if (p.kind === 'days' && Array.isArray(p.days)) {
+      days = p.days.filter(r => r && ISO_DAY.test(r.d)).map(r => ({ d: r.d, t: HHMM.test(r.t || '') ? r.t : null, e: HHMM.test(r.e || '') ? r.e : null })).sort((a, b) => a.d < b.d ? -1 : 1);
+      if (days.length < 2) days = null;
+    } else if (p.kind === 'span' && ISO_DAY.test(p.to || '') && p.to > d0) {
+      const n = Math.min(daysApart(d0, p.to), 31), tt = HHMM.test(p.to_time || '') ? p.to_time : null;
+      days = Array.from({ length: n + 1 }, (_, k) => k === 0 ? { d: d0, t: t0, e: null, n: 'from' } : k === n ? { d: plusDays(d0, k), t: null, e: tt, n: 'until' } : { d: plusDays(d0, k), t: null, e: null, n: 'all' });
+    }
+    if (days) { const cur = days.find(r => r.d >= today) || days[days.length - 1]; return Object.assign(base, { sched: p, days, daysEach: p.kind === 'days' && p.each === true, dayDate: cur.d, dayTime: cur.t, dayEnd: cur.t ? cur.e : null }); }
+    if (p.kind === 'repeat' && REPEATS[p.every]) {
+      const until = ISO_DAY.test(p.until || '') ? p.until : null, all = repeatDates(d0, p.every, until, plusDays(today, 400));
+      const cur = all.find(d => d >= today) || all[all.length - 1] || d0;
+      return Object.assign(base, { sched: p, repeat: { every: p.every, until }, dayDate: cur });
+    }
+    return base;
+  };
+  // "Sat–Sun, Oct 10–11", "Fri–Mon, Oct 30–Nov 2"
+  const multiLabel = (ds) => {
+    const f = ds[0], l = ds[ds.length - 1], mon = (d) => new Date(d + 'T12:00').toLocaleDateString('en-US', { month: 'short' });
+    return wkDay(f) + '–' + wkDay(l) + ', ' + mon(f) + ' ' + +f.slice(8) + '–' + (mon(l) !== mon(f) ? mon(l) + ' ' : '') + +l.slice(8);
+  };
+  // One day's times on the timeline and in lists: "10am–4pm", "From 10am", "Until 5pm", "All day"
+  const dayTimes = (r) => r.n === 'from' ? (r.t ? 'From ' + fmtTime(r.t) : '') : r.n === 'until' ? (r.e ? 'Until ' + fmtTime(r.e) : '') : r.n === 'all' ? 'All day' : r.t ? fmtTime(r.t) + (r.e ? '–' + fmtTime(r.e) : '') : '';
+  // The whole event in one line: "Sat–Sun, Oct 10–11 · 2 days", "Thu, Oct 8 · 6:30pm · Weekly"
+  const schedLine = (s) => s.days ? multiLabel(s.days.map(r => r.d)) + ' · ' + s.days.length + ' days'
+    : s.repeat ? [fmtDay(s.startDate), s.startTime ? fmtTime(s.startTime) : '', REPEATS[s.repeat.every]].filter(Boolean).join(' · ') : '';
+  const repeatLine = (every, d, until) => !d ? '' : (every === 'month' ? 'Monthly on the ' + ordinal(+d.slice(8)) : (every === '2week' ? 'Every other ' : 'Every ') + wkDay(d, true)) +
+    (until ? ' until ' + new Date(until + 'T12:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '');
+  // Which days someone is coming to an Each day event: their picked days, plus any day they hold a job on (item 7);
+  // a reply without days (the lead's own Going, or from before it was Each day) is every day
+  const rsvpDays = (s, uid) => {
+    if (!s.days || !s.daysEach) return null;
+    const r = s.rsvps.find(x => x.userId === uid), all = s.days.map(x => x.d), held = s.signups.filter(u => u.day && u.claims.some(c => c.userId === uid)).map(u => u.day)
+      .concat(s.jobs.filter(j => j.day && j.shifts && j.claims.some(c => c.userId === uid)).map(j => j.day));
+    if (!r && !held.length) return null;
+    const plain = r && !(r.days && r.days.length) && !(r.maybeDays && r.maybeDays.length);
+    const go = r && r.status === 'no' ? [] : plain ? (r.status === 'going' ? all.slice() : []) : (r ? (r.days || []).slice() : []);
+    held.forEach(d => { if (all.indexOf(d) > -1 && go.indexOf(d) < 0) go.push(d); });
+    const maybe = plain ? (r.status === 'maybe' ? all.filter(d => go.indexOf(d) < 0) : []) : (r && r.status !== 'no' ? (r.maybeDays || []).filter(d => go.indexOf(d) < 0) : []);
+    return { go: all.filter(d => go.indexOf(d) > -1), maybe: all.filter(d => maybe.indexOf(d) > -1) };
+  };
+  // "Both days", "Sat", "Sat · Maybe Sun", "Every day" (Who's coming, item 6)
+  const daysTag = (s, ds) => {
+    if (!ds || (!ds.go.length && !ds.maybe.length)) return '';
+    const n = s.days.length, w = (a) => a.map(d => wkDay(d)).join(' & ');
+    return [ds.go.length ? (ds.go.length === n ? (n === 2 ? 'Both days' : 'Every day') : w(ds.go)) : '', ds.maybe.length ? 'Maybe ' + w(ds.maybe) : ''].filter(Boolean).join(' · ');
+  };
 
   const uuid = () => (crypto.randomUUID && crypto.randomUUID()) ||
     'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); });
@@ -176,6 +258,7 @@
   const blankCompose = () => ({
     evStep: 'title', activity: '', photos: [], evPhotoPath: null, coverPos: null,
     evDate: '', evTime: '', evEnd: '', evEndOn: false, timeOpen: null, dateOpen: null, calMonth: null,
+    evDayType: 'one', evRepeat: 'week', evRepeatUntil: '', evEndDate: '', evEndDateT: '', evDays: [], evDaysEach: false, dayTypePop: null,   // how long it is (v8-7)
     locText: '', locPlace: null, locSuggest: [],
     evBits: ['', '', ''], evOverview: '', evNeed: null, evTags: [], evNeeds: [], evDatePoll: null, evSpotPoll: null, evLater: {}, evHelpNone: false,
     evPriv: false, evNoGuestInv: true, evTest: null, evFloat: false, evGrpNone: false, evTitleEd: false, evDetOpen: false, evPop: null, evGroups: null, evDraftId: null, evLeave: false, evLeaveTo: null, evFrom: null, pollSheet: null, needSheet: null, evFromReview: false
@@ -204,14 +287,14 @@
     offerKind: null, offerText: '', offerPlace: null, offerSuggest: [],
     joinOpen: false, joinCode: '', joinBad: false,
     notif: { allReadAt: 0, read: [], topics: {}, email: true, loaded: false }, nFilter: 'all', nSettings: false, demoAdmin: false, back: null, myPlace: '', myBio: '', memberSince: null, ownGrp: null, sizes: {}, membersQ: '', gpRename: null, gpDel: null, ph: null,
-    startName: null, phaseTab: 'plan', sigDraft: '', sigNeed: '', sigTime: '', blast: null, updAll: null, invite: null,
+    startName: null, phaseTab: 'plan', blast: null, updAll: null, invite: null,
     pe: null, confirm: null, interestList: false, thanksList: false, guestList: null, cohostPick: null, leadAsk: null, leadsSheet: null, takeDown: null, albumEdit: null,
     gpCode: '', gpMembers: null, gpFail: false, acctDel: null, voteAll: null, justAdded: null, offerVote: true,
     // v6 Update 13: Your people (Groups · Friends), friend requests, the friend link, inviting friends
     fr: { friends: [], incoming: [], outgoing: [], invites: [], loaded: false }, pplTab: 'groups', pplSearch: false, pplQ: '', pplAdd: false, frSel: [], frInvite: false, frAll: false, frAllQ: '',
     frAdd: null, myFriendCode: null, person: null,
     // v6: Profile / Notifications are sheets; Your tasks' "View all", expansions, the RSVP ask
-    profSheet: false, notifSheet: false, dashAll: null, dashOpen: {}, schedOpen: {}, tkCat: 'all', tkView: prefs.tkView === 'dense' ? 'dense' : 'time', iaView: prefs.iaView === 'full' ? 'full' : 'grid', iaSort: ['new', 'close'].indexOf(prefs.iaSort) > -1 ? prefs.iaSort : 'interest', iaGrps: keepGrps(prefs.iaGrps) || [], frList: null, frListEd: null, meImp: null, meList: null, shiftPick: null, banner: null, sigAdding: false,
+    profSheet: false, notifSheet: false, dashAll: null, dashOpen: {}, schedOpen: {}, tkCat: 'all', tkView: prefs.tkView === 'dense' ? 'dense' : 'time', iaView: prefs.iaView === 'full' ? 'full' : 'grid', iaSort: ['new', 'close'].indexOf(prefs.iaSort) > -1 ? prefs.iaSort : 'interest', iaGrps: keepGrps(prefs.iaGrps) || [], frList: null, frListEd: null, meImp: null, meList: null, shiftPick: null, banner: null,
     // v6 Calendar: search, filters, sort, view, month, discovery cards
     cq: '', cSearch: false, cGrps: keepGrps(prefs.cGrps), tGrps: keepGrps(prefs.tGrps), sGrps: keepGrps(prefs.sGrps), cTypes: [], cKind: 'plan', cSort: 'soon', cView: CVIEWS.indexOf(prefs.cView) > -1 ? prefs.cView : 'list',
     cMon: null, cDay: null, cWildHidden: false, cNeedsHidden: false, cHandSheet: false, hMon: null, hDay: null, gMon: null, gDay: null,
@@ -288,7 +371,7 @@
       state.back = ORIGINS.indexOf(state.screen) > -1 ? { screen: state.screen, groupId: state.groupId, phaseTab: state.phaseTab, scroll: sc ? sc.scrollTop : 0 } : null;
     }
     // Going anywhere closes the v6 sheets (Profile, Notifications, View all, Could use a hand, Search)
-    setState(Object.assign({ screen, menu: null, plusMenu: false, ip: null, ipPop: null, ipEd: null, zoom: null, sec: null, needEd: null, share: null, cohostPick: null, leadAsk: null, leadsSheet: null, pollSheet: null, profSheet: false, notifSheet: false, dashAll: null, cHandSheet: false, cSearch: false, cq: '', gSearch: false, gq: '', gTry: null, pplAdd: false, frInvite: false, frList: null, frListEd: null, meImp: null, meList: null, meSet: false, pplSearch: false, pplQ: '', person: null, fbNudge: null, peek: null, gMenu: null, gQr: null, jobAsk: null, handOff: null, partRoster: null, partGuest: null }, extra || {}));
+    setState(Object.assign({ screen, menu: null, plusMenu: false, ip: null, ipPop: null, ipEd: null, zoom: null, sec: null, needEd: null, share: null, cohostPick: null, leadAsk: null, leadsSheet: null, pollSheet: null, profSheet: false, notifSheet: false, dashAll: null, cHandSheet: false, cSearch: false, cq: '', gSearch: false, gq: '', gTry: null, pplAdd: false, frInvite: false, frList: null, frListEd: null, meImp: null, meList: null, meSet: false, pplSearch: false, pplQ: '', person: null, fbNudge: null, gMenu: null, gQr: null, jobAsk: null, handOff: null, partRoster: null, partGuest: null, dayPick: null }, extra || {}));
     if (sc) sc.scrollTop = 0;
   };
 
@@ -385,14 +468,14 @@
   // `jobs` is what the event page lists: plain jobs, and shift jobs with their `shifts`.
   const hm = (t) => t ? String(t).slice(0, 5) : null;
   const toSignups = (rows, claims) => {
-    const unit = (i, job) => ({ id: i.id, item: i.item, need: i.need || null, time: hm(i.time), endTime: hm(i.end_time), desc: i.descr || '', jobId: job ? job.id : null,
+    const unit = (i, job) => ({ id: i.id, item: i.item, need: i.need || null, time: hm(i.time), endTime: hm(i.end_time), desc: i.descr || '', jobId: job ? job.id : null, day: i.day || null,
       createdBy: i.created_by, claims: (claims[i.id] || []).map(c => ({ userId: c.user_id, note: c.note || '', created: Date.parse(c.created_at) })) });
     const byAge = rows.slice().sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at) || String(a.time || '').localeCompare(String(b.time || '')));
     const kids = byKey(byAge.filter(i => i.shift_of), 'shift_of');
     const signups = [], jobs = [];
     byAge.filter(i => !i.shift_of).forEach(i => {
       if (!kids[i.id]) { const u = unit(i); signups.push(u); jobs.push(u); return; }
-      const job = { id: i.id, item: i.item, desc: i.descr || '', createdBy: i.created_by, shifts: [] };
+      const job = { id: i.id, item: i.item, desc: i.descr || '', createdBy: i.created_by, day: i.day || null, shifts: [] };
       kids[i.id].sort((a, b) => String(a.time || '').localeCompare(String(b.time || ''))).forEach(k => { const u = unit(k, job); u.desc = u.desc || job.desc; job.shifts.push(u); signups.push(u); });
       job.time = job.shifts[0].time; job.endTime = job.shifts[job.shifts.length - 1].endTime || null;
       job.need = job.shifts.reduce((a, u) => a + (u.need || 0), 0) || null;
@@ -409,7 +492,7 @@
     const whole = (t) => { const [h, m] = t.split(':').map(Number); return (h % 12 || 12) + ':' + pad2(m); };
     return (am(it.time) === am(it.endTime) ? whole(it.time) : a) + ' – ' + whole(it.endTime) + (am(it.endTime) ? 'am' : 'pm');
   };
-  const jobTime = (j) => j.shifts ? j.shifts.length + (j.shifts.length === 1 ? ' shift' : ' shifts') +(j.time ? ' · ' + spanTime(j) : '') : spanTime(j);
+  const jobTime = (j) => [j.day ? wkDay(j.day) : '', j.shifts ? j.shifts.length + (j.shifts.length === 1 ? ' shift' : ' shifts') + (j.time ? ' · ' + spanTime(j) : '') : spanTime(j)].filter(Boolean).join(' · ');   // "Sat · 9:00 – 10:00am" (v8-7)
   // Take part (Design v8-2, 20261106000000_take_part.sql): spots people claim to take part, kept apart from Help out's
   // jobs. kind time: a row per time (shift rows); seat / other: one row. Each row has its claims and its waitlist
   // (in line order); the spot has waitlist on/off and perPerson (null: any)
@@ -435,6 +518,7 @@
     spot: row.spot || '', spotAddress: row.spot_address || '',
     spotPoint: Number.isFinite(row.spot_lat) && Number.isFinite(row.spot_lon) ? [row.spot_lat, row.spot_lon] : null,
     dayDate: row.day_date || null, dayTime: row.day_time ? String(row.day_time).slice(0, 5) : null, dayEnd: row.day_end ? String(row.day_end).slice(0, 5) : null,
+    ...schedOf(row),   // multi-day events (v8-7): dayDate/dayTime/dayEnd become the current or next day; startDate… keep the saved ones
     dayText: row.day_date ? '' : (row.day || ''),
     vision: row.vision || '',
     photoPaths: (row.photos || []).filter(p => PHOTO_PATH.test(p)),
@@ -456,7 +540,8 @@
     demo: !!row.demo,   // seeded demo content: a DEMO pill before its title (demoTag), and counted for the owner's wipe
     test: !!row.test,   // a member's test event (chosen when posting): the same DEMO pill, never wiped with the demo content
     planned: !!row.planned, visibility: row.visibility || 'group', guestInvites: row.guest_invites !== false, autoRemind: row.auto_remind !== false, minPeople: row.min_people || null,
-    rsvps: (x.rsvps[row.id] || []).map(r => ({ userId: r.user_id, status: r.status, created: Date.parse(r.created_at), attended: r.attended == null ? null : !!r.attended })),
+    rsvps: (x.rsvps[row.id] || []).map(r => ({ userId: r.user_id, status: r.status, created: Date.parse(r.created_at), attended: r.attended == null ? null : !!r.attended,
+      days: Array.isArray(r.days) ? r.days.slice().sort() : null, maybeDays: Array.isArray(r.maybe_days) ? r.maybe_days.slice().sort() : null })),   // an Each day event's picked days (v8-7)
     dateOpts: (x.dateOpts[row.id] || []).map(o => ({ id: o.id, dayDate: o.day_date, dayTime: o.day_time ? String(o.day_time).slice(0, 5) : null, dayPart: o.day_part || null, who: o.who, createdBy: o.created_by, created: Date.parse(o.created_at), votes: (x.dateVotes[o.id] || []).map(v => v.user_id) })),
     spotOpts: (x.spotOpts[row.id] || []).map(o => ({ id: o.id, name: o.name, address: o.address || '', lat: o.lat, lon: o.lon, who: o.who, createdBy: o.created_by, created: Date.parse(o.created_at), votes: (x.spotVotes[o.id] || []).map(v => v.user_id) })),
     ...toSignups((x.signups[row.id] || []).filter(i => !i.kind || i.kind === 'job'), x.claims),
@@ -496,14 +581,16 @@
       sb.from('offers').select('*').order('created_at'),
       sb.from('interests').select('spark_id,user_id,created_at,can_help'),
       sb.from('guest_contacts').select('spark_id,user_id,name,phone'),
-      sb.from('rsvps').select('spark_id,user_id,status,created_at,attended'),
+      sb.from('rsvps').select('spark_id,user_id,status,created_at,attended,days,maybe_days')
+        .then(r => r.error && r.error.code === '42703' ? sb.from('rsvps').select('spark_id,user_id,status,created_at,attended') : r),   // days: 20261108000000
       sb.from('date_options').select('id,spark_id,day_date,day_time,day_part,who,created_by,created_at')
         .then(r => r.error && r.error.code === '42703' ? sb.from('date_options').select('id,spark_id,day_date,day_time,who,created_by,created_at') : r),   // day_part: 20261107000000
       sb.from('date_votes').select('option_id,user_id'),
       sb.from('spot_options').select('id,spark_id,name,address,lat,lon,who,created_by,created_at'),
       sb.from('spot_votes').select('option_id,user_id'),
       // Descriptions, end times and shifts came with v6 Update 5; a database without them still loads
-      sb.from('signup_items').select('id,spark_id,item,need,time,end_time,descr,shift_of,kind,waitlist,per_person,created_by,created_at')
+      sb.from('signup_items').select('id,spark_id,item,need,time,end_time,descr,shift_of,kind,waitlist,per_person,day,created_by,created_at')
+        .then(r => r.error && r.error.code === '42703' ? sb.from('signup_items').select('id,spark_id,item,need,time,end_time,descr,shift_of,kind,waitlist,per_person,created_by,created_at') : r)
         .then(r => r.error && r.error.code === '42703' ? sb.from('signup_items').select('id,spark_id,item,need,time,end_time,descr,shift_of,created_by,created_at') : r)
         .then(r => r.error && r.error.code === '42703' ? sb.from('signup_items').select('id,spark_id,item,need,time,created_by,created_at') : r),
       sb.from('signup_claims').select('item_id,user_id,note,created_at'),
@@ -1598,10 +1685,17 @@
     return { signups: s.signups.map(unit), jobs: (s.jobs || []).map(j => { if (!j.shifts) return unit(j); const shifts = j.shifts.map(unit); return Object.assign({}, j, { shifts, claims: [].concat(...shifts.map(u => u.claims)) }); }) };
   };
   // Taking a job on a plan marks you Going (goingWithJob does it in the database)
-  const goingToo = (s) => !s.planned || isLead(s) || myRsvp(s) === 'going' ? {} : { rsvps: s.rsvps.filter(r => r.userId !== state.me).concat([{ userId: state.me, status: 'going', created: Date.now(), attended: null }]) };
-  const setRsvp = (s, status) => {
-    const cur = myRsvp(s), next = cur === status ? null : status, lead = nameOf(s.leadId, s.leadName);
-    const note = { going: 'You’re going. See you there!', maybe: 'Marked as maybe', no: isLead(s) ? 'Marked as can’t make it' : 'Thanks for letting ' + lead + ' know' }[next];
+  const goingToo = (s, day) => { const add = jobDayAdd(s, day);
+    if (add) return { rsvps: s.rsvps.filter(r => r.userId !== state.me).concat([{ userId: state.me, status: 'going', created: Date.now(), attended: null, days: add.go, maybeDays: add.maybe }]) };
+    return !s.planned || isLead(s) || myRsvp(s) === 'going' ? {} : { rsvps: s.rsvps.filter(r => r.userId !== state.me).concat([{ userId: state.me, status: 'going', created: Date.now(), attended: null }]) }; };
+  // pick: an Each day event's days from When will you attend? ({ go: [...], maybe: [...] }; neither = Can't). Going on an
+  // Each day event without a pick opens that pop-up; Maybe and Can't still answer for the whole event (v8-7 item 5)
+  const setRsvp = (s, status, pick) => {
+    if (s.daysEach && status === 'going' && !pick) return setState({ dayPick: { id: s.id, m: dayPickFrom(s) } });
+    const cur = myRsvp(s), next = pick ? (pick.go.length ? 'going' : pick.maybe.length ? 'maybe' : 'no') : cur === status ? null : status, lead = nameOf(s.leadId, s.leadName);
+    const days = s.daysEach && next ? { days: pick ? pick.go : null, maybe_days: pick ? pick.maybe : null } : {};
+    const note = pick ? (next === 'no' ? 'Got it. You can’t make it.' : dayPickLabel(s, pick).replace('I’m going', 'You’re going'))
+      : { going: 'You’re going. See you there!', maybe: 'Marked as maybe', no: isLead(s) ? 'Marked as can’t make it' : 'Thanks for letting ' + lead + ' know' }[next];
     const jobs = next === 'no' ? myClaims(s) : [];
     // Take part (v8-2): Can't or Maybe while holding spots asks first; a waitlist place just goes with it
     const away = (next === 'no' || next === 'maybe') && !isLead(s), spots = away ? myPartRows(s) : [], waits = away ? myWaitRows(s) : [];
@@ -1611,11 +1705,11 @@
       if (state.viewAs) return run(async () => {});   // previewing: run() says nothing changes
       const now = state.sparks.find(x => x.id === s.id) || s, before = now.rsvps, partsBefore = now.parts;
       const offSpots = (dropSpots ? spots : []).map(u => u.id), offWaits = waits.map(u => u.id);
-      patchSpark(s.id, Object.assign({ rsvps: before.filter(r => r.userId !== state.me).concat(next ? [{ userId: state.me, status: next, created: Date.now() }] : []) },
+      patchSpark(s.id, Object.assign({ rsvps: before.filter(r => r.userId !== state.me).concat(next ? [{ userId: state.me, status: next, created: Date.now(), days: days.days || null, maybeDays: days.maybe_days || null }] : []) },
         offSpots.length || offWaits.length ? { parts: (partsBefore || []).map(p => Object.assign({}, p, { rows: p.rows.map(u => Object.assign({}, u, {
           claims: offSpots.indexOf(u.id) > -1 ? u.claims.filter(c => c.userId !== state.me) : u.claims, waits: offWaits.indexOf(u.id) > -1 ? u.waits.filter(w => w !== state.me) : u.waits })) })) } : {}));
       // Going to a dated event: the toast becomes a banner with Add to calendar, so the reminder is set while they're committing
-      if (next === 'going' && s.dayDate && !s.cancelledAt) showBanner({ kind: 'going', id: s.id }, 5000);
+      if (next === 'going' && s.dayDate && !s.cancelledAt && !pick) showBanner({ kind: 'going', id: s.id }, 5000);
       else if (note) toast(dropJobs ? 'Thanks for letting ' + lead + ' know. You’re off the list too.' : note, true);
       const mine = ++rsvpQueued;
       saving(1);
@@ -1624,7 +1718,7 @@
           await ensureSession();
           await saveGuestContact(s.id);
           if (!next) must(await sb.from('rsvps').delete().eq('spark_id', s.id).eq('user_id', state.me));
-          else must(await sb.from('rsvps').upsert({ spark_id: s.id, user_id: state.me, status: next }, { onConflict: 'spark_id,user_id' }));
+          else must(await sb.from('rsvps').upsert(Object.assign({ spark_id: s.id, user_id: state.me, status: next }, days), { onConflict: 'spark_id,user_id' }));
           if (dropJobs) must(await sb.from('signup_claims').delete().in('item_id', jobs.map(it => it.id)).eq('user_id', state.me));
           if (offSpots.length) must(await sb.from('signup_claims').delete().in('item_id', offSpots).eq('user_id', state.me));
           if (offWaits.length) must(await sb.from('signup_waits').delete().in('item_id', offWaits).eq('user_id', state.me));
@@ -1732,22 +1826,26 @@
   const jobOf = (s, it) => (s.jobs || s.signups).find(j => j.id === (it.jobId || it.id)) || it;
   const myShiftIds = (job) => (job.shifts || []).filter(u => u.claims.some(c => c.userId === state.me)).map(u => u.id);
 
-  // Sign-ups: the lead adds items (with an optional "how many"); others add what they're bringing
-  const addSignup = (s) => {
-    const item = cleanTitle(state.sigDraft).slice(0, 60), need = isLead(s) ? (parseInt(state.sigNeed, 10) || null) : null, time = isLead(s) ? (state.sigTime || null) : null;
-    if (!item || state.busy) return;
-    let row = null;
-    const was = myRsvp(s);
-    const add = () => run(async () => {
-      await saveGuestContact(s.id);
-      row = must(await sb.from('signup_items').insert({ spark_id: s.id, item, need, time }).select('id').single()).data;
-      if (!isLead(s)) { must(await sb.from('signup_claims').insert({ item_id: row.id, user_id: state.me })); await goingWithJob(s); }
-    }, { sigDraft: '', sigNeed: '', sigTime: '', sigAdding: false }).then(ok => { if (ok) { if (isLead(s)) toast('Added to sign-ups', true); else onItBanner(s, { del: row.id, was }); } });
-    if (isLead(s)) add(); else needAccount(add);
-  };
   // Taking a job means you're coming (owner, 2026-09-30): it marks you Going on a plan, whatever you'd said.
   // Undo puts your old answer back (`was`).
-  const goingWithJob = async (s) => {
+  // On an Each day event (v8-7 item 7), a job on a day adds that day to your Going days (and takes it off Maybe)
+  const jobDayAdd = (s, day) => {
+    if (!s.daysEach || !day || isLead(s)) return null;
+    const ds = rsvpDays(s, state.me) || { go: [], maybe: [] }, r = s.rsvps.find(x => x.userId === state.me);
+    if (myRsvp(s) === 'going' && ds.go.indexOf(day) > -1 && !(r && r.maybeDays && r.maybeDays.indexOf(day) > -1)) return null;
+    const plain = r && !(r.days && r.days.length) && !(r.maybeDays && r.maybeDays.length) && r.status === 'going';
+    if (plain) return null;   // going to the whole thing already
+    const go = s.days.map(x => x.d).filter(d => d === day || (r && (r.days || []).indexOf(d) > -1));
+    const allMaybe = r && r.status === 'maybe' && !(r.days && r.days.length) && !(r.maybeDays && r.maybeDays.length);   // Maybe to the whole thing: the other days stay Maybe
+    return { go, maybe: (allMaybe ? s.days.map(x => x.d) : r && r.status !== 'no' ? r.maybeDays || [] : []).filter(d => d !== day), told: !!(r && ((r.days && r.days.length) || (r.maybeDays && r.maybeDays.length))) };
+  };
+  const goingWithJob = async (s, day) => {
+    const add = jobDayAdd(s, day);
+    if (add) {
+      must(await sb.from('rsvps').upsert({ spark_id: s.id, user_id: state.me, status: 'going', days: add.go, maybe_days: add.maybe }, { onConflict: 'spark_id,user_id' }));
+      if (add.told) toast('Added ' + wkDay(day, true) + ' to your RSVP', true);   // "Added Sunday to your RSVP"
+      return;
+    }
     if (!s.planned || isLead(s) || myRsvp(s) === 'going') return;
     must(await sb.from('rsvps').upsert({ spark_id: s.id, user_id: state.me, status: 'going' }, { onConflict: 'spark_id,user_id' }));
   };
@@ -1757,10 +1855,10 @@
     needAccount(() => {
       // The button and the banner change with the tap; the save follows
       if (!state.viewAs) { if (mine) offIt(s, jobOf(s, it), { items: [it.id], note: myNote }); else onItBanner(s, { items: [it.id], was }); }
-      quick(s, Object.assign(withClaim(s, [it.id], !mine), mine ? {} : goingToo(s)), async () => {
+      quick(s, Object.assign(withClaim(s, [it.id], !mine), mine ? {} : goingToo(s, jobOf(s, it).day)), async () => {
         await saveGuestContact(s.id);
         if (mine) must(await sb.from('signup_claims').delete().eq('item_id', it.id).eq('user_id', state.me));
-        else { must(await sb.from('signup_claims').insert({ item_id: it.id, user_id: state.me })); await goingWithJob(s); }
+        else { must(await sb.from('signup_claims').insert({ item_id: it.id, user_id: state.me })); await goingWithJob(s, jobOf(s, it).day); }
       }, (ok) => { if (!ok) { clearTimeout(bannerTimer); setState({ banner: null }); } });
     });
   };
@@ -1786,10 +1884,10 @@
     if (add.length) onItBanner(s, { items: add, back: drop, note, was });   // Undo takes back only this change: the new shifts go, dropped ones return
     else if (drop.length) offIt(s, job, { items: drop, note: oldNote });
     const dropped = withClaim(s, drop, false), added = withClaim(Object.assign({}, s, dropped), add.concat(noteChanged ? keep : []), true, note);
-    quick(s, Object.assign(added, add.length ? goingToo(s) : {}), async () => {
+    quick(s, Object.assign(added, add.length ? goingToo(s, job.day) : {}), async () => {
       await saveGuestContact(s.id);
       if (drop.length) must(await sb.from('signup_claims').delete().in('item_id', drop).eq('user_id', state.me));
-      if (add.length) { must(await sb.from('signup_claims').insert(add.map(id => ({ item_id: id, user_id: state.me, note })))); await goingWithJob(s); }
+      if (add.length) { must(await sb.from('signup_claims').insert(add.map(id => ({ item_id: id, user_id: state.me, note })))); await goingWithJob(s, job.day); }
       if (keep.length && noteChanged) must(await sb.from('signup_claims').update({ note }).in('item_id', keep).eq('user_id', state.me));
     }, (ok) => { if (!ok) { clearTimeout(bannerTimer); setState({ banner: null }); } });
   };
@@ -1848,29 +1946,38 @@
     });
   };
 
-  // "Add to calendar": an .ics event to its end time (an hour if it has none); no time = an all-day event
+  // "Add to calendar": an .ics event to its end time (an hour if it has none); no time = an all-day event. Multi-day (v8-7):
+  // separate days get one entry per day you're going (every day for The whole thing); a span is one entry from its first
+  // day to its last; a repeat is one entry that repeats (RRULE)
   const addToCalendar = (s) => {
     if (!s.dayDate) return;
-    const d = s.dayDate.replace(/-/g, ''), p2 = (n) => String(n).padStart(2, '0');
+    const p2 = (n) => String(n).padStart(2, '0'), ymd = (iso) => iso.replace(/-/g, '');
     const stamp = (dt) => dt.getFullYear() + p2(dt.getMonth() + 1) + p2(dt.getDate()) + 'T' + p2(dt.getHours()) + p2(dt.getMinutes()) + '00';
-    let startLine, endLine;
-    if (s.dayTime) {
-      const start = new Date(s.dayDate + 'T' + s.dayTime + ':00'), end = s.dayEnd && s.dayEnd > s.dayTime ? new Date(s.dayDate + 'T' + s.dayEnd + ':00') : new Date(start.getTime() + 3600000);
-      startLine = 'DTSTART:' + stamp(start); endLine = 'DTEND:' + stamp(end);
-    } else {
-      const next = new Date(s.dayDate + 'T00:00:00'); next.setDate(next.getDate() + 1);
-      startLine = 'DTSTART;VALUE=DATE:' + d; endLine = 'DTEND;VALUE=DATE:' + next.getFullYear() + p2(next.getMonth() + 1) + p2(next.getDate());
-    }
+    const lines = (d, t, e, d2) => {   // d2: a span's last day
+      if (t) {
+        const start = new Date(d + 'T' + t + ':00'), end = d2 ? (e ? new Date(d2 + 'T' + e + ':00') : new Date(plusDays(d2, 1) + 'T00:00:00')) : e && e > t ? new Date(d + 'T' + e + ':00') : new Date(start.getTime() + 3600000);
+        return ['DTSTART:' + stamp(start), 'DTEND:' + stamp(end)];
+      }
+      return ['DTSTART;VALUE=DATE:' + ymd(d), 'DTEND;VALUE=DATE:' + ymd(plusDays(d2 || d, 1))];
+    };
     const escIcs = (v) => String(v || '').replace(/[\\,;]/g, (m) => '\\' + m).replace(/\n/g, '\\n');
-    const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Spark Hub//EN', 'BEGIN:VEVENT', 'UID:' + s.id + '@sparkhub',
-      'DTSTAMP:' + new Date().toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z', startLine, endLine,
-      'SUMMARY:' + escIcs(s.text), 'LOCATION:' + escIcs([s.spot, s.spotAddress].filter(Boolean).join(', ')),
-      'DESCRIPTION:' + escIcs(location.origin + '/i/' + s.id), 'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
+    const ev = (uid, when, extra) => ['BEGIN:VEVENT', 'UID:' + uid + '@sparkhub', 'DTSTAMP:' + new Date().toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z'].concat(when, extra || [],
+      ['SUMMARY:' + escIcs(s.text), 'LOCATION:' + escIcs([s.spot, s.spotAddress].filter(Boolean).join(', ')), 'DESCRIPTION:' + escIcs(location.origin + '/i/' + s.id), 'END:VEVENT']);
+    let body, picked = null;
+    if (s.sched && s.sched.kind === 'days' && s.days) {
+      const mine = rsvpDays(s, state.me), ds = s.daysEach && mine && mine.go.length ? mine.go : s.days.map(r => r.d);
+      picked = s.days.filter(r => ds.indexOf(r.d) > -1);
+      body = [].concat(...picked.map(r => ev(s.id + '-' + r.d, lines(r.d, r.t, r.e))));
+    } else if (s.sched && s.sched.kind === 'span' && s.days) body = ev(s.id, lines(s.startDate, s.startTime, s.days[s.days.length - 1].e, s.days[s.days.length - 1].d));
+    else if (s.repeat) body = ev(s.id, lines(s.startDate, s.startTime, s.startEnd), ['RRULE:FREQ=' + (s.repeat.every === 'month' ? 'MONTHLY' : 'WEEKLY') + (s.repeat.every === '2week' ? ';INTERVAL=2' : '') + (s.repeat.until ? ';UNTIL=' + ymd(s.repeat.until) + 'T235959' : '')]);
+    else body = ev(s.id, lines(s.dayDate, s.dayTime, s.dayEnd));
+    const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Spark Hub//EN'].concat(body, ['END:VCALENDAR']).join('\r\n');
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([ics], { type: 'text/calendar' }));
     a.download = (s.text.replace(/[^\w ]+/g, '').trim() || 'plan') + '.ics';
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    if (picked && picked.length > 1) toast('Added ' + picked.map(r => wkDay(r.d)).join(' & ') + ' to your calendar (' + picked.length + ' entries)', true);
   };
 
   // "Do it again": a new event with the place and details filled in
@@ -3599,14 +3706,11 @@
   // Task rows under a role strip: paler than the strip (Design 27): Helping orange (v8-6), Leading purple
   const rowFill = (P) => P.k === 'help' ? '#fffbf8' : P.k === 'lead' ? '#fdfcff' : '#fff';
   // Tiles: the photo with date, title and place; the strip under it
-  // Event preview (v7 Update 15, 13a; owner said build it, 2026-10-02): on the Calendar a plan opens a slide-up first
-  // Only an upcoming plan gets the preview; a past one opens its full page (Design v8)
-  const peekOrOpen = (s) => s.planned && phaseOf(s) === 'plan' ? setState({ peek: s.id, menu: null }) : openSpark(s);
   // mode 'mine' (My calendar, Design v8): a 34px strip at 12.5px, the role word only. All groups (cal): a 23px title,
   // 14px place, a 28px strip at 11.5px and a lighter group chip
   const tile6 = (s, P, h, cal, mode) => {
     const g = groupById(s.groupId);
-    return '<div ' + on(() => cal ? peekOrOpen(s) : openSpark(s)) + ' data-plan="' + esc(s.text) + '" aria-label="' + esc(s.text) + '" style="border-radius:20px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
+    return '<div ' + on(() => openSpark(s)) + ' data-plan="' + esc(s.text) + '" aria-label="' + esc(s.text) + '" style="border-radius:20px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
       '<div style="position:relative;height:' + h + 'px;background:' + photoBg(s) + '">' +
         '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.95) 0%, rgba(13,17,23,.65) 45%, rgba(13,17,23,.3) 100%)"></div>' +
         (cal && g ? '<span style="position:absolute;top:12px;left:14px;display:flex;align-items:center;height:24px;padding:0 10px;border-radius:999px;background:rgba(13,17,23,.4);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);font-size:11.5px;font-weight:700;color:rgba(255,255,255,.84)">' + esc(groupsLabel(s)) + '</span>' : '') +
@@ -3618,15 +3722,30 @@
   };
   // List: date block, role bar, title, time · street, the photo on the right, over the strip (the same on every list since the audit, 2026-10-01)
   // thumb 'chev' (My calendar's Month, Design v8): a gray chevron instead of the photo
+  // A multi-day event's day (v8-7 item 8): "Day 1 of 2 · 10am–4pm"; a repeat's time says how it repeats
+  const dayOfLine = (s) => {
+    if (s.days) { const k = Math.max(0, s.days.findIndex(r => r.d === s.dayDate)), r = s.days[k]; return 'Day ' + (k + 1) + ' of ' + s.days.length + (dayTimes(r) ? ' · ' + dayTimes(r) : ''); }
+    return [fmtTime(s.dayTime), s.repeat ? REPEATS[s.repeat.every] : ''].filter(Boolean).join(' · ');
+  };
+  // Month view (v8-7 item 8): a multi-day event on each of its days, and a repeat on each of its dates that month. On an
+  // Each day event you've answered, only your Going and Maybe days (hosts see every day)
+  const calDays = (list, mine, month) => [].concat(...list.map(s => {
+    if (s.days) {
+      const ds = mine && s.daysEach && !isLead(s) && myRsvp(s) ? rsvpDays(s, state.me) : null, keep = ds ? ds.go.concat(ds.maybe) : null;
+      return s.days.filter(r => !keep || keep.indexOf(r.d) > -1).map(r => Object.assign({}, s, { dayDate: r.d, dayTime: r.t, dayEnd: r.t ? r.e : null }));
+    }
+    if (s.repeat && month) return repeatDates(s.startDate, s.repeat.every, s.repeat.until, month + '-31').filter(d => d.slice(0, 7) === month).map(d => Object.assign({}, s, { dayDate: d }));
+    return [s];
+  }));
   const listCard6 = (s, P, cal, thumb) => {
     const dp = s.dayDate ? dateParts(s.dayDate) : null;
-    return '<div ' + on(() => cal ? peekOrOpen(s) : openSpark(s)) + ' data-plan="' + esc(s.text) + '" aria-label="' + esc(s.text) + '" style="border-radius:16px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
+    return '<div ' + on(() => openSpark(s)) + ' data-plan="' + esc(s.text) + '" aria-label="' + esc(s.text) + '" style="border-radius:16px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
       '<div style="display:flex;align-items:center;gap:12px;padding:12px 14px">' +
         '<div style="flex:0 0 40px;display:flex;flex-direction:column;align-items:center">' + (dp ? '<span style="font-size:10.5px;font-weight:900;letter-spacing:.6px;color:#6b7280">' + dp.dow + '</span><span style="font-size:20px;line-height:1.1;font-weight:900;color:#0d1117">' + dp.day + '</span>'
           : '<span style="font-size:10.5px;font-weight:900;letter-spacing:.6px;color:#8f6405">TBD</span><span style="font-size:20px;line-height:1.1;font-weight:900;color:#8f6405">?</span>') + '</div>' +
         '<span aria-hidden="true" style="flex:0 0 3px;align-self:stretch;border-radius:999px;background:' + P.R.dot + '"></span>' +
         '<div style="flex:1;min-width:0"><div style="display:flex;align-items:center;min-width:0"><span style="min-width:0;font-size:15px;line-height:1.3;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(s.text) + '</span>' + demoTag(s, false, true) + '</div>' +
-          '<div style="font-size:12.5px;font-weight:600;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + [s.dayDate ? esc(fmtTime(s.dayTime)) : tbdSpan(dateTbd(s)), s.spot ? esc(street(s)) : tbdSpan(spotTbd(s))].filter(Boolean).join(' · ') + '</div></div>' +
+          '<div style="font-size:12.5px;font-weight:600;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + [s.dayDate ? esc(dayOfLine(s)) : tbdSpan(dateTbd(s)), s.spot ? esc(street(s)) : tbdSpan(spotTbd(s))].filter(Boolean).join(' · ') + '</div></div>' +
         (thumb === 'chev' ? '<span aria-hidden="true" style="flex:0 0 auto;display:flex">' + I.chevR(14, '#b9bcc4', 2.6) + '</span>' : '<span aria-hidden="true" style="flex:0 0 44px;width:44px;height:44px;border-radius:10px;background:' + photoBg(s) + '"></span>') +
       '</div>' + strip6(s, P, 28, cal) + '</div>';
   };
@@ -3641,7 +3760,7 @@
         '<span style="position:absolute;top:12px;right:14px;display:flex;align-items:center;height:24px;padding:0 10px;border-radius:999px;background:rgba(13,17,23,.4);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff;font-size:11.5px;font-weight:800">' + when + '</span>' +
         '<div style="position:absolute;left:16px;right:16px;bottom:14px;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.3)">' +
           // the badge says Today / Tomorrow / In N days, so the date line gives the date itself (it said "Today" twice); its colour follows your role
-          '<div style="font-size:13px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;color:' + P.R.kick + '">' + esc(s.dayDate ? fmtDay(s.dayDate) + (s.dayTime ? ' · ' + fmtTime(s.dayTime) : '') : when6(s)) + '</div>' +
+          '<div style="font-size:13px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;color:' + P.R.kick + '">' + esc(s.dayDate ? fmtDay(s.dayDate) + (s.days ? ' · ' + s.days.length + ' days' : s.dayTime ? ' · ' + fmtTime(s.dayTime) : '') + (s.repeat ? ' · ' + REPEATS[s.repeat.every] : '') : when6(s)) + '</div>' +
           '<div style="margin-top:3px;font-size:25px;line-height:1.1;font-weight:900;letter-spacing:-.6px;text-wrap:balance">' + esc(s.text) + demoTag(s, true, true) + '</div>' +
           '<div style="margin-top:6px;display:flex;align-items:center;gap:6px;font-size:14.5px;font-weight:700;color:rgba(255,255,255,.9);min-width:0">' + ic6('pin', 13, 'currentColor', 2.6) + '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (s.spot ? esc(s.spot) : tbdSpan(spotTbd(s), TBD_ON_PHOTO)) + '</span></div>' +
         '</div></div>' +
@@ -3882,10 +4001,11 @@
 
   // Month grid, then the chosen day's events (the Calendar, and Your schedule since v6 Update 9)
   // o.mode (Design v8): 'mine' (My calendar), 'all' (All groups) or 'group' (a group page)
-  const monthBody = (list, o) => {
+  const monthBody = (list0, o) => {
     const holds = o.holds || [], today = todayISO();
     // Opens on the month of the first upcoming event, on its first event day (Design v8)
-    const first = list.filter(s => s.dayDate && s.dayDate >= today).map(s => s.dayDate).sort()[0], cm = o.mon || (first ? first.slice(0, 7) : today.slice(0, 7));
+    const first = list0.filter(s => s.dayDate && s.dayDate >= today).map(s => s.dayDate).sort()[0], cm = o.mon || (first ? first.slice(0, 7) : today.slice(0, 7));
+    const list = calDays(list0, o.mode === 'mine', cm);
     const [y, m] = cm.split('-').map(Number), start = new Date(y, m - 1, 1), nDays = new Date(y, m, 0).getDate();
     const inMonth = list.filter(s => s.dayDate && s.dayDate.slice(0, 7) === cm), undatedN = list.filter(s => !s.dayDate).length;
     const firstDay = inMonth.map(s => s.dayDate).sort()[0];
@@ -4030,44 +4150,11 @@
   // "Could use a hand": each event's open roles, with Claim
   const claimRole = (s, it) => (noteTap({ k: 'role', id: s.id, item: it.id }), needAccount(() => { const was = myRsvp(s);
     if (!state.viewAs) onItBanner(s, { items: [it.id], was });
-    quick(s, Object.assign(withClaim(s, [it.id], true), goingToo(s)), async () => {
+    quick(s, Object.assign(withClaim(s, [it.id], true), goingToo(s, jobOf(s, it).day)), async () => {
       await saveGuestContact(s.id);
       must(await sb.from('signup_claims').insert({ item_id: it.id, user_id: state.me }));
-      await goingWithJob(s);
+      await goingWithJob(s, jobOf(s, it).day);
     }, (ok) => { if (!ok) { clearTimeout(bannerTimer); setState({ banner: null }); } }); }));
-  // The event preview slide-up (13a): photo, group, title, Led by, date and place, who's going, the RSVP buttons
-  // (the lead sees You're leading this.) and See the full event
-  function viewPeek() {
-    const s = state.sparks.find(x => x.id === state.peek);
-    if (!s) return '';
-    const close = () => setState({ peek: null }), lead = isLead(s), my = myRsvp(s), ids = going(s).map(r => r.userId), n = ids.length;
-    const C = { going: ['#149a4b', '#fff'], maybe: [MAYBE_SOLID, '#2a1d00'], no: ['#0d1117', '#fff'] };
-    const btn = (k, label) => { const sel = my === k; return '<button type="button" ' + on(() => setRsvp(s, k)) + ' aria-pressed="' + sel + '" style="flex:1 1 0;min-height:48px;border:0;border-radius:999px;font-family:inherit;font-size:15px;font-weight:800;cursor:pointer;' +
-      (sel ? 'background:' + C[k][0] + ';color:' + C[k][1] : 'background:#fff;color:#0d1117;box-shadow:inset 0 0 0 1.5px #dcdfe6') + '">' + label + '</button>'; };
-    return '<div class="v6-scrim" data-scrim="' + reg(close) + '" style="display:flex;align-items:flex-end">' +
-      '<div role="dialog" aria-modal="true" aria-label="Event preview" data-screen-label="Event preview" style="position:relative;width:100%;max-height:calc(100% - 48px - var(--sat));overflow-y:auto;background:#fff;border-radius:24px 24px 0 0;box-shadow:0 -10px 40px rgba(13,17,23,.25);display:flex;flex-direction:column;animation:sheetUp 260ms cubic-bezier(.2,.8,.2,1) both">' +
-        '<div style="position:relative;flex:0 0 190px;height:190px;border-radius:24px 24px 0 0;background:' + photoBg(s) + '">' +
-          '<div aria-hidden="true" style="position:absolute;top:8px;left:50%;transform:translateX(-50%);width:40px;height:5px;border-radius:999px;background:rgba(255,255,255,.85)"></div>' +
-          '<span ' + on(close) + ' role="button" aria-label="Close" style="position:absolute;top:14px;right:14px;width:40px;height:40px;border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(14, '#0d1117', 2.8) + '</span></div>' +
-        '<div style="padding:18px 18px calc(26px + env(safe-area-inset-bottom, 0px));display:flex;flex-direction:column;gap:14px">' +
-          '<div style="display:flex;flex-direction:column;gap:6px">' +
-            '<span style="font-size:12px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:#6b7280">' + esc(groupsLabel(s)) + '</span>' +
-            '<span data-peek-title style="font-size:24px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117;text-wrap:balance">' + esc(s.text) + '</span>' +
-            '<span style="font-size:14px;font-weight:700;color:#5c6270">Led by ' + esc(lead && isTheLead(s) ? 'you' : nameOf(s.leadId, s.leadName)) + '</span></div>' +
-          '<div style="display:flex;flex-direction:column;gap:8px;padding:14px;border-radius:16px;background:#f7f7f9">' +
-            '<div style="display:flex;align-items:center;gap:10px">' + svg(18, stroke('#5b4ae8', 2.2), '<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>') +
-              '<span style="font-size:15.5px;font-weight:800;color:#0d1117">' + esc(s.dayDate ? fmtDay(s.dayDate) : 'Date TBD') + '</span>' +
-              (s.dayDate && s.dayTime ? '<span style="font-size:15px;font-weight:700;color:#5c6270">· ' + esc(fmtTime(s.dayTime)) + '</span>' : '') + '</div>' +
-            '<div style="display:flex;align-items:center;gap:10px">' + svg(18, stroke('#5b4ae8', 2.2), '<path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/>') +
-              '<span style="font-size:15px;font-weight:700;color:#0d1117">' + esc(s.spot || 'Location TBD') + '</span></div></div>' +
-          '<div style="display:flex;align-items:center;gap:10px"><span style="display:flex">' +
-            ids.slice(0, 3).map((u, i) => '<span style="display:flex;border:2px solid #fff;border-radius:999px;margin-left:' + (i ? -8 : 0) + 'px">' + face(u, nameOf(u), 30) + '</span>').join('') + '</span>' +
-            '<span data-peek-going style="font-size:14.5px;font-weight:800;color:#0f7a3c">' + (n ? n + ' going' : 'Be the first') + '</span></div>' +
-          (lead ? '<span style="font-size:14px;font-weight:700;color:#5b4ae8">You’re leading this.</span>'
-            : s.cancelledAt ? '' : '<div style="display:flex;gap:8px">' + btn('going', 'Going') + btn('maybe', 'Maybe') + btn('no', 'Can’t') + '</div>') +
-          '<span ' + on(() => { setState({ peek: null }); openSpark(s); }) + ' role="button" style="align-self:center;display:flex;align-items:center;gap:4px;min-height:44px;font-size:15px;font-weight:800;color:#5b4ae8;cursor:pointer">See the full event' + I.chevR(14, 'currentColor', 2.8) + '</span>' +
-        '</div></div></div>';
-  }
 
   function viewHandSheet() {
     const list = handList(), close = () => setState({ cHandSheet: false });
@@ -5877,11 +5964,11 @@
   // dashed open spots; the first is a purple + that signs you up), the count, and Sign up / You're in / Full.
   // A shift job has a row per shift, each with its own button; you take one shift per job.
   function helpOut(s) {
-    const st = state, lead = isLead(s), jobs = s.jobs || s.signups, live = !s.cancelledAt, sigReady = st.sigDraft.trim().length > 0;
+    const st = state, lead = isLead(s), jobs = s.jobs || s.signups, live = !s.cancelledAt;
     const sr = (t) => '<span style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap">' + esc(t) + '</span>';
     const pill = 'flex:0 0 auto;display:flex;align-items:center;justify-content:center;gap:6px;height:34px;padding:0 14px;border-radius:999px;font-size:14px;font-weight:800;white-space:nowrap;';
     const button = (mine, full, act) => !live ? ''
-      : mine ? '<span ' + on(act) + ' aria-label="You’re in. Tap to take yourself off" style="' + pill + 'background:#fdf1d6;color:#8f6405;cursor:pointer">' + svg(13, stroke('#8f6405', 3), P6.check) + 'You’re in</span>'
+      : mine ? '<span ' + on(act) + ' aria-label="You’re in. Tap to take yourself off" style="' + pill + 'background:#fff1e8;color:#b8480c;cursor:pointer">' + svg(13, stroke('#b8480c', 3), P6.check) + 'You’re in</span>'   // helping orange (v8-7 item 9)
       : full ? '<span aria-disabled="true" style="' + pill + 'background:#eef0f3;color:#8a909b">Full</span>'
       : '<span ' + on(act) + ' style="' + pill + 'box-shadow:inset 0 0 0 2px #5b4ae8;color:#5b4ae8;cursor:pointer">Sign up</span>';
     // The seats: ids signed up, need (null: no limit), canJoin (the first open spot can be tapped to sign up). v8: open
@@ -5904,10 +5991,10 @@
       const ids = j.claims.map(c => c.userId).filter((u, i, a) => a.indexOf(u) === i), need = j.need;
       const full = shifts ? j.shifts.every(u => u.need && u.claims.length >= u.need) : !!need && ids.length >= need;
       const act = () => { if (!st.busy) toggleClaim(s, j); };
-      const when = shifts ? j.shifts.length + (j.shifts.length === 1 ? ' shift' : ' shifts') : spanTime(j);
+      const when = [j.day ? wkDay(j.day) : '', shifts ? j.shifts.length + (j.shifts.length === 1 ? ' shift' : ' shifts') : spanTime(j)].filter(Boolean).join(' · ');   // "Sat · 9:00 – 10:00am" (v8-7)
       const added = !lead && j.createdBy === st.me && !shifts;
       const clk = lead ? 15 : 13;
-      const head = '<div style="display:flex;align-items:flex-start;gap:10px">' +
+      const head = '<div style="display:flex;align-items:' + (lead ? 'flex-start' : 'center') + ';gap:10px">' +   // a member's button is centred on the title and time (v8-7 item 9)
         '<div style="flex:1;min-width:0"><div style="font-size:' + (lead ? 21 : 18) + 'px;line-height:1.25;font-weight:900;letter-spacing:' + (lead ? '-.4px' : '-.3px') + ';color:#0d1117;text-wrap:pretty">' + esc(j.item) + '</div>' +
           (when || added ? '<div style="margin-top:3px;display:flex;align-items:center;gap:6px;font-size:' + (lead ? 15.5 : 13.5) + 'px;font-weight:600;color:' + (lead ? '#5c6270' : '#6b7280') + '">' +
             (when ? svg(clk, stroke('currentColor', 2.2), P5.clock) + '<span>' + esc(when) + '</span>' : '') +
@@ -5915,7 +6002,7 @@
         // The lead's ✎ opens the jobs editor (the section's Edit link is gone); a member's button sits up here, pulled in
         // by -6px so a one-line title doesn't push the seats down
         (lead ? (live ? '<span ' + on(() => openNeeds(s)) + ' data-edit-jobs aria-label="Edit ' + esc(j.item) + '" style="flex:0 0 32px;width:32px;height:32px;margin:-4px -6px 0 0;display:flex;align-items:center;justify-content:center;color:#9aa0ac;cursor:pointer">' + svg(15, stroke('currentColor', 2.3), PENCIL) + '</span>' : '')
-          : shifts ? '' : '<div style="flex:0 0 auto;margin:-6px 0">' + button(mine, full, act) + '</div>') + '</div>';
+          : shifts ? '' : '<div style="flex:0 0 auto;display:flex">' + button(mine, full, act) + '</div>') + '</div>';
       const body = shifts
         ? '<div style="display:flex;flex-direction:column;gap:8px">' + j.shifts.map(u => {
             const uIds = u.claims.map(c => c.userId), uMine = uIds.indexOf(st.me) > -1, uFull = !uMine && !!u.need && uIds.length >= u.need;
@@ -5945,24 +6032,6 @@
       const full = j.shifts ? j.shifts.every(u => u.need && u.claims.length >= u.need) : !!j.need && j.claims.length >= j.need;
       return mine ? 0 : full ? 2 : 1; };
     const ordered = lead ? jobs : jobs.map((j, i) => [j, i]).sort((x, y) => rank(x[0]) - rank(y[0]) || x[1] - y[1]).map(x => x[0]);
-    const addLabel = lead ? 'Add a job or item' : 'Add something else';
-    const adder = !st.sigAdding
-      // v8-2: quiet gray, no fill (was gold)
-      ? '<div ' + on(() => setState({ sigAdding: true })) + ' data-add-signup style="display:flex;align-items:center;justify-content:center;gap:8px;min-height:60px;padding:0 16px;border-radius:20px;border:1.5px dashed #d5d8df;background:transparent;font-size:14px;font-weight:800;color:#6b7280;cursor:pointer">' + I.plus(15, '#6b7280', 2.8) + addLabel + '</div>'
-      // Design v8: open, it's one inline row, the field and Add (no title or ✕)
-      : '<div style="' + CARD + ';padding:12px;display:flex;flex-direction:column;gap:10px">' +
-          '<div style="display:flex;gap:8px">' +
-            '<input class="fld" type="text" maxlength="60" data-autofocus aria-label="' + (lead ? 'Add a sign-up' : 'Bringing something else?') + '" placeholder="' + (lead ? 'Add a thing, like a dozen filled eggs' : 'Bringing something else?') + '" value="' + esc(st.sigDraft) + '" ' + onInput(e => { if (e.type === 'input') setState({ sigDraft: e.target.value.slice(0, 60) }); }) + ' style="flex:1 1 auto;min-width:0;min-height:46px;border:1.5px solid #dcdfe6;border-radius:14px;padding:10px 14px;font-family:inherit;font-size:16px;font-weight:600;color:#0d1117;background:#fff;outline:none">' +
-            (lead ? '<input class="fld" type="text" inputmode="numeric" maxlength="3" aria-label="How many needed" placeholder="How many" value="' + esc(st.sigNeed) + '" ' + onInput(e => { if (e.type === 'input') setState({ sigNeed: e.target.value.replace(/\D/g, '').slice(0, 3) }); }) + ' style="flex:0 0 74px;width:74px;min-height:46px;border:1.5px solid #dcdfe6;border-radius:14px;padding:10px 8px;text-align:center;font-family:inherit;font-size:16px;font-weight:600;color:#0d1117;background:#fff;outline:none">' : '') +
-            '<button type="button" ' + on(() => addSignup(s)) + ' aria-disabled="' + !sigReady + '" style="flex:0 0 auto;min-height:46px;padding:0 16px;border:0;border-radius:999px;font-family:inherit;font-size:15px;font-weight:800;cursor:' + (sigReady ? 'pointer' : 'default') + ';background:' + (sigReady ? '#5b4ae8' : '#e2e4e9') + ';color:' + (sigReady ? '#fff' : '#9aa0ac') + '">Add</button>' +
-          '</div>' +
-          (lead && st.sigDraft
-            ? '<label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#6b7280">Time (optional)' +
-                '<select class="fld" aria-label="Sign-up time" ' + onInput(e => setState({ sigTime: e.target.value })) + ' style="min-height:38px;padding:0 10px;border:1.5px solid #dcdfe6;border-radius:12px;font-family:inherit;font-size:16px;font-weight:700;color:#0d1117;background:#fff;outline:none;color-scheme:light">' +
-                  '<option value="">No time</option>' + TIME_OPTS.map(([v, l]) => '<option value="' + v + '"' + (v === st.sigTime ? ' selected' : '') + '>' + l + '</option>').join('') +
-                '</select></label>'
-            : '') +
-        '</div>';
     // Design v8: members don't see Help out on a plan with no jobs, and nobody does on a cancelled one
     if (!jobs.length && phaseOf(s) !== 'idea' && (!lead || s.cancelledAt)) return '';
     // The lead's section Edit pill opens the jobs editor (each job's ✎ stays)
@@ -5974,15 +6043,15 @@
           ? '<div style="' + CARD + ';padding:16px;font-size:14px;line-height:1.45;font-weight:500;color:#5c6270">Nothing was on the list.</div>'
           : lead
           ? '<div ' + on(() => openNeeds(s)) + ' data-help-empty style="padding:14px 16px;border-radius:18px;border:1.5px dashed #c9ccd3;font-size:14.5px;font-weight:700;color:#6b7280;cursor:pointer">Add ways people can help.</div>'
-          : '<div style="' + CARD + ';padding:16px;font-size:14px;line-height:1.45;font-weight:500;color:#5c6270">Nothing on the list yet. Bringing something? Add it below.</div>') +
-        (lead || s.cancelledAt ? '' : adder) + '</div></section>';
+          : '<div style="' + CARD + ';padding:16px;font-size:14px;line-height:1.45;font-weight:500;color:#5c6270">Nothing on the list yet.</div>') +
+        '</div></section>';   // members no longer add their own things (v8-7 item 9): no Add something else
   }
 
   // ---- v6 Update 6: the host edits one section at a time in a small sheet (the full-screen editor is retired)
   const openSec = (s, kind) => {
     const bits = basicsOf(s).slice(0, 3).map(b => b.slice(0, 60));
     while (bits.length < 3) bits.push('');
-    setState({ sec: { id: s.id, kind, title: s.text, d: s.dayDate || '', t: s.dayTime || '', e: s.dayEnd || '', bits, ov: s.overview || '', need: s.minPeople || null, tags: (s.tags || []).slice(), priv: s.visibility === 'invite', guestInv: s.guestInvites !== false, groups: gIds(s).slice() },
+    setState({ sec: { id: s.id, kind, title: s.text, ...whenModelOf(s), bits, ov: s.overview || '', need: s.minPeople || null, tags: (s.tags || []).slice(), priv: s.visibility === 'invite', guestInv: s.guestInvites !== false, groups: gIds(s).slice() },
       offerText: kind === 'when' ? s.spot || '' : '', offerPlace: s.spot && s.spotPoint ? { name: s.spot, address: s.spotAddress, lat: s.spotPoint[0], lon: s.spotPoint[1] } : null, offerSuggest: [], timeOpen: null, menu: null });
   };
   // Round 65a: what an edit would tell people. Since 2026-10-04 (owner, Design 30) saving an edit tells no one (secSends),
@@ -5997,8 +6066,8 @@
     }
     if (ss.kind !== 'when') return '';
     const lines = [], d = ss.d || null, t = d && ss.t ? ss.t : null, e = t && ss.e && ss.e > t ? ss.e : null;
-    if (d && d !== s.dayDate) lines.push('New date: ' + dayLabel(d, t, e));
-    else if (d && (t !== s.dayTime || e !== s.dayEnd)) lines.push('New time: ' + dayLabel(d, t, e) + (s.dayTime ? ' (was ' + (s.dayEnd ? spanTime({ time: s.dayTime, endTime: s.dayEnd }) : fmtTime(s.dayTime)) + ')' : ''));
+    if (d && d !== s.startDate) lines.push('New date: ' + dayLabel(d, t, e));
+    else if (d && (t !== s.startTime || e !== s.startEnd)) lines.push('New time: ' + dayLabel(d, t, e) + (s.startTime ? ' (was ' + (s.startEnd ? spanTime({ time: s.startTime, endTime: s.startEnd }) : fmtTime(s.startTime)) + ')' : ''));
     const p = cleanTitle(state.offerText).slice(0, 80);
     if (p && p !== (s.spot || '')) lines.push('New location: ' + p);
     return lines.join(' · ');
@@ -6051,8 +6120,9 @@
       return;
     }
     // Date, time & location: a date or place set here closes its poll. Everyone in it gets an update.
-    const patch = {}, d = ss.d || null, t = d && ss.t ? ss.t : null, e = t && ss.e && ss.e > t ? ss.e : null;
-    if (d !== s.dayDate || t !== s.dayTime || e !== s.dayEnd) Object.assign(patch, { day_date: d, day_time: t, day_end: e });
+    // How long it is (v8-7): the schedule goes along only when it changed, so a one-day edit works without it
+    const patch = {}, c = whenCols(ss), sameSched = JSON.stringify(c.schedule) === JSON.stringify(s.sched ? whenCols(whenModelOf(s)).schedule : null);
+    if (c.day_date !== s.startDate || c.day_time !== s.startTime || c.day_end !== s.startEnd || !sameSched) Object.assign(patch, { day_date: c.day_date, day_time: c.day_time, day_end: c.day_end }, sameSched ? {} : { schedule: c.schedule });
     const p = cleanTitle(state.offerText).slice(0, 80), pl = state.offerPlace && state.offerPlace.name === p ? state.offerPlace : null;
     if (p !== (s.spot || '')) {
       Object.assign(patch, { spot: p || null, spot_open: !p, spot_address: pl ? pl.address : null, spot_lat: pl ? pl.lat : null, spot_lon: pl ? pl.lon : null });
@@ -6077,7 +6147,7 @@
       body: 'This closes the poll and clears its votes.' + (send ? ' ' + reach.text.replace(/^Goes to/, 'An update goes to') : ''),
       run: () => run(async () => {
         if (day) {
-          must(await sb.from('sparks').update({ day_date: o.dayDate, day_time: o.dayTime, day_end: null }).eq('id', s.id));
+          must(await sb.from('sparks').update(Object.assign({ day_date: o.dayDate, day_time: o.dayTime, day_end: null }, s.sched ? { schedule: null } : {})).eq('id', s.id));
           must(await sb.from('date_options').delete().eq('spark_id', s.id));
         } else {
           must(await sb.from('sparks').update({ spot: o.name, spot_open: false, spot_address: o.address || null, spot_lat: o.lat, spot_lon: o.lon }).eq('id', s.id));
@@ -6097,8 +6167,8 @@
   const openNeeds = (s) => setState({ needEd: { id: s.id,
     known: [].concat(...(s.jobs || []).map(j => [j.id].concat((j.shifts || []).map(u => u.id))), ...(s.parts || []).map(p => [p.id].concat(p.rows.map(u => u.id)))),
     rows: (s.jobs || []).map(j => j.shifts
-      ? { id: j.id, item: j.item, desc: j.desc, n: j.claims.length, shifts: j.shifts.map(u => ({ id: u.id, time: u.time || '', end: u.endTime || '', need: u.need || null, n: u.claims.length })) }
-      : { id: j.id, item: j.item, desc: j.desc, n: j.claims.length, time: j.time || '', end: j.endTime || '', need: j.need || null, shifts: null })
+      ? { id: j.id, item: j.item, desc: j.desc, day: j.day || null, n: j.claims.length, shifts: j.shifts.map(u => ({ id: u.id, time: u.time || '', end: u.endTime || '', need: u.need || null, n: u.claims.length })) }
+      : { id: j.id, item: j.item, desc: j.desc, day: j.day || null, n: j.claims.length, time: j.time || '', end: j.endTime || '', need: j.need || null, shifts: null })
     .concat((s.parts || []).map(p => p.kind === 'time'
       ? { id: p.id, kind: p.kind, item: p.item, desc: p.desc, waitlist: p.waitlist, perPerson: p.perPerson, n: [].concat(...p.rows.map(u => u.claims)).length,
           shifts: p.rows.map(u => ({ id: u.id, time: u.time || '', end: u.endTime || '', need: u.need || null, n: u.claims.length })) }
@@ -6137,7 +6207,7 @@
         const o = orig.find(j => j.id === r.id);
         if (!o) continue;   // taken down since the sheet opened
         const shifts = (r.shifts || []).filter(q => q.time), oldShifts = (o.shifts || []).map(u => u.id).filter(known);
-        const partCols = r.kind ? { waitlist: r.waitlist !== false, per_person: r.perPerson || null } : {};
+        const partCols = Object.assign(r.kind ? { waitlist: r.waitlist !== false, per_person: r.perPerson || null } : {}, r.day || o.day ? { day: r.day || null } : {});
         if (!shifts.length) {
           if (r.kind === 'time') continue;   // every time taken out: Remove takes the spot down
           must(await sb.from('signup_items').update(Object.assign({ item, descr, time: r.time || null, end_time: r.time && r.end && r.end > r.time ? r.end : null, need: r.need || null }, partCols)).eq('id', r.id));
@@ -6148,7 +6218,7 @@
         const kept = shifts.filter(q => q.id).map(q => q.id), dropped = oldShifts.filter(id => kept.indexOf(id) < 0);
         for (const id of dropped) must(await sb.rpc('remove_signup', { p_item: id }));   // tells the people on that shift
         for (const q of shifts) {
-          const row = { item, time: q.time, end_time: q.end && q.end > q.time ? q.end : null, need: q.need || null };
+          const row = Object.assign({ item, time: q.time, end_time: q.end && q.end > q.time ? q.end : null, need: q.need || null }, r.day || o.day ? { day: r.day || null } : {});
           if (q.id) must(await sb.from('signup_items').update(row).eq('id', q.id));
           else must(await sb.from('signup_items').insert(Object.assign({ spark_id: s.id, shift_of: r.id }, row, r.kind ? { kind: r.kind } : {})));
         }
@@ -6193,14 +6263,9 @@
             (cur ? '<span ' + on(() => { if (!state.busy) removeCover(s); }) + ' aria-label="Remove the cover photo" style="' + PHOTO_BTN + ';flex:0 0 auto;padding:0 16px;background:#fdecee;color:#9b1c31">Remove</span>' : '') +
           '</div></div>' : '');
     } else if (ss.kind === 'when') {
-      body = '<div style="display:flex;flex-direction:column;gap:8px">' + label('Date & time') +
-        '<div style="display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:8px">' + dateField(ss.d, 'Date', 'Pick a date', (v) => set({ d: v }), '', phaseOf(s) === 'done') +
-          timeField('secT', ss.t, EV_TIMES, 'Time', (v) => setState({ sec: Object.assign({}, state.sec, { t: v, e: ss.e && ss.e <= v ? '' : ss.e }), timeOpen: null })) + '</div>' +
-        // The end time is a small "+ Add end time" link until it's asked for, as on Create event (owner, 2026-10-02)
-        (ss.t && (ss.e || ss.eOn)
-          ? '<div style="display:flex;align-items:center;gap:8px"><div style="flex:1;min-width:0">' + timeField('secE', ss.e, EV_TIMES.filter(v => v > ss.t), 'Add an end time', (v) => setState({ sec: Object.assign({}, state.sec, { e: v }), timeOpen: null })) + '</div>' +
-              '<span ' + on(() => setState({ sec: Object.assign({}, state.sec, { e: '', eOn: false }), timeOpen: null })) + ' aria-label="Remove end time" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#f1f2f5;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(12, '#6b7280', 2.8) + '</span></div>'
-          : ss.t ? '<span ' + on(() => setState({ sec: Object.assign({}, state.sec, { eOn: true }), timeOpen: 'secE' })) + ' style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:40px;padding:0 4px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(14, 'currentColor', 2.6) + 'Add end time</span>' : '') + '</div>' +
+      // The same Date & time fields as Plan an event, with How long is it? (v8-7)
+      body = '<div style="display:flex;flex-direction:column;gap:8px"><div style="display:flex;align-items:center;gap:6px">' + label('Date & time') + dayTypeBtn(ss, 'sec') + '</div>' +
+        whenFields(ss, secWhenSet, { k: 'sec', anyDay: phaseOf(s) === 'done' }) + '</div>' +
         '<div style="display:flex;flex-direction:column;gap:8px">' + label('Location') + placeField('offer', { placeholder: 'Search a place or address', style: BIG }) + '</div>' +
         // A plan keeps its date; taking it off turns the plan back into an idea (the host's call, with a confirm)
         (s.planned && isLead(s) ? (ss.d ? '' : '<span data-needs-date style="font-size:13.5px;line-height:1.4;font-weight:600;color:' + AMBER_INK + '">A plan needs a date. To take it off, turn it back into an idea.</span>') +
@@ -6251,7 +6316,7 @@
             '<div style="display:flex;align-items:center;gap:10px"><span style="font-size:11.5px;font-weight:900;letter-spacing:1.2px;color:' + (r.kind ? '#149a4b' : '#6b7280') + '">' + (r.kind ? 'TAKE PART · ' + PART_KINDS[r.kind].eyebrow : 'JOB ' + (k + 1) + (r.shifts ? ' · SHIFTS' : '')) + '</span>' +
               (r.n ? '<span style="font-size:12.5px;font-weight:800;color:#0f7a3c">' + r.n + (r.kind ? ' claimed' : ' signed up') + '</span>' : '') + '<span style="flex:1"></span>' +
               '<span ' + on(() => setState({ needEd: Object.assign({}, ed, { rows: ed.rows.filter((_, j) => j !== k) }) })) + ' aria-label="Remove job ' + (k + 1) + '" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(16, stroke('#9b1c31', 2.2), TRASH_IC) + '</span></div>' +
-            (r.kind ? partFields(r, (patch) => setRow(k, patch), k) : jobFields(r, (patch) => setRow(k, patch), k)) + '</div>').join('') +
+            (r.kind ? partFields(r, (patch) => setRow(k, patch), k) : jobFields(r, (patch) => setRow(k, patch), k, s.sched && s.sched.kind === 'days' && s.days ? s.days.map(x => x.d) : null)) + '</div>').join('') +
           '<div ' + on(() => setState({ needEd: Object.assign({}, ed, { rows: ed.rows.concat([blankJob('')]) }) })) + ' style="display:flex;align-items:center;justify-content:center;gap:8px;min-height:52px;border-radius:18px;border:1.5px dashed #c9ccd3;font-size:14.5px;font-weight:800;color:#454b55;cursor:pointer">' + I.plus(16, 'currentColor', 2.6) + 'Add a job or item</div>' +
           // Take part after posting (v8-2): the same three PARTICIPATE kinds
           '<div data-needs-participate style="display:flex;flex-direction:column;gap:8px"><span style="font-size:12px;font-weight:800;letter-spacing:1.2px;color:#6b7280">PARTICIPATE</span><div style="display:flex;flex-wrap:wrap;gap:6px">' +
@@ -6308,7 +6373,7 @@
     const sh = state.share, s = state.sparks.find(x => x.id === sh.id);
     if (!s) return '';
     const close = () => setState({ share: null }), link = location.origin + '/i/' + s.id;
-    const msg = (sh.msg || inviteText(s)) + ' ' + link, past = phaseOf(s) === 'done', title = sh.ask ? 'Ask two people first' : canInviteTo(s) && !past ? 'Invite people' : 'Share this event';   // Design v8: whoever can invite
+    const msg = (sh.msg || inviteText(s)) + ' ' + link, past = phaseOf(s) === 'done', title = sh.ask || (canInviteTo(s) && !past) ? 'Invite people' : 'Share this event';   // v8-7: after posting it's Invite people too   // Design v8: whoever can invite
     const canList = !!state.email && !s.cancelledAt && !past && canInviteTo(s);
     if (canList && !sh.people && !sh.loading) setTimeout(() => { if (state.share && state.share.id === s.id && !state.share.people && !state.share.loading) loadInvitees(s); }, 0);
     const btn = (label, href, icon, fn) => '<' + (fn ? 'div ' + on(fn) : 'a href="' + esc(href) + '" target="_blank" rel="noopener noreferrer"') + ' aria-label="' + label + '" style="display:flex;flex-direction:column;align-items:center;gap:8px;text-decoration:none;cursor:pointer">' +
@@ -6335,13 +6400,15 @@
         '<input type="search" aria-label="Search friends and groups" placeholder="Search friends and groups" value="' + esc(sh.q || '') + '" ' + onInput(e => { if (e.type === 'input') setState({ share: Object.assign({}, state.share, { q: e.target.value.slice(0, 40) }) }); }) +
           ' style="flex:1;min-width:0;border:0;background:transparent;outline:none;font-family:inherit;font-size:16px;font-weight:500;color:#0d1117"></label>' +
       '<div data-invitees style="display:flex;flex-direction:column;max-height:42vh;overflow-y:auto">' +
-        (sh.loading || !sh.people ? paraHtml('Loading…') : people.length ? people.map((p, k) => row(p, k)).join('') : paraHtml(q ? 'Nobody by that name.' : 'No friends or group members to invite yet.')) + '</div>' +
+        (sh.loading || !sh.people ? paraHtml('Loading…') : people.length ? (q || sh.more ? people : people.slice(0, 3)).map((p, k) => row(p, k)).join('') : paraHtml(q ? 'Nobody by that name.' : 'No friends or group members to invite yet.')) +
+        // Three to start, then See N more (v8-7 item 10); a search shows everyone who matches
+        (!q && people.length > 3 ? '<span ' + on(() => setState({ share: Object.assign({}, state.share, { more: !sh.more }) })) + ' data-see-more style="align-self:center;display:flex;align-items:center;gap:6px;min-height:36px;margin-top:2px;padding:0 14px;border-radius:999px;background:#f2f3f6;font-size:13.5px;font-weight:800;color:#454b55;cursor:pointer">' + (sh.more ? 'Show fewer' : 'See ' + (people.length - 3) + ' more') + '</span>' : '') + '</div>' +
       '<button type="button" data-send-invites ' + (nPick ? on(() => sendInvites(s)) : 'aria-disabled="true"') + ' style="width:100%;min-height:52px;border:0;border-radius:999px;background:' + (nPick ? '#5b4ae8' : '#d5d8df') + ';color:#fff;font-family:inherit;font-size:16px;font-weight:800;cursor:' + (nPick ? 'pointer' : 'default') + '">' + (nPick ? 'Send invites · ' + nPick : 'Send invites') + '</button>' +
       '<div style="display:flex;align-items:center;gap:12px"><span style="flex:1;height:1px;background:#e3e5e9"></span><span style="font-size:12px;font-weight:800;letter-spacing:1px;color:#9aa0ac">OR SEND DIRECT LINK</span><span style="flex:1;height:1px;background:#e3e5e9"></span></div>';
     // Design v8: a 22px title; a past event gets "{Title}: here's how it went."; the link row white with a ring
     return sheet(title, close, SHEET_PAD,
       '<div style="display:flex;align-items:flex-start;gap:10px"><div style="flex:1;min-width:0"><div style="font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">' + title + '</div>' +
-        (sh.ask ? '<p data-ask-first style="margin:6px 0 0;font-size:14px;line-height:1.4;font-weight:600;color:#454b55;text-wrap:pretty">Events that start with a friend or two already in are far more likely to happen. <b style="font-weight:800">Send it</b> to two people you think would come.</p>' : '') +
+        (sh.ask ? '<p data-ask-first style="margin:6px 0 0;font-size:14px;line-height:1.4;font-weight:600;color:#454b55;text-wrap:pretty">Events with a friend or two in are more likely to happen.</p>' : '') +
         '</div>' + closeX(close) + '</div>' +
       (past ? '<div data-share-past style="padding:12px 14px;border-radius:14px;background:#f7f7f9;font-size:14.5px;line-height:1.4;font-weight:600;color:#2b303a">' + esc(s.text) + ': here’s how it went.</div>' : '') +
       list +
@@ -6492,9 +6559,24 @@
     const time = s.dayTime ? (s.dayEnd ? spanTime({ time: s.dayTime, endTime: s.dayEnd }) : fmtTime(s.dayTime)) : '';
     const otherDays = s.dateOpts.filter(o => !(o.dayDate === s.dayDate && (o.dayTime || null) === (s.dayTime || null))), otherSpots = s.spotOpts.filter(o => o.name !== s.spot);
     const sugg = (kind) => suggest ? '<span ' + on(() => openOffer(s, kind)) + ' data-suggest-' + kind + ' style="margin-top:6px;display:inline-flex;align-items:center;gap:6px;min-height:34px;font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(14, '#5b4ae8', 2.6) + (kind === 'day' ? 'Add a date' : 'Add a location') + '</span>' : '';
+    // Multi-day (v8-7, 26c): a timeline, a purple dot per day joined by a thin grey line, then (Each day) the pale green
+    // "You're going Sat · maybe Sun · Change" once you've picked. A repeat says how it repeats under the time
+    const mine = rsvpDays(s, state.me), myAns = myRsvp(s);
+    const myLine = mine && myAns && myAns !== 'no' && (mine.go.length || mine.maybe.length) ? (() => {
+      const w = (a) => a.map(d => wkDay(d)).join(' & '), n = s.days.length;
+      return [mine.go.length ? 'You’re going ' + (mine.go.length === n ? (n === 2 ? 'both days' : 'every day') : w(mine.go)) : '', mine.maybe.length ? (mine.go.length ? 'maybe ' : 'Maybe ') + w(mine.maybe) : ''].filter(Boolean).join(' · '); })() : '';
+    const timeline = s.days ? '<div data-day-timeline style="display:flex;flex-direction:column">' + s.days.map((r, k, A) =>
+        '<div style="display:flex;gap:12px"><div style="display:flex;flex-direction:column;align-items:center;width:14px"><span style="width:10px;height:10px;margin-top:7px;border-radius:999px;background:#5b4ae8"></span>' +
+          (k < A.length - 1 ? '<span style="flex:1;width:2px;margin-top:4px;background:#e6e7eb"></span>' : '') + '</div>' +
+        '<div style="flex:1;min-width:0;padding-bottom:' + (k < A.length - 1 ? 12 : 0) + 'px"><div style="font-size:16.5px;line-height:1.3;font-weight:800;color:#0d1117">' + esc(new Date(r.d + 'T12:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })) + '</div>' +
+          (dayTimes(r) ? '<div style="font-size:14px;font-weight:600;color:#6b7280">' + esc(dayTimes(r)) + '</div>' : '') + '</div></div>').join('') +
+      (myLine ? '<div data-my-days style="display:flex;align-items:center;gap:8px;margin-top:10px;padding:8px 12px;border-radius:12px;background:#e6f5ec"><span style="flex:0 0 18px;width:18px;height:18px;border-radius:999px;background:#149a4b;display:flex;align-items:center;justify-content:center">' + I.check(10, '#fff', 4) + '</span>' +
+        '<span style="flex:1;font-size:14px;font-weight:800;color:#0f6b35">' + esc(myLine) + '</span>' + (off ? '' : '<span ' + on(() => setState({ dayPick: { id: s.id, m: dayPickFrom(s) } })) + ' role="button" style="font-size:13.5px;font-weight:800;color:#0f6b35;cursor:pointer">Change</span>') + '</div>' : '') + '</div>' : '';
+    const repeatTxt = s.repeat ? repeatLine(s.repeat.every, s.startDate, s.repeat.until) : '';
     // Design v8: the date 17/800, the time 14.5px in #5c6270
-    const dayPart = (s.dayDate ? '<div style="font-size:17px;line-height:1.25;font-weight:800;letter-spacing:-.3px;color:#0d1117;text-wrap:pretty">' + esc(whenTxt) + '</div>' +
+    const dayPart = s.days ? timeline : (s.dayDate ? '<div style="font-size:17px;line-height:1.25;font-weight:800;letter-spacing:-.3px;color:#0d1117;text-wrap:pretty">' + esc(whenTxt) + '</div>' +
           (time ? '<div style="margin-top:2px;font-size:14.5px;line-height:1.35;font-weight:500;color:#5c6270">' + esc(time) + '</div>' : '') +
+          (repeatTxt ? '<div data-repeat-line style="margin-top:2px;font-size:14.5px;line-height:1.35;font-weight:600;color:#0f7a3c">' + esc(repeatTxt) + '</div>' : '') +
           (otherDays.length ? '<div style="margin-top:10px">' + voting('OTHER SUGGESTIONS', pollRows(otherDays, 'day')) + '</div>' : '')
         : s.dateOpts.length ? voting('VOTING ON A DATE', pollRows(s.dateOpts, 'day')) : tbd('Date TBD')) + sugg('day');
     const spotPart = (s.spot ? '<div style="font-size:17px;line-height:1.25;font-weight:900;letter-spacing:-.3px;color:#0d1117;text-wrap:pretty">' + esc(s.spot) + '</div>' +
@@ -6698,6 +6780,14 @@
   // The event header's date tile (Design 31, 2026-10-04; was top right, 13e): first in the bottom-left block, above the
   // chips, tilted -4°; the plan's month band is green, the idea's gold
   const dateTile = (s, band) => { if (!s.dayDate) return ''; const dp = dateParts(s.dayDate);
+    // Multi-day (v8-7, 27a): two fanned pages, the current or next day in front (−6°) and the day after it behind (+8°)
+    if (s.days) {
+      const k = Math.max(0, s.days.findIndex(r => r.d === s.dayDate)), nx = s.days[Math.min(k + 1, s.days.length - 1)].d, b = dateParts(nx);
+      const page = (q, rot, pos) => '<span style="' + pos + 'width:82px;border-radius:16px;overflow:hidden;text-align:center;background:#fff;box-shadow:0 8px 20px rgba(0,0,0,.3);transform:rotate(' + rot + 'deg)">' +
+        '<span style="display:block;background:' + band + ';color:#fff;font-size:13px;font-weight:900;letter-spacing:1px;padding:4px 0">' + q.mon + '</span><span style="display:block;font-size:38px;line-height:1.15;font-weight:900;color:#0d1117">' + q.day + '</span><span style="display:block;padding-bottom:6px;font-size:12.5px;font-weight:800;color:#6b7280">' + q.dow + '</span></span>';
+      return '<span data-date-tile data-date-pages aria-label="' + esc(schedLine(s)) + '" style="align-self:flex-start;position:relative;display:block;margin:0 0 10px 2px;width:110px;height:118px">' +
+        page(b, 8, 'position:absolute;left:24px;top:6px;display:block;') + page(dp, -6, 'position:relative;display:block;') + '</span>';
+    }
     return '<span data-date-tile aria-label="' + esc(fmtDay(s.dayDate)) + '" style="align-self:flex-start;margin:0 0 6px 2px;width:82px;border-radius:16px;overflow:hidden;text-align:center;background:#fff;box-shadow:0 8px 20px rgba(0,0,0,.3);transform:rotate(-4deg)">' +
       '<span style="display:block;background:' + band + ';color:#fff;font-size:13px;font-weight:900;letter-spacing:1px;padding:4px 0">' + dp.mon + '</span><span style="display:block;font-size:38px;line-height:1.15;font-weight:900;color:#0d1117">' + dp.day + '</span><span style="display:block;padding-bottom:5px;font-size:12.5px;font-weight:800;color:#6b7280">' + dp.dow + '</span></span>'; };
 
@@ -8097,8 +8187,8 @@
     details: st.evBits.some(b => b.trim()) || !!(st.evOverview || '').trim() || (MIN_PEOPLE && !st.evDate && st.evNeed > 0), help: st.evNeeds.length > 0, lead: true });   // leading it is already picked
   // "Sat, Oct 24 · 10am", "Sat, Oct 24 · 10am – 12pm"
   const dayLabel = (d, t, e) => d ? fmtDay(d) + (t ? ' · ' + (e ? spanTime({ time: t, endTime: e }) : fmtTime(t)) : '') : '';
-  const jobMeta = (j) => j.kind ? partMeta(j) : j.shifts ? j.shifts.length + (j.shifts.length === 1 ? ' shift' : ' shifts')
-    : (j.need ? j.need + (j.need === 1 ? ' person' : ' people') : 'Anyone') + (j.time ? ' · ' + fmtTime(j.time) : '');
+  const jobMeta = (j) => j.kind ? partMeta(j) : (j.day ? wkDay(j.day) + ' · ' : '') + (j.shifts ? j.shifts.length + (j.shifts.length === 1 ? ' shift' : ' shifts')
+    : (j.need ? j.need + (j.need === 1 ? ' person' : ' people') : 'Anyone') + (j.time ? ' · ' + fmtTime(j.time) : ''));
   const evStarted = (st) => !!(cleanTitle(st.activity) || st.evDate || st.evDatePoll || cleanTitle(st.locText) || st.evSpotPoll || st.evBits.some(b => b.trim()) || !!(st.evOverview || '').trim() || st.evNeeds.length);
   const evGroupIds = (st) => {
     if (st.evGrpNone) return [];
@@ -8169,7 +8259,7 @@
     const st = state;
     if (st.busy) return true;
     if (st.evTitleEd) { evTitleDone(); return true; }
-    if (st.pollSheet || st.needSheet || st.evLeave || st.timeOpen || st.dateOpen) { setState({ pollSheet: null, needSheet: null, evLeave: false, evLeaveTo: null, timeOpen: null, dateOpen: null }); return true; }
+    if (st.pollSheet || st.needSheet || st.evLeave || st.timeOpen || st.dateOpen || st.dayTypePop) { setState({ pollSheet: null, needSheet: null, evLeave: false, evLeaveTo: null, timeOpen: null, dateOpen: null, dayTypePop: null }); return true; }
     if (st.evPop) { if (st.evPop !== 'title' || cleanTitle(st.activity)) setState({ evPop: null }); else toast('Add a title first'); return true; }
     if (st.evStep === 'review') { evGo(EV_STEPS[EV_STEPS.length - 1], { menu: null }); return true; }
     if (st.evFromReview) { evGo('review', { evFromReview: false }); return true; }
@@ -8219,7 +8309,7 @@
   const insertJob = async (sparkId, j) => {
     const item = cleanTitle(j.item).slice(0, 60), descr = (j.desc || '').trim().slice(0, 400) || null;
     if (!item) return;
-    const part = j.kind ? { kind: j.kind, waitlist: j.waitlist !== false, per_person: j.perPerson || null } : {};
+    const part = Object.assign(j.kind ? { kind: j.kind, waitlist: j.waitlist !== false, per_person: j.perPerson || null } : {}, j.day ? { day: j.day } : {});   // a job on one day (v8-7)
     const shifts = (j.shifts || []).filter(q => q.time);
     if (!shifts.length) {
       if (j.kind === 'time') return;
@@ -8227,7 +8317,7 @@
       return;
     }
     const job = must(await sb.from('signup_items').insert(Object.assign({ spark_id: sparkId, item, descr }, part)).select('id').single()).data;
-    must(await sb.from('signup_items').insert(shifts.map(q => Object.assign({ spark_id: sparkId, item, shift_of: job.id, time: q.time, end_time: q.end && q.end > q.time ? q.end : null, need: q.need || null }, j.kind ? { kind: j.kind } : {}))));
+    must(await sb.from('signup_items').insert(shifts.map(q => Object.assign({ spark_id: sparkId, item, shift_of: job.id, time: q.time, end_time: q.end && q.end > q.time ? q.end : null, need: q.need || null }, j.kind ? { kind: j.kind } : {}, j.day ? { day: j.day } : {}))));
   };
 
   // After a save that worked: refresh, tolerating one failed try (the next background refresh catches up)
@@ -8254,7 +8344,7 @@
           hopes: st.evBits.map(b => b.trim().slice(0, 60)).filter(Boolean), vision: null, overview: (st.evOverview || '').trim().slice(0, 80) || null,
           photos: cover ? [cover.path] : [], cat: 'events', answers: {}, lead_id: st.me, lead_name: st.myName, created_by: st.me,
           spot, spot_open: !spot, spot_address: place ? place.address : null, spot_lat: place ? place.lat : null, spot_lon: place ? place.lon : null,
-          day_date: st.evDate || null, day_time: st.evDate && st.evTime ? st.evTime : null, day_end: st.evDate && st.evTime && st.evEnd ? st.evEnd : null,
+          ...(() => { const c = whenCols(evWhen()); if (!c.schedule) delete c.schedule; return c; })(),   // multi-day: day_date is the first day, schedule the rest (v8-7)
           planned: plan, visibility: st.evPriv ? 'invite' : 'group', guest_invites: !st.evNoGuestInv, min_people: dated || !MIN_PEOPLE ? null : st.evNeed || null, tags: (st.evTags || []).slice(0, 2),
           cover_pos: cover && st.coverPos ? posOf(st.coverPos, IDEA_POS) : null
         };
@@ -8300,7 +8390,7 @@
   };
 
   // Drafts: the flow's own fields, saved to your account (only you see them)
-  const DRAFT_FIELDS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'locText', 'locPlace', 'evBits', 'evOverview', 'evNeed', 'evTags', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evNoGuestInv', 'evTest', 'evFloat', 'evHelpNone', 'evGroups', 'coverPos'];
+  const DRAFT_FIELDS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'evDayType', 'evRepeat', 'evRepeatUntil', 'evEndDate', 'evEndDateT', 'evDays', 'evDaysEach', 'locText', 'locPlace', 'evBits', 'evOverview', 'evNeed', 'evTags', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evNoGuestInv', 'evTest', 'evFloat', 'evHelpNone', 'evGroups', 'coverPos'];
   const saveDraft = () => {
     const st = state;
     if (st.busy) return;
@@ -8339,7 +8429,12 @@
       locText: str(x.locText).slice(0, 80), locPlace: x.locPlace && typeof x.locPlace === 'object' ? x.locPlace : null,
       evBits: [0, 1, 2].map(i => str((x.evBits || [])[i]).slice(0, 60)), evOverview: str(x.evOverview).slice(0, 80), evNeed: Number.isInteger(x.evNeed) && x.evNeed > 0 ? Math.min(x.evNeed, 99) : null, evTags: (arr(x.evTags) || []).filter(k => TYPES6.some(t => t[0] === k)).slice(0, 2), evNeeds: arr(x.evNeeds) || [],
       evDatePoll: arr(x.evDatePoll), evSpotPoll: arr(x.evSpotPoll), evLater: x.evLater && typeof x.evLater === 'object' ? x.evLater : {},
-      evPriv: !!x.evPriv, evNoGuestInv: !!x.evNoGuestInv, evTest: typeof x.evTest === 'boolean' ? x.evTest : null, evFloat: false,   // v8-6: the maker always leads it evHelpNone: !!x.evHelpNone, evGroups: arr(x.evGroups), coverPos: x.coverPos || null,
+      evPriv: !!x.evPriv, evNoGuestInv: !!x.evNoGuestInv, evTest: typeof x.evTest === 'boolean' ? x.evTest : null, evFloat: false,   // v8-6: the maker always leads it
+      evHelpNone: !!x.evHelpNone, evGroups: arr(x.evGroups), coverPos: x.coverPos || null,
+      // How long it is (v8-7)
+      evDayType: ['one', 'repeat', 'span', 'days'].indexOf(x.evDayType) > -1 ? x.evDayType : 'one', evRepeat: REPEATS[x.evRepeat] ? x.evRepeat : 'week',
+      evRepeatUntil: ISO_DAY.test(x.evRepeatUntil || '') ? x.evRepeatUntil : '', evEndDate: ISO_DAY.test(x.evEndDate || '') ? x.evEndDate : '', evEndDateT: HHMM.test(x.evEndDateT || '') ? x.evEndDateT : '',
+      evDays: (arr(x.evDays) || []).filter(r => r && typeof r === 'object').slice(0, 29).map(r => ({ d: ISO_DAY.test(r.d || '') ? r.d : '', t: HHMM.test(r.t || '') ? r.t : '', e: HHMM.test(r.e || '') ? r.e : '' })), evDaysEach: !!x.evDaysEach,
       evPhotoPath: PHOTO_PATH.test(x.evPhoto || '') ? x.evPhoto : null, evDraftId: d.id
     });
     return out;
@@ -8406,11 +8501,24 @@
     const cell = (label, onIt, off, fn, attrs, role) => '<span ' + (off ? 'aria-disabled="true"' + (role ? ' role="' + role + '"' : '') : on(fn, role)) + ' ' + (attrs || '') + ' style="display:flex;align-items:center;justify-content:center;min-height:44px;border-radius:12px;font-size:16px;font-weight:' + (onIt ? 900 : 700) + ';' +
       (onIt ? 'background:#5b4ae8;color:#fff' : off ? 'color:#c9ccd3' : 'background:#f4f5f7;color:#0d1117;cursor:pointer') + '">' + label + '</span>';
     const valH = value ? from(value) : null, valM = value ? value.slice(3, 5) : null;
+    // Typeable (v8-7 item 2): "10am", "4:30pm", "16:00", "1030"; Enter or leaving the field saves it, something unreadable
+    // says how to write it. The chevron (or the clock) opens the am/pm · hour · minute grid (the owner's pick, 2026-10-03)
+    const typed = (e) => {
+      if (e.type !== 'change') return;
+      const raw = e.target.value;
+      if (!raw.trim()) { if (value) pick(''); return; }
+      const v = parseTyped(raw);
+      if (!v) { e.target.value = value ? clock(value) : ''; toast('Try a time like 10am or 4:30pm'); return; }
+      if (!ok(v)) { e.target.value = value ? clock(value) : ''; toast(v < lo ? 'Pick a time after ' + clock(opts[0]) : 'Try a time like 10am or 4:30pm'); return; }
+      if (v !== value) pick(v); else e.target.value = clock(v);
+    };
+    const fs = o.compact ? 14.5 : 17;
     return '<div style="position:relative;min-width:0">' +
-      '<div ' + on(toggle) + ' aria-label="' + esc(o.label || hint) + '" aria-expanded="' + open + '" style="display:flex;align-items:center;gap:' + (o.slim ? 8 : 10) + 'px;min-height:' + (o.h || 58) + 'px;padding:0 ' + (o.slim ? 12 : 14) + 'px;border-radius:' + (o.h <= 46 ? 14 : 16) + 'px;background:#fff;box-shadow:inset 0 0 0 ' + (o.h <= 46 && !open ? '1.5px' : '2px') + ' ' + (open ? '#5b4ae8' : '#dcdfe6') + ';cursor:pointer">' +
-        (o.slim ? '' : '<span style="display:flex;color:' + (value ? '#5b4ae8' : '#9aa0ac') + '">' + svg(18, stroke('currentColor', 2.2), P5.clock) + '</span>') +
-        '<span style="flex:1;min-width:0;' + (o.slim ? 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;' : '') + (value ? 'font-size:17px;font-weight:800;color:#0d1117' : 'font-size:16.5px;font-weight:400;font-style:italic;color:#b9bcc4') + '">' + esc(value ? clock(value) : hint) + '</span>' +
-        (o.chevSet && !value ? '' : I.chevD(14, '#9aa0ac', 2.6)) + '</div>' +   // chevSet: the chevron only once a time is set (v8-6's Create a poll)
+      '<div data-time-field style="display:flex;align-items:center;gap:' + (o.slim ? 4 : 10) + 'px;min-height:' + (o.h || 58) + 'px;padding:0 ' + (o.slim ? (o.compact ? 6 : 8) : 14) + 'px 0 ' + (o.slim ? (o.compact ? 10 : 12) : 14) + 'px;border-radius:' + (o.h <= 46 ? 14 : 16) + 'px;background:#fff;box-shadow:inset 0 0 0 ' + (o.h <= 46 && !open ? '1.5px' : '2px') + ' ' + (open ? '#5b4ae8' : '#dcdfe6') + ';cursor:text">' +
+        (o.slim ? '' : '<span ' + on(toggle) + ' aria-hidden="true" tabindex="-1" style="display:flex;color:' + (value ? '#5b4ae8' : '#9aa0ac') + ';cursor:pointer">' + svg(18, stroke('currentColor', 2.2), P5.clock) + '</span>') +
+        '<input type="text" inputmode="text" autocomplete="off" data-time-type aria-label="' + esc((o.label || hint) + ', type a time') + '" placeholder="' + esc(hint) + '" value="' + esc(value ? clock(value) : '') + '" ' + onInput(typed) +
+          ' style="flex:1 1 auto;min-width:0;width:100%;border:0;outline:none;background:transparent;padding:0;font-family:inherit;font-size:' + fs + 'px;font-weight:800;color:#0d1117">' +
+        '<span ' + on(toggle) + ' aria-label="' + esc(o.label || hint) + '" aria-expanded="' + open + '" style="flex:0 0 auto;display:flex;align-items:center;justify-content:center;min-width:28px;min-height:36px;cursor:pointer">' + I.chevD(14, '#9aa0ac', 2.6) + '</span></div>' +   // chevSet: the chevron only once a time is set (v8-6's Create a poll)
       (open ? '<div ' + on(() => setState({ timeOpen: null })) + ' aria-hidden="true" style="position:fixed;inset:0;z-index:19"></div>' +
         '<div data-time-list role="group" aria-label="Pick a time" style="scroll-margin:12px;position:absolute;' + (o.right ? 'right:0' : 'left:0;right:0') + ';top:calc(100% + 6px);z-index:20;min-width:252px;background:#fff;border-radius:16px;box-shadow:0 14px 34px rgba(15,18,25,.2), 0 0 0 1px #e6e7eb;padding:10px;display:flex;flex-direction:column;gap:10px">' +
           '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">' + ['am', 'pm'].map(ap => {
@@ -8430,7 +8538,8 @@
   // The date picker (owner, 2026-10-01: the browser's own calendar looked old next to the time list): a field like the
   // time field that opens our month grid. Past days can't be picked; the chosen day is purple, today has a ring.
   const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-  const dateField = (value, label, hint, set, extra, anyDay, h) => {   // anyDay: past days too (fixing a past event's date); h: 46 for v8-6's fields
+  const dateField = (value, label, hint, set, extra, anyDay, h, o2) => {   // anyDay: past days too (fixing a past event's date); h: 46 for v8-6's fields
+    o2 = o2 || {};   // min: no day before it (a later day of a multi-day event); compact: "Oct 10" in a narrow field
     const open = state.dateOpen === label, today = todayISO();
     const month = (open && state.calMonth) || (value || today).slice(0, 7);
     const toggle = () => { setState({ dateOpen: open ? null : label, calMonth: (value || today).slice(0, 7), timeOpen: null }); if (!open) showDrop('[data-calendar]'); };
@@ -8440,7 +8549,7 @@
       const [y, m] = month.split('-').map(Number), first = new Date(y, m - 1, 1).getDay(), days = new Date(y, m, 0).getDate(), cells = [];
       for (let k = 0; k < first; k++) cells.push('<span></span>');
       for (let d = 1; d <= days; d++) {
-        const iso = month + '-' + pad2(d), past = !anyDay && iso < today, on_ = iso === value, now = iso === today;
+        const iso = month + '-' + pad2(d), past = (!anyDay && iso < today) || (!!o2.min && iso < o2.min), on_ = iso === value, now = iso === today;
         cells.push('<span ' + (past ? 'aria-disabled="true"' : on(() => pick(iso))) + ' data-day="' + iso + '" aria-label="' + esc(fmtDay(iso)) + '"' + (on_ ? ' aria-pressed="true"' : '') +
           ' style="justify-self:center;width:40px;height:40px;border-radius:999px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:' + (on_ || now ? 800 : 700) + ';' +
           (on_ ? 'background:#5b4ae8;color:#fff;cursor:pointer' : past ? 'color:#c9ccd3' : 'color:' + (now ? '#5b4ae8' : '#0d1117') + ';cursor:pointer' + (now ? ';box-shadow:inset 0 0 0 1.5px #5b4ae8' : '')) + '"' +
@@ -8450,9 +8559,9 @@
     };
     const roundBtn = (dis, fn, icon, lbl) => '<span ' + (dis ? 'aria-disabled="true"' : on(fn)) + ' aria-label="' + lbl + '" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;' + (dis ? 'opacity:.35' : 'cursor:pointer') + '">' + icon + '</span>';
     return '<div style="position:relative;min-width:0;' + (extra || '') + '">' +
-      '<div ' + on(toggle) + ' aria-label="' + esc(label) + '" aria-expanded="' + open + '" data-date-field style="display:flex;align-items:center;gap:10px;min-height:' + (h || 58) + 'px;padding:0 14px;border-radius:' + (h ? 14 : 16) + 'px;background:#fff;box-shadow:inset 0 0 0 ' + (h && !open ? '1.5px' : '2px') + ' ' + (open ? '#5b4ae8' : '#dcdfe6') + ';cursor:pointer">' +
-        '<span style="display:flex;color:' + (value ? '#5b4ae8' : '#9aa0ac') + '">' + svg(18, stroke('currentColor', 2.2), P6.cal) + '</span>' +
-        '<span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;' + (value ? 'font-size:17px;font-weight:800;color:#0d1117' : 'font-size:16.5px;font-weight:400;font-style:italic;color:#b9bcc4') + '">' + esc(value ? fmtDay(value) : hint) + '</span>' +
+      '<div ' + on(toggle) + ' aria-label="' + esc(label) + '" aria-expanded="' + open + '" data-date-field style="display:flex;align-items:center;gap:' + (o2.compact ? 6 : 10) + 'px;min-height:' + (h || 58) + 'px;padding:0 ' + (o2.compact ? 10 : 14) + 'px;border-radius:' + (h ? 14 : 16) + 'px;background:#fff;box-shadow:inset 0 0 0 ' + (h && !open ? '1.5px' : '2px') + ' ' + (open ? '#5b4ae8' : '#dcdfe6') + ';cursor:pointer">' +
+        '<span style="display:flex;color:' + (value ? '#5b4ae8' : '#9aa0ac') + '">' + svg(o2.compact ? 16 : 18, stroke('currentColor', 2.2), P6.cal) + '</span>' +
+        '<span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;' + (value ? 'font-size:' + (o2.compact ? 14.5 : 17) + 'px;font-weight:800;color:#0d1117' : 'font-size:' + (o2.compact ? 14.5 : 16.5) + 'px;font-weight:400;font-style:italic;color:#b9bcc4') + '">' + esc(value ? (o2.compact ? new Date(value + 'T12:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : fmtDay(value)) : hint) + '</span>' +
         I.chevD(14, '#9aa0ac', 2.6) + '</div>' +
       (open ? '<div ' + on(() => setState({ dateOpen: null })) + ' aria-hidden="true" style="position:fixed;inset:0;z-index:19"></div>' +
         '<div data-calendar="' + month + '" role="dialog" aria-label="Pick a date" style="scroll-margin:12px;position:absolute;left:0;top:calc(100% + 6px);z-index:20;width:316px;max-width:calc(100vw - 40px);box-sizing:border-box;background:#fff;border-radius:18px;box-shadow:0 14px 34px rgba(15,18,25,.2), 0 0 0 1px #e6e7eb;padding:14px">' +
@@ -8462,9 +8571,106 @@
             ['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(d => '<span style="justify-self:center;font-size:12px;font-weight:800;color:#9aa0ac;padding-bottom:4px">' + d + '</span>').join('') + grid() + '</div>' +
           '<div style="display:flex;justify-content:space-between;padding:8px 4px 0">' +
             (value ? '<span ' + on(() => pick('')) + ' aria-label="Clear the date" style="font-size:14px;font-weight:800;color:#9b1c31;cursor:pointer">Clear</span>' : '<span></span>') +
-            (value !== today ? '<span ' + on(() => pick(today)) + ' style="font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">Today</span>' : '') + '</div>' +
+            (value !== today && !(o2.min && today < o2.min) ? '<span ' + on(() => pick(today)) + ' style="font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">Today</span>' : '') + '</div>' +
         '</div>' : '') + '</div>';
   };
+  // ---- Date & time for every length of event (Design v8-7 items 1–3, 23c-2) ----
+  // One model for Plan an event (state.ev…) and the event page's Edit (state.sec): d, t, e, eOn, type ('one' | 'repeat' |
+  // 'span' | 'days'), rep ('week' | '2week' | 'month'), until, endD, endT (a span's end), days (day 2 on: [{ d, t, e }]), each
+  const DAY_TYPES = [['one', 'One day', 'Starts and ends same day.'], ['repeat', 'Recurring event', 'Repeats on a schedule.'], ['span', 'Runs across days', 'Starts one day, ends another.'], ['days', 'Separate days', 'Each day has its own times.']];
+  const DAY_TYPE_NAME = { one: 'One day', repeat: 'Recurring', span: 'Runs across days', days: 'Separate days' };
+  const DAY_TYPE_IC = { one: '<rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16M9 3v4M15 3v4"/><rect x="10" y="13" width="4" height="3" rx=".6"/>', repeat: '<path d="M17 2.5 20.5 6 17 9.5"/><path d="M3.5 11.5V10a4 4 0 0 1 4-4h13"/><path d="M7 21.5 3.5 18 7 14.5"/><path d="M20.5 12.5V14a4 4 0 0 1-4 4h-13"/>',
+    span: '<circle cx="5" cy="12" r="2.2"/><circle cx="19" cy="12" r="2.2"/><path d="M7.2 12h9.6"/>', days: '<rect x="2.5" y="7" width="5" height="10" rx="1.4"/><rect x="9.5" y="7" width="5" height="10" rx="1.4"/><rect x="16.5" y="7" width="5" height="10" rx="1.4"/>' };
+  const EV_WHEN_KEYS = { d: 'evDate', t: 'evTime', e: 'evEnd', eOn: 'evEndOn', type: 'evDayType', rep: 'evRepeat', until: 'evRepeatUntil', endD: 'evEndDate', endT: 'evEndDateT', days: 'evDays', each: 'evDaysEach' };
+  const evWhen = () => { const m = {}; Object.keys(EV_WHEN_KEYS).forEach(k => { m[k] = state[EV_WHEN_KEYS[k]]; }); return m; };
+  const evWhenSet = (patch, extra) => { const o = Object.assign({}, extra || {}); Object.keys(patch).forEach(k => { o[EV_WHEN_KEYS[k]] = patch[k]; }); setState(o); };
+  const secWhenSet = (patch, extra) => setState(Object.assign({ sec: Object.assign({}, state.sec, patch) }, extra || {}));
+  const whenModelOf = (s) => { const p = s.sched || {};
+    return { d: s.startDate || '', t: s.startTime || '', e: s.startEnd || '', eOn: !!s.startEnd, type: p.kind === 'repeat' || p.kind === 'span' || p.kind === 'days' ? p.kind : 'one',
+      rep: s.repeat ? s.repeat.every : 'week', until: (s.repeat && s.repeat.until) || '', endD: p.kind === 'span' ? p.to || '' : '', endT: p.kind === 'span' ? p.to_time || '' : '',
+      days: p.kind === 'days' && s.days ? s.days.slice(1).map(r => ({ d: r.d, t: r.t || '', e: r.e || '' })) : [], each: !!s.daysEach }; };
+  // The model as the event's columns (day_date, day_time, day_end, schedule). A span without a later end date, or separate
+  // days without a second day, saves as one day
+  const whenCols = (M) => {
+    const d = M.d || null, t = d && M.t ? M.t : null, e = t && M.e && M.e > t ? M.e : null;
+    if (!d) return { day_date: null, day_time: null, day_end: null, schedule: null };
+    if (M.type === 'repeat') return { day_date: d, day_time: t, day_end: e, schedule: { kind: 'repeat', every: REPEATS[M.rep] ? M.rep : 'week', until: M.until && M.until > d ? M.until : null } };
+    if (M.type === 'span' && M.endD && M.endD > d && daysApart(d, M.endD) <= 31) return { day_date: d, day_time: t, day_end: null, schedule: { kind: 'span', to: M.endD, to_time: M.endT || null } };
+    if (M.type === 'days') {
+      const seen = {}, list = [{ d, t: M.t || '', e: M.e || '' }].concat(M.days || []).filter(r => r.d && !seen[r.d] && (seen[r.d] = 1)).sort((a, b) => a.d < b.d ? -1 : 1).slice(0, 30)
+        .map(r => ({ d: r.d, t: r.t || null, e: r.t && r.e && r.e > r.t ? r.e : null }));
+      if (list.length > 1) return { day_date: list[0].d, day_time: list[0].t, day_end: list[0].e, schedule: { kind: 'days', days: list, each: !!M.each } };
+    }
+    return { day_date: d, day_time: t, day_end: e, schedule: null };
+  };
+  // Review's line: "Sat–Sun, Oct 10–11 · 2 days", "Thu, Oct 8 · 6:30pm · Weekly", "Sat, Oct 10 · 10am – 12pm"
+  const whenLabel = (M) => {
+    const c = whenCols(M), p = c.schedule;
+    if (!c.day_date) return '';
+    if (!p) return dayLabel(c.day_date, c.day_time, c.day_end);
+    if (p.kind === 'repeat') return dayLabel(c.day_date, c.day_time) + ' · ' + REPEATS[p.every];
+    return p.kind === 'span' ? multiLabel([c.day_date, p.to]) + ' · ' + (daysApart(c.day_date, p.to) + 1) + ' days' : multiLabel(p.days.map(r => r.d)) + ' · ' + p.days.length + ' days';
+  };
+  // "Date & time · One day ⌄": quiet grey, opens How long is it?
+  const dayTypeBtn = (M, who) => '<span ' + on(() => setState({ dayTypePop: who, timeOpen: null, dateOpen: null })) + ' data-day-type aria-label="How long is it? ' + DAY_TYPE_NAME[M.type || 'one'] + '" style="display:inline-flex;align-items:center;gap:3px;min-height:20px;margin:-8px 0;padding:8px 2px;font-size:13.5px;font-weight:700;letter-spacing:0;text-transform:none;color:#6b7280;cursor:pointer;white-space:nowrap">· ' + DAY_TYPE_NAME[M.type || 'one'] + I.chevD(12, 'currentColor', 2.8) + '</span>';
+  // The fields for the model's kind of event
+  const whenFields = (M, set, o) => {
+    o = o || {};
+    const k = o.k || 'ev', type = M.type || 'one', next0 = M.d ? plusDays(M.d, 1) : '', days = M.days || [];
+    const cap = (t, right) => '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 2px 0"><span style="font-size:12px;font-weight:800;letter-spacing:1px;color:#6b7280">' + t + '</span>' + (right || '') + '</div>';
+    const green = (t) => '<div data-when-line style="padding:0 2px;font-size:14px;line-height:1.35;font-weight:700;color:#0f7a3c">' + esc(t) + '</div>';
+    const seg = (opts, cur, fn, label) => '<div role="radiogroup" aria-label="' + esc(label) + '" style="display:flex;gap:2px;padding:3px;border-radius:999px;background:#e6e8ec">' + opts.map(([v, l]) => { const onIt = cur === v;
+      return '<span ' + on(() => fn(v), 'radio') + ' aria-checked="' + onIt + '" style="flex:1 1 0;min-height:34px;border-radius:999px;display:flex;align-items:center;justify-content:center;padding:0 6px;font-size:13px;font-weight:' + (onIt ? 800 : 700) + ';color:' + (onIt ? '#5b4ae8' : '#454b55') + ';background:' + (onIt ? '#fff' : 'transparent') + ';box-shadow:' + (onIt ? '0 1px 2px rgba(0,0,0,.1)' : 'none') + ';cursor:pointer;white-space:nowrap">' + l + '</span>'; }).join('') + '</div>';
+    const setD = (v) => set({ d: v });
+    const startT = (key, val, fn, lab, hint) => timeField(key, val, EV_TIMES, hint || 'Time', fn, { label: lab || 'Start time', h: 46, slim: true, right: true });
+    const dateTime = '<div style="display:flex;gap:8px">' + dateField(M.d, 'Date', 'Pick a date', setD, 'flex:1.5 1 0', o.anyDay, 46) +
+      '<div style="flex:1 1 0;min-width:0">' + startT(k + 'Start', M.t, (v) => set({ t: v, e: M.e && M.e <= v ? '' : M.e }, { timeOpen: null })) + '</div></div>';
+    // + Add end time (quiet grey, left) once there's a start time
+    const endPart = M.t && (M.eOn || M.e)
+      ? '<div style="display:flex;align-items:center;gap:8px"><div style="flex:1;min-width:0">' + timeField(k + 'End', M.e, EV_TIMES.filter(v => v > M.t), 'End time', (v) => set({ e: v }, { timeOpen: null }), { label: 'End time', h: 46 }) + '</div>' +
+          '<span ' + on(() => set({ eOn: false, e: '' }, { timeOpen: null })) + ' aria-label="Remove end time" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.1);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(12, '#6b7280', 2.8) + '</span></div>'
+      : M.t ? '<span ' + on(() => set({ eOn: true }, { timeOpen: k + 'End' })) + ' data-add-end style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:36px;padding:0 4px;font-size:14px;font-weight:700;color:#6b7280;cursor:pointer">' + I.plus(13, 'currentColor', 2.6) + 'Add end time</span>' : '';
+    // One line per day of separate days: date · start · end
+    const dayRow = (r, j, lab, min, fn) => { const tl = 'Day ' + (j + 1); return '<div style="display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) minmax(0,1fr);gap:6px">' +
+      dateField(r.d, lab, 'Date', (v) => fn({ d: v }), '', o.anyDay, 46, { min, compact: true }) +
+      timeField(k + 'd' + j + 't', r.t, EV_TIMES, 'Start', (v) => fn({ t: v, e: r.e && r.e <= v ? '' : r.e }, { timeOpen: null }), { label: tl + ' start', h: 46, slim: true, compact: true }) +
+      timeField(k + 'd' + j + 'e', r.e, r.t ? EV_TIMES.filter(v => v > r.t) : EV_TIMES, 'End', (v) => fn({ e: v }, { timeOpen: null }), { label: tl + ' end', h: 46, slim: true, compact: true, right: true }) + '</div>'; };
+    let out = '';
+    if (type === 'span') {
+      const n = M.d && M.endD ? daysApart(M.d, M.endD) + 1 : 0;
+      out = cap('STARTS') + dateTime + cap('ENDS') +
+        '<div style="display:flex;gap:8px">' + dateField(M.endD, 'End date', 'End date', (v) => set({ endD: v }), 'flex:1.5 1 0', o.anyDay, 46, { min: next0 }) +
+          '<div style="flex:1 1 0;min-width:0">' + startT(k + 'EndT', M.endT, (v) => set({ endT: v }, { timeOpen: null }), 'End date time') + '</div></div>' +
+        green(!M.d || !M.endD ? 'Pick a start date first' : n > 1 && n <= 32 ? n + ' days · ' + wkDay(M.d) + ' to ' + wkDay(M.endD) : 'Pick a later end date');
+    } else if (type === 'days') {
+      const setDay = (j) => (patch, extra) => set({ days: days.map((x, q) => q === j ? Object.assign({}, x, patch) : x) }, extra);
+      out = cap('DAY 1') + dayRow({ d: M.d, t: M.t, e: M.e }, 0, 'Date', '', (patch, extra) => set(Object.assign({}, patch.d !== undefined ? { d: patch.d } : {}, patch.t !== undefined ? { t: patch.t } : {}, patch.e !== undefined ? { e: patch.e, eOn: true } : {}), extra)) +
+        days.map((r, j) => cap('DAY ' + (j + 2), j > 0 ? '<span ' + on(() => set({ days: days.filter((_, q) => q !== j) })) + ' aria-label="Remove day ' + (j + 2) + '" style="width:28px;height:28px;margin:-6px 0;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.1);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(10, '#6b7280', 2.8) + '</span>' : '') +
+          dayRow(r, j + 1, 'Day ' + (j + 2) + ' date', plusDays((j ? days[j - 1].d : M.d) || todayISO(), (j ? days[j - 1].d : M.d) ? 1 : 0), setDay(j))).join('') +
+        (days.length < 29 ? '<span ' + on(() => { const last = days.length ? days[days.length - 1].d : M.d; set({ days: days.concat([{ d: last ? plusDays(last, 1) : '', t: M.t || '', e: M.e || '' }]) }); }) + ' data-add-day style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:36px;padding:0 4px;font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(13, 'currentColor', 2.6) + 'Add another day</span>' : '') +
+        cap('PEOPLE RSVP FOR') + seg([[false, 'The whole thing'], [true, 'Each day']], !!M.each, (v) => set({ each: v }), 'People RSVP for') +
+        '<div style="padding:0 2px;font-size:13px;line-height:1.4;font-weight:600;color:#6b7280">' + (M.each ? 'People pick which days they’re coming. Jobs can be set per day.' : 'One RSVP covers every day.') + '</div>';
+    } else {
+      out = dateTime + endPart;
+      if (type === 'repeat') out += cap('REPEATS') + seg([['week', 'Weekly'], ['2week', 'Every 2 weeks'], ['month', 'Monthly']], M.rep || 'week', (v) => set({ rep: v }), 'Repeats') +
+        cap('UNTIL <span style="font-weight:600;letter-spacing:0;color:#9aa0ac">(optional)</span>') + dateField(M.until, 'Until', 'No end date', (v) => set({ until: v }), '', false, 46, { min: next0 }) +
+        green(M.d ? repeatLine(M.rep || 'week', M.d, M.until && M.until > M.d ? M.until : '') : 'Pick the first date above');
+    }
+    return '<div data-when-fields="' + type + '" style="display:flex;flex-direction:column;gap:8px">' + out + '</div>';
+  };
+  // How long is it? (23c-2): four radio cards, Done
+  function viewDayType() {
+    const who = state.dayTypePop, M = who === 'sec' ? state.sec : evWhen(), set = who === 'sec' ? secWhenSet : evWhenSet;
+    if (!M) return '';
+    const cur = M.type || 'one', next0 = M.d ? plusDays(M.d, 1) : '', close = () => setState({ dayTypePop: null });
+    const pick = (v) => set(Object.assign({ type: v }, v === 'days' && !(M.days || []).length ? { days: [{ d: next0, t: M.t || '', e: M.e || '' }] } : {}, v === 'span' && !M.endD ? { endD: next0 } : {}));
+    return popCard('How long is it?', close, 'How long is it?', '', '<div role="radiogroup" aria-label="How long is it?" style="display:flex;flex-direction:column;gap:8px">' + DAY_TYPES.map(([v, t1, t2]) => { const onIt = cur === v;
+      return '<div ' + on(() => pick(v), 'radio') + ' aria-checked="' + onIt + '" data-day-type-opt="' + v + '" style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:16px;background:' + (onIt ? '#f3f1fe' : '#fff') + ';box-shadow:inset 0 0 0 ' + (onIt ? '2px #5b4ae8' : '1.5px #dcdfe6') + ';cursor:pointer">' +
+        '<span style="flex:0 0 40px;width:40px;height:40px;border-radius:12px;background:' + (onIt ? '#5b4ae8' : '#f2f3f6') + ';color:' + (onIt ? '#fff' : '#454b55') + ';display:flex;align-items:center;justify-content:center">' + svg(18, stroke('currentColor', 2.2), DAY_TYPE_IC[v]) + '</span>' +
+        '<span style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:15.5px;font-weight:900;color:' + (onIt ? '#5b4ae8' : '#0d1117') + '">' + t1 + '</span><span style="font-size:13px;font-weight:600;color:#6b7280">' + t2 + '</span></span>' +
+        '<span aria-hidden="true" style="flex:0 0 22px;width:22px;height:22px;box-sizing:border-box;border-radius:999px;border:' + (onIt ? '6px solid #5b4ae8' : '1.5px solid #c9ccd3') + '"></span></div>'; }).join('') + '</div>' +
+      '<button type="button" ' + on(close) + ' style="margin-top:4px;min-height:50px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16px;font-weight:900;cursor:pointer">Done</button>', 70);
+  }
   const orLine = () => '<div style="padding:14px 4px 0;display:flex;align-items:center;gap:10px"><span style="flex:1;height:1px;background:#d5d8df"></span><span style="font-size:12px;font-weight:800;letter-spacing:1px;color:#8a909b">OR</span><span style="flex:1;height:1px;background:#d5d8df"></span></div>';
   // A yellow tinted row, the held-date heads-up's yellow (Design pick 1g, 2026-10-04)
   const pollRow = (fn) => '<div style="padding-top:10px"><div ' + on(fn) + ' class="hov-yellow" style="display:flex;align-items:center;gap:12px;min-height:58px;padding:0 16px;border-radius:18px;background:#fdf6dc;box-shadow:inset 0 0 0 1.5px #e6d08c;color:#5c4300;cursor:pointer">' +
@@ -8549,7 +8755,7 @@
 
   function viewCompose() {
     const st = state, cur = st.evStep, i = EV_STEPS.indexOf(cur), filled = evFilled(st), url = evPhotoUrl(st), title = cleanTitle(st.activity);
-    const CLEAR = { when: { evDate: '', evTime: '', evEnd: '', evEndOn: false, evDatePoll: null }, where: { locText: '', locPlace: null, locSuggest: [], evSpotPoll: null }, details: { evBits: ['', '', ''], evOverview: '' }, help: { evNeeds: [] } };
+    const CLEAR = { when: { evDate: '', evTime: '', evEnd: '', evEndOn: false, evDatePoll: null, evDayType: 'one', evEndDate: '', evEndDateT: '', evDays: [], evRepeatUntil: '' }, where: { locText: '', locPlace: null, locSuggest: [], evSpotPoll: null }, details: { evBits: ['', '', ''], evOverview: '' }, help: { evNeeds: [] } };
     const nextOf = (k) => EV_STEPS[EV_STEPS.indexOf(k) + 1] || 'review';
     const close = () => { if (evStarted(st)) setState({ evLeave: true, timeOpen: null }); else evExit(); };
     const later = (k) => Object.assign({}, st.evLater, { [k]: false });
@@ -8589,7 +8795,7 @@
       const more = (list) => list.length > 1 ? ' + ' + (list.length - 1) + ' more' : '';
       const jobNames = st.evNeeds.map(j => cleanTitle(j.item)).filter(Boolean);
       const chk = [
-        ['when', 'Date & time', st.evDatePoll ? 'Voting on ' + st.evDatePoll.length + ' dates' : st.evDate ? dayLabel(st.evDate, st.evTime, st.evEnd) : ''],
+        ['when', 'Date & time', st.evDatePoll ? 'Voting on ' + st.evDatePoll.length + ' dates' : st.evDate ? whenLabel(evWhen()) : ''],
         ['where', 'Location', st.evSpotPoll ? 'Voting on ' + st.evSpotPoll.length + ' locations' : place],
         ['details', 'What to expect', bits.length ? bits[0] + more(bits) : ov],
         ['help', 'Join in', jobNames.length ? jobNames.slice(0, 2).join(', ') + (jobNames.length > 2 ? ' + ' + (jobNames.length - 2) + ' more' : '') : '']
@@ -8713,13 +8919,7 @@
     const pollLink = (kind) => '<span ' + on(() => openPoll(kind)) + ' data-create-poll="' + kind + '" style="display:flex;align-items:center;min-height:20px;margin:-8px 0;padding:8px 4px;font-size:13.5px;font-weight:700;color:#6b7280;cursor:pointer">Create a poll</span>';
     const whenPart = () => (st.evDatePoll
         ? '<div style="padding:12px 16px 0">' + pollCard(st.evDatePoll.map(r => dayLabel(r.d, r.t) || 'Date'), () => openPoll('when'), () => setState({ evDatePoll: null })) + '</div>'
-        : '<div style="padding:8px 16px 0;display:flex;flex-direction:column;gap:8px"><div style="display:flex;gap:8px">' +
-            dateField(st.evDate, 'Date', 'Pick a date', (v) => setState({ evDate: v }), 'flex:1.5 1 0', false, 46) +
-            '<div style="flex:1 1 0;min-width:0">' + timeField('start', st.evTime, EV_TIMES, 'Time', (v) => setState({ evTime: v, evEnd: st.evEnd && st.evEnd <= v ? '' : st.evEnd, timeOpen: null }), { label: 'Start time', h: 46, slim: true, right: true }) + '</div></div>' +
-            (st.evTime && st.evEndOn
-              ? '<div style="display:flex;align-items:center;gap:8px"><div style="flex:1;min-width:0">' + timeField('end', st.evEnd, EV_TIMES.filter(v => v > st.evTime), 'Pick an end time', (v) => setState({ evEnd: v, timeOpen: null }), { h: 46 }) + '</div>' +
-                  '<span ' + on(() => setState({ evEndOn: false, evEnd: '', timeOpen: null })) + ' aria-label="Remove end time" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.1);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(12, '#6b7280', 2.8) + '</span></div>'
-              : st.evTime ? '<span ' + on(() => setState({ evEndOn: true, timeOpen: 'end' })) + ' style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:40px;padding:0 4px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(14, 'currentColor', 2.6) + 'Add end time</span>' : '') +
+        : '<div style="padding:8px 16px 0">' + whenFields(evWhen(), evWhenSet, { k: 'ev' }) +
           '</div>' + (holdNote(st.evDate) ? '<div style="padding:10px 16px 0">' + holdNote(st.evDate) + '</div>' : ''));
     const wherePart = () => st.evSpotPoll
       ? '<div style="padding:12px 16px 0">' + pollCard(st.evSpotPoll.map(r => r.v), () => openPoll('where'), () => setState({ evSpotPoll: null })) + '</div>'
@@ -8741,9 +8941,9 @@
       body = (pop ? '' : '<div style="padding:16px 16px 0">' + cover + '</div>' + sec('Event title')) +
         '<div style="padding:8px 16px 0"><div style="position:relative"><input class="fld title-fld" type="text" maxlength="60" data-ev-title aria-label="Event title" placeholder="Fall cleanup day" value="' + esc(st.activity) + '" ' + onInput(e => { if (e.type === 'input') setState({ activity: e.target.value.slice(0, 60) }); }) + ' style="' + MID + ';padding-right:64px">' +
           '<span aria-hidden="true" style="position:absolute;right:16px;top:50%;transform:translateY(-50%);font-size:11.5px;font-weight:700;color:#9aa0ac;pointer-events:none">' + n + '/60</span></div></div>' +
-        (pop ? '' : sec('Date &amp; time', false, st.evDatePoll ? '' : pollLink('when')) + whenPart() + sec('Location', true, st.evSpotPoll ? '' : pollLink('where')) + wherePart() + '<div style="height:12px"></div>');
+        (pop ? '' : sec('Date &amp; time' + (st.evDatePoll ? '' : ' ' + dayTypeBtn(evWhen(), 'ev')), false, st.evDatePoll ? '' : pollLink('when')) + whenPart() + sec('Location', true, st.evSpotPoll ? '' : pollLink('where')) + wherePart() + '<div style="height:12px"></div>');
     } else if (cur === 'when') {   // Review's Date & time pop-up
-      body = (st.evDatePoll ? '' : sec('', false, pollLink('when'))) + whenPart();
+      body = (st.evDatePoll ? '' : sec(dayTypeBtn(evWhen(), 'ev').replace('· ', ''), false, pollLink('when'))) + whenPart();
     } else if (cur === 'where') {   // Review's Location pop-up
       body = (st.evSpotPoll ? '' : sec('', false, pollLink('where'))) + wherePart();
     } else if (cur === 'details') {
@@ -8816,7 +9016,7 @@
     '<span aria-hidden="true" style="flex:0 0 20px;width:20px;height:20px;border-radius:6px;display:flex;align-items:center;justify-content:center;' + (onIt ? 'background:#5b4ae8' : 'background:#fff;box-shadow:inset 0 0 0 2px #c9ccd3') + '">' + (onIt ? I.check(12, '#fff', 3.4) : '') + '</span>' +
     '<span style="flex:1;min-width:0;font-size:15px;font-weight:800;color:' + (onIt ? '#5b4ae8' : '#0d1117') + '">' + esc(g.name) + groupTag(g) + '</span>' + (note ? '<span style="font-size:12.5px;font-weight:700;color:#8a909b">' + note + '</span>' : '') + (noteHtml || '') + '</div>';
 
-  // The flow's sheets: Poll the group, Add a job, Save this as a draft? (one at a time, never stacked)
+  // The flow's sheets: Poll the group, Add a job, and the Pick this up later? pop-up (one at a time, never stacked)
   const stepper = (n, set, label) => '<div style="flex:0 0 auto;display:flex;align-items:center;gap:8px">' +
     '<span ' + on(() => set(n > 1 ? n - 1 : null)) + ' aria-label="Fewer' + (label ? ' for ' + label : '') + '" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#0d1117;font-size:18px;font-weight:800;line-height:1">−</span>' +
     '<span style="min-width:22px;text-align:center;font-size:16px;font-weight:900;color:#0d1117">' + (n || 'Any') + '</span>' +
@@ -8877,23 +9077,27 @@
         partHead(r.kind, ns.i != null, close) + partFields(r, set) +
         '<div style="margin-top:auto;display:flex;flex-direction:column">' + saveBtn(partReady(r), save, 'Save') + '</div>', 36);   // always Save (Design v8)
       return sheet('Add a job', close, SHEET_PAD + ';min-height:min(88%,580px)',   // room for the time list under its field
-        sheetHead('How people can join', ns.i != null ? 'Edit job' : 'Add a job', '', close) + jobFields(r, set) +
+        sheetHead('How people can join', ns.i != null ? 'Edit job' : 'Add a job', '', close) + jobFields(r, set, null, (() => { const c = whenCols(evWhen()).schedule; return c && c.kind === 'days' ? c.days.map(x => x.d) : null; })()) +
         '<div style="margin-top:auto;display:flex;flex-direction:column">' + saveBtn(jobNamed(r.item), save) + '</div>', 36);
     }
     if (st.evLeave) {
       const close = () => setState({ evLeave: false, evLeaveTo: null });
-      return sheet('Save as draft', close, SHEET_PAD,
-        sheetHead('', 'Save this as a draft?', 'Pick up right where you left off. Only you can see drafts.', close) +
+      // v8-7 item 11: a centred pop-up, Pick this up later? (it was a sheet)
+      return popCard('Pick this up later?', close, 'Pick this up later?', 'Only you can see drafts.',
         '<button type="button" ' + on(saveDraft) + ' style="min-height:52px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16px;font-weight:800;cursor:pointer">' + (st.busy === 'draft' ? 'Saving…' : 'Save draft') + '</button>' +
         '<button type="button" ' + on(close) + ' style="min-height:48px;background:#fff;border:1.5px solid #dcdfe6;border-radius:999px;font-family:inherit;font-size:15.5px;font-weight:800;color:#0d1117;cursor:pointer">Keep going</button>' +
-        '<button type="button" ' + on(() => { setState({ evLeave: false }); evExit(); }) + ' style="min-height:44px;background:transparent;border:0;font-family:inherit;font-size:15px;font-weight:800;color:#9b1c31;cursor:pointer">Discard</button>', 36);
+        '<button type="button" ' + on(() => { setState({ evLeave: false }); evExit(); }) + ' style="min-height:44px;background:transparent;border:0;font-family:inherit;font-size:15px;font-weight:800;color:#9b1c31;cursor:pointer">Discard</button>', 60);
     }
     return '';
   }
 
   // A job's fields (Add a job, Edit what you need): name, details, then one time with a head count, or shifts
-  const jobFields = (r, set, idx) => {
+  const jobFields = (r, set, idx, dayList) => {
     const tag = idx == null ? '' : ' ' + (idx + 1);
+    // WHICH DAY (v8-7 item 7), on a Separate days event: Any day, or one of its days
+    const dchip = (onIt, label, fn) => '<span ' + on(fn, 'radio') + ' aria-checked="' + onIt + '" style="display:flex;align-items:center;height:36px;padding:0 14px;border-radius:999px;font-size:14px;font-weight:800;cursor:pointer;' + (onIt ? 'background:#5b4ae8;color:#fff' : 'background:#fff;color:#454b55;box-shadow:inset 0 0 0 1.5px #dcdfe6') + '">' + esc(label) + '</span>';
+    const dayPick = dayList && dayList.length > 1 ? '<div data-job-day style="display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;font-weight:800;letter-spacing:1.1px;color:#6b7280">WHICH DAY</span>' +
+      '<div role="radiogroup" aria-label="Which day' + tag + '" style="display:flex;flex-wrap:wrap;gap:6px">' + dchip(!r.day || dayList.indexOf(r.day) < 0, 'Any day', () => set({ day: null })) + dayList.map(d => dchip(r.day === d, fmtDay(d), () => set({ day: d }))).join('') + '</div></div>' : '';
     const setShift = (k, patch) => set({ shifts: r.shifts.map((q, j) => j === k ? Object.assign({}, q, patch) : q) });
     // The same time list as the date fields (owner, 2026-10-02: the browser's menu didn't match), as tall as the fields here
     const jobTime = (key, value, opts, hint, pick, label, none) => '<div style="flex:1 1 0;min-width:0">' +
@@ -8906,11 +9110,11 @@
       '<input class="fld" type="text" maxlength="60"' + (idx == null ? ' data-job-name' : '') + ' aria-label="Job name' + tag + '" placeholder="What you need" value="' + esc(r.item) + '" ' + onInput(e => { if (e.type === 'input') set({ item: e.target.value.slice(0, 60) }); }) + ' style="' + BIG + ';min-height:52px;font-size:' + (idx == null ? 17 : 16) + 'px">' +
       (verb ? '<span aria-hidden="true" data-job-filler style="position:absolute;left:18px;right:18px;top:0;bottom:0;display:flex;align-items:center;pointer-events:none;white-space:pre;overflow:hidden;font-size:17px;font-weight:800"><span style="visibility:hidden">' + esc(r.item) + (/\s$/.test(r.item) ? '' : ' ') + '</span><span style="font-style:italic;font-weight:400;color:#b9bcc4">' + esc(JOB_FILL[verb][0]) + '</span></span>' : '') + '</div>' +
       '';   // no suggestion chips under the name (v8); the gray filler after the verb stays
-    if (fresh) return '<div style="display:flex;flex-direction:column;gap:10px">' + nameFld +
+    if (fresh) return '<div style="display:flex;flex-direction:column;gap:10px">' + nameFld + dayPick +
       '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><span ' + on(() => setState({ jobMore: true })) + ' role="button" data-job-more style="display:flex;align-items:center;gap:6px;min-height:40px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(14, 'currentColor', 2.6) + 'Add details or a time</span>' +
         stepper(r.need, (n) => set({ need: n }), 'how many people') + '</div></div>';
     return '<div style="display:flex;flex-direction:column;gap:10px">' + nameFld +
-      '<textarea class="fld" rows="2" maxlength="400" aria-label="Details' + tag + '" placeholder="Details (optional)" ' + onInput(e => { if (e.type === 'input') set({ desc: e.target.value.slice(0, 400) }); }) + ' style="' + BIG + ';min-height:52px;padding:12px 16px;font-size:16px;font-weight:500;line-height:1.4;resize:none">' + esc(r.desc || '') + '</textarea>' +
+      '<textarea class="fld" rows="2" maxlength="400" aria-label="Details' + tag + '" placeholder="Details (optional)" ' + onInput(e => { if (e.type === 'input') set({ desc: e.target.value.slice(0, 400) }); }) + ' style="' + BIG + ';min-height:52px;padding:12px 16px;font-size:16px;font-weight:500;line-height:1.4;resize:none">' + esc(r.desc || '') + '</textarea>' + dayPick +
       (r.shifts
         ? r.shifts.map((q, k) => '<div data-shift-row style="display:flex;flex-direction:column;gap:8px;padding:10px;border-radius:14px;background:#fff;box-shadow:inset 0 0 0 1.5px #eef0f3">' +
             '<div style="display:flex;align-items:center;gap:6px">' +
@@ -9152,6 +9356,33 @@
       '<button type="button" ' + on(() => { if (ok) savePe(); }) + ' aria-disabled="' + !ok + '" style="' + btn(ok) + '">' + (busy ? 'Saving…' : changed ? 'Save and send code' : 'Save') + '</button>', { z: 45 });
   }
 
+  // When will you attend? (v8-7 item 5, 24c): a card per day with Going / Maybe chips, all unpicked to start; the button
+  // sums it up. Cleared after you'd picked days, it becomes I can't make it (sets Can't)
+  const dayPickFrom = (s) => { const ds = rsvpDays(s, state.me), m = {}; if (ds && myRsvp(s)) { ds.go.forEach(d => { m[d] = 'go'; }); ds.maybe.forEach(d => { m[d] = 'maybe'; }); } return m; };
+  const dayPickLabel = (s, p) => {
+    const n = s.days.length, w = (a) => a.map(d => wkDay(d)).join(' & '), part = (a, x) => a.length === n ? x + (n === 2 ? ' both days' : ' every day') : x + ' ' + w(a);
+    return p.go.length && p.maybe.length ? 'Going ' + w(p.go) + ' · Maybe ' + w(p.maybe) : p.go.length ? part(p.go, 'I’m going') : part(p.maybe, 'Maybe');
+  };
+  function viewDayPick() {
+    const dp = state.dayPick, s = state.sparks.find(x => x.id === dp.id);
+    if (!s || !s.days) return '';
+    const m = dp.m || {}, close = () => setState({ dayPick: null });
+    const setM = (d, v) => setState({ dayPick: Object.assign({}, dp, { m: Object.assign({}, m, { [d]: m[d] === v ? null : v }) }) });
+    const pick = { go: s.days.filter(r => m[r.d] === 'go').map(r => r.d), maybe: s.days.filter(r => m[r.d] === 'maybe').map(r => r.d) };
+    const had = !!myRsvp(s) && Object.keys(dayPickFrom(s)).length > 0, none = !pick.go.length && !pick.maybe.length;
+    const chip = (onIt, c, label, fn) => '<span ' + on(fn) + ' role="button" aria-pressed="' + onIt + '" style="display:flex;align-items:center;height:34px;padding:0 12px;border-radius:999px;font-size:13.5px;font-weight:800;cursor:pointer;' +
+      (onIt ? 'background:' + c[0] + ';color:' + c[1] : 'background:#fff;color:#454b55;box-shadow:inset 0 0 0 1.5px #dcdfe6') + '">' + label + '</span>';
+    const rows = s.days.map(r => { const v = m[r.d] || null;
+      return '<div data-day-card="' + r.d + '" style="display:flex;align-items:center;gap:10px;padding:12px;border-radius:14px;background:' + (v === 'go' ? '#e6f5ec' : v === 'maybe' ? '#fdf6dc' : '#fff') + ';box-shadow:inset 0 0 0 ' + (v === 'go' ? '2px #149a4b' : v === 'maybe' ? '2px #f5b428' : '1.5px #dcdfe6') + '">' +
+        '<div style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:15.5px;font-weight:900;color:#0d1117">' + esc(fmtDay(r.d)) + '</span>' +
+          (dayTimes(r) ? '<span style="font-size:13px;font-weight:600;color:#6b7280">' + esc(dayTimes(r)) + '</span>' : '') + '</div>' +
+        chip(v === 'go', ['#149a4b', '#fff'], 'Going', () => setM(r.d, 'go')) + chip(v === 'maybe', ['#f5b428', '#2a1d00'], 'Maybe', () => setM(r.d, 'maybe')) + '</div>'; }).join('');
+    const label = none ? (had ? 'I can’t make it' : 'Pick at least one day') : dayPickLabel(s, pick);
+    const bgc = none ? (had ? '#0d1117' : '#d5d8df') : pick.go.length ? '#149a4b' : '#f5b428';
+    const go = () => { if (none && !had) return; setState({ dayPick: null }); setRsvp(s, 'going', pick); };
+    return popCard('When will you attend?', close, 'When will you attend?', esc(s.text), '<div style="display:flex;flex-direction:column;gap:8px">' + rows + '</div>' +
+      '<button type="button" ' + (none && !had ? 'aria-disabled="true"' : on(go)) + ' data-day-pick-go style="margin-top:4px;min-height:50px;padding:0 14px;border:0;border-radius:999px;background:' + bgc + ';color:' + (!none && !pick.go.length ? '#2a1d00' : '#fff') + ';font-family:inherit;font-size:16px;font-weight:900;cursor:' + (none && !had ? 'default' : 'pointer') + '">' + esc(label) + '</button>', 60);
+  }
   function viewConfirm() {
     const c = state.confirm;
     return modal(c.title, null,
@@ -9357,6 +9588,8 @@
         face(u, name, 32, null) +
         '<span style="flex:1 1 auto;min-width:0;font-size:15.5px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(name) +
           (spotsOf(u) ? '<span data-guest-spot style="font-weight:600;color:#6b7280"> · ' + esc(spotsOf(u)) + '</span>' : '') + '</span>' +
+        // Each day events (v8-7 item 6): a small green tag with their days ("Both days", "Sat", "Sat · Maybe Sun")
+        (s.daysEach && daysTag(s, rsvpDays(s, u)) ? '<span data-day-tag style="flex:0 0 auto;padding:3px 9px;border-radius:999px;background:#e6f5ec;font-size:12px;font-weight:800;color:#0f6b35;white-space:nowrap">' + esc(daysTag(s, rsvpDays(s, u))) + '</span>' : '') +
         (c && c.phone ? '<a href="tel:' + esc(c.phone.replace(/[^\d+]/g, '')) + '" style="flex:0 0 auto;font-size:14px;font-weight:800;color:#5b4ae8">' + esc(c.phone) + '</a>' : c ? '<span style="flex:0 0 auto;padding:3px 9px;border-radius:999px;background:#f2f3f6;font-size:12px;font-weight:800;color:#6b7280">Guest</span>' : '') + '</div>';
     };
     const section = (k, label, ink, ids, rowFn) => !ids.length ? '' : '<div data-guest-part="' + k + '" style="display:flex;flex-direction:column;gap:2px"><span style="font-size:12px;font-weight:900;letter-spacing:1px;color:' + ink + '">' + label + ' · ' + ids.length + '</span>' +
@@ -9533,7 +9766,6 @@
       (st.email && st.dashAll ? viewDashAll() : '') +
       (st.email && st.cHandSheet ? viewHandSheet() : '') +
       (st.email && st.cSearch ? viewSearch() : '') +
-      (st.peek && s === 'calendar' ? viewPeek() : '') +
       (st.ip && s === 'ideas' ? viewIdeaSheet() : '') +
       (s === 'browse' && st.loaded && currentGroup() && !st.gSearch && !st.gMenu ? swipeHints() : '') +
       (st.email && st.gSearch && s === 'browse' ? viewGroupSearch() : '') +
@@ -9586,6 +9818,8 @@
       (st.ipPop ? viewIdeaPop() : '') +
       (st.loginStep ? (st.inv && st.inv.step === 'land' && st.loginStep === 'code' ? viewInvCode() : viewLogin()) : '') +
       (st.inv && st.inv.step === 'confirm' && st.email ? viewInvConfirm() : '') +
+      (st.dayPick ? viewDayPick() : '') +
+      (st.dayTypePop ? viewDayType() : '') +
       (st.confirm ? viewConfirm() : '') +
       (st.zoom ? viewZoom() : '') +
       (st.fbOpen && st.demoAdmin ? viewFbInbox() : '') +
@@ -9778,10 +10012,13 @@
 
   root.addEventListener('keydown', (e) => {
     if ((e.key === 'Enter' || e.key === 'Escape') && e.target.matches && e.target.matches('[data-title-inline]')) { e.preventDefault(); evTitleDone(); return; }
+    if (e.key === 'Enter' && e.target.matches && e.target.matches('[data-time-type]')) { e.preventDefault(); e.target.blur(); return; }
     if (e.key === 'Enter' && !e.isComposing && e.target.matches && e.target.matches('[data-comment-input], [data-reply-input]')) {
       e.preventDefault(); const b = e.target.parentElement.querySelector('[aria-disabled="false"]'); if (b) b.click(); return;
     }
     if (e.key === 'Escape') {
+      if (state.dayTypePop) return setState({ dayTypePop: null });
+      if (state.dayPick) return setState({ dayPick: null });
       if (state.zoom) return setState({ zoom: null });
       if (state.fb) return setState({ fb: null });
       if (state.installPop) return a2hsLater();
@@ -9789,7 +10026,6 @@
       if (state.inv && state.inv.step === 'confirm' && !state.inv.busy) return closeInvite();
       if (state.confirm) return setState({ confirm: null });
       if (state.person) return setState({ person: null });
-      if (state.peek) return setState({ peek: null });
       if (state.gMenu) return setState({ gMenu: null });
       if (state.gQr) return setState({ gQr: state.gQr.poster ? Object.assign({}, state.gQr, { poster: null }) : null });
       if (state.jobAsk) return setState({ jobAsk: null });

@@ -1,7 +1,7 @@
 // V5 plans: RSVPs (going / maybe / can't) from a guest with the link, sign-ups, updates from
 // the host, a date change that tells everyone going, "it happened" with its album, and private plans.
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newMember, newLead, button, postEvent, openIdea, deleteIdea, answerGuestPrompt, confirm, asUser, postIdea, PNG, pickDate, pickTime, openAllGroups } = require('./helpers');
+const { uniqueTitle, newMember, newLead, button, postEvent, openIdea, deleteIdea, answerGuestPrompt, confirm, asUser, postIdea, PNG, pickDate, pickTime, timeBox, openAllGroups } = require('./helpers');
 
 // Local dates, like the app (toISOString would be UTC, a day ahead in the evening)
 const inDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
@@ -39,6 +39,8 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     await needs.getByText('Add a job or item').click();
     await needs.getByLabel('Job name 1').fill('Folding chairs');
     await needs.getByRole('button', { name: 'More for how many people' }).click();
+    await needs.getByText('Add a job or item').click();   // members can't add their own any more (v8-7), so the host adds Lemonade
+    await needs.getByLabel('Job name 2').fill('Lemonade');
     await needs.getByRole('button', { name: 'Save changes' }).click();
     await expect(HP.locator('[data-signup="Folding chairs"]')).toContainText('2 of 2 open');
     await asUser(H, async (c, _C, { id, b }) => c.from('plan_updates').insert({ spark_id: id, body: b, audience: 'all' }), { id: id, b: 'Parking is on the street.' });   // no Send everyone an update on the page for now (owner, 2026-10-03)
@@ -139,10 +141,9 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     // The guest takes it back, so the counts below are the member's
     await vRsvp('Going').click();
     await expect(vRsvp('Going')).toHaveAttribute('aria-pressed', 'false');
-    // Adding something else signs you up for it
-    await GP.getByText('Add something else').click();
-    await GP.getByLabel('Bringing something else?').fill('Lemonade');
-    await GP.getByRole('button', { name: 'Add', exact: true }).click();
+    // Members don't add their own things any more (v8-7): no Add something else
+    await expect(GP.getByText('Add something else')).toHaveCount(0);
+    await GP.locator('[data-signup="Lemonade"]').getByRole('button', { name: 'Sign up' }).click();
     await expect(GP.locator('[data-signup="Lemonade"]')).toContainText('You’re in');
     // Taking yourself off later: "You're off it" with Find a replacement
     await GP.locator('[data-signup="Lemonade"]').getByLabel('You’re in. Tap to take yourself off').click();
@@ -167,12 +168,12 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     await HP.getByRole('button', { name: 'Edit date, time and location' }).click();
     const when = H.getByRole('dialog', { name: 'Date, time & location' });
     // The end time is a small "+ Add end time" link until it's asked for, as on Create event; the ✕ takes it off again
-    await expect(when.getByRole('button', { name: 'Add an end time' })).toHaveCount(0);
+    await expect(when.getByRole('button', { name: 'End time', exact: true })).toHaveCount(0);
     await when.getByText('Add end time').click();
     await when.locator('[data-time-list]').getByRole('radio', { name: 'pm', exact: true }).click();
     await expect(when.locator('[data-time-list] [data-hour="5"]')).toHaveAttribute('aria-disabled', 'true');   // only later times
     await pickTime(when, '19:00');
-    await expect(when.getByRole('button', { name: 'Add an end time' })).toContainText('7:00pm');
+    await expect(timeBox(when, 'End time')).toHaveValue('7:00pm');
     await when.getByRole('button', { name: 'Remove end time' }).click();
     await expect(when.getByText('Add end time')).toBeVisible();
     await pickDate(when, inDays(21));

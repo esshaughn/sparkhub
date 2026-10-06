@@ -94,15 +94,11 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     await expect(card).toContainText('3 spots left');
     await expect(card).toContainText('RSVP');
     await shot(O, '03-calendar');
-    // Tapping it opens the event preview (13a): RSVP right there, then close it
+    // Tapping it opens its page (v8-7: no event preview any more), and Back comes back here
     await card.click();
-    const peek = O.getByRole('dialog', { name: 'Event preview' });
-    await expect(peek.locator('[data-peek-title]')).toHaveText(title);
-    await expect(peek.getByRole('button', { name: 'Maybe' })).toHaveAttribute('aria-pressed', 'false');
-    if (process.env.SHOTS) await O.waitForTimeout(500);   // let the sheet finish sliding up
-    await shot(O, '03b-event-preview');
-    await peek.getByRole('button', { name: 'Close' }).click();
-    await expect(peek).toHaveCount(0);
+    await expect(O.getByRole('dialog', { name: 'Event preview' })).toHaveCount(0);
+    await O.locator('[data-screen-label="Plan page"]').getByRole('button', { name: 'Back to All groups' }).click();
+    await expect(cal.getByRole('heading', { name: 'All groups' })).toBeVisible();
 
     // No Type filter (owner, 2026-10-02: nothing sets an event's type any more)
     await expect(cal.getByRole('button', { name: /^Type of event:/ })).toHaveCount(0);

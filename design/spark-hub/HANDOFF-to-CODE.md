@@ -1,3 +1,56 @@
+# Spark Hub v8 · HANDOFF-to-CODE (round v8-7)
+
+**Caught up with the build's `HANDOFF-to-DESIGN-5.md` as of Oct 6, 2026 (~1am).** v8-6 is below and still stands unless changed here. Screenshots: `screens/` (see the table at the end of this section). Options: `options/Multi-day Options.dc.html` (22–27), `options/Review Page Options.dc.html`.
+
+## New since v8-6
+1. **Event length (23c-2).** Page 1 label reads **Date & time · {type} ⌄** (quiet grey). Tapping opens a centred **"How long is it?"** pop-up, radio cards with icons: **One day** "Starts and ends same day." · **Recurring event** "Repeats on a schedule." · **Runs across days** "Starts one day, ends another." · **Separate days** "Each day has its own times." Done. Default One day. *screens 01–02*
+   - **One day:** Date + Time; quiet grey "+ Add end time" on the left appears once a start time is set.
+   - **Recurring:** REPEATS Weekly · Every 2 weeks · Monthly, UNTIL (optional) date, green line "Every Thursday until Dec 3". Saved as `repeat: { f, until }`. *03*
+   - **Runs across days:** STARTS / ENDS rows (date + time each), green "3 days · Fri to Sun". Saved as `span: { from, ft, to, tt }`. *04*
+   - **Separate days (22c):** DAY 1, DAY 2 rows, each one line: date · start · end. Starts with two days. Day 2 has no ×; Day 3+ have ×. "+ Add another day" under the last day. Days must be in date order (each picker starts after the previous day); gaps allowed; no practical max (30). Below: **People RSVP for** The whole thing / Each day. Saved as `days: [{ d, t, e }]`, `daysEach`. *05*
+2. **Date & time pickers.** Every date field uses the app's white month card (purple selected circle, purple ring on today, past days grey, Today link). Every time field is **typeable**: "10am", "4:30pm", "16:00", "1030"; bare hour guesses am/pm (≤6 → pm); Enter or blur saves; unreadable → toast "Try a time like 10am or 4:30pm"; chevron opens the 30-min list (6am–11:30pm). Time lists elsewhere (Take part slots, job times) get a "Type a time, like 4:30pm" box + Set at the top. "Set time" chips (Float, polls, Quick add) are a small text field.
+3. **Review / labels for multi-day:** Date & time row reads "Sat–Sun, Oct 10–11 · 2 days", "Thu, Oct 8 · 6:30pm · Weekly", etc. *06*
+4. **Event page, multi-day:**
+   - **Header (27a):** two fanned calendar pages: front = current/next day (−6°), back = the following day (+8°). Moves on once a day has passed. *07*
+   - **Date card (26c):** timeline: purple dot per day joined by a thin grey line; "Saturday, Oct 10" bold, times under. Below it, pale green **"You're going Sat · maybe Sun · Change"** once you've picked. *09*
+   - **Add to calendar:** one entry per day you're going ("Added Sat & Sun to your calendar (2 entries)"); every day for "whole thing" events.
+5. **"Each day" RSVP (24c):** tapping **Going** opens centred **"When will you attend?"**: one card per day with **Going** (green) / **Maybe** (gold) chips, all unpicked to start. Button sums it up: "I'm going both days", "Going Sat · Maybe Sun", "Maybe Sun"; grey "Pick at least one day" when empty. Reopening via Change and clearing everything turns it into dark **"I can't make it"** (sets Can't). Saved as `myDays`, `myMaybeDays`. Only Going opens it; Maybe/Can't buttons still apply to the whole event. "The whole thing" skips the pop-up. *08*
+6. **Who's coming:** one list; each person gets a small green day tag ("Both days", "Sat", "Sat · Maybe Sun"). Non-you tags in the prototype are sample data. *10*
+7. **Jobs tied to a day:** add-a-job sheet on a Separate days event has **WHICH DAY** (Any day · each day). Job rows show "Sat · 9:00 – 10:00am". **Holding a job on a day auto-adds that day** to your Going days (and drops it from Maybe).
+8. **My calendar:** multi-day events show on every day ("Day 1 of 2 · 10am–4pm"); once you've picked days on an Each-day event, only your Going/Maybe days show. Next up / tiles use the next upcoming day. *11*
+9. **Help out:** "✓ You're in" is helping orange (#fff1e8 / #b8480c); top-right job button is vertically centred against title + time. Non-leads no longer see "Add something else".
+10. **Invite pop-up:** title "Invite people"; line "Events with a friend or two in are more likely to happen."; shows 3 friends + "See N more" pill (search shows all).
+11. **Plan an event leave prompt** is a centred pop-up: "Pick this up later?" / "Only you can see drafts." · Save draft (purple) · Keep going · Discard.
+12. **Event preview pop-up** is off everywhere (Tweak default false); tapping an event always opens its page.
+13. **Demo event** `md2` "Walnut Creek garage & craft sale" (Marisol, Sat Oct 10 10–4 / Sun Oct 11 12–5, Each day, a Sat job and a Sun job).
+
+## Decided, not built in the prototype
+- Reminders: one before **each** day you're going.
+- Lead moves or cancels a day after posting → push to **people going that day only**; they must re-pick days.
+- Lead headcount stays one total (Going · Maybe · Can't).
+- Guests and shared-link visitors get the same "When will you attend?" pop-up.
+- Tasks should also filter to your days (only My calendar does now).
+- Taking a job on a day you hadn't picked should probably say so ("Added Sunday to your RSVP").
+
+## Screens (`screens/`, top of each screen)
+| File | Check |
+|---|---|
+| 01-one-day | "Date & time · One day ⌄" label |
+| 02-how-long-popup | Four radio cards, centred |
+| 03-recurring | REPEATS segment, UNTIL, green line |
+| 04-runs-across-days | STARTS / ENDS rows, "N days" line |
+| 05-separate-days | DAY 1 / DAY 2 one-line rows |
+| 06-review-multiday | Ready to post checklist with range |
+| 07-event-page-fanned-pages | Two fanned calendar pages |
+| 08-when-will-you-attend | Going / Maybe chips per day |
+| 09-event-timeline-your-days | Timeline + "You're going…" line (scroll down in the prototype if cropped) |
+| 10-whos-coming-jobs | Day tags, "Sat · time" on jobs (scroll down if cropped) |
+| 11-my-calendar | Multi-day entries |
+
+Screens 09–10 may show the top of the event page only; open `md2` in the prototype: `__sh.go('detail',{subjectId:'md2',tag:null,group:__sh.groupIdxOf(__sh.state.sparks.find(x=>x.id==='md2'))})`.
+
+---
+
 # Spark Hub v8 · HANDOFF-to-CODE (round v8-6)
 
 **Caught up with the build's `HANDOFF-to-DESIGN-5.md` as of Oct 6, 2026 (early morning).** v8-5 is below and still stands unless changed here.

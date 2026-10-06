@@ -73,7 +73,7 @@ test('soft holds: a date poll pencils its dates in on Month, warns Start an even
     await expect(flow.locator('[data-hold-note]')).toContainText(new RegExp(title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ' is holding 7(:00)?pm · voting until'));
     await expect(flow.getByRole('button', { name: 'Next' })).toHaveAttribute('aria-disabled', 'false');
     await flow.getByRole('button', { name: 'Close' }).click();
-    await H.getByRole('dialog', { name: 'Save as draft' }).getByText('Discard', { exact: true }).click();
+    await H.getByRole('dialog', { name: 'Pick this up later?' }).getByText('Discard', { exact: true }).click();
     expect(host.errors).toEqual([]);
     expect(member.errors).toEqual([]);
   } finally {

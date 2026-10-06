@@ -1040,3 +1040,43 @@ reset role;
 select t.login('taker'); set role authenticated;
 select t.check('another member doesn''t see the offer', not exists (select 1 from talk_offers where spark_id = t.id('kite')));
 reset role;
+
+-- Multi-day events (20261108000000_multi_day.sql, Design v8-7) -------------------------------------------------------
+select t.person('lead9'), t.person('member9');
+insert into memberships (group_id, user_id, role) values (t.id('g'), t.id('lead9'), 'member'), (t.id('g'), t.id('member9'), 'member');
+select t.login('lead9'); set role authenticated;
+insert into sparks (id, group_id, author_name, lead_name, lead_id, created_by, text, planned, day_date, day_time, schedule)
+values (gen_random_uuid(), t.id('g'), 'Lead', 'Lead', t.id('lead9'), t.id('lead9'), 'Garage sale weekend', true, current_date + 4, '10:00',
+        jsonb_build_object('kind', 'days', 'each', true, 'days', jsonb_build_array(
+          jsonb_build_object('d', current_date + 4, 't', '10:00', 'e', '16:00'), jsonb_build_object('d', current_date + 5, 't', '12:00', 'e', '17:00'))));
+reset role;
+insert into t.ids select 'sale', id from sparks where text = 'Garage sale weekend';
+select t.login('lead9'); set role authenticated;
+select t.must_refuse('separate days that don''t start on the event''s date', format($$update sparks set schedule = jsonb_build_object('kind', 'days', 'days', jsonb_build_array(jsonb_build_object('d', current_date + 6), jsonb_build_object('d', current_date + 7))) where id = %L$$, t.id('sale')));
+select t.must_refuse('separate days out of order', format($$update sparks set schedule = jsonb_build_object('kind', 'days', 'days', jsonb_build_array(jsonb_build_object('d', current_date + 4), jsonb_build_object('d', current_date + 3))) where id = %L$$, t.id('sale')));
+select t.must_refuse('a single separate day', format($$update sparks set schedule = jsonb_build_object('kind', 'days', 'days', jsonb_build_array(jsonb_build_object('d', current_date + 4))) where id = %L$$, t.id('sale')));
+select t.must_refuse('a span that ends before it starts', format($$update sparks set schedule = '{"kind":"span","to":"2000-01-01"}' where id = %L$$, t.id('sale')));
+select t.must_refuse('a repeat that isn''t weekly, every 2 weeks or monthly', format($$update sparks set schedule = '{"kind":"repeat","every":"daily"}' where id = %L$$, t.id('sale')));
+select t.must_refuse('a schedule with extra keys', format($$update sparks set schedule = '{"kind":"repeat","every":"week","x":1}' where id = %L$$, t.id('sale')));
+select t.must_refuse('a bad time in a day', format($$update sparks set schedule = jsonb_build_object('kind', 'days', 'days', jsonb_build_array(jsonb_build_object('d', current_date + 4, 't', '25:00'), jsonb_build_object('d', current_date + 5))) where id = %L$$, t.id('sale')));
+select t.must_allow('the lead makes it weekly', format($$update sparks set schedule = '{"kind":"repeat","every":"week","until":null}' where id = %L$$, t.id('sale')));
+select t.must_allow('…and back to separate days', format($$update sparks set schedule = jsonb_build_object('kind', 'days', 'each', true, 'days', jsonb_build_array(jsonb_build_object('d', current_date + 4, 't', '10:00', 'e', '16:00'), jsonb_build_object('d', current_date + 5, 't', '12:00', 'e', '17:00'))) where id = %L$$, t.id('sale')));
+select t.must_allow('the lead adds a Sunday job', format($$insert into signup_items (spark_id, item, need, day, created_by) values (%L, 'Pack up', 2, current_date + 5, %L)$$, t.id('sale'), t.id('lead9')));
+reset role;
+select t.login('member9'); set role authenticated;
+select t.must_refuse('a member changing the schedule', format($$update sparks set schedule = null where id = %L returning id$$, t.id('sale')));
+select t.must_refuse('a member adding a job tied to a day', format($$insert into signup_items (spark_id, item, day, created_by) values (%L, 'Bring a table', current_date + 4, %L)$$, t.id('sale'), t.id('member9')));
+select t.must_allow('a member picks Going Sat, Maybe Sun', format($$insert into rsvps (spark_id, user_id, status, days, maybe_days) values (%L, %L, 'going', array[current_date + 4], array[current_date + 5])$$, t.id('sale'), t.id('member9')));
+select t.must_allow('…and changes to both days', format($$update rsvps set days = array[current_date + 4, current_date + 5], maybe_days = '{}' where spark_id = %L and user_id = %L$$, t.id('sale'), t.id('member9')));
+select t.check('load_all carries the reply''s days', public.load_all() -> 'rsvps' @> jsonb_build_array(jsonb_build_object('spark_id', t.id('sale'), 'user_id', t.id('member9'), 'days', jsonb_build_array(current_date + 4, current_date + 5))));
+select t.check('load_all carries the job''s day', public.load_all() -> 'signup_items' @> jsonb_build_array(jsonb_build_object('spark_id', t.id('sale'), 'item', 'Pack up', 'day', current_date + 5)));
+select t.check('load_all carries the schedule', (select (e -> 'schedule' ->> 'kind') = 'days' from jsonb_array_elements(public.load_all() -> 'sparks') e where e ->> 'id' = t.id('sale')::text));
+reset role;
+select t.check('a separate-days event happens on both days', (select count(*) = 2 from private.event_days(current_date + 4, '10:00', (select schedule from sparks where id = t.id('sale')), current_date + 30)));
+select t.check('a weekly event happens every week up to the day asked', (select count(*) = 5 from private.event_days(current_date, null, '{"kind":"repeat","every":"week"}', current_date + 28)));
+select t.check('…until its end date', (select count(*) = 2 from private.event_days(current_date, null, jsonb_build_object('kind', 'repeat', 'every', 'week', 'until', current_date + 10), current_date + 28)));
+select t.check('a span is reminded once, before its first day', (select count(*) = 1 from private.event_days(current_date, null, jsonb_build_object('kind', 'span', 'to', current_date + 2), current_date + 28)));
+select t.login('lead9'); set role authenticated;
+select t.must_allow('the lead takes the date off', format($$select public.clear_plan(%L)$$, t.id('sale')));
+reset role;
+select t.check('…and the schedule goes with it', (select schedule is null from sparks where id = t.id('sale')));
