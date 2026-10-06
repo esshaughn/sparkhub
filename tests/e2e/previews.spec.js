@@ -118,6 +118,13 @@ test('a signed-out visitor sees the event only, and names once they RSVP', async
     await expect(P).not.toContainText('Visibility');
     await expect(P).not.toContainText('Torrez Fitness');
     await expect(P.locator('[data-disc-signin]')).toBeVisible();
+    // The photo's Share icon goes straight to the Share link pop-up (no one-button sheet for a guest, owner 2026-10-06)
+    await V.getByRole('button', { name: 'Share', exact: true }).first().click();
+    const pop = V.getByRole('dialog', { name: 'Share link' });
+    await expect(pop.getByRole('link', { name: 'Messages' })).toHaveAttribute('href', /^sms:/);
+    await expect(V.getByRole('dialog', { name: 'Share this event' })).toHaveCount(0);
+    await pop.getByRole('button', { name: 'Close' }).click();
+    await expect(pop).toHaveCount(0);
     // Going → the guest sheet: You're going!, the account card, RSVP without an account
     await P.locator('[data-rsvp]').getByRole('button', { name: /^Going/ }).click();
     const d = V.getByRole('dialog', { name: 'RSVP as a guest' });

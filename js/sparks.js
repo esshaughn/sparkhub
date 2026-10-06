@@ -6592,6 +6592,9 @@
       '<div style="margin:2px -18px 0;padding:12px 18px 0;border-top:1px solid #f2f3f6;display:flex;align-items:center;gap:10px">' + linkBtn(false) + qrBtn() +
         '<button type="button" data-send-invites ' + (nPick ? on(() => sendInvites(s)) : 'aria-disabled="true"') + ' style="flex:1;min-width:0;min-height:54px;border:0;border-radius:999px;background:' + (nPick ? A.fill : '#d5d8df') + ';color:' + (nPick ? A.ink : '#fff') + ';font-family:inherit;font-size:16px;font-weight:800;cursor:' + (nPick ? 'pointer' : 'default') + '">' + (nPick ? 'Send · ' + nPick : 'Send') + '</button></div>';
     // Design v8: a 22px title; a past event gets "{Title}: here's how it went." The sheet fits its content up to 94% (v8-11)
+    // Nothing to pick and no QR (a guest, or anyone who can't invite and isn't a host): no sheet with one button, straight to
+    // the Share link pop-up; closing it closes everything (owner, 2026-10-06)
+    if (!canList && !isLead(s)) return viewSharePop(s, msg, link, true);
     return sheet(title, close, SHEET_PAD.replace('max-height:88%', 'max-height:94%'),
       '<div style="display:flex;align-items:flex-start;gap:10px"><div style="flex:1;min-width:0"><div style="font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">' + title + '</div>' +
         (sh.ask ? '<p data-ask-first style="margin:6px 0 0;font-size:14px;line-height:1.4;font-weight:600;color:#454b55;text-wrap:pretty">' + (gold ? 'Events that start with a friend or two already in are far more likely to happen. Send it to two people you think would come.' : 'Events with a friend or two in are more likely to happen.') + '</p>' : '') +
@@ -6611,7 +6614,7 @@
   const copyEventLink = (link) => { copy(link, 'Link copied'); setState({ share: Object.assign({}, state.share, { copied: true }) }); };
   // Share link (item 4): a link preview card, Messages · WhatsApp · Email · More, and Copy link. Any of the four closes
   // the pop-up and the sheet (after the tap, so the link still opens); Copy link stays open and reads ✓ Copied
-  const viewSharePop = (s, msg, link) => {
+  const viewSharePop = (s, msg, link, solo) => {
     const A = shareAccent(s);
     const closeAll = () => setTimeout(() => setState({ share: null }), 0);
     const line = [s.dayDate ? dayLabel(s.dayDate, s.dayTime) : '', s.spot || ''].filter(Boolean).join(' · ') || 'Date to be decided';
@@ -6619,7 +6622,7 @@
       '<span class="hov-grey-fill" style="width:52px;height:52px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center">' + svg(22, stroke(A.link, 2.1), icon) + '</span>' +
       '<span style="font-size:12.5px;font-weight:800;color:#454b55">' + label + '</span></' + (href ? 'a' : 'div') + '>';
     const more = () => { if (navigator.share) navigator.share({ title: s.text, text: msg }).catch(() => {}); else copy(msg, 'Invite copied. Paste it anywhere.'); closeAll(); };
-    return sharePopCard('Share link', 16, closeSharePop, '<span style="flex:1;font-size:22px;font-weight:900;letter-spacing:-.5px;color:#0d1117">Share link</span>',
+    return sharePopCard('Share link', 16, solo ? () => setState({ share: null }) : closeSharePop, '<span style="flex:1;font-size:22px;font-weight:900;letter-spacing:-.5px;color:#0d1117">Share link</span>',
       '<div data-link-preview style="display:flex;flex-direction:column;border-radius:16px;overflow:hidden;box-shadow:inset 0 0 0 1.5px #e3e5ea">' +
         '<div aria-hidden="true" style="height:120px;background:' + photoBg(s) + '"></div>' +
         '<div style="display:flex;flex-direction:column;gap:2px;padding:10px 14px 12px;background:#f7f8fa">' +

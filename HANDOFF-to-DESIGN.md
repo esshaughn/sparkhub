@@ -14,7 +14,7 @@ Your last catch-up was *HANDOFF-to-DESIGN-7* (baseline v8-6). Everything below i
 
 1. **Rounds v8-7 → v8-11**, each as a short table (newest first): what was built as drawn, and every place the build differs. v8-11 added plus-ones (a database change), the guest flows, the Share link pop-up and the event QR.
 2. **The prototype audit** (2026-10-06): ~60 spots where the prototype had been redrawn without a *New since* item, now matching.
-3. **Owner calls that stand**: 12 spots where the owner chose differently and the prototype still draws the old version. Please redraw these.
+3. **Owner calls that stand**: 13 spots where the owner chose differently and the prototype still draws the old version. Please redraw these.
 4. **§1–§3**: rows 106–123 and the behaviour notes you haven't acknowledged yet, plus the 2026-10-06 privacy page and link-preview changes (§3).
 5. **§4** what's designed but not built (group invites, the led-idea tools lost in v8-8, per-day multi-day pushes…) and **§5** the open questions (Q1–Q39 still open, newest Q36–Q39).
 6. **New questions from the v8-10 and v8-11 tables:** the gold sheet keeping *See N more*; a *Private* chip on the Groups tab's Next up card (not a photo card in the build); *+N* and the hosts' note in Who's coming (built from your "not yet in the prototype" line, please draw it).
@@ -131,6 +131,7 @@ Never cleared on a reset. These are places where the owner chose differently fro
 | Tall date poll | Create a poll's date list stays tall (2026-10-02) | Fits content |
 | Text fields | **16px text in every input** (search, *Who's coming with you?*…), never smaller: an iPhone zooms the page into anything under 16px (owner, 2026-10-06) | 15px search (v8-10), 14.5px note (v8-11) |
 | Ideas are gold all the way | **Everything an idea opens is gold**, not just the page: Invite people's ticks, Send and both footer icons (QR too), the Share link pop-up (icons, Copy link) and the QR pop-up (toggle, Download PNG, Copy); hover `#e8a71c` (owner, 2026-10-06) | The QR icon purple on the gold sheet; purple Share link and QR pop-ups |
+| Share for guests | **A guest's Share icon opens the Share link pop-up directly**, no sheet with just one *Share link* button; the same for anyone who can't invite and isn't a host (owner, 2026-10-06) | *Share this event* sheet with one button |
 
 ## 1. What changed since the design
 
