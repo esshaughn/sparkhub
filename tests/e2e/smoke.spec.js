@@ -200,7 +200,8 @@ test('Profile: Delete my account asks for a typed DELETE', async ({ browser }) =
   const { page, context, errors } = await newLead(browser, 1, 'Tester');
   try {
     await openProfile(page);
-    await page.locator('[data-screen-label="Me"]').locator('[data-delete-account]').click();
+    await page.locator('[data-me-settings]').click();   // Delete my account is in Settings › ACCOUNT (Design v8 prototype)
+    await page.getByRole('dialog', { name: 'Settings' }).locator('[data-delete-account]').click();
     const del = page.getByRole('dialog', { name: 'Delete account' });
     await expect(del).toContainText('Delete your account?');
     await expect(del).toContainText('It can’t be undone.');
@@ -473,7 +474,7 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
     await expect(gs).toHaveCount(0);
 
     // Me (v8 11a): a tab, not a sheet: the header with Edit profile, the impact card, YOUR STUFF, Settings, Help & info
-    await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Ideas', exact: true }).click();
+    await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: /^Ideas/ }).click();
     await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Me', exact: true }).click();
     const profile = page.locator('[data-screen-label="Me"]');
     await expect(profile.locator('[data-impact]')).toContainText('you’ve led');
@@ -492,8 +493,9 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
     await settings.getByRole('button', { name: 'Close' }).click();
     await profile.getByRole('button', { name: 'Edit profile' }).click();
     const pe = page.getByRole('dialog', { name: 'Edit profile' });
-    await pe.getByLabel('Place').fill('East Austin');
+    await expect(pe.getByLabel('Place')).toHaveCount(0);   // Place is dropped (HANDOFF-to-CODE v8-8 Q28)
     await pe.getByLabel(/^About you/).fill('Always up for a trail walk.');
+    await expect(pe.locator('[data-pe-about-left]')).toHaveText('113 left');   // 140 characters, counted live (Design v8 prototype)
     await pe.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(pe).toHaveCount(0);
     await expect(profile).toBeVisible();

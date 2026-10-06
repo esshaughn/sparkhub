@@ -117,11 +117,11 @@ test('the Ideas board puts the idea with the most interest first', async ({ brow
     await sortRow.getByRole('button', { name: 'Newest' }).click();
     await expect(sortRow.getByRole('button', { name: 'Newest' })).toHaveAttribute('aria-pressed', 'true');
     await expect.poll(order).toEqual(['newer', 'older']);
-    // The board ends with the dashed Start an event card (owner, 2026-10-01); it opens Create event
+    // The board ends with the dashed Start an event card (owner, 2026-10-01); it opens the Float an idea sheet (Design v8 prototype)
     const prompt = P.locator('[data-screen-label=Browse] [data-idea-prompt]');
     await expect(prompt).toContainText('Got a “we should…”?');
     await prompt.click();
-    await expect(P.locator('[data-screen-label="New spark"]')).toContainText('1/4');
+    await expect(P.locator('[data-screen-label="Float an idea"]')).toBeVisible();
     expect(poster.errors).toEqual([]);
     expect(fan.errors).toEqual([]);
   } finally {

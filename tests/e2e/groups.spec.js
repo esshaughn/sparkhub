@@ -29,11 +29,18 @@ test('a group end to end: edit group, cover, rename, invite, pin, admin edits, r
     // A new group's Plans tab (Update 9, 80a): the calendar fan, No plans yet, Start an event
     await expect(A.locator('[data-plans-empty]')).toContainText('No plans yet');
     await expect(A.locator('[data-plans-empty]').getByRole('button', { name: 'Start an event' })).toBeVisible();
-    // ⋯ → QR code (Design v8, owners and admins): the code for the group's link, then the poster step
+    // ⋯ → Invite (owners and admins; Design v8 prototype: three rounds, no Copy link / QR code) → the Invite people sheet
+    // with the link, then Show QR code: the purple Scan to join screen, then the poster step
     const qm = await groupMenu(A);
-    await qm.getByRole('button', { name: 'QR code' }).click();
+    await expect(qm.getByRole('button', { name: 'Copy link' })).toHaveCount(0);
+    await expect(qm.getByRole('button', { name: 'QR code' })).toHaveCount(0);
+    await qm.getByRole('button', { name: 'Invite', exact: true }).click();
+    const inv = A.getByRole('dialog', { name: 'Invite people' });
+    await expect(inv).toContainText('Share your invite link');
+    await expect(inv.locator('[data-group-inv-link]')).toContainText('/join/');
+    await inv.getByRole('button', { name: 'Show QR code' }).click();
     const qr = A.getByRole('dialog', { name: 'Group QR' });
-    await expect(qr).toContainText('Scan to join ' + groupName + ' on Spark Hub');
+    await expect(qr).toContainText('Scan to join');
     await expect(qr.locator('[data-group-qr] svg[aria-label="QR code"]')).toBeVisible();
     await qr.getByRole('button', { name: 'Print' }).click();
     const poster = A.getByRole('dialog', { name: 'Group poster' });
@@ -42,6 +49,8 @@ test('a group end to end: edit group, cover, rename, invite, pin, admin edits, r
     await poster.getByRole('button', { name: 'Back' }).click();
     await qr.getByRole('button', { name: 'Close' }).click();
     await expect(qr).toHaveCount(0);
+    await inv.getByRole('button', { name: 'Close' }).click();
+    await expect(inv).toHaveCount(0);
     await editGroup(A);
     const gp = A.locator('[data-screen-label="Edit group"]');
     await expect(gp).toContainText('You’re the owner');
@@ -88,7 +97,7 @@ test('a group end to end: edit group, cover, rename, invite, pin, admin edits, r
     const join = B.getByRole('dialog', { name: 'Join a group' });
     await join.getByLabel('Group code').fill('ZZZZ22');
     await join.getByRole('button', { name: 'Join' }).click();
-    await expect(join).toContainText('That code didn’t match a group. Check it with whoever sent it.');
+    await expect(join).toContainText('That code didn’t match a group. Check it with your organiser.');
     await join.getByRole('button', { name: 'Close' }).click();
     // Signed in before the tap: one confirm (E3), then Welcome to {group} (4) → its Plans tab
     await B.goto('/#/join/' + code);
@@ -226,7 +235,7 @@ test('a group end to end: edit group, cover, rename, invite, pin, admin edits, r
     await B.getByRole('dialog', { name: 'Members' }).getByRole('button', { name: 'Close' }).click();
     const gpB = B.locator('[data-screen-label="Edit group"]');
     await expect(gpB).toContainText(g.code);
-    await gpB.getByRole('button', { name: 'Get a new invite link' }).click();
+    await gpB.getByRole('button', { name: 'Get a new invite link' }).first().click();   // under the code and the link (Design v8 prototype)
     await confirm(B, 'Get a new link');
     await expect(B.getByText('New invite link ready')).toBeVisible();
     await expect(gpB).not.toContainText(g.code);
@@ -277,7 +286,7 @@ test('leaving a group: a member leaves from the bottom of its page; its only own
     // At the foot of the ⋯ menu (v7 Update 15; it was a link under Plans)
     await (await groupMenu(M)).locator('[data-leave-group]').click();
     const c = M.getByRole('alertdialog', { name: 'Leave ' + name + '?' });
-    await expect(c).toContainText('The events you posted and your RSVPs stay. You can rejoin with the group’s link.');
+    await expect(c).toContainText('The events you posted and your replies stay. You can rejoin with the group’s link.');
     await c.getByRole('button', { name: 'Leave', exact: true }).click();
     await expect(M.getByText('You left ' + name)).toBeVisible();
     await expect(M.locator('[data-screen-label=Groups]')).not.toContainText(name);

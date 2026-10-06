@@ -22,7 +22,8 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     await expect(H.locator('[data-screen-label="Your calendar"]')).toBeVisible();
     await expect(H.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Calendar', exact: true })).toHaveAttribute('aria-current', 'page');
     await expect(nav(H).getByRole('button')).toHaveCount(5);
-    for (const name of ['Groups', 'Friends', 'Calendar', 'Ideas', 'Me']) await expect(nav(H).getByRole('button', { name, exact: true })).toBeVisible();
+    // (Ideas may read "Ideas, new ideas" with its gold dot, Design v8 prototype)
+    for (const name of ['Groups', 'Friends', 'Calendar', /^Ideas/, 'Me']) await expect(nav(H).getByRole('button', typeof name === 'string' ? { name, exact: true } : { name })).toBeVisible();
     // Every tab has its word under the icon (Design pick 2a, 2026-10-04)
     await expect(nav(H)).toHaveText(/Groups\s*Friends\s*Calendar\s*Ideas\s*Me/);   // Tasks moved under Me (v8-4)
     // The floating + (v8-5, 17d) turns into a dark × with Make a plan and Float an idea; the scrim closes it
