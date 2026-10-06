@@ -9609,11 +9609,13 @@
       (st.acctOpen && st.demoAdmin ? viewAccounts() : '') +
       (st.fb && st.email ? viewFeedback() : '') +
       (st.installPop ? viewInstallPop() : '') +
-      (st.toast ? viewToast() : '') +
       // no tab bar on Welcome, the invite screens, or for a guest on an event (it only led to sign-in)
       (welcomeShown() || invFull() || (!state.email && state.screen === 'detail') ? '' : viewAddFab() + viewNav()) +
       (st.fbNudge && st.screen !== 'me' && !st.fb ? viewFbNudge() : '') +   // above the tab bar
-      (st.fbTip && !st.fbNudge ? viewFbTip() : '');                    // pointing at Profile
+      (st.fbTip && !st.fbNudge ? viewFbTip() : '') +                   // pointing at Profile
+      // Last (it sits on top by z-index anyway): the morph matches nodes by position, so a toast going away earlier in
+      // the list shifted the + menu's pills under a tap and the wrong pill fired (holds.spec on TEST, 2026-10-05)
+      (st.toast ? viewToast() : '');
   }
 
   // ---------------------------------------------------------------------------
