@@ -136,8 +136,8 @@ test('post an event with every step filled, then edit it in the pop-ups and dele
     const share = page.getByRole('dialog', { name: 'Invite people' });
     // The ready message rides in the share links (the sheet shows people to invite, then "or share a link")
     const sms = decodeURIComponent(await share.getByRole('link', { name: 'Messages' }).getAttribute('href'));
-    expect(sms).toContain('I’m putting together');
-    expect(sms).toContain('Want to come?');
+    expect(sms).toMatch(/· \w{3}, \w{3} \d+ http:\/\/127\.0\.0\.1:\d+\/e\/[a-z0-9]{8}|· \w{3}, \w{3} \d+ https?:\/\/[^ ]+\/e\/[a-z0-9]{8}/);   // "{title} · {day} {link}", the short link (v8-8)
+    expect(sms).not.toContain('Torrez');
     await expect(share.getByRole('link', { name: 'WhatsApp' })).toHaveAttribute('href', /^https:\/\/wa\.me\/\?text=/);
     await expect(share.getByRole('link', { name: 'Email' })).toHaveAttribute('href', /^mailto:/);
     await share.getByRole('button', { name: 'Close' }).click();

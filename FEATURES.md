@@ -288,6 +288,7 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 206 | **One option is a suggestion** (v8-8 item 5): a single date or location shows *Suggested* (no votes, ticks or *When would you attend?*); a second makes it a poll | Test | |
 | 207 | **Location name + Address** on Plan an event's page 1 (v8-8 item 8; a picked place fills both), shown on Review; the Review page has no REVIEW eyebrow, its card is titled *Review*, a cover photo gets the purple-pink tint; **Discussion behind sign-in**: signed out (guests too) see *N posts · Sign in to read and join in* | Test | |
 | 208 | **Comment notifications** (v8-8 decided): hosts get a push per comment or reply (grouped per event per hour, *N new comments*); a post's author gets *{name} replied: …*. `20261109010000_comment_pushes.sql` | Test | DB checks |
+| 209 | **Short links** (v8-8): `sparkhub.wereallneighbors.org/e/{code}` (8 random letters and numbers) in every share, invite, text and .ics; the message *{title} · {day} {link}*; previews show the event only; old `/i/{id}` links redirect until 2027-04-06; a wrong code says *This link isn’t working*. `20261109020000_link_codes.sql`, `api/preview.js` | Test | previews.spec |
 
 ## Removed in this rebuild
 

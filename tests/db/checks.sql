@@ -1123,3 +1123,21 @@ select t.must_allow('the lead replies', format($$insert into event_comments (spa
 reset role;
 select t.check('the comment''s author hears about the reply', exists (select 1 from t.pushes where users = array[t.id('member10')] and topic = 'updates' and body like '%replied: Of course!'));
 select t.check('the lead isn''t told about their own reply', not exists (select 1 from t.pushes where t.id('lead10') = any(users)));
+
+-- Short links (20261109020000_link_codes.sql) ------------------------------------------------------------------------
+select t.check('every event has a link code', not exists (select 1 from sparks where link_code is null or link_code !~ '^[a-z0-9]{8}$'));
+select t.check('codes aren''t made from the id', not exists (select 1 from sparks where position(link_code in id::text) > 0));
+create table t.code as select link_code from sparks where id = t.id('pumpkin');
+grant select on t.code to authenticated;
+select t.login('lead10'); set role authenticated;
+select t.must_refuse('the lead changing the code', format($$update sparks set link_code = 'mycode99' where id = %L and link_code = 'mycode99' returning id$$, t.id('pumpkin')));
+reset role;
+select t.check('…it stays as it was', (select link_code <> 'mycode99' from sparks where id = t.id('pumpkin')));
+select t.login('outsider'); set role authenticated;
+select t.check('an outsider opens the event by its code', public.open_event((select link_code from t.code)) = t.id('pumpkin'));
+select t.check('…and can see it now', exists (select 1 from sparks where id = t.id('pumpkin')));
+select t.check('a wrong code opens nothing', public.open_event('zzzzzzzz') is null);
+select t.check('a malformed code opens nothing', public.open_event('../x') is null);
+reset role;
+select t.check('the preview by code has the title', (select title from public.event_preview((select link_code from sparks where id = t.id('pumpkin')))) = 'Pumpkin carving night');
+select t.check('an old link finds its code', public.link_code_for(t.id('pumpkin')) = (select link_code from sparks where id = t.id('pumpkin')));

@@ -323,10 +323,16 @@
   const JOIN_PATH = /^\/join\/([A-Za-z0-9]{6})\/?$/;
   const IDEA_PATH = /^\/i\/([0-9a-f-]{36})\/?$/;   // shared idea links (a real path so chat apps can preview them)
   const ADD_PATH = /^\/add\/([A-Za-z0-9]{6})\/?$/;   // friend links (v6 Update 13)
+  const E_PATH = /^\/e\/([a-z0-9]{6,16})\/?$/;   // short event links (v8-8): a random code, never the id
+  const OLD_LINKS_END = Date.parse('2027-04-06T05:00:00Z');   // /i/{id} links stop working (6 months, Design v8-8)
+  // Every share, invite, text, email and .ics uses the short link; the live app's address is sparkhub.wereallneighbors.org (Q8)
+  const eventLink = (s) => (CFG.env === 'live' ? 'https://sparkhub.wereallneighbors.org' : location.origin) + (s.linkCode ? '/e/' + s.linkCode : '/i/' + s.id);
   const fromUrl = () => {
     const h = location.hash;
     let m = h.match(/^#\/idea\/([0-9a-f-]{36})$/) || (!h && location.pathname.match(IDEA_PATH));
     if (m) return { screen: 'detail', subjectId: m[1] };
+    m = !h && location.pathname.match(E_PATH);
+    if (m) return { screen: 'detail', subjectId: null, linkCode: m[1] };
     m = h.match(/^#\/group\/([0-9a-f-]{36})$/);
     if (m) return { screen: 'groupPage', gpId: m[1] };
     m = h.match(/^#\/join\/([A-Za-z0-9]{6})$/) || location.pathname.match(JOIN_PATH);
@@ -534,6 +540,7 @@
     wantsHost: !!row.wants_host && !row.planned,   // the floater is looking for someone else to host (20261101090000)
     holdUntil: row.hold_until || null, holdNudgedAt: row.hold_nudged_at ? Date.parse(row.hold_nudged_at) : 0,   // soft holds (20261103000000)
     talkOffers: (x.talkOffers[row.id] || []).map(o => o.user_id),   // who tapped Contact {starter} (you see your own; the starter sees all)
+    linkCode: /^[a-z0-9]{6,16}$/.test(row.link_code || '') ? row.link_code : '',   // the short link's random code (20261109020000_link_codes)
     talk: !!row.talk, leadRule: row.lead_rule === 'any' ? 'any' : 'me',   // the starter's Talk it through and Who leads it (20261107000000_float_sheet)
     noHelp: !!row.no_help,   // the lead said No help needed in Start an event (Design 23C1)
     interestAt: interests.filter(i => i.spark_id === row.id).reduce((m, i) => { m[i.user_id] = Date.parse(i.created_at); return m; }, {}),
@@ -829,9 +836,18 @@
   const loadForRoute = async () => {
     routeLoading++;
     try {
+      // /e/{code}: the code opens the event (a wrong or deleted one says the link isn't working, nothing more)
+      if (state.screen === 'detail' && state.linkCode) {
+        await ensureSession();
+        const r = await sb.rpc('open_event', { p_code: state.linkCode });
+        if (r.error && r.error.code !== 'PGRST202') throw r.error;
+        const id = r.data || null;
+        if (id) { opened.add(id); history.replaceState(null, '', '/#/idea/' + id); setState({ subjectId: id, linkCode: null }); }
+        else setState({ screen: 'sched', subjectId: null, linkCode: null, goneOpen: 'link' });
+      }
       if (state.screen === 'detail' && state.subjectId) {
         const ok = await openLink(state.subjectId);
-        if (!ok) setState({ screen: 'sched', subjectId: null, goneOpen: true });
+        if (!ok) setState({ screen: 'sched', subjectId: null, goneOpen: oldLink && Date.now() >= OLD_LINKS_END ? 'expired' : true });
       }
       await loadFresh();
     } finally { routeLoading--; }
@@ -1963,7 +1979,7 @@
     };
     const escIcs = (v) => String(v || '').replace(/[\\,;]/g, (m) => '\\' + m).replace(/\n/g, '\\n');
     const ev = (uid, when, extra) => ['BEGIN:VEVENT', 'UID:' + uid + '@sparkhub', 'DTSTAMP:' + new Date().toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z'].concat(when, extra || [],
-      ['SUMMARY:' + escIcs(s.text), 'LOCATION:' + escIcs([s.spot, s.spotAddress].filter(Boolean).join(', ')), 'DESCRIPTION:' + escIcs(location.origin + '/i/' + s.id), 'END:VEVENT']);
+      ['SUMMARY:' + escIcs(s.text), 'LOCATION:' + escIcs([s.spot, s.spotAddress].filter(Boolean).join(', ')), 'DESCRIPTION:' + escIcs(eventLink(s)), 'END:VEVENT']);
     let body, picked = null;
     if (s.sched && s.sched.kind === 'days' && s.days) {
       const mine = rsvpDays(s, state.me), ds = s.daysEach && mine && mine.go.length ? mine.go : s.days.map(r => r.d);
@@ -2443,8 +2459,8 @@
   const goneCard = () => state.goneOpen
     ? '<div role="status" style="position:relative;' + CARD + ';padding:18px 48px 18px 18px">' +
         '<span ' + on(() => setState({ goneOpen: false })) + ' aria-label="Dismiss" style="position:absolute;top:10px;right:10px;width:32px;height:32px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(14, '#0d1117', 2.4) + '</span>' +
-        '<div data-gone style="font-size:16.5px;font-weight:800;letter-spacing:-.2px;color:#0d1117">That event isn’t up anymore</div>' +
-        '<div style="margin-top:4px;font-size:15px;line-height:1.45;font-weight:500;color:#5c6270">Its lead may have taken it down, or the link got cut short.</div>' +
+        '<div data-gone style="font-size:16.5px;font-weight:800;letter-spacing:-.2px;color:#0d1117">' + (state.goneOpen === 'link' ? 'This link isn’t working' : state.goneOpen === 'expired' ? 'This link has expired' : 'That event isn’t up anymore') + '</div>' +
+        '<div style="margin-top:4px;font-size:15px;line-height:1.45;font-weight:500;color:#5c6270">' + (state.goneOpen === 'link' || state.goneOpen === 'expired' ? 'Ask whoever sent it for a new one.' : 'Its lead may have taken it down, or the link got cut short.') + '</div>' +
         (!state.email ? '' : '<span ' + on(() => { setState({ goneOpen: false }); go('calendar'); }) + ' style="display:inline-flex;margin-top:10px;min-height:32px;align-items:center;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">See what’s up now →</span>') +
       '</div>'
     : '';
@@ -6333,10 +6349,9 @@
   // Share link: copy it, or hand it to Messages, Mail, WhatsApp or the phone's share sheet
   // The ready message (owner, 2026-09-30): warm and short; an idea asks who's interested
   const inviteText = (s) => {
-    const when = s.dayDate ? fmtDay(s.dayDate) + (s.dayTime ? ' at ' + fmtTime(s.dayTime) : '') : '', where = s.spot ? ' at ' + s.spot : '';
+    // "{Event title} · {day} {link}" (Design v8-8, short links): no group name, no lead's line
     if (phaseOf(s) === 'done') return s.text + ': here’s how it went.';
-    if (!s.planned) return isLead(s) ? 'I’m floating an idea: ' + s.text + '. Interested?' : firstName(nameOf(s.leadId, s.leadName)) + ' is floating an idea: ' + s.text + '. Interested?';
-    return (isLead(s) ? 'I’m putting together ' + s.text + (when ? ', ' + when : '') : s.text + (when ? ' is ' + when : ' is coming up')) + where + '. Want to come?';
+    return s.text + (s.dayDate ? ' · ' + fmtDay(s.dayDate) : '');
   };
   // Invite people (owner's mock, 2026-10-01): your friends and the people in the event's groups, each with Invite /
   // ✓ Invited (invite_friends, event_invited: 20261101170000_invite_people.sql), then "or share a link" with Copy and
@@ -6373,7 +6388,7 @@
   function viewShareSheet() {
     const sh = state.share, s = state.sparks.find(x => x.id === sh.id);
     if (!s) return '';
-    const close = () => setState({ share: null }), link = location.origin + '/i/' + s.id;
+    const close = () => setState({ share: null }), link = eventLink(s);
     const msg = (sh.msg || inviteText(s)) + ' ' + link, past = phaseOf(s) === 'done', title = sh.ask || (canInviteTo(s) && !past) ? 'Invite people' : 'Share this event';   // v8-7: after posting it's Invite people too   // Design v8: whoever can invite
     const canList = !!state.email && !s.cancelledAt && !past && canInviteTo(s);
     if (canList && !sh.people && !sh.loading) setTimeout(() => { if (state.share && state.share.id === s.id && !state.share.people && !state.share.loading) loadInvitees(s); }, 0);
@@ -7144,7 +7159,7 @@
   function viewInvite() {
     const s = state.sparks.find(x => x.id === state.invite.id), close = () => setState({ invite: null });
     if (!s) return '';
-    const link = location.origin + '/i/' + s.id, ask = state.invite.msg;   // only opened as "Find a replacement"
+    const link = eventLink(s), ask = state.invite.msg;   // only opened as "Find a replacement"
     const msg = ask + ' ' + link;
     const title = state.invite.title || 'Find a replacement';
     if (ask) return modal(title, close,   // Round 64c
@@ -10517,7 +10532,8 @@
     state.inv = { code: inviteTrip.joinCode, group: undefined, step: 'joining' };
     loadInviteGroup(inviteTrip.joinCode);
   }
-  if (IDEA_PATH.test(location.pathname)) history.replaceState(null, '', '/#/idea/' + location.pathname.match(IDEA_PATH)[1]);
+  const oldLink = IDEA_PATH.test(location.pathname);
+  if (oldLink) history.replaceState(null, '', '/#/idea/' + location.pathname.match(IDEA_PATH)[1]);
   // Signed in last time? Show their app (from the cache, or loading placeholders), not Welcome
   const bootUser = sb && signedInUser();
   if (bootUser) {
