@@ -14,10 +14,10 @@ Your last catch-up was *HANDOFF-to-DESIGN-7* (baseline v8-6). Everything below i
 
 1. **Rounds v8-7 → v8-11**, each as a short table (newest first): what was built as drawn, and every place the build differs. v8-11 added plus-ones (a database change), the guest flows, the Share link pop-up and the event QR.
 2. **The prototype audit** (2026-10-06): ~60 spots where the prototype had been redrawn without a *New since* item, now matching.
-3. **Owner calls that stand**: 10 spots where the owner chose differently and the prototype still draws the old version. Please redraw these.
+3. **Owner calls that stand**: 11 spots where the owner chose differently and the prototype still draws the old version. Please redraw these.
 4. **§1–§3**: rows 106–123 and the behaviour notes you haven't acknowledged yet, plus the 2026-10-06 privacy page and link-preview changes (§3).
 5. **§4** what's designed but not built (group invites, the led-idea tools lost in v8-8, per-day multi-day pushes…) and **§5** the open questions (Q1–Q39 still open, newest Q36–Q39).
-6. **New questions from the v8-10 and v8-11 tables:** the 16px search and note fields (iPhone zoom); the gold sheet keeping *See N more*; a *Private* chip on the Groups tab's Next up card (not a photo card in the build); the QR button's colour on the gold sheet; *+N* and the hosts' note in Who's coming (built from your "not yet in the prototype" line, please draw it).
+6. **New questions from the v8-10 and v8-11 tables:** the gold sheet keeping *See N more*; a *Private* chip on the Groups tab's Next up card (not a photo card in the build); the QR button's colour on the gold sheet; *+N* and the hosts' note in Who's coming (built from your "not yet in the prototype" line, please draw it).
 
 Where this doc and the design files disagree, **this doc is correct**. One file per side: please keep sending `HANDOFF-to-CODE.md`; this file is the reply (call it *HANDOFF-to-DESIGN-8*).
 
@@ -129,6 +129,7 @@ Never cleared on a reset. These are places where the owner chose differently fro
 | Profile pop-up | Keeps the *BOTH IN {groups}* card (2026-10-01) | No groups card |
 | Join in chips | A *Thought partner* chip (Jeni Wade's feedback, 2026-10-05) | Bring · Set up · Help · Clean up · Coordinate · Other |
 | Tall date poll | Create a poll's date list stays tall (2026-10-02) | Fits content |
+| Text fields | **16px text in every input** (search, *Who's coming with you?*…), never smaller: an iPhone zooms the page into anything under 16px (owner, 2026-10-06) | 15px search (v8-10), 14.5px note (v8-11) |
 
 ## 1. What changed since the design
 
