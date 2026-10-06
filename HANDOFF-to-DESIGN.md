@@ -8,6 +8,16 @@
 - **Build version:** **v7** (owner, 2026-10-02): a lead is a choice. Since v8-8 an idea is led from the start (*Who leads it · Me*) or floated (*I'll decide*), and both use the new idea page.
 - **As of:** 2026-10-06 (latest: built round **v8-10**'s *New since v8-9* list, table below). Before that: the prototype audit and *Owner calls that stand* (below). Earlier 2026-10-06: built round **v8-8**'s *New since v8-7* list (items 1–9, table below; migration `20261109000000_led_ideas.sql`). The *Answered* and *Already decided* items in the same file are listed in §4 until they're built.
 
+## Start here (2026-10-06)
+
+Your last catch-up was *HANDOFF-to-DESIGN-7* (baseline v8-6). Everything below is new since then, all **live** at sparkhub.wereallneighbors.org as of 2026-10-06 (v=245):
+
+1. **Rounds v8-7 → v8-10**, each as a short table (newest first): what was built as drawn, and every place the build differs.
+2. **The prototype audit** (2026-10-06): ~60 spots where the prototype had been redrawn without a *New since* item, now matching.
+3. **Owner calls that stand**: 10 spots where the owner chose differently and the prototype still draws the old version. Please redraw these.
+4. **§1–§3**: rows 106–123 and the behaviour notes you haven't acknowledged yet, plus the 2026-10-06 privacy page and link-preview changes (§3).
+5. **§4** what's designed but not built (group invites, the led-idea tools lost in v8-8, per-day multi-day pushes…) and **§5** the open questions (Q1–Q39 still open, newest Q36–Q39; three new ones in the v8-10 table: 16px search, gold *See more*, a Private chip on Groups' Next up).
+
 Where this doc and the design files disagree, **this doc is correct**. One file per side: please keep sending `HANDOFF-to-CODE.md`; this file is the reply (call it *HANDOFF-to-DESIGN-8*).
 
 ---
@@ -80,7 +90,7 @@ The owner found two prototype changes that were never built (the sparkle *Find m
 - **My calendar:** *Find more events* pill (opens All groups on Month, all groups; Back returns to My calendar); 10 / 14 / 8px spacing; list cards 10×12px with an inset role bar; Month grid letters.
 - **All groups:** Ideas strip *N interested · Take a look* and *Idea · no date yet*; Past strip *N went*; Helping strip shows your job count; Month day cards without the date block, no Plans pill on Month; no heading over an empty list; absolute dates on tiles; Needs help sheet (26px title, one-line empty card); Search follows the current group and Plans · Ideas · Past.
 - **Event page:** ✎ on one job opens *Edit job* with just that job; Help out hidden once cancelled; Help pick sits above the When/Where card on a plan; visitor Discussion card and faces as drawn; *Cancel or delete event* under Save on every Edit sheet, *Turn it back into an idea* under it; single Take part spots as grey rows; Help pick *Nobody has voted yet*; Ask someone copy; *Lead · {spot}* in Who's going; Led by → the Leads sheet; Want a reminder? inside the RSVP card; the full name on a cancelled card; *TBD* under a date with no time.
-- **Groups, Friends, Me:** Post an idea / Float an idea open the Float sheet (group page, Me's Ideas list, My tasks); My tasks' Ideas in gold; Settings has ACCOUNT (Privacy, Sign out, Delete my account) and HELP & INFO is three rows; no bell on Me; the 312px FRIENDS ARE GOING cards; the profile pop-up's *{NAME} IS GOING TO* list and *Invite to…*; Invite friends picks, then *Invite to {event}*; the gold new-ideas dot on the Ideas tab; Group ⋯ is Invite · Search · Alerts and Invite opens the *Invite people* sheet (link card, Show QR code → *Scan to join*); no + on Friends; Join a group and Leave group copy; Place dropped (Q28), About 140 with a counter; the Members search field; *Get a new invite link* under the code too.
+- **Groups, Friends, Me:** Post an idea / Float an idea open the Float sheet (group page, Me's Ideas list, My tasks); My tasks' Ideas in gold; Settings has ACCOUNT (Privacy, Sign out, Delete my account) and HELP & INFO is three rows (the bell came back to Me in v8-9); the 312px FRIENDS ARE GOING cards; the profile pop-up's *{NAME} IS GOING TO* list and *Invite to…*; Invite friends picks, then *Invite to {event}*; the gold new-ideas dot on the Ideas tab; Group ⋯ is Invite · Search · Alerts and Invite opens the *Invite people* sheet (link card, Show QR code → *Scan to join*); no + on Friends; Join a group and Leave group copy; Place dropped (Q28), About 140 with a counter; the Members search field; *Get a new invite link* under the code too.
 - **Ideas and Plan an event:** grey board; Create a poll as a centred pop-up (*Start poll · N options*); 46px Make this a plan rows in the slide-up; Who can see it lets the first group go too; Vote on a date opens the *Dates* list; *People RSVP for* card; Review shows the overview first; a growing Overview field; the smaller How long is it? card; *N interested ›* tappable at 0.
 
 **Kept from the build, beyond the prototype:**
