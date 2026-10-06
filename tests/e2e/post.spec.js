@@ -296,7 +296,7 @@ test('polls: the host posts a date poll (an idea), a member votes, the host pick
     await pickDate(poll, inDays(15), 'Date option 1');
     // The same date twice is refused (it used to make posting fail)
     await pickDate(poll, inDays(15), 'Date option 2');
-    await poll.getByRole('button', { name: 'Save', exact: true }).click();
+    await poll.getByRole('button', { name: 'Start poll · 2 options', exact: true }).click();
     await expect(H.getByText('Two options are the same date and time. Change or remove one.')).toBeVisible();
     // The pop-up opens tall, so the calendar under an option isn't cut off by its edge
     await poll.getByRole('button', { name: 'Date option 2', exact: true }).click();
@@ -312,7 +312,7 @@ test('polls: the host posts a date poll (an idea), a member votes, the host pick
     await expect(timeBox(poll, 'Time option 1')).toHaveValue('');
     await expect(timeBox(poll, 'Time option 1')).toHaveAttribute('placeholder', '+ Add time');
     await pickDate(poll, inDays(16), 'Date option 2');
-    await poll.getByRole('button', { name: 'Save', exact: true }).click();
+    await poll.getByRole('button', { name: 'Start poll · 2 options', exact: true }).click();
     await expect(flow.locator('[data-poll]')).toContainText('POLL · 2 OPTIONS');
     await expect(flow).toContainText('1/4');                                  // saving doesn't move on
     await flow.getByRole('button', { name: 'Next' }).click();                // a date poll counts as the date
