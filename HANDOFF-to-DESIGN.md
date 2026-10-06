@@ -14,10 +14,10 @@ Your last catch-up was *HANDOFF-to-DESIGN-7* (baseline v8-6). Everything below i
 
 1. **Rounds v8-7 → v8-11**, each as a short table (newest first): what was built as drawn, and every place the build differs. v8-11 added plus-ones (a database change), the guest flows, the Share link pop-up and the event QR.
 2. **The prototype audit** (2026-10-06): ~60 spots where the prototype had been redrawn without a *New since* item, now matching.
-3. **Owner calls that stand**: 11 spots where the owner chose differently and the prototype still draws the old version. Please redraw these.
+3. **Owner calls that stand**: 12 spots where the owner chose differently and the prototype still draws the old version. Please redraw these.
 4. **§1–§3**: rows 106–123 and the behaviour notes you haven't acknowledged yet, plus the 2026-10-06 privacy page and link-preview changes (§3).
 5. **§4** what's designed but not built (group invites, the led-idea tools lost in v8-8, per-day multi-day pushes…) and **§5** the open questions (Q1–Q39 still open, newest Q36–Q39).
-6. **New questions from the v8-10 and v8-11 tables:** the gold sheet keeping *See N more*; a *Private* chip on the Groups tab's Next up card (not a photo card in the build); the QR button's colour on the gold sheet; *+N* and the hosts' note in Who's coming (built from your "not yet in the prototype" line, please draw it).
+6. **New questions from the v8-10 and v8-11 tables:** the gold sheet keeping *See N more*; a *Private* chip on the Groups tab's Next up card (not a photo card in the build); *+N* and the hosts' note in Who's coming (built from your "not yet in the prototype" line, please draw it).
 
 Where this doc and the design files disagree, **this doc is correct**. One file per side: please keep sending `HANDOFF-to-CODE.md`; this file is the reply (call it *HANDOFF-to-DESIGN-8*).
 
@@ -32,7 +32,7 @@ Where this doc and the design files disagree, **this doc is correct**. One file 
 | 1. Gold bar on idea cards (1e) | Done on the Ideas board's cards (inside the card's 6px white frame). The board has no full-tile view in the build, so only the grid has it (your full tiles don't draw it either) |
 | 2. Bringing others (6a) | Done: *You're going!* after Going on a plan (members), stepper 0–10, *Who's coming with you? (optional)* (80) once above 0, green Done (then the going banner, or *You're going, plus N. See you there!*), *Invite others* · *Change RSVP*, scrim = Done. Saved as `plus_count` / `plus_note` on the reply; **every Going count includes them** (the RSVP button, cards, *N going*, Who's coming's GOING · N, the lead's impact). Built from your "not yet in the prototype" line: **Who's coming shows *+2* in green after the name**, and the hosts also see the note (*+2 · my kids*). The note field is 16px (iPhone zoom). Change RSVP closes and scrolls to the RSVP buttons |
 | 3. Guests | Done: the stepper on the guest sheet (quieter row, as drawn), YOUR NAME + stepper in *When will you attend?* (*Add your name* → *RSVP as a guest*, *Have an account? Sign in*), *You're on the list, {first name}!* with the summary chips, Done, *Get a reminder · Sign in* · *Change RSVP*. It shows **once the reply is saved**, after a guest's Going **or Maybe** (it replaces the build's old *You're on the list* / *Create an account* alert). *RSVP to view guest list* with the lock replaces the grey faces and See all for visitors who haven't replied |
-| 4. Invite people | Done: 5 people, max 94%, round Share link · round QR (hosts: lead and co-hosts) · Send. The Share link pop-up as drawn; More without a share sheet copies the message (*Invite copied. Paste it anywhere.*). The preview's date line is the build's (*Thu, Oct 15 · 6:30pm · Hunters Park*). The QR button stays purple on the gold sheet, as the prototype has it — say if it should be gold |
+| 4. Invite people | Done: 5 people, max 94%, round Share link · round QR (hosts: lead and co-hosts) · Send. The Share link pop-up as drawn; More without a share sheet copies the message (*Invite copied. Paste it anywhere.*). The preview's date line is the build's (*Thu, Oct 15 · 6:30pm · Hunters Park*). On an idea, the QR button and both pop-ups are gold (owner call, see *Owner calls that stand*) |
 | 5. Event QR | Done as drawn with the build's own QR encoder (error correction M, no CDN). On a phone that can share files, *Download PNG* opens the share sheet (Save Image) instead of downloading, like the group poster. New error toasts: *That QR code couldn't be made.* / *That QR code couldn't be saved. Try again.* |
 
 ## Round v8-10 in short
@@ -130,6 +130,7 @@ Never cleared on a reset. These are places where the owner chose differently fro
 | Join in chips | A *Thought partner* chip (Jeni Wade's feedback, 2026-10-05) | Bring · Set up · Help · Clean up · Coordinate · Other |
 | Tall date poll | Create a poll's date list stays tall (2026-10-02) | Fits content |
 | Text fields | **16px text in every input** (search, *Who's coming with you?*…), never smaller: an iPhone zooms the page into anything under 16px (owner, 2026-10-06) | 15px search (v8-10), 14.5px note (v8-11) |
+| Ideas are gold all the way | **Everything an idea opens is gold**, not just the page: Invite people's ticks, Send and both footer icons (QR too), the Share link pop-up (icons, Copy link) and the QR pop-up (toggle, Download PNG, Copy); hover `#e8a71c` (owner, 2026-10-06) | The QR icon purple on the gold sheet; purple Share link and QR pop-ups |
 
 ## 1. What changed since the design
 

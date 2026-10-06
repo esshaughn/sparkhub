@@ -6539,6 +6539,10 @@
     sb.rpc('invite_friends', { p_spark: s.id, p_people: ids }).then(r => { if (r.error) throw r.error; return loadFresh().catch(e => console.error(e)); })
       .catch(e => { console.error(e); toast(failed(e)); loadFresh().catch(() => {}); });
   };
+  // Purple for events, gold for everything an idea opens (owner, 2026-10-06: the whole idea page gold, its pop-ups too)
+  const shareAccent = (s) => phaseOf(s) === 'idea'
+    ? { fill: '#f5b428', ink: '#2a1d00', text: '#8f6405', link: '#b07a0a', hov: 'hov-gold' }
+    : { fill: '#5b4ae8', ink: '#fff', text: '#5b4ae8', link: '#5b4ae8', hov: 'hov-primary' };
   function viewShareSheet() {
     const sh = state.share, s = state.sparks.find(x => x.id === sh.id);
     if (!s) return '';
@@ -6547,8 +6551,7 @@
     const canList = !!state.email && !s.cancelledAt && !past && canInviteTo(s);
     if (canList && !sh.people && !sh.loading) setTimeout(() => { if (state.share && state.share.id === s.id && !state.share.people && !state.share.loading) loadInvitees(s); }, 0);
     // v8-10 (1c, Event Invite Options): one sheet, purple for events and gold for ideas (Design's goldRc colours)
-    const gold = phaseOf(s) === 'idea';
-    const A = gold ? { fill: '#f5b428', ink: '#2a1d00', text: '#8f6405', link: '#b07a0a' } : { fill: '#5b4ae8', ink: '#fff', text: '#5b4ae8', link: '#5b4ae8' };
+    const gold = phaseOf(s) === 'idea', A = shareAccent(s);
     // v8-11 (item 4): Share link opens the Share link pop-up; the QR icon (leads only, item 5) opens the QR code pop-up
     const LINK_IC = '<path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1"/>';
     const openPop = (k) => () => setState({ share: Object.assign({}, state.share, { pop: k, copied: false }) });
@@ -6559,7 +6562,7 @@
       : '<span ' + on(openPop('link')) + ' data-share-link data-share-msg="' + esc(msg) + '" aria-label="Share link" title="Share link" class="hov-grey-fill" style="' + ROUND54 + '">' + svg(20, stroke(A.link, 2.4), LINK_IC) + '</span>';
     // The QR icon is purple on ideas too (Design v8-11 prototype)
     const qrBtn = () => isLead(s) ? '<span ' + on(openPop('qr')) + ' data-share-qr aria-label="QR code" class="hov-grey-fill" style="' + ROUND54 + '">' +
-      svg(20, 'fill="none" stroke="#5b4ae8" stroke-width="2.2" stroke-linejoin="round"', '<rect x="3.5" y="3.5" width="7" height="7" rx="1"/><rect x="13.5" y="3.5" width="7" height="7" rx="1"/><rect x="3.5" y="13.5" width="7" height="7" rx="1"/><path d="M14 14h2.5v2.5H14zM18 18h2.5v2.5H18zM18 14h2.5M14 18v2.5"/>') + '</span>' : '';
+      svg(20, 'fill="none" stroke="' + A.link + '" stroke-width="2.2" stroke-linejoin="round"', '<rect x="3.5" y="3.5" width="7" height="7" rx="1"/><rect x="13.5" y="3.5" width="7" height="7" rx="1"/><rect x="3.5" y="13.5" width="7" height="7" rx="1"/><path d="M14 14h2.5v2.5H14zM18 18h2.5v2.5H18zM18 14h2.5M14 18v2.5"/>') + '</span>' : '';
     const q = (sh.q || '').trim().toLowerCase(), invited = sh.invited || [];
     // Anyone who has answered shows their answer and can't be picked (owner, 2026-10-03: Can't and Maybe were still invitable / read Invited)
     const answer = (id) => { const r = s.rsvps.find(x => x.userId === id); return r ? r.status : phaseOf(s) === 'idea' && s.interested.indexOf(id) > -1 ? 'interested' : null; };
@@ -6609,10 +6612,11 @@
   // Share link (item 4): a link preview card, Messages · WhatsApp · Email · More, and Copy link. Any of the four closes
   // the pop-up and the sheet (after the tap, so the link still opens); Copy link stays open and reads ✓ Copied
   const viewSharePop = (s, msg, link) => {
+    const A = shareAccent(s);
     const closeAll = () => setTimeout(() => setState({ share: null }), 0);
     const line = [s.dayDate ? dayLabel(s.dayDate, s.dayTime) : '', s.spot || ''].filter(Boolean).join(' · ') || 'Date to be decided';
     const circle = (label, href, icon, fn) => '<' + (href ? 'a href="' + esc(href) + '" target="_blank" rel="noopener noreferrer" data-on="' + reg(fn) + '"' : 'div ' + on(fn)) + ' aria-label="' + label + '" style="display:flex;flex-direction:column;align-items:center;gap:6px;text-decoration:none;cursor:pointer">' +
-      '<span class="hov-grey-fill" style="width:52px;height:52px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center">' + svg(22, stroke('#5b4ae8', 2.1), icon) + '</span>' +
+      '<span class="hov-grey-fill" style="width:52px;height:52px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center">' + svg(22, stroke(A.link, 2.1), icon) + '</span>' +
       '<span style="font-size:12.5px;font-weight:800;color:#454b55">' + label + '</span></' + (href ? 'a' : 'div') + '>';
     const more = () => { if (navigator.share) navigator.share({ title: s.text, text: msg }).catch(() => {}); else copy(msg, 'Invite copied. Paste it anywhere.'); closeAll(); };
     return sharePopCard('Share link', 16, closeSharePop, '<span style="flex:1;font-size:22px;font-weight:900;letter-spacing:-.5px;color:#0d1117">Share link</span>',
@@ -6627,7 +6631,7 @@
         circle('WhatsApp', 'https://wa.me/?text=' + encodeURIComponent(msg), '<path d="M4.5 19.5l1.2-3.6A7.5 7.5 0 1 1 8.4 18.5L4.5 19.5Z"/><path d="M9.5 9.5c.3 2 2 3.8 4 4.2"/>', closeAll) +
         circle('Email', 'mailto:?subject=' + encodeURIComponent(s.text) + '&body=' + encodeURIComponent(msg), '<rect x="3.5" y="5.5" width="17" height="13" rx="2"/><path d="m4 7 8 6 8-6"/>', closeAll) +
         circle('More', null, '<circle cx="6" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="18" cy="12" r="1.4"/>', more) + '</div>' +
-      '<button type="button" class="hov-primary" ' + on(() => copyEventLink(link)) + ' style="height:50px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer">' +
+      '<button type="button" class="' + A.hov + '" ' + on(() => copyEventLink(link)) + ' style="height:50px;border:0;border-radius:999px;background:' + A.fill + ';color:' + A.ink + ';font-family:inherit;font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer">' +
         svg(17, stroke('currentColor', 2.4), '<path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1"/>') + (state.share.copied ? '✓ Copied' : 'Copy link') + '</button>');
   };
   // Event QR code (item 5, leads only): the event's short link (qrMatrix: error correction M), #0d1117 modules, a
@@ -6668,6 +6672,7 @@
     toast('QR code downloaded', true);
   };
   const viewEventQr = (s, link) => {
+    const A = shareAccent(s);
     const sh = state.share, white = sh.qrBg !== 'clear', cap = !!sh.qrCap, m = qrMatrix(link);
     const set = (o) => setState({ share: Object.assign({}, state.share, o) });
     const CHECKER = 'background-color:#fff;background-image:linear-gradient(45deg,#e3e5ea 25%,transparent 25%),linear-gradient(-45deg,#e3e5ea 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#e3e5ea 75%),linear-gradient(-45deg,transparent 75%,#e3e5ea 75%);background-size:16px 16px;background-position:0 0,0 8px,8px -8px,-8px 0';
@@ -6681,11 +6686,11 @@
             '<span style="font-size:12.5px;font-weight:700;color:#454b55">' + esc(qrSub(s)) + '</span></div>' : '') + '</div></div>' +
       '<div role="radiogroup" aria-label="Background" style="display:flex;gap:4px;padding:4px;border-radius:999px;background:#f2f3f6">' + seg('white', 'White') + seg('clear', 'Transparent') + '</div>' +
       '<div ' + on(() => set({ qrCap: !cap }), 'switch') + ' aria-checked="' + cap + '" aria-label="Show title and date" style="display:flex;align-items:center;gap:10px;min-height:44px;cursor:pointer"><span style="flex:1;font-size:15.5px;font-weight:700;color:#0d1117">Show title and date</span>' +
-        '<span style="position:relative;flex:0 0 46px;width:46px;height:28px;border-radius:999px;background:' + (cap ? '#5b4ae8' : '#d5d8df') + ';transition:background .15s"><span style="position:absolute;top:3px;left:' + (cap ? 21 : 3) + 'px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2);transition:left .15s"></span></span></div>' +
-      '<button type="button" class="hov-primary" ' + on(() => saveEventQr(s, link, white, cap)) + ' style="height:54px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer">' +
+        '<span style="position:relative;flex:0 0 46px;width:46px;height:28px;border-radius:999px;background:' + (cap ? A.fill : '#d5d8df') + ';transition:background .15s"><span style="position:absolute;top:3px;left:' + (cap ? 21 : 3) + 'px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2);transition:left .15s"></span></span></div>' +
+      '<button type="button" class="' + A.hov + '" ' + on(() => saveEventQr(s, link, white, cap)) + ' style="height:54px;border:0;border-radius:999px;background:' + A.fill + ';color:' + A.ink + ';font-family:inherit;font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer">' +
         svg(17, stroke('currentColor', 2.4), '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>') + 'Download PNG</button>' +
       '<div style="align-self:center;max-width:100%;display:flex;align-items:center;gap:8px"><span style="min-width:0;font-size:13px;font-weight:600;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(link.replace(/^https?:\/\//, '')) + '</span>' +
-        '<span ' + on(() => copyEventLink(link)) + ' style="flex:0 0 auto;font-size:13px;font-weight:800;color:#5b4ae8;cursor:pointer">' + (sh.copied ? '✓ Copied' : 'Copy') + '</span></div>');
+        '<span ' + on(() => copyEventLink(link)) + ' style="flex:0 0 auto;font-size:13px;font-weight:800;color:' + A.text + ';cursor:pointer">' + (sh.copied ? '✓ Copied' : 'Copy') + '</span></div>');
   };
 
   // Date and location in one card: a value (bold, with the time or address in gray under it), "TBD" (gray, owner 2026-10-01), or a poll (guests vote, the host picks)
