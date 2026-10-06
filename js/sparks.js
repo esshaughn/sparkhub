@@ -5902,7 +5902,7 @@
 
   // A photo header shared by the plan and "happened" pages
   const ROUND_BTN = 'flex:0 0 44px;width:44px;height:44px;border-radius:999px;background:#fff;box-shadow:0 2px 8px rgba(13,17,23,.25);display:flex;align-items:center;justify-content:center;cursor:pointer';
-  // v8-12 (8a): on a plan, a lead's top right is one ⋯ that opens Edit event · Share · QR code; tap outside closes it
+  // v8-12 (8a): on a plan, a lead's top right is one ⋯ that opens Edit event · Invite people (v8-13; was Share) · QR code; tap outside closes it
   const MENU_ROW = 'display:flex;align-items:center;gap:12px;min-height:48px;padding:0 16px;border-top:1px solid #f2f3f6;font-size:15.5px;font-weight:800;color:#0d1117;cursor:pointer';
   const evMenu = (s) => {
     const open = state.evMenu === s.id, shut = () => setState({ evMenu: null });
@@ -5912,7 +5912,7 @@
       (open ? '<span ' + on(shut) + ' aria-hidden="true" style="position:fixed;inset:0;z-index:1"></span>' +
         '<div role="menu" data-ev-menu-list style="position:absolute;top:52px;right:0;z-index:2;width:200px;background:#fff;border-radius:16px;box-shadow:0 12px 30px rgba(0,0,0,.3);overflow:hidden"><div style="margin-top:-1px">' +
           '<div ' + on(() => { shut(); openSec(s, 'title'); }, 'menuitem') + ' class="hov-fill-grey" style="' + MENU_ROW + '">' + svg(18, stroke('#0d1117', 2.3), '<path d="M4 20h4L19 9l-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/>') + 'Edit event</div>' +
-          '<div ' + on(() => setState({ evMenu: null, share: { id: s.id, copied: false } }), 'menuitem') + ' class="hov-fill-grey" style="' + MENU_ROW + '">' + svg(18, stroke('#0d1117', 2.4), P5.share) + 'Share</div>' +
+          '<div ' + on(() => setState({ evMenu: null, share: { id: s.id, copied: false } }), 'menuitem') + ' class="hov-fill-grey" style="' + MENU_ROW + '">' + svg(18, stroke('#0d1117', 2.3), '<circle cx="9.5" cy="8" r="3.5"/><path d="M3 20a6.5 6.5 0 0 1 13 0"/><path d="M19 8v6M16 11h6"/>') + 'Invite people</div>' +   // v8-13 (was Share)
           (isLead(s) ? '<div ' + on(() => setState({ evMenu: null, share: { id: s.id, copied: false, pop: 'qr', solo: true } }), 'menuitem') + ' class="hov-fill-grey" style="' + MENU_ROW + '">' +
             svg(18, 'fill="none" stroke="#0d1117" stroke-width="2.2"', '<rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><path d="M14 14h2v2h-2zM18 18h2v2h-2z"/>') + 'QR code</div>' : '') +
         '</div></div>' : '') + '</span>';
@@ -6269,9 +6269,11 @@
     if (ss.kind === 'title') {
       const text = cleanTitle(ss.title).slice(0, 60);
       if (!text) return;
+      // v8-13: an event's Edit event sheet also saves the quick overview
+      const planOv = phaseOf(s) === 'plan', overview = (ss.ov || '').trim().slice(0, 80), ovNew = planOv && overview !== (s.overview || '');
       run(async () => {
-        if (lead) { if (text !== s.text) must(await sb.from('sparks').update({ text }).eq('id', s.id)); }
-        else must(await sb.rpc('admin_edit_spark', { p_spark: s.id, p_text: text, p_hopes: s.hopes }));
+        if (lead) { if (text !== s.text || ovNew) must(await sb.from('sparks').update(Object.assign({ text }, ovNew ? { overview: overview || null } : {})).eq('id', s.id)); }
+        else must(await sb.rpc('admin_edit_spark', Object.assign({ p_spark: s.id, p_text: text, p_hopes: s.hopes }, ovNew ? { p_overview: overview } : {})));
         if (send) await sendUpdate(s, msg);
       }, { sec: null }).then(ok => { if (ok) toast(send ? sentNote(s) : note, true); });
       return;
@@ -6430,10 +6432,16 @@
     const title = { title: 'Edit ' + what, when: 'Date, time & location', details: 'What to expect', vis: 'Who can see it' }[ss.kind];
     let body = '', ok = true;
     if (ss.kind === 'title') {
-      const cur = s.photoPaths[0] ? photoUrl(s.photoPaths[0]) : null;
+      const cur = s.photoPaths[0] ? photoUrl(s.photoPaths[0]) : null, planOv = phaseOf(s) === 'plan';
       ok = !!cleanTitle(ss.title);
       body = '<div style="display:flex;flex-direction:column;gap:8px">' + label(s.planned ? 'Event title' : 'Idea title') +
         '<input class="fld big-fld" type="text" maxlength="60" aria-label="' + (s.planned ? 'Event title' : 'Idea title') + '" placeholder="Name your ' + what + '" value="' + esc(ss.title) + '" ' + onInput(e => { if (e.type === 'input') set({ title: e.target.value.slice(0, 60) }); }) + ' style="' + BIG + '"></div>' +
+        // v8-13 (item 2): QUICK OVERVIEW under the title on an event: the same overview field as What to expect
+        (planOv ? '<div style="display:flex;flex-direction:column;gap:8px"><span style="display:flex;align-items:baseline;gap:8px">' + label('Quick overview') + '<span style="font-size:13px;font-weight:600;color:#9aa0ac">Optional</span></span>' +
+          '<label style="display:flex;align-items:center;gap:10px;min-height:52px;padding:0 16px;border-radius:14px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;cursor:text">' +
+            '<input type="text" maxlength="80" data-quick-overview aria-label="Quick overview" placeholder="' + esc(OVERVIEW_PH) + '" value="' + esc(ss.ov || '') + '" ' + onInput(e => { if (e.type === 'input') set({ ov: e.target.value.slice(0, 80) }); }) +
+              ' style="flex:1 1 auto;min-width:0;border:0;padding:0;background:transparent;font-family:inherit;font-size:16px;font-weight:500;color:#0d1117;outline:none">' +
+            '<span data-ov-count style="font-size:11.5px;font-weight:700;color:#9aa0ac">' + (ss.ov || '').length + '/80</span></label></div>' : '') +
         // The photo (host only): Adjust re-frames the current one, Replace / Add a photo pick a new one. Both open the
         // positioner on top of this pop-up and save straight away, so a title being edited here stays as typed
         (isLead(s) ? '<div data-edit-photo style="display:flex;flex-direction:column;gap:8px">' + label('Photo') +
@@ -6906,7 +6914,7 @@
   // What to expect (Design 8a, 2026-10-03; was Details): the one-line overview, then the bullets. No dividers, nothing bold
   const basicDetailsSec = (s) => {
     const bits = basicsOf(s), edit = canEdit(s) && !s.cancelledAt;
-    const ov = bits.length || !s.planned ? s.overview || '' : '';   // v8-12: a plan's lone overview is in the header
+    const ov = s.planned ? '' : s.overview || '';   // v8-13: a plan's overview is in the header
     if (!bits.length && !ov && !edit) return '';
     return '<section id="sec-details" data-basics><div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 4px;margin-bottom:8px"><h2 style="margin:0;font-size:24px;line-height:1.1;font-weight:900;letter-spacing:-.6px;color:#0d1117">What to expect</h2>' +
         (edit ? '<span ' + on(() => openSec(s, 'details')) + ' aria-label="Edit what to expect" style="display:flex;align-items:center;gap:5px;min-height:36px;padding:0 2px;color:#6b7280;font-size:14px;font-weight:700;cursor:pointer">' + svg(13, stroke('currentColor', 2.4), PENCIL) + 'Edit</span>' : '') + '</div>' +
@@ -7198,7 +7206,7 @@
       '<span style="display:flex;align-items:center;gap:4px;font-size:13.5px;font-weight:800;color:#ffe3ee">View' + I.chevD(12, '#ffe3ee', 3) + '</span></div>';
   };
   const SEND_IC = '<path d="M12 19V5M6 11l6-6 6 6"/>';
-  // Discussion, above Led by: the writing box (the lead's Send update pill sits by the heading), the lead's updates together in a gray panel,
+  // Discussion, above Led by: the writing box (the lead's Post update pill sits by the heading), the lead's updates together in a gray panel,
   // then comments newest first; past 3 posts, Show N more. Replies stay folded until opened
   function discussionSec(s) {
     loadComments(s.id);
@@ -7275,8 +7283,8 @@
       '</div>';
     return '<section data-discussion style="display:flex;flex-direction:column;gap:8px"><div style="display:flex;align-items:baseline;gap:8px;padding:0 4px"><h2 style="margin:0;font-size:24px;line-height:1.1;font-weight:900;letter-spacing:-.6px;color:#0d1117">Discussion</h2>' +
         '<span data-disc-count style="font-size:15px;font-weight:800;color:#8a909b">' + total + '</span>' +   // 0 too (Design v8)
-        // The lead's Send update pill (v8-9 item 2, 1d): opens Post an update with whatever's typed in the box
-        (can && lead && phaseOf(s) === 'plan' ? '<span style="flex:1"></span><span ' + on(() => setState({ blast: { id: s.id, to: 'going', text: draft.trim().slice(0, 200), chip: null }, updAll: null, discDraft: Object.assign({}, st.discDraft, { [s.id]: '' }) })) + ' role="button" data-send-update class="hov-sendupd" style="align-self:center;display:flex;align-items:center;gap:6px;min-height:36px;padding:0 14px;border-radius:999px;background:#fdf0f5;color:#d6246e;font-size:13.5px;font-weight:800;cursor:pointer">' + svg(14, stroke('currentColor', 2.4), BULLHORN) + 'Send update</span>' : '') + '</div>' +
+        // The lead's Post update pill (v8-13; v8-9 item 2, 1d, was Send update): opens Post an update with whatever's typed in the box
+        (can && lead && phaseOf(s) === 'plan' ? '<span style="flex:1"></span><span ' + on(() => setState({ blast: { id: s.id, to: 'going', text: draft.trim().slice(0, 200), chip: null }, updAll: null, discDraft: Object.assign({}, st.discDraft, { [s.id]: '' }) })) + ' role="button" data-send-update class="hov-sendupd" style="align-self:center;display:flex;align-items:center;gap:6px;min-height:36px;padding:0 14px;border-radius:999px;background:#fdf0f5;color:#d6246e;font-size:13.5px;font-weight:800;cursor:pointer">' + svg(14, stroke('currentColor', 2.4), BULLHORN) + 'Post update</span>' : '') + '</div>' +
       '<div data-screen-label="Discussion" style="background:#fff;border-radius:20px;box-shadow:0 1px 3px rgba(15,18,25,.08);display:flex;flex-direction:column">' + box +
         // Nothing yet: just the box with 8px more under it (v8-9 item 1, no No comments yet.)
         (!items.length ? (c.list ? '<div style="height:8px"></div>' : '<div style="display:flex;align-items:center;justify-content:center;padding:18px 16px 22px;font-size:14.5px;font-weight:600;color:#6b7280;text-align:center">Loading…</div>') : '') +
@@ -7374,8 +7382,8 @@
             (s.visibility === 'invite' ? '<span style="display:flex;align-items:center;gap:5px;border-radius:999px;padding:5px 11px;background:rgba(255,255,255,.22);font-size:12px;font-weight:900;letter-spacing:.9px">' + svg(11, stroke('#fff', 2.6), '<rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>') + 'PRIVATE</span>' : '') + '</div>' : '') +
           // The title isn't tappable any more (Design 31): editing goes through the ⋯ at the top right
           '<h1 style="margin:0;font-size:40px;line-height:.98;font-weight:900;letter-spacing:-1.3px;text-wrap:pretty">' + esc(s.text) + '</h1>' +
-          // v8-12 (item 2): with no quick details the overview sits under the title; with them it leads What to expect
-          (s.overview && !basicsOf(s).length ? '<span data-overview data-overview-head style="font-size:18px;line-height:1.4;font-weight:500;color:#fff;text-wrap:pretty">' + esc(s.overview) + '</span>' : '') + '</div>' +
+          // v8-13 (item 1; was v8-12 item 2): the overview always sits under the title; What to expect lists only the quick details
+          (s.overview ? '<span data-overview data-overview-head style="font-size:18px;line-height:1.4;font-weight:500;color:#fff;text-wrap:pretty">' + esc(s.overview) + '</span>' : '') + '</div>' +
         '</div>', true) +
       tab +
       '<div style="padding:16px 14px 26px;display:flex;flex-direction:column;gap:18px">' +

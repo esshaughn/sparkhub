@@ -14,10 +14,10 @@ test('discussion: the new-update banner, comments, replies, Send an update and d
   try {
     id = await postEvent(H, { title, date: inDays(6), time: '18:00' });
     const HP = H.locator('[data-screen-label="Plan page"]');
-    // The lead: the box says Write to everyone going…, with the Send update pill by the heading (v8-9); no banner for leads
+    // The lead: the box says Write to everyone going…, with the Post update pill by the heading (v8-9; v8-13 renamed it); no banner for leads
     const hd = HP.locator('[data-discussion]');
     await expect(hd).not.toContainText('No comments yet.');
-    await expect(hd.locator('[data-send-update]')).toHaveText('Send update');
+    await expect(hd.locator('[data-send-update]')).toHaveText('Post update');
     await expect(hd.getByLabel('Write a comment')).toHaveAttribute('placeholder', 'Write to everyone going…');
     await hd.getByLabel('Write a comment').fill('Bring a chair if you have one');
     await hd.locator('[data-send-update]').click();

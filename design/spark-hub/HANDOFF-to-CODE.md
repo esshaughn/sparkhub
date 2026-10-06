@@ -1,4 +1,16 @@
-# Spark Hub v8 · HANDOFF-to-CODE (round v8-12)
+# Spark Hub v8 · HANDOFF-to-CODE (round v8-13)
+
+**Caught up with the build's `HANDOFF-to-DESIGN-8.md` (baseline v8-12) as of Oct 6, 2026** (read; its rows, owner calls and questions get answered in a later round). Build *New since v8-12* (top), then earlier rounds below if not done yet.
+
+## New since v8-12 (Oct 6, afternoon)
+1. **Overview always under the title.** Supersedes v8-12 item 2: whenever an event has an overview, it shows in the header under the title (18px/500 white), whether or not there are quick details. **What to expect lists only the quick details** (the overview no longer leads that card). The lead's dashed prompt shows when there are no quick details.
+2. **Edit event sheet (title + photo), events only:** a **QUICK OVERVIEW** field under EVENT TITLE (label + grey "Optional", 52px field, 16px text, placeholder as on the What to expect sheet, "N/80" counter). It's the same `overview` field as the What to expect sheet: Save writes it, and either sheet shows the current value. Ideas don't get it.
+3. **Lead ⋯ menu:** the middle row reads **Invite people** (person-plus icon), not Share. Still opens the Invite people sheet. Everyone else keeps the plain Share button.
+4. **Discussion pill:** the leads' pale-pink pill reads **Post update** (was "Send update"). Same pill, same sheet.
+
+---
+
+# Round v8-12
 
 **Caught up with the build's `HANDOFF-to-DESIGN-7.md` (baseline v8-6) as of Oct 6, 2026.** Build *New since v8-11* (top), then earlier rounds below if not done yet. New options files: `options/Event Overview Options.dc.html` (4a picked, from 1b → 2d), `options/Event Header Options.dc.html` (8a picked, from 5d → 7a).
 

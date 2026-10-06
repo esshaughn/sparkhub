@@ -295,6 +295,7 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 213 | **v8-10** (2026-10-06): Invite people condensed (Search, 52px rows with the group inline, *Share link* + *Send · N* in one footer; no link field or share circles), gold for ideas; a frosted *Private* chip on private events' photos (Up next, tiles) | Test | |
 | 214 | **v8-11** (2026-10-06): gold bar on idea cards; *Bringing anyone?* on Going (plus-ones counted everywhere, *+N* in Who's coming; `20261110000000_plus_ones.sql`); guests: stepper, name in When will you attend?, *You're on the list, {name}!*; *RSVP to view guest list*; Invite people: 5 people, Share link pop-up (Messages · WhatsApp · Email · More, Copy link), event QR for hosts (PNG, white or transparent, optional title) | Test | |
 | 215 | **v8-12** (2026-10-06): event header 4a + 8a: no HAPPENING / YOU'RE LEADING chip (CANCELLED / PRIVATE only), the date tile at the photo's top right (+5°), a lead's ⋯ menu (Edit event · Share · QR code), the overview under the title when there are no quick details; What to expect sheet without *Both parts are optional.*, the number circles or Cancel or delete | Test | |
+| 216 | **v8-13** (2026-10-06): the overview always under the event title (What to expect lists only the quick details); *QUICK OVERVIEW* on an event's Edit event sheet (same field); the lead's ⋯ reads *Invite people*; Discussion's pill reads *Post update* | Test | |
 
 ## Removed in this rebuild
 

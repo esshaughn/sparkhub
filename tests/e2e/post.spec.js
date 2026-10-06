@@ -86,7 +86,7 @@ test('post an event with every step filled, then edit it in the pop-ups and dele
     await expect(P.locator('h1[data-on]')).toHaveCount(0);
     await expect(P.getByRole('button', { name: 'Share', exact: true })).toHaveCount(0);
     await P.getByRole('button', { name: 'More' }).click();
-    await expect(P.getByRole('menuitem')).toHaveText(['Edit event', 'Share', 'QR code']);
+    await expect(P.getByRole('menuitem')).toHaveText(['Edit event', 'Invite people', 'QR code'])   // v8-13: Invite people, not Share;
     await P.getByRole('menuitem', { name: 'QR code' }).click();
     const qr0 = page.getByRole('dialog', { name: 'QR code' });
     await expect(qr0.locator('[data-event-qr]')).toBeVisible();
@@ -102,22 +102,28 @@ test('post an event with every step filled, then edit it in the pop-ups and dele
     await expect(sec.getByLabel(/^(Replace the|Add a) cover photo$/)).toHaveCount(1);
     await expect(sec.getByRole('button', { name: 'Remove the cover photo' })).toBeVisible();   // the cover can come off (owner, 2026-10-02)
     await sec.getByLabel('Event title').fill(title + ' + stars');
+    await expect(sec.getByLabel('Quick overview')).toHaveAttribute('maxlength', '80');   // v8-13: the overview on Edit event too
+    await sec.getByLabel('Quick overview').fill('A night run');
+    await expect(sec.locator('[data-ov-count]')).toHaveText('11/80');
     await sec.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(sec).toHaveCount(0);
     await expect(P.locator('h1')).toContainText('+ stars');
+    await expect(P.locator('[data-overview-head]')).toHaveText('A night run');   // under the title
 
     // What to expect (Design 8a): a one-line overview over the details
     await expect(P.getByRole('heading', { name: 'What to expect' })).toBeVisible();
     await P.getByRole('button', { name: 'Edit what to expect' }).click();
     const bd = page.getByRole('dialog', { name: 'What to expect' });
     await expect(bd.getByLabel('One-line overview')).toHaveAttribute('maxlength', '80');
+    await expect(bd.getByLabel('One-line overview')).toHaveValue('A night run');   // the same field
     await expect(bd).not.toContainText('Both parts are optional.');   // v8-12
     await expect(bd.locator('[data-sec-delete]')).toHaveCount(0);       // no Cancel or delete on this sheet (v8-12)
     await bd.getByLabel('One-line overview').fill('A night run under the stars');
     await bd.getByLabel('Details, line 3').fill('Hot cocoa');
     await bd.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(P.locator('[data-basics]')).toContainText('Hot cocoa');
-    await expect(P.locator('[data-basics] [data-overview]')).toHaveText('A night run under the stars');
+    await expect(P.locator('[data-overview-head]')).toHaveText('A night run under the stars');   // v8-13: always under the title
+    await expect(P.locator('[data-basics] [data-overview]')).toHaveCount(0);                    // What to expect lists only the quick details
     expect(await asUser(page, async (c, _C, id) => (await c.from('sparks').select('overview').eq('id', id).single()).data.overview, id)).toBe('A night run under the stars');
 
     // Who can see it: Private
