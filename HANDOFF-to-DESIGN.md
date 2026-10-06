@@ -4,15 +4,15 @@
 
 - **Built (test):** https://gosparkhub-git-test-eric-5958s-projects.vercel.app · **Live:** https://gosparkhub.vercel.app (also https://sparkhub.wereallneighbors.org)
 - **Source:** github.com/esshaughn/sparkhub (`index.html`, `js/sparks.js`, `css/sparks.css`, `privacy.html`, `supabase/templates/`)
-- **Baseline:** Claude Design's **round v8-10** (zip *Spark Hub v8-10*, 2026-10-06; v8-9 before it: `design/spark-hub/Spark Hub App Version 8.dc.html` and `design/spark-hub/HANDOFF-to-CODE.md`). It approved rows 96–105, §2 and §3 of *HANDOFF-to-DESIGN-7*, so those are cleared; rows 106–114 (v8-7) stay until Design has seen them.
+- **Baseline:** Claude Design's **round v8-11** (zip *Spark Hub v8-11*, 2026-10-06; v8-10 before it: `design/spark-hub/Spark Hub App Version 8.dc.html` and `design/spark-hub/HANDOFF-to-CODE.md`). It approved rows 96–105, §2 and §3 of *HANDOFF-to-DESIGN-7*, so those are cleared; rows 106–114 (v8-7) stay until Design has seen them.
 - **Build version:** **v7** (owner, 2026-10-02): a lead is a choice. Since v8-8 an idea is led from the start (*Who leads it · Me*) or floated (*I'll decide*), and both use the new idea page.
-- **As of:** 2026-10-06 (latest: built round **v8-10**'s *New since v8-9* list, table below). Before that: the prototype audit and *Owner calls that stand* (below). Earlier 2026-10-06: built round **v8-8**'s *New since v8-7* list (items 1–9, table below; migration `20261109000000_led_ideas.sql`). The *Answered* and *Already decided* items in the same file are listed in §4 until they're built.
+- **As of:** 2026-10-06 (latest: built round **v8-11**'s *New since v8-10* list, table below; migration `20261110000000_plus_ones.sql`). Before that: v8-10, then the prototype audit and *Owner calls that stand* (below). Earlier 2026-10-06: built round **v8-8**'s *New since v8-7* list (items 1–9, table below; migration `20261109000000_led_ideas.sql`). The *Answered* and *Already decided* items in the same file are listed in §4 until they're built.
 
 ## Start here (2026-10-06)
 
 Your last catch-up was *HANDOFF-to-DESIGN-7* (baseline v8-6). Everything below is new since then, all **live** at sparkhub.wereallneighbors.org as of 2026-10-06 (v=245):
 
-1. **Rounds v8-7 → v8-10**, each as a short table (newest first): what was built as drawn, and every place the build differs.
+1. **Rounds v8-7 → v8-11**, each as a short table (newest first): what was built as drawn, and every place the build differs.
 2. **The prototype audit** (2026-10-06): ~60 spots where the prototype had been redrawn without a *New since* item, now matching.
 3. **Owner calls that stand**: 10 spots where the owner chose differently and the prototype still draws the old version. Please redraw these.
 4. **§1–§3**: rows 106–123 and the behaviour notes you haven't acknowledged yet, plus the 2026-10-06 privacy page and link-preview changes (§3).
@@ -21,6 +21,18 @@ Your last catch-up was *HANDOFF-to-DESIGN-7* (baseline v8-6). Everything below i
 Where this doc and the design files disagree, **this doc is correct**. One file per side: please keep sending `HANDOFF-to-CODE.md`; this file is the reply (call it *HANDOFF-to-DESIGN-8*).
 
 ---
+
+## Round v8-11 in short
+
+*Built from HANDOFF-to-CODE v8-11 (New since v8-10) on 2026-10-06 (migration `20261110000000_plus_ones.sql`). The prototype was diffed against v8-10's: nothing changed beyond items 1–5.*
+
+| v8-11 item | Status |
+|---|---|
+| 1. Gold bar on idea cards (1e) | Done on the Ideas board's cards (inside the card's 6px white frame). The board has no full-tile view in the build, so only the grid has it (your full tiles don't draw it either) |
+| 2. Bringing others (6a) | Done: *You're going!* after Going on a plan (members), stepper 0–10, *Who's coming with you? (optional)* (80) once above 0, green Done (then the going banner, or *You're going, plus N. See you there!*), *Invite others* · *Change RSVP*, scrim = Done. Saved as `plus_count` / `plus_note` on the reply; **every Going count includes them** (the RSVP button, cards, *N going*, Who's coming's GOING · N, the lead's impact). Built from your "not yet in the prototype" line: **Who's coming shows *+2* in green after the name**, and the hosts also see the note (*+2 · my kids*). The note field is 16px (iPhone zoom). Change RSVP closes and scrolls to the RSVP buttons |
+| 3. Guests | Done: the stepper on the guest sheet (quieter row, as drawn), YOUR NAME + stepper in *When will you attend?* (*Add your name* → *RSVP as a guest*, *Have an account? Sign in*), *You're on the list, {first name}!* with the summary chips, Done, *Get a reminder · Sign in* · *Change RSVP*. It shows **once the reply is saved**, after a guest's Going **or Maybe** (it replaces the build's old *You're on the list* / *Create an account* alert). *RSVP to view guest list* with the lock replaces the grey faces and See all for visitors who haven't replied |
+| 4. Invite people | Done: 5 people, max 94%, round Share link · round QR (hosts: lead and co-hosts) · Send. The Share link pop-up as drawn; More without a share sheet copies the message (*Invite copied. Paste it anywhere.*). The preview's date line is the build's (*Thu, Oct 15 · 6:30pm · Hunters Park*). The QR button stays purple on the gold sheet, as the prototype has it — say if it should be gold |
+| 5. Event QR | Done as drawn with the build's own QR encoder (error correction M, no CDN). On a phone that can share files, *Download PNG* opens the share sheet (Save Image) instead of downloading, like the group poster. New error toasts: *That QR code couldn't be made.* / *That QR code couldn't be saved. Try again.* |
 
 ## Round v8-10 in short
 

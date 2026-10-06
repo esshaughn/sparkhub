@@ -293,6 +293,7 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 211 | **Prototype audit** (2026-10-06): about 60 spots across My calendar, All groups, the event page, Groups, Friends, Me, Ideas and Plan an event now match the v8-8 prototype (Find more events, closed Up next strips, Settings › ACCOUNT, the new-ideas dot, Create a poll pop-up, Edit job, Invite people sheet …); list in HANDOFF-to-DESIGN *Audit 2026-10-06* | Test | full suite |
 | 212 | **v8-9** (2026-10-06): Discussion's Send update pill and no empty line; the green Today chip on Up next; Me reworked (bell, impact pill, rows card, My tasks slide-up, floating Settings) | Test | discussion, smoke, v6 |
 | 213 | **v8-10** (2026-10-06): Invite people condensed (Search, 52px rows with the group inline, *Share link* + *Send · N* in one footer; no link field or share circles), gold for ideas; a frosted *Private* chip on private events' photos (Up next, tiles) | Test | |
+| 214 | **v8-11** (2026-10-06): gold bar on idea cards; *Bringing anyone?* on Going (plus-ones counted everywhere, *+N* in Who's coming; `20261110000000_plus_ones.sql`); guests: stepper, name in When will you attend?, *You're on the list, {name}!*; *RSVP to view guest list*; Invite people: 5 people, Share link pop-up (Messages · WhatsApp · Email · More, Copy link), event QR for hosts (PNG, white or transparent, optional title) | Test | |
 
 ## Removed in this rebuild
 

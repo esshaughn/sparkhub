@@ -1,4 +1,34 @@
-# Spark Hub v8 · HANDOFF-to-CODE (round v8-10)
+# Spark Hub v8 · HANDOFF-to-CODE (round v8-11)
+
+**Caught up with the build's `HANDOFF-to-DESIGN-7.md` (baseline v8-6) as of Oct 6, 2026.** Build *New since v8-10* (top), then earlier rounds below if not done yet. New options files: `options/Idea Card Top Options.dc.html` (1e), `options/RSVP Plus Options.dc.html` (6a), `options/Guest Day Pick Options.dc.html` (1d + 2b), `options/Event QR Options.dc.html`.
+
+## New since v8-10 (Oct 6, late morning)
+1. **Ideas board cards (1e):** a **3px gold `#f5b428` bar** across the top edge of every idea card (grid and full tiles), above the photo.
+2. **Bringing others on RSVP (6a), events only, never ideas.**
+   - Tapping **Going** opens a centred **"You’re going!"** pop-up (green check). One row: **"Bringing anyone?"** + compact stepper (32px round − / + buttons, count `0`–`10` between). Once the count is above 0, an optional text field "Who’s coming with you? (optional)" (80 chars).
+   - Green **Done** (closes, then the usual going banner / toast). Under it on one line: **Invite others** (link blue `#1f5fa8`, person+ icon, opens Invite people) · **Change RSVP** (grey, closes so they can re-pick). Scrim tap = Done.
+   - Store `plus_count` (+ `plus_note`) on the RSVP. **Going counts include plus-ones.** (Not yet in the prototype: "+2" next to the name in Who’s coming; the lead's headcount should include them.)
+   - The old inline "Bringing anyone?" row is gone.
+3. **Guests (signed out).**
+   - Guest RSVP sheet ("Almost there"): the same stepper under "Your name".
+   - **Multi-day "When will you attend?" (1d):** signed out, after the day rows: **YOUR NAME** field and the **Bringing anyone?** stepper. Button reads "Add your name" until there's a name, then **"RSVP as a guest"**. Under it: "Have an account? **Sign in**".
+   - **Confirmation (2b):** after a guest RSVPs, the pop-up reads **"You’re on the list, {first name}!"**, a grey summary (event title + chips: "Going · {date}" per day in green, "Maybe · {date}" in gold, "You + N"), green **Done**, then one line: **Get a reminder · Sign in** (purple, bell; opens sign-in) · **Change RSVP** (grey). No Invite others for guests.
+   - **Who’s coming, signed out and not RSVP’d:** the grey faces and "See all ›" become a quiet grey line with a lock: **"RSVP to view guest list"** (not tappable).
+4. **Invite people sheet:**
+   - Shows **5 people** before "See N more" (was 3). Sheet height fits its content (max 94%); no gap between the list and the footer.
+   - Footer: **round 54px link icon** (Share link) · **round 54px QR icon** (leads only) · **Send · N** filling the rest.
+   - **Share link** opens a centred pop-up: "Share link", a link preview card (event photo 120px, title, "{date} · {location}", short URL), a row of four circles **Messages · WhatsApp · Email · More** (More = native share sheet), and a purple **Copy link** (→ "✓ Copied"). Any choice closes the pop-up and the sheet.
+5. **Event QR code (leads only).** From the QR icon in the Invite people footer. Centred pop-up "QR code":
+   - Preview of a **real QR** of the event's `/e/{code}` link (error correction M, black `#0d1117` modules, 2-module quiet zone).
+   - **White / Transparent** segmented switch (text only). Transparent previews on a checkerboard; the pop-up keeps the same size.
+   - **"Show title and date"** toggle, **off by default**. On: caption under the code, title (900) + "{date} · Scan to RSVP".
+   - **Download PNG** (only button): 1200px square (+230px when the caption is on), white or transparent background, filename `{event-slug}-qr.png` / `-qr-transparent.png`. Toast "QR code downloaded".
+   - Under it: the short link in grey + a quiet purple **Copy**.
+   - Prototype uses `qrcode-generator` from a CDN; use any QR lib in the build.
+
+---
+
+# Round v8-10
 
 **Caught up with the build's `HANDOFF-to-DESIGN-7.md` (baseline v8-6) as of Oct 6, 2026.** Build *New since v8-9* (top), then v8-9, v8-8 and v8-7 below if not done yet. New options file: `options/Event Invite Options.dc.html` (1c picked).
 
