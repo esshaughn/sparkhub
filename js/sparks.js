@@ -4737,7 +4737,11 @@
   const a2hsLater = () => { a2hsMark(sessionStorage, 'later'); a2hsHide(1); };
   const a2hsDone = () => a2hsHide(2);
   let popTimer = null;
+  // Off (owner, 2026-10-06): it no longer pops up on its own, on Welcome or after signing in. Me → Settings → Add to Home
+  // Screen still opens it (iPhone steps) or Chrome's dialog (Android) when someone taps it
+  const INSTALL_POP_ON = false;
   const maybeInstallPop = () => {
+    if (!INSTALL_POP_ON) return;
     const st = state;
     if (popTimer || st.installPop || !installMode() || st.viewAs || st.screen === 'compose' || st.inv) return;   // never over the invite screens
     if (st.loginStep || st.nameAsk || st.confirm || st.guestOpen || st.joinOpen || st.pe || st.invite || st.notifSheet) return;

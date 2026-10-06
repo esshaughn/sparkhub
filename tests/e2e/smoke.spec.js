@@ -79,7 +79,7 @@ test('web push: a push-only service worker registers, and Notifications offers p
   }
 });
 
-test('Add to Home Screen: at most once a visit, back 48 hours after Got it and 24 after Maybe later / ✕ / scrim; Android opens Chrome’s prompt, iPhone shows the Share steps', async ({ browser }) => {
+test('Add to Home Screen: never pops up on its own (owner, 2026-10-06); Me → Settings opens Chrome’s prompt or the iPhone steps', async ({ browser }) => {
   // Chrome hands an installable site a beforeinstallprompt event; stand in for it (or be an iPhone browser, which has none)
   const fake = () => {
     const iphone = localStorage.getItem('e2e-iphone');
@@ -108,80 +108,27 @@ test('Add to Home Screen: at most once a visit, back 48 hours after Got it and 2
     await expect(page.locator('html[data-loaded=true]')).toHaveCount(1);
   };
 
-  // Welcome (signed out), iPhone Safari: the steps; Got it hides it for 48 hours
+  // Welcome (signed out), iPhone Safari: nothing pops up
   const v = await newMember(browser);
   try {
     await v.context.addInitScript(fake);
     await fresh(v.page, 'safari');
     await expect(v.page.locator('[data-screen-label=Welcome]')).toBeVisible();
-    const pop = v.page.getByRole('dialog', { name: 'Add to Home Screen' });
-    await expect(pop).toContainText('Recommended');
-    await expect(pop.getByRole('heading', { name: 'Make this an app (kinda)' })).toBeVisible();
-    await expect(pop).toContainText('Add a shortcut icon on your home screen, no App Store needed.');
-    // Safari (Update 12): Share is behind •••, so three stacked steps
-    await expect(pop.locator('[data-a2hs-steps=safari]')).toContainText('Tap ••• in this browser');
-    await expect(pop).toContainText('Choose Share');
-    await expect(pop).toContainText('Choose Add to Home Screen');
-    await pop.getByRole('button', { name: 'Got it' }).click();
-    await expect(pop).toHaveCount(0);
-    await v.page.reload();
-    await expect(v.page.locator('html[data-loaded=true]')).toHaveCount(1);
-    await v.page.waitForTimeout(1200);
-    const daysLeft = () => v.page.evaluate(() => (+localStorage.getItem('sparkhub-a2hs') - Date.now()) / 864e5);
-    expect(Math.round(await daysLeft())).toBe(2);
-    await v.page.evaluate(() => sessionStorage.removeItem('sparkhub-a2hs'));   // a new visit
-    await v.page.reload();
-    await expect(v.page.locator('html[data-loaded=true]')).toHaveCount(1);
-    await v.page.waitForTimeout(1200);
-    await expect(pop).toHaveCount(0);   // not within the 48 hours
-    // Two days later, not installed: it's back, and ✕ closes it for 24 hours
-    await v.page.evaluate(() => { localStorage.setItem('sparkhub-a2hs', String(Date.now() - 1)); sessionStorage.removeItem('sparkhub-a2hs'); });
-    await v.page.reload();
-    await expect(pop).toBeVisible();
-    await pop.getByRole('button', { name: 'Close' }).click();
-    await expect(pop).toHaveCount(0);
-    expect(Math.round(await daysLeft())).toBe(1);
-
-    // iPhone Chrome, Maybe later: gone for 24 hours, then back
-    await fresh(v.page, 'chrome');
-    await expect(pop.locator('[data-a2hs-steps=chrome]')).toContainText('Tap Share in this browser');
-    await expect(pop).toContainText('Choose Add to Home Screen');
-    await pop.getByRole('button', { name: 'Maybe later' }).click();
-    await expect(pop).toHaveCount(0);
-    await v.page.reload();
-    await expect(v.page.locator('html[data-loaded=true]')).toHaveCount(1);
-    await v.page.waitForTimeout(1200);
-    await expect(pop).toHaveCount(0);
-    expect(Math.round(await daysLeft())).toBe(1);
-    await v.page.evaluate(() => { localStorage.setItem('sparkhub-a2hs', String(Date.now() - 1)); sessionStorage.removeItem('sparkhub-a2hs'); });
-    await v.page.reload();
-    await expect(pop).toBeVisible();
-    await v.page.mouse.click(200, 60);   // the scrim is Maybe later too
-    await expect(pop).toHaveCount(0);
+    await v.page.waitForTimeout(1500);
+    await expect(v.page.getByRole('dialog', { name: 'Add to Home Screen' })).toHaveCount(0);
     expect(v.errors).toEqual([]);
   } finally {
     await v.context.close();
   }
 
-  // Signed in, Android Chrome: once after signing in, and Install app opens Chrome's dialog
+  // Signed in, Android Chrome: nothing pops up either; Me's Settings opens Chrome's dialog straight away
   const m = await newLead(browser, 1, 'Ivy');
   try {
     const page = m.page;
     await m.context.addInitScript(fake);
     await fresh(page, null);
-    const pop = page.getByRole('dialog', { name: 'Add to Home Screen' });
-    await expect(pop).toContainText('no App Store needed.');
-    await expect(pop).not.toContainText('Choose Add to Home Screen');   // Android: Chrome's own dialog, no steps
-    await expect(page.locator('[data-screen-label="All groups"] [data-install-card]')).toHaveCount(0);   // no card on the Calendar
-    await pop.getByRole('button', { name: 'Add to Home Screen' }).click();
-    await expect.poll(() => page.evaluate(() => window.__prompted)).toBe(1);
-    await expect(pop).toHaveCount(0);
-    await page.reload();
-    await expect(page.locator('html[data-loaded=true]')).toHaveCount(1);
-    await page.waitForTimeout(1200);
-    await expect(pop).toHaveCount(0);   // installing counts as Got it (48 hours; once installed it never shows)
-
-    // Me's Settings keeps the way in (on Android it opens Chrome's dialog straight away)
+    await page.waitForTimeout(1500);
+    await expect(page.getByRole('dialog', { name: 'Add to Home Screen' })).toHaveCount(0);
     await openProfile(page);
     await page.locator('[data-me-settings]').click();
     await page.getByRole('dialog', { name: 'Settings' }).getByRole('button', { name: /^Add to Home Screen/ }).click();
