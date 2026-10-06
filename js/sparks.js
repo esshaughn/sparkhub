@@ -6820,7 +6820,7 @@
 
   // ---- Discussion (Design v8-1): comments on a plan, with one level of replies under a comment or a lead's update.
   // Read when the plan's page opens (not part of load_all); the hosts and people coming (Going or Maybe) write
-  // (20261105000000_event_comments.sql). Nobody is notified yet: the lead's comment notification isn't designed.
+  // (20261105000000_event_comments.sql). Hosts get a push per comment, authors one per reply (20261109010000_comment_pushes.sql).
   const comments = {};   // spark id → { list, loading }
   const loadComments = (sid, force) => {
     const c = comments[sid];

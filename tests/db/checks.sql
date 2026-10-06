@@ -1105,3 +1105,21 @@ select t.must_allow('the lead makes it a plan', format($$select public.make_plan
 reset role;
 select t.check('everyone interested is Maybe now', (select count(*) = 1 and bool_and(status = 'maybe') from rsvps where spark_id = t.id('pumpkin') and user_id <> t.id('lead10')));
 select t.check('…and the lead is Going', exists (select 1 from rsvps where spark_id = t.id('pumpkin') and user_id = t.id('lead10') and status = 'going'));
+
+-- Comment pushes (20261109010000_comment_pushes.sql): push_send is swapped for a recorder from here on ---------------
+create table t.pushes (users uuid[], topic text, title text, body text, tag text);
+grant all on t.pushes to authenticated;
+create or replace function private.push_send(p_users uuid[], p_topic text, p_title text, p_body text, p_url text, p_tag text)
+returns void language sql security definer set search_path = public as $$ insert into t.pushes values (p_users, p_topic, p_title, p_body, p_tag) $$;
+select t.login('member10'); set role authenticated;
+select t.must_allow('someone Maybe comments on the plan', format($$insert into event_comments (spark_id, body) values (%L, 'Can I bring my kid?')$$, t.id('pumpkin')));
+reset role;
+select t.check('the lead hears about the comment', exists (select 1 from t.pushes where t.id('lead10') = any(users) and topic = 'hosting' and tag = 'cm:' || t.id('pumpkin')));
+select t.check('…grouped once there are two within the hour', exists (select 1 from t.pushes where body = '2 new comments'));
+insert into t.ids select 'kid_q', id from event_comments where body = 'Can I bring my kid?';
+delete from t.pushes;
+select t.login('lead10'); set role authenticated;
+select t.must_allow('the lead replies', format($$insert into event_comments (spark_id, parent_id, body) values (%L, %L, 'Of course!')$$, t.id('pumpkin'), t.id('kid_q')));
+reset role;
+select t.check('the comment''s author hears about the reply', exists (select 1 from t.pushes where users = array[t.id('member10')] and topic = 'updates' and body like '%replied: Of course!'));
+select t.check('the lead isn''t told about their own reply', not exists (select 1 from t.pushes where t.id('lead10') = any(users)));

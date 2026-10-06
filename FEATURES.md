@@ -287,6 +287,7 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 205 | **Make it a plan!** (v8-8 items 2–4): Make this a plan's Date and Location open **Pick a date / Pick a location** (radio rows, or a field when nobody suggested one; Confirm); the button is grey (*Add a date first*…) until all three rows are ticked, then the purple sparkle *Make it a plan!* with *We'll tell the N people interested.*; it opens Plan an event on Review, prefilled, and Post it turns that idea into the event (everyone interested → Maybe + a push) | Test | |
 | 206 | **One option is a suggestion** (v8-8 item 5): a single date or location shows *Suggested* (no votes, ticks or *When would you attend?*); a second makes it a poll | Test | |
 | 207 | **Location name + Address** on Plan an event's page 1 (v8-8 item 8; a picked place fills both), shown on Review; the Review page has no REVIEW eyebrow, its card is titled *Review*, a cover photo gets the purple-pink tint; **Discussion behind sign-in**: signed out (guests too) see *N posts · Sign in to read and join in* | Test | |
+| 208 | **Comment notifications** (v8-8 decided): hosts get a push per comment or reply (grouped per event per hour, *N new comments*); a post's author gets *{name} replied: …*. `20261109010000_comment_pushes.sql` | Test | DB checks |
 
 ## Removed in this rebuild
 
