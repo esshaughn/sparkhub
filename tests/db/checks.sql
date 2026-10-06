@@ -1080,3 +1080,28 @@ select t.login('lead9'); set role authenticated;
 select t.must_allow('the lead takes the date off', format($$select public.clear_plan(%L)$$, t.id('sale')));
 reset role;
 select t.check('…and the schedule goes with it', (select schedule is null from sparks where id = t.id('sale')));
+
+-- Led ideas (20261109000000_led_ideas.sql, Design v8-8) ----------------------------------------------------------------
+select t.person('lead10'), t.person('member10'), t.person('guest10', true);
+insert into memberships (group_id, user_id, role) values (t.id('g'), t.id('lead10'), 'member'), (t.id('g'), t.id('member10'), 'member'), (t.id('g'), t.id('guest10'), 'member');
+insert into sparks (id, group_id, author_name, lead_name, lead_id, created_by, text, visibility, planned, day_date)
+values (gen_random_uuid(), t.id('g'), 'Lead', 'Lead', t.id('lead10'), t.id('lead10'), 'Pumpkin carving night', 'group', false, current_date + 9);
+insert into t.ids select 'pumpkin', id from sparks where text = 'Pumpkin carving night';
+select t.login('member10'); set role authenticated;
+select t.must_refuse('a member who isn''t interested comments on an idea', format($$insert into event_comments (spark_id, body) values (%L, 'Hi!')$$, t.id('pumpkin')));
+select t.must_allow('a member says I''m interested', format($$insert into interests (spark_id, user_id) values (%L, %L)$$, t.id('pumpkin'), t.id('member10')));
+select t.must_allow('someone interested comments on the idea', format($$insert into event_comments (spark_id, body) values (%L, 'I can bring knives')$$, t.id('pumpkin')));
+reset role;
+select t.login('guest10'); set role authenticated;
+select t.check('a guest without an account reads no comments', (select count(*) from event_comments where spark_id = t.id('pumpkin')) = 0);
+select t.check('…but gets the count', public.comment_count(t.id('pumpkin')) = 1);
+select t.must_refuse('a guest can''t comment', format($$insert into event_comments (spark_id, body) values (%L, 'Hi')$$, t.id('pumpkin')));
+reset role;
+select t.login('outsider'); set role authenticated;
+select t.check('an outsider gets no count', public.comment_count(t.id('pumpkin')) is null);
+reset role;
+select t.login('lead10'); set role authenticated;
+select t.must_allow('the lead makes it a plan', format($$select public.make_plan(%L)$$, t.id('pumpkin')));
+reset role;
+select t.check('everyone interested is Maybe now', (select count(*) = 1 and bool_and(status = 'maybe') from rsvps where spark_id = t.id('pumpkin') and user_id <> t.id('lead10')));
+select t.check('…and the lead is Going', exists (select 1 from rsvps where spark_id = t.id('pumpkin') and user_id = t.id('lead10') and status = 'going'));

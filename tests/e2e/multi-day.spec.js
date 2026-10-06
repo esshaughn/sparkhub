@@ -51,7 +51,7 @@ test('multi-day: separate days, each-day RSVP, a job on one day, and a weekly ev
     await flow.getByRole('button', { name: 'Next', exact: true }).click();
     await flow.getByText('Add later', { exact: true }).click();
     await flow.getByText('None needed', { exact: true }).click();
-    await expect(flow).toContainText('REVIEW');
+    await expect(flow.locator('[data-ready-count]')).toBeVisible();
     await expect(flow).toContainText('· 2 days');
     await flow.locator('[data-post]').click();
     await expect(H.locator('[data-screen-label="Plan page"]')).toBeVisible();

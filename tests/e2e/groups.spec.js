@@ -132,16 +132,16 @@ test('a group end to end: edit group, cover, rename, invite, pin, admin edits, r
     // Bo posts; the admin edits and deletes it (Bo stays the lead)
     ideaId = await postIdea(B, { title: uniqueTitle('Tempo run') });
     await openIdea(A, ideaId);
-    const detail = A.locator('[data-screen-label="Idea page"]');
-    await detail.getByRole('button', { name: 'Edit idea' }).click();   // an admin gets the round pencil too (the title only); an idea's pop-up says idea
+    const detail = A.locator('[data-screen-label="Idea page (8b)"]');
+    await detail.locator('[data-idea-edit]').click();   // an admin gets Edit too (the title only, v8-8's idea page); an idea's pop-up says idea
     const sec = A.getByRole('dialog', { name: 'Edit idea' });
     await expect(sec.locator('[data-edit-photo]')).toHaveCount(0);               // only the lead changes the photo
     await sec.getByLabel('Idea title').fill('[E2E] Tempo run, moved indoors');
     await sec.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(detail).toContainText('moved indoors');
-    await expect(detail.locator('[data-led-by]')).toContainText('Bo');
+    await expect(detail.locator('[data-led-by8]')).toContainText('Bo');
     // Led by opens Bo's profile: name, the groups you share, a friend button (owner, 2026-10-01)
-    await detail.locator('[data-led-by]').getByRole('button', { name: /^Led by Bo/ }).click();   // the name row (an admin also sees the co-lead ask)
+    await detail.locator('[data-led-by8]').click();
     const person = A.getByRole('dialog', { name: 'Bo' });
     await expect(person.locator('[data-screen-label="Person"]')).toContainText('Bo');
     await expect(person.locator('[data-person-groups]')).toContainText(groupName);

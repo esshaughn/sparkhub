@@ -46,7 +46,7 @@ test('soft holds: a date poll pencils its dates in on Month, warns Start an even
     await expect(cal).toContainText('PENCILLED IN');
     await expect(hold).toContainText(/7(:00)?pm · 1 vote so far · ✓ You voted/);
     await hold.click();   // the idea page, at Help pick when and where (never the event preview)
-    await expect(M.locator('[data-screen-label="Idea page"]')).toBeVisible();
+    await expect(M.locator('[data-screen-label="Idea page (8b)"]')).toBeVisible();
     await expect(M.locator('[data-hold-line]')).toContainText('Holding these dates on the Calendar until');
     await expect(M.locator('[data-hold-line]').getByRole('button', { name: 'Keep holding' })).toHaveCount(0);
     // Your calendar doesn't show holds
@@ -57,9 +57,8 @@ test('soft holds: a date poll pencils its dates in on Month, warns Start an even
 
     // The voting card's dates are rows, most votes first; Hana keeps holding
     await openIdea(H, id);
-    const rows = H.locator('[data-vote-box="day"] [data-poll-opt]');
+    const rows = H.locator('[data-when] [data-cal-page]');   // the lead's When? on the v8-8 idea page
     await expect(rows).toHaveCount(2);
-    await expect(rows.first()).toContainText('1 vote');
     await expect(H.locator('[data-hold-line]')).toContainText('Holding until');
     await H.locator('[data-hold-line]').getByRole('button', { name: 'Keep holding' }).click();
     await expect(H.getByText(/^Holding until /)).toBeVisible();

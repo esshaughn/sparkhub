@@ -1,4 +1,57 @@
-# Spark Hub v8 · HANDOFF-to-CODE (round v8-7)
+# Spark Hub v8 · HANDOFF-to-CODE (round v8-8)
+
+**Caught up with the build's `HANDOFF-to-DESIGN-7.md` (baseline v8-6) as of Oct 6, 2026.** The build hasn't picked up v8-7 yet: please build *New since v8-7* (top), then *New since v8-6* below.
+
+## New since v8-7 (Oct 6, later). Build these first
+1. **Led ideas (Q31: 1a + 1b + 1e in `options/Led Idea Options.dc.html`).** The lead keeps the starter's slide-up (note-paper top, Edit). Under the description, the grey "Floated by…" line becomes **"Led by you"** / **"Led by {first}"** once there's a lead. Members see the same line. Help out and Take part work **before** it's a plan.
+2. **"Make it a plan!" button:** purple→pink gradient (`linear-gradient(120deg,#5b4ae8,#7a4fe0 45%,#b04fc4 80%,#d6246e)`), white text, six small white ✦ sparkles (aria-hidden), 54px tall. Replaces the gold button on the idea page and the slide-up.
+3. **Make it a plan → Review, prefilled.** Tapping it opens Plan an event straight on **Review** with the title, the description (as the What to expect overview, which counts toward "N of 4 added"), the cover photo, the picked date (+ time if the option had one) and the picked location. A picked date in the past rolls to next year. If the date can't be read, it opens on page 1. **Post it** turns the idea into that event (same record, not a copy) and toasts "It's a plan! We told the N people interested." Still to build: interested people → Maybe + push (1e).
+4. **Pick / Add pop-up in "Make this a plan".** Date and Location rows open a centred pop-up: "Pick a date" / "Pick a location", the options people suggested as radio rows (vote count, time), top one pre-selected, gold **Confirm**. No options: just a date field / "Enter a location" text field, Confirm grey until filled. Change opens the same pop-up. Toasts "Date set" / "Location set".
+5. **One option isn't a poll.** A single date or location shows as "Suggested" (no votes, no ticks, no "Choose all dates you could attend.", no "When would you attend?" pop-up). A second option makes it a poll. The Pick pop-up reads "Confirm the suggested date / location"; the checklist row reads "Suggested: {x}".
+6. **Who leads it:** the toggle on the Float sheet and the starter's idea page reads **I'll decide · Me** (I'll decide is the default). **Anyone is gone.** Me = you're the lead from the start (`leadName: 'You'`). I'll decide = people can offer, you pick. The ⓘ explainer matches.
+7. **Review page (Plan an event):** no yellow "REVIEW" eyebrow (EDITING still shows when editing a posted event); with a photo the header uses the same purple-pink tint as the other steps; the checklist card title reads **"Review"** (was "Ready to post").
+8. **Location fields (Plan an event, page 1):** one grouped white field, two lines: **Location name** (17px bold, e.g. a park or "Hana's porch") over **Address** (16px, `autocomplete="street-address"`), split by a hairline. The address is stored as `spotAddr` and shows under the name on Review and the event page; if it's blank, fall back to the known-places lookup. Both optional except as the step already requires.
+9. **Visitors: Discussion stays behind sign-in**, even for guests who RSVP'd without an account (see the short-links spec below).
+
+## New since HANDOFF-to-DESIGN-7
+**Approved:** rows 96–105, §2 inventions and §3 behaviour, all as built.
+
+**Already decided Oct 5. These were in CLAUDE.md but never written here, so here they are:**
+- **Q4 Invite link 1b:** yes, do the public-read migration (inviter name + member count by code).
+- **Q8 Address:** show **sparkhub.wereallneighbors.org** to people.
+- **Q18 Feedback green:** `#149a4b`.
+- **Q23 B:** **3a**. Date-ordered lists end with a "NO DATE YET · N" heading (thin rule) and one white card of small rows (role bar, name, role · status). Undated **plans only**; ideas are never listed there.
+- **Q28 Place:** drop it everywhere (Edit profile and the profile pop-up).
+- **Q29 `#/own`:** retire it.
+- **Q22 + Q33 Group invites:** only **owners and admins** invite, from Group ⋯ → Invite people and a profile's "Invite to a group". Add friends reaches friends **and** people from your other groups, several at once. Non-users get a named link (1b). Invitees get a push, a bell row and the invite card on Groups (Join / Not now). **Not now hides it for good, silently.** The inviter sees invited · joined and can **Take back** (no one is told). **No expiry**, no invite-only groups. Members don't get the group link.
+- **Groups stay private (Q24f).** Anything seen outside the app shows the event only: no group name, members, other events or Join link. **Links need random codes:** `/i/{id}` exposes the id, so please move to `sparkhub.wereallneighbors.org/e/{random code}`, or at least a random code on `/i/`. Still to check for visitors: the guest RSVP and claim sheets, Who's coming (count only until you RSVP), Discussion, link-preview tags, the .ics file, and guest emails or pushes.
+- **Comment notifications:** the lead gets a push per comment (grouped per hour); a post's author gets a push on replies.
+- **Q35:** our mistake, `screens/02 Plus menu.png` will be retaken. Follow the prototype.
+
+**Answered Oct 6:**
+- **Recurring event and Runs across days are "Coming soon"** in "How long is it?": dimmed cards, the line reads "Coming soon", and tapping them shows the amber "… is coming soon" toast. Only One day and Separate days can be picked. Ignore v8-7 items 1's Recurring / Runs across days details for now.
+- **Short links: must move this round.** Spec:
+  - **Link:** `https://sparkhub.wereallneighbors.org/e/{code}`. The code is 6+ random lowercase letters and numbers, made when the event is posted and stored on it (`sparks.link_code`, unique). Never derived from the id. Every share (Share sheet, Copy link, Invite people, texts, emails, .ics) uses it.
+  - **Old links:** `/i/{id}` and `gosparkhub.vercel.app/...` redirect to the `/e/{code}` link for 6 months, then go to the "This link has expired" screen.
+  - **Shared message:** "{Event title} · {day} {link}". No group name.
+  - **Link preview tags** (og:title, og:description, og:image): event title, "{day} · {location}", event photo (or the purple sparkle card). No group name, no "on Spark Hub · {group}".
+  - **What a signed-out visitor sees at `/e/{code}`:** title, photo, date, location, What to expect, RSVP as a guest / sign in, Help out and Take part with counts. **Hidden:** group name, Visibility card, member lists, other events, Join group.
+  - **Who's coming:** a count only ("12 going") until you RSVP; names after.
+  - **Discussion:** **hidden behind sign-in** (owner, Oct 6). Signed out, including guests who RSVP'd without an account, it's a count card ("N posts · Sign in to read and join in") that opens sign-in.
+  - **Built in the prototype (Oct 6):** signed out on an event page, the RSVP faces are grey circles, See all toasts "RSVP to see who’s going", Led by can't be tapped, and Discussion is a count card ("N posts · Sign in to read and join in", tap opens sign-in). Names open once they RSVP as a guest; Discussion only after sign-in. Guest sheet "Almost there" as 1c.
+  - **Guest RSVP sheet (1c in `Visitor View Options.dc.html`):** name, then a purple "Get updates and a reminder" card pushing a free account (Continue with Google / Use my email). Below it, quiet "RSVP without an account" ("No updates or reminders. Only the lead sees your name."). **No guest emails or texts** (owner, Oct 6).
+  - **Led by:** first name and photo only, no profile tap.
+  - **The .ics file, guest emails and pushes:** event title, time, location and the `/e/` link. No group name.
+  - **Wrong or deleted code:** the existing "This link isn't working" screen; never say whether the event or group exists.
+- **Q21:** no extra reminders; the Ideas tab is enough. **The group isn't told** when a floated idea gets a lead.
+- **Q31 (`options/Led Idea Options.dc.html`, 1a + 1b + 1e):** ideas with a lead move to the new idea page. **Members (1a):** 8b plus a "Led by {name} · Picking a date / Picking a location" card under the title; **Help out and Take part work before it's a plan**; Discussion at the bottom as on events. **Lead (1b):** the starter's slide-up as built (note-paper top, Edit), with a quiet grey **"Led by {name}"** line under the description in place of "Floated by" ("Led by you" for the lead; the same line for members once there's a lead), the "Make this a plan" checklist (Date · Location · Lead with an Add button on each row); the button is grey ("Add a date first") until all are ticked, then **purple gradient with sparkles, "Make it a plan!"**, with "We'll tell the N people interested." Cancel / Delete are in Edit's ⋯. **After (1e):** the page turns purple in place, polls close (votes still readable in Edit), everyone interested moves to **Maybe** and gets a push ("{title} is on: {date}"), jobs and spots carry over, toast "It's a plan! We told the N people interested."
+- **Q34:** yes, an event's start time can also be **Morning · Afternoon · Evening** (same chips as the Float sheet, saved as `day_part`). Design will add them to the prototype's Plan an event.
+
+**Still open:** Q32 (Lead it / Offer to lead, waits on the float brief), and Q1, 6, 7, 9, 10, 12, 15, 16, 19, 24, 26.
+
+---
+
+# Round v8-7
 
 **Caught up with the build's `HANDOFF-to-DESIGN-5.md` as of Oct 6, 2026 (~1am).** v8-6 is below and still stands unless changed here. Screenshots: `screens/` (see the table at the end of this section). Options: `options/Multi-day Options.dc.html` (22–27), `options/Review Page Options.dc.html`.
 

@@ -221,8 +221,9 @@ test('page 1 needs a title and a date; What to expect folds its details; Review�
     await flow.getByRole('button', { name: 'Next' }).click({ force: true });
     await expect(page.getByRole('status')).toContainText('Choose an option');
     await flow.getByText('None needed', { exact: true }).click();
-    // Review (20c + 21b): REVIEW over the title, Ready to post with 1 of 4 added, Edit on what's done and Add on the rest
-    await expect(flow).toContainText('REVIEW');
+    // Review (20c + 21b; v8-8: no REVIEW eyebrow, the card is titled Review): 1 of 4 added, Edit on what's done and Add on the rest
+    await expect(flow).not.toContainText('REVIEW');
+    await expect(flow).not.toContainText('Ready to post');
     await expect(flow).toContainText('4/4');
     await expect(flow.locator('[data-review-lead]')).toHaveCount(0);
     await expect(flow.locator('[data-ready-count]')).toHaveText('1 of 4 added');
@@ -231,7 +232,7 @@ test('page 1 needs a title and a date; What to expect folds its details; Review�
     await expect(flow).not.toContainText('It goes on the calendar as a plan.');
     await flow.locator('[data-review-edit="details"]').click();
     const pop = page.getByRole('dialog', { name: 'What to expect' });
-    await expect(flow).toContainText('REVIEW');   // still on Review, under the pop-up
+    await expect(flow.locator('[data-ready-count]')).toBeVisible();   // still on Review, under the pop-up
     await pop.locator('[data-add-details]').click();
     await pop.getByLabel('Details, line 1').fill('Bring a bowl');
     await pop.getByLabel('Details, line 2').fill('Spoons too');
@@ -322,26 +323,43 @@ test('polls: the host posts a date poll (an idea), a member votes, the host pick
     await expect(flow.locator('[data-posts-as]')).toContainText('This goes up as an idea');
 
     await flow.locator('[data-post]').click();
-    await expect(H.locator('[data-screen-label="Idea page"]')).toBeVisible();
+    // An idea with a lead uses the new idea page (v8-8, Q31): the lead gets the checklist, members the Led by card
+    await expect(H.locator('[data-screen-label="Idea page (8b)"]')).toBeVisible();
     await closeAskFirst(H);
     id = await H.evaluate(() => location.hash.split('/').pop());
 
     await openIdea(O, id);
-    const OI = O.locator('[data-screen-label="Idea page"]');
-    await OI.getByRole('button', { name: /^Vote for .*\(0 votes, suggested by / }).first().click();
-    await expect(OI.getByRole('button', { name: /^Remove your vote for .*\(1 vote, suggested by / })).toHaveCount(1);
+    const OI = O.locator('[data-screen-label="Idea page (8b)"]');
+    await expect(OI.locator('[data-led-by8]')).toContainText('Picking a date');
+    await expect(OI.locator('[data-led-line]')).toContainText('Led by');
+    await OI.locator('[data-when] [data-cal-page]').first().click();
+    await expect(OI.locator('[data-when] [data-cal-page][aria-pressed="true"]')).toHaveCount(1);
 
-    // The host picks the winner, then locks it in
+    // The lead picks the date and adds a location in the Pick pop-ups (v8-8 item 4), then Make it a plan! (grey until then)
     await H.reload();
-    const HI = H.locator('[data-screen-label="Idea page"]');
-    await HI.getByRole('button', { name: /^Pick .*\(1 vote, suggested by / }).click();
-    await confirm(H, 'Use this date');
-    // A lead and a date are all it takes (owner, 2026-10-02): no location or details yet, and Make it a plan! is there
-    await expect(HI.locator('[data-plan-needs]')).toHaveCount(0);
-    await expect(HI.locator('[data-make-plan]')).toContainText('Make it a plan!');   // in the gold strip (owner's mock, 2026-10-01)
-    await HI.getByRole('button', { name: 'Make it a plan' }).click();
-    await confirm(H, 'Make it a plan');
+    const HI = H.locator('[data-screen-label="Idea page (8b)"]');
+    await expect(HI.locator('[data-make-it-plan]')).toHaveText('Add a date first');
+    await HI.locator('[data-plan-date]').click();
+    const pickD = H.getByRole('dialog', { name: 'Pick a date' });
+    await expect(pickD).toContainText('Choose from the dates people voted on.');
+    await expect(pickD.locator('[data-pick-opt][aria-checked="true"]')).toContainText('1 vote');   // the top one is picked
+    await pickD.locator('[data-pick-confirm]').click();
+    await expect(H.getByRole('status')).toContainText('Date set');
+    await expect(HI.locator('[data-make-it-plan]')).toHaveText('Add a location first');
+    await HI.locator('[data-plan-loc]').click();
+    const pickL = H.getByRole('dialog', { name: 'Pick a location' });
+    await expect(pickL.locator('[data-pick-confirm]')).toHaveAttribute('aria-disabled', 'true');
+    await pickL.getByLabel('Location').fill('Pease Park');
+    await pickL.locator('[data-pick-confirm]').click();
+    await expect(H.getByRole('status')).toContainText('Location set');
+    await HI.locator('[data-make-it-plan]').click();
+    // Review, prefilled; Post it turns the idea into the event (the same record)
+    await expect(flow.locator('[data-ready-count]')).toBeVisible();
+    await expect(flow.locator('[data-review-edit="where"]')).toContainText('Pease Park');
+    await flow.locator('[data-post]').click();
     await expect(H.locator('[data-screen-label="Plan page"]')).toBeVisible();
+    await expect(H.getByRole('status')).toContainText('It’s a plan!');
+    expect(await H.evaluate(() => location.hash.split('/').pop())).toBe(id);
 
     // A plan keeps its date: clearing it can't be saved; turning it back into an idea takes it off
     await H.getByLabel('Edit date, time and location').click();
@@ -352,7 +370,8 @@ test('polls: the host posts a date poll (an idea), a member votes, the host pick
     await when.locator('[data-back-to-idea]').click();
     await confirm(H, 'Back to an idea');
     await expect(HI).toBeVisible();
-    await expect(HI.locator('[data-plan-needs] [data-plan-row="date"]')).toBeVisible();
+    await expect(HI.locator('[data-make-this-plan]')).toContainText('You’re leading it');   // the lead keeps it; only the date comes off
+    await expect(HI.locator('[data-make-it-plan]')).toHaveText('Add a date first');
     expect(host.errors).toEqual([]);
     expect(member.errors).toEqual([]);
   } finally {
@@ -429,11 +448,11 @@ test('location suggestions: 2 letters, 4 rows, Austin area, remembered, free tex
     await pickKind(page);
     await flow.getByLabel('Event title').fill('Anything');
     await pickDate(flow, inDays(5));
-    // Location is on page 1 (v8-6)
-    await page.getByLabel('Location').fill('z');
+    // Location is on page 1 (v8-6): Location name over Address (v8-8)
+    await page.getByLabel('Location name').fill('z');
     await page.waitForTimeout(400);
     expect(context.placeRequests).toHaveLength(0);
-    await page.getByLabel('Location').fill('zilk');
+    await page.getByLabel('Location name').fill('zilk');
     const list = page.getByRole('group', { name: 'Suggested places' });
     await expect(list).toContainText('2100 Barton Springs Road, Austin, TX 78746');
     await expect(list).not.toContainText('United States');
@@ -442,18 +461,19 @@ test('location suggestions: 2 letters, 4 rows, Austin area, remembered, free tex
     expect(url.searchParams.get('text')).toBe('zilk');
     expect(url.searchParams.get('filter')).toBe('circle:-97.7431,30.2672,60000');
 
-    await page.getByLabel('Location').fill('zilker');
+    await page.getByLabel('Location name').fill('zilker');
     await expect.poll(() => context.placeRequests.length).toBe(2);
-    await page.getByLabel('Location').fill('zilk');             // already searched: no new lookup
+    await page.getByLabel('Location name').fill('zilk');             // already searched: no new lookup
     await expect(list).toBeVisible();
     await page.waitForTimeout(300);
     expect(context.placeRequests).toHaveLength(2);
 
-    // Pick, then change the text: the address goes (free text is fine)
+    // Pick: the name and the Address field fill in; the address is its own field, so renaming keeps it (v8-8)
     await list.getByRole('button', { name: /1100 Congress Avenue/ }).click();
-    await expect(page.getByText('Austin, TX 78701')).toBeVisible();
-    await page.getByLabel('Location').fill('1100 Congress Avenue, the steps');
-    await expect(page.getByText('Austin, TX 78701')).toBeHidden();
+    await expect(page.getByLabel('Address')).toHaveValue(/Austin, TX 78701/);
+    await page.getByLabel('Location name').fill('The Capitol steps');
+    await expect(list).toBeHidden();
+    await expect(page.getByLabel('Address')).toHaveValue(/Austin, TX 78701/);
     await expect(button(page, 'Next')).toHaveAttribute('aria-disabled', 'false');
   } finally {
     await context.close();
@@ -640,13 +660,14 @@ test('Float an idea: the Float sheet, a draft, and the starter’s slide-up', as
     await expect(page.getByRole('status')).toContainText('Picked up your draft');
     await expect(sheet.getByLabel('Your idea')).toHaveValue(title);
     await expect(sheet.locator('[data-qi-loc-sum]')).toContainText('Butler Park');
-    // Page 2: the recap, WHERE IT GOES, HOW PEOPLE CAN HELP; Talk it through on, Who leads it: Anyone
+    // Page 2: the recap, WHERE IT GOES, HOW PEOPLE CAN HELP; Talk it through on, Who leads it: I'll decide (the default, v8-8)
     await sheet.locator('[data-qi-next]').click();
     await expect(sheet).toContainText('WHERE IT GOES');
     await expect(sheet.locator('[data-qi-post-to]')).toContainText('Torrez Fitness');
     await sheet.locator('[data-talk-toggle]').click();
     await expect(sheet.locator('[data-talk-toggle]')).toHaveAttribute('aria-checked', 'true');
-    await sheet.locator('[data-rule="any"]').click();
+    await expect(sheet.locator('[data-rule="decide"]')).toHaveAttribute('aria-pressed', 'true');
+    await expect(sheet.locator('[data-rule="any"]')).toHaveCount(0);   // Anyone is gone (v8-8 item 6)
     await sheet.locator('[data-qi-post]').click();
     // It opens on the Ideas tab as the starter's slide-up
     const ip = page.locator('[data-screen-label="Idea sheet"]');
@@ -656,7 +677,7 @@ test('Float an idea: the Float sheet, a draft, and the starter’s slide-up', as
     await expect(ip.locator('[data-make-this-plan]')).toContainText('Choose lead');
     id = await asUser(page, async (c, _C, title) => (await c.from('sparks').select('id').eq('text', title).single()).data.id, title);
     const row = await asUser(page, async (c, _C, id) => (await c.from('sparks').select('wants_host,planned,talk,lead_rule,overview,date_options(day_part),spot_options(name)').eq('id', id).single()).data, id);
-    expect(row).toMatchObject({ wants_host: true, planned: false, talk: true, lead_rule: 'any', overview: 'Bring a kite or borrow one', date_options: [{ day_part: 'evening' }] });
+    expect(row).toMatchObject({ wants_host: true, planned: false, talk: true, lead_rule: 'me', overview: 'Bring a kite or borrow one', date_options: [{ day_part: 'evening' }] });
     expect(row.spot_options.map(o => o.name).sort()).toEqual(['Butler Park', 'Zilker Park']);
     // Swipe up for more: When? (with the time on its calendar page), Where?, and the starter's settings
     await ip.locator('[data-ip-more]').click();

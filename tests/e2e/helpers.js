@@ -267,7 +267,7 @@ async function postEvent(page, { title, date, time, where, pick, details = [], j
     await pickTime(flow, time);
   }
   if (where) {
-    await flow.getByLabel('Location').fill(where);
+    await flow.getByLabel('Location name').fill(where);
     if (pick) await page.getByRole('group', { name: 'Suggested places' }).getByRole('button', { name: new RegExp(pick) }).click();
   }
   await next();
@@ -291,8 +291,8 @@ async function postEvent(page, { title, date, time, where, pick, details = [], j
     await next();
   } else await flow.getByText('None needed', { exact: true }).click();
 
-  // Review (v8-6): Ready to post, then Post to with Public / Private
-  await expect(flow).toContainText('REVIEW');
+  // Review (v8-8: the card is titled Review, no REVIEW eyebrow), then Post to with Public / Private
+  await expect(flow.locator('[data-ready-count]')).toBeVisible();
   await expect(flow).toContainText('4/4');
   if (inviteOnly) await flow.getByRole('radio', { name: /^Private/ }).click();
   await flow.locator('[data-post]').click();

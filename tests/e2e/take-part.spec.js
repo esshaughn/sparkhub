@@ -40,7 +40,7 @@ test('take part: set up spots, claim, waitlist, guest, roster and giving up', as
     await expect(flow.locator('[data-job="Court time"]')).toContainText('Take part · 2 times · 2 spots');
     await expect(flow.locator('[data-job="Beginner clinic"]')).toContainText('Take part · 2 seats');
     await next();
-    await expect(flow).toContainText('REVIEW');
+    await expect(flow.locator('[data-ready-count]')).toBeVisible();
     await expect(flow.locator('[data-review-edit="help"]')).toContainText('Court time, Beginner clinic');   // Ready to post's Join in row (v8-6)
     await flow.locator('[data-post]').click();
     await expect(H.locator('[data-screen-label="Plan page"]')).toBeVisible();

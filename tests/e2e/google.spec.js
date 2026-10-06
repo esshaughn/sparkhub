@@ -56,9 +56,9 @@ test('coming back signed in posts the saved draft', async ({ browser }) => {
       draft: { activity: title, evTest: false, evStep: 'review', evBits: ['Bring snacks', '', ''], evNeeds: [], evLater: {}, locText: '', locPlace: null, photos: [] }   // evTest: the Real or test answer travels with the draft
     })), { k: RESUME_KEY, title });
     await page.goto('/?code=returned-from-google');
-    await expect(page.locator('[data-screen-label="Idea page"]')).toBeVisible();   // no date: it goes up as an idea (no chip, owner 2026-10-01)
+    await expect(page.locator('[data-screen-label="Idea page (8b)"]')).toBeVisible();   // no date: it goes up as an idea (no chip, owner 2026-10-01)
     await closeAskFirst(page);
-    const detail = page.locator('[data-screen-label="Idea page"]');
+    const detail = page.locator('[data-screen-label="Idea page (8b)"]');
     await expect(detail).toContainText(title.charAt(0).toUpperCase() + title.slice(1));
     await expect(detail).toContainText('Bring snacks');
     id = page.url().match(/#\/idea\/([0-9a-f-]{36})$/)[1];

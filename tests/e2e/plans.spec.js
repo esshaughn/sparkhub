@@ -457,13 +457,11 @@ test('looking for a lead: the lead steps back, someone else takes the lead', asy
     const title = uniqueTitle('Kite day');
     const id = await postIdea(H, { title });
     ids.push(id);
-    const HI = H.locator('[data-screen-label="Idea page"]');
-    // Looking for a lead is stepping back (owner, 2026-10-01: no Looking for a lead card): Edit → Leads → Step back
-    await HI.locator('[data-led-by]').getByRole('button', { name: 'Manage co-leads' }).click();
-    await H.getByRole('dialog', { name: 'Leads' }).locator('[data-lead-row="Hope"]').getByRole('button', { name: 'Step back' }).click();
-    await confirm(H, 'Step back');
-    // Floated (no lead) it has the v8 idea page: Hope is its starter, so Make this a plan reads Choose lead
+    // An idea with a lead has the v8 idea page too (v8-8): Hope leads it, so Who leads it reads Me; I'll decide looks for a lead
     const HS = H.locator('[data-screen-label="Idea page (8b)"]');
+    await expect(HS.locator('[data-led-line]')).toContainText('Led by you');
+    await expect(HS.locator('[data-rule="me"]')).toHaveAttribute('aria-pressed', 'true');
+    await HS.locator('[data-rule="decide"]').click();
     await expect(HS.locator('[data-make-this-plan]')).toContainText('Choose lead');
 
     // Hope asks Otto by name (owner, 2026-10-02): Choose lead → Ask someone else → Ask → Asked, and the row says who
@@ -495,16 +493,15 @@ test('looking for a lead: the lead steps back, someone else takes the lead', asy
     await expect(OS.locator('[data-im-interested]')).toHaveText('✓ You’re interested');
     await expect(O.locator('html[data-saving]')).toHaveCount(0);   // the taps show at once; wait for them to be saved
 
-    // Otto takes the lead: it has a lead now, so it's back on the plan-style idea page
+    // Otto takes the lead: he gets the lead's view (Make this a plan), Hope the member's Led by card (Q31)
     await OS.locator('[data-lead-it]').click();
     await confirm(O, 'I’ll lead it');
-    const OI = O.locator('[data-screen-label="Idea page"]');
-    await expect(OI).toContainText('YOU’RE LEADING');
-    await expect(OI.locator('[data-plan-row="lead"]')).toHaveCount(0);
+    await expect(OS.locator('[data-led-line]')).toContainText('Led by you');
+    await expect(OS.locator('[data-make-this-plan]')).toContainText('You’re leading it');
     await openIdea(H, id);
-    await expect(HI.locator('[data-led-by]')).toContainText('LED BY');
-    await expect(HI.locator('[data-led-by]')).toContainText('Otto');
-    await expect(HI.getByRole('button', { name: 'You’re interested' })).toBeVisible();   // the floater stays interested
+    await expect(HS.locator('[data-led-by8]')).toContainText('LED BY');
+    await expect(HS.locator('[data-led-by8]')).toContainText('Otto');
+    await expect(HS.locator('[data-im-interested]')).toHaveText('✓ You’re interested');   // the floater stays interested
 
     // Who came: a plan from two days ago that Otto said yes to
     const past = await asUser(H, async (c, _C, { title, day }) => {
@@ -602,28 +599,30 @@ test('a vote on a suggested date changes as soon as it is tapped (the save follo
       const me = (await c.auth.getUser()).data.user.id;
       const g = (await c.from('groups').select('id').eq('name', 'Torrez Fitness').single()).data.id;
       const sid = (await c.from('sparks').insert({ group_id: g, author_name: 'Host', lead_name: 'Host', lead_id: me, created_by: me, text: '[E2E] Quick vote ' + Date.now().toString(36) }).select('id').single()).data.id;
+      // two dates: one date is only a suggestion, not a poll (v8-8 item 5)
       await c.from('date_options').insert({ spark_id: sid, day_date: day, day_time: '18:30', who: 'Host', created_by: me });
+      await c.from('date_options').insert({ spark_id: sid, day_date: new Date(Date.parse(day) + 864e5).toISOString().slice(0, 10), who: 'Host', created_by: me });
       return sid;
     }, inDays(9));
     await M.goto('/#/idea/' + id);
-    const opt = M.locator('[data-poll-opt]');
-    await expect(opt).toContainText('0 votes');
+    const opt = M.locator('[data-when] [data-cal-page]').first();
+    await expect(opt).toContainText('Be the first');
     // A slow save: the vote shows long before it lands
     let release;
     const gate = new Promise(r => { release = r; });
     await M.route('**/rest/v1/date_votes*', async (route) => { if (route.request().method() !== 'GET') await gate; await route.continue().catch(() => {}); });
-    await M.getByRole('button', { name: /^Vote for / }).click();
-    await expect(M.getByRole('button', { name: /^Remove your vote for / })).toHaveAttribute('aria-pressed', 'true', { timeout: 1000 });
-    await expect(opt).toContainText('1 vote');
+    await opt.click();
+    await expect(opt).toHaveAttribute('aria-pressed', 'true', { timeout: 1000 });
+    await expect(opt).toContainText('1 can go');
     release();
     await M.unroute('**/rest/v1/date_votes*');
     await expect.poll(() => asUser(H, async (c, _C, id) => (await c.from('date_options').select('date_votes(user_id)').eq('spark_id', id)).data[0].date_votes.length, id)).toBe(1);
     // A failed save puts the vote back
     await M.route('**/rest/v1/date_votes*', (route) => route.request().method() === 'GET' ? route.continue() : route.fulfill({ status: 500, body: '{}' }));
-    await M.getByRole('button', { name: /^Remove your vote for / }).click();
+    await opt.click();
     await expect(M.getByText('That didn’t go through. Try again in a moment.')).toBeVisible();
-    await expect(M.getByRole('button', { name: /^Remove your vote for / })).toHaveAttribute('aria-pressed', 'true');
-    await expect(opt).toContainText('1 vote');
+    await expect(opt).toHaveAttribute('aria-pressed', 'true');
+    await expect(opt).toContainText('1 can go');
   } finally {
     if (id) await asUser(H, async (c, _C, id) => c.rpc('delete_event', { p_spark: id, p_quiet: true }), id).catch(() => {});
     await host.context.close(); await mem.context.close();
@@ -710,25 +709,20 @@ test('no date yet: the lead runs a date poll from the idea; stepping back blocks
     }, uniqueTitle('Poll walk'));
     expect(id).toMatch(/^[0-9a-f-]{36}$/);
     await openIdea(H, id);
-    const HI = H.locator('[data-screen-label="Idea page"]');
-    await HI.locator('[data-empty-date]').getByRole('button', { name: 'Run a poll' }).click();
-    const poll = H.getByRole('dialog', { name: 'Poll the group' });
-    await pickDate(poll, inDays(15), 'Date option 1');
-    await pickDate(poll, inDays(16), 'Date option 2');
-    await poll.getByRole('button', { name: 'Save' }).click();
-    await expect(H.getByText('Poll started. Everyone can vote now.')).toBeVisible();
-    await expect(HI.locator('#sec-when')).toContainText('VOTE ON A DATE');
-    await expect(HI.locator('[data-empty-date]')).toHaveCount(0);
-    // Looking for a lead: the card names what's missing, a lead and a date (owner, 2026-10-02)
-    await HI.locator('[data-led-by]').getByRole('button', { name: 'Manage co-leads' }).click();
-    await H.getByRole('dialog', { name: 'Leads' }).locator('[data-lead-row="Pia"]').getByRole('button', { name: 'Step back' }).click();
-    await confirm(H, 'Step back');
-    // Looking for a lead (and no jobs), it has the v8 idea page: Pia floated it, so Make this a plan says what's missing,
-    // with no Make it a plan until someone leads it
+    // The lead's idea page (v8-8): When? → Add a date opens Edit dates; two dates make a poll
     const HS = H.locator('[data-screen-label="Idea page (8b)"]');
+    await HS.locator('[data-when-empty]').click();
+    const ed = H.getByRole('dialog', { name: 'Edit when or where' });
+    await ed.getByLabel('Date').first().fill(inDays(15));
+    await ed.getByText('+ Add a date', { exact: true }).click();
+    await ed.getByLabel('Date').nth(1).fill(inDays(16));
+    await ed.locator('[data-ip-pop-done]').click();
+    await expect(H.getByRole('status')).toContainText('Saved');
+    // Looking for a lead (I'll decide): Make this a plan says what's missing, and the button stays grey
+    await HS.locator('[data-rule="decide"]').click();
     await expect(HS.locator('[data-make-this-plan]')).toContainText('No votes yet');
     await expect(HS.locator('[data-make-this-plan]')).toContainText('Choose lead');
-    await expect(HS.locator('[data-make-it-plan]')).toHaveCount(0);
+    await expect(HS.locator('[data-make-it-plan]')).toHaveText('Add a date first');
     await expect(HS.locator('[data-when] [data-cal-page]')).toHaveCount(2);
     expect(await asUser(H, async (c, _C, sid) => { await c.from('sparks').update({ day_date: new Date(Date.now() + 9 * 864e5).toISOString().slice(0, 10) }).eq('id', sid); const r = await c.rpc('make_plan', { p_spark: sid }); return r.error ? 'refused' : 'ALLOWED'; }, id)).toBe('refused');
     expect(host.errors.filter(e => !/status of 400/.test(e))).toEqual([]);   // the refused make_plan above

@@ -2,8 +2,11 @@
 // the lead picking, the mood board, making it a plan. A guest (no account) is asked to make one.
 const { test, expect } = require('@playwright/test');
 const { uniqueTitle, newMember, newLead, leadEmail, button, pickDate, pickTime, saved, postIdea, openIdea, deleteIdea, answerGuestPrompt, confirm, PNG, openProfile } = require('./helpers');
+const inDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 
-test('a member with the link takes part; everyone votes; the lead picks and makes it a plan', async ({ browser }) => {
+// An idea with a lead (v8-8, Q31 1a + 1b + 1e): the member's Led by card, suggestions, the lead's Pick pop-ups, then
+// Make it a plan! opens Review prefilled and Post it turns the idea into the event; everyone interested is Maybe
+test('a member with the link takes part; the lead picks and makes it a plan', async ({ browser }) => {
   const lead = await newLead(browser, 1, 'Lena');
   const guest = await newLead(browser, 2, 'Gus');
   const visitor = await newMember(browser);
@@ -11,119 +14,69 @@ test('a member with the link takes part; everyone votes; the lead picks and make
   const title = uniqueTitle('Laser tag');
   let id;
   try {
-    id = await postIdea(L, { title, basics: ['teams by class'] });
-    const LD = L.locator('[data-screen-label="Idea page"]');
-    await expect(LD.getByLabel('Steps to a plan')).toHaveCount(0);   // no steps strip on ideas (owner, 2026-10-05)
-    await expect(LD.locator('[data-plan-needs]')).toContainText('1 thing to go');   // a date: a plan needs a lead and a date (owner, 2026-10-02)
-    await expect(LD.locator('[data-plan-needs] [data-plan-row="location"]')).toHaveCount(0);
-    await expect(LD.locator('#sec-when [data-empty-date]')).toContainText('No date yet');   // the lead: Set a date or Run a poll (owner's mock, 2026-10-01)
-    await expect(LD.locator('#sec-when [data-empty-date]').getByRole('button', { name: 'Set a date' })).toBeVisible();
+    id = await postIdea(L, { title });
+    const LD = L.locator('[data-screen-label="Idea page (8b)"]');
+    await expect(LD.locator('[data-led-line]')).toContainText('Led by you');
+    await expect(LD.locator('[data-make-it-plan]')).toHaveText('Add a date first');
 
     // A guest (no account) with the link sees the idea, but "I'm interested" asks them to make an account
     await openIdea(V, id);
-    await expect(V.locator('[data-screen-label="Idea page"]')).toContainText('Teams by class');
-    await button(V, 'I’m interested').click();
+    const VD = V.locator('[data-screen-label="Idea page (8b)"]');
+    await expect(VD).toContainText(title.charAt(0).toUpperCase() + title.slice(1));
+    await VD.locator('[data-im-interested]').click();
     const signIn = V.getByRole('dialog', { name: 'Sign in' });
     await expect(signIn).toContainText('Create a free account');
     await signIn.getByRole('button', { name: 'Close' }).click();
-    await expect(button(V, 'I’m interested')).toBeVisible();
+    // Discussion is behind sign-in: a count card (v8-8 item 9)
+    await expect(VD.locator('[data-disc-signin]')).toContainText('Sign in to read and join in');
 
-    // A member opens the shared link
+    // A member opens the shared link: Led by Lena, Picking a date
     await openIdea(G, id);
-    const GD = G.locator('[data-screen-label="Idea page"]');
-    await expect(GD.locator('[data-led-by]')).toContainText('Lena');
-    await expect(GD).toContainText('Teams by class');
-    await expect(GD.getByRole('button', { name: 'Edit' })).toHaveCount(0);
-
-    // "I'm interested" counts them
-    await button(G, 'I’m interested').click();
-    await expect(button(G, 'You’re interested')).toBeVisible({ timeout: 1000 });   // changes with the tap (owner, 2026-10-02), like RSVP
-    await expect(GD.locator('#sec-people')).toContainText('1 interested');
-
-    // Add a location and a date (owner's mock, 2026-10-02): they go on the vote, with my vote on them unless I untick it
-    await GD.locator('[data-suggest-spot]').click();   // before any vote, the date & place card's + Add a location
-    const offer = G.getByRole('dialog', { name: 'Add a location' });
-    await expect(offer.locator('[data-offer-vote]')).toHaveAttribute('aria-checked', 'true');
-    await offer.getByLabel('Location').fill('the north lot at Zilker');
-    await offer.getByRole('button', { name: 'Add location', exact: true }).click();
-    await expect(G.getByText(/^Location added\./)).toBeVisible();
-    await expect(GD.locator('[data-picking]')).toContainText('Help pick');
-    await expect(GD.getByRole('button', { name: /^Remove your vote for The north lot at Zilker \(1 vote, suggested by Gus\)/ })).toHaveAttribute('aria-pressed', 'true');
-    // A tap takes the vote back, with Undo on the toast
-    await GD.getByRole('button', { name: /^Remove your vote for The north lot at Zilker/ }).click();
-    await expect(GD.getByRole('button', { name: /^Vote for The north lot at Zilker \(0 votes/ })).toHaveAttribute('aria-pressed', 'false', { timeout: 1000 });
-    await G.getByText('Undo', { exact: true }).click();
-    await expect(GD.getByRole('button', { name: /^Remove your vote for The north lot at Zilker \(1 vote/ })).toBeVisible();
-    await GD.locator('[data-add-day]').click();
-    const dateOffer = G.getByRole('dialog', { name: 'Add a date' });
-    await pickDate(dateOffer, '2026-11-14');   // our own date picker and time list, not the browser's
-    await dateOffer.getByRole('button', { name: 'Optional', exact: true }).click();
-    await pickTime(dateOffer, '18:30');
-    await dateOffer.getByRole('button', { name: 'Add date', exact: true }).click();
-    await expect(G.getByRole('dialog')).toHaveCount(0);
-    await expect(GD.getByRole('button', { name: /^Remove your vote for Sat, Nov 14 · 6:30pm \(1 vote, suggested by Gus\)/ })).toBeVisible();
-    await expect(GD.locator('[data-vote-foot]')).toHaveText('You voted for 1 date and 1 location');
+    const GD = G.locator('[data-screen-label="Idea page (8b)"]');
+    await expect(GD.locator('[data-led-by8]')).toContainText('Lena');
+    await expect(GD.locator('[data-led-by8]')).toContainText('Picking a date');
+    await expect(GD.locator('[data-idea-edit]')).toHaveCount(0);
+    await GD.locator('[data-im-interested]').click();
+    await expect(GD.locator('[data-im-interested]')).toHaveText('✓ You’re interested', { timeout: 1000 });
+    // Suggest a date and a location; one of each is a suggestion, not a poll (v8-8 item 5)
+    await GD.getByText('Suggest a date', { exact: true }).first().click();
+    const sd = G.getByRole('dialog', { name: 'Suggest a date' });
+    await sd.getByLabel('Date').fill(inDays(12));
+    await sd.locator('[data-ip-pop-done]').click();
+    await expect(G.getByRole('status')).toContainText('Date added');
+    await expect(GD.locator('[data-when] [data-suggested]')).toContainText('Suggested');
+    await expect(GD.locator('[data-when]')).not.toContainText('Choose all dates you could attend.');
+    await GD.getByText('Suggest a location', { exact: true }).first().click();
+    const sl = G.getByRole('dialog', { name: 'Suggest a location' });
+    await sl.getByLabel('Location').fill('The north lot at Zilker');
+    await sl.locator('[data-ip-pop-done]').click();
+    await expect(G.getByRole('status')).toContainText('Location added');
     await saved(G);
 
-    // The lead sees who's interested and the suggestions, and picks
+    // The lead confirms the suggestions in the Pick pop-ups, then Make it a plan!
     await L.reload();
-    await LD.getByRole('button', { name: 'See who’s interested' }).click();
-    const list = L.getByRole('dialog', { name: 'Who’s interested' });
-    await expect(list).toContainText('Gus');
-    await expect(list.getByRole('link')).toHaveCount(0);   // no phone numbers: guests don't leave one
-    await list.getByRole('button', { name: 'Close' }).click();
-    // Pick closes each poll (as on a plan)
-    await LD.getByRole('button', { name: /^Pick The north lot at Zilker/ }).click();
-    await confirm(L, 'Use this location');
-    await expect(LD.locator('[data-poll-opt]')).toHaveCount(1);
-    await LD.getByRole('button', { name: /^Pick Sat, Nov 14/ }).click();
-    await confirm(L, 'Use this date');
-    await expect(LD.locator('[data-poll-opt]')).toHaveCount(0);
-    await expect(LD.locator('#sec-when')).toContainText('Saturday, Nov 14');
-    await expect(LD.locator('#sec-when')).toContainText('The north lot at Zilker');
-
-    // "What you're picturing" is retired (owner, 2026-09-30): Basic details is the one place for notes
-    await expect(LD.getByText('Say more about what you’re picturing')).toHaveCount(0);
-    await expect(LD).not.toContainText('What you’re picturing');
-
-    // Inspo: lead adds and removes a photo; members only see it with photos
-    await expect(LD).toContainText('0 / 3');
-    await LD.getByLabel('Add a mood photo').setInputFiles({ name: 'mood.png', mimeType: 'image/png', buffer: PNG });
-    await expect(LD).toContainText('1 / 3');
-    await G.reload();
-    await expect(GD.getByRole('button', { name: /^View mood photo/ })).toHaveCount(1);
-    await GD.getByRole('button', { name: 'View mood photo 1' }).click();
-    const zoom = G.getByRole('dialog', { name: 'Photo' });
-    await expect(zoom.getByRole('img', { name: 'Photo 1 of 1' })).toBeVisible();
-    await zoom.getByRole('img', { name: 'Photo 1 of 1' }).click();   // a tap on the photo closes it, like the ✕
-    await expect(zoom).toHaveCount(0);
-    await LD.getByRole('button', { name: 'Remove photo' }).click();
-    await expect(LD).toContainText('0 / 3');
-    // Several at once (Joseph, 2026-10-03): two in one pick, one save; then only the room that's left is used
-    const moodPng = (n) => ({ name: 'mood' + n + '.png', mimeType: 'image/png', buffer: PNG });
-    await LD.getByLabel('Add a mood photo').setInputFiles([moodPng(1), moodPng(2)]);
-    await expect(LD).toContainText('2 / 3');
-    await expect(LD.getByRole('button', { name: 'View mood photo 1' })).toBeVisible();
-    await expect(LD.getByRole('button', { name: 'View mood photo 2' })).toBeVisible();
-    await LD.getByLabel('Add a mood photo').setInputFiles([moodPng(3), moodPng(4)]);
-    await expect(L.getByText('Only 3 photos fit. Added the first 1.')).toBeVisible();
-    await expect(LD).toContainText('3 / 3');
-    await expect(LD.getByRole('button', { name: /^View mood photo/ })).toHaveCount(3);
-    for (const n of ['2 / 3', '1 / 3', '0 / 3']) {
-      await LD.getByRole('button', { name: 'Remove photo' }).first().click();
-      await expect(LD).toContainText(n);
-    }
-
-    // Make it a plan: the interested member shows as going
-    await expect(LD.locator('[data-make-plan]')).toContainText('Make it a plan!');   // in the gold strip (owner's mock, 2026-10-01)
-    await LD.getByRole('button', { name: 'Make it a plan' }).click();
-    await confirm(L, 'Make it a plan');
+    await expect(LD.locator('[data-plan-date]')).toHaveText('Pick');
+    await expect(LD.locator('[data-make-this-plan]')).toContainText('Suggested:');
+    await LD.locator('[data-plan-date]').click();
+    const pd = L.getByRole('dialog', { name: 'Pick a date' });
+    await expect(pd).toContainText('Confirm the suggested date.');
+    await pd.locator('[data-pick-confirm]').click();
+    await LD.locator('[data-plan-loc]').click();
+    const pl = L.getByRole('dialog', { name: 'Pick a location' });
+    await expect(pl).toContainText('Confirm the suggested location.');
+    await pl.locator('[data-pick-confirm]').click();
+    await expect(LD.locator('[data-make-this-plan]')).toContainText('We’ll tell the 1 person interested.');
+    await LD.locator('[data-make-it-plan]').click();
+    const flow = L.locator('[data-screen-label="New spark"]');
+    await expect(flow.locator('[data-review-edit="where"]')).toContainText('The north lot at Zilker');
+    await flow.locator('[data-post]').click();
     const LP = L.locator('[data-screen-label="Plan page"]');
-    await expect(LP).toContainText('YOU’RE LEADING');
-    await expect(LP.locator('[data-going]')).toHaveAttribute('aria-label', 'See everyone going (2)');   // the lead is going too (20261101160000_lead_going.sql)
+    await expect(LP).toBeVisible();
+    await expect(L.getByRole('status')).toContainText('It’s a plan! We told the 1 person interested.');
+    // Gus was interested, so he's down as Maybe (Q31 1e)
     await G.reload();
     const GP = G.locator('[data-screen-label="Plan page"]');
-    await expect(GP.locator('[data-rsvp]').getByRole('button', { name: /^Going/ })).toHaveAttribute('aria-pressed', 'true');
+    await expect(GP.locator('[data-rsvp]').getByRole('button', { name: /^Maybe/ })).toHaveAttribute('aria-pressed', 'true');
 
     expect(lead.errors).toEqual([]);
     expect(guest.errors).toEqual([]);
@@ -146,8 +99,8 @@ test('the Ideas board puts the idea with the most interest first', async ({ brow
     ids.push(await postIdea(poster.page, { title: older }));
     ids.push(await postIdea(poster.page, { title: newer }));
     await openIdea(fan.page, ids[0]);
-    await button(fan.page, 'I’m interested').click();
-    await expect(fan.page.locator('#sec-people')).toContainText('1 interested');
+    await fan.page.locator('[data-im-interested]').click();
+    await expect(fan.page.locator('[data-im-interested]')).toHaveText('✓ You’re interested');
     await saved(fan.page);
 
     const P = poster.page;
@@ -193,7 +146,8 @@ test('Edit profile: a new name shows everywhere', async ({ browser }) => {
     await expect(me.page.getByText('Profile saved')).toBeVisible();
     await expect(me.page.locator('[data-screen-label=Me]')).toContainText('Samira');
     await openIdea(me.page, id);
-    await expect(me.page.locator('[data-screen-label="Idea page"]')).toBeVisible();   // (the lead doesn't see a Led by card on their own event, as on plans)
+    await expect(me.page.locator('[data-screen-label="Idea page (8b)"] [data-led-line]')).toContainText('Led by you');   // the lead gets no Led by card on their own idea
+    await expect(me.page.locator('[data-led-by8]')).toHaveCount(0);
     expect(me.errors).toEqual([]);
   } finally {
     if (id) await deleteIdea(me.page, id).catch(() => {});
