@@ -377,6 +377,8 @@
     if (screen === 'detail' && state.screen !== 'detail') {
       state.back = ORIGINS.indexOf(state.screen) > -1 ? { screen: state.screen, groupId: state.groupId, phaseTab: state.phaseTab, scroll: sc ? sc.scrollTop : 0 } : null;
     }
+    // All groups' Back goes to the screen you came from, e.g. My calendar after Find more events (Design v8 prototype, _calFrom)
+    if (screen === 'calendar' && state.screen !== 'calendar') state.calFrom = ORIGINS.indexOf(state.screen) > -1 ? { screen: state.screen, groupId: state.groupId, phaseTab: state.phaseTab } : null;
     // Going anywhere closes the v6 sheets (Profile, Notifications, View all, Could use a hand, Search)
     setState(Object.assign({ screen, menu: null, plusMenu: false, ip: null, ipPop: null, ipEd: null, zoom: null, sec: null, needEd: null, share: null, cohostPick: null, leadAsk: null, leadsSheet: null, pollSheet: null, profSheet: false, notifSheet: false, dashAll: null, cHandSheet: false, cSearch: false, cq: '', gSearch: false, gq: '', gTry: null, pplAdd: false, frInvite: false, frList: null, frListEd: null, meImp: null, meList: null, meSet: false, pplSearch: false, pplQ: '', person: null, fbNudge: null, gMenu: null, gQr: null, jobAsk: null, handOff: null, partRoster: null, partGuest: null, dayPick: null }, extra || {}));
     if (sc) sc.scrollTop = 0;
@@ -3703,6 +3705,7 @@
   };
   // The strip under a card: your role on the left; tasks (tap to expand in place), All set, or Change / Update RSVP
   // fs (Design v8): the strip's font size; with it the role word shows without its icon, the right side at rfs
+  // No line above it (Design v8 prototype); P.right '' leaves the right side empty (a past event on All groups)
   const strip6 = (s, P, h, cal, fs, rfs) => {
     const open = !!state.schedOpen[s.id] && P.rows.length > 0;
     const expands = P.rows.length > 0;   // the same on every list (audit, 2026-10-01: the Calendar said "Manage" and opened the event)
@@ -3714,10 +3717,10 @@
       right = '<span style="color:#0d1117">RSVP</span>';
     } else {
       left = '<span style="display:flex;align-items:center;gap:6px">' + (h > 30 && P.icon && !fs ? ic6(P.icon, 14, P.R.ink, 2.4) : '') + P.word + '</span>';
-      const word = P.right || (P.rows.length ? P.rows.length + (P.rows.length === 1 ? ' task' : ' tasks') : 'All set');
+      const word = P.right != null ? P.right : (P.rows.length ? P.rows.length + (P.rows.length === 1 ? ' task' : ' tasks') : 'All set');
       right = '<span style="display:flex;align-items:center;gap:4px' + (rfs ? ';font-size:' + rfs + 'px' : '') + '">' + (open ? '' : word) + (expands || P.k === 'go' ? chev6(11, P.R.ink, open) : '') + '</span>';
     }
-    return '<div ' + on(tap) + ' aria-expanded="' + open + '" style="display:flex;align-items:center;justify-content:space-between;gap:10px;height:' + h + 'px;padding:0 14px;background:' + P.R.strip + ';border-top:1px solid ' + edge(P.R.strip) + ';font-size:' + (fs || (h > 30 ? 13.5 : 12)) + 'px;font-weight:800;color:' + P.R.ink + ';cursor:pointer">' + '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + left + '</span>' + right + '</div>' +
+    return '<div ' + on(tap) + ' aria-expanded="' + open + '" style="display:flex;align-items:center;justify-content:space-between;gap:10px;height:' + h + 'px;padding:0 14px;background:' + P.R.strip + ';font-size:' + (fs || (h > 30 ? 13.5 : 12)) + 'px;font-weight:800;color:' + P.R.ink + ';cursor:pointer">' + '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + left + '</span>' + right + '</div>' +
       (open ? '<div style="display:flex;flex-direction:column">' + P.rows.map(a => actRow(a, P.R, rowFill(P))).join('') + '</div>' : '');
   };
   // Task rows under a role strip: paler than the strip (Design 27): Helping orange (v8-6), Leading purple
@@ -3725,6 +3728,10 @@
   // Tiles: the photo with date, title and place; the strip under it
   // mode 'mine' (My calendar, Design v8): a 34px strip at 12.5px, the role word only. All groups (cal): a 23px title,
   // 14px place, a 28px strip at 11.5px and a lighter group chip
+  // The photo's date line is the date itself, "Sat, Oct 10 · 10am" (Design v8 prototype: no Today / Tomorrow on tiles);
+  // an idea on All groups says "Idea · no date yet" in gold
+  const tileWhen = (s, P) => P.k === 'idea' ? 'Idea · ' + (s.dayDate ? fmtDay(s.dayDate) : 'no date yet')
+    : s.dayDate ? fmtDay(s.dayDate) + (s.dayTime ? ' · ' + fmtTime(s.dayTime) : '') : when6(s);
   const tile6 = (s, P, h, cal, mode) => {
     const g = groupById(s.groupId);
     return '<div ' + on(() => openSpark(s)) + ' data-plan="' + esc(s.text) + '" aria-label="' + esc(s.text) + '" style="border-radius:20px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
@@ -3732,7 +3739,7 @@
         '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.95) 0%, rgba(13,17,23,.65) 45%, rgba(13,17,23,.3) 100%)"></div>' +
         (cal && g ? '<span style="position:absolute;top:12px;left:14px;display:flex;align-items:center;height:24px;padding:0 10px;border-radius:999px;background:rgba(13,17,23,.4);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);font-size:11.5px;font-weight:700;color:rgba(255,255,255,.84)">' + esc(groupsLabel(s)) + '</span>' : '') +
         '<div style="position:absolute;left:16px;right:16px;bottom:14px;color:#fff;display:flex;flex-direction:column;gap:3px">' +
-          '<div style="font-size:13px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;color:' + (!s.dayDate ? TBD_ON_PHOTO : P.k === 'open' ? '#dfe2e8' : P.R.kick) + '">' + esc(when6(s)) + '</div>' +
+          '<div style="font-size:13px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;color:' + (P.k === 'idea' ? '#ffd98a' : !s.dayDate ? TBD_ON_PHOTO : P.k === 'open' ? '#dfe2e8' : P.R.kick) + '">' + esc(tileWhen(s, P)) + '</div>' +
           '<div style="font-size:' + (cal ? 23 : 25) + 'px;line-height:1.05;font-weight:900;letter-spacing:' + (cal ? -.5 : -.6) + 'px;text-wrap:balance">' + esc(s.text) + demoTag(s, true, true) + '</div>' +
           '<div style="display:flex;align-items:center;gap:5px;font-size:' + (cal ? 14 : 14.5) + 'px;font-weight:700;color:rgba(255,255,255,.9);min-width:0">' + ic6('pin', 14, 'currentColor', 2.3) + '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (s.spot ? esc(s.spot) : tbdSpan(spotTbd(s), TBD_ON_PHOTO)) + '</span></div>' +
         '</div></div>' + (mode === 'mine' ? strip6(s, P, 34, cal, 12.5, 12) : cal ? strip6(s, P, 28, cal, 11.5) : strip6(s, P, 40, cal)) + '</div>';
@@ -3754,17 +3761,20 @@
     if (s.repeat && month) return repeatDates(s.startDate, s.repeat.every, s.repeat.until, month + '-31').filter(d => d.slice(0, 7) === month).map(d => Object.assign({}, s, { dayDate: d }));
     return [s];
   }));
-  const listCard6 = (s, P, cal, thumb) => {
+  // noDate (All groups' Month, Design v8 prototype): no date block, the day is the heading above
+  // Design v8 prototype: 10px 12px padding, the role bar inset 6px top and bottom, the title at line-height 1.2
+  const listCard6 = (s, P, cal, thumb, noDate) => {
     const dp = s.dayDate ? dateParts(s.dayDate) : null;
     return '<div ' + on(() => openSpark(s)) + ' data-plan="' + esc(s.text) + '" aria-label="' + esc(s.text) + '" style="border-radius:16px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
-      '<div style="display:flex;align-items:center;gap:12px;padding:12px 14px">' +
-        '<div style="flex:0 0 40px;display:flex;flex-direction:column;align-items:center">' + (dp ? '<span style="font-size:10.5px;font-weight:900;letter-spacing:.6px;color:#6b7280">' + dp.dow + '</span><span style="font-size:20px;line-height:1.1;font-weight:900;color:#0d1117">' + dp.day + '</span>'
-          : '<span style="font-size:10.5px;font-weight:900;letter-spacing:.6px;color:#8f6405">TBD</span><span style="font-size:20px;line-height:1.1;font-weight:900;color:#8f6405">?</span>') + '</div>' +
-        '<span aria-hidden="true" style="flex:0 0 3px;align-self:stretch;border-radius:999px;background:' + P.R.dot + '"></span>' +
-        '<div style="flex:1;min-width:0"><div style="display:flex;align-items:center;min-width:0"><span style="min-width:0;font-size:15px;line-height:1.3;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(s.text) + '</span>' + demoTag(s, false, true) + '</div>' +
+      '<div style="display:flex;align-items:stretch;gap:12px;padding:10px 12px">' +
+        (noDate ? '' : '<div style="flex:0 0 40px;display:flex;flex-direction:column;align-items:center;justify-content:center">' + (dp ? '<span style="font-size:10.5px;font-weight:900;letter-spacing:.7px;color:#6b7280">' + dp.dow + '</span><span style="font-size:20px;line-height:1;font-weight:900;color:#0d1117">' + dp.day + '</span>'
+          : '<span style="font-size:10.5px;font-weight:900;letter-spacing:.7px;color:#8f6405">TBD</span><span style="font-size:20px;line-height:1;font-weight:900;color:#8f6405">?</span>') + '</div>') +
+        '<span aria-hidden="true" style="flex:0 0 3px;margin:6px 0;border-radius:999px;background:' + P.R.dot + '"></span>' +
+        '<div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center"><div style="display:flex;align-items:center;min-width:0"><span style="min-width:0;font-size:15px;line-height:1.2;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(s.text) + '</span>' + demoTag(s, false, true) + '</div>' +
           '<div style="font-size:12.5px;font-weight:600;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + [s.dayDate ? esc(dayOfLine(s)) : tbdSpan(dateTbd(s)), s.spot ? esc(street(s)) : tbdSpan(spotTbd(s))].filter(Boolean).join(' · ') + '</div></div>' +
-        (thumb === 'chev' ? '<span aria-hidden="true" style="flex:0 0 auto;display:flex">' + I.chevR(14, '#b9bcc4', 2.6) + '</span>' : '<span aria-hidden="true" style="flex:0 0 44px;width:44px;height:44px;border-radius:10px;background:' + photoBg(s) + '"></span>') +
-      '</div>' + strip6(s, P, 28, cal) + '</div>';
+        (thumb === 'chev' ? '<span aria-hidden="true" style="flex:0 0 auto;align-self:center;display:flex">' + I.chevR(14, '#b9bcc4', 2.6) + '</span>' : '<span aria-hidden="true" style="flex:0 0 44px;width:44px;height:44px;align-self:center;border-radius:10px;background:' + photoBg(s) + '"></span>') +
+      // the strip at 12.5px; All groups' at 11.5px (Design v8 prototype)
+      '</div>' + strip6(s, P, 28, cal, cal ? 11.5 : 12.5) + '</div>';
   };
 
   // Up next (v6 Update 9): the next plan as a big photo with a countdown; your role strip, then its to-dos listed open
@@ -3862,7 +3872,8 @@
 
   function viewSched() {
     const st = state, view = HOME_VIEWS.indexOf(st.homeView) > -1 ? st.homeView : 'next';
-    const wrap = (inner) => '<div data-screen-label="Your calendar">' + head6('My calendar', '', false, null, grpPill('sGrps')) + '<div style="padding:14px 14px 24px;display:flex;flex-direction:column;gap:22px">' + inner + '</div><div style="height:var(--nav-h)"></div></div>';
+    // Design v8 prototype: 10px under the header, 14px between sections, 8px from a heading to its cards
+    const wrap = (inner) => '<div data-screen-label="Your calendar">' + head6('My calendar', '', false, null, grpPill('sGrps')) + '<div style="padding:10px 14px 24px;display:flex;flex-direction:column;gap:14px">' + inner + '</div><div style="height:var(--nav-h)"></div></div>';
     if (!st.loaded) return wrap(skeleton(2, 220));
     if (!myGroups().length) return wrap(goneCard() + noGroupCard());
     const sel = grpSel(st.sGrps), every = schedList(), all = every.filter(inPick(sel));
@@ -3881,7 +3892,7 @@
     const secs = view === 'next' && st.sSort === 'soon' ? nextSections(plans, true) : sections6(plans, st.sSort, 'Date TBD');
     // Tiles (Design v8): a 170px photo over a 34px strip with the role word only
     const card = (s) => view === 'next' ? listCard6(s, partOf(s), false, true) : tile6(s, partOf(s), 170, false, 'mine');
-    return wrap(goneCard() + secs.map((z, i) => '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(z.label, i ? '' : controls) +
+    return wrap(goneCard() + secs.map((z, i) => '<div style="display:flex;flex-direction:column;gap:8px">' + monthHead(z.label, i ? '' : controls) +
       '<div style="display:flex;flex-direction:column;gap:' + (view === 'next' ? 10 : 14) + 'px">' + (z.hero ? nextCard6(z.hero, partOf(z.hero), 'mine') : z.items.map(card).join('')) + '</div></div>').join('') + findMore());
   }
   // The end of Your calendar (Up next and Tiles): Design v8's pill, Find more events with two small sparkles; it opens
@@ -4007,7 +4018,6 @@
             '<span style="flex:1;font-size:15px;font-weight:' + (k === cur ? 900 : 700) + ';color:' + (k === cur ? '#5b4ae8' : '#0d1117') + '">' + name + '</span>' + (k === cur ? I.check(16, '#5b4ae8', 2.6) : '') + '</div>').join('') + '</div>' : '') +
     '</div>';
   };
-  const CSORTS = [['soon', 'By date'], ['lively', 'Popular'], ['new', 'Newest'], ['help', 'Needs help']];
   const calViewMenu = () => {
     const icon = (k, c) => svg(17, 'fill="none" stroke="' + c + '" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"', VIEW_ICONS[k]);
     return miniMenu('cView', 'View: ' + VIEW_NAMES[state.cView], icon(state.cView, 'currentColor') + I.chevD(12, 'currentColor', 2.8),
@@ -4051,12 +4061,13 @@
       '<div style="display:flex;align-items:center;gap:8px;padding:0 4px"><h2 style="flex:1;margin:0;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:#0d1117">' + esc(start.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })) + '</h2>' +
         navBtn(shift(-1), 'Previous month', I.chevL(15, '#0d1117', 2.6)) + navBtn(shift(1), 'Next month', I.chevR(15, '#0d1117', 2.6)) + o.menu + '</div>' +
       '<div style="' + CARD + ';padding:10px 8px">' +
-        '<div aria-hidden="true" style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));padding-bottom:4px">' + ['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(x => '<span style="text-align:center;font-size:11px;font-weight:800;letter-spacing:.6px;color:#6b7280">' + x + '</span>').join('') + '</div>' +
+        '<div aria-hidden="true" style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));padding-bottom:4px">' + ['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(x => '<span style="text-align:center;font-size:11px;font-weight:900;letter-spacing:.6px;color:#8a909b">' + x + '</span>').join('') + '</div>' +   // (Design v8 prototype)
         '<div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px">' + cells.join('') + '</div>' +
         (monthHolds ? '<div data-hold-key style="display:flex;align-items:center;justify-content:center;gap:14px;padding:8px 0 2px;font-size:12.5px;font-weight:700;color:#6b7280">' +
           '<span style="display:flex;align-items:center;gap:6px"><span style="width:6px;height:6px;border-radius:999px;background:#9aa0ac"></span>Plan</span>' +
           '<span style="display:flex;align-items:center;gap:6px"><span style="width:6px;height:6px;border-radius:999px;box-sizing:border-box;border:1.3px solid #9aa0ac"></span>Pencilled in</span></div>' : '') + '</div>' +
-      '<div style="padding:6px 4px 0;font-size:16px;font-weight:900;color:#0d1117">' + esc(new Date(sel + 'T12:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })) + '</div>' +
+      // the chosen day's heading, 15px (Design v8 prototype)
+      '<div style="padding:4px 4px 0;font-size:15px;font-weight:900;color:#0d1117">' + esc(new Date(sel + 'T12:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })) + '</div>' +
       (dayList.length || dayHolds.length ? dayList.map(o.card).join('') + pencilled
         // An empty day (Design v8): one line on My calendar and All groups; a group page offers a dashed + Start an event on {day}
         // (a day already gone keeps the one line)
@@ -4082,7 +4093,7 @@
     const header = '<header style="position:relative;z-index:7;height:calc(136px + var(--pt));background:#2b303a">' +
       '<div aria-hidden="true" style="position:absolute;inset:0;overflow:hidden">' + (calHero && groupPhoto(calHero) ? photoLayer(groupPhoto(calHero), calHero.photoPos, GROUP_POS) : '<div style="position:absolute;inset:0;background:' + HEAD_GOLD + '"></div>') +
         '<div style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.9) 0%, rgba(13,17,23,.45) 55%, rgba(13,17,23,.25) 100%)"></div></div>' +
-      '<span ' + on(() => go('groups')) + ' aria-label="Back to My groups" style="position:absolute;top:calc(14px + var(--pt));left:16px;z-index:2;' + frostBtn + '">' + I.chevL(20, '#fff', 2.6) + '</span>' +
+      '<span ' + on(() => { const f = st.calFrom; state.calFrom = null; if (f) go(f.screen, { groupId: f.groupId || st.groupId, phaseTab: f.phaseTab }); else go('groups'); }) + ' aria-label="' + (st.calFrom ? 'Back' : 'Back to My groups') + '" style="position:absolute;top:calc(14px + var(--pt));left:16px;z-index:2;' + frostBtn + '">' + I.chevL(20, '#fff', 2.6) + '</span>' +
       '<div style="position:absolute;top:calc(14px + var(--pt));right:16px;display:flex;gap:8px;z-index:2">' +
         '<span ' + on(openSearch) + ' aria-label="Search events" style="' + frostBtn + '">' + ic6('search', 19, '#fff', 2.4) + '</span>' +
         bellBtn(true) + '</div>' +
@@ -4128,9 +4139,14 @@
     };
     const secs = [];
     list.forEach(s => { const l = secOf(s); let z = secs.find(q => q.label === l); if (!z) { z = { label: l, items: [] }; secs.push(z); } z.items.push(s); });
-    // An idea or a past event says what it is, not RSVP
-    const P = (s) => kind === 'idea' ? { k: 'idea', R: R6.help, word: 'Idea', rows: [], right: 'See' }
-      : kind === 'done' ? { k: 'past', R: R6.open, word: myRsvp(s) === 'going' || isLead(s) ? 'You went' : 'Happened', rows: [], right: 'See' } : partOf(s, true);
+    // Design v8 prototype: an idea reads "N interested · Take a look" (your own: "Idea"); a past event "N went" with
+    // nothing on the right; Helping shows just the number of your jobs, with the chevron
+    const P = (s) => {
+      if (kind === 'idea') return { k: 'idea', R: R6.help, word: isLead(s) ? 'Idea' : s.interested.length + ' interested', rows: [], right: 'Take a look' };
+      if (kind === 'done') return { k: 'past', R: R6.open, word: going(s).length + ' went', rows: [], right: '' };
+      const p = partOf(s, true);
+      return p.k === 'help' ? Object.assign({}, p, { right: String(myClaims(s).length) }) : p;
+    };
     const card6 = (s) => st.cView === 'tiles' ? tile6(s, P(s), 170, true) : listCard6(s, P(s), true);
     const KIND_IC = { plan: '<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path d="m9 15 2 2 4-4"/>', idea: BULB_IC,
       done: '<path d="M3.5 12a8.5 8.5 0 1 0 2.5-6"/><path d="M3.5 4v4h4"/><path d="M12 7.5V12l3 2"/>' };
@@ -4144,12 +4160,15 @@
     '</div>';
     let body;
     if (!st.loaded) body = skeleton(3, 90);
-    else if (st.cView === 'month') body = monthBody(list, { mode: 'all', holds: kind === 'plan' ? holdItems(inGroups6) : [], mon: st.cMon, day: st.cDay, cal: true, menu: '<div style="display:flex;align-items:center">' + kindPill + calViewMenu() + '</div>', card: card6,
+    // Month (Design v8 prototype): only the month arrows and the view menu; the day's cards have no date block
+    else if (st.cView === 'month') body = monthBody(list, { mode: 'all', holds: kind === 'plan' ? holdItems(inGroups6) : [], mon: st.cMon, day: st.cDay, cal: true, menu: calViewMenu(), card: (s) => listCard6(s, P(s), true, false, true),
       set: (cMon, cDay) => setState({ cMon, cDay }), toTbd: () => setState({ cView: 'list', cSort: 'soon', menu: null, cMon: null, cDay: null }) });
     else if (!list.length) {
-      body = st.loaded && !groups.length ? '' : '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(st.cSort === 'soon' ? 'Coming up' : (CSORTS.find(x => x[0] === st.cSort) || CSORTS[0])[1], '<div style="display:flex;align-items:center">' + sortMenu + kindPill + calViewMenu() + '</div>') +
-        // Narrowed with nothing showing (Design v8): one card, no button (Clear filters sits above)
-        (filtered ? '<div data-filter-empty style="' + CARD + ';padding:18px;display:flex;flex-direction:column;gap:4px"><div style="font-size:16px;font-weight:800;color:#0d1117">Nothing matches that.</div><div style="font-size:14px;line-height:1.45;font-weight:500;color:#6b7280">Try a different search or time range — or float an idea yourself.</div></div>' : kind === 'idea' ? note6('No ideas in your groups yet.') : kind === 'done' ? note6('Nothing has happened in your groups yet.') : calEmpty())   // (tSel went with the Type filter; it froze this screen, 2026-10-02) + '</div>';
+      // Nothing to show (Design v8 prototype): the card alone, no heading or Sort / view controls. Narrowed: Clear filters
+      // sits above; on Ideas or Past the Plans · Ideas · Past pill stays so you can get back to Plans
+      // (tSel went with the Type filter; it froze this screen, 2026-10-02)
+      body = st.loaded && !groups.length ? '' : '<div style="display:flex;flex-direction:column;gap:10px">' + (kind !== 'plan' ? '<div style="position:relative;z-index:3;display:flex;justify-content:flex-end">' + kindPill + '</div>' : '') +
+        (filtered ? '<div data-filter-empty style="' + CARD + ';padding:18px;display:flex;flex-direction:column;gap:4px"><div style="font-size:16px;font-weight:800;color:#0d1117">Nothing matches that.</div><div style="font-size:14px;line-height:1.45;font-weight:500;color:#6b7280">Try a different search or time range — or float an idea yourself.</div></div>' : kind === 'idea' ? note6('No ideas in your groups yet.') : kind === 'done' ? note6('Nothing has happened in your groups yet.') : calEmpty()) + '</div>';
     } else {
       body = secs.map((z, i) => '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(z.label, i ? '' : '<div style="display:flex;align-items:center">' + sortMenu + kindPill + calViewMenu() + '</div>') +
         z.items.map(card6).join('') + '</div>').join('');
@@ -4175,7 +4194,7 @@
     const list = handList(), close = () => setState({ cHandSheet: false });
     const card = (s) => {
       const dp = dateParts(s.dayDate), rows = s.signups.filter(it => it.need && (it.claims.length < it.need || it.claims.some(c => c.userId === state.me)));
-      return '<div data-hand="' + esc(s.text) + '" style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 1px 3px rgba(15,18,25,.08)">' +
+      return '<div data-hand="' + esc(s.text) + '" style="background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 1px 3px rgba(15,18,25,.08)">' +
         '<div ' + on(() => openSpark(s)) + ' style="display:flex;align-items:center;gap:12px;padding:12px 14px;cursor:pointer">' +
           '<div style="flex:0 0 40px;display:flex;flex-direction:column;align-items:center"><span style="font-size:10.5px;font-weight:900;letter-spacing:.6px;color:#6b7280">' + dp.dow + '</span><span style="font-size:20px;line-height:1.1;font-weight:900;color:#0d1117">' + dp.day + '</span></div>' +
           '<span aria-hidden="true" style="flex:0 0 3px;align-self:stretch;border-radius:999px;background:#e8a71c"></span>' +
@@ -4192,11 +4211,10 @@
         }).join('') + '</div>';
     };
     return sheet6('Needs help', close,
-      '<div style="display:flex;align-items:center;gap:10px"><h2 style="flex:1;margin:0;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">Needs help</h2>' + closeX(close) + '</div>' +
+      // Design v8 prototype: a 26px title, cards at radius 14, and one plain line when nothing needs a hand
+      '<div style="display:flex;align-items:center;gap:10px"><h2 style="flex:1;margin:0;font-size:26px;line-height:1.1;font-weight:900;letter-spacing:-.8px;color:#0d1117">Needs help</h2>' + closeX(close) + '</div>' +
         '<div style="margin-top:6px;font-size:14px;font-weight:600;color:#6b7280">' + list.length + (list.length === 1 ? ' event' : ' events') + ' coming up in the next 2 weeks</div>',
-      '<div style="padding:14px 14px 30px;display:flex;flex-direction:column;gap:10px">' + (list.length ? list.map(card).join('') : '<div style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:10px"><span style="font-size:11.5px;font-weight:900;letter-spacing:1px;color:#8f6405">COULD USE A HAND</span>' +
-        '<div style="display:flex;gap:12px;align-items:center"><span aria-hidden="true" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#e7f6ec;display:flex;align-items:center;justify-content:center">' + svg(18, stroke('#149a4b', 2.8), P6.check) + '</span>' +
-          '<div><div style="font-size:16px;font-weight:800;color:#0d1117">Everything’s covered for the next two weeks.</div><div style="margin-top:2px;font-size:13.5px;font-weight:600;color:#6b7280">New asks show up here.</div></div></div></div>') + '</div>');
+      '<div style="padding:14px 14px 30px;display:flex;flex-direction:column;gap:10px">' + (list.length ? list.map(card).join('') : '<div style="background:#fff;border-radius:14px;padding:16px;font-size:15px;font-weight:600;color:#6b7280">Nothing needs a hand in the next 2 weeks.</div>') + '</div>');
   }
 
   // Search (v6 Update 2): before typing, Try chips and "Or something unexpected"; live results as you type
@@ -4219,7 +4237,7 @@
     sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M2.5 12h2M19.5 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/>'
   };
   const magicGrid = (cards) => '<span style="margin-top:16px;font-size:11.5px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;color:#8a909b">Or something unexpected</span>' +
-    '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding-top:4px">' + cards.map((m) => '<div ' + on(m.pick) + ' data-magic="' + esc(m.title) + '" style="display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:16px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
+    '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding-top:4px">' + cards.map((m) => '<div ' + on(m.pick) + ' data-magic="' + esc(m.title) + '" style="display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:14px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
       '<span style="width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:' + m.bg + ';color:' + m.ink + '">' + svg(20, stroke('currentColor', 2), MAGIC_ICON[m.icon]) + '</span>' +
       '<div><div style="font-size:14.5px;line-height:1.2;font-weight:900;color:#0d1117">' + m.title + '</div><div style="margin-top:2px;font-size:12px;line-height:1.35;font-weight:600;color:#6b7280">' + m.sub + '</div></div></div>').join('') + '</div>';
   const tryChip = (label, fn) => '<span ' + on(fn) + ' style="display:flex;align-items:center;min-height:34px;padding:0 13px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #e6e7eb;font-size:13.5px;font-weight:800;color:#454b55;cursor:pointer">' + label + '</span>';
@@ -4240,7 +4258,9 @@
     const st = state, q = st.cq.trim(), tr = st.cTry ? TRY6.find(x => x[0] === st.cTry) : null;
     const undo = st.cTry ? TRY_UNDO : {};
     const close = () => setState(Object.assign({ cSearch: false, cq: '' }, undo));
-    const pool = calBase(), list = pool.filter(s => matchQ(s, q) && inTypes6(s) && inWhen6(s) && (!st.cHelp || signupFill(s).open > 0)).sort(byWhen);
+    // Results follow All groups' Plans · Ideas · Past and group pick (Design v8 prototype: cSearchRes uses its list);
+    // the surprise cards pick from every plan
+    const pool = calBase(), list = calPool().filter(s => inGroups6(s) && matchQ(s, q) && inTypes6(s) && inWhen6(s) && (!st.cHelp || signupFill(s).open > 0)).sort(byWhen);
     const results = q || tr ? list.slice(0, 30) : [];
     const pick = (fn) => () => { const x = fn(); if (!x) { toast('Nothing like that yet'); return; } setState(Object.assign({ cSearch: false, cq: '' }, undo)); openSpark(x); };
     const notMine = pool.filter(s => !isLead(s) && !myRsvp(s) && !helpsOn(s) && !s.cancelledAt);
@@ -4248,7 +4268,7 @@
     const magic = [
       { icon: 'moon', title: 'Soonest surprise', sub: 'The next thing happening that I’m not in', bg: '#1f2433', ink: '#cfc9ff', pick: pick(() => notMine.slice().sort(byWhen)[0]) },
       { icon: 'people', title: 'Tag along', sub: 'Where the most people are going', bg: '#fdf1d6', ink: '#8f6405', pick: pick(() => notMine.slice().sort((a, b) => going(b).length - going(a).length)[0]) },
-      { icon: 'cup', title: 'Needs help', sub: 'The soonest event still looking for helpers', bg: '#e7f6ec', ink: '#149a4b', pick: pick(() => notMine.filter(s => signupFill(s).open > 0).sort(byWhen)[0]) }
+      { icon: 'cup', title: 'Needs help', sub: 'The soonest event still looking for helpers', bg: '#e7f6ec', ink: '#149a4b', pick: pick(() => pool.filter(s => !s.cancelledAt && signupFill(s).open > 0).sort(byWhen)[0]) }
     ];
     const hint = '<div style="display:flex;flex-direction:column;gap:4px;padding:0 4px">' +
       '<span style="font-size:11.5px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;color:#8a909b">Try</span>' +
