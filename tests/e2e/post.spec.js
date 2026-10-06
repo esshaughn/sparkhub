@@ -130,19 +130,45 @@ test('post an event with every step filled, then edit it in the pop-ups and dele
     await expect(P.locator('[data-signup="Bring cold water"]')).toContainText('4 of 4 open');
     await expect(P.locator('[data-signup="Folding chairs"]')).toContainText('2 of 2 open');
 
-    // Invite people (one sheet): v8-10's footer is Share link + Send; Share link carries the ready message
+    // Invite people (one sheet): v8-11's footer is a round Share link, a round QR code (leads) and Send; Share link carries the ready message
     await P.getByRole('button', { name: /Invite people/ }).click();
     const share = page.getByRole('dialog', { name: 'Invite people' });
     const link = share.getByRole('button', { name: 'Share link' });
     const msg = await link.getAttribute('data-share-msg');
     expect(msg).toMatch(/· \w{3}, \w{3} \d+ http:\/\/127\.0\.0\.1:\d+\/e\/[a-z0-9]{8}|· \w{3}, \w{3} \d+ https?:\/\/[^ ]+\/e\/[a-z0-9]{8}/);   // "{title} · {day} {link}", the short link (v8-8)
     expect(msg).not.toContain('Torrez');
-    await expect(share.getByRole('link', { name: 'WhatsApp' })).toHaveCount(0);   // the four share circles are gone (v8-10)
-    // With no share sheet, Share link copies the link and says so
-    await page.evaluate(() => { try { delete Navigator.prototype.share; } catch (e) {} });
+    const short = msg.split(' ').pop();
+    await expect(share.getByRole('link', { name: 'WhatsApp' })).toHaveCount(0);   // no share circles in the sheet itself (v8-10)
+    // v8-11: Share link opens a pop-up: the link preview, Messages · WhatsApp · Email · More, and Copy link
     await link.click();
+    const pop = page.getByRole('dialog', { name: 'Share link' });
+    await expect(pop.locator('[data-link-preview]')).toContainText(short.replace(/^https?:\/\//, ''));
+    expect(await pop.getByRole('link', { name: 'Messages' }).getAttribute('href')).toMatch(/^sms:/);
+    expect(decodeURIComponent(await pop.getByRole('link', { name: 'Messages' }).getAttribute('href'))).toContain(short);
+    expect(await pop.getByRole('link', { name: 'WhatsApp' }).getAttribute('href')).toMatch(/^https:\/\/wa\.me\/\?text=/);
+    expect(decodeURIComponent(await pop.getByRole('link', { name: 'Email' }).getAttribute('href'))).toContain(msg);
+    await pop.getByRole('button', { name: 'Copy link' }).click();
     await expect(page.getByText('Link copied')).toBeVisible();
-    await expect(share.getByRole('button', { name: 'Share link' })).toContainText('✓ Copied');
+    await expect(pop.getByRole('button', { name: /Copied/ })).toContainText('✓ Copied');
+    expect(await share.getByRole('button', { name: 'Share link' }).getAttribute('data-share-msg')).toBe(msg);
+    await pop.getByRole('button', { name: 'Close' }).click();
+    await expect(pop).toHaveCount(0);
+    // The lead's QR code (item 5): a real QR of the link; Show title and date adds the caption; Transparent drops the white
+    await share.getByRole('button', { name: 'QR code' }).click();
+    const qr = page.getByRole('dialog', { name: 'QR code' });
+    await expect(qr.locator('svg[data-event-qr] path')).toHaveCount(1);
+    await expect(qr.locator('svg[data-event-qr] rect')).toHaveCount(1);
+    await expect(qr.locator('[data-qr-caption]')).toHaveCount(0);
+    await qr.getByRole('switch', { name: 'Show title and date' }).click();
+    await expect(qr.locator('[data-qr-caption]')).toContainText('Scan to RSVP');
+    await qr.getByRole('radio', { name: 'Transparent' }).click();
+    await expect(qr.locator('svg[data-event-qr] rect')).toHaveCount(0);
+    await expect(qr).toContainText(short.replace(/^https?:\/\//, ''));
+    const [dl] = await Promise.all([page.waitForEvent('download'), qr.getByRole('button', { name: 'Download PNG' }).click()]);
+    expect(dl.suggestedFilename()).toMatch(/-qr-transparent\.png$/);
+    await expect(page.getByText('QR code downloaded')).toBeVisible();
+    await page.keyboard.press('Escape');   // the pop-up first, then the sheet
+    await expect(qr).toHaveCount(0);
     await share.getByRole('button', { name: 'Close' }).click();
 
     // Delete: the event and its photo both go

@@ -683,6 +683,7 @@ test('invite people: the lead invites a group member from the sheet; Invited sti
     await sheet.getByLabel('Search', { exact: true }).fill(nm);
     await expect(sheet.locator('[data-invitee="' + nm + '"]')).toContainText('✓ Invited');
     await expect(sheet.getByRole('button', { name: 'Share link' })).toBeVisible();   // v8-10: Share link + Send in one footer row
+    await expect(sheet.getByRole('button', { name: 'QR code' })).toBeVisible();   // v8-11: the lead's QR code
     await sheet.getByRole('button', { name: 'Close' }).click();
     // v7 Update 15: Who's coming lists her under Haven't replied; Nudge sends one note a day (then Nudged)
     await HP.locator('[data-going]').click();   // See all › under the RSVP buttons opens Who's coming (Design 25b)
@@ -704,6 +705,13 @@ test('invite people: the lead invites a group member from the sheet; Invited sti
     await sheet.getByLabel('Search', { exact: true }).fill(nm);
     await expect(sheet.locator('[data-invitee="' + nm + '"] [data-answered]')).toHaveText('Can’t');
     await expect(sheet.locator('[data-invitee="' + nm + '"]').getByRole('checkbox')).toHaveCount(0);
+    // A member who's going can invite too, but only the lead and co-hosts get the QR code (v8-11 item 5)
+    await asUser(other.page, async (c, _C, sid) => c.from('rsvps').upsert({ spark_id: sid, user_id: (await c.auth.getUser()).data.user.id, status: 'going' }, { onConflict: 'spark_id,user_id' }), id);
+    await openIdea(other.page, id);
+    await other.page.locator('[data-screen-label="Plan page"]').getByRole('button', { name: 'Share', exact: true }).click();   // a member's way in: the share icon on the photo
+    const mine = other.page.getByRole('dialog', { name: 'Invite people' });
+    await expect(mine.getByRole('button', { name: 'Share link' })).toBeVisible();
+    await expect(mine.getByRole('button', { name: 'QR code' })).toHaveCount(0);
     expect(host.errors).toEqual([]);
   } finally {
     if (id) await deleteIdea(H, id).catch(() => {});
