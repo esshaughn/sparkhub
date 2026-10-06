@@ -47,7 +47,7 @@ test('multi-day: separate days, each-day RSVP, a job on one day, and a weekly ev
     await timeBox(flow, 'Day 2 end').press('Enter');
     await expect(timeBox(flow, 'Day 2 end')).toHaveValue('5:00pm');
     await flow.getByRole('radio', { name: 'Each day' }).click();
-    await expect(flow).toContainText('People pick which days they’re coming.');
+    await expect(flow.getByRole('radio', { name: 'Each day' })).toHaveAttribute('aria-checked', 'true');
     await flow.getByRole('button', { name: 'Next', exact: true }).click();
     await flow.getByText('Add later', { exact: true }).click();
     await flow.getByText('None needed', { exact: true }).click();
