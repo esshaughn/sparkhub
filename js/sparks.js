@@ -3656,13 +3656,14 @@
         '<span style="display:flex;align-items:center;gap:4px;min-width:0;white-space:nowrap' + (mine ? ';font-size:12px' : '') + '">' + (open ? '' : word) + (n || P.k === 'go' ? chev6(11, P.R.ink, open) : '') + '</span></div>' +
       (open ? '<div style="display:flex;flex-direction:column">' + P.rows.map(a => actRow(a, P.R, rowFill(P))).join('') + '</div>' : '');
   };
-  // Soonest in Up next: the hero, then This week / {month} / Date TBD
-  const nextSections = (list) => {
+  // Soonest in Up next: the hero, then This week / {month} / Date TBD. My calendar has no This week (owner, 2026-10-06):
+  // after the hero, just the months
+  const nextSections = (list, noWeek) => {
     const n = list.find(s => s.dayDate && daysTo(s) >= 0), out = n ? [{ label: 'Up next', hero: n, items: [] }] : [];
     list.filter(s => s !== n).forEach(s => {
       // Design v8: after This week, each month by its bare name, the current one included (no Next week or Later in …)
       const d = daysTo(s), mon = s.dayDate && new Date(s.dayDate + 'T12:00').toLocaleDateString('en-US', { month: 'long' });
-      const label = d == null ? 'Date TBD' : d < 7 ? 'This week' : mon;
+      const label = d == null ? 'Date TBD' : d < 7 && !noWeek ? 'This week' : mon;
       let z = out.find(q => q.label === label); if (!z) { z = { label, items: [] }; out.push(z); } z.items.push(s);
     });
     return out;
@@ -3738,8 +3739,8 @@
     if (view === 'month') return wrap(goneCard() +
       monthBody(plans, { mode: 'mine', mon: st.hMon, day: st.hDay, cal: false, menu: viewPick(), card: (s) => listCard6(s, partOf(s), false, 'chev'),
         set: (hMon, hDay) => setState({ hMon, hDay }), toTbd: () => setState({ homeView: 'next', sSort: 'soon', menu: null, hMon: null, hDay: null }) }));
-    // Up next (Soonest only): the hero card, then list cards by This week / {month} / Date TBD
-    const secs = view === 'next' && st.sSort === 'soon' ? nextSections(plans) : sections6(plans, st.sSort, 'Date TBD');
+    // Up next (Soonest only): the hero card, then list cards by month / Date TBD (no This week, owner 2026-10-06)
+    const secs = view === 'next' && st.sSort === 'soon' ? nextSections(plans, true) : sections6(plans, st.sSort, 'Date TBD');
     // Tiles (Design v8): a 170px photo over a 34px strip with the role word only
     const card = (s) => view === 'next' ? listCard6(s, partOf(s), false, true) : tile6(s, partOf(s), 170, false, 'mine');
     return wrap(goneCard() + secs.map((z, i) => '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(z.label, i ? '' : controls) +

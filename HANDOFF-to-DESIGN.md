@@ -6,7 +6,7 @@
 - **Source:** github.com/esshaughn/sparkhub (`index.html`, `js/sparks.js`, `css/sparks.css`, `privacy.html`, `supabase/templates/`)
 - **Baseline:** Claude Design's **round v8-5** (zip *Spark Hub v8-5*, 2026-10-05: `design/spark-hub/Spark Hub App Version 8.dc.html` and `design/spark-hub/HANDOFF-to-CODE.md`). Its HANDOFF-to-CODE says it caught up with this doc as of Oct 5, late night (the copy Design has calls it *HANDOFF-to-DESIGN-5*, through row 77), so this doc was reset: everything below is where the build differs from v8-5, plus the three rows (78–80) that came after Design's copy.
 - **Build version:** **v7** (owner, 2026-10-02): a lead is a choice. An idea is either led (*I'll lead it*) or floated (no lead yet), and a floated one can be handed to someone.
-- **As of:** 2026-10-05, night: built round **v8-5**, which also carried v8-3 and v8-4 (they never reached the build on their own): the five tabs with Ideas, Me's Settings slide-up, the Ideas board, the idea slide-up and idea page, the Float sheet, the + menu, idea drafts, the starter's page and times on calendar pages.
+- **As of:** 2026-10-06: no *This week* on My calendar (row 96). 2026-10-05, night: built round **v8-5**, which also carried v8-3 and v8-4 (they never reached the build on their own): the five tabs with Ideas, Me's Settings slide-up, the Ideas board, the idea slide-up and idea page, the Float sheet, the + menu, idea drafts, the starter's page and times on calendar pages.
 
 Where this doc and the design files disagree, **this doc is correct**. One file per side: please keep sending `HANDOFF-to-CODE.md`; this file is the reply (Design's instructions asked for a `HANDOFF-to-DESIGN-6.md`, and this is that file).
 
@@ -52,6 +52,7 @@ Where this doc and the design files disagree, **this doc is correct**. One file 
 | 93 | **Invite a friend** on an idea opens the build's Invite people sheet (purple), where friends already interested show a gold **Interested** and can't be picked | The gold Invite people variant | The variant isn't built yet |
 | 94 | **Suggest a date / Suggest a location on an idea** are centred gold pop-ups (*Everyone can vote on it.*; the date with the time chips). The location is plain text (no place search) | Not drawn for v8-4's page | All idea pop-ups are centred and gold |
 | 95 | **Ask someone to take a job** shows who's been asked at the top in a gray box (*Asked · waiting*, *Said yes*, *Can't this time*, the note in italics) with **Withdraw** while they haven't answered; they drop out of the list below | As drawn (v8-3) | Built from the prototype; answers old §4 *Withdrawing an ask* |
+| 96 | **My calendar's Up next has no *This week* heading**: after the big card, the list goes straight into months (*October*, *November*…, then *Date TBD*). Group pages keep *This week* | v8: This week, then each month | Owner, 2026-10-06 |
 
 ## 2. Things the build had to invent (please design these properly)
 
