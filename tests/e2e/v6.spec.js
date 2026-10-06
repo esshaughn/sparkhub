@@ -72,12 +72,14 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     await askSheet.getByRole('button', { name: 'Close' }).click();
     await expect(tasks).toBeVisible();   // the ask opens right on My tasks
     await shot(H, '01-your-tasks-lead');
-    await expect(tasks.getByRole('button', { name: 'Back to Me' })).toBeVisible();   // under Me since v8-4
+    await expect(H.getByRole('dialog', { name: 'My tasks' }).getByRole('button', { name: 'Close' })).toBeVisible();   // a slide-up over Me since v8-9
     // Condensed (6j): one card, the event as a small header, the same rows; the switch is remembered
     await tasks.getByRole('tab', { name: 'Condensed' }).click();
     await expect(tasks.locator('[data-task="' + title + '"]')).toBeVisible();
     await expect(tasks).toContainText('Folding chairs');
     await H.reload();
+    await expect(H.locator('html[data-loaded=true]')).toHaveCount(1);
+    await openTasks(H);   // the slide-up doesn't survive a reload; the view does
     await expect(tasks.getByRole('tab', { name: 'Condensed' })).toHaveAttribute('aria-selected', 'true');
     await tasks.getByRole('tab', { name: 'Timeline' }).click();
     // Each chip narrows the list; Ideas has its own empty card
@@ -142,6 +144,7 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     await shot(O, '06-your-tasks-help');
 
     // Your schedule (Tiles): Helping strip, "2 tasks" expands in place; Up next has the same strip
+    await O.getByRole('dialog', { name: 'My tasks' }).getByRole('button', { name: 'Close' }).click();   // the slide-up covers the tab bar (v8-9)
     await nav(O).getByRole('button', { name: 'Calendar', exact: true }).click();
     const sched = O.locator('[data-screen-label="Your calendar"]');
     await pickView(sched, 'Tiles');
@@ -192,7 +195,7 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     await nav(O).getByRole('button', { name: 'Me', exact: true }).click();
     const prof = O.locator('[data-screen-label="Me"]');
     await expect(prof.getByRole('button', { name: 'Edit profile' })).toBeVisible();
-    await expect(prof.locator('[data-impact]')).toContainText(/[1-9]\d*you’ve helped/);
+    await expect(prof.locator('[data-impact]')).toContainText(/[1-9]\d* helped/);
     await shot(O, '10-me');
     await openAllGroups(O);
     await cal.getByRole('button', { name: /^Notifications/ }).click();
@@ -205,6 +208,8 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     // Hope's card: claiming the chairs made Hal Going again, though he'd said Maybe (taking a job means you're coming,
     // whatever you'd said: owner, 2026-09-30, confirmed 2026-10-03), and the chairs are half covered
     await H.reload();
+    await expect(H.locator('html[data-loaded=true]')).toHaveCount(1);
+    await openTasks(H);
     await expect(lead).toContainText('NEED  Folding chairs (1)');   // Hal took Ice and one of the chairs
     await expect(lead).not.toContainText('Ice (');
 

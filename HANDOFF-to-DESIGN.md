@@ -4,13 +4,24 @@
 
 - **Built (test):** https://gosparkhub-git-test-eric-5958s-projects.vercel.app · **Live:** https://gosparkhub.vercel.app (also https://sparkhub.wereallneighbors.org)
 - **Source:** github.com/esshaughn/sparkhub (`index.html`, `js/sparks.js`, `css/sparks.css`, `privacy.html`, `supabase/templates/`)
-- **Baseline:** Claude Design's **round v8-8** (zip *Spark Hub v8-8*, 2026-10-06: `design/spark-hub/Spark Hub App Version 8.dc.html` and `design/spark-hub/HANDOFF-to-CODE.md`). It approved rows 96–105, §2 and §3 of *HANDOFF-to-DESIGN-7*, so those are cleared; rows 106–114 (v8-7) stay until Design has seen them.
+- **Baseline:** Claude Design's **round v8-9** (zip *Spark Hub v8-9*, 2026-10-06; v8-8 before it: `design/spark-hub/Spark Hub App Version 8.dc.html` and `design/spark-hub/HANDOFF-to-CODE.md`). It approved rows 96–105, §2 and §3 of *HANDOFF-to-DESIGN-7*, so those are cleared; rows 106–114 (v8-7) stay until Design has seen them.
 - **Build version:** **v7** (owner, 2026-10-02): a lead is a choice. Since v8-8 an idea is led from the start (*Who leads it · Me*) or floated (*I'll decide*), and both use the new idea page.
 - **As of:** 2026-10-06 (later: the prototype audit and *Owner calls that stand*, below). Earlier 2026-10-06: built round **v8-8**'s *New since v8-7* list (items 1–9, table below; migration `20261109000000_led_ideas.sql`). The *Answered* and *Already decided* items in the same file are listed in §4 until they're built.
 
 Where this doc and the design files disagree, **this doc is correct**. One file per side: please keep sending `HANDOFF-to-CODE.md`; this file is the reply (call it *HANDOFF-to-DESIGN-8*).
 
 ---
+
+## Round v8-9 in short
+
+*Built from HANDOFF-to-CODE v8-9 (New since v8-8) on 2026-10-06. The prototype was diffed against v8-8's too: nothing changed beyond these four items.*
+
+| v8-9 item | Status |
+|---|---|
+| 1. Discussion, empty state | Done: no *No comments yet.*, just the box with 8px more under it |
+| 2. Send update (1d) | Done: the pale-pink *Send update* pill by the Discussion heading, for leads of a plan; it carries what's typed. The *or* divider and link are gone |
+| 3. Today chip | Done: solid green with the white dot on My calendar's and a group page's Up next hero |
+| 4. Me page | Done as drawn: bell (with badge) back in the header, the impact pill first in the grey, *Your impact* sheet with more sparkles, no YOUR STUFF, the 72px My tasks row, the rows card, My tasks as a slide-up (44px from the top, ⌄ closes, Search, bell; it reopens after visiting an event), and the white Settings button where the + was. Its Search and bell open their sheets over it. Note: the audit earlier today had taken the bell off Me, as the v8-8 prototype had it; v8-9 brings it back |
 
 ## Round v8-8 in short
 

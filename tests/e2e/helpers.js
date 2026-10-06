@@ -174,8 +174,8 @@ async function startFloat(page) {
 // My tasks lives under Me since v8-4 (YOUR STUFF's first row)
 async function openTasks(page) {
   await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Me', exact: true }).click();
-  await page.locator('[data-stuff="My tasks"]').click();
-  await expect(page.locator('[data-screen-label="Your tasks"]')).toBeVisible();
+  await page.locator('[data-stuff="My tasks"]').click();   // a slide-up over Me since v8-9
+  await expect(page.getByRole('dialog', { name: 'My tasks' }).locator('[data-screen-label="Your tasks"]')).toBeVisible();
 }
 // All groups (v8; the old Discover tab): My groups' gradient card
 async function openAllGroups(page) {

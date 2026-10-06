@@ -3630,10 +3630,16 @@
     return out.sort((a, b) => when(a.s).localeCompare(when(b.s)) || b.s.created - a.s.created);
   };
 
-  function viewTasks() {
+  // sheet (v8-9 item 4): Me opens it as a slide-up, with a sticky header (grab handle, ⌄ closes, Search, bell)
+  function viewTasks(sheet) {
     const st = state, cat = st.tkCat || 'all', dense = st.tkView === 'dense';
-    const wrap = (inner) => '<div data-screen-label="Your tasks">' + tabHead('My tasks', openSearch, 'Search events', openProfileSheet) +
-      '<div style="padding:14px 14px 22px;display:flex;flex-direction:column;gap:12px">' + inner + '</div><div style="height:var(--nav-h)"></div></div>';
+    const sheetHead = () => '<header style="position:sticky;top:0;z-index:5;background:#fff;padding:22px 16px 12px;border-radius:24px 24px 0 0;box-shadow:0 1px 0 #e8eaef;display:flex;align-items:center;gap:12px">' +
+      '<span aria-hidden="true" style="position:absolute;top:8px;left:50%;margin-left:-20px;width:40px;height:5px;border-radius:3px;background:#d6d9df"></span>' +
+      '<span ' + on(() => setState({ tkSheet: false })) + ' aria-label="Close" style="flex:0 0 40px;width:40px;height:40px;margin-left:-6px;border-radius:999px;display:flex;align-items:center;justify-content:center;color:#0d1117;cursor:pointer">' + I.chevD(20, 'currentColor', 2.4) + '</span>' +
+      '<div style="flex:1 1 0;min-width:0"><h1 style="min-width:0;margin:0;font-size:30px;line-height:1;font-weight:900;letter-spacing:-1px;color:#0d1117">My tasks</h1></div>' +
+      '<div style="flex:0 0 auto;display:flex;gap:12px"><span ' + on(openSearch) + ' aria-label="Search events" style="flex:0 0 44px;width:44px;height:44px;border-radius:999px;background:#f2f3f6;color:#0d1117;display:flex;align-items:center;justify-content:center;cursor:pointer">' + ic6('search', 20, 'currentColor', 2.1) + '</span>' + bellBtn() + '</div></header>';
+    const wrap = (inner) => '<div data-screen-label="Your tasks">' + (sheet ? sheetHead() : tabHead('My tasks', openSearch, 'Search events', openProfileSheet)) +
+      '<div style="padding:14px 14px 22px;display:flex;flex-direction:column;gap:12px">' + inner + '</div>' + (sheet ? '' : '<div style="height:var(--nav-h)"></div>') + '</div>';
     if (!st.loaded) return wrap(skeleton(2, 200));
     if (!myGroups().length) return wrap(goneCard() + noGroupCard());
     const all = tkRows(), shown = all.filter(g => cat === 'all' || g.kind === cat);
@@ -3810,7 +3816,9 @@
     return '<div ' + on(() => openSpark(s)) + ' data-plan="' + esc(s.text) + '" data-next aria-label="' + esc(s.text) + '" style="border-radius:20px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
       '<div style="position:relative;height:170px;background:' + photoBg(s) + '">' +
         '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.95) 0%, rgba(13,17,23,.6) 45%, rgba(13,17,23,.25) 100%)"></div>' +
-        '<span style="position:absolute;top:12px;right:14px;display:flex;align-items:center;height:24px;padding:0 10px;border-radius:999px;background:rgba(13,17,23,.4);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff;font-size:11.5px;font-weight:800">' + when + '</span>' +
+        // Today is a solid green chip with a white dot (v8-9 item 3); Tomorrow / In N days stay the quiet frosted one
+        (d <= 0 ? '<span data-today style="position:absolute;top:12px;right:14px;display:flex;align-items:center;gap:7px;height:30px;padding:0 13px 0 11px;border-radius:999px;background:#149a4b;box-shadow:0 2px 10px rgba(20,154,75,.45);color:#fff;font-size:13.5px;font-weight:900;letter-spacing:.2px"><span style="width:8px;height:8px;border-radius:50%;background:#fff;box-shadow:0 0 0 3px rgba(255,255,255,.3)"></span>Today</span>'
+          : '<span style="position:absolute;top:12px;right:14px;display:flex;align-items:center;height:24px;padding:0 10px;border-radius:999px;background:rgba(13,17,23,.4);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff;font-size:11.5px;font-weight:800">' + when + '</span>') +
         '<div style="position:absolute;left:16px;right:16px;bottom:14px;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.3)">' +
           // the badge says Today / Tomorrow / In N days, so the date line gives the date itself (it said "Today" twice); its colour follows your role
           '<div style="font-size:13px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;color:' + P.R.kick + '">' + esc(s.dayDate ? fmtDay(s.dayDate) + (s.days ? ' · ' + s.days.length + ' days' : s.dayTime ? ' · ' + fmtTime(s.dayTime) : '') + (s.repeat ? ' · ' + REPEATS[s.repeat.every] : '') : when6(s)) + '</div>' +
@@ -6987,7 +6995,7 @@
       '<span style="display:flex;align-items:center;gap:4px;font-size:13.5px;font-weight:800;color:#ffe3ee">View' + I.chevD(12, '#ffe3ee', 3) + '</span></div>';
   };
   const SEND_IC = '<path d="M12 19V5M6 11l6-6 6 6"/>';
-  // Discussion, above Led by: the writing box (and the lead's Send an update), the lead's updates together in a gray panel,
+  // Discussion, above Led by: the writing box (the lead's Send update pill sits by the heading), the lead's updates together in a gray panel,
   // then comments newest first; past 3 posts, Show N more. Replies stay folded until opened
   function discussionSec(s) {
     loadComments(s.id);
@@ -7055,20 +7063,20 @@
     const draft = (st.discDraft || {})[s.id] || '', ok = !!draft.trim() && st.busy !== 'comment';
     const send = () => { if (ok) postComment(s, draft, null, () => ({ discDraft: Object.assign({}, state.discDraft, { [s.id]: '' }) }), '[data-comment-input]'); };
     const avatar = st.myAvatar ? photoUrl(st.myAvatar) : null;
-    const box = !can ? '' : '<div style="display:flex;flex-direction:column;gap:4px;padding:14px 14px 6px"><div style="display:flex;align-items:center;gap:10px">' + avatarSpan(st.me, st.myName, avatar, 36) +
+    const box = !can ? '' : '<div style="display:flex;flex-direction:column;gap:4px;padding:14px 14px 4px"><div style="display:flex;align-items:center;gap:10px">' + avatarSpan(st.me, st.myName, avatar, 36) +
         '<label class="disc-field" style="flex:1;min-width:0;display:flex;align-items:center;gap:6px;min-height:50px;box-sizing:border-box;padding:5px 5px 5px 18px;border-radius:999px;background:#f2f3f6">' +
           '<input class="fld" type="text" maxlength="500" data-comment-input aria-label="Write a comment" placeholder="' + (lead ? 'Write to everyone going…' : 'Ask a question or say hi…') + '" value="' + esc(draft) + '" ' +
             onInput(e => { if (e.type === 'input') setState({ discDraft: Object.assign({}, state.discDraft, { [s.id]: e.target.value.slice(0, 500) }) }); }) +
             ' style="flex:1;min-width:0;border:0;padding:0;background:transparent;outline:none;font-family:inherit;font-size:15.5px;font-weight:500;color:#0d1117">' +
           sendBtn(ok, send, 'Post', 40) + '</label></div>' +
-      // The lead's other way to say something: an update, which notifies people (it opens Post an update with what's typed)
-      (lead && phaseOf(s) === 'plan' ? '<div style="display:flex;flex-direction:column;gap:10px;padding-top:6px"><div style="display:flex;align-items:center;justify-content:center;gap:12px;padding:2px 4px"><span style="flex:0 0 48px;height:1px;background:#e3e5ea"></span><span style="font-size:13px;font-weight:700;color:#8a909b">or</span><span style="flex:0 0 48px;height:1px;background:#e3e5ea"></span></div>' +
-        '<div style="display:flex;justify-content:center"><span ' + on(() => setState({ blast: { id: s.id, to: 'going', text: draft.trim().slice(0, 200), chip: null }, updAll: null, discDraft: Object.assign({}, st.discDraft, { [s.id]: '' }) })) + ' data-send-update style="display:flex;align-items:center;gap:6px;min-height:34px;color:' + MAG.strong + ';font-size:13.5px;font-weight:800;cursor:pointer">' + svg(16, stroke('currentColor', 2.2), BULLHORN) + 'Send an update</span></div></div>' : '') +
       '</div>';
     return '<section data-discussion style="display:flex;flex-direction:column;gap:8px"><div style="display:flex;align-items:baseline;gap:8px;padding:0 4px"><h2 style="margin:0;font-size:24px;line-height:1.1;font-weight:900;letter-spacing:-.6px;color:#0d1117">Discussion</h2>' +
-        '<span data-disc-count style="font-size:15px;font-weight:800;color:#8a909b">' + total + '</span></div>' +   // 0 too (Design v8)
+        '<span data-disc-count style="font-size:15px;font-weight:800;color:#8a909b">' + total + '</span>' +   // 0 too (Design v8)
+        // The lead's Send update pill (v8-9 item 2, 1d): opens Post an update with whatever's typed in the box
+        (can && lead && phaseOf(s) === 'plan' ? '<span style="flex:1"></span><span ' + on(() => setState({ blast: { id: s.id, to: 'going', text: draft.trim().slice(0, 200), chip: null }, updAll: null, discDraft: Object.assign({}, st.discDraft, { [s.id]: '' }) })) + ' role="button" data-send-update class="hov-sendupd" style="align-self:center;display:flex;align-items:center;gap:6px;min-height:36px;padding:0 14px;border-radius:999px;background:#fdf0f5;color:#d6246e;font-size:13.5px;font-weight:800;cursor:pointer">' + svg(14, stroke('currentColor', 2.4), BULLHORN) + 'Send update</span>' : '') + '</div>' +
       '<div data-screen-label="Discussion" style="background:#fff;border-radius:20px;box-shadow:0 1px 3px rgba(15,18,25,.08);display:flex;flex-direction:column">' + box +
-        (!items.length ? '<div style="display:flex;align-items:center;justify-content:center;padding:18px 16px 22px;font-size:14.5px;font-weight:600;color:#6b7280;text-align:center">' + (c.list ? 'No comments yet.' : 'Loading…') + '</div>' : '') +
+        // Nothing yet: just the box with 8px more under it (v8-9 item 1, no No comments yet.)
+        (!items.length ? (c.list ? '<div style="height:8px"></div>' : '<div style="display:flex;align-items:center;justify-content:center;padding:18px 16px 22px;font-size:14.5px;font-weight:600;color:#6b7280;text-align:center">Loading…</div>') : '') +
         (ups.length ? '<div data-updates style="margin:8px 8px 4px;padding:2px 12px;border-radius:18px;background:#f2f3f6;display:flex;flex-direction:column">' + ups.map((x, k) => (k ? '<div style="height:1px;margin:0 0 0 48px;background:#dcdfe6"></div>' : '') + post(x, true)).join('') + '</div>' : '') +
         cms.map(x => post(x, false)).join('') +
         (over ? '<div style="padding:4px 14px 14px"><span ' + on(() => flag('discAll', s.id, !all)) + ' data-disc-more style="display:flex;align-items:center;justify-content:center;gap:6px;min-height:44px;border-radius:999px;background:#f2f3f6;font-size:14px;font-weight:800;color:#454b55;cursor:pointer">' +
@@ -8110,11 +8118,12 @@
     const st = state, avatar = st.myAvatar ? photoUrl(st.myAvatar) : null, x = meStats(), L = meLists();
     countMeVisit();
     const roundBtn = (fn, label, icon) => '<span ' + on(fn) + ' aria-label="' + label + '" style="position:relative;flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;color:#0d1117;cursor:pointer">' + icon + '</span>';
-    const stat = (n, label, big) => '<div style="display:flex;flex-direction:column;gap:2px"><b style="font-size:' + (big ? 32 : 26) + 'px;line-height:1;font-weight:900;letter-spacing:-.6px;color:#fff">' + n + '</b><span style="font-size:' + (big ? 12.5 : 12) + 'px;line-height:1.2;font-weight:700;color:rgba(255,255,255,.88)">' + label + '</span></div>';
-    const impact = '<div ' + on(() => setState({ meImp: 'led' })) + ' data-impact data-screen-label="Your impact" aria-label="Your impact: ' + x.led.length + ' led, ' + x.helped.length + ' helped, ' + x.went.length + ' attended" style="position:relative;overflow:hidden;display:flex;align-items:center;gap:10px;padding:14px 12px 14px 16px;border-radius:18px;color:#fff;cursor:pointer;background:' + SPARKLE_GRAD + '">' +
-      sparkles([[93, 8, 10, '#fff', 1], [86, 78, 7, '#ffe7a6', 1]]) +
-      '<div style="position:relative;flex:1;min-width:0;display:grid;grid-template-columns:repeat(3,1fr);gap:8px">' + stat(x.led.length, 'you’ve led') + stat(x.helped.length, 'you’ve helped') + stat(x.went.length, 'you’ve attended') + '</div>' +
-      '<span style="position:relative;display:flex">' + I.chevR(16, '#fff', 2.6) + '</span></div>';
+    // Your impact (v8-9 item 4, 1b): a slim gradient pill, the first thing in the grey
+    const impact = '<div ' + on(() => setState({ meImp: 'led' })) + ' data-impact data-screen-label="Your impact" role="button" aria-label="Your impact: ' + x.led.length + ' led, ' + x.helped.length + ' helped, ' + x.went.length + ' attended" class="hov-bright" style="position:relative;overflow:hidden;display:flex;align-items:center;gap:6px;min-height:52px;padding:0 10px 0 20px;border-radius:999px;color:#fff;cursor:pointer;background:linear-gradient(100deg,#5b4ae8,#a43ad0 45%,#d6246e 75%,#e8661c);box-shadow:0 4px 14px rgba(91,74,232,.25)">' +
+      sparkles([[36, 12, 8, '#fff', 1], [70, 66, 7, '#ffe7a6', 1], [83, 14, 10, '#fff', 1], [8, 70, 6, '#ffe7a6', 1]]) +
+      '<span style="position:relative;flex:1;min-width:0;display:flex;align-items:baseline;gap:12px;font-size:14px;font-weight:700;white-space:nowrap">' +
+        [[x.led.length, 'led'], [x.helped.length, 'helped'], [x.went.length, 'attended']].map(([n, w]) => '<span><b style="font-size:20px;font-weight:900">' + n + '</b> ' + w + '</span>').join('<span style="opacity:.5">·</span>') + '</span>' +
+      '<span style="position:relative;flex:0 0 32px;width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center">' + I.chevR(14, '#fff', 3) + '</span></div>';
     const head = '<div style="background:#fff;padding:16px;display:flex;flex-direction:column;gap:14px;box-shadow:0 1px 0 #e8eaef">' +
       '<div style="display:flex;align-items:center;gap:12px">' +
         '<span ' + on(() => openPerson(st.me)) + ' aria-label="See your profile" style="display:flex;cursor:pointer">' + avatarSpan(st.me, st.myName, avatar, 56) + '</span>' +
@@ -8122,10 +8131,9 @@
           '<span style="min-width:0;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(st.myName || 'No name yet') + '</span>' +
           '<span ' + on(openProfileEdit) + ' data-edit-profile style="align-self:flex-start;font-size:13.5px;font-weight:700;color:#5b4ae8;cursor:pointer">Edit profile</span></div>' +
         roundBtn(openSearch, 'Search events', ic6('search', 18, 'currentColor', 2.2)) +
-        // v8-4: Settings is a slide-up from the gear; no bell here (Design v8 prototype: avatar · name · Search · Settings)
-        '<span ' + on(() => setState({ meSet: true })) + ' aria-label="Settings" data-me-settings style="flex:0 0 44px;width:44px;height:44px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;color:#0d1117;cursor:pointer">' +
-          svg(21, stroke('currentColor', 1.9), '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>') + '</span>' +
-        '</div>' + impact + '</div>';
+        // v8-9 item 4: the bell (with its badge) is back top right; Settings moved to the floating button
+        bellBtn(false, 40, true) +
+        '</div></div>';
     // Alerts: the home screen one only where the app can be added; feedback comes back every 4 visits
     const a2hsOn = !!installMode() && !meAlertGet('a2hs');
     const fbAt = meAlertGet('fb'), fbOn = st.fbHint || fbAt == null || meVisits() - +fbAt >= 4;
@@ -8136,25 +8144,22 @@
     const alerts = a2hsOn || fbOn ? '<div data-screen-label="Me alerts" style="padding:12px 14px 0;display:flex;flex-direction:column;gap:8px">' +
       (a2hsOn ? alert('#f3f1fe', '#5b4ae8', svg(18, stroke('currentColor', 2.2), '<rect x="6" y="3" width="12" height="18" rx="2.5"/><path d="M12 9v6M9 12h6"/>'), 'Add Spark Hub to your home screen', 'Open it like an app, one tap away.', startInstall, () => meAlertSet('a2hs', 'x')) : '') +
       (fbOn ? alert('#fff4dc', '#8f6405', svg(18, stroke('currentColor', 2.2), '<path d="M5 5h14a1.5 1.5 0 0 1 1.5 1.5v9A1.5 1.5 0 0 1 19 17H10l-4.5 3.5V17H5a1.5 1.5 0 0 1-1.5-1.5v-9A1.5 1.5 0 0 1 5 5Z"/><path d="M8 10h8M8 13h5"/>'), 'Give Eric feedback', 'What’s working, what’s confusing?', openFeedback, () => { setState({ fbHint: false }); meAlertSet('fb', meVisits()); }, st.fbHint ? 'data-fb-hint class="fb-hint"' : '') : '') + '</div>' : '';
-    // YOUR STUFF: Drafts · Ideas · Leading · Past, each a slide-up list
-    const nextLead = L.lead.find(s => s.dayDate) || L.lead[0], interested = L.ideas.reduce((n, s) => n + s.interested.length, 0);
-    const stuff = (k, color, title, n, sub) => '<div ' + on(() => setState({ meList: k })) + ' data-stuff="' + title + '" aria-label="' + title + ', ' + n + '" class="hov-row" style="display:flex;flex-direction:column;gap:6px;padding:14px;border-radius:18px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
-      '<div style="display:flex;align-items:center;gap:8px"><span style="flex:0 0 3px;width:3px;height:16px;border-radius:2px;background:' + color + '"></span><span style="flex:1;font-size:15px;font-weight:800;color:#0d1117">' + title + '</span><b style="font-size:20px;line-height:1;font-weight:900;color:#0d1117">' + n + '</b></div>' +
-      '<span style="font-size:12.5px;line-height:1.3;font-weight:600;color:#6b7280;text-wrap:pretty">' + esc(sub) + '</span></div>';
-    const d0 = L.drafts[0] ? cleanTitle(draftState(L.drafts[0]).activity) || 'Untitled event' : '';
-    // My tasks moved here from the tab bar (v8-4): a full-width row first, then the 2×2 cards
+    // Drafts · Ideas · Leading · Past (v8-9 item 4, 1d): one white card of 48px rows, a role bar, the title, a quiet count
+    const stuff = (k, color, title, n, i) => '<div ' + on(() => setState({ meList: k })) + ' data-stuff="' + title + '" aria-label="' + title + ', ' + n + '" class="hov-row" style="display:flex;align-items:center;gap:10px;min-height:48px;padding:0 16px;' + (i < 3 ? 'border-bottom:1px solid #f2f3f6;' : '') + 'cursor:pointer">' +
+      '<span style="flex:0 0 3px;width:3px;height:20px;border-radius:2px;background:' + color + '"></span><span style="font-size:16px;font-weight:800;color:#0d1117">' + title + '</span>' +
+      '<span style="flex:1;font-size:15px;font-weight:700;color:#9aa0ac">' + n + '</span>' + I.chevR(16, '#9aa0ac', 2.8) + '</div>';
+    // My tasks (v8-4 from the tab bar): a 72px row that opens the My tasks slide-up (v8-9), then the rows card
     const tkN = state.sparks.filter(s => !s.cancelledAt && inMine(s) && phaseOf(s) === 'plan' && (isLead(s) || myClaims(s).length)).length;
-    const tasksRow = '<div ' + on(() => go('home')) + ' data-stuff="My tasks" aria-label="My tasks" class="hov-row" style="display:flex;align-items:center;gap:12px;min-height:60px;padding:0 14px;border-radius:18px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
-      '<span style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#f3f1fe;color:#5b4ae8;display:flex;align-items:center;justify-content:center">' + svg(20, stroke('currentColor', 2), '<path d="M10 6.5h10M10 12h10M10 17.5h10"/><path d="m3.5 6.5 1.5 1.5 2.5-3M3.5 12l1.5 1.5 2.5-3M3.5 17.5l1.5 1.5 2.5-3"/>') + '</span>' +
+    const tasksRow = '<div ' + on(() => setState({ tkSheet: true })) + ' data-stuff="My tasks" aria-label="My tasks" class="hov-row" style="display:flex;align-items:center;gap:12px;min-height:72px;padding:0 14px;border-radius:18px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
+      '<span style="flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:#f3f1fe;color:#5b4ae8;display:flex;align-items:center;justify-content:center">' + svg(20, stroke('currentColor', 2), '<path d="M10 6.5h10M10 12h10M10 17.5h10"/><path d="m3.5 6.5 1.5 1.5 2.5-3M3.5 12l1.5 1.5 2.5-3M3.5 17.5l1.5 1.5 2.5-3"/>') + '</span>' +
       '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px"><span style="font-size:16px;font-weight:800;color:#0d1117">My tasks</span>' +
         '<span style="font-size:12.5px;font-weight:600;color:#6b7280">' + (tkN ? 'Leading and helping · ' + tkN + (tkN === 1 ? ' event' : ' events') : 'Nothing on your list') + '</span></div>' +
       I.chevR(16, '#9aa0ac', 2.8) + '</div>';
-    const yourStuff = '<div style="padding:14px 14px 0"><div style="display:flex;flex-direction:column;gap:8px"><span style="padding:0 6px;font-size:12.5px;font-weight:900;letter-spacing:1px;color:#6b7280">YOUR STUFF</span>' + tasksRow +
-      '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">' +
-        stuff('draft', '#c9ccd3', 'Drafts', L.drafts.length, L.drafts.length ? d0 + (L.drafts.length > 1 ? ' + ' + (L.drafts.length - 1) + ' more' : '') : 'Nothing saved') +
-        stuff('idea', '#1f5fa8', 'Ideas', L.ideas.length, L.ideas.length ? interested + (interested === 1 ? ' person' : ' people') + ' interested' : 'Float one any time') +
-        stuff('lead', '#5b4ae8', 'Leading', L.lead.length, nextLead ? 'Next: ' + nextLead.text : 'Nothing planned') +
-        stuff('past', '#9aa0ac', 'Past', L.past.length, L.past.length ? 'Last: ' + L.past[0].text : 'Nothing yet') +
+    // No YOUR STUFF heading (v8-9): the impact pill, My tasks, then the rows card
+    const yourStuff = '<div style="padding:14px 14px 0"><div style="display:flex;flex-direction:column;gap:10px">' + impact + tasksRow +
+      '<div style="display:flex;flex-direction:column;border-radius:18px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);overflow:hidden">' +
+        stuff('draft', '#c9ccd3', 'Drafts', L.drafts.length, 0) + stuff('idea', '#f5b428', 'Ideas', L.ideas.length, 1) +
+        stuff('lead', '#5b4ae8', 'Leading', L.lead.length, 2) + stuff('past', '#6b7280', 'Past', L.past.length, 3) +
       '</div></div></div>';
     // Settings and Help & info rows: a gray icon square, the title (SOON chip), a line under it
     const SOON = '<span style="display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:999px;background:#fff4dc;color:#8f6405;font-size:10.5px;font-weight:900;letter-spacing:.6px">SOON</span>';
@@ -8181,6 +8186,14 @@
       '</div><div style="height:var(--nav-h)"></div></div>';
   }
 
+  // My tasks as a slide-up over Me (v8-9 item 4): 44px from the top; the scrim or ⌄ closes it. Opening an event leaves
+  // tkSheet set, so coming back to Me reopens it
+  function viewTasksSheet() {
+    const close = () => setState({ tkSheet: false });
+    return '<div class="v6-scrim" data-scrim="' + reg(close) + '"><div role="dialog" aria-modal="true" aria-label="My tasks" data-screen-label="My tasks sheet" class="v6-sheet" style="--sheet-top:44px;box-shadow:0 -8px 30px rgba(13,17,23,.18)">' +
+      '<div class="v6-sheet-body">' + viewTasks(true) + '</div></div></div>';
+  }
+
   // Your impact (v8): the gradient header with the three counts and how many people came, then Led · Helped · Attended
   function viewImpact() {
     const st = state, x = meStats(), k = st.meImp, close = () => setState({ meImp: null });
@@ -8196,9 +8209,9 @@
     const since = st.memberSince ? 'Member since ' + st.memberSince : '';
     return '<div class="v6-scrim" data-scrim="' + reg(close) + '"><div role="dialog" aria-modal="true" aria-label="Your impact" data-screen-label="Your impact sheet" class="v6-sheet" style="--sheet-top:64px">' +
       '<div style="position:relative;overflow:hidden;flex:0 0 auto;padding:10px 16px 18px;color:#fff;background:' + SPARKLE_GRAD + '">' +
-        sparkles([[70, 14, 12, '#fff', 1], [88, 30, 8, '#ffe7a6', 1], [80, 70, 9, '#ffd0e4', .9]]) +
+        sparkles([[70, 14, 12, '#fff', 1], [88, 30, 8, '#ffe7a6', 1], [80, 70, 9, '#ffd0e4', .9], [12, 18, 9, '#ffe7a6', 1], [48, 10, 7, '#fff', 1], [66, 62, 11, '#fff', 1], [92, 14, 8, '#fff', 1]]) +
         '<div aria-hidden="true" style="position:relative;width:40px;height:5px;border-radius:999px;background:rgba(255,255,255,.55);margin:0 auto 12px"></div>' +
-        '<div style="position:relative;display:flex;align-items:center;gap:10px"><span style="flex:1;font-size:24px;font-weight:900;letter-spacing:-.6px">Your Spark Hub</span>' +
+        '<div style="position:relative;display:flex;align-items:center;gap:10px"><span style="flex:1;font-size:24px;font-weight:900;letter-spacing:-.6px">Your impact</span>' +
           '<span ' + on(close) + ' aria-label="Close" style="width:36px;height:36px;border-radius:999px;background:rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(14, '#fff', 2.6) + '</span></div>' +
         (since ? '<span style="position:relative;font-size:13.5px;font-weight:700;color:rgba(255,255,255,.9)">' + since + '</span>' : '') +
         '<div style="position:relative;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px">' + stat(x.led.length, 'you’ve led') + stat(x.helped.length, 'you’ve helped') + stat(x.went.length, 'you’ve attended') + '</div>' +
@@ -10023,6 +10036,9 @@
   const TAB_SCREENS = ['groups', 'sched', 'home', 'me', 'calendar', 'browse', 'ideas'];
   function viewAddFab() {
     if (TAB_SCREENS.indexOf(state.screen) < 0 || !state.email) return '';
+    // On Me the floating button is Settings (v8-9 item 4): white, a grey gear; hidden while Settings or My tasks is open
+    if (state.screen === 'me') return state.meSet || state.tkSheet || state.notifSheet ? '' : '<div ' + on(() => setState({ meSet: true })) + ' role="button" aria-label="Settings" data-me-settings data-screen-label="Settings button" class="add-fab add-fab-set">' +
+      svg(22, stroke('currentColor', 2.1), '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>') + '</div>';
     if (state.screen === 'ideas') return '<div ' + on(() => openFloat()) + ' role="button" aria-label="Float an idea" data-float-fab class="add-fab add-fab-gold">' +
       svg(22, stroke('#2a1d00', 2.8), '<path d="M12 5v14M5 12h14"/>') + '</div>';
     const open = !!state.plusMenu, close = () => setState({ plusMenu: false });
@@ -10083,6 +10099,8 @@
       '<div class="scroller"' + (under ? ' inert aria-hidden="true"' : '') + '>' + main + '</div>' +
       (st.viewAs ? previewBar() : '') +
       // v6 sheets sit under the pop-ups they open (Edit profile, Notification settings, sign-in, guest info)
+      // My tasks (v8-9) first: its Search and bell open their sheets over it
+      (st.email && st.tkSheet && s === 'me' ? viewTasksSheet() : '') +
             (st.email && st.notifSheet ? viewNotifSheet() : '') +
       (st.email && st.dashAll ? viewDashAll() : '') +
       (st.email && st.cHandSheet ? viewHandSheet() : '') +

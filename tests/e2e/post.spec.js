@@ -399,10 +399,10 @@ test('drafts: X saves one, Your tasks lists it under Leading, Continue picks up 
     await leave.getByRole('button', { name: 'Save draft' }).click();
     await expect(page.getByText('Saved as a draft')).toBeVisible();
 
-    // Drafts live in Me → YOUR STUFF → Drafts (v8), not on My calendar
+    // Drafts live in Me → Drafts (v8), not on My calendar
     const openDraft = async () => {
       await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Me', exact: true }).click();
-      await expect(page.locator('[data-stuff="Drafts"]')).toContainText(title);
+      await expect(page.locator('[data-stuff="Drafts"]')).toHaveAttribute('aria-label', /^Drafts, [1-9]/);   // a count, no titles (v8-9)
       await page.locator('[data-stuff="Drafts"]').click();
       const list = page.getByRole('dialog', { name: 'Drafts' });
       await expect(list).toContainText(title);

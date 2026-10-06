@@ -473,16 +473,19 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
     await gs.getByText('Cancel', { exact: true }).click();
     await expect(gs).toHaveCount(0);
 
-    // Me (v8 11a): a tab, not a sheet: the header with Edit profile, the impact card, YOUR STUFF, Settings, Help & info
+    // Me (v8 11a, v8-9): a tab: the header with Edit profile and the bell, the impact pill, My tasks, the rows card, Help & info
     await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: /^Ideas/ }).click();
     await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Me', exact: true }).click();
     const profile = page.locator('[data-screen-label="Me"]');
-    await expect(profile.locator('[data-impact]')).toContainText('you’ve led');
+    await expect(profile.locator('[data-impact]')).toContainText(/\d+ led·\d+ helped·\d+ attended/);
+    await expect(profile).not.toContainText('YOUR STUFF');
     await expect(profile.locator('[data-stuff]')).toHaveCount(5);   // My tasks (v8-4), then Drafts · Ideas · Leading · Past
     await expect(profile).toContainText('HELP & INFO');
     await expect(profile).not.toContainText('Hosted');
-    // Settings is a slide-up from the gear (v8-4); Coming soon rows toast with the amber triangle
-    await profile.locator('[data-me-settings]').click();
+    // Settings is a slide-up from Me's floating gear (v8-9); Coming soon rows toast with the amber triangle
+    await expect(page.locator('[data-add-fab]')).toHaveCount(0);   // no + menu on Me
+    await page.locator('[data-me-settings]').click();
+    await expect(page.locator('[data-me-settings]')).toHaveCount(0);   // hidden while Settings is open
     const settings = page.getByRole('dialog', { name: 'Settings' });
     await settings.getByRole('button', { name: 'Sync to your calendar' }).click();
     await expect(page.getByRole('status')).toContainText('Coming soon');

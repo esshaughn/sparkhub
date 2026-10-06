@@ -1,4 +1,23 @@
-# Spark Hub v8 · HANDOFF-to-CODE (round v8-8)
+# Spark Hub v8 · HANDOFF-to-CODE (round v8-9)
+
+**Caught up with the build's `HANDOFF-to-DESIGN-7.md` (baseline v8-6) as of Oct 6, 2026.** Build *New since v8-8* (top), then v8-8 and v8-7 below if not done yet. Options: `options/Send Update Options.dc.html`, `options/Your Stuff Options.dc.html`, `options/Impact Card Options.dc.html`.
+
+## New since v8-8 (Oct 6, morning)
+1. **Discussion, empty state:** drop "No comments yet." With no posts, the card is just the writing box (8px extra bottom padding).
+2. **Send update (1d in `Send Update Options`):** the "or" divider and the centred "Send an update" link are gone. Leads see a pale-pink pill at the right of the Discussion heading: megaphone + **"Send update"** (36px tall, `#fdf0f5` bg, `#d6246e` text, hover `#fbe1ec`). Opens Post an update, carrying over any typed text. Members don't see it.
+3. **"Today" chip on the Next up card** (Groups and Calendar "Up next"): when the event is today, the top-right chip turns solid green `#149a4b`, 30px tall, 13.5px/900 white, soft green glow, with a small white dot before "Today". Tomorrow / In N days keep the quiet dark frosted chip.
+4. **Me page:**
+   - **Header:** photo, name, Edit profile, Search and the **notifications bell** (with its badge) top right. The settings gear moves to the floating button (below).
+   - **Your impact (1b in `Impact Card Options`):** out of the header, now the first thing in the grey: a slim gradient pill, 52px, "**4** led · **6** helped · **2** attended" (numbers 20px/900, words 14px/700), round frosted chevron right, four small white/gold ✦ sparkles. Tap opens the impact sheet as before.
+   - **Impact sheet:** title reads **"Your impact"** (was "Your Spark Hub"); a few more sparkles on its gradient header.
+   - **No "YOUR STUFF" heading.** My tasks card is 72px tall (40px icon).
+   - **Drafts · Ideas · Leading · Past (1d in `Your Stuff Options`):** one white card of 48px rows instead of the 2×2 grid: 3px role bar (Drafts `#c9ccd3`, Ideas gold `#f5b428`, Leading purple, Past `#6b7280`), title 16px/800, quiet grey count right after the title, chevron far right. No detail lines.
+   - **My tasks opens as a slide-up** from the bottom, 44px from the top, rounded 24px top, grab handle, sticky white header ("My tasks", down-chevron closes, Search, bell). Tapping the scrim closes it. Content is the full My tasks screen (chips, Timeline / Condensed). Opening an event from it and coming back to Me reopens the sheet.
+   - **Floating button on Me = Settings:** white 48px circle, grey `#454b55` gear, soft shadow (hover `#f2f3f6`). Opens the Settings slide-up. Hidden while Settings or the My tasks sheet is open. The + menu isn't on Me.
+
+---
+
+# Round v8-8
 
 **Caught up with the build's `HANDOFF-to-DESIGN-7.md` (baseline v8-6) as of Oct 6, 2026.** The build hasn't picked up v8-7 yet: please build *New since v8-7* (top), then *New since v8-6* below.
 
