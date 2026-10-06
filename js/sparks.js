@@ -5902,20 +5902,37 @@
 
   // A photo header shared by the plan and "happened" pages
   const ROUND_BTN = 'flex:0 0 44px;width:44px;height:44px;border-radius:999px;background:#fff;box-shadow:0 2px 8px rgba(13,17,23,.25);display:flex;align-items:center;justify-content:center;cursor:pointer';
+  // v8-12 (8a): on a plan, a lead's top right is one ⋯ that opens Edit event · Share · QR code; tap outside closes it
+  const MENU_ROW = 'display:flex;align-items:center;gap:12px;min-height:48px;padding:0 16px;border-top:1px solid #f2f3f6;font-size:15.5px;font-weight:800;color:#0d1117;cursor:pointer';
+  const evMenu = (s) => {
+    const open = state.evMenu === s.id, shut = () => setState({ evMenu: null });
+    return '<span style="position:relative;flex:0 0 44px">' +
+      '<span ' + on(() => setState({ evMenu: open ? null : s.id })) + ' data-ev-menu aria-label="More" aria-expanded="' + open + '" class="hov-fill-grey" style="' + ROUND_BTN + '">' +
+        svg(20, 'fill="#0d1117"', '<circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/>') + '</span>' +
+      (open ? '<span ' + on(shut) + ' aria-hidden="true" style="position:fixed;inset:0;z-index:1"></span>' +
+        '<div role="menu" data-ev-menu-list style="position:absolute;top:52px;right:0;z-index:2;width:200px;background:#fff;border-radius:16px;box-shadow:0 12px 30px rgba(0,0,0,.3);overflow:hidden"><div style="margin-top:-1px">' +
+          '<div ' + on(() => { shut(); openSec(s, 'title'); }, 'menuitem') + ' class="hov-fill-grey" style="' + MENU_ROW + '">' + svg(18, stroke('#0d1117', 2.3), '<path d="M4 20h4L19 9l-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/>') + 'Edit event</div>' +
+          '<div ' + on(() => setState({ evMenu: null, share: { id: s.id, copied: false } }), 'menuitem') + ' class="hov-fill-grey" style="' + MENU_ROW + '">' + svg(18, stroke('#0d1117', 2.4), P5.share) + 'Share</div>' +
+          (isLead(s) ? '<div ' + on(() => setState({ evMenu: null, share: { id: s.id, copied: false, pop: 'qr', solo: true } }), 'menuitem') + ' class="hov-fill-grey" style="' + MENU_ROW + '">' +
+            svg(18, 'fill="none" stroke="#0d1117" stroke-width="2.2"', '<rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><path d="M14 14h2v2h-2zM18 18h2v2h-2z"/>') + 'QR code</div>' : '') +
+        '</div></div>' : '') + '</span>';
+  };
   const phaseHeader = (s, height, scrim, inner, share) => {
     const g = groupById(s.groupId), cover = s.photoPaths[0] ? photoUrl(s.photoPaths[0]) : null;
+    const menu = share && canEdit(s) && !s.cancelledAt && phaseOf(s) === 'plan';
     return '<div style="position:relative;height:calc(' + height + 'px + var(--pt));overflow:hidden;background:#0b2a17">' +
       (cover ? photoLayer(cover, s.coverPos, IDEA_POS) : '<div aria-hidden="true" style="position:absolute;inset:0;background:' + groupBg(g, '#0b2a17') + '"></div>') +
       '<div aria-hidden="true" style="position:absolute;inset:0;background:' + scrim + '"></div>' +
-      '<div style="position:absolute;top:calc(12px + var(--pt));left:12px;right:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;z-index:1">' +
+      '<div style="position:absolute;top:calc(12px + var(--pt));left:12px;right:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;z-index:2">' +
         backBtn(s) +
         '<span style="flex:1"></span>' +
+        (menu ? evMenu(s) :
         // Owner, 2026-10-01: one round pencil (matching Share) opens Edit event: the title, and the cover photo for the host.
         // Round, so the Test event tab between the buttons stays clear on demo/test events
         (canEdit(s) && !s.cancelledAt ? '<span ' + on(() => openSec(s, 'title')) + ' aria-label="' + (s.planned ? 'Edit event' : 'Edit idea') + '" class="hov-fill-grey" style="' + ROUND_BTN + '">' + svg(18, stroke('#0d1117', 2.4), PENCIL) + '</span>'
           : share ? '' : '<span style="flex:0 0 44px;width:44px"></span>') +
         // Share stays on a cancelled plan (Design v8)
-        (share ? '<span ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' aria-label="Share" class="hov-fill-grey" style="' + ROUND_BTN + '">' + svg(18, stroke('#0d1117', 2.4), P5.share) + '</span>' : '') +
+        (share ? '<span ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' aria-label="Share" class="hov-fill-grey" style="' + ROUND_BTN + '">' + svg(18, stroke('#0d1117', 2.4), P5.share) + '</span>' : '')) +
       '</div>' + inner +
       // (No chip over the photo after an action, owner 2026-10-01: the page already shows what changed)
     '</div>';
@@ -6438,7 +6455,7 @@
         (s.planned && isLead(s) ? (ss.d ? '' : '<span data-needs-date style="font-size:13.5px;line-height:1.4;font-weight:600;color:' + AMBER_INK + '">A plan needs a date. To take it off, turn it back into an idea.</span>') : '');
       ok = !(s.planned && !ss.d);
     } else if (ss.kind === 'details') {
-      body = '<div style="display:flex;flex-direction:column;gap:12px"><span style="font-size:14px;line-height:1.4;font-weight:500;color:#5c6270">Both parts are optional.</span>' +
+      body = '<div style="display:flex;flex-direction:column;gap:12px">' +   // v8-12: no "Both parts are optional."
         wteFields(ss.ov || '', (v) => set({ ov: v }), ss.bits, (k, v) => { const b = state.sec.bits.slice(); b[k] = v; set({ bits: b }); }) +
         (!s.planned && isLead(s) ? needRow(ss.need, (n) => set({ need: n })) : '') + '</div>';
     } else {
@@ -6464,9 +6481,9 @@
       '<div style="display:flex;align-items:center;gap:10px"><div style="flex:1;min-width:0;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.4px;color:#0d1117">' + esc(title) + '</div>' + closeX(close) + '</div>' +
       body +
       saveBtn(ok && !state.busy, () => saveSec(s), state.busy === 'save' ? 'Saving…' : 'Save') +
-      // Under Save, the lead's way to cancel or delete (Design 30), on every section sheet (Design v8-8 prototype secDelOn):
+      // Under Save, the lead's way to cancel or delete (Design 30), on every section sheet but What to expect (v8-12; Design v8-8 prototype secDelOn):
       // closes this and opens the usual flow
-      (s.planned && isTheLead(s) && !s.cancelledAt ? '<span ' + on(() => { close(); askDelete(s); }) + ' data-sec-delete style="align-self:center;display:flex;align-items:center;justify-content:center;gap:7px;min-height:44px;padding:0 12px;font-size:14.5px;font-weight:800;color:#c0364d;cursor:pointer">' + I.trash(15, '#c0364d') + 'Cancel or delete event</span>' : '') +
+      (s.planned && isTheLead(s) && !s.cancelledAt && ss.kind !== 'details' ? '<span ' + on(() => { close(); askDelete(s); }) + ' data-sec-delete style="align-self:center;display:flex;align-items:center;justify-content:center;gap:7px;min-height:44px;padding:0 12px;font-size:14.5px;font-weight:800;color:#c0364d;cursor:pointer">' + I.trash(15, '#c0364d') + 'Cancel or delete event</span>' : '') +
       // Date, time & location: then Turn it back into an idea (Design v8-8 prototype 2251)
       (ss.kind === 'when' && s.planned && isLead(s) && phaseOf(s) !== 'done' ? '<span ' + on(() => { close(); clearPlan(s); }) + ' data-back-to-idea style="align-self:center;display:flex;align-items:center;min-height:44px;padding:0 12px;font-size:14.5px;font-weight:800;color:#9b1c31;cursor:pointer">Turn it back into an idea</span>' : ''), 36);
   }
@@ -6595,6 +6612,7 @@
     // Nothing to pick and no QR (a guest, or anyone who can't invite and isn't a host): no sheet with one button, straight to
     // the Share link pop-up; closing it closes everything (owner, 2026-10-06)
     if (!canList && !isLead(s)) return viewSharePop(s, msg, link, true);
+    if (sh.solo && sh.pop === 'qr' && isLead(s)) return viewEventQr(s, link);   // v8-12: QR code from the ⋯ menu, on its own
     return sheet(title, close, SHEET_PAD.replace('max-height:88%', 'max-height:94%'),
       '<div style="display:flex;align-items:flex-start;gap:10px"><div style="flex:1;min-width:0"><div style="font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">' + title + '</div>' +
         (sh.ask ? '<p data-ask-first style="margin:6px 0 0;font-size:14px;line-height:1.4;font-weight:600;color:#454b55;text-wrap:pretty">' + (gold ? 'Events that start with a friend or two already in are far more likely to happen. Send it to two people you think would come.' : 'Events with a friend or two in are more likely to happen.') + '</p>' : '') +
@@ -6681,7 +6699,7 @@
     const CHECKER = 'background-color:#fff;background-image:linear-gradient(45deg,#e3e5ea 25%,transparent 25%),linear-gradient(-45deg,#e3e5ea 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#e3e5ea 75%),linear-gradient(-45deg,transparent 75%,#e3e5ea 75%);background-size:16px 16px;background-position:0 0,0 8px,8px -8px,-8px 0';
     const seg = (k, label) => { const on_ = (k === 'white') === white;
       return '<span ' + on(() => set({ qrBg: k }), 'radio') + ' aria-checked="' + on_ + '" style="flex:1;height:38px;border-radius:999px;display:flex;align-items:center;justify-content:center;font-size:14.5px;font-weight:800;cursor:pointer;background:' + (on_ ? '#fff' : 'transparent') + ';color:' + (on_ ? '#0d1117' : '#6b7280') + ';box-shadow:' + (on_ ? '0 1px 3px rgba(13,17,23,.12)' : 'none') + '">' + label + '</span>'; };
-    return sharePopCard('QR code', 14, closeSharePop, '<span style="flex:1;min-width:0;font-size:24px;font-weight:900;letter-spacing:-.5px;color:#0d1117">QR code</span>',
+    return sharePopCard('QR code', 14, sh.solo ? () => setState({ share: null }) : closeSharePop, '<span style="flex:1;min-width:0;font-size:24px;font-weight:900;letter-spacing:-.5px;color:#0d1117">QR code</span>',
       '<div data-qr-stage style="align-self:center;padding:14px;border-radius:18px;' + (white ? 'background:#f2f3f6' : CHECKER) + '">' +
         '<div style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:12px 12px 14px;border-radius:12px;background:' + (white ? '#fff' : 'transparent') + ';box-shadow:' + (white ? '0 1px 3px rgba(13,17,23,.1)' : 'none') + '">' +
           (m ? eventQrSvg(m, 176, white) : '<span style="display:block;width:176px;height:176px;border-radius:8px;background:#f2f3f6"></span>') +
@@ -6887,7 +6905,8 @@
   };
   // What to expect (Design 8a, 2026-10-03; was Details): the one-line overview, then the bullets. No dividers, nothing bold
   const basicDetailsSec = (s) => {
-    const bits = basicsOf(s), ov = s.overview || '', edit = canEdit(s) && !s.cancelledAt;
+    const bits = basicsOf(s), edit = canEdit(s) && !s.cancelledAt;
+    const ov = bits.length || !s.planned ? s.overview || '' : '';   // v8-12: a plan's lone overview is in the header
     if (!bits.length && !ov && !edit) return '';
     return '<section id="sec-details" data-basics><div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 4px;margin-bottom:8px"><h2 style="margin:0;font-size:24px;line-height:1.1;font-weight:900;letter-spacing:-.6px;color:#0d1117">What to expect</h2>' +
         (edit ? '<span ' + on(() => openSec(s, 'details')) + ' aria-label="Edit what to expect" style="display:flex;align-items:center;gap:5px;min-height:36px;padding:0 2px;color:#6b7280;font-size:14px;font-weight:700;cursor:pointer">' + svg(13, stroke('currentColor', 2.4), PENCIL) + 'Edit</span>' : '') + '</div>' +
@@ -6895,7 +6914,7 @@
         ? '<div style="' + CARD + ';padding:16px 18px;display:flex;flex-direction:column;gap:6px">' +
             (ov ? '<div data-overview style="font-size:18px;line-height:1.4;font-weight:500;color:#0d1117;text-wrap:pretty">' + esc(ov) + '</div>' : '') +
             bits.map(t => '<div style="display:flex;align-items:baseline;gap:10px;padding:4px 0"><span style="flex:0 0 7px;width:7px;height:7px;border-radius:999px;background:#149a4b;transform:translateY(-3px)"></span><span style="font-size:17px;line-height:1.4;font-weight:500;color:#0d1117;text-wrap:pretty">' + esc(t) + '</span></div>').join('') + '</div>'
-        : '<div ' + on(() => openSec(s, 'details')) + ' style="padding:14px 16px;border-radius:18px;border:1.5px dashed #c9ccd3;font-size:14.5px;font-weight:700;color:#6b7280;cursor:pointer">Add a one-line overview and up to three quick notes.</div>') +
+        : '<div ' + on(() => openSec(s, 'details')) + ' style="padding:14px 16px;border-radius:18px;border:1.5px dashed #c9ccd3;font-size:14.5px;font-weight:700;color:#6b7280;cursor:pointer">' + (s.overview ? 'Add up to three quick notes.' : 'Add a one-line overview and up to three quick notes.') + '</div>') +
       // The way in to a plan's first Inspo photo (owner, 2026-10-05: Inspo stays hidden on a plan until it has one)
       (isLead(s) && s.planned && !s.cancelledAt && !s.mood.length ? '<label data-add-inspo class="hov-fill-grey"' + (state.busy ? ' aria-busy="true"' : '') + ' style="margin-top:8px;align-self:flex-start;display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 4px;font-size:14px;font-weight:800;color:#5b4ae8;cursor:' + (state.busy ? 'wait;opacity:.6' : 'pointer') + '">' +
           svg(15, stroke('currentColor', 2.2), '<rect x="3.5" y="5" width="17" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.6"/><path d="m20.5 16-5-5-8 8"/>') + (state.busy ? 'Adding…' : 'Add inspo photos') +
@@ -7064,7 +7083,9 @@
 
   // The event header's date tile (Design 31, 2026-10-04; was top right, 13e): first in the bottom-left block, above the
   // chips, tilted -4°; the plan's month band is green, the idea's gold
-  const dateTile = (s, band) => { if (!s.dayDate) return ''; const dp = dateParts(s.dayDate);
+  // v8-12 (4a + 8a): on a plan (corner) it sits at the photo's top right, under the buttons, tilted +5°
+  const dateTile = (s, band, corner) => { if (!s.dayDate) return ''; const dp = dateParts(s.dayDate);
+    if (corner) return '<div data-date-corner style="position:absolute;top:calc(88px + var(--pt));right:20px;z-index:1;display:flex">' + dateTile(s, band).replace('align-self:flex-start;', '').replace(/margin:0 0 (6|10)px 2px;/, '').replace('rotate(-4deg)', 'rotate(5deg)') + '</div>';
     // Multi-day (v8-7, 27a): two fanned pages, the current or next day in front (−6°) and the day after it behind (+8°)
     if (s.days) {
       const k = Math.max(0, s.days.findIndex(r => r.d === s.dayDate)), nx = s.days[Math.min(k + 1, s.days.length - 1)].d, b = dateParts(nx);
@@ -7344,14 +7365,17 @@
     return '<div data-screen-label="Plan page">' +
       // a neutral scrim (Design v8; it was green)
       phaseHeader(s, 340, 'linear-gradient(to top, rgba(13,17,23,.9) 0%, rgba(13,17,23,.45) 55%, rgba(13,17,23,.3) 100%)',
+        dateTile(s, '#149a4b', true) +
         '<div style="position:absolute;left:20px;right:20px;bottom:20px;color:#fff;display:flex;align-items:flex-end;gap:14px"><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px">' +
-          dateTile(s, '#149a4b') +
-          // Design v8: CANCELLED takes the role chip's place; a co-lead's chip reads HAPPENING (no YOU'RE CO-LEADING)
-          '<div style="display:flex;gap:6px;flex-wrap:wrap">' + (s.cancelledAt ? '<span data-cancelled style="display:flex;align-items:center;border-radius:999px;padding:5px 11px;background:#9b1c31;font-size:12px;font-weight:900;letter-spacing:.9px">CANCELLED</span>'
-            : '<span data-chip' + (isDemo(s) ? ' data-demo-tag' : '') + ' style="display:flex;align-items:center;gap:6px;border-radius:999px;padding:5px 11px;background:' + (isDemo(s) ? 'rgba(255,255,255,.24);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)' : isTheLead(s) ? '#5b4ae8' : '#149a4b') + ';font-size:12px;font-weight:900;letter-spacing:.9px">' + (isDemo(s) ? 'DEMO' : isTheLead(s) ? 'YOU’RE LEADING' : 'HAPPENING') + '</span>') +
-            (s.visibility === 'invite' ? '<span style="display:flex;align-items:center;gap:5px;border-radius:999px;padding:5px 11px;background:rgba(255,255,255,.22);font-size:12px;font-weight:900;letter-spacing:.9px">' + svg(11, stroke('#fff', 2.6), '<rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>') + 'PRIVATE</span>' : '') + '</div>' +
-          // The title isn't tappable any more (Design 31): editing goes through the ✎ at the top right
-          '<h1 style="margin:0;font-size:40px;line-height:.98;font-weight:900;letter-spacing:-1.3px;text-wrap:pretty">' + esc(s.text) + '</h1></div>' +
+          // v8-12 (8a): no HAPPENING / YOU'RE LEADING chip; the row shows only for CANCELLED and/or PRIVATE
+          (s.cancelledAt || s.visibility === 'invite' || isDemo(s) ? '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
+            (s.cancelledAt ? '<span data-cancelled style="display:flex;align-items:center;border-radius:999px;padding:5px 11px;background:#9b1c31;font-size:12px;font-weight:900;letter-spacing:.9px">CANCELLED</span>'
+              : isDemo(s) ? '<span data-chip data-demo-tag style="display:flex;align-items:center;gap:6px;border-radius:999px;padding:5px 11px;background:rgba(255,255,255,.24);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);font-size:12px;font-weight:900;letter-spacing:.9px">DEMO</span>' : '') +
+            (s.visibility === 'invite' ? '<span style="display:flex;align-items:center;gap:5px;border-radius:999px;padding:5px 11px;background:rgba(255,255,255,.22);font-size:12px;font-weight:900;letter-spacing:.9px">' + svg(11, stroke('#fff', 2.6), '<rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>') + 'PRIVATE</span>' : '') + '</div>' : '') +
+          // The title isn't tappable any more (Design 31): editing goes through the ⋯ at the top right
+          '<h1 style="margin:0;font-size:40px;line-height:.98;font-weight:900;letter-spacing:-1.3px;text-wrap:pretty">' + esc(s.text) + '</h1>' +
+          // v8-12 (item 2): with no quick details the overview sits under the title; with them it leads What to expect
+          (s.overview && !basicsOf(s).length ? '<span data-overview data-overview-head style="font-size:18px;line-height:1.4;font-weight:500;color:#fff;text-wrap:pretty">' + esc(s.overview) + '</span>' : '') + '</div>' +
         '</div>', true) +
       tab +
       '<div style="padding:16px 14px 26px;display:flex;flex-direction:column;gap:18px">' +
@@ -9187,8 +9211,9 @@
     '<span style="font-size:11.5px;font-weight:700;color:#9aa0ac">' + v.length + '/60</span></label>').join('');
   // What to expect (Design 8a/10a, 2026-10-03): two numbered parts, both optional: a one-line overview (80) and up to three details (60 each)
   const OVERVIEW_PH = 'An evening of backyard games and food with whoever shows up';
+  // v8-12: the purple 1 / 2 number circles are gone; the labels and Optional tags stay
   const wtePart = (n, label, inner) => '<div style="display:flex;flex-direction:column;gap:8px">' +
-    '<div style="display:flex;align-items:center;gap:10px"><span aria-hidden="true" style="flex:0 0 26px;width:26px;height:26px;border-radius:999px;background:#5b4ae8;color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900">' + n + '</span>' +
+    '<div style="display:flex;align-items:center;gap:10px">' +
       '<span style="flex:1;display:flex;align-items:baseline;gap:8px;font-size:17px;font-weight:900;color:#0d1117">' + label + '<span style="font-size:13.5px;font-weight:600;color:#9aa0ac">Optional</span></span></div>' + inner + '</div>';
   const wteFields = (ov, setOv, bits, setBit) => '<div data-wte style="display:flex;flex-direction:column;gap:10px">' +   // 10px apart (Design v8)
     wtePart(1, 'One-line overview', '<label style="display:flex;align-items:center;gap:10px;min-height:58px;padding:0 16px;border-radius:16px;background:#fff;box-shadow:inset 0 0 0 2px #dcdfe6;cursor:text">' +

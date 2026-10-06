@@ -1,4 +1,26 @@
-# Spark Hub v8 · HANDOFF-to-CODE (round v8-11)
+# Spark Hub v8 · HANDOFF-to-CODE (round v8-12)
+
+**Caught up with the build's `HANDOFF-to-DESIGN-7.md` (baseline v8-6) as of Oct 6, 2026.** Build *New since v8-11* (top), then earlier rounds below if not done yet. New options files: `options/Event Overview Options.dc.html` (4a picked, from 1b → 2d), `options/Event Header Options.dc.html` (8a picked, from 5d → 7a).
+
+## New since v8-11 (Oct 6, afternoon)
+1. **Event header (4a + 8a):**
+   - **Status chip removed** (HAPPENING / YOU’RE LEADING). The chip row only shows for **CANCELLED** and/or **PRIVATE**.
+   - **Calendar tile** moves out of the title block to the **top-right of the photo**: `top: 88px; right: 20px` (below the top buttons), tilted **+5°** (was −4°). Multi-day fanned pages move with it.
+   - **Overview under the title** (18px/500 white, `text-wrap: pretty`), **only when the event has no quick details**. See item 2.
+   - **Top-right buttons:**
+     - **Leads:** one white 44px **⋯** button. Opens a 200px white menu (16px radius, 48px rows, hairlines): **Edit event** · **Share** · **QR code** (the existing lead QR pop-up). Tap outside closes.
+     - **Everyone else** (members, guests, visitors): just the white **Share** button, no ⋯.
+2. **Where the overview shows:**
+   - **Overview only** (no quick details): in the header under the title. "What to expect" isn’t shown for members; leads still see the dashed "Add…" prompt.
+   - **Overview + quick details:** header shows just the title; the overview leads the **What to expect** card (18px ink) above the details.
+   - It’s one field (`overview`), so editing it in the What to expect sheet updates wherever it shows.
+3. **What to expect edit sheet:** removed "Both parts are optional." and the purple **1 / 2** number circles (labels and Optional tags stay). **No "Cancel or delete event"** link on this sheet (it stays on the other edit sheets).
+4. **Sample data:** quick overviews added to Pickleball, Driveway Dance, Turkey Trot 5K, Hunters Hang, Paint a Hub mural, Neighborhood Bonfire, Creekside Meditation, Poker night.
+5. **Not picked, for reference only:** "Led by {name}" on the header (5a–7e). Owner went with no Led by in the header (8a).
+
+---
+
+# Round v8-11
 
 **Caught up with the build's `HANDOFF-to-DESIGN-7.md` (baseline v8-6) as of Oct 6, 2026.** Build *New since v8-10* (top), then earlier rounds below if not done yet. New options files: `options/Idea Card Top Options.dc.html` (1e), `options/RSVP Plus Options.dc.html` (6a), `options/Guest Day Pick Options.dc.html` (1d + 2b), `options/Event QR Options.dc.html`.
 

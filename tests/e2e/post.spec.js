@@ -54,7 +54,7 @@ test('post an event with every step filled, then edit it in the pop-ups and dele
     await page.getByRole('alertdialog').getByRole('button', { name: 'Delete update' }).click();
     await expect(upd.locator('[data-update]')).toHaveText(['Meet at the big oak', 'Bring a headlamp, it gets dark early']);
     await expect(P.getByRole('heading', { name: 'Visibility' })).toBeVisible();
-    await expect(P.locator('[data-chip]')).toHaveText('YOU’RE LEADING');
+    await expect(P.locator('[data-chip]')).toHaveCount(0);   // v8-12: no YOU'RE LEADING chip
     await expect(page.locator('[data-test-tab]')).toHaveCount(0);   // a real event: no Test event tab
     await expect(P).toContainText('5:30pm');
     await expect(P).toContainText('Zilker Metropolitan Park');
@@ -80,10 +80,21 @@ test('post an event with every step filled, then edit it in the pop-ups and dele
     await expect(bar).toContainText('1 task');
     await expect(P.locator('[data-screen-label="Your tasks"]')).not.toContainText('Bring water');
 
-    // Edit event: a round pencil by Share (owner, 2026-10-01), no pencil after the title and the title isn't a button (Design 31)
+    // Edit event: the lead's ⋯ (v8-12, 8a) opens Edit event · Share · QR code; no Share button beside it.
+    // No pencil after the title and the title isn't a button (Design 31)
     await expect(P.locator('h1 svg')).toHaveCount(0);
     await expect(P.locator('h1[data-on]')).toHaveCount(0);
-    await P.getByRole('button', { name: 'Edit event' }).click();
+    await expect(P.getByRole('button', { name: 'Share', exact: true })).toHaveCount(0);
+    await P.getByRole('button', { name: 'More' }).click();
+    await expect(P.getByRole('menuitem')).toHaveText(['Edit event', 'Share', 'QR code']);
+    await P.getByRole('menuitem', { name: 'QR code' }).click();
+    const qr0 = page.getByRole('dialog', { name: 'QR code' });
+    await expect(qr0.locator('[data-event-qr]')).toBeVisible();
+    await qr0.getByRole('button', { name: 'Close' }).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);   // on its own: closing it closes everything
+    await P.getByRole('button', { name: 'More' }).click();
+    await P.getByRole('menuitem', { name: 'Edit event' }).click();
+    await expect(P.getByRole('menu')).toHaveCount(0);
     const sec = page.getByRole('dialog', { name: 'Edit event' });
     await expect(sec.locator('[data-edit-photo]')).toBeVisible();
     await expect(sec.getByRole('switch', { name: 'Tell everyone going' })).toHaveCount(0);   // edits save quietly (Design 30)
@@ -100,6 +111,8 @@ test('post an event with every step filled, then edit it in the pop-ups and dele
     await P.getByRole('button', { name: 'Edit what to expect' }).click();
     const bd = page.getByRole('dialog', { name: 'What to expect' });
     await expect(bd.getByLabel('One-line overview')).toHaveAttribute('maxlength', '80');
+    await expect(bd).not.toContainText('Both parts are optional.');   // v8-12
+    await expect(bd.locator('[data-sec-delete]')).toHaveCount(0);       // no Cancel or delete on this sheet (v8-12)
     await bd.getByLabel('One-line overview').fill('A night run under the stars');
     await bd.getByLabel('Details, line 3').fill('Hot cocoa');
     await bd.getByRole('button', { name: 'Save', exact: true }).click();

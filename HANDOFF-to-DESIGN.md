@@ -4,15 +4,15 @@
 
 - **Built (test):** https://gosparkhub-git-test-eric-5958s-projects.vercel.app · **Live:** https://gosparkhub.vercel.app (also https://sparkhub.wereallneighbors.org)
 - **Source:** github.com/esshaughn/sparkhub (`index.html`, `js/sparks.js`, `css/sparks.css`, `privacy.html`, `supabase/templates/`)
-- **Baseline:** Claude Design's **round v8-11** (zip *Spark Hub v8-11*, 2026-10-06; v8-10 before it: `design/spark-hub/Spark Hub App Version 8.dc.html` and `design/spark-hub/HANDOFF-to-CODE.md`). It approved rows 96–105, §2 and §3 of *HANDOFF-to-DESIGN-7*, so those are cleared; rows 106–114 (v8-7) stay until Design has seen them.
+- **Baseline:** Claude Design's **round v8-12** (zip *Spark Hub v8-12*, 2026-10-06; v8-11 before it: `design/spark-hub/Spark Hub App Version 8.dc.html` and `design/spark-hub/HANDOFF-to-CODE.md`). It approved rows 96–105, §2 and §3 of *HANDOFF-to-DESIGN-7*, so those are cleared; rows 106–114 (v8-7) stay until Design has seen them.
 - **Build version:** **v7** (owner, 2026-10-02): a lead is a choice. Since v8-8 an idea is led from the start (*Who leads it · Me*) or floated (*I'll decide*), and both use the new idea page.
-- **As of:** 2026-10-06 (latest: built round **v8-11**'s *New since v8-10* list, table below; migration `20261110000000_plus_ones.sql`). Before that: v8-10, then the prototype audit and *Owner calls that stand* (below). Earlier 2026-10-06: built round **v8-8**'s *New since v8-7* list (items 1–9, table below; migration `20261109000000_led_ideas.sql`). The *Answered* and *Already decided* items in the same file are listed in §4 until they're built.
+- **As of:** 2026-10-06 (latest: built round **v8-12**'s *New since v8-11* list, table below). Before that: v8-11 (migration `20261110000000_plus_ones.sql`), v8-10, then the prototype audit and *Owner calls that stand* (below). Earlier 2026-10-06: built round **v8-8**'s *New since v8-7* list (items 1–9, table below; migration `20261109000000_led_ideas.sql`). The *Answered* and *Already decided* items in the same file are listed in §4 until they're built.
 
 ## Start here (2026-10-06)
 
 Your last catch-up was *HANDOFF-to-DESIGN-7* (baseline v8-6). Everything below is new since then, all **live** at sparkhub.wereallneighbors.org as of 2026-10-06 (v=246):
 
-1. **Rounds v8-7 → v8-11**, each as a short table (newest first): what was built as drawn, and every place the build differs. v8-11 added plus-ones (a database change), the guest flows, the Share link pop-up and the event QR.
+1. **Rounds v8-7 → v8-12**, each as a short table (newest first): what was built as drawn, and every place the build differs. v8-12 is the event header (4a + 8a). v8-11 added plus-ones (a database change), the guest flows, the Share link pop-up and the event QR.
 2. **The prototype audit** (2026-10-06): ~60 spots where the prototype had been redrawn without a *New since* item, now matching.
 3. **Owner calls that stand**: 13 spots where the owner chose differently and the prototype still draws the old version. Please redraw these.
 4. **§1–§3**: rows 106–123 and the behaviour notes you haven't acknowledged yet, plus the 2026-10-06 privacy page and link-preview changes (§3).
@@ -22,6 +22,18 @@ Your last catch-up was *HANDOFF-to-DESIGN-7* (baseline v8-6). Everything below i
 Where this doc and the design files disagree, **this doc is correct**. One file per side: please keep sending `HANDOFF-to-CODE.md`; this file is the reply (call it *HANDOFF-to-DESIGN-8*).
 
 ---
+
+## Round v8-12 in short
+
+*Built from HANDOFF-to-CODE v8-12 (New since v8-11) on 2026-10-06. The prototype was diffed against v8-11's: nothing changed beyond items 1–4.*
+
+| v8-12 item | Status |
+|---|---|
+| 1. Event header (4a + 8a) | Done on the plan page. Chip row only for CANCELLED and/or PRIVATE (the old DEMO chip stays there for demo events; there are none now). Date tile at the photo's top right, 88px + the phone's safe area from the top, +5°; multi-day fanned pages move with it. **Leads:** one white ⋯ → *Edit event* · *Share* · *QR code* (200px menu, 48px rows, tap outside closes). *Share* opens Invite people as before; *QR code* opens the QR pop-up **on its own**, and closing it closes everything. *QR code* is for hosts (lead and co-hosts); an admin who can edit but doesn't host sees *Edit event* · *Share*. **Everyone else:** just Share. Not changed by this round: the idea page and the *It happened* page keep the pencil + Share; a cancelled plan shows just Share (no ⋯) |
+| 2. Where the overview shows | Done. Overview only: 18px/500 white under the title, and What to expect is hidden for members; leads still get the dashed prompt, which reads *Add up to three quick notes.* when the overview is already in the header (build wording). Overview + details: it leads the What to expect card. One field, so editing either updates both |
+| 3. What to expect edit sheet | Done: no *Both parts are optional.*, no 1 / 2 circles, no *Cancel or delete event* on this sheet (the other edit sheets keep it) |
+| 4. Sample data | Prototype only: the build has no sample events any more (demo events removed 2026-10-03) |
+| 5. Not picked (Led by in the header) | Not built |
 
 ## Round v8-11 in short
 
