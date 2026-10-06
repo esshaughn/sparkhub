@@ -17,6 +17,10 @@ Handoffs with Claude Design are two files, one per direction (owner, 2026-10-03;
 
 **Each round:** the owner sends Design's round as a zip (*SparkHub v8-N*, since v8): put its `HANDOFF-to-CODE.md` and `Spark Hub App Version 8.dc.html` in `design/spark-hub/` (the `options/` canvases and photos stay with Design). Read `HANDOFF-to-CODE.md` and build from its *New since …* list, with the design file as the visual reference. Record what you built, and anything you had to change or invent, in `HANDOFF-to-DESIGN.md` as usual. To answer one of Design's questions, write the answer in our file and name the section it answers (*Soft holds: built as specced, except …*). **Don't copy text from one file into the other**: each file only describes its own side's changes. Commit both of Design's files into `design/spark-hub/` with the build.
 
+**The *New since* list is not the whole round (owner, 2026-10-06).** Design also redraws things in the prototype without listing them: the sparkle *Find more events* pill and the grey Ideas board, the dot on the Ideas tab and the *Create a poll* pop-up were all missed that way. Each round, before building:
+1. Diff the new prototype against the last committed one (`git diff HEAD -- "design/spark-hub/Spark Hub App Version 8.dc.html"` before committing it; the template is lines 1–~2590, the logic after). Every visible change is a build item, listed or not.
+2. For every **owner call** in the build at a spot the prototype redrew, don't silently keep either version: ask the owner which wins, then record the answer in `HANDOFF-to-DESIGN.md` → *Owner calls that stand*.
+
 ## Keep HANDOFF-to-DESIGN.md current
 
 `HANDOFF-to-DESIGN.md` tells Claude Design how the live app differs from the last design file. Update it **in the same commit** as any change a user could see or do differently: layout, copy, screens, flows, states (empty/loading/error), what data is shown and to whom.
@@ -29,7 +33,7 @@ Handoffs with Claude Design are two files, one per direction (owner, 2026-10-03;
 - Bump the **As of** date.
 - Skip it for pure refactors, performance, dependency bumps or infra changes with no user-facing effect.
 
-When a design round has absorbed the doc (Design's `HANDOFF-to-CODE.md` says it caught up with ours, or the user says "design synced"), reset it: make that round the **Baseline**, clear §1–§4 of what Design took in, and keep only the §5 questions that are still open.
+When a design round has absorbed the doc (Design's `HANDOFF-to-CODE.md` says it caught up with ours, or the user says "design synced"), reset it: make that round the **Baseline**, clear §1–§4 of what Design took in, and keep only the §5 questions that are still open. **Never clear *Owner calls that stand***: a reset dropped the owner's calls before, so Design kept drawing the old versions and nobody noticed the clash.
 
 ## Branches and deploys
 

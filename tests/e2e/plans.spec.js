@@ -385,7 +385,9 @@ test('a cancelled idea offers nothing to do: no Sign up, Suggest, voting or Make
     });
     for (const [P, lead] of [[M, false], [H, true]]) {
       await P.goto('/#/idea/' + id);
-      await expect(P.locator('[data-screen-label="Idea page"]')).toContainText('Ice');
+      // Help out is hidden on anything cancelled (Design v8-8 prototype), so the job doesn't show at all
+      await expect(P.locator('[data-screen-label="Idea page"]')).toContainText('This idea is cancelled');
+      await expect(P.locator('[data-screen-label="Idea page"]')).not.toContainText('Ice');
       await expect(P.getByText('Sign up', { exact: true })).toHaveCount(0);
       await expect(P.getByText(/^(Suggest a date|Suggest a location|Add a date|Add a location)$/)).toHaveCount(0);
       if (lead) await expect(P.getByRole('button', { name: 'Make it a plan' })).toHaveCount(0);

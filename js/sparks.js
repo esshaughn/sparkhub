@@ -4191,9 +4191,10 @@
       set: (cMon, cDay) => setState({ cMon, cDay }), toTbd: () => setState({ cView: 'list', cSort: 'soon', menu: null, cMon: null, cDay: null }) });
     else if (!list.length) {
       // Nothing to show (Design v8 prototype): the card alone, no heading or Sort / view controls. Narrowed: Clear filters
-      // sits above; on Ideas or Past the Plans · Ideas · Past pill stays so you can get back to Plans
+      // sits above; on Ideas or Past the Plans · Ideas · Past pill stays so you can get back to Plans, and the view menu
+      // always does, since Month shows pencilled-in holds even with no plans listed
       // (tSel went with the Type filter; it froze this screen, 2026-10-02)
-      body = st.loaded && !groups.length ? '' : '<div style="display:flex;flex-direction:column;gap:10px">' + (kind !== 'plan' ? '<div style="position:relative;z-index:3;display:flex;justify-content:flex-end">' + kindPill + '</div>' : '') +
+      body = st.loaded && !groups.length ? '' : '<div style="display:flex;flex-direction:column;gap:10px">' + '<div style="position:relative;z-index:3;display:flex;align-items:center;justify-content:flex-end;gap:6px">' + (kind !== 'plan' ? kindPill : '') + calViewMenu() + '</div>' +
         (filtered ? '<div data-filter-empty style="' + CARD + ';padding:18px;display:flex;flex-direction:column;gap:4px"><div style="font-size:16px;font-weight:800;color:#0d1117">Nothing matches that.</div><div style="font-size:14px;line-height:1.45;font-weight:500;color:#6b7280">Try a different search or time range — or float an idea yourself.</div></div>' : kind === 'idea' ? note6('No ideas in your groups yet.') : kind === 'done' ? note6('Nothing has happened in your groups yet.') : calEmpty()) + '</div>';
     } else {
       body = secs.map((z, i) => '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(z.label, i ? '' : '<div style="display:flex;align-items:center">' + sortMenu + kindPill + calViewMenu() + '</div>') +

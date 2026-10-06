@@ -6,7 +6,7 @@
 - **Source:** github.com/esshaughn/sparkhub (`index.html`, `js/sparks.js`, `css/sparks.css`, `privacy.html`, `supabase/templates/`)
 - **Baseline:** Claude Design's **round v8-8** (zip *Spark Hub v8-8*, 2026-10-06: `design/spark-hub/Spark Hub App Version 8.dc.html` and `design/spark-hub/HANDOFF-to-CODE.md`). It approved rows 96–105, §2 and §3 of *HANDOFF-to-DESIGN-7*, so those are cleared; rows 106–114 (v8-7) stay until Design has seen them.
 - **Build version:** **v7** (owner, 2026-10-02): a lead is a choice. Since v8-8 an idea is led from the start (*Who leads it · Me*) or floated (*I'll decide*), and both use the new idea page.
-- **As of:** 2026-10-06: built round **v8-8**'s *New since v8-7* list (items 1–9, table below; migration `20261109000000_led_ideas.sql`). The *Answered* and *Already decided* items in the same file are listed in §4 until they're built.
+- **As of:** 2026-10-06 (later: the prototype audit and *Owner calls that stand*, below). Earlier 2026-10-06: built round **v8-8**'s *New since v8-7* list (items 1–9, table below; migration `20261109000000_led_ideas.sql`). The *Answered* and *Already decided* items in the same file are listed in §4 until they're built.
 
 Where this doc and the design files disagree, **this doc is correct**. One file per side: please keep sending `HANDOFF-to-CODE.md`; this file is the reply (call it *HANDOFF-to-DESIGN-8*).
 
@@ -53,6 +53,39 @@ Where this doc and the design files disagree, **this doc is correct**. One file 
 
 ---
 
+## Audit 2026-10-06: the prototype vs the build
+
+The owner found two prototype changes that were never built (the sparkle *Find more events* pill, Up next's closed task strips). Neither was in a *New since* list, and the build only builds from those lists. So the build was checked screen by screen against the v8-8 prototype. **Built to match it (no rows needed, it's now as drawn):**
+- **My calendar:** *Find more events* pill (opens All groups on Month, all groups; Back returns to My calendar); 10 / 14 / 8px spacing; list cards 10×12px with an inset role bar; Month grid letters.
+- **All groups:** Ideas strip *N interested · Take a look* and *Idea · no date yet*; Past strip *N went*; Helping strip shows your job count; Month day cards without the date block, no Plans pill on Month; no heading over an empty list; absolute dates on tiles; Needs help sheet (26px title, one-line empty card); Search follows the current group and Plans · Ideas · Past.
+- **Event page:** ✎ on one job opens *Edit job* with just that job; Help out hidden once cancelled; Help pick sits above the When/Where card on a plan; visitor Discussion card and faces as drawn; *Cancel or delete event* under Save on every Edit sheet, *Turn it back into an idea* under it; single Take part spots as grey rows; Help pick *Nobody has voted yet*; Ask someone copy; *Lead · {spot}* in Who's going; Led by → the Leads sheet; Want a reminder? inside the RSVP card; the full name on a cancelled card; *TBD* under a date with no time.
+- **Groups, Friends, Me:** Post an idea / Float an idea open the Float sheet (group page, Me's Ideas list, My tasks); My tasks' Ideas in gold; Settings has ACCOUNT (Privacy, Sign out, Delete my account) and HELP & INFO is three rows; no bell on Me; the 312px FRIENDS ARE GOING cards; the profile pop-up's *{NAME} IS GOING TO* list and *Invite to…*; Invite friends picks, then *Invite to {event}*; the gold new-ideas dot on the Ideas tab; Group ⋯ is Invite · Search · Alerts and Invite opens the *Invite people* sheet (link card, Show QR code → *Scan to join*); no + on Friends; Join a group and Leave group copy; Place dropped (Q28), About 140 with a counter; the Members search field; *Get a new invite link* under the code too.
+- **Ideas and Plan an event:** grey board; Create a poll as a centred pop-up (*Start poll · N options*); 46px Make this a plan rows in the slide-up; Who can see it lets the first group go too; Vote on a date opens the *Dates* list; *People RSVP for* card; Review shows the overview first; a growing Overview field; the smaller How long is it? card; *N interested ›* tappable at 0.
+
+**Kept from the build, beyond the prototype:**
+- **Scan to join** keeps *Save as image* / *Print poster* at the bottom; the poster had no other way in.
+- **Numbered circles** only on Create a poll's date rows, as drawn.
+- A **plan's open location poll** shows a grey *Location TBD* in the When/Where card.
+
+**Not built:** changing an existing date's time in *Edit dates* needs a database change (votes hang off the date). It's on the list.
+
+## Owner calls that stand
+
+Never cleared on a reset. These are places where the owner chose differently from the design, and the prototype still draws the design's version. **Please redraw these spots to match**, or raise them in §5:
+
+| Spot | The build (owner's call) | The prototype still draws |
+|---|---|---|
+| My calendar Up next | No *This week* heading: the hero, then months (2026-10-06) | *This week* |
+| Up next task strips | Always closed until tapped, even on the day (2026-10-06) | Open on the day |
+| Lead's task rows | **Fill 2 spots:** {job} with an *Ask* pill (2026-10-03) | *{job}: 2 spots to fill · 1 asked*, plain Ask |
+| Undated / no place | Amber *TBD ?*, *Location TBD*, amber *Date TBD* heading | Grey *TBD —*, *Location to be decided* |
+| A lead's missing location | The dashed *No location yet* box, no gold *1 thing left to decide* row (2026-09-30) | The gold row |
+| All friends | No *Get a new friend link* (2026-10-03) | The link |
+| Not in a group yet | *Join one with a code or link…* + Start a group (SOON) | *…or start your own.*, one button |
+| Profile pop-up | Keeps the *BOTH IN {groups}* card (2026-10-01) | No groups card |
+| Join in chips | A *Thought partner* chip (Jeni Wade's feedback, 2026-10-05) | Bring · Set up · Help · Clean up · Coordinate · Other |
+| Tall date poll | Create a poll's date list stays tall (2026-10-02) | Fits content |
+
 ## 1. What changed since the design
 
 (Numbers continue from before the reset.)
@@ -76,11 +109,10 @@ Where this doc and the design files disagree, **this doc is correct**. One file 
 | 120 | **Picking a suggested place fills Location name and Address**; renaming keeps the address. A typed address is saved as typed (no map pin) | Two plain fields | The place search was already on that field |
 | 121 | **Recurring event and Runs across days are *Coming soon*** in How long is it?: dimmed, the line reads *Coming soon*, a tap toasts (amber) *Recurring event is coming soon* / *Runs across days is coming soon*. An event that already is one still shows it picked and can switch to another | (Answered Oct 6, as specced) | Built as specced; listed so the older-event case is known |
 | 122 | **Short links are built as specced**, with these details: codes are 8 lowercase letters and numbers (no 0, 1, l or o, so they read clearly); on live every link uses sparkhub.wereallneighbors.org, on the test site its own address; the shared message is *{title} · {day}* (an idea: just its title; a past event keeps *…: here’s how it went.*); an invite-only or cancelled event gets the plain Spark Hub preview; a wrong code says *This link isn’t working · Ask whoever sent it for a new one.* and an old link after 2027-04-06 *This link has expired*. gosparkhub.vercel.app itself doesn’t redirect (installed apps open it); only its /i/ links do | Short links spec | Readability; a whole-domain redirect would break the installed app |
-| 123 | **The visitor view is built as specced** (grey faces, *N going*, See all → *RSVP to see who’s going*, the lead's first name with no profile, no Visibility card or group name, Discussion's count card, guest sheet 1c). Details: the guest sheet's account card and buttons turn gold for Maybe; for Can't it's only the name, and the link reads *Send · Only the lead sees your name.* *Continue with Google* shows only where Google sign-in is set up | 1c | Maybe in gold, as the note says; Can't has nothing to remind about |
+| 123 | **The visitor view is built as specced** (five grey faces, *See all ›* → the amber *RSVP to see who’s going*, the lead's first name with no profile, no Visibility card or group name, Discussion's count card, guest sheet 1c). Details: the guest sheet's account card and buttons turn gold for Maybe; for Can't it's only the name, and the link reads *Send · Only the lead sees your name.* *Continue with Google* shows only where Google sign-in is set up | 1c | Maybe in gold, as the note says; Can't has nothing to remind about |
 
 ## 2. Things the build had to invent (please design these properly)
 
-- **Discussion count card** (signed out): a white 20px-radius card, lavender bubble icon, *N posts* (16px 900) over *Sign in to read and join in* (13.5px, grey), chevron; sign-in opens with *Sign in to read the discussion and join in.*
 - **Pick pop-up messages:** *That date has passed. Pick another.*
 - **Make it a plan from an idea:** *That idea isn't there any more* (deleted while Review was open), *Pick a date first* (back to page 1).
 
@@ -120,6 +152,8 @@ Where this doc and the design files disagree, **this doc is correct**. One file 
 32. **Lead it / Offer to lead** for members (was row 82) and the starter's *Pick* (was row 83) are the build's stand-ins. Please draw them with BRIEF-float-the-idea, including what the person who offered sees while they wait.
 36. **Recurring events (v8-7):** one RSVP covers every date and jobs aren't per date. Should people answer date by date (like Each day), and should a weekly event show on My calendar's Up next more than once?
 37. **Led ideas (§4):** where do the vibe board, co-leads / Step back, Cancel and editing quick details go on the new idea page?
+38. **Prototype details that look unintended. Which is meant?** (a) Maybe picked on the RSVP card: white text on the pale gold stripes (the build uses dark #2a1d00 so it reads). (b) A member's own job card ring is teal #9fd8d3, and the build's is gold; neither is the v8-6 orange. (c) *You're helping* rows are gold in the prototype; the build uses orange per v8-6. (d) Plan an event's Next has 14px corners beside a pill-shaped Back. (e) *+ Suggest a date* on an idea opens the old *Got a date & time in mind?* free-text pop-up; the build uses a date + time chips. (f) Review has no *People going can invite friends* switch (the build keeps it under Post to). (g) Tile dates for Helping / Maybe are green on My calendar. (h) All groups labels undated plans *Ideas · no date yet*. (i) The quick-detail dots: green 7px in Plan an event, gold 8px in the older flow.
+39. **Choose a lead:** the prototype's *Choose* makes someone lead at once; the build asks them (Q32). Once someone else leads, the starter no longer sees Make this a plan, so the Lead row's *Change* can't be reached. Should the starter keep a way to change the lead?
 
 ## 6. Design tokens
 
