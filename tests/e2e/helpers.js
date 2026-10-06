@@ -327,12 +327,9 @@ async function addJob(page, { item, need = 1, time }) {
   await expect(sheet).toHaveCount(0);
 }
 // "17:30" → "5:30pm", as the time list shows it
-// The time grid (owner, 2026-10-03): am / pm, the hour, then the minute picks it. t is "17:30"
+// The time list (owner, 2026-10-06: a scrolling list every 30 minutes; it was a tap grid): tapping a time picks it. t is "17:30"
 async function pickTime(scope, t) {
-  const [h, m] = t.split(':').map(Number), grid = scope.locator('[data-time-list]');
-  await grid.getByRole('radio', { name: h < 12 ? 'am' : 'pm', exact: true }).click();
-  await grid.locator('[data-hour="' + (h % 12 || 12) + '"]').click();
-  await grid.locator('[data-minute="' + String(m).padStart(2, '0') + '"]').click();
+  await scope.locator('[data-time-list] [data-time="' + t + '"]').click();
 }
 // A time field's typeable box (v8-7): its value is the time as shown ("5:00pm"); type into it and press Enter
 const timeBox = (scope, label) => scope.getByRole('textbox', { name: label + ', type a time', exact: true });

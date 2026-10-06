@@ -7273,12 +7273,13 @@
   // A time is '' (any), 'morning' | 'afternoon' | 'evening', 'set' (Set time picked, no time yet) or 'HH:MM'
   const PARTS = ['morning', 'afternoon', 'evening'];
   const timeLabel = (t) => !t || t === 'set' ? '' : PARTS.indexOf(t) > -1 ? t.charAt(0).toUpperCase() + t.slice(1) : fmtTime(t);
-  const timeChips = (cur, set) => {
+  const timeChips = (cur, set, key) => {   // key: the time list's own key (one per row)
     const custom = cur === 'set' || /^\d\d:\d\d$/.test(cur || '');
     const chip = (label, onIt, fn) => '<span ' + on(fn) + ' aria-pressed="' + onIt + '" style="display:flex;align-items:center;min-height:32px;padding:0 11px;border-radius:999px;font-size:13px;font-weight:800;cursor:pointer;background:' + (onIt ? '#fdf1d6' : '#f6f7f9') + ';color:' + (onIt ? '#8f6405' : '#454b55') + ';box-shadow:' + (onIt ? 'inset 0 0 0 1.5px #f5b428' : 'none') + '">' + label + '</span>';
     return '<div style="display:flex;flex-direction:column;gap:6px;padding:0 2px 4px">' +
       '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px">' + chip('Any time', !cur, () => set('')) + chip('Set time', custom, () => set(custom ? cur : 'set')) +
-        (custom ? '<input type="time" aria-label="Time" value="' + (cur === 'set' ? '' : esc(cur)) + '" ' + onInput(e => { if (e.type === 'change' || e.type === 'input') set(e.target.value || 'set', true); }) + ' style="min-height:32px;padding:0 10px;border:0;outline:0;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #f5b428;font-family:inherit;font-size:13.5px;font-weight:800;color:#0d1117">' : '') + '</div>' +
+        // Set time: the same typeable field and half-hour list as everywhere else (owner, 2026-10-06; was the phone's own picker)
+        (custom ? '<div style="flex:0 0 132px;min-width:0">' + timeField('chip' + (key || ''), cur === 'set' ? '' : cur, EV_TIMES, 'Time', (v) => { setState({ timeOpen: null }); set(v || 'set'); }, { label: 'Time', h: 36, slim: true, compact: true }) + '</div>' : '') + '</div>' +
       '<div style="display:flex;flex-wrap:wrap;gap:6px">' + PARTS.map(p => chip(timeLabel(p), cur === p, () => set(p))).join('') + '</div></div>';
   };
   const ideaDateField = (val, fn, label) => '<span style="flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:10px;min-height:52px;padding:0 14px;border-radius:14px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6">' + svg(20, stroke('#b07a0a', 2.2), CAL_P) +
@@ -7464,12 +7465,12 @@
     let popHtml = '';
     const closePop = () => setState({ qiPop: null });
     if (pop && pop.k === 'dpick') popHtml = popCard('Set date', closePop, 'Set date', 'You can change this later.',
-      '<div style="display:flex">' + ideaDateField(pop.d, (v) => { pop.d = v; render(); }) + '</div>' + timeChips(pop.t, (v, quiet) => { pop.t = v; if (!quiet) render(); }) +
+      '<div style="display:flex">' + ideaDateField(pop.d, (v) => { pop.d = v; render(); }) + '</div>' + timeChips(pop.t, (v, quiet) => { pop.t = v; if (!quiet) render(); }, 'pop') +
       goldBtn(() => { if (!pop.d) { toast('Pick a date'); return; } setState({ qi: Object.assign(q, { date: { d: pop.d, t: pop.t === 'set' ? '' : pop.t }, dpoll: null }), qiPop: null }); }, 'Done', 'data-qi-pop-done'));
     else if (pop && pop.k === 'dpoll') { const rows = pop.rows;
       popHtml = popCard('Date poll', closePop, 'Create poll', 'Which dates could work?',
         rows.map((r, i) => '<div style="display:flex;align-items:center;gap:8px">' + ideaDateField(r.d, (v) => { r.d = v; render(); }, 'Date ' + (i + 1)) + (rows.length > 2 ? rowXBtn(() => { rows.splice(i, 1); render(); }, 'Remove date') : '') + '</div>' +
-          timeChips(r.t, (v, quiet) => { r.t = v; if (!quiet) render(); })).join('') +
+          timeChips(r.t, (v, quiet) => { r.t = v; if (!quiet) render(); }, 'row' + i)).join('') +
         (rows.length < 6 ? '<span ' + on(() => { rows.push({ d: '', t: '' }); render(); }) + ' style="align-self:flex-start;display:flex;align-items:center;min-height:40px;font-size:14.5px;font-weight:800;color:#8f6405;cursor:pointer">+ Add another date</span>' : '') +
         goldBtn(() => { const ds = rows.filter(r => r.d).map(r => ({ d: r.d, t: r.t === 'set' ? '' : r.t })).filter((o, i, a) => a.findIndex(x => x.d === o.d && x.t === o.t) === i);
           if (ds.length < 2) { toast('Add at least two dates'); return; }
@@ -7753,7 +7754,7 @@
             (v ? '<div style="display:flex;flex-wrap:wrap;gap:6px">' + o.votes.map(u => '<span style="display:flex;align-items:center;gap:6px;min-height:30px;padding:0 10px 0 3px;border-radius:999px;background:#f6f7f9">' + avatarSpan(u, nameOf(u), avatarOf(u), 24) + '<span style="font-size:13.5px;font-weight:700;color:#0d1117">' + esc(firstName(nameOf(u))) + '</span></span>').join('') + '</div>' : '<span style="font-size:13.5px;font-weight:600;color:#9aa0ac">No votes yet.</span>') + '</div>'; }).join('')); }
     if (p.k === 'sugD' || p.k === 'setD') { const set = p.k === 'setD';
       return popCard(set ? 'Set date' : 'Suggest a date', close, set ? 'Set date' : 'Suggest a date', set ? 'You can change this later.' : 'Everyone can vote on it.',
-        '<div style="display:flex">' + ideaDateField(p.d, (v) => { p.d = v; render(); }) + '</div>' + timeChips(p.t, (v, quiet) => { p.t = v; if (!quiet) render(); }) +
+        '<div style="display:flex">' + ideaDateField(p.d, (v) => { p.d = v; render(); }) + '</div>' + timeChips(p.t, (v, quiet) => { p.t = v; if (!quiet) render(); }, 'p') +
         goldBtn(() => { if (!p.d) { toast('Pick a date'); return; } const t = p.t === 'set' ? '' : p.t, hm = /^\d\d:\d\d$/.test(t) ? t : null, part = PARTS.indexOf(t) > -1 ? t : null;
           if (set) { run(async () => { must(await sb.from('sparks').update({ day_date: p.d, day_time: hm, day_end: null }).eq('id', s.id)); }, { ipPop: null }); return; }
           needAccount(() => run(async () => { await saveGuestContact(s.id); const id = must(await sb.from('date_options').insert({ spark_id: s.id, day_date: p.d, day_time: hm, day_part: part, who }).select('id').single()).data.id;
@@ -7772,7 +7773,7 @@
           '<span style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:15.5px;font-weight:800;color:#0d1117">' + esc(day ? optDay(o) + (optTime(o) ? ' · ' + optTime(o) : '') : o.name) + '</span><span style="font-size:12.5px;font-weight:700;color:#6b7280">' + o.votes.length + (o.votes.length === 1 ? ' vote' : ' votes') + '</span></span>' +
           rowXBtn(() => { p.keep = p.keep.filter(k => k !== o.id); render(); }, 'Remove') + '</div>').join('') +
         p.add.map((r, i) => '<div style="display:flex;align-items:center;gap:8px">' + (day ? ideaDateField(r.d, (v) => { r.d = v; render(); }) : ideaPlaceField(r, (v) => { p.add[i] = v; }, 'Add a location')) + rowXBtn(() => { p.add.splice(i, 1); render(); }, 'Remove') + '</div>' +
-          (day ? timeChips(r.t, (v, quiet) => { r.t = v; if (!quiet) render(); }) : '')).join('');
+          (day ? timeChips(r.t, (v, quiet) => { r.t = v; if (!quiet) render(); }, 'add' + i) : '')).join('');
       return popCard('Edit when or where', close, day ? 'Edit dates' : 'Edit locations', day ? 'People vote on the dates that work.' : 'People vote on the location they like.', rowsHtml +
         '<span ' + on(() => { p.add.push(day ? { d: '', t: '' } : ''); render(); }) + ' style="align-self:flex-start;display:flex;align-items:center;min-height:40px;font-size:14.5px;font-weight:800;color:#8f6405;cursor:pointer">' + (day ? '+ Add a date' : '+ Add a location') + '</span>' +
         goldBtn(() => { const gone = src.filter(o => p.keep.indexOf(o.id) < 0).map(o => o.id);
@@ -8485,24 +8486,23 @@
   // A list or calendar that would run past its pop-up's edge scrolls into view as it opens
   const showDrop = (sel) => setTimeout(() => { const el = document.querySelector(sel); if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest' }); }, 0);
   // o: { label, slim: no clock icon (a narrow row), h: the field's height (58), none: a first row that clears the time }
-  // The time field opens a tap grid (owner, 2026-10-03: scrolling the half-hour list took too long): am / pm, the hour,
-  // then the minute (:00 :15 :30 :45), which picks it. Only times inside opts' range can be tapped (an end after its start)
+  // The time field opens a scrolling list, every 30 minutes (owner, 2026-10-06: back to the list; from 2026-10-03 it was
+  // an am/pm · hour · minute grid). Only times inside opts' range are listed (an end after its start). On opening, the list
+  // scrolls to the picked time, or to 9am (an end: the first time after its start)
   const timeField = (key, value, opts, hint, pick, o) => {
     o = o || {};
     const open = state.timeOpen === key, lo = opts[0] || '00:00', hi = opts[opts.length - 1] || '23:59';
     const ok = (v) => v >= lo && (v <= hi || hi >= '23:30');
-    const from = (v) => { const h = +v.slice(0, 2); return { h: h % 12 || 12, ap: h < 12 ? 'am' : 'pm' }; };
-    const toggle = () => { setState({ timeOpen: open ? null : key, dateOpen: null, timeDraft: value ? from(value) : { h: null, ap: lo >= '12:00' || !value ? 'pm' : 'am' } }); if (!open) showDrop('[data-time-list]'); };
-    const d = (open && state.timeDraft) || (value ? from(value) : { h: null, ap: 'pm' });
-    const hv = (h, ap) => pad2((h % 12) + (ap === 'pm' ? 12 : 0));
-    const at = (h, ap, m) => hv(h, ap) + ':' + m;
-    const MINS = ['00', '15', '30', '45'];
-    const setD = (patch) => setState({ timeDraft: Object.assign({}, d, patch) });
-    const cell = (label, onIt, off, fn, attrs, role) => '<span ' + (off ? 'aria-disabled="true"' + (role ? ' role="' + role + '"' : '') : on(fn, role)) + ' ' + (attrs || '') + ' style="display:flex;align-items:center;justify-content:center;min-height:44px;border-radius:12px;font-size:16px;font-weight:' + (onIt ? 900 : 700) + ';' +
-      (onIt ? 'background:#5b4ae8;color:#fff' : off ? 'color:#c9ccd3' : 'background:#f4f5f7;color:#0d1117;cursor:pointer') + '">' + label + '</span>';
-    const valH = value ? from(value) : null, valM = value ? value.slice(3, 5) : null;
+    const toggle = () => {
+      setState({ timeOpen: open ? null : key, dateOpen: null });
+      if (open) return;
+      showDrop('[data-time-list]');
+      setTimeout(() => { const list = document.querySelector('[data-time-list]'); if (!list) return;
+        const at = list.querySelector('[aria-selected="true"]') || list.querySelector('[data-time="' + (opts.indexOf('09:00') > -1 && lo < '09:00' ? '09:00' : lo) + '"]');
+        if (at) list.scrollTop = at.offsetTop - list.clientHeight / 2 + at.offsetHeight / 2; }, 0);
+    };
     // Typeable (v8-7 item 2): "10am", "4:30pm", "16:00", "1030"; Enter or leaving the field saves it, something unreadable
-    // says how to write it. The chevron (or the clock) opens the am/pm · hour · minute grid (the owner's pick, 2026-10-03)
+    // says how to write it. The chevron (or the clock) opens the half-hour list
     const typed = (e) => {
       if (e.type !== 'change') return;
       const raw = e.target.value;
@@ -8520,18 +8520,11 @@
           ' style="flex:1 1 auto;min-width:0;width:100%;border:0;outline:none;background:transparent;padding:0;font-family:inherit;font-size:' + fs + 'px;font-weight:800;color:#0d1117">' +
         '<span ' + on(toggle) + ' aria-label="' + esc(o.label || hint) + '" aria-expanded="' + open + '" style="flex:0 0 auto;display:flex;align-items:center;justify-content:center;min-width:28px;min-height:36px;cursor:pointer">' + I.chevD(14, '#9aa0ac', 2.6) + '</span></div>' +   // chevSet: the chevron only once a time is set (v8-6's Create a poll)
       (open ? '<div ' + on(() => setState({ timeOpen: null })) + ' aria-hidden="true" style="position:fixed;inset:0;z-index:19"></div>' +
-        '<div data-time-list role="group" aria-label="Pick a time" style="scroll-margin:12px;position:absolute;' + (o.right ? 'right:0' : 'left:0;right:0') + ';top:calc(100% + 6px);z-index:20;min-width:252px;background:#fff;border-radius:16px;box-shadow:0 14px 34px rgba(15,18,25,.2), 0 0 0 1px #e6e7eb;padding:10px;display:flex;flex-direction:column;gap:10px">' +
-          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">' + ['am', 'pm'].map(ap => {
-            const off = !Array.from({ length: 12 }, (_, i) => i + 1).some(h => MINS.some(m => ok(at(h, ap, m))));
-            return cell(ap, d.ap === ap, off, () => setD({ ap }), 'aria-checked="' + (d.ap === ap) + '" aria-label="' + ap + '"', 'radio'); }).join('') + '</div>' +
-          '<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px">' + Array.from({ length: 12 }, (_, i) => i + 1).map(h => {
-            const off = !MINS.some(m => ok(at(h, d.ap, m)));
-            return cell(String(h), d.h === h, off, () => setD({ h }), 'data-hour="' + h + '" aria-pressed="' + (d.h === h) + '"'); }).join('') + '</div>' +
-          '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">' + MINS.map(m => {
-            const v = d.h ? at(d.h, d.ap, m) : null, cur = !!valH && valH.h === d.h && valH.ap === d.ap && valM === m;
-            return cell(':' + m, cur, !v || !ok(v), () => pick(v), 'data-minute="' + m + '"' + (v ? ' aria-label="' + clock(v) + '"' : '')); }).join('') + '</div>' +
-          (d.h ? '' : '<div style="text-align:center;font-size:12.5px;font-weight:600;color:#8a909b">Tap the hour, then the minutes</div>') +
-          (o.none && value ? '<span ' + on(() => pick('')) + ' style="align-self:center;min-height:36px;display:flex;align-items:center;font-size:14.5px;font-weight:800;color:#6b7280;cursor:pointer">' + esc(o.none) + '</span>' : '') +
+        '<div data-time-list role="listbox" aria-label="Pick a time" style="scroll-margin:12px;position:absolute;' + (o.right ? 'right:0' : 'left:0') + ';top:calc(100% + 6px);z-index:20;width:' + (o.slim ? 160 : 200) + 'px;max-height:252px;overflow-y:auto;overscroll-behavior:contain;background:#fff;border-radius:16px;box-shadow:0 14px 34px rgba(15,18,25,.2), 0 0 0 1px #e6e7eb;padding:6px;display:flex;flex-direction:column;gap:2px">' +
+          (o.none && value ? '<div ' + on(() => pick(''), 'option') + ' aria-selected="false" style="flex:0 0 auto;min-height:42px;display:flex;align-items:center;padding:0 12px;border-radius:10px;font-size:15px;font-weight:800;color:#6b7280;cursor:pointer">' + esc(o.none) + '</div>' : '') +
+          opts.filter(ok).map(v => { const sel = v === value;
+            return '<div ' + on(() => pick(v), 'option') + ' data-time="' + v + '" aria-selected="' + sel + '" class="' + (sel ? '' : 'hov-grey-fill') + '" style="flex:0 0 auto;min-height:42px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;border-radius:10px;font-size:15.5px;font-weight:' + (sel ? 900 : 700) + ';color:' + (sel ? '#5b4ae8' : '#0d1117') + ';background:' + (sel ? '#f3f1fe' : 'transparent') + ';cursor:pointer">' +
+              clock(v) + (sel ? I.check(14, '#5b4ae8', 3) : '') + '</div>'; }).join('') +
         '</div>' : '') +
     '</div>';
   };
