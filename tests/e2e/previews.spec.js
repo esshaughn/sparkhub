@@ -59,10 +59,10 @@ test('shared links preview the idea or group (invite-only plans and unknown link
     r = await serve({ join: 'torrez' });
     expect(og(r.body, 'title')).toBe('Join Torrez Fitness | Spark Hub | Plans with your people');
     expect(r.body).toContain('<title>Join Torrez Fitness | Spark Hub | Plans with your people</title>');
-    expect(og(r.body, 'image')).toBe('https://gosparkhub.vercel.app/photos/share-torrez.jpg');
+    expect(og(r.body, 'image')).toBe('https://sparkhub.wereallneighbors.org/photos/share-torrez.jpg');
     r = await serve({ join: 'HUNTER' });
     expect(og(r.body, 'title')).toBe('Join Hub on Hunters | Spark Hub | Plans with your people');
-    expect(og(r.body, 'image')).toBe('https://gosparkhub.vercel.app/photos/share-hub.jpg');
+    expect(og(r.body, 'image')).toBe('https://sparkhub.wereallneighbors.org/photos/share-hub.jpg');
   } finally {
     if (ideaId) await deleteIdea(page, ideaId).catch(() => {});
     if (group) await asUser(page, async (c, _C, id) => { await c.rpc('e2e_delete_group', { p_group: id }); }, group.id).catch(() => {});

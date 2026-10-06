@@ -21,7 +21,7 @@ module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
   if (!PUSH_SECRET || !same(req.headers['x-push-secret'], PUSH_SECRET)) return res.status(403).json({ error: 'forbidden' });
   if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) return res.status(500).json({ error: 'push keys missing' });
-  webpush.setVapidDetails('mailto:sparks@mail.ericscott-creative.com', VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+  webpush.setVapidDetails('mailto:spark@wereallneighbors.org', VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 
   const b = req.body || {};
   const all = Array.isArray(b.subs) ? b.subs : [];

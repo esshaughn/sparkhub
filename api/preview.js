@@ -15,7 +15,7 @@ const DB = {
   // The Supabase on a developer's computer (tests/local/start.sh), for the previews test with E2E_DB=local
   local: { url: 'http://127.0.0.1:54321', key: 'sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH' }
 };
-const SITE = 'https://gosparkhub.vercel.app';
+const SITE = 'https://sparkhub.wereallneighbors.org';   // the address people share (since v8-8); gosparkhub.vercel.app still serves the same site
 // Groups whose invite link has its own preview card and title (owner, 2026-10-01). Fixed codes only (CLAUDE.md: TORREZ, HUNTER)
 const INVITE_CARDS = {
   TORREZ: { title: 'Join Torrez Fitness | Spark Hub | Plans with your people', image: '/photos/share-torrez.jpg' },
