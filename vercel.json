@@ -71,6 +71,19 @@
       "includeFiles": "index.html"
     }
   },
+  "redirects": [
+    {
+      "source": "/((?!api/).*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "gosparkhub.vercel.app"
+        }
+      ],
+      "destination": "https://sparkhub.wereallneighbors.org/$1",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     {
       "source": "/join/:code",

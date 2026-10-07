@@ -129,14 +129,14 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     // The guest sheet has the same Bringing anyone? stepper (v8-11)
     await V.getByRole('dialog', { name: 'RSVP as a guest' }).getByRole('button', { name: 'One more' }).click();
     await answerGuestPrompt(V, 'Vic');
-    // Then You're on the list, Vic! (2b): the event, Going · {date} and You + 1, and the one account ask (first-encounter audit 3)
+    // Then You're on the list, Vic! (2b): the event, Going · {date} and You + 1, Add to calendar and a small or create a free account (owner, 2026-10-07)
     const join = V.getByRole('dialog', { name: 'You’re on the list' });
     await expect(join).toContainText('You’re on the list, Vic!');
     await expect(join.locator('[data-plus-summary]')).toContainText('Going ·');
     await expect(join.locator('[data-plus-summary]')).toContainText('You + 1');
-    await expect(join.locator('[data-plus-account]')).toContainText('Want a reminder?');
-    await expect(join.locator('[data-plus-signin]')).toHaveText('Create a free account');
-    await expect(join.locator('[data-plus-done]')).toHaveText('Not now');
+    await expect(join.locator('[data-plus-cal]')).toHaveText('Add to calendar');   // a guest's next step (owner, 2026-10-07)
+    await expect(join.locator('[data-plus-signin]')).toHaveText('or create a free account');
+    await expect(join.locator('[data-plus-done]')).toHaveText('Done');
     await join.locator('[data-plus-done]').click();
     await expect(join).toHaveCount(0);
     // No reminders without an account, so the page offers one (and can put it away); no tab bar (it only led to sign-in)

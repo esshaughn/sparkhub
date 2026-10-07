@@ -970,12 +970,13 @@
           : '<div style="display:flex;flex-direction:column;gap:8px;' + (p.n ? 'padding-bottom:0' : '') + '">' + plusStepper(s) +
             (p.n ? '<input class="fld" type="text" maxlength="80" aria-label="Who’s coming with you" placeholder="Who’s coming with you? (optional)" value="' + esc(p.note) + '" ' + onInput(e => setState({ plusNote: Object.assign({}, state.plusNote, { [s.id]: e.target.value.slice(0, 80) }) })) +
               ' style="width:100%;box-sizing:border-box;height:42px;border:0;border-radius:12px;padding:0 12px;background:#fff;box-shadow:inset 0 0 0 1.5px #e3e5ea;font-family:inherit;font-size:16px;font-weight:600;color:#0d1117;outline:none">' : '') + '</div>') +
-        // The one account ask, after the RSVP is saved (first-encounter audit 3): a reminder is the reason
-        (guest ? '<div data-plus-account style="display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:16px;background:#f3f1fe">' +
-            '<div style="display:flex;gap:10px;align-items:flex-start">' + ic6('bell', 20, '#5b4ae8', 2.2) + '<div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:16px;font-weight:900;color:#0d1117">Want a reminder?</span>' +
-            '<span style="font-size:14px;line-height:1.4;font-weight:600;color:#454b55;text-wrap:pretty">Create a free account and we’ll remind you the day before and that morning.</span></div></div>' +
-            '<button type="button" data-plus-signin ' + on(() => { setState(Object.assign({ plusPop: null }, clearPlus(s.id))); openLogin('reminder', () => setTimeout(askReminders, 500)); }) + ' style="min-height:46px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:15px;font-weight:800;cursor:pointer">Create a free account</button></div>' : '') +
-        '<button type="button" data-plus-done ' + on(plusDone) + ' style="height:50px;margin-top:2px;border:0;border-radius:999px;background:' + (guest ? '#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;color:#0d1117' : '#149a4b;color:#fff') + ';font-family:inherit;font-size:16px;font-weight:800;cursor:pointer">' + (guest ? 'Not now' : 'Done') + '</button>' +
+        // A guest's next step is Add to calendar, with a small "or create a free account" under it (owner, 2026-10-07: guests
+        // aren't pushed to sign in; it was a lavender Want a reminder? card with a Create a free account button)
+        (guest ? '<div data-plus-account style="display:flex;flex-direction:column;align-items:center;gap:4px">' +
+            (s.dayDate ? '<button type="button" data-plus-cal ' + on(() => addToCalendar(s)) + ' style="width:100%;min-height:50px;display:flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16px;font-weight:800;cursor:pointer">' +
+              svg(18, stroke('#fff', 2.3), '<rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16M9 3v4M15 3v4"/>') + 'Add to calendar</button>' : '') +
+            '<span data-plus-signin role="button" ' + on(() => { setState(Object.assign({ plusPop: null }, clearPlus(s.id))); openLogin('reminder', () => setTimeout(askReminders, 500)); }) + ' style="display:flex;align-items:center;min-height:36px;font-size:14px;font-weight:700;color:#5b4ae8;cursor:pointer">or create a free account</span></div>' : '') +
+        '<button type="button" data-plus-done ' + on(plusDone) + ' style="height:50px;margin-top:2px;border:0;border-radius:999px;background:' + (guest ? '#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;color:#0d1117' : '#149a4b;color:#fff') + ';font-family:inherit;font-size:16px;font-weight:800;cursor:pointer">Done</button>' +
         '<div style="display:flex;align-items:center;justify-content:center;gap:10px;font-size:14.5px;font-weight:800">' +
           (guest ? ''
             : link(() => { plusDone(); setState({ share: { id: s.id, copied: false } }); }, '#1f5fa8', svg(15, stroke('currentColor', 2.4), '<circle cx="9.5" cy="8" r="3.5"/><path d="M3 20a6.5 6.5 0 0 1 13 0"/><path d="M19 8v6M16 11h6"/>'), 'Invite others', 'data-plus-invite')) +
@@ -2595,7 +2596,7 @@
   const groupBg = (g, fallback) => groupPhoto(g) ? bg(groupPhoto(g), posAt(g.photoPos, GROUP_POS)) : (fallback || '#e8a71c');
 
   const ideaButton = (extra) => '<button type="button" class="hov-primary" ' + on(goCompose) + ' style="width:100%;min-height:54px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16.5px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:9px;box-shadow:0 10px 24px rgba(91,74,232,.32);cursor:pointer;' + (extra || '') + '">' +
-    I.plus(19, '#fff', 2.5) + 'Start an event</button>';
+    I.plus(19, '#fff', 2.5) + 'Make a plan</button>';
 
   // "That idea isn't up anymore": a dead or cut-short idea link
   const goneCard = () => state.goneOpen
@@ -2611,7 +2612,7 @@
   // 1. Welcome (Home, signed out)
   // ---------------------------------------------------------------------------
 
-  const STEPS = [['#e8a71c', '1', 'Start an event'], ['#5b4ae8', '2', 'RSVP &amp; pitch in'], ['#0f7a3c', '3', 'Make it happen']];
+  const STEPS = [['#e8a71c', '1', 'Make a plan'], ['#5b4ae8', '2', 'RSVP &amp; pitch in'], ['#0f7a3c', '3', 'Make it happen']];
 
   // A guest who has replied to something (from a link) sees it here, with what Spark Hub is, instead of only a sign-in
   // wall (first-encounter audit 2, owner 2026-10-07): Back from the event lands here
@@ -2784,7 +2785,7 @@
     } else {
       card = '<div style="margin-top:22px;display:flex;align-items:center;gap:12px;border-radius:22px;padding:16px 18px;background:#fff;border:2px solid #e3e5ec">' +
         '<div style="flex:1;min-width:0;font-size:16px;line-height:1.35;font-weight:700;color:#11131f">Nothing planned yet. Start the first one?</div>' +
-        '<button type="button" ' + on(() => { leaveWelcome('idea'); goCompose(); }) + ' style="flex:0 0 auto;border:0;border-radius:999px;background:#5b4ae8;color:#fff;padding:10px 18px;font-family:inherit;font-size:15px;font-weight:800;cursor:pointer">Start an event</button></div>';
+        '<button type="button" ' + on(() => { leaveWelcome('idea'); goCompose(); }) + ' style="flex:0 0 auto;border:0;border-radius:999px;background:#5b4ae8;color:#fff;padding:10px 18px;font-family:inherit;font-size:15px;font-weight:800;cursor:pointer">Make a plan</button></div>';
     }
     return '<div data-screen-label="Welcome to group" style="position:relative;min-height:100%;display:flex;flex-direction:column;background:#f0f1f5">' +
       '<div style="position:relative;flex:0 0 auto">' + invPhoto(g, 'calc(240px + var(--pt))', 80) + statusFade + '</div>' +
@@ -3018,7 +3019,7 @@
       sec('Past', past.map(s => ev(s, monthDay(s.dayDate), null, true)));
     // Empty: there's no + on this screen, so the card has its own button
     return wrap(body || '<div data-own-empty style="background:#fff;border-radius:14px;padding:18px;box-shadow:0 1px 2px rgba(15,18,25,.06);display:flex;flex-direction:column;gap:14px">' +
-      '<span style="font-size:15px;line-height:1.45;font-weight:600;color:#5c6270">Nothing you’re leading yet. Start an event, or float an idea and see who bites.</span>' + createBtn() + '</div>');
+      '<span style="font-size:15px;line-height:1.45;font-weight:600;color:#5c6270">Nothing you’re leading yet. Make a plan, or float an idea and see who bites.</span>' + createBtn() + '</div>');
   }
 
   // Groups: pinned groups as big cards, the rest as a grid of square tiles
@@ -3411,7 +3412,7 @@
       '<div style="padding:0 6px 10px;font-size:14px;font-weight:600;color:#5c6270">Pick one of your upcoming events.</div>' +
       (list.length ? '<div role="radiogroup" aria-label="Your upcoming events" style="display:flex;flex-direction:column">' + list.map(row).join('') + '</div>' + send
         : '<div style="display:flex;flex-direction:column"><div style="padding:14px 6px;border-top:1px solid #eceef1;font-size:14.5px;line-height:1.45;font-weight:600;color:#5c6270">You don’t have anything coming up to invite them to. Events you’re leading or going to show up here.</div>' +
-          '<button type="button" class="hov-primary" ' + on(() => { close(); goCompose(); }) + ' style="' + primary(true) + '">Start an event</button></div>'), 45);
+          '<button type="button" class="hov-primary" ' + on(() => { close(); goCompose(); }) + ' style="' + primary(true) + '">Make a plan</button></div>'), 45);
   }
 
   // Anyone's profile (owner, 2026-10-01): from Who's going / Who's interested, the Led by card, and Members.
@@ -3740,7 +3741,7 @@
     return '<div data-cal-empty style="' + CARD + ';padding:18px;display:flex;flex-direction:column;gap:6px">' +
       '<div style="font-size:17px;font-weight:900;color:#0d1117">Nothing coming up in your groups yet.</div>' +
       '<div style="font-size:14.5px;line-height:1.45;font-weight:500;color:#5c6270;text-wrap:pretty">' + (ideas.length ? 'Start something, or see what ideas people are floating.' : 'Start something and it shows up here for your group.') + '</div>' +
-      '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px"><button type="button" class="hov-primary" ' + on(() => goCompose()) + ' style="' + pill + ';background:#5b4ae8;color:#fff">Start an event</button>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px"><button type="button" class="hov-primary" ' + on(() => goCompose()) + ' style="' + pill + ';background:#5b4ae8;color:#fff">Make a plan</button>' +
       (ideas.length ? '<button type="button" class="hov-outline" ' + on(() => go('browse', { groupId: g ? g.id : state.groupId, phaseTab: 'idea' })) + ' style="' + pill + ';background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;color:#0d1117">See ' + ideas.length + (ideas.length === 1 ? ' idea' : ' ideas') + '</button>' : '') +
     '</div></div>';
   };
@@ -3815,9 +3816,9 @@
       vt('time', 'Timeline', '<rect x="4" y="4" width="16" height="6" rx="2"/><rect x="4" y="14" width="16" height="6" rx="2"/>') + vt('dense', 'Condensed', '<path d="M4 5h16M4 9.7h16M4 14.3h16M4 19h16"/>') + '</div>';
     if (!shown.length) {
       // Empty (per chip): a tappable gray card with the next step; All has a plain note
-      const E = { lead: ['Start an event', 'You’re not leading anything yet. Got an idea for your group?', () => goCompose(), I.plus(18, 'currentColor', 2.4), '#454b55'],
+      const E = { lead: ['Make a plan', 'You’re not leading anything yet. Got an idea for your group?', () => goCompose(), I.plus(18, 'currentColor', 2.4), '#454b55'],
         help: ['Find something to help with', 'Events on the Calendar that need help.', () => handList().length ? setState({ cHandSheet: true }) : go('calendar'), ic6('heart', 18, 'currentColor', 2.2), '#454b55'],
-        idea: [WE_SHOULD, 'Post an idea with only rough details and see who’s in.', () => openFloat(), svg(18, stroke('currentColor', 2.2), BULB_IC), '#8f6405'] }[cat];
+        idea: [WE_SHOULD, 'Float an idea with only rough details and see who’s in.', () => openFloat(), svg(18, stroke('currentColor', 2.2), BULB_IC), '#8f6405'] }[cat];
       return wrap(goneCard() + chips + (E
         ? '<div ' + on(E[2]) + ' data-screen-label="Tasks empty" class="hov-grey-fill" style="display:flex;align-items:center;gap:14px;padding:16px 14px 16px 16px;border-radius:20px;background:#f4f5f7;box-shadow:inset 0 0 0 1.5px #dfe2e7;cursor:pointer">' +
             '<span style="flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dfe2e7;display:flex;align-items:center;justify-content:center;color:' + E[4] + '">' + E[3] + '</span>' +
@@ -4267,7 +4268,7 @@
       (dayList.length || dayHolds.length ? dayList.map(o.card).join('') + pencilled
         // An empty day (Design v8): one line on My calendar and All groups; a group page offers a dashed + Start an event on {day}
         // (a day already gone keeps the one line)
-        : o.mode === 'group' && sel >= today ? '<div ' + on(() => goCompose({ evDate: sel })) + ' role="button" style="display:flex;align-items:center;justify-content:center;gap:6px;min-height:52px;border-radius:16px;border:1.5px dashed #c9ccd3;color:#454b55;font-size:15px;font-weight:800;cursor:pointer"><span style="color:#5b4ae8;font-size:18px;line-height:1">+</span>Start an event on ' + esc(new Date(sel + 'T12:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })) + '</div>'
+        : o.mode === 'group' && sel >= today ? '<div ' + on(() => goCompose({ evDate: sel })) + ' role="button" style="display:flex;align-items:center;justify-content:center;gap:6px;min-height:52px;border-radius:16px;border:1.5px dashed #c9ccd3;color:#454b55;font-size:15px;font-weight:800;cursor:pointer"><span style="color:#5b4ae8;font-size:18px;line-height:1">+</span>Make a plan on ' + esc(new Date(sel + 'T12:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })) + '</div>'
         : '<div style="background:#fff;border-radius:16px;padding:14px 16px;font-size:14.5px;font-weight:600;color:#6b7280">' + (o.mode === 'group' ? 'Nothing on this day.' : 'Nothing on this day. Pick a day with a dot.') + '</div>') +
       // Undated events stay out of the grid; on a group page the strip comes after the day's list and opens the list at
       // "Date TBD" (Design v8: My calendar and All groups have no strip)
@@ -5328,11 +5329,11 @@
     '<h2 style="margin:14px 0 0;font-size:26px;line-height:1.1;font-weight:900;letter-spacing:-.7px;color:#0d1117;text-wrap:balance">' + WE_SHOULD + '</h2>' +
     '<p style="margin:0;max-width:320px;font-size:15px;line-height:1.45;font-weight:500;color:#4b5160;text-wrap:pretty">An idea is an event without a date. Post it, people vote on when and where, and it turns into a plan once someone leads it.</p>' +
     '<button type="button" ' + on(() => openFloat({ groups: [g.id] })) + ' style="margin-top:6px;align-self:stretch;min-height:56px;border:0;border-radius:999px;background:#2f7ed8;display:flex;align-items:center;justify-content:center;gap:8px;font-family:inherit;font-size:16.5px;font-weight:900;color:#fff;cursor:pointer">' +
-      svg(20, stroke('#fff', 2), BULB_IC) + 'Post an idea</button></div>';
-  const ideaPrompt6 = (g) => '<div ' + on(() => openFloat({ groups: [g.id] }), 'button') + ' data-idea-prompt aria-label="Post an idea" style="min-height:170px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:12px;border-radius:18px;border:2px dashed #f6c945;background:#fffaf0;text-align:center;cursor:pointer">' +
+      svg(20, stroke('#fff', 2), BULB_IC) + 'Float an idea</button></div>';
+  const ideaPrompt6 = (g) => '<div ' + on(() => openFloat({ groups: [g.id] }), 'button') + ' data-idea-prompt aria-label="Float an idea" style="min-height:170px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:12px;border-radius:18px;border:2px dashed #f6c945;background:#fffaf0;text-align:center;cursor:pointer">' +
     '<span aria-hidden="true" style="width:44px;height:44px;border-radius:999px;background:#f6c945;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 7px rgba(246,201,69,.2)">' + svg(22, stroke('#0d1117', 2.1), BULB_IC) + '</span>' +
     '<span style="margin-top:4px;font-size:15px;line-height:1.15;font-weight:900;color:#0d1117;text-wrap:balance">' + WE_SHOULD + '</span>' +
-    '<span style="font-size:12.5px;line-height:1.3;font-weight:700;color:#1f5fa8">Post an idea ›</span></div>';
+    '<span style="font-size:12.5px;line-height:1.3;font-weight:700;color:#1f5fa8">Float an idea ›</span></div>';
   // The Ideas board's quiet sort row: Most interest (default) · Newest · Almost there (most checkpoints done)
   const ISORTS6 = [['interest', 'Most interest'], ['new', 'Newest'], ['almost', 'Almost there']];
   const stepsDone6 = (s) => ideaSteps6(s).filter(st => st.p >= 1).length;
@@ -5794,7 +5795,7 @@
   }
 
   // Plans tab (v6 Update 9, 80a): an empty state with a calendar fan, and "What else could happen?" under the list
-  const createBtn = () => '<button type="button" class="hov-primary" ' + on(() => goCompose()) + ' style="width:100%;min-height:52px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 6px 16px rgba(91,74,232,.3);cursor:pointer">' + I.plus(18, '#fff', 2.8) + 'Start an event</button>';
+  const createBtn = () => '<button type="button" class="hov-primary" ' + on(() => goCompose()) + ' style="width:100%;min-height:52px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 6px 16px rgba(91,74,232,.3);cursor:pointer">' + I.plus(18, '#fff', 2.8) + 'Make a plan</button>';
   const fanPage = (w, rot, x, y, z) => '<span style="position:absolute;left:' + x + 'px;top:' + y + 'px;z-index:' + z + ';width:' + w + 'px;border-radius:14px;overflow:hidden;background:#fff;box-shadow:0 8px 22px rgba(15,18,25,.14);transform:rotate(' + rot + 'deg)">' +
     '<span style="display:flex;align-items:center;justify-content:center;height:' + Math.round(w * .26) + 'px;background:#e2556b;color:#fff;font-size:' + Math.round(w * .12) + 'px;font-weight:900;letter-spacing:1.5px">SAT</span>' +
     '<span style="display:flex;align-items:center;justify-content:center;height:' + Math.round(w * .74) + 'px;color:#0d1117;font-size:' + Math.round(w * .5) + 'px;line-height:1;font-weight:900">?</span></span>';
@@ -5806,7 +5807,7 @@
   const schedEmpty = () => plansEmpty('Anything you say yes or maybe to lands here. See what’s happening in your groups and pick something.',
     '<div style="width:100%;display:flex;flex-direction:column;gap:10px">' +
       '<button type="button" class="hov-primary" ' + on(() => go('calendar')) + ' style="width:100%;min-height:52px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 6px 16px rgba(91,74,232,.3);cursor:pointer">' + 'Find an event</button>' +
-      '<button type="button" class="hov-sec" ' + on(() => goCompose()) + ' style="width:100%;min-height:52px;border:0;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;color:#0d1117;font-family:inherit;font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer">' + I.plus(18, '#0d1117', 2.8) + 'Start an event</button></div>',
+      '<button type="button" class="hov-sec" ' + on(() => goCompose()) + ' style="width:100%;min-height:52px;border:0;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;color:#0d1117;font-family:inherit;font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer">' + I.plus(18, '#0d1117', 2.8) + 'Make a plan</button></div>',
     'data-sched-empty', 'Nothing on your calendar yet');
 
   // Search inside one group: Browse chips, "Or something unexpected", live results
@@ -5859,7 +5860,7 @@
         '<h2 style="margin:0;font-size:28px;line-height:1.06;font-weight:900;letter-spacing:-.8px;color:#0d1117;text-wrap:pretty">Ideas come to life when we build them together</h2>' +
         '<p style="margin:12px 0 0;font-size:15.5px;line-height:1.45;font-weight:500;color:#454b55">Spark Hub is where your groups plan things. Anyone can start something, and everyone can help make it happen.</p>' +
         '<div style="margin-top:20px;display:flex;flex-direction:column;gap:16px">' +
-          step(1, '#efedfd', '#4a3ad4', 'Start an event', 'Add a title and whatever you know. Date, place and details can wait. Let the group vote on them.') +
+          step(1, '#efedfd', '#4a3ad4', 'Make a plan', 'Add a title and whatever you know. Date, place and details can wait. Let the group vote on them.') +
           step(2, '#fdf4e2', '#8f6405', 'RSVP &amp; pitch in', 'People RSVP, vote on dates and locations, and sign up to bring things or help out.') +
           step(3, '#e7f6ec', '#0f7a3c', 'Make it happen', 'Everyone going gets a reminder the day before. Afterwards, add photos and thank whoever helped.') +
         '</div>' +
@@ -8696,9 +8697,9 @@
       : k === 'idea' ? L.ideas.map((s, i) => row(thumbBg(s), s.text, s.interested.length + ' interested · ' + gName(s), () => openSpark(s), i))
       : k === 'lead' ? L.lead.map((s, i) => row(thumbBg(s), s.text, fd(s) + ' · ' + gName(s), () => openSpark(s), i))
       : L.past.map((s, i) => row(thumbBg(s), s.text, (isLead(s) ? 'You led · ' : helpsOn(s) ? 'You helped · ' : 'You went · ') + fd(s), () => openSpark(s), i, true));
-    const E = { draft: ['No drafts', 'Anything you save partway through shows up here.', 'Start an event', () => goCompose(), '#454b55', '#f2f3f6', I.plus(22, 'currentColor', 2.6)],
-      lead: ['Start an event', 'You’re not leading anything yet. Got an idea for your group?', 'Start an event', () => goCompose(), '#5b4ae8', '#f3f1fe', I.plus(22, 'currentColor', 2.6)],
-      idea: [WE_SHOULD, 'Post an idea with only rough details and see who’s in.', 'Float an idea', () => openFloat(), '#8f6405', '#fff4dc', svg(22, stroke('currentColor', 2.2), BULB_IC)],
+    const E = { draft: ['No drafts', 'Anything you save partway through shows up here.', 'Make a plan', () => goCompose(), '#454b55', '#f2f3f6', I.plus(22, 'currentColor', 2.6)],
+      lead: ['Make a plan', 'You’re not leading anything yet. Got an idea for your group?', 'Make a plan', () => goCompose(), '#5b4ae8', '#f3f1fe', I.plus(22, 'currentColor', 2.6)],
+      idea: [WE_SHOULD, 'Float an idea with only rough details and see who’s in.', 'Float an idea', () => openFloat(), '#8f6405', '#fff4dc', svg(22, stroke('currentColor', 2.2), BULB_IC)],
       past: ['Nothing here yet', 'Events you lead or go to land here once they’ve happened.', 'Find an event', () => go('calendar'), '#454b55', '#f2f3f6', svg(22, stroke('currentColor', 2.2), '<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>')] }[k];
     const empty = '<div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:18px 12px 8px;text-align:center">' +
       '<span style="width:56px;height:56px;border-radius:999px;background:' + E[5] + ';color:' + E[4] + ';display:flex;align-items:center;justify-content:center">' + E[6] + '</span>' +
