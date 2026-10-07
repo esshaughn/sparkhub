@@ -97,7 +97,7 @@ test('Get the app: after a guest RSVP, iPhone Safari gets the steps; Not now put
       Object.defineProperty(navigator, 'userAgent', { get: () => ua });
     });
     await v.page.evaluate(() => { localStorage.setItem('e2e-install', '1'); localStorage.setItem('e2e-iphone', 'safari'); localStorage.removeItem('sparkhub-a2hs'); sessionStorage.removeItem('sparkhub-a2hs'); });
-    await v.page.goto('/#/idea/' + id);
+    await v.page.goto('/?iphone=1#/idea/' + id);   // a new address loads the page again (a hash change alone wouldn't), so the iPhone stand-in applies
     const P = v.page.locator('[data-screen-label="Plan page"]');
     await expect(P).toBeVisible();
     await v.page.waitForTimeout(1500);

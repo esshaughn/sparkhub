@@ -313,7 +313,11 @@
 
   const hashFor = () => {
     const s = state.screen;
-    if (s === 'detail' && state.subjectId) { const sj = subject(); return sj && sj.linkCode && location.pathname === '/e/' + sj.linkCode ? '' : '#/idea/' + state.subjectId; }
+    if (s === 'detail' && state.subjectId) {
+      // Opened from /e/CODE: the short link stays in the address bar (the event may not have loaded yet, so the code is remembered)
+      const v = state.viaCode, sj = subject(), code = v && v.id === state.subjectId ? v.code : sj && sj.linkCode;
+      return code && location.pathname === '/e/' + code ? '' : '#/idea/' + state.subjectId;
+    }
     if (s === 'groupPage' && state.gpId) return '#/group/' + state.gpId;
     if (s === 'compose') return '#/new';   // its own history entry, so the phone's Back stays in the flow (followUrl)
     // Your calendar is the home screen (v7 Update 16, owner 2026-10-03; the Calendar, now Explore, was until then)
@@ -858,7 +862,7 @@
         const r = await sb.rpc('open_event', { p_code: state.linkCode });
         if (r.error && r.error.code !== 'PGRST202') throw r.error;
         const id = r.data || null;
-        if (id) { opened.add(id); setState({ subjectId: id, linkCode: null }); }   // the address stays /e/CODE (it was swapped for /#/idea/<id>, which stops working in 2027)
+        if (id) { opened.add(id); setState({ subjectId: id, linkCode: null, viaCode: { id, code: state.linkCode } }); }   // the address stays /e/CODE (it was swapped for /#/idea/<id>, which stops working in 2027)
         else setState({ screen: 'sched', subjectId: null, linkCode: null, goneOpen: 'link' });
       }
       if (state.screen === 'detail' && state.subjectId) {
