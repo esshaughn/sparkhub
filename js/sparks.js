@@ -987,6 +987,30 @@
     else if (pp.banner) showBanner({ kind: 'going', id: s.id }, 5000);
     else toast(p.n ? 'You’re going, plus ' + p.n + '. See you there!' : 'You’re going. See you there!', true);
   };
+  function viewOnIt() {
+    const b = state.onIt, s = state.sparks.find(x => x.id === b.id);
+    if (!s) return '';
+    const close = () => setState({ onIt: null });
+    const units = (b.undo.items || []).map(id => s.signups.find(u => u.id === id)).filter(Boolean);
+    const when = (u) => [u.day && s.days ? dayWord(s, u.day) : '', u.time ? slotTime(u.time) + (u.endTime ? '–' + slotTime(u.endTime) : '') : ''].filter(Boolean).join(' · ');
+    const host = nameOf(s.leadId, s.leadName);
+    const chip = '<span style="align-self:flex-start;display:flex;align-items:center;height:26px;padding:0 10px;border-radius:999px;background:#e7f6ec;color:#0f7a3c;font-size:13px;font-weight:800">Going' + (s.dayDate ? ' · ' + fmtDay(s.dayDate) : '') + '</span>';
+    return '<div class="modal-scrim" data-scrim="' + reg(close) + '" style="z-index:45">' +
+      '<div role="dialog" aria-modal="true" aria-label="You’re signed up" data-banner="on" data-screen-label="You’re signed up" style="position:relative;width:100%;max-width:360px;box-sizing:border-box;background:#fff;border-radius:24px;padding:22px 20px 14px;display:flex;flex-direction:column;gap:14px;box-shadow:0 20px 50px rgba(13,17,23,.35);animation:popIn 260ms cubic-bezier(.22,.9,.28,1) both">' +
+        '<span ' + on(close) + ' role="button" aria-label="Close" data-onit-x style="position:absolute;top:14px;right:14px;width:36px;height:36px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(14, '#0d1117', 2.6) + '</span>' +
+        '<div style="display:flex;align-items:center;gap:10px;padding-right:40px"><span style="flex:0 0 30px;width:30px;height:30px;border-radius:50%;background:#149a4b;display:flex;align-items:center;justify-content:center">' + I.check(16, '#fff', 3.2) + '</span>' +
+          '<span style="font-size:20px;font-weight:900;letter-spacing:-.3px;color:#0d1117">You’re signed up!</span></div>' +
+        // the recap: what you took, then the event and its date
+        '<div data-onit-summary style="display:flex;flex-direction:column;gap:6px;padding:12px 14px;border-radius:14px;background:#f7f8fa">' +
+          units.map(u => '<div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:16px;line-height:1.3;font-weight:900;color:#0d1117">' + esc(u.item) + '</span>' +
+            (when(u) ? '<span style="font-size:13.5px;font-weight:700;color:#454b55">' + esc(when(u)) + '</span>' : '') + '</div>').join('') +
+          '<span style="font-size:13.5px;font-weight:600;color:#6b7280">for ' + esc(s.text) + '</span>' + (s.planned ? chip : '') + '</div>' +
+        '<div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;color:#454b55">' +
+          (isLead(s) ? 'Added to your jobs.' : face(s.leadId, host, 22) + '<span style="min-width:0">' + esc(firstName(host)) + ' is counting on you.</span>') + '</div>' +
+        '<button type="button" data-onit-done ' + on(close) + ' style="height:50px;border:0;border-radius:999px;background:#149a4b;color:#fff;font-family:inherit;font-size:16px;font-weight:800;cursor:pointer">Done</button>' +
+        '<div style="display:flex;justify-content:center"><button type="button" ' + on(() => { if (!state.busy) undoClaim(b); }) + ' style="min-height:40px;padding:0 12px;border:0;background:none;font-family:inherit;font-size:14.5px;font-weight:800;color:#6b7280;cursor:pointer">Undo</button></div>' +
+      '</div></div>';
+  }
   // "You're going!" (members, after Going) and "You're on the list, {name}!" (guests, after Going or Maybe, once saved): Design v8-11 6a / 2b
   function viewPlusPop() {
     const pp = state.plusPop, s = state.sparks.find(x => x.id === pp.id);
@@ -2012,7 +2036,9 @@
     setState({ toast: null, banner: b });
     bannerTimer = setTimeout(() => setState({ banner: null }), ms);
   };
-  const onItBanner = (s, undo) => showBanner({ kind: 'on', id: s.id, undo }, 4000);
+  // Signing up opens a centred "You're signed up!" pop-up recapping the job (owner, 2026-10-07: the green banner was too
+  // easy to miss); Undo lives in it, and it stays until Done or ×
+  const onItBanner = (s, undo) => { clearTimeout(bannerTimer); setState({ banner: null, onIt: { kind: 'on', id: s.id, undo } }); };
   // back: the claims just removed, so Undo can put them back (with their note)
   const offIt = (s, job, back) => isLead(s) ? toast('Removed you from ' + job.item.toLowerCase(), true) : showBanner({ kind: 'off', id: s.id, job: job.item, back }, 7000);
   const redoClaim = (b) => {
@@ -2033,7 +2059,7 @@
         if (b.undo.was) must(await sb.from('rsvps').upsert({ spark_id: b.id, user_id: state.me, status: b.undo.was }, { onConflict: 'spark_id,user_id' }));
         else must(await sb.from('rsvps').delete().eq('spark_id', b.id).eq('user_id', state.me));
       }
-    }, { banner: null }).then(ok => { if (ok) toast('Okay, you’re off it', true); else setState({ banner: null }); });
+    }, { banner: null, onIt: null }).then(ok => { if (ok) toast('Okay, you’re off it', true); else setState({ banner: null, onIt: null }); });
   };
   const jobOf = (s, it) => (s.jobs || s.signups).find(j => j.id === (it.jobId || it.id)) || it;
   const myShiftIds = (job) => (job.shifts || []).filter(u => u.claims.some(c => c.userId === state.me)).map(u => u.id);
@@ -4614,7 +4640,7 @@
       '<button type="button" class="hov-primary" ' + on(() => { if (!state.busy) saveShifts(s, job); }) + ' style="min-height:52px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16px;font-weight:800;cursor:pointer">Done</button>', 36);
   }
 
-  // "You're on it" (after any new sign-up, with Undo) and "You're off it" (after taking yourself off)
+  // "You're going" and "You're off it" (after taking yourself off); a new sign-up gets the You're signed up! pop-up (viewOnIt)
   function viewBanner() {
     const b = state.banner, s = state.sparks.find(x => x.id === b.id);
     if (!s) return '';
@@ -4624,12 +4650,6 @@
       '<span style="flex:0 0 18px;width:18px;height:18px;border-radius:999px;background:#149a4b;display:flex;align-items:center;justify-content:center">' + I.check(10, '#fff', 4) + '</span>' +
       '<span style="flex:1;min-width:0;font-size:14.5px;line-height:1.35;font-weight:700;color:#fff">You’re going. See you there!</span>' +
       '<button type="button" ' + on(() => { clearTimeout(bannerTimer); setState({ banner: null }); addToCalendar(s); }) + ' style="flex:0 0 auto;min-height:36px;padding:0 14px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:13.5px;font-weight:800;cursor:pointer;white-space:nowrap">Add to calendar</button>');
-    if (b.kind === 'on') return wrap('background:#0f7a3c;box-shadow:0 10px 28px rgba(15,122,60,.35);display:flex;align-items:center;gap:12px',
-      '<span style="flex:0 0 44px;width:44px;height:44px;border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center">' + I.check(22, '#149a4b', 3.4) + '</span>' +
-      '<div style="flex:1;min-width:0"><div style="font-size:17px;font-weight:900;color:#fff">You’re on it</div>' +
-        '<div style="display:flex;align-items:center;gap:6px;margin-top:3px;font-size:12.5px;font-weight:800;color:rgba(255,255,255,.9)">' +
-          (isLead(s) ? 'Added to your jobs' : face(s.leadId, host, 18) + '<span style="min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(hostFirst) + ' is counting on you</span>') + '</div></div>' +
-      '<button type="button" ' + on(() => { if (!state.busy) undoClaim(b); }) + ' style="flex:0 0 auto;min-height:36px;padding:0 14px;border:0;border-radius:999px;background:rgba(255,255,255,.18);color:#fff;font-family:inherit;font-size:13.5px;font-weight:800;cursor:pointer">Undo</button>');
     const msg = 'Hey! I can’t make it to ' + b.job.toLowerCase() + ' for ' + s.text + ' anymore. Any chance you could take my spot?';
     return wrap('background:#fff6dc;box-shadow:0 10px 28px rgba(15,18,25,.18), inset 0 0 0 1.5px #f3d98b;display:flex;flex-direction:column;gap:12px',
       '<div style="display:flex;align-items:flex-start;gap:10px"><div style="flex:1;min-width:0"><div style="font-size:17px;font-weight:900;color:#0d1117">You’re off it</div>' +
@@ -11009,6 +11029,7 @@
       (st.interestList && subj ? viewInterestList(subj) : '') +
       (st.guestList && subj && st.guestList === subj.id ? viewGuestList(subj) : '') +
       (st.plusPop ? viewPlusPop() : '') +
+      (st.onIt ? viewOnIt() : '') +
       (st.leadsSheet ? viewLeadsSheet() : '') +
       (st.jobAsk ? viewJobAsk() : '') +
       (st.handOff ? viewHandOff() : '') +
@@ -11282,6 +11303,7 @@
       if (state.about != null) return setState({ about: null });
       if (state.dayTypePop) return setState({ dayTypePop: null });
       if (state.dayPick) return setState({ dayPick: null });
+      if (state.onIt) return setState({ onIt: null });
       if (state.zoom) return setState({ zoom: null });
       if (state.fb) return setState({ fb: null });
       if (state.installPop) return a2hsLater();

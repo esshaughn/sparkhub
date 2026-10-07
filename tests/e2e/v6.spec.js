@@ -126,10 +126,11 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
 
     // v6 Update 5: signing up is one tap and a "You're on it" banner, no RSVP question; he says Maybe himself
     await OP.locator('[data-signup="Ice"]').getByRole('button', { name: 'Sign up' }).click();
-    await expect(O.locator('[data-banner="on"]')).toContainText('You’re on it');
+    await expect(O.locator('[data-banner="on"]')).toContainText('You’re signed up!');
     await expect(rsvpBar(OP.locator('[data-rsvp]'), 'going')).toBeVisible();   // taking a job marks you Going
     await expect(O.getByRole('dialog', { name: 'Will you be there?' })).toHaveCount(0);
     await shot(O, '05-on-it');
+    await O.locator('[data-onit-done]').click();
     await rsvpTap(OP.locator('[data-rsvp]'), 'Maybe');
     await expect(O.getByText('Marked as maybe')).toBeVisible();
 
@@ -170,7 +171,8 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     await expect(row).toContainText('2 of 2 open');
     await shot(O, '08-could-use-a-hand');
     await row.getByRole('button', { name: 'Claim' }).click();
-    await expect(O.locator('[data-banner="on"]')).toContainText('You’re on it');
+    await expect(O.locator('[data-banner="on"]')).toContainText('You’re signed up!');
+    await O.locator('[data-onit-done]').click();
     await expect(row).toContainText('Yours');
     await expect(O.getByRole('dialog', { name: 'Confirm your RSVP' })).toHaveCount(0);
     await hand.getByRole('button', { name: 'Close' }).click();

@@ -97,6 +97,7 @@ test('multi-day: separate days, each-day RSVP, a job on one day, and a weekly ev
     // Holding the Day 2 job adds Day 2 to the RSVP
     await MP.locator('[data-signup="Pack up leftovers"]').getByRole('button', { name: 'Sign up' }).click();
     await expect(M.getByText('Added ' + wk(d2, true) + ' to your RSVP')).toBeVisible();
+    await M.locator('[data-onit-done]').click();   // You're signed up! (owner, 2026-10-07)
     await expect(MP.locator('[data-my-days]')).toContainText('You’re going both days');
     const reply = await asUser(M, async (c, _C, id) => (await c.from('rsvps').select('status, days, maybe_days').eq('spark_id', id).eq('user_id', (await c.auth.getUser()).data.user.id).single()).data, id);
     expect(reply).toEqual({ status: 'going', days: [d1, d2], maybe_days: [] });

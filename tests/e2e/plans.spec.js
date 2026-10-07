@@ -90,11 +90,20 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     await donePlus(G);
     await expect(rsvpBar(card, 'going')).toBeVisible();
     await expect(GP.locator('[data-helping-bar]')).toHaveCount(0);
-    // Signing up is one tap, then "You're on it" (no RSVP question)
+    // Signing up is one tap, then a "You're signed up!" pop-up recapping it (owner, 2026-10-07; no RSVP question)
     await GP.locator('[data-signup="Folding chairs"]').getByRole('button', { name: 'Sign up' }).click();
-    await expect(G.locator('[data-banner="on"]')).toContainText('You’re on it', { timeout: 1000 });   // with the tap (owner, 2026-10-02)
-    await expect(G.locator('[data-banner="on"]')).toContainText('is counting on you');
+    const onIt = G.getByRole('dialog', { name: 'You’re signed up' });
+    await expect(onIt).toContainText('You’re signed up!', { timeout: 1000 });   // with the tap (owner, 2026-10-02)
+    await expect(onIt.locator('[data-onit-summary]')).toContainText('Folding chairs');
+    await expect(onIt).toContainText('is counting on you');
     await expect(G.getByRole('dialog', { name: 'Will you be there?' })).toHaveCount(0);
+    // Undo takes it straight back
+    await onIt.getByRole('button', { name: 'Undo' }).click();
+    await expect(G.getByText('Okay, you’re off it')).toBeVisible();
+    await expect(GP.locator('[data-signup="Folding chairs"]')).toContainText('2 of 2 open');
+    await GP.locator('[data-signup="Folding chairs"]').getByRole('button', { name: 'Sign up' }).click();
+    await onIt.locator('[data-onit-done]').click();
+    await expect(onIt).toHaveCount(0);
     // "You're helping": under the photo, open to start with the jobs below it (Design 27); its header collapses it to a count
     const bar = GP.locator('[data-helping-bar]');
     await expect(GP.locator('[data-screen-label="You’re helping"]')).toContainText('Folding chairs');
@@ -105,11 +114,6 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     await expect(GP.locator('[data-screen-label="You’re helping"]')).toContainText('Folding chairs');
     await expect(GP.locator('[data-signup="Folding chairs"]')).toContainText('1 of 2 open');
     await expect(GP.locator('[data-signup="Folding chairs"]')).toContainText('You’re in');
-    // Undo takes it straight back
-    await G.locator('[data-banner="on"]').getByRole('button', { name: 'Undo' }).click();
-    await expect(G.getByText('Okay, you’re off it')).toBeVisible();
-    await expect(GP.locator('[data-signup="Folding chairs"]')).toContainText('2 of 2 open');
-    await GP.locator('[data-signup="Folding chairs"]').getByRole('button', { name: 'Sign up' }).click();
     await expect(GP.locator('[data-signup="Folding chairs"]')).toContainText('1 of 2 open');
     await expect(GP.locator('[data-signup="Folding chairs"] [data-who]')).toContainText('You');
     // The host sees who's on each job, and taps Going for the guest list with the guest's number
@@ -166,6 +170,7 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     // Members don't add their own things any more (v8-7): no Add something else
     await expect(GP.getByText('Add something else')).toHaveCount(0);
     await GP.locator('[data-signup="Lemonade"]').getByRole('button', { name: 'Sign up' }).click();
+    await G.locator('[data-onit-done]').click();   // You're signed up! (owner, 2026-10-07)
     await expect(GP.locator('[data-signup="Lemonade"]')).toContainText('You’re in');
     // Taking yourself off later: "You're off it" with Find a replacement
     await GP.locator('[data-signup="Lemonade"]').getByLabel('You’re in. Tap to take yourself off').click();
@@ -178,6 +183,7 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     await rep.getByRole('button', { name: 'Close' }).click();
     await expect(rep).toHaveCount(0);
     await GP.locator('[data-signup="Lemonade"]').getByRole('button', { name: 'Sign up' }).click();
+    await G.locator('[data-onit-done]').click();   // You're signed up! (owner, 2026-10-07)
     await expect(GP.locator('[data-signup="Lemonade"]')).toContainText('You’re in');
     const download = G.waitForEvent('download');
     await GP.getByRole('button', { name: 'Add to calendar' }).click();
@@ -283,12 +289,14 @@ test('Help out: More details, time ranges and one shift per job', async ({ brows
 
     // Each shift has its own Sign up
     await early.getByRole('button', { name: 'Sign up' }).click();
-    await expect(O.locator('[data-banner="on"]')).toContainText('You’re on it');
+    await expect(O.locator('[data-banner="on"]')).toContainText('You’re signed up!');
+    await O.locator('[data-onit-done]').click();
     await expect(early).toContainText('You’re in');
     await expect(early).not.toContainText('1 open');   // a full shift shows no count
     await expect(coat).toHaveAttribute('data-mine', '');
     // One shift per person per job: the other shift moves you
     await late.getByRole('button', { name: 'Sign up' }).click();
+    await O.locator('[data-onit-done]').click();
     await expect(late).toContainText('You’re in');
     await expect(early.getByRole('button', { name: 'Sign up' })).toBeVisible();
     await expect.poll(() => asUser(O, async (c, _C, id) => {
@@ -871,6 +879,7 @@ test('a sign-up shows on the group page, the Calendar and the lead’s card', as
     await expect(card).not.toContainText('Helping');
     await card.click();
     await O.locator('[data-screen-label="Plan page"] [data-signup="Barricades"]').getByRole('button', { name: 'Sign up' }).click();
+    await O.locator('[data-onit-done]').click();
     await O.locator('[data-screen-label="Plan page"]').getByRole('button', { name: /^Back/ }).first().click();
     await expect(card).toContainText('Helping');
     await O.waitForTimeout(3000);   // the refresh after the save doesn't undo it

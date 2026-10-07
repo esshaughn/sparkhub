@@ -32,6 +32,7 @@ test('Your schedule and the Calendar: role strips, a helper’s sign-ups with ti
     await expect(rsvpBar(OP.locator('[data-rsvp]'), 'going')).toBeVisible();
     for (const item of ['Folding tables', 'Ice', 'Speaker']) {
       await OP.locator('[data-signup="' + item + '"]').getByRole('button', { name: 'Sign up' }).click();
+      await O.locator('[data-onit-done]').click();   // You're signed up! (owner, 2026-10-07)
       await expect(OP.locator('[data-signup="' + item + '"]').getByText('You’re in')).toBeVisible();
     }
 
