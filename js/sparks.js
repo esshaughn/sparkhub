@@ -2697,7 +2697,7 @@
     // A full-screen column: the photo behind the top, then the logo, headline and steps,
     // with the sign-in buttons anchored near the bottom of the screen
     return '<div data-screen-label="Welcome" style="position:relative;min-height:100%;display:flex;flex-direction:column;background:#0d1117;overflow:hidden">' +
-      '<div aria-hidden="true" style="position:absolute;left:0;right:0;top:calc(-70px + var(--pt));height:500px;background:' + bg('/photos/welcome.jpg', '40% 50%') + '"></div>' +
+      '<div aria-hidden="true" style="position:absolute;left:0;right:0;top:calc(-70px + var(--pt));height:500px;background:' + bg('/photos/welcome-picnic.jpg', '40% 50%') + '"></div>' +
       '<div aria-hidden="true" style="position:absolute;left:0;right:0;top:0;height:calc(430px + var(--pt));background:linear-gradient(to bottom, rgba(13,17,23,.4) 0%, rgba(13,17,23,.18) 25%, rgba(13,17,23,.62) 48%, rgba(13,17,23,.92) 70%, #0d1117 100%)"></div>' +
       '<div style="flex:1 0 calc(200px + var(--pt))"></div>' +
       '<div style="position:relative;padding:0 20px;color:#fff;text-shadow:0 1px 12px rgba(13,17,23,.5)">' +
