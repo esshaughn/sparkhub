@@ -815,6 +815,16 @@ select t.check('it goes back to the floater, looking for a lead again, and the o
   and exists (select 1 from interests where spark_id = t.id('declined') and user_id = t.id('asked'))
   and exists (select 1 from notes where user_id = t.id('floater') and body like '%you can choose one.%'));
 
+-- First-run flags on the account (20261112000000_seen_on_account.sql) ------------------------------------------------
+select t.login('floater'); set role authenticated;
+select t.must_allow('saving your own seen flags', $$insert into notif_state (user_id, seen) values (auth.uid(), '{"swipe": 1}')$$);
+select t.must_allow('updating them', $$update notif_state set seen = '{"swipe": 1, "fbAsked": 1}' where user_id = auth.uid()$$);
+select t.must_refuse('seen that isn''t an object', $$update notif_state set seen = '[1]' where user_id = auth.uid()$$);
+reset role;
+select t.login('asked'); set role authenticated;
+select t.check('someone else''s flags stay hidden', not exists (select 1 from notif_state where user_id = t.id('floater')));
+reset role;
+
 -- Feedback carries its context and an optional screenshot (20261102030000_feedback_context.sql) ------------------------
 select t.person('fbsender');
 select t.login('fbsender'); set role authenticated;

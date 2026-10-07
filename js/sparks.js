@@ -127,6 +127,11 @@
   };
   // Take part's times always show minutes, as Design and the notes do ("9:00am court time")
   const slotTime = (hhmm) => { if (!hhmm) return ''; const [h, m] = hhmm.split(':').map(Number); return (h % 12 || 12) + ':' + pad2(m) + (h < 12 ? 'am' : 'pm'); };
+  // Titles stop at two lines everywhere (owner, 2026-10-07): 40 characters, and a big title shrinks as it gets
+  // longer so 40 fit two lines on a phone (about 1,180 ÷ length px for Figtree 900 in a ~330px column)
+  const TITLE_MAX = 40;
+  const OV_MAX = 120;   // the short description, everywhere (owner, 2026-10-07; was 80 in Plan an event), three lines at most
+  const titleFs = (t, max) => Math.max(24, Math.min(max, Math.floor(1180 / Math.max(1, String(t || '').length))));
   const fmtDay = (iso) => new Date(iso + 'T12:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
   const wkDay = (iso, long) => new Date(iso + 'T12:00').toLocaleDateString('en-US', { weekday: long ? 'long' : 'short' });
   const plusDays = (iso, n) => { const d = new Date(iso + 'T12:00'); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); };
@@ -308,7 +313,7 @@
 
   const hashFor = () => {
     const s = state.screen;
-    if (s === 'detail' && state.subjectId) return '#/idea/' + state.subjectId;
+    if (s === 'detail' && state.subjectId) { const sj = subject(); return sj && sj.linkCode && location.pathname === '/e/' + sj.linkCode ? '' : '#/idea/' + state.subjectId; }
     if (s === 'groupPage' && state.gpId) return '#/group/' + state.gpId;
     if (s === 'compose') return '#/new';   // its own history entry, so the phone's Back stays in the flow (followUrl)
     // Your calendar is the home screen (v7 Update 16, owner 2026-10-03; the Calendar, now Explore, was until then)
@@ -317,6 +322,9 @@
   };
   const syncHash = (prevScreen) => {
     const h = hashFor();
+    // Leaving an event opened at /e/CODE for a screen with no hash (My calendar): back to the plain address, or a reload
+    // would reopen the event
+    if (h === '' && state.screen !== 'detail' && E_PATH.test(location.pathname)) { history.pushState(null, '', '/' + location.search); return; }
     if (h === null || (location.hash || '') === h) return;
     // Leaving the post flow replaces its #/new entry, so Back from the new event doesn't reopen the flow
     history[prevScreen === 'compose' && location.hash === '#/new' ? 'replaceState' : 'pushState'](null, '', h || location.pathname + location.search);
@@ -721,6 +729,7 @@
       groups, sparks, profiles, drafts, notes, fr, loaded: true, fromCache: false, error: null,
       myName: mine.name || state.myName, myAvatar: mine.avatar || null, myPlace: mine.place || '', myBio: mine.bio || ''
     });
+    appFirstRun();
     writeCache();
     if (state.email && !va) syncPush();
     // The extras below change rarely: once per sign-in, then at most every 10 minutes (the 30-second refresh
@@ -742,6 +751,8 @@
         setState({ notif: { allReadAt: d.all_read_at ? Date.parse(d.all_read_at) : 0, read: d.read_keys || [], topics: d.topics || {}, email: d.email !== false, loaded: true } });
         writeCache();
       }, () => {});
+      // First-run flags kept on the account (20261112000000_seen_on_account.sql; a database without it answers 42703)
+      sb.from('notif_state').select('seen').maybeSingle().then(r => { if (!r.error && r.data && r.data.seen) hydrateSeen(r.data.seen); }, () => {});
     }
     // Member counts for the Groups page (a nicety: the page works without them)
     if (extras) sb.rpc('my_group_sizes').then(r => {
@@ -847,7 +858,7 @@
         const r = await sb.rpc('open_event', { p_code: state.linkCode });
         if (r.error && r.error.code !== 'PGRST202') throw r.error;
         const id = r.data || null;
-        if (id) { opened.add(id); history.replaceState(null, '', '/#/idea/' + id); setState({ subjectId: id, linkCode: null }); }
+        if (id) { opened.add(id); setState({ subjectId: id, linkCode: null }); }   // the address stays /e/CODE (it was swapped for /#/idea/<id>, which stops working in 2027)
         else setState({ screen: 'sched', subjectId: null, linkCode: null, goneOpen: 'link' });
       }
       if (state.screen === 'detail' && state.subjectId) {
@@ -913,6 +924,7 @@
     if (!s) return setState({ plusPop: null });
     const p = plusOf(s), was = myPlus(s), note = p.n && p.note.trim() ? p.note.trim().slice(0, 80) : '';
     setState(Object.assign({ plusPop: null }, clearPlus(s.id)));
+    setTimeout(() => offerInstall(), 900);   // they did what they came for: now offer the app (first-encounter audit 6)
     if (pp.guest) return;
     if (p.n !== was.n || note !== was.note) {
       patchSpark(s.id, { rsvps: s.rsvps.map(r => r.userId === state.me ? Object.assign({}, r, { plus: p.n, plusNote: note }) : r) });
@@ -951,9 +963,14 @@
           : '<div style="display:flex;flex-direction:column;gap:8px;' + (p.n ? 'padding-bottom:0' : '') + '">' + plusStepper(s) +
             (p.n ? '<input class="fld" type="text" maxlength="80" aria-label="Who’s coming with you" placeholder="Who’s coming with you? (optional)" value="' + esc(p.note) + '" ' + onInput(e => setState({ plusNote: Object.assign({}, state.plusNote, { [s.id]: e.target.value.slice(0, 80) }) })) +
               ' style="width:100%;box-sizing:border-box;height:42px;border:0;border-radius:12px;padding:0 12px;background:#fff;box-shadow:inset 0 0 0 1.5px #e3e5ea;font-family:inherit;font-size:16px;font-weight:600;color:#0d1117;outline:none">' : '') + '</div>') +
-        '<button type="button" data-plus-done ' + on(plusDone) + ' style="height:50px;margin-top:2px;border:0;border-radius:999px;background:#149a4b;color:#fff;font-family:inherit;font-size:16px;font-weight:800;cursor:pointer">Done</button>' +
+        // The one account ask, after the RSVP is saved (first-encounter audit 3): a reminder is the reason
+        (guest ? '<div data-plus-account style="display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:16px;background:#f3f1fe">' +
+            '<div style="display:flex;gap:10px;align-items:flex-start">' + ic6('bell', 20, '#5b4ae8', 2.2) + '<div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:16px;font-weight:900;color:#0d1117">Want a reminder?</span>' +
+            '<span style="font-size:14px;line-height:1.4;font-weight:600;color:#454b55;text-wrap:pretty">Create a free account and we’ll remind you the day before and that morning.</span></div></div>' +
+            '<button type="button" data-plus-signin ' + on(() => { setState(Object.assign({ plusPop: null }, clearPlus(s.id))); openLogin('reminder', () => setTimeout(askReminders, 500)); }) + ' style="min-height:46px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:15px;font-weight:800;cursor:pointer">Create a free account</button></div>' : '') +
+        '<button type="button" data-plus-done ' + on(plusDone) + ' style="height:50px;margin-top:2px;border:0;border-radius:999px;background:' + (guest ? '#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;color:#0d1117' : '#149a4b;color:#fff') + ';font-family:inherit;font-size:16px;font-weight:800;cursor:pointer">' + (guest ? 'Not now' : 'Done') + '</button>' +
         '<div style="display:flex;align-items:center;justify-content:center;gap:10px;font-size:14.5px;font-weight:800">' +
-          (guest ? link(() => { setState(Object.assign({ plusPop: null }, clearPlus(s.id))); openLogin('guest', () => {}); }, '#5b4ae8', svg(15, stroke('currentColor', 2.4), '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/>'), 'Get a reminder · Sign in', 'data-plus-signin')
+          (guest ? ''
             : link(() => { plusDone(); setState({ share: { id: s.id, copied: false } }); }, '#1f5fa8', svg(15, stroke('currentColor', 2.4), '<circle cx="9.5" cy="8" r="3.5"/><path d="M3 20a6.5 6.5 0 0 1 13 0"/><path d="M19 8v6M16 11h6"/>'), 'Invite others', 'data-plus-invite')) +
           '<span style="color:#c4c8d0">·</span><span ' + on(change) + ' style="min-height:32px;display:flex;align-items:center;color:#6b7280;cursor:pointer">Change RSVP</span></div>' +
       '</div></div>';
@@ -1276,12 +1293,36 @@
   // Plans tab. state.inv = { code, group (undefined while loading, null if the code matches nothing),
   // step: land · confirm · joining · neterr · welcome · bad, busy, gid, copied }.
   const PENDING_INVITE = 'pendingInvite', WELCOMED = 'spark-hub-welcomed-groups';
-  const IN_APP = /Instagram|FBAN|FBAV|Messenger|Line\/|TikTok|Snapchat/i.test(navigator.userAgent);
+  const IN_APP = /Instagram|FBAN|FBAV|FB_IAB|FBIOS|Messenger|Line\/|TikTok|Snapchat|LinkedInApp|Twitter|Pinterest|Discord|Slack|GSA\/|; wv\)/i.test(navigator.userAgent);   // first-encounter audit 8: more in-app browsers
   const DEVICE = /iPhone|iPod|Android/i.test(navigator.userAgent) ? 'phone' : 'device';   // "this phone" reads wrong on a computer or tablet
   const pendingInvite = () => { try { const c = sessionStorage.getItem(PENDING_INVITE) || ''; return /^[A-Za-z0-9]{6}$/.test(c) ? c : ''; } catch (e) { return ''; } };
   const setPending = (code) => { try { if (code) sessionStorage.setItem(PENDING_INVITE, code); else sessionStorage.removeItem(PENDING_INVITE); } catch (e) { /* fine */ } };
   const welcomedIds = () => { try { return JSON.parse(localStorage.getItem(WELCOMED)) || []; } catch (e) { return []; } };
-  const markWelcomed = (id) => { try { localStorage.setItem(WELCOMED, JSON.stringify(welcomedIds().filter(x => x !== id).concat(id).slice(-50))); } catch (e) { /* fine */ } };
+  const markWelcomed = (id) => { const ids = welcomedIds().filter(x => x !== id).concat(id).slice(-50); try { localStorage.setItem(WELCOMED, JSON.stringify(ids)); } catch (e) { /* fine */ } setSeen('welcomed', ids); };
+  // "Seen" flags on the account as well as the device (first-encounter audit 7): the installed iPhone app has its own
+  // storage, so without this every first-run layer replayed there. hydrateSeen copies the account's flags onto the device
+  let seenAcct = {}, seenTimer = null;
+  const setSeen = (k, v) => {
+    if (!state.email || state.viewAs || !sb) return;
+    seenAcct = Object.assign({}, seenAcct, { [k]: v });
+    clearTimeout(seenTimer);
+    seenTimer = setTimeout(async () => {
+      try {
+        const r = await sb.from('notif_state').update({ seen: seenAcct }).eq('user_id', state.me).select('user_id');
+        if (!r.error && !(r.data || []).length) await sb.from('notif_state').insert({ user_id: state.me, seen: seenAcct });
+      } catch (e) { /* the device still remembers */ }
+    }, 800);
+  };
+  const hydrateSeen = (o) => {
+    seenAcct = Object.assign({}, o, seenAcct);
+    try {
+      if (Array.isArray(o.welcomed)) localStorage.setItem(WELCOMED, JSON.stringify(welcomedIds().concat(o.welcomed.filter(x => welcomedIds().indexOf(x) < 0)).slice(-50)));
+      if (o.fbAsked && !fbNudgeRead().done) fbNudgeWrite(Object.assign(fbNudgeRead(), { done: o.fbAsked }));
+      if (o.swipe) localStorage.setItem(HINT_KEY, '99');
+      Object.keys(o).filter(k => k.indexOf('me_') === 0).forEach(k => localStorage.setItem(ME_ALERT_KEY + k.slice(3), String(o[k])));
+    } catch (e) { /* fine */ }
+    if (o.ideaSeen && !state.ideaSeen) setState({ ideaSeen: o.ideaSeen });
+  };
   const setInv = (patch) => { if (state.inv) setState({ inv: Object.assign({}, state.inv, patch) }); };
   // Full-screen invite steps (no tab bar); the landing stays up while a join it started is running
   const invFull = () => { const v = state.inv; return !!v && (v.step === 'land' ? !state.email || !!v.busy : v.step !== 'confirm'); };
@@ -1355,6 +1396,7 @@
     const g = groupById(state.inv && state.inv.gid);
     setState({ inv: null, invA2hs: true });
     if (g) { markSeen(g); go('browse', { groupId: g.id, phaseTab: tab }); } else go('sched');
+    setTimeout(() => offerInstall(), 1200);   // joined: offer the app (first-encounter audit 6)
   };
   // Signed out on the landing: email → a code in pop-up 2; Google → a full-page trip, back into the join
   const invSendCode = () => {
@@ -2084,9 +2126,9 @@
   };
 
   // "Do it again": a new event with the place and details filled in
-  const doItAgain = (s) => goCompose({ activity: s.text.slice(0, 60), evTags: (s.tags || []).slice(0, 2), evTest: !!(s.test || s.demo), locText: s.spot || '', locPlace: s.spotAddress ? { name: s.spot, address: s.spotAddress, lat: s.spotPoint && s.spotPoint[0], lon: s.spotPoint && s.spotPoint[1] } : null, locAddr: s.spotAddress || '',
+  const doItAgain = (s) => goCompose({ activity: s.text.slice(0, TITLE_MAX), evTags: (s.tags || []).slice(0, 2), evTest: !!(s.test || s.demo), locText: s.spot || '', locPlace: s.spotAddress ? { name: s.spot, address: s.spotAddress, lat: s.spotPoint && s.spotPoint[0], lon: s.spotPoint && s.spotPoint[1] } : null, locAddr: s.spotAddress || '',
     // v8-14: the one page has a description, not detail lines: the old event's details come back as its sentences
-    evDesc: basicsOf(s).map(b => /[.!?]$/.test(b) ? b : b + '.').join(' ').slice(0, 200), evOverview: (s.overview || '').slice(0, 80) });
+    evDesc: basicsOf(s).map(b => /[.!?]$/.test(b) ? b : b + '.').join(' ').slice(0, 200), evOverview: (s.overview || '').slice(0, OV_MAX) });
 
   // Several at once: as many as there's room for, then one save
   const addMood = async (s, fileList) => {
@@ -2245,8 +2287,9 @@
     }
     const then = st.loginThen;
     setState({ busy: null, loginStep: null, loginCode: '', loginThen: null, mergeToken: null, googleFailed: false });
-    if (typeof then === 'function') then();
-    else if (state.screen === 'sched') go('sched');
+    // An email account has no name yet: ask now, right after the code, not later on top of an RSVP (first-encounter audit 10)
+    const next = () => { if (typeof then === 'function') then(); else if (state.screen === 'sched') go('sched'); };
+    if (!state.myName) needName(next); else next();
   };
 
   const verifyCode = async () => {
@@ -2290,7 +2333,8 @@
   // name, and where to pick up. Back signed in, the merge token moves the
   // guest's things (RSVPs, guest names, event links) to the account.
 
-  const GOOGLE_ON = !!CFG.googleSignIn;
+  const GOOGLE_ON = !!CFG.googleSignIn && !IN_APP;   // Google refuses sign-in inside in-app browsers: email only there, with inAppTip()
+  const inAppTip = (dark) => !IN_APP || !CFG.googleSignIn ? '' : '<p data-in-app-tip style="margin:4px 0 0;text-align:center;font-size:13px;line-height:1.45;font-weight:600;color:' + (dark ? '#aab0bb' : '#6b7280') + '">Want to use Google? Open this page in your browser first: tap ··· then Open in browser.</p>';
   const RESUME_KEY = 'spark-hub-google-resume';
   const DRAFT_KEYS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'locText', 'locPlace', 'locAddr', 'evBits', 'evOverview', 'evDesc', 'evNeed', 'evTags', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evNoGuestInv', 'evTest', 'evFloat', 'evHelpNone', 'evGroups', 'coverPos', 'evPhotoPath', 'evDraftId'];
   const readResume = () => {
@@ -2359,7 +2403,9 @@
     if (r.from === 'invite') return () => { if (!state.inv) startInvite(r.joinCode, 'joining'); inviteJoin(); };
     if (r.from === 'profile') return () => go('me');
     if (r.from === 'account' && r.tap) return () => replayTap(r.tap);
-    if (r.from === 'account' || r.from === 'guest') return () => toast('You’re signed in. Tap it again to finish.', true);
+    if (r.from === 'reminder') return () => { toast('Signed in. You’re still on the list.', true); setTimeout(askReminders, 600); };
+    if (r.from === 'guest') return () => toast('Signed in. You’re still on the list.', true);
+    if (r.from === 'account') return () => toast('You’re signed in. Tap it again to finish.', true);
     return null;
   };
   const replayTap = (t) => {
@@ -2560,6 +2606,21 @@
 
   const STEPS = [['#e8a71c', '1', 'Start an event'], ['#5b4ae8', '2', 'RSVP &amp; pitch in'], ['#0f7a3c', '3', 'Make it happen']];
 
+  // A guest who has replied to something (from a link) sees it here, with what Spark Hub is, instead of only a sign-in
+  // wall (first-encounter audit 2, owner 2026-10-07): Back from the event lands here
+  const guestRsvps = () => {
+    if (state.email || !state.me) return '';
+    const mine = state.sparks.filter(s => !s.cancelledAt && phaseOf(s) !== 'done' && imPartOf(s)).sort((a, b) => (a.dayDate || '9') < (b.dayDate || '9') ? -1 : 1).slice(0, 4);
+    if (!mine.length) return '';
+    return '<div data-guest-rsvps style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px">' +
+      '<span style="font-size:12.5px;font-weight:900;letter-spacing:1px;color:#aab0bb">YOUR PLANS</span>' +
+      mine.map(s => { const my = myRsvp(s);
+        return '<div ' + on(() => openSpark(s)) + ' role="button" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:16px;background:rgba(255,255,255,.1);cursor:pointer">' +
+          '<div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:800;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(s.text) + '</div>' +
+          '<div style="margin-top:2px;font-size:13.5px;font-weight:700;color:#c9ccd3">' + esc([my === 'going' ? 'You’re going' : my === 'maybe' ? 'You’re a maybe' : 'You’re interested', s.dayDate ? dayLabel(s.dayDate, s.dayTime) : ''].filter(Boolean).join(' · ')) + '</div></div>' +
+          I.chevR(16, '#c9ccd3', 2.6) + '</div>'; }).join('') +
+      '<p style="margin:4px 2px 6px;font-size:14px;line-height:1.45;font-weight:600;color:#dfe2e8">Spark Hub is where groups plan get-togethers. A free account gets you reminders and shows what else is coming up.</p></div>';
+  };
   function viewWelcome() {
     const st = state, from = st.joinCode ? 'join' : 'default', then = st.joinCode ? () => openJoin(st.joinCode) : null;
     // Google leaves for Google straight from here, the button reading "Opening Google…" (no sign-in pop-up flashing
@@ -2581,7 +2642,7 @@
         '</ol>' +
       '</div>' +
       '<div style="position:relative;padding:32px 16px calc(22px + env(safe-area-inset-bottom, 0px));display:flex;flex-direction:column;gap:10px">' +
-        goneCard() +
+        goneCard() + guestRsvps() +
         // Not designed yet (README → Open, invite link flow): say which group the link is for
         (st.joinCode ? '<div style="text-align:center;font-size:14.5px;font-weight:700;color:#dfe2e8">Sign in to join the group <strong style="font-weight:900;letter-spacing:1px;color:#fff">' + esc(st.joinCode) + '</strong></div>' : '') +
         (GOOGLE_ON
@@ -2590,7 +2651,9 @@
           : '') +
         '<button type="button" class="hov-white-line" ' + on(email) + ' style="width:100%;min-height:54px;display:flex;align-items:center;justify-content:center;gap:10px;background:transparent;border:1.5px solid rgba(255,255,255,.3);border-radius:999px;font-family:inherit;font-size:16px;font-weight:800;color:#fff;cursor:pointer">' +
           svg(19, stroke('currentColor', 2.1), '<rect x="3" y="5.5" width="18" height="13" rx="2.5"/><path d="m4 7.5 8 6 8-6"/>') + 'Continue with email</button>' +
-        '<p style="margin:6px 0 0;text-align:center;font-size:13.5px;line-height:1.45;font-weight:600;color:#8a909b">New here? Either one creates your account.</p>' +
+        // The installed app keeps its own sign-in (iPhone): say so, so it doesn't read as "start over"
+        (STANDALONE ? '<p data-app-welcome style="margin:6px 0 0;text-align:center;font-size:14px;line-height:1.45;font-weight:700;color:#dfe2e8">Welcome to the app. Sign in once to pick up where you left off.</p>'
+          : '<p style="margin:6px 0 0;text-align:center;font-size:13.5px;line-height:1.45;font-weight:600;color:#8a909b">' + (GOOGLE_ON ? 'New here? Either one creates your account.' : 'New here? This creates your account.') + '</p>') + inAppTip(true) +
       '</div>' +
     '</div>';
   }
@@ -2779,7 +2842,11 @@
   const gIds = (s) => s.groupIds || [s.groupId];
   const inGroup = (s, gid) => gIds(s).indexOf(gid) > -1;
   const invitedTo = (s) => state.fr.invites.some(i => i.spark === s.id);   // a friend invited you (v6 Update 13): it's yours like your groups' events
-  const inMine = (s) => gIds(s).some(id => { const g = groupById(id); return !!(g && g.role); }) || invitedTo(s);
+  const inMine = (s) => gIds(s).some(id => { const g = groupById(id); return !!(g && g.role); }) || invitedTo(s) || imPartOf(s);
+  // Something you're part of though it isn't in your groups (opened from a link, then you replied, are interested or lead
+  // it): it's yours too, so a new account from an event link finds that event on My calendar (owner, 2026-10-07)
+  const imPartOf = (s) => !!state.me && (s.leadId === state.me || s.cohosts.indexOf(state.me) > -1 || s.interested.indexOf(state.me) > -1 ||
+    s.rsvps.some(r => r.userId === state.me && (r.status === 'going' || r.status === 'maybe')));
   const inScope = (s, gid) => inMine(s) && (!gid || inGroup(s, gid));
   const photoBg = (s) => s.photoPaths[0] ? bg(photoUrl(s.photoPaths[0]), posAt(s.coverPos, IDEA_POS)) : groupBg(groupById(s.groupId));
   const monthDay = (iso) => new Date(iso + 'T12:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -2802,6 +2869,7 @@
   const openSpark = (s) => go('detail', { subjectId: s.id, menu: null });
   const backLabel = (s) => {
     const b = state.back, g = groupById(s.groupId);
+    if (!state.email) return 'Spark Hub';   // a guest goes back to Welcome, with their plans on it
     if (!b) return g && g.role ? g.name : 'My calendar';
     return { home: 'My tasks', sched: 'My calendar', own: 'Leading', calendar: 'All groups', groups: 'My groups', friends: 'My friends', me: 'Me', ideas: 'Ideas', browse: (groupById(b.groupId) || g || {}).name || 'the group' }[b.screen];
   };
@@ -2936,7 +3004,7 @@
         const x = draftState(d), j = x.evStep === 'review' ? EV_STEPS.length : Math.max(0, EV_STEPS.indexOf(x.evStep)), t = cleanTitle(x.activity) || 'Untitled event';
         const thumb = x.evPhotoPath ? hostThumb('#2b303a ' + bg(photoUrl(x.evPhotoPath)), true)
           : '<span aria-hidden="true" style="flex:0 0 40px;width:40px;height:40px;border-radius:10px;background:#f4f5f7;display:flex;align-items:center;justify-content:center">' + svg(16, stroke('#9aa0ac', 2.2), IMG_IC) + '</span>';
-        return hostRow(thumb, t, j + ' of ' + EV_STEPS.length + ' steps', null, () => resumeDraft(d), 'data-host-draft="' + esc(t) + '" aria-label="Draft: ' + esc(t) + '"');
+        return hostRow(thumb, t, x.isFloat ? 'Idea draft' : j + ' of ' + EV_STEPS.length + ' steps', null, () => resumeDraft(d), 'data-host-draft="' + esc(t) + '" aria-label="Draft: ' + esc(t) + '"');
       })) +
       sec('Ideas', ideas.map(s => { const l = ideaLine(s); return ev(s, l[0], l[1]); })) +
       sec('Planning', plans.map(s => ev(s, s.dayDate ? fmtDay(s.dayDate) : 'Date to be decided'))) +
@@ -3858,7 +3926,7 @@
         (cal && g ? '<div style="position:absolute;top:12px;left:14px;right:14px;display:flex;align-items:center;gap:6px;min-width:0"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;height:24px;padding:0 10px;border-radius:999px;background:rgba(13,17,23,.4);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);font-size:11.5px;font-weight:700;color:rgba(255,255,255,.84)">' + esc(groupsLabel(s)) + '</span>' + privChip(s, true) + '</div>' : privChip(s)) +
         '<div style="position:absolute;left:16px;right:16px;bottom:14px;color:#fff;display:flex;flex-direction:column;gap:3px">' +
           '<div style="font-size:13px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;color:' + (P.k === 'idea' ? '#ffd98a' : !s.dayDate ? TBD_ON_PHOTO : P.k === 'open' ? '#dfe2e8' : P.R.kick) + '">' + esc(tileWhen(s, P)) + '</div>' +
-          '<div style="font-size:' + (cal ? 23 : 25) + 'px;line-height:1.05;font-weight:900;letter-spacing:' + (cal ? -.5 : -.6) + 'px;text-wrap:balance">' + esc(s.text) + demoTag(s, true, true) + '</div>' +
+          '<div style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:' + (cal ? 23 : 25) + 'px;line-height:1.05;font-weight:900;letter-spacing:' + (cal ? -.5 : -.6) + 'px;text-wrap:balance">' + esc(s.text) + demoTag(s, true, true) + '</div>' +
           '<div style="display:flex;align-items:center;gap:5px;font-size:' + (cal ? 14 : 14.5) + 'px;font-weight:700;color:rgba(255,255,255,.9);min-width:0">' + ic6('pin', 14, 'currentColor', 2.3) + '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (s.spot ? esc(s.spot) : tbdSpan(spotTbd(s), TBD_ON_PHOTO)) + '</span></div>' +
         '</div></div>' + (mode === 'mine' ? strip6(s, P, 34, cal, 12.5, 12) : cal ? strip6(s, P, 28, cal, 11.5) : strip6(s, P, 40, cal)) + '</div>';
   };
@@ -3909,7 +3977,7 @@
         '<div style="position:absolute;left:16px;right:16px;bottom:14px;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.3)">' +
           // the badge says Today / Tomorrow / In N days, so the date line gives the date itself (it said "Today" twice); its colour follows your role
           '<div style="font-size:13px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;color:' + P.R.kick + '">' + esc(s.dayDate ? fmtDay(s.dayDate) + (s.days ? ' · ' + s.days.length + ' days' : s.dayTime ? ' · ' + fmtTime(s.dayTime) : '') + (s.repeat ? ' · ' + REPEATS[s.repeat.every] : '') : when6(s)) + '</div>' +
-          '<div style="margin-top:3px;font-size:25px;line-height:1.1;font-weight:900;letter-spacing:-.6px;text-wrap:balance">' + esc(s.text) + demoTag(s, true, true) + '</div>' +
+          '<div style="margin-top:3px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:25px;line-height:1.1;font-weight:900;letter-spacing:-.6px;text-wrap:balance">' + esc(s.text) + demoTag(s, true, true) + '</div>' +
           '<div style="margin-top:6px;display:flex;align-items:center;gap:6px;font-size:14.5px;font-weight:700;color:rgba(255,255,255,.9);min-width:0">' + ic6('pin', 13, 'currentColor', 2.6) + '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (s.spot ? esc(s.spot) : tbdSpan(spotTbd(s), TBD_ON_PHOTO)) + '</span></div>' +
         '</div></div>' +
       nextStrip(s, P, mode) + '</div>';
@@ -3994,9 +4062,9 @@
   function viewSched() {
     const st = state, view = HOME_VIEWS.indexOf(st.homeView) > -1 ? st.homeView : 'next';
     // Design v8 prototype: 10px under the header, 14px between sections, 8px from a heading to its cards
-    const wrap = (inner) => '<div data-screen-label="Your calendar">' + head6('My calendar', '', false, null, grpPill('sGrps')) + '<div style="padding:10px 14px 24px;display:flex;flex-direction:column;gap:14px">' + inner + '</div><div style="height:var(--nav-h)"></div></div>';
+    const wrap = (inner) => '<div data-screen-label="Your calendar">' + head6('My calendar', '', false, null, grpPill('sGrps')) + '<div style="padding:10px 14px 24px;display:flex;flex-direction:column;gap:14px">' + (st.loaded && !myGroups().length && schedList().length ? joinLine() : '') + inner + '</div><div style="height:var(--nav-h)"></div></div>';
     if (!st.loaded) return wrap(skeleton(2, 220));
-    if (!myGroups().length) return wrap(goneCard() + noGroupCard());
+    if (!myGroups().length && !schedList().length) return wrap(goneCard() + noGroupCard());
     const sel = grpSel(st.sGrps), every = schedList(), all = every.filter(inPick(sel));
     if (!every.length) return wrap(goneCard() + schedEmpty());
     if (!all.length) return wrap(goneCard() + filterEmpty(() => setState({ sGrps: null, menu: null }), sel.map(id => (groupById(id) || {}).name).filter(Boolean)));
@@ -4610,6 +4678,30 @@
       toast('Notifications are on for this ' + DEVICE, true);
     } catch (e) { console.error(e); toast(failed(e)); }
   };
+  // Turn on reminders? (first-encounter audit 4, owner 2026-10-07): reminders are push only, so a sign-in for "a reminder"
+  // goes straight here; an iPhone browser can't get push, so it gets the steps to add the app instead
+  // The installed app's first signed-in load (first-encounter audit 7, owner 2026-10-07): it has its own storage on iPhone,
+  // so it starts from nothing. Open the next plan they're going to, then offer notifications (the reason to install)
+  const appFirstRun = () => {
+    if (!STANDALONE || !state.email || state.viewAs) return;
+    try { if (localStorage.getItem('spark-hub-app-intro')) return; localStorage.setItem('spark-hub-app-intro', '1'); } catch (e) { return; }
+    const next = state.sparks.filter(s => !s.cancelledAt && phaseOf(s) === 'plan' && ['going', 'maybe'].indexOf(myRsvp(s)) > -1).sort(byWhen)[0];
+    if (next && state.screen !== 'detail' && !state.inv) openSpark(next);
+    setTimeout(askReminders, 1500);
+  };
+  const askReminders = () => {
+    const ps = pushStatus();
+    if (ps === 'on' || state.viewAs) return;
+    if (ps === 'install') { if (installMode()) setState({ installPop: true }); return; }
+    if (ps === 'off') setState({ notifAsk: true });
+  };
+  function viewNotifAsk() {
+    const close = () => setState({ notifAsk: false });
+    return modal('Turn on reminders?', close,
+      h3Html('Turn on reminders?') + paraHtml('We’ll remind you the day before and that morning, and tell you if plans change.') +
+      '<button type="button" class="hov-primary" data-notif-ask-yes ' + on(() => { close(); turnOnPush(); }) + ' style="' + primary(true) + '">Turn on notifications</button>' +
+      '<button type="button" data-notif-ask-no ' + on(close) + ' style="min-height:44px;border:0;background:transparent;font-family:inherit;font-size:15px;font-weight:800;color:#6b7280;cursor:pointer">Not now</button>');
+  }
   const forgetPush = async () => {
     if (!PUSH_OK || !navigator.serviceWorker.controller) return;
     try {
@@ -4793,7 +4885,10 @@
   const fbNudgeWrite = (o) => { try { localStorage.setItem(FB_NUDGE_KEY + state.me, JSON.stringify(o)); } catch (e) { /* blocked: it may ask again */ } };
   // Only over a main screen with nothing else open, so it never lands on someone mid-task
   const fbNudgeFits = () => ['calendar', 'home', 'sched', 'groups', 'friends', 'ideas'].indexOf(state.screen) > -1 && state.loaded && !state.notifSheet &&
-    !state.fb && !state.confirm && !state.share && !state.loginStep && !state.inv && !state.toast && !state.banner && !state.cSearch && !state.dashAll && !state.cHandSheet && !state.zoom && !state.installPop;
+    !state.fb && !state.confirm && !state.share && !state.loginStep && !state.inv && !state.toast && !state.banner && !state.cSearch && !state.dashAll && !state.cHandSheet && !state.zoom && !state.installPop &&
+    !state.qi && !state.ip && !state.ipPop && !state.plusMenu && !state.plusPop && !state.nameAsk && !state.notifAsk && !state.guestOpen && !state.leadsSheet;   // never over Float, an idea or a pop-up (audit 10)
+  // Asked only after something real happened: they went to a plan, or led one (audit 10; it was 5 minutes of use)
+  const fbMoment = () => state.sparks.some(s => phaseOf(s) === 'done' && (myRsvp(s) === 'going' || isLead(s)));
   function fbNudgeTick() {
     const now = Date.now(), gap = Math.min(now - fbTickAt, 60000);   // a sleeping phone doesn't count
     fbTickAt = now;
@@ -4801,7 +4896,7 @@
     const o = fbNudgeRead();
     if (o.done) return;
     o.used = (o.used || 0) + gap;
-    if (o.used >= FB_NUDGE_MS && fbNudgeFits()) { o.done = Date.now(); setState({ fbNudge: true }); }
+    if (o.used >= FB_NUDGE_MS && fbMoment() && fbNudgeFits()) { o.done = Date.now(); setSeen('fbAsked', o.done); setState({ fbNudge: true }); }
     fbNudgeWrite(o);
   }
   // v7 Update 15 (1c): a sheet above the tab bar with a text box, Send to Eric and Not now; then one dark tip at Profile
@@ -4828,6 +4923,8 @@
         '<div style="display:flex;align-items:center;gap:12px">' + ericFace(36) +
           '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px"><span style="font-size:12px;font-weight:900;letter-spacing:1.1px;text-transform:uppercase;color:#5b4ae8">Feedback needed</span>' +
             '<span style="font-size:19px;line-height:1.2;font-weight:900;letter-spacing:-.4px;color:#0d1117">Help Eric improve the app</span></div></div>' +
+        // Who Eric is, once (audit 10: he was never introduced)
+        '<span data-fb-intro style="font-size:14.5px;line-height:1.45;font-weight:600;color:#454b55;text-wrap:pretty">Spark Hub is a new project by Eric, tried out with a few groups. Tell him what works and what doesn’t.</span>' +
         '<textarea rows="3" maxlength="1000" aria-label="Your feedback" placeholder="What’s something we should fix or add? Any feedback helps, even “the calendar is confusing.”" ' + onInput(e => { if (e.type === 'input') setState({ fbAsk: e.target.value.slice(0, 1000) }); }) +
           ' style="min-height:96px;box-sizing:border-box;resize:none;border:0;border-radius:16px;box-shadow:inset 0 0 0 2px #dcdfe6;padding:12px 14px;font-family:inherit;font-size:15.5px;line-height:1.4;font-weight:500;color:#0d1117;outline:none">' + esc(state.fbAsk || '') + '</textarea>' +
         '<div style="display:flex;align-items:center;gap:6px">' +
@@ -4961,10 +5058,12 @@
   window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installEvt = e; setState({ canInstall: true }); });
   window.addEventListener('appinstalled', () => { installEvt = null; setState({ canInstall: false, installPop: false }); toast('Spark Hub is on your Home Screen', true); });
   // prompt (Android: our button opens Chrome's dialog) · ios (show the Share steps) · '' (installed, or this browser can't)
-  const installMode = () => STANDALONE || IN_APP ? '' : state.canInstall && installEvt ? 'prompt' : IOS_BROWSER ? 'ios' : '';
+  // inapp (first-encounter audit 6): Instagram, Facebook, Gmail… can't add to the Home Screen, so the pop-up says how to
+  // open the page in the phone's browser first
+  const installMode = () => STANDALONE ? '' : IN_APP ? (DEVICE === 'phone' ? 'inapp' : '') : state.canInstall && installEvt ? 'prompt' : IOS_BROWSER ? 'ios' : '';
   const startInstall = async () => {
     const mode = installMode();
-    if (mode === 'ios') return setState({ installPop: true });
+    if (mode === 'ios' || mode === 'inapp') return setState({ installPop: true });
     if (mode !== 'prompt') return;
     const e = installEvt;
     installEvt = null;   // Chrome's prompt works once; it offers a fresh one on a later visit
@@ -4980,8 +5079,20 @@
   const a2hsSeen = () => { try { return (+localStorage.getItem(A2HS) || 0) > Date.now() || sessionStorage.getItem(A2HS) === 'later'; } catch (e) { return true; } };
   const a2hsMark = (store, v) => { try { store.setItem(A2HS, v); } catch (e) { /* fine */ } };
   const a2hsHide = (days) => { a2hsMark(localStorage, String(Date.now() + days * A2HS_DAY)); setState({ installPop: false }); };
-  const a2hsLater = () => { a2hsMark(sessionStorage, 'later'); a2hsHide(1); };
-  const a2hsDone = () => a2hsHide(2);
+  // Not now: 3 days, and after three of them it stops offering by itself (Me → Settings still has it); I've added it: 30 days
+  const A2HS_N = 'sparkhub-a2hs-n', a2hsNos = () => { try { return +localStorage.getItem(A2HS_N) || 0; } catch (e) { return 9; } };
+  const a2hsLater = () => { a2hsMark(sessionStorage, 'later'); try { localStorage.setItem(A2HS_N, String(a2hsNos() + 1)); } catch (e) { /* fine */ } a2hsHide(3); };
+  const a2hsDone = () => a2hsHide(30);
+  // Get the app (first-encounter audit 6, owner 2026-10-07): offered right after someone does the thing they came for (an
+  // RSVP, joining a group), never on first load; once a visit, not over another pop-up, and not after three Not nows
+  const offerInstall = (tries) => {
+    const st = state;
+    if (!installMode() || st.viewAs || st.installPop || a2hsSeen() || a2hsNos() >= 3) return;
+    const busy = st.loginStep || st.nameAsk || st.confirm || st.guestOpen || st.joinOpen || st.plusPop || st.inv || st.qi || st.ipPop || st.notifSheet || st.screen === 'compose';
+    if (busy) { if ((tries || 0) < 4) setTimeout(() => offerInstall((tries || 0) + 1), 1500); return; }
+    a2hsMark(sessionStorage, 'later');   // once a visit, whatever they tap
+    setState({ installPop: true });
+  };
   let popTimer = null;
   // Off (owner, 2026-10-06): it no longer pops up on its own, on Welcome or after signing in. Me → Settings → Add to Home
   // Screen still opens it (iPhone steps) or Chrome's dialog (Android) when someone taps it
@@ -5014,22 +5125,30 @@
     const row = (icon, html) => '<div style="display:flex;align-items:center;gap:14px"><span aria-hidden="true" style="flex:0 0 50px;width:50px;height:50px;border-radius:999px;background:#eceef1;color:#0d1117;display:flex;align-items:center;justify-content:center">' + svg(22, stroke('#0d1117', 2), icon) + '</span>' +
       '<span style="font-size:16px;line-height:1.3;font-weight:500;color:#0d1117">' + html + '</span></div>';
     const link = '<span aria-hidden="true" style="display:block;width:2px;height:10px;margin-left:24px;border-radius:1px;background:#dcdfe6"></span>';
-    const steps = mode === 'prompt' ? '' : IOS_BROWSER === 'Safari'
-      ? '<div data-a2hs-steps="safari" style="display:flex;flex-direction:column;gap:6px">' + row(A2HS_DOTS, 'Tap <b style="font-weight:900">•••</b> in this browser') + link +
-          row(A2HS_SHARE, 'Choose <b style="font-weight:900">Share</b>') + link + row(A2HS_ADD, 'Choose <b style="font-weight:900">Add to Home Screen</b>') + '</div>'
+    const OPEN_IC = '<path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>';
+    // iOS 26 Safari: Share sits behind ⋯ at the bottom; Open as Web App is on by default, so Add finishes it
+    const steps = mode === 'prompt' ? '' : mode === 'inapp'
+      ? '<div data-a2hs-steps="inapp" style="display:flex;flex-direction:column;gap:6px">' + row(A2HS_DOTS, 'Tap <b style="font-weight:900">···</b> or the share icon at the top') + link +
+          row(OPEN_IC, 'Choose <b style="font-weight:900">Open in browser</b>' + (IS_IOS ? ' (or Open in Safari)' : '')) + link + row(A2HS_ADD, 'Then come back here and get the app') + '</div>'
+      : IOS_BROWSER === 'Safari'
+      ? '<div data-a2hs-steps="safari" style="display:flex;flex-direction:column;gap:6px">' + row(A2HS_DOTS, 'Tap <b style="font-weight:900">⋯</b> at the bottom of the screen') + link +
+          row(A2HS_SHARE, 'Tap <b style="font-weight:900">Share</b>') + link + row(A2HS_ADD, 'Tap <b style="font-weight:900">Add to Home Screen</b>, then <b style="font-weight:900">Add</b>') + '</div>'
       : '<div data-a2hs-steps="chrome" style="display:flex;align-items:flex-start;justify-content:center;gap:4px">' +
-      step(A2HS_SHARE, 'Tap <b style="font-weight:900">Share</b> in this browser') +
+      step(A2HS_SHARE, 'Tap <b style="font-weight:900">Share</b> at the top right') +
       '<span aria-hidden="true" style="flex:0 0 30px;height:64px;display:flex;align-items:center">' + '<svg width="30" height="14" viewBox="0 0 30 14" fill="none" stroke="#b9bcc4" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7h25M21 2l6 5-6 5"/></svg>' + '</span>' +
       step(A2HS_ADD, 'Choose <b style="font-weight:900">Add to Home Screen</b>') + '</div>';
     return '<div class="modal-scrim" data-scrim="' + reg(a2hsLater) + '" style="z-index:36;display:block;padding:0;background:rgba(13,17,23,.55)">' +
       '<div data-install-pop role="dialog" aria-modal="true" aria-label="Add to Home Screen" style="position:absolute;left:16px;right:16px;bottom:calc(24px + env(safe-area-inset-bottom, 0px));max-width:420px;margin:0 auto;background:#fff;border-radius:28px;padding:26px 22px 18px;display:flex;flex-direction:column;gap:14px;box-shadow:0 20px 50px rgba(0,0,0,.35);animation:popIn 260ms cubic-bezier(.22,.9,.28,1) both">' +
         closeX(a2hsLater, 'position:absolute;top:12px;right:12px;width:34px;height:34px') +
-        '<div style="font-size:12px;font-weight:900;letter-spacing:2px;text-transform:uppercase;color:#5b4ae8">Recommended</div>' +
-        '<h3 style="margin:0;font-size:28px;line-height:1.05;font-weight:900;letter-spacing:-.8px;color:#0d1117">Make this an app (kinda)</h3>' +
-        '<p style="margin:0;font-size:19px;line-height:1.35;font-weight:500;color:#5c6270">Add a shortcut icon on your home screen, no App Store needed.</p>' +
+        '<div style="font-size:12px;font-weight:900;letter-spacing:2px;text-transform:uppercase;color:#5b4ae8">' + (mode === 'inapp' ? 'One step first' : 'Free · no App Store') + '</div>' +
+        '<h3 style="margin:0;font-size:28px;line-height:1.05;font-weight:900;letter-spacing:-.8px;color:#0d1117">' + (mode === 'inapp' ? 'Open this in your browser to get the app' : DEVICE === 'phone' ? 'Get the Spark Hub app' : 'Install Spark Hub on this computer') + '</h3>' +
+        '<p style="margin:0;font-size:17px;line-height:1.4;font-weight:500;color:#5c6270">' + (mode === 'inapp' ? 'This app’s browser can’t put Spark Hub on your Home Screen.' : DEVICE === 'phone' ? 'Reminders and updates right on your phone, one tap away.' : 'It opens in its own window.') + '</p>' +
         steps +
-        '<button type="button" class="hov-primary" ' + on(mode === 'prompt' ? () => { a2hsDone(); startInstall(); } : a2hsDone) + ' style="width:100%;min-height:54px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:17px;font-weight:900;cursor:pointer">' + (mode === 'prompt' ? 'Add to Home Screen' : 'Got it') + '</button>' +
-        '<button type="button" ' + on(a2hsLater) + ' style="display:block;width:100%;margin-top:-6px;min-height:44px;border:0;background:transparent;font-family:inherit;font-size:15px;font-weight:800;color:#6b7280;cursor:pointer">Maybe later</button>' +
+        (mode === 'ios' ? '<p data-a2hs-note style="margin:0;font-size:14px;line-height:1.45;font-weight:600;color:#6b7280">Then open Spark Hub from your Home Screen. You’ll sign in once there.</p>' : '') +
+        (mode === 'inapp'
+          ? '<button type="button" class="hov-primary" ' + on(() => { const sj = state.screen === 'detail' && subject(); copy(sj ? eventLink(sj) : location.href, 'Link copied. Paste it in ' + (IS_IOS ? 'Safari' : 'Chrome') + '.'); }) + ' style="width:100%;min-height:54px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:17px;font-weight:900;cursor:pointer">Copy link</button>'
+          : '<button type="button" class="hov-primary" data-a2hs-yes ' + on(mode === 'prompt' ? () => { a2hsDone(); startInstall(); } : a2hsDone) + ' style="width:100%;min-height:54px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:17px;font-weight:900;cursor:pointer">' + (mode === 'prompt' ? 'Install' : 'I’ve added it') + '</button>') +
+        '<button type="button" data-a2hs-later ' + on(a2hsLater) + ' style="display:block;width:100%;margin-top:-6px;min-height:44px;border:0;background:transparent;font-family:inherit;font-size:15px;font-weight:800;color:#6b7280;cursor:pointer">Not now</button>' +
       '</div></div>';
   }
 
@@ -5128,6 +5247,10 @@
       '<div style="margin-top:2px;font-size:13.5px;line-height:1.4;font-weight:600;color:#9b1c31;text-wrap:pretty">Check your connection. We’ll keep trying, and this goes away once you’re back.</div></div>' +
       '<span ' + on(retryNow) + ' style="flex:0 0 auto;min-height:30px;display:flex;align-items:center;font-size:13.5px;font-weight:800;color:#9b1c31;text-decoration:underline;text-underline-offset:3px;cursor:pointer">Try now</span>' +
     '</div>';
+  // No group but something on the calendar (from a link): one quiet line instead of the big card
+  const joinLine = () => '<div data-join-line style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:16px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08)">' +
+    '<span style="flex:1;min-width:0;font-size:14px;line-height:1.35;font-weight:600;color:#454b55">Groups plan things here together. Got a code or link from one?</span>' +
+    '<span ' + on(() => openJoin()) + ' role="button" style="flex:0 0 auto;display:flex;align-items:center;min-height:36px;padding:0 14px;border-radius:999px;background:#f2f3f6;font-size:14px;font-weight:800;color:#0d1117;cursor:pointer">Join</span></div>';
   const noGroupCard = () => state.error === 'load' ? loadFailCard() :
     '<div style="' + CARD + ';padding:18px;display:flex;flex-direction:column;gap:12px">' +
       '<div style="font-size:16.5px;font-weight:800;letter-spacing:-.2px;color:#0d1117">You’re not in a group yet.</div>' +
@@ -5243,7 +5366,7 @@
           '<span style="position:relative;display:flex">' + I.photo(22, '#5b4ae8', 2.1) + '<span style="position:absolute;right:-6px;bottom:-5px;width:14px;height:14px;border-radius:999px;background:#5b4ae8;border:1.5px solid #fff;display:flex;align-items:center;justify-content:center">' + I.plus(8, '#fff', 4.5) + '</span></span>' +
           '<input type="file" accept="image/*" multiple ' + onInput(e => { if (e.type !== 'change') return; const f = Array.from(e.target.files || []); e.target.value = ''; addAlbumPhoto(s, f); }) + ' style="display:none"></label>' +
         '<span style="position:absolute;top:10px;right:10px;display:flex;align-items:center;gap:5px;height:34px;padding:0 13px 0 10px;border-radius:999px;background:linear-gradient(135deg,' + WENT6[(i || 0) % 5] + ');color:#fff;font-size:14.5px;font-weight:900;transform:rotate(4deg);box-shadow:0 3px 8px rgba(0,0,0,.25)"><span style="font-size:17px">🎉</span>' + n + (checkedIn(s) ? ' came!' : ' said yes!') + '</span>' +
-        '<div style="position:absolute;left:12px;bottom:10px;right:56px;color:#fff"><div style="font-size:24px;line-height:1.1;font-weight:900;letter-spacing:-.5px;text-wrap:balance">' + esc(s.text) + demoTag(s, true, true) + '</div></div>' +
+        '<div style="position:absolute;left:12px;bottom:10px;right:56px;color:#fff"><div style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:24px;line-height:1.1;font-weight:900;letter-spacing:-.5px;text-wrap:balance">' + esc(s.text) + demoTag(s, true, true) + '</div></div>' +
       '</div>' +
       '<div style="padding:10px 12px 12px;display:flex;flex-direction:column;gap:10px">' +
         '<div ' + on(() => openSpark(s)) + ' aria-label="Made it happen: ' + esc(lead) + ', ' + thanks + ' thanks" style="position:relative;display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;background:linear-gradient(135deg,#f1edff,#e0d8ff);overflow:hidden;cursor:pointer">' +
@@ -5282,7 +5405,7 @@
   const HINT_KEY = 'spark-hub-swipe-hint';
   const hintCount = () => { try { return Number(localStorage.getItem(HINT_KEY)) || 0; } catch (e) { return 99; } };
   const hintVisit = () => { try { localStorage.setItem(HINT_KEY, String(hintCount() + 1)); } catch (e) { /* blocked */ } };
-  const hintLearned = () => { try { localStorage.setItem(HINT_KEY, '99'); } catch (e) { /* blocked */ } };
+  const hintLearned = () => { try { localStorage.setItem(HINT_KEY, '99'); } catch (e) { /* blocked */ } setSeen('swipe', 1); };
   // Quiet chevrons on the screen's edges, nudging now and then toward the next tab
   const swipeHints = () => {
     if (hintCount() > 3) return '';
@@ -5811,7 +5934,7 @@
             (isDemo(s) ? chip('DEMO', 'rgba(255,255,255,.24);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)', '#fff', 'data-chip data-demo-tag') : lead && !(isTheLead(s) && s.wantsHost) ? chip(isTheLead(s) ? 'YOU’RE LEADING' : 'YOU’RE CO-LEADING', '#5b4ae8', '#fff', 'data-chip') : chip('IDEA', '#f3c55a', '#3d2a00', 'data-chip')) +
             (s.visibility === 'invite' ? chip(svg(11, stroke('#fff', 2.6), '<rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>') + 'PRIVATE', 'rgba(255,255,255,.22)') : '') + '</div>' +
           // The title isn't tappable any more (Design 31): editing goes through the ✎ at the top right
-          '<h1 style="margin:0;font-size:36px;line-height:1;font-weight:900;letter-spacing:-1.2px;text-wrap:pretty">' + esc(s.text) + '</h1></div>' +
+          '<h1 style="margin:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:' + titleFs(s.text, 36) + 'px;line-height:1;font-weight:900;letter-spacing:-1.2px;text-wrap:pretty">' + esc(s.text) + '</h1></div>' +
         '</div>', true) +
       (off ? '' : ideaBanner(s)) +
       '<div style="padding:16px 14px 26px;display:flex;flex-direction:column;gap:18px">' +
@@ -6252,7 +6375,7 @@
   const secMessage = (s, ss) => {
     if (ss.kind === 'title') return '';   // renaming saves quietly
     if (ss.kind === 'details') {
-      const was = s.hopes || [], hopes = ss.bits.map(b => b.trim().slice(0, 60)).filter(Boolean), ov = (ss.ov || '').trim().slice(0, 80);
+      const was = s.hopes || [], hopes = ss.bits.map(b => b.trim().slice(0, 60)).filter(Boolean), ov = (ss.ov || '').trim().slice(0, OV_MAX);
       if (hopes.join('\n') === was.join('\n') && ov === (s.overview || '')) return '';
       const line = (ov !== (s.overview || '') && ov) || hopes.find(h => was.indexOf(h) < 0) || hopes[0];
       return line ? 'What to expect: ' + line : '';
@@ -6279,10 +6402,10 @@
     if (!ss || state.busy) return;
     let note = 'Saved';
     if (ss.kind === 'title') {
-      const text = cleanTitle(ss.title).slice(0, 60);
+      const text = cleanTitle(ss.title).slice(0, TITLE_MAX);
       if (!text) return;
       // v8-13: an event's Edit event sheet also saves the quick overview
-      const planOv = phaseOf(s) === 'plan', overview = (ss.ov || '').trim().slice(0, 80), ovNew = planOv && overview !== (s.overview || '');
+      const planOv = phaseOf(s) === 'plan', overview = (ss.ov || '').trim().slice(0, OV_MAX), ovNew = planOv && overview !== (s.overview || '');
       run(async () => {
         if (lead) { if (text !== s.text || ovNew) must(await sb.from('sparks').update(Object.assign({ text }, ovNew ? { overview: overview || null } : {})).eq('id', s.id)); }
         else must(await sb.rpc('admin_edit_spark', Object.assign({ p_spark: s.id, p_text: text, p_hopes: s.hopes }, ovNew ? { p_overview: overview } : {})));
@@ -6291,7 +6414,7 @@
       return;
     }
     if (ss.kind === 'details') {
-      const hopes = ss.bits.map(b => b.trim().slice(0, 60)).filter(Boolean), overview = (ss.ov || '').trim().slice(0, 80);
+      const hopes = ss.bits.map(b => b.trim().slice(0, 60)).filter(Boolean), overview = (ss.ov || '').trim().slice(0, OV_MAX);
       run(async () => {
         const desc = ss.desc != null ? ss.desc.trim().slice(0, 200) : null;
         if (lead) must(await sb.from('sparks').update(Object.assign({ hopes: desc != null ? [] : hopes, overview: overview || null, vision: desc || null, tags: (ss.tags || []).slice(0, 2) }, s.planned ? {} : { min_people: ss.need || null })).eq('id', s.id));
@@ -6448,13 +6571,13 @@
       const cur = s.photoPaths[0] ? photoUrl(s.photoPaths[0]) : null, planOv = phaseOf(s) === 'plan';
       ok = !!cleanTitle(ss.title);
       body = '<div style="display:flex;flex-direction:column;gap:8px">' + label(s.planned ? 'Event title' : 'Idea title') +
-        '<input class="fld big-fld" type="text" maxlength="60" aria-label="' + (s.planned ? 'Event title' : 'Idea title') + '" placeholder="Name your ' + what + '" value="' + esc(ss.title) + '" ' + onInput(e => { if (e.type === 'input') set({ title: e.target.value.slice(0, 60) }); }) + ' style="' + BIG + '"></div>' +
+        '<input class="fld big-fld" type="text" maxlength="40" aria-label="' + (s.planned ? 'Event title' : 'Idea title') + '" placeholder="Name your ' + what + '" value="' + esc(ss.title) + '" ' + onInput(e => { if (e.type === 'input') set({ title: e.target.value.slice(0, TITLE_MAX) }); }) + ' style="' + BIG + '"></div>' +
         // v8-13 (item 2): QUICK OVERVIEW under the title on an event: the same overview field as What to expect
         (planOv ? '<div style="display:flex;flex-direction:column;gap:8px"><span style="display:flex;align-items:baseline;gap:8px">' + label('Quick overview') + '<span style="font-size:13px;font-weight:600;color:#9aa0ac">Optional</span></span>' +
           '<label style="display:flex;align-items:center;gap:10px;min-height:52px;padding:0 16px;border-radius:14px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;cursor:text">' +
-            '<input type="text" maxlength="80" data-quick-overview aria-label="Quick overview" placeholder="' + esc(OVERVIEW_PH) + '" value="' + esc(ss.ov || '') + '" ' + onInput(e => { if (e.type === 'input') set({ ov: e.target.value.slice(0, 80) }); }) +
+            '<input type="text" maxlength="120" data-quick-overview aria-label="Quick overview" placeholder="' + esc(OVERVIEW_PH) + '" value="' + esc(ss.ov || '') + '" ' + onInput(e => { if (e.type === 'input') set({ ov: e.target.value.slice(0, OV_MAX) }); }) +
               ' style="flex:1 1 auto;min-width:0;border:0;padding:0;background:transparent;font-family:inherit;font-size:16px;font-weight:500;color:#0d1117;outline:none">' +
-            '<span data-ov-count style="font-size:11.5px;font-weight:700;color:#9aa0ac">' + (ss.ov || '').length + '/80</span></label></div>' : '') +
+            '<span data-ov-count style="font-size:11.5px;font-weight:700;color:#9aa0ac">' + (ss.ov || '').length + '/' + OV_MAX + '</span></label></div>' : '') +
         // The photo (host only): Adjust re-frames the current one, Replace / Add a photo pick a new one. Both open the
         // positioner on top of this pop-up and save straight away, so a title being edited here stays as typed
         (isLead(s) ? '<div data-edit-photo style="display:flex;flex-direction:column;gap:8px">' + label('Photo') +
@@ -7356,12 +7479,13 @@
     };
     // A guest who RSVP'd or took a job gets no reminders or updates without an account: offer them (owner, 2026-10-01)
     // Design v8: lavender with no ring, Sign in under the text; it opens sign-in as from the guest sheet
-    const guestNudge = st.email || lead || s.cancelledAt || !(my === 'going' || my === 'maybe' || s.signups.some(it => it.claims.some(c => c.userId === st.me))) ? '' :
+    const guestNudge = st.email || lead || s.cancelledAt || nudgeHidden(s.id) || !(my === 'going' || my === 'maybe' || s.signups.some(it => it.claims.some(c => c.userId === st.me))) ? '' :
       '<div data-guest-nudge style="display:flex;gap:12px;padding:14px 16px;border-radius:18px;background:#f3f1fe">' +
         '<span style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center">' + ic6('bell', 18, '#5b4ae8', 2.2) + '</span>' +
         '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px"><span style="font-size:15.5px;font-weight:900;color:#2a1f8f">Want a reminder?</span>' +
-          '<span style="font-size:13.5px;line-height:1.4;font-weight:600;color:#4a3ad4;text-wrap:pretty">Sign in and we’ll remind you the day before and that morning, and tell you if anything changes.</span>' +
-          '<span ' + on(() => openLogin('guest', () => {})) + ' role="button" style="margin-top:4px;align-self:flex-start;display:flex;align-items:center;min-height:38px;padding:0 16px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:14px;font-weight:800;cursor:pointer">Sign in</span></div>' +
+          '<span style="font-size:13.5px;line-height:1.4;font-weight:600;color:#4a3ad4;text-wrap:pretty">Create a free account and we’ll remind you the day before and that morning, and tell you if anything changes.</span>' +
+          '<span ' + on(() => openLogin('reminder', () => setTimeout(askReminders, 500))) + ' role="button" style="margin-top:4px;align-self:flex-start;display:flex;align-items:center;min-height:38px;padding:0 16px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:14px;font-weight:800;cursor:pointer">Create a free account</span></div>' +
+        '<span ' + on(() => hideNudge(s.id)) + ' aria-label="Not now" role="button" style="flex:0 0 28px;height:28px;display:flex;align-items:center;justify-content:center;color:#8a80e8;cursor:pointer">' + I.x(12, 'currentColor', 2.6) + '</span>' +
       '</div>';
     // Leads answer with the same buttons as everyone (owner, 2026-10-01; the lead is Going to their own plan, 20261101160000)
     // Under the buttons (Design 25b + 25c, 2026-10-03): the going faces and See all ›, opening Who's coming / Who's going;
@@ -7415,9 +7539,9 @@
               : isDemo(s) ? '<span data-chip data-demo-tag style="display:flex;align-items:center;gap:6px;border-radius:999px;padding:5px 11px;background:rgba(255,255,255,.24);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);font-size:12px;font-weight:900;letter-spacing:.9px">DEMO</span>' : '') +
             (s.visibility === 'invite' ? '<span style="display:flex;align-items:center;gap:5px;border-radius:999px;padding:5px 11px;background:rgba(255,255,255,.22);font-size:12px;font-weight:900;letter-spacing:.9px">' + svg(11, stroke('#fff', 2.6), '<rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>') + 'PRIVATE</span>' : '') + '</div>' : '') +
           // The title isn't tappable any more (Design 31): editing goes through the ⋯ at the top right
-          '<h1 style="margin:0;font-size:40px;line-height:.98;font-weight:900;letter-spacing:-1.3px;text-wrap:pretty">' + esc(s.text) + '</h1>' +
+          '<h1 style="margin:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:' + titleFs(s.text, 40) + 'px;line-height:.98;font-weight:900;letter-spacing:-1.3px;text-wrap:pretty">' + esc(s.text) + '</h1>' +
           // v8-13 (item 1; was v8-12 item 2): the overview always sits under the title; What to expect lists only the quick details
-          (s.overview ? '<span data-overview data-overview-head style="font-size:18px;line-height:1.4;font-weight:500;color:#fff;text-wrap:pretty">' + esc(s.overview) + '</span>' : '') + '</div>' +
+          (s.overview ? '<span data-overview data-overview-head style="display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;font-size:18px;line-height:1.4;font-weight:500;color:#fff;text-wrap:pretty">' + esc(s.overview) + '</span>' : '') + '</div>' +
         '</div>', true) +
       tab +
       '<div style="padding:16px 14px 26px;display:flex;flex-direction:column;gap:18px">' +
@@ -7454,7 +7578,7 @@
       phaseHeader(s, 300, 'linear-gradient(to bottom, rgba(13,17,23,.4), rgba(13,17,23,0) 30%, rgba(34,25,110,.92) 100%)',
         '<span aria-hidden="true" style="position:absolute;top:calc(66px + var(--pt));right:18px;display:flex;align-items:center;min-height:36px;padding:0 14px 0 44px;border-radius:999px;background:#5b4ae8;transform:rotate(-8deg);font-size:15px;font-weight:900;color:#fff;box-shadow:0 6px 16px rgba(15,18,25,.3)"><span style="position:absolute;left:-10px;top:50%;transform:translateY(-55%) rotate(-10deg);font-size:46px;line-height:1">🥳</span>It happened!</span>' +
         '<div style="position:absolute;left:20px;right:20px;bottom:18px;color:#fff"><div style="font-size:13px;font-weight:900;letter-spacing:1.2px;color:#cfc9ff">' + dp.dow + ', ' + dp.md + ' · ' + n + (checkedIn(s) ? ' CAME' : ' SAID YES') + '</div>' +
-          '<h1 style="margin:6px 0 0;font-size:32px;line-height:1.02;font-weight:900;letter-spacing:-1px;text-wrap:pretty">' + esc(s.text) + demoTag(s, false, true) + '</h1></div>', true) +
+          '<h1 style="margin:6px 0 0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:' + titleFs(s.text, 32) + 'px;line-height:1.02;font-weight:900;letter-spacing:-1px;text-wrap:pretty">' + esc(s.text) + demoTag(s, false, true) + '</h1></div>', true) +
       '<div style="padding:14px 14px 26px;display:flex;flex-direction:column;gap:12px">' +
         '<div style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:10px">' +
           eyebrowRow('The album' + (album.length ? ' · ' + album.length : ''),
@@ -7609,7 +7733,7 @@
   // The two dismissible alerts: Add to Home Screen (until dismissed) and feedback (back every 4 visits after ✕)
   const ME_ALERT_KEY = 'spark-hub-me-alert-';
   const meAlertGet = (k) => { try { return localStorage.getItem(ME_ALERT_KEY + k); } catch (e) { return null; } };
-  const meAlertSet = (k, v) => { try { localStorage.setItem(ME_ALERT_KEY + k, String(v)); } catch (e) { /* shows again next visit */ } render(); };
+  const meAlertSet = (k, v) => { try { localStorage.setItem(ME_ALERT_KEY + k, String(v)); } catch (e) { /* shows again next visit */ } if (k !== 'visits') setSeen('me_' + k, String(v)); render(); };
   const meVisits = () => +(meAlertGet('visits') || 0);
   let meVisitCounted = false;
   const countMeVisit = () => { if (meVisitCounted) return; meVisitCounted = true; try { localStorage.setItem(ME_ALERT_KEY + 'visits', String(meVisits() + 1)); } catch (e) { /* not counted */ } };
@@ -7682,14 +7806,16 @@
     goldBtn(close, 'Got it'), 47);
   const sectionLabel = (t) => '<span style="font-size:12.5px;font-weight:900;letter-spacing:1px;color:#454b55">' + t + '</span>';
 
-  // One idea draft, kept on this device for this account ("Only you can see drafts"); the photo goes along as a data URL
+  // Before 2026-10-07 one idea draft was kept on this device (the photo as a data URL); it's still picked up once
   const ideaDraftKey = () => 'spark-hub-idea-draft-' + (state.me || 'guest');
   const readIdeaDraft = () => { try { return JSON.parse(localStorage.getItem(ideaDraftKey())); } catch (e) { return null; } };
   const writeIdeaDraft = (d) => { try { if (d) localStorage.setItem(ideaDraftKey(), JSON.stringify(d)); else localStorage.removeItem(ideaDraftKey()); return true; } catch (e) { return false; } };
-  const qiBlank = () => ({ page: 1, title: '', why: '', photo: null, more: false, date: null, dpoll: null, loc: null, lpoll: null, groups: currentGroup() ? [currentGroup().id] : myGroups().slice(0, 1).map(g => g.id), gOpen: false, talk: false, rule: 'decide', fromCompose: false });
+  const qiBlank = () => ({ draftId: null, page: 1, title: '', why: '', photo: null, more: false, date: null, dpoll: null, loc: null, lpoll: null, groups: currentGroup() ? [currentGroup().id] : myGroups().slice(0, 1).map(g => g.id), gOpen: false, talk: false, rule: 'decide', fromCompose: false });
   const openFloat = (pre) => needSignIn(() => {
     if (!myGroups().length) { if (state.loaded) openJoin(); return; }
-    const d = !pre ? readIdeaDraft() : null;
+    const acct = !pre ? state.drafts.find(x => (x.data || {}).kind === 'float') : null;
+    if (acct) return openFloatDraft(acct);
+    const d = !pre ? readIdeaDraft() : null;   // a draft from before they moved to the account (owner, 2026-10-07)
     if (d) {
       writeIdeaDraft(null);
       const photo = d.photo ? (() => { try { const blob = dataUrlToBlob(d.photo); return { blob, url: URL.createObjectURL(blob) }; } catch (e) { return null; } })() : null;
@@ -7700,6 +7826,16 @@
     setState({ plusMenu: false, qi: Object.assign(qiBlank(), pre || {}), qiPop: null });
     setTimeout(() => { const f = document.querySelector('[data-qi-title]'); if (f && !f.value) { try { f.focus({ preventScroll: true }); } catch (e) { /* ignore */ } } }, 300);
   }, 'post');
+  // Float drafts live in event_drafts with kind 'float' (owner, 2026-10-07: they were one per phone, lost on a reload),
+  // listed with the event drafts under Leading; the photo is uploaded like an event draft's cover
+  const openFloatDraft = (dr) => {
+    const x = dr.data || {}, str = (v) => typeof v === 'string' ? v : '', photo = PHOTO_PATH.test(x.photo || '') ? { path: x.photo, url: photoUrl(x.photo) } : null;
+    const groups = (Array.isArray(x.groups) ? x.groups : []).filter(id => groupById(id));
+    setState({ plusMenu: false, dashAll: null, qi: Object.assign(qiBlank(), { title: str(x.title).slice(0, TITLE_MAX), why: str(x.why).slice(0, OV_MAX), more: !!x.more, date: x.date && typeof x.date === 'object' ? x.date : null,
+      dpoll: Array.isArray(x.dpoll) ? x.dpoll : null, loc: str(x.loc) || null, lpoll: Array.isArray(x.lpoll) ? x.lpoll : null, talk: !!x.talk, rule: x.rule === 'me' ? 'me' : 'decide',
+      groups: groups.length ? groups : qiBlank().groups, photo, draftId: dr.id, page: 1 }), qiPop: null });
+    toast('Picked up your draft', true);
+  };
   const qiSet = (patch, quiet) => { Object.assign(state.qi, patch); if (!quiet) render(); };
   const qiDirty = (q) => !!(cleanTitle(q.title) || q.why.trim() || q.photo || q.date || q.dpoll || (q.loc || '').trim() || q.lpoll);
   const qiClose = () => {
@@ -7708,12 +7844,26 @@
     setState({ qiPop: { k: 'leave' } });
   };
   const qiSaveDraft = async () => {
-    const q = state.qi; if (!q) return;
-    const d = { title: q.title, why: q.why, more: q.more, date: q.date, dpoll: q.dpoll, loc: q.loc, lpoll: q.lpoll, groups: q.groups, talk: q.talk, rule: q.rule, photo: null };
-    if (q.photo) { try { d.photo = await blobToDataUrl(q.photo.blob); } catch (e) { d.photo = null; } }
-    if (!writeIdeaDraft(d)) { d.photo = null; if (!writeIdeaDraft(d)) { toast('Couldn’t save the draft on this phone'); return; } }
-    setState({ qi: null, qiPop: null });
-    toast('Saved as a draft', true);
+    const q = state.qi; if (!q || state.busy) return;
+    if (!cleanTitle(q.title)) { setState({ qiPop: null }); qiSet({ page: 1 }); toast('Add a title first'); return; }
+    setState({ busy: 'draft' });
+    let fresh = null;
+    try {
+      await ensureSession();
+      const photo = q.photo ? (q.photo.path || (fresh = await uploadBlob(q.photo.blob))) : null;
+      const data = { kind: 'float', title: cleanTitle(q.title).slice(0, TITLE_MAX), why: q.why.slice(0, OV_MAX), more: q.more, date: q.date, dpoll: q.dpoll, loc: q.loc, lpoll: q.lpoll, groups: q.groups, talk: q.talk, rule: q.rule, photo };
+      if (q.draftId) must(await sb.from('event_drafts').update({ data, updated_at: new Date().toISOString() }).eq('id', q.draftId));
+      else must(await sb.from('event_drafts').insert({ data }));
+      fresh = null;
+      await freshAfterSave();
+      setState({ busy: null, qi: null, qiPop: null });
+      toast('Saved as a draft', true);
+    } catch (e) {
+      console.error(e);
+      if (fresh) deletePhotos([fresh]);
+      setState({ busy: null });
+      toast(/too many drafts/.test(e.message || '') ? 'That’s a lot of drafts. Post or delete one first.' : failed(e));
+    }
   };
   const qiPhoto = async (file) => {
     if (!file) return;
@@ -7723,7 +7873,7 @@
   const qiPostNow = () => {
     const st = state, q = st.qi;
     if (!q || st.busy) return;
-    const title = cleanTitle(q.title).slice(0, 60), groups = q.groups.filter(id => groupById(id));
+    const title = cleanTitle(q.title).slice(0, TITLE_MAX), groups = q.groups.filter(id => groupById(id));
     if (!title) { qiSet({ page: 1 }); toast('Add a title first'); return; }
     if (!groups.length) { toast('Pick at least one group'); return; }
     const who = (st.myName || 'Someone').slice(0, 40);
@@ -7739,11 +7889,12 @@
     (async () => {
       try {
         await ensureSession();
-        if (q.photo) path = await uploadBlob(q.photo.blob);
+        const freshPhoto = !!(q.photo && !q.photo.path);
+        if (q.photo) path = q.photo.path || await uploadBlob(q.photo.blob);
         const row = { group_id: groups[0], author_name: st.myName, text: title, hopes: [], vision: null, overview: q.why.trim().slice(0, 120) || null,
           photos: path ? [path] : [], cat: 'events', answers: {}, lead_id: st.me, lead_name: st.myName, created_by: st.me, spot: setLoc, spot_open: !setLoc, day_date: setD ? setD.d : null, day_time: setD && /^\d\d:\d\d$/.test(setD.t || '') ? setD.t : null,
           planned: false, visibility: 'group', wants_host: q.rule !== 'me', talk: !!q.talk, lead_rule: 'me' };   // Who leads it (v8-8): Me leads from the start; I'll decide looks for a lead and the starter picks (Anyone is gone)
-        try { id = must(await sb.from('sparks').insert(row).select('id').single()).data.id; } catch (e) { if (path) deletePhotos([path]); throw e; }
+        try { id = must(await sb.from('sparks').insert(row).select('id').single()).data.id; } catch (e) { if (path && freshPhoto) deletePhotos([path]); throw e; }
         try {
           const rest = [];
           if (groups.length > 1) rest.push(sb.from('spark_groups').insert(groups.slice(1).map(g => ({ spark_id: id, group_id: g }))).then(must));
@@ -7751,7 +7902,8 @@
           if (optSpots.length) rest.push(sb.from('spot_options').insert(optSpots.map(v => ({ spark_id: id, name: v, who }))).then(must));
           const done = await Promise.allSettled(rest), bad = done.find(r => r.status === 'rejected');
           if (bad) throw bad.reason;
-        } catch (e) { await sb.from('sparks').delete().eq('id', id); if (path) deletePhotos([path]); throw e; }
+        } catch (e) { await sb.from('sparks').delete().eq('id', id); if (path && freshPhoto) deletePhotos([path]); throw e; }
+        if (q.draftId) await sb.from('event_drafts').delete().eq('id', q.draftId);   // posted: the draft goes (its photo is the idea's now)
         await freshAfterSave();
         const names = groups.map(g => groupById(g).name);
         const fromC = q.fromCompose;
@@ -7800,8 +7952,8 @@
           '<span style="font-size:17px;line-height:1.4;font-weight:600;color:#454b55;text-wrap:pretty"><span style="font-weight:900;color:#0d1117">Sketch out what you know so far.</span><br>You can change it all later.</span></div>' +
         '<div style="padding:20px 16px 0;display:flex;flex-direction:column;gap:18px">' +
           '<label style="display:flex;flex-direction:column;gap:8px">' + label('YOUR IDEA') + '<span style="position:relative;display:block">' +
-            '<input type="text" data-qi-title maxlength="60" aria-label="Your idea" placeholder="Pickleball on Sunday mornings" value="' + esc(q.title) + '" ' + onInput(e => { if (e.type === 'input') set({ title: e.target.value.slice(0, 60) }); }) + ' style="' + FLD + ring(!!q.title) + 'padding:0 58px 0 14px;height:54px;font-size:18px;font-weight:800">' +
-            '<span style="position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:11.5px;font-weight:700;color:#9aa0ac">' + q.title.length + '/60</span></span></label>' +
+            '<input type="text" data-qi-title maxlength="40" aria-label="Your idea" placeholder="Pickleball on Sunday mornings" value="' + esc(q.title) + '" ' + onInput(e => { if (e.type === 'input') set({ title: e.target.value.slice(0, TITLE_MAX) }); }) + ' style="' + FLD + ring(!!q.title) + 'padding:0 58px 0 14px;height:54px;font-size:18px;font-weight:800">' +
+            '<span style="position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:11.5px;font-weight:700;color:#9aa0ac">' + q.title.length + '/40</span></span></label>' +
           '<label style="display:flex;flex-direction:column;gap:8px">' + label('SHORT DESCRIPTION', true) + '<span style="position:relative;display:block">' +
             '<textarea data-qi-why rows="2" maxlength="120" aria-label="Short description" placeholder="Casual games for all levels. Bring a paddle if you have one." ' + onInput(e => { if (e.type === 'input') set({ why: e.target.value.slice(0, 120) }); }) + ' style="' + FLD + ring(!!q.why) + 'padding:12px 14px 24px;font-size:15.5px;font-weight:600;line-height:1.35;display:block">' + esc(q.why) + '</textarea>' +
             '<span style="position:absolute;right:12px;bottom:8px;font-size:11.5px;font-weight:700;color:#9aa0ac">' + q.why.length + '/120</span></span></label>' +
@@ -8103,7 +8255,7 @@
       // The new page has no ⋯, so taking it down is a quiet link at the bottom (the build's, HANDOFF §2)
       (canTakeDown(s) ? '<span ' + on(() => { setState({ ip: null }); askDelete(s); }) + ' data-delete-idea style="align-self:center;display:flex;align-items:center;min-height:40px;margin-top:8px;padding:0 10px;font-size:14px;font-weight:700;color:#9b1c31;cursor:pointer">Delete this idea</span>' : '') + '</div>'; };
   // The note-paper top (slide-up) with the starter's ✎ Edit in place
-  const saveIdeaEdit = (s) => { const e = state.ipEd, text = cleanTitle(e.title).slice(0, 60), why = e.why.trim().slice(0, 120);
+  const saveIdeaEdit = (s) => { const e = state.ipEd, text = cleanTitle(e.title).slice(0, TITLE_MAX), why = e.why.trim().slice(0, 120);
     if (!text) { toast('Add a title first'); return; }
     run(async () => { must(await sb.from('sparks').update({ text, overview: why || null }).eq('id', s.id)); }, { ipEd: null }).then(ok => { if (ok) toast('Saved', true); }); };
   const paperTop = (s) => { const pics = ideaPics(s), st8 = runsIdea(s), ed = state.ipEd && state.ipEd.id === s.id ? state.ipEd : null;
@@ -8114,12 +8266,12 @@
         '<div style="display:flex;align-items:center;justify-content:space-between">' + IDEA_CHIP +
           (!st8 && !ed && canEdit(s) && state.email ? '<span ' + on(() => { setState({ ip: null }); openSec(s, 'title'); }) + ' data-idea-edit aria-label="Edit idea" style="display:flex;align-items:center;gap:5px;min-height:36px;margin-right:46px;font-size:14px;font-weight:800;color:#8f6405;cursor:pointer">' + EDIT_PEN + 'Edit</span>' : '') +   // a group admin: the title (admin_edit_spark)
           (st8 && !ed ? '<span ' + on(() => setState({ ipEd: { id: s.id, title: s.text, why: s.overview || '' } })) + ' data-idea-edit style="display:flex;align-items:center;gap:5px;min-height:36px;margin-right:46px;font-size:14px;font-weight:800;color:#8f6405;cursor:pointer">' + EDIT_PEN + 'Edit</span>' : '') + '</div>' +
-        (ed ? '<textarea rows="1" maxlength="60" aria-label="Idea title" data-ip-ed-title ' + onInput(e => { if (e.type === 'input') { state.ipEd.title = e.target.value.replace(/\n/g, ' ').slice(0, 60); e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; } }) + ' style="' + TA + 'padding:6px 10px;font-size:30px;line-height:1.1;font-weight:900;letter-spacing:-.8px;field-sizing:content">' + esc(ed.title) + '</textarea>' +
+        (ed ? '<textarea rows="1" maxlength="40" aria-label="Idea title" data-ip-ed-title ' + onInput(e => { if (e.type === 'input') { state.ipEd.title = e.target.value.replace(/\n/g, ' ').slice(0, TITLE_MAX); e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; } }) + ' style="' + TA + 'padding:6px 10px;font-size:30px;line-height:1.1;font-weight:900;letter-spacing:-.8px;field-sizing:content">' + esc(ed.title) + '</textarea>' +
             '<textarea rows="1" maxlength="120" placeholder="Add a short description" aria-label="Short description" ' + onInput(e => { if (e.type === 'input') { state.ipEd.why = e.target.value.slice(0, 120); e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; } }) + ' style="' + TA + 'padding:6px 10px;font-size:20px;line-height:1.38;font-weight:500;field-sizing:content">' + esc(ed.why) + '</textarea>' +
             '<div style="display:flex;gap:8px"><span ' + on(() => setState({ ipEd: null })) + ' style="display:flex;align-items:center;justify-content:center;min-height:44px;padding:0 18px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;font-size:15px;font-weight:800;color:#0d1117;cursor:pointer">Cancel</span>' +
               '<span ' + on(() => saveIdeaEdit(s)) + ' data-ip-ed-save style="flex:1;display:flex;align-items:center;justify-content:center;min-height:44px;border-radius:999px;background:#f5b428;font-size:15px;font-weight:900;color:#2a1d00;cursor:pointer">Save</span></div>'
-          : '<span style="font-size:34px;line-height:1.05;font-weight:900;letter-spacing:-1px;color:#0d1117;text-wrap:balance">' + esc(s.text) + '</span>' +
-            (s.overview ? '<span style="font-size:23px;line-height:1.38;font-weight:500;color:#2a2f38;text-wrap:pretty">' + esc(s.overview) + '</span>' : '') + ideaBits(s)) +
+          : '<span style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:' + titleFs(s.text, 34) + 'px;line-height:1.05;font-weight:900;letter-spacing:-1px;color:#0d1117;text-wrap:balance">' + esc(s.text) + '</span>' +
+            (s.overview ? '<span style="display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;font-size:23px;line-height:1.38;font-weight:500;color:#2a2f38;text-wrap:pretty">' + esc(s.overview) + '</span>' : '') + ideaBits(s)) +
         '<span data-led-line style="font-size:13.5px;font-weight:700;color:#6b7280">' + ledLine(s, isStarter(s) || undefined) + ' <span style="font-weight:500">· ' + ago(s.created) + '</span></span></div></div>'; };
   // Help out, Take part and Discussion (Q31): the lead always (to add jobs and spots), members once there's something on them
   // What to expect's quick details (an older idea, or a plan stepped back): gold dots under the description
@@ -8179,8 +8331,8 @@
         '<div id="sec-details" style="display:flex;flex-direction:column;gap:8px;padding:0 4px">' +
           '<div style="display:flex;align-items:center;justify-content:space-between">' + IDEA_CHIP +
             (!st8 && canEdit(s) && state.email ? '<span ' + on(() => openSec(s, 'title')) + ' data-idea-edit aria-label="Edit idea" style="display:flex;align-items:center;gap:5px;min-height:36px;font-size:14px;font-weight:800;color:#8f6405;cursor:pointer">' + EDIT_PEN + 'Edit</span>' : '') + '</div>' +   // a group admin: the title
-          '<span style="font-size:28px;line-height:1.05;font-weight:900;letter-spacing:-.7px;color:#0d1117;text-wrap:balance">' + esc(s.text) + '</span>' +
-          (s.overview ? '<span style="font-size:20px;line-height:1.4;font-weight:500;color:#2a2f38;text-wrap:pretty">' + esc(s.overview) + '</span>' : '') + ideaBits(s) +
+          '<span style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:' + titleFs(s.text, 28) + 'px;line-height:1.05;font-weight:900;letter-spacing:-.7px;color:#0d1117;text-wrap:balance">' + esc(s.text) + '</span>' +
+          (s.overview ? '<span style="display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;font-size:20px;line-height:1.4;font-weight:500;color:#2a2f38;text-wrap:pretty">' + esc(s.overview) + '</span>' : '') + ideaBits(s) +
           '<div style="display:flex;align-items:center;gap:8px;margin-top:2px">' + avatarSpan(s.createdBy, floaterName(s), avatarOf(s.createdBy), 24) +
             '<span data-led-line style="font-size:13.5px;font-weight:700;color:#6b7280">' + ledLine(s, isStarter(s) || false) + ' · ' + ago(s.created) + '</span></div></div>' +
         ledByCard8(s) + askCards(s) + (st8 ? starterTop(s) + makeThisPlan(s) : interestCard(s)) + ideaBodyRest(s) +
@@ -8311,7 +8463,7 @@
     // Filtered off the board (the group picker): nothing to scroll to, so the dot can't wait for it (audit 8)
     if (!el) { if (document.querySelector('[data-idea-card]') && !document.querySelector('[data-new-idea]')) setState({ ideaSeen: newestIdea().id }); return; }
     const r = el.getBoundingClientRect(), nav = document.querySelector('.tabbar'), bottom = nav ? nav.getBoundingClientRect().top : window.innerHeight;
-    if (r.top + r.height / 2 < bottom && r.bottom > 0) setState({ ideaSeen: el.getAttribute('data-new-idea') });
+    if (r.top + r.height / 2 < bottom && r.bottom > 0) { setState({ ideaSeen: el.getAttribute('data-new-idea') }); setSeen('ideaSeen', state.ideaSeen); }
   };
   document.addEventListener('scroll', () => ideaSeenCheck(), { capture: true, passive: true });
   function viewIdeas() {
@@ -8327,16 +8479,20 @@
     const MASK = 'linear-gradient(to bottom,#000 20%,rgba(0,0,0,.35) 55%,transparent 85%),linear-gradient(to bottom left,#000 25%,rgba(0,0,0,.3) 100%)';
     const tile = (s, k) => { const P0 = ideaPics(s)[0];
       return '<div ' + on(() => openIdeaSheet(s)) + ' role="button" data-idea-card="' + esc(s.text) + '"' + newAttr(s) + ' style="position:relative;border-radius:4px;overflow:hidden;' + NOTE_BG + ';box-shadow:0 3px 10px rgba(13,17,23,.14);transform:rotate(' + ROT[k % 6] + 'deg);cursor:pointer">' +
+        // A thin gold top edge on every idea card, grid and tiles (owner, 2026-10-07)
+        '<span aria-hidden="true" data-idea-strip style="position:absolute;left:0;right:0;top:0;height:5px;background:#f0b93a;z-index:2"></span>' +
         (P0 ? '<div aria-hidden="true" style="position:absolute;left:0;right:0;top:0;height:92px;background:' + bg(P0, posAt(s.coverPos, IDEA_POS)) + ';-webkit-mask-image:' + MASK + ';-webkit-mask-composite:source-in;mask-image:' + MASK + ';mask-composite:intersect"></div>' : '') +
         '<div style="position:relative;padding:' + (P0 ? 56 : 12) + 'px 10px 12px;display:flex;flex-direction:column;gap:6px">' +
-          '<span style="font-size:16px;line-height:1.3;font-weight:900;color:#0d1117;text-wrap:balance">' + esc(s.text) + '</span>' +
+          '<span style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:16px;line-height:1.3;font-weight:900;color:#0d1117;text-wrap:balance">' + esc(s.text) + '</span>' +
           '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:2px">' + by(s, 12) + tag(s) + '</div></div></div>'; };
     const full = (s, k) => { const P0 = ideaPics(s)[0];
       return '<div ' + on(() => openIdeaSheet(s)) + ' role="button" data-idea-card="' + esc(s.text) + '"' + newAttr(s) + ' style="position:relative;display:flex;min-height:' + (P0 ? 96 : 0) + 'px;border-radius:4px;overflow:hidden;' + NOTE_BG + ';box-shadow:0 3px 10px rgba(13,17,23,.14);transform:rotate(' + ROTF[k % 4] + 'deg);cursor:pointer;padding-left:' + (P0 ? 0 : 8) + 'px">' +
+        // A thin gold top edge on every idea card, grid and tiles (owner, 2026-10-07)
+        '<span aria-hidden="true" data-idea-strip style="position:absolute;left:0;right:0;top:0;height:5px;background:#f0b93a;z-index:2"></span>' +
         (P0 ? '<div aria-hidden="true" style="position:relative;flex:0 0 36%;background:' + bg(P0, posAt(s.coverPos, IDEA_POS)) + ';-webkit-mask-image:linear-gradient(to right,#000 40%,transparent 100%);mask-image:linear-gradient(to right,#000 40%,transparent 100%)"></div>' : '') +
         '<div style="position:relative;flex:1;min-width:0;padding:10px 12px 10px 6px;display:flex;flex-direction:column;gap:4px">' +
-          '<span style="font-size:17px;line-height:1.25;font-weight:900;color:#0d1117;text-wrap:balance">' + esc(s.text) + '</span>' +
-          (s.overview ? '<span style="font-size:13px;line-height:1.4;font-weight:600;color:#6b7280">' + esc(s.overview) + '</span>' : '') +
+          '<span style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:17px;line-height:1.25;font-weight:900;color:#0d1117;text-wrap:balance">' + esc(s.text) + '</span>' +
+          (s.overview ? '<span style="display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;font-size:13px;line-height:1.4;font-weight:600;color:#6b7280">' + esc(s.overview) + '</span>' : '') +
           '<div style="margin-top:auto;padding-top:4px;display:flex;align-items:center;justify-content:space-between;gap:8px">' + by(s, 12.5) + tag(s) + '</div></div></div>'; };
     // Group picker: All groups or any mix, with each group's count; Done closes
     const thumbs = (pickG.length ? pickG.map(groupById) : G).slice(0, 3).map((g, j) => '<span style="width:24px;height:24px;margin-left:' + (j ? -8 : 0) + 'px;border-radius:999px;border:2px solid #fff;background:' + groupBg(g, '#c3c7d0') + '"></span>').join('');
@@ -8431,7 +8587,7 @@
         '<div style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:14.5px;font-weight:800;color:#0d1117">' + title + '</span><span style="font-size:12.5px;font-weight:600;color:#5c6270">' + sub + '</span></div></div>' +
       '<span ' + on(x) + ' aria-label="Dismiss" style="flex:0 0 32px;width:32px;height:32px;margin-right:-4px;border-radius:999px;display:flex;align-items:center;justify-content:center;color:#8a909b;cursor:pointer">' + I.x(13, 'currentColor', 2.6) + '</span></div>';
     const alerts = a2hsOn || fbOn ? '<div data-screen-label="Me alerts" style="padding:12px 14px 0;display:flex;flex-direction:column;gap:8px">' +
-      (a2hsOn ? alert('#f3f1fe', '#5b4ae8', svg(18, stroke('currentColor', 2.2), '<rect x="6" y="3" width="12" height="18" rx="2.5"/><path d="M12 9v6M9 12h6"/>'), 'Add Spark Hub to your home screen', 'Open it like an app, one tap away.', startInstall, () => meAlertSet('a2hs', 'x')) : '') +
+      (a2hsOn ? alert('#f3f1fe', '#5b4ae8', svg(18, stroke('currentColor', 2.2), '<rect x="6" y="3" width="12" height="18" rx="2.5"/><path d="M12 9v6M9 12h6"/>'), installMode() === 'inapp' ? 'Get the Spark Hub app' : DEVICE === 'phone' ? 'Get the Spark Hub app' : 'Install Spark Hub on this computer', installMode() === 'inapp' ? 'Open this page in your browser first.' : 'Free, no App Store. Reminders right on your ' + DEVICE + '.', startInstall, () => meAlertSet('a2hs', 'x')) : '') +
       (fbOn ? alert('#fff4dc', '#8f6405', svg(18, stroke('currentColor', 2.2), '<path d="M5 5h14a1.5 1.5 0 0 1 1.5 1.5v9A1.5 1.5 0 0 1 19 17H10l-4.5 3.5V17H5a1.5 1.5 0 0 1-1.5-1.5v-9A1.5 1.5 0 0 1 5 5Z"/><path d="M8 10h8M8 13h5"/>'), 'Give Eric feedback', 'What’s working, what’s confusing?', openFeedback, () => { setState({ fbHint: false }); meAlertSet('fb', meVisits()); }, st.fbHint ? 'data-fb-hint class="fb-hint"' : '') : '') + '</div>' : '';
     // Drafts · Ideas · Leading · Past (v8-9 item 4, 1d): one white card of 48px rows, a role bar, the title, a quiet count
     const stuff = (k, color, title, n, i) => '<div ' + on(() => setState({ meList: k })) + ' data-stuff="' + title + '" aria-label="' + title + ', ' + n + '" class="hov-row" style="display:flex;align-items:center;gap:10px;min-height:48px;padding:0 16px;' + (i < 3 ? 'border-bottom:1px solid #f2f3f6;' : '') + 'cursor:pointer">' +
@@ -8460,7 +8616,7 @@
     meSettingsRows = () => (
       row('<path d="M6 16.5V11a6 6 0 1 1 12 0v5.5l1.6 2H4.4L6 16.5Z"/><path d="M10 21a2.2 2.2 0 0 0 4 0"/>', 'Notifications', 'Events, updates, reminders', () => setState({ nSettings: true }), 0) +
       row('<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>', 'Sync to your calendar', 'Google Calendar', soonToast, 1, true) +
-      (installMode() ? row('<path d="M4 11.5 12 5l8 6.5V20H4z"/><path d="M10 20v-5h4v5"/>', 'Add to Home Screen', installMode() === 'prompt' ? 'Install Spark Hub on this phone' : 'A few taps in ' + IOS_BROWSER + '’s Share menu', startInstall, 1) : ''));
+      (installMode() ? row('<path d="M4 11.5 12 5l8 6.5V20H4z"/><path d="M10 20v-5h4v5"/>', 'Get the Spark Hub app', installMode() === 'inapp' ? 'Open this page in your browser first' : installMode() === 'prompt' ? 'Install it on this ' + DEVICE : 'A few taps in ' + IOS_BROWSER + '’s Share menu', startInstall, 1) : ''));
     const help = group('HELP &amp; INFO',
       row('<path d="M5 5h14a1.5 1.5 0 0 1 1.5 1.5v9A1.5 1.5 0 0 1 19 17H10l-4.5 3.5V17H5a1.5 1.5 0 0 1-1.5-1.5v-9A1.5 1.5 0 0 1 5 5Z"/>', 'Send feedback to Eric', '', openFeedback, 0) +
       row('<circle cx="12" cy="12" r="8.75"/><path d="m15.6 8.4-2.2 5-5 2.2 2.2-5 5-2.2Z"/>', 'Take the tour', 'The five tabs, in a minute', soonToast, 1, true) +
@@ -8521,7 +8677,7 @@
         '<span style="font-size:13px;font-weight:600;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(sub) + '</span></div>' + I.chevR(14, '#b9bcc4', 2.6) + '</div>';
     const gName = (s) => (groupById(s.groupId) || {}).name || '';
     const fd = (s) => s.dayDate ? fmtDay(s.dayDate) : 'Date TBD';
-    const rows = k === 'draft' ? L.drafts.map((d, i) => { const x = draftState(d); return row(x.evPhotoPath ? '#2b303a ' + bg(photoUrl(x.evPhotoPath)) : '#f2f3f6', cleanTitle(x.activity) || 'Untitled event', draftStep(x) + ' of ' + EV_STEPS.length + ' steps · ' + agoSaved(d.saved), () => resumeDraft(d), i); })
+    const rows = k === 'draft' ? L.drafts.map((d, i) => { const x = draftState(d); return row(x.evPhotoPath ? '#2b303a ' + bg(photoUrl(x.evPhotoPath)) : '#f2f3f6', cleanTitle(x.activity) || 'Untitled event', draftSub(x) + ' · ' + agoSaved(d.saved), () => resumeDraft(d), i); })
       : k === 'idea' ? L.ideas.map((s, i) => row(thumbBg(s), s.text, s.interested.length + ' interested · ' + gName(s), () => openSpark(s), i))
       : k === 'lead' ? L.lead.map((s, i) => row(thumbBg(s), s.text, fd(s) + ' · ' + gName(s), () => openSpark(s), i))
       : L.past.map((s, i) => row(thumbBg(s), s.text, (isLead(s) ? 'You led · ' : helpsOn(s) ? 'You helped · ' : 'You went · ') + fd(s), () => openSpark(s), i, true));
@@ -8883,8 +9039,9 @@
   // cover, the picked date and time and the picked location. A date that has passed rolls to next year; with no date it
   // opens on page 1. Post it turns that idea into the event (postEvent → planIdea)
   const planFromIdea = (s) => {
-    let d = s.dayDate || '';
-    if (d && d < todayISO()) { const y = String(+d.slice(0, 4) + 1) + d.slice(4); d = isNaN(new Date(y + 'T12:00')) ? '' : y; }
+    const d = s.dayDate || '';
+    // A date that has passed asks for a new one (owner, 2026-10-07; it used to move to the same day next year)
+    if (d && d < todayISO()) { toast('That date has passed. Pick a new one.'); if (useIdea8(s)) openPick(s, 'd'); else openSec(s, 'when'); return; }
     go('compose', Object.assign(composeReset(), {
       activity: s.text, evOverview: s.overview || '', evDate: d, evTime: d && s.dayTime ? s.dayTime : '', locText: s.spot || '',
       locPlace: s.spot && s.spotAddress ? { name: s.spot, address: s.spotAddress, lat: s.spotPoint ? s.spotPoint[0] : null, lon: s.spotPoint ? s.spotPoint[1] : null } : null, locAddr: s.spotAddress || '',
@@ -8905,7 +9062,7 @@
         const cover = await evCover(st);
         const c = whenCols(evWhen()); if (!c.schedule) c.schedule = null;
         must(await sb.from('sparks').update(Object.assign({
-          text: cleanTitle(st.activity).slice(0, 60), hopes: st.evBits.map(b => b.trim().slice(0, 60)).filter(Boolean), overview: (st.evOverview || '').trim().slice(0, 120) || null,
+          text: cleanTitle(st.activity).slice(0, TITLE_MAX), hopes: st.evBits.map(b => b.trim().slice(0, 60)).filter(Boolean), overview: (st.evOverview || '').trim().slice(0, 120) || null,
           ...evSpotCols(st),
           visibility: st.evPriv ? 'invite' : 'group', guest_invites: evGuestInv(st), tags: (st.evTags || []).slice(0, 2),
           cover_pos: cover && st.coverPos ? posOf(st.coverPos, IDEA_POS) : null
@@ -8945,9 +9102,9 @@
         cover = await evCover(st);
         insp = await inspoUp(st);
         const row = {
-          group_id: groups[0], author_name: st.myName, text: cleanTitle(st.activity).slice(0, 60),
+          group_id: groups[0], author_name: st.myName, text: cleanTitle(st.activity).slice(0, TITLE_MAX),
           // v8-14: the one-page description (200) is the event's details text, shown whole under What to expect
-          hopes: (st.evDesc || '').trim() ? [] : st.evBits.map(b => b.trim().slice(0, 60)).filter(Boolean), vision: (st.evDesc || '').trim().slice(0, 200) || null, overview: (st.evOverview || '').trim().slice(0, 80) || null,
+          hopes: (st.evDesc || '').trim() ? [] : st.evBits.map(b => b.trim().slice(0, 60)).filter(Boolean), vision: (st.evDesc || '').trim().slice(0, 200) || null, overview: (st.evOverview || '').trim().slice(0, OV_MAX) || null,
           mood: insp.paths, photos: cover ? [cover.path] : [], cat: 'events', answers: {}, lead_id: st.me, lead_name: st.myName, created_by: st.me,
           ...evSpotCols(st),
           ...(() => { const c = whenCols(evWhen()); if (!c.schedule) delete c.schedule; return c; })(),   // multi-day: day_date is the first day, schedule the rest (v8-7)
@@ -9032,12 +9189,13 @@
     })();
   };
   const draftState = (d) => {
+    if ((d.data || {}).kind === 'float') { const f = d.data; return { isFloat: true, activity: typeof f.title === 'string' ? f.title : '', evStep: 'title', evPhotoPath: PHOTO_PATH.test(f.photo || '') ? f.photo : null, evDraftId: d.id }; }
     const x = d.data || {}, out = {}, arr = (v) => Array.isArray(v) ? v : null, str = (v) => typeof v === 'string' ? v : '';
     Object.assign(out, {
-      activity: str(x.activity).slice(0, 60), evStep: x.evStep === 'lead' ? 'review' : EV_STEPS.concat('review').indexOf(x.evStep) > -1 ? x.evStep : 'title',   // an older draft on When or Where opens on page 1
+      activity: str(x.activity).slice(0, TITLE_MAX), evStep: x.evStep === 'lead' ? 'review' : EV_STEPS.concat('review').indexOf(x.evStep) > -1 ? x.evStep : 'title',   // an older draft on When or Where opens on page 1
       evDate: /^\d{4}-\d{2}-\d{2}$/.test(x.evDate || '') && x.evDate >= todayISO() ? x.evDate : '', evTime: str(x.evTime), evEnd: str(x.evEnd), evEndOn: !!x.evEndOn,
       locText: str(x.locText).slice(0, 80), locPlace: x.locPlace && typeof x.locPlace === 'object' ? x.locPlace : null, locAddr: str(x.locAddr).slice(0, 120),
-      evBits: ['', '', ''], evOverview: str(x.evOverview).slice(0, 80),
+      evBits: ['', '', ''], evOverview: str(x.evOverview).slice(0, OV_MAX),
       evDesc: (str(x.evDesc) || [0, 1, 2].map(i => str((x.evBits || [])[i]).trim()).filter(Boolean).map(b => /[.!?]$/.test(b) ? b : b + '.').join(' ')).slice(0, 200),
       evInspo: (arr(x.evInspo) || []).filter(q => PHOTO_PATH.test(q || '')).slice(0, 3).map(path => ({ path, url: photoUrl(path) })), evNeed: Number.isInteger(x.evNeed) && x.evNeed > 0 ? Math.min(x.evNeed, 99) : null, evTags: (arr(x.evTags) || []).filter(k => TYPES6.some(t => t[0] === k)).slice(0, 2), evNeeds: arr(x.evNeeds) || [],
       evDatePoll: arr(x.evDatePoll), evSpotPoll: arr(x.evSpotPoll), evLater: x.evLater && typeof x.evLater === 'object' ? x.evLater : {},
@@ -9051,7 +9209,8 @@
     });
     return out;
   };
-  const resumeDraft = (d) => goCompose(draftState(d));
+  const resumeDraft = (d) => (d.data || {}).kind === 'float' ? openFloatDraft(d) : goCompose(draftState(d));
+  const draftSub = (x) => x.isFloat ? 'Idea draft · Float it when you’re ready' : draftStep(x) + ' of ' + EV_STEPS.length + ' steps';
   const deleteDraft = (d) => {
     if (state.viewAs) return run(async () => {});
     const drafts = state.drafts;
@@ -9060,6 +9219,7 @@
     ensureSession().then(() => sb.from('event_drafts').delete().eq('id', d.id)).then(r => {
       if (r.error) throw r.error;
       if (PHOTO_PATH.test((d.data || {}).evPhoto || '')) deletePhotos([d.data.evPhoto]);
+      if (PHOTO_PATH.test((d.data || {}).photo || '')) deletePhotos([d.data.photo]);   // a Float draft's photo
       const insp = ((d.data || {}).evInspo || []).filter(q => PHOTO_PATH.test(q || ''));
       if (insp.length) deletePhotos(insp);
     }).catch(e => { console.error(e); setState({ drafts }); toast(failed(e)); });
@@ -9080,8 +9240,8 @@
           '<div style="font-size:11px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;color:' + R6.lead.kick + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">DRAFT · ' + esc(agoSaved(d.saved)) + '</div>' +
         '</div></div>' +
       '<div style="padding:11px 12px 12px;display:flex;flex-direction:column;gap:10px">' +
-        '<div aria-hidden="true" style="display:flex;gap:3px">' + EV_STEPS.map((_, k) => '<span style="flex:1 1 0;height:4px;border-radius:999px;background:' + (k < j ? '#5b4ae8' : '#d5d8df') + '"></span>').join('') + '</div>' +
-        '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><span style="min-width:0;font-size:13.5px;font-weight:700;color:#454b55;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Up next: ' + esc(EV_NAMES[x.evStep] || 'Event title') + '</span>' +
+        (x.isFloat ? '' : '<div aria-hidden="true" style="display:flex;gap:3px">' + EV_STEPS.map((_, k) => '<span style="flex:1 1 0;height:4px;border-radius:999px;background:' + (k < j ? '#5b4ae8' : '#d5d8df') + '"></span>').join('') + '</div>') +
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><span style="min-width:0;font-size:13.5px;font-weight:700;color:#454b55;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (x.isFloat ? 'Idea · Float it when you’re ready' : 'Up next: ' + esc(EV_NAMES[x.evStep] || 'Event title')) + '</span>' +
           '<span ' + on((e) => { stop(e); resumeDraft(d); }) + ' style="flex:0 0 auto;display:flex;align-items:center;min-height:32px;padding:0 13px;border-radius:999px;background:' + R6.lead.pill + ';color:' + R6.lead.ink + ';font-size:13px;font-weight:800;cursor:pointer">Continue</span></div>' +
       '</div></div>';
   };
@@ -9091,7 +9251,7 @@
     return '<div ' + on(() => { setState({ dashAll: null }); resumeDraft(d); }) + ' data-draft-all="' + esc(x.activity) + '" aria-label="Draft: ' + esc(t) + '" style="display:flex;align-items:center;gap:12px;padding:12px;background:#fff;border-radius:16px;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
       '<span aria-hidden="true" style="flex:0 0 40px;width:40px;height:40px;border-radius:10px;background:' + draftCover(x) + '"></span>' +
       '<div style="flex:1;min-width:0"><div style="font-size:15px;line-height:1.25;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(t) + '</div>' +
-        '<div style="margin-top:2px;font-size:12.5px;font-weight:600;color:' + R6.lead.ink + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Draft · ' + draftStep(x) + ' of ' + EV_STEPS.length + ' steps · Up next: ' + esc(EV_NAMES[x.evStep] || 'Event title') + '</div></div>' +
+        '<div style="margin-top:2px;font-size:12.5px;font-weight:600;color:' + R6.lead.ink + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Draft · ' + (x.isFloat ? 'Idea · Float it when you’re ready' : draftStep(x) + ' of ' + EV_STEPS.length + ' steps · Up next: ' + esc(EV_NAMES[x.evStep] || 'Event title')) + '</div></div>' +
       I.chevR(14, '#b9bcc4', 2.6) + '</div>';
   };
 
@@ -9310,7 +9470,7 @@
     '<input class="bit-fld" type="text" maxlength="60" aria-label="Details, line ' + (k + 1) + '" placeholder="' + esc(BIT_PH[k]) + '" value="' + esc(v) + '" ' + onInput(e => { if (e.type === 'input') set(k, e.target.value.slice(0, 60)); }) +
       ' style="flex:1 1 auto;min-width:0;border:0;padding:0;background:transparent;font-family:inherit;font-size:17px;font-weight:500;color:#0d1117;outline:none">' +
     '<span style="font-size:11.5px;font-weight:700;color:#9aa0ac">' + v.length + '/60</span></label>').join('');
-  // What to expect (Design 8a/10a, 2026-10-03): two numbered parts, both optional: a one-line overview (80) and up to three details (60 each)
+  // What to expect (Design 8a/10a, 2026-10-03): two numbered parts, both optional: a short overview (120, owner 2026-10-07) and up to three details (60 each)
   const OVERVIEW_PH = 'An evening of backyard games and food with whoever shows up';
   // v8-12: the purple 1 / 2 number circles are gone; the labels and Optional tags stay
   const wtePart = (n, label, inner) => '<div style="display:flex;flex-direction:column;gap:8px">' +
@@ -9318,16 +9478,16 @@
       '<span style="flex:1;display:flex;align-items:baseline;gap:8px;font-size:17px;font-weight:900;color:#0d1117">' + label + '<span style="font-size:13.5px;font-weight:600;color:#9aa0ac">Optional</span></span></div>' + inner + '</div>';
   const wteFields = (ov, setOv, bits, setBit) => '<div data-wte style="display:flex;flex-direction:column;gap:10px">' +   // 10px apart (Design v8)
     wtePart(1, 'One-line overview', '<label style="display:flex;align-items:center;gap:10px;min-height:58px;padding:0 16px;border-radius:16px;background:#fff;box-shadow:inset 0 0 0 2px #dcdfe6;cursor:text">' +
-      '<input class="bit-fld" type="text" maxlength="80" data-overview-input aria-label="One-line overview" placeholder="' + esc(OVERVIEW_PH) + '" value="' + esc(ov) + '" ' + onInput(e => { if (e.type === 'input') setOv(e.target.value.slice(0, 80)); }) +
+      '<input class="bit-fld" type="text" maxlength="120" data-overview-input aria-label="One-line overview" placeholder="' + esc(OVERVIEW_PH) + '" value="' + esc(ov) + '" ' + onInput(e => { if (e.type === 'input') setOv(e.target.value.slice(0, OV_MAX)); }) +
         ' style="flex:1 1 auto;min-width:0;border:0;padding:0;background:transparent;font-family:inherit;font-size:18px;font-weight:500;color:#0d1117;outline:none">' +
-      '<span style="font-size:11.5px;font-weight:700;color:#9aa0ac">' + ov.length + '/80</span></label>') +
+      '<span style="font-size:11.5px;font-weight:700;color:#9aa0ac">' + ov.length + '/' + OV_MAX + '</span></label>') +
     wtePart(2, 'Up to three details', '<div style="display:flex;flex-direction:column;gap:8px">' + bitRows(bits, setBit) + '</div>') + '</div>';
   // An event posted from the one-page Plan an event (v8-14) has a description, not quick details: one growing box (200)
   const wteDesc = (ov, setOv, desc, setDesc) => '<div data-wte style="display:flex;flex-direction:column;gap:10px">' +
     wtePart(1, 'One-line overview', '<label style="display:flex;align-items:center;gap:10px;min-height:58px;padding:0 16px;border-radius:16px;background:#fff;box-shadow:inset 0 0 0 2px #dcdfe6;cursor:text">' +
-      '<input class="bit-fld" type="text" maxlength="80" data-overview-input aria-label="One-line overview" placeholder="' + esc(OVERVIEW_PH) + '" value="' + esc(ov) + '" ' + onInput(e => { if (e.type === 'input') setOv(e.target.value.slice(0, 80)); }) +
+      '<input class="bit-fld" type="text" maxlength="120" data-overview-input aria-label="One-line overview" placeholder="' + esc(OVERVIEW_PH) + '" value="' + esc(ov) + '" ' + onInput(e => { if (e.type === 'input') setOv(e.target.value.slice(0, OV_MAX)); }) +
         ' style="flex:1 1 auto;min-width:0;border:0;padding:0;background:transparent;font-family:inherit;font-size:18px;font-weight:500;color:#0d1117;outline:none">' +
-      '<span style="font-size:11.5px;font-weight:700;color:#9aa0ac">' + ov.length + '/80</span></label>') +
+      '<span style="font-size:11.5px;font-weight:700;color:#9aa0ac">' + ov.length + '/' + OV_MAX + '</span></label>') +
     wtePart(2, 'Description', '<label style="position:relative;display:block;border-radius:16px;background:#fff;box-shadow:inset 0 0 0 2px #dcdfe6;cursor:text">' +
       '<textarea class="bit-fld" maxlength="200" aria-label="Event description" placeholder="What’s the plan?" ' + onInput(e => { if (e.type === 'input') setDesc(e.target.value.slice(0, 200)); }) +
         ' style="display:block;width:100%;box-sizing:border-box;min-height:96px;margin:0;padding:14px 56px 14px 16px;border:0;background:transparent;outline:none;resize:none;font-family:inherit;font-size:16px;line-height:1.45;font-weight:500;color:#0d1117;field-sizing:content">' + esc(desc) + '</textarea>' +
@@ -9413,7 +9573,7 @@
           svg(16, stroke('#fff', 2.2), CAMERA) + (url ? 'Change photo' : 'Add photo') + photoInput(url ? 'Change the cover photo' : 'Add a cover photo') + '</label>' +
         '<textarea class="cp-hero-fld" rows="' + Math.max(1, Math.ceil(title.length / 13)) + '" maxlength="40" data-ev-title aria-label="Event title" placeholder="Event title" ' + onInput(e => { if (e.type === 'input') { const v = e.target.value.replace(/\n/g, '').slice(0, 40); if (v !== e.target.value) e.target.value = v; setState({ activity: v }); } }) +
           ' style="' + TA + ';font-size:40px;line-height:1;font-weight:900;letter-spacing:-1.3px">' + esc(title) + '</textarea>' +
-        '<textarea class="cp-hero-fld" rows="' + Math.max(1, Math.ceil((st.evOverview || '').length / 32)) + '" maxlength="80" data-overview-input aria-label="Quick overview" placeholder="Add a quick overview" ' + onInput(e => { if (e.type === 'input') { const v = e.target.value.replace(/\n/g, ' ').slice(0, 80); if (v !== e.target.value) e.target.value = v; setState({ evOverview: v }); } }) +
+        '<textarea class="cp-hero-fld" rows="' + Math.max(1, Math.ceil((st.evOverview || '').length / 32)) + '" maxlength="120" data-overview-input aria-label="Quick overview" placeholder="Add a quick overview" ' + onInput(e => { if (e.type === 'input') { const v = e.target.value.replace(/\n/g, ' ').slice(0, OV_MAX); if (v !== e.target.value) e.target.value = v; setState({ evOverview: v }); } }) +
           ' style="' + TA + ';font-size:18px;line-height:1.4;font-weight:500">' + esc(st.evOverview || '') + '</textarea>' +
       '</div></div>';
     // WHEN & WHERE: two rows opening the Date & time and Location pop-ups; once one is filled the empty one reads purple
@@ -9534,7 +9694,7 @@
     const heading = review
       ? '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px">' +   // no REVIEW eyebrow (v8-8 item 7)
           (st.evTitleEd
-            ? '<input class="fld" type="text" maxlength="60" data-title-inline aria-label="Event title" value="' + esc(st.activity) + '" ' + onInput(e => { if (e.type === 'input') setState({ activity: e.target.value.slice(0, 60) }); }) +
+            ? '<input class="fld" type="text" maxlength="40" data-title-inline aria-label="Event title" value="' + esc(st.activity) + '" ' + onInput(e => { if (e.type === 'input') setState({ activity: e.target.value.slice(0, TITLE_MAX) }); }) +
                 ' style="width:100%;min-width:0;box-sizing:border-box;margin:0;padding:2px 10px;border:0;border-radius:12px;background:rgba(255,255,255,.18);box-shadow:inset 0 0 0 2px rgba(255,255,255,.75);font-family:inherit;font-size:26px;line-height:1.15;font-weight:900;letter-spacing:-.7px;color:#fff;outline:none">'
             : '<div style="display:flex;align-items:flex-end;min-width:0"><span ' + on(editTitleInline) + ' data-review-title style="min-width:0;font-size:28px;line-height:1.05;font-weight:900;letter-spacing:-.8px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere;cursor:text">' + esc(title) + '</span>' +
                 '<span ' + on(editTitleInline) + ' aria-label="Edit title" style="flex:0 0 30px;width:30px;height:30px;margin-left:8px;margin-bottom:1px;border-radius:999px;background:rgba(255,255,255,.2);display:inline-flex;align-items:center;justify-content:center;cursor:pointer">' + svg(14, stroke('#fff', 2.3), PENCIL) + '</span></div>') + '</div>'
@@ -9704,8 +9864,8 @@
             '<span style="display:flex;color:#6b7280">' + svg(24, stroke('currentColor', 2), CAMERA) + '</span>' +
             '<span style="margin-top:2px;font-size:15.5px;font-weight:800;color:#454b55">Add a cover photo</span><span style="font-size:13px;font-weight:600;color:#9aa0ac">(optional)</span>' + photoInput('Add a cover photo') + '</label>';
       body = (pop ? '' : '<div style="padding:16px 16px 0">' + cover + '</div>' + sec('Event title')) +
-        '<div style="padding:8px 16px 0"><div style="position:relative"><input class="fld title-fld" type="text" maxlength="60" data-ev-title aria-label="Event title" placeholder="Fall cleanup day" value="' + esc(st.activity) + '" ' + onInput(e => { if (e.type === 'input') setState({ activity: e.target.value.slice(0, 60) }); }) + ' style="' + MID + ';padding-right:64px">' +
-          '<span aria-hidden="true" style="position:absolute;right:16px;top:50%;transform:translateY(-50%);font-size:11.5px;font-weight:700;color:#9aa0ac;pointer-events:none">' + n + '/60</span></div></div>' +
+        '<div style="padding:8px 16px 0"><div style="position:relative"><input class="fld title-fld" type="text" maxlength="40" data-ev-title aria-label="Event title" placeholder="Fall cleanup day" value="' + esc(st.activity) + '" ' + onInput(e => { if (e.type === 'input') setState({ activity: e.target.value.slice(0, TITLE_MAX) }); }) + ' style="' + MID + ';padding-right:64px">' +
+          '<span aria-hidden="true" style="position:absolute;right:16px;top:50%;transform:translateY(-50%);font-size:11.5px;font-weight:700;color:#9aa0ac;pointer-events:none">' + n + '/40</span></div></div>' +
         (pop ? '' : sec('Date &amp; time' + (st.evDatePoll ? '' : ' ' + dayTypeBtn(evWhen(), 'ev')), false, st.evDatePoll ? '' : pollLink('when')) + whenPart() + sec('Location', true, st.evSpotPoll ? '' : pollLink('where')) + wherePart() + '<div style="height:12px"></div>');
     } else if (cur === 'when') {   // Review's Date & time pop-up
       body = (st.evDatePoll ? '' : sec(dayTypeBtn(evWhen(), 'ev').replace('· ', ''), false, pollLink('when'))) + whenPart();
@@ -9723,9 +9883,9 @@
         '<div data-wte style="padding:16px 16px 0;display:flex;flex-direction:column;gap:8px">' + lab('Overview') +
           // Overview grows with what's typed: a one-row textarea, the count bottom right (Design v8 prototype, evOverview)
           '<label style="display:flex;align-items:flex-start;gap:10px;min-height:46px;padding:12px 14px;box-sizing:border-box;border-radius:14px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;cursor:text">' +
-            '<textarea class="bit-fld" rows="1" maxlength="80" data-overview-input aria-label="Overview" placeholder="' + esc(OVERVIEW_PH) + '" ' + onInput(e => { if (e.type === 'input') { const v = e.target.value.replace(/\n/g, ' ').slice(0, 80); if (v !== e.target.value) e.target.value = v; setState({ evOverview: v }); } }) +
+            '<textarea class="bit-fld" rows="1" maxlength="120" data-overview-input aria-label="Overview" placeholder="' + esc(OVERVIEW_PH) + '" ' + onInput(e => { if (e.type === 'input') { const v = e.target.value.replace(/\n/g, ' ').slice(0, OV_MAX); if (v !== e.target.value) e.target.value = v; setState({ evOverview: v }); } }) +
               ' style="flex:1 1 auto;min-width:0;border:0;padding:0;margin:0;background:transparent;font-family:inherit;font-size:16px;line-height:22px;font-weight:500;color:#0d1117;outline:none;resize:none;field-sizing:content;min-height:22px;overflow:hidden">' + esc(ov) + '</textarea>' +
-            '<span style="align-self:flex-end;font-size:11.5px;font-weight:700;color:#9aa0ac">' + ov.length + '/80</span></label>' +
+            '<span style="align-self:flex-end;font-size:11.5px;font-weight:700;color:#9aa0ac">' + ov.length + '/' + OV_MAX + '</span></label>' +
           (open
             ? '<div data-quick-details style="margin-top:8px;display:flex;flex-direction:column;gap:8px">' + lab('Quick details') + st.evBits.map((v, k) => fld(
                 '<span aria-hidden="true" style="flex:0 0 7px;width:7px;height:7px;border-radius:999px;background:' + (v.trim() ? '#0f7a3c' : '#c9ccd3') + '"></span>' +
@@ -9973,10 +10133,10 @@
       // Opened from Welcome's "Continue with email": just the email field (owner, 2026-09-30)
       const emailOk = EMAIL_OK.test(st.loginEmail.trim()), withGoogle = GOOGLE_ON && !st.loginEmailOnly;
       // Design v8's lines (the privacy line under the form waits on the owner)
-      const lead = { post: 'Sign in to put your idea up. ', guest: 'Your name fills in, and everything you add is saved to your account. ', account: 'It takes a minute, and you can vote, sign up and get reminders. ', join: 'Sign in to join a group. ', friend: 'Sign in to add your friend. ', discussion: 'Sign in to read the discussion and join in. ' }[st.loginFrom] ||
+      const lead = { reminder: 'Your RSVP comes with you, and then we can remind you. ', post: 'Sign in to put your idea up. ', guest: 'Your name fills in, and everything you add is saved to your account. ', account: 'It takes a minute, and you can vote, sign up and get reminders. ', join: 'Sign in to join a group. ', friend: 'Sign in to add your friend. ', discussion: 'Sign in to read the discussion and join in. ' }[st.loginFrom] ||
         'Your ideas, groups and name are saved to your account. ';
       return modal('Sign in', closeLogin,
-        h3Html(st.loginFrom === 'post' ? 'Sign in to post your event' : st.loginFrom === 'account' ? 'Create a free account' : 'Sign in') +
+        h3Html(st.loginFrom === 'post' ? 'Sign in to post your event' : st.loginFrom === 'account' || st.loginFrom === 'reminder' ? 'Create a free account' : 'Sign in') +
         paraHtml(lead + (withGoogle ? 'Use Google, or we’ll email you a 6-digit code. No password.' : 'We’ll email you a 6-digit code. No password.')) +
         (st.googleFailed
           ? '<div role="alert" style="display:flex;align-items:flex-start;gap:9px;background:#fdeef0;border:1.5px solid #f5c2cb;border-radius:14px;padding:11px 13px">' +
@@ -9990,7 +10150,7 @@
         '<input class="fld" type="email" inputmode="email" maxlength="80" autocomplete="email" autocapitalize="off" spellcheck="false" aria-label="Email" placeholder="you@example.com" value="' + esc(st.loginEmail) + '" ' +
           onInput(e => setState({ loginEmail: e.target.value.slice(0, 80) })) + ' style="' + FIELD + '">' +
         '<button type="button" data-enter ' + on(() => { if (emailOk && !busy) sendCode(false); }) + ' aria-disabled="' + !(emailOk && !busy) + '" style="' + primary(emailOk && !busy) + '">' + (busy === 'send' ? 'Sending…' : 'Email me a code') + '</button>' +
-        '<p style="margin:0;font-size:13px;line-height:1.45;font-weight:500;color:#6b7280">Used to sign you in. Your groups’ admins can see it; other members can’t. <a href="/privacy.html" target="_blank" rel="noopener" style="font-weight:800;color:#5b4ae8">Privacy</a></p>',
+        inAppTip() + '<p style="margin:0;font-size:13px;line-height:1.45;font-weight:500;color:#6b7280">Used to sign you in. Your groups’ admins can see it; other members can’t. <a href="/privacy.html" target="_blank" rel="noopener" style="font-weight:800;color:#5b4ae8">Privacy</a></p>',
         { z: 32 });
     }
     const codeOk = st.loginCode.length >= 6 && !busy;
@@ -10031,8 +10191,11 @@
     setState({ guest: { name }, guestName: name, myName: state.myName || name });
     try { await ensureSession(); must(await sb.from('profiles').upsert({ id: state.me, name }, { onConflict: 'id' })); } catch (e) { console.error(e); }
   };
-  // The guest sheet (Design v8-8 1c): after Going, Maybe or Can't on an event without an account. Making an account is
-  // the main path (updates, reminders, names); RSVP without an account just takes a name. No guest emails or texts
+  // The guest sheet: after Going, Maybe or Can't on an event without an account. Since the first-encounter audit
+  // (owner, 2026-10-07) the RSVP is the main button (a name only); the account is asked once, after, on You're on the
+  // list. Design v8-8 1c led with the account. No guest emails or texts
+  const nudgeHidden = (id) => { try { return (localStorage.getItem('spark-hub-nudge-x') || '').indexOf(id) > -1; } catch (e) { return false; } };
+  const hideNudge = (id) => { try { localStorage.setItem('spark-hub-nudge-x', ((localStorage.getItem('spark-hub-nudge-x') || '') + ' ' + id).slice(-800)); } catch (e) { /* fine */ } render(); };
   function viewGuest() {
     const st = state, s = subject(), kind = st.guestKind;
     const ok = st.guestName.trim().length > 0 && !st.busy;
@@ -10045,15 +10208,9 @@
       if (typeof then === 'function') then();
     };
     const after = () => { const fn = st.guestThen; return () => needName(fn || (() => {})); };
-    const google = () => { if (st.busy) return; const then = after(); setState({ guestOpen: false, guestThen: null, guestKind: null, loginFrom: 'guest', loginThen: then, loginMode: 'link', googleFailed: false }); googleSignIn(); };
     const email = () => { const then = after(); setState({ guestOpen: false, guestThen: null, guestKind: null }); openLogin('guest', then); };
-    const gold = kind === 'maybe', head = kind === 'going' ? 'You’re going!' : gold ? 'Maybe, then' : 'RSVP as a guest';
+    const gold = kind === 'maybe', head = kind === 'going' ? 'RSVP: Going' : gold ? 'RSVP: Maybe' : 'RSVP: Can’t go';   // not "You're going!" before it's saved (audit 3)
     const sub = s ? esc(s.text) + (s.dayDate ? ' · ' + esc(fmtDay(s.dayDate)) : '') : '';
-    const acct = kind === 'no' ? '' : '<div data-guest-account style="background:' + (gold ? '#fdf6dc' : '#f3f1fe') + ';border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:12px">' +
-        '<div style="display:flex;gap:10px;align-items:flex-start">' + ic6('bell', 20, gold ? '#8f6405' : '#5b4ae8', 2.2) +
-          '<div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:16px;font-weight:900;color:#0d1117">Get updates and a reminder</span><span style="font-size:14px;font-weight:600;color:#454b55;text-wrap:pretty">Sign in or create a free account</span></div></div>' +
-        (GOOGLE_ON ? '<button type="button" ' + on(google) + ' style="min-height:50px;border:0;border-radius:999px;background:' + (gold ? '#f5b428' : '#5b4ae8') + ';color:' + (gold ? '#2a1d00' : '#fff') + ';display:flex;align-items:center;justify-content:center;gap:8px;font-family:inherit;font-size:16px;font-weight:800;cursor:pointer">Continue with Google</button>' : '') +
-        '<button type="button" ' + on(email) + ' data-guest-email style="min-height:46px;border:0;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px ' + (gold ? '#f3dc9e' : '#d9d4fb') + ';color:' + (gold ? '#8f6405' : '#5b4ae8') + ';display:flex;align-items:center;justify-content:center;font-family:inherit;font-size:15px;font-weight:800;cursor:pointer">Use my email</button></div>';
     return modal('RSVP as a guest', close,
       '<div style="display:flex;flex-direction:column;gap:4px;padding-right:40px"><span style="font-size:24px;font-weight:900;letter-spacing:-.4px;color:#0d1117">' + head + '</span>' +
         (sub ? '<span style="font-size:15px;font-weight:600;color:#454b55">' + sub + '</span>' : '') + '</div>' +
@@ -10061,10 +10218,11 @@
         '<input class="fld" type="text" maxlength="30" autocomplete="given-name" aria-label="Your name" placeholder="First name is fine" value="' + esc(st.guestName) + '" ' + onInput(e => setState({ guestName: e.target.value.slice(0, 30) })) + ' style="' + FIELD + '"></div>' +
       // Bringing anyone? (v8-11): the same stepper, quieter, for a Going or Maybe on a plan
       (kind !== 'no' && s && s.planned && !s.cancelledAt ? plusStepper(s, true) : '') +
-      acct +
-      '<button type="button" data-enter ' + on(submit) + ' data-guest-rsvp aria-disabled="' + !ok + '" style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 0;border:0;background:transparent;font-family:inherit;cursor:' + (ok ? 'pointer' : 'default') + '">' +
-        '<span style="font-size:15px;font-weight:800;color:' + (ok ? '#454b55' : '#9aa0ac') + '">' + (kind === 'no' ? 'Send' : 'RSVP without an account') + '</span>' +
-        '<span style="font-size:13px;font-weight:600;color:#6b7280">' + (kind === 'no' ? 'Only the lead sees your name.' : 'No updates or reminders. Only the lead sees your name.') + '</span></button>');
+      // RSVP first, no account needed; the account is asked once, after (You're on the list). The name shows on the guest
+      // list, which everyone who replied can see (audit 5: it said only the lead sees it)
+      '<button type="button" data-enter ' + on(submit) + ' data-guest-rsvp aria-disabled="' + !ok + '" style="min-height:52px;border:0;border-radius:999px;font-family:inherit;font-size:16px;font-weight:900;cursor:' + (ok ? 'pointer' : 'default') + ';background:' + (!ok ? '#e2e4e9;color:#9aa0ac' : kind === 'going' ? '#149a4b;color:#fff' : gold ? '#f5b428;color:#2a1d00' : '#0d1117;color:#fff') + '">' + (kind === 'going' ? 'I’m going' : gold ? 'Maybe' : 'Send') + '</button>' +
+      '<span data-guest-note style="text-align:center;font-size:13px;line-height:1.4;font-weight:600;color:#6b7280">No account needed. Your first name shows on the guest list.</span>' +
+      '<span ' + on(email) + ' data-guest-email role="button" style="align-self:center;display:flex;align-items:center;min-height:36px;font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">Have an account? Sign in</span>');
   }
 
   // Add a date / Add a location (owner's mock, 2026-10-02): a sheet with the app's own date and time lists, and "Add my
@@ -10571,7 +10729,7 @@
     else if (sc === 'me') main = st.email ? viewMe() : home();
     else if (sc === 'ideas') main = st.email ? viewIdeas() : home();
     else if (sc === 'detail' && subj) main = viewDetail(subj);
-    else if (sc === 'detail' && st.subjectId) main = eventLoading();
+    else if (sc === 'detail' && (st.subjectId || st.linkCode)) main = eventLoading();   // /e/CODE too: Welcome flashed while the code opened (first-encounter audit)
     else if (sc === 'compose') main = st.email ? '' : viewWelcome();   // the post flow covers the screen
     else main = home();
     // An invite link's full-screen steps take the place of the screen
@@ -10651,7 +10809,7 @@
       (st.fbOpen && st.demoAdmin ? viewFbInbox() : '') +
       (st.acctOpen && st.demoAdmin ? viewAccounts() : '') +
       (st.fb && st.email ? viewFeedback() : '') +
-      (st.installPop ? viewInstallPop() : '') +
+      (st.installPop ? viewInstallPop() : '') + (st.notifAsk ? viewNotifAsk() : '') +
       // no tab bar on Welcome, the invite screens, or for a guest on an event (it only led to sign-in)
       (welcomeShown() || invFull() || (!state.email && state.screen === 'detail') ? '' : viewAddFab() + viewNav()) +
       (st.fbNudge && st.screen !== 'me' && !st.fb ? viewFbNudge() : '') +   // above the tab bar

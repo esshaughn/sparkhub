@@ -102,9 +102,9 @@ test('post an event with every step filled, then edit it in the pop-ups and dele
     await expect(sec.getByLabel(/^(Replace the|Add a) cover photo$/)).toHaveCount(1);
     await expect(sec.getByRole('button', { name: 'Remove the cover photo' })).toBeVisible();   // the cover can come off (owner, 2026-10-02)
     await sec.getByLabel('Event title').fill(title + ' + stars');
-    await expect(sec.getByLabel('Quick overview')).toHaveAttribute('maxlength', '80');   // v8-13: the overview on Edit event too
+    await expect(sec.getByLabel('Quick overview')).toHaveAttribute('maxlength', '120');   // v8-13: the overview on Edit event too
     await sec.getByLabel('Quick overview').fill('A night run');
-    await expect(sec.locator('[data-ov-count]')).toHaveText('11/80');
+    await expect(sec.locator('[data-ov-count]')).toHaveText('11/120');
     await sec.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(sec).toHaveCount(0);
     await expect(P.locator('h1')).toContainText('+ stars');
@@ -114,7 +114,7 @@ test('post an event with every step filled, then edit it in the pop-ups and dele
     await expect(P.getByRole('heading', { name: 'What to expect' })).toBeVisible();
     await P.getByRole('button', { name: 'Edit what to expect' }).click();
     const bd = page.getByRole('dialog', { name: 'What to expect' });
-    await expect(bd.getByLabel('One-line overview')).toHaveAttribute('maxlength', '80');
+    await expect(bd.getByLabel('One-line overview')).toHaveAttribute('maxlength', '120');
     await expect(bd.getByLabel('One-line overview')).toHaveValue('A night run');   // the same field
     await expect(bd).not.toContainText('Both parts are optional.');   // v8-12
     await expect(bd.locator('[data-sec-delete]')).toHaveCount(0);       // no Cancel or delete on this sheet (v8-12)
@@ -648,7 +648,7 @@ test('Float an idea: the Float sheet, a draft, and the starter’s slide-up', as
     await sheet.locator('[data-qi-next]').click();
     await expect(page.getByRole('status')).toContainText('Add a title first');
     await sheet.getByLabel('Your idea').fill(title);
-    await expect(sheet).toContainText(title.length + '/60');
+    await expect(sheet).toContainText(title.length + '/40');   // titles stop at 40 (owner, 2026-10-07)
     await sheet.getByLabel('Short description').fill('Bring a kite or borrow one');
     await sheet.locator('[data-qi-more]').click();
     await expect(sheet.locator('[data-qi-more]')).toHaveCount(0);   // it goes once tapped
@@ -675,6 +675,8 @@ test('Float an idea: the Float sheet, a draft, and the starter’s slide-up', as
     await expect(leave).toContainText('Only you can see drafts.');
     await leave.locator('[data-qi-save-draft]').click();
     await expect(sheet).toHaveCount(0);
+    // The draft is saved to the account (owner, 2026-10-07), with the event drafts
+    expect(await asUser(page, async (c, _C, t) => (await c.from('event_drafts').select('data').filter('data->>kind', 'eq', 'float')).data.filter(r => r.data.title === t).length, title)).toBe(1);
     await startFloat(page);
     await expect(page.getByRole('status')).toContainText('Picked up your draft');
     await expect(sheet.getByLabel('Your idea')).toHaveValue(title);
@@ -695,6 +697,7 @@ test('Float an idea: the Float sheet, a draft, and the starter’s slide-up', as
     await expect(page.getByRole('status')).toContainText('Posted to Torrez Fitness');
     await expect(ip.locator('[data-make-this-plan]')).toContainText('Choose a lead');
     id = await asUser(page, async (c, _C, title) => (await c.from('sparks').select('id').eq('text', title).single()).data.id, title);
+    expect(await asUser(page, async (c, _C, t) => (await c.from('event_drafts').select('data').filter('data->>kind', 'eq', 'float')).data.filter(r => r.data.title === t).length, title)).toBe(0);   // posting clears it
     const row = await asUser(page, async (c, _C, id) => (await c.from('sparks').select('wants_host,planned,talk,lead_rule,overview,day_date,spot,date_options(day_part),spot_options(name)').eq('id', id).single()).data, id);
     // Set date sets the idea's date (its part of day stays on its one option); the location poll stays a poll
     expect(row).toMatchObject({ wants_host: true, planned: false, talk: true, lead_rule: 'me', overview: 'Bring a kite or borrow one', day_date: inDays(9), spot: null, date_options: [{ day_part: 'evening' }] });

@@ -79,6 +79,48 @@ test('web push: a push-only service worker registers, and Notifications offers p
   }
 });
 
+// Get the app (first-encounter audit 6, owner 2026-10-07): offered right after an RSVP, never on first load. An iPhone Safari
+// guest gets the iOS 26 steps (⋯ → Share → Add to Home Screen) and the sign-in-once note; Not now puts it away
+test('Get the app: after a guest RSVP, iPhone Safari gets the steps; Not now puts it away', async ({ browser }) => {
+  const { page, context } = await newLead(browser, 1, 'Lena Lead');
+  const v = await newMember(browser);
+  let id;
+  try {
+    id = await asUser(page, async (c, _C, { title, day }) => {
+      const me = (await c.auth.getUser()).data.user.id;
+      const g = (await c.from('groups').select('id').eq('name', 'Torrez Fitness').single()).data.id;
+      return (await c.from('sparks').insert({ group_id: g, author_name: 'Lena Lead', lead_name: 'Lena Lead', lead_id: me, created_by: me, text: title, planned: true, day_date: day }).select('id').single()).data.id;
+    }, { title: uniqueTitle('App walk'), day: new Date(Date.now() + 8 * 864e5).toISOString().slice(0, 10) });
+    await v.context.addInitScript(() => {
+      if (!localStorage.getItem('e2e-iphone')) return;
+      const ua = 'Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1';
+      Object.defineProperty(navigator, 'userAgent', { get: () => ua });
+    });
+    await v.page.evaluate(() => { localStorage.setItem('e2e-install', '1'); localStorage.setItem('e2e-iphone', 'safari'); localStorage.removeItem('sparkhub-a2hs'); sessionStorage.removeItem('sparkhub-a2hs'); });
+    await v.page.goto('/#/idea/' + id);
+    const P = v.page.locator('[data-screen-label="Plan page"]');
+    await expect(P).toBeVisible();
+    await v.page.waitForTimeout(1500);
+    await expect(v.page.getByRole('dialog', { name: 'Add to Home Screen' })).toHaveCount(0);   // not on first load
+    await P.locator('[data-rsvp]').getByRole('button', { name: 'Going', exact: true }).click();
+    const d = v.page.getByRole('dialog', { name: 'RSVP as a guest' });
+    await d.getByLabel('Your name').fill('Ash');
+    await d.locator('[data-guest-rsvp]').click();
+    await v.page.getByRole('dialog', { name: 'You’re on the list' }).locator('[data-plus-done]').click();
+    const pop = v.page.getByRole('dialog', { name: 'Add to Home Screen' });
+    await expect(pop).toContainText('Get the Spark Hub app');
+    await expect(pop.locator('[data-a2hs-steps="safari"]')).toContainText('at the bottom of the screen');
+    await expect(pop.locator('[data-a2hs-note]')).toContainText('You’ll sign in once there.');
+    await pop.locator('[data-a2hs-later]').click();
+    await expect(pop).toHaveCount(0);
+    expect(v.errors).toEqual([]);
+  } finally {
+    if (id) await asUser(page, async (c, _C, id) => { await c.from('sparks').delete().eq('id', id); }, id).catch(() => {});
+    await context.close();
+    await v.context.close();
+  }
+});
+
 test('Add to Home Screen: never pops up on its own (owner, 2026-10-06); Me → Settings opens Chrome’s prompt or the iPhone steps', async ({ browser }) => {
   // Chrome hands an installable site a beforeinstallprompt event; stand in for it (or be an iPhone browser, which has none)
   const fake = () => {
@@ -131,7 +173,7 @@ test('Add to Home Screen: never pops up on its own (owner, 2026-10-06); Me → S
     await expect(page.getByRole('dialog', { name: 'Add to Home Screen' })).toHaveCount(0);
     await openProfile(page);
     await page.locator('[data-me-settings]').click();
-    await page.getByRole('dialog', { name: 'Settings' }).getByRole('button', { name: /^Add to Home Screen/ }).click();
+    await page.getByRole('dialog', { name: 'Settings' }).getByRole('button', { name: /^Get the Spark Hub app/ }).click();
     await expect.poll(() => page.evaluate(() => window.__prompted)).toBe(1);
     expect(m.errors).toEqual([]);
   } finally {
@@ -768,18 +810,30 @@ test('a failed first load says so (never "not in a group"), and an event taken d
 
 // Asking for feedback (owner, 2026-10-02; v7 Update 15, 1c): after ~5 minutes of use (10 until 2026-10-03), once, a sheet with a text box;
 // sending it (or Not now) leaves a dark tip pointing at Profile
-test('after about 5 minutes, the feedback ask: write, Send to Eric, a tip at Profile, once', async ({ browser }) => {
+// Since the first-encounter audit (owner, 2026-10-07) it also waits for something real: a plan they went to or led
+test('after about 5 minutes and a plan they went to, the feedback ask: write, Send to Eric, a tip at Profile, once', async ({ browser }) => {
   const { page, context, errors } = await newLead(browser, 1, 'Tester');
+  let past;
   try {
     const me = await asUser(page, async (c) => (await c.auth.getUser()).data.user.id);
     await expect(page.locator('[data-fb-nudge]')).toHaveCount(0);
-    // Nine minutes and fifty seconds so far: one more tick (after reopening) tips it over
+    // Four minutes and fifty seconds so far: one more tick (after reopening) tips it over, but only once they've been to something
     await page.evaluate((me) => localStorage.setItem('spark-hub-fb-nudge-' + me, JSON.stringify({ used: 290000 })), me);
+    await page.reload();
+    await expect(page.locator('html[data-loaded=true]')).toHaveCount(1);
+    await page.waitForTimeout(4000);
+    await expect(page.locator('[data-fb-nudge]')).toHaveCount(0);
+    past = await asUser(page, async (c, _C, day) => {
+      const me = (await c.auth.getUser()).data.user.id;
+      const g = (await c.from('groups').select('id').eq('name', 'Torrez Fitness').single()).data.id;
+      return (await c.from('sparks').insert({ group_id: g, author_name: 'Tester', lead_name: 'Tester', lead_id: me, created_by: me, text: '[E2E] Went to it ' + Date.now().toString(36), planned: true, day_date: day }).select('id').single()).data.id;
+    }, new Date(Date.now() - 2 * 864e5).toISOString().slice(0, 10));
     await page.reload();
     await expect(page.locator('html[data-loaded=true]')).toHaveCount(1);
     const ask = page.getByRole('dialog', { name: 'Help Eric improve the app' });
     await expect(ask).toBeVisible({ timeout: 25000 });
     await expect(ask).toContainText(/feedback needed/i);
+    await expect(ask.locator('[data-fb-intro]')).toContainText('Spark Hub is a new project by Eric');
     await expect(ask.getByRole('button', { name: 'Send to Eric' })).toHaveAttribute('aria-disabled', 'true');
     const note = '[E2E] the calendar is confusing ' + Date.now().toString(36);
     await ask.getByLabel('Your feedback').fill(note);
@@ -800,6 +854,7 @@ test('after about 5 minutes, the feedback ask: write, Send to Eric, a tip at Pro
     await expect(page.locator('[data-fb-nudge]')).toHaveCount(0);
     expect(errors).toEqual([]);
   } finally {
+    if (past) await asUser(page, async (c, _C, id) => { await c.from('sparks').delete().eq('id', id); }, past).catch(() => {});
     await context.close();
   }
 });

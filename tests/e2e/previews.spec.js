@@ -83,7 +83,7 @@ test('a short link opens the event; a wrong one says it isn’t working', async 
     await V.route(/\/e\/[^/]+$/, (route) => route.continue({ url: new URL('/index.html', route.request().url()).href }));
     await V.goto('/e/' + code);
     await expect(V.locator('[data-screen-label="Idea page (8b)"]')).toBeVisible();
-    await expect(V).toHaveURL(new RegExp('#/idea/' + ideaId + '$'));
+    await expect(V).toHaveURL(new RegExp('/e/' + code + '$'));   // the short link stays in the address bar (2026-10-07)
     await V.goto('/e/zzzzzzzz');
     await expect(V.locator('[data-gone]')).toHaveText('This link isn’t working');
     expect(visitor.errors.filter(e => !/404/.test(e))).toEqual([]);
@@ -125,17 +125,26 @@ test('a signed-out visitor sees the event only, and names once they RSVP', async
     await expect(V.getByRole('dialog', { name: 'Share this event' })).toHaveCount(0);
     await pop.getByRole('button', { name: 'Close' }).click();
     await expect(pop).toHaveCount(0);
-    // Going → the guest sheet: You're going!, the account card, RSVP without an account
+    // Going → the guest sheet (first-encounter audit 3 + 5): RSVP first, nothing saved until I'm going, honest about names
     await rsvpTap(P.locator('[data-rsvp]'), 'Going');
     const d = V.getByRole('dialog', { name: 'RSVP as a guest' });
-    await expect(d).toContainText('You’re going!');
-    await expect(d.locator('[data-guest-account]')).toContainText('Get updates and a reminder');
-    await expect(d.locator('[data-guest-rsvp]')).toContainText('No updates or reminders. Only the lead sees your name.');
+    await expect(d).toContainText('RSVP: Going');
+    await expect(d).not.toContainText('You’re going!');
+    await expect(d.locator('[data-guest-rsvp]')).toHaveText('I’m going');
+    await expect(d.locator('[data-guest-note]')).toHaveText('No account needed. Your first name shows on the guest list.');
+    await expect(d.locator('[data-guest-email]')).toHaveText('Have an account? Sign in');
     await d.getByLabel('Your name').fill('Jo');
     await d.locator('[data-guest-rsvp]').click();
     await V.getByRole('dialog', { name: 'You’re on the list' }).locator('[data-plus-done]').click();
     await expect(P.locator('[data-who-locked]')).toHaveCount(0);
     await expect(P.locator('[data-going]')).toContainText('See all');
+    // Back goes to Welcome with the guest's plans on it, not only a sign-in wall (first-encounter audit 2, 2026-10-07)
+    await V.getByLabel('Back to Spark Hub').click();
+    const mine = V.locator('[data-guest-rsvps]');
+    await expect(mine).toContainText('Visitor walk');
+    await expect(mine).toContainText('You’re going');
+    await mine.getByRole('button').first().click();
+    await expect(P).toBeVisible();
     expect(visitor.errors).toEqual([]);
   } finally {
     if (id) await deleteIdea(page, id).catch(() => {});
