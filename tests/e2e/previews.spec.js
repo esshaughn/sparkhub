@@ -123,7 +123,7 @@ test('a signed-out visitor sees the event only, and names once they RSVP', async
     await P.locator('[data-about-link]').click();
     const about = V.getByRole('dialog', { name: 'What’s Spark Hub?' });
     await expect(about.locator('[data-about-panel="1"]')).toContainText('Where your group’s ideas turn into plans');
-    await expect(about.locator('[data-about-panel="1"]')).toContainText('Float an Idea, see who’s in, and make it happen together.');
+    await expect(about.locator('[data-about-panel="1"]')).toContainText('Everyone pitches in, no one plans it alone.');
     await about.locator('[data-about-next]').click();
     await expect(about.locator('[data-about-panel="2"]')).toContainText('Anyone can start something');
     // Back and close sit at the top (layout A): ‹ goes back a panel; panel 1 has no ‹
