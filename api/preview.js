@@ -67,7 +67,12 @@ async function details(db, q) {
   if (q.e && ECODE.test(q.e)) {
     const s = await rpc(db, 'event_preview', { p_code: q.e });
     if (!s) return null;
-    return { title: s.title, description: [when(s.day_date, s.day_time), s.spot].filter(Boolean).join(' · ') || 'On Spark Hub', image: photoUrl(db, s.photo) };
+    // iMessage shows only the title and domain, so the date rides in the title too: "Magic and Mocktails – Thu, Oct 22"
+    return {
+      title: s.title + (s.day_date ? ' – ' + when(s.day_date) : ''),
+      description: [when(s.day_date, s.day_time), s.spot].filter(Boolean).join(' · ') || 'On Spark Hub',
+      image: photoUrl(db, s.photo)
+    };
   }
   if (q.i && ID.test(q.i)) {
     const s = await rpc(db, 'link_preview', { p_spark: q.i });
