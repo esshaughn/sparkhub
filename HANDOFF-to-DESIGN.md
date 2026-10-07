@@ -240,7 +240,7 @@ Never cleared on a reset. These are places where the owner chose differently fro
 | 165 | **What's Spark Hub? panel 1 shows three fanned phones** (owner, 2026-10-07): My groups in front (150px wide), Ideas and My calendar behind it (123px, tilted ∓11°), fading out above the dots; the screens are made-up (Oak Creek Neighborhood, Hub on Hunters with its real photo, Stonehill Neighbors, Torrez Fitness; illustrated covers, no faces). All three panels are 390px tall now so the sheet doesn't jump | No picture | Shows the app at a glance |
 | 166 | **A BETA chip beside every Spark Hub wordmark** (owner, 2026-10-07): 10.5px/900, 1px tracking, 4×8 padding, round; light #f3f1fe with #5b4ae8 (What's Spark Hub?, the start-up splash), dark rgba(255,255,255,.18) with white (Welcome, the brand pill, the sign-in wordmark) | | Spark Hub is in beta |
 | 167 | **Event titles and overviews balance their lines** (owner, 2026-10-07): the big title and the overview on a plan's, an idea's and an It happened page break into even lines | Ragged | |
-| 168 | **Welcome's photo is a park picnic** (owner, 2026-10-07): `photos/welcome-park.jpg` (people at red-checked tables under a tree, the owner's edited version), framed exactly as before (40% 50%, the same 1200×839 shape) | The earlier picnic photo | |
+| 168 | **Welcome's photo is a park picnic** (owner, 2026-10-07): `photos/welcome-park-2.jpg` (people at red-checked tables under a tree, the owner's edited version), framed exactly as before (40% 50%, the same 1200×839 shape) | The earlier picnic photo | |
 
 ## 2. Things the build had to invent (please design these properly)
 
