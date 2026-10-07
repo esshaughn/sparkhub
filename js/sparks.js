@@ -1202,6 +1202,11 @@
     const ask = () => setState({ confirm: null, fb: { text: 'I’d like a group for ', kind: 'group' } });
     if (state.email) ask(); else { setState({ confirm: null }); openLogin('profile', ask); }
   };
+  // Not built yet → REQUEST (owner, 2026-10-07; it was a SOON chip and a Coming soon toast): the gold chip, and a tap opens
+  // "{Feature} isn't here yet" with Request it, which opens Give feedback as a feature request
+  const REQ_CHIP = '<span data-request-chip style="display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:999px;background:#fff4dc;color:#8f6405;font-size:10.5px;font-weight:900;letter-spacing:.6px">REQUEST</span>';
+  const requestFeature = (name, plural) => setState({ menu: null, dayTypePop: null, confirm: { title: name + (plural ? ' aren’t' : ' isn’t') + ' here yet', body: 'Spark Hub is still new, and we build what people ask for. Want this one? Let Eric know.',
+    cta: 'Request it', run: () => setState({ confirm: null, fb: { text: 'I’d use it for ', kind: 'feature', feature: name } }), keep: 'Not now', x: true, z: 52 } });
   const startGroup = () => setState({ menu: null, pplAdd: false, joinOpen: false, confirm: { title: 'Groups start by request', body: 'Spark Hub is still new, and we’re building it as we go. Tell us who your group is for and Eric will take a look. You can join any group with its code or link.', cta: 'Request a group', run: askForGroup, keep: 'Not now', x: true } });
   const submitStartGroup = async () => {
     const name = titleCase(state.startName || '').slice(0, 40);
@@ -3381,8 +3386,7 @@
       '<div style="display:flex;align-items:center;justify-content:space-between;padding:0 6px 8px"><h3 style="margin:0;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">Add a group</h3>' + closeX(close) + '</div>' +
       '<div style="display:flex;flex-direction:column">' +
         row('Join a group', 'Have a code or link?', svg(19, stroke('#0d1117', 2.2), '<rect x="3" y="7" width="18" height="10" rx="2"/><path d="M7 12h.01M11 12h.01M15 12h.01"/>'), () => { setState({ pplAdd: false }); openJoin(); }) +
-        row('Start a group', 'For a team, a block, a crew', svg(19, stroke('#0d1117', 2.4), '<path d="M12 5v14M5 12h14"/>'), startGroup,
-          '<span style="padding:2px 7px;border-radius:999px;background:#fdf1d6;color:#8f6405;font-size:10.5px;font-weight:900;letter-spacing:.6px">SOON</span>') +
+        row('Start a group', 'For a team, a block, a crew', svg(19, stroke('#0d1117', 2.4), '<path d="M12 5v14M5 12h14"/>'), startGroup, REQ_CHIP) +
       '</div>', 45);
   }
 
@@ -4847,11 +4851,11 @@
         shot = state.me + '/' + uuid() + '.jpg';
         must(await sb.storage.from(SHOT_BUCKET).upload(shot, f.shot.blob, { contentType: 'image/jpeg', upsert: false }));
       }
-      const row = { body: f.text.trim().slice(0, 1000), screen: String(state.screen || '').slice(0, 60), context: f.kind === 'group' ? { request: 'group' } : fbContext() };   // a group request sends no device details
+      const row = { body: f.text.trim().slice(0, 1000), screen: String(state.screen || '').slice(0, 60), context: f.kind === 'group' ? { request: 'group' } : f.kind === 'feature' ? { request: 'feature', feature: String(f.feature || '').slice(0, 60) } : fbContext() };   // a group request sends no device details
       if (shot) row.shot = shot;
       must(await sb.from('feedback').insert(row));
       if (f.shot) URL.revokeObjectURL(f.shot.url);
-      setState({ busy: null, fb: { text: '', sent: true, kind: state.fb && state.fb.kind } });
+      setState({ busy: null, fb: { text: '', sent: true, kind: state.fb && state.fb.kind, feature: state.fb && state.fb.feature } });
       if (state.demoAdmin) loadFeedback();
     } catch (e) {   // what they typed (and the screenshot) stays
       console.error(e);
@@ -4869,19 +4873,19 @@
       ? '<div style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:10px 4px 4px;text-align:center">' +
           '<span style="position:relative;display:flex">' + ericFace(64) + '<span style="position:absolute;right:-4px;bottom:-4px;width:26px;height:26px;border-radius:999px;background:#149a4b;box-shadow:0 0 0 3px #fff;display:flex;align-items:center;justify-content:center">' + I.check(14, '#fff', 3) + '</span></span>' +
           '<h3 style="margin:6px 0 0;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">Thank you!</h3>' +
-          '<p style="margin:0;font-size:15px;line-height:1.45;font-weight:500;color:#5c6270;text-wrap:pretty">' + (f.kind === 'group' ? 'Got it. I’ll look at your request and get back to you.' : 'Got it. This really helps me figure out what to build next.') + '</p>' +
+          '<p style="margin:0;font-size:15px;line-height:1.45;font-weight:500;color:#5c6270;text-wrap:pretty">' + (f.kind === 'group' ? 'Got it. I’ll look at your request and get back to you.' : f.kind === 'feature' ? 'Got it. Thanks for the idea.' : 'Got it. This really helps me figure out what to build next.') + '</p>' +
           '<button type="button" ' + on(close) + ' style="margin-top:8px;width:100%;min-height:52px;border:0;border-radius:999px;background:#0d1117;color:#fff;font-family:inherit;font-size:16px;font-weight:800;cursor:pointer">Done</button></div>'
       // v8-2 (1a): eyebrow and title beside Eric's photo, one plain line, no prompt list
       : '<div style="display:flex;align-items:flex-start;gap:12px">' + ericFace(48) +
-          '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px"><span style="font-size:11.5px;font-weight:900;letter-spacing:1px;color:#8f6405">' + (f.kind === 'group' ? 'GROUP REQUEST' : 'FEEDBACK WANTED') + '</span>' +
-            '<h3 style="margin:0;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117;text-wrap:balance">' + (f.kind === 'group' ? 'Who’s the group for?' : 'What do you think of the app so far?') + '</h3></div>' +
+          '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px"><span style="font-size:11.5px;font-weight:900;letter-spacing:1px;color:#8f6405">' + (f.kind === 'group' ? 'GROUP REQUEST' : f.kind === 'feature' ? 'FEATURE REQUEST' : 'FEEDBACK WANTED') + '</span>' +
+            '<h3 style="margin:0;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117;text-wrap:balance">' + (f.kind === 'group' ? 'Who’s the group for?' : f.kind === 'feature' ? esc(f.feature || 'A new feature') : 'What do you think of the app so far?') + '</h3></div>' +
           '<span ' + on(close) + ' style="flex:0 0 auto;display:flex;align-items:center;min-height:32px;font-size:15px;font-weight:800;color:#6b7280;cursor:pointer">Cancel</span></div>' +
-        '<p style="margin:0;font-size:15.5px;line-height:1.45;font-weight:600;color:#2a2f38;text-wrap:pretty">' + (f.kind === 'group' ? 'A team, a block, a club, a few friends? Say a little about it and I’ll get back to you.' : 'Tell me honestly: what’s working and what would make it better?') + '</p>' +
+        '<p style="margin:0;font-size:15.5px;line-height:1.45;font-weight:600;color:#2a2f38;text-wrap:pretty">' + (f.kind === 'group' ? 'A team, a block, a club, a few friends? Say a little about it and I’ll get back to you.' : f.kind === 'feature' ? 'How would you use it? It helps me decide what to build next.' : 'Tell me honestly: what’s working and what would make it better?') + '</p>' +
         '<textarea rows="6" maxlength="1000" aria-label="Your feedback" placeholder="Write as much or as little as you like." ' + onInput(e => { if (e.type === 'input') setState({ fb: Object.assign({}, state.fb, { text: e.target.value.slice(0, 1000) }) }); }) +
           ' style="width:100%;box-sizing:border-box;min-height:140px;padding:14px;border:2px solid #dcdfe6;border-radius:16px;font-family:inherit;font-size:16px;font-weight:500;line-height:1.4;color:#0d1117;resize:none;outline:none">' + esc(f.text) + '</textarea>' +
         // A screenshot they took with the phone's buttons (a web page can't take one itself). A group request has neither the
         // screenshot nor the Sent with line (owner, 2026-10-07): it isn't a bug report. Guests can't attach one (it needs an account)
-        (f.kind === 'group' || !state.email ? '' : f.shot
+        (f.kind || !state.email ? '' : f.shot
           ? '<div data-fb-shot style="display:flex;align-items:center;gap:12px;padding:8px 10px 8px 8px;border-radius:16px;background:#f4f5f7">' +
               '<span ' + on(() => setState({ zoom: { photos: [f.shot.url], i: 0 } })) + ' aria-label="See the screenshot" style="flex:0 0 44px;width:44px;height:64px;border-radius:8px;background:#dcdfe6 url(' + f.shot.url + ') center/cover;cursor:zoom-in"></span>' +
               '<span style="flex:1;min-width:0;font-size:14.5px;font-weight:800;color:#0d1117">Screenshot added</span>' +
@@ -4890,7 +4894,7 @@
               svg(17, stroke('currentColor', 2.2), CAMERA) + 'Add a screenshot<span style="font-weight:600;color:#8a909b">(optional)</span>' +
               '<input type="file" accept="image/*" aria-label="Add a screenshot" ' + onInput(e => { if (e.type !== 'change') return; const fl = (e.target.files || [])[0]; e.target.value = ''; pickFbShot(fl); }) + ' style="display:none"></label>') +
         // Said plainly: what comes along with it
-        (f.kind === 'group' ? '' : '<p data-fb-sent-with style="margin:0;font-size:12.5px;line-height:1.45;font-weight:600;color:#8a909b;text-wrap:pretty">Sent with: ' + esc(deviceName(navigator.userAgent) + ' · ' + (STANDALONE ? 'Home Screen app' : 'browser') + ' · ' + fbWhere()) + '. Your last few taps and any errors come along too, to help track down glitches.</p>') +
+        (f.kind ? '' : '<p data-fb-sent-with style="margin:0;font-size:12.5px;line-height:1.45;font-weight:600;color:#8a909b;text-wrap:pretty">Sent with: ' + esc(deviceName(navigator.userAgent) + ' · ' + (STANDALONE ? 'Home Screen app' : 'browser') + ' · ' + fbWhere()) + '. Your last few taps and any errors come along too, to help track down glitches.</p>') +
         '<button type="button" ' + on(sendFeedback) + ' aria-disabled="' + !ok + '" style="width:100%;min-height:52px;border:0;border-radius:999px;background:' + (ok ? '#5b4ae8' : '#dcdfe6') + ';color:' + (ok ? '#fff' : '#8a909b') + ';font-family:inherit;font-size:16px;font-weight:800;cursor:' + (ok ? 'pointer' : 'default') + '">' + (state.busy === 'feedback' ? 'Sending…' : 'Send to Eric') + '</button>';
     return '<div class="v6-scrim" data-scrim="' + reg(close) + '" style="z-index:50">' +
       '<div role="dialog" aria-modal="true" aria-label="Give feedback" data-screen-label="Give feedback" style="position:absolute;left:0;right:0;bottom:0;max-height:min(90%, calc(100% - 24px - var(--sat)));overflow:auto;background:#fff;border-radius:24px 24px 0 0;padding:10px 16px calc(22px + env(safe-area-inset-bottom, 0px));display:flex;flex-direction:column;gap:16px;animation:sheetUp 320ms cubic-bezier(.2,.8,.2,1) both">' +
@@ -7777,7 +7781,6 @@
   const meVisits = () => +(meAlertGet('visits') || 0);
   let meVisitCounted = false;
   const countMeVisit = () => { if (meVisitCounted) return; meVisitCounted = true; try { localStorage.setItem(ME_ALERT_KEY + 'visits', String(meVisits() + 1)); } catch (e) { /* not counted */ } };
-  const soonToast = () => toast('Coming soon', 'soon');
   const openFeedback = () => setState({ fb: { text: '', nudge: !!state.fbHint }, fbHint: false });
 
   const GRAPH_BG = 'background-color:#f5f9fe;background-image:linear-gradient(#dfeaf7 1px,transparent 1px),linear-gradient(90deg,#dfeaf7 1px,transparent 1px);background-size:18px 18px';
@@ -8652,20 +8655,19 @@
         stuff('draft', '#c9ccd3', 'Drafts', L.drafts.length, 0) + stuff('idea', '#f5b428', 'Ideas', L.ideas.length, 1) +
         stuff('lead', '#5b4ae8', 'Leading', L.lead.length, 2) + stuff('past', '#6b7280', 'Past', L.past.length, 3) +
       '</div></div></div>';
-    // Settings and Help & info rows: a gray icon square, the title (SOON chip), a line under it
-    const SOON = '<span style="display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:999px;background:#fff4dc;color:#8f6405;font-size:10.5px;font-weight:900;letter-spacing:.6px">SOON</span>';
+    // Settings and Help & info rows: a gray icon square, the title (REQUEST chip for what isn't built yet), a line under it
     const row = (icon, title, sub, fn, k, soon, href) => (href ? '<a href="' + href + '" target="_blank" rel="noopener"' : '<div ' + on(fn)) + ' aria-label="' + esc(title) + '" data-me-row="' + esc(title) + '" class="hov-row" style="display:flex;align-items:center;gap:12px;min-height:54px;padding:8px 14px;' + (k ? 'border-top:1px solid #f0f1f4;' : '') + 'cursor:pointer;text-decoration:none">' +
       '<span style="flex:0 0 34px;width:34px;height:34px;border-radius:10px;background:#f2f3f6;color:#454b55;display:flex;align-items:center;justify-content:center">' + svg(18, stroke('currentColor', 2), icon) + '</span>' +
-      '<div style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="display:flex;align-items:center;gap:8px;font-size:15.5px;font-weight:800;color:#0d1117">' + esc(title) + (soon ? SOON : '') + '</span>' + (sub ? '<span style="font-size:12.5px;font-weight:600;color:#6b7280">' + esc(sub) + '</span>' : '') + '</div>' +
+      '<div style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="display:flex;align-items:center;gap:8px;font-size:15.5px;font-weight:800;color:#0d1117">' + esc(title) + (soon ? REQ_CHIP : '') + '</span>' + (sub ? '<span style="font-size:12.5px;font-weight:600;color:#6b7280">' + esc(sub) + '</span>' : '') + '</div>' +
       I.chevR(14, '#b9bcc4', 2.6) + (href ? '</a>' : '</div>');
     const group = (label, rows) => '<span style="padding:8px 6px 0;font-size:13px;font-weight:900;letter-spacing:1px;color:#6b7280">' + label + '</span><div style="background:#fff;border-radius:20px;box-shadow:0 1px 3px rgba(15,18,25,.08);overflow:hidden">' + rows + '</div>';
     meSettingsRows = () => (
       row('<path d="M6 16.5V11a6 6 0 1 1 12 0v5.5l1.6 2H4.4L6 16.5Z"/><path d="M10 21a2.2 2.2 0 0 0 4 0"/>', 'Notifications', 'Events, updates, reminders', () => setState({ nSettings: true }), 0) +
-      row('<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>', 'Sync to your calendar', 'Google Calendar', soonToast, 1, true) +
+      row('<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>', 'Sync to your calendar', 'Google Calendar', () => requestFeature('Sync to your calendar'), 1, true) +
       (installMode() ? row('<path d="M4 11.5 12 5l8 6.5V20H4z"/><path d="M10 20v-5h4v5"/>', 'Get the Spark Hub app', installMode() === 'inapp' ? 'Open this page in your browser first' : installMode() === 'prompt' ? 'Install it on this ' + DEVICE : 'A few taps in ' + IOS_BROWSER + '’s Share menu', startInstall, 1) : ''));
     const help = group('HELP &amp; INFO',
       row('<path d="M5 5h14a1.5 1.5 0 0 1 1.5 1.5v9A1.5 1.5 0 0 1 19 17H10l-4.5 3.5V17H5a1.5 1.5 0 0 1-1.5-1.5v-9A1.5 1.5 0 0 1 5 5Z"/>', 'Send feedback to Eric', '', openFeedback, 0) +
-      row('<circle cx="12" cy="12" r="8.75"/><path d="m15.6 8.4-2.2 5-5 2.2 2.2-5 5-2.2Z"/>', 'Take the tour', 'The five tabs, in a minute', soonToast, 1, true) +
+      // Take the tour is gone (owner, 2026-10-07): parked since Oct 3, and What's Spark Hub? covers it
       row('<circle cx="12" cy="12" r="8.75"/><path d="M9.6 9.3a2.5 2.5 0 0 1 4.8 1c0 1.7-2.4 2.1-2.4 3.4M12 16.6h.01"/>', 'How Spark Hub works', 'What it is and who’s behind it', openAbout, 1));
     // Privacy moved to Settings › ACCOUNT (Design v8 prototype); one line
     meAccountRows = () => row('<path d="M12 3 5 6v5c0 4.4 3 8.3 7 9.5 4-1.2 7-5.1 7-9.5V6z"/>', 'Privacy', '', null, 0, false, '/privacy.html');
@@ -9481,8 +9483,8 @@
     // Recurring is Coming soon (Design, HANDOFF v8-8 Answered Oct 6; Runs across days back since 2026-10-07): dimmed, the amber toast. One
     // that already is one (made before) still shows as picked and can be changed to another
     return popCard('How long is it?', close, 'How long is it?', '', '<div role="radiogroup" aria-label="How long is it?" style="display:flex;flex-direction:column;gap:8px">' + DAY_TYPES.map(([v, t1, t2]) => { const onIt = cur === v, soon = SOON_TYPES.indexOf(v) > -1 && !onIt;
-      if (soon) t2 = 'Coming soon';
-      return '<div ' + on(() => soon ? toast(t1 + ' is coming soon', 'soon') : pick(v), 'radio') + ' aria-checked="' + onIt + '"' + (soon ? ' data-soon' : '') + ' data-day-type-opt="' + v + '" style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:16px;background:' + (onIt ? '#f3f1fe' : '#fff') + ';box-shadow:inset 0 0 0 ' + (onIt ? '2px #5b4ae8' : '1.5px #dcdfe6') + ';cursor:pointer' + (soon ? ';opacity:.5' : '') + '">' +
+      if (soon) t2 = REQ_CHIP;
+      return '<div ' + on(() => soon ? requestFeature(t1 === 'Recurring event' ? 'Recurring events' : t1, t1 === 'Recurring event') : pick(v), 'radio') + ' aria-checked="' + onIt + '"' + (soon ? ' data-soon' : '') + ' data-day-type-opt="' + v + '" style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:16px;background:' + (onIt ? '#f3f1fe' : '#fff') + ';box-shadow:inset 0 0 0 ' + (onIt ? '2px #5b4ae8' : '1.5px #dcdfe6') + ';cursor:pointer' + (soon ? ';opacity:.5' : '') + '">' +
         '<span style="flex:0 0 40px;width:40px;height:40px;border-radius:12px;background:' + (onIt ? '#5b4ae8' : '#f2f3f6') + ';color:' + (onIt ? '#fff' : '#454b55') + ';display:flex;align-items:center;justify-content:center">' + svg(18, stroke('currentColor', 2.2), DAY_TYPE_IC[v]) + '</span>' +
         '<span style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:15.5px;font-weight:900;color:' + (onIt ? '#5b4ae8' : '#0d1117') + '">' + t1 + '</span><span style="font-size:13px;font-weight:600;color:#6b7280">' + t2 + '</span></span>' +
         '<span aria-hidden="true" style="flex:0 0 22px;width:22px;height:22px;box-sizing:border-box;border-radius:999px;border:' + (onIt ? '6px solid #5b4ae8' : '1.5px solid #c9ccd3') + '"></span></div>'; }).join('') + '</div>' +

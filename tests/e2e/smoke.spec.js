@@ -538,13 +538,23 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
     await expect(profile.locator('[data-stuff]')).toHaveCount(5);   // My tasks (v8-4), then Drafts · Ideas · Leading · Past
     await expect(profile).toContainText('HELP & INFO');
     await expect(profile).not.toContainText('Hosted');
-    // Settings is a slide-up from Me's floating gear (v8-9); Coming soon rows toast with the amber triangle
+    // Settings is a slide-up from Me's floating gear (v8-9)
     await expect(page.locator('[data-add-fab]')).toHaveCount(0);   // no + menu on Me
     await page.locator('[data-me-settings]').click();
     await expect(page.locator('[data-me-settings]')).toHaveCount(0);   // hidden while Settings is open
     const settings = page.getByRole('dialog', { name: 'Settings' });
+    // What isn't built yet carries a REQUEST chip; a tap offers Request it, a feature request in Give feedback (owner, 2026-10-07)
+    await expect(settings.locator('[data-me-row="Sync to your calendar"] [data-request-chip]')).toHaveText('REQUEST');
     await settings.getByRole('button', { name: 'Sync to your calendar' }).click();
-    await expect(page.getByRole('status')).toContainText('Coming soon');
+    const req = page.getByRole('alertdialog', { name: 'Sync to your calendar isn’t here yet' });
+    await expect(req).toContainText('we build what people ask for');
+    await req.getByRole('button', { name: 'Request it' }).click();
+    const freq = page.getByRole('dialog', { name: 'Give feedback' });
+    await expect(freq).toContainText('FEATURE REQUEST');
+    await expect(freq).toContainText('Sync to your calendar');
+    await expect(freq.locator('[data-fb-add-shot]')).toHaveCount(0);
+    await freq.getByRole('button', { name: 'Cancel' }).click();
+    await expect(freq).toHaveCount(0);
     // Notification settings (Settings → Notifications) opens over Me
     await settings.locator('[data-me-row="Notifications"]').click();
     await expect(page.getByRole('dialog', { name: 'Notification settings' })).toBeVisible();
