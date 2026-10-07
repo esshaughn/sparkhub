@@ -1877,7 +1877,7 @@
   const makePlan = (s) => {
     const n = s.interested.length;
     setState({ confirm: { title: 'Make it a plan?', green: true, cta: 'Make it a plan', keep: 'Not yet',
-      body: 'It’s on for ' + whenLong(s) + '. ' + (n ? (n === 1 ? 'The 1 person who’s interested shows as going.' : 'The ' + n + ' people who are interested show as going.') : 'Anyone who joins shows as going.') + ' It goes on the calendar.',
+      body: 'It’s on for ' + whenLong(s) + '. ' + (n ? (n === 1 ? 'The 1 person who’s interested shows as Maybe, and we let them know.' : 'The ' + n + ' people who are interested show as Maybe, and we let them know.') : 'People can RSVP once it’s a plan.') + ' It goes on the calendar.',
       run: () => run(async () => { must(await sb.rpc('make_plan', { p_spark: s.id })); }, { confirm: null }) } });
   };
   const clearPlan = (s) => {
@@ -3461,7 +3461,7 @@
         : !s.dayDate && top && top.votes.length ? { act: monthDay(top.dayDate) + ' has ' + top.votes.length + (top.votes.length === 1 ? ' vote' : ' votes'), cta: 'Pick', go: () => openToSection(s, 'sec-when') }
         : !s.dayDate ? { act: 'Needs a date to make it a plan', cta: 'Add date', go: () => openToSection(s, 'sec-when') }
         : s.dayDate < todayISO() ? { act: 'That date has passed', cta: 'New date', go: onPage(() => openSec(s, 'when')) }
-        : { act: 'It’s all set', cta: 'Make it a plan', go: onPage(() => makePlan(s)) };
+        : { act: 'It’s all set', cta: 'Make it a plan', go: () => planFromIdea(s) };   // Review, like the idea page's Make it a plan!
       return [next].concat(s.wantsHost ? [] : jobActs(s, onPage));
     }
     if (ph === 'done') {
@@ -7717,6 +7717,11 @@
     const who = (st.myName || 'Someone').slice(0, 40);
     const dates = (q.dpoll || (q.date ? [q.date] : [])).filter(o => o && o.d).filter((o, i, a) => a.findIndex(x => x.d === o.d && x.t === o.t) === i);
     const spots = (q.lpoll || (cleanTitle(q.loc || '') ? [q.loc] : [])).map(v => cleanTitle(v).slice(0, 80)).filter(Boolean).filter((v, i, a) => a.indexOf(v) === i);
+    // Set date / Set location (not a poll) are the idea's date and place (audit 2026-10-07: they went in as a lone
+    // suggestion, so the starter's own date showed as "Suggested · Pick"). A part of day stays as its one option, since
+    // sparks has no day_part; the When? card reads it from there
+    const setD = !q.dpoll && dates.length === 1 ? dates[0] : null, setLoc = !q.lpoll && spots.length === 1 ? spots[0] : null;
+    const optDates = setD && PARTS.indexOf(setD.t) < 0 ? [] : dates, optSpots = setLoc ? [] : spots;
     let id = null, path = null;
     setState({ busy: 'post' });
     (async () => {
@@ -7724,14 +7729,14 @@
         await ensureSession();
         if (q.photo) path = await uploadBlob(q.photo.blob);
         const row = { group_id: groups[0], author_name: st.myName, text: title, hopes: [], vision: null, overview: q.why.trim().slice(0, 120) || null,
-          photos: path ? [path] : [], cat: 'events', answers: {}, lead_id: st.me, lead_name: st.myName, created_by: st.me, spot: null, spot_open: true,
+          photos: path ? [path] : [], cat: 'events', answers: {}, lead_id: st.me, lead_name: st.myName, created_by: st.me, spot: setLoc, spot_open: !setLoc, day_date: setD ? setD.d : null, day_time: setD && /^\d\d:\d\d$/.test(setD.t || '') ? setD.t : null,
           planned: false, visibility: 'group', wants_host: q.rule !== 'me', talk: !!q.talk, lead_rule: 'me' };   // Who leads it (v8-8): Me leads from the start; I'll decide looks for a lead and the starter picks (Anyone is gone)
         try { id = must(await sb.from('sparks').insert(row).select('id').single()).data.id; } catch (e) { if (path) deletePhotos([path]); throw e; }
         try {
           const rest = [];
           if (groups.length > 1) rest.push(sb.from('spark_groups').insert(groups.slice(1).map(g => ({ spark_id: id, group_id: g }))).then(must));
-          if (dates.length) rest.push(sb.from('date_options').insert(dates.map(o => ({ spark_id: id, day_date: o.d, day_time: /^\d\d:\d\d$/.test(o.t || '') ? o.t : null, day_part: PARTS.indexOf(o.t) > -1 ? o.t : null, who }))).then(must));
-          if (spots.length) rest.push(sb.from('spot_options').insert(spots.map(v => ({ spark_id: id, name: v, who }))).then(must));
+          if (optDates.length) rest.push(sb.from('date_options').insert(optDates.map(o => ({ spark_id: id, day_date: o.d, day_time: /^\d\d:\d\d$/.test(o.t || '') ? o.t : null, day_part: PARTS.indexOf(o.t) > -1 ? o.t : null, who }))).then(must));
+          if (optSpots.length) rest.push(sb.from('spot_options').insert(optSpots.map(v => ({ spark_id: id, name: v, who }))).then(must));
           const done = await Promise.allSettled(rest), bad = done.find(r => r.status === 'rejected');
           if (bad) throw bad.reason;
         } catch (e) { await sb.from('sparks').delete().eq('id', id); if (path) deletePhotos([path]); throw e; }
@@ -7921,21 +7926,42 @@
     const sugD = () => st8 ? ipPop({ k: 'edit', kind: 'd', id: s.id }) : ipPop({ k: 'sugD', id: s.id, d: '', t: '' });
     const sugL = () => st8 ? ipPop({ k: 'edit', kind: 'l', id: s.id }) : ipPop({ k: 'sugL', id: s.id, v: '' });
     const dLabel = lead || st8 ? 'Add a date' : 'Suggest a date', lLabel = lead || st8 ? 'Add a location' : 'Suggest a location';
-    if (!dates.length && !locs.length) return '<div style="display:flex;flex-direction:column;gap:12px">' + dashedCard(sugD, CAL_P, 'When?', dLabel, 'data-when-empty') + dashedCard(sugL, PIN_P, 'Where?', lLabel, 'data-where-empty') + '</div>';
-    const when = dates.length ? '<div style="' + CARD8 + '" data-when>' +
+    // A date or location the lead picked (or set) is the answer: the poll closes and When? / Where? show it (audit
+    // 2026-10-07: they read only the suggestions, so "Add a date" sat under Make this a plan's ticked Date)
+    const when = s.dayDate ? setWhen(s, st8) : dates.length ? '<div style="' + CARD8 + '" data-when>' +
         '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px">' + ideaH('When?') +
           (st8 ? editLink8(() => ipPop({ k: 'edit', kind: 'd', id: s.id }), 'data-edit-dates') : dates.length > 2 ? '<span ' + on(() => ipPop({ k: 'allDates', id: s.id })) + ' style="display:flex;align-items:center;gap:2px;min-height:36px;font-size:14px;font-weight:700;color:#6b7280;cursor:pointer">View all ' + dates.length + I.chevR(14, 'currentColor', 2.6) + '</span>' : '') + '</div>' +
         (poll ? '<span style="margin-top:-6px;font-size:14px;font-weight:600;color:#6b7280">Choose all dates you could attend.</span>' : '') +
         '<div style="margin:0 -16px;padding:4px 16px 8px;display:flex;gap:10px;overflow-x:auto;scrollbar-width:none;scroll-snap-type:x mandatory;scroll-padding:0 16px">' + dates.map(o => poll ? calPage(s, o, dates.length) : calPage1(o)).join('') + '</div>' +
         holdLine(s) + (st8 ? !poll ? '' : seeVotes(() => ipPop({ k: 'votes', kind: 'd', id: s.id })) : '<div style="display:flex;align-items:center;margin-top:-4px"><span ' + on(sugD) + ' style="display:flex;align-items:center;min-height:36px;font-size:14px;font-weight:800;color:#8f6405;cursor:pointer">+ ' + dLabel + '</span></div>') + '</div>'
       : dashedCard(sugD, CAL_P, 'When?', dLabel, 'data-when-empty');
-    const where = locs.length ? '<div style="' + CARD8 + '" data-where>' +
+    const where = s.spot ? setWhere(s, st8) : locs.length ? '<div style="' + CARD8 + '" data-where>' +
         '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px">' + ideaH('Where?') + (st8 ? editLink8(() => ipPop({ k: 'edit', kind: 'l', id: s.id }), 'data-edit-locs') : '') + '</div>' +
         '<div style="display:flex;flex-direction:column;gap:8px">' + locs.map(o => lpoll ? locRow(s, o) : locRow1(o)).join('') + '</div>' +
         (st8 ? !lpoll ? '' : seeVotes(() => ipPop({ k: 'votes', kind: 'l', id: s.id })) : '<span ' + on(sugL) + ' style="align-self:flex-start;font-size:14px;font-weight:800;color:#8f6405;cursor:pointer">+ ' + lLabel + '</span>') + '</div>'
       : dashedCard(sugL, PIN_P, 'Where?', lLabel, 'data-where-empty');
-    return when + where;
+    return '<div id="sec-when" style="display:flex;flex-direction:column;gap:12px">' + when + where + '</div>';
   };
+  // The picked date's part of day lives on its option (sparks has no day_part), so it's looked up there
+  const setPart = (s) => { if (s.dayTime) return ''; const o = s.dateOpts.find(x => x.dayDate === s.dayDate && !x.dayTime && x.dayPart); return o ? timeLabel(o.dayPart) : ''; };
+  const setChip = (t) => '<span style="display:flex;align-items:center;gap:5px;font-size:13px;font-weight:800;color:#8f6405">' + svg(13, stroke('#b07a0a', 3.2), '<path d="m5 12.5 4.5 4.5L19 7.5"/>') + t + '</span>';
+  const pickedBy = (s) => runsIdea(s) ? 'You picked it' : (s.wantsHost ? starterFirst(s) : firstName(nameOf(s.leadId, s.leadName)) || 'The lead') + ' picked it';
+  const setWhen = (s, st8) => { const t = s.dayTime ? fmtTime(s.dayTime) : setPart(s), past = s.dayDate < todayISO();
+    return '<div style="' + CARD8 + '" data-when data-when-set>' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px">' + ideaH('When?') +
+        (st8 ? '<span ' + on(() => openPick(s, 'd')) + ' data-change-date style="display:flex;align-items:center;min-height:36px;font-size:14px;font-weight:800;color:#8f6405;cursor:pointer">' + EDIT_PEN + 'Change</span>' : '') + '</div>' +
+      '<div style="display:flex;align-items:center;gap:14px">' +
+        '<span data-cal-page="' + s.dayDate + '" style="flex:0 0 84px;display:flex;flex-direction:column;border-radius:12px;overflow:hidden;background:#fff;box-shadow:0 0 0 2.5px #f5b428,0 2px 6px rgba(13,17,23,.14)">' +
+          '<span style="background:#f5b428;padding:5px 0;text-align:center;font-size:12px;font-weight:900;letter-spacing:1px;color:#2a1d00">' + new Date(s.dayDate + 'T12:00').toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase() + '</span>' +
+          '<span style="padding:9px 4px;text-align:center;font-size:22px;line-height:1.05;font-weight:900;color:#0d1117">' + monthDay(s.dayDate) + '</span></span>' +
+        '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px"><span style="font-size:18px;font-weight:900;color:#0d1117">' + esc(fmtDay(s.dayDate)) + '</span>' +
+          '<span style="font-size:14px;font-weight:700;color:' + (past ? '#9b1c31' : '#6b7280') + '">' + (past ? 'That date has passed' : esc(t || 'Time to be decided')) + '</span>' + (past ? '' : setChip(pickedBy(s))) + '</div></div></div>'; };
+  const setWhere = (s, st8) => '<div style="' + CARD8 + '" data-where data-where-set>' +
+    '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px">' + ideaH('Where?') +
+      (st8 ? '<span ' + on(() => openPick(s, 'l')) + ' data-change-loc style="display:flex;align-items:center;min-height:36px;font-size:14px;font-weight:800;color:#8f6405;cursor:pointer">' + EDIT_PEN + 'Change</span>' : '') + '</div>' +
+    '<div style="display:flex;align-items:center;gap:14px"><span style="flex:0 0 44px;width:44px;height:44px;border-radius:999px;background:#f5b428;display:flex;align-items:center;justify-content:center">' + svg(22, stroke('#2a1d00', 2.3), PIN_P) + '</span>' +
+      '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px"><span style="font-size:18px;font-weight:900;color:#0d1117">' + esc(s.spot) + '</span>' +
+        (s.spotAddress && s.spotAddress !== s.spot ? '<span style="font-size:13.5px;font-weight:600;color:#6b7280">' + esc(s.spotAddress) + '</span>' : '') + setChip(pickedBy(s)) + '</div></div></div>';
   // Members: I'm interested + faces; Help make this a plan; Invite a friend; Talk it through with {starter}
   const showTalk = (s) => s.talk && s.wantsHost && !runsIdea(s);   // a led idea's sheet drops Talk it through (Q31 1a)
   const talkLine = (s) => starterFirst(s) + ' is looking for someone to brainstorm about this idea.';
@@ -7948,7 +7974,7 @@
     toggleInterest(s);
     if (!was && state.email) {
       if (state.ip && state.ip.id === s.id) setState({ ip: Object.assign(state.ip, { exp: true }) });
-      if (s.dateOpts.length > 1) ipPop({ k: 'voteAsk', id: s.id });   // one date isn't a poll (v8-8)
+      if (s.dateOpts.length > 1 && !s.dayDate) ipPop({ k: 'voteAsk', id: s.id });   // one date isn't a poll (v8-8); a picked date closes it
       toast('You’re interested. ' + starterFirst(s) + ' will see it.', true);
     }
   };
@@ -7983,8 +8009,8 @@
     '<div style="display:flex;align-items:center;gap:6px">' + ideaH('Help make this a plan') +
       '<span ' + on(() => ipPop({ k: 'whatPlan' })) + ' aria-label="What’s a plan?" style="width:32px;height:32px;margin:-6px 0;display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(18, stroke('#6b7280', 2.2), '<circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".6" fill="#6b7280"/>') + '</span></div>' +
     helpRow(() => share8(s), '<circle cx="9" cy="8.5" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M18 8v6M15 11h6"/>', 'Invite a friend', true) +
-    helpRow(() => s.dateOpts.length > 1 ? ipPop({ k: 'dates', id: s.id }) : ipPop({ k: 'sugD', id: s.id, d: '', t: '' }), CAL_P, s.dateOpts.length > 1 ? 'Vote on a date' : 'Suggest a date') +
-    helpRow(() => ipPop({ k: 'sugL', id: s.id, v: '' }), PIN_P, 'Suggest a location') + leadRow8(s) +
+    (s.dayDate ? '' : helpRow(() => s.dateOpts.length > 1 ? ipPop({ k: 'dates', id: s.id }) : ipPop({ k: 'sugD', id: s.id, d: '', t: '' }), CAL_P, s.dateOpts.length > 1 ? 'Vote on a date' : 'Suggest a date')) +   // the date or place is picked: nothing to vote on
+    (s.spot ? '' : helpRow(() => ipPop({ k: 'sugL', id: s.id, v: '' }), PIN_P, 'Suggest a location')) + leadRow8(s) +
     (showTalk(s) ? helpRow(() => ipPop({ k: 'talk', id: s.id }), '<path d="M5 18l-1.5 3 4-1.6A8 8 0 1 0 5 18z"/><path d="M9 11h6M9 14h4"/>', 'Talk it through with ' + esc(starterFirst(s))) : '') + '</div>';
   const inviteCard8 = (s) => '<div style="' + CARD8 + ';flex-direction:row;align-items:center;padding:12px 16px"><span style="flex:1;font-size:16px;font-weight:800;color:#0d1117">Invite a friend</span>' +
     '<span ' + on(() => share8(s)) + ' style="display:flex;align-items:center;min-height:40px;padding:0 18px;border-radius:999px;background:#f5b428;color:#2a1d00;font-size:14px;font-weight:800;cursor:pointer">Invite</span></div>';
@@ -8006,7 +8032,9 @@
   const makeThisPlan = (s, slim) => {
     const dates = s.dateOpts, locs = s.spotOpts, tot = dates.reduce((a, o) => a + o.votes.length, 0);
     const top = (arr) => arr.slice().sort((a, b) => b.votes.length - a.votes.length)[0];
-    const topD = top(dates), topL = top(locs), dDone = !!s.dayDate, lDone = !!s.spot, ldDone = leadsIt(s);
+    // Ready = a lead and a date that hasn't passed (planMissing, the owner's rule of 2026-10-02, which make_plan() checks);
+    // the location is optional (it can be decided later), so its row is ticked or not but never holds the button back
+    const topD = top(dates), topL = top(locs), dDone = dateAhead(s), passed = !!s.dayDate && !dDone, lDone = !!s.spot, ldDone = leadsIt(s);
     const helpers = s.canHelp.filter(u => u !== state.me);
     const dot = (done, icon) => '<span style="width:30px;height:30px;flex:0 0 30px;border-radius:999px;background:' + (done ? '#f5b428' : '#fff') + ';display:flex;align-items:center;justify-content:center">' +
       (done ? svg(16, stroke('#2a1d00', 2.3), '<path d="m5 12.5 4.5 4.5L19 7.5"/>') : svg(16, stroke('#b07a0a', 2.3), icon)) + '</span>';
@@ -8015,13 +8043,13 @@
       '<div style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:16px;font-weight:900;color:#0d1117">' + title + '</span><span style="font-size:13px;font-weight:600;color:#6b7280">' + sub + '</span></div>' + a + '</div>';
     const SPARK_P = '<path d="M12 3c.6 4.8 3.2 7.4 8 8-4.8.6-7.4 3.2-8 8-.6-4.8-3.2-7.4-8-8 4.8-.6 7.4-3.2 8-8Z"/>';
     const leadName = iLead(s) ? 'You' : firstName(nameOf(s.leadId, s.leadName));
-    return '<div style="margin:4px;' + GRAPH_BG + ';border-radius:8px;padding:0 16px 14px;overflow:hidden;display:flex;flex-direction:column;gap:4px;transform:rotate(-1deg);box-shadow:0 4px 14px rgba(13,17,23,.14)" data-make-this-plan>' +
+    return '<div id="sec-lead" style="margin:4px;' + GRAPH_BG + ';border-radius:8px;padding:0 16px 14px;overflow:hidden;display:flex;flex-direction:column;gap:4px;transform:rotate(-1deg);box-shadow:0 4px 14px rgba(13,17,23,.14)" data-make-this-plan>' +
       '<div style="position:relative;overflow:hidden;margin:0 -16px 6px;padding:13px 16px 11px;background:linear-gradient(160deg,#fde39a 0%,#fbd56b 55%,#f8c94f 100%)">' + sparkles([[78, 18, 16, '#fff', .9], [88, 54, 9, '#fff', .7], [68, 60, 7, '#d6246e', .8]]) +
         '<span style="position:relative;font-size:26px;font-weight:900;letter-spacing:-.6px;color:#2a1d00">Make this a plan</span></div>' +
       // v8-8 item 4: Date and Location open the Pick pop-up (the options people suggested, or a field when there are none)
-      row(true, dDone, CAL_P, 'Date', dDone ? esc(dayLabel(s.dayDate, s.dayTime)) : topD ? (dates.length === 1 ? 'Suggested: ' + esc(optDay(topD)) : tot ? esc(optDay(topD)) + ' is ahead (' + topD.votes.length + ' of ' + tot + ')' : 'No votes yet') : 'No date yet',
-        act(dDone, dDone ? 'Change' : topD ? 'Pick' : 'Add', () => openPick(s, 'd'), 'data-plan-date')) +
-      row(false, lDone, PIN_P, 'Location', lDone ? esc(s.spot) : topL ? (locs.length === 1 ? 'Suggested: ' + esc(topL.name) : topL.votes.length ? esc(topL.name) + ' is ahead' : 'No votes yet') : 'No location yet',
+      row(true, dDone, CAL_P, 'Date', dDone ? esc(dayLabel(s.dayDate, s.dayTime) + (setPart(s) ? ' · ' + setPart(s) : '')) : passed ? 'That date has passed' : topD ? (dates.length === 1 ? 'Suggested: ' + esc(optDay(topD)) : tot ? esc(optDay(topD)) + ' is ahead (' + topD.votes.length + ' of ' + tot + ')' : 'No votes yet') : 'No date yet',
+        act(dDone, dDone ? 'Change' : passed ? 'New date' : topD ? 'Pick' : 'Add', () => openPick(s, 'd'), 'data-plan-date')) +
+      row(false, lDone, PIN_P, 'Location', lDone ? esc(s.spot) : topL ? (locs.length === 1 ? 'Suggested: ' + esc(topL.name) : topL.votes.length ? esc(topL.name) + ' is ahead' : 'No votes yet') : 'Optional · can be decided later',
         act(lDone, lDone ? 'Change' : topL ? 'Pick' : 'Add', () => openPick(s, 'l'), 'data-plan-loc')) +
       row(false, ldDone, SPARK_P, ldDone ? (iLead(s) ? 'You’re leading it' : esc(nameOf(s.leadId, s.leadName)) + ' is leading it') : 'Choose lead',
         ldDone ? (iLead(s) ? 'You set the details' : 'We let them know') : s.leadAsks.length ? 'Asked ' + esc(s.leadAsks.map(a => firstName(nameOf(a.userId))).join(' and ')) : helpers.length ? esc(helpers.slice(0, 2).map(u => firstName(nameOf(u))).join(' and ')) + ' offered' : 'No offers yet',
@@ -8029,8 +8057,9 @@
         ldDone && !isStarter(s) ? '' : act(ldDone, ldDone ? 'Change' : 'Choose', () => ipPop({ k: 'lead', id: s.id }), 'data-plan-lead')) +
       // v8-8 items 1–3: grey until every row is ticked, then the purple sparkle button, which opens Review prefilled
       (ldDone && !iLead(s) ? '<span style="margin-top:8px;font-size:13.5px;font-weight:600;color:#6b7280">' + esc(leadName) + ' will make it a plan.</span>'
-        : dDone && lDone && ldDone ? planBtn(() => planFromIdea(s)) + (s.interested.length ? '<span style="margin-top:6px;text-align:center;font-size:13px;font-weight:600;color:#6b7280">We’ll tell the ' + (s.interested.length === 1 ? '1 person' : s.interested.length + ' people') + ' interested.</span>' : '')
-        : '<span data-make-it-plan aria-disabled="true" style="margin-top:10px;display:flex;align-items:center;justify-content:center;min-height:54px;border-radius:999px;background:#e2e4e9;font-size:16px;font-weight:900;color:#9aa0ac">' + (!dDone ? 'Add a date first' : !lDone ? 'Add a location first' : 'Choose a lead first') + '</span>') + '</div>';
+        : dDone && ldDone ? planBtn(() => planFromIdea(s)) + (s.interested.length || !lDone ? '<span style="margin-top:6px;text-align:center;font-size:13px;font-weight:600;color:#6b7280">' +
+            [s.interested.length ? 'We’ll tell the ' + (s.interested.length === 1 ? '1 person' : s.interested.length + ' people') + ' interested.' : '', lDone ? '' : 'The location can be decided later.'].filter(Boolean).join(' ') + '</span>' : '')
+        : '<span data-make-it-plan aria-disabled="true" style="margin-top:10px;display:flex;align-items:center;justify-content:center;min-height:54px;border-radius:999px;background:#e2e4e9;font-size:16px;font-weight:900;color:#9aa0ac">' + (!dDone ? (passed ? 'Pick a new date first' : 'Add a date first') : 'Choose a lead first') + '</span>') + '</div>';
   };
   // Make it a plan! (v8-8 item 2): purple to pink, six small sparkles
   const PLAN_GRAD = 'linear-gradient(120deg,#5b4ae8 0%,#7a4fe0 45%,#b04fc4 80%,#d6246e 100%)';
@@ -8144,7 +8173,7 @@
     if (!s && p.k !== 'whatPlan' && p.k !== 'rule') return '';
     const first = s ? starterFirst(s) : '';
     const who = (state.myName || 'Someone').slice(0, 40);
-    if (p.k === 'whatPlan') return popCard('What’s a plan?', close, 'What’s a plan?', '', '<span style="font-size:16px;line-height:1.5;font-weight:500;color:#2a2f38;text-wrap:pretty">An idea becomes a plan once it has a date, a location and someone to lead it. Then people can RSVP and sign up to help.</span>' + goldBtn(close, 'Got it'));
+    if (p.k === 'whatPlan') return popCard('What’s a plan?', close, 'What’s a plan?', '', '<span style="font-size:16px;line-height:1.5;font-weight:500;color:#2a2f38;text-wrap:pretty">An idea becomes a plan once it has a date and someone to lead it. The location can be decided later. Then people can RSVP and sign up to help.</span>' + goldBtn(close, 'Got it'));
     if (p.k === 'rule') return ruleInfo(close);
     if (p.k === 'talk') return popCard('Talk it through', close, 'Talk it through with ' + esc(first), '', '<div style="display:flex;align-items:flex-start;gap:12px">' + avatarSpan(s.createdBy, floaterName(s), avatarOf(s.createdBy), 40) + '<span style="flex:1;font-size:16px;line-height:1.45;font-weight:500;color:#2a2f38;text-wrap:pretty">' + esc(talkLine(s)) + '</span></div>' + contactBtn(s));
     // Vote on a date (Design v8 prototype, Dates sheet): tick rows with who suggested it, voter faces and a vote pill, then + Suggest a date
@@ -8200,7 +8229,9 @@
         has ? (one ? (day ? 'Confirm the suggested date.' : 'Confirm the suggested location.') : day ? 'Choose from the dates people voted on.' : 'Choose from the locations people suggested.') : day ? 'Enter the date it’s happening.' : 'Enter where it’s happening.',
         (has ? '<div role="radiogroup" style="display:flex;flex-direction:column;gap:8px">' + src.map(radioRow).join('') + '</div>'
           : '<div style="display:flex">' + (day ? ideaDateField(p.d, (v) => { p.d = v; render(); }) : ideaPlaceField(p.v, (v) => { const was = !!cleanTitle(p.v || ''); p.v = v; if (was !== !!cleanTitle(v)) render(); }, 'Enter a location')) + '</div>') +
-        '<button type="button" ' + on(confirm) + ' data-pick-confirm aria-disabled="' + !ok + '" style="margin-top:4px;width:100%;min-height:52px;border:0;border-radius:999px;font-family:inherit;font-size:16px;font-weight:900;background:' + (ok ? '#f5b428' : '#e2e4e9') + ';color:' + (ok ? '#2a1d00' : '#9aa0ac') + ';cursor:' + (ok ? 'pointer' : 'default') + '">Confirm</button>'); }
+        '<button type="button" ' + on(confirm) + ' data-pick-confirm aria-disabled="' + !ok + '" style="margin-top:4px;width:100%;min-height:52px;border:0;border-radius:999px;font-family:inherit;font-size:16px;font-weight:900;background:' + (ok ? '#f5b428' : '#e2e4e9') + ';color:' + (ok ? '#2a1d00' : '#9aa0ac') + ';cursor:' + (ok ? 'pointer' : 'default') + '">Confirm</button>' +
+        // Picking closes the poll; with a poll behind it, the pick can be undone and the voting picks up again
+        ((day ? s.dayDate : s.spot) && src.length > 1 ? '<span ' + on(() => { if (state.busy) return; run(async () => { must(await sb.from('sparks').update(day ? { day_date: null, day_time: null, day_end: null } : { spot: null, spot_open: true }).eq('id', s.id)); }, { ipPop: null }).then(done => { if (done) toast('Voting is open again', true); }); }) + ' data-pick-reopen style="align-self:center;display:flex;align-items:center;min-height:40px;font-size:14.5px;font-weight:800;color:#6b7280;cursor:pointer">Undo the pick and keep voting</span>' : '')); }
     if (p.k === 'edit') { const day = p.kind === 'd', src = day ? s.dateOpts.slice().sort(byDate) : s.spotOpts;
       if (!p.keep) { p.keep = src.map(o => o.id); p.add = src.length ? [] : [day ? { d: '', t: '' } : '']; }
       const kept = src.filter(o => p.keep.indexOf(o.id) > -1);

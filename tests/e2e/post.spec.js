@@ -365,7 +365,26 @@ test('polls: the host posts a date poll (an idea), a member votes, the host pick
     await expect(pickD.locator('[data-pick-opt][aria-checked="true"]')).toContainText('1 vote');   // the top one is picked
     await pickD.locator('[data-pick-confirm]').click();
     await expect(H.getByRole('status')).toContainText('Date set');
-    await expect(HI.locator('[data-make-it-plan]')).toHaveText('Add a location first');
+    // The picked date is the answer everywhere (audit 2026-10-07): When? shows it and the poll closes
+    await expect(HI.locator('[data-when-set]')).toContainText('You picked it');
+    await expect(HI.locator('[data-when] [data-cal-page]')).toHaveCount(1);
+    await expect(HI.locator('[data-when]')).not.toContainText('Choose all dates you could attend.');
+    // …and Make it a plan! is ready: a lead and a date; the location can wait (planMissing, owner 2026-10-02)
+    await expect(HI.locator('[data-make-it-plan]')).toContainText('Make it a plan!');
+    await expect(HI.locator('[data-make-this-plan]')).toContainText('The location can be decided later.');
+    // The member sees the picked date, and nothing asks them to vote on one
+    await O.reload();
+    await expect(OI.locator('[data-when-set]')).toContainText('picked it');
+    await expect(OI.locator('[data-help-make-plan]')).not.toContainText(/Vote on a date|Suggest a date/);
+    // Undo the pick: the poll comes back
+    await HI.locator('[data-change-date]').click();
+    await H.getByRole('dialog', { name: 'Pick a date' }).locator('[data-pick-reopen]').click();
+    await expect(H.getByRole('status')).toContainText('Voting is open again');
+    await expect(HI.locator('[data-when] [data-cal-page]')).toHaveCount(2);
+    await expect(HI.locator('[data-make-it-plan]')).toHaveText('Add a date first');
+    await HI.locator('[data-plan-date]').click();
+    await H.getByRole('dialog', { name: 'Pick a date' }).locator('[data-pick-confirm]').click();
+    await expect(HI.locator('[data-when-set]')).toBeVisible();
     await HI.locator('[data-plan-loc]').click();
     const pickL = H.getByRole('dialog', { name: 'Pick a location' });
     await expect(pickL.locator('[data-pick-confirm]')).toHaveAttribute('aria-disabled', 'true');
@@ -676,12 +695,14 @@ test('Float an idea: the Float sheet, a draft, and the starter’s slide-up', as
     await expect(page.getByRole('status')).toContainText('Posted to Torrez Fitness');
     await expect(ip.locator('[data-make-this-plan]')).toContainText('Choose lead');
     id = await asUser(page, async (c, _C, title) => (await c.from('sparks').select('id').eq('text', title).single()).data.id, title);
-    const row = await asUser(page, async (c, _C, id) => (await c.from('sparks').select('wants_host,planned,talk,lead_rule,overview,date_options(day_part),spot_options(name)').eq('id', id).single()).data, id);
-    expect(row).toMatchObject({ wants_host: true, planned: false, talk: true, lead_rule: 'me', overview: 'Bring a kite or borrow one', date_options: [{ day_part: 'evening' }] });
+    const row = await asUser(page, async (c, _C, id) => (await c.from('sparks').select('wants_host,planned,talk,lead_rule,overview,day_date,spot,date_options(day_part),spot_options(name)').eq('id', id).single()).data, id);
+    // Set date sets the idea's date (its part of day stays on its one option); the location poll stays a poll
+    expect(row).toMatchObject({ wants_host: true, planned: false, talk: true, lead_rule: 'me', overview: 'Bring a kite or borrow one', day_date: inDays(9), spot: null, date_options: [{ day_part: 'evening' }] });
     expect(row.spot_options.map(o => o.name).sort()).toEqual(['Butler Park', 'Zilker Park']);
     // Swipe up for more: When? (with the time on its calendar page), Where?, and the starter's settings
     await ip.locator('[data-ip-more]').click();
-    await expect(ip.locator('[data-when] [data-cal-page]')).toContainText('Evening');
+    await expect(ip.locator('[data-when-set]')).toContainText('Evening');
+    await expect(ip.locator('[data-make-this-plan]')).toContainText('· Evening');   // the Date row, ticked
     await expect(ip.locator('[data-where] [data-loc-row]')).toHaveCount(2);
     await expect(ip.locator('[data-idea-post-to]')).toContainText('Torrez Fitness');
     await expect(ip.locator('[data-talk-toggle]')).toHaveAttribute('aria-checked', 'true');
