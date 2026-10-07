@@ -10439,15 +10439,19 @@
       // Help shape Spark Hub (owner, 2026-10-07): feedback wanted, from Eric, for communities. Guests send feedback without signing in
       kick('FEEDBACK WANTED') + h('Help shape Spark Hub') +
         '<div style="display:flex;align-items:center;gap:12px">' + ericFace(56) + '<span style="display:flex;flex-direction:column"><span style="font-size:17px;font-weight:900;color:#0d1117">Eric</span><span style="font-size:13.5px;font-weight:600;color:#6b7280">Spark Hub lead</span></span></div>' +
-        p('I’m building Spark Hub with my neighbors &amp; friends, for communities like yours.') + p('It’s still new. Tell me what works and what doesn’t.') +
-        '<button type="button" data-about-feedback ' + on(() => { setState({ about: null }); openFeedback(); }) + ' style="min-height:52px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16px;font-weight:900;cursor:pointer">Give feedback</button>'
+        p('I’m building Spark Hub with my neighbors &amp; friends, for communities like yours.') + p('It’s still new. Tell me what works and what doesn’t.')
     ];
     const dots = '<div style="display:flex;gap:6px;justify-content:center" aria-hidden="true">' + [0, 1, 2].map(n => '<span style="height:7px;border-radius:999px;background:' + (n === i ? '#0d1117;width:20px' : '#dcdfe6;width:7px') + '"></span>').join('') + '</div>';
     const btn = (label, fn, bg, ink, data) => '<button type="button" ' + data + ' ' + on(fn) + ' style="min-height:52px;border:0;border-radius:999px;background:' + bg + ';color:' + ink + ';font-family:inherit;font-size:16px;font-weight:900;cursor:pointer">' + label + '</button>';
+    // Back and close live at the top (owner, 2026-10-07, layout A): a round ‹ on panels 2-3 and a round ×; the dots sit above
+    // the main button, which is Next, then Give feedback on the last panel (no Got it or Back under it)
+    const round = (label, fn, icon, data) => '<span ' + on(fn) + ' role="button" aria-label="' + label + '" ' + data + ' style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + icon + '</span>';
+    const top = '<div style="display:flex;align-items:center;justify-content:space-between;margin:-4px 0">' +
+      (i > 0 ? round('Back', () => go(i - 1), I.chevL(15, '#0d1117', 2.8), 'data-about-back') : '<span></span>') + round('Close', close, I.x(13, '#0d1117', 2.8), 'data-about-close') + '</div>';
+    const main = i < 2 ? btn('Next', () => go(i + 1), '#f5b428', '#2a1d00', 'data-about-next')
+      : btn('Give feedback', () => { setState({ about: null }); openFeedback(); }, '#5b4ae8', '#fff', 'data-about-feedback');
     return sheet('What’s Spark Hub?', close, SHEET_PAD,
-      '<div data-about-panel="' + (i + 1) + '" style="display:flex;flex-direction:column;gap:12px;min-height:250px">' + panels[i] + '</div>' + dots +
-      (i < 2 ? btn('Next', () => go(i + 1), '#f5b428', '#2a1d00', 'data-about-next') : '<span ' + on(close) + ' role="button" data-about-done style="align-self:center;display:flex;align-items:center;min-height:40px;font-size:15px;font-weight:800;color:#0d1117;cursor:pointer">Got it</span>') +
-      (i > 0 ? '<span ' + on(() => go(i - 1)) + ' role="button" style="align-self:center;display:flex;align-items:center;min-height:36px;font-size:14.5px;font-weight:800;color:#6b7280;cursor:pointer">Back</span>' : ''), 44);
+      top + '<div data-about-panel="' + (i + 1) + '" style="display:flex;flex-direction:column;gap:12px;min-height:250px">' + panels[i] + '</div>' + dots + main, 44);
   }
 
   // Members of a group you run. Owners (up to two) set roles; admins see them

@@ -125,6 +125,12 @@ test('a signed-out visitor sees the event only, and names once they RSVP', async
     await expect(about.locator('[data-about-panel="1"]')).toContainText('Where your group plans get-togethers');
     await about.locator('[data-about-next]').click();
     await expect(about.locator('[data-about-panel="2"]')).toContainText('Anyone can start something');
+    // Back and close sit at the top (layout A): ‹ goes back a panel; panel 1 has no ‹
+    await about.locator('[data-about-back]').click();
+    await expect(about.locator('[data-about-panel="1"]')).toBeVisible();
+    await expect(about.locator('[data-about-back]')).toHaveCount(0);
+    await expect(about.locator('[data-about-close]')).toBeVisible();
+    await about.locator('[data-about-next]').click();
     await about.locator('[data-about-next]').click();
     await expect(about.locator('[data-about-panel="3"]')).toContainText('Help shape Spark Hub');
     await expect(about.locator('[data-about-panel="3"]')).toContainText('I’m building Spark Hub with my neighbors & friends, for communities like yours.');
