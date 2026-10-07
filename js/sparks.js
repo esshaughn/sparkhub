@@ -1018,7 +1018,7 @@
               svg(18, stroke('#fff', 2.3), '<rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16M9 3v4M15 3v4"/>') + 'Add to calendar</button>' : '') +
             '<div data-plus-links style="display:flex;align-items:center;justify-content:center;gap:8px;font-size:14px;font-weight:700;color:#6b7280">' +
               '<span ' + on(change) + ' role="button" data-plus-change style="display:flex;align-items:center;min-height:44px;cursor:pointer">Change RSVP</span><span aria-hidden="true" style="color:#c4c8d0">·</span>' +
-              '<span data-plus-signin role="button" ' + on(() => { setState(Object.assign({ plusPop: null }, clearPlus(s.id))); openLogin('reminder', () => setTimeout(askReminders, 500)); }) + ' style="display:flex;align-items:center;min-height:44px;cursor:pointer">Create account</span></div></div>' : '') +
+              '<span data-plus-signin role="button" ' + on(() => { setState(Object.assign({ plusPop: null }, clearPlus(s.id))); openLogin('reminder', () => setTimeout(askReminders, 500)); }) + ' style="display:flex;align-items:center;min-height:44px;color:#5b4ae8;cursor:pointer">Create account</span></div></div>' : '') +
         (guest ? '' : '<button type="button" data-plus-done ' + on(plusDone) + ' style="height:50px;margin-top:2px;border:0;border-radius:999px;background:' + (guest ? '#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;color:#0d1117' : '#149a4b;color:#fff') + ';font-family:inherit;font-size:16px;font-weight:800;cursor:pointer">Done</button>') +
         (guest ? '' : '<div style="display:flex;align-items:center;justify-content:center;gap:10px;font-size:14.5px;font-weight:800">' +
           (guest ? ''
