@@ -80,27 +80,26 @@ test('post an event with every step filled, then edit it in the pop-ups and dele
     await expect(bar).toContainText('1 task');
     await expect(P.locator('[data-screen-label="Your tasks"]')).not.toContainText('Bring water');
 
-    // Edit event: the lead's ⋯ (v8-12, 8a) opens Edit event · Share · QR code; no Share button beside it.
-    // No pencil after the title and the title isn't a button (Design 31)
+    // A lead's top right: a pencil (Edit event) and a Share icon whose menu is Invite people · Share link · QR code
+    // (owner, 2026-10-07; v8-12 had one ⋯ with Edit event in it). No pencil after the title and the title isn't a button (Design 31)
     await expect(P.locator('h1 svg')).toHaveCount(0);
     await expect(P.locator('h1[data-on]')).toHaveCount(0);
-    await expect(P.getByRole('button', { name: 'Share', exact: true })).toHaveCount(0);
-    await P.getByRole('button', { name: 'More' }).click();
-    await expect(P.getByRole('menuitem')).toHaveText(['Edit event', 'Invite people', 'Share link', 'QR code'])   // v8-13: Invite people, not Share; Share link (owner, 2026-10-07)
+    await expect(P.getByRole('button', { name: 'More' })).toHaveCount(0);
+    await P.locator('[data-ev-menu]').click();
+    await expect(P.getByRole('menuitem')).toHaveText(['Invite people', 'Share link', 'QR code'])
     await P.getByRole('menuitem', { name: 'Share link' }).click();
     const link0 = page.getByRole('dialog', { name: 'Share link' });
     await expect(link0.locator('[data-link-preview]')).toBeVisible();
     await expect(link0.getByText(/\/e\/[a-z0-9]{8}/)).toBeVisible();
     await link0.getByRole('button', { name: 'Close' }).click();
     await expect(page.getByRole('dialog')).toHaveCount(0);   // on its own: closing it closes everything
-    await P.getByRole('button', { name: 'More' }).click();
+    await P.locator('[data-ev-menu]').click();
     await P.getByRole('menuitem', { name: 'QR code' }).click();
     const qr0 = page.getByRole('dialog', { name: 'QR code' });
     await expect(qr0.locator('[data-event-qr]')).toBeVisible();
     await qr0.getByRole('button', { name: 'Close' }).click();
     await expect(page.getByRole('dialog')).toHaveCount(0);   // on its own: closing it closes everything
-    await P.getByRole('button', { name: 'More' }).click();
-    await P.getByRole('menuitem', { name: 'Edit event' }).click();
+    await P.getByRole('button', { name: 'Edit event' }).click();
     await expect(P.getByRole('menu')).toHaveCount(0);
     const sec = page.getByRole('dialog', { name: 'Edit event' });
     await expect(sec.locator('[data-edit-photo]')).toBeVisible();

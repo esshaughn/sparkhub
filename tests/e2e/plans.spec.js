@@ -18,7 +18,8 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     id = await postEvent(H, { title, date: inDays(20), time: '17:30' });
     const HP = H.locator('[data-screen-label="Plan page"]');
     await expect(HP.locator('[data-chip]')).toHaveCount(0);                    // v8-12: no YOU'RE LEADING chip
-    await expect(HP.getByRole('button', { name: 'More' })).toBeVisible();      // the lead's ⋯ (v8-12)
+    await expect(HP.locator('[data-ev-menu]')).toBeVisible();      // the lead's Share menu (owner, 2026-10-07; v8-12's ⋯)
+    await expect(HP.getByRole('button', { name: 'Edit event' })).toBeVisible();
     await expect(HP.locator('[data-date-corner] [data-date-tile]')).toBeVisible();   // the date tile at the photo's top right
     await expect(HP).toContainText('5:30pm');
     await expect(HP.locator('[data-led-by]')).toContainText('LED BY');      // the lead sees the card too, asked to bring in a co-lead
@@ -658,7 +659,7 @@ test('co-leads: the lead adds one, who edits and posts updates but can’t delet
     await OP.locator('[data-led-by]').getByRole('button', { name: 'Manage co-leads' }).click();
     await O.getByRole('dialog', { name: 'Leads' }).locator('[data-lead-row="Otto"]').getByRole('button', { name: 'Step down' }).click();
     await confirm(O, 'Step down');
-    await expect(OP.getByRole('button', { name: 'More' })).toHaveCount(0);   // not a lead any more: just Share (v8-12)
+    await expect(OP.locator('[data-ev-menu]')).toHaveCount(0);   // not a lead any more: just Share, no menu (v8-12)
     await expect(OP.getByRole('button', { name: 'Share', exact: true })).toBeVisible();
     await expect(OP.locator('[data-led-by] [data-lead-names]')).toHaveText('Hope');
     await expect(OP.locator('[data-manage-coleads]')).toHaveCount(0);
@@ -991,7 +992,7 @@ test('hand the lead to someone: they say yes, and the old lead is a co-lead', as
     await expect(card).toContainText('You know the route');
     await card.getByRole('button', { name: 'I’ll take it' }).click();
     await expect(O.getByText('You’re leading it now.')).toBeVisible();
-    await expect(O.locator('[data-screen-label="Plan page"]').getByRole('button', { name: 'More' })).toBeVisible();   // the lead's ⋯ (v8-12)
+    await expect(O.locator('[data-screen-label="Plan page"]').locator('[data-ev-menu]')).toBeVisible();   // the lead's Share menu (v8-12's ⋯)
     const ids = await asUser(O, async (c, _C, id) => {
       const me = (await c.auth.getUser()).data.user.id, s = (await c.from('sparks').select('lead_id').eq('id', id).single()).data;
       const co = (await c.from('cohosts').select('user_id').eq('spark_id', id)).data.map(r => r.user_id);

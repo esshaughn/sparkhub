@@ -6040,17 +6040,16 @@
 
   // A photo header shared by the plan and "happened" pages
   const ROUND_BTN = 'flex:0 0 44px;width:44px;height:44px;border-radius:999px;background:#fff;box-shadow:0 2px 8px rgba(13,17,23,.25);display:flex;align-items:center;justify-content:center;cursor:pointer';
-  // v8-12 (8a): on a plan, a lead's top right is one ⋯ that opens Edit event · Invite people (v8-13; was Share) · Share link (owner, 2026-10-07) · QR code; tap outside closes it
-  const LINK_IC = '<path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1"/>';   // the chain link (⋯ menu, Share link)
+  // On a plan, a host's top right is a pencil (Edit event) and a Share icon whose menu is Invite people · Share link · QR code
+  // (owner, 2026-10-07; v8-12 had one ⋯ with Edit event in it); tap outside closes it
   const MENU_ROW = 'display:flex;align-items:center;gap:12px;min-height:48px;padding:0 16px;border-top:1px solid #f2f3f6;font-size:15.5px;font-weight:800;color:#0d1117;cursor:pointer';
   const evMenu = (s) => {
     const open = state.evMenu === s.id, shut = () => setState({ evMenu: null });
     return '<span style="position:relative;flex:0 0 44px">' +
-      '<span ' + on(() => setState({ evMenu: open ? null : s.id })) + ' data-ev-menu aria-label="More" aria-expanded="' + open + '" class="hov-fill-grey" style="' + ROUND_BTN + '">' +
-        svg(20, 'fill="#0d1117"', '<circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/>') + '</span>' +
+      '<span ' + on(() => setState({ evMenu: open ? null : s.id })) + ' data-ev-menu aria-label="Share" aria-haspopup="menu" aria-expanded="' + open + '" class="hov-fill-grey" style="' + ROUND_BTN + '">' +
+        svg(18, stroke('#0d1117', 2.4), P5.share) + '</span>' +
       (open ? '<span ' + on(shut) + ' aria-hidden="true" style="position:fixed;inset:0;z-index:1"></span>' +
         '<div role="menu" data-ev-menu-list style="position:absolute;top:52px;right:0;z-index:2;width:200px;background:#fff;border-radius:16px;box-shadow:0 12px 30px rgba(0,0,0,.3);overflow:hidden"><div style="margin-top:-1px">' +
-          '<div ' + on(() => { shut(); openSec(s, 'title'); }, 'menuitem') + ' class="hov-fill-grey" style="' + MENU_ROW + '">' + svg(18, stroke('#0d1117', 2.3), '<path d="M4 20h4L19 9l-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/>') + 'Edit event</div>' +
           '<div ' + on(() => setState({ evMenu: null, share: { id: s.id, copied: false } }), 'menuitem') + ' class="hov-fill-grey" style="' + MENU_ROW + '">' + svg(18, stroke('#0d1117', 2.3), '<circle cx="9.5" cy="8" r="3.5"/><path d="M3 20a6.5 6.5 0 0 1 13 0"/><path d="M19 8v6M16 11h6"/>') + 'Invite people</div>' +   // v8-13 (was Share)
           // Share link (owner, 2026-10-07): the Share link pop-up on its own, as QR code does
           '<div ' + on(() => setState({ evMenu: null, share: { id: s.id, copied: false, pop: 'link', solo: true } }), 'menuitem') + ' data-ev-menu-link class="hov-fill-grey" style="' + MENU_ROW + '">' + svg(18, stroke('#0d1117', 2.3), LINK_IC) + 'Share link</div>' +
@@ -6067,7 +6066,7 @@
       '<div style="position:absolute;top:calc(12px + var(--pt));left:12px;right:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;z-index:2">' +
         backBtn(s) +
         '<span style="flex:1"></span>' +
-        (menu ? evMenu(s) :
+        (menu ? '<span ' + on(() => openSec(s, 'title')) + ' aria-label="Edit event" class="hov-fill-grey" style="' + ROUND_BTN + '">' + svg(18, stroke('#0d1117', 2.4), PENCIL) + '</span>' + evMenu(s) :
         // Owner, 2026-10-01: one round pencil (matching Share) opens Edit event: the title, and the cover photo for the host.
         // Round, so the Test event tab between the buttons stays clear on demo/test events
         (canEdit(s) && !s.cancelledAt ? '<span ' + on(() => openSec(s, 'title')) + ' aria-label="' + (s.planned ? 'Edit event' : 'Edit idea') + '" class="hov-fill-grey" style="' + ROUND_BTN + '">' + svg(18, stroke('#0d1117', 2.4), PENCIL) + '</span>'
