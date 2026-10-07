@@ -10955,6 +10955,38 @@
     if (diagAway || document.hidden) { diagAway = document.hidden; return; }   // timers pause in the background: not a freeze
     if (gap > 1250) diag('stall', gap - 250, 'last: ' + (diagWork || 'nothing') + ' · ' + document.images.length + ' images');
   }, 250);
+  // Stuck scrolls (owner, 2026-10-06: "I try to scroll and it feels stuck", and nothing logged, since the page never
+  // stops): an up-or-down drag of 40px+ that scrolled nothing, or that one of our own drags (pull to refresh, a sheet's
+  // drag to close, the group tab swipe) held while the finger went up. Notes what was under the finger.
+  let gest = null;
+  const gestBox = (n) => {
+    for (; n && n.nodeType === 1; n = n.parentNode) {
+      if (/auto|scroll/.test(getComputedStyle(n).overflowY)) return n;
+    }
+    return null;
+  };
+  const gestName = (n) => n && n.nodeType === 1 ? n.tagName.toLowerCase() + (n.classList[0] ? '.' + n.classList[0] : '') : '?';
+  document.addEventListener('touchstart', (e) => {
+    gest = state.demoAdmin && e.touches.length === 1 ? { t: e.target, x: e.touches[0].clientX, y: e.touches[0].clientY, at: Date.now(), scrolled: false } : null;
+    if (gest) { gest.x1 = gest.x; gest.y1 = gest.y; }
+  }, { passive: true, capture: true });
+  document.addEventListener('touchmove', (e) => { if (gest) { gest.x1 = e.touches[0].clientX; gest.y1 = e.touches[0].clientY; } }, { passive: true, capture: true });
+  document.addEventListener('scroll', () => { if (gest) gest.scrolled = true; }, { passive: true, capture: true });
+  document.addEventListener('touchend', () => {
+    const g = gest;
+    gest = null;
+    if (!g) return;
+    const dy = g.y1 - g.y, dx = g.x1 - g.x;
+    if (Math.abs(dy) < 40 || Math.abs(dx) > Math.abs(dy)) return;
+    // Checked before root's own touchend handlers clear them
+    const took = ptr && ptr.on ? 'pull to refresh' : sd && sd.on ? 'sheet drag' : swipe && swipe.on ? 'tab swipe' : '';
+    if (took ? dy > 0 : g.scrolled) return;   // our drag pulling down is meant to; a scroll that moved is fine
+    const box = gestBox(g.t), sheet = g.t.closest && g.t.closest(SHEETS);
+    diag('stuck scroll', Date.now() - g.at, (dy < 0 ? 'up ' : 'down ') + Math.abs(Math.round(dy)) + 'px · ' + (took ? 'held by ' + took : 'nothing moved') +
+      ' · on ' + gestName(g.t) + (sheet ? ' in ' + gestName(sheet) : '') +
+      ' · box ' + (box ? gestName(box) + ' ' + Math.round(box.scrollTop) + '/' + (box.scrollHeight - box.clientHeight) : 'none') +
+      ' · last: ' + (diagWork || 'nothing'));
+  }, { passive: true, capture: true });
 
   function render() {
     const t0 = performance.now();
