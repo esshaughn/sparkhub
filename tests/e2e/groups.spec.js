@@ -158,7 +158,7 @@ test('a group end to end: edit group, cover, rename, invite, pin, admin edits, r
     await person.getByRole('button', { name: 'Close' }).click();
     await expect(person).toHaveCount(0);
     // Someone's in it, so it's Cancel or delete; deleting tells no one
-    await button(A, /^(Cancel or delete|Delete) this (event|idea)$/).click();
+    await button(A, /^(Cancel or delete|Delete) this (event|[Ii]dea)$/).click();
     const takeDown = A.getByRole('dialog', { name: 'Cancel or delete' });
     if (await takeDown.count()) await takeDown.getByRole('button', { name: 'Delete without telling anyone' }).click();
     else await confirm(A, 'Delete it');

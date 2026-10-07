@@ -353,7 +353,7 @@ async function confirm(page, cta) {
 async function deleteIdea(page, id) {
   try {
     await openIdea(page, id);
-    await page.getByRole('button', { name: /^(Cancel or delete|Delete) this (event|idea)$/ }).click({ timeout: 10000 });
+    await page.getByRole('button', { name: /^(Cancel or delete|Delete) this (event|[Ii]dea)$/ }).click({ timeout: 10000 });
     const takeDown = page.getByRole('dialog', { name: 'Cancel or delete' });
     const sure = page.getByRole('alertdialog');
     await expect(takeDown.or(sure)).toBeVisible();
