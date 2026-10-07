@@ -4845,7 +4845,7 @@
         shot = state.me + '/' + uuid() + '.jpg';
         must(await sb.storage.from(SHOT_BUCKET).upload(shot, f.shot.blob, { contentType: 'image/jpeg', upsert: false }));
       }
-      const row = { body: f.text.trim().slice(0, 1000), screen: String(state.screen || '').slice(0, 60), context: fbContext() };
+      const row = { body: f.text.trim().slice(0, 1000), screen: String(state.screen || '').slice(0, 60), context: f.kind === 'group' ? { request: 'group' } : fbContext() };   // a group request sends no device details
       if (shot) row.shot = shot;
       must(await sb.from('feedback').insert(row));
       if (f.shot) URL.revokeObjectURL(f.shot.url);
@@ -4874,8 +4874,9 @@
         '<p style="margin:0;font-size:15.5px;line-height:1.45;font-weight:600;color:#2a2f38;text-wrap:pretty">' + (f.kind === 'group' ? 'A team, a block, a club, a few friends? Say a little about it and I’ll get back to you.' : 'Tell me honestly: what’s working and what would make it better?') + '</p>' +
         '<textarea rows="6" maxlength="1000" aria-label="Your feedback" placeholder="Write as much or as little as you like." ' + onInput(e => { if (e.type === 'input') setState({ fb: Object.assign({}, state.fb, { text: e.target.value.slice(0, 1000) }) }); }) +
           ' style="width:100%;box-sizing:border-box;min-height:140px;padding:14px;border:2px solid #dcdfe6;border-radius:16px;font-family:inherit;font-size:16px;font-weight:500;line-height:1.4;color:#0d1117;resize:none;outline:none">' + esc(f.text) + '</textarea>' +
-        // A screenshot they took with the phone's buttons (a web page can't take one itself)
-        (f.shot
+        // A screenshot they took with the phone's buttons (a web page can't take one itself). A group request has neither the
+        // screenshot nor the Sent with line (owner, 2026-10-07): it isn't a bug report
+        (f.kind === 'group' ? '' : f.shot
           ? '<div data-fb-shot style="display:flex;align-items:center;gap:12px;padding:8px 10px 8px 8px;border-radius:16px;background:#f4f5f7">' +
               '<span ' + on(() => setState({ zoom: { photos: [f.shot.url], i: 0 } })) + ' aria-label="See the screenshot" style="flex:0 0 44px;width:44px;height:64px;border-radius:8px;background:#dcdfe6 url(' + f.shot.url + ') center/cover;cursor:zoom-in"></span>' +
               '<span style="flex:1;min-width:0;font-size:14.5px;font-weight:800;color:#0d1117">Screenshot added</span>' +
@@ -4884,7 +4885,7 @@
               svg(17, stroke('currentColor', 2.2), CAMERA) + 'Add a screenshot<span style="font-weight:600;color:#8a909b">(optional)</span>' +
               '<input type="file" accept="image/*" aria-label="Add a screenshot" ' + onInput(e => { if (e.type !== 'change') return; const fl = (e.target.files || [])[0]; e.target.value = ''; pickFbShot(fl); }) + ' style="display:none"></label>') +
         // Said plainly: what comes along with it
-        '<p data-fb-sent-with style="margin:0;font-size:12.5px;line-height:1.45;font-weight:600;color:#8a909b;text-wrap:pretty">Sent with: ' + esc(deviceName(navigator.userAgent) + ' · ' + (STANDALONE ? 'Home Screen app' : 'browser') + ' · ' + fbWhere()) + '. Your last few taps and any errors come along too, to help track down glitches.</p>' +
+        (f.kind === 'group' ? '' : '<p data-fb-sent-with style="margin:0;font-size:12.5px;line-height:1.45;font-weight:600;color:#8a909b;text-wrap:pretty">Sent with: ' + esc(deviceName(navigator.userAgent) + ' · ' + (STANDALONE ? 'Home Screen app' : 'browser') + ' · ' + fbWhere()) + '. Your last few taps and any errors come along too, to help track down glitches.</p>') +
         '<button type="button" ' + on(sendFeedback) + ' aria-disabled="' + !ok + '" style="width:100%;min-height:52px;border:0;border-radius:999px;background:' + (ok ? '#5b4ae8' : '#dcdfe6') + ';color:' + (ok ? '#fff' : '#8a909b') + ';font-family:inherit;font-size:16px;font-weight:800;cursor:' + (ok ? 'pointer' : 'default') + '">' + (state.busy === 'feedback' ? 'Sending…' : 'Send to Eric') + '</button>';
     return '<div class="v6-scrim" data-scrim="' + reg(close) + '" style="z-index:50">' +
       '<div role="dialog" aria-modal="true" aria-label="Give feedback" data-screen-label="Give feedback" style="position:absolute;left:0;right:0;bottom:0;max-height:min(90%, calc(100% - 24px - var(--sat)));overflow:auto;background:#fff;border-radius:24px 24px 0 0;padding:10px 16px calc(22px + env(safe-area-inset-bottom, 0px));display:flex;flex-direction:column;gap:16px;animation:sheetUp 320ms cubic-bezier(.2,.8,.2,1) both">' +

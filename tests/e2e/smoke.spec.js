@@ -418,6 +418,8 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
     await expect(askBox).toContainText('GROUP REQUEST');
     await expect(askBox).toContainText('Who’s the group for?');
     await expect(askBox.getByLabel('Your feedback')).toHaveValue('I’d like a group for ');
+    await expect(askBox.locator('[data-fb-add-shot]')).toHaveCount(0);   // no screenshot or Sent with line on a request
+    await expect(askBox.locator('[data-fb-sent-with]')).toHaveCount(0);
     await askBox.getByRole('button', { name: 'Cancel' }).click();
     await expect(askBox).toHaveCount(0);
     await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Groups', exact: true })).toHaveAttribute('aria-current', 'page');
