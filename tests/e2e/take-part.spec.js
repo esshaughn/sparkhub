@@ -26,7 +26,7 @@ test('take part: set up spots, claim, waitlist, guest, roster and giving up', as
     await flow.locator('[data-cp-add-job]').click();
     await H.locator('[data-part-chip="Claim time"]').click();
     const times = H.getByRole('dialog', { name: 'Add time slots' });
-    await expect(times).toContainText('TAKE PART · CLAIM TIME');
+    await expect(times).toContainText('SPOT · CLAIM TIME');
     await times.getByLabel('Name the time slots').fill('Court time');
     await expect(times.locator('[data-part-time]')).toHaveCount(2);
     for (const k of [1, 2]) for (let n = 0; n < 3; n++) await times.getByRole('button', { name: 'Fewer for time ' + k }).click();
@@ -38,14 +38,14 @@ test('take part: set up spots, claim, waitlist, guest, roster and giving up', as
     await seats.getByLabel('Name the seats').fill('Beginner clinic');
     for (let n = 0; n < 6; n++) await seats.getByRole('button', { name: 'Fewer for how many seats' }).click();
     await seats.getByRole('button', { name: 'Save', exact: true }).click();
-    await expect(flow.locator('[data-job="Court time"]')).toContainText('Take part · 2 times · 2 spots');
-    await expect(flow.locator('[data-job="Beginner clinic"]')).toContainText('Take part · 2 seats');
+    await expect(flow.locator('[data-job="Court time"]')).toContainText('Spot · 2 times · 2 spots');
+    await expect(flow.locator('[data-job="Beginner clinic"]')).toContainText('Spot · 2 seats');
     await flow.locator('[data-post]').click();
     await expect(H.locator('[data-screen-label="Plan page"]')).toBeVisible();
     await closeAskFirst(H);
     id = ideaIdFromUrl(H);
     const HP = H.locator('[data-screen-label="Plan page"]');
-    await expect(HP.locator('#sec-take-part [data-part]')).toHaveCount(2);
+    await expect(HP.locator('#sec-tasks [data-part]')).toHaveCount(2);
     await expect(HP.locator('[data-part="Court time"]')).toContainText('2 times · 1 each');
     await expect(HP.locator('[data-part-claim]')).toHaveCount(0);   // hosts don't claim
 

@@ -569,6 +569,17 @@ select t.must_allow('Can''t this time', format($$select public.answer_job_ask(%L
 reset role;
 select t.check('the asker gets a quiet note', exists (select 1 from notes where user_id = t.id('host') and body like '% can’t take Barricades this time (Job ask walk).'));
 select t.check('Can''t this time signs nobody up', not exists (select 1 from signup_claims where item_id = t.job() and user_id = t.id('late')));
+-- A host takes someone off a job (20261118000000_one_push_and_full_asks.sql, jobs audit M1)
+select t.login('late'); set role authenticated;
+select t.must_refuse('a member can''t take someone off a job', format($$select public.remove_part_claim(%L, %L)$$, t.job(), t.id('helper')));
+reset role;
+select t.check('so they''re still on it', exists (select 1 from signup_claims where item_id = t.job() and user_id = t.id('helper')));
+select t.login('host'); set role authenticated;
+select t.must_allow('the lead takes someone off a job', format($$select public.remove_part_claim(%L, %L)$$, t.job(), t.id('helper')));
+reset role;
+select t.check('they''re off it, and told who did it',
+  not exists (select 1 from signup_claims where item_id = t.job() and user_id = t.id('helper'))
+  and exists (select 1 from notes where user_id = t.id('helper') and body like '% took you off Barricades (Job ask walk).' and quiet));
 -- I'm in after the job filled up closes the ask instead of failing (20261118000000_one_push_and_full_asks.sql)
 insert into signup_items (id, spark_id, item, need, created_by) values
   (gen_random_uuid(), (select id from sparks where text = 'Job ask walk'), 'Cones', 1, t.id('host'));
@@ -1068,8 +1079,8 @@ reset role;
 select t.login('host'); set role authenticated;
 select t.must_allow('the lead takes someone off', format($$select public.remove_part_claim(%L, %L)$$, t.id('c900'), t.id('player2')));
 reset role;
-select t.check('they''re told', exists (select 1 from notes where user_id = t.id('player2') and body like 'The lead took you off 9:00am court time%'));
-select t.check('with one push, not two (quiet note, 20261118000000)', (select bool_and(quiet) from notes where user_id = t.id('player2') and body like 'The lead took you off 9:00am court time%'));
+select t.check('they''re told', exists (select 1 from notes where user_id = t.id('player2') and body like '% took you off 9:00am court time%'));
+select t.check('with one push, not two (quiet note, 20261118000000)', (select bool_and(quiet) from notes where user_id = t.id('player2') and body like '% took you off 9:00am court time%'));
 select t.check('and the next in line moves up', exists (select 1 from signup_claims where item_id = t.id('c900') and user_id = t.id('player3')));
 -- Guests: a spot with a name and phone, never a job
 insert into signup_items (spark_id, item, kind, need, created_by) values (t.id('play'), 'Beginner clinic', 'seat', 8, t.id('host'));

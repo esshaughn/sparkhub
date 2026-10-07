@@ -155,8 +155,8 @@ test('a signed-out visitor sees the event only, and names once they RSVP', async
     await expect(d).toContainText('RSVP: Going');
     await expect(d).not.toContainText('You’re going!');
     await expect(d.locator('[data-guest-rsvp]')).toHaveText('I’m going');
-    await expect(d.locator('[data-guest-note]')).toHaveText('No account needed. Your first name shows on the guest list.');
-    await expect(d.locator('[data-guest-email]')).toHaveText('Have an account? Sign in');
+    await expect(d.locator('[data-guest-note]')).toHaveCount(0);   // owner, 2026-10-07
+    await expect(d.locator('[data-guest-email] button')).toHaveText(['Sign in', 'Create account']);   // both open sign-in
     await d.getByLabel('Your name').fill('Jo');
     await d.locator('[data-guest-rsvp]').click();
     await V.getByRole('dialog', { name: 'You’re on the list' }).locator('[data-plus-x]').click();

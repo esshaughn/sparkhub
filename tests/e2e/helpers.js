@@ -320,9 +320,9 @@ async function closeAskFirst(page) {
 async function addJob(page, { item, need = 1, time }) {
   // No jobs yet: the empty box; otherwise the section's Edit pill (a job's ✎ opens Edit job, that job only: Design v8-8)
   await page.locator('[data-screen-label="Plan page"]').locator('[data-help-empty], [data-help-edit]').first().click();
-  const sheet = page.getByRole('dialog', { name: 'Edit what you need' });
+  const sheet = page.getByRole('dialog', { name: 'Edit Participate' });
   const n = await sheet.locator('[data-need-row]').count() + 1;
-  await sheet.getByText('Add a job or item').click();
+  await sheet.getByText('Add a job', { exact: true }).click();
   await sheet.getByLabel('Job name ' + n).fill(item);
   const row = sheet.locator('[data-need-row]').nth(n - 1);
   for (let k = 1; k < need; k++) await row.getByRole('button', { name: 'More for how many people' }).click();

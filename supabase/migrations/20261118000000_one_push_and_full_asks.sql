@@ -7,6 +7,9 @@
 -- events. Otherwise each function is the same as before (fill_from_waitlist, part_dropped, remove_part_claim,
 -- remove_signup: 20261106000000_take_part.sql; nudge_invitee: 20261115000000_multi_day_fixes.sql).
 --
+-- M1: hosts take someone off a job too (remove_part_claim refused jobs, and nobody could delete another person's claim).
+-- The note and push name whoever did it ("Sam took you off …"), not always "the lead".
+--
 -- B4: saying I'm in to a job ask when the job filled up in the meantime failed outright (check_signup_room refused the
 -- claim), leaving a dead "I'm in" on the card. Now the ask is closed with answer 'full' and the call returns 'full'
 -- (else 'in' or 'cant'), so the app can say "It filled up before you answered". The return type changes (void → text),
@@ -67,17 +70,19 @@ create or replace function public.remove_part_claim(p_item uuid, p_user uuid) re
 language plpgsql security definer set search_path = public as $$
 declare i record; s record; v_label text;
 begin
-  select id, spark_id, kind into i from signup_items where id = p_item;
-  if i.id is null or i.kind = 'job' or not public.is_host(i.spark_id) then raise exception 'not allowed' using errcode = '42501'; end if;
+  select id, spark_id, kind, item, shift_of, "time" into i from signup_items where id = p_item;
+  if i.id is null or not public.is_host(i.spark_id) then raise exception 'not allowed' using errcode = '42501'; end if;   -- jobs too (jobs audit M1)
   select id, text, demo, test into s from sparks where id = i.spark_id;
   delete from signup_claims where item_id = p_item and user_id = p_user;
   if not found then return; end if;
   if p_user <> auth.uid() then
-    v_label := private.part_label(p_item);
+    -- a job's shift reads "Parking help, 5:30pm"; whoever did it is named (a co-host too, not always "the lead")
+    v_label := case when i.kind = 'job' then coalesce((select item from signup_items where id = i.shift_of) || coalesce(', ' || to_char(i."time", 'FMHH12:MIam'), ''), i.item)
+                    else private.part_label(p_item) end;
     insert into notes (user_id, body, created_by, quiet)
-      values (p_user, left('The lead took you off ' || v_label || ' (' || left(s.text, 120) || ').', 320), auth.uid(), true);
+      values (p_user, left(private.person_name(auth.uid(), s.id) || ' took you off ' || v_label || ' (' || left(s.text, 120) || ').', 320), auth.uid(), true);
     if not (s.demo or coalesce(s.test, false)) then
-      perform private.push_send(array[p_user], 'reminders', s.text, 'You’re off ' || v_label || '. The lead made a change.', '/#/idea/' || s.id, 'pr:' || p_item || ':' || p_user);
+      perform private.push_send(array[p_user], 'reminders', s.text, 'You’re off ' || v_label || '. ' || private.person_name(auth.uid(), s.id) || ' made a change.', '/#/idea/' || s.id, 'pr:' || p_item || ':' || p_user);
     end if;
   end if;
 end $$;

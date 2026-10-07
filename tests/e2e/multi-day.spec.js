@@ -70,8 +70,8 @@ test('multi-day: separate days, each-day RSVP, a job on one day, and a weekly ev
     await expect(HP.locator('[data-day-timeline]')).toContainText('12pm–5pm');
     // The host adds a job on Day 2 (WHICH DAY)
     await HP.locator('[data-help-empty], [data-help-edit]').first().click();
-    const needs = H.getByRole('dialog', { name: 'Edit what you need' });
-    await needs.getByText('Add a job or item').click();
+    const needs = H.getByRole('dialog', { name: 'Edit Participate' });
+    await needs.getByText('Add a job', { exact: true }).click();
     await needs.getByLabel('Job name 1').fill('Pack up leftovers');
     const which = needs.getByRole('radiogroup', { name: 'Which day 1' });
     await expect(which.getByRole('radio', { name: 'Any day' })).toHaveAttribute('aria-checked', 'true');
@@ -111,7 +111,7 @@ test('multi-day: separate days, each-day RSVP, a job on one day, and a weekly ev
       const gp = V.getByRole('dialog', { name: 'When will you attend?' });
       await gp.locator('[data-day-card="' + d1 + '"]').getByRole('button', { name: 'Going' }).click();
       await expect(gp.locator('[data-day-pick-go]')).toHaveText('Add your name');
-      await expect(gp).toContainText('Have an account? Sign in');
+      await expect(gp.locator('[data-guest-email] button')).toHaveText(['Sign in', 'Create account']);
       await gp.getByLabel('Your name').fill('Gia');
       await gp.getByRole('button', { name: 'One more' }).click();
       await expect(gp.locator('[data-day-pick-go]')).toHaveText('RSVP as a guest');

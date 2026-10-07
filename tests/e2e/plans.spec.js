@@ -39,11 +39,11 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
 
     // The host adds sign-ups (with "how many") in Edit what you need, and posts an update
     await HP.locator('[data-help-empty], [data-help-edit]').first().click();
-    const needs = H.getByRole('dialog', { name: 'Edit what you need' });
-    await needs.getByText('Add a job or item').click();
+    const needs = H.getByRole('dialog', { name: 'Edit Participate' });
+    await needs.getByText('Add a job', { exact: true }).click();
     await needs.getByLabel('Job name 1').fill('Folding chairs');
     await needs.getByRole('button', { name: 'More for how many people' }).click();
-    await needs.getByText('Add a job or item').click();   // members can't add their own any more (v8-7), so the host adds Lemonade
+    await needs.getByText('Add a job', { exact: true }).click();   // members can't add their own any more (v8-7), so the host adds Lemonade
     await needs.getByLabel('Job name 2').fill('Lemonade');
     await needs.getByRole('button', { name: 'Save changes' }).click();
     await expect(HP.locator('[data-signup="Folding chairs"]')).toContainText('2 of 2 open');
@@ -896,6 +896,13 @@ test('a sign-up shows on the group page, the Calendar and the lead’s card', as
     // The lead's page counts the sign-up (the group card's layout depends on what else is coming up)
     await openIdea(H, id);
     await expect(H.locator('[data-screen-label="Plan page"] [data-signup="Barricades"]')).toContainText('1 of 2 open');
+    // …and can take them off: Who's signed up, Remove (jobs audit M1, owner 2026-10-07)
+    await H.locator('[data-screen-label="Plan page"] [data-signup="Barricades"] [data-job-who]').click();
+    const who = H.getByRole('dialog', { name: 'Who’s signed up' });
+    await expect(who).toContainText('1 of 2 signed up');
+    await who.locator('[data-roster-remove]').click();
+    await confirm(H, 'Remove');
+    await expect(H.locator('[data-screen-label="Plan page"] [data-signup="Barricades"]')).toContainText('2 of 2 open');
     expect(helper.errors).toEqual([]);
   } finally {
     if (id) await deleteIdea(H, id).catch(() => {});
