@@ -10435,8 +10435,11 @@
       '<span style="flex:0 0 26px;width:26px;height:26px;border-radius:999px;background:' + dot + ';color:' + ink + ';font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center">' + n + '</span>' +
       '<span style="display:flex;flex-direction:column;gap:1px"><span style="font-size:15px;font-weight:800;color:#0d1117">' + t + '</span><span style="font-size:13px;font-weight:600;color:#6b7280">' + sub + '</span></span></div>';
     const panels = [
-      kick('WHAT IS SPARK HUB?') + h('Where your group plans get-togethers') +
-        p('See what’s coming up, say you’re going, and pitch in: bring a dish, take a shift, invite a friend. It’s built for communities and neighborhoods.'),
+      // The Spark Hub mark in place of an eyebrow (owner, 2026-10-07)
+      '<div data-about-logo aria-label="Spark Hub" style="display:flex;align-items:center;gap:6px">' + I.bolt(22, '#e8a71c') + '<span style="font-size:17px;line-height:1;font-weight:900;letter-spacing:-.5px;color:#0d1117">Spark Hub</span></div>' +
+        h('Where your group’s Ideas turn into Plans') +
+        p('See what’s coming up, say you’re going, and pitch in: bring a dish, take a shift, invite a friend.') +
+        p('It’s in a beta test phase, intended for small communities &amp; neighborhoods.'),
       kick('HOW IT WORKS') + h('Anyone can start something') +
         '<div style="display:flex;flex-direction:column;gap:8px">' +
           step('#fdf1d6', '#f5b428', '#2a1d00', 1, 'Float an Idea', '“Pickleball on Sunday mornings?”') +
