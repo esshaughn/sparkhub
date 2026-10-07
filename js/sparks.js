@@ -339,7 +339,10 @@
   const E_PATH = /^\/e\/([a-z0-9]{6,16})\/?$/;   // short event links (v8-8): a random code, never the id
   const OLD_LINKS_END = Date.parse('2027-04-06T05:00:00Z');   // /i/{id} links stop working (6 months, Design v8-8)
   // Every share, invite, text, email and .ics uses the short link; the live app's address is sparkhub.wereallneighbors.org (Q8)
-  const eventLink = (s) => (CFG.env === 'live' ? 'https://sparkhub.wereallneighbors.org' : location.origin) + (s.linkCode ? '/e/' + s.linkCode : '/i/' + s.id);
+  // Shared links use the primary address on live (sparkhub.wereallneighbors.org, owner 2026-10-07), whichever address the
+  // sharer is on; elsewhere the site's own address (previews, localhost)
+  const SHARE_ORIGIN = CFG.env === 'live' ? 'https://sparkhub.wereallneighbors.org' : location.origin;
+  const eventLink = (s) => SHARE_ORIGIN + (s.linkCode ? '/e/' + s.linkCode : '/i/' + s.id);
   const fromUrl = () => {
     const h = location.hash;
     let m = h.match(/^#\/idea\/([0-9a-f-]{36})$/) || (!h && location.pathname.match(IDEA_PATH));
@@ -1050,7 +1053,7 @@
     '</div>';
   };
 
-  const inviteLink = (code) => location.origin + '/join/' + code;
+  const inviteLink = (code) => SHARE_ORIGIN + '/join/' + code;
   // Copies with the clipboard API, then the older way (in-app browsers and pages without clipboard permission refuse
   // the first); only says "copied" when one of them worked
   const copy = (text, note) => {
@@ -1428,7 +1431,7 @@
     setState({ inv: { code, group, step: 'land' } });
   };
   const invCopyLink = () => {
-    const url = location.origin + '/join/' + state.inv.code;
+    const url = SHARE_ORIGIN + '/join/' + state.inv.code;
     const done = () => setInv({ copied: true });
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, () => toast('Couldn’t copy. Tap ··· then Open in browser.'));
     else toast('Couldn’t copy. Tap ··· then Open in browser.');
@@ -2766,7 +2769,7 @@
   function viewInvWelcome() {
     const st = state, inv = st.inv, g = inv.group, gid = inv.gid;
     const next = state.sparks.filter(s => inGroup(s, gid) && phaseOf(s) === 'plan' && s.dayDate).sort(byWhen)[0];
-    const rows = [['#e8a317', 'Plans', 'see what’s coming up and RSVP'], ['#5b4ae8', 'Ideas', 'float one, see who’s up for it'], ['#1f8a4c', 'Pitch in', 'bring something or lend a hand']];
+    const rows = [['#5b4ae8', 'Plans', 'see what’s coming up and RSVP'], ['#e8a317', 'Ideas', 'float one, see who’s up for it'], ['#1f8a4c', 'Pitch in', 'bring something or lend a hand']];
     let card;
     if (next) {
       const f = signupFill(next), n = headN(next);
@@ -3074,7 +3077,7 @@
     }, { confirm: null }) } });
 
   // Your friend link (/add/CODE). Fetched when the Add sheet opens, so the share sheet can open straight from the tap
-  const friendLink = (code) => location.origin + '/add/' + code;
+  const friendLink = (code) => SHARE_ORIGIN + '/add/' + code;
   const loadFriendCode = (fresh) => sb.rpc('my_friend_code', { p_new: !!fresh }).then(r => { if (r.error) throw r.error; setState({ myFriendCode: r.data }); return r.data; });
   const TOUCH = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
   const shareFriendLink = async () => {

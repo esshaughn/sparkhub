@@ -88,9 +88,11 @@ input::placeholder, textarea::placeholder { color: #b9bcc4; font-weight: 400; fo
 html.tall-fix, html.tall-fix body { height: var(--true-h); }
 html.tall-fix .app { bottom: auto; height: var(--true-h); }
 
-@media (min-width: 520px) and (min-height: 700px) {
+/* A phone-sized card on a computer or tablet. Short computer windows (a laptop under 700px tall) get the frame too,
+   with a margin that shrinks with the window (11e, owner 2026-10-07); a phone on its side (no fine pointer) stays edge to edge */
+@media (min-width: 520px) and (min-height: 700px), (min-width: 520px) and (hover: hover) and (pointer: fine) {
   .app {
-    top: 24px; bottom: 24px; height: auto;
+    top: clamp(8px, 3vh, 24px); bottom: clamp(8px, 3vh, 24px); height: auto;
     max-height: 932px;
     margin: auto;
     border-radius: 30px;

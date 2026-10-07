@@ -55,10 +55,6 @@ From *Where Spark Hub Fits* (see LEARNINGS.md for the reasoning and what's alrea
 - **Ladder nudges**: after you came to one, *The next one needs a helper*; after two jobs, *Want to co-host?*; make *Ask someone by name* the main button.
 - **Walktober templates** on Create event: *Morning loop around ___*, *Dog walk*, *Stroller walk*, *History walk*.
 
-## Turning guests into members (parked 2026-10-01)
+## Turning guests into members: decided against (owner, 2026-10-07)
 
-Guests who open a shared event link can RSVP with a name (no phone number since 2026-10-01), and see "Want a reminder? Sign in" after they RSVP. Not built yet:
-
-- Signing in from a group's event (posted to the group, not private) should offer "Join {group} too?" in the same step. Today a guest who signs up still isn't a member, so they don't see the group's other events or get new-event notifications.
-- The reminder nudge only shows on plans; add it when a guest taps "I'm interested" on an idea.
-- Maybe a line under the event for guests: "{Group} plans things like this on Spark Hub. Join to see what else is coming up."
+Guests aren't pushed from an event into a group: no *Join {group} too?* when a guest signs up from an event, no *{Group} plans things like this… Join to see what else is coming up* line, and no sign-in nudge on ideas. Events stay private: an event link shows that one event only.
