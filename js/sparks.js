@@ -10437,7 +10437,6 @@
     const panels = [
       // No eyebrow: the Spark Hub mark sits in the top row beside the × (owner, 2026-10-07)
       h('Where your group’s ideas turn into plans') +
-        p('See what’s coming up, say you’re going, and pitch in: bring a dish, take a shift, invite a friend.') +
         p('It’s in beta, made for small communities &amp; neighborhoods.'),
       kick('HOW IT WORKS') + h('Anyone can start something') +
         '<div style="display:flex;flex-direction:column;gap:8px">' +
