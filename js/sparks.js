@@ -10437,7 +10437,8 @@
     const panels = [
       // No eyebrow: the Spark Hub mark sits in the top row beside the × (owner, 2026-10-07)
       h('Where your group’s ideas turn into plans') +
-        p('Made for small communities &amp; neighborhoods.'),
+        p('Float an Idea, see who’s in, and make it happen together.') +
+        p('Made for small communities.'),
       kick('HOW IT WORKS') + h('Anyone can start something') +
         '<div style="display:flex;flex-direction:column;gap:8px">' +
           step('#fdf1d6', '#f5b428', '#2a1d00', 1, 'Float an Idea', '“Pickleball on Sunday mornings?”') +
