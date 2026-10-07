@@ -21,9 +21,9 @@ test('visitors land on Welcome (no tab bar there) and sign in from there', async
     await expect(dialog.getByLabel('Email')).toBeFocused();
     await expect(dialog.getByRole('button', { name: 'Continue with Google' })).toHaveCount(0);
     await expect(dialog.getByRole('link', { name: 'Privacy' })).toHaveAttribute('href', '/privacy.html');
-    await expect(dialog.getByRole('button', { name: 'Email me a code' })).toHaveAttribute('aria-disabled', 'true');
+    await expect(dialog.getByRole('button', { name: 'Email login code' })).toHaveAttribute('aria-disabled', 'true');
     await dialog.getByLabel('Email').fill('someone@example.com');
-    await expect(dialog.getByRole('button', { name: 'Email me a code' })).toHaveAttribute('aria-disabled', 'false');
+    await expect(dialog.getByRole('button', { name: 'Email login code' })).toHaveAttribute('aria-disabled', 'false');
     await dialog.getByRole('button', { name: 'Close' }).click();
 
     // Group screens reached by URL still ask signed-out visitors to join first

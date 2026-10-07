@@ -2760,7 +2760,7 @@
     const email = '<input class="fld" data-inv-email type="email" inputmode="email" maxlength="80" autocomplete="email" autocapitalize="off" spellcheck="false" aria-label="Email" placeholder="you@example.com" value="' + esc(st.loginEmail) + '" ' +
         onInput(e => { if (e.type === 'input') setState({ loginEmail: e.target.value.slice(0, 80) }); }) +
         ' style="width:100%;height:54px;border:2px solid #e3e5ec;border-radius:16px;padding:0 18px;font-family:inherit;font-size:17px;font-weight:500;color:#11131f;background:#fff;outline:none">' +
-      '<button type="button" data-enter ' + on(invSendCode) + ' aria-disabled="' + !emailOk + '" style="margin-top:10px;' + invPrimary(emailOk) + '">' + (busy === 'send' ? 'Sending…' : 'Email me a code') + '</button>';
+      '<button type="button" data-enter ' + on(invSendCode) + ' aria-disabled="' + !emailOk + '" style="margin-top:10px;' + invPrimary(emailOk) + '">' + (busy === 'send' ? 'Sending…' : 'Email login code') + '</button>';
     const body = IN_APP
       ? email +
         '<div style="margin-top:16px;display:flex;flex-direction:column;gap:10px;background:#fdf5e1;border-radius:18px;padding:14px 16px">' +
@@ -10279,7 +10279,7 @@
         'Your Ideas, groups and name are saved to your account. ';
       return modal('Sign in', closeLogin,
         h3Html(st.loginFrom === 'post' ? 'Sign in to post your event' : st.loginFrom === 'account' || st.loginFrom === 'reminder' ? 'Create a free account' : 'Sign in') +
-        paraHtml(lead + (withGoogle ? 'Use Google, or we’ll email you a 6-digit code. No password.' : 'We’ll email you a 6-digit code. No password.')) +
+        paraHtml(withGoogle ? lead.trim() : lead + 'We’ll email you a 6-digit code. No password.') +   // owner, 2026-10-07: no Use Google… line beside the Google button
         (st.googleFailed
           ? '<div role="alert" style="display:flex;align-items:flex-start;gap:9px;background:#fdeef0;border:1.5px solid #f5c2cb;border-radius:14px;padding:11px 13px">' +
               '<span style="flex:0 0 18px;width:18px;height:18px;margin-top:1px;border-radius:999px;background:#9b1c31;color:#fff;font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center">!</span>' +
@@ -10291,7 +10291,7 @@
           : '') +
         '<input class="fld" type="email" inputmode="email" maxlength="80" autocomplete="email" autocapitalize="off" spellcheck="false" aria-label="Email" placeholder="you@example.com" value="' + esc(st.loginEmail) + '" ' +
           onInput(e => setState({ loginEmail: e.target.value.slice(0, 80) })) + ' style="' + FIELD + '">' +
-        '<button type="button" data-enter ' + on(() => { if (emailOk && !busy) sendCode(false); }) + ' aria-disabled="' + !(emailOk && !busy) + '" style="' + primary(emailOk && !busy) + '">' + (busy === 'send' ? 'Sending…' : 'Email me a code') + '</button>' +
+        '<button type="button" data-enter ' + on(() => { if (emailOk && !busy) sendCode(false); }) + ' aria-disabled="' + !(emailOk && !busy) + '" style="' + primary(emailOk && !busy) + '">' + (busy === 'send' ? 'Sending…' : 'Email login code') + '</button>' +
         inAppTip() + '<p style="margin:0;font-size:13px;line-height:1.45;font-weight:500;color:#6b7280">Used to sign you in. Your groups’ admins can see it; other members can’t. <a href="/privacy.html" target="_blank" rel="noopener" style="font-weight:800;color:#5b4ae8">Privacy</a></p>',
         { z: 32 });
     }

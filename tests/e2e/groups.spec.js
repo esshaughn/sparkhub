@@ -323,9 +323,9 @@ test('an invite link for someone signed out: the group’s landing with sign-in 
     await expect(land.getByRole('heading', { name: 'Torrez Fitness' })).toBeVisible();
     await expect(land).not.toContainText('TORREZ');
     await expect(land.getByRole('button', { name: 'Continue with Google' })).toBeVisible();
-    await expect(land.getByRole('button', { name: 'Email me a code' })).toHaveAttribute('aria-disabled', 'true');
+    await expect(land.getByRole('button', { name: 'Email login code' })).toHaveAttribute('aria-disabled', 'true');
     await land.getByLabel('Email').fill('someone@example.com');
-    await expect(land.getByRole('button', { name: 'Email me a code' })).toHaveAttribute('aria-disabled', 'false');
+    await expect(land.getByRole('button', { name: 'Email login code' })).toHaveAttribute('aria-disabled', 'false');
     await expect(page.getByRole('navigation', { name: 'Main' })).toHaveCount(0);
 
     // E1: a code that matches nothing; Go to Spark Hub goes to the usual Welcome
@@ -344,7 +344,7 @@ test('an invite link for someone signed out: the group’s landing with sign-in 
     await expect(land.getByRole('heading', { name: 'Torrez Fitness' })).toBeVisible();
     await expect(land.getByRole('button', { name: 'Continue with Google' })).toHaveCount(0);
     await expect(land).toContainText('It won’t work inside this app.');
-    await expect(land.getByRole('button', { name: 'Email me a code' })).toBeVisible();
+    await expect(land.getByRole('button', { name: 'Email login code' })).toBeVisible();
   } finally {
     await context.close();
   }
