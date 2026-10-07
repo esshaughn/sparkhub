@@ -7509,7 +7509,7 @@
         '<span aria-hidden="true" style="flex:0 0 34px;width:34px;height:34px;border-radius:999px;background:#fdf1d6;display:flex;align-items:center;justify-content:center">' +
           '<svg width="18" height="18" viewBox="0 0 24 24"><path d="M13.2 2.2 7.2 13.1l3.9-.35-.9 8.8 6.9-11.2-4.1.4z" fill="#e8a71c" stroke="#e8a71c" stroke-width="1.7" stroke-linejoin="round"/></svg></span>' +
         '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">' +
-          '<span style="font-size:14px;line-height:1.45;font-weight:600;color:#454b55;text-wrap:pretty">Shared with you on <b style="font-weight:800;color:#0d1117">Spark Hub</b>, where neighbours turn ideas into plans. No account needed to RSVP.</span>' +
+          '<span style="font-size:14px;line-height:1.45;font-weight:600;color:#454b55;text-wrap:pretty">Shared with you on <b style="font-weight:800;color:#0d1117">Spark Hub</b>, where people turn ideas into plans. No account needed to RSVP.</span>' +
           '<span ' + on(() => openAbout()) + ' role="button" data-about-link style="align-self:flex-start;display:flex;align-items:center;gap:3px;min-height:32px;font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">What’s Spark Hub? ' + I.chevR(12, 'currentColor', 2.8) + '</span></div>' +
       '</div>';
     const guestNudge = st.email || lead || s.cancelledAt || nudgeHidden(s.id) || !(my === 'going' || my === 'maybe' || s.signups.some(it => it.claims.some(c => c.userId === st.me))) ? '' :
