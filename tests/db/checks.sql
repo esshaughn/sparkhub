@@ -569,6 +569,19 @@ select t.must_allow('Can''t this time', format($$select public.answer_job_ask(%L
 reset role;
 select t.check('the asker gets a quiet note', exists (select 1 from notes where user_id = t.id('host') and body like '% can’t take Barricades this time (Job ask walk).'));
 select t.check('Can''t this time signs nobody up', not exists (select 1 from signup_claims where item_id = t.job() and user_id = t.id('late')));
+-- I'm in after the job filled up closes the ask instead of failing (20261118000000_one_push_and_full_asks.sql)
+insert into signup_items (id, spark_id, item, need, created_by) values
+  (gen_random_uuid(), (select id from sparks where text = 'Job ask walk'), 'Cones', 1, t.id('host'));
+select t.login('host'); set role authenticated;
+select t.must_allow('the lead asks someone to bring cones', format($$select public.ask_for_job((select id from signup_items where item = 'Cones'), %L, null)$$, t.id('taker')));
+reset role;
+insert into signup_claims (item_id, user_id) values ((select id from signup_items where item = 'Cones'), t.id('helper'));
+select t.login('taker'); set role authenticated;
+select t.check('I''m in on a job that filled up says so', public.answer_job_ask((select id from signup_items where item = 'Cones'), true) = 'full');
+reset role;
+select t.check('and closes the ask without signing them up',
+  (select answer from job_asks where item_id = (select id from signup_items where item = 'Cones') and user_id = t.id('taker')) = 'full'
+  and not exists (select 1 from signup_claims where item_id = (select id from signup_items where item = 'Cones') and user_id = t.id('taker')));
 
 select t.login('admin'); set role authenticated;
 select t.must_refuse('only the lead hands it on', format($$select public.offer_lead((select id from sparks where text = 'Handover walk'), %L)$$, t.id('taker')));
@@ -1046,6 +1059,7 @@ select t.check('the first in line moved up', exists (select 1 from signup_claims
 select t.check('and left the line', not exists (select 1 from signup_waits where item_id = t.id('c900') and user_id = t.id('player2')));
 select t.check('and is going', exists (select 1 from rsvps where spark_id = t.id('play') and user_id = t.id('player2') and status = 'going'));
 select t.check('they heard about it', exists (select 1 from notes where user_id = t.id('player2') and body like 'You’re in: 9:00am court time opened up%'));
+select t.check('as a bell line only: the push goes out directly, once (20261118000000)', (select bool_and(quiet) from notes where user_id = t.id('player2') and body like 'You’re in: 9:00am court time opened up%'));
 select t.check('the lead heard who gave it up and who moved up', exists (select 1 from notes where user_id = t.id('host') and body like '% gave up 9:00am. % moved up.%'));
 select t.check('the second is still in line', exists (select 1 from signup_waits where item_id = t.id('c900') and user_id = t.id('player3')));
 select t.login('player1'); set role authenticated;
@@ -1055,6 +1069,7 @@ select t.login('host'); set role authenticated;
 select t.must_allow('the lead takes someone off', format($$select public.remove_part_claim(%L, %L)$$, t.id('c900'), t.id('player2')));
 reset role;
 select t.check('they''re told', exists (select 1 from notes where user_id = t.id('player2') and body like 'The lead took you off 9:00am court time%'));
+select t.check('with one push, not two (quiet note, 20261118000000)', (select bool_and(quiet) from notes where user_id = t.id('player2') and body like 'The lead took you off 9:00am court time%'));
 select t.check('and the next in line moves up', exists (select 1 from signup_claims where item_id = t.id('c900') and user_id = t.id('player3')));
 -- Guests: a spot with a name and phone, never a job
 insert into signup_items (spark_id, item, kind, need, created_by) values (t.id('play'), 'Beginner clinic', 'seat', 8, t.id('host'));

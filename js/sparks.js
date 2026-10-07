@@ -455,10 +455,23 @@
   const SLOW = 'You’re going a bit fast. Try again in a little while.';
   // Every failed save's message comes through here, so it's also kept for feedback (noteError)
   const failed = (e) => { noteError(e); return failedMsg(e); };
-  const failedMsg = (e) => !e ? FAILED
-    : e.code === 'PT429' || e.status === 429 ? SLOW
-    : e.code === '23505' && /name is taken/.test(e.message || '') ? 'That name is taken. Try another.'
-    : FAILED;
+  const refused = (e) => !!e && REFUSED.some(([re]) => re.test(e.message || ''));
+  // A sign-up the database refused (jobs audit B3, owner 2026-10-07): say why; run() and quick() reload so the page shows what changed
+  const REFUSED = [
+    [/that one.s covered/, () => 'Someone just took the last spot.'],
+    [/^per person: up to \d+ per person for (.+)$/, (m) => 'You already have the most allowed for ' + m[1] + '.'],
+    [/there.s an open spot/, () => 'A spot just opened. Tap Claim.'],
+    [/you have this one/, () => 'You’re already on this one.'],
+    [/this event (is|was) cancelled/, () => 'This event was cancelled.'],
+    [/this event has passed|that event has passed/, () => 'This event isn’t taking sign-ups any more.'],
+  ];
+  const failedMsg = (e) => {
+    if (!e) return FAILED;
+    if (e.code === 'PT429' || e.status === 429) return SLOW;
+    if (e.code === '23505' && /name is taken/.test(e.message || '')) return 'That name is taken. Try another.';
+    for (const [re, say] of REFUSED) { const m = re.exec(e.message || ''); if (m) return say(m); }
+    return FAILED;
+  };
   const BAD_PHOTO = 'That photo couldn’t be read. Try a different one.';
 
   const must = (res) => { if (res.error) throw res.error; return res; };
@@ -877,6 +890,7 @@
       console.error(e);
       setState({ busy: null });
       toast(failed(e));
+      if (refused(e)) loadFresh().catch(err => console.error(err));   // something changed under them: show it (quick() reloads anyway)
       return false;
     }
   };
@@ -1738,8 +1752,10 @@
   };
   const withdrawJobAsk = (s, a) => quick(s, { jobAsks: s.jobAsks.filter(x => !(x.itemId === a.itemId && x.userId === a.userId)) },
     async () => { must(await sb.rpc('withdraw_job_ask', { p_item: a.itemId, p_user: a.userId })); });
-  const answerJobAsk = (s, a, yes) => run(async () => { must(await sb.rpc('answer_job_ask', { p_item: a.itemId, p_in: yes })); })
-    .then(ok => { if (ok) toast(yes ? 'You’re on it. ' + firstName(nameOf(a.by)) + ' will see you’re in.' : 'Thanks for letting ' + firstName(nameOf(a.by)) + ' know.', true); });
+  // I'm in on a job that filled up meanwhile closes the ask ('full', 20261118000000_one_push_and_full_asks.sql)
+  const answerJobAsk = (s, a, yes) => { let res = null;
+    return run(async () => { res = must(await sb.rpc('answer_job_ask', { p_item: a.itemId, p_in: yes })).data; })
+      .then(ok => { if (ok) toast(res === 'full' ? 'It filled up before you answered. Thanks anyway!' : yes ? 'You’re on it. ' + firstName(nameOf(a.by)) + ' will see you’re in.' : 'Thanks for letting ' + firstName(nameOf(a.by)) + ' know.', true); }); };
   function viewJobAsk() {
     const ja = state.jobAsk, s = state.sparks.find(x => x.id === ja.id), j = s && askUnits(s).find(it => it.id === ja.item);
     if (!s || !j) return '';
@@ -1750,7 +1766,7 @@
     const list = (ja.people || []).filter(p => p.id !== state.me && hostIds(s).indexOf(p.id) < 0 && !onJob(s, j.id, p.id) && !asked.some(a => a.userId === p.id && !a.answer) && (!q || p.name.toLowerCase().indexOf(q) > -1));
     // A tick picks; once the slots are full the others grey out. A ticked person gets their own note field under them
     const right = (p) => { const a = s.jobAsks.find(x => x.itemId === j.id && x.userId === p.id);
-      if (a) return '<span data-asked style="flex:0 0 auto;font-size:14px;font-weight:800;color:' + (a.answer === 'cant' ? '#6b7280' : '#0f7a3c') + '">' + (a.answer === 'cant' ? 'Can’t this time' : '✓ Asked') + '</span>';
+      if (a) return '<span data-asked style="flex:0 0 auto;font-size:14px;font-weight:800;color:' + (a.answer === 'cant' || a.answer === 'full' ? '#6b7280' : '#0f7a3c') + '">' + (a.answer === 'cant' ? 'Can’t this time' : a.answer === 'full' ? 'Filled up first' : '✓ Asked') + '</span>';
       const on_ = picked.indexOf(p.id) > -1, full = !on_ && n >= slots;
       return '<span ' + (full ? '' : on(() => set({ picked: on_ ? picked.filter(x => x !== p.id) : picked.concat(p.id) }), 'checkbox')) + (full ? ' role="checkbox" aria-disabled="true"' : '') + ' aria-checked="' + on_ + '" aria-label="Ask ' + esc(p.name) + '" style="flex:0 0 26px;width:26px;height:26px;border-radius:999px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;cursor:' + (full ? 'default' : 'pointer') + ';' +
         (on_ ? 'background:#5b4ae8' : 'background:#fff;border:2px solid ' + (full ? '#e3e5ec' : '#c9ccd3')) + '">' + (on_ ? I.check(13, '#fff', 3.2) : '') + '</span>'; };
@@ -1765,7 +1781,7 @@
       (asked.length ? '<div data-asked-box style="display:flex;flex-direction:column;gap:2px;padding:4px 14px;border-radius:18px;background:#f2f3f6">' + asked.map((a, i) =>
         '<div style="display:flex;flex-direction:column;border-top:' + (i ? '1px solid #dcdfe6' : '0') + '"><div style="display:flex;align-items:center;gap:12px;min-height:54px">' + face(a.userId, nameOf(a.userId), 40) +
           '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px"><span style="font-size:15px;font-weight:800;color:#0d1117">' + esc(nameOf(a.userId)) + '</span>' +
-            '<span style="font-size:13px;font-weight:700;color:' + (a.answer === 'yes' ? '#0f7a3c' : a.answer === 'cant' ? '#9aa0ac' : '#6b7280') + '">' + (a.answer === 'yes' ? 'Said yes' : a.answer === 'cant' ? 'Can’t this time' : 'Asked · waiting') + '</span></div>' +
+            '<span style="font-size:13px;font-weight:700;color:' + (a.answer === 'in' ? '#0f7a3c' : a.answer === 'cant' || a.answer === 'full' ? '#9aa0ac' : '#6b7280') + '">' + (a.answer === 'in' ? 'Said yes' : a.answer === 'cant' ? 'Can’t this time' : a.answer === 'full' ? 'Filled up first' : 'Asked · waiting') + '</span></div>' +
           (!a.answer && (a.by === state.me || isLead(s)) ? '<span ' + on(() => withdrawJobAsk(s, a)) + ' data-withdraw-ask style="flex:0 0 auto;display:flex;align-items:center;min-height:40px;padding:0 4px 0 10px;font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">Withdraw</span>' : '') + '</div>' +
           (a.message ? '<span style="margin:-6px 0 10px 52px;font-size:13.5px;line-height:1.4;font-weight:600;font-style:italic;color:#5c6270">' + esc(a.message) + '</span>' : '') + '</div>').join('') + '</div>' : '') +
       ((ja.people || []).length > 7 ? '<input class="fld" type="search" aria-label="Search people" placeholder="Search" value="' + esc(ja.q || '') + '" ' + onInput(e => { if (e.type === 'input') set({ q: e.target.value.slice(0, 40) }); }) + ' style="' + FIELD + '">' : '') +
@@ -2094,7 +2110,7 @@
         await saveGuestContact(s.id);
         if (mine) must(await sb.from('signup_claims').delete().eq('item_id', it.id).eq('user_id', state.me));
         else { must(await sb.from('signup_claims').insert({ item_id: it.id, user_id: state.me })); await goingWithJob(s, jobOf(s, it).day); }
-      }, (ok) => { if (!ok) { clearTimeout(bannerTimer); setState({ banner: null }); } });
+      }, (ok) => { if (!ok) { clearTimeout(bannerTimer); setState({ banner: null, onIt: null }); } });
     });
   };
   // Pick a shift: tick any shifts (more than one is fine), an optional note, Done
@@ -2124,7 +2140,7 @@
       if (drop.length) must(await sb.from('signup_claims').delete().in('item_id', drop).eq('user_id', state.me));
       if (add.length) { must(await sb.from('signup_claims').insert(add.map(id => ({ item_id: id, user_id: state.me, note })))); await goingWithJob(s, job.day); }
       if (keep.length && noteChanged) must(await sb.from('signup_claims').update({ note }).in('item_id', keep).eq('user_id', state.me));
-    }, (ok) => { if (!ok) { clearTimeout(bannerTimer); setState({ banner: null }); } });
+    }, (ok) => { if (!ok) { clearTimeout(bannerTimer); setState({ banner: null, onIt: null }); } });
   };
   const removeSignup = (s, it) => {
     const n = new Set(it.claims.map(c => c.userId).filter(u => u !== state.me)).size;
@@ -4512,7 +4528,7 @@
       await saveGuestContact(s.id);
       must(await sb.from('signup_claims').insert({ item_id: it.id, user_id: state.me }));
       await goingWithJob(s, jobOf(s, it).day);
-    }, (ok) => { if (!ok) { clearTimeout(bannerTimer); setState({ banner: null }); } }); }));
+    }, (ok) => { if (!ok) { clearTimeout(bannerTimer); setState({ banner: null, onIt: null }); } }); }));
 
   function viewHandSheet() {
     const list = handList(), close = () => setState({ cHandSheet: false });
@@ -7234,8 +7250,8 @@
             '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-size:15px;font-weight:900;color:#2a1f8f">Bring in a co-lead.</span><span style="font-size:13.5px;line-height:1.35;font-weight:600;color:#4a3ad4;text-wrap:pretty">' + COLEAD_WHY + '</span></div>' +
             '<button type="button" class="hov-primary" ' + on(() => openCohostPicker(s)) + ' style="flex:0 0 auto;min-height:44px;padding:0 16px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:14.5px;font-weight:800;display:flex;align-items:center;gap:6px;cursor:pointer">' + I.plus(14, '#fff', 2.8) + 'Co-lead</button></div>' : '') +
         // Manage co-leads is a quiet gray Edit in the card's top right, like What to expect's (owner, 2026-10-07; was a white pill)
-        // Everyone else gets a small Contact pill in the same spot; messaging isn't built, so it asks for the feature (owner, 2026-10-07)
-        (!manage && !s.wantsHost ? '<span ' + on(() => requestFeature('Contacting the leads')) + ' role="button" data-lead-contact aria-label="Contact" style="position:absolute;top:12px;right:12px;z-index:1;display:flex;align-items:center;gap:4px;min-height:28px;padding:0 10px;border-radius:999px;background:rgba(255,255,255,.72);color:#2a1f8f;font-size:12px;font-weight:800;cursor:pointer">' +
+        // Everyone else gets a small Contact pill on the right, centered top to bottom (owner, 2026-10-07); messaging isn't built, so it asks for the feature (owner, 2026-10-07)
+        (!manage && !s.wantsHost ? '<span ' + on(() => requestFeature('Contacting the leads')) + ' role="button" data-lead-contact aria-label="Contact" style="position:absolute;top:50%;transform:translateY(-50%);right:16px;z-index:1;display:flex;align-items:center;gap:4px;min-height:28px;padding:0 10px;border-radius:999px;background:rgba(255,255,255,.72);color:#2a1f8f;font-size:12px;font-weight:800;cursor:pointer">' +
           svg(12, stroke('#2a1f8f', 2.4), '<path d="M4 5.5h16v10H9l-5 4v-14Z"/>') + 'Contact</span>' : '') +
         (manage ? '<span ' + on(() => setState({ leadsSheet: s.id })) + ' data-manage-coleads aria-label="Manage co-leads" style="position:absolute;top:' + (ask ? '14px' : '50%;transform:translateY(-50%)') + ';right:16px;z-index:1;display:flex;align-items:center;gap:5px;min-height:36px;padding:0 2px;color:#6b7280;font-size:14px;font-weight:700;cursor:pointer">' + svg(13, stroke('currentColor', 2.4), PENCIL) + 'Edit</span>' : '') +
       '</div>';   // (Say hi is hidden until there's messaging, owner 2026-10-01)

@@ -169,6 +169,13 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     await expect(vCard.locator('[data-rsvp-bar]')).toHaveCount(0);
     // Members don't add their own things any more (v8-7): no Add something else
     await expect(GP.getByText('Add something else')).toHaveCount(0);
+    // Someone beat them to it: the database's refusal says so, and the pop-up goes (jobs audit B3)
+    await G.route('**/rest/v1/signup_claims*', (route) => route.request().method() === 'POST'
+      ? route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ code: '23514', message: 'that one\'s covered' }) }) : route.continue());
+    await GP.locator('[data-signup="Lemonade"]').getByRole('button', { name: 'Sign up' }).click();
+    await expect(G.getByText('Someone just took the last spot.')).toBeVisible();
+    await expect(G.locator('[data-onit-done]')).toHaveCount(0);
+    await G.unroute('**/rest/v1/signup_claims*');
     await GP.locator('[data-signup="Lemonade"]').getByRole('button', { name: 'Sign up' }).click();
     await G.locator('[data-onit-done]').click();   // You're signed up! (owner, 2026-10-07)
     await expect(GP.locator('[data-signup="Lemonade"]')).toContainText('You’re in');
