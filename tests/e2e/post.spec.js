@@ -86,7 +86,14 @@ test('post an event with every step filled, then edit it in the pop-ups and dele
     await expect(P.locator('h1[data-on]')).toHaveCount(0);
     await expect(P.getByRole('button', { name: 'Share', exact: true })).toHaveCount(0);
     await P.getByRole('button', { name: 'More' }).click();
-    await expect(P.getByRole('menuitem')).toHaveText(['Edit event', 'Invite people', 'QR code'])   // v8-13: Invite people, not Share;
+    await expect(P.getByRole('menuitem')).toHaveText(['Edit event', 'Invite people', 'Share link', 'QR code'])   // v8-13: Invite people, not Share; Share link (owner, 2026-10-07)
+    await P.getByRole('menuitem', { name: 'Share link' }).click();
+    const link0 = page.getByRole('dialog', { name: 'Share link' });
+    await expect(link0.locator('[data-link-preview]')).toBeVisible();
+    await expect(link0.getByText(/\/e\/[a-z0-9]{8}/)).toBeVisible();
+    await link0.getByRole('button', { name: 'Close' }).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);   // on its own: closing it closes everything
+    await P.getByRole('button', { name: 'More' }).click();
     await P.getByRole('menuitem', { name: 'QR code' }).click();
     const qr0 = page.getByRole('dialog', { name: 'QR code' });
     await expect(qr0.locator('[data-event-qr]')).toBeVisible();

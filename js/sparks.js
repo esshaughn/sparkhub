@@ -6040,7 +6040,8 @@
 
   // A photo header shared by the plan and "happened" pages
   const ROUND_BTN = 'flex:0 0 44px;width:44px;height:44px;border-radius:999px;background:#fff;box-shadow:0 2px 8px rgba(13,17,23,.25);display:flex;align-items:center;justify-content:center;cursor:pointer';
-  // v8-12 (8a): on a plan, a lead's top right is one ⋯ that opens Edit event · Invite people (v8-13; was Share) · QR code; tap outside closes it
+  // v8-12 (8a): on a plan, a lead's top right is one ⋯ that opens Edit event · Invite people (v8-13; was Share) · Share link (owner, 2026-10-07) · QR code; tap outside closes it
+  const LINK_IC = '<path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1"/>';   // the chain link (⋯ menu, Share link)
   const MENU_ROW = 'display:flex;align-items:center;gap:12px;min-height:48px;padding:0 16px;border-top:1px solid #f2f3f6;font-size:15.5px;font-weight:800;color:#0d1117;cursor:pointer';
   const evMenu = (s) => {
     const open = state.evMenu === s.id, shut = () => setState({ evMenu: null });
@@ -6051,6 +6052,8 @@
         '<div role="menu" data-ev-menu-list style="position:absolute;top:52px;right:0;z-index:2;width:200px;background:#fff;border-radius:16px;box-shadow:0 12px 30px rgba(0,0,0,.3);overflow:hidden"><div style="margin-top:-1px">' +
           '<div ' + on(() => { shut(); openSec(s, 'title'); }, 'menuitem') + ' class="hov-fill-grey" style="' + MENU_ROW + '">' + svg(18, stroke('#0d1117', 2.3), '<path d="M4 20h4L19 9l-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/>') + 'Edit event</div>' +
           '<div ' + on(() => setState({ evMenu: null, share: { id: s.id, copied: false } }), 'menuitem') + ' class="hov-fill-grey" style="' + MENU_ROW + '">' + svg(18, stroke('#0d1117', 2.3), '<circle cx="9.5" cy="8" r="3.5"/><path d="M3 20a6.5 6.5 0 0 1 13 0"/><path d="M19 8v6M16 11h6"/>') + 'Invite people</div>' +   // v8-13 (was Share)
+          // Share link (owner, 2026-10-07): the Share link pop-up on its own, as QR code does
+          '<div ' + on(() => setState({ evMenu: null, share: { id: s.id, copied: false, pop: 'link', solo: true } }), 'menuitem') + ' data-ev-menu-link class="hov-fill-grey" style="' + MENU_ROW + '">' + svg(18, stroke('#0d1117', 2.3), LINK_IC) + 'Share link</div>' +
           (isLead(s) ? '<div ' + on(() => setState({ evMenu: null, share: { id: s.id, copied: false, pop: 'qr', solo: true } }), 'menuitem') + ' class="hov-fill-grey" style="' + MENU_ROW + '">' +
             svg(18, 'fill="none" stroke="#0d1117" stroke-width="2.2"', '<rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><path d="M14 14h2v2h-2zM18 18h2v2h-2z"/>') + 'QR code</div>' : '') +
         '</div></div>' : '') + '</span>';
@@ -6719,7 +6722,6 @@
     // v8-10 (1c, Event Invite Options): one sheet, purple for events and gold for ideas (Design's goldRc colours)
     const gold = phaseOf(s) === 'idea', A = shareAccent(s);
     // v8-11 (item 4): Share link opens the Share link pop-up; the QR icon (leads only, item 5) opens the QR code pop-up
-    const LINK_IC = '<path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1"/>';
     const openPop = (k) => () => setState({ share: Object.assign({}, state.share, { pop: k, copied: false }) });
     const ROUND54 = 'flex:0 0 54px;width:54px;height:54px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer';
     const linkBtn = (wide) => wide
@@ -6761,6 +6763,7 @@
     // Nothing to pick and no QR (a guest, or anyone who can't invite and isn't a host): no sheet with one button, straight to
     // the Share link pop-up; closing it closes everything (owner, 2026-10-06)
     if (!canList && !isLead(s)) return viewSharePop(s, msg, link, true);
+    if (sh.solo && sh.pop === 'link') return viewSharePop(s, msg, link, true);   // Share link from the ⋯ menu, on its own
     if (sh.solo && sh.pop === 'qr' && isLead(s)) return viewEventQr(s, link);   // v8-12: QR code from the ⋯ menu, on its own
     return sheet(title, close, SHEET_PAD.replace('max-height:88%', 'max-height:94%'),
       '<div style="display:flex;align-items:flex-start;gap:10px"><div style="flex:1;min-width:0"><div style="font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">' + title + '</div>' +
@@ -11443,6 +11446,7 @@
     const invite = fromUrl().inviteCode;
     try {
       await ensureSession();
+      if (AUTH_RETURN.any) render();   // the first draw, when boot held it back for the Google return
       if (await finishGoogle().catch(e => { console.error(e); return false; })) return;
       // Back from Google mid-invite: nothing may leave the Joining screen hanging. Signed in → join now (inviteJoin
       // shows Try again if it fails); not signed in → the landing.
@@ -11505,6 +11509,8 @@
     state.inv = { code: bootInvite, group: undefined, step: bootUser ? 'confirm' : 'land' };
     loadInviteGroup(bootInvite);
   }
-  render();
+  // Back from Google: keep the splash (index.html) up until init() has the session, or Welcome flashed before the
+  // signed-in app (owner, 2026-10-07). A cancelled trip still lands on Welcome with sign-in open, a moment later.
+  if (!(AUTH_RETURN.any && !bootUser && !state.inv)) render();
   init();
 })();
