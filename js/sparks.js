@@ -1005,8 +1005,12 @@
     const b = state.onIt, s = state.sparks.find(x => x.id === b.id);
     if (!s) return '';
     const close = () => setState({ onIt: null });
-    const units = (b.undo.items || []).map(id => s.signups.find(u => u.id === id)).filter(Boolean);
+    // a job or shift (s.signups), or a spot's row (s.parts: its spot's name, the row's time)
     const when = (u) => [u.day && s.days ? dayWord(s, u.day) : '', u.time ? slotTime(u.time) + (u.endTime ? '–' + slotTime(u.endTime) : '') : ''].filter(Boolean).join(' · ');
+    const unitOf = (id) => { const j = s.signups.find(u => u.id === id); if (j) return { item: j.item, when: when(j) };
+      for (const p of s.parts || []) { const u = p.rows.find(x => x.id === id); if (u) return { item: p.item, when: when(u.time ? u : p) }; }
+      return null; };
+    const units = (b.undo.items || []).map(unitOf).filter(Boolean);
     const chip = '<span style="align-self:flex-start;display:flex;align-items:center;height:26px;padding:0 10px;border-radius:999px;background:#e7f6ec;color:#0f7a3c;font-size:13px;font-weight:800">Going' + (s.dayDate ? ' · ' + fmtDay(s.dayDate) : '') + '</span>';
     return '<div class="modal-scrim" data-scrim="' + reg(close) + '" style="z-index:45">' +
       '<div role="dialog" aria-modal="true" aria-label="You’re signed up" data-banner="on" data-screen-label="You’re signed up" style="position:relative;width:100%;max-width:360px;box-sizing:border-box;background:#fff;border-radius:24px;padding:22px 20px 8px;display:flex;flex-direction:column;gap:14px;box-shadow:0 20px 50px rgba(13,17,23,.35);animation:popIn 260ms cubic-bezier(.22,.9,.28,1) both">' +
@@ -1016,10 +1020,12 @@
         // the recap: what you took, then the event and its date
         '<div data-onit-summary style="display:flex;flex-direction:column;gap:6px;padding:12px 14px;border-radius:14px;background:#f7f8fa">' +
           units.map(u => '<div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:16px;line-height:1.3;font-weight:900;color:#0d1117">' + esc(u.item) + '</span>' +
-            (when(u) ? '<span style="font-size:13.5px;font-weight:700;color:#454b55">' + esc(when(u)) + '</span>' : '') + '</div>').join('') +
+            (u.when ? '<span style="font-size:13.5px;font-weight:700;color:#454b55">' + esc(u.when) + '</span>' : '') + '</div>').join('') +
           '<span style="font-size:13.5px;font-weight:600;color:#6b7280">for ' + esc(s.text) + '</span>' + (s.planned ? chip : '') + '</div>' +
         '<button type="button" data-onit-done ' + on(close) + ' style="height:50px;border:0;border-radius:999px;background:#149a4b;color:#fff;font-family:inherit;font-size:16px;font-weight:800;cursor:pointer">Done</button>' +
-        '<div style="display:flex;justify-content:center;margin-top:-8px"><button type="button" ' + on(() => { if (!state.busy) undoClaim(b); }) + ' style="min-height:32px;padding:0 12px;border:0;background:none;font-family:inherit;font-size:13.5px;font-weight:700;color:#9aa0a8;cursor:pointer">Undo</button></div>' +
+        // a guest (a spot: guests can't take jobs) gets Create account beside Undo, for reminders (jobs audit M5, owner 2026-10-07)
+        '<div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:-8px"><button type="button" ' + on(() => { if (!state.busy) undoClaim(b); }) + ' style="min-height:32px;padding:0 6px;border:0;background:none;font-family:inherit;font-size:13.5px;font-weight:700;color:#9aa0a8;cursor:pointer">Undo</button>' +
+          (state.email ? '' : '<span aria-hidden="true" style="color:#c4c8d0">·</span><button type="button" data-onit-account ' + on(() => { setState({ onIt: null }); openLogin('reminder', () => setTimeout(askReminders, 500)); }) + ' style="min-height:32px;padding:0 6px;border:0;background:none;font-family:inherit;font-size:13.5px;font-weight:800;color:#5b4ae8;cursor:pointer">Create account for a reminder</button>') + '</div>' +
       '</div></div>';
   }
   // "You're going!" (members, after Going) and "You're on the list, {name}!" (guests, after Going or Maybe, once saved): Design v8-11 6a / 2b
@@ -1928,7 +1934,9 @@
   // Taking a job on a plan marks you Going (goingWithJob does it in the database)
   const goingToo = (s, day) => { const add = jobDayAdd(s, day);
     if (add) return { rsvps: s.rsvps.filter(r => r.userId !== state.me).concat([{ userId: state.me, status: 'going', created: Date.now(), attended: null, days: add.go, maybeDays: add.maybe }]) };
-    return !s.planned || isLead(s) || myRsvp(s) === 'going' ? {} : { rsvps: s.rsvps.filter(r => r.userId !== state.me).concat([{ userId: state.me, status: 'going', created: Date.now(), attended: null }]) }; };
+    // On an idea, taking something counts as interest, so the plan later moves you to Maybe (jobs audit M7, owner 2026-10-07)
+    if (!s.planned) return isLead(s) || !state.email || s.interested.indexOf(state.me) > -1 ? {} : { interested: [state.me].concat(s.interested) };
+    return isLead(s) || myRsvp(s) === 'going' ? {} : { rsvps: s.rsvps.filter(r => r.userId !== state.me).concat([{ userId: state.me, status: 'going', created: Date.now(), attended: null }]) }; };
   // pick: an Each day event's days from When will you attend? ({ go: [...], maybe: [...] }; neither = Can't). Going on an
   // Each day event without a pick opens that pop-up; Maybe and Can't still answer for the whole event (v8-7 item 5)
   const setRsvp = (s, status, pick) => {
@@ -2097,7 +2105,13 @@
       if (add.told) toast('Added ' + dayWord(s, day, true) + ' to your RSVP', true);   // "Added Sunday to your RSVP"
       return;
     }
-    if (!s.planned || isLead(s) || myRsvp(s) === 'going') return;
+    if (!s.planned) {   // an idea: interested (an account only; guests can't show interest)
+      if (isLead(s) || !state.email || s.interested.indexOf(state.me) > -1) return;
+      const r = await sb.from('interests').insert({ spark_id: s.id, user_id: state.me });
+      if (r.error && r.error.code !== '23505') throw r.error;
+      return;
+    }
+    if (isLead(s) || myRsvp(s) === 'going') return;
     must(await sb.from('rsvps').upsert({ spark_id: s.id, user_id: state.me, status: 'going' }, { onConflict: 'spark_id,user_id' }));
   };
   const toggleClaim = (s, it) => {
@@ -3712,7 +3726,9 @@
     // Taking a job marks you Going, so there's no "Confirm RSVP"; a Maybe gets a nudge only in the last 3 days
     if (my === 'maybe' && dd != null && dd <= 3) out.push({ act: 'You said Maybe', cta: 'Update RSVP', go: () => openSpark(s) });
     // Only what you signed up for (owner, 2026-09-29): no location or countdown rows
-    myClaims(s).forEach(it => out.push({ act: it.item, cta: spanTime(it) || fmtTime(s.dayTime) || 'Any time', time: true }));
+    // with the job's own day on a multi-day event ("Sun · 8am", jobs audit B5)
+    myClaims(s).forEach(it => { const d = jobOf(s, it).day || it.day;
+      out.push({ act: it.item, cta: [d && s.days ? dayWord(s, d) : '', spanTime(it) || fmtTime(s.dayTime)].filter(Boolean).join(' · ') || 'Any time', time: true }); });
     return out;
   };
   // Your tasks: plans you lead (upcoming, or in the last 3 days) with something to do, what you're helping
@@ -3724,7 +3740,7 @@
     const plans = leads.filter(s => s.planned).map(s => ({ s, a: ownActs(s) })).filter(z => z.a.length)
       .sort((p, q) => rank(p.s) - rank(q.s) || byWhen(p.s, q.s));
     const ideas = leads.filter(s => !s.planned).sort((a, b) => b.created - a.created);
-    const help = mine.filter(s => !s.cancelledAt && !isLead(s) && phaseOf(s) === 'plan' && (['going', 'maybe'].indexOf(myRsvp(s)) > -1 || helpsOn(s)))
+    const help = mine.filter(s => !s.cancelledAt && !isLead(s) && ((phaseOf(s) === 'plan' && ['going', 'maybe'].indexOf(myRsvp(s)) > -1) || (phaseOf(s) !== 'done' && helpsOn(s))))
       .map(s => ({ s, a: helpActs(s) })).filter(z => z.a.length)
       .sort((p, q) => q.a.length - p.a.length || byWhen(p.s, q.s));
     return { plans, ideas, help, leadsAny: leads.some(s => s.planned) };
@@ -3894,12 +3910,12 @@
     d.ideas.forEach(s => out.push({ s, kind: 'idea', rows: leadRows(s, 'idea') }));
     d.help.forEach(z => out.push({ s: z.s, kind: 'help', rows: z.a.map(a => a.time ? { title: a.act, sub: a.cta === 'Any time' ? '' : a.cta } : { title: a.act, cta: a.cta, go: a.go, warn: a.warn }) }));
     // Taking part (v8-2): each spot you hold (its times under it), and each waitlist you're on with your place
-    state.sparks.filter(s => inMine(s) && s.planned && !s.cancelledAt && !isLead(s) && phaseOf(s) !== 'done').forEach(s => {
+    state.sparks.filter(s => inMine(s) && !s.cancelledAt && !isLead(s) && phaseOf(s) !== 'done').forEach(s => {   // ideas too (jobs audit M7)
       const rows = [];
       (s.parts || []).forEach(p => {
         const mine = p.rows.filter(u => u.claims.some(c => c.userId === state.me));
         if (mine.length) rows.push({ title: p.item, sub: p.kind === 'time' ? namesList(mine.map(u => slotTime(u.time))) : p.time ? slotTime(p.time) : '' });
-        p.rows.filter(u => u.waits.indexOf(state.me) > -1).forEach(u => rows.push({ title: 'Waitlist for ' + (u.time ? slotTime(u.time) : p.item), sub: ordinal(u.waits.indexOf(state.me) + 1) + ' in line', cta: 'Leave', go: () => leaveWait(s, u) }));
+        p.rows.filter(u => u.waits.indexOf(state.me) > -1).forEach(u => rows.push({ title: 'Waitlist for ' + partLabel(u), sub: ordinal(u.waits.indexOf(state.me) + 1) + ' in line', cta: 'Leave', go: () => leaveWait(s, u) }));
       });
       if (rows.length) out.push({ s, kind: 'part', rows });
     });
@@ -6234,12 +6250,12 @@
     const [s, u] = freshRow(s0, u0);
     if (overCap(u.part, false)) return;
     const was = myRsvp(s), lbl = partLabel(u), lead = isLead(s);
-    if (!state.viewAs) toast(capFirst(lbl) + ' is yours.' + (s.planned && !lead ? ' You’re going.' : ''), true, { label: 'Undo', fn: () => undoPart(s.id, u.id, was) });
+    if (!state.viewAs) onItBanner(s, { items: [u.id], was });   // You're signed up!, as for a job (owner, 2026-10-07; was a toast)
     quick(s, Object.assign(withPart(s, u.id, x => Object.assign({}, x, { claims: x.claims.concat([{ userId: state.me, created: Date.now() }]), waits: x.waits.filter(w => w !== state.me) })), goingToo(s)), async () => {
       await savePartGuest(s);
       must(await sb.from('signup_claims').insert({ item_id: u.id, user_id: state.me }));
       await goingWithJob(s);
-    });
+    }, (ok) => { if (!ok) setState({ onIt: null }); });
   });
   const undoPart = (sparkId, rowId, was) => run(async () => {
     await quickChain;   // the claim being undone may still be saving
@@ -6409,7 +6425,7 @@
         '<div style="margin-top:2px;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.4px;color:#0d1117">' + (wait ? 'Join the waitlist' : 'Claim this spot') + '</div></div>' + closeX(close) + '</div>' +
       '<input class="fld" type="text" maxlength="40" autocomplete="name" data-autofocus aria-label="Your name" placeholder="Your name" value="' + esc(g.name || '') + '" ' + onInput(e => { if (e.type === 'input') set({ name: e.target.value.slice(0, 40) }); }) + ' style="' + fld + '">' +
       '<input class="fld" type="tel" maxlength="30" autocomplete="tel" aria-label="Phone number" placeholder="Phone number" value="' + esc(g.phone || '') + '" ' + onInput(e => { if (e.type === 'input') set({ phone: e.target.value.slice(0, 30) }); }) + ' style="' + fld + '">' +
-      '<p style="margin:0;font-size:13px;line-height:1.4;font-weight:600;color:#6b7280">Only the hosts see your number.</p>' +
+      '<p style="margin:0;font-size:13px;line-height:1.4;font-weight:600;color:#6b7280">Only the hosts see your number.' + (wait ? ' Without an account we can’t tell you when a spot opens.' : '') + '</p>' +   // jobs audit M5
       '<button type="button" data-enter ' + on(go) + ' aria-disabled="' + !ok + '" style="min-height:52px;border:0;border-radius:999px;font-family:inherit;font-size:16px;font-weight:800;color:#fff;background:' + (ok ? '#149a4b' : '#c9ccd3') + ';cursor:' + (ok ? 'pointer' : 'default') + '">' +
         (wait ? 'Join the waitlist' : 'Claim ' + (when || (u.part.kind === 'seat' ? 'a seat' : 'a spot'))) + '</button>' +
       '<span ' + on(signIn) + ' role="button" style="align-self:center;min-height:36px;display:flex;align-items:center;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">Have an account? Sign in</span>', 36);
@@ -7725,8 +7741,8 @@
       '<div style="padding:16px 14px 26px;display:flex;flex-direction:column;gap:18px">' +
         cancelledCard(s) +
         (discMissing(s) ? updatesCard(s) : discBanner(s)) +   // v8: the banner; the updates live in Discussion
-        // Keep this event sits with the RSVP card, 8px under it (Design v8-8 prototype 976)
-        (rsvpBlock && guestNudge ? '<div style="display:flex;flex-direction:column;gap:8px">' + rsvpBlock + guestNudge + '</div>' : rsvpBlock + guestNudge) +
+        // Keep this event: the page's 18px above and below (owner, 2026-10-07; was 8px under the RSVP card, Design v8-8 prototype 976)
+        rsvpBlock + guestNudge +
         visitorLine +   // a visitor's Shared with you card: under the RSVP, 12px above and below (owner, 2026-10-07)
         whenWhereCard(s) +
         basicDetailsSec(s) +

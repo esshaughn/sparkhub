@@ -7,6 +7,8 @@
 -- events. Otherwise each function is the same as before (fill_from_waitlist, part_dropped, remove_part_claim,
 -- remove_signup: 20261106000000_take_part.sql; nudge_invitee: 20261115000000_multi_day_fixes.sql).
 --
+-- M3 (end of file): holders hear when a host moves the time of what they hold, and get its reminder again.
+--
 -- M1: hosts take someone off a job too (remove_part_claim refused jobs, and nobody could delete another person's claim).
 -- The note and push name whoever did it ("Sam took you off …"), not always "the lead".
 --
@@ -174,3 +176,37 @@ begin
 end $$;
 revoke execute on function public.answer_job_ask(uuid, boolean) from public, anon;
 grant execute on function public.answer_job_ask(uuid, boolean) to authenticated;
+
+-- M3: a host moves a spot's or a job's time (or its day): the people holding it hear "Court time moved: 9:00am → 9:30am"
+-- (a bell line and one push) and get their spot reminder again at the new time (reminded_at cleared). Not for the
+-- person making the change, a cancelled event, or a new row; test and demo events keep the bell line only.
+create or replace function private.part_moved() returns trigger language plpgsql security definer set search_path = public as $$
+declare s record; v_name text; v_old text; v_new text; users uuid[];
+  lbl constant text := 'FMHH12:MIam';
+begin
+  if auth.uid() is null then return null; end if;
+  select id, text, cancelled_at, demo, test into s from sparks where id = new.spark_id;
+  if s.id is null or s.cancelled_at is not null then return null; end if;
+  users := array(select distinct c.user_id from signup_claims c where c.item_id = new.id and c.user_id <> auth.uid());
+  update signup_claims set reminded_at = null where item_id = new.id;
+  if cardinality(users) = 0 then return null; end if;
+  -- a day taken off the event clears its jobs' day; sparks_schedule_days already told those people
+  if new.day is null and old.day is not null and old."time" is not distinct from new."time" and old.end_time is not distinct from new.end_time then return null; end if;
+  v_name := coalesce((select item from signup_items where id = new.shift_of), new.item);
+  v_old := concat_ws(' ', to_char(old.day, 'Dy'), coalesce(to_char(old."time", lbl), case when old.day is null then 'no set time' end));
+  v_new := concat_ws(' ', to_char(new.day, 'Dy'), coalesce(to_char(new."time", lbl), case when new.day is null then 'no set time' end));
+  if v_old = v_new then   -- only the end time changed
+    v_old := 'until ' || coalesce(to_char(old.end_time, lbl), 'done'); v_new := 'until ' || coalesce(to_char(new.end_time, lbl), 'done');
+  end if;
+  insert into notes (user_id, body, created_by, quiet)
+    select u, left(v_name || ' moved: ' || v_old || ' → ' || v_new || ' (' || left(s.text, 120) || ').', 320), auth.uid(), true from unnest(users) u;
+  if not (s.demo or coalesce(s.test, false)) then
+    perform private.push_send(users, 'reminders', s.text, v_name || ' moved: ' || v_old || ' → ' || v_new, '/#/idea/' || s.id, 'pt:' || new.id);
+  end if;
+  return null;
+end $$;
+revoke all on function private.part_moved() from public, anon, authenticated;
+drop trigger if exists part_moved on public.signup_items;
+create trigger part_moved after update of "time", end_time, day on public.signup_items for each row
+  when (old."time" is distinct from new."time" or old.end_time is distinct from new.end_time or old.day is distinct from new.day)
+  execute function private.part_moved();

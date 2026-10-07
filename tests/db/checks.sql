@@ -1094,6 +1094,15 @@ select t.must_allow('a guest adds a phone', format($$update guest_contacts set p
 select t.must_allow('then claims a seat', format($$insert into signup_claims (item_id) values (%L)$$, t.id('clinic')));
 select t.must_refuse('a guest still can''t take a job', format($$insert into signup_claims (item_id) values (%L)$$, t.id('balls')));
 reset role;
+-- Moving a time tells the people holding it, and their reminder goes again (20261118000000, jobs audit M3)
+update signup_claims set reminded_at = now() where item_id = t.id('c900');
+select t.login('host'); set role authenticated;
+select t.must_allow('the lead moves 9:00 to 9:15', format($$update signup_items set "time" = '09:15' where id = %L$$, t.id('c900')));
+reset role;
+select t.check('the holder hears it moved', exists (select 1 from notes where user_id = t.id('player3') and body like '% moved: 9:00am → 9:15am (%' and quiet));
+select t.check('and gets the reminder again', not exists (select 1 from signup_claims where item_id = t.id('c900') and reminded_at is not null));
+select t.check('the lead hears nothing about their own change', not exists (select 1 from notes where user_id = t.id('host') and body like '% moved: 9:00am → 9:15am%'));
+update signup_items set "time" = '09:00' where id = t.id('c900');
 -- Removing a time tells the people holding it
 select t.login('host'); set role authenticated;
 select t.must_allow('the lead removes 9:00', format($$select public.remove_signup(%L)$$, t.id('c900')));

@@ -53,11 +53,17 @@ test('take part: set up spots, claim, waitlist, guest, roster and giving up', as
     await openIdea(M, id);
     const MP = M.locator('[data-screen-label="Plan page"]');
     await MP.locator('[data-part-row="9:00am"] [data-part-claim]').click();
-    await expect(M.getByText('9:00am court time is yours. You’re going.')).toBeVisible();
+    // You're signed up!, as for a job (owner, 2026-10-07; was a toast)
+    const onIt = M.getByRole('dialog', { name: 'You’re signed up' });
+    await expect(onIt.locator('[data-onit-summary]')).toContainText('Court time');
+    await expect(onIt.locator('[data-onit-summary]')).toContainText('9:00am');
+    await expect(onIt.locator('[data-onit-account]')).toHaveCount(0);   // an account: no Create account
+    await onIt.locator('[data-onit-done]').click();
     await expect(MP.locator('[data-part-row="9:00am"]')).toHaveAttribute('data-mine', '');
     await expect(MP.locator('[data-part-row="9:00am"]')).toContainText('You’re in');
     await expect(rsvpBar(MP.locator('[data-rsvp]'), 'going')).toBeVisible();
     await MP.locator('[data-part="Beginner clinic"] [data-part-claim]').click();
+    await M.locator('[data-onit-done]').click();
     await expect(MP.locator('[data-part="Beginner clinic"]')).toContainText('You’re in');
 
     // A guest (no account): 9:00am is full, so Waitlist asks for a name and phone
@@ -68,6 +74,7 @@ test('take part: set up spots, claim, waitlist, guest, roster and giving up', as
     const sheet = G.getByRole('dialog', { name: 'Claim this spot' });
     await expect(sheet).toContainText('COURT TIME · 9:00AM');
     await expect(sheet).toContainText('Only the hosts see your number.');
+    await expect(sheet).toContainText('Without an account we can’t tell you when a spot opens.');   // jobs audit M5
     await sheet.getByLabel('Your name').fill('Sam Kim');
     await sheet.getByLabel('Phone number').fill('512-555-0100');
     await sheet.getByRole('button', { name: 'Join the waitlist' }).click();
