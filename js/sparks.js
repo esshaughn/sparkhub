@@ -10437,7 +10437,7 @@
     const panels = [
       // The Spark Hub mark in place of an eyebrow (owner, 2026-10-07)
       '<div data-about-logo aria-label="Spark Hub" style="display:flex;align-items:center;gap:6px">' + I.bolt(22, '#e8a71c') + '<span style="font-size:17px;line-height:1;font-weight:900;letter-spacing:-.5px;color:#0d1117">Spark Hub</span></div>' +
-        h('Where your group’s Ideas turn into Plans') +
+        h('Where your group’s ideas turn into plans') +
         p('See what’s coming up, say you’re going, and pitch in: bring a dish, take a shift, invite a friend.') +
         p('It’s in a beta test phase, intended for small communities &amp; neighborhoods.'),
       kick('HOW IT WORKS') + h('Anyone can start something') +
