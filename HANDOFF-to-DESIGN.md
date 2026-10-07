@@ -6,7 +6,7 @@
 - **Source:** github.com/esshaughn/sparkhub (`index.html`, `js/sparks.js`, `css/sparks.css`, `privacy.html`, `supabase/templates/`)
 - **Baseline:** Claude Design's **round v8-13** (zip *Spark Hub v8-13*, 2026-10-06; v8-12 before it: `design/spark-hub/Spark Hub App Version 8.dc.html` and `design/spark-hub/HANDOFF-to-CODE.md`). It approved rows 96–105, §2 and §3 of *HANDOFF-to-DESIGN-7*, so those are cleared; rows 106–114 (v8-7) stay until Design has seen them.
 - **Build version:** **v7** (owner, 2026-10-02): a lead is a choice. Since v8-8 an idea is led from the start (*Who leads it · Me*) or floated (*I'll decide*), and both use the new idea page.
-- **As of:** 2026-10-06 (latest: no counts on the RSVP buttons, row 124. Before that: built round **v8-13**'s *New since v8-12* list, table below). Before that: v8-12, v8-11 (migration `20261110000000_plus_ones.sql`), v8-10, then the prototype audit and *Owner calls that stand* (below). Earlier 2026-10-06: built round **v8-8**'s *New since v8-7* list (items 1–9, table below; migration `20261109000000_led_ideas.sql`). The *Answered* and *Already decided* items in the same file are listed in §4 until they're built.
+- **As of:** 2026-10-06 (latest: drag to close on every slide-up, §2. Before that: no counts on the RSVP buttons, row 124. Before that: built round **v8-13**'s *New since v8-12* list, table below). Before that: v8-12, v8-11 (migration `20261110000000_plus_ones.sql`), v8-10, then the prototype audit and *Owner calls that stand* (below). Earlier 2026-10-06: built round **v8-8**'s *New since v8-7* list (items 1–9, table below; migration `20261109000000_led_ideas.sql`). The *Answered* and *Already decided* items in the same file are listed in §4 until they're built.
 
 ## Start here (2026-10-06)
 
@@ -185,6 +185,7 @@ Never cleared on a reset. These are places where the owner chose differently fro
 ## 2. Things the build had to invent (please design these properly)
 
 - **Pick pop-up messages:** *That date has passed. Pick another.*
+- **Drag to close (owner, 2026-10-06):** every slide-up follows the thumb when pulled down (from its top, or anywhere once its content is scrolled to the top) and the dark scrim fades with it. Let go past a third of its height (at most 220px), or flick, and it slides off and closes, the same as a tap outside; otherwise it springs back (140–260ms, `cubic-bezier(.2,.8,.2,1)`). Phones that allow it give a short buzz at the point where letting go will close it. Plan an event only closes this way from its Close step (Review has Back), and still asks *Pick this up later?* when something is typed. Nothing new is drawn: if you want a stronger cue at the threshold, please design one.
 - **Make it a plan from an idea:** *That idea isn't there any more* (deleted while Review was open), *Pick a date first* (back to page 1).
 
 ## 3. Behaviour added in the build (no visual change)

@@ -8085,15 +8085,14 @@
               : '<div style="display:flex;flex-direction:column;gap:12px;animation:fadeUp 360ms 120ms cubic-bezier(.2,.8,.2,1) both">' + ideaBodyRest(s) + '</div>') +
           '</div></div></div>';
   }
-  // Swipe up (or scroll) to grow the slide-up; swipe down at the top to close it
+  // Swipe up (or scroll) to grow the slide-up; pulling it down to close is the shared drag-to-close (sheetDrag)
   let ipY0 = null;
   document.addEventListener('touchstart', (e) => { ipY0 = e.target.closest && e.target.closest('[data-ip-sheet]') ? e.touches[0].clientY : null; }, { passive: true });
   document.addEventListener('touchend', (e) => {
     if (ipY0 == null || !state.ip) return;
-    const dy = e.changedTouches[0].clientY - ipY0, sc = document.querySelector('[data-ip-scroll]');
+    const dy = e.changedTouches[0].clientY - ipY0;
     ipY0 = null;
     if (dy < -40 && !state.ip.exp) ipExpand();
-    else if (dy > 60 && (!sc || sc.scrollTop <= 0)) ipClose();
   }, { passive: true });
   document.addEventListener('wheel', (e) => { if (state.ip && !state.ip.exp && e.deltaY > 0 && e.target.closest && e.target.closest('[data-ip-sheet]')) ipExpand(); }, { passive: true });
 
@@ -10558,6 +10557,7 @@
     handlers = H;
     tpl.innerHTML = html;
     morphChildren(root, tpl.content);
+    if (sd && sd.on && !sd.settling && sd.el.isConnected) sdPaint(sd.d);   // a redraw mid-drag reset the sheet's style
     const noNav = welcomeShown() || invFull() || (!state.email && state.screen === 'detail');
     root.classList.toggle('no-nav', noNav);
     if (hadNoNav && !noNav) { nudgeSoon(); tallFix(); setTimeout(tallFix, 400); setTimeout(() => layoutNote('tab bar back'), 1500); }   // the tab bar is back
@@ -10901,6 +10901,88 @@
   root.addEventListener('touchend', swipeEnd);
   root.addEventListener('touchcancel', swipeEnd);
   root.addEventListener('touchcancel', () => { if (ptr) { ptr = null; ptrShow(0); } });
+  // Drag to close (owner, 2026-10-06): every slide-up follows a downward drag from its top (or from anywhere once its
+  // content is scrolled to the top); the scrim fades as it goes. Let go past a third of its height (a little buzz says
+  // so on phones that can), or with a quick flick, and it slides off and closes; otherwise it springs back.
+  // It moves with `translate`, not `transform`, so the sheets' slide-in animation (held with fill both) can't pin it.
+  const SHEETS = '.sheet, .v6-sheet, .ip-sheet, .fb-nudge, .compose-sheet';
+  let sd = null;
+  const sdScrim = (el) => el.closest('[data-scrim]') || (el.previousElementSibling && el.previousElementSibling.matches('[data-scrim], .compose-scrim') ? el.previousElementSibling : null);
+  // What closing means: the scrim's own handler (a tap outside), or the sheet's Close button (Plan an event)
+  const sdCloser = (el) => {
+    const scrim = sdScrim(el);
+    if (scrim && scrim.hasAttribute('data-scrim')) return () => { const fn = handlerFor(scrim.getAttribute('data-scrim')); if (fn) fn(); };
+    const x = el.querySelector('[aria-label="Close"][data-on]');
+    return x ? () => x.click() : null;
+  };
+  const sdPaint = (d) => {
+    if (!sd) return;
+    sd.el.style.translate = '0 ' + d + 'px';
+    if (sd.scrim && sd.rgb) sd.scrim.style.backgroundColor = 'rgba(' + sd.rgb + ',' + (sd.a * Math.max(0, 1 - d / sd.h)).toFixed(3) + ')';
+  };
+  const sdClear = (el, scrim) => {
+    if (el) { el.style.removeProperty('translate'); el.style.removeProperty('transition'); }
+    if (scrim) { scrim.style.removeProperty('background-color'); scrim.style.removeProperty('transition'); }
+  };
+  root.addEventListener('touchstart', (e) => {
+    if (sd && sd.settling) return;
+    sd = null;
+    const t = e.target, el = e.touches.length === 1 && t.closest && t.closest(SHEETS);
+    if (!el || t.closest('input, textarea, select, [contenteditable], [data-ph], .snap-row') || !sdCloser(el)) return;
+    // The nearest scrolling box between the finger and the sheet: the drag only starts once it's at its top
+    let sc = null;
+    for (let n = t; n && n !== el.parentNode; n = n.parentNode) {
+      if (n.nodeType === 1 && n.scrollHeight > n.clientHeight + 1 && /auto|scroll/.test(getComputedStyle(n).overflowY)) { sc = n; break; }
+    }
+    sd = { el, sc, x: e.touches[0].clientX, y: e.touches[0].clientY, on: false, d: 0, v: 0, t: Date.now() };
+  }, { passive: true });
+  root.addEventListener('touchmove', (e) => {
+    if (!sd || sd.settling) return;
+    const x = e.touches[0].clientX, y = e.touches[0].clientY, dx = x - sd.x, dy = y - sd.y;
+    if (!sd.on) {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      // Mostly downward, with whatever's under the finger already scrolled to its top; anything else is a scroll
+      if (dy <= 0 || Math.abs(dx) > dy || (sd.sc && sd.sc.scrollTop > 0)) { sd = null; return; }
+      sd.on = true;
+      sd.y0 = y;   // start from here, so the sheet doesn't jump by the 8px it took to decide
+      sd.h = sd.el.getBoundingClientRect().height;
+      sd.go = Math.min(sd.h / 3, 220);
+      sd.scrim = sdScrim(sd.el);
+      const m = sd.scrim && getComputedStyle(sd.scrim).backgroundColor.match(/rgba?\(([^,]+),([^,]+),([^,)]+)(?:,([^)]+))?\)/);
+      if (m) { sd.rgb = m[1] + ',' + m[2] + ',' + m[3]; sd.a = m[4] == null ? 1 : +m[4]; }
+      sd.el.style.transition = 'none';
+    }
+    e.preventDefault();
+    const now = Date.now(), d = Math.max(0, y - sd.y0);
+    if ((d >= sd.go) !== (sd.d >= sd.go) && d >= sd.go && navigator.vibrate) { try { navigator.vibrate(8); } catch (err) { /* not allowed */ } }
+    sd.v = (d - sd.d) / Math.max(1, now - sd.t);
+    sd.d = d; sd.t = now;
+    sdPaint(d);
+  }, { passive: false });
+  const sdEnd = () => {
+    if (!sd) return;
+    if (!sd.on) { sd = null; return; }
+    const { el, scrim } = sd, v = Date.now() - sd.t > 80 ? 0 : sd.v;   // held still before letting go: not a flick
+    const go = sd.d >= sd.go || (v > 0.5 && sd.d > 24);
+    sd.settling = true;
+    const ms = Math.round(Math.min(260, Math.max(140, (go ? sd.h - sd.d : sd.d) * 0.8)));
+    const ease = 'cubic-bezier(.2,.8,.2,1)';
+    el.style.transition = 'translate ' + ms + 'ms ' + ease;
+    if (scrim) scrim.style.transition = 'background-color ' + ms + 'ms ' + ease;
+    sdPaint(go ? sd.h + 20 : 0);
+    setTimeout(() => {
+      const close = go && sdCloser(el);
+      sd = null;
+      if (close) close();
+      // Still here (Plan an event asking to keep a draft, or a re-render): put it back where it was drawn
+      if (el.isConnected) {
+        if (go) { el.style.transition = 'none'; el.style.translate = '0 0'; }
+        requestAnimationFrame(() => sdClear(el, scrim));
+      } else sdClear(null, scrim);
+    }, ms + 20);
+  };
+  root.addEventListener('touchend', sdEnd);
+  root.addEventListener('touchcancel', sdEnd);
   setInterval(refresh, 30000);   // picks up other people's posts; also retries after "Couldn't load"
 
   async function init() {
