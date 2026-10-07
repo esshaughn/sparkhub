@@ -1221,3 +1221,22 @@ select t.check('a malformed code opens nothing', public.open_event('../x') is nu
 reset role;
 select t.check('the preview by code has the title', (select title from public.event_preview((select link_code from sparks where id = t.id('pumpkin')))) = 'Pumpkin carving night');
 select t.check('an old link finds its code', public.link_code_for(t.id('pumpkin')) = (select link_code from sparks where id = t.id('pumpkin')));
+
+-- An idea's discussion reaches everyone interested (20261114000000_idea_comment_notes.sql) --------------------------------
+select t.person('lead12'), t.person('fanA12'), t.person('fanB12');
+insert into memberships (group_id, user_id, role) values (t.id('g'), t.id('lead12'), 'member'), (t.id('g'), t.id('fanA12'), 'member'), (t.id('g'), t.id('fanB12'), 'member');
+insert into sparks (id, group_id, author_name, lead_name, lead_id, created_by, text, visibility, planned)
+values (gen_random_uuid(), t.id('g'), 'Lead', 'Lead', t.id('lead12'), t.id('lead12'), 'Power point night', 'group', false);
+insert into t.ids select 'ppt', id from sparks where text = 'Power point night';
+insert into interests (spark_id, user_id) values (t.id('ppt'), t.id('fanA12')), (t.id('ppt'), t.id('fanB12'));
+select t.login('fanA12'); set role authenticated;
+select t.must_allow('someone interested posts on the idea', format($$insert into event_comments (spark_id, body) values (%L, 'I''ll do one on bees')$$, t.id('ppt')));
+reset role;
+select t.check('the others interested get it in their notifications', (select count(*) from notes where user_id = t.id('fanB12') and body like '% on Power point night: I''ll do one on bees' and quiet) = 1);
+select t.check('…but not the writer', not exists (select 1 from notes where user_id = t.id('fanA12')));
+select t.login('fanB12'); set role authenticated;
+select t.check('they can read it', (select count(*) from notes where body like '%Power point night%') = 1);
+select t.must_allow('a reply', format($$insert into event_comments (spark_id, parent_id, body) values (%L, (select id from event_comments where body = 'I''ll do one on bees'), 'Yes!')$$, t.id('ppt')));
+select t.must_refuse('notes stay unwritable by clients', format($$insert into notes (user_id, body) values (%L, 'x')$$, t.id('fanA12')));
+reset role;
+select t.check('a reply doesn''t notify everyone interested', not exists (select 1 from notes where user_id = t.id('fanA12')));
