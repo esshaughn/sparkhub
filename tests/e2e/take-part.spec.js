@@ -67,7 +67,7 @@ test('take part: set up spots, claim, waitlist, guest, roster and giving up', as
     await GP.locator('[data-part-row="9:00am"] [data-part-waitlist-btn]').click();
     const sheet = G.getByRole('dialog', { name: 'Claim this spot' });
     await expect(sheet).toContainText('COURT TIME · 9:00AM');
-    await expect(sheet).toContainText('Only the lead sees this.');
+    await expect(sheet).toContainText('Only the hosts see your number.');
     await sheet.getByLabel('Your name').fill('Sam Kim');
     await sheet.getByLabel('Phone number').fill('512-555-0100');
     await sheet.getByRole('button', { name: 'Join the waitlist' }).click();

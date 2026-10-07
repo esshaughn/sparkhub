@@ -817,6 +817,7 @@
   const metaName = (meta) => meta.display_name ||
     (/google/.test(meta.iss || '') ? firstName(meta.name || meta.full_name) : meta.name) || '';
 
+  let forgetComments = () => {};   // set by Discussion: its cache belongs to one account (sign-in audit B1)
   const noteSession = (session) => {
     const u = session.user, meta = u.user_metadata || {};
     const email = !u.is_anonymous && u.email ? u.email : '';
@@ -826,6 +827,7 @@
     }
     if (u.id !== state.me || email !== state.email || google !== state.isGoogle) {
       if (state.viewAs) return;   // previewing as someone else: stay them until Exit (which reloads)
+      forgetComments();   // a signed-out or other account's Discussion would stay stuck until a reload
       setState({ me: u.id, email, isGoogle: google, myName: (u.is_anonymous ? state.myName : metaName(meta) || state.myName).slice(0, 30), memberSince: u.created_at ? new Date(u.created_at).getFullYear() : state.memberSince, joinedAt: u.created_at ? Date.parse(u.created_at) : state.joinedAt });
     }
   };
@@ -1017,7 +1019,7 @@
         '<div style="display:flex;align-items:center;justify-content:center;gap:10px;font-size:14.5px;font-weight:800">' +
           (guest ? ''
             : link(() => { plusDone(); setState({ share: { id: s.id, copied: false } }); }, '#1f5fa8', svg(15, stroke('currentColor', 2.4), '<circle cx="9.5" cy="8" r="3.5"/><path d="M3 20a6.5 6.5 0 0 1 13 0"/><path d="M19 8v6M16 11h6"/>'), 'Invite others', 'data-plus-invite')) +
-          '<span style="color:#c4c8d0">·</span><span ' + on(change) + ' style="min-height:32px;display:flex;align-items:center;color:#6b7280;cursor:pointer">Change RSVP</span></div>' +
+          (guest ? '' : '<span style="color:#c4c8d0">·</span>') + '<span ' + on(change) + ' style="min-height:32px;display:flex;align-items:center;color:#6b7280;cursor:pointer">Change RSVP</span></div>' +
       '</div></div>';
   }
 
@@ -1291,13 +1293,18 @@
   const PENDING_FRIEND = 'pendingFriend';
   const pendingFriend = () => { try { return sessionStorage.getItem(PENDING_FRIEND) || ''; } catch (e) { return ''; } };
   const setPendingFriend = (code) => { try { if (code) sessionStorage.setItem(PENDING_FRIEND, code); else sessionStorage.removeItem(PENDING_FRIEND); } catch (e) { /* fine */ } };
-  const startFriendAdd = (code) => {
+  // `go`: they already tapped Add before signing in, so add straight away once the preview loads (sign-in audit C11:
+  // it asked twice). It survives the trip to Google in sessionStorage
+  const friendGo = (on) => { try { if (on) sessionStorage.setItem('pendingFriendGo', '1'); else return sessionStorage.getItem('pendingFriendGo') === '1'; } catch (e) { return false; } };
+  const startFriendAdd = (code, go) => {
     setPendingFriend(code);
+    try { sessionStorage.removeItem('pendingFriendGo'); } catch (e) { /* fine */ }
     setState({ frAdd: { code, who: undefined, busy: false }, installPop: false, menu: null });
     sb.rpc('friend_link_preview', { p_code: code }).then(r => {
       if (r.error) throw r.error;
       const w = (r.data || [])[0];
       if (state.frAdd && state.frAdd.code === code) setState({ frAdd: Object.assign({}, state.frAdd, { self: !!(w && w.is_you), who: w ? { name: w.name, avatar: PHOTO_PATH.test(w.avatar_path || '') ? w.avatar_path : null } : null }) });
+      if (go && w && !w.is_you && state.email && state.frAdd && state.frAdd.code === code) confirmFrAdd();
     }).catch(e => { console.error(e); if (state.frAdd && state.frAdd.code === code) setState({ frAdd: Object.assign({}, state.frAdd, { who: { name: '', avatar: null } }) }); });
   };
   const takeFriendLink = (code) => { if (ADD_PATH.test(location.pathname) || /^#\/add\//.test(location.hash)) history.replaceState(null, '', '/'); startFriendAdd(code); };
@@ -1305,7 +1312,7 @@
   const confirmFrAdd = () => {
     const fa = state.frAdd;
     if (!fa || fa.busy) return;
-    if (!state.email) { setState({ frAdd: null }); return openLogin('friend', () => startFriendAdd(fa.code)); }   // the code stays pending (Google reloads the page)
+    if (!state.email) { setState({ frAdd: null }); friendGo(true); return openLogin('friend', () => startFriendAdd(fa.code, true)); }   // the code stays pending (Google reloads the page)
     setState({ frAdd: Object.assign({}, fa, { busy: true }) });
     (async () => {
       try {
@@ -1494,7 +1501,7 @@
   };
   if (window.visualViewport) { visualViewport.addEventListener('resize', placeInvPop); visualViewport.addEventListener('scroll', placeInvPop); }
   // "Resend in 0:42" counts down while pop-up 2 is open
-  setInterval(() => { if (state.inv && state.loginStep === 'code' && (state.invResendAt || 0) > Date.now() - 1500) render(); }, 1000);
+  setInterval(() => { if (state.loginStep === 'code' && (state.invResendAt || 0) > Date.now() - 1500) render(); }, 1000);
 
   // ---------------------------------------------------------------------------
   // Photos
@@ -2334,7 +2341,7 @@
         setState({ mergeToken: token });
         must(await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: false } }));
       }
-      setState({ busy: null, loginMode: mode, loginStep: 'code', loginCode: again ? st.loginCode : '', resent: !!again, resentAt: again ? Date.now() : 0 });
+      setState({ busy: null, loginMode: mode, loginStep: 'code', loginCode: again ? st.loginCode : '', resent: !!again, resentAt: again ? Date.now() : 0, invResendAt: Date.now() + 60000, invCodeBad: false });
     } catch (e) {
       console.error(e);
       setState({ busy: null });
@@ -2374,7 +2381,7 @@
     } catch (e) {
       console.error(e);
       setState({ busy: null });
-      if (state.inv && state.loginStep === 'code') setState({ invCodeBad: true });   // pop-up 2 shows it under the boxes
+      if (state.loginStep === 'code') setState({ invCodeBad: true });   // the code pop-up shows it under the boxes
       else toast('That code didn’t work. Check it, or send it again.');
     }
   };
@@ -2382,6 +2389,7 @@
   const signOut = async () => {
     await forgetPush();   // this phone stops getting the old account's notifications
     clearCache();
+    forgetComments();
     await sb.auth.signOut().catch(() => {});
     setState({ email: '', isGoogle: false, myName: '', myAvatar: null, myPlace: '', myBio: '', guest: null, groups: [], sparks: [], drafts: [], notes: [], profiles: {}, sizes: {},
       notif: { allReadAt: 0, read: [], topics: {}, email: true, loaded: false }, demoAdmin: false, back: null, subjectId: null, gpId: null, joinCode: '', myFriendCode: null,
@@ -2761,8 +2769,9 @@
         onInput(e => { if (e.type === 'input') setState({ loginEmail: e.target.value.slice(0, 80) }); }) +
         ' style="width:100%;height:54px;border:2px solid #e3e5ec;border-radius:16px;padding:0 18px;font-family:inherit;font-size:17px;font-weight:500;color:#11131f;background:#fff;outline:none">' +
       '<button type="button" data-enter ' + on(invSendCode) + ' aria-disabled="' + !emailOk + '" style="margin-top:10px;' + invPrimary(emailOk) + '">' + (busy === 'send' ? 'Sending…' : 'Email login code') + '</button>';
+    const privacy = '<p data-inv-privacy style="margin:6px 0 0;text-align:center;font-size:13px;color:#8a8fa0">Group admins can see your email. <a href="/privacy.html" target="_blank" rel="noopener" style="font-weight:800;color:#5b4ae8">Privacy</a></p>';
     const body = IN_APP
-      ? email +
+      ? email + privacy +
         '<div style="margin-top:16px;display:flex;flex-direction:column;gap:10px;background:#fdf5e1;border-radius:18px;padding:14px 16px">' +
           '<p style="margin:0;font-size:15px;line-height:1.4;color:#5c4510"><b style="font-weight:800">Want to use Google?</b> It won’t work inside this app. Tap <b style="font-weight:800">···</b> then <b style="font-weight:800">Open in browser</b>.</p>' +
           '<span ' + on(invCopyLink) + ' style="align-self:flex-start;display:flex;align-items:center;padding:8px 14px;border-radius:999px;background:#fff;border:1.5px solid #ecd9a6;font-size:14px;font-weight:800;color:#5c4510;cursor:pointer">' +
@@ -2773,7 +2782,8 @@
             '<div style="display:flex;align-items:center;gap:14px;margin:16px 0"><span style="flex:1;height:1px;background:#e3e5ec"></span><span style="font-size:12px;font-weight:800;letter-spacing:.12em;color:#8a8fa0">OR</span><span style="flex:1;height:1px;background:#e3e5ec"></span></div>'
           : '<div style="height:22px"></div>') +
         email +
-        '<p style="margin:14px 0 0;text-align:center;font-size:14px;color:#6b7080">New here? Either one creates your account.</p>';
+        '<p style="margin:14px 0 0;text-align:center;font-size:14px;color:#6b7080">New here? Either one creates your account.</p>' +
+        privacy;   // joining is when the group's admins start seeing your email (sign-in audit M1, owner 2026-10-07)
     return '<div data-screen-label="Invite" style="position:relative;min-height:100%;display:flex;flex-direction:column;background:#fff">' +
       '<div style="position:relative;flex:0 0 auto">' + invPhoto(g, 'calc(' + photoH + 'px + var(--pt))', 96) + statusFade + brandPill + '</div>' +
       '<div style="position:relative;flex:1 0 auto;margin-top:-28px;border-radius:28px 28px 0 0;background:#fff;padding:26px 24px calc(24px + env(safe-area-inset-bottom, 0px));display:flex;flex-direction:column">' +
@@ -2782,8 +2792,9 @@
   }
 
   // 2: the 6-digit email code, over the landing. One hidden input drawn as six boxes (paste and iOS autofill work).
+  // Every sign-in uses it since 2026-10-07 (owner, sign-in audit C10); outside an invite the pill reads Spark Hub
   function viewInvCode() {
-    const st = state, g = st.inv.group, code = st.loginCode.slice(0, 6), bad = !!st.invCodeBad, ok = code.length === 6 && !st.busy;
+    const st = state, invite = !!(st.inv && st.inv.step === 'land'), g = invite ? st.inv.group : null, code = st.loginCode.slice(0, 6), bad = !!st.invCodeBad, ok = code.length === 6 && !st.busy;
     const close = () => { closeLogin(); setState({ invCodeBad: false }); };
     const left = Math.max(0, Math.ceil(((st.invResendAt || 0) - Date.now()) / 1000));
     const boxes = Array.from({ length: 6 }, (_, i) => {
@@ -2801,18 +2812,19 @@
     return '<div class="modal-scrim" data-scrim="' + reg(close) + '" style="z-index:32;display:block;padding:0;background:rgba(17,19,31,.55)">' +
       '<div data-inv-pop role="dialog" aria-modal="true" aria-label="Check your email" style="position:absolute;left:18px;right:18px;top:var(--inv-top, 170px);max-width:420px;margin:0 auto;background:#fff;border-radius:32px;padding:22px 22px 24px;box-shadow:0 24px 60px rgba(17,19,31,.3);animation:popIn 260ms cubic-bezier(.22,.9,.28,1) both">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px">' +
-          '<span style="min-width:0;display:flex;align-items:center;gap:8px;padding:4px 12px 4px 4px;border-radius:999px;background:#f0f1f5;font-size:14px;font-weight:700;color:#3a3e4d;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + invThumb(g, 28) + 'Joining ' + invName(g) + '</span>' +
+          '<span style="min-width:0;display:flex;align-items:center;gap:8px;padding:4px 12px 4px 4px;border-radius:999px;background:#f0f1f5;font-size:14px;font-weight:700;color:#3a3e4d;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (invite ? invThumb(g, 28) + 'Joining ' + invName(g) : '<span style="padding-left:8px;display:flex">' + I.bolt(16, '#e8a71c') + '</span>Spark Hub') + '</span>' +
           '<span ' + on(close) + ' aria-label="Close" style="flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:#f0f1f5;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(16, '#11131f', 2.4) + '</span></div>' +
         '<h2 style="margin:18px 0 0;font-size:28px;line-height:1.1;font-weight:900;letter-spacing:-.02em;color:#11131f">Check your email</h2>' +
         '<p style="margin:8px 0 0;font-size:16px;line-height:1.4;color:#5f6475;overflow-wrap:anywhere">We sent a 6-digit sign-in code to <b style="font-weight:700;color:#11131f">' + esc(st.loginEmail.trim()) + '</b></p>' +
         '<div style="position:relative;margin-top:20px;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px">' + boxes +
           '<input data-inv-code type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" aria-label="6-digit code" value="' + esc(code) + '" ' + onInput(onCode) +
             ' style="position:absolute;inset:0;width:100%;height:100%;border:0;padding:0;background:transparent;color:transparent;caret-color:transparent;font-size:16px;letter-spacing:40px;outline:none;opacity:.01"></div>' +
-        (bad ? '<div role="alert" style="margin-top:10px;font-size:14px;line-height:1.4;color:#d93a3a">That code didn’t work. Check the newest email from Spark Hub.</div>' : '') +
-        '<button type="button" data-enter ' + on(() => { if (ok) verifyCode(); }) + ' aria-disabled="' + !ok + '" style="margin-top:18px;' + invPrimary(ok) + '">' + (st.busy === 'signin' ? 'Signing in…' : 'Sign in & join') + '</button>' +
+        (bad ? '<div role="alert" style="margin-top:10px;font-size:14px;line-height:1.4;color:#d93a3a">That code didn’t work or has expired. Check the newest email from Spark Hub, or send a new code.</div>' : '') +
+        '<button type="button" data-enter ' + on(() => { if (ok) verifyCode(); }) + ' aria-disabled="' + !ok + '" style="margin-top:18px;' + invPrimary(ok) + '">' + (st.busy === 'signin' ? 'Signing in…' : invite ? 'Sign in & join' : 'Sign in') + '</button>' +
         '<div style="margin-top:16px;display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:14px">' +
           (left > 0 ? '<span style="color:#6b7080">Resend in 0:' + pad2(left) + '</span>' : '<span ' + on(invResend) + ' style="font-weight:700;color:#5b4ae8;cursor:pointer">Send a new code</span>') +
-          '<span ' + on(() => { close(); setTimeout(() => { const f = document.querySelector('[data-inv-email]'); if (f) f.focus(); }, 0); }) + ' style="font-weight:700;color:#5b4ae8;cursor:pointer">Use a different email</span></div>' +
+          '<span ' + on(() => { if (!invite) return setState({ loginStep: 'email', loginCode: '', invCodeBad: false }); close(); setTimeout(() => { const f = document.querySelector('[data-inv-email]'); if (f) f.focus(); }, 0); }) + ' style="font-weight:700;color:#5b4ae8;cursor:pointer">Use a different email</span></div>' +
+        (invite ? '<p data-inv-privacy style="margin:14px 0 0;text-align:center;font-size:13px;color:#8a8fa0">Group admins can see your email. <a href="/privacy.html" target="_blank" rel="noopener" style="font-weight:800;color:#5b4ae8">Privacy</a></p>' : '') +
       '</div></div>';
   }
 
@@ -6342,7 +6354,7 @@
         '<div style="margin-top:2px;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.4px;color:#0d1117">' + (wait ? 'Join the waitlist' : 'Claim this spot') + '</div></div>' + closeX(close) + '</div>' +
       '<input class="fld" type="text" maxlength="40" autocomplete="name" data-autofocus aria-label="Your name" placeholder="Your name" value="' + esc(g.name || '') + '" ' + onInput(e => { if (e.type === 'input') set({ name: e.target.value.slice(0, 40) }); }) + ' style="' + fld + '">' +
       '<input class="fld" type="tel" maxlength="30" autocomplete="tel" aria-label="Phone number" placeholder="Phone number" value="' + esc(g.phone || '') + '" ' + onInput(e => { if (e.type === 'input') set({ phone: e.target.value.slice(0, 30) }); }) + ' style="' + fld + '">' +
-      '<p style="margin:0;font-size:13px;line-height:1.4;font-weight:600;color:#6b7280">Only the lead sees this.</p>' +
+      '<p style="margin:0;font-size:13px;line-height:1.4;font-weight:600;color:#6b7280">Only the hosts see your number.</p>' +
       '<button type="button" data-enter ' + on(go) + ' aria-disabled="' + !ok + '" style="min-height:52px;border:0;border-radius:999px;font-family:inherit;font-size:16px;font-weight:800;color:#fff;background:' + (ok ? '#149a4b' : '#c9ccd3') + ';cursor:' + (ok ? 'pointer' : 'default') + '">' +
         (wait ? 'Join the waitlist' : 'Claim ' + (when || (u.part.kind === 'seat' ? 'a seat' : 'a spot'))) + '</button>' +
       '<span ' + on(signIn) + ' role="button" style="align-self:center;min-height:36px;display:flex;align-items:center;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">Have an account? Sign in</span>', 36);
@@ -7366,6 +7378,7 @@
   // Read when the plan's page opens (not part of load_all); the hosts and people coming (Going or Maybe) write
   // (20261105000000_event_comments.sql). Hosts get a push per comment, authors one per reply (20261109010000_comment_pushes.sql).
   const comments = {};   // spark id → { list, loading }
+  forgetComments = () => { Object.keys(comments).forEach(k => { delete comments[k]; }); };
   const loadComments = (sid, force) => {
     const c = comments[sid];
     if (c && (c.loading || (!force && c.list))) return;
@@ -7507,7 +7520,7 @@
     const send = () => { if (ok) postComment(s, draft, null, () => ({ discDraft: Object.assign({}, state.discDraft, { [s.id]: '' }) }), '[data-comment-input]'); };
     const avatar = st.myAvatar ? photoUrl(st.myAvatar) : null;
     // Not able to post yet: say how (audit 2026-10-07: it was an empty white box)
-    const box = !can ? (state.email && !s.cancelledAt && !lead ? '<div data-disc-how style="padding:14px 18px 6px;font-size:14px;font-weight:700;color:#6b7280">' + (s.planned ? 'Say Going or Maybe to join the conversation.' : 'Tap I’m interested to join the conversation.') + '</div>' : '') : '<div style="display:flex;flex-direction:column;gap:4px;padding:14px 14px 4px"><div style="display:flex;align-items:center;gap:10px">' + avatarSpan(st.me, st.myName, avatar, 36) +
+    const box = !can ? (state.email && !s.cancelledAt && !lead ? '<div data-disc-how style="padding:14px 18px 6px;font-size:14px;font-weight:700;color:#6b7280">' + (s.planned ? 'RSVP to join the conversation.' : 'Tap I’m interested to join the conversation.') + '</div>' : '') : '<div style="display:flex;flex-direction:column;gap:4px;padding:14px 14px 4px"><div style="display:flex;align-items:center;gap:10px">' + avatarSpan(st.me, st.myName, avatar, 36) +
         '<label class="disc-field" style="flex:1;min-width:0;display:flex;align-items:center;gap:6px;min-height:50px;box-sizing:border-box;padding:5px 5px 5px 18px;border-radius:999px;background:#f2f3f6">' +
           '<input class="fld" type="text" maxlength="500" data-comment-input aria-label="Write a comment" placeholder="' + (lead ? (s.planned ? 'Write to everyone going…' : 'Write to everyone interested…') : 'Ask a question or say hi…') + '" value="' + esc(draft) + '" ' +
             onInput(e => { if (e.type === 'input') setState({ discDraft: Object.assign({}, state.discDraft, { [s.id]: e.target.value.slice(0, 500) }) }); }) +
@@ -7577,7 +7590,7 @@
     // who hasn't replied gets one temporary card under the RSVP buttons: what Spark Hub is, soft pink with an × (gone on
     // this device once closed) and a quiet What's Spark Hub? link to the About sheet. No group name (visitors don't see it,
     // v8-8). It goes once they reply
-    const visitorLine = lead || my || s.cancelledAt || st.viewAs || visitorHidden() || (st.email && gIds(s).some(g => groupById(g))) ? '' :
+    const visitorLine = lead || my || s.cancelledAt || st.viewAs || visitorHidden() || (st.email && gIds(s).some(g => (groupById(g) || {}).role)) ? '' :
       '<div data-visitor-line style="position:relative;margin:-6px 0;display:flex;gap:12px;align-items:flex-start;padding:12px 40px 10px 14px;border-radius:16px;background:#fdeef1">' +
         '<span aria-hidden="true" style="flex:0 0 30px;width:30px;height:30px;border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center">' +
           '<svg width="16" height="16" viewBox="0 0 24 24"><path d="M13.2 2.2 7.2 13.1l3.9-.35-.9 8.8 6.9-11.2-4.1.4z" fill="#e8a71c" stroke="#e8a71c" stroke-width="1.7" stroke-linejoin="round"/></svg></span>' +
@@ -11026,7 +11039,7 @@
       (st.updAll ? viewUpdAll() : '') +
       (st.blast ? viewBlast() : '') +
       (st.ipPop ? viewIdeaPop() : '') +
-      (st.loginStep ? (st.inv && st.inv.step === 'land' && st.loginStep === 'code' ? viewInvCode() : viewLogin()) : '') +
+      (st.loginStep ? (st.loginStep === 'code' ? viewInvCode() : viewLogin()) : '') +
       (st.inv && st.inv.step === 'confirm' && st.email ? viewInvConfirm() : '') +
       (st.dayPick ? viewDayPick() : '') +
       (st.dayTypePop ? viewDayType() : '') +
@@ -11672,7 +11685,7 @@
       }
       await loadForRoute();
       if (invite) takeInvite(invite);
-      if (pendingFriend()) startFriendAdd(pendingFriend());   // a friend link, or back from Google signing in for one
+      if (pendingFriend()) startFriendAdd(pendingFriend(), friendGo());   // a friend link, or back from Google signing in for one
       if (state.inv && state.inv.step === 'confirm' && !state.email) setInv({ step: 'land' });   // the saved session had ended
       if (state.screen === 'me' && !state.email) { setState({ screen: 'sched' }); openLogin('profile', () => go('me')); }
     } catch (e) {
