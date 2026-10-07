@@ -7617,12 +7617,12 @@
     // three buttons; Change brings the buttons back. Under it: faces, "17 going · 3 maybe", See all ›
     // Design v8-14 (RSVP Button Options 1d): 54px, a 28px circle, the answer's colours, Change in purple
     const RB = { going: ['You’re going', '#e7f6ec', '#149a4b', '#0f7a3b', '<path d="M5 12.5l4.5 4.5L19 7.5"/>'], maybe: ['You’re a maybe', '#fdf1d6', '#f5b428', '#8f6405', '<path d="M9.2 9a2.9 2.9 0 0 1 5.6 1c0 2-2.8 2.6-2.8 4M12 18h.01"/>'],
-      // Can't: a sad face, closed eyes and a frown (owner's drawing, 2026-10-07; was an ×)
-      no: ['You can’t make it', '#f2f3f6', '#454b55', '#454b55', '<path d="M3.4 10.2Q5.4 11.4 7.6 9.4M16.4 9.4Q18.6 11.4 20.6 10.2"/><path d="M7.4 18.6Q12 13.6 16.6 18.6"/>', 22, 2.1] };
+      // Can't: an outlined sad face, closed eyes and a frown (owner's drawing, 2026-10-07; was an × in a dark circle)
+      no: ['You can’t make it', '#f2f3f6', '#454b55', '#454b55', '<circle cx="12" cy="12" r="10.4"/><path d="M6.1 10.4Q7.6 11.4 9.4 9.9M14.6 9.9Q16.4 11.4 17.9 10.4"/><path d="M8.6 16.9Q12 13.2 15.4 16.9"/>', 28, 1.9, true] };
     const showBar = !!my && RB[my] && st.rsvpEdit !== s.id;
-    const rsvpBar = !showBar ? '' : (() => { const [t, bgc, dot, ink, icon, size, sw] = RB[my];
+    const rsvpBar = !showBar ? '' : (() => { const [t, bgc, dot, ink, icon, size, sw, outline] = RB[my];
       return '<div data-rsvp-bar="' + my + '" style="display:flex;align-items:center;gap:10px;height:54px;padding:0 12px 0 14px;box-sizing:border-box;border-radius:16px;background:' + bgc + '">' +
-        '<span aria-hidden="true" style="flex:0 0 28px;width:28px;height:28px;border-radius:999px;background:' + dot + ';display:flex;align-items:center;justify-content:center">' + svg(size || 16, stroke('#fff', sw || 3.2), icon) + '</span>' +
+        '<span aria-hidden="true" style="flex:0 0 28px;width:28px;height:28px;border-radius:999px;background:' + (outline ? 'none' : dot) + ';display:flex;align-items:center;justify-content:center">' + svg(size || 16, stroke(outline ? dot : '#fff', sw || 3.2), icon) + '</span>' +   // Can't: an outlined face (owner)
         '<span style="flex:1;min-width:0;font-size:17px;font-weight:900;color:' + ink + '">' + t + '</span>' +
         '<button type="button" ' + on(() => setState({ rsvpEdit: s.id })) + ' data-rsvp-change style="flex:0 0 auto;padding:8px 4px;border:0;background:transparent;font-family:inherit;font-size:15px;font-weight:800;color:#5b4ae8;cursor:pointer">Change</button></div>'; })();
     const nGo = headN(s), nMaybe = maybes(s).length;
