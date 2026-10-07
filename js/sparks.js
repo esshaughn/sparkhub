@@ -3002,7 +3002,7 @@
   // An idea's line: the top-voted date while none is picked ("Oct 23 leads", amber), else how many are in
   const ideaLine = (s) => {
     const top = s.dateOpts.filter(o => o.votes.length).sort((a, b) => b.votes.length - a.votes.length || (a.dayDate || '').localeCompare(b.dayDate || ''))[0];
-    return !s.dayDate && top && top.dayDate ? [monthDay(top.dayDate) + ' leads', TBD_INK] : [s.interested.length + ' interested'];
+    return !s.dayDate && top && top.dayDate ? [monthDay(top.dayDate) + ' leads', TBD_INK] : [fans(s).length + ' interested'];
   };
   const ideaSoon = (s) => { const d = s.dayDate || (ideaLine(s)[1] ? s.dateOpts.map(o => o.dayDate).filter(Boolean).sort()[0] : ''); return d || '9999'; };
 
@@ -4354,7 +4354,7 @@
     // Design v8 prototype: an idea reads "N interested · Take a look" (your own: "Idea"); a past event "N went" with
     // nothing on the right; Helping shows just the number of your jobs, with the chevron
     const P = (s) => {
-      if (kind === 'idea') return { k: 'idea', R: R6.help, word: isLead(s) ? 'Idea' : s.interested.length + ' interested', rows: [], right: 'Take a look' };
+      if (kind === 'idea') return { k: 'idea', R: R6.help, word: isLead(s) ? 'Idea' : fans(s).length + ' interested', rows: [], right: 'Take a look' };
       if (kind === 'done') return { k: 'past', R: R6.open, word: headN(s) + ' went', rows: [], right: '' };
       const p = partOf(s, true);
       return p.k === 'help' ? Object.assign({}, p, { right: String(myClaims(s).length) }) : p;
@@ -5323,7 +5323,7 @@
   const ROT6 = [-2, 1.5, 1, -1.5, 2, -1];
   // A tilted card on the graph-paper board: photo, title, interested count, the four checkpoints as tiles
   const ideaCard6 = (s, k) => {
-    const n = s.interested.length;
+    const n = fans(s).length;
     return '<div ' + on(() => openSpark(s)) + ' data-card="' + esc(s.text) + '" data-rank="' + k + '" aria-label="' + esc(s.text) + '" style="position:relative;overflow:hidden;background:#fff;border-radius:8px;padding:6px 6px 8px;box-shadow:0 3px 10px rgba(13,17,23,.14);transform:rotate(' + ROT6[k % 6] + 'deg);cursor:pointer;' + (k === 1 ? 'margin-top:22px' : '') + '">' +
       // v8-11 (1e): a 3px gold bar across the card's top edge, above the photo
       '<div aria-hidden="true" data-idea-bar style="position:absolute;left:0;right:0;top:0;height:3px;background:#f5b428;z-index:2"></div>' +
@@ -5932,7 +5932,7 @@
   // "I'm interested" instead of RSVP, polls with Suggest, Who's interested, Make it a plan, the steps strip.
   function viewIdea(s) {
     const st = state, lead = isLead(s), edit = canEdit(s), off = !!s.cancelledAt, dp = dateParts(s.dayDate);
-    const meIn = s.interested.indexOf(st.me) > -1, n = s.interested.length;
+    const meIn = s.interested.indexOf(st.me) > -1, n = fans(s).length;
     const sheetCard = (inner) => '<div style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:10px">' + inner + '</div>';
     const chip = (label, bgc, ink, extra) => '<span ' + (extra || '') + ' style="display:flex;align-items:center;gap:6px;border-radius:999px;padding:5px 11px;background:' + bgc + ';color:' + (ink || '#fff') + ';font-size:12px;font-weight:900;letter-spacing:.9px">' + label + '</span>';
 
@@ -5945,7 +5945,7 @@
       '</div>';
 
     // Who's interested: like Who's going (the lead taps it for the list)
-    const ids = (meIn ? [st.me] : []).concat(s.interested.filter(u => u !== st.me));
+    const ids = fans(s);
     const interested = '<section id="sec-people">' + secTitle('Who’s in') + sheetCard(
       '<div ' + (n ? on(() => setState({ interestList: true })) + ' aria-label="See who’s interested" ' : '') + 'style="display:flex;align-items:center;gap:10px' + (n ? ';cursor:pointer' : '') + '">' +
         '<span style="display:flex">' + (n ? peopleFaces(ids.slice(0, 5), 40, null, true) + (n > 5 ? '<span style="width:40px;height:40px;border-radius:999px;border:2.5px solid #fff;margin-left:-10px;background:#fdf1d6;color:#8f6405;font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center">+' + (n - 5) + '</span>' : '')
@@ -8102,6 +8102,9 @@
   const ideaH = (t) => '<span style="font-size:26px;font-weight:900;letter-spacing:-.6px;color:#0d1117">' + t + '</span>';
   const CARD8 = 'background:#fff;border-radius:20px;padding:16px;display:flex;flex-direction:column;gap:12px;box-shadow:0 1px 3px rgba(15,18,25,.08)';
   const GRAPH_CARD = 'position:relative;margin:4px;' + GRAPH_BG + ';border-radius:6px;padding:18px 16px 12px;display:flex;flex-direction:column;gap:4px;transform:rotate(-1deg);box-shadow:0 4px 14px rgba(13,17,23,.14)';
+  // Who's interested in an idea, as people see it: its lead counts and comes first (owner, 2026-10-07: an idea never shows
+  // 0 interested). s.interested stays the real taps (who make_plan moves to Maybe, who gets told)
+  const fans = (s) => s.leadId && !s.planned ? [s.leadId].concat(s.interested.filter(u => u !== s.leadId)) : s.interested;
   const goldFaces = (ids, size, ring) => ids.slice(0, 3).map((u, k) => avatarSpan(u, nameOf(u), avatarOf(u), size, 'border:2px solid ' + (ring || '#fff') + ';margin-left:' + (k ? -8 : 0) + 'px')).join('');
   const openIdeaSheet = (s) => useIdea8(s) ? setState(Object.assign({ ip: { id: s.id, exp: false }, subjectId: s.id, ipPop: null, ipEd: null }, ideaDotOn() && newestIdea().id === s.id ? { ideaSeen: s.id } : {})) : openSpark(s);
   const ipPop = (p) => setState({ ipPop: p });
@@ -8191,11 +8194,11 @@
       toast('You’re interested. ' + runnerFirst(s) + ' will see it.', true);
     }
   };
-  const interestCard = (s, lift) => { const n = s.interested.length, inIt = s.interested.indexOf(state.me) > -1;
+  const interestCard = (s, lift) => { const n = fans(s).length, inIt = s.interested.indexOf(state.me) > -1;
     return '<div style="' + CARD8 + (lift ? ';box-shadow:0 6px 16px rgba(13,17,23,.12)' : '') + '">' +
       '<button type="button" ' + on(() => ideaInterest(s)) + ' data-im-interested aria-pressed="' + inIt + '" style="width:100%;border:0;display:flex;align-items:center;justify-content:center;min-height:52px;border-radius:999px;font-family:inherit;font-size:16px;font-weight:900;cursor:pointer;background:' + (inIt ? '#fdf1d6' : '#f5b428') + ';color:' + (inIt ? '#8f6405' : '#2a1d00') + ';box-shadow:' + (inIt ? 'inset 0 0 0 2px #f5b428' : 'none') + '">' + (inIt ? '✓ You’re interested' : 'I’m interested') + '</button>' +
       '<div ' + (n ? on(() => setState({ interestList: true })) : '') + ' aria-label="See who’s interested" style="display:flex;align-items:center;justify-content:center;gap:8px;min-height:36px;' + (n ? 'cursor:pointer' : '') + '">' +
-        '<div style="display:flex">' + goldFaces(s.interested, 26, '#fffdf5') + '</div>' +
+        '<div style="display:flex">' + goldFaces(fans(s), 26, '#fffdf5') + '</div>' +
         '<span style="display:flex;align-items:center;gap:3px;font-size:14px;font-weight:700;color:#454b55">' + (n === 0 ? 'Be the first' : n === 1 ? '1 person so far' : n + ' people so far') + (n ? I.chevR(14, '#6b7280', 2.8) : '') + '</span></div></div>'; };
   const helpRow = (fn, icon, label, first, attr) => '<div ' + on(fn) + ' ' + (attr || '') + ' style="display:flex;align-items:center;gap:12px;min-height:46px;cursor:pointer;' + (first ? '' : 'border-top:1px solid #d3e2f3;') + '">' +
     '<span style="width:30px;height:30px;flex:0 0 30px;border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center">' + svg(17, stroke('#b07a0a', 2.2), icon) + '</span>' +
@@ -8234,11 +8237,11 @@
     return '<div data-talk-offers style="display:flex;flex-direction:column;gap:8px;padding:0 16px 14px"><span style="font-size:12.5px;font-weight:900;letter-spacing:1px;color:#454b55">UP FOR TALKING IT THROUGH</span>' +
       '<div style="display:flex;flex-wrap:wrap;gap:6px">' + ids.map(u => '<span ' + on(() => openPerson(u)) + ' role="button" style="display:flex;align-items:center;gap:6px;min-height:34px;padding:0 12px 0 4px;border-radius:999px;background:#fdf1d6;cursor:pointer">' + avatarSpan(u, nameOf(u), avatarOf(u), 26) +
         '<span style="font-size:14px;font-weight:800;color:#0d1117">' + esc(firstName(nameOf(u))) + '</span></span>').join('') + '</div></div>'; };
-  const starterTop = (s) => { const n = s.interested.length;
+  const starterTop = (s) => { const n = fans(s).length;
     return '<div style="background:#fff;border-radius:20px;box-shadow:0 1px 3px rgba(15,18,25,.08);overflow:hidden">' +
       // Always tappable with its ›, even at 0 (Design v8 prototype, whoOpen)
       '<div ' + on(() => setState({ interestList: true })) + ' role="button" data-starter-interested style="display:flex;align-items:center;gap:12px;min-height:64px;padding:0 16px;cursor:pointer">' +
-        '<div style="display:flex">' + goldFaces(s.interested, 30) + '</div><span style="flex:1;font-size:20px;font-weight:900;letter-spacing:-.3px;color:#0d1117">' + n + ' interested</span>' + I.chevR(16, '#9aa0ac', 2.6) + '</div>' +
+        '<div style="display:flex">' + goldFaces(fans(s), 30) + '</div><span style="flex:1;font-size:20px;font-weight:900;letter-spacing:-.3px;color:#0d1117">' + n + ' interested</span>' + I.chevR(16, '#9aa0ac', 2.6) + '</div>' +
       '<div style="padding:4px 16px 16px"><span ' + on(() => share8(s)) + ' data-starter-share style="display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 2px #f5b428;font-size:15.5px;font-weight:900;color:#8f6405;cursor:pointer">' +
         svg(16, stroke('#8f6405', 2.3), '<path d="M12 3v13M7 8l5-5 5 5"/><path d="M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5"/>') + 'Share</span></div>' + talkList(s) + '</div>'; };
   const leadsIt = (s) => !s.wantsHost;   // someone leads it (the starter, or whoever took it on)
@@ -8521,7 +8524,7 @@
     const ROT = [-2, 1.5, 1, -1.5, 2, -1], ROTF = [-1, .8, -.5, 1];
     const nw = ideaDotOn() ? newestIdea() : null, newAttr = (s) => nw && nw.id === s.id ? ' data-new-idea="' + esc(s.id) + '"' : '';
     if (nw) setTimeout(ideaSeenCheck, 400);   // already in view without scrolling
-    const tag = (s) => '<span aria-label="' + s.interested.length + ' interested" style="flex:0 0 auto;display:flex;align-items:center;gap:3px;height:22px;padding:0 7px;border-radius:999px;background:#fdf1d6;font-size:12px;font-weight:900;color:#8f6405">' + svg(11, stroke('#8f6405', 2.8), '<circle cx="12" cy="8" r="3.6"/><path d="M5 20a7 7 0 0 1 14 0"/>') + s.interested.length + '</span>';
+    const tag = (s) => '<span aria-label="' + fans(s).length + ' interested" style="flex:0 0 auto;display:flex;align-items:center;gap:3px;height:22px;padding:0 7px;border-radius:999px;background:#fdf1d6;font-size:12px;font-weight:900;color:#8f6405">' + svg(11, stroke('#8f6405', 2.8), '<circle cx="12" cy="8" r="3.6"/><path d="M5 20a7 7 0 0 1 14 0"/>') + fans(s).length + '</span>';
     const by = (s, size) => '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:' + size + 'px;font-weight:700;color:#8a909b">' + (s.wantsHost ? 'by ' + esc(firstName(floaterName(s))) : 'led by ' + esc(firstName(nameOf(s.leadId, s.leadName)))) + '</span>';
     const MASK = 'linear-gradient(to bottom,#000 20%,rgba(0,0,0,.35) 55%,transparent 85%),linear-gradient(to bottom left,#000 25%,rgba(0,0,0,.3) 100%)';
     const tile = (s, k) => { const P0 = ideaPics(s)[0];
@@ -8731,7 +8734,7 @@
     const gName = (s) => (groupById(s.groupId) || {}).name || '';
     const fd = (s) => s.dayDate ? fmtDay(s.dayDate) : 'Date TBD';
     const rows = k === 'draft' ? L.drafts.map((d, i) => { const x = draftState(d); return row(x.evPhotoPath ? '#2b303a ' + bg(photoUrl(x.evPhotoPath)) : '#f2f3f6', cleanTitle(x.activity) || 'Untitled event', draftSub(x) + ' · ' + agoSaved(d.saved), () => resumeDraft(d), i); })
-      : k === 'idea' ? L.ideas.map((s, i) => row(thumbBg(s), s.text, s.interested.length + ' interested · ' + gName(s), () => openSpark(s), i))
+      : k === 'idea' ? L.ideas.map((s, i) => row(thumbBg(s), s.text, fans(s).length + ' interested · ' + gName(s), () => openSpark(s), i))
       : k === 'lead' ? L.lead.map((s, i) => row(thumbBg(s), s.text, fd(s) + ' · ' + gName(s), () => openSpark(s), i))
       : L.past.map((s, i) => row(thumbBg(s), s.text, (isLead(s) ? 'You led · ' : helpsOn(s) ? 'You helped · ' : 'You went · ') + fd(s), () => openSpark(s), i, true));
     const E = { draft: ['No drafts', 'Anything you save partway through shows up here.', 'Make a plan', () => goCompose(), '#454b55', '#f2f3f6', I.plus(22, 'currentColor', 2.6)],
@@ -10613,20 +10616,22 @@
     '</div>';
   }
 
-  // The lead's list of who's interested, with guests' numbers (not in the design yet)
+  // Who's interested: anyone who can see the idea opens it (like Who's coming on a plan). The lead comes first with a
+  // Leading chip (owner, 2026-10-07); guests' numbers only for the lead
   function viewInterestList(s) {
-    const close = () => setState({ interestList: false }), lead = isLead(s);
+    const close = () => setState({ interestList: false }), lead = isLead(s), list = fans(s);
     return modal('Who’s interested', close,
       h3Html('Who’s interested') +
       (lead && s.contacts.some(c => c.phone && s.interested.indexOf(c.user_id) > -1) ? paraHtml('Only you see phone numbers. They’re from people who took part without an account.') : '') +
       '<div style="display:flex;flex-direction:column">' +
-        (s.interested.length ? '' : '<span data-interested-none style="padding:6px 0;font-size:15px;font-weight:600;color:#6b7280">No one yet. Share it to find people.</span>') +   // the starter's row opens it at 0 too
-        s.interested.map((u, i) => {
+        (list.length ? '' : '<span data-interested-none style="padding:6px 0;font-size:15px;font-weight:600;color:#6b7280">No one yet. Share it to find people.</span>') +   // the starter's row opens it at 0 too
+        list.map((u, i) => {
           const c = lead && s.contacts.find(x => x.user_id === u);
           const name = u === state.me ? 'You' : c ? c.name : nameOf(u);
           return '<div data-interested ' + (c ? '' : on(() => openPerson(u)) + ' aria-label="' + esc(name) + ', see profile" ') + 'style="display:flex;align-items:center;gap:12px;min-height:52px;border-top:' + (i ? '1px solid #f2f3f6' : '0') + (c ? '' : ';cursor:pointer') + '">' +
             face(u, name, 32, null) +
             '<span style="flex:1 1 auto;min-width:0;font-size:15.5px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(name) + '</span>' +
+            (u === s.leadId ? '<span data-lead-chip style="flex:0 0 auto;padding:3px 9px;border-radius:999px;background:#f5b428;font-size:12px;font-weight:800;color:#2a1d00">' + (s.wantsHost ? 'Floated it' : 'Leading') + '</span>' : '') +
             (s.canHelp.indexOf(u) > -1 ? '<span data-can-help-chip style="flex:0 0 auto;padding:3px 9px;border-radius:999px;background:#fdf1d6;font-size:12px;font-weight:800;color:#8f6405">Offered to lead</span>' : '') +
             (c && c.phone ? '<a href="tel:' + esc(c.phone.replace(/[^\d+]/g, '')) + '" style="flex:0 0 auto;font-size:14px;font-weight:800;color:#5b4ae8">' + esc(c.phone) + '</a>' : c ? '<span style="flex:0 0 auto;padding:3px 9px;border-radius:999px;background:#f2f3f6;font-size:12px;font-weight:800;color:#6b7280">Guest</span>' : '') +
           '</div>';

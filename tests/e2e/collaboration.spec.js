@@ -36,8 +36,16 @@ test('a member with the link takes part; the lead picks and makes it a plan', as
     await expect(GD.locator('[data-led-by8]')).toContainText('Lena');
     await expect(GD.locator('[data-led-by8]')).toContainText('Picking a date');
     await expect(GD.locator('[data-idea-edit]')).toHaveCount(0);
+    // The lead counts as interested and leads the list, which anyone can open (owner, 2026-10-07)
+    await GD.getByLabel('See who’s interested').first().click();
+    const wi = G.getByRole('dialog', { name: 'Who’s interested' });
+    await expect(wi.locator('[data-interested]').first()).toContainText('Lena');
+    await expect(wi.locator('[data-lead-chip]')).toHaveText('Leading');
+    await G.keyboard.press('Escape');
+    await expect(wi).toHaveCount(0);
     await GD.locator('[data-im-interested]').click();
     await expect(GD.locator('[data-im-interested]')).toHaveText('✓ You’re interested', { timeout: 1000 });
+    await expect(GD.getByLabel('See who’s interested').first()).toContainText('2 people so far');
     // Suggest a date and a location; one of each is a suggestion, not a poll (v8-8 item 5)
     await GD.getByText('Suggest a date', { exact: true }).first().click();
     const sd = G.getByRole('dialog', { name: 'Suggest a date' });
