@@ -10528,9 +10528,11 @@
   const hideStart = () => { try { localStorage.setItem('spark-hub-start-x', '1'); } catch (e) { /* fine */ } };
   const startOn = () => !!state.email && !!state.joinedAt && state.joinedAt >= START_FROM && !startHidden() && !state.viewAs;
   const startCard = () => !startOn() ? '' :
-    '<div ' + on(() => { hideStart(); setState({ about: 0, aboutFull: true, menu: null }); }) + ' role="button" data-start-here aria-label="Start here: how this works, in 30 seconds" style="display:flex;align-items:center;gap:12px;padding:14px 12px 14px 14px;border-radius:20px;background:linear-gradient(120deg,#5b4ae8,#a03bc8 60%,#e8661c);color:#fff;box-shadow:0 8px 22px rgba(91,74,232,.3);cursor:pointer">' +
-      '<span aria-hidden="true" style="flex:0 0 40px;width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center">' + I.bolt(20, '#fff') + '</span>' +
-      '<span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px"><span style="font-size:17px;font-weight:900">Start here!</span><span style="font-size:13.5px;line-height:1.3;font-weight:600;opacity:.9">How this works, in 30 seconds</span></span>' +
+    '<div ' + on(() => { hideStart(); setState({ about: 0, aboutFull: true, menu: null }); }) + ' role="button" data-start-here aria-label="Start here: how this works, in 30 seconds" style="position:relative;overflow:hidden;display:flex;align-items:center;gap:12px;padding:14px 12px 14px 14px;border-radius:20px;background:linear-gradient(120deg,#5b4ae8,#a03bc8 60%,#e8661c);color:#fff;box-shadow:0 8px 22px rgba(91,74,232,.3);cursor:pointer">' +
+      // sparkles like the All groups card's (owner, 2026-10-07), and a yellow bolt
+      sparkles([[76, 10, 11, '#fff', 1], [80, 82, 7, '#ffe7a6', 1], [60, 6, 6, '#ffd0e4', 1], [68, 90, 3, '#fff', .8], [92, 8, 2.5, '#fff', .7]]) +
+      '<span aria-hidden="true" style="position:relative;flex:0 0 40px;width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center">' + I.bolt(20, '#ffd166') + '</span>' +
+      '<span style="position:relative;flex:1;min-width:0;display:flex;flex-direction:column;gap:1px"><span style="font-size:17px;font-weight:900">Start here!</span><span style="font-size:13.5px;line-height:1.3;font-weight:600;opacity:.9">How this works, in 30 seconds</span></span>' +
       '<span aria-hidden="true" style="display:flex;opacity:.85">' + I.chevR(14, '#fff', 3) + '</span>' +
       '<span ' + on((e) => { stop(e); hideStart(); render(); }) + ' role="button" aria-label="Hide Start here" data-start-x style="flex:0 0 32px;width:32px;height:32px;border-radius:999px;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(12, '#fff', 3) + '</span></div>';
   // Panel 1's three fanned phones (owner, 2026-10-07: real screenshots of Groups, Ideas, Calendar; mockup variant A):
