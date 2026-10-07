@@ -61,7 +61,7 @@ test('soft holds: a date poll pencils its dates in on Month, warns Start an even
     await expect(rows).toHaveCount(2);
     await expect(H.locator('[data-hold-line]')).toContainText('Holding until');
     await H.locator('[data-hold-line]').getByRole('button', { name: 'Keep holding' }).click();
-    await expect(H.getByText(/^Holding until /)).toBeVisible();
+    await expect(H.getByRole('status').getByText(/^Holding until /)).toBeVisible();   // the toast (the page's line says it too)
 
     // Start an event on a held date: a heads-up, and Next still works
     await startPost(H);

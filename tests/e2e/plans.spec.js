@@ -326,7 +326,7 @@ test('Participate: More details, time ranges and a job’s most per person', asy
     await H.reload();
     await expect(H.locator('html[data-loaded=true]')).toHaveCount(1);
     await H.locator('[data-screen-label="Plan page"] [data-signup="Coat check table"] [data-edit-jobs]').click();
-    const needs = H.getByRole('dialog', { name: 'Edit' });
+    const needs = H.getByRole('dialog', { name: 'Edit', exact: true });
     await expect(needs).toContainText('People are signed up for these times, so they stay as separate times.');
     await expect(needs.getByText('Use one time instead')).toHaveCount(0);
     await needs.getByRole('button', { name: 'Close' }).click();
