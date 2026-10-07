@@ -131,12 +131,15 @@ test('multi-day: separate days, each-day RSVP, a job on one day, and a weekly ev
     await expect(who.locator('[data-guest-part="going"]')).toContainText('Both days');
     await who.getByRole('button', { name: 'Close' }).click();
 
-    // Recurring and Runs across days are Coming soon (Design v8-8): dimmed, an amber toast, nothing changes
+    // Recurring is Coming soon (Design v8-8): dimmed, an amber toast, nothing changes. Runs across days works (owner, 2026-10-07)
     await HP.getByRole('button', { name: 'Edit date, time and location' }).click();
     const when = H.getByRole('dialog', { name: 'Date, time & location' });
     await when.locator('[data-day-type]').click();
     const types = H.getByRole('dialog', { name: 'How long is it?' });
-    await expect(types.locator('[data-soon]')).toHaveCount(2);
+    await expect(types.locator('[data-soon]')).toHaveCount(1);
+    await types.getByRole('radio', { name: /Runs across days/ }).click();
+    await expect(types.locator('[data-day-type-opt="span"]')).toHaveAttribute('aria-checked', 'true');
+    await types.getByRole('radio', { name: /Separate days/ }).click();
     await expect(types.locator('[data-day-type-opt="repeat"]')).toContainText('Coming soon');
     await types.getByRole('radio', { name: /Recurring event/ }).click();
     await expect(H.getByRole('status')).toContainText('Recurring event is coming soon');
