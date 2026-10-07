@@ -1626,7 +1626,7 @@
   // Looking for a host (social-science review, 2026-10-01): floating an idea and hosting it are separate jobs
   const setWantsHost = (s, on_) => run(async () => { must(await sb.rpc('set_wants_host', { p_spark: s.id, p_on: on_ })); });
   const takeTheLead = (s) => (noteTap({ k: 'lead', id: s.id }), needAccount(() => setState({ confirm: { title: 'Lead ' + s.text + '?', green: true, cta: 'I’ll lead it', keep: 'Not now',
-    body: 'You’ll lead it: pick a date and location, then make it a plan. ' + firstName(nameOf(s.leadId, s.leadName)) + ' stays interested and gets a note.',
+    body: 'You’ll lead it: pick a date and location, then make it a Plan. ' + firstName(nameOf(s.leadId, s.leadName)) + ' stays interested and gets a note.',
     run: () => run(async () => { must(await sb.rpc('take_the_lead', { p_spark: s.id })); }, { confirm: null }) } })));
   // Only someone in one of the event's groups can take the lead (20261102020000_float_and_ask.sql): a link holder
   // from outside, or a guest, sees that it needs a lead but gets no I'll lead
@@ -1762,7 +1762,7 @@
   };
 
   const answerLeadAsk = (s, yes) => run(async () => { must(await sb.rpc('answer_lead_ask', { p_spark: s.id, p_yes: yes })); })
-    .then(ok => { if (ok) toast(yes ? 'You’re leading it. Pick a date, then make it a plan.' : 'Thanks. We let ' + firstName(nameOf((s.leadAsks.find(a => a.userId === state.me) || {}).by || s.createdBy)) + ' know.', true); });
+    .then(ok => { if (ok) toast(yes ? 'You’re leading it. Pick a date, then make it a Plan.' : 'Thanks. We let ' + firstName(nameOf((s.leadAsks.find(a => a.userId === state.me) || {}).by || s.createdBy)) + ' know.', true); });
   const withdrawLeadAsk = (s, u) => quick(s, { leadAsks: s.leadAsks.filter(a => a.userId !== u) },
     async () => { must(await sb.rpc('withdraw_lead_ask', { p_spark: s.id, p_user: u })); });
   const askToLead = (s, u) => {
@@ -1946,14 +1946,14 @@
   }));
   const makePlan = (s) => {
     const n = s.interested.length;
-    setState({ confirm: { title: 'Make it a plan?', green: true, cta: 'Make it a plan', keep: 'Not yet',
-      body: 'It’s on for ' + whenLong(s) + '. ' + (n ? (n === 1 ? 'The 1 person who’s interested shows as Maybe, and we let them know.' : 'The ' + n + ' people who are interested show as Maybe, and we let them know.') : 'People can RSVP once it’s a plan.') + ' It goes on the calendar.',
+    setState({ confirm: { title: 'Make it a Plan?', green: true, cta: 'Make it a Plan', keep: 'Not yet',
+      body: 'It’s on for ' + whenLong(s) + '. ' + (n ? (n === 1 ? 'The 1 person who’s interested shows as Maybe, and we let them know.' : 'The ' + n + ' people who are interested show as Maybe, and we let them know.') : 'People can RSVP once it’s a Plan.') + ' It goes on the calendar.',
       run: () => run(async () => { must(await sb.rpc('make_plan', { p_spark: s.id })); }, { confirm: null }) } });
   };
   const clearPlan = (s) => {
     const n = s.rsvps.filter(r => r.status !== 'no' && r.userId !== s.leadId && s.cohosts.indexOf(r.userId) < 0).length;
-    setState({ confirm: { title: 'Turn it back into an idea?', danger: true, cta: 'Back to an idea', keep: 'Keep the plan',
-      body: 'The date comes off and it goes back to being an idea.' + (n ? (n === 1 ? ' The 1 person who said Going or Maybe shows as interested again and gets a note.' : ' The ' + n + ' people who said Going or Maybe show as interested again and get a note.') : ''),
+    setState({ confirm: { title: 'Turn it back into an Idea?', danger: true, cta: 'Back to an Idea', keep: 'Keep the Plan',
+      body: 'The date comes off and it goes back to being an Idea.' + (n ? (n === 1 ? ' The 1 person who said Going or Maybe shows as interested again and gets a note.' : ' The ' + n + ' people who said Going or Maybe show as interested again and get a note.') : ''),
       run: () => run(async () => { must(await sb.rpc('clear_plan', { p_spark: s.id })); }, { confirm: null, sec: null }) } });
   };
 
@@ -2609,7 +2609,7 @@
   const groupBg = (g, fallback) => groupPhoto(g) ? bg(groupPhoto(g), posAt(g.photoPos, GROUP_POS)) : (fallback || '#e8a71c');
 
   const ideaButton = (extra) => '<button type="button" class="hov-primary" ' + on(goCompose) + ' style="width:100%;min-height:54px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16.5px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:9px;box-shadow:0 10px 24px rgba(91,74,232,.32);cursor:pointer;' + (extra || '') + '">' +
-    I.plus(19, '#fff', 2.5) + 'Create a plan</button>';
+    I.plus(19, '#fff', 2.5) + 'Create a Plan</button>';
 
   // "That idea isn't up anymore": a dead or cut-short idea link
   const goneCard = () => state.goneOpen
@@ -2626,7 +2626,7 @@
   // ---------------------------------------------------------------------------
 
   // The intro's three steps in its colours: ideas gold, helping orange, plans purple (owner, 2026-10-07, Welcome B)
-  const STEPS = [['#f5b428', '1', 'Float an idea', '#2a1d00'], ['#e8661c', '2', 'Everybody pitches in'], ['#5b4ae8', '3', 'Make it a plan']];
+  const STEPS = [['#f5b428', '1', 'Float an Idea', '#2a1d00'], ['#e8661c', '2', 'Everybody pitches in'], ['#5b4ae8', '3', 'Make it a Plan']];
 
   // A guest who has replied to something (from a link) sees it here, with what Spark Hub is, instead of only a sign-in
   // wall (first-encounter audit 2, owner 2026-10-07): Back from the event lands here
@@ -2801,7 +2801,7 @@
     } else {
       card = '<div style="margin-top:22px;display:flex;align-items:center;gap:12px;border-radius:22px;padding:16px 18px;background:#fff;border:2px solid #e3e5ec">' +
         '<div style="flex:1;min-width:0;font-size:16px;line-height:1.35;font-weight:700;color:#11131f">Nothing planned yet. Start the first one?</div>' +
-        '<button type="button" ' + on(() => { leaveWelcome('idea'); goCompose(); }) + ' style="flex:0 0 auto;border:0;border-radius:999px;background:#5b4ae8;color:#fff;padding:10px 18px;font-family:inherit;font-size:15px;font-weight:800;cursor:pointer">Create a plan</button></div>';
+        '<button type="button" ' + on(() => { leaveWelcome('idea'); goCompose(); }) + ' style="flex:0 0 auto;border:0;border-radius:999px;background:#5b4ae8;color:#fff;padding:10px 18px;font-family:inherit;font-size:15px;font-weight:800;cursor:pointer">Create a Plan</button></div>';
     }
     return '<div data-screen-label="Welcome to group" style="position:relative;min-height:100%;display:flex;flex-direction:column;background:#f0f1f5">' +
       '<div style="position:relative;flex:0 0 auto">' + invPhoto(g, 'calc(240px + var(--pt))', 80) + statusFade + '</div>' +
@@ -3035,7 +3035,7 @@
       sec('Past', past.map(s => ev(s, monthDay(s.dayDate), null, true)));
     // Empty: there's no + on this screen, so the card has its own button
     return wrap(body || '<div data-own-empty style="background:#fff;border-radius:14px;padding:18px;box-shadow:0 1px 2px rgba(15,18,25,.06);display:flex;flex-direction:column;gap:14px">' +
-      '<span style="font-size:15px;line-height:1.45;font-weight:600;color:#5c6270">Nothing you’re leading yet. Create a plan, or float an idea and see who bites.</span>' + createBtn() + '</div>');
+      '<span style="font-size:15px;line-height:1.45;font-weight:600;color:#5c6270">Nothing you’re leading yet. Create a Plan, or float an Idea and see who bites.</span>' + createBtn() + '</div>');
   }
 
   // Groups: pinned groups as big cards, the rest as a grid of square tiles
@@ -3201,11 +3201,11 @@
         I.chevR(16, '#b9bcc4', 2.6) + '</div>'; })();
     // All groups (9b): every group's events, plans and ideas in one list (the old Discover)
     const faces = all.slice(0, 3).map((g, i) => '<span style="width:38px;height:38px;border-radius:999px;' + (i ? 'margin-left:-15px;' : '') + 'box-shadow:0 0 0 2px rgba(255,255,255,.9);background:' + thumbBg(null, g) + '"></span>').join('');
-    const allCard = !all.length ? '' : '<div ' + on(() => go('calendar')) + ' data-all-groups data-screen-label="All groups card" aria-label="All groups: all events, plans and ideas" style="position:relative;overflow:hidden;display:flex;align-items:center;gap:12px;padding:22px 16px;border-radius:20px;background:' + SPARKLE_GRAD + ';color:#fff;cursor:pointer;box-shadow:0 6px 18px rgba(160,59,200,.22)">' +
+    const allCard = !all.length ? '' : '<div ' + on(() => go('calendar')) + ' data-all-groups data-screen-label="All groups card" aria-label="All groups: all events, Plans and Ideas" style="position:relative;overflow:hidden;display:flex;align-items:center;gap:12px;padding:22px 16px;border-radius:20px;background:' + SPARKLE_GRAD + ';color:#fff;cursor:pointer;box-shadow:0 6px 18px rgba(160,59,200,.22)">' +
       sparkles([[66, 4, 14, '#fff', 1], [86, 6, 10, '#ffe7a6', 1], [93, 62, 8, '#fff', .9], [80, 4, 9, '#ffd0e4', 1], [90, 84, 3, '#fff', .9], [72, 86, 2.5, '#fff', .7], [96, 30, 3, '#fff', .8]]) +
       '<span aria-hidden="true" style="position:relative;display:flex">' + faces +
         (all.length > 3 ? '<span style="width:38px;height:38px;margin-left:-15px;border-radius:999px;background:#fff;box-shadow:0 0 0 2px rgba(255,255,255,.9);display:flex;align-items:center;justify-content:center;color:#a03bc8;font-size:13.5px;font-weight:900">+' + (all.length - 3) + '</span>' : '') + '</span>' +
-      '<div style="position:relative;flex:1;min-width:0;display:flex;flex-direction:column;gap:1px"><span style="font-size:19px;line-height:1.15;font-weight:900;letter-spacing:-.4px">All groups</span><span style="font-size:13px;font-weight:600;color:rgba(255,255,255,.88)">All events, plans &amp; ideas</span></div>' +
+      '<div style="position:relative;flex:1;min-width:0;display:flex;flex-direction:column;gap:1px"><span style="font-size:19px;line-height:1.15;font-weight:900;letter-spacing:-.4px">All groups</span><span style="font-size:13px;font-weight:600;color:rgba(255,255,255,.88)">All events, Plans &amp; Ideas</span></div>' +
       '<span style="position:relative;display:flex">' + I.chevR(16, '#fff', 2.6) + '</span></div>';
     const none = '<div style="padding:24px 8px;text-align:center;font-size:14.5px;font-weight:700;color:#6b7280">No groups match “' + esc(st.pplQ.trim()) + '”</div>';
     const body = !st.loaded ? skeleton(2, 200)
@@ -3427,7 +3427,7 @@
       '<div style="padding:0 6px 10px;font-size:14px;font-weight:600;color:#5c6270">Pick one of your upcoming events.</div>' +
       (list.length ? '<div role="radiogroup" aria-label="Your upcoming events" style="display:flex;flex-direction:column">' + list.map(row).join('') + '</div>' + send
         : '<div style="display:flex;flex-direction:column"><div style="padding:14px 6px;border-top:1px solid #eceef1;font-size:14.5px;line-height:1.45;font-weight:600;color:#5c6270">You don’t have anything coming up to invite them to. Events you’re leading or going to show up here.</div>' +
-          '<button type="button" class="hov-primary" ' + on(() => { close(); goCompose(); }) + ' style="' + primary(true) + '">Create a plan</button></div>'), 45);
+          '<button type="button" class="hov-primary" ' + on(() => { close(); goCompose(); }) + ' style="' + primary(true) + '">Create a Plan</button></div>'), 45);
   }
 
   // Anyone's profile (owner, 2026-10-01): from Who's going / Who's interested, the Led by card, and Members.
@@ -3557,11 +3557,11 @@
     const onPage = (fn) => () => { openSpark(s); setTimeout(fn, 0); };
     if (ph === 'idea') {   // the next step, then the jobs still to fill
       const top = s.dateOpts.slice().sort((a, b) => b.votes.length - a.votes.length)[0];
-      const next = s.wantsHost ? { act: 'Needs ' + missingText(s) + ' to make it a plan', cta: 'Choose a lead', go: onPage(() => openLeadAsk(s)) }
+      const next = s.wantsHost ? { act: 'Needs ' + missingText(s) + ' to make it a Plan', cta: 'Choose a lead', go: onPage(() => openLeadAsk(s)) }
         : !s.dayDate && top && top.votes.length ? { act: monthDay(top.dayDate) + ' has ' + top.votes.length + (top.votes.length === 1 ? ' vote' : ' votes'), cta: 'Pick', go: () => openToSection(s, 'sec-when') }
-        : !s.dayDate ? { act: 'Needs a date to make it a plan', cta: 'Add date', go: () => openToSection(s, 'sec-when') }
+        : !s.dayDate ? { act: 'Needs a date to make it a Plan', cta: 'Add date', go: () => openToSection(s, 'sec-when') }
         : s.dayDate < todayISO() ? { act: 'That date has passed', cta: 'New date', go: onPage(() => openSec(s, 'when')) }
-        : { act: 'It’s all set', cta: 'Make it a plan', go: () => planFromIdea(s) };   // Review, like the idea page's Make it a plan!
+        : { act: 'It’s all set', cta: 'Make it a Plan', go: () => planFromIdea(s) };   // Review, like the idea page's Make it a plan!
       return [next].concat(s.wantsHost ? [] : jobActs(s, onPage));
     }
     if (ph === 'done') {
@@ -3755,8 +3755,8 @@
     const pill = 'display:flex;align-items:center;min-height:44px;padding:0 18px;border-radius:999px;font-family:inherit;font-size:15px;font-weight:800;cursor:pointer;border:0';
     return '<div data-cal-empty style="' + CARD + ';padding:18px;display:flex;flex-direction:column;gap:6px">' +
       '<div style="font-size:17px;font-weight:900;color:#0d1117">Nothing coming up in your groups yet.</div>' +
-      '<div style="font-size:14.5px;line-height:1.45;font-weight:500;color:#5c6270;text-wrap:pretty">' + (ideas.length ? 'Start something, or see what ideas people are floating.' : 'Start something and it shows up here for your group.') + '</div>' +
-      '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px"><button type="button" class="hov-primary" ' + on(() => goCompose()) + ' style="' + pill + ';background:#5b4ae8;color:#fff">Create a plan</button>' +
+      '<div style="font-size:14.5px;line-height:1.45;font-weight:500;color:#5c6270;text-wrap:pretty">' + (ideas.length ? 'Start something, or see what Ideas people are floating.' : 'Start something and it shows up here for your group.') + '</div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px"><button type="button" class="hov-primary" ' + on(() => goCompose()) + ' style="' + pill + ';background:#5b4ae8;color:#fff">Create a Plan</button>' +
       (ideas.length ? '<button type="button" class="hov-outline" ' + on(() => go('browse', { groupId: g ? g.id : state.groupId, phaseTab: 'idea' })) + ' style="' + pill + ';background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;color:#0d1117">See ' + ideas.length + (ideas.length === 1 ? ' idea' : ' ideas') + '</button>' : '') +
     '</div></div>';
   };
@@ -3831,9 +3831,9 @@
       vt('time', 'Timeline', '<rect x="4" y="4" width="16" height="6" rx="2"/><rect x="4" y="14" width="16" height="6" rx="2"/>') + vt('dense', 'Condensed', '<path d="M4 5h16M4 9.7h16M4 14.3h16M4 19h16"/>') + '</div>';
     if (!shown.length) {
       // Empty (per chip): a tappable gray card with the next step; All has a plain note
-      const E = { lead: ['Create a plan', 'You’re not leading anything yet. Got an idea for your group?', () => goCompose(), I.plus(18, 'currentColor', 2.4), '#454b55'],
+      const E = { lead: ['Create a Plan', 'You’re not leading anything yet. Got an idea for your group?', () => goCompose(), I.plus(18, 'currentColor', 2.4), '#454b55'],
         help: ['Find something to help with', 'Events on the Calendar that need help.', () => handList().length ? setState({ cHandSheet: true }) : go('calendar'), ic6('heart', 18, 'currentColor', 2.2), '#454b55'],
-        idea: [WE_SHOULD, 'Float an idea with only rough details and see who’s in.', () => openFloat(), svg(18, stroke('currentColor', 2.2), BULB_IC), '#8f6405'] }[cat];
+        idea: [WE_SHOULD, 'Float an Idea with only rough details and see who’s in.', () => openFloat(), svg(18, stroke('currentColor', 2.2), BULB_IC), '#8f6405'] }[cat];
       return wrap(goneCard() + chips + (E
         ? '<div ' + on(E[2]) + ' data-screen-label="Tasks empty" class="hov-grey-fill" style="display:flex;align-items:center;gap:14px;padding:16px 14px 16px 16px;border-radius:20px;background:#f4f5f7;box-shadow:inset 0 0 0 1.5px #dfe2e7;cursor:pointer">' +
             '<span style="flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dfe2e7;display:flex;align-items:center;justify-content:center;color:' + E[4] + '">' + E[3] + '</span>' +
@@ -4283,7 +4283,7 @@
       (dayList.length || dayHolds.length ? dayList.map(o.card).join('') + pencilled
         // An empty day (Design v8): one line on My calendar and All groups; a group page offers a dashed + Start an event on {day}
         // (a day already gone keeps the one line)
-        : o.mode === 'group' && sel >= today ? '<div ' + on(() => goCompose({ evDate: sel })) + ' role="button" style="display:flex;align-items:center;justify-content:center;gap:6px;min-height:52px;border-radius:16px;border:1.5px dashed #c9ccd3;color:#454b55;font-size:15px;font-weight:800;cursor:pointer"><span style="color:#5b4ae8;font-size:18px;line-height:1">+</span>Create a plan on ' + esc(new Date(sel + 'T12:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })) + '</div>'
+        : o.mode === 'group' && sel >= today ? '<div ' + on(() => goCompose({ evDate: sel })) + ' role="button" style="display:flex;align-items:center;justify-content:center;gap:6px;min-height:52px;border-radius:16px;border:1.5px dashed #c9ccd3;color:#454b55;font-size:15px;font-weight:800;cursor:pointer"><span style="color:#5b4ae8;font-size:18px;line-height:1">+</span>Create a Plan on ' + esc(new Date(sel + 'T12:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })) + '</div>'
         : '<div style="background:#fff;border-radius:16px;padding:14px 16px;font-size:14.5px;font-weight:600;color:#6b7280">' + (o.mode === 'group' ? 'Nothing on this day.' : 'Nothing on this day. Pick a day with a dot.') + '</div>') +
       // Undated events stay out of the grid; on a group page the strip comes after the day's list and opens the list at
       // "Date TBD" (Design v8: My calendar and All groups have no strip)
@@ -4381,7 +4381,7 @@
       // always does, since Month shows pencilled-in holds even with no plans listed
       // (tSel went with the Type filter; it froze this screen, 2026-10-02)
       body = st.loaded && !groups.length ? '' : '<div style="display:flex;flex-direction:column;gap:10px">' + '<div style="position:relative;z-index:3;display:flex;align-items:center;justify-content:flex-end;gap:6px">' + (kind !== 'plan' ? kindPill : '') + calViewMenu() + '</div>' +
-        (filtered ? '<div data-filter-empty style="' + CARD + ';padding:18px;display:flex;flex-direction:column;gap:4px"><div style="font-size:16px;font-weight:800;color:#0d1117">Nothing matches that.</div><div style="font-size:14px;line-height:1.45;font-weight:500;color:#6b7280">Try a different search or time range — or float an idea yourself.</div></div>' : kind === 'idea' ? note6('No ideas in your groups yet.') : kind === 'done' ? note6('Nothing has happened in your groups yet.') : calEmpty()) + '</div>';
+        (filtered ? '<div data-filter-empty style="' + CARD + ';padding:18px;display:flex;flex-direction:column;gap:4px"><div style="font-size:16px;font-weight:800;color:#0d1117">Nothing matches that.</div><div style="font-size:14px;line-height:1.45;font-weight:500;color:#6b7280">Try a different search or time range — or float an Idea yourself.</div></div>' : kind === 'idea' ? note6('No Ideas in your groups yet.') : kind === 'done' ? note6('Nothing has happened in your groups yet.') : calEmpty()) + '</div>';
     } else {
       body = secs.map((z, i) => '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(z.label, i ? '' : '<div style="display:flex;align-items:center">' + sortMenu + kindPill + calViewMenu() + '</div>') +
         z.items.map(card6).join('') + '</div>').join('');
@@ -4572,7 +4572,7 @@
     hold: { bg: '#7b6ef0', glyph: '★', cat: 'hosting', topic: 'hosting' }   // soft holds: Lock it in? / stop holding tomorrow (the daily job pushes them too)
   };
   const N_TOPICS = [
-    ['newevents', 'New in your groups', 'New plans and ideas'],
+    ['newevents', 'New in your groups', 'New Plans and Ideas'],
     ['updates', 'Updates from leads', 'Changes to events you’re in'],
     ['reminders', 'Reminders', 'The day before and the morning of anything you’re going to or helping with'],
     ['hosting', 'Things you’re leading', 'Replies, interest, sign-ups and suggestions'],
@@ -4634,7 +4634,7 @@
       if (ph === 'idea' && holdOn(s) && !s.wantsHost) {
         if (s.holdNudgedAt) {
           const top = s.dateOpts.slice().sort((a, b) => b.votes.length - a.votes.length)[0], voters = new Set([].concat(...s.dateOpts.map(o => o.votes))).size;
-          if (top) add({ key: 'hv:' + s.id, type: 'hold', s, t: s.holdNudgedAt, body: voters + ' voted, ' + new Date(top.dayDate + 'T12:00').toLocaleDateString('en-US', { weekday: 'long' }) + ' leads. Make it a plan?' });
+          if (top) add({ key: 'hv:' + s.id, type: 'hold', s, t: s.holdNudgedAt, body: voters + ' voted, ' + new Date(top.dayDate + 'T12:00').toLocaleDateString('en-US', { weekday: 'long' }) + ' leads. Make it a Plan?' });
         }
         if (s.holdUntil === isoAdd(todayISO(), 1)) add({ key: 'hl:' + s.id + ':' + s.holdUntil, type: 'hold', s, t: midnight(todayISO()) + 8 * 3600000, body: 'Your dates for ' + s.text + ' stop holding tomorrow. Keep holding?' });
       }
@@ -4777,7 +4777,7 @@
       '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;padding-right:22px"><span style="font-size:16px;font-weight:900;color:#0d1117">' + (ps === 'install' ? 'Get these on your iPhone' : 'Get these on your phone') + '</span>' +
         '<span style="font-size:14px;line-height:1.45;font-weight:500;color:#5c6270;text-wrap:pretty">' + (ps === 'install'
           ? 'Add Spark Hub to your Home Screen first: tap Share, then Add to Home Screen. Open it from there and turn them on.'
-          : 'We’ll buzz you when a plan changes, something new goes up, or the day before you’re going.') + '</span>' +
+          : 'We’ll buzz you when a Plan changes, something new goes up, or the day before you’re going.') + '</span>' +
         (ps === 'off' ? '<button type="button" class="hov-primary" ' + on(turnOnPush) + ' style="align-self:flex-start;margin-top:8px;min-height:40px;padding:0 16px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer">Turn on notifications</button>' : '') + '</div>' +
       '<span ' + on(hide) + ' aria-label="Not now" style="position:absolute;top:10px;right:10px;width:32px;height:32px;border-radius:999px;display:flex;align-items:center;justify-content:center;color:#8a909b;cursor:pointer">' + I.x(13, 'currentColor', 2.8) + '</span>' +
     '</div>';
@@ -4809,7 +4809,7 @@
     const br = /EdgA?\//.test(ua) ? 'Edge' : /SamsungBrowser/.test(ua) ? 'Samsung Internet' : /CriOS|Chrome\//.test(ua) ? 'Chrome' : /FxiOS|Firefox\//.test(ua) ? 'Firefox' : /Safari\//.test(ua) ? 'Safari' : '';
     return dev + (br ? ' · ' + br : '');
   };
-  const SCREEN_NAMES = { calendar: 'All groups', home: 'My tasks', sched: 'My calendar', groups: 'My groups', friends: 'My friends', me: 'Me', groupPage: 'Group page', detail: 'Event page', compose: 'Create event', own: 'Your plans & ideas', how: 'How this works' };
+  const SCREEN_NAMES = { calendar: 'All groups', home: 'My tasks', sched: 'My calendar', groups: 'My groups', friends: 'My friends', me: 'Me', groupPage: 'Group page', detail: 'Event page', compose: 'Create event', own: 'Your Plans & Ideas', how: 'How this works' };
   const fbWhere = () => { const s = state.screen === 'detail' ? subject() : null; return s ? (s.planned ? 'Plan page' : 'Idea page') : SCREEN_NAMES[state.screen] || state.screen || ''; };
   const fbContext = () => {
     const s = state.screen === 'detail' ? subject() : null, g = s ? groupById(s.groupId) : state.screen === 'groupPage' ? currentGroup() : null;
@@ -5194,7 +5194,7 @@
       const what = n.s ? '<b style="font-weight:800;color:#0d1117">' + esc(n.s.text) + '</b>' : '';
       const line = n.type === 'note' ? '<b style="font-weight:800;color:#0d1117">' + esc(n.body) + '</b>'
         : n.type === 'hold' ? what + ' · ' + esc(n.body)
-        : n.type === 'newevent' ? '<b style="font-weight:800;color:#0d1117">' + (n.idea ? 'New idea:' : 'New:') + '</b> ' + what   // bold (Design v8)
+        : n.type === 'newevent' ? '<b style="font-weight:800;color:#0d1117">' + (n.idea ? 'New Idea:' : 'New:') + '</b> ' + what   // bold (Design v8)
         : n.type === 'reminder'
         ? '<b style="font-weight:800;color:#0d1117">' + esc(n.who) + '</b> ' + what + esc(n.after)
         : '<b style="font-weight:800;color:#0d1117">' + esc(n.who) + '</b> ' + esc(n.text) + ' ' +
@@ -5349,13 +5349,13 @@
   const ideasEmpty6 = (g) => '<div data-ideas-empty style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;padding:28px 12px 12px">' +
     '<span aria-hidden="true" style="width:64px;height:64px;border-radius:999px;background:#2f7ed8;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 10px rgba(47,126,216,.18),0 0 0 20px rgba(47,126,216,.08)">' + svg(30, stroke('#fff', 2), BULB_IC) + '</span>' +
     '<h2 style="margin:14px 0 0;font-size:26px;line-height:1.1;font-weight:900;letter-spacing:-.7px;color:#0d1117;text-wrap:balance">' + WE_SHOULD + '</h2>' +
-    '<p style="margin:0;max-width:320px;font-size:15px;line-height:1.45;font-weight:500;color:#4b5160;text-wrap:pretty">An idea is an event without a date. Post it, people vote on when and where, and it turns into a plan once someone leads it.</p>' +
+    '<p style="margin:0;max-width:320px;font-size:15px;line-height:1.45;font-weight:500;color:#4b5160;text-wrap:pretty">An Idea is an event without a date. Post it, people vote on when and where, and it turns into a Plan once someone leads it.</p>' +
     '<button type="button" ' + on(() => openFloat({ groups: [g.id] })) + ' style="margin-top:6px;align-self:stretch;min-height:56px;border:0;border-radius:999px;background:#2f7ed8;display:flex;align-items:center;justify-content:center;gap:8px;font-family:inherit;font-size:16.5px;font-weight:900;color:#fff;cursor:pointer">' +
-      svg(20, stroke('#fff', 2), BULB_IC) + 'Float an idea</button></div>';
-  const ideaPrompt6 = (g) => '<div ' + on(() => openFloat({ groups: [g.id] }), 'button') + ' data-idea-prompt aria-label="Float an idea" style="min-height:170px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:12px;border-radius:18px;border:2px dashed #f6c945;background:#fffaf0;text-align:center;cursor:pointer">' +
+      svg(20, stroke('#fff', 2), BULB_IC) + 'Float an Idea</button></div>';
+  const ideaPrompt6 = (g) => '<div ' + on(() => openFloat({ groups: [g.id] }), 'button') + ' data-idea-prompt aria-label="Float an Idea" style="min-height:170px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:12px;border-radius:18px;border:2px dashed #f6c945;background:#fffaf0;text-align:center;cursor:pointer">' +
     '<span aria-hidden="true" style="width:44px;height:44px;border-radius:999px;background:#f6c945;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 7px rgba(246,201,69,.2)">' + svg(22, stroke('#0d1117', 2.1), BULB_IC) + '</span>' +
     '<span style="margin-top:4px;font-size:15px;line-height:1.15;font-weight:900;color:#0d1117;text-wrap:balance">' + WE_SHOULD + '</span>' +
-    '<span style="font-size:12.5px;line-height:1.3;font-weight:700;color:#1f5fa8">Float an idea ›</span></div>';
+    '<span style="font-size:12.5px;line-height:1.3;font-weight:700;color:#1f5fa8">Float an Idea ›</span></div>';
   // The Ideas board's quiet sort row: Most interest (default) · Newest · Almost there (most checkpoints done)
   const ISORTS6 = [['interest', 'Most interest'], ['new', 'Newest'], ['almost', 'Almost there']];
   const stepsDone6 = (s) => ideaSteps6(s).filter(st => st.p >= 1).length;
@@ -5817,19 +5817,19 @@
   }
 
   // Plans tab (v6 Update 9, 80a): an empty state with a calendar fan, and "What else could happen?" under the list
-  const createBtn = () => '<button type="button" class="hov-primary" ' + on(() => goCompose()) + ' style="width:100%;min-height:52px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 6px 16px rgba(91,74,232,.3);cursor:pointer">' + I.plus(18, '#fff', 2.8) + 'Create a plan</button>';
+  const createBtn = () => '<button type="button" class="hov-primary" ' + on(() => goCompose()) + ' style="width:100%;min-height:52px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 6px 16px rgba(91,74,232,.3);cursor:pointer">' + I.plus(18, '#fff', 2.8) + 'Create a Plan</button>';
   const fanPage = (w, rot, x, y, z) => '<span style="position:absolute;left:' + x + 'px;top:' + y + 'px;z-index:' + z + ';width:' + w + 'px;border-radius:14px;overflow:hidden;background:#fff;box-shadow:0 8px 22px rgba(15,18,25,.14);transform:rotate(' + rot + 'deg)">' +
     '<span style="display:flex;align-items:center;justify-content:center;height:' + Math.round(w * .26) + 'px;background:#e2556b;color:#fff;font-size:' + Math.round(w * .12) + 'px;font-weight:900;letter-spacing:1.5px">SAT</span>' +
     '<span style="display:flex;align-items:center;justify-content:center;height:' + Math.round(w * .74) + 'px;color:#0d1117;font-size:' + Math.round(w * .5) + 'px;line-height:1;font-weight:900">?</span></span>';
   // Also Your schedule's empty state (Update 10), with its own line and buttons
   const plansEmpty = (sub, btns, attr, title) => '<div ' + (attr || 'data-plans-empty') + ' style="min-height:420px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;padding:0 12px;text-align:center">' +
     '<div aria-hidden="true" style="position:relative;width:200px;height:150px">' + fanPage(96, -12, 4, 26, 1) + fanPage(96, 9, 100, 26, 1) + fanPage(118, -2, 41, 4, 2) + '</div>' +
-    '<div><div style="font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">' + esc(title || 'No plans yet') + '</div>' +
-      '<div style="margin-top:6px;font-size:15px;font-weight:500;color:#5c6270;text-wrap:pretty">' + (sub || 'Start one, or turn an idea into a plan.') + '</div></div>' + (btns || createBtn()) + '</div>';
+    '<div><div style="font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">' + esc(title || 'No Plans yet') + '</div>' +
+      '<div style="margin-top:6px;font-size:15px;font-weight:500;color:#5c6270;text-wrap:pretty">' + (sub || 'Start one, or turn an Idea into a Plan.') + '</div></div>' + (btns || createBtn()) + '</div>';
   const schedEmpty = () => plansEmpty('Anything you say yes or maybe to lands here. See what’s happening in your groups and pick something.',
     '<div style="width:100%;display:flex;flex-direction:column;gap:10px">' +
       '<button type="button" class="hov-primary" ' + on(() => go('calendar')) + ' style="width:100%;min-height:52px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 6px 16px rgba(91,74,232,.3);cursor:pointer">' + 'Find an event</button>' +
-      '<button type="button" class="hov-sec" ' + on(() => goCompose()) + ' style="width:100%;min-height:52px;border:0;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;color:#0d1117;font-family:inherit;font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer">' + I.plus(18, '#0d1117', 2.8) + 'Create a plan</button></div>',
+      '<button type="button" class="hov-sec" ' + on(() => goCompose()) + ' style="width:100%;min-height:52px;border:0;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;color:#0d1117;font-family:inherit;font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer">' + I.plus(18, '#0d1117', 2.8) + 'Create a Plan</button></div>',
     'data-sched-empty', 'Nothing on your calendar yet');
 
   // Search inside one group: Browse chips, "Or something unexpected", live results
@@ -5882,7 +5882,7 @@
         '<h2 style="margin:0;font-size:28px;line-height:1.06;font-weight:900;letter-spacing:-.8px;color:#0d1117;text-wrap:pretty">Ideas come to life when we build them together</h2>' +
         '<p style="margin:12px 0 0;font-size:15.5px;line-height:1.45;font-weight:500;color:#454b55">Spark Hub is where your groups plan things. Anyone can start something, and everyone can help make it happen.</p>' +
         '<div style="margin-top:20px;display:flex;flex-direction:column;gap:16px">' +
-          step(1, '#efedfd', '#4a3ad4', 'Create a plan', 'Add a title and whatever you know. Date, place and details can wait. Let the group vote on them.') +
+          step(1, '#efedfd', '#4a3ad4', 'Create a Plan', 'Add a title and whatever you know. Date, place and details can wait. Let the group vote on them.') +
           step(2, '#fdf4e2', '#8f6405', 'RSVP &amp; pitch in', 'People RSVP, vote on dates and locations, and sign up to bring things or help out.') +
           step(3, '#e7f6ec', '#0f7a3c', 'Make it happen', 'Everyone going gets a reminder the day before. Afterwards, add photos and thank whoever helped.') +
         '</div>' +
@@ -6019,7 +6019,7 @@
     return '<div data-make-plan-wrap style="padding:0 14px">' +
       (ready ? '<button type="button" data-make-plan ' + on(() => { if (!state.busy) makePlan(s); }) + ' style="position:relative;overflow:hidden;margin-top:14px;width:100%;min-height:56px;border:0;border-radius:999px;background:#2f9a4f;box-shadow:0 8px 18px rgba(20,110,50,.28);color:#fff;font-family:inherit;font-size:18px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:9px">' +
         spark('7%', '22%', 12, '#ffe7a3') + spark('63%', '12%', 9, '#fff') + spark('86%', '58%', 11, '#fff') +
-        svg(18, stroke('#fff', 2.3), FLAG) + 'Make it a plan!</button>' : '') +
+        svg(18, stroke('#fff', 2.3), FLAG) + 'Make it a Plan!</button>' : '') +
     '</div>';
   };
 
@@ -6096,7 +6096,7 @@
         (menu ? '<span ' + on(() => openSec(s, 'title')) + ' aria-label="Edit event" class="hov-fill-grey" style="' + ROUND_BTN + '">' + svg(18, stroke('#0d1117', 2.4), PENCIL) + '</span>' + evMenu(s) :
         // Owner, 2026-10-01: one round pencil (matching Share) opens Edit event: the title, and the cover photo for the host.
         // Round, so the Test event tab between the buttons stays clear on demo/test events
-        (canEdit(s) && !s.cancelledAt ? '<span ' + on(() => openSec(s, 'title')) + ' aria-label="' + (s.planned ? 'Edit event' : 'Edit idea') + '" class="hov-fill-grey" style="' + ROUND_BTN + '">' + svg(18, stroke('#0d1117', 2.4), PENCIL) + '</span>'
+        (canEdit(s) && !s.cancelledAt ? '<span ' + on(() => openSec(s, 'title')) + ' aria-label="' + (s.planned ? 'Edit event' : 'Edit Idea') + '" class="hov-fill-grey" style="' + ROUND_BTN + '">' + svg(18, stroke('#0d1117', 2.4), PENCIL) + '</span>'
           : share ? '' : '<span style="flex:0 0 44px;width:44px"></span>') +
         // Share stays on a cancelled plan (Design v8)
         (share ? '<span ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' aria-label="Share" class="hov-fill-grey" style="' + ROUND_BTN + '">' + svg(18, stroke('#0d1117', 2.4), P5.share) + '</span>' : '')) +
@@ -6632,7 +6632,7 @@
         '<div style="display:flex;flex-direction:column;gap:8px">' + label('Location') + placeField('offer', { placeholder: 'Search a place or address', style: BIG }) + '</div>' +
         // A plan keeps its date; taking it off turns the plan back into an idea (the host's call, with a confirm)
         // (Turn it back into an idea sits under Save: Design v8-8 prototype secBackIdeaOn)
-        (s.planned && isLead(s) ? (ss.d ? '' : '<span data-needs-date style="font-size:13.5px;line-height:1.4;font-weight:600;color:' + AMBER_INK + '">A plan needs a date. To take it off, turn it back into an idea.</span>') : '');
+        (s.planned && isLead(s) ? (ss.d ? '' : '<span data-needs-date style="font-size:13.5px;line-height:1.4;font-weight:600;color:' + AMBER_INK + '">A Plan needs a date. To take it off, turn it back into an Idea.</span>') : '');
       ok = !(s.planned && !ss.d);
     } else if (ss.kind === 'details') {
       body = '<div style="display:flex;flex-direction:column;gap:12px">' +   // v8-12: no "Both parts are optional."
@@ -6666,7 +6666,7 @@
       // closes this and opens the usual flow
       (s.planned && isTheLead(s) && !s.cancelledAt && ss.kind !== 'details' ? '<span ' + on(() => { close(); askDelete(s); }) + ' data-sec-delete style="align-self:center;display:flex;align-items:center;justify-content:center;gap:7px;min-height:44px;padding:0 12px;font-size:14.5px;font-weight:800;color:#c0364d;cursor:pointer">' + I.trash(15, '#c0364d') + 'Cancel or delete event</span>' : '') +
       // Date, time & location: then Turn it back into an idea (Design v8-8 prototype 2251)
-      (ss.kind === 'when' && s.planned && isLead(s) && phaseOf(s) !== 'done' ? '<span ' + on(() => { close(); clearPlan(s); }) + ' data-back-to-idea style="align-self:center;display:flex;align-items:center;min-height:44px;padding:0 12px;font-size:14.5px;font-weight:800;color:#9b1c31;cursor:pointer">Turn it back into an idea</span>' : ''), 36);
+      (ss.kind === 'when' && s.planned && isLead(s) && phaseOf(s) !== 'done' ? '<span ' + on(() => { close(); clearPlan(s); }) + ' data-back-to-idea style="align-self:center;display:flex;align-items:center;min-height:44px;padding:0 12px;font-size:14.5px;font-weight:800;color:#9b1c31;cursor:pointer">Turn it back into an Idea</span>' : ''), 36);
   }
 
   function viewNeedsSheet() {
@@ -7158,10 +7158,10 @@
     const co = s.cohosts[0], going = s.rsvps.filter(r => r.status !== 'no' && r.userId !== state.me).length;
     setState({ confirm: { title: 'Step back as lead?', danger: true, cta: 'Step back', keep: 'Stay on',
       body: co ? firstName(nameOf(co)) + ' becomes the lead. Nothing else changes.'
-        : (s.planned ? 'It goes back to being an idea, looking for a lead. The date and location stay.' + (going ? ' ' + (going === 1 ? 'The 1 person who said Going or Maybe gets a note and shows' : 'The ' + going + ' people who said Going or Maybe get a note and show') + ' as interested.' : '') : 'It stays up as an idea, looking for a lead.') +
+        : (s.planned ? 'It goes back to being an Idea, looking for a lead. The date and location stay.' + (going ? ' ' + (going === 1 ? 'The 1 person who said Going or Maybe gets a note and shows' : 'The ' + going + ' people who said Going or Maybe get a note and show') + ' as interested.' : '') : 'It stays up as an Idea, looking for a lead.') +
           (s.createdBy && s.createdBy !== state.me ? ' It goes back to ' + (firstName(nameOf(s.createdBy)) || 'whoever started it') + ', who can choose a new lead. You stay interested.' : ' People in its groups can offer to lead it.'),
       run: () => run(async () => { must(await sb.rpc('step_back', { p_spark: s.id })); }, { confirm: null })
-        .then(ok => { if (ok) toast(co ? firstName(nameOf(co)) + ' is leading it now' : s.planned ? 'It’s an idea again, looking for a lead' : 'It’s looking for a lead now', true); }) } });
+        .then(ok => { if (ok) toast(co ? firstName(nameOf(co)) + ' is leading it now' : s.planned ? 'It’s an Idea again, looking for a lead' : 'It’s looking for a lead now', true); }) } });
   };
   function viewLeadsSheet() {
     const s = state.sparks.find(x => x.id === state.leadsSheet);
@@ -7238,7 +7238,7 @@
         '<div style="display:flex;flex-direction:column;max-height:46vh;overflow:auto">' + list.map((p, i) =>
           '<div data-ask-row="' + esc(p.name) + '" data-ask-uid="' + esc(p.id) + '" style="display:flex;align-items:center;gap:12px;min-height:56px;border-top:' + (i ? '1px solid #f2f3f6' : '0') + '">' +
             face(p.id, p.name, 34, null) + '<span style="flex:1;min-width:0"><span style="display:block;font-size:15px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(p.name) + '</span>' + tagOf(p.id) + '</span>' + btn(p) + '</div>').join('') + '</div>') +
-      '<span ' + on(() => setState({ leadAsk: null, share: { id: s.id, copied: false } })) + ' style="align-self:flex-start;display:flex;align-items:center;min-height:40px;font-size:14px;font-weight:800;color:#8f6405;cursor:pointer">Or share the idea</span>');
+      '<span ' + on(() => setState({ leadAsk: null, share: { id: s.id, copied: false } })) + ' style="align-self:flex-start;display:flex;align-items:center;min-height:40px;font-size:14px;font-weight:800;color:#8f6405;cursor:pointer">Or share the Idea</span>');
   }
 
   // Inspo: up to three mood photos; the lead adds and removes them (ideas and plans alike), everyone else sees them when there are some
@@ -7850,7 +7850,7 @@
   const ruleInfo = (close) => popCard('Who leads it?', close, '', '',
     '<span style="font-size:22px;font-weight:900;letter-spacing:-.4px;color:#0d1117;padding-right:40px">Who leads it?</span>' +
     '<div style="display:flex;flex-direction:column;gap:4px;padding:12px 14px;border-radius:14px;background:#f6f7f9"><span style="font-size:16px;font-weight:900;color:#0d1117">I’ll decide</span><span style="font-size:15px;line-height:1.45;font-weight:500;color:#454b55">People can offer to lead it. You pick who, or take it on yourself later.</span></div>' +
-    '<div style="display:flex;flex-direction:column;gap:4px;padding:12px 14px;border-radius:14px;background:#f6f7f9"><span style="font-size:16px;font-weight:900;color:#0d1117">Me</span><span style="font-size:15px;line-height:1.45;font-weight:500;color:#454b55">You’re the lead. You pick the date and location and make it a plan.</span></div>' +
+    '<div style="display:flex;flex-direction:column;gap:4px;padding:12px 14px;border-radius:14px;background:#f6f7f9"><span style="font-size:16px;font-weight:900;color:#0d1117">Me</span><span style="font-size:15px;line-height:1.45;font-weight:500;color:#454b55">You’re the lead. You pick the date and location and make it a Plan.</span></div>' +
     goldBtn(close, 'Got it'), 47);
   const sectionLabel = (t) => '<span style="font-size:12.5px;font-weight:900;letter-spacing:1px;color:#454b55">' + t + '</span>';
 
@@ -8000,7 +8000,7 @@
           '<span style="font-size:17px;line-height:1.4;font-weight:600;color:#454b55;text-wrap:pretty"><span style="font-weight:900;color:#0d1117">Sketch out what you know so far.</span><br>You can change it all later.</span></div>' +
         '<div style="padding:20px 16px 0;display:flex;flex-direction:column;gap:18px">' +
           '<label style="display:flex;flex-direction:column;gap:8px">' + label('YOUR IDEA') + '<span style="position:relative;display:block">' +
-            '<input type="text" data-qi-title maxlength="40" aria-label="Your idea" placeholder="Pickleball on Sunday mornings" value="' + esc(q.title) + '" ' + onInput(e => { if (e.type === 'input') set({ title: e.target.value.slice(0, TITLE_MAX) }); }) + ' style="' + FLD + ring(!!q.title) + 'padding:0 58px 0 14px;height:54px;font-size:18px;font-weight:800">' +
+            '<input type="text" data-qi-title maxlength="40" aria-label="Your Idea" placeholder="Pickleball on Sunday mornings" value="' + esc(q.title) + '" ' + onInput(e => { if (e.type === 'input') set({ title: e.target.value.slice(0, TITLE_MAX) }); }) + ' style="' + FLD + ring(!!q.title) + 'padding:0 58px 0 14px;height:54px;font-size:18px;font-weight:800">' +
             '<span style="position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:11.5px;font-weight:700;color:#9aa0ac">' + q.title.length + '/40</span></span></label>' +
           '<label style="display:flex;flex-direction:column;gap:8px">' + label('SHORT DESCRIPTION', true) + '<span style="position:relative;display:block">' +
             '<textarea data-qi-why rows="2" maxlength="120" aria-label="Short description" placeholder="Casual games for all levels. Bring a paddle if you have one." ' + onInput(e => { if (e.type === 'input') set({ why: e.target.value.slice(0, 120) }); }) + ' style="' + FLD + ring(!!q.why) + 'padding:12px 14px 24px;font-size:15.5px;font-weight:600;line-height:1.35;display:block">' + esc(q.why) + '</textarea>' +
@@ -8038,7 +8038,7 @@
       '<div style="flex-shrink:0;padding:12px 16px 28px;display:flex;align-items:center;gap:10px;background:#e8eaee">' +
         '<span ' + on(() => set({ page: 1, gOpen: false })) + ' style="display:flex;align-items:center;justify-content:center;gap:4px;min-height:54px;padding:0 20px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;font-size:16px;font-weight:800;color:#0d1117;cursor:pointer">' + svg(16, stroke('#0d1117', 2.8), '<path d="m15 6-6 6 6 6"/>') + 'Back</span>' +
         '<button type="button" data-qi-post ' + on(qiPost) + (st.busy === 'post' ? ' disabled' : '') + ' style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;min-height:54px;border:0;border-radius:999px;background:#f5b428;font-family:inherit;font-size:16.5px;font-weight:900;color:#2a1d00;cursor:pointer;opacity:' + (st.busy === 'post' ? .6 : 1) + '">' +
-          svg(18, stroke('#2a1d00', 2.6), '<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9V16h7v-2.1A6 6 0 0 0 12 3z"/>') + (st.busy === 'post' ? 'Floating…' : 'Float the idea') + '</button></div>';
+          svg(18, stroke('#2a1d00', 2.6), '<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9V16h7v-2.1A6 6 0 0 0 12 3z"/>') + (st.busy === 'post' ? 'Floating…' : 'Float the Idea') + '</button></div>';
     // The pop-ups: Set date, Create poll (dates), Set location, Create poll (locations), Pick this up later?, Who leads it?
     let popHtml = '';
     const closePop = () => setState({ qiPop: null });
@@ -8074,7 +8074,7 @@
         '<button type="button" data-qi-discard ' + on(() => { writeIdeaDraft(null); setState({ qi: null, qiPop: null }); }) + ' style="min-height:44px;background:transparent;border:0;font-family:inherit;font-size:15px;font-weight:800;color:#9b1c31;cursor:pointer">Discard</button></div></div>';
     void popSet;
     return '<div class="sheet-scrim" data-scrim="' + reg(qiClose) + '" style="z-index:36;align-items:flex-end"></div>' +
-      '<div role="dialog" aria-modal="true" aria-label="Float an idea" data-screen-label="Float an idea" style="position:absolute;left:0;right:0;bottom:0;z-index:37;max-height:92%;background:#e8eaee;border-radius:24px 24px 0 0;overflow:hidden;box-shadow:0 -10px 40px rgba(13,17,23,.3);display:flex;flex-direction:column;animation:sheetUp 260ms cubic-bezier(.2,.8,.2,1) both">' +
+      '<div role="dialog" aria-modal="true" aria-label="Float an Idea" data-screen-label="Float an Idea" style="position:absolute;left:0;right:0;bottom:0;z-index:37;max-height:92%;background:#e8eaee;border-radius:24px 24px 0 0;overflow:hidden;box-shadow:0 -10px 40px rgba(13,17,23,.3);display:flex;flex-direction:column;animation:sheetUp 260ms cubic-bezier(.2,.8,.2,1) both">' +
         '<span ' + on(qiClose) + ' aria-label="Close" style="position:absolute;top:12px;right:14px;z-index:3;width:40px;height:40px;border-radius:999px;background:#fff;box-shadow:0 2px 8px rgba(13,17,23,.15);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(14, '#0d1117', 2.8) + '</span>' +
         (q.page === 2 ? page2 : page1) + '</div>' + popHtml;
   }
@@ -8180,7 +8180,7 @@
         (s.spotAddress && s.spotAddress !== s.spot ? '<span style="font-size:13.5px;font-weight:600;color:#6b7280">' + esc(s.spotAddress) + '</span>' : '') + setChip(pickedBy(s)) + '</div></div></div>';
   // Members: I'm interested + faces; Help make this a plan; Invite a friend; Talk it through with {starter}
   const showTalk = (s) => s.talk && s.wantsHost && !runsIdea(s);   // a led idea's sheet drops Talk it through (Q31 1a)
-  const talkLine = (s) => starterFirst(s) + ' is looking for someone to brainstorm about this idea.';
+  const talkLine = (s) => starterFirst(s) + ' is looking for someone to brainstorm about this Idea.';
   const offeredTalk = (s) => s.talkOffers.indexOf(state.me) > -1;
   const contactBtn = (s) => { const done = offeredTalk(s), first = starterFirst(s);
     return '<span ' + on(() => offerTalk(s)) + ' data-contact-starter style="display:flex;align-items:center;justify-content:center;min-height:50px;border-radius:999px;font-size:15.5px;font-weight:800;cursor:' + (done ? 'default' : 'pointer') + ';background:' + (done ? '#fdf1d6' : '#f5b428') + ';box-shadow:' + (done ? 'inset 0 0 0 2px #e0a01a' : 'none') + ';color:' + (done ? '#8f6405' : '#2a1d00') + '">' + (done ? '✓ ' + esc(first) + ' knows you’re up for it' : 'Contact ' + esc(first)) + '</span>'; };
@@ -8222,8 +8222,8 @@
     return helpRow(() => offerToLead(s), BOLT, 'Offer to lead', false, 'data-offer-lead');
   };
   const helpMakePlan = (s) => '<div style="' + GRAPH_CARD + '" data-help-make-plan>' +
-    '<div style="display:flex;align-items:center;gap:6px">' + ideaH('Help make this a plan') +
-      '<span ' + on(() => ipPop({ k: 'whatPlan' })) + ' aria-label="What’s a plan?" style="width:32px;height:32px;margin:-6px 0;display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(18, stroke('#6b7280', 2.2), '<circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".6" fill="#6b7280"/>') + '</span></div>' +
+    '<div style="display:flex;align-items:center;gap:6px">' + ideaH('Help make this a Plan') +
+      '<span ' + on(() => ipPop({ k: 'whatPlan' })) + ' aria-label="What’s a Plan?" style="width:32px;height:32px;margin:-6px 0;display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(18, stroke('#6b7280', 2.2), '<circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".6" fill="#6b7280"/>') + '</span></div>' +
     helpRow(() => share8(s), '<circle cx="9" cy="8.5" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M18 8v6M15 11h6"/>', 'Invite a friend', true) +
     (s.dayDate ? '' : helpRow(() => s.dateOpts.length > 1 ? ipPop({ k: 'dates', id: s.id }) : ipPopAcct(s, { k: 'sugD', id: s.id, d: '', t: '' }), CAL_P, s.dateOpts.length > 1 ? 'Vote on a date' : 'Suggest a date')) +   // the date or place is picked: nothing to vote on
     (s.spot ? '' : helpRow(() => ipPopAcct(s, { k: 'sugL', id: s.id, v: '' }), PIN_P, 'Suggest a location')) + leadRow8(s) +
@@ -8263,7 +8263,7 @@
     const leadName = iLead(s) ? 'You' : firstName(nameOf(s.leadId, s.leadName));
     return '<div id="sec-lead" style="margin:4px;' + GRAPH_BG + ';border-radius:8px;padding:0 16px 14px;overflow:hidden;display:flex;flex-direction:column;gap:4px;transform:rotate(-1deg);box-shadow:0 4px 14px rgba(13,17,23,.14)" data-make-this-plan>' +
       '<div style="position:relative;overflow:hidden;margin:0 -16px 6px;padding:13px 16px 11px;background:linear-gradient(160deg,#fde39a 0%,#fbd56b 55%,#f8c94f 100%)">' + sparkles([[78, 18, 16, '#fff', .9], [88, 54, 9, '#fff', .7], [68, 60, 7, '#d6246e', .8]]) +
-        '<span style="position:relative;font-size:26px;font-weight:900;letter-spacing:-.6px;color:#2a1d00">Make this a plan</span></div>' +
+        '<span style="position:relative;font-size:26px;font-weight:900;letter-spacing:-.6px;color:#2a1d00">Make this a Plan</span></div>' +
       // v8-8 item 4: Date and Location open the Pick pop-up (the options people suggested, or a field when there are none)
       row(true, dDone, CAL_P, 'Date', dDone ? esc(dayLabel(s.dayDate, s.dayTime) + (setPart(s) ? ' · ' + setPart(s) : '')) : passed ? 'That date has passed' : topD ? (dates.length === 1 ? 'Suggested: ' + esc(optDay(topD)) : tot ? esc(optDay(topD)) + ' is ahead (' + topD.votes.length + ' of ' + tot + ')' : 'No votes yet') : 'No date yet',
         act(dDone, dDone ? 'Change' : passed ? 'New date' : topD ? 'Pick' : 'Add', () => openPick(s, 'd'), 'data-plan-date')) +
@@ -8274,7 +8274,7 @@
         // The starter keeps a quiet Change once someone leads; a lead who didn't start it can't pick the lead (Design v8 prototype)
         ldDone && !isTheLead(s) ? '' : act(ldDone, ldDone ? 'Change' : 'Choose', () => ldDone ? setState({ leadsSheet: s.id }) : ipPop({ k: 'lead', id: s.id }), 'data-plan-lead')) +
       // v8-8 items 1–3: grey until every row is ticked, then the purple sparkle button, which opens Review prefilled
-      (ldDone && !iLead(s) ? '<span style="margin-top:8px;font-size:13.5px;font-weight:600;color:#6b7280">' + esc(leadName) + ' will make it a plan.</span>'
+      (ldDone && !iLead(s) ? '<span style="margin-top:8px;font-size:13.5px;font-weight:600;color:#6b7280">' + esc(leadName) + ' will make it a Plan.</span>'
         : dDone && ldDone ? planBtn(() => planFromIdea(s)) + (s.interested.length || !lDone ? '<span style="margin-top:6px;text-align:center;font-size:13px;font-weight:600;color:#6b7280">' +
             [s.interested.length ? 'We’ll tell the ' + (s.interested.length === 1 ? '1 person' : s.interested.length + ' people') + ' interested.' : '', lDone ? '' : 'The location can be decided later.'].filter(Boolean).join(' ') + '</span>' : '')
         : '<span data-make-it-plan aria-disabled="true" style="margin-top:10px;display:flex;align-items:center;justify-content:center;min-height:54px;border-radius:999px;background:#e2e4e9;font-size:16px;font-weight:900;color:#9aa0ac">' + (!dDone ? (passed ? 'Pick a new date first' : 'Add a date first') : 'Choose a lead first') + '</span>') + '</div>';
@@ -8283,7 +8283,7 @@
   const PLAN_GRAD = 'linear-gradient(120deg,#5b4ae8 0%,#7a4fe0 45%,#b04fc4 80%,#d6246e 100%)';
   const planBtn = (fn, label) => '<span ' + on(fn) + ' role="button" data-make-it-plan style="position:relative;overflow:hidden;margin-top:10px;display:flex;align-items:center;justify-content:center;min-height:54px;border-radius:999px;background:' + PLAN_GRAD + ';font-size:17px;font-weight:900;color:#fff;box-shadow:0 8px 20px rgba(91,74,232,.35);cursor:pointer">' +
     [[8, 18, 11, .8], [20, 58, 8, .6], [76, 16, 9, .7], [88, 56, 12, .85], [64, 62, 7, .5], [34, 12, 7, .5]].map(([l, t, z, o]) => '<span aria-hidden="true" style="position:absolute;left:' + l + '%;top:' + t + '%;font-size:' + z + 'px;color:#fff;opacity:' + o + '">✦</span>').join('') +
-    '<span style="position:relative">' + (label || 'Make it a plan!') + '</span></span>';
+    '<span style="position:relative">' + (label || 'Make it a Plan!') + '</span></span>';
   // The Pick pop-up (v8-8 item 4): sel is the picked option's id; with no options, d / v is what's typed
   const openPick = (s, kind) => { const day = kind === 'd', src = day ? s.dateOpts.slice().sort(byDate) : s.spotOpts;
     const cur = day ? src.find(o => o.dayDate === s.dayDate && (o.dayTime || null) === (s.dayTime || null)) : src.find(o => o.name === s.spot);
@@ -8303,7 +8303,7 @@
       (!isStarter(s) ? '' : '<span style="height:10px"></span>' + sectionLabel('HOW PEOPLE CAN HELP') + helpCard(s.talk, s.wantsHost ? 'decide' : 'me', () => { const v = !s.talk; quick(s, { talk: v }, async () => { must(await sb.from('sparks').update({ talk: v }).eq('id', s.id)); }); toast(v ? 'People can offer to brainstorm' : 'Brainstorm offers turned off', true); },
         (r) => { if ((r === 'me') === !s.wantsHost) return; setWantsHost(s, r !== 'me'); }, () => ipPop({ k: 'rule' }))) +   // Me = you lead it now; I'll decide = looking for a lead again
       // The new page has no ⋯, so taking it down is a quiet link at the bottom (the build's, HANDOFF §2)
-      (canTakeDown(s) ? '<span ' + on(() => { setState({ ip: null }); askDelete(s); }) + ' data-delete-idea style="align-self:center;display:flex;align-items:center;min-height:40px;margin-top:8px;padding:0 10px;font-size:14px;font-weight:700;color:#9b1c31;cursor:pointer">Delete this idea</span>' : '') + '</div>'; };
+      (canTakeDown(s) ? '<span ' + on(() => { setState({ ip: null }); askDelete(s); }) + ' data-delete-idea style="align-self:center;display:flex;align-items:center;min-height:40px;margin-top:8px;padding:0 10px;font-size:14px;font-weight:700;color:#9b1c31;cursor:pointer">Delete this Idea</span>' : '') + '</div>'; };
   // The note-paper top (slide-up) with the starter's ✎ Edit in place
   const saveIdeaEdit = (s) => { const e = state.ipEd, text = cleanTitle(e.title).slice(0, TITLE_MAX), why = e.why.trim().slice(0, 120);
     if (!text) { toast('Add a title first'); return; }
@@ -8314,7 +8314,7 @@
       (pics[0] ? '<div aria-hidden="true" style="position:relative;flex:0 0 auto;margin:0 14px 0 6px;height:150px;border:6px solid #fff;background:' + bg(pics[0], posAt(s.coverPos, IDEA_POS)) + ';transform:rotate(' + tilt(s.id) + 'deg);box-shadow:0 4px 12px rgba(13,17,23,.18)"></div>' : '') +
       '<div style="display:flex;flex-direction:column;gap:8px;padding:0 4px">' +
         '<div style="display:flex;align-items:center;justify-content:space-between">' + IDEA_CHIP +
-          (!st8 && !ed && canEdit(s) && state.email ? '<span ' + on(() => { setState({ ip: null }); openSec(s, 'title'); }) + ' data-idea-edit aria-label="Edit idea" style="display:flex;align-items:center;gap:5px;min-height:36px;margin-right:46px;font-size:14px;font-weight:800;color:#8f6405;cursor:pointer">' + EDIT_PEN + 'Edit</span>' : '') +   // a group admin: the title (admin_edit_spark)
+          (!st8 && !ed && canEdit(s) && state.email ? '<span ' + on(() => { setState({ ip: null }); openSec(s, 'title'); }) + ' data-idea-edit aria-label="Edit Idea" style="display:flex;align-items:center;gap:5px;min-height:36px;margin-right:46px;font-size:14px;font-weight:800;color:#8f6405;cursor:pointer">' + EDIT_PEN + 'Edit</span>' : '') +   // a group admin: the title (admin_edit_spark)
           (st8 && !ed ? '<span ' + on(() => setState({ ipEd: { id: s.id, title: s.text, why: s.overview || '' } })) + ' data-idea-edit style="display:flex;align-items:center;gap:5px;min-height:36px;margin-right:46px;font-size:14px;font-weight:800;color:#8f6405;cursor:pointer">' + EDIT_PEN + 'Edit</span>' : '') + '</div>' +
         (ed ? '<textarea rows="1" maxlength="40" aria-label="Idea title" data-ip-ed-title ' + onInput(e => { if (e.type === 'input') { state.ipEd.title = e.target.value.replace(/\n/g, ' ').slice(0, TITLE_MAX); e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; } }) + ' style="' + TA + 'padding:6px 10px;font-size:30px;line-height:1.1;font-weight:900;letter-spacing:-.8px;field-sizing:content">' + esc(ed.title) + '</textarea>' +
             '<textarea rows="1" maxlength="120" placeholder="Add a short description" aria-label="Short description" ' + onInput(e => { if (e.type === 'input') { state.ipEd.why = e.target.value.slice(0, 120); e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; } }) + ' style="' + TA + 'padding:6px 10px;font-size:20px;line-height:1.38;font-weight:500;field-sizing:content">' + esc(ed.why) + '</textarea>' +
@@ -8331,7 +8331,7 @@
   const ideaDisc = (s) => discussionSec(s);   // every idea, floated too (audit 2026-10-07: the floater and the people interested had no way to talk)
   const ideaBodyRest = (s) => runsIdea(s) ? whenWhere(s) + ideaJobs(s) + ideaDisc(s) + starterSettings(s) : helpMakePlan(s) + whenWhere(s) + talkCard(s) + ideaJobs(s) + ideaDisc(s) +
     // a group admin can still take someone's idea down (the quiet link, as on the lead's page)
-    (canTakeDown(s) ? '<span ' + on(() => { setState({ ip: null }); askDelete(s); }) + ' data-delete-idea style="align-self:center;display:flex;align-items:center;min-height:40px;margin-top:8px;padding:0 10px;font-size:14px;font-weight:700;color:#9b1c31;cursor:pointer">Delete this idea</span>' : '');
+    (canTakeDown(s) ? '<span ' + on(() => { setState({ ip: null }); askDelete(s); }) + ' data-delete-idea style="align-self:center;display:flex;align-items:center;min-height:40px;margin-top:8px;padding:0 10px;font-size:14px;font-weight:700;color:#9b1c31;cursor:pointer">Delete this Idea</span>' : '');
   // Members of a led idea (Q31 1a): who leads it and what they're working on, under the title
   const ledByCard8 = (s) => { if (s.wantsHost || runsIdea(s)) return ''; const name = firstName(nameOf(s.leadId, s.leadName)) || 'Someone', doing = !s.dayDate ? 'Picking a date' : !s.spot ? 'Picking a location' : '';
     return '<div ' + (state.email ? on(() => openPerson(s.leadId)) + ' role="button" ' : '') + 'data-led-by8 style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:18px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08)' + (state.email ? ';cursor:pointer' : '') + '">' + avatarSpan(s.leadId, name, avatarOf(s.leadId), 40) +
@@ -8380,7 +8380,7 @@
       '<div style="position:relative;margin-top:-22px;border-radius:22px 22px 0 0;background:#e8eaee;display:flex;flex-direction:column;gap:12px;padding:18px 14px 0">' +
         '<div id="sec-details" style="display:flex;flex-direction:column;gap:8px;padding:0 4px">' +
           '<div style="display:flex;align-items:center;justify-content:space-between">' + IDEA_CHIP +
-            (!st8 && canEdit(s) && state.email ? '<span ' + on(() => openSec(s, 'title')) + ' data-idea-edit aria-label="Edit idea" style="display:flex;align-items:center;gap:5px;min-height:36px;font-size:14px;font-weight:800;color:#8f6405;cursor:pointer">' + EDIT_PEN + 'Edit</span>' : '') + '</div>' +   // a group admin: the title
+            (!st8 && canEdit(s) && state.email ? '<span ' + on(() => openSec(s, 'title')) + ' data-idea-edit aria-label="Edit Idea" style="display:flex;align-items:center;gap:5px;min-height:36px;font-size:14px;font-weight:800;color:#8f6405;cursor:pointer">' + EDIT_PEN + 'Edit</span>' : '') + '</div>' +   // a group admin: the title
           '<span style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:' + titleFs(s.text, 28) + 'px;line-height:1.05;font-weight:900;letter-spacing:-.7px;color:#0d1117;text-wrap:balance">' + esc(s.text) + '</span>' +
           (s.overview ? '<span style="display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;font-size:20px;line-height:1.4;font-weight:500;color:#2a2f38;text-wrap:pretty">' + esc(s.overview) + '</span>' : '') + ideaBits(s) +
           '<div style="display:flex;align-items:center;gap:8px;margin-top:2px">' + avatarSpan(s.createdBy, floaterName(s), avatarOf(s.createdBy), 24) +
@@ -8395,7 +8395,7 @@
     if (!s && p.k !== 'whatPlan' && p.k !== 'rule') return '';
     const first = s ? runnerFirst(s) : '';   // Talk it through only shows while it's floated, when that's the starter
     const who = (state.myName || 'Someone').slice(0, 40);
-    if (p.k === 'whatPlan') return popCard('What’s a plan?', close, 'What’s a plan?', '', '<span style="font-size:16px;line-height:1.5;font-weight:500;color:#2a2f38;text-wrap:pretty">An idea becomes a plan once it has a date and someone to lead it. The location can be decided later. Then people can RSVP and sign up to help.</span>' + goldBtn(close, 'Got it'));
+    if (p.k === 'whatPlan') return popCard('What’s a Plan?', close, 'What’s a Plan?', '', '<span style="font-size:16px;line-height:1.5;font-weight:500;color:#2a2f38;text-wrap:pretty">An Idea becomes a Plan once it has a date and someone to lead it. The location can be decided later. Then people can RSVP and sign up to help.</span>' + goldBtn(close, 'Got it'));
     if (p.k === 'rule') return ruleInfo(close);
     if (p.k === 'talk') return popCard('Talk it through', close, 'Talk it through with ' + esc(first), '', '<div style="display:flex;align-items:flex-start;gap:12px">' + avatarSpan(s.createdBy, floaterName(s), avatarOf(s.createdBy), 40) + '<span style="flex:1;font-size:16px;line-height:1.45;font-weight:500;color:#2a2f38;text-wrap:pretty">' + esc(talkLine(s)) + '</span></div>' + contactBtn(s));
     // Vote on a date (Design v8 prototype, Dates sheet): tick rows with who suggested it, voter faces and a vote pill, then + Suggest a date
@@ -8472,7 +8472,7 @@
             if (adds.length) must(await sb.from(day ? 'date_options' : 'spot_options').insert(adds));
           }, { ipPop: null }).then(ok => { if (ok) toast('Saved', true); }); }, 'Save', 'data-ip-pop-done')); }
     if (p.k === 'lead') { const helpers = s.canHelp.filter(u => u !== state.me && u !== s.leadId);
-      return popCard('Choose a lead', close, 'Choose a lead', 'The lead sets the details and makes it a plan.',
+      return popCard('Choose a lead', close, 'Choose a lead', 'The lead sets the details and makes it a Plan.',
         (iLead(s) ? '' : '<span ' + on(() => { close(); setWantsHost(s, false).then(ok => { if (ok) toast('You’re leading it', true); }); }) + ' data-lead-me style="display:flex;align-items:center;justify-content:center;gap:8px;min-height:52px;border-radius:999px;background:#f5b428;font-size:16px;font-weight:900;color:#2a1d00;cursor:pointer">' + svg(18, stroke('#2a1d00', 2.4), '<path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/>') + 'I’ll lead it</span>') +
         '<span style="margin-top:6px;font-size:12.5px;font-weight:900;letter-spacing:1px;color:#454b55">OR CHOOSE SOMEONE WHO OFFERED</span>' +
         (helpers.length ? helpers.map(u => { const asked = s.leadAsks.some(a => a.userId === u);
@@ -8556,7 +8556,7 @@
         opt('All groups', all.length, !pickG.length, () => setState({ iaGrps: [] })) +
         G.map(g => opt(g.name, all.filter(s => inGroup(s, g.id)).length, pickG.indexOf(g.id) > -1, () => toggleG(g.id))).join('') +
         '<span ' + on(() => setState({ menu: null })) + ' role="button" style="margin-top:4px;display:flex;align-items:center;justify-content:center;min-height:40px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:14px;font-weight:800;cursor:pointer">Done</span></div>' : '';
-    const SORTS = [['new', 'Newest'], ['interest', 'Popular'], ['close', 'Almost a plan']];   // "Closest" read as distance
+    const SORTS = [['new', 'Newest'], ['interest', 'Popular'], ['close', 'Almost a Plan']];   // "Closest" read as distance
     const sortMenu = st.menu === 'iaSort' ? '<div ' + on(() => setState({ menu: null })) + ' style="position:fixed;inset:0;z-index:1"></div>' +
       '<div role="listbox" style="position:absolute;top:calc(100% + 4px);right:0;z-index:2;min-width:170px;background:#fff;border:1px solid #eceef2;border-radius:16px;padding:6px;box-shadow:0 18px 44px rgba(15,18,25,.2);display:flex;flex-direction:column">' +
         SORTS.map(([k, l]) => '<span role="option" ' + on(() => setState({ iaSort: k, menu: null })) + ' style="display:flex;align-items:center;min-height:40px;padding:0 12px;border-radius:10px;font-size:14.5px;font-weight:' + (IS === k ? 800 : 600) + ';color:' + (IS === k ? '#5b4ae8' : '#0d1117') + ';background:' + (IS === k ? '#f3f1fe' : 'transparent') + ';cursor:pointer">' + l + '</span>').join('') + '</div>' : '';
@@ -8585,7 +8585,7 @@
     let body;
     if (!st.loaded) body = skeleton(2, 160);
     else if (!G.length) body = goneCard() + noGroupCard();
-    else if (!ideas.length) body = '<span style="padding:10px 4px 4px;font-size:15px;font-weight:600;color:#6b7280">No ideas in your groups yet.</span>';
+    else if (!ideas.length) body = '<span style="padding:10px 4px 4px;font-size:15px;font-weight:600;color:#6b7280">No Ideas in your groups yet.</span>';
     else body = (VW === 'grid'
       ? '<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;align-items:start;padding-top:6px">' +
           '<div style="display:flex;flex-direction:column;gap:20px">' + ideas.map((s, k) => k % 2 ? '' : tile(s, k)).join('') + '</div>' +
@@ -8593,8 +8593,8 @@
       : '<div style="display:flex;flex-direction:column;gap:16px;padding-top:6px">' + ideas.map(full).join('') + '</div>');
     const end = st.loaded && ideas.length ? '<div style="margin-top:34px;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center">' +
       '<span style="position:relative;display:flex">' + svg(26, stroke('#b07a0a', 2.2), BULB) + '<svg aria-hidden="true" style="position:absolute;left:22px;top:-6px" width="9" height="9" viewBox="0 0 24 24" fill="#f5b428">' + SPARK4 + '</svg></span>' +
-      '<span style="font-size:17px;font-weight:900;color:#0d1117">That’s every idea for now.</span>' +
-      '<span ' + on(() => openFloat()) + ' role="button" data-board-float style="margin-top:4px;display:flex;align-items:center;min-height:44px;padding:0 18px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #f5b428;font-size:14.5px;font-weight:800;color:#8f6405;cursor:pointer">+ Float an idea</span></div>' : '';
+      '<span style="font-size:17px;font-weight:900;color:#0d1117">That’s every Idea for now.</span>' +
+      '<span ' + on(() => openFloat()) + ' role="button" data-board-float style="margin-top:4px;display:flex;align-items:center;min-height:44px;padding:0 18px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #f5b428;font-size:14.5px;font-weight:800;color:#8f6405;cursor:pointer">+ Float an Idea</span></div>' : '';
     return '<div data-screen-label="Ideas" style="min-height:100%;' + BOARD_BG + '">' + head +
       '<div style="position:relative;padding:16px 16px 20px;display:flex;flex-direction:column;gap:12px">' + bar + body + end + '</div><div style="height:calc(var(--nav-h) + 30px)"></div></div>';
   }
@@ -8726,7 +8726,7 @@
   // YOUR STUFF's slide-ups: a row per item, or an empty state with a next step
   function viewMeList() {
     const k = state.meList, L = meLists(), close = () => setState({ meList: null });
-    const title = { draft: 'Drafts', idea: 'Your ideas', lead: 'Leading', past: 'Past events' }[k];
+    const title = { draft: 'Drafts', idea: 'Your Ideas', lead: 'Leading', past: 'Past events' }[k];
     const row = (thumb, t, sub, fn, i, dim) => '<div ' + on(() => { close(); fn(); }) + ' class="hov-row" style="display:flex;align-items:center;gap:12px;min-height:64px;padding:8px 4px;' + (i ? 'border-top:1px solid #f0f1f4;' : '') + 'cursor:pointer">' +
       '<span aria-hidden="true" style="flex:0 0 44px;width:44px;height:44px;border-radius:11px;background:' + thumb + (dim ? ';filter:saturate(.4)' : '') + '"></span>' +
       '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px"><span style="font-size:15.5px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(t) + '</span>' +
@@ -8737,9 +8737,9 @@
       : k === 'idea' ? L.ideas.map((s, i) => row(thumbBg(s), s.text, fans(s).length + ' interested · ' + gName(s), () => openSpark(s), i))
       : k === 'lead' ? L.lead.map((s, i) => row(thumbBg(s), s.text, fd(s) + ' · ' + gName(s), () => openSpark(s), i))
       : L.past.map((s, i) => row(thumbBg(s), s.text, (isLead(s) ? 'You led · ' : helpsOn(s) ? 'You helped · ' : 'You went · ') + fd(s), () => openSpark(s), i, true));
-    const E = { draft: ['No drafts', 'Anything you save partway through shows up here.', 'Create a plan', () => goCompose(), '#454b55', '#f2f3f6', I.plus(22, 'currentColor', 2.6)],
-      lead: ['Create a plan', 'You’re not leading anything yet. Got an idea for your group?', 'Create a plan', () => goCompose(), '#5b4ae8', '#f3f1fe', I.plus(22, 'currentColor', 2.6)],
-      idea: [WE_SHOULD, 'Float an idea with only rough details and see who’s in.', 'Float an idea', () => openFloat(), '#8f6405', '#fff4dc', svg(22, stroke('currentColor', 2.2), BULB_IC)],
+    const E = { draft: ['No drafts', 'Anything you save partway through shows up here.', 'Create a Plan', () => goCompose(), '#454b55', '#f2f3f6', I.plus(22, 'currentColor', 2.6)],
+      lead: ['Create a Plan', 'You’re not leading anything yet. Got an idea for your group?', 'Create a Plan', () => goCompose(), '#5b4ae8', '#f3f1fe', I.plus(22, 'currentColor', 2.6)],
+      idea: [WE_SHOULD, 'Float an Idea with only rough details and see who’s in.', 'Float an Idea', () => openFloat(), '#8f6405', '#fff4dc', svg(22, stroke('currentColor', 2.2), BULB_IC)],
       past: ['Nothing here yet', 'Events you lead or go to land here once they’ve happened.', 'Find an event', () => go('calendar'), '#454b55', '#f2f3f6', svg(22, stroke('currentColor', 2.2), '<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>')] }[k];
     const empty = '<div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:18px 12px 8px;text-align:center">' +
       '<span style="width:56px;height:56px;border-radius:999px;background:' + E[5] + ';color:' + E[4] + ';display:flex;align-items:center;justify-content:center">' + E[6] + '</span>' +
@@ -9135,7 +9135,7 @@
         await freshAfterSave();
         setState(Object.assign(composeReset(), { busy: null, phaseTab: 'plan' }));
         go('detail', { subjectId: s.id });
-        toast('It’s a plan!' + (n ? ' We told the ' + (n === 1 ? '1 person' : n + ' people') + ' interested.' : ''), true);
+        toast('It’s a Plan!' + (n ? ' We told the ' + (n === 1 ? '1 person' : n + ' people') + ' interested.' : ''), true);
       } catch (e) {
         console.error(e);
         setState({ busy: null });
@@ -9819,8 +9819,8 @@
       const note = asPlan ? ''
         : '<div data-posts-as style="display:flex;gap:12px;margin-bottom:14px;padding:16px;border-radius:20px;background:#eef5fd;box-shadow:inset 0 0 0 1.5px #cfe2f7">' +
             '<span style="flex:none;width:46px;height:46px;border-radius:999px;background:#2f7ed8;display:flex;align-items:center;justify-content:center">' + svg(22, stroke('#fff', 2.2), BULB_IC) + '</span>' +
-            '<div style="display:flex;flex-direction:column;gap:4px;min-width:0"><span style="font-size:16.5px;font-weight:800;letter-spacing:-.2px;color:#0d1117">This goes up as an idea</span>' +
-              '<span style="font-size:14.5px;line-height:1.4;font-weight:500;color:#454b55;text-wrap:pretty">No date yet, so people can vote and suggest times. Once there’s a date, tap <b style="font-weight:800;color:#0d1117">Make it a plan</b> to lock it in.</span></div></div>';
+            '<div style="display:flex;flex-direction:column;gap:4px;min-width:0"><span style="font-size:16.5px;font-weight:800;letter-spacing:-.2px;color:#0d1117">This goes up as an Idea</span>' +
+              '<span style="font-size:14.5px;line-height:1.4;font-weight:500;color:#454b55;text-wrap:pretty">No date yet, so people can vote and suggest times. Once there’s a date, tap <b style="font-weight:800;color:#0d1117">Make it a Plan</b> to lock it in.</span></div></div>';
       // Six small four-point sparkles on Post it, white and gold (v8-6; no confetti)
       const STAR = '<path d="M12 0c.8 6.5 4.7 10.9 12 12-7.3 1.1-11.2 5.5-12 12-.8-6.5-4.7-10.9-12-12 7.3-1.1 11.2-5.5 12-12Z"/>';
       const sparks = '<span aria-hidden="true" style="position:absolute;inset:0">' + [[8, 9, 14, '#fff', .85], [17, 33, 8, '#ffd98a', .9], [29, 14, 6, '#fff', .6], [68, 30, 7, '#ffd98a', .65], [79, 8, 12, '#fff', .9], [89, 30, 9, '#ffd98a', .8]]
@@ -9835,7 +9835,7 @@
         '<div style="margin-top:auto;padding:18px 14px 20px">' + note +
           '<button type="button" ' + on(post) + ' data-post aria-disabled="' + !ok + '" style="position:relative;width:100%;height:56px;border:0;border-radius:999px;overflow:hidden;font-family:inherit;font-size:17px;font-weight:900;color:' + (asPlan || !ok ? '#fff' : '#2a1d00') + ';' +
             (ok ? 'background:' + bgc + ';box-shadow:0 8px 20px ' + glow + ';cursor:pointer' : busy ? 'background:' + bgc + ';opacity:.72;cursor:wait' : 'background:#c9ccd3;cursor:pointer') + '">' + (ok && asPlan ? sparks : '') +
-            '<span style="position:relative;display:flex;align-items:center;justify-content:center;gap:8px">' + (busy ? 'Posting…' : asPlan ? 'Post it' : 'Post as an idea') + '</span></button>' +
+            '<span style="position:relative;display:flex;align-items:center;justify-content:center;gap:8px">' + (busy ? 'Posting…' : asPlan ? 'Post it' : 'Post as an Idea') + '</span></button>' +
           '<button type="button" ' + on(saveDraft) + ' style="margin-top:12px;width:100%;min-height:50px;background:transparent;border:2px solid #c9ccd3;border-radius:999px;font-family:inherit;font-size:15.5px;font-weight:800;color:#0d1117;cursor:pointer">' + (st.busy === 'draft' ? 'Saving…' : 'Save as draft') + '</button>' +
         '</div>') + '</div></div>';
     }
@@ -10189,8 +10189,8 @@
       // Opened from Welcome's "Continue with email": just the email field (owner, 2026-09-30)
       const emailOk = EMAIL_OK.test(st.loginEmail.trim()), withGoogle = GOOGLE_ON && !st.loginEmailOnly;
       // Design v8's lines (the privacy line under the form waits on the owner)
-      const lead = { reminder: 'Your RSVP comes with you, and then we can remind you. ', post: 'Sign in to put your idea up. ', guest: 'Your name fills in, and everything you add is saved to your account. ', account: 'It takes a minute, and you can vote, sign up and get reminders. ', join: 'Sign in to join a group. ', friend: 'Sign in to add your friend. ', discussion: 'Sign in to read the discussion and join in. ' }[st.loginFrom] ||
-        'Your ideas, groups and name are saved to your account. ';
+      const lead = { reminder: 'Your RSVP comes with you, and then we can remind you. ', post: 'Sign in to put your Idea up. ', guest: 'Your name fills in, and everything you add is saved to your account. ', account: 'It takes a minute, and you can vote, sign up and get reminders. ', join: 'Sign in to join a group. ', friend: 'Sign in to add your friend. ', discussion: 'Sign in to read the discussion and join in. ' }[st.loginFrom] ||
+        'Your Ideas, groups and name are saved to your account. ';
       return modal('Sign in', closeLogin,
         h3Html(st.loginFrom === 'post' ? 'Sign in to post your event' : st.loginFrom === 'account' || st.loginFrom === 'reminder' ? 'Create a free account' : 'Sign in') +
         paraHtml(lead + (withGoogle ? 'Use Google, or we’ll email you a 6-digit code. No password.' : 'We’ll email you a 6-digit code. No password.')) +
@@ -10439,9 +10439,9 @@
         p('See what’s coming up, say you’re going, and pitch in: bring a dish, take a shift, invite a friend. It’s built for communities and neighborhoods.'),
       kick('HOW IT WORKS') + h('Anyone can start something') +
         '<div style="display:flex;flex-direction:column;gap:8px">' +
-          step('#fdf1d6', '#f5b428', '#2a1d00', 1, 'Float an idea', '“Pickleball on Sunday mornings?”') +
+          step('#fdf1d6', '#f5b428', '#2a1d00', 1, 'Float an Idea', '“Pickleball on Sunday mornings?”') +
           step('#fff1e8', '#e8661c', '#fff', 2, 'Everybody pitches in', 'Say you’re in, help pick a date, lend a hand') +
-          step('#f3f1fe', '#5b4ae8', '#fff', 3, 'Make it a plan', 'It’s on the calendar. See you there!') + '</div>',
+          step('#f3f1fe', '#5b4ae8', '#fff', 3, 'Make it a Plan', 'It’s on the calendar. See you there!') + '</div>',
       // Help shape Spark Hub (owner, 2026-10-07): feedback wanted, from Eric, for communities. Guests send feedback without signing in
       kick('FEEDBACK WANTED') + h('Help shape Spark Hub') +
         '<div style="display:flex;align-items:center;gap:12px">' + ericFace(56) + '<span style="display:flex;flex-direction:column"><span style="font-size:17px;font-weight:900;color:#0d1117">Eric</span><span style="font-size:13.5px;font-weight:600;color:#6b7280">Spark Hub lead</span></span></div>' +
@@ -10762,7 +10762,7 @@
       tab(['groups', 'calendar', 'browse', 'groupPage'].indexOf(s) > -1, 'Groups', 'Groups', ic('<rect x="4" y="4" width="7" height="7" rx="1.6"/><rect x="13" y="4" width="7" height="7" rx="1.6"/><rect x="4" y="13" width="7" height="7" rx="1.6"/><rect x="13" y="13" width="7" height="7" rx="1.6"/>'), () => go('groups')) +
       tab(s === 'friends', state.fr.incoming.length ? 'Friends, new request' : 'Friends', 'Friends', '<span style="position:relative;display:flex">' + ic('<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M15.5 4.6a3.5 3.5 0 0 1 0 6.8M18 14a6.5 6.5 0 0 1 3.5 6"/>') + reqDot + '</span>', () => go('friends')) +
       tab(s === 'sched', 'Calendar', 'Calendar', ic('<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>'), () => go('sched')) +
-      tab(s === 'ideas', ideaDot ? 'Ideas, new ideas' : 'Ideas', 'Ideas', '<span style="position:relative;display:flex">' + ic('<path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V16h5v-.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/>') + ideaDot + '</span>', () => go('ideas')) +
+      tab(s === 'ideas', ideaDot ? 'Ideas, new Ideas' : 'Ideas', 'Ideas', '<span style="position:relative;display:flex">' + ic('<path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V16h5v-.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/>') + ideaDot + '</span>', () => go('ideas')) +
       tab(s === 'me' || s === 'home' || s === 'own', 'Me', 'Me', ic('<circle cx="12" cy="8.2" r="3.8"/><path d="M4.5 20.5a7.5 7.5 0 0 1 15 0"/>'), openProfileSheet) +
     '</nav>';
   }
@@ -10777,7 +10777,7 @@
     // On Me the floating button is Settings (v8-9 item 4): white, a grey gear; hidden while Settings or My tasks is open
     if (state.screen === 'me') return state.meSet || state.tkSheet || state.notifSheet ? '' : '<div ' + on(() => setState({ meSet: true })) + ' role="button" aria-label="Settings" data-me-settings data-screen-label="Settings button" class="add-fab add-fab-set">' +
       svg(22, stroke('currentColor', 2.1), '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>') + '</div>';
-    if (state.screen === 'ideas') return '<div ' + on(() => openFloat()) + ' role="button" aria-label="Float an idea" data-float-fab class="add-fab add-fab-gold">' +
+    if (state.screen === 'ideas') return '<div ' + on(() => openFloat()) + ' role="button" aria-label="Float an Idea" data-float-fab class="add-fab add-fab-gold">' +
       svg(22, stroke('#2a1d00', 2.8), '<path d="M12 5v14M5 12h14"/>') + '</div>';
     const open = !!state.plusMenu, close = () => setState({ plusMenu: false });
     const pill = (fn, bg, ink, icon, label, pos, delay, attr) => '<div style="position:absolute;' + pos + ';z-index:10"><span ' + on(fn) + ' role="button" ' + attr + ' style="display:flex;align-items:center;gap:9px;min-height:52px;padding:0 20px 0 16px;border-radius:999px;background:' + bg + ';color:' + ink + ';box-shadow:0 8px 20px rgba(13,17,23,.22);font-size:16px;font-weight:900;white-space:nowrap;cursor:pointer;animation:plusPop 260ms ' + delay + 'ms cubic-bezier(.2,1.4,.4,1) both">' + icon + label + '</span></div>';

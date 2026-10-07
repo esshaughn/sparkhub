@@ -8,7 +8,7 @@ test('visitors land on Welcome (no tab bar there) and sign in from there', async
     const welcome = page.locator('[data-screen-label=Welcome]');
     await expect(welcome.getByRole('heading', { name: /Plans with\s*your people\./ })).toBeVisible();
     await expect(welcome.getByText('New here? Either one creates your account.')).toBeVisible();
-    await expect(welcome.getByRole('listitem')).toHaveText(['1Float an idea', '2Everybody pitches in', '3Make it a plan']);   // the intro's steps (owner, 2026-10-07)
+    await expect(welcome.getByRole('listitem')).toHaveText(['1Float an Idea', '2Everybody pitches in', '3Make it a Plan']);   // the intro's steps (owner, 2026-10-07)
     await expect(welcome.locator('[data-about-link]')).toBeVisible();
     await expect(welcome.getByRole('button', { name: 'Continue with Google' })).toBeVisible();
     await expect(page.getByRole('navigation', { name: 'Main' })).toHaveCount(0);   // no tab bar on Welcome
@@ -16,7 +16,7 @@ test('visitors land on Welcome (no tab bar there) and sign in from there', async
     // "Continue with email": the sign-in pop-up with just the email field, focused (no Google button there)
     await welcome.getByRole('button', { name: 'Continue with email' }).click();
     const dialog = page.getByRole('dialog', { name: 'Sign in' });
-    await expect(dialog).toContainText('Your ideas, groups and name are saved to your account. We’ll email you a 6-digit code. No password.');
+    await expect(dialog).toContainText('Your Ideas, groups and name are saved to your account. We’ll email you a 6-digit code. No password.');
     await expect(dialog.getByLabel('Email')).toBeFocused();
     await expect(dialog.getByRole('button', { name: 'Continue with Google' })).toHaveCount(0);
     await expect(dialog.getByRole('link', { name: 'Privacy' })).toHaveAttribute('href', '/privacy.html');
@@ -230,7 +230,7 @@ test('Give feedback (Update 9): a Help & info tile opens the sheet; Send to Eric
     await page.locator('[data-screen-label=Groups]').getByRole('button', { name: 'Torrez Fitness', exact: true }).click();
     await expect(page.locator('[data-plans-more]')).toHaveCount(0);
     const empty = page.locator('[data-plans-empty]');
-    if (await empty.count()) await expect(empty).toContainText('Start one, or turn an idea into a plan.');
+    if (await empty.count()) await expect(empty).toContainText('Start one, or turn an Idea into a Plan.');
     expect(m.errors).toEqual([]);
   } finally {
     await m.context.close();
@@ -403,7 +403,7 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
     await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Groups', exact: true }).click();
     const groups = page.locator('[data-screen-label=Groups]');
     await expect(groups.getByRole('heading', { name: 'My groups', exact: true })).toBeVisible();
-    await expect(groups.locator('[data-all-groups]')).toContainText('All events, plans & ideas');
+    await expect(groups.locator('[data-all-groups]')).toContainText('All events, Plans & Ideas');
     await expect(groups.locator('[data-add-friend]')).toHaveCount(0);
     await groups.getByRole('button', { name: 'Join or add a group' }).click();
     const add = page.getByRole('dialog', { name: 'Add a group' });

@@ -80,7 +80,7 @@ test('a member with the link takes part; the lead picks and makes it a plan', as
     await flow.locator('[data-post]').click();
     const LP = L.locator('[data-screen-label="Plan page"]');
     await expect(LP).toBeVisible();
-    await expect(L.getByRole('status')).toContainText('It’s a plan! We told the 1 person interested.');
+    await expect(L.getByRole('status')).toContainText('It’s a Plan! We told the 1 person interested.');
     // Gus was interested, so he's down as Maybe (Q31 1e)
     await G.reload();
     const GP = G.locator('[data-screen-label="Plan page"]');
@@ -129,7 +129,7 @@ test('the Ideas board puts the idea with the most interest first', async ({ brow
     const prompt = P.locator('[data-screen-label=Browse] [data-idea-prompt]');
     await expect(prompt).toContainText('Got a “we should…”?');
     await prompt.click();
-    await expect(P.locator('[data-screen-label="Float an idea"]')).toBeVisible();
+    await expect(P.locator('[data-screen-label="Float an Idea"]')).toBeVisible();
     expect(poster.errors).toEqual([]);
     expect(fan.errors).toEqual([]);
   } finally {

@@ -27,8 +27,8 @@ test('a group end to end: edit group, cover, rename, invite, pin, admin edits, r
     await expect(cardA).toContainText('OWNER');
     await cardA.click();
     // A new group's Plans tab (Update 9, 80a): the calendar fan, No plans yet, Create a plan
-    await expect(A.locator('[data-plans-empty]')).toContainText('No plans yet');
-    await expect(A.locator('[data-plans-empty]').getByRole('button', { name: 'Create a plan' })).toBeVisible();
+    await expect(A.locator('[data-plans-empty]')).toContainText('No Plans yet');
+    await expect(A.locator('[data-plans-empty]').getByRole('button', { name: 'Create a Plan' })).toBeVisible();
     // ⋯ → Invite (owners and admins; Design v8 prototype: three rounds, no Copy link / QR code) → the Invite people sheet
     // with the link, then Show QR code: the purple Scan to join screen, then the poster step
     const qm = await groupMenu(A);
@@ -143,7 +143,7 @@ test('a group end to end: edit group, cover, rename, invite, pin, admin edits, r
     await openIdea(A, ideaId);
     const detail = A.locator('[data-screen-label="Idea page (8b)"]');
     await detail.locator('[data-idea-edit]').click();   // an admin gets Edit too (the title only, v8-8's idea page); an idea's pop-up says idea
-    const sec = A.getByRole('dialog', { name: 'Edit idea' });
+    const sec = A.getByRole('dialog', { name: 'Edit Idea' });
     await expect(sec.locator('[data-edit-photo]')).toHaveCount(0);               // only the lead changes the photo
     await sec.getByLabel('Idea title').fill('[E2E] Tempo run, moved indoors');
     await sec.getByRole('button', { name: 'Save', exact: true }).click();

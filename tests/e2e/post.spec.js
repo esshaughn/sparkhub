@@ -409,7 +409,7 @@ test('polls: the host posts a date poll (an idea), a member votes, the host pick
     await expect(HI.locator('[data-when-set] [data-cal-page]')).toHaveText('');   // a calendar icon like Where?'s pin, no date page
     await expect(HI.locator('[data-when]')).not.toContainText('Choose all dates you could attend.');
     // …and Make it a plan! is ready: a lead and a date; the location can wait (planMissing, owner 2026-10-02)
-    await expect(HI.locator('[data-make-it-plan]')).toContainText('Make it a plan!');
+    await expect(HI.locator('[data-make-it-plan]')).toContainText('Make it a Plan!');
     await expect(HI.locator('[data-make-this-plan]')).toContainText('The location can be decided later.');
     // The member sees the picked date, and nothing asks them to vote on one
     await O.reload();
@@ -436,7 +436,7 @@ test('polls: the host posts a date poll (an idea), a member votes, the host pick
     await expect(flow.locator('[data-review-edit="where"]')).toContainText('Pease Park');
     await flow.locator('[data-post]').click();
     await expect(H.locator('[data-screen-label="Plan page"]')).toBeVisible();
-    await expect(H.getByRole('status')).toContainText('It’s a plan!');
+    await expect(H.getByRole('status')).toContainText('It’s a Plan!');
     expect(await H.evaluate(() => location.hash.split('/').pop())).toBe(id);
 
     // A plan keeps its date: clearing it can't be saved; turning it back into an idea takes it off
@@ -446,7 +446,7 @@ test('polls: the host posts a date poll (an idea), a member votes, the host pick
     await expect(when.locator('[data-needs-date]')).toBeVisible();
     await expect(when.getByRole('button', { name: 'Save', exact: true })).toHaveAttribute('aria-disabled', 'true');
     await when.locator('[data-back-to-idea]').click();
-    await confirm(H, 'Back to an idea');
+    await confirm(H, 'Back to an Idea');
     await expect(HI).toBeVisible();
     await expect(HI.locator('[data-make-this-plan]')).toContainText('You’re leading it');   // the lead keeps it; only the date comes off
     await expect(HI.locator('[data-make-it-plan]')).toHaveText('Add a date first');
@@ -682,11 +682,11 @@ test('Float an idea: the Float sheet, a draft, and the starter’s slide-up', as
   let id;
   try {
     await startFloat(page);
-    const sheet = page.locator('[data-screen-label="Float an idea"]');
+    const sheet = page.locator('[data-screen-label="Float an Idea"]');
     await expect(sheet).toContainText('Sketch out what you know so far.');
     await sheet.locator('[data-qi-next]').click();
     await expect(page.getByRole('status')).toContainText('Add a title first');
-    await sheet.getByLabel('Your idea').fill(title);
+    await sheet.getByLabel('Your Idea').fill(title);
     await expect(sheet).toContainText(title.length + '/40');   // titles stop at 40 (owner, 2026-10-07)
     await sheet.getByLabel('Short description').fill('Bring a kite or borrow one');
     await sheet.locator('[data-qi-more]').click();
@@ -718,7 +718,7 @@ test('Float an idea: the Float sheet, a draft, and the starter’s slide-up', as
     expect(await asUser(page, async (c, _C, t) => (await c.from('event_drafts').select('data').filter('data->>kind', 'eq', 'float')).data.filter(r => r.data.title === t).length, title)).toBe(1);
     await startFloat(page);
     await expect(page.getByRole('status')).toContainText('Picked up your draft');
-    await expect(sheet.getByLabel('Your idea')).toHaveValue(title);
+    await expect(sheet.getByLabel('Your Idea')).toHaveValue(title);
     await expect(sheet.locator('[data-qi-loc-sum]')).toContainText('Butler Park');
     // Page 2: the recap, WHERE IT GOES, HOW PEOPLE CAN HELP; Talk it through on, Who leads it: I'll decide (the default, v8-8)
     await sheet.locator('[data-qi-next]').click();

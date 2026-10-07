@@ -171,7 +171,7 @@ async function startFloat(page) {
   await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Calendar', exact: true }).click();
   await page.locator('[data-add-fab]').click();
   await page.locator('[data-plus-float]').click();
-  await expect(page.locator('[data-screen-label="Float an idea"]')).toBeVisible();
+  await expect(page.locator('[data-screen-label="Float an Idea"]')).toBeVisible();
 }
 // My tasks lives under Me since v8-4 (YOUR STUFF's first row)
 async function openTasks(page) {
