@@ -10278,7 +10278,7 @@
       const lead = { reminder: 'Your RSVP comes with you, and then we can remind you. ', post: 'Sign in to put your Idea up. ', guest: 'Your name fills in, and everything you add is saved to your account. ', account: 'It takes a minute, and you can vote, sign up and get reminders. ', join: 'Sign in to join a group. ', friend: 'Sign in to add your friend. ', discussion: 'Sign in to read the discussion and join in. ' }[st.loginFrom] ||
         'Your Ideas, groups and name are saved to your account. ';
       return modal('Sign in', closeLogin,
-        h3Html(st.loginFrom === 'post' ? 'Sign in to post your event' : st.loginFrom === 'account' || st.loginFrom === 'reminder' ? 'Create a free account' : 'Sign in') +
+        h3Html(st.loginFrom === 'post' ? 'Sign in to post your event' : st.loginFrom === 'account' || st.loginFrom === 'reminder' ? 'Create a free account' : 'Sign in / Create an Account') +
         paraHtml(withGoogle ? lead.trim() : lead + 'We’ll email you a 6-digit code. No password.') +   // owner, 2026-10-07: no Use Google… line beside the Google button
         (st.googleFailed
           ? '<div role="alert" style="display:flex;align-items:flex-start;gap:9px;background:#fdeef0;border:1.5px solid #f5c2cb;border-radius:14px;padding:11px 13px">' +
