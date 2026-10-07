@@ -410,8 +410,13 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
     await expect(add.getByRole('button', { name: 'Add a friend' })).toHaveCount(0);
     await add.getByRole('button', { name: 'Start a group' }).click();
     const soon = page.getByRole('alertdialog', { name: 'Starting groups is coming soon' });
-    await soon.getByRole('button', { name: 'Got it' }).click();
+    // Ask Eric to start one opens Give feedback with the first words written (owner, 2026-10-07)
+    await soon.getByRole('button', { name: 'Ask Eric to start one' }).click();
     await expect(soon).toHaveCount(0);
+    const askBox = page.getByRole('dialog', { name: 'Give feedback' });
+    await expect(askBox.getByLabel('Your feedback')).toHaveValue('I’d like to start a group for ');
+    await askBox.getByRole('button', { name: 'Cancel' }).click();
+    await expect(askBox).toHaveCount(0);
     await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Groups', exact: true })).toHaveAttribute('aria-current', 'page');
     await expect(groups.getByRole('button', { name: 'Torrez Fitness', exact: true })).toContainText(/members/);   // tiles show the member count too (Update 13)
     // Search filters the side that's showing

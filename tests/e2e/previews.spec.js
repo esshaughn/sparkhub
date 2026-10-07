@@ -118,6 +118,17 @@ test('a signed-out visitor sees the event only, and names once they RSVP', async
     await expect(P).not.toContainText('Visibility');
     await expect(P).not.toContainText('Torrez Fitness');
     await expect(P.locator('[data-disc-signin]')).toBeVisible();
+    // Who's this from? (first-encounter item 9): one card above the RSVP, and What's Spark Hub? opens the About sheet
+    await expect(P.locator('[data-visitor-line]')).toContainText('Shared with you on Spark Hub, where neighbours turn ideas into plans. No account needed to RSVP.');
+    await P.locator('[data-about-link]').click();
+    const about = V.getByRole('dialog', { name: 'What’s Spark Hub?' });
+    await expect(about.locator('[data-about-panel="1"]')).toContainText('Where your group plans get-togethers');
+    await about.locator('[data-about-next]').click();
+    await expect(about.locator('[data-about-panel="2"]')).toContainText('Anyone can start something');
+    await about.locator('[data-about-next]').click();
+    await expect(about.locator('[data-about-panel="3"]')).toContainText('Made Spark Hub');
+    await about.locator('[data-about-done]').click();
+    await expect(about).toHaveCount(0);
     // The photo's Share icon goes straight to the Share link pop-up (no one-button sheet for a guest, owner 2026-10-06)
     await V.getByRole('button', { name: 'Share', exact: true }).first().click();
     const pop = V.getByRole('dialog', { name: 'Share link' });
@@ -137,6 +148,7 @@ test('a signed-out visitor sees the event only, and names once they RSVP', async
     await d.locator('[data-guest-rsvp]').click();
     await V.getByRole('dialog', { name: 'You’re on the list' }).locator('[data-plus-done]').click();
     await expect(P.locator('[data-who-locked]')).toHaveCount(0);
+    await expect(P.locator('[data-visitor-line]')).toHaveCount(0);   // gone once they've replied
     await expect(P.locator('[data-going]')).toContainText('See all');
     // Back goes to Welcome with the guest's plans on it, not only a sign-in wall (first-encounter audit 2, 2026-10-07)
     await V.getByLabel('Back to Spark Hub').click();

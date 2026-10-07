@@ -1194,7 +1194,12 @@
   // Start a group (V5 brings it back): name it, then land on its Edit group page with the code
   // Starting groups is coming soon everywhere (owner, 2026-10-03): every Start a group says so. The naming pop-up
   // (startName) stays for when it comes back: setState({ startName: '' }) behind needSignIn(…, 'profile')
-  const startGroup = () => setState({ menu: null, pplAdd: false, joinOpen: false, confirm: { title: 'Starting groups is coming soon', body: 'For now, ask us to set one up for your team, block or club. You can join any group with its code or link.', cta: 'Got it', run: () => setState({ confirm: null }) } });
+  // Ask Eric to start one (owner, 2026-10-07): opens Give feedback with the first words written (signing in first if needed)
+  const askForGroup = () => {
+    const ask = () => setState({ confirm: null, fb: { text: 'I’d like to start a group for ' } });
+    if (state.email) ask(); else { setState({ confirm: null }); openLogin('profile', ask); }
+  };
+  const startGroup = () => setState({ menu: null, pplAdd: false, joinOpen: false, confirm: { title: 'Starting groups is coming soon', body: 'For now, Eric sets them up. Tell him who it’s for, a team, a block or a club, and he’ll start it with you. You can join any group with its code or link.', cta: 'Ask Eric to start one', run: askForGroup, keep: 'Not now', x: true } });
   const submitStartGroup = async () => {
     const name = titleCase(state.startName || '').slice(0, 40);
     if (name.length < 2 || state.busy) return;
@@ -7495,6 +7500,17 @@
     // A guest who RSVP'd or took a job: Keep this event, saving it to a free account (owner, 2026-10-07; it was Want a
     // reminder?, owner 2026-10-01). After sign-in the app still offers Turn on reminders?
     // Design v8: lavender with no ring, Sign in under the text; it opens sign-in as from the guest sheet
+    // Who's this from? (owner, 2026-10-07, first-encounter item 9): a visitor (signed out, or in none of the event's groups)
+    // who hasn't replied gets one quiet card above the RSVP: what Spark Hub is and that RSVPs need no account. No group
+    // name (visitors don't see it, v8-8). It goes once they reply; What's Spark Hub? opens the About sheet
+    const visitorLine = lead || my || s.cancelledAt || st.viewAs || (st.email && gIds(s).some(g => groupById(g))) ? '' :
+      '<div data-visitor-line style="display:flex;gap:12px;align-items:flex-start;padding:14px 16px;border-radius:18px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08)">' +
+        '<span aria-hidden="true" style="flex:0 0 34px;width:34px;height:34px;border-radius:999px;background:#fdf1d6;display:flex;align-items:center;justify-content:center">' +
+          '<svg width="18" height="18" viewBox="0 0 24 24"><path d="M13.2 2.2 7.2 13.1l3.9-.35-.9 8.8 6.9-11.2-4.1.4z" fill="#e8a71c" stroke="#e8a71c" stroke-width="1.7" stroke-linejoin="round"/></svg></span>' +
+        '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">' +
+          '<span style="font-size:14px;line-height:1.45;font-weight:600;color:#454b55;text-wrap:pretty">Shared with you on <b style="font-weight:800;color:#0d1117">Spark Hub</b>, where neighbours turn ideas into plans. No account needed to RSVP.</span>' +
+          '<span ' + on(() => openAbout()) + ' role="button" data-about-link style="align-self:flex-start;display:flex;align-items:center;gap:3px;min-height:32px;font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">What’s Spark Hub? ' + I.chevR(12, 'currentColor', 2.8) + '</span></div>' +
+      '</div>';
     const guestNudge = st.email || lead || s.cancelledAt || nudgeHidden(s.id) || !(my === 'going' || my === 'maybe' || s.signups.some(it => it.claims.some(c => c.userId === st.me))) ? '' :
       '<div data-guest-nudge style="display:flex;gap:12px;padding:14px 16px;border-radius:18px;background:#f3f1fe">' +
         '<span style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center">' + svg(18, stroke('#5b4ae8', 2.2) + ' style="flex:0 0 18px"', '<path d="M7 3.5h10a1 1 0 0 1 1 1v16l-6-4-6 4v-16a1 1 0 0 1 1-1Z"/>') + '</span>' +
@@ -7564,6 +7580,7 @@
         cancelledCard(s) +
         (discMissing(s) ? updatesCard(s) : discBanner(s)) +   // v8: the banner; the updates live in Discussion
         // Keep this event sits with the RSVP card, 8px under it (Design v8-8 prototype 976)
+        visitorLine +
         (rsvpBlock && guestNudge ? '<div style="display:flex;flex-direction:column;gap:8px">' + rsvpBlock + guestNudge + '</div>' : rsvpBlock + guestNudge) +
         whenWhereCard(s) +
         basicDetailsSec(s) +
@@ -8642,7 +8659,7 @@
     const help = group('HELP &amp; INFO',
       row('<path d="M5 5h14a1.5 1.5 0 0 1 1.5 1.5v9A1.5 1.5 0 0 1 19 17H10l-4.5 3.5V17H5a1.5 1.5 0 0 1-1.5-1.5v-9A1.5 1.5 0 0 1 5 5Z"/>', 'Send feedback to Eric', '', openFeedback, 0) +
       row('<circle cx="12" cy="12" r="8.75"/><path d="m15.6 8.4-2.2 5-5 2.2 2.2-5 5-2.2Z"/>', 'Take the tour', 'The five tabs, in a minute', soonToast, 1, true) +
-      row('<circle cx="12" cy="12" r="8.75"/><path d="M9.6 9.3a2.5 2.5 0 0 1 4.8 1c0 1.7-2.4 2.1-2.4 3.4M12 16.6h.01"/>', 'How Spark Hub works', '', soonToast, 1, true));
+      row('<circle cx="12" cy="12" r="8.75"/><path d="M9.6 9.3a2.5 2.5 0 0 1 4.8 1c0 1.7-2.4 2.1-2.4 3.4M12 16.6h.01"/>', 'How Spark Hub works', 'What it is and who’s behind it', openAbout, 1));
     // Privacy moved to Settings › ACCOUNT (Design v8 prototype); one line
     meAccountRows = () => row('<path d="M12 3 5 6v5c0 4.4 3 8.3 7 9.5 4-1.2 7-5.1 7-9.5V6z"/>', 'Privacy', '', null, 0, false, '/privacy.html');
     return '<div data-screen-label="Me">' + head + alerts + yourStuff +
@@ -10389,6 +10406,37 @@
       '<div style="width:40px;height:5px;border-radius:999px;background:#dcdfe6;margin:0 auto 12px"></div>' + inner +
     '</div></div>';
 
+  // What's Spark Hub? (owner, 2026-10-07, first-encounter item 9): three short panels, Next between them, Got it at the
+  // end. Opens only when asked (the visitor line, Me → How Spark Hub works); never by itself
+  const openAbout = () => setState({ about: 0, menu: null });
+  function viewAbout() {
+    const st = state, i = Math.max(0, Math.min(2, st.about | 0)), close = () => setState({ about: null }), go = (n) => setState({ about: n });
+    const kick = (t) => '<span style="font-size:12px;font-weight:900;letter-spacing:1.2px;color:#8f6405">' + t + '</span>';
+    const h = (t) => '<h3 style="margin:0;font-size:24px;line-height:1.12;font-weight:900;letter-spacing:-.5px;color:#0d1117;text-wrap:balance">' + t + '</h3>';
+    const p = (t) => '<p style="margin:0;font-size:15.5px;line-height:1.5;font-weight:500;color:#2a2f38;text-wrap:pretty">' + t + '</p>';
+    const step = (bg, dot, ink, n, t, sub) => '<div style="display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:14px;background:' + bg + '">' +
+      '<span style="flex:0 0 26px;width:26px;height:26px;border-radius:999px;background:' + dot + ';color:' + ink + ';font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center">' + n + '</span>' +
+      '<span style="display:flex;flex-direction:column;gap:1px"><span style="font-size:15px;font-weight:800;color:#0d1117">' + t + '</span><span style="font-size:13px;font-weight:600;color:#6b7280">' + sub + '</span></span></div>';
+    const panels = [
+      kick('WHAT IT IS') + h('Where your group plans get-togethers') +
+        p('See what’s coming up, say you’re going, and pitch in: bring a dish, take a shift, invite a friend. It’s free, and there’s nothing to download.'),
+      kick('HOW IT WORKS') + h('Anyone can start something') +
+        '<div style="display:flex;flex-direction:column;gap:8px">' +
+          step('#fdf1d6', '#f5b428', '#2a1d00', 1, 'Float an idea', '“Pickleball on Sunday mornings?”') +
+          step('#fff1e8', '#e8661c', '#fff', 2, 'Someone leads it', 'People say they’re in and help pick a date') +
+          step('#f3f1fe', '#5b4ae8', '#fff', 3, 'It’s a plan', 'A date and a lead: now people RSVP and pitch in') + '</div>',
+      kick('WHO’S BEHIND IT') +
+        '<div style="display:flex;align-items:center;gap:12px">' + ericFace(56) + '<span style="display:flex;flex-direction:column"><span style="font-size:17px;font-weight:900;color:#0d1117">Eric</span><span style="font-size:13.5px;font-weight:600;color:#6b7280">Made Spark Hub</span></span></div>' +
+        p('Spark Hub is a new project, tried out with a few groups. Tell Eric what works and what doesn’t' + (st.email ? ': Give feedback is under Me.' : '.'))
+    ];
+    const dots = '<div style="display:flex;gap:6px;justify-content:center" aria-hidden="true">' + [0, 1, 2].map(n => '<span style="height:7px;border-radius:999px;background:' + (n === i ? '#0d1117;width:20px' : '#dcdfe6;width:7px') + '"></span>').join('') + '</div>';
+    const btn = (label, fn, bg, ink, data) => '<button type="button" ' + data + ' ' + on(fn) + ' style="min-height:52px;border:0;border-radius:999px;background:' + bg + ';color:' + ink + ';font-family:inherit;font-size:16px;font-weight:900;cursor:pointer">' + label + '</button>';
+    return sheet('What’s Spark Hub?', close, SHEET_PAD,
+      '<div data-about-panel="' + (i + 1) + '" style="display:flex;flex-direction:column;gap:12px;min-height:250px">' + panels[i] + '</div>' + dots +
+      (i < 2 ? btn('Next', () => go(i + 1), '#f5b428', '#2a1d00', 'data-about-next') : btn('Got it', close, '#0d1117', '#fff', 'data-about-done')) +
+      (i > 0 ? '<span ' + on(() => go(i - 1)) + ' role="button" style="align-self:center;display:flex;align-items:center;min-height:36px;font-size:14.5px;font-weight:800;color:#6b7280;cursor:pointer">Back</span>' : ''), 44);
+  }
+
   // Members of a group you run. Owners (up to two) set roles; admins see them
   function viewMembers() {
     const st = state, g = groupById(st.membersOpen), close = () => setState({ membersOpen: null, membersQ: '', memberOpen: null });
@@ -10831,6 +10879,7 @@
       (st.fbOpen && st.demoAdmin ? viewFbInbox() : '') +
       (st.acctOpen && st.demoAdmin ? viewAccounts() : '') +
       (st.fb && st.email ? viewFeedback() : '') +
+      (st.about != null ? viewAbout() : '') +
       (st.installPop ? viewInstallPop() : '') + (st.notifAsk ? viewNotifAsk() : '') +
       // no tab bar on Welcome, the invite screens, or for a guest on an event (it only led to sign-in)
       (welcomeShown() || invFull() || (!state.email && state.screen === 'detail') ? '' : viewAddFab() + viewNav()) +
@@ -11056,6 +11105,7 @@
       e.preventDefault(); const b = e.target.parentElement.querySelector('[aria-disabled="false"]'); if (b) b.click(); return;
     }
     if (e.key === 'Escape') {
+      if (state.about != null) return setState({ about: null });
       if (state.dayTypePop) return setState({ dayTypePop: null });
       if (state.dayPick) return setState({ dayPick: null });
       if (state.zoom) return setState({ zoom: null });
