@@ -126,7 +126,9 @@ test('a signed-out visitor sees the event only, and names once they RSVP', async
     await about.locator('[data-about-next]').click();
     await expect(about.locator('[data-about-panel="2"]')).toContainText('Anyone can start something');
     await about.locator('[data-about-next]').click();
-    await expect(about.locator('[data-about-panel="3"]')).toContainText('Made Spark Hub');
+    await expect(about.locator('[data-about-panel="3"]')).toContainText('Help shape Spark Hub');
+    await expect(about.locator('[data-about-panel="3"]')).toContainText('I’m building it with my neighbors & friends, for communities like yours.');
+    await expect(about.locator('[data-about-feedback]')).toHaveText('Give feedback');
     await about.locator('[data-about-done]').click();
     await expect(about).toHaveCount(0);
     // The photo's Share icon goes straight to the Share link pop-up (no one-button sheet for a guest, owner 2026-10-06)
