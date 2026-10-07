@@ -1194,12 +1194,13 @@
   // Start a group (V5 brings it back): name it, then land on its Edit group page with the code
   // Starting groups is coming soon everywhere (owner, 2026-10-03): every Start a group says so. The naming pop-up
   // (startName) stays for when it comes back: setState({ startName: '' }) behind needSignIn(…, 'profile')
-  // Ask Eric to start one (owner, 2026-10-07): opens Give feedback with the first words written (signing in first if needed)
+  // Groups start by request while Spark Hub is in beta (owner, 2026-10-07): Request a group opens Give feedback as a group
+  // request (its own heading, the first words written), signing in first if needed; Eric reviews each one
   const askForGroup = () => {
-    const ask = () => setState({ confirm: null, fb: { text: 'I’d like to start a group for ' } });
+    const ask = () => setState({ confirm: null, fb: { text: 'I’d like a group for ', kind: 'group' } });
     if (state.email) ask(); else { setState({ confirm: null }); openLogin('profile', ask); }
   };
-  const startGroup = () => setState({ menu: null, pplAdd: false, joinOpen: false, confirm: { title: 'Starting groups is coming soon', body: 'For now, Eric sets them up. Tell him who it’s for, a team, a block or a club, and he’ll start it with you. You can join any group with its code or link.', cta: 'Ask Eric to start one', run: askForGroup, keep: 'Not now', x: true } });
+  const startGroup = () => setState({ menu: null, pplAdd: false, joinOpen: false, confirm: { title: 'Groups start by request', body: 'Spark Hub is still new, and we’re building it as we go. Tell us who your group is for and Eric will take a look. You can join any group with its code or link.', cta: 'Request a group', run: askForGroup, keep: 'Not now', x: true } });
   const submitStartGroup = async () => {
     const name = titleCase(state.startName || '').slice(0, 40);
     if (name.length < 2 || state.busy) return;
@@ -4848,7 +4849,7 @@
       if (shot) row.shot = shot;
       must(await sb.from('feedback').insert(row));
       if (f.shot) URL.revokeObjectURL(f.shot.url);
-      setState({ busy: null, fb: { text: '', sent: true } });
+      setState({ busy: null, fb: { text: '', sent: true, kind: state.fb && state.fb.kind } });
       if (state.demoAdmin) loadFeedback();
     } catch (e) {   // what they typed (and the screenshot) stays
       console.error(e);
@@ -4863,14 +4864,14 @@
       ? '<div style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:10px 4px 4px;text-align:center">' +
           '<span style="position:relative;display:flex">' + ericFace(64) + '<span style="position:absolute;right:-4px;bottom:-4px;width:26px;height:26px;border-radius:999px;background:#149a4b;box-shadow:0 0 0 3px #fff;display:flex;align-items:center;justify-content:center">' + I.check(14, '#fff', 3) + '</span></span>' +
           '<h3 style="margin:6px 0 0;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">Thank you!</h3>' +
-          '<p style="margin:0;font-size:15px;line-height:1.45;font-weight:500;color:#5c6270;text-wrap:pretty">Got it. This really helps me figure out what to build next.</p>' +
+          '<p style="margin:0;font-size:15px;line-height:1.45;font-weight:500;color:#5c6270;text-wrap:pretty">' + (f.kind === 'group' ? 'Got it. I’ll look at your request and get back to you.' : 'Got it. This really helps me figure out what to build next.') + '</p>' +
           '<button type="button" ' + on(close) + ' style="margin-top:8px;width:100%;min-height:52px;border:0;border-radius:999px;background:#0d1117;color:#fff;font-family:inherit;font-size:16px;font-weight:800;cursor:pointer">Done</button></div>'
       // v8-2 (1a): eyebrow and title beside Eric's photo, one plain line, no prompt list
       : '<div style="display:flex;align-items:flex-start;gap:12px">' + ericFace(48) +
-          '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px"><span style="font-size:11.5px;font-weight:900;letter-spacing:1px;color:#8f6405">FEEDBACK WANTED</span>' +
-            '<h3 style="margin:0;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117;text-wrap:balance">What do you think of the app so far?</h3></div>' +
+          '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px"><span style="font-size:11.5px;font-weight:900;letter-spacing:1px;color:#8f6405">' + (f.kind === 'group' ? 'GROUP REQUEST' : 'FEEDBACK WANTED') + '</span>' +
+            '<h3 style="margin:0;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117;text-wrap:balance">' + (f.kind === 'group' ? 'Who’s the group for?' : 'What do you think of the app so far?') + '</h3></div>' +
           '<span ' + on(close) + ' style="flex:0 0 auto;display:flex;align-items:center;min-height:32px;font-size:15px;font-weight:800;color:#6b7280;cursor:pointer">Cancel</span></div>' +
-        '<p style="margin:0;font-size:15.5px;line-height:1.45;font-weight:600;color:#2a2f38;text-wrap:pretty">Tell me honestly: what’s working and what would make it better?</p>' +
+        '<p style="margin:0;font-size:15.5px;line-height:1.45;font-weight:600;color:#2a2f38;text-wrap:pretty">' + (f.kind === 'group' ? 'A team, a block, a club, a few friends? Say a little about it and I’ll get back to you.' : 'Tell me honestly: what’s working and what would make it better?') + '</p>' +
         '<textarea rows="6" maxlength="1000" aria-label="Your feedback" placeholder="Write as much or as little as you like." ' + onInput(e => { if (e.type === 'input') setState({ fb: Object.assign({}, state.fb, { text: e.target.value.slice(0, 1000) }) }); }) +
           ' style="width:100%;box-sizing:border-box;min-height:140px;padding:14px;border:2px solid #dcdfe6;border-radius:16px;font-family:inherit;font-size:16px;font-weight:500;line-height:1.4;color:#0d1117;resize:none;outline:none">' + esc(f.text) + '</textarea>' +
         // A screenshot they took with the phone's buttons (a web page can't take one itself)

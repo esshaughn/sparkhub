@@ -409,12 +409,15 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
     for (const name of ['Join a group', 'Start a group']) await expect(add.getByRole('button', { name })).toBeVisible();
     await expect(add.getByRole('button', { name: 'Add a friend' })).toHaveCount(0);
     await add.getByRole('button', { name: 'Start a group' }).click();
-    const soon = page.getByRole('alertdialog', { name: 'Starting groups is coming soon' });
-    // Ask Eric to start one opens Give feedback with the first words written (owner, 2026-10-07)
-    await soon.getByRole('button', { name: 'Ask Eric to start one' }).click();
+    // Groups start by request (owner, 2026-10-07): Request a group opens Give feedback as a group request
+    const soon = page.getByRole('alertdialog', { name: 'Groups start by request' });
+    await expect(soon).toContainText('Spark Hub is still new');
+    await soon.getByRole('button', { name: 'Request a group' }).click();
     await expect(soon).toHaveCount(0);
     const askBox = page.getByRole('dialog', { name: 'Give feedback' });
-    await expect(askBox.getByLabel('Your feedback')).toHaveValue('I’d like to start a group for ');
+    await expect(askBox).toContainText('GROUP REQUEST');
+    await expect(askBox).toContainText('Who’s the group for?');
+    await expect(askBox.getByLabel('Your feedback')).toHaveValue('I’d like a group for ');
     await askBox.getByRole('button', { name: 'Cancel' }).click();
     await expect(askBox).toHaveCount(0);
     await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Groups', exact: true })).toHaveAttribute('aria-current', 'page');
