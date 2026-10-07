@@ -8,7 +8,8 @@ test('visitors land on Welcome (no tab bar there) and sign in from there', async
     const welcome = page.locator('[data-screen-label=Welcome]');
     await expect(welcome.getByRole('heading', { name: /Plans with\s*your people\./ })).toBeVisible();
     await expect(welcome.getByText('New here? Either one creates your account.')).toBeVisible();
-    await expect(welcome.getByRole('listitem')).toHaveText(['1Make a plan', '2RSVP & pitch in', '3Make it happen']);
+    await expect(welcome.getByRole('listitem')).toHaveText(['1Float an idea', '2Everybody pitches in', '3Make it a plan']);   // the intro's steps (owner, 2026-10-07)
+    await expect(welcome.locator('[data-about-link]')).toBeVisible();
     await expect(welcome.getByRole('button', { name: 'Continue with Google' })).toBeVisible();
     await expect(page.getByRole('navigation', { name: 'Main' })).toHaveCount(0);   // no tab bar on Welcome
 

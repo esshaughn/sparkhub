@@ -2625,8 +2625,8 @@
   // 1. Welcome (Home, signed out)
   // ---------------------------------------------------------------------------
 
-  // Plans purple, helping orange, going green, as everywhere else (owner, 2026-10-07; step 1 was gold, ideas' colour)
-  const STEPS = [['#5b4ae8', '1', 'Make a plan'], ['#e8661c', '2', 'RSVP &amp; pitch in'], ['#0f7a3c', '3', 'Make it happen']];
+  // The intro's three steps in its colours: ideas gold, helping orange, plans purple (owner, 2026-10-07, Welcome B)
+  const STEPS = [['#f5b428', '1', 'Float an idea', '#2a1d00'], ['#e8661c', '2', 'Everybody pitches in'], ['#5b4ae8', '3', 'Make it a plan']];
 
   // A guest who has replied to something (from a link) sees it here, with what Spark Hub is, instead of only a sign-in
   // wall (first-encounter audit 2, owner 2026-10-07): Back from the event lands here
@@ -2659,9 +2659,11 @@
         '<div aria-label="Spark Hub" style="display:flex;align-items:center;gap:6px;margin-bottom:14px">' + I.bolt(24, '#f3c55a') + '<span style="font-size:18px;line-height:1;font-weight:900;letter-spacing:-.5px;color:#fff">Spark Hub</span></div>' +
         '<h1 style="margin:0;font-size:42px;line-height:.98;font-weight:900;letter-spacing:-1.4px;color:#fff">Plans with<br><span style="color:#9d93f7">your people.</span></h1>' +
         '<ol style="list-style:none;margin:18px 0 0;padding:0;display:flex;flex-direction:column;gap:12px">' +
-          STEPS.map(([c, n, t]) => '<li style="display:flex;align-items:center;gap:12px"><span aria-hidden="true" style="flex:0 0 28px;width:28px;height:28px;border-radius:999px;background:' + c + ';color:#fff;font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center;text-shadow:none">' + n + '</span>' +
+          STEPS.map(([c, n, t, ink]) => '<li style="display:flex;align-items:center;gap:12px"><span aria-hidden="true" style="flex:0 0 28px;width:28px;height:28px;border-radius:999px;background:' + c + ';color:' + (ink || '#fff') + ';font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center;text-shadow:none">' + n + '</span>' +
             '<span style="font-size:16.5px;line-height:1.2;font-weight:800;color:#fff">' + t + '</span></li>').join('') +
         '</ol>' +
+        // What's Spark Hub? opens the intro sheet (owner, 2026-10-07)
+        '<span ' + on(() => openAbout()) + ' role="button" data-about-link style="display:inline-flex;align-items:center;gap:3px;margin-top:14px;min-height:32px;font-size:15px;font-weight:800;color:#c9c3ff;cursor:pointer">What’s Spark Hub? ' + I.chevR(12, 'currentColor', 2.8) + '</span>' +
       '</div>' +
       '<div style="position:relative;padding:32px 16px calc(22px + env(safe-area-inset-bottom, 0px));display:flex;flex-direction:column;gap:10px">' +
         goneCard() + guestRsvps() +
