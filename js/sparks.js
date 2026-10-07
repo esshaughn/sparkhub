@@ -995,7 +995,7 @@
     const when = (u) => [u.day && s.days ? dayWord(s, u.day) : '', u.time ? slotTime(u.time) + (u.endTime ? '–' + slotTime(u.endTime) : '') : ''].filter(Boolean).join(' · ');
     const chip = '<span style="align-self:flex-start;display:flex;align-items:center;height:26px;padding:0 10px;border-radius:999px;background:#e7f6ec;color:#0f7a3c;font-size:13px;font-weight:800">Going' + (s.dayDate ? ' · ' + fmtDay(s.dayDate) : '') + '</span>';
     return '<div class="modal-scrim" data-scrim="' + reg(close) + '" style="z-index:45">' +
-      '<div role="dialog" aria-modal="true" aria-label="You’re signed up" data-banner="on" data-screen-label="You’re signed up" style="position:relative;width:100%;max-width:360px;box-sizing:border-box;background:#fff;border-radius:24px;padding:22px 20px 14px;display:flex;flex-direction:column;gap:14px;box-shadow:0 20px 50px rgba(13,17,23,.35);animation:popIn 260ms cubic-bezier(.22,.9,.28,1) both">' +
+      '<div role="dialog" aria-modal="true" aria-label="You’re signed up" data-banner="on" data-screen-label="You’re signed up" style="position:relative;width:100%;max-width:360px;box-sizing:border-box;background:#fff;border-radius:24px;padding:22px 20px 8px;display:flex;flex-direction:column;gap:14px;box-shadow:0 20px 50px rgba(13,17,23,.35);animation:popIn 260ms cubic-bezier(.22,.9,.28,1) both">' +
         '<span ' + on(close) + ' role="button" aria-label="Close" data-onit-x style="position:absolute;top:14px;right:14px;width:36px;height:36px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(14, '#0d1117', 2.6) + '</span>' +
         '<div style="display:flex;align-items:center;gap:10px;padding-right:40px"><span style="flex:0 0 30px;width:30px;height:30px;border-radius:50%;background:#149a4b;display:flex;align-items:center;justify-content:center">' + I.check(16, '#fff', 3.2) + '</span>' +
           '<span style="font-size:20px;font-weight:900;letter-spacing:-.3px;color:#0d1117">You’re signed up!</span></div>' +
@@ -1005,7 +1005,7 @@
             (when(u) ? '<span style="font-size:13.5px;font-weight:700;color:#454b55">' + esc(when(u)) + '</span>' : '') + '</div>').join('') +
           '<span style="font-size:13.5px;font-weight:600;color:#6b7280">for ' + esc(s.text) + '</span>' + (s.planned ? chip : '') + '</div>' +
         '<button type="button" data-onit-done ' + on(close) + ' style="height:50px;border:0;border-radius:999px;background:#149a4b;color:#fff;font-family:inherit;font-size:16px;font-weight:800;cursor:pointer">Done</button>' +
-        '<div style="display:flex;justify-content:center"><button type="button" ' + on(() => { if (!state.busy) undoClaim(b); }) + ' style="min-height:40px;padding:0 12px;border:0;background:none;font-family:inherit;font-size:14.5px;font-weight:800;color:#6b7280;cursor:pointer">Undo</button></div>' +
+        '<div style="display:flex;justify-content:center;margin-top:-8px"><button type="button" ' + on(() => { if (!state.busy) undoClaim(b); }) + ' style="min-height:32px;padding:0 12px;border:0;background:none;font-family:inherit;font-size:13.5px;font-weight:700;color:#9aa0a8;cursor:pointer">Undo</button></div>' +
       '</div></div>';
   }
   // "You're going!" (members, after Going) and "You're on the list, {name}!" (guests, after Going or Maybe, once saved): Design v8-11 6a / 2b
