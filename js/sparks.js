@@ -2721,7 +2721,7 @@
         '<button type="button" class="hov-white-line" ' + on(email) + ' style="width:100%;min-height:54px;display:flex;align-items:center;justify-content:center;gap:10px;background:transparent;border:1.5px solid rgba(255,255,255,.3);border-radius:999px;font-family:inherit;font-size:16px;font-weight:800;color:#fff;cursor:pointer">' +
           svg(19, stroke('currentColor', 2.1), '<rect x="3" y="5.5" width="18" height="13" rx="2.5"/><path d="m4 7.5 8 6 8-6"/>') + 'Continue with email</button>' +
         // The installed app keeps its own sign-in (iPhone): say so, so it doesn't read as "start over"
-        (STANDALONE ? '<p data-app-welcome style="margin:6px 0 0;text-align:center;font-size:14px;line-height:1.45;font-weight:700;color:#dfe2e8">Welcome to the app. Sign in once to pick up where you left off.</p>'
+        (STANDALONE ? '<p data-app-welcome style="margin:6px 0 0;text-align:center;font-size:14px;line-height:1.45;font-weight:700;color:#dfe2e8">Sign in once to pick up where you left off.</p>'
           : '<p style="margin:6px 0 0;text-align:center;font-size:13.5px;line-height:1.45;font-weight:600;color:#8a909b">' + (GOOGLE_ON ? 'New here? Either one creates your account.' : 'New here? This creates your account.') + '</p>') + inAppTip(true) +
       '</div>' +
     '</div>';
