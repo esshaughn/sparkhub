@@ -1240,3 +1240,103 @@ select t.must_allow('a reply', format($$insert into event_comments (spark_id, pa
 select t.must_refuse('notes stay unwritable by clients', format($$insert into notes (user_id, body) values (%L, 'x')$$, t.id('fanA12')));
 reset role;
 select t.check('a reply doesn''t notify everyone interested', not exists (select 1 from notes where user_id = t.id('fanA12')));
+
+-- Multi-day fixes (20261115000000_multi_day_fixes.sql) ---------------------------------------------------------------
+select t.check('last day: one day is its date', private.event_last_day(date '2026-10-16', null) = date '2026-10-16');
+select t.check('last day: a span ends on `to`', private.event_last_day(date '2026-10-16', '{"kind":"span","to":"2026-10-18"}') = date '2026-10-18');
+select t.check('last day: separate days end on the last one', private.event_last_day(date '2026-10-16', '{"kind":"days","days":[{"d":"2026-10-16"},{"d":"2026-10-30"}]}') = date '2026-10-30');
+select t.check('last day: a repeat ends on its last date up to `until`', private.event_last_day(date '2026-10-16', '{"kind":"repeat","every":"week","until":"2026-10-29"}') = date '2026-10-23');
+select t.check('last day: a repeat without an end never ends', private.event_last_day(date '2026-10-16', '{"kind":"repeat","every":"week","until":null}') is null);
+select t.check('monthly from the 31st clamps to each month''s end, counted from the start',
+  (select array_agg(day order by day) from private.event_days(date '2027-01-31', null, '{"kind":"repeat","every":"month"}', date '2027-04-30'))
+    = array[date '2027-01-31', date '2027-02-28', date '2027-03-31', date '2027-04-30']);
+select t.check('every 2 weeks still steps two weeks', (select count(*) = 3 from private.event_days(date '2027-01-01', null, '{"kind":"repeat","every":"2week"}', date '2027-01-29')));
+select t.check('a multi-day push hint for a span', private.when_text(date '2026-10-16', null, null, '{"kind":"span","to":"2026-10-18"}') = 'Fri, Oct 16 – Sun, Oct 18');
+select t.check('…and for separate days', private.when_text(date '2026-10-30', '10:00', 'Park', '{"kind":"days","days":[{"d":"2026-10-30"},{"d":"2026-10-31"}]}') = 'Fri, Oct 30 at 10:00am + 1 more day · Park');
+
+-- An event that's under way (its first day is past, its last ahead) hasn't passed
+select t.person('lead13'), t.person('mem13'), t.person('wait13'), t.person('inv13');
+insert into memberships (group_id, user_id, role) values (t.id('g'), t.id('lead13'), 'member'), (t.id('g'), t.id('mem13'), 'member'),
+  (t.id('g'), t.id('wait13'), 'member'), (t.id('g'), t.id('inv13'), 'member');
+insert into sparks (id, group_id, author_name, lead_name, lead_id, created_by, text, visibility, planned, day_date, schedule)
+values (gen_random_uuid(), t.id('g'), 'Lead', 'Lead', t.id('lead13'), t.id('lead13'), 'Camp weekend', 'group', true, current_date - 1,
+        jsonb_build_object('kind', 'span', 'to', current_date + 2)),
+       (gen_random_uuid(), t.id('g'), 'Lead', 'Lead', t.id('lead13'), t.id('lead13'), 'Old camp weekend', 'group', true, current_date - 4,
+        jsonb_build_object('kind', 'span', 'to', current_date - 2));
+insert into t.ids select 'camp', id from sparks where text = 'Camp weekend';
+insert into t.ids select 'oldcamp', id from sparks where text = 'Old camp weekend';
+insert into signup_items (spark_id, item, need, kind, created_by) values (t.id('camp'), 'Bunk', 1, 'seat', t.id('lead13')), (t.id('oldcamp'), 'Old bunk', 1, 'seat', t.id('lead13'));
+insert into signup_claims (item_id, user_id) select id, t.id('mem13') from signup_items where item in ('Bunk', 'Old bunk');
+insert into event_invites (spark_id, user_id, invited_by) values (t.id('camp'), t.id('inv13'), t.id('lead13')), (t.id('oldcamp'), t.id('inv13'), t.id('lead13'));
+select t.login('wait13'); set role authenticated;
+select t.must_allow('joining the waitlist on a span that''s under way', format($$insert into signup_waits (item_id, user_id) select id, %L from signup_items where item = 'Bunk'$$, t.id('wait13')));
+select t.must_refuse('…but not once its last day has passed', format($$insert into signup_waits (item_id, user_id) select id, %L from signup_items where item = 'Old bunk'$$, t.id('wait13')));
+reset role;
+select t.login('lead13'); set role authenticated;
+select t.check('the lead nudges an invitee on a span that''s under way', public.nudge_invitee(t.id('camp'), t.id('inv13')));
+select t.must_refuse('…but not once it''s over', format($$select public.nudge_invitee(%L, %L)$$, t.id('oldcamp'), t.id('inv13')));
+reset role;
+
+-- Taking a day off an Each-day event trims the picks, frees the job's day and tells them
+select t.person('lead14'), t.person('a14'), t.person('b14'), t.person('c14');
+insert into memberships (group_id, user_id, role) values (t.id('g'), t.id('lead14'), 'member'), (t.id('g'), t.id('a14'), 'member'),
+  (t.id('g'), t.id('b14'), 'member'), (t.id('g'), t.id('c14'), 'member');
+insert into sparks (id, group_id, author_name, lead_name, lead_id, created_by, text, visibility, planned, day_date, schedule)
+values (gen_random_uuid(), t.id('g'), 'Lead', 'Lead', t.id('lead14'), t.id('lead14'), 'Book fair', 'group', true, current_date + 10,
+        jsonb_build_object('kind', 'days', 'each', true, 'days', jsonb_build_array(jsonb_build_object('d', current_date + 10),
+          jsonb_build_object('d', current_date + 11), jsonb_build_object('d', current_date + 12))));
+insert into t.ids select 'fair', id from sparks where text = 'Book fair';
+insert into rsvps (spark_id, user_id, status, days, maybe_days) values
+  (t.id('fair'), t.id('a14'), 'going', array[current_date + 10, current_date + 12], array[current_date + 11]),
+  (t.id('fair'), t.id('b14'), 'going', array[current_date + 12], null);
+insert into signup_items (spark_id, item, need, day, created_by) values (t.id('fair'), 'Pack books', 2, current_date + 12, t.id('lead14'));
+insert into signup_claims (item_id, user_id) select id, t.id('c14') from signup_items where item = 'Pack books';
+select t.login('lead14'); set role authenticated;
+select t.must_allow('the lead takes the third day off', format($$update sparks set schedule = jsonb_build_object('kind', 'days', 'each', true, 'days', jsonb_build_array(jsonb_build_object('d', current_date + 10), jsonb_build_object('d', current_date + 11))) where id = %L$$, t.id('fair')));
+reset role;
+select t.check('the removed day leaves a reply''s picks, the rest stay', (select days = array[current_date + 10] and maybe_days = array[current_date + 11] from rsvps where spark_id = t.id('fair') and user_id = t.id('a14')));
+select t.check('a reply left with no days stands for the whole event (still Going)', (select days is null and maybe_days is null and status = 'going' from rsvps where spark_id = t.id('fair') and user_id = t.id('b14')));
+select t.check('a job on the removed day is for the whole event now', (select day is null from signup_items where item = 'Pack books'));
+select t.check('the people who lose a day are told', (select count(distinct user_id) = 3 from notes where body = 'Book fair: ' || to_char(current_date + 12, 'Dy, Mon FMDD') || ' was taken off the schedule.'));
+select t.check('…not the lead', not exists (select 1 from notes where user_id = t.id('lead14') and body like 'Book fair:%'));
+select t.login('lead14'); set role authenticated;
+select t.must_allow('the lead turns Each day off', format($$update sparks set schedule = jsonb_set(schedule, '{each}', 'false') where id = %L$$, t.id('fair')));
+reset role;
+select t.check('…and every reply is for the whole event', not exists (select 1 from rsvps where spark_id = t.id('fair') and (days is not null or maybe_days is not null)));
+
+-- The daily reminder filters by picked days only on an Each-day event
+create table t.today as select (now() at time zone 'America/Chicago')::date as d;
+insert into sparks (id, group_id, author_name, lead_name, lead_id, created_by, text, visibility, planned, day_date, schedule)
+select gen_random_uuid(), t.id('g'), 'Lead', 'Lead', t.id('lead14'), t.id('lead14'), 'Plant swap', 'group', true, d,
+       jsonb_build_object('kind', 'days', 'each', false, 'days', jsonb_build_array(jsonb_build_object('d', d), jsonb_build_object('d', d + 1)))
+  from t.today;
+insert into t.ids select 'swap', id from sparks where text = 'Plant swap';
+insert into rsvps (spark_id, user_id, status, days) select t.id('swap'), t.id('a14'), 'going', array[d + 1] from t.today;
+delete from t.pushes;
+select private.push_daily();
+select t.check('not Each day: a stray day pick doesn''t stop today''s reminder',
+  exists (select 1 from t.pushes, t.today where tag = 'r:' || t.id('swap') || ':' || d || ':0' and t.id('a14') = any(users)));
+update sparks set schedule = jsonb_set(schedule, '{each}', 'true') where id = t.id('swap');
+delete from t.pushes;
+select private.push_daily();
+select t.check('Each day: only the days they picked',
+  not exists (select 1 from t.pushes, t.today where tag = 'r:' || t.id('swap') || ':' || d || ':0' and t.id('a14') = any(users))
+  and exists (select 1 from t.pushes, t.today where tag = 'r:' || t.id('swap') || ':' || (d + 1) || ':1' and t.id('a14') = any(users)));
+
+-- The link preview: schedule, and a photo falling back cover → mood → the home group's
+insert into groups (id, name, code, created_by, photo) values (gen_random_uuid(), 'Preview group', 'PREV15', t.id('lead14'), 'photos/share-hub.jpg');
+insert into t.ids select 'pg', id from groups where code = 'PREV15';
+insert into sparks (id, group_id, author_name, lead_name, lead_id, created_by, text, visibility, planned, day_date, schedule, photos, mood)
+values (gen_random_uuid(), t.id('pg'), 'Lead', 'Lead', t.id('lead14'), t.id('lead14'), 'Preview fair', 'group', true, current_date + 5,
+        jsonb_build_object('kind', 'span', 'to', current_date + 6),
+        array[t.id('lead14') || '/00000000-0000-0000-0000-000000000001.jpg'], array[t.id('lead14') || '/00000000-0000-0000-0000-000000000002.jpg']);
+insert into t.ids select 'pf', id from sparks where text = 'Preview fair';
+create function t.preview_photo() returns text language sql as $$ select photo from public.event_preview((select link_code from sparks where id = t.id('pf'))) $$;
+select t.check('the preview carries the schedule', (select schedule ->> 'kind' = 'span' from public.event_preview((select link_code from sparks where id = t.id('pf')))));
+select t.check('the preview photo is the cover first', t.preview_photo() like '%0001.jpg');
+update sparks set photos = '{}' where id = t.id('pf');
+select t.check('…then the first mood photo', t.preview_photo() like '%0002.jpg');
+update sparks set mood = '{}' where id = t.id('pf');
+select t.check('…then the home group''s photo', t.preview_photo() = 'photos/share-hub.jpg');
+update groups set photo = null where id = t.id('pg');
+select t.check('…and none when there''s none of the three', t.preview_photo() is null);
