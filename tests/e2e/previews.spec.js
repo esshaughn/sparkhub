@@ -133,22 +133,16 @@ test('a signed-out visitor sees the event only, and names once they RSVP', async
     await expect(about.locator('[data-about-logo]')).toBeVisible();
     await expect(about.locator('[data-about-beta]')).toHaveText('BETA');
     await expect(about.locator('[data-about-close]')).toBeVisible();
+    // Two panels (owner, 2026-10-07): the last button is Try it out, which takes a guest to sign-in
     await about.locator('[data-about-next]').click();
-    await about.locator('[data-about-next]').click();
-    await expect(about.locator('[data-about-panel="3"]')).toContainText('Help shape Spark Hub');
-    await expect(about.locator('[data-about-panel="3"]')).toContainText('I’m building Spark Hub with my neighbors & friends, for communities like yours.');
-    await expect(about.locator('[data-about-feedback]')).toHaveText('Give feedback');
-    // A guest sends feedback without signing in (20261113000000_guest_feedback.sql); no screenshot for guests
-    await about.locator('[data-about-feedback]').click();
+    await expect(about.locator('[data-about-panel="3"]')).toHaveCount(0);
+    await expect(about.locator('[data-about-try]')).toHaveText('Try it out');
+    await about.locator('[data-about-try]').click();
     await expect(about).toHaveCount(0);
-    const fb = V.getByRole('dialog', { name: 'Give feedback' });
-    await expect(fb.locator('[data-fb-add-shot]')).toHaveCount(0);
-    await fb.getByLabel('Your feedback').fill('[E2E] a guest’s note');
-    await fb.getByRole('button', { name: 'Send to Eric' }).click();
-    await expect(fb).toContainText('Thank you!');
-    await fb.getByRole('button', { name: 'Done' }).click();
-    await expect(fb).toHaveCount(0);
-    await expect(V.getByRole('dialog', { name: 'Sign in' })).toHaveCount(0);
+    const signIn = V.getByRole('dialog', { name: 'Sign in' });
+    await expect(signIn).toBeVisible();
+    await signIn.getByLabel('Close').click();
+    await expect(signIn).toHaveCount(0);
     // The photo's Share icon goes straight to the Share link pop-up (no one-button sheet for a guest, owner 2026-10-06)
     await V.getByRole('button', { name: 'Share', exact: true }).first().click();
     const pop = V.getByRole('dialog', { name: 'Share link' });
