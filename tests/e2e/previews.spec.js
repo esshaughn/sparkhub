@@ -19,7 +19,7 @@ test('shared links preview the idea or group (invite-only plans and unknown link
   try {
     ideaId = await postIdea(page, { title });
 
-    // The short link (v8-8): the event only, "{day} · {location}" or On Spark Hub, no group name; the purple card with no photo
+    // The short link (v8-8): the event only, "{time} · {location}" or On Spark Hub, no group name
     const code = await asUser(page, async (c, _C, id) => (await c.from('sparks').select('link_code').eq('id', id).single()).data.link_code, ideaId);
     expect(code).toMatch(/^[a-z0-9]{8}$/);
     expect(ideaId).not.toContain(code);
@@ -29,7 +29,8 @@ test('shared links preview the idea or group (invite-only plans and unknown link
     expect(r.body).toContain('<title>' + title + ' · Spark Hub</title>');
     expect(og(r.body, 'description')).toBe('On Spark Hub');
     expect(og(r.body, 'description')).not.toContain('Torrez');
-    expect(og(r.body, 'image')).toMatch(/\/icons\/share\.jpg$/);
+    // no cover or mood photo: its home group's photo (owner, 2026-10-07; 20261115000000_multi_day_fixes.sql), else the Spark Hub card
+    expect(og(r.body, 'image')).toMatch(/^https:\/\/.+\.(jpg|png)$/);
     expect(og(r.body, 'url')).toMatch(new RegExp('/e/' + code + '$'));
     expect(r.body).toContain('<script src="/js/sparks.js');   // still the app page
     // An old /i/{id} link redirects to the short link
