@@ -12,7 +12,7 @@ const serve = async (query) => {
 };
 const og = (html, prop) => ((html.match(new RegExp('<meta property="og:' + prop + '" content="([^"]*)"')) || [])[1]) || null;
 
-test('shared links preview the idea or group (invite-only plans and unknown links stay generic)', async ({ browser }) => {
+test('shared links preview the idea or group (invite-only ones without time or place; unknown links stay generic)', async ({ browser }) => {
   const { page, context } = await newLead(browser, 1, 'Tester');
   const title = uniqueTitle('Preview picnic');
   let ideaId, group;
@@ -38,11 +38,11 @@ test('shared links preview the idea or group (invite-only plans and unknown link
     expect(r.statusCode).toBe(301);
     expect(r.headers.Location).toMatch(new RegExp('/e/' + code + '$'));
 
-    // Invite-only: the generic Spark Hub preview, no title
+    // Invite-only: the title (and date) but no time or place (owner, 2026-10-07; 20261117000000_private_link_preview.sql)
     await asUser(page, async (c, _C, id) => { await c.from('sparks').update({ visibility: 'invite' }).eq('id', id); }, ideaId);
     r = await serve({ e: code });
-    expect(og(r.body, 'title')).toBe('Spark Hub');
-    expect(r.body).not.toContain(title);
+    expect(og(r.body, 'title')).toBe(title);
+    expect(og(r.body, 'description')).toBe('On Spark Hub');
 
     // Unknown or malformed links: generic
     expect(og((await serve({ e: 'zzzzzzzz' })).body, 'title')).toBe('Spark Hub');

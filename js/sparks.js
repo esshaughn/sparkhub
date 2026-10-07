@@ -6744,7 +6744,9 @@
   const previewLines = (s) => {
     const sl = s.startDate ? schedLabel(s) : '', date = sl || (s.startDate ? fmtDay(s.startDate) : '');
     const time = !s.startDate ? '' : s.days && s.sched.kind === 'span' ? (s.startTime ? 'From ' + fmtTime(s.startTime) : '') : s.days ? fmtTime(s.days[0].t) : fmtTime(s.startTime);
-    return { title: s.text + (date ? ' – ' + date : ''), line: [time, s.spot].filter(Boolean).join(' · ') || 'On Spark Hub' };
+    // a private event's link shows the title and date, not the time or place (owner, 2026-10-07; event_preview does the same)
+    const priv = s.visibility === 'invite';
+    return { title: s.text + (date ? ' – ' + date : ''), line: priv ? 'On Spark Hub' : [time, s.spot].filter(Boolean).join(' · ') || 'On Spark Hub' };
   };
   // Share link: copy it, or hand it to Messages, Mail, WhatsApp or the phone's share sheet
   // The ready message (owner, 2026-09-30): warm and short; an idea asks who's interested

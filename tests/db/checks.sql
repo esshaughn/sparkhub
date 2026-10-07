@@ -1220,6 +1220,11 @@ select t.check('a wrong code opens nothing', public.open_event('zzzzzzzz') is nu
 select t.check('a malformed code opens nothing', public.open_event('../x') is null);
 reset role;
 select t.check('the preview by code has the title', (select title from public.event_preview((select link_code from sparks where id = t.id('pumpkin')))) = 'Pumpkin carving night');
+-- A private event previews its title and date but not its time or place (20261117000000_private_link_preview.sql)
+update sparks set visibility = 'invite', day_date = current_date + 5, day_time = '18:00', spot = 'Secret garden' where id = t.id('pumpkin');
+select t.check('a private event''s preview has its title and date', (select title = 'Pumpkin carving night' and day_date = current_date + 5 from public.event_preview((select link_code from sparks where id = t.id('pumpkin')))));
+select t.check('…but no time or place', (select day_time is null and spot is null from public.event_preview((select link_code from sparks where id = t.id('pumpkin')))));
+update sparks set visibility = 'group' where id = t.id('pumpkin');
 select t.check('an old link finds its code', public.link_code_for(t.id('pumpkin')) = (select link_code from sparks where id = t.id('pumpkin')));
 
 -- An idea's discussion reaches everyone interested (20261114000000_idea_comment_notes.sql) --------------------------------
