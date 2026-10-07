@@ -10292,7 +10292,7 @@
         '<input class="fld" type="email" inputmode="email" maxlength="80" autocomplete="email" autocapitalize="off" spellcheck="false" aria-label="Email" placeholder="you@example.com" value="' + esc(st.loginEmail) + '" ' +
           onInput(e => setState({ loginEmail: e.target.value.slice(0, 80) })) + ' style="' + FIELD + '">' +
         '<button type="button" data-enter ' + on(() => { if (emailOk && !busy) sendCode(false); }) + ' aria-disabled="' + !(emailOk && !busy) + '" style="' + primary(emailOk && !busy) + '">' + (busy === 'send' ? 'Sending…' : 'Email login code') + '</button>' +
-        inAppTip() + '<p style="margin:0;font-size:13px;line-height:1.45;font-weight:500;color:#6b7280">Used to sign you in. Your groups’ admins can see it; other members can’t. <a href="/privacy.html" target="_blank" rel="noopener" style="font-weight:800;color:#5b4ae8">Privacy</a></p>',
+        inAppTip() + '<p style="margin:0;font-size:13px;line-height:1.45;font-weight:500;color:#6b7280"><span>Login code only, no password</span> · <a href="/privacy.html" target="_blank" rel="noopener" style="font-weight:800;color:#5b4ae8">Privacy</a></p>',
         { z: 32 });
     }
     const codeOk = st.loginCode.length >= 6 && !busy;
