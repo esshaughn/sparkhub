@@ -26,12 +26,12 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     for (const name of ['Groups', 'Friends', 'Calendar', /^Ideas/, 'Me']) await expect(nav(H).getByRole('button', typeof name === 'string' ? { name, exact: true } : { name })).toBeVisible();
     // Every tab has its word under the icon (Design pick 2a, 2026-10-04)
     await expect(nav(H)).toHaveText(/Groups\s*Friends\s*Calendar\s*Ideas\s*Me/);   // Tasks moved under Me (v8-4)
-    // The floating + (v8-5, 17d) turns into a dark × with Make a plan and Float an idea; the scrim closes it
+    // The floating + (v8-5, 17d) turns into a dark × with Create a plan and Float an idea; the scrim closes it
     const fab = H.locator('[data-add-fab]');
     await fab.click();
     await expect(fab).toHaveAttribute('aria-expanded', 'true');
-    await expect(H.locator('[data-plus-plan]')).toHaveText('Make a plan');
-    await expect(H.locator('[data-plus-float]')).toHaveText('Float an idea');
+    await expect(H.locator('[data-plus-plan]')).toHaveText('Create a Plan');
+    await expect(H.locator('[data-plus-float]')).toHaveText('Float an Idea');
     await H.locator('[data-screen-label="Plus menu"]').click({ position: { x: 20, y: 200 } });
     await expect(H.locator('[data-plus-plan]')).toHaveCount(0);
     await fab.click();

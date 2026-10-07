@@ -159,7 +159,7 @@ async function newLead(browser, n, name, path) {
 
 const button = (page, name) => page.getByRole('button', { name, exact: true });
 
-// v8-5: the floating + on any tab (here My calendar) opens two pills; Make a plan starts Plan an event
+// v8-5: the floating + on any tab (here My calendar) opens two pills; Create a plan starts Plan an event
 async function startPost(page) {
   await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Calendar', exact: true }).click();
   await page.locator('[data-add-fab]').click();
