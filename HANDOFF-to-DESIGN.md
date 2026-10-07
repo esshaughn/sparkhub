@@ -185,6 +185,7 @@ Never cleared on a reset. These are places where the owner chose differently fro
 ## 2. Things the build had to invent (please design these properly)
 
 - **Pick pop-up messages:** *That date has passed. Pick another.*
+- **Rounded tops on iPhone (owner, 2026-10-06):** the idea slide-up's top corners came out square on iPhone when the idea had a cover photo (Safari stops clipping to the rounded corners when a child is tilted). Fixed in the build, nothing to redraw.
 - **Drag to close (owner, 2026-10-06):** every slide-up follows the thumb when pulled down (from its top, or anywhere once its content is scrolled to the top) and the dark scrim fades with it. Let go past a third of its height (at most 220px), or flick, and it slides off and closes, the same as a tap outside; otherwise it springs back (140–260ms, `cubic-bezier(.2,.8,.2,1)`). Phones that allow it give a short buzz at the point where letting go will close it. Plan an event only closes this way from its Close step (Review has Back), and still asks *Pick this up later?* when something is typed. Nothing new is drawn: if you want a stronger cue at the threshold, please design one.
 - **Make it a plan from an idea:** *That idea isn't there any more* (deleted while Review was open), *Pick a date first* (back to page 1).
 

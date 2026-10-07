@@ -151,6 +151,10 @@ html.tall-fix .app { bottom: auto; height: var(--true-h); }
 /* The idea slide-up (v8-4 9d + 10c-5): hugs its content, then grows to 54px from the top */
 .ip-sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 30; max-height: 92%; height: auto; overflow: hidden; border-radius: 24px 24px 0 0;
   background: #e8eaee; box-shadow: 0 -10px 40px rgba(13, 17, 23, .3); display: flex; flex-direction: column; animation: sheetUp 280ms cubic-bezier(.2, .8, .2, 1) both; }
+/* iPhone Safari drops a parent's rounded clip when a child is tilted or on its own layer (the idea's rotated cover photo):
+   the sheet's top corners came out square (owner's screenshots, 2026-10-06). A mask keeps the clip; the scroller rounds too */
+.ip-sheet, .v6-sheet { -webkit-mask-image: -webkit-radial-gradient(white, black); isolation: isolate; }
+.ip-sheet [data-ip-scroll] { border-radius: 24px 24px 0 0; }
 .ip-sheet.open { max-height: calc(100% - 54px); height: calc(100% - 54px); transition: height 420ms cubic-bezier(.2, .8, .2, 1), max-height 420ms cubic-bezier(.2, .8, .2, 1); }
 @keyframes swipeBounce { 0%, 100% { transform: translateY(0); } 45% { transform: translateY(-7px); } 60% { transform: translateY(0); } 72% { transform: translateY(-3px); } 84% { transform: translateY(0); } }
 @keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
