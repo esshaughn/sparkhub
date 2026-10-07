@@ -711,6 +711,15 @@ test('Float an idea: the Float sheet, a draft, and the starter’s slide-up', as
     await expect(ip.locator('[data-talk-toggle]')).toHaveAttribute('aria-checked', 'true');
     await ip.getByRole('button', { name: 'Close' }).first().click();
     await expect(page.locator('[data-idea-card="' + title + '"]')).toBeVisible();   // on the board
+    // The board opens in Tiles, the gold edge down the card's left side; the view menu switches to Grid (edge on top)
+    const strip = () => page.locator('[data-idea-card="' + title + '"] [data-idea-strip]').evaluate(el => [el.offsetWidth, el.offsetHeight]);
+    await expect(page.locator('[data-ia-views]')).toHaveAttribute('aria-label', 'View: Tiles');
+    expect(await strip()).toEqual([5, expect.any(Number)]);
+    await page.locator('[data-ia-views]').click();
+    await expect(page.locator('[data-ia-view="full"]')).toHaveAttribute('aria-selected', 'true');
+    await page.locator('[data-ia-view="grid"]').click();
+    await expect(page.locator('[data-ia-views]')).toHaveAttribute('aria-label', 'View: Grid');
+    expect((await strip())[1]).toBe(5);
 
     // Plan an event has no Float the idea card any more (v8-6: whoever makes it leads it)
     await startPost(page);

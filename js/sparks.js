@@ -85,7 +85,7 @@
   let lastPrefs = '';
   const keepGrps = (v) => Array.isArray(v) && v.length ? v : null;
   const savePrefs = () => {
-    const next = JSON.stringify({ groupId: state.groupId, view: state.view, gView: state.gView, homeView: state.homeView, cView: state.cView, cGrps: keepGrps(state.cGrps), tGrps: keepGrps(state.tGrps), sGrps: keepGrps(state.sGrps), sort: state.sort, guestName: state.guestName, pastStatsHidden: state.pastStatsHidden, jobsOpen: state.jobsOpen, tkView: state.tkView, iaView: state.iaView, iaSort: state.iaSort, iaGrps: keepGrps(state.iaGrps), ideaSeen: state.ideaSeen || null });
+    const next = JSON.stringify({ groupId: state.groupId, view: state.view, gView: state.gView, homeView: state.homeView, cView: state.cView, cGrps: keepGrps(state.cGrps), tGrps: keepGrps(state.tGrps), sGrps: keepGrps(state.sGrps), sort: state.sort, guestName: state.guestName, pastStatsHidden: state.pastStatsHidden, jobsOpen: state.jobsOpen, tkView: state.tkView, iaLay: state.iaView, iaSort: state.iaSort, iaGrps: keepGrps(state.iaGrps), ideaSeen: state.ideaSeen || null });
     if (next === lastPrefs) return;
     lastPrefs = next;
     try { localStorage.setItem(PREFS_KEY, next); } catch (e) { /* storage blocked: conveniences only */ }
@@ -301,7 +301,7 @@
     fr: { friends: [], incoming: [], outgoing: [], invites: [], loaded: false }, pplTab: 'groups', pplSearch: false, pplQ: '', pplAdd: false, frSel: [], frInvite: false, frAll: false, frAllQ: '',
     frAdd: null, myFriendCode: null, person: null,
     // v6: Profile / Notifications are sheets; Your tasks' "View all", expansions, the RSVP ask
-    profSheet: false, notifSheet: false, dashAll: null, dashOpen: {}, schedOpen: {}, tkCat: 'all', tkView: prefs.tkView === 'dense' ? 'dense' : 'time', iaView: prefs.iaView === 'full' ? 'full' : 'grid', iaSort: ['new', 'close'].indexOf(prefs.iaSort) > -1 ? prefs.iaSort : 'interest', iaGrps: keepGrps(prefs.iaGrps) || [], ideaSeen: prefs.ideaSeen || null, frList: null, frListEd: null, meImp: null, meList: null, shiftPick: null, banner: null,
+    profSheet: false, notifSheet: false, dashAll: null, dashOpen: {}, schedOpen: {}, tkCat: 'all', tkView: prefs.tkView === 'dense' ? 'dense' : 'time', iaView: prefs.iaLay === 'grid' ? 'grid' : 'full', iaSort: ['new', 'close'].indexOf(prefs.iaSort) > -1 ? prefs.iaSort : 'interest', iaGrps: keepGrps(prefs.iaGrps) || [], ideaSeen: prefs.ideaSeen || null, frList: null, frListEd: null, meImp: null, meList: null, shiftPick: null, banner: null,
     // v6 Calendar: search, filters, sort, view, month, discovery cards
     cq: '', cSearch: false, cGrps: keepGrps(prefs.cGrps), tGrps: keepGrps(prefs.tGrps), sGrps: keepGrps(prefs.sGrps), cTypes: [], cKind: 'plan', cSort: 'soon', cView: CVIEWS.indexOf(prefs.cView) > -1 ? prefs.cView : 'list',
     cMon: null, cDay: null, cWildHidden: false, cNeedsHidden: false, cHandSheet: false, hMon: null, hDay: null, gMon: null, gDay: null,
@@ -8473,7 +8473,7 @@
   function viewIdeas() {
     const st = state, G = myGroups(), pickG = (st.iaGrps || []).filter(id => groupById(id)), all = boardIdeas();
     const inG = (s) => !pickG.length || gIds(s).some(id => pickG.indexOf(id) > -1);
-    const IS = st.iaSort || 'interest', VW = st.iaView || 'grid';
+    const IS = st.iaSort || 'interest', VW = st.iaView || 'full';
     const ideas = all.filter(inG).sort((a, b) => IS === 'new' ? b.created - a.created : IS === 'close' ? stepsDone(b) - stepsDone(a) || b.interested.length - a.interested.length : b.interested.length - a.interested.length || b.created - a.created);
     const ROT = [-2, 1.5, 1, -1.5, 2, -1], ROTF = [-1, .8, -.5, 1];
     const nw = ideaDotOn() ? newestIdea() : null, newAttr = (s) => nw && nw.id === s.id ? ' data-new-idea="' + esc(s.id) + '"' : '';
@@ -8483,7 +8483,7 @@
     const MASK = 'linear-gradient(to bottom,#000 20%,rgba(0,0,0,.35) 55%,transparent 85%),linear-gradient(to bottom left,#000 25%,rgba(0,0,0,.3) 100%)';
     const tile = (s, k) => { const P0 = ideaPics(s)[0];
       return '<div ' + on(() => openIdeaSheet(s)) + ' role="button" data-idea-card="' + esc(s.text) + '"' + newAttr(s) + ' style="position:relative;border-radius:4px;overflow:hidden;' + NOTE_BG + ';box-shadow:0 3px 10px rgba(13,17,23,.14);transform:rotate(' + ROT[k % 6] + 'deg);cursor:pointer">' +
-        // A thin gold top edge on every idea card, grid and tiles (owner, 2026-10-07)
+        // A thin gold top edge on grid cards (owner, 2026-10-07)
         '<span aria-hidden="true" data-idea-strip style="position:absolute;left:0;right:0;top:0;height:5px;background:#f0b93a;z-index:2"></span>' +
         (P0 ? '<div aria-hidden="true" style="position:absolute;left:0;right:0;top:0;height:92px;background:' + bg(P0, posAt(s.coverPos, IDEA_POS)) + ';-webkit-mask-image:' + MASK + ';-webkit-mask-composite:source-in;mask-image:' + MASK + ';mask-composite:intersect"></div>' : '') +
         '<div style="position:relative;padding:' + (P0 ? 56 : 12) + 'px 10px 12px;display:flex;flex-direction:column;gap:6px">' +
@@ -8491,8 +8491,8 @@
           '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:2px">' + by(s, 12) + tag(s) + '</div></div></div>'; };
     const full = (s, k) => { const P0 = ideaPics(s)[0];
       return '<div ' + on(() => openIdeaSheet(s)) + ' role="button" data-idea-card="' + esc(s.text) + '"' + newAttr(s) + ' style="position:relative;display:flex;min-height:' + (P0 ? 96 : 0) + 'px;border-radius:4px;overflow:hidden;' + NOTE_BG + ';box-shadow:0 3px 10px rgba(13,17,23,.14);transform:rotate(' + ROTF[k % 4] + 'deg);cursor:pointer;padding-left:' + (P0 ? 0 : 8) + 'px">' +
-        // A thin gold top edge on every idea card, grid and tiles (owner, 2026-10-07)
-        '<span aria-hidden="true" data-idea-strip style="position:absolute;left:0;right:0;top:0;height:5px;background:#f0b93a;z-index:2"></span>' +
+        // Tiles: the thin gold edge runs down the left side (owner, 2026-10-07; grid cards keep it on top)
+        '<span aria-hidden="true" data-idea-strip style="position:absolute;left:0;top:0;bottom:0;width:5px;background:#f0b93a;z-index:2"></span>' +
         (P0 ? '<div aria-hidden="true" style="position:relative;flex:0 0 36%;background:' + bg(P0, posAt(s.coverPos, IDEA_POS)) + ';-webkit-mask-image:linear-gradient(to right,#000 40%,transparent 100%);mask-image:linear-gradient(to right,#000 40%,transparent 100%)"></div>' : '') +
         '<div style="position:relative;flex:1;min-width:0;padding:10px 12px 10px 6px;display:flex;flex-direction:column;gap:4px">' +
           '<span style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:17px;line-height:1.25;font-weight:900;color:#0d1117;text-wrap:balance">' + esc(s.text) + '</span>' +
@@ -8514,7 +8514,15 @@
     const sortMenu = st.menu === 'iaSort' ? '<div ' + on(() => setState({ menu: null })) + ' style="position:fixed;inset:0;z-index:1"></div>' +
       '<div role="listbox" style="position:absolute;top:calc(100% + 4px);right:0;z-index:2;min-width:170px;background:#fff;border:1px solid #eceef2;border-radius:16px;padding:6px;box-shadow:0 18px 44px rgba(15,18,25,.2);display:flex;flex-direction:column">' +
         SORTS.map(([k, l]) => '<span role="option" ' + on(() => setState({ iaSort: k, menu: null })) + ' style="display:flex;align-items:center;min-height:40px;padding:0 12px;border-radius:10px;font-size:14.5px;font-weight:' + (IS === k ? 800 : 600) + ';color:' + (IS === k ? '#5b4ae8' : '#0d1117') + ';background:' + (IS === k ? '#f3f1fe' : 'transparent') + ';cursor:pointer">' + l + '</span>').join('') + '</div>' : '';
-    const vb = (onIt, k, label, icon) => '<span ' + on(() => setState({ iaView: k })) + ' role="button" aria-label="' + label + '" aria-pressed="' + onIt + '" style="width:32px;height:26px;border-radius:999px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:' + (onIt ? '#fff' : 'transparent') + ';color:' + (onIt ? '#0d1117' : '#8a909b') + ';box-shadow:' + (onIt ? '0 1px 3px rgba(13,17,23,.15)' : 'none') + '">' + svg(15, stroke('currentColor', 2.2), icon) + '</span>';
+    // The view switcher (owner's screenshot, 2026-10-07): the current view's icon and a chevron open Tiles · Grid
+    const VIEWS_IA = [['full', 'Tiles', '<rect x="4" y="4.5" width="16" height="6" rx="1.6"/><rect x="4" y="13.5" width="16" height="6" rx="1.6"/>'],
+      ['grid', 'Grid', '<rect x="4" y="4" width="7" height="7" rx="1.6"/><rect x="13" y="4" width="7" height="7" rx="1.6"/><rect x="4" y="13" width="7" height="7" rx="1.6"/><rect x="13" y="13" width="7" height="7" rx="1.6"/>']];
+    const vwNow = VIEWS_IA.find(x => x[0] === VW) || VIEWS_IA[0];
+    const viewMenu = st.menu === 'iaView' ? '<div ' + on(() => setState({ menu: null })) + ' style="position:fixed;inset:0;z-index:1"></div>' +
+      '<div role="listbox" aria-label="View" style="position:absolute;top:calc(100% + 4px);right:0;z-index:2;min-width:200px;background:#fff;border:1px solid #eceef2;border-radius:18px;padding:6px;box-shadow:0 18px 44px rgba(15,18,25,.2);display:flex;flex-direction:column">' +
+        VIEWS_IA.map(([k, l, icon]) => '<span role="option" aria-selected="' + (VW === k) + '" data-ia-view="' + k + '" ' + on(() => setState({ iaView: k, menu: null })) + ' class="hov-row" style="display:flex;align-items:center;gap:14px;min-height:44px;padding:0 12px;border-radius:12px;cursor:pointer">' +
+          '<span style="display:flex;color:#454b55">' + svg(20, stroke('currentColor', 2.1), icon) + '</span><span style="flex:1;font-size:16px;font-weight:800;color:#0d1117">' + l + '</span>' +
+          (VW === k ? svg(16, stroke('#5b4ae8', 2.8), '<path d="M5 12.5l4.5 4.5L19 7.5"/>') : '') + '</span>').join('') + '</div>' : '';
     const head = '<header style="position:relative;z-index:5;overflow:hidden;background:#fff;padding:16px;display:flex;align-items:center;gap:12px;box-shadow:0 1px 0 #e8eaef">' +
       sparkles([[56, 24, 14, '#f5b428', 1], [66, 12, 9, '#d6246e', 1], [62, 64, 8, '#5b4ae8', 1], [48, 52, 7, '#f5b428', .8]]) +
       '<span aria-hidden="true" style="position:relative;flex:0 0 48px;width:48px;height:48px;border-radius:14px;background:#f5b428;transform:rotate(-6deg);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 10px rgba(245,180,40,.4)">' + svg(24, stroke('#3d2a00', 2.4), BULB) + '</span>' +
@@ -8526,9 +8534,8 @@
       '<div style="display:flex;align-items:center;gap:6px">' +
         (ideas.length ? '<div style="position:relative"><span ' + on((e) => { stop(e); setState({ menu: st.menu === 'iaSort' ? null : 'iaSort' }); }) + ' role="button" aria-haspopup="listbox" data-ia-sort style="display:flex;align-items:center;gap:4px;white-space:nowrap;min-height:38px;padding:0 2px;font-size:13px;font-weight:700;color:#8a909b;cursor:pointer">' +
           svg(14, stroke('currentColor', 2.4), '<path d="M7 4v16M3.5 16.5 7 20l3.5-3.5M17 20V4M13.5 7.5 17 4l3.5 3.5"/>') + '<span style="color:#0d1117;font-weight:800">' + SORTS.find(x => x[0] === IS)[1] + '</span>' + I.chevD(13, 'currentColor', 2.8) + '</span>' + sortMenu + '</div>' : '') +
-        '<div role="group" aria-label="View" style="display:flex;align-items:center;gap:2px;padding:3px;border-radius:999px;background:#e8eaee">' +
-          vb(VW === 'grid', 'grid', 'Grid', '<rect x="4" y="4" width="7" height="7" rx="1.6"/><rect x="13" y="4" width="7" height="7" rx="1.6"/><rect x="4" y="13" width="7" height="7" rx="1.6"/><rect x="13" y="13" width="7" height="7" rx="1.6"/>') +
-          vb(VW === 'full', 'full', 'Full tiles', '<rect x="4" y="4.5" width="16" height="6" rx="1.6"/><rect x="4" y="13.5" width="16" height="6" rx="1.6"/>') + '</div></div></div>';
+        '<div style="position:relative"><span ' + on((e) => { stop(e); setState({ menu: st.menu === 'iaView' ? null : 'iaView' }); }) + ' role="button" aria-haspopup="listbox" aria-label="View: ' + vwNow[1] + '" data-ia-views style="display:flex;align-items:center;gap:4px;min-height:38px;padding:0 2px 0 6px;color:#454b55;cursor:pointer">' +
+          svg(18, stroke('currentColor', 2.1), vwNow[2]) + '<span style="display:flex;color:#8a909b">' + I.chevD(13, 'currentColor', 2.8) + '</span></span>' + viewMenu + '</div></div></div>';
     let body;
     if (!st.loaded) body = skeleton(2, 160);
     else if (!G.length) body = goneCard() + noGroupCard();
