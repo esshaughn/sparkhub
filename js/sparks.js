@@ -970,12 +970,12 @@
           : '<div style="display:flex;flex-direction:column;gap:8px;' + (p.n ? 'padding-bottom:0' : '') + '">' + plusStepper(s) +
             (p.n ? '<input class="fld" type="text" maxlength="80" aria-label="Who’s coming with you" placeholder="Who’s coming with you? (optional)" value="' + esc(p.note) + '" ' + onInput(e => setState({ plusNote: Object.assign({}, state.plusNote, { [s.id]: e.target.value.slice(0, 80) }) })) +
               ' style="width:100%;box-sizing:border-box;height:42px;border:0;border-radius:12px;padding:0 12px;background:#fff;box-shadow:inset 0 0 0 1.5px #e3e5ea;font-family:inherit;font-size:16px;font-weight:600;color:#0d1117;outline:none">' : '') + '</div>') +
-        // A guest's next step is Add to calendar, with a small "or create a free account" under it (owner, 2026-10-07: guests
+        // A guest's next step is Add to calendar, with a small "or save it to a free account" under it (owner, 2026-10-07: guests
         // aren't pushed to sign in; it was a lavender Want a reminder? card with a Create a free account button)
         (guest ? '<div data-plus-account style="display:flex;flex-direction:column;align-items:center;gap:4px">' +
             (s.dayDate ? '<button type="button" data-plus-cal ' + on(() => addToCalendar(s)) + ' style="width:100%;min-height:50px;display:flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16px;font-weight:800;cursor:pointer">' +
               svg(18, stroke('#fff', 2.3), '<rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16M9 3v4M15 3v4"/>') + 'Add to calendar</button>' : '') +
-            '<span data-plus-signin role="button" ' + on(() => { setState(Object.assign({ plusPop: null }, clearPlus(s.id))); openLogin('reminder', () => setTimeout(askReminders, 500)); }) + ' style="display:flex;align-items:center;min-height:36px;font-size:14px;font-weight:700;color:#5b4ae8;cursor:pointer">or create a free account</span></div>' : '') +
+            '<span data-plus-signin role="button" ' + on(() => { setState(Object.assign({ plusPop: null }, clearPlus(s.id))); openLogin('reminder', () => setTimeout(askReminders, 500)); }) + ' style="display:flex;align-items:center;min-height:36px;font-size:14px;font-weight:700;color:#5b4ae8;cursor:pointer">or save it to a free account</span></div>' : '') +
         '<button type="button" data-plus-done ' + on(plusDone) + ' style="height:50px;margin-top:2px;border:0;border-radius:999px;background:' + (guest ? '#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;color:#0d1117' : '#149a4b;color:#fff') + ';font-family:inherit;font-size:16px;font-weight:800;cursor:pointer">Done</button>' +
         '<div style="display:flex;align-items:center;justify-content:center;gap:10px;font-size:14.5px;font-weight:800">' +
           (guest ? ''
@@ -7491,14 +7491,15 @@
         (onIt ? 'background:' + RC[k] + ';color:' + (k === 'maybe' ? '#2a1d00' : '#fff') : 'background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;color:#0d1117') + '">' +   // dark on the gold stripes, to read
         '<span style="font-size:17px;font-weight:800">' + label + '</span></button>';
     };
-    // A guest who RSVP'd or took a job gets no reminders or updates without an account: offer them (owner, 2026-10-01)
+    // A guest who RSVP'd or took a job: Keep this event, saving it to a free account (owner, 2026-10-07; it was Want a
+    // reminder?, owner 2026-10-01). After sign-in the app still offers Turn on reminders?
     // Design v8: lavender with no ring, Sign in under the text; it opens sign-in as from the guest sheet
     const guestNudge = st.email || lead || s.cancelledAt || nudgeHidden(s.id) || !(my === 'going' || my === 'maybe' || s.signups.some(it => it.claims.some(c => c.userId === st.me))) ? '' :
       '<div data-guest-nudge style="display:flex;gap:12px;padding:14px 16px;border-radius:18px;background:#f3f1fe">' +
-        '<span style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center">' + ic6('bell', 18, '#5b4ae8', 2.2) + '</span>' +
-        '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px"><span style="font-size:15.5px;font-weight:900;color:#2a1f8f">Want a reminder?</span>' +
-          '<span style="font-size:13.5px;line-height:1.4;font-weight:600;color:#4a3ad4;text-wrap:pretty">Create a free account and we’ll remind you the day before and that morning, and tell you if anything changes.</span>' +
-          '<span ' + on(() => openLogin('reminder', () => setTimeout(askReminders, 500))) + ' role="button" style="margin-top:4px;align-self:flex-start;display:flex;align-items:center;min-height:38px;padding:0 16px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:14px;font-weight:800;cursor:pointer">Create a free account</span></div>' +
+        '<span style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center">' + svg(18, stroke('#5b4ae8', 2.2) + ' style="flex:0 0 18px"', '<path d="M7 3.5h10a1 1 0 0 1 1 1v16l-6-4-6 4v-16a1 1 0 0 1 1-1Z"/>') + '</span>' +
+        '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px"><span style="font-size:15.5px;font-weight:900;color:#2a1f8f">Keep this event</span>' +
+          '<span style="font-size:13.5px;line-height:1.4;font-weight:600;color:#4a3ad4;text-wrap:pretty">Save it to a free account so you can find it again on any phone or computer.</span>' +
+          '<span ' + on(() => openLogin('reminder', () => setTimeout(askReminders, 500))) + ' role="button" style="margin-top:4px;align-self:flex-start;display:flex;align-items:center;min-height:38px;padding:0 16px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:14px;font-weight:800;cursor:pointer">Save to my account</span></div>' +
         '<span ' + on(() => hideNudge(s.id)) + ' aria-label="Not now" role="button" style="flex:0 0 28px;height:28px;display:flex;align-items:center;justify-content:center;color:#8a80e8;cursor:pointer">' + I.x(12, 'currentColor', 2.6) + '</span>' +
       '</div>';
     // Leads answer with the same buttons as everyone (owner, 2026-10-01; the lead is Going to their own plan, 20261101160000)
@@ -7561,7 +7562,7 @@
       '<div style="padding:16px 14px 26px;display:flex;flex-direction:column;gap:18px">' +
         cancelledCard(s) +
         (discMissing(s) ? updatesCard(s) : discBanner(s)) +   // v8: the banner; the updates live in Discussion
-        // Want a reminder? sits with the RSVP card, 8px under it (Design v8-8 prototype 976)
+        // Keep this event sits with the RSVP card, 8px under it (Design v8-8 prototype 976)
         (rsvpBlock && guestNudge ? '<div style="display:flex;flex-direction:column;gap:8px">' + rsvpBlock + guestNudge + '</div>' : rsvpBlock + guestNudge) +
         whenWhereCard(s) +
         basicDetailsSec(s) +
