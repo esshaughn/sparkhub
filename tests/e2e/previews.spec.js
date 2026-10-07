@@ -130,6 +130,7 @@ test('a signed-out visitor sees the event only, and names once they RSVP', async
     await expect(about.locator('[data-about-panel="1"]')).toBeVisible();
     await expect(about.locator('[data-about-back]')).toHaveCount(0);
     await expect(about.locator('[data-about-logo]')).toBeVisible();
+    await expect(about.locator('[data-about-beta]')).toHaveText('BETA');
     await expect(about.locator('[data-about-close]')).toBeVisible();
     await about.locator('[data-about-next]').click();
     await about.locator('[data-about-next]').click();
