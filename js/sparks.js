@@ -4035,7 +4035,7 @@
       '<div style="display:flex;align-items:stretch;gap:14px;padding:11px 14px">' +
         (noDate ? '' : '<div style="flex:0 0 42px;display:flex;flex-direction:column;align-items:center;justify-content:center">' + (dp ? '<span style="font-size:11.5px;font-weight:900;letter-spacing:.7px;color:#6b7280">' + dp.dow + '</span><span style="font-size:23px;line-height:1;font-weight:900;color:#0d1117">' + dp.day + '</span>'
           : '<span style="font-size:11.5px;font-weight:900;letter-spacing:.7px;color:#8f6405">TBD</span><span style="font-size:23px;line-height:1;font-weight:900;color:#8f6405">?</span>') + '</div>') +
-        '<div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:3px"><div style="display:flex;align-items:center;min-width:0"><span style="min-width:0;font-size:17px;line-height:1.2;font-weight:900;letter-spacing:-.2px;color:#0d1117;overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow-wrap:break-word;text-wrap:balance">' + esc(s.text) + '</span>' + demoTag(s, false, true) + '</div>' +
+        '<div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:3px"><div style="display:flex;align-items:center;min-width:0"><span style="min-width:0;font-size:17px;line-height:1.2;font-weight:900;letter-spacing:-.05px;color:#0d1117;overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow-wrap:break-word;text-wrap:balance">' + esc(s.text) + '</span>' + demoTag(s, false, true) + '</div>' +
           '<div style="font-size:12.5px;font-weight:600;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + [s.dayDate ? esc(dayOfLine(s)) : tbdSpan(dateTbd(s)), s.spot ? esc(street(s)) : tbdSpan(spotTbd(s))].filter(Boolean).join(' · ') + '</div></div>' +
         (thumb === 'chev' ? '<span aria-hidden="true" style="flex:0 0 auto;align-self:center;display:flex">' + I.chevR(14, '#b9bcc4', 2.6) + '</span>' : '<span aria-hidden="true" style="flex:0 0 48px;width:48px;height:48px;align-self:center;border-radius:11px;background:' + photoBg(s) + '"></span>') +
       // the strip: 30px at 13px everywhere (owner, 2026-10-07; was 28px at 12.5px, All groups' 11.5px)
@@ -5392,27 +5392,6 @@
   // ---- Group pages (v6 Update 2): world switcher, Plans with Sort · Filter, the Ideas board, the Past scrapbook
   const helpersOf = (s) => { const set = {}; s.signups.forEach(it => it.claims.forEach(c => { if (c.userId !== s.leadId && s.cohosts.indexOf(c.userId) < 0) set[c.userId] = 1; })); return Object.keys(set).length; };
   const picsOf = (s) => s.photoPaths.concat(s.album.map(a => a.path)).filter((p, i, a) => a.indexOf(p) === i).map(photoUrl);
-  const ROT6 = [-2, 1.5, 1, -1.5, 2, -1];
-  // A tilted card on the graph-paper board: photo, title, interested count, the four checkpoints as tiles
-  const ideaCard6 = (s, k) => {
-    const n = fans(s).length;
-    return '<div ' + on(() => openSpark(s)) + ' data-card="' + esc(s.text) + '" data-rank="' + k + '" aria-label="' + esc(s.text) + '" style="position:relative;overflow:hidden;background:#fff;border-radius:8px;padding:6px 6px 8px;box-shadow:0 3px 10px rgba(13,17,23,.14);transform:rotate(' + ROT6[k % 6] + 'deg);cursor:pointer;' + (k === 1 ? 'margin-top:22px' : '') + '">' +
-      // v8-11 (1e): a 3px gold bar across the card's top edge, above the photo
-      '<div aria-hidden="true" data-idea-bar style="position:absolute;left:0;right:0;top:0;height:3px;background:#f5b428;z-index:2"></div>' +
-      '<div style="position:relative;height:112px;border-radius:5px;overflow:hidden;background:' + photoBg(s) + '">' +
-        '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.9) 0%, rgba(13,17,23,.6) 28%, rgba(13,17,23,0) 55%)"></div>' +
-        '<span aria-label="' + n + ' interested" style="position:absolute;top:6px;right:6px;display:flex;align-items:center;gap:3px;height:24px;padding:0 8px 0 6px;border-radius:999px;background:rgba(255,255,255,.92);box-shadow:0 1px 4px rgba(13,17,23,.2);font-size:12.5px;font-weight:900;color:#8f6405">' + svg(12, stroke('currentColor', 3), '<path d="M12 19V6M6 11.5 12 5.5l6 6"/>') + n + '</span>' +
-        '<span aria-hidden="true" style="position:absolute;right:4px;top:0;bottom:0;display:flex;align-items:center;opacity:.9;filter:drop-shadow(0 1px 3px rgba(0,0,0,.4))">' + I.chevR(20, '#fff', 2.6) + '</span>' +
-        (s.wantsHost ? '<span data-needs-host style="position:absolute;top:6px;left:6px;display:flex;align-items:center;height:22px;padding:0 8px;border-radius:999px;background:#e8a71c;font-size:10.5px;font-weight:900;letter-spacing:.6px;color:#fff">NEEDS A LEAD</span>' : '') +
-        '<div style="position:absolute;left:9px;right:26px;bottom:8px;font-size:14.5px;line-height:1.15;font-weight:900;color:#fff;text-wrap:balance">' + (isDemo(s) ? '<div style="margin-bottom:5px">' + demoTagOnly(s, true) + '</div>' : '') + esc(s.text) + '</div></div>' +   // DEMO above the title (owner, 2026-10-01)
-      '<span style="display:flex;align-items:center;padding:8px 0 0">' + ideaSteps6(s).map((st, i) => '<span aria-label="' + st.label + ': ' + (st.p >= 1 ? st.done : st.todo) + '" style="flex:1;height:22px;display:flex;align-items:center;justify-content:center;' + (i ? 'border-left:1px solid #dcdfe4' : '') + '">' + ic6(st.icon, 15, st.p >= 1 ? '#149a4b' : '#b07a0a', 2.3) + '</span>').join('') + '</span></div>';
-  };
-  // `last`: a card after the ideas (the Post an idea prompt), at the foot of the shorter column
-  const ideaBoard6 = (ideas, last) => {
-    const col = (list, off, end) => '<div style="display:flex;flex-direction:column;gap:14px">' + list.map((s, i) => ideaCard6(s, i * 2 + off)).join('') + (end || '') + '</div>';
-    const odd = ideas.length % 2 === 1;
-    return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start;padding:6px 2px 20px">' + col(ideas.filter((_, i) => i % 2 === 0), 0, odd ? '' : last) + col(ideas.filter((_, i) => i % 2 === 1), 1, odd ? last : '') + '</div>';
-  };
   // Owner's mocks, 2026-10-01: the Ideas tab's empty state, and the same prompt as a dashed card at the end of the board.
   // Both open the Float an idea sheet with this group picked (Design v8 prototype: openQI; they opened Create event
   // before the sheet was built)
@@ -5424,22 +5403,6 @@
     '<p style="margin:0;max-width:320px;font-size:15px;line-height:1.45;font-weight:500;color:#4b5160;text-wrap:pretty">An Idea is an event without a date. Post it, people vote on when and where, and it turns into a Plan once someone leads it.</p>' +
     '<button type="button" ' + on(() => openFloat({ groups: [g.id] })) + ' style="margin-top:6px;align-self:stretch;min-height:56px;border:0;border-radius:999px;background:#2f7ed8;display:flex;align-items:center;justify-content:center;gap:8px;font-family:inherit;font-size:16.5px;font-weight:900;color:#fff;cursor:pointer">' +
       svg(20, stroke('#fff', 2), BULB_IC) + 'Float an Idea</button></div>';
-  const ideaPrompt6 = (g) => '<div ' + on(() => openFloat({ groups: [g.id] }), 'button') + ' data-idea-prompt aria-label="Float an Idea" style="min-height:170px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:12px;border-radius:18px;border:2px dashed #f6c945;background:#fffaf0;text-align:center;cursor:pointer">' +
-    '<span aria-hidden="true" style="width:44px;height:44px;border-radius:999px;background:#f6c945;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 7px rgba(246,201,69,.2)">' + svg(22, stroke('#0d1117', 2.1), BULB_IC) + '</span>' +
-    '<span style="margin-top:4px;font-size:15px;line-height:1.15;font-weight:900;color:#0d1117;text-wrap:balance">' + WE_SHOULD + '</span>' +
-    '<span style="font-size:12.5px;line-height:1.3;font-weight:700;color:#1f5fa8">Float an Idea ›</span></div>';
-  // The Ideas board's quiet sort row: Most interest (default) · Newest · Almost there (most checkpoints done)
-  const ISORTS6 = [['interest', 'Most interest'], ['new', 'Newest'], ['almost', 'Almost there']];
-  const stepsDone6 = (s) => ideaSteps6(s).filter(st => st.p >= 1).length;
-  const sortIdeas6 = (list, k) => list.slice().sort(
-    k === 'new' ? (a, b) => b.created - a.created
-      : k === 'almost' ? (a, b) => stepsDone6(b) - stepsDone6(a) || b.interested.length - a.interested.length
-      : (a, b) => b.interested.length - a.interested.length || b.created - a.created);
-  const ideaSortRow6 = (cur) => '<div role="group" aria-label="Sort ideas" style="display:flex;align-items:center;gap:14px;padding:0 4px;min-height:32px">' +
-    '<span style="font-size:13px;font-weight:600;color:#8a909b">Sort</span>' +
-    ISORTS6.map(([k, label]) => { const onIt = (cur || 'interest') === k;
-      return '<span ' + on(() => setState({ iSort: k }), 'button') + ' aria-pressed="' + onIt + '" style="display:flex;align-items:center;min-height:32px;font-size:13px;cursor:pointer;' +
-        (onIt ? 'font-weight:800;color:#0d1117;text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:4px' : 'font-weight:600;color:#8a909b') + '">' + label + '</span>'; }).join('') + '</div>';
   // "{GROUP} · SO FAR": events · said yes · photos, with confetti. Going RSVPs, not attendance, so not "showed up" (research review, 2026-10-01)
   const recap6 = (g, done) => {
     const went = done.reduce((a, s) => a + cameCount(s), 0), allIn = done.length && done.every(checkedIn), photos = done.reduce((a, s) => a + picsOf(s).length, 0);
@@ -5843,7 +5806,6 @@
   }
 
   // One tab's content on a group page (also drawn beside the page while it's being swiped)
-  const IDEA_PAPER = 'background:#fbfaf6;background-image:linear-gradient(#eeeae0 1px, transparent 1px), linear-gradient(90deg, #eeeae0 1px, transparent 1px);background-size:18px 18px';
   function browseBody(tab, g) {
     const st = state, gv = GROUP_VIEWS.indexOf(st.gView) > -1 ? st.gView : 'next';
     let body, pageStyle = '';
@@ -5852,10 +5814,15 @@
     } else if (!g) {
       body = noGroupCard();
     } else if (tab === 'idea') {
-      // The Ideas board: graph paper, two tilted columns (no sort, filter or view here)
-      pageStyle = 'min-height:100%;' + IDEA_PAPER;
-      const ideas = sortIdeas6(visible('idea'), st.iSort);
-      body = ideas.length ? '<div style="display:flex;flex-direction:column;gap:6px">' + ideaSortRow6(st.iSort) + ideaBoard6(ideas, ideaPrompt6(g)) + '</div>' : ideasEmpty6(g);
+      // The group's Ideas: the Ideas tab's board under the group's own header and Ideas · Plans · Past switcher (owner,
+      // 2026-10-07): the same cards, sort and Tiles · Grid picker, on the same board; it ends with Float an Idea for this group
+      pageStyle = 'min-height:100%;' + BOARD_BG;
+      const kit = ideaKit(visible('idea'));
+      body = !kit.ideas.length ? ideasEmpty6(g) : '<div style="display:flex;flex-direction:column;gap:12px">' +
+        '<div style="position:relative;z-index:4;display:flex;justify-content:flex-end">' + kit.controls + '</div>' + kit.cards +
+        '<div style="margin:22px 0 10px;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center">' +
+          '<span style="font-size:16px;font-weight:900;color:#0d1117">' + WE_SHOULD + '</span>' +
+          '<span ' + on(() => openFloat({ groups: [g.id] })) + ' role="button" data-idea-prompt style="display:flex;align-items:center;min-height:44px;padding:0 18px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #f5b428;font-size:15px;font-weight:800;color:#8f6405;cursor:pointer">+ Float an Idea</span></div></div>';
     } else if (tab === 'done') {
       // The Past scrapbook: the recap, then a memory card per event (newest first)
       const done = visible('done').slice().sort((a, b) => byWhen(b, a));
@@ -8606,14 +8573,13 @@
     if (r.top + r.height / 2 < bottom && r.bottom > 0) { setState({ ideaSeen: el.getAttribute('data-new-idea') }); setSeen('ideaSeen', state.ideaSeen); }
   };
   document.addEventListener('scroll', () => ideaSeenCheck(), { capture: true, passive: true });
-  function viewIdeas() {
-    const st = state, G = myGroups(), pickG = (st.iaGrps || []).filter(id => groupById(id)), all = boardIdeas();
-    const inG = (s) => !pickG.length || gIds(s).some(id => pickG.indexOf(id) > -1);
-    const IS = st.iaSort || 'new', VW = st.iaView || 'full';   // Newest first by default (owner, 2026-10-07)
-    const ideas = all.filter(inG).sort((a, b) => IS === 'new' ? b.created - a.created : IS === 'close' ? stepsDone(b) - stepsDone(a) || b.interested.length - a.interested.length : b.interested.length - a.interested.length || b.created - a.created);
+  // The Ideas board's cards, sort and view picker (Tiles · Grid), shared by the Ideas tab and a group's Ideas (owner,
+  // 2026-10-07: the group board had kept the older v6 cards). `newAttr` marks the newest Idea for the Ideas tab's dot
+  function ideaKit(list, newAttr) {
+    const st = state, IS = st.iaSort || 'new', VW = st.iaView || 'full';   // Newest first by default (owner, 2026-10-07)
+    newAttr = newAttr || (() => '');
     const ROT = [-2, 1.5, 1, -1.5, 2, -1], ROTF = [-1, .8, -.5, 1];
-    const nw = ideaDotOn() ? newestIdea() : null, newAttr = (s) => nw && nw.id === s.id ? ' data-new-idea="' + esc(s.id) + '"' : '';
-    if (nw) setTimeout(ideaSeenCheck, 400);   // already in view without scrolling
+    const ideas = list.slice().sort((a, b) => IS === 'new' ? b.created - a.created : IS === 'close' ? stepsDone(b) - stepsDone(a) || b.interested.length - a.interested.length : b.interested.length - a.interested.length || b.created - a.created);
     const tag = (s) => '<span aria-label="' + fans(s).length + ' interested" style="flex:0 0 auto;display:flex;align-items:center;gap:3px;height:22px;padding:0 7px;border-radius:999px;background:#fdf1d6;font-size:12px;font-weight:900;color:#8f6405">' + svg(11, stroke('#8f6405', 2.8), '<circle cx="12" cy="8" r="3.6"/><path d="M5 20a7 7 0 0 1 14 0"/>') + fans(s).length + '</span>';
     const by = (s, size) => '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:' + size + 'px;font-weight:700;color:#8a909b">' + (s.wantsHost ? 'by ' + esc(firstName(floaterName(s))) : 'led by ' + esc(firstName(nameOf(s.leadId, s.leadName)))) + '</span>';
     const MASK = 'linear-gradient(to bottom,#000 20%,rgba(0,0,0,.35) 55%,transparent 85%),linear-gradient(to bottom left,#000 25%,rgba(0,0,0,.3) 100%)';
@@ -8634,18 +8600,6 @@
           '<span style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:17px;line-height:1.25;font-weight:900;color:#0d1117;text-wrap:balance">' + esc(s.text) + '</span>' +
           (s.overview ? '<span style="display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;font-size:13px;line-height:1.4;font-weight:600;color:#6b7280">' + esc(s.overview) + '</span>' : '') +
           '<div style="margin-top:auto;padding-top:4px;display:flex;align-items:center;justify-content:space-between;gap:8px">' + by(s, 12.5) + tag(s) + '</div></div></div>'; };
-    // Group picker: All groups or any mix, with each group's count; Done closes
-    const thumbs = (pickG.length ? pickG.map(groupById) : G).slice(0, 3).map((g, j) => '<span style="width:24px;height:24px;margin-left:' + (j ? -8 : 0) + 'px;border-radius:999px;border:2px solid #fff;background:' + groupBg(g, '#c3c7d0') + '"></span>').join('');
-    const grpLabel = !pickG.length ? 'All groups' : pickG.length === 1 ? groupById(pickG[0]).name : pickG.length + ' groups';
-    const opt = (label, n, onIt, fn) => '<div role="option" aria-selected="' + onIt + '" ' + on(fn) + ' class="hov-row" style="display:flex;align-items:center;gap:10px;min-height:44px;padding:0 10px;border-radius:10px;cursor:pointer">' +
-      '<span style="flex:0 0 20px;width:20px;height:20px;border-radius:6px;display:flex;align-items:center;justify-content:center;' + (onIt ? 'background:#5b4ae8' : 'background:#fff;box-shadow:inset 0 0 0 1.5px #c3c7d0') + '">' + (onIt ? svg(12, stroke('#fff', 3.6), '<path d="M5 12.5l4.5 4.5L19 7.5"/>') : '') + '</span>' +
-      '<span style="flex:1;font-size:14.5px;font-weight:700;color:#0d1117">' + esc(label) + '</span><span style="font-size:13px;font-weight:700;color:#9aa0ac">' + n + '</span></div>';
-    const toggleG = (id) => { const cur = (state.iaGrps || []).filter(x => groupById(x)); setState({ iaGrps: cur.indexOf(id) > -1 ? cur.filter(x => x !== id) : cur.concat([id]) }); };
-    const grpMenu = st.menu === 'iaGrp' ? '<div ' + on(() => setState({ menu: null })) + ' style="position:fixed;inset:0;z-index:1"></div>' +
-      '<div role="listbox" style="position:absolute;top:calc(100% + 6px);left:0;z-index:2;min-width:240px;background:#fff;border:1px solid #eceef2;border-radius:16px;padding:6px;box-shadow:0 18px 44px rgba(15,18,25,.2);display:flex;flex-direction:column">' +
-        opt('All groups', all.length, !pickG.length, () => setState({ iaGrps: [] })) +
-        G.map(g => opt(g.name, all.filter(s => inGroup(s, g.id)).length, pickG.indexOf(g.id) > -1, () => toggleG(g.id))).join('') +
-        '<span ' + on(() => setState({ menu: null })) + ' role="button" style="margin-top:4px;display:flex;align-items:center;justify-content:center;min-height:40px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:14px;font-weight:800;cursor:pointer">Done</span></div>' : '';
     const SORTS = [['new', 'Newest'], ['interest', 'Popular'], ['close', 'Almost a Plan']];   // "Closest" read as distance
     const sortMenu = st.menu === 'iaSort' ? '<div ' + on(() => setState({ menu: null })) + ' style="position:fixed;inset:0;z-index:1"></div>' +
       '<div role="listbox" style="position:absolute;top:calc(100% + 4px);right:0;z-index:2;min-width:170px;background:#fff;border:1px solid #eceef2;border-radius:16px;padding:6px;box-shadow:0 18px 44px rgba(15,18,25,.2);display:flex;flex-direction:column">' +
@@ -8659,6 +8613,37 @@
         VIEWS_IA.map(([k, l, icon]) => '<span role="option" aria-selected="' + (VW === k) + '" data-ia-view="' + k + '" ' + on(() => setState({ iaView: k, menu: null })) + ' class="hov-row" style="display:flex;align-items:center;gap:14px;min-height:44px;padding:0 12px;border-radius:12px;cursor:pointer">' +
           '<span style="display:flex;color:#454b55">' + svg(20, stroke('currentColor', 2.1), icon) + '</span><span style="flex:1;font-size:16px;font-weight:800;color:#0d1117">' + l + '</span>' +
           (VW === k ? svg(16, stroke('#5b4ae8', 2.8), '<path d="M5 12.5l4.5 4.5L19 7.5"/>') : '') + '</span>').join('') + '</div>' : '';
+    const controls = '<div style="display:flex;align-items:center;gap:6px">' +
+      (ideas.length ? '<div style="position:relative"><span ' + on((e) => { stop(e); setState({ menu: st.menu === 'iaSort' ? null : 'iaSort' }); }) + ' role="button" aria-haspopup="listbox" data-ia-sort style="display:flex;align-items:center;gap:4px;white-space:nowrap;min-height:38px;padding:0 2px;font-size:13px;font-weight:700;color:#8a909b;cursor:pointer">' +
+        svg(14, stroke('currentColor', 2.4), '<path d="M7 4v16M3.5 16.5 7 20l3.5-3.5M17 20V4M13.5 7.5 17 4l3.5 3.5"/>') + '<span style="color:#0d1117;font-weight:800">' + SORTS.find(x => x[0] === IS)[1] + '</span>' + I.chevD(13, 'currentColor', 2.8) + '</span>' + sortMenu + '</div>' : '') +
+      '<div style="position:relative"><span ' + on((e) => { stop(e); setState({ menu: st.menu === 'iaView' ? null : 'iaView' }); }) + ' role="button" aria-haspopup="listbox" aria-label="View: ' + vwNow[1] + '" data-ia-views style="display:flex;align-items:center;gap:4px;min-height:38px;padding:0 2px 0 6px;color:#454b55;cursor:pointer">' +
+        svg(18, stroke('currentColor', 2.1), vwNow[2]) + '<span style="display:flex;color:#8a909b">' + I.chevD(13, 'currentColor', 2.8) + '</span></span>' + viewMenu + '</div></div>';
+    const cards = (VW === 'grid'
+      ? '<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;align-items:start;padding-top:6px">' +
+          '<div style="display:flex;flex-direction:column;gap:20px">' + ideas.map((s, k) => k % 2 ? '' : tile(s, k)).join('') + '</div>' +
+          '<div style="display:flex;flex-direction:column;gap:20px;margin-top:20px">' + ideas.map((s, k) => k % 2 ? tile(s, k) : '').join('') + '</div></div>'
+      : '<div style="display:flex;flex-direction:column;gap:16px;padding-top:6px">' + ideas.map(full).join('') + '</div>');
+    return { ideas, controls, cards };
+  }
+
+  function viewIdeas() {
+    const st = state, G = myGroups(), pickG = (st.iaGrps || []).filter(id => groupById(id)), all = boardIdeas();
+    const inG = (s) => !pickG.length || gIds(s).some(id => pickG.indexOf(id) > -1);
+    const nw = ideaDotOn() ? newestIdea() : null, newAttr = (s) => nw && nw.id === s.id ? ' data-new-idea="' + esc(s.id) + '"' : '';
+    if (nw) setTimeout(ideaSeenCheck, 400);   // already in view without scrolling
+    const kit = ideaKit(all.filter(inG), newAttr), ideas = kit.ideas;
+    // Group picker: All groups or any mix, with each group's count; Done closes
+    const thumbs = (pickG.length ? pickG.map(groupById) : G).slice(0, 3).map((g, j) => '<span style="width:24px;height:24px;margin-left:' + (j ? -8 : 0) + 'px;border-radius:999px;border:2px solid #fff;background:' + groupBg(g, '#c3c7d0') + '"></span>').join('');
+    const grpLabel = !pickG.length ? 'All groups' : pickG.length === 1 ? groupById(pickG[0]).name : pickG.length + ' groups';
+    const opt = (label, n, onIt, fn) => '<div role="option" aria-selected="' + onIt + '" ' + on(fn) + ' class="hov-row" style="display:flex;align-items:center;gap:10px;min-height:44px;padding:0 10px;border-radius:10px;cursor:pointer">' +
+      '<span style="flex:0 0 20px;width:20px;height:20px;border-radius:6px;display:flex;align-items:center;justify-content:center;' + (onIt ? 'background:#5b4ae8' : 'background:#fff;box-shadow:inset 0 0 0 1.5px #c3c7d0') + '">' + (onIt ? svg(12, stroke('#fff', 3.6), '<path d="M5 12.5l4.5 4.5L19 7.5"/>') : '') + '</span>' +
+      '<span style="flex:1;font-size:14.5px;font-weight:700;color:#0d1117">' + esc(label) + '</span><span style="font-size:13px;font-weight:700;color:#9aa0ac">' + n + '</span></div>';
+    const toggleG = (id) => { const cur = (state.iaGrps || []).filter(x => groupById(x)); setState({ iaGrps: cur.indexOf(id) > -1 ? cur.filter(x => x !== id) : cur.concat([id]) }); };
+    const grpMenu = st.menu === 'iaGrp' ? '<div ' + on(() => setState({ menu: null })) + ' style="position:fixed;inset:0;z-index:1"></div>' +
+      '<div role="listbox" style="position:absolute;top:calc(100% + 6px);left:0;z-index:2;min-width:240px;background:#fff;border:1px solid #eceef2;border-radius:16px;padding:6px;box-shadow:0 18px 44px rgba(15,18,25,.2);display:flex;flex-direction:column">' +
+        opt('All groups', all.length, !pickG.length, () => setState({ iaGrps: [] })) +
+        G.map(g => opt(g.name, all.filter(s => inGroup(s, g.id)).length, pickG.indexOf(g.id) > -1, () => toggleG(g.id))).join('') +
+        '<span ' + on(() => setState({ menu: null })) + ' role="button" style="margin-top:4px;display:flex;align-items:center;justify-content:center;min-height:40px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:14px;font-weight:800;cursor:pointer">Done</span></div>' : '';
     const head = '<header style="position:relative;z-index:5;overflow:hidden;background:#fff;padding:16px;display:flex;align-items:center;gap:12px;box-shadow:0 1px 0 #e8eaef">' +
       sparkles([[56, 24, 14, '#f5b428', 1], [66, 12, 9, '#d6246e', 1], [62, 64, 8, '#5b4ae8', 1], [48, 52, 7, '#f5b428', .8]]) +
       '<span aria-hidden="true" style="position:relative;flex:0 0 48px;width:48px;height:48px;border-radius:14px;background:#f5b428;transform:rotate(-6deg);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 10px rgba(245,180,40,.4)">' + svg(24, stroke('#3d2a00', 2.4), BULB) + '</span>' +
@@ -8667,20 +8652,12 @@
     const bar = '<div style="position:relative;z-index:4;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 0 6px">' +
       '<div style="position:relative"><span ' + on((e) => { stop(e); setState({ menu: st.menu === 'iaGrp' ? null : 'iaGrp' }); }) + ' role="button" aria-haspopup="listbox" data-ia-groups style="display:flex;align-items:center;gap:6px;white-space:nowrap;min-height:38px;padding:0 10px 0 6px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;font-size:14px;font-weight:800;color:#0d1117;cursor:pointer">' +
         '<span style="display:flex">' + thumbs + '</span>' + esc(grpLabel) + '<span style="display:flex;color:#6b7280">' + I.chevD(13, 'currentColor', 2.8) + '</span></span>' + grpMenu + '</div>' +
-      '<div style="display:flex;align-items:center;gap:6px">' +
-        (ideas.length ? '<div style="position:relative"><span ' + on((e) => { stop(e); setState({ menu: st.menu === 'iaSort' ? null : 'iaSort' }); }) + ' role="button" aria-haspopup="listbox" data-ia-sort style="display:flex;align-items:center;gap:4px;white-space:nowrap;min-height:38px;padding:0 2px;font-size:13px;font-weight:700;color:#8a909b;cursor:pointer">' +
-          svg(14, stroke('currentColor', 2.4), '<path d="M7 4v16M3.5 16.5 7 20l3.5-3.5M17 20V4M13.5 7.5 17 4l3.5 3.5"/>') + '<span style="color:#0d1117;font-weight:800">' + SORTS.find(x => x[0] === IS)[1] + '</span>' + I.chevD(13, 'currentColor', 2.8) + '</span>' + sortMenu + '</div>' : '') +
-        '<div style="position:relative"><span ' + on((e) => { stop(e); setState({ menu: st.menu === 'iaView' ? null : 'iaView' }); }) + ' role="button" aria-haspopup="listbox" aria-label="View: ' + vwNow[1] + '" data-ia-views style="display:flex;align-items:center;gap:4px;min-height:38px;padding:0 2px 0 6px;color:#454b55;cursor:pointer">' +
-          svg(18, stroke('currentColor', 2.1), vwNow[2]) + '<span style="display:flex;color:#8a909b">' + I.chevD(13, 'currentColor', 2.8) + '</span></span>' + viewMenu + '</div></div></div>';
+      kit.controls + '</div>';
     let body;
     if (!st.loaded) body = skeleton(2, 160);
     else if (!G.length) body = goneCard() + noGroupCard();
     else if (!ideas.length) body = '<span style="padding:10px 4px 4px;font-size:15px;font-weight:600;color:#6b7280">No Ideas in your groups yet.</span>';
-    else body = (VW === 'grid'
-      ? '<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;align-items:start;padding-top:6px">' +
-          '<div style="display:flex;flex-direction:column;gap:20px">' + ideas.map((s, k) => k % 2 ? '' : tile(s, k)).join('') + '</div>' +
-          '<div style="display:flex;flex-direction:column;gap:20px;margin-top:20px">' + ideas.map((s, k) => k % 2 ? tile(s, k) : '').join('') + '</div></div>'
-      : '<div style="display:flex;flex-direction:column;gap:16px;padding-top:6px">' + ideas.map(full).join('') + '</div>');
+    else body = kit.cards;
     const end = st.loaded && ideas.length ? '<div style="margin-top:34px;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center">' +
       '<span style="position:relative;display:flex">' + svg(26, stroke('#b07a0a', 2.2), BULB) + '<svg aria-hidden="true" style="position:absolute;left:22px;top:-6px" width="9" height="9" viewBox="0 0 24 24" fill="#f5b428">' + SPARK4 + '</svg></span>' +
       '<span style="font-size:17px;font-weight:900;color:#0d1117">That’s every Idea for now.</span>' +
@@ -10974,7 +10951,7 @@
       (st.email && st.dashAll ? viewDashAll() : '') +
       (st.email && st.cHandSheet ? viewHandSheet() : '') +
       (st.email && st.cSearch ? viewSearch() : '') +
-      (st.ip && s === 'ideas' ? viewIdeaSheet() : '') +
+      (st.ip && (s === 'ideas' || s === 'browse' || s === 'groupPage') ? viewIdeaSheet() : '') +
       (s === 'browse' && st.loaded && currentGroup() && !st.gSearch && !st.gMenu ? swipeHints() : '') +
       (st.email && st.gSearch && s === 'browse' ? viewGroupSearch() : '') +
       (st.gMenu && s === 'browse' ? viewGroupMenu() : '') +
@@ -11503,7 +11480,7 @@
     pane.style.animation = 'none';   // a tab tap's slide-in would otherwise hold the page in place
     pane.style.position = 'relative';
     pane.style.minHeight = fill;
-    pane.style.cssText += ';' + (state.phaseTab === 'idea' ? IDEA_PAPER : 'background:#e8eaee');
+    pane.style.cssText += ';' + (state.phaseTab === 'idea' ? BOARD_BG : 'background:#e8eaee');
     [-1, 1].forEach(d => {
       const k = WORLDS[i + d];
       if (!k) return;
@@ -11511,7 +11488,7 @@
       peek.setAttribute('data-peek', k);
       peek.setAttribute('aria-hidden', 'true');
       peek.style.cssText = 'position:absolute;top:' + off + 'px;' + (d < 0 ? 'right' : 'left') + ':100%;width:100%;min-height:' + fill + ';box-sizing:border-box;padding:10px 14px 22px;display:flex;flex-direction:column;gap:22px;pointer-events:none;' +
-        (k === 'idea' ? IDEA_PAPER : 'background:#e8eaee');
+        (k === 'idea' ? BOARD_BG : 'background:#e8eaee');
       peek.innerHTML = browseBody(k, g).body;
       pane.appendChild(peek);
     });

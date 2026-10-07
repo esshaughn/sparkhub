@@ -114,20 +114,19 @@ test('the Ideas board puts the idea with the most interest first', async ({ brow
     const P = poster.page;
     await P.goto('/#/browse');   // a group's Ideas · Plans · Past (#/ideas is the Ideas tab since v8-4)
     await P.locator('[data-screen-label=Browse]').getByRole('tab', { name: /^Ideas/ }).click();
-    // The Ideas board (v6 Update 2) keeps Most popular order across its two columns: read it by rank
-    const order = async () => (await P.locator('[data-screen-label=Browse] [data-card]').evaluateAll(els => els
-      .map(el => [+el.getAttribute('data-rank'), el.getAttribute('data-card')]).sort((a, b) => a[0] - b[0]).map(x => x[1])))
+    // A group's Ideas use the Ideas tab's board (owner, 2026-10-07): the same cards, sort menu and Tiles · Grid picker
+    const B = P.locator('[data-screen-label=Browse]');
+    const order = async () => (await B.locator('[data-idea-card]').evaluateAll(els => els.map(el => el.getAttribute('data-idea-card'))))
       .filter(t => t === older || t === newer).map(t => (t === older ? 'older' : 'newer'));
+    const sortBy = async (label) => { await B.locator('[data-ia-sort]').click(); await P.getByRole('option', { name: label }).click(); };
+    if (await B.locator('[data-ia-views]').getAttribute('aria-label') !== 'View: Tiles') { await B.locator('[data-ia-views]').click(); await P.locator('[data-ia-view="full"]').click(); }
+    await sortBy('Popular');
     await expect.poll(order).toEqual(['older', 'newer']);
-    // The quiet sort row (v6 Update 4): Newest puts the later post first
-    const sortRow = P.getByRole('group', { name: 'Sort ideas' });
-    await expect(sortRow.getByRole('button', { name: 'Most interest' })).toHaveAttribute('aria-pressed', 'true');
-    await sortRow.getByRole('button', { name: 'Newest' }).click();
-    await expect(sortRow.getByRole('button', { name: 'Newest' })).toHaveAttribute('aria-pressed', 'true');
+    await sortBy('Newest');
     await expect.poll(order).toEqual(['newer', 'older']);
-    // The board ends with the dashed Start an event card (owner, 2026-10-01); it opens the Float an idea sheet (Design v8 prototype)
-    const prompt = P.locator('[data-screen-label=Browse] [data-idea-prompt]');
-    await expect(prompt).toContainText('Got a “we should…”?');
+    // The board ends with Float an Idea for this group; it opens the Float an idea sheet
+    const prompt = B.locator('[data-idea-prompt]');
+    await expect(prompt).toHaveText('+ Float an Idea');
     await prompt.click();
     await expect(P.locator('[data-screen-label="Float an Idea"]')).toBeVisible();
     expect(poster.errors).toEqual([]);
