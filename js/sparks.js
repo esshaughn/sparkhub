@@ -2768,7 +2768,7 @@
     const email = '<input class="fld" data-inv-email type="email" inputmode="email" maxlength="80" autocomplete="email" autocapitalize="off" spellcheck="false" aria-label="Email" placeholder="you@example.com" value="' + esc(st.loginEmail) + '" ' +
         onInput(e => { if (e.type === 'input') setState({ loginEmail: e.target.value.slice(0, 80) }); }) +
         ' style="width:100%;height:54px;border:2px solid #e3e5ec;border-radius:16px;padding:0 18px;font-family:inherit;font-size:17px;font-weight:500;color:#11131f;background:#fff;outline:none">' +
-      '<button type="button" data-enter ' + on(invSendCode) + ' aria-disabled="' + !emailOk + '" style="margin-top:10px;' + invPrimary(emailOk) + '">' + (busy === 'send' ? 'Sending…' : 'Email login code') + '</button>';
+      '<button type="button" data-enter ' + on(invSendCode) + ' aria-disabled="' + !emailOk + '" style="margin-top:10px;' + invPrimary(emailOk) + '">' + (busy === 'send' ? 'Sending…' : 'Email sign-in code') + '</button>';
     const privacy = '<p data-inv-privacy style="margin:6px 0 0;text-align:center;font-size:13px;color:#8a8fa0">Group admins can see your email. <a href="/privacy.html" target="_blank" rel="noopener" style="font-weight:800;color:#5b4ae8">Privacy</a></p>';
     const body = IN_APP
       ? email + privacy +
@@ -10284,18 +10284,19 @@
     onInput(e => onChange(e.target.value.replace(/\D/g, '').slice(0, 8))) +
     ' style="width:100%;background:#fff;border:2px solid #e6e7eb;border-radius:14px;padding:14px 16px;font-family:inherit;font-size:' + (size || 26) + 'px;font-weight:800;letter-spacing:10px;text-align:center;color:#0d1117;outline:none">';
 
-  const DEFAULT_LEAD = 'Your events, groups, and name are saved to your account. ';   // not shown: with Google it's "Two ways to log in:" (owner, 2026-10-07)
+  const DEFAULT_LEAD = 'Your events, groups, and name are saved to your account. ';   // not shown: with Google it's "Two ways to sign in:" (owner, 2026-10-07)
   function viewLogin() {
     const st = state, busy = st.busy;
     if (st.loginStep === 'email') {
       // Opened from Welcome's "Continue with email": just the email field (owner, 2026-09-30)
       const emailOk = EMAIL_OK.test(st.loginEmail.trim()), withGoogle = GOOGLE_ON && !st.loginEmailOnly;
       // Design v8's lines (the privacy line under the form waits on the owner)
-      const lead = { reminder: 'Your RSVP comes with you, and then we can remind you. ', post: 'Sign in to put your Idea up. ', guest: 'Your name fills in, and everything you add is saved to your account. ', account: 'It takes a minute, and you can vote, sign up and get reminders. ', join: 'Sign in to join a group. ', friend: 'Sign in to add your friend. ', discussion: 'Sign in to read the discussion and join in. ' }[st.loginFrom] ||
+      const lead = { reminder: 'Your RSVP comes with you, and then we can remind you. ', guest: 'Your name fills in, and everything you add is saved to your account. ', account: 'It takes a minute, and you can vote, sign up and get reminders. ', join: 'Sign in to join a group. ', friend: 'Sign in to add your friend. ', discussion: 'Sign in to read the discussion and join in. ' }[st.loginFrom] ||
         DEFAULT_LEAD;
       return modal('Sign in', closeLogin,
-        h3Html(st.loginFrom === 'post' ? 'Sign in to post your event' : st.loginFrom === 'account' || st.loginFrom === 'reminder' ? 'Create a free account' : 'Sign in / Create an Account') +
-        (withGoogle ? paraHtml(lead === DEFAULT_LEAD ? 'Two ways to log in:' : lead.trim()) : paraHtml((lead === DEFAULT_LEAD ? '' : lead) + 'We’ll email you a 6-digit code. No password.')) +   // owner, 2026-10-07: no Use Google… line beside the Google button
+        // one heading for every opening (owner, 2026-10-07: was Create a free account / Sign in to post your event)
+        h3Html('Sign In / Create Account') +
+        (withGoogle ? paraHtml(lead === DEFAULT_LEAD ? 'Two ways to sign in:' : lead.trim()) : paraHtml((lead === DEFAULT_LEAD ? '' : lead) + 'We’ll email you a 6-digit code. No password.')) +   // owner, 2026-10-07: no Use Google… line beside the Google button
         (st.googleFailed
           ? '<div role="alert" style="display:flex;align-items:flex-start;gap:9px;background:#fdeef0;border:1.5px solid #f5c2cb;border-radius:14px;padding:11px 13px">' +
               '<span style="flex:0 0 18px;width:18px;height:18px;margin-top:1px;border-radius:999px;background:#9b1c31;color:#fff;font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center">!</span>' +
@@ -10307,7 +10308,7 @@
           : '') +
         '<input class="fld" type="email" inputmode="email" maxlength="80" autocomplete="email" autocapitalize="off" spellcheck="false" aria-label="Email" placeholder="you@example.com" value="' + esc(st.loginEmail) + '" ' +
           onInput(e => setState({ loginEmail: e.target.value.slice(0, 80) })) + ' style="' + FIELD + '">' +
-        '<button type="button" data-enter ' + on(() => { if (emailOk && !busy) sendCode(false); }) + ' aria-disabled="' + !(emailOk && !busy) + '" style="' + primary(emailOk && !busy) + '">' + (busy === 'send' ? 'Sending…' : 'Email login code') + '</button>' +
+        '<button type="button" data-enter ' + on(() => { if (emailOk && !busy) sendCode(false); }) + ' aria-disabled="' + !(emailOk && !busy) + '" style="' + primary(emailOk && !busy) + '">' + (busy === 'send' ? 'Sending…' : 'Email sign-in code') + '</button>' +
         inAppTip() + '<p style="margin:0;text-align:center;font-size:13px;line-height:1.45;font-weight:500;color:#6b7280"><a href="/privacy.html" target="_blank" rel="noopener" style="font-weight:800;color:#5b4ae8">Privacy</a></p>',
         { z: 32 });
     }

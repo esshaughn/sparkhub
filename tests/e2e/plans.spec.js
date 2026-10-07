@@ -145,7 +145,7 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     await expect(V.getByRole('navigation', { name: 'Main' })).toBeHidden();
     await VP.locator('[data-signup="Folding chairs"]').getByRole('button', { name: 'Sign up' }).click();
     const signIn = V.getByRole('dialog', { name: 'Sign in' });
-    await expect(signIn).toContainText('Create a free account');
+    await expect(signIn).toContainText('Sign In / Create Account');
     await expect(signIn).toContainText('It takes a minute, and you can vote, sign up and get reminders.');   // Design v8
     await signIn.getByRole('button', { name: 'Close' }).click();
     await expect(VP.locator('[data-signup="Folding chairs"]')).toContainText('1 of 2 open');   // still just Gus

@@ -25,7 +25,7 @@ test('a member with the link takes part; the lead picks and makes it a plan', as
     await expect(VD).toContainText(title.charAt(0).toUpperCase() + title.slice(1));
     await VD.locator('[data-im-interested]').click();
     const signIn = V.getByRole('dialog', { name: 'Sign in' });
-    await expect(signIn).toContainText('Create a free account');
+    await expect(signIn).toContainText('Sign In / Create Account');
     await signIn.getByRole('button', { name: 'Close' }).click();
     // Discussion is behind sign-in: a count card (v8-8 item 9)
     await expect(VD.locator('[data-disc-signin]')).toContainText('Sign in to read and join in');
