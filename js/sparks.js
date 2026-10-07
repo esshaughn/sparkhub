@@ -10435,7 +10435,7 @@
         '<div style="display:flex;flex-direction:column;gap:8px">' +
           step('#fdf1d6', '#f5b428', '#2a1d00', 1, 'Float an idea', '“Pickleball on Sunday mornings?”') +
           step('#fff1e8', '#e8661c', '#fff', 2, 'Everybody pitches in', 'Say you’re in, help pick a date, lend a hand') +
-          step('#f3f1fe', '#5b4ae8', '#fff', 3, 'It’s a plan', 'It’s on the calendar. See you there!') + '</div>',
+          step('#f3f1fe', '#5b4ae8', '#fff', 3, 'Make it a plan', 'It’s on the calendar. See you there!') + '</div>',
       // Help shape Spark Hub (owner, 2026-10-07): feedback wanted, from Eric, for communities. Guests send feedback without signing in
       kick('FEEDBACK WANTED') + h('Help shape Spark Hub') +
         '<div style="display:flex;align-items:center;gap:12px">' + ericFace(56) + '<span style="display:flex;flex-direction:column"><span style="font-size:17px;font-weight:900;color:#0d1117">Eric</span><span style="font-size:13.5px;font-weight:600;color:#6b7280">Spark Hub lead</span></span></div>' +
