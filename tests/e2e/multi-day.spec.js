@@ -18,41 +18,41 @@ test('multi-day: separate days, each-day RSVP, a job on one day, and a weekly ev
     await startPost(H);
     const flow = H.locator('[data-screen-label="New spark"]');
     await flow.getByLabel('Event title').fill(title);
+    // Date & time is a pop-up on the one page (v8-14)
+    await flow.locator('[data-cp-row="when"]').click();
+    const wp = H.locator('[data-ev-pop="when"]');
     // How long is it? One day to start; Separate days adds a Day 2 the day after Day 1
-    await expect(flow.locator('[data-day-type]')).toContainText('One day');
-    await pickDate(flow, d1);
-    await flow.locator('[data-day-type]').click();
+    await expect(wp.locator('[data-day-type]')).toContainText('One day');
+    await pickDate(wp, d1);
+    await wp.locator('[data-day-type]').click();
     const how = H.getByRole('dialog', { name: 'How long is it?' });
     await expect(how.getByRole('radio')).toHaveCount(4);
     await expect(how.getByRole('radio', { name: /One day/ })).toHaveAttribute('aria-checked', 'true');
     await how.getByRole('radio', { name: /Separate days/ }).click();
     await how.getByRole('button', { name: 'Done' }).click();
     await expect(how).toHaveCount(0);
-    await expect(flow.locator('[data-day-type]')).toContainText('Separate days');
+    await expect(wp.locator('[data-day-type]')).toContainText('Separate days');
     // Times are typed: "10am", "4p", and something unreadable says how to write it
-    await timeBox(flow, 'Day 1 start').fill('abc');
-    await timeBox(flow, 'Day 1 start').press('Enter');
+    await timeBox(wp, 'Day 1 start').fill('abc');
+    await timeBox(wp, 'Day 1 start').press('Enter');
     await expect(H.getByText('Try a time like 10am or 4:30pm')).toBeVisible();
-    await timeBox(flow, 'Day 1 start').fill('10am');
-    await timeBox(flow, 'Day 1 start').press('Enter');
-    await expect(timeBox(flow, 'Day 1 start')).toHaveValue('10:00am');
-    await timeBox(flow, 'Day 1 end').fill('4p');
-    await timeBox(flow, 'Day 1 end').press('Enter');
-    await expect(timeBox(flow, 'Day 1 end')).toHaveValue('4:00pm');
-    await expect(flow.getByRole('button', { name: 'Day 2 date', exact: true })).toBeVisible();
-    await timeBox(flow, 'Day 2 start').fill('12');   // a bare 12 is noon
-    await timeBox(flow, 'Day 2 start').press('Enter');
-    await expect(timeBox(flow, 'Day 2 start')).toHaveValue('12:00pm');
-    await timeBox(flow, 'Day 2 end').fill('5');      // a bare hour up to 6 is pm
-    await timeBox(flow, 'Day 2 end').press('Enter');
-    await expect(timeBox(flow, 'Day 2 end')).toHaveValue('5:00pm');
-    await flow.getByRole('radio', { name: 'Each day' }).click();
-    await expect(flow.getByRole('radio', { name: 'Each day' })).toHaveAttribute('aria-checked', 'true');
-    await flow.getByRole('button', { name: 'Next', exact: true }).click();
-    await flow.getByText('Add later', { exact: true }).click();
-    await flow.getByText('None needed', { exact: true }).click();
-    await expect(flow.locator('[data-ready-count]')).toBeVisible();
-    await expect(flow).toContainText('· 2 days');
+    await timeBox(wp, 'Day 1 start').fill('10am');
+    await timeBox(wp, 'Day 1 start').press('Enter');
+    await expect(timeBox(wp, 'Day 1 start')).toHaveValue('10:00am');
+    await timeBox(wp, 'Day 1 end').fill('4p');
+    await timeBox(wp, 'Day 1 end').press('Enter');
+    await expect(timeBox(wp, 'Day 1 end')).toHaveValue('4:00pm');
+    await expect(wp.getByRole('button', { name: 'Day 2 date', exact: true })).toBeVisible();
+    await timeBox(wp, 'Day 2 start').fill('12');   // a bare 12 is noon
+    await timeBox(wp, 'Day 2 start').press('Enter');
+    await expect(timeBox(wp, 'Day 2 start')).toHaveValue('12:00pm');
+    await timeBox(wp, 'Day 2 end').fill('5');      // a bare hour up to 6 is pm
+    await timeBox(wp, 'Day 2 end').press('Enter');
+    await expect(timeBox(wp, 'Day 2 end')).toHaveValue('5:00pm');
+    await wp.getByRole('radio', { name: 'Each day' }).click();
+    await expect(wp.getByRole('radio', { name: 'Each day' })).toHaveAttribute('aria-checked', 'true');
+    await wp.getByRole('button', { name: 'Done', exact: true }).click();
+    await expect(flow.locator('[data-cp-row="when"]')).toContainText('2 days');
     await flow.locator('[data-post]').click();
     await expect(H.locator('[data-screen-label="Plan page"]')).toBeVisible();
     await closeAskFirst(H);

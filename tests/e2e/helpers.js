@@ -259,54 +259,48 @@ async function openIdea(page, id) {
   await expect(page.locator('[data-screen-label="Idea page"], [data-screen-label="Idea page (8b)"], [data-screen-label="Plan page"], [data-screen-label="It happened"]')).toBeVisible();   // (8b): a floated idea (v8-4)
 }
 
-// Plan an event (v8-6): 1 · Title, date & location · 2 · What to expect · 3 · Join in · 4 · Review. The date is required;
-// What to expect has Add later and Join in has None needed. Whoever posts it leads it. Returns its id.
+// Plan an event (v8-14): one page. The title in the header, Date & time and Location in their pop-ups, the description,
+// + Add a job (its kinds pop-up, then the job pop-up), Public / Private, Post it. Whoever posts it leads it. Returns its id.
+// `details` go into the description as sentences.
 async function postEvent(page, { title, date, time, where, pick, details = [], jobs = [], inviteOnly = false, photo = false }) {
   await startPost(page);
   const flow = page.locator('[data-screen-label="New spark"]');
-  const next = () => flow.getByRole('button', { name: 'Next', exact: true }).click();
-  await expect(flow).toContainText('1/4');
+  await expect(flow.locator('[data-screen-label="Create event (1a)"]')).toBeVisible();
   if (photo) await flow.getByLabel('Add a cover photo').setInputFiles({ name: 'photo.png', mimeType: 'image/png', buffer: PNG });
   await flow.getByLabel('Event title').fill(title);
-  await pickDate(flow, date);
+  await flow.locator('[data-cp-row="when"]').click();
+  const when = page.locator('[data-ev-pop="when"]');
+  await pickDate(when, date);
   if (time) {
-    await flow.getByRole('button', { name: 'Start time' }).click();
-    await pickTime(flow, time);
+    await when.getByRole('button', { name: 'Start time' }).click();
+    await pickTime(when, time);
   }
+  await when.getByRole('button', { name: 'Done' }).click();
   if (where) {
-    await flow.getByLabel('Location name').fill(where);
+    await flow.locator('[data-cp-row="where"]').click();
+    const at = page.locator('[data-ev-pop="where"]');
+    await at.getByLabel('Location name').fill(where);
     if (pick) await page.getByRole('group', { name: 'Suggested places' }).getByRole('button', { name: new RegExp(pick) }).click();
+    await at.getByRole('button', { name: 'Done' }).click();
   }
-  await next();
-
-  await expect(flow).toContainText('2/4');
-  if (details.length) {
-    await flow.locator('[data-add-details]').click();
-    for (let i = 0; i < details.length; i++) await flow.getByLabel('Details, line ' + (i + 1)).fill(details[i]);
-    await next();
-  } else await flow.getByText('Add later', { exact: true }).click();
-
-  await expect(flow).toContainText('3/4');
-  if (jobs.length) {
-    for (const j of jobs) {
-      await flow.locator('[data-job-chip="Other"]').click();   // HELP's Other (PARTICIPATE has one too)
-      const sheet = page.getByRole('dialog', { name: 'Add a job' });
-      await sheet.getByLabel('Job name').fill(j.item);
-      for (let n = 1; n < (j.need || 1); n++) await sheet.getByRole('button', { name: 'More for how many people' }).click();
-      await sheet.getByRole('button', { name: 'Save', exact: true }).click();
-    }
-    await next();
-  } else await flow.getByText('None needed', { exact: true }).click();
-
-  // Review (v8-8: the card is titled Review, no REVIEW eyebrow), then Post to with Public / Private
-  await expect(flow.locator('[data-ready-count]')).toBeVisible();
-  await expect(flow).toContainText('4/4');
+  if (details.length) await flow.getByLabel('Event description').fill(details.map(d => /[.!?]$/.test(d) ? d : d + '.').join(' '));
+  for (const j of jobs) await addJob1a(page, j);
   if (inviteOnly) await flow.getByRole('radio', { name: /^Private/ }).click();
   await flow.locator('[data-post]').click();
   await expect(page.locator('[data-screen-label="Plan page"]')).toBeVisible();
   await expect(page.getByText('It’s on the books')).toHaveCount(0);   // no chip over a new plan (owner, 2026-10-01)
   await closeAskFirst(page);
   return ideaIdFromUrl(page);
+}
+// + Add a job on the one page (v8-14): Write your own, then the job pop-up
+async function addJob1a(page, { item, need = 1 }) {
+  await page.locator('[data-cp-add-job]').click();
+  await page.getByRole('dialog', { name: 'Add a job' }).locator('[data-job-chip="Other"]').click();
+  const sheet = page.getByRole('dialog', { name: 'Add a job' });
+  await sheet.getByLabel('Job name').fill(item);
+  for (let n = 1; n < need; n++) await sheet.getByRole('button', { name: 'More for how many people' }).click();
+  await sheet.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(sheet).toHaveCount(0);
 }
 // Posting a real event opens Invite people with "Events with a friend or two in…" (research review, 2026-10-01; v8-7 title)
 async function closeAskFirst(page) {
@@ -403,6 +397,7 @@ async function rsvpTap(scope, label) {
 const rsvpBar = (scope, k) => scope.locator('[data-rsvp-bar="' + k + '"]');
 
 module.exports = {
+  addJob1a,
   rsvpTap, rsvpBar,
   TAG, TORREZ, PNG, leadEmail, uniqueTitle, startPost, startFloat, openTasks, openAllGroups, openProfile, saved, pickView, mockPlaces, stubPhotos, trackErrors, expectConnected, newMember, newLead, button,
   postIdea, postEvent, closeAskFirst, pickDate, pickTime, timeBox, pickKind, addJob, answerNamePrompt, answerGuestPrompt, donePlus, ideaIdFromUrl, openIdea, confirm, deleteIdea, asUser

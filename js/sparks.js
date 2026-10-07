@@ -261,7 +261,8 @@
     evDayType: 'one', evRepeat: 'week', evRepeatUntil: '', evEndDate: '', evEndDateT: '', evDays: [], evDaysEach: false, dayTypePop: null,   // how long it is (v8-7)
     locText: '', locPlace: null, locSuggest: [], locAddr: '',   // v8-8 item 8: Location name + Address
     evBits: ['', '', ''], evOverview: '', evNeed: null, evTags: [], evNeeds: [], evDatePoll: null, evSpotPoll: null, evLater: {}, evHelpNone: false,
-    evPriv: false, evNoGuestInv: true, evTest: null, evFloat: false, evGrpNone: false, evTitleEd: false, evDetOpen: false, evPop: null, evGroups: null, evDraftId: null, evLeave: false, evLeaveTo: null, evFrom: null, pollSheet: null, needSheet: null, evFromReview: false,
+    evDesc: '', evInspo: [], evJobPop: false, evGrpPop: false,   // v8-14 Plan an event on one page: description, inspo photos, its two pop-ups
+    evPriv: false, evNoGuestInv: null, evTest: null, evFloat: false, evGrpNone: false, evTitleEd: false, evDetOpen: false, evPop: null, evGroups: null, evDraftId: null, evLeave: false, evLeaveTo: null, evFrom: null, pollSheet: null, needSheet: null, evFromReview: false,
     evFromIdea: null, evIdeaJobs: []   // Make it a plan! on an idea (v8-8): Post it turns that idea into the event, its jobs and spots stay
   });
   const state = Object.assign({
@@ -2077,7 +2078,8 @@
 
   // "Do it again": a new event with the place and details filled in
   const doItAgain = (s) => goCompose({ activity: s.text.slice(0, 60), evTags: (s.tags || []).slice(0, 2), evTest: !!(s.test || s.demo), locText: s.spot || '', locPlace: s.spotAddress ? { name: s.spot, address: s.spotAddress, lat: s.spotPoint && s.spotPoint[0], lon: s.spotPoint && s.spotPoint[1] } : null, locAddr: s.spotAddress || '',
-    evBits: [0, 1, 2].map(i => (basicsOf(s)[i] || '').slice(0, 60)), evOverview: (s.overview || '').slice(0, 80) });
+    // v8-14: the one page has a description, not detail lines: the old event's details come back as its sentences
+    evDesc: basicsOf(s).map(b => /[.!?]$/.test(b) ? b : b + '.').join(' ').slice(0, 200), evOverview: (s.overview || '').slice(0, 80) });
 
   // Several at once: as many as there's room for, then one save
   const addMood = async (s, fileList) => {
@@ -2283,7 +2285,7 @@
 
   const GOOGLE_ON = !!CFG.googleSignIn;
   const RESUME_KEY = 'spark-hub-google-resume';
-  const DRAFT_KEYS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'locText', 'locPlace', 'locAddr', 'evBits', 'evOverview', 'evNeed', 'evTags', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evNoGuestInv', 'evTest', 'evFloat', 'evHelpNone', 'evGroups', 'coverPos', 'evPhotoPath', 'evDraftId'];
+  const DRAFT_KEYS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'locText', 'locPlace', 'locAddr', 'evBits', 'evOverview', 'evDesc', 'evNeed', 'evTags', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evNoGuestInv', 'evTest', 'evFloat', 'evHelpNone', 'evGroups', 'coverPos', 'evPhotoPath', 'evDraftId'];
   const readResume = () => {
     try {
       const r = JSON.parse(sessionStorage.getItem(RESUME_KEY));
@@ -6230,9 +6232,10 @@
 
   // ---- v6 Update 6: the host edits one section at a time in a small sheet (the full-screen editor is retired)
   const openSec = (s, kind) => {
-    const bits = basicsOf(s).slice(0, 3).map(b => b.slice(0, 60));
+    const desc = !s.hopes.length && s.vision && s.vision.trim() && isLead(s) ? s.vision.trim().slice(0, 200) : null;   // v8-14: a description is edited whole
+    const bits = desc != null ? ['', '', ''] : basicsOf(s).slice(0, 3).map(b => b.slice(0, 60));
     while (bits.length < 3) bits.push('');
-    setState({ sec: { id: s.id, kind, title: s.text, ...whenModelOf(s), bits, ov: s.overview || '', need: s.minPeople || null, tags: (s.tags || []).slice(), priv: s.visibility === 'invite', guestInv: s.guestInvites !== false, groups: gIds(s).slice() },
+    setState({ sec: { id: s.id, kind, title: s.text, ...whenModelOf(s), bits, desc, ov: s.overview || '', need: s.minPeople || null, tags: (s.tags || []).slice(), priv: s.visibility === 'invite', guestInv: s.guestInvites !== false, groups: gIds(s).slice() },
       offerText: kind === 'when' ? s.spot || '' : '', offerPlace: s.spot && s.spotPoint ? { name: s.spot, address: s.spotAddress, lat: s.spotPoint[0], lon: s.spotPoint[1] } : null, offerSuggest: [], timeOpen: null, menu: null });
   };
   // Round 65a: what an edit would tell people. Since 2026-10-04 (owner, Design 30) saving an edit tells no one (secSends),
@@ -6281,7 +6284,8 @@
     if (ss.kind === 'details') {
       const hopes = ss.bits.map(b => b.trim().slice(0, 60)).filter(Boolean), overview = (ss.ov || '').trim().slice(0, 80);
       run(async () => {
-        if (lead) must(await sb.from('sparks').update(Object.assign({ hopes, overview: overview || null, vision: null, tags: (ss.tags || []).slice(0, 2) }, s.planned ? {} : { min_people: ss.need || null })).eq('id', s.id));
+        const desc = ss.desc != null ? ss.desc.trim().slice(0, 200) : null;
+        if (lead) must(await sb.from('sparks').update(Object.assign({ hopes: desc != null ? [] : hopes, overview: overview || null, vision: desc || null, tags: (ss.tags || []).slice(0, 2) }, s.planned ? {} : { min_people: ss.need || null })).eq('id', s.id));
         else must(await sb.rpc('admin_edit_spark', { p_spark: s.id, p_text: s.text, p_hopes: hopes, p_overview: overview }));
         if (send) await sendUpdate(s, msg);
       }, { sec: null }).then(ok => { if (ok) toast(send ? sentNote(s) : note, true); });
@@ -6464,7 +6468,8 @@
       ok = !(s.planned && !ss.d);
     } else if (ss.kind === 'details') {
       body = '<div style="display:flex;flex-direction:column;gap:12px">' +   // v8-12: no "Both parts are optional."
-        wteFields(ss.ov || '', (v) => set({ ov: v }), ss.bits, (k, v) => { const b = state.sec.bits.slice(); b[k] = v; set({ bits: b }); }) +
+        (ss.desc != null ? wteDesc(ss.ov || '', (v) => set({ ov: v }), ss.desc, (v) => set({ desc: v }))
+          : wteFields(ss.ov || '', (v) => set({ ov: v }), ss.bits, (k, v) => { const b = state.sec.bits.slice(); b[k] = v; set({ bits: b }); })) +
         (!s.planned && isLead(s) ? needRow(ss.need, (n) => set({ need: n })) : '') + '</div>';
     } else {
       const tile = (priv, name, sub) => { const onIt = ss.priv === priv;
@@ -7315,7 +7320,7 @@
     const tKey = (lead ? 'h:' : '') + s.id, tOpen = st.jobsOpen[tKey] == null ? true : !!st.jobsOpen[tKey];
     const T = lead ? { bar: '#f5f3fe', ink: '#4a3ad4', dot: '#7b6ef0', row: '#fdfcff', word: 'Your tasks' } : { bar: '#fff1e8', ink: '#b8480c', dot: '#e8661c', row: '#fffbf8', word: 'You’re helping' };
     const tab = !tasks.length || s.cancelledAt ? '' :
-      '<div data-screen-label="' + T.word + '" style="border-radius:0 0 24px 24px;overflow:hidden;box-shadow:0 1px 3px rgba(15,18,25,.08)">' +
+      '<div data-screen-label="' + T.word + '" style="position:relative;z-index:2;margin-top:-22px;background:#fff;border-radius:22px 22px 24px 24px;overflow:hidden;box-shadow:0 1px 3px rgba(15,18,25,.08)">' +
         '<div ' + on(() => setState({ jobsOpen: Object.assign({}, st.jobsOpen, { [tKey]: !tOpen }) })) + ' aria-expanded="' + tOpen + '" data-' + (lead ? 'host-tasks' : 'helping') + '-bar style="display:flex;align-items:center;gap:8px;min-height:48px;padding:0 18px;background:' + T.bar + ';color:' + T.ink + ';font-size:15.5px;font-weight:800;cursor:pointer">' +
           ic6('clip', 18, T.ink, 2.2) + '<span style="flex:1">' + T.word + '</span>' +
           (tOpen ? '' : '<span style="font-size:14.5px;font-weight:800">' + tasks.length + (tasks.length === 1 ? ' task' : ' tasks') + '</span>') +
@@ -7388,7 +7393,10 @@
       // a neutral scrim (Design v8; it was green)
       phaseHeader(s, 340, 'linear-gradient(to top, rgba(13,17,23,.9) 0%, rgba(13,17,23,.45) 55%, rgba(13,17,23,.3) 100%)',
         dateTile(s, '#149a4b', true) +
-        '<div style="position:absolute;left:20px;right:20px;bottom:20px;color:#fff;display:flex;align-items:flex-end;gap:14px"><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px">' +
+        // v8-14 prototype (unlisted): a grey cap with rounded top corners closes the photo, so the page reads as a sheet
+        // over it; Your tasks / You're helping tuck up into it (the title sits 38px up to clear it)
+        '<div aria-hidden="true" data-ev-cap style="position:absolute;left:0;right:0;bottom:-1px;height:23px;z-index:1;border-radius:22px 22px 0 0;background:#e8eaee"></div>' +
+        '<div style="position:absolute;left:20px;right:20px;bottom:38px;color:#fff;display:flex;align-items:flex-end;gap:14px"><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px">' +
           // v8-12 (8a): no HAPPENING / YOU'RE LEADING chip; the row shows only for CANCELLED and/or PRIVATE
           (s.cancelledAt || s.visibility === 'invite' || isDemo(s) ? '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
             (s.cancelledAt ? '<span data-cancelled style="display:flex;align-items:center;border-radius:999px;padding:5px 11px;background:#9b1c31;font-size:12px;font-weight:900;letter-spacing:.9px">CANCELLED</span>'
@@ -8662,7 +8670,7 @@
   // Older events kept several sentences in one line, or a paragraph in `vision` (the retired "What you're picturing";
   // only demo events have one): one bullet per sentence. Saving Basic details moves it into the bullets.
   const splitBits = (arr) => [].concat(...(arr || []).map(b => String(b || '').split(/(?<=[.!?])\s+/))).map(x => x.trim()).filter(Boolean);
-  const basicsOf = (s) => s.hopes.length ? s.hopes.map(x => String(x || '').trim()).filter(Boolean) : splitBits([s.vision]);   // a line is never split at its sentences (owner, 2026-10-01)
+  const basicsOf = (s) => s.hopes.length ? s.hopes.map(x => String(x || '').trim()).filter(Boolean) : s.vision && s.vision.trim() ? [s.vision.trim()] : [];   // v8-14: a description is one paragraph   // a line is never split at its sentences (owner, 2026-10-01)
   const evPhotoUrl = (st) => st.photos[0] ? st.photos[0].url : (PHOTO_PATH.test(st.evPhotoPath || '') ? photoUrl(st.evPhotoPath) : null);
   // Page 1 needs a title and a date (or a date poll), v8-6
   const evFilled = (st) => ({ title: !!cleanTitle(st.activity) && (!!st.evDate || !!st.evDatePoll), when: !!st.evDate || !!st.evDatePoll, where: !!cleanTitle(st.locText) || !!st.evSpotPoll,
@@ -8671,7 +8679,9 @@
   const dayLabel = (d, t, e) => d ? fmtDay(d) + (t ? ' · ' + (e ? spanTime({ time: t, endTime: e }) : fmtTime(t)) : '') : '';
   const jobMeta = (j) => j.kind ? partMeta(j) : (j.day ? wkDay(j.day) + ' · ' : '') + (j.shifts ? j.shifts.length + (j.shifts.length === 1 ? ' shift' : ' shifts')
     : (j.need ? j.need + (j.need === 1 ? ' person' : ' people') : 'Anyone') + (j.time ? ' · ' + fmtTime(j.time) : ''));
-  const evStarted = (st) => !!(cleanTitle(st.activity) || st.evDate || st.evDatePoll || cleanTitle(st.locText) || st.evSpotPoll || st.evBits.some(b => b.trim()) || !!(st.evOverview || '').trim() || st.evNeeds.length);
+  const evStarted = (st) => !!(cleanTitle(st.activity) || st.evDate || st.evDatePoll || cleanTitle(st.locText) || st.evSpotPoll || st.evBits.some(b => b.trim()) || !!(st.evOverview || '').trim() || st.evNeeds.length || !!(st.evDesc || '').trim() || (st.evInspo || []).length);
+  // People can invite friends (v8-14): on by default for Public, off for Private; switching it sticks until Public / Private changes
+  const evGuestInv = (st) => st.evNoGuestInv == null ? !st.evPriv : !st.evNoGuestInv;
   const evGroupIds = (st) => {
     if (st.evGrpNone) return [];
     const mine = myGroups().map(g => g.id), list = (st.evGroups || []).filter(id => mine.indexOf(id) > -1), g = currentGroup();
@@ -8777,6 +8787,14 @@
     needName(postEvent);
   }, 'post');
 
+  // Inspo photos (v8-14, up to 3: the event's mood photos): new ones are uploaded, a draft's are reused
+  const inspoUp = async (st) => {
+    const paths = [], fresh = [];
+    try {
+      for (const q of (st.evInspo || []).slice(0, 3)) { if (q.path) paths.push(q.path); else { const p = await uploadBlob(q.blob); paths.push(p); fresh.push(p); } }
+    } catch (e) { deletePhotos(fresh); throw e; }
+    return { paths, fresh };
+  };
   // The cover: a new photo is uploaded; a draft's saved one is reused as it is
   const evCover = async (st) => {
     if (st.photos[0]) {
@@ -8837,7 +8855,7 @@
         must(await sb.from('sparks').update(Object.assign({
           text: cleanTitle(st.activity).slice(0, 60), hopes: st.evBits.map(b => b.trim().slice(0, 60)).filter(Boolean), overview: (st.evOverview || '').trim().slice(0, 120) || null,
           ...evSpotCols(st),
-          visibility: st.evPriv ? 'invite' : 'group', guest_invites: !st.evNoGuestInv, tags: (st.evTags || []).slice(0, 2),
+          visibility: st.evPriv ? 'invite' : 'group', guest_invites: evGuestInv(st), tags: (st.evTags || []).slice(0, 2),
           cover_pos: cover && st.coverPos ? posOf(st.coverPos, IDEA_POS) : null
         }, c)).eq('id', s.id));
         // A new cover goes through set_idea_cover() (photos isn't client-updatable); the old one is deleted
@@ -8864,29 +8882,31 @@
     if (state.evFromIdea) { planIdea(); return; }
     const st = state, groups = evGroupIds(st);
     if (!groups.length || st.busy || !cleanTitle(st.activity)) return;
-    if (st.evDate && st.evDate < todayISO()) { evGo('when'); toast('That date has passed. Pick a new one.'); return; }
+    if (st.evDate && st.evDate < todayISO()) { setState({ evPop: 'when' }); toast('That date has passed. Pick a new one.'); return; }
     const place = st.locPlace && cleanTitle(st.locText) ? st.locPlace : null, spot = cleanTitle(st.locText).slice(0, 80) || null;
     const who = (st.myName || 'Someone').slice(0, 40), dated = !!st.evDate, float = !!st.evFloat, plan = dated && !float;   // a date posts it as a plan; without one, or floated (no lead yet), it's an idea
-    let id = null, cover = null;
+    let id = null, cover = null, insp = null;
     setState({ busy: 'post' });
     (async () => {
       try {
         await ensureSession();
         cover = await evCover(st);
+        insp = await inspoUp(st);
         const row = {
           group_id: groups[0], author_name: st.myName, text: cleanTitle(st.activity).slice(0, 60),
-          hopes: st.evBits.map(b => b.trim().slice(0, 60)).filter(Boolean), vision: null, overview: (st.evOverview || '').trim().slice(0, 80) || null,
-          photos: cover ? [cover.path] : [], cat: 'events', answers: {}, lead_id: st.me, lead_name: st.myName, created_by: st.me,
+          // v8-14: the one-page description (200) is the event's details text, shown whole under What to expect
+          hopes: (st.evDesc || '').trim() ? [] : st.evBits.map(b => b.trim().slice(0, 60)).filter(Boolean), vision: (st.evDesc || '').trim().slice(0, 200) || null, overview: (st.evOverview || '').trim().slice(0, 80) || null,
+          mood: insp.paths, photos: cover ? [cover.path] : [], cat: 'events', answers: {}, lead_id: st.me, lead_name: st.myName, created_by: st.me,
           ...evSpotCols(st),
           ...(() => { const c = whenCols(evWhen()); if (!c.schedule) delete c.schedule; return c; })(),   // multi-day: day_date is the first day, schedule the rest (v8-7)
-          planned: plan, visibility: st.evPriv ? 'invite' : 'group', guest_invites: !st.evNoGuestInv, min_people: dated || !MIN_PEOPLE ? null : st.evNeed || null, tags: (st.evTags || []).slice(0, 2),
+          planned: plan, visibility: st.evPriv ? 'invite' : 'group', guest_invites: evGuestInv(st), min_people: dated || !MIN_PEOPLE ? null : st.evNeed || null, tags: (st.evTags || []).slice(0, 2),
           cover_pos: cover && st.coverPos ? posOf(st.coverPos, IDEA_POS) : null
         };
         if (float) row.wants_host = true;
         if (st.evHelpNone && !st.evNeeds.length) row.no_help = true;   // No help needed counts as the Jobs step (Design 23C1)   // Just float the idea: it goes up looking for a lead, and the group gets no push (20261102020000_float_and_ask.sql)
         try {
           id = must(await sb.from('sparks').insert(row).select('id').single()).data.id;
-        } catch (e) { if (cover && cover.fresh) deletePhotos([cover.path]); throw e; }
+        } catch (e) { if (cover && cover.fresh) deletePhotos([cover.path]); deletePhotos(insp.fresh); throw e; }
         try {
           // The extra groups, the polls and the jobs don't depend on each other, so they go at once (one wait on a slow
           // connection instead of one each; Jeni Wade's demo, 2026-10-05). Jobs stay in order among themselves
@@ -8899,6 +8919,7 @@
         } catch (e) {   // don't leave half an event up
           await sb.from('sparks').delete().eq('id', id);
           if (cover && cover.fresh) deletePhotos([cover.path]);
+          deletePhotos(insp.fresh);
           throw e;
         }
         // It's posted: from here a failed tidy-up or refresh mustn't show "didn't go through" (a second tap would post it twice)
@@ -8924,23 +8945,25 @@
   };
 
   // Drafts: the flow's own fields, saved to your account (only you see them)
-  const DRAFT_FIELDS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'evDayType', 'evRepeat', 'evRepeatUntil', 'evEndDate', 'evEndDateT', 'evDays', 'evDaysEach', 'locText', 'locPlace', 'locAddr', 'evBits', 'evOverview', 'evNeed', 'evTags', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evNoGuestInv', 'evTest', 'evFloat', 'evHelpNone', 'evGroups', 'coverPos'];
+  const DRAFT_FIELDS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'evDayType', 'evRepeat', 'evRepeatUntil', 'evEndDate', 'evEndDateT', 'evDays', 'evDaysEach', 'locText', 'locPlace', 'locAddr', 'evBits', 'evOverview', 'evDesc', 'evNeed', 'evTags', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evNoGuestInv', 'evTest', 'evFloat', 'evHelpNone', 'evGroups', 'coverPos'];
   const saveDraft = () => {
     const st = state;
     if (st.busy) return;
     if (!cleanTitle(st.activity)) { setState({ evLeave: false, evLeaveTo: null }); evGo('title'); toast('Add a title first'); return; }
     setState({ busy: 'draft' });
     (async () => {
-      let cover = null;
+      let cover = null, insp = null;
       try {
         await ensureSession();
         cover = await evCover(st);
         const data = {};
         DRAFT_FIELDS.forEach(k => { data[k] = st[k]; });
         data.evPhoto = cover ? cover.path : null;
+        insp = await inspoUp(st);
+        data.evInspo = insp.paths;
         if (st.evDraftId) must(await sb.from('event_drafts').update({ data, updated_at: new Date().toISOString() }).eq('id', st.evDraftId));
         else must(await sb.from('event_drafts').insert({ data }));
-        cover = null;   // saved: the draft now points at this photo, so a later failure mustn't delete it
+        cover = null; insp = null;   // saved: the draft now points at these photos, so a later failure mustn't delete them
         if (st.evPhotoPath && data.evPhoto !== st.evPhotoPath) deletePhotos([st.evPhotoPath]);
         await freshAfterSave();
         const to = state.evLeaveTo;
@@ -8950,6 +8973,7 @@
       } catch (e) {
         console.error(e);
         if (cover && cover.fresh) deletePhotos([cover.path]);
+        if (insp) deletePhotos(insp.fresh);
         setState({ busy: null });
         toast(/too many drafts/.test(e.message || '') ? 'That’s a lot of drafts. Post or delete one first.' : FAILED);
       }
@@ -8961,9 +8985,11 @@
       activity: str(x.activity).slice(0, 60), evStep: x.evStep === 'lead' ? 'review' : EV_STEPS.concat('review').indexOf(x.evStep) > -1 ? x.evStep : 'title',   // an older draft on When or Where opens on page 1
       evDate: /^\d{4}-\d{2}-\d{2}$/.test(x.evDate || '') && x.evDate >= todayISO() ? x.evDate : '', evTime: str(x.evTime), evEnd: str(x.evEnd), evEndOn: !!x.evEndOn,
       locText: str(x.locText).slice(0, 80), locPlace: x.locPlace && typeof x.locPlace === 'object' ? x.locPlace : null, locAddr: str(x.locAddr).slice(0, 120),
-      evBits: [0, 1, 2].map(i => str((x.evBits || [])[i]).slice(0, 60)), evOverview: str(x.evOverview).slice(0, 80), evNeed: Number.isInteger(x.evNeed) && x.evNeed > 0 ? Math.min(x.evNeed, 99) : null, evTags: (arr(x.evTags) || []).filter(k => TYPES6.some(t => t[0] === k)).slice(0, 2), evNeeds: arr(x.evNeeds) || [],
+      evBits: ['', '', ''], evOverview: str(x.evOverview).slice(0, 80),
+      evDesc: (str(x.evDesc) || [0, 1, 2].map(i => str((x.evBits || [])[i]).trim()).filter(Boolean).map(b => /[.!?]$/.test(b) ? b : b + '.').join(' ')).slice(0, 200),
+      evInspo: (arr(x.evInspo) || []).filter(q => PHOTO_PATH.test(q || '')).slice(0, 3).map(path => ({ path, url: photoUrl(path) })), evNeed: Number.isInteger(x.evNeed) && x.evNeed > 0 ? Math.min(x.evNeed, 99) : null, evTags: (arr(x.evTags) || []).filter(k => TYPES6.some(t => t[0] === k)).slice(0, 2), evNeeds: arr(x.evNeeds) || [],
       evDatePoll: arr(x.evDatePoll), evSpotPoll: arr(x.evSpotPoll), evLater: x.evLater && typeof x.evLater === 'object' ? x.evLater : {},
-      evPriv: !!x.evPriv, evNoGuestInv: !!x.evNoGuestInv, evTest: typeof x.evTest === 'boolean' ? x.evTest : null, evFloat: false,   // v8-6: the maker always leads it
+      evPriv: !!x.evPriv, evNoGuestInv: x.evNoGuestInv == null ? null : !!x.evNoGuestInv, evTest: typeof x.evTest === 'boolean' ? x.evTest : null, evFloat: false,   // v8-6: the maker always leads it
       evHelpNone: !!x.evHelpNone, evGroups: arr(x.evGroups), coverPos: x.coverPos || null,
       // How long it is (v8-7)
       evDayType: ['one', 'repeat', 'span', 'days'].indexOf(x.evDayType) > -1 ? x.evDayType : 'one', evRepeat: REPEATS[x.evRepeat] ? x.evRepeat : 'week',
@@ -8982,6 +9008,8 @@
     ensureSession().then(() => sb.from('event_drafts').delete().eq('id', d.id)).then(r => {
       if (r.error) throw r.error;
       if (PHOTO_PATH.test((d.data || {}).evPhoto || '')) deletePhotos([d.data.evPhoto]);
+      const insp = ((d.data || {}).evInspo || []).filter(q => PHOTO_PATH.test(q || ''));
+      if (insp.length) deletePhotos(insp);
     }).catch(e => { console.error(e); setState({ drafts }); toast(failed(e)); });
   };
   const agoSaved = (t) => { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? 'Saved just now' : m < 60 ? 'Saved ' + m + ' min ago' : m < 1440 ? 'Saved ' + Math.round(m / 60) + 'h ago' : 'Saved ' + Math.round(m / 1440) + 'd ago'; };
@@ -9242,6 +9270,16 @@
         ' style="flex:1 1 auto;min-width:0;border:0;padding:0;background:transparent;font-family:inherit;font-size:18px;font-weight:500;color:#0d1117;outline:none">' +
       '<span style="font-size:11.5px;font-weight:700;color:#9aa0ac">' + ov.length + '/80</span></label>') +
     wtePart(2, 'Up to three details', '<div style="display:flex;flex-direction:column;gap:8px">' + bitRows(bits, setBit) + '</div>') + '</div>';
+  // An event posted from the one-page Plan an event (v8-14) has a description, not quick details: one growing box (200)
+  const wteDesc = (ov, setOv, desc, setDesc) => '<div data-wte style="display:flex;flex-direction:column;gap:10px">' +
+    wtePart(1, 'One-line overview', '<label style="display:flex;align-items:center;gap:10px;min-height:58px;padding:0 16px;border-radius:16px;background:#fff;box-shadow:inset 0 0 0 2px #dcdfe6;cursor:text">' +
+      '<input class="bit-fld" type="text" maxlength="80" data-overview-input aria-label="One-line overview" placeholder="' + esc(OVERVIEW_PH) + '" value="' + esc(ov) + '" ' + onInput(e => { if (e.type === 'input') setOv(e.target.value.slice(0, 80)); }) +
+        ' style="flex:1 1 auto;min-width:0;border:0;padding:0;background:transparent;font-family:inherit;font-size:18px;font-weight:500;color:#0d1117;outline:none">' +
+      '<span style="font-size:11.5px;font-weight:700;color:#9aa0ac">' + ov.length + '/80</span></label>') +
+    wtePart(2, 'Description', '<label style="position:relative;display:block;border-radius:16px;background:#fff;box-shadow:inset 0 0 0 2px #dcdfe6;cursor:text">' +
+      '<textarea class="bit-fld" maxlength="200" aria-label="Event description" placeholder="What’s the plan?" ' + onInput(e => { if (e.type === 'input') setDesc(e.target.value.slice(0, 200)); }) +
+        ' style="display:block;width:100%;box-sizing:border-box;min-height:96px;margin:0;padding:14px 56px 14px 16px;border:0;background:transparent;outline:none;resize:none;font-family:inherit;font-size:16px;line-height:1.45;font-weight:500;color:#0d1117;field-sizing:content">' + esc(desc) + '</textarea>' +
+      '<span style="position:absolute;right:14px;bottom:8px;font-size:11.5px;font-weight:700;color:#9aa0ac">' + desc.length + '/200</span></label>') + '</div>';
   // A starter chip leaves just its verb ("Bring "): Save waits for what (owner, 2026-09-30)
   const JOB_VERBS = ['bring', 'set up', 'help with', 'clean up', 'coordinate'];
   const jobNamed = (item) => { const t = cleanTitle(item || ''); return !!t && JOB_VERBS.indexOf(t.toLowerCase()) < 0; };
@@ -9285,7 +9323,148 @@
     setTimeout(() => { const f = document.querySelector('[data-job-name]'); if (f) { f.focus(); const n = f.value.length; try { f.setSelectionRange(n, n); } catch (e) { /* ignore */ } } }, 60);
   };
 
+  // Plan an event on one page (v8-14, "fill in place" 1a): it looks like the finished event page. A 360px header with the
+  // title and quick overview typed straight in, then WHEN & WHERE, EVENT DESCRIPTION, HOW TO PARTICIPATE and VISIBILITY
+  // cards (grey #dfe2e7 while empty, white once filled), then Post it and Save draft. Date & time and Location open
+  // Review's pop-ups; Make it a plan! from an idea keeps Review (viewCompose)
+  const addInspo = async (fileList) => {
+    const all = Array.from(fileList || []), room = 3 - (state.evInspo || []).length;
+    if (!all.length || room <= 0) return;
+    const blobs = await shrinkAll(all.slice(0, room));
+    if (!blobs.length) return;
+    setState({ evInspo: (state.evInspo || []).concat(blobs.map(blob => ({ blob, url: URL.createObjectURL(blob) }))).slice(0, 3) });
+    if (all.length > room) toast('Only 3 photos fit. Added the first ' + Math.min(room, blobs.length) + '.');
+  };
+  const dropInspo = (k) => { const q = (state.evInspo || [])[k]; if (q && q.blob) URL.revokeObjectURL(q.url); setState({ evInspo: (state.evInspo || []).filter((_, j) => j !== k) }); };
+  const CP_CAL = '<rect x="4" y="5.5" width="16" height="14.5" rx="2.5"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/>';
+  const CP_PIN = '<path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Z"/><circle cx="12" cy="10" r="2.4"/>';
+  const CP_INV = '<circle cx="9.5" cy="8" r="3.5"/><path d="M3 20a6.5 6.5 0 0 1 13 0"/><path d="M19 8v6M16 11h6"/>';
+  function viewCreate1a() {
+    const st = state, P = '#5b4ae8', url = evPhotoUrl(st), title = st.activity || '', place = cleanTitle(st.locText);
+    const close = () => { if (evStarted(st)) setState({ evLeave: true, timeOpen: null }); else evExit(); };
+    const dt = st.evDate ? new Date(st.evDate + 'T12:00') : null, dp = st.evDatePoll, sp = st.evSpotPoll;
+    const any = !!(dt || dp || place || sp), hasD = !!dt || !!dp, ready = !!cleanTitle(title) && hasD;
+    const WC = 'background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08)', GC = 'background:#dfe2e7;border-radius:18px';
+    const label = (t, opt) => '<div style="display:flex;align-items:baseline;gap:6px;padding:' + (opt === 0 ? '0' : '6px') + ' 4px 0"><span style="font-size:12.5px;font-weight:900;letter-spacing:1.2px;color:#454b55">' + t + '</span>' +
+      (opt ? '<span style="font-size:12.5px;font-weight:600;color:#9aa0ac">(optional)</span>' : '') + '</div>';
+    // Header: × (sticky), the calendar tile once there's a date, Add photo, the title and the quick overview
+    const tint = url ? '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top,rgba(13,17,23,.9),rgba(13,17,23,.4) 60%,rgba(13,17,23,.3))"></div>'
+      : sparkles([[70, 20, 16, '#fff', .9], [84, 50, 9, '#fff', .7], [60, 44, 7, '#fde39a', .9], [18, 26, 8, '#fff', .6]]);
+    const tile = !dt ? '' : '<span ' + on(() => setState({ evPop: 'when' })) + ' data-cp-tile aria-label="Change the date" style="position:absolute;top:74px;right:20px;width:82px;border-radius:16px;overflow:hidden;text-align:center;background:#fff;box-shadow:0 8px 20px rgba(0,0,0,.3);transform:rotate(5deg);cursor:pointer">' +
+      '<span style="display:block;background:#149a4b;color:#fff;font-size:13px;font-weight:900;letter-spacing:1px;padding:4px 0">' + dt.toLocaleDateString('en-US', { month: 'short' }).toUpperCase() + '</span>' +
+      '<span style="display:block;font-size:38px;line-height:1.15;font-weight:900;color:#0d1117">' + dt.getDate() + '</span>' +
+      '<span style="display:block;padding-bottom:6px;font-size:12.5px;font-weight:800;color:#6b7280">' + dt.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase() + '</span></span>';
+    const TA = 'display:block;width:100%;box-sizing:border-box;margin:0;padding:0;border:0;background:transparent;outline:none;resize:none;font-family:inherit;color:#fff;caret-color:#fff;overflow:hidden;field-sizing:content';
+    const hero = '<div style="position:relative;flex:0 0 auto;height:360px;overflow:hidden;background:' + (url ? '#2b303a ' + bg(url) : SPARKLE_GRAD) + '">' + tint + tile +
+      '<div style="position:absolute;left:20px;right:20px;bottom:20px;display:flex;flex-direction:column;gap:6px">' +
+        '<label data-cp-photo style="align-self:flex-start;margin-bottom:6px;display:flex;align-items:center;gap:6px;height:36px;padding:0 13px;border-radius:999px;background:rgba(255,255,255,.22);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);color:#fff;font-size:14px;font-weight:800;cursor:pointer">' +
+          svg(16, stroke('#fff', 2.2), CAMERA) + (url ? 'Change photo' : 'Add photo') + photoInput(url ? 'Change the cover photo' : 'Add a cover photo') + '</label>' +
+        '<textarea class="cp-hero-fld" rows="' + Math.max(1, Math.ceil(title.length / 13)) + '" maxlength="40" data-ev-title aria-label="Event title" placeholder="Event title" ' + onInput(e => { if (e.type === 'input') { const v = e.target.value.replace(/\n/g, '').slice(0, 40); if (v !== e.target.value) e.target.value = v; setState({ activity: v }); } }) +
+          ' style="' + TA + ';font-size:40px;line-height:1;font-weight:900;letter-spacing:-1.3px">' + esc(title) + '</textarea>' +
+        '<textarea class="cp-hero-fld" rows="' + Math.max(1, Math.ceil((st.evOverview || '').length / 32)) + '" maxlength="80" data-overview-input aria-label="Quick overview" placeholder="Add a quick overview" ' + onInput(e => { if (e.type === 'input') { const v = e.target.value.replace(/\n/g, ' ').slice(0, 80); if (v !== e.target.value) e.target.value = v; setState({ evOverview: v }); } }) +
+          ' style="' + TA + ';font-size:18px;line-height:1.4;font-weight:500">' + esc(st.evOverview || '') + '</textarea>' +
+      '</div></div>';
+    // WHEN & WHERE: two rows opening the Date & time and Location pop-ups; once one is filled the empty one reads purple
+    const wl = dt ? whenLabel(evWhen()) : '', cut = wl.indexOf(' · '), addr = place && !sp ? evSpotCols(st).spot_address || '' : '';
+    const wRow = (k, ic, main, sub, filled) => '<div ' + on(() => setState({ evPop: k })) + ' data-cp-row="' + k + '" style="display:flex;align-items:center;gap:12px;min-height:56px;padding:6px 16px;cursor:pointer">' +
+      '<span style="flex:0 0 20px;display:flex">' + svg(20, stroke(filled ? '#6b7280' : any ? P : '#454b55', 2.2), ic) + '</span>' +
+      '<div style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:16px;font-weight:800;color:' + (filled ? '#0d1117' : any ? P : '#454b55') + '">' + esc(main) + '</span>' +
+        (sub ? '<span style="font-size:14px;font-weight:500;color:#5c6270;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(sub) + '</span>' : '') + '</div></div>';
+    const ww = '<div data-cp-when-where style="' + (any ? WC : GC) + '">' +
+      wRow('when', CP_CAL, dp ? 'Voting on ' + dp.length + ' dates' : dt ? (cut > 0 ? wl.slice(0, cut) : wl) : 'Add date & time', dt && !dp && cut > 0 ? wl.slice(cut + 3) : '', !!(dt || dp)) +
+      '<div style="height:1px;margin:0 16px;background:' + (any ? '#eceef2' : '#d3d6dc') + '"></div>' +
+      wRow('where', CP_PIN, sp ? 'Voting on ' + sp.length + ' locations' : place || 'Add location (optional)', addr, !!(place || sp)) + '</div>';
+    // EVENT DESCRIPTION: one growing box (200) and up to 3 inspo photos (the event's mood photos; the database keeps 3)
+    const desc = st.evDesc || '', insp = st.evInspo || [], detOn = !!desc.trim() || insp.length > 0;
+    const thumbs = insp.map((q, k) => '<span style="position:relative;flex:0 0 52px;width:52px;height:52px;border-radius:12px;background:#2b303a ' + bg(q.url) + '">' +
+      '<span ' + on(() => dropInspo(k)) + ' aria-label="Remove photo" style="position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:999px;background:rgba(13,17,23,.55);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(9, '#fff', 3.4) + '</span></span>').join('');
+    const cam = insp.length >= 3 ? '' : '<label data-cp-inspo style="flex:0 0 52px;width:52px;height:52px;box-sizing:border-box;border-radius:12px;border:1.5px dashed #b9bcc4;display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(20, stroke('#9aa0ac', 2.2), CAMERA) +
+      '<input type="file" accept="image/*" multiple aria-label="Add inspo photos" ' + onInput(e => { if (e.type !== 'change') return; const f = Array.from(e.target.files || []); e.target.value = ''; addInspo(f); }) + ' style="display:none"></label>';
+    const descCard = '<div data-cp-desc style="' + (detOn ? WC : GC) + '"><div style="position:relative">' +
+        '<textarea class="cp-fld" maxlength="200" aria-label="Event description" placeholder="What’s the plan?" ' + onInput(e => { if (e.type === 'input') setState({ evDesc: e.target.value.slice(0, 200) }); }) +
+          ' style="display:block;width:100%;box-sizing:border-box;min-height:72px;margin:0;padding:14px 56px 14px 16px;border:0;background:transparent;outline:none;resize:none;font-family:inherit;font-size:16px;line-height:1.45;font-weight:500;color:#2a2f38;overflow:hidden;field-sizing:content">' + esc(desc) + '</textarea>' +
+        '<span style="position:absolute;right:14px;bottom:8px;font-size:11.5px;font-weight:700;color:#9aa0ac">' + desc.length + '/200</span></div>' +
+      '<div style="display:flex;align-items:center;gap:8px;padding:12px 16px;border-top:1px solid ' + (detOn ? '#f0f1f4' : '#d3d6dc') + '">' + thumbs + cam +
+        (insp.length ? '' : '<span aria-hidden="true" style="flex:0 0 52px;height:52px;box-sizing:border-box;border-radius:12px;border:1.5px dashed #b9bcc4"></span><span aria-hidden="true" style="flex:0 0 52px;height:52px;box-sizing:border-box;border-radius:12px;border:1.5px dashed #b9bcc4"></span>' +
+          '<span style="margin-left:4px;font-size:13.5px;font-weight:700;color:#6b7280">Add inspo photos</span>') + '</div></div>';
+    // HOW TO PARTICIPATE: the jobs (Edit, remove) and + Add a job, which opens the kinds pop-up
+    const needs = st.evNeeds || [];
+    const jobRows = needs.map((j, k) => { const edit = () => openJob(k, JSON.parse(JSON.stringify(j)));
+      return '<div data-job="' + esc(cleanTitle(j.item)) + '" style="padding:10px 0;border-bottom:1px solid #f0f1f4;display:flex;align-items:center;gap:8px">' +
+        '<div ' + on(edit) + ' style="flex:1;min-width:0;cursor:pointer"><div style="font-size:15.5px;font-weight:800;color:#0d1117;text-wrap:pretty">' + esc(cleanTitle(j.item)) + '</div>' +
+          '<div style="margin-top:2px;font-size:13px;font-weight:700;color:#454b55">' + esc(jobMeta(j)) + '</div>' +
+          (j.desc ? '<div style="margin-top:3px;font-size:13px;line-height:1.4;font-weight:500;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(j.desc) + '</div>' : '') + '</div>' +
+        '<span ' + on(edit) + ' style="flex:0 0 auto;display:flex;align-items:center;min-height:36px;padding:0 10px;font-size:13.5px;font-weight:800;color:' + P + ';cursor:pointer">Edit</span>' +
+        '<span ' + on(() => setState({ evNeeds: state.evNeeds.filter((_, x) => x !== k) })) + ' aria-label="Remove ' + esc(cleanTitle(j.item)) + '" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#f4f5f7;display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(15, stroke('#9b1c31', 2.2), TRASH_IC) + '</span></div>'; }).join('');
+    const helpCard = '<div data-cp-help style="' + (needs.length ? WC : GC) + '"><div style="padding:4px 16px 14px;display:flex;flex-direction:column;gap:10px">' + jobRows +
+      (needs.length ? '' : '<div style="display:flex;flex-direction:column;gap:4px;padding-top:12px"><span style="font-size:17px;line-height:1.35;font-weight:800;color:#0d1117">Need people to bring things or help out?</span><span style="font-size:14px;line-height:1.4;font-weight:500;color:#5c6270">Add jobs and people going can sign up.</span></div>') +
+      '<div style="height:2px"></div><span ' + on(() => setState({ evJobPop: true })) + ' data-cp-add-job class="hov-tint2" style="display:flex;align-items:center;justify-content:center;gap:6px;min-height:48px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.1);font-size:15.5px;font-weight:900;color:' + P + ';cursor:pointer"><span style="font-size:19px;line-height:1">+</span>Add a job</span></div></div>';
+    // VISIBILITY: Post to (a centred pop-up), Public / Private, People can invite friends
+    const groups = evGroupIds(st), g0 = groupById(groups[0]);
+    const sum = !groups.length ? 'Pick a group' : groups.length === 1 ? (g0 || {}).name : groups.length === 2 ? groups.map(id => (groupById(id) || {}).name).join(' & ') : (g0 || {}).name + ' + ' + (groups.length - 1) + ' more';
+    const postTo = '<div ' + on(() => setState({ evGrpPop: true })) + ' data-post-to role="button" aria-label="Post to: ' + esc(sum) + '" style="' + WC + ';display:flex;align-items:center;gap:12px;min-height:56px;padding:2px 14px;cursor:pointer">' +
+      '<span aria-hidden="true" style="flex:0 0 36px;width:36px;height:36px;border-radius:10px;background:' + (g0 ? thumbBg(null, g0) : '#f2f3f6') + '"></span>' +
+      '<div style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:12px;font-weight:800;letter-spacing:.8px;color:#6b7280">POST TO</span><span style="font-size:15px;font-weight:800;color:' + (groups.length ? '#0d1117' : '#9b1c31') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(sum) + '</span></div>' +
+      '<span style="display:flex;color:#6b7280">' + chev6(14, '#6b7280', false) + '</span></div>';
+    const radio = (priv, name, sub, icon, k) => { const onIt = !!st.evPriv === priv;
+      return '<div ' + on(() => setState({ evPriv: priv, evNoGuestInv: null }), 'radio') + ' aria-checked="' + onIt + '" aria-label="' + name + ': ' + sub + '" style="display:flex;align-items:center;gap:12px;min-height:52px;border-top:' + (k ? '1px solid #eef0f3' : '0') + ';cursor:pointer">' +
+        '<span style="flex:0 0 22px;display:flex;justify-content:center;color:' + (onIt ? P : '#6b7280') + '">' + svg(18, stroke('currentColor', 2.2), icon) + '</span>' +
+        '<div style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:14.5px;font-weight:' + (onIt ? 800 : 700) + ';color:' + (onIt ? '#0d1117' : '#454b55') + '">' + name + '</span><span style="font-size:12.5px;font-weight:600;color:#6b7280">' + sub + '</span></div>' +
+        '<span aria-hidden="true" style="flex:0 0 22px;width:22px;height:22px;box-sizing:border-box;border-radius:999px;border:' + (onIt ? '6px solid ' + P : '1.5px solid #c9ccd3') + '"></span></div>'; };
+    const vis = '<div role="radiogroup" aria-label="Who can see it" style="' + WC + ';padding:0 14px">' + radio(false, 'Public', groups.length > 1 ? 'Anyone in these groups' : 'Anyone in this group', PEOPLE_IC, 0) + radio(true, 'Private', 'Only people you invite', LOCK_IC, 1) + '</div>';
+    const gi = evGuestInv(st);
+    const inv = '<div ' + on(() => setState({ evNoGuestInv: gi }), 'switch') + ' aria-checked="' + gi + '" aria-label="People can invite friends" style="' + WC + ';display:flex;align-items:center;gap:12px;min-height:52px;padding:0 14px;cursor:pointer">' +
+      '<span style="display:flex;color:#6b7280">' + svg(18, stroke('currentColor', 2.2), CP_INV) + '</span><span style="flex:1;min-width:0;font-size:14.5px;font-weight:800;color:#0d1117">People can invite friends</span>' +
+      '<span aria-hidden="true" style="flex:0 0 46px;width:46px;height:28px;border-radius:999px;position:relative;transition:background 160ms;background:' + (gi ? P : '#dcdfe6') + '"><span style="position:absolute;top:3px;left:' + (gi ? 21 : 3) + 'px;width:22px;height:22px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:left 160ms"></span></span></div>';
+    // Post it: grey until there's a title and a date (a tap then says which is missing); Save draft under it
+    const busy = st.busy === 'post';
+    const post = () => { if (busy) return; if (!cleanTitle(title)) { toast('Add a title first'); return; } if (!hasD) { toast('Add a date first'); return; }
+      if (!groups.length) { setState({ evGrpPop: true }); toast('Pick at least one group'); return; } createEvent(); };
+    return '<div class="overlay-screen compose-sheet" data-screen-label="New spark"><div data-screen-label="Create event (1a)" style="position:relative;min-height:100%;display:flex;flex-direction:column;background:#e8eaee">' +
+      '<div style="position:sticky;top:0;z-index:8;height:0"><span ' + on(close) + ' aria-label="Close" style="position:absolute;top:14px;right:12px;width:36px;height:36px;border-radius:999px;background:rgba(13,17,23,.28);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(14, '#fff', 2.6) + '</span></div>' +
+      hero +
+      '<div style="flex:1 1 auto;padding:16px 14px 0;display:flex;flex-direction:column;gap:12px">' +
+        label('WHEN &amp; WHERE', 0) + ww + label('EVENT DESCRIPTION', true) + descCard + label('HOW TO PARTICIPATE', true) + helpCard + label('VISIBILITY') + postTo + vis + inv +
+      '</div>' +
+      '<div style="padding:20px 16px 24px"><button type="button" ' + on(post) + ' data-post aria-disabled="' + !ready + '" style="width:100%;min-height:54px;border:0;border-radius:999px;font-family:inherit;font-size:17px;font-weight:900;color:#fff;cursor:' + (busy ? 'wait' : 'pointer') + ';' +
+          (ready ? 'background:' + P + ';box-shadow:0 8px 20px rgba(91,74,232,.35)' + (busy ? ';opacity:.72' : '') : 'background:#c9ccd3') + '">' + (busy ? 'Posting…' : 'Post it') + '</button>' +
+        '<span ' + on(saveDraft) + ' data-save-draft role="button" style="display:flex;align-items:center;justify-content:center;min-height:44px;margin-top:4px;font-size:15px;font-weight:800;color:#454b55;cursor:pointer">' + (st.busy === 'draft' ? 'Saving…' : 'Save draft') + '</span></div>' +
+    '</div></div>';
+  }
+  // + Add a job (v8-14): a centred pop-up, Pick a kind, then name it. The kinds start the job's name; Write your own is
+  // blank. Thought partner stays (owner's call, 2026-10-05)
+  const centredPop = (label, close, inner, z) => '<div class="modal-scrim" data-scrim="' + reg(close) + '" style="z-index:' + (z || 36) + ';padding:0 16px;animation:scrimIn 180ms ease-out both">' +
+    '<div role="dialog" aria-modal="true" aria-label="' + esc(label) + '" data-screen-label="' + esc(label) + '" style="position:relative;width:100%;box-sizing:border-box;max-height:88%;overflow-y:auto;background:#fff;border-radius:24px;padding:20px 18px 18px;display:flex;flex-direction:column;gap:12px;box-shadow:0 20px 50px rgba(13,17,23,.3);animation:popIn 200ms cubic-bezier(.22,.9,.28,1) both">' + inner + '</div></div>';
+  function viewJobKindPop() {
+    const close = () => setState({ evJobPop: false });
+    const pick = (pre) => { setState({ evJobPop: false }); openJob(null, blankJob(pre)); };
+    return centredPop('Add a job', close,
+      '<div style="display:flex;align-items:center;gap:10px"><span style="flex:1;font-size:22px;font-weight:900;letter-spacing:-.4px;color:#0d1117">Add a job</span>' + closeX(close, 'flex:0 0 36px;width:36px;height:36px') + '</div>' +
+      '<span style="margin-top:-8px;font-size:14px;font-weight:500;color:#5c6270">Pick a kind, then name it.</span>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:8px">' + [['Bring', 'Bring '], ['Set up', 'Set up '], ['Help', 'Help with '], ['Clean up', 'Clean up '], ['Coordinate', 'Coordinate '], ['Thought partner', 'Thought partner ']]
+        .map(([l, pre]) => '<span ' + on(() => pick(pre)) + ' data-job-chip="' + l + '" class="hov-chip" style="display:flex;align-items:center;min-height:40px;padding:0 14px;border-radius:999px;background:#f2f3f6;font-size:15px;font-weight:800;color:#0d1117;cursor:pointer">' + l + '</span>').join('') + '</div>' +
+      '<span ' + on(() => pick('')) + ' data-job-chip="Other" style="align-self:flex-start;display:flex;align-items:center;gap:5px;min-height:36px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">' + svg(13, stroke('currentColor', 2.4), '<path d="M4 20h4L19 9l-4-4L4 16v4Z"/>') + 'Write your own</span>' +
+      // Take part's spots (v8-2) aren't in v8-14's pop-up; the build keeps them under it so time slots and seats can still
+      // be set up while posting (HANDOFF §2 / §5)
+      '<div style="display:flex;flex-direction:column;gap:8px;padding-top:10px;border-top:1px solid #eef0f3"><span style="font-size:12.5px;font-weight:800;letter-spacing:1.2px;color:#454b55">TAKE PART</span>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:8px">' + ['time', 'seat', 'other'].map(k => '<span ' + on(() => { setState({ evJobPop: false }); openJob(null, blankPart(k, state.evTime)); }) + ' data-part-chip="' + PART_KINDS[k].chip + '" class="hov-chip" style="display:flex;align-items:center;gap:5px;min-height:40px;padding:0 14px;border-radius:999px;background:#f2f3f6;font-size:15px;font-weight:800;color:#0d1117;cursor:pointer"><span style="color:#149a4b;font-size:17px;line-height:1;font-weight:700">+</span>' + PART_KINDS[k].chip + '</span>').join('') + '</div></div>');
+  }
+  // Post to (v8-14): a centred pop-up of the groups with round ticks (nothing below moves), Done
+  function viewGrpPop() {
+    const st = state, groups = evGroupIds(st), close = () => setState({ evGrpPop: false });
+    const row = (g) => { const onIt = groups.indexOf(g.id) > -1;
+      return '<div ' + on(() => { const nx = onIt ? groups.filter(x => x !== g.id) : groups.concat(g.id); setState({ evGroups: nx, evGrpNone: !nx.length }); }, 'checkbox') + ' aria-checked="' + onIt + '" aria-label="Post to ' + esc(g.name) + '" class="' + (onIt ? '' : 'hov-row') + '" style="display:flex;align-items:center;gap:12px;min-height:56px;padding:0 10px;border-radius:14px;cursor:pointer;background:' + (onIt ? '#f3f1fe' : 'transparent') + '">' +
+        '<span aria-hidden="true" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:' + thumbBg(null, g) + '"></span>' +
+        '<span style="flex:1;min-width:0;font-size:15.5px;font-weight:800;color:' + (onIt ? '#4a3ad4' : '#0d1117') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(g.name) + groupTag(g) + '</span>' +
+        '<span aria-hidden="true" style="flex:0 0 22px;width:22px;height:22px;box-sizing:border-box;border-radius:999px;display:flex;align-items:center;justify-content:center;' + (onIt ? 'background:#5b4ae8' : 'border:1.5px solid #c9ccd3;background:#fff') + '">' + (onIt ? I.check(12, '#fff', 3.4) : '') + '</span></div>'; };
+    return centredPop('Post to', close,
+      '<span style="padding:0 8px 4px;font-size:22px;font-weight:900;letter-spacing:-.4px;color:#0d1117">Post to</span>' +
+      '<div style="display:flex;flex-direction:column;gap:4px;margin:0 -6px">' + groupsInOrder().map(row).join('') + '</div>' +
+      '<button type="button" ' + on(close) + ' class="hov-primary" style="margin-top:6px;min-height:50px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16px;font-weight:900;cursor:pointer">Done</button>', 38);
+  }
+
   function viewCompose() {
+    if (!state.evFromIdea) return viewCreate1a();
     const st = state, cur = st.evStep, i = EV_STEPS.indexOf(cur), filled = evFilled(st), url = evPhotoUrl(st), title = cleanTitle(st.activity);
     const CLEAR = { when: { evDate: '', evTime: '', evEnd: '', evEndOn: false, evDatePoll: null, evDayType: 'one', evEndDate: '', evEndDateT: '', evDays: [], evRepeatUntil: '' }, where: { locText: '', locPlace: null, locSuggest: [], locAddr: '', evSpotPoll: null }, details: { evBits: ['', '', ''], evOverview: '' }, help: { evNeeds: [] } };
     const nextOf = (k) => EV_STEPS[EV_STEPS.indexOf(k) + 1] || 'review';
@@ -9383,7 +9562,7 @@
       const post = () => { if (busy) return; if (!groups.length) { setState({ menu: 'evGroups' }); toast('Pick at least one group'); return; } createEvent(); };
       return '<div class="overlay-screen compose-sheet" data-screen-label="New spark"><div style="min-height:100%;display:flex;flex-direction:column">' + hero +
         sheetTop('<div style="padding:22px 16px 0;display:flex;flex-direction:column;gap:12px">' + ready + postTo +
-            guestInvSwitch(!st.evNoGuestInv, () => setState({ evNoGuestInv: !st.evNoGuestInv })) +
+            guestInvSwitch(evGuestInv(st), () => setState({ evNoGuestInv: evGuestInv(st) })) +
         '</div>' +
         '<div style="margin-top:auto;padding:18px 14px 20px">' + note +
           '<button type="button" ' + on(post) + ' data-post aria-disabled="' + !ok + '" style="position:relative;width:100%;height:56px;border:0;border-radius:999px;overflow:hidden;font-family:inherit;font-size:17px;font-weight:900;color:' + (asPlan || !ok ? '#fff' : '#2a1d00') + ';' +
@@ -9435,7 +9614,7 @@
     return '<h3 style="margin:12px 0 0;font-size:20px;line-height:1.05;font-weight:900;letter-spacing:-.6px;color:#0d1117">Post to</h3>' +   // no sub line (owner, 2026-10-03)
       '<div data-post-to style="background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08);padding:2px 14px">' + groupsInOrder().map(row).join('') + '</div>' +
       '<div style="display:flex;gap:8px">' + tile(false, 'Public', 'Anyone in these groups', PEOPLE_IC) + tile(true, 'Private', 'Only people you invite', LOCK_IC) + '</div>' +
-      guestInvSwitch(!st.evNoGuestInv, () => setState({ evNoGuestInv: !st.evNoGuestInv }));
+      guestInvSwitch(evGuestInv(st), () => setState({ evNoGuestInv: evGuestInv(st) }));
   }
 
   // A step's fields: the page under the photo, or (pop) the same fields in Review's Edit pop-up, where the pop-up's
@@ -9603,6 +9782,8 @@
         // Save until there are two options, then Start poll · N options (Design v8 prototype)
         '<div style="margin-top:auto;display:flex;flex-direction:column">' + saveBtn(valid.length >= 2, save, valid.length >= 2 ? 'Start poll · ' + valid.length + ' options' : 'Save') + '</div></div></div>';
     }
+    if (st.evJobPop && !st.needSheet) return viewJobKindPop();
+    if (st.evGrpPop) return viewGrpPop();
     if (st.needSheet) {
       const ns = st.needSheet, r = ns.row, close = () => setState({ needSheet: null });
       const set = (patch) => setState({ needSheet: Object.assign({}, state.needSheet, { row: Object.assign({}, state.needSheet.row, patch) }) });
@@ -9617,9 +9798,9 @@
       if (r.kind) return sheet((ns.i != null ? 'Edit ' : 'Add ') + PART_KINDS[r.kind].title, close, SHEET_PAD + ';min-height:min(88%,580px)',
         partHead(r.kind, ns.i != null, close) + partFields(r, set) +
         '<div style="margin-top:auto;display:flex;flex-direction:column">' + saveBtn(partReady(r), save, 'Save') + '</div>', 36);   // always Save (Design v8)
-      return sheet('Add a job', close, SHEET_PAD + ';min-height:min(88%,580px)',   // room for the time list under its field
+      return centredPop('Add a job', close,   // v8-14: a centred pop-up (it was a bottom sheet)
         sheetHead('How people can join', ns.i != null ? 'Edit job' : 'Add a job', '', close) + jobFields(r, set, null, (() => { const c = whenCols(evWhen()).schedule; return c && c.kind === 'days' ? c.days.map(x => x.d) : null; })()) +
-        '<div style="margin-top:auto;display:flex;flex-direction:column">' + saveBtn(jobNamed(r.item), save) + '</div>', 36);
+        '<div style="display:flex;flex-direction:column">' + saveBtn(jobNamed(r.item), save) + '</div>', 36);
     }
     if (st.evLeave) {
       const close = () => setState({ evLeave: false, evLeaveTo: null });
@@ -10367,7 +10548,7 @@
       (st.banner ? viewBanner() : '') +
       (s === 'compose' ? (st.email ? '<div class="compose-scrim" aria-hidden="true"></div>' : '') + viewCompose() : '') +
       (st.qi && st.email ? viewFloat() : '') +
-      (s === 'compose' && st.evPop && st.evStep === 'review' && !st.evLeave && !st.loginStep ? viewEvPop() : '') +   // under the poll and job sheets it opens
+      (s === 'compose' && st.evPop && (st.evStep === 'review' || !st.evFromIdea) && !st.evLeave && !st.loginStep ? viewEvPop() : '') +   // under the poll and job sheets it opens
       (s === 'compose' && st.email ? viewComposeSheets() : st.pollSheet && st.pollSheet.sparkId ? viewComposeSheets() : '') +
       (st.offerKind && subj ? viewOffer(subj) : '') +
       (st.voteAll ? viewVoteAll() : '') +

@@ -306,5 +306,8 @@ html.tall-fix .app { bottom: auto; height: var(--true-h); }
 
 /* Plan an event (v8-6): a sheet over the screen + was tapped on, which stays drawn underneath, dimmed */
 .compose-scrim { position: absolute; inset: 0; z-index: 27; background: rgba(13, 17, 23, .55); animation: fadeIn 200ms ease-out both; }
-.overlay-screen.compose-sheet { top: calc(var(--sat) + 54px); bottom: 0; z-index: 28; border-radius: 22px 22px 0 0; padding-bottom: env(safe-area-inset-bottom, 0px);
+.overlay-screen.compose-sheet { top: calc(var(--sat) + 40px); bottom: 0; z-index: 28; border-radius: 22px 22px 0 0; padding-bottom: env(safe-area-inset-bottom, 0px);
   box-shadow: 0 -10px 30px rgba(13, 17, 23, .25); animation: sheetUp 320ms cubic-bezier(.2, .8, .2, 1) both; }
+/* Plan an event on one page (v8-14): the title and overview typed into the header */
+.cp-hero-fld::placeholder { color: rgba(255, 255, 255, .62); font-weight: inherit; font-style: normal; }
+.cp-fld::placeholder { color: #9aa0ac; font-style: italic; }

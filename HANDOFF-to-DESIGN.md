@@ -6,7 +6,7 @@
 - **Source:** github.com/esshaughn/sparkhub (`index.html`, `js/sparks.js`, `css/sparks.css`, `privacy.html`, `supabase/templates/`)
 - **Baseline:** Claude Design's **round v8-13** (zip *Spark Hub v8-13*, 2026-10-06; v8-12 before it: `design/spark-hub/Spark Hub App Version 8.dc.html` and `design/spark-hub/HANDOFF-to-CODE.md`). It approved rows 96–105, §2 and §3 of *HANDOFF-to-DESIGN-7*, so those are cleared; rows 106–114 (v8-7) stay until Design has seen them.
 - **Build version:** **v7** (owner, 2026-10-02): a lead is a choice. Since v8-8 an idea is led from the start (*Who leads it · Me*) or floated (*I'll decide*), and both use the new idea page.
-- **As of:** 2026-10-06 (latest: drag to close on every slide-up, §2. Before that: no counts on the RSVP buttons, row 124. Before that: built round **v8-13**'s *New since v8-12* list, table below). Before that: v8-12, v8-11 (migration `20261110000000_plus_ones.sql`), v8-10, then the prototype audit and *Owner calls that stand* (below). Earlier 2026-10-06: built round **v8-8**'s *New since v8-7* list (items 1–9, table below; migration `20261109000000_led_ideas.sql`). The *Answered* and *Already decided* items in the same file are listed in §4 until they're built.
+- **As of:** 2026-10-07 (latest: built round **v8-14**'s item 1, the one-page Plan an event, and the prototype's unlisted changes, table below. Before that: drag to close on every slide-up, §2. Before that: no counts on the RSVP buttons, row 124. Before that: built round **v8-13**'s *New since v8-12* list, table below). Before that: v8-12, v8-11 (migration `20261110000000_plus_ones.sql`), v8-10, then the prototype audit and *Owner calls that stand* (below). Earlier 2026-10-06: built round **v8-8**'s *New since v8-7* list (items 1–9, table below; migration `20261109000000_led_ideas.sql`). The *Answered* and *Already decided* items in the same file are listed in §4 until they're built.
 
 ## Start here (2026-10-06)
 
@@ -22,6 +22,18 @@ Your last catch-up was *HANDOFF-to-DESIGN-7* (baseline v8-6). Everything below i
 Where this doc and the design files disagree, **this doc is correct**. One file per side: please keep sending `HANDOFF-to-CODE.md`; this file is the reply (call it *HANDOFF-to-DESIGN-8*).
 
 ---
+
+## Round v8-14 in short
+
+*Built from HANDOFF-to-CODE v8-14 (New since v8-13) on 2026-10-07. The prototype was diffed against v8-13's: besides items 1–2 it also redraws three things, built here (rows 3–5).*
+
+| v8-14 item | Status |
+|---|---|
+| 1. Plan an event is one page (1a) | Done as drawn: the 360px header with the title (40 chars) and quick overview typed in, the calendar tile once there's a date (tapping it opens Date & time), WHEN & WHERE (Date & time and Location open the same pop-ups Review used), EVENT DESCRIPTION, HOW TO PARTICIPATE, VISIBILITY, grey cards that turn white once filled, Post it with its toasts, Save draft. **Differences:** (a) **inspo photos stop at 3**, not 6: the database holds 3 mood photos per event, and the event page's own Add photos stops at 3 too; (b) the **description is stored as the event's details text and shown whole** as one line under What to expect (it isn't cut into sentences); its edit sheet then shows the same 200-character box instead of three detail lines; (c) a **date poll** still counts as the date, and Post it then puts it up as an idea (the old *This goes up as an idea* note is gone with Review); (d) the Add a job pop-up keeps **Thought partner** (owner's call) and, under a line, Take part's **TAKE PART · + Claim time · + Claim seat · + Other**, which v8-14's pop-up leaves out (see Q40); (e) the toggle has no sub-line, as in the prototype markup (the text spec mentioned two). Make it a plan! still opens Review, as specced |
+| 2. RSVP card (1a + 1d) | Done, see row 124 |
+| 3. Plan an event sheet starts 40px from the top (prototype, unlisted) | Done (was 54px) |
+| 4. Add a job is a centred pop-up (prototype, unlisted) | Done: the job pop-up after a kind (24px corners, no grab bar); Take part's spot sheets stay bottom sheets |
+| 5. Event page: a grey cap under the photo (prototype, unlisted) | Done: a 23px `#e8eaee` strip with 22px top corners closes the header photo, the title sits 38px up, and the Your tasks / You're helping card tucks 22px up into it with 22px top corners |
 
 ## Round v8-13 in short
 
@@ -227,6 +239,7 @@ Never cleared on a reset. These are places where the owner chose differently fro
 37. **Led ideas (§4):** where do the vibe board, co-leads / Step back, Cancel and editing quick details go on the new idea page?
 38. **Prototype details that look unintended. Which is meant?** (a) Maybe picked on the RSVP card: white text on the pale gold stripes (the build uses dark #2a1d00 so it reads). (b) A member's own job card ring is teal #9fd8d3, and the build's is gold; neither is the v8-6 orange. (c) *You're helping* rows are gold in the prototype; the build uses orange per v8-6. (d) Plan an event's Next has 14px corners beside a pill-shaped Back. (e) *+ Suggest a date* on an idea opens the old *Got a date & time in mind?* free-text pop-up; the build uses a date + time chips. (f) Review has no *People going can invite friends* switch (the build keeps it under Post to). (g) Tile dates for Helping / Maybe are green on My calendar. (h) All groups labels undated plans *Ideas · no date yet*. (i) The quick-detail dots: green 7px in Plan an event, gold 8px in the older flow.
 39. **Choose a lead:** the prototype's *Choose* makes someone lead at once; the build asks them (Q32). Once someone else leads, the starter no longer sees Make this a plan, so the Lead row's *Change* can't be reached. Should the starter keep a way to change the lead?
+40. **Take part when posting (v8-14):** the one-page Add a job pop-up has no Claim time / Claim seat. The build keeps them under the kinds (TAKE PART, a line above) so spots can be set up while posting. Should they stay there, move, or only be added from the event page?
 
 ## 6. Design tokens
 

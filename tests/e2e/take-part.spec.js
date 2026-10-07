@@ -13,18 +13,18 @@ test('take part: set up spots, claim, waitlist, guest, roster and giving up', as
   const title = uniqueTitle('Open play');
   let id, guest;
   try {
-    // Plan an event → Join in: PARTICIPATE's Claim time (two 30-minute rows, one spot each) and Claim seat (2 seats)
+    // Plan an event → + Add a job → TAKE PART's Claim time (two 30-minute rows, one spot each) and Claim seat (2 seats)
     await startPost(H);
     const flow = H.locator('[data-screen-label="New spark"]');
-    const next = () => flow.getByRole('button', { name: 'Next', exact: true }).click();
     await flow.getByLabel('Event title').fill(title);
-    await pickDate(flow, inDays(5));
-    await flow.getByRole('button', { name: 'Start time' }).click();
-    await pickTime(flow, '09:00');
-    await next();
-    await flow.getByText('Add later', { exact: true }).click();
-    await expect(flow).toContainText('PARTICIPATE');
-    await flow.locator('[data-part-chip="Claim time"]').click();
+    await flow.locator('[data-cp-row="when"]').click();
+    const when = H.locator('[data-ev-pop="when"]');
+    await pickDate(when, inDays(5));
+    await when.getByRole('button', { name: 'Start time' }).click();
+    await pickTime(when, '09:00');
+    await when.getByRole('button', { name: 'Done' }).click();
+    await flow.locator('[data-cp-add-job]').click();
+    await H.locator('[data-part-chip="Claim time"]').click();
     const times = H.getByRole('dialog', { name: 'Add time slots' });
     await expect(times).toContainText('TAKE PART · CLAIM TIME');
     await times.getByLabel('Name the time slots').fill('Court time');
@@ -32,16 +32,14 @@ test('take part: set up spots, claim, waitlist, guest, roster and giving up', as
     for (const k of [1, 2]) for (let n = 0; n < 3; n++) await times.getByRole('button', { name: 'Fewer for time ' + k }).click();
     await expect(times.locator('[data-part-waitlist]')).toHaveAttribute('aria-checked', 'true');   // on by default
     await times.getByRole('button', { name: 'Save', exact: true }).click();   // always Save (Design v8)
-    await flow.locator('[data-part-chip="Claim seat"]').click();
+    await flow.locator('[data-cp-add-job]').click();
+    await H.locator('[data-part-chip="Claim seat"]').click();
     const seats = H.getByRole('dialog', { name: 'Add seats' });
     await seats.getByLabel('Name the seats').fill('Beginner clinic');
     for (let n = 0; n < 6; n++) await seats.getByRole('button', { name: 'Fewer for how many seats' }).click();
     await seats.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(flow.locator('[data-job="Court time"]')).toContainText('Take part · 2 times · 2 spots');
     await expect(flow.locator('[data-job="Beginner clinic"]')).toContainText('Take part · 2 seats');
-    await next();
-    await expect(flow.locator('[data-ready-count]')).toBeVisible();
-    await expect(flow.locator('[data-review-edit="help"]')).toContainText('Court time, Beginner clinic');   // Ready to post's Join in row (v8-6)
     await flow.locator('[data-post]').click();
     await expect(H.locator('[data-screen-label="Plan page"]')).toBeVisible();
     await closeAskFirst(H);

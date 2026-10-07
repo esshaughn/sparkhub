@@ -1,4 +1,29 @@
-# Spark Hub v8 · HANDOFF-to-CODE (round v8-13)
+# Spark Hub v8 · HANDOFF-to-CODE (round v8-14)
+
+**Caught up with the build's `HANDOFF-to-DESIGN-8.md` (baseline v8-12) as of Oct 6, 2026** (read, not yet answered; it's next). Build *New since v8-13* (top), then earlier rounds below if not done yet. New options files: `options/Create In Place Options.dc.html` + `options/Create In Place 1a.dc.html` (1a picked), `options/Create Page Tidy Options.dc.html`, `options/Inspo Photos Options.dc.html`, `options/Participate Options.dc.html`, `options/RSVP Button Options.dc.html` (1a before + 1d after).
+
+## New since v8-13 (Oct 6, evening)
+**Screenshots** in `screenshots/` (01–06 Plan an event, 07–10 RSVP card).
+
+1. **Plan an event is one page ("fill in place", 1a).** Replaces the 4-step flow from v8-6 (Title+date+location · What to expect · Join in · Review) for new events. It looks like the finished event page, top to bottom:
+   - **Header, 360px:** the purple→pink→amber sparkle gradient, or the cover photo with a dark bottom-up tint. Frosted round × top-right (sticky). A frosted **Add photo** / **Change photo** pill. **Event title** typed straight into the header (40px/900 white, placeholder "Event title", 40 chars, grows to more lines). Under it **"Add a quick overview"** (same `overview` field, 80 chars).
+   - **Calendar tile:** once there's a date, the event page's tile (green month band, big day, weekday) sits top-right of the header at `top: 74px; right: 20px`, +5°. Tapping it opens the date picker.
+   - **WHEN & WHERE:** one card, two rows. "Add date & time" (required) and "Add location (optional)", each opening the existing date / location pop-ups. Filled rows show the date (+ time line) and the location name (+ address line). Polls read "Voting on N dates / locations".
+   - **EVENT DESCRIPTION (optional):** one text box (placeholder "What’s the plan?", 16px, 200 chars, "N/200" bottom-right). It starts at 72px and grows as you type. Inspo photos stay at the bottom of the same card: up to 6 thumbs (52px, 12px radius, × to remove) + a camera button; empty, it shows two dashed slots and "Add inspo photos". Saved as the event's details text + `mood` photos. The 1–3 numbered quick-detail lines are gone from this page.
+   - **HOW TO PARTICIPATE (optional):** "Take part" and "Help out" are one section. Empty: "Need people to bring things or help out?" / "Add jobs and people going can sign up.", which goes away once a job is added. Added jobs list as rows (name, meta, description, Edit, ×). **+ Add a job** (white pill, purple text) opens a centred pop-up: "Pick a kind, then name it.", chips **Bring · Set up · Help · Clean up · Coordinate** (each opens the add-a-job sheet with the name started, e.g. "Bring ", "Help with ") and **Write your own** (blank sheet).
+   - **VISIBILITY:** **POST TO** row (group photo + picked names) opens a **centred "Post to" pop-up** (checkbox rows) instead of a dropdown, so nothing below moves. Then **Public / Private** tiles side by side ("Anyone in this group / these groups" · "Only people you invite"). Then a matching card with a toggle: **People can invite friends** (on by default for Public, off for Private; sub-line "They can share it with people outside the group" / "Only you can invite people").
+   - **Cards:** empty sections sit on grey `#dfe2e7` cards; they turn white once filled.
+   - **Footer:** purple **Post it** (grey until there's a title and a date). Tapping it early toasts "Add a title first" / "Add a date first"; no groups ticked toasts "Pick at least one group" and opens Post to. Under it, a quiet grey **Save draft** link (saves and exits). × with content still asks to save a draft.
+   - Editing a posted event and **Make it a plan!** (prefilled Review, v8-8 item 3) keep their current screens for now.
+2. **RSVP card (1a + 1d in `RSVP Button Options`).**
+   - **Before you RSVP:** the three tiles **Going · Maybe · Can’t**, 54px tall, **no numbers in the buttons**.
+   - **After you pick:** the tiles fold into one 54px line in that answer's colours: round 28px icon + **"You’re going"** (green `#149a4b` on `#e7f6ec`), **"You’re a maybe"** (gold `#f5b428` on `#fdf1d6`, text `#8f6405`) or **"You can’t make it"** (grey `#454b55` on `#f2f3f6`), with a purple **Change** at the right. Change brings the tiles back; picking one folds it again.
+   - **Counts move to the faces row:** faces, then **"17 going · 3 maybe"** (maybe left off when 0), then "See all ›" on the right. Going still includes plus-ones.
+   - Multi-day "Each day" Going still opens the "When will you attend?" pop-up; the "You’re going!" pop-up (6a) still opens on Going.
+
+---
+
+# Round v8-13
 
 **Caught up with the build's `HANDOFF-to-DESIGN-8.md` (baseline v8-12) as of Oct 6, 2026** (read; its rows, owner calls and questions get answered in a later round). Build *New since v8-12* (top), then earlier rounds below if not done yet.
 

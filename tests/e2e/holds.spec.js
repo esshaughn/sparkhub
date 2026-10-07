@@ -65,12 +65,14 @@ test('soft holds: a date poll pencils its dates in on Month, warns Start an even
 
     // Start an event on a held date: a heads-up, and Next still works
     await startPost(H);
-    await pickKind(H);
     const flow = H.locator('[data-screen-label="New spark"]');
     await flow.getByLabel('Event title').fill('Something else');
-    await pickDate(flow, day);   // page 1 (v8-6)
-    await expect(flow.locator('[data-hold-note]')).toContainText(new RegExp(title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ' is holding 7(:00)?pm · voting until'));
-    await expect(flow.getByRole('button', { name: 'Next' })).toHaveAttribute('aria-disabled', 'false');
+    await flow.locator('[data-cp-row="when"]').click();   // Date & time's pop-up (v8-14)
+    const when = H.locator('[data-ev-pop="when"]');
+    await pickDate(when, day);
+    await expect(when.locator('[data-hold-note]')).toContainText(new RegExp(title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ' is holding 7(:00)?pm · voting until'));
+    await when.getByRole('button', { name: 'Done' }).click();
+    await expect(flow.locator('[data-post]')).toHaveAttribute('aria-disabled', 'false');
     await flow.getByRole('button', { name: 'Close' }).click();
     await H.getByRole('dialog', { name: 'Pick this up later?' }).getByText('Discard', { exact: true }).click();
     expect(host.errors).toEqual([]);
