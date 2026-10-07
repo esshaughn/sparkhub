@@ -120,7 +120,8 @@ test('a signed-out visitor sees the event only, and names once they RSVP', async
     await expect(P).not.toContainText('Torrez Fitness');
     await expect(P.locator('[data-disc-signin]')).toBeVisible();
     // Who's this from? (first-encounter item 9): one card above the RSVP, and What's Spark Hub? opens the About sheet
-    await expect(P.locator('[data-visitor-line]')).toContainText('Shared with you on Spark Hub, where people turn ideas into plans. No account needed to RSVP.');
+    await expect(P.locator('[data-visitor-line]')).toContainText('Shared with you on Spark Hub, where people turn ideas into plans.');
+    await expect(P.locator('[data-visitor-x]')).toBeVisible();   // a temporary card: closing it hides it on this device
     await P.locator('[data-about-link]').click();
     const about = V.getByRole('dialog', { name: 'What’s Spark Hub?' });
     await expect(about.locator('[data-about-panel="1"]')).toContainText('Where your group’s ideas turn into plans');

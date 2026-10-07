@@ -7602,15 +7602,17 @@
     // reminder?, owner 2026-10-01). After sign-in the app still offers Turn on reminders?
     // Design v8: lavender with no ring, Sign in under the text; it opens sign-in as from the guest sheet
     // Who's this from? (owner, 2026-10-07, first-encounter item 9): a visitor (signed out, or in none of the event's groups)
-    // who hasn't replied gets one quiet card above the RSVP: what Spark Hub is and that RSVPs need no account. No group
-    // name (visitors don't see it, v8-8). It goes once they reply; What's Spark Hub? opens the About sheet
-    const visitorLine = lead || my || s.cancelledAt || st.viewAs || (st.email && gIds(s).some(g => groupById(g))) ? '' :
-      '<div data-visitor-line style="display:flex;gap:12px;align-items:flex-start;padding:14px 16px;border-radius:18px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08)">' +
-        '<span aria-hidden="true" style="flex:0 0 34px;width:34px;height:34px;border-radius:999px;background:#fdf1d6;display:flex;align-items:center;justify-content:center">' +
-          '<svg width="18" height="18" viewBox="0 0 24 24"><path d="M13.2 2.2 7.2 13.1l3.9-.35-.9 8.8 6.9-11.2-4.1.4z" fill="#e8a71c" stroke="#e8a71c" stroke-width="1.7" stroke-linejoin="round"/></svg></span>' +
-        '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">' +
-          '<span style="font-size:14px;line-height:1.45;font-weight:600;color:#454b55;text-wrap:pretty">Shared with you on <b style="font-weight:800;color:#0d1117">Spark Hub</b>, where people turn ideas into plans. No account needed to RSVP.</span>' +
-          '<span ' + on(() => openAbout()) + ' role="button" data-about-link style="align-self:flex-start;display:flex;align-items:center;gap:3px;min-height:32px;font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">What’s Spark Hub? ' + I.chevR(12, 'currentColor', 2.8) + '</span></div>' +
+    // who hasn't replied gets one temporary card under the RSVP buttons: what Spark Hub is, soft pink with an × (gone on
+    // this device once closed) and a quiet What's Spark Hub? link to the About sheet. No group name (visitors don't see it,
+    // v8-8). It goes once they reply
+    const visitorLine = lead || my || s.cancelledAt || st.viewAs || visitorHidden() || (st.email && gIds(s).some(g => groupById(g))) ? '' :
+      '<div data-visitor-line style="position:relative;margin:-6px 0;display:flex;gap:12px;align-items:flex-start;padding:12px 40px 10px 14px;border-radius:16px;background:#fdeef1">' +
+        '<span aria-hidden="true" style="flex:0 0 30px;width:30px;height:30px;border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center">' +
+          '<svg width="16" height="16" viewBox="0 0 24 24"><path d="M13.2 2.2 7.2 13.1l3.9-.35-.9 8.8 6.9-11.2-4.1.4z" fill="#e8a71c" stroke="#e8a71c" stroke-width="1.7" stroke-linejoin="round"/></svg></span>' +
+        '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">' +
+          '<span style="font-size:14px;line-height:1.45;font-weight:600;color:#5c4148;text-wrap:pretty">Shared with you on <b style="font-weight:800;color:#3d1f27">Spark Hub</b>, where people turn ideas into plans.</span>' +
+          '<span ' + on(() => openAbout()) + ' role="button" data-about-link style="align-self:flex-start;display:flex;align-items:center;gap:2px;min-height:28px;font-size:13px;font-weight:700;color:#9b6b77;cursor:pointer">What’s Spark Hub? ' + I.chevR(11, '#9b6b77', 2.6) + '</span></div>' +
+        '<span ' + on(hideVisitor) + ' role="button" aria-label="Close" data-visitor-x style="position:absolute;top:8px;right:8px;width:28px;height:28px;border-radius:999px;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(12, '#9b6b77', 2.6) + '</span>' +
       '</div>';
     const guestNudge = st.email || lead || s.cancelledAt || nudgeHidden(s.id) || !(my === 'going' || my === 'maybe' || s.signups.some(it => it.claims.some(c => c.userId === st.me))) ? '' :
       '<div data-guest-nudge style="display:flex;gap:12px;padding:14px 16px;border-radius:18px;background:#f3f1fe">' +
@@ -7681,8 +7683,8 @@
         cancelledCard(s) +
         (discMissing(s) ? updatesCard(s) : discBanner(s)) +   // v8: the banner; the updates live in Discussion
         // Keep this event sits with the RSVP card, 8px under it (Design v8-8 prototype 976)
-        visitorLine +
         (rsvpBlock && guestNudge ? '<div style="display:flex;flex-direction:column;gap:8px">' + rsvpBlock + guestNudge + '</div>' : rsvpBlock + guestNudge) +
+        visitorLine +   // a visitor's Shared with you card: under the RSVP, 12px above and below (owner, 2026-10-07)
         whenWhereCard(s) +
         basicDetailsSec(s) +
         askCards(s) + takePart(s) + helpOut(s) +
@@ -10354,6 +10356,8 @@
   // The guest sheet: after Going, Maybe or Can't on an event without an account. Since the first-encounter audit
   // (owner, 2026-10-07) the RSVP is the main button (a name only); the account is asked once, after, on You're on the
   // list. Design v8-8 1c led with the account. No guest emails or texts
+  const visitorHidden = () => { try { return !!localStorage.getItem('spark-hub-visitor-x'); } catch (e) { return false; } };
+  const hideVisitor = () => { try { localStorage.setItem('spark-hub-visitor-x', '1'); } catch (e) { /* fine */ } render(); };
   const nudgeHidden = (id) => { try { return (localStorage.getItem('spark-hub-nudge-x') || '').indexOf(id) > -1; } catch (e) { return false; } };
   const hideNudge = (id) => { try { localStorage.setItem('spark-hub-nudge-x', ((localStorage.getItem('spark-hub-nudge-x') || '') + ' ' + id).slice(-800)); } catch (e) { /* fine */ } render(); };
   function viewGuest() {
@@ -10562,9 +10566,9 @@
       '<h3 style="margin:0;font-size:28px;line-height:1.08;font-weight:900;letter-spacing:-.7px;color:#0d1117;text-wrap:balance">Where your group’s ideas turn into plans</h3>' + aboutPhones(),
       kick('HOW IT WORKS') + h('Anyone can start something') +
         '<div style="display:flex;flex-direction:column;gap:8px">' +
-          step('#fdf1d6', '#f5b428', '#2a1d00', 1, 'Float an Idea', '“Pickleball on Sunday mornings?”') +
+          step('#fdf1d6', '#f5b428', '#2a1d00', 1, 'Float an idea for an event', '“Pickleball on Sunday mornings?”') +
           step('#fff1e8', '#e8661c', '#fff', 2, 'Everybody pitches in', 'Say you’re in, help pick a date, lend a hand') +
-          step('#f3f1fe', '#5b4ae8', '#fff', 3, 'Make it a Plan', 'It’s on the calendar. See you there!') + '</div>'
+          step('#f3f1fe', '#5b4ae8', '#fff', 3, 'Make it a plan', 'It’s on the calendar. See you there!') + '</div>'
     ];
     const dots = '<div style="display:flex;gap:6px;justify-content:center" aria-hidden="true">' + [0, 1].map(n => '<span style="height:7px;border-radius:999px;background:' + (n === i ? '#0d1117;width:20px' : '#dcdfe6;width:7px') + '"></span>').join('') + '</div>';
     const btn = (label, fn, bg, ink, data) => '<button type="button" ' + data + ' ' + on(fn) + ' style="min-height:52px;border:0;border-radius:999px;background:' + bg + ';color:' + ink + ';font-family:inherit;font-size:16px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px">' + label + '</button>';
