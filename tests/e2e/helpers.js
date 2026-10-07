@@ -392,7 +392,18 @@ async function asUser(page, fn, args) {
   }, { src: fn.toString(), args });
 }
 
+// RSVP (owner, 2026-10-06): once you've replied, the card shows one bar (You're going · Change) instead of the three
+// buttons; Change brings them back. rsvpTap answers either way; rsvpBar is the bar for an answer
+async function rsvpTap(scope, label) {
+  const change = scope.locator('[data-rsvp-change]'), btn = scope.getByRole('button', { name: new RegExp('^' + label) });
+  await expect(btn.or(change).first()).toBeVisible();   // wait for the card (a reload draws it a moment later)
+  if (await change.count()) await change.click();
+  await btn.click();
+}
+const rsvpBar = (scope, k) => scope.locator('[data-rsvp-bar="' + k + '"]');
+
 module.exports = {
+  rsvpTap, rsvpBar,
   TAG, TORREZ, PNG, leadEmail, uniqueTitle, startPost, startFloat, openTasks, openAllGroups, openProfile, saved, pickView, mockPlaces, stubPhotos, trackErrors, expectConnected, newMember, newLead, button,
   postIdea, postEvent, closeAskFirst, pickDate, pickTime, timeBox, pickKind, addJob, answerNamePrompt, answerGuestPrompt, donePlus, ideaIdFromUrl, openIdea, confirm, deleteIdea, asUser
 };

@@ -2,7 +2,7 @@
 // one (and is Going), a guest joins the full time's waitlist with a name and phone and moves up when the member gives it
 // up; the lead sees who has which spot (GUEST) and takes someone off; Maybe while holding a seat asks first.
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newLead, newMember, startPost, pickDate, pickTime, closeAskFirst, ideaIdFromUrl, openIdea, deleteIdea, confirm } = require('./helpers');
+const { uniqueTitle, newLead, newMember, startPost, pickDate, pickTime, closeAskFirst, ideaIdFromUrl, openIdea, deleteIdea, confirm, rsvpTap, rsvpBar } = require('./helpers');
 
 const inDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
 
@@ -58,7 +58,7 @@ test('take part: set up spots, claim, waitlist, guest, roster and giving up', as
     await expect(M.getByText('9:00am court time is yours. You’re going.')).toBeVisible();
     await expect(MP.locator('[data-part-row="9:00am"]')).toHaveAttribute('data-mine', '');
     await expect(MP.locator('[data-part-row="9:00am"]')).toContainText('You’re in');
-    await expect(MP.locator('[data-rsvp]').getByRole('button', { name: /^Going/ })).toHaveAttribute('aria-pressed', 'true');
+    await expect(rsvpBar(MP.locator('[data-rsvp]'), 'going')).toBeVisible();
     await MP.locator('[data-part="Beginner clinic"] [data-part-claim]').click();
     await expect(MP.locator('[data-part="Beginner clinic"]')).toContainText('You’re in');
 
@@ -101,7 +101,7 @@ test('take part: set up spots, claim, waitlist, guest, roster and giving up', as
 
     // Maybe while holding a seat: Give up your spot? first
     await M.reload();
-    await MP.locator('[data-rsvp]').getByRole('button', { name: /^Maybe/ }).click();
+    await rsvpTap(MP.locator('[data-rsvp]'), 'Maybe');
     const ask = M.getByRole('alertdialog');
     await expect(ask).toContainText('Give up your spot?');
     await expect(ask).toContainText('You have Beginner clinic.');

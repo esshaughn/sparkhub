@@ -2,7 +2,7 @@
 // the community Calendar (filters, search, Could use a hand, Month), the "You're on it" banner,
 // and Profile / Notifications as sheets.
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newLead, postEvent, openIdea, deleteIdea, pickView, asUser, addJob, openAllGroups, openTasks } = require('./helpers');
+const { uniqueTitle, newLead, postEvent, openIdea, deleteIdea, pickView, asUser, addJob, openAllGroups, openTasks, rsvpTap, rsvpBar } = require('./helpers');
 
 // Local dates, like the app (toISOString would be UTC, a day ahead in the evening)
 const inDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
@@ -127,10 +127,10 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     // v6 Update 5: signing up is one tap and a "You're on it" banner, no RSVP question; he says Maybe himself
     await OP.locator('[data-signup="Ice"]').getByRole('button', { name: 'Sign up' }).click();
     await expect(O.locator('[data-banner="on"]')).toContainText('You’re on it');
-    await expect(OP.locator('[data-rsvp]').getByRole('button', { name: /^Going/ })).toHaveAttribute('aria-pressed', 'true');   // taking a job marks you Going
+    await expect(rsvpBar(OP.locator('[data-rsvp]'), 'going')).toBeVisible();   // taking a job marks you Going
     await expect(O.getByRole('dialog', { name: 'Will you be there?' })).toHaveCount(0);
     await shot(O, '05-on-it');
-    await OP.locator('[data-rsvp]').getByRole('button', { name: /^Maybe/ }).click();
+    await rsvpTap(OP.locator('[data-rsvp]'), 'Maybe');
     await expect(O.getByText('Marked as maybe')).toBeVisible();
 
     // His Your tasks: a Helping card with just "You said Maybe" (it's in the last 3 days) and his sign-up

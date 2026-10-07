@@ -2,7 +2,7 @@
 // links (what iMessage, WhatsApp… show). The local test server can't run Vercel functions, so this
 // calls the function directly, against the TEST database (any host that isn't live).
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newLead, newMember, postIdea, deleteIdea, asUser } = require('./helpers');
+const { uniqueTitle, newLead, newMember, postIdea, deleteIdea, asUser, rsvpTap } = require('./helpers');
 const preview = require('../../api/preview.js');
 
 const serve = async (query) => {
@@ -126,7 +126,7 @@ test('a signed-out visitor sees the event only, and names once they RSVP', async
     await pop.getByRole('button', { name: 'Close' }).click();
     await expect(pop).toHaveCount(0);
     // Going → the guest sheet: You're going!, the account card, RSVP without an account
-    await P.locator('[data-rsvp]').getByRole('button', { name: /^Going/ }).click();
+    await rsvpTap(P.locator('[data-rsvp]'), 'Going');
     const d = V.getByRole('dialog', { name: 'RSVP as a guest' });
     await expect(d).toContainText('You’re going!');
     await expect(d.locator('[data-guest-account]')).toContainText('Get updates and a reminder');

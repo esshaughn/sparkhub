@@ -1,7 +1,7 @@
 // Your schedule's strips (v6), the sign-up time, the Calendar's role strips, back navigation,
 // and the host's Hosting list.
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newLead, postEvent, openIdea, deleteIdea, pickView, addJob, openAllGroups, donePlus } = require('./helpers');
+const { uniqueTitle, newLead, postEvent, openIdea, deleteIdea, pickView, addJob, openAllGroups, donePlus, rsvpTap, rsvpBar } = require('./helpers');
 
 // Local dates, like the app (toISOString would be UTC, a day ahead in the evening)
 const inDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
@@ -27,9 +27,9 @@ test('Your schedule and the Calendar: role strips, a helper’s sign-ups with ti
     // Hal says he's going and takes three things
     await openIdea(O, id);
     const OP = O.locator('[data-screen-label="Plan page"]');
-    await OP.locator('[data-rsvp]').getByRole('button', { name: /^Going/ }).click();
+    await rsvpTap(OP.locator('[data-rsvp]'), 'Going');
     await donePlus(O);
-    await expect(OP.locator('[data-rsvp]').getByRole('button', { name: /^Going/ })).toHaveAttribute('aria-pressed', 'true');
+    await expect(rsvpBar(OP.locator('[data-rsvp]'), 'going')).toBeVisible();
     for (const item of ['Folding tables', 'Ice', 'Speaker']) {
       await OP.locator('[data-signup="' + item + '"]').getByRole('button', { name: 'Sign up' }).click();
       await expect(OP.locator('[data-signup="' + item + '"]').getByText('You’re in')).toBeVisible();

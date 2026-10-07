@@ -380,7 +380,7 @@
     // All groups' Back goes to the screen you came from, e.g. My calendar after Find more events (Design v8 prototype, _calFrom)
     if (screen === 'calendar' && state.screen !== 'calendar') state.calFrom = ORIGINS.indexOf(state.screen) > -1 ? { screen: state.screen, groupId: state.groupId, phaseTab: state.phaseTab } : null;
     // Going anywhere closes the v6 sheets (Profile, Notifications, View all, Could use a hand, Search)
-    setState(Object.assign({ screen, menu: null, plusMenu: false, ip: null, ipPop: null, ipEd: null, zoom: null, sec: null, needEd: null, share: null, cohostPick: null, leadAsk: null, leadsSheet: null, pollSheet: null, profSheet: false, notifSheet: false, dashAll: null, cHandSheet: false, cSearch: false, cq: '', gSearch: false, gq: '', gTry: null, pplAdd: false, frInvite: false, frList: null, frListEd: null, meImp: null, meList: null, meSet: false, pplSearch: false, pplQ: '', person: null, fbNudge: null, gMenu: null, gQr: null, gInv: null, jobAsk: null, handOff: null, partRoster: null, partGuest: null, dayPick: null }, extra || {}));
+    setState(Object.assign({ screen, menu: null, plusMenu: false, ip: null, ipPop: null, ipEd: null, zoom: null, sec: null, needEd: null, share: null, cohostPick: null, leadAsk: null, leadsSheet: null, pollSheet: null, profSheet: false, notifSheet: false, dashAll: null, cHandSheet: false, cSearch: false, cq: '', gSearch: false, gq: '', gTry: null, pplAdd: false, frInvite: false, frList: null, frListEd: null, meImp: null, meList: null, meSet: false, pplSearch: false, pplQ: '', person: null, fbNudge: null, gMenu: null, gQr: null, gInv: null, jobAsk: null, handOff: null, partRoster: null, partGuest: null, dayPick: null, rsvpEdit: null }, extra || {}));
     if (sc) sc.scrollTop = 0;
   };
 
@@ -7333,7 +7333,7 @@
     // No counts on the buttons (owner, 2026-10-06): how many are going shows under them, with See all ›
     const rsvpBtn = (k, label) => {
       const onIt = my === k;
-      return '<button type="button" ' + on(() => setRsvp(s, k)) + ' aria-pressed="' + onIt + '" style="min-height:52px;border:0;border-radius:14px;display:flex;align-items:center;justify-content:center;font-family:inherit;cursor:pointer;' +
+      return '<button type="button" ' + on(() => { if (st.rsvpEdit) setState({ rsvpEdit: null }); setRsvp(s, k); }) + ' aria-pressed="' + onIt + '" style="min-height:54px;border:0;border-radius:14px;display:flex;align-items:center;justify-content:center;font-family:inherit;cursor:pointer;' +
         (onIt ? 'background:' + RC[k] + ';color:' + (k === 'maybe' ? '#2a1d00' : '#fff') : 'background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;color:#0d1117') + '">' +   // dark on the gold stripes, to read
         '<span style="font-size:17px;font-weight:800">' + label + '</span></button>';
     };
@@ -7350,16 +7350,29 @@
     // Under the buttons (Design 25b + 25c, 2026-10-03): the going faces and See all ›, opening Who's coming / Who's going;
     // the lead also gets Invite people here (the lead tools card and Who's in's people row are gone)
     const hidden = !st.email && !my && !lead;   // a visitor who hasn't replied sees a count, not who
+    // Once you've replied (owner's mock, 2026-10-06): one bar in your answer's colour (You're going · Change) instead of the
+    // three buttons; Change brings the buttons back. Under it: faces, "17 going · 3 maybe", See all ›
+    // Design v8-14 (RSVP Button Options 1d): 54px, a 28px circle, the answer's colours, Change in purple
+    const RB = { going: ['You’re going', '#e7f6ec', '#149a4b', '#0f7a3b', '<path d="M5 12.5l4.5 4.5L19 7.5"/>'], maybe: ['You’re a maybe', '#fdf1d6', '#f5b428', '#8f6405', '<path d="M9.2 9a2.9 2.9 0 0 1 5.6 1c0 2-2.8 2.6-2.8 4M12 18h.01"/>'],
+      no: ['You can’t make it', '#f2f3f6', '#454b55', '#454b55', '<path d="M7 7l10 10M17 7 7 17"/>'] };
+    const showBar = !!my && RB[my] && st.rsvpEdit !== s.id;
+    const rsvpBar = !showBar ? '' : (() => { const [t, bgc, dot, ink, icon] = RB[my];
+      return '<div data-rsvp-bar="' + my + '" style="display:flex;align-items:center;gap:10px;height:54px;padding:0 12px 0 14px;box-sizing:border-box;border-radius:16px;background:' + bgc + '">' +
+        '<span aria-hidden="true" style="flex:0 0 28px;width:28px;height:28px;border-radius:999px;background:' + dot + ';display:flex;align-items:center;justify-content:center">' + svg(16, stroke('#fff', 3.2), icon) + '</span>' +
+        '<span style="flex:1;min-width:0;font-size:17px;font-weight:900;color:' + ink + '">' + t + '</span>' +
+        '<button type="button" ' + on(() => setState({ rsvpEdit: s.id })) + ' data-rsvp-change style="flex:0 0 auto;padding:8px 4px;border:0;background:transparent;font-family:inherit;font-size:15px;font-weight:800;color:#5b4ae8;cursor:pointer">Change</button></div>'; })();
+    const nGo = headN(s), nMaybe = maybes(s).length;
     const rsvpBlock = s.cancelledAt ? '' : '<div data-rsvp style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:12px">' +
-      '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">' + rsvpBtn('going', 'Going') + rsvpBtn('maybe', 'Maybe') + rsvpBtn('no', 'Can’t') + '</div>' +
+      (showBar ? rsvpBar : '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">' + rsvpBtn('going', 'Going') + rsvpBtn('maybe', 'Maybe') + rsvpBtn('no', 'Can’t') + '</div>') +
       // The faces row always draws (Design v8), See all › opening Who's coming
       // Signed out and no reply yet (short links spec, v8-8): grey circles in five shades, still See all ›, which asks them
       // to RSVP first in the amber toast (Design v8-8 prototype visitorLocked)
       // v8-11: a visitor who hasn't replied gets a quiet grey line with a lock instead (not tappable)
       (hidden ? '<span data-who-locked style="align-self:center;display:flex;align-items:center;gap:6px;min-height:36px;font-size:14.5px;font-weight:700;color:#6b7280">' + svg(14, stroke('currentColor', 2.4), '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>') + 'RSVP to view guest list</span>' :
-      '<div ' + on(() => setState({ guestList: s.id })) + ' data-going role="button" aria-label="See everyone going (' + headN(s) + ')" style="align-self:center;display:flex;align-items:center;gap:10px;min-height:36px;cursor:pointer">' +
-        (goingIds.length ? '<span style="display:flex">' + peopleFaces(goingIds.slice(0, 4), 30, null, false) + '</span>' : '') +
-        '<span style="font-size:14.5px;font-weight:800;color:#4a3ad4">See all ›</span></div>') +
+      '<div ' + on(() => setState({ guestList: s.id })) + ' data-going role="button" aria-label="See everyone going (' + nGo + ')" style="display:flex;align-items:center;gap:10px;min-height:40px;padding:0 2px;cursor:pointer">' +
+        (goingIds.length ? '<span style="flex:0 0 auto;display:flex">' + peopleFaces(goingIds.slice(0, 4), 30, null, false) + '</span>' : '') +
+        '<span data-going-count style="flex:1;min-width:0;font-size:14.5px;font-weight:700;color:#454b55;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + nGo + ' going' + (nMaybe ? ' · ' + nMaybe + ' maybe' : '') + '</span>' +
+        '<span style="flex:0 0 auto;white-space:nowrap;font-size:14.5px;font-weight:800;color:#4a3ad4">See all ›</span></div>') +
       // The lead's two buttons (Design 29, option 5d): Invite people solid (the main lead only, Design v8), Post an update outlined under it
       (lead ? '<div style="display:flex;flex-direction:column;gap:8px">' +
         (isTheLead(s) ? '<button type="button" class="hov-primary" ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' style="min-height:48px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:15px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer">' +

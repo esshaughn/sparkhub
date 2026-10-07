@@ -1,7 +1,7 @@
 // V5 notifications: built from what's stored. A new plan shows for the group with RSVP buttons;
 // the host hears about replies; updates show with their text; read state and settings persist.
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newLead, postEvent, deleteIdea, confirm, asUser, donePlus } = require('./helpers');
+const { uniqueTitle, newLead, postEvent, deleteIdea, confirm, asUser, donePlus, rsvpTap, rsvpBar } = require('./helpers');
 
 const esc = (t) => t.replace(/[[\]]/g, '\\$&');
 // Local dates, like the app (toISOString would be UTC, a day ahead in the evening)
@@ -32,9 +32,9 @@ test('notifications: a new plan, replying from the feed, the host hears back, up
     await row.click();
     await expect(row).toHaveCount(0);   // the sheet closes on the plan
     await expect(O.locator('[data-screen-label="Plan page"]')).toBeVisible();
-    await O.locator('[data-screen-label="Plan page"] [data-rsvp]').getByRole('button', { name: /^Going/ }).click();
+    await rsvpTap(O.locator('[data-screen-label="Plan page"] [data-rsvp]'), 'Going');
     await donePlus(O);
-    await expect(O.locator('[data-screen-label="Plan page"] [data-rsvp]').getByRole('button', { name: /^Going/ })).toHaveAttribute('aria-pressed', 'true');
+    await expect(rsvpBar(O.locator('[data-screen-label="Plan page"] [data-rsvp]'), 'going')).toBeVisible();
     await O.goto('/');   // back to a tab with the bell
     await expect(O.locator('html[data-loaded=true]')).toHaveCount(1);
 

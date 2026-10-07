@@ -1,7 +1,7 @@
 // A lead and a member on one idea: the shared link, "I'm interested", suggestions everyone votes on,
 // the lead picking, the mood board, making it a plan. A guest (no account) is asked to make one.
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newMember, newLead, leadEmail, button, pickDate, pickTime, saved, postIdea, openIdea, deleteIdea, answerGuestPrompt, confirm, PNG, openProfile } = require('./helpers');
+const { uniqueTitle, newMember, newLead, leadEmail, button, pickDate, pickTime, saved, postIdea, openIdea, deleteIdea, answerGuestPrompt, confirm, PNG, openProfile, rsvpBar } = require('./helpers');
 const inDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 
 // An idea with a lead (v8-8, Q31 1a + 1b + 1e): the member's Led by card, suggestions, the lead's Pick pop-ups, then
@@ -76,7 +76,7 @@ test('a member with the link takes part; the lead picks and makes it a plan', as
     // Gus was interested, so he's down as Maybe (Q31 1e)
     await G.reload();
     const GP = G.locator('[data-screen-label="Plan page"]');
-    await expect(GP.locator('[data-rsvp]').getByRole('button', { name: /^Maybe/ })).toHaveAttribute('aria-pressed', 'true');
+    await expect(rsvpBar(GP.locator('[data-rsvp]'), 'maybe')).toBeVisible();
 
     expect(lead.errors).toEqual([]);
     expect(guest.errors).toEqual([]);

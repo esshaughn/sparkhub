@@ -3,7 +3,7 @@
 // will you attend?, a job on one day (WHICH DAY) that adds that day to your RSVP, Who's coming's day tags, and a
 // recurring event set from the event's Edit.
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newLead, startPost, pickDate, timeBox, closeAskFirst, ideaIdFromUrl, openIdea, deleteIdea, asUser, donePlus, newMember } = require('./helpers');
+const { uniqueTitle, newLead, startPost, pickDate, timeBox, closeAskFirst, ideaIdFromUrl, openIdea, deleteIdea, asUser, donePlus, newMember, rsvpTap } = require('./helpers');
 
 const inDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
 const wk = (iso, long) => new Date(iso + 'T12:00').toLocaleDateString('en-US', { weekday: long ? 'long' : 'short' });
@@ -83,7 +83,7 @@ test('multi-day: separate days, each-day RSVP, a job on one day, and a weekly ev
     // A member taps Going: When will you attend?, one card per day, nothing picked
     await openIdea(M, id);
     const MP = M.locator('[data-screen-label="Plan page"]');
-    await MP.locator('[data-rsvp]').getByRole('button', { name: /^Going/ }).click();
+    await rsvpTap(MP.locator('[data-rsvp]'), 'Going');
     const pick = M.getByRole('dialog', { name: 'When will you attend?' });
     await expect(pick.locator('[data-day-card]')).toHaveCount(2);
     await expect(pick.locator('[data-day-pick-go]')).toHaveText('Pick at least one day');
@@ -106,7 +106,7 @@ test('multi-day: separate days, each-day RSVP, a job on one day, and a weekly ev
     try {
       const V = visitor.page;
       await V.goto('/#/idea/' + id);
-      await V.locator('[data-screen-label="Plan page"] [data-rsvp]').getByRole('button', { name: /^Going/ }).click();
+      await rsvpTap(V.locator('[data-screen-label="Plan page"] [data-rsvp]'), 'Going');
       const gp = V.getByRole('dialog', { name: 'When will you attend?' });
       await gp.locator('[data-day-card="' + d1 + '"]').getByRole('button', { name: 'Going' }).click();
       await expect(gp.locator('[data-day-pick-go]')).toHaveText('Add your name');
