@@ -119,7 +119,7 @@ test('multi-day: separate days, each-day RSVP, a job on one day, and a weekly ev
       await expect(listed).toContainText('You’re on the list, Gia!');
       await expect(listed.locator('[data-plus-summary]')).toContainText('Going · ' + wk(d1, true).slice(0, 3));
       await expect(listed.locator('[data-plus-summary]')).toContainText('You + 1');
-      await listed.locator('[data-plus-done]').click();
+      await listed.locator('[data-plus-x]').click();
       await expect(listed).toHaveCount(0);
     } finally { await visitor.context.close(); }
 

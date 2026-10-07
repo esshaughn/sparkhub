@@ -109,7 +109,7 @@ test('Get the app: after a guest RSVP, iPhone Safari gets the steps; Not now put
     const d = v.page.getByRole('dialog', { name: 'RSVP as a guest' });
     await d.getByLabel('Your name').fill('Ash');
     await d.locator('[data-guest-rsvp]').click();
-    await v.page.getByRole('dialog', { name: 'You’re on the list' }).locator('[data-plus-done]').click();
+    await v.page.getByRole('dialog', { name: 'You’re on the list' }).locator('[data-plus-x]').click();
     const pop = v.page.getByRole('dialog', { name: 'Add to Home Screen' });
     await expect(pop).toContainText('Get the Spark Hub app');
     await expect(pop.locator('[data-a2hs-steps="safari"]')).toContainText('at the bottom of the screen');

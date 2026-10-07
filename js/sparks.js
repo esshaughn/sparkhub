@@ -1003,23 +1003,27 @@
     const link = (fn, color, icon, label, data) => '<span ' + on(fn) + ' ' + data + ' style="display:flex;align-items:center;gap:5px;min-height:32px;color:' + color + ';cursor:pointer">' + icon + label + '</span>';
     return '<div class="modal-scrim" data-scrim="' + reg(plusDone) + '" style="z-index:45">' +
       '<div role="dialog" aria-modal="true" aria-label="' + (guest ? 'You’re on the list' : 'You’re going') + '" data-screen-label="' + (guest ? 'You’re on the list' : 'You’re going pop-up') + '" style="position:relative;width:100%;max-width:360px;box-sizing:border-box;background:#fff;border-radius:22px;padding:20px;display:flex;flex-direction:column;gap:12px;box-shadow:0 20px 50px rgba(13,17,23,.35)">' +
-        '<div style="display:flex;align-items:center;gap:10px"><span style="flex:0 0 30px;width:30px;height:30px;border-radius:50%;background:#149a4b;display:flex;align-items:center;justify-content:center">' + svg(16, stroke('#fff', 3.2), '<path d="M5 12.5 9.5 17 19 7"/>') + '</span>' +
+        // a guest closes with the round × like other pop-ups (owner, 2026-10-07: no Done)
+        (guest ? '<span ' + on(plusDone) + ' role="button" aria-label="Close" data-plus-x style="position:absolute;top:14px;right:14px;width:36px;height:36px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(14, '#0d1117', 2.6) + '</span>' : '') +
+        '<div style="display:flex;align-items:center;gap:10px' + (guest ? ';padding-right:40px' : '') + '"><span style="flex:0 0 30px;width:30px;height:30px;border-radius:50%;background:#149a4b;display:flex;align-items:center;justify-content:center">' + svg(16, stroke('#fff', 3.2), '<path d="M5 12.5 9.5 17 19 7"/>') + '</span>' +
           '<span style="font-size:20px;font-weight:900;letter-spacing:-.3px;color:#0d1117;text-wrap:pretty">' + (guest ? 'You’re on the list, ' + esc(first) + '!' : 'You’re going!') + '</span></div>' +
         (guest ? '<div data-plus-summary style="display:flex;flex-direction:column;gap:6px;padding:12px 14px;border-radius:14px;background:#f7f8fa"><span style="font-size:15px;font-weight:800;color:#0d1117">' + esc(s.text) + '</span><div style="display:flex;flex-wrap:wrap;gap:6px">' + chips + '</div></div>'
           : '<div style="display:flex;flex-direction:column;gap:8px;' + (p.n ? 'padding-bottom:0' : '') + '">' + plusStepper(s) +
             (p.n ? '<input class="fld" type="text" maxlength="80" aria-label="Who’s coming with you" placeholder="Who’s coming with you? (optional)" value="' + esc(p.note) + '" ' + onInput(e => setState({ plusNote: Object.assign({}, state.plusNote, { [s.id]: e.target.value.slice(0, 80) }) })) +
               ' style="width:100%;box-sizing:border-box;height:42px;border:0;border-radius:12px;padding:0 12px;background:#fff;box-shadow:inset 0 0 0 1.5px #e3e5ea;font-family:inherit;font-size:16px;font-weight:600;color:#0d1117;outline:none">' : '') + '</div>') +
-        // A guest's next step is Add to calendar, with a small "or save it to a free account" under it (owner, 2026-10-07: guests
+        // A guest's next step is Add to calendar, with a quiet Change RSVP · Create account row under it (owner, 2026-10-07: guests
         // aren't pushed to sign in; it was a lavender Want a reminder? card with a Create a free account button)
         (guest ? '<div data-plus-account style="display:flex;flex-direction:column;align-items:center;gap:4px">' +
             (s.dayDate ? '<button type="button" data-plus-cal ' + on(() => addToCalendar(s)) + ' style="width:100%;min-height:50px;display:flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16px;font-weight:800;cursor:pointer">' +
               svg(18, stroke('#fff', 2.3), '<rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16M9 3v4M15 3v4"/>') + 'Add to calendar</button>' : '') +
-            '<span data-plus-signin role="button" ' + on(() => { setState(Object.assign({ plusPop: null }, clearPlus(s.id))); openLogin('reminder', () => setTimeout(askReminders, 500)); }) + ' style="display:flex;align-items:center;min-height:36px;font-size:14px;font-weight:700;color:#5b4ae8;cursor:pointer">or save it to a free account</span></div>' : '') +
-        '<button type="button" data-plus-done ' + on(plusDone) + ' style="height:50px;margin-top:2px;border:0;border-radius:999px;background:' + (guest ? '#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;color:#0d1117' : '#149a4b;color:#fff') + ';font-family:inherit;font-size:16px;font-weight:800;cursor:pointer">Done</button>' +
-        '<div style="display:flex;align-items:center;justify-content:center;gap:10px;font-size:14.5px;font-weight:800">' +
+            '<div data-plus-links style="display:flex;align-items:center;justify-content:center;gap:8px;font-size:14px;font-weight:700;color:#6b7280">' +
+              '<span ' + on(change) + ' role="button" data-plus-change style="display:flex;align-items:center;min-height:44px;cursor:pointer">Change RSVP</span><span aria-hidden="true" style="color:#c4c8d0">·</span>' +
+              '<span data-plus-signin role="button" ' + on(() => { setState(Object.assign({ plusPop: null }, clearPlus(s.id))); openLogin('reminder', () => setTimeout(askReminders, 500)); }) + ' style="display:flex;align-items:center;min-height:44px;cursor:pointer">Create account</span></div></div>' : '') +
+        (guest ? '' : '<button type="button" data-plus-done ' + on(plusDone) + ' style="height:50px;margin-top:2px;border:0;border-radius:999px;background:' + (guest ? '#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;color:#0d1117' : '#149a4b;color:#fff') + ';font-family:inherit;font-size:16px;font-weight:800;cursor:pointer">Done</button>') +
+        (guest ? '' : '<div style="display:flex;align-items:center;justify-content:center;gap:10px;font-size:14.5px;font-weight:800">' +
           (guest ? ''
             : link(() => { plusDone(); setState({ share: { id: s.id, copied: false } }); }, '#1f5fa8', svg(15, stroke('currentColor', 2.4), '<circle cx="9.5" cy="8" r="3.5"/><path d="M3 20a6.5 6.5 0 0 1 13 0"/><path d="M19 8v6M16 11h6"/>'), 'Invite others', 'data-plus-invite')) +
-          (guest ? '' : '<span style="color:#c4c8d0">·</span>') + '<span ' + on(change) + ' style="min-height:32px;display:flex;align-items:center;color:#6b7280;cursor:pointer">Change RSVP</span></div>' +
+          '<span style="color:#c4c8d0">·</span><span ' + on(change) + ' style="min-height:32px;display:flex;align-items:center;color:#6b7280;cursor:pointer">Change RSVP</span></div>') +
       '</div></div>';
   }
 

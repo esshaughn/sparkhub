@@ -159,7 +159,7 @@ test('a signed-out visitor sees the event only, and names once they RSVP', async
     await expect(d.locator('[data-guest-email]')).toHaveText('Have an account? Sign in');
     await d.getByLabel('Your name').fill('Jo');
     await d.locator('[data-guest-rsvp]').click();
-    await V.getByRole('dialog', { name: 'You’re on the list' }).locator('[data-plus-done]').click();
+    await V.getByRole('dialog', { name: 'You’re on the list' }).locator('[data-plus-x]').click();
     await expect(P.locator('[data-who-locked]')).toHaveCount(0);
     await expect(P.locator('[data-visitor-line]')).toHaveCount(0);   // gone once they've replied
     await expect(P.locator('[data-going]')).toContainText('See all');
