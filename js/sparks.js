@@ -6424,8 +6424,8 @@
     // (Design v8-8 prototype hasSignup)
     if (s.cancelledAt || (!jobs.length && phaseOf(s) !== 'idea' && !lead)) return '';
     // The lead's section Edit pill opens the jobs editor (each job's ✎ stays)
-    const edit = lead && live ? '<span ' + on(() => openNeeds(s)) + ' data-help-edit role="button" aria-label="Edit Help out" class="hov-outline" style="flex:0 0 auto;display:flex;align-items:center;gap:6px;min-height:36px;padding:0 14px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;font-size:14px;font-weight:800;color:#0d1117;cursor:pointer">' + svg(14, stroke('currentColor', 2.4), PENCIL) + 'Edit</span>' : '';
-    return '<section id="sec-tasks" data-screen-label="Help out">' + secTitle('Help out', edit, true) +
+    const edit = lead && live ? '<span ' + on(() => openNeeds(s)) + ' data-help-edit role="button" aria-label="Edit Participate" style="flex:0 0 auto;display:flex;align-items:center;gap:5px;min-height:36px;padding:0 2px;color:#6b7280;font-size:14px;font-weight:700;cursor:pointer">' + svg(13, stroke('currentColor', 2.4), PENCIL) + 'Edit</span>' : '';
+    return '<section id="sec-tasks" data-screen-label="Participate">' + secTitle('Participate', edit, true) +
       '<div style="display:flex;flex-direction:column;gap:12px">' +
         // Empty, for the lead: the same dashed box as an empty Details (owner, 2026-10-01)
         (jobs.length ? ordered.map(card).join('') : lead
@@ -7198,11 +7198,11 @@
         (ask ? '<div data-colead-ask style="display:flex;align-items:center;gap:12px;padding:12px 12px 12px 14px;border-radius:16px;background:rgba(255,255,255,.72)">' +
             '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-size:15px;font-weight:900;color:#2a1f8f">Bring in a co-lead.</span><span style="font-size:13.5px;line-height:1.35;font-weight:600;color:#4a3ad4;text-wrap:pretty">' + COLEAD_WHY + '</span></div>' +
             '<button type="button" class="hov-primary" ' + on(() => openCohostPicker(s)) + ' style="flex:0 0 auto;min-height:44px;padding:0 16px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:14.5px;font-weight:800;display:flex;align-items:center;gap:6px;cursor:pointer">' + I.plus(14, '#fff', 2.8) + 'Co-lead</button></div>' : '') +
-        // Manage co-leads is a small Edit in the card's top right, like the page's other Edit links, in dark purple (owner, 2026-10-01)
+        // Manage co-leads is a quiet gray Edit in the card's top right, like What to expect's (owner, 2026-10-07; was a white pill)
         // Everyone else gets a small Contact pill in the same spot; messaging isn't built, so it asks for the feature (owner, 2026-10-07)
         (!manage && !s.wantsHost ? '<span ' + on(() => requestFeature('Contacting the leads')) + ' role="button" data-lead-contact aria-label="Contact" style="position:absolute;top:12px;right:12px;z-index:1;display:flex;align-items:center;gap:4px;min-height:28px;padding:0 10px;border-radius:999px;background:rgba(255,255,255,.72);color:#2a1f8f;font-size:12px;font-weight:800;cursor:pointer">' +
           svg(12, stroke('#2a1f8f', 2.4), '<path d="M4 5.5h16v10H9l-5 4v-14Z"/>') + 'Contact</span>' : '') +
-        (manage ? '<span ' + on(() => setState({ leadsSheet: s.id })) + ' data-manage-coleads aria-label="Manage co-leads" style="position:absolute;top:14px;right:14px;z-index:1;display:flex;align-items:center;gap:5px;min-height:36px;padding:0 12px;border-radius:999px;background:rgba(255,255,255,.72);color:#2a1f8f;font-size:13.5px;font-weight:800;cursor:pointer">' + svg(13, stroke('currentColor', 2.4), PENCIL) + 'Edit</span>' : '') +
+        (manage ? '<span ' + on(() => setState({ leadsSheet: s.id })) + ' data-manage-coleads aria-label="Manage co-leads" style="position:absolute;top:14px;right:16px;z-index:1;display:flex;align-items:center;gap:5px;min-height:36px;padding:0 2px;color:#6b7280;font-size:14px;font-weight:700;cursor:pointer">' + svg(13, stroke('currentColor', 2.4), PENCIL) + 'Edit</span>' : '') +
       '</div>';   // (Say hi is hidden until there's messaging, owner 2026-10-01)
   };
   // The Leads sheet (20261101130000_cohosts.sql): everyone sees who leads it; leads and group admins add co-leads from
