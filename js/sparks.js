@@ -10558,9 +10558,8 @@
       '<span style="display:flex;flex-direction:column;gap:1px"><span style="font-size:15px;font-weight:800;color:#0d1117">' + t + '</span><span style="font-size:13px;font-weight:600;color:#6b7280">' + sub + '</span></span></div>';
     const panels = [
       // No eyebrow: the Spark Hub mark sits in the top row beside the × (owner, 2026-10-07)
-      h('Where your group’s ideas turn into plans') +
-        p('Everyone helps out, no one plans it alone.') +
-        p('Made for small communities.') + aboutPhones(),
+      // Just the title, larger, over the phones (owner, 2026-10-07: no description lines)
+      '<h3 style="margin:0;font-size:32px;line-height:1.06;font-weight:900;letter-spacing:-.8px;color:#0d1117;text-wrap:balance">Where your group’s ideas turn into plans</h3>' + aboutPhones(),
       kick('HOW IT WORKS') + h('Anyone can start something') +
         '<div style="display:flex;flex-direction:column;gap:8px">' +
           step('#fdf1d6', '#f5b428', '#2a1d00', 1, 'Float an Idea', '“Pickleball on Sunday mornings?”') +
