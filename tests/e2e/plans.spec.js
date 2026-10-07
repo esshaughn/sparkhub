@@ -95,7 +95,7 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     const onIt = G.getByRole('dialog', { name: 'You’re signed up' });
     await expect(onIt).toContainText('You’re signed up!', { timeout: 1000 });   // with the tap (owner, 2026-10-02)
     await expect(onIt.locator('[data-onit-summary]')).toContainText('Folding chairs');
-    await expect(onIt).toContainText('is counting on you');
+    await expect(onIt).not.toContainText('counting on you');   // owner, 2026-10-07
     await expect(G.getByRole('dialog', { name: 'Will you be there?' })).toHaveCount(0);
     // Undo takes it straight back
     await onIt.getByRole('button', { name: 'Undo' }).click();

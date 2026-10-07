@@ -993,7 +993,6 @@
     const close = () => setState({ onIt: null });
     const units = (b.undo.items || []).map(id => s.signups.find(u => u.id === id)).filter(Boolean);
     const when = (u) => [u.day && s.days ? dayWord(s, u.day) : '', u.time ? slotTime(u.time) + (u.endTime ? '–' + slotTime(u.endTime) : '') : ''].filter(Boolean).join(' · ');
-    const host = nameOf(s.leadId, s.leadName);
     const chip = '<span style="align-self:flex-start;display:flex;align-items:center;height:26px;padding:0 10px;border-radius:999px;background:#e7f6ec;color:#0f7a3c;font-size:13px;font-weight:800">Going' + (s.dayDate ? ' · ' + fmtDay(s.dayDate) : '') + '</span>';
     return '<div class="modal-scrim" data-scrim="' + reg(close) + '" style="z-index:45">' +
       '<div role="dialog" aria-modal="true" aria-label="You’re signed up" data-banner="on" data-screen-label="You’re signed up" style="position:relative;width:100%;max-width:360px;box-sizing:border-box;background:#fff;border-radius:24px;padding:22px 20px 14px;display:flex;flex-direction:column;gap:14px;box-shadow:0 20px 50px rgba(13,17,23,.35);animation:popIn 260ms cubic-bezier(.22,.9,.28,1) both">' +
@@ -1005,8 +1004,6 @@
           units.map(u => '<div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:16px;line-height:1.3;font-weight:900;color:#0d1117">' + esc(u.item) + '</span>' +
             (when(u) ? '<span style="font-size:13.5px;font-weight:700;color:#454b55">' + esc(when(u)) + '</span>' : '') + '</div>').join('') +
           '<span style="font-size:13.5px;font-weight:600;color:#6b7280">for ' + esc(s.text) + '</span>' + (s.planned ? chip : '') + '</div>' +
-        '<div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;color:#454b55">' +
-          (isLead(s) ? 'Added to your jobs.' : face(s.leadId, host, 22) + '<span style="min-width:0">' + esc(firstName(host)) + ' is counting on you.</span>') + '</div>' +
         '<button type="button" data-onit-done ' + on(close) + ' style="height:50px;border:0;border-radius:999px;background:#149a4b;color:#fff;font-family:inherit;font-size:16px;font-weight:800;cursor:pointer">Done</button>' +
         '<div style="display:flex;justify-content:center"><button type="button" ' + on(() => { if (!state.busy) undoClaim(b); }) + ' style="min-height:40px;padding:0 12px;border:0;background:none;font-family:inherit;font-size:14.5px;font-weight:800;color:#6b7280;cursor:pointer">Undo</button></div>' +
       '</div></div>';
@@ -1973,7 +1970,7 @@
     const askJobs = (dropSpots) => {
       const names = jobs.map(it => it.item).filter((x, k, a) => a.indexOf(x) === k);
       setState({ confirm: { title: 'Take you off ' + (names.length === 1 ? '“' + names[0] + '”' : 'your ' + names.length + ' jobs') + ' too?',
-        body: firstName(lead) + ' is counting on you for ' + namesList(names) + '. If you can’t make it, free the spot so someone else can grab it.',
+        body: 'You’re signed up for ' + namesList(names) + '. If you can’t make it, free the spot so someone else can grab it.',
         cta: 'Take me off', keep: 'Keep my spot', run: () => save(true, dropSpots), alt: () => save(false, dropSpots) } });
     };
     // Holding spots (Design v8-2): give them up, or Never mind keeps your answer as it was
