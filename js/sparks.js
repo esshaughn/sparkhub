@@ -6046,6 +6046,7 @@
   const ROUND_BTN = 'flex:0 0 44px;width:44px;height:44px;border-radius:999px;background:#fff;box-shadow:0 2px 8px rgba(13,17,23,.25);display:flex;align-items:center;justify-content:center;cursor:pointer';
   // On a plan, a host's top right is a pencil (Edit event) and a Share icon whose menu is Invite people · Share link · QR code
   // (owner, 2026-10-07; v8-12 had one ⋯ with Edit event in it); tap outside closes it
+  const LINK_IC = '<path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1"/>';   // the chain link (Share menu, Share link)
   const MENU_ROW = 'display:flex;align-items:center;gap:12px;min-height:48px;padding:0 16px;border-top:1px solid #f2f3f6;font-size:15.5px;font-weight:800;color:#0d1117;cursor:pointer';
   const evMenu = (s) => {
     const open = state.evMenu === s.id, shut = () => setState({ evMenu: null });
