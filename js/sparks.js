@@ -4769,7 +4769,7 @@
   // The card at the top of Notifications until it's on (or put away)
   const pushCard = () => {
     const ps = pushStatus();
-    if (state.pushCardHidden || (ps !== 'off' && ps !== 'install')) return '';
+    if (state.pushCardHidden || (ps !== 'off' && (ps !== 'install' || !A2HS_ON))) return '';   // the iPhone Home Screen card waits for A2HS_ON
     const hide = () => { try { localStorage.setItem('spark-hub-push-card', 'hidden'); } catch (e) { /* fine */ } setState({ pushCardHidden: true }); };
     // Design v8: a 16/900 title, a 14/500 body, the button inside the text column, a bare gray ✕
     return '<div data-push-card style="' + CARD + ';position:relative;padding:16px 16px 16px 14px;display:flex;align-items:flex-start;gap:12px">' +
@@ -5087,7 +5087,10 @@
   // prompt (Android: our button opens Chrome's dialog) · ios (show the Share steps) · '' (installed, or this browser can't)
   // inapp (first-encounter audit 6): Instagram, Facebook, Gmail… can't add to the Home Screen, so the pop-up says how to
   // open the page in the phone's browser first
-  const installMode = () => STANDALONE ? '' : IN_APP ? (DEVICE === 'phone' ? 'inapp' : '') : state.canInstall && installEvt ? 'prompt' : IOS_BROWSER ? 'ios' : '';
+  // Add to Home Screen is hidden for now (owner, 2026-10-07: pictures for the steps first). With A2HS_ON false, installMode()
+  // is '' everywhere, so the pop-up, the Me banner, the Settings row, the after-RSVP offer and the iPhone card in Notifications all stay away; set it to true to bring them back
+  const A2HS_ON = (() => { try { return !!localStorage.getItem('e2e-install'); } catch (e) { return false; } })();   // only the e2e tests' flag turns it on (they still check the flow)
+  const installMode = () => !A2HS_ON || STANDALONE ? '' : IN_APP ? (DEVICE === 'phone' ? 'inapp' : '') : state.canInstall && installEvt ? 'prompt' : IOS_BROWSER ? 'ios' : '';
   const startInstall = async () => {
     const mode = installMode();
     if (mode === 'ios' || mode === 'inapp') return setState({ installPop: true });
