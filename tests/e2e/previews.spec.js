@@ -116,6 +116,7 @@ test('a signed-out visitor sees the event only, and names once they RSVP', async
     await expect(P.locator('[data-who-locked]')).toHaveText('RSVP to view guest list');
     await expect(P.locator('[data-going]')).toHaveCount(0);
     await expect(P.locator('[data-lead-names]')).toHaveText('Lena');
+    await expect(P.locator('[data-lead-contact]')).toHaveText('Contact');   // asks for the feature (owner, 2026-10-07)
     await expect(P).not.toContainText('Visibility');
     await expect(P).not.toContainText('Torrez Fitness');
     await expect(P.locator('[data-disc-signin]')).toBeVisible();
