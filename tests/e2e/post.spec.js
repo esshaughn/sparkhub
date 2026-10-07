@@ -80,13 +80,13 @@ test('post an event with every step filled, then edit it in the pop-ups and dele
     await expect(bar).toContainText('1 task');
     await expect(P.locator('[data-screen-label="Your tasks"]')).not.toContainText('Bring water');
 
-    // A lead's top right: a pencil (Edit event) and a Share icon whose menu is Invite people · Share link · QR code
+    // A lead's top right: a pencil (Edit event) and a Share icon whose menu is Share link · QR code (Invite people left it, owner 2026-10-07)
     // (owner, 2026-10-07; v8-12 had one ⋯ with Edit event in it). No pencil after the title and the title isn't a button (Design 31)
     await expect(P.locator('h1 svg')).toHaveCount(0);
     await expect(P.locator('h1[data-on]')).toHaveCount(0);
     await expect(P.getByRole('button', { name: 'More' })).toHaveCount(0);
     await P.locator('[data-ev-menu]').click();
-    await expect(P.getByRole('menuitem')).toHaveText(['Invite people', 'Share link', 'QR code'])
+    await expect(P.getByRole('menuitem')).toHaveText(['Share link', 'QR code'])
     await P.getByRole('menuitem', { name: 'Share link' }).click();
     const link0 = page.getByRole('dialog', { name: 'Share link' });
     await expect(link0.locator('[data-link-preview]')).toBeVisible();
