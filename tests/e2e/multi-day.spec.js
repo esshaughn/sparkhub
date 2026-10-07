@@ -38,17 +38,17 @@ test('multi-day: separate days, each-day RSVP, a job on one day, and a weekly ev
     await expect(H.getByText('Try a time like 10am or 4:30pm')).toBeVisible();
     await timeBox(wp, 'Day 1 start').fill('10am');
     await timeBox(wp, 'Day 1 start').press('Enter');
-    await expect(timeBox(wp, 'Day 1 start')).toHaveValue('10:00am');
+    await expect(timeBox(wp, 'Day 1 start')).toHaveValue('10am');
     await timeBox(wp, 'Day 1 end').fill('4p');
     await timeBox(wp, 'Day 1 end').press('Enter');
-    await expect(timeBox(wp, 'Day 1 end')).toHaveValue('4:00pm');
+    await expect(timeBox(wp, 'Day 1 end')).toHaveValue('4pm');
     await expect(wp.getByRole('button', { name: 'Day 2 date', exact: true })).toBeVisible();
     await timeBox(wp, 'Day 2 start').fill('12');   // a bare 12 is noon
     await timeBox(wp, 'Day 2 start').press('Enter');
-    await expect(timeBox(wp, 'Day 2 start')).toHaveValue('12:00pm');
+    await expect(timeBox(wp, 'Day 2 start')).toHaveValue('12pm');
     await timeBox(wp, 'Day 2 end').fill('5');      // a bare hour up to 6 is pm
     await timeBox(wp, 'Day 2 end').press('Enter');
-    await expect(timeBox(wp, 'Day 2 end')).toHaveValue('5:00pm');
+    await expect(timeBox(wp, 'Day 2 end')).toHaveValue('5pm');
     await wp.getByRole('radio', { name: 'Each day' }).click();
     await expect(wp.getByRole('radio', { name: 'Each day' })).toHaveAttribute('aria-checked', 'true');
     await wp.getByRole('button', { name: 'Done', exact: true }).click();

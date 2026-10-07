@@ -6641,8 +6641,8 @@
   };
 
   // v6 Update 13: the lead decides whether guests can invite their friends (Who can see it, Create event)
-  const guestInvSwitch = (v, fn) => '<div ' + on(fn, 'switch') + ' aria-checked="' + v + '" aria-label="People going can invite friends" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:16px;background:#f4f5f7;cursor:pointer">' +
-    '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">People going can invite friends</div><div style="font-size:12.5px;font-weight:600;color:#6b7280">' + (v ? 'On: they can pick friends and group members to invite' : 'Off: only leads and admins pick who to invite. Anyone can still share the link.') + '</div></div>' +
+  const guestInvSwitch = (v, fn) => '<div ' + on(fn, 'switch') + ' aria-checked="' + v + '" aria-label="People can invite friends" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:16px;background:#f4f5f7;cursor:pointer">' +
+    '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">People can invite friends</div><div style="font-size:12.5px;font-weight:600;color:#6b7280">' + (v ? 'On: they can pick friends and group members to invite' : 'Off: only leads and admins pick who to invite. Anyone can still share the link.') + '</div></div>' +
     '<span aria-hidden="true" style="flex:0 0 46px;width:46px;height:28px;border-radius:999px;position:relative;transition:background 160ms;background:' + (v ? '#149a4b' : '#dcdfe6') + '"><span style="position:absolute;top:3px;left:' + (v ? 21 : 3) + 'px;width:22px;height:22px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:left 160ms"></span></span></div>';
 
   // The photo comes off; the event shows its group's photo again. The file goes too when it's in your own folder
@@ -8998,7 +8998,7 @@
   // v8-6: four steps, 1 · Title, date & location · 2 · What to expect · 3 · Join in · 4 · Review. Whoever makes it leads it
   // (no lead card; Float an idea is the + menu's own sheet). 'when' and 'where' are page 1's parts, and Review's pop-ups
   const EV_STEPS = ['title', 'details', 'help'];
-  const EV_NAMES = { title: 'Title, date & location', when: 'Date & time', where: 'Location', details: 'What to expect', help: 'Join in', review: 'Review' };
+  const EV_NAMES = { title: 'Title, date & location', when: 'Date & time', where: 'Location', details: 'What to expect', help: 'How to participate', review: 'Review' };
   const BIT_PH = ['Meet by the front desk', 'Coffee and donuts at 9:30', 'Kids and dogs welcome'];   // no "e.g." in placeholders (v8)
   const EV_GRAD = 'linear-gradient(135deg,#5b4ae8,#8a6ff0 55%,#e8a71c)';
   const AMBER_INK = '#8f6405';
@@ -9028,7 +9028,7 @@
     details: st.evBits.some(b => b.trim()) || !!(st.evOverview || '').trim() || (MIN_PEOPLE && !st.evDate && st.evNeed > 0), help: st.evNeeds.length > 0 || st.evIdeaJobs.length > 0, lead: true });   // leading it is already picked
   // "Sat, Oct 24 · 10am", "Sat, Oct 24 · 10am – 12pm"
   const dayLabel = (d, t, e) => d ? fmtDay(d) + (t ? ' · ' + (e ? spanTime({ time: t, endTime: e }) : fmtTime(t)) : '') : '';
-  const jobMeta = (j) => j.kind ? partMeta(j) : (j.day ? dayWord(whenCols(evWhen()).schedule, j.day) + ' · ' : '') + (j.shifts ? j.shifts.length + (j.shifts.length === 1 ? ' time' : ' times') + (j.shifts.every(q => q.need && q.need === j.shifts[0].need) ? ' · ' + j.shifts[0].need + ' each' : '')
+  const jobMeta = (j) => j.kind ? partMeta(j) : (j.day ? dayWord(whenCols(evWhen()).schedule, j.day) + ' · ' : '') + (j.shifts ? (j.shifts.length === 1 ? fmtTime(j.shifts[0].time) : j.shifts.length + ' times from ' + fmtTime(j.shifts[0].time)) + (j.shifts.every(q => q.need && q.need === j.shifts[0].need) ? ' · ' + j.shifts[0].need + ' each' : '')
     : (j.need ? j.need + (j.need === 1 ? ' person' : ' people') : 'Anyone') + (j.time ? ' · ' + fmtTime(j.time) : ''));
   const evStarted = (st) => !!(cleanTitle(st.activity) || st.evDate || st.evDatePoll || cleanTitle(st.locText) || st.evSpotPoll || st.evBits.some(b => b.trim()) || !!(st.evOverview || '').trim() || st.evNeeds.length || !!(st.evDesc || '').trim() || (st.evInspo || []).length);
   // People can invite friends (v8-14): on by default for Public, off for Private; switching it sticks until Public / Private changes
@@ -9102,7 +9102,7 @@
     const st = state;
     if (st.busy) return true;
     if (st.evTitleEd) { evTitleDone(); return true; }
-    if (st.pollSheet || st.needSheet || st.evLeave || st.timeOpen || st.dateOpen || st.dayTypePop) { setState({ pollSheet: null, needSheet: null, evLeave: false, evLeaveTo: null, timeOpen: null, dateOpen: null, dayTypePop: null }); return true; }
+    if (st.pollSheet || st.needSheet || st.evJobPop || st.evGrpPop || st.evLeave || st.timeOpen || st.dateOpen || st.dayTypePop) { setState({ pollSheet: null, needSheet: null, evJobPop: false, evGrpPop: false, evLeave: false, evLeaveTo: null, timeOpen: null, dateOpen: null, dayTypePop: null }); return true; }
     if (st.evPop) { if (st.evPop !== 'title' || cleanTitle(st.activity)) setState({ evPop: null }); else toast('Add a title first'); return true; }
     if (st.evStep === 'review') { evGo(EV_STEPS[EV_STEPS.length - 1], { menu: null }); return true; }
     if (st.evFromReview) { evGo('review', { evFromReview: false }); return true; }
@@ -9402,8 +9402,12 @@
   };
 
   // A 30-minute time list that opens under its field (not a sheet), scrolled to the current value
-  // A list or calendar that would run past its pop-up's edge scrolls into view as it opens
-  const showDrop = (sel) => setTimeout(() => { const el = document.querySelector(sel); if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest' }); }, 0);
+  // Create flow audit (owner, 2026-10-07): an open time list or calendar is drawn above everything, centred in the app (a
+  // pop-up's scroll box cut them to a 70px strip). FLOAT is filled while the page is drawn and added last by render().
+  // Taps outside it go through: they close it and do what was tapped (the click handler)
+  let FLOAT = '';
+  const floatPanel = (inner) => { FLOAT = '<div data-float style="position:absolute;inset:0;z-index:95;display:flex;align-items:center;justify-content:center;padding:16px;pointer-events:none;background:rgba(13,17,23,.14);animation:scrimIn 140ms ease-out both">' + inner + '</div>'; };
+  const showDrop = () => {};   // (the old drop-downs scrolled themselves into view; the floating ones are always in view)
   // o: { label, slim: no clock icon (a narrow row), h: the field's height (58), none: a first row that clears the time }
   // The time field opens a scrolling list, every 30 minutes (owner, 2026-10-06: back to the list; from 2026-10-03 it was
   // an am/pm · hour · minute grid). Only times inside opts' range are listed (an end after its start). On opening, the list
@@ -9413,38 +9417,41 @@
     const open = state.timeOpen === key, lo = opts[0] || '00:00', hi = opts[opts.length - 1] || '23:59';
     const ok = (v) => v >= lo && (v <= hi || hi >= '23:30');
     const toggle = () => {
-      setState({ timeOpen: open ? null : key, dateOpen: null });
-      if (open) return;
-      showDrop('[data-time-list]');
-      setTimeout(() => { const list = document.querySelector('[data-time-list]'); if (!list) return;
-        const at = list.querySelector('[aria-selected="true"]') || list.querySelector('[data-time="' + (opts.indexOf('09:00') > -1 && lo < '09:00' ? '09:00' : lo) + '"]');
-        if (at) list.scrollTop = at.offsetTop - list.clientHeight / 2 + at.offsetHeight / 2; }, 0);
+      setState({ timeOpen: open ? null : key, dateOpen: null });   // render() scrolls the list to data-scroll-to
     };
+    // Where the list opens: the picked time; an end list's first time; near a related time (a span's end, by its start);
+    // else 9am
+    const nearAt = o.near ? opts.filter(ok).find(v => v > o.near) : '';
+    const scrollTo = value || (lo > EV_TIMES[0] ? lo : nearAt || (opts.indexOf('09:00') > -1 ? '09:00' : lo));
     // Typeable (v8-7 item 2): "10am", "4:30pm", "16:00", "1030"; Enter or leaving the field saves it, something unreadable
     // says how to write it. The chevron (or the clock) opens the half-hour list
+    const shown = (v) => o.slim ? clock(v).replace(':00', '') : clock(v);   // narrow fields: "6pm", not a cut-off "6:00p" (create flow audit)
     const typed = (e) => {
       if (e.type !== 'change') return;
       const raw = e.target.value;
       if (!raw.trim()) { if (value) pick(''); return; }
       const v = parseTyped(raw);
-      if (!v) { e.target.value = value ? clock(value) : ''; toast('Try a time like 10am or 4:30pm'); return; }
-      if (!ok(v)) { e.target.value = value ? clock(value) : ''; toast(v < lo ? 'Pick a time after ' + clock(opts[0]) : 'Try a time like 10am or 4:30pm'); return; }
-      if (v !== value) pick(v); else e.target.value = clock(v);
+      if (!v) { e.target.value = value ? shown(value) : ''; toast('Try a time like 10am or 4:30pm'); return; }
+      if (!ok(v)) { e.target.value = value ? shown(value) : ''; toast(v < lo ? 'Pick a time after ' + clock(opts[0]) : 'Try a time like 10am or 4:30pm'); return; }
+      if (v !== value) pick(v); else e.target.value = shown(v);
     };
     const fs = o.compact ? 14.5 : 17;
     return '<div style="position:relative;min-width:0">' +
       '<div data-time-field style="display:flex;align-items:center;gap:' + (o.slim ? 4 : 10) + 'px;min-height:' + (o.h || 58) + 'px;padding:0 ' + (o.slim ? (o.compact ? 6 : 8) : 14) + 'px 0 ' + (o.slim ? (o.compact ? 10 : 12) : 14) + 'px;border-radius:' + (o.h <= 46 ? 14 : 16) + 'px;background:#fff;box-shadow:inset 0 0 0 ' + (o.h <= 46 && !open ? '1.5px' : '2px') + ' ' + (open ? '#5b4ae8' : '#dcdfe6') + ';cursor:text">' +
         (o.slim ? '' : '<span ' + on(toggle) + ' aria-hidden="true" tabindex="-1" style="display:flex;color:' + (value ? '#5b4ae8' : '#9aa0ac') + ';cursor:pointer">' + svg(18, stroke('currentColor', 2.2), P5.clock) + '</span>') +
-        '<input type="text" inputmode="text" autocomplete="off" data-time-type aria-label="' + esc((o.label || hint) + ', type a time') + '" placeholder="' + esc(hint) + '" value="' + esc(value ? clock(value) : '') + '" ' + onInput(typed) +
+        '<input type="text" inputmode="text" autocomplete="off" data-time-type aria-label="' + esc((o.label || hint) + ', type a time') + '" placeholder="' + esc(hint) + '" value="' + esc(value ? shown(value) : '') + '" ' + onInput(typed) +
           ' style="flex:1 1 auto;min-width:0;width:100%;border:0;outline:none;background:transparent;padding:0;font-family:inherit;font-size:' + fs + 'px;font-weight:800;color:#0d1117">' +
         '<span ' + on(toggle) + ' aria-label="' + esc(o.label || hint) + '" aria-expanded="' + open + '" style="flex:0 0 auto;display:flex;align-items:center;justify-content:center;min-width:28px;min-height:36px;cursor:pointer">' + I.chevD(14, '#9aa0ac', 2.6) + '</span></div>' +   // chevSet: the chevron only once a time is set (v8-6's Create a poll)
-      (open ? '<div ' + on(() => setState({ timeOpen: null })) + ' aria-hidden="true" style="position:fixed;inset:0;z-index:19"></div>' +
-        '<div data-time-list role="listbox" aria-label="Pick a time" style="scroll-margin:12px;position:absolute;' + (o.right ? 'right:0' : 'left:0') + ';top:calc(100% + 6px);z-index:20;width:' + (o.slim ? 160 : 200) + 'px;max-height:252px;overflow-y:auto;overscroll-behavior:contain;background:#fff;border-radius:16px;box-shadow:0 14px 34px rgba(15,18,25,.2), 0 0 0 1px #e6e7eb;padding:6px;display:flex;flex-direction:column;gap:2px">' +
+      ((open ? floatPanel('<div data-time-list data-scroll-to="' + esc(scrollTo || '') + '" role="listbox" aria-label="Pick a time" style="pointer-events:auto;width:300px;max-width:100%;max-height:min(420px,80%);overflow-y:auto;overscroll-behavior:contain;background:#fff;border-radius:18px;box-shadow:0 18px 44px rgba(15,18,25,.28), 0 0 0 1px #e6e7eb;padding:0 6px 6px;display:flex;flex-direction:column;gap:2px;animation:popIn 180ms cubic-bezier(.22,.9,.28,1) both">' +
+          // Design v8-7 item 2: a sticky Type a time box over the list
+          '<div style="position:sticky;top:0;z-index:1;background:#fff;padding:12px 6px 8px;display:flex;flex-direction:column;gap:6px">' +
+            '<span style="font-size:12px;font-weight:900;letter-spacing:1px;color:#6b7280">' + esc((o.label || hint).toUpperCase()) + '</span>' +
+            '<input type="text" inputmode="text" autocomplete="off" data-time-type aria-label="Type a time" placeholder="Type a time, like 4:30pm" ' + onInput(typed) + ' style="width:100%;box-sizing:border-box;min-height:44px;padding:0 12px;border:0;border-radius:12px;background:#f2f3f6;font-family:inherit;font-size:16px;font-weight:700;color:#0d1117;outline:none"></div>' +
           (o.none && value ? '<div ' + on(() => pick(''), 'option') + ' aria-selected="false" style="flex:0 0 auto;min-height:42px;display:flex;align-items:center;padding:0 12px;border-radius:10px;font-size:15px;font-weight:800;color:#6b7280;cursor:pointer">' + esc(o.none) + '</div>' : '') +
           opts.filter(ok).map(v => { const sel = v === value;
             return '<div ' + on(() => pick(v), 'option') + ' data-time="' + v + '" aria-selected="' + sel + '" class="' + (sel ? '' : 'hov-grey-fill') + '" style="flex:0 0 auto;min-height:42px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;border-radius:10px;font-size:15.5px;font-weight:' + (sel ? 900 : 700) + ';color:' + (sel ? '#5b4ae8' : '#0d1117') + ';background:' + (sel ? '#f3f1fe' : 'transparent') + ';cursor:pointer">' +
               clock(v) + (sel ? I.check(14, '#5b4ae8', 3) : '') + '</div>'; }).join('') +
-        '</div>' : '') +
+        '</div>') : ''), '') +
     '</div>';
   };
   // The date picker (owner, 2026-10-01: the browser's own calendar looked old next to the time list): a field like the
@@ -9475,8 +9482,7 @@
         '<span style="display:flex;color:' + (value ? '#5b4ae8' : '#9aa0ac') + '">' + svg(o2.compact ? 16 : 18, stroke('currentColor', 2.2), P6.cal) + '</span>' +
         '<span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;' + (value ? 'font-size:' + (o2.compact ? 14.5 : 17) + 'px;font-weight:800;color:#0d1117' : 'font-size:' + (o2.compact ? 14.5 : 16.5) + 'px;font-weight:400;font-style:italic;color:#b9bcc4') + '">' + esc(value ? (o2.compact ? new Date(value + 'T12:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : fmtDay(value)) : hint) + '</span>' +
         I.chevD(14, '#9aa0ac', 2.6) + '</div>' +
-      (open ? '<div ' + on(() => setState({ dateOpen: null })) + ' aria-hidden="true" style="position:fixed;inset:0;z-index:19"></div>' +
-        '<div data-calendar="' + month + '" role="dialog" aria-label="Pick a date" style="scroll-margin:12px;position:absolute;left:0;top:calc(100% + 6px);z-index:20;width:316px;max-width:calc(100vw - 40px);box-sizing:border-box;background:#fff;border-radius:18px;box-shadow:0 14px 34px rgba(15,18,25,.2), 0 0 0 1px #e6e7eb;padding:14px">' +
+      ((open ? floatPanel('<div data-calendar="' + month + '" role="dialog" aria-label="Pick a date" style="pointer-events:auto;width:332px;max-width:100%;box-sizing:border-box;background:#fff;border-radius:18px;box-shadow:0 18px 44px rgba(15,18,25,.28), 0 0 0 1px #e6e7eb;padding:14px;animation:popIn 180ms cubic-bezier(.22,.9,.28,1) both">' +
           '<div style="display:flex;align-items:center;gap:8px;padding:0 2px 10px"><span style="flex:1;font-size:17px;font-weight:900;color:#0d1117">' + MONTH_NAMES[Number(month.slice(5)) - 1] + ' ' + month.slice(0, 4) + '</span>' +
             roundBtn(!anyDay && month <= today.slice(0, 7), () => shift(-1), I.chevL(15, '#0d1117', 2.6), 'Previous month') + roundBtn(false, () => shift(1), I.chevR(15, '#0d1117', 2.6), 'Next month') + '</div>' +
           '<div style="display:grid;grid-template-columns:repeat(7,1fr);row-gap:4px">' +
@@ -9484,7 +9490,7 @@
           '<div style="display:flex;justify-content:space-between;padding:8px 4px 0">' +
             (value ? '<span ' + on(() => pick('')) + ' aria-label="Clear the date" style="font-size:14px;font-weight:800;color:#9b1c31;cursor:pointer">Clear</span>' : '<span></span>') +
             (value !== today && !(o2.min && today < o2.min) ? '<span ' + on(() => pick(today)) + ' style="font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">Today</span>' : '') + '</div>' +
-        '</div>' : '') + '</div>';
+        '</div>') : ''), '') + '</div>';
   };
   // ---- Date & time for every length of event (Design v8-7 items 1–3, 23c-2) ----
   // One model for Plan an event (state.ev…) and the event page's Edit (state.sec): d, t, e, eOn, type ('one' | 'repeat' |
@@ -9550,7 +9556,7 @@
     const seg = (opts, cur, fn, label, track) => '<div role="radiogroup" aria-label="' + esc(label) + '" style="display:flex;gap:2px;padding:3px;border-radius:999px;background:' + (track || '#e6e8ec') + '">' + opts.map(([v, l]) => { const onIt = cur === v;
       return '<span ' + on(() => fn(v), 'radio') + ' aria-checked="' + onIt + '" style="flex:1 1 0;min-height:34px;border-radius:999px;display:flex;align-items:center;justify-content:center;padding:0 6px;font-size:13px;font-weight:' + (onIt ? 800 : 700) + ';color:' + (onIt ? '#5b4ae8' : '#454b55') + ';background:' + (onIt ? '#fff' : 'transparent') + ';box-shadow:' + (onIt ? '0 1px 2px rgba(0,0,0,.1)' : 'none') + ';cursor:pointer;white-space:nowrap">' + l + '</span>'; }).join('') + '</div>';
     const setD = (v) => set({ d: v });
-    const startT = (key, val, fn, lab, hint) => timeField(key, val, EV_TIMES, hint || 'Time', fn, { label: lab || 'Start time', h: 46, slim: true, right: true });
+    const startT = (key, val, fn, lab, hint, near) => timeField(key, val, EV_TIMES, hint || 'Time', fn, { label: lab || 'Start time', h: 46, slim: true, right: true, near });
     const dateTime = '<div style="display:flex;gap:8px">' + dateField(M.d, 'Date', 'Pick a date', setD, 'flex:1.5 1 0', o.anyDay, 46) +
       '<div style="flex:1 1 0;min-width:0">' + startT(k + 'Start', M.t, (v) => set({ t: v, e: M.e && M.e <= v ? '' : M.e }, { timeOpen: null })) + '</div></div>';
     // + Add end time (quiet grey, left) once there's a start time
@@ -9568,7 +9574,7 @@
       const n = M.d && M.endD ? daysApart(M.d, M.endD) + 1 : 0;
       out = cap('STARTS') + dateTime + cap('ENDS') +
         '<div style="display:flex;gap:8px">' + dateField(M.endD, 'End date', 'End date', (v) => set({ endD: v }), 'flex:1.5 1 0', o.anyDay, 46, { min: next0, max: M.d ? plusDays(M.d, SPAN_MAX) : '' }) +
-          '<div style="flex:1 1 0;min-width:0">' + startT(k + 'EndT', M.endT, (v) => set({ endT: v }, { timeOpen: null }), 'End date time') + '</div></div>' +
+          '<div style="flex:1 1 0;min-width:0">' + startT(k + 'EndT', M.endT, (v) => set({ endT: v }, { timeOpen: null }), 'End date time', null, M.t) + '</div></div>' +
         (!M.d ? green('Pick a start date first') : whenErr(M) ? red(whenErr(M)) : green(n + ' days · ' + wkDay(M.d) + ' to ' + wkDay(M.endD)));
     } else if (type === 'days') {
       const setDay = (j) => (patch, extra) => set({ days: days.map((x, q) => q === j ? Object.assign({}, x, patch) : x) }, extra);
@@ -9735,7 +9741,7 @@
         '<label data-cp-photo style="align-self:flex-start;margin-bottom:6px;display:flex;align-items:center;gap:6px;height:36px;padding:0 13px;border-radius:999px;background:rgba(255,255,255,.22);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);color:#fff;font-size:14px;font-weight:800;cursor:pointer">' +
           svg(16, stroke('#fff', 2.2), CAMERA) + (url ? 'Change photo' : 'Add photo') + photoInput(url ? 'Change the cover photo' : 'Add a cover photo') + '</label>' +
         '<textarea class="cp-hero-fld" rows="' + Math.max(1, Math.ceil(title.length / 13)) + '" maxlength="40" data-ev-title aria-label="Event title" placeholder="Event title" ' + onInput(e => { if (e.type === 'input') { const v = e.target.value.replace(/\n/g, '').slice(0, 40); if (v !== e.target.value) e.target.value = v; setState({ activity: v }); } }) +
-          ' style="' + TA + ';font-size:40px;line-height:1;font-weight:900;letter-spacing:-1.3px">' + esc(title) + '</textarea>' +
+          ' style="' + TA + ';font-size:40px;line-height:1;font-weight:900;letter-spacing:-1.3px' + (dt ? ';padding-right:96px' : '') + '">' + esc(title) + '</textarea>' +   // clear of the date tile (create flow audit)
         '<textarea class="cp-hero-fld" rows="' + Math.max(1, Math.ceil((st.evOverview || '').length / 32)) + '" maxlength="120" data-overview-input aria-label="Quick overview" placeholder="Add a quick overview" ' + onInput(e => { if (e.type === 'input') { const v = e.target.value.replace(/\n/g, ' ').slice(0, OV_MAX); if (v !== e.target.value) e.target.value = v; setState({ evOverview: v }); } }) +
           ' style="' + TA + ';font-size:18px;line-height:1.4;font-weight:500">' + esc(st.evOverview || '') + '</textarea>' +
       '</div></div>';
@@ -9888,7 +9894,7 @@
         ['where', 'Location', st.evSpotPoll ? 'Voting on ' + st.evSpotPoll.length + ' locations' : place, !st.evSpotPoll && place ? evSpotCols(st).spot_address : ''],
         // The overview first, then + N more for the quick details (+ 1 detail when there's one) (Design v8 prototype, Review)
         ['details', 'What to expect', ov ? ov + (bits.length ? ' + ' + bits.length + (bits.length === 1 ? ' detail' : ' more') : '') : bits.length ? bits[0] + more(bits) : ''],
-        ['help', 'Join in', jobNames.length ? jobNames.slice(0, 2).join(', ') + (jobNames.length > 2 ? ' + ' + (jobNames.length - 2) + ' more' : '') : '']
+        ['help', 'How to participate', jobNames.length ? jobNames.slice(0, 2).join(', ') + (jobNames.length > 2 ? ' + ' + (jobNames.length - 2) + ' more' : '') : '']
       ];
       const nDone = chk.filter(c => c[2]).length;
       const chkRow = ([k, label, value, sub], j) => '<div ' + on(() => edit(k)) + ' data-review-edit="' + k + '" aria-label="' + (value ? 'Edit ' : 'Add ') + label.toLowerCase().replace('&', 'and') + '" style="display:flex;align-items:center;gap:12px;min-height:50px;padding:6px 0;border-top:' + (j ? '1px solid #eef0f3' : '0') + ';cursor:pointer">' +
@@ -10075,11 +10081,13 @@
         }).join('');
       const chips = (big) => '<div style="display:flex;flex-wrap:wrap;gap:' + (big ? 8 : 6) + 'px">' +
         [['Bring', 'Bring '], ['Set up', 'Set up '], ['Help', 'Help with '], ['Clean up', 'Clean up '], ['Coordinate', 'Coordinate '], ['Thought partner', 'Thought partner ']].map(([l, p]) => chip(l, () => openJob(null, blankJob(p)), false, big)).join('') +
-        chip('Other', () => openJob(null, blankJob('')), true, big) + '</div>';
+        // as + Add's pop-up: Write your own and Time slots (create flow audit, 2026-10-07; was Other)
+        chip('Write your own', () => openJob(null, blankJob('')), true, big) +
+        chip('Time slots', () => { const t0 = st.evTime && st.evTime >= '06:00' ? st.evTime : '09:00'; openJob(null, Object.assign(blankJob(''), { need: null, shifts: [{ time: t0, end: addMins(t0, 30), need: 4 }, { time: addMins(t0, 30), end: addMins(t0, 60), need: 4 }] })); }, true, big) + '</div>';
       const pchips = (big) => '<div style="display:flex;flex-wrap:wrap;gap:' + (big ? 8 : 6) + 'px">' +
         ['time', 'seat', 'other'].map(k => chip(PART_KINDS[k].chip, () => openJob(null, blankPart(k, st.evTime)), k === 'other', big, true, 'data-part-chip')).join('') + '</div>';
       const label = (t) => '<span style="font-size:12.5px;font-weight:800;letter-spacing:1.2px;color:#454b55">' + t + '</span>';   // #454b55 (v8-6)
-      body = head('Join in', 'Ask for help or list specific ways to participate.') +
+      body = head('How to participate', 'Ask for help or list specific ways to participate.') +
         (jobs ? '<div style="padding:12px 14px 0;display:flex;flex-direction:column;gap:8px">' + jobs + '</div>' : '') +
         '<div style="padding:16px 16px 0;display:flex;flex-direction:column;gap:10px">' + label('ADD') + chips(!!jobs) + '</div>';   // one kind of sign-up (2026-10-07): no separate spot chips
     }
@@ -10087,8 +10095,8 @@
   }
   // Review's Edit (owner, 2026-10-02): each part opens in a pop-up over Review, not back on its step's page. The fields
   // change the event as they're typed, so Done (or closing it) only goes back
-  // Review's edit pop-ups name Join in "How people can join" (Design v8)
-  const POP_NAMES = Object.assign({}, EV_NAMES, { title: 'Event title', help: 'How people can join' });
+  // Review's edit pop-ups name the help step How to participate, as the one-page Plan an event does
+  const POP_NAMES = Object.assign({}, EV_NAMES, { title: 'Event title', help: 'How to participate' });   // as the one-page Plan an event names it (create flow audit, 2026-10-07; was How people can join)
   // v8-6 (20c): a centred pop-up, 24px corners, as tall as its content up to 88% (it scrolls inside), no grab bar,
   // a quick fade-and-grow. Done goes back to Review
   function viewEvPop() {
@@ -10174,7 +10182,8 @@
       // One sheet for every item (one kind of sign-up, owner 2026-10-07): name, details, times, options
       return centredPop(ns.i != null ? 'Edit' : 'Add', close,   // v8-14: a centred pop-up (it was a bottom sheet)
         sheetHead('Participate', ns.i != null ? 'Edit' : 'Add', '', close) + jobFields(r, set, null, (() => { const c = whenCols(evWhen()).schedule; return c && c.kind === 'days' ? c.days.map(x => x.d) : null; })()) +
-        '<div style="display:flex;flex-direction:column">' + saveBtn(r.kind ? partReady(r) : jobNamed(r.item), save) + '</div>', 36);
+        // Save stays in view while the times grow (create flow audit)
+        '<div style="position:sticky;bottom:-18px;z-index:2;margin:0 -18px -18px;padding:10px 18px 18px;background:#fff;display:flex;flex-direction:column">' + saveBtn(r.kind ? partReady(r) : jobNamed(r.item), save) + '</div>', 36);
     }
     if (st.evLeave) {
       const close = () => setState({ evLeave: false, evLeaveTo: null });
@@ -10592,7 +10601,7 @@
     const panels = [
       // No eyebrow: the Spark Hub mark sits in the top row beside the × (owner, 2026-10-07)
       // Just the title, larger (28px), over the phones (owner, 2026-10-07: no description lines)
-      '<h3 style="margin:0;font-size:28px;line-height:1.08;font-weight:900;letter-spacing:-.7px;color:#0d1117;text-wrap:balance">Where your group’s ideas turn into plans</h3>' + aboutPhones(),
+      '<h3 style="margin:0;text-align:center;font-size:28px;line-height:1.08;font-weight:900;letter-spacing:-.7px;color:#0d1117;text-wrap:balance">Where your group’s <span style="color:#eaa514">ideas</span> turn into <span style="color:#5b4ae8">plans</span></h3>' + aboutPhones(),
       kick('HOW IT WORKS') + h('Anyone can start something') +
         '<div style="display:flex;flex-direction:column;gap:8px">' +
           step('#fdf1d6', '#f5b428', '#2a1d00', 1, 'Float an idea for an event', '“Pickleball on Sunday mornings?”') +
@@ -11249,10 +11258,14 @@
     if (swipe && swipe.on && !swipe.settling) { swipe = null; swipeClear(); }
     H = [];
     GEN++;
-    const html = view();
+    FLOAT = '';
+    const html = view() + FLOAT;   // an open time list or calendar, over everything
     handlers = H;
     tpl.innerHTML = html;
     morphChildren(root, tpl.content);
+    // A time list just opened (by its field, or + Add end time): start it at its time
+    const tl = root.querySelector('[data-time-list]');
+    if (tl && tl._for !== state.timeOpen) { tl._for = state.timeOpen; const at = tl.querySelector('[data-time="' + tl.getAttribute('data-scroll-to') + '"]'); if (at) tl.scrollTop = at.offsetTop - tl.clientHeight / 2 + at.offsetHeight / 2; }
     if (sd && sd.on && !sd.settling && sd.el.isConnected) sdPaint(sd.d);   // a redraw mid-drag reset the sheet's style
     const noNav = welcomeShown() || invFull() || (!state.email && state.screen === 'detail');
     root.classList.toggle('no-nav', noNav);
@@ -11284,7 +11297,12 @@
     if (el && fn && !(scrim && e.target === scrim)) noteTap6(el);   // for feedback: what was tapped, by its label
     // Clicking outside a menu closes it
     if (state.menu && !e.target.closest('[data-menu]')) setState({ menu: null });
+    // A tap outside an open time list or calendar closes it and still does what was tapped (create flow audit: Done
+    // and × needed two taps)
+    const shut = (state.timeOpen || state.dateOpen) && !e.target.closest('[data-float], [data-time-field], [data-date-field]');
+    if (shut) { state.timeOpen = null; state.dateOpen = null; }
     if (fn) fn(e);
+    if (shut) setState({});
   });
 
   root.addEventListener('keydown', (e) => {
@@ -11294,6 +11312,11 @@
       e.preventDefault(); const b = e.target.parentElement.querySelector('[aria-disabled="false"]'); if (b) b.click(); return;
     }
     if (e.key === 'Escape') {
+      if (state.timeOpen) return setState({ timeOpen: null });   // an open list or calendar first, even with focus in a field (create flow audit)
+      if (state.dateOpen) return setState({ dateOpen: null });
+      if (state.needSheet) return setState({ needSheet: null });
+      if (state.evJobPop) return setState({ evJobPop: false });
+      if (state.evGrpPop) return setState({ evGrpPop: false });
       if (state.about != null) return setState({ about: null });
       if (state.dayTypePop) return setState({ dayTypePop: null });
       if (state.dayPick) return setState({ dayPick: null });

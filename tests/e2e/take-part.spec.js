@@ -37,7 +37,7 @@ test('take part: set up spots, claim, waitlist, guest, roster and giving up', as
     await seats.getByLabel('Job name').fill('Beginner clinic');
     await seats.getByRole('button', { name: 'More for how many people' }).click();
     await seats.getByRole('button', { name: 'Save', exact: true }).click();
-    await expect(flow.locator('[data-job="Court time"]')).toContainText('2 times · 1 each');
+    await expect(flow.locator('[data-job="Court time"]')).toContainText('2 times from 9am · 1 each');
     await expect(flow.locator('[data-job="Beginner clinic"]')).toContainText('2 people');
     await flow.locator('[data-post]').click();
     await expect(H.locator('[data-screen-label="Plan page"]')).toBeVisible();

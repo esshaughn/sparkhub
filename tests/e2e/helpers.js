@@ -254,7 +254,8 @@ function ideaIdFromUrl(page) {
 // The date picker is our own calendar (owner, 2026-10-01): open the field, page to the month, tap the day ('' clears it)
 async function pickDate(scope, iso, label = 'Date') {
   await scope.getByRole('button', { name: label, exact: true }).click();
-  const cal = scope.locator('[data-calendar]');
+  // the calendar and the time list float over the whole app, outside any pop-up (create flow audit, 2026-10-07)
+  const cal = (scope.page ? scope.page() : scope).locator('[data-calendar]');
   if (!iso) { await cal.getByRole('button', { name: 'Clear the date' }).click(); return; }
   for (let i = 0; i < 24 && (await cal.getAttribute('data-calendar')) < iso.slice(0, 7); i++) await cal.getByRole('button', { name: 'Next month' }).click();
   await cal.locator('[data-day="' + iso + '"]').click();
@@ -336,7 +337,7 @@ async function addJob(page, { item, need = 1, time }) {
 // "17:30" → "5:30pm", as the time list shows it
 // The time list (owner, 2026-10-06: a scrolling list every 30 minutes; it was a tap grid): tapping a time picks it. t is "17:30"
 async function pickTime(scope, t) {
-  await scope.locator('[data-time-list] [data-time="' + t + '"]').click();
+  await (scope.page ? scope.page() : scope).locator('[data-time-list] [data-time="' + t + '"]').click();
 }
 // A time field's typeable box (v8-7): its value is the time as shown ("5:00pm"); type into it and press Enter
 const timeBox = (scope, label) => scope.getByRole('textbox', { name: label + ', type a time', exact: true });

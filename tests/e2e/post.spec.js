@@ -294,11 +294,11 @@ test('Plan an event is one page (v8-14): Post it waits for a title and a date; t
     await expect(when.locator('[data-create-poll="when"]')).toBeVisible();
     await pickDate(when, inDays(10));
     await when.getByRole('button', { name: 'Start time' }).click();
-    await expect(when.locator('[data-time-list] [data-time]')).toHaveCount(36);   // every 30 minutes, 6am–11:30pm (owner, 2026-10-06)
+    await expect(when.page().locator('[data-time-list] [data-time]')).toHaveCount(36);   // every 30 minutes, 6am–11:30pm (owner, 2026-10-06)
     await pickTime(when, '18:00');
     await when.getByText('Add end time').click();
-    await expect(when.locator('[data-time-list] [data-time="18:30"]')).toBeVisible();
-    await expect(when.locator('[data-time-list] [data-time="17:00"]')).toHaveCount(0);
+    await expect(when.page().locator('[data-time-list] [data-time="18:30"]')).toBeVisible();
+    await expect(when.page().locator('[data-time-list] [data-time="17:00"]')).toHaveCount(0);
     await pickTime(when, '20:00');
     await when.getByRole('button', { name: 'Done' }).click();
     // The row shows the date with the time under it; the calendar tile is up in the header; the card turns white
@@ -359,17 +359,19 @@ test('polls: the host posts a date poll (an idea), a member votes, the host pick
     await pickDate(poll, inDays(15), 'Date option 2');
     await poll.getByRole('button', { name: 'Start poll · 2 options', exact: true }).click();
     await expect(H.getByText('Two options are the same date and time. Change or remove one.')).toBeVisible();
-    // The pop-up opens tall, so the calendar under an option isn't cut off by its edge
+    // The calendar floats over the app, whole, inside the screen (create flow audit, 2026-10-07: it was cut off in pop-ups)
     await poll.getByRole('button', { name: 'Date option 2', exact: true }).click();
-    const cal = await poll.locator('[data-calendar]').boundingBox(), edge = await poll.boundingBox();
-    expect(cal.y + cal.height).toBeLessThanOrEqual(edge.y + edge.height);
-    await poll.locator('[data-day="' + inDays(15) + '"]').click();
+    const cal = await H.locator('[data-calendar]').boundingBox(), vp = H.viewportSize();
+    expect(cal.x).toBeGreaterThanOrEqual(0);
+    expect(cal.x + cal.width).toBeLessThanOrEqual(vp.width);
+    expect(cal.y + cal.height).toBeLessThanOrEqual(vp.height);
+    await H.locator('[data-calendar] [data-day="' + inDays(15) + '"]').click();
     // The time is the app's own list, like the calendar (not the browser's menu); No time clears it
     await poll.getByRole('button', { name: 'Time option 1' }).click();
     await pickTime(poll, '18:00');
-    await expect(timeBox(poll, 'Time option 1')).toHaveValue('6:00pm');
+    await expect(timeBox(poll, 'Time option 1')).toHaveValue('6pm');
     await poll.getByRole('button', { name: 'Time option 1' }).click();
-    await poll.locator('[data-time-list]').getByRole('option', { name: 'No time', exact: true }).click();
+    await poll.page().locator('[data-time-list]').getByRole('option', { name: 'No time', exact: true }).click();
     await expect(timeBox(poll, 'Time option 1')).toHaveValue('');
     await expect(timeBox(poll, 'Time option 1')).toHaveAttribute('placeholder', '+ Add time');
     await pickDate(poll, inDays(16), 'Date option 2');
@@ -642,17 +644,17 @@ test('How to participate: + Add opens the starters pop-up (Thought partner stays
     // The job's time is the app's own list (not the browser's menu)
     await job.getByRole('button', { name: 'Time', exact: true }).click();
     await pickTime(job, '17:00');
-    await expect(timeBox(job, 'Time')).toHaveValue('5:00pm');
+    await expect(timeBox(job, 'Time')).toHaveValue('5pm');
     // Shifts use the same list: the end only offers later times
     await job.getByText('Add more times').click();
     await job.getByRole('button', { name: 'Time 1 end' }).click();
-    await expect(job.locator('[data-time-list] [data-time="18:00"]')).toBeVisible();
-    await expect(job.locator('[data-time-list] [data-time="17:00"]')).toHaveCount(0);   // only times after the start
+    await expect(job.page().locator('[data-time-list] [data-time="18:00"]')).toBeVisible();
+    await expect(job.page().locator('[data-time-list] [data-time="17:00"]')).toHaveCount(0);   // only times after the start
     await pickTime(job, '18:00');
-    await expect(timeBox(job, 'Time 1 end')).toHaveValue('6:00pm');
+    await expect(timeBox(job, 'Time 1 end')).toHaveValue('6pm');
     await job.getByText('Use one time instead').click();
     await job.getByRole('button', { name: 'Time', exact: true }).click();
-    await job.locator('[data-time-list]').getByRole('option', { name: 'No time', exact: true }).click();   // clears it
+    await job.page().locator('[data-time-list]').getByRole('option', { name: 'No time', exact: true }).click();   // clears it
     await job.getByRole('button', { name: 'Save', exact: true }).click();
     // The job's row, and the empty-state lines are gone; the card is white
     await expect(flow.locator('[data-job="Bring a ball"]')).toBeVisible();

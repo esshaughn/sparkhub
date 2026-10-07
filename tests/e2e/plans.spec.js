@@ -207,8 +207,8 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     // The end time is a small "+ Add end time" link until it's asked for, as on Create event; the ✕ takes it off again
     await expect(when.getByRole('button', { name: 'End time', exact: true })).toHaveCount(0);
     await when.getByText('Add end time').click();
-    await expect(when.locator('[data-time-list] [data-time="19:00"]')).toBeVisible();
-    await expect(when.locator('[data-time-list] [data-time="17:00"]')).toHaveCount(0);   // only later times
+    await expect(when.page().locator('[data-time-list] [data-time="19:00"]')).toBeVisible();
+    await expect(when.page().locator('[data-time-list] [data-time="17:00"]')).toHaveCount(0);   // only later times
     await pickTime(when, '19:00');
     await expect(timeBox(when, 'End time')).toHaveValue('7:00pm');
     await when.getByRole('button', { name: 'Remove end time' }).click();
