@@ -183,7 +183,11 @@ async function openTasks(page) {
 async function openAllGroups(page) {
   await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Groups', exact: true }).click();
   await page.locator('[data-all-groups]').click();
-  await expect(page.locator('[data-screen-label="All groups"]')).toBeVisible();
+  const all = page.locator('[data-screen-label="All groups"]');
+  await expect(all).toBeVisible();
+  // it opens on Month (owner, 2026-10-07); the specs read the list
+  await expect(all.getByRole('button', { name: 'View: Month' })).toBeVisible();
+  await pickView(all, 'List');
 }
 // Real or test? is gone (v8, owner 2026-10-05): kept so older specs still read, it does nothing
 async function pickKind() {}
