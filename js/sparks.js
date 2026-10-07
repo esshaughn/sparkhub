@@ -10269,7 +10269,7 @@
     onInput(e => onChange(e.target.value.replace(/\D/g, '').slice(0, 8))) +
     ' style="width:100%;background:#fff;border:2px solid #e6e7eb;border-radius:14px;padding:14px 16px;font-family:inherit;font-size:' + (size || 26) + 'px;font-weight:800;letter-spacing:10px;text-align:center;color:#0d1117;outline:none">';
 
-  const DEFAULT_LEAD = 'Your events, groups, and name are saved to your account. ';   // no longer shown (owner, 2026-10-07)
+  const DEFAULT_LEAD = 'Your events, groups, and name are saved to your account. ';   // not shown: with Google it's "Two ways to log in:" (owner, 2026-10-07)
   function viewLogin() {
     const st = state, busy = st.busy;
     if (st.loginStep === 'email') {
@@ -10280,7 +10280,7 @@
         DEFAULT_LEAD;
       return modal('Sign in', closeLogin,
         h3Html(st.loginFrom === 'post' ? 'Sign in to post your event' : st.loginFrom === 'account' || st.loginFrom === 'reminder' ? 'Create a free account' : 'Sign in / Create an Account') +
-        (withGoogle ? (lead === DEFAULT_LEAD ? '' : paraHtml(lead.trim())) : paraHtml((lead === DEFAULT_LEAD ? '' : lead) + 'We’ll email you a 6-digit code. No password.')) +   // owner, 2026-10-07: no Use Google… line beside the Google button
+        (withGoogle ? paraHtml(lead === DEFAULT_LEAD ? 'Two ways to log in:' : lead.trim()) : paraHtml((lead === DEFAULT_LEAD ? '' : lead) + 'We’ll email you a 6-digit code. No password.')) +   // owner, 2026-10-07: no Use Google… line beside the Google button
         (st.googleFailed
           ? '<div role="alert" style="display:flex;align-items:flex-start;gap:9px;background:#fdeef0;border:1.5px solid #f5c2cb;border-radius:14px;padding:11px 13px">' +
               '<span style="flex:0 0 18px;width:18px;height:18px;margin-top:1px;border-radius:999px;background:#9b1c31;color:#fff;font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center">!</span>' +
