@@ -7202,7 +7202,7 @@
         // Everyone else gets a small Contact pill in the same spot; messaging isn't built, so it asks for the feature (owner, 2026-10-07)
         (!manage && !s.wantsHost ? '<span ' + on(() => requestFeature('Contacting the leads')) + ' role="button" data-lead-contact aria-label="Contact" style="position:absolute;top:12px;right:12px;z-index:1;display:flex;align-items:center;gap:4px;min-height:28px;padding:0 10px;border-radius:999px;background:rgba(255,255,255,.72);color:#2a1f8f;font-size:12px;font-weight:800;cursor:pointer">' +
           svg(12, stroke('#2a1f8f', 2.4), '<path d="M4 5.5h16v10H9l-5 4v-14Z"/>') + 'Contact</span>' : '') +
-        (manage ? '<span ' + on(() => setState({ leadsSheet: s.id })) + ' data-manage-coleads aria-label="Manage co-leads" style="position:absolute;top:14px;right:16px;z-index:1;display:flex;align-items:center;gap:5px;min-height:36px;padding:0 2px;color:#6b7280;font-size:14px;font-weight:700;cursor:pointer">' + svg(13, stroke('currentColor', 2.4), PENCIL) + 'Edit</span>' : '') +
+        (manage ? '<span ' + on(() => setState({ leadsSheet: s.id })) + ' data-manage-coleads aria-label="Manage co-leads" style="position:absolute;top:' + (ask ? '14px' : '50%;transform:translateY(-50%)') + ';right:16px;z-index:1;display:flex;align-items:center;gap:5px;min-height:36px;padding:0 2px;color:#6b7280;font-size:14px;font-weight:700;cursor:pointer">' + svg(13, stroke('currentColor', 2.4), PENCIL) + 'Edit</span>' : '') +
       '</div>';   // (Say hi is hidden until there's messaging, owner 2026-10-01)
   };
   // The Leads sheet (20261101130000_cohosts.sql): everyone sees who leads it; leads and group admins add co-leads from
