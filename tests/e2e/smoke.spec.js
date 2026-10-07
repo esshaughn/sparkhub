@@ -380,9 +380,11 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
     };
     await context.route('**/rest/v1/rpc/load_all', flagDemo);
     await page.reload();
+    await pickView(cal, 'List');   // All groups opens on Month (owner, 2026-10-07)
     await expect(cal.locator(`[data-plan="${PLAN}"] [data-demo-tag]`)).toHaveText('DEMO');
     await context.unroute('**/rest/v1/rpc/load_all', flagDemo);
     await page.reload();
+    await pickView(cal, 'List');
     await expect(cal.locator(`[data-plan="${PLAN}"]`)).toContainText('Change RSVP');
     await cal.getByRole('button', { name: /^Sort: / }).click();
     await page.getByRole('menu', { name: 'Sort' }).getByRole('menuitemradio', { name: 'Needs help' }).click();
