@@ -6375,7 +6375,10 @@
 
   // ---- v6 Update 6: the host edits one section at a time in a small sheet (the full-screen editor is retired)
   const openSec = (s, kind) => {
-    const desc = !s.hopes.length && s.vision && s.vision.trim() && isLead(s) ? s.vision.trim().slice(0, 200) : null;   // v8-14: a description is edited whole
+    // v8-14: a host edits the description whole. An older event's three detail lines come in joined as one paragraph
+    // (owner, 2026-10-07: "Bring water", "Kids welcome" → "Bring water. Kids welcome."), so saving moves it to the new
+    // format; 3 lines of 60 always fit in 200. A group admin who isn't a host still edits the lines (admin_edit_spark)
+    const desc = isLead(s) ? basicsOf(s).map(b => /[.!?]$/.test(b) ? b : b + '.').join(' ').slice(0, 200) : null;
     const bits = desc != null ? ['', '', ''] : basicsOf(s).slice(0, 3).map(b => b.slice(0, 60));
     while (bits.length < 3) bits.push('');
     setState({ sec: { id: s.id, kind, title: s.text, ...whenModelOf(s), bits, desc, ov: s.overview || '', need: s.minPeople || null, tags: (s.tags || []).slice(), priv: s.visibility === 'invite', guestInv: s.guestInvites !== false, groups: gIds(s).slice() },

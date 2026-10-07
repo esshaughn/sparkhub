@@ -211,6 +211,38 @@ test('post an event with every step filled, then edit it in the pop-ups and dele
   }
 });
 
+test('an older event’s three detail lines open as one description and save in the new format', async ({ browser }) => {
+  const { page, context, errors } = await newLead(browser, 1, 'Tester');
+  const title = uniqueTitle('Old details');
+  let id;
+  try {
+    // Made the pre-v8-14 way: three detail lines, no description
+    id = await asUser(page, async (c, _C, { title, day }) => {
+      const me = (await c.auth.getUser()).data.user.id;
+      const g = (await c.from('groups').select('id').eq('name', 'Torrez Fitness').single()).data.id;
+      const r = await c.from('sparks').insert({ group_id: g, author_name: 'Tester', lead_name: 'Tester', lead_id: me, created_by: me, text: title, planned: true, day_date: day,
+        hopes: ['Bring water', 'Meet at the gate!', 'Kids welcome'] }).select('id').single();
+      return r.error ? r.error.message : r.data.id;
+    }, { title, day: inDays(9) });
+    expect(id).toMatch(/^[0-9a-f-]{36}$/);
+    await openIdea(page, id);
+    const P = page.locator('[data-screen-label="Plan page"]');
+    await P.getByRole('button', { name: 'Edit what to expect' }).click();
+    const bd = page.getByRole('dialog', { name: 'What to expect' });
+    await expect(bd.getByLabel('Details, line 1')).toHaveCount(0);
+    await expect(bd.getByLabel('Event description')).toHaveValue('Bring water. Meet at the gate! Kids welcome.');
+    await bd.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(bd).toHaveCount(0);
+    expect(await asUser(page, async (c, _C, id) => (await c.from('sparks').select('hopes, vision').eq('id', id).single()).data, id))
+      .toEqual({ hopes: [], vision: 'Bring water. Meet at the gate! Kids welcome.' });
+    await expect(P.locator('[data-basics]')).toContainText('Meet at the gate! Kids welcome.');
+    expect(errors).toEqual([]);
+  } finally {
+    if (id && /^[0-9a-f-]{36}$/.test(id)) await deleteIdea(page, id).catch(() => {});
+    await context.close();
+  }
+});
+
 test('Plan an event is one page (v8-14): Post it waits for a title and a date; the cards fill in; Date & time and Location pop-ups', async ({ browser }) => {
   test.setTimeout(90000);
   const { page, context, errors } = await newLead(browser, 2, 'Guard');

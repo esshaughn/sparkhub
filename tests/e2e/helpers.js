@@ -143,7 +143,9 @@ async function newLead(browser, n, name, path) {
     await api('POST', '/rest/v1/rpc/rename_me', session.access_token, { p_name: name });
     // Every notification topic on: a run that stopped between the notifications test's switch off and back on left
     // one lead with Updates off, so that test failed on every later run on that worker (2026-10-02)
-    await api('PATCH', '/rest/v1/notif_state?user_id=eq.' + session.user.id, session.access_token, { topics: {} });
+    // …and no "already seen" flags: they follow the account since 20261112000000_seen_on_account.sql, so one run's
+    // swipe or welcome hid it from every later run on TEST (the swipe arrows, full run 37632115917)
+    await api('PATCH', '/rest/v1/notif_state?user_id=eq.' + session.user.id, session.access_token, { topics: {}, seen: {} });
     if (!torrezId) torrezId = (await api('GET', '/rest/v1/groups?select=id&name=eq.' + encodeURIComponent('Torrez Fitness'), session.access_token))[0].id;
   } catch (e) {
     throw new Error('Lead sign-in failed: ' + e.message);
