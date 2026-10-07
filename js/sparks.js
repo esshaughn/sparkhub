@@ -390,6 +390,8 @@
   const ORIGINS = ['home', 'sched', 'own', 'calendar', 'groups', 'friends', 'me', 'browse', 'ideas'];
   const go = (screen, extra) => {
     const sc = scroller();
+    // The Ideas tab always opens on Newest, whatever sort was picked last time (owner, 2026-10-07)
+    if (screen === 'ideas' && state.screen !== 'ideas') state.iaSort = 'new';
     if (screen === 'detail' && state.screen !== 'detail') {
       state.back = ORIGINS.indexOf(state.screen) > -1 ? { screen: state.screen, groupId: state.groupId, phaseTab: state.phaseTab, scroll: sc ? sc.scrollTop : 0 } : null;
     }
@@ -8506,7 +8508,7 @@
   function viewIdeas() {
     const st = state, G = myGroups(), pickG = (st.iaGrps || []).filter(id => groupById(id)), all = boardIdeas();
     const inG = (s) => !pickG.length || gIds(s).some(id => pickG.indexOf(id) > -1);
-    const IS = st.iaSort || 'interest', VW = st.iaView || 'full';
+    const IS = st.iaSort || 'new', VW = st.iaView || 'full';   // Newest first by default (owner, 2026-10-07)
     const ideas = all.filter(inG).sort((a, b) => IS === 'new' ? b.created - a.created : IS === 'close' ? stepsDone(b) - stepsDone(a) || b.interested.length - a.interested.length : b.interested.length - a.interested.length || b.created - a.created);
     const ROT = [-2, 1.5, 1, -1.5, 2, -1], ROTF = [-1, .8, -.5, 1];
     const nw = ideaDotOn() ? newestIdea() : null, newAttr = (s) => nw && nw.id === s.id ? ' data-new-idea="' + esc(s.id) + '"' : '';
@@ -8543,7 +8545,7 @@
         opt('All groups', all.length, !pickG.length, () => setState({ iaGrps: [] })) +
         G.map(g => opt(g.name, all.filter(s => inGroup(s, g.id)).length, pickG.indexOf(g.id) > -1, () => toggleG(g.id))).join('') +
         '<span ' + on(() => setState({ menu: null })) + ' role="button" style="margin-top:4px;display:flex;align-items:center;justify-content:center;min-height:40px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:14px;font-weight:800;cursor:pointer">Done</span></div>' : '';
-    const SORTS = [['interest', 'Popular'], ['new', 'Newest'], ['close', 'Almost a plan']];   // "Closest" read as distance
+    const SORTS = [['new', 'Newest'], ['interest', 'Popular'], ['close', 'Almost a plan']];   // "Closest" read as distance
     const sortMenu = st.menu === 'iaSort' ? '<div ' + on(() => setState({ menu: null })) + ' style="position:fixed;inset:0;z-index:1"></div>' +
       '<div role="listbox" style="position:absolute;top:calc(100% + 4px);right:0;z-index:2;min-width:170px;background:#fff;border:1px solid #eceef2;border-radius:16px;padding:6px;box-shadow:0 18px 44px rgba(15,18,25,.2);display:flex;flex-direction:column">' +
         SORTS.map(([k, l]) => '<span role="option" ' + on(() => setState({ iaSort: k, menu: null })) + ' style="display:flex;align-items:center;min-height:40px;padding:0 12px;border-radius:10px;font-size:14.5px;font-weight:' + (IS === k ? 800 : 600) + ';color:' + (IS === k ? '#5b4ae8' : '#0d1117') + ';background:' + (IS === k ? '#f3f1fe' : 'transparent') + ';cursor:pointer">' + l + '</span>').join('') + '</div>' : '';

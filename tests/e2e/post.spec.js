@@ -759,6 +759,14 @@ test('Float an idea: the Float sheet, a draft, and the starter’s slide-up', as
     await page.locator('[data-ia-view="grid"]').click();
     await expect(page.locator('[data-ia-views]')).toHaveAttribute('aria-label', 'View: Grid');
     expect((await strip())[1]).toBe(5);
+    // The board sorts Newest first, and opens on Newest again after another sort was picked (owner, 2026-10-07)
+    await expect(page.locator('[data-ia-sort]')).toContainText('Newest');
+    await page.locator('[data-ia-sort]').click();
+    await page.getByRole('option', { name: 'Popular' }).click();
+    await expect(page.locator('[data-ia-sort]')).toContainText('Popular');
+    await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Calendar', exact: true }).click();
+    await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: /^Ideas/ }).click();
+    await expect(page.locator('[data-ia-sort]')).toContainText('Newest');
 
     // Plan an event has no Float the idea card any more (v8-6: whoever makes it leads it)
     await startPost(page);
