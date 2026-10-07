@@ -826,7 +826,7 @@
     }
     if (u.id !== state.me || email !== state.email || google !== state.isGoogle) {
       if (state.viewAs) return;   // previewing as someone else: stay them until Exit (which reloads)
-      setState({ me: u.id, email, isGoogle: google, myName: (u.is_anonymous ? state.myName : metaName(meta) || state.myName).slice(0, 30), memberSince: u.created_at ? new Date(u.created_at).getFullYear() : state.memberSince });
+      setState({ me: u.id, email, isGoogle: google, myName: (u.is_anonymous ? state.myName : metaName(meta) || state.myName).slice(0, 30), memberSince: u.created_at ? new Date(u.created_at).getFullYear() : state.memberSince, joinedAt: u.created_at ? Date.parse(u.created_at) : state.joinedAt });
     }
   };
 
@@ -4153,7 +4153,7 @@
   function viewSched() {
     const st = state, view = HOME_VIEWS.indexOf(st.homeView) > -1 ? st.homeView : 'next';
     // Design v8 prototype: 10px under the header, 14px between sections, 8px from a heading to its cards
-    const wrap = (inner) => '<div data-screen-label="Your calendar">' + head6('My calendar', '', false, null, grpPill('sGrps')) + '<div style="padding:10px 14px 24px;display:flex;flex-direction:column;gap:14px">' + (st.loaded && !myGroups().length && schedList().length ? joinLine() : '') + inner + '</div><div style="height:var(--nav-h)"></div></div>';
+    const wrap = (inner) => '<div data-screen-label="Your calendar">' + head6('My calendar', '', false, null, grpPill('sGrps')) + '<div style="padding:10px 14px 24px;display:flex;flex-direction:column;gap:14px">' + (st.loaded ? startCard() : '') + (st.loaded && !myGroups().length && schedList().length ? joinLine() : '') + inner + '</div><div style="height:var(--nav-h)"></div></div>';
     if (!st.loaded) return wrap(skeleton(2, 220));
     if (!myGroups().length && !schedList().length) return wrap(goneCard() + noGroupCard());
     const sel = grpSel(st.sGrps), every = schedList(), all = every.filter(inPick(sel));
@@ -10520,7 +10520,19 @@
 
   // What's Spark Hub? (owner, 2026-10-07, first-encounter item 9): three short panels, Next between them, Got it at the
   // end. Opens only when asked (the visitor line, Me → How Spark Hub works); never by itself
-  const openAbout = () => setState({ about: 0, menu: null });
+  const openAbout = () => setState({ about: 0, aboutFull: false, menu: null });
+  // Start here (owner, 2026-10-07): accounts made from today on get a sparkle banner on My calendar until they open it or
+  // close it (on that device). It opens What's Spark Hub? with a third panel, Help shape Spark Hub · Contact Eric
+  const START_FROM = Date.parse('2026-10-07T05:00:00Z');   // midnight in Austin, the day it shipped
+  const startHidden = () => { try { return !!localStorage.getItem('spark-hub-start-x'); } catch (e) { return false; } };
+  const hideStart = () => { try { localStorage.setItem('spark-hub-start-x', '1'); } catch (e) { /* fine */ } };
+  const startOn = () => !!state.email && !!state.joinedAt && state.joinedAt >= START_FROM && !startHidden() && !state.viewAs;
+  const startCard = () => !startOn() ? '' :
+    '<div ' + on(() => { hideStart(); setState({ about: 0, aboutFull: true, menu: null }); }) + ' role="button" data-start-here aria-label="Start here: how this works, in 30 seconds" style="display:flex;align-items:center;gap:12px;padding:14px 12px 14px 14px;border-radius:20px;background:linear-gradient(120deg,#5b4ae8,#a03bc8 60%,#e8661c);color:#fff;box-shadow:0 8px 22px rgba(91,74,232,.3);cursor:pointer">' +
+      '<span aria-hidden="true" style="flex:0 0 40px;width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center">' + I.bolt(20, '#fff') + '</span>' +
+      '<span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px"><span style="font-size:17px;font-weight:900">Start here!</span><span style="font-size:13.5px;line-height:1.3;font-weight:600;opacity:.9">How this works, in 30 seconds</span></span>' +
+      '<span aria-hidden="true" style="display:flex;opacity:.85">' + I.chevR(14, '#fff', 3) + '</span>' +
+      '<span ' + on((e) => { stop(e); hideStart(); render(); }) + ' role="button" aria-label="Hide Start here" data-start-x style="flex:0 0 32px;width:32px;height:32px;border-radius:999px;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(12, '#fff', 3) + '</span></div>';
   // Panel 1's three fanned phones (owner, 2026-10-07: real screenshots of Groups, Ideas, Calendar; mockup variant A):
   // Groups in front, Ideas and Calendar tilted ±11° behind it, fading out at the bottom
   const aboutPhones = () => {
@@ -10534,7 +10546,7 @@
       phone('groups', 150, 'top:6px;left:calc(50% - 75px);z-index:2') + '</div>';
   };
   function viewAbout() {
-    const st = state, i = Math.max(0, Math.min(1, st.about | 0)), close = () => setState({ about: null }), go = (n) => setState({ about: n });
+    const st = state, N = st.aboutFull ? 3 : 2, i = Math.max(0, Math.min(N - 1, st.about | 0)), close = () => setState({ about: null, aboutFull: false }), go = (n) => setState({ about: n });
     const kick = (t) => '<span style="font-size:12px;font-weight:900;letter-spacing:1.2px;color:#8f6405">' + t + '</span>';
     const h = (t) => '<h3 style="margin:0;font-size:24px;line-height:1.12;font-weight:900;letter-spacing:-.5px;color:#0d1117;text-wrap:balance">' + t + '</h3>';
     const p = (t) => '<p style="margin:0;font-size:15.5px;line-height:1.5;font-weight:500;color:#2a2f38;text-wrap:pretty">' + t + '</p>';
@@ -10549,9 +10561,13 @@
         '<div style="display:flex;flex-direction:column;gap:8px">' +
           step('#fdf1d6', '#f5b428', '#2a1d00', 1, 'Float an idea for an event', '“Pickleball on Sunday mornings?”') +
           step('#fff1e8', '#e8661c', '#fff', 2, 'Everybody pitches in', 'Say you’re in, help pick a date, lend a hand') +
-          step('#f3f1fe', '#5b4ae8', '#fff', 3, 'Make it a plan', 'It’s on the calendar. See you there!') + '</div>'
-    ];
-    const dots = '<div style="display:flex;gap:6px;justify-content:center" aria-hidden="true">' + [0, 1].map(n => '<span style="height:7px;border-radius:999px;background:' + (n === i ? '#0d1117;width:20px' : '#dcdfe6;width:7px') + '"></span>').join('') + '</div>';
+          step('#f3f1fe', '#5b4ae8', '#fff', 3, 'Make it a plan', 'It’s on the calendar. See you there!') + '</div>',
+      // Only from Start here: Help shape Spark Hub, with Contact Eric (owner, 2026-10-07)
+      kick('FEEDBACK WANTED') + h('Help shape Spark Hub') +
+        '<div style="display:flex;align-items:center;gap:12px">' + ericFace(56) + '<span style="display:flex;flex-direction:column"><span style="font-size:17px;font-weight:900;color:#0d1117">Eric</span><span style="font-size:13.5px;font-weight:600;color:#6b7280">Spark Hub lead</span></span></div>' +
+        p('I’m building Spark Hub with my neighbors &amp; friends, for communities like yours.') + p('It’s still new. I want to hear your thoughts! What’s working and what needs to be changed.')
+    ].slice(0, N);
+    const dots = '<div style="display:flex;gap:6px;justify-content:center" aria-hidden="true">' + Array.from({ length: N }, (_, n) => n).map(n => '<span style="height:7px;border-radius:999px;background:' + (n === i ? '#0d1117;width:20px' : '#dcdfe6;width:7px') + '"></span>').join('') + '</div>';
     const btn = (label, fn, bg, ink, data) => '<button type="button" ' + data + ' ' + on(fn) + ' style="min-height:52px;border:0;border-radius:999px;background:' + bg + ';color:' + ink + ';font-family:inherit;font-size:16px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px">' + label + '</button>';
     // Back and close live at the top (owner, 2026-10-07, layout A): a round ‹ on panel 2 (the Spark Hub mark and a BETA chip on panel 1) and a round ×; the dots sit above
     // the main button
@@ -10563,6 +10579,8 @@
     // Two panels (owner, 2026-10-07: the feedback panel left; its words will live elsewhere). The last button is Try it out:
     // a guest goes to sign-in; an account just closes the sheet (Got it)
     const main = i < 1 ? btn('How it works' + I.chevR(16, '#2a1d00', 2.8), () => go(1), '#f5b428', '#2a1d00', 'data-about-next')
+      : i === 1 && N === 3 ? btn('Next', () => go(2), '#f5b428', '#2a1d00', 'data-about-next')
+      : i === 2 ? btn('Contact Eric', () => { setState({ about: null, aboutFull: false }); openFeedback(); }, '#5b4ae8', '#fff', 'data-about-feedback')
       : st.email ? btn('Got it', close, '#5b4ae8', '#fff', 'data-about-done')
       : btn('Try it out', () => { setState({ about: null }); openLogin('default'); }, '#5b4ae8', '#fff', 'data-about-try');
     return sheet('What’s Spark Hub?', close, SHEET_PAD,
@@ -11678,7 +11696,7 @@
   const bootUser = sb && signedInUser();
   if (bootUser) {
     const c = readCache(bootUser.id);
-    Object.assign(state, { me: bootUser.id, email: bootUser.email, memberSince: bootUser.created_at ? new Date(bootUser.created_at).getFullYear() : null }, c
+    Object.assign(state, { me: bootUser.id, email: bootUser.email, memberSince: bootUser.created_at ? new Date(bootUser.created_at).getFullYear() : null, joinedAt: bootUser.created_at ? Date.parse(bootUser.created_at) : null }, c
       ? { isGoogle: c.isGoogle, myName: c.myName || '', myAvatar: c.myAvatar, myPlace: c.myPlace || '', myBio: c.myBio || '', memberSince: c.memberSince || null, groups: c.groups || [], sparks: (c.sparks || []).map(x => Object.assign({ leadAsks: [], invites: [], jobAsks: [], leadOffer: null }, x)), profiles: c.profiles || {},
           sizes: c.sizes || {}, notif: c.notif || state.notif, demoAdmin: !!c.demoAdmin, fr: c.fr && c.fr.friends ? c.fr : state.fr, loaded: true, fromCache: true }
       : {});
