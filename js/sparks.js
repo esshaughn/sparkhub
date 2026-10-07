@@ -3953,7 +3953,7 @@
           '<div style="display:flex;align-items:center;gap:5px;font-size:' + (cal ? 14 : 14.5) + 'px;font-weight:700;color:rgba(255,255,255,.9);min-width:0">' + ic6('pin', 14, 'currentColor', 2.3) + '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (s.spot ? esc(s.spot) : tbdSpan(spotTbd(s), TBD_ON_PHOTO)) + '</span></div>' +
         '</div></div>' + (mode === 'mine' ? strip6(s, P, 34, cal, 12.5, 12) : cal ? strip6(s, P, 28, cal, 11.5) : strip6(s, P, 40, cal)) + '</div>';
   };
-  // List: date block, role bar, title, time · street, the photo on the right, over the strip (the same on every list since the audit, 2026-10-01)
+  // List: date block, title, time (bold) · street, the photo on the right, over the strip (the same on every list since the audit, 2026-10-01)
   // thumb 'chev' (My calendar's Month, Design v8): a gray chevron instead of the photo
   // A multi-day event's day (v8-7 item 8): "Day 1 of 2 · 10am–4pm"; a repeat's time says how it repeats
   const dayOfLine = (s) => {
@@ -3971,19 +3971,18 @@
     return [s];
   }));
   // noDate (All groups' Month, Design v8 prototype): no date block, the day is the heading above
-  // Design v8 prototype: 10px 12px padding, the role bar inset 6px top and bottom, the title at line-height 1.2
+  // Owner, 2026-10-07: no role bar, a larger title (18px) and line (14.5px, the time in bold ink), a 52px photo, 14px padding
   const listCard6 = (s, P, cal, thumb, noDate) => {
     const dp = s.dayDate ? dateParts(s.dayDate) : null;
     return '<div ' + on(() => openSpark(s)) + ' data-plan="' + esc(s.text) + '" aria-label="' + esc(s.text) + '" style="border-radius:16px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
-      '<div style="display:flex;align-items:stretch;gap:12px;padding:10px 12px">' +
-        (noDate ? '' : '<div style="flex:0 0 40px;display:flex;flex-direction:column;align-items:center;justify-content:center">' + (dp ? '<span style="font-size:10.5px;font-weight:900;letter-spacing:.7px;color:#6b7280">' + dp.dow + '</span><span style="font-size:20px;line-height:1;font-weight:900;color:#0d1117">' + dp.day + '</span>'
-          : '<span style="font-size:10.5px;font-weight:900;letter-spacing:.7px;color:#8f6405">TBD</span><span style="font-size:20px;line-height:1;font-weight:900;color:#8f6405">?</span>') + '</div>') +
-        '<span aria-hidden="true" style="flex:0 0 3px;margin:6px 0;border-radius:999px;background:' + P.R.dot + '"></span>' +
-        '<div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center"><div style="display:flex;align-items:center;min-width:0"><span style="min-width:0;font-size:15px;line-height:1.2;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(s.text) + '</span>' + demoTag(s, false, true) + '</div>' +
-          '<div style="font-size:12.5px;font-weight:600;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + [s.dayDate ? esc(dayOfLine(s)) : tbdSpan(dateTbd(s)), s.spot ? esc(street(s)) : tbdSpan(spotTbd(s))].filter(Boolean).join(' · ') + '</div></div>' +
-        (thumb === 'chev' ? '<span aria-hidden="true" style="flex:0 0 auto;align-self:center;display:flex">' + I.chevR(14, '#b9bcc4', 2.6) + '</span>' : '<span aria-hidden="true" style="flex:0 0 44px;width:44px;height:44px;align-self:center;border-radius:10px;background:' + photoBg(s) + '"></span>') +
-      // the strip at 12.5px; All groups' at 11.5px (Design v8 prototype)
-      '</div>' + strip6(s, P, 28, cal, cal ? 11.5 : 12.5) + '</div>';
+      '<div style="display:flex;align-items:stretch;gap:14px;padding:14px">' +
+        (noDate ? '' : '<div style="flex:0 0 42px;display:flex;flex-direction:column;align-items:center;justify-content:center">' + (dp ? '<span style="font-size:11.5px;font-weight:900;letter-spacing:.7px;color:#6b7280">' + dp.dow + '</span><span style="font-size:23px;line-height:1;font-weight:900;color:#0d1117">' + dp.day + '</span>'
+          : '<span style="font-size:11.5px;font-weight:900;letter-spacing:.7px;color:#8f6405">TBD</span><span style="font-size:23px;line-height:1;font-weight:900;color:#8f6405">?</span>') + '</div>') +
+        '<div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:3px"><div style="display:flex;align-items:center;min-width:0"><span style="min-width:0;font-size:18px;line-height:1.2;font-weight:900;letter-spacing:-.2px;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(s.text) + '</span>' + demoTag(s, false, true) + '</div>' +
+          '<div style="font-size:14.5px;font-weight:600;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + [s.dayDate ? (dayOfLine(s) ? '<b style="font-weight:800;color:#0d1117">' + esc(dayOfLine(s)) + '</b>' : '') : tbdSpan(dateTbd(s)), s.spot ? esc(street(s)) : tbdSpan(spotTbd(s))].filter(Boolean).join(' · ') + '</div></div>' +
+        (thumb === 'chev' ? '<span aria-hidden="true" style="flex:0 0 auto;align-self:center;display:flex">' + I.chevR(14, '#b9bcc4', 2.6) + '</span>' : '<span aria-hidden="true" style="flex:0 0 52px;width:52px;height:52px;align-self:center;border-radius:12px;background:' + photoBg(s) + '"></span>') +
+      // the strip: 34px at 13px everywhere (owner, 2026-10-07; was 28px at 12.5px, All groups' 11.5px)
+      '</div>' + strip6(s, P, 34, cal, 13) + '</div>';
   };
 
   // Up next (v6 Update 9): the next plan as a big photo with a countdown; your role strip, then its to-dos listed open
