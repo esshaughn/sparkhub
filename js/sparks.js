@@ -8121,11 +8121,10 @@
       '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px">' + ideaH('When?') +
         (st8 ? '<span ' + on(() => openPick(s, 'd')) + ' data-change-date style="display:flex;align-items:center;min-height:36px;font-size:14px;font-weight:800;color:#8f6405;cursor:pointer">' + EDIT_PEN + 'Change</span>' : '') + '</div>' +
       '<div style="display:flex;align-items:center;gap:14px">' +
-        '<span data-cal-page="' + s.dayDate + '" style="flex:0 0 84px;display:flex;flex-direction:column;border-radius:12px;overflow:hidden;background:#fff;box-shadow:0 0 0 2.5px #f5b428,0 2px 6px rgba(13,17,23,.14)">' +
-          '<span style="background:#f5b428;padding:5px 0;text-align:center;font-size:12px;font-weight:900;letter-spacing:1px;color:#2a1d00">' + new Date(s.dayDate + 'T12:00').toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase() + '</span>' +
-          '<span style="padding:9px 4px;text-align:center;font-size:22px;line-height:1.05;font-weight:900;color:#0d1117">' + monthDay(s.dayDate) + '</span></span>' +
+        // A gold calendar circle to match Where?'s pin (owner, 2026-10-07: no date page; the date is beside it)
+        '<span data-cal-page="' + s.dayDate + '" aria-hidden="true" style="flex:0 0 44px;width:44px;height:44px;border-radius:999px;background:#f5b428;display:flex;align-items:center;justify-content:center">' + svg(22, stroke('#2a1d00', 2.3), CAL_P) + '</span>' +
         '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px"><span style="font-size:18px;font-weight:900;color:#0d1117">' + esc(fmtDay(s.dayDate)) + '</span>' +
-          '<span style="font-size:14px;font-weight:700;color:' + (past ? '#9b1c31' : '#6b7280') + '">' + (past ? 'That date has passed' : esc(t || 'Time to be decided')) + '</span>' + (past ? '' : setChip(pickedBy(s))) + '</div></div></div>'; };
+          '<span style="font-size:14px;font-weight:700;color:' + (past ? '#9b1c31' : '#6b7280') + '">' + (past ? 'That date has passed' : esc(t || 'Time TBD')) + '</span>' + (past ? '' : setChip(pickedBy(s))) + '</div></div></div>'; };
   const setWhere = (s, st8) => '<div style="' + CARD8 + '" data-where data-where-set>' +
     '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px">' + ideaH('Where?') +
       (st8 ? '<span ' + on(() => openPick(s, 'l')) + ' data-change-loc style="display:flex;align-items:center;min-height:36px;font-size:14px;font-weight:800;color:#8f6405;cursor:pointer">' + EDIT_PEN + 'Change</span>' : '') + '</div>' +

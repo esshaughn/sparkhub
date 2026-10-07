@@ -368,6 +368,7 @@ test('polls: the host posts a date poll (an idea), a member votes, the host pick
     // The picked date is the answer everywhere (audit 2026-10-07): When? shows it and the poll closes
     await expect(HI.locator('[data-when-set]')).toContainText('You picked it');
     await expect(HI.locator('[data-when] [data-cal-page]')).toHaveCount(1);
+    await expect(HI.locator('[data-when-set] [data-cal-page]')).toHaveText('');   // a calendar icon like Where?'s pin, no date page
     await expect(HI.locator('[data-when]')).not.toContainText('Choose all dates you could attend.');
     // …and Make it a plan! is ready: a lead and a date; the location can wait (planMissing, owner 2026-10-02)
     await expect(HI.locator('[data-make-it-plan]')).toContainText('Make it a plan!');
