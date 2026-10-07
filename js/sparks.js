@@ -10437,7 +10437,7 @@
       // Help shape Spark Hub (owner, 2026-10-07): feedback wanted, from Eric, for communities. Guests send feedback without signing in
       kick('FEEDBACK WANTED') + h('Help shape Spark Hub') +
         '<div style="display:flex;align-items:center;gap:12px">' + ericFace(56) + '<span style="display:flex;flex-direction:column"><span style="font-size:17px;font-weight:900;color:#0d1117">Eric</span><span style="font-size:13.5px;font-weight:600;color:#6b7280">Spark Hub lead</span></span></div>' +
-        p('Spark Hub is new, and I’m building it with my neighbors &amp; friends, for communities like yours. We’re still working out the kinks, so I want to hear from you. Tell me what works and what doesn’t.') +
+        p('I’m building Spark Hub with my neighbors &amp; friends, for communities like yours.') + p('It’s still new. Tell me what works and what doesn’t.') +
         '<button type="button" data-about-feedback ' + on(() => { setState({ about: null }); openFeedback(); }) + ' style="min-height:52px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16px;font-weight:900;cursor:pointer">Give feedback</button>'
     ];
     const dots = '<div style="display:flex;gap:6px;justify-content:center" aria-hidden="true">' + [0, 1, 2].map(n => '<span style="height:7px;border-radius:999px;background:' + (n === i ? '#0d1117;width:20px' : '#dcdfe6;width:7px') + '"></span>').join('') + '</div>';

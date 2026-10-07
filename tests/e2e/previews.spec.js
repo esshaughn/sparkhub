@@ -127,7 +127,7 @@ test('a signed-out visitor sees the event only, and names once they RSVP', async
     await expect(about.locator('[data-about-panel="2"]')).toContainText('Anyone can start something');
     await about.locator('[data-about-next]').click();
     await expect(about.locator('[data-about-panel="3"]')).toContainText('Help shape Spark Hub');
-    await expect(about.locator('[data-about-panel="3"]')).toContainText('I’m building it with my neighbors & friends, for communities like yours.');
+    await expect(about.locator('[data-about-panel="3"]')).toContainText('I’m building Spark Hub with my neighbors & friends, for communities like yours.');
     await expect(about.locator('[data-about-feedback]')).toHaveText('Give feedback');
     // A guest sends feedback without signing in (20261113000000_guest_feedback.sql); no screenshot for guests
     await about.locator('[data-about-feedback]').click();
