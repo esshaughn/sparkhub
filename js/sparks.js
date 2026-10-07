@@ -10598,7 +10598,7 @@
     const main = i < 1 ? btn('How it works' + I.chevR(16, '#2a1d00', 2.8), () => go(1), '#f5b428', '#2a1d00', 'data-about-next')
       : i === 1 && N === 3 ? btn('Next', () => go(2), '#f5b428', '#2a1d00', 'data-about-next')
       : i === 2 ? btn('Contact Eric', () => { setState({ about: null, aboutFull: false }); openFeedback(); }, '#5b4ae8', '#fff', 'data-about-feedback')
-      : st.email ? btn('Got it', close, '#5b4ae8', '#fff', 'data-about-done')
+      : st.email || st.screen === 'detail' ? btn('Got it', close, '#5b4ae8', '#fff', 'data-about-done')   // a guest on an event page stays there (sign-in audit C3)
       : btn('Try it out', () => { setState({ about: null }); openLogin('default'); }, '#5b4ae8', '#fff', 'data-about-try');
     return sheet('What’s Spark Hub?', close, SHEET_PAD,
       top + '<div data-about-panel="' + (i + 1) + '" style="display:flex;flex-direction:column;gap:12px">' + panels[i] + '</div>' + dots + main, 44);

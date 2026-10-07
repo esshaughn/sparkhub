@@ -135,16 +135,13 @@ test('a signed-out visitor sees the event only, and names once they RSVP', async
     await expect(about.locator('[data-about-logo]')).toBeVisible();
     await expect(about.locator('[data-about-beta]')).toHaveText('BETA');
     await expect(about.locator('[data-about-close]')).toBeVisible();
-    // Two panels (owner, 2026-10-07): the last button is Try it out, which takes a guest to sign-in
+    // Two panels (owner, 2026-10-07); on an event page a guest's last button is Got it (no sign-in wall there)
     await about.locator('[data-about-next]').click();
     await expect(about.locator('[data-about-panel="3"]')).toHaveCount(0);
-    await expect(about.locator('[data-about-try]')).toHaveText('Try it out');
-    await about.locator('[data-about-try]').click();
+    await expect(about.locator('[data-about-done]')).toHaveText('Got it');
+    await about.locator('[data-about-done]').click();
     await expect(about).toHaveCount(0);
-    const signIn = V.getByRole('dialog', { name: 'Sign in' });
-    await expect(signIn).toBeVisible();
-    await signIn.getByLabel('Close').click();
-    await expect(signIn).toHaveCount(0);
+    await expect(V.getByRole('dialog', { name: 'Sign in' })).toHaveCount(0);
     // The photo's Share icon goes straight to the Share link pop-up (no one-button sheet for a guest, owner 2026-10-06)
     await V.getByRole('button', { name: 'Share', exact: true }).first().click();
     const pop = V.getByRole('dialog', { name: 'Share link' });
