@@ -403,6 +403,13 @@ select t.must_allow('the lead looks for a host', format($$select public.set_want
 reset role;
 select t.check('checked in', (select attended from rsvps where spark_id = t.id('came_walk') and user_id = t.id('taker')));
 select t.login('taker'); set role authenticated;
+-- I'll decide (lead_rule 'me', 20261111000000_idea_handoffs.sql): only someone asked can take it
+select t.must_refuse('a member nobody asked taking an "I''ll decide" idea', format($$select public.take_the_lead(%L)$$, t.id('host_idea')));
+reset role;
+select t.login('host'); set role authenticated;
+select t.must_allow('the lead asks the taker', format($$select public.ask_to_lead(%L, %L)$$, t.id('host_idea'), t.id('taker')));
+reset role;
+select t.login('taker'); set role authenticated;
 select t.must_allow('someone else takes the lead', format($$select public.take_the_lead(%L)$$, t.id('host_idea')));
 reset role;
 select t.check('the taker leads it, and it isn''t looking any more',
@@ -761,6 +768,52 @@ reset role;
 select t.check('they lead it, and its asks are gone',
   (select lead_id = t.id('asked') and not wants_host from sparks where id = t.id('floated'))
   and not exists (select 1 from lead_asks where spark_id = t.id('floated')));
+
+-- Answering, withdrawing and handing back (20261111000000_idea_handoffs.sql) ----------------------------------------
+select t.login('floater'); set role authenticated;
+insert into sparks (id, group_id, author_name, lead_name, lead_id, created_by, text, wants_host)
+values (gen_random_uuid(), t.id('g'), 'Floater', 'Floater', t.id('floater'), t.id('floater'), 'Declined idea', true);
+reset role;
+insert into t.ids select 'declined', id from sparks where text = 'Declined idea';
+select t.login('floater'); set role authenticated;
+select t.must_allow('the floater asks', format($$select public.ask_to_lead(%L, %L)$$, t.id('declined'), t.id('asked')));
+select t.must_allow('and asks a second person', format($$select public.ask_to_lead(%L, %L)$$, t.id('declined'), t.id('taker')));
+select t.must_allow('then takes the second ask back', format($$select public.withdraw_lead_ask(%L, %L)$$, t.id('declined'), t.id('taker')));
+reset role;
+select t.check('the withdrawn ask is gone', not exists (select 1 from lead_asks where spark_id = t.id('declined') and user_id = t.id('taker')));
+select t.login('stranger'); set role authenticated;
+select t.must_refuse('someone else withdrawing an ask', format($$select public.withdraw_lead_ask(%L, %L)$$, t.id('declined'), t.id('asked')));
+select t.must_refuse('answering an ask nobody made', format($$select public.answer_lead_ask(%L, false)$$, t.id('declined')));
+reset role;
+select t.login('asked'); set role authenticated;
+select t.must_allow('the person asked says no', format($$select public.answer_lead_ask(%L, false)$$, t.id('declined')));
+reset role;
+select t.check('a no clears the ask, the idea still looks, and the floater gets a note',
+  not exists (select 1 from lead_asks where spark_id = t.id('declined'))
+  and (select wants_host and lead_id = t.id('floater') from sparks where id = t.id('declined'))
+  and exists (select 1 from notes where user_id = t.id('floater') and body like '% can’t lead Declined idea right now.%'));
+select t.login('floater'); set role authenticated;
+select t.must_allow('the floater asks again', format($$select public.ask_to_lead(%L, %L)$$, t.id('declined'), t.id('asked')));
+reset role;
+insert into interests (spark_id, user_id) values (t.id('declined'), t.id('taker'));
+select t.login('asked'); set role authenticated;
+select t.must_allow('the person asked says yes', format($$select public.answer_lead_ask(%L, true)$$, t.id('declined')));
+reset role;
+select t.check('a yes makes them the lead, thanks the floater and tells the people interested',
+  (select lead_id = t.id('asked') and not wants_host from sparks where id = t.id('declined'))
+  and exists (select 1 from notes where user_id = t.id('floater') and body like '%is leading Declined idea. Thanks for floating it!%')
+  and exists (select 1 from notes where user_id = t.id('taker') and body like '%is leading Declined idea now.%'));
+select t.login('asked'); set role authenticated;
+select t.must_allow('the new lead picks a date', format($$update sparks set day_date = current_date + 9 where id = %L$$, t.id('declined')));
+reset role;
+select t.check('the people interested hear about the date', exists (select 1 from notes where user_id = t.id('taker') and body like '% picked % for Declined idea.%'));
+select t.login('asked'); set role authenticated;
+select t.check('stepping back from an idea they took over', public.step_back(t.id('declined')) = 'idea');
+reset role;
+select t.check('it goes back to the floater, looking for a lead again, and the one stepping back stays interested',
+  (select lead_id = t.id('floater') and wants_host from sparks where id = t.id('declined'))
+  and exists (select 1 from interests where spark_id = t.id('declined') and user_id = t.id('asked'))
+  and exists (select 1 from notes where user_id = t.id('floater') and body like '%you can choose one.%'));
 
 -- Feedback carries its context and an optional screenshot (20261102030000_feedback_context.sql) ------------------------
 select t.person('fbsender');

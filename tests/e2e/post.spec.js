@@ -362,7 +362,7 @@ test('polls: the host posts a date poll (an idea), a member votes, the host pick
     await HI.locator('[data-plan-date]').click();
     const pickD = H.getByRole('dialog', { name: 'Pick a date' });
     await expect(pickD).toContainText('Choose from the dates people voted on.');
-    await expect(pickD.locator('[data-pick-opt][aria-checked="true"]')).toContainText('1 vote');   // the top one is picked
+    await expect(pickD.locator('[data-pick-opt][aria-checked="true"]')).toContainText('1 can go');   // the top one is picked
     await pickD.locator('[data-pick-confirm]').click();
     await expect(H.getByRole('status')).toContainText('Date set');
     // The picked date is the answer everywhere (audit 2026-10-07): When? shows it and the poll closes
@@ -693,7 +693,7 @@ test('Float an idea: the Float sheet, a draft, and the starter’s slide-up', as
     await expect(ip).toContainText(title);
     await expect(ip).toContainText('You floated this');
     await expect(page.getByRole('status')).toContainText('Posted to Torrez Fitness');
-    await expect(ip.locator('[data-make-this-plan]')).toContainText('Choose lead');
+    await expect(ip.locator('[data-make-this-plan]')).toContainText('Choose a lead');
     id = await asUser(page, async (c, _C, title) => (await c.from('sparks').select('id').eq('text', title).single()).data.id, title);
     const row = await asUser(page, async (c, _C, id) => (await c.from('sparks').select('wants_host,planned,talk,lead_rule,overview,day_date,spot,date_options(day_part),spot_options(name)').eq('id', id).single()).data, id);
     // Set date sets the idea's date (its part of day stays on its one option); the location poll stays a poll

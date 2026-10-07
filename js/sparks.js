@@ -1563,7 +1563,7 @@
   // Looking for a host (social-science review, 2026-10-01): floating an idea and hosting it are separate jobs
   const setWantsHost = (s, on_) => run(async () => { must(await sb.rpc('set_wants_host', { p_spark: s.id, p_on: on_ })); });
   const takeTheLead = (s) => (noteTap({ k: 'lead', id: s.id }), needAccount(() => setState({ confirm: { title: 'Lead ' + s.text + '?', green: true, cta: 'I’ll lead it', keep: 'Not now',
-    body: 'You’ll lead it: pick a date and place, then make it a plan. ' + firstName(nameOf(s.leadId, s.leadName)) + ' stays interested and gets a note.',
+    body: 'You’ll lead it: pick a date and location, then make it a plan. ' + firstName(nameOf(s.leadId, s.leadName)) + ' stays interested and gets a note.',
     run: () => run(async () => { must(await sb.rpc('take_the_lead', { p_spark: s.id })); }, { confirm: null }) } })));
   // Only someone in one of the event's groups can take the lead (20261102020000_float_and_ask.sql): a link holder
   // from outside, or a guest, sees that it needs a lead but gets no I'll lead
@@ -1692,9 +1692,16 @@
     }).join('');
     const o = s.leadOffer, lead = o && o.userId === state.me
       ? card('data-lead-offer-card', o.by, esc(firstName(nameOf(o.by))) + ' asked if you’d take over leading this', o.message, 'I’ll take it', 'Not this time', () => answerLeadOffer(s, true), () => answerLeadOffer(s, false)) : '';
-    return jobs + lead;
+    // Asked to lead a floated idea: yes takes the lead, no tells whoever asked (answer_lead_ask)
+    const la = s.wantsHost && !s.planned ? s.leadAsks.find(a => a.userId === state.me) : null, ask = la
+      ? card('data-lead-ask-card', la.by || s.createdBy, esc(firstName(nameOf(la.by || s.createdBy))) + ' asked if you’d lead this', la.message, 'I’ll lead it', 'Not this time', () => answerLeadAsk(s, true), () => answerLeadAsk(s, false)) : '';
+    return ask + jobs + lead;
   };
 
+  const answerLeadAsk = (s, yes) => run(async () => { must(await sb.rpc('answer_lead_ask', { p_spark: s.id, p_yes: yes })); })
+    .then(ok => { if (ok) toast(yes ? 'You’re leading it. Pick a date, then make it a plan.' : 'Thanks. We let ' + firstName(nameOf((s.leadAsks.find(a => a.userId === state.me) || {}).by || s.createdBy)) + ' know.', true); });
+  const withdrawLeadAsk = (s, u) => quick(s, { leadAsks: s.leadAsks.filter(a => a.userId !== u) },
+    async () => { must(await sb.rpc('withdraw_lead_ask', { p_spark: s.id, p_user: u })); });
   const askToLead = (s, u) => {
     if (s.leadAsks.some(a => a.userId === u)) return;
     quick(s, { leadAsks: s.leadAsks.concat({ userId: u, by: state.me, at: Date.now() }) },
@@ -2363,6 +2370,8 @@
     if (t.k === 'interest') { if (s.interested.indexOf(state.me) < 0) toggleInterest(s); }
     else if (t.k === 'lead') { if (s.wantsHost) takeTheLead(s); }
     else if (t.k === 'offer') openOffer(s, t.kind);
+    else if (t.k === 'pop') { if (phaseOf(s) === 'idea') setState({ ip: state.ip && state.ip.id === s.id ? Object.assign(state.ip, { exp: true }) : state.ip, ipPop: t.pop }); }
+    else if (t.k === 'talk') offerTalk(s);
     else if (t.k === 'vote') { const o = (t.table === 'date_votes' ? s.dateOpts : s.spotOpts).find(x => x.id === t.opt); if (o) vote(t.table, s, o); }
     else if (t.k === 'claim') { if (it && !it.claims.some(c => c.userId === state.me)) toggleClaim(s, it); }
     else if (t.k === 'role') { if (it && !it.claims.some(c => c.userId === state.me)) claimRole(s, it); }
@@ -3457,7 +3466,7 @@
     const onPage = (fn) => () => { openSpark(s); setTimeout(fn, 0); };
     if (ph === 'idea') {   // the next step, then the jobs still to fill
       const top = s.dateOpts.slice().sort((a, b) => b.votes.length - a.votes.length)[0];
-      const next = s.wantsHost ? { act: 'Needs ' + missingText(s) + ' to make it a plan', cta: 'Find a lead', go: onPage(() => openLeadAsk(s)) }
+      const next = s.wantsHost ? { act: 'Needs ' + missingText(s) + ' to make it a plan', cta: 'Choose a lead', go: onPage(() => openLeadAsk(s)) }
         : !s.dayDate && top && top.votes.length ? { act: monthDay(top.dayDate) + ' has ' + top.votes.length + (top.votes.length === 1 ? ' vote' : ' votes'), cta: 'Pick', go: () => openToSection(s, 'sec-when') }
         : !s.dayDate ? { act: 'Needs a date to make it a plan', cta: 'Add date', go: () => openToSection(s, 'sec-when') }
         : s.dayDate < todayISO() ? { act: 'That date has passed', cta: 'New date', go: onPage(() => openSec(s, 'when')) }
@@ -4509,7 +4518,7 @@
       // (not an idea that's looking for a lead: a floated idea is quieter than one someone leads, owner 2026-10-02)
       if (!lead && s.created && (ph === 'plan' || ph === 'idea') && !s.wantsHost)
         add({ key: 'e:' + s.id, type: 'newevent', s, t: s.created, uid: s.leadId, who: nameOf(s.leadId, s.leadName), idea: ph === 'idea',
-          sub: firstName(nameOf(s.leadId, s.leadName)) + (ph === 'idea' ? ' is floating it' : ' is leading' + (s.dayDate ? ' · ' + dayLabel(s.dayDate, s.dayTime) : '')), rsvp: ph === 'plan' && !my });
+          sub: firstName(nameOf(s.leadId, s.leadName)) + (ph === 'idea' ? (s.wantsHost ? ' is floating it' : ' is leading it') : ' is leading' + (s.dayDate ? ' · ' + dayLabel(s.dayDate, s.dayTime) : '')), rsvp: ph === 'plan' && !my });
       // Someone asked you to lead it, while it's still looking (20261102020000_float_and_ask.sql)
       if (s.wantsHost && !s.cancelledAt) s.leadAsks.filter(a => a.userId === me).forEach(a =>
         add({ key: 'la:' + s.id + ':' + a.at, type: 'leadask', s, t: a.at, uid: a.by, who: nameOf(a.by, 'Someone'), text: 'asked if you’d lead', quote: a.message || '' }));
@@ -4534,7 +4543,7 @@
       if (ph === 'idea' && holdOn(s) && !s.wantsHost) {
         if (s.holdNudgedAt) {
           const top = s.dateOpts.slice().sort((a, b) => b.votes.length - a.votes.length)[0], voters = new Set([].concat(...s.dateOpts.map(o => o.votes))).size;
-          if (top) add({ key: 'hv:' + s.id, type: 'hold', s, t: s.holdNudgedAt, body: voters + ' voted, ' + new Date(top.dayDate + 'T12:00').toLocaleDateString('en-US', { weekday: 'long' }) + ' leads. Lock it in?' });
+          if (top) add({ key: 'hv:' + s.id, type: 'hold', s, t: s.holdNudgedAt, body: voters + ' voted, ' + new Date(top.dayDate + 'T12:00').toLocaleDateString('en-US', { weekday: 'long' }) + ' leads. Make it a plan?' });
         }
         if (s.holdUntil === isoAdd(todayISO(), 1)) add({ key: 'hl:' + s.id + ':' + s.holdUntil, type: 'hold', s, t: midnight(todayISO()) + 8 * 3600000, body: 'Your dates for ' + s.text + ' stop holding tomorrow. Keep holding?' });
       }
@@ -6990,7 +6999,8 @@
     const co = s.cohosts[0], going = s.rsvps.filter(r => r.status !== 'no' && r.userId !== state.me).length;
     setState({ confirm: { title: 'Step back as lead?', danger: true, cta: 'Step back', keep: 'Stay on',
       body: co ? firstName(nameOf(co)) + ' becomes the lead. Nothing else changes.'
-        : (s.planned ? 'It goes back to being an idea, looking for a lead. The date and place stay.' + (going ? ' ' + (going === 1 ? 'The 1 person who said Going or Maybe gets a note and shows' : 'The ' + going + ' people who said Going or Maybe get a note and show') + ' as interested.' : '') : 'It stays up as an idea, looking for a lead.') + ' Anyone who can see it can take it on.',
+        : (s.planned ? 'It goes back to being an idea, looking for a lead. The date and location stay.' + (going ? ' ' + (going === 1 ? 'The 1 person who said Going or Maybe gets a note and shows' : 'The ' + going + ' people who said Going or Maybe get a note and show') + ' as interested.' : '') : 'It stays up as an idea, looking for a lead.') +
+          (s.createdBy && s.createdBy !== state.me ? ' It goes back to ' + (firstName(nameOf(s.createdBy)) || 'whoever started it') + ', who can choose a new lead. You stay interested.' : ' People in its groups can offer to lead it.'),
       run: () => run(async () => { must(await sb.rpc('step_back', { p_spark: s.id })); }, { confirm: null })
         .then(ok => { if (ok) toast(co ? firstName(nameOf(co)) + ' is leading it now' : s.planned ? 'It’s an idea again, looking for a lead' : 'It’s looking for a lead now', true); }) } });
   };
@@ -7058,10 +7068,10 @@
     const rank = (u) => s.canHelp.indexOf(u) > -1 ? 0 : s.interested.indexOf(u) > -1 ? 1 : 2;
     const all = (la.people || []).map(p => ({ id: p.user_id || p.id, name: p.name || 'Someone' })).filter(p => p.id && p.id !== state.me && p.id !== s.leadId);
     const list = all.filter(p => !q || p.name.toLowerCase().indexOf(q) > -1).sort((a, b) => rank(a.id) - rank(b.id) || a.name.localeCompare(b.name));
-    const tagOf = (u) => { const r = rank(u); return r === 2 ? '' : '<span style="display:block;margin-top:1px;font-size:12.5px;font-weight:800;color:' + (r ? '#6b7280' : '#0f7a3c') + '">' + (r ? 'Interested' : 'Can help') + '</span>'; };
+    const tagOf = (u) => { const r = rank(u); return r === 2 ? '' : '<span style="display:block;margin-top:1px;font-size:12.5px;font-weight:800;color:' + (r ? '#6b7280' : '#8f6405') + '">' + (r ? 'Interested' : 'Offered to lead') + '</span>'; };
     const btn = (p) => s.leadAsks.some(a => a.userId === p.id)
-      ? '<span data-asked style="flex:0 0 auto;display:flex;align-items:center;gap:5px;min-height:38px;padding:0 6px;font-size:14px;font-weight:800;color:#0f7a3c">' + svg(13, stroke('currentColor', 3), P6.check) + 'Asked</span>'
-      : '<button type="button" class="hov-primary" ' + on(() => askToLead(s, p.id)) + ' aria-label="Ask ' + esc(p.name) + ' to lead" style="flex:0 0 auto;min-height:38px;padding:0 18px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer">Ask</button>';
+      ? '<span data-asked style="flex:0 0 auto;display:flex;align-items:center;gap:5px;min-height:38px;padding:0 6px;font-size:14px;font-weight:800;color:#8f6405">' + svg(13, stroke('currentColor', 3), P6.check) + 'Asked</span>'
+      : '<button type="button" class="hov-primary" ' + on(() => askToLead(s, p.id)) + ' aria-label="Ask ' + esc(p.name) + ' to lead" style="flex:0 0 auto;min-height:38px;padding:0 18px;border:0;border-radius:999px;background:#f5b428;color:#2a1d00;font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer">Ask</button>';
     return modal('Ask someone to lead', close,
       h3Html('Ask someone to lead') + paraHtml('Know who’d be great at this? They get a note asking if they’d lead <b style="font-weight:800;color:#0d1117">' + esc(s.text) + '</b>. It’s theirs once they tap I’ll lead.') +
       (all.length > 7 ? '<input class="fld" type="search" aria-label="Search people" placeholder="Search" value="' + esc(la.q || '') + '" ' + onInput(e => { if (e.type === 'input') setState({ leadAsk: Object.assign({}, state.leadAsk, { q: e.target.value.slice(0, 40) }) }); }) + ' style="' + FIELD + '">' : '') +
@@ -7069,7 +7079,7 @@
         '<div style="display:flex;flex-direction:column;max-height:46vh;overflow:auto">' + list.map((p, i) =>
           '<div data-ask-row="' + esc(p.name) + '" data-ask-uid="' + esc(p.id) + '" style="display:flex;align-items:center;gap:12px;min-height:56px;border-top:' + (i ? '1px solid #f2f3f6' : '0') + '">' +
             face(p.id, p.name, 34, null) + '<span style="flex:1;min-width:0"><span style="display:block;font-size:15px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(p.name) + '</span>' + tagOf(p.id) + '</span>' + btn(p) + '</div>').join('') + '</div>') +
-      '<span ' + on(() => setState({ leadAsk: null, share: { id: s.id, copied: false } })) + ' style="align-self:flex-start;display:flex;align-items:center;min-height:40px;font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">Or share the idea</span>');
+      '<span ' + on(() => setState({ leadAsk: null, share: { id: s.id, copied: false } })) + ' style="align-self:flex-start;display:flex;align-items:center;min-height:40px;font-size:14px;font-weight:800;color:#8f6405;cursor:pointer">Or share the idea</span>');
   }
 
   // Inspo: up to three mood photos; the lead adds and removes them (ideas and plans alike), everyone else sees them when there are some
@@ -7223,6 +7233,7 @@
         '<div ' + on(() => openLogin('discussion', () => {})) + ' role="button" data-disc-signin style="display:flex;align-items:center;gap:12px;padding:16px;border-radius:18px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
           '<span style="flex:0 0 40px;width:40px;height:40px;border-radius:12px;background:#f2f3f6;display:flex;align-items:center;justify-content:center">' + svg(20, stroke('#454b55', 2.4), '<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/>') + '</span>' +
           '<div style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:16px;font-weight:800;color:#0d1117">' + (n === 1 ? '1 post' : n ? n + ' posts' : 'No posts yet') + '</span><span style="font-size:14px;font-weight:600;color:#6b7280">Sign in to read and join in</span></div></div></section>'; }
+    const AC = s.planned ? '#5b4ae8' : '#8f6405';   // purple on a plan, gold on an idea (audit 2026-10-07)
     const st = state, c = comments[s.id] || {}, list = c.list || [], lead = isLead(s), can = canComment(s), hosts = hostIds(s);
     const items = s.updates.map(u => ({ kind: 'upd', id: u.id, by: updWho(s, u), name: updName(s, u), body: u.body, created: u.created, u, replies: list.filter(x => x.upd === u.id) }))
       .concat(list.filter(x => !x.parent && !x.upd).slice().reverse().map(x => ({ kind: 'cmt', id: x.id, by: x.by, name: nameOf(x.by), body: x.body, created: x.created, replies: list.filter(r => r.parent === x.id) })));
@@ -7232,9 +7243,9 @@
     const lnk = (label, fn, color, attr) => '<span ' + on(fn) + ' ' + (attr || '') + ' style="display:flex;align-items:center;min-height:32px;font-size:13px;font-weight:800;color:' + color + ';cursor:pointer">' + label + '</span>';
     const tag = (x) => x.kind === 'upd'
       ? '<span style="display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:999px;background:' + MAG.strong + ';color:#fff;font-size:10px;font-weight:900;letter-spacing:.7px">UPDATE</span>'
-      : hosts.indexOf(x.by) > -1 ? '<span style="font-size:10.5px;font-weight:900;letter-spacing:.6px;color:#5b4ae8">LEAD</span>' : '';
+      : hosts.indexOf(x.by) > -1 ? '<span style="font-size:10.5px;font-weight:900;letter-spacing:.6px;color:' + AC + '">LEAD</span>' : '';
     const sendBtn = (ok, fn, label, size) => '<span ' + on(fn) + ' aria-label="' + label + '" aria-disabled="' + !ok + '" style="flex:0 0 ' + size + 'px;width:' + size + 'px;height:' + size + 'px;margin-left:auto;border-radius:999px;display:flex;align-items:center;justify-content:center;' +
-      (ok ? 'background:#5b4ae8;color:#fff;cursor:pointer' : 'background:#e2e4e9;color:#9aa0ac;cursor:default') + '">' + svg(size > 38 ? 18 : 16, stroke('currentColor', 2.6), SEND_IC) + '</span>';
+      (ok ? 'background:' + AC + ';color:#fff;cursor:pointer' : 'background:#e2e4e9;color:#9aa0ac;cursor:default') + '">' + svg(size > 38 ? 18 : 16, stroke('currentColor', 2.6), SEND_IC) + '</span>';
     // A post's replies: folded (faces, View N replies, Reply), or open (the replies, Reply / Cancel, Hide replies, the box)
     const thread = (x, inPanel) => {
       const key = x.kind + ':' + x.id, ex = !!(st.discExp || {})[key], op = !!(st.discOpen || {})[key], rs = x.replies;
@@ -7248,17 +7259,17 @@
           (rs.length ? '<span ' + on(() => flag('discExp', key, true)) + ' data-view-replies style="display:flex;align-items:center;gap:6px;min-height:32px;font-size:13px;font-weight:800;color:#5c6270;cursor:pointer"><span style="display:flex">' +
             faces.map((u, i) => avatarSpan(u, nameOf(u), avatarOf(u), 22, 'border:2px solid ' + (inPanel ? '#f2f3f6' : '#fff') + ';box-sizing:border-box;' + (i ? 'margin-left:-7px' : ''))).join('') + '</span>' +
             (rs.length === 1 ? 'View 1 reply' : 'View ' + rs.length + ' replies') + '</span>' : '') +
-          (can ? lnk('Reply', () => setState({ discExp: Object.assign({}, st.discExp, { [key]: true }), discOpen: Object.assign({}, st.discOpen, { [key]: true }) }), '#5b4ae8', 'data-reply') : '') +
+          (can ? lnk('Reply', () => setState({ discExp: Object.assign({}, st.discExp, { [key]: true }), discOpen: Object.assign({}, st.discOpen, { [key]: true }) }), AC, 'data-reply') : '') +
           (x.kind === 'cmt' ? delOwn(x, false) : '') + '</div>';
       }
       return '<div style="display:flex;flex-direction:column;gap:8px">' +
         rs.map(r => '<div data-reply-row style="display:flex;align-items:flex-start;gap:8px">' + avatarSpan(r.by, nameOf(r.by), avatarOf(r.by), 24) +
           '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;padding-top:2px"><span style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:13.5px;font-weight:800;color:#0d1117">' + esc(nameOf(r.by)) +
-            (hosts.indexOf(r.by) > -1 ? '<span style="font-size:10px;font-weight:900;letter-spacing:.6px;color:#5b4ae8">LEAD</span>' : '') + '<span style="font-size:12px;font-weight:600;color:#8a909b">· ' + esc(ago(r.created)) + '</span></span>' +
+            (hosts.indexOf(r.by) > -1 ? '<span style="font-size:10px;font-weight:900;letter-spacing:.6px;color:' + AC + '">LEAD</span>' : '') + '<span style="font-size:12px;font-weight:600;color:#8a909b">· ' + esc(ago(r.created)) + '</span></span>' +
             '<span style="font-size:14px;line-height:1.4;font-weight:500;color:#2a2f38;white-space:pre-line;overflow-wrap:anywhere">' + esc(r.body) + '</span></div>' +
           (r.by === st.me || lead ? '<span ' + on(() => askDeleteComment(s, { id: r.id, reply: true })) + ' aria-label="Delete this reply" style="flex:0 0 28px;height:28px;display:flex;align-items:center;justify-content:center;color:#b9bcc4;cursor:pointer">' + I.x(11, 'currentColor', 2.6) + '</span>' : '') + '</div>').join('') +
         '<div style="display:flex;align-items:center;gap:16px">' +
-          (can ? lnk(op ? 'Cancel' : 'Reply', () => flag('discOpen', key, !op), '#5b4ae8', 'data-reply') : '') +
+          (can ? lnk(op ? 'Cancel' : 'Reply', () => flag('discOpen', key, !op), AC, 'data-reply') : '') +
           (rs.length ? lnk('Hide replies', () => setState({ discExp: Object.assign({}, st.discExp, { [key]: false }), discOpen: Object.assign({}, st.discOpen, { [key]: false }) }), '#6b7280') : '') +
           (x.kind === 'cmt' ? delOwn(x, false) : '') + '</div>' +
         (op ? '<div style="display:flex;align-items:center;gap:8px"><input class="fld" type="text" maxlength="500" data-reply-input data-reply-to="' + esc(key) + '" aria-label="Reply to ' + esc(x.name) + '" placeholder="Reply to ' + esc(firstName(x.name)) + '…" value="' + esc(draft) + '" ' +
@@ -7279,9 +7290,10 @@
     const draft = (st.discDraft || {})[s.id] || '', ok = !!draft.trim() && st.busy !== 'comment';
     const send = () => { if (ok) postComment(s, draft, null, () => ({ discDraft: Object.assign({}, state.discDraft, { [s.id]: '' }) }), '[data-comment-input]'); };
     const avatar = st.myAvatar ? photoUrl(st.myAvatar) : null;
-    const box = !can ? '' : '<div style="display:flex;flex-direction:column;gap:4px;padding:14px 14px 4px"><div style="display:flex;align-items:center;gap:10px">' + avatarSpan(st.me, st.myName, avatar, 36) +
+    // Not able to post yet: say how (audit 2026-10-07: it was an empty white box)
+    const box = !can ? (state.email && !s.cancelledAt && !lead ? '<div data-disc-how style="padding:14px 18px 6px;font-size:14px;font-weight:700;color:#6b7280">' + (s.planned ? 'Say Going or Maybe to join the conversation.' : 'Tap I’m interested to join the conversation.') + '</div>' : '') : '<div style="display:flex;flex-direction:column;gap:4px;padding:14px 14px 4px"><div style="display:flex;align-items:center;gap:10px">' + avatarSpan(st.me, st.myName, avatar, 36) +
         '<label class="disc-field" style="flex:1;min-width:0;display:flex;align-items:center;gap:6px;min-height:50px;box-sizing:border-box;padding:5px 5px 5px 18px;border-radius:999px;background:#f2f3f6">' +
-          '<input class="fld" type="text" maxlength="500" data-comment-input aria-label="Write a comment" placeholder="' + (lead ? 'Write to everyone going…' : 'Ask a question or say hi…') + '" value="' + esc(draft) + '" ' +
+          '<input class="fld" type="text" maxlength="500" data-comment-input aria-label="Write a comment" placeholder="' + (lead ? (s.planned ? 'Write to everyone going…' : 'Write to everyone interested…') : 'Ask a question or say hi…') + '" value="' + esc(draft) + '" ' +
             onInput(e => { if (e.type === 'input') setState({ discDraft: Object.assign({}, state.discDraft, { [s.id]: e.target.value.slice(0, 500) }) }); }) +
             ' style="flex:1;min-width:0;border:0;padding:0;background:transparent;outline:none;font-family:inherit;font-size:15.5px;font-weight:500;color:#0d1117">' +
           sendBtn(ok, send, 'Post', 40) + '</label></div>' +
@@ -7877,21 +7889,23 @@
   // and Help out, Take part and Discussion work before it's a plan
   const useIdea8 = (s) => !!s && phaseOf(s) === 'idea' && !s.cancelledAt;
   // Who gets the starter's view: the starter while it looks for a lead, then whoever leads it
-  const runsIdea = (s) => s.wantsHost ? isStarter(s) : isTheLead(s);
+  const runsIdea = (s) => s.wantsHost ? isStarter(s) : isLead(s);   // co-leads too (audit 2026-10-07)
   const ledLine = (s, you) => !s.wantsHost ? (isTheLead(s) ? 'Led by you' : 'Led by ' + esc(firstName(nameOf(s.leadId, s.leadName)) || 'someone'))
-    : you ? 'You floated this' : 'Floated by ' + esc(you === false ? floaterName(s) : starterFirst(s));
+    : you ? 'You floated this' : 'Floated by ' + esc(starterFirst(s));   // first name everywhere
   const iVoted = (o) => o.votes.indexOf(state.me) > -1;
   const optTime = (o) => o.dayTime ? fmtTime(o.dayTime) : o.dayPart ? timeLabel(o.dayPart) : '';
   const optDay = (o) => shortDate(o.dayDate);
   const byDate = (a, b) => a.dayDate < b.dayDate ? -1 : a.dayDate > b.dayDate ? 1 : (a.dayTime || '') < (b.dayTime || '') ? -1 : 1;
   const tilt = (id) => { let h = 0; String(id).split('').forEach(ch => { h = (h * 31 + ch.charCodeAt(0)) % 997; }); const v = 0.9 + (h % 20) / 10; return h % 2 ? v : -v; };
   const starterFirst = (s) => firstName(floaterName(s)) || 'They';
+  const runnerFirst = (s) => s.wantsHost ? starterFirst(s) : firstName(nameOf(s.leadId, s.leadName)) || 'The lead';
   const ideaH = (t) => '<span style="font-size:26px;font-weight:900;letter-spacing:-.6px;color:#0d1117">' + t + '</span>';
   const CARD8 = 'background:#fff;border-radius:20px;padding:16px;display:flex;flex-direction:column;gap:12px;box-shadow:0 1px 3px rgba(15,18,25,.08)';
   const GRAPH_CARD = 'position:relative;margin:4px;' + GRAPH_BG + ';border-radius:6px;padding:18px 16px 12px;display:flex;flex-direction:column;gap:4px;transform:rotate(-1deg);box-shadow:0 4px 14px rgba(13,17,23,.14)';
   const goldFaces = (ids, size, ring) => ids.slice(0, 3).map((u, k) => avatarSpan(u, nameOf(u), avatarOf(u), size, 'border:2px solid ' + (ring || '#fff') + ';margin-left:' + (k ? -8 : 0) + 'px')).join('');
-  const openIdeaSheet = (s) => useIdea8(s) ? setState({ ip: { id: s.id, exp: false }, subjectId: s.id, ipPop: null, ipEd: null }) : openSpark(s);
+  const openIdeaSheet = (s) => useIdea8(s) ? setState(Object.assign({ ip: { id: s.id, exp: false }, subjectId: s.id, ipPop: null, ipEd: null }, ideaDotOn() && newestIdea().id === s.id ? { ideaSeen: s.id } : {})) : openSpark(s);
   const ipPop = (p) => setState({ ipPop: p });
+  const ipPopAcct = (s, p) => { if (state.email) return ipPop(p); noteTap({ k: 'pop', id: s.id, pop: p }); needAccount(() => ipPop(p)); };
 
   // Calendar pages (13c-3): a weekday strip (pale gold, solid when picked), the date large, the time in small gold, "N can go"
   const calPage = (s, o, n, grid) => { const onIt = iVoted(o), v = o.votes.length, t = optTime(o);
@@ -7923,8 +7937,8 @@
   // When? and Where? (members vote and suggest; the starter edits and sees the votes)
   const whenWhere = (s) => {
     const st8 = runsIdea(s), lead = isLead(s), dates = s.dateOpts.slice().sort(byDate), locs = s.spotOpts, poll = dates.length > 1, lpoll = locs.length > 1;
-    const sugD = () => st8 ? ipPop({ k: 'edit', kind: 'd', id: s.id }) : ipPop({ k: 'sugD', id: s.id, d: '', t: '' });
-    const sugL = () => st8 ? ipPop({ k: 'edit', kind: 'l', id: s.id }) : ipPop({ k: 'sugL', id: s.id, v: '' });
+    const sugD = () => st8 ? ipPop({ k: 'edit', kind: 'd', id: s.id }) : ipPopAcct(s, { k: 'sugD', id: s.id, d: '', t: '' });
+    const sugL = () => st8 ? ipPop({ k: 'edit', kind: 'l', id: s.id }) : ipPopAcct(s, { k: 'sugL', id: s.id, v: '' });
     const dLabel = lead || st8 ? 'Add a date' : 'Suggest a date', lLabel = lead || st8 ? 'Add a location' : 'Suggest a location';
     // A date or location the lead picked (or set) is the answer: the poll closes and When? / Where? show it (audit
     // 2026-10-07: they read only the suggestions, so "Add a date" sat under Make this a plan's ticked Date)
@@ -7967,15 +7981,15 @@
   const talkLine = (s) => starterFirst(s) + ' is looking for someone to brainstorm about this idea.';
   const offeredTalk = (s) => s.talkOffers.indexOf(state.me) > -1;
   const contactBtn = (s) => { const done = offeredTalk(s), first = starterFirst(s);
-    return '<span ' + on(() => offerTalk(s)) + ' data-contact-starter style="display:flex;align-items:center;justify-content:center;min-height:50px;border-radius:999px;font-size:15.5px;font-weight:800;cursor:' + (done ? 'default' : 'pointer') + ';background:' + (done ? '#fdf1d6' : '#f5b428') + ';box-shadow:' + (done ? 'inset 0 0 0 2px #e0a01a' : 'none') + ';color:' + (done ? '#8f6405' : '#2a1d00') + '">' + (done ? '✓ ' + esc(first) + ' will be in touch' : 'Contact ' + esc(first)) + '</span>'; };
-  const offerTalk = (s) => { if (offeredTalk(s)) return; needAccount(() => run(async () => { must(await sb.rpc('offer_to_talk', { p_spark: s.id })); }, { ipPop: null }).then(ok => { if (ok) toast('We’ve notified ' + starterFirst(s) + '!', true); })); };
+    return '<span ' + on(() => offerTalk(s)) + ' data-contact-starter style="display:flex;align-items:center;justify-content:center;min-height:50px;border-radius:999px;font-size:15.5px;font-weight:800;cursor:' + (done ? 'default' : 'pointer') + ';background:' + (done ? '#fdf1d6' : '#f5b428') + ';box-shadow:' + (done ? 'inset 0 0 0 2px #e0a01a' : 'none') + ';color:' + (done ? '#8f6405' : '#2a1d00') + '">' + (done ? '✓ ' + esc(first) + ' knows you’re up for it' : 'Contact ' + esc(first)) + '</span>'; };
+  const offerTalk = (s) => { if (offeredTalk(s)) return; if (!state.email) noteTap({ k: 'talk', id: s.id }); needAccount(() => run(async () => { must(await sb.rpc('offer_to_talk', { p_spark: s.id })); }, { ipPop: null }).then(ok => { if (ok) toast('We told ' + starterFirst(s) + '. Say hi in the Discussion below.', true); })); };
   const ideaInterest = (s) => {
     const was = s.interested.indexOf(state.me) > -1;
     toggleInterest(s);
     if (!was && state.email) {
       if (state.ip && state.ip.id === s.id) setState({ ip: Object.assign(state.ip, { exp: true }) });
       if (s.dateOpts.length > 1 && !s.dayDate) ipPop({ k: 'voteAsk', id: s.id });   // one date isn't a poll (v8-8); a picked date closes it
-      toast('You’re interested. ' + starterFirst(s) + ' will see it.', true);
+      toast('You’re interested. ' + runnerFirst(s) + ' will see it.', true);
     }
   };
   const interestCard = (s, lift) => { const n = s.interested.length, inIt = s.interested.indexOf(state.me) > -1;
@@ -8000,7 +8014,7 @@
   const leadRow8 = (s) => {
     if (!state.email || !inItsGroups(s) || isStarter(s) || !s.wantsHost) return '';
     const asked = s.leadAsks.some(a => a.userId === state.me), offered = s.canHelp.indexOf(state.me) > -1, BOLT = '<path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/>';
-    if (asked) return helpRow(() => takeTheLead(s), BOLT, asked ? 'Lead it · ' + esc(starterFirst(s)) + ' asked you' : 'Lead it', false, 'data-lead-it');
+    if (asked) return '';   // the gold card at the top asks them (I'll lead it · Not this time)
     if (offered) return '<div style="display:flex;align-items:center;gap:12px;min-height:46px;border-top:1px solid #d3e2f3"><span style="width:30px;height:30px;flex:0 0 30px;border-radius:999px;background:#fdf1d6;display:flex;align-items:center;justify-content:center">' + svg(17, stroke('#b07a0a', 2.2), BOLT) + '</span>' +
       '<span data-offered-lead style="flex:1;font-size:16px;font-weight:700;color:#454b55">You offered · ' + esc(starterFirst(s)) + ' decides</span></div>';
     return helpRow(() => offerToLead(s), BOLT, 'Offer to lead', false, 'data-offer-lead');
@@ -8009,23 +8023,25 @@
     '<div style="display:flex;align-items:center;gap:6px">' + ideaH('Help make this a plan') +
       '<span ' + on(() => ipPop({ k: 'whatPlan' })) + ' aria-label="What’s a plan?" style="width:32px;height:32px;margin:-6px 0;display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(18, stroke('#6b7280', 2.2), '<circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".6" fill="#6b7280"/>') + '</span></div>' +
     helpRow(() => share8(s), '<circle cx="9" cy="8.5" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M18 8v6M15 11h6"/>', 'Invite a friend', true) +
-    (s.dayDate ? '' : helpRow(() => s.dateOpts.length > 1 ? ipPop({ k: 'dates', id: s.id }) : ipPop({ k: 'sugD', id: s.id, d: '', t: '' }), CAL_P, s.dateOpts.length > 1 ? 'Vote on a date' : 'Suggest a date')) +   // the date or place is picked: nothing to vote on
-    (s.spot ? '' : helpRow(() => ipPop({ k: 'sugL', id: s.id, v: '' }), PIN_P, 'Suggest a location')) + leadRow8(s) +
+    (s.dayDate ? '' : helpRow(() => s.dateOpts.length > 1 ? ipPop({ k: 'dates', id: s.id }) : ipPopAcct(s, { k: 'sugD', id: s.id, d: '', t: '' }), CAL_P, s.dateOpts.length > 1 ? 'Vote on a date' : 'Suggest a date')) +   // the date or place is picked: nothing to vote on
+    (s.spot ? '' : helpRow(() => ipPopAcct(s, { k: 'sugL', id: s.id, v: '' }), PIN_P, 'Suggest a location')) + leadRow8(s) +
     (showTalk(s) ? helpRow(() => ipPop({ k: 'talk', id: s.id }), '<path d="M5 18l-1.5 3 4-1.6A8 8 0 1 0 5 18z"/><path d="M9 11h6M9 14h4"/>', 'Talk it through with ' + esc(starterFirst(s))) : '') + '</div>';
-  const inviteCard8 = (s) => '<div style="' + CARD8 + ';flex-direction:row;align-items:center;padding:12px 16px"><span style="flex:1;font-size:16px;font-weight:800;color:#0d1117">Invite a friend</span>' +
-    '<span ' + on(() => share8(s)) + ' style="display:flex;align-items:center;min-height:40px;padding:0 18px;border-radius:999px;background:#f5b428;color:#2a1d00;font-size:14px;font-weight:800;cursor:pointer">Invite</span></div>';
   const talkCard = (s) => !showTalk(s) ? '' : '<div style="' + CARD8 + '" data-talk-card>' + ideaH('Talk it through with ' + esc(starterFirst(s))) +
     '<div style="display:flex;align-items:flex-start;gap:12px">' + avatarSpan(s.createdBy, floaterName(s), avatarOf(s.createdBy), 40) +
       '<span style="flex:1;font-size:16px;line-height:1.45;font-weight:500;color:#2a2f38;text-wrap:pretty">' + esc(talkLine(s)) + '</span></div>' + contactBtn(s) + '</div>';
   // The starter: faces + N interested, Share; Make this a plan (Date · Location · Choose lead); and at the bottom
   // WHERE IT GOES and HOW PEOPLE CAN HELP
+  const talkList = (s) => { const ids = (s.talkOffers || []).filter(u => u !== state.me); if (!isStarter(s) || !ids.length) return '';
+    return '<div data-talk-offers style="display:flex;flex-direction:column;gap:8px;padding:0 16px 14px"><span style="font-size:12.5px;font-weight:900;letter-spacing:1px;color:#454b55">UP FOR TALKING IT THROUGH</span>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:6px">' + ids.map(u => '<span ' + on(() => openPerson(u)) + ' role="button" style="display:flex;align-items:center;gap:6px;min-height:34px;padding:0 12px 0 4px;border-radius:999px;background:#fdf1d6;cursor:pointer">' + avatarSpan(u, nameOf(u), avatarOf(u), 26) +
+        '<span style="font-size:14px;font-weight:800;color:#0d1117">' + esc(firstName(nameOf(u))) + '</span></span>').join('') + '</div></div>'; };
   const starterTop = (s) => { const n = s.interested.length;
     return '<div style="background:#fff;border-radius:20px;box-shadow:0 1px 3px rgba(15,18,25,.08);overflow:hidden">' +
       // Always tappable with its ›, even at 0 (Design v8 prototype, whoOpen)
       '<div ' + on(() => setState({ interestList: true })) + ' role="button" data-starter-interested style="display:flex;align-items:center;gap:12px;min-height:64px;padding:0 16px;cursor:pointer">' +
         '<div style="display:flex">' + goldFaces(s.interested, 30) + '</div><span style="flex:1;font-size:20px;font-weight:900;letter-spacing:-.3px;color:#0d1117">' + n + ' interested</span>' + I.chevR(16, '#9aa0ac', 2.6) + '</div>' +
       '<div style="padding:4px 16px 16px"><span ' + on(() => share8(s)) + ' data-starter-share style="display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 2px #f5b428;font-size:15.5px;font-weight:900;color:#8f6405;cursor:pointer">' +
-        svg(16, stroke('#8f6405', 2.3), '<path d="M12 3v13M7 8l5-5 5 5"/><path d="M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5"/>') + 'Share</span></div></div>'; };
+        svg(16, stroke('#8f6405', 2.3), '<path d="M12 3v13M7 8l5-5 5 5"/><path d="M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5"/>') + 'Share</span></div>' + talkList(s) + '</div>'; };
   const leadsIt = (s) => !s.wantsHost;   // someone leads it (the starter, or whoever took it on)
   const iLead = (s) => isTheLead(s) && !s.wantsHost;
   // slim: the slide-up's 46px rows; the full page keeps 58px (Design v8 prototype, 2522 vs 936)
@@ -8051,10 +8067,10 @@
         act(dDone, dDone ? 'Change' : passed ? 'New date' : topD ? 'Pick' : 'Add', () => openPick(s, 'd'), 'data-plan-date')) +
       row(false, lDone, PIN_P, 'Location', lDone ? esc(s.spot) : topL ? (locs.length === 1 ? 'Suggested: ' + esc(topL.name) : topL.votes.length ? esc(topL.name) + ' is ahead' : 'No votes yet') : 'Optional · can be decided later',
         act(lDone, lDone ? 'Change' : topL ? 'Pick' : 'Add', () => openPick(s, 'l'), 'data-plan-loc')) +
-      row(false, ldDone, SPARK_P, ldDone ? (iLead(s) ? 'You’re leading it' : esc(nameOf(s.leadId, s.leadName)) + ' is leading it') : 'Choose lead',
+      row(false, ldDone, SPARK_P, ldDone ? (iLead(s) ? 'You’re leading it' : esc(nameOf(s.leadId, s.leadName)) + ' is leading it') : 'Choose a lead',
         ldDone ? (iLead(s) ? 'You set the details' : 'We let them know') : s.leadAsks.length ? 'Asked ' + esc(s.leadAsks.map(a => firstName(nameOf(a.userId))).join(' and ')) : helpers.length ? esc(helpers.slice(0, 2).map(u => firstName(nameOf(u))).join(' and ')) + ' offered' : 'No offers yet',
         // The starter keeps a quiet Change once someone leads; a lead who didn't start it can't pick the lead (Design v8 prototype)
-        ldDone && !isStarter(s) ? '' : act(ldDone, ldDone ? 'Change' : 'Choose', () => ipPop({ k: 'lead', id: s.id }), 'data-plan-lead')) +
+        ldDone && !isTheLead(s) ? '' : act(ldDone, ldDone ? 'Change' : 'Choose', () => ldDone ? setState({ leadsSheet: s.id }) : ipPop({ k: 'lead', id: s.id }), 'data-plan-lead')) +
       // v8-8 items 1–3: grey until every row is ticked, then the purple sparkle button, which opens Review prefilled
       (ldDone && !iLead(s) ? '<span style="margin-top:8px;font-size:13.5px;font-weight:600;color:#6b7280">' + esc(leadName) + ' will make it a plan.</span>'
         : dDone && ldDone ? planBtn(() => planFromIdea(s)) + (s.interested.length || !lDone ? '<span style="margin-top:6px;text-align:center;font-size:13px;font-weight:600;color:#6b7280">' +
@@ -8077,6 +8093,10 @@
       '<div style="background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08);overflow:hidden"><div ' + on(() => ipPop({ k: 'vis', id: s.id, sel: gs.slice() })) + ' data-idea-post-to style="display:flex;align-items:center;gap:12px;min-height:56px;padding:0 14px;cursor:pointer">' +
         svg(20, stroke('#b07a0a', 2.2), '<circle cx="9" cy="9" r="3"/><circle cx="17" cy="10" r="2.4"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0M14.5 19a4 4 0 0 1 7 -2.6"/>') + '<span style="flex:0 0 auto;font-size:15.5px;font-weight:800;color:#0d1117">Post to</span>' +
         '<span style="flex:1;min-width:0;display:flex;align-items:center;justify-content:flex-end;gap:6px;font-size:15px;font-weight:700;color:#454b55"><span style="min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(g0 ? g0.name + (gs.length > 1 ? ' & ' + (gs.length - 1) + ' more' : '') : 'No groups') + '</span><span style="color:#9aa0ac">›</span></span></div></div>' +
+      // Leads (audit 2026-10-07): the Leads sheet's step back, hand it on and co-leads, which an idea had no way to reach
+      (!s.wantsHost && isLead(s) ? '<div style="background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08);overflow:hidden"><div ' + on(() => setState({ leadsSheet: s.id })) + ' data-idea-leads style="display:flex;align-items:center;gap:12px;min-height:56px;padding:0 14px;cursor:pointer">' +
+        svg(20, stroke('#b07a0a', 2.2), '<path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/>') + '<span style="flex:0 0 auto;font-size:15.5px;font-weight:800;color:#0d1117">Leads</span>' +
+        '<span style="flex:1;min-width:0;text-align:right;font-size:15px;font-weight:700;color:#454b55;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc([iLead(s) ? 'You' : firstName(nameOf(s.leadId, s.leadName))].concat(s.cohosts.map(u => u === state.me ? 'You' : firstName(nameOf(u)))).join(', ')) + ' <span style="color:#9aa0ac">›</span></span></div></div>' : '') +
       // Only the starter has anything here, so a lead who didn't start it gets no empty heading (Design v8 prototype)
       (!isStarter(s) ? '' : '<span style="height:10px"></span>' + sectionLabel('HOW PEOPLE CAN HELP') + helpCard(s.talk, s.wantsHost ? 'decide' : 'me', () => { const v = !s.talk; quick(s, { talk: v }, async () => { must(await sb.from('sparks').update({ talk: v }).eq('id', s.id)); }); toast(v ? 'People can offer to brainstorm' : 'Brainstorm offers turned off', true); },
         (r) => { if ((r === 'me') === !s.wantsHost) return; setWantsHost(s, r !== 'me'); }, () => ipPop({ k: 'rule' }))) +   // Me = you lead it now; I'll decide = looking for a lead again
@@ -8105,9 +8125,9 @@
   // What to expect's quick details (an older idea, or a plan stepped back): gold dots under the description
   const ideaBits = (s) => { const bits = basicsOf(s); return !bits.length ? '' : '<div data-idea-bits style="display:flex;flex-direction:column;gap:4px">' +
     bits.map(t => '<div style="display:flex;align-items:baseline;gap:10px"><span style="flex:0 0 7px;width:7px;height:7px;border-radius:999px;background:#f5b428;transform:translateY(-3px)"></span><span style="font-size:17px;line-height:1.4;font-weight:600;color:#2a2f38">' + esc(t) + '</span></div>').join('') + '</div>'; };
-  const ideaJobs = (s) => runsIdea(s) || s.signups.length || (s.parts || []).length ? askCards(s) + takePart(s) + helpOut(s) : '';
-  const ideaDisc = (s) => s.wantsHost ? '' : discussionSec(s);   // on from the start once it has a lead
-  const ideaBodyRest = (s) => runsIdea(s) ? whenWhere(s) + ideaJobs(s) + ideaDisc(s) + starterSettings(s) : helpMakePlan(s) + inviteCard8(s) + whenWhere(s) + talkCard(s) + ideaJobs(s) + ideaDisc(s) +
+  const ideaJobs = (s) => runsIdea(s) || s.signups.length || (s.parts || []).length ? '<div id="sec-tasks" style="display:flex;flex-direction:column;gap:12px">' + takePart(s) + helpOut(s) + '</div>' : '';   // askCards sit at the top; sec-tasks: Home's to-dos scroll here
+  const ideaDisc = (s) => discussionSec(s);   // every idea, floated too (audit 2026-10-07: the floater and the people interested had no way to talk)
+  const ideaBodyRest = (s) => runsIdea(s) ? whenWhere(s) + ideaJobs(s) + ideaDisc(s) + starterSettings(s) : helpMakePlan(s) + whenWhere(s) + talkCard(s) + ideaJobs(s) + ideaDisc(s) +
     // a group admin can still take someone's idea down (the quiet link, as on the lead's page)
     (canTakeDown(s) ? '<span ' + on(() => { setState({ ip: null }); askDelete(s); }) + ' data-delete-idea style="align-self:center;display:flex;align-items:center;min-height:40px;margin-top:8px;padding:0 10px;font-size:14px;font-weight:700;color:#9b1c31;cursor:pointer">Delete this idea</span>' : '');
   // Members of a led idea (Q31 1a): who leads it and what they're working on, under the title
@@ -8129,7 +8149,7 @@
         '<span ' + on(ipClose) + ' aria-label="Close" style="position:absolute;top:12px;right:14px;z-index:3;width:40px;height:40px;border-radius:999px;background:#fff;box-shadow:0 2px 8px rgba(13,17,23,.15);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(14, '#0d1117', 2.8) + '</span>' +
         '<div data-ip-scroll style="flex:1 1 auto;min-height:0;overflow-y:' + (exp ? 'auto' : 'hidden') + ';scrollbar-width:none;display:flex;flex-direction:column">' + paperTop(s) +
           '<div style="position:relative;padding:22px 14px 28px;display:flex;flex-direction:column;gap:12px;flex-shrink:0">' +
-            (st8 ? starterTop(s) + makeThisPlan(s, true) : interestCard(s, true)) +
+            askCards(s) + (st8 ? starterTop(s) + makeThisPlan(s, true) : interestCard(s, true)) +
             (!exp ? '<div ' + on(ipExpand) + ' aria-label="Swipe up for more" data-ip-more style="display:flex;flex-direction:column;align-items:center;margin-top:20px;min-height:52px;cursor:pointer"><span aria-hidden="true" style="display:flex;animation:swipeBounce 1.6s ease-in-out infinite">' + svg(26, stroke('#f5b428', 3.2), '<path d="m6 15 6-6 6 6"/>') + '</span>' +
                 '<span style="margin-top:2px;font-size:14.5px;font-weight:800;color:#8f6405">Swipe up for more</span></div>'
               : '<div style="display:flex;flex-direction:column;gap:12px;animation:fadeUp 360ms 120ms cubic-bezier(.2,.8,.2,1) both">' + ideaBodyRest(s) + '</div>') +
@@ -8156,14 +8176,14 @@
         '<span ' + on(() => share8(s)) + ' aria-label="Share" style="width:44px;height:44px;border-radius:999px;background:rgba(255,255,255,.92);display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(18, stroke('#0d1117', 2.4), '<path d="M12 3v12M7 8l5-5 5 5M5 14v6h14v-6"/>') + '</span></div></div>';
     return '<div data-screen-label="Idea page (8b)" style="position:relative;display:flex;flex-direction:column;background:#e8eaee;min-height:100%">' + head +
       '<div style="position:relative;margin-top:-22px;border-radius:22px 22px 0 0;background:#e8eaee;display:flex;flex-direction:column;gap:12px;padding:18px 14px 0">' +
-        '<div style="display:flex;flex-direction:column;gap:8px;padding:0 4px">' +
+        '<div id="sec-details" style="display:flex;flex-direction:column;gap:8px;padding:0 4px">' +
           '<div style="display:flex;align-items:center;justify-content:space-between">' + IDEA_CHIP +
             (!st8 && canEdit(s) && state.email ? '<span ' + on(() => openSec(s, 'title')) + ' data-idea-edit aria-label="Edit idea" style="display:flex;align-items:center;gap:5px;min-height:36px;font-size:14px;font-weight:800;color:#8f6405;cursor:pointer">' + EDIT_PEN + 'Edit</span>' : '') + '</div>' +   // a group admin: the title
           '<span style="font-size:28px;line-height:1.05;font-weight:900;letter-spacing:-.7px;color:#0d1117;text-wrap:balance">' + esc(s.text) + '</span>' +
           (s.overview ? '<span style="font-size:20px;line-height:1.4;font-weight:500;color:#2a2f38;text-wrap:pretty">' + esc(s.overview) + '</span>' : '') + ideaBits(s) +
           '<div style="display:flex;align-items:center;gap:8px;margin-top:2px">' + avatarSpan(s.createdBy, floaterName(s), avatarOf(s.createdBy), 24) +
             '<span data-led-line style="font-size:13.5px;font-weight:700;color:#6b7280">' + ledLine(s, isStarter(s) || false) + ' · ' + ago(s.created) + '</span></div></div>' +
-        ledByCard8(s) + (st8 ? starterTop(s) + makeThisPlan(s) : interestCard(s)) + ideaBodyRest(s) +
+        ledByCard8(s) + askCards(s) + (st8 ? starterTop(s) + makeThisPlan(s) : interestCard(s)) + ideaBodyRest(s) +
       '</div><div style="height:calc(var(--nav-h) + 30px)"></div></div>';
   }
 
@@ -8171,7 +8191,7 @@
   function viewIdeaPop() {
     const p = state.ipPop, s = p.id ? state.sparks.find(x => x.id === p.id) : subject(), close = () => setState({ ipPop: null });
     if (!s && p.k !== 'whatPlan' && p.k !== 'rule') return '';
-    const first = s ? starterFirst(s) : '';
+    const first = s ? runnerFirst(s) : '';   // Talk it through only shows while it's floated, when that's the starter
     const who = (state.myName || 'Someone').slice(0, 40);
     if (p.k === 'whatPlan') return popCard('What’s a plan?', close, 'What’s a plan?', '', '<span style="font-size:16px;line-height:1.5;font-weight:500;color:#2a2f38;text-wrap:pretty">An idea becomes a plan once it has a date and someone to lead it. The location can be decided later. Then people can RSVP and sign up to help.</span>' + goldBtn(close, 'Got it'));
     if (p.k === 'rule') return ruleInfo(close);
@@ -8185,7 +8205,7 @@
           '<div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:800;color:#0d1117">' + esc(new Date(o.dayDate + 'T12:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })) + '</div><div style="font-size:13px;font-weight:500;color:#6b7280">' + esc(sub) + '</div></div>' +
           '<span style="display:flex">' + goldFaces(o.votes, 24) + '</span>' +
           '<span style="display:flex;align-items:center;gap:4px;min-height:28px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:900;' + (onIt ? 'background:#f5b428;color:#2a1d00' : 'color:#5c6270;box-shadow:inset 0 0 0 1.5px #e6e7eb') + '"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 5l7 9H5z"/></svg>' + v + '</span></div>'; }).join('') + '</div>' +
-      '<button type="button" ' + on(() => ipPop({ k: 'sugD', id: s.id, d: '', t: '' })) + ' data-dates-suggest style="margin-top:6px;min-height:52px;border:1.5px dashed #f5b428;border-radius:999px;background:#fdf1d6;font-family:inherit;font-size:15.5px;font-weight:800;color:#8f6405;cursor:pointer">+ Suggest a date</button>');
+      '<button type="button" ' + on(() => ipPopAcct(s, { k: 'sugD', id: s.id, d: '', t: '' })) + ' data-dates-suggest style="margin-top:6px;min-height:52px;border:1.5px dashed #f5b428;border-radius:999px;background:#fdf1d6;font-family:inherit;font-size:15.5px;font-weight:800;color:#8f6405;cursor:pointer">+ Suggest a date</button>');
     if (p.k === 'allDates') return popCard('All dates', close, 'When?', 'Choose all dates you could attend.', calGrid(s) + goldBtn(close, 'Done'));
     if (p.k === 'voteAsk') return popCard('When would you attend', close, '', '',
       '<div style="display:flex;flex-direction:column;gap:4px;padding-right:40px"><span style="font-size:13px;font-weight:900;letter-spacing:1.2px;color:#8f6405">YOU’RE INTERESTED</span><span style="font-size:24px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">When would you attend?</span>' +
@@ -8195,7 +8215,7 @@
     if (p.k === 'votes') { const day = p.kind === 'd', opts = day ? s.dateOpts.slice().sort(byDate) : s.spotOpts, tot = opts.reduce((a, o) => a + o.votes.length, 0), max = Math.max(1, ...opts.map(o => o.votes.length));
       return popCard('See the votes', close, day ? 'Date votes' : 'Location votes', '', '<span style="margin-top:-10px;font-size:14.5px;font-weight:600;color:#6b7280">' + tot + (tot === 1 ? ' vote' : ' votes') + ' so far</span>' +
         opts.map(o => { const v = o.votes.length;
-          return '<div style="display:flex;flex-direction:column;gap:8px;padding-top:12px;border-top:1px solid #f0f1f4"><div style="display:flex;align-items:baseline;gap:8px"><span style="flex:1;font-size:16px;font-weight:900;color:#0d1117">' + esc(day ? optDay(o) + (optTime(o) ? ' · ' + optTime(o) : '') : o.name) + '</span><span style="font-size:13px;font-weight:800;color:#8f6405">' + v + (v === 1 ? ' vote' : ' votes') + '</span></div>' +
+          return '<div style="display:flex;flex-direction:column;gap:8px;padding-top:12px;border-top:1px solid #f0f1f4"><div style="display:flex;align-items:baseline;gap:8px"><span style="flex:1;font-size:16px;font-weight:900;color:#0d1117">' + esc(day ? optDay(o) + (optTime(o) ? ' · ' + optTime(o) : '') : o.name) + '</span><span style="font-size:13px;font-weight:800;color:#8f6405">' + v + (day ? ' can go' : v === 1 ? ' vote' : ' votes') + '</span></div>' +
             '<span style="height:6px;border-radius:999px;background:#f2f3f6;overflow:hidden"><span style="display:block;height:100%;width:' + Math.round(v / max * 100) + '%;border-radius:999px;background:#f5b428"></span></span>' +
             (v ? '<div style="display:flex;flex-wrap:wrap;gap:6px">' + o.votes.map(u => '<span style="display:flex;align-items:center;gap:6px;min-height:30px;padding:0 10px 0 3px;border-radius:999px;background:#f6f7f9">' + avatarSpan(u, nameOf(u), avatarOf(u), 24) + '<span style="font-size:13.5px;font-weight:700;color:#0d1117">' + esc(firstName(nameOf(u))) + '</span></span>').join('') + '</div>' : '<span style="font-size:13.5px;font-weight:600;color:#9aa0ac">No votes yet.</span>') + '</div>'; }).join('')); }
     if (p.k === 'sugD' || p.k === 'setD') { const set = p.k === 'setD';
@@ -8218,7 +8238,7 @@
         return '<div ' + on(() => { p.sel = x.id; render(); }, 'radio') + ' aria-checked="' + onIt + '" data-pick-opt style="display:flex;align-items:center;gap:12px;min-height:58px;padding:0 14px;border-radius:14px;cursor:pointer;background:' + (onIt ? '#fff8e6' : '#fff') + ';box-shadow:' + (onIt ? 'inset 0 0 0 2px #f5b428' : 'inset 0 0 0 1.5px #dcdfe6') + '">' +
           '<span style="flex:0 0 22px;width:22px;height:22px;box-sizing:border-box;border-radius:999px;background:#fff;border:' + (onIt ? '7px solid #f5b428' : '2px solid #c9ccd3') + '"></span>' +
           '<span style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:16px;font-weight:900;color:#0d1117">' + esc(day ? shortDate(x.dayDate) : x.name) + '</span>' +
-            '<span style="font-size:13px;font-weight:700;color:#6b7280">' + (one ? (t || 'Suggested') : (v === 1 ? '1 vote' : v + ' votes') + (t ? ' · ' + esc(t) : '')) + '</span></span></div>'; };
+            '<span style="font-size:13px;font-weight:700;color:#6b7280">' + (one ? (t || 'Suggested') : (day ? v + ' can go' : v === 1 ? '1 vote' : v + ' votes') + (t ? ' · ' + esc(t) : '')) + '</span></span></div>'; };
       const confirm = () => { if (!ok || state.busy) return;
         const d = has ? (day ? o.dayDate : '') : p.d;
         if (day && d < todayISO()) { toast('That date has passed. Pick another.'); return; }
@@ -8236,7 +8256,7 @@
       if (!p.keep) { p.keep = src.map(o => o.id); p.add = src.length ? [] : [day ? { d: '', t: '' } : '']; }
       const kept = src.filter(o => p.keep.indexOf(o.id) > -1);
       const rowsHtml = kept.map(o => '<div style="display:flex;align-items:center;gap:10px;min-height:52px;padding:0 6px 0 14px;border-radius:14px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6">' +
-          '<span style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:15.5px;font-weight:800;color:#0d1117">' + esc(day ? optDay(o) + (optTime(o) ? ' · ' + optTime(o) : '') : o.name) + '</span><span style="font-size:12.5px;font-weight:700;color:#6b7280">' + o.votes.length + (o.votes.length === 1 ? ' vote' : ' votes') + '</span></span>' +
+          '<span style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:15.5px;font-weight:800;color:#0d1117">' + esc(day ? optDay(o) + (optTime(o) ? ' · ' + optTime(o) : '') : o.name) + '</span><span style="font-size:12.5px;font-weight:700;color:#6b7280">' + o.votes.length + (day ? ' can go' : o.votes.length === 1 ? ' vote' : ' votes') + '</span></span>' +
           rowXBtn(() => { p.keep = p.keep.filter(k => k !== o.id); render(); }, 'Remove') + '</div>').join('') +
         p.add.map((r, i) => '<div style="display:flex;align-items:center;gap:8px">' + (day ? ideaDateField(r.d, (v) => { r.d = v; render(); }) : ideaPlaceField(r, (v) => { p.add[i] = v; }, 'Add a location')) + rowXBtn(() => { p.add.splice(i, 1); render(); }, 'Remove') + '</div>' +
           (day ? timeChips(r.t, (v, quiet) => { r.t = v; if (!quiet) render(); }, 'add' + i) : '')).join('');
@@ -8256,7 +8276,7 @@
         (helpers.length ? helpers.map(u => { const asked = s.leadAsks.some(a => a.userId === u);
           return '<div style="display:flex;align-items:center;gap:12px;min-height:60px;padding:0 14px;border-radius:14px;box-shadow:inset 0 0 0 1.5px #dcdfe6">' + avatarSpan(u, nameOf(u), avatarOf(u), 40) +
             '<div style="flex:1;display:flex;flex-direction:column"><span style="font-size:16px;font-weight:800;color:#0d1117">' + esc(nameOf(u)) + '</span><span style="font-size:13px;font-weight:600;color:#6b7280">Offered to lead</span></div>' +
-            (asked ? '<span style="font-size:14px;font-weight:800;color:#8f6405">Asked</span>' : '<span ' + on(() => { askToLead(s, u); close(); toast('Asked ' + firstName(nameOf(u)) + ' to lead. We let them know.', true); }) + ' style="display:flex;align-items:center;min-height:36px;padding:0 14px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #f5b428;font-size:14px;font-weight:800;color:#8f6405;cursor:pointer">Ask</span>') + '</div>'; }).join('')
+            (asked ? '<span ' + on(() => withdrawLeadAsk(s, u)) + ' data-undo-ask role="button" style="display:flex;align-items:center;gap:6px;min-height:36px;font-size:14px;font-weight:800;color:#8f6405;cursor:pointer">Asked <span style="font-weight:700;color:#6b7280">· Undo</span></span>' : '<span ' + on(() => { askToLead(s, u); close(); toast('Asked ' + firstName(nameOf(u)) + ' to lead. We let them know.', true); }) + ' style="display:flex;align-items:center;min-height:36px;padding:0 14px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #f5b428;font-size:14px;font-weight:800;color:#8f6405;cursor:pointer">Ask</span>') + '</div>'; }).join('')
           : '<span style="font-size:14px;font-weight:600;color:#6b7280;text-align:center">No one has offered yet. Share it to find someone.</span>') +
         '<span ' + on(() => { close(); openLeadAsk(s); }) + ' data-ask-someone-else style="align-self:center;display:flex;align-items:center;min-height:40px;font-size:14.5px;font-weight:800;color:#8f6405;cursor:pointer">Ask someone else</span>'); }
     if (p.k === 'vis') { const home = s.groupId;
@@ -8288,7 +8308,8 @@
   const ideaSeenCheck = () => {
     if (state.screen !== 'ideas' || !ideaDotOn()) return;
     const el = Array.from(document.querySelectorAll('[data-new-idea]')).find(e => e.getClientRects().length);
-    if (!el) return;
+    // Filtered off the board (the group picker): nothing to scroll to, so the dot can't wait for it (audit 8)
+    if (!el) { if (document.querySelector('[data-idea-card]') && !document.querySelector('[data-new-idea]')) setState({ ideaSeen: newestIdea().id }); return; }
     const r = el.getBoundingClientRect(), nav = document.querySelector('.tabbar'), bottom = nav ? nav.getBoundingClientRect().top : window.innerHeight;
     if (r.top + r.height / 2 < bottom && r.bottom > 0) setState({ ideaSeen: el.getAttribute('data-new-idea') });
   };
@@ -8301,8 +8322,8 @@
     const ROT = [-2, 1.5, 1, -1.5, 2, -1], ROTF = [-1, .8, -.5, 1];
     const nw = ideaDotOn() ? newestIdea() : null, newAttr = (s) => nw && nw.id === s.id ? ' data-new-idea="' + esc(s.id) + '"' : '';
     if (nw) setTimeout(ideaSeenCheck, 400);   // already in view without scrolling
-    const tag = (s) => '<span style="flex:0 0 auto;display:flex;align-items:center;height:22px;padding:0 7px;border-radius:999px;background:#fdf1d6;font-size:12px;font-weight:900;color:#8f6405">↑ ' + s.interested.length + '</span>';
-    const by = (s, size) => '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:' + size + 'px;font-weight:700;color:#8a909b">by ' + esc(firstName(floaterName(s))) + '</span>';
+    const tag = (s) => '<span aria-label="' + s.interested.length + ' interested" style="flex:0 0 auto;display:flex;align-items:center;gap:3px;height:22px;padding:0 7px;border-radius:999px;background:#fdf1d6;font-size:12px;font-weight:900;color:#8f6405">' + svg(11, stroke('#8f6405', 2.8), '<circle cx="12" cy="8" r="3.6"/><path d="M5 20a7 7 0 0 1 14 0"/>') + s.interested.length + '</span>';
+    const by = (s, size) => '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:' + size + 'px;font-weight:700;color:#8a909b">' + (s.wantsHost ? 'by ' + esc(firstName(floaterName(s))) : 'led by ' + esc(firstName(nameOf(s.leadId, s.leadName)))) + '</span>';
     const MASK = 'linear-gradient(to bottom,#000 20%,rgba(0,0,0,.35) 55%,transparent 85%),linear-gradient(to bottom left,#000 25%,rgba(0,0,0,.3) 100%)';
     const tile = (s, k) => { const P0 = ideaPics(s)[0];
       return '<div ' + on(() => openIdeaSheet(s)) + ' role="button" data-idea-card="' + esc(s.text) + '"' + newAttr(s) + ' style="position:relative;border-radius:4px;overflow:hidden;' + NOTE_BG + ';box-shadow:0 3px 10px rgba(13,17,23,.14);transform:rotate(' + ROT[k % 6] + 'deg);cursor:pointer">' +
@@ -8329,7 +8350,7 @@
         opt('All groups', all.length, !pickG.length, () => setState({ iaGrps: [] })) +
         G.map(g => opt(g.name, all.filter(s => inGroup(s, g.id)).length, pickG.indexOf(g.id) > -1, () => toggleG(g.id))).join('') +
         '<span ' + on(() => setState({ menu: null })) + ' role="button" style="margin-top:4px;display:flex;align-items:center;justify-content:center;min-height:40px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:14px;font-weight:800;cursor:pointer">Done</span></div>' : '';
-    const SORTS = [['interest', 'Popular'], ['new', 'Newest'], ['close', 'Closest']];
+    const SORTS = [['interest', 'Popular'], ['new', 'Newest'], ['close', 'Almost a plan']];   // "Closest" read as distance
     const sortMenu = st.menu === 'iaSort' ? '<div ' + on(() => setState({ menu: null })) + ' style="position:fixed;inset:0;z-index:1"></div>' +
       '<div role="listbox" style="position:absolute;top:calc(100% + 4px);right:0;z-index:2;min-width:170px;background:#fff;border:1px solid #eceef2;border-radius:16px;padding:6px;box-shadow:0 18px 44px rgba(15,18,25,.2);display:flex;flex-direction:column">' +
         SORTS.map(([k, l]) => '<span role="option" ' + on(() => setState({ iaSort: k, menu: null })) + ' style="display:flex;align-items:center;min-height:40px;padding:0 12px;border-radius:10px;font-size:14.5px;font-weight:' + (IS === k ? 800 : 600) + ';color:' + (IS === k ? '#5b4ae8' : '#0d1117') + ';background:' + (IS === k ? '#f3f1fe' : 'transparent') + ';cursor:pointer">' + l + '</span>').join('') + '</div>' : '';
@@ -10358,7 +10379,7 @@
           return '<div data-interested ' + (c ? '' : on(() => openPerson(u)) + ' aria-label="' + esc(name) + ', see profile" ') + 'style="display:flex;align-items:center;gap:12px;min-height:52px;border-top:' + (i ? '1px solid #f2f3f6' : '0') + (c ? '' : ';cursor:pointer') + '">' +
             face(u, name, 32, null) +
             '<span style="flex:1 1 auto;min-width:0;font-size:15.5px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(name) + '</span>' +
-            (s.canHelp.indexOf(u) > -1 ? '<span data-can-help-chip style="flex:0 0 auto;padding:3px 9px;border-radius:999px;background:#f3f1fe;font-size:12px;font-weight:800;color:#5b4ae8">Can help</span>' : '') +
+            (s.canHelp.indexOf(u) > -1 ? '<span data-can-help-chip style="flex:0 0 auto;padding:3px 9px;border-radius:999px;background:#fdf1d6;font-size:12px;font-weight:800;color:#8f6405">Offered to lead</span>' : '') +
             (c && c.phone ? '<a href="tel:' + esc(c.phone.replace(/[^\d+]/g, '')) + '" style="flex:0 0 auto;font-size:14px;font-weight:800;color:#5b4ae8">' + esc(c.phone) + '</a>' : c ? '<span style="flex:0 0 auto;padding:3px 9px;border-radius:999px;background:#f2f3f6;font-size:12px;font-weight:800;color:#6b7280">Guest</span>' : '') +
           '</div>';
         }).join('') +
