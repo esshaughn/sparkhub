@@ -201,9 +201,42 @@
     return { go: all.filter(d => go.indexOf(d) > -1), maybe: all.filter(d => maybe.indexOf(d) > -1) };
   };
   // "Both days", "Sat", "Sat · Maybe Sun", "Every day" (Who's coming, item 6)
+  // A day of a multi-day event by its weekday ("Sat"), or by its date ("Sat, Oct 3"; long: "Saturday, Oct 3") when two of
+  // its days share a weekday or it runs over more than a week (owner, 2026-10-07, multi-day audit, U1: "Sat & Sat")
+  const monDay = (d) => new Date(d + 'T12:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const daysAmbig = (s) => { const ds = s && s.days ? s.days.map(r => r.d || r) : [];
+    return ds.length > 1 && (daysApart(ds[0], ds[ds.length - 1]) >= 7 || ds.some((x, i) => ds.findIndex(y => wkDay(y) === wkDay(x)) !== i)); };
+  const dayWord = (s, d, long) => daysAmbig(s) ? (long ? wkDay(d, true) + ', ' + monDay(d) : fmtDay(d)) : wkDay(d, long);
+  const dayWords = (s, a) => a.map(d => dayWord(s, d)).join(' & ');
+  // One short label for how a multi-day or repeating event runs (owner, 2026-10-07, multi-day audit, M1): a span
+  // "Oct 16–18" / "Oct 30 – Nov 2", separate days "Fri Oct 30 + Nov 6" / "Sat Oct 3 + 2 more", a repeat "Thursdays" /
+  // "Every other Thursday" / "Monthly on the 31st"; '' for a one-day event
+  const schedLabel = (s) => {
+    if (s.days && s.sched && s.sched.kind === 'span') { const f = s.days[0].d, l = s.days[s.days.length - 1].d; return f.slice(0, 7) === l.slice(0, 7) ? monDay(f) + '–' + +l.slice(8) : monDay(f) + ' – ' + monDay(l); }
+    if (s.days) { const f = s.days[0].d; return wkDay(f) + ' ' + monDay(f) + ' + ' + (s.days.length === 2 ? monDay(s.days[1].d) : (s.days.length - 1) + ' more'); }
+    if (s.repeat && s.startDate) return s.repeat.every === 'month' ? 'Monthly on the ' + ordinal(+s.startDate.slice(8)) : s.repeat.every === '2week' ? 'Every other ' + wkDay(s.startDate, true) : wkDay(s.startDate, true) + 's';
+    return '';
+  };
+  // Lists show a multi-day event on each of its upcoming days (today on), like Month (owner, 2026-10-07, multi-day audit,
+  // B1; undoes HANDOFF row 111): on an Each day event you've answered, only your Going and Maybe days (hosts, and anyone
+  // who hasn't replied, see every day); a repeat on its dates in the next 8 weeks, at most 8, and at least its next one.
+  // Each row is a copy of the event with that day's dayDate/dayTime/dayEnd and rowDay set (UI state is keyed by rowKey)
+  const upDays = (list, mine) => [].concat(...list.map(s => {
+    const today = todayISO(), at = (o) => Object.assign({}, s, o, { rowDay: o.dayDate });
+    if (s.days) {
+      const ds = mine && s.daysEach && !isLead(s) && myRsvp(s) ? rsvpDays(s, state.me) : null, keep = ds ? ds.go.concat(ds.maybe) : null;
+      return s.days.filter(r => r.d >= today && (!keep || keep.indexOf(r.d) > -1)).map(r => at({ dayDate: r.d, dayTime: r.t, dayEnd: r.t ? r.e : null }));
+    }
+    if (s.repeat) {
+      const ds = repeatDates(s.startDate, s.repeat.every, s.repeat.until, plusDays(today, 56)).filter(d => d >= today).slice(0, 8);
+      return (ds.length ? ds : [s.dayDate]).map(d => at({ dayDate: d }));
+    }
+    return [s];
+  }));
+  const rowKey = (s) => s.id + (s.rowDay ? '@' + s.rowDay : '');
   const daysTag = (s, ds) => {
     if (!ds || (!ds.go.length && !ds.maybe.length)) return '';
-    const n = s.days.length, w = (a) => a.map(d => wkDay(d)).join(' & ');
+    const n = s.days.length, w = (a) => dayWords(s, a);
     return [ds.go.length ? (ds.go.length === n ? (n === 2 ? 'Both days' : 'Every day') : w(ds.go)) : '', ds.maybe.length ? 'Maybe ' + w(ds.maybe) : ''].filter(Boolean).join(' · ');
   };
 
@@ -2011,7 +2044,7 @@
     const add = jobDayAdd(s, day);
     if (add) {
       must(await sb.from('rsvps').upsert({ spark_id: s.id, user_id: state.me, status: 'going', days: add.go, maybe_days: add.maybe }, { onConflict: 'spark_id,user_id' }));
-      if (add.told) toast('Added ' + wkDay(day, true) + ' to your RSVP', true);   // "Added Sunday to your RSVP"
+      if (add.told) toast('Added ' + dayWord(s, day, true) + ' to your RSVP', true);   // "Added Sunday to your RSVP"
       return;
     }
     if (!s.planned || isLead(s) || myRsvp(s) === 'going') return;
@@ -2134,10 +2167,20 @@
     let body, picked = null;
     if (s.sched && s.sched.kind === 'days' && s.days) {
       const mine = rsvpDays(s, state.me), ds = s.daysEach && mine && mine.go.length ? mine.go : s.days.map(r => r.d);
+      // days already over are left out (M3, owner 2026-10-07, multi-day audit), unless they all are
       picked = s.days.filter(r => ds.indexOf(r.d) > -1);
+      if (picked.some(r => r.d >= todayISO())) picked = picked.filter(r => r.d >= todayISO());
       body = [].concat(...picked.map(r => ev(s.id + '-' + r.d, lines(r.d, r.t, r.e))));
     } else if (s.sched && s.sched.kind === 'span' && s.days) body = ev(s.id, lines(s.startDate, s.startTime, s.days[s.days.length - 1].e, s.days[s.days.length - 1].d));
-    else if (s.repeat) body = ev(s.id, lines(s.startDate, s.startTime, s.startEnd), ['RRULE:FREQ=' + (s.repeat.every === 'month' ? 'MONTHLY' : 'WEEKLY') + (s.repeat.every === '2week' ? ';INTERVAL=2' : '') + (s.repeat.until ? ';UNTIL=' + ymd(s.repeat.until) + 'T235959' : '')]);
+    else if (s.repeat) {
+      // From its next date, not its first (M3). A monthly one on the 29th–31st lands where the app puts it, the month's last
+      // day when it's shorter (B4, owner 2026-10-07, multi-day audit): the 31st repeats on the last day (BYMONTHDAY=-1);
+      // the 29th or 30th is its next 12 dates, one entry each
+      const dd = +s.startDate.slice(8), until = s.repeat.until ? ';UNTIL=' + ymd(s.repeat.until) + 'T235959' : '';
+      if (s.repeat.every === 'month' && dd > 28 && dd < 31) body = [].concat(...repeatDates(s.startDate, 'month', s.repeat.until, plusDays(todayISO(), 400)).filter(d => d >= s.dayDate).slice(0, 12)
+        .map(d => ev(s.id + '-' + d, lines(d, s.startTime, s.startEnd))));
+      else body = ev(s.id, lines(s.dayDate, s.startTime, s.startEnd), ['RRULE:FREQ=' + (s.repeat.every === 'month' ? 'MONTHLY' + (dd === 31 ? ';BYMONTHDAY=-1' : '') : 'WEEKLY') + (s.repeat.every === '2week' ? ';INTERVAL=2' : '') + until]);
+    }
     else body = ev(s.id, lines(s.dayDate, s.dayTime, s.dayEnd));
     const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Spark Hub//EN'].concat(body, ['END:VCALENDAR']).join('\r\n');
     const a = document.createElement('a');
@@ -2145,7 +2188,7 @@
     a.download = (s.text.replace(/[^\w ]+/g, '').trim() || 'plan') + '.ics';
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-    if (picked && picked.length > 1) toast('Added ' + picked.map(r => wkDay(r.d)).join(' & ') + ' to your calendar (' + picked.length + ' entries)', true);
+    if (picked && picked.length > 1) toast('Added ' + dayWords(s, picked.map(r => r.d)) + ' to your calendar (' + picked.length + ' entries)', true);
   };
 
   // "Do it again": a new event with the place and details filled in
@@ -2658,7 +2701,7 @@
       '<div aria-hidden="true" style="position:absolute;left:0;right:0;top:0;height:calc(430px + var(--pt));background:linear-gradient(to bottom, rgba(13,17,23,.4) 0%, rgba(13,17,23,.18) 25%, rgba(13,17,23,.62) 48%, rgba(13,17,23,.92) 70%, #0d1117 100%)"></div>' +
       '<div style="flex:1 0 calc(200px + var(--pt))"></div>' +
       '<div style="position:relative;padding:0 20px;color:#fff;text-shadow:0 1px 12px rgba(13,17,23,.5)">' +
-        '<div aria-label="Spark Hub" style="display:flex;align-items:center;gap:6px;margin-bottom:14px">' + I.bolt(24, '#f3c55a') + '<span style="font-size:18px;line-height:1;font-weight:900;letter-spacing:-.5px;color:#fff">Spark Hub</span></div>' +
+        '<div aria-label="Spark Hub" style="display:flex;align-items:center;gap:6px;margin-bottom:14px">' + I.bolt(24, '#f3c55a') + '<span style="font-size:18px;line-height:1;font-weight:900;letter-spacing:-.5px;color:#fff">Spark Hub</span>' + betaChip(true) + '</div>' +
         '<h1 style="margin:0;font-size:42px;line-height:.98;font-weight:900;letter-spacing:-1.4px;color:#fff">Plans with<br><span style="color:#9d93f7">your people.</span></h1>' +
         '<ol style="list-style:none;margin:18px 0 0;padding:0;display:flex;flex-direction:column;gap:12px">' +
           STEPS.map(([c, n, t, ink]) => '<li style="display:flex;align-items:center;gap:12px"><span aria-hidden="true" style="flex:0 0 28px;width:28px;height:28px;border-radius:999px;background:' + c + ';color:' + (ink || '#fff') + ';font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center;text-shadow:none">' + n + '</span>' +
@@ -2702,7 +2745,10 @@
   const invName = (g) => g && g.name ? esc(g.name) : g ? 'this group' : '';   // g with no name: the preview couldn't load
   const invNameSize = (g) => g && g.name && g.name.length > 16 ? 34 : 38;
   const statusFade = '<div aria-hidden="true" style="position:absolute;left:0;right:0;top:0;height:calc(120px + var(--pt));background:linear-gradient(rgba(0,0,0,.45),transparent)"></div>';
-  const brandPill = '<div aria-label="Spark Hub" style="position:absolute;top:calc(var(--pt) + 16px);left:24px;display:flex;align-items:center;gap:6px;padding:6px 12px 6px 9px;border-radius:999px;background:rgba(17,19,31,.55);font-size:14px;font-weight:700;color:#fff">' + I.bolt(18, '#f2b51c') + 'Spark Hub</div>';
+  // BETA beside the Spark Hub wordmark everywhere it shows (owner, 2026-10-07): lavender #f3f1fe with #5b4ae8 on light; on a
+  // photo or the purple gradient (dark) a frosted rgba(255,255,255,.18) with white text. 10.5px/900, 1px tracking, 4px 8px
+  const betaChip = (dark, attr) => '<span data-beta ' + (attr || '') + ' style="flex:0 0 auto;margin-left:2px;padding:4px 8px;border-radius:999px;background:' + (dark ? 'rgba(255,255,255,.18)' : '#f3f1fe') + ';color:' + (dark ? '#fff' : '#5b4ae8') + ';font-size:10.5px;line-height:1;font-weight:900;letter-spacing:1px;text-shadow:none">BETA</span>';
+  const brandPill = '<div aria-label="Spark Hub" style="position:absolute;top:calc(var(--pt) + 16px);left:24px;display:flex;align-items:center;gap:6px;padding:6px 12px 6px 9px;border-radius:999px;background:rgba(17,19,31,.55);font-size:14px;font-weight:700;color:#fff">' + I.bolt(18, '#f2b51c') + 'Spark Hub' + betaChip(true) + '</div>';
 
   // 1a / E4: the invite landing, signed out
   function viewInvLanding() {
@@ -2884,7 +2930,8 @@
   const tbdSpan = (t, color) => '<span style="color:' + (color || TBD_INK) + '">' + esc(t) + '</span>';
   // Events posted to several groups: "Torrez Fitness +1"
   const groupsLabel = (s) => { const n = (s.groupIds || [s.groupId]).map(id => groupById(id)).filter(g => g && g.role).map(g => g.name); return n.length ? n[0] + (n.length > 1 ? ' +' + (n.length - 1) : '') : ((groupById(s.groupId) || {}).name || ''); };
-  const shortWhen = (s) => s.dayDate ? fmtDay(s.dayDate) + (s.dayTime ? ' · ' + fmtTime(s.dayTime) : '') : 'No date yet';
+  // Multi-day and repeating events by their schedule, "Oct 16–18", "Thursdays · 7am" (owner, 2026-10-07, multi-day audit, M1)
+  const shortWhen = (s) => !s.dayDate ? 'No date yet' : schedLabel(s) ? schedLabel(s) + (s.repeat && s.dayTime ? ' · ' + fmtTime(s.dayTime) : '') : fmtDay(s.dayDate) + (s.dayTime ? ' · ' + fmtTime(s.dayTime) : '');
   const signupFill = (s) => {
     const counted = s.signups.filter(i => i.need);
     const needed = counted.reduce((n, i) => n + i.need, 0), filled = counted.reduce((n, i) => n + Math.min(i.claims.length, i.need), 0);
@@ -2925,7 +2972,7 @@
         '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to bottom, rgba(13,17,23,.25), rgba(13,17,23,0) 40%, rgba(13,17,23,.55))"></div>' +
         '<div aria-hidden="true" style="position:absolute;left:0;right:0;top:var(--pt);bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px">' +
           '<svg class="splash-bolt" width="56" height="56" viewBox="0 0 24 24"><path d="M13.2 2.2 7.2 13.1l3.9-.35-.9 8.8 6.9-11.2-4.1.4z" fill="#ffd166" stroke="#ffd166" stroke-width="1.7" stroke-linejoin="round"/></svg>' +
-          '<span style="font-size:20px;font-weight:900;letter-spacing:-.4px;color:#fff">Spark Hub</span></div>' +
+          '<span style="display:flex;align-items:center;gap:8px"><span style="font-size:20px;font-weight:900;letter-spacing:-.4px;color:#fff">Spark Hub</span>' + betaChip(true) + '</span></div>' +
         '<div aria-hidden="true" style="position:absolute;left:20px;right:96px;bottom:22px;display:flex;flex-direction:column;gap:10px">' +
           bar('42%', 12, 'background:rgba(255,255,255,.35)') + bar('88%', 26, 'background:rgba(255,255,255,.28)') + '</div>' +
       '</div>' +
@@ -3903,6 +3950,11 @@
     const my = myRsvp(s);
     if (s.cancelledAt) return { k: 'off', R: R6.open, word: 'Cancelled', rows: [], right: 'See' };
     if (isLead(s)) return { k: 'lead', R: R6.lead, word: 'Leading', icon: 'bolt', rows: ownActs(s) };
+    // One day's row of an Each day event (B1, owner 2026-10-07, multi-day audit): a day you didn't pick isn't yours (RSVP,
+    // or nothing on My calendar) and a day you said Maybe to says Maybe, whatever you said or hold on the other days
+    const ds = s.rowDay && s.daysEach && my && my !== 'no' ? rsvpDays(s, state.me) : null;
+    if (ds && ds.go.indexOf(s.rowDay) < 0) return ds.maybe.indexOf(s.rowDay) > -1 ? { k: 'go', R: R6.maybe, word: 'Maybe', icon: 'check', rows: [], right: 'Update RSVP' }
+      : { k: 'open', R: R6.open, word: '', rows: [], right: 'RSVP' };
     if (helpsOn(s)) return { k: 'help', R: R6.helping, word: 'Helping', icon: 'clip', rows: helpActs(s) };
     // Holding Take part spots (v8-2): still Going, with your spot ("Going · 10:00am court time", +N more)
     const spots = my === 'going' ? myPartRows(s) : [];
@@ -3914,9 +3966,9 @@
   // fs (Design v8): the strip's font size; with it the role word shows without its icon, the right side at rfs
   // No line above it (Design v8 prototype); P.right '' leaves the right side empty (a past event on All groups)
   const strip6 = (s, P, h, cal, fs, rfs) => {
-    const open = !!state.schedOpen[s.id] && P.rows.length > 0;
+    const open = !!state.schedOpen[rowKey(s)] && P.rows.length > 0;   // per event and day (a multi-day event has a row per day)
     const expands = P.rows.length > 0;   // the same on every list (audit, 2026-10-01: the Calendar said "Manage" and opened the event)
-    const tap = (e) => { stop(e); if (!expands) openSpark(s); else setState({ schedOpen: Object.assign({}, state.schedOpen, { [s.id]: !open }) }); };
+    const tap = (e) => { stop(e); if (!expands) openSpark(s); else setState({ schedOpen: Object.assign({}, state.schedOpen, { [rowKey(s)]: !open }) }); };
     const f = signupFill(s), n = headN(s);
     let left, right;
     if (P.k === 'open') {
@@ -3937,14 +3989,17 @@
   // 14px place, a 28px strip at 11.5px and a lighter group chip
   // The photo's date line is the date itself, "Sat, Oct 10 · 10am" (Design v8 prototype: no Today / Tomorrow on tiles);
   // an idea on All groups says "Idea · no date yet" in gold
+  // A multi-day event's tile says which day it is, "Sat, Oct 17 · Day 2 of 3"; a repeat how it repeats, "Thu, Oct 8 · 7am ·
+  // Thursdays" (owner, 2026-10-07, multi-day audit, M1)
   const tileWhen = (s, P) => P.k === 'idea' ? 'Idea · ' + (s.dayDate ? fmtDay(s.dayDate) : 'no date yet')
-    : s.dayDate ? fmtDay(s.dayDate) + (s.dayTime ? ' · ' + fmtTime(s.dayTime) : '') : when6(s);
+    : s.dayDate ? fmtDay(s.dayDate) + (s.days ? ' · ' + dayOfN(s) : (s.dayTime ? ' · ' + fmtTime(s.dayTime) : '') + (s.repeat ? ' · ' + schedLabel(s) : '')) : when6(s);
+  const dayOfN = (s) => 'Day ' + (Math.max(0, s.days.findIndex(r => r.d === s.dayDate)) + 1) + ' of ' + s.days.length;
   // "Private" on a private event's photo (v8-10 item 2): frosted like the countdown chip, top left; public events show nothing
   const privChip = (s, inRow) => s.visibility !== 'invite' ? '' : '<span data-private-chip style="' + (inRow ? 'flex:0 0 auto' : 'position:absolute;top:12px;left:14px') + ';display:flex;align-items:center;gap:5px;height:24px;padding:0 10px 0 8px;border-radius:999px;background:rgba(13,17,23,.4);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff;font-size:11.5px;font-weight:800">' +
     svg(12, stroke('currentColor', 2.6), '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>') + 'Private</span>';
   const tile6 = (s, P, h, cal, mode) => {
     const g = groupById(s.groupId);
-    return '<div ' + on(() => openSpark(s)) + ' data-plan="' + esc(s.text) + '" aria-label="' + esc(s.text) + '" style="border-radius:20px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
+    return '<div ' + on(() => openSpark(s)) + ' data-plan="' + esc(s.text) + '"' + (s.dayDate ? ' data-day="' + s.dayDate + '"' : '') + ' aria-label="' + esc(s.text) + '" style="border-radius:20px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
       '<div style="position:relative;height:' + h + 'px;background:' + photoBg(s) + '">' +
         '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.95) 0%, rgba(13,17,23,.65) 45%, rgba(13,17,23,.3) 100%)"></div>' +
         // All groups' tiles keep their group chip; Private sits beside it (the prototype's tiles have no group chip)
@@ -3976,7 +4031,7 @@
   // Owner, 2026-10-07: no role bar, a larger title (18px, up to two balanced lines) and line (14.5px, the time in bold ink), a 48px photo, 11×14 padding
   const listCard6 = (s, P, cal, thumb, noDate) => {
     const dp = s.dayDate ? dateParts(s.dayDate) : null;
-    return '<div ' + on(() => openSpark(s)) + ' data-plan="' + esc(s.text) + '" aria-label="' + esc(s.text) + '" style="border-radius:16px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
+    return '<div ' + on(() => openSpark(s)) + ' data-plan="' + esc(s.text) + '"' + (s.dayDate ? ' data-day="' + s.dayDate + '"' : '') + ' aria-label="' + esc(s.text) + '" style="border-radius:16px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
       '<div style="display:flex;align-items:stretch;gap:14px;padding:11px 14px">' +
         (noDate ? '' : '<div style="flex:0 0 42px;display:flex;flex-direction:column;align-items:center;justify-content:center">' + (dp ? '<span style="font-size:11.5px;font-weight:900;letter-spacing:.7px;color:#6b7280">' + dp.dow + '</span><span style="font-size:23px;line-height:1;font-weight:900;color:#0d1117">' + dp.day + '</span>'
           : '<span style="font-size:11.5px;font-weight:900;letter-spacing:.7px;color:#8f6405">TBD</span><span style="font-size:23px;line-height:1;font-weight:900;color:#8f6405">?</span>') + '</div>') +
@@ -3991,7 +4046,7 @@
   // mode 'mine': My calendar's hero (34px strip at 12.5px, Design v8); otherwise a group page's (28px at 11.5px)
   const nextCard6 = (s, P, mode) => {
     const d = daysTo(s), when = d <= 0 ? 'Today' : d === 1 ? 'Tomorrow' : 'In ' + d + ' days';
-    return '<div ' + on(() => openSpark(s)) + ' data-plan="' + esc(s.text) + '" data-next aria-label="' + esc(s.text) + '" style="border-radius:20px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
+    return '<div ' + on(() => openSpark(s)) + ' data-plan="' + esc(s.text) + '"' + (s.dayDate ? ' data-day="' + s.dayDate + '"' : '') + ' data-next aria-label="' + esc(s.text) + '" style="border-radius:20px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
       '<div style="position:relative;height:170px;background:' + photoBg(s) + '">' +
         '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.95) 0%, rgba(13,17,23,.6) 45%, rgba(13,17,23,.25) 100%)"></div>' +
         privChip(s) +
@@ -4000,17 +4055,29 @@
           : '<span style="position:absolute;top:12px;right:14px;display:flex;align-items:center;height:24px;padding:0 10px;border-radius:999px;background:rgba(13,17,23,.4);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff;font-size:11.5px;font-weight:800">' + when + '</span>') +
         '<div style="position:absolute;left:16px;right:16px;bottom:14px;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.3)">' +
           // the badge says Today / Tomorrow / In N days, so the date line gives the date itself (it said "Today" twice); its colour follows your role
-          '<div style="font-size:13px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;color:' + P.R.kick + '">' + esc(s.dayDate ? fmtDay(s.dayDate) + (s.days ? ' · ' + s.days.length + ' days' : s.dayTime ? ' · ' + fmtTime(s.dayTime) : '') + (s.repeat ? ' · ' + REPEATS[s.repeat.every] : '') : when6(s)) + '</div>' +
+          '<div style="font-size:13px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;color:' + P.R.kick + '">' + esc(s.dayDate ? heroWhen(s) : when6(s)) + '</div>' +
           '<div style="margin-top:3px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:25px;line-height:1.1;font-weight:900;letter-spacing:-.6px;text-wrap:balance">' + esc(s.text) + demoTag(s, true, true) + '</div>' +
           '<div style="margin-top:6px;display:flex;align-items:center;gap:6px;font-size:14.5px;font-weight:700;color:rgba(255,255,255,.9);min-width:0">' + ic6('pin', 13, 'currentColor', 2.6) + '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (s.spot ? esc(s.spot) : tbdSpan(spotTbd(s), TBD_ON_PHOTO)) + '</span></div>' +
         '</div></div>' +
       nextStrip(s, P, mode) + '</div>';
   };
+  // The hero's date line (owner, 2026-10-07, multi-day audit, M1): a multi-day event's first day "Fri, Oct 16 · 3 days",
+  // a later day "Fri, Nov 6 · Day 2 of 2", a day under way "Day 3 of 5 · Ends Fri" (the last one "Day 5 of 5 · Last day");
+  // a repeat "Thu, Oct 8 · 7am · Thursdays"
+  const heroWhen = (s) => {
+    if (s.days) {
+      const k = Math.max(0, s.days.findIndex(r => r.d === s.dayDate)), n = s.days.length, last = s.days[n - 1].d;
+      if (k === 0) return fmtDay(s.dayDate) + ' · ' + n + ' days';
+      if (s.dayDate <= todayISO() && s.sched && s.sched.kind === 'span') return 'Day ' + (k + 1) + ' of ' + n + ' · ' + (k === n - 1 ? 'Last day' : 'Ends ' + (dayDiff(last) < 7 ? wkDay(last) : monDay(last)));
+      return fmtDay(s.dayDate) + ' · Day ' + (k + 1) + ' of ' + n;
+    }
+    return fmtDay(s.dayDate) + (s.dayTime ? ' · ' + fmtTime(s.dayTime) : '') + (s.repeat ? ' · ' + schedLabel(s) : '');
+  };
   // Up next's strip (Design 27): N tasks ▾ on the right, tap to show the rows; always closed to start, even on the day
   // (owner, 2026-10-06); open or closed is kept per event for the session (schedOpen, shared with the cards below)
   const nextStrip = (s, P, mode) => {
-    const n = P.rows.length, saved = state.schedOpen[s.id], open = !!saved && n > 0;
-    const tap = (e) => { stop(e); if (!n) openSpark(s); else setState({ schedOpen: Object.assign({}, state.schedOpen, { [s.id]: !open }) }); };
+    const n = P.rows.length, saved = state.schedOpen[rowKey(s)], open = !!saved && n > 0;
+    const tap = (e) => { stop(e); if (!n) openSpark(s); else setState({ schedOpen: Object.assign({}, state.schedOpen, { [rowKey(s)]: !open }) }); };
     const word = P.k === 'go' ? P.right : n ? n + (n === 1 ? ' task' : ' tasks') : 'All set';
     const mine = mode === 'mine';
     return '<div ' + on(tap) + ' aria-expanded="' + open + '" style="display:flex;align-items:center;justify-content:space-between;gap:10px;height:' + (mine ? 34 : 28) + 'px;padding:0 14px;background:' + P.R.strip + ';font-size:' + (mine ? 12.5 : 11.5) + 'px;font-weight:800;color:' + P.R.ink + ';cursor:pointer"><span>' + P.word + '</span>' +
@@ -4102,7 +4169,9 @@
       monthBody(plans, { mode: 'mine', mon: st.hMon, day: st.hDay, cal: false, menu: viewPick(), card: (s) => listCard6(s, partOf(s), false, 'chev'),
         set: (hMon, hDay) => setState({ hMon, hDay }), toTbd: () => setState({ homeView: 'next', sSort: 'soon', menu: null, hMon: null, hDay: null }) }));
     // Up next (Soonest only): the hero card, then list cards by month / Date TBD (no This week, owner 2026-10-06)
-    const secs = view === 'next' && st.sSort === 'soon' ? nextSections(plans, true) : sections6(plans, st.sSort, 'Date TBD');
+    // By date, a multi-day event has a row on each upcoming day (B1, owner 2026-10-07, multi-day audit); other sorts list each event once
+    const rows = st.sSort === 'soon' ? applySort(upDays(all, true), 'soon') : plans;
+    const secs = view === 'next' && st.sSort === 'soon' ? nextSections(rows, true) : sections6(rows, st.sSort, 'Date TBD');
     // Tiles (Design v8): a 170px photo over a 34px strip with the role word only
     const card = (s) => view === 'next' ? listCard6(s, partOf(s), false, true) : tile6(s, partOf(s), 170, false, 'mine');
     return wrap(goneCard() + secs.map((z, i) => '<div style="display:flex;flex-direction:column;gap:8px">' + monthHead(z.label, i ? '' : controls) +
@@ -4247,7 +4316,8 @@
     const [y, m] = cm.split('-').map(Number), start = new Date(y, m - 1, 1), nDays = new Date(y, m, 0).getDate();
     const inMonth = list.filter(s => s.dayDate && s.dayDate.slice(0, 7) === cm), undatedN = list.filter(s => !s.dayDate).length;
     const firstDay = inMonth.map(s => s.dayDate).sort()[0];
-    const sel = o.day && o.day.slice(0, 7) === cm ? o.day : (firstDay || cm + '-01');
+    // This month opens on the first day with events from today on, or today itself (owner, 2026-10-07, multi-day audit, U3: it opened on the 1st)
+    const sel = o.day && o.day.slice(0, 7) === cm ? o.day : cm === today.slice(0, 7) ? (inMonth.map(s => s.dayDate).filter(d => d >= today).sort()[0] || today) : (firstDay || cm + '-01');
     const shift = (d) => () => { const x = new Date(y, m - 1 + d, 1); o.set(x.getFullYear() + '-' + pad2(x.getMonth() + 1), null); };
     const navBtn = (fn, label, icon) => '<span ' + on(fn) + ' aria-label="' + label + '" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + icon + '</span>';
     const cells = [];
@@ -4351,7 +4421,8 @@
       return d == null ? 'Date TBD' : d === 0 ? 'Today' : d < 7 ? 'This week' : monthLabel(s.dayDate);
     };
     const secs = [];
-    list.forEach(s => { const l = secOf(s); let z = secs.find(q => q.label === l); if (!z) { z = { label: l, items: [] }; secs.push(z); } z.items.push(s); });
+    // Plans by date: a row per upcoming day of a multi-day event (B1, owner 2026-10-07, multi-day audit); counts stay per event
+    (kind === 'plan' && st.cSort === 'soon' ? applySort(upDays(list, false), 'soon') : list).forEach(s => { const l = secOf(s); let z = secs.find(q => q.label === l); if (!z) { z = { label: l, items: [] }; secs.push(z); } z.items.push(s); });
     // Design v8 prototype: an idea reads "N interested · Take a look" (your own: "Idea"); a past event "N went" with
     // nothing on the right; Helping shows just the number of your jobs, with the chevron
     const P = (s) => {
@@ -5810,7 +5881,8 @@
       // (Your schedule's Up next); another sort keeps its own grouping, as tiles
       else {
         const next = gv === 'next' && st.gSort === 'soon', rows = gv === 'next' && next;
-        body = (next ? nextSections(plans) : sections6(plans, st.gSort, 'Date TBD')).map((z, i) => '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(z.label, i ? '' : controls) +
+        const rowsL = st.gSort === 'soon' ? applySort(upDays(plans, false), 'soon') : plans;   // a row per upcoming day (B1, owner 2026-10-07, multi-day audit)
+        body = (next ? nextSections(rowsL) : sections6(rowsL, st.gSort, 'Date TBD')).map((z, i) => '<div style="display:flex;flex-direction:column;gap:10px">' + monthHead(z.label, i ? '' : controls) +
           '<div style="display:flex;flex-direction:column;gap:' + (rows ? 10 : 14) + 'px">' + (z.hero ? nextCard6(z.hero, partOf(z.hero, true)) : z.items.map(s => rows ? listCard6(s, partOf(s, true), false, true) : tile6(s, partOf(s, true), 180)).join('')) + '</div></div>').join('');
       }
     }
@@ -5965,7 +6037,7 @@
             (isDemo(s) ? chip('DEMO', 'rgba(255,255,255,.24);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)', '#fff', 'data-chip data-demo-tag') : lead && !(isTheLead(s) && s.wantsHost) ? chip(isTheLead(s) ? 'YOU’RE LEADING' : 'YOU’RE CO-LEADING', '#5b4ae8', '#fff', 'data-chip') : chip('IDEA', '#f3c55a', '#3d2a00', 'data-chip')) +
             (s.visibility === 'invite' ? chip(svg(11, stroke('#fff', 2.6), '<rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>') + 'PRIVATE', 'rgba(255,255,255,.22)') : '') + '</div>' +
           // The title isn't tappable any more (Design 31): editing goes through the ✎ at the top right
-          '<h1 style="margin:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:' + titleFs(s.text, 36) + 'px;line-height:1;font-weight:900;letter-spacing:-1.2px;text-wrap:pretty">' + esc(s.text) + '</h1></div>' +
+          '<h1 style="margin:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:' + titleFs(s.text, 36) + 'px;line-height:1;font-weight:900;letter-spacing:-1.2px;text-wrap:balance">' + esc(s.text) + '</h1></div>' +
         '</div>', true) +
       (off ? '' : ideaBanner(s)) +
       '<div style="padding:16px 14px 26px;display:flex;flex-direction:column;gap:18px">' +
@@ -6340,7 +6412,7 @@
       const ids = j.claims.map(c => c.userId).filter((u, i, a) => a.indexOf(u) === i), need = j.need;
       const full = shifts ? j.shifts.every(u => u.need && u.claims.length >= u.need) : !!need && ids.length >= need;
       const act = () => { if (!st.busy) toggleClaim(s, j); };
-      const when = [j.day ? wkDay(j.day) : '', shifts ? j.shifts.length + (j.shifts.length === 1 ? ' shift' : ' shifts') : spanTime(j)].filter(Boolean).join(' · ');   // "Sat · 9:00 – 10:00am" (v8-7)
+      const when = [j.day ? dayWord(s, j.day) : '', shifts ? j.shifts.length + (j.shifts.length === 1 ? ' shift' : ' shifts') : spanTime(j)].filter(Boolean).join(' · ');   // "Sat · 9:00 – 10:00am" (v8-7)
       const added = !lead && j.createdBy === st.me && !shifts;
       const clk = lead ? 15 : 13;
       const head = '<div style="display:flex;align-items:' + (lead ? 'flex-start' : 'center') + ';gap:10px">' +   // a member's button is centred on the title and time (v8-7 item 9)
@@ -6476,6 +6548,7 @@
     }
     // Date, time & location: a date or place set here closes its poll. Everyone in it gets an update.
     // How long it is (v8-7): the schedule goes along only when it changed, so a one-day edit works without it
+    if (whenErr(ss)) { toast(whenErr(ss)); return; }   // B6 (owner, 2026-10-07, multi-day audit)
     const patch = {}, c = whenCols(ss), sameSched = JSON.stringify(c.schedule) === JSON.stringify(s.sched ? whenCols(whenModelOf(s)).schedule : null);
     if (c.day_date !== s.startDate || c.day_time !== s.startTime || c.day_end !== s.startEnd || !sameSched) Object.assign(patch, { day_date: c.day_date, day_time: c.day_time, day_end: c.day_end }, sameSched ? {} : { schedule: c.schedule });
     const p = cleanTitle(state.offerText).slice(0, 80), pl = state.offerPlace && state.offerPlace.name === p ? state.offerPlace : null;
@@ -6633,7 +6706,7 @@
         // A plan keeps its date; taking it off turns the plan back into an idea (the host's call, with a confirm)
         // (Turn it back into an idea sits under Save: Design v8-8 prototype secBackIdeaOn)
         (s.planned && isLead(s) ? (ss.d ? '' : '<span data-needs-date style="font-size:13.5px;line-height:1.4;font-weight:600;color:' + AMBER_INK + '">A Plan needs a date. To take it off, turn it back into an Idea.</span>') : '');
-      ok = !(s.planned && !ss.d);
+      ok = !(s.planned && !ss.d) && !whenErr(ss);
     } else if (ss.kind === 'details') {
       body = '<div style="display:flex;flex-direction:column;gap:12px">' +   // v8-12: no "Both parts are optional."
         (ss.desc != null ? wteDesc(ss.ov || '', (v) => set({ ov: v }), ss.desc, (v) => set({ desc: v }))
@@ -6698,12 +6771,20 @@
         '</div></div></div>';
   }
 
+  // The link preview's two lines, the same as api/preview.js's eventLines (owner, 2026-10-07): the title with the date
+  // ("Jeni Reads Her Resume – Thu, Oct 22"; multi-day "Camping – Oct 16–18"), then the time and place only ("7:30pm · Hub
+  // on Hunters"; a span "From 4pm · Pace Bend"), or On Spark Hub. The startDate/startTime columns, as the preview reads them
+  const previewLines = (s) => {
+    const sl = s.startDate ? schedLabel(s) : '', date = sl || (s.startDate ? fmtDay(s.startDate) : '');
+    const time = !s.startDate ? '' : s.days && s.sched.kind === 'span' ? (s.startTime ? 'From ' + fmtTime(s.startTime) : '') : s.days ? fmtTime(s.days[0].t) : fmtTime(s.startTime);
+    return { title: s.text + (date ? ' – ' + date : ''), line: [time, s.spot].filter(Boolean).join(' · ') || 'On Spark Hub' };
+  };
   // Share link: copy it, or hand it to Messages, Mail, WhatsApp or the phone's share sheet
   // The ready message (owner, 2026-09-30): warm and short; an idea asks who's interested
   const inviteText = (s) => {
     // "{Event title} · {day} {link}" (Design v8-8, short links): no group name, no lead's line
     if (phaseOf(s) === 'done') return s.text + ': here’s how it went.';
-    return s.text + (s.dayDate ? ' · ' + fmtDay(s.dayDate) : '');
+    return s.text + (s.dayDate ? ' · ' + (schedLabel(s) || fmtDay(s.dayDate)) : '');   // multi-day: "Camping · Oct 16–18" (M1, owner 2026-10-07, multi-day audit)
   };
   // Invite people (owner's mock, 2026-10-01): your friends and the people in the event's groups, each with Invite /
   // ✓ Invited (invite_friends, event_invited: 20261101170000_invite_people.sql), then "or share a link" with Copy and
@@ -6816,7 +6897,7 @@
   const viewSharePop = (s, msg, link, solo) => {
     const A = shareAccent(s);
     const closeAll = () => setTimeout(() => setState({ share: null }), 0);
-    const line = [s.dayDate ? dayLabel(s.dayDate, s.dayTime) : '', s.spot || ''].filter(Boolean).join(' · ') || 'Date to be decided';
+    const pv = previewLines(s);
     const circle = (label, href, icon, fn) => '<' + (href ? 'a href="' + esc(href) + '" target="_blank" rel="noopener noreferrer" data-on="' + reg(fn) + '"' : 'div ' + on(fn)) + ' aria-label="' + label + '" style="display:flex;flex-direction:column;align-items:center;gap:6px;text-decoration:none;cursor:pointer">' +
       '<span class="hov-grey-fill" style="width:52px;height:52px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center">' + svg(22, stroke(A.link, 2.1), icon) + '</span>' +
       '<span style="font-size:12.5px;font-weight:800;color:#454b55">' + label + '</span></' + (href ? 'a' : 'div') + '>';
@@ -6825,8 +6906,8 @@
       '<div data-link-preview style="display:flex;flex-direction:column;border-radius:16px;overflow:hidden;box-shadow:inset 0 0 0 1.5px #e3e5ea">' +
         '<div aria-hidden="true" style="height:120px;background:' + photoBg(s) + '"></div>' +
         '<div style="display:flex;flex-direction:column;gap:2px;padding:10px 14px 12px;background:#f7f8fa">' +
-          '<span style="font-size:15.5px;font-weight:900;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(s.text) + '</span>' +
-          '<span style="font-size:13px;font-weight:600;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(line) + '</span>' +
+          '<span data-link-title style="font-size:15.5px;font-weight:900;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(pv.title) + '</span>' +
+          '<span data-link-line style="font-size:13px;font-weight:600;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(pv.line) + '</span>' +
           '<span style="font-size:12px;font-weight:700;color:#9aa0aa;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(link.replace(/^https?:\/\//, '')) + '</span></div></div>' +
       '<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px">' +
         circle('Messages', 'sms:?&body=' + encodeURIComponent(msg), '<path d="M4 5.5h16v10H9l-5 4v-14Z"/>', closeAll) +
@@ -7044,13 +7125,16 @@
     // "You're going Sat · maybe Sun · Change" once you've picked. A repeat says how it repeats under the time
     const mine = rsvpDays(s, state.me), myAns = myRsvp(s);
     const myLine = mine && myAns && myAns !== 'no' && (mine.go.length || mine.maybe.length) ? (() => {
-      const w = (a) => a.map(d => wkDay(d)).join(' & '), n = s.days.length;
+      const w = (a) => dayWords(s, a), n = s.days.length;
       return [mine.go.length ? 'You’re going ' + (mine.go.length === n ? (n === 2 ? 'both days' : 'every day') : w(mine.go)) : '', mine.maybe.length ? (mine.go.length ? 'maybe ' : 'Maybe ') + w(mine.maybe) : ''].filter(Boolean).join(' · '); })() : '';
-    const timeline = s.days ? '<div data-day-timeline style="display:flex;flex-direction:column">' + s.days.map((r, k, A) =>
-        '<div style="display:flex;gap:12px"><div style="display:flex;flex-direction:column;align-items:center;width:14px"><span style="width:10px;height:10px;margin-top:7px;border-radius:999px;background:#5b4ae8"></span>' +
+    // Past days are dimmed (a grey dot, grey text) and today carries a green Today tag (owner, 2026-10-07, multi-day audit, M3)
+    const tdy = todayISO();
+    const timeline = s.days ? '<div data-day-timeline style="display:flex;flex-direction:column">' + s.days.map((r, k, A) => { const past = r.d < tdy, now = r.d === tdy;
+      return '<div' + (past ? ' data-day-past' : now ? ' data-day-today' : '') + ' style="display:flex;gap:12px"><div style="display:flex;flex-direction:column;align-items:center;width:14px"><span style="width:10px;height:10px;margin-top:7px;border-radius:999px;background:' + (past ? '#c9ccd3' : now ? '#149a4b' : '#5b4ae8') + '"></span>' +
           (k < A.length - 1 ? '<span style="flex:1;width:2px;margin-top:4px;background:#e6e7eb"></span>' : '') + '</div>' +
-        '<div style="flex:1;min-width:0;padding-bottom:' + (k < A.length - 1 ? 12 : 0) + 'px"><div style="font-size:16.5px;line-height:1.3;font-weight:800;color:#0d1117">' + esc(new Date(r.d + 'T12:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })) + '</div>' +
-          (dayTimes(r) ? '<div style="font-size:14px;font-weight:600;color:#6b7280">' + esc(dayTimes(r)) + '</div>' : '') + '</div></div>').join('') +
+        '<div style="flex:1;min-width:0;padding-bottom:' + (k < A.length - 1 ? 12 : 0) + 'px"><div style="display:flex;align-items:center;gap:8px;font-size:16.5px;line-height:1.3;font-weight:800;color:' + (past ? '#9aa0ac' : '#0d1117') + '">' + esc(new Date(r.d + 'T12:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })) +
+          (now ? '<span data-today-tag style="display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;background:#149a4b;color:#fff;font-size:11.5px;font-weight:900;letter-spacing:.2px">Today</span>' : '') + '</div>' +
+          (dayTimes(r) ? '<div style="font-size:14px;font-weight:600;color:' + (past ? '#b9bcc4' : '#6b7280') + '">' + esc(dayTimes(r)) + '</div>' : '') + '</div></div>'; }).join('') +
       (myLine ? '<div data-my-days style="display:flex;align-items:center;gap:8px;margin-top:10px;padding:8px 12px;border-radius:12px;background:#e6f5ec"><span style="flex:0 0 18px;width:18px;height:18px;border-radius:999px;background:#149a4b;display:flex;align-items:center;justify-content:center">' + I.check(10, '#fff', 4) + '</span>' +
         '<span style="flex:1;font-size:14px;font-weight:800;color:#0f6b35">' + esc(myLine) + '</span>' + (off ? '' : '<span ' + on(() => setState({ dayPick: { id: s.id, m: dayPickFrom(s) } })) + ' role="button" style="font-size:13.5px;font-weight:800;color:#0f6b35;cursor:pointer">Change</span>') + '</div>' : '') + '</div>' : '';
     const repeatTxt = s.repeat ? repeatLine(s.repeat.every, s.startDate, s.repeat.until) : '';
@@ -7270,7 +7354,8 @@
     if (corner) return '<div data-date-corner style="position:absolute;top:calc(88px + var(--pt));right:20px;z-index:1;display:flex">' + dateTile(s, band).replace('align-self:flex-start;', '').replace(/margin:0 0 (6|10)px 2px;/, '').replace('rotate(-4deg)', 'rotate(5deg)') + '</div>';
     // Multi-day (v8-7, 27a): two fanned pages, the current or next day in front (−6°) and the day after it behind (+8°)
     if (s.days) {
-      const k = Math.max(0, s.days.findIndex(r => r.d === s.dayDate)), nx = s.days[Math.min(k + 1, s.days.length - 1)].d, b = dateParts(nx);
+      // the page behind is the next day, or on the last day the one before it, never the same date twice (M3, owner 2026-10-07, multi-day audit)
+      const k = Math.max(0, s.days.findIndex(r => r.d === s.dayDate)), nx = s.days[k < s.days.length - 1 ? k + 1 : k - 1].d, b = dateParts(nx);
       const page = (q, rot, pos) => '<span style="' + pos + 'width:82px;border-radius:16px;overflow:hidden;text-align:center;background:#fff;box-shadow:0 8px 20px rgba(0,0,0,.3);transform:rotate(' + rot + 'deg)">' +
         '<span style="display:block;background:' + band + ';color:#fff;font-size:13px;font-weight:900;letter-spacing:1px;padding:4px 0">' + q.mon + '</span><span style="display:block;font-size:38px;line-height:1.15;font-weight:900;color:#0d1117">' + q.day + '</span><span style="display:block;padding-bottom:6px;font-size:12.5px;font-weight:800;color:#6b7280">' + q.dow + '</span></span>';
       return '<span data-date-tile data-date-pages aria-label="' + esc(schedLine(s)) + '" style="align-self:flex-start;position:relative;display:block;margin:0 0 10px 2px;width:110px;height:118px">' +
@@ -7587,9 +7672,9 @@
               : isDemo(s) ? '<span data-chip data-demo-tag style="display:flex;align-items:center;gap:6px;border-radius:999px;padding:5px 11px;background:rgba(255,255,255,.24);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);font-size:12px;font-weight:900;letter-spacing:.9px">DEMO</span>' : '') +
             (s.visibility === 'invite' ? '<span style="display:flex;align-items:center;gap:5px;border-radius:999px;padding:5px 11px;background:rgba(255,255,255,.22);font-size:12px;font-weight:900;letter-spacing:.9px">' + svg(11, stroke('#fff', 2.6), '<rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>') + 'PRIVATE</span>' : '') + '</div>' : '') +
           // The title isn't tappable any more (Design 31): editing goes through the ⋯ at the top right
-          '<h1 style="margin:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:' + titleFs(s.text, 40) + 'px;line-height:.98;font-weight:900;letter-spacing:-1.3px;text-wrap:pretty">' + esc(s.text) + '</h1>' +
+          '<h1 style="margin:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:' + titleFs(s.text, 40) + 'px;line-height:.98;font-weight:900;letter-spacing:-1.3px;text-wrap:balance">' + esc(s.text) + '</h1>' +
           // v8-13 (item 1; was v8-12 item 2): the overview always sits under the title; What to expect lists only the quick details
-          (s.overview ? '<span data-overview data-overview-head style="display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;font-size:18px;line-height:1.4;font-weight:500;color:#fff;text-wrap:pretty">' + esc(s.overview) + '</span>' : '') + '</div>' +
+          (s.overview ? '<span data-overview data-overview-head style="display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;font-size:18px;line-height:1.4;font-weight:500;color:#fff;text-wrap:balance">' + esc(s.overview) + '</span>' : '') + '</div>' +
         '</div>', true) +
       tab +
       '<div style="padding:16px 14px 26px;display:flex;flex-direction:column;gap:18px">' +
@@ -7627,7 +7712,7 @@
       phaseHeader(s, 300, 'linear-gradient(to bottom, rgba(13,17,23,.4), rgba(13,17,23,0) 30%, rgba(34,25,110,.92) 100%)',
         '<span aria-hidden="true" style="position:absolute;top:calc(66px + var(--pt));right:18px;display:flex;align-items:center;min-height:36px;padding:0 14px 0 44px;border-radius:999px;background:#5b4ae8;transform:rotate(-8deg);font-size:15px;font-weight:900;color:#fff;box-shadow:0 6px 16px rgba(15,18,25,.3)"><span style="position:absolute;left:-10px;top:50%;transform:translateY(-55%) rotate(-10deg);font-size:46px;line-height:1">🥳</span>It happened!</span>' +
         '<div style="position:absolute;left:20px;right:20px;bottom:18px;color:#fff"><div style="font-size:13px;font-weight:900;letter-spacing:1.2px;color:#cfc9ff">' + dp.dow + ', ' + dp.md + ' · ' + n + (checkedIn(s) ? ' CAME' : ' SAID YES') + '</div>' +
-          '<h1 style="margin:6px 0 0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:' + titleFs(s.text, 32) + 'px;line-height:1.02;font-weight:900;letter-spacing:-1px;text-wrap:pretty">' + esc(s.text) + demoTag(s, false, true) + '</h1></div>', true) +
+          '<h1 style="margin:6px 0 0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:' + titleFs(s.text, 32) + 'px;line-height:1.02;font-weight:900;letter-spacing:-1px;text-wrap:balance">' + esc(s.text) + demoTag(s, false, true) + '</h1></div>', true) +
       '<div style="padding:14px 14px 26px;display:flex;flex-direction:column;gap:12px">' +
         '<div style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:10px">' +
           eyebrowRow('The album' + (album.length ? ' · ' + album.length : ''),
@@ -8321,7 +8406,7 @@
             '<div style="display:flex;gap:8px"><span ' + on(() => setState({ ipEd: null })) + ' style="display:flex;align-items:center;justify-content:center;min-height:44px;padding:0 18px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;font-size:15px;font-weight:800;color:#0d1117;cursor:pointer">Cancel</span>' +
               '<span ' + on(() => saveIdeaEdit(s)) + ' data-ip-ed-save style="flex:1;display:flex;align-items:center;justify-content:center;min-height:44px;border-radius:999px;background:#f5b428;font-size:15px;font-weight:900;color:#2a1d00;cursor:pointer">Save</span></div>'
           : '<span style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:' + titleFs(s.text, 34) + 'px;line-height:1.05;font-weight:900;letter-spacing:-1px;color:#0d1117;text-wrap:balance">' + esc(s.text) + '</span>' +
-            (s.overview ? '<span style="display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;font-size:23px;line-height:1.38;font-weight:500;color:#2a2f38;text-wrap:pretty">' + esc(s.overview) + '</span>' : '') + ideaBits(s)) +
+            (s.overview ? '<span style="display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;font-size:23px;line-height:1.38;font-weight:500;color:#2a2f38;text-wrap:balance">' + esc(s.overview) + '</span>' : '') + ideaBits(s)) +
         '<span data-led-line style="font-size:13.5px;font-weight:700;color:#6b7280">' + ledLine(s, isStarter(s) || undefined) + ' <span style="font-weight:500">· ' + ago(s.created) + '</span></span></div></div>'; };
   // Help out, Take part and Discussion (Q31): the lead always (to add jobs and spots), members once there's something on them
   // What to expect's quick details (an older idea, or a plan stepped back): gold dots under the description
@@ -8382,7 +8467,7 @@
           '<div style="display:flex;align-items:center;justify-content:space-between">' + IDEA_CHIP +
             (!st8 && canEdit(s) && state.email ? '<span ' + on(() => openSec(s, 'title')) + ' data-idea-edit aria-label="Edit Idea" style="display:flex;align-items:center;gap:5px;min-height:36px;font-size:14px;font-weight:800;color:#8f6405;cursor:pointer">' + EDIT_PEN + 'Edit</span>' : '') + '</div>' +   // a group admin: the title
           '<span style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:' + titleFs(s.text, 28) + 'px;line-height:1.05;font-weight:900;letter-spacing:-.7px;color:#0d1117;text-wrap:balance">' + esc(s.text) + '</span>' +
-          (s.overview ? '<span style="display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;font-size:20px;line-height:1.4;font-weight:500;color:#2a2f38;text-wrap:pretty">' + esc(s.overview) + '</span>' : '') + ideaBits(s) +
+          (s.overview ? '<span style="display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;font-size:20px;line-height:1.4;font-weight:500;color:#2a2f38;text-wrap:balance">' + esc(s.overview) + '</span>' : '') + ideaBits(s) +
           '<div style="display:flex;align-items:center;gap:8px;margin-top:2px">' + avatarSpan(s.createdBy, floaterName(s), avatarOf(s.createdBy), 24) +
             '<span data-led-line style="font-size:13.5px;font-weight:700;color:#6b7280">' + ledLine(s, isStarter(s) || false) + ' · ' + ago(s.created) + '</span></div></div>' +
         ledByCard8(s) + askCards(s) + (st8 ? starterTop(s) + makeThisPlan(s) : interestCard(s)) + ideaBodyRest(s) +
@@ -8941,7 +9026,7 @@
     details: st.evBits.some(b => b.trim()) || !!(st.evOverview || '').trim() || (MIN_PEOPLE && !st.evDate && st.evNeed > 0), help: st.evNeeds.length > 0 || st.evIdeaJobs.length > 0, lead: true });   // leading it is already picked
   // "Sat, Oct 24 · 10am", "Sat, Oct 24 · 10am – 12pm"
   const dayLabel = (d, t, e) => d ? fmtDay(d) + (t ? ' · ' + (e ? spanTime({ time: t, endTime: e }) : fmtTime(t)) : '') : '';
-  const jobMeta = (j) => j.kind ? partMeta(j) : (j.day ? wkDay(j.day) + ' · ' : '') + (j.shifts ? j.shifts.length + (j.shifts.length === 1 ? ' shift' : ' shifts')
+  const jobMeta = (j) => j.kind ? partMeta(j) : (j.day ? dayWord(whenCols(evWhen()).schedule, j.day) + ' · ' : '') + (j.shifts ? j.shifts.length + (j.shifts.length === 1 ? ' shift' : ' shifts')
     : (j.need ? j.need + (j.need === 1 ? ' person' : ' people') : 'Anyone') + (j.time ? ' · ' + fmtTime(j.time) : ''));
   const evStarted = (st) => !!(cleanTitle(st.activity) || st.evDate || st.evDatePoll || cleanTitle(st.locText) || st.evSpotPoll || st.evBits.some(b => b.trim()) || !!(st.evOverview || '').trim() || st.evNeeds.length || !!(st.evDesc || '').trim() || (st.evInspo || []).length);
   // People can invite friends (v8-14): on by default for Public, off for Private; switching it sticks until Public / Private changes
@@ -9046,7 +9131,8 @@
   const photoInput = (label) => '<input type="file" accept="image/*" aria-label="' + label + '" ' + onInput(e => { if (e.type !== 'change') return; const f = (e.target.files || [])[0]; e.target.value = ''; pickEvPhoto(f); }) + ' style="display:none">';
 
   // Leads need an account: sign in first, then carry on with the same event
-  const createEvent = () => needSignIn(() => {
+  const createEvent = () => { const wErr = state.evDatePoll ? '' : whenErr(evWhen()); if (wErr) { toast(wErr); return; } createEvent0(); };   // B6
+  const createEvent0 = () => needSignIn(() => {
     if (!currentGroup()) { openJoin(); return; }
     needName(postEvent);
   }, 'post');
@@ -9110,6 +9196,7 @@
     if (!s) { toast('That idea isn’t there any more'); return; }
     if (!st.evDate) { evGo('title'); toast('Pick a date first'); return; }
     if (st.evDate < todayISO()) { evGo('title'); toast('That date has passed. Pick a new one.'); return; }
+    if (whenErr(evWhen())) { toast(whenErr(evWhen())); return; }   // B6 (owner, 2026-10-07, multi-day audit)
     const n = s.interested.length;
     setState({ busy: 'post' });
     (async () => {
@@ -9361,7 +9448,7 @@
   // time field that opens our month grid. Past days can't be picked; the chosen day is purple, today has a ring.
   const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   const dateField = (value, label, hint, set, extra, anyDay, h, o2) => {   // anyDay: past days too (fixing a past event's date); h: 46 for v8-6's fields
-    o2 = o2 || {};   // min: no day before it (a later day of a multi-day event); compact: "Oct 10" in a narrow field
+    o2 = o2 || {};   // min: no day before it (a later day of a multi-day event); max: none after it (a span's end); compact: "Oct 10" in a narrow field
     const open = state.dateOpen === label, today = todayISO();
     const month = (open && state.calMonth) || (value || today).slice(0, 7);
     const toggle = () => { setState({ dateOpen: open ? null : label, calMonth: (value || today).slice(0, 7), timeOpen: null }); if (!open) showDrop('[data-calendar]'); };
@@ -9371,7 +9458,7 @@
       const [y, m] = month.split('-').map(Number), first = new Date(y, m - 1, 1).getDay(), days = new Date(y, m, 0).getDate(), cells = [];
       for (let k = 0; k < first; k++) cells.push('<span></span>');
       for (let d = 1; d <= days; d++) {
-        const iso = month + '-' + pad2(d), past = (!anyDay && iso < today) || (!!o2.min && iso < o2.min), on_ = iso === value, now = iso === today;
+        const iso = month + '-' + pad2(d), past = (!anyDay && iso < today) || (!!o2.min && iso < o2.min) || (!!o2.max && iso > o2.max), on_ = iso === value, now = iso === today;
         cells.push('<span ' + (past ? 'aria-disabled="true"' : on(() => pick(iso))) + ' data-day="' + iso + '" aria-label="' + esc(fmtDay(iso)) + '"' + (on_ ? ' aria-pressed="true"' : '') +
           ' style="justify-self:center;width:40px;height:40px;border-radius:999px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:' + (on_ || now ? 800 : 700) + ';' +
           (on_ ? 'background:#5b4ae8;color:#fff;cursor:pointer' : past ? 'color:#c9ccd3' : 'color:' + (now ? '#5b4ae8' : '#0d1117') + ';cursor:pointer' + (now ? ';box-shadow:inset 0 0 0 1.5px #5b4ae8' : '')) + '"' +
@@ -9426,6 +9513,20 @@
     }
     return { day_date: d, day_time: t, day_end: e, schedule: null };
   };
+  // What's wrong with an unfinished span or day list, or '' (owner, 2026-10-07, multi-day audit, B6: it saved as one day
+  // without a word); Post it and Save stay grey while there's something, and the hint under the fields says it
+  const SPAN_MAX = 31;
+  const whenErr = (M) => {
+    if (!M || !M.d) return '';
+    if (M.type === 'span') return !M.endD || M.endD <= M.d ? 'Pick a later end date' : daysApart(M.d, M.endD) > SPAN_MAX ? 'Pick an end date within ' + SPAN_MAX + ' days' : '';
+    if (M.type === 'days') {
+      const ds = [M.d].concat((M.days || []).map(r => r.d));
+      if (ds.length < 2) return 'Add another day';
+      if (ds.some(d => !d)) return 'Pick a date for every day';
+      if (ds.some((d, i) => ds.indexOf(d) !== i)) return 'Two days have the same date';
+    }
+    return '';
+  };
   // Review's line: "Sat–Sun, Oct 10–11 · 2 days", "Thu, Oct 8 · 6:30pm · Weekly", "Sat, Oct 10 · 10am – 12pm"
   const whenLabel = (M) => {
     const c = whenCols(M), p = c.schedule;
@@ -9442,6 +9543,7 @@
     const k = o.k || 'ev', type = M.type || 'one', next0 = M.d ? plusDays(M.d, 1) : '', days = M.days || [];
     const cap = (t, right) => '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 2px 0"><span style="font-size:12px;font-weight:800;letter-spacing:1px;color:#6b7280">' + t + '</span>' + (right || '') + '</div>';
     const green = (t) => '<div data-when-line style="padding:0 2px;font-size:14px;line-height:1.35;font-weight:700;color:#0f7a3c">' + esc(t) + '</div>';
+    const red = (t) => '<div data-when-line data-when-err role="alert" style="padding:0 2px;font-size:14px;line-height:1.35;font-weight:700;color:#9b1c31">' + esc(t) + '</div>';
     const seg = (opts, cur, fn, label, track) => '<div role="radiogroup" aria-label="' + esc(label) + '" style="display:flex;gap:2px;padding:3px;border-radius:999px;background:' + (track || '#e6e8ec') + '">' + opts.map(([v, l]) => { const onIt = cur === v;
       return '<span ' + on(() => fn(v), 'radio') + ' aria-checked="' + onIt + '" style="flex:1 1 0;min-height:34px;border-radius:999px;display:flex;align-items:center;justify-content:center;padding:0 6px;font-size:13px;font-weight:' + (onIt ? 800 : 700) + ';color:' + (onIt ? '#5b4ae8' : '#454b55') + ';background:' + (onIt ? '#fff' : 'transparent') + ';box-shadow:' + (onIt ? '0 1px 2px rgba(0,0,0,.1)' : 'none') + ';cursor:pointer;white-space:nowrap">' + l + '</span>'; }).join('') + '</div>';
     const setD = (v) => set({ d: v });
@@ -9462,14 +9564,15 @@
     if (type === 'span') {
       const n = M.d && M.endD ? daysApart(M.d, M.endD) + 1 : 0;
       out = cap('STARTS') + dateTime + cap('ENDS') +
-        '<div style="display:flex;gap:8px">' + dateField(M.endD, 'End date', 'End date', (v) => set({ endD: v }), 'flex:1.5 1 0', o.anyDay, 46, { min: next0 }) +
+        '<div style="display:flex;gap:8px">' + dateField(M.endD, 'End date', 'End date', (v) => set({ endD: v }), 'flex:1.5 1 0', o.anyDay, 46, { min: next0, max: M.d ? plusDays(M.d, SPAN_MAX) : '' }) +
           '<div style="flex:1 1 0;min-width:0">' + startT(k + 'EndT', M.endT, (v) => set({ endT: v }, { timeOpen: null }), 'End date time') + '</div></div>' +
-        green(!M.d || !M.endD ? 'Pick a start date first' : n > 1 && n <= 32 ? n + ' days · ' + wkDay(M.d) + ' to ' + wkDay(M.endD) : 'Pick a later end date');
+        (!M.d ? green('Pick a start date first') : whenErr(M) ? red(whenErr(M)) : green(n + ' days · ' + wkDay(M.d) + ' to ' + wkDay(M.endD)));
     } else if (type === 'days') {
       const setDay = (j) => (patch, extra) => set({ days: days.map((x, q) => q === j ? Object.assign({}, x, patch) : x) }, extra);
       out = cap('DAY 1') + dayRow({ d: M.d, t: M.t, e: M.e }, 0, 'Date', '', (patch, extra) => set(Object.assign({}, patch.d !== undefined ? { d: patch.d } : {}, patch.t !== undefined ? { t: patch.t } : {}, patch.e !== undefined ? { e: patch.e, eOn: true } : {}), extra)) +
         days.map((r, j) => cap('DAY ' + (j + 2), j > 0 ? '<span ' + on(() => set({ days: days.filter((_, q) => q !== j) })) + ' aria-label="Remove day ' + (j + 2) + '" style="width:28px;height:28px;margin:-6px 0;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.1);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(10, '#6b7280', 2.8) + '</span>' : '') +
           dayRow(r, j + 1, 'Day ' + (j + 2) + ' date', plusDays((j ? days[j - 1].d : M.d) || todayISO(), (j ? days[j - 1].d : M.d) ? 1 : 0), setDay(j))).join('') +
+        (M.d && whenErr(M) ? red(whenErr(M)) : '') +
         (days.length < 29 ? '<span ' + on(() => { const last = days.length ? days[days.length - 1].d : M.d; set({ days: days.concat([{ d: last ? plusDays(last, 1) : '', t: M.t || '', e: M.e || '' }]) }); }) + ' data-add-day style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:36px;padding:0 4px;font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(13, 'currentColor', 2.6) + 'Add another day</span>' : '') +
         // A white bordered card: a bold People RSVP for over the switch, no explanation line (Design v8 prototype, evDaysEachOpts)
         '<div data-rsvp-for style="margin-top:4px;display:flex;flex-direction:column;gap:8px;padding:12px 14px;border-radius:14px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6"><span style="font-size:13.5px;font-weight:800;color:#0d1117">People RSVP for</span>' +
@@ -9611,7 +9714,7 @@
     const st = state, P = '#5b4ae8', url = evPhotoUrl(st), title = st.activity || '', place = cleanTitle(st.locText);
     const close = () => { if (evStarted(st)) setState({ evLeave: true, timeOpen: null }); else evExit(); };
     const dt = st.evDate ? new Date(st.evDate + 'T12:00') : null, dp = st.evDatePoll, sp = st.evSpotPoll;
-    const any = !!(dt || dp || place || sp), hasD = !!dt || !!dp, ready = !!cleanTitle(title) && hasD;
+    const wErr = dp ? '' : whenErr(evWhen()), any = !!(dt || dp || place || sp), hasD = !!dt || !!dp, ready = !!cleanTitle(title) && hasD && !wErr;
     const WC = 'background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08)', GC = 'background:#dfe2e7;border-radius:18px';
     const label = (t, opt) => '<div style="display:flex;align-items:baseline;gap:6px;padding:' + (opt === 0 ? '0' : '6px') + ' 4px 0"><span style="font-size:12.5px;font-weight:900;letter-spacing:1.2px;color:#454b55">' + t + '</span>' +
       (opt ? '<span style="font-size:12.5px;font-weight:600;color:#9aa0ac">(optional)</span>' : '') + '</div>';
@@ -9687,6 +9790,7 @@
     // Post it: grey until there's a title and a date (a tap then says which is missing); Save draft under it
     const busy = st.busy === 'post';
     const post = () => { if (busy) return; if (!cleanTitle(title)) { toast('Add a title first'); return; } if (!hasD) { toast('Add a date first'); return; }
+      if (wErr) { setState({ evPop: 'when' }); toast(wErr); return; }
       if (!groups.length) { setState({ evGrpPop: true }); toast('Pick at least one group'); return; } createEvent(); };
     return '<div class="overlay-screen compose-sheet" data-screen-label="New spark"><div data-screen-label="Create event (1a)" style="position:relative;min-height:100%;display:flex;flex-direction:column;background:#e8eaee">' +
       '<div style="position:sticky;top:0;z-index:8;height:0"><span ' + on(close) + ' aria-label="Close" style="position:absolute;top:14px;right:12px;width:36px;height:36px;border-radius:999px;background:rgba(13,17,23,.28);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(14, '#fff', 2.6) + '</span></div>' +
@@ -9814,7 +9918,7 @@
             '<span style="display:flex;color:#6b7280">' + chev6(14, '#6b7280', gOpen) + '</span></div>' +
           (gOpen ? mine.map(gRow).join('') : '') +
           '<div role="radiogroup" aria-label="Who can see it">' + radio(false, 'Public', groups.length > 1 ? 'Anyone in these groups' : 'Anyone in this group', PEOPLE_IC) + radio(true, 'Private', 'Only people you invite', LOCK_IC) + '</div></div>';
-      const busy = st.busy === 'post', asPlan = !!st.evDate, ok = groups.length > 0 && !busy;
+      const busy = st.busy === 'post', asPlan = !!st.evDate, wErr = st.evDatePoll ? '' : whenErr(evWhen()), ok = groups.length > 0 && !busy && !wErr;
       // No date (only an older draft can get here): it still goes up as an idea, with a gold button
       const note = asPlan ? ''
         : '<div data-posts-as style="display:flex;gap:12px;margin-bottom:14px;padding:16px;border-radius:20px;background:#eef5fd;box-shadow:inset 0 0 0 1.5px #cfe2f7">' +
@@ -9827,7 +9931,7 @@
         .map(([x, y, w, c, o]) => '<svg width="' + w + '" height="' + w + '" viewBox="0 0 24 24" fill="' + c + '" style="position:absolute;left:' + x + '%;top:' + y + 'px;opacity:' + o + '">' + STAR + '</svg>').join('') + '</span>';
       const bgc = asPlan ? '#5b4ae8' : '#f5b428', glow = asPlan ? 'rgba(91,74,232,.35)' : 'rgba(245,180,40,.4)';
       // No group ticked: the toast, and POST TO opens its list (Design v8)
-      const post = () => { if (busy) return; if (!groups.length) { setState({ menu: 'evGroups' }); toast('Pick at least one group'); return; } createEvent(); };
+      const post = () => { if (busy) return; if (wErr) { toast(wErr); return; } if (!groups.length) { setState({ menu: 'evGroups' }); toast('Pick at least one group'); return; } createEvent(); };
       return '<div class="overlay-screen compose-sheet" data-screen-label="New spark"><div style="min-height:100%;display:flex;flex-direction:column">' + hero +
         sheetTop('<div style="padding:22px 16px 0;display:flex;flex-direction:column;gap:12px">' + ready + postTo +
             guestInvSwitch(evGuestInv(st), () => setState({ evNoGuestInv: evGuestInv(st) })) +
@@ -10365,7 +10469,7 @@
   // sums it up. Cleared after you'd picked days, it becomes I can't make it (sets Can't)
   const dayPickFrom = (s) => { const ds = rsvpDays(s, state.me), m = {}; if (ds && myRsvp(s)) { ds.go.forEach(d => { m[d] = 'go'; }); ds.maybe.forEach(d => { m[d] = 'maybe'; }); } return m; };
   const dayPickLabel = (s, p) => {
-    const n = s.days.length, w = (a) => a.map(d => wkDay(d)).join(' & '), part = (a, x) => a.length === n ? x + (n === 2 ? ' both days' : ' every day') : x + ' ' + w(a);
+    const n = s.days.length, w = (a) => dayWords(s, a), part = (a, x) => a.length === n ? x + (n === 2 ? ' both days' : ' every day') : x + ' ' + w(a);
     return p.go.length && p.maybe.length ? 'Going ' + w(p.go) + ' · Maybe ' + w(p.maybe) : p.go.length ? part(p.go, 'I’m going') : part(p.maybe, 'Maybe');
   };
   function viewDayPick() {
@@ -10377,7 +10481,13 @@
     const had = !!myRsvp(s) && Object.keys(dayPickFrom(s)).length > 0, none = !pick.go.length && !pick.maybe.length;
     const chip = (onIt, c, label, fn) => '<span ' + on(fn) + ' role="button" aria-pressed="' + onIt + '" style="display:flex;align-items:center;height:34px;padding:0 12px;border-radius:999px;font-size:13.5px;font-weight:800;cursor:pointer;' +
       (onIt ? 'background:' + c[0] + ';color:' + c[1] : 'background:#fff;color:#454b55;box-shadow:inset 0 0 0 1.5px #dcdfe6') + '">' + label + '</span>';
-    const rows = s.days.map(r => { const v = m[r.d] || null;
+    // A day that's over can't be picked (owner, 2026-10-07, multi-day audit, M3): a grey card that says Past (an answer you'd
+    // already given for it stays as it was)
+    const rows = s.days.map(r => { const v = m[r.d] || null, past = r.d < todayISO();
+      if (past) return '<div data-day-card="' + r.d + '" data-day-past aria-disabled="true" style="display:flex;align-items:center;gap:10px;padding:12px;border-radius:14px;background:#f4f5f7;box-shadow:inset 0 0 0 1.5px #e6e7eb">' +
+        '<div style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:15.5px;font-weight:900;color:#9aa0ac">' + esc(fmtDay(r.d)) + '</span>' +
+          (dayTimes(r) ? '<span style="font-size:13px;font-weight:600;color:#b9bcc4">' + esc(dayTimes(r)) + '</span>' : '') + '</div>' +
+        '<span style="font-size:13.5px;font-weight:800;color:#9aa0ac">Past</span></div>';
       return '<div data-day-card="' + r.d + '" style="display:flex;align-items:center;gap:10px;padding:12px;border-radius:14px;background:' + (v === 'go' ? '#e6f5ec' : v === 'maybe' ? '#fdf6dc' : '#fff') + ';box-shadow:inset 0 0 0 ' + (v === 'go' ? '2px #149a4b' : v === 'maybe' ? '2px #f5b428' : '1.5px #dcdfe6') + '">' +
         '<div style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:15.5px;font-weight:900;color:#0d1117">' + esc(fmtDay(r.d)) + '</span>' +
           (dayTimes(r) ? '<span style="font-size:13px;font-weight:600;color:#6b7280">' + esc(dayTimes(r)) + '</span>' : '') + '</div>' +
@@ -10426,6 +10536,18 @@
   // What's Spark Hub? (owner, 2026-10-07, first-encounter item 9): three short panels, Next between them, Got it at the
   // end. Opens only when asked (the visitor line, Me → How Spark Hub works); never by itself
   const openAbout = () => setState({ about: 0, menu: null });
+  // Panel 1's three fanned phones (owner, 2026-10-07: real screenshots of Groups, Ideas, Calendar; mockup variant A):
+  // Groups in front, Ideas and Calendar tilted ±11° behind it, fading out at the bottom
+  const aboutPhones = () => {
+    const phone = (src, w, pos) => '<div style="position:absolute;' + pos + ';width:' + w + 'px;height:' + (w * 2.05) + 'px;border-radius:' + (w * .17) + 'px;background:#14161c;padding:' + (w * .04) + 'px;box-sizing:border-box;box-shadow:0 8px 24px rgba(20,22,40,.22);transform-origin:bottom center">' +
+      '<div style="position:relative;width:100%;height:100%;border-radius:' + (w * .13) + 'px;overflow:hidden;background:#fff"><img src="/photos/about/' + src + '.jpg" alt="" style="display:block;width:100%">' +
+        '<span style="position:absolute;top:' + (w * .035) + 'px;left:50%;transform:translateX(-50%);width:' + (w * .3) + 'px;height:' + (w * .085) + 'px;border-radius:9px;background:#14161c"></span></div></div>';
+    const s = 123;   // 150 × .82
+    return '<div data-about-phones aria-hidden="true" style="position:relative;height:215px;margin:14px -18px -14px;overflow:hidden;-webkit-mask-image:linear-gradient(#000 50%,transparent);mask-image:linear-gradient(#000 50%,transparent)">' +
+      phone('ideas', s, 'top:40px;left:calc(50% - ' + (s / 2 + 62) + 'px);transform:rotate(-11deg)') +
+      phone('calendar', s, 'top:40px;left:calc(50% - ' + (s / 2 - 62) + 'px);transform:rotate(11deg)') +
+      phone('groups', 150, 'top:6px;left:calc(50% - 75px);z-index:2') + '</div>';
+  };
   function viewAbout() {
     const st = state, i = Math.max(0, Math.min(2, st.about | 0)), close = () => setState({ about: null }), go = (n) => setState({ about: n });
     const kick = (t) => '<span style="font-size:12px;font-weight:900;letter-spacing:1.2px;color:#8f6405">' + t + '</span>';
@@ -10438,7 +10560,7 @@
       // No eyebrow: the Spark Hub mark sits in the top row beside the × (owner, 2026-10-07)
       h('Where your group’s ideas turn into plans') +
         p('Everyone helps out, no one plans it alone.') +
-        p('Made for small communities.'),
+        p('Made for small communities.') + aboutPhones(),
       kick('HOW IT WORKS') + h('Anyone can start something') +
         '<div style="display:flex;flex-direction:column;gap:8px">' +
           step('#fdf1d6', '#f5b428', '#2a1d00', 1, 'Float an Idea', '“Pickleball on Sunday mornings?”') +
@@ -10457,11 +10579,11 @@
     const top = '<div style="display:flex;align-items:center;justify-content:space-between;margin:-4px 0">' +
       (i > 0 ? round('Back', () => go(i - 1), I.chevL(15, '#0d1117', 2.8), 'data-about-back')
         : '<span data-about-logo aria-label="Spark Hub" style="display:flex;align-items:center;gap:6px">' + I.bolt(22, '#e8a71c') + '<span style="font-size:17px;line-height:1;font-weight:900;letter-spacing:-.5px;color:#0d1117">Spark Hub</span>' +
-          '<span data-about-beta style="margin-left:2px;padding:4px 8px;border-radius:999px;background:#f3f1fe;color:#5b4ae8;font-size:10.5px;line-height:1;font-weight:900;letter-spacing:1px">BETA</span></span>') + round('Close', close, I.x(13, '#0d1117', 2.8), 'data-about-close') + '</div>';
+          betaChip(false, 'data-about-beta') + '</span>') + round('Close', close, I.x(13, '#0d1117', 2.8), 'data-about-close') + '</div>';
     const main = i < 2 ? btn('Next', () => go(i + 1), '#f5b428', '#2a1d00', 'data-about-next')
       : btn('Give feedback', () => { setState({ about: null }); openFeedback(); }, '#5b4ae8', '#fff', 'data-about-feedback');
     return sheet('What’s Spark Hub?', close, SHEET_PAD,
-      top + '<div data-about-panel="' + (i + 1) + '" style="display:flex;flex-direction:column;gap:12px;min-height:250px">' + panels[i] + '</div>' + dots + main, 44);
+      top + '<div data-about-panel="' + (i + 1) + '" style="display:flex;flex-direction:column;gap:12px;min-height:390px">' + panels[i] + '</div>' + dots + main, 44);
   }
 
   // Members of a group you run. Owners (up to two) set roles; admins see them

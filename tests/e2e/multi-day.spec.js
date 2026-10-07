@@ -156,3 +156,87 @@ test('multi-day: separate days, each-day RSVP, a job on one day, and a weekly ev
     await member.context.close();
   }
 });
+
+// The multi-day audit (owner, 2026-10-07): lists show a row per upcoming day (B1, only your days on an Each day event),
+// dates when two days share a weekday (U1), past days dimmed and today marked, past days can't be picked (M3), and an
+// unfinished span can't be saved (B6)
+test('multi-day: a row per upcoming day, dates for repeated weekdays, past days, unfinished spans', async ({ browser }) => {
+  const host = await newLead(browser, 1, 'Marisol');
+  const member = await newLead(browser, 2, 'Dee');
+  const H = host.page, M = member.page;
+  const title = uniqueTitle('Wednesday build days'), dp = inDays(-7), d0 = inDays(0), d7 = inDays(7);
+  const fmt = (iso) => new Date(iso + 'T12:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  let id;
+  try {
+    // Three of the same weekday: last week, today (late, so it isn't over) and next week; People RSVP for Each day
+    id = await asUser(H, async (c, _C, f) => {
+      const me = (await c.auth.getUser()).data.user.id;
+      const g = (await c.from('groups').select('id').eq('name', 'Torrez Fitness').single()).data.id;
+      const r = await c.from('sparks').insert(Object.assign({ group_id: g, author_name: 'Marisol', lead_name: 'Marisol', lead_id: me, created_by: me, planned: true }, f)).select('id').single();
+      return r.error ? r.error.message : r.data.id;
+    }, { text: title, day_date: dp, day_time: '23:00', day_end: '23:45', schedule: { kind: 'days', each: true, days: [{ d: dp, t: '23:00', e: '23:45' }, { d: d0, t: '23:00', e: '23:45' }, { d: d7, t: '23:00', e: '23:45' }] } });
+    expect(id).toMatch(/^[0-9a-f-]{36}$/);
+
+    // The host's My calendar (Up next): today's day and next week's, not last week's
+    await H.goto('/#/');
+    await expect(H.locator('html[data-loaded=true]')).toHaveCount(1);
+    const yc = H.locator('[data-screen-label="Your calendar"]');
+    await expect(yc.locator('[data-plan="' + title + '"]')).toHaveCount(2);
+    await expect(yc.locator('[data-plan="' + title + '"][data-day="' + d0 + '"]')).toHaveCount(1);
+    await expect(yc.locator('[data-plan="' + title + '"][data-day="' + d7 + '"]')).toContainText('Day 3 of 3');
+    await expect(yc.locator('[data-plan="' + title + '"][data-day="' + dp + '"]')).toHaveCount(0);
+
+    // The event page: last week dimmed, today tagged
+    await openIdea(H, id);
+    const HP = H.locator('[data-screen-label="Plan page"]');
+    await expect(HP.locator('[data-day-timeline] [data-day-past]')).toHaveCount(1);
+    await expect(HP.locator('[data-day-timeline] [data-day-today]')).toContainText('Today');
+    // Add to calendar skips the day that's over and names the two Wednesdays by date
+    await HP.getByText('Add to calendar').first().click();
+    await expect(H.getByText('Added ' + fmt(d0) + ' & ' + fmt(d7) + ' to your calendar (2 entries)')).toBeVisible();
+
+    // B6: Runs across days with the end before the start can't be saved, and says why
+    await HP.getByRole('button', { name: 'Edit date, time and location' }).click();
+    const when = H.getByRole('dialog', { name: 'Date, time & location' });
+    await when.locator('[data-day-type]').click();
+    const types = H.getByRole('dialog', { name: 'How long is it?' });
+    await types.getByRole('radio', { name: /Runs across days/ }).click();
+    await types.getByRole('button', { name: 'Done' }).click();
+    await pickDate(when, inDays(10));   // the start, after the end date (a day after the old start)
+    await expect(when.locator('[data-when-err]')).toHaveText('Pick a later end date');
+    await expect(when.getByRole('button', { name: 'Save', exact: true })).toHaveAttribute('aria-disabled', 'true');
+    await pickDate(when, inDays(12), 'End date');
+    await expect(when.locator('[data-when-err]')).toHaveCount(0);
+    await expect(when.getByRole('button', { name: 'Save', exact: true })).toHaveAttribute('aria-disabled', 'false');
+    await when.getByRole('button', { name: 'Close' }).first().click();
+    await expect(when).toHaveCount(0);
+
+    // A member: When will you attend? can't pick last week; Going next week only says which Wednesday
+    await openIdea(M, id);
+    const MP = M.locator('[data-screen-label="Plan page"]');
+    await rsvpTap(MP.locator('[data-rsvp]'), 'Going');
+    const pick = M.getByRole('dialog', { name: 'When will you attend?' });
+    await expect(pick.locator('[data-day-card="' + dp + '"]')).toHaveAttribute('aria-disabled', 'true');
+    await expect(pick.locator('[data-day-card="' + dp + '"]')).toContainText('Past');
+    await expect(pick.locator('[data-day-card="' + dp + '"]').getByRole('button', { name: 'Going' })).toHaveCount(0);
+    await pick.locator('[data-day-card="' + d7 + '"]').getByRole('button', { name: 'Going' }).click();
+    await expect(pick.locator('[data-day-pick-go]')).toHaveText('I’m going ' + fmt(d7));
+    await pick.locator('[data-day-pick-go]').click();
+    await expect(pick).toHaveCount(0);
+    await donePlus(M);
+    await expect(MP.locator('[data-my-days]')).toContainText('You’re going ' + fmt(d7));
+    // The member's My calendar: only the day they picked
+    await M.goto('/#/');
+    await expect(M.locator('html[data-loaded=true]')).toHaveCount(1);
+    const mc = M.locator('[data-screen-label="Your calendar"]');
+    await expect(mc.locator('[data-plan="' + title + '"][data-day="' + d7 + '"]')).toHaveCount(1);
+    await expect(mc.locator('[data-plan="' + title + '"]')).toHaveCount(1);
+
+    expect(host.errors).toEqual([]);
+    expect(member.errors).toEqual([]);
+  } finally {
+    if (id) await deleteIdea(H, id);
+    await host.context.close();
+    await member.context.close();
+  }
+});

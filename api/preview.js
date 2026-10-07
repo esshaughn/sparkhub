@@ -49,6 +49,34 @@ const when = (date, time) => {
   return out;
 };
 
+const hhmm = /^\d{2}:\d{2}/, iso = /^\d{4}-\d{2}-\d{2}$/;
+const clock = (time) => { const [h, m] = time.split(':').map(Number); return ((h % 12) || 12) + (m ? ':' + String(m).padStart(2, '0') : '') + (h < 12 ? 'am' : 'pm'); };
+const monDay = (date) => { const d = new Date(date + 'T12:00:00Z'); return MONTHS[d.getUTCMonth()] + ' ' + d.getUTCDate(); };
+const dow = (date, long) => { const d = new Date(date + 'T12:00:00Z').getUTCDay(); return long ? ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][d] : DAYS[d]; };
+const ordinal = (n) => n + (n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th');
+// A multi-day or repeating event's date as the app's schedLabel() says it (owner, 2026-10-07, multi-day audit, M1):
+// "Oct 16–18", "Oct 30 – Nov 2", "Fri Oct 30 + Nov 6", "Sat Oct 3 + 2 more", "Thursdays", "Monthly on the 31st".
+// `schedule` comes from event_preview() when the database has it; anything missing or odd is a one-day event
+const schedule = (s) => {
+  const p = s.schedule, d0 = s.day_date;
+  if (!d0 || !p || typeof p !== 'object') return null;
+  if (p.kind === 'span' && iso.test(p.to || '') && p.to > d0) return { date: d0.slice(0, 7) === p.to.slice(0, 7) ? monDay(d0) + '–' + +p.to.slice(8) : monDay(d0) + ' – ' + monDay(p.to), time: s.day_time && hhmm.test(s.day_time) ? 'From ' + clock(s.day_time) : '' };
+  if (p.kind === 'days' && Array.isArray(p.days)) {
+    const ds = p.days.filter(r => r && iso.test(r.d)).sort((a, b) => a.d < b.d ? -1 : 1);
+    if (ds.length > 1) return { date: dow(ds[0].d) + ' ' + monDay(ds[0].d) + ' + ' + (ds.length === 2 ? monDay(ds[1].d) : (ds.length - 1) + ' more'), time: hhmm.test(ds[0].t || '') ? clock(ds[0].t) : '' };
+  }
+  if (p.kind === 'repeat' && ['week', '2week', 'month'].indexOf(p.every) > -1)
+    return { date: p.every === 'month' ? 'Monthly on the ' + ordinal(+d0.slice(8)) : p.every === '2week' ? 'Every other ' + dow(d0, true) : dow(d0, true) + 's', time: s.day_time && hhmm.test(s.day_time) ? clock(s.day_time) : '' };
+  return null;
+};
+// The event's two preview lines, the same as the app's Share link card (previewLines in sparks.js; owner, 2026-10-07):
+// the title with the date ("Jeni Reads Her Resume – Thu, Oct 22"), then the time and place only ("7:30pm · Hub on Hunters")
+const eventLines = (s) => {
+  const m = schedule(s), date = m ? m.date : s.day_date ? when(s.day_date) : '';
+  const time = m ? m.time : s.day_date && s.day_time && hhmm.test(s.day_time) ? clock(s.day_time) : '';
+  return { title: s.title + (date ? ' – ' + date : ''), description: [time, s.spot].filter(Boolean).join(' · ') || 'On Spark Hub' };
+};
+
 async function rpc(db, fn, args) {
   const r = await fetch(db.url + '/rest/v1/rpc/' + fn, {
     method: 'POST',
@@ -67,12 +95,9 @@ async function details(db, q) {
   if (q.e && ECODE.test(q.e)) {
     const s = await rpc(db, 'event_preview', { p_code: q.e });
     if (!s) return null;
-    // iMessage shows only the title and domain, so the date rides in the title too: "Magic and Mocktails – Thu, Oct 22"
-    return {
-      title: s.title + (s.day_date ? ' – ' + when(s.day_date) : ''),
-      description: [when(s.day_date, s.day_time), s.spot].filter(Boolean).join(' · ') || 'On Spark Hub',
-      image: photoUrl(db, s.photo)
-    };
+    // iMessage shows only the title and domain, so the date rides in the title: "Magic and Mocktails – Thu, Oct 22"; the
+    // line under it is the time and place only, "7:30pm · Hub on Hunters" (owner, 2026-10-07: no date twice)
+    return Object.assign(eventLines(s), { image: photoUrl(db, s.photo) });
   }
   if (q.i && ID.test(q.i)) {
     const s = await rpc(db, 'link_preview', { p_spark: q.i });
@@ -117,6 +142,7 @@ const tags = (d, url) => [
   '<meta property="og:title" content="' + esc(d.title) + '">',
   '<meta property="og:description" content="' + esc(d.description) + '">',
   '<meta property="og:image" content="' + esc(d.image || SITE + '/icons/share.jpg') + '">',
+  '<meta property="og:image:alt" content="' + esc(d.title) + '">',
   '<meta name="twitter:card" content="summary_large_image">'
 ].join('\n');
 
