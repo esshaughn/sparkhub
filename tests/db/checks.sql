@@ -1239,7 +1239,18 @@ select t.check('they can read it', (select count(*) from notes where body like '
 select t.must_allow('a reply', format($$insert into event_comments (spark_id, parent_id, body) values (%L, (select id from event_comments where body = 'I''ll do one on bees'), 'Yes!')$$, t.id('ppt')));
 select t.must_refuse('notes stay unwritable by clients', format($$insert into notes (user_id, body) values (%L, 'x')$$, t.id('fanA12')));
 reset role;
-select t.check('a reply doesn''t notify everyone interested', not exists (select 1 from notes where user_id = t.id('fanA12')));
+select t.check('a reply doesn''t notify everyone interested', not exists (select 1 from notes where user_id = t.id('lead12') and body like '%replied%'));
+-- …but the person replied to hears it (20261116000000_reply_notes.sql)
+select t.check('the comment''s author gets a bell line for the reply', (select count(*) from notes where user_id = t.id('fanA12') and body like '% replied to you on Power point night: Yes!' and quiet) = 1);
+select t.check('…and only that one', (select count(*) from notes where user_id = t.id('fanA12')) = 1);
+select t.login('lead12'); set role authenticated;
+select t.must_allow('the host replies to their own reply''s thread', format($$insert into event_comments (spark_id, parent_id, body) values (%L, (select id from event_comments where body = 'I''ll do one on bees'), 'Love it')$$, t.id('ppt')));
+reset role;
+select t.check('a host''s reply reaches the author too', (select count(*) from notes where user_id = t.id('fanA12') and body like '% replied to you on Power point night: Love it') = 1);
+select t.login('fanA12'); set role authenticated;
+select t.must_allow('replying in your own thread', format($$insert into event_comments (spark_id, parent_id, body) values (%L, (select id from event_comments where body = 'I''ll do one on bees'), 'Thanks all')$$, t.id('ppt')));
+reset role;
+select t.check('your own reply doesn''t notify you', (select count(*) from notes where user_id = t.id('fanA12')) = 2);
 
 -- Multi-day fixes (20261115000000_multi_day_fixes.sql) ---------------------------------------------------------------
 select t.check('last day: one day is its date', private.event_last_day(date '2026-10-16', null) = date '2026-10-16');
