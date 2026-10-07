@@ -26,7 +26,7 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     // The lead is Going to their own plan, and answers with the same buttons as everyone (20261101160000_lead_going.sql)
     const mine = HP.locator('[data-rsvp]');
     await expect(mine.getByRole('button', { name: /^Going/ })).toHaveAttribute('aria-pressed', 'true');
-    await expect(mine.getByRole('button', { name: /^Going/ })).toContainText('1');
+    await expect(mine.locator('[data-going]')).toHaveAttribute('aria-label', 'See everyone going (1)');   // no counts on the buttons (owner, 2026-10-06)
     await mine.getByRole('button', { name: /^Maybe/ }).click();
     await expect(mine.getByRole('button', { name: /^Maybe/ })).toHaveAttribute('aria-pressed', 'true');
     await mine.getByRole('button', { name: /^Going/ }).click();
@@ -75,9 +75,9 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     expect((await calDownload).suggestedFilename()).toMatch(/\.ics$/);
     await expect(G.locator('[data-banner="going"]')).toHaveCount(0);
     await expect(GP.locator('[data-guest-nudge]')).toHaveCount(0);
-    // v6 Update 5: three buttons with counts; the pick is filled; tapping it again clears it
+    // Three buttons (no counts since 2026-10-06, owner); the pick is filled; tapping it again clears it
     await expect(rsvp('Going')).toHaveAttribute('aria-pressed', 'true');
-    await expect(rsvp('Going')).toContainText('3');   // Hope, Gus and the one he's bringing
+    await expect(GP.locator('[data-rsvp] [data-going]')).toHaveAttribute('aria-label', 'See everyone going (3)');   // Hope, Gus and the one he's bringing
     await expect.poll(() => asUser(G, async (c, _C, id) => (await c.from('rsvps').select('plus_count, plus_note').eq('spark_id', id).eq('user_id', (await c.auth.getUser()).data.user.id).single()).data, id)).toEqual({ plus_count: 1, plus_note: 'My sister' });
     await rsvp('Maybe').click();
     await expect(G.getByText('Marked as maybe')).toBeVisible();

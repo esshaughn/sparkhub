@@ -7297,7 +7297,7 @@
 
   function viewPlan(s) {
     const st = state, lead = isLead(s), edit = canEdit(s), leadName = nameOf(s.leadId, s.leadName), my = myRsvp(s), dp = dateParts(s.dayDate);
-    const goingIds = going(s).map(r => r.userId), maybeN = s.rsvps.filter(r => r.status === 'maybe').length, noN = s.rsvps.filter(r => r.status === 'no').length;
+    const goingIds = going(s).map(r => r.userId);
     const sheetCard = (inner, extra) => '<div style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:10px;' + (extra || '') + '">' + inner + '</div>';
 
     // Under the photo: the host's "Your tasks" (purple), or a helper's "You're helping" (gold). Since Design 27 (2026-10-04)
@@ -7330,11 +7330,12 @@
 
     // RSVP: three buttons, no checkmarks; tapping your pick again clears it
     const RC = { going: '#149a4b', maybe: MAYBE_SOLID, no: '#6b7280' };
-    const rsvpBtn = (k, label, n) => {
+    // No counts on the buttons (owner, 2026-10-06): how many are going shows under them, with See all ›
+    const rsvpBtn = (k, label) => {
       const onIt = my === k;
-      return '<button type="button" ' + on(() => setRsvp(s, k)) + ' aria-pressed="' + onIt + '" style="min-height:60px;border:0;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-family:inherit;cursor:pointer;' +
+      return '<button type="button" ' + on(() => setRsvp(s, k)) + ' aria-pressed="' + onIt + '" style="min-height:52px;border:0;border-radius:14px;display:flex;align-items:center;justify-content:center;font-family:inherit;cursor:pointer;' +
         (onIt ? 'background:' + RC[k] + ';color:' + (k === 'maybe' ? '#2a1d00' : '#fff') : 'background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;color:#0d1117') + '">' +   // dark on the gold stripes, to read
-        '<span style="font-size:17px;font-weight:800">' + label + '</span><span style="font-size:13px;font-weight:700;color:' + (onIt ? (k === 'maybe' ? 'rgba(42,29,0,.75)' : 'rgba(255,255,255,.85)') : '#6b7280') + '">' + n + '</span></button>';
+        '<span style="font-size:17px;font-weight:800">' + label + '</span></button>';
     };
     // A guest who RSVP'd or took a job gets no reminders or updates without an account: offer them (owner, 2026-10-01)
     // Design v8: lavender with no ring, Sign in under the text; it opens sign-in as from the guest sheet
@@ -7350,7 +7351,7 @@
     // the lead also gets Invite people here (the lead tools card and Who's in's people row are gone)
     const hidden = !st.email && !my && !lead;   // a visitor who hasn't replied sees a count, not who
     const rsvpBlock = s.cancelledAt ? '' : '<div data-rsvp style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:12px">' +
-      '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">' + rsvpBtn('going', 'Going', headN(s)) + rsvpBtn('maybe', 'Maybe', maybeN) + rsvpBtn('no', 'Can’t', noN) + '</div>' +
+      '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">' + rsvpBtn('going', 'Going') + rsvpBtn('maybe', 'Maybe') + rsvpBtn('no', 'Can’t') + '</div>' +
       // The faces row always draws (Design v8), See all › opening Who's coming
       // Signed out and no reply yet (short links spec, v8-8): grey circles in five shades, still See all ›, which asks them
       // to RSVP first in the amber toast (Design v8-8 prototype visitorLocked)
