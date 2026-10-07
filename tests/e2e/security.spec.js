@@ -519,6 +519,18 @@ test('plans: replies, sign-ups, updates, notes and invite-only plans follow the 
     });
     expect(fb).toEqual({ send: 'ALLOWED', empty: 'refused', asSomeoneElse: 'refused', forgeName: 'refused', readOwn: 0,
       withContext: 'ALLOWED', othersShot: 'refused', uploadElsewhere: 'refused', listOthers: 0, edit: 'refused', remove: 'refused' });
+    // Guests can send feedback too (20261113000000_guest_feedback.sql): their own, never read back, no screenshot
+    const gfb = await asUser(A, async (c) => {
+      const me = (await c.auth.getUser()).data.user.id;
+      const ok = async (q) => { const x = await q; return x.error ? 'refused' : 'ALLOWED'; };
+      return {
+        send: await ok(c.from('feedback').insert({ body: '[E2E] guest feedback', screen: 'detail' })),
+        asSomeoneElse: await ok(c.from('feedback').insert({ body: '[E2E] forged', user_id: '00000000-0000-0000-0000-000000000000' })),
+        readOwn: (await c.from('feedback').select('id')).data.length,
+        upload: await ok(c.storage.from('feedback-shots').upload(me + '/' + crypto.randomUUID() + '.jpg', new Blob(['x'], { type: 'image/jpeg' })))
+      };
+    });
+    expect(gfb).toEqual({ send: 'ALLOWED', asSomeoneElse: 'refused', readOwn: 0, upload: 'refused' });
 
     // New accounts (owner's Profile): new_accounts() lists everyone's email only for demo_admins; anyone else gets no rows
     const accts = await asUser(L, async (c) => { const r = await c.rpc('new_accounts'); return r.error ? 'refused' : r.data.length ? 'LISTED' : 'none'; });

@@ -843,6 +843,18 @@ select t.check('someone else can''t see it', not exists (select 1 from storage.o
 reset role;
 select t.check('the screenshot bucket is private', (select not public from storage.buckets where id = 'feedback-shots'));
 
+-- Guests can send feedback too, 3 an hour, named from their guest RSVP, with no screenshot (20261113000000_guest_feedback.sql)
+select t.person('fbguest', true);
+select t.login('fbguest'); set role authenticated;
+select t.must_allow('a guest sends feedback', $$insert into feedback (body, screen) values ('Love it', 'detail')$$);
+select t.must_refuse('a guest''s feedback can''t carry a screenshot', format($$insert into feedback (body, shot) values ('Look', %L)$$, t.id('fbguest') || '/44444444-4444-4444-4444-444444444444.jpg'));
+select t.must_allow('a second note', $$insert into feedback (body) values ('Two')$$);
+select t.must_allow('a third note', $$insert into feedback (body) values ('Three')$$);
+select t.must_refuse('a guest''s fourth note in an hour', $$insert into feedback (body) values ('Four')$$);
+select t.must_refuse('a guest can''t send feedback as someone else', format($$insert into feedback (body, user_id) values ('Forged', %L)$$, t.id('fbsender')));
+reset role;
+select t.check('a guest with no RSVP name is called Guest', (select name from feedback where user_id = t.id('fbguest') and body = 'Love it') = 'Guest');
+
 -- Ten an hour, except the e2e leads (20261102060000_feedback_cap_exempt.sql)
 select t.person('chatty'), t.person('exempt');
 insert into private.rate_exempt (user_id) values (t.id('exempt'));

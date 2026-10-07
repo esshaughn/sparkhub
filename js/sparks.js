@@ -4854,7 +4854,10 @@
     } catch (e) {   // what they typed (and the screenshot) stays
       console.error(e);
       if (shot) sb.storage.from(SHOT_BUCKET).remove([shot]).catch(() => {});
-      setState({ busy: null }); toast(failed(e));
+      setState({ busy: null });
+      // A guest on a database without 20261113000000_guest_feedback.sql: sign in, then the sheet is still there
+      if (!state.email && e && (e.code === '42501' || /row-level security/i.test(e.message || ''))) { toast('Sign in to send it. What you wrote is kept.'); openLogin('profile'); return; }
+      toast(failed(e));
     }
   };
   const ericFace = (size, extra) => '<span aria-hidden="true" style="flex:0 0 ' + size + 'px;width:' + size + 'px;height:' + size + 'px;border-radius:999px;background:#dcdfe6 url(' + ERIC_FACE + ') center/cover;' + (extra || '') + '"></span>';
@@ -4875,8 +4878,8 @@
         '<textarea rows="6" maxlength="1000" aria-label="Your feedback" placeholder="Write as much or as little as you like." ' + onInput(e => { if (e.type === 'input') setState({ fb: Object.assign({}, state.fb, { text: e.target.value.slice(0, 1000) }) }); }) +
           ' style="width:100%;box-sizing:border-box;min-height:140px;padding:14px;border:2px solid #dcdfe6;border-radius:16px;font-family:inherit;font-size:16px;font-weight:500;line-height:1.4;color:#0d1117;resize:none;outline:none">' + esc(f.text) + '</textarea>' +
         // A screenshot they took with the phone's buttons (a web page can't take one itself). A group request has neither the
-        // screenshot nor the Sent with line (owner, 2026-10-07): it isn't a bug report
-        (f.kind === 'group' ? '' : f.shot
+        // screenshot nor the Sent with line (owner, 2026-10-07): it isn't a bug report. Guests can't attach one (it needs an account)
+        (f.kind === 'group' || !state.email ? '' : f.shot
           ? '<div data-fb-shot style="display:flex;align-items:center;gap:12px;padding:8px 10px 8px 8px;border-radius:16px;background:#f4f5f7">' +
               '<span ' + on(() => setState({ zoom: { photos: [f.shot.url], i: 0 } })) + ' aria-label="See the screenshot" style="flex:0 0 44px;width:44px;height:64px;border-radius:8px;background:#dcdfe6 url(' + f.shot.url + ') center/cover;cursor:zoom-in"></span>' +
               '<span style="flex:1;min-width:0;font-size:14.5px;font-weight:800;color:#0d1117">Screenshot added</span>' +
@@ -10427,11 +10430,11 @@
           step('#fdf1d6', '#f5b428', '#2a1d00', 1, 'Float an idea', '“Pickleball on Sunday mornings?”') +
           step('#fff1e8', '#e8661c', '#fff', 2, 'Everybody pitches in', 'Say you’re in, help pick a date, lend a hand') +
           step('#f3f1fe', '#5b4ae8', '#fff', 3, 'It’s a plan', 'It’s on the calendar. See you there!') + '</div>',
-      // Help shape Spark Hub (owner, 2026-10-07): feedback wanted, from Eric, for communities. Give feedback signs a guest in first
+      // Help shape Spark Hub (owner, 2026-10-07): feedback wanted, from Eric, for communities. Guests send feedback without signing in
       kick('FEEDBACK WANTED') + h('Help shape Spark Hub') +
         '<div style="display:flex;align-items:center;gap:12px">' + ericFace(56) + '<span style="display:flex;flex-direction:column"><span style="font-size:17px;font-weight:900;color:#0d1117">Eric</span><span style="font-size:13.5px;font-weight:600;color:#6b7280">Spark Hub lead</span></span></div>' +
         p('Spark Hub is new, and I’m building it with my neighbors &amp; friends, for communities like yours. We’re still working out the kinks, so I want to hear from you. Tell me what works and what doesn’t.') +
-        '<button type="button" data-about-feedback ' + on(() => { setState({ about: null }); if (st.email) openFeedback(); else openLogin('profile', openFeedback); }) + ' style="min-height:52px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16px;font-weight:900;cursor:pointer">Give feedback</button>'
+        '<button type="button" data-about-feedback ' + on(() => { setState({ about: null }); openFeedback(); }) + ' style="min-height:52px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16px;font-weight:900;cursor:pointer">Give feedback</button>'
     ];
     const dots = '<div style="display:flex;gap:6px;justify-content:center" aria-hidden="true">' + [0, 1, 2].map(n => '<span style="height:7px;border-radius:999px;background:' + (n === i ? '#0d1117;width:20px' : '#dcdfe6;width:7px') + '"></span>').join('') + '</div>';
     const btn = (label, fn, bg, ink, data) => '<button type="button" ' + data + ' ' + on(fn) + ' style="min-height:52px;border:0;border-radius:999px;background:' + bg + ';color:' + ink + ';font-family:inherit;font-size:16px;font-weight:900;cursor:pointer">' + label + '</button>';
@@ -10882,7 +10885,7 @@
       (st.zoom ? viewZoom() : '') +
       (st.fbOpen && st.demoAdmin ? viewFbInbox() : '') +
       (st.acctOpen && st.demoAdmin ? viewAccounts() : '') +
-      (st.fb && st.email ? viewFeedback() : '') +
+      (st.fb ? viewFeedback() : '') +   // guests too (20261113000000_guest_feedback.sql)
       (st.about != null ? viewAbout() : '') +
       (st.installPop ? viewInstallPop() : '') + (st.notifAsk ? viewNotifAsk() : '') +
       // no tab bar on Welcome, the invite screens, or for a guest on an event (it only led to sign-in)
