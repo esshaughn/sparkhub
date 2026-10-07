@@ -71,7 +71,7 @@ test('multi-day: separate days, each-day RSVP, a job on one day, and a weekly ev
     // The host adds a job on Day 2 (WHICH DAY)
     await HP.locator('[data-help-empty], [data-help-edit]').first().click();
     const needs = H.getByRole('dialog', { name: 'Edit Participate' });
-    await needs.getByText('Add a job', { exact: true }).click();
+    await needs.locator('[data-needs-add]').click();
     await needs.getByLabel('Job name 1').fill('Pack up leftovers');
     const which = needs.getByRole('radiogroup', { name: 'Which day 1' });
     await expect(which.getByRole('radio', { name: 'Any day' })).toHaveAttribute('aria-checked', 'true');

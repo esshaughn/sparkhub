@@ -170,7 +170,7 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     const row = hand.locator('[data-hand="' + title + '"] [data-signup="Folding chairs"]');
     await expect(row).toContainText('2 of 2 open');
     await shot(O, '08-could-use-a-hand');
-    await row.getByRole('button', { name: 'Claim' }).click();
+    await row.getByRole('button', { name: 'Sign up' }).click();
     await expect(O.locator('[data-banner="on"]')).toContainText('You’re signed up!');
     await O.locator('[data-onit-done]').click();
     await expect(row).toContainText('Yours');

@@ -588,7 +588,7 @@ test('Plan an event: × asks about a draft, Keep going stays, and a reload picks
   }
 });
 
-test('How to participate: + Add a job opens the kinds pop-up (Thought partner stays); a bare starter chip can’t be saved', async ({ browser }) => {
+test('How to participate: + Add opens the starters pop-up (Thought partner stays); a bare starter chip can’t be saved', async ({ browser }) => {
   test.setTimeout(90000);
   const { page, context, errors } = await newLead(browser, 1, 'Tester');
   const title = uniqueTitle('Pickup soccer');
@@ -603,14 +603,14 @@ test('How to participate: + Add a job opens the kinds pop-up (Thought partner st
     await when.getByRole('button', { name: 'Done' }).click();
     await expect(flow.locator('[data-tags]')).toHaveCount(0);          // no "What kind of event?" (owner, 2026-10-01)
     await expect(flow.locator('[data-need-people]')).toHaveCount(0);   // How many people do you want? is hidden for now (owner, 2026-10-02)
-    // + Add a job: Pick a kind, then name it. Bring · Set up · Help · Clean up · Coordinate · Thought partner, and Write your own
-    const kinds = page.getByRole('dialog', { name: 'Add a job' });
+    // + Add: Pick a starter, then name it. Bring · Set up · Help · Clean up · Coordinate · Thought partner, and Write your own
+    const kinds = page.getByRole('dialog', { name: 'Add' });
     await flow.locator('[data-cp-add-job]').click();
-    await expect(kinds).toContainText('Pick a kind, then name it.');
-    await expect(kinds.locator('[data-job-chip]')).toHaveText(['Bring', 'Set up', 'Help', 'Clean up', 'Coordinate', 'Thought partner', 'Write your own']);
+    await expect(kinds).toContainText('Pick a starter, then name it.');
+    await expect(kinds.locator('[data-job-chip]')).toHaveText(['Bring', 'Set up', 'Help', 'Clean up', 'Coordinate', 'Thought partner', 'Write your own', 'Time slots']);
     // Coordinate is a starter chip too (owner, 2026-10-02); like the others, it waits for what
     await kinds.locator('[data-job-chip="Coordinate"]').click();
-    const job = page.getByRole('dialog', { name: 'Add a job' });
+    const job = page.getByRole('dialog', { name: 'Add' });
     await expect(job.getByLabel('Job name')).toHaveValue(/^Coordinate/);
     await expect(job.getByRole('button', { name: 'Save', exact: true })).toHaveAttribute('aria-disabled', 'true');
     await job.getByRole('button', { name: 'Close' }).click();
@@ -630,24 +630,26 @@ test('How to participate: + Add a job opens the kinds pop-up (Thought partner st
     // Gray filler after the verb, the details behind a link; no suggestion chips (v8)
     await expect(job.locator('[data-job-filler]')).toContainText('snacks, chairs, ice…');
     await expect(job.locator('[data-job-chips]')).toHaveCount(0);
-    await expect(job).toContainText(/How people can join/i);
+    await expect(job).toContainText(/Participate/i);
     await expect(job.getByLabel('Details', { exact: true })).toHaveCount(0);
     await job.getByLabel('Job name').fill('Bring ice');
     await expect(job.locator('[data-job-filler]')).toHaveCount(0);
     await job.getByLabel('Job name').fill('Bring a ball');
-    await job.getByText('Add details or a time').click();
+    await job.getByText('Add details, times or options').click();
+    await expect(job.locator('[data-job-options] [data-part-waitlist]')).toHaveAttribute('aria-checked', 'true');   // every item's options (2026-10-07)
+    await expect(job.locator('[data-job-guests]')).toHaveAttribute('aria-checked', 'true');
     await expect(job.getByLabel('Details', { exact: true })).toBeVisible();
     // The job's time is the app's own list (not the browser's menu)
     await job.getByRole('button', { name: 'Time', exact: true }).click();
     await pickTime(job, '17:00');
     await expect(timeBox(job, 'Time')).toHaveValue('5:00pm');
     // Shifts use the same list: the end only offers later times
-    await job.getByText('Add a shift').click();
-    await job.getByRole('button', { name: 'Shift 1 end' }).click();
+    await job.getByText('Add more times').click();
+    await job.getByRole('button', { name: 'Time 1 end' }).click();
     await expect(job.locator('[data-time-list] [data-time="18:00"]')).toBeVisible();
     await expect(job.locator('[data-time-list] [data-time="17:00"]')).toHaveCount(0);   // only times after the start
     await pickTime(job, '18:00');
-    await expect(timeBox(job, 'Shift 1 end')).toHaveValue('6:00pm');
+    await expect(timeBox(job, 'Time 1 end')).toHaveValue('6:00pm');
     await job.getByText('Use one time instead').click();
     await job.getByRole('button', { name: 'Time', exact: true }).click();
     await job.locator('[data-time-list]').getByRole('option', { name: 'No time', exact: true }).click();   // clears it

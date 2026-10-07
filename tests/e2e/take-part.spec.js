@@ -13,7 +13,7 @@ test('take part: set up spots, claim, waitlist, guest, roster and giving up', as
   const title = uniqueTitle('Open play');
   let id, guest;
   try {
-    // Plan an event → + Add a job → TAKE PART's Claim time (two 30-minute rows, one spot each) and Claim seat (2 seats)
+    // Plan an event → + Add → Time slots (two 30-minute times, one each) and a plain item for 2 (one kind of sign-up, 2026-10-07)
     await startPost(H);
     const flow = H.locator('[data-screen-label="New spark"]');
     await flow.getByLabel('Event title').fill(title);
@@ -24,22 +24,21 @@ test('take part: set up spots, claim, waitlist, guest, roster and giving up', as
     await pickTime(when, '09:00');
     await when.getByRole('button', { name: 'Done' }).click();
     await flow.locator('[data-cp-add-job]').click();
-    await H.locator('[data-part-chip="Claim time"]').click();
-    const times = H.getByRole('dialog', { name: 'Add time slots' });
-    await expect(times).toContainText('SPOT · CLAIM TIME');
-    await times.getByLabel('Name the time slots').fill('Court time');
-    await expect(times.locator('[data-part-time]')).toHaveCount(2);
+    await H.getByRole('dialog', { name: 'Add' }).locator('[data-job-chip="Time slots"]').click();
+    const times = H.getByRole('dialog', { name: 'Add' });
+    await times.getByLabel('Job name').fill('Court time');
+    await expect(times.locator('[data-shift-row]')).toHaveCount(2);
     for (const k of [1, 2]) for (let n = 0; n < 3; n++) await times.getByRole('button', { name: 'Fewer for time ' + k }).click();
     await expect(times.locator('[data-part-waitlist]')).toHaveAttribute('aria-checked', 'true');   // on by default
     await times.getByRole('button', { name: 'Save', exact: true }).click();   // always Save (Design v8)
     await flow.locator('[data-cp-add-job]').click();
-    await H.locator('[data-part-chip="Claim seat"]').click();
-    const seats = H.getByRole('dialog', { name: 'Add seats' });
-    await seats.getByLabel('Name the seats').fill('Beginner clinic');
-    for (let n = 0; n < 6; n++) await seats.getByRole('button', { name: 'Fewer for how many seats' }).click();
+    await H.getByRole('dialog', { name: 'Add' }).locator('[data-job-chip="Other"]').click();
+    const seats = H.getByRole('dialog', { name: 'Add' });
+    await seats.getByLabel('Job name').fill('Beginner clinic');
+    await seats.getByRole('button', { name: 'More for how many people' }).click();
     await seats.getByRole('button', { name: 'Save', exact: true }).click();
-    await expect(flow.locator('[data-job="Court time"]')).toContainText('Spot · 2 times · 2 spots');
-    await expect(flow.locator('[data-job="Beginner clinic"]')).toContainText('Spot · 2 seats');
+    await expect(flow.locator('[data-job="Court time"]')).toContainText('2 times · 1 each');
+    await expect(flow.locator('[data-job="Beginner clinic"]')).toContainText('2 people');
     await flow.locator('[data-post]').click();
     await expect(H.locator('[data-screen-label="Plan page"]')).toBeVisible();
     await closeAskFirst(H);
@@ -47,7 +46,7 @@ test('take part: set up spots, claim, waitlist, guest, roster and giving up', as
     const HP = H.locator('[data-screen-label="Plan page"]');
     await expect(HP.locator('#sec-tasks [data-part]')).toHaveCount(2);
     await expect(HP.locator('[data-part="Court time"]')).toContainText('2 times · 1 each');
-    await expect(HP.locator('[data-part-claim]')).toHaveCount(0);   // hosts don't claim
+    await expect(HP.locator('[data-part-claim]')).toHaveCount(3);   // hosts sign up too (one kind of sign-up, 2026-10-07)
 
     // Theo claims 9:00am: it's his, and he's Going
     await openIdea(M, id);
@@ -71,7 +70,7 @@ test('take part: set up spots, claim, waitlist, guest, roster and giving up', as
     const G = guest.page, GP = G.locator('[data-screen-label="Plan page"]');
     await expect(GP.locator('[data-part-row="9:00am"]')).toContainText('Full');
     await GP.locator('[data-part-row="9:00am"] [data-part-waitlist-btn]').click();
-    const sheet = G.getByRole('dialog', { name: 'Claim this spot' });
+    const sheet = G.getByRole('dialog', { name: 'Sign up' });
     await expect(sheet).toContainText('COURT TIME · 9:00AM');
     await expect(sheet).toContainText('Only the hosts see your number.');
     await expect(sheet).toContainText('Without an account we can’t tell you when a spot opens.');   // jobs audit M5
@@ -83,15 +82,15 @@ test('take part: set up spots, claim, waitlist, guest, roster and giving up', as
     // The lead's roster: who has it, and who's waiting
     await H.reload();
     await HP.locator('[data-part-row="9:00am"]').click();
-    const roster = H.getByRole('dialog', { name: 'Who has which spot' });
-    await expect(roster).toContainText('1 of 2 claimed');
+    const roster = H.getByRole('dialog', { name: 'Who’s signed up' });
+    await expect(roster).toContainText('1 of 2 signed up');
     await expect(roster.locator('[data-roster-waiting]')).toHaveText('Waiting: Sam');
     await roster.getByRole('button', { name: 'Close' }).click();
 
     // Theo gives 9:00am up: Sam moves up (the database does it)
     await M.reload();
     await MP.locator('[data-part-row="9:00am"] [data-part-give-up]').click();
-    await expect(M.getByText('You gave up 9:00am court time.')).toBeVisible();
+    await expect(M.locator('[data-banner="off"]')).toContainText('You’re off it');   // as for a job (2026-10-07)
     await G.reload();
     await expect(GP.locator('[data-part-row="9:00am"]')).toContainText('You’re in');
 
@@ -104,13 +103,12 @@ test('take part: set up spots, claim, waitlist, guest, roster and giving up', as
     await G.reload();
     await expect(GP.locator('[data-part-row="9:00am"] [data-part-claim]')).toBeVisible();
 
-    // Maybe while holding a seat: Give up your spot? first
+    // Can't while signed up: take you off it too? (the same check for every item, 2026-10-07)
     await M.reload();
-    await rsvpTap(MP.locator('[data-rsvp]'), 'Maybe');
+    await rsvpTap(MP.locator('[data-rsvp]'), 'Can’t');
     const ask = M.getByRole('alertdialog');
-    await expect(ask).toContainText('Give up your spot?');
-    await expect(ask).toContainText('You have Beginner clinic.');
-    await ask.getByRole('button', { name: 'Give it up', exact: true }).click();
+    await expect(ask).toContainText('Take you off “Beginner clinic” too?');
+    await ask.getByRole('button', { name: 'Take me off', exact: true }).click();
     await expect(MP.locator('[data-part="Beginner clinic"] [data-part-claim]')).toBeVisible();
   } finally {
     if (guest) await guest.context.close();

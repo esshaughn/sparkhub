@@ -1092,7 +1092,34 @@ select t.must_allow('a guest leaves a name only', format($$insert into guest_con
 select t.must_refuse('a guest claims a seat without a phone', format($$insert into signup_claims (item_id) values (%L)$$, t.id('clinic')));
 select t.must_allow('a guest adds a phone', format($$update guest_contacts set phone = '512-555-0100' where spark_id = %L and user_id = %L$$, t.id('play'), t.id('guest2')));
 select t.must_allow('then claims a seat', format($$insert into signup_claims (item_id) values (%L)$$, t.id('clinic')));
-select t.must_refuse('a guest still can''t take a job', format($$insert into signup_claims (item_id) values (%L)$$, t.id('balls')));
+-- One kind of sign-up (20261119000000_one_kind_of_signup.sql): a guest with a phone can take a job too, unless its
+-- guests option is off
+select t.must_allow('a guest can take a job too now', format($$insert into signup_claims (item_id) values (%L)$$, t.id('balls')));
+reset role;
+insert into signup_items (spark_id, item, need, guests, created_by) values (t.id('play'), 'Run the till', 1, false, t.id('host'));
+insert into t.ids select 'till', id from signup_items where item = 'Run the till';
+select t.login('guest2'); set role authenticated;
+select t.must_refuse('but not one with guests off', format($$insert into signup_claims (item_id) values (%L)$$, t.id('till')));
+reset role;
+-- Jobs get waitlists and per-person limits like spots
+update signup_items set waitlist = true where id = t.id('till');
+select t.login('player2'); set role authenticated;
+select t.must_allow('a member takes the one till spot', format($$insert into signup_claims (item_id) values (%L)$$, t.id('till')));
+reset role;
+select t.login('player3'); set role authenticated;
+select t.must_allow('a full job with a waitlist takes a waiter', format($$insert into signup_waits (item_id) values (%L)$$, t.id('till')));
+reset role;
+update signup_claims set created_at = now() - interval '10 minutes' where item_id = t.id('till');
+select t.login('player2'); set role authenticated;
+select t.must_allow('the holder gives the job up', format($$delete from signup_claims where item_id = %L and user_id = auth.uid()$$, t.id('till')));
+reset role;
+select t.check('the first in line moves up on a job too', exists (select 1 from signup_claims where item_id = t.id('till') and user_id = t.id('player3')));
+insert into signup_items (spark_id, item, need, per_person, created_by) values (t.id('play'), 'Hand out flyers', 5, 1, t.id('host'));
+insert into t.ids select 'flyers', id from signup_items where item = 'Hand out flyers';
+insert into signup_items (spark_id, item, shift_of, time, need, created_by) select spark_id, item, id, t, 2, created_by from signup_items, (values (time '09:00'), (time '10:00')) v(t) where id = t.id('flyers');
+select t.login('player2'); set role authenticated;
+select t.must_allow('one flyer shift', format($$insert into signup_claims (item_id) values ((select id from signup_items where shift_of = %L and time = '09:00'))$$, t.id('flyers')));
+select t.must_refuse('a second shift over the job''s per-person limit', format($$insert into signup_claims (item_id) values ((select id from signup_items where shift_of = %L and time = '10:00'))$$, t.id('flyers')));
 reset role;
 -- Moving a time tells the people holding it, and their reminder goes again (20261118000000, jobs audit M3)
 update signup_claims set reminded_at = now() where item_id = t.id('c900');

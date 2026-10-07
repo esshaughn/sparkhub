@@ -302,6 +302,7 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 220 | **First encounter** (audit 2026-10-07): guest RSVP first with one account ask after; Get the Spark Hub app after an RSVP or join (per-browser steps, in-app browsers told to open the browser); Turn on reminders?; the installed app's first run; guests' plans on Welcome; joined events on My calendar without a group; no Google in in-app browsers; first-run flags on the account (`20261112000000_seen_on_account.sql`); Float drafts on the account | Built |
 | 221 | **What's Spark Hub?** (first-encounter item 9, 2026-10-07): a visitor line above a plan's RSVP for visitors who haven't replied, and a three-panel About sheet (what it is, idea → lead → plan, Eric) from it and Me → How Spark Hub works; Start a group's *Groups start by request* (Request a group → Give feedback as a group request) | Built |
 | 222 | **Who's signed up** (owner, 2026-10-07, jobs audit M1): a host taps a job's people to see them, per shift, and take someone off (Remove, a note and a push; `remove_part_claim`, jobs too since `20261118000000_one_push_and_full_asks.sql`) | Test | |
+| 223 | **One kind of sign-up** (owner, 2026-10-07): every Participate item is one card with **Sign up**, a waitlist, a most-per-person limit and a *Guests can sign up* option; one **+ Add** (starters and Time slots) and one item sheet in Create event and Edit Participate; guests with a phone can take anything allowed (`20261119000000_one_kind_of_signup.sql`) | Test | |
 
 ## Removed in this rebuild
 

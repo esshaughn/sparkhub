@@ -317,7 +317,7 @@
     groups: [], sparks: [], profiles: {},
 
     drafts: [], notes: [], pushOn: false, pushCardHidden: (() => { try { return localStorage.getItem('spark-hub-push-card') === 'hidden'; } catch (e) { return false; } })(),
-    canInstall: false, installPop: false, fb: null, sec: null, needEd: null, share: null, partMore: {}, partRoster: null, jobRoster: null, partGuest: null,
+    canInstall: false, installPop: false, fb: null, sec: null, needEd: null, share: null, partMore: {}, partRoster: null, partGuest: null,
 
     loginStep: null, loginFrom: 'default', loginThen: null, loginMode: 'link', loginEmail: '', loginCode: '',
     resent: false, mergeToken: null, googleFailed: false,
@@ -433,7 +433,7 @@
     // All groups' Back goes to the screen you came from, e.g. My calendar after Find more events (Design v8 prototype, _calFrom)
     if (screen === 'calendar' && state.screen !== 'calendar') state.calFrom = ORIGINS.indexOf(state.screen) > -1 ? { screen: state.screen, groupId: state.groupId, phaseTab: state.phaseTab } : null;
     // Going anywhere closes the v6 sheets (Profile, Notifications, View all, Could use a hand, Search)
-    setState(Object.assign({ screen, menu: null, plusMenu: false, ip: null, ipPop: null, ipEd: null, zoom: null, sec: null, needEd: null, share: null, cohostPick: null, leadAsk: null, leadsSheet: null, pollSheet: null, profSheet: false, notifSheet: false, dashAll: null, cHandSheet: false, cSearch: false, cq: '', gSearch: false, gq: '', gTry: null, pplAdd: false, frInvite: false, frList: null, frListEd: null, meImp: null, meList: null, meSet: false, pplSearch: false, pplQ: '', person: null, fbNudge: null, gMenu: null, gQr: null, gInv: null, jobAsk: null, handOff: null, partRoster: null, jobRoster: null, partGuest: null, dayPick: null, rsvpEdit: null }, extra || {}));
+    setState(Object.assign({ screen, menu: null, plusMenu: false, ip: null, ipPop: null, ipEd: null, zoom: null, sec: null, needEd: null, share: null, cohostPick: null, leadAsk: null, leadsSheet: null, pollSheet: null, profSheet: false, notifSheet: false, dashAll: null, cHandSheet: false, cSearch: false, cq: '', gSearch: false, gq: '', gTry: null, pplAdd: false, frInvite: false, frList: null, frListEd: null, meImp: null, meList: null, meSet: false, pplSearch: false, pplQ: '', person: null, fbNudge: null, gMenu: null, gQr: null, gInv: null, jobAsk: null, handOff: null, partRoster: null, partGuest: null, dayPick: null, rsvpEdit: null }, extra || {}));
     if (sc) sc.scrollTop = 0;
   };
 
@@ -573,14 +573,15 @@
   // (in line order); the spot has waitlist on/off and perPerson (null: any)
   const toParts = (rows, claims, waits) => {
     const unit = (i, part) => ({ id: i.id, item: i.item, need: i.need || null, time: hm(i.time), endTime: hm(i.end_time), part,
-      claims: (claims[i.id] || []).map(c => ({ userId: c.user_id, created: Date.parse(c.created_at) })),
+      claims: (claims[i.id] || []).map(c => ({ userId: c.user_id, created: Date.parse(c.created_at), note: c.note || '' })),
       waits: (waits[i.id] || []).slice().sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at)).map(w => w.user_id) });
     const byAge = rows.slice().sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at));
     const kids = byKey(byAge.filter(i => i.shift_of), 'shift_of');
     return byAge.filter(i => !i.shift_of).map(i => {
-      const part = { id: i.id, item: i.item, kind: i.kind, desc: i.descr || '', time: hm(i.time), endTime: hm(i.end_time), need: i.need || null,
-        waitlist: i.waitlist !== false, perPerson: i.per_person || null, rows: [] };
-      part.rows = i.kind === 'time' ? (kids[i.id] || []).sort((a, b) => String(a.time || '').localeCompare(String(b.time || ''))).map(k => unit(k, part)) : [unit(i, part)];
+      const part = { id: i.id, item: i.item, kind: i.kind || 'job', desc: i.descr || '', time: hm(i.time), endTime: hm(i.end_time), need: i.need || null,
+        waitlist: i.waitlist !== false, perPerson: i.per_person || null, guests: i.guests !== false, day: i.day || null, createdBy: i.created_by, rows: [] };
+      // time slots and a job's shifts are rows under it; anything else is one row
+      part.rows = i.kind === 'time' || (kids[i.id] || []).length ? (kids[i.id] || []).sort((a, b) => String(a.time || '').localeCompare(String(b.time || ''))).map(k => unit(k, part)) : [unit(i, part)];
       return part;
     }).filter(p => p.rows.length);
   };
@@ -623,6 +624,8 @@
     spotOpts: (x.spotOpts[row.id] || []).map(o => ({ id: o.id, name: o.name, address: o.address || '', lat: o.lat, lon: o.lon, who: o.who, createdBy: o.created_by, created: Date.parse(o.created_at), votes: (x.spotVotes[o.id] || []).map(v => v.user_id) })),
     ...toSignups((x.signups[row.id] || []).filter(i => !i.kind || i.kind === 'job'), x.claims),
     parts: toParts((x.signups[row.id] || []).filter(i => i.kind && i.kind !== 'job'), x.claims, x.waits),
+    // Participate's one list (owner, 2026-10-07: one kind of sign-up): jobs and spots alike, oldest first
+    items: toParts(x.signups[row.id] || [], x.claims, x.waits),
     updates: (x.updates[row.id] || []).sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at)).map(u => ({ id: u.id, body: u.body, audience: u.audience, createdBy: u.created_by || null, created: Date.parse(u.created_at) })),
     cohosts: (x.cohosts[row.id] || []).map(o => o.user_id),
     leadAsks: (x.leadAsks[row.id] || []).map(a => ({ userId: a.user_id, by: a.asked_by, at: Date.parse(a.created_at), message: a.message || '' })),   // asked to lead (20261102020000_float_and_ask.sql)
@@ -1288,7 +1291,7 @@
   // "{Feature} isn't here yet" with Request it, which opens Give feedback as a feature request
   const REQ_CHIP = '<span data-request-chip style="display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:999px;background:#fff4dc;color:#8f6405;font-size:10.5px;font-weight:900;letter-spacing:.6px">REQUEST</span>';
   const requestFeature = (name, plural) => setState({ menu: null, dayTypePop: null, confirm: { title: name + (plural ? ' aren’t' : ' isn’t') + ' here yet', body: 'Spark Hub is still new, and we build what people ask for. Want this one? Let Eric know.',
-    cta: 'Request it', run: () => setState({ confirm: null, fb: { text: 'This matters to me because ', kind: 'feature', feature: name } }), keep: 'Not now', x: true, z: 52 } });
+    cta: 'Request it', run: () => setState({ confirm: null, fb: { text: '', kind: 'feature', feature: name } }), keep: 'Not now', x: true, z: 52 } });
   const startGroup = () => setState({ menu: null, pplAdd: false, joinOpen: false, confirm: { title: 'Groups start by request', body: 'Spark Hub is still new, and we’re building it as we go. Tell us who your group is for and Eric will take a look. You can join any group with its code or link.', cta: 'Request a group', run: askForGroup, keep: 'Not now', x: true } });
   const submitStartGroup = async () => {
     const name = titleCase(state.startName || '').slice(0, 40);
@@ -4563,7 +4566,7 @@
             '<span aria-hidden="true" style="flex:0 0 10px;width:10px;height:10px;border-radius:999px;box-shadow:inset 0 0 0 2px #e8a71c"></span>' +
             '<div style="flex:1;min-width:0"><div style="font-size:14.5px;font-weight:700;color:#0d1117">' + esc(it.item) + '</div><div style="font-size:12.5px;font-weight:' + (it.jobId ? '800;color:#8f6405' : '600;color:#6b7280') + '">' + esc([it.jobId ? spanTime(it) : '', Math.max(0, left) + ' of ' + it.need + ' open'].filter(Boolean).join(' · ')) + '</div></div>' +
             (mine ? '<span style="flex:0 0 auto;display:flex;align-items:center;gap:4px;min-height:32px;padding:0 12px;border-radius:999px;background:#fdf1d6;color:#8f6405;font-size:13.5px;font-weight:800">' + svg(12, stroke('#8f6405', 3), P6.check) + 'Yours</span>'
-              : '<button type="button" ' + on(() => { if (!state.busy) claimRole(s, it); }) + ' style="flex:0 0 auto;min-height:32px;padding:0 14px;border:0;border-radius:999px;background:#0d1117;color:#fff;font-family:inherit;font-size:13.5px;font-weight:800;cursor:pointer">Claim</button>') + '</div>';
+              : '<button type="button" ' + on(() => { if (!state.busy) claimRole(s, it); }) + ' style="flex:0 0 auto;min-height:32px;padding:0 14px;border:0;border-radius:999px;background:#0d1117;color:#fff;font-family:inherit;font-size:13.5px;font-weight:800;cursor:pointer">Sign up</button>') + '</div>';
         }).join('') + '</div>';
     };
     return sheet6('Needs help', close,
@@ -5019,8 +5022,8 @@
           '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px"><span style="font-size:11.5px;font-weight:900;letter-spacing:1px;color:#8f6405">' + (f.kind === 'group' ? 'GROUP REQUEST' : f.kind === 'feature' ? 'FEATURE REQUEST' : 'FEEDBACK WANTED') + '</span>' +
             '<h3 style="margin:0;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117;text-wrap:balance">' + (f.kind === 'group' ? 'Who’s the group for?' : f.kind === 'feature' ? esc(f.feature || 'A new feature') : 'What do you think of the app so far?') + '</h3></div>' +
           '<span ' + on(close) + ' style="flex:0 0 auto;display:flex;align-items:center;min-height:32px;font-size:15px;font-weight:800;color:#6b7280;cursor:pointer">Cancel</span></div>' +
-        '<p style="margin:0;font-size:15.5px;line-height:1.45;font-weight:600;color:#2a2f38;text-wrap:pretty">' + (f.kind === 'group' ? 'A team, a block, a club, a few friends? Say a little about it and I’ll get back to you.' : f.kind === 'feature' ? 'Why does it matter to you, and how would you use it? It helps me get it right.' : 'Tell me honestly: what’s working and what would make it better?') + '</p>' +
-        '<textarea rows="6" maxlength="1000" aria-label="Your feedback" placeholder="Write as much or as little as you like." ' + onInput(e => { if (e.type === 'input') setState({ fb: Object.assign({}, state.fb, { text: e.target.value.slice(0, 1000) }) }); }) +
+        '<p style="margin:0;font-size:15.5px;line-height:1.45;font-weight:600;color:#2a2f38;text-wrap:pretty">' + (f.kind === 'group' ? 'A team, a block, a club, a few friends? Say a little about it and I’ll get back to you.' : f.kind === 'feature' ? 'It helps me get it right.' : 'Tell me honestly: what’s working and what would make it better?') + '</p>' +
+        '<textarea rows="6" maxlength="1000" aria-label="Your feedback" placeholder="' + (f.kind === 'feature' ? 'Why does it matter to you, and how would you use it?' : 'Write as much or as little as you like.') + '" ' + onInput(e => { if (e.type === 'input') setState({ fb: Object.assign({}, state.fb, { text: e.target.value.slice(0, 1000) }) }); }) +
           ' style="width:100%;box-sizing:border-box;min-height:140px;padding:14px;border:2px solid #dcdfe6;border-radius:16px;font-family:inherit;font-size:16px;font-weight:500;line-height:1.4;color:#0d1117;resize:none;outline:none">' + esc(f.text) + '</textarea>' +
         // A screenshot they took with the phone's buttons (a web page can't take one itself). A group request has neither the
         // screenshot nor the Sent with line (owner, 2026-10-07): it isn't a bug report. Guests can't attach one (it needs an account)
@@ -6223,19 +6226,22 @@
   // hold several up to the lead's Most per person, and a full one has a waitlist (gray) whose first in line moves up on
   // their own (the database does it). Guests claim with a name and a phone, which only the lead sees; no texts yet
   // (owner, 2026-10-05). Hosts see who has which spot and don't claim.
-  const partLabel = (u) => u.part.kind === 'time' && u.time ? slotTime(u.time) + ' ' + u.part.item.toLowerCase() : u.part.item;
+  const partLabel = (u) => (u.part.kind === 'time' || u.part.rows.length > 1) && u.time ? slotTime(u.time) + ' ' + u.part.item.toLowerCase() : u.part.item;
   const capFirst = (t) => t.charAt(0).toUpperCase() + t.slice(1);
   const ordinal = (n) => n + (n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th');
   const myPartRows = (s) => [].concat(...(s.parts || []).map(p => p.rows.filter(u => u.claims.some(c => c.userId === state.me))));
   const myWaitRows = (s) => [].concat(...(s.parts || []).map(p => p.rows.filter(u => u.waits.indexOf(state.me) > -1)));
   const partHeld = (p, withWaits) => [].concat(...p.rows.map(u => u.claims.filter(c => c.userId === state.me).concat(withWaits ? u.waits.filter(w => w === state.me) : []))).length;
   // The event with one row changed (claims or waitlist), and the same row as the page has it now
-  const withPart = (s, rowId, fn) => ({ parts: (s.parts || []).map(p => p.rows.some(u => u.id === rowId) ? Object.assign({}, p, { rows: p.rows.map(u => u.id === rowId ? fn(u) : u) }) : p) });
-  const freshRow = (s, u) => { const t = state.sparks.find(x => x.id === s.id) || s; for (const p of t.parts || []) { const r = p.rows.find(x => x.id === u.id); if (r) return [t, r]; } return [t, u]; };
+  // (both lists: Participate's items and the spots-only parts the other screens read)
+  const withPart = (s, rowId, fn) => { const map = (list) => (list || []).map(p => p.rows.some(u => u.id === rowId) ? Object.assign({}, p, { rows: p.rows.map(u => u.id === rowId ? fn(u) : u) }) : p);
+    return { parts: map(s.parts), items: map(s.items) }; };
+  const freshRow = (s, u) => { const t = state.sparks.find(x => x.id === s.id) || s; for (const p of (t.items || []).concat(t.parts || [])) { const r = p.rows.find(x => x.id === u.id); if (r) return [t, r]; } return [t, u]; };
   // Signed in: a name. A guest: a name and phone for this event, once (the database checks it)
   const guestPhone = (s) => { const c = s.contacts.find(x => x.user_id === state.me); return c && c.phone ? c.phone : state.partGuestSaved && state.partGuestSaved.id === s.id ? state.partGuestSaved.phone : ''; };
   const partGate = (s, u, act, fn) => {
     if (state.email) { needName(fn); return; }
+    if (u.part && u.part.guests === false) { needAccount(fn); return; }   // the host turned guests off for this one
     if (guestPhone(s) && (state.guest || state.myName)) { if (!state.guest) state.guest = { name: state.myName }; fn(); return; }
     setState({ partGuest: { id: s.id, row: u.id, act, name: (state.guest && state.guest.name) || state.myName || state.guestName || '', phone: '' } });
   };
@@ -6250,11 +6256,13 @@
     const [s, u] = freshRow(s0, u0);
     if (overCap(u.part, false)) return;
     const was = myRsvp(s), lbl = partLabel(u), lead = isLead(s);
+    const day = u.part.day || null, job = u.part.kind === 'job';
     if (!state.viewAs) onItBanner(s, { items: [u.id], was });   // You're signed up!, as for a job (owner, 2026-10-07; was a toast)
-    quick(s, Object.assign(withPart(s, u.id, x => Object.assign({}, x, { claims: x.claims.concat([{ userId: state.me, created: Date.now() }]), waits: x.waits.filter(w => w !== state.me) })), goingToo(s)), async () => {
+    quick(s, Object.assign(withPart(s, u.id, x => Object.assign({}, x, { claims: x.claims.concat([{ userId: state.me, created: Date.now() }]), waits: x.waits.filter(w => w !== state.me) })),
+      job ? withClaim(s, [u.id], true) : {}, goingToo(s, day)), async () => {
       await savePartGuest(s);
       must(await sb.from('signup_claims').insert({ item_id: u.id, user_id: state.me }));
-      await goingWithJob(s);
+      await goingWithJob(s, day);
     }, (ok) => { if (!ok) setState({ onIt: null }); });
   });
   const undoPart = (sparkId, rowId, was) => run(async () => {
@@ -6266,9 +6274,10 @@
     }
   }, { toast: null }).then(ok => { if (ok) toast('Okay, it’s open again', true); });
   const giveUpPart = (s0, u0) => {
-    const [s, u] = freshRow(s0, u0);
-    toast('You gave up ' + partLabel(u) + '.', true);
-    quick(s, withPart(s, u.id, x => Object.assign({}, x, { claims: x.claims.filter(c => c.userId !== state.me) })), async () => {
+    const [s, u] = freshRow(s0, u0), mine = u.claims.find(c => c.userId === state.me) || {};
+    // You're off it (Undo, Find a replacement), as for a job (owner, 2026-10-07: one kind of sign-up; was a toast)
+    if (!state.viewAs) offIt(s, { item: u.part.kind === 'job' ? u.part.item : partLabel(u) }, { items: [u.id], note: mine.note || null });
+    quick(s, Object.assign(withPart(s, u.id, x => Object.assign({}, x, { claims: x.claims.filter(c => c.userId !== state.me) })), u.part.kind === 'job' ? withClaim(s, [u.id], false) : {}), async () => {
       must(await sb.from('signup_claims').delete().eq('item_id', u.id).eq('user_id', state.me));
     });
   };
@@ -6294,96 +6303,93 @@
     body: 'They’ll get a note.' + (u.waits.length ? ' ' + firstName(personName(s, u.waits[0])) + ', first in line, moves up.' : ''),
     run: () => run(async () => { must(await sb.rpc('remove_part_claim', { p_item: u.id, p_user: uid })); }, { confirm: null }) } });
 
-  // Who's on a job (a host taps its people): names per shift, Remove (they're told; 20261118000000_one_push_and_full_asks.sql)
-  const removeFromJob = (s, j, u, uid) => setState({ jobRoster: null, confirm: { title: 'Take ' + firstName(personName(s, uid)) + ' off ' + j.item + '?', danger: true, cta: 'Remove', keep: 'Keep them',
-    body: 'They’ll get a note.', run: () => run(async () => { must(await sb.rpc('remove_part_claim', { p_item: u.id, p_user: uid })); }, { confirm: null }) } });
-  function viewJobRoster() {
-    const r = state.jobRoster, s = state.sparks.find(x => x.id === r.id), j = s && (s.jobs || s.signups).find(x => x.id === r.job);
-    if (!s || !j) return '';
-    const close = () => setState({ jobRoster: null }), units = j.shifts || [j];
-    const have = units.reduce((a, u) => a + u.claims.length, 0), total = units.every(u => u.need) ? units.reduce((a, u) => a + u.need, 0) : 0;
-    const person = (u, id) => '<div data-roster-person style="display:flex;align-items:center;gap:10px;min-height:44px">' + face(id, personName(s, id), 32) +
-      '<span style="flex:1;min-width:0;font-size:15.5px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(personName(s, id)) + '</span>' +
-      (id === state.me ? '' : '<span ' + on(() => removeFromJob(s, j, u, id)) + ' data-roster-remove style="flex:0 0 auto;min-height:36px;display:flex;align-items:center;font-size:14px;font-weight:700;color:#8a909b;cursor:pointer">Remove</span>') + '</div>';
-    const block = (u) => '<div data-roster-row style="display:flex;flex-direction:column;gap:2px;padding:10px 0;border-top:1px solid #f2f3f6">' +
-      (j.shifts ? '<div style="font-size:14px;font-weight:900;color:#0d1117">' + esc(spanTime(u)) + '</div>' : '') +
-      (u.claims.length ? u.claims.map(c => person(u, c.userId)).join('') : '<div style="font-size:14px;font-weight:600;color:#8a909b">Nobody yet</div>') + '</div>';
-    return sheet('Who’s signed up', close, SHEET_PAD,
-      '<div style="display:flex;align-items:flex-start;gap:10px"><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:800;letter-spacing:1.2px;color:#5b4ae8">' + esc(j.item.toUpperCase()) + '</div>' +
-        '<div style="margin-top:2px;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.4px;color:#0d1117">' + have + (total ? ' of ' + total : '') + ' signed up</div></div>' + closeX(close) + '</div>' +
-      '<div style="display:flex;flex-direction:column">' + units.map(block).join('') + '</div>', 36);
-  }
-
+  // Participate's cards (owner, 2026-10-07: one kind of sign-up): every item the same way, a job, a seat or a time slot.
+  // One row, or a row per time (a spot's times, a job's shifts), each with its seats, a count, and Sign up / You're in /
+  // Waitlist / Leave / Full. A host taps a row for who has it (Remove); hosts sign up too
   function takePart(s) {
-    const parts = s.parts || [];
-    if (!parts.length || s.cancelledAt) return '';   // ideas too, since v8-8 (Q31: Take part works before it's a plan)
+    const items = s.items || [];
+    if (!items.length || s.cancelledAt) return '';
     const st = state, lead = isLead(s), live = phaseOf(s) !== 'done';
-    const pill = 'flex:0 0 auto;display:flex;align-items:center;justify-content:center;height:34px;padding:0 16px;border-radius:999px;font-size:14px;font-weight:800;white-space:nowrap;cursor:pointer;';
-    const textBtn = (label, fn, attr) => '<span ' + on(fn) + ' ' + attr + ' role="button" style="flex:0 0 auto;display:flex;align-items:center;min-height:34px;padding:0 4px;font-size:14px;font-weight:800;color:#6b7280;cursor:pointer">' + label + '</span>';
+    const sr = (t) => '<span style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap">' + esc(t) + '</span>';
+    const pill = 'flex:0 0 auto;display:flex;align-items:center;justify-content:center;gap:6px;height:34px;padding:0 14px;border-radius:999px;font-size:14px;font-weight:800;white-space:nowrap;cursor:pointer;';
+    const textBtn = (label, fn, attr) => '<span ' + on(fn) + ' ' + attr + ' style="flex:0 0 auto;display:flex;align-items:center;min-height:34px;padding:0 4px;font-size:14px;font-weight:800;color:#6b7280;cursor:pointer">' + label + '</span>';
     const seats = (u, canTap, act) => {
       const ids = u.claims.map(c => c.userId), ring = 'flex:0 0 28px;width:28px;height:28px;border-radius:999px;box-sizing:border-box;border:2px dashed #c9ccd3;background:#fff;';
-      const items = ids.map(id => '<span style="display:flex;border-radius:999px;box-shadow:0 0 0 2px #fff">' + face(id, personName(s, id), 28) + '</span>');
-      const open = u.need ? Math.max(0, u.need - ids.length) : 0;
-      for (let k = 0; k < open; k++) items.push(k === 0 && canTap ? '<span ' + on(act) + ' aria-label="Claim an open spot" style="' + ring + 'cursor:pointer"></span>' : '<span aria-hidden="true" style="' + ring + '"></span>');
-      const shown = items.length > 6 ? items.slice(0, 4).concat('<span style="flex:0 0 auto;min-width:28px;height:28px;padding:0 8px;box-sizing:border-box;border-radius:999px;background:#eef0f3;color:#454b55;font-size:12.5px;font-weight:900;display:flex;align-items:center;justify-content:center">+' + (items.length - 4) + '</span>') : items;
-      return '<span style="flex:0 0 auto;display:flex;align-items:center;gap:4px">' + shown.join('') + '</span>';
+      const items_ = ids.map(id => '<span style="display:flex;border-radius:999px;box-shadow:0 0 0 2px #fff">' + face(id, personName(s, id), 28) + '</span>');
+      const open = u.need ? Math.max(0, u.need - ids.length) : canTap ? 1 : 0;
+      for (let k = 0; k < open; k++) items_.push(k === 0 && canTap ? '<span ' + on(act) + ' aria-label="Take an open spot" style="' + ring + 'cursor:pointer"></span>' : '<span aria-hidden="true" style="' + ring + '"></span>');
+      const shown = items_.length > 6 ? items_.slice(0, 4).concat('<span style="flex:0 0 auto;min-width:28px;height:28px;padding:0 8px;box-sizing:border-box;border-radius:999px;background:#eef0f3;color:#454b55;font-size:12.5px;font-weight:900;display:flex;align-items:center;justify-content:center">+' + (items_.length - 4) + '</span>') : items_;
+      return '<span data-who style="position:relative;flex:0 0 auto;display:flex;align-items:center;gap:4px">' + shown.join('') +
+        sr(ids.length ? namesList(ids.map(x => x === st.me ? 'You' : firstName(personName(s, x)))) : '') + '</span>';
     };
-    // One row: its seats, a count, and Claim / Give up / Waitlist / Leave (members), or who has it (hosts)
+    const rowTime = (u) => u.time ? (u.endTime ? spanTime(u) : slotTime(u.time)) : '';
     const row = (u, single) => {
       const p = u.part, ids = u.claims.map(c => c.userId), mine = ids.indexOf(st.me) > -1, wpos = u.waits.indexOf(st.me);
-      const full = !!u.need && ids.length >= u.need, canClaim = live && !lead && !mine && !full;
+      const full = !!u.need && ids.length >= u.need, canClaim = live && !mine && !full && wpos < 0;
       const claim = () => { if (!st.busy) claimPart(s, u); };
-      const count = wpos > -1 ? '<span style="font-size:13.5px;font-weight:700;color:#6b7280">You’re ' + ordinal(wpos + 1) + ' in line</span>'
-        : full ? '<span style="font-size:13.5px;font-weight:700;color:#6b7280">Full' + (u.waits.length ? ' · ' + u.waits.length + ' waiting' : '') + '</span>'
-        : '<span style="font-size:13.5px;font-weight:700;color:#6b7280">' + Math.max(0, u.need - ids.length) + ' open</span>';
-      const btn = !live || lead ? ''
-        : mine ? '<span ' + on(() => giveUpPart(s, u)) + ' data-part-give-up role="button" aria-label="You’re in. Tap to give it up" style="' + pill + 'gap:6px;padding:0 14px;background:#fff1e8;color:#b8480c">' + svg(13, stroke('#b8480c', 3), P6.check) + 'You’re in</span>'
+      const grey = (t) => '<span style="font-size:13.5px;font-weight:700;color:#6b7280;white-space:nowrap">' + t + '</span>';
+      const count = wpos > -1 ? grey('You’re ' + ordinal(wpos + 1) + ' in line')
+        : full ? (u.waits.length || p.waitlist ? grey('Full' + (u.waits.length ? ' · ' + u.waits.length + ' waiting' : '')) : '')
+        : grey(u.need ? (u.need === 1 ? '1 open' : (u.need - ids.length) + ' of ' + u.need + ' open') : ids.length ? ids.length + ' signed up' : 'Nobody yet');
+      const btn = !live ? ''
+        : mine ? '<span ' + on(() => giveUpPart(s, u)) + ' data-part-give-up aria-label="You’re in. Tap to take yourself off" style="' + pill + 'background:#fff1e8;color:#b8480c">' + svg(13, stroke('#b8480c', 3), P6.check) + 'You’re in</span>'
         : wpos > -1 ? textBtn('Leave', () => leaveWait(s, u), 'data-part-leave')
-        : full ? (p.waitlist ? '<span ' + on(() => joinWait(s, u)) + ' data-part-waitlist-btn role="button" style="' + pill + 'background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;color:#0d1117">Waitlist</span>'
+        : full ? (p.waitlist ? '<span ' + on(() => joinWait(s, u)) + ' data-part-waitlist-btn style="' + pill + 'background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;color:#0d1117">Waitlist</span>'
                              : '<span aria-disabled="true" style="' + pill + 'cursor:default;background:#eef0f3;color:#8a909b">Full</span>')
-        : '<span ' + on(claim) + ' data-part-claim role="button" style="' + pill + 'padding:0 14px;box-shadow:inset 0 0 0 2px #5b4ae8;color:#5b4ae8">Claim</span>';   // the jobs' Sign up style (owner, 2026-10-07)
+        : '<span ' + on(claim) + ' data-part-claim style="' + pill + 'box-shadow:inset 0 0 0 2px #5b4ae8;color:#5b4ae8">Sign up</span>';
       const who = lead && (ids.length || u.waits.length) ? '<span data-part-names style="font-size:13px;line-height:1.35;font-weight:600;color:#6b7280">' +
         esc(ids.map(id => firstName(personName(s, id))).join(', ')) + (u.waits.length ? (ids.length ? ' · ' : '') + 'Waiting: ' + esc(u.waits.map(id => firstName(personName(s, id))).join(', ')) : '') + '</span>' : '';
-      // A single spot is a grey row too, its button on the right and You're in as its label (Design v8-8 prototype partVals)
-      const top = single ? '' : '<span style="font-size:14.5px;font-weight:800;color:#0d1117">' + esc(u.time ? slotTime(u.time) : p.item) + '</span>';
-      const inner = (top ? top : '') +
-        '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;min-width:0">' + seats(u, canClaim, claim) + count + '</div>' + who;
-      const box = 'padding:8px 8px 8px 12px;border-radius:14px;' + (mine ? 'background:#fffaf0;box-shadow:inset 0 0 0 2px #f0d48a' : 'background:#f7f8fa');   // yours: the jobs' gold
-      return '<div data-part-row="' + esc(u.time ? slotTime(u.time) : p.item) + '"' + (mine ? ' data-mine' : '') + (wpos > -1 ? ' data-waiting' : '') + (lead ? ' ' + on(() => setState({ partRoster: { id: s.id, part: p.id } })) : '') +
-        ' style="display:flex;align-items:center;gap:10px;' + box + (lead ? ';cursor:pointer' : '') + '">' +
-        '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px">' + inner + '</div>' + btn + '</div>';
+      const top = single ? '' : '<span style="font-size:14.5px;font-weight:800;color:#0d1117">' + esc(rowTime(u) || p.item) + '</span>';
+      const box = 'padding:8px 8px 8px 12px;border-radius:14px;' + (mine ? 'background:#fffaf0;box-shadow:inset 0 0 0 2px #f0d48a' : 'background:#f7f8fa');   // yours: helping gold
+      return '<div data-part-row="' + esc(u.time ? slotTime(u.time) : p.item) + '"' + (!single && u.time ? ' data-shift="' + esc(spanTime(u)) + '"' : '') + (mine ? ' data-mine' : '') + (wpos > -1 ? ' data-waiting' : '') +
+        (lead ? ' ' + on(() => setState({ partRoster: { id: s.id, part: p.id } })) : '') + ' style="display:flex;align-items:center;gap:10px;' + box + (lead ? ';cursor:pointer' : '') + '">' +
+        '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px">' + top +
+          '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;min-width:0">' + seats(u, canClaim, claim) + count + '</div>' + who + '</div>' + btn + '</div>';
     };
     const card = (p) => {
-      const single = p.kind !== 'time', u0 = p.rows[0], more = !!st.partMore[p.id];
-      const each = p.rows.every(u => u.need === u0.need) ? u0.need + ' each' : p.rows.reduce((a, u) => a + (u.need || 0), 0) + ' spots';
-      const sub = (p.kind === 'time' ? p.rows.length + (p.rows.length === 1 ? ' time' : ' times') + ' · ' + each
-        : (p.time ? slotTime(p.time) + ' · ' : '') + (p.need || 0) + ' ' + (p.kind === 'seat' ? (p.need === 1 ? 'seat' : 'seats') : (p.need === 1 ? 'spot' : 'spots'))) +
-        (p.perPerson ? ' · up to ' + p.perPerson + ' per person' : '');
+      const single = p.rows.length === 1 && p.kind !== 'time', u0 = p.rows[0], more = !!st.partMore[p.id];
+      const mineAny = p.rows.some(u => u.claims.some(c => c.userId === st.me));
+      const each = p.rows.every(u => u.need === u0.need) ? (u0.need ? u0.need + ' each' : 'open to all') : p.rows.reduce((a, u) => a + (u.need || 0), 0) + ' spots';
+      const howMany = (n) => !n ? '' : n + ' ' + (p.kind === 'seat' ? (n === 1 ? 'seat' : 'seats') : p.kind === 'job' ? (n === 1 ? 'person' : 'people') : (n === 1 ? 'spot' : 'spots'));
+      const sub = [p.day && s.days ? dayWord(s, p.day) : '',
+        single ? [rowTime(u0) || (p.time ? slotTime(p.time) : ''), howMany(p.need)].filter(Boolean).join(' · ')
+          : p.rows.length + (p.rows.length === 1 ? ' time' : ' times') + ' · ' + each,
+        p.perPerson ? 'up to ' + p.perPerson + ' per person' : ''].filter(Boolean).join(' · ');
       const shown = single || more || p.rows.length <= 3 ? p.rows : p.rows.slice(0, 3);
       const anyOpen = p.rows.some(u => !u.need || u.claims.length < u.need);
-      // A single spot's button sits in its grey row, not on the title line (Design v8-8 prototype partVals)
+      // A host's ✎ opens the editor with just this item
       const head = '<div style="display:flex;align-items:flex-start;gap:10px"><div style="flex:1;min-width:0">' +
           '<div style="font-size:18px;line-height:1.25;font-weight:900;letter-spacing:-.3px;color:#0d1117;text-wrap:pretty">' + esc(p.item) + '</div>' +
-          '<div style="margin-top:2px;font-size:13.5px;font-weight:600;color:#6b7280">' + esc(sub) + '</div></div>' +
-        (lead && live ? '<span ' + on(() => openNeeds(s)) + ' data-edit-parts aria-label="Edit ' + esc(p.item) + '" style="flex:0 0 32px;width:32px;height:32px;margin:-4px -6px 0 0;display:flex;align-items:center;justify-content:center;color:#9aa0ac;cursor:pointer">' + svg(15, stroke('currentColor', 2.3), PENCIL) + '</span>'
-          : '') + '</div>';
-      const desc = p.desc ? '<p style="margin:0;font-size:14.5px;line-height:1.45;font-weight:500;color:#454b55;text-wrap:pretty">' + esc(p.desc) + '</p>' : '';
-      const toggle = !single && p.rows.length > 3 ? '<span ' + on(() => setState({ partMore: Object.assign({}, st.partMore, { [p.id]: !more }) })) + ' role="button" aria-expanded="' + more + '" data-part-more style="align-self:center;min-height:32px;display:flex;align-items:center;font-size:13.5px;font-weight:800;color:#6b7280;cursor:pointer">' +
+          (sub ? '<div style="margin-top:2px;font-size:13.5px;font-weight:600;color:#6b7280">' + esc(sub) + '</div>' : '') + '</div>' +
+        (lead && live ? '<span ' + on(() => openNeeds(s, p.id)) + ' data-edit-jobs data-edit-parts aria-label="Edit ' + esc(p.item) + '" style="flex:0 0 32px;width:32px;height:32px;margin:-4px -6px 0 0;display:flex;align-items:center;justify-content:center;color:#9aa0ac;cursor:pointer">' + svg(15, stroke('currentColor', 2.3), PENCIL) + '</span>' : '') + '</div>';
+      // Details: hosts see them; everyone else opens them from the More details bar
+      const open = !!st.descOpen[p.id];
+      const note = p.desc && (lead || open) ? '<p data-job-note style="margin:0;font-size:14.5px;line-height:1.45;font-weight:500;color:#454b55;text-wrap:pretty">' + esc(p.desc) + '</p>' : '';
+      const moreBar = !p.desc || lead ? '' : '<div ' + on(() => setState({ descOpen: Object.assign({}, st.descOpen, { [p.id]: !open }) })) + ' aria-expanded="' + open + '" style="margin:0 -16px -14px;height:44px;border-top:1px solid #f2f3f6;display:flex;align-items:center;justify-content:center;gap:6px;font-size:13.5px;font-weight:800;color:#6b7280;cursor:pointer">' +
+        (open ? 'Hide details ⌃' : 'More details ⌄') + '</div>';
+      const toggle = !single && p.rows.length > 3 ? '<span ' + on(() => setState({ partMore: Object.assign({}, st.partMore, { [p.id]: !more }) })) + ' aria-expanded="' + more + '" data-part-more style="align-self:center;min-height:32px;display:flex;align-items:center;font-size:13.5px;font-weight:800;color:#6b7280;cursor:pointer">' +
         (more ? 'Show less ⌃' : (p.rows.length - 3) + (p.rows.length - 3 === 1 ? ' more time ⌄' : ' more times ⌄')) + '</span>' : '';
-      const ask = lead && live && anyOpen ? '<span ' + on(() => single ? openJobAsk(s, { id: u0.id }) : setState({ partRoster: { id: s.id, part: p.id } })) + ' data-ask-part role="button" style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:36px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(14, '#5b4ae8', 2.8) + 'Ask someone</span>' : '';
-      return '<div data-part="' + esc(p.item) + '" style="' + CARD + ';padding:14px 16px;display:flex;flex-direction:column;gap:10px">' +
-        head + desc + (single ? row(u0, true) : '<div style="display:flex;flex-direction:column;gap:8px">' + shown.map(u => row(u, false)).join('') + '</div>') + toggle + ask + '</div>';
+      // + Ask someone (two open asks a row; a row per time: pick it in Who has which spot)
+      const asks = single ? openAsks(s, u0.id) : [];
+      const ask = !lead || !live || !anyOpen ? ''
+        : asks.length >= 2 ? '<span style="font-size:13.5px;font-weight:700;color:#8a909b">Two asked. Wait for an answer, or withdraw one.</span>'
+        : '<span ' + on(() => single ? openJobAsk(s, { id: u0.id }) : setState({ partRoster: { id: s.id, part: p.id } })) + ' data-ask-job data-ask-part role="button" style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:36px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(14, '#5b4ae8', 2.8) + 'Ask someone</span>';
+      return '<div data-part="' + esc(p.item) + '" data-signup="' + esc(p.item) + '"' + (mineAny ? ' data-mine' : '') + ' style="' + CARD + ';overflow:hidden;padding:14px 16px;display:flex;flex-direction:column;gap:10px">' +
+        head + (single ? row(u0, true) : '<div style="display:flex;flex-direction:column;gap:8px">' + shown.map(u => row(u, false)).join('') + '</div>') + toggle + note + ask + moreBar + '</div>';
     };
-    return parts.map(card).join('');   // inside Participate, before the jobs (owner, 2026-10-07)
+    // Everyone else sees what they hold first, then open ones, then full ones; hosts see their own order
+    const rank = (p) => p.rows.some(u => u.claims.some(c => c.userId === st.me)) ? 0 : p.rows.every(u => u.need && u.claims.length >= u.need) ? 2 : 1;
+    const ordered = lead ? items : items.map((p, i) => [p, i]).sort((x, y) => rank(x[0]) - rank(y[0]) || x[1] - y[1]).map(x => x[0]);
+    return ordered.map(card).join('');
   }
 
   // Who has which spot (the lead taps a row): each time with its people (Remove; GUEST for someone without an account),
   // + Ask someone while it has room, and the waitlist in order
   function viewPartRoster() {
-    const r = state.partRoster, s = state.sparks.find(x => x.id === r.id), p = s && (s.parts || []).find(x => x.id === r.part);
+    const r = state.partRoster, s = state.sparks.find(x => x.id === r.id), p = s && (s.items || []).find(x => x.id === r.part);
     if (!s || !p) return '';
     const close = () => setState({ partRoster: null });
-    const total = p.rows.reduce((a, u) => a + (u.need || 0), 0), have = p.rows.reduce((a, u) => a + u.claims.length, 0);
+    const total = p.rows.every(u => u.need) ? p.rows.reduce((a, u) => a + u.need, 0) : 0, have = p.rows.reduce((a, u) => a + u.claims.length, 0);
     const isGuest = (id) => s.contacts.some(c => c.user_id === id && c.phone);
     const person = (u, id) => '<div data-roster-person style="display:flex;align-items:center;gap:10px;min-height:44px">' + face(id, personName(s, id), 32) +
       '<span style="flex:1;min-width:0;display:flex;align-items:center;gap:8px;font-size:15.5px;font-weight:800;color:#0d1117"><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(personName(s, id)) + '</span>' +
@@ -6391,13 +6397,13 @@
       (id === state.me ? '' : '<span ' + on(() => removeFromPart(s, u, id)) + ' data-roster-remove role="button" style="flex:0 0 auto;min-height:36px;display:flex;align-items:center;font-size:14px;font-weight:700;color:#8a909b;cursor:pointer">Remove</span>') + '</div>';
     const block = (u) => { const open = Math.max(0, (u.need || 0) - u.claims.length), live = phaseOf(s) !== 'done';
       return '<div data-roster-row style="display:flex;flex-direction:column;gap:2px;padding:10px 0;border-top:1px solid #f2f3f6">' +
-        '<div style="font-size:14px;font-weight:600;color:#6b7280"><b style="font-weight:900;color:#0d1117">' + esc(u.time ? slotTime(u.time) : p.item) + '</b> · ' + (open ? open + ' open' : 'full') + (u.waits.length ? ' · ' + u.waits.length + ' waiting' : '') + '</div>' +
+        '<div style="font-size:14px;font-weight:600;color:#6b7280"><b style="font-weight:900;color:#0d1117">' + esc(u.time ? slotTime(u.time) : p.item) + '</b> · ' + (!u.need ? u.claims.length + ' signed up' : open ? open + ' open' : 'full') + (u.waits.length ? ' · ' + u.waits.length + ' waiting' : '') + '</div>' +
         u.claims.map(c => person(u, c.userId)).join('') +
-        (open && live ? '<span ' + on(() => { setState({ partRoster: null }); openJobAsk(s, { id: u.id }); }) + ' data-roster-ask role="button" style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:36px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(14, '#5b4ae8', 2.8) + 'Ask someone</span>' : '') +
+        ((open || !u.need) && live ? '<span ' + on(() => { setState({ partRoster: null }); openJobAsk(s, { id: u.id }); }) + ' data-roster-ask role="button" style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:36px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(14, '#5b4ae8', 2.8) + 'Ask someone</span>' : '') +
         (u.waits.length ? '<div data-roster-waiting style="font-size:13.5px;font-weight:700;color:#6b7280">Waiting: ' + esc(u.waits.map(id => firstName(personName(s, id))).join(', then ')) + '</div>' : '') + '</div>'; };
-    return sheet('Who has which spot', close, SHEET_PAD,
-      '<div style="display:flex;align-items:flex-start;gap:10px"><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:800;letter-spacing:1.2px;color:#149a4b">' + esc(p.item.toUpperCase()) + '</div>' +
-        '<div style="margin-top:2px;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.4px;color:#0d1117">' + have + ' of ' + total + ' claimed</div></div>' +
+    return sheet('Who’s signed up', close, SHEET_PAD,
+      '<div style="display:flex;align-items:flex-start;gap:10px"><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:800;letter-spacing:1.2px;color:#5b4ae8">' + esc(p.item.toUpperCase()) + '</div>' +
+        '<div style="margin-top:2px;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.4px;color:#0d1117">' + have + (total ? ' of ' + total : '') + ' signed up</div></div>' +
         '<span ' + on(() => { setState({ partRoster: null }); openNeeds(s); }) + ' role="button" style="flex:0 0 auto;min-height:36px;display:flex;align-items:center;gap:5px;font-size:14px;font-weight:800;color:#6b7280;cursor:pointer">' + svg(13, stroke('currentColor', 2.3), PENCIL) + 'Edit</span>' + closeX(close) + '</div>' +
       '<div style="display:flex;flex-direction:column">' + p.rows.map(block).join('') + '</div>', 36);
   }
@@ -6406,7 +6412,7 @@
   function viewPartGuest() {
     const g = state.partGuest, s = state.sparks.find(x => x.id === g.id);
     let u = null;
-    (s && s.parts || []).forEach(p => p.rows.forEach(x => { if (x.id === g.row) u = x; }));
+    (s && s.items || []).forEach(p => p.rows.forEach(x => { if (x.id === g.row) u = x; }));
     if (!s || !u) return '';
     const close = () => setState({ partGuest: null }), set = (patch) => setState({ partGuest: Object.assign({}, state.partGuest, patch) });
     const name = cleanTitle(g.name || '').slice(0, 40), phone = (g.phone || '').trim(), ok = !!name && phone.replace(/\D/g, '').length >= 7 && !state.busy;
@@ -6420,104 +6426,30 @@
     };
     const signIn = () => { setState({ partGuest: null }); openLogin('account', () => needName(() => wait ? joinWait(s, u) : claimPart(s, u))); };
     const fld = 'width:100%;box-sizing:border-box;min-height:52px;padding:0 16px;border:2px solid #dcdfe6;border-radius:16px;font-family:inherit;font-size:16px;font-weight:600;color:#0d1117;background:#fff;outline:none';
-    return sheet('Claim this spot', close, SHEET_PAD,
+    return sheet('Sign up', close, SHEET_PAD,
       '<div style="display:flex;align-items:flex-start;gap:10px"><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:800;letter-spacing:1.2px;color:#149a4b">' + esc((u.part.item + (when ? ' · ' + when : '')).toUpperCase()) + '</div>' +
-        '<div style="margin-top:2px;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.4px;color:#0d1117">' + (wait ? 'Join the waitlist' : 'Claim this spot') + '</div></div>' + closeX(close) + '</div>' +
+        '<div style="margin-top:2px;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.4px;color:#0d1117">' + (wait ? 'Join the waitlist' : 'Sign up') + '</div></div>' + closeX(close) + '</div>' +
       '<input class="fld" type="text" maxlength="40" autocomplete="name" data-autofocus aria-label="Your name" placeholder="Your name" value="' + esc(g.name || '') + '" ' + onInput(e => { if (e.type === 'input') set({ name: e.target.value.slice(0, 40) }); }) + ' style="' + fld + '">' +
       '<input class="fld" type="tel" maxlength="30" autocomplete="tel" aria-label="Phone number" placeholder="Phone number" value="' + esc(g.phone || '') + '" ' + onInput(e => { if (e.type === 'input') set({ phone: e.target.value.slice(0, 30) }); }) + ' style="' + fld + '">' +
       '<p style="margin:0;font-size:13px;line-height:1.4;font-weight:600;color:#6b7280">Only the hosts see your number.' + (wait ? ' Without an account we can’t tell you when a spot opens.' : '') + '</p>' +   // jobs audit M5
       '<button type="button" data-enter ' + on(go) + ' aria-disabled="' + !ok + '" style="min-height:52px;border:0;border-radius:999px;font-family:inherit;font-size:16px;font-weight:800;color:#fff;background:' + (ok ? '#149a4b' : '#c9ccd3') + ';cursor:' + (ok ? 'pointer' : 'default') + '">' +
-        (wait ? 'Join the waitlist' : 'Claim ' + (when || (u.part.kind === 'seat' ? 'a seat' : 'a spot'))) + '</button>' +
+        (wait ? 'Join the waitlist' : 'Sign up' + (when ? ' for ' + when : '')) + '</button>' +
       '<span ' + on(signIn) + ' role="button" style="align-self:center;min-height:36px;display:flex;align-items:center;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">Have an account? Sign in</span>', 36);
   }
 
-  // Help out (Design 7g, members, and 12e, the lead; 2026-10-03): one white card per job. A seat per spot (faces, then
-  // dashed open spots; the first is a purple + that signs you up), the count, and Sign up / You're in / Full.
-  // A shift job has a row per shift, each with its own button; you take one shift per job.
+  // Participate (owner, 2026-10-07: one kind of sign-up; was Take part and Help out): every item through takePart's
+  // cards, one gray Edit for hosts, and the dashed empty box. Members don't see it on a plan with nothing on it, and
+  // nobody sees it on a cancelled one (Design v8-8 prototype hasSignup)
   function helpOut(s) {
-    const st = state, lead = isLead(s), jobs = s.jobs || s.signups, live = !s.cancelledAt;
-    const sr = (t) => '<span style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap">' + esc(t) + '</span>';
-    const pill = 'flex:0 0 auto;display:flex;align-items:center;justify-content:center;gap:6px;height:34px;padding:0 14px;border-radius:999px;font-size:14px;font-weight:800;white-space:nowrap;';
-    const button = (mine, full, act) => !live ? ''
-      : mine ? '<span ' + on(act) + ' aria-label="You’re in. Tap to take yourself off" style="' + pill + 'background:#fff1e8;color:#b8480c;cursor:pointer">' + svg(13, stroke('#b8480c', 3), P6.check) + 'You’re in</span>'   // helping orange (v8-7 item 9)
-      : full ? '<span aria-disabled="true" style="' + pill + 'background:#eef0f3;color:#8a909b">Full</span>'
-      : '<span ' + on(act) + ' style="' + pill + 'box-shadow:inset 0 0 0 2px #5b4ae8;color:#5b4ae8;cursor:pointer">Sign up</span>';
-    // The seats: ids signed up, need (null: no limit), canJoin (the first open spot can be tapped to sign up). v8: open
-    // seats are plain gray dashed circles, the tappable one too (no purple +)
-    const seats = (ids, need, canJoin, size, act) => {
-      const ring = 'flex:0 0 ' + size + 'px;width:' + size + 'px;height:' + size + 'px;border-radius:999px;box-sizing:border-box;';
-      const items = ids.map(u => '<span style="display:flex;border-radius:999px;box-shadow:0 0 0 2px #fff">' + face(u, personName(s, u), size) + '</span>');
-      const open = need ? Math.max(0, need - ids.length) : canJoin ? 1 : 0;
-      for (let k = 0; k < open; k++) items.push(k === 0 && canJoin
-        ? '<span ' + on(act) + ' aria-label="Take an open spot" style="' + ring + 'border:2px dashed #c9ccd3;background:#fff;cursor:pointer"></span>'
-        : '<span aria-hidden="true" style="' + ring + 'border:2px dashed #c9ccd3;background:#fff"></span>');
-      const shown = items.length > 6 ? items.slice(0, 4).concat('<span style="flex:0 0 auto;min-width:' + size + 'px;height:' + size + 'px;padding:0 8px;box-sizing:border-box;border-radius:999px;background:#eef0f3;color:#454b55;font-size:12.5px;font-weight:900;display:flex;align-items:center;justify-content:center">+' + (items.length - 4) + '</span>') : items;
-      return '<span data-who style="position:relative;flex:0 0 auto;display:flex;align-items:center;gap:' + (size > 30 ? 6 : 4) + 'px">' + shown.join('') +
-        sr(ids.length ? namesList(ids.map(u => u === st.me ? 'You' : firstName(personName(s, u)))) : '') + '</span>';
-    };
-    const count = (n, need, full) => full ? '' : '<span style="flex:0 0 auto;font-size:13.5px;font-weight:700;color:#6b7280;white-space:nowrap">' +
-      (need ? (need === 1 ? '1 open' : Math.max(0, need - n) + ' of ' + need + ' open') : n ? n + ' signed up' : 'Nobody yet') + '</span>';
-    const card = (j) => {
-      const shifts = !!j.shifts, mine = shifts ? myShiftIds(j).length > 0 : j.claims.some(c => c.userId === st.me);
-      const ids = j.claims.map(c => c.userId).filter((u, i, a) => a.indexOf(u) === i), need = j.need;
-      const full = shifts ? j.shifts.every(u => u.need && u.claims.length >= u.need) : !!need && ids.length >= need;
-      const act = () => { if (!st.busy) toggleClaim(s, j); };
-      // A host taps the people to see who's on it, with Remove (jobs audit M1, owner 2026-10-07)
-      const whoTap = lead && live && (shifts ? j.shifts.some(u => u.claims.length) : ids.length) ? () => setState({ jobRoster: { id: s.id, job: j.id } }) : null;
-      const when = [j.day ? dayWord(s, j.day) : '', shifts ? j.shifts.length + (j.shifts.length === 1 ? ' shift' : ' shifts') : spanTime(j)].filter(Boolean).join(' · ');   // "Sat · 9:00 – 10:00am" (v8-7)
-      const added = !lead && j.createdBy === st.me && !shifts;
-      const clk = lead ? 15 : 13;
-      const head = '<div style="display:flex;align-items:' + (lead ? 'flex-start' : 'center') + ';gap:10px">' +   // a member's button is centred on the title and time (v8-7 item 9)
-        '<div style="flex:1;min-width:0"><div style="font-size:' + (lead ? 21 : 18) + 'px;line-height:1.25;font-weight:900;letter-spacing:' + (lead ? '-.4px' : '-.3px') + ';color:#0d1117;text-wrap:pretty">' + esc(j.item) + '</div>' +
-          (when || added ? '<div style="margin-top:3px;display:flex;align-items:center;gap:6px;font-size:' + (lead ? 15.5 : 13.5) + 'px;font-weight:600;color:' + (lead ? '#5c6270' : '#6b7280') + '">' +
-            (when ? svg(clk, stroke('currentColor', 2.2), P5.clock) + '<span>' + esc(when) + '</span>' : '') +
-            (added ? '<span>' + (when ? '· ' : '') + 'You added this · <span ' + on(() => removeSignup(s, j)) + ' aria-label="Remove ' + esc(j.item) + '" style="color:#9b1c31;font-weight:700;cursor:pointer">Remove</span></span>' : '') + '</div>' : '') + '</div>' +
-        // The lead's ✎ opens Edit job with only this job (Design v8-8 prototype openNeedEd(r.id)); a member's button sits
-        // up here, pulled in by -6px so a one-line title doesn't push the seats down
-        (lead ? (live ? '<span ' + on(() => openNeeds(s, j.id)) + ' data-edit-jobs aria-label="Edit ' + esc(j.item) + '" style="flex:0 0 32px;width:32px;height:32px;margin:-4px -6px 0 0;display:flex;align-items:center;justify-content:center;color:#9aa0ac;cursor:pointer">' + svg(15, stroke('currentColor', 2.3), PENCIL) + '</span>' : '')
-          : shifts ? '' : '<div style="flex:0 0 auto;display:flex">' + button(mine, full, act) + '</div>') + '</div>';
-      const body = shifts
-        ? '<div style="display:flex;flex-direction:column;gap:8px">' + j.shifts.map(u => {
-            const uIds = u.claims.map(c => c.userId), uMine = uIds.indexOf(st.me) > -1, uFull = !uMine && !!u.need && uIds.length >= u.need;
-            const go = () => { if (!st.busy) pickShift(s, j, u); };
-            return '<div data-shift="' + esc(spanTime(u)) + '"' + (whoTap && uIds.length ? ' ' + on(whoTap) : '') + ' style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;background:#f7f8fa' + (whoTap && uIds.length ? ';cursor:pointer' : '') + '">' +
-              '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px"><span style="font-size:14.5px;font-weight:800;color:#0d1117">' + esc(spanTime(u)) + '</span>' +
-                '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;min-width:0">' + seats(uIds, u.need, live && !uMine && !uFull, 28, go) + count(uIds.length, u.need, uFull || (!!u.need && uIds.length >= u.need)) + '</div></div>' +
-              button(uMine, uFull, go) + '</div>';
-          }).join('') + '</div>'
-        : '<div ' + (whoTap ? on(whoTap) + ' data-job-who' : '') + ' style="display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;min-width:0' + (whoTap ? ';cursor:pointer' : '') + '">' + seats(ids, need, live && !mine && !full, 28, act) + count(ids.length, need, full) +
-            (lead ? '<span style="margin-left:auto;display:flex">' + button(mine, full, act) + '</span>' : '') + '</div>';
-      // The lead's note always shows; members open it from the More details bar
-      const open = !!st.descOpen[j.id];
-      const note = j.desc && (lead || open) ? '<p data-job-note style="margin:0;font-size:14.5px;line-height:1.45;font-weight:500;color:#454b55;text-wrap:pretty">' + esc(j.desc) + '</p>' : '';
-      const more = !j.desc || lead ? '' : '<div ' + on(() => setState({ descOpen: Object.assign({}, st.descOpen, { [j.id]: !open }) })) + ' role="button" aria-expanded="' + open + '" style="margin:0 -16px -14px;height:44px;border-top:1px solid #f2f3f6;display:flex;align-items:center;justify-content:center;gap:6px;font-size:13.5px;font-weight:800;color:#6b7280;cursor:pointer">' +
-        (open ? 'Hide details ⌃' : 'More details ⌄') + '</div>';
-      // The lead asks someone for an open job (a shift job can't be asked for yet, so it shares the open jobs)
-      const asks = shifts ? [] : openAsks(s, j.id);
-      const ask = !lead || !live || full || phaseOf(s) === 'done' ? ''
-        : asks.length >= 2 ? '<span style="font-size:13.5px;font-weight:700;color:#8a909b">Two asked. Wait for an answer, or withdraw one.</span>'
-        : '<span ' + on(() => shifts ? shareOpenJobs(s) : openJobAsk(s, j)) + ' data-ask-job role="button" style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:36px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(14, '#5b4ae8', 2.8) + 'Ask someone</span>';
-      return '<div data-signup="' + esc(j.item) + '"' + (mine ? ' data-mine' : '') + ' style="' + CARD + ';' + (mine ? 'box-shadow:inset 0 0 0 2px #f0d48a;' : '') + 'overflow:hidden;padding:14px 16px;display:flex;flex-direction:column;gap:10px">' +
-        head + body + note + ask + more + '</div>';
-    };
-    // Members see the jobs they're in first, then open ones, then full ones; the lead sees their own order
-    const rank = (j) => { const mine = j.shifts ? myShiftIds(j).length > 0 : j.claims.some(c => c.userId === st.me);
-      const full = j.shifts ? j.shifts.every(u => u.need && u.claims.length >= u.need) : !!j.need && j.claims.length >= j.need;
-      return mine ? 0 : full ? 2 : 1; };
-    const ordered = lead ? jobs : jobs.map((j, i) => [j, i]).sort((x, y) => rank(x[0]) - rank(y[0]) || x[1] - y[1]).map(x => x[0]);
-    // Design v8: members don't see Help out on a plan with no jobs, and nobody sees it on a cancelled one, jobs or not
-    // (Design v8-8 prototype hasSignup)
-    const spots = takePart(s);   // spots first, then jobs: one Participate (owner, 2026-10-07; was Take part above Help out)
-    if (s.cancelledAt || (!jobs.length && !spots && phaseOf(s) !== 'idea' && !lead)) return '';
-    // The lead's section Edit pill opens the jobs editor (each job's ✎ stays)
+    const lead = isLead(s), live = !s.cancelledAt, cards = takePart(s);
+    if (s.cancelledAt || (!cards && phaseOf(s) !== 'idea' && !lead)) return '';
     const edit = lead && live ? '<span ' + on(() => openNeeds(s)) + ' data-help-edit role="button" aria-label="Edit Participate" style="flex:0 0 auto;display:flex;align-items:center;gap:5px;min-height:36px;padding:0 2px;color:#6b7280;font-size:14px;font-weight:700;cursor:pointer">' + svg(13, stroke('currentColor', 2.4), PENCIL) + 'Edit</span>' : '';
     return '<section id="sec-tasks" data-screen-label="Participate">' + secTitle('Participate', edit, true) +
       '<div style="display:flex;flex-direction:column;gap:12px">' +
-        // Empty, for the lead: the same dashed box as an empty Details (owner, 2026-10-01)
-        spots + (jobs.length ? ordered.map(card).join('') : spots ? '' : lead
-          ? '<div ' + on(() => openNeeds(s)) + ' data-help-empty style="padding:14px 16px;border-radius:18px;border:1.5px dashed #c9ccd3;font-size:14.5px;font-weight:700;color:#6b7280;cursor:pointer">Add spots or jobs people can sign up for.</div>'
-          : '<div style="' + CARD + ';padding:16px;font-size:14px;line-height:1.45;font-weight:500;color:#5c6270">Nothing on the list yet.</div>') +
-        '</div></section>';   // members no longer add their own things (v8-7 item 9): no Add something else
+        (cards || (lead
+          ? '<div ' + on(() => openNeeds(s)) + ' data-help-empty style="padding:14px 16px;border-radius:18px;border:1.5px dashed #c9ccd3;font-size:14.5px;font-weight:700;color:#6b7280;cursor:pointer">+ Add ways people can help or participate</div>'
+          : '<div style="' + CARD + ';padding:16px;font-size:14px;line-height:1.45;font-weight:500;color:#5c6270">Nothing on the list yet.</div>')) +
+        '</div></section>';
   }
 
   // ---- v6 Update 6: the host edits one section at a time in a small sheet (the full-screen editor is retired)
@@ -6649,13 +6581,12 @@
   // every row is still held, so Save leaves the others as they were
   const openNeeds = (s, only) => setState({ needEd: { id: s.id, only: typeof only === 'string' ? only : null,
     known: [].concat(...(s.jobs || []).map(j => [j.id].concat((j.shifts || []).map(u => u.id))), ...(s.parts || []).map(p => [p.id].concat(p.rows.map(u => u.id)))),
-    rows: (s.jobs || []).map(j => j.shifts
-      ? { id: j.id, item: j.item, desc: j.desc, day: j.day || null, n: j.claims.length, shifts: j.shifts.map(u => ({ id: u.id, time: u.time || '', end: u.endTime || '', need: u.need || null, n: u.claims.length })) }
-      : { id: j.id, item: j.item, desc: j.desc, day: j.day || null, n: j.claims.length, time: j.time || '', end: j.endTime || '', need: j.need || null, shifts: null })
-    .concat((s.parts || []).map(p => p.kind === 'time'
-      ? { id: p.id, kind: p.kind, item: p.item, desc: p.desc, waitlist: p.waitlist, perPerson: p.perPerson, n: [].concat(...p.rows.map(u => u.claims)).length,
-          shifts: p.rows.map(u => ({ id: u.id, time: u.time || '', end: u.endTime || '', need: u.need || null, n: u.claims.length })) }
-      : { id: p.id, kind: p.kind, item: p.item, desc: p.desc, waitlist: p.waitlist, perPerson: p.perPerson, n: p.rows[0].claims.length, time: p.time || '', end: p.endTime || '', need: p.need || null, shifts: null })) } });
+    // every item the same way (one kind of sign-up, 2026-10-07): one time and a count, or a row per time; its options
+    rows: (s.items || []).map(p => { const multi = p.kind === 'time' || p.rows.length > 1 || p.rows[0].id !== p.id;
+      const base = Object.assign({ id: p.id, item: p.item, desc: p.desc, day: p.day || null, waitlist: p.waitlist, perPerson: p.perPerson, guests: p.guests,
+        n: [].concat(...p.rows.map(u => u.claims)).length }, p.kind !== 'job' ? { kind: p.kind } : {});
+      return multi ? Object.assign(base, { shifts: p.rows.map(u => ({ id: u.id, time: u.time || '', end: u.endTime || '', need: u.need || null, n: u.claims.length })) })
+        : Object.assign(base, { time: p.time || '', end: p.endTime || '', need: p.need || null, shifts: null }); }) } });
   const saveNeeds = (s) => {
     const ed = state.needEd;
     if (!ed || state.busy) return;
@@ -6690,7 +6621,7 @@
         const o = orig.find(j => j.id === r.id);
         if (!o) continue;   // taken down since the sheet opened
         const shifts = (r.shifts || []).filter(q => q.time), oldShifts = (o.shifts || []).map(u => u.id).filter(known);
-        const partCols = Object.assign(r.kind ? { waitlist: r.waitlist !== false, per_person: r.perPerson || null } : {}, r.day || o.day ? { day: r.day || null } : {});
+        const partCols = Object.assign({ waitlist: r.waitlist !== false, per_person: r.perPerson || null, guests: r.guests !== false }, r.day || o.day ? { day: r.day || null } : {});
         if (!shifts.length) {
           if (r.kind === 'time') continue;   // every time taken out: Remove takes the spot down
           must(await sb.from('signup_items').update(Object.assign({ item, descr, time: r.time || null, end_time: r.time && r.end && r.end > r.time ? r.end : null, need: r.need || null }, partCols)).eq('id', r.id));
@@ -6800,23 +6731,20 @@
     if (!s) return '';
     const close = () => setState({ needEd: null });
     const setRow = (k, patch) => setState({ needEd: Object.assign({}, state.needEd, { rows: state.needEd.rows.map((r, j) => j === k ? Object.assign({}, r, patch) : r) }) });
-    const title = ed.only ? 'Edit job' : 'Edit Participate';
+    const title = ed.only ? 'Edit' : 'Edit Participate';
     return '<div class="sheet-scrim" data-scrim="' + reg(close) + '" style="z-index:36">' +
       '<div role="dialog" aria-modal="true" aria-label="' + title + '" data-screen-label="' + title + '" class="sheet" style="height:calc(100% - 56px);display:flex;flex-direction:column">' +
         '<div style="padding:10px 18px 12px;display:flex;flex-direction:column;gap:10px;border-bottom:1px solid #f2f3f6"><span aria-hidden="true" style="align-self:center;width:38px;height:5px;border-radius:999px;background:#dcdfe6"></span>' +
           '<div style="display:flex;align-items:center;gap:10px"><div style="flex:1;min-width:0;font-size:22px;font-weight:900;letter-spacing:-.4px;color:#0d1117">' + title + '</div>' + closeX(close) + '</div></div>' +
         '<div style="flex:1 1 auto;min-height:0;overflow-y:auto;padding:16px 18px;display:flex;flex-direction:column;gap:14px">' +
           ed.rows.map((r, k) => ed.only && r.id !== ed.only ? '' : '<div data-need-row style="background:#f4f5f7;border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:10px">' +
-            '<div style="display:flex;align-items:center;gap:10px"><span style="font-size:11.5px;font-weight:900;letter-spacing:1.2px;color:' + (r.kind ? '#149a4b' : '#6b7280') + '">' + (r.kind ? 'SPOT · ' + PART_KINDS[r.kind].eyebrow : 'JOB ' + (k + 1) + (r.shifts ? ' · SHIFTS' : '')) + '</span>' +
+            '<div style="display:flex;align-items:center;gap:10px"><span style="font-size:11.5px;font-weight:900;letter-spacing:1.2px;color:#6b7280">' + (ed.only ? '' : (k + 1) + ' OF ' + ed.rows.length) + '</span>' +
               (r.n ? '<span style="font-size:12.5px;font-weight:800;color:#0f7a3c">' + r.n + (r.kind ? ' claimed' : ' signed up') + '</span>' : '') + '<span style="flex:1"></span>' +
               '<span ' + on(() => setState({ needEd: Object.assign({}, ed, { rows: ed.rows.filter((_, j) => j !== k) }) })) + ' aria-label="Remove job ' + (k + 1) + '" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(16, stroke('#9b1c31', 2.2), TRASH_IC) + '</span></div>' +
-            (r.kind ? partFields(r, (patch) => setRow(k, patch), k) : jobFields(r, (patch) => setRow(k, patch), k, s.sched && s.sched.kind === 'days' && s.days ? s.days.map(x => x.d) : null)) + '</div>').join('') +
+            jobFields(r, (patch) => setRow(k, patch), k, s.sched && s.sched.kind === 'days' && s.days ? s.days.map(x => x.d) : null) + '</div>').join('') +
           // Edit job (one job) has no Add or PARTICIPATE (Design v8-8 prototype needEdAll)
-          (ed.only ? '' : '<div ' + on(() => setState({ needEd: Object.assign({}, ed, { rows: ed.rows.concat([blankJob('')]) }) })) + ' style="display:flex;align-items:center;justify-content:center;gap:8px;min-height:52px;border-radius:18px;border:1.5px dashed #c9ccd3;font-size:14.5px;font-weight:800;color:#454b55;cursor:pointer">' + I.plus(16, 'currentColor', 2.6) + 'Add a job</div>' +
-          // Take part after posting (v8-2): the same three PARTICIPATE kinds
-          '<div data-needs-participate style="display:flex;flex-direction:column;gap:8px"><span style="font-size:12px;font-weight:800;letter-spacing:1.2px;color:#6b7280">ADD A SPOT</span><div style="display:flex;flex-wrap:wrap;gap:6px">' +
-            ['time', 'seat', 'other'].map(kk => '<span ' + on(() => setState({ needEd: Object.assign({}, state.needEd, { rows: state.needEd.rows.concat([blankPart(kk, s.dayTime)]) }) })) + ' data-part-chip="' + PART_KINDS[kk].chip + '" style="display:flex;align-items:center;gap:5px;min-height:40px;padding:0 12px;border-radius:999px;font-size:15px;font-weight:800;cursor:pointer;' +
-              (kk === 'other' ? 'border:1.5px dashed #b9bcc4;color:#454b55' : 'background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.1);color:#0d1117') + '"><span style="color:#149a4b;font-size:17px;line-height:1;font-weight:700">+</span>' + PART_KINDS[kk].chip + '</span>').join('') + '</div></div>') +
+          (ed.only ? '' : '<div data-needs-add ' + on(() => setState({ needEd: Object.assign({}, ed, { rows: ed.rows.concat([blankJob('')]) }) })) + ' style="display:flex;align-items:center;justify-content:center;gap:8px;min-height:52px;border-radius:18px;border:1.5px dashed #c9ccd3;font-size:14.5px;font-weight:800;color:#454b55;cursor:pointer">' + I.plus(16, 'currentColor', 2.6) + 'Add</div>' +
+          '') +
         '</div>' +
         '<div style="padding:12px 18px calc(24px + env(safe-area-inset-bottom, 0px));border-top:1px solid #f2f3f6;display:flex;gap:10px">' +
           '<button type="button" ' + on(close) + ' style="flex:0 0 auto;min-height:52px;padding:0 22px;background:#fff;border:1.5px solid #dcdfe6;border-radius:999px;font-family:inherit;font-size:15.5px;font-weight:800;color:#0d1117;cursor:pointer">Cancel</button>' +
@@ -7689,11 +7617,12 @@
     // three buttons; Change brings the buttons back. Under it: faces, "17 going · 3 maybe", See all ›
     // Design v8-14 (RSVP Button Options 1d): 54px, a 28px circle, the answer's colours, Change in purple
     const RB = { going: ['You’re going', '#e7f6ec', '#149a4b', '#0f7a3b', '<path d="M5 12.5l4.5 4.5L19 7.5"/>'], maybe: ['You’re a maybe', '#fdf1d6', '#f5b428', '#8f6405', '<path d="M9.2 9a2.9 2.9 0 0 1 5.6 1c0 2-2.8 2.6-2.8 4M12 18h.01"/>'],
-      no: ['You can’t make it', '#f2f3f6', '#454b55', '#454b55', '<path d="M7 7l10 10M17 7 7 17"/>'] };
+      // Can't: a sad face, closed eyes and a frown (owner's drawing, 2026-10-07; was an ×)
+      no: ['You can’t make it', '#f2f3f6', '#454b55', '#454b55', '<path d="M3.4 10.2Q5.4 11.4 7.6 9.4M16.4 9.4Q18.6 11.4 20.6 10.2"/><path d="M7.4 18.6Q12 13.6 16.6 18.6"/>', 22, 2.1] };
     const showBar = !!my && RB[my] && st.rsvpEdit !== s.id;
-    const rsvpBar = !showBar ? '' : (() => { const [t, bgc, dot, ink, icon] = RB[my];
+    const rsvpBar = !showBar ? '' : (() => { const [t, bgc, dot, ink, icon, size, sw] = RB[my];
       return '<div data-rsvp-bar="' + my + '" style="display:flex;align-items:center;gap:10px;height:54px;padding:0 12px 0 14px;box-sizing:border-box;border-radius:16px;background:' + bgc + '">' +
-        '<span aria-hidden="true" style="flex:0 0 28px;width:28px;height:28px;border-radius:999px;background:' + dot + ';display:flex;align-items:center;justify-content:center">' + svg(16, stroke('#fff', 3.2), icon) + '</span>' +
+        '<span aria-hidden="true" style="flex:0 0 28px;width:28px;height:28px;border-radius:999px;background:' + dot + ';display:flex;align-items:center;justify-content:center">' + svg(size || 16, stroke('#fff', sw || 3.2), icon) + '</span>' +
         '<span style="flex:1;min-width:0;font-size:17px;font-weight:900;color:' + ink + '">' + t + '</span>' +
         '<button type="button" ' + on(() => setState({ rsvpEdit: s.id })) + ' data-rsvp-change style="flex:0 0 auto;padding:8px 4px;border:0;background:transparent;font-family:inherit;font-size:15px;font-weight:800;color:#5b4ae8;cursor:pointer">Change</button></div>'; })();
     const nGo = headN(s), nMaybe = maybes(s).length;
@@ -9097,7 +9026,7 @@
     details: st.evBits.some(b => b.trim()) || !!(st.evOverview || '').trim() || (MIN_PEOPLE && !st.evDate && st.evNeed > 0), help: st.evNeeds.length > 0 || st.evIdeaJobs.length > 0, lead: true });   // leading it is already picked
   // "Sat, Oct 24 · 10am", "Sat, Oct 24 · 10am – 12pm"
   const dayLabel = (d, t, e) => d ? fmtDay(d) + (t ? ' · ' + (e ? spanTime({ time: t, endTime: e }) : fmtTime(t)) : '') : '';
-  const jobMeta = (j) => j.kind ? partMeta(j) : (j.day ? dayWord(whenCols(evWhen()).schedule, j.day) + ' · ' : '') + (j.shifts ? j.shifts.length + (j.shifts.length === 1 ? ' shift' : ' shifts')
+  const jobMeta = (j) => j.kind ? partMeta(j) : (j.day ? dayWord(whenCols(evWhen()).schedule, j.day) + ' · ' : '') + (j.shifts ? j.shifts.length + (j.shifts.length === 1 ? ' time' : ' times') + (j.shifts.every(q => q.need && q.need === j.shifts[0].need) ? ' · ' + j.shifts[0].need + ' each' : '')
     : (j.need ? j.need + (j.need === 1 ? ' person' : ' people') : 'Anyone') + (j.time ? ' · ' + fmtTime(j.time) : ''));
   const evStarted = (st) => !!(cleanTitle(st.activity) || st.evDate || st.evDatePoll || cleanTitle(st.locText) || st.evSpotPoll || st.evBits.some(b => b.trim()) || !!(st.evOverview || '').trim() || st.evNeeds.length || !!(st.evDesc || '').trim() || (st.evInspo || []).length);
   // People can invite friends (v8-14): on by default for Public, off for Private; switching it sticks until Public / Private changes
@@ -9230,7 +9159,8 @@
   const insertJob = async (sparkId, j) => {
     const item = cleanTitle(j.item).slice(0, 60), descr = (j.desc || '').trim().slice(0, 400) || null;
     if (!item) return;
-    const part = Object.assign(j.kind ? { kind: j.kind, waitlist: j.waitlist !== false, per_person: j.perPerson || null } : {}, j.day ? { day: j.day } : {});   // a job on one day (v8-7)
+    // every item's options (one kind of sign-up, 2026-10-07); a job on one day (v8-7)
+    const part = Object.assign({ waitlist: j.waitlist !== false, per_person: j.perPerson || null, guests: j.guests !== false }, j.kind ? { kind: j.kind } : {}, j.day ? { day: j.day } : {});
     const shifts = (j.shifts || []).filter(q => q.time);
     if (!shifts.length) {
       if (j.kind === 'time') return;
@@ -9725,7 +9655,8 @@
   // A starter chip leaves just its verb ("Bring "): Save waits for what (owner, 2026-09-30)
   const JOB_VERBS = ['bring', 'set up', 'help with', 'clean up', 'coordinate'];
   const jobNamed = (item) => { const t = cleanTitle(item || ''); return !!t && JOB_VERBS.indexOf(t.toLowerCase()) < 0; };
-  const blankJob = (item) => ({ item: item || '', desc: '', time: '', need: 1, shifts: null });
+  // One kind of sign-up (owner, 2026-10-07): every item has a waitlist (on), a most per person (any) and guests (on)
+  const blankJob = (item) => ({ item: item || '', desc: '', time: '', need: 1, shifts: null, waitlist: true, perPerson: null, guests: true });
   // Take part (Design v8-2, 1b): PARTICIPATE's chips open the job sheet in take-part mode. Claim time starts with two
   // 30-minute rows of 4 (from the event's time, or 9am); a seat starts at 8, any other spot at 6. Waitlist on, any number each
   const PART_KINDS = {
@@ -9743,9 +9674,9 @@
   // The Join in list row: "Take part · 4 times · 16 spots", "Take part · 8 seats · 7:30pm"
   const partMeta = (j) => {
     const sh = (j.shifts || []).filter(q => q.time);
-    if (j.kind === 'time') return 'Spot · ' + sh.length + (sh.length === 1 ? ' time' : ' times') + ' · ' + sh.reduce((a, q) => a + (q.need || 0), 0) + ' spots';
+    if (j.kind === 'time') return sh.length + (sh.length === 1 ? ' time' : ' times') + ' · ' + sh.reduce((a, q) => a + (q.need || 0), 0) + ' spots';
     const n = j.need || 0;
-    return 'Spot · ' + n + ' ' + (j.kind === 'seat' ? (n === 1 ? 'seat' : 'seats') : (n === 1 ? 'spot' : 'spots')) + (j.time ? ' · ' + slotTime(j.time) : '');
+    return n + ' ' + (j.kind === 'seat' ? (n === 1 ? 'seat' : 'seats') : (n === 1 ? 'spot' : 'spots')) + (j.time ? ' · ' + slotTime(j.time) : '');
   };
   const partReady = (r) => !!cleanTitle(r.item || '') && (r.kind !== 'time' || (r.shifts || []).some(q => q.time));
   // After a starter chip (Design 24b3, 2026-10-03; Cynthia typed "snacks" in the description and left the title as "Bring"):
@@ -9840,7 +9771,7 @@
         '<span ' + on(() => setState({ evNeeds: state.evNeeds.filter((_, x) => x !== k) })) + ' aria-label="Remove ' + esc(cleanTitle(j.item)) + '" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#f4f5f7;display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(15, stroke('#9b1c31', 2.2), TRASH_IC) + '</span></div>'; }).join('');
     const helpCard = '<div data-cp-help style="' + (needs.length ? WC : GC) + '"><div style="padding:4px 16px 14px;display:flex;flex-direction:column;gap:10px">' + jobRows +
       (needs.length ? '' : '<div style="display:flex;flex-direction:column;gap:4px;padding-top:12px"><span style="font-size:17px;line-height:1.35;font-weight:800;color:#0d1117">Need people to bring things or help out?</span><span style="font-size:14px;line-height:1.4;font-weight:500;color:#5c6270">Add jobs and people going can sign up.</span></div>') +
-      '<div style="height:2px"></div><span ' + on(() => setState({ evJobPop: true })) + ' data-cp-add-job class="hov-tint2" style="display:flex;align-items:center;justify-content:center;gap:6px;min-height:48px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.1);font-size:15.5px;font-weight:900;color:' + P + ';cursor:pointer"><span style="font-size:19px;line-height:1">+</span>Add a job</span></div></div>';
+      '<div style="height:2px"></div><span ' + on(() => setState({ evJobPop: true })) + ' data-cp-add-job class="hov-tint2" style="display:flex;align-items:center;justify-content:center;gap:6px;min-height:48px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.1);font-size:15.5px;font-weight:900;color:' + P + ';cursor:pointer"><span style="font-size:19px;line-height:1">+</span>Add</span></div></div>';
     // VISIBILITY: Post to (a centred pop-up), Public / Private, People can invite friends
     const groups = evGroupIds(st), g0 = groupById(groups[0]);
     const sum = !groups.length ? 'Pick a group' : groups.length === 1 ? (g0 || {}).name : groups.length === 2 ? groups.map(id => (groupById(id) || {}).name).join(' & ') : (g0 || {}).name + ' + ' + (groups.length - 1) + ' more';
@@ -9881,16 +9812,17 @@
   function viewJobKindPop() {
     const close = () => setState({ evJobPop: false });
     const pick = (pre) => { setState({ evJobPop: false }); openJob(null, blankJob(pre)); };
-    return centredPop('Add a job', close,
-      '<div style="display:flex;align-items:center;gap:10px"><span style="flex:1;font-size:22px;font-weight:900;letter-spacing:-.4px;color:#0d1117">Add a job</span>' + closeX(close, 'flex:0 0 36px;width:36px;height:36px') + '</div>' +
-      '<span style="margin-top:-8px;font-size:14px;font-weight:500;color:#5c6270">Pick a kind, then name it.</span>' +
+    // Time slots starts with two 30-minute times of 4 from the event's time (as Claim time did)
+    const t0 = state.evTime && state.evTime >= '06:00' ? state.evTime : '09:00';
+    const slots = () => { setState({ evJobPop: false }); openJob(null, Object.assign(blankJob(''), { need: null, shifts: [{ time: t0, end: addMins(t0, 30), need: 4 }, { time: addMins(t0, 30), end: addMins(t0, 60), need: 4 }] })); };
+    return centredPop('Add', close,
+      '<div style="display:flex;align-items:center;gap:10px"><span style="flex:1;font-size:22px;font-weight:900;letter-spacing:-.4px;color:#0d1117">Add</span>' + closeX(close, 'flex:0 0 36px;width:36px;height:36px') + '</div>' +
+      '<span style="margin-top:-8px;font-size:14px;font-weight:500;color:#5c6270">Pick a starter, then name it.</span>' +
       '<div style="display:flex;flex-wrap:wrap;gap:8px">' + [['Bring', 'Bring '], ['Set up', 'Set up '], ['Help', 'Help with '], ['Clean up', 'Clean up '], ['Coordinate', 'Coordinate '], ['Thought partner', 'Thought partner ']]
         .map(([l, pre]) => '<span ' + on(() => pick(pre)) + ' data-job-chip="' + l + '" class="hov-chip" style="display:flex;align-items:center;min-height:40px;padding:0 14px;border-radius:999px;background:#f2f3f6;font-size:15px;font-weight:800;color:#0d1117;cursor:pointer">' + l + '</span>').join('') + '</div>' +
       '<span ' + on(() => pick('')) + ' data-job-chip="Other" style="align-self:flex-start;display:flex;align-items:center;gap:5px;min-height:36px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">' + svg(13, stroke('currentColor', 2.4), '<path d="M4 20h4L19 9l-4-4L4 16v4Z"/>') + 'Write your own</span>' +
-      // Take part's spots (v8-2) aren't in v8-14's pop-up; the build keeps them under it so time slots and seats can still
-      // be set up while posting (HANDOFF §2 / §5)
-      '<div style="display:flex;flex-direction:column;gap:8px;padding-top:10px;border-top:1px solid #eef0f3"><span style="font-size:12.5px;font-weight:800;letter-spacing:1.2px;color:#454b55">SPOTS</span>' +
-        '<div style="display:flex;flex-wrap:wrap;gap:8px">' + ['time', 'seat', 'other'].map(k => '<span ' + on(() => { setState({ evJobPop: false }); openJob(null, blankPart(k, state.evTime)); }) + ' data-part-chip="' + PART_KINDS[k].chip + '" class="hov-chip" style="display:flex;align-items:center;gap:5px;min-height:40px;padding:0 14px;border-radius:999px;background:#f2f3f6;font-size:15px;font-weight:800;color:#0d1117;cursor:pointer"><span style="color:#149a4b;font-size:17px;line-height:1;font-weight:700">+</span>' + PART_KINDS[k].chip + '</span>').join('') + '</div></div>');
+      // one kind of sign-up (owner, 2026-10-07): time slots are a starter like the rest, not a separate kind
+      '<span ' + on(slots) + ' data-job-chip="Time slots" style="align-self:flex-start;display:flex;align-items:center;gap:5px;min-height:36px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">' + svg(14, stroke('currentColor', 2.4), P5.clock) + 'Time slots</span>');
   }
   // Post to (v8-14): a centred pop-up of the groups with round ticks (nothing below moves), Done
   function viewGrpPop() {
@@ -10147,8 +10079,7 @@
       const label = (t) => '<span style="font-size:12.5px;font-weight:800;letter-spacing:1.2px;color:#454b55">' + t + '</span>';   // #454b55 (v8-6)
       body = head('Join in', 'Ask for help or list specific ways to participate.') +
         (jobs ? '<div style="padding:12px 14px 0;display:flex;flex-direction:column;gap:8px">' + jobs + '</div>' : '') +
-        '<div style="padding:16px 16px 0;display:flex;flex-direction:column;gap:10px">' + label('HELP') + chips(!!jobs) + '</div>' +
-        '<div style="padding:16px 16px 0;display:flex;flex-direction:column;gap:10px">' + label('SPOTS') + pchips(false) + '</div>';   // only HELP's chips grow (Design v8)
+        '<div style="padding:16px 16px 0;display:flex;flex-direction:column;gap:10px">' + label('ADD') + chips(!!jobs) + '</div>';   // one kind of sign-up (2026-10-07): no separate spot chips
     }
     return body;
   }
@@ -10238,12 +10169,10 @@
         if (ns.i != null) list[ns.i] = row; else list.push(row);
         setState({ evNeeds: list, needSheet: null, evHelpNone: false });
       };
-      if (r.kind) return sheet((ns.i != null ? 'Edit ' : 'Add ') + PART_KINDS[r.kind].title, close, SHEET_PAD + ';min-height:min(88%,580px)',
-        partHead(r.kind, ns.i != null, close) + partFields(r, set) +
-        '<div style="margin-top:auto;display:flex;flex-direction:column">' + saveBtn(partReady(r), save, 'Save') + '</div>', 36);   // always Save (Design v8)
-      return centredPop('Add a job', close,   // v8-14: a centred pop-up (it was a bottom sheet)
-        sheetHead('How people can join', ns.i != null ? 'Edit job' : 'Add a job', '', close) + jobFields(r, set, null, (() => { const c = whenCols(evWhen()).schedule; return c && c.kind === 'days' ? c.days.map(x => x.d) : null; })()) +
-        '<div style="display:flex;flex-direction:column">' + saveBtn(jobNamed(r.item), save) + '</div>', 36);
+      // One sheet for every item (one kind of sign-up, owner 2026-10-07): name, details, times, options
+      return centredPop(ns.i != null ? 'Edit' : 'Add', close,   // v8-14: a centred pop-up (it was a bottom sheet)
+        sheetHead('Participate', ns.i != null ? 'Edit' : 'Add', '', close) + jobFields(r, set, null, (() => { const c = whenCols(evWhen()).schedule; return c && c.kind === 'days' ? c.days.map(x => x.d) : null; })()) +
+        '<div style="display:flex;flex-direction:column">' + saveBtn(r.kind ? partReady(r) : jobNamed(r.item), save) + '</div>', 36);
     }
     if (st.evLeave) {
       const close = () => setState({ evLeave: false, evLeaveTo: null });
@@ -10276,25 +10205,37 @@
       (verb ? '<span aria-hidden="true" data-job-filler style="position:absolute;left:18px;right:18px;top:0;bottom:0;display:flex;align-items:center;pointer-events:none;white-space:pre;overflow:hidden;font-size:17px;font-weight:800"><span style="visibility:hidden">' + esc(r.item) + (/\s$/.test(r.item) ? '' : ' ') + '</span><span style="font-style:italic;font-weight:400;color:#b9bcc4">' + esc(JOB_FILL[verb][0]) + '</span></span>' : '') + '</div>' +
       '';   // no suggestion chips under the name (v8); the gray filler after the verb stays
     if (fresh) return '<div style="display:flex;flex-direction:column;gap:10px">' + nameFld + dayPick +
-      '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><span ' + on(() => setState({ jobMore: true })) + ' role="button" data-job-more style="display:flex;align-items:center;gap:6px;min-height:40px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(14, 'currentColor', 2.6) + 'Add details or a time</span>' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><span ' + on(() => setState({ jobMore: true })) + ' role="button" data-job-more style="display:flex;align-items:center;gap:6px;min-height:40px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(14, 'currentColor', 2.6) + 'Add details, times or options</span>' +
         stepper(r.need, (n) => set({ need: n }), 'how many people') + '</div></div>';
     return '<div style="display:flex;flex-direction:column;gap:10px">' + nameFld +
       '<textarea class="fld" rows="2" maxlength="400" aria-label="Details' + tag + '" placeholder="Details (optional)" ' + onInput(e => { if (e.type === 'input') set({ desc: e.target.value.slice(0, 400) }); }) + ' style="' + BIG + ';min-height:52px;padding:12px 16px;font-size:16px;font-weight:500;line-height:1.4;resize:none">' + esc(r.desc || '') + '</textarea>' + dayPick +
       (r.shifts
         ? r.shifts.map((q, k) => '<div data-shift-row style="display:flex;flex-direction:column;gap:8px;padding:10px;border-radius:14px;background:#fff;box-shadow:inset 0 0 0 1.5px #eef0f3">' +
             '<div style="display:flex;align-items:center;gap:6px">' +
-              jobTime('s' + k, q.time, EV_TIMES, 'Start', (v) => setShift(k, { time: v, end: q.end && q.end <= v ? '' : q.end }), 'Shift ' + (k + 1) + ' start', 'No time') +
+              jobTime('s' + k, q.time, EV_TIMES, 'Start', (v) => setShift(k, { time: v, end: q.end && q.end <= v ? '' : q.end }), 'Time ' + (k + 1) + ' start', 'No time') +
               '<span aria-hidden="true" style="font-weight:800;color:#9aa0ac">–</span>' +
-              jobTime('e' + k, q.end, EV_TIMES.filter(v => !q.time || v > q.time), 'End', (v) => setShift(k, { end: v }), 'Shift ' + (k + 1) + ' end', 'No end time') +
-              (held && r.shifts.length === 1 ? '' : '<span ' + on(() => set({ shifts: r.shifts.length > 1 ? r.shifts.filter((_, j) => j !== k) : null, time: r.shifts.length > 1 ? r.time : q.time, need: r.shifts.length > 1 ? r.need : q.need })) + ' aria-label="Remove shift ' + (k + 1) + '" style="flex:0 0 28px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(13, '#6b7280', 2.8) + '</span>') + '</div>' +
-            (q.n ? heldNote(q.n + (q.n === 1 ? ' person is' : ' people are') + ' on this shift. Removing it lets them know.') : '') +
-            '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><span style="font-size:13px;font-weight:800;color:#6b7280">People needed</span>' + stepper(q.need, (n) => setShift(k, { need: n }), 'shift ' + (k + 1)) + '</div></div>').join('') +
-          '<span ' + on(() => set({ shifts: r.shifts.concat([{ time: '', end: '', need: 1 }]) })) + ' style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:36px;font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(14, 'currentColor', 2.6) + 'Add a shift</span>' +
-          (held ? heldNote('People are signed up for these shifts, so they stay as shifts.') : '<span ' + on(() => set({ shifts: null, time: r.shifts[0].time, need: r.shifts[0].need || 1 })) + ' style="align-self:flex-start;display:flex;align-items:center;min-height:32px;font-size:13.5px;font-weight:700;color:#6b7280;cursor:pointer">Use one time instead</span>')
+              jobTime('e' + k, q.end, EV_TIMES.filter(v => !q.time || v > q.time), 'End', (v) => setShift(k, { end: v }), 'Time ' + (k + 1) + ' end', 'No end time') +
+              (held && r.shifts.length === 1 ? '' : '<span ' + on(() => set({ shifts: r.shifts.length > 1 ? r.shifts.filter((_, j) => j !== k) : null, time: r.shifts.length > 1 ? r.time : q.time, need: r.shifts.length > 1 ? r.need : q.need })) + ' aria-label="Remove time ' + (k + 1) + '" style="flex:0 0 28px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(13, '#6b7280', 2.8) + '</span>') + '</div>' +
+            (q.n ? heldNote(q.n + (q.n === 1 ? ' person is' : ' people are') + ' signed up for this time. Removing it lets them know.') : '') +
+            '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><span style="font-size:13px;font-weight:800;color:#6b7280">People needed</span>' + stepper(q.need, (n) => setShift(k, { need: n }), 'time ' + (k + 1)) + '</div></div>').join('') +
+          '<span ' + on(() => set({ shifts: r.shifts.concat([{ time: '', end: '', need: 1 }]) })) + ' style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:36px;font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(14, 'currentColor', 2.6) + 'Add a time</span>' +
+          (held ? heldNote('People are signed up for these times, so they stay as separate times.') : '<span ' + on(() => set({ shifts: null, time: r.shifts[0].time, need: r.shifts[0].need || 1 })) + ' style="align-self:flex-start;display:flex;align-items:center;min-height:32px;font-size:13.5px;font-weight:700;color:#6b7280;cursor:pointer">Use one time instead</span>')
         : '<div style="display:flex;align-items:center;gap:10px">' + jobTime('', r.time, EV_TIMES, 'Time (optional)', (v) => set({ time: v }), 'Time' + tag, 'No time') + stepper(r.need, (n) => set({ need: n }), 'how many people') + '</div>' +
-          (held ? heldNote('People are signed up, so it can’t be split into shifts.') : '<span ' + on(() => set({ shifts: [{ time: r.time || '', end: '', need: r.need || 1 }, { time: '', end: '', need: r.need || 1 }] })) + ' style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:32px;font-size:13.5px;font-weight:700;color:#6b7280;cursor:pointer">' + svg(14, stroke('currentColor', 2.4), P5.clock) + 'Add a shift</span>')) +
+          (held ? heldNote('People are signed up, so it can’t be split into times.') : '<span ' + on(() => set({ shifts: [{ time: r.time || '', end: '', need: r.need || 1 }, { time: '', end: '', need: r.need || 1 }] })) + ' style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:32px;font-size:13.5px;font-weight:700;color:#6b7280;cursor:pointer">' + svg(14, stroke('currentColor', 2.4), P5.clock) + 'Add more times</span>')) +
+    // Options for every item (one kind of sign-up, owner 2026-10-07): a waitlist, most per person, and guests
+    jobOptions(r, set) +
     '</div>';
   };
+  const optSwitch = (v, fn, label, sub, attr) => '<div ' + on(fn, 'switch') + ' aria-checked="' + v + '" aria-label="' + esc(label) + '" ' + attr + ' style="display:flex;align-items:center;gap:12px;cursor:pointer">' +
+    '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">' + esc(label) + '</div><div style="font-size:12.5px;font-weight:600;color:#6b7280">' + esc(sub) + '</div></div>' +
+    '<span aria-hidden="true" style="flex:0 0 46px;width:46px;height:28px;border-radius:999px;position:relative;background:' + (v ? '#149a4b' : '#dcdfe6') + '"><span style="position:absolute;top:3px;left:' + (v ? 21 : 3) + 'px;width:22px;height:22px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2)"></span></span></div>';
+  const jobOptions = (r, set) => '<div data-job-options style="display:flex;flex-direction:column;gap:12px;padding-top:6px;border-top:1px solid #e8eaee">' +
+    optSwitch(r.waitlist !== false, () => set({ waitlist: r.waitlist === false }), 'Waitlist when full', 'First in line gets the next open spot', 'data-part-waitlist') +
+    '<div data-part-cap style="display:flex;align-items:center;gap:12px"><div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">Most per person</div>' +
+      '<div style="font-size:12.5px;font-weight:600;color:#6b7280">' + (r.perPerson ? 'Each person can sign up for up to ' + r.perPerson : 'People can sign up for as many as they like') + '</div></div>' +
+      stepper(r.perPerson, (v) => set({ perPerson: v ? Math.min(20, v) : null }), 'most per person') + '</div>' +
+    optSwitch(r.guests !== false, () => set({ guests: r.guests === false }), 'Guests can sign up', 'People without an account, with a name and phone', 'data-job-guests') +
+    '</div>';
 
   // Take part's fields (Design v8-2, 1b): a name and details, then Claim time's rows (start – end and a count each,
   // + Add a time starting where the last one ended) or a seat's time and count; under a divider, Waitlist when full and
@@ -11110,7 +11051,7 @@
       (st.sec && subj ? viewSecSheet() : '') +
       (st.ph ? viewPositioner() : '') +   // above Edit event, which can open it
       (st.needEd && subj ? viewNeedsSheet() : '') +
-      (st.partRoster ? viewPartRoster() : '') + (st.jobRoster ? viewJobRoster() : '') + (st.partGuest ? viewPartGuest() : '') +
+      (st.partRoster ? viewPartRoster() : '') + (st.partGuest ? viewPartGuest() : '') +
       (st.share ? viewShareSheet() : '') +
       (st.startName != null ? viewStartGroup() : '') +
       (st.updAll ? viewUpdAll() : '') +
@@ -11374,7 +11315,6 @@
       if (state.sec) return setState({ sec: null });
       if (state.partGuest) return setState({ partGuest: null });
       if (state.partRoster) return setState({ partRoster: null });
-      if (state.jobRoster) return setState({ jobRoster: null });
       if (state.needEd) return setState({ needEd: null });
       if (state.share) return setState({ share: state.share.pop ? Object.assign({}, state.share, { pop: null }) : null });   // Escape closes a Share link / QR pop-up first (v8-11)
       if (state.pollSheet) return setState({ pollSheet: null });

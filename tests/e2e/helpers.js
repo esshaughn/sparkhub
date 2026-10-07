@@ -298,11 +298,11 @@ async function postEvent(page, { title, date, time, where, pick, details = [], j
   await closeAskFirst(page);
   return ideaIdFromUrl(page);
 }
-// + Add a job on the one page (v8-14): Write your own, then the job pop-up
+// + Add on the one page (v8-14; one kind of sign-up 2026-10-07): Write your own, then the item pop-up
 async function addJob1a(page, { item, need = 1 }) {
   await page.locator('[data-cp-add-job]').click();
-  await page.getByRole('dialog', { name: 'Add a job' }).locator('[data-job-chip="Other"]').click();
-  const sheet = page.getByRole('dialog', { name: 'Add a job' });
+  await page.getByRole('dialog', { name: 'Add' }).locator('[data-job-chip="Other"]').click();
+  const sheet = page.getByRole('dialog', { name: 'Add' });
   await sheet.getByLabel('Job name').fill(item);
   for (let n = 1; n < need; n++) await sheet.getByRole('button', { name: 'More for how many people' }).click();
   await sheet.getByRole('button', { name: 'Save', exact: true }).click();
@@ -322,7 +322,7 @@ async function addJob(page, { item, need = 1, time }) {
   await page.locator('[data-screen-label="Plan page"]').locator('[data-help-empty], [data-help-edit]').first().click();
   const sheet = page.getByRole('dialog', { name: 'Edit Participate' });
   const n = await sheet.locator('[data-need-row]').count() + 1;
-  await sheet.getByText('Add a job', { exact: true }).click();
+  await sheet.locator('[data-needs-add]').click();
   await sheet.getByLabel('Job name ' + n).fill(item);
   const row = sheet.locator('[data-need-row]').nth(n - 1);
   for (let k = 1; k < need; k++) await row.getByRole('button', { name: 'More for how many people' }).click();
