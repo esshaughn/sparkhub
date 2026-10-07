@@ -5464,13 +5464,13 @@
   // Both open the Float an idea sheet with this group picked (Design v8 prototype: openQI; they opened Create event
   // before the sheet was built)
   const WE_SHOULD = 'Got a “we should…”?';
-  // Design v8: a blue bulb disc with blue rings and a blue Post an idea button
-  const ideasEmpty6 = (g) => '<div data-ideas-empty style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;padding:28px 12px 12px">' +
-    '<span aria-hidden="true" style="width:64px;height:64px;border-radius:999px;background:#2f7ed8;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 10px rgba(47,126,216,.18),0 0 0 20px rgba(47,126,216,.08)">' + svg(30, stroke('#fff', 2), BULB_IC) + '</span>' +
-    '<h2 style="margin:14px 0 0;font-size:26px;line-height:1.1;font-weight:900;letter-spacing:-.7px;color:#0d1117;text-wrap:balance">' + WE_SHOULD + '</h2>' +
-    '<p style="margin:0;max-width:320px;font-size:15px;line-height:1.45;font-weight:500;color:#4b5160;text-wrap:pretty">An Idea is an event without a date. Post it, people vote on when and where, and it turns into a Plan once someone leads it.</p>' +
-    '<button type="button" ' + on(() => openFloat({ groups: [g.id] })) + ' style="margin-top:6px;align-self:stretch;min-height:56px;border:0;border-radius:999px;background:#2f7ed8;display:flex;align-items:center;justify-content:center;gap:8px;font-family:inherit;font-size:16.5px;font-weight:900;color:#fff;cursor:pointer">' +
-      svg(20, stroke('#fff', 2), BULB_IC) + 'Float an Idea</button></div>';
+  // Gold like the rest of Ideas (owner, 2026-10-07; Design v8 drew it blue), a little smaller, with a short general line
+  const ideasEmpty6 = (g) => '<div data-ideas-empty style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding:24px 16px 12px">' +
+    '<span aria-hidden="true" style="width:52px;height:52px;border-radius:999px;background:#f5b428;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 8px rgba(245,180,40,.22),0 0 0 16px rgba(245,180,40,.1)">' + svg(24, stroke('#2a1d00', 2), BULB_IC) + '</span>' +
+    '<h2 style="margin:12px 0 0;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117;text-wrap:balance">' + WE_SHOULD + '</h2>' +
+    '<p style="margin:0;max-width:280px;font-size:14px;line-height:1.45;font-weight:500;color:#4b5160;text-wrap:pretty">Share something you’d like to do. Others chime in, and it can become a plan.</p>' +
+    '<button type="button" ' + on(() => openFloat({ groups: [g.id] })) + ' style="margin-top:4px;align-self:stretch;min-height:50px;border:0;border-radius:999px;background:#f5b428;display:flex;align-items:center;justify-content:center;gap:8px;font-family:inherit;font-size:15.5px;font-weight:900;color:#2a1d00;cursor:pointer">' +
+      svg(18, stroke('#2a1d00', 2), BULB_IC) + 'Float an Idea</button></div>';
   // "{GROUP} · SO FAR": events · said yes · photos, with confetti. Going RSVPs, not attendance, so not "showed up" (research review, 2026-10-01)
   const recap6 = (g, done) => {
     const went = done.reduce((a, s) => a + cameCount(s), 0), allIn = done.length && done.every(checkedIn), photos = done.reduce((a, s) => a + picsOf(s).length, 0);
@@ -8070,7 +8070,9 @@
         (q.date ? summary(CAL_P, dateSum, openDPick, () => set({ date: null }), 'data-qi-date-sum') : q.dpoll ? summary(CAL_P, pollSum, openDPoll, () => set({ dpoll: null }), 'data-qi-date-sum') : twoBtns(openDPick, 'Set date', CAL_P, openDPoll, POLL_I, 'qi-date')) + '</div>' +
       '<div style="display:flex;flex-direction:column;gap:8px">' + label('LOCATION', true) +
         (q.loc ? summary(PIN_P, q.loc, openLPick, () => set({ loc: null }), 'data-qi-loc-sum') : q.lpoll ? summary(PIN_P, lpollSum, openLPoll, () => set({ lpoll: null }), 'data-qi-loc-sum') : twoBtns(openLPick, 'Set location', PIN_P, openLPoll, POLL_I, 'qi-loc')) + '</div></div>' : '';
-    const page1 = '<div style="flex:1 1 auto;min-height:0;overflow-y:auto;scrollbar-width:none;display:flex;flex-direction:column">' +
+    // iPhone drew the lined paper (its clip-path and drop shadow) square over the sheet's rounded top: the sheet masks
+    // itself (isolation + a mask) and this box rounds too (owner, 2026-10-07)
+    const page1 = '<div style="flex:1 1 auto;min-height:0;overflow-y:auto;scrollbar-width:none;display:flex;flex-direction:column;border-radius:24px 24px 0 0">' +
         '<div style="' + PAPER + ';padding:34px 16px 28px;display:flex;flex-direction:column;gap:12px">' + GRAB + IDEA_CHIP +
           '<span style="font-size:17px;line-height:1.4;font-weight:600;color:#454b55;text-wrap:pretty"><span style="font-weight:900;color:#0d1117">Sketch out what you know so far.</span><br>You can change it all later.</span></div>' +
         '<div style="padding:20px 16px 0;display:flex;flex-direction:column;gap:18px">' +
@@ -8149,7 +8151,7 @@
         '<button type="button" data-qi-discard ' + on(() => { writeIdeaDraft(null); setState({ qi: null, qiPop: null }); }) + ' style="min-height:44px;background:transparent;border:0;font-family:inherit;font-size:15px;font-weight:800;color:#9b1c31;cursor:pointer">Discard</button></div></div>';
     void popSet;
     return '<div class="sheet-scrim" data-scrim="' + reg(qiClose) + '" style="z-index:36;align-items:flex-end"></div>' +
-      '<div role="dialog" aria-modal="true" aria-label="Float an Idea" data-screen-label="Float an Idea" style="position:absolute;left:0;right:0;bottom:0;z-index:37;max-height:92%;background:#e8eaee;border-radius:24px 24px 0 0;overflow:hidden;box-shadow:0 -10px 40px rgba(13,17,23,.3);display:flex;flex-direction:column;animation:sheetUp 260ms cubic-bezier(.2,.8,.2,1) both">' +
+      '<div role="dialog" aria-modal="true" aria-label="Float an Idea" data-screen-label="Float an Idea" style="position:absolute;left:0;right:0;bottom:0;z-index:37;max-height:92%;background:#e8eaee;border-radius:24px 24px 0 0;overflow:hidden;isolation:isolate;-webkit-mask-image:-webkit-radial-gradient(white,black);box-shadow:0 -10px 40px rgba(13,17,23,.3);display:flex;flex-direction:column;animation:sheetUp 260ms cubic-bezier(.2,.8,.2,1) both">' +
         '<span ' + on(qiClose) + ' aria-label="Close" style="position:absolute;top:12px;right:14px;z-index:3;width:40px;height:40px;border-radius:999px;background:#fff;box-shadow:0 2px 8px rgba(13,17,23,.15);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(14, '#0d1117', 2.8) + '</span>' +
         (q.page === 2 ? page2 : page1) + '</div>' + popHtml;
   }
