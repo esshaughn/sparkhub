@@ -2612,7 +2612,8 @@
   // 1. Welcome (Home, signed out)
   // ---------------------------------------------------------------------------
 
-  const STEPS = [['#e8a71c', '1', 'Make a plan'], ['#5b4ae8', '2', 'RSVP &amp; pitch in'], ['#0f7a3c', '3', 'Make it happen']];
+  // Plans purple, helping orange, going green, as everywhere else (owner, 2026-10-07; step 1 was gold, ideas' colour)
+  const STEPS = [['#5b4ae8', '1', 'Make a plan'], ['#e8661c', '2', 'RSVP &amp; pitch in'], ['#0f7a3c', '3', 'Make it happen']];
 
   // A guest who has replied to something (from a link) sees it here, with what Spark Hub is, instead of only a sign-in
   // wall (first-encounter audit 2, owner 2026-10-07): Back from the event lands here
