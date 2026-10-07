@@ -17,7 +17,8 @@ test('visitors land on Welcome (no tab bar there) and sign in from there', async
     // "Continue with email": the sign-in pop-up with just the email field, focused (no Google button there)
     await welcome.getByRole('button', { name: 'Continue with email' }).click();
     const dialog = page.getByRole('dialog', { name: 'Sign in' });
-    await expect(dialog).toContainText('Your events, groups, and name are saved to your account. We’ll email you a 6-digit code. No password.');
+    await expect(dialog).toContainText('We’ll email you a 6-digit code. No password.');
+    await expect(dialog).not.toContainText('saved to your account');
     await expect(dialog.getByLabel('Email')).toBeFocused();
     await expect(dialog.getByRole('button', { name: 'Continue with Google' })).toHaveCount(0);
     await expect(dialog.getByRole('link', { name: 'Privacy' })).toHaveAttribute('href', '/privacy.html');
