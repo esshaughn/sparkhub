@@ -10429,8 +10429,8 @@
       '<span style="flex:0 0 26px;width:26px;height:26px;border-radius:999px;background:' + dot + ';color:' + ink + ';font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center">' + n + '</span>' +
       '<span style="display:flex;flex-direction:column;gap:1px"><span style="font-size:15px;font-weight:800;color:#0d1117">' + t + '</span><span style="font-size:13px;font-weight:600;color:#6b7280">' + sub + '</span></span></div>';
     const panels = [
-      kick('WHAT IT IS') + h('Where your group plans get-togethers') +
-        p('See what’s coming up, say you’re going, and pitch in: bring a dish, take a shift, invite a friend. It’s free, and there’s nothing to download.'),
+      kick('WHAT IS SPARK HUB?') + h('Where your group plans get-togethers') +
+        p('See what’s coming up, say you’re going, and pitch in: bring a dish, take a shift, invite a friend. It’s built for communities and neighborhoods.'),
       kick('HOW IT WORKS') + h('Anyone can start something') +
         '<div style="display:flex;flex-direction:column;gap:8px">' +
           step('#fdf1d6', '#f5b428', '#2a1d00', 1, 'Float an idea', '“Pickleball on Sunday mornings?”') +
