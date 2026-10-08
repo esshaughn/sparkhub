@@ -24,15 +24,11 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     await expect(HP).toContainText('5:30pm');
     await expect(HP.locator('[data-led-by]')).toContainText('LED BY');      // the lead sees the card too, asked to bring in a co-lead
     await expect(HP.locator('[data-colead-ask]')).toContainText('Bring in a co-lead.');
-    // The lead is Going to their own plan, and answers with the same buttons as everyone (20261101160000_lead_going.sql)
+    // The lead is Going to their own plan (20261101160000_lead_going.sql): the bar says You're hosting, with no Change (owner, 2026-10-08)
     const mine = HP.locator('[data-rsvp]');
-    await expect(rsvpBar(mine, 'going')).toBeVisible();
+    await expect(rsvpBar(mine, 'host')).toContainText('You’re hosting');
+    await expect(mine.locator('[data-rsvp-change]')).toHaveCount(0);
     await expect(mine.locator('[data-going]')).toHaveAttribute('aria-label', 'See everyone going (1)');   // no counts on the buttons (owner, 2026-10-06)
-    await rsvpTap(mine, 'Maybe');
-    await expect(rsvpBar(mine, 'maybe')).toBeVisible();
-    await rsvpTap(mine, 'Going');
-    await donePlus(H);
-    await expect(rsvpBar(mine, 'going')).toBeVisible();
     await expect(HP.getByRole('button', { name: /Invite people/ })).toBeVisible();
     await expect(HP).not.toContainText('Remind everyone the day before');      // retired in Update 6
     await expect(HP.locator('[data-when-card] [data-empty-spot]')).toContainText('No location yet');
