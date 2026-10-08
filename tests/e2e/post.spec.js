@@ -608,13 +608,13 @@ test('Sign up: + Add opens the starters pop-up; a bare starter can’t be saved'
     await expect(flow.locator('[data-tags]')).toHaveCount(0);          // no "What kind of event?" (owner, 2026-10-01)
     await expect(flow.locator('[data-need-people]')).toHaveCount(0);   // How many people do you want? is hidden for now (owner, 2026-10-02)
     // + Add: Pick a starter, then name it (owner, 2026-10-08: no Thought partner; Write your own and Time slots look different)
-    const kinds = page.getByRole('dialog', { name: 'Add' });
+    const kinds = page.getByRole('dialog', { name: 'Add a sign-up' });
     await flow.locator('[data-cp-add-job]').click();
     await expect(kinds.getByLabel('Job name')).toHaveValue('');   // one pop-up: the starters over a blank name (owner, 2026-10-08)
     await expect(kinds.locator('[data-job-chip]')).toHaveText(['Bring', 'Help with', 'Set up', 'Clean up', 'Coordinate', 'Write your own']);
     // Coordinate is a starter chip too (owner, 2026-10-02); like the others, it waits for what
     await kinds.locator('[data-job-chip="Coordinate"]').click();
-    const job = page.getByRole('dialog', { name: 'Add' });
+    const job = page.getByRole('dialog', { name: 'Add a sign-up' });
     await expect(job.getByLabel('Job name')).toHaveValue(/^Coordinate/);
     await expect(job.getByRole('button', { name: 'Save', exact: true })).toHaveAttribute('aria-disabled', 'true');
     await job.getByRole('button', { name: 'Close' }).click();
@@ -626,7 +626,7 @@ test('Sign up: + Add opens the starters pop-up; a bare starter can’t be saved'
     // Gray filler after the verb, the details behind a link; no suggestion chips (v8)
     await expect(job.locator('[data-job-filler]')).toContainText('snacks, chairs, ice…');
     await expect(job.locator('[data-job-chips]')).toHaveCount(0);
-    await expect(job).toContainText(/Sign up/);
+    await expect(job).toContainText('Add a sign-up');
     await expect(job.getByLabel('Details', { exact: true })).toHaveCount(0);
     await job.getByLabel('Job name').fill('Bring ice');
     await expect(job.locator('[data-job-filler]')).toHaveCount(0);

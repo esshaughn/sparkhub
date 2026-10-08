@@ -9833,11 +9833,11 @@
   const addStarters = (r, set) => {
     const go = (pre) => { set({ item: pre }); setTimeout(() => { const f = document.querySelector('[data-job-name]'); if (f) { f.focus(); const n = f.value.length; try { f.setSelectionRange(n, n); } catch (e) { /* ignore */ } } }, 30); };
     const chip = (k, l, pre) => { const onIt = (r.item || '').trim().toLowerCase() === pre.trim().toLowerCase() && !!pre;
-      return '<span ' + on(() => go(pre)) + ' data-job-chip="' + k + '" class="hov-chip" style="display:flex;align-items:center;gap:6px;min-height:38px;padding:0 13px;border-radius:999px;background:' + (onIt ? '#ebe8fd' : '#f2f3f6') + ';font-size:14.5px;font-weight:800;color:' + (onIt ? '#4a3ad4' : '#0d1117') + ';cursor:pointer">' + l +
-        '<span aria-hidden="true" style="width:20px;height:2px;margin-top:9px;border-radius:2px;background:#9aa0ac"></span></span>'; };
-    return '<div data-add-starters style="display:flex;flex-wrap:wrap;gap:8px">' +
+      return '<span ' + on(() => go(pre)) + ' data-job-chip="' + k + '" class="hov-chip" style="display:flex;align-items:center;gap:5px;min-height:32px;padding:0 11px;border-radius:999px;background:' + (onIt ? '#ebe8fd' : '#f2f3f6') + ';font-size:13.5px;font-weight:800;color:' + (onIt ? '#4a3ad4' : '#0d1117') + ';cursor:pointer">' + l +
+        '<span aria-hidden="true" style="width:16px;height:2px;margin-top:8px;border-radius:2px;background:#9aa0ac"></span></span>'; };
+    return '<div data-add-starters style="display:flex;flex-wrap:wrap;gap:6px">' +
       [['Bring', 'Bring', 'Bring '], ['Help', 'Help with', 'Help with '], ['Set up', 'Set up', 'Set up '], ['Clean up', 'Clean up', 'Clean up '], ['Coordinate', 'Coordinate', 'Coordinate ']].map(([k, l, pre]) => chip(k, l, pre)).join('') +
-      '<span ' + on(() => go('')) + ' data-job-chip="Other" class="hov-chip" style="display:flex;align-items:center;gap:6px;min-height:38px;padding:0 13px;box-sizing:border-box;border-radius:999px;background:#fff;border:1.5px dashed #b9bcc4;font-size:14.5px;font-weight:800;color:#0d1117;cursor:pointer">' + svg(14, stroke('#5b4ae8', 2.4), '<path d="M4 20h4L19 9l-4-4L4 16v4Z"/>') + 'Write your own</span></div>';
+      '<span ' + on(() => go('')) + ' data-job-chip="Other" class="hov-chip" style="display:flex;align-items:center;gap:5px;min-height:32px;padding:0 11px;box-sizing:border-box;border-radius:999px;background:#fff;border:1.5px dashed #b9bcc4;font-size:13.5px;font-weight:800;color:#0d1117;cursor:pointer">' + svg(12, stroke('#5b4ae8', 2.4), '<path d="M4 20h4L19 9l-4-4L4 16v4Z"/>') + 'Write your own</span></div>';
   };
   function viewJobKindPop() {
     const close = () => setState({ evJobPop: false });
@@ -10203,8 +10203,8 @@
         setState({ evNeeds: list, needSheet: null, evHelpNone: false });
       };
       // One sheet for every item (one kind of sign-up, owner 2026-10-07): name, details, times, options
-      return centredPop(ns.i != null ? 'Edit' : 'Add', close,   // v8-14: a centred pop-up (it was a bottom sheet)
-        sheetHead('Sign up', ns.i != null ? 'Edit' : 'Add', '', close) + (ns.i == null ? addStarters(r, set) : '') + jobFields(r, set, null, (() => { const c = whenCols(evWhen()).schedule; return c && c.kind === 'days' ? c.days.map(x => x.d) : null; })()) +
+      return centredPop(ns.i != null ? 'Edit sign-up' : 'Add a sign-up', close,   // v8-14: a centred pop-up (it was a bottom sheet)
+        sheetHead('', ns.i != null ? 'Edit sign-up' : 'Add a sign-up', '', close) + (ns.i == null ? addStarters(r, set) : '') + jobFields(r, set, null, (() => { const c = whenCols(evWhen()).schedule; return c && c.kind === 'days' ? c.days.map(x => x.d) : null; })()) +
         // Save stays in view while the times grow (create flow audit)
         '<div style="position:sticky;bottom:-18px;z-index:2;margin:0 -18px -18px;padding:10px 18px 18px;background:#fff;display:flex;flex-direction:column">' + saveBtn(r.kind ? partReady(r) : jobNamed(r.item), save) + '</div>', 36);
     }

@@ -25,8 +25,8 @@ test('take part: set up spots, claim, waitlist, guest, roster and giving up', as
     await when.getByRole('button', { name: 'Done' }).click();
     await flow.locator('[data-cp-add-job]').click();
     // times are set in the sheet: one time, then Add more times (owner, 2026-10-08: no Time slots chip)
-    await H.getByRole('dialog', { name: 'Add' }).locator('[data-job-chip="Other"]').click();
-    const times = H.getByRole('dialog', { name: 'Add' });
+    await H.getByRole('dialog', { name: 'Add a sign-up' }).locator('[data-job-chip="Other"]').click();
+    const times = H.getByRole('dialog', { name: 'Add a sign-up' });
     await times.getByLabel('Job name').fill('Court time');
     await times.getByText('Add details, times or options').click();
     await times.getByRole('button', { name: 'Time', exact: true }).click();
@@ -42,8 +42,8 @@ test('take part: set up spots, claim, waitlist, guest, roster and giving up', as
     await expect(times.locator('[data-part-waitlist]')).toHaveAttribute('aria-checked', 'true');   // on by default
     await times.getByRole('button', { name: 'Save', exact: true }).click();   // always Save (Design v8)
     await flow.locator('[data-cp-add-job]').click();
-    await H.getByRole('dialog', { name: 'Add' }).locator('[data-job-chip="Other"]').click();
-    const seats = H.getByRole('dialog', { name: 'Add' });
+    await H.getByRole('dialog', { name: 'Add a sign-up' }).locator('[data-job-chip="Other"]').click();
+    const seats = H.getByRole('dialog', { name: 'Add a sign-up' });
     await seats.getByLabel('Job name').fill('Beginner clinic');
     await seats.getByRole('button', { name: 'More for how many people' }).click();
     await seats.getByRole('button', { name: 'Save', exact: true }).click();
