@@ -129,6 +129,32 @@ Rough targets for one group of 30–60 members over 31 days (starting points to 
 
 At this size interviews say more than numbers. Afterwards ask five hosts and five attendees: *Would this have happened without Spark Hub? What did you still do in the group chat? What almost stopped you from proposing something?*
 
+## What the pilot says (Joseph, 2026-10-03 – 10-05)
+
+Joseph runs Torrez Fitness, the pilot group, is bringing in Woodcliff, and has used the live app daily. One strong voice, not a tally; his proposed fixes are hunches, the problems behind them are facts.
+
+- **Hosts get the production; everyone else gets the fun.** His words: the person hosting needs the to-dos, the person coming "needs to be inspired, not stressed." A to-do badge stresses even an engaged lead. To-dos belong on the event, with urgency that grows as the date nears, not in a standing inbox.
+- **If the most engaged user is lost, everyone is.** He couldn't say what each tab did (icons only). One-word labels "work on my brain better." Too many words make him glaze over; a screen has to show *why* at a glance.
+- **People think in one group at a time.** Mixed all-groups views overwhelm him ("which group is what"); seeing all his communities on Groups feels like belonging.
+- **Ideas are the draw for people who can't host yet.** Some people know how to make an event; many have an idea and no direction. They need a light, guided way to post ("Mad Libs", short character limits), and an *I'm in* from others is what gives them the courage to host. The fear to design against: someone finally posts and nobody responds.
+- **Workarounds show real needs.** He made cook-off entries out of a 25-spot job; the building block was right, only the framing was wrong (→ *Take part*).
+- **Social proof brings people out.** Friends going makes him more likely to go. He argues community apps shouldn't shy away from the social side, only do it safely.
+- **Hosts want to rehearse before going public,** and know an empty group looks dead: he's filling Woodcliff with events before sharing a QR code.
+- **On-the-day coordination is the most-repeated ask** (four times). He also judged one-way blasts as half the value: without replies people make a group text anyway.
+
+**Jeni Wade (demo, 2026-10-05).** New to this version; project-based; would browse as a parent.
+
+- **No gotcha.** She loves that an idea is clearly an idea: elsewhere, something advertised as happening turns out to need you, which deflates. Keep the line between idea and plan sharp everywhere.
+- **"Incubator."** Her word for the idea state: it waits until enough pieces are there to hatch. A better name for what the steps strip does.
+- **Commitment words make people contract.** Being called *lead*, even with no duties, made her hold back; she's "a lot more generative" without it. She still wants to stay the gatekeeper of her idea until she trusts someone to take it.
+- **Optional has to look optional.** Fields on the float path read as required; she assumed she had to fill them, and short limits made her wonder if she was "supposed to be more sure." Constraints help people who know what they want (Joseph) and slow down people who are exploring (Jeni).
+- **A group ask can feel safer than a personal one** for the asker: no pressure on one person, and people sort it out among themselves. This pulls against *Ask someone by name* (the market review) and the two-at-a-time ask (Cynthia's yes). Both may be true for different askers.
+- **Task lists divide people.** Joseph is stressed by them; Jeni would make one elsewhere if the app didn't. Offer it, but not as the first thing people see.
+- **Browsing has motives:** *what can we do this weekend* (a parent's need) and *how can I contribute*. Filters by "hat" (family, give-back with kids) serve both.
+- **Help beyond events** (errands, skills to share, meal trains) is what a project-minded neighbour reaches for next. Watch the *Don't build: neighbourhood feed* line: offers of help are *proposals to do something together*; a general feed isn't.
+
+**Conflicts with this doc, for the owner to call:** *Don't build: group chat* (Joseph keeps asking for two-way messaging; this doc says link into the chat; the build's lean, a chat link on the event plus one-way updates, keeps to it). *Don't build: payments* (the owner's *Chip in* idea, BACKLOG 2026-10-05, is a donation rather than ticketing; the doc's advice of linking out to a provider still fits). *Rules of thumb: slow and digest-first* (fits his "less stress" point; argues against per-task pushes beyond one near-the-day heads-up).
+
 ## Business model (later)
 
 Unresolved, and a later risk. What comparable products do: local ads (Front Porch Forum), organiser subscriptions (Meetup, Heylo), ticketing (Luma, Partiful), personal premium tiers (Partiful Plus). Best fit for the mission: **local sponsorships** and **paid access for city parks departments**, which often run Walktober.
