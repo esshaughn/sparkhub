@@ -8088,6 +8088,9 @@
       '<span style="display:flex;align-items:center;font-size:14px;font-weight:800;color:#8f6405">' + EDIT_PEN + 'Edit</span>' +
       '<span ' + on((e) => { stop(e); onClear(); }) + ' aria-label="Clear" style="display:flex;width:32px;height:32px;margin-right:-8px;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#9aa0ac;cursor:pointer">×</span></div>';
     const POLL_I = '<path d="M5 20V11M12 20V5M19 20v-6"/>';
+    // Save draft under the main button, on both pages, once there's a title (owner, 2026-10-08; before, only closing
+    // the sheet offered it)
+    const draftLink = ok ? '<span ' + on(qiSaveDraft) + ' data-qi-draft role="button" style="align-self:center;display:flex;align-items:center;justify-content:center;min-height:44px;font-size:15px;font-weight:800;color:#454b55;cursor:pointer">' + (st.busy === 'draft' ? 'Saving…' : 'Save draft') + '</span>' : '';
     const dateSum = q.date ? shortDate(q.date.d) + (timeLabel(q.date.t) ? ' · ' + timeLabel(q.date.t) : '') : '';
     const pollSum = q.dpoll ? q.dpoll.length + (q.dpoll.length === 1 ? ' date' : ' dates') + ' · ' + q.dpoll.map(o => monthDay(o.d)).join(', ') : '';
     const lpollSum = q.lpoll ? q.lpoll.length + ' locations · ' + q.lpoll.join(', ') : '';
@@ -8120,7 +8123,7 @@
         '</div>' + more + '</div>' +
       '<div style="flex-shrink:0;padding:12px 16px 28px;display:flex;flex-direction:column;gap:4px;background:#e8eaee">' +
         (q.more ? '' : '<span ' + on(() => set({ more: true })) + ' data-qi-more style="align-self:center;display:flex;align-items:center;min-height:40px;font-size:14.5px;font-weight:800;color:#8f6405;cursor:pointer">Add more details<span style="margin-left:5px;font-weight:600;color:#b9a77a">(optional)</span></span>') +
-        '<button type="button" data-qi-next ' + on(() => { if (!ok) { toast('Add a title first'); return; } set({ page: 2, gOpen: false }); }) + ' style="width:100%;min-height:54px;border:0;border-radius:999px;background:' + (ok ? '#f5b428' : '#f6d985') + ';color:' + (ok ? '#2a1d00' : '#6b5418') + ';box-shadow:' + (ok ? '0 6px 16px rgba(245,180,40,.4)' : 'none') + ';font-family:inherit;font-size:16.5px;font-weight:900;cursor:pointer">Next</button></div>';
+        '<button type="button" data-qi-next ' + on(() => { if (!ok) { toast('Add a title first'); return; } set({ page: 2, gOpen: false }); }) + ' style="width:100%;min-height:54px;border:0;border-radius:999px;background:' + (ok ? '#f5b428' : '#f6d985') + ';color:' + (ok ? '#2a1d00' : '#6b5418') + ';box-shadow:' + (ok ? '0 6px 16px rgba(245,180,40,.4)' : 'none') + ';font-family:inherit;font-size:16.5px;font-weight:900;cursor:pointer">Next</button>' + draftLink + '</div>';
     // Page 2: the snapshot recap, WHERE IT GOES and HOW PEOPLE CAN HELP
     const G = myGroups(), sel = q.groups.filter(id => groupById(id)), g0 = groupById(sel[0]);
     const gName = sel.length > 1 ? sel.map(id => groupById(id).name).join(', ') : g0 ? g0.name : 'Pick groups';
@@ -8143,10 +8146,10 @@
             ideaVisRadios(!!q.priv, sel.length, (v) => set({ priv: v }), 'border-top:1px solid #eceef2') + '</div>' +
           '<span style="height:10px"></span>' + sectionLabel('HOW PEOPLE CAN HELP') +
           helpCard(!!q.talk, q.rule, () => set({ talk: !q.talk }), (r) => set({ rule: r }), () => setState({ qiPop: { k: 'rule' } })) + '</div></div>' +
-      '<div style="flex-shrink:0;padding:12px 16px 28px;display:flex;align-items:center;gap:10px;background:#e8eaee">' +
+      '<div style="flex-shrink:0;padding:12px 16px 28px;display:flex;flex-direction:column;gap:4px;background:#e8eaee"><div style="display:flex;align-items:center;gap:10px">' +
         '<span ' + on(() => set({ page: 1, gOpen: false })) + ' style="display:flex;align-items:center;justify-content:center;gap:4px;min-height:54px;padding:0 20px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;font-size:16px;font-weight:800;color:#0d1117;cursor:pointer">' + svg(16, stroke('#0d1117', 2.8), '<path d="m15 6-6 6 6 6"/>') + 'Back</span>' +
         '<button type="button" data-qi-post ' + on(qiPost) + (st.busy === 'post' ? ' disabled' : '') + ' style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;min-height:54px;border:0;border-radius:999px;background:#f5b428;font-family:inherit;font-size:16.5px;font-weight:900;color:#2a1d00;cursor:pointer;opacity:' + (st.busy === 'post' ? .6 : 1) + '">' +
-          svg(18, stroke('#2a1d00', 2.6), '<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9V16h7v-2.1A6 6 0 0 0 12 3z"/>') + (st.busy === 'post' ? 'Floating…' : 'Float the Idea') + '</button></div>';
+          svg(18, stroke('#2a1d00', 2.6), '<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9V16h7v-2.1A6 6 0 0 0 12 3z"/>') + (st.busy === 'post' ? 'Floating…' : 'Float the Idea') + '</button></div>' + draftLink + '</div>';
     // The pop-ups: Set date, Create poll (dates), Set location, Create poll (locations), Pick this up later?, Who leads it?
     let popHtml = '';
     const closePop = () => setState({ qiPop: null });

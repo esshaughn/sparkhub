@@ -687,7 +687,9 @@ test('Float an idea: the Float sheet, a draft, and the starter’s slide-up', as
     await expect(sheet).toContainText('Sketch out what you know so far.');
     await sheet.locator('[data-qi-next]').click();
     await expect(page.getByRole('status')).toContainText('Add a title first');
+    await expect(sheet.locator('[data-qi-draft]')).toHaveCount(0);   // Save draft waits for a title (owner, 2026-10-08)
     await sheet.getByLabel('Your Idea').fill(title);
+    await expect(sheet.locator('[data-qi-draft]')).toBeVisible();
     await expect(sheet).toContainText(title.length + '/40');   // titles stop at 40 (owner, 2026-10-07)
     const why = 'Bring a kite or borrow one. We meet by the big oak near the parking lot, fly for an hour or two, then grab tacos. Kids welcome, no experience needed, and the wind is best before sunset.';   // past the old 120 (200 since 20261120000000)
     await sheet.getByLabel('Short description').fill(why);
@@ -733,6 +735,15 @@ test('Float an idea: the Float sheet, a draft, and the starter’s slide-up', as
     // Ideas can be private, like plans (owner, 2026-10-08): Public by default, Private for only the people invited
     await expect(sheet.locator('[data-idea-vis="public"]')).toHaveAttribute('aria-checked', 'true');
     await sheet.locator('[data-idea-vis="private"]').click();
+    await expect(sheet.locator('[data-idea-vis="private"]')).toHaveAttribute('aria-checked', 'true');
+    // Save draft from page 2 keeps the same draft, Private included
+    await sheet.locator('[data-qi-draft]').click();
+    await expect(page.getByRole('status')).toContainText('Saved as a draft');
+    await expect(sheet).toHaveCount(0);
+    expect(await asUser(page, async (c, _C, t) => (await c.from('event_drafts').select('data').filter('data->>kind', 'eq', 'float')).data.filter(r => r.data.title === t).map(r => r.data.priv), title)).toEqual([true]);
+    await startFloat(page);
+    await expect(page.getByRole('status')).toContainText('Picked up your draft');
+    await sheet.locator('[data-qi-next]').click();
     await expect(sheet.locator('[data-idea-vis="private"]')).toHaveAttribute('aria-checked', 'true');
     await sheet.locator('[data-qi-post]').click();
     // It opens on the Ideas tab as the starter's slide-up
