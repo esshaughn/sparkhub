@@ -661,7 +661,7 @@ test('co-leads: the lead adds one, who edits and posts updates but can’t delet
     await openIdea(O, id);
     const OP = O.locator('[data-screen-label="Plan page"]');
     await expect(OP.locator('[data-chip]')).toHaveCount(0);   // v8-12: no HAPPENING chip
-    await expect(OP.locator('[data-rsvp]').getByRole('button', { name: 'Invite people' })).toHaveCount(0);   // only the main lead invites from here
+    await expect(OP.locator('[data-rsvp]').getByRole('button', { name: 'Invite people' })).toBeVisible();   // co-hosts invite from here too (owner, 2026-10-08)
     await expect(OP.locator('[data-help-edit]')).toBeVisible();   // Help out's section Edit pill (Design v8)
     await expect(OP.locator('[data-led-by] [data-lead-names]')).toHaveText('Hope & Otto');
     await expect(OP.locator('[data-help-empty], [data-edit-jobs]').first()).toBeVisible();   // a co-lead edits the jobs too

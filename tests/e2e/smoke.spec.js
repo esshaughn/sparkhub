@@ -6,7 +6,7 @@ test('visitors land on Welcome (no tab bar there) and sign in from there', async
   const { page, context, errors } = await newMember(browser);
   try {
     const welcome = page.locator('[data-screen-label=Welcome]');
-    await expect(welcome.getByRole('heading', { name: /Plans with\s*your people\./ })).toBeVisible();
+    await expect(welcome.getByRole('heading', { name: /Make plans with\s*your people\./ })).toBeVisible();
     await expect(welcome.getByText('New here? Either one creates your account.')).toBeVisible();
     await expect(welcome.getByRole('listitem')).toHaveText(['1Float an Idea', '2Everybody pitches in', '3Make it a Plan']);   // the intro's steps (owner, 2026-10-07)
     await expect(welcome.locator('[data-about-link]')).toBeVisible();

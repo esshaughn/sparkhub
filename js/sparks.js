@@ -2745,7 +2745,7 @@
   // ---------------------------------------------------------------------------
 
   // The intro's three steps in its colours: ideas gold, helping orange, plans purple (owner, 2026-10-07, Welcome B)
-  const STEPS = [['#f5b428', '1', 'Float an Idea', '#2a1d00'], ['#e8661c', '2', 'Everybody pitches in'], ['#5b4ae8', '3', 'Make it a Plan']];
+  const STEPS = [['#f5b428', '1', 'Float an idea', '#2a1d00'], ['#e8661c', '2', 'Everybody pitches in'], ['#5b4ae8', '3', 'Make it a plan']];
 
   // A guest who has replied to something (from a link) sees it here, with what Spark Hub is, instead of only a sign-in
   // wall (first-encounter audit 2, owner 2026-10-07): Back from the event lands here
@@ -2771,15 +2771,18 @@
     // A full-screen column: the photo behind the top, then the logo, headline and steps,
     // with the sign-in buttons anchored near the bottom of the screen
     return '<div data-screen-label="Welcome" style="position:relative;min-height:100%;display:flex;flex-direction:column;background:#0d1117;overflow:hidden">' +
-      '<div aria-hidden="true" style="position:absolute;left:0;right:0;top:calc(-70px + var(--pt));height:500px;background:' + bg('/photos/welcome-park-2.jpg', '40% 50%') + '"></div>' +
-      '<div aria-hidden="true" style="position:absolute;left:0;right:0;top:0;height:calc(430px + var(--pt));background:linear-gradient(to bottom, rgba(13,17,23,.4) 0%, rgba(13,17,23,.18) 25%, rgba(13,17,23,.62) 48%, rgba(13,17,23,.92) 70%, #0d1117 100%)"></div>' +
-      '<div style="flex:1 0 calc(200px + var(--pt))"></div>' +
+      '<div aria-hidden="true" style="position:absolute;left:0;right:0;top:calc(-40px + var(--pt));height:500px;background:' + bg('/photos/welcome-park-2.jpg', '40% 50%') + '"></div>' +
+      '<div aria-hidden="true" style="position:absolute;left:0;right:0;top:0;height:calc(460px + var(--pt));background:linear-gradient(to bottom, rgba(13,17,23,.4) 0%, rgba(13,17,23,.18) 25%, rgba(13,17,23,.62) 48%, rgba(13,17,23,.92) 70%, #0d1117 100%)"></div>' +
+      // The logo sits at the top centre, over the photo (owner, 2026-10-08; it was above the headline)
+      // a soft dark band behind it so it reads over a bright photo (owner, 2026-10-08)
+      '<div aria-hidden="true" style="position:absolute;left:0;right:0;top:0;height:calc(110px + var(--pt));background:linear-gradient(to bottom, rgba(13,17,23,.72) 0%, rgba(13,17,23,.4) 55%, rgba(13,17,23,0) 100%)"></div>' +
+      '<div aria-label="Spark Hub" data-welcome-logo style="position:absolute;left:0;right:0;top:calc(18px + var(--pt));display:flex;align-items:center;justify-content:center;gap:6px;text-shadow:0 1px 12px rgba(13,17,23,.5)">' + I.bolt(24, '#f3c55a') + '<span style="font-size:18px;line-height:1;font-weight:900;letter-spacing:-.5px;color:#fff">Spark Hub</span>' + betaChip(true) + '</div>' +
+      '<div style="flex:1 0 calc(232px + var(--pt))"></div>' +
       '<div style="position:relative;padding:0 20px;color:#fff;text-shadow:0 1px 12px rgba(13,17,23,.5)">' +
-        '<div aria-label="Spark Hub" style="display:flex;align-items:center;gap:6px;margin-bottom:14px">' + I.bolt(24, '#f3c55a') + '<span style="font-size:18px;line-height:1;font-weight:900;letter-spacing:-.5px;color:#fff">Spark Hub</span>' + betaChip(true) + '</div>' +
-        '<h1 style="margin:0;font-size:42px;line-height:.98;font-weight:900;letter-spacing:-1.4px;color:#fff">Plans with<br><span style="color:#9d93f7">your people.</span></h1>' +
-        '<ol style="list-style:none;margin:18px 0 0;padding:0;display:flex;flex-direction:column;gap:12px">' +
-          STEPS.map(([c, n, t, ink]) => '<li style="display:flex;align-items:center;gap:12px"><span aria-hidden="true" style="flex:0 0 28px;width:28px;height:28px;border-radius:999px;background:' + c + ';color:' + (ink || '#fff') + ';font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center;text-shadow:none">' + n + '</span>' +
-            '<span style="font-size:16.5px;line-height:1.2;font-weight:800;color:#fff">' + t + '</span></li>').join('') +
+        '<h1 style="margin:0;font-size:42px;line-height:.98;font-weight:900;letter-spacing:-1.4px;color:#fff">Make plans with<br><span style="color:#9d93f7">your people.</span></h1>' +
+        '<ol style="list-style:none;margin:20px 0 0;padding:0;display:flex;flex-direction:column;gap:14px">' +
+          STEPS.map(([c, n, t, ink]) => '<li style="display:flex;align-items:center;gap:14px"><span aria-hidden="true" style="flex:0 0 34px;width:34px;height:34px;border-radius:999px;background:' + c + ';color:' + (ink || '#fff') + ';font-size:16px;font-weight:900;display:flex;align-items:center;justify-content:center;text-shadow:none">' + n + '</span>' +
+            '<span style="font-size:19.5px;line-height:1.2;font-weight:800;color:#fff">' + t + '</span></li>').join('') +
         '</ol>' +
         // What's Spark Hub? opens the intro sheet (owner, 2026-10-07)
         '<span ' + on(() => openAbout()) + ' role="button" data-about-link style="display:inline-flex;align-items:center;gap:3px;margin-top:14px;min-height:32px;font-size:15px;font-weight:800;color:#c9c3ff;cursor:pointer">What’s Spark Hub? ' + I.chevR(12, 'currentColor', 2.8) + '</span>' +
@@ -7625,12 +7628,17 @@
     const RB = { going: ['You’re going', '#e7f6ec', '#149a4b', '#0f7a3b', '<path d="M5 12.5l4.5 4.5L19 7.5"/>'], maybe: ['You’re a maybe', '#fdf1d6', '#f5b428', '#8f6405', '<path d="M9.2 9a2.9 2.9 0 0 1 5.6 1c0 2-2.8 2.6-2.8 4M12 18h.01"/>'],
       // Can't: an outlined sad face, closed eyes and a frown (owner's drawing, 2026-10-07; was an × in a dark circle)
       no: ['You can’t make it', '#f2f3f6', '#454b55', '#454b55', '<circle cx="12" cy="12" r="10.4"/><path d="M6.1 10.4Q7.6 11.4 9.4 9.9M14.6 9.9Q16.4 11.4 17.9 10.4"/><path d="M8.6 16.9Q12 13.2 15.4 16.9"/>', 28, 1.9, true] };
-    const showBar = !!my && RB[my] && st.rsvpEdit !== s.id;
-    const rsvpBar = !showBar ? '' : (() => { const [t, bgc, dot, ink, icon, size, sw, outline] = RB[my];
-      return '<div data-rsvp-bar="' + my + '" style="display:flex;align-items:center;gap:10px;height:54px;padding:0 12px 0 14px;box-sizing:border-box;border-radius:16px;background:' + bgc + '">' +
+    // A host is going (owner, 2026-10-08): the lead's bar says You're hosting with no Change (can't make it = step back or
+    // hand it on); a co-host who's going sees it too, with Change, since a co-host may really be a maybe
+    RB.host = ['You’re hosting', '#f3f1fe', '#5b4ae8', '#4a3ad4', '<path d="M13.2 2.2 7.2 13.1l3.9-.35-.9 8.8 6.9-11.2-4.1.4z" fill="#fff" stroke-width="1.7" stroke-linejoin="round"/>', 16, 1.6];
+    const hosting = isTheLead(s) || (isCohost(s) && my === 'going' && st.rsvpEdit !== s.id);
+    const barKey = hosting ? 'host' : my;
+    const showBar = hosting || (!!my && RB[my] && st.rsvpEdit !== s.id);
+    const rsvpBar = !showBar ? '' : (() => { const [t, bgc, dot, ink, icon, size, sw, outline] = RB[barKey];
+      return '<div data-rsvp-bar="' + barKey + '" style="display:flex;align-items:center;gap:10px;height:54px;padding:0 12px 0 14px;box-sizing:border-box;border-radius:16px;background:' + bgc + '">' +
         '<span aria-hidden="true" style="flex:0 0 28px;width:28px;height:28px;border-radius:999px;background:' + (outline ? 'none' : dot) + ';display:flex;align-items:center;justify-content:center">' + svg(size || 16, stroke(outline ? dot : '#fff', sw || 3.2), icon) + '</span>' +   // Can't: an outlined face (owner)
         '<span style="flex:1;min-width:0;font-size:17px;font-weight:900;color:' + ink + '">' + t + '</span>' +
-        '<button type="button" ' + on(() => setState({ rsvpEdit: s.id })) + ' data-rsvp-change style="flex:0 0 auto;padding:8px 4px;border:0;background:transparent;font-family:inherit;font-size:15px;font-weight:800;color:#5b4ae8;cursor:pointer">Change</button></div>'; })();
+        (isTheLead(s) ? '' : '<button type="button" ' + on(() => setState({ rsvpEdit: s.id })) + ' data-rsvp-change style="flex:0 0 auto;padding:8px 4px;border:0;background:transparent;font-family:inherit;font-size:15px;font-weight:800;color:#5b4ae8;cursor:pointer">Change</button>') + '</div>'; })();
     const nGo = headN(s), nMaybe = maybes(s).length;
     const rsvpBlock = s.cancelledAt ? '' : '<div data-rsvp style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:12px">' +
       (showBar ? rsvpBar : '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">' + rsvpBtn('going', 'Going') + rsvpBtn('maybe', 'Maybe') + rsvpBtn('no', 'Can’t') + '</div>') +
@@ -7645,8 +7653,8 @@
         '<span style="flex:0 0 auto;white-space:nowrap;font-size:14.5px;font-weight:800;color:#4a3ad4">See all ›</span></div>') +
       // The lead's two buttons (Design 29, option 5d): Invite people solid (the main lead only, Design v8), Post an update outlined under it
       (lead ? '<div style="display:flex;flex-direction:column;gap:8px">' +
-        (isTheLead(s) ? '<button type="button" class="hov-primary" ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' style="min-height:48px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:15px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer">' +
-          svg(17, stroke('currentColor', 2.2), '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M19 8v6M16 11h6"/>') + 'Invite people</button>' : '') +
+        ('<button type="button" class="hov-primary" data-invite-people ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' style="min-height:48px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:15px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer">' +
+          svg(17, stroke('currentColor', 2.2), '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M19 8v6M16 11h6"/>') + 'Invite people</button>') +
         '<button type="button" class="hov-mag" ' + on(() => openBlast(s)) + ' data-post-update style="min-height:48px;border:0;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 2px ' + MAG.line + ';color:' + MAG.ink + ';font-family:inherit;font-size:15px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer">' +
           svg(18, stroke('currentColor', 2.2), BULLHORN) + 'Post an update</button></div>' : '') + '</div>';
 
@@ -10640,9 +10648,10 @@
     // Back and close live at the top (owner, 2026-10-07, layout A): a round ‹ on panel 2 (the Spark Hub mark and a BETA chip on panel 1) and a round ×; the dots sit above
     // the main button
     const round = (label, fn, icon, data) => '<span ' + on(fn) + ' role="button" aria-label="' + label + '" ' + data + ' style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + icon + '</span>';
-    const top = '<div style="display:flex;align-items:center;justify-content:space-between;margin:-4px 0">' +
+    const top = '<div style="position:relative;display:flex;align-items:center;justify-content:space-between;margin:-4px 0">' +
       (i > 0 ? round('Back', () => go(i - 1), I.chevL(15, '#0d1117', 2.8), 'data-about-back')
-        : '<span data-about-logo aria-label="Spark Hub" style="display:flex;align-items:center;gap:6px">' + I.bolt(22, '#e8a71c') + '<span style="font-size:17px;line-height:1;font-weight:900;letter-spacing:-.5px;color:#0d1117">Spark Hub</span>' +
+        // the mark centred over the headline (owner, 2026-10-08), a blank where Back would be keeps the × right
+        : '<span aria-hidden="true" style="width:36px"></span><span data-about-logo aria-label="Spark Hub" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;align-items:center;gap:6px;white-space:nowrap">' + I.bolt(22, '#e8a71c') + '<span style="font-size:17px;line-height:1;font-weight:900;letter-spacing:-.5px;color:#0d1117">Spark Hub</span>' +
           betaChip(false, 'data-about-beta') + '</span>') + round('Close', close, I.x(13, '#0d1117', 2.8), 'data-about-close') + '</div>';
     // Two panels (owner, 2026-10-07: the feedback panel left; its words will live elsewhere). The last button is Try it out:
     // a guest goes to sign-in; an account just closes the sheet (Got it)
