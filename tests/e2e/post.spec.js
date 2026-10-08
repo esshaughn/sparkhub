@@ -314,9 +314,9 @@ test('Plan an event is one page (v8-14): Post it waits for a title and a date; t
     await where.getByLabel('Location name').fill('Pease Park');
     await where.getByRole('button', { name: 'Done' }).click();
     await expect(flow.locator('[data-cp-row="where"]')).toContainText('Pease Park');
-    // The description: one box, 200 characters, its count
+    // The description: one box, 500 characters (was 200), its count
     await flow.getByLabel('Event description').fill('Bring a bowl. Spoons too.');
-    await expect(flow.locator('[data-cp-desc]')).toContainText('25/200');
+    await expect(flow.locator('[data-cp-desc]')).toContainText('25/500');
     // Private turns People can invite friends off
     await flow.getByRole('radio', { name: /^Private/ }).click();
     await expect(flow.getByRole('switch', { name: 'People can invite friends' })).toHaveAttribute('aria-checked', 'false');
