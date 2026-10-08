@@ -1,7 +1,7 @@
 // Plan an event (v8-14): one page (title, When & where, description, How to participate, Visibility), polls, jobs, drafts,
 // then the host's edit pop-ups on the event page.
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newLead, button, postEvent, openIdea, confirm, startPost, startFloat, asUser, closeAskFirst, pickKind, pickDate, pickTime, timeBox, deleteIdea, ideaIdFromUrl, openAllGroups } = require('./helpers');
+const { uniqueTitle, newLead, button, postEvent, openIdea, confirm, startPost, startFloat, asUser, closeAskFirst, pickKind, pickDate, pickTime, timeBox, deleteIdea, ideaIdFromUrl, openAllGroups, pickPostTo } = require('./helpers');
 
 const inDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 
@@ -249,13 +249,15 @@ test('Plan an event is one page (v8-14): Post it waits for a title and a date; t
   const title = uniqueTitle('Chili cook-off');
   let id;
   try {
-    await startPost(page);
+    await startPost(page, { group: false });
     const flow = page.locator('[data-screen-label="New spark"]');
     const one = flow.locator('[data-screen-label="Create event (1a)"]');
     await expect(one).toBeVisible();
     await expect(page.getByRole('dialog', { name: 'Real or test?' })).toHaveCount(0);
     await expect(flow).not.toContainText('1/4');   // no steps
     await expect(flow.getByLabel('Event title')).toBeFocused();
+    await expect(flow.locator('[data-post-to]')).toContainText('Pick a group');   // none picked for you (owner, 2026-10-08)
+    await pickPostTo(page);
     await expect(flow.getByLabel('Event title')).toHaveAttribute('placeholder', 'Event title');
     await expect(flow.getByLabel('Event title')).toHaveAttribute('maxlength', '40');
     await expect(flow.getByLabel('Quick overview')).toHaveAttribute('placeholder', 'Add a quick overview');

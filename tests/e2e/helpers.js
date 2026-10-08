@@ -160,12 +160,15 @@ async function newLead(browser, n, name, path) {
 const button = (page, name) => page.getByRole('button', { name, exact: true });
 
 // v8-5: the floating + on any tab (here My calendar) opens two pills; Create a plan starts Plan an event
-async function startPost(page) {
+async function startPost(page, { group = true } = {}) {
   await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Calendar', exact: true }).click();
   await page.locator('[data-add-fab]').click();
   await page.locator('[data-plus-plan]').click();
   await expect(page.locator('[data-screen-label="New spark"]')).toBeVisible();
-  // No group is picked for you (owner, 2026-10-08): the leads post to Torrez Fitness
+  if (group) await pickPostTo(page);
+}
+// No group is picked for you (owner, 2026-10-08): the leads post to Torrez Fitness
+async function pickPostTo(page) {
   await page.locator('[data-post-to]').click();
   const to = page.getByRole('dialog', { name: 'Post to' });
   await to.getByRole('checkbox', { name: /Torrez Fitness/ }).click();
@@ -408,7 +411,7 @@ async function rsvpTap(scope, label) {
 }
 const rsvpBar = (scope, k) => scope.locator('[data-rsvp-bar="' + k + '"]');
 
-module.exports = {
+module.exports = { pickPostTo,
   addJob1a,
   rsvpTap, rsvpBar,
   TAG, TORREZ, PNG, leadEmail, uniqueTitle, startPost, startFloat, openTasks, openAllGroups, openProfile, saved, pickView, mockPlaces, stubPhotos, trackErrors, expectConnected, newMember, newLead, button,

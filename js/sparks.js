@@ -2532,7 +2532,13 @@
 
   // What to do once signed in, by where sign-in started
   const resumeAfter = (r) => {
-    if (r.from === 'post') return () => { if (cleanTitle(state.activity)) createEvent(); else if (state.screen !== 'compose') goCompose(); };
+    // Back from signing in to post: in exactly one group, it posts there; in several, Post to asks (no group is picked
+    // for you, owner 2026-10-08)
+    if (r.from === 'post') return () => {
+      if (!evGroupIds(state).length && myGroups().length === 1) state.evGroups = [myGroups()[0].id];
+      if (cleanTitle(state.activity) && evGroupIds(state).length) createEvent();
+      else { if (state.screen !== 'compose') goCompose(); if (cleanTitle(state.activity)) setState({ evGrpPop: true }); }
+    };
     if (r.from === 'join') return () => setState({ joinOpen: true, joinCode: r.joinCode || '', joinBad: false });
     if (r.from === 'invite') return () => { if (!state.inv) startInvite(r.joinCode, 'joining'); inviteJoin(); };
     if (r.from === 'profile') return () => go('me');
