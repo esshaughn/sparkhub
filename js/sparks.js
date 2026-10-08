@@ -9702,6 +9702,7 @@
   const verbOnly = (item) => { const t = (item || '').trim().toLowerCase(); return JOB_FILL[t] ? t : null; };
   const openJob = (i, row) => {
     setState({ needSheet: { i, row }, jobMore: false });
+    if (!(row.item || '').trim()) return;   // a blank + Add: the starters first, no keyboard yet
     setTimeout(() => { const f = document.querySelector('[data-job-name]'); if (f) { f.focus(); const n = f.value.length; try { f.setSelectionRange(n, n); } catch (e) { /* ignore */ } } }, 60);
   };
 
@@ -9780,7 +9781,7 @@
         '<span ' + on(() => setState({ evNeeds: state.evNeeds.filter((_, x) => x !== k) })) + ' aria-label="Remove ' + esc(cleanTitle(j.item)) + '" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#f4f5f7;display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(15, stroke('#9b1c31', 2.2), TRASH_IC) + '</span></div>'; }).join('');
     // The jobs in a white card; under them (or alone) the event page's dashed + Add ways people can help or participate,
     // which opens + Add (owner, 2026-10-08; was a grey card, Need people to bring things or help out? and a white + Add)
-    const addBox = (attr) => '<div ' + on(() => setState({ evJobPop: true, evJobDraft: { item: '', need: 1 } })) + ' data-cp-add-job ' + (attr || '') + ' class="hov-tint2" style="padding:14px 16px;border-radius:18px;border:1.5px dashed #c9ccd3;font-size:14.5px;font-weight:700;color:#6b7280;cursor:pointer">+ Add ways people can help or participate</div>';
+    const addBox = (attr) => '<div ' + on(() => openJob(null, blankJob(''))) + ' data-cp-add-job ' + (attr || '') + ' class="hov-tint2" style="padding:14px 16px;border-radius:18px;border:1.5px dashed #c9ccd3;font-size:14.5px;font-weight:700;color:#6b7280;cursor:pointer">+ Add ways people can help or participate</div>';
     const helpCard = needs.length
       ? '<div style="display:flex;flex-direction:column;gap:10px"><div data-cp-help style="' + WC + '"><div style="padding:4px 16px 4px;display:flex;flex-direction:column">' + jobRows + '</div></div>' + addBox() + '</div>'
       : addBox('data-cp-help');
@@ -9821,6 +9822,17 @@
   // blank. Thought partner stays (owner's call, 2026-10-05)
   const centredPop = (label, close, inner, z) => '<div class="modal-scrim" data-scrim="' + reg(close) + '" style="z-index:' + (z || 36) + ';padding:0 16px;animation:scrimIn 180ms ease-out both">' +
     '<div role="dialog" aria-modal="true" aria-label="' + esc(label) + '" data-screen-label="' + esc(label) + '" style="position:relative;width:100%;box-sizing:border-box;max-height:88%;overflow-y:auto;background:#fff;border-radius:24px;padding:20px 18px 18px;display:flex;flex-direction:column;gap:12px;box-shadow:0 20px 50px rgba(13,17,23,.3);animation:popIn 200ms cubic-bezier(.22,.9,.28,1) both">' + inner + '</div></div>';
+  // + Add (owner, 2026-10-08: the starters pop-up and the item sheet are one): the starters over a blank name field. A
+  // starter puts its words in the field and the cursor after them; Write your own clears it
+  const addStarters = (r, set) => {
+    const go = (pre) => { set({ item: pre }); setTimeout(() => { const f = document.querySelector('[data-job-name]'); if (f) { f.focus(); const n = f.value.length; try { f.setSelectionRange(n, n); } catch (e) { /* ignore */ } } }, 30); };
+    const chip = (k, l, pre) => { const onIt = (r.item || '').trim().toLowerCase() === pre.trim().toLowerCase() && !!pre;
+      return '<span ' + on(() => go(pre)) + ' data-job-chip="' + k + '" class="hov-chip" style="display:flex;align-items:center;gap:6px;min-height:38px;padding:0 13px;border-radius:999px;background:' + (onIt ? '#ebe8fd' : '#f2f3f6') + ';font-size:14.5px;font-weight:800;color:' + (onIt ? '#4a3ad4' : '#0d1117') + ';cursor:pointer">' + l +
+        '<span aria-hidden="true" style="width:20px;height:2px;margin-top:9px;border-radius:2px;background:#9aa0ac"></span></span>'; };
+    return '<div data-add-starters style="display:flex;flex-wrap:wrap;gap:8px">' +
+      [['Bring', 'Bring', 'Bring '], ['Help', 'Help with', 'Help with '], ['Set up', 'Set up', 'Set up '], ['Clean up', 'Clean up', 'Clean up '], ['Coordinate', 'Coordinate', 'Coordinate ']].map(([k, l, pre]) => chip(k, l, pre)).join('') +
+      '<span ' + on(() => go('')) + ' data-job-chip="Other" class="hov-chip" style="display:flex;align-items:center;gap:6px;min-height:38px;padding:0 13px;box-sizing:border-box;border-radius:999px;background:#fff;border:1.5px dashed #b9bcc4;font-size:14.5px;font-weight:800;color:#0d1117;cursor:pointer">' + svg(14, stroke('#5b4ae8', 2.4), '<path d="M4 20h4L19 9l-4-4L4 16v4Z"/>') + 'Write your own</span></div>';
+  };
   function viewJobKindPop() {
     const close = () => setState({ evJobPop: false });
     // A starter (or Write your own) opens the job sheet with its first words (owner, 2026-10-08: no preview card)
@@ -10186,7 +10198,7 @@
       };
       // One sheet for every item (one kind of sign-up, owner 2026-10-07): name, details, times, options
       return centredPop(ns.i != null ? 'Edit' : 'Add', close,   // v8-14: a centred pop-up (it was a bottom sheet)
-        sheetHead('Sign up', ns.i != null ? 'Edit' : 'Add', '', close) + jobFields(r, set, null, (() => { const c = whenCols(evWhen()).schedule; return c && c.kind === 'days' ? c.days.map(x => x.d) : null; })()) +
+        sheetHead('Sign up', ns.i != null ? 'Edit' : 'Add', '', close) + (ns.i == null ? addStarters(r, set) : '') + jobFields(r, set, null, (() => { const c = whenCols(evWhen()).schedule; return c && c.kind === 'days' ? c.days.map(x => x.d) : null; })()) +
         // Save stays in view while the times grow (create flow audit)
         '<div style="position:sticky;bottom:-18px;z-index:2;margin:0 -18px -18px;padding:10px 18px 18px;background:#fff;display:flex;flex-direction:column">' + saveBtn(r.kind ? partReady(r) : jobNamed(r.item), save) + '</div>', 36);
     }
