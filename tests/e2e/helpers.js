@@ -307,12 +307,11 @@ async function postEvent(page, { title, date, time, where, pick, details = [], j
 // + Add on the one page (v8-14; one kind of sign-up 2026-10-07): Write your own, then the item pop-up
 async function addJob1a(page, { item, need = 1 }) {
   await page.locator('[data-cp-add-job]').click();
-  // the job is named and counted in its preview card, then Add (owner, 2026-10-08)
+  await page.getByRole('dialog', { name: 'Add' }).locator('[data-job-chip="Other"]').click();
   const sheet = page.getByRole('dialog', { name: 'Add' });
-  await sheet.locator('[data-job-chip="Other"]').click();
-  await sheet.locator('[data-job-preview-name]').fill(item);
+  await sheet.getByLabel('Job name').fill(item);
   for (let n = 1; n < need; n++) await sheet.getByRole('button', { name: 'More for how many people' }).click();
-  await sheet.locator('[data-job-preview-add]').click();
+  await sheet.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(sheet).toHaveCount(0);
 }
 // Posting a real event opens Invite people with "Events with a friend or two in…" (research review, 2026-10-01; v8-7 title)

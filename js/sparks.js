@@ -9823,29 +9823,8 @@
     '<div role="dialog" aria-modal="true" aria-label="' + esc(label) + '" data-screen-label="' + esc(label) + '" style="position:relative;width:100%;box-sizing:border-box;max-height:88%;overflow-y:auto;background:#fff;border-radius:24px;padding:20px 18px 18px;display:flex;flex-direction:column;gap:12px;box-shadow:0 20px 50px rgba(13,17,23,.3);animation:popIn 200ms cubic-bezier(.22,.9,.28,1) both">' + inner + '</div></div>';
   function viewJobKindPop() {
     const close = () => setState({ evJobPop: false });
-    // The preview card below the chips is the job as people will see it, and you name it right there (owner, 2026-10-08):
-    // a starter fills its first words, Add saves it, More options opens the full sheet (details, times, waitlist…)
-    const d = state.evJobDraft || { item: '', need: 1 }, setD = (patch) => setState({ evJobDraft: Object.assign({}, state.evJobDraft || d, patch) });
-    const focusName = () => setTimeout(() => { const f = document.querySelector('[data-job-preview-name]'); if (f) { f.focus(); const n = f.value.length; try { f.setSelectionRange(n, n); } catch (e) { /* ignore */ } } }, 30);
-    const pick = (pre) => { setD({ item: pre }); focusName(); };
-    const ready = jobNamed(d.item);
-    const addIt = () => { if (!ready) return; setState({ evJobPop: false, evJobDraft: null, evNeeds: state.evNeeds.concat([Object.assign(blankJob(cleanTitle(d.item).slice(0, 60)), { need: d.need })]), evHelpNone: false }); };
-    const more = () => { setState({ evJobPop: false, evJobDraft: null }); openJob(null, Object.assign(blankJob(d.item), { need: d.need })); };
-    const verb = verbOnly(d.item), fill = verb && JOB_FILL[verb] ? JOB_FILL[verb][0] : '';
-    const ring = 'flex:0 0 28px;width:28px;height:28px;border-radius:999px;box-sizing:border-box;border:2px dashed #c9ccd3;background:#fff';
-    const preview = '<div data-job-preview style="display:flex;flex-direction:column;gap:6px">' +
-      '<span style="font-size:12px;font-weight:900;letter-spacing:1px;color:#6b7280">HOW IT WILL LOOK</span>' +
-      '<div style="background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.1), 0 0 0 1px #eceef2;padding:14px 16px;display:flex;flex-direction:column;gap:10px">' +
-        '<div style="position:relative">' +
-          '<input class="fld" type="text" maxlength="60" data-job-preview-name aria-label="Job name" placeholder="Name it, like Bring snacks" value="' + esc(d.item) + '" ' + onInput(e => { if (e.type === 'input') setD({ item: e.target.value.slice(0, 60) }); }) +
-            ' style="width:100%;box-sizing:border-box;border:0;outline:none;padding:0 0 4px;background:transparent;border-bottom:2px dashed ' + (ready ? 'transparent' : '#dcdfe6') + ';font-family:inherit;font-size:18px;font-weight:900;letter-spacing:-.3px;color:#0d1117">' +
-          (fill ? '<span aria-hidden="true" data-job-filler style="position:absolute;left:0;top:0;pointer-events:none;white-space:pre;font-size:18px;font-weight:900;letter-spacing:-.3px"><span style="visibility:hidden">' + esc(d.item) + (/\s$/.test(d.item) ? '' : ' ') + '</span><span style="font-style:italic;font-weight:600;color:#b9bcc4">' + esc(fill) + '</span></span>' : '') + '</div>' +
-        '<div style="display:flex;align-items:center;gap:10px;font-size:13.5px;font-weight:600;color:#6b7280">' +
-          '<span style="flex:1;min-width:0">' + d.need + (d.need === 1 ? ' person' : ' people') + '</span>' + stepper(d.need, (n) => setD({ need: Math.max(1, Math.min(99, n || 1)) }), 'how many people') + '</div>' +
-        '<div aria-hidden="true" style="display:flex;align-items:center;gap:10px;padding:8px 8px 8px 12px;border-radius:14px;background:#f7f8fa">' +
-          '<span style="flex:1;min-width:0;display:flex;align-items:center;gap:4px;flex-wrap:wrap">' + Array.from({ length: Math.min(d.need, 5) }, () => '<span style="' + ring + '"></span>').join('') +
-            '<span style="margin-left:6px;font-size:13.5px;font-weight:700;color:#6b7280">' + (d.need === 1 ? '1 open' : d.need + ' of ' + d.need + ' open') + '</span></span>' +
-          '<span style="flex:0 0 auto;display:flex;align-items:center;height:34px;padding:0 14px;border-radius:999px;box-shadow:inset 0 0 0 2px #5b4ae8;color:#5b4ae8;font-size:14px;font-weight:800">Sign up</span></div></div></div>';
+    // A starter (or Write your own) opens the job sheet with its first words (owner, 2026-10-08: no preview card)
+    const pick = (pre) => { setState({ evJobPop: false, evJobDraft: null }); openJob(null, blankJob(pre)); };
     // Time slots starts with two 30-minute times of 4 from the event's time (as Claim time did)
     const t0 = state.evTime && state.evTime >= '06:00' ? state.evTime : '09:00';
     const slots = () => { setState({ evJobPop: false }); openJob(null, Object.assign(blankJob(''), { need: null, shifts: [{ time: t0, end: addMins(t0, 30), need: 4 }, { time: addMins(t0, 30), end: addMins(t0, 60), need: 4 }] })); };
@@ -9853,17 +9832,14 @@
       '<div style="display:flex;align-items:center;gap:10px"><span style="flex:1;font-size:22px;font-weight:900;letter-spacing:-.4px;color:#0d1117">Add</span>' + closeX(close, 'flex:0 0 36px;width:36px;height:36px') + '</div>' +
       '<span style="margin-top:-8px;font-size:14px;font-weight:500;color:#5c6270">Pick a starter, then name it.</span>' +
       // Starters read as a sentence to finish ("Bring ___"); Thought partner is gone (owner, 2026-10-08)
-      '<div style="display:flex;flex-wrap:wrap;gap:8px">' + [['Bring', 'Bring', 'Bring '], ['Set up', 'Set up', 'Set up '], ['Help', 'Help with', 'Help with '], ['Clean up', 'Clean up', 'Clean up '], ['Coordinate', 'Coordinate', 'Coordinate ']]
+      '<div style="display:flex;flex-wrap:wrap;gap:8px">' + [['Bring', 'Bring', 'Bring '], ['Help', 'Help with', 'Help with '], ['Set up', 'Set up', 'Set up '], ['Clean up', 'Clean up', 'Clean up '], ['Coordinate', 'Coordinate', 'Coordinate ']]
         .map(([k, l, pre]) => '<span ' + on(() => pick(pre)) + ' data-job-chip="' + k + '" class="hov-chip" style="display:flex;align-items:center;gap:6px;min-height:40px;padding:0 14px;border-radius:999px;background:#f2f3f6;font-size:15px;font-weight:800;color:#0d1117;cursor:pointer">' + l +
           '<span aria-hidden="true" style="width:22px;height:2px;margin-top:9px;border-radius:2px;background:#9aa0ac"></span></span>').join('') +
         // Write your own: the same pill in the same row, white with a dashed outline and a pencil (owner, 2026-10-08)
         '<span ' + on(() => pick('')) + ' data-job-chip="Other" class="hov-chip" style="display:flex;align-items:center;gap:6px;min-height:40px;padding:0 14px;box-sizing:border-box;border-radius:999px;background:#fff;border:1.5px dashed #b9bcc4;font-size:15px;font-weight:800;color:#0d1117;cursor:pointer">' + svg(14, stroke('#5b4ae8', 2.4), '<path d="M4 20h4L19 9l-4-4L4 16v4Z"/>') + 'Write your own</span>' +
         // one kind of sign-up (owner, 2026-10-07): time slots are a starter like the rest, not a separate kind
         '<span ' + on(slots) + ' data-job-chip="Time slots" class="hov-chip" style="display:flex;align-items:center;gap:6px;min-height:40px;padding:0 14px;border-radius:999px;background:#f1eefe;font-size:15px;font-weight:800;color:#5b4ae8;cursor:pointer">' + svg(15, stroke('currentColor', 2.4), P5.clock) + 'Time slots</span></div>' +
-      preview +
-      '<div style="display:flex;flex-direction:column;align-items:stretch;gap:2px">' +
-        '<button type="button" data-job-preview-add ' + (ready ? on(addIt) : 'aria-disabled="true"') + ' style="min-height:50px;border:0;border-radius:999px;font-family:inherit;font-size:16px;font-weight:900;color:#fff;background:' + (ready ? '#5b4ae8' : '#c9ccd3') + ';cursor:' + (ready ? 'pointer' : 'default') + '">Add</button>' +
-        '<span ' + on(more) + ' data-job-more-options style="align-self:center;display:flex;align-items:center;min-height:40px;font-size:14px;font-weight:800;color:#6b7280;cursor:pointer">More options: details, times, waitlist</span></div>');
+      '');
   }
   // Post to (v8-14): a centred pop-up of the groups with round ticks (nothing below moves), Done
   function viewGrpPop() {
@@ -10113,7 +10089,7 @@
             '<span ' + on(() => setState({ evNeeds: state.evNeeds.filter((_, x) => x !== k) })) + ' aria-label="Remove ' + esc(cleanTitle(j.item)) + '" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#f4f5f7;display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(15, stroke('#9b1c31', 2.2), TRASH_IC) + '</span></div>';
         }).join('');
       const chips = (big) => '<div style="display:flex;flex-wrap:wrap;gap:' + (big ? 8 : 6) + 'px">' +
-        [['Bring', 'Bring '], ['Set up', 'Set up '], ['Help', 'Help with '], ['Clean up', 'Clean up '], ['Coordinate', 'Coordinate ']].map(([l, p]) => chip(l, () => openJob(null, blankJob(p)), false, big)).join('') +
+        [['Bring', 'Bring '], ['Help', 'Help with '], ['Set up', 'Set up '], ['Clean up', 'Clean up '], ['Coordinate', 'Coordinate ']].map(([l, p]) => chip(l, () => openJob(null, blankJob(p)), false, big)).join('') +
         // as + Add's pop-up: Write your own and Time slots (create flow audit, 2026-10-07; was Other)
         chip('Write your own', () => openJob(null, blankJob('')), true, big) +
         chip('Time slots', () => { const t0 = st.evTime && st.evTime >= '06:00' ? st.evTime : '09:00'; openJob(null, Object.assign(blankJob(''), { need: null, shifts: [{ time: t0, end: addMins(t0, 30), need: 4 }, { time: addMins(t0, 30), end: addMins(t0, 60), need: 4 }] })); }, true, big) + '</div>';

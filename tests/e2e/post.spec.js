@@ -590,7 +590,7 @@ test('Plan an event: × asks about a draft, Keep going stays, and a reload picks
   }
 });
 
-test('Sign up: + Add names the job in its preview card; a bare starter can’t be added', async ({ browser }) => {
+test('Sign up: + Add opens the starters pop-up; a bare starter can’t be saved', async ({ browser }) => {
   test.setTimeout(90000);
   const { page, context, errors } = await newLead(browser, 1, 'Tester');
   const title = uniqueTitle('Pickup soccer');
@@ -605,29 +605,30 @@ test('Sign up: + Add names the job in its preview card; a bare starter can’t b
     await when.getByRole('button', { name: 'Done' }).click();
     await expect(flow.locator('[data-tags]')).toHaveCount(0);          // no "What kind of event?" (owner, 2026-10-01)
     await expect(flow.locator('[data-need-people]')).toHaveCount(0);   // How many people do you want? is hidden for now (owner, 2026-10-02)
-    // + Add: Pick a starter, then name it in the preview card (owner, 2026-10-08: no Thought partner; Write your own and
-    // Time slots look different)
-    const kinds = page.getByRole('dialog', { name: 'Add' }), card = kinds.locator('[data-job-preview]');
+    // + Add: Pick a starter, then name it (owner, 2026-10-08: no Thought partner; Write your own and Time slots look different)
+    const kinds = page.getByRole('dialog', { name: 'Add' });
     await flow.locator('[data-cp-add-job]').click();
     await expect(kinds).toContainText('Pick a starter, then name it.');
-    await expect(kinds.locator('[data-job-chip]')).toHaveText(['Bring', 'Set up', 'Help with', 'Clean up', 'Coordinate', 'Write your own', 'Time slots']);
-    // A starter fills the card's name and waits for what: Add stays off
+    await expect(kinds.locator('[data-job-chip]')).toHaveText(['Bring', 'Help with', 'Set up', 'Clean up', 'Coordinate', 'Write your own', 'Time slots']);
+    // Coordinate is a starter chip too (owner, 2026-10-02); like the others, it waits for what
     await kinds.locator('[data-job-chip="Coordinate"]').click();
-    await expect(card.locator('[data-job-preview-name]')).toHaveValue(/^Coordinate/);
-    await expect(kinds.locator('[data-job-preview-add]')).toHaveAttribute('aria-disabled', 'true');
-    await kinds.locator('[data-job-chip="Bring"]').click();
-    await expect(card.locator('[data-job-filler]')).toContainText('snacks, chairs, ice…');
-    await expect(card).toContainText('1 open');
-    await card.locator('[data-job-preview-name]').fill('Bring ice');
-    await expect(card.locator('[data-job-filler]')).toHaveCount(0);
-    await card.getByRole('button', { name: 'More for how many people' }).click();
-    await expect(card).toContainText('2 of 2 open');
-    await card.locator('[data-job-preview-name]').fill('Bring a ball');
-    // More options opens the full sheet with it
-    await kinds.locator('[data-job-more-options]').click();
     const job = page.getByRole('dialog', { name: 'Add' });
-    await expect(job.getByLabel('Job name')).toHaveValue('Bring a ball');
+    await expect(job.getByLabel('Job name')).toHaveValue(/^Coordinate/);
+    await expect(job.getByRole('button', { name: 'Save', exact: true })).toHaveAttribute('aria-disabled', 'true');
+    await job.getByRole('button', { name: 'Close' }).click();
+    await expect(job).toHaveCount(0);
+    // A starter chip alone ("Bring") can't be saved
+    await flow.locator('[data-cp-add-job]').click();
+    await kinds.locator('[data-job-chip="Bring"]').click();
+    await expect(job.getByRole('button', { name: 'Save', exact: true })).toHaveAttribute('aria-disabled', 'true');
+    // Gray filler after the verb, the details behind a link; no suggestion chips (v8)
+    await expect(job.locator('[data-job-filler]')).toContainText('snacks, chairs, ice…');
+    await expect(job.locator('[data-job-chips]')).toHaveCount(0);
     await expect(job).toContainText(/Sign up/);
+    await expect(job.getByLabel('Details', { exact: true })).toHaveCount(0);
+    await job.getByLabel('Job name').fill('Bring ice');
+    await expect(job.locator('[data-job-filler]')).toHaveCount(0);
+    await job.getByLabel('Job name').fill('Bring a ball');
     await job.getByText('Add details, times or options').click();
     await expect(job.locator('[data-job-options] [data-part-waitlist]')).toHaveAttribute('aria-checked', 'true');   // every item's options (2026-10-07)
     await expect(job.locator('[data-job-guests]')).toHaveAttribute('aria-checked', 'true');

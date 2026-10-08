@@ -32,11 +32,11 @@ test('take part: set up spots, claim, waitlist, guest, roster and giving up', as
     await expect(times.locator('[data-part-waitlist]')).toHaveAttribute('aria-checked', 'true');   // on by default
     await times.getByRole('button', { name: 'Save', exact: true }).click();   // always Save (Design v8)
     await flow.locator('[data-cp-add-job]').click();
+    await H.getByRole('dialog', { name: 'Add' }).locator('[data-job-chip="Other"]').click();
     const seats = H.getByRole('dialog', { name: 'Add' });
-    await seats.locator('[data-job-chip="Other"]').click();
-    await seats.locator('[data-job-preview-name]').fill('Beginner clinic');
+    await seats.getByLabel('Job name').fill('Beginner clinic');
     await seats.getByRole('button', { name: 'More for how many people' }).click();
-    await seats.locator('[data-job-preview-add]').click();
+    await seats.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(flow.locator('[data-job="Court time"]')).toContainText('2 times from 9am · 1 each');
     await expect(flow.locator('[data-job="Beginner clinic"]')).toContainText('2 people');
     await flow.locator('[data-post]').click();
