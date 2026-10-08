@@ -13,7 +13,7 @@ test('take part: set up spots, claim, waitlist, guest, roster and giving up', as
   const title = uniqueTitle('Open play');
   let id, guest;
   try {
-    // Plan an event → + Add → Time slots (two 30-minute times, one each) and a plain item for 2 (one kind of sign-up, 2026-10-07)
+    // Plan an event → + Add → Write your own with two 30-minute times, one each, and a plain item for 2 (one kind of sign-up, 2026-10-07)
     await startPost(H);
     const flow = H.locator('[data-screen-label="New spark"]');
     await flow.getByLabel('Event title').fill(title);
@@ -24,11 +24,21 @@ test('take part: set up spots, claim, waitlist, guest, roster and giving up', as
     await pickTime(when, '09:00');
     await when.getByRole('button', { name: 'Done' }).click();
     await flow.locator('[data-cp-add-job]').click();
-    await H.getByRole('dialog', { name: 'Add' }).locator('[data-job-chip="Time slots"]').click();
+    // times are set in the sheet: one time, then Add more times (owner, 2026-10-08: no Time slots chip)
+    await H.getByRole('dialog', { name: 'Add' }).locator('[data-job-chip="Other"]').click();
     const times = H.getByRole('dialog', { name: 'Add' });
     await times.getByLabel('Job name').fill('Court time');
+    await times.getByText('Add details, times or options').click();
+    await times.getByRole('button', { name: 'Time', exact: true }).click();
+    await pickTime(times, '09:00');
+    await times.getByText('Add more times').click();
     await expect(times.locator('[data-shift-row]')).toHaveCount(2);
-    for (const k of [1, 2]) for (let n = 0; n < 3; n++) await times.getByRole('button', { name: 'Fewer for time ' + k }).click();
+    await times.getByRole('button', { name: 'Time 1 end' }).click();
+    await pickTime(times, '09:30');
+    await times.getByRole('button', { name: 'Time 2 start' }).click();
+    await pickTime(times, '09:30');
+    await times.getByRole('button', { name: 'Time 2 end' }).click();
+    await pickTime(times, '10:00');
     await expect(times.locator('[data-part-waitlist]')).toHaveAttribute('aria-checked', 'true');   // on by default
     await times.getByRole('button', { name: 'Save', exact: true }).click();   // always Save (Design v8)
     await flow.locator('[data-cp-add-job]').click();

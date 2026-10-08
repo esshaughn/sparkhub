@@ -9825,9 +9825,6 @@
     const close = () => setState({ evJobPop: false });
     // A starter (or Write your own) opens the job sheet with its first words (owner, 2026-10-08: no preview card)
     const pick = (pre) => { setState({ evJobPop: false, evJobDraft: null }); openJob(null, blankJob(pre)); };
-    // Time slots starts with two 30-minute times of 4 from the event's time (as Claim time did)
-    const t0 = state.evTime && state.evTime >= '06:00' ? state.evTime : '09:00';
-    const slots = () => { setState({ evJobPop: false }); openJob(null, Object.assign(blankJob(''), { need: null, shifts: [{ time: t0, end: addMins(t0, 30), need: 4 }, { time: addMins(t0, 30), end: addMins(t0, 60), need: 4 }] })); };
     return centredPop('Add', close,
       '<div style="display:flex;align-items:center;gap:10px"><span style="flex:1;font-size:22px;font-weight:900;letter-spacing:-.4px;color:#0d1117">Add</span>' + closeX(close, 'flex:0 0 36px;width:36px;height:36px') + '</div>' +
       '<span style="margin-top:-8px;font-size:14px;font-weight:500;color:#5c6270">Pick a starter, then name it.</span>' +
@@ -9835,10 +9832,10 @@
       '<div style="display:flex;flex-wrap:wrap;gap:8px">' + [['Bring', 'Bring', 'Bring '], ['Help', 'Help with', 'Help with '], ['Set up', 'Set up', 'Set up '], ['Clean up', 'Clean up', 'Clean up '], ['Coordinate', 'Coordinate', 'Coordinate ']]
         .map(([k, l, pre]) => '<span ' + on(() => pick(pre)) + ' data-job-chip="' + k + '" class="hov-chip" style="display:flex;align-items:center;gap:6px;min-height:40px;padding:0 14px;border-radius:999px;background:#f2f3f6;font-size:15px;font-weight:800;color:#0d1117;cursor:pointer">' + l +
           '<span aria-hidden="true" style="width:22px;height:2px;margin-top:9px;border-radius:2px;background:#9aa0ac"></span></span>').join('') +
-        // Write your own: the same pill in the same row, white with a dashed outline and a pencil (owner, 2026-10-08)
+        // Write your own: the same pill in the same row, white with a dashed outline and a pencil; no Time slots chip (owner,
+        // 2026-10-08: times are in the sheet)
         '<span ' + on(() => pick('')) + ' data-job-chip="Other" class="hov-chip" style="display:flex;align-items:center;gap:6px;min-height:40px;padding:0 14px;box-sizing:border-box;border-radius:999px;background:#fff;border:1.5px dashed #b9bcc4;font-size:15px;font-weight:800;color:#0d1117;cursor:pointer">' + svg(14, stroke('#5b4ae8', 2.4), '<path d="M4 20h4L19 9l-4-4L4 16v4Z"/>') + 'Write your own</span>' +
-        // one kind of sign-up (owner, 2026-10-07): time slots are a starter like the rest, not a separate kind
-        '<span ' + on(slots) + ' data-job-chip="Time slots" class="hov-chip" style="display:flex;align-items:center;gap:6px;min-height:40px;padding:0 14px;border-radius:999px;background:#f1eefe;font-size:15px;font-weight:800;color:#5b4ae8;cursor:pointer">' + svg(15, stroke('currentColor', 2.4), P5.clock) + 'Time slots</span></div>' +
+        '</div>' +
       '');
   }
   // Post to (v8-14): a centred pop-up of the groups with round ticks (nothing below moves), Done
@@ -10090,9 +10087,8 @@
         }).join('');
       const chips = (big) => '<div style="display:flex;flex-wrap:wrap;gap:' + (big ? 8 : 6) + 'px">' +
         [['Bring', 'Bring '], ['Help', 'Help with '], ['Set up', 'Set up '], ['Clean up', 'Clean up '], ['Coordinate', 'Coordinate ']].map(([l, p]) => chip(l, () => openJob(null, blankJob(p)), false, big)).join('') +
-        // as + Add's pop-up: Write your own and Time slots (create flow audit, 2026-10-07; was Other)
-        chip('Write your own', () => openJob(null, blankJob('')), true, big) +
-        chip('Time slots', () => { const t0 = st.evTime && st.evTime >= '06:00' ? st.evTime : '09:00'; openJob(null, Object.assign(blankJob(''), { need: null, shifts: [{ time: t0, end: addMins(t0, 30), need: 4 }, { time: addMins(t0, 30), end: addMins(t0, 60), need: 4 }] })); }, true, big) + '</div>';
+        // as + Add's pop-up: Write your own (create flow audit, 2026-10-07; was Other)
+        chip('Write your own', () => openJob(null, blankJob('')), true, big) + '</div>';   // no Time slots (owner, 2026-10-08: times are in the sheet)
       const pchips = (big) => '<div style="display:flex;flex-wrap:wrap;gap:' + (big ? 8 : 6) + 'px">' +
         ['time', 'seat', 'other'].map(k => chip(PART_KINDS[k].chip, () => openJob(null, blankPart(k, st.evTime)), k === 'other', big, true, 'data-part-chip')).join('') + '</div>';
       const label = (t) => '<span style="font-size:12.5px;font-weight:800;letter-spacing:1.2px;color:#454b55">' + t + '</span>';   // #454b55 (v8-6)

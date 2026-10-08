@@ -609,7 +609,7 @@ test('Sign up: + Add opens the starters pop-up; a bare starter can’t be saved'
     const kinds = page.getByRole('dialog', { name: 'Add' });
     await flow.locator('[data-cp-add-job]').click();
     await expect(kinds).toContainText('Pick a starter, then name it.');
-    await expect(kinds.locator('[data-job-chip]')).toHaveText(['Bring', 'Help with', 'Set up', 'Clean up', 'Coordinate', 'Write your own', 'Time slots']);
+    await expect(kinds.locator('[data-job-chip]')).toHaveText(['Bring', 'Help with', 'Set up', 'Clean up', 'Coordinate', 'Write your own']);
     // Coordinate is a starter chip too (owner, 2026-10-02); like the others, it waits for what
     await kinds.locator('[data-job-chip="Coordinate"]').click();
     const job = page.getByRole('dialog', { name: 'Add' });
