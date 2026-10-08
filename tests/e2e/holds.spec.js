@@ -48,7 +48,7 @@ test('soft holds: a date poll pencils its dates in on Month, warns Start an even
     await hold.click();   // the idea page, at Help pick when and where (never the event preview)
     await expect(M.locator('[data-screen-label="Idea page (8b)"]')).toBeVisible();
     await expect(M.locator('[data-hold-line]')).toContainText('Holding these dates on the Calendar until');
-    await expect(M.locator('[data-hold-line]').getByRole('button', { name: 'Keep holding' })).toHaveCount(0);
+    await expect(M.locator('[data-hold-line]').getByRole('button', { name: 'Hold 7 more days' })).toHaveCount(0);
     // Your calendar doesn't show holds
     await nav(M).getByRole('button', { name: 'Calendar', exact: true }).click();
     await expect(M.locator('[data-hold]')).toHaveCount(0);
@@ -60,8 +60,8 @@ test('soft holds: a date poll pencils its dates in on Month, warns Start an even
     const rows = H.locator('[data-when] [data-cal-page]');   // the lead's When? on the v8-8 idea page
     await expect(rows).toHaveCount(2);
     await expect(H.locator('[data-hold-line]')).toContainText('Holding until');
-    await H.locator('[data-hold-line]').getByRole('button', { name: 'Keep holding' }).click();
-    await expect(H.getByRole('status').getByText(/^Holding until /)).toBeVisible();   // the toast (the page's line says it too)
+    // Hold 7 more days shows only in a hold's last 2 days (keep_holding adds the week, 20261120000000; tests/db/checks.sql)
+    await expect(H.locator('[data-keep-holding]')).toHaveCount(0);
 
     // Start an event on a held date: a heads-up, and Next still works
     await startPost(H);

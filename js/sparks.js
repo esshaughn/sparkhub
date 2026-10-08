@@ -130,7 +130,7 @@
   // Titles stop at two lines everywhere (owner, 2026-10-07): 40 characters, and a big title shrinks as it gets
   // longer so 40 fit two lines on a phone (about 1,180 ÷ length px for Figtree 900 in a ~330px column)
   const TITLE_MAX = 40;
-  const OV_MAX = 120;   // the short description, everywhere (owner, 2026-10-07; was 80 in Plan an event), three lines at most
+  const OV_MAX = 200;   // the short description, everywhere (owner, 2026-10-08: was 120, and 80 in Plan an event before 2026-10-07; 20261120000000)
   const titleFs = (t, max) => Math.max(24, Math.min(max, Math.floor(1180 / Math.max(1, String(t || '').length))));
   const fmtDay = (iso) => new Date(iso + 'T12:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
   const wkDay = (iso, long) => new Date(iso + 'T12:00').toLocaleDateString('en-US', { weekday: long ? 'long' : 'short' });
@@ -6677,7 +6677,7 @@
         // v8-13 (item 2): QUICK OVERVIEW under the title on an event: the same overview field as What to expect
         (planOv ? '<div style="display:flex;flex-direction:column;gap:8px"><span style="display:flex;align-items:baseline;gap:8px">' + label('Quick overview') + '<span style="font-size:13px;font-weight:600;color:#9aa0ac">Optional</span></span>' +
           '<label style="display:flex;align-items:center;gap:10px;min-height:52px;padding:0 16px;border-radius:14px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;cursor:text">' +
-            '<input type="text" maxlength="120" data-quick-overview aria-label="Quick overview" placeholder="' + esc(OVERVIEW_PH) + '" value="' + esc(ss.ov || '') + '" ' + onInput(e => { if (e.type === 'input') set({ ov: e.target.value.slice(0, OV_MAX) }); }) +
+            '<input type="text" maxlength="' + OV_MAX + '" data-quick-overview aria-label="Quick overview" placeholder="' + esc(OVERVIEW_PH) + '" value="' + esc(ss.ov || '') + '" ' + onInput(e => { if (e.type === 'input') set({ ov: e.target.value.slice(0, OV_MAX) }); }) +
               ' style="flex:1 1 auto;min-width:0;border:0;padding:0;background:transparent;font-family:inherit;font-size:16px;font-weight:500;color:#0d1117;outline:none">' +
             '<span data-ov-count style="font-size:11.5px;font-weight:700;color:#9aa0ac">' + (ss.ov || '').length + '/' + OV_MAX + '</span></label></div>' : '') +
         // The photo (host only): Adjust re-frames the current one, Replace / Add a photo pick a new one. Both open the
@@ -7027,10 +7027,12 @@
   };
   // The poll's hold, at the bottom of VOTE ON A DATE (Design, soft holds): holding until a date (the lead can Keep holding,
   // 7 more days from today), or lapsed (the lead can Hold them again). Ideas only; gone once a date is set
+  // keep_holding adds 7 days to the hold (20261120000000, ideas audit 2026-10-08; it used to set today + 7, which is
+  // where a new poll's hold already sat, so the button looked dead). The lead gets it in the hold's last 2 days
   const keepHolding = (s) => run(async () => {
     const v = must(await sb.rpc('keep_holding', { p_spark: s.id })).data;
     patchSpark(s.id, { holdUntil: v });
-    toast('Holding until ' + fmtDay(v));
+    toast('Held until ' + fmtDay(v), true);
   });
   const holdLine = (s) => {
     if (s.planned || s.dayDate || s.cancelledAt || !s.dateOpts.length || !s.holdUntil) return '';
@@ -7038,7 +7040,7 @@
     if (on_) return '<div data-hold-line style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;background:#fff;border:1.5px dashed ' + VG.edge + '">' +
       svg(17, stroke(VG.ink, 2.2) + ' style="flex:0 0 17px"', PENCIL_IC) +
       '<span style="flex:1;min-width:0;font-size:14px;line-height:1.35;font-weight:700;color:' + VG.ink + '">' + (lead ? 'Holding until ' : 'Holding these dates on the Calendar until ') + esc(fmtDay(s.holdUntil)) + '</span>' +
-      (lead ? '<button type="button" ' + on(() => keepHolding(s)) + ' style="flex:0 0 auto;min-height:34px;padding:0 14px;border:0;border-radius:999px;background:#e8a71c;color:#3d2a00;font-family:inherit;font-size:13.5px;font-weight:900;cursor:pointer">Keep holding</button>' : '') + '</div>';
+      (lead && s.holdUntil <= isoAdd(todayISO(), 2) ? '<button type="button" ' + on(() => keepHolding(s)) + ' data-keep-holding style="flex:0 0 auto;min-height:34px;padding:0 14px;border:0;border-radius:999px;background:#e8a71c;color:#3d2a00;font-family:inherit;font-size:13.5px;font-weight:900;cursor:pointer">Hold 7 more days</button>' : '') + '</div>';
     return '<div data-hold-line="lapsed" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;background:#f4f5f7">' +
       '<span style="flex:1;min-width:0;font-size:14px;line-height:1.35;font-weight:700;color:#6b7280">These dates aren’t held on the Calendar any more.</span>' +
       (lead ? '<button type="button" ' + on(() => keepHolding(s)) + ' style="flex:0 0 auto;min-height:34px;padding:0 14px;border:0;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #c9ccd3;color:#0d1117;font-family:inherit;font-size:13.5px;font-weight:800;cursor:pointer">Hold them again</button>' : '') + '</div>';
@@ -7678,7 +7680,8 @@
           // The title isn't tappable any more (Design 31): editing goes through the ⋯ at the top right
           '<h1 style="margin:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:' + titleFs(s.text, 40) + 'px;line-height:.98;font-weight:900;letter-spacing:-1.3px;text-wrap:balance">' + esc(s.text) + '</h1>' +
           // v8-13 (item 1; was v8-12 item 2): the overview always sits under the title; What to expect lists only the quick details
-          (s.overview ? '<span data-overview data-overview-head style="display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;font-size:18px;line-height:1.4;font-weight:500;color:#fff;text-wrap:balance">' + esc(s.overview) + '</span>' : '') + '</div>' +
+          // Up to 200 characters (20261120000000): three lines over the photo, a tap shows the rest (owner, 2026-10-08)
+          (s.overview ? '<span ' + on(() => setState({ ovOpen: state.ovOpen === s.id ? null : s.id })) + ' data-overview data-overview-head style="' + (state.ovOpen === s.id ? 'display:block;' : 'display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;cursor:pointer;') + 'font-size:18px;line-height:1.4;font-weight:500;color:#fff;text-wrap:balance">' + esc(s.overview) + '</span>' : '') + '</div>' +
         '</div>', true) +
       tab +
       '<div style="padding:16px 14px 26px;display:flex;flex-direction:column;gap:18px">' +
@@ -8028,7 +8031,7 @@
         await ensureSession();
         const freshPhoto = !!(q.photo && !q.photo.path);
         if (q.photo) path = q.photo.path || await uploadBlob(q.photo.blob);
-        const row = { group_id: groups[0], author_name: st.myName, text: title, hopes: [], vision: null, overview: q.why.trim().slice(0, 120) || null,
+        const row = { group_id: groups[0], author_name: st.myName, text: title, hopes: [], vision: null, overview: q.why.trim().slice(0, OV_MAX) || null,
           photos: path ? [path] : [], cat: 'events', answers: {}, lead_id: st.me, lead_name: st.myName, created_by: st.me, spot: setLoc, spot_open: !setLoc, day_date: setD ? setD.d : null, day_time: setD && /^\d\d:\d\d$/.test(setD.t || '') ? setD.t : null,
           planned: false, visibility: 'group', wants_host: q.rule !== 'me', talk: !!q.talk, lead_rule: 'me' };   // Who leads it (v8-8): Me leads from the start; I'll decide looks for a lead and the starter picks (Anyone is gone)
         try { id = must(await sb.from('sparks').insert(row).select('id').single()).data.id; } catch (e) { if (path && freshPhoto) deletePhotos([path]); throw e; }
@@ -8094,8 +8097,8 @@
             '<input type="text" data-qi-title maxlength="40" aria-label="Your Idea" placeholder="Pickleball on Sunday mornings" value="' + esc(q.title) + '" ' + onInput(e => { if (e.type === 'input') set({ title: e.target.value.slice(0, TITLE_MAX) }); }) + ' style="' + FLD + ring(!!q.title) + 'padding:0 58px 0 14px;height:54px;font-size:18px;font-weight:800">' +
             '<span style="position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:11.5px;font-weight:700;color:#9aa0ac">' + q.title.length + '/40</span></span></label>' +
           '<label style="display:flex;flex-direction:column;gap:8px">' + label('SHORT DESCRIPTION', true) + '<span style="position:relative;display:block">' +
-            '<textarea data-qi-why rows="2" maxlength="120" aria-label="Short description" placeholder="Casual games for all levels. Bring a paddle if you have one." ' + onInput(e => { if (e.type === 'input') set({ why: e.target.value.slice(0, 120) }); }) + ' style="' + FLD + ring(!!q.why) + 'padding:12px 14px 24px;font-size:15.5px;font-weight:600;line-height:1.35;display:block">' + esc(q.why) + '</textarea>' +
-            '<span style="position:absolute;right:12px;bottom:8px;font-size:11.5px;font-weight:700;color:#9aa0ac">' + q.why.length + '/120</span></span></label>' +
+            '<textarea data-qi-why rows="2" maxlength="' + OV_MAX + '" aria-label="Short description" placeholder="Casual games for all levels. Bring a paddle if you have one." ' + onInput(e => { if (e.type === 'input') set({ why: e.target.value.slice(0, OV_MAX) }); }) + ' style="' + FLD + ring(!!q.why) + 'padding:12px 14px 24px;font-size:15.5px;font-weight:600;line-height:1.35;display:block">' + esc(q.why) + '</textarea>' +
+            '<span style="position:absolute;right:12px;bottom:8px;font-size:11.5px;font-weight:700;color:#9aa0ac">' + q.why.length + '/' + OV_MAX + '</span></span></label>' +
           '<div style="display:flex;flex-direction:column;gap:8px">' + label('ADD A PHOTO', true) +
             (q.photo ? '<div style="display:flex;align-items:center;gap:12px"><span style="width:96px;height:72px;border-radius:10px;background:' + bg(q.photo.url) + ';box-shadow:0 2px 6px rgba(13,17,23,.15)"></span>' +
                 '<span ' + on(() => set({ photo: null })) + ' style="display:flex;align-items:center;min-height:40px;font-size:14.5px;font-weight:800;color:#8f6405;cursor:pointer">Remove</span></div>'
@@ -8379,7 +8382,9 @@
   const openPick = (s, kind) => { const day = kind === 'd', src = day ? s.dateOpts.slice().sort(byDate) : s.spotOpts;
     const cur = day ? src.find(o => o.dayDate === s.dayDate && (o.dayTime || null) === (s.dayTime || null)) : src.find(o => o.name === s.spot);
     const top = src.slice().sort((a, b) => b.votes.length - a.votes.length)[0];
-    ipPop({ k: 'pick', kind, id: s.id, sel: (cur || top || {}).id || null, d: day ? s.dayDate || '' : '', v: day ? '' : s.spot || '' }); };
+    // a date or place that isn't one of the suggestions was entered by hand: its row is Another date / Somewhere else
+    const set = day ? s.dayDate : s.spot, sel = cur ? cur.id : set && src.length ? 'own' : (top || {}).id || null;
+    ipPop({ k: 'pick', kind, id: s.id, sel, d: day ? s.dayDate || '' : '', v: day ? '' : s.spot || '' }); };
   const ideaGroups = (s) => gIds(s).filter(id => groupById(id));
   const starterSettings = (s) => { const gs = ideaGroups(s), g0 = groupById(gs[0]);
     return '<div style="display:flex;flex-direction:column;gap:8px;margin-top:6px">' + sectionLabel('WHERE IT GOES') +
@@ -8396,7 +8401,7 @@
       // The new page has no ⋯, so taking it down is a quiet link at the bottom (the build's, HANDOFF §2)
       (canTakeDown(s) ? '<span ' + on(() => { setState({ ip: null }); askDelete(s); }) + ' data-delete-idea style="align-self:center;display:flex;align-items:center;min-height:40px;margin-top:8px;padding:0 10px;font-size:14px;font-weight:700;color:#9b1c31;cursor:pointer">Delete this Idea</span>' : '') + '</div>'; };
   // The note-paper top (slide-up) with the starter's ✎ Edit in place
-  const saveIdeaEdit = (s) => { const e = state.ipEd, text = cleanTitle(e.title).slice(0, TITLE_MAX), why = e.why.trim().slice(0, 120);
+  const saveIdeaEdit = (s) => { const e = state.ipEd, text = cleanTitle(e.title).slice(0, TITLE_MAX), why = e.why.trim().slice(0, OV_MAX);
     if (!text) { toast('Add a title first'); return; }
     run(async () => { must(await sb.from('sparks').update({ text, overview: why || null }).eq('id', s.id)); }, { ipEd: null }).then(ok => { if (ok) toast('Saved', true); }); };
   const paperTop = (s) => { const pics = ideaPics(s), st8 = runsIdea(s), ed = state.ipEd && state.ipEd.id === s.id ? state.ipEd : null;
@@ -8408,11 +8413,11 @@
           (!st8 && !ed && canEdit(s) && state.email ? '<span ' + on(() => { setState({ ip: null }); openSec(s, 'title'); }) + ' data-idea-edit aria-label="Edit Idea" style="display:flex;align-items:center;gap:5px;min-height:36px;margin-right:46px;font-size:14px;font-weight:800;color:#8f6405;cursor:pointer">' + EDIT_PEN + 'Edit</span>' : '') +   // a group admin: the title (admin_edit_spark)
           (st8 && !ed ? '<span ' + on(() => setState({ ipEd: { id: s.id, title: s.text, why: s.overview || '' } })) + ' data-idea-edit style="display:flex;align-items:center;gap:5px;min-height:36px;margin-right:46px;font-size:14px;font-weight:800;color:#8f6405;cursor:pointer">' + EDIT_PEN + 'Edit</span>' : '') + '</div>' +
         (ed ? '<textarea rows="1" maxlength="40" aria-label="Idea title" data-ip-ed-title ' + onInput(e => { if (e.type === 'input') { state.ipEd.title = e.target.value.replace(/\n/g, ' ').slice(0, TITLE_MAX); e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; } }) + ' style="' + TA + 'padding:6px 10px;font-size:30px;line-height:1.1;font-weight:900;letter-spacing:-.8px;field-sizing:content">' + esc(ed.title) + '</textarea>' +
-            '<textarea rows="1" maxlength="120" placeholder="Add a short description" aria-label="Short description" ' + onInput(e => { if (e.type === 'input') { state.ipEd.why = e.target.value.slice(0, 120); e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; } }) + ' style="' + TA + 'padding:6px 10px;font-size:20px;line-height:1.38;font-weight:500;field-sizing:content">' + esc(ed.why) + '</textarea>' +
+            '<textarea rows="1" maxlength="' + OV_MAX + '" placeholder="Add a short description" aria-label="Short description" ' + onInput(e => { if (e.type === 'input') { state.ipEd.why = e.target.value.slice(0, OV_MAX); e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; } }) + ' style="' + TA + 'padding:6px 10px;font-size:20px;line-height:1.38;font-weight:500;field-sizing:content">' + esc(ed.why) + '</textarea>' +
             '<div style="display:flex;gap:8px"><span ' + on(() => setState({ ipEd: null })) + ' style="display:flex;align-items:center;justify-content:center;min-height:44px;padding:0 18px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;font-size:15px;font-weight:800;color:#0d1117;cursor:pointer">Cancel</span>' +
               '<span ' + on(() => saveIdeaEdit(s)) + ' data-ip-ed-save style="flex:1;display:flex;align-items:center;justify-content:center;min-height:44px;border-radius:999px;background:#f5b428;font-size:15px;font-weight:900;color:#2a1d00;cursor:pointer">Save</span></div>'
           : '<span style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:' + titleFs(s.text, 34) + 'px;line-height:1.05;font-weight:900;letter-spacing:-1px;color:#0d1117;text-wrap:balance">' + esc(s.text) + '</span>' +
-            (s.overview ? '<span style="display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;font-size:23px;line-height:1.38;font-weight:500;color:#2a2f38;text-wrap:balance">' + esc(s.overview) + '</span>' : '') + ideaBits(s)) +
+            (s.overview ? '<span data-idea-overview style="display:block;white-space:pre-wrap;overflow-wrap:anywhere;font-size:23px;line-height:1.38;font-weight:500;color:#2a2f38;text-wrap:balance">' + esc(s.overview) + '</span>' : '') + ideaBits(s)) +
         '<span data-led-line style="font-size:13.5px;font-weight:700;color:#6b7280">' + ledLine(s, isStarter(s) || undefined) + ' <span style="font-weight:500">· ' + ago(s.created) + '</span></span></div></div>'; };
   // Help out, Take part and Discussion (Q31): the lead always (to add jobs and spots), members once there's something on them
   // What to expect's quick details (an older idea, or a plan stepped back): gold dots under the description
@@ -8473,7 +8478,7 @@
           '<div style="display:flex;align-items:center;justify-content:space-between">' + IDEA_CHIP +
             (!st8 && canEdit(s) && state.email ? '<span ' + on(() => openSec(s, 'title')) + ' data-idea-edit aria-label="Edit Idea" style="display:flex;align-items:center;gap:5px;min-height:36px;font-size:14px;font-weight:800;color:#8f6405;cursor:pointer">' + EDIT_PEN + 'Edit</span>' : '') + '</div>' +   // a group admin: the title
           '<span style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:' + titleFs(s.text, 28) + 'px;line-height:1.05;font-weight:900;letter-spacing:-.7px;color:#0d1117;text-wrap:balance">' + esc(s.text) + '</span>' +
-          (s.overview ? '<span style="display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;font-size:20px;line-height:1.4;font-weight:500;color:#2a2f38;text-wrap:balance">' + esc(s.overview) + '</span>' : '') + ideaBits(s) +
+          (s.overview ? '<span data-idea-overview style="display:block;white-space:pre-wrap;overflow-wrap:anywhere;font-size:20px;line-height:1.4;font-weight:500;color:#2a2f38;text-wrap:balance">' + esc(s.overview) + '</span>' : '') + ideaBits(s) +
           '<div style="display:flex;align-items:center;gap:8px;margin-top:2px">' + avatarSpan(s.createdBy, floaterName(s), avatarOf(s.createdBy), 24) +
             '<span data-led-line style="font-size:13.5px;font-weight:700;color:#6b7280">' + ledLine(s, isStarter(s) || false) + ' · ' + ago(s.created) + '</span></div></div>' +
         ledByCard8(s) + askCards(s) + (st8 ? starterTop(s) + makeThisPlan(s) : interestCard(s)) + ideaBodyRest(s) +
@@ -8526,22 +8531,35 @@
           needAccount(() => run(async () => { await saveGuestContact(s.id); const id = must(await sb.from('spot_options').insert({ spark_id: s.id, name: v, who }).select('id').single()).data.id;
             must(await sb.from('spot_votes').insert({ option_id: id, user_id: state.me })); }, { ipPop: null }).then(ok => { if (ok) toast('Location added. ' + first + ' will see it.', true); })); }, 'Done', 'data-ip-pop-done')); }
     if (p.k === 'pick') { const day = p.kind === 'd', src = day ? s.dateOpts.slice().sort(byDate) : s.spotOpts, has = src.length > 0, one = src.length === 1;
-      const o = has ? src.find(x => x.id === p.sel) : null, typed = day ? p.d : cleanTitle(p.v || '').slice(0, 80), ok = has ? !!o : !!typed;
+      // Your own date or place (ideas audit, owner 2026-10-08): the last row, Another date / Somewhere else, opens a field,
+      // filled with the suggestion you'd picked so its wording can be changed. It sets the event only; the suggestion stays
+      const own = !has || p.sel === 'own';
+      const o = own ? null : src.find(x => x.id === p.sel), typed = day ? p.d : cleanTitle(p.v || '').slice(0, 80), ok = own ? !!typed : !!o;
       const radioRow = (x) => { const onIt = x.id === p.sel, t = day ? optTime(x) : '', v = x.votes.length;
         return '<div ' + on(() => { p.sel = x.id; render(); }, 'radio') + ' aria-checked="' + onIt + '" data-pick-opt style="display:flex;align-items:center;gap:12px;min-height:58px;padding:0 14px;border-radius:14px;cursor:pointer;background:' + (onIt ? '#fff8e6' : '#fff') + ';box-shadow:' + (onIt ? 'inset 0 0 0 2px #f5b428' : 'inset 0 0 0 1.5px #dcdfe6') + '">' +
           '<span style="flex:0 0 22px;width:22px;height:22px;box-sizing:border-box;border-radius:999px;background:#fff;border:' + (onIt ? '7px solid #f5b428' : '2px solid #c9ccd3') + '"></span>' +
           '<span style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:16px;font-weight:900;color:#0d1117">' + esc(day ? shortDate(x.dayDate) : x.name) + '</span>' +
             '<span style="font-size:13px;font-weight:700;color:#6b7280">' + (one ? (t || 'Suggested') : (day ? v + ' can go' : v === 1 ? '1 vote' : v + ' votes') + (t ? ' · ' + esc(t) : '')) + '</span></span></div>'; };
-      const confirm = () => { if (!ok || state.busy) return;
-        const d = has ? (day ? o.dayDate : '') : p.d;
+      const ownRow = () => { const onIt = p.sel === 'own';
+        return '<div ' + on(() => { if (onIt) return; const was = src.find(x => x.id === p.sel);   // start from the picked suggestion
+            if (was) { if (day) p.d = was.dayDate; else p.v = was.name; }
+            p.sel = 'own'; render(); setTimeout(() => { const f = document.querySelector('[data-pick-own-field] input'); if (f && !day) f.focus(); }, 30); }, 'radio') +
+          ' aria-checked="' + onIt + '" data-pick-own style="display:flex;align-items:center;gap:12px;min-height:58px;padding:0 14px;border-radius:14px;cursor:pointer;background:' + (onIt ? '#fff8e6' : '#fff') + ';box-shadow:' + (onIt ? 'inset 0 0 0 2px #f5b428' : 'inset 0 0 0 1.5px #dcdfe6') + '">' +
+          '<span style="flex:0 0 22px;width:22px;height:22px;box-sizing:border-box;border-radius:999px;background:#fff;border:' + (onIt ? '7px solid #f5b428' : '2px solid #c9ccd3') + '"></span>' +
+          '<span style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:16px;font-weight:900;color:#0d1117">' + (day ? 'Another date' : 'Somewhere else') + '</span>' +
+            '<span style="font-size:13px;font-weight:700;color:#6b7280">' + (day ? 'Set your own' : 'Enter your own, or edit one') + '</span></span></div>'; };
+      const confirm = () => {   // read what's typed now: the field doesn't redraw on every key, so `typed` can be stale
+        const typed = day ? p.d : cleanTitle(p.v || '').slice(0, 80);
+        if (!(own ? !!typed : !!o) || state.busy) return;
+        const d = own ? p.d : (day ? o.dayDate : '');
         if (day && d < todayISO()) { toast('That date has passed. Pick another.'); return; }
-        const patch = day ? Object.assign({ day_date: d, day_time: has ? o.dayTime || null : null, day_end: null }, s.sched ? { schedule: null } : {})
-          : { spot: has ? o.name : typed, spot_open: false, spot_address: has ? o.address || null : null, spot_lat: has ? o.lat || null : null, spot_lon: has ? o.lon || null : null };
+        const patch = day ? Object.assign({ day_date: d, day_time: own ? (p.d === s.dayDate ? s.dayTime || null : null) : o.dayTime || null, day_end: null }, s.sched ? { schedule: null } : {})
+          : { spot: own ? typed : o.name, spot_open: false, spot_address: own ? null : o.address || null, spot_lat: own ? null : o.lat || null, spot_lon: own ? null : o.lon || null };
         run(async () => { must(await sb.from('sparks').update(patch).eq('id', s.id)); }, { ipPop: null }).then(done => { if (done) toast(day ? 'Date set' : 'Location set', true); }); };
       return popCard(day ? 'Pick a date' : 'Pick a location', close, day ? 'Pick a date' : 'Pick a location',
-        has ? (one ? (day ? 'Confirm the suggested date.' : 'Confirm the suggested location.') : day ? 'Choose from the dates people voted on.' : 'Choose from the locations people suggested.') : day ? 'Enter the date it’s happening.' : 'Enter where it’s happening.',
-        (has ? '<div role="radiogroup" style="display:flex;flex-direction:column;gap:8px">' + src.map(radioRow).join('') + '</div>'
-          : '<div style="display:flex">' + (day ? ideaDateField(p.d, (v) => { p.d = v; render(); }) : ideaPlaceField(p.v, (v) => { const was = !!cleanTitle(p.v || ''); p.v = v; if (was !== !!cleanTitle(v)) render(); }, 'Enter a location')) + '</div>') +
+        has ? (one ? (day ? 'Confirm the suggested date, or set another.' : 'Confirm the suggested location, or enter your own.') : day ? 'Choose from the dates people voted on, or set another.' : 'Choose from the locations people suggested, or enter your own.') : day ? 'Enter the date it’s happening.' : 'Enter where it’s happening.',
+        (has ? '<div role="radiogroup" style="display:flex;flex-direction:column;gap:8px">' + src.map(radioRow).join('') + ownRow() + '</div>' : '') +
+        (own ? '<div data-pick-own-field style="display:flex">' + (day ? ideaDateField(p.d, (v) => { p.d = v; render(); }) : ideaPlaceField(p.v, (v) => { const was = !!cleanTitle(p.v || ''); p.v = v; if (was !== !!cleanTitle(v)) render(); }, 'Enter a location')) + '</div>' : '') +
         '<button type="button" ' + on(confirm) + ' data-pick-confirm aria-disabled="' + !ok + '" style="margin-top:4px;width:100%;min-height:52px;border:0;border-radius:999px;font-family:inherit;font-size:16px;font-weight:900;background:' + (ok ? '#f5b428' : '#e2e4e9') + ';color:' + (ok ? '#2a1d00' : '#9aa0ac') + ';cursor:' + (ok ? 'pointer' : 'default') + '">Confirm</button>' +
         // Picking closes the poll; with a poll behind it, the pick can be undone and the voting picks up again
         ((day ? s.dayDate : s.spot) && src.length > 1 ? '<span ' + on(() => { if (state.busy) return; run(async () => { must(await sb.from('sparks').update(day ? { day_date: null, day_time: null, day_end: null } : { spot: null, spot_open: true }).eq('id', s.id)); }, { ipPop: null }).then(done => { if (done) toast('Voting is open again', true); }); }) + ' data-pick-reopen style="align-self:center;display:flex;align-items:center;min-height:40px;font-size:14.5px;font-weight:800;color:#6b7280;cursor:pointer">Undo the pick and keep voting</span>' : '')); }
@@ -9223,7 +9241,7 @@
         const cover = await evCover(st);
         const c = whenCols(evWhen()); if (!c.schedule) c.schedule = null;
         must(await sb.from('sparks').update(Object.assign({
-          text: cleanTitle(st.activity).slice(0, TITLE_MAX), hopes: st.evBits.map(b => b.trim().slice(0, 60)).filter(Boolean), overview: (st.evOverview || '').trim().slice(0, 120) || null,
+          text: cleanTitle(st.activity).slice(0, TITLE_MAX), hopes: st.evBits.map(b => b.trim().slice(0, 60)).filter(Boolean), overview: (st.evOverview || '').trim().slice(0, OV_MAX) || null,
           ...evSpotCols(st),
           visibility: st.evPriv ? 'invite' : 'group', guest_invites: evGuestInv(st), tags: (st.evTags || []).slice(0, 2),
           cover_pos: cover && st.coverPos ? posOf(st.coverPos, IDEA_POS) : null
@@ -9661,14 +9679,14 @@
       '<span style="flex:1;display:flex;align-items:baseline;gap:8px;font-size:17px;font-weight:900;color:#0d1117">' + label + '<span style="font-size:13.5px;font-weight:600;color:#9aa0ac">Optional</span></span></div>' + inner + '</div>';
   const wteFields = (ov, setOv, bits, setBit) => '<div data-wte style="display:flex;flex-direction:column;gap:10px">' +   // 10px apart (Design v8)
     wtePart(1, 'One-line overview', '<label style="display:flex;align-items:center;gap:10px;min-height:58px;padding:0 16px;border-radius:16px;background:#fff;box-shadow:inset 0 0 0 2px #dcdfe6;cursor:text">' +
-      '<input class="bit-fld" type="text" maxlength="120" data-overview-input aria-label="One-line overview" placeholder="' + esc(OVERVIEW_PH) + '" value="' + esc(ov) + '" ' + onInput(e => { if (e.type === 'input') setOv(e.target.value.slice(0, OV_MAX)); }) +
+      '<input class="bit-fld" type="text" maxlength="' + OV_MAX + '" data-overview-input aria-label="One-line overview" placeholder="' + esc(OVERVIEW_PH) + '" value="' + esc(ov) + '" ' + onInput(e => { if (e.type === 'input') setOv(e.target.value.slice(0, OV_MAX)); }) +
         ' style="flex:1 1 auto;min-width:0;border:0;padding:0;background:transparent;font-family:inherit;font-size:18px;font-weight:500;color:#0d1117;outline:none">' +
       '<span style="font-size:11.5px;font-weight:700;color:#9aa0ac">' + ov.length + '/' + OV_MAX + '</span></label>') +
     wtePart(2, 'Up to three details', '<div style="display:flex;flex-direction:column;gap:8px">' + bitRows(bits, setBit) + '</div>') + '</div>';
   // An event posted from the one-page Plan an event (v8-14) has a description, not quick details: one growing box (200)
   const wteDesc = (ov, setOv, desc, setDesc) => '<div data-wte style="display:flex;flex-direction:column;gap:10px">' +
     wtePart(1, 'One-line overview', '<label style="display:flex;align-items:center;gap:10px;min-height:58px;padding:0 16px;border-radius:16px;background:#fff;box-shadow:inset 0 0 0 2px #dcdfe6;cursor:text">' +
-      '<input class="bit-fld" type="text" maxlength="120" data-overview-input aria-label="One-line overview" placeholder="' + esc(OVERVIEW_PH) + '" value="' + esc(ov) + '" ' + onInput(e => { if (e.type === 'input') setOv(e.target.value.slice(0, OV_MAX)); }) +
+      '<input class="bit-fld" type="text" maxlength="' + OV_MAX + '" data-overview-input aria-label="One-line overview" placeholder="' + esc(OVERVIEW_PH) + '" value="' + esc(ov) + '" ' + onInput(e => { if (e.type === 'input') setOv(e.target.value.slice(0, OV_MAX)); }) +
         ' style="flex:1 1 auto;min-width:0;border:0;padding:0;background:transparent;font-family:inherit;font-size:18px;font-weight:500;color:#0d1117;outline:none">' +
       '<span style="font-size:11.5px;font-weight:700;color:#9aa0ac">' + ov.length + '/' + OV_MAX + '</span></label>') +
     wtePart(2, 'Description', '<label style="position:relative;display:block;border-radius:16px;background:#fff;box-shadow:inset 0 0 0 2px #dcdfe6;cursor:text">' +
@@ -9758,7 +9776,7 @@
           svg(16, stroke('#fff', 2.2), CAMERA) + (url ? 'Change photo' : 'Add photo') + photoInput(url ? 'Change the cover photo' : 'Add a cover photo') + '</label>' +
         '<textarea class="cp-hero-fld" rows="' + Math.max(1, Math.ceil(title.length / 13)) + '" maxlength="40" data-ev-title aria-label="Event title" placeholder="Event title" ' + onInput(e => { if (e.type === 'input') { const v = e.target.value.replace(/\n/g, '').slice(0, 40); if (v !== e.target.value) e.target.value = v; setState({ activity: v }); } }) +
           ' style="' + TA + ';font-size:40px;line-height:1;font-weight:900;letter-spacing:-1.3px' + (dt ? ';padding-right:96px' : '') + '">' + esc(title) + '</textarea>' +   // clear of the date tile (create flow audit)
-        '<textarea class="cp-hero-fld" rows="' + Math.max(1, Math.ceil((st.evOverview || '').length / 32)) + '" maxlength="120" data-overview-input aria-label="Quick overview" placeholder="Add a quick overview" ' + onInput(e => { if (e.type === 'input') { const v = e.target.value.replace(/\n/g, ' ').slice(0, OV_MAX); if (v !== e.target.value) e.target.value = v; setState({ evOverview: v }); } }) +
+        '<textarea class="cp-hero-fld" rows="' + Math.max(1, Math.ceil((st.evOverview || '').length / 32)) + '" maxlength="' + OV_MAX + '" data-overview-input aria-label="Quick overview" placeholder="Add a quick overview" ' + onInput(e => { if (e.type === 'input') { const v = e.target.value.replace(/\n/g, ' ').slice(0, OV_MAX); if (v !== e.target.value) e.target.value = v; setState({ evOverview: v }); } }) +
           ' style="' + TA + ';font-size:18px;line-height:1.4;font-weight:500">' + esc(st.evOverview || '') + '</textarea>' +
       '</div></div>';
     // WHEN & WHERE: two rows opening the Date & time and Location pop-ups; once one is filled the empty one reads purple
@@ -10086,7 +10104,7 @@
         '<div data-wte style="padding:16px 16px 0;display:flex;flex-direction:column;gap:8px">' + lab('Overview') +
           // Overview grows with what's typed: a one-row textarea, the count bottom right (Design v8 prototype, evOverview)
           '<label style="display:flex;align-items:flex-start;gap:10px;min-height:46px;padding:12px 14px;box-sizing:border-box;border-radius:14px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;cursor:text">' +
-            '<textarea class="bit-fld" rows="1" maxlength="120" data-overview-input aria-label="Overview" placeholder="' + esc(OVERVIEW_PH) + '" ' + onInput(e => { if (e.type === 'input') { const v = e.target.value.replace(/\n/g, ' ').slice(0, OV_MAX); if (v !== e.target.value) e.target.value = v; setState({ evOverview: v }); } }) +
+            '<textarea class="bit-fld" rows="1" maxlength="' + OV_MAX + '" data-overview-input aria-label="Overview" placeholder="' + esc(OVERVIEW_PH) + '" ' + onInput(e => { if (e.type === 'input') { const v = e.target.value.replace(/\n/g, ' ').slice(0, OV_MAX); if (v !== e.target.value) e.target.value = v; setState({ evOverview: v }); } }) +
               ' style="flex:1 1 auto;min-width:0;border:0;padding:0;margin:0;background:transparent;font-family:inherit;font-size:16px;line-height:22px;font-weight:500;color:#0d1117;outline:none;resize:none;field-sizing:content;min-height:22px;overflow:hidden">' + esc(ov) + '</textarea>' +
             '<span style="align-self:flex-end;font-size:11.5px;font-weight:700;color:#9aa0ac">' + ov.length + '/' + OV_MAX + '</span></label>' +
           (open

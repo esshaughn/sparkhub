@@ -964,6 +964,15 @@ select t.check('the poll''s first date holds it for 7 days',
 select t.login('host'); set role authenticated;
 select t.must_refuse('the lead setting the hold by hand', format($$update sparks set hold_until = '2030-01-01' where id = %L$$, t.id('poll_idea')));
 select t.must_allow('the lead keeps holding', format($$select public.keep_holding(%L)$$, t.id('poll_idea')));
+reset role;
+select t.check('keep holding adds 7 days to the hold (20261120000000)',
+  (select hold_until = (now() at time zone 'America/Chicago')::date + 14 from sparks where id = t.id('poll_idea')));
+select t.login('host'); set role authenticated;
+select public.keep_holding(t.id('poll_idea')); select public.keep_holding(t.id('poll_idea')); select public.keep_holding(t.id('poll_idea'));
+reset role;
+select t.check('keep holding stops 30 days out',
+  (select hold_until = (now() at time zone 'America/Chicago')::date + 30 from sparks where id = t.id('poll_idea')));
+select t.login('host'); set role authenticated;
 select t.must_allow('the lead says no help needed', format($$update sparks set no_help = true where id = %L$$, t.id('poll_idea')));
 reset role;
 select t.login('member'); set role authenticated;
@@ -976,7 +985,9 @@ select t.check('joining Torrez Fitness adds no other group', not exists (select 
 -- What to expect's overview (20261103030000_what_to_expect.sql) ------------------------------------------
 select t.login('host'); set role authenticated;
 select t.must_allow('the lead writes an overview', format($$update sparks set overview = 'Games and food with whoever shows up' where id = %L$$, t.id('poll_idea')));
-select t.must_refuse('an overview over 120 characters (80 until 20261107000000)', format($$update sparks set overview = repeat('x', 121) where id = %L$$, t.id('poll_idea')));
+select t.must_allow('an overview of 200 characters (120 until 20261120000000)', format($$update sparks set overview = repeat('x', 200) where id = %L$$, t.id('poll_idea')));
+select t.must_refuse('an overview over 200 characters', format($$update sparks set overview = repeat('x', 201) where id = %L$$, t.id('poll_idea')));
+select t.must_allow('the lead writes an overview again', format($$update sparks set overview = 'Games and food with whoever shows up' where id = %L$$, t.id('poll_idea')));
 reset role;
 select t.login('member'); set role authenticated;
 select t.must_refuse('a member writing the overview', format($$update sparks set overview = 'Mine now' where id = %L$$, t.id('poll_idea')));
@@ -1146,7 +1157,7 @@ reset role;
 insert into t.ids select 'kite', id from sparks where text = 'Floated kite day';
 select t.check('a floated idea starts with Talk it through off and I decide', (select not talk and lead_rule = 'me' from sparks where id = t.id('kite')));
 select t.login('starter8'); set role authenticated;
-select t.must_refuse('a description over 120 characters', format($$update sparks set overview = %L where id = %L$$, repeat('k', 121), t.id('kite')));
+select t.must_refuse('a description over 200 characters (120 until 20261120000000)', format($$update sparks set overview = %L where id = %L$$, repeat('k', 201), t.id('kite')));
 select t.must_refuse('a lead rule that isn''t me or any', format($$update sparks set lead_rule = 'whoever' where id = %L$$, t.id('kite')));
 select t.must_allow('the starter sets Anyone', format($$update sparks set lead_rule = 'any' where id = %L$$, t.id('kite')));
 select t.must_allow('a date option for the evening', format($$insert into date_options (spark_id, day_date, day_part, who) values (%L, current_date + 9, 'evening', 'Starter')$$, t.id('kite')));

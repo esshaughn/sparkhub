@@ -67,16 +67,23 @@ test('a member with the link takes part; the lead picks and makes it a plan', as
     await expect(LD.locator('[data-make-this-plan]')).toContainText('Suggested:');
     await LD.locator('[data-plan-date]').click();
     const pd = L.getByRole('dialog', { name: 'Pick a date' });
-    await expect(pd).toContainText('Confirm the suggested date.');
+    await expect(pd).toContainText('Confirm the suggested date, or set another.');
     await pd.locator('[data-pick-confirm]').click();
     await LD.locator('[data-plan-loc]').click();
     const pl = L.getByRole('dialog', { name: 'Pick a location' });
-    await expect(pl).toContainText('Confirm the suggested location.');
+    await expect(pl).toContainText('Confirm the suggested location, or enter your own.');
+    // Somewhere else starts from the suggestion, so its wording can be changed (ideas audit, owner 2026-10-08)
+    await pl.locator('[data-pick-own]').click();
+    await expect(pl.getByLabel('Location')).toHaveValue('The north lot at Zilker');
+    await pl.getByLabel('Location').press('End');
+    await pl.getByLabel('Location').pressSequentially(' Park');   // key by key: Confirm reads the field as it is now
     await pl.locator('[data-pick-confirm]').click();
+    await expect(LD.locator('[data-where-set]')).toContainText('The north lot at Zilker Park');
+    await expect(LD.locator('[data-where-set]')).not.toContainText('Suggested');
     await expect(LD.locator('[data-make-this-plan]')).toContainText('We’ll tell the 1 person interested.');
     await LD.locator('[data-make-it-plan]').click();
     const flow = L.locator('[data-screen-label="New spark"]');
-    await expect(flow.locator('[data-review-edit="where"]')).toContainText('The north lot at Zilker');
+    await expect(flow.locator('[data-review-edit="where"]')).toContainText('The north lot at Zilker Park');
     await flow.locator('[data-post]').click();
     const LP = L.locator('[data-screen-label="Plan page"]');
     await expect(LP).toBeVisible();
