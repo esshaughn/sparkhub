@@ -9855,10 +9855,9 @@
       // Starters read as a sentence to finish ("Bring ___"); Thought partner is gone (owner, 2026-10-08)
       '<div style="display:flex;flex-wrap:wrap;gap:8px">' + [['Bring', 'Bring', 'Bring '], ['Set up', 'Set up', 'Set up '], ['Help', 'Help with', 'Help with '], ['Clean up', 'Clean up', 'Clean up '], ['Coordinate', 'Coordinate', 'Coordinate ']]
         .map(([k, l, pre]) => '<span ' + on(() => pick(pre)) + ' data-job-chip="' + k + '" class="hov-chip" style="display:flex;align-items:center;gap:6px;min-height:40px;padding:0 14px;border-radius:999px;background:#f2f3f6;font-size:15px;font-weight:800;color:#0d1117;cursor:pointer">' + l +
-          '<span aria-hidden="true" style="width:22px;height:2px;margin-top:9px;border-radius:2px;background:#9aa0ac"></span></span>').join('') + '</div>' +
-      // Write your own and Time slots look different from the starters: a dashed outline, and a lavender fill
-      '<div style="display:flex;flex-wrap:wrap;gap:8px;padding-top:12px;border-top:1px solid #eef0f3">' +
-        '<span ' + on(() => pick('')) + ' data-job-chip="Other" class="hov-chip" style="display:flex;align-items:center;gap:6px;min-height:40px;padding:0 14px;border-radius:999px;box-sizing:border-box;background:#fff;border:1.5px dashed #a99ff3;font-size:15px;font-weight:800;color:#5b4ae8;cursor:pointer">' + svg(14, stroke('currentColor', 2.4), '<path d="M4 20h4L19 9l-4-4L4 16v4Z"/>') + 'Write your own</span>' +
+          '<span aria-hidden="true" style="width:22px;height:2px;margin-top:9px;border-radius:2px;background:#9aa0ac"></span></span>').join('') +
+        // Write your own: the same pill in the same row, white with a dashed outline and a pencil (owner, 2026-10-08)
+        '<span ' + on(() => pick('')) + ' data-job-chip="Other" class="hov-chip" style="display:flex;align-items:center;gap:6px;min-height:40px;padding:0 14px;box-sizing:border-box;border-radius:999px;background:#fff;border:1.5px dashed #b9bcc4;font-size:15px;font-weight:800;color:#0d1117;cursor:pointer">' + svg(14, stroke('#5b4ae8', 2.4), '<path d="M4 20h4L19 9l-4-4L4 16v4Z"/>') + 'Write your own</span>' +
         // one kind of sign-up (owner, 2026-10-07): time slots are a starter like the rest, not a separate kind
         '<span ' + on(slots) + ' data-job-chip="Time slots" class="hov-chip" style="display:flex;align-items:center;gap:6px;min-height:40px;padding:0 14px;border-radius:999px;background:#f1eefe;font-size:15px;font-weight:800;color:#5b4ae8;cursor:pointer">' + svg(15, stroke('currentColor', 2.4), P5.clock) + 'Time slots</span></div>' +
       preview +
