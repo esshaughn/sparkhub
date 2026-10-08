@@ -266,7 +266,7 @@ test('Plan an event is one page (v8-14): Post it waits for a title and a date; t
     await expect(flow.locator('[data-cp-row="when"]')).toContainText('Add date & time');
     await expect(flow.locator('[data-cp-row="where"]')).toContainText('Add location (optional)');
     await expect(flow.locator('[data-cp-when-where]')).toHaveCSS('background-color', 'rgb(223, 226, 231)');
-    await expect(flow.locator('[data-cp-help]')).toContainText('Need people to bring things or help out?');
+    await expect(flow.locator('[data-cp-help]')).toHaveText('+ Add ways people can help or participate');   // owner, 2026-10-08
     await expect(flow.locator('[data-cp-desc]')).toContainText('Add inspo photos');
     await expect(flow.getByRole('switch', { name: 'People can invite friends' })).toHaveAttribute('aria-checked', 'true');   // on for Public
     // Post it stays grey until there's a title and a date; a tap says which is missing
@@ -649,7 +649,7 @@ test('How to participate: + Add names the job in its preview card; a bare starte
     await job.getByRole('button', { name: 'Save', exact: true }).click();
     // The job's row, and the empty-state lines are gone; the card is white
     await expect(flow.locator('[data-job="Bring a ball"]')).toBeVisible();
-    await expect(flow.locator('[data-cp-help]')).not.toContainText('Need people to bring things or help out?');
+    await expect(flow.locator('[data-cp-help]')).not.toContainText('+ Add ways people can help or participate');
     await expect(flow.locator('[data-cp-help]')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
 
     await flow.locator('[data-post]').click();

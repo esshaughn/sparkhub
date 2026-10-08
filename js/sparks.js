@@ -9777,9 +9777,12 @@
           (j.desc ? '<div style="margin-top:3px;font-size:13px;line-height:1.4;font-weight:500;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(j.desc) + '</div>' : '') + '</div>' +
         '<span ' + on(edit) + ' style="flex:0 0 auto;display:flex;align-items:center;min-height:36px;padding:0 10px;font-size:13.5px;font-weight:800;color:' + P + ';cursor:pointer">Edit</span>' +
         '<span ' + on(() => setState({ evNeeds: state.evNeeds.filter((_, x) => x !== k) })) + ' aria-label="Remove ' + esc(cleanTitle(j.item)) + '" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#f4f5f7;display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(15, stroke('#9b1c31', 2.2), TRASH_IC) + '</span></div>'; }).join('');
-    const helpCard = '<div data-cp-help style="' + (needs.length ? WC : GC) + '"><div style="padding:4px 16px 14px;display:flex;flex-direction:column;gap:10px">' + jobRows +
-      (needs.length ? '' : '<div style="display:flex;flex-direction:column;gap:4px;padding-top:12px"><span style="font-size:17px;line-height:1.35;font-weight:800;color:#0d1117">Need people to bring things or help out?</span><span style="font-size:14px;line-height:1.4;font-weight:500;color:#5c6270">Add jobs and people going can sign up.</span></div>') +
-      '<div style="height:2px"></div><span ' + on(() => setState({ evJobPop: true, evJobDraft: { item: '', need: 1 } })) + ' data-cp-add-job class="hov-tint2" style="display:flex;align-items:center;justify-content:center;gap:6px;min-height:48px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.1);font-size:15.5px;font-weight:900;color:' + P + ';cursor:pointer"><span style="font-size:19px;line-height:1">+</span>Add</span></div></div>';
+    // The jobs in a white card; under them (or alone) the event page's dashed + Add ways people can help or participate,
+    // which opens + Add (owner, 2026-10-08; was a grey card, Need people to bring things or help out? and a white + Add)
+    const addBox = (attr) => '<div ' + on(() => setState({ evJobPop: true, evJobDraft: { item: '', need: 1 } })) + ' data-cp-add-job ' + (attr || '') + ' class="hov-tint2" style="padding:14px 16px;border-radius:18px;border:1.5px dashed #c9ccd3;font-size:14.5px;font-weight:700;color:#6b7280;cursor:pointer">+ Add ways people can help or participate</div>';
+    const helpCard = needs.length
+      ? '<div style="display:flex;flex-direction:column;gap:10px"><div data-cp-help style="' + WC + '"><div style="padding:4px 16px 4px;display:flex;flex-direction:column">' + jobRows + '</div></div>' + addBox() + '</div>'
+      : addBox('data-cp-help');
     // VISIBILITY: Post to (a centred pop-up), Public / Private, People can invite friends
     const groups = evGroupIds(st), g0 = groupById(groups[0]);
     const sum = !groups.length ? 'Pick a group' : groups.length === 1 ? (g0 || {}).name : groups.length === 2 ? groups.map(id => (groupById(id) || {}).name).join(' & ') : (g0 || {}).name + ' + ' + (groups.length - 1) + ' more';
