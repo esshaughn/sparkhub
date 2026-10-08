@@ -130,6 +130,7 @@
   // Titles stop at two lines everywhere (owner, 2026-10-07): 40 characters, and a big title shrinks as it gets
   // longer so 40 fit two lines on a phone (about 1,180 ÷ length px for Figtree 900 in a ~330px column)
   const TITLE_MAX = 40;
+  const DESC_MAX = 500;   // a plan's Description (sparks.vision, ≤1000 in the database; owner, 2026-10-08: was 200)
   const OV_MAX = 200;   // the short description, everywhere (owner, 2026-10-08: was 120, and 80 in Plan an event before 2026-10-07; 20261120000000)
   const titleFs = (t, max) => Math.max(24, Math.min(max, Math.floor(1180 / Math.max(1, String(t || '').length))));
   const fmtDay = (iso) => new Date(iso + 'T12:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
@@ -2261,7 +2262,7 @@
   // "Do it again": a new event with the place and details filled in
   const doItAgain = (s) => goCompose({ activity: s.text.slice(0, TITLE_MAX), evTags: (s.tags || []).slice(0, 2), evTest: !!(s.test || s.demo), locText: s.spot || '', locPlace: s.spotAddress ? { name: s.spot, address: s.spotAddress, lat: s.spotPoint && s.spotPoint[0], lon: s.spotPoint && s.spotPoint[1] } : null, locAddr: s.spotAddress || '',
     // v8-14: the one page has a description, not detail lines: the old event's details come back as its sentences
-    evDesc: basicsOf(s).map(b => /[.!?]$/.test(b) ? b : b + '.').join(' ').slice(0, 200), evOverview: (s.overview || '').slice(0, OV_MAX) });
+    evDesc: basicsOf(s).map(b => /[.!?]$/.test(b) ? b : b + '.').join(' ').slice(0, DESC_MAX), evOverview: (s.overview || '').slice(0, OV_MAX) });
 
   // Several at once: as many as there's room for, then one save
   const addMood = async (s, fileList) => {
@@ -6467,7 +6468,7 @@
     // v8-14: a host edits the description whole. An older event's three detail lines come in joined as one paragraph
     // (owner, 2026-10-07: "Bring water", "Kids welcome" → "Bring water. Kids welcome."), so saving moves it to the new
     // format; 3 lines of 60 always fit in 200. A group admin who isn't a host still edits the lines (admin_edit_spark)
-    const desc = isLead(s) ? basicsOf(s).map(b => /[.!?]$/.test(b) ? b : b + '.').join(' ').slice(0, 200) : null;
+    const desc = isLead(s) ? basicsOf(s).map(b => /[.!?]$/.test(b) ? b : b + '.').join(' ').slice(0, DESC_MAX) : null;
     const bits = desc != null ? ['', '', ''] : basicsOf(s).slice(0, 3).map(b => b.slice(0, 60));
     while (bits.length < 3) bits.push('');
     setState({ sec: { id: s.id, kind, title: s.text, ...whenModelOf(s), bits, desc, ov: s.overview || '', need: s.minPeople || null, tags: (s.tags || []).slice(), priv: s.visibility === 'invite', guestInv: s.guestInvites !== false, groups: gIds(s).slice() },
@@ -6519,7 +6520,7 @@
     if (ss.kind === 'details') {
       const hopes = ss.bits.map(b => b.trim().slice(0, 60)).filter(Boolean), overview = (ss.ov || '').trim().slice(0, OV_MAX);
       run(async () => {
-        const desc = ss.desc != null ? ss.desc.trim().slice(0, 200) : null;
+        const desc = ss.desc != null ? ss.desc.trim().slice(0, DESC_MAX) : null;
         if (lead) must(await sb.from('sparks').update(Object.assign({ hopes: desc != null ? [] : hopes, overview: overview || null, vision: desc || null, tags: (ss.tags || []).slice(0, 2) }, s.planned ? {} : { min_people: ss.need || null })).eq('id', s.id));
         else must(await sb.rpc('admin_edit_spark', { p_spark: s.id, p_text: s.text, p_hopes: hopes, p_overview: overview }));
         if (send) await sendUpdate(s, msg);
@@ -7945,13 +7946,24 @@
     '<div style="display:flex;flex-direction:column;gap:4px;padding:12px 14px;border-radius:14px;background:#f6f7f9"><span style="font-size:16px;font-weight:900;color:#0d1117">I’ll decide</span><span style="font-size:15px;line-height:1.45;font-weight:500;color:#454b55">People can offer to lead it. You pick who, or take it on yourself later.</span></div>' +
     '<div style="display:flex;flex-direction:column;gap:4px;padding:12px 14px;border-radius:14px;background:#f6f7f9"><span style="font-size:16px;font-weight:900;color:#0d1117">Me</span><span style="font-size:15px;line-height:1.45;font-weight:500;color:#454b55">You’re the lead. You pick the date and location and make it a Plan.</span></div>' +
     goldBtn(close, 'Got it'), 47);
+  // Private ideas (owner, 2026-10-08): the same Public / Private as a plan (visibility 'invite': only the people the
+  // host invites, plus the hosts and the groups' admins), in gold. Radios for the Float sheet and the Post to pop-up
+  const ideaVisRadios = (priv, nGroups, onPick, top) => { const radio = (v, name, sub, icon, k) => { const onIt = priv === v;
+      return '<div ' + on(() => onPick(v), 'radio') + ' aria-checked="' + onIt + '" aria-label="' + name + ': ' + sub + '" data-idea-vis="' + (v ? 'private' : 'public') + '" style="display:flex;align-items:center;gap:12px;min-height:52px;border-top:' + (k ? '1px solid #eef0f3' : '0') + ';cursor:pointer">' +
+        '<span style="flex:0 0 22px;display:flex;justify-content:center;color:' + (onIt ? '#b07a0a' : '#6b7280') + '">' + svg(18, stroke('currentColor', 2.2), icon) + '</span>' +
+        '<div style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:14.5px;font-weight:' + (onIt ? 800 : 700) + ';color:' + (onIt ? '#0d1117' : '#454b55') + '">' + name + '</span><span style="font-size:12.5px;font-weight:600;color:#6b7280">' + sub + '</span></div>' +
+        '<span aria-hidden="true" style="flex:0 0 22px;width:22px;height:22px;box-sizing:border-box;border-radius:999px;border:' + (onIt ? '6px solid #f5b428' : '1.5px solid #c9ccd3') + '"></span></div>'; };
+    return '<div role="radiogroup" aria-label="Who can see it" style="padding:0 14px;' + (top || '') + '">' + radio(false, 'Public', nGroups > 1 ? 'Anyone in these groups' : 'Anyone in this group', PEOPLE_IC, 0) + radio(true, 'Private', 'Only people you invite', LOCK_IC, 1) + '</div>'; };
+  // The Private chip on an idea's note (the board's cards and the idea page): dark ink on the paper
+  const ideaPrivChip = (s) => s.visibility !== 'invite' ? '' : '<span data-private-chip style="flex:0 0 auto;align-self:flex-start;display:flex;align-items:center;gap:4px;height:22px;padding:0 8px 0 7px;border-radius:999px;background:rgba(13,17,23,.08);color:#2a2f38;font-size:11.5px;font-weight:800">' +
+    svg(11, stroke('currentColor', 2.6), '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>') + 'Private</span>';
   const sectionLabel = (t) => '<span style="font-size:12.5px;font-weight:900;letter-spacing:1px;color:#454b55">' + t + '</span>';
 
   // Before 2026-10-07 one idea draft was kept on this device (the photo as a data URL); it's still picked up once
   const ideaDraftKey = () => 'spark-hub-idea-draft-' + (state.me || 'guest');
   const readIdeaDraft = () => { try { return JSON.parse(localStorage.getItem(ideaDraftKey())); } catch (e) { return null; } };
   const writeIdeaDraft = (d) => { try { if (d) localStorage.setItem(ideaDraftKey(), JSON.stringify(d)); else localStorage.removeItem(ideaDraftKey()); return true; } catch (e) { return false; } };
-  const qiBlank = () => ({ draftId: null, page: 1, title: '', why: '', photo: null, more: false, date: null, dpoll: null, loc: null, lpoll: null, groups: currentGroup() ? [currentGroup().id] : myGroups().slice(0, 1).map(g => g.id), gOpen: false, talk: false, rule: 'decide', fromCompose: false });
+  const qiBlank = () => ({ draftId: null, page: 1, title: '', why: '', photo: null, more: false, date: null, dpoll: null, loc: null, lpoll: null, groups: currentGroup() ? [currentGroup().id] : myGroups().slice(0, 1).map(g => g.id), gOpen: false, talk: false, rule: 'decide', priv: false, fromCompose: false });
   const openFloat = (pre) => needSignIn(() => {
     if (!myGroups().length) { if (state.loaded) openJoin(); return; }
     const acct = !pre ? state.drafts.find(x => (x.data || {}).kind === 'float') : null;
@@ -7973,7 +7985,7 @@
     const x = dr.data || {}, str = (v) => typeof v === 'string' ? v : '', photo = PHOTO_PATH.test(x.photo || '') ? { path: x.photo, url: photoUrl(x.photo) } : null;
     const groups = (Array.isArray(x.groups) ? x.groups : []).filter(id => groupById(id));
     setState({ plusMenu: false, dashAll: null, qi: Object.assign(qiBlank(), { title: str(x.title).slice(0, TITLE_MAX), why: str(x.why).slice(0, OV_MAX), more: !!x.more, date: x.date && typeof x.date === 'object' ? x.date : null,
-      dpoll: Array.isArray(x.dpoll) ? x.dpoll : null, loc: str(x.loc) || null, lpoll: Array.isArray(x.lpoll) ? x.lpoll : null, talk: !!x.talk, rule: x.rule === 'me' ? 'me' : 'decide',
+      dpoll: Array.isArray(x.dpoll) ? x.dpoll : null, loc: str(x.loc) || null, lpoll: Array.isArray(x.lpoll) ? x.lpoll : null, talk: !!x.talk, rule: x.rule === 'me' ? 'me' : 'decide', priv: !!x.priv,
       groups: groups.length ? groups : qiBlank().groups, photo, draftId: dr.id, page: 1 }), qiPop: null });
     toast('Picked up your draft', true);
   };
@@ -7992,7 +8004,7 @@
     try {
       await ensureSession();
       const photo = q.photo ? (q.photo.path || (fresh = await uploadBlob(q.photo.blob))) : null;
-      const data = { kind: 'float', title: cleanTitle(q.title).slice(0, TITLE_MAX), why: q.why.slice(0, OV_MAX), more: q.more, date: q.date, dpoll: q.dpoll, loc: q.loc, lpoll: q.lpoll, groups: q.groups, talk: q.talk, rule: q.rule, photo };
+      const data = { kind: 'float', title: cleanTitle(q.title).slice(0, TITLE_MAX), why: q.why.slice(0, OV_MAX), more: q.more, date: q.date, dpoll: q.dpoll, loc: q.loc, lpoll: q.lpoll, groups: q.groups, talk: q.talk, rule: q.rule, priv: !!q.priv, photo };
       if (q.draftId) must(await sb.from('event_drafts').update({ data, updated_at: new Date().toISOString() }).eq('id', q.draftId));
       else must(await sb.from('event_drafts').insert({ data }));
       fresh = null;
@@ -8034,7 +8046,7 @@
         if (q.photo) path = q.photo.path || await uploadBlob(q.photo.blob);
         const row = { group_id: groups[0], author_name: st.myName, text: title, hopes: [], vision: null, overview: q.why.trim().slice(0, OV_MAX) || null,
           photos: path ? [path] : [], cat: 'events', answers: {}, lead_id: st.me, lead_name: st.myName, created_by: st.me, spot: setLoc, spot_open: !setLoc, day_date: setD ? setD.d : null, day_time: setD && /^\d\d:\d\d$/.test(setD.t || '') ? setD.t : null,
-          planned: false, visibility: 'group', wants_host: q.rule !== 'me', talk: !!q.talk, lead_rule: 'me' };   // Who leads it (v8-8): Me leads from the start; I'll decide looks for a lead and the starter picks (Anyone is gone)
+          planned: false, visibility: q.priv ? 'invite' : 'group', wants_host: q.rule !== 'me', talk: !!q.talk, lead_rule: 'me' };   // Who leads it (v8-8): Me leads from the start; I'll decide looks for a lead and the starter picks (Anyone is gone)
         try { id = must(await sb.from('sparks').insert(row).select('id').single()).data.id; } catch (e) { if (path && freshPhoto) deletePhotos([path]); throw e; }
         try {
           const rest = [];
@@ -8127,7 +8139,8 @@
               '<span style="flex:0 0 auto;font-size:15.5px;font-weight:800;color:#0d1117">Post to</span>' +
               '<span style="flex:1;min-width:0;display:flex;align-items:center;justify-content:flex-end;gap:6px;font-size:15px;font-weight:700;color:#454b55"><span style="flex:0 0 22px;width:22px;height:22px;border-radius:6px;background:' + groupBg(g0, '#2b303a') + '"></span>' +
                 '<span style="min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(gName) + '</span><span style="color:#9aa0ac">' + (q.gOpen ? '⌃' : '›') + '</span></span></div>' +
-            (q.gOpen ? '<div style="padding:0 8px 8px;display:flex;flex-direction:column;gap:2px;border-top:1px solid #eceef2">' + G.map(gRow).join('') + '</div>' : '') + '</div>' +
+            (q.gOpen ? '<div style="padding:0 8px 8px;display:flex;flex-direction:column;gap:2px;border-top:1px solid #eceef2">' + G.map(gRow).join('') + '</div>' : '') +
+            ideaVisRadios(!!q.priv, sel.length, (v) => set({ priv: v }), 'border-top:1px solid #eceef2') + '</div>' +
           '<span style="height:10px"></span>' + sectionLabel('HOW PEOPLE CAN HELP') +
           helpCard(!!q.talk, q.rule, () => set({ talk: !q.talk }), (r) => set({ rule: r }), () => setState({ qiPop: { k: 'rule' } })) + '</div></div>' +
       '<div style="flex-shrink:0;padding:12px 16px 28px;display:flex;align-items:center;gap:10px;background:#e8eaee">' +
@@ -8391,7 +8404,7 @@
     return '<div style="display:flex;flex-direction:column;gap:8px;margin-top:6px">' + sectionLabel('WHERE IT GOES') +
       '<div style="background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08);overflow:hidden"><div ' + on(() => ipPop({ k: 'vis', id: s.id, sel: gs.slice() })) + ' data-idea-post-to style="display:flex;align-items:center;gap:12px;min-height:56px;padding:0 14px;cursor:pointer">' +
         svg(20, stroke('#b07a0a', 2.2), '<circle cx="9" cy="9" r="3"/><circle cx="17" cy="10" r="2.4"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0M14.5 19a4 4 0 0 1 7 -2.6"/>') + '<span style="flex:0 0 auto;font-size:15.5px;font-weight:800;color:#0d1117">Post to</span>' +
-        '<span style="flex:1;min-width:0;display:flex;align-items:center;justify-content:flex-end;gap:6px;font-size:15px;font-weight:700;color:#454b55"><span style="min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(g0 ? g0.name + (gs.length > 1 ? ' & ' + (gs.length - 1) + ' more' : '') : 'No groups') + '</span><span style="color:#9aa0ac">›</span></span></div></div>' +
+        '<span style="flex:1;min-width:0;display:flex;align-items:center;justify-content:flex-end;gap:6px;font-size:15px;font-weight:700;color:#454b55"><span style="min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc((g0 ? g0.name + (gs.length > 1 ? ' & ' + (gs.length - 1) + ' more' : '') : 'No groups') + (s.visibility === 'invite' ? ' · Private' : '')) + '</span><span style="color:#9aa0ac">›</span></span></div></div>' +
       // Leads (audit 2026-10-07): the Leads sheet's step back, hand it on and co-leads, which an idea had no way to reach
       (!s.wantsHost && isLead(s) ? '<div style="background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08);overflow:hidden"><div ' + on(() => setState({ leadsSheet: s.id })) + ' data-idea-leads style="display:flex;align-items:center;gap:12px;min-height:56px;padding:0 14px;cursor:pointer">' +
         svg(20, stroke('#b07a0a', 2.2), '<path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/>') + '<span style="flex:0 0 auto;font-size:15.5px;font-weight:800;color:#0d1117">Leads</span>' +
@@ -8410,7 +8423,7 @@
     return '<div style="' + PAPER + ';padding:' + (pics[0] ? 30 : 34) + 'px 14px 30px;display:flex;flex-direction:column;gap:18px">' + GRAB +
       (pics[0] ? '<div aria-hidden="true" style="position:relative;flex:0 0 auto;margin:0 14px 0 6px;height:150px;border:6px solid #fff;background:' + bg(pics[0], posAt(s.coverPos, IDEA_POS)) + ';transform:rotate(' + tilt(s.id) + 'deg);box-shadow:0 4px 12px rgba(13,17,23,.18)"></div>' : '') +
       '<div style="display:flex;flex-direction:column;gap:8px;padding:0 4px">' +
-        '<div style="display:flex;align-items:center;justify-content:space-between">' + IDEA_CHIP +
+        '<div style="display:flex;align-items:center;justify-content:space-between"><span style="display:flex;align-items:center;gap:8px">' + IDEA_CHIP + ideaPrivChip(s) + '</span>' +
           (!st8 && !ed && canEdit(s) && state.email ? '<span ' + on(() => { setState({ ip: null }); openSec(s, 'title'); }) + ' data-idea-edit aria-label="Edit Idea" style="display:flex;align-items:center;gap:5px;min-height:36px;margin-right:46px;font-size:14px;font-weight:800;color:#8f6405;cursor:pointer">' + EDIT_PEN + 'Edit</span>' : '') +   // a group admin: the title (admin_edit_spark)
           (st8 && !ed ? '<span ' + on(() => setState({ ipEd: { id: s.id, title: s.text, why: s.overview || '' } })) + ' data-idea-edit style="display:flex;align-items:center;gap:5px;min-height:36px;margin-right:46px;font-size:14px;font-weight:800;color:#8f6405;cursor:pointer">' + EDIT_PEN + 'Edit</span>' : '') + '</div>' +
         (ed ? '<textarea rows="1" maxlength="40" aria-label="Idea title" data-ip-ed-title ' + onInput(e => { if (e.type === 'input') { state.ipEd.title = e.target.value.replace(/\n/g, ' ').slice(0, TITLE_MAX); e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; } }) + ' style="' + TA + 'padding:6px 10px;font-size:30px;line-height:1.1;font-weight:900;letter-spacing:-.8px;field-sizing:content">' + esc(ed.title) + '</textarea>' +
@@ -8476,7 +8489,7 @@
     return '<div data-screen-label="Idea page (8b)" style="position:relative;display:flex;flex-direction:column;background:#e8eaee;min-height:100%">' + head +
       '<div style="position:relative;margin-top:-22px;border-radius:22px 22px 0 0;background:#e8eaee;display:flex;flex-direction:column;gap:12px;padding:18px 14px 0">' +
         '<div id="sec-details" style="display:flex;flex-direction:column;gap:8px;padding:0 4px">' +
-          '<div style="display:flex;align-items:center;justify-content:space-between">' + IDEA_CHIP +
+          '<div style="display:flex;align-items:center;justify-content:space-between"><span style="display:flex;align-items:center;gap:8px">' + IDEA_CHIP + ideaPrivChip(s) + '</span>' +
             (!st8 && canEdit(s) && state.email ? '<span ' + on(() => openSec(s, 'title')) + ' data-idea-edit aria-label="Edit Idea" style="display:flex;align-items:center;gap:5px;min-height:36px;font-size:14px;font-weight:800;color:#8f6405;cursor:pointer">' + EDIT_PEN + 'Edit</span>' : '') + '</div>' +   // a group admin: the title
           '<span style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:' + titleFs(s.text, 28) + 'px;line-height:1.05;font-weight:900;letter-spacing:-.7px;color:#0d1117;text-wrap:balance">' + esc(s.text) + '</span>' +
           (s.overview ? '<span data-idea-overview style="display:block;white-space:pre-wrap;overflow-wrap:anywhere;font-size:20px;line-height:1.4;font-weight:500;color:#2a2f38;text-wrap:balance">' + esc(s.overview) + '</span>' : '') + ideaBits(s) +
@@ -8592,20 +8605,24 @@
           : '<span style="font-size:14px;font-weight:600;color:#6b7280;text-align:center">No one has offered yet. Share it to find someone.</span>') +
         '<span ' + on(() => { close(); openLeadAsk(s); }) + ' data-ask-someone-else style="align-self:center;display:flex;align-items:center;min-height:40px;font-size:14.5px;font-weight:800;color:#8f6405;cursor:pointer">Ask someone else</span>'); }
     if (p.k === 'vis') { const home = s.groupId;
-      return popCard('Idea visibility', close, 'Who can see it', 'Members of the groups you pick.',
+      if (p.priv == null) p.priv = s.visibility === 'invite';
+      return popCard('Idea visibility', close, 'Who can see it', p.priv ? 'Only people you invite, from the groups you pick.' : 'Members of the groups you pick.',
         // Any group can be unticked, the original too, as long as one stays ticked (Design v8 prototype, i8SVisRows)
         '<div style="display:flex;flex-direction:column;gap:4px">' + myGroups().map(g => { const onIt = p.sel.indexOf(g.id) > -1;
           return '<div ' + on(() => { const nx = onIt ? p.sel.filter(x => x !== g.id) : p.sel.concat([g.id]); if (!nx.length) { toast('Pick at least one group'); return; } p.sel = nx; render(); }, 'checkbox') + ' aria-checked="' + onIt + '" style="display:flex;align-items:center;gap:10px;min-height:52px;padding:0 12px;border-radius:12px;cursor:pointer;background:' + (onIt ? '#fdf1d6' : 'transparent') + ';font-size:15.5px;font-weight:' + (onIt ? 900 : 700) + ';color:' + (onIt ? '#5a3d00' : '#0d1117') + '">' +
             '<span style="flex:0 0 30px;width:30px;height:30px;border-radius:8px;background:' + groupBg(g, '#2b303a') + '"></span><span style="flex:1;min-width:0">' + esc(g.name) + '</span>' +
             '<span style="flex:0 0 24px;width:24px;height:24px;box-sizing:border-box;border-radius:7px;display:flex;align-items:center;justify-content:center;background:' + (onIt ? '#f5b428' : '#fff') + ';box-shadow:' + (onIt ? 'none' : 'inset 0 0 0 2px #c9ccd3') + '">' + (onIt ? svg(13, stroke('#2a1d00', 3.4), '<path d="m5 12.5 4.5 4.5L19 7.5"/>') : '') + '</span></div>'; }).join('') + '</div>' +
+        '<div style="margin:0 -14px">' + ideaVisRadios(p.priv, p.sel.length, (v) => { p.priv = v; render(); }, 'border-top:1px solid #eef0f3') + '</div>' +
         // Add new groups first, then move the home off an unticked original (set_home_group needs it posted there), then take groups off
         goldBtn(() => { const cur = ideaGroups(s), newHome = p.sel.indexOf(home) > -1 ? home : p.sel[0];
           const add = p.sel.filter(id => cur.indexOf(id) < 0 && id !== home), drop = cur.concat([home]).filter((id, j, a) => a.indexOf(id) === j && p.sel.indexOf(id) < 0 && id !== newHome);
+          const vis = p.priv ? 'invite' : 'group';
           run(async () => {
+            if (vis !== s.visibility) must(await sb.from('sparks').update({ visibility: vis }).eq('id', s.id));
             if (add.length) must(await sb.from('spark_groups').insert(add.map(g => ({ spark_id: s.id, group_id: g }))));
             if (newHome !== home) must(await sb.rpc('set_home_group', { p_spark: s.id, p_group: newHome }));
             if (drop.length) must(await sb.from('spark_groups').delete().eq('spark_id', s.id).in('group_id', drop));
-          }, { ipPop: null }).then(ok => { if (ok) { const names = p.sel.map(id => groupById(id).name); toast('Visible to ' + (names.length > 2 ? names.length + ' groups' : names.join(' and ')), true); } }); }, 'Done', 'data-ip-pop-done')); }
+          }, { ipPop: null }).then(ok => { if (ok) { const names = p.sel.map(id => groupById(id).name); toast(p.priv ? 'Private: only people you invite' : 'Visible to ' + (names.length > 2 ? names.length + ' groups' : names.join(' and ')), true); } }); }, 'Done', 'data-ip-pop-done')); }
     return '';
   }
 
@@ -8643,7 +8660,7 @@
         (P0 ? '<div aria-hidden="true" style="position:absolute;left:0;right:0;top:0;height:92px;background:' + bg(P0, posAt(s.coverPos, IDEA_POS)) + ';-webkit-mask-image:' + MASK + ';-webkit-mask-composite:source-in;mask-image:' + MASK + ';mask-composite:intersect"></div>' : '') +
         '<div style="position:relative;padding:' + (P0 ? 56 : 12) + 'px 10px 12px;display:flex;flex-direction:column;gap:6px">' +
           '<span style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:16px;line-height:1.3;font-weight:900;color:#0d1117;text-wrap:balance">' + esc(s.text) + '</span>' +
-          '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:2px">' + by(s, 12) + tag(s) + '</div></div></div>'; };
+          ideaPrivChip(s) + '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:2px">' + by(s, 12) + tag(s) + '</div></div></div>'; };
     const full = (s, k) => { const P0 = ideaPics(s)[0];
       return '<div ' + on(() => openIdeaSheet(s)) + ' role="button" data-idea-card="' + esc(s.text) + '"' + newAttr(s) + ' style="position:relative;display:flex;min-height:' + (P0 ? 96 : 0) + 'px;border-radius:4px;overflow:hidden;' + NOTE_BG + ';box-shadow:0 3px 10px rgba(13,17,23,.14);transform:rotate(' + ROTF[k % 4] + 'deg);cursor:pointer;padding-left:' + (P0 ? 0 : 8) + 'px">' +
         // Tiles: the thin gold edge runs down the left side (owner, 2026-10-07; grid cards keep it on top)
@@ -8651,7 +8668,7 @@
         (P0 ? '<div aria-hidden="true" style="position:relative;flex:0 0 36%;background:' + bg(P0, posAt(s.coverPos, IDEA_POS)) + ';-webkit-mask-image:linear-gradient(to right,#000 40%,transparent 100%);mask-image:linear-gradient(to right,#000 40%,transparent 100%)"></div>' : '') +
         '<div style="position:relative;flex:1;min-width:0;padding:10px 12px 10px 6px;display:flex;flex-direction:column;gap:4px">' +
           '<span style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:17px;line-height:1.25;font-weight:900;color:#0d1117;text-wrap:balance">' + esc(s.text) + '</span>' +
-          (s.overview ? '<span style="display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;font-size:13px;line-height:1.4;font-weight:600;color:#6b7280">' + esc(s.overview) + '</span>' : '') +
+          (s.overview ? '<span style="display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;font-size:13px;line-height:1.4;font-weight:600;color:#6b7280">' + esc(s.overview) + '</span>' : '') + ideaPrivChip(s) +
           '<div style="margin-top:auto;padding-top:4px;display:flex;align-items:center;justify-content:space-between;gap:8px">' + by(s, 12.5) + tag(s) + '</div></div></div>'; };
     const SORTS = [['new', 'Newest'], ['interest', 'Popular'], ['close', 'Almost a Plan']];   // "Closest" read as distance
     const sortMenu = st.menu === 'iaSort' ? '<div ' + on(() => setState({ menu: null })) + ' style="position:fixed;inset:0;z-index:1"></div>' +
@@ -9284,7 +9301,7 @@
         const row = {
           group_id: groups[0], author_name: st.myName, text: cleanTitle(st.activity).slice(0, TITLE_MAX),
           // v8-14: the one-page description (200) is the event's details text, shown whole under What to expect
-          hopes: (st.evDesc || '').trim() ? [] : st.evBits.map(b => b.trim().slice(0, 60)).filter(Boolean), vision: (st.evDesc || '').trim().slice(0, 200) || null, overview: (st.evOverview || '').trim().slice(0, OV_MAX) || null,
+          hopes: (st.evDesc || '').trim() ? [] : st.evBits.map(b => b.trim().slice(0, 60)).filter(Boolean), vision: (st.evDesc || '').trim().slice(0, DESC_MAX) || null, overview: (st.evOverview || '').trim().slice(0, OV_MAX) || null,
           mood: insp.paths, photos: cover ? [cover.path] : [], cat: 'events', answers: {}, lead_id: st.me, lead_name: st.myName, created_by: st.me,
           ...evSpotCols(st),
           ...(() => { const c = whenCols(evWhen()); if (!c.schedule) delete c.schedule; return c; })(),   // multi-day: day_date is the first day, schedule the rest (v8-7)
@@ -9376,7 +9393,7 @@
       evDate: /^\d{4}-\d{2}-\d{2}$/.test(x.evDate || '') && x.evDate >= todayISO() ? x.evDate : '', evTime: str(x.evTime), evEnd: str(x.evEnd), evEndOn: !!x.evEndOn,
       locText: str(x.locText).slice(0, 80), locPlace: x.locPlace && typeof x.locPlace === 'object' ? x.locPlace : null, locAddr: str(x.locAddr).slice(0, 120),
       evBits: ['', '', ''], evOverview: str(x.evOverview).slice(0, OV_MAX),
-      evDesc: (str(x.evDesc) || [0, 1, 2].map(i => str((x.evBits || [])[i]).trim()).filter(Boolean).map(b => /[.!?]$/.test(b) ? b : b + '.').join(' ')).slice(0, 200),
+      evDesc: (str(x.evDesc) || [0, 1, 2].map(i => str((x.evBits || [])[i]).trim()).filter(Boolean).map(b => /[.!?]$/.test(b) ? b : b + '.').join(' ')).slice(0, DESC_MAX),
       evInspo: (arr(x.evInspo) || []).filter(q => PHOTO_PATH.test(q || '')).slice(0, 3).map(path => ({ path, url: photoUrl(path) })), evNeed: Number.isInteger(x.evNeed) && x.evNeed > 0 ? Math.min(x.evNeed, 99) : null, evTags: (arr(x.evTags) || []).filter(k => TYPES6.some(t => t[0] === k)).slice(0, 2), evNeeds: arr(x.evNeeds) || [],
       evDatePoll: arr(x.evDatePoll), evSpotPoll: arr(x.evSpotPoll), evLater: x.evLater && typeof x.evLater === 'object' ? x.evLater : {},
       evPriv: !!x.evPriv, evNoGuestInv: x.evNoGuestInv == null ? null : !!x.evNoGuestInv, evTest: typeof x.evTest === 'boolean' ? x.evTest : null, evFloat: false,   // v8-6: the maker always leads it
@@ -9691,9 +9708,9 @@
         ' style="flex:1 1 auto;min-width:0;border:0;padding:0;background:transparent;font-family:inherit;font-size:18px;font-weight:500;color:#0d1117;outline:none">' +
       '<span style="font-size:11.5px;font-weight:700;color:#9aa0ac">' + ov.length + '/' + OV_MAX + '</span></label>') +
     wtePart(2, 'Description', '<label style="position:relative;display:block;border-radius:16px;background:#fff;box-shadow:inset 0 0 0 2px #dcdfe6;cursor:text">' +
-      '<textarea class="bit-fld" maxlength="200" aria-label="Event description" placeholder="What’s the plan?" ' + onInput(e => { if (e.type === 'input') setDesc(e.target.value.slice(0, 200)); }) +
+      '<textarea class="bit-fld" maxlength="' + DESC_MAX + '" aria-label="Event description" placeholder="What’s the plan?" ' + onInput(e => { if (e.type === 'input') setDesc(e.target.value.slice(0, DESC_MAX)); }) +
         ' style="display:block;width:100%;box-sizing:border-box;min-height:96px;margin:0;padding:14px 56px 14px 16px;border:0;background:transparent;outline:none;resize:none;font-family:inherit;font-size:16px;line-height:1.45;font-weight:500;color:#0d1117;field-sizing:content">' + esc(desc) + '</textarea>' +
-      '<span style="position:absolute;right:14px;bottom:8px;font-size:11.5px;font-weight:700;color:#9aa0ac">' + desc.length + '/200</span></label>') + '</div>';
+      '<span style="position:absolute;right:14px;bottom:8px;font-size:11.5px;font-weight:700;color:#9aa0ac">' + desc.length + '/' + DESC_MAX + '</span></label>') + '</div>';
   // A starter chip leaves just its verb ("Bring "): Save waits for what (owner, 2026-09-30)
   const JOB_VERBS = ['bring', 'set up', 'help with', 'clean up', 'coordinate'];
   const jobNamed = (item) => { const t = cleanTitle(item || ''); return !!t && JOB_VERBS.indexOf(t.toLowerCase()) < 0; };

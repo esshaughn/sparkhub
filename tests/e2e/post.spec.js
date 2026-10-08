@@ -497,7 +497,9 @@ test('drafts: X saves one, Me → Drafts lists it, Continue picks up there, post
     await expect(page.locator('[data-screen-label="Your calendar"] [data-draft]')).toHaveCount(0);
     await openDraft();
     await expect(flow.getByLabel('Event title')).toHaveValue(title);
-    const desc = 'Park on Elm Street and walk in through the side gate. Everything must go.';
+    // a Description takes up to 500 characters (owner, 2026-10-08: was 200)
+    const desc = 'Park on Elm Street and walk in through the side gate. Everything must go. '.repeat(4).trim();
+    await expect(flow.getByLabel('Event description')).toHaveAttribute('maxlength', '500');
     await flow.getByLabel('Event description').fill(desc);
     // the Save draft link under Post it saves and leaves
     await flow.locator('[data-save-draft]').click();
@@ -728,6 +730,10 @@ test('Float an idea: the Float sheet, a draft, and the starter’s slide-up', as
     await expect(sheet.locator('[data-talk-toggle]')).toHaveAttribute('aria-checked', 'true');
     await expect(sheet.locator('[data-rule="decide"]')).toHaveAttribute('aria-pressed', 'true');
     await expect(sheet.locator('[data-rule="any"]')).toHaveCount(0);   // Anyone is gone (v8-8 item 6)
+    // Ideas can be private, like plans (owner, 2026-10-08): Public by default, Private for only the people invited
+    await expect(sheet.locator('[data-idea-vis="public"]')).toHaveAttribute('aria-checked', 'true');
+    await sheet.locator('[data-idea-vis="private"]').click();
+    await expect(sheet.locator('[data-idea-vis="private"]')).toHaveAttribute('aria-checked', 'true');
     await sheet.locator('[data-qi-post]').click();
     // It opens on the Ideas tab as the starter's slide-up
     const ip = page.locator('[data-screen-label="Idea sheet"]');
@@ -739,19 +745,33 @@ test('Float an idea: the Float sheet, a draft, and the starter’s slide-up', as
     await expect(ip.locator('[data-make-this-plan]')).toContainText('Choose a lead');
     id = await asUser(page, async (c, _C, title) => (await c.from('sparks').select('id').eq('text', title).single()).data.id, title);
     expect(await asUser(page, async (c, _C, t) => (await c.from('event_drafts').select('data').filter('data->>kind', 'eq', 'float')).data.filter(r => r.data.title === t).length, title)).toBe(0);   // posting clears it
-    const row = await asUser(page, async (c, _C, id) => (await c.from('sparks').select('wants_host,planned,talk,lead_rule,overview,day_date,spot,date_options(day_part),spot_options(name)').eq('id', id).single()).data, id);
+    const row = await asUser(page, async (c, _C, id) => (await c.from('sparks').select('visibility,wants_host,planned,talk,lead_rule,overview,day_date,spot,date_options(day_part),spot_options(name)').eq('id', id).single()).data, id);
     // Set date sets the idea's date (its part of day stays on its one option); the location poll stays a poll
-    expect(row).toMatchObject({ wants_host: true, planned: false, talk: true, lead_rule: 'me', overview: why, day_date: inDays(9), spot: null, date_options: [{ day_part: 'evening' }] });
+    await expect(ip.locator('[data-private-chip]')).toBeVisible();
+    expect(row).toMatchObject({ visibility: 'invite', wants_host: true, planned: false, talk: true, lead_rule: 'me', overview: why, day_date: inDays(9), spot: null, date_options: [{ day_part: 'evening' }] });
     expect(row.spot_options.map(o => o.name).sort()).toEqual(['Butler Park', 'Zilker Park']);
     // Swipe up for more: When? (with the time on its calendar page), Where?, and the starter's settings
     await ip.locator('[data-ip-more]').click();
     await expect(ip.locator('[data-when-set]')).toContainText('Evening');
     await expect(ip.locator('[data-make-this-plan]')).toContainText('· Evening');   // the Date row, ticked
     await expect(ip.locator('[data-where] [data-loc-row]')).toHaveCount(2);
-    await expect(ip.locator('[data-idea-post-to]')).toContainText('Torrez Fitness');
+    await expect(ip.locator('[data-idea-post-to]')).toContainText('Torrez Fitness · Private');
     await expect(ip.locator('[data-talk-toggle]')).toHaveAttribute('aria-checked', 'true');
     await ip.getByRole('button', { name: 'Close' }).first().click();
     await expect(page.locator('[data-idea-card="' + title + '"]')).toBeVisible();   // on the board
+    await expect(page.locator('[data-idea-card="' + title + '"] [data-private-chip]')).toBeVisible();
+    // Post to's pop-up makes it public again
+    await page.locator('[data-idea-card="' + title + '"]').click();
+    await ip.locator('[data-ip-more]').click();
+    await ip.locator('[data-idea-post-to]').click();
+    const vis = page.getByRole('dialog', { name: 'Idea visibility' });
+    await expect(vis.locator('[data-idea-vis="private"]')).toHaveAttribute('aria-checked', 'true');
+    await vis.locator('[data-idea-vis="public"]').click();
+    await vis.locator('[data-ip-pop-done]').click();
+    await expect(page.getByRole('status')).toContainText('Visible to Torrez Fitness');
+    await expect.poll(() => asUser(page, async (c, _C, id) => (await c.from('sparks').select('visibility').eq('id', id).single()).data.visibility, id)).toBe('group');
+    await expect(ip.locator('[data-private-chip]')).toHaveCount(0);
+    await ip.getByRole('button', { name: 'Close' }).first().click();
     // The board opens in Tiles, the gold edge down the card's left side; the view menu switches to Grid (edge on top)
     const strip = () => page.locator('[data-idea-card="' + title + '"] [data-idea-strip]').evaluate(el => [el.offsetWidth, el.offsetHeight]);
     await expect(page.locator('[data-ia-views]')).toHaveAttribute('aria-label', 'View: Tiles');
