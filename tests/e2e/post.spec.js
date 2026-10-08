@@ -262,7 +262,7 @@ test('Plan an event is one page (v8-14): Post it waits for a title and a date; t
     await expect(flow.locator('[data-cp-photo]')).toContainText('Add photo');
     await expect(flow.locator('[data-cp-tile]')).toHaveCount(0);   // no date, no calendar tile
     // The sections, empty: grey cards
-    for (const t of ['WHEN & WHERE', 'EVENT DESCRIPTION', 'HOW TO PARTICIPATE', 'VISIBILITY']) await expect(one).toContainText(t);
+    for (const t of ['WHEN & WHERE', 'EVENT DESCRIPTION', 'SIGN UP', 'VISIBILITY']) await expect(one).toContainText(t);
     await expect(flow.locator('[data-cp-row="when"]')).toContainText('Add date & time');
     await expect(flow.locator('[data-cp-row="where"]')).toContainText('Add location (optional)');
     await expect(flow.locator('[data-cp-when-where]')).toHaveCSS('background-color', 'rgb(223, 226, 231)');
@@ -590,7 +590,7 @@ test('Plan an event: × asks about a draft, Keep going stays, and a reload picks
   }
 });
 
-test('How to participate: + Add names the job in its preview card; a bare starter can’t be added', async ({ browser }) => {
+test('Sign up: + Add names the job in its preview card; a bare starter can’t be added', async ({ browser }) => {
   test.setTimeout(90000);
   const { page, context, errors } = await newLead(browser, 1, 'Tester');
   const title = uniqueTitle('Pickup soccer');
@@ -627,7 +627,7 @@ test('How to participate: + Add names the job in its preview card; a bare starte
     await kinds.locator('[data-job-more-options]').click();
     const job = page.getByRole('dialog', { name: 'Add' });
     await expect(job.getByLabel('Job name')).toHaveValue('Bring a ball');
-    await expect(job).toContainText(/Participate/i);
+    await expect(job).toContainText(/Sign up/);
     await job.getByText('Add details, times or options').click();
     await expect(job.locator('[data-job-options] [data-part-waitlist]')).toHaveAttribute('aria-checked', 'true');   // every item's options (2026-10-07)
     await expect(job.locator('[data-job-guests]')).toHaveAttribute('aria-checked', 'true');

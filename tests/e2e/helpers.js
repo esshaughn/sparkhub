@@ -165,6 +165,11 @@ async function startPost(page) {
   await page.locator('[data-add-fab]').click();
   await page.locator('[data-plus-plan]').click();
   await expect(page.locator('[data-screen-label="New spark"]')).toBeVisible();
+  // No group is picked for you (owner, 2026-10-08): the leads post to Torrez Fitness
+  await page.locator('[data-post-to]').click();
+  const to = page.getByRole('dialog', { name: 'Post to' });
+  await to.getByRole('checkbox', { name: /Torrez Fitness/ }).click();
+  await to.getByRole('button', { name: 'Done' }).click();
 }
 // …and Float an idea opens the Float sheet (v8-4 §5)
 async function startFloat(page) {
@@ -322,7 +327,7 @@ async function closeAskFirst(page) {
 async function addJob(page, { item, need = 1, time }) {
   // No jobs yet: the empty box; otherwise the section's Edit pill (a job's ✎ opens Edit job, that job only: Design v8-8)
   await page.locator('[data-screen-label="Plan page"]').locator('[data-help-empty], [data-help-edit]').first().click();
-  const sheet = page.getByRole('dialog', { name: 'Edit Participate' });
+  const sheet = page.getByRole('dialog', { name: 'Edit sign-ups' });
   const n = await sheet.locator('[data-need-row]').count() + 1;
   await sheet.locator('[data-needs-add]').click();
   await sheet.getByLabel('Job name ' + n).fill(item);

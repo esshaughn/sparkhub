@@ -70,7 +70,7 @@ test('multi-day: separate days, each-day RSVP, a job on one day, and a weekly ev
     await expect(HP.locator('[data-day-timeline]')).toContainText('12pm–5pm');
     // The host adds a job on Day 2 (WHICH DAY)
     await HP.locator('[data-help-empty], [data-help-edit]').first().click();
-    const needs = H.getByRole('dialog', { name: 'Edit Participate' });
+    const needs = H.getByRole('dialog', { name: 'Edit sign-ups' });
     await needs.locator('[data-needs-add]').click();
     await needs.getByLabel('Job name 1').fill('Pack up leftovers');
     const which = needs.getByRole('radiogroup', { name: 'Which day 1' });

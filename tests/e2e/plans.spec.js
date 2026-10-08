@@ -39,7 +39,7 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
 
     // The host adds sign-ups (with "how many") in Edit what you need, and posts an update
     await HP.locator('[data-help-empty], [data-help-edit]').first().click();
-    const needs = H.getByRole('dialog', { name: 'Edit Participate' });
+    const needs = H.getByRole('dialog', { name: 'Edit sign-ups' });
     await needs.locator('[data-needs-add]').click();
     await needs.getByLabel('Job name 1').fill('Folding chairs');
     await needs.getByRole('button', { name: 'More for how many people' }).click();
@@ -262,7 +262,7 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
   }
 });
 
-test('Participate: More details, time ranges and a job’s most per person', async ({ browser }) => {
+test('Sign up: More details, time ranges and a job’s most per person', async ({ browser }) => {
   test.setTimeout(120000);
   const host = await newLead(browser, 1, 'Hope');
   const helper = await newLead(browser, 2, 'Omar');

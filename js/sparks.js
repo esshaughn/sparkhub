@@ -6443,8 +6443,8 @@
   function helpOut(s) {
     const lead = isLead(s), live = !s.cancelledAt, cards = takePart(s);
     if (s.cancelledAt || (!cards && phaseOf(s) !== 'idea' && !lead)) return '';
-    const edit = lead && live ? '<span ' + on(() => openNeeds(s)) + ' data-help-edit role="button" aria-label="Edit Participate" style="flex:0 0 auto;display:flex;align-items:center;gap:5px;min-height:36px;padding:0 2px;color:#6b7280;font-size:14px;font-weight:700;cursor:pointer">' + svg(13, stroke('currentColor', 2.4), PENCIL) + 'Edit</span>' : '';
-    return '<section id="sec-tasks" data-screen-label="Participate">' + secTitle('Participate', edit, true) +
+    const edit = lead && live ? '<span ' + on(() => openNeeds(s)) + ' data-help-edit role="button" aria-label="Edit sign-ups" style="flex:0 0 auto;display:flex;align-items:center;gap:5px;min-height:36px;padding:0 2px;color:#6b7280;font-size:14px;font-weight:700;cursor:pointer">' + svg(13, stroke('currentColor', 2.4), PENCIL) + 'Edit</span>' : '';
+    return '<section id="sec-tasks" data-screen-label="Sign up">' + secTitle('Sign up', edit, true) +   // was Participate (owner, 2026-10-08)
       '<div style="display:flex;flex-direction:column;gap:12px">' +
         (cards || (lead
           ? '<div ' + on(() => openNeeds(s)) + ' data-help-empty style="padding:14px 16px;border-radius:18px;border:1.5px dashed #c9ccd3;font-size:14.5px;font-weight:700;color:#6b7280;cursor:pointer">+ Add ways people can help or participate</div>'
@@ -6731,7 +6731,7 @@
     if (!s) return '';
     const close = () => setState({ needEd: null });
     const setRow = (k, patch) => setState({ needEd: Object.assign({}, state.needEd, { rows: state.needEd.rows.map((r, j) => j === k ? Object.assign({}, r, patch) : r) }) });
-    const title = ed.only ? 'Edit' : 'Edit Participate';
+    const title = ed.only ? 'Edit' : 'Edit sign-ups';
     return '<div class="sheet-scrim" data-scrim="' + reg(close) + '" style="z-index:36">' +
       '<div role="dialog" aria-modal="true" aria-label="' + title + '" data-screen-label="' + title + '" class="sheet" style="height:calc(100% - 56px);display:flex;flex-direction:column">' +
         '<div style="padding:10px 18px 12px;display:flex;flex-direction:column;gap:10px;border-bottom:1px solid #f2f3f6"><span aria-hidden="true" style="align-self:center;width:38px;height:5px;border-radius:999px;background:#dcdfe6"></span>' +
@@ -8998,7 +8998,7 @@
   // v8-6: four steps, 1 · Title, date & location · 2 · What to expect · 3 · Join in · 4 · Review. Whoever makes it leads it
   // (no lead card; Float an idea is the + menu's own sheet). 'when' and 'where' are page 1's parts, and Review's pop-ups
   const EV_STEPS = ['title', 'details', 'help'];
-  const EV_NAMES = { title: 'Title, date & location', when: 'Date & time', where: 'Location', details: 'What to expect', help: 'How to participate', review: 'Review' };
+  const EV_NAMES = { title: 'Title, date & location', when: 'Date & time', where: 'Location', details: 'What to expect', help: 'Sign up', review: 'Review' };
   const BIT_PH = ['Meet by the front desk', 'Coffee and donuts at 9:30', 'Kids and dogs welcome'];   // no "e.g." in placeholders (v8)
   const EV_GRAD = 'linear-gradient(135deg,#5b4ae8,#8a6ff0 55%,#e8a71c)';
   const AMBER_INK = '#8f6405';
@@ -9035,8 +9035,9 @@
   const evGuestInv = (st) => st.evNoGuestInv == null ? !st.evPriv : !st.evNoGuestInv;
   const evGroupIds = (st) => {
     if (st.evGrpNone) return [];
-    const mine = myGroups().map(g => g.id), list = (st.evGroups || []).filter(id => mine.indexOf(id) > -1), g = currentGroup();
-    return list.length ? list : g ? [g.id] : [];
+    // No group is picked for you (owner, 2026-10-08; it was the group you were in): Post it asks for one
+    const mine = myGroups().map(g => g.id);
+    return (st.evGroups || []).filter(id => mine.indexOf(id) > -1);
   };
   // Several groups in one line: "Torrez Fitness & 1 other", "… & 2 others" (owner, 2026-10-02)
   const groupsShort = (names) => names.length <= 1 ? (names[0] || '') : names[0] + ' & ' + (names.length - 1) + (names.length === 2 ? ' other' : ' others');
@@ -9809,7 +9810,7 @@
       '<div style="position:sticky;top:0;z-index:8;height:0"><span ' + on(close) + ' aria-label="Close" style="position:absolute;top:14px;right:12px;width:36px;height:36px;border-radius:999px;background:rgba(13,17,23,.28);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(14, '#fff', 2.6) + '</span></div>' +
       hero +
       '<div style="flex:1 1 auto;padding:16px 14px 0;display:flex;flex-direction:column;gap:12px">' +
-        label('WHEN &amp; WHERE', 0) + ww + label('EVENT DESCRIPTION', true) + descCard + label('HOW TO PARTICIPATE', true) + helpCard + label('VISIBILITY') + postTo + vis + inv +
+        label('WHEN &amp; WHERE', 0) + ww + label('EVENT DESCRIPTION', true) + descCard + label('SIGN UP', true) + helpCard + label('VISIBILITY') + postTo + vis + inv +
       '</div>' +
       '<div style="padding:20px 16px 24px"><button type="button" ' + on(post) + ' data-post aria-disabled="' + !ready + '" style="width:100%;min-height:54px;border:0;border-radius:999px;font-family:inherit;font-size:17px;font-weight:900;color:#fff;cursor:' + (busy ? 'wait' : 'pointer') + ';' +
           (ready ? 'background:' + P + ';box-shadow:0 8px 20px rgba(91,74,232,.35)' + (busy ? ';opacity:.72' : '') : 'background:#c9ccd3') + '">' + (busy ? 'Posting…' : 'Post it') + '</button>' +
@@ -9927,7 +9928,7 @@
         ['where', 'Location', st.evSpotPoll ? 'Voting on ' + st.evSpotPoll.length + ' locations' : place, !st.evSpotPoll && place ? evSpotCols(st).spot_address : ''],
         // The overview first, then + N more for the quick details (+ 1 detail when there's one) (Design v8 prototype, Review)
         ['details', 'What to expect', ov ? ov + (bits.length ? ' + ' + bits.length + (bits.length === 1 ? ' detail' : ' more') : '') : bits.length ? bits[0] + more(bits) : ''],
-        ['help', 'How to participate', jobNames.length ? jobNames.slice(0, 2).join(', ') + (jobNames.length > 2 ? ' + ' + (jobNames.length - 2) + ' more' : '') : '']
+        ['help', 'Sign up', jobNames.length ? jobNames.slice(0, 2).join(', ') + (jobNames.length > 2 ? ' + ' + (jobNames.length - 2) + ' more' : '') : '']
       ];
       const nDone = chk.filter(c => c[2]).length;
       const chkRow = ([k, label, value, sub], j) => '<div ' + on(() => edit(k)) + ' data-review-edit="' + k + '" aria-label="' + (value ? 'Edit ' : 'Add ') + label.toLowerCase().replace('&', 'and') + '" style="display:flex;align-items:center;gap:12px;min-height:50px;padding:6px 0;border-top:' + (j ? '1px solid #eef0f3' : '0') + ';cursor:pointer">' +
@@ -10120,7 +10121,7 @@
       const pchips = (big) => '<div style="display:flex;flex-wrap:wrap;gap:' + (big ? 8 : 6) + 'px">' +
         ['time', 'seat', 'other'].map(k => chip(PART_KINDS[k].chip, () => openJob(null, blankPart(k, st.evTime)), k === 'other', big, true, 'data-part-chip')).join('') + '</div>';
       const label = (t) => '<span style="font-size:12.5px;font-weight:800;letter-spacing:1.2px;color:#454b55">' + t + '</span>';   // #454b55 (v8-6)
-      body = head('How to participate', 'Ask for help or list specific ways to participate.') +
+      body = head('Sign up', 'Add things people can sign up for.') +
         (jobs ? '<div style="padding:12px 14px 0;display:flex;flex-direction:column;gap:8px">' + jobs + '</div>' : '') +
         '<div style="padding:16px 16px 0;display:flex;flex-direction:column;gap:10px">' + label('ADD') + chips(!!jobs) + '</div>';   // one kind of sign-up (2026-10-07): no separate spot chips
     }
@@ -10129,7 +10130,7 @@
   // Review's Edit (owner, 2026-10-02): each part opens in a pop-up over Review, not back on its step's page. The fields
   // change the event as they're typed, so Done (or closing it) only goes back
   // Review's edit pop-ups name the help step How to participate, as the one-page Plan an event does
-  const POP_NAMES = Object.assign({}, EV_NAMES, { title: 'Event title', help: 'How to participate' });   // as the one-page Plan an event names it (create flow audit, 2026-10-07; was How people can join)
+  const POP_NAMES = Object.assign({}, EV_NAMES, { title: 'Event title', help: 'Sign up' });   // as the one-page Plan an event names it (create flow audit, 2026-10-07; was How people can join)
   // v8-6 (20c): a centred pop-up, 24px corners, as tall as its content up to 88% (it scrolls inside), no grab bar,
   // a quick fade-and-grow. Done goes back to Review
   function viewEvPop() {
@@ -10214,7 +10215,7 @@
       };
       // One sheet for every item (one kind of sign-up, owner 2026-10-07): name, details, times, options
       return centredPop(ns.i != null ? 'Edit' : 'Add', close,   // v8-14: a centred pop-up (it was a bottom sheet)
-        sheetHead('Participate', ns.i != null ? 'Edit' : 'Add', '', close) + jobFields(r, set, null, (() => { const c = whenCols(evWhen()).schedule; return c && c.kind === 'days' ? c.days.map(x => x.d) : null; })()) +
+        sheetHead('Sign up', ns.i != null ? 'Edit' : 'Add', '', close) + jobFields(r, set, null, (() => { const c = whenCols(evWhen()).schedule; return c && c.kind === 'days' ? c.days.map(x => x.d) : null; })()) +
         // Save stays in view while the times grow (create flow audit)
         '<div style="position:sticky;bottom:-18px;z-index:2;margin:0 -18px -18px;padding:10px 18px 18px;background:#fff;display:flex;flex-direction:column">' + saveBtn(r.kind ? partReady(r) : jobNamed(r.item), save) + '</div>', 36);
     }
