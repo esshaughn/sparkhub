@@ -9817,9 +9817,9 @@
     const cam = insp.length >= 3 ? '' : '<label data-cp-inspo style="flex:0 0 52px;width:52px;height:52px;box-sizing:border-box;border-radius:12px;border:1.5px dashed #b9bcc4;display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(20, stroke('#9aa0ac', 2.2), CAMERA) +
       '<input type="file" accept="image/*" multiple aria-label="Add inspo photos" ' + onInput(e => { if (e.type !== 'change') return; const f = Array.from(e.target.files || []); e.target.value = ''; addInspo(f); }) + ' style="display:none"></label>';
     const descCard = '<div data-cp-desc style="' + (detOn ? WC : GC) + '"><div style="position:relative">' +
-        '<textarea class="cp-fld" maxlength="200" aria-label="Event description" placeholder="What’s the plan?" ' + onInput(e => { if (e.type === 'input') setState({ evDesc: e.target.value.slice(0, 200) }); }) +
+        '<textarea class="cp-fld" maxlength="' + DESC_MAX + '" aria-label="Event description" placeholder="What’s the plan?" ' + onInput(e => { if (e.type === 'input') setState({ evDesc: e.target.value.slice(0, DESC_MAX) }); }) +
           ' style="display:block;width:100%;box-sizing:border-box;min-height:72px;margin:0;padding:14px 56px 14px 16px;border:0;background:transparent;outline:none;resize:none;font-family:inherit;font-size:16px;line-height:1.45;font-weight:500;color:#2a2f38;overflow:hidden;field-sizing:content">' + esc(desc) + '</textarea>' +
-        '<span style="position:absolute;right:14px;bottom:8px;font-size:11.5px;font-weight:700;color:#9aa0ac">' + desc.length + '/200</span></div>' +
+        '<span style="position:absolute;right:14px;bottom:8px;font-size:11.5px;font-weight:700;color:#9aa0ac">' + desc.length + '/' + DESC_MAX + '</span></div>' +
       '<div style="display:flex;align-items:center;gap:8px;padding:12px 16px;border-top:1px solid ' + (detOn ? '#f0f1f4' : '#d3d6dc') + '">' + thumbs + cam +
         (insp.length ? '' : '<span aria-hidden="true" style="flex:0 0 52px;height:52px;box-sizing:border-box;border-radius:12px;border:1.5px dashed #b9bcc4"></span><span aria-hidden="true" style="flex:0 0 52px;height:52px;box-sizing:border-box;border-radius:12px;border:1.5px dashed #b9bcc4"></span>' +
           '<span style="margin-left:4px;font-size:13.5px;font-weight:700;color:#6b7280">Add inspo photos</span>') + '</div></div>';
