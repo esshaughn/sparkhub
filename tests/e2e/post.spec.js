@@ -304,7 +304,7 @@ test('Plan an event is one page (v8-14): Post it waits for a title and a date; t
     await expect(when.page().locator('[data-time-list] [data-time="17:00"]')).toHaveCount(0);
     await pickTime(when, '20:00');
     // The calendar tile is up in the header; the card turns white
-    await expect(when.getByRole('button', { name: 'End time' })).toContainText('8');
+    await expect(timeBox(when, 'End time')).toHaveValue('8:00pm');
     await expect(flow.locator('[data-cp-tile]')).toBeVisible();
     await expect(flow.locator('[data-cp-when-where]')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
     await expect(flow.locator('[data-post]')).toHaveAttribute('aria-disabled', 'false');
