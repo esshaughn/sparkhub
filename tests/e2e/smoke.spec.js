@@ -82,102 +82,21 @@ test('web push: a push-only service worker registers, and Notifications offers p
   }
 });
 
-// Get the app (first-encounter audit 6, owner 2026-10-07): offered right after an RSVP, never on first load. An iPhone Safari
-// guest gets the iOS 26 steps (⋯ → Share → Add to Home Screen) and the sign-in-once note; Not now puts it away
-test('Get the app: after a guest RSVP, iPhone Safari gets the steps; Not now puts it away', async ({ browser }) => {
-  const { page, context } = await newLead(browser, 1, 'Lena Lead');
-  const v = await newMember(browser);
-  let id;
-  try {
-    id = await asUser(page, async (c, _C, { title, day }) => {
-      const me = (await c.auth.getUser()).data.user.id;
-      const g = (await c.from('groups').select('id').eq('name', 'Torrez Fitness').single()).data.id;
-      return (await c.from('sparks').insert({ group_id: g, author_name: 'Lena Lead', lead_name: 'Lena Lead', lead_id: me, created_by: me, text: title, planned: true, day_date: day }).select('id').single()).data.id;
-    }, { title: uniqueTitle('App walk'), day: new Date(Date.now() + 8 * 864e5).toISOString().slice(0, 10) });
-    await v.context.addInitScript(() => {
-      if (!localStorage.getItem('e2e-iphone')) return;
-      const ua = 'Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1';
-      Object.defineProperty(navigator, 'userAgent', { get: () => ua });
-    });
-    await v.page.evaluate(() => { localStorage.setItem('e2e-install', '1'); localStorage.setItem('e2e-iphone', 'safari'); localStorage.removeItem('sparkhub-a2hs'); sessionStorage.removeItem('sparkhub-a2hs'); });
-    await v.page.goto('/?iphone=1#/idea/' + id);   // a new address loads the page again (a hash change alone wouldn't), so the iPhone stand-in applies
-    const P = v.page.locator('[data-screen-label="Plan page"]');
-    await expect(P).toBeVisible();
-    await v.page.waitForTimeout(1500);
-    await expect(v.page.getByRole('dialog', { name: 'Add to Home Screen' })).toHaveCount(0);   // not on first load
-    await P.locator('[data-rsvp]').getByRole('button', { name: 'Going', exact: true }).click();
-    const d = v.page.getByRole('dialog', { name: 'RSVP as a guest' });
-    await d.getByLabel('Your name').fill('Ash');
-    await d.locator('[data-guest-rsvp]').click();
-    await v.page.getByRole('dialog', { name: 'You’re on the list' }).locator('[data-plus-x]').click();
-    const pop = v.page.getByRole('dialog', { name: 'Add to Home Screen' });
-    await expect(pop).toContainText('Get the Spark Hub app');
-    await expect(pop.locator('[data-a2hs-steps="safari"]')).toContainText('at the bottom of the screen');
-    await expect(pop.locator('[data-a2hs-note]')).toContainText('You’ll sign in once there.');
-    await pop.locator('[data-a2hs-later]').click();
-    await expect(pop).toHaveCount(0);
-    expect(v.errors).toEqual([]);
-  } finally {
-    if (id) await asUser(page, async (c, _C, id) => { await c.from('sparks').delete().eq('id', id); }, id).catch(() => {});
-    await context.close();
-    await v.context.close();
-  }
-});
-
-test('Add to Home Screen: never pops up on its own (owner, 2026-10-06); Me → Settings opens Chrome’s prompt or the iPhone steps', async ({ browser }) => {
-  // Chrome hands an installable site a beforeinstallprompt event; stand in for it (or be an iPhone browser, which has none)
-  const fake = () => {
-    const iphone = localStorage.getItem('e2e-iphone');
-    if (iphone) {
-      const ua = iphone === 'chrome'
-        ? 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/140.0.0.0 Mobile/15E148 Safari/604.1'
-        : 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
-      Object.defineProperty(navigator, 'userAgent', { get: () => ua });
-      return;
-    }
-    document.addEventListener('DOMContentLoaded', () => {
-      const e = new Event('beforeinstallprompt', { cancelable: true });
-      e.prompt = async () => { window.__prompted = (window.__prompted || 0) + 1; };
-      e.userChoice = Promise.resolve({ outcome: 'accepted', platform: 'web' });
-      window.dispatchEvent(e);
-    });
-  };
-  const fresh = async (page, iphone) => {   // this device hasn't seen the pop-up yet
-    await page.evaluate((iphone) => {
-      localStorage.setItem('e2e-install', '1');
-      localStorage.removeItem('sparkhub-a2hs');
-      sessionStorage.removeItem('sparkhub-a2hs');
-      if (iphone) localStorage.setItem('e2e-iphone', iphone); else localStorage.removeItem('e2e-iphone');
-    }, iphone);
-    await page.reload();
-    await expect(page.locator('html[data-loaded=true]')).toHaveCount(1);
-  };
-
-  // Welcome (signed out), iPhone Safari: nothing pops up
-  const v = await newMember(browser);
-  try {
-    await v.context.addInitScript(fake);
-    await fresh(v.page, 'safari');
-    await expect(v.page.locator('[data-screen-label=Welcome]')).toBeVisible();
-    await v.page.waitForTimeout(1500);
-    await expect(v.page.getByRole('dialog', { name: 'Add to Home Screen' })).toHaveCount(0);
-    expect(v.errors).toEqual([]);
-  } finally {
-    await v.context.close();
-  }
-
-  // Signed in, Android Chrome: nothing pops up either; Me's Settings opens Chrome's dialog straight away
+// No Add to Home Screen of our own (owner, 2026-10-09): nothing intercepts Chrome's install offer, so Android shows its own,
+// and the app has no install pop-up, Me banner or Settings row
+test('Install: Chrome’s own install offer goes through; no install pop-up, banner or Settings row', async ({ browser }) => {
   const m = await newLead(browser, 1, 'Ivy');
   try {
     const page = m.page;
-    await m.context.addInitScript(fake);
-    await fresh(page, null);
-    await page.waitForTimeout(1500);
+    // Chrome hands an installable site a beforeinstallprompt event; the app must leave it alone (not preventDefault)
+    const swallowed = await page.evaluate(() => { const e = new Event('beforeinstallprompt', { cancelable: true }); window.dispatchEvent(e); return e.defaultPrevented; });
+    expect(swallowed).toBe(false);
+    await page.waitForTimeout(500);
     await expect(page.getByRole('dialog', { name: 'Add to Home Screen' })).toHaveCount(0);
     await openProfile(page);
+    await expect(page.locator('[data-screen-label="Me"]')).not.toContainText('Get the Spark Hub app');
     await page.locator('[data-me-settings]').click();
-    await page.getByRole('dialog', { name: 'Settings' }).getByRole('button', { name: /^Get the Spark Hub app/ }).click();
-    await expect.poll(() => page.evaluate(() => window.__prompted)).toBe(1);
+    await expect(page.getByRole('dialog', { name: 'Settings' })).not.toContainText('Get the Spark Hub app');
     expect(m.errors).toEqual([]);
   } finally {
     await m.context.close();

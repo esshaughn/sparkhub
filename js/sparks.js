@@ -318,7 +318,7 @@
     groups: [], sparks: [], profiles: {},
 
     drafts: [], notes: [], pushOn: false, pushCardHidden: (() => { try { return localStorage.getItem('spark-hub-push-card') === 'hidden'; } catch (e) { return false; } })(),
-    canInstall: false, installPop: false, fb: null, sec: null, needEd: null, share: null, partMore: {}, partRoster: null, partGuest: null,
+    fb: null, sec: null, needEd: null, share: null, partMore: {}, partRoster: null, partGuest: null,
 
     loginStep: null, loginFrom: 'default', loginThen: null, loginMode: 'link', loginEmail: '', loginCode: '',
     resent: false, mergeToken: null, googleFailed: false,
@@ -988,7 +988,6 @@
     if (!s) return setState({ plusPop: null });
     const p = plusOf(s), was = myPlus(s), note = p.n && p.note.trim() ? p.note.trim().slice(0, 80) : '';
     setState(Object.assign({ plusPop: null }, clearPlus(s.id)));
-    setTimeout(() => offerInstall(), 900);   // they did what they came for: now offer the app (first-encounter audit 6)
     if (pp.guest) return;
     if (p.n !== was.n || note !== was.note) {
       patchSpark(s.id, { rsvps: s.rsvps.map(r => r.userId === state.me ? Object.assign({}, r, { plus: p.n, plusNote: note }) : r) });
@@ -1348,7 +1347,7 @@
   const startFriendAdd = (code, go) => {
     setPendingFriend(code);
     try { sessionStorage.removeItem('pendingFriendGo'); } catch (e) { /* fine */ }
-    setState({ frAdd: { code, who: undefined, busy: false }, installPop: false, menu: null });
+    setState({ frAdd: { code, who: undefined, busy: false }, menu: null });
     sb.rpc('friend_link_preview', { p_code: code }).then(r => {
       if (r.error) throw r.error;
       const w = (r.data || [])[0];
@@ -1456,7 +1455,7 @@
   // Opening the link: signed in already → the confirm pop-up over their Calendar; otherwise the landing
   const startInvite = (code, step) => {
     setPending(code);
-    setState({ inv: { code, group: undefined, step: step || (state.email ? 'confirm' : 'land') }, screen: 'sched', joinOpen: false, loginStep: null, installPop: false, menu: null });
+    setState({ inv: { code, group: undefined, step: step || (state.email ? 'confirm' : 'land') }, screen: 'sched', joinOpen: false, loginStep: null, menu: null });
     loadInviteGroup(code);
   };
   const closeInvite = () => { setPending(''); setState({ inv: null }); };
@@ -1489,7 +1488,7 @@
         return;
       }
       if (welcomedIds().indexOf(id) > -1) {   // Welcome shows once per group
-        setState({ inv: null, invA2hs: true });
+        setState({ inv: null });
         if (g) { markSeen(g); go('browse', { groupId: g.id, phaseTab: 'plan' }); }
         return;
       }
@@ -1506,9 +1505,8 @@
   // Leaving Welcome for the group page; the Add to Home Screen pop-up follows 1.2s later
   const leaveWelcome = (tab) => {
     const g = groupById(state.inv && state.inv.gid);
-    setState({ inv: null, invA2hs: true });
+    setState({ inv: null });
     if (g) { markSeen(g); go('browse', { groupId: g.id, phaseTab: tab }); } else go('sched');
-    setTimeout(() => offerInstall(), 1200);   // joined: offer the app (first-encounter audit 6)
   };
   // Signed out on the landing: email → a code in pop-up 2; Google → a full-page trip, back into the join
   const invSendCode = () => {
@@ -4865,7 +4863,6 @@
   const askReminders = () => {
     const ps = pushStatus();
     if (ps === 'on' || state.viewAs) return;
-    if (ps === 'install') { if (installMode()) setState({ installPop: true }); return; }
     if (ps === 'off') setState({ notifAsk: true });
   };
   function viewNotifAsk() {
@@ -4919,16 +4916,14 @@
   // The card at the top of Notifications until it's on (or put away)
   const pushCard = () => {
     const ps = pushStatus();
-    if (state.pushCardHidden || (ps !== 'off' && (ps !== 'install' || !A2HS_ON))) return '';   // the iPhone Home Screen card waits for A2HS_ON
+    if (state.pushCardHidden || ps !== 'off') return '';
     const hide = () => { try { localStorage.setItem('spark-hub-push-card', 'hidden'); } catch (e) { /* fine */ } setState({ pushCardHidden: true }); };
     // Design v8: a 16/900 title, a 14/500 body, the button inside the text column, a bare gray ✕
     return '<div data-push-card style="' + CARD + ';position:relative;padding:16px 16px 16px 14px;display:flex;align-items:flex-start;gap:12px">' +
       '<span aria-hidden="true" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#f3f1fe;display:flex;align-items:center;justify-content:center">' + svg(18, stroke('#5b4ae8', 2.2), '<path d="M6 16.5V11a6 6 0 1 1 12 0v5.5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>') + '</span>' +
-      '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;padding-right:22px"><span style="font-size:16px;font-weight:900;color:#0d1117">' + (ps === 'install' ? 'Get these on your iPhone' : 'Get these on your phone') + '</span>' +
-        '<span style="font-size:14px;line-height:1.45;font-weight:500;color:#5c6270;text-wrap:pretty">' + (ps === 'install'
-          ? 'Add Spark Hub to your Home Screen first: tap Share, then Add to Home Screen. Open it from there and turn them on.'
-          : 'We’ll buzz you when a Plan changes, something new goes up, or the day before you’re going.') + '</span>' +
-        (ps === 'off' ? '<button type="button" class="hov-primary" ' + on(turnOnPush) + ' style="align-self:flex-start;margin-top:8px;min-height:40px;padding:0 16px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer">Turn on notifications</button>' : '') + '</div>' +
+      '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;padding-right:22px"><span style="font-size:16px;font-weight:900;color:#0d1117">' + 'Get these on your phone' + '</span>' +
+        '<span style="font-size:14px;line-height:1.45;font-weight:500;color:#5c6270;text-wrap:pretty">' + 'We’ll buzz you when a Plan changes, something new goes up, or the day before you’re going.' + '</span>' +
+        ('<button type="button" class="hov-primary" ' + on(turnOnPush) + ' style="align-self:flex-start;margin-top:8px;min-height:40px;padding:0 16px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer">Turn on notifications</button>') + '</div>' +
       '<span ' + on(hide) + ' aria-label="Not now" style="position:absolute;top:10px;right:10px;width:32px;height:32px;border-radius:999px;display:flex;align-items:center;justify-content:center;color:#8a909b;cursor:pointer">' + I.x(13, 'currentColor', 2.8) + '</span>' +
     '</div>';
   };
@@ -5063,7 +5058,7 @@
   const fbNudgeWrite = (o) => { try { localStorage.setItem(FB_NUDGE_KEY + state.me, JSON.stringify(o)); } catch (e) { /* blocked: it may ask again */ } };
   // Only over a main screen with nothing else open, so it never lands on someone mid-task
   const fbNudgeFits = () => ['calendar', 'home', 'sched', 'groups', 'friends', 'ideas'].indexOf(state.screen) > -1 && state.loaded && !state.notifSheet &&
-    !state.fb && !state.confirm && !state.share && !state.loginStep && !state.inv && !state.toast && !state.banner && !state.cSearch && !state.dashAll && !state.cHandSheet && !state.zoom && !state.installPop &&
+    !state.fb && !state.confirm && !state.share && !state.loginStep && !state.inv && !state.toast && !state.banner && !state.cSearch && !state.dashAll && !state.cHandSheet && !state.zoom &&
     !state.qi && !state.ip && !state.ipPop && !state.plusMenu && !state.plusPop && !state.nameAsk && !state.notifAsk && !state.guestOpen && !state.leadsSheet;   // never over Float, an idea or a pop-up (audit 10)
   // Asked only after something real happened: they went to a plan, or led one (audit 10; it was 5 minutes of use)
   const fbMoment = () => state.sparks.some(s => phaseOf(s) === 'done' && (myRsvp(s) === 'going' || isLead(s)));
@@ -5224,114 +5219,8 @@
         : '<div style="background:#fff;border-radius:18px;padding:26px 16px;text-align:center;font-size:15px;font-weight:700;color:#6b7280">No feedback yet.</div>') + '</div>');
   }
 
-  // ---- Add to Home Screen (not designed; HANDOFF §2): a pop-up on Welcome (once a visit) and once after signing in,
-  // while the app isn't installed. Android Chrome hands us its install prompt (beforeinstallprompt), so our button
-  // opens Chrome's dialog; iPhone has no prompt, so the pop-up shows the Share → Add to Home Screen steps.
-  // iPhone browsers that can add to the Home Screen from their Share button (Update 12): Safari gets the ••• steps;
-  // Chrome, Firefox, Edge and Opera the Chrome ones. The Google app (GSA) is an in-app browser, so none.
-  const UA = navigator.userAgent;
-  const IOS_BROWSER = !IS_IOS || /GSA\//.test(UA) ? '' : /Safari\//.test(UA) && !/Chrome|CriOS|FxiOS|EdgiOS|OPiOS|Android/.test(UA) ? 'Safari'
-    : /CriOS|FxiOS|EdgiOS|OPiOS/.test(UA) ? 'Chrome' : '';
-  let installEvt = null;
-  window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installEvt = e; setState({ canInstall: true }); });
-  window.addEventListener('appinstalled', () => { installEvt = null; setState({ canInstall: false, installPop: false }); toast('Spark Hub is on your Home Screen', true); });
-  // prompt (Android: our button opens Chrome's dialog) · ios (show the Share steps) · '' (installed, or this browser can't)
-  // inapp (first-encounter audit 6): Instagram, Facebook, Gmail… can't add to the Home Screen, so the pop-up says how to
-  // open the page in the phone's browser first
-  // Add to Home Screen is hidden for now (owner, 2026-10-07: pictures for the steps first). With A2HS_ON false, installMode()
-  // is '' everywhere, so the pop-up, the Me banner, the Settings row, the after-RSVP offer and the iPhone card in Notifications all stay away; set it to true to bring them back
-  const A2HS_ON = (() => { try { return !!localStorage.getItem('e2e-install'); } catch (e) { return false; } })();   // only the e2e tests' flag turns it on (they still check the flow)
-  const installMode = () => !A2HS_ON || STANDALONE ? '' : IN_APP ? (DEVICE === 'phone' ? 'inapp' : '') : state.canInstall && installEvt ? 'prompt' : IOS_BROWSER ? 'ios' : '';
-  const startInstall = async () => {
-    const mode = installMode();
-    if (mode === 'ios' || mode === 'inapp') return setState({ installPop: true });
-    if (mode !== 'prompt') return;
-    const e = installEvt;
-    installEvt = null;   // Chrome's prompt works once; it offers a fresh one on a later visit
-    setState({ installPop: false });
-    try { await e.prompt(); await e.userChoice; } catch (err) { console.error(err); }
-    setState({ canInstall: false });
-  };
-  // When to pop it up by itself: at most once a visit, and it keeps coming back now and then until the app is
-  // installed (owner, 2026-09-30; Update 11 had Got it = never again). Got it hides it for 48 hours; Maybe later, ✕,
-  // the scrim or Escape for 24. localStorage holds the time it may show again. Never in the installed app
-  // (installMode() is '' there). Called after each render; waits for other pop-ups (sign-in, name, confirm…).
-  const A2HS = 'sparkhub-a2hs', A2HS_DAY = 864e5;
-  const a2hsSeen = () => { try { return (+localStorage.getItem(A2HS) || 0) > Date.now() || sessionStorage.getItem(A2HS) === 'later'; } catch (e) { return true; } };
-  const a2hsMark = (store, v) => { try { store.setItem(A2HS, v); } catch (e) { /* fine */ } };
-  const a2hsHide = (days) => { a2hsMark(localStorage, String(Date.now() + days * A2HS_DAY)); setState({ installPop: false }); };
-  // Not now: 3 days, and after three of them it stops offering by itself (Me → Settings still has it); I've added it: 30 days
-  const A2HS_N = 'sparkhub-a2hs-n', a2hsNos = () => { try { return +localStorage.getItem(A2HS_N) || 0; } catch (e) { return 9; } };
-  const a2hsLater = () => { a2hsMark(sessionStorage, 'later'); try { localStorage.setItem(A2HS_N, String(a2hsNos() + 1)); } catch (e) { /* fine */ } a2hsHide(3); };
-  const a2hsDone = () => a2hsHide(30);
-  // Get the app (first-encounter audit 6, owner 2026-10-07): offered right after someone does the thing they came for (an
-  // RSVP, joining a group), never on first load; once a visit, not over another pop-up, and not after three Not nows
-  const offerInstall = (tries) => {
-    const st = state;
-    if (!installMode() || st.viewAs || st.installPop || a2hsSeen() || a2hsNos() >= 3) return;
-    const busy = st.loginStep || st.nameAsk || st.confirm || st.guestOpen || st.joinOpen || st.plusPop || st.inv || st.qi || st.ipPop || st.notifSheet || st.screen === 'compose';
-    if (busy) { if ((tries || 0) < 4) setTimeout(() => offerInstall((tries || 0) + 1), 1500); return; }
-    a2hsMark(sessionStorage, 'later');   // once a visit, whatever they tap
-    setState({ installPop: true });
-  };
-  let popTimer = null;
-  // Off (owner, 2026-10-06): it no longer pops up on its own, on Welcome or after signing in. Me → Settings → Add to Home
-  // Screen still opens it (iPhone steps) or Chrome's dialog (Android) when someone taps it
-  const INSTALL_POP_ON = false;
-  const maybeInstallPop = () => {
-    if (!INSTALL_POP_ON) return;
-    const st = state;
-    if (popTimer || st.installPop || !installMode() || st.viewAs || st.screen === 'compose' || st.inv) return;   // never over the invite screens
-    if (st.loginStep || st.nameAsk || st.confirm || st.guestOpen || st.joinOpen || st.pe || st.invite || st.notifSheet) return;
-    if (!(welcomeShown() || (st.email && st.loaded)) || a2hsSeen()) return;
-    popTimer = setTimeout(() => {
-      popTimer = null;
-      if (!installMode() || a2hsSeen() || state.inv) return;
-      a2hsMark(sessionStorage, 'later');   // once a visit, whatever they tap
-      setState({ installPop: true, invA2hs: false });
-    }, st.invA2hs ? 1200 : 700);   // after an invite's Welcome: 1.2s into the group page
-  };
-  // Round 41d: RECOMMENDED · Make this an app (kinda) · two icon steps (iPhone) · Got it / Maybe later.
-  // Android Chrome has its own install dialog, so there the button opens it and the steps are left out.
-  const A2HS_SHARE = '<path d="M12 3v12M7.5 7.5 12 3l4.5 4.5"/><path d="M8 10.5H6.5A1.5 1.5 0 0 0 5 12v7.5A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5V12a1.5 1.5 0 0 0-1.5-1.5H16"/>';
-  const A2HS_ADD = '<rect x="4" y="4" width="16" height="16" rx="4"/><path d="M12 8.5v7M8.5 12h7"/>';
-  const A2HS_DOTS = '<circle cx="5.5" cy="12" r="1.6" fill="currentColor"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><circle cx="18.5" cy="12" r="1.6" fill="currentColor"/>';
-  function viewInstallPop() {
-    const mode = installMode();
-    if (!mode) return '';
-    const step = (icon, html) => '<div style="flex:0 0 130px;width:130px;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center">' +
-      '<span aria-hidden="true" style="width:64px;height:64px;border-radius:999px;background:#eceef1;display:flex;align-items:center;justify-content:center">' + svg(28, stroke('#0d1117', 2), icon) + '</span>' +
-      '<span style="font-size:14px;line-height:1.3;font-weight:500;color:#0d1117">' + html + '</span></div>';
-    // Safari (Update 12, Round 42b): Share sits behind ••• by the address bar, so three stacked rows
-    const row = (icon, html) => '<div style="display:flex;align-items:center;gap:14px"><span aria-hidden="true" style="flex:0 0 50px;width:50px;height:50px;border-radius:999px;background:#eceef1;color:#0d1117;display:flex;align-items:center;justify-content:center">' + svg(22, stroke('#0d1117', 2), icon) + '</span>' +
-      '<span style="font-size:16px;line-height:1.3;font-weight:500;color:#0d1117">' + html + '</span></div>';
-    const link = '<span aria-hidden="true" style="display:block;width:2px;height:10px;margin-left:24px;border-radius:1px;background:#dcdfe6"></span>';
-    const OPEN_IC = '<path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>';
-    // iOS 26 Safari: Share sits behind ⋯ at the bottom; Open as Web App is on by default, so Add finishes it
-    const steps = mode === 'prompt' ? '' : mode === 'inapp'
-      ? '<div data-a2hs-steps="inapp" style="display:flex;flex-direction:column;gap:6px">' + row(A2HS_DOTS, 'Tap <b style="font-weight:900">···</b> or the share icon at the top') + link +
-          row(OPEN_IC, 'Choose <b style="font-weight:900">Open in browser</b>' + (IS_IOS ? ' (or Open in Safari)' : '')) + link + row(A2HS_ADD, 'Then come back here and get the app') + '</div>'
-      : IOS_BROWSER === 'Safari'
-      ? '<div data-a2hs-steps="safari" style="display:flex;flex-direction:column;gap:6px">' + row(A2HS_DOTS, 'Tap <b style="font-weight:900">⋯</b> at the bottom of the screen') + link +
-          row(A2HS_SHARE, 'Tap <b style="font-weight:900">Share</b>') + link + row(A2HS_ADD, 'Tap <b style="font-weight:900">Add to Home Screen</b>, then <b style="font-weight:900">Add</b>') + '</div>'
-      : '<div data-a2hs-steps="chrome" style="display:flex;align-items:flex-start;justify-content:center;gap:4px">' +
-      step(A2HS_SHARE, 'Tap <b style="font-weight:900">Share</b> at the top right') +
-      '<span aria-hidden="true" style="flex:0 0 30px;height:64px;display:flex;align-items:center">' + '<svg width="30" height="14" viewBox="0 0 30 14" fill="none" stroke="#b9bcc4" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7h25M21 2l6 5-6 5"/></svg>' + '</span>' +
-      step(A2HS_ADD, 'Choose <b style="font-weight:900">Add to Home Screen</b>') + '</div>';
-    return '<div class="modal-scrim" data-scrim="' + reg(a2hsLater) + '" style="z-index:36;display:block;padding:0;background:rgba(13,17,23,.55)">' +
-      '<div data-install-pop role="dialog" aria-modal="true" aria-label="Add to Home Screen" style="position:absolute;left:16px;right:16px;bottom:calc(24px + env(safe-area-inset-bottom, 0px));max-width:420px;margin:0 auto;background:#fff;border-radius:28px;padding:26px 22px 18px;display:flex;flex-direction:column;gap:14px;box-shadow:0 20px 50px rgba(0,0,0,.35);animation:popIn 260ms cubic-bezier(.22,.9,.28,1) both">' +
-        closeX(a2hsLater, 'position:absolute;top:12px;right:12px;width:34px;height:34px') +
-        '<div style="font-size:12px;font-weight:900;letter-spacing:2px;text-transform:uppercase;color:#5b4ae8">' + (mode === 'inapp' ? 'One step first' : 'Free · no App Store') + '</div>' +
-        '<h3 style="margin:0;font-size:28px;line-height:1.05;font-weight:900;letter-spacing:-.8px;color:#0d1117">' + (mode === 'inapp' ? 'Open this in your browser to get the app' : DEVICE === 'phone' ? 'Get the Spark Hub app' : 'Install Spark Hub on this computer') + '</h3>' +
-        '<p style="margin:0;font-size:17px;line-height:1.4;font-weight:500;color:#5c6270">' + (mode === 'inapp' ? 'This app’s browser can’t put Spark Hub on your Home Screen.' : DEVICE === 'phone' ? 'Reminders and updates right on your phone, one tap away.' : 'It opens in its own window.') + '</p>' +
-        steps +
-        (mode === 'ios' ? '<p data-a2hs-note style="margin:0;font-size:14px;line-height:1.45;font-weight:600;color:#6b7280">Then open Spark Hub from your Home Screen. You’ll sign in once there.</p>' : '') +
-        (mode === 'inapp'
-          ? '<button type="button" class="hov-primary" ' + on(() => { const sj = state.screen === 'detail' && subject(); copy(sj ? eventLink(sj) : location.href, 'Link copied. Paste it in ' + (IS_IOS ? 'Safari' : 'Chrome') + '.'); }) + ' style="width:100%;min-height:54px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:17px;font-weight:900;cursor:pointer">Copy link</button>'
-          : '<button type="button" class="hov-primary" data-a2hs-yes ' + on(mode === 'prompt' ? () => { a2hsDone(); startInstall(); } : a2hsDone) + ' style="width:100%;min-height:54px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:17px;font-weight:900;cursor:pointer">' + (mode === 'prompt' ? 'Install' : 'I’ve added it') + '</button>') +
-        '<button type="button" data-a2hs-later ' + on(a2hsLater) + ' style="display:block;width:100%;margin-top:-6px;min-height:44px;border:0;background:transparent;font-family:inherit;font-size:15px;font-weight:800;color:#6b7280;cursor:pointer">Not now</button>' +
-      '</div></div>';
-  }
+  // Add to Home Screen is gone (owner, 2026-10-09): no pop-up, banner or row of our own, and nothing intercepts
+  // beforeinstallprompt, so Chrome offers its own Install on Android (it had been swallowed while ours was hidden)
 
   // v6: a slide-up sheet (from the bell), gear and Close beside the title
   function viewNotifSheet() {
@@ -8776,15 +8665,13 @@
         // v8-9 item 4: the bell (with its badge) is back top right; Settings moved to the floating button
         bellBtn(false, 40, true) +
         '</div></div>';
-    // Alerts: the home screen one only where the app can be added; feedback comes back every 4 visits
-    const a2hsOn = !!installMode() && !meAlertGet('a2hs');
+    // Alerts: feedback comes back every 4 visits
     const fbAt = meAlertGet('fb'), fbOn = st.fbHint || fbAt == null || meVisits() - +fbAt >= 4;
     const alert = (bg, ink, icon, title, sub, fn, x, attr) => '<div ' + (attr || '') + ' style="display:flex;align-items:center;gap:12px;padding:10px 10px 10px 12px;border-radius:16px;background:' + bg + '">' +
       '<div ' + on(fn) + ' style="flex:1;min-width:0;display:flex;align-items:center;gap:12px;cursor:pointer"><span style="flex:0 0 36px;width:36px;height:36px;border-radius:11px;background:#fff;color:' + ink + ';display:flex;align-items:center;justify-content:center">' + icon + '</span>' +
         '<div style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:14.5px;font-weight:800;color:#0d1117">' + title + '</span><span style="font-size:12.5px;font-weight:600;color:#5c6270">' + sub + '</span></div></div>' +
       '<span ' + on(x) + ' aria-label="Dismiss" style="flex:0 0 32px;width:32px;height:32px;margin-right:-4px;border-radius:999px;display:flex;align-items:center;justify-content:center;color:#8a909b;cursor:pointer">' + I.x(13, 'currentColor', 2.6) + '</span></div>';
-    const alerts = a2hsOn || fbOn ? '<div data-screen-label="Me alerts" style="padding:12px 14px 0;display:flex;flex-direction:column;gap:8px">' +
-      (a2hsOn ? alert('#f3f1fe', '#5b4ae8', svg(18, stroke('currentColor', 2.2), '<rect x="6" y="3" width="12" height="18" rx="2.5"/><path d="M12 9v6M9 12h6"/>'), installMode() === 'inapp' ? 'Get the Spark Hub app' : DEVICE === 'phone' ? 'Get the Spark Hub app' : 'Install Spark Hub on this computer', installMode() === 'inapp' ? 'Open this page in your browser first.' : 'Free, no App Store. Reminders right on your ' + DEVICE + '.', startInstall, () => meAlertSet('a2hs', 'x')) : '') +
+    const alerts = fbOn ? '<div data-screen-label="Me alerts" style="padding:12px 14px 0;display:flex;flex-direction:column;gap:8px">' +
       (fbOn ? alert('#fff4dc', '#8f6405', svg(18, stroke('currentColor', 2.2), '<path d="M5 5h14a1.5 1.5 0 0 1 1.5 1.5v9A1.5 1.5 0 0 1 19 17H10l-4.5 3.5V17H5a1.5 1.5 0 0 1-1.5-1.5v-9A1.5 1.5 0 0 1 5 5Z"/><path d="M8 10h8M8 13h5"/>'), 'Give Eric feedback', 'What’s working, what’s confusing?', openFeedback, () => { setState({ fbHint: false }); meAlertSet('fb', meVisits()); }, st.fbHint ? 'data-fb-hint class="fb-hint"' : '') : '') + '</div>' : '';
     // Drafts · Ideas · Leading · Past (v8-9 item 4, 1d): one white card of 48px rows, a role bar, the title, a quiet count
     const stuff = (k, color, title, n, i) => '<div ' + on(() => setState({ meList: k })) + ' data-stuff="' + title + '" aria-label="' + title + ', ' + n + '" class="hov-row" style="display:flex;align-items:center;gap:10px;min-height:48px;padding:0 16px;' + (i < 3 ? 'border-bottom:1px solid #f2f3f6;' : '') + 'cursor:pointer">' +
@@ -8811,8 +8698,7 @@
     const group = (label, rows) => '<span style="padding:8px 6px 0;font-size:13px;font-weight:900;letter-spacing:1px;color:#6b7280">' + label + '</span><div style="background:#fff;border-radius:20px;box-shadow:0 1px 3px rgba(15,18,25,.08);overflow:hidden">' + rows + '</div>';
     meSettingsRows = () => (
       row('<path d="M6 16.5V11a6 6 0 1 1 12 0v5.5l1.6 2H4.4L6 16.5Z"/><path d="M10 21a2.2 2.2 0 0 0 4 0"/>', 'Notifications', 'Events, updates, reminders', () => setState({ nSettings: true }), 0) +
-      row('<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>', 'Sync to your calendar', 'Google Calendar', () => requestFeature('Sync to your calendar'), 1, true) +
-      (installMode() ? row('<path d="M4 11.5 12 5l8 6.5V20H4z"/><path d="M10 20v-5h4v5"/>', 'Get the Spark Hub app', installMode() === 'inapp' ? 'Open this page in your browser first' : installMode() === 'prompt' ? 'Install it on this ' + DEVICE : 'A few taps in ' + IOS_BROWSER + '’s Share menu', startInstall, 1) : ''));
+      row('<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>', 'Sync to your calendar', 'Google Calendar', () => requestFeature('Sync to your calendar'), 1, true));
     const help = group('HELP &amp; INFO',
       row('<path d="M5 5h14a1.5 1.5 0 0 1 1.5 1.5v9A1.5 1.5 0 0 1 19 17H10l-4.5 3.5V17H5a1.5 1.5 0 0 1-1.5-1.5v-9A1.5 1.5 0 0 1 5 5Z"/>', 'Send feedback to Eric', '', openFeedback, 0) +
       // Take the tour is gone (owner, 2026-10-07): parked since Oct 3, and What's Spark Hub? covers it
@@ -11149,7 +11035,7 @@
       (st.acctOpen && st.demoAdmin ? viewAccounts() : '') +
       (st.fb ? viewFeedback() : '') +   // guests too (20261113000000_guest_feedback.sql)
       (st.about != null ? viewAbout() : '') +
-      (st.installPop ? viewInstallPop() : '') + (st.notifAsk ? viewNotifAsk() : '') +
+      (st.notifAsk ? viewNotifAsk() : '') +
       // no tab bar on Welcome, the invite screens, or for a guest on an event (it only led to sign-in)
       (welcomeShown() || invFull() || (!state.email && state.screen === 'detail') ? '' : viewAddFab() + viewNav()) +
       (st.fbNudge && st.screen !== 'me' && !st.fb ? viewFbNudge() : '') +   // above the tab bar
@@ -11347,7 +11233,6 @@
       (invFull() && (state.inv.step === 'land' || state.inv.step === 'welcome'));
     root.classList.toggle('photo-top', photoTop);
     syncBadge();
-    maybeInstallPop();
     placeInvPop();
     const took = performance.now() - t0;
     diagNote('redraw (' + Math.round(took) + 'ms)');
@@ -11394,7 +11279,6 @@
       if (state.onIt) return setState({ onIt: null });
       if (state.zoom) return setState({ zoom: null });
       if (state.fb) return setState({ fb: null });
-      if (state.installPop) return a2hsLater();
       if (state.inv && state.loginStep === 'code') { closeLogin(); return setState({ invCodeBad: false }); }
       if (state.inv && state.inv.step === 'confirm' && !state.inv.busy) return closeInvite();
       if (state.confirm) return setState({ confirm: null });

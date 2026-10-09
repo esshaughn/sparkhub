@@ -100,11 +100,6 @@ async function othersSaved(page) {
 async function newMember(browser, path, stored) {
   const origin = new URL(test.info().project.use.baseURL).origin;
   const context = await browser.newContext({ ...devices['Pixel 7'], ...(stored ? { storageState: { cookies: [], origins: [{ origin, localStorage: stored }] } } : {}) });
-  // The Add to Home Screen pop-up counts as already shown, so it never covers what a test clicks (smoke.spec.js tests it)
-  await context.addInitScript(() => {
-    if (localStorage.getItem('e2e-install')) return;
-    localStorage.setItem('sparkhub-a2hs', String(Date.now() + 864e5));   // hidden for a day
-  });
   context.placeRequests = await mockPlaces(context);
   await stubPhotos(context);
   const page = await context.newPage();
