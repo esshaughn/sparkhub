@@ -117,3 +117,23 @@ test('discussion: a new comment appears on an open page after a refresh, and typ
     await host.context.close(); await member.context.close();
   }
 });
+
+// Realtime (20261121020000_realtime.sql): a comment someone else posts shows on an open page within seconds, with no refresh
+test('realtime: a comment appears on an open page by itself', async ({ browser }) => {
+  const host = await newLead(browser, 1, 'Hope');
+  const member = await newLead(browser, 2, 'Omar');
+  const H = host.page, O = member.page;
+  const title = uniqueTitle('Live chat');
+  let id;
+  try {
+    id = await postEvent(H, { title, date: inDays(6), time: '18:00' });
+    await openIdea(O, id);
+    const OP = O.locator('[data-screen-label="Plan page"]'), od = OP.locator('[data-discussion]');
+    await expect(od.locator('[data-comment]')).toHaveCount(0);
+    await asUser(H, async (c, _C, id) => { const r = await c.from('event_comments').insert({ spark_id: id, body: 'Right now!' }); if (r.error) throw new Error(r.error.message); }, id);
+    await expect(od.locator('[data-comment]')).toHaveText(['Right now!'], { timeout: 12000 });   // no visibilitychange, no reload
+  } finally {
+    if (id) await deleteIdea(H, id).catch(() => {});
+    await host.context.close(); await member.context.close();
+  }
+});

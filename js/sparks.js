@@ -731,6 +731,9 @@
   let loadSeq = 0, loadWritten = 0;   // loads overlap (30s refresh, a write's reload); older data never lands over newer
   let tapSeq = 0;                     // taps that show at once (quick, setRsvp), counted by saving(1)
   let extrasFor = null, extrasAt = 0, notifAt = 0;
+  let bgLoad = false, lastScrollAt = 0, lastRawSig = '', lastRawTap = 0;
+  window.addEventListener('scroll', () => { lastScrollAt = Date.now(); }, { passive: true, capture: true });
+  window.addEventListener('touchmove', () => { lastScrollAt = Date.now(); }, { passive: true, capture: true });
   async function loadAll() {
     if (!sb) return;
     const seq = ++loadSeq, t0 = performance.now(), taps = tapSeq, midSave = savingN > 0;
@@ -777,6 +780,14 @@
       outgoing: fd.outgoing || [], invites: (fd.invites || []).map(i => ({ spark: i.spark, by: i.by, at: Date.parse(i.at) || 0, note: i.note || '' })), loaded: true
     } : state.viewAs ? { friends: [], incoming: [], outgoing: [], invites: [], loaded: true } : state.fr;
     fr.friends.concat(fr.incoming).forEach(f => { if (!profiles[f.id]) profiles[f.id] = { name: f.name, avatar: f.avatar, place: '', bio: '' }; });
+    // Nothing changed since the last load: no redraw and no cache write (both are heavy on a phone and made scrolling stick every
+    // 30 seconds). Compared with the last answer from the server; an optimistic tap since then (tapSeq) forces the redraw, so
+    // one the server turned down still gets put right.
+    let sig = '';
+    try { sig = JSON.stringify([d, state.viewAs && state.viewAs.id]); } catch (e) { console.error('load compare', e); }
+    const sameAsScreen = !!sig && sig === lastRawSig && state.loaded && !state.fromCache && !state.error && lastRawTap === tapSeq;
+    // Something did change: wait for a pause in scrolling before redrawing under the person's finger (at most 3 seconds)
+    if (bgLoad && !sameAsScreen && state.loaded) for (let i = 0; i < 12 && Date.now() - lastScrollAt < 700; i++) await new Promise(r => setTimeout(r, 250));
     if (seq < loadWritten) return;   // a newer load already wrote fresher data
     // A tap that shows at once was made while this load ran, or its save was (or still is) on its way: this data can be
     // from before the save, and landing it undid the tap on screen until the next refresh (Going, then Maybe twice left
@@ -786,12 +797,15 @@
     const mine = profiles[state.me] || {};
     if (performance.now() - t0 > 3000) diag('slow load', performance.now() - t0, 'waiting on the network');
     document.documentElement.setAttribute('data-loaded', 'true');   // tests wait for this
-    setState({
-      groups, sparks, profiles, drafts, notes, fr, loaded: true, fromCache: false, error: null,
-      myName: mine.name || state.myName, myAvatar: mine.avatar || null, myPlace: mine.place || '', myBio: mine.bio || ''
-    });
-    appFirstRun();
-    writeCache();
+    if (!sameAsScreen || !state.loaded) {
+      lastRawSig = sig; lastRawTap = tapSeq;
+      setState({
+        groups, sparks, profiles, drafts, notes, fr, loaded: true, fromCache: false, error: null,
+        myName: mine.name || state.myName, myAvatar: mine.avatar || null, myPlace: mine.place || '', myBio: mine.bio || ''
+      });
+      appFirstRun();
+      writeCache();
+    }
     if (state.email && !va) syncPush();
     // The extras below change rarely: once per sign-in, then at most every 10 minutes (the 30-second refresh
     // used to repeat them every time, against the Supabase quota). Read state and settings: every 2 minutes.
@@ -11521,25 +11535,54 @@
 
   // Every 30 seconds while someone's using it; every 2 minutes after 5 idle minutes; after failures, backing off
   // to 5 minutes. Coming back to the app (and pull to refresh) loads at once.
-  let lastInput = Date.now(), lastRefresh = 0, refreshFails = 0;
+  let lastInput = Date.now(), lastRefresh = 0, refreshFails = 0, rtUp = false;
   ['pointerdown', 'keydown', 'touchstart', 'scroll'].forEach(ev => window.addEventListener(ev, () => { lastInput = Date.now(); }, { passive: true, capture: true }));
   const refresh = (now) => {
     if (!state.me || state.busy || document.hidden) return;
-    const t = Date.now(), every = refreshFails ? Math.min(300000, 30000 * 2 ** refreshFails) : t - lastInput > 300000 ? 120000 : 30000;
+    const t = Date.now(), every = refreshFails ? Math.min(300000, 30000 * 2 ** refreshFails) : rtUp ? 300000 : t - lastInput > 300000 ? 120000 : 30000;   // live: a slow safety net
     if (now !== true && t - lastRefresh < every - 2000) return;
-    lastRefresh = t;
+    lastRefresh = t; bgLoad = true;
     loadFresh()
       .then(() => {
         refreshFails = 0;
+        startRealtime();
         if (state.error === 'load') setState({ error: null });
         // The event on screen was taken down (or you lost access): say so instead of showing a blank page
         if (state.screen === 'detail' && state.subjectId && !subject() && !routeLoading) setState({ screen: 'sched', subjectId: null, goneOpen: true, sec: null, needEd: null });
         // The Discussion on screen reloads with the rest, so a new comment shows without leaving the page
         else if (state.screen === 'detail' && state.subjectId && state.email) loadComments(state.subjectId, true);
       })
-      .catch(e => { console.error(e); refreshFails++; if (!state.loaded || state.error) setState({ error: 'load', loaded: true }); });
+      .catch(e => { console.error(e); refreshFails++; if (!state.loaded || state.error) setState({ error: 'load', loaded: true }); })
+      .finally(() => { bgLoad = false; });
   };
   document.addEventListener('visibilitychange', () => refresh(true));
+  // Realtime (20261121020000_realtime.sql): Supabase says "something changed" and the app reloads, so other people's changes
+  // show up in a second without polling. The reload is cheap when nothing visible changed (loadAll skips the redraw).
+  // If the connection isn't up, the 30-second poll carries on as before.
+  const RT_TABLES = ['sparks', 'rsvps', 'event_comments', 'post_likes', 'plan_updates', 'signup_items', 'signup_claims', 'signup_waits', 'date_options', 'date_votes',
+    'spot_options', 'spot_votes', 'interests', 'offers', 'lead_asks', 'lead_offers', 'job_asks', 'cohosts', 'album_photos', 'reactions', 'event_invites', 'spark_groups', 'memberships'];
+  let rtChannel = null, rtFor = '', rtTimer = null;
+  const rtChanged = () => {
+    clearTimeout(rtTimer);
+    rtTimer = setTimeout(() => {
+      if (document.hidden) return;   // coming back to the app reloads anyway
+      if (state.busy) { rtChanged(); return; }   // mid-save: the save reloads; look again after
+      refresh(true);
+    }, 1200);   // a burst of changes (one save touches several tables) is one reload
+  };
+  const startRealtime = () => {
+    if (!sb || !state.me || state.viewAs || typeof sb.channel !== 'function') return;
+    const who = state.me + ':' + (state.email || '');
+    if (rtFor === who && rtChannel) return;
+    if (rtChannel) { try { sb.removeChannel(rtChannel); } catch (e) { /* gone already */ } rtChannel = null; }
+    rtUp = false; rtFor = who;
+    try {
+      let ch = sb.channel('live-' + state.me);
+      RT_TABLES.forEach(tb => { ch = ch.on('postgres_changes', { event: '*', schema: 'public', table: tb }, rtChanged); });
+      let first = true;
+      rtChannel = ch.subscribe((status) => { rtUp = status === 'SUBSCRIBED'; if (rtUp && !first) rtChanged(); if (rtUp) first = false; });   // a reconnect catches up on what it missed
+    } catch (e) { console.error('realtime', e); rtUp = false; }
+  };
   // Time toward the feedback nudge: counted every 15 seconds while the app is on screen (a check soon after opening
   // picks up time from earlier visits)
   document.addEventListener('visibilitychange', () => { fbTickAt = Date.now(); });
@@ -11794,6 +11837,7 @@
         else setInv({ step: 'land' });
       }
       await loadForRoute();
+      startRealtime();
       if (invite) takeInvite(invite);
       if (pendingFriend()) startFriendAdd(pendingFriend(), friendGo());   // a friend link, or back from Google signing in for one
       if (state.inv && state.inv.step === 'confirm' && !state.email) setInv({ step: 'land' });   // the saved session had ended

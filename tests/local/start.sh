@@ -43,7 +43,7 @@ sed -e 's/^project_id = .*/project_id = "sparkhub-e2e"/' \
 } > "$WORK/supabase/seed.sql"
 
 # Only what the app and tests use: no Studio, image resizing, log pipeline or edge functions
-EXCLUDE=studio,imgproxy,logflare,vector,edge-runtime,supavisor,postgres-meta,mailpit,realtime
+EXCLUDE=studio,imgproxy,logflare,vector,edge-runtime,supavisor,postgres-meta,mailpit
 if "$SB" status --workdir "$WORK" >/dev/null 2>&1; then
   "$SB" db reset --local --workdir "$WORK" >/dev/null
 else
