@@ -7,7 +7,7 @@ test('visitors land on Welcome (no tab bar there) and sign in from there', async
   try {
     const welcome = page.locator('[data-screen-label=Welcome]');
     await expect(welcome.getByRole('heading', { name: /Make plans with\s*your people\./ })).toBeVisible();
-    await expect(welcome.getByText('New here? Either one creates your account.')).toBeVisible();
+    await expect(welcome.getByText('New here? Either creates an account')).toBeVisible();
     await expect(welcome.getByRole('listitem')).toHaveText(['1Float an idea', '2Everybody pitches in', '3Make it a plan']);   // the intro's steps (owner, 2026-10-07)
     await expect(welcome.locator('[data-about-link]')).toBeVisible();
     await expect(welcome.locator('[data-beta]').first()).toHaveText('BETA');   // beside the wordmark (owner, 2026-10-07)
@@ -110,11 +110,11 @@ test('Give feedback (Update 9): a Help & info tile opens the sheet; Send to Eric
     await openProfile(page);
     const profile = page.locator('[data-screen-label="Me"]');
     await expect(profile.getByRole('button', { name: 'Notification settings' })).toHaveCount(0);   // the tile it replaced
-    await profile.getByRole('button', { name: 'Send feedback to Eric' }).click();
+    await profile.getByRole('button', { name: 'Feedback & questions' }).click();
     const box = page.getByRole('dialog', { name: 'Give feedback' });
-    await expect(box).toContainText('FEEDBACK WANTED');   // v8-2 (1a): eyebrow, title, one line, no prompt list
-    await expect(box).toContainText('What do you think of the app so far?');
-    await expect(box).toContainText('Tell me honestly: what’s working and what would make it better?');
+    await expect(box).toContainText('FEEDBACK & QUESTIONS');   // v8-2 (1a): eyebrow, title, one line, no prompt list
+    await expect(box).toContainText('What can I help with?');
+    await expect(box).toContainText('Ask anything about how Spark Hub works.');
     await expect(box).not.toContainText('How useful does it feel?');
     await expect(box.getByRole('button', { name: 'Send to Eric' })).toHaveAttribute('aria-disabled', 'true');   // nothing typed yet
     await box.getByLabel('Your feedback').fill('[E2E] The Join button was easy to find');
@@ -140,7 +140,7 @@ test('Give feedback (Update 9): a Help & info tile opens the sheet; Send to Eric
     await box.getByRole('button', { name: 'Done' }).click();
     await expect(box).toHaveCount(0);
     // The ✕ closes without sending
-    await profile.getByRole('button', { name: 'Send feedback to Eric' }).click();
+    await profile.getByRole('button', { name: 'Feedback & questions' }).click();
     await box.getByRole('button', { name: 'Close' }).click();
     await expect(box).toHaveCount(0);
     await expect(profile).not.toContainText('Feedback inbox');   // only the owner sees the inbox
@@ -293,17 +293,7 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
     await expect(cal.getByRole('button', { name: /^Type of event:/ })).toHaveCount(0);   // gone (owner, 2026-10-02)
     await expect(cal.locator(`[data-plan="${PLAN}"]`)).toContainText('Change RSVP');
     await expect(cal.locator(`[data-plan="${PLAN}"] [data-demo-tag]`)).toHaveCount(0);   // real events: no DEMO pill
-    // Seeded demo content gets a DEMO pill before its title (clients can't set the flag, so fake it in the response)
-    const flagDemo = async (r) => {
-      const res = await r.fetch(), d = await res.json();
-      d.sparks.forEach(x => { if (x.text === PLAN) x.demo = true; });
-      r.fulfill({ response: res, json: d });
-    };
-    await context.route('**/rest/v1/rpc/load_all', flagDemo);
-    await page.reload();
-    await pickView(cal, 'List');   // All groups opens on Month (owner, 2026-10-07)
-    await expect(cal.locator(`[data-plan="${PLAN}"] [data-demo-tag]`)).toHaveText('DEMO');
-    await context.unroute('**/rest/v1/rpc/load_all', flagDemo);
+    // (No DEMO pill any more, even on a flagged event: Design v8-17 removed test and demo content)
     await page.reload();
     await pickView(cal, 'List');
     await expect(cal.locator(`[data-plan="${PLAN}"]`)).toContainText('Change RSVP');

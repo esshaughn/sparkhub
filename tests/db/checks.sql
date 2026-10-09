@@ -615,6 +615,47 @@ select t.check('the new lead is Going', exists (select 1 from rsvps where spark_
 select t.check('the old lead gets a note', exists (select 1 from notes where user_id = t.id('host') and body like '% is leading Handover walk now. You’re a co-lead.'));
 select t.check('the offer is gone', not exists (select 1 from lead_offers where spark_id = (select id from sparks where text = 'Handover walk')));
 
+-- The starter picks a lead from the people who offered (20261122000000_pick_lead.sql) -------------------------------
+select t.login('host'); set role authenticated;
+insert into sparks (id, group_id, author_name, lead_name, lead_id, created_by, text, wants_host)
+values (gen_random_uuid(), t.id('g'), 'Host', 'Host', t.id('host'), t.id('host'), 'Pick walk', true);
+reset role;
+select t.login('helper'); set role authenticated;
+select t.must_allow('a member offers to lead', $$insert into interests (spark_id, user_id, can_help) values ((select id from sparks where text = 'Pick walk'), (select auth.uid()), true)$$);
+reset role;
+select t.login('member'); set role authenticated;
+select t.must_refuse('someone who isn''t a lead picking a lead', format($$select public.pick_lead((select id from sparks where text = 'Pick walk'), %L)$$, t.id('helper')));
+reset role;
+select t.login('host'); set role authenticated;
+select t.must_refuse('picking someone who didn''t offer', format($$select public.pick_lead((select id from sparks where text = 'Pick walk'), %L)$$, t.id('taker')));
+select t.must_allow('the starter picks the one who offered', format($$select public.pick_lead((select id from sparks where text = 'Pick walk'), %L)$$, t.id('helper')));
+reset role;
+select t.check('the pick leads it, and it isn''t looking any more',
+  (select lead_id = t.id('helper') and not wants_host from sparks where text = 'Pick walk'));
+select t.check('the starter stays interested',
+  exists (select 1 from interests i join sparks s on s.id = i.spark_id where s.text = 'Pick walk' and i.user_id = t.id('host')));
+select t.login('host'); set role authenticated;
+select t.must_refuse('picking again once it has a lead', format($$select public.pick_lead((select id from sparks where text = 'Pick walk'), %L)$$, t.id('helper')));
+reset role;
+
+-- Hand it to a co-lead in one tap (20261122020000_hand_to_colead.sql) ------------------------------------------------
+select t.login('host'); set role authenticated;
+insert into sparks (id, group_id, author_name, lead_name, lead_id, created_by, text)
+values (gen_random_uuid(), t.id('g'), 'Host', 'Host', t.id('host'), t.id('host'), 'Colead walk');
+select t.must_allow('the lead adds a co-lead', format($$select public.add_cohost((select id from sparks where text = 'Colead walk'), %L)$$, t.id('helper')));
+select t.must_refuse('handing it to someone who isn''t a co-lead', format($$select public.hand_to_colead((select id from sparks where text = 'Colead walk'), %L)$$, t.id('taker')));
+reset role;
+select t.login('member'); set role authenticated;
+select t.must_refuse('someone who isn''t the lead handing it on', format($$select public.hand_to_colead((select id from sparks where text = 'Colead walk'), %L)$$, t.id('helper')));
+reset role;
+select t.login('host'); set role authenticated;
+select t.must_allow('the lead hands it to the co-lead', format($$select public.hand_to_colead((select id from sparks where text = 'Colead walk'), %L)$$, t.id('helper')));
+reset role;
+select t.check('the co-lead leads, the old lead co-leads',
+  (select lead_id = t.id('helper') from sparks where text = 'Colead walk')
+  and exists (select 1 from cohosts c join sparks s on s.id = c.spark_id where s.text = 'Colead walk' and c.user_id = t.id('host'))
+  and not exists (select 1 from cohosts c join sparks s on s.id = c.spark_id where s.text = 'Colead walk' and c.user_id = t.id('helper')));
+
 -- A plan needs a lead too (20261101200000_plan_needs_lead.sql) ----------------------------------------------------
 select t.login('host'); set role authenticated;
 insert into sparks (id, group_id, author_name, lead_name, lead_id, created_by, text, day_date)

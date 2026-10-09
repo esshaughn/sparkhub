@@ -27,8 +27,8 @@ test('a group end to end: edit group, cover, rename, invite, pin, admin edits, r
     await expect(cardA).toContainText('OWNER');
     await cardA.click();
     // A new group's Plans tab (Update 9, 80a): the calendar fan, No plans yet, Create a plan
-    await expect(A.locator('[data-plans-empty]')).toContainText('No Plans yet');
-    await expect(A.locator('[data-plans-empty]').getByRole('button', { name: 'Create a Plan' })).toBeVisible();
+    await expect(A.locator('[data-group-start]')).toContainText('Nothing here yet');   // Design v8-17, 7a: three ways to get it going
+    await expect(A.locator('[data-group-start]').locator('[data-start-plan]')).toBeVisible();
     // ⋯ → Invite (owners and admins; Design v8 prototype: three rounds, no Copy link / QR code) → the Invite people sheet
     // with the link, then Show QR code: the purple Scan to join screen, then the poster step
     const qm = await groupMenu(A);

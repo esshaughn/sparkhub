@@ -270,7 +270,7 @@ test('Plan an event is one page (v8-14): Post it waits for a title and a date; t
     await expect(flow.locator('[data-cp-row="where"]').getByLabel('Address')).toBeVisible();
     await expect(flow.locator('[data-cp-row="where"]').getByLabel('Location name')).toHaveCount(0);   // only once there's an address
     await expect(flow.locator('[data-cp-when-where]')).toHaveCSS('background-color', 'rgb(223, 226, 231)');
-    await expect(flow.locator('[data-cp-add-job]')).toHaveText('+ Add a sign-up');   // owner, 2026-10-08; Design v8-15 words it Add a sign-up
+    await expect(flow.locator('[data-cp-add-job]')).toHaveText('+ Ask guests for something');   // Design v8-17 clarity pass
     await expect(flow.locator('[data-cp-examples]')).toContainText('Bring a carton of eggs');   // Q46: two greyed examples
     await expect(flow.locator('[data-cp-desc]')).toContainText('Add inspo photos');
     await expect(flow.getByRole('switch', { name: 'People can invite friends' })).toHaveAttribute('aria-checked', 'true');   // on for Public
@@ -361,7 +361,7 @@ test('polls: the host posts a date poll (an idea), a member votes, the host pick
     await expect(OI.locator('[data-led-by8]')).toContainText('Picking a date');
     await expect(OI.locator('[data-led-line]')).toContainText('Led by');
     await OI.locator('[data-when] [data-cal-page]').first().click();
-    await expect(OI.locator('[data-when] [data-cal-page][aria-pressed="true"]')).toHaveCount(1);
+    await expect(OI.locator('[data-when] [data-cal-page][aria-checked="true"]')).toHaveCount(1);
 
     // The lead picks the date and adds a location in the Pick pop-ups (v8-8 item 4), then Make it a plan! (grey until then)
     await H.reload();
@@ -380,7 +380,7 @@ test('polls: the host posts a date poll (an idea), a member votes, the host pick
     await expect(HI.locator('[data-when-set] [data-cal-page]')).toHaveText('');   // a calendar icon like Where?'s pin, no date page
     await expect(HI.locator('[data-when]')).not.toContainText('Choose all dates you could attend.');
     // …and Make it a plan! is ready: a lead and a date; the location can wait (planMissing, owner 2026-10-02)
-    await expect(HI.locator('[data-make-it-plan]')).toContainText('Make it a Plan!');
+    await expect(HI.locator('[data-make-it-plan]')).toContainText('Lock it in');
     await expect(HI.locator('[data-make-this-plan]')).toContainText('The location can be decided later.');
     // The member sees the picked date, and nothing asks them to vote on one
     await O.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));   // a refresh, not a reload: the page already open updates
@@ -683,16 +683,15 @@ test('Float an idea: the Float sheet, a draft, and the starter’s slide-up', as
   try {
     await startFloat(page);
     const sheet = page.locator('[data-screen-label="Float an Idea"]');
-    await expect(sheet).toContainText('Sketch out what you know so far.');
+    await expect(sheet).toContainText('What’s your idea?');
     await sheet.locator('[data-qi-next]').click();
     await expect(page.getByRole('status')).toContainText('Add a title first');
     await expect(sheet.locator('[data-qi-draft]')).toHaveCount(0);   // Save draft waits for a title (owner, 2026-10-08)
-    await sheet.getByLabel('Your Idea').fill(title);
+    await sheet.getByLabel('Your idea').fill(title);
     await expect(sheet.locator('[data-qi-draft]')).toBeVisible();
-    await expect(sheet).toContainText(title.length + '/40');   // titles stop at 40 (owner, 2026-10-07)
     const why = 'Bring a kite or borrow one. We meet by the big oak near the parking lot, fly for an hour or two, then grab tacos. Kids welcome, no experience needed, and the wind is best before sunset.';   // past the old 120 (200 since 20261120000000)
-    await sheet.getByLabel('Short description').fill(why);
-    await sheet.locator('[data-qi-more]').click();
+    await sheet.getByLabel('Your idea').fill(title + '\n' + why);   // one open box: the first line is the title (Design v8-17, 4a)
+    await sheet.locator('[data-qi-more] [role="button"]').first().click();
     await expect(sheet.locator('[data-qi-more]')).toHaveCount(0);   // it goes once tapped
     // DATE: Set date → a centred pop-up with the time chips
     await sheet.locator('[data-qi-date-set]').click();
@@ -721,7 +720,7 @@ test('Float an idea: the Float sheet, a draft, and the starter’s slide-up', as
     expect(await asUser(page, async (c, _C, t) => (await c.from('event_drafts').select('data').filter('data->>kind', 'eq', 'float')).data.filter(r => r.data.title === t).length, title)).toBe(1);
     await startFloat(page);
     await expect(page.getByRole('status')).toContainText('Picked up your draft');
-    await expect(sheet.getByLabel('Your Idea')).toHaveValue(title);
+    await expect(sheet.getByLabel('Your idea')).toHaveValue(title + '\n' + why);
     await expect(sheet.locator('[data-qi-loc-sum]')).toContainText('Butler Park');
     // Page 2: the recap, WHERE IT GOES, HOW PEOPLE CAN HELP; Talk it through on, Who leads it: I'll decide (the default, v8-8)
     await sheet.locator('[data-qi-next]').click();

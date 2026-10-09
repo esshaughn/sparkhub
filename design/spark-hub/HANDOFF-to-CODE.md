@@ -1,4 +1,56 @@
-# Spark Hub v8 · HANDOFF-to-CODE (round v8-15)
+# Spark Hub v8 · HANDOFF-to-CODE (round v8-17)
+
+**Caught up with the build's `HANDOFF-to-DESIGN-9.md` (build v=374, main `6a822b9`) as of Oct 9, 2026.** This round answers every remaining §5 open question and the §2 asks. Options files (in `options/`): `Open Questions 9 Options`, `Open Questions 10 Options`, `Open Questions 11 Options`, `Categories Options`. Prototype: `Spark Hub App Version 8.dc.html`.
+
+## New since v8-16 (Oct 9, open questions)
+
+### Built in the prototype
+1. **How Spark Hub works (Q12 → 1a).** Me → Help &amp; info row loses its REQUEST chip and opens the What's Spark Hub? sheet straight at panel 2 (HOW IT WORKS); signed in, the button is **Got it**.
+2. **Offer to lead (Q32 → 2b).** On a member's Idea where the starter chose *Find a lead* and nobody leads yet: a white card with a 3px gold top, **NEEDS A LEAD** (13/900 #8f6405), *{Starter} floated this and is looking for someone to run it.* (20/900), *You'd pick the date and make it happen. {Starter} chooses from the people who offer.* (15/500 #454b55), full-width gold **Offer to lead** (#f5b428 / #2a1d00). After offering: a #fdf6e3 card, **You offered to lead**, *We'll tell you when {Starter} picks.*, *Take back my offer* (#8f6405). Toasts: *Offer sent to {Starter}* / *Offer taken back*. The starter is pushed per offer. Signed out → guest sign-in first.
+3. **Your profile (Q10 → 6b).** Me header: under your name, your *About you* (14/500 #454b55, 2 lines max, only if set), then *Member since {Mon YYYY}* (12.5/700 #6b7280), then Edit profile.
+4. **Feedback & questions (Q9).** One row on Me → Help &amp; info, **Feedback & questions** (replaces *Send feedback to Eric*). Its sheet: eyebrow FEEDBACK &amp; QUESTIONS, three chips (38px pills, picked = ink #0d1117 / white): *Ask a question* (default; *What can I help with?* · *I usually reply the same day.*), *Something’s broken* (*What went wrong?* · screenshot encouraged), *Share an idea* (*What do you think so far?*). The chip is sent with the message so Eric can sort. Screenshot, device line and Send to Eric unchanged. Not on Welcome.
+5. **Q24f → 5b.** The pink *Shared with you* card's line becomes: *Shared with you on **Spark Hub**, where people turn ideas into plans. You can RSVP and sign up without joining anything.*
+6. **Q24g → 6b.** Under the Discussion heading, a white 52px row: chat icon, **Event group chat**, gold REQUEST chip, ›. Tapping opens the usual feature-request pop-up. No chat yet.
+7. **Empty group (→ 7a).** A group with no plans or ideas shows *Nothing here yet* (22/900) and *Three ways to get it going.*, then one white card of 64px rows: **Invite people** (*Share a link or pick friends*) · **Float an Idea** (*Ask what people want to do*) · **Create a Plan** (*Already know the date?*). Replaces *No plans yet* there.
+8. **Suggest vs Offer (→ 8a).** Rule: you *suggest* options (dates, locations); you *offer* yourself (to lead, to help). Location: *Suggest this location*, *suggested a location*.
+9. **Names (→ 9b).** First name + last initial wherever a person is named (*Hana M.*, *Darnell P.*); full name only on the profile pop-up. Now drawn in the prototype (bylines, Led by, Discussion, lead offers).
+10. **Row 114 (drawn):** a member on an Idea with nothing to sign up for sees a white card, *Nothing on the list yet.* (15/600 #6b7280).
+11. **The starter picks a lead (Q32 → 1a, `Open Questions 11 Options.dc.html`).** No new screen: offers appear inside the starter's **What's left** note, under the lead row. Lead row sub-line: *N people offered · pick below*. Each offer is a 46px line on the paper (dashed #d3e2f3 rule, indented to the text column): 28px face, name (15/800), their note (13.5/500 italic #454b55, one line), gold text **Pick** (15/900 #8f6405). Pick asks once: *Make {name} the lead?* · *{others} will hear you went another way. {name} picks the date and makes it happen.* · **Make {name} the lead** / *Not yet*. Then the row reads *{name} is leading it*, the offers fold away, the picked person gets a push, the others get a quiet one. *Choose* stays on the row (lead it yourself, or pick from a list).
+12. **Q16 → no test events.** Remove everything about test and demo across the app: the Real or test choice, the Test event badge and its quiet-update copy, the *DEMO* pill on seeded content, and any "test" flag on events. We're past that phase. (Existing test events: please make them real or delete them, your call.)
+
+### Decided, spec only (build when ready)
+13. **Recurring RSVP (Q36 → 3b).** When recurring is built: answer date by date (Going / Maybe per date, same pop-up as *Each day*), every date you're going shows on Up next and My calendar, and jobs can be tied to a date. Stays REQUEST for now.
+14. **Drag to close (→ 5b).** Past the close point the sheet scales to ~92% width and drops to ~85% opacity, the scrim lightens, and the handle turns purple #5b4ae8. No words. Springs back if released early.
+15. **Q19 → 4a** (owner will revisit): pop-ups fit their content up to 88% of the screen; a drop-down opens inside the pop-up and pushes it taller (animated); past 88% the pop-up scrolls.
+16. **Q15 (one sort/filter control):** keep as is for now.
+
+### Not now
+17. **Resource library (Q41):** not now; later, but soon.
+18. **Welcome tour (Q26 → 2c, needs work):** direction is a *Get started* checklist (e.g. Join a group · RSVP to something · Float your first idea) in place of *Start here!*. Design to follow; don't build yet.
+19. **Categories (→ 10b) — ON HOLD: hide everywhere for now; don't build.** One optional tag per Plan or Idea, chosen when posting; filter chips appear on lists only when a group has 2+ tags in use. **Picked 1a + 2c** (`Categories Options.dc.html`). Tags: *Outdoors · Food · Sports · Kids & family · Music & arts · Learning · Helping out · Hangout*. Posting: an optional TYPE row of chips (tap again to clear) in Plan an event and Float page 2. Lists (Ideas, My calendar, All groups, a group's page): one row of chips, *All* first then only tags in use, in a single line that runs off the right edge and scrolls sideways (no wrap, no scrollbar). Cards don't show the tag; the event page shows it under the title (frosted chip on the photo). Now drawn: TYPE row with a blue #1f5fa8 tag tile in Plan an event (above Sign up) and *TYPE · OPTIONAL* on Float page 2; chips read *All* then *Outdoors · 3* etc.; a filter is remembered per list.
+
+### Tweaks
+- New `categories` (default **off**): shows the category UI (item 19) for review. The *Sample ideas* (`demoData`) Tweak is gone; sample content is always on.
+
+---
+
+
+## New since v8-15 (Oct 9, clarity pass; `Clarity Pass Options.dc.html`)
+All built into `Spark Hub App Version 8.dc.html`. **Screenshots** in `screenshots/` (01–13): cards 01–02, event page 03–06, ideas 07–08, Float 09–11, Plan an event 12, Discussion 13. The "N ways to help" count is jobs with open spots (not the sum of spots), on cards and the event page alike. Sample caps for the prototype: Free youth soccer (cap 24).
+1. **Event cards (1c + 1d).** No going count in the strip. *N spots left* only when the event caps attendance (new `cap` field; jobs are never "spots"); at the cap, *Full*. Once you're going and haven't signed up, the strip turns orange (`#fff6f0` / `#b8480c`) and reads *N ways to help ›*. Signed up: the Helping strip as today. Addresses on cards are the street or place name only, never city / state / ZIP.
+2. **Date votes (2b).** Each date is a row: a 30px gold square checkbox (your vote; filled `#f5b428` with a dark tick), the date (16/900) with *No votes yet* / *3 can go* / *You + 6 · most votes* under it (13/700 gold `#8f6405`), and a faces pill › on the right (`#fdf6e3`) that opens who voted. Tapping the faces never votes. Replaces the sideways calendar pages on When?.
+3. **Lead controls (3a).** The lead's RSVP bar reads **You're leading** (co-leads **You're co-leading**) with **Change** (replaces *You're hosting*, row 199). Change opens **Your role**: *Hand it to {co-lead}* (one tap, only with a co-lead) · *Hand it to someone else* (the leads picker) · *Step back* (a co-lead takes over, or it looks for a lead) · YOUR RSVP segmented Going / Maybe / Can't · quiet red *Cancel the event*. Cancel steps forward in the same sheet: ‹ Back, *Cancel {title}?*, *Everyone going gets a notification.*, optional reason, red **Cancel event**, *Keep it*.
+4. **Who leads it (3d).** The two choices read **Find a lead** (floated default: *You floated it. Someone interested can offer to lead, and you pick who.*) and **I'll lead it** (*You pick the date and make it happen.*).
+5. **What's left (3f).** The *Make this a plan* card is titled **What's left**; the button is **Lock it in** (was *Make it a plan!*).
+6. **Float an Idea (4a + 4b).** Page 1 heading **What's your idea?**; one open box (*Throw out whatever comes to mind…*, 132px, 17px text); the first line becomes the title, the rest the description (*The first line becomes the title.* under it). Date and Location are dashed *+ Date* / *+ Location* chips beside a grey *Optional*. *Talk it through* is now **Open to ideas** · *People can share thoughts with you*. After posting: the toast and the Idea's slide-up only, no pop-up.
+7. **Event page take-part line (5a).** Under the RSVP card, one quiet purple line: *3 ways to help · 2 posts ›*; each part scrolls to its section (Sign up, Discussion). Hidden when there's nothing. No date-vote link.
+8. **Plan an event Sign up (6b).** The empty dashed box leads with **Need guests to bring or do things?**, then the LIKE THIS examples, and the button reads **+ Ask guests for something**.
+9. **Discussion (7a).** 14px above and below each post; replies stay threaded under the parent's line; a dashed 26px square after the emoji button holds the place for GIFs later (not a feature yet).
+
+---
+
+# Round v8-15
+
 
 **Caught up with the build's `HANDOFF-to-DESIGN-9.md` (build v=374, main `6a822b9`) as of Oct 9, 2026.** This round is mostly an answer: no new features to build. The prototype was brought up to date with what you shipped. New options file: `Handoff 9 Options.dc.html` (Q42, Q44, Q45, Q46, Q47 + Q37 + Q39, Q48). Nothing is picked yet; the owner chooses next round.
 

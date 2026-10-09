@@ -6,7 +6,7 @@
 - **Source:** github.com/esshaughn/sparkhub (`index.html`, `js/sparks.js`, `css/sparks.css`, `privacy.html`, `supabase/templates/`)
 - **Baseline:** Claude Design's **round v8-15** (`design/spark-hub/HANDOFF-to-CODE.md` and `Spark Hub App Version 8.dc.html`, 2026-10-09). Design approved rows 106–211 and every owner call below; **rows 212–219 are new since**.
 - **Build version:** **v8** (v7 from owner, 2026-10-02): a lead is a choice. Since v8-8 an idea is led from the start (*Who leads it · Me*) or floated (*I'll decide*), and both use the new idea page.
-- **As of:** 2026-10-09 (v8-15 picks built, on `test`; the live build is v=374, main `6a822b9`). Latest: rows 212–219, Design's v8-15 picks (green You're in, hearts and emoji in Discussion, Post to squares, no polls in a Plan, Leading this Idea, Help plan: link titles). Before that: Plan an event's WHEN & WHERE filled in place and descriptions as text (rows 209–210), Google Places suggestions (row 211). The date-by-date history is in git (`git log -- HANDOFF-to-DESIGN.md`); the by-area summary is *Start here* below.
+- **As of:** 2026-10-09 (**round v8-17 built, on `test`**, see *Round v8-17 in short*; before that v8-15 picks built, on `test`; the live build is v=374, main `6a822b9`). Latest: rows 212–219, Design's v8-15 picks (green You're in, hearts and emoji in Discussion, Post to squares, no polls in a Plan, Leading this Idea, Help plan: link titles). Before that: Plan an event's WHEN & WHERE filled in place and descriptions as text (rows 209–210), Google Places suggestions (row 211). The date-by-date history is in git (`git log -- HANDOFF-to-DESIGN.md`); the by-area summary is *Start here* below.
 
 ## Start here (2026-10-09): the big catch-up
 
@@ -77,6 +77,33 @@ None of these are built. They come from the owner's own list and the pilot group
 - **Event cards that say *6 spots left*** (Q43) read like an RSVP cap.
 
 ---
+
+## Round v8-17 in short
+
+*Built from HANDOFF-to-CODE v8-17 on 2026-10-09 (on `test`). Your file's v8-16 clarity pass (*Clarity Pass Options*) had never reached the build; it's included here, so this one round covers both. Where something differs from the prototype it says so.*
+
+| v8-17 item | Status |
+|---|---|
+| 1. How Spark Hub works (1a) | Done: Me → Help & info → *How Spark Hub works* opens the sheet at panel 2; signed in the button is *Got it* |
+| 2. Offer to lead (2b) | Done as drawn: *NEEDS A LEAD* card (gold top edge), then *You offered to lead* with *Take back my offer*. Toasts as specced. The starter is already pushed per offer (existing trigger). An offer has no note field yet, so the offer lines show no note |
+| 3. Your profile (6b) | Done: *About you* (2 lines), *Member since Sep 2026*, then Edit profile |
+| 4. Feedback & questions (Q9) | Done: three chips, the chip travels with the message (`context.topic`), row renamed *Feedback & questions*. A group request and a feature request keep their own sheets |
+| 5–6. Shared-with-you line, Event group chat | Done (REQUEST row under the Discussion heading) |
+| 7. Empty group (7a) | Done: *Nothing here yet · Three ways to get it going.* when a group has no plans, ideas or past events. Invite people shows only to people who can invite |
+| 8. Suggest vs Offer, 9. Names | Done. First name + last initial comes from one place (`nameOf`), so it's everywhere a person is named except their profile pop-up and Edit profile. Server-written notes still use the full name |
+| 10. Nothing on the list yet | Already built |
+| 11. The starter picks a lead (1a) | Done: offers sit in *What's left* under the lead row, *Pick* asks once, then the picked person is pushed and the others get a quiet note (new `pick_lead`, `20261122000000_pick_lead.sql`) |
+| 12. No test events | Done: Real/Test choice, *Test event* tab, quiet-update copy and DEMO pills are gone. Rows the database still flags as demo or test just look normal; the 2 on TEST are the owner's call |
+| 14. Drag to close | Done: past the close point the sheet narrows to 92%, fades to 85%, the scrim lightens and the handle turns purple |
+| 13, 15–19 | Spec only / on hold, not built. Categories stay hidden |
+| Clarity 1. Cards | Done: no going count; *N spots left* and *Full* only for an event with an attendance cap, which is a new `sparks.cap` column that nothing sets yet. **Open:** where does a lead set the cap? Going and not signed up: orange strip, *N ways to help ›*. Addresses on cards are street or place only |
+| Clarity 2. Date votes | Done: a row per date with a gold square checkbox, *You + 6 · most votes*, and a faces pill that opens *Who can go*. One date stays a suggestion |
+| Clarity 3. Lead controls | Done: *You're leading* / *You're co-leading* with **Change**, which opens *Your role*. *Hand it to {co-lead}* is one tap (new `hand_to_colead`, `20261122020000_hand_to_colead.sql`); *Hand it to someone else* opens the existing hand-off picker; Step back; YOUR RSVP; quiet *Cancel the event* steps forward in the same sheet. A co-lead sees Step down instead |
+| Clarity 4–6. Who leads it, What's left, Float an Idea | Done: *Find a lead* / *I'll lead it*; *What's left* + *Lock it in*; *What's your idea?* with one open box, *+ Date* / *+ Location* chips, *Open to ideas* |
+| Clarity 7. Take-part line | Done: *3 ways to help · 2 posts ›* under the RSVP card, each part scrolls to its section |
+| Clarity 8–9. Sign up copy, Discussion | Done: the empty box leads with *Need guests to bring or do things?*; the dashed 26px square after the emoji button holds the place for GIFs |
+
+Questions for you: where the attendance cap is set (and whether it should stop RSVPs at the cap); whether an offer to lead should carry a note, since the pick lines in your drawing show one.
 
 ## Round v8-14 in short
 

@@ -88,13 +88,13 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     await tasks.locator('[data-tk-chip="All"]').click();
     await expect(lead).toBeVisible();
 
-    // Hal finds it on the Calendar: not joined, so "3 spots left · 0 going" and RSVP
+    // Hal finds it on the Calendar: not joined, so RSVP (no going count, and a job isn't a spot: Design v8-17)
     await O.reload();
     await openAllGroups(O);
     const cal = O.locator('[data-screen-label="All groups"]');
     await expect(cal.getByRole('heading', { name: 'All groups' })).toBeVisible();
     const card = cal.locator('[data-plan="' + title + '"]');
-    await expect(card).toContainText('3 spots left');
+    await expect(card).not.toContainText('spots left');
     await expect(card).toContainText('RSVP');
     await shot(O, '03-calendar');
     // Tapping it opens its page (v8-7: no event preview any more), and Back comes back here

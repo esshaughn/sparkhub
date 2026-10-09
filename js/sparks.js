@@ -71,7 +71,7 @@
     if (state.viewAs || !state.email || !state.loaded || state.error) return;
     const sparks = state.sparks.map(s => Object.assign({}, s, { contacts: s.contacts.map(c => ({ spark_id: c.spark_id, user_id: c.user_id, name: c.name })) }));
     try {
-      localStorage.setItem(CACHE_KEY, JSON.stringify({ me: state.me, email: state.email, isGoogle: state.isGoogle, myName: state.myName, myAvatar: state.myAvatar, myPlace: state.myPlace, myBio: state.myBio, memberSince: state.memberSince,
+      localStorage.setItem(CACHE_KEY, JSON.stringify({ me: state.me, email: state.email, isGoogle: state.isGoogle, myName: state.myName, myAvatar: state.myAvatar, myPlace: state.myPlace, myBio: state.myBio, memberSince: state.memberSince, memberMon: state.memberMon,
         groups: state.groups, sparks, profiles: state.profiles, sizes: state.sizes, notif: state.notif, demoAdmin: state.demoAdmin, fr: state.fr, at: Date.now() }));
     } catch (e) { /* storage full or blocked: the app just loads as before */ }
   };
@@ -503,10 +503,13 @@
   const isGroupAdmin = (s) => { const g = s && groupById(s.groupId); return runs(g); };
   const canEdit = (s) => isLead(s) || isGroupAdmin(s);
   const canTakeDown = (s) => isTheLead(s) || isGroupAdmin(s);   // delete or cancel: not co-hosts
+  // First name and last initial wherever a person is named (Design v8-17, 9b): Hana M. The full name is only on their
+  // profile pop-up, which reads p.name itself
+  const shortName = (n) => { const w = (n || '').trim().split(/\s+/).filter(Boolean); return w.length < 2 ? w[0] || '' : w[0] + ' ' + (Array.from(w[w.length - 1])[0] || '').toUpperCase() + '.'; };
   const nameOf = (uid, fallback) => {
-    if (uid && uid === state.me && state.myName) return state.myName;
+    if (uid && uid === state.me && state.myName) return shortName(state.myName);
     const p = uid && state.profiles[uid];
-    return (p && p.name) || fallback || 'Someone';
+    return shortName((p && p.name) || fallback) || 'Someone';
   };
   const avatarOf = (uid) => {
     if (uid && uid === state.me) return state.myAvatar ? photoUrl(state.myAvatar) : null;
@@ -589,7 +592,7 @@
   const toSpark = (row, offers, interests, contacts, x) => ({
     id: row.id, groupId: row.group_id, text: row.text,
     groupIds: [row.group_id].concat((x.groups[row.id] || []).map(g => g.group_id).filter(g => g !== row.group_id)),
-    hopes: (row.hopes || []).filter(Boolean), overview: row.overview || '',
+    hopes: (row.hopes || []).filter(Boolean), overview: row.overview || '', cap: row.cap || null,   // an attendance cap (null: none); cards say N spots left and Full
     createdBy: row.created_by, created: Date.parse(row.created_at),
     leadId: row.lead_id, leadName: row.lead_name || row.author_name || 'Someone',
     spot: row.spot || '', spotAddress: row.spot_address || '',
@@ -859,7 +862,7 @@
     if (u.id !== state.me || email !== state.email || google !== state.isGoogle) {
       if (state.viewAs) return;   // previewing as someone else: stay them until Exit (which reloads)
       forgetComments();   // a signed-out or other account's Discussion would stay stuck until a reload
-      setState({ me: u.id, email, isGoogle: google, myName: (u.is_anonymous ? state.myName : metaName(meta) || state.myName).slice(0, 30), memberSince: u.created_at ? new Date(u.created_at).getFullYear() : state.memberSince, joinedAt: u.created_at ? Date.parse(u.created_at) : state.joinedAt });
+      setState({ me: u.id, email, isGoogle: google, myName: (u.is_anonymous ? state.myName : metaName(meta) || state.myName).slice(0, 30), memberSince: u.created_at ? new Date(u.created_at).getFullYear() : state.memberSince, memberMon: u.created_at ? new Date(u.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : state.memberMon, joinedAt: u.created_at ? Date.parse(u.created_at) : state.joinedAt });
     }
   };
 
@@ -2232,7 +2235,7 @@
     if (!b || !b.text.trim() || state.busy) return;
     const to = b.to === 'coming' ? 'coming' : 'going', n = updAudience(s, to);
     const post = () => run(async () => { must(await sb.from('plan_updates').insert({ spark_id: s.id, body: b.text.trim().slice(0, 200), audience: to })); }, { blast: null, confirm: null })
-      .then(ok => { if (ok) toast(isDemo(s) ? 'Posted. It’s a test event, so no notifications went out' : n ? 'Sent to ' + n + (n === 1 ? ' person' : ' people') : 'Posted. No one else is coming yet', true); });
+      .then(ok => { if (ok) toast(n ? 'Sent to ' + n + (n === 1 ? ' person' : ' people') : 'Posted. No one else is coming yet', true); });
     const recent = s.updates.filter(u => u.createdBy === state.me && Date.now() - u.created < 36e5).length;
     if (recent >= 2) return setState({ confirm: { title: 'That’s your third update this hour', body: 'Everyone going gets a notification each time. Post it anyway?', cta: 'Post anyway', keep: 'Edit first', run: post } });
     post();
@@ -2330,7 +2333,7 @@
   };
 
   // "Do it again": a new event with the place and details filled in
-  const doItAgain = (s) => goCompose({ activity: s.text.slice(0, TITLE_MAX), evTags: (s.tags || []).slice(0, 2), evTest: !!(s.test || s.demo), locText: nameFrom(s.spot, s.spotAddress), locPlace: s.spotAddress ? { name: s.spot, address: s.spotAddress, lat: s.spotPoint && s.spotPoint[0], lon: s.spotPoint && s.spotPoint[1] } : null, locAddr: s.spotAddress || '',
+  const doItAgain = (s) => goCompose({ activity: s.text.slice(0, TITLE_MAX), evTags: (s.tags || []).slice(0, 2), locText: nameFrom(s.spot, s.spotAddress), locPlace: s.spotAddress ? { name: s.spot, address: s.spotAddress, lat: s.spotPoint && s.spotPoint[0], lon: s.spotPoint && s.spotPoint[1] } : null, locAddr: s.spotAddress || '',
     // v8-14: the one page has a description, not detail lines: the old event's details come back as its sentences
     evDesc: descDraft(s), evOverview: (s.overview || '').slice(0, OV_MAX) });
 
@@ -2870,7 +2873,7 @@
           svg(19, stroke('currentColor', 2.1), '<rect x="3" y="5.5" width="18" height="13" rx="2.5"/><path d="m4 7.5 8 6 8-6"/>') + 'Continue with email</button>' +
         // The installed app keeps its own sign-in (iPhone): say so, so it doesn't read as "start over"
         (STANDALONE ? '<p data-app-welcome style="margin:6px 0 0;text-align:center;font-size:14px;line-height:1.45;font-weight:700;color:#dfe2e8">Sign in once to pick up where you left off.</p>'
-          : '<p style="margin:6px 0 0;text-align:center;font-size:13.5px;line-height:1.45;font-weight:600;color:#8a909b">' + (GOOGLE_ON ? 'New here? Either one creates your account.' : 'New here? This creates your account.') + '</p>') + inAppTip(true) +
+          : '<p style="margin:6px 0 0;text-align:center;font-size:13.5px;line-height:1.45;font-weight:600;color:#8a909b">' + (GOOGLE_ON ? 'New here? Either creates an account' : 'New here? This creates your account.') + '</p>') + inAppTip(true) +
       '</div>' +
     '</div>';
   }
@@ -2922,7 +2925,7 @@
             '<div style="display:flex;align-items:center;gap:14px;margin:16px 0"><span style="flex:1;height:1px;background:#e3e5ec"></span><span style="font-size:12px;font-weight:800;letter-spacing:.12em;color:#8a8fa0">OR</span><span style="flex:1;height:1px;background:#e3e5ec"></span></div>'
           : '<div style="height:22px"></div>') +
         email +
-        '<p style="margin:14px 0 0;text-align:center;font-size:14px;color:#6b7080">New here? Either one creates your account.</p>' +
+        '<p style="margin:14px 0 0;text-align:center;font-size:14px;color:#6b7080">New here? Either creates an account</p>' +
         privacy;   // joining is when the group's admins start seeing your email (sign-in audit M1, owner 2026-10-07)
     return '<div data-screen-label="Invite" style="position:relative;min-height:100%;display:flex;flex-direction:column;background:#fff">' +
       '<div style="position:relative;flex:0 0 auto">' + invPhoto(g, 'calc(' + photoH + 'px + var(--pt))', 96) + statusFade + brandPill + '</div>' +
@@ -3379,14 +3382,14 @@
         '<div style="position:absolute;top:10px;right:10px;display:flex;gap:8px">' + gearBtn(g) + pinBtn(g, 36) + '</div>' +
         '<div style="position:absolute;left:16px;right:16px;bottom:12px;color:#fff">' +
           // no new-events dot on the big cards, only on the tiles (Design v8)
-          groupTagAbove(g) + '<div style="display:flex;align-items:center;gap:6px"><span style="font-size:26px;line-height:1.05;font-weight:900;letter-spacing:-.7px;text-shadow:0 1px 8px rgba(0,0,0,.35)">' + esc(g.name) + '</span></div>' + members(g, 13) +
+          '<div style="display:flex;align-items:center;gap:6px"><span style="font-size:26px;line-height:1.05;font-weight:900;letter-spacing:-.7px;text-shadow:0 1px 8px rgba(0,0,0,.35)">' + esc(g.name) + '</span></div>' + members(g, 13) +
         '</div>' +
       '</div>';
     const tile = (g) => '<div ' + on(() => openGroup(g)) + ' aria-label="' + esc(g.name) + '" style="position:relative;aspect-ratio:1 / 1;border-radius:20px;overflow:hidden;box-shadow:0 1px 3px rgba(15,18,25,.08);background:#2b303a;cursor:pointer">' + (groupPhoto(g) ? photoLayer(groupPhoto(g), g.photoPos, GROUP_POS) : '') + GRAD +
       '<div style="position:absolute;top:10px;left:10px">' + roleChip(g) + '</div>' +
       '<div style="position:absolute;top:6px;right:6px">' + pinBtn(g, 32) + '</div>' +
       '<div style="position:absolute;left:12px;right:12px;bottom:10px;color:#fff;display:flex;align-items:center;gap:6px">' + newDot(g) +
-        '<div style="min-width:0">' + groupTagAbove(g) + '<div style="font-size:16px;line-height:1.1;font-weight:900;text-shadow:0 1px 6px rgba(0,0,0,.35)">' + esc(g.name) + '</div>' + members(g, 12) + '</div></div>' +
+        '<div style="min-width:0">' + '<div style="font-size:16px;line-height:1.1;font-weight:900;text-shadow:0 1px 6px rgba(0,0,0,.35)">' + esc(g.name) + '</div>' + members(g, 12) + '</div></div>' +
     '</div>';
     // Next up (8b): your soonest event you're leading, helping with or going to
     // Next up, the All groups card and Join or add a group stay while searching (Design v8)
@@ -3741,6 +3744,8 @@
 
   const daysTo = (s) => s.dayDate ? dayDiff(s.dayDate) : null;
   const helpsOn = (s) => myClaims(s).length > 0;
+  // Addresses on cards are the street or place name only, never city / state / ZIP (Design v8-17 clarity pass, 1)
+  const placeLine = (s) => { const v = s.spot || ''; return /,/.test(v) && (/\d{5}/.test(v) || /,\s*[A-Z]{2}\b/.test(v) || v.split(',').length > 2) ? v.split(',')[0].trim() : v; };
   const street = (s) => s.spotAddress ? s.spotAddress.split(',')[0] : (s.spot || spotTbd(s));
   // "Today · 7pm", "Tomorrow", "Yesterday", "3 days ago", "Sat, Oct 17 · 6pm"
   const when6 = (s) => {
@@ -3858,19 +3863,9 @@
     '</div>';
   };
 
-  // Seeded demo content gets a small DEMO pill before its title (owner, 2026-09-30): pilot members joined to a demo
-  // group shouldn't mistake it for real plans. Translucent white on photos, gray on white.
-  // Demo groups (Hub on Hunters, Walnut Creek, Woodcliff) get the same chip after their name (owner, 2026-09-30)
-  // Groups page cards and the group page's title: the DEMO chip sits on its own line above the name
-  const groupTagAbove = (g) => g && g.demo ? '<div style="margin-bottom:6px;line-height:1">' + demoTag({ demo: true }, true) + '</div>' : '';
-  const groupTag = (g, onPhoto) => g && g.demo ? demoTag({ demo: true }, onPhoto, true) : '';
   const cancelTag = (s, onPhoto, after) => !s || !s.cancelledAt ? '' : '<span data-cancel-tag style="display:inline-block;vertical-align:.15em;' + (after ? 'flex:0 0 auto;margin-left:7px' : 'margin-right:7px') + ';padding:2px 7px;border-radius:999px;font-size:10.5px;line-height:1.3;font-weight:900;letter-spacing:.8px;text-shadow:none;' +
     (onPhoto ? 'background:#d92d4a;color:#fff' : 'background:#fdeef0;color:#9b1c31') + '">CANCELLED</span>';
-  // Seeded demo content and members' test events look the same to everyone
-  const isDemo = (s) => !!s && (s.demo || s.test);
-  const demoTag = (s, onPhoto, after) => cancelTag(s, onPhoto, after) + demoTagOnly(s, onPhoto, after);
-  const demoTagOnly = (s, onPhoto, after) => !isDemo(s) ? '' : '<span data-demo-tag style="display:inline-block;vertical-align:.15em;' + (after ? 'flex:0 0 auto;margin-left:7px' : 'margin-right:7px') + ';padding:2px 7px;border-radius:999px;font-size:10.5px;line-height:1.3;font-weight:900;letter-spacing:.8px;text-shadow:none;' +
-    (onPhoto ? 'background:rgba(255,255,255,.24);color:#fff;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)' : 'background:#eef0f3;color:#6b7280') + '">DEMO</span>';
+  const demoTag = (s, onPhoto, after) => cancelTag(s, onPhoto, after);
   // A photo banner: title (up to two lines, growing upward) and the date line, with a chevron
   const banner6 = (s, R, h) => '<div style="position:relative;height:' + (h || 92) + 'px;background:' + photoBg(s) + '">' +
     '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.94) 0%, rgba(13,17,23,.55) 60%, rgba(13,17,23,.3) 100%)"></div>' +
@@ -4111,7 +4106,9 @@
       : { k: 'open', R: R6.open, word: '', rows: [], right: 'RSVP' };
     if (helpsOn(s)) return { k: 'help', R: R6.helping, word: 'Helping', icon: 'clip', rows: helpActs(s) };
     // Holding Take part spots (v8-2): still Going, with your spot ("Going · 10:00am court time", +N more)
-    const spots = my === 'going' ? myPartRows(s) : [];
+    const spots = my === 'going' ? myPartRows(s) : [], jobsOpen = my === 'going' ? openJobs(s) : 0;
+    // Going and haven't signed up: the strip turns orange and says how many ways there are to help (Design v8-17 clarity pass, 1d)
+    if (jobsOpen) return { k: 'go', R: R6.helping, word: jobsOpen + (jobsOpen === 1 ? ' way to help ›' : ' ways to help ›'), icon: 'check', rows: [], right: spots.length > 1 ? '+' + (spots.length - 1) + ' more' : 'Change RSVP' };
     if (spots.length) return { k: 'go', R: R6.go, word: 'Going · ' + esc(partLabel(spots[0])), icon: 'check', rows: [], right: spots.length > 1 ? '+' + (spots.length - 1) + ' more' : 'Change RSVP' };
     if (my === 'going' || my === 'maybe') return { k: 'go', R: my === 'maybe' ? R6.maybe : R6.go, word: my === 'maybe' ? 'Maybe' : 'Going', icon: 'check', rows: [], right: my === 'maybe' ? 'Update RSVP' : 'Change RSVP' };
     return cal ? { k: 'open', R: R6.open, word: '', rows: [], right: 'RSVP' } : null;
@@ -4126,7 +4123,8 @@
     const f = signupFill(s), n = headN(s);
     let left, right;
     if (P.k === 'open') {
-      left = f.open > 0 ? '<b style="font-weight:800">' + f.open + (f.open === 1 ? ' spot left' : ' spots left') + '</b><span style="font-weight:600;color:#8a909b"> · ' + n + ' going</span>' : '<b style="font-weight:800">' + n + ' going</b>';
+      // No going count (Design v8-17 clarity pass, 1c): "N spots left" only when the event caps attendance, "Full" at the cap
+      left = s.cap ? '<b style="font-weight:800">' + (s.cap - n > 0 ? s.cap - n + (s.cap - n === 1 ? ' spot left' : ' spots left') : 'Full') + '</b>' : '';
       right = '<span style="color:#0d1117">RSVP</span>';
     } else {
       left = '<span style="display:flex;align-items:center;gap:6px">' + (h > 30 && P.icon && !fs ? ic6(P.icon, 14, P.R.ink, 2.4) : '') + P.word + '</span>';
@@ -4161,7 +4159,7 @@
         '<div style="position:absolute;left:16px;right:16px;bottom:14px;color:#fff;display:flex;flex-direction:column;gap:3px">' +
           '<div style="font-size:13px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;color:' + (P.k === 'idea' ? '#ffd98a' : !s.dayDate ? TBD_ON_PHOTO : P.k === 'open' ? '#dfe2e8' : P.R.kick) + '">' + esc(tileWhen(s, P)) + '</div>' +
           '<div style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:' + (cal ? 23 : 25) + 'px;line-height:1.05;font-weight:900;letter-spacing:' + (cal ? -.5 : -.6) + 'px;text-wrap:balance">' + esc(s.text) + demoTag(s, true, true) + '</div>' +
-          '<div style="display:flex;align-items:center;gap:5px;font-size:' + (cal ? 14 : 14.5) + 'px;font-weight:700;color:rgba(255,255,255,.9);min-width:0">' + ic6('pin', 14, 'currentColor', 2.3) + '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (s.spot ? esc(s.spot) : tbdSpan(spotTbd(s), TBD_ON_PHOTO)) + '</span></div>' +
+          '<div style="display:flex;align-items:center;gap:5px;font-size:' + (cal ? 14 : 14.5) + 'px;font-weight:700;color:rgba(255,255,255,.9);min-width:0">' + ic6('pin', 14, 'currentColor', 2.3) + '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (s.spot ? esc(placeLine(s)) : tbdSpan(spotTbd(s), TBD_ON_PHOTO)) + '</span></div>' +
         '</div></div>' + (mode === 'mine' ? strip6(s, P, 34, cal, 12.5, 12) : cal ? strip6(s, P, 28, cal, 11.5) : strip6(s, P, 40, cal)) + '</div>';
   };
   // List: date block, title, time (bold) · street, the photo on the right, over the strip (the same on every list since the audit, 2026-10-01)
@@ -4211,7 +4209,7 @@
           // the badge says Today / Tomorrow / In N days, so the date line gives the date itself (it said "Today" twice); its colour follows your role
           '<div style="font-size:13px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;color:' + P.R.kick + '">' + esc(s.dayDate ? heroWhen(s) : when6(s)) + '</div>' +
           '<div style="margin-top:3px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:25px;line-height:1.1;font-weight:900;letter-spacing:-.6px;text-wrap:balance">' + esc(s.text) + demoTag(s, true, true) + '</div>' +
-          '<div style="margin-top:6px;display:flex;align-items:center;gap:6px;font-size:14.5px;font-weight:700;color:rgba(255,255,255,.9);min-width:0">' + ic6('pin', 13, 'currentColor', 2.6) + '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (s.spot ? esc(s.spot) : tbdSpan(spotTbd(s), TBD_ON_PHOTO)) + '</span></div>' +
+          '<div style="margin-top:6px;display:flex;align-items:center;gap:6px;font-size:14.5px;font-weight:700;color:rgba(255,255,255,.9);min-width:0">' + ic6('pin', 13, 'currentColor', 2.6) + '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (s.spot ? esc(placeLine(s)) : tbdSpan(spotTbd(s), TBD_ON_PHOTO)) + '</span></div>' +
         '</div></div>' +
       nextStrip(s, P, mode) + '</div>';
   };
@@ -4439,7 +4437,7 @@
             (onAll ? '<span ' + on((e) => { stop(e); onAll(); }) + ' style="font-size:13.5px;font-weight:800;color:' + (allOn ? '#b9b2f5' : '#5b4ae8') + ';cursor:pointer">Select all</span>' : '') +
             '<span ' + on((e) => { stop(e); onClear(); }) + ' style="font-size:13.5px;font-weight:800;color:#6b7280;cursor:pointer">Clear</span></div>' +
           rows.map(r => '<div ' + on((e) => { stop(e); r.toggle(); }, 'menuitemcheckbox') + ' aria-checked="' + r.on + '" style="display:flex;align-items:center;gap:12px;min-height:44px;padding:0 10px;border-top:1px solid #f2f3f6;cursor:pointer">' + box(r.on) +
-            '<span style="flex:1;min-width:0;font-size:15px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(r.name) + '</span>' + (r.demo ? groupTag(r) : '') + '<span style="font-size:13px;font-weight:800;color:#8a909b">' + r.n + '</span></div>').join('') +
+            '<span style="flex:1;min-width:0;font-size:15px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(r.name) + '</span>' + '<span style="font-size:13px;font-weight:800;color:#8a909b">' + r.n + '</span></div>').join('') +
           (footer ? '<button type="button" ' + on((e) => { stop(e); setState({ menu: null }); }) + ' style="margin-top:8px;width:100%;min-height:46px;border:0;border-radius:999px;background:#0d1117;color:#fff;font-family:inherit;font-size:15px;font-weight:800;cursor:pointer">' + footer + '</button>' : '') +
         '</div>' : '') +
     '</div>';
@@ -4638,7 +4636,7 @@
           '<div style="flex:0 0 40px;display:flex;flex-direction:column;align-items:center"><span style="font-size:10.5px;font-weight:900;letter-spacing:.6px;color:#6b7280">' + dp.dow + '</span><span style="font-size:20px;line-height:1.1;font-weight:900;color:#0d1117">' + dp.day + '</span></div>' +
           '<span aria-hidden="true" style="flex:0 0 3px;align-self:stretch;border-radius:999px;background:#e8a71c"></span>' +
           '<div style="flex:1;min-width:0"><div style="display:flex;align-items:center;min-width:0"><span style="min-width:0;font-size:15px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(s.text) + '</span>' + demoTag(s, false, true) + '</div>' +
-            '<div style="font-size:12.5px;font-weight:600;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + [esc(fmtTime(s.dayTime)), s.spot ? esc(s.spot) : tbdSpan(spotTbd(s))].filter(Boolean).join(' · ') + '</div></div>' +
+            '<div style="font-size:12.5px;font-weight:600;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + [esc(fmtTime(s.dayTime)), s.spot ? esc(placeLine(s)) : tbdSpan(spotTbd(s))].filter(Boolean).join(' · ') + '</div></div>' +
           I.chevR(16, '#b9bcc4', 2.6) + '</div>' +
         rows.map(it => {
           const mine = it.claims.some(c => c.userId === state.me), left = it.need - it.claims.length;
@@ -4765,7 +4763,7 @@
     const msg = 'Hey! I can’t make it to ' + b.job.toLowerCase() + ' for ' + s.text + ' anymore. Any chance you could take my spot?';
     return wrap('background:#fff6dc;box-shadow:0 10px 28px rgba(15,18,25,.18), inset 0 0 0 1.5px #f3d98b;display:flex;flex-direction:column;gap:12px',
       '<div style="display:flex;align-items:flex-start;gap:10px"><div style="flex:1;min-width:0"><div style="font-size:17px;font-weight:900;color:#0d1117">You’re off it</div>' +
-        '<p style="margin:4px 0 0;font-size:14px;line-height:1.4;font-weight:600;color:#5c4a12">' + (isDemo(s) ? 'A quick check-in with ' + esc(hostFirst) + ' helps, or find someone to take your spot.' : 'We’ll let ' + esc(hostFirst) + ' know. A quick check-in with them helps too, or find someone to take your spot.') + '</p></div>' +
+        '<p style="margin:4px 0 0;font-size:14px;line-height:1.4;font-weight:600;color:#5c4a12">' + ('We’ll let ' + esc(hostFirst) + ' know. A quick check-in with them helps too, or find someone to take your spot.') + '</p></div>' +
         (b.back ? '<span ' + on(() => { if (!state.busy) redoClaim(b); }) + ' style="flex:0 0 auto;display:flex;align-items:center;min-height:32px;padding:0 12px;border-radius:999px;background:rgba(13,17,23,.06);font-size:13.5px;font-weight:800;color:#0d1117;cursor:pointer">Undo</span>' : '') +
         '<span ' + on(() => { clearTimeout(bannerTimer); setState({ banner: null }); }) + ' aria-label="Dismiss" style="flex:0 0 32px;width:32px;height:32px;border-radius:999px;background:rgba(13,17,23,.06);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(13, '#5c4a12', 2.6) + '</span></div>' +
       '<button type="button" ' + on(() => { clearTimeout(bannerTimer); setState({ banner: null, invite: { id: s.id, msg, title: 'Find a replacement', sub: [b.job, shortWhen(s)].filter(Boolean).join(' · ') } }); }) + ' style="min-height:44px;border:0;border-radius:999px;background:#0d1117;color:#fff;font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer">Find a replacement</button>');
@@ -4801,7 +4799,7 @@
   // A guest's name comes from what they left the lead; everyone else from their profile
   const personName = (s, uid) => {
     const c = s.contacts.find(x => x.user_id === uid);
-    return (state.profiles[uid] && state.profiles[uid].name) || (c && c.name) || 'Someone';
+    return shortName((state.profiles[uid] && state.profiles[uid].name) || (c && c.name)) || 'Someone';
   };
   const notifList = () => {
     if (!state.email || !state.me) return [];
@@ -5040,7 +5038,7 @@
       lang: navigator.language || '', tz: (Intl.DateTimeFormat().resolvedOptions().timeZone || ''),
       online: navigator.onLine !== false, push: typeof Notification === 'undefined' ? 'unsupported' : Notification.permission,
       where: fbWhere(), event: s ? { id: s.id, title: s.text } : null, group: g ? g.name : null,
-      minutes: used, fromNudge: !!(state.fb && state.fb.nudge) || !!state.fbNudge,
+      topic: (state.fb && state.fb.topic) || null, minutes: used, fromNudge: !!(state.fb && state.fb.nudge) || !!state.fbNudge,
       taps: fbTaps.slice(-12).map(t => ({ ago: Math.round((Date.now() - t.at) / 1000) + 's', screen: t.screen, tap: t.tap })),
       errors: fbErrs.slice(-8).map(x => ({ ago: Math.round((Date.now() - x.at) / 1000) + 's', screen: x.screen, error: x.error }))
     };
@@ -5074,7 +5072,7 @@
       if (shot) row.shot = shot;
       must(await sb.from('feedback').insert(row));
       if (f.shot) URL.revokeObjectURL(f.shot.url);
-      setState({ busy: null, fb: { text: '', sent: true, kind: state.fb && state.fb.kind, feature: state.fb && state.fb.feature } });
+      setState({ busy: null, fb: { text: '', sent: true, topic: state.fb && state.fb.topic, kind: state.fb && state.fb.kind, feature: state.fb && state.fb.feature } });
       if (state.demoAdmin) loadFeedback();
     } catch (e) {   // what they typed (and the screenshot) stays
       console.error(e);
@@ -5086,8 +5084,12 @@
     }
   };
   const ericFace = (size, extra) => '<span aria-hidden="true" style="flex:0 0 ' + size + 'px;width:' + size + 'px;height:' + size + 'px;border-radius:999px;background:#dcdfe6 url(' + ERIC_FACE + ') center/cover;' + (extra || '') + '"></span>';
+  // Feedback & questions (Design v8-17): three chips; the one picked travels with the message (context.topic)
+  const FB_TOPICS = { q: ['Ask a question', 'What can I help with?', 'Ask anything about how Spark Hub works. I usually reply the same day.', 'How do I…'],
+    bug: ['Something’s broken', 'What went wrong?', 'Tell me what you tapped and what happened. A screenshot helps.', 'I tapped… and then…'],
+    idea: ['Share an idea', 'What do you think so far?', 'Tell me honestly: what’s working and what would make it better?', 'Write as much or as little as you like.'] };
   function viewFeedback() {
-    const f = state.fb, close = () => setState({ fb: null }), ok = f.text.trim().length > 0 && !state.busy;
+    const f = state.fb, topic = FB_TOPICS[f.topic] ? f.topic : 'q', close = () => setState({ fb: null }), ok = f.text.trim().length > 0 && !state.busy;
     const inner = f.sent
       ? '<div style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:10px 4px 4px;text-align:center">' +
           '<span style="position:relative;display:flex">' + ericFace(64) + '<span style="position:absolute;right:-4px;bottom:-4px;width:26px;height:26px;border-radius:999px;background:#149a4b;box-shadow:0 0 0 3px #fff;display:flex;align-items:center;justify-content:center">' + I.check(14, '#fff', 3) + '</span></span>' +
@@ -5096,12 +5098,13 @@
           '<button type="button" ' + on(close) + ' style="margin-top:8px;width:100%;min-height:52px;border:0;border-radius:999px;background:#0d1117;color:#fff;font-family:inherit;font-size:16px;font-weight:800;cursor:pointer">Done</button></div>'
       // v8-2 (1a): eyebrow and title beside Eric's photo, one plain line, no prompt list
       : '<div style="display:flex;align-items:flex-start;gap:12px">' + ericFace(48) +
-          '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px"><span style="font-size:11.5px;font-weight:900;letter-spacing:1px;color:#8f6405">' + (f.kind === 'group' ? 'GROUP REQUEST' : f.kind === 'feature' ? 'FEATURE REQUEST' : 'FEEDBACK WANTED') + '</span>' +
-            '<h3 style="margin:0;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117;text-wrap:balance">' + (f.kind === 'group' ? 'Who’s the group for?' : f.kind === 'feature' ? esc(f.feature || 'A new feature') : 'What do you think of the app so far?') + '</h3></div>' +
+          '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px"><span style="font-size:11.5px;font-weight:900;letter-spacing:1px;color:#8f6405">' + (f.kind === 'group' ? 'GROUP REQUEST' : f.kind === 'feature' ? 'FEATURE REQUEST' : 'FEEDBACK &amp; QUESTIONS') + '</span>' +
+            '<h3 style="margin:0;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117;text-wrap:balance">' + (f.kind === 'group' ? 'Who’s the group for?' : f.kind === 'feature' ? esc(f.feature || 'A new feature') : FB_TOPICS[topic][1]) + '</h3></div>' +
           closeX(close, 'margin:-4px -4px 0 0') + '</div>' +   // an ✕ at the top right, not the word Cancel (owner, 2026-10-07)
         // A feature request has no line here (owner, 2026-10-07): the placeholder asks the question
-        (f.kind === 'feature' ? '' : '<p style="margin:0;font-size:15.5px;line-height:1.45;font-weight:600;color:#2a2f38;text-wrap:pretty">' + (f.kind === 'group' ? 'A team, a block, a club, a few friends? Say a little about it and I’ll get back to you.' : 'Tell me honestly: what’s working and what would make it better?') + '</p>') +
-        '<textarea rows="6" maxlength="1000" aria-label="Your feedback" placeholder="' + (f.kind === 'feature' ? 'Why does it matter to you, and how would you use it?' : 'Write as much or as little as you like.') + '" ' + onInput(e => { if (e.type === 'input') setState({ fb: Object.assign({}, state.fb, { text: e.target.value.slice(0, 1000) }) }); }) +
+        (f.kind || !f.topic ? '' : '<div role="tablist" data-fb-topics style="display:flex;gap:8px;flex-wrap:wrap">' + Object.keys(FB_TOPICS).map(k => '<span ' + on(() => setState({ fb: Object.assign({}, state.fb, { topic: k }) })) + ' role="tab" data-fb-topic="' + k + '" aria-selected="' + (k === topic) + '" style="display:flex;align-items:center;min-height:38px;padding:0 14px;border-radius:999px;font-size:14px;font-weight:800;cursor:pointer;background:' + (k === topic ? '#0d1117' : '#fff') + ';color:' + (k === topic ? '#fff' : '#454b55') + ';box-shadow:' + (k === topic ? 'none' : 'inset 0 0 0 1.5px #dcdfe6') + '">' + FB_TOPICS[k][0] + '</span>').join('') + '</div>') +
+        (f.kind === 'feature' ? '' : '<p style="margin:0;font-size:15.5px;line-height:1.45;font-weight:600;color:#2a2f38;text-wrap:pretty">' + (f.kind === 'group' ? 'A team, a block, a club, a few friends? Say a little about it and I’ll get back to you.' : FB_TOPICS[topic][2]) + '</p>') +
+        '<textarea rows="6" maxlength="1000" aria-label="Your feedback" placeholder="' + (f.kind === 'feature' ? 'Why does it matter to you, and how would you use it?' : FB_TOPICS[topic][3]) + '" ' + onInput(e => { if (e.type === 'input') setState({ fb: Object.assign({}, state.fb, { text: e.target.value.slice(0, 1000) }) }); }) +
           ' style="width:100%;box-sizing:border-box;min-height:140px;padding:14px;border:2px solid #dcdfe6;border-radius:16px;font-family:inherit;font-size:16px;font-weight:500;line-height:1.4;color:#0d1117;resize:none;outline:none">' + esc(f.text) + '</textarea>' +
         // A screenshot they took with the phone's buttons (a web page can't take one itself). A group request has neither the
         // screenshot nor the Sent with line (owner, 2026-10-07): it isn't a bug report. Guests can't attach one (it needs an account)
@@ -5396,7 +5399,7 @@
   const noGroupCard = () => state.error === 'load' ? loadFailCard() :
     '<div style="' + CARD + ';padding:18px;display:flex;flex-direction:column;gap:12px">' +
       '<div style="font-size:16.5px;font-weight:800;letter-spacing:-.2px;color:#0d1117">You’re not in a group yet.</div>' +
-      '<div style="font-size:15px;line-height:1.45;font-weight:500;color:#5c6270">Join one with a code or link from someone in it.</div>' +
+      '<div style="font-size:15px;line-height:1.45;font-weight:500;color:#5c6270">Join one with a code or link someone sent you.</div>' +
       '<button type="button" class="hov-primary" ' + on(() => openJoin()) + ' style="' + primary(true) + '">Join with a code</button>' +
       '<button type="button" ' + on(() => startGroup()) + ' style="' + SECONDARY + '">Start a group</button>' +
     '</div>';
@@ -5806,7 +5809,7 @@
       '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to top, rgba(13,17,23,.9) 0%, rgba(13,17,23,.55) 60%, rgba(13,17,23,.4) 100%)"></div>' +
       '<div style="position:relative;flex:1;min-width:0;padding:calc(22px + var(--pt)) 14px 14px;z-index:3;display:flex;align-items:center;gap:10px">' +
         '<span ' + on(() => go('groups')) + ' role="button" aria-label="Back to groups" style="flex:0 0 28px;width:28px;height:44px;margin-left:-6px;margin-right:-4px;display:flex;align-items:center;justify-content:center;opacity:.85;cursor:pointer">' + I.chevL(20, '#fff', 2.6) + '</span>' +
-        '<div style="flex:1;min-width:0;color:#fff;display:flex;flex-direction:column;gap:3px">' + groupTagAbove(g) +
+        '<div style="flex:1;min-width:0;color:#fff;display:flex;flex-direction:column;gap:3px">' +
           '<span style="font-size:12px;line-height:1;font-weight:900;letter-spacing:1.2px;text-transform:uppercase;color:#cfc9ff">Your group</span>' +
           '<h1 style="margin:0;font-size:28px;line-height:1.05;font-weight:900;letter-spacing:-.8px;color:#fff;text-wrap:balance;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">' + esc(g ? g.name : 'Spark Hub') + '</h1>' +
           // plain text (Design v8); Members is in the ⋯ menu
@@ -5876,7 +5879,7 @@
         filterPill('gFilt', filterOpts(['lead', 'help', 'going', 'open', 'needs', 'week'], all, st.gFilt), st.gFilt,
           (k) => setState({ gFilt: st.gFilt.indexOf(k) > -1 ? st.gFilt.filter(x => x !== k) : st.gFilt.concat([k]) }), clear, plans.length) +
         viewPicker('gview', gv, (k) => setState({ gView: k, menu: null, gMon: null, gDay: null }), GROUP_VIEWS) + '</div>';
-      if (!all.length) body = plansEmpty();
+      if (!all.length) body = !visible('idea').length && !visible('done').length ? groupStartCard(g) : plansEmpty();
       // Month (owner, 2026-09-30): the group's plans on a month grid, the chosen day's below; the filter and view menu beside the arrows
       else if (gv === 'month') body = monthBody(plans, { mode: 'group', holds: holdItems(s => inGroup(s, currentGroup().id)), mon: st.gMon, day: st.gDay, cal: true, card: (s) => listCard6(s, partOf(s, true), false, true),
         menu: '<div style="display:flex;align-items:center;gap:6px">' + filterPill('gFilt', filterOpts(['lead', 'help', 'going', 'open', 'needs', 'week'], all, st.gFilt), st.gFilt,
@@ -5896,6 +5899,19 @@
     return { body, pageStyle };
   }
 
+  // A group with nothing in it (Design v8-17 item 7a): three ways to get it going
+  const groupStartCard = (g) => {
+    const row = (k, tile, ink, glyph, title, sub, fn, attr) => '<div ' + on(fn) + ' role="button" ' + attr + ' style="display:flex;align-items:center;gap:12px;min-height:64px;padding:10px 14px;' + (k ? 'border-top:1px solid #f2f3f6;' : '') + 'cursor:pointer">' +
+      '<span style="flex:0 0 40px;width:40px;height:40px;border-radius:12px;background:' + tile + ';color:' + ink + ';display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:900">' + glyph + '</span>' +
+      '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-size:16px;font-weight:800;color:#0d1117">' + title + '</span><span style="font-size:13.5px;font-weight:600;color:#6b7280">' + sub + '</span></div>' + I.chevR(14, '#b9bcc4', 2.6) + '</div>';
+    return '<div data-group-start data-screen-label="New group start" style="display:flex;flex-direction:column;gap:12px;padding-top:6px">' +
+      '<div style="display:flex;flex-direction:column;gap:4px;padding:0 4px"><span style="font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.4px;color:#0d1117">Nothing here yet</span>' +
+        '<span style="font-size:15px;line-height:1.4;font-weight:500;color:#454b55">Three ways to get it going.</span></div>' +
+      '<div style="background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08);display:flex;flex-direction:column;overflow:hidden">' +
+        (runs(g) ? row(0, '#f3f1fe', '#5b4ae8', '+', 'Invite people', 'Share a link or pick friends', () => groupInvite(g), 'data-start-invite') : '') +
+        row(runs(g) ? 1 : 0, '#fdf1d6', '#8f6405', '?', 'Float an Idea', 'Ask what people want to do', () => openFloat({ groups: [g.id] }), 'data-start-float') +
+        row(1, '#5b4ae8', '#fff', '✓', 'Create a Plan', 'Already know the date?', () => goCompose(), 'data-start-plan') + '</div></div>';
+  };
   // Plans tab (v6 Update 9, 80a): an empty state with a calendar fan, and "What else could happen?" under the list
   const createBtn = () => '<button type="button" class="hov-primary" ' + on(() => goCompose()) + ' style="width:100%;min-height:52px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 6px 16px rgba(91,74,232,.3);cursor:pointer">' + I.plus(18, '#fff', 2.8) + 'Create a Plan</button>';
   const fanPage = (w, rot, x, y, z) => '<span style="position:absolute;left:' + x + 'px;top:' + y + 'px;z-index:' + z + ';width:' + w + 'px;border-radius:14px;overflow:hidden;background:#fff;box-shadow:0 8px 22px rgba(15,18,25,.14);transform:rotate(' + rot + 'deg)">' +
@@ -5998,15 +6014,8 @@
     const ph = phaseOf(s);
     const page = s.cancelledAt ? (s.planned ? viewPlan(s) : viewIdea(s))   // it didn't happen: no album or reactions
       : ph === 'plan' ? viewPlan(s) : ph === 'done' ? viewDone(s) : useIdea8(s) ? viewIdea8(s) : viewIdea(s);
-    return isDemo(s) ? '<div>' + testTab() + page + '</div>' : page;
+    return page;
   }
-  // Demo and test events: a striped yellow tab hanging from the top edge between the back and share
-  // buttons, pinned while scrolling, so nobody mistakes them for real and signs up (owner's design,
-  // 2026-10-01). Zero height, so it overlays and moves nothing; it reaches up behind the status bar.
-  const testTab = () => '<div data-test-tab style="position:sticky;top:0;z-index:6;height:0;display:flex;justify-content:center;pointer-events:none">' +
-    '<div role="note" style="display:flex;align-items:center;gap:7px;box-sizing:border-box;height:calc(38px + var(--pt));padding:var(--pt) 18px 0;border-radius:0 0 18px 18px;background:repeating-linear-gradient(135deg,#f5b729 0 9px,#f8c74e 9px 18px);color:#2a1d00;font-size:16px;font-weight:800;white-space:nowrap;box-shadow:0 6px 16px -8px rgba(13,17,23,.45)">' +
-      svg(17, stroke('currentColor', 2.2), '<path d="M9 3h6M10 3v6L4.5 18.5A1.5 1.5 0 0 0 5.8 21h12.4a1.5 1.5 0 0 0 1.3-2.5L14 9V3"/><path d="M7.2 15h9.6"/>') + 'Test event</div></div>';
-
   // Audit 2026-10-01: the idea page uses the plan page's parts (photo header with the title on it, the
   // date & place card, Details, Help out, section titles on the gray page); only what ideas need differs:
   // "I'm interested" instead of RSVP, polls with Suggest, Who's interested, Make it a plan, the steps strip.
@@ -6041,7 +6050,7 @@
         '<div style="position:absolute;left:20px;right:20px;bottom:20px;color:#fff;display:flex;align-items:flex-end;gap:14px"><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px">' +
           dateTile(s, '#e8a71c') +
           '<div style="display:flex;gap:6px;flex-wrap:wrap">' + (off ? chip('CANCELLED', '#d92d4a', '#fff', 'data-cancelled') : '') +
-            (isDemo(s) ? chip('DEMO', 'rgba(255,255,255,.24);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)', '#fff', 'data-chip data-demo-tag') : lead && !(isTheLead(s) && s.wantsHost) ? chip(isTheLead(s) ? 'YOU’RE LEADING' : 'YOU’RE CO-LEADING', '#5b4ae8', '#fff', 'data-chip') : chip('IDEA', '#f3c55a', '#3d2a00', 'data-chip')) +
+            (lead && !(isTheLead(s) && s.wantsHost) ? chip(isTheLead(s) ? 'YOU’RE LEADING' : 'YOU’RE CO-LEADING', '#5b4ae8', '#fff', 'data-chip') : chip('IDEA', '#f3c55a', '#3d2a00', 'data-chip')) +
             (s.visibility === 'invite' ? chip(svg(11, stroke('#fff', 2.6), '<rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>') + 'PRIVATE', 'rgba(255,255,255,.22)') : '') + '</div>' +
           // The title isn't tappable any more (Design 31): editing goes through the ✎ at the top right
           '<h1 style="margin:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:' + titleFs(s.text, 36) + 'px;line-height:1;font-weight:900;letter-spacing:-1.2px;text-wrap:balance">' + esc(s.text) + '</h1></div>' +
@@ -6099,7 +6108,7 @@
     return '<div data-make-plan-wrap style="padding:0 14px">' +
       (ready ? '<button type="button" data-make-plan ' + on(() => { if (!state.busy) makePlan(s); }) + ' style="position:relative;overflow:hidden;margin-top:14px;width:100%;min-height:56px;border:0;border-radius:999px;background:#2f9a4f;box-shadow:0 8px 18px rgba(20,110,50,.28);color:#fff;font-family:inherit;font-size:18px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:9px">' +
         spark('7%', '22%', 12, '#ffe7a3') + spark('63%', '12%', 9, '#fff') + spark('86%', '58%', 11, '#fff') +
-        svg(18, stroke('#fff', 2.3), FLAG) + 'Make it a Plan!</button>' : '') +
+        svg(18, stroke('#fff', 2.3), FLAG) + 'Lock it in</button>' : '') +
     '</div>';
   };
 
@@ -6174,7 +6183,6 @@
         '<span style="flex:1"></span>' +
         (menu ? '<span ' + on(() => openSec(s, 'title')) + ' aria-label="Edit event" class="hov-fill-grey" style="' + ROUND_BTN + '">' + svg(18, stroke('#0d1117', 2.4), PENCIL) + '</span>' + evMenu(s) :
         // Owner, 2026-10-01: one round pencil (matching Share) opens Edit event: the title, and the cover photo for the host.
-        // Round, so the Test event tab between the buttons stays clear on demo/test events
         (canEdit(s) && !s.cancelledAt ? '<span ' + on(() => openSec(s, 'title')) + ' aria-label="' + (s.planned ? 'Edit event' : 'Edit Idea') + '" class="hov-fill-grey" style="' + ROUND_BTN + '">' + svg(18, stroke('#0d1117', 2.4), PENCIL) + '</span>'
           : share ? '' : '<span style="flex:0 0 44px;width:44px"></span>') +
         // Share stays on a cancelled plan (Design v8)
@@ -6461,7 +6469,7 @@
   const secSends = () => false;   // saving an edit never posts an update (owner, 2026-10-04, Design 30): leads use Post an update
   const sendUpdate = async (s, body) => must(await sb.from('plan_updates').insert({ spark_id: s.id, body: body.slice(0, 200), audience: 'coming' }));
 
-  const sentNote = (s) => isDemo(s) ? 'Saved. Test events don’t send phone notifications.' : 'Saved. Everyone going gets an update.';
+  const sentNote = (s) => 'Saved. Everyone going gets an update.';
   const saveSec = (s) => {
     const ss = state.sec, lead = isLead(s), msg = secMessage(s, ss), send = secSends(s, ss);
     if (!ss || state.busy) return;
@@ -6539,7 +6547,7 @@
           must(await sb.from('spot_options').delete().eq('spark_id', s.id));
         }
         if (send) await sendUpdate(s, msg);
-      }, { confirm: null }).then(ok => { if (ok) toast(send ? (isDemo(s) ? 'Picked. Test events don’t send phone notifications.' : 'Picked. Everyone gets an update.') : 'Picked ' + label, true); }) } });
+      }, { confirm: null }).then(ok => { if (ok) toast(send ? 'Picked. Everyone gets an update.' : 'Picked ' + label, true); }) } });
   };
 
   // Edit what you need: every job editable in place (nothing opens on top)
@@ -7210,6 +7218,33 @@
       run: () => run(async () => { must(await sb.rpc('step_back', { p_spark: s.id })); }, { confirm: null })
         .then(ok => { if (ok) toast(co ? firstName(nameOf(co)) + ' is leading it now' : s.planned ? 'It’s an Idea again, looking for a lead' : 'It’s looking for a lead now', true); }) } });
   };
+  // Your role (Design v8-17 clarity pass, 3a): what the lead's Change opens. Hand it to a co-lead (one tap), to someone
+  // else (the hand-off picker), Step back, YOUR RSVP, and a quiet Cancel the event that steps forward in the same sheet
+  function viewRoleSheet() {
+    const rs = state.roleSheet, s = state.sparks.find(x => x.id === rs.id);
+    if (!s || s.cancelledAt || !isLead(s)) return '';
+    const close = () => setState({ roleSheet: null }), main = isTheLead(s), co = main ? s.cohosts[0] : null, coName = co ? firstName(nameOf(co)) : '';
+    const row = (k, label, sub, fn, attr, icon) => '<div ' + on(fn) + ' role="button" ' + attr + ' style="display:flex;align-items:center;gap:12px;min-height:58px;' + (k ? 'border-top:1px solid #f2f3f6;' : '') + 'cursor:pointer">' + svg(20, stroke('#4a3ad4', 2.2), icon) +
+      '<div style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:16px;font-weight:800;color:#0d1117">' + label + '</span><span style="font-size:13px;font-weight:600;color:#6b7280">' + sub + '</span></div>' + I.chevR(14, '#9aa0ac', 2.6) + '</div>';
+    if (rs.view === 'cancel') return sheet('Your role', close, 'padding:10px 18px calc(26px + env(safe-area-inset-bottom, 0px));display:flex;flex-direction:column;gap:10px',
+      '<span ' + on(() => setState({ roleSheet: Object.assign({}, rs, { view: 'main' }) })) + ' role="button" data-role-back style="align-self:flex-start;min-height:32px;display:flex;align-items:center;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">‹ Back</span>' +
+      '<span style="font-size:22px;font-weight:900;letter-spacing:-.4px;color:#0d1117;text-wrap:balance">Cancel ' + esc(s.text) + '?</span>' +
+      '<span style="font-size:15px;font-weight:500;color:#454b55">Everyone going gets a notification.</span>' +
+      '<textarea class="fld" rows="2" maxlength="160" aria-label="Reason (optional)" placeholder="Add a reason (optional)" ' + onInput(e => { if (e.type === 'input') state.roleSheet.reason = e.target.value.slice(0, 160); }) +
+        ' style="width:100%;box-sizing:border-box;border:1.5px solid #dcdfe6;border-radius:14px;padding:12px 14px;font-family:inherit;font-size:16px;font-weight:500;color:#0d1117;resize:none;outline:none">' + esc(rs.reason || '') + '</textarea>' +
+      '<span ' + on(() => { if (!state.busy) cancelEvent(s, rs.reason).then(() => { if (state.roleSheet) setState({ roleSheet: null }); }); }) + ' role="button" data-role-cancel style="display:flex;align-items:center;justify-content:center;min-height:52px;border-radius:999px;background:#9b1c31;color:#fff;font-size:16px;font-weight:800;cursor:pointer">Cancel event</span>' +
+      '<span ' + on(close) + ' role="button" style="display:flex;align-items:center;justify-content:center;min-height:44px;font-size:15px;font-weight:800;color:#454b55;cursor:pointer">Keep it</span>');
+    const my = myRsvp(s), seg = [['going', 'Going'], ['maybe', 'Maybe'], ['no', 'Can’t']].map(([k, l]) => '<span ' + on(() => { if (my !== k) setRsvp(s, k); }) + ' role="button" aria-pressed="' + (my === k) + '" data-role-rsvp="' + k + '" style="display:flex;align-items:center;justify-content:center;min-height:40px;border-radius:999px;font-size:15px;font-weight:800;cursor:pointer;background:' + (my === k ? '#fff' : 'transparent') + ';box-shadow:' + (my === k ? '0 1px 3px rgba(13,17,23,.18)' : 'none') + ';color:' + (my === k ? '#0d1117' : '#454b55') + '">' + l + '</span>').join('');
+    return sheet('Your role', close, 'padding:10px 18px calc(26px + env(safe-area-inset-bottom, 0px));display:flex;flex-direction:column',
+      '<span style="font-size:22px;font-weight:900;letter-spacing:-.4px;color:#0d1117;margin-bottom:4px">Your role</span>' +
+      (main && co ? row(0, 'Hand it to ' + esc(coName), 'One tap. ' + esc(coName) + ' leads, you co-lead.', () => { run(async () => { must(await sb.rpc('hand_to_colead', { p_spark: s.id, p_user: co })); }, { roleSheet: null }).then(ok => { if (ok) toast(coName + ' is leading it. You’re a co-lead.', true); }); }, 'data-role-hand-co', '<path d="M4 12h12M12 6l6 6-6 6"/><path d="M20 5v14"/>') : '') +
+      (main && !s.leadOffer && phaseOf(s) !== 'done' ? row(co ? 1 : 0, 'Hand it to someone else', 'Pick a person, add a note', () => { setState({ roleSheet: null }); openHandOff(s); }, 'data-role-hand-other', '<circle cx="9" cy="8" r="3.4"/><path d="M3 20a6 6 0 0 1 12 0"/><path d="M18 8v6M15 11h6"/>') : '') +
+      (main ? row(1, 'Step back', co ? esc(coName) + ' takes over' : s.planned ? 'It goes back to being an Idea' : 'It goes back to looking for a lead', () => { setState({ roleSheet: null }); askStepBack(s); }, 'data-role-step-back', '<path d="M15 6l-6 6 6 6"/>')
+        : row(0, 'Step down as co-lead', esc(firstName(nameOf(s.leadId, s.leadName))) + ' keeps leading it', () => { setState({ roleSheet: null }); askRemoveCohost(s, state.me, true); }, 'data-role-step-down', '<path d="M15 6l-6 6 6 6"/>')) +
+      '<div style="display:flex;flex-direction:column;gap:8px;padding:12px 0 4px;border-top:1px solid #f2f3f6"><span style="font-size:12px;font-weight:800;letter-spacing:1px;color:#6b7280">YOUR RSVP</span>' +
+        '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;padding:4px;border-radius:999px;background:#f2f3f6">' + seg + '</div></div>' +
+      (main && canTakeDown(s) ? '<span ' + on(() => setState({ roleSheet: Object.assign({}, rs, { view: 'cancel' }) })) + ' role="button" data-role-ask-cancel style="margin-top:14px;align-self:center;padding:8px 12px;font-size:14px;font-weight:800;color:#9b1c31;cursor:pointer">Cancel the event</span>' : ''));
+  }
   function viewLeadsSheet() {
     const s = state.sparks.find(x => x.id === state.leadsSheet);
     if (!s) return '';
@@ -7539,6 +7574,7 @@
     const box = !can ? (state.email && !s.cancelledAt && !lead ? '<div data-disc-how style="padding:14px 18px 6px;font-size:14px;font-weight:700;color:#6b7280">' + (s.planned ? 'RSVP to join the conversation.' : 'Tap I’m interested to join the conversation.') + '</div>' : '') : '<div style="display:flex;flex-direction:column;gap:4px;padding:14px 14px 4px"><div style="display:flex;align-items:center;gap:10px">' + avatarSpan(st.me, st.myName, avatar, 36) +
         '<label class="disc-field" style="flex:1;min-width:0;display:flex;align-items:center;gap:6px;min-height:50px;box-sizing:border-box;padding:5px 5px 5px 18px;border-radius:999px;background:#f2f3f6">' +
           '<span ' + on(() => flag('discEmoji', s.id, !(st.discEmoji || {})[s.id])) + ' role="button" data-emoji-btn aria-label="Add an emoji" aria-expanded="' + !!(st.discEmoji || {})[s.id] + '" style="flex:0 0 34px;width:34px;height:34px;margin-left:-10px;border-radius:999px;display:flex;align-items:center;justify-content:center;color:#6b7280;cursor:pointer">' + svg(22, stroke('currentColor', 2), '<circle cx="12" cy="12" r="9"/><path d="M8.5 14.2a4.5 4.5 0 0 0 7 0M9 9.8h.01M15 9.8h.01"/>') + '</span>' +
+          '<span aria-hidden="true" data-gif-later title="GIFs later" style="flex:0 0 26px;width:26px;height:26px;margin-right:2px;box-sizing:border-box;border-radius:7px;border:1.5px dashed #c9ccd3"></span>' +   // holds the place for GIFs (Design v8-17, 7a); not a feature yet
           '<input class="fld" type="text" maxlength="500" data-comment-input aria-label="Write a comment" placeholder="' + (lead ? (s.planned ? 'Write to everyone going…' : 'Write to everyone interested…') : 'Ask a question or say hi…') + '" value="' + esc(draft) + '" ' +
             onInput(e => { if (e.type === 'input') setState({ discDraft: Object.assign({}, state.discDraft, { [s.id]: e.target.value.slice(0, 500) }) }); }) +
             ' style="flex:1;min-width:0;border:0;padding:0;background:transparent;outline:none;font-family:inherit;font-size:15.5px;font-weight:500;color:#0d1117">' +
@@ -7548,6 +7584,9 @@
         '<span data-disc-count style="font-size:15px;font-weight:800;color:#8a909b">' + total + '</span>' +   // 0 too (Design v8)
         // The lead's Post update pill (v8-13; v8-9 item 2, 1d, was Send update): opens Post an update with whatever's typed in the box
         (can && lead && phaseOf(s) === 'plan' ? '<span style="flex:1"></span><span ' + on(() => setState({ blast: { id: s.id, to: 'going', text: draft.trim().slice(0, 200), chip: null }, updAll: null, discDraft: Object.assign({}, st.discDraft, { [s.id]: '' }) })) + ' role="button" data-send-update class="hov-sendupd" style="align-self:center;display:flex;align-items:center;gap:6px;min-height:36px;padding:0 14px;border-radius:999px;background:#fdf0f5;color:#d6246e;font-size:13.5px;font-weight:800;cursor:pointer">' + svg(14, stroke('currentColor', 2.4), BULLHORN) + 'Post update</span>' : '') + '</div>' +
+      // Event group chat (Design v8-17 item 6): a REQUEST row, no chat yet
+      '<div ' + on(() => requestFeature('Event group chat')) + ' role="button" data-chat-request style="display:flex;align-items:center;gap:12px;min-height:52px;padding:0 14px;border-radius:16px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
+        svg(18, stroke('#454b55', 2.2), '<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/>') + '<span style="flex:1;font-size:15.5px;font-weight:800;color:#0d1117">Event group chat</span>' + REQ_CHIP + I.chevR(14, '#b9bcc4', 2.6) + '</div>' +
       '<div data-screen-label="Discussion" style="background:#fff;border-radius:20px;box-shadow:0 1px 3px rgba(15,18,25,.08);display:flex;flex-direction:column">' + box +
         // Nothing yet: just the box with 8px more under it (v8-9 item 1, no No comments yet.)
         (!items.length ? (c.list ? '<div style="height:8px"></div>' : '<div style="display:flex;align-items:center;justify-content:center;padding:18px 16px 22px;font-size:14.5px;font-weight:600;color:#6b7280;text-align:center">Loading…</div>') : '') +
@@ -7612,7 +7651,7 @@
         '<span aria-hidden="true" style="flex:0 0 30px;width:30px;height:30px;border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center">' +
           '<svg width="16" height="16" viewBox="0 0 24 24"><path d="M13.2 2.2 7.2 13.1l3.9-.35-.9 8.8 6.9-11.2-4.1.4z" fill="#e8a71c" stroke="#e8a71c" stroke-width="1.7" stroke-linejoin="round"/></svg></span>' +
         '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">' +
-          '<span style="font-size:14px;line-height:1.45;font-weight:600;color:#5c4148;text-wrap:pretty">Shared with you on <b style="font-weight:800;color:#3d1f27">Spark Hub</b>, where people turn ideas into plans.</span>' +
+          '<span style="font-size:14px;line-height:1.45;font-weight:600;color:#5c4148;text-wrap:pretty">Shared with you on <b style="font-weight:800;color:#3d1f27">Spark Hub</b>, where people turn ideas into plans. You can RSVP and sign up without joining anything.</span>' +
           '<span ' + on(() => openAbout()) + ' role="button" data-about-link style="align-self:flex-start;display:flex;align-items:center;gap:2px;min-height:28px;font-size:13px;font-weight:700;color:#9b6b77;cursor:pointer">What’s Spark Hub? ' + I.chevR(11, '#9b6b77', 2.6) + '</span></div>' +
         '<span ' + on(hideVisitor) + ' role="button" aria-label="Close" data-visitor-x style="position:absolute;top:8px;right:8px;width:28px;height:28px;border-radius:999px;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(12, '#9b6b77', 2.6) + '</span>' +
       '</div>';
@@ -7636,15 +7675,15 @@
       no: ['You can’t make it', '#f2f3f6', '#454b55', '#454b55', '<circle cx="12" cy="12" r="10.4"/><path d="M6.1 10.4Q7.6 11.4 9.4 9.9M14.6 9.9Q16.4 11.4 17.9 10.4"/><path d="M8.6 16.9Q12 13.2 15.4 16.9"/>', 28, 1.9, true] };
     // A host is going (owner, 2026-10-08): the lead's bar says You're hosting with no Change (can't make it = step back or
     // hand it on); a co-host who's going sees it too, with Change, since a co-host may really be a maybe
-    RB.host = ['You’re hosting', '#f3f1fe', '#5b4ae8', '#4a3ad4', '<path d="M13.2 2.2 7.2 13.1l3.9-.35-.9 8.8 6.9-11.2-4.1.4z" fill="#fff" stroke-width="1.7" stroke-linejoin="round"/>', 16, 1.6];
-    const hosting = isTheLead(s) || (isCohost(s) && my === 'going' && st.rsvpEdit !== s.id);
+    RB.host = [isTheLead(s) ? 'You’re leading' : 'You’re co-leading', '#f3f1fe', '#5b4ae8', '#4a3ad4', '<path d="M13.2 2.2 7.2 13.1l3.9-.35-.9 8.8 6.9-11.2-4.1.4z" fill="#fff" stroke-width="1.7" stroke-linejoin="round"/>', 16, 1.6];
+    const hosting = isLead(s);   // the lead's and a co-lead's bar is You're leading · Change, which opens Your role (Design v8-17, 3a)
     const barKey = hosting ? 'host' : my;
     const showBar = hosting || (!!my && RB[my] && st.rsvpEdit !== s.id);
     const rsvpBar = !showBar ? '' : (() => { const [t, bgc, dot, ink, icon, size, sw, outline] = RB[barKey];
       return '<div data-rsvp-bar="' + barKey + '" style="display:flex;align-items:center;gap:10px;height:54px;padding:0 12px 0 14px;box-sizing:border-box;border-radius:16px;background:' + bgc + '">' +
         '<span aria-hidden="true" style="flex:0 0 28px;width:28px;height:28px;border-radius:999px;background:' + (outline ? 'none' : dot) + ';display:flex;align-items:center;justify-content:center">' + svg(size || 16, stroke(outline ? dot : '#fff', sw || 3.2), icon) + '</span>' +   // Can't: an outlined face (owner)
         '<span style="flex:1;min-width:0;font-size:17px;font-weight:900;color:' + ink + '">' + t + '</span>' +
-        (isTheLead(s) ? '' : '<button type="button" ' + on(() => setState({ rsvpEdit: s.id })) + ' data-rsvp-change style="flex:0 0 auto;padding:8px 4px;border:0;background:transparent;font-family:inherit;font-size:15px;font-weight:800;color:#5b4ae8;cursor:pointer">Change</button>') + '</div>'; })();
+        (isLead(s) ? '<button type="button" ' + on(() => setState({ roleSheet: { id: s.id, view: 'main', reason: '' } })) + ' data-role-change style="flex:0 0 auto;padding:8px 4px;border:0;background:transparent;font-family:inherit;font-size:15px;font-weight:800;color:#5b4ae8;cursor:pointer">Change</button>' : '<button type="button" ' + on(() => setState({ rsvpEdit: s.id })) + ' data-rsvp-change style="flex:0 0 auto;padding:8px 4px;border:0;background:transparent;font-family:inherit;font-size:15px;font-weight:800;color:#5b4ae8;cursor:pointer">Change</button>') + '</div>'; })();
     const nGo = headN(s), nMaybe = maybes(s).length;
     const rsvpBlock = s.cancelledAt ? '' : '<div data-rsvp style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:12px">' +
       (showBar ? rsvpBar : '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">' + rsvpBtn('going', 'Going') + rsvpBtn('maybe', 'Maybe') + rsvpBtn('no', 'Can’t') + '</div>') +
@@ -7677,9 +7716,9 @@
         '<div aria-hidden="true" data-ev-cap style="position:absolute;left:0;right:0;bottom:-1px;height:23px;z-index:1;border-radius:22px 22px 0 0;background:#e8eaee"></div>' +
         '<div style="position:absolute;left:20px;right:20px;bottom:38px;color:#fff;display:flex;align-items:flex-end;gap:14px"><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px">' +
           // v8-12 (8a): no HAPPENING / YOU'RE LEADING chip; the row shows only for CANCELLED and/or PRIVATE
-          (s.cancelledAt || s.visibility === 'invite' || isDemo(s) ? '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
+          (s.cancelledAt || s.visibility === 'invite' ? '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
             (s.cancelledAt ? '<span data-cancelled style="display:flex;align-items:center;border-radius:999px;padding:5px 11px;background:#9b1c31;font-size:12px;font-weight:900;letter-spacing:.9px">CANCELLED</span>'
-              : isDemo(s) ? '<span data-chip data-demo-tag style="display:flex;align-items:center;gap:6px;border-radius:999px;padding:5px 11px;background:rgba(255,255,255,.24);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);font-size:12px;font-weight:900;letter-spacing:.9px">DEMO</span>' : '') +
+              : '') +
             (s.visibility === 'invite' ? '<span style="display:flex;align-items:center;gap:5px;border-radius:999px;padding:5px 11px;background:rgba(255,255,255,.22);font-size:12px;font-weight:900;letter-spacing:.9px">' + svg(11, stroke('#fff', 2.6), '<rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>') + 'PRIVATE</span>' : '') + '</div>' : '') +
           // The title isn't tappable any more (Design 31): editing goes through the ⋯ at the top right
           '<h1 style="margin:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:' + titleFs(s.text, 40) + 'px;line-height:.98;font-weight:900;letter-spacing:-1.3px;text-wrap:balance">' + esc(s.text) + '</h1>' +
@@ -7692,7 +7731,7 @@
         cancelledCard(s) +
         (discMissing(s) ? updatesCard(s) : discBanner(s)) +   // v8: the banner; the updates live in Discussion
         // Keep this event: the page's 18px above and below (owner, 2026-10-07; was 8px under the RSVP card, Design v8-8 prototype 976)
-        rsvpBlock + guestNudge +
+        rsvpBlock + guestNudge + takePartLine(s) +
         visitorLine +   // a visitor's Shared with you card: under the RSVP, 12px above and below (owner, 2026-10-07)
         whenWhereCard(s) +
         basicDetailsSec(s) +
@@ -7707,6 +7746,22 @@
       '<div style="height:var(--nav-h)"></div>' +
     '</div>';
   }
+
+  // Jobs with spots still open, "ways to help" on the cards and the event page alike (Design v8-17 clarity pass, 1d)
+  const openJobs = (s) => s.signups.filter(i => i.need && i.claims.length < i.need).length;
+  // Under the RSVP card, one quiet purple line (Design v8-17 clarity pass, 5a): 3 ways to help · 2 posts ›; each part
+  // scrolls to its section. Hidden when there's nothing
+  const takePartLine = (s) => {
+    if (phaseOf(s) !== 'plan' || s.cancelledAt) return '';
+    const c = comments[s.id] || {}, posts = c.list ? c.list.length : c.count || 0, jobs = openJobs(s);
+    if (!jobs && !posts) return '';
+    const jump = (sel) => () => { const el = document.querySelector(sel), sc = scroller(); if (el && sc) sc.scrollTo({ top: sc.scrollTop + el.getBoundingClientRect().top - sc.getBoundingClientRect().top - 60, behavior: 'smooth' }); };
+    return '<div data-take-part-line style="margin-top:-6px;display:flex;align-items:center;flex-wrap:wrap;gap:6px;padding:0 6px;font-size:14px;font-weight:800;color:#4a3ad4">' +
+      (jobs ? '<span ' + on(jump('#sec-tasks')) + ' role="button" data-tp-help style="cursor:pointer">' + jobs + (jobs === 1 ? ' way to help' : ' ways to help') + '</span>' : '') +
+      (jobs && posts ? '<span style="color:#b9bcc4">·</span>' : '') +
+      (posts ? '<span ' + on(jump('[data-discussion]')) + ' role="button" data-tp-posts style="cursor:pointer">' + posts + (posts === 1 ? ' post' : ' posts') + '</span>' : '') +
+      I.chevR(13, '#4a3ad4', 2.8) + '</div>';
+  };
 
   // Once the date has passed, the host can still move it (a wrong date, or it got pushed) or take it down
   const doneFixCard = (s) => !canEdit(s) ? '' :
@@ -7788,7 +7843,7 @@
     const to = b.to === 'coming' ? 'coming' : 'going', ok = b.text.trim().length > 0 && !state.busy;
     const chips = [['Running late', 'Running late, '], ['We’re here: ___', 'We’re here: '], ['Moved to ___', 'Moved to '], ['Bring ___', 'Bring '], ['Can someone ___', 'Can someone '], ['Cancelled', 'Cancelled: ']];
     const aud = [['going', 'Going'], ['coming', 'Going and Maybe']];
-    const quiet = isDemo(s) ? 'Test event: it shows on the page, but no one gets a notification.' : to === 'coming' ? 'Everyone going or maybe gets a notification.' : 'Everyone going gets a notification.';
+    const quiet = to === 'coming' ? 'Everyone going or maybe gets a notification.' : 'Everyone going gets a notification.';
     return sheet('Post an update', close, SHEET_PAD,
       sheetHead('', 'Post an update', '', close) +
       '<div style="display:flex;flex-wrap:wrap;gap:6px">' + chips.map(([label, text]) => { const onIt = b.chip === label;
@@ -7882,7 +7937,7 @@
   const meVisits = () => +(meAlertGet('visits') || 0);
   let meVisitCounted = false;
   const countMeVisit = () => { if (meVisitCounted) return; meVisitCounted = true; try { localStorage.setItem(ME_ALERT_KEY + 'visits', String(meVisits() + 1)); } catch (e) { /* not counted */ } };
-  const openFeedback = () => setState({ fb: { text: '', nudge: !!state.fbHint }, fbHint: false });
+  const openFeedback = () => setState({ fb: { text: '', topic: 'q', nudge: !!state.fbHint }, fbHint: false });
 
   const GRAPH_BG = 'background-color:#f5f9fe;background-image:linear-gradient(#dfeaf7 1px,transparent 1px),linear-gradient(90deg,#dfeaf7 1px,transparent 1px);background-size:18px 18px';
   // The Ideas board is neutral grey graph paper; the plan cards keep GRAPH_BG blue (Design v8 prototype)
@@ -7936,17 +7991,17 @@
   const helpCard = (talk, rule, onTalk, onRule, onInfo) => { const [tr, kn] = toggleStyle(talk);
     return '<div style="background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08);overflow:hidden">' +
       '<div ' + on(onTalk, 'switch') + ' aria-checked="' + talk + '" data-talk-toggle style="display:flex;align-items:center;gap:12px;min-height:60px;padding:0 14px;cursor:pointer">' + svg(20, stroke('#b07a0a', 2.2), '<path d="M5 18l-1.5 3 4-1.6A8 8 0 1 0 5 18z"/>') +
-        '<div style="flex:1;display:flex;flex-direction:column"><span style="font-size:15.5px;font-weight:800;color:#0d1117">Talk it through with someone?</span><span style="font-size:13px;font-weight:600;color:#6b7280">People can offer to brainstorm</span></div>' +
+        '<div style="flex:1;display:flex;flex-direction:column"><span style="font-size:15.5px;font-weight:800;color:#0d1117">Open to ideas</span><span style="font-size:13px;font-weight:600;color:#6b7280">People can share thoughts with you</span></div>' +
         '<span style="' + tr + '"><span style="' + kn + '"></span></span></div>' +
       '<span style="display:block;height:1px;margin:0 14px;background:#eceef2"></span>' +
       '<div style="display:flex;flex-direction:column;gap:10px;padding:12px 14px 14px"><div style="display:flex;align-items:center;gap:12px">' + svg(20, stroke('#b07a0a', 2.2), '<path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/>') +
         '<span style="flex:1;font-size:15.5px;font-weight:800;color:#0d1117">Who leads it</span>' +
         '<span ' + on(onInfo) + ' aria-label="What’s the difference?" style="display:flex;width:32px;height:32px;align-items:center;justify-content:center;cursor:pointer"><span style="display:flex;width:18px;height:18px;border-radius:999px;box-shadow:inset 0 0 0 1.6px #9aa0ac;align-items:center;justify-content:center;font-size:11px;font-weight:900;color:#6b7280">i</span></span></div>' +
-        '<div style="display:flex;gap:3px;padding:3px;border-radius:999px;background:#e8eaee">' + segBtn(rule !== 'me', 'I’ll decide', () => onRule('decide'), 'data-rule="decide"') + segBtn(rule === 'me', 'Me', () => onRule('me'), 'data-rule="me"') + '</div></div></div>'; };
+        '<div style="display:flex;gap:3px;padding:3px;border-radius:999px;background:#e8eaee">' + segBtn(rule !== 'me', 'Find a lead', () => onRule('decide'), 'data-rule="decide"') + segBtn(rule === 'me', 'I’ll lead it', () => onRule('me'), 'data-rule="me"') + '</div></div></div>'; };
   const ruleInfo = (close) => popCard('Who leads it?', close, '', '',
     '<span style="font-size:22px;font-weight:900;letter-spacing:-.4px;color:#0d1117;padding-right:40px">Who leads it?</span>' +
-    '<div style="display:flex;flex-direction:column;gap:4px;padding:12px 14px;border-radius:14px;background:#f6f7f9"><span style="font-size:16px;font-weight:900;color:#0d1117">I’ll decide</span><span style="font-size:15px;line-height:1.45;font-weight:500;color:#454b55">People can offer to lead it. You pick who, or take it on yourself later.</span></div>' +
-    '<div style="display:flex;flex-direction:column;gap:4px;padding:12px 14px;border-radius:14px;background:#f6f7f9"><span style="font-size:16px;font-weight:900;color:#0d1117">Me</span><span style="font-size:15px;line-height:1.45;font-weight:500;color:#454b55">You’re the lead. You pick the date and location and make it a Plan.</span></div>' +
+    '<div style="display:flex;flex-direction:column;gap:4px;padding:12px 14px;border-radius:14px;background:#f6f7f9"><span style="font-size:16px;font-weight:900;color:#0d1117">Find a lead</span><span style="font-size:15px;line-height:1.45;font-weight:500;color:#454b55">You floated it. Someone interested can offer to lead, and you pick who.</span></div>' +
+    '<div style="display:flex;flex-direction:column;gap:4px;padding:12px 14px;border-radius:14px;background:#f6f7f9"><span style="font-size:16px;font-weight:900;color:#0d1117">I’ll lead it</span><span style="font-size:15px;line-height:1.45;font-weight:500;color:#454b55">You pick the date and make it happen.</span></div>' +
     goldBtn(close, 'Got it'), 47);
   // Private ideas (owner, 2026-10-08): the same Public / Private as a plan (visibility 'invite': only the people the
   // host invites, plus the hosts and the groups' admins), in gold. Radios for the Float sheet and the Post to pop-up
@@ -8109,14 +8164,13 @@
     // itself (isolation + a mask) and this box rounds too (owner, 2026-10-07)
     const page1 = '<div style="flex:1 1 auto;min-height:0;overflow-y:auto;scrollbar-width:none;display:flex;flex-direction:column;border-radius:24px 24px 0 0">' +
         '<div style="' + PAPER + ';padding:34px 16px 28px;display:flex;flex-direction:column;gap:12px">' + GRAB + IDEA_CHIP +
-          '<span style="font-size:17px;line-height:1.4;font-weight:600;color:#454b55;text-wrap:pretty"><span style="font-weight:900;color:#0d1117">Sketch out what you know so far.</span><br>You can change it all later.</span></div>' +
+          '<span style="font-size:28px;line-height:1.1;font-weight:900;letter-spacing:-.6px;color:#0d1117">What’s your idea?</span></div>' +
         '<div style="padding:20px 16px 0;display:flex;flex-direction:column;gap:18px">' +
-          '<label style="display:flex;flex-direction:column;gap:8px">' + label('YOUR IDEA') + '<span style="position:relative;display:block">' +
-            '<input type="text" data-qi-title maxlength="40" aria-label="Your Idea" placeholder="Pickleball on Sunday mornings" value="' + esc(q.title) + '" ' + onInput(e => { if (e.type === 'input') set({ title: e.target.value.slice(0, TITLE_MAX) }); }) + ' style="' + FLD + ring(!!q.title) + 'padding:0 58px 0 14px;height:54px;font-size:18px;font-weight:800">' +
-            '<span style="position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:11.5px;font-weight:700;color:#9aa0ac">' + q.title.length + '/40</span></span></label>' +
-          '<label style="display:flex;flex-direction:column;gap:8px">' + label('SHORT DESCRIPTION', true) + '<span style="position:relative;display:block">' +
-            '<textarea data-qi-why rows="2" maxlength="' + OV_MAX + '" aria-label="Short description" placeholder="Casual games for all levels. Bring a paddle if you have one." ' + onInput(e => { if (e.type === 'input') set({ why: e.target.value.slice(0, OV_MAX) }); }) + ' style="' + FLD + ring(!!q.why) + 'padding:12px 14px 24px;font-size:15.5px;font-weight:600;line-height:1.35;display:block">' + esc(q.why) + '</textarea>' +
-            '<span style="position:absolute;right:12px;bottom:8px;font-size:11.5px;font-weight:700;color:#9aa0ac">' + q.why.length + '/' + OV_MAX + '</span></span></label>' +
+          // One open box (Design v8-17, 4a): the first line is the title, the rest the description
+          '<label style="display:flex;flex-direction:column;gap:6px"><textarea data-qi-title rows="4" aria-label="Your idea" placeholder="Throw out whatever comes to mind…" ' + onInput(e => { if (e.type !== 'input') return; const v = e.target.value, k = v.indexOf('\n');
+              set(k < 0 ? { title: v.slice(0, TITLE_MAX), why: '', nl: false } : { title: v.slice(0, k).slice(0, TITLE_MAX), why: v.slice(k + 1).slice(0, OV_MAX), nl: true }); }) +
+            ' style="width:100%;box-sizing:border-box;border:0;outline:0;border-radius:16px;background:#fff;' + ring(!!q.title) + 'padding:14px 16px;min-height:132px;font-family:inherit;font-size:17px;line-height:1.45;font-weight:600;color:#0d1117;resize:none">' + esc(q.title + (q.why || q.nl ? '\n' + q.why : '')) + '</textarea>' +
+            '<span style="padding:0 4px;font-size:13px;font-weight:600;color:#8a909b">The first line becomes the title.</span></label>' +
           '<div style="display:flex;flex-direction:column;gap:8px">' + label('ADD A PHOTO', true) +
             (q.photo ? '<div style="display:flex;align-items:center;gap:12px"><span style="width:96px;height:72px;border-radius:10px;background:' + bg(q.photo.url) + ';box-shadow:0 2px 6px rgba(13,17,23,.15)"></span>' +
                 '<span ' + on(() => set({ photo: null })) + ' style="display:flex;align-items:center;min-height:40px;font-size:14.5px;font-weight:800;color:#8f6405;cursor:pointer">Remove</span></div>'
@@ -8124,7 +8178,8 @@
                 '<span style="font-size:15px;font-weight:800;color:#8f6405">Add a photo</span><input type="file" accept="image/*" aria-label="Add a photo" ' + onInput(e => { if (e.type !== 'change') return; const f = (e.target.files || [])[0]; e.target.value = ''; qiPhoto(f); }) + ' style="display:none"></label>') + '</div>' +
         '</div>' + more + '</div>' +
       '<div style="flex-shrink:0;padding:12px 16px 28px;display:flex;flex-direction:column;gap:4px;background:#e8eaee">' +
-        (q.more ? '' : '<span ' + on(() => set({ more: true })) + ' data-qi-more style="align-self:center;display:flex;align-items:center;min-height:40px;font-size:14.5px;font-weight:800;color:#8f6405;cursor:pointer">Add more details<span style="margin-left:5px;font-weight:600;color:#b9a77a">(optional)</span></span>') +
+        (q.more ? '' : '<div data-qi-more style="display:flex;align-items:center;justify-content:center;gap:8px;padding-bottom:6px"><span style="font-size:13px;font-weight:700;color:#9aa0ac">Optional</span>' +
+          ['+ Date', '+ Location'].map(l => '<span ' + on(() => set({ more: true })) + ' role="button" style="display:flex;align-items:center;height:36px;padding:0 13px;border-radius:999px;border:1.5px dashed #d9c58a;font-size:14px;font-weight:800;color:#8f6405;cursor:pointer">' + l + '</span>').join('') + '</div>') +
         '<button type="button" data-qi-next ' + on(() => { if (!ok) { toast('Add a title first'); return; } set({ page: 2, gOpen: false }); }) + ' style="width:100%;min-height:54px;border:0;border-radius:999px;background:' + (ok ? '#f5b428' : '#f6d985') + ';color:' + (ok ? '#2a1d00' : '#6b5418') + ';box-shadow:' + (ok ? '0 6px 16px rgba(245,180,40,.4)' : 'none') + ';font-family:inherit;font-size:16.5px;font-weight:900;cursor:pointer">Next</button>' + draftLink + '</div>';
     // Page 2: the snapshot recap, WHERE IT GOES and HOW PEOPLE CAN HELP
     const G = myGroups(), sel = q.groups.filter(id => groupById(id)), g0 = groupById(sel[0]);
@@ -8223,14 +8278,6 @@
   const ipPop = (p) => setState({ ipPop: p });
   const ipPopAcct = (s, p) => { if (state.email) return ipPop(p); noteTap({ k: 'pop', id: s.id, pop: p }); needAccount(() => ipPop(p)); };
 
-  // Calendar pages (13c-3): a weekday strip (pale gold, solid when picked), the date large, the time in small gold, "N can go"
-  const calPage = (s, o, n, grid) => { const onIt = iVoted(o), v = o.votes.length, t = optTime(o);
-    return '<span ' + on(() => vote('date_votes', s, o)) + ' aria-pressed="' + onIt + '" data-cal-page="' + o.dayDate + '" style="position:relative;' + (grid ? '' : 'flex:' + (n > 2 ? '0 0 42%' : '1 1 0') + ';min-width:0;scroll-snap-align:start;') + 'display:flex;flex-direction:column;border-radius:12px;overflow:hidden;background:#fff;cursor:pointer;box-shadow:' + (onIt ? '0 0 0 2.5px #f5b428,' : '') + '0 2px 6px rgba(13,17,23,.14)">' +
-      '<span style="background:' + (onIt ? '#f5b428' : '#fdf1d6') + ';padding:5px 0;text-align:center;font-size:12px;font-weight:900;letter-spacing:1px;color:' + (onIt ? '#2a1d00' : '#8f6405') + '">' + new Date(o.dayDate + 'T12:00').toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase() + '</span>' +
-      '<span style="padding:10px 4px 2px;text-align:center;font-size:24px;line-height:1.05;font-weight:900;color:#0d1117">' + monthDay(o.dayDate) + '</span>' +
-      (t ? '<span style="margin-top:-2px;text-align:center;font-size:12px;font-weight:800;color:#8f6405">' + esc(t) + '</span>' : '') +
-      '<span style="padding-bottom:10px;text-align:center;font-size:12.5px;font-weight:700;color:#6b7280">' + (v ? v + ' can go' : 'Be the first') + '</span>' +
-      (onIt ? '<span style="position:absolute;right:6px;top:3px;width:20px;height:20px;border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center">' + svg(11, stroke('#2a1d00', 3.6), '<path d="m5 12.5 4.5 4.5L19 7.5"/>') + '</span>' : '') + '</span>'; };
   // One date or location is a suggestion, not a poll (v8-8 item 5): no votes, no ticks, nothing to tap
   const calPage1 = (o) => { const t = optTime(o);
     return '<span data-cal-page="' + o.dayDate + '" data-suggested style="flex:0 0 46%;min-width:0;display:flex;flex-direction:column;border-radius:12px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(13,17,23,.12),inset 0 0 0 1.5px #f3dc9e">' +
@@ -8240,7 +8287,16 @@
       '<span style="padding-bottom:10px;text-align:center;font-size:12.5px;font-weight:700;color:#6b7280">Suggested</span></span>'; };
   const locRow1 = (o) => '<div data-loc-row="' + esc(o.name) + '" data-suggested style="display:flex;align-items:center;gap:12px;min-height:56px;padding:0 14px;border-radius:14px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6">' +
     '<div style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:16px;font-weight:900;color:#0d1117">' + esc(o.name) + '</span><span style="font-size:12.5px;font-weight:700;color:#6b7280">Suggested</span></div></div>';
-  const calGrid = (s) => '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:2px">' + s.dateOpts.slice().sort(byDate).map(o => calPage(s, o, 0, true)).join('') + '</div>';
+  // Date votes (Design v8-17 clarity pass, 2b): a row per date. A gold square checkbox is your vote; the date, then who can go
+  // (gold) under it; a faces pill on the right opens who voted. Tapping the faces never votes
+  const dateRows = (s, dates) => { const top = Math.max(0, ...dates.map(o => o.votes.length));
+    return '<div data-date-votes data-screen-label="Date votes (2b)" style="display:flex;flex-direction:column">' + dates.map((o, k) => { const onIt = iVoted(o), v = o.votes.length, t = optTime(o);
+      const sub = (!v ? 'No votes yet' : onIt ? (v === 1 ? 'You can go' : 'You + ' + (v - 1)) : v + ' can go') + (v > 0 && v === top && dates.length > 1 ? ' · most votes' : '') + (t ? ' · ' + t : '');
+      return '<div ' + on(() => vote('date_votes', s, o)) + ' role="checkbox" aria-checked="' + onIt + '" aria-label="I can go ' + esc(optDay(o)) + '" data-cal-page="' + o.dayDate + '" style="display:flex;align-items:center;gap:12px;min-height:62px;cursor:pointer;' + (k ? 'border-top:1px solid #f2f3f6' : '') + '">' +
+        '<span style="flex:0 0 30px;width:30px;height:30px;box-sizing:border-box;border-radius:9px;display:flex;align-items:center;justify-content:center;background:' + (onIt ? '#f5b428' : '#fff') + ';' + (onIt ? '' : 'border:2px solid #d9c58a;') + '">' + (onIt ? svg(16, stroke('#2a1d00', 3.2), '<path d="M5 12.5l4.5 4.5L19 7.5"/>') : '') + '</span>' +
+        '<div style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:16px;font-weight:900;color:#0d1117">' + esc(optDay(o)) + '</span><span style="font-size:13px;font-weight:700;color:' + (v ? '#8f6405' : '#9aa0ac') + '">' + esc(sub) + '</span></div>' +
+        (v ? '<span ' + on((e) => { stop(e); ipPop({ k: 'whoDate', id: s.id, oid: o.id }); }) + ' role="button" data-who-date aria-label="See who can go" style="flex:0 0 auto;display:flex;align-items:center;gap:4px;padding:5px 8px 5px 6px;border-radius:999px;background:#fdf6e3;color:#8f6405;cursor:pointer"><span style="display:flex">' + goldFaces(o.votes, 22, '#fdf6e3') + '</span>' + I.chevR(13, 'currentColor', 2.8) + '</span>' : '') + '</div>'; }).join('') + '</div>'; };
+  const calGrid = (s) => dateRows(s, s.dateOpts.slice().sort(byDate));
   const locRow = (s, o) => { const onIt = iVoted(o), v = o.votes.length;
     return '<div ' + on(() => vote('spot_votes', s, o)) + ' aria-pressed="' + onIt + '" data-loc-row="' + esc(o.name) + '" style="display:flex;align-items:center;gap:12px;min-height:56px;padding:0 12px 0 14px;border-radius:14px;cursor:pointer;background:' + (onIt ? '#fdf1d6' : '#fff') + ';box-shadow:' + (onIt ? 'inset 0 0 0 2px #f5b428' : 'inset 0 0 0 1.5px #dcdfe6') + '">' +
       '<div style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:16px;font-weight:900;color:#0d1117">' + esc(o.name) + '</span><span style="font-size:12.5px;font-weight:700;color:#6b7280">' + (v ? v + (v === 1 ? ' vote' : ' votes') : 'Be the first') + '</span></div>' +
@@ -8262,7 +8318,7 @@
         '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px">' + ideaH('When?') +
           (st8 ? editLink8(() => ipPop({ k: 'edit', kind: 'd', id: s.id }), 'data-edit-dates') : dates.length > 2 ? '<span ' + on(() => ipPop({ k: 'allDates', id: s.id })) + ' style="display:flex;align-items:center;gap:2px;min-height:36px;font-size:14px;font-weight:700;color:#6b7280;cursor:pointer">View all ' + dates.length + I.chevR(14, 'currentColor', 2.6) + '</span>' : '') + '</div>' +
         (poll ? '<span style="margin-top:-6px;font-size:14px;font-weight:600;color:#6b7280">Choose all dates you could attend.</span>' : '') +
-        '<div style="margin:0 -16px;padding:4px 16px 8px;display:flex;gap:10px;overflow-x:auto;scrollbar-width:none;scroll-snap-type:x mandatory;scroll-padding:0 16px">' + dates.map(o => poll ? calPage(s, o, dates.length) : calPage1(o)).join('') + '</div>' +
+        (poll ? dateRows(s, dates) : '<div style="margin:0 -16px;padding:4px 16px 8px;display:flex;gap:10px;overflow-x:auto;scrollbar-width:none;scroll-snap-type:x mandatory;scroll-padding:0 16px">' + dates.map(o => calPage1(o)).join('') + '</div>') +
         holdLine(s) + (st8 ? !poll ? '' : seeVotes(() => ipPop({ k: 'votes', kind: 'd', id: s.id })) : '<div style="display:flex;align-items:center;margin-top:-4px"><span ' + on(sugD) + ' style="display:flex;align-items:center;min-height:36px;font-size:14px;font-weight:800;color:#8f6405;cursor:pointer">+ ' + dLabel + '</span></div>') + '</div>'
       : dashedCard(sugD, CAL_P, 'When?', dLabel, 'data-when-empty');
     const where = s.spot ? setWhere(s, st8) : locs.length ? '<div style="' + CARD8 + '" data-where>' +
@@ -8324,22 +8380,32 @@
     const was = s.interested.indexOf(state.me) > -1;
     quick(s, { interested: was ? s.interested : [state.me].concat(s.interested), canHelp: s.canHelp.concat(state.me) },
       async () => { must(was ? await sb.from('interests').update({ can_help: true }).eq('spark_id', s.id).eq('user_id', state.me) : await sb.from('interests').insert({ spark_id: s.id, user_id: state.me, can_help: true })); });
-    toast('You offered. ' + starterFirst(s) + ' decides.', true);
+    toast('Offer sent to ' + starterFirst(s), true);
   });
-  const leadRow8 = (s) => {
-    if (!state.email || !inItsGroups(s) || isStarter(s) || !s.wantsHost) return '';
-    const asked = s.leadAsks.some(a => a.userId === state.me), offered = s.canHelp.indexOf(state.me) > -1, BOLT = '<path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/>';
-    if (asked) return '';   // the gold card at the top asks them (I'll lead it · Not this time)
-    if (offered) return '<div style="display:flex;align-items:center;gap:12px;min-height:46px;border-top:1px solid #d3e2f3"><span style="width:30px;height:30px;flex:0 0 30px;border-radius:999px;background:#fdf1d6;display:flex;align-items:center;justify-content:center">' + svg(17, stroke('#b07a0a', 2.2), BOLT) + '</span>' +
-      '<span data-offered-lead style="flex:1;font-size:16px;font-weight:700;color:#454b55">You offered · ' + esc(starterFirst(s)) + ' decides</span></div>';
-    return helpRow(() => offerToLead(s), BOLT, 'Offer to lead', false, 'data-offer-lead');
+  const withdrawOffer = (s) => {
+    quick(s, { canHelp: s.canHelp.filter(u => u !== state.me) },
+      async () => { must(await sb.from('interests').update({ can_help: false }).eq('spark_id', s.id).eq('user_id', state.me)); });
+    toast('Offer taken back');
+  };
+  // A member's Idea where the starter is looking for a lead (Design v8-17, 2b): NEEDS A LEAD, then You offered to lead
+  const needsLeadCard = (s) => {
+    if (!state.email || !inItsGroups(s) || isStarter(s) || !s.wantsHost || s.leadAsks.some(a => a.userId === state.me)) return '';   // asked: the gold card at the top asks them
+    const first = starterFirst(s);
+    if (s.canHelp.indexOf(state.me) > -1) return '<div data-offered-lead style="background:#fdf6e3;border-radius:20px;padding:16px;display:flex;flex-direction:column;gap:6px">' +
+      '<span style="font-size:17px;font-weight:900;color:#0d1117">You offered to lead</span><span style="font-size:14.5px;line-height:1.4;font-weight:500;color:#454b55">We’ll tell you when ' + esc(first) + ' picks.</span>' +
+      '<span ' + on(() => withdrawOffer(s)) + ' role="button" data-offer-back style="align-self:flex-start;min-height:36px;display:flex;align-items:center;font-size:14.5px;font-weight:800;color:#8f6405;cursor:pointer">Take back my offer</span></div>';
+    return '<div data-needs-lead style="background:#fff;border-radius:20px;box-shadow:inset 0 3px 0 #f5b428,0 1px 3px rgba(15,18,25,.08);padding:18px 16px;display:flex;flex-direction:column;gap:10px">' +
+      '<span style="font-size:13px;font-weight:900;letter-spacing:1.5px;color:#8f6405">NEEDS A LEAD</span>' +
+      '<span style="font-size:20px;line-height:1.2;font-weight:900;letter-spacing:-.3px;color:#0d1117;text-wrap:pretty">' + esc(first) + ' floated this and is looking for someone to run it.</span>' +
+      '<span style="font-size:15px;line-height:1.4;font-weight:500;color:#454b55;text-wrap:pretty">You’d pick the date and make it happen. ' + esc(first) + ' chooses from the people who offer.</span>' +
+      '<span ' + on(() => offerToLead(s)) + ' role="button" data-offer-lead style="min-height:50px;border-radius:999px;background:#f5b428;color:#2a1d00;font-size:16px;font-weight:900;display:flex;align-items:center;justify-content:center;cursor:pointer">Offer to lead</span></div>';
   };
   const helpMakePlan = (s) => '<div style="' + GRAPH_CARD + '" data-help-make-plan>' +
     '<div style="display:flex;align-items:center;gap:6px">' + ideaH('Help make this a Plan') +
       '<span ' + on(() => ipPop({ k: 'whatPlan' })) + ' aria-label="What’s a Plan?" style="width:32px;height:32px;margin:-6px 0;display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(18, stroke('#6b7280', 2.2), '<circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".6" fill="#6b7280"/>') + '</span></div>' +
     helpRow(() => share8(s), '<circle cx="9" cy="8.5" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M18 8v6M15 11h6"/>', 'Invite a friend', true) +
     (s.dayDate ? '' : helpRow(() => s.dateOpts.length > 1 ? ipPop({ k: 'dates', id: s.id }) : ipPopAcct(s, { k: 'sugD', id: s.id, d: '', t: '' }), CAL_P, s.dateOpts.length > 1 ? 'Vote on a date' : 'Suggest a date')) +   // the date or place is picked: nothing to vote on
-    (s.spot ? '' : helpRow(() => ipPopAcct(s, { k: 'sugL', id: s.id, v: '' }), PIN_P, 'Suggest a location')) + leadRow8(s) +
+    (s.spot ? '' : helpRow(() => ipPopAcct(s, { k: 'sugL', id: s.id, v: '' }), PIN_P, 'Suggest a location')) +
     (showTalk(s) ? helpRow(() => ipPop({ k: 'talk', id: s.id }), '<path d="M5 18l-1.5 3 4-1.6A8 8 0 1 0 5 18z"/><path d="M9 11h6M9 14h4"/>', 'Talk it through with ' + esc(starterFirst(s))) : '') + '</div>';
   const talkCard = (s) => !showTalk(s) ? '' : '<div style="' + CARD8 + '" data-talk-card>' + ideaH('Talk it through with ' + esc(starterFirst(s))) +
     '<div style="display:flex;align-items:flex-start;gap:12px">' + avatarSpan(s.createdBy, floaterName(s), avatarOf(s.createdBy), 40) +
@@ -8360,6 +8426,10 @@
   const leadsIt = (s) => !s.wantsHost;   // someone leads it (the starter, or whoever took it on)
   const iLead = (s) => isTheLead(s) && !s.wantsHost;
   // slim: the slide-up's 46px rows; the full page keeps 58px (Design v8 prototype, 2522 vs 936)
+  const confirmPickLead = (s, u) => { const who = nameOf(u), others = s.canHelp.filter(x => x !== u && x !== state.me).map(x => firstName(nameOf(x)));
+    setState({ confirm: { title: 'Make ' + who + ' the lead?', green: true, cta: 'Make ' + firstName(who) + ' the lead', keep: 'Not yet',
+      body: (others.length ? namesList(others) + ' will hear you went another way. ' : '') + firstName(who) + ' picks the date and makes it happen.',
+      run: () => run(async () => { must(await sb.rpc('pick_lead', { p_spark: s.id, p_user: u })); }, { confirm: null, ipPop: null }).then(ok => { if (ok) toast(firstName(who) + ' is leading it', true); }) } }); };
   const makeThisPlan = (s, slim) => {
     const dates = s.dateOpts, locs = s.spotOpts, tot = dates.reduce((a, o) => a + o.votes.length, 0);
     const top = (arr) => arr.slice().sort((a, b) => b.votes.length - a.votes.length)[0];
@@ -8376,19 +8446,23 @@
     const leadName = iLead(s) ? 'You' : firstName(nameOf(s.leadId, s.leadName));
     return '<div id="sec-lead" style="margin:4px;' + GRAPH_BG + ';border-radius:8px;padding:0 16px 14px;overflow:hidden;display:flex;flex-direction:column;gap:4px;transform:rotate(-1deg);box-shadow:0 4px 14px rgba(13,17,23,.14)" data-make-this-plan>' +
       '<div style="position:relative;overflow:hidden;margin:0 -16px 6px;padding:13px 16px 11px;background:linear-gradient(160deg,#fde39a 0%,#fbd56b 55%,#f8c94f 100%)">' + sparkles([[78, 18, 16, '#fff', .9], [88, 54, 9, '#fff', .7], [68, 60, 7, '#d6246e', .8]]) +
-        '<span style="position:relative;font-size:26px;font-weight:900;letter-spacing:-.6px;color:#2a1d00">Make this a Plan</span></div>' +
+        '<span style="position:relative;font-size:26px;font-weight:900;letter-spacing:-.6px;color:#2a1d00">What’s left</span></div>' +
       // v8-8 item 4: Date and Location open the Pick pop-up (the options people suggested, or a field when there are none)
       row(true, dDone, CAL_P, 'Date', dDone ? esc(dayLabel(s.dayDate, s.dayTime) + (setPart(s) ? ' · ' + setPart(s) : '')) : passed ? 'That date has passed' : topD ? (dates.length === 1 ? 'Suggested: ' + esc(optDay(topD)) : tot ? esc(optDay(topD)) + ' is ahead (' + topD.votes.length + ' of ' + tot + ')' : 'No votes yet') : 'No date yet',
         act(dDone, dDone ? 'Change' : passed ? 'New date' : topD ? 'Pick' : 'Add', () => openPick(s, 'd'), 'data-plan-date')) +
       row(false, lDone, PIN_P, 'Location', lDone ? esc(s.spot) : topL ? (locs.length === 1 ? 'Suggested: ' + esc(topL.name) : topL.votes.length ? esc(topL.name) + ' is ahead' : 'No votes yet') : 'Optional · can be decided later',
         act(lDone, lDone ? 'Change' : topL ? 'Pick' : 'Add', () => openPick(s, 'l'), 'data-plan-loc')) +
       row(false, ldDone, SPARK_P, ldDone ? (iLead(s) ? 'You’re leading' : esc(nameOf(s.leadId, s.leadName)) + ' is leading it') : 'Choose a lead',
-        ldDone ? (iLead(s) ? (s.cohosts.length ? 'with ' + esc(namesList(s.cohosts.map(u => firstName(nameOf(u))))) : 'You set the details') : 'We let them know') : s.leadAsks.length ? 'Asked ' + esc(s.leadAsks.map(a => firstName(nameOf(a.userId))).join(' and ')) : helpers.length ? esc(helpers.slice(0, 2).map(u => firstName(nameOf(u))).join(' and ')) + ' offered' : 'No offers yet',
+        ldDone ? (iLead(s) ? (s.cohosts.length ? 'with ' + esc(namesList(s.cohosts.map(u => firstName(nameOf(u))))) : 'You set the details') : 'We let them know') : s.leadAsks.length ? 'Asked ' + esc(s.leadAsks.map(a => firstName(nameOf(a.userId))).join(' and ')) : helpers.length ? helpers.length + (helpers.length === 1 ? ' person offered' : ' people offered') + ' · pick below' : 'No offers yet',
         // The starter keeps a quiet Change once someone leads; a lead who didn't start it can't pick the lead (Design v8 prototype)
         ldDone && !isTheLead(s) ? '' : act(ldDone, ldDone ? 'Change' : 'Choose', () => ldDone ? setState({ leadsSheet: s.id }) : ipPop({ k: 'lead', id: s.id }), 'data-plan-lead')) +
+      // Offers sit inside the note under the lead row; Pick asks once (Design v8-17 item 11)
+      (!ldDone && helpers.length ? '<div data-lead-offers style="display:flex;flex-direction:column;padding-left:42px">' + helpers.map(u => '<div style="display:flex;align-items:center;gap:10px;min-height:46px;border-top:1px dashed #d3e2f3">' +
+        avatarSpan(u, nameOf(u), avatarOf(u), 28) + '<span style="flex:1;min-width:0;font-size:15px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(nameOf(u)) + '</span>' +
+        '<span ' + on(() => confirmPickLead(s, u)) + ' role="button" data-pick-lead style="display:flex;align-items:center;min-height:40px;padding:0 4px;font-size:15px;font-weight:900;color:#8f6405;cursor:pointer">Pick</span></div>').join('') + '</div>' : '') +
       // v8-8 items 1–3: grey until every row is ticked, then the purple sparkle button, which opens Review prefilled
       (ldDone && !iLead(s) ? '<span style="margin-top:8px;font-size:13.5px;font-weight:600;color:#6b7280">' + esc(leadName) + ' will make it a Plan.</span>'
-        : dDone && ldDone ? planBtn(() => planFromIdea(s)) + (s.interested.length || !lDone ? '<span style="margin-top:6px;text-align:center;font-size:13px;font-weight:600;color:#6b7280">' +
+        : dDone && ldDone ? planBtn(() => planFromIdea(s), 'Lock it in') + (s.interested.length || !lDone ? '<span style="margin-top:6px;text-align:center;font-size:13px;font-weight:600;color:#6b7280">' +
             [s.interested.length ? 'We’ll tell the ' + (s.interested.length === 1 ? '1 person' : s.interested.length + ' people') + ' interested.' : '', lDone ? '' : 'The location can be decided later.'].filter(Boolean).join(' ') + '</span>' : '')
         : '<span data-make-it-plan aria-disabled="true" style="margin-top:10px;display:flex;align-items:center;justify-content:center;min-height:54px;border-radius:999px;background:#e2e4e9;font-size:16px;font-weight:900;color:#9aa0ac">' + (!dDone ? (passed ? 'Pick a new date first' : 'Add a date first') : 'Choose a lead first') + '</span>') + '</div>';
   };
@@ -8442,7 +8516,7 @@
   const ideaBasics = (s) => basicDetailsSec(s) + inspoSec(s);
   const ideaJobs = (s) => runsIdea(s) || s.signups.length || (s.parts || []).length ? helpOut(s) : '';   // askCards sit at the top; sec-tasks: Home's to-dos scroll here
   const ideaDisc = (s) => discussionSec(s);   // every idea, floated too (audit 2026-10-07: the floater and the people interested had no way to talk)
-  const ideaBodyRest = (s) => runsIdea(s) ? whenWhere(s) + ideaBasics(s) + ideaJobs(s) + ideaDisc(s) + starterSettings(s) : helpMakePlan(s) + whenWhere(s) + talkCard(s) + ideaJobs(s) + ideaDisc(s) +
+  const ideaBodyRest = (s) => runsIdea(s) ? whenWhere(s) + ideaBasics(s) + ideaJobs(s) + ideaDisc(s) + starterSettings(s) : needsLeadCard(s) + helpMakePlan(s) + whenWhere(s) + talkCard(s) + ideaJobs(s) + ideaDisc(s) +
     // a group admin can still take someone's idea down (the quiet link, as on the lead's page)
     (canTakeDown(s) ? '<span ' + on(() => { setState({ ip: null }); askDelete(s); }) + ' data-delete-idea style="align-self:center;display:flex;align-items:center;min-height:40px;margin-top:8px;padding:0 10px;font-size:14px;font-weight:700;color:#9b1c31;cursor:pointer">Delete this Idea</span>' : '');
   // Members of a led idea (Q31 1a): who leads it and what they're working on, under the title
@@ -8521,6 +8595,10 @@
           '<span style="display:flex">' + goldFaces(o.votes, 24) + '</span>' +
           '<span style="display:flex;align-items:center;gap:4px;min-height:28px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:900;' + (onIt ? 'background:#f5b428;color:#2a1d00' : 'color:#5c6270;box-shadow:inset 0 0 0 1.5px #e6e7eb') + '"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 5l7 9H5z"/></svg>' + v + '</span></div>'; }).join('') + '</div>' +
       '<button type="button" ' + on(() => ipPopAcct(s, { k: 'sugD', id: s.id, d: '', t: '' })) + ' data-dates-suggest style="margin-top:6px;min-height:52px;border:1.5px dashed #f5b428;border-radius:999px;background:#fdf1d6;font-family:inherit;font-size:15.5px;font-weight:800;color:#8f6405;cursor:pointer">+ Suggest a date</button>');
+    if (p.k === 'whoDate') { const o = s.dateOpts.find(x => x.id === p.oid); if (!o) return '';
+      return popCard('Who can go', close, optDay(o) + (optTime(o) ? ' · ' + optTime(o) : ''), o.votes.length + ' can go',
+        '<div style="display:flex;flex-direction:column">' + o.votes.map((u, k) => '<div ' + on(() => { close(); openPerson(u); }) + ' role="button" style="display:flex;align-items:center;gap:12px;min-height:54px;cursor:pointer;' + (k ? 'border-top:1px solid #f0f1f4' : '') + '">' + avatarSpan(u, nameOf(u), avatarOf(u), 36) +
+          '<span style="flex:1;font-size:16px;font-weight:800;color:#0d1117">' + esc(u === state.me ? 'You' : nameOf(u)) + '</span></div>').join('') + '</div>' + goldBtn(close, 'Done')); }
     if (p.k === 'allDates') return popCard('All dates', close, 'When?', 'Choose all dates you could attend.', calGrid(s) + goldBtn(close, 'Done'));
     if (p.k === 'voteAsk') return popCard('When would you attend', close, '', '',
       '<div style="display:flex;flex-direction:column;gap:4px;padding-right:40px"><span style="font-size:13px;font-weight:900;letter-spacing:1.2px;color:#8f6405">YOU’RE INTERESTED</span><span style="font-size:24px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">When would you attend?</span>' +
@@ -8771,6 +8849,8 @@
         '<span ' + on(() => openPerson(st.me)) + ' aria-label="See your profile" style="display:flex;cursor:pointer">' + avatarSpan(st.me, st.myName, avatar, 56) + '</span>' +
         '<div style="flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:2px">' +
           '<span style="min-width:0;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(st.myName || 'No name yet') + '</span>' +
+          (st.myBio ? '<span data-me-about style="font-size:14px;line-height:1.35;font-weight:500;color:#454b55;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">' + esc(st.myBio) + '</span>' : '') +
+          (st.memberMon ? '<span data-member-since style="font-size:12.5px;font-weight:700;color:#6b7280">Member since ' + esc(st.memberMon) + '</span>' : '') +
           '<span ' + on(openProfileEdit) + ' data-edit-profile style="align-self:flex-start;font-size:13.5px;font-weight:700;color:#5b4ae8;cursor:pointer">Edit profile</span></div>' +
         roundBtn(openSearch, 'Search events', ic6('search', 18, 'currentColor', 2.2)) +
         // v8-9 item 4: the bell (with its badge) is back top right; Settings moved to the floating button
@@ -8811,9 +8891,9 @@
       row('<path d="M6 16.5V11a6 6 0 1 1 12 0v5.5l1.6 2H4.4L6 16.5Z"/><path d="M10 21a2.2 2.2 0 0 0 4 0"/>', 'Notifications', 'Events, updates, reminders', () => setState({ nSettings: true }), 0) +
       row('<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>', 'Sync to your calendar', 'Google Calendar', () => requestFeature('Sync to your calendar'), 1, true));
     const help = group('HELP &amp; INFO',
-      row('<path d="M5 5h14a1.5 1.5 0 0 1 1.5 1.5v9A1.5 1.5 0 0 1 19 17H10l-4.5 3.5V17H5a1.5 1.5 0 0 1-1.5-1.5v-9A1.5 1.5 0 0 1 5 5Z"/>', 'Send feedback to Eric', '', openFeedback, 0) +
+      row('<path d="M5 5h14a1.5 1.5 0 0 1 1.5 1.5v9A1.5 1.5 0 0 1 19 17H10l-4.5 3.5V17H5a1.5 1.5 0 0 1-1.5-1.5v-9A1.5 1.5 0 0 1 5 5Z"/>', 'Feedback & questions', '', openFeedback, 0) +
       // Take the tour is gone (owner, 2026-10-07): parked since Oct 3, and What's Spark Hub? covers it
-      row('<circle cx="12" cy="12" r="8.75"/><path d="M9.6 9.3a2.5 2.5 0 0 1 4.8 1c0 1.7-2.4 2.1-2.4 3.4M12 16.6h.01"/>', 'How Spark Hub works', '', openAbout, 1));
+      row('<circle cx="12" cy="12" r="8.75"/><path d="M9.6 9.3a2.5 2.5 0 0 1 4.8 1c0 1.7-2.4 2.1-2.4 3.4M12 16.6h.01"/>', 'How Spark Hub works', '', () => setState({ about: 1, aboutFull: false, menu: null }), 1));
     // Privacy moved to Settings › ACCOUNT (Design v8 prototype); one line
     meAccountRows = () => row('<path d="M12 3 5 6v5c0 4.4 3 8.3 7 9.5 4-1.2 7-5.1 7-9.5V6z"/>', 'Privacy', '', null, 0, false, '/privacy.html');
     return '<div data-screen-label="Me">' + head + alerts + yourStuff +
@@ -9848,14 +9928,17 @@
         '<span ' + on(() => setState({ evNeeds: state.evNeeds.filter((_, x) => x !== k) })) + ' aria-label="Remove ' + esc(cleanTitle(j.item)) + '" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#f4f5f7;display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(15, stroke('#9b1c31', 2.2), TRASH_IC) + '</span></div>'; }).join('');
     // The jobs in a white card; under them (or alone) the event page's dashed + Add ways people can help or participate,
     // which opens + Add (owner, 2026-10-08; was a grey card, Need people to bring things or help out? and a white + Add)
-    const addBox = (attr) => '<div ' + on(() => openJob(null, blankJob(''))) + ' data-cp-add-job ' + (attr || '') + ' class="hov-tint2" style="padding:14px 16px;border-radius:18px;border:1.5px dashed #c9ccd3;font-size:14.5px;font-weight:700;color:#6b7280;cursor:pointer">+ Add a sign-up</div>';
+    const addBox = (attr) => '<div ' + on(() => openJob(null, blankJob(''))) + ' data-cp-add-job ' + (attr || '') + ' class="hov-tint2" style="padding:14px 16px;border-radius:18px;border:1.5px dashed #c9ccd3;font-size:14.5px;font-weight:700;color:#6b7280;cursor:pointer">+ Add another sign-up</div>';
     // The empty box shows two greyed examples above + Add a sign-up, so people see what a sign-up is (Q46 4a)
-    const example = (name, spots) => '<div aria-hidden="true" style="display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid #eceef2"><span style="flex:1;min-width:0;font-size:15px;font-weight:800;color:#aeb3bd">' + name + '</span><span style="font-size:13px;font-weight:700;color:#bcc0c8">' + spots + '</span></div>';
-    const examples = '<div data-cp-examples style="' + GC + ';padding:8px 16px 4px"><span style="display:block;padding-top:4px;font-size:11px;font-weight:900;letter-spacing:1px;color:#a2a8b3">LIKE THIS</span>' +
-      example('Bring a carton of eggs', '10 spots') + example('Help set up the tent', '3 spots').replace('border-bottom:1px solid #eceef2', 'border-bottom:0') + '</div>';
+    // Empty (Design v8-17 clarity pass, 8): one dashed box leading with Need guests to bring or do things?, the LIKE THIS
+    // examples, then a white + Ask guests for something
+    const example = (name, spots) => '<div aria-hidden="true" style="display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700;color:#9aa0ac"><span style="width:7px;height:7px;border-radius:999px;background:#f2b896"></span><span style="flex:1">' + name + '</span><span style="font-size:13px">' + spots + '</span></div>';
+    const examples = '<div data-cp-examples data-cp-add-job-box style="border-radius:18px;border:1.5px dashed #c9ccd3;padding:14px 16px;display:flex;flex-direction:column;gap:8px"><span style="font-size:16px;font-weight:900;color:#0d1117">Need guests to bring or do things?</span>' +
+      '<span style="font-size:12px;font-weight:800;letter-spacing:.8px;color:#9aa0ac">LIKE THIS</span>' + example('Bring a carton of eggs', '10 spots') + example('Help set up the tent', '3 spots') +
+      '<span ' + on(() => openJob(null, blankJob(''))) + ' role="button" data-cp-add-job class="hov-tint2" style="margin-top:4px;display:flex;align-items:center;justify-content:center;min-height:44px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.1);color:#5b4ae8;font-size:15px;font-weight:800;cursor:pointer">+ Ask guests for something</span></div>';
     const helpCard = needs.length
       ? '<div style="display:flex;flex-direction:column;gap:10px"><div data-cp-help style="' + WC + '"><div style="padding:4px 16px 4px;display:flex;flex-direction:column">' + jobRows + '</div></div>' + addBox() + '</div>'
-      : '<div data-cp-help style="display:flex;flex-direction:column;gap:10px">' + examples + addBox() + '</div>';
+      : '<div data-cp-help style="display:flex;flex-direction:column;gap:10px">' + examples + '</div>';
     // VISIBILITY: Post to (a centred pop-up), Public / Private, People can invite friends
     const groups = evGroupIds(st), g0 = groupById(groups[0]);
     const sum = !groups.length ? 'Pick a group' : groups.length === 1 ? (g0 || {}).name : groups.length === 2 ? groups.map(id => (groupById(id) || {}).name).join(' & ') : (g0 || {}).name + ' + ' + (groups.length - 1) + ' more';
@@ -9927,7 +10010,7 @@
     const row = (g) => { const onIt = groups.indexOf(g.id) > -1;
       return '<div ' + on(() => { const nx = onIt ? groups.filter(x => x !== g.id) : groups.concat(g.id); setState({ evGroups: nx, evGrpNone: !nx.length }); }, 'checkbox') + ' aria-checked="' + onIt + '" aria-label="Post to ' + esc(g.name) + '" class="' + (onIt ? '' : 'hov-row') + '" style="display:flex;align-items:center;gap:12px;min-height:56px;padding:0 10px;border-radius:14px;cursor:pointer;background:' + (onIt ? '#f3f1fe' : 'transparent') + '">' +
         '<span aria-hidden="true" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:' + thumbBg(null, g) + '"></span>' +
-        '<span style="flex:1;min-width:0;font-size:15.5px;font-weight:800;color:' + (onIt ? '#4a3ad4' : '#0d1117') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(g.name) + groupTag(g) + '</span>' +
+        '<span style="flex:1;min-width:0;font-size:15.5px;font-weight:800;color:' + (onIt ? '#4a3ad4' : '#0d1117') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(g.name) + '</span>' +
         '<span aria-hidden="true" style="flex:0 0 22px;width:22px;height:22px;box-sizing:border-box;border-radius:7px;display:flex;align-items:center;justify-content:center;' + (onIt ? 'background:#5b4ae8' : 'border:1.5px solid #c9ccd3;background:#fff') + '">' + (onIt ? I.check(12, '#fff', 3.4) : '') + '</span></div>'; };   // squares: pick several (Design v8-15, Q44 2a)
     return centredPop('Post to', close,
       '<div style="padding:0 8px 4px"><span style="display:block;font-size:22px;font-weight:900;letter-spacing:-.4px;color:#0d1117">Post to</span><span style="display:block;margin-top:2px;font-size:14px;font-weight:600;color:#6b7280">Choose all that apply</span></div>' +
@@ -10003,7 +10086,7 @@
       const gRow = (g) => { const onIt = groups.indexOf(g.id) > -1;
         return '<div ' + on(() => { const nx = onIt ? groups.filter(x => x !== g.id) : groups.concat(g.id); setState({ evGroups: nx, evGrpNone: !nx.length }); }, 'checkbox') + ' aria-checked="' + onIt + '" aria-label="Post to ' + esc(g.name) + '" style="display:flex;align-items:center;gap:12px;min-height:54px;border-top:1px solid #f2f3f6;cursor:pointer">' +
           '<span aria-hidden="true" style="flex:0 0 36px;width:36px;height:36px;border-radius:10px;background:' + thumbBg(null, g) + '"></span>' +
-          '<span style="flex:1;min-width:0;font-size:15px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(g.name) + groupTag(g) + '</span>' +
+          '<span style="flex:1;min-width:0;font-size:15px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(g.name) + '</span>' +
           '<span aria-hidden="true" style="flex:0 0 22px;width:22px;height:22px;border-radius:7px;display:flex;align-items:center;justify-content:center;' + (onIt ? 'background:#5b4ae8' : 'background:#fff;box-shadow:inset 0 0 0 2px #c9ccd3') + '">' + (onIt ? I.check(12, '#fff', 3.4) : '') + '</span></div>'; };
       const radio = (priv, label, sub, icon) => { const onIt = !!st.evPriv === priv;
         return '<div ' + on(() => setState({ evPriv: priv }), 'radio') + ' aria-checked="' + onIt + '" aria-label="' + label + ': ' + sub + '" style="display:flex;align-items:center;gap:12px;min-height:52px;border-top:1px solid #eef0f3;cursor:pointer">' +
@@ -10077,7 +10160,7 @@
     const row = (g, k) => { const onIt = groups.indexOf(g.id) > -1;
       return '<div ' + on(() => { const nx = onIt ? groups.filter(x => x !== g.id) : groups.concat(g.id); setState({ evGroups: nx.length ? nx : groups }); }, 'checkbox') + ' aria-checked="' + onIt + '" aria-label="Post to ' + esc(g.name) + '" style="display:flex;align-items:center;gap:12px;min-height:56px;border-top:' + (k ? '1px solid #f2f3f6' : '0') + ';cursor:pointer">' +
         '<span aria-hidden="true" style="flex:0 0 36px;width:36px;height:36px;border-radius:11px;background:' + groupBg(g, '#f3f1fe') + '"></span>' +
-        '<span style="flex:1;min-width:0;font-size:15px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(g.name) + groupTag(g) + '</span>' +
+        '<span style="flex:1;min-width:0;font-size:15px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(g.name) + '</span>' +
         '<span aria-hidden="true" style="flex:0 0 22px;width:22px;height:22px;border-radius:7px;display:flex;align-items:center;justify-content:center;' + (onIt ? 'background:#5b4ae8' : 'background:#fff;box-shadow:inset 0 0 0 2px #c9ccd3') + '">' + (onIt ? I.check(12, '#fff', 3.4) : '') + '</span></div>'; };
     const tile = (priv, label, sub, icon) => { const onIt = !!st.evPriv === priv;
       return '<div ' + on(() => setState({ evPriv: priv }), 'radio') + ' aria-checked="' + onIt + '" style="flex:1 1 0;display:flex;flex-direction:column;gap:4px;padding:12px;border-radius:14px;cursor:pointer;' + (onIt ? 'background:#f3f1fe;box-shadow:inset 0 0 0 2px #5b4ae8' : 'background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6') + '">' +
@@ -10203,7 +10286,7 @@
   // A group row with a checkbox (Post to, Who can see it)
   const groupCheck = (g, onIt, pick, note, noteHtml) => '<div ' + on(pick, 'checkbox') + ' aria-checked="' + onIt + '" style="display:flex;align-items:center;gap:10px;min-height:46px;padding:9px 12px;border-radius:12px;background:' + (onIt ? '#f3f1fe' : 'transparent') + ';cursor:pointer">' +
     '<span aria-hidden="true" style="flex:0 0 20px;width:20px;height:20px;border-radius:6px;display:flex;align-items:center;justify-content:center;' + (onIt ? 'background:#5b4ae8' : 'background:#fff;box-shadow:inset 0 0 0 2px #c9ccd3') + '">' + (onIt ? I.check(12, '#fff', 3.4) : '') + '</span>' +
-    '<span style="flex:1;min-width:0;font-size:15px;font-weight:800;color:' + (onIt ? '#5b4ae8' : '#0d1117') + '">' + esc(g.name) + groupTag(g) + '</span>' + (note ? '<span style="font-size:12.5px;font-weight:700;color:#8a909b">' + note + '</span>' : '') + (noteHtml || '') + '</div>';
+    '<span style="flex:1;min-width:0;font-size:15px;font-weight:800;color:' + (onIt ? '#5b4ae8' : '#0d1117') + '">' + esc(g.name) + '</span>' + (note ? '<span style="font-size:12.5px;font-weight:700;color:#8a909b">' + note + '</span>' : '') + (noteHtml || '') + '</div>';
 
   // The flow's sheets: Poll the group, Add a job, and the Pick this up later? pop-up (one at a time, never stacked)
   const stepper = (n, set, label) => '<div style="flex:0 0 auto;display:flex;align-items:center;gap:8px">' +
@@ -11123,6 +11206,7 @@
       (st.plusPop ? viewPlusPop() : '') +
       (st.onIt ? viewOnIt() : '') +
       (st.leadsSheet ? viewLeadsSheet() : '') +
+      (st.roleSheet ? viewRoleSheet() : '') +
       (st.jobAsk ? viewJobAsk() : '') +
       (st.handOff ? viewHandOff() : '') +
       (st.cohostPick ? viewCohostPicker() : '') +
@@ -11456,6 +11540,7 @@
       if (state.guestList) return setState({ guestList: null });
       if (state.cohostPick) return setState({ cohostPick: null });
       if (state.leadAsk) return setState({ leadAsk: null });
+      if (state.roleSheet) return setState({ roleSheet: null });
       if (state.leadsSheet) return setState({ leadsSheet: null });
       if (state.takeDown) return setState({ takeDown: null });
       if (state.thanksList) return setState({ thanksList: false });
@@ -11754,13 +11839,22 @@
     const x = el.querySelector('[aria-label="Close"][data-on]');
     return x ? () => x.click() : null;
   };
-  const sdPaint = (d) => {
+  const sdHandle = (el) => Array.from(el.querySelectorAll('[aria-hidden="true"]')).find(h => /width:\s*40px/.test(h.getAttribute('style') || '') && /height:\s*5px/.test(h.getAttribute('style') || ''));
+  // Past the close point (Design v8-17, 5b): the sheet narrows to about 92% and fades to about 85%, the scrim lightens and the
+  // handle turns purple, with no words; letting go there closes it, and dragging back up springs it back
+  const sdPaint = (d, past) => {
     if (!sd) return;
+    const lit = past != null ? past : d >= sd.go;
     sd.el.style.translate = '0 ' + d + 'px';
-    if (sd.scrim && sd.rgb) sd.scrim.style.backgroundColor = 'rgba(' + sd.rgb + ',' + (sd.a * Math.max(0, 1 - d / sd.h)).toFixed(3) + ')';
+    sd.el.style.scale = lit ? '.92 1' : '1 1';
+    sd.el.style.opacity = lit ? '.85' : '1';
+    if (!sd.el.style.transformOrigin) sd.el.style.transformOrigin = '50% 100%';
+    const h = sd.handle === undefined ? (sd.handle = sdHandle(sd.el) || null) : sd.handle;
+    if (h) h.classList.toggle('sd-past', lit);
+    if (sd.scrim && sd.rgb) sd.scrim.style.backgroundColor = 'rgba(' + sd.rgb + ',' + (sd.a * Math.max(0, 1 - d / sd.h) * (lit ? .6 : 1)).toFixed(3) + ')';
   };
   const sdClear = (el, scrim) => {
-    if (el) { el.style.removeProperty('translate'); el.style.removeProperty('transition'); }
+    if (el) { ['translate', 'transition', 'scale', 'opacity', 'transform-origin'].forEach(k => el.style.removeProperty(k)); const h = sdHandle(el); if (h) h.classList.remove('sd-past'); }
     if (scrim) { scrim.style.removeProperty('background-color'); scrim.style.removeProperty('transition'); }
   };
   root.addEventListener('touchstart', (e) => {
@@ -11806,16 +11900,16 @@
     sd.settling = true;
     const ms = Math.round(Math.min(260, Math.max(140, (go ? sd.h - sd.d : sd.d) * 0.8)));
     const ease = 'cubic-bezier(.2,.8,.2,1)';
-    el.style.transition = 'translate ' + ms + 'ms ' + ease;
+    el.style.transition = 'translate ' + ms + 'ms ' + ease + ', scale ' + ms + 'ms ' + ease + ', opacity ' + ms + 'ms ' + ease;
     if (scrim) scrim.style.transition = 'background-color ' + ms + 'ms ' + ease;
-    sdPaint(go ? sd.h + 20 : 0);
+    sdPaint(go ? sd.h + 20 : 0, go);
     setTimeout(() => {
       const close = go && sdCloser(el);
       sd = null;
       if (close) close();
       // Still here (Plan an event asking to keep a draft, or a re-render): put it back where it was drawn
       if (el.isConnected) {
-        if (go) { el.style.transition = 'none'; el.style.translate = '0 0'; }
+        if (go) { el.style.transition = 'none'; el.style.translate = '0 0'; el.style.scale = '1 1'; el.style.opacity = '1'; }
         requestAnimationFrame(() => sdClear(el, scrim));
       } else sdClear(null, scrim);
     }, ms + 20);
@@ -11876,8 +11970,8 @@
   const bootUser = sb && signedInUser();
   if (bootUser) {
     const c = readCache(bootUser.id);
-    Object.assign(state, { me: bootUser.id, email: bootUser.email, memberSince: bootUser.created_at ? new Date(bootUser.created_at).getFullYear() : null, joinedAt: bootUser.created_at ? Date.parse(bootUser.created_at) : null }, c
-      ? { isGoogle: c.isGoogle, myName: c.myName || '', myAvatar: c.myAvatar, myPlace: c.myPlace || '', myBio: c.myBio || '', memberSince: c.memberSince || null, groups: c.groups || [], sparks: (c.sparks || []).map(x => Object.assign({ leadAsks: [], invites: [], jobAsks: [], leadOffer: null }, x)), profiles: c.profiles || {},
+    Object.assign(state, { me: bootUser.id, email: bootUser.email, memberSince: bootUser.created_at ? new Date(bootUser.created_at).getFullYear() : null, memberMon: bootUser.created_at ? new Date(bootUser.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : null, joinedAt: bootUser.created_at ? Date.parse(bootUser.created_at) : null }, c
+      ? { isGoogle: c.isGoogle, myName: c.myName || '', myAvatar: c.myAvatar, myPlace: c.myPlace || '', myBio: c.myBio || '', memberSince: c.memberSince || null, memberMon: c.memberMon || null, groups: c.groups || [], sparks: (c.sparks || []).map(x => Object.assign({ leadAsks: [], invites: [], jobAsks: [], leadOffer: null }, x)), profiles: c.profiles || {},
           sizes: c.sizes || {}, notif: c.notif || state.notif, demoAdmin: !!c.demoAdmin, fr: c.fr && c.fr.friends ? c.fr : state.fr, loaded: true, fromCache: true }
       : {});
   }

@@ -84,7 +84,7 @@ test('friends: request, accept, invite to an event, remove, and the friend link'
     await B.reload();
     await B.locator('[data-screen-label=Friends]').getByRole('button', { name: /^Notifications/ }).click();
     const bell = B.getByRole('dialog', { name: 'Notifications' });
-    await expect(bell.locator('[data-notif=invited]').first()).toContainText('Fay Friendly invited you to ' + title);
+    await expect(bell.locator('[data-notif=invited]').first()).toContainText('Fay F. invited you to ' + title);
     await bell.getByRole('button', { name: 'Close' }).click();
     // FRIENDS ARE GOING (Design v8): Fay leads it and Gus hasn't answered, so it's a card with her face and name; a tap opens it
     const goingCard = people.locator('[data-friends-going="' + title + '"]');

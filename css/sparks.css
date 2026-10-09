@@ -315,3 +315,5 @@ html.tall-fix .app { bottom: auto; height: var(--true-h); }
 /* Plan an event on one page (v8-14): the title and overview typed into the header */
 .cp-hero-fld::placeholder { color: rgba(255, 255, 255, .62); font-weight: inherit; font-style: normal; }
 .cp-fld::placeholder { color: #9aa0ac; font-style: italic; }
+
+.sd-past { background: #5b4ae8 !important; }

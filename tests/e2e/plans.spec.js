@@ -24,10 +24,10 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     await expect(HP).toContainText('5:30pm');
     await expect(HP.locator('[data-led-by]')).toContainText('LED BY');      // the lead sees the card too, asked to bring in a co-lead
     await expect(HP.locator('[data-colead-ask]')).toContainText('Bring in a co-lead.');
-    // The lead is Going to their own plan (20261101160000_lead_going.sql): the bar says You're hosting, with no Change (owner, 2026-10-08)
+    // The lead is Going to their own plan (20261101160000_lead_going.sql): the bar says You're leading with Change, which opens Your role (Design v8-17)
     const mine = HP.locator('[data-rsvp]');
-    await expect(rsvpBar(mine, 'host')).toContainText('You’re hosting');
-    await expect(mine.locator('[data-rsvp-change]')).toHaveCount(0);
+    await expect(rsvpBar(mine, 'host')).toContainText('You’re leading');
+    await expect(mine.locator('[data-role-change]')).toHaveCount(1);
     await expect(mine.locator('[data-going]')).toHaveAttribute('aria-label', 'See everyone going (1)');   // no counts on the buttons (owner, 2026-10-06)
     await expect(HP.getByRole('button', { name: /Invite people/ })).toBeVisible();
     await expect(HP).not.toContainText('Remind everyone the day before');      // retired in Update 6
@@ -704,14 +704,14 @@ test('a vote on a suggested date changes as soon as it is tapped (the save follo
     }, inDays(9));
     await M.goto('/#/idea/' + id);
     const opt = M.locator('[data-when] [data-cal-page]').first();
-    await expect(opt).toContainText('Be the first');
+    await expect(opt).toContainText('No votes yet');
     // A slow save: the vote shows long before it lands
     let release;
     const gate = new Promise(r => { release = r; });
     await M.route('**/rest/v1/date_votes*', async (route) => { if (route.request().method() !== 'GET') await gate; await route.continue().catch(() => {}); });
     await opt.click();
-    await expect(opt).toHaveAttribute('aria-pressed', 'true', { timeout: 1000 });
-    await expect(opt).toContainText('1 can go');
+    await expect(opt).toHaveAttribute('aria-checked', 'true', { timeout: 1000 });
+    await expect(opt).toContainText('You can go');
     release();
     await M.unroute('**/rest/v1/date_votes*');
     await expect.poll(() => asUser(H, async (c, _C, id) => (await c.from('date_options').select('date_votes(user_id)').eq('spark_id', id)).data[0].date_votes.length, id)).toBe(1);
@@ -719,8 +719,8 @@ test('a vote on a suggested date changes as soon as it is tapped (the save follo
     await M.route('**/rest/v1/date_votes*', (route) => route.request().method() === 'GET' ? route.continue() : route.fulfill({ status: 500, body: '{}' }));
     await opt.click();
     await expect(M.getByText('That didn’t go through. Try again in a moment.')).toBeVisible();
-    await expect(opt).toHaveAttribute('aria-pressed', 'true');
-    await expect(opt).toContainText('1 can go');
+    await expect(opt).toHaveAttribute('aria-checked', 'true');
+    await expect(opt).toContainText('You can go');
   } finally {
     if (id) await asUser(H, async (c, _C, id) => c.rpc('delete_event', { p_spark: id, p_quiet: true }), id).catch(() => {});
     await host.context.close(); await mem.context.close();
@@ -732,6 +732,7 @@ test('a vote on a suggested date changes as soon as it is tapped (the save follo
 test('invite people: the lead invites a group member from the sheet; Invited sticks', async ({ browser }) => {
   const host = await newLead(browser, 1, 'Ivy');
   const nm = 'Nedra ' + Date.now().toString(36).slice(-4);   // unique: other e2e leads may carry an old name
+  const nmS = nm.replace(/^(\S+)\s+(\S).*$/, (m, a, b) => a + ' ' + b.toUpperCase() + '.');   // first name + last initial (Design v8-17)
   const other = await newLead(browser, 2, nm);
   const H = host.page;
   let id;
@@ -770,12 +771,12 @@ test('invite people: the lead invites a group member from the sheet; Invited sti
     const list = H.getByRole('dialog', { name: 'Who’s coming' });
     const quiet = list.locator('[data-guest-part="none"]');
     await expect(quiet).toContainText('HAVEN’T REPLIED · 1');
-    await expect(quiet).toContainText(nm);
-    await quiet.getByRole('button', { name: 'Nudge ' + nm }).click();
-    await expect(H.getByText('Nudged ' + nm.split(' ')[0] + ':')).toBeVisible();
-    await expect(quiet.getByRole('button', { name: 'Nudged ' + nm })).toBeVisible();
+    await expect(quiet).toContainText(nmS);
+    await quiet.getByRole('button', { name: 'Nudge ' + nmS }).click();
+    await expect(H.getByText('Nudged ' + nmS.split(' ')[0] + ':')).toBeVisible();
+    await expect(quiet.getByRole('button', { name: 'Nudged ' + nmS })).toBeVisible();
     await expect.poll(() => asUser(other.page, async (c) => ((await c.from('notes').select('body').like('body', '%is hoping you can make%').gte('created_at', new Date(Date.now() - 120000).toISOString())).data || []).length)).toBeGreaterThan(0);
-    await quiet.getByRole('button', { name: 'Nudged ' + nm }).click();
+    await quiet.getByRole('button', { name: 'Nudged ' + nmS }).click();
     await expect(H.getByText('You nudged ' + nm.split(' ')[0] + ' today. Try again tomorrow.')).toBeVisible();
     await list.getByRole('button', { name: 'Close' }).click();
     // Once she answers (Can't), Invite people shows her answer instead of Invited, and she can't be picked (owner, 2026-10-03)
