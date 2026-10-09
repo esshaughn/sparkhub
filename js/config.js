@@ -22,7 +22,7 @@
   var places = { key: '4a3224242b3c4d8485453050591b8485', lat: 30.2672, lon: -97.7431, radius: 60000 };
   // Google Places (the newer Places API), owner 2026-10-09: when set, suggestions come from Google instead of Geoapify.
   // A browser key, restricted to our sites (HTTP referrers) and to the Places API (New) in Google Cloud. Empty: Geoapify
-  var googlePlacesKey = '';
+  var googlePlacesKey = 'AIzaSyBzhZyxNbzG2KG8lST_9x3roYZVxWWIeIs';
 
   // "Continue with Google": turn on per database once Google is set up in that
   // Supabase project (Auth → Sign In / Providers → Google, plus "Allow manual
