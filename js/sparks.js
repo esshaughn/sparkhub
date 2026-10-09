@@ -1601,6 +1601,7 @@
       name: cleanTitle(r.name || r.address_line1 || '').slice(0, 80),
       sub: shortAddr(r.address_line2),
       address: shortAddr(r.name ? r.address_line2 : r.formatted),
+      poi: !!r.name,   // a named place (a park, a café): its name can be the location name
       lat: +r.lat, lon: +r.lon
     })).filter(p => {
       const k = p.name + '|' + p.sub;
@@ -1608,10 +1609,10 @@
       return (seen[k] = true);
     });
   };
-  // `field` is 'loc' (post flow) or 'offer' (the lead setting a location)
+  // `field` is 'loc' (post flow), 'addr' (Plan an event's Address) or 'offer' (the lead setting a location)
   const findPlaces = (text, field) => {
     const key = field === 'offer' ? 'offerSuggest' : 'locSuggest';
-    const textKey = field === 'offer' ? 'offerText' : 'locText';
+    const textKey = field === 'offer' ? 'offerText' : field === 'addr' ? 'locAddr' : 'locText';   // addr: Plan an event's Address field
     const pickKey = field === 'offer' ? 'offerPlace' : 'locPlace';
     clearTimeout(placeTimer);
     if (placeAbort) { placeAbort.abort(); placeAbort = null; }
@@ -2258,9 +2259,9 @@
   };
 
   // "Do it again": a new event with the place and details filled in
-  const doItAgain = (s) => goCompose({ activity: s.text.slice(0, TITLE_MAX), evTags: (s.tags || []).slice(0, 2), evTest: !!(s.test || s.demo), locText: s.spot || '', locPlace: s.spotAddress ? { name: s.spot, address: s.spotAddress, lat: s.spotPoint && s.spotPoint[0], lon: s.spotPoint && s.spotPoint[1] } : null, locAddr: s.spotAddress || '',
+  const doItAgain = (s) => goCompose({ activity: s.text.slice(0, TITLE_MAX), evTags: (s.tags || []).slice(0, 2), evTest: !!(s.test || s.demo), locText: nameFrom(s.spot, s.spotAddress), locPlace: s.spotAddress ? { name: s.spot, address: s.spotAddress, lat: s.spotPoint && s.spotPoint[0], lon: s.spotPoint && s.spotPoint[1] } : null, locAddr: s.spotAddress || '',
     // v8-14: the one page has a description, not detail lines: the old event's details come back as its sentences
-    evDesc: basicsOf(s).map(b => /[.!?]$/.test(b) ? b : b + '.').join(' ').slice(0, DESC_MAX), evOverview: (s.overview || '').slice(0, OV_MAX) });
+    evDesc: descDraft(s), evOverview: (s.overview || '').slice(0, OV_MAX) });
 
   // Several at once: as many as there's room for, then one save
   const addMood = async (s, fileList) => {
@@ -6357,7 +6358,7 @@
     // v8-14: a host edits the description whole. An older event's three detail lines come in joined as one paragraph
     // (owner, 2026-10-07: "Bring water", "Kids welcome" → "Bring water. Kids welcome."), so saving moves it to the new
     // format; 3 lines of 60 always fit in 200. A group admin who isn't a host still edits the lines (admin_edit_spark)
-    const desc = isLead(s) ? basicsOf(s).map(b => /[.!?]$/.test(b) ? b : b + '.').join(' ').slice(0, DESC_MAX) : null;
+    const desc = isLead(s) ? descDraft(s) : null;
     const bits = desc != null ? ['', '', ''] : basicsOf(s).slice(0, 3).map(b => b.slice(0, 60));
     while (bits.length < 3) bits.push('');
     setState({ sec: { id: s.id, kind, title: s.text, ...whenModelOf(s), bits, desc, ov: s.overview || '', need: s.minPeople || null, tags: (s.tags || []).slice(), priv: s.visibility === 'invite', guestInv: s.guestInvites !== false, groups: gIds(s).slice() },
@@ -7063,7 +7064,8 @@
       (bits.length || ov
         ? '<div style="' + CARD + ';padding:16px 18px;display:flex;flex-direction:column;gap:6px">' +
             (ov ? '<div data-overview style="font-size:18px;line-height:1.4;font-weight:500;color:#0d1117;text-wrap:pretty">' + esc(ov) + '</div>' : '') +
-            bits.map(t => '<div style="display:flex;align-items:baseline;gap:10px;padding:4px 0"><span style="flex:0 0 7px;width:7px;height:7px;border-radius:999px;background:#149a4b;transform:translateY(-3px)"></span><span style="font-size:17px;line-height:1.4;font-weight:500;color:#0d1117;text-wrap:pretty">' + esc(t) + '</span></div>').join('') + '</div>'
+            (descText(s) ? descHtml(descText(s), 'padding:4px 0;font-size:17px;line-height:1.45;font-weight:500;color:#0d1117')
+              : bits.map(t => '<div style="display:flex;align-items:baseline;gap:10px;padding:4px 0"><span style="flex:0 0 7px;width:7px;height:7px;border-radius:999px;background:#149a4b;transform:translateY(-3px)"></span><span style="font-size:17px;line-height:1.4;font-weight:500;color:#0d1117;text-wrap:pretty">' + esc(t) + '</span></div>').join('')) + '</div>'
         : '<div ' + on(() => openSec(s, 'details')) + ' style="padding:14px 16px;border-radius:18px;border:1.5px dashed #c9ccd3;font-size:14.5px;font-weight:700;color:#6b7280;cursor:pointer">' + (s.overview ? 'Add up to three quick notes.' : 'Add a one-line overview and up to three quick notes.') + '</div>') +
       // The way in to a plan's first Inspo photo (owner, 2026-10-05: Inspo stays hidden on a plan until it has one)
       (isLead(s) && s.planned && !s.cancelledAt && !s.mood.length ? '<label data-add-inspo class="hov-fill-grey"' + (state.busy ? ' aria-busy="true"' : '') + ' style="margin-top:8px;align-self:flex-start;display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 4px;font-size:14px;font-weight:800;color:#5b4ae8;cursor:' + (state.busy ? 'wait;opacity:.6' : 'pointer') + '">' +
@@ -8327,7 +8329,7 @@
         '<span data-led-line style="font-size:13.5px;font-weight:700;color:#6b7280">' + ledLine(s, isStarter(s) || undefined) + ' <span style="font-weight:500">· ' + ago(s.created) + '</span></span></div></div>'; };
   // Help out, Take part and Discussion (Q31): the lead always (to add jobs and spots), members once there's something on them
   // What to expect's quick details (an older idea, or a plan stepped back): gold dots under the description
-  const ideaBits = (s) => { const bits = basicsOf(s); return !bits.length ? '' : '<div data-idea-bits style="display:flex;flex-direction:column;gap:4px">' +
+  const ideaBits = (s) => { const bits = basicsOf(s); return !bits.length ? '' : descText(s) ? descHtml(descText(s), 'font-size:17px;line-height:1.45;font-weight:600;color:#2a2f38') : '<div data-idea-bits style="display:flex;flex-direction:column;gap:4px">' +
     bits.map(t => '<div style="display:flex;align-items:baseline;gap:10px"><span style="flex:0 0 7px;width:7px;height:7px;border-radius:999px;background:#f5b428;transform:translateY(-3px)"></span><span style="font-size:17px;line-height:1.4;font-weight:600;color:#2a2f38">' + esc(t) + '</span></div>').join('') + '</div>'; };
   const ideaJobs = (s) => runsIdea(s) || s.signups.length || (s.parts || []).length ? helpOut(s) : '';   // askCards sit at the top; sec-tasks: Home's to-dos scroll here
   const ideaDisc = (s) => discussionSec(s);   // every idea, floated too (audit 2026-10-07: the floater and the people interested had no way to talk)
@@ -8859,28 +8861,33 @@
     '</div>';
   }
 
-  // Plan an event's location (v8-8 item 8): one white field, Location name over Address. A name can still pick a
-  // known place from the suggestions, which fills the address too
-  const locPair = () => {
-    const st = state, IN = 'width:100%;box-sizing:border-box;min-height:48px;border:0;padding:0 16px;font-family:inherit;background:transparent;outline:none;';
-    const pick = (p) => { clearTimeout(placeTimer); setState({ locText: p.name, locPlace: p, locAddr: p.address || '', locSuggest: [] }); };
-    return '<div style="position:relative;display:flex;flex-direction:column;gap:6px">' +
-      '<div style="background:#fff;border:1.5px solid #dcdfe6;border-radius:16px;overflow:hidden;display:flex;flex-direction:column">' +
-        '<input class="fld" type="text" maxlength="80" autocomplete="off" data-loc-name aria-label="Location name" placeholder="Location name" value="' + esc(st.locText) + '" ' +
-          onInput(e => { if (e.type !== 'input') return; const v = e.target.value.slice(0, 80); setState({ locText: v, locPlace: null }); findPlaces(v, 'loc'); }) + ' style="' + IN + 'font-size:17px;font-weight:800;color:#0d1117">' +
-        '<div aria-hidden="true" style="height:1px;margin-left:16px;background:#e8eaee"></div>' +
-        '<input class="fld" type="text" maxlength="120" autocomplete="street-address" data-loc-addr aria-label="Address" placeholder="Address" value="' + esc(st.locAddr || '') + '" ' +
-          onInput(e => { if (e.type === 'input') setState({ locAddr: e.target.value.slice(0, 120) }); }) + ' style="' + IN + 'font-size:16px;font-weight:600;color:#454b55"></div>' +
+  // Plan an event's WHERE (owner, 2026-10-09): Address first (with suggestions), and once there's one, Location name
+  // (optional). A named place picked from the suggestions fills the name too, if it's empty
+  const addrPair = () => {
+    const st = state, has = !!cleanTitle(st.locAddr || '');
+    const FLD = 'display:flex;align-items:center;gap:10px;min-height:46px;padding:0 14px;border-radius:14px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;cursor:text';
+    const IN = 'flex:1 1 auto;min-width:0;border:0;padding:0;background:transparent;outline:none;font-family:inherit;font-size:16px;font-weight:600;color:#0d1117';
+    const pick = (p) => { clearTimeout(placeTimer); setState({ locAddr: (p.poi ? p.address : p.address || p.name).slice(0, 120), locPlace: p, locText: p.poi && !cleanTitle(state.locText) ? p.name : state.locText, locSuggest: [] }); };
+    return '<div style="position:relative;display:flex;flex-direction:column;gap:8px">' +
+      '<label style="' + FLD + '">' + svg(18, stroke('#9aa0ac', 2.2), CP_PIN) +
+        '<input class="fld" type="text" maxlength="120" autocomplete="off" data-loc-addr aria-label="Address" placeholder="Address" value="' + esc(st.locAddr || '') + '" ' +
+          onInput(e => { if (e.type !== 'input') return; const v = e.target.value.slice(0, 120); setState({ locAddr: v, locPlace: null }); findPlaces(v, 'addr'); }) + ' style="' + IN + '"></label>' +
       (!st.locPlace && st.locSuggest.length ? '<div role="group" aria-label="Suggested places" style="background:#fff;border:1px solid #eceef2;border-radius:16px;overflow:hidden;box-shadow:0 12px 28px rgba(15,18,25,.08)">' +
           st.locSuggest.slice(0, 4).map((p, i) => '<div ' + on(() => pick(p)) + ' class="hov-row" style="display:flex;align-items:center;gap:12px;padding:10px 14px;cursor:pointer' + (i ? ';border-top:1px solid #f2f3f6' : '') + '">' +
             '<span aria-hidden="true" style="flex:0 0 32px;width:32px;height:32px;border-radius:10px;background:#f3f1fe;color:#5b4ae8;display:flex;align-items:center;justify-content:center">' + I.pin(15) + '</span>' +
             '<span style="min-width:0"><span style="display:block;font-size:15.5px;line-height:1.3;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(p.name) + '</span>' +
             (p.sub ? '<span style="display:block;margin-top:1px;font-size:13px;line-height:1.35;font-weight:500;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(p.sub) + '</span>' : '') + '</span></div>').join('') +
           '<div style="padding:8px 16px 10px;border-top:1px solid #f2f3f6;font-size:11.5px;font-weight:500;color:#9aa0ac">Powered by <a href="https://www.geoapify.com/" target="_blank" rel="noopener noreferrer" style="color:inherit">Geoapify</a> · © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" style="color:inherit">OpenStreetMap</a> contributors</div></div>' : '') +
+      ((has && !(!st.locPlace && st.locSuggest.length)) || cleanTitle(st.locText) ? '<label style="' + FLD + '"><input class="fld" type="text" maxlength="80" autocomplete="off" data-loc-name aria-label="Location name" placeholder="Location name (optional)" value="' + esc(st.locText) + '" ' +
+          onInput(e => { if (e.type === 'input') setState({ locText: e.target.value.slice(0, 80) }); }) + ' style="' + IN + ';font-weight:800"></label>' : '') +
     '</div>';
   };
+  // With no name, the location is the address's first part (the street line) and the address the whole of it
+  const addrHead = (a) => cleanTitle((a || '').split(',')[0] || '');
+  // Editing or repeating an event: a location that is only its address's first part had no name of its own
+  const nameFrom = (spot, addr) => spot && addr && spot === addrHead(addr) ? '' : spot || '';
   // What a post saves for the location: the typed address wins; a picked place's address (and point) otherwise
-  const evSpotCols = (st) => { const spot = cleanTitle(st.locText).slice(0, 80) || null, p = spot && st.locPlace ? st.locPlace : null, typed = cleanTitle(st.locAddr || '').slice(0, 120);
+  const evSpotCols = (st) => { const typed = cleanTitle(st.locAddr || '').slice(0, 120), spot = (cleanTitle(st.locText) || addrHead(typed)).slice(0, 80) || null, p = spot && st.locPlace ? st.locPlace : null;
     const addr = spot ? typed || (p ? p.address || null : null) : null, same = !!p && addr === (p.address || null);
     return { spot, spot_open: !spot, spot_address: addr, spot_lat: same ? p.lat : null, spot_lon: same ? p.lon : null }; };
 
@@ -8961,15 +8968,21 @@
   // only demo events have one): one bullet per sentence. Saving Basic details moves it into the bullets.
   const splitBits = (arr) => [].concat(...(arr || []).map(b => String(b || '').split(/(?<=[.!?])\s+/))).map(x => x.trim()).filter(Boolean);
   const basicsOf = (s) => s.hopes.length ? s.hopes.map(x => String(x || '').trim()).filter(Boolean) : s.vision && s.vision.trim() ? [s.vision.trim()] : [];   // v8-14: a description is one paragraph   // a line is never split at its sentences (owner, 2026-10-01)
+  // A description (one paragraph in `vision`, no quick-detail lines) is text, not a bullet: it keeps its line breaks
+  // (owner, 2026-10-09). Older events' quick details (`hopes`) stay bullets
+  const descText = (s) => !s.hopes.length && s.vision && s.vision.trim() ? s.vision.trim() : '';
+  // What Edit starts from: the description as typed, or older events' lines joined into sentences
+  const descDraft = (s) => (descText(s) || basicsOf(s).map(b => /[.!?]$/.test(b) ? b : b + '.').join(' ')).slice(0, DESC_MAX);
+  const descHtml = (t, css) => '<div data-desc style="white-space:pre-wrap;overflow-wrap:anywhere;' + css + '">' + esc(t) + '</div>';
   const evPhotoUrl = (st) => st.photos[0] ? st.photos[0].url : (PHOTO_PATH.test(st.evPhotoPath || '') ? photoUrl(st.evPhotoPath) : null);
   // Page 1 needs a title and a date (or a date poll), v8-6
-  const evFilled = (st) => ({ title: !!cleanTitle(st.activity) && (!!st.evDate || !!st.evDatePoll), when: !!st.evDate || !!st.evDatePoll, where: !!cleanTitle(st.locText) || !!st.evSpotPoll,
+  const evFilled = (st) => ({ title: !!cleanTitle(st.activity) && (!!st.evDate || !!st.evDatePoll), when: !!st.evDate || !!st.evDatePoll, where: !!cleanTitle(st.locText) || !!cleanTitle(st.locAddr || '') || !!st.evSpotPoll,
     details: st.evBits.some(b => b.trim()) || !!(st.evOverview || '').trim() || (MIN_PEOPLE && !st.evDate && st.evNeed > 0), help: st.evNeeds.length > 0 || st.evIdeaJobs.length > 0, lead: true });   // leading it is already picked
   // "Sat, Oct 24 · 10am", "Sat, Oct 24 · 10am – 12pm"
   const dayLabel = (d, t, e) => d ? fmtDay(d) + (t ? ' · ' + (e ? spanTime({ time: t, endTime: e }) : fmtTime(t)) : '') : '';
   const jobMeta = (j) => j.kind ? partMeta(j) : (j.day ? dayWord(whenCols(evWhen()).schedule, j.day) + ' · ' : '') + (j.shifts ? (j.shifts.length === 1 ? fmtTime(j.shifts[0].time) : j.shifts.length + ' times from ' + fmtTime(j.shifts[0].time)) + (j.shifts.every(q => q.need && q.need === j.shifts[0].need) ? ' · ' + j.shifts[0].need + ' each' : '')
     : (j.need ? j.need + (j.need === 1 ? ' person' : ' people') : 'Anyone') + (j.time ? ' · ' + fmtTime(j.time) : ''));
-  const evStarted = (st) => !!(cleanTitle(st.activity) || st.evDate || st.evDatePoll || cleanTitle(st.locText) || st.evSpotPoll || st.evBits.some(b => b.trim()) || !!(st.evOverview || '').trim() || st.evNeeds.length || !!(st.evDesc || '').trim() || (st.evInspo || []).length);
+  const evStarted = (st) => !!(cleanTitle(st.activity) || st.evDate || st.evDatePoll || cleanTitle(st.locText) || cleanTitle(st.locAddr || '') || st.evSpotPoll || st.evBits.some(b => b.trim()) || !!(st.evOverview || '').trim() || st.evNeeds.length || !!(st.evDesc || '').trim() || (st.evInspo || []).length);
   // People can invite friends (v8-14): on by default for Public, off for Private; switching it sticks until Public / Private changes
   const evGuestInv = (st) => st.evNoGuestInv == null ? !st.evPriv : !st.evNoGuestInv;
   const evGroupIds = (st) => {
@@ -9128,7 +9141,7 @@
     // A date that has passed asks for a new one (owner, 2026-10-07; it used to move to the same day next year)
     if (d && d < todayISO()) { toast('That date has passed. Pick a new one.'); if (useIdea8(s)) openPick(s, 'd'); else openSec(s, 'when'); return; }
     go('compose', Object.assign(composeReset(), {
-      activity: s.text, evOverview: s.overview || '', evDate: d, evTime: d && s.dayTime ? s.dayTime : '', locText: s.spot || '',
+      activity: s.text, evOverview: s.overview || '', evDate: d, evTime: d && s.dayTime ? s.dayTime : '', locText: nameFrom(s.spot, s.spotAddress),
       locPlace: s.spot && s.spotAddress ? { name: s.spot, address: s.spotAddress, lat: s.spotPoint ? s.spotPoint[0] : null, lon: s.spotPoint ? s.spotPoint[1] : null } : null, locAddr: s.spotAddress || '',
       evPhotoPath: s.photoPaths[0] || null, coverPos: s.coverPos || null, evGroups: s.groupIds.slice(), evPriv: s.visibility === 'invite',
       evStep: d ? 'review' : 'title', evFromIdea: s.id, evIdeaJobs: (s.jobs || s.signups).concat(s.parts || []).map(j => cleanTitle(j.item || '')).filter(Boolean),
@@ -9662,7 +9675,7 @@
   const CP_PIN = '<path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Z"/><circle cx="12" cy="10" r="2.4"/>';
   const CP_INV = '<circle cx="9.5" cy="8" r="3.5"/><path d="M3 20a6.5 6.5 0 0 1 13 0"/><path d="M19 8v6M16 11h6"/>';
   function viewCreate1a() {
-    const st = state, P = '#5b4ae8', url = evPhotoUrl(st), title = st.activity || '', place = cleanTitle(st.locText);
+    const st = state, P = '#5b4ae8', url = evPhotoUrl(st), title = st.activity || '', place = cleanTitle(st.locText) || cleanTitle(st.locAddr || '');
     const close = () => { if (evStarted(st)) setState({ evLeave: true, timeOpen: null }); else evExit(); };
     const dt = st.evDate ? new Date(st.evDate + 'T12:00') : null, dp = st.evDatePoll, sp = st.evSpotPoll;
     const wErr = dp ? '' : whenErr(evWhen()), any = !!(dt || dp || place || sp), hasD = !!dt || !!dp, ready = !!cleanTitle(title) && hasD && !wErr;
@@ -9686,16 +9699,19 @@
         '<textarea class="cp-hero-fld" rows="' + Math.max(1, Math.ceil((st.evOverview || '').length / 32)) + '" maxlength="' + OV_MAX + '" data-overview-input aria-label="Quick overview" placeholder="Add a quick overview" ' + onInput(e => { if (e.type === 'input') { const v = e.target.value.replace(/\n/g, ' ').slice(0, OV_MAX); if (v !== e.target.value) e.target.value = v; setState({ evOverview: v }); } }) +
           ' style="' + TA + ';font-size:18px;line-height:1.4;font-weight:500">' + esc(st.evOverview || '') + '</textarea>' +
       '</div></div>';
-    // WHEN & WHERE: two rows opening the Date & time and Location pop-ups; once one is filled the empty one reads purple
-    const wl = dt ? whenLabel(evWhen()) : '', cut = wl.indexOf(' · '), addr = place && !sp ? evSpotCols(st).spot_address || '' : '';
-    const wRow = (k, ic, main, sub, filled) => '<div ' + on(() => setState({ evPop: k })) + ' data-cp-row="' + k + '" style="display:flex;align-items:center;gap:12px;min-height:56px;padding:6px 16px;cursor:pointer">' +
-      '<span style="flex:0 0 20px;display:flex">' + svg(20, stroke(filled ? '#6b7280' : any ? P : '#454b55', 2.2), ic) + '</span>' +
-      '<div style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:16px;font-weight:800;color:' + (filled ? '#0d1117' : any ? P : '#454b55') + '">' + esc(main) + '</span>' +
-        (sub ? '<span style="font-size:14px;font-weight:500;color:#5c6270;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(sub) + '</span>' : '') + '</div></div>';
-    const ww = '<div data-cp-when-where style="' + (any ? WC : GC) + '">' +
-      wRow('when', CP_CAL, dp ? 'Voting on ' + dp.length + ' dates' : dt ? (cut > 0 ? wl.slice(0, cut) : wl) : 'Add date & time', dt && !dp && cut > 0 ? wl.slice(cut + 3) : '', !!(dt || dp)) +
-      '<div style="height:1px;margin:0 16px;background:' + (any ? '#eceef2' : '#d3d6dc') + '"></div>' +
-      wRow('where', CP_PIN, sp ? 'Voting on ' + sp.length + ' locations' : place || 'Add location (optional)', addr, !!(place || sp)) + '</div>';
+    // WHEN & WHERE (owner, 2026-10-09; were two rows opening pop-ups): How long is it? and Create a poll over the date and
+    // time fields in the card; then Address, and Location name (optional) once there's an address. A poll shows its card
+    // instead of the fields
+    const pollLink = (kind) => '<span ' + on(() => openPoll(kind)) + ' data-create-poll="' + kind + '" style="display:flex;align-items:center;min-height:36px;padding:0 2px;font-size:13.5px;font-weight:700;color:#6b7280;cursor:pointer">Create a poll</span>';
+    const over = (left, kind) => '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin:-6px 0 -2px">' + (left || '<span></span>') + pollLink(kind) + '</div>';
+    const whenIn = dp ? pollCard(dp.map(r => dayLabel(r.d, r.t) || 'Date'), () => openPoll('when'), () => setState({ evDatePoll: null }))
+      : over('<span style="display:flex;align-items:center;min-height:36px">' + dayTypeBtn(evWhen(), 'ev').replace('· ', '') + '</span>', 'when') + whenFields(evWhen(), evWhenSet, { k: 'ev' }) + (holdNote(st.evDate) || '');
+    // The location's Create a poll is hidden for now (owner, 2026-10-09); an older draft's location poll still shows its card
+    const whereIn = sp ? pollCard(sp.map(r => r.v), () => openPoll('where'), () => setState({ evSpotPoll: null })) : addrPair();
+    const ww = '<div data-cp-when-where style="' + (any ? WC : GC) + ';padding:10px 14px 14px;display:flex;flex-direction:column;gap:10px">' +
+      '<div data-cp-row="when" style="display:flex;flex-direction:column;gap:8px">' + whenIn + '</div>' +
+      '<div style="height:1px;background:' + (any ? '#eceef2' : '#d3d6dc') + '"></div>' +
+      '<div data-cp-row="where" style="display:flex;flex-direction:column;gap:8px">' + whereIn + '</div></div>';
     // EVENT DESCRIPTION: one growing box (200) and up to 3 inspo photos (the event's mood photos; the database keeps 3)
     const desc = st.evDesc || '', insp = st.evInspo || [], detOn = !!desc.trim() || insp.length > 0;
     const thumbs = insp.map((q, k) => '<span style="position:relative;flex:0 0 52px;width:52px;height:52px;border-radius:12px;background:#2b303a ' + bg(q.url) + '">' +
@@ -9744,7 +9760,7 @@
     // Post it: grey until there's a title and a date (a tap then says which is missing); Save draft under it
     const busy = st.busy === 'post';
     const post = () => { if (busy) return; if (!cleanTitle(title)) { toast('Add a title first'); return; } if (!hasD) { toast('Add a date first'); return; }
-      if (wErr) { setState({ evPop: 'when' }); toast(wErr); return; }
+      if (wErr) { toast(wErr); const f = document.querySelector('[data-cp-row="when"]'); if (f) f.scrollIntoView({ block: 'center', behavior: 'smooth' }); return; }
       if (!groups.length) { setState({ evGrpPop: true }); toast('Pick at least one group'); return; } createEvent(); };
     return '<div class="overlay-screen compose-sheet" data-screen-label="New spark"><div data-screen-label="Create event (1a)" style="position:relative;min-height:100%;display:flex;flex-direction:column;background:#e8eaee">' +
       '<div style="position:sticky;top:0;z-index:8;height:0"><span ' + on(close) + ' aria-label="Close" style="position:absolute;top:14px;right:12px;width:36px;height:36px;border-radius:999px;background:rgba(13,17,23,.28);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(14, '#fff', 2.6) + '</span></div>' +
@@ -9976,7 +9992,7 @@
           '</div>' + (holdNote(st.evDate) ? '<div style="padding:10px 16px 0">' + holdNote(st.evDate) + '</div>' : ''));
     const wherePart = () => st.evSpotPoll
       ? '<div style="padding:12px 16px 0">' + pollCard(st.evSpotPoll.map(r => r.v), () => openPoll('where'), () => setState({ evSpotPoll: null })) + '</div>'
-      : '<div style="padding:8px 16px 0">' + locPair() + '</div>';
+      : '<div style="padding:8px 16px 0">' + addrPair() + '</div>';
     let body = '';
     if (cur === 'title') {
       // v8-6 page 1: the cover photo box (optional), Event title, Date & time (required: a date or a date poll), Location

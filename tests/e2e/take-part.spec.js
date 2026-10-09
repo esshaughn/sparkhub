@@ -17,12 +17,10 @@ test('take part: set up spots, claim, waitlist, guest, roster and giving up', as
     await startPost(H);
     const flow = H.locator('[data-screen-label="New spark"]');
     await flow.getByLabel('Event title').fill(title);
-    await flow.locator('[data-cp-row="when"]').click();
-    const when = H.locator('[data-ev-pop="when"]');
+    const when = flow.locator('[data-cp-row="when"]');
     await pickDate(when, inDays(5));
     await when.getByRole('button', { name: 'Start time' }).click();
     await pickTime(when, '09:00');
-    await when.getByRole('button', { name: 'Done' }).click();
     await flow.locator('[data-cp-add-job]').click();
     // times are set in the sheet: one time, then Add more times (owner, 2026-10-08: no Time slots chip)
     await H.getByRole('dialog', { name: 'Add a sign-up' }).locator('[data-job-chip="Other"]').click();

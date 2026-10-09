@@ -278,20 +278,17 @@ async function postEvent(page, { title, date, time, where, pick, details = [], j
   await expect(flow.locator('[data-screen-label="Create event (1a)"]')).toBeVisible();
   if (photo) await flow.getByLabel('Add a cover photo').setInputFiles({ name: 'photo.png', mimeType: 'image/png', buffer: PNG });
   await flow.getByLabel('Event title').fill(title);
-  await flow.locator('[data-cp-row="when"]').click();
-  const when = page.locator('[data-ev-pop="when"]');
+  // Date & time and Address are right in the WHEN & WHERE card (owner, 2026-10-09; were pop-ups)
+  const when = flow.locator('[data-cp-row="when"]');
   await pickDate(when, date);
   if (time) {
     await when.getByRole('button', { name: 'Start time' }).click();
     await pickTime(when, time);
   }
-  await when.getByRole('button', { name: 'Done' }).click();
   if (where) {
-    await flow.locator('[data-cp-row="where"]').click();
-    const at = page.locator('[data-ev-pop="where"]');
-    await at.getByLabel('Location name').fill(where);
+    const at = flow.locator('[data-cp-row="where"]');
+    await at.getByLabel('Address').fill(where);   // with no name, the location is the address
     if (pick) await page.getByRole('group', { name: 'Suggested places' }).getByRole('button', { name: new RegExp(pick) }).click();
-    await at.getByRole('button', { name: 'Done' }).click();
   }
   if (details.length) await flow.getByLabel('Event description').fill(details.map(d => /[.!?]$/.test(d) ? d : d + '.').join(' '));
   for (const j of jobs) await addJob1a(page, j);

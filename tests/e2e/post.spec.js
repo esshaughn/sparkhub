@@ -265,8 +265,10 @@ test('Plan an event is one page (v8-14): Post it waits for a title and a date; t
     await expect(flow.locator('[data-cp-tile]')).toHaveCount(0);   // no date, no calendar tile
     // The sections, empty: grey cards
     for (const t of ['WHEN & WHERE', 'EVENT DESCRIPTION', 'SIGN UP', 'VISIBILITY']) await expect(one).toContainText(t);
-    await expect(flow.locator('[data-cp-row="when"]')).toContainText('Add date & time');
-    await expect(flow.locator('[data-cp-row="where"]')).toContainText('Add location (optional)');
+    // Date & time and Address are fields in the card, with How long and Create a poll under them (owner, 2026-10-09)
+    await expect(flow.locator('[data-cp-row="when"]').getByRole('button', { name: 'Date', exact: true })).toBeVisible();
+    await expect(flow.locator('[data-cp-row="where"]').getByLabel('Address')).toBeVisible();
+    await expect(flow.locator('[data-cp-row="where"]').getByLabel('Location name')).toHaveCount(0);   // only once there's an address
     await expect(flow.locator('[data-cp-when-where]')).toHaveCSS('background-color', 'rgb(223, 226, 231)');
     await expect(flow.locator('[data-cp-help]')).toHaveText('+ Add ways people can help or participate');   // owner, 2026-10-08
     await expect(flow.locator('[data-cp-desc]')).toContainText('Add inspo photos');
@@ -290,9 +292,8 @@ test('Plan an event is one page (v8-14): Post it waits for a title and a date; t
     await expect(leave).toContainText('Only you can see drafts.');
     await leave.getByRole('button', { name: 'Keep going' }).click();
     await expect(flow.getByLabel('Event title')).toHaveValue(title);
-    // Date & time in its pop-up: the start time's half-hour list, then an end time that only offers later times
-    await flow.locator('[data-cp-row="when"]').click();
-    const when = page.getByRole('dialog', { name: 'Date & time' });
+    // Date & time in the card: the start time's half-hour list, then an end time that only offers later times
+    const when = flow.locator('[data-cp-row="when"]');
     await expect(when.locator('[data-create-poll="when"]')).toBeVisible();
     await pickDate(when, inDays(10));
     await when.getByRole('button', { name: 'Start time' }).click();
@@ -302,18 +303,15 @@ test('Plan an event is one page (v8-14): Post it waits for a title and a date; t
     await expect(when.page().locator('[data-time-list] [data-time="18:30"]')).toBeVisible();
     await expect(when.page().locator('[data-time-list] [data-time="17:00"]')).toHaveCount(0);
     await pickTime(when, '20:00');
-    await when.getByRole('button', { name: 'Done' }).click();
-    // The row shows the date with the time under it; the calendar tile is up in the header; the card turns white
-    await expect(flow.locator('[data-cp-row="when"]')).toContainText('6:00 – 8:00pm');
+    // The calendar tile is up in the header; the card turns white
+    await expect(when.getByRole('button', { name: 'End time' })).toContainText('8');
     await expect(flow.locator('[data-cp-tile]')).toBeVisible();
     await expect(flow.locator('[data-cp-when-where]')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
     await expect(flow.locator('[data-post]')).toHaveAttribute('aria-disabled', 'false');
-    // Location: its pop-up, then the name on the row
-    await flow.locator('[data-cp-row="where"]').click();
-    const where = page.getByRole('dialog', { name: 'Location' });
+    // Location: the address, then Location name (optional) shows up under it
+    const where = flow.locator('[data-cp-row="where"]');
+    await where.getByLabel('Address').fill('2100 Kingsbury St, Austin, TX');
     await where.getByLabel('Location name').fill('Pease Park');
-    await where.getByRole('button', { name: 'Done' }).click();
-    await expect(flow.locator('[data-cp-row="where"]')).toContainText('Pease Park');
     // The description: one box, 500 characters (was 200), its count
     await flow.getByLabel('Event description').fill('Bring a bowl. Spoons too.');
     await expect(flow.locator('[data-cp-desc]')).toContainText('25/500');
@@ -350,8 +348,7 @@ test('polls: the host posts a date poll (an idea), a member votes, the host pick
     await startPost(H);
     const flow = H.locator('[data-screen-label="New spark"]');
     await flow.getByLabel('Event title').fill(title);
-    await flow.locator('[data-cp-row="when"]').click();   // v8-14: Date & time's pop-up has Create a poll
-    const whenPop = H.locator('[data-ev-pop="when"]');
+    const whenPop = flow.locator('[data-cp-row="when"]');   // Create a poll sits under the date and time (owner, 2026-10-09)
     await whenPop.locator('[data-create-poll="when"]').click();
     const poll = H.getByRole('dialog', { name: 'Poll the group' });
     await expect(poll).toContainText('Create a poll');
@@ -378,10 +375,8 @@ test('polls: the host posts a date poll (an idea), a member votes, the host pick
     await expect(timeBox(poll, 'Time option 1')).toHaveAttribute('placeholder', '+ Add time');
     await pickDate(poll, inDays(16), 'Date option 2');
     await poll.getByRole('button', { name: 'Start poll · 2 options', exact: true }).click();
+    // A date poll counts as the date: its card replaces the fields, Post it is purple, and it goes up as an idea
     await expect(whenPop.locator('[data-poll]')).toContainText('POLL · 2 OPTIONS');
-    await whenPop.getByRole('button', { name: 'Done' }).click();
-    // A date poll counts as the date: Post it is purple, and it goes up as an idea
-    await expect(flow.locator('[data-cp-row="when"]')).toContainText('Voting on 2 dates');
     await expect(flow.locator('[data-post]')).toHaveAttribute('aria-disabled', 'false');
 
     await flow.locator('[data-post]').click();
@@ -473,10 +468,7 @@ test('drafts: X saves one, Me → Drafts lists it, Continue picks up there, post
     await startPost(page);
     const flow = page.locator('[data-screen-label="New spark"]');
     await flow.getByLabel('Event title').fill(title);
-    await flow.locator('[data-cp-row="when"]').click();
-    const when = page.getByRole('dialog', { name: 'Date & time' });
-    await pickDate(when, inDays(5));
-    await when.getByRole('button', { name: 'Done' }).click();
+    await pickDate(flow.locator('[data-cp-row="when"]'), inDays(5));
     await flow.getByRole('button', { name: 'Close' }).click();
     const leave = page.getByRole('dialog', { name: 'Pick this up later?' });
     await expect(leave).toContainText('Only you can see drafts.');
@@ -498,7 +490,8 @@ test('drafts: X saves one, Me → Drafts lists it, Continue picks up there, post
     await openDraft();
     await expect(flow.getByLabel('Event title')).toHaveValue(title);
     // a Description takes up to 500 characters (owner, 2026-10-08: was 200)
-    const desc = 'Park on Elm Street and walk in through the side gate. Everything must go. '.repeat(4).trim();
+    // and keeps its paragraph breaks (owner, 2026-10-09)
+    const desc = 'Park on Elm Street and walk in through the side gate.\n\n' + 'Everything must go. '.repeat(10).trim();
     await expect(flow.getByLabel('Event description')).toHaveAttribute('maxlength', '500');
     await flow.getByLabel('Event description').fill(desc);
     // the Save draft link under Post it saves and leaves
@@ -506,12 +499,16 @@ test('drafts: X saves one, Me → Drafts lists it, Continue picks up there, post
     await expect(page.getByText('Saved as a draft')).toBeVisible();
     await openDraft();
     await expect(flow.getByLabel('Event description')).toHaveValue(desc);
-    await expect(flow.locator('[data-cp-row="when"]')).not.toContainText('Add date');
+    await expect(flow.locator('[data-cp-row="when"] [data-date-field]').first()).not.toContainText('Pick a date');
     await flow.locator('[data-post]').click();
     await expect(page.locator('[data-screen-label="Plan page"]')).toBeVisible();
     await closeAskFirst(page);
     id = await page.evaluate(() => location.hash.split('/').pop());
     expect(await asUser(page, async (c, _C, id) => (await c.from('sparks').select('vision').eq('id', id).single()).data.vision, id)).toBe(desc);
+    // What to expect shows it as text with its break, not a bulleted line
+    const shown = page.locator('[data-screen-label="Plan page"] [data-basics] [data-desc]');
+    await expect(shown).toHaveText(desc);
+    await expect(shown).toHaveCSS('white-space', 'pre-wrap');
     const left = await asUser(page, async (c) => (await c.from('event_drafts').select('id')).data.length);
     expect(left).toBe(0);
     expect(errors).toEqual([]);
@@ -528,35 +525,41 @@ test('location suggestions: 2 letters, 4 rows, Austin area, remembered, free tex
     await startPost(page);
     const flow = page.locator('[data-screen-label="New spark"]');
     await flow.getByLabel('Event title').fill('Anything');
-    // Location is in its pop-up (v8-14): Location name over Address (v8-8)
-    await flow.locator('[data-cp-row="where"]').click();
-    await page.getByLabel('Location name').fill('z');
+    // The Address field searches (owner, 2026-10-09: Address first, Location name once there's one)
+    const where = flow.locator('[data-cp-row="where"]'), addr = where.getByLabel('Address');
+    await addr.fill('z');
     await page.waitForTimeout(400);
     expect(context.placeRequests).toHaveLength(0);
-    await page.getByLabel('Location name').fill('zilk');
+    await addr.fill('zilk');
     const list = page.getByRole('group', { name: 'Suggested places' });
     await expect(list).toContainText('2100 Barton Springs Road, Austin, TX 78746');
     await expect(list).not.toContainText('United States');
     await expect(list).toContainText('OpenStreetMap');
+    await expect(where.getByLabel('Location name')).toHaveCount(0);   // not while the suggestions are open
     const url = new URL(context.placeRequests[0]);
     expect(url.searchParams.get('text')).toBe('zilk');
     expect(url.searchParams.get('filter')).toBe('circle:-97.7431,30.2672,60000');
 
-    await page.getByLabel('Location name').fill('zilker');
+    await addr.fill('zilker');
     await expect.poll(() => context.placeRequests.length).toBe(2);
-    await page.getByLabel('Location name').fill('zilk');             // already searched: no new lookup
+    await addr.fill('zilk');             // already searched: no new lookup
     await expect(list).toBeVisible();
     await page.waitForTimeout(300);
     expect(context.placeRequests).toHaveLength(2);
 
-    // Pick: the name and the Address field fill in; the address is its own field, so renaming keeps it (v8-8)
-    await list.getByRole('button', { name: /1100 Congress Avenue/ }).click();
-    await expect(page.getByLabel('Address')).toHaveValue(/Austin, TX 78701/);
-    await page.getByLabel('Location name').fill('The Capitol steps');
+    // A named place fills the address and, while it's empty, the Location name; renaming keeps the address
+    await list.getByRole('button', { name: /Zilker Metropolitan Park/ }).click();
+    await expect(addr).toHaveValue('2100 Barton Springs Road, Austin, TX 78746');
+    await expect(where.getByLabel('Location name')).toHaveValue('Zilker Metropolitan Park');
+    await where.getByLabel('Location name').fill('The big oak');
     await expect(list).toBeHidden();
-    await expect(page.getByLabel('Address')).toHaveValue(/Austin, TX 78701/);
-    await page.getByRole('dialog', { name: 'Location' }).getByRole('button', { name: 'Done' }).click();
-    await expect(flow.locator('[data-cp-row="where"]')).toContainText('The Capitol steps');
+    await expect(addr).toHaveValue('2100 Barton Springs Road, Austin, TX 78746');
+    // A plain address leaves the name alone
+    await where.getByLabel('Location name').fill('');
+    await addr.fill('zilk');
+    await list.getByRole('button', { name: /1100 Congress Avenue/ }).click();
+    await expect(addr).toHaveValue(/1100 Congress Avenue.*Austin, TX 78701/);
+    await expect(where.getByLabel('Location name')).toHaveValue('');
   } finally {
     await context.close();
   }
@@ -604,10 +607,7 @@ test('Sign up: + Add opens the starters pop-up; a bare starter can’t be saved'
     await startPost(page);
     const flow = page.locator('[data-screen-label="New spark"]');
     await flow.getByLabel('Event title').fill(title);
-    await flow.locator('[data-cp-row="when"]').click();
-    const when = page.getByRole('dialog', { name: 'Date & time' });
-    await pickDate(when, inDays(8));
-    await when.getByRole('button', { name: 'Done' }).click();
+    await pickDate(flow.locator('[data-cp-row="when"]'), inDays(8));
     await expect(flow.locator('[data-tags]')).toHaveCount(0);          // no "What kind of event?" (owner, 2026-10-01)
     await expect(flow.locator('[data-need-people]')).toHaveCount(0);   // How many people do you want? is hidden for now (owner, 2026-10-02)
     // + Add: Pick a starter, then name it (owner, 2026-10-08: no Thought partner; Write your own and Time slots look different)

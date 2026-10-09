@@ -18,9 +18,8 @@ test('multi-day: separate days, each-day RSVP, a job on one day, and a weekly ev
     await startPost(H);
     const flow = H.locator('[data-screen-label="New spark"]');
     await flow.getByLabel('Event title').fill(title);
-    // Date & time is a pop-up on the one page (v8-14)
-    await flow.locator('[data-cp-row="when"]').click();
-    const wp = H.locator('[data-ev-pop="when"]');
+    // Date & time is right in the card (owner, 2026-10-09; was a pop-up)
+    const wp = flow.locator('[data-cp-row="when"]');
     // How long is it? One day to start; Separate days adds a Day 2 the day after Day 1
     await expect(wp.locator('[data-day-type]')).toContainText('One day');
     await pickDate(wp, d1);
@@ -51,8 +50,7 @@ test('multi-day: separate days, each-day RSVP, a job on one day, and a weekly ev
     await expect(timeBox(wp, 'Day 2 end')).toHaveValue('5pm');
     await wp.getByRole('radio', { name: 'Each day' }).click();
     await expect(wp.getByRole('radio', { name: 'Each day' })).toHaveAttribute('aria-checked', 'true');
-    await wp.getByRole('button', { name: 'Done', exact: true }).click();
-    await expect(flow.locator('[data-cp-row="when"]')).toContainText('2 days');
+    await expect(wp.locator('[data-day-type]')).toContainText('Separate days');
     await flow.locator('[data-post]').click();
     await expect(H.locator('[data-screen-label="Plan page"]')).toBeVisible();
     await closeAskFirst(H);

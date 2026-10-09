@@ -67,11 +67,9 @@ test('soft holds: a date poll pencils its dates in on Month, warns Start an even
     await startPost(H);
     const flow = H.locator('[data-screen-label="New spark"]');
     await flow.getByLabel('Event title').fill('Something else');
-    await flow.locator('[data-cp-row="when"]').click();   // Date & time's pop-up (v8-14)
-    const when = H.locator('[data-ev-pop="when"]');
+    const when = flow.locator('[data-cp-row="when"]');   // Date & time in the card (owner, 2026-10-09)
     await pickDate(when, day);
     await expect(when.locator('[data-hold-note]')).toContainText(new RegExp(title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ' is holding 7(:00)?pm · voting until'));
-    await when.getByRole('button', { name: 'Done' }).click();
     await expect(flow.locator('[data-post]')).toHaveAttribute('aria-disabled', 'false');
     await flow.getByRole('button', { name: 'Close' }).click();
     await H.getByRole('dialog', { name: 'Pick this up later?' }).getByText('Discard', { exact: true }).click();
