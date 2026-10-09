@@ -386,7 +386,7 @@ test('it happened: the album and "do it again"; invite-only plans stay private',
     await done.getByRole('button', { name: 'Do it again', exact: true }).click();
     const form = H.locator('[data-screen-label="New spark"]');
     await expect(form.getByLabel('Event title')).toHaveValue(title.charAt(0).toUpperCase() + title.slice(1));
-    await expect(form.locator('[data-cp-row="where"]').getByLabel('Address')).toHaveValue('Pease Park');   // WHEN & WHERE's Address (owner, 2026-10-09)
+    await expect(form.locator('[data-cp-row="where"]').getByLabel('Location name')).toHaveValue('Pease Park');   // a name with no address: Location name shows, Address stays empty (owner, 2026-10-09)
 
     // Invite-only: Otto (in the same group) doesn't see it until he has the link
     await H.goto('/');
