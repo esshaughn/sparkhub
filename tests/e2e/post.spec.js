@@ -383,7 +383,7 @@ test('polls: the host posts a date poll (an idea), a member votes, the host pick
     await expect(HI.locator('[data-make-it-plan]')).toContainText('Make it a Plan!');
     await expect(HI.locator('[data-make-this-plan]')).toContainText('The location can be decided later.');
     // The member sees the picked date, and nothing asks them to vote on one
-    await O.reload();
+    await O.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));   // a refresh, not a reload: the page already open updates
     await expect(OI.locator('[data-when-set]')).toContainText('picked it');
     await expect(OI.locator('[data-help-make-plan]')).not.toContainText(/Vote on a date|Suggest a date/);
     // Undo the pick: the poll comes back
@@ -428,6 +428,33 @@ test('polls: the host posts a date poll (an idea), a member votes, the host pick
     if (id) await asUser(H, async (c, _C, id) => { await c.from('sparks').delete().eq('id', id); }, id).catch(() => {});
     await host.context.close();
     await member.context.close();
+  }
+});
+
+// A date typed in Pick (your own, no suggestions) shows on the idea page at once, and on a second member's open page after a refresh
+test('an idea\u2019s own date: the page and the Make it a plan strip update without a reload', async ({ browser }) => {
+  const host = await newLead(browser, 1, 'Hope');
+  const member = await newLead(browser, 2, 'Omar');
+  const H = host.page, O = member.page;
+  const title = uniqueTitle('Own date');
+  let id;
+  try {
+    id = await postIdea(H, { title });
+    await openIdea(O, id);
+    const HI = H.locator('[data-screen-label="Idea page (8b)"]'), OI = O.locator('[data-screen-label="Idea page (8b)"]');
+    await expect(HI.locator('[data-make-it-plan]')).toHaveText('Add a date first');
+    await HI.locator('[data-plan-date]').click();
+    const pick = H.getByRole('dialog', { name: 'Pick a date' });
+    await pick.getByLabel('Date').fill(inDays(20));
+    await pick.locator('[data-pick-confirm]').click();
+    await expect(H.getByRole('status')).toContainText('Date set');
+    await expect(HI.locator('[data-when-set]')).toBeVisible();
+    await expect(HI.locator('[data-make-it-plan]')).not.toHaveText('Add a date first');
+    await O.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+    await expect(OI.locator('[data-when-set]')).toBeVisible();
+  } finally {
+    if (id) await deleteIdea(H, id).catch(() => {});
+    await host.context.close(); await member.context.close();
   }
 });
 

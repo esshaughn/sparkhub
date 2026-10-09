@@ -86,3 +86,34 @@ test('discussion: the new-update banner, comments, replies, Send an update and d
     await member.context.close();
   }
 });
+
+// A comment someone else posts shows on a page that's already open, without restarting the app; a half-typed comment stays
+test('discussion: a new comment appears on an open page after a refresh, and typing survives it', async ({ browser }) => {
+  const host = await newLead(browser, 1, 'Hope');
+  const member = await newLead(browser, 2, 'Omar');
+  const H = host.page, O = member.page;
+  const title = uniqueTitle('Fresh chat');
+  let id;
+  try {
+    id = await postEvent(H, { title, date: inDays(6), time: '18:00' });
+    await openIdea(O, id);
+    const OP = O.locator('[data-screen-label="Plan page"]'), od = OP.locator('[data-discussion]');
+    await rsvpTap(OP.locator('[data-rsvp]'), 'Going');
+    await donePlus(O);
+    await expect(od.locator('[data-comment]')).toHaveCount(0);
+    await od.getByLabel('Write a comment').fill('half a thou');
+    // Hope posts while Omar is looking; Omar's page picks it up on the next refresh
+    await asUser(H, async (c, _C, id) => { const r = await c.from('event_comments').insert({ spark_id: id, body: 'Parking is on 51st' }); if (r.error) throw new Error(r.error.message); }, id);
+    await O.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+    await expect(od.locator('[data-comment]')).toHaveText(['Parking is on 51st']);
+    await expect(od.getByLabel('Write a comment')).toHaveValue('half a thou');
+    // …and a second comment shows after leaving and reopening the event
+    await asUser(H, async (c, _C, id) => { await c.from('event_comments').insert({ spark_id: id, body: 'Bring water' }); }, id);
+    await O.waitForTimeout(10500);   // the cached list counts as stale after 10 seconds
+    await openIdea(O, id);
+    await expect(od.locator('[data-comment]')).toHaveCount(2);
+  } finally {
+    if (id) await deleteIdea(H, id).catch(() => {});
+    await host.context.close(); await member.context.close();
+  }
+});

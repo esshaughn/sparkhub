@@ -2294,13 +2294,25 @@
       else body = ev(s.id, lines(s.dayDate, s.startTime, s.startEnd), ['RRULE:FREQ=' + (s.repeat.every === 'month' ? 'MONTHLY' + (dd === 31 ? ';BYMONTHDAY=-1' : '') : 'WEEKLY') + (s.repeat.every === '2week' ? ';INTERVAL=2' : '') + until]);
     }
     else body = ev(s.id, lines(s.dayDate, s.dayTime, s.dayEnd));
-    const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Spark Hub//EN'].concat(body, ['END:VCALENDAR']).join('\r\n');
+    // Android: Google Calendar's add screen with the event filled in, not a downloaded file to find. One entry only (a day
+    // or a span); separate days and repeats keep the .ics, which can carry them
+    if (/Android/i.test(navigator.userAgent) && !picked && !s.repeat) {
+      const span = s.sched && s.sched.kind === 'span' && s.days, last = span ? s.days[s.days.length - 1] : null;
+      const d = span ? s.startDate : s.dayDate, tm = span ? s.startTime : s.dayTime, en = span ? last.e : s.dayEnd, d2 = span ? last.d : null;
+      const r = lines(d, tm, en, d2).map(x => x.split(':')[1]);
+      const url = 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + encodeURIComponent(s.text) + '&dates=' + r[0] + '/' + r[1] +
+        '&details=' + encodeURIComponent(eventLink(s)) + '&location=' + encodeURIComponent([s.spot, s.spotAddress].filter(Boolean).join(', '));
+      window.open(url, '_blank');
+      return;
+    }
+    const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Spark Hub//EN', 'METHOD:PUBLISH'].concat(body, ['END:VCALENDAR']).join('\r\n');
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([ics], { type: 'text/calendar' }));
     a.download = (s.text.replace(/[^\w ]+/g, '').trim() || 'plan') + '.ics';
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
     if (picked && picked.length > 1) toast('Added ' + dayWords(s, picked.map(r => r.d)) + ' to your calendar (' + picked.length + ' entries)', true);
+    else if (/iPhone|iPad/i.test(navigator.userAgent)) toast('Pick a calendar if it asks.', true);
   };
 
   // "Do it again": a new event with the place and details filled in
@@ -7339,14 +7351,16 @@
   forgetComments = () => { Object.keys(comments).forEach(k => { delete comments[k]; }); };
   const loadComments = (sid, force) => {
     const c = comments[sid];
-    if (c && (c.loading || (!force && c.list))) return;
+    // A cached list shows at once and is replaced by a fresh one when it's over 10 seconds old (stale-while-revalidate), so
+    // someone else's comment appears without restarting the app
+    if (c && (c.loading || (!force && c.list && Date.now() - (c.at || 0) < 10000))) return;
     comments[sid] = Object.assign({ list: null }, c, { loading: true });
     // Signed out (guests too): only a count, from comment_count() (v8-8 item 9: Discussion stays behind sign-in)
     if (!state.email) {
       ensureSession().then(() => sb.rpc('comment_count', { p_spark: sid }))
-        .then(r => { if (r.error) throw r.error; comments[sid] = { list: [], count: r.data || 0, loading: false }; render(); })
-        .catch(e => { if (e && e.code === 'PGRST202') { comments[sid] = { list: [], count: 0, loading: false }; render(); return; }
-          console.error(e); comments[sid] = { list: [], count: 0, loading: false }; render(); });
+        .then(r => { if (r.error) throw r.error; comments[sid] = { list: [], count: r.data || 0, loading: false, at: Date.now() }; render(); })
+        .catch(e => { if (e && e.code === 'PGRST202') { comments[sid] = { list: [], count: 0, loading: false, at: Date.now() }; render(); return; }
+          console.error(e); comments[sid] = { list: [], count: 0, loading: false, at: Date.now() }; render(); });
       return;
     }
     ensureSession()
@@ -7363,13 +7377,14 @@
         // Likes (20261121010000_post_likes.sql): {target id: [user ids]}; a database without the table just has no hearts
         const lk = await sb.from('post_likes').select('target_id,user_id').eq('spark_id', sid), likes = {};
         (lk.data || []).forEach(x => { (likes[x.target_id] = likes[x.target_id] || []).push(x.user_id); });
-        comments[sid] = { list, likes, noLikes: !!lk.error, loading: false };
-        render();
+        const same = !!(c && c.list) && JSON.stringify(c.list) === JSON.stringify(list) && JSON.stringify(c.likes || {}) === JSON.stringify(likes);
+        comments[sid] = { list, likes, noLikes: !!lk.error, loading: false, at: Date.now() };
+        if (!same) render();   // nothing new: no redraw to disturb scrolling or a half-typed reply
       })
       .catch(e => {
         // A database without the table yet (PGRST205 / 42P01): no Discussion, the Update card as before
-        if (e && (e.code === 'PGRST205' || e.code === '42P01')) { comments[sid] = { list: [], loading: false, missing: true }; render(); return; }
-        console.error(e); comments[sid] = { list: (c && c.list) || [], loading: false }; render();
+        if (e && (e.code === 'PGRST205' || e.code === '42P01')) { comments[sid] = { list: [], loading: false, missing: true, at: Date.now() }; render(); return; }
+        console.error(e); comments[sid] = { list: (c && c.list) || [], likes: (c && c.likes) || {}, loading: false, at: Date.now() }; render();
       });
   };
   const toggleLike = (s, id) => {
@@ -11519,6 +11534,8 @@
         if (state.error === 'load') setState({ error: null });
         // The event on screen was taken down (or you lost access): say so instead of showing a blank page
         if (state.screen === 'detail' && state.subjectId && !subject() && !routeLoading) setState({ screen: 'sched', subjectId: null, goneOpen: true, sec: null, needEd: null });
+        // The Discussion on screen reloads with the rest, so a new comment shows without leaving the page
+        else if (state.screen === 'detail' && state.subjectId && state.email) loadComments(state.subjectId, true);
       })
       .catch(e => { console.error(e); refreshFails++; if (!state.loaded || state.error) setState({ error: 'load', loaded: true }); });
   };
