@@ -57,6 +57,22 @@ test('discussion: the new-update banner, comments, replies, Send an update and d
     await expect(od.locator('[data-reply-row]')).toHaveCount(0);
     await od.locator('[data-view-replies]').click();
     await expect(od.locator('[data-reply-row]')).toContainText('Of course!');
+    // A heart first in the Reply row: pink with a count once liked, tap again to undo (Design v8-15, Q42)
+    const heart = od.locator('[data-post-row="cmt"] [data-like]').first();
+    await expect(heart).toHaveAttribute('aria-pressed', 'false');
+    await heart.click();
+    await expect(heart).toHaveAttribute('aria-pressed', 'true');
+    await expect(heart.locator('[data-like-n]')).toHaveText('1');
+    await O.reload();
+    await expect(od.locator('[data-post-row="cmt"] [data-like]').first()).toHaveAttribute('aria-pressed', 'true');
+    await od.locator('[data-post-row="cmt"] [data-like]').first().click();
+    await expect(od.locator('[data-post-row="cmt"] [data-like-n]')).toHaveCount(0);
+    // The emoji button adds an emoji to what's typed
+    await od.locator('[data-emoji-btn]').click();
+    await od.locator('[data-emoji-tray]').getByLabel('🎉').click();
+    await expect(od.getByLabel('Write a comment')).toHaveValue('🎉');
+    await od.getByLabel('Write a comment').fill('');
+    await od.locator('[data-view-replies]').click();
     await expect(OP.locator('[data-discussion] h2 + span')).toHaveText('3');   // the update, the comment, the reply
     // He deletes his comment, and the reply goes with it
     await od.locator('[data-post-row="cmt"] [data-delete-comment]').click();

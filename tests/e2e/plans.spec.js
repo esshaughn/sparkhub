@@ -536,7 +536,7 @@ test('looking for a lead: the lead steps back, someone else takes the lead', asy
     // Otto takes the lead: he gets the lead's view (Make this a plan), Hope the member's Led by card (Q31)
     await OS.locator('[data-lead-ask-card]').getByRole('button', { name: 'I’ll lead it' }).click();
     await expect(OS.locator('[data-led-line]')).toContainText('Led by you');
-    await expect(OS.locator('[data-make-this-plan]')).toContainText('You’re leading it');
+    await expect(OS.locator('[data-make-this-plan]')).toContainText('You’re leading');
     await openIdea(H, id);
     await expect(HS.locator('[data-led-by8]')).toContainText('LED BY');
     await expect(HS.locator('[data-led-by8]')).toContainText('Otto');
@@ -605,9 +605,10 @@ test('asked to lead: Not this time, then yes; stepping back hands the idea back 
     expect(await ask()).toBe('ok');
     await O.reload();
     await card.getByRole('button', { name: 'I’ll lead it' }).click();
-    await expect(OS.locator('[data-make-this-plan]')).toContainText('You’re leading it');
-    await OS.locator('[data-idea-leads]').click();
-    await O.getByRole('dialog', { name: 'Leads' }).locator('[data-lead-row="Ike"]').getByRole('button', { name: 'Step back' }).click();
+    await expect(OS.locator('[data-make-this-plan]')).toContainText('You’re leading');
+    await OS.locator('[data-plan-lead]').click();   // You're leading · Change opens Leading this Idea (Design v8-15, Q47)
+    await expect(O.getByRole('dialog', { name: 'Leading this Idea' })).toContainText('You stay interested.');
+    await O.getByRole('dialog', { name: 'Leading this Idea' }).locator('[data-step-back]').click();
     await expect(O.getByRole('alertdialog')).toContainText('It goes back to Fay');
     await confirm(O, 'Step back');
     // Fay has it again, looking for a lead, with Choose a lead

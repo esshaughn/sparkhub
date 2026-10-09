@@ -97,6 +97,8 @@ async function details(db, q) {
     if (!s) return null;
     // iMessage shows only the title and domain, so the date rides in the title: "Magic and Mocktails – Thu, Oct 22"; the
     // line under it is the time and place only, "7:30pm · Hub on Hunters" (owner, 2026-10-07: no date twice)
+    // An idea (not a plan yet): "Help plan: {title}", then "Maybe {date} · On Spark Hub" (Design v8-15, Q48 6b)
+    if (s.planned === false) return { title: 'Help plan: ' + s.title, description: (s.day_date ? 'Maybe ' + when(s.day_date) + ' · ' : '') + 'On Spark Hub', image: photoUrl(db, s.photo) };
     return Object.assign(eventLines(s), { image: photoUrl(db, s.photo) });
   }
   if (q.i && ID.test(q.i)) {

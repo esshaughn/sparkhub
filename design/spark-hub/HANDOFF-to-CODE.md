@@ -1,4 +1,40 @@
-# Spark Hub v8 · HANDOFF-to-CODE (round v8-14)
+# Spark Hub v8 · HANDOFF-to-CODE (round v8-15)
+
+**Caught up with the build's `HANDOFF-to-DESIGN-9.md` (build v=374, main `6a822b9`) as of Oct 9, 2026.** This round is mostly an answer: no new features to build. The prototype was brought up to date with what you shipped. New options file: `Handoff 9 Options.dc.html` (Q42, Q44, Q45, Q46, Q47 + Q37 + Q39, Q48). Nothing is picked yet; the owner chooses next round.
+
+## New since v8-14 (Oct 9)
+
+### 1. Acknowledged
+- **Rows 106–211: all approved**, including every *Owner call that stands*. From now on, where HANDOFF-to-DESIGN-9 and older design files disagree, the build wins.
+- **§2 inventions: approved** (visitor line, What's Spark Hub? sheet, Pick messages, drag to close). Drag to close needs no stronger cue at the threshold; the buzz is enough.
+- **§3 behaviour: approved.**
+- **Q40 (spots when posting): superseded** by rows 188 and 195. One *Add a sign-up* pop-up with times and options inside the item sheet is right; there are no separate spot chips.
+
+### 2. Prototype brought up to date (nothing to build; these match the build now)
+- **Event header (row 143):** a lead sees a round pencil (Edit event) and a Share icon whose menu is *Share link · QR code*. The ⋯ is gone.
+- **RSVP (rows 136, 146, 184, 189, 199):** *You're hosting* bar for the lead (no Change). Can't go is an outlined sad face. Guest sheet titled *RSVP: Going / Maybe / Can't go*, with name, stepper, a solid answer button, then **Sign in · Create account**. *Keep this event* card (bookmark, ×) under the RSVP, 18px apart.
+- **Ideas tab and a group's Ideas (rows 141, 152, 171, 190, 206):** Tiles first, a 5px gold edge down the left in Tiles (top in Grid), sort *Newest · Popular · Almost a Plan*, person icon + count, Private chip above the title. A group's Ideas use the same board. Gold empty state.
+- **Idea page (rows 203, 204):** *Hold 7 more days* only in the hold's last 2 days. Pick ends with *Another date* / *Somewhere else*.
+- **Plan an event (rows 196–198, 207, 209):** WHEN & WHERE filled in place (*One day ⌄* / *Create a poll*, date + time fields, then Address with suggestions, then *Location name (optional)*). SIGN UP is the dashed box. Description is 500 characters. POST TO starts as red *Pick a group*.
+- **Add a sign-up (row 195):** starters as sentences with a blank, a dashed *Write your own*, the name field, *+ Add details, times or options*, count, Save.
+- **Not yet redrawn in the prototype** (the build is right, no action): Welcome / What's Spark Hub?, sign-in + six-box code, the Sign up section on the event page and *You're signed up!*, Settings / Me REQUEST chips, *Start here!*, multi-day list rows, description as a paragraph on the event page.
+
+### 3. Owner picks (Oct 9, `Handoff 9 Options.dc.html`)
+- **Q38:** (a) **7a** dark `#2a1d00` text on Maybe gold. (b) **8b + 16c** your own item card gets an orange ring (`#f5b48a`) on `#fff6f0`, and the held **✓ You're in** button is **solid green** `#149a4b` with white text (it was the orange pill). (c) **9a** orange Helping rows. (d) **10a** both pills. (e) **11a** date + time chips. (f) **12a** keep *People can invite friends* under Post to. (g) **13a** tile dates take the role colour (gold Maybe, orange Helping). (h) **14a** *Date TBD*. (i) **15c** no dots; descriptions as a paragraph (old events keep theirs until edited, row 149).
+- **Q42 → 1a:** emoji button at the left of the writing pill; an outlined heart first in each post's Reply row, pink `#d6246e` with a count once liked, tap again to undo. No push for likes, no sorting by likes.
+- **Q44 → 2a:** Post to uses rounded checkbox squares, the line *Choose all that apply*, and **Done · N groups**. Public / Private stay radios.
+- **Q45 → no start-rough. A Plan needs a date, full stop.** Plan an event and Edit event drop every poll: no *Create a poll* for the date or the location, and a date poll no longer counts as a date (Post it stays grey until there's a real date). Polls stay on Ideas only (When? / Where? votes). Existing plans with an open poll: please say how many there are; we'd turn them back into Ideas.
+- **Prototype:** all of the above is now drawn in `Spark Hub App Version 8.dc.html` (Discussion heart + emoji, Post to squares, Plan an event label icons + LIKE THIS examples, the Leading this Idea sheet from the lead row's Change, green You're in, role-coloured tile dates, Date TBD, description paragraphs, no polls in Plan an event).
+- **Q46 → 4a:** a small coloured icon tile on each section label (Description purple, Sign up orange, and so on), lighter *Optional*, a 132px description, and the empty Sign up box shows two greyed examples (*LIKE THIS*: Bring a carton of eggs · 10 spots, Help set up the tent · 3 spots) above **+ Add a sign-up**.
+- **Q47 + Q37 → 5a:** on an Idea, a *You're leading · with Sam · Change* card opens **Leading this Idea**: Co-leads, Hand it to someone, Step back (*It goes back to {starter}. You stay interested.*), and a quiet red *Cancel this Idea* that swaps the sheet to its confirm. The vibe board and quick details go back on the Idea page under What to expect.
+- **Q39:** covered by 5a; the starter keeps *Change* on the lead (it opens the hand-off step).
+- **Q48 → 6b:** an Idea's link preview title is **Help plan: {title}**, with *Maybe {date} · On Spark Hub* on the line under it. Plans are unchanged.
+- **Q41, Q43:** not taken up this round.
+- **Q41 (resource library), Q43 (card wording):** not taken up this round.
+
+---
+
+# Round v8-14
 
 **Caught up with the build's `HANDOFF-to-DESIGN-8.md` (baseline v8-12) as of Oct 6, 2026** (read, not yet answered; it's next). Build *New since v8-13* (top), then earlier rounds below if not done yet. New options files: `options/Create In Place Options.dc.html` + `options/Create In Place 1a.dc.html` (1a picked), `options/Create Page Tidy Options.dc.html`, `options/Inspo Photos Options.dc.html`, `options/Participate Options.dc.html`, `options/RSVP Button Options.dc.html` (1a before + 1d after).
 

@@ -25,8 +25,9 @@ test('shared links preview the idea or group (invite-only ones without time or p
     expect(ideaId).not.toContain(code);
     let r = await serve({ e: code });
     expect(r.headers['Content-Type']).toMatch(/text\/html/);
-    expect(og(r.body, 'title')).toBe(title);
-    expect(r.body).toContain('<title>' + title + ' · Spark Hub</title>');
+    // an idea (not a plan yet) reads "Help plan: {title}" (Design v8-15, Q48 6b)
+    expect(og(r.body, 'title')).toBe('Help plan: ' + title);
+    expect(r.body).toContain('<title>Help plan: ' + title + ' · Spark Hub</title>');
     expect(og(r.body, 'description')).toBe('On Spark Hub');
     expect(og(r.body, 'description')).not.toContain('Torrez');
     // no cover or mood photo: its home group's photo (owner, 2026-10-07; 20261115000000_multi_day_fixes.sql), else the Spark Hub card
@@ -41,8 +42,12 @@ test('shared links preview the idea or group (invite-only ones without time or p
     // Invite-only: the title (and date) but no time or place (owner, 2026-10-07; 20261117000000_private_link_preview.sql)
     await asUser(page, async (c, _C, id) => { await c.from('sparks').update({ visibility: 'invite' }).eq('id', id); }, ideaId);
     r = await serve({ e: code });
-    expect(og(r.body, 'title')).toBe(title);
+    expect(og(r.body, 'title')).toBe('Help plan: ' + title);
     expect(og(r.body, 'description')).toBe('On Spark Hub');
+    // with a date the line under it says Maybe {date}
+    await asUser(page, async (c, _C, id) => { await c.from('sparks').update({ day_date: '2027-03-04' }).eq('id', id); }, ideaId);
+    r = await serve({ e: code });
+    expect(og(r.body, 'description')).toBe('Maybe Thu, Mar 4 · On Spark Hub');
 
     // Unknown or malformed links: generic
     expect(og((await serve({ e: 'zzzzzzzz' })).body, 'title')).toBe('Spark Hub');

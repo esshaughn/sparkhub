@@ -1,7 +1,7 @@
 // Plan an event (v8-14): one page (title, When & where, description, How to participate, Visibility), polls, jobs, drafts,
 // then the host's edit pop-ups on the event page.
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newLead, button, postEvent, openIdea, confirm, startPost, startFloat, asUser, closeAskFirst, pickKind, pickDate, pickTime, timeBox, deleteIdea, ideaIdFromUrl, openAllGroups, pickPostTo } = require('./helpers');
+const { uniqueTitle, newLead, button, postEvent, openIdea, confirm, startPost, startFloat, asUser, closeAskFirst, pickKind, pickDate, pickTime, timeBox, deleteIdea, ideaIdFromUrl, openAllGroups, pickPostTo, postIdea } = require('./helpers');
 
 const inDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 
@@ -270,7 +270,8 @@ test('Plan an event is one page (v8-14): Post it waits for a title and a date; t
     await expect(flow.locator('[data-cp-row="where"]').getByLabel('Address')).toBeVisible();
     await expect(flow.locator('[data-cp-row="where"]').getByLabel('Location name')).toHaveCount(0);   // only once there's an address
     await expect(flow.locator('[data-cp-when-where]')).toHaveCSS('background-color', 'rgb(223, 226, 231)');
-    await expect(flow.locator('[data-cp-help]')).toHaveText('+ Add ways people can help or participate');   // owner, 2026-10-08
+    await expect(flow.locator('[data-cp-add-job]')).toHaveText('+ Add a sign-up');   // owner, 2026-10-08; Design v8-15 words it Add a sign-up
+    await expect(flow.locator('[data-cp-examples]')).toContainText('Bring a carton of eggs');   // Q46: two greyed examples
     await expect(flow.locator('[data-cp-desc]')).toContainText('Add inspo photos');
     await expect(flow.getByRole('switch', { name: 'People can invite friends' })).toHaveAttribute('aria-checked', 'true');   // on for Public
     // Post it stays grey until there's a title and a date; a tap says which is missing
@@ -294,7 +295,7 @@ test('Plan an event is one page (v8-14): Post it waits for a title and a date; t
     await expect(flow.getByLabel('Event title')).toHaveValue(title);
     // Date & time in the card: the start time's half-hour list, then an end time that only offers later times
     const when = flow.locator('[data-cp-row="when"]');
-    await expect(when.locator('[data-create-poll="when"]')).toBeVisible();
+    await expect(when.locator('[data-create-poll]')).toHaveCount(0);   // no polls in Plan an event (Design v8-15, Q45)
     await pickDate(when, inDays(10));
     await when.getByRole('button', { name: 'Start time' }).click();
     await expect(when.page().locator('[data-time-list] [data-time]')).toHaveCount(36);   // every 30 minutes, 6am–11:30pm (owner, 2026-10-06)
@@ -345,45 +346,15 @@ test('polls: the host posts a date poll (an idea), a member votes, the host pick
   const title = uniqueTitle('Game night');
   let id;
   try {
-    await startPost(H);
-    const flow = H.locator('[data-screen-label="New spark"]');
-    await flow.getByLabel('Event title').fill(title);
-    const whenPop = flow.locator('[data-cp-row="when"]');   // Create a poll sits under the date and time (owner, 2026-10-09)
-    await whenPop.locator('[data-create-poll="when"]').click();
-    const poll = H.getByRole('dialog', { name: 'Poll the group' });
-    await expect(poll).toContainText('Create a poll');
-    await expect(poll.getByRole('button', { name: 'Save', exact: true })).toHaveAttribute('aria-disabled', 'true');
-    await pickDate(poll, inDays(15), 'Date option 1');
-    // The same date twice is refused (it used to make posting fail)
-    await pickDate(poll, inDays(15), 'Date option 2');
-    await poll.getByRole('button', { name: 'Start poll · 2 options', exact: true }).click();
-    await expect(H.getByText('Two options are the same date and time. Change or remove one.')).toBeVisible();
-    // The calendar floats over the app, whole, inside the screen (create flow audit, 2026-10-07: it was cut off in pop-ups)
-    await poll.getByRole('button', { name: 'Date option 2', exact: true }).click();
-    const cal = await H.locator('[data-calendar]').boundingBox(), vp = H.viewportSize();
-    expect(cal.x).toBeGreaterThanOrEqual(0);
-    expect(cal.x + cal.width).toBeLessThanOrEqual(vp.width);
-    expect(cal.y + cal.height).toBeLessThanOrEqual(vp.height);
-    await H.locator('[data-calendar] [data-day="' + inDays(15) + '"]').click();
-    // The time is the app's own list, like the calendar (not the browser's menu); No time clears it
-    await poll.getByRole('button', { name: 'Time option 1' }).click();
-    await pickTime(poll, '18:00');
-    await expect(timeBox(poll, 'Time option 1')).toHaveValue('6pm');
-    await poll.getByRole('button', { name: 'Time option 1' }).click();
-    await poll.page().locator('[data-time-list]').getByRole('option', { name: 'No time', exact: true }).click();
-    await expect(timeBox(poll, 'Time option 1')).toHaveValue('');
-    await expect(timeBox(poll, 'Time option 1')).toHaveAttribute('placeholder', '+ Add time');
-    await pickDate(poll, inDays(16), 'Date option 2');
-    await poll.getByRole('button', { name: 'Start poll · 2 options', exact: true }).click();
-    // A date poll counts as the date: its card replaces the fields, Post it is purple, and it goes up as an idea
-    await expect(whenPop.locator('[data-poll]')).toContainText('POLL · 2 OPTIONS');
-    await expect(flow.locator('[data-post]')).toHaveAttribute('aria-disabled', 'false');
-
-    await flow.locator('[data-post]').click();
-    // An idea with a lead uses the new idea page (v8-8, Q31): the lead gets the checklist, members the Led by card
+    // Plan an event has no polls any more (Design v8-15, Q45); an idea with a date poll is made directly (Float an Idea has its own poll tests)
+    id = await postIdea(H, { title });
+    await asUser(H, async (c, _C, { id, days }) => {
+      const me = (await c.auth.getUser()).data.user.id;
+      const r = await c.from('date_options').insert(days.map(d => ({ spark_id: id, day_date: d, who: me })));
+      if (r.error) throw new Error(r.error.message);
+    }, { id, days: [inDays(15), inDays(16)] });
+    await H.reload();
     await expect(H.locator('[data-screen-label="Idea page (8b)"]')).toBeVisible();
-    await closeAskFirst(H);
-    id = await H.evaluate(() => location.hash.split('/').pop());
 
     await openIdea(O, id);
     const OI = O.locator('[data-screen-label="Idea page (8b)"]');
@@ -432,6 +403,7 @@ test('polls: the host posts a date poll (an idea), a member votes, the host pick
     await expect(H.getByRole('status')).toContainText('Location set');
     await HI.locator('[data-make-it-plan]').click();
     // Review, prefilled; Post it turns the idea into the event (the same record)
+    const flow = H.locator('[data-screen-label="New spark"]');
     await expect(flow.locator('[data-ready-count]')).toBeVisible();
     await expect(flow.locator('[data-review-edit="where"]')).toContainText('Pease Park');
     await flow.locator('[data-post]').click();
@@ -448,7 +420,7 @@ test('polls: the host posts a date poll (an idea), a member votes, the host pick
     await when.locator('[data-back-to-idea]').click();
     await confirm(H, 'Back to an Idea');
     await expect(HI).toBeVisible();
-    await expect(HI.locator('[data-make-this-plan]')).toContainText('You’re leading it');   // the lead keeps it; only the date comes off
+    await expect(HI.locator('[data-make-this-plan]')).toContainText('You’re leading');   // the lead keeps it; only the date comes off
     await expect(HI.locator('[data-make-it-plan]')).toHaveText('Add a date first');
     expect(host.errors).toEqual([]);
     expect(member.errors).toEqual([]);
@@ -655,7 +627,7 @@ test('Sign up: + Add opens the starters pop-up; a bare starter can’t be saved'
     await job.getByRole('button', { name: 'Save', exact: true }).click();
     // The job's row, and the empty-state lines are gone; the card is white
     await expect(flow.locator('[data-job="Bring a ball"]')).toBeVisible();
-    await expect(flow.locator('[data-cp-help]')).not.toContainText('+ Add ways people can help or participate');
+    await expect(flow.locator('[data-cp-help]')).not.toContainText('+ Add a sign-up');
     await expect(flow.locator('[data-cp-help]')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
 
     await flow.locator('[data-post]').click();

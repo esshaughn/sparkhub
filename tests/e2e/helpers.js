@@ -189,7 +189,8 @@ async function pickPostTo(page) {
   await page.locator('[data-post-to]').click();
   const to = page.getByRole('dialog', { name: 'Post to' });
   await to.getByRole('checkbox', { name: /Torrez Fitness/ }).click();
-  await to.getByRole('button', { name: 'Done' }).click();
+  await expect(to).toContainText('Choose all that apply');   // squares, pick several (Design v8-15, Q44)
+  await to.getByRole('button', { name: 'Done · 1 group' }).click();
 }
 // …and Float an idea opens the Float sheet (v8-4 §5)
 async function startFloat(page) {
