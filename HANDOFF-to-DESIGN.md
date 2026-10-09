@@ -2,24 +2,83 @@
 
 **Direction:** code → design. This describes what's built, so the next design round starts from what shipped rather than from the design file.
 
-- **Built (test):** https://gosparkhub-git-test-eric-5958s-projects.vercel.app · **Live:** https://gosparkhub.vercel.app (also https://sparkhub.wereallneighbors.org)
+- **Built (test):** https://gosparkhub-git-test-eric-5958s-projects.vercel.app · **Live:** https://sparkhub.wereallneighbors.org (gosparkhub.vercel.app redirects there)
 - **Source:** github.com/esshaughn/sparkhub (`index.html`, `js/sparks.js`, `css/sparks.css`, `privacy.html`, `supabase/templates/`)
-- **Baseline:** Claude Design's **round v8-13** (zip *Spark Hub v8-13*, 2026-10-06; v8-12 before it: `design/spark-hub/Spark Hub App Version 8.dc.html` and `design/spark-hub/HANDOFF-to-CODE.md`). It approved rows 96–105, §2 and §3 of *HANDOFF-to-DESIGN-7*, so those are cleared; rows 106–114 (v8-7) stay until Design has seen them.
-- **Build version:** **v7** (owner, 2026-10-02): a lead is a choice. Since v8-8 an idea is led from the start (*Who leads it · Me*) or floated (*I'll decide*), and both use the new idea page.
-- **As of:** 2026-10-09 (latest: WHEN & WHERE filled in place with Address first, and the description shown as text, rows 209–210. Before that: no Add to Home Screen of our own, Chrome's Install comes through, row 154. Before that: private ideas, a 500-character plan Description and Save draft on Float an Idea, rows 206–208. Before that: the ideas audit's bug fixes, rows 203–205. Before that: You're hosting, co-hosts invite, Welcome and What's Spark Hub? logo, rows 199–202. Before that: the + Add pop-up is titled Add a sign-up, row 195. Before that: Start here! for new accounts, row 175. Before that: a group's Ideas use the Ideas tab's board, row 171. Before that: Led by's co-leads and Contact pill, row 170. Before that: the visitor's Shared with you card, row 169. Before that: the multi-day audit fixes, rows 111, 160–163 and §3; link previews row 164; panel 1's phones and BETA chips rows 165–166. Before that: Invite people out of the lead's Share menu, row 143. Before that: All groups opens on Month, row 159. Before that: bigger list cards with no role bar, row 158. Before that: an Idea's Discussion reaches everyone interested, §3. Before that: Idea and Plan capitalised, row 157. Before that: *Float an Idea* / *Create a Plan* on the + pills, row 156. Before that: an idea's lead counts as interested, row 155. Before that: Add to Home Screen hidden, row 154. Before that: Welcome's steps match the intro, row 150. Before that: REQUEST chips and feature requests, row 153. Before that: the Ideas tab sorts Newest first, row 152. Before that: guests can send feedback, §3, and What's Spark Hub?'s *Help shape Spark Hub* panel, §2. Before that: the visitor line and What's Spark Hub? sheet, §2, and Groups start by request, row 151. Before that: Welcome's step colours, row 150. Before that: a guest's *Keep this event* card, row 146. Before that: older events' details open as one description, row 149. Before that: Runs across days is back in How long is it?, row 121. Before that: the tab title, row 148. Before that: the guest's Add to calendar pop-up and one name per action, rows 146–147, and the old address retired, §3. Before that: Welcome to {group}'s colours and the desktop frame, rows 144–145, and shared links on the primary address, §3. Before that: a lead's plan header is a pencil and a Share menu with *Share link*, row 143, and no Welcome flash on the way back from Google, §3. Before that: a picked date's When? card gets a calendar circle and *Time TBD*, row 142. Before that: the Ideas tab opens in Tiles with a view menu, row 141. Before that: the owner's fix-8 calls and the first-encounter audit fixes, rows 134–140 (migration `20261112000000_seen_on_account.sql`: first-run flags on the account). Before that: the ideas audit's fixes 3–8, rows 128–133 and §3 (migration `20261111000000_idea_handoffs.sql`). Before that: fixes 1–2, rows 125–127. Before that: built round **v8-14**'s item 1, the one-page Plan an event, and the prototype's unlisted changes, table below. Before that: drag to close on every slide-up, §2. Before that: no counts on the RSVP buttons, row 124. Before that: built round **v8-13**'s *New since v8-12* list, table below). Before that: v8-12, v8-11 (migration `20261110000000_plus_ones.sql`), v8-10, then the prototype audit and *Owner calls that stand* (below). Earlier 2026-10-06: built round **v8-8**'s *New since v8-7* list (items 1–9, table below; migration `20261109000000_led_ideas.sql`). The *Answered* and *Already decided* items in the same file are listed in §4 until they're built.
+- **Baseline:** Claude Design's **round v8-14** (`design/spark-hub/HANDOFF-to-CODE.md` and `Spark Hub App Version 8.dc.html`, 2026-10-06 evening). Design had read neither *HANDOFF-to-DESIGN-8* nor anything after it, so **rows 106–211, every round table and every owner call below are unacknowledged**.
+- **Build version:** **v8** (v7 from owner, 2026-10-02): a lead is a choice. Since v8-8 an idea is led from the start (*Who leads it · Me*) or floated (*I'll decide*), and both use the new idea page.
+- **As of:** 2026-10-09 (build v=374, main `6a822b9`). Latest: Plan an event's WHEN & WHERE filled in place and descriptions as text (rows 209–210), Google Places suggestions (row 211). The date-by-date history is in git (`git log -- HANDOFF-to-DESIGN.md`); the by-area summary is *Start here* below.
 
-## Start here (2026-10-06)
+## Start here (2026-10-09): the big catch-up
 
-Your last catch-up was *HANDOFF-to-DESIGN-7* (baseline v8-6). Everything below is new since then, all **live** at sparkhub.wereallneighbors.org as of 2026-10-06 (v=246):
+**Your last file from us was round v8-14 (2026-10-06, evening), and you had not yet answered *HANDOFF-to-DESIGN-8*.** Since then the build has had ~137 commits in three days (Oct 7–9), nearly all from the owner's own use of the app, two audits of it (sign-in/first encounter, jobs, multi-day, ideas) and the pilot groups' feedback. Everything below is **live** at sparkhub.wereallneighbors.org (build v=374, 2026-10-09) unless it says otherwise. The prototype `Spark Hub App Version 8.dc.html` is now behind in many places; this section tells you where, and §1 has every detail (rows 106–211, the new ones are 134–211).
 
-1. **Rounds v8-7 → v8-13**, each as a short table (newest first): what was built as drawn, and every place the build differs. v8-12 and v8-13 are the event header (4a + 8a) and where the overview lives. v8-11 added plus-ones (a database change), the guest flows, the Share link pop-up and the event QR.
-2. **The prototype audit** (2026-10-06): ~60 spots where the prototype had been redrawn without a *New since* item, now matching.
-3. **Owner calls that stand**: 13 spots where the owner chose differently and the prototype still draws the old version. Please redraw these.
-4. **§1–§3**: rows 106–123 and the behaviour notes you haven't acknowledged yet, plus the 2026-10-06 privacy page and link-preview changes (§3).
-5. **§4** what's designed but not built (group invites, the led-idea tools lost in v8-8, per-day multi-day pushes…) and **§5** the open questions (Q1–Q39 still open, newest Q36–Q39).
-6. **New questions from the v8-10 and v8-11 tables:** the gold sheet keeping *See N more*; a *Private* chip on the Groups tab's Next up card (not a photo card in the build); *+N* and the hosts' note in Who's coming (built from your "not yet in the prototype" line, please draw it).
+**How to read this file, in order:**
+1. **This section** (10 minutes): what changed, by area, and what to redraw first.
+2. **Owner calls that stand** (below): where the owner chose differently from the prototype. Redraw these.
+3. **§1 rows 106–211**: each change with the exact sizes, colours and copy. Rows say *Design said / Why* so you can see what moved.
+4. **Round tables v8-7 → v8-14**: what was built as drawn and every place it differs.
+5. **§4 / §5**: what's designed but not built, and the open questions (Q41–Q48 are new today).
 
-Where this doc and the design files disagree, **this doc is correct**. One file per side: please keep sending `HANDOFF-to-CODE.md`; this file is the reply (call it *HANDOFF-to-DESIGN-8*).
+Where this doc and the design files disagree, **this doc is correct**. One file per side: please keep sending `HANDOFF-to-CODE.md`; this file is the reply (call it *HANDOFF-to-DESIGN-9*).
+
+### What changed, by area
+
+**1. The front door and the first minute** (rows 136–140, 144–151, 153–154, 166, 168–169, 174–178, 184, 194, 201–202, §2, §3)
+- **Welcome** now reads *Make plans with your people.*, the mark + BETA at the top centre over a dark fade, three steps *Float an idea* (gold) · *Everybody pitches in* (orange) · *Make it a plan* (purple), then *What's Spark Hub? ›*; a park-picnic photo. In the installed app it just says *Sign in once to pick up where you left off.*
+- **What's Spark Hub?** is a new two-panel sheet (about the app, *How it works*) with three fanned phone screens, reachable from Welcome, the visitor card, *Start here!* and Me. A *Start here!* banner sits on My calendar for new accounts.
+- **A person with an event link** (a guest) gets a soft-pink, temporary *Shared with you on Spark Hub* card under the RSVP, a guest RSVP that leads with the RSVP and asks for an account once afterwards (*Keep this event*), and **Sign in · Create account** buttons. One six-box code step everywhere. *Sign in*, never *log in*.
+- **Groups start by request** (Eric reads the request), and everything not built yet wears a gold **REQUEST** chip (was SOON) that opens a feature request. A **BETA** chip sits beside every wordmark.
+- **We deleted our own Add to Home Screen** (row 154); Chrome's own Install shows on Android.
+
+**2. Plan an event is one page** (v8-14 table, rows 134, 192–193, 195–198, 207, 209–211)
+- The 4-step flow is gone: one page that looks like the finished event (title typed into the header, WHEN & WHERE, EVENT DESCRIPTION up to 500 characters, **SIGN UP** as a dashed box, VISIBILITY, Post it, Save draft). Plan an event picks no group for you.
+- **New today (row 209):** WHEN & WHERE is *filled in place*, no pop-ups: *One day ⌄ / Create a poll* over date and time fields, then an **Address** field first (suggestions under it), and a *Location name (optional)* that appears after. Descriptions keep their line breaks and show as a paragraph (row 210).
+- **Add a sign-up** is one pop-up: starter sentences (*Bring ___*, *Help with ___*…) over the name field, a dashed *Write your own*, and a *HOW IT WILL LOOK* card was tried then dropped (rows 195–197).
+
+**3. Sign up: jobs and spots became one thing** (rows 173, 179–183, 185–188, 195, 197; migration `20261119…one_kind_of_signup`)
+- The old *Help out* + *Take part* are one section called **Sign up**: every item is one card with options (times, seats, a most-per-person limit, a waitlist, a *guests can sign up* option) and one purple-outline **Sign up** button; a held one is the orange **✓ You're in**. Signing up opens a centred **You're signed up!** recap (jobs and spots alike), refusals say why, hosts tap faces to see **Who's signed up** and can remove someone, and *My tasks* shows the right day and name.
+
+**4. Ideas** (rows 128–133, 141, 152, 155, 171, 190–191, 203–206, 208; v8-8 table)
+- Ideas are led from the start (*Who leads it · Me*) or floated (*I'll decide*). The Ideas tab opens in **Tiles** (view menu: Tiles ✓ · Grid), sorted **Newest** first; a group's own Ideas use the same board. Gold everywhere.
+- **New Oct 8–9:** ideas can be **Private** (Public/Private radios in Float an Idea and the idea's Post to pop-up, a lock **Private** chip above the card title), **Save draft** on Float an Idea, **Hold 7 more days**, **Pick: Another date / Somewhere else** (your own entry), and the idea's description shows in full (200 characters).
+
+**5. The event page** (v8-12/13 tables, rows 124, 142–143, 164, 167, 169–170, 187, 189, 199–200)
+- Header: date tile top right, a grey cap under the photo; a lead has a pencil (Edit event) and a Share icon (*Share link · QR code*). Overview always under the title.
+- RSVP card is the 1a/1d version (no counts in buttons, one coloured line after you answer, a purple **Change**); **Can't go** is an outlined sad face. **The lead's bar reads *You're hosting*** with no Change (row 199); co-hosts get **Invite people** too (row 200).
+- *Led by* shows co-leads to everyone, with a small **Contact** pill (REQUEST).
+
+**6. Multi-day events and the lists** (rows 106–113, 158–163, 172; v8-7 table)
+- One day · **Runs across days** · Separate days (Recurring is a REQUEST). Every upcoming day of a multi-day event gets its own list row (*Day 2 of 3*); past days dim and today is marked. Bigger list cards (17px titles, no colour bar). All groups always opens on **Month**.
+
+**7. Behind the screens** (§3): replies, comments and idea discussion now reach the right people (one push each, not two); moving a time tells the people holding it; guests can send feedback; private events' link previews hide time and place; short links `/e/code`; the old `gosparkhub.vercel.app` address redirects.
+
+### Redraw first: where the prototype is now wrong
+
+These are the screens a designer would notice first. Each is an owner call or a built-and-approved change the prototype doesn't show. (Rows in brackets.)
+
+| Screen | What to redraw |
+|---|---|
+| Welcome and What's Spark Hub? | New headline, steps, logo placement, picnic photo, two panels with fanned phones, BETA chips [144, 150, 165–166, 168, 194, 201–202] |
+| Plan an event | One page, filled in place, Address first; SIGN UP dashed box; no default group; 500-character description; Post it / Save draft [v8-14, 134, 196–198, 207, 209–210] |
+| + Add (a sign-up) | One pop-up, starters as sentences, no preview card [195] |
+| Event page sign-ups | One **Sign up** section, one card style, **You're signed up!** recap, Who's signed up [173, 179–188] |
+| Event page RSVP | *You're hosting* bar; sad-face Can't go; guest sheet with Sign in · Create account; Keep this event; pink visitor card [146, 169, 178, 184, 189, 199] |
+| Event page header | Pencil + Share (QR, Share link), Invite people for every host, Contact pill on Led by [143, 170, 200] |
+| Ideas tab and a group's Ideas | Tiles first with a view menu, gold edge down the left, Newest first, Private chip, gold empty state [141, 152, 171, 190, 206] |
+| Idea page | Pick: Another date / Somewhere else; Hold 7 more days; description in full; Save draft on Float [203–205, 208] |
+| Lists (My calendar, groups) | 17px titles, no role bar, multi-day rows, All groups on Month [111, 158–163, 172] |
+| Sign-in | One heading, *Two ways to sign in*, *Email sign-in code*, six-box code step [174, 176] |
+| Settings / Me | No Add to Home Screen; REQUEST chips; *Start here!* [153–154, 175] |
+
+### What's coming that you can weigh in on
+
+None of these are built. They come from the owner's own list and the pilot groups (`BACKLOG.md`), so the shapes are leans, not decisions:
+- **Resource library / asset-based community development** (Q41): a card per thing a person can offer, shown as suggestions when a lead adds a sign-up.
+- **Discussion polish** (Q42): comment spacing, an emoji button, a like.
+- **Event cards that say *6 spots left*** (Q43) read like an RSVP cap.
+- **Post to pop-up** (Q44) looks single-choice but isn't.
+- **Date: start rough, narrow down** (Q45) and the **Plan an event polish list** (Q46).
+- **Lead controls in one place** (Q47).
 
 ---
 
@@ -171,6 +230,16 @@ Never cleared on a reset. These are places where the owner chose differently fro
 | Ideas tab view | **Tiles first**, and the view switcher is an icon + chevron menu (*Tiles* ✓ · *Grid*); Tiles cards have the gold edge down the left side (owner, 2026-10-07) | Grid first, a two-icon pill, the gold edge on top |
 | Picked date on When? | A gold calendar circle like Where?'s pin, no date page; no time reads *Time TBD* (owner, 2026-10-07) | The weekday/date calendar page; *Time to be decided* |
 | How long is it? | **Runs across days is on** (One day · Runs across days · Separate days); only Recurring is Coming soon (owner, 2026-10-07) | Recurring and Runs across days both Coming soon |
+| Event page RSVP (lead) | **You're hosting** bar with no Change; co-hosts who are going keep Change (owner, 2026-10-08, row 199) | The same *You're going · Change* bar for everyone |
+| Can't go | An outlined sad face (owner, 2026-10-07, row 189) | An × in a dark circle |
+| Welcome | *Make plans with your people.*, the mark + BETA top centre, steps *Float an idea* (gold) · *Everybody pitches in* (orange) · *Make it a plan* (purple), then *What's Spark Hub? ›*, 34px circles (rows 150, 201) | *Plans with your people.*, the mark above the headline, 28px circles, *Make a plan · RSVP & pitch in · Make it happen* |
+| Sign-in pop-up | *Two ways to sign in:* above Google, **Email sign-in code**, *sign in* never *log in*, a Privacy link under the form (row 174) | *Email me a code*, longer lines |
+| Plan an event: where it posts | **No group picked for you**: POST TO starts as *Pick a group* (red) (row 198) | Starts on the group you were in |
+| Plan an event: sign-ups | A dashed **+ Add ways people can help or participate** box that opens one **Add a sign-up** pop-up (rows 195–197) | A grey card with *Need people to bring things or help out?* and a white + Add |
+| Plan an event: WHEN & WHERE | Filled in place, **Address first**, then *Location name (optional)* (row 209) | Rows that open pop-ups |
+| Plan an event: description | 500 characters (row 207), shown as a paragraph with line breaks (row 210) | 200, one bulleted line |
+| Ideas can be private | Public / Private radios in Float an Idea and in the idea page's Post to; a lock **Private** chip above the card title (row 206) | No visibility choice for ideas |
+| Visitor card | Soft pink, temporary (an ×), under the RSVP, with a quiet *What's Spark Hub? ›* (row 169) | A white card above the RSVP, a bold purple link |
 | A lead's plan header | **A pencil (Edit event) and a Share icon** whose menu is *Share link · QR code*; no ⋯ (owner, 2026-10-07; Invite people left the menu the same day: the solid *Invite people* button under the RSVP card does it) | One ⋯ with Edit event · Invite people · QR code |
 
 ## 1. What changed since the design
@@ -283,6 +352,7 @@ Never cleared on a reset. These are places where the owner chose differently fro
 | 208 | **Float an Idea has Save draft** (owner, 2026-10-08): once a title is typed, a **Save draft** link (15px/800 #454b55, 44px tall, centred; *Saving…* while it saves) sits under **Next** on page 1 and under Back · **Float the Idea** on page 2. It saves the idea to the account's drafts (the same draft as *Pick this up later?*) and closes the sheet with *Saved as a draft* | Only the × offered a draft, through *Pick this up later?* | Owner's call |
 | 209 | **Plan an event: WHEN & WHERE is filled in place** (owner, 2026-10-09): no rows opening pop-ups. The card holds *One day ⌄* (left) and *Create a poll* (right, 13.5px/700 #6b7280) over the date and time fields (the pop-up's own fields, white, 46px); then a divider and an **Address** field (white, 46px, 14px corners, a #9aa0ac pin, placeholder *Address*) with the place suggestions under it. Once there's an address (and the suggestions are closed) a second field shows, *Location name (optional)* (800 weight). Picking a named place (a park, a café) fills the address and, if empty, the name. With no name the event's location is the address's first part (*1100 Congress Avenue*) with the whole address under it. The location's *Create a poll* is hidden for now (owner). Make it a Plan's review pop-up uses the same Address-first fields | A *Add date & time* row and an *Add location (optional)* row, each opening a pop-up; Location name over Address | Fewer taps; most people know the address, not a name |
 | 210 | **A description is text, not a bullet** (owner, 2026-10-09): What to expect (plans) and the idea page show the event description as a paragraph with its line breaks (17px/500 #0d1117, pre-wrap), no green or gold dot. Older events' quick-detail lines keep their dots | One bulleted line | The description is a paragraph; people type line breaks |
+| 211 | **Place suggestions can come from Google** (owner, 2026-10-09): Address and Location name fields search Google Places (autocomplete while typing, then the picked place's name, address and point); the list says *Powered by Google*. **Not switched on yet**: the browser key is empty in `js/config.js`, so Geoapify's suggestions still show until it is set | Geoapify's list | The owner wasn't happy with Geoapify's results |
 
 ## 2. Things the build had to invent (please design these properly)
 
@@ -344,6 +414,14 @@ Never cleared on a reset. These are places where the owner chose differently fro
 38. **Prototype details that look unintended. Which is meant?** (a) Maybe picked on the RSVP card: white text on the pale gold stripes (the build uses dark #2a1d00 so it reads). (b) A member's own job card ring is teal #9fd8d3, and the build's is gold; neither is the v8-6 orange. (c) *You're helping* rows are gold in the prototype; the build uses orange per v8-6. (d) Plan an event's Next has 14px corners beside a pill-shaped Back. (e) *+ Suggest a date* on an idea opens the old *Got a date & time in mind?* free-text pop-up; the build uses a date + time chips. (f) Review has no *People going can invite friends* switch (the build keeps it under Post to). (g) Tile dates for Helping / Maybe are green on My calendar. (h) All groups labels undated plans *Ideas · no date yet*. (i) The quick-detail dots: green 7px in Plan an event, gold 8px in the older flow.
 39. **Choose a lead:** the prototype's *Choose* makes someone lead at once; the build asks them (Q32). Once someone else leads, the starter no longer sees Make this a plan, so the Lead row's *Change* can't be reached. Should the starter keep a way to change the lead?
 40. **Take part when posting (v8-14):** the one-page Add a job pop-up has no Claim time / Claim seat. The build keeps them under the kinds (TAKE PART, a line above) so spots can be set up while posting. Should they stay there, move, or only be added from the event page?
+41. **Resource library (the owner's idea, 2026-10-08; `BACKLOG.md`):** a short card per thing a person can offer (*10 electric candles*, *a truck anyone can use*, a yard, a skill: what · how many · who · which groups · optional when it's free), no open feed. Shown on a group's *What we have* page, as suggestions when a lead adds a sign-up (*Roxy has electric candles. Ask?*) and as places in the location field. Where does it live, and how does an offer look next to a sign-up? Cautions: stays inside a person's groups, no leaderboards or points.
+42. **Discussion polish:** the top-level comment sits too high (centre it between the thread's top and the Reply / Hide replies / Delete row); an emoji button by the box; a like (heart with a small count, tap again to undo). GIFs are later. What should a like look like without turning Discussion into a feed?
+43. **Event cards say *6 spots left · 1 going* · RSVP**, which reads like a cap on how many can come, when it counts open sign-ups. By case: capped event → *6 spots left*; open sign-ups → *Needs help · 6* or *6 ways to help*; neither → *N going*. Which wording? The same card also shortens an address badly (*Austin, TX 78…*).
+44. **Post to pop-up:** it needs to say you can pick several (*Post to · choose all that apply*) and its round circles read as single-choice. Checkbox squares?
+45. **Date: start rough, narrow down** (from the pilot): **Set a date** plus **More options ›**, one sheet: pick a date · poll a few dates · start rough (*by end of October*, then chips: weeknights / weekend days / weekend evenings).
+46. **Plan an event polish (owner, 2026-10-07):** the page looks washed out (white and gray everywhere); *Optional* tags lighter; a taller description field; example filler in the empty Sign up box (*Bring a carton of eggs · Help set up the tent · 3 spots*) so people see what a sign-up is; shorter or no helper lines under a sign-up (*Most per person…*, *First in line gets the next open spot*…).
+47. **Lead controls scattered on an idea:** hand-off, step back and *Post to* live in different places. The owner's sketch: a *You're leading · Change* sheet (hand off to a co-lead or someone else, step back, a quiet Cancel the event that steps forward to its confirm on the same sheet). Also *Make this a plan* could be framed as what's left (*What we need*). Also: date votes look like buttons that cast a vote, so move *N can go* out of the buttons and make *See votes* louder, with faces.
+48. **Different link-preview titles for ideas and plans** (owner asked, wording not chosen): *Idea: {title} – {date}?* vs *{title} – {date}* (plans).
 
 ## 6. Design tokens
 
