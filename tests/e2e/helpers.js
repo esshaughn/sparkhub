@@ -52,11 +52,12 @@ const FAKE_GOOGLE = {
     { placePrediction: { placeId: 'ChIJcongress110000000', types: ['street_address', 'geocode'], text: { text: '1100 Congress Avenue, Austin, TX, USA' },
       structuredFormat: { mainText: { text: '1100 Congress Avenue' }, secondaryText: { text: 'Austin, TX 78701, USA' } } } }
   ],
-  ChIJzilkerPark00000000: { displayName: { text: 'Zilker Metropolitan Park' }, formattedAddress: '2100 Barton Springs Road, Austin, TX 78746, USA', location: { latitude: 30.2669, longitude: -97.7729 } },
-  ChIJcongress110000000: { displayName: { text: '1100 Congress Avenue' }, formattedAddress: '1100 Congress Avenue, Austin, TX 78701, USA', location: { latitude: 30.2747, longitude: -97.7404 } }
+  ChIJzilkerPark00000000: { displayName: { text: 'Zilker Metropolitan Park' }, formattedAddress: '2100 Barton Springs Road, Austin, TX 78746, USA' },
+  ChIJcongress110000000: { displayName: { text: '1100 Congress Avenue' }, formattedAddress: '1100 Congress Avenue, Austin, TX 78701, USA' }
 };
 async function mockPlaces(target) {
   const seen = [];
+  seen.masks = [];   // the field mask of each Place Details call (never asks for the location: Google's terms)
   await target.route('https://api.geoapify.com/**', (route) => {
     seen.push(route.request().url());
     route.fulfill({ json: { results: FAKE_PLACES } });
@@ -70,6 +71,7 @@ async function mockPlaces(target) {
       seen.push(u.toString());
       return route.fulfill({ json: { suggestions: FAKE_GOOGLE.suggestions } });
     }
+    seen.masks.push(req.headers()['x-goog-fieldmask'] || '');
     route.fulfill({ json: FAKE_GOOGLE[id] || {} });
   });
   return seen;

@@ -560,6 +560,9 @@ test('location suggestions: 2 letters, 4 rows, Austin area, remembered, free tex
     await list.getByRole('button', { name: /1100 Congress Avenue/ }).click();
     await expect(addr).toHaveValue(/1100 Congress Avenue.*Austin, TX 78701/);
     await expect(where.getByLabel('Location name')).toHaveValue('');
+    // Google's details are asked for the address only: no coordinates are fetched or kept
+    expect(context.placeRequests.masks.length).toBeGreaterThan(0);
+    expect(context.placeRequests.masks.join(',')).not.toContain('location');
   } finally {
     await context.close();
   }

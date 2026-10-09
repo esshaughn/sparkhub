@@ -1614,17 +1614,17 @@
       return { id: String(p.placeId || ''), name, sub: shortAddr((f.secondaryText || {}).text || ''), address: '', poi: (p.types || []).some(t => G_POI.indexOf(t) > -1), lat: null, lon: null };
     }).filter(p => { const k = p.name + '|' + p.sub; if (!p.name || !/^[\w-]{10,300}$/.test(p.id) || seen[k]) return false; return (seen[k] = true); });
   };
-  // A picked Google place: its full address and point (ends the session). Geoapify places already have them
+  // A picked Google place: its full address (ends the session). No coordinates: Google's terms don't allow keeping them,
+  // so a Google pick saves spot_lat / spot_lon as null and Directions opens from the address. Geoapify places keep theirs
   const placeDetails = async (p) => {
     if (!p || !p.id || !GPLACES) return p;
     const tok = gSession; gSession = null;
     try {
       const res = await fetch('https://places.googleapis.com/v1/places/' + encodeURIComponent(p.id) + (tok ? '?sessionToken=' + encodeURIComponent(tok) : ''), { referrerPolicy: 'origin',
-        headers: { 'X-Goog-Api-Key': GPLACES, 'X-Goog-FieldMask': 'displayName,formattedAddress,location' } });
+        headers: { 'X-Goog-Api-Key': GPLACES, 'X-Goog-FieldMask': 'displayName,formattedAddress' } });
       if (!res.ok) throw new Error('HTTP ' + res.status);
-      const d = await res.json(), lat = d.location ? +d.location.latitude : NaN, lon = d.location ? +d.location.longitude : NaN;
-      return Object.assign({}, p, { name: p.poi ? cleanTitle((d.displayName || {}).text || p.name).slice(0, 80) : p.name, address: shortAddr(d.formattedAddress || [p.name, p.sub].filter(Boolean).join(', ')),
-        lat: Number.isFinite(lat) ? lat : null, lon: Number.isFinite(lon) ? lon : null });
+      const d = await res.json();
+      return Object.assign({}, p, { name: p.poi ? cleanTitle((d.displayName || {}).text || p.name).slice(0, 80) : p.name, address: shortAddr(d.formattedAddress || [p.name, p.sub].filter(Boolean).join(', ')) });
     } catch (e) { console.warn('Place details unavailable:', e.message); return Object.assign({}, p, { address: shortAddr(p.poi ? p.sub : [p.name, p.sub].filter(Boolean).join(', ')) }); }
   };
   // Under the suggestions: whose they are (Google asks for its name next to its results)
