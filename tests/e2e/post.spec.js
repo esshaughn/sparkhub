@@ -536,11 +536,14 @@ test('location suggestions: 2 letters, 4 rows, Austin area, remembered, free tex
     await page.getByLabel('Location name').fill('zilk');
     const list = page.getByRole('group', { name: 'Suggested places' });
     await expect(list).toContainText('2100 Barton Springs Road, Austin, TX 78746');
-    await expect(list).not.toContainText('United States');
-    await expect(list).toContainText('OpenStreetMap');
-    const url = new URL(context.placeRequests[0]);
-    expect(url.searchParams.get('text')).toBe('zilk');
-    expect(url.searchParams.get('filter')).toBe('circle:-97.7431,30.2672,60000');
+    await expect(list).not.toContainText('USA');
+    await expect(list).toContainText('Powered by Google');
+    await expect(list.getByRole('button')).toHaveCount(2);          // the query suggestion is not a row
+    const first = context.placeRequests[0];
+    expect(first.url).toBe('https://places.googleapis.com/v1/places:autocomplete');
+    expect(first.key).toMatch(/^AIza/);
+    expect(first.body.input).toBe('zilk');
+    expect(first.body.locationBias.circle).toEqual({ center: { latitude: 30.2672, longitude: -97.7431 }, radius: 50000 });
 
     await page.getByLabel('Location name').fill('zilker');
     await expect.poll(() => context.placeRequests.length).toBe(2);

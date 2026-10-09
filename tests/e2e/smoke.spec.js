@@ -199,7 +199,7 @@ test('privacy page is public', async ({ request }) => {
   const res = await request.get('/privacy.html');
   expect(res.status()).toBe(200);
   const html = await res.text();
-  for (const must of ['Privacy', 'Spark Hub', 'Google', 'Geoapify', 'Resend', 'eric@ericscott-creative.com']) expect(html).toContain(must);
+  for (const must of ['Privacy', 'Spark Hub', 'Google', 'Google Places', 'Resend', 'eric@ericscott-creative.com']) expect(html).toContain(must);
 });
 
 test('members: Your tasks, Your schedule, Calendar, view and sort menus', async ({ browser }) => {

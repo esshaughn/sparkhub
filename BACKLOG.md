@@ -6,7 +6,7 @@ Parked work. Newest first. When you pick something up, move it to a branch and d
 
 **Location**
 - Name and address reported glitchy or **swapped** (someone's report). Audit how the pick fills `spot` vs `spot_address`.
-- **The suggestions drop-down isn't on the one-page form yet.** Geoapify is still on (key in `js/config.js`), but the owner isn't happy with its results.
+- **The suggestions drop-down isn't on the one-page form yet.** Location suggestions moved from Geoapify to Google Places (New) on 2026-10-09 (key in `js/config.js`) because the owner wasn't happy with Geoapify's results.
 - **No pop-up for location:** tap the field and type. Typing an address should find it (ideally filling the place name, e.g. *Activate*); the name is an optional extra (*Add a name for the place*). Research what Partiful / Luma / Apple Invites do first.
 - **List view shows only the place name or street**, never city, state and ZIP. Standardize how an address is stored and shortened.
 - The Add location pop-up's layout looks off (moot if the pop-up goes).

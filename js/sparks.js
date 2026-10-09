@@ -1584,27 +1584,29 @@
   };
 
   // ---------------------------------------------------------------------------
-  // Location suggestions (Geoapify autocomplete, OpenStreetMap data)
+  // Location suggestions (Google Places API (New) autocomplete)
   // ---------------------------------------------------------------------------
   // Suggestions only help: whatever is typed can still be used as-is. Lookups
   // start at 3 characters (2 return nothing useful), wait 150ms for a pause in
   // typing, and are remembered, so a location costs a few requests. If the
-  // service is down or over its daily limit, the list just doesn't appear.
+  // service is down, over its daily limit, or the page's address isn't on the
+  // key's allowed sites (localhost, most previews), the list just doesn't appear.
+  // A pick saves the name and address only: Google's terms don't allow keeping its
+  // coordinates, so spot_lat / spot_lon stay null and Directions uses the address.
 
   const PLACES = CFG.places || null;   // { key, lat, lon, radius (m) }
   let placeTimer = null, placeAbort = null;
   const placeCache = new Map();
   const shortAddr = (a) => (a || '').replace(/,\s*United States( of America)?$/, '').slice(0, 200);
-  const toPlaces = (results) => {
+  const toPlaces = (suggestions) => {
     const seen = {};
-    return (results || []).map(r => ({
-      name: cleanTitle(r.name || r.address_line1 || '').slice(0, 80),
-      sub: shortAddr(r.address_line2),
-      address: shortAddr(r.name ? r.address_line2 : r.formatted),
-      lat: +r.lat, lon: +r.lon
-    })).filter(p => {
+    return (suggestions || []).map(x => x.placePrediction).filter(Boolean).map(r => {
+      const sf = r.structuredFormat || {}, main = (sf.mainText || {}).text || (r.text || {}).text || '';
+      const sub = shortAddr((sf.secondaryText || {}).text);
+      return { name: cleanTitle(main).slice(0, 80), sub, address: shortAddr(sub ? main + ', ' + sub : main), lat: null, lon: null };
+    }).filter(p => {
       const k = p.name + '|' + p.sub;
-      if (!p.name || seen[k] || !Number.isFinite(p.lat) || !Number.isFinite(p.lon)) return false;
+      if (!p.name || seen[k]) return false;
       return (seen[k] = true);
     });
   };
@@ -1621,15 +1623,18 @@
     if (placeCache.has(ck)) { setState({ [key]: placeCache.get(ck) }); return; }
     placeTimer = setTimeout(async () => {
       const ctrl = placeAbort = new AbortController();
-      const url = 'https://api.geoapify.com/v1/geocode/autocomplete?format=json&limit=5&lang=en' +
-        '&text=' + encodeURIComponent(q) +
-        '&filter=circle:' + PLACES.lon + ',' + PLACES.lat + ',' + PLACES.radius +
-        '&bias=proximity:' + PLACES.lon + ',' + PLACES.lat +
-        '&apiKey=' + encodeURIComponent(PLACES.key);
       try {
-        const res = await fetch(url, { signal: ctrl.signal, referrerPolicy: 'origin' });
+        // The key only works from our own sites (it's restricted to them in Google Cloud); the Referer carries the origin
+        const res = await fetch('https://places.googleapis.com/v1/places:autocomplete', {
+          method: 'POST', signal: ctrl.signal, referrerPolicy: 'origin',
+          headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': PLACES.key },
+          body: JSON.stringify({
+            input: q, languageCode: 'en', includedRegionCode: 'us',
+            locationBias: { circle: { center: { latitude: PLACES.lat, longitude: PLACES.lon }, radius: Math.min(PLACES.radius, 50000) } }   // Google's circle bias tops out at 50 km
+          })
+        });
         if (!res.ok) throw new Error('HTTP ' + res.status);
-        const found = toPlaces((await res.json()).results);
+        const found = toPlaces((await res.json()).suggestions).slice(0, 5);
         if (placeCache.size > 100) placeCache.clear();
         placeCache.set(ck, found);
         if (state[textKey].trim() !== q || state[pickKey]) return;   // typing moved on
@@ -8876,7 +8881,7 @@
             '<span aria-hidden="true" style="flex:0 0 32px;width:32px;height:32px;border-radius:10px;background:#f3f1fe;color:#5b4ae8;display:flex;align-items:center;justify-content:center">' + I.pin(15) + '</span>' +
             '<span style="min-width:0"><span style="display:block;font-size:15.5px;line-height:1.3;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(p.name) + '</span>' +
             (p.sub ? '<span style="display:block;margin-top:1px;font-size:13px;line-height:1.35;font-weight:500;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(p.sub) + '</span>' : '') + '</span></div>').join('') +
-          '<div style="padding:8px 16px 10px;border-top:1px solid #f2f3f6;font-size:11.5px;font-weight:500;color:#9aa0ac">Powered by <a href="https://www.geoapify.com/" target="_blank" rel="noopener noreferrer" style="color:inherit">Geoapify</a> · © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" style="color:inherit">OpenStreetMap</a> contributors</div></div>' : '') +
+          '<div style="padding:8px 16px 10px;border-top:1px solid #f2f3f6;font-size:11.5px;font-weight:500;color:#9aa0ac">Powered by Google</div></div>' : '') +
     '</div>';
   };
   // What a post saves for the location: the typed address wins; a picked place's address (and point) otherwise
@@ -8916,7 +8921,7 @@
                 (p.sub ? '<span style="display:block;margin-top:1px;font-size:13px;line-height:1.35;font-weight:500;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(p.sub) + '</span>' : '') +
                 '</span></div>').join('') +
             '<div style="padding:8px 16px 10px;border-top:1px solid #f2f3f6;font-size:11.5px;font-weight:500;color:#9aa0ac">' +
-              'Powered by <a href="https://www.geoapify.com/" target="_blank" rel="noopener noreferrer" style="color:inherit">Geoapify</a> · © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" style="color:inherit">OpenStreetMap</a> contributors</div>' +
+              'Powered by Google</div>' +
           '</div>'
         : '') +
     '</div>';

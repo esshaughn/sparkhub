@@ -38,17 +38,22 @@ const TAG = '[E2E]';
 const uniqueTitle = (label) => `${TAG} ${label} ${Date.now().toString(36)}`;
 const TORREZ = 'TORREZ';   // the Torrez Fitness group's join code (test leads are members)
 
-// Location suggestions come from Geoapify. Tests never call the real service
-// (it has a daily limit); they get these two Austin places for any search.
+// Location suggestions come from Google Places (New). Tests never call the real service (it has a daily cap and the
+// key only works from our own sites); they get these two Austin places for any search. Each entry of the returned
+// list is the request body the app sent.
 const FAKE_PLACES = [
-  { name: 'Zilker Metropolitan Park', address_line1: 'Zilker Metropolitan Park', address_line2: '2100 Barton Springs Road, Austin, TX 78746, United States of America', formatted: 'Zilker Metropolitan Park, 2100 Barton Springs Road, Austin, TX 78746, United States of America', lat: 30.2669, lon: -97.7729 },
-  { address_line1: '1100 Congress Avenue', address_line2: 'Austin, TX 78701, United States of America', formatted: '1100 Congress Avenue, Austin, TX 78701, United States of America', lat: 30.2747, lon: -97.7404 }
+  { placePrediction: { placeId: 'fake-zilker', text: { text: 'Zilker Metropolitan Park, 2100 Barton Springs Road, Austin, TX, USA' },
+    structuredFormat: { mainText: { text: 'Zilker Metropolitan Park' }, secondaryText: { text: '2100 Barton Springs Road, Austin, TX 78746, USA' } } } },
+  { placePrediction: { placeId: 'fake-congress', text: { text: '1100 Congress Avenue, Austin, TX, USA' },
+    structuredFormat: { mainText: { text: '1100 Congress Avenue' }, secondaryText: { text: 'Austin, TX 78701, USA' } } } },
+  { queryPrediction: { text: { text: 'zilker park' } } }   // not a place: ignored
 ];
 async function mockPlaces(target) {
   const seen = [];
-  await target.route('https://api.geoapify.com/**', (route) => {
-    seen.push(route.request().url());
-    route.fulfill({ json: { results: FAKE_PLACES } });
+  await target.route('https://places.googleapis.com/**', (route) => {
+    const req = route.request();
+    seen.push({ url: req.url(), key: req.headers()['x-goog-api-key'], body: req.postDataJSON() });
+    route.fulfill({ json: { suggestions: FAKE_PLACES } });
   });
   return seen;
 }

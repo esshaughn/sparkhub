@@ -16,10 +16,11 @@
   // test runs never touch TEST. It still counts as the test database. The key is the Supabase CLI's fixed local one.
   if (location.hostname === '127.0.0.1') projects.test = { supabaseUrl: 'http://127.0.0.1:54321', supabaseKey: 'sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH' };
 
-  // Location suggestions (Geoapify). The key is meant to be public: it's locked
-  // to our domains in the Geoapify dashboard. Free plan: 3,000 lookups a day.
-  // lat/lon/radius = the group's home area (Torrez Fitness: Austin, TX, 60 km).
-  var places = { key: '4a3224242b3c4d8485453050591b8485', lat: 30.2672, lon: -97.7431, radius: 60000 };
+  // Location suggestions (Google Places API (New), project spark-hub-509617). The key is meant to be public: in
+  // Google Cloud it only allows the Places API (New) and only our sites (production and the test preview), and
+  // autocomplete is capped at 1,000 requests a day. localhost / 127.0.0.1 get a 403, so no list shows there.
+  // lat/lon/radius = the group's home area (Torrez Fitness: Austin, TX; Google caps a bias circle at 50 km).
+  var places = { key: 'AIzaSyBzhZyxNbzG2KG8lST_9x3roYZVxWWIeIs', lat: 30.2672, lon: -97.7431, radius: 50000 };
 
   // "Continue with Google": turn on per database once Google is set up in that
   // Supabase project (Auth → Sign In / Providers → Google, plus "Allow manual
