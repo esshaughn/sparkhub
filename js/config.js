@@ -20,6 +20,9 @@
   // to our domains in the Geoapify dashboard. Free plan: 3,000 lookups a day.
   // lat/lon/radius = the group's home area (Torrez Fitness: Austin, TX, 60 km).
   var places = { key: '4a3224242b3c4d8485453050591b8485', lat: 30.2672, lon: -97.7431, radius: 60000 };
+  // Google Places (the newer Places API), owner 2026-10-09: when set, suggestions come from Google instead of Geoapify.
+  // A browser key, restricted to our sites (HTTP referrers) and to the Places API (New) in Google Cloud. Empty: Geoapify
+  var googlePlacesKey = '';
 
   // "Continue with Google": turn on per database once Google is set up in that
   // Supabase project (Auth → Sign In / Providers → Google, plus "Allow manual
@@ -30,5 +33,5 @@
   // api/push.js). One pair serves both databases.
   var vapidPublicKey = 'BNOk6MpgFtacANYKzM2XQdhB0yu45sCWt200fU3VkbMeZx4WJI026sePjflvzjmG0gjF6A-Y1f7CY-T7zLtA530';
 
-  window.SPARKS_CONFIG = Object.assign({ env: env, places: places, googleSignIn: googleSignIn[env], vapidPublicKey: vapidPublicKey }, projects[env]);
+  window.SPARKS_CONFIG = Object.assign({ env: env, places: places, googlePlacesKey: googlePlacesKey, googleSignIn: googleSignIn[env], vapidPublicKey: vapidPublicKey }, projects[env]);
 })();

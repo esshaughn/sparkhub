@@ -44,11 +44,33 @@ const FAKE_PLACES = [
   { name: 'Zilker Metropolitan Park', address_line1: 'Zilker Metropolitan Park', address_line2: '2100 Barton Springs Road, Austin, TX 78746, United States of America', formatted: 'Zilker Metropolitan Park, 2100 Barton Springs Road, Austin, TX 78746, United States of America', lat: 30.2669, lon: -97.7729 },
   { address_line1: '1100 Congress Avenue', address_line2: 'Austin, TX 78701, United States of America', formatted: '1100 Congress Avenue, Austin, TX 78701, United States of America', lat: 30.2747, lon: -97.7404 }
 ];
+// The same two places as Google Places (New) answers them, for when js/config.js has a Google key (owner, 2026-10-09)
+const FAKE_GOOGLE = {
+  suggestions: [
+    { placePrediction: { placeId: 'ChIJzilkerPark00000000', types: ['park', 'point_of_interest', 'establishment'], text: { text: 'Zilker Metropolitan Park, 2100 Barton Springs Road, Austin, TX, USA' },
+      structuredFormat: { mainText: { text: 'Zilker Metropolitan Park' }, secondaryText: { text: '2100 Barton Springs Road, Austin, TX 78746, USA' } } } },
+    { placePrediction: { placeId: 'ChIJcongress110000000', types: ['street_address', 'geocode'], text: { text: '1100 Congress Avenue, Austin, TX, USA' },
+      structuredFormat: { mainText: { text: '1100 Congress Avenue' }, secondaryText: { text: 'Austin, TX 78701, USA' } } } }
+  ],
+  ChIJzilkerPark00000000: { displayName: { text: 'Zilker Metropolitan Park' }, formattedAddress: '2100 Barton Springs Road, Austin, TX 78746, USA', location: { latitude: 30.2669, longitude: -97.7729 } },
+  ChIJcongress110000000: { displayName: { text: '1100 Congress Avenue' }, formattedAddress: '1100 Congress Avenue, Austin, TX 78701, USA', location: { latitude: 30.2747, longitude: -97.7404 } }
+};
 async function mockPlaces(target) {
   const seen = [];
   await target.route('https://api.geoapify.com/**', (route) => {
     seen.push(route.request().url());
     route.fulfill({ json: { results: FAKE_PLACES } });
+  });
+  // Google: the search (counted with Geoapify's, its text in the body) and a picked place's details (not counted)
+  await target.route('https://places.googleapis.com/**', (route) => {
+    const req = route.request(), id = new URL(req.url()).pathname.split('/').pop();
+    if (req.method() === 'POST') {
+      const u = new URL('https://places.googleapis.com/v1/places:autocomplete');
+      u.searchParams.set('text', (req.postDataJSON() || {}).input || '');
+      seen.push(u.toString());
+      return route.fulfill({ json: { suggestions: FAKE_GOOGLE.suggestions } });
+    }
+    route.fulfill({ json: FAKE_GOOGLE[id] || {} });
   });
   return seen;
 }

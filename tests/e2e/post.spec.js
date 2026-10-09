@@ -534,11 +534,11 @@ test('location suggestions: 2 letters, 4 rows, Austin area, remembered, free tex
     const list = page.getByRole('group', { name: 'Suggested places' });
     await expect(list).toContainText('2100 Barton Springs Road, Austin, TX 78746');
     await expect(list).not.toContainText('United States');
-    await expect(list).toContainText('OpenStreetMap');
+    await expect(list.locator('[data-places-credit]')).toContainText(/OpenStreetMap|Powered by Google/);   // whose results they are
     await expect(where.getByLabel('Location name')).toHaveCount(0);   // not while the suggestions are open
     const url = new URL(context.placeRequests[0]);
     expect(url.searchParams.get('text')).toBe('zilk');
-    expect(url.searchParams.get('filter')).toBe('circle:-97.7431,30.2672,60000');
+    if (url.host === 'api.geoapify.com') expect(url.searchParams.get('filter')).toBe('circle:-97.7431,30.2672,60000');   // Google's search is biased in its body
 
     await addr.fill('zilker');
     await expect.poll(() => context.placeRequests.length).toBe(2);

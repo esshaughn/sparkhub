@@ -1594,7 +1594,42 @@
   const PLACES = CFG.places || null;   // { key, lat, lon, radius (m) }
   let placeTimer = null, placeAbort = null;
   const placeCache = new Map();
-  const shortAddr = (a) => (a || '').replace(/,\s*United States( of America)?$/, '').slice(0, 200);
+  const shortAddr = (a) => (a || '').replace(/,\s*(United States( of America)?|USA)$/, '').slice(0, 200);
+  // Google Places (Places API New; owner, 2026-10-09) when js/config.js has a key: Autocomplete gives names, then the
+  // picked place's details give its address and point. One session token covers a search and its pick (Google bills
+  // them as one). Geoapify (below) without a key
+  const GPLACES = CFG.googlePlacesKey || '';
+  let gSession = null;
+  const G_POI = ['establishment', 'point_of_interest', 'park', 'tourist_attraction', 'natural_feature'];
+  const googlePlaces = async (q, signal) => {
+    if (!gSession) gSession = uuid();
+    const res = await fetch('https://places.googleapis.com/v1/places:autocomplete', { method: 'POST', signal, referrerPolicy: 'origin',
+      headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': GPLACES },
+      body: JSON.stringify({ input: q, sessionToken: gSession, includedRegionCodes: ['us'],
+        locationBias: { circle: { center: { latitude: PLACES.lat, longitude: PLACES.lon }, radius: Math.min(50000, PLACES.radius) } } }) });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const seen = {};
+    return ((await res.json()).suggestions || []).map(x => x.placePrediction).filter(Boolean).map(p => {
+      const f = p.structuredFormat || {}, name = cleanTitle((f.mainText || {}).text || (p.text || {}).text || '').slice(0, 80);
+      return { id: String(p.placeId || ''), name, sub: shortAddr((f.secondaryText || {}).text || ''), address: '', poi: (p.types || []).some(t => G_POI.indexOf(t) > -1), lat: null, lon: null };
+    }).filter(p => { const k = p.name + '|' + p.sub; if (!p.name || !/^[\w-]{10,300}$/.test(p.id) || seen[k]) return false; return (seen[k] = true); });
+  };
+  // A picked Google place: its full address and point (ends the session). Geoapify places already have them
+  const placeDetails = async (p) => {
+    if (!p || !p.id || !GPLACES) return p;
+    const tok = gSession; gSession = null;
+    try {
+      const res = await fetch('https://places.googleapis.com/v1/places/' + encodeURIComponent(p.id) + (tok ? '?sessionToken=' + encodeURIComponent(tok) : ''), { referrerPolicy: 'origin',
+        headers: { 'X-Goog-Api-Key': GPLACES, 'X-Goog-FieldMask': 'displayName,formattedAddress,location' } });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const d = await res.json(), lat = d.location ? +d.location.latitude : NaN, lon = d.location ? +d.location.longitude : NaN;
+      return Object.assign({}, p, { name: p.poi ? cleanTitle((d.displayName || {}).text || p.name).slice(0, 80) : p.name, address: shortAddr(d.formattedAddress || [p.name, p.sub].filter(Boolean).join(', ')),
+        lat: Number.isFinite(lat) ? lat : null, lon: Number.isFinite(lon) ? lon : null });
+    } catch (e) { console.warn('Place details unavailable:', e.message); return Object.assign({}, p, { address: shortAddr(p.poi ? p.sub : [p.name, p.sub].filter(Boolean).join(', ')) }); }
+  };
+  // Under the suggestions: whose they are (Google asks for its name next to its results)
+  const placesCredit = () => '<div data-places-credit style="padding:8px 16px 10px;border-top:1px solid #f2f3f6;font-size:11.5px;font-weight:500;color:#9aa0ac">' + (GPLACES ? 'Powered by Google'
+    : 'Powered by <a href="https://www.geoapify.com/" target="_blank" rel="noopener noreferrer" style="color:inherit">Geoapify</a> · © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" style="color:inherit">OpenStreetMap</a> contributors') + '</div>';
   const toPlaces = (results) => {
     const seen = {};
     return (results || []).map(r => ({
@@ -1622,6 +1657,16 @@
     if (placeCache.has(ck)) { setState({ [key]: placeCache.get(ck) }); return; }
     placeTimer = setTimeout(async () => {
       const ctrl = placeAbort = new AbortController();
+      if (GPLACES) {
+        try {
+          const found = await googlePlaces(q, ctrl.signal);
+          if (placeCache.size > 100) placeCache.clear();
+          placeCache.set(ck, found);
+          if (state[textKey].trim() !== q || state[pickKey]) return;
+          setState({ [key]: found });
+        } catch (e) { if (e.name !== 'AbortError') { console.warn('Location suggestions unavailable:', e.message); setState({ [key]: [] }); } }
+        return;
+      }
       const url = 'https://api.geoapify.com/v1/geocode/autocomplete?format=json&limit=5&lang=en' +
         '&text=' + encodeURIComponent(q) +
         '&filter=circle:' + PLACES.lon + ',' + PLACES.lat + ',' + PLACES.radius +
@@ -8867,7 +8912,8 @@
     const st = state, has = !!cleanTitle(st.locAddr || '');
     const FLD = 'display:flex;align-items:center;gap:10px;min-height:46px;padding:0 14px;border-radius:14px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;cursor:text';
     const IN = 'flex:1 1 auto;min-width:0;border:0;padding:0;background:transparent;outline:none;font-family:inherit;font-size:16px;font-weight:600;color:#0d1117';
-    const pick = (p) => { clearTimeout(placeTimer); setState({ locAddr: (p.poi ? p.address : p.address || p.name).slice(0, 120), locPlace: p, locText: p.poi && !cleanTitle(state.locText) ? p.name : state.locText, locSuggest: [] }); };
+    const pick = async (p) => { clearTimeout(placeTimer); setState({ locSuggest: [] }); p = await placeDetails(p);
+      setState({ locAddr: (p.poi ? p.address : p.address || p.name).slice(0, 120), locPlace: p, locText: p.poi && !cleanTitle(state.locText) ? p.name : state.locText, locSuggest: [] }); };
     return '<div style="position:relative;display:flex;flex-direction:column;gap:8px">' +
       '<label style="' + FLD + '">' + svg(18, stroke('#9aa0ac', 2.2), CP_PIN) +
         '<input class="fld" type="text" maxlength="120" autocomplete="off" data-loc-addr aria-label="Address" placeholder="Address" value="' + esc(st.locAddr || '') + '" ' +
@@ -8877,7 +8923,7 @@
             '<span aria-hidden="true" style="flex:0 0 32px;width:32px;height:32px;border-radius:10px;background:#f3f1fe;color:#5b4ae8;display:flex;align-items:center;justify-content:center">' + I.pin(15) + '</span>' +
             '<span style="min-width:0"><span style="display:block;font-size:15.5px;line-height:1.3;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(p.name) + '</span>' +
             (p.sub ? '<span style="display:block;margin-top:1px;font-size:13px;line-height:1.35;font-weight:500;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(p.sub) + '</span>' : '') + '</span></div>').join('') +
-          '<div style="padding:8px 16px 10px;border-top:1px solid #f2f3f6;font-size:11.5px;font-weight:500;color:#9aa0ac">Powered by <a href="https://www.geoapify.com/" target="_blank" rel="noopener noreferrer" style="color:inherit">Geoapify</a> · © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" style="color:inherit">OpenStreetMap</a> contributors</div></div>' : '') +
+          placesCredit() + '</div>' : '') +
       ((has && !(!st.locPlace && st.locSuggest.length)) || cleanTitle(st.locText) ? '<label style="' + FLD + '"><input class="fld" type="text" maxlength="80" autocomplete="off" data-loc-name aria-label="Location name" placeholder="Location name (optional)" value="' + esc(st.locText) + '" ' +
           onInput(e => { if (e.type === 'input') setState({ locText: e.target.value.slice(0, 80) }); }) + ' style="' + IN + ';font-weight:800"></label>' : '') +
     '</div>';
@@ -8903,7 +8949,7 @@
     const setText = (v) => field === 'offer'
       ? setState({ offerText: v, offerPlace: null })
       : setState({ locText: v, locPlace: null });
-    const pick = (p) => { clearTimeout(placeTimer); setState(field === 'offer'
+    const pick = async (p) => { clearTimeout(placeTimer); p = await placeDetails(p); setState(field === 'offer'
       ? { offerText: p.name, offerPlace: p, offerSuggest: [] }
       : { locText: p.name, locPlace: p, locSuggest: [] }); };
     return '<div style="position:relative;display:flex;flex-direction:column;gap:4px">' +
@@ -8922,8 +8968,7 @@
                 '<span style="min-width:0"><span style="display:block;font-size:15.5px;line-height:1.3;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(p.name) + '</span>' +
                 (p.sub ? '<span style="display:block;margin-top:1px;font-size:13px;line-height:1.35;font-weight:500;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(p.sub) + '</span>' : '') +
                 '</span></div>').join('') +
-            '<div style="padding:8px 16px 10px;border-top:1px solid #f2f3f6;font-size:11.5px;font-weight:500;color:#9aa0ac">' +
-              'Powered by <a href="https://www.geoapify.com/" target="_blank" rel="noopener noreferrer" style="color:inherit">Geoapify</a> · © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" style="color:inherit">OpenStreetMap</a> contributors</div>' +
+            placesCredit() +
           '</div>'
         : '') +
     '</div>';
