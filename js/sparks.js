@@ -7475,6 +7475,15 @@
       : hosts.indexOf(x.by) > -1 ? '<span style="font-size:10.5px;font-weight:900;letter-spacing:.6px;color:' + AC + '">LEAD</span>' : '';
     const sendBtn = (ok, fn, label, size) => '<span ' + on(fn) + ' aria-label="' + label + '" aria-disabled="' + !ok + '" style="flex:0 0 ' + size + 'px;width:' + size + 'px;height:' + size + 'px;margin-left:auto;border-radius:999px;display:flex;align-items:center;justify-content:center;' +
       (ok ? 'background:' + AC + ';color:#fff;cursor:pointer' : 'background:#e2e4e9;color:#9aa0ac;cursor:default') + '">' + svg(size > 38 ? 18 : 16, stroke('currentColor', 2.6), SEND_IC) + '</span>';
+    // A YouTube link in a comment gets a picture with a play button under the text; a tap swaps it for the player
+    // (youtube-nocookie.com), so nothing from the video loads until then. Plain text stays plain text in the database.
+    const ytOf = (body) => { const m = /(?:https?:\/\/)?(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?(?:[^\s]*&)?v=|shorts\/|embed\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{11})(?![A-Za-z0-9_-])/.exec(body || ''); return m ? m[1] : null; };
+    const ytBox = (body, key) => { const id = ytOf(body); if (!id) return '';
+      const open = !!(st.ytOpen || {})[key];
+      return '<div data-yt="' + id + '" style="position:relative;margin-top:6px;width:100%;max-width:360px;aspect-ratio:16/9;border-radius:14px;overflow:hidden;background:#0d1117">' + (open
+        ? '<iframe src="https://www.youtube-nocookie.com/embed/' + id + '?autoplay=1&rel=0" title="YouTube video" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" style="position:absolute;inset:0;width:100%;height:100%;border:0"></iframe>'
+        : '<div ' + on(() => setState({ ytOpen: Object.assign({}, state.ytOpen, { [key]: true }) })) + ' role="button" aria-label="Play the video" data-yt-play style="position:absolute;inset:0;cursor:pointer;background:#0d1117 url(https://i.ytimg.com/vi/' + id + '/hqdefault.jpg) center/cover">' +
+          '<span style="position:absolute;left:50%;top:50%;width:56px;height:40px;margin:-20px 0 0 -28px;border-radius:12px;background:rgba(214,36,36,.92);display:flex;align-items:center;justify-content:center">' + svg(20, 'fill="#fff"', '<path d="M8 5v14l11-7z"/>') + '</span></div>') + '</div>'; };
     // A post's replies: folded (faces, View N replies, Reply), or open (the replies, Reply / Cancel, Hide replies, the box)
     const heart = (id) => { if (c.noLikes || !can) return '';
       const us = (c.likes || {})[id] || [], mine = us.indexOf(st.me) > -1;
@@ -7499,7 +7508,7 @@
         rs.map(r => '<div data-reply-row style="display:flex;align-items:flex-start;gap:8px">' + avatarSpan(r.by, nameOf(r.by), avatarOf(r.by), 24) +
           '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;padding-top:2px"><span style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:13.5px;font-weight:800;color:#0d1117">' + esc(nameOf(r.by)) +
             (hosts.indexOf(r.by) > -1 ? '<span style="font-size:10px;font-weight:900;letter-spacing:.6px;color:' + AC + '">LEAD</span>' : '') + '<span style="font-size:12px;font-weight:600;color:#8a909b">· ' + esc(ago(r.created)) + '</span></span>' +
-            '<span style="font-size:14px;line-height:1.4;font-weight:500;color:#2a2f38;white-space:pre-line;overflow-wrap:anywhere">' + esc(r.body) + '</span></div>' +
+            '<span style="font-size:14px;line-height:1.4;font-weight:500;color:#2a2f38;white-space:pre-line;overflow-wrap:anywhere">' + esc(r.body) + '</span>' + ytBox(r.body, 'r:' + r.id) + '</div>' +
           (r.by === st.me || lead ? '<span ' + on(() => askDeleteComment(s, { id: r.id, reply: true })) + ' aria-label="Delete this reply" style="flex:0 0 28px;height:28px;display:flex;align-items:center;justify-content:center;color:#b9bcc4;cursor:pointer">' + I.x(11, 'currentColor', 2.6) + '</span>' : '') + '</div>').join('') +
         '<div style="display:flex;align-items:center;gap:16px">' + heart(x.id) +
           (can ? lnk(op ? 'Cancel' : 'Reply', () => flag('discOpen', key, !op), AC, 'data-reply') : '') +
@@ -7517,7 +7526,7 @@
       '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:5px">' +
         '<div style="display:flex;align-items:flex-start;gap:6px"><span style="flex:1;min-width:0;display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:14px;font-weight:800;color:#0d1117">' + esc(x.name) + tag(x) +
           '<span style="font-size:12.5px;font-weight:600;color:#8a909b">· ' + esc(ago(x.created)) + '</span></span>' + (x.kind === 'upd' ? updMore(s, x.u) : '') + '</div>' +
-        '<span ' + (x.kind === 'upd' ? 'data-update ' : 'data-comment ') + 'style="font-size:15px;line-height:1.4;font-weight:500;color:#2a2f38;white-space:pre-line;overflow-wrap:anywhere;text-wrap:pretty">' + esc(x.body) + '</span>' +
+        '<span ' + (x.kind === 'upd' ? 'data-update ' : 'data-comment ') + 'style="font-size:15px;line-height:1.4;font-weight:500;color:#2a2f38;white-space:pre-line;overflow-wrap:anywhere;text-wrap:pretty">' + esc(x.body) + '</span>' + ytBox(x.body, x.kind + ':' + x.id) +
         thread(x, inPanel) + '</div></div>';
     const ups = shown.filter(x => x.kind === 'upd'), cms = shown.filter(x => x.kind === 'cmt');
     const draft = (st.discDraft || {})[s.id] || '', ok = !!draft.trim() && st.busy !== 'comment';

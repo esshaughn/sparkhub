@@ -137,3 +137,27 @@ test('realtime: a comment appears on an open page by itself', async ({ browser }
     await host.context.close(); await member.context.close();
   }
 });
+
+// A YouTube link in a comment shows a picture with a play button; the player only loads on a tap
+test('discussion: a YouTube link becomes a thumbnail, then the player on a tap', async ({ browser }) => {
+  const { page, context } = await newLead(browser, 1, 'Hope');
+  const title = uniqueTitle('Video chat');
+  let id;
+  try {
+    await page.route('https://i.ytimg.com/**', (r) => r.fulfill({ status: 200, contentType: 'image/png', body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64') }));
+    await page.route('https://www.youtube-nocookie.com/**', (r) => r.fulfill({ status: 200, contentType: 'text/html', body: '<p>player</p>' }));
+    id = await postEvent(page, { title, date: inDays(6), time: '18:00' });
+    const d = page.locator('[data-screen-label="Plan page"] [data-discussion]');
+    await d.getByLabel('Write a comment').fill('Watch this https://youtu.be/dQw4w9WgXcQ?t=5 please');
+    await d.getByLabel('Write a comment').press('Enter');
+    await expect(d.locator('[data-comment]')).toContainText('https://youtu.be/dQw4w9WgXcQ');   // the link text stays
+    const box = d.locator('[data-yt="dQw4w9WgXcQ"]');
+    await expect(box.locator('[data-yt-play]')).toBeVisible();
+    await expect(box.locator('iframe')).toHaveCount(0);
+    await box.locator('[data-yt-play]').click();
+    await expect(box.locator('iframe')).toHaveAttribute('src', /^https:\/\/www\.youtube-nocookie\.com\/embed\/dQw4w9WgXcQ/);
+  } finally {
+    if (id) await deleteIdea(page, id).catch(() => {});
+    await context.close();
+  }
+});
