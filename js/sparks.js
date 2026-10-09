@@ -7485,7 +7485,7 @@
     const post = (x, inPanel) => '<div data-post-row="' + x.kind + '" style="display:flex;gap:10px;padding:' + (inPanel ? '12px 2px' : '10px 14px 12px') + '">' +
       '<div style="display:flex;flex-direction:column;align-items:center;gap:6px">' + avatarSpan(x.by, x.name, avatarOf(x.by), 36) +
         (x.replies.length ? '<span aria-hidden="true" style="flex:1;width:1.5px;min-height:12px;margin-bottom:4px;border-radius:1px;background:' + (inPanel ? '#dcdfe6' : '#e3e5ea') + '"></span>' : '') + '</div>' +
-      '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">' +
+      '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:5px">' +
         '<div style="display:flex;align-items:flex-start;gap:6px"><span style="flex:1;min-width:0;display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:14px;font-weight:800;color:#0d1117">' + esc(x.name) + tag(x) +
           '<span style="font-size:12.5px;font-weight:600;color:#8a909b">· ' + esc(ago(x.created)) + '</span></span>' + (x.kind === 'upd' ? updMore(s, x.u) : '') + '</div>' +
         '<span ' + (x.kind === 'upd' ? 'data-update ' : 'data-comment ') + 'style="font-size:15px;line-height:1.4;font-weight:500;color:#2a2f38;white-space:pre-line;overflow-wrap:anywhere;text-wrap:pretty">' + esc(x.body) + '</span>' +
