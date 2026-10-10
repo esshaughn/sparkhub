@@ -67,9 +67,15 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     await expect(plusPop).toHaveCount(0);
     await expect(G.getByText('You’re going. See you there!')).toBeVisible();
     // A dated event: the banner offers Add to calendar right away (research review, 2026-10-01)
-    const calDownload = G.waitForEvent('download');
     await G.locator('[data-banner="going"]').getByRole('button', { name: 'Add to calendar' }).click();
+    // A sheet of three rows (owner, 2026-10-10): Google Calendar's link first on a computer, then the .ics for Apple and Outlook
+    const calSheet = G.getByRole('dialog', { name: 'Add to calendar' });
+    await expect(calSheet.locator('[data-cal-row]')).toHaveCount(3);
+    await expect(calSheet.locator('[data-cal-row="google"]')).toHaveAttribute('href', /^https:\/\/calendar\.google\.com\/calendar\/render\?action=TEMPLATE&text=.+&dates=\d{8}(T\d{6})?\/\d{8}(T\d{6})?/);
+    const calDownload = G.waitForEvent('download');
+    await calSheet.locator('[data-cal-row="other"]').click();
     expect((await calDownload).suggestedFilename()).toMatch(/\.ics$/);
+    await expect(calSheet).toHaveCount(0);
     await expect(G.locator('[data-banner="going"]')).toHaveCount(0);
     await expect(GP.locator('[data-guest-nudge]')).toHaveCount(0);
     // Once replied, one bar (You're going · Change, owner 2026-10-06); Change brings the buttons back; tapping your pick clears it
@@ -191,8 +197,9 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     await GP.locator('[data-signup="Lemonade"]').getByRole('button', { name: 'Sign up' }).click();
     await G.locator('[data-onit-done]').click();   // You're signed up! (owner, 2026-10-07)
     await expect(GP.locator('[data-signup="Lemonade"]')).toContainText('You’re in');
-    const download = G.waitForEvent('download');
     await GP.getByRole('button', { name: 'Add to calendar' }).click();
+    const download = G.waitForEvent('download');
+    await G.getByRole('dialog', { name: 'Add to calendar' }).locator('[data-cal-row="apple"]').click();
     expect((await download).suggestedFilename()).toMatch(/\.ics$/);
 
     // The host sees them; changing the date tells everyone going

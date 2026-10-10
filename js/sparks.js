@@ -318,7 +318,7 @@
     groups: [], sparks: [], profiles: {},
 
     drafts: [], notes: [], pushOn: false, pushCardHidden: (() => { try { return localStorage.getItem('spark-hub-push-card') === 'hidden'; } catch (e) { return false; } })(),
-    fb: null, sec: null, needEd: null, share: null, partMore: {}, partRoster: null, partGuest: null,
+    fb: null, sec: null, needEd: null, share: null, partMore: {}, partRoster: null, partGuest: null, calSheet: null,
 
     loginStep: null, loginFrom: 'default', loginThen: null, loginMode: 'link', loginEmail: '', loginCode: '',
     resent: false, mergeToken: null, googleFailed: false,
@@ -434,7 +434,7 @@
     // All groups' Back goes to the screen you came from, e.g. My calendar after Find more events (Design v8 prototype, _calFrom)
     if (screen === 'calendar' && state.screen !== 'calendar') state.calFrom = ORIGINS.indexOf(state.screen) > -1 ? { screen: state.screen, groupId: state.groupId, phaseTab: state.phaseTab } : null;
     // Going anywhere closes the v6 sheets (Profile, Notifications, View all, Could use a hand, Search)
-    setState(Object.assign({ screen, menu: null, plusMenu: false, ip: null, ipPop: null, ipEd: null, zoom: null, sec: null, needEd: null, share: null, cohostPick: null, leadAsk: null, leadsSheet: null, pollSheet: null, profSheet: false, notifSheet: false, dashAll: null, cHandSheet: false, cSearch: false, cq: '', gSearch: false, gq: '', gTry: null, pplAdd: false, frInvite: false, frList: null, frListEd: null, meImp: null, meList: null, meSet: false, pplSearch: false, pplQ: '', person: null, fbNudge: null, gMenu: null, gQr: null, gInv: null, jobAsk: null, handOff: null, partRoster: null, partGuest: null, dayPick: null, rsvpEdit: null }, extra || {}));
+    setState(Object.assign({ screen, menu: null, plusMenu: false, ip: null, ipPop: null, ipEd: null, zoom: null, sec: null, needEd: null, share: null, cohostPick: null, leadAsk: null, leadsSheet: null, pollSheet: null, profSheet: false, notifSheet: false, dashAll: null, cHandSheet: false, cSearch: false, cq: '', gSearch: false, gq: '', gTry: null, pplAdd: false, frInvite: false, frList: null, frListEd: null, meImp: null, meList: null, meSet: false, pplSearch: false, pplQ: '', person: null, fbNudge: null, gMenu: null, gQr: null, gInv: null, jobAsk: null, handOff: null, partRoster: null, partGuest: null, calSheet: null, dayPick: null, rsvpEdit: null }, extra || {}));
     if (sc) sc.scrollTop = 0;
   };
 
@@ -2267,11 +2267,17 @@
     });
   };
 
-  // "Add to calendar": an .ics event to its end time (an hour if it has none); no time = an all-day event. Multi-day (v8-7):
-  // separate days get one entry per day you're going (every day for The whole thing); a span is one entry from its first
-  // day to its last; a repeat is one entry that repeats (RRULE)
-  const addToCalendar = (s) => {
-    if (!s.dayDate) return;
+  // "Add to calendar" (owner, 2026-10-10: a sheet of three rows, the person's own calendar first). Apple Calendar and
+  // Outlook and other get an .ics event; Google Calendar gets a link with the event filled in. The .ics runs to its end
+  // time (an hour if it has none); no time = an all-day event. Multi-day (v8-7): separate days get one entry per day
+  // you're going (every day for The whole thing); a span is one entry from its first day to its last; a repeat is one
+  // entry that repeats (RRULE). Google's link takes one event, so it gets the first of those entries.
+  const calPlace = (s) => {   // the place's name and address, once each (the name is often the street address itself)
+    const a = (s.spot || '').trim(), b = (s.spotAddress || '').trim();
+    if (!a || !b) return a || b;
+    return b.toLowerCase().indexOf(a.toLowerCase()) > -1 ? b : a.toLowerCase().indexOf(b.toLowerCase()) > -1 ? a : a + ', ' + b;
+  };
+  const calEvents = (s) => {   // { list: [{ uid, when: [DTSTART, DTEND], extra: [RRULE] }], picked: the days chosen (separate days only) }
     const p2 = (n) => String(n).padStart(2, '0'), ymd = (iso) => iso.replace(/-/g, '');
     const stamp = (dt) => dt.getFullYear() + p2(dt.getMonth() + 1) + p2(dt.getDate()) + 'T' + p2(dt.getHours()) + p2(dt.getMinutes()) + '00';
     const lines = (d, t, e, d2) => {   // d2: a span's last day
@@ -2281,27 +2287,31 @@
       }
       return ['DTSTART;VALUE=DATE:' + ymd(d), 'DTEND;VALUE=DATE:' + ymd(plusDays(d2 || d, 1))];
     };
-    const escIcs = (v) => String(v || '').replace(/[\\,;]/g, (m) => '\\' + m).replace(/\n/g, '\\n');
-    const ev = (uid, when, extra) => ['BEGIN:VEVENT', 'UID:' + uid + '@sparkhub', 'DTSTAMP:' + new Date().toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z'].concat(when, extra || [],
-      ['SUMMARY:' + escIcs(s.text), 'LOCATION:' + escIcs([s.spot, s.spotAddress].filter(Boolean).join(', ')), 'DESCRIPTION:' + escIcs(eventLink(s)), 'END:VEVENT']);
-    let body, picked = null;
+    let list, picked = null;
     if (s.sched && s.sched.kind === 'days' && s.days) {
       const mine = rsvpDays(s, state.me), ds = s.daysEach && mine && mine.go.length ? mine.go : s.days.map(r => r.d);
       // days already over are left out (M3, owner 2026-10-07, multi-day audit), unless they all are
       picked = s.days.filter(r => ds.indexOf(r.d) > -1);
       if (picked.some(r => r.d >= todayISO())) picked = picked.filter(r => r.d >= todayISO());
-      body = [].concat(...picked.map(r => ev(s.id + '-' + r.d, lines(r.d, r.t, r.e))));
-    } else if (s.sched && s.sched.kind === 'span' && s.days) body = ev(s.id, lines(s.startDate, s.startTime, s.days[s.days.length - 1].e, s.days[s.days.length - 1].d));
+      list = picked.map(r => ({ uid: s.id + '-' + r.d, when: lines(r.d, r.t, r.e) }));
+    } else if (s.sched && s.sched.kind === 'span' && s.days) list = [{ uid: s.id, when: lines(s.startDate, s.startTime, s.days[s.days.length - 1].e, s.days[s.days.length - 1].d) }];
     else if (s.repeat) {
       // From its next date, not its first (M3). A monthly one on the 29th–31st lands where the app puts it, the month's last
       // day when it's shorter (B4, owner 2026-10-07, multi-day audit): the 31st repeats on the last day (BYMONTHDAY=-1);
       // the 29th or 30th is its next 12 dates, one entry each
       const dd = +s.startDate.slice(8), until = s.repeat.until ? ';UNTIL=' + ymd(s.repeat.until) + 'T235959' : '';
-      if (s.repeat.every === 'month' && dd > 28 && dd < 31) body = [].concat(...repeatDates(s.startDate, 'month', s.repeat.until, plusDays(todayISO(), 400)).filter(d => d >= s.dayDate).slice(0, 12)
-        .map(d => ev(s.id + '-' + d, lines(d, s.startTime, s.startEnd))));
-      else body = ev(s.id, lines(s.dayDate, s.startTime, s.startEnd), ['RRULE:FREQ=' + (s.repeat.every === 'month' ? 'MONTHLY' + (dd === 31 ? ';BYMONTHDAY=-1' : '') : 'WEEKLY') + (s.repeat.every === '2week' ? ';INTERVAL=2' : '') + until]);
+      if (s.repeat.every === 'month' && dd > 28 && dd < 31) list = repeatDates(s.startDate, 'month', s.repeat.until, plusDays(todayISO(), 400)).filter(d => d >= s.dayDate).slice(0, 12)
+        .map(d => ({ uid: s.id + '-' + d, when: lines(d, s.startTime, s.startEnd) }));
+      else list = [{ uid: s.id, when: lines(s.dayDate, s.startTime, s.startEnd), extra: ['RRULE:FREQ=' + (s.repeat.every === 'month' ? 'MONTHLY' + (dd === 31 ? ';BYMONTHDAY=-1' : '') : 'WEEKLY') + (s.repeat.every === '2week' ? ';INTERVAL=2' : '') + until] }];
     }
-    else body = ev(s.id, lines(s.dayDate, s.dayTime, s.dayEnd));
+    else list = [{ uid: s.id, when: lines(s.dayDate, s.dayTime, s.dayEnd) }];
+    return { list, picked };
+  };
+  const downloadIcs = (s) => {
+    const escIcs = (v) => String(v || '').replace(/[\\,;]/g, (m) => '\\' + m).replace(/\n/g, '\\n');
+    const { list, picked } = calEvents(s), place = calPlace(s), dtstamp = new Date().toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z';
+    const body = [].concat(...list.map(e => ['BEGIN:VEVENT', 'UID:' + e.uid + '@sparkhub', 'DTSTAMP:' + dtstamp].concat(e.when, e.extra || [],
+      ['SUMMARY:' + escIcs(s.text), 'LOCATION:' + escIcs(place), 'DESCRIPTION:' + escIcs(eventLink(s)), 'END:VEVENT'])));
     const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Spark Hub//EN'].concat(body, ['END:VCALENDAR']).join('\r\n');
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([ics], { type: 'text/calendar' }));
@@ -2310,6 +2320,36 @@
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
     if (picked && picked.length > 1) toast('Added ' + dayWords(s, picked.map(r => r.d)) + ' to your calendar (' + picked.length + ' entries)', true);
   };
+  const googleCalUrl = (s) => {
+    const e = calEvents(s).list[0];
+    if (!e) return '';
+    const val = (l) => l.slice(l.indexOf(':') + 1), place = calPlace(s), enc = encodeURIComponent;
+    return 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + enc(s.text) + '&dates=' + val(e.when[0]) + '/' + val(e.when[1]) +
+      '&details=' + enc(eventLink(s)) + (place ? '&location=' + enc(place) : '') + (e.extra && e.extra[0] ? '&recur=' + enc(e.extra[0]) : '');
+  };
+  const addToCalendar = (s) => { if (s.dayDate) setState({ calSheet: s.id }); };
+  const IS_APPLE = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  function viewCalSheet() {
+    const s = state.sparks.find(x => x.id === state.calSheet);
+    if (!s) return '';
+    const close = () => setState({ calSheet: null }), gUrl = googleCalUrl(s);
+    const ICON = { apple: '<rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16M9 3v4M15 3v4"/>', google: '<rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16M9 3v4M15 3v4M9 15h6"/>', other: '<path d="M12 4v11M7.5 10.5 12 15l4.5-4.5"/><path d="M5 19h14"/>' };
+    const row = (key, title, sub, tag, attrs) => '<' + tag + ' ' + attrs + ' data-cal-row="' + key + '" style="display:flex;align-items:center;gap:12px;min-height:64px;padding:8px 2px;text-decoration:none;color:inherit;cursor:pointer">' +
+      '<span aria-hidden="true" style="flex:0 0 40px;width:40px;height:40px;border-radius:12px;background:#f2f3f6;display:flex;align-items:center;justify-content:center">' + svg(22, stroke('#0d1117', 2), ICON[key]) + '</span>' +
+      '<span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px"><span style="font-size:16px;font-weight:800;color:#0d1117">' + title + '</span><span style="font-size:12.5px;line-height:1.3;font-weight:600;color:#6b7280">' + sub + '</span></span>' +
+      I.chevR(16, '#b9bcc4', 2.6) + '</' + tag + '>';
+    const file = (key, title, sub) => row(key, title, sub, 'span', on(() => { close(); downloadIcs(s); }));
+    const rows = [
+      IS_APPLE ? file('apple', 'Apple Calendar', 'On the next screen, tap Add To Calendar at the bottom.') : '',
+      gUrl ? row('google', 'Google Calendar', 'Opens Google Calendar with it filled in.', 'a', 'href="' + esc(gUrl) + '" target="_blank" rel="noopener noreferrer" data-on="' + reg(() => setTimeout(close, 50)) + '"') : '',
+      IS_APPLE ? '' : file('apple', 'Apple Calendar', 'Opens it in your calendar app.'),
+      file('other', 'Outlook and other', 'Downloads a calendar file.')
+    ].filter(Boolean);
+    return sheet('Add to calendar', close, SHEET_PAD,
+      '<div style="display:flex;align-items:flex-start;gap:10px"><div style="flex:1;min-width:0"><div style="font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.4px;color:#0d1117">Add to calendar</div>' +
+        '<div style="margin-top:2px;font-size:13.5px;font-weight:600;color:#6b7280">' + esc(s.text) + ' · ' + esc(fmtDay(s.dayDate)) + '</div></div>' + closeX(close) + '</div>' +
+      '<div style="display:flex;flex-direction:column">' + rows.map((r, i) => i ? r.replace('style="', 'style="border-top:1px solid #f2f3f6;') : r).join('') + '</div>', 50);
+  }
 
   // "Do it again": a new event with the place and details filled in
   const doItAgain = (s) => goCompose({ activity: s.text.slice(0, TITLE_MAX), evTags: (s.tags || []).slice(0, 2), evTest: !!(s.test || s.demo), locText: nameFrom(s.spot, s.spotAddress), locPlace: s.spotAddress ? { name: s.spot, address: s.spotAddress, lat: s.spotPoint && s.spotPoint[0], lon: s.spotPoint && s.spotPoint[1] } : null, locAddr: s.spotAddress || '',
@@ -11099,6 +11139,7 @@
       (st.ph ? viewPositioner() : '') +   // above Edit event, which can open it
       (st.needEd && subj ? viewNeedsSheet() : '') +
       (st.partRoster ? viewPartRoster() : '') + (st.partGuest ? viewPartGuest() : '') +
+      (st.calSheet ? viewCalSheet() : '') +
       (st.share ? viewShareSheet() : '') +
       (st.startName != null ? viewStartGroup() : '') +
       (st.updAll ? viewUpdAll() : '') +
@@ -11372,6 +11413,7 @@
       if (state.dateOpen) return setState({ dateOpen: null });
       if (state.timeOpen) return setState({ timeOpen: null });
       if (state.sec) return setState({ sec: null });
+      if (state.calSheet) return setState({ calSheet: null });
       if (state.partGuest) return setState({ partGuest: null });
       if (state.partRoster) return setState({ partRoster: null });
       if (state.needEd) return setState({ needEd: null });
