@@ -137,7 +137,7 @@ test('Members shows who’s INVITED: Send a reminder, Take back invite; Not now 
     await B.reload();
     await expect(B.locator('html[data-loaded=true]')).toHaveCount(1);
     await B.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Groups', exact: true }).click();
-    await expect(B.locator('[data-ginv-card]')).toHaveCount(0);
+    await expect(B.locator('[data-ginv-card="' + groupName + '"]')).toHaveCount(0);   // this group's (other tests' invites may be waiting on TEST)
     expect(await invite()).toBe(0);   // turned down: it can't be sent again
     // …and the owner still sees it waiting (Not now tells no one)
     await mem.getByRole('button', { name: 'Close' }).click();
