@@ -3779,6 +3779,15 @@
     const evs = p.loading ? [] : state.sparks.filter(s => s.planned && !s.cancelledAt && phaseOf(s) === 'plan' && s.dayDate && s.dayDate >= todayISO() &&
       (s.leadId === p.id || s.cohosts.indexOf(p.id) > -1 || s.rsvps.some(x => x.userId === p.id && x.status === 'going'))).sort(byWhen).slice(0, 4);
     const who = p.self ? 'You' : firstName(name) || 'They';
+    // A profile you reported (still open), for you only (Design v8-22, 4c): photo and About hidden, a short line,
+    // Show anyway · Block, and Undo report
+    loadSafety();
+    const hid = !p.self && sfReported('profile', p.id) && !sfShown('pr:' + p.id);
+    const repNote = !hid ? '' : '<div data-reported-profile style="align-self:stretch;display:flex;flex-direction:column;align-items:center;gap:10px;padding:14px;border-radius:14px;background:#f4f5f7">' +
+      '<span style="font-size:14.5px;line-height:1.4;font-weight:600;color:#454b55;text-wrap:pretty">You reported this profile. Their photo and About are hidden for you while a lead looks at it.</span>' +
+      '<div style="display:flex;gap:8px"><span ' + on(sfShowIt('pr:' + p.id)) + ' role="button" class="hov-outline" style="display:flex;align-items:center;min-height:38px;padding:0 14px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;font-size:14px;font-weight:800;color:#0d1117;cursor:pointer">Show anyway</span>' +
+        '<span ' + on(() => sfBlockAsk(p.id)) + ' role="button" style="display:flex;align-items:center;min-height:38px;padding:0 14px;border-radius:999px;background:#fdecee;font-size:14px;font-weight:800;color:#9b1c31;cursor:pointer">Block</span></div>' +
+      '<span ' + on(() => undoReport('profile', p.id)) + ' role="button" style="display:flex;align-items:center;min-height:32px;font-size:13.5px;font-weight:800;color:#5b4ae8;cursor:pointer">Undo report</span></div>';
     const evRow = (s) => '<div ' + on(() => { close(); openSpark(s); }) + ' data-person-event="' + esc(s.text) + '" class="hov-row" style="display:flex;align-items:center;gap:12px;padding:9px 2px;border-top:1px solid #f0f1f4;cursor:pointer">' +
       '<span aria-hidden="true" style="flex:0 0 40px;width:40px;height:40px;border-radius:10px;background:' + thumbBg(s) + '"></span>' +
       '<div style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:15px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(s.text) + '</span>' +
@@ -3790,11 +3799,11 @@
     return modal(name, close,
       '<div data-screen-label="Person" style="display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center;padding-top:6px">' +
         (p.self ? '<span data-person-self style="font-size:13.5px;font-weight:700;color:#6b7280">This is how people see you.</span>' : '') +
-        avatarSpan(p.id, name, p.avatar || avatarOf(p.id) || (f && f.avatar ? photoUrl(f.avatar) : null), 84) +
+        (hid ? '<span aria-hidden="true" style="width:84px;height:84px;border-radius:999px;background:#e4e7ec"></span>' : avatarSpan(p.id, name, p.avatar || avatarOf(p.id) || (f && f.avatar ? photoUrl(f.avatar) : null), 84)) +
         // No Place line: dropped everywhere (HANDOFF-to-CODE v8-8 Q28)
         '<div style="max-width:100%"><div style="font-size:24px;line-height:1.1;font-weight:900;letter-spacing:-.4px;color:#0d1117;overflow-wrap:anywhere">' + esc(name) + '</div></div>' +
         (p.loading ? '<div style="font-size:14px;font-weight:600;color:#9aa0ac">Loading…</div>'
-          : (p.bio ? '<p data-person-bio style="margin:0;font-size:15.5px;line-height:1.45;font-weight:500;color:#2a2f38;white-space:pre-line">' + esc(p.bio) + '</p>' : '') +
+          : repNote + (p.bio && !hid ? '<p data-person-bio style="margin:0;font-size:15.5px;line-height:1.45;font-weight:500;color:#2a2f38;white-space:pre-line">' + esc(p.bio) + '</p>' : '') +
             '<div data-person-groups style="align-self:stretch;padding:12px 14px;border-radius:14px;background:#f7f7f9;font-size:14px;line-height:1.45;font-weight:600;color:#454b55">' +
               (p.groups.length ? '<span style="font-size:12px;font-weight:900;letter-spacing:.6px;text-transform:uppercase;color:#8a909b">' + (p.self ? 'In' : 'Both in') + '</span><br>' + esc(namesList(p.groups))
                 : 'You’re not in a group together.') + '</div>' + going +
@@ -4321,7 +4330,23 @@
   }));
   // noDate (All groups' Month, Design v8 prototype): no date block, the day is the heading above
   // Owner, 2026-10-07: no role bar, a larger title (17px, up to two balanced lines) and line (12.5px, gray; the time not bold, owner 2026-10-07), a 48px photo, 11×14 padding
+  // An event you reported (still open) is one outlined grey line, for you only, until a lead acts or you tap Show
+  // (Design v8-22, 4a)
+  const sfShown = (k) => !!(state.sfShow || {})[k];
+  const sfShowIt = (k) => (e) => { stop(e); setState({ sfShow: Object.assign({}, state.sfShow, { [k]: true }) }); };
+  const reportedLine = (s) => '<div data-reported-card="' + esc(s.text) + '" style="display:flex;align-items:center;gap:10px;min-height:48px;padding:0 14px;border-radius:16px;box-shadow:inset 0 0 0 1.5px #d3d6dd">' +
+    svg(16, stroke('#8a909b', 2.2), SF_FLAG) + '<span style="flex:1;min-width:0;font-size:14.5px;font-weight:700;color:#6b7280">You reported an event</span>' +
+    '<span ' + on(sfShowIt('ev:' + s.id)) + ' role="button" style="display:flex;align-items:center;min-height:36px;font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">Show</span></div>';
+  // The event page itself, if you reported it (4d): it works as normal, with one grey line at the top and Undo
+  const reportedEvLine = (s) => { loadSafety(); if (!state.email || !sfReported('event', s.id)) return '';
+    return '<div data-reported-event style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:16px;box-shadow:inset 0 0 0 1.5px #d3d6dd">' +
+      '<span style="flex:0 0 auto;margin-top:2px;display:flex">' + svg(16, stroke('#8a909b', 2.2), SF_FLAG) + '</span>' +
+      '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-size:14.5px;font-weight:800;color:#454b55">You reported this event</span>' +
+        '<span style="font-size:13px;line-height:1.35;font-weight:600;color:#6b7280">A group lead is looking. You can still see it and RSVP.</span></div>' +
+      '<span ' + on(() => undoReport('event', s.id)) + ' role="button" style="flex:0 0 auto;display:flex;align-items:center;min-height:32px;font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">Undo</span></div>'; };
   const listCard6 = (s, P, cal, thumb, noDate) => {
+    loadSafety();
+    if (sfReported('event', s.id) && !sfShown('ev:' + s.id)) return reportedLine(s);
     const dp = s.dayDate ? dateParts(s.dayDate) : null;
     return '<div ' + on(() => openSpark(s)) + ' data-plan="' + esc(s.text) + '"' + (s.dayDate ? ' data-day="' + s.dayDate + '"' : '') + ' aria-label="' + esc(s.text) + '" style="border-radius:16px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
       '<div style="display:flex;align-items:stretch;gap:14px;padding:11px 14px">' +
@@ -6600,7 +6625,7 @@
       const single = p.rows.length === 1 && p.kind !== 'time', u0 = p.rows[0], more = !!st.partMore[p.id];
       const mineAny = p.rows.some(u => u.claims.some(c => c.userId === st.me));
       const each = p.rows.every(u => u.need === u0.need) ? (u0.need ? u0.need + ' each' : 'open to all') : p.rows.reduce((a, u) => a + (u.need || 0), 0) + ' spots';
-      const howMany = (n) => !n ? '' : n + ' ' + (p.kind === 'seat' ? (n === 1 ? 'seat' : 'seats') : p.kind === 'job' ? (n === 1 ? 'person' : 'people') : (n === 1 ? 'spot' : 'spots'));
+      const howMany = (n) => !n ? (p.kind === 'job' ? 'No limit' : '') : n + ' ' + (p.kind === 'seat' ? (n === 1 ? 'seat' : 'seats') : p.kind === 'job' ? (n === 1 ? 'slot' : 'slots') : (n === 1 ? 'spot' : 'spots'));
       const sub = [p.day && s.days ? dayWord(s, p.day) : '',
         single ? [rowTime(u0) || (p.time ? slotTime(p.time) : ''), howMany(p.need)].filter(Boolean).join(' · ')
           : p.rows.length + (p.rows.length === 1 ? ' time' : ' times') + ' · ' + each,
@@ -8017,7 +8042,7 @@
         '</div>', true) +
       tab +
       '<div style="padding:16px 14px 26px;display:flex;flex-direction:column;gap:18px">' +
-        cancelledCard(s) +
+        reportedEvLine(s) + cancelledCard(s) +
         (discMissing(s) ? updatesCard(s) : discBanner(s)) +   // v8: the banner; the updates live in Discussion
         // Keep this event: the page's 18px above and below (owner, 2026-10-07; was 8px under the RSVP card, Design v8-8 prototype 976)
         rsvpBlock + guestNudge + takePartLine(s) +
@@ -8133,10 +8158,10 @@
   function viewDone(s) {
     const st = state, dp = dateParts(s.dayDate), n = cameCount(s);
     loadSafety();
-    // Photos from someone you blocked, or that you reported, don't show for you (v8-18 1s)
-    const album = s.album.filter(a => !sfBlocked(a.createdBy) && !sfReported('photo', a.path)).map(a => photoUrl(a.path));
+    // Photos from someone you blocked don't show for you (v8-18 1s); one you reported blurs, with Show anyway (v8-22 4b)
+    const album = s.album.filter(a => !sfBlocked(a.createdBy)).map(a => photoUrl(a.path));
     const removable = s.album.filter(a => a.createdBy === st.me || isLead(s)), editing = st.albumEdit === s.id && removable.length > 0;
-    const tileAt = (src, extra) => '<span style="position:relative;border-radius:12px;background:' + (src ? bg(src) : '#e4e7ec') + ';' + (extra || '') + '"></span>';
+    const tileAt = (src, extra) => '<span style="position:relative;overflow:hidden;border-radius:12px;background:' + (src && !sfHidPhoto(src) ? bg(src) : '#e4e7ec') + ';' + (extra || '') + '">' + (src && sfHidPhoto(src) ? sfPhotoVeil(src, true) : '') + '</span>';
     return '<div data-screen-label="It happened">' +
       phaseHeader(s, 300, 'linear-gradient(to bottom, rgba(13,17,23,.4), rgba(13,17,23,0) 30%, rgba(34,25,110,.92) 100%)',
         '<span aria-hidden="true" style="position:absolute;top:calc(66px + var(--pt));right:18px;display:flex;align-items:center;min-height:36px;padding:0 14px 0 44px;border-radius:999px;background:#5b4ae8;transform:rotate(-8deg);font-size:15px;font-weight:900;color:#fff;box-shadow:0 6px 16px rgba(15,18,25,.3)"><span style="position:absolute;left:-10px;top:50%;transform:translateY(-55%) rotate(-10deg);font-size:46px;line-height:1">🥳</span>It happened!</span>' +
@@ -8158,7 +8183,7 @@
             ? '<div ' + on(() => setState({ zoom: { photos: album, i: 0 } })) + ' aria-label="Open the album" style="display:grid;grid-template-columns:' + (album.length === 1 ? '1fr' : album.length === 2 ? '1fr 1fr' : '2fr 1fr') + ';grid-template-rows:' + (album.length < 3 ? '186px' : '90px 90px') + ';gap:6px;cursor:zoom-in">' +
                 (album.length < 3 ? album.map(src => tileAt(src)).join('') :
                 tileAt(album[0], 'grid-row:span 2') + tileAt(album[1]) +
-                '<span style="position:relative;border-radius:12px;background:' + bg(album[2]) + '">' + (album.length > 3 ? '<span style="position:absolute;inset:0;border-radius:12px;background:rgba(13,17,23,.5);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:900;color:#fff">+' + (album.length - 3) + '</span>' : '') + '</span>') +
+                '<span style="position:relative;overflow:hidden;border-radius:12px;background:' + bg(album[2]) + '">' + (sfHidPhoto(album[2]) ? sfPhotoVeil(album[2], true) : '') + (album.length > 3 ? '<span style="position:absolute;inset:0;border-radius:12px;background:rgba(13,17,23,.5);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:900;color:#fff">+' + (album.length - 3) + '</span>' : '') + '</span>') +
               '</div>'
             : '<p style="margin:0;font-size:14px;line-height:1.45;font-weight:500;color:#5c6270">No photos yet. Anyone who went can add theirs.</p>') +
         '</div>' +
@@ -9700,7 +9725,7 @@
   // "Sat, Oct 24 · 10am", "Sat, Oct 24 · 10am – 12pm"
   const dayLabel = (d, t, e) => d ? fmtDay(d) + (t ? ' · ' + (e ? spanTime({ time: t, endTime: e }) : fmtTime(t)) : '') : '';
   const jobMeta = (j) => j.kind ? partMeta(j) : (j.day ? dayWord(whenCols(evWhen()).schedule, j.day) + ' · ' : '') + (j.shifts ? (j.shifts.length === 1 ? fmtTime(j.shifts[0].time) : j.shifts.length + ' times from ' + fmtTime(j.shifts[0].time)) + (j.shifts.every(q => q.need && q.need === j.shifts[0].need) ? ' · ' + j.shifts[0].need + ' each' : '')
-    : (j.need ? j.need + (j.need === 1 ? ' person' : ' people') : 'Anyone') + (j.time ? ' · ' + fmtTime(j.time) : ''));
+    : (j.need ? j.need + (j.need === 1 ? ' slot' : ' slots') : 'No limit') + (j.time ? ' · ' + fmtTime(j.time) : ''));
   const evStarted = (st) => !!(cleanTitle(st.activity) || st.evDate || cleanTitle(st.locText) || cleanTitle(st.locAddr || '') || st.evBits.some(b => b.trim()) || !!(st.evOverview || '').trim() || st.evNeeds.length || !!(st.evDesc || '').trim() || (st.evInspo || []).length);
   // People can invite friends (v8-14): on by default for Public, off for Private; switching it sticks until Public / Private changes
   const evGuestInv = (st) => st.evNoGuestInv == null ? !st.evPriv : !st.evNoGuestInv;
@@ -11649,6 +11674,12 @@
     '<span ' + on(() => { loadSafety(); sfMenu('comment', { who: by, target: id, label: firstName(nameOf(by)) + '’s comment' }); }) + ' aria-label="More" data-comment-more style="flex:0 0 30px;width:30px;height:24px;margin-left:auto;display:flex;align-items:center;justify-content:center;border-radius:999px;color:#9aa0ac;cursor:pointer">' +
       svg(16, 'fill="currentColor"', '<circle cx="5.5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="18.5" cy="12" r="1.8"/>') + '</span>';
   // The full-screen viewer's Report pill: our own storage photos only, not your own, signed in
+  // A photo you reported (still open), for you only (Design v8-22, 4b): blurred behind a dark scrim, You reported this
+  // photo · Show anyway; small tiles keep just the flag and Show anyway
+  const sfHidPhoto = (url) => { const p = sfPhotoPath(url); return !!p && sfReported('photo', p) && !sfShown('ph:' + p); };
+  const sfPhotoVeil = (url, small) => '<span data-reported-photo style="position:absolute;inset:0;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:' + (small ? 4 : 10) + 'px;padding:6px;background:rgba(13,17,23,' + (small ? .55 : .35) + ');-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);text-align:center;color:#fff;pointer-events:auto">' +
+    svg(small ? 15 : 22, stroke('#fff', 2.2), SF_FLAG) + (small ? '' : '<span style="font-size:16px;font-weight:800">You reported this photo</span>') +
+    '<span ' + on(sfShowIt('ph:' + sfPhotoPath(url))) + ' role="button" style="display:flex;align-items:center;min-height:' + (small ? 28 : 40) + 'px;padding:0 ' + (small ? 10 : 16) + 'px;border-radius:999px;background:rgba(255,255,255,.2);font-size:' + (small ? 12 : 14.5) + 'px;font-weight:800;color:#fff;cursor:pointer">Show anyway</span></span>';
   const sfPhotoPath = (url) => { const m = /\/storage\/v1\/object\/public\/[^/]+\/([0-9a-f-]{36}\/[0-9a-f-]{36}\.jpg)$/.exec(url || ''); return m && PHOTO_PATH.test(m[1]) ? m[1] : null; };
   const sfPhotoPill = (url) => { const p = sfPhotoPath(url);
     if (!state.email || !p || p.split('/')[0] === state.me) return '';
@@ -12081,7 +12112,8 @@
     const step = (d) => (e) => { stop(e); setState({ zoom: { photos: z.photos, i: (z.i + d + n) % n } }); };
     const arrow = (d, label, path) => '<span ' + on(step(d)) + ' aria-label="' + label + '" style="position:absolute;top:50%;' + (d < 0 ? 'left' : 'right') + ':12px;transform:translateY(-50%);width:44px;height:44px;border-radius:999px;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;cursor:pointer">' + path + '</span>';
     return '<div role="dialog" aria-modal="true" aria-label="Photo" data-scrim="' + reg(close) + '" style="position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.94);display:flex;align-items:center;justify-content:center;animation:fadeIn 160ms ease both;cursor:zoom-out">' +
-      '<img data-on="' + reg(close) + '" src="' + esc(z.photos[z.i]) + '" alt="Photo ' + (z.i + 1) + ' of ' + n + '" style="max-width:100%;max-height:100%;object-fit:contain;display:block">' +
+      '<img data-on="' + reg(close) + '" src="' + esc(z.photos[z.i]) + '" alt="Photo ' + (z.i + 1) + ' of ' + n + '" style="max-width:100%;max-height:100%;object-fit:contain;display:block' + (sfHidPhoto(z.photos[z.i]) ? ';filter:blur(28px) brightness(.6)' : '') + '">' +
+      (sfHidPhoto(z.photos[z.i]) ? sfPhotoVeil(z.photos[z.i]) : '') +
       '<span ' + on(close) + ' aria-label="Close" style="position:absolute;top:max(14px, env(safe-area-inset-top));right:14px;width:40px;height:40px;border-radius:999px;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(16, '#fff', 2.6) + '</span>' +
       sfPhotoPill(z.photos[z.i]) +   // Report (v8-18 1s)
       (n > 1

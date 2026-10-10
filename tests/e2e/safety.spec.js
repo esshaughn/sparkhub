@@ -106,6 +106,11 @@ test('an event: members get ⋯ (Share link · Report this event), and the group
     await rep.locator('[data-sf-send]').click();
     await W.getByRole('dialog', { name: 'Thanks for telling us' }).locator('[data-sf-done]').click();
     expect(await asUser(W, async (c, _C, id) => (await c.rpc('my_safety')).data.reports.some(r => r.kind === 'event' && r.target === id), id)).toBe(true);
+    // Only for Olive, until a lead acts (Design v8-22, 4d): the page works, with one grey line and Undo at the top
+    await expect(WP.locator('[data-reported-event]')).toContainText('You reported this event');
+    await WP.locator('[data-reported-event]').getByRole('button', { name: 'Undo' }).click();
+    await expect(WP.locator('[data-reported-event]')).toHaveCount(0);
+    await expect.poll(() => asUser(W, async (c, _C, id) => (await c.rpc('my_safety')).data.reports.some(r => r.kind === 'event' && r.target === id), id)).toBe(false);
     // A report about a member's comment does reach the group's inbox (made directly: the comment's own UI is tested above)
     const cid = await asUser(W, async (c, _C, id) => {
       await c.from('rsvps').upsert({ spark_id: id, user_id: (await c.auth.getUser()).data.user.id, status: 'going' });   // Going, to comment
