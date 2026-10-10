@@ -146,8 +146,8 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     await VP.locator('[data-signup="Folding chairs"]').getByRole('button', { name: 'Sign up' }).click();
     // Guests can sign up for anything with a name and phone (one kind of sign-up, 2026-10-07; jobs were accounts-only)
     const gSheet = V.getByRole('dialog', { name: 'Sign up' });
-    await expect(gSheet).toContainText('Only the hosts see your number.');
-    await expect(gSheet).toContainText('Have an account? Sign in');
+    await expect(gSheet).toContainText('Only the hosts see your phone or email.');
+    await expect(gSheet).toContainText('Create a free account or sign in');
     await gSheet.getByRole('button', { name: 'Close' }).click();
     await expect(VP.locator('[data-signup="Folding chairs"]')).toContainText('1 of 2 open');   // still just Gus
     // The answer is still there when they come back (this event only)
