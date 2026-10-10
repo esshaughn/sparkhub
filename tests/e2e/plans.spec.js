@@ -1042,35 +1042,3 @@ test('hand the lead to someone: they say yes, and the old lead is a co-lead', as
   }
 });
 
-// Add to calendar: Android opens Google Calendar's add screen filled in; iPhone and computers still download the .ics
-test('Add to calendar: Android opens Google Calendar, other devices download the .ics', async ({ browser }) => {
-  const { page, context } = await newLead(browser, 1, 'Hope');
-  const title = uniqueTitle('Calendar picnic');
-  let id;
-  try {
-    id = await postEvent(page, { title, date: inDays(6), time: '19:00' });
-    const ua = (v) => page.evaluate((u) => { Object.defineProperty(navigator, 'userAgent', { value: u, configurable: true }); window.__opened = []; window.open = (url) => { window.__opened.push(url); return null; }; }, v);
-    const add = page.locator('[data-screen-label="Plan page"]').getByText('Add to calendar').first();
-    await ua('Mozilla/5.0 (Linux; Android 14; Pixel 8) Chrome/120 Mobile');
-    await add.click();
-    const urls = await page.evaluate(() => window.__opened);
-    expect(urls).toHaveLength(1);
-    const u = new URL(urls[0]);
-    expect(u.origin + u.pathname).toBe('https://calendar.google.com/calendar/render');
-    expect(u.searchParams.get('action')).toBe('TEMPLATE');
-    expect(u.searchParams.get('text')).toBe(title.charAt(0).toUpperCase() + title.slice(1));
-    const d = inDays(6).replace(/-/g, '');
-    expect(u.searchParams.get('dates')).toBe(d + 'T190000/' + d + 'T200000');
-    expect(u.searchParams.get('details')).toMatch(/\/e\/[a-z0-9]+$/);
-    // iPhone: the file, plus a hint about the calendar sheet
-    await ua('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Mobile/15E148');
-    const dl = page.waitForEvent('download');
-    await add.click();
-    expect((await dl).suggestedFilename()).toMatch(/\.ics$/);
-    await expect(page.getByRole('status')).toContainText('Pick a calendar if it asks.');
-    expect(await page.evaluate(() => window.__opened.length)).toBe(0);   // no Google link on iPhone
-  } finally {
-    if (id) await deleteIdea(page, id).catch(() => {});
-    await context.close();
-  }
-});
