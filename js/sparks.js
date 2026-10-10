@@ -11439,7 +11439,7 @@
       else if (v === 'sent') inner = '<div data-sf-sent style="display:flex;flex-direction:column;gap:12px;padding-top:6px">' +
         '<span style="align-self:center;width:52px;height:52px;border-radius:999px;background:#e7f6ec;display:flex;align-items:center;justify-content:center">' + svg(24, stroke('#149a4b', 3), '<path d="M5 12.5 9.5 17 19 7"/>') + '</span>' +
         '<span style="text-align:center;font-size:20px;font-weight:900;color:#0d1117">Thanks for telling us</span>' +
-        '<span style="text-align:center;font-size:14.5px;line-height:1.45;font-weight:600;color:#454b55">A group lead will look at this, and we review reports within 48 hours.</span>' +
+        '<span style="text-align:center;font-size:14.5px;line-height:1.45;font-weight:600;color:#454b55">A group lead will look at this, and we review reports within 72 hours.</span>' +
         btn('Done', close, LN, '#0d1117', 'data-sf-done') + '</div>';
       else inner = '<div style="display:flex;flex-direction:column;gap:12px">' + face(f.who, f.name, null, 56) +
         '<span style="font-size:21px;font-weight:900;color:#0d1117">Block ' + esc(firstName(f.name) || 'them') + '?</span>' +
@@ -11487,7 +11487,7 @@
               (q.group_id && q.subject_member ? act(q, 'Remove member', 'remove_member', 'Removed from the group') + act(q, 'Block', 'block', 'Blocked from the group') : '') + '</div></div>').join(''), 'gap:0');
     } else if (v === 'rules') {
       const RULES = [['13 or older', 'You need to be at least 13 to use Spark Hub.'], ['Be kind', 'No harassment, hate or threats.'], ['Keep it safe', 'No nudity, violence or anything unsafe.'],
-        ['Group leads keep it tidy', 'Group leads can remove posts and members of their group.'], ['Tell us', 'Report anything that’s wrong. We look within 48 hours.']];
+        ['Group leads keep it tidy', 'Group leads can remove posts and members of their group.'], ['Tell us', 'Report anything that’s wrong. We look within 72 hours.']];
       const link = (label, href) => '<a href="' + href + '" target="_blank" rel="noopener" style="min-height:36px;display:flex;align-items:center;font-size:14px;font-weight:800;color:' + P + ';text-decoration:none">' + label + ' ›</a>';
       body = card('<span style="padding-bottom:4px;font-size:14.5px;line-height:1.4;font-weight:600;color:#454b55">Spark Hub is for planning things with your people. Keep it friendly.</span>' +
         RULES.map(([t, d], k) => '<div data-rule-row style="display:flex;align-items:flex-start;gap:12px;padding:10px 0;' + (k ? 'border-top:1px solid ' + LN : '') + '">' +

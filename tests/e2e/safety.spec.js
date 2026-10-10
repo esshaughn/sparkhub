@@ -35,7 +35,7 @@ test('a comment: report it (and undo), block its writer (and show it), then unbl
     await rep.getByLabel('Note').fill('Not what this is for');
     await rep.locator('[data-sf-send]').click();
     const sent = H.getByRole('dialog', { name: 'Thanks for telling us' });
-    await expect(sent).toContainText('A group lead will look at this, and we review reports within 48 hours.');
+    await expect(sent).toContainText('A group lead will look at this, and we review reports within 72 hours.');
     await sent.locator('[data-sf-done]').click();
     await expect(hd.locator('[data-sf-fold="reported"]')).toContainText('You reported this');
     await expect(hd.locator('[data-comment]')).toHaveCount(0);
