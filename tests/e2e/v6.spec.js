@@ -64,8 +64,8 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     await expect(hSearch).toHaveCount(0);
     await expect(lead).not.toContainText('Post an update');
     await expect(lead).toContainText('Location TBD');
-    await expect(lead).toContainText('Folding chairs 2 open');
-    await expect(lead).toContainText('Ice 1 open');
+    await expect(lead).toContainText('Folding chairs · 2 open');   // the count inline in grey (My tasks 1e, v8-22)
+    await expect(lead).toContainText('Ice · 1 open');
     await lead.locator('[data-todo-cta]', { hasText: 'Ask' }).first().click();
     const askSheet = H.getByRole('dialog', { name: 'Ask someone to take it' });
     await expect(askSheet).toContainText('Ask someone to take “Folding chairs”');

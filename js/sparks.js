@@ -4106,6 +4106,34 @@
     return out.sort((a, b) => when(a.s).localeCompare(when(b.s)) || b.s.created - a.s.created);
   };
 
+  // All, with nothing on your list (My tasks 1d, Design v8-22): the Get started gradient with Find a way to help (My
+  // calendar) and Lead one (the + menu), then NEEDS A HAND: up to 3 open sign-ups on upcoming Plans in your groups
+  const tkEmptyAll = () => {
+    const spark = (x, y, z, o) => '<svg aria-hidden="true" width="' + z + '" height="' + z + '" viewBox="0 0 24 24" style="position:absolute;left:' + x + '%;top:' + y + '%;opacity:' + o + ';pointer-events:none">' + GS_SPARK + '</svg>';
+    const needs = [];
+    calBase().filter(s => s.planned && s.dayDate && s.dayDate >= todayISO() && !s.cancelledAt && !isLead(s)).sort(byWhen).forEach(s => {
+      s.signups.forEach(it => { const left = it.need ? it.need - it.claims.length : 0;
+        if (needs.length < 3 && left > 0 && !it.claims.some(c => c.userId === state.me)) needs.push({ s, it, left }); });
+    });
+    const help = () => { setState({ tkSheet: false }); go('sched'); };
+    return '<div data-screen-label="Tasks empty all" style="display:flex;flex-direction:column;gap:10px">' +
+      '<div style="position:relative;overflow:hidden;border-radius:22px;background:linear-gradient(115deg,#5b4ae8 0%,#a64bd6 45%,#e2558f 72%,#f5b428 100%);color:#fff;padding:22px 18px;display:flex;flex-direction:column;gap:8px">' +
+        spark(70, 14, 10, .8) + spark(86, 58, 7, .6) + spark(56, 80, 6, .5) +
+        '<span style="position:relative;font-size:24px;font-weight:900;letter-spacing:-.5px;line-height:1.1">Your list is empty.<br>Let’s fix that.</span>' +
+        '<span style="position:relative;font-size:14.5px;font-weight:600;line-height:1.4;opacity:.95;text-wrap:pretty">Sign up to help with something nearby, or start something of your own.</span>' +
+        '<div style="position:relative;display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">' +
+          '<span ' + on(help) + ' role="button" data-tke-help style="height:42px;padding:0 16px;border-radius:999px;background:#fff;color:#5b4ae8;font-size:14.5px;font-weight:800;display:flex;align-items:center;cursor:pointer">Find a way to help</span>' +
+          '<span ' + on(() => { help(); setState({ plusMenu: true }); }) + ' role="button" data-tke-lead class="hov-white-line" style="height:42px;padding:0 14px;border-radius:999px;background:rgba(255,255,255,.22);color:#fff;font-size:14.5px;font-weight:800;display:flex;align-items:center;cursor:pointer">Lead one</span></div></div>' +
+      (needs.length ? '<div style="display:flex;align-items:baseline;padding:8px 4px 0"><span style="flex:1;font-size:13px;font-weight:900;letter-spacing:1px;color:#0d1117">NEEDS A HAND</span>' +
+          '<span ' + on(help) + ' role="button" style="font-size:13.5px;font-weight:800;color:#5b4ae8;cursor:pointer">See all</span></div>' +
+        '<div data-tke-needs style="background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08);overflow:hidden;padding:4px 0">' + needs.map(q =>
+          '<div ' + on(() => openToSection(q.s, 'sec-tasks')) + ' role="button" class="hov-row" style="display:flex;align-items:center;gap:12px;padding:10px 14px;cursor:pointer">' +
+            '<span aria-hidden="true" style="flex:0 0 40px;width:40px;height:40px;border-radius:10px;background:' + photoBg(q.s) + '"></span>' +
+            '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px"><span style="font-size:15px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(q.it.item) + '</span>' +
+              '<span style="font-size:12.5px;font-weight:600;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(q.s.text + ' · ' + fmtDay(q.s.dayDate) + ' · ' + q.left + ' open') + '</span></div>' +
+            '<span style="flex:0 0 auto;height:32px;padding:0 12px;border-radius:999px;box-shadow:inset 0 0 0 1.5px #5b4ae8;color:#5b4ae8;font-size:13.5px;font-weight:800;display:flex;align-items:center">Sign up</span></div>').join('') + '</div>' : '') +
+    '</div>';
+  };
   // sheet (v8-9 item 4): Me opens it as a slide-up, with a sticky header (grab handle, ⌄ closes, Search, bell)
   function viewTasks(sheet) {
     const st = state, cat = st.tkCat || 'all', dense = st.tkView === 'dense';
@@ -4141,7 +4169,7 @@
         ? '<div ' + on(E[2]) + ' data-screen-label="Tasks empty" class="hov-grey-fill" style="display:flex;align-items:center;gap:14px;padding:16px 14px 16px 16px;border-radius:20px;background:#f4f5f7;box-shadow:inset 0 0 0 1.5px #dfe2e7;cursor:pointer">' +
             '<span style="flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dfe2e7;display:flex;align-items:center;justify-content:center;color:' + E[4] + '">' + E[3] + '</span>' +
             '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-size:16px;font-weight:900;color:#0d1117">' + E[0] + '</span><span style="font-size:14px;line-height:1.35;font-weight:500;color:#6b7280;text-wrap:pretty">' + E[1] + '</span></div>' + I.chevR(16, '#b9bcc4', 2.6) + '</div>'
-        : '<div style="' + CARD + ';border-radius:20px;padding:18px;display:flex;flex-direction:column;gap:4px"><span style="font-size:16.5px;font-weight:900;color:#0d1117">Nothing needs you right now.</span><span style="font-size:14px;line-height:1.4;font-weight:500;color:#5c6270;text-wrap:pretty">Things you’re leading, jobs you’ve taken, and ideas to move along show up here.</span></div>'));
+        : tkEmptyAll()));
     }
     const dateOf = (s) => s.dayDate ? fmtDay(s.dayDate).toUpperCase() : 'IDEA';
     const soon = (s) => { if (!s.dayDate) return ''; const d = dayDiff(s.dayDate); return d < 0 ? (d === -1 ? 'Yesterday' : -d + ' days ago') : d === 0 ? 'Today' : d === 1 ? 'Tomorrow' : d < 14 ? 'In ' + d + ' days' : 'In ' + Math.round(d / 7) + ' weeks'; };
@@ -4151,18 +4179,25 @@
     const dot = (k) => '<span style="flex:0 0 6px;width:6px;height:6px;border-radius:999px;background:' + TK_INK[k] + '"></span>';
     let body;
     if (!dense) {
-      body = '<div style="display:flex;flex-direction:column;gap:18px">' + shown.map((g, q) =>
-        '<section data-task="' + esc(g.s.text) + '" aria-label="' + esc(g.s.text) + '" style="display:flex;flex-direction:column;gap:6px">' +
-          '<div style="display:flex;align-items:center;gap:8px;padding:0 4px;min-height:32px"><span style="font-size:12px;font-weight:900;letter-spacing:.8px;color:#6b7280">' + dateOf(g.s) + '</span>' +
-            (soon(g.s) ? '<span style="font-size:12px;font-weight:700;color:#8a909b">' + soon(g.s) + '</span>' : '') +
-            (q ? '<span style="flex:1;height:1px;border-radius:2px;background:#c9ccd3"></span>' : '<span style="flex:1"></span>' + viewSw) + '</div>' +
-          '<div ' + on(() => openSpark(g.s)) + ' style="display:flex;align-items:center;gap:8px;padding:0 4px;cursor:pointer"><span style="flex:0 0 3px;width:3px;height:18px;border-radius:2px;background:' + TK_INK[g.kind] + '"></span>' +
-            '<span style="flex:1;min-width:0;font-size:16px;font-weight:900;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(g.s.text) + demoTag(g.s, false, true) + '</span></div>' +
-          '<div style="background:#fff;border-radius:16px;box-shadow:0 1px 3px rgba(15,18,25,.08);overflow:hidden">' + g.rows.map((r, j) =>
-            '<div ' + on(() => openSpark(g.s)) + ' class="hov-row" style="display:flex;align-items:center;gap:12px;min-height:46px;padding:5px 14px;' + (j ? 'border-top:1px solid #f0f1f4;' : '') + 'cursor:pointer">' + dot(g.kind) +
-              '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px"><span style="font-size:15px;font-weight:700;color:' + (r.warn ? '#8f6405' : '#0d1117') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + line(r) + '</span>' +
-                (r.sub ? '<span style="font-size:12.5px;font-weight:600;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(r.sub) + '</span>' : '') + '</div>' + act(r, 14, 32) + '</div>').join('') + '</div>' +
-        '</section>').join('') + '</div>';
+      // 1e (Design v8-22, My Tasks Calm): NEXT 2 WEEKS, then LATER, every event a full white card. The card's top row is
+      // the date in grey caps and "In 5 days" far right, then the title (15.5/900, wraps). Task rows are 30px with a small
+      // role dot, no lines between; an open count and a time follow the name in grey; Ask / See list are plain purple text
+      const near = (z) => !z.s.dayDate || dayDiff(z.s.dayDate) < 14;
+      const tline = (r) => r.job ? esc(r.job) + ' <span style="font-size:13px;font-weight:600;color:#9aa0ac">· ' + esc(r.open) + (r.asked ? ' · ' + esc(r.asked) : '') + '</span>' : esc(r.title);
+      const tact = (r) => r.cta && r.go ? '<span ' + on((e) => { stop(e); r.go(); }) + ' data-todo-cta role="button" class="hov-ink" style="flex:0 0 auto;display:flex;align-items:center;min-height:32px;padding:0 2px 0 8px;color:#5b4ae8;font-size:14px;font-weight:800;white-space:nowrap;cursor:pointer">' + esc(r.cta) + '</span>' : '';
+      body = '<div style="display:flex;flex-direction:column;gap:18px">' + shown.map((g, q) => { const sec = q === 0 || near(shown[q - 1]) !== near(g);
+        return '<div style="display:flex;flex-direction:column;gap:8px">' +
+          (sec ? '<div data-tk-sec style="display:flex;align-items:center;gap:8px;padding:' + (q ? '10px' : '0') + ' 4px 0;min-height:34px"><span style="flex:1;font-size:13px;font-weight:900;letter-spacing:1px;color:#0d1117">' + (near(g) ? 'NEXT 2 WEEKS' : 'LATER') + '</span>' + (q ? '' : viewSw) + '</div>' : '') +
+          '<section data-task="' + esc(g.s.text) + '" aria-label="' + esc(g.s.text) + '" style="background:#fff;border-radius:16px;box-shadow:0 1px 3px rgba(15,18,25,.08);overflow:hidden">' +
+            '<div ' + on(() => openSpark(g.s)) + ' role="button" style="display:flex;flex-direction:column;gap:1px;padding:10px 14px 4px;cursor:pointer">' +
+              '<div style="display:flex;align-items:baseline;gap:8px"><span style="flex:1;font-size:12px;font-weight:800;letter-spacing:.6px;color:#6b7280">' + dateOf(g.s) + '</span>' +
+                (soon(g.s) ? '<span style="flex:0 0 auto;font-size:12.5px;font-weight:700;color:#9aa0ac;white-space:nowrap">' + soon(g.s) + '</span>' : '') + '</div>' +
+              '<span style="font-size:15.5px;line-height:1.25;font-weight:900;color:#0d1117;text-wrap:pretty;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">' + esc(g.s.text) + demoTag(g.s, false, true) + '</span></div>' +
+            '<div style="display:flex;flex-direction:column;padding-bottom:6px">' + g.rows.map(r =>
+              '<div ' + on(() => openSpark(g.s)) + ' class="hov-row" style="display:flex;align-items:center;gap:12px;min-height:30px;padding:1px 14px;cursor:pointer">' + dot(g.kind) +
+                '<span style="flex:1;min-width:0;font-size:15px;font-weight:700;color:' + (r.warn ? '#8f6405' : '#0d1117') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + tline(r) +
+                  (r.sub ? ' <span style="font-size:13px;font-weight:600;color:#9aa0ac;white-space:nowrap">· ' + esc(r.sub) + '</span>' : '') + '</span>' + tact(r) + '</div>').join('') + '</div>' +
+          '</section></div>'; }).join('') + '</div>';
     } else {
       body = '<div style="display:flex;align-items:center;justify-content:flex-end;padding:2px 0 0">' + viewSw + '</div>' +
         '<div style="background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08);overflow:hidden;padding:4px 0 6px">' + shown.map((g, q) =>
