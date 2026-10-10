@@ -6775,8 +6775,8 @@
         // The photo (host only): Adjust re-frames the current one, Replace / Add a photo pick a new one. Both open the
         // positioner on top of this pop-up and save straight away, so a title being edited here stays as typed
         (isLead(s) ? '<div data-edit-photo style="display:flex;flex-direction:column;gap:8px">' + label('Photo') +
-          '<div aria-hidden="true" style="position:relative;height:150px;border-radius:16px;overflow:hidden;background:' + (cur ? '#2b303a' : EV_GRAD) + '">' +
-            (cur ? photoLayer(cur, s.coverPos, IDEA_POS) : '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:rgba(255,255,255,.8)">No photo yet</div>') + '</div>' +
+          '<div style="position:relative;height:150px;border-radius:16px;overflow:hidden;background:' + (cur ? '#2b303a' : EV_GRAD) + '">' +
+            (cur ? photoLayer(cur, s.coverPos, IDEA_POS) + '<span ' + on(() => setState({ zoom: { photos: [cur], i: 0 } })) + ' aria-label="View the photo" style="position:absolute;inset:0;cursor:zoom-in"></span>' : '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:rgba(255,255,255,.8)">No photo yet</div>') + '</div>' +
           '<div style="display:flex;gap:8px">' +
             (cur ? '<span ' + on(() => openPositioner({ kind: 'idea', id: s.id, url: cur, pos: s.coverPos })) + ' style="' + PHOTO_BTN + '">' + svg(16, stroke('currentColor', 2.2), '<path d="M5 9V5h4M15 5h4v4M19 15v4h-4M9 19H5v-4"/>') + 'Adjust</span>' : '') +
             '<label style="' + PHOTO_BTN + '">' + svg(16, stroke('currentColor', 2.2), CAMERA) + (cur ? 'Replace' : 'Add a photo') +
@@ -8207,7 +8207,7 @@
             '<textarea data-qi-why rows="2" maxlength="' + OV_MAX + '" aria-label="Short description" placeholder="Casual games for all levels. Bring a paddle if you have one." ' + onInput(e => { if (e.type === 'input') set({ why: e.target.value.slice(0, OV_MAX) }); }) + ' style="' + FLD + ring(!!q.why) + 'padding:12px 14px 24px;font-size:15.5px;font-weight:600;line-height:1.35;display:block">' + esc(q.why) + '</textarea>' +
             '<span style="position:absolute;right:12px;bottom:8px;font-size:11.5px;font-weight:700;color:#9aa0ac">' + q.why.length + '/' + OV_MAX + '</span></span></label>' +
           '<div style="display:flex;flex-direction:column;gap:8px">' + label('ADD A PHOTO', true) +
-            (q.photo ? '<div style="display:flex;align-items:center;gap:12px"><span style="width:96px;height:72px;border-radius:10px;background:' + bg(q.photo.url) + ';box-shadow:0 2px 6px rgba(13,17,23,.15)"></span>' +
+            (q.photo ? '<div style="display:flex;align-items:center;gap:12px"><span ' + on(() => setState({ zoom: { photos: [q.photo.url], i: 0 } })) + ' aria-label="View the photo" style="width:96px;height:72px;border-radius:10px;cursor:zoom-in;background:' + bg(q.photo.url) + ';box-shadow:0 2px 6px rgba(13,17,23,.15)"></span>' +
                 '<span ' + on(() => set({ photo: null })) + ' style="display:flex;align-items:center;min-height:40px;font-size:14.5px;font-weight:800;color:#8f6405;cursor:pointer">Remove</span></div>'
               : '<label style="display:flex;align-items:center;justify-content:center;gap:8px;min-height:60px;border-radius:14px;background:#fff;outline:2px dashed #dcd3b8;outline-offset:-6px;cursor:pointer">' + svg(20, stroke('#b07a0a', 2.2), '<rect x="3" y="5" width="18" height="14" rx="3"/><circle cx="9" cy="10" r="1.8"/><path d="m21 16-5-5-8 8"/>') +
                 '<span style="font-size:15px;font-weight:800;color:#8f6405">Add a photo</span><input type="file" accept="image/*" aria-label="Add a photo" ' + onInput(e => { if (e.type !== 'change') return; const f = (e.target.files || [])[0]; e.target.value = ''; qiPhoto(f); }) + ' style="display:none"></label>') + '</div>' +
@@ -9007,6 +9007,7 @@
       '<div style="position:relative;height:196px;background:#e8a71c;overflow:hidden">' +
         (photo
           ? photoLayer(photo, g.photoPos, GROUP_POS) +
+            '<span ' + on(() => setState({ zoom: { photos: [photo], i: 0 } })) + ' aria-label="View the cover photo" style="position:absolute;inset:0;cursor:zoom-in"></span>' +
             '<span ' + on(() => openPositioner({ kind: 'group', id: g.id, url: photo, pos: g.photoPos })) + ' style="' + COVER_BTN + '">' + I.camera(15) + 'Change cover</span>'
           : '<label style="' + COVER_BTN + '">' + I.camera(15) + 'Add a cover<input type="file" accept="image/*" aria-label="Add a cover" ' + onInput(e => { if (e.type !== 'change') return; const f = (e.target.files || [])[0]; e.target.value = ''; pickForPositioner(f, { kind: 'group', id: g.id }); }) + ' style="display:none"></label>') +
       '</div>' +
@@ -10202,6 +10203,8 @@
       const pillS = 'display:flex;align-items:center;gap:6px;min-height:34px;padding:0 12px;border-radius:999px;background:rgba(255,255,255,.9);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);color:#0d1117;box-shadow:0 1px 3px rgba(13,17,23,.18);font-size:13px;font-weight:800;cursor:pointer';
       const cover = url
         ? '<div data-cover-preview style="position:relative;height:110px;border-radius:18px;overflow:hidden;background:#2b303a ' + bg(url) + '">' +
+            // tap the photo to see it whole (owner, 2026-10-10: wherever a photo is chosen)
+            '<span ' + on(() => setState({ zoom: { photos: [url], i: 0 } })) + ' aria-label="View the cover photo" style="position:absolute;inset:0;cursor:zoom-in"></span>' +
             '<div style="position:absolute;left:8px;right:8px;bottom:8px;display:flex;gap:6px;justify-content:flex-end">' +
               '<label style="' + pillS + '">' + svg(14, stroke('currentColor', 2.2), CAMERA) + 'Change' + photoInput('Change the cover photo') + '</label>' +
               '<span ' + on(() => { st.photos.forEach(p => URL.revokeObjectURL(p.url)); dropPreUp(); setState({ photos: [], evPhotoPath: null, coverPos: null }); }) + ' aria-label="Remove photo" style="' + pillS + ';padding:0 10px">' + svg(14, stroke('currentColor', 2.2), TRASH_IC) + '</span></div></div>'
@@ -10644,7 +10647,7 @@
     return modal('Edit profile', close,
       h3Html('Edit profile') +
       '<div style="display:flex;align-items:center;gap:14px">' +
-        avatarSpan(state.me, pe.name, pe.avatar ? pe.avatar.url : null, 64) +
+        (pe.avatar ? '<span ' + on(() => setState({ zoom: { photos: [pe.avatar.url], i: 0 } })) + ' aria-label="View your photo" style="flex:0 0 64px;display:flex;cursor:zoom-in">' + avatarSpan(state.me, pe.name, pe.avatar.url, 64) + '</span>' : avatarSpan(state.me, pe.name, null, 64)) +
         '<div style="display:flex;flex-wrap:wrap;gap:4px 14px">' +
           '<label style="display:flex;align-items:center;min-height:32px;font-size:15px;font-weight:800;color:#5b4ae8;cursor:pointer">' + (pe.avatar ? 'Change photo' : 'Add a photo') +
             '<input type="file" accept="image/*" aria-label="Profile photo" ' + onInput(e => { if (e.type !== 'change') return; const f = Array.from(e.target.files || []); e.target.value = ''; onPeAvatar(f); }) + ' style="display:none"></label>' +
@@ -11139,7 +11142,7 @@
     const z = state.zoom, n = z.photos.length, close = () => setState({ zoom: null });
     const step = (d) => (e) => { stop(e); setState({ zoom: { photos: z.photos, i: (z.i + d + n) % n } }); };
     const arrow = (d, label, path) => '<span ' + on(step(d)) + ' aria-label="' + label + '" style="position:absolute;top:50%;' + (d < 0 ? 'left' : 'right') + ':12px;transform:translateY(-50%);width:44px;height:44px;border-radius:999px;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;cursor:pointer">' + path + '</span>';
-    return '<div role="dialog" aria-modal="true" aria-label="Photo" data-scrim="' + reg(close) + '" style="position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.94);display:flex;align-items:center;justify-content:center;animation:fadeIn 160ms ease both;cursor:zoom-out">' +
+    return '<div role="dialog" aria-modal="true" aria-label="Photo" data-scrim="' + reg(close) + '" style="position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.94);display:flex;align-items:center;justify-content:center;animation:fadeIn 160ms ease both;cursor:zoom-out">' +
       '<img data-on="' + reg(close) + '" src="' + esc(z.photos[z.i]) + '" alt="Photo ' + (z.i + 1) + ' of ' + n + '" style="max-width:100%;max-height:100%;object-fit:contain;display:block">' +
       '<span ' + on(close) + ' aria-label="Close" style="position:absolute;top:max(14px, env(safe-area-inset-top));right:14px;width:40px;height:40px;border-radius:999px;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(16, '#fff', 2.6) + '</span>' +
       (n > 1
