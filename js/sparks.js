@@ -966,7 +966,7 @@
     must(await sb.from('guest_contacts').upsert({ spark_id: sparkId, user_id: state.me, name: state.guest.name }, { onConflict: 'spark_id,user_id' }));   // a phone left for Take part stays
   };
   // A guest's way for the hosts to reach them: a phone number or an email (guest_contacts.phone holds either;
-  // 20261121000000_guest_email.sql). The same shapes the database checks.
+  // 20261122000000_guest_email.sql). The same shapes the database checks.
   const isEmail = (v) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v || '');
   const contactOk = (v) => { v = (v || '').trim(); return isEmail(v) ? v.length <= 120 : /^[0-9 ()+.-]{10,20}$/.test(v) && v.replace(/\D/g, '').length >= 10; };
   const contactLink = (v) => '<a href="' + (isEmail(v) ? 'mailto:' + esc(v) : 'tel:' + esc(v.replace(/[^\d+]/g, ''))) + '" style="flex:0 0 auto;min-width:0;max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;font-weight:800;color:#5b4ae8">' + esc(v) + '</a>';
