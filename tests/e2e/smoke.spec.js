@@ -504,7 +504,19 @@ test('opening the app: loading placeholders (never "empty"), then the last scree
     await page.route('**/rest/v1/**', async (route) => { await gate; await route.continue().catch(() => {}); });
     return release;
   };
+  let id;
   try {
+    // An event with a sign-up in the lead's group: a sign-up row points back at its item, which once stopped the cache
+    // being saved at all (JSON.stringify threw), so this test failed whenever another test's event had one (2026-10-10)
+    id = await asUser(page, async (c, _C, title) => {
+      const me = (await c.auth.getUser()).data.user.id;
+      const g = (await c.from('groups').select('id').eq('name', 'Torrez Fitness').single()).data.id;
+      const d = new Date(); d.setDate(d.getDate() + 8);
+      const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      const s = (await c.from('sparks').insert({ group_id: g, author_name: 'Tester', lead_name: 'Tester', lead_id: me, created_by: me, text: title, planned: true, day_date: day }).select('id').single()).data.id;
+      await c.from('signup_items').insert({ spark_id: s, item: 'Folding chairs', need: 2 });
+      return s;
+    }, uniqueTitle('Cache picnic'));
     // No cache yet (cleared): placeholders, not Welcome and not the "empty" messages
     await page.evaluate(() => Object.keys(localStorage).filter(k => k.startsWith('spark-hub-cache')).forEach(k => localStorage.removeItem(k)));
     let release = await hold();
@@ -521,6 +533,7 @@ test('opening the app: loading placeholders (never "empty"), then the last scree
     await page.unroute('**/rest/v1/**');
     await expect(home.getByRole('status', { name: 'Loading' })).toHaveCount(0);
     await expect(home.getByRole('heading', { name: 'My calendar' })).toBeVisible();
+    expect(await page.evaluate(() => Object.keys(localStorage).some(k => k.startsWith('spark-hub-cache')))).toBe(true);   // saved, sign-ups and all
 
     // Next open: the cached screen shows at once, while the fresh data is still on its way
     release = await hold();
@@ -532,9 +545,11 @@ test('opening the app: loading placeholders (never "empty"), then the last scree
     await expect(page.locator('html[data-loaded=true]')).toHaveCount(1);
     await page.unroute('**/rest/v1/**');
 
+    await expect(home.locator('[data-plan]').first()).toBeVisible();
     // (Sign-out clears the cache too; not exercised here: the test leads are shared with parallel tests)
     expect(errors).toEqual([]);
   } finally {
+    if (id) await asUser(page, async (c, _C, id) => { await c.rpc('delete_event', { p_spark: id, p_quiet: true }); }, id).catch(() => {});
     await context.close();
   }
 });

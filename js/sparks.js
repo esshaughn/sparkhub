@@ -65,14 +65,21 @@
     } catch (e) { return null; }
   };
   const readCache = (uid) => {
-    try { const c = JSON.parse(localStorage.getItem(CACHE_KEY)); return c && c.me === uid ? c : null; } catch (e) { return null; }
+    try {
+      const c = JSON.parse(localStorage.getItem(CACHE_KEY));
+      if (!c || c.me !== uid) return null;
+      (c.sparks || []).forEach(s => ['parts', 'items'].forEach(k => (s[k] || []).forEach(p => (p.rows || []).forEach(u => { u.part = p; }))));
+      return c;
+    } catch (e) { return null; }
   };
   const writeCache = () => {
     if (state.viewAs || !state.email || !state.loaded || state.error) return;
     const sparks = state.sparks.map(s => Object.assign({}, s, { contacts: s.contacts.map(c => ({ spark_id: c.spark_id, user_id: c.user_id, name: c.name })) }));
     try {
+      // A sign-up row points back at its item (u.part, toParts), so the rows go without it and readCache links them again;
+      // with it JSON.stringify threw on any event with a sign-up and the cache was silently never saved (2026-10-10)
       localStorage.setItem(CACHE_KEY, JSON.stringify({ me: state.me, email: state.email, isGoogle: state.isGoogle, myName: state.myName, myAvatar: state.myAvatar, myPlace: state.myPlace, myBio: state.myBio, memberSince: state.memberSince, memberMon: state.memberMon,
-        groups: state.groups, sparks, profiles: state.profiles, sizes: state.sizes, notif: state.notif, demoAdmin: state.demoAdmin, fr: state.fr, at: Date.now() }));
+        groups: state.groups, sparks, profiles: state.profiles, sizes: state.sizes, notif: state.notif, demoAdmin: state.demoAdmin, fr: state.fr, at: Date.now() }, (k, v) => k === 'part' && v && typeof v === 'object' && Array.isArray(v.rows) ? undefined : v));
     } catch (e) { /* storage full or blocked: the app just loads as before */ }
   };
   const clearCache = () => { try { localStorage.removeItem(CACHE_KEY); } catch (e) { /* blocked */ } };
