@@ -766,31 +766,58 @@ select t.login('host'); set role authenticated;
 select t.check('the lead takes the cover off and gets its path back', public.remove_idea_cover((select id from sparks where text = 'Lead going walk')) like '%11111111-1111-1111-1111-111111111111.jpg');
 reset role;
 select t.check('no photo and no framing left', exists (select 1 from sparks where text = 'Lead going walk' and photos = '{}' and cover_pos is null));
--- Deleting your own account
+-- Deleting your own account (Design v8-18 store safety, 20261124000000_store_safety.sql)
+-- t.fresh(): signed in with an email code just now (the 6-digit code step)
+create function t.fresh(p_name text) returns void language plpgsql as $$
+begin
+  perform set_config('request.jwt.claims', json_build_object('sub', t.id(p_name), 'role', 'authenticated', 'is_anonymous', false,
+    'amr', json_build_array(json_build_object('method', 'otp', 'timestamp', extract(epoch from now())::bigint)))::text, false);
+  perform set_config('request.jwt.claim.sub', t.id(p_name)::text, false);
+end $$;
+grant execute on function t.fresh(text) to authenticated;
 select t.login('guest'); set role authenticated;
-select t.must_refuse('a guest deleting "their account"', $$select public.delete_my_account()$$);
+select t.must_refuse('a guest deleting "their account"', $$select public.delete_my_account('[]', '[]')$$);
 reset role;
 select t.login('leaver'); set role authenticated;
 select * from public.create_group('Leaver crew');
 reset role;
 insert into memberships (group_id, user_id, role) values ((select id from groups where name = 'Leaver crew'), t.id('heir'), 'member');
-select t.login('leaver'); set role authenticated;
-select t.must_refuse('deleting your account while you''re the only owner of a group with others in it', $$select public.delete_my_account()$$);
 insert into sparks (id, group_id, author_name, lead_name, lead_id, created_by, text, planned, day_date)
 values (gen_random_uuid(), (select id from groups where name = 'Leaver crew'), 'Leaver', 'Leaver', t.id('leaver'), t.id('leaver'), 'Handed on walk', true, current_date + 5),
-       (gen_random_uuid(), (select id from groups where name = 'Leaver crew'), 'Leaver', 'Leaver', t.id('leaver'), t.id('leaver'), 'Goes with them walk', true, current_date + 6);
-reset role;
-update memberships set role = 'owner' where user_id = t.id('heir') and group_id = (select id from groups where name = 'Leaver crew');
+       (gen_random_uuid(), (select id from groups where name = 'Leaver crew'), 'Leaver', 'Leaver', t.id('leaver'), t.id('leaver'), 'Called off walk', true, current_date + 6),
+       (gen_random_uuid(), (select id from groups where name = 'Leaver crew'), 'Leaver', 'Leaver', t.id('leaver'), t.id('leaver'), 'Looking again walk', true, current_date + 7),
+       (gen_random_uuid(), (select id from groups where name = 'Leaver crew'), 'Leaver', 'Leaver', t.id('leaver'), t.id('leaver'), 'Long ago walk', true, current_date - 9);
 insert into cohosts (spark_id, user_id, added_by) values ((select id from sparks where text = 'Handed on walk'), t.id('heir'), t.id('leaver'));
+insert into rsvps (spark_id, user_id, status) values ((select id from sparks where text = 'Called off walk'), t.id('heir'), 'going');
 select t.login('leaver'); set role authenticated;
-select t.must_allow('with another owner, the account can go', $$select public.delete_my_account()$$);
+select t.check('the plan lists the group to hand on and the three upcoming events',
+  jsonb_array_length(public.delete_account_plan() -> 'groups') = 1 and jsonb_array_length(public.delete_account_plan() -> 'events') = 3
+  and public.delete_account_plan() -> 'groups' -> 0 -> 'people' -> 0 ->> 'id' = t.id('heir')::text);
+select t.must_refuse('deleting without a fresh email code', $$select public.delete_my_account('[]', '[]')$$);
+select t.fresh('leaver');
+select t.must_refuse('deleting without saying who gets the group you own alone', $$select public.delete_my_account('[]', '[]')$$);
+select t.must_refuse('handing the group to someone outside it', format($$select public.delete_my_account('[{"id": "%s", "to": "%s"}]', '[]')$$,
+  (select id from groups where name = 'Leaver crew'), t.id('outsider')));
+select t.must_allow('with a fresh code and a new owner picked, the account goes', format($$select public.delete_my_account('[{"id": "%s", "to": "%s"}]', '[{"id": "%s", "act": "cancel"}]')$$,
+  (select id from groups where name = 'Leaver crew'), t.id('heir'), (select id from sparks where text = 'Called off walk')));
 reset role;
 select t.check('the account is gone', not exists (select 1 from auth.users where id = t.id('leaver')));
-select t.check('the group stays with its other owner', exists (select 1 from groups where name = 'Leaver crew'));
+select t.check('the group stays, with its new owner', exists (select 1 from memberships m join groups g on g.id = m.group_id where g.name = 'Leaver crew' and m.user_id = t.id('heir') and m.role = 'owner'));
 select t.check('the co-led event passed to its co-lead, who is no longer listed as a co-lead',
   exists (select 1 from sparks where text = 'Handed on walk' and lead_id = t.id('heir'))
   and not exists (select 1 from cohosts c join sparks s on s.id = c.spark_id where s.text = 'Handed on walk'));
-select t.check('the event with no co-lead went with them', not exists (select 1 from sparks where text = 'Goes with them walk'));
+select t.check('the cancelled event stays, cancelled, and the people going were told',
+  exists (select 1 from sparks where text = 'Called off walk' and cancelled_at is not null)
+  and exists (select 1 from notes where user_id = t.id('heir') and body like 'Called off walk is cancelled%'));
+select t.check('an event passed on with no co-lead is an idea looking for a lead', exists (select 1 from sparks where text = 'Looking again walk' and not planned and wants_host and lead_id is null));
+select t.check('a past event with no co-lead went with them', not exists (select 1 from sparks where text = 'Long ago walk'));
+select t.login('solo'); set role authenticated;
+select * from public.create_group('Solo crew');
+reset role;
+select t.fresh('solo'); set role authenticated;
+select t.must_allow('a group with nobody else in it just goes with the account', $$select public.delete_my_account('[]', '[]')$$);
+reset role;
+select t.check('…and so does the group', not exists (select 1 from groups where name = 'Solo crew'));
 
 -- Float an idea and ask someone to lead (20261102020000_float_and_ask.sql) -----------------------------------------
 select t.person('floater'), t.person('asked'), t.person('stranger');
@@ -1621,3 +1648,94 @@ select t.check('close_out_events twice writes one summary', private.close_out_ev
   and (select count(*) from private.event_summaries where spark_id = t.id('mem_past')) = 1);
 select t.check('the summary holds no user id', not exists (select 1 from private.event_summaries s, auth.users u
   where s::text like '%' || u.id::text || '%'));
+
+-- Store safety: reports, blocks, a guest's sign-ups (Design v8-18, 20261124000000_store_safety.sql) ---------------
+select t.person('rep_own'), t.person('rep_adm'), t.person('rep_m'), t.person('rep_a');
+insert into groups (id, name, code, created_by) values (gen_random_uuid(), 'Report group', 'CHECKR', t.id('rep_own'));
+insert into t.ids select 'rep_g', id from groups where code = 'CHECKR';
+insert into memberships (group_id, user_id, role) values (t.id('rep_g'), t.id('rep_own'), 'owner'), (t.id('rep_g'), t.id('rep_adm'), 'admin'),
+  (t.id('rep_g'), t.id('rep_m'), 'member'), (t.id('rep_g'), t.id('rep_a'), 'member');
+insert into sparks (id, group_id, author_name, lead_name, lead_id, created_by, text, visibility, planned, day_date)
+values (gen_random_uuid(), t.id('rep_g'), 'Mem', 'Mem', t.id('rep_m'), t.id('rep_m'), 'Reported walk', 'group', true, current_date + 8);
+insert into t.ids select 'rep_ev', id from sparks where text = 'Reported walk';
+insert into event_comments (id, spark_id, body, created_by) values (gen_random_uuid(), t.id('rep_ev'), 'Buy my stuff', t.id('rep_m')),
+  (gen_random_uuid(), t.id('rep_ev'), 'Admin says hi', t.id('rep_adm'));
+insert into t.ids select 'rep_c', id from event_comments where body = 'Buy my stuff';
+insert into t.ids select 'rep_c2', id from event_comments where body = 'Admin says hi';
+select t.check('nobody reads or writes reports directly', not has_table_privilege('authenticated', 'public.reports', 'select')
+  and not has_table_privilege('authenticated', 'public.reports', 'insert') and not has_table_privilege('anon', 'public.reports', 'select'));
+select t.login('guest'); set role authenticated;
+select t.must_refuse('a guest reporting', format($$select public.report_content('comment', '%s', 'Spam')$$, t.id('rep_c')));
+reset role;
+select t.login('outsider'); set role authenticated;
+select t.must_refuse('reporting a comment you can''t see', format($$select public.report_content('comment', '%s', 'Spam')$$, t.id('rep_c')));
+reset role;
+select t.login('rep_m'); set role authenticated;
+select t.must_refuse('reporting your own comment', format($$select public.report_content('comment', '%s', 'Spam')$$, t.id('rep_c')));
+reset role;
+select t.login('rep_a'); set role authenticated;
+select t.must_refuse('a report needs one of the five reasons', format($$select public.report_content('comment', '%s', 'Meh')$$, t.id('rep_c')));
+select t.check('a member reports a comment', public.report_content('comment', t.id('rep_c')::text, 'Spam', 'selling things') is not null);
+select t.check('reporting it again keeps the one report', public.report_content('comment', t.id('rep_c')::text, 'Harassment') = public.report_content('comment', t.id('rep_c')::text, 'Spam'));
+select t.check('a report about a group admin', public.report_content('comment', t.id('rep_c2')::text, 'Harassment') is not null);
+select t.check('the reporter sees their open reports (to fold them)', jsonb_array_length(public.my_safety() -> 'reports') = 2);
+select t.must_refuse('a member reading the group''s reports', format($$select * from public.list_reports('%s')$$, t.id('rep_g')));
+select t.must_refuse('a member reading all reports', $$select * from public.list_reports()$$);
+select t.must_refuse('a member acting on a report', format($$select public.resolve_report((select id from public.list_reports('%s') limit 1), 'dismiss')$$, t.id('rep_g')));
+reset role;
+select t.check('the report about an admin goes straight to the app owner', (select about_lead from reports where target = t.id('rep_c2')::text)
+  and not (select about_lead from reports where target = t.id('rep_c')::text));
+select t.login('rep_adm'); set role authenticated;
+select t.check('the group''s admin sees the report about a member, not the one about themselves, and not who sent it',
+  (select count(*) from public.list_reports(t.id('rep_g'))) = 1 and (select reporter_name from public.list_reports(t.id('rep_g'))) is null
+  and (select excerpt from public.list_reports(t.id('rep_g'))) = 'Buy my stuff');
+select public.resolve_report((select id from public.list_reports(t.id('rep_g'))), 'remove');
+reset role;
+select t.check('Remove content deletes the comment, closes the report and tells the person who posted it',
+  not exists (select 1 from event_comments where id = t.id('rep_c'))
+  and exists (select 1 from reports where target = t.id('rep_c')::text and status = 'removed')
+  and exists (select 1 from notes where user_id = t.id('rep_m') and body like 'Your comment on Reported walk was removed%'));
+select t.login('rep_a'); set role authenticated;
+select public.withdraw_report('comment', t.id('rep_c2')::text);
+select t.check('Undo takes back your own open report', jsonb_array_length(public.my_safety() -> 'reports') = 0);
+select t.check('a member reports an event', public.report_content('event', t.id('rep_ev')::text, 'Unsafe') is not null);
+reset role;
+select t.login('rep_adm'); set role authenticated;
+select public.resolve_report((select id from public.list_reports(t.id('rep_g'))), 'block');
+reset role;
+select t.check('Block removes the person from the group and keeps them out',
+  not exists (select 1 from memberships where group_id = t.id('rep_g') and user_id = t.id('rep_m'))
+  and exists (select 1 from group_bans where group_id = t.id('rep_g') and user_id = t.id('rep_m'))
+  and exists (select 1 from sparks where id = t.id('rep_ev')));
+delete from group_bans where group_id = t.id('rep_g') and user_id = t.id('rep_m');
+insert into memberships (group_id, user_id, role) values (t.id('rep_g'), t.id('rep_m'), 'member');
+-- Blocking a person
+select t.login('rep_a'); set role authenticated;
+select t.must_refuse('writing a block directly', format($$insert into public.user_blocks (blocker, blocked) values ('%s', '%s')$$, t.id('rep_a'), t.id('rep_m')));
+select t.must_refuse('blocking yourself', format($$select public.block_user('%s')$$, t.id('rep_a')));
+select public.block_user(t.id('rep_m'));
+select t.check('you see your own blocks, with their names', (select count(*) from user_blocks) = 1 and public.my_safety() -> 'blocks' -> 0 ->> 'id' = t.id('rep_m')::text);
+reset role;
+select t.login('rep_m'); set role authenticated;
+select t.check('the person blocked can''t see that block', (select count(*) from user_blocks) = 0);
+select t.check('their friend request goes nowhere (it looks sent)', public.send_friend_request(t.id('rep_a')) = 'requested');
+reset role;
+select t.check('…and no request was saved', not exists (select 1 from friend_requests where from_id = t.id('rep_m') and to_id = t.id('rep_a')));
+select private.make_friends(t.id('rep_m'), t.id('rep_a'));
+select t.check('a friendship between them doesn''t happen either', not exists (select 1 from friendships where user_a = least(t.id('rep_m'), t.id('rep_a')) and user_b = greatest(t.id('rep_m'), t.id('rep_a'))));
+select t.login('rep_a'); set role authenticated;
+select public.unblock_user(t.id('rep_m'));
+select t.check('Unblock takes it off', (select count(*) from user_blocks) = 0);
+reset role;
+-- Remove my sign-ups (a guest on an event)
+insert into sparks (id, group_id, author_name, lead_name, lead_id, created_by, text, visibility, planned, day_date)
+values (gen_random_uuid(), t.id('rep_g'), 'Host', 'Host', t.id('rep_own'), t.id('rep_own'), 'Guest walk', 'group', true, current_date + 9);
+insert into t.ids select 'gw', id from sparks where text = 'Guest walk';
+insert into guest_contacts (spark_id, user_id, name, phone) values (t.id('gw'), t.id('guest'), 'Vic', '5125550123');
+insert into rsvps (spark_id, user_id, status) values (t.id('gw'), t.id('guest'), 'going');
+select t.login('guest'); set role authenticated;
+select public.remove_my_signups(t.id('gw'));
+reset role;
+select t.check('Remove my sign-ups takes the reply, name and contact off', not exists (select 1 from rsvps where spark_id = t.id('gw') and user_id = t.id('guest'))
+  and not exists (select 1 from guest_contacts where spark_id = t.id('gw') and user_id = t.id('guest'))
+  and exists (select 1 from rsvps where spark_id = t.id('gw') and user_id = t.id('rep_own')));
