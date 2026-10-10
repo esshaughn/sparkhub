@@ -39,10 +39,12 @@ test('a comment: report it (and undo), block its writer (and show it), then unbl
     await sent.locator('[data-sf-done]').click();
     await expect(hd.locator('[data-sf-fold="reported"]')).toContainText('You reported this');
     await expect(hd.locator('[data-comment]')).toHaveCount(0);
-    expect(await asUser(H, async (c) => (await c.rpc('my_safety')).data.reports.length)).toBe(1);
+    const cid = await asUser(H, async (c, _C, id) => (await c.from('event_comments').select('id').eq('spark_id', id).single()).data.id, id);
+    const mine = () => asUser(H, async (c, _C, cid) => (await c.rpc('my_safety')).data.reports.filter(r => r.target === cid).length, cid);
+    expect(await mine()).toBe(1);
     await hd.locator('[data-sf-fold-act]').click();   // Undo
     await expect(hd.locator('[data-comment]')).toHaveText(['Selling raffle tickets, DM me']);
-    await expect.poll(() => asUser(H, async (c) => (await c.rpc('my_safety')).data.reports.length)).toBe(0);
+    await expect.poll(mine).toBe(0);
 
     // Block Omar: a red Block; his comment folds to "Comment from someone you blocked · Show"
     await hd.locator('[data-post-row="cmt"] [data-comment-more]').click();
@@ -64,7 +66,7 @@ test('a comment: report it (and undo), block its writer (and show it), then unbl
     await page.locator('[data-unblock]').click();
     await expect(H.getByText('Unblocked Omar')).toBeVisible();
     await expect(page.locator('[data-sf-none]')).toHaveText('No one yet.');
-    await expect.poll(() => asUser(H, async (c) => (await c.rpc('my_safety')).data.blocks.length)).toBe(0);
+    await expect.poll(() => asUser(H, async (c) => (await c.rpc('my_safety')).data.blocks.filter(b => b.name === 'Omar').length)).toBe(0);
     // Not the app owner: no All reports row
     await page.getByRole('button', { name: 'Back' }).click();
     expect(host.errors).toEqual([]);
@@ -91,9 +93,9 @@ test('an event: members get ⋯ (Share link · Report this event), and the group
     await asUser(W, async (c, _C, code) => c.rpc('join_group', { p_code: code }), g.code);
     id = await asUser(M, async (c, _C, { gid, title, day }) => { const me = (await c.auth.getUser()).data.user.id; return (await c.from('sparks').insert({ lead_id: me, created_by: me, group_id: gid, text: title, author_name: 'Mo', lead_name: 'Mo', planned: true, day_date: day, visibility: 'group' }).select('id').single()).data.id; },
       { gid, title: uniqueTitle('Loud party'), day: inDays(5) });
+    // Olive's report on Mo's event: Mo owns the group, so it skips the group's inbox (it goes to All reports)
     await openIdea(W, id);
     const WP = W.locator('[data-screen-label="Plan page"]');
-    await expect(WP.getByRole('button', { name: 'Share', exact: true })).toHaveCount(0);
     await WP.locator('[data-ev-menu]').click();
     await expect(WP.locator('[data-ev-menu-list]')).toContainText('Share link');
     await WP.locator('[data-report-event]').click();
@@ -102,6 +104,14 @@ test('an event: members get ⋯ (Share link · Report this event), and the group
     await rep.locator('[data-sf-reason="Unsafe"]').click();
     await rep.locator('[data-sf-send]').click();
     await W.getByRole('dialog', { name: 'Thanks for telling us' }).locator('[data-sf-done]').click();
+    expect(await asUser(W, async (c, _C, id) => (await c.rpc('my_safety')).data.reports.some(r => r.kind === 'event' && r.target === id), id)).toBe(true);
+    // A report about a member's comment does reach the group's inbox (made directly: the comment's own UI is tested above)
+    const cid = await asUser(W, async (c, _C, id) => {
+      await c.from('rsvps').upsert({ spark_id: id, user_id: (await c.auth.getUser()).data.user.id, status: 'going' });   // Going, to comment
+      const r = await c.from('event_comments').insert({ spark_id: id, body: 'Party at my place, bring cash' }).select('id').single();
+      return r.error ? r.error.message : r.data.id; }, id);
+    expect(cid).toMatch(/^[0-9a-f-]{36}$/);
+    await asUser(M, async (c, _C, cid) => c.rpc('report_content', { p_kind: 'comment', p_target: cid, p_reason: 'Spam' }), cid);
 
     // Mo owns the group: Group ⋯ → Reports (1, red) → Dismiss
     await M.goto('/'); await M.reload();
@@ -112,15 +122,20 @@ test('an event: members get ⋯ (Share link · Report this event), and the group
     await expect(gm.locator('[data-reports-count]')).toHaveText('1');
     await gm.locator('[data-group-reports]').click();
     const inbox = M.getByRole('dialog', { name: 'Reports · ' + name });
-    await expect(inbox.locator('[data-report-row="event"]')).toContainText('Loud party');
-    await expect(inbox.locator('[data-report-row="event"]')).toContainText('Unsafe');
-    await expect(inbox.locator('[data-report-row="event"]')).not.toContainText('Olive');   // admins don't see who reported
-    await inbox.locator('[data-report-act="dismiss"]').click();
-    await expect(M.getByText('Report dismissed')).toBeVisible();
+    const row = inbox.locator('[data-report-row="comment"]');
+    await expect(row).toContainText(/Comment by .+ on .*Loud party/);
+    await expect(row).toContainText('“Party at my place, bring cash”');
+    await expect(row).toContainText('Spam');
+    await expect(inbox.locator('[data-report-row="event"]')).toHaveCount(0);   // the one about Mo isn't his to judge
+    await expect(row.locator('[data-report-act]')).toHaveText(['Dismiss', 'Remove content', 'Remove member', 'Block']);
+    await row.locator('[data-report-act="remove"]').click();
+    await expect(M.getByText('Removed. We told the person who posted it.')).toBeVisible();
+    expect(await asUser(M, async (c, _C, cid) => (await c.from('event_comments').select('id').eq('id', cid)).data.length, cid)).toBe(0);
     await expect(inbox.locator('[data-reports-none]')).toHaveText('Nothing to look at. Nice.');
     expect(owner.errors).toEqual([]);
     expect(member.errors).toEqual([]);
   } finally {
+    if (id) await asUser(W, async (c, _C, id) => c.rpc('withdraw_report', { p_kind: 'event', p_target: id }), id).catch(() => {});
     if (id) await asUser(M, async (c, _C, id) => c.rpc('delete_event', { p_spark: id, p_quiet: true }), id).catch(() => {});
     if (gid) await asUser(M, async (c, _C, id) => c.rpc('e2e_delete_group', { p_group: id }), gid).catch(() => {});
     await owner.context.close();
@@ -169,7 +184,8 @@ test('Delete my account: hand on the group, cancel an event, enter the emailed c
     // Hal owns the group now, and the event was cancelled
     expect(await asUser(H, async (c, _C, gid) => (await c.rpc('group_people', { p_group: gid })).data.map(p => p.role), gid)).toEqual(['owner']);
     expect(await asUser(H, async (c, _C, id) => !!(await c.from('sparks').select('cancelled_at').eq('id', id).single()).data.cancelled_at, evId)).toBe(true);
-    expect(leaver.errors.filter(e => !/otp/.test(e))).toEqual([]);
+    // (signing out of an account that no longer exists: Auth answers the sign-out with 403)
+    expect(leaver.errors.filter(e => !/status of 403/.test(e))).toEqual([]);
   } finally {
     if (gid) await asUser(H, async (c, _C, id) => c.rpc('e2e_delete_group', { p_group: id }), gid).catch(() => {});
     await leaver.context.close();

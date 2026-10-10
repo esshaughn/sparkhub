@@ -431,10 +431,17 @@ const rsvpBar = (scope, k) => scope.locator('[data-rsvp-bar="' + k + '"]');
 
 // A throwaway signed-in account (local Supabase only, E2E_DB=local): made with the service key, signed in with an
 // email code read from the admin API (there's no inbox to read), so tests can delete it (Design v8-18 1s)
-const LOCAL_SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qhwxSOqurc8w3ehjK5eO0c';   // every local Supabase's demo key
+let serviceKey;   // the local Supabase's service key, from `supabase status` in tests/local/.work (start.sh made it)
+const localServiceKey = () => serviceKey || (serviceKey = (() => {
+  const sbBin = process.env.SUPABASE || 'supabase';
+  const out = require('child_process').execFileSync(sbBin, ['status', '--workdir', path.join(__dirname, '../local/.work'), '-o', 'env'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+  const m = /^SERVICE_ROLE_KEY="?([^"\n]+)"?$/m.exec(out);
+  if (!m) throw new Error('No service key from supabase status (run tests/local/start.sh)');
+  return m[1];
+})());
 async function adminApi(method, url, body) {
   if (process.env.E2E_DB !== 'local') throw new Error('adminApi is for the local Supabase only');
-  const key = process.env.E2E_SERVICE_KEY || LOCAL_SERVICE_KEY;
+  const key = process.env.E2E_SERVICE_KEY || localServiceKey();
   const r = await fetch(CONFIG.supabaseUrl + url, { method, signal: AbortSignal.timeout(20000),
     headers: { apikey: key, Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
   const data = await r.json().catch(() => null);

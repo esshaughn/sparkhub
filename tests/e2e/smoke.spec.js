@@ -7,7 +7,7 @@ test('visitors land on Welcome (no tab bar there) and sign in from there', async
   try {
     const welcome = page.locator('[data-screen-label=Welcome]');
     await expect(welcome.getByRole('heading', { name: /Make plans with\s*your people\./ })).toBeVisible();
-    await expect(welcome.getByText('New here? Either creates an account')).toBeVisible();
+    await expect(welcome.locator('[data-terms-line]')).toBeVisible();   // v8-18 1s: replaced New here? Either creates an account
     await expect(welcome.getByRole('listitem')).toHaveText(['1Float an idea', '2Everybody pitches in', '3Make it a plan']);   // the intro's steps (owner, 2026-10-07)
     await expect(welcome.locator('[data-about-link]')).toBeVisible();
     await expect(welcome.locator('[data-beta]').first()).toHaveText('BETA');   // beside the wordmark (owner, 2026-10-07)
