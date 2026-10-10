@@ -686,8 +686,12 @@ test('co-leads: the lead adds one, who edits and posts updates but can’t delet
     await OP.locator('[data-led-by]').getByRole('button', { name: 'Manage co-leads' }).click();
     await O.getByRole('dialog', { name: 'Leads' }).locator('[data-lead-row="Otto"]').getByRole('button', { name: 'Step down' }).click();
     await confirm(O, 'Step down');
-    await expect(OP.locator('[data-ev-menu]')).toHaveCount(0);   // not a lead any more: just Share, no menu (v8-12)
-    await expect(OP.getByRole('button', { name: 'Share', exact: true })).toBeVisible();
+    // Not a lead any more: the member's ⋯ (Share link · Report this event, v8-18 1s), no host rows
+    await OP.locator('[data-ev-menu]').click();
+    await expect(OP.locator('[data-ev-menu-list]')).toContainText('Share link');
+    await expect(OP.locator('[data-report-event]')).toHaveText('Report this event');
+    await expect(OP.locator('[data-as-member]')).toHaveCount(0);
+    await O.keyboard.press('Escape');
     await expect(OP.locator('[data-led-by] [data-lead-names]')).toHaveText('Hope');
     await expect(OP.locator('[data-manage-coleads]')).toHaveCount(0);
     expect(host.errors).toEqual([]);
@@ -799,10 +803,12 @@ test('invite people: the lead invites a group member from the sheet; Invited sti
     // A member who's going can invite too, but only the lead and co-hosts get the QR code (v8-11 item 5)
     await asUser(other.page, async (c, _C, sid) => c.from('rsvps').upsert({ spark_id: sid, user_id: (await c.auth.getUser()).data.user.id, status: 'going' }, { onConflict: 'spark_id,user_id' }), id);
     await openIdea(other.page, id);
-    await other.page.locator('[data-screen-label="Plan page"]').getByRole('button', { name: 'Share', exact: true }).click();   // a member's way in: the share icon on the photo
-    const mine = other.page.getByRole('dialog', { name: 'Invite people' });
-    await expect(mine.getByRole('button', { name: 'Share link' })).toBeVisible();
-    await expect(mine.getByRole('button', { name: 'QR code' })).toHaveCount(0);
+    // A member's way in: the ⋯ on the photo (v8-18 1s, in place of Share): Share link and Report, no QR code
+    const MP = other.page.locator('[data-screen-label="Plan page"]');
+    await MP.locator('[data-ev-menu]').click();
+    await expect(MP.locator('[data-ev-menu-list]')).toContainText('Share link');
+    await expect(MP.locator('[data-ev-menu-list]')).not.toContainText('QR code');
+    await expect(MP.locator('[data-report-event]')).toBeVisible();
     expect(host.errors).toEqual([]);
   } finally {
     if (id) await deleteIdea(H, id).catch(() => {});
