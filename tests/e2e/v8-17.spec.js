@@ -35,9 +35,9 @@ test('offer to lead: take it back, offer again, and the starter picks', async ({
     await expect(OS.locator('[data-offered-lead]')).toBeVisible();
     await expect(O.locator('html[data-saving]')).toHaveCount(0);
 
-    // Hope's What's left shows the offer under the lead row; Pick asks once
+    // Hope's To dos (was What's left, v8-18 1u) shows the offer under the lead row; Pick asks once
     await openIdea(H, id);
-    await expect(HS.locator('[data-make-this-plan]')).toContainText('What’s left');
+    await expect(HS.locator('[data-make-this-plan]')).toContainText('To dos');
     await expect(HS.locator('[data-make-this-plan]')).toContainText('1 person offered · pick below');
     await expect(HS.locator('[data-offer-note]')).toHaveText('I ran one of these last spring');   // in italics on the Pick line
     await HS.locator('[data-pick-lead]').click();
@@ -111,28 +111,36 @@ test('date votes are rows with a checkbox and a faces pill; Feedback & questions
     await openIdea(H, id);
     const rows = H.locator('[data-when] [data-date-votes] [data-cal-page]');
     await expect(rows).toHaveCount(2);
-    await expect(rows.first()).toContainText('You can go · most votes');
-    await expect(rows.last()).toContainText('No votes yet');
-    await expect(rows.last().locator('[data-who-date]')).toHaveCount(0);
+    // One line each with a vote chip, no sub-line (Design v8-18 1x); the starter always sees the chips
+    await expect(rows.first().locator('[data-vote-n]')).toHaveText('1');
+    await expect(rows.first()).not.toContainText('most votes');
+    await expect(rows.last().locator('[data-vote-n]')).toHaveCount(0);   // no votes, no chip
     await rows.last().click();
     await expect(rows.last()).toHaveAttribute('aria-checked', 'true');
-    await expect(rows.last()).toContainText('You can go');
-    // The faces never vote: they open who can go
-    await rows.first().locator('[data-who-date]').click();
-    await expect(H.getByRole('dialog', { name: 'Who can go' })).toContainText('1 can go');
-    await H.getByRole('dialog', { name: 'Who can go' }).getByRole('button', { name: 'Done' }).click();
+    await expect(rows.last().locator('[data-vote-n]')).toHaveText('1');
+    // See votes › opens who voted: the vote chip, then a row per voter (1z)
+    await H.locator('[data-when]').getByText('See votes').click();
+    const sv = H.getByRole('dialog', { name: 'See the votes' });
+    await expect(sv.locator('[data-votes-opt]')).toHaveCount(2);
+    await expect(sv.locator('[data-votes-opt]').first().locator('[data-voter]')).toHaveCount(1);
+    await sv.getByRole('button', { name: 'Close' }).click();
     await expect(rows.first()).toHaveAttribute('aria-checked', 'true');
 
-    // Feedback & questions: three chips; the one picked changes the words
+    // Feedback & questions: four chips, each with its own icon and colour (Design v8-19 item 2); the one picked changes the words
     await openProfile(H);
     await H.getByRole('button', { name: 'Feedback & questions' }).click();
     const fb = H.getByRole('dialog', { name: 'Give feedback' });
     await expect(fb).toContainText('FEEDBACK & QUESTIONS');
-    await expect(fb).toContainText('What can I help with?');
+    await expect(fb.locator('[data-fb-topic]')).toHaveText(['Questions / comments', 'Report a glitch', 'Make a suggestion', 'Love note']);
+    await expect(fb).toContainText('What’s on your mind?');
     await fb.locator('[data-fb-topic="bug"]').click();
     await expect(fb).toContainText('What went wrong?');
     await fb.locator('[data-fb-topic="idea"]').click();
-    await expect(fb).toContainText('What do you think so far?');
+    await expect(fb).toContainText('What’s your idea?');
+    await fb.locator('[data-fb-topic="love"]').click();
+    await expect(fb.locator('[data-fb-topic="love"]')).toHaveAttribute('aria-selected', 'true');
+    await expect(fb).toContainText('What’s working?');
+    await expect(fb.getByLabel('Your feedback')).toHaveAttribute('placeholder', 'I love that…');
     await fb.getByRole('button', { name: 'Close' }).click().catch(() => {});
   } finally {
     if (id) await deleteIdea(H, id).catch(() => {});

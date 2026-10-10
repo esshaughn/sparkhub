@@ -67,7 +67,8 @@ test('a comment: report it (and undo), block its writer (and show it), then unbl
     await expect(H.getByText('Unblocked Omar')).toBeVisible();
     await expect(page.locator('[data-sf-none]')).toHaveText('No one yet.');
     await expect.poll(() => asUser(H, async (c) => (await c.rpc('my_safety')).data.blocks.filter(b => b.name === 'Omar').length)).toBe(0);
-    // Not the app owner: no All reports row
+    // Not the app owner: no Dashboard pill (All reports lives there now, v8-19 item 1)
+    await expect(H.locator('[data-dash-pill]')).toHaveCount(0);
     await page.getByRole('button', { name: 'Back' }).click();
     expect(host.errors).toEqual([]);
     expect(member.errors).toEqual([]);

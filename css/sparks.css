@@ -148,6 +148,13 @@ html.tall-fix .app { bottom: auto; height: var(--true-h); }
 .add-fab.open svg { transform: rotate(45deg); }
 .add-fab-set { background: #fff; color: #454b55; box-shadow: 0 6px 18px rgba(13, 17, 23, .14), 0 1px 3px rgba(13, 17, 23, .1); }
 .add-fab-set:hover { background: #f2f3f6; }
+/* The owner's Dashboard pill (Design v8-19 item 1b): 10px left of the Settings gear, same row */
+.dash-pill {
+  position: absolute; right: 76px; bottom: calc(var(--nav-h) + 16px); z-index: 9;
+  height: 48px; box-sizing: border-box; padding: 0 9px 0 16px; border-radius: 999px; background: #0d1117;
+  display: flex; align-items: center; gap: 8px; cursor: pointer; box-shadow: 0 6px 18px rgba(13, 17, 23, .3);
+}
+.dash-pill:hover { background: #2b303a; }
 .hov-bright:hover { filter: brightness(1.05); }
 .add-fab-gold { background: #f5b428; box-shadow: 0 8px 20px rgba(245, 180, 40, .4), 0 2px 6px rgba(13, 17, 23, .18); }
 /* The idea slide-up (v8-4 9d + 10c-5): hugs its content, then grows to 54px from the top */
@@ -214,6 +221,7 @@ html.tall-fix .app { bottom: auto; height: var(--true-h); }
 /* ---- Pseudo-states from the design's style-hover / style-focus ---- */
 .hov-primary:hover { background: #4a3ad4 !important; }
 .hov-gold:hover { background: #e8a71c !important; }
+.hov-gold-out:hover { background: #fffaf0 !important; }
 .hov-outline:hover { border-color: #5b4ae8 !important; color: #5b4ae8 !important; }
 .hov-dash:hover { border-color: #5b4ae8 !important; }
 .hov-row:hover { background: #f7f7f9 !important; }

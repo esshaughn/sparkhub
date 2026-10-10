@@ -14,16 +14,19 @@ test('discussion: the new-update banner, comments, replies, Send an update and d
   try {
     id = await postEvent(H, { title, date: inDays(6), time: '18:00' });
     const HP = H.locator('[data-screen-label="Plan page"]');
-    // The lead: the box says Write to everyone going…, with the Post update pill by the heading (v8-9; v8-13 renamed it); no banner for leads
+    // The lead: just the word Discussion (no count, no Post update pill, no Event group chat row) and a Comment · Update
+    // switch above the box (Design v8-18 1t, 1v); no avatar or emoji in the box
     const hd = HP.locator('[data-discussion]');
     await expect(hd).not.toContainText('No comments yet.');
-    await expect(hd.locator('[data-send-update]')).toHaveText('Post update');
-    await expect(hd.getByLabel('Write a comment')).toHaveAttribute('placeholder', 'Write to everyone going…');
-    await hd.getByLabel('Write a comment').fill('Bring a chair if you have one');
-    await hd.locator('[data-send-update]').click();
-    const blast = H.getByRole('dialog', { name: 'Post an update' });
-    await expect(blast.locator('textarea')).toHaveValue('Bring a chair if you have one');   // what was typed comes along
-    await blast.getByRole('button', { name: 'Close' }).click();
+    await expect(hd.locator('h2')).toHaveText('Discussion');
+    await expect(hd.locator('[data-send-update], [data-chat-request], [data-emoji-btn]')).toHaveCount(0);
+    await expect(hd.getByLabel('Write a comment')).toHaveAttribute('placeholder', 'Start the discussion…');
+    await hd.locator('[data-disc-mode="update"]').click();
+    await expect(hd.locator('[data-disc-mode="update"]')).toHaveAttribute('aria-selected', 'true');
+    await expect(hd.getByLabel('Write an update')).toHaveAttribute('placeholder', 'Update everyone going…');
+    await expect(hd.locator('[data-post-update]')).toHaveAttribute('aria-disabled', 'true');
+    await hd.locator('[data-disc-mode="comment"]').click();
+    await expect(hd.getByLabel('Write a comment')).toBeVisible();
     // An update straight in the table (the composer's own tests cover posting it)
     await asUser(H, async (c, _C, id) => c.from('plan_updates').insert({ spark_id: id, body: 'Moved to the back porch', audience: 'going' }), id);
 
@@ -70,13 +73,9 @@ test('discussion: the new-update banner, comments, replies, Send an update and d
     await expect(od.locator('[data-post-row="cmt"] [data-like]').first()).toHaveAttribute('aria-pressed', 'true');
     await od.locator('[data-post-row="cmt"] [data-like]').first().click();
     await expect(od.locator('[data-post-row="cmt"] [data-like-n]')).toHaveCount(0);
-    // The emoji button adds an emoji to what's typed
-    await od.locator('[data-emoji-btn]').click();
-    await od.locator('[data-emoji-tray]').getByLabel('🎉').click();
-    await expect(od.getByLabel('Write a comment')).toHaveValue('🎉');
-    await od.getByLabel('Write a comment').fill('');
     await od.locator('[data-view-replies]').click();
-    await expect(OP.locator('[data-discussion] h2 + span')).toHaveText('3');   // the update, the comment, the reply
+    await expect(OP.locator('[data-discussion] [data-post-row]')).toHaveCount(2);   // the update and the comment
+    await expect(OP.locator('[data-discussion] [data-reply-row]')).toHaveCount(1);   // and the reply
     // He deletes his comment, and the reply goes with it
     await od.locator('[data-post-row="cmt"] [data-delete-comment]').click();
     await confirm(O, 'Delete');

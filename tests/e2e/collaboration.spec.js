@@ -53,7 +53,7 @@ test('a member with the link takes part; the lead picks and makes it a plan', as
     await sd.locator('[data-ip-pop-done]').click();
     await expect(G.getByRole('status')).toContainText('Date added');
     await expect(GD.locator('[data-when] [data-suggested]')).toContainText('Suggested');
-    await expect(GD.locator('[data-when]')).not.toContainText('Choose all dates you could attend.');
+    await expect(GD.locator('[data-when]')).not.toContainText('Choose all that work for you.');
     await GD.locator('[data-help-make-plan] [data-todo="l"]').click();
     const sl = G.getByRole('dialog', { name: 'Suggest a location' });
     await sl.getByLabel('Location').fill('The north lot at Zilker');
@@ -63,8 +63,8 @@ test('a member with the link takes part; the lead picks and makes it a plan', as
 
     // The lead confirms the suggestions in the Pick pop-ups, then Make it a plan!
     await L.reload();
-    await expect(LD.locator('[data-plan-date]')).toHaveText('Pick');
-    await expect(LD.locator('[data-make-this-plan]')).toContainText('Suggested:');
+    await expect(LD.locator('[data-plan-date]')).toHaveText('Choose');   // was Pick (v8-18 1y)
+    await expect(LD.locator('[data-make-this-plan]')).toContainText('Pick date');
     await LD.locator('[data-plan-date]').click();
     const pd = L.getByRole('dialog', { name: 'Pick a date' });
     await expect(pd).toContainText('Confirm the suggested date, or set another.');

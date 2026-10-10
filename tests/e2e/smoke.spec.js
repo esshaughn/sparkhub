@@ -676,7 +676,7 @@ test('freeze log (temporary): a 2-second stall is noted and shows on the owner\'
   }
 });
 
-test('New accounts (owner only): a card under the Feedback inbox counts accounts, badges the unseen ones, and opens the list', async ({ browser }) => {
+test('Dashboard (owner only): the pill beside Settings counts what needs you; New accounts badges the unseen ones and opens the list', async ({ browser }) => {
   const { page, context, errors } = await newLead(browser, 1, 'Tester');
   try {
     // Pretend this account is the owner, and answer new_accounts() with two made-up accounts
@@ -688,12 +688,21 @@ test('New accounts (owner only): a card under the Feedback inbox counts accounts
     ];
     await page.route('**/rest/v1/demo_admins*', r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ user_id: 'x' }) }));
     await page.route('**/rest/v1/rpc/new_accounts*', r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(rows) }));
+    await page.route('**/rest/v1/rpc/list_reports*', r => r.fulfill({ status: 200, contentType: 'application/json', body: '[]' }));
+    await page.route('**/rest/v1/feedback*', r => r.fulfill({ status: 200, contentType: 'application/json', body: '[]' }));
     await page.evaluate((t) => localStorage.setItem('spark-hub-accounts-seen', String(t)), now - 86400000);   // Sam joined before the last look
     await page.reload();
     await expect(page.locator('html[data-loaded=true]')).toHaveCount(1);
     await openProfile(page);
+    // Me looks like anyone's (no owner cards); the dark Dashboard pill beside the gear has the count (Design v8-19 item 1)
     const profile = page.locator('[data-screen-label="Me"]');
-    const card = profile.getByRole('button', { name: 'New accounts, 1 new' });
+    await expect(profile).not.toContainText('New accounts');
+    await expect(page.locator('[data-dash-pill]')).toContainText('Dashboard1');
+    await page.locator('[data-dash-pill]').click();
+    const dash = page.getByRole('dialog', { name: 'Dashboard' });
+    await expect(dash.locator('[data-dash-summary]')).toHaveText('1 thing needs you');
+    await expect(dash.locator('[data-dash-row="reports"]')).toContainText('Nothing reported');
+    const card = dash.getByRole('button', { name: 'New accounts, 1 new' });
     await expect(card).toContainText('2 accounts so far');
     await card.click();
     const sheet = page.getByRole('dialog', { name: 'New accounts' });
@@ -710,7 +719,10 @@ test('New accounts (owner only): a card under the Feedback inbox counts accounts
     await expect(items.nth(1)).not.toContainText('NEW');
     await sheet.getByRole('button', { name: 'Close' }).click();
     await expect(sheet).toHaveCount(0);
-    await expect(profile.getByRole('button', { name: 'New accounts', exact: true })).toContainText('2 accounts so far');   // closing marks them seen
+    await expect(dash.getByRole('button', { name: 'New accounts', exact: true })).toContainText('2 accounts so far');   // closing marks them seen
+    await expect(dash.locator('[data-dash-summary]')).toHaveText('All caught up');
+    await dash.getByRole('button', { name: 'Back' }).click();
+    await expect(page.locator('[data-dash-pill]')).toHaveText('Dashboard');   // no count at 0
     expect(errors).toEqual([]);
   } finally {
     await context.close();

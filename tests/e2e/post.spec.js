@@ -388,7 +388,7 @@ test('polls: the host posts a date poll (an idea), a member votes, the host pick
     await expect(HI.locator('[data-when-set]')).toContainText('You picked it');
     await expect(HI.locator('[data-when] [data-cal-page]')).toHaveCount(1);
     await expect(HI.locator('[data-when-set] [data-cal-page]')).toHaveText('');   // a calendar icon like Where?'s pin, no date page
-    await expect(HI.locator('[data-when]')).not.toContainText('Choose all dates you could attend.');
+    await expect(HI.locator('[data-when]')).not.toContainText('Choose all that work for you.');
     // …and Make it a plan! is ready: a lead and a date; the location can wait (planMissing, owner 2026-10-02)
     await expect(HI.locator('[data-make-it-plan]')).toContainText('Lock it in');
     await expect(HI.locator('[data-make-this-plan]')).toContainText('The location can be decided later.');
@@ -730,9 +730,9 @@ test('Float an idea: the Float sheet, a draft, and the starter’s slide-up', as
     await expect(sheet.getByLabel('Your idea')).toHaveValue(title);
     await expect(sheet.getByLabel('Quick description')).toHaveValue(why);
     await expect(sheet.locator('[data-qi-loc-sum]')).toContainText('Butler Park');
-    // Page 2: the recap, WHERE IT GOES, HOW PEOPLE CAN HELP; Talk it through on, Who leads it: I'll decide (the default, v8-8)
+    // Page 2: the recap, VISIBILITY (was WHERE IT GOES, v8-18 1aa), HOW PEOPLE CAN HELP; Talk it through on, Who leads it: I'll decide (the default, v8-8)
     await sheet.locator('[data-qi-next]').click();
-    await expect(sheet).toContainText('WHERE IT GOES');
+    await expect(sheet).toContainText('VISIBILITY');
     await expect(sheet.locator('[data-qi-post-to]')).toContainText('Torrez Fitness');
     await sheet.locator('[data-talk-toggle]').click();
     await expect(sheet.locator('[data-talk-toggle]')).toHaveAttribute('aria-checked', 'true');
