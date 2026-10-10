@@ -622,10 +622,13 @@ test('View as a user (owner only): the app reloads as that person', async ({ bro
     await page.route('**/rest/v1/demo_admins*', r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ user_id: 'x' }) }));
     await page.route('**/rest/v1/rpc/demo_testers*', r => r.fulfill({ status: 200, contentType: 'application/json',
       body: JSON.stringify([{ user_id: them.id, name: 'Bo', email: them.email, memberships: [{ group_id: torrez, role: 'member', pinned: false, last_seen_at: null }] }]) }));
+    await page.route('**/rest/v1/rpc/list_reports*', r => r.fulfill({ status: 200, contentType: 'application/json', body: '[]' }));   // the Dashboard's count; the server refuses a pretend owner
     await page.reload();
     await expect(page.locator('html[data-loaded=true]')).toHaveCount(1);
     await openProfile(page);
-    const card = page.locator('[data-screen-label="View as a user"]');
+    await expect(page.locator('[data-screen-label="Me"] [data-screen-label="View as a user"]')).toHaveCount(0);   // in the Dashboard since 2026-10-10 (owner)
+    await page.locator('[data-dash-pill]').click();
+    const card = page.getByRole('dialog', { name: 'Dashboard' }).locator('[data-screen-label="View as a user"]');
     await card.getByRole('button', { name: 'Pick one' }).click();
     const loaded = page.waitForResponse(r => r.url().includes('/rest/v1/rpc/load_all'));
     await card.locator(`[data-tester="${them.email}"]`).click();
@@ -656,7 +659,7 @@ test('a Spark Hub loading screen shows until the app is ready', async ({ browser
   }
 });
 
-test('freeze log (temporary): a 2-second stall is noted and shows on the owner\'s Profile', async ({ browser }) => {
+test('freeze log (temporary): a 2-second stall is noted and shows in the owner\'s Dashboard', async ({ browser }) => {
   const { page, context, errors } = await newLead(browser, 1, 'Tester');
   try {
     // Anyone else's device keeps no log
@@ -671,7 +674,8 @@ test('freeze log (temporary): a 2-second stall is noted and shows on the owner\'
     await page.evaluate(() => { localStorage.removeItem('spark-hub-diag'); const end = Date.now() + 2000; while (Date.now() < end) { /* freeze */ } });
     await expect.poll(() => page.evaluate(() => (JSON.parse(localStorage.getItem('spark-hub-diag')) || []).map(e => e.kind))).toContain('stall');
     await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Me', exact: true }).click();
-    const log = page.locator('[data-screen-label="Freeze log"]');
+    await page.locator('[data-dash-pill]').click();   // in the Dashboard's TOOLS since 2026-10-10 (owner)
+    const log = page.getByRole('dialog', { name: 'Dashboard' }).locator('[data-screen-label="Freeze log"]');
     await expect(log).toContainText(/stall [12]\.\d+s/);
     await log.getByRole('button', { name: 'Clear' }).click();
     await expect(log).toContainText('Nothing logged yet.');

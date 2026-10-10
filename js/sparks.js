@@ -1169,7 +1169,7 @@
     (t.memberships || []).forEach(m => { roles[m.group_id] = { role: m.role, pinned: !!m.pinned, lastSeen: Date.parse(m.last_seen_at) || 0 }; });
     previewing = true;
     setState({ viewAs: { id: t.user_id, name: t.name || 'User', roles }, me: t.user_id, email: t.email || 'user', myName: t.name || '', myAvatar: null, myPlace: '', myBio: '',
-      testers: null, profSheet: false, notif: { allReadAt: 0, read: [], topics: {}, email: true, loaded: true }, demoAdmin: false, loaded: false });
+      testers: null, profSheet: false, ownDash: false, notif: { allReadAt: 0, read: [], topics: {}, email: true, loaded: true }, demoAdmin: false, loaded: false });
     go('sched');
     loadFresh().then(() => toast('Viewing as ' + t.name + '. Nothing you tap changes anything.', true), (e) => { console.error(e); setState({ error: 'load', loaded: true }); });
   };
@@ -8376,7 +8376,11 @@
         row('reports', SF_FLAG, '#fde8ec', '#9b1c31', 'Reports', R.length ? R.length + ' open' + (od ? ' · ' + od + ' overdue' : '') : 'Nothing reported', R.length, () => openReports(null)) +
         row('feedback', '<path d="M4 5h16v11H9l-5 4V5Z"/>', '#fdf1d6', '#8f6405', 'Feedback &amp; questions', fbN ? fbN + (fbN === 1 ? ' note' : ' notes') + ' from testers' : 'Notes from testers land here', fu, () => { setState({ fbOpen: true }); loadFeedback(); }) +
         row('accounts', '<circle cx="10" cy="8" r="4"/><path d="M3 20a7 7 0 0 1 14 0M19 8v6M16 11h6"/>', '#ece9fd', '#4a3ad4', 'New accounts', acN + (acN === 1 ? ' account so far' : ' accounts so far'), au, () => { setState({ acctOpen: true }); loadAccounts(); }) +
-      '</div></div></div>';
+      '</div>' +
+        // TOOLS (owner, 2026-10-10): View as a user and the Freeze log, moved here from the bottom of Me
+        '<div data-dash-tools style="margin-top:22px;display:flex;flex-direction:column;gap:12px"><span style="padding:0 6px;font-size:13px;font-weight:900;letter-spacing:1px;color:#6b7280">TOOLS</span>' +
+          testerCard() + diagCard() + '</div>' +
+      '</div></div>';
   }
 
   // v6 Update 2: a compact Profile sheet (photo, name, a pencil to edit); Help & info tiles, then Settings
@@ -9469,7 +9473,8 @@
     return '<div data-screen-label="Me">' + head + gsCard('margin:12px 14px 0;') + yourStuff +
       '<div style="padding:16px 14px 26px;display:flex;flex-direction:column;gap:10px">' +
         help +
-        '<div style="display:flex;flex-direction:column;gap:14px;margin-top:12px">' + testerCard() + (st.demoAdmin ? diagCard() : '') + '</div>' +
+        // View as a user and the Freeze log live in the Dashboard (owner, 2026-10-10); while viewing as someone, Me keeps the Exit card
+        (st.viewAs ? '<div style="display:flex;flex-direction:column;gap:14px;margin-top:12px">' + testerCard() + '</div>' : '') +
       '</div><div style="height:var(--nav-h)"></div></div>';
   }
 
