@@ -334,6 +334,13 @@ select t.must_refuse('a guest suggesting a place', format($$insert into spot_opt
 select t.must_refuse('a guest suggesting a date', format($$insert into date_options (spark_id, day_date, who) values (%L, current_date + 5, 'Gus')$$, t.id('idea')));
 select t.must_refuse('a guest taking a job', format($$insert into signup_claims (item_id, user_id) values ((select id from signup_items where item = 'Chairs'), %L)$$, t.id('guest')));
 select t.must_refuse('a guest adding a job', format($$insert into signup_items (spark_id, item) values (%L, 'Ice')$$, t.id('invite_plan')));
+-- a guest's contact is a phone or an email (20261122000000_guest_email.sql); only then can they take a job
+select t.must_refuse('a guest leaving junk as their contact', format($$update guest_contacts set phone = 'call me' where spark_id = %L and user_id = %L$$, t.id('invite_plan'), t.id('guest')));
+select t.must_refuse('a guest leaving a too-short number', format($$update guest_contacts set phone = '512-555' where spark_id = %L and user_id = %L$$, t.id('invite_plan'), t.id('guest')));
+select t.must_allow('a guest leaving an email', format($$update guest_contacts set phone = 'gus@example.com' where spark_id = %L and user_id = %L$$, t.id('invite_plan'), t.id('guest')));
+select t.must_allow('a guest with an email taking a job', format($$insert into signup_claims (item_id, user_id) values ((select id from signup_items where item = 'Chairs'), %L)$$, t.id('guest')));
+select t.must_allow('and giving it up again', format($$delete from signup_claims where item_id = (select id from signup_items where item = 'Chairs') and user_id = %L$$, t.id('guest')));
+select t.must_allow('then going back to a phone number', format($$update guest_contacts set phone = '512-555-0100' where spark_id = %L and user_id = %L$$, t.id('invite_plan'), t.id('guest')));
 select t.must_refuse('a guest adding an album photo', format($$insert into album_photos (spark_id, path) values (%L, %L)$$, t.id('invite_plan'), t.id('guest') || '/' || gen_random_uuid() || '.jpg'));
 select t.must_refuse('a guest setting a profile photo', format($$insert into profiles (id, name, avatar_path) values (%L, 'Gus', %L)$$, t.id('guest'), t.id('guest') || '/' || gen_random_uuid() || '.jpg'));
 select t.must_allow('a guest keeping a name on their profile', format($$insert into profiles (id, name) values (%L, 'Gus')$$, t.id('guest')));

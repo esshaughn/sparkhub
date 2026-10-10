@@ -67,10 +67,16 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     await expect(plusPop).toHaveCount(0);
     await expect(G.getByText('You’re going. See you there!')).toBeVisible();
     // A dated event: the banner offers Add to calendar right away (research review, 2026-10-01)
-    // (the test phone is an Android: Add to calendar opens Google Calendar's add screen instead of a download)
-    await G.evaluate(() => { window.__opened = []; window.open = (u) => { window.__opened.push(u); return null; }; });
     await G.locator('[data-banner="going"]').getByRole('button', { name: 'Add to calendar' }).click();
-    expect(await G.evaluate(() => window.__opened[0])).toContain('https://calendar.google.com/calendar/render?action=TEMPLATE');
+    // A sheet of three rows (owner, 2026-10-10): Google Calendar's link first, then the .ics for Apple and Outlook
+    const calSheet = G.getByRole('dialog', { name: 'Add to calendar' });
+    await expect(calSheet.locator('[data-cal-row]')).toHaveCount(3);
+    await expect(calSheet.locator('[data-cal-row]').first()).toHaveAttribute('data-cal-row', 'google');   // first for everyone
+    await expect(calSheet.locator('[data-cal-row="google"]')).toHaveAttribute('href', /^https:\/\/calendar\.google\.com\/calendar\/render\?action=TEMPLATE&text=.+&dates=\d{8}(T\d{6})?\/\d{8}(T\d{6})?/);
+    const calDownload = G.waitForEvent('download');
+    await calSheet.locator('[data-cal-row="other"]').click();
+    expect((await calDownload).suggestedFilename()).toMatch(/\.ics$/);
+    await expect(calSheet).toHaveCount(0);
     await expect(G.locator('[data-banner="going"]')).toHaveCount(0);
     await expect(GP.locator('[data-guest-nudge]')).toHaveCount(0);
     // Once replied, one bar (You're going · Change, owner 2026-10-06); Change brings the buttons back; tapping your pick clears it
@@ -147,8 +153,8 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     await VP.locator('[data-signup="Folding chairs"]').getByRole('button', { name: 'Sign up' }).click();
     // Guests can sign up for anything with a name and phone (one kind of sign-up, 2026-10-07; jobs were accounts-only)
     const gSheet = V.getByRole('dialog', { name: 'Sign up' });
-    await expect(gSheet).toContainText('Only the hosts see your number.');
-    await expect(gSheet).toContainText('Have an account? Sign in');
+    await expect(gSheet).toContainText('Only the hosts see your phone or email.');
+    await expect(gSheet).toContainText('Create a free account or sign in');
     await gSheet.getByRole('button', { name: 'Close' }).click();
     await expect(VP.locator('[data-signup="Folding chairs"]')).toContainText('1 of 2 open');   // still just Gus
     // The answer is still there when they come back (this event only)
@@ -180,6 +186,7 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     await expect(GP.locator('[data-signup="Lemonade"]')).toContainText('You’re in');
     // Taking yourself off later: "You're off it" with Find a replacement
     await GP.locator('[data-signup="Lemonade"]').getByLabel('You’re in. Tap to take yourself off').click();
+    await confirm(G, 'Yes, remove me');   // asks first (owner, 2026-10-10)
     const off = G.locator('[data-banner="off"]');
     await expect(off).toContainText('You’re off it');
     await expect(off.getByRole('button', { name: 'Undo' })).toBeVisible();   // takes you straight back on
@@ -191,9 +198,10 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     await GP.locator('[data-signup="Lemonade"]').getByRole('button', { name: 'Sign up' }).click();
     await G.locator('[data-onit-done]').click();   // You're signed up! (owner, 2026-10-07)
     await expect(GP.locator('[data-signup="Lemonade"]')).toContainText('You’re in');
-    await G.evaluate(() => { window.__opened = []; window.open = (u) => { window.__opened.push(u); return null; }; });
     await GP.getByRole('button', { name: 'Add to calendar' }).click();
-    expect(await G.evaluate(() => window.__opened[0])).toContain('https://calendar.google.com/calendar/render');
+    const download = G.waitForEvent('download');
+    await G.getByRole('dialog', { name: 'Add to calendar' }).locator('[data-cal-row="apple"]').click();
+    expect((await download).suggestedFilename()).toMatch(/\.ics$/);
 
     // The host sees them; changing the date tells everyone going
     await H.reload();
@@ -305,6 +313,7 @@ test('Sign up: More details, time ranges and a job’s most per person', async (
     await expect(O.getByText('Up to 1 per person for coat check table')).toBeVisible();
     await expect(late.getByRole('button', { name: 'Sign up' })).toBeVisible();
     await early.getByLabel('You’re in. Tap to take yourself off').click();
+    await confirm(O, 'Yes, remove me');   // asks first (owner, 2026-10-10)
     await expect(O.locator('[data-banner="off"]')).toContainText('You’re off it');
     await O.locator('[data-banner="off"]').getByLabel('Dismiss').click();
     await late.getByRole('button', { name: 'Sign up' }).click();
@@ -328,6 +337,7 @@ test('Sign up: More details, time ranges and a job’s most per person', async (
     await expect(needs.getByText('Use one time instead')).toHaveCount(0);
     await needs.getByRole('button', { name: 'Close' }).click();
     await late.getByLabel('You’re in. Tap to take yourself off').click();
+    await confirm(O, 'Yes, remove me');   // asks first (owner, 2026-10-10)
     await expect(O.locator('[data-banner="off"]')).toContainText('We’ll let Hope know');
     await expect(late).toContainText('1 open');
 

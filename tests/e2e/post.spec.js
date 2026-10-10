@@ -1,7 +1,7 @@
 // Plan an event (v8-14): one page (title, When & where, description, How to participate, Visibility), polls, jobs, drafts,
 // then the host's edit pop-ups on the event page.
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newLead, button, postEvent, openIdea, confirm, startPost, startFloat, asUser, closeAskFirst, pickKind, pickDate, pickTime, timeBox, deleteIdea, ideaIdFromUrl, openAllGroups, pickPostTo, postIdea } = require('./helpers');
+const { PNG, uniqueTitle, newLead, button, postEvent, openIdea, confirm, startPost, startFloat, asUser, closeAskFirst, pickKind, pickDate, pickTime, timeBox, deleteIdea, ideaIdFromUrl, openAllGroups, pickPostTo, postIdea } = require('./helpers');
 
 const inDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 
@@ -273,6 +273,14 @@ test('Plan an event is one page (v8-14): Post it waits for a title and a date; t
     await expect(flow.locator('[data-cp-add-job]')).toHaveText('+ Ask guests for something');   // Design v8-17 clarity pass
     await expect(flow.locator('[data-cp-examples]')).toContainText('Bring a carton of eggs');   // Q46: two greyed examples
     await expect(flow.locator('[data-cp-desc]')).toContainText('Add inspo photos');
+    // A photo added to the description opens full screen when tapped (owner, 2026-10-10, from Stacy)
+    await flow.locator('[data-cp-inspo] input[type=file]').setInputFiles({ name: 'vibe.png', mimeType: 'image/png', buffer: PNG });
+    await flow.getByRole('button', { name: 'View photo 1' }).click();
+    const zoomed = page.getByRole('dialog', { name: 'Photo' });
+    await expect(zoomed).toBeVisible();
+    await zoomed.getByRole('button', { name: 'Close' }).click();
+    await expect(zoomed).toHaveCount(0);
+    await flow.getByRole('button', { name: 'Remove photo' }).click();   // back to none, the rest of the flow is unchanged
     await expect(flow.getByRole('switch', { name: 'People can invite friends' })).toHaveAttribute('aria-checked', 'true');   // on for Public
     // Post it stays grey until there's a title and a date; a tap says which is missing
     await expect(flow.locator('[data-post]')).toHaveAttribute('aria-disabled', 'true');
@@ -559,6 +567,9 @@ test('location suggestions: 2 letters, 4 rows, Austin area, remembered, free tex
     await list.getByRole('button', { name: /1100 Congress Avenue/ }).click();
     await expect(addr).toHaveValue(/1100 Congress Avenue.*Austin, TX 78701/);
     await expect(where.getByLabel('Location name')).toHaveValue('');
+    // Google's details are asked for the address only: no coordinates are fetched or kept
+    expect(context.placeRequests.masks.length).toBeGreaterThan(0);
+    expect(context.placeRequests.masks.join(',')).not.toContain('location');
   } finally {
     await context.close();
   }

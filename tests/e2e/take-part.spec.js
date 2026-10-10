@@ -73,17 +73,20 @@ test('take part: set up spots, claim, waitlist, guest, roster and giving up', as
     await M.locator('[data-onit-done]').click();
     await expect(MP.locator('[data-part="Beginner clinic"]')).toContainText('You’re in');
 
-    // A guest (no account): 9:00am is full, so Waitlist asks for a name and phone
+    // A guest (no account): 9:00am is full, so Waitlist asks for a name and a phone or email
     guest = await newMember(browser, '/#/idea/' + id);
     const G = guest.page, GP = G.locator('[data-screen-label="Plan page"]');
     await expect(GP.locator('[data-part-row="9:00am"]')).toContainText('Full');
     await GP.locator('[data-part-row="9:00am"] [data-part-waitlist-btn]').click();
     const sheet = G.getByRole('dialog', { name: 'Sign up' });
     await expect(sheet).toContainText('COURT TIME · 9:00AM');
-    await expect(sheet).toContainText('Only the hosts see your number.');
+    await expect(sheet).toContainText('Only the hosts see your phone or email.');
     await expect(sheet).toContainText('Without an account we can’t tell you when a spot opens.');   // jobs audit M5
     await sheet.getByLabel('Your name').fill('Sam Kim');
-    await sheet.getByLabel('Phone number').fill('512-555-0100');
+    await expect(sheet.locator('[data-guest-why]')).toContainText('With a free account');   // the nudge toward an account (owner, 2026-10-10)
+    await sheet.getByLabel('Phone number or email').fill('512-555');   // too short: not accepted
+    await expect(sheet.getByRole('button', { name: 'Join the waitlist' })).toHaveAttribute('aria-disabled', 'true');
+    await sheet.getByLabel('Phone number or email').fill('sam@example.com');   // an email works as well as a phone
     await sheet.getByRole('button', { name: 'Join the waitlist' }).click();
     await expect(GP.locator('[data-part-row="9:00am"]')).toContainText('You’re 1st in line');
 
@@ -98,6 +101,8 @@ test('take part: set up spots, claim, waitlist, guest, roster and giving up', as
     // Theo gives 9:00am up: Sam moves up (the database does it)
     await M.reload();
     await MP.locator('[data-part-row="9:00am"] [data-part-give-up]').click();
+    await expect(M.getByRole('alertdialog')).toContainText('Is that really what you want?');   // asks first (owner, 2026-10-10)
+    await confirm(M, 'Yes, remove me');
     await expect(M.locator('[data-banner="off"]')).toContainText('You’re off it');   // as for a job (2026-10-07)
     await G.reload();
     await expect(GP.locator('[data-part-row="9:00am"]')).toContainText('You’re in');
@@ -106,6 +111,7 @@ test('take part: set up spots, claim, waitlist, guest, roster and giving up', as
     await H.reload();
     await HP.locator('[data-part-row="9:00am"]').click();
     await expect(roster.locator('[data-roster-person]')).toContainText('GUEST');
+    await expect(roster.locator('[data-roster-person] a[href="mailto:sam@example.com"]')).toBeVisible();   // the hosts can reach a guest
     await roster.locator('[data-roster-remove]').click();
     await confirm(H, 'Remove');
     await G.reload();
