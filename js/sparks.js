@@ -3207,7 +3207,8 @@
         '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to bottom, rgba(13,17,23,.25), rgba(13,17,23,0) 40%, rgba(13,17,23,.55))"></div>' +
         '<div aria-hidden="true" style="position:absolute;left:0;right:0;top:var(--pt);bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px">' +
           '<svg class="splash-bolt" width="56" height="56" viewBox="0 0 24 24"><path d="M13.2 2.2 7.2 13.1l3.9-.35-.9 8.8 6.9-11.2-4.1.4z" fill="#ffd166" stroke="#ffd166" stroke-width="1.7" stroke-linejoin="round"/></svg>' +
-          '<span style="display:flex;align-items:center;gap:8px"><span style="font-size:20px;font-weight:900;letter-spacing:-.4px;color:#fff">Spark Hub</span>' + betaChip(true) + '</span></div>' +
+          // BETA stacked under the name, like the bolt above it (owner, 2026-10-10)
+          '<span style="display:flex;flex-direction:column;align-items:center;gap:8px"><span style="font-size:20px;font-weight:900;letter-spacing:-.4px;color:#fff">Spark Hub</span>' + betaChip(true) + '</span></div>' +
         '<div aria-hidden="true" style="position:absolute;left:20px;right:96px;bottom:22px;display:flex;flex-direction:column;gap:10px">' +
           bar('42%', 12, 'background:rgba(255,255,255,.35)') + bar('88%', 26, 'background:rgba(255,255,255,.28)') + '</div>' +
       '</div>' +
