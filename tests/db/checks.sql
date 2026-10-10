@@ -1776,3 +1776,22 @@ reset role;
 select t.check('Remove my sign-ups takes the reply, name and contact off', not exists (select 1 from rsvps where spark_id = t.id('gw') and user_id = t.id('guest'))
   and not exists (select 1 from guest_contacts where spark_id = t.id('gw') and user_id = t.id('guest'))
   and exists (select 1 from rsvps where spark_id = t.id('gw') and user_id = t.id('rep_own')));
+-- Anything to change for next time? (Design v8-21 item 2): each lead's own private note on an event they lead
+insert into cohosts (spark_id, user_id) values (t.id('gw'), t.id('rep_adm'));
+select t.login('rep_own'); set role authenticated;
+insert into public.next_time_notes (spark_id, picks, note) values (t.id('gw'), '{More chairs,Start earlier}', 'Bring a speaker');
+select t.check('the lead saves a next-time note and reads it back', (select picks from next_time_notes where spark_id = t.id('gw')) = '{More chairs,Start earlier}');
+select t.must_refuse('writing a next-time note as someone else', format($$insert into public.next_time_notes (spark_id, user_id, picks) values ('%s', '%s', '{More food}')$$, t.id('gw'), t.id('rep_adm')));
+reset role;
+select t.login('rep_adm'); set role authenticated;
+select t.check('a co-lead doesn''t see the lead''s note', (select count(*) from next_time_notes) = 0);
+insert into public.next_time_notes (spark_id, skipped) values (t.id('gw'), true);
+select t.check('a co-lead keeps a note of their own (Not now)', (select skipped from next_time_notes where spark_id = t.id('gw')));
+reset role;
+select t.login('rep_m'); set role authenticated;
+select t.must_refuse('a member writing a next-time note on someone else''s event', format($$insert into public.next_time_notes (spark_id, picks) values ('%s', '{More food}')$$, t.id('gw')));
+select t.check('a member sees no one''s next-time notes', (select count(*) from next_time_notes) = 0);
+reset role;
+select t.login('guest'); set role authenticated;
+select t.check('a guest sees no next-time notes', (select count(*) from next_time_notes) = 0);
+reset role;

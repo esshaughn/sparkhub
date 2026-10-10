@@ -48,7 +48,7 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     }
 
     // Her My tasks (v8 6h): grouped by event, a date line, the event with its purple bar, then its rows. A job to fill
-    // reads NEED, the job and its open spots, with Ask right there; Location TBD is a row with Add it
+    // reads the job and its grey N open chip (v8-21 item 10), with Ask right there; Location TBD is a row with Add it
     await openTasks(H);
     const tasks = H.locator('[data-screen-label="Your tasks"]');
     const lead = tasks.locator('[data-task="' + title + '"]');
@@ -64,8 +64,8 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     await expect(hSearch).toHaveCount(0);
     await expect(lead).not.toContainText('Post an update');
     await expect(lead).toContainText('Location TBD');
-    await expect(lead).toContainText('NEED  Folding chairs (2)');
-    await expect(lead).toContainText('NEED  Ice (1)');
+    await expect(lead).toContainText('Folding chairs 2 open');
+    await expect(lead).toContainText('Ice 1 open');
     await lead.locator('[data-todo-cta]', { hasText: 'Ask' }).first().click();
     const askSheet = H.getByRole('dialog', { name: 'Ask someone to take it' });
     await expect(askSheet).toContainText('Ask someone to take “Folding chairs”');
@@ -212,7 +212,7 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     await H.reload();
     await expect(H.locator('html[data-loaded=true]')).toHaveCount(1);
     await openTasks(H);
-    await expect(lead).toContainText('NEED  Folding chairs (1)');   // Hal took Ice and one of the chairs
+    await expect(lead).toContainText('Folding chairs 1 open');   // Hal took Ice and one of the chairs
     await expect(lead).not.toContainText('Ice (');
 
     expect(host.errors).toEqual([]);

@@ -95,9 +95,9 @@ test('a group end to end: edit group, cover, rename, invite, pin, admin edits, r
     await B.getByRole('button', { name: 'Join or add a group' }).click();
     await B.getByRole('dialog', { name: 'Add a group' }).getByRole('button', { name: 'Join a group' }).click();
     const join = B.getByRole('dialog', { name: 'Join a group' });
-    await join.getByLabel('Group code').fill('ZZZZ22');
-    await join.getByRole('button', { name: 'Join' }).click();
+    await join.getByLabel('Invite link or code').fill('ZZZZ22');   // v8-21 8b: checked as it's typed, Join stays grey
     await expect(join).toContainText('That code didn’t match a group. Check it with your organiser.');
+    await expect(join.getByRole('button', { name: 'Join' })).toHaveAttribute('aria-disabled', 'true');
     await join.getByRole('button', { name: 'Close' }).click();
     // Signed in before the tap: one confirm (E3), then Welcome to {group} (4) → its Plans tab
     await B.goto('/#/join/' + code);
