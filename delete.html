@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Delete your account — Spark Hub</title>
+<meta name="description" content="Delete your Spark Hub account.">
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+<!-- Delete Account Web (Design v8-18 item 1s): sparkhub.wereallneighbors.org/delete, for people without the app -->
+<style>
+  body { margin: 0; background: #f2f3f6; font-family: Figtree, system-ui, sans-serif; -webkit-font-smoothing: antialiased; color: #0d1117; }
+  *, *::before, *::after { box-sizing: border-box; }
+  a { color: #5b4ae8; } a:hover { color: #4a3ad4; }
+  input::placeholder { color: #b9bcc4; }
+  .wrap { min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 56px 20px; }
+  .col { width: 100%; max-width: 460px; display: flex; flex-direction: column; gap: 22px; }
+  .card { background: #fff; border-radius: 20px; box-shadow: 0 1px 3px rgba(15,18,25,.1); padding: 28px; display: flex; flex-direction: column; gap: 14px; }
+  h1 { margin: 0; font-size: 26px; line-height: 1.15; font-weight: 900; letter-spacing: -.6px; }
+  p { margin: 0; }
+  .lede { font-size: 16px; line-height: 1.5; font-weight: 500; color: #454b55; }
+  .fine { font-size: 13px; line-height: 1.5; font-weight: 600; color: #6b7280; }
+  .step { display: flex; flex-direction: column; gap: 12px; }
+  .step[hidden] { display: none; }
+  input.field { height: 50px; border: 0; border-radius: 12px; box-shadow: inset 0 0 0 1.5px #dcdfe6; padding: 0 14px; font-family: inherit; font-size: 16px; font-weight: 600; color: #0d1117; outline: none; }
+  input.field:focus { box-shadow: inset 0 0 0 2px #5b4ae8; }
+  input.code { height: 56px; text-align: center; font-size: 26px; font-weight: 900; letter-spacing: 10px; }
+  button { display: flex; align-items: center; justify-content: center; min-height: 50px; border: 0; border-radius: 999px; font-family: inherit; font-size: 16px; font-weight: 800; background: #5b4ae8; color: #fff; cursor: pointer; }
+  button.red { background: #c0263d; }
+  button:disabled { background: #e2e4e9; color: #9aa0ac; cursor: default; }
+  .msg { font-size: 14.5px; font-weight: 700; color: #454b55; }
+  .err { font-size: 14px; font-weight: 700; color: #9b1c31; }
+  .done { padding: 12px 14px; border-radius: 12px; background: #e7f6ec; font-size: 15px; font-weight: 700; color: #0f6b35; }
+  .choice { display: flex; flex-direction: column; gap: 6px; padding: 12px 0; border-top: 1px solid #f2f3f6; }
+  .choice b { font-size: 15px; font-weight: 800; }
+  select { height: 44px; border: 0; border-radius: 12px; box-shadow: inset 0 0 0 1.5px #dcdfe6; padding: 0 10px; font-family: inherit; font-size: 15px; font-weight: 600; color: #0d1117; background: #fff; }
+</style>
+</head>
+<body>
+<div class="wrap"><div class="col">
+  <div style="display:flex;align-items:center;gap:8px"><a href="/" style="font-size:20px;font-weight:900;letter-spacing:-.4px;color:#0d1117;text-decoration:none">Spark Hub</a><span style="padding:4px 8px;border-radius:999px;background:#f3f1fe;color:#5b4ae8;font-size:10.5px;font-weight:900;letter-spacing:1px">BETA</span></div>
+  <div class="card">
+    <h1>Delete your Spark Hub account</h1>
+    <p class="lede" id="lede">Enter the email you signed up with. We’ll send a 6-digit code to confirm it’s you.</p>
+    <form class="step" id="s-email">
+      <input class="field" id="email" type="email" autocomplete="email" placeholder="you@example.com" aria-label="Email" required>
+      <button type="submit" id="send" disabled>Send code</button>
+    </form>
+    <form class="step" id="s-code" hidden>
+      <span class="msg" id="sent-to"></span>
+      <input class="field code" id="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="••••••" aria-label="6-digit code">
+      <button type="submit" class="red" id="go" disabled>Delete my account</button>
+    </form>
+    <form class="step" id="s-pick" hidden>
+      <span class="msg">Before we delete it, choose what happens to these.</span>
+      <div id="picks"></div>
+      <button type="submit" class="red" id="go2">Delete my account</button>
+    </form>
+    <p class="done" id="s-done" hidden>Your account is deleted. Thanks for being part of it.</p>
+    <p class="err" id="err" role="alert" hidden></p>
+    <p class="fine">Your profile, photos and comments are removed. If you own a group or lead events, we’ll ask what should happen to them. This can’t be undone.</p>
+  </div>
+  <span class="fine">Have the app? Me → Settings → Delete my account.</span>
+</div></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.1/dist/umd/supabase.js" integrity="sha384-K1nraABOP/zFehpLIUksXebbs7jMpB8gYMlb+uhVKZcWT/9Vkq1+qhv6ndC+1Yuz" crossorigin="anonymous"></script>
+<script src="/js/config.js?v=13"></script>
+<script src="/js/delete.js?v=1"></script>
+</body>
+</html>

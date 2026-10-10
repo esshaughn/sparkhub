@@ -7,7 +7,7 @@ test('visitors land on Welcome (no tab bar there) and sign in from there', async
   try {
     const welcome = page.locator('[data-screen-label=Welcome]');
     await expect(welcome.getByRole('heading', { name: /Make plans with\s*your people\./ })).toBeVisible();
-    await expect(welcome.getByText('New here? Either creates an account')).toBeVisible();
+    await expect(welcome.locator('[data-terms-line]')).toBeVisible();   // v8-18 1s: replaced New here? Either creates an account
     await expect(welcome.getByRole('listitem')).toHaveText(['1Float an idea', '2Everybody pitches in', '3Make it a plan']);   // the intro's steps (owner, 2026-10-07)
     await expect(welcome.locator('[data-about-link]')).toBeVisible();
     await expect(welcome.locator('[data-beta]').first()).toHaveText('BETA');   // beside the wordmark (owner, 2026-10-07)
@@ -158,9 +158,9 @@ test('Give feedback (Update 9): a Help & info tile opens the sheet; Send to Eric
   }
 });
 
-// Owner, 2026-10-02: anyone can delete their own account from Profile, behind a typed DELETE (the deleting itself is
-// checked in tests/db/checks.sql; the e2e leads' accounts are needed by every other test)
-test('Profile: Delete my account asks for a typed DELETE', async ({ browser }) => {
+// Delete my account (Design v8-18 1s; it was a typed DELETE): Settings opens What happens; Keep my account backs out
+// (the whole flow is in safety.spec.js with a throwaway account; the e2e leads' accounts are needed by every other test)
+test('Profile: Delete my account starts with what happens', async ({ browser }) => {
   const { page, context, errors } = await newLead(browser, 1, 'Tester');
   try {
     await openProfile(page);
@@ -168,15 +168,31 @@ test('Profile: Delete my account asks for a typed DELETE', async ({ browser }) =
     await page.getByRole('dialog', { name: 'Settings' }).locator('[data-delete-account]').click();
     const del = page.getByRole('dialog', { name: 'Delete account' });
     await expect(del).toContainText('Delete your account?');
-    await expect(del).toContainText('It can’t be undone.');
-    const go = del.getByRole('button', { name: 'Delete my account' });
-    await expect(go).toHaveAttribute('aria-disabled', 'true');
-    await del.getByLabel('Type DELETE to confirm').fill('delet');
-    await expect(go).toHaveAttribute('aria-disabled', 'true');
-    await del.getByLabel('Type DELETE to confirm').fill('delete');
-    await expect(go).toHaveAttribute('aria-disabled', 'false');
-    await del.getByRole('button', { name: 'Keep it' }).click();
+    await expect(del).toContainText('Events you led are passed on or cancelled. You choose next.');
+    await expect(del).toContainText('This can’t be undone.');
+    await del.getByRole('button', { name: 'Keep my account' }).click();
     await expect(del).toHaveCount(0);
+    expect(errors).toEqual([]);
+  } finally {
+    await context.close();
+  }
+});
+
+// Terms (Design v8-18 1s): the line under the Welcome buttons opens Community rules (5 rules, the terms, privacy)
+test('Welcome: the terms line opens Community rules', async ({ browser }) => {
+  const { page, context, errors } = await newMember(browser);
+  try {
+    const line = page.locator('[data-terms-line]');
+    await expect(line).toHaveText('By continuing you agree to the Terms & community rules and confirm you’re 13 or older.');
+    await expect(page.getByText('New here? Either creates an account')).toHaveCount(0);
+    await line.locator('[data-terms-link]').click();
+    const rules = page.getByRole('dialog', { name: 'Community rules' });
+    await expect(rules.locator('[data-rule-row]')).toHaveCount(5);
+    await expect(rules).toContainText('13 or older');
+    await expect(rules.getByRole('link', { name: 'Full terms of use ›' })).toHaveAttribute('href', '/terms.html');
+    await expect(rules.getByRole('link', { name: 'Privacy policy ›' })).toHaveAttribute('href', '/privacy.html');
+    await rules.getByRole('button', { name: 'Back' }).click();
+    await expect(rules).toHaveCount(0);
     expect(errors).toEqual([]);
   } finally {
     await context.close();
@@ -193,6 +209,10 @@ test('an event link while it loads: the photo header and card placeholders', asy
   await expect(ph).toBeVisible();
   await expect(ph).toContainText('Spark Hub');
   await expect(page.getByText('Loading…', { exact: true })).toHaveCount(0);
+});
+
+test('terms and delete-account pages are public', async ({ request }) => {
+  for (const path of ['/terms.html', '/delete.html']) expect((await request.get(path)).status()).toBe(200);
 });
 
 test('privacy page is public', async ({ request }) => {
