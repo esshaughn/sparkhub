@@ -113,8 +113,11 @@ test('Give feedback (Update 9): a Help & info tile opens the sheet; Send to Eric
     await profile.getByRole('button', { name: 'Feedback & questions' }).click();
     const box = page.getByRole('dialog', { name: 'Give feedback' });
     await expect(box).toContainText('FEEDBACK & QUESTIONS');   // v8-2 (1a): eyebrow, title, one line, no prompt list
-    await expect(box).toContainText('What can I help with?');
-    await expect(box).toContainText('Ask anything about how Spark Hub works.');
+    // Design v8-19 item 2: four chips, Questions / comments picked first
+    await expect(box.locator('[data-fb-topic]')).toHaveText(['Questions / comments', 'Report a glitch', 'Make a suggestion', 'Love note']);
+    await expect(box.locator('[data-fb-topic="q"]')).toHaveAttribute('aria-selected', 'true');
+    await expect(box).toContainText('What’s on your mind?');
+    await expect(box).toContainText('Ask anything about how Spark Hub works, or just tell me what you think.');
     await expect(box).not.toContainText('How useful does it feel?');
     await expect(box.getByRole('button', { name: 'Send to Eric' })).toHaveAttribute('aria-disabled', 'true');   // nothing typed yet
     await box.getByLabel('Your feedback').fill('[E2E] The Join button was easy to find');
@@ -661,6 +664,7 @@ test('freeze log (temporary): a 2-second stall is noted and shows on the owner\'
     expect(await page.evaluate(() => localStorage.getItem('spark-hub-diag'))).toBeNull();
     // Pretend this account is the owner (the only one who sees the log)
     await page.route('**/rest/v1/demo_admins*', r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ user_id: 'x' }) }));
+    await page.route('**/rest/v1/rpc/list_reports*', r => r.fulfill({ status: 200, contentType: 'application/json', body: '[]' }));   // the Dashboard pill's count (v8-19); the server refuses a pretend owner
     await page.reload();
     await expect(page.locator('html[data-loaded=true]')).toHaveCount(1);
     await page.evaluate(() => { localStorage.removeItem('spark-hub-diag'); const end = Date.now() + 2000; while (Date.now() < end) { /* freeze */ } });
@@ -721,7 +725,7 @@ test('Dashboard (owner only): the pill beside Settings counts what needs you; Ne
     await expect(sheet).toHaveCount(0);
     await expect(dash.getByRole('button', { name: 'New accounts', exact: true })).toContainText('2 accounts so far');   // closing marks them seen
     await expect(dash.locator('[data-dash-summary]')).toHaveText('All caught up');
-    await dash.getByRole('button', { name: 'Back' }).click();
+    await dash.getByRole('button', { name: 'Back', exact: true }).click();
     await expect(page.locator('[data-dash-pill]')).toHaveText('Dashboard');   // no count at 0
     expect(errors).toEqual([]);
   } finally {

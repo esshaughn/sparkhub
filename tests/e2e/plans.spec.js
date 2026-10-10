@@ -718,14 +718,14 @@ test('a vote on a suggested date changes as soon as it is tapped (the save follo
     }, inDays(9));
     await M.goto('/#/idea/' + id);
     const opt = M.locator('[data-when] [data-cal-page]').first();
-    await expect(opt).toContainText('No votes yet');
+    await expect(opt.locator('[data-vote-n]')).toHaveCount(0);   // one-line vote rows (Design v8-19 1x): no count before you vote
     // A slow save: the vote shows long before it lands
     let release;
     const gate = new Promise(r => { release = r; });
     await M.route('**/rest/v1/date_votes*', async (route) => { if (route.request().method() !== 'GET') await gate; await route.continue().catch(() => {}); });
     await opt.click();
     await expect(opt).toHaveAttribute('aria-checked', 'true', { timeout: 1000 });
-    await expect(opt).toContainText('You can go');
+    await expect(opt.locator('[data-vote-n]')).toHaveText('1');
     release();
     await M.unroute('**/rest/v1/date_votes*');
     await expect.poll(() => asUser(H, async (c, _C, id) => (await c.from('date_options').select('date_votes(user_id)').eq('spark_id', id)).data[0].date_votes.length, id)).toBe(1);
@@ -734,7 +734,7 @@ test('a vote on a suggested date changes as soon as it is tapped (the save follo
     await opt.click();
     await expect(M.getByText('That didn’t go through. Try again in a moment.')).toBeVisible();
     await expect(opt).toHaveAttribute('aria-checked', 'true');
-    await expect(opt).toContainText('You can go');
+    await expect(opt.locator('[data-vote-n]')).toHaveText('1');
   } finally {
     if (id) await asUser(H, async (c, _C, id) => c.rpc('delete_event', { p_spark: id, p_quiet: true }), id).catch(() => {});
     await host.context.close(); await mem.context.close();
@@ -843,7 +843,7 @@ test('no date yet: the lead runs a date poll from the idea; stepping back blocks
     await expect(H.getByRole('status')).toContainText('Saved');
     // Looking for a lead (I'll decide): Make this a plan says what's missing, and the button stays grey
     await HS.locator('[data-rule="decide"]').click();
-    await expect(HS.locator('[data-make-this-plan]')).toContainText('No votes yet');
+    await expect(HS.locator('[data-make-this-plan]')).toContainText('Pick date');   // no grey line under open rows (Design v8-19 1y)
     await expect(HS.locator('[data-make-this-plan]')).toContainText('Choose a lead');
     await expect(HS.locator('[data-make-it-plan]')).toHaveText('Add a date first');
     await expect(HS.locator('[data-when] [data-cal-page]')).toHaveCount(2);
