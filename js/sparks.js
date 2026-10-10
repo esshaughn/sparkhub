@@ -318,7 +318,7 @@
     groups: [], sparks: [], profiles: {},
 
     drafts: [], notes: [], pushOn: false, pushCardHidden: (() => { try { return localStorage.getItem('spark-hub-push-card') === 'hidden'; } catch (e) { return false; } })(),
-    fb: null, sec: null, needEd: null, share: null, partMore: {}, partRoster: null, partGuest: null, calSheet: null,
+    fb: null, sec: null, needEd: null, share: null, partMore: {}, partRoster: null, partGuest: null, calSheet: null, asMember: null,
 
     loginStep: null, loginFrom: 'default', loginThen: null, loginMode: 'link', loginEmail: '', loginCode: '',
     resent: false, mergeToken: null, googleFailed: false,
@@ -424,6 +424,7 @@
   const ORIGINS = ['home', 'sched', 'own', 'calendar', 'groups', 'friends', 'me', 'browse', 'ideas'];
   const go = (screen, extra) => {
     const sc = scroller();
+    if (state.asMember) { previewing = false; state.asMember = null; state.viewAs = null; }   // leaving the event ends View as a member
     // The Ideas tab always opens on Newest, whatever sort was picked last time (owner, 2026-10-07)
     if (screen === 'ideas' && state.screen !== 'ideas') state.iaSort = 'new';
     // All groups always opens on Month, whatever view was picked last time (owner, 2026-10-07)
@@ -495,12 +496,16 @@
     (role === 'owner' ? 'background:#ece9fd;color:#4a3ad4' : 'background:#fdf1d6;color:#8f6405') + ';font-size:11px;font-weight:900;letter-spacing:.6px;text-transform:uppercase;' + (extra || '') + '">' + ROLE_WORD[role] + '</span>';
   // isLead: anyone hosting it (the lead or a co-host, 20261101130000_cohosts.sql). isTheLead: only the lead, for what
   // co-hosts can't do (delete or cancel, look for a host) and where the lead is shown apart
-  const isTheLead = (s) => !!s && !!state.me && s.leadId === state.me;
-  const isCohost = (s) => !!s && !!state.me && (s.cohosts || []).indexOf(state.me) > -1;
+  // View as a member (owner, 2026-10-10): a host or admin sees one event the way a member does: no host tools, no Edit.
+  // hostRole() is the real role, for the button that starts it
+  const asMemberOf = (s) => !!s && !!state.asMember && s.id === state.asMember;
+  const hostRole = (s) => !!s && !!state.me && (s.leadId === state.me || (s.cohosts || []).indexOf(state.me) > -1 || runs(groupById(s.groupId)));
+  const isTheLead = (s) => !!s && !!state.me && s.leadId === state.me && !asMemberOf(s);
+  const isCohost = (s) => !!s && !!state.me && (s.cohosts || []).indexOf(state.me) > -1 && !asMemberOf(s);
   const isLead = (s) => isTheLead(s) || isCohost(s);
   const hostIds = (s) => [s.leadId].concat(s.cohosts || []);
   // The lead, or an admin of the idea's group, can edit or delete it
-  const isGroupAdmin = (s) => { const g = s && groupById(s.groupId); return runs(g); };
+  const isGroupAdmin = (s) => { const g = s && groupById(s.groupId); return runs(g) && !asMemberOf(s); };
   const canEdit = (s) => isLead(s) || isGroupAdmin(s);
   const canTakeDown = (s) => isTheLead(s) || isGroupAdmin(s);   // delete or cancel: not co-hosts
   const nameOf = (uid, fallback) => {
@@ -1129,9 +1134,12 @@
     loadFresh().then(() => toast('Viewing as ' + t.name + '. Nothing you tap changes anything.', true), (e) => { console.error(e); setState({ error: 'load', loaded: true }); });
   };
   const exitPreview = () => { location.hash = '#/'; location.reload(); };
+  // View as a member: read-only like View as a tester (the same guard), but it is you, on this one event, and Exit stays on the page
+  const startAsMember = (s) => { if (state.viewAs) return; previewing = true; setState({ asMember: s.id, viewAs: { id: state.me, name: 'Member', asMember: true }, menu: null }); const sc = scroller(); if (sc) sc.scrollTop = 0; };
+  const stopAsMember = () => { previewing = false; setState({ asMember: null, viewAs: null }); };
   const previewBar = () => '<div role="status" data-preview style="position:fixed;z-index:90;bottom:calc(var(--nav-h) + 10px);left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:10px;max-width:calc(100% - 32px);height:44px;padding:0 6px 0 16px;border-radius:999px;background:#1f2433;color:#fff;box-shadow:0 8px 20px rgba(13,17,23,.3);font-size:14px;font-weight:800;white-space:nowrap">' +
-    '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis">Viewing as ' + esc(state.viewAs.name) + '</span>' +
-    '<span ' + on(exitPreview) + ' style="flex:0 0 auto;display:flex;align-items:center;height:34px;padding:0 14px;border-radius:999px;background:#ffd98a;color:#1f2433;font-size:13.5px;font-weight:900;cursor:pointer">Exit</span></div>';
+    '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis">' + (state.viewAs.asMember ? 'Viewing as a member' : 'Viewing as ' + esc(state.viewAs.name)) + '</span>' +
+    '<span ' + on(state.viewAs.asMember ? stopAsMember : exitPreview) + (state.viewAs.asMember ? ' data-as-member-exit' : '') + ' style="flex:0 0 auto;display:flex;align-items:center;height:34px;padding:0 14px;border-radius:999px;background:#ffd98a;color:#1f2433;font-size:13.5px;font-weight:900;cursor:pointer">Exit</span></div>';
   const testerCard = () => {
     const st = state;
     if (st.viewAs) return '<div style="' + CARD + ';padding:16px;display:flex;flex-direction:column;align-items:flex-start;gap:10px"><div style="font-size:17px;font-weight:900;color:#0d1117">Viewing as ' + esc(firstName(st.viewAs.name)) + '</div>' +
@@ -6282,6 +6290,7 @@
       '<div style="position:absolute;top:calc(12px + var(--pt));left:12px;right:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;z-index:2">' +
         backBtn(s) +
         '<span style="flex:1"></span>' +
+        (hostRole(s) && !s.cancelledAt && !state.asMember ? '<span ' + on(() => startAsMember(s)) + ' data-as-member aria-label="View as a member" class="hov-fill-grey" style="' + ROUND_BTN + '">' + svg(18, stroke('#0d1117', 2.4), '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/>') + '</span>' : '') +
         (menu ? '<span ' + on(() => openSec(s, 'title')) + ' aria-label="Edit event" class="hov-fill-grey" style="' + ROUND_BTN + '">' + svg(18, stroke('#0d1117', 2.4), PENCIL) + '</span>' + evMenu(s) :
         // Owner, 2026-10-01: one round pencil (matching Share) opens Edit event: the title, and the cover photo for the host.
         // Round, so the Test event tab between the buttons stays clear on demo/test events
@@ -7300,7 +7309,7 @@
       (co.length > 2 ? '<span style="position:relative;margin-left:-16px;flex:0 0 46px;width:46px;height:46px;border-radius:999px;border:3px solid #fff;box-shadow:0 0 0 2.5px #b8aefc;background:#fff;color:#4a3ad4;font-size:14px;font-weight:900;display:flex;align-items:center;justify-content:center;box-sizing:border-box">+' + (co.length - 1) + '</span>' : '') + '</span>';
     // Signed out (short links spec, v8-8): first names and photos only (co-leads too, owner 2026-10-07), and no profile to open
     // Your own lead with no co-leads opens Leads too, not your profile (Design v8-8 prototype ledOpen)
-    const vis = !state.email, sheet_ = co.length || s.leadId === state.me, tap = vis ? () => {} : sheet_ ? () => setState({ leadsSheet: s.id }) : () => openPerson(s.leadId);
+    const vis = !state.email, sheet_ = co.length || isTheLead(s), tap = vis ? () => {} : sheet_ ? () => setState({ leadsSheet: s.id }) : () => openPerson(s.leadId);
     // Design v8: padding 18, radius 22, a 12px LED BY; Edit is a white pill; the co-lead nudge stacks its title over its line
     return '<div id="sec-lead" data-led-by style="position:relative;display:flex;flex-direction:column;gap:14px;padding:18px;border-radius:22px;background:linear-gradient(135deg,#f1edff,#e0d8ff);box-shadow:0 1px 3px rgba(15,18,25,.08)">' +
         '<span aria-hidden="true" style="position:absolute;left:52%;top:6px;font-size:9px;color:#9d93f7">✦</span><span aria-hidden="true" style="position:absolute;right:16px;top:10px;font-size:11px;color:#b8aefc">✦</span><span aria-hidden="true" style="position:absolute;right:10px;bottom:6px;font-size:8px;color:#7b6ef0">✦</span>' +
@@ -7343,7 +7352,7 @@
         s.cohosts.map((u, i) => row(u, nameOf(u), !manage ? tag('Co-lead') : u === state.me ? act('Step down', () => { close(); askRemoveCohost(s, u, true); }) : mayRemove ? act('Remove', () => { close(); askRemoveCohost(s, u, false); }) : tag('Co-lead'), i + 1)).join('') + '</div>' +
       (manage && s.cohosts.length < 5 ? '<span ' + on(() => { close(); openCohostPicker(s); }) + ' style="display:flex;align-items:center;gap:7px;min-height:44px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(15, '#5b4ae8', 2.6) + 'Add a co-lead</span>' : '') +
       // Hand it to someone (owner, 2026-10-02): the lead only; the plan stays as it is until they say yes
-      (s.leadId === state.me && !s.wantsHost && !s.cancelledAt && phaseOf(s) !== 'done'
+      (isTheLead(s) && !s.wantsHost && !s.cancelledAt && phaseOf(s) !== 'done'
         ? (s.leadOffer
           ? '<div data-lead-offered style="display:flex;align-items:center;gap:8px;min-height:44px;font-size:14.5px;font-weight:700;color:#5c6270">' + face(s.leadOffer.userId, nameOf(s.leadOffer.userId), 24) +
               '<span style="flex:1;min-width:0">Asked ' + esc(firstName(nameOf(s.leadOffer.userId))) + ' to take over · waiting</span>' +

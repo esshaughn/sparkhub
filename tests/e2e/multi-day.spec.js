@@ -290,3 +290,35 @@ test('my calendar month: the list under the chosen day goes on into the next mon
     await host.context.close();
   }
 });
+
+// View as a member (owner, 2026-10-10): a host checks one event the way a member sees it. Read-only, and leaving ends it
+test('view as a member: a host sees no host tools, nothing changes, and Exit brings them back', async ({ browser }) => {
+  const host = await newLead(browser, 1, 'Marisol');
+  const H = host.page;
+  const title = uniqueTitle('Preview supper'), d1 = inDays(5);
+  let id;
+  try {
+    id = await asUser(H, async (c, _C, f) => {
+      const me = (await c.auth.getUser()).data.user.id;
+      const g = (await c.from('groups').select('id').eq('name', 'Torrez Fitness').single()).data.id;
+      const r = await c.from('sparks').insert(Object.assign({ group_id: g, author_name: 'Marisol', lead_name: 'Marisol', lead_id: me, created_by: me, planned: true }, f)).select('id').single();
+      return r.error ? r.error.message : r.data.id;
+    }, { text: title, day_date: d1, day_time: '18:00', day_end: '19:00' });
+    expect(id).toMatch(/^[0-9a-f-]{36}$/);
+    await openIdea(H, id);
+    const page = H.locator('[data-screen-label="Plan page"]');
+    await expect(H.getByRole('button', { name: 'Edit event' }).first()).toBeVisible();   // the host has Edit
+    await H.getByRole('button', { name: 'View as a member' }).click();
+    await expect(H.locator('[data-preview]')).toContainText('Viewing as a member');
+    await expect(H.getByRole('button', { name: 'Edit event' })).toHaveCount(0);   // no host tools
+    await expect(H.getByRole('button', { name: 'View as a member' })).toHaveCount(0);
+    await expect(page).toBeVisible();
+    await H.locator('[data-as-member-exit]').click();
+    await expect(H.locator('[data-preview]')).toHaveCount(0);
+    await expect(H.getByRole('button', { name: 'Edit event' }).first()).toBeVisible();   // back to the host's page
+    expect(host.errors).toEqual([]);
+  } finally {
+    if (id) await deleteIdea(H, id);
+    await host.context.close();
+  }
+});
