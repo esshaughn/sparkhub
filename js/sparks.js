@@ -4543,6 +4543,9 @@
     const edge = pin.getBoundingClientRect().bottom + 6;
     let cur = heads[0];
     for (const h of heads) { if (h.getBoundingClientRect().top <= edge) cur = h; else break; }
+    // Scrolled to the end, the last days can't reach the grid's edge: the last heading on screen wins, so the grid still gets there
+    const sc = scroller();
+    if (sc && sc.scrollTop > 0 && sc.scrollTop + sc.clientHeight >= sc.scrollHeight - 2) { const bot = sc.getBoundingClientRect().bottom; for (const h of heads) if (h.getBoundingClientRect().top < bot) cur = h; }
     const iso = cur.getAttribute('data-list-day');
     if (iso === pin.getAttribute('data-iso')) return;
     pin.setAttribute('data-iso', iso); pin.setAttribute('data-mon', iso.slice(0, 7));
