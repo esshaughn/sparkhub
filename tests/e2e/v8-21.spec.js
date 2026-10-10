@@ -25,20 +25,29 @@ test('Get started: join with a code, the four steps tick, × hides it everywhere
     await expect(join).toHaveCount(0);
     await saved(page);
 
-    // In a group now: the banner, with Join a group already ticked (1 of 4)
+    // In a group now: the banner, with Join a group already ticked (1 of 5: Install Spark Hub app came in v8-22)
     await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Calendar', exact: true }).click();
     const gs = page.locator('[data-screen-label="Your calendar"] [data-get-started]');
     await expect(gs).toContainText('Get started');
-    await expect(gs.locator('[data-gs-count]')).toHaveText('1 of 4');
+    await expect(gs.locator('[data-gs-count]')).toHaveText('1 of 5');
     await expect(gs.locator('[data-gs-step]')).toHaveCount(0);   // closed
     await gs.locator('[data-gs-toggle]').click();
-    await expect(gs.locator('[data-gs-step]')).toHaveCount(4);
+    await expect(gs.locator('[data-gs-step]')).toHaveCount(5);
     await expect(gs.locator('[data-gs-step="join"]')).toHaveAttribute('data-done', '');
 
     // Update your profile opens the photo picker straight away and saves it as the profile photo
     await gs.locator('[data-gs-step="profile"] input[type=file]').setInputFiles({ name: 'me.png', mimeType: 'image/png', buffer: PNG });
     await expect(page.getByText('Profile photo updated')).toBeVisible();
-    await expect(gs.locator('[data-gs-count]')).toHaveText('2 of 4');
+    await expect(gs.locator('[data-gs-count]')).toHaveText('2 of 5');
+
+    // Install Spark Hub app (v8-22): the three Safari steps; I added it ticks it
+    await gs.locator('[data-gs-step="app"]').click();
+    const a2 = page.getByRole('dialog', { name: 'Add Spark Hub to your home screen' });
+    await expect(a2).toContainText('Add to Home Screen');
+    await a2.getByRole('button', { name: 'I added it' }).click();
+    await expect(a2).toHaveCount(0);
+    await expect(gs.locator('[data-gs-count]')).toHaveText('3 of 5');
+    await expect(gs.locator('[data-gs-step="app"]')).toHaveAttribute('data-done', '');
 
     // Float your first Idea goes to the Ideas tab and opens the Float sheet
     await gs.locator('[data-gs-step="idea"]').click();

@@ -25,7 +25,7 @@ test('notifications: a new plan, replying from the feed, the host hears back, up
     const row = feed.locator('[data-notif=newevent]').filter({ hasText: title });
     await expect(row).toContainText('New: ' + title);
     await expect(row).toContainText(/\w+ is leading · /);   // leads are shared between parallel tests, so names can change
-    await expect(feed.getByRole('radio', { name: 'New', exact: true })).toBeVisible();   // was "Invites"; nobody is invited
+    await expect(row).not.toHaveAttribute('data-notif-ask', '');   // a New: row needs no answer, so it stays white (1a)
     await expect(row.getByLabel('Unread')).toBeVisible();
     // Design v8: no I'm going / Maybe on New: rows (they stay on a friend's invite); the row opens the plan
     await expect(row.getByRole('button', { name: 'I’m going' })).toHaveCount(0);
@@ -43,7 +43,7 @@ test('notifications: a new plan, replying from the feed, the host hears back, up
     await H.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Calendar', exact: true }).click();
     await H.getByRole('button', { name: /^Notifications/ }).click();
     const hfeed = H.getByRole('dialog', { name: 'Notifications' });
-    await hfeed.getByRole('radio', { name: 'Leading' }).click();
+    await expect(hfeed.getByRole('radio')).toHaveCount(0);   // one list by day, no filter chips (Notifications 1a, v8-22)
     await expect(hfeed.locator('[data-notif=rsvp]').filter({ hasText: title })).toContainText(new RegExp('\\w+ is going to ' + esc(title)));
     await hfeed.locator('[data-notif=rsvp]').filter({ hasText: title }).click();
     await expect(H.locator('[data-screen-label="Plan page"]')).toBeVisible();
@@ -53,11 +53,9 @@ test('notifications: a new plan, replying from the feed, the host hears back, up
     // Omar: the update, with its text, under Updates; Mark all read sticks after a reload
     await O.reload();
     await O.getByRole('button', { name: /^Notifications/ }).click();   // v6: a sheet from the bell
-    await feed.getByRole('radio', { name: 'Updates' }).click();
     const upd = feed.locator('[data-notif=update]').filter({ hasText: title });
     await expect(upd).toContainText(new RegExp('\\w+ posted an update on ' + esc(title)));   // Design v8: "{host} posted an update on {event}"
     await expect(upd.locator('[data-notif-quote]')).toHaveText('Helmets on, please.');        // the update in a gray bubble
-    await feed.getByRole('radio', { name: 'All' }).click();
     const saved = O.waitForResponse(r => r.url().includes('/rest/v1/notif_state') && r.request().method() === 'POST');
     await feed.getByText('Mark all read').click();
     await saved;

@@ -41,7 +41,7 @@ test('take part: set up spots, claim, waitlist, guest, roster and giving up', as
     await flow.locator('[data-cp-add-job]').click();
     const seats = H.getByRole('dialog', { name: 'Add a sign up' });
     await seats.getByLabel('Sign-up name').fill('Beginner clinic');
-    await seats.getByRole('button', { name: 'More for how many people' }).click();
+    for (let k = 0; k < 2; k++) await seats.getByRole('button', { name: 'More for how many people' }).click();   // from Any (v8-22)
     await seats.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(flow.locator('[data-job="Court time"]')).toContainText('2 times from 9am · 1 each');
     await expect(flow.locator('[data-job="Beginner clinic"]')).toContainText('2 people');

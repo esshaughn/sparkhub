@@ -325,11 +325,12 @@ async function postEvent(page, { title, date, time, where, pick, details = [], j
   return ideaIdFromUrl(page);
 }
 // + Add a sign up on the one page (Design v8-18, 1d): type the name (no starter), the count, Save
+// New jobs start at Any (Design v8-22), so each + is one more person
 async function addJob1a(page, { item, need = 1 }) {
   await page.locator('[data-cp-add-job]').click();
   const sheet = page.getByRole('dialog', { name: 'Add a sign up' });
   await sheet.getByLabel('Sign-up name').fill(item);
-  for (let n = 1; n < need; n++) await sheet.getByRole('button', { name: 'More for how many people' }).click();
+  for (let n = 0; n < need; n++) await sheet.getByRole('button', { name: 'More for how many people' }).click();
   await sheet.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(sheet).toHaveCount(0);
 }
@@ -350,7 +351,7 @@ async function addJob(page, { item, need = 1, time }) {
   await sheet.locator('[data-needs-add]').click();
   await sheet.getByLabel('Job name ' + n).fill(item);
   const row = sheet.locator('[data-need-row]').nth(n - 1);
-  for (let k = 1; k < need; k++) await row.getByRole('button', { name: 'More for how many people' }).click();
+  for (let k = 0; k < need; k++) await row.getByRole('button', { name: 'More for how many people' }).click();
   if (time) {   // the app's own time list, not a browser menu
     await row.getByRole('button', { name: 'Time ' + n, exact: true }).click();
     await pickTime(row, time);

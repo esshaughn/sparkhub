@@ -38,7 +38,7 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     const needs = H.getByRole('dialog', { name: 'Edit sign-ups' });
     await needs.locator('[data-needs-add]').click();
     await needs.getByLabel('Job name 1').fill('Folding chairs');
-    await needs.getByRole('button', { name: 'More for how many people' }).click();
+    for (let k = 0; k < 2; k++) await needs.getByRole('button', { name: 'More for how many people' }).click();   // new jobs start at Any (v8-22)
     await needs.locator('[data-needs-add]').click();   // members can't add their own any more (v8-7), so the host adds Lemonade
     await needs.getByLabel('Job name 2').fill('Lemonade');
     await needs.getByRole('button', { name: 'Save changes' }).click();

@@ -109,7 +109,7 @@
   const css = (o) => Object.keys(o).map(k => k.replace(/[A-Z]/g, m => '-' + m.toLowerCase()) + ':' + o[k]).join(';');
 
   const cleanTitle = (t) => {
-    const s = (t || '').trim().replace(/\s+/g, ' ').replace(/[.!,;\s]+$/, '');
+    const s = (t || '').trim().replace(/\s+/g, ' ').replace(/[.,;\s]+$/, '');
     return s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
   };
   const titleCase = (t) => cleanTitle(t).replace(/(^|\s)(\S)/g, (m, a, c) => a + c.toUpperCase());
@@ -921,7 +921,7 @@
 
   // Run a write, then refresh. Errors become the "didn't go through" toast.
   const run = async (work, after) => {
-    if (state.viewAs) { toast(state.viewAs.asMember ? 'You’re seeing it as someone going. Exit to make changes.' : 'You’re viewing as ' + firstName(state.viewAs.name) + ', so nothing changes. Exit to make changes.'); return false; }
+    if (state.viewAs) { toast(state.viewAs.asMember ? 'You’re viewing as an attendee. Exit to make changes.' : 'You’re viewing as ' + firstName(state.viewAs.name) + ', so nothing changes. Exit to make changes.'); return false; }
     setState({ busy: 'save' });
     try {
       await ensureSession();
@@ -1173,9 +1173,9 @@
   // View as a member: read-only like View as a tester (the same guard), but it is you, on this one event, and Exit stays on the page
   const startAsMember = (s) => { if (state.viewAs) return; previewing = true; setState({ asMember: s.id, viewAs: { id: state.me, name: 'Member', asMember: true }, menu: null }); const sc = scroller(); if (sc) sc.scrollTop = 0; };
   const stopAsMember = () => { previewing = false; setState({ asMember: null, viewAs: null }); };
-  // View as someone going (Design v8-18, 1l): a dark pill 94px up, 14.5/800, and a gold Exit
+  // View as attendee (Design v8-18 1l; renamed v8-22): a dark pill 94px up, 14.5/800, and a gold Exit
   const previewBar = () => '<div role="status" data-preview style="position:fixed;z-index:90;bottom:' + (state.viewAs.asMember ? '94px' : 'calc(var(--nav-h) + 10px)') + ';left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:10px;max-width:calc(100% - 32px);height:44px;padding:0 6px 0 16px;border-radius:999px;background:' + (state.viewAs.asMember ? '#0d1117' : '#1f2433') + ';color:#fff;box-shadow:0 8px 20px rgba(13,17,23,.3);font-size:' + (state.viewAs.asMember ? 14.5 : 14) + 'px;font-weight:800;white-space:nowrap">' +
-    '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis">' + (state.viewAs.asMember ? 'Viewing as someone going' : 'Viewing as ' + esc(state.viewAs.name)) + '</span>' +
+    '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis">' + (state.viewAs.asMember ? 'Viewing as attendee' : 'Viewing as ' + esc(state.viewAs.name)) + '</span>' +
     '<span ' + on(state.viewAs.asMember ? stopAsMember : exitPreview) + (state.viewAs.asMember ? ' data-as-member-exit' : '') + ' style="flex:0 0 auto;display:flex;align-items:center;height:34px;padding:0 14px;border-radius:999px;background:' + (state.viewAs.asMember ? '#f5b428' : '#ffd98a') + ';color:' + (state.viewAs.asMember ? '#2a1d00' : '#1f2433') + ';font-size:13.5px;font-weight:900;cursor:pointer">Exit</span></div>';
   const testerCard = () => {
     const st = state;
@@ -1996,7 +1996,7 @@
   // ---- V5 plans ----------------------------------------------------------------------
   // An idea is a plan once the lead locks in a day and a time; the day after, it "happened"
   const phaseOf = (s) => !s.planned ? 'idea' : (s.dayDate && s.dayDate < todayISO() ? 'done' : 'plan');
-  // View as someone going (Design v8-18, 1l): you see the event as a person who's going; your own reply stays as it is
+  // View as attendee (Design v8-18 1l): you see the event as a person who's going; your own reply stays as it is
   const myRsvp = (s) => { if (asMemberOf(s)) return 'going'; const r = s.rsvps.find(x => x.userId === state.me); return r ? r.status : null; };
   const going = (s) => s.rsvps.filter(r => r.status === 'going');
   // How many are coming: everyone going plus the people they're bringing (v8-11 6a: going counts include plus-ones)
@@ -2340,10 +2340,16 @@
   // time (an hour if it has none); no time = an all-day event. Multi-day (v8-7): separate days get one entry per day
   // you're going (every day for The whole thing); a span is one entry from its first day to its last; a repeat is one
   // entry that repeats (RRULE). Google's link takes one event, so it gets the first of those entries.
-  const calPlace = (s) => {   // the place's name and address, once each (the name is often the street address itself)
+  // Location field = the address only, so the map link resolves (Design v8-22, owner 2026-10-10): never the place's name.
+  // A name with no address on file counts as the address when it starts with a house number (11409 Hunters Ln); no address = blank.
+  // The name, when there is one, goes in the description above the event link (calNote)
+  const calPlace = (s) => {
     const a = (s.spot || '').trim(), b = (s.spotAddress || '').trim();
-    if (!a || !b) return a || b;
-    return b.toLowerCase().indexOf(a.toLowerCase()) > -1 ? b : a.toLowerCase().indexOf(b.toLowerCase()) > -1 ? a : a + ', ' + b;
+    return b || (/^\d+\s+\S/.test(a) ? a : '');
+  };
+  const calNote = (s) => {
+    const a = (s.spot || '').trim(), place = calPlace(s);
+    return (a && a !== place ? a + '\n' : '') + eventLink(s);
   };
   const calEvents = (s) => {   // { list: [{ uid, when: [DTSTART, DTEND], extra: [RRULE] }], picked: the days chosen (separate days only) }
     const p2 = (n) => String(n).padStart(2, '0'), ymd = (iso) => iso.replace(/-/g, '');
@@ -2379,7 +2385,7 @@
     const escIcs = (v) => String(v || '').replace(/[\\,;]/g, (m) => '\\' + m).replace(/\n/g, '\\n');
     const { list, picked } = calEvents(s), place = calPlace(s), dtstamp = new Date().toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z';
     const body = [].concat(...list.map(e => ['BEGIN:VEVENT', 'UID:' + e.uid + '@sparkhub', 'DTSTAMP:' + dtstamp].concat(e.when, e.extra || [],
-      ['SUMMARY:' + escIcs(s.text), 'LOCATION:' + escIcs(place), 'DESCRIPTION:' + escIcs(eventLink(s)), 'END:VEVENT'])));
+      ['SUMMARY:' + escIcs(s.text), 'LOCATION:' + escIcs(place), 'DESCRIPTION:' + escIcs(calNote(s)), 'END:VEVENT'])));
     const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Spark Hub//EN'].concat(body, ['END:VCALENDAR']).join('\r\n');
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([ics], { type: 'text/calendar' }));
@@ -2394,7 +2400,7 @@
     if (!e) return '';
     const val = (l) => l.slice(l.indexOf(':') + 1), place = calPlace(s), enc = encodeURIComponent;
     return 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + enc(s.text) + '&dates=' + val(e.when[0]) + '/' + val(e.when[1]) +
-      '&details=' + enc(eventLink(s)) + (place ? '&location=' + enc(place) : '') + (e.extra && e.extra[0] ? '&recur=' + enc(e.extra[0]) : '');
+      '&details=' + enc(calNote(s)) + (place ? '&location=' + enc(place) : '') + (e.extra && e.extra[0] ? '&recur=' + enc(e.extra[0]) : '');
   };
   const addToCalendar = (s) => { if (s.dayDate) setState({ calSheet: s.id }); };
   const IS_APPLE = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -2626,7 +2632,9 @@
   };
 
   // ---------------------------------------------------------------------------
-  // "Continue with Google" (Supabase OAuth, a full-page trip to Google)
+  // "Continue with Google" (Supabase OAuth, a full-page trip to Google). Under each button, a heads-up line (Design v8-22,
+  // 6b), since Google's account picker names our sign-in service until the custom sign-in domain is on (BRIEF 6c)
+  const gHeadsUp = (color, top) => '<p data-google-heads-up style="margin:' + top + 'px 0 0;text-align:center;font-size:12.5px;line-height:1.4;font-weight:600;color:' + color + ';text-wrap:pretty">Google may show “supabase.co”. That’s our sign-in service. It’s safe.</p>';
   // ---------------------------------------------------------------------------
   // The page reloads on the way back, so anything in progress is parked in
   // sessionStorage first: the draft (photos as data URLs), a merge token, the
@@ -2961,7 +2969,7 @@
         (st.joinCode ? '<div style="text-align:center;font-size:14.5px;font-weight:700;color:#dfe2e8">Sign in to join the group <strong style="font-weight:900;letter-spacing:1px;color:#fff">' + esc(st.joinCode) + '</strong></div>' : '') +
         (GOOGLE_ON
           ? '<button type="button" class="hov-fill-grey" ' + on(google) + ' style="width:100%;min-height:54px;display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;border:0;border-radius:999px;font-family:inherit;font-size:16px;font-weight:800;color:#0d1117;cursor:pointer">' +
-              I.google + (st.busy === 'google' ? 'Opening Google…' : 'Continue with Google') + '</button>'
+              I.google + (st.busy === 'google' ? 'Opening Google…' : 'Continue with Google') + '</button>' + gHeadsUp('rgba(255,255,255,.72)', -2)
           : '') +
         '<button type="button" class="hov-white-line" ' + on(email) + ' style="width:100%;min-height:54px;display:flex;align-items:center;justify-content:center;gap:10px;background:transparent;border:1.5px solid rgba(255,255,255,.3);border-radius:999px;font-family:inherit;font-size:16px;font-weight:800;color:#fff;cursor:pointer">' +
           svg(19, stroke('currentColor', 2.1), '<rect x="3" y="5.5" width="18" height="13" rx="2.5"/><path d="m4 7.5 8 6 8-6"/>') + 'Continue with email</button>' +
@@ -3016,7 +3024,7 @@
             (st.inv.copied ? 'Copied. Paste it in ' + (/Android/i.test(navigator.userAgent) ? 'Chrome' : 'Safari') + '.' : 'Copy link') + '</span></div>'
       : '<p style="margin:10px 0 0;font-size:16px;line-height:1.4;color:#5f6475">This is where the group plans get-togethers. See what’s coming up and RSVP in a tap.</p>' +
         (GOOGLE_ON
-          ? '<button type="button" ' + on(invGoogle) + ' style="margin-top:22px;' + INV_OUTLINE + ';opacity:' + (busy && busy !== 'google' ? '.5' : '1') + '">' + I.google + (busy === 'google' ? 'Opening Google…' : 'Continue with Google') + '</button>' +
+          ? '<button type="button" ' + on(invGoogle) + ' style="margin-top:22px;' + INV_OUTLINE + ';opacity:' + (busy && busy !== 'google' ? '.5' : '1') + '">' + I.google + (busy === 'google' ? 'Opening Google…' : 'Continue with Google') + '</button>' + gHeadsUp('#6b7280', 8) +
             '<div style="display:flex;align-items:center;gap:14px;margin:16px 0"><span style="flex:1;height:1px;background:#e3e5ec"></span><span style="font-size:12px;font-weight:800;letter-spacing:.12em;color:#8a8fa0">OR</span><span style="flex:1;height:1px;background:#e3e5ec"></span></div>'
           : '<div style="height:22px"></div>') +
         email +
@@ -4679,7 +4687,7 @@
         out += days[dd].ev.map(o.card).join('');
         if (days[dd].hd.length) out += '<div style="padding:6px 4px 0;font-size:12px;font-weight:900;letter-spacing:1px;color:#8a6510">PENCILLED IN</div>' + days[dd].hd.map(holdRow).join('');
       });
-      return '<div data-ahead style="display:flex;flex-direction:column;gap:10px;margin-top:6px"><div style="padding:6px 4px 0;font-size:12px;font-weight:900;letter-spacing:1px;color:#6b7280">COMING UP</div>' + out + '</div>';
+      return '<div data-ahead style="display:flex;flex-direction:column;gap:10px;margin-top:6px"><div data-coming-up style="display:flex;align-items:center;gap:10px;padding:6px 4px 0;font-size:12px;font-weight:900;letter-spacing:1px;color:#6b7280">COMING UP<span aria-hidden="true" style="flex:1;height:1px;background:#d3d6dd"></span></div>' + out + '</div>';
     };
     return '<div style="display:flex;flex-direction:column;gap:10px">' +
       (pinned ? '<div data-cal-pin data-iso="' + sel + '" data-mon="' + cm + '" style="position:sticky;top:0;z-index:6;margin:0 -14px;padding:4px 14px 8px;background:#e8eaee;display:flex;flex-direction:column;gap:8px">' + calPinHtml(cm, sel) + '</div>' : ''
@@ -5504,11 +5512,16 @@
 
   // v6: a slide-up sheet (from the bell), gear and Close beside the title
   function viewNotifSheet() {
-    const st = state, all = notifList(), f = st.nFilter, shown = all.filter(n => f === 'all' || N_TYPES[n.type].cat === f), unread = all.filter(isUnread).length;
+    // Notifications 1a (Design v8-22): one list by day, Today / This week, in white cards, no filter chips. Rows that need
+    // an answer are pale purple (#f7f6ff), with the answer inline where there is one; unread is a 6px purple dot far left
+    const st = state, all = notifList(), shown = all, unread = all.filter(isUnread).length;
     const todayStart = midnight(todayISO());
-    const secs = [['Today', shown.filter(n => n.t >= todayStart)], ['Earlier this week', shown.filter(n => n.t < todayStart)]].filter(x => x[1].length);
-    const chip = (k, label) => '<span ' + on(() => setState({ nFilter: k }), 'radio') + ' aria-checked="' + (f === k) + '" style="flex:0 0 auto;display:flex;align-items:center;min-height:36px;padding:0 14px;border-radius:999px;font-size:13.5px;font-weight:800;white-space:nowrap;cursor:pointer;' +
-      (f === k ? 'background:#0d1117;color:#fff' : 'background:#f2f3f6;color:#454b55') + '">' + label + '</span>';
+    const secs = [['Today', shown.filter(n => n.t >= todayStart)], ['This week', shown.filter(n => n.t < todayStart)]].filter(x => x[1].length);
+    const pill = (fn, label, solid) => '<span ' + on(fn) + ' role="button" style="display:flex;align-items:center;min-height:36px;padding:0 14px;border-radius:999px;font-size:13.5px;font-weight:800;cursor:pointer;' +
+      (solid ? 'background:' + solid + ';color:#fff' : 'background:#fff;color:#0d1117;box-shadow:inset 0 0 0 1.5px #dcdfe6') + '">' + label + '</span>';
+    const frOf = (n) => n.type === 'friendreq' && (state.fr.incoming || []).find(x => x.id === n.uid);
+    const asks = (n) => n.type === 'jobask' || n.type === 'leadask' || n.type === 'leadoffer' || !!frOf(n) ||
+      (n.type === 'invited' && n.s && !myRsvp(n.s) && !n.s.cancelledAt && phaseOf(n.s) === 'plan');
     const row = (n, k) => {
       const T = N_TYPES[n.type], g = n.s && groupById(n.s.groupId), unr = isUnread(n), face = n.uid ? avatarOf(n.uid) : null;
       const what = n.s ? '<b style="font-weight:800;color:#0d1117">' + esc(n.s.text) + '</b>' : '';
@@ -5519,7 +5532,9 @@
         ? '<b style="font-weight:800;color:#0d1117">' + esc(n.who) + '</b> ' + what + esc(n.after)
         : '<b style="font-weight:800;color:#0d1117">' + esc(n.who) + '</b> ' + esc(n.text) + ' ' +
           (n.item ? '<b style="font-weight:800;color:#0d1117">' + esc(n.item) + '</b>' + (n.joiner ? esc(n.joiner) + what : ' on ' + what) : what);
-      return '<div ' + on(() => openNotif(n)) + ' data-notif="' + esc(n.type) + '" style="display:flex;align-items:flex-start;gap:12px;padding:14px;border-top:' + (k ? '1px solid #f2f3f6' : '0') + ';background:' + (unr ? '#faf9ff' : '#fff') + ';cursor:pointer">' +
+      const fr = frOf(n);
+      return '<div ' + on(() => openNotif(n)) + ' data-notif="' + esc(n.type) + '"' + (asks(n) ? ' data-notif-ask' : '') + ' style="position:relative;display:flex;align-items:flex-start;gap:12px;padding:14px 14px 14px 16px;border-top:' + (k ? '1px solid #f2f3f6' : '0') + ';background:' + (asks(n) ? '#f7f6ff' : '#fff') + ';cursor:pointer">' +
+        (unr ? '<span aria-label="Unread" data-unread style="position:absolute;left:5px;top:31px;width:6px;height:6px;border-radius:999px;background:#5b4ae8"></span>' : '') +
         (n.type === 'hold'   // a dashed gold pencil tile, with the ★ badge (Design, soft holds)
           ? '<span aria-hidden="true" style="position:relative;flex:0 0 44px;width:44px;height:44px;border-radius:999px;box-sizing:border-box;border:1.5px dashed #d9c58a;background:#fdf6dc;display:flex;align-items:center;justify-content:center">' + svg(19, stroke('#8a6510', 2.2), PENCIL_IC) +
               '<span style="position:absolute;right:-3px;bottom:-3px;width:20px;height:20px;border-radius:999px;border:2px solid #fff;background:' + T.bg + ';color:#fff;font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center;line-height:1">' + T.glyph + '</span></span>'
@@ -5533,13 +5548,11 @@
           '<div style="font-size:12.5px;font-weight:700;color:#8a909b">' + esc(ago(n.t) + (g ? ' · ' + g.name : '')) + '</div></div>' +
           // I'm going / Maybe only on a friend's invite (Design v8: not on New: rows)
           (n.rsvp && n.type === 'invited' && !myRsvp(n.s) && !n.s.cancelledAt && phaseOf(n.s) === 'plan'
-            ? '<div style="margin-top:10px;display:flex;gap:8px">' +
-                '<span ' + on(rsvpFromFeed(n, 'going')) + ' style="display:flex;align-items:center;min-height:36px;padding:0 14px;border-radius:999px;background:#149a4b;color:#fff;font-size:13.5px;font-weight:800;cursor:pointer">I’m going</span>' +
-                '<span ' + on(rsvpFromFeed(n, 'maybe')) + ' style="display:flex;align-items:center;min-height:36px;padding:0 14px;border-radius:999px;background:#fff;color:#0d1117;box-shadow:inset 0 0 0 1.5px #dcdfe6;font-size:13.5px;font-weight:800;cursor:pointer">Maybe</span>' +
-              '</div>'
+            ? '<div style="margin-top:10px;display:flex;gap:8px">' + pill(rsvpFromFeed(n, 'going'), 'I’m going', '#149a4b') + pill(rsvpFromFeed(n, 'maybe'), 'Maybe') + '</div>'
+            // A friend request answers here (1a): Accept · Not now (declines quietly, as the ✕ on Friends does)
+            : fr ? '<div style="margin-top:10px;display:flex;gap:8px">' + pill((e) => { stop(e); markRead(n); answerRequest(fr, true); }, 'Accept', '#5b4ae8') + pill((e) => { stop(e); markRead(n); answerRequest(fr, false); }, 'Not now') + '</div>'
             : '') +
         '</div>' +
-        (unr ? '<span aria-label="Unread" style="flex:0 0 9px;width:9px;height:9px;margin-top:6px;border-radius:999px;background:#5b4ae8"></span>' : '') +
       '</div>';
     };
     const round = (label, icon, fn) => '<span ' + on(fn) + ' aria-label="' + label + '" style="width:40px;height:40px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + icon + '</span>';
@@ -5547,14 +5560,13 @@
     const gear = round('Notification settings', svg(18, stroke('#0d1117', 2), '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/>'), () => setState({ nSettings: true }));
     return sheet6('Notifications', close,
       '<div style="display:flex;align-items:center;gap:10px">' + '<h1 style="flex:1;min-width:0;margin:0;font-size:36px;line-height:1;font-weight:900;letter-spacing:-1.2px;color:#0d1117">Notifications</h1>' + gear + closeX(close) + '</div>' +
-        '<div class="no-scrollbar" role="radiogroup" aria-label="Show" style="margin-top:14px;display:flex;gap:8px;overflow-x:auto">' + chip('all', 'All') + chip('invites', 'New') + chip('updates', 'Updates') + chip('hosting', 'Leading') + '</div>',
+        '',
       '<div style="padding:16px 14px 30px;display:flex;flex-direction:column;gap:16px">' + pushCard() +
         (!st.loaded ? skeleton(4, 76)
           : secs.length
           ? secs.map(([label, items], i) => '<div><div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 4px 6px;min-height:32px"><span style="' + EYEBROW + '">' + label + (!i && unread ? ' · ' + unread + ' unread' : '') + '</span>' +
               (!i && unread ? '<span ' + on(markAllRead) + ' style="font-size:13.5px;font-weight:800;color:#5b4ae8;cursor:pointer">Mark all read</span>' : '') + '</div><div style="' + CARD + ';overflow:hidden">' + items.map(row).join('') + '</div></div>').join('')
-          : f === 'all' ? '<div data-notif-empty style="' + CARD + ';padding:22px 18px;display:flex;flex-direction:column;gap:4px"><div style="font-size:16px;font-weight:800;color:#0d1117">You’re all caught up.</div><div style="font-size:14.5px;line-height:1.45;font-weight:500;color:#6b7280">Invites, updates from hosts, and reminders show up here.</div></div>'
-          : '<div style="' + CARD + ';padding:18px;font-size:14.5px;line-height:1.45;font-weight:500;color:#6b7280">Nothing here this week.</div>') +
+          : '<div data-notif-empty style="' + CARD + ';padding:22px 18px;display:flex;flex-direction:column;gap:4px"><div style="font-size:16px;font-weight:800;color:#0d1117">You’re all caught up.</div><div style="font-size:14.5px;line-height:1.45;font-weight:500;color:#6b7280">Invites, updates from hosts, and reminders show up here.</div></div>') +
       '</div>', 48);
   }
 
@@ -6380,16 +6392,16 @@
           '<div ' + on(() => setState({ evMenu: null, share: { id: s.id, copied: false, pop: 'link', solo: true } }), 'menuitem') + ' data-ev-menu-link class="hov-fill-grey" style="' + MENU_ROW + '">' + svg(18, stroke('#0d1117', 2.3), LINK_IC) + 'Share link</div>' +
           (isLead(s) ? '<div ' + on(() => setState({ evMenu: null, share: { id: s.id, copied: false, pop: 'qr', solo: true } }), 'menuitem') + ' class="hov-fill-grey" style="' + MENU_ROW + '">' +
             svg(18, 'fill="none" stroke="#0d1117" stroke-width="2.2"', '<rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><path d="M14 14h2v2h-2zM18 18h2v2h-2z"/>') + 'QR code</div>' : '') +
-          // View as someone going (Design v8-18, 1l; was Member view, owner 2026-10-10): this event as a person going sees it, look only
+          // View as attendee (Design v8-18 1l, renamed v8-22; was Member view, owner 2026-10-10): this event as a person going sees it, look only
           (hostRole(s) ? '<div ' + on(() => { setState({ evMenu: null }); startAsMember(s); }, 'menuitem') + ' data-as-member class="hov-fill-grey" style="' + MENU_ROW + '">' +
-            svg(18, stroke('#0d1117', 2.3), '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/>') + 'View as someone going</div>' : '') +
+            svg(18, stroke('#0d1117', 2.3), '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/>') + 'View as attendee</div>' : '') +
           // Everyone else signed in: Share link · Report this event / idea (v8-18 1s, owner 2026-10-10: ⋯ in place of Share)
           (!hostRole(s) && state.email ? sfEventRow(s, MENU_ROW) : '') +
         '</div></div>' : '') + '</span>';
   };
   const phaseHeader = (s, height, scrim, inner, share) => {
     const g = groupById(s.groupId), cover = s.photoPaths[0] ? photoUrl(s.photoPaths[0]) : null;
-    const menu = share && canEdit(s) && !s.cancelledAt;   // the ⋯ menu (Share link, QR code, View as someone going); on ideas and past events too since 2026-10-10
+    const menu = share && canEdit(s) && !s.cancelledAt;   // the ⋯ menu (Share link, QR code, View as attendee); on ideas and past events too since 2026-10-10
     return '<div style="position:relative;height:calc(' + height + 'px + var(--pt));overflow:hidden;background:#0b2a17">' +
       (cover ? photoLayer(cover, s.coverPos, IDEA_POS) : '<div aria-hidden="true" style="position:absolute;inset:0;background:' + groupBg(g, '#0b2a17') + '"></div>') +
       '<div aria-hidden="true" style="position:absolute;inset:0;background:' + scrim + '"></div>' +
@@ -9293,20 +9305,25 @@
     const stuff = (k, color, title, n, i) => '<div ' + on(() => setState({ meList: k })) + ' data-stuff="' + title + '" aria-label="' + title + ', ' + n + '" class="hov-row" style="display:flex;align-items:center;gap:10px;min-height:48px;padding:0 16px;' + (i < 3 ? 'border-bottom:1px solid #f2f3f6;' : '') + 'cursor:pointer">' +
       '<span style="flex:0 0 3px;width:3px;height:20px;border-radius:2px;background:' + color + '"></span><span style="font-size:16px;font-weight:800;color:#0d1117">' + title + '</span>' +
       '<span style="flex:1;font-size:15px;font-weight:700;color:#9aa0ac">' + n + '</span>' + I.chevR(16, '#9aa0ac', 2.8) + '</div>';
+    const meHead = (t) => '<span style="padding:6px 6px 0;font-size:13px;font-weight:900;letter-spacing:1px;color:#6b7280">' + t + '</span>';
+    const meCard = (rows) => '<div style="display:flex;flex-direction:column;padding:4px 0;border-radius:18px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);overflow:hidden">' + rows + '</div>';
     // My tasks (v8-4 from the tab bar): a 72px row that opens the My tasks slide-up (v8-9), then the rows card
-    const tkN = state.sparks.filter(s => !s.cancelledAt && inMine(s) && phaseOf(s) === 'plan' && (isLead(s) || myClaims(s).length)).length;
+    // Its line counts tasks and events (Design v8-22): an event you lead is its open jobs (at least 1), one you help is your sign-ups
+    const tkE = state.sparks.filter(s => !s.cancelledAt && inMine(s) && phaseOf(s) === 'plan' && (isLead(s) || myClaims(s).length)), tkN = tkE.length;
+    const tkT = tkE.reduce((z, s) => z + (isLead(s) ? Math.max(1, openJobs(s)) : myClaims(s).length), 0);
     const tasksRow = '<div ' + on(() => setState({ tkSheet: true })) + ' data-stuff="My tasks" aria-label="My tasks" class="hov-row" style="display:flex;align-items:center;gap:12px;min-height:72px;padding:0 14px;border-radius:18px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
       '<span style="flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:#f3f1fe;color:#5b4ae8;display:flex;align-items:center;justify-content:center">' + svg(20, stroke('currentColor', 2), '<path d="M10 6.5h10M10 12h10M10 17.5h10"/><path d="m3.5 6.5 1.5 1.5 2.5-3M3.5 12l1.5 1.5 2.5-3M3.5 17.5l1.5 1.5 2.5-3"/>') + '</span>' +
       '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px"><span style="font-size:16px;font-weight:800;color:#0d1117">My tasks</span>' +
-        '<span style="font-size:12.5px;font-weight:600;color:#6b7280">' + (tkN ? 'Leading and helping · ' + tkN + (tkN === 1 ? ' event' : ' events') : 'Nothing on your list') + '</span></div>' +
+        '<span style="font-size:12.5px;font-weight:600;color:#6b7280">' + (tkN ? tkT + (tkT === 1 ? ' task' : ' tasks') + ' · ' + tkN + (tkN === 1 ? ' event' : ' events') : 'Nothing on your list') + '</span></div>' +
       I.chevR(16, '#9aa0ac', 2.8) + '</div>';
     // No YOUR STUFF heading (v8-9): the impact pill, My tasks, then the rows card
     // Your impact hides while Get started shows, and stays hidden until Me is opened again once it's closed here (v8-21)
     const yourStuff = '<div style="padding:14px 14px 0"><div style="display:flex;flex-direction:column;gap:10px">' + (gsShown() || st.impWait ? '' : impact) + tasksRow +
-      '<div style="display:flex;flex-direction:column;border-radius:18px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);overflow:hidden">' +
-        stuff('draft', '#c9ccd3', 'Drafts', L.drafts.length, 0) + stuff('idea', '#f5b428', 'Ideas', L.ideas.length, 1) +
-        stuff('lead', '#5b4ae8', 'Leading', L.lead.length, 2) + stuff('past', '#6b7280', 'Past', L.past.length, 3) +
-      '</div></div></div>';
+      // Two headed cards (Design v8-22): YOUR PLANS & IDEAS (Drafts · Ideas · Leading), PAST EVENTS (Led & attended)
+      meHead('YOUR PLANS &amp; IDEAS') + meCard(stuff('draft', '#c9ccd3', 'Drafts', L.drafts.length, 0) + stuff('idea', '#f5b428', 'Ideas', L.ideas.length, 1) +
+        stuff('lead', '#5b4ae8', 'Leading', L.lead.length, 3)) +
+      meHead('PAST EVENTS') + meCard(stuff('past', '#6b7280', 'Led &amp; attended', L.past.length, 3)) +
+      '</div></div>';
     // Settings and Help & info rows: a gray icon square, the title (REQUEST chip for what isn't built yet), a line under it
     const row = (icon, title, sub, fn, k, soon, href) => (href ? '<a href="' + href + '" target="_blank" rel="noopener"' : '<div ' + on(fn)) + ' aria-label="' + esc(title) + '" data-me-row="' + esc(title) + '" class="hov-row" style="display:flex;align-items:center;gap:12px;min-height:54px;padding:8px 14px;' + (k ? 'border-top:1px solid #f0f1f4;' : '') + 'cursor:pointer;text-decoration:none">' +
       '<span style="flex:0 0 34px;width:34px;height:34px;border-radius:10px;background:#f2f3f6;color:#454b55;display:flex;align-items:center;justify-content:center">' + svg(18, stroke('currentColor', 2), icon) + '</span>' +
@@ -10277,19 +10294,17 @@
         ' style="flex:1 1 auto;min-width:0;border:0;padding:0;background:transparent;font-family:inherit;font-size:18px;font-weight:500;color:#0d1117;outline:none">' +
       '<span style="font-size:11.5px;font-weight:700;color:#9aa0ac">' + ov.length + '/' + OV_MAX + '</span></label>') +
     wtePart(2, 'Up to three details', '<div style="display:flex;flex-direction:column;gap:8px">' + bitRows(bits, setBit) + '</div>') + '</div>';
-  // An event posted from the one-page Plan an event (v8-14) has a description, not quick details: one formatted box (500)
-  const wteDesc = (ov, setOv, desc, setDesc) => '<div data-wte style="display:flex;flex-direction:column;gap:10px">' +
-    wtePart(1, 'One-line overview', '<label style="display:flex;align-items:center;gap:10px;min-height:58px;padding:0 16px;border-radius:16px;background:#fff;box-shadow:inset 0 0 0 2px #dcdfe6;cursor:text">' +
-      '<input class="bit-fld" type="text" maxlength="' + OV_MAX + '" data-overview-input aria-label="One-line overview" placeholder="' + esc(OVERVIEW_PH) + '" value="' + esc(ov) + '" ' + onInput(e => { if (e.type === 'input') setOv(e.target.value.slice(0, OV_MAX)); }) +
-        ' style="flex:1 1 auto;min-width:0;border:0;padding:0;background:transparent;font-family:inherit;font-size:18px;font-weight:500;color:#0d1117;outline:none">' +
-      '<span style="font-size:11.5px;font-weight:700;color:#9aa0ac">' + ov.length + '/' + OV_MAX + '</span></label>') +
-    // The same formatting toolbar as Plan an event (Design v8-18, 1b)
-    wtePart(2, 'Description', '<div data-wte-desc style="border-radius:16px;background:#fff;box-shadow:inset 0 0 0 2px #dcdfe6;overflow:hidden">' + rteBox(desc, setDesc, { h: 96 }) + '</div>') + '</div>';
+  // An event posted from the one-page Plan an event (v8-14) has a description, not quick details. Editing it is the one
+  // formatted box, as in Plan an event (Design v8-22): EVENT DESCRIPTION · Optional, B · I · bullets · numbers, 500. The
+  // quick overview stays as it is (Edit event has it)
+  const wteDesc = (ov, setOv, desc, setDesc) => '<div data-wte style="display:flex;flex-direction:column;gap:8px">' +
+    '<span style="display:flex;align-items:baseline;gap:8px;padding:0 2px"><span style="font-size:12px;font-weight:900;letter-spacing:1px;color:#6b7280">EVENT DESCRIPTION</span><span style="font-size:13px;font-weight:600;color:#9aa0ac">Optional</span></span>' +
+    '<div data-wte-desc style="border-radius:16px;background:#fff;box-shadow:inset 0 0 0 2px #dcdfe6;overflow:hidden">' + rteBox(desc, setDesc) + '</div></div>';
   // A starter chip leaves just its verb ("Bring "): Save waits for what (owner, 2026-09-30)
   const JOB_VERBS = ['bring', 'set up', 'help with', 'clean up', 'coordinate'];
   const jobNamed = (item) => { const t = cleanTitle(item || ''); return !!t && JOB_VERBS.indexOf(t.toLowerCase()) < 0; };
   // One kind of sign-up (owner, 2026-10-07): every item has a waitlist (on), a most per person (any) and guests (on)
-  const blankJob = (item) => ({ item: item || '', desc: '', time: '', need: 1, shifts: null, waitlist: true, perPerson: null, guests: true });
+  const blankJob = (item) => ({ item: item || '', desc: '', time: '', need: null, shifts: null, waitlist: true, perPerson: null, guests: true });
   // Take part (Design v8-2, 1b): PARTICIPATE's chips open the job sheet in take-part mode. Claim time starts with two
   // 30-minute rows of 4 (from the event's time, or 9am); a seat starts at 8, any other spot at 6. Waitlist on, any number each
   const PART_KINDS = {
@@ -10923,7 +10938,7 @@
             ' style="flex:1;min-width:0;margin:0;padding:0;border:0;outline:none;background:transparent;font-family:inherit;font-size:16px;font-weight:700;color:#0d1117"></label>' +
         addStarters(r, set) + dayPick +
         '<div style="display:flex;align-items:center;gap:10px;padding-top:2px"><span ' + on(() => set({ item: (r.item || '').trim() }) || setState({ jobMore: true })) + ' role="button" data-job-more style="flex:1;min-width:0;display:flex;align-items:center;gap:6px;min-height:40px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer"><span aria-hidden="true" style="font-size:17px;line-height:1;font-weight:700">+</span><span>Add details</span></span>' +
-          stepper(r.need || 1, (n) => set({ need: n || 1 }), 'how many people') + '</div></div>'; }
+          stepper(r.need || null, (n) => set({ need: n || null }), 'how many people') + '</div></div>'; }
     return '<div style="display:flex;flex-direction:column;gap:10px">' + nameFld +
       '<textarea class="fld" rows="2" maxlength="400" aria-label="Details' + tag + '" placeholder="Details (optional)" ' + onInput(e => { if (e.type === 'input') set({ desc: e.target.value.slice(0, 400) }); }) + ' style="' + BIG + ';min-height:52px;padding:12px 16px;font-size:16px;font-weight:500;line-height:1.4;resize:none">' + esc(r.desc || '') + '</textarea>' + dayPick +
       (r.shifts
@@ -11036,7 +11051,7 @@
           : '') +
         (withGoogle
           ? '<button type="button" class="hov-grey" ' + on(googleSignIn) + ' style="width:100%;min-height:54px;display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;border:2px solid #dcdfe6;border-radius:999px;font-family:inherit;font-size:16px;font-weight:800;color:#0d1117;cursor:' + (busy === 'google' ? 'wait' : 'pointer') + ';opacity:' + (busy && busy !== 'google' ? '.5' : '1') + '">' +
-              I.google + (busy === 'google' ? 'Opening Google…' : 'Continue with Google') + '</button>' + orDivider()
+              I.google + (busy === 'google' ? 'Opening Google…' : 'Continue with Google') + '</button>' + gHeadsUp('#6b7280', -4) + orDivider()
           : '') +
         '<input class="fld" type="email" inputmode="email" maxlength="80" autocomplete="email" autocapitalize="off" spellcheck="false" aria-label="Email" placeholder="you@example.com" value="' + esc(st.loginEmail) + '" ' +
           onInput(e => setState({ loginEmail: e.target.value.slice(0, 80) })) + ' style="' + FIELD + '">' +
@@ -11297,7 +11312,9 @@
   // anywhere: they're kept on the account (notif_state.seen.gs) and on the device, and count once done
   const START_FROM = Date.parse('2026-10-07T05:00:00Z');   // midnight in Austin, the day Start here shipped
   const GS_KEY = 'spark-hub-gs-';
-  const GS_STEPS = [['profile', 'Update your profile'], ['join', 'Join a group'], ['rsvp', 'RSVP to something'], ['idea', 'Float your first Idea']];
+  // Step 5, Install Spark Hub app (Design v8-22; owner 2026-10-10: a go, over row 154's no Add to Home Screen of our own):
+  // a slide-up of the three Safari steps and an Android line; I added it ticks it, and so does opening the installed app
+  const GS_STEPS = [['profile', 'Update your profile'], ['join', 'Join a group'], ['rsvp', 'RSVP to something'], ['idea', 'Float your first Idea'], ['app', 'Install Spark Hub app']];
   const gsGet = () => { const a = (seenAcct && seenAcct.gs) || {}; let d = {}; try { d = JSON.parse(localStorage.getItem(GS_KEY + state.me) || '{}') || {}; } catch (e) { /* fine */ } return Object.assign({}, d, a); };
   const gsSet = (patch) => {
     if (!state.email || state.viewAs) return;
@@ -11330,6 +11347,7 @@
   const GS_SPARK = '<path d="M12 0c.8 6.4 5.6 11.2 12 12-6.4.8-11.2 5.6-12 12-.8-6.4-5.6-11.2-12-12C6.4 11.2 11.2 6.4 12 0Z" fill="#fff"/>';
   const gsCard = (margin) => {
     if (!gsShown()) return '';
+    if (STANDALONE && !gsGet().app) gsSet({ app: Date.now() });
     const g = gsGet(), done = GS_STEPS.filter(([k]) => g[k]).length, all = done === GS_STEPS.length, open = all || !!state.gsOpen;
     const spark = (x, y, z, o) => '<svg aria-hidden="true" width="' + z + '" height="' + z + '" viewBox="0 0 24 24" style="position:absolute;left:' + x + '%;top:' + y + '%;opacity:' + o + '">' + GS_SPARK + '</svg>';
     const tile = '<span aria-hidden="true" style="position:relative;flex:0 0 40px;width:40px;height:40px;border-radius:12px;background:#fff;display:flex;align-items:center;justify-content:center"><svg width="26" height="26" viewBox="0 0 26 26">' +
@@ -11351,7 +11369,7 @@
       if (d) return '<div data-gs-step="' + k + '" data-done style="' + st + '">' + tick + label + '</div>';
       if (k === 'profile') return '<label data-gs-step="' + k + '" class="hov-row" style="' + st + '">' + tick + label +
         '<input type="file" accept="image/*" aria-label="Pick a profile photo" ' + onInput(e => { if (e.type !== 'change') return; const fl = Array.from(e.target.files || []); e.target.value = ''; gsPhoto(fl); }) + ' style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none"></label>';
-      const go1 = { join: () => openJoin(), rsvp: () => go('sched'), idea: gsFloat }[k];
+      const go1 = { join: () => openJoin(), rsvp: () => go('sched'), idea: gsFloat, app: () => setState({ a2hs: true }) }[k];
       return '<div ' + on(go1) + ' role="button" data-gs-step="' + k + '" class="hov-row" style="' + st + '">' + tick + label + '</div>';
     };
     const conf = [[8, '#f5b428', 2, 0, 1], [22, '#e8661c', 999, 120, 0], [38, '#5b4ae8', 999, 60, 1], [54, '#d6246e', 2, 180, 0], [70, '#149a4b', 999, 30, 1], [86, '#f5b428', 999, 150, 0], [14, '#5b4ae8', 2, 240, 1], [78, '#d6246e', 999, 90, 0]]
@@ -11363,6 +11381,23 @@
     return '<div data-get-started data-screen-label="Get started" style="' + (margin || '') + 'border-radius:20px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08)">' + lid +
       (open && !all ? '<div style="overflow:hidden;animation:gsDrop 280ms cubic-bezier(.2,.8,.2,1) both">' + GS_STEPS.map(row).join('') + '</div>' : '') + fin + '</div>';
   };
+  function viewA2hs() {
+    const close = () => setState({ a2hs: false });
+    const BLUE = '#1f5fa8', step = (n, text, end, k) => '<div style="display:flex;align-items:center;gap:12px;min-height:52px;border-top:1px solid #f2f3f6">' +
+      '<span style="flex:0 0 28px;width:28px;height:28px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:14px;font-weight:900;display:flex;align-items:center;justify-content:center">' + n + '</span>' +
+      '<span style="flex:1;font-size:16px;font-weight:600;color:#0d1117">' + text + '</span>' + end + '</div>';
+    const tile = (path) => '<span aria-hidden="true" style="flex:0 0 36px;width:36px;height:36px;border-radius:10px;background:#f2f3f6;display:flex;align-items:center;justify-content:center">' + svg(20, stroke(BLUE, 2.1), path) + '</span>';
+    return sheet('Add Spark Hub to your home screen', close, SHEET_PAD + ';gap:12px',
+      '<div data-screen-label="Add to home screen" style="display:flex;align-items:flex-start;gap:10px"><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">' +
+        '<span style="font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.4px;color:#0d1117">Add Spark Hub to your home screen</span>' +
+        '<span style="font-size:15px;font-weight:500;line-height:1.4;color:#454b55">It opens like an app, one tap away.</span></div>' + closeX(close) + '</div>' +
+      '<div style="display:flex;flex-direction:column">' +
+        step(1, 'Tap <b>Share</b> at the bottom of Safari', tile('<path d="M12 3v12M7.5 7.5 12 3l4.5 4.5"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/>')) +
+        step(2, 'Scroll down, tap <b>Add to Home Screen</b>', tile('<rect x="4" y="4" width="16" height="16" rx="3.5"/><path d="M12 8.5v7M8.5 12h7"/>')) +
+        step(3, 'Tap <b>Add</b> in the top right', '<span aria-hidden="true" style="flex:0 0 auto;padding:0 6px;font-size:16px;font-weight:800;color:' + BLUE + '">Add</span>') + '</div>' +
+      '<span style="font-size:13px;font-weight:600;color:#6b7280">On Android: tap ⋮ in Chrome, then <b>Add to Home screen</b>.</span>' +
+      '<span ' + on(() => { gsSet({ app: Date.now() }); setState({ a2hs: false }); toast('Spark Hub is on your home screen', true); }) + ' role="button" data-a2hs-done class="hov-primary" style="display:flex;align-items:center;justify-content:center;height:52px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:16px;font-weight:800;cursor:pointer">I added it</span>', 60);
+  }
   // Panel 1's three fanned phones (owner, 2026-10-07: real screenshots of Groups, Ideas, Calendar; mockup variant A):
   // Groups in front, Ideas and Calendar tilted ±11° behind it, fading out at the bottom
   const aboutPhones = () => {
@@ -12111,6 +12146,7 @@
       (st.needEd && subj ? viewNeedsSheet() : '') +
       (st.partRoster ? viewPartRoster() : '') + (st.partGuest ? viewPartGuest() : '') +
       (st.calSheet ? viewCalSheet() : '') +
+      (st.a2hs ? viewA2hs() : '') +
       (st.share ? viewShareSheet() : '') +
       (st.startName != null ? viewStartGroup() : '') +
       (st.updAll ? viewUpdAll() : '') +
@@ -12383,6 +12419,7 @@
       if (state.dayPick) return setState({ dayPick: null });
       if (state.onIt) return setState({ onIt: null });
       if (state.zoom) return setState({ zoom: null });
+      if (state.a2hs) return setState({ a2hs: false });
       if (state.fb) return setState({ fb: null });
       if (state.inv && state.loginStep === 'code') { closeLogin(); return setState({ invCodeBad: false }); }
       if (state.inv && state.inv.step === 'confirm' && !state.inv.busy) return closeInvite();

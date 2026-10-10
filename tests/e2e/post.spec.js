@@ -86,7 +86,7 @@ test('post an event with every step filled, then edit it in the pop-ups and dele
     await expect(P.locator('h1[data-on]')).toHaveCount(0);
     await expect(P.getByRole('button', { name: 'More' })).toHaveCount(1);   // three dots since 2026-10-10
     await P.locator('[data-ev-menu]').click();
-    await expect(P.getByRole('menuitem')).toHaveText(['Share link', 'QR code', 'View as someone going'])
+    await expect(P.getByRole('menuitem')).toHaveText(['Share link', 'QR code', 'View as attendee'])
     await P.getByRole('menuitem', { name: 'Share link' }).click();
     const link0 = page.getByRole('dialog', { name: 'Share link' });
     await expect(link0.locator('[data-link-preview]')).toBeVisible();
@@ -116,24 +116,23 @@ test('post an event with every step filled, then edit it in the pop-ups and dele
     await expect(P.locator('h1')).toContainText('+ stars');
     await expect(P.locator('[data-overview-head]')).toHaveText('A night run');   // under the title
 
-    // What to expect (Design 8a): a one-line overview over the details
+    // What to expect: posted from the one page (v8-14), it has a description; Edit opens just the formatted box, as in
+    // Plan an event (Design v8-22): no overview line, no detail lines, 500
     await expect(P.getByRole('heading', { name: 'What to expect' })).toBeVisible();
     await P.getByRole('button', { name: 'Edit what to expect' }).click();
     const bd = page.getByRole('dialog', { name: 'What to expect' });
-    await expect(bd.getByLabel('One-line overview')).toHaveAttribute('maxlength', '200');
-    await expect(bd.getByLabel('One-line overview')).toHaveValue('A night run');   // the same field
-    await expect(bd).not.toContainText('Both parts are optional.');   // v8-12
+    await expect(bd).toContainText('EVENT DESCRIPTION');
+    await expect(bd.getByLabel('One-line overview')).toHaveCount(0);
     await expect(bd.locator('[data-sec-delete]')).toHaveCount(0);       // no Cancel or delete on this sheet (v8-12)
-    await bd.getByLabel('One-line overview').fill('A night run under the stars');
-    // Posted from the one page (v8-14), it has a description: one 200-character box, not three detail lines
     await expect(bd.getByLabel('Details, line 1')).toHaveCount(0);
+    await expect(bd.getByRole('toolbar', { name: 'Formatting' })).toBeVisible();
     await expect(bd.getByLabel('Event description')).toHaveText('Tacos after. Bring headlamps.');   // a formatted box (Design v8-18, 1b)
+    await expect(bd.locator('[data-desc-count]')).toHaveText(/\/500$/);
     await bd.getByLabel('Event description').fill('Tacos after. Bring headlamps. Hot cocoa.');
     await bd.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(P.locator('[data-basics]')).toContainText('Hot cocoa');
-    await expect(P.locator('[data-overview-head]')).toHaveText('A night run under the stars');   // v8-13: always under the title
-    await expect(P.locator('[data-basics] [data-overview]')).toHaveCount(0);                    // What to expect lists only the quick details
-    expect(await asUser(page, async (c, _C, id) => (await c.from('sparks').select('overview').eq('id', id).single()).data.overview, id)).toBe('A night run under the stars');
+    await expect(P.locator('[data-overview-head]')).toHaveText('A night run');   // the overview is kept (Edit event has it)
+    await expect(P.locator('[data-basics] [data-overview]')).toHaveCount(0);
 
     // Who can see it: Private
     await P.getByRole('button', { name: 'Edit who can see it' }).click();
