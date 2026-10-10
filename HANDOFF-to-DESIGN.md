@@ -6,7 +6,7 @@
 - **Source:** github.com/esshaughn/sparkhub (`index.html`, `js/sparks.js`, `css/sparks.css`, `privacy.html`, `supabase/templates/`)
 - **Baseline:** Claude Design's **round v8-17** (`design/spark-hub/HANDOFF-to-CODE.md` and `Spark Hub App Version 8.dc.html`, 2026-10-09), built in full (with your v8-16 clarity pass): see *Round v8-17 in short*. Rows 212–227 are new since v8-15.
 - **Build version:** **v8** (v7 from owner, 2026-10-02): a lead is a choice. Since v8-8 an idea is led from the start (*Who leads it · Me*) or floated (*I'll decide*), and both use the new idea page.
-- **As of:** 2026-10-10. **Round v8-17 is live** (main `09658ae`, v=389). Also live since your last file: rows 224–227 (guests sign up with a phone or an email, taking yourself off asks first, the pinned Month that follows its list, a chosen photo opens full screen), Add to calendar as a sheet (Google Calendar · Apple Calendar · Outlook and other), and the event's ⋯ menu with Member view. Questions for you are in §5 (Q44, Q49, Q50).
+- **As of:** 2026-10-10. **Round v8-18 is built on `test`** (see *Round v8-18 in short*; not live yet). **Round v8-17 is live** (main `09658ae`, v=389). Also live since your last file: rows 224–227 (guests sign up with a phone or an email, taking yourself off asks first, the pinned Month that follows its list, a chosen photo opens full screen), Add to calendar as a sheet (Google Calendar · Apple Calendar · Outlook and other), and the event's ⋯ menu with Member view. Questions for you are in §5 (Q44).
 
 ## Start here (2026-10-10): HANDOFF-to-DESIGN-10
 
@@ -92,6 +92,30 @@ None of these are built. They come from the owner's own list and the pilot group
 - **Event cards that say *6 spots left*** (Q43) read like an RSVP cap.
 
 ---
+
+## Round v8-18 in short
+
+*Built from HANDOFF-to-CODE v8-18 on 2026-10-10 (on `test`, not live yet). Store safety (1s) is being built in a separate session and will get its own rows. Where something differs from the prototype it says so.*
+
+| v8-18 item | Status |
+|---|---|
+| 1. Plan an event photos | Done as drawn: *Add photos* / *Add another* chip with *Up to 3* / *N more* in the description card's footer (gone at 3), the photos as a 3-across grid of square tiles under the card, a 26px × on each, a tap opens full screen |
+| 1b. Description formatting | Done in Plan an event **and** Edit event's *What to expect* (your prototype has no toolbar in Edit; your text said both). It's saved as light Markdown (`**bold**`, `*italic*`, lines starting `- ` or `1. `), not HTML, so nothing needs cleaning. The 500 counts the text without the formatting and turns pink #d6246e past it, and Post it then says *The description is over 500 characters*. Bold draws at 900. Links aren't detected yet |
+| 1c. Section labels | Done: text and *Optional* only. There's no TYPE section in the build (Q44 is still open) |
+| 1d. Add a sign up pop-up | Done as drawn: the name first (no autofocus, a purple ring on focus), the starters under it put their word in front in purple (tap again to clear), no *Write your own*, then **+ Add details** and the count. Save stays grey until there's text after the starter. The starters' placeholders are yours (*snacks, chairs, ice…* etc.) |
+| 1e, 1f, 1o | Done: **EXAMPLES:**, no lead line, the centred white **Add a sign up** chip with a grey + in a 32px circle; the editor is titled *Add a sign up* / *Edit sign up* |
+| 1g. Post to | Done in Plan an event: one row, the photo fan with two or more (−7°/+6° for two, −10°/0°/+10° for three), *Torrez Fitness & 1 more*. **Edit event keeps its list of groups with ticks**, because it also moves an event's home group; the row there is not built |
+| 1h. Member's notepad | Done as drawn, with *Invite a friend* as its own white card under the note. *Vote* on a location scrolls to *Where?*; with no locations yet, *Suggest* opens *Suggest a location* |
+| 1i. Discussion on every Idea | Already built (audit 2026-10-07): every Idea has Discussion, and it carries over to the Plan. Comment pushes follow the Idea rules in §3 (everyone interested gets top-level comments), not exactly the event rules |
+| 1j, 1k | Done: *People can reach out* · *Let people contact you to talk it through*; *I'll lead it · Find a lead* everywhere, **I'll lead it is the default**, and the explainer lists *I'll lead it* first. Discussion already sat above WHERE IT GOES / HOW PEOPLE CAN HELP |
+| 1l. View as someone going | Done: menu row, the dark pill 94px up with a gold **Exit**, and the look-only toast. You show as Going (your own reply isn't changed). The members' ⋯ (Share link · Report) comes with store safety |
+| 1m. Cards start grey | Done as specced, sticky once white. When & where turns white on a date, a time or an address picked from the suggestions; typing doesn't |
+| 1n. Date picker | Done: a centred pop-up over a dark scrim, the month on one line with its arrows after it, a grey × and *Today*. **Clear stays on the optional dates** (an end date, *Until*), which have no other way to be taken off; the event's own date has none |
+| 1p, 1q | Done: no divider, *Address (optional)*, *What's the plan?* in the same italic grey, and 16px time fields that match the date field |
+| 1r. Float page 1 | Done: YOUR IDEA (one line, 60) and QUICK DESCRIPTION, each with the gold ring once filled, and *Add more details ›* / *Fewer details ⌃*. **The description's limit is still 200, not your 120**: the owner set 200 for every short description (2026-10-08), so we're checking with them |
+| 2–3. Limit RSVPs and the waitlist | Done as specced in Plan an event and Edit event's *Who can see it* (new `20261123000000_cap_waitlist_offer_note.sql`). The database enforces the cap; hosts count toward it but are never refused. *Join waitlist* needs an account (guests see the Full chip but can't join yet). In line, the folded line is *Waitlist · 3rd in line* · Change, and Change shows **Leave waitlist** in the dark tile. Moving up gives a bell line *A spot opened: you're going to {event}.* and a push *A spot opened: you're going* |
+| 4. Offer to lead with a note | Done: the pop-up as drawn; the note shows in italics under the name on the starter's Pick line and at the end of the push (*Dee offered to lead Porch concert: "…"*). Offering again without a note clears the old one |
+| 5. Drawn to match the build | Thanks. Rows 220–227 and §2's Member view and Add to calendar can come off our lists at the next reset |
 
 ## Round v8-17 in short
 
@@ -272,7 +296,7 @@ Never cleared on a reset. These are places where the owner chose differently fro
 | Can't go | An outlined sad face (owner, 2026-10-07, row 189) | An × in a dark circle |
 | Welcome | *Make plans with your people.*, the mark + BETA top centre, steps *Float an idea* (gold) · *Everybody pitches in* (orange) · *Make it a plan* (purple), then *What's Spark Hub? ›*, 34px circles (rows 150, 201) | *Plans with your people.*, the mark above the headline, 28px circles, *Make a plan · RSVP & pitch in · Make it happen* |
 | Sign-in pop-up | *Two ways to sign in:* above Google, **Email sign-in code**, *sign in* never *log in*, a Privacy link under the form (row 174) | *Email me a code*, longer lines |
-| Plan an event: where it posts | **No group picked for you**: POST TO starts as *Pick a group* (red) (row 198) | Starts on the group you were in |
+| Plan an event: where it posts | **No group picked for you**: Post to starts as *Pick a group* (row 198), now in **Design's purple** with the dashed tile (owner, 2026-10-10; it was red) | Matches since v8-18 |
 | Plan an event: sign-ups | A dashed **+ Add ways people can help or participate** box that opens one **Add a sign-up** pop-up (rows 195–197) | A grey card with *Need people to bring things or help out?* and a white + Add |
 | Plan an event: WHEN & WHERE | Filled in place, **Address first**, then *Location name (optional)* (row 209) | Rows that open pop-ups |
 | Plan an event: description | 500 characters (row 207), shown as a paragraph with line breaks (row 210) | 200, one bulleted line |
@@ -467,8 +491,7 @@ Never cleared on a reset. These are places where the owner chose differently fro
 7. **Video on the vibe board** is parked (needs a ~20 s / 25 MB cap).
 26. **Welcome tour:** you chose 2c, a *Get started* checklist in place of *Start here!*. We're waiting on your drawing; nothing is built.
 44. **Event type chip (for the memory work, 2026-10-09):** every event now gets a guessed type (pickleball, potluck, walk, game night, party, workout, class, volunteer, meeting, other) that only the lead can change. Should the lead see and correct it somewhere (a chip on Plan an event, or a quiet *Looks like a potluck · change*), and should *Anything to change for next time?* (more chairs, start earlier) appear after an event? Both need new UI. Nothing is built. (Categories, your item 19, are on hold; say if the two should become one thing.)
-49. **Attendance cap (your clarity pass, item 1):** cards show *N spots left* and *Full* only for an event with a cap, and the build has the `cap` field, but nothing sets it yet. Where does a lead set the cap: Plan an event, Edit, or both? At the cap, should RSVPs stop (with a waitlist, like sign-ups) or should the card just say *Full*?
-50. **A note with an offer to lead (v8-17 items 2 and 11):** your *Pick* lines show each person's note, but the *Offer to lead* card has no note field, so the build shows no note. Should the offer get an optional note, or should *Pick* drop the note line?
+(Q49 and Q50 were answered in v8-18: see *Round v8-18 in short*.)
 
 ## 6. Design tokens
 
