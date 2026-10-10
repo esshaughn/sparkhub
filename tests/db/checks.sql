@@ -1621,3 +1621,40 @@ select t.check('close_out_events twice writes one summary', private.close_out_ev
   and (select count(*) from private.event_summaries where spark_id = t.id('mem_past')) = 1);
 select t.check('the summary holds no user id', not exists (select 1 from private.event_summaries s, auth.users u
   where s::text like '%' || u.id::text || '%'));
+
+-- Limit RSVPs, the event waitlist and a note on an offer to lead (20261123000000_cap_waitlist_offer_note.sql, Design v8-18)
+reset role;
+select t.person('cap_lead'), t.person('cap_a'), t.person('cap_b');
+insert into memberships (group_id, user_id, role) values (t.id('g'), t.id('cap_lead'), 'member'), (t.id('g'), t.id('cap_a'), 'member'), (t.id('g'), t.id('cap_b'), 'member');
+insert into sparks (id, group_id, author_name, lead_name, lead_id, created_by, text, visibility, planned, day_date, cap) values
+  (gen_random_uuid(), t.id('g'), 'Lead', 'Lead', t.id('cap_lead'), t.id('cap_lead'), 'Capped supper', 'group', true, current_date + 5, 2),
+  (gen_random_uuid(), t.id('g'), 'Lead', 'Lead', t.id('cap_lead'), t.id('cap_lead'), 'Open supper', 'group', true, current_date + 5, null),
+  (gen_random_uuid(), t.id('g'), 'Lead', 'Lead', t.id('cap_lead'), t.id('cap_lead'), 'Capped idea', 'group', false, null, null);
+insert into t.ids select 'cap_ev', id from sparks where text = 'Capped supper';
+insert into t.ids select 'cap_open', id from sparks where text = 'Open supper';
+insert into t.ids select 'cap_idea', id from sparks where text = 'Capped idea';
+select t.login('cap_a'); set role authenticated;
+select t.must_allow('going while there''s room (the lead is one of the two)', format($$insert into rsvps (spark_id, user_id, status) values (%L, %L, 'going')$$, t.id('cap_ev'), t.id('cap_a')));
+select t.must_refuse('bringing a plus-one past the cap', format($$update rsvps set plus_count = 1 where spark_id = %L and user_id = %L$$, t.id('cap_ev'), t.id('cap_a')));
+select t.must_refuse('setting another lead''s cap', format($$update sparks set cap = 50 where id = %L$$, t.id('cap_ev')));
+select t.must_refuse('joining the waitlist of an event with room', format($$insert into event_waits (spark_id, user_id) values (%L, %L)$$, t.id('cap_open'), t.id('cap_a')));
+reset role;
+select t.login('cap_b'); set role authenticated;
+select t.must_refuse('going to a full event', format($$insert into rsvps (spark_id, user_id, status) values (%L, %L, 'going')$$, t.id('cap_ev'), t.id('cap_b')));
+select t.must_allow('a Maybe on a full event', format($$insert into rsvps (spark_id, user_id, status) values (%L, %L, 'maybe')$$, t.id('cap_ev'), t.id('cap_b')));
+select t.must_allow('joining its waitlist', format($$insert into event_waits (spark_id, user_id) values (%L, %L)$$, t.id('cap_ev'), t.id('cap_b')));
+select t.must_refuse('jumping the line', format($$insert into event_waits (spark_id, user_id, created_at) values (%L, %L, now() - interval '1 day')$$, t.id('cap_open'), t.id('cap_b')));
+select t.check('load_all carries the waitlist', public.load_all() -> 'event_waits' @> jsonb_build_array(jsonb_build_object('spark_id', t.id('cap_ev'), 'user_id', t.id('cap_b'))));
+select t.must_allow('an offer to lead with a note', format($$insert into interests (spark_id, user_id, can_help, offer_note) values (%L, %L, true, 'I ran one last spring')$$, t.id('cap_idea'), t.id('cap_b')));
+select t.must_refuse('a note over 120 characters', format($$update interests set offer_note = repeat('x', 121) where spark_id = %L$$, t.id('cap_idea')));
+select t.check('and load_all carries the note', public.load_all() -> 'interests' @> jsonb_build_array(jsonb_build_object('spark_id', t.id('cap_idea'), 'offer_note', 'I ran one last spring')));
+reset role;
+select t.login('cap_a'); set role authenticated;
+select t.must_allow('dropping to Maybe', format($$update rsvps set status = 'maybe' where spark_id = %L and user_id = %L$$, t.id('cap_ev'), t.id('cap_a')));
+reset role;
+select t.check('the first in line moves up to Going', (select status from rsvps where spark_id = t.id('cap_ev') and user_id = t.id('cap_b')) = 'going'
+  and not exists (select 1 from event_waits where spark_id = t.id('cap_ev')));
+select t.check('and hears about it', exists (select 1 from notes where user_id = t.id('cap_b') and body like 'A spot opened%'));
+select t.login('cap_lead'); set role authenticated;
+select t.must_allow('the lead sets the cap', format($$update sparks set cap = 3 where id = %L$$, t.id('cap_ev')));
+reset role;

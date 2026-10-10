@@ -23,10 +23,15 @@ test('offer to lead: take it back, offer again, and the starter picks', async ({
     await expect(OS.locator('[data-needs-lead]')).toContainText('NEEDS A LEAD');
     await expect(OS.locator('[data-needs-lead]')).toContainText('Hope floated this and is looking for someone to run it.');
     await OS.locator('[data-offer-lead]').click();
+    const offer = O.getByRole('dialog', { name: 'Offer to lead' });   // a note for Hope, optional (Design v8-18, 4)
+    await offer.locator('[data-send-offer]').click();
     await expect(OS.locator('[data-offered-lead]')).toContainText('You offered to lead');
+    await expect(OS.locator('[data-help-make-plan] [data-todo="ld"]')).toContainText('You offered · waiting on Hope');
     await OS.locator('[data-offer-back]').click();
     await expect(OS.locator('[data-needs-lead]')).toBeVisible();
     await OS.locator('[data-offer-lead]').click();
+    await offer.getByLabel('A note for Hope').fill('I ran one of these last spring');
+    await offer.locator('[data-send-offer]').click();
     await expect(OS.locator('[data-offered-lead]')).toBeVisible();
     await expect(O.locator('html[data-saving]')).toHaveCount(0);
 
@@ -34,6 +39,7 @@ test('offer to lead: take it back, offer again, and the starter picks', async ({
     await openIdea(H, id);
     await expect(HS.locator('[data-make-this-plan]')).toContainText('What’s left');
     await expect(HS.locator('[data-make-this-plan]')).toContainText('1 person offered · pick below');
+    await expect(HS.locator('[data-offer-note]')).toHaveText('I ran one of these last spring');   // in italics on the Pick line
     await HS.locator('[data-pick-lead]').click();
     const ask = H.getByRole('alertdialog');
     await expect(ask).toContainText('Make Otto the lead?');

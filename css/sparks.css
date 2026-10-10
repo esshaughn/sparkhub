@@ -226,8 +226,11 @@ html.tall-fix .app { bottom: auto; height: var(--true-h); }
 .hov-danger:hover { background: #fdeef0 !important; }
 .hov-grey-fill:hover { background: #eef0f3 !important; }
 .hov-yellow:hover { background: #faefc8 !important; }
+.hov-grey-chip:hover { background: #e8eaee !important; }
 .hov-mag:hover { background: #fdf0f5 !important; }
 .fld:focus { border-color: #5b4ae8 !important; }
+@media (hover: hover) { .cp-add-chip:hover { box-shadow: 0 3px 10px rgba(15,18,25,.2) !important; } }
+[data-job-name-box]:focus-within { border-color: #5b4ae8 !important; }   /* Add a sign up's name (Design v8-18, 1d) */
 .title-fld:focus { box-shadow: 0 0 0 4px rgba(91,74,232,.16); }
 [data-inv-email]::placeholder { color: #9a9fae; }   /* italic like every placeholder (Design v8-6) */
 .fld-danger:focus { border-color: #9b1c31 !important; }
@@ -315,5 +318,15 @@ html.tall-fix .app { bottom: auto; height: var(--true-h); }
 /* Plan an event on one page (v8-14): the title and overview typed into the header */
 .cp-hero-fld::placeholder { color: rgba(255, 255, 255, .62); font-weight: inherit; font-style: normal; }
 .cp-fld::placeholder { color: #9aa0ac; font-style: italic; }
+[data-loc-addr]::placeholder { color: #9aa0ac; font-weight: 500; font-style: italic; }   /* Address (optional), like What's the plan? (Design v8-18, 1q) */
+.tf46::placeholder { color: #b9bcc4; font-weight: 500; font-style: normal; }   /* time fields match the date field (Design v8-18, 1q) */
 
 .sd-past { background: #5b4ae8 !important; }
+
+/* Description formatting (Design v8-18, 1b) */
+.rte b, .rte strong { font-weight: 900; }
+.rte ul, .rte ol { margin: 2px 0; padding-left: 24px; }
+.rte-fld[data-empty="true"]::before { content: attr(data-ph); font-style: italic; font-weight: 500; color: #9aa0ac; pointer-events: none; }
+.rte-btn[aria-pressed="true"] { color: #5b4ae8 !important; background: #f1effd; }
+@media (hover: hover) { .rte-btn:hover { background: #f2f3f6; } .rte-btn[aria-pressed="true"]:hover { background: #ebe8fd; } }
+.offer-fld:focus { box-shadow: inset 0 0 0 2px #f5b428 !important; }   /* Offer to lead's note (Design v8-18, 4) */

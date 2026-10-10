@@ -47,14 +47,14 @@ test('a member with the link takes part; the lead picks and makes it a plan', as
     await expect(GD.locator('[data-im-interested]')).toHaveText('✓ You’re interested', { timeout: 1000 });
     await expect(GD.getByLabel('See who’s interested').first()).toContainText('2 people so far');
     // Suggest a date and a location; one of each is a suggestion, not a poll (v8-8 item 5)
-    await GD.getByText('Suggest a date', { exact: true }).first().click();
+    await GD.locator('[data-help-make-plan] [data-todo="d"]').click();   // the To dos notepad's Pick a date row (Design v8-18, 1h)
     const sd = G.getByRole('dialog', { name: 'Suggest a date' });
     await sd.getByLabel('Date').fill(inDays(12));
     await sd.locator('[data-ip-pop-done]').click();
     await expect(G.getByRole('status')).toContainText('Date added');
     await expect(GD.locator('[data-when] [data-suggested]')).toContainText('Suggested');
     await expect(GD.locator('[data-when]')).not.toContainText('Choose all dates you could attend.');
-    await GD.getByText('Suggest a location', { exact: true }).first().click();
+    await GD.locator('[data-help-make-plan] [data-todo="l"]').click();
     const sl = G.getByRole('dialog', { name: 'Suggest a location' });
     await sl.getByLabel('Location').fill('The north lot at Zilker');
     await sl.locator('[data-ip-pop-done]').click();

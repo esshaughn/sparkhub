@@ -138,6 +138,7 @@
   // longer so 40 fit two lines on a phone (about 1,180 ÷ length px for Figtree 900 in a ~330px column)
   const TITLE_MAX = 40;
   const DESC_MAX = 500;   // a plan's Description (sparks.vision, ≤1000 in the database; owner, 2026-10-08: was 200)
+  const DESC_DB = 1000;   // the Markdown kept for it (Design v8-18, 1b: the 500 counts the text without the formatting)
   const OV_MAX = 200;   // the short description, everywhere (owner, 2026-10-08: was 120, and 80 in Plan an event before 2026-10-07; 20261120000000)
   const titleFs = (t, max) => Math.max(24, Math.min(max, Math.floor(1180 / Math.max(1, String(t || '').length))));
   const fmtDay = (iso) => new Date(iso + 'T12:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
@@ -307,7 +308,7 @@
     evDayType: 'one', evRepeat: 'week', evRepeatUntil: '', evEndDate: '', evEndDateT: '', evDays: [], evDaysEach: false, dayTypePop: null,   // how long it is (v8-7)
     locText: '', locPlace: null, locSuggest: [], locAddr: '',   // v8-8 item 8: Location name + Address
     evBits: ['', '', ''], evOverview: '', evNeed: null, evTags: [], evNeeds: [], evDatePoll: null, evSpotPoll: null, evLater: {}, evHelpNone: false,
-    evDesc: '', evInspo: [], evJobPop: false, evGrpPop: false,   // v8-14 Plan an event on one page: description, inspo photos, its two pop-ups
+    evDesc: '', evInspo: [], evJobPop: false, evGrpPop: false, evCap: null, cpWhite: null,   // v8-14 Plan an event on one page: description, inspo photos, its two pop-ups; v8-18: Limit RSVPs, which cards have turned white
     evPriv: false, evNoGuestInv: null, evTest: null, evFloat: false, evGrpNone: false, evTitleEd: false, evDetOpen: false, evPop: null, evGroups: null, evDraftId: null, evLeave: false, evLeaveTo: null, evFrom: null, pollSheet: null, needSheet: null, evFromReview: false,
     evFromIdea: null, evIdeaJobs: []   // Make it a plan! on an idea (v8-8): Post it turns that idea into the event, its jobs and spots stay
   });
@@ -468,6 +469,8 @@
   // A sign-up the database refused (jobs audit B3, owner 2026-10-07): say why; run() and quick() reload so the page shows what changed
   const REFUSED = [
     [/that one.s covered/, () => 'Someone just took the last spot.'],
+    [/^full: this event is full/, () => 'It just filled up. You can join the waitlist.'],   // Limit RSVPs (Design v8-18, 3)
+    [/there.s room: RSVP Going instead/, () => 'A spot just opened. Tap Going.'],
     [/^per person: up to \d+ per person for (.+)$/, (m) => 'You already have the most allowed for ' + m[1] + '.'],
     [/there.s an open spot/, () => 'A spot just opened. Tap Claim.'],
     [/you have this one/, () => 'You’re already on this one.'],
@@ -622,6 +625,8 @@
       .map(o => ({ id: o.id, userId: o.user_id, who: o.who, kind: o.kind, body: o.body })),
     interested: interests.filter(i => i.spark_id === row.id).sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at)).map(i => i.user_id),
     canHelp: interests.filter(i => i.spark_id === row.id && i.can_help).map(i => i.user_id),   // "I could help make it happen"
+    offerNotes: interests.filter(i => i.spark_id === row.id && i.can_help && i.offer_note).reduce((m, i) => { m[i.user_id] = i.offer_note; return m; }, {}),   // a note with an offer to lead (v8-18, 4)
+    waits: (x.eventWaits[row.id] || []).slice().sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at)).map(w => w.user_id),   // the event waitlist, first in line first (v8-18, 3)
     wantsHost: !!row.wants_host && !row.planned,   // the floater is looking for someone else to host (20261101090000)
     holdUntil: row.hold_until || null, holdNudgedAt: row.hold_nudged_at ? Date.parse(row.hold_nudged_at) : 0,   // soft holds (20261103000000)
     talkOffers: (x.talkOffers[row.id] || []).map(o => o.user_id),   // who tapped Contact {starter} (you see your own; the starter sees all)
@@ -670,12 +675,13 @@
     }
     // v6 Update 13: friends, requests and the invites you've had (a database without them still loads)
     const frP = state.email && !state.viewAs ? sb.rpc('friend_state').then(r => r, () => ({ error: true })) : Promise.resolve({ data: null });
-    const [mem, grp, sp, of, it, gc, rs, dop, dvo, sop, svo, sui, scl, upd, org, alb, prp, rct, sgr, drf, nts, las, inv, jas, lof, swt, tlk] = await Promise.all([
+    const [mem, grp, sp, of, it, gc, rs, dop, dvo, sop, svo, sui, scl, upd, org, alb, prp, rct, sgr, drf, nts, las, inv, jas, lof, swt, tlk, ewt] = await Promise.all([
       sb.from('memberships').select('group_id,role,last_seen_at,pinned'),
       sb.from('groups').select('id,name,photo,photo_pos,demo'),
       sb.from('sparks').select('*').order('created_at', { ascending: false }),
       sb.from('offers').select('*').order('created_at'),
-      sb.from('interests').select('spark_id,user_id,created_at,can_help'),
+      sb.from('interests').select('spark_id,user_id,created_at,can_help,offer_note')
+        .then(r => r.error && r.error.code === '42703' ? sb.from('interests').select('spark_id,user_id,created_at,can_help') : r),   // offer_note: 20261123000000
       sb.from('guest_contacts').select('spark_id,user_id,name,phone'),
       sb.from('rsvps').select('spark_id,user_id,status,created_at,attended,days,maybe_days,plus_count,plus_note')
         .then(r => r.error && r.error.code === '42703' ? sb.from('rsvps').select('spark_id,user_id,status,created_at,attended,days,maybe_days') : r)   // plus_count: 20261110000000
@@ -714,7 +720,9 @@
       // Take part's waitlists (20261106000000_take_part.sql; a database without them still loads)
       sb.from('signup_waits').select('item_id,user_id,created_at').order('created_at').then(r => r.error ? { data: [] } : r),
       // Talk it through's offers (20261107000000_float_sheet.sql; a database without them still loads)
-      state.email ? sb.from('talk_offers').select('spark_id,user_id,created_at').order('created_at').then(r => r.error ? { data: [] } : r) : Promise.resolve({ data: [] })
+      state.email ? sb.from('talk_offers').select('spark_id,user_id,created_at').order('created_at').then(r => r.error ? { data: [] } : r) : Promise.resolve({ data: [] }),
+      // The event waitlist (Design v8-18, 20261123000000; a database without it still loads)
+      sb.from('event_waits').select('spark_id,user_id,created_at').order('created_at').then(r => r.error ? { data: [] } : r)
     ]);
     [mem, grp, sp, of, it, gc, rs, dop, dvo, sop, svo, sui, scl, upd, org, alb, prp].forEach(must);
     const rows = (r) => r.error ? [] : r.data || [];
@@ -722,12 +730,12 @@
       memberships: mem.data, groups: grp.data, sparks: sp.data, offers: of.data, interests: it.data, guest_contacts: gc.data, rsvps: rs.data,
       date_options: dop.data, date_votes: dvo.data, spot_options: sop.data, spot_votes: svo.data, signup_items: sui.data, signup_claims: scl.data,
       plan_updates: upd.data, cohosts: org.data, album_photos: alb.data, plan_prep: prp.data,
-      reactions: rows(rct), spark_groups: rows(sgr), event_drafts: rows(drf), notes: rows(nts), lead_asks: rows(las), event_invites: rows(inv), job_asks: rows(jas), lead_offers: rows(lof), signup_waits: rows(swt), talk_offers: rows(tlk), profiles: []
+      reactions: rows(rct), spark_groups: rows(sgr), event_drafts: rows(drf), notes: rows(nts), lead_asks: rows(las), event_invites: rows(inv), job_asks: rows(jas), lead_offers: rows(lof), signup_waits: rows(swt), talk_offers: rows(tlk), event_waits: rows(ewt), profiles: []
     };
     // Names and photos of everyone on screen
     const ids = new Set([state.me]);
     d.sparks.forEach(s => ids.add(s.lead_id));
-    [d.offers, d.interests, d.rsvps, d.cohosts, d.signup_claims, d.signup_waits, d.reactions].forEach(t => t.forEach(r => ids.add(r.user_id)));
+    [d.offers, d.interests, d.rsvps, d.cohosts, d.signup_claims, d.signup_waits, d.event_waits, d.reactions].forEach(t => t.forEach(r => ids.add(r.user_id)));
     d.notes.forEach(n => ids.add(n.created_by));
     d.lead_asks.forEach(a => { ids.add(a.user_id); ids.add(a.asked_by); });
     d.event_invites.forEach(i => ids.add(i.user_id));
@@ -763,7 +771,8 @@
       groups: byKey(d.spark_groups, 'spark_id'),
       leadAsks: byKey(d.lead_asks || [], 'spark_id'),   // a database without them still loads
       invites: byKey(d.event_invites || [], 'spark_id'),
-      jobAsks: byKey(d.job_asks || [], 'spark_id'), leadOffers: byKey(d.lead_offers || [], 'spark_id'), talkOffers: byKey(d.talk_offers || [], 'spark_id')
+      jobAsks: byKey(d.job_asks || [], 'spark_id'), leadOffers: byKey(d.lead_offers || [], 'spark_id'), talkOffers: byKey(d.talk_offers || [], 'spark_id'),
+      eventWaits: byKey(d.event_waits || [], 'spark_id')   // the event waitlist, in line order (Design v8-18)
     };
 
     const roles = {};
@@ -911,7 +920,7 @@
 
   // Run a write, then refresh. Errors become the "didn't go through" toast.
   const run = async (work, after) => {
-    if (state.viewAs) { toast('You’re viewing as ' + firstName(state.viewAs.name) + ', so nothing changes. Exit to make changes.'); return false; }
+    if (state.viewAs) { toast(state.viewAs.asMember ? 'You’re seeing it as someone going. Exit to make changes.' : 'You’re viewing as ' + firstName(state.viewAs.name) + ', so nothing changes. Exit to make changes.'); return false; }
     setState({ busy: 'save' });
     try {
       await ensureSession();
@@ -1161,9 +1170,10 @@
   // View as a member: read-only like View as a tester (the same guard), but it is you, on this one event, and Exit stays on the page
   const startAsMember = (s) => { if (state.viewAs) return; previewing = true; setState({ asMember: s.id, viewAs: { id: state.me, name: 'Member', asMember: true }, menu: null }); const sc = scroller(); if (sc) sc.scrollTop = 0; };
   const stopAsMember = () => { previewing = false; setState({ asMember: null, viewAs: null }); };
-  const previewBar = () => '<div role="status" data-preview style="position:fixed;z-index:90;bottom:calc(var(--nav-h) + 10px);left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:10px;max-width:calc(100% - 32px);height:44px;padding:0 6px 0 16px;border-radius:999px;background:#1f2433;color:#fff;box-shadow:0 8px 20px rgba(13,17,23,.3);font-size:14px;font-weight:800;white-space:nowrap">' +
-    '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis">' + (state.viewAs.asMember ? 'Viewing as a member' : 'Viewing as ' + esc(state.viewAs.name)) + '</span>' +
-    '<span ' + on(state.viewAs.asMember ? stopAsMember : exitPreview) + (state.viewAs.asMember ? ' data-as-member-exit' : '') + ' style="flex:0 0 auto;display:flex;align-items:center;height:34px;padding:0 14px;border-radius:999px;background:#ffd98a;color:#1f2433;font-size:13.5px;font-weight:900;cursor:pointer">Exit</span></div>';
+  // View as someone going (Design v8-18, 1l): a dark pill 94px up, 14.5/800, and a gold Exit
+  const previewBar = () => '<div role="status" data-preview style="position:fixed;z-index:90;bottom:' + (state.viewAs.asMember ? '94px' : 'calc(var(--nav-h) + 10px)') + ';left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:10px;max-width:calc(100% - 32px);height:44px;padding:0 6px 0 16px;border-radius:999px;background:' + (state.viewAs.asMember ? '#0d1117' : '#1f2433') + ';color:#fff;box-shadow:0 8px 20px rgba(13,17,23,.3);font-size:' + (state.viewAs.asMember ? 14.5 : 14) + 'px;font-weight:800;white-space:nowrap">' +
+    '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis">' + (state.viewAs.asMember ? 'Viewing as someone going' : 'Viewing as ' + esc(state.viewAs.name)) + '</span>' +
+    '<span ' + on(state.viewAs.asMember ? stopAsMember : exitPreview) + (state.viewAs.asMember ? ' data-as-member-exit' : '') + ' style="flex:0 0 auto;display:flex;align-items:center;height:34px;padding:0 14px;border-radius:999px;background:' + (state.viewAs.asMember ? '#f5b428' : '#ffd98a') + ';color:' + (state.viewAs.asMember ? '#2a1d00' : '#1f2433') + ';font-size:13.5px;font-weight:900;cursor:pointer">Exit</span></div>';
   const testerCard = () => {
     const st = state;
     if (st.viewAs) return '<div style="' + CARD + ';padding:16px;display:flex;flex-direction:column;align-items:flex-start;gap:10px"><div style="font-size:17px;font-weight:900;color:#0d1117">Viewing as ' + esc(firstName(st.viewAs.name)) + '</div>' +
@@ -1977,10 +1987,24 @@
   // ---- V5 plans ----------------------------------------------------------------------
   // An idea is a plan once the lead locks in a day and a time; the day after, it "happened"
   const phaseOf = (s) => !s.planned ? 'idea' : (s.dayDate && s.dayDate < todayISO() ? 'done' : 'plan');
-  const myRsvp = (s) => { const r = s.rsvps.find(x => x.userId === state.me); return r ? r.status : null; };
+  // View as someone going (Design v8-18, 1l): you see the event as a person who's going; your own reply stays as it is
+  const myRsvp = (s) => { if (asMemberOf(s)) return 'going'; const r = s.rsvps.find(x => x.userId === state.me); return r ? r.status : null; };
   const going = (s) => s.rsvps.filter(r => r.status === 'going');
   // How many are coming: everyone going plus the people they're bringing (v8-11 6a: going counts include plus-ones)
   const headN = (s) => going(s).reduce((a, r) => a + 1 + (r.plus || 0), 0);
+  // Limit RSVPs (Design v8-18, 3): Going (plus-ones too) has reached the event's cap
+  const isFull = (s) => !!s.cap && headN(s) >= s.cap;
+  const joinEventWait = (s) => needAccount(() => {
+    const now = state.sparks.find(x => x.id === s.id) || s, n = (now.waits || []).length + 1;
+    quick(now, { waits: (now.waits || []).concat(state.me) }, async () => { must(await sb.from('event_waits').insert({ spark_id: s.id, user_id: state.me })); });
+    toast('You’re on the waitlist. We’ll tell you if a spot opens.', true);
+    return n;
+  });
+  const leaveEventWait = (s) => {
+    const now = state.sparks.find(x => x.id === s.id) || s;
+    quick(now, { waits: (now.waits || []).filter(u => u !== state.me) }, async () => { must(await sb.from('event_waits').delete().eq('spark_id', s.id).eq('user_id', state.me)); });
+    toast('You left the waitlist', true);
+  };
   // Who came (20261101090000): once the host has checked anyone in, the count is who came, not who said yes
   const checkedIn = (s) => s.rsvps.some(r => r.attended !== null);
   const cameCount = (s) => checkedIn(s) ? s.rsvps.filter(r => r.attended).length : going(s).length;
@@ -2596,7 +2620,7 @@
   const GOOGLE_ON = !!CFG.googleSignIn && !IN_APP;   // Google refuses sign-in inside in-app browsers: email only there, with inAppTip()
   const inAppTip = (dark) => !IN_APP || !CFG.googleSignIn ? '' : '<p data-in-app-tip style="margin:4px 0 0;text-align:center;font-size:13px;line-height:1.45;font-weight:600;color:' + (dark ? '#aab0bb' : '#6b7280') + '">Want to use Google? Open this page in your browser first: tap ··· then Open in browser.</p>';
   const RESUME_KEY = 'spark-hub-google-resume';
-  const DRAFT_KEYS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'locText', 'locPlace', 'locAddr', 'evBits', 'evOverview', 'evDesc', 'evNeed', 'evTags', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evNoGuestInv', 'evTest', 'evFloat', 'evHelpNone', 'evGroups', 'coverPos', 'evPhotoPath', 'evDraftId'];
+  const DRAFT_KEYS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'locText', 'locPlace', 'locAddr', 'evBits', 'evOverview', 'evDesc', 'evCap', 'evNeed', 'evTags', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evNoGuestInv', 'evTest', 'evFloat', 'evHelpNone', 'evGroups', 'coverPos', 'evPhotoPath', 'evDraftId'];
   const readResume = () => {
     try {
       const r = JSON.parse(sessionStorage.getItem(RESUME_KEY));
@@ -6314,14 +6338,14 @@
           '<div ' + on(() => setState({ evMenu: null, share: { id: s.id, copied: false, pop: 'link', solo: true } }), 'menuitem') + ' data-ev-menu-link class="hov-fill-grey" style="' + MENU_ROW + '">' + svg(18, stroke('#0d1117', 2.3), LINK_IC) + 'Share link</div>' +
           (isLead(s) ? '<div ' + on(() => setState({ evMenu: null, share: { id: s.id, copied: false, pop: 'qr', solo: true } }), 'menuitem') + ' class="hov-fill-grey" style="' + MENU_ROW + '">' +
             svg(18, 'fill="none" stroke="#0d1117" stroke-width="2.2"', '<rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><path d="M14 14h2v2h-2zM18 18h2v2h-2z"/>') + 'QR code</div>' : '') +
-          // Member view (owner, 2026-10-10): this event the way a member sees it, look only
+          // View as someone going (Design v8-18, 1l; was Member view, owner 2026-10-10): this event as a person going sees it, look only
           (hostRole(s) ? '<div ' + on(() => { setState({ evMenu: null }); startAsMember(s); }, 'menuitem') + ' data-as-member class="hov-fill-grey" style="' + MENU_ROW + '">' +
-            svg(18, stroke('#0d1117', 2.3), '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/>') + 'Member view</div>' : '') +
+            svg(18, stroke('#0d1117', 2.3), '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/>') + 'View as someone going</div>' : '') +
         '</div></div>' : '') + '</span>';
   };
   const phaseHeader = (s, height, scrim, inner, share) => {
     const g = groupById(s.groupId), cover = s.photoPaths[0] ? photoUrl(s.photoPaths[0]) : null;
-    const menu = share && canEdit(s) && !s.cancelledAt;   // the ⋯ menu (Share link, QR code, Member view); on ideas and past events too since 2026-10-10
+    const menu = share && canEdit(s) && !s.cancelledAt;   // the ⋯ menu (Share link, QR code, View as someone going); on ideas and past events too since 2026-10-10
     return '<div style="position:relative;height:calc(' + height + 'px + var(--pt));overflow:hidden;background:#0b2a17">' +
       (cover ? photoLayer(cover, s.coverPos, IDEA_POS) : '<div aria-hidden="true" style="position:absolute;inset:0;background:' + groupBg(g, '#0b2a17') + '"></div>') +
       '<div aria-hidden="true" style="position:absolute;inset:0;background:' + scrim + '"></div>' +
@@ -6597,7 +6621,7 @@
     const desc = isLead(s) ? descDraft(s) : null;
     const bits = desc != null ? ['', '', ''] : basicsOf(s).slice(0, 3).map(b => b.slice(0, 60));
     while (bits.length < 3) bits.push('');
-    setState({ sec: { id: s.id, kind, title: s.text, ...whenModelOf(s), bits, desc, ov: s.overview || '', need: s.minPeople || null, tags: (s.tags || []).slice(), priv: s.visibility === 'invite', guestInv: s.guestInvites !== false, groups: gIds(s).slice() },
+    setState({ sec: { id: s.id, kind, title: s.text, ...whenModelOf(s), bits, desc, ov: s.overview || '', need: s.minPeople || null, tags: (s.tags || []).slice(), priv: s.visibility === 'invite', guestInv: s.guestInvites !== false, cap: s.cap || null, groups: gIds(s).slice() },
       offerText: kind === 'when' ? s.spot || '' : '', offerPlace: s.spot && s.spotPoint ? { name: s.spot, address: s.spotAddress, lat: s.spotPoint[0], lon: s.spotPoint[1] } : null, offerSuggest: [], timeOpen: null, menu: null });
   };
   // Round 65a: what an edit would tell people. Since 2026-10-04 (owner, Design 30) saving an edit tells no one (secSends),
@@ -6646,7 +6670,7 @@
     if (ss.kind === 'details') {
       const hopes = ss.bits.map(b => b.trim().slice(0, 60)).filter(Boolean), overview = (ss.ov || '').trim().slice(0, OV_MAX);
       run(async () => {
-        const desc = ss.desc != null ? ss.desc.trim().slice(0, DESC_MAX) : null;
+        const desc = ss.desc != null ? ss.desc.trim().slice(0, DESC_DB) : null;
         if (lead) must(await sb.from('sparks').update(Object.assign({ hopes: desc != null ? [] : hopes, overview: overview || null, vision: desc || null, tags: (ss.tags || []).slice(0, 2) }, s.planned ? {} : { min_people: ss.need || null })).eq('id', s.id));
         else must(await sb.rpc('admin_edit_spark', { p_spark: s.id, p_text: s.text, p_hopes: hopes, p_overview: overview }));
         if (send) await sendUpdate(s, msg);
@@ -6662,6 +6686,7 @@
       run(async () => {
         if (priv !== s.visibility) must(await sb.from('sparks').update({ visibility: priv }).eq('id', s.id));
         if (isLead(s) && (ss.guestInv !== false) !== (s.guestInvites !== false)) must(await sb.from('sparks').update({ guest_invites: ss.guestInv !== false }).eq('id', s.id));
+        if (isLead(s) && (ss.cap || null) !== (s.cap || null)) must(await sb.from('sparks').update({ cap: ss.cap || null }).eq('id', s.id));   // Limit RSVPs (Design v8-18, 2)
         if (add.length) must(await sb.from('spark_groups').insert(add.map(g => ({ spark_id: s.id, group_id: g }))));
         if (home !== old) must(await sb.rpc('set_home_group', { p_spark: s.id, p_group: home }));
         if (drop.length) must(await sb.from('spark_groups').delete().eq('spark_id', s.id).in('group_id', drop));
@@ -6839,7 +6864,7 @@
           '<span style="font-size:15px;font-weight:900;color:' + (onIt ? '#5b4ae8' : '#0d1117') + '">' + name + '</span><span style="font-size:12.5px;line-height:1.35;font-weight:600;color:#6b7280">' + sub + '</span></div>'; };
       const mine = groupsInOrder();
       body = '<div style="display:flex;gap:8px">' + tile(false, 'Public', 'Everyone in your groups') + tile(true, 'Private', 'Only people you invite') + '</div>' +
-        (isLead(s) ? guestInvSwitch(ss.guestInv !== false, () => set({ guestInv: ss.guestInv === false })) : '') +
+        (isLead(s) ? guestInvSwitch(ss.guestInv !== false, () => set({ guestInv: ss.guestInv === false })) + capCard(ss.cap, (v) => set({ cap: v }), 'background:#f4f5f7;border-radius:16px') : '') +
         '<div style="display:flex;flex-direction:column;gap:6px">' + label('Post to') +
           // Round 65c: the home group stays ticked; another ticked group can be made home, then the old one unticked
           mine.map(g => {
@@ -7842,8 +7867,19 @@
         '<span style="flex:1;min-width:0;font-size:17px;font-weight:900;color:' + ink + '">' + t + '</span>' +
         (isLead(s) ? '<button type="button" ' + on(() => setState({ roleSheet: { id: s.id, view: 'main', reason: '' } })) + ' data-role-change style="flex:0 0 auto;padding:8px 4px;border:0;background:transparent;font-family:inherit;font-size:15px;font-weight:800;color:#5b4ae8;cursor:pointer">Change</button>' : '<button type="button" ' + on(() => setState({ rsvpEdit: s.id })) + ' data-rsvp-change style="flex:0 0 auto;padding:8px 4px;border:0;background:transparent;font-family:inherit;font-size:15px;font-weight:800;color:#5b4ae8;cursor:pointer">Change</button>') + '</div>'; })();
     const nGo = headN(s), nMaybe = maybes(s).length;
+    // At the cap (Design v8-18, 3): people who aren't going see Full · 20 of 20 and N waiting over the tiles, and the Going
+    // tile becomes a dark Join waitlist (You'd be 3rd). On the waitlist, the folded line is Waitlist · 3rd in line
+    const full = isFull(s) && my !== 'going' && !hosting, inLine = (s.waits || []).indexOf(st.me) + 1;
+    const waitBar = inLine && !hosting && my !== 'going' && st.rsvpEdit !== s.id ? '<div data-rsvp-bar="wait" style="display:flex;align-items:center;gap:10px;height:54px;padding:0 12px 0 14px;box-sizing:border-box;border-radius:16px;background:#f2f3f6">' +
+        '<span aria-hidden="true" style="flex:0 0 28px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;color:#454b55">' + svg(22, stroke('currentColor', 2.2), '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>') + '</span>' +
+        '<span style="flex:1;min-width:0;font-size:17px;font-weight:900;color:#454b55">Waitlist · ' + ordinal(inLine) + ' in line</span>' +
+        '<button type="button" ' + on(() => setState({ rsvpEdit: s.id })) + ' data-rsvp-change style="flex:0 0 auto;padding:8px 4px;border:0;background:transparent;font-family:inherit;font-size:15px;font-weight:800;color:#5b4ae8;cursor:pointer">Change</button></div>' : '';
+    const fullChip = !full ? '' : '<div data-rsvp-full style="display:flex;align-items:center;gap:10px"><span style="display:flex;align-items:center;height:28px;padding:0 11px;border-radius:999px;background:#f2f3f6;font-size:13px;font-weight:900;color:#454b55">Full · ' + s.cap + ' of ' + s.cap + '</span>' +
+      ((s.waits || []).length ? '<span style="font-size:13.5px;font-weight:600;color:#6b7280">' + s.waits.length + ' waiting</span>' : '') + '</div>';
+    const waitBtn = '<button type="button" ' + on(() => { if (st.rsvpEdit) setState({ rsvpEdit: null }); inLine ? leaveEventWait(s) : joinEventWait(s); }) + ' data-join-waitlist style="min-height:54px;border:0;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-family:inherit;cursor:pointer;background:#0d1117;color:#fff">' +
+      '<span style="font-size:15.5px;font-weight:900">' + (inLine ? 'Leave waitlist' : 'Join waitlist') + '</span>' + (inLine ? '' : '<span style="font-size:12px;font-weight:700;color:#c3c7cf">You’d be ' + ordinal((s.waits || []).length + 1) + '</span>') + '</button>';
     const rsvpBlock = s.cancelledAt ? '' : '<div data-rsvp style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:12px">' +
-      (showBar ? rsvpBar : '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">' + rsvpBtn('going', 'Going') + rsvpBtn('maybe', 'Maybe') + rsvpBtn('no', 'Can’t') + '</div>') +
+      (waitBar || (showBar ? rsvpBar : fullChip + '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">' + (full ? waitBtn : rsvpBtn('going', 'Going')) + rsvpBtn('maybe', 'Maybe') + rsvpBtn('no', 'Can’t') + '</div>')) +
       // The faces row always draws (Design v8), See all › opening Who's coming
       // Signed out and no reply yet (short links spec, v8-8): grey circles in five shades, still See all ›, which asks them
       // to RSVP first in the amber toast (Design v8-8 prototype visitorLocked)
@@ -8144,21 +8180,22 @@
   const toggleStyle = (onIt) => ['flex:0 0 46px;width:46px;height:28px;border-radius:999px;position:relative;transition:background .15s;background:' + (onIt ? '#f5b428' : '#dcdfe6'),
     'position:absolute;left:' + (onIt ? 21 : 3) + 'px;top:3px;width:22px;height:22px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(13,17,23,.25);transition:left .15s'];
   const segBtn = (onIt, label, fn, attr) => '<span ' + on(fn) + ' ' + (attr || '') + ' aria-pressed="' + onIt + '" style="flex:1 1 0;display:flex;align-items:center;justify-content:center;min-height:38px;border-radius:999px;font-size:14.5px;font-weight:' + (onIt ? 800 : 700) + ';cursor:pointer;background:' + (onIt ? '#fff' : 'transparent') + ';color:' + (onIt ? '#0d1117' : '#6b7280') + ';box-shadow:' + (onIt ? '0 1px 3px rgba(13,17,23,.12)' : 'none') + '">' + label + '</span>';
-  // HOW PEOPLE CAN HELP: Talk it through with someone? and Who leads it (the Float sheet's page 2 and the starter's page)
+  // HOW PEOPLE CAN HELP: People can reach out (Design v8-18, 1j; was Open to ideas) and Who leads it, I'll lead it first
+  // (1k) (the Float sheet's page 2 and the starter's page)
   const helpCard = (talk, rule, onTalk, onRule, onInfo) => { const [tr, kn] = toggleStyle(talk);
     return '<div style="background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08);overflow:hidden">' +
       '<div ' + on(onTalk, 'switch') + ' aria-checked="' + talk + '" data-talk-toggle style="display:flex;align-items:center;gap:12px;min-height:60px;padding:0 14px;cursor:pointer">' + svg(20, stroke('#b07a0a', 2.2), '<path d="M5 18l-1.5 3 4-1.6A8 8 0 1 0 5 18z"/>') +
-        '<div style="flex:1;display:flex;flex-direction:column"><span style="font-size:15.5px;font-weight:800;color:#0d1117">Open to ideas</span><span style="font-size:13px;font-weight:600;color:#6b7280">People can share thoughts with you</span></div>' +
+        '<div style="flex:1;display:flex;flex-direction:column"><span style="font-size:15.5px;font-weight:800;color:#0d1117">People can reach out</span><span style="font-size:13px;font-weight:600;color:#6b7280">Let people contact you to talk it through</span></div>' +
         '<span style="' + tr + '"><span style="' + kn + '"></span></span></div>' +
       '<span style="display:block;height:1px;margin:0 14px;background:#eceef2"></span>' +
       '<div style="display:flex;flex-direction:column;gap:10px;padding:12px 14px 14px"><div style="display:flex;align-items:center;gap:12px">' + svg(20, stroke('#b07a0a', 2.2), '<path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/>') +
         '<span style="flex:1;font-size:15.5px;font-weight:800;color:#0d1117">Who leads it</span>' +
         '<span ' + on(onInfo) + ' aria-label="What’s the difference?" style="display:flex;width:32px;height:32px;align-items:center;justify-content:center;cursor:pointer"><span style="display:flex;width:18px;height:18px;border-radius:999px;box-shadow:inset 0 0 0 1.6px #9aa0ac;align-items:center;justify-content:center;font-size:11px;font-weight:900;color:#6b7280">i</span></span></div>' +
-        '<div style="display:flex;gap:3px;padding:3px;border-radius:999px;background:#e8eaee">' + segBtn(rule !== 'me', 'Find a lead', () => onRule('decide'), 'data-rule="decide"') + segBtn(rule === 'me', 'I’ll lead it', () => onRule('me'), 'data-rule="me"') + '</div></div></div>'; };
+        '<div style="display:flex;gap:3px;padding:3px;border-radius:999px;background:#e8eaee">' + segBtn(rule === 'me', 'I’ll lead it', () => onRule('me'), 'data-rule="me"') + segBtn(rule !== 'me', 'Find a lead', () => onRule('decide'), 'data-rule="decide"') + '</div></div></div>'; };
   const ruleInfo = (close) => popCard('Who leads it?', close, '', '',
     '<span style="font-size:22px;font-weight:900;letter-spacing:-.4px;color:#0d1117;padding-right:40px">Who leads it?</span>' +
-    '<div style="display:flex;flex-direction:column;gap:4px;padding:12px 14px;border-radius:14px;background:#f6f7f9"><span style="font-size:16px;font-weight:900;color:#0d1117">Find a lead</span><span style="font-size:15px;line-height:1.45;font-weight:500;color:#454b55">You floated it. Someone interested can offer to lead, and you pick who.</span></div>' +
     '<div style="display:flex;flex-direction:column;gap:4px;padding:12px 14px;border-radius:14px;background:#f6f7f9"><span style="font-size:16px;font-weight:900;color:#0d1117">I’ll lead it</span><span style="font-size:15px;line-height:1.45;font-weight:500;color:#454b55">You pick the date and make it happen.</span></div>' +
+    '<div style="display:flex;flex-direction:column;gap:4px;padding:12px 14px;border-radius:14px;background:#f6f7f9"><span style="font-size:16px;font-weight:900;color:#0d1117">Find a lead</span><span style="font-size:15px;line-height:1.45;font-weight:500;color:#454b55">You floated it. Someone interested can offer to lead, and you pick who.</span></div>' +
     goldBtn(close, 'Got it'), 47);
   // Private ideas (owner, 2026-10-08): the same Public / Private as a plan (visibility 'invite': only the people the
   // host invites, plus the hosts and the groups' admins), in gold. Radios for the Float sheet and the Post to pop-up
@@ -8177,7 +8214,8 @@
   const ideaDraftKey = () => 'spark-hub-idea-draft-' + (state.me || 'guest');
   const readIdeaDraft = () => { try { return JSON.parse(localStorage.getItem(ideaDraftKey())); } catch (e) { return null; } };
   const writeIdeaDraft = (d) => { try { if (d) localStorage.setItem(ideaDraftKey(), JSON.stringify(d)); else localStorage.removeItem(ideaDraftKey()); return true; } catch (e) { return false; } };
-  const qiBlank = () => ({ draftId: null, page: 1, title: '', why: '', photo: null, more: false, date: null, dpoll: null, loc: null, lpoll: null, groups: currentGroup() ? [currentGroup().id] : myGroups().slice(0, 1).map(g => g.id), gOpen: false, talk: false, rule: 'decide', priv: false, fromCompose: false });
+  const QI_WHY = OV_MAX;   // Float page 1's QUICK DESCRIPTION: Design v8-18 (1r) draws 120; the owner's 200 for every short description stands until they say
+  const qiBlank = () => ({ draftId: null, page: 1, title: '', why: '', photo: null, more: false, date: null, dpoll: null, loc: null, lpoll: null, groups: currentGroup() ? [currentGroup().id] : myGroups().slice(0, 1).map(g => g.id), gOpen: false, talk: false, rule: 'me', priv: false, fromCompose: false });   // I'll lead it is the default (Design v8-18, 1k)
   const openFloat = (pre) => needSignIn(() => {
     if (!myGroups().length) { if (state.loaded) openJoin(); return; }
     const acct = !pre ? state.drafts.find(x => (x.data || {}).kind === 'float') : null;
@@ -8199,7 +8237,7 @@
     const x = dr.data || {}, str = (v) => typeof v === 'string' ? v : '', photo = PHOTO_PATH.test(x.photo || '') ? { path: x.photo, url: photoUrl(x.photo) } : null;
     const groups = (Array.isArray(x.groups) ? x.groups : []).filter(id => groupById(id));
     setState({ plusMenu: false, dashAll: null, qi: Object.assign(qiBlank(), { title: str(x.title).slice(0, TITLE_MAX), why: str(x.why).slice(0, OV_MAX), more: !!x.more, date: x.date && typeof x.date === 'object' ? x.date : null,
-      dpoll: Array.isArray(x.dpoll) ? x.dpoll : null, loc: str(x.loc) || null, lpoll: Array.isArray(x.lpoll) ? x.lpoll : null, talk: !!x.talk, rule: x.rule === 'me' ? 'me' : 'decide', priv: !!x.priv,
+      dpoll: Array.isArray(x.dpoll) ? x.dpoll : null, loc: str(x.loc) || null, lpoll: Array.isArray(x.lpoll) ? x.lpoll : null, talk: !!x.talk, rule: x.rule === 'decide' ? 'decide' : 'me', priv: !!x.priv,
       groups: groups.length ? groups : qiBlank().groups, photo, draftId: dr.id, page: 1 }), qiPop: null });
     toast('Picked up your draft', true);
   };
@@ -8323,11 +8361,16 @@
         '<div style="' + PAPER + ';padding:34px 16px 28px;display:flex;flex-direction:column;gap:12px">' + GRAB + IDEA_CHIP +
           '<span style="font-size:28px;line-height:1.1;font-weight:900;letter-spacing:-.6px;color:#0d1117">What’s your idea?</span></div>' +
         '<div style="padding:20px 16px 0;display:flex;flex-direction:column;gap:18px">' +
-          // One open box (Design v8-17, 4a): the first line is the title, the rest the description
-          '<label style="display:flex;flex-direction:column;gap:6px"><textarea data-qi-title rows="4" aria-label="Your idea" placeholder="Throw out whatever comes to mind…" ' + onInput(e => { if (e.type !== 'input') return; const v = e.target.value, k = v.indexOf('\n');
-              set(k < 0 ? { title: v.slice(0, TITLE_MAX), why: '', nl: false } : { title: v.slice(0, k).slice(0, TITLE_MAX), why: v.slice(k + 1).slice(0, OV_MAX), nl: true }); }) +
-            ' style="width:100%;box-sizing:border-box;border:0;outline:0;border-radius:16px;background:#fff;' + ring(!!q.title) + 'padding:14px 16px;min-height:132px;font-family:inherit;font-size:17px;line-height:1.45;font-weight:600;color:#0d1117;resize:none">' + esc(q.title + (q.why || q.nl ? '\n' + q.why : '')) + '</textarea>' +
-            '<span style="padding:0 4px;font-size:13px;font-weight:600;color:#8a909b">The first line becomes the title.</span></label>' +
+          // Two fields again (Design v8-18, 1r; overrides v8-17's one open box): YOUR IDEA on one line (60) and QUICK
+          // DESCRIPTION (120); each gets the gold ring once filled
+          '<label style="display:flex;flex-direction:column;gap:8px">' + label('YOUR IDEA') +
+            '<span style="position:relative;display:block"><input type="text" data-qi-title maxlength="' + TITLE_MAX + '" aria-label="Your idea" placeholder="Porch concert on Elm St" value="' + esc(q.title) + '" ' + onInput(e => { if (e.type === 'input') set({ title: e.target.value.slice(0, TITLE_MAX) }); }) +
+              ' style="width:100%;box-sizing:border-box;height:54px;border:0;outline:0;border-radius:16px;background:#fff;' + ring(!!q.title.trim()) + 'padding:0 64px 0 16px;font-family:inherit;font-size:18px;font-weight:800;color:#0d1117">' +
+            '<span style="position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:11.5px;font-weight:700;color:#9aa0ac;pointer-events:none">' + q.title.length + '/' + TITLE_MAX + '</span></span></label>' +
+          '<label style="display:flex;flex-direction:column;gap:8px">' + label('QUICK DESCRIPTION', true) +
+            '<span style="position:relative;display:block"><textarea data-qi-why rows="3" maxlength="' + OV_MAX + '" aria-label="Quick description" placeholder="Bring a chair, we’ll bring the music. Thinking a Sunday evening in late October." ' + onInput(e => { if (e.type === 'input') set({ why: e.target.value.replace(/\n/g, ' ').slice(0, QI_WHY) }); }) +
+              ' style="display:block;width:100%;box-sizing:border-box;border:0;outline:0;border-radius:16px;background:#fff;' + ring(!!(q.why || '').trim()) + 'padding:14px 16px 26px;font-family:inherit;font-size:16px;line-height:1.45;font-weight:600;color:#0d1117;resize:none">' + esc(q.why || '') + '</textarea>' +
+            '<span style="position:absolute;right:14px;bottom:8px;font-size:11.5px;font-weight:700;color:#9aa0ac;pointer-events:none">' + (q.why || '').length + '/' + QI_WHY + '</span></span></label>' +
           '<div style="display:flex;flex-direction:column;gap:8px">' + label('ADD A PHOTO', true) +
             (q.photo ? '<div style="display:flex;align-items:center;gap:12px"><span ' + on(() => setState({ zoom: { photos: [q.photo.url], i: 0 } })) + ' aria-label="View the photo" style="width:96px;height:72px;border-radius:10px;cursor:zoom-in;background:' + bg(q.photo.url) + ';box-shadow:0 2px 6px rgba(13,17,23,.15)"></span>' +
                 '<span ' + on(() => set({ photo: null })) + ' style="display:flex;align-items:center;min-height:40px;font-size:14.5px;font-weight:800;color:#8f6405;cursor:pointer">Remove</span></div>'
@@ -8335,8 +8378,9 @@
                 '<span style="font-size:15px;font-weight:800;color:#8f6405">Add a photo</span><input type="file" accept="image/*" aria-label="Add a photo" ' + onInput(e => { if (e.type !== 'change') return; const f = (e.target.files || [])[0]; e.target.value = ''; qiPhoto(f); }) + ' style="display:none"></label>') + '</div>' +
         '</div>' + more + '</div>' +
       '<div style="flex-shrink:0;padding:12px 16px 28px;display:flex;flex-direction:column;gap:4px;background:#e8eaee">' +
-        (q.more ? '' : '<div data-qi-more style="display:flex;align-items:center;justify-content:center;gap:8px;padding-bottom:6px"><span style="font-size:13px;font-weight:700;color:#9aa0ac">Optional</span>' +
-          ['+ Date', '+ Location'].map(l => '<span ' + on(() => set({ more: true })) + ' role="button" style="display:flex;align-items:center;height:36px;padding:0 13px;border-radius:999px;border:1.5px dashed #d9c58a;font-size:14px;font-weight:800;color:#8f6405;cursor:pointer">' + l + '</span>').join('') + '</div>') +
+        // Add more details › opens DATE and LOCATION in place, then reads Fewer details (Design v8-18, 1r)
+        '<span ' + on(() => set({ more: !q.more })) + ' role="button" data-qi-more aria-expanded="' + !!q.more + '" style="align-self:center;display:flex;align-items:center;gap:6px;min-height:40px;margin-bottom:4px;font-size:15px;font-weight:800;color:#454b55;cursor:pointer">' +
+          (q.more ? 'Fewer details' + svg(14, stroke('currentColor', 2.6), '<path d="m6 15 6-6 6 6"/>') : 'Add more details' + svg(14, stroke('currentColor', 2.6), '<path d="m9 6 6 6-6 6"/>')) + '</span>' +
         '<button type="button" data-qi-next ' + on(() => { if (!ok) { toast('Add a title first'); return; } set({ page: 2, gOpen: false }); }) + ' style="width:100%;min-height:54px;border:0;border-radius:999px;background:' + (ok ? '#f5b428' : '#f6d985') + ';color:' + (ok ? '#2a1d00' : '#6b5418') + ';box-shadow:' + (ok ? '0 6px 16px rgba(245,180,40,.4)' : 'none') + ';font-family:inherit;font-size:16.5px;font-weight:900;cursor:pointer">Next</button>' + draftLink + '</div>';
     // Page 2: the snapshot recap, WHERE IT GOES and HOW PEOPLE CAN HELP
     const G = myGroups(), sel = q.groups.filter(id => groupById(id)), g0 = groupById(sel[0]);
@@ -8533,12 +8577,15 @@
   // The member's way to lead it (the build's bridge until BRIEF-float-the-idea is drawn): with Who leads it = Anyone, or once
   // asked, Lead it takes the lead; with I decide, Offer to lead marks you (interested, can help) for the starter's
   // Choose a lead, and the row reads "You offered · {starter} decides". Only people in the idea's groups
-  const offerToLead = (s) => needAccount(() => {
-    const was = s.interested.indexOf(state.me) > -1;
-    quick(s, { interested: was ? s.interested : [state.me].concat(s.interested), canHelp: s.canHelp.concat(state.me) },
-      async () => { must(was ? await sb.from('interests').update({ can_help: true }).eq('spark_id', s.id).eq('user_id', state.me) : await sb.from('interests').insert({ spark_id: s.id, user_id: state.me, can_help: true })); });
+  // Offer to lead opens a pop-up with an optional note for the starter (Design v8-18, 4); Send offer sends it
+  const offerToLead = (s) => needAccount(() => { if (s.canHelp.indexOf(state.me) > -1) { toast('You already offered'); return; } ipPop({ k: 'offer', id: s.id, note: '' }); });
+  const sendOffer = (s, note) => {
+    const was = s.interested.indexOf(state.me) > -1, n = (note || '').trim().slice(0, 120), row = { can_help: true, offer_note: n || null };   // a re-offer without a note clears the old one
+    setState({ ipPop: null });
+    quick(s, { interested: was ? s.interested : [state.me].concat(s.interested), canHelp: s.canHelp.concat(state.me), offerNotes: Object.assign({}, s.offerNotes, n ? { [state.me]: n } : {}) },
+      async () => { must(was ? await sb.from('interests').update(row).eq('spark_id', s.id).eq('user_id', state.me) : await sb.from('interests').insert(Object.assign({ spark_id: s.id, user_id: state.me }, row))); });
     toast('Offer sent to ' + starterFirst(s), true);
-  });
+  };
   const withdrawOffer = (s) => {
     quick(s, { canHelp: s.canHelp.filter(u => u !== state.me) },
       async () => { must(await sb.from('interests').update({ can_help: false }).eq('spark_id', s.id).eq('user_id', state.me)); });
@@ -8557,13 +8604,45 @@
       '<span style="font-size:15px;line-height:1.4;font-weight:500;color:#454b55;text-wrap:pretty">You’d pick the date and make it happen. ' + esc(first) + ' chooses from the people who offer.</span>' +
       '<span ' + on(() => offerToLead(s)) + ' role="button" data-offer-lead style="min-height:50px;border-radius:999px;background:#f5b428;color:#2a1d00;font-size:16px;font-weight:900;display:flex;align-items:center;justify-content:center;cursor:pointer">Offer to lead</span></div>';
   };
-  const helpMakePlan = (s) => '<div style="' + GRAPH_CARD + '" data-help-make-plan>' +
-    '<div style="display:flex;align-items:center;gap:6px">' + ideaH('Help make this a Plan') +
-      '<span ' + on(() => ipPop({ k: 'whatPlan' })) + ' aria-label="What’s a Plan?" style="width:32px;height:32px;margin:-6px 0;display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(18, stroke('#6b7280', 2.2), '<circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".6" fill="#6b7280"/>') + '</span></div>' +
-    helpRow(() => share8(s), '<circle cx="9" cy="8.5" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M18 8v6M15 11h6"/>', 'Invite a friend', true) +
-    (s.dayDate ? '' : helpRow(() => s.dateOpts.length > 1 ? ipPop({ k: 'dates', id: s.id }) : ipPopAcct(s, { k: 'sugD', id: s.id, d: '', t: '' }), CAL_P, s.dateOpts.length > 1 ? 'Vote on a date' : 'Suggest a date')) +   // the date or place is picked: nothing to vote on
-    (s.spot ? '' : helpRow(() => ipPopAcct(s, { k: 'sugL', id: s.id, v: '' }), PIN_P, 'Suggest a location')) +
-    (showTalk(s) ? helpRow(() => ipPop({ k: 'talk', id: s.id }), '<path d="M5 18l-1.5 3 4-1.6A8 8 0 1 0 5 18z"/><path d="M9 11h6M9 14h4"/>', 'Talk it through with ' + esc(starterFirst(s))) : '') + '</div>';
+  // The member's notepad (Design v8-18, 1h + 9b + 10a): the starter's gold band, To dos (Ready to be a Plan once all three
+  // are set) with ⓘ and an N of 3 bar, then a row each for the date, the location and the lead, the missing ones first.
+  // A piece is done once it's picked (a single suggestion isn't). Invite a friend and Talk it through have their own cards
+  const helpMakePlan = (s) => {
+    const dDone = dateAhead(s), lDone = !!s.spot, ldDone = leadsIt(s), offered = s.canHelp.indexOf(state.me) > -1;
+    const dates = s.dateOpts, locs = s.spotOpts, top = (arr) => arr.slice().sort((a, b) => b.votes.length - a.votes.length)[0];
+    const voteDates = () => dates.length ? ipPop({ k: 'dates', id: s.id }) : ipPopAcct(s, { k: 'sugD', id: s.id, d: '', t: '' });
+    const toWhere = () => { const w = document.querySelector('[data-where], [data-where-empty]'); if (w) w.scrollIntoView({ behavior: 'smooth', block: 'center' }); };
+    const rows = [
+      { k: 'd', done: dDone, title: dDone ? 'Date' : 'Pick a date', val: dDone ? dayLabel(s.dayDate, s.dayTime) + (setPart(s) ? ' · ' + setPart(s) : '') : '',
+        sub: !dates.length ? 'No dates yet' : dates.length === 1 ? optDay(dates[0]) + ' suggested · vote or suggest another' : dates.length + ' dates suggested · vote for yours',
+        act: dates.length ? 'Vote' : 'Suggest', tap: voteDates },
+      { k: 'l', done: lDone, title: lDone ? 'Location' : 'Pick a location', val: s.spot,
+        sub: !locs.length ? 'No location yet' : locs.length === 1 ? top(locs).name + ' suggested · vote or suggest another' : locs.length + ' places suggested · vote for yours',
+        act: locs.length ? 'Vote' : 'Suggest', tap: () => locs.length ? toWhere() : ipPopAcct(s, { k: 'sugL', id: s.id, v: '' }) },
+      { k: 'ld', done: ldDone, title: ldDone ? 'Lead' : 'Find someone to lead', val: ldDone ? (isTheLead(s) ? 'You' : nameOf(s.leadId, s.leadName)) : '',
+        sub: offered ? 'You offered · waiting on ' + starterFirst(s) : 'No one yet · you could', act: offered || !inItsGroups(s) ? '' : 'Offer',
+        tap: () => { if (ldDone) return; if (offered) { toast('You already offered'); return; } offerToLead(s); } }
+    ];
+    const have = rows.filter(r => r.done).length;
+    const row = (r, i) => '<div ' + (r.done ? '' : on(r.tap)) + ' data-todo="' + r.k + '"' + (r.done ? ' data-todo-done' : '') + ' style="display:flex;align-items:center;gap:12px;min-height:56px;' + (i ? 'border-top:1px solid #d3e2f3;' : '') + (r.done ? '' : 'cursor:pointer') + '">' +
+      (r.done ? '<span aria-hidden="true" style="flex:0 0 30px;width:30px;height:30px;border-radius:999px;background:#f5b428;display:flex;align-items:center;justify-content:center">' + svg(15, stroke('#2a1d00', 2.6), '<path d="m5 12.5 4.5 4.5L19 7.5"/>') + '</span>'
+        : '<span aria-hidden="true" style="flex:0 0 30px;width:30px;height:30px;box-sizing:border-box;border-radius:999px;border:1.5px dashed #d9a83a;background:#fff"></span>') +
+      '<div style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:16px;font-weight:900;color:#0d1117">' + r.title + '</span>' +
+        '<span style="font-size:13px;font-weight:600;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(r.done ? r.val : r.sub) + '</span></div>' +
+      (!r.done && r.act ? '<span style="flex:0 0 auto;font-size:15px;font-weight:900;color:#8f6405">' + r.act + '</span>' : '') + '</div>';
+    return '<div data-help-make-plan style="position:relative;margin:4px;' + GRAPH_BG + ';border-radius:8px;padding:0 16px 12px;overflow:hidden;display:flex;flex-direction:column;gap:4px;transform:rotate(-1deg);box-shadow:0 4px 14px rgba(13,17,23,.14)">' +
+      '<div style="position:relative;overflow:hidden;margin:0 -16px 6px;padding:13px 16px 11px;background:linear-gradient(160deg,#fde39a 0%,#fbd56b 55%,#f8c94f 100%)">' + sparkles([[82, 18, 16, '#fff', .9], [91, 56, 9, '#fff', .7], [74, 60, 7, '#d6246e', .8]]) +
+        '<div style="position:relative;display:flex;flex-direction:column;gap:8px"><div style="display:flex;align-items:center;gap:6px">' +
+          '<span style="font-size:24px;line-height:1.1;font-weight:900;letter-spacing:-.6px;color:#2a1d00">' + (have === 3 ? 'Ready to be a Plan' : 'To dos') + '</span>' +
+          '<span ' + on(() => ipPop({ k: 'whatPlan' })) + ' aria-label="What’s a Plan?" style="width:32px;height:32px;margin:-6px 0;display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(18, stroke('#8f6405', 2.2), '<circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".6" fill="#8f6405"/>') + '</span></div>' +
+          '<div style="display:flex;align-items:center;gap:10px"><span aria-hidden="true" style="flex:1;height:8px;border-radius:999px;background:rgba(255,255,255,.55);overflow:hidden"><span style="display:block;width:' + Math.round(have / 3 * 100) + '%;height:100%;border-radius:999px;background:#2a1d00;transition:width .3s"></span></span>' +
+            '<span data-todo-count style="font-size:13px;font-weight:900;color:#2a1d00">' + have + ' of 3</span></div></div></div>' +
+      rows.filter(r => !r.done).concat(rows.filter(r => r.done)).map(row).join('') + '</div>' +
+      // Invite a friend has its own card under the note (Design v8-18 prototype)
+      '<div data-invite-friend-card style="background:#fff;border-radius:20px;box-shadow:0 1px 3px rgba(15,18,25,.08);display:flex;align-items:center;gap:12px;padding:12px 16px">' +
+        '<span style="flex:1;font-size:16px;font-weight:800;color:#0d1117">Invite a friend</span>' +
+        '<span ' + on(() => share8(s)) + ' role="button" class="hov-gold" style="display:flex;align-items:center;min-height:40px;padding:0 18px;border-radius:999px;background:#f5b428;color:#2a1d00;font-size:14px;font-weight:800;cursor:pointer">Invite</span></div>';
+  };
   const talkCard = (s) => !showTalk(s) ? '' : '<div style="' + CARD8 + '" data-talk-card>' + ideaH('Talk it through with ' + esc(starterFirst(s))) +
     '<div style="display:flex;align-items:flex-start;gap:12px">' + avatarSpan(s.createdBy, floaterName(s), avatarOf(s.createdBy), 40) +
       '<span style="flex:1;font-size:16px;line-height:1.45;font-weight:500;color:#2a2f38;text-wrap:pretty">' + esc(talkLine(s)) + '</span></div>' + contactBtn(s) + '</div>';
@@ -8615,7 +8694,9 @@
         ldDone && !isTheLead(s) ? '' : act(ldDone, ldDone ? 'Change' : 'Choose', () => ldDone ? setState({ leadsSheet: s.id }) : ipPop({ k: 'lead', id: s.id }), 'data-plan-lead')) +
       // Offers sit inside the note under the lead row; Pick asks once (Design v8-17 item 11)
       (!ldDone && helpers.length ? '<div data-lead-offers style="display:flex;flex-direction:column;padding-left:42px">' + helpers.map(u => '<div style="display:flex;align-items:center;gap:10px;min-height:46px;border-top:1px dashed #d3e2f3">' +
-        avatarSpan(u, nameOf(u), avatarOf(u), 28) + '<span style="flex:1;min-width:0;font-size:15px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(nameOf(u)) + '</span>' +
+        avatarSpan(u, nameOf(u), avatarOf(u), 28) + '<span style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:15px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(nameOf(u)) + '</span>' +
+          // the note they offered with, in italics (Design v8-18, 4)
+          ((s.offerNotes || {})[u] ? '<span data-offer-note style="font-size:13px;line-height:1.35;font-style:italic;font-weight:500;color:#454b55;overflow-wrap:anywhere">' + esc(s.offerNotes[u]) + '</span>' : '') + '</span>' +
         '<span ' + on(() => confirmPickLead(s, u)) + ' role="button" data-pick-lead style="display:flex;align-items:center;min-height:40px;padding:0 4px;font-size:15px;font-weight:900;color:#8f6405;cursor:pointer">Pick</span></div>').join('') + '</div>' : '') +
       // v8-8 items 1–3: grey until every row is ticked, then the purple sparkle button, which opens Review prefilled
       (ldDone && !iLead(s) ? '<span style="margin-top:8px;font-size:13.5px;font-weight:600;color:#6b7280">' + esc(leadName) + ' will make it a Plan.</span>'
@@ -8832,6 +8913,14 @@
             if (gone.length) must(await sb.from(day ? 'date_options' : 'spot_options').delete().in('id', gone));
             if (adds.length) must(await sb.from(day ? 'date_options' : 'spot_options').insert(adds));
           }, { ipPop: null }).then(ok => { if (ok) toast('Saved', true); }); }, 'Save', 'data-ip-pop-done')); }
+    if (p.k === 'offer') { const note = p.note || '';
+      return popCard('Offer to lead', close, '', '',
+        '<span style="font-size:22px;font-weight:900;letter-spacing:-.4px;color:#0d1117;padding-right:40px">Offer to lead</span>' +
+        '<span style="margin-top:-6px;font-size:15px;line-height:1.4;font-weight:500;color:#454b55">Tell ' + esc(starterFirst(s)) + ' why, or how you’d run it. Optional.</span>' +
+        '<label style="position:relative;display:block"><textarea class="offer-fld" data-offer-note-input rows="3" maxlength="120" aria-label="A note for ' + esc(starterFirst(s)) + '" placeholder="I ran one of these last spring…" ' + onInput(e => { if (e.type === 'input') { state.ipPop = Object.assign({}, state.ipPop, { note: e.target.value.slice(0, 120) }); const c = document.querySelector('[data-offer-count]'); if (c) c.textContent = state.ipPop.note.length + '/120'; } }) +
+          ' style="display:block;width:100%;box-sizing:border-box;margin:0;padding:12px 14px 24px;border:0;border-radius:14px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;outline:none;resize:none;font-family:inherit;font-size:16px;line-height:1.4;font-weight:500;color:#0d1117">' + esc(note) + '</textarea>' +
+          '<span data-offer-count style="position:absolute;right:12px;bottom:6px;font-size:11.5px;font-weight:700;color:#9aa0ac">' + note.length + '/120</span></label>' +
+        '<button type="button" ' + on(() => sendOffer(s, (state.ipPop || {}).note)) + ' data-send-offer class="hov-gold" style="width:100%;min-height:50px;border:0;border-radius:999px;background:#f5b428;color:#2a1d00;font-family:inherit;font-size:16px;font-weight:900;cursor:pointer">Send offer</button>', 47, true); }
     if (p.k === 'lead') { const helpers = s.canHelp.filter(u => u !== state.me && u !== s.leadId);
       return popCard('Choose a lead', close, 'Choose a lead', 'The lead sets the details and makes it a Plan.',
         (iLead(s) ? '' : '<span ' + on(() => { close(); setWantsHost(s, false).then(ok => { if (ok) toast('You’re leading it', true); }); }) + ' data-lead-me style="display:flex;align-items:center;justify-content:center;gap:8px;min-height:52px;border-radius:999px;background:#f5b428;font-size:16px;font-weight:900;color:#2a1d00;cursor:pointer">' + svg(18, stroke('#2a1d00', 2.4), '<path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/>') + 'I’ll lead it</span>') +
@@ -9218,7 +9307,7 @@
       setState({ locAddr: (p.poi ? p.address : p.address || p.name).slice(0, 120), locPlace: p, locText: p.poi && !cleanTitle(state.locText) ? p.name : state.locText, locSuggest: [] }); };
     return '<div style="position:relative;display:flex;flex-direction:column;gap:8px">' +
       '<label style="' + FLD + '">' + svg(18, stroke('#9aa0ac', 2.2), CP_PIN) +
-        '<input class="fld" type="text" maxlength="120" autocomplete="off" data-loc-addr aria-label="Address" placeholder="Address" value="' + esc(st.locAddr || '') + '" ' +
+        '<input class="fld" type="text" maxlength="120" autocomplete="off" data-loc-addr aria-label="Address" placeholder="Address (optional)" value="' + esc(st.locAddr || '') + '" ' +
           onInput(e => { if (e.type !== 'input') return; const v = e.target.value.slice(0, 120); setState({ locAddr: v, locPlace: null }); findPlaces(v, 'addr'); }) + ' style="' + IN + '"></label>' +
       (!st.locPlace && st.locSuggest.length ? '<div role="group" aria-label="Suggested places" style="background:#fff;border:1px solid #eceef2;border-radius:16px;overflow:hidden;box-shadow:0 12px 28px rgba(15,18,25,.08)">' +
           st.locSuggest.slice(0, 4).map((p, i) => '<div ' + on(() => pick(p)) + ' class="hov-row" style="display:flex;align-items:center;gap:12px;padding:10px 14px;cursor:pointer' + (i ? ';border-top:1px solid #f2f3f6' : '') + '">' +
@@ -9319,8 +9408,59 @@
   // (owner, 2026-10-09). Older events' quick details (`hopes`) stay bullets
   const descText = (s) => !s.hopes.length && s.vision && s.vision.trim() ? s.vision.trim() : '';
   // What Edit starts from: the description as typed, or older events' lines joined into sentences
-  const descDraft = (s) => (descText(s) || basicsOf(s).map(b => /[.!?]$/.test(b) ? b : b + '.').join(' ')).slice(0, DESC_MAX);
-  const descHtml = (t, css) => '<div data-desc style="white-space:pre-wrap;overflow-wrap:anywhere;' + css + '">' + esc(t) + '</div>';
+  const descDraft = (s) => (descText(s) || basicsOf(s).map(b => /[.!?]$/.test(b) ? b : b + '.').join(' ')).slice(0, DESC_DB);
+  // Description formatting (Design v8-18, 1b): stored in `vision` as light Markdown, **bold**, *italic*, and lines that
+  // start "- " (bulleted) or "1. " (numbered); a typed * is saved as \*. descPlain() is the text for the 500 count,
+  // cards and previews; descHtml() draws it, escaping the text first, so only b, i, ul, ol, li and div come out
+  const descPlain = (md) => String(md || '').replace(/\\\*/g, '\u0000').replace(/\*/g, '').replace(/^[ \t]*(?:-|\d+\.)[ \t]/gm, '').replace(/\u0000/g, '*');
+  const descInline = (t) => esc(t).replace(/\\\*/g, '&#42;').replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\*(.+?)\*/g, '<i>$1</i>');
+  const descMarkup = (md) => { const out = []; let list = null;
+    const close = () => { if (list) out.push('<' + list.t + ' style="margin:2px 0;padding-left:24px">' + list.items.map(x => '<li>' + descInline(x) + '</li>').join('') + '</' + list.t + '>'); list = null; };
+    String(md || '').split('\n').forEach(line => { const m = /^[ \t]*(-|\d+\.)[ \t](.*)$/.exec(line);
+      if (m) { const t = m[1] === '-' ? 'ul' : 'ol'; if (!list || list.t !== t) { close(); list = { t, items: [] }; } list.items.push(m[2]); }
+      else { close(); out.push('<div>' + (line.trim() ? descInline(line) : '<br>') + '</div>'); } });
+    close(); return out.join(''); };
+  const descHtml = (t, css) => '<div data-desc class="rte" style="overflow-wrap:anywhere;' + css + '">' + descMarkup(t) + '</div>';
+  // The editor's HTML back to Markdown (bold and italic from tags or the inline styles some browsers write)
+  const descFromDom = (el) => { const out = []; let line = '';
+    const flush = () => { out.push(line); line = ''; };
+    const walk = (n, f) => {
+      if (n.nodeType === 3) { line += n.nodeValue.replace(/ /g, ' ').replace(/\n/g, ' ').replace(/\*/g, '\\*'); return; }
+      if (n.nodeType !== 1) return;
+      const tag = n.nodeName, st = n.style || {};
+      if (tag === 'BR') { flush(); return; }
+      if (tag === 'UL' || tag === 'OL') { if (line) flush();
+        Array.from(n.children).forEach((li, k) => { line = tag === 'UL' ? '- ' : (k + 1) + '. '; Array.from(li.childNodes).forEach(c => walk(c, f)); flush(); }); return; }
+      const block = tag === 'DIV' || tag === 'P' || tag === 'LI';
+      if (block && line) flush();
+      const b = !f.b && (tag === 'B' || tag === 'STRONG' || /bold|[6-9]00/.test(st.fontWeight || '')), i = !f.i && (tag === 'I' || tag === 'EM' || st.fontStyle === 'italic');
+      const mark = (b ? '**' : '') + (i ? '*' : '');
+      line += mark; Array.from(n.childNodes).forEach(c => walk(c, { b: f.b || b, i: f.i || i })); line += mark.split('').reverse().join('');
+      if (block && (line || !(n.lastChild && n.lastChild.nodeName === 'BR'))) flush();   // a <div><br></div> is one blank line, not two
+    };
+    Array.from(el.childNodes).forEach(c => walk(c, {}));
+    if (line) flush();
+    return out.join('\n').replace(/\*\*\*\*/g, '').replace(/\n+$/, '').slice(0, DESC_DB); };
+  // The description box with its toolbar (Plan an event and Edit event): Bold · Italic | Bulleted · Numbered. The text
+  // is the editor's own (the morph leaves a focused [data-rte] alone); `set` gets the Markdown
+  const RTE_BTNS = [['bold', 'Bold', '<path d="M7 5h6a3.5 3.5 0 0 1 0 7H7zM7 12h7a3.5 3.5 0 0 1 0 7H7z"/>'], ['italic', 'Italic', '<path d="M10 5h8M6 19h8M14 5l-4 14"/>'], null,
+    ['insertUnorderedList', 'Bulleted list', '<path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1" fill="currentColor"/><circle cx="4.5" cy="12" r="1" fill="currentColor"/><circle cx="4.5" cy="18" r="1" fill="currentColor"/>'],
+    ['insertOrderedList', 'Numbered list', '<path d="M10 6h10M10 12h10M10 18h10M4 5l1.5-1v5M3.5 9h3M3.5 14.5a1.5 1.5 0 1 1 2.5 1.2L3.5 19h3"/>']];
+  const rteBox = (md, set, opts) => { const o = opts || {}, n = descPlain(md).length, over = n > DESC_MAX;
+    return '<div data-rte-box style="position:relative">' +
+      '<div role="toolbar" aria-label="Formatting" style="display:flex;align-items:center;gap:2px;padding:6px 8px;border-bottom:1px solid #f2f3f6">' +
+        RTE_BTNS.map(b => b ? '<span data-rte-btn="' + b[0] + '" ' + on(() => rteDo(b[0])) + ' aria-label="' + b[1] + '" aria-pressed="false" class="rte-btn" style="flex:0 0 36px;width:36px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:#454b55;cursor:pointer">' + svg(18, stroke('currentColor', 2.3), b[2]) + '</span>'
+          : '<span aria-hidden="true" style="width:1px;height:20px;margin:0 6px;background:#e8eaee"></span>').join('') + '</div>' +
+      '<div contenteditable="true" data-rte role="textbox" aria-multiline="true" aria-label="Event description" data-ph="What’s the plan?" ' + onInput(e => { const el = e.target.closest('[data-rte]'); if (el) set(descFromDom(el)); rteMark(); }) +
+        ' data-empty="' + !descPlain(md).trim() + '" class="rte rte-fld" style="min-height:' + (o.h || 132) + 'px;padding:14px 16px 26px;outline:none;font-size:16px;line-height:1.45;font-weight:500;color:#0d1117;overflow-wrap:anywhere;-webkit-user-select:text;user-select:text">' + (descPlain(md).trim() ? descMarkup(md) : '') + '</div>' +
+      '<span data-desc-count style="position:absolute;right:14px;bottom:8px;font-size:11.5px;font-weight:700;color:' + (over ? '#d6246e' : '#9aa0ac') + '">' + n + '/' + DESC_MAX + '</span></div>'; };
+  const rteDo = (cmd) => { const el = document.querySelector('[data-rte]'); if (!el) return;
+    if (document.activeElement !== el) el.focus();
+    try { document.execCommand(cmd, false, null); } catch (e) { /* ignore */ }
+    el.dispatchEvent(new Event('input', { bubbles: true })); };
+  // The buttons light up for what's under the cursor (#5b4ae8 on #f1effd)
+  const rteMark = () => document.querySelectorAll('[data-rte-btn]').forEach(b => { let v = false; try { v = document.queryCommandState(b.getAttribute('data-rte-btn')); } catch (e) { /* ignore */ } b.setAttribute('aria-pressed', String(!!v)); });
+  document.addEventListener('selectionchange', () => { const a = document.activeElement; if (a && a.hasAttribute && a.hasAttribute('data-rte')) rteMark(); });
   const evPhotoUrl = (st) => st.photos[0] ? st.photos[0].url : (PHOTO_PATH.test(st.evPhotoPath || '') ? photoUrl(st.evPhotoPath) : null);
   // Page 1 needs a title and a date (or a date poll), v8-6
   const evFilled = (st) => ({ title: !!cleanTitle(st.activity) && !!st.evDate, when: !!st.evDate, where: !!cleanTitle(st.locText) || !!cleanTitle(st.locAddr || '') || !!st.evSpotPoll,
@@ -9550,12 +9690,13 @@
         const row = {
           group_id: groups[0], author_name: st.myName, text: cleanTitle(st.activity).slice(0, TITLE_MAX),
           // v8-14: the one-page description (200) is the event's details text, shown whole under What to expect
-          hopes: (st.evDesc || '').trim() ? [] : st.evBits.map(b => b.trim().slice(0, 60)).filter(Boolean), vision: (st.evDesc || '').trim().slice(0, DESC_MAX) || null, overview: (st.evOverview || '').trim().slice(0, OV_MAX) || null,
+          hopes: (st.evDesc || '').trim() ? [] : st.evBits.map(b => b.trim().slice(0, 60)).filter(Boolean), vision: (st.evDesc || '').trim().slice(0, DESC_DB) || null, overview: (st.evOverview || '').trim().slice(0, OV_MAX) || null,
           mood: insp.paths, photos: cover ? [cover.path] : [], cat: 'events', answers: {}, lead_id: st.me, lead_name: st.myName, created_by: st.me,
           ...evSpotCols(st),
           ...(() => { const c = whenCols(evWhen()); if (!c.schedule) delete c.schedule; return c; })(),   // multi-day: day_date is the first day, schedule the rest (v8-7)
           planned: plan, visibility: st.evPriv ? 'invite' : 'group', guest_invites: evGuestInv(st), min_people: dated || !MIN_PEOPLE ? null : st.evNeed || null, tags: (st.evTags || []).slice(0, 2),
-          cover_pos: cover && st.coverPos ? posOf(st.coverPos, IDEA_POS) : null
+          cover_pos: cover && st.coverPos ? posOf(st.coverPos, IDEA_POS) : null,
+          ...(st.evCap ? { cap: st.evCap } : {})   // Limit RSVPs (Design v8-18, 2)
         };
         if (float) row.wants_host = true;
         if (st.evHelpNone && !st.evNeeds.length) row.no_help = true;   // No help needed counts as the Jobs step (Design 23C1)   // Just float the idea: it goes up looking for a lead, and the group gets no push (20261102020000_float_and_ask.sql)
@@ -9600,7 +9741,7 @@
   };
 
   // Drafts: the flow's own fields, saved to your account (only you see them)
-  const DRAFT_FIELDS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'evDayType', 'evRepeat', 'evRepeatUntil', 'evEndDate', 'evEndDateT', 'evDays', 'evDaysEach', 'locText', 'locPlace', 'locAddr', 'evBits', 'evOverview', 'evDesc', 'evNeed', 'evTags', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evNoGuestInv', 'evTest', 'evFloat', 'evHelpNone', 'evGroups', 'coverPos'];
+  const DRAFT_FIELDS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'evDayType', 'evRepeat', 'evRepeatUntil', 'evEndDate', 'evEndDateT', 'evDays', 'evDaysEach', 'locText', 'locPlace', 'locAddr', 'evBits', 'evOverview', 'evDesc', 'evCap', 'evNeed', 'evTags', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evNoGuestInv', 'evTest', 'evFloat', 'evHelpNone', 'evGroups', 'coverPos'];
   const saveDraft = () => {
     const st = state;
     if (st.busy) return;
@@ -9642,7 +9783,8 @@
       evDate: /^\d{4}-\d{2}-\d{2}$/.test(x.evDate || '') && x.evDate >= todayISO() ? x.evDate : '', evTime: str(x.evTime), evEnd: str(x.evEnd), evEndOn: !!x.evEndOn,
       locText: str(x.locText).slice(0, 80), locPlace: x.locPlace && typeof x.locPlace === 'object' ? x.locPlace : null, locAddr: str(x.locAddr).slice(0, 120),
       evBits: ['', '', ''], evOverview: str(x.evOverview).slice(0, OV_MAX),
-      evDesc: (str(x.evDesc) || [0, 1, 2].map(i => str((x.evBits || [])[i]).trim()).filter(Boolean).map(b => /[.!?]$/.test(b) ? b : b + '.').join(' ')).slice(0, DESC_MAX),
+      evDesc: (str(x.evDesc) || [0, 1, 2].map(i => str((x.evBits || [])[i]).trim()).filter(Boolean).map(b => /[.!?]$/.test(b) ? b : b + '.').join(' ')).slice(0, DESC_DB),
+      evCap: Number.isInteger(x.evCap) && x.evCap >= 2 && x.evCap <= 500 ? x.evCap : null,
       evInspo: (arr(x.evInspo) || []).filter(q => PHOTO_PATH.test(q || '')).slice(0, 3).map(path => ({ path, url: photoUrl(path) })), evNeed: Number.isInteger(x.evNeed) && x.evNeed > 0 ? Math.min(x.evNeed, 99) : null, evTags: (arr(x.evTags) || []).filter(k => TYPES6.some(t => t[0] === k)).slice(0, 2), evNeeds: arr(x.evNeeds) || [],
       evDatePoll: null, evSpotPoll: null, evLater: x.evLater && typeof x.evLater === 'object' ? x.evLater : {},
       evPriv: !!x.evPriv, evNoGuestInv: x.evNoGuestInv == null ? null : !!x.evNoGuestInv, evTest: typeof x.evTest === 'boolean' ? x.evTest : null, evFloat: false,   // v8-6: the maker always leads it
@@ -9706,7 +9848,8 @@
   // pop-up's scroll box cut them to a 70px strip). FLOAT is filled while the page is drawn and added last by render().
   // Taps outside it go through: they close it and do what was tapped (the click handler)
   let FLOAT = '';
-  const floatPanel = (inner) => { FLOAT = '<div data-float style="position:absolute;inset:0;z-index:95;display:flex;align-items:center;justify-content:center;padding:16px;pointer-events:none;background:rgba(13,17,23,.14);animation:scrimIn 140ms ease-out both">' + inner + '</div>'; };
+  // dim: the date picker's darker scrim, which closes it when tapped (Design v8-18, 1n)
+  const floatPanel = (inner, dim) => { FLOAT = '<div data-float' + (dim ? ' ' + on(dim) + ' aria-label="Close"' : '') + ' style="position:absolute;inset:0;z-index:95;display:flex;align-items:center;justify-content:center;padding:16px;pointer-events:' + (dim ? 'auto' : 'none') + ';background:rgba(13,17,23,' + (dim ? '.5' : '.14') + ');animation:scrimIn 140ms ease-out both">' + inner + '</div>'; };
   const showDrop = () => {};   // (the old drop-downs scrolled themselves into view; the floating ones are always in view)
   // o: { label, slim: no clock icon (a narrow row), h: the field's height (58), none: a first row that clears the time }
   // The time field opens a scrolling list, every 30 minutes (owner, 2026-10-06: back to the list; from 2026-10-03 it was
@@ -9735,11 +9878,11 @@
       if (!ok(v)) { e.target.value = value ? shown(value) : ''; toast(v < lo ? 'Pick a time after ' + clock(opts[0]) : 'Try a time like 10am or 4:30pm'); return; }
       if (v !== value) pick(v); else e.target.value = shown(v);
     };
-    const fs = o.compact ? 14.5 : 17;
+    const fs = o.compact ? 14.5 : o.h === 46 ? 16 : 17;   // 46px fields (Plan an event, Edit event): the date field's 16px (Design v8-18, 1q)
     return '<div style="position:relative;min-width:0">' +
       '<div data-time-field style="display:flex;align-items:center;gap:' + (o.slim ? 4 : 10) + 'px;min-height:' + (o.h || 58) + 'px;padding:0 ' + (o.slim ? (o.compact ? 6 : 8) : 14) + 'px 0 ' + (o.slim ? (o.compact ? 10 : 12) : 14) + 'px;border-radius:' + (o.h <= 46 ? 14 : 16) + 'px;background:#fff;box-shadow:inset 0 0 0 ' + (o.h <= 46 && !open ? '1.5px' : '2px') + ' ' + (open ? '#5b4ae8' : '#dcdfe6') + ';cursor:text">' +
         (o.slim ? '' : '<span ' + on(toggle) + ' aria-hidden="true" tabindex="-1" style="display:flex;color:' + (value ? '#5b4ae8' : '#9aa0ac') + ';cursor:pointer">' + svg(18, stroke('currentColor', 2.2), P5.clock) + '</span>') +
-        '<input type="text" inputmode="text" autocomplete="off" data-time-type aria-label="' + esc((o.label || hint) + ', type a time') + '" placeholder="' + esc(hint) + '" value="' + esc(value ? shown(value) : '') + '" ' + onInput(typed) +
+        '<input type="text" inputmode="text" autocomplete="off" data-time-type' + (o.h === 46 ? ' class="tf46"' : '') + ' aria-label="' + esc((o.label || hint) + ', type a time') + '" placeholder="' + esc(hint) + '" value="' + esc(value ? shown(value) : '') + '" ' + onInput(typed) +
           ' style="flex:1 1 auto;min-width:0;width:100%;border:0;outline:none;background:transparent;padding:0;font-family:inherit;font-size:' + fs + 'px;font-weight:800;color:#0d1117">' +
         '<span ' + on(toggle) + ' aria-label="' + esc(o.label || hint) + '" aria-expanded="' + open + '" style="flex:0 0 auto;display:flex;align-items:center;justify-content:center;min-width:28px;min-height:36px;cursor:pointer">' + I.chevD(14, '#9aa0ac', 2.6) + '</span></div>' +   // chevSet: the chevron only once a time is set (v8-6's Create a poll)
       ((open ? floatPanel('<div data-time-list data-scroll-to="' + esc(scrollTo || '') + '" role="listbox" aria-label="Pick a time" style="pointer-events:auto;width:300px;max-width:100%;max-height:min(420px,80%);overflow-y:auto;overscroll-behavior:contain;background:#fff;border-radius:18px;box-shadow:0 18px 44px rgba(15,18,25,.28), 0 0 0 1px #e6e7eb;padding:0 6px 6px;display:flex;flex-direction:column;gap:2px;animation:popIn 180ms cubic-bezier(.22,.9,.28,1) both">' +
@@ -9780,17 +9923,21 @@
     return '<div style="position:relative;min-width:0;' + (extra || '') + '">' +
       '<div ' + on(toggle) + ' aria-label="' + esc(label) + '" aria-expanded="' + open + '" data-date-field style="display:flex;align-items:center;gap:' + (o2.compact ? 6 : 10) + 'px;min-height:' + (h || 58) + 'px;padding:0 ' + (o2.compact ? 10 : 14) + 'px;border-radius:' + (h ? 14 : 16) + 'px;background:#fff;box-shadow:inset 0 0 0 ' + (h && !open ? '1.5px' : '2px') + ' ' + (open ? '#5b4ae8' : '#dcdfe6') + ';cursor:pointer">' +
         '<span style="display:flex;color:' + (value ? '#5b4ae8' : '#9aa0ac') + '">' + svg(o2.compact ? 16 : 18, stroke('currentColor', 2.2), P6.cal) + '</span>' +
-        '<span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;' + (value ? 'font-size:' + (o2.compact ? 14.5 : 17) + 'px;font-weight:800;color:#0d1117' : 'font-size:' + (o2.compact ? 14.5 : 16.5) + 'px;font-weight:400;font-style:italic;color:#b9bcc4') + '">' + esc(value ? (o2.compact ? new Date(value + 'T12:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : fmtDay(value)) : hint) + '</span>' +
+        '<span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;' + (value ? 'font-size:' + (o2.compact ? 14.5 : h === 46 ? 16 : 17) + 'px;font-weight:800;color:#0d1117' : h === 46 && !o2.compact ? 'font-size:16px;font-weight:500;color:#b9bcc4' : 'font-size:' + (o2.compact ? 14.5 : 16.5) + 'px;font-weight:400;font-style:italic;color:#b9bcc4') + '">' + esc(value ? (o2.compact ? new Date(value + 'T12:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : fmtDay(value)) : hint) + '</span>' +
         I.chevD(14, '#9aa0ac', 2.6) + '</div>' +
-      ((open ? floatPanel('<div data-calendar="' + month + '" role="dialog" aria-label="Pick a date" style="pointer-events:auto;width:332px;max-width:100%;box-sizing:border-box;background:#fff;border-radius:18px;box-shadow:0 18px 44px rgba(15,18,25,.28), 0 0 0 1px #e6e7eb;padding:14px;animation:popIn 180ms cubic-bezier(.22,.9,.28,1) both">' +
-          '<div style="display:flex;align-items:center;gap:8px;padding:0 2px 10px"><span style="flex:1;font-size:17px;font-weight:900;color:#0d1117">' + MONTH_NAMES[Number(month.slice(5)) - 1] + ' ' + month.slice(0, 4) + '</span>' +
+      // A centred pop-up over a dark scrim (Design v8-18, 1n): the month on one line with its arrows right after it, a grey
+      // × top right, Today bottom right, no Clear. × or a tap outside closes it
+      ((open ? floatPanel('<div data-calendar="' + month + '" ' + on(() => {}, 'dialog') + ' aria-label="Pick a date" style="position:relative;pointer-events:auto;width:340px;max-width:100%;box-sizing:border-box;background:#fff;border-radius:22px;box-shadow:0 24px 60px rgba(15,18,25,.3);padding:18px;cursor:default;animation:popIn 180ms cubic-bezier(.22,.9,.28,1) both">' +
+          '<span ' + on(() => setState({ dateOpen: null })) + ' aria-label="Close" style="position:absolute;top:14px;right:14px;width:32px;height:32px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(13, '#0d1117', 2.8) + '</span>' +
+          '<div style="display:flex;align-items:center;gap:4px;padding:0 44px 12px 2px"><span style="margin-right:4px;font-size:20px;font-weight:900;white-space:nowrap;color:#0d1117">' + MONTH_NAMES[Number(month.slice(5)) - 1] + ' ' + month.slice(0, 4) + '</span>' +
             roundBtn(!anyDay && month <= today.slice(0, 7), () => shift(-1), I.chevL(15, '#0d1117', 2.6), 'Previous month') + roundBtn(false, () => shift(1), I.chevR(15, '#0d1117', 2.6), 'Next month') + '</div>' +
           '<div style="display:grid;grid-template-columns:repeat(7,1fr);row-gap:4px">' +
             ['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(d => '<span style="justify-self:center;font-size:12px;font-weight:800;color:#9aa0ac;padding-bottom:4px">' + d + '</span>').join('') + grid() + '</div>' +
+          // Clear stays on the optional dates (an end date, Until), which have no other way to be taken off
           '<div style="display:flex;justify-content:space-between;padding:8px 4px 0">' +
-            (value ? '<span ' + on(() => pick('')) + ' aria-label="Clear the date" style="font-size:14px;font-weight:800;color:#9b1c31;cursor:pointer">Clear</span>' : '<span></span>') +
-            (value !== today && !(o2.min && today < o2.min) ? '<span ' + on(() => pick(today)) + ' style="font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">Today</span>' : '') + '</div>' +
-        '</div>') : ''), '') + '</div>';
+            (value && label !== 'Date' ? '<span ' + on(() => pick('')) + ' aria-label="Clear the date" style="display:flex;align-items:center;min-height:36px;font-size:14.5px;font-weight:800;color:#9b1c31;cursor:pointer">Clear</span>' : '<span></span>') +
+            (value !== today && !(o2.min && today < o2.min) ? '<span ' + on(() => pick(today)) + ' style="display:flex;align-items:center;min-height:36px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">Today</span>' : '') + '</div>' +
+        '</div>', () => setState({ dateOpen: null })) : ''), '') + '</div>';
   };
   // ---- Date & time for every length of event (Design v8-7 items 1–3, 23c-2) ----
   // One model for Plan an event (state.ev…) and the event page's Edit (state.sec): d, t, e, eOn, type ('one' | 'repeat' |
@@ -9950,16 +10097,14 @@
         ' style="flex:1 1 auto;min-width:0;border:0;padding:0;background:transparent;font-family:inherit;font-size:18px;font-weight:500;color:#0d1117;outline:none">' +
       '<span style="font-size:11.5px;font-weight:700;color:#9aa0ac">' + ov.length + '/' + OV_MAX + '</span></label>') +
     wtePart(2, 'Up to three details', '<div style="display:flex;flex-direction:column;gap:8px">' + bitRows(bits, setBit) + '</div>') + '</div>';
-  // An event posted from the one-page Plan an event (v8-14) has a description, not quick details: one growing box (200)
+  // An event posted from the one-page Plan an event (v8-14) has a description, not quick details: one formatted box (500)
   const wteDesc = (ov, setOv, desc, setDesc) => '<div data-wte style="display:flex;flex-direction:column;gap:10px">' +
     wtePart(1, 'One-line overview', '<label style="display:flex;align-items:center;gap:10px;min-height:58px;padding:0 16px;border-radius:16px;background:#fff;box-shadow:inset 0 0 0 2px #dcdfe6;cursor:text">' +
       '<input class="bit-fld" type="text" maxlength="' + OV_MAX + '" data-overview-input aria-label="One-line overview" placeholder="' + esc(OVERVIEW_PH) + '" value="' + esc(ov) + '" ' + onInput(e => { if (e.type === 'input') setOv(e.target.value.slice(0, OV_MAX)); }) +
         ' style="flex:1 1 auto;min-width:0;border:0;padding:0;background:transparent;font-family:inherit;font-size:18px;font-weight:500;color:#0d1117;outline:none">' +
       '<span style="font-size:11.5px;font-weight:700;color:#9aa0ac">' + ov.length + '/' + OV_MAX + '</span></label>') +
-    wtePart(2, 'Description', '<label style="position:relative;display:block;border-radius:16px;background:#fff;box-shadow:inset 0 0 0 2px #dcdfe6;cursor:text">' +
-      '<textarea class="bit-fld" maxlength="' + DESC_MAX + '" aria-label="Event description" placeholder="What’s the plan?" ' + onInput(e => { if (e.type === 'input') setDesc(e.target.value.slice(0, DESC_MAX)); }) +
-        ' style="display:block;width:100%;box-sizing:border-box;min-height:96px;margin:0;padding:14px 56px 14px 16px;border:0;background:transparent;outline:none;resize:none;font-family:inherit;font-size:16px;line-height:1.45;font-weight:500;color:#0d1117;field-sizing:content">' + esc(desc) + '</textarea>' +
-      '<span style="position:absolute;right:14px;bottom:8px;font-size:11.5px;font-weight:700;color:#9aa0ac">' + desc.length + '/' + DESC_MAX + '</span></label>') + '</div>';
+    // The same formatting toolbar as Plan an event (Design v8-18, 1b)
+    wtePart(2, 'Description', '<div data-wte-desc style="border-radius:16px;background:#fff;box-shadow:inset 0 0 0 2px #dcdfe6;overflow:hidden">' + rteBox(desc, setDesc, { h: 96 }) + '</div>') + '</div>';
   // A starter chip leaves just its verb ("Bring "): Save waits for what (owner, 2026-09-30)
   const JOB_VERBS = ['bring', 'set up', 'help with', 'clean up', 'coordinate'];
   const jobNamed = (item) => { const t = cleanTitle(item || ''); return !!t && JOB_VERBS.indexOf(t.toLowerCase()) < 0; };
@@ -10021,15 +10166,49 @@
   const CP_CAL = '<rect x="4" y="5.5" width="16" height="14.5" rx="2.5"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/>';
   const CP_PIN = '<path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Z"/><circle cx="12" cy="10" r="2.4"/>';
   const CP_INV = '<circle cx="9.5" cy="8" r="3.5"/><path d="M3 20a6.5 6.5 0 0 1 13 0"/><path d="M19 8v6M16 11h6"/>';
+  // Post to (Design v8-18, 1g): one settings-style row, Post to on the left; on the right the group's photo (a small fan
+  // of the first 2–3 with two or more), the choice and a chevron. Nothing picked: a dashed pale-purple tile and Pick a
+  // group in purple (owner, 2026-10-10: Design's purple replaces row 198's red)
+  const postToRow = (groups, tap, card, attr) => {
+    const gs = groups.map(groupById).filter(Boolean), n = gs.length;
+    const sum = !n ? 'Pick a group' : n === 1 ? gs[0].name : gs[0].name + ' & ' + (n - 1) + ' more';
+    const tile = !n ? '<span aria-hidden="true" style="flex:0 0 30px;width:30px;height:30px;box-sizing:border-box;border-radius:9px;border:1.5px dashed #b3aaf2;background:#f7f6ff;display:flex;align-items:center;justify-content:center;color:#5b4ae8">' + svg(16, stroke('currentColor', 2.2), PEOPLE_IC) + '</span>'
+      : n === 1 ? '<span aria-hidden="true" style="flex:0 0 30px;width:30px;height:30px;border-radius:9px;background:' + thumbBg(null, gs[0]) + '"></span>'
+      : (() => { const fan = gs.slice(0, 3), rot = fan.length === 2 ? [-7, 6] : [-10, 0, 10], step = fan.length === 2 ? 12 : 11;
+          return '<span aria-hidden="true" data-post-fan style="position:relative;flex:0 0 auto;width:' + (28 + step * (fan.length - 1)) + 'px;height:30px">' + fan.map((g, k) =>
+            '<span style="position:absolute;top:1px;left:' + k * step + 'px;width:28px;height:28px;box-sizing:border-box;border-radius:8px;border:2px solid #fff;box-shadow:0 2px 5px rgba(15,18,25,.18);transform:rotate(' + rot[k] + 'deg);background:' + thumbBg(null, g) + '"></span>').join('') + '</span>'; })();
+    return '<div ' + on(tap) + ' data-post-to ' + (attr || '') + ' aria-label="Post to: ' + esc(sum) + '" style="' + card + ';display:flex;align-items:center;gap:12px;min-height:56px;padding:0 14px;cursor:pointer;transition:background .2s, box-shadow .2s">' +
+      '<span style="flex:0 0 auto;font-size:14.5px;font-weight:800;color:#0d1117">Post to</span>' +
+      '<span style="flex:1;min-width:0;display:flex;align-items:center;justify-content:flex-end;gap:8px">' + tile +
+        '<span data-post-sum style="min-width:0;font-size:14.5px;font-weight:' + (n ? 700 : 800) + ';color:' + (n ? '#454b55' : '#5b4ae8') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(sum) + '</span>' +
+        '<span style="flex:0 0 auto;display:flex">' + chev6(14, n ? '#9aa0ac' : '#5b4ae8', false) + '</span></span></div>';
+  };
+  // Limit RSVPs (Design v8-18, 2): a switch led by a grey ticket; on, a stepper (1s up to 20, then 5s; 2–500) and the
+  // waitlist line. Saves to sparks.cap (null: no limit)
+  const CAP_TICKET = '<path d="M4 7.5A1.5 1.5 0 0 1 5.5 6h13A1.5 1.5 0 0 1 20 7.5V10a2 2 0 0 0 0 4v2.5a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 16.5V14a2 2 0 0 0 0-4z"/><path d="M14.5 6.5v11" stroke-dasharray="1.6 2"/>';
+  const capStep = (v, up) => up ? (v < 20 ? v + 1 : Math.min(500, v + 5)) : (v > 20 ? v - 5 : Math.max(2, v - 1));
+  const capCard = (cap, set, card) => {
+    const onIt = !!cap, btn = (lbl, up) => '<span ' + on(() => set(capStep(cap, up))) + ' aria-label="' + lbl + '" class="hov-grey-fill" style="flex:0 0 40px;width:40px;height:40px;box-sizing:border-box;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + (up ? I.plus(15, '#0d1117', 2.6) : svg(15, stroke('#0d1117', 2.6), '<path d="M5 12h14"/>')) + '</span>';
+    return '<div data-cap style="' + card + ';padding:0 14px">' +
+      '<div ' + on(() => set(onIt ? null : 20), 'switch') + ' aria-checked="' + onIt + '" aria-label="Limit RSVPs" style="display:flex;align-items:center;gap:12px;min-height:52px;cursor:pointer">' +
+        '<span style="display:flex;color:#6b7280">' + svg(18, stroke('currentColor', 2.1), CAP_TICKET) + '</span><span style="flex:1;min-width:0;font-size:14.5px;font-weight:800;color:#0d1117">Limit RSVPs</span>' +
+        '<span aria-hidden="true" style="flex:0 0 46px;width:46px;height:28px;border-radius:999px;position:relative;transition:background 160ms;background:' + (onIt ? '#5b4ae8' : '#dcdfe6') + '"><span style="position:absolute;top:3px;left:' + (onIt ? 21 : 3) + 'px;width:22px;height:22px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:left 160ms"></span></span></div>' +
+      (onIt ? '<div data-cap-steps style="padding:0 0 14px 30px;display:flex;flex-direction:column;gap:8px"><div style="display:flex;align-items:center;gap:12px">' + btn('Fewer people', false) +
+          '<span data-cap-n style="min-width:96px;text-align:center;font-size:17px;font-weight:900;color:#0d1117">' + cap + ' people</span>' + btn('More people', true) + '</div>' +
+          '<span style="font-size:12.5px;font-weight:600;color:#6b7280">Once it’s full, people can join a waitlist.</span></div>' : '') + '</div>';
+  };
   function viewCreate1a() {
     const st = state, P = '#5b4ae8', url = evPhotoUrl(st), title = st.activity || '', place = cleanTitle(st.locText) || cleanTitle(st.locAddr || '');
     const close = () => { if (evStarted(st)) setState({ evLeave: true, timeOpen: null }); else evExit(); };
     const dt = st.evDate ? new Date(st.evDate + 'T12:00') : null, dp = st.evDatePoll, sp = st.evSpotPoll;
     const wErr = dp ? '' : whenErr(evWhen()), any = !!(dt || dp || place || sp), hasD = !!dt || !!dp, ready = !!cleanTitle(title) && hasD && !wErr;
     const WC = 'background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08)', GC = 'background:#dfe2e7;border-radius:18px';
-    // A small coloured icon tile on each section label and a lighter Optional (Design v8-15, Q46 4a)
-    const label = (t, opt, ic) => '<div style="display:flex;align-items:center;gap:8px;padding:' + (opt === 0 ? '0' : '6px') + ' 4px 0">' +
-      (ic ? '<span aria-hidden="true" style="flex:0 0 24px;width:24px;height:24px;border-radius:8px;background:' + ic[0] + ';display:flex;align-items:center;justify-content:center">' + svg(14, stroke('#fff', 2.3), ic[1]) + '</span>' : '') +
+    // Cards start grey and turn white once tapped into or holding something, and stay white (Design v8-18, 1m)
+    const W = st.cpWhite || (state.cpWhite = {});
+    const white = (k, cond) => { if (cond) W[k] = true; return !!W[k]; };
+    const touch = (k) => { if (!W[k]) setState({ cpWhite: Object.assign({}, W, { [k]: true }) }); };
+    // Text labels and a lighter Optional; no coloured icon tiles (Design v8-18, 1c; they were Q46 4a)
+    const label = (t, opt) => '<div style="display:flex;align-items:center;gap:8px;padding:' + (opt === 0 ? '0' : '6px') + ' 4px 0">' +
       '<span style="font-size:12.5px;font-weight:900;letter-spacing:1.2px;color:#454b55">' + t + '</span>' +
       (opt ? '<span style="font-size:12.5px;font-weight:600;color:#b4b9c3">Optional</span>' : '') + '</div>';
     // Header: × (sticky), the calendar tile once there's a date, Add photo, the title and the quick overview
@@ -10058,24 +10237,23 @@
       : over('<span style="display:flex;align-items:center;min-height:36px">' + dayTypeBtn(evWhen(), 'ev').replace('· ', '') + '</span>', 'when') + whenFields(evWhen(), evWhenSet, { k: 'ev' }) + (holdNote(st.evDate) || '');
     // The location's Create a poll is hidden for now (owner, 2026-10-09); an older draft's location poll still shows its card
     const whereIn = sp ? pollCard(sp.map(r => r.v), () => openPoll('where'), () => setState({ evSpotPoll: null })) : addrPair();
-    const ww = '<div data-cp-when-where style="' + (any ? WC : GC) + ';padding:10px 14px 14px;display:flex;flex-direction:column;gap:10px">' +
+    const wwOn = white('ww', !!(dt || st.evTime || dp || st.locPlace || sp));
+    const ww = '<div data-cp-when-where style="' + (wwOn ? WC : GC) + ';padding:10px 14px 14px;display:flex;flex-direction:column;gap:10px;transition:background .2s, box-shadow .2s">' +
       '<div data-cp-row="when" style="display:flex;flex-direction:column;gap:8px">' + whenIn + '</div>' +
-      '<div style="height:1px;background:' + (any ? '#eceef2' : '#d3d6dc') + '"></div>' +
       '<div data-cp-row="where" style="display:flex;flex-direction:column;gap:8px">' + whereIn + '</div></div>';
-    // EVENT DESCRIPTION: one growing box (200) and up to 3 inspo photos (the event's mood photos; the database keeps 3)
-    const desc = st.evDesc || '', insp = st.evInspo || [], detOn = !!desc.trim() || insp.length > 0;
-    // Tapping a photo opens it full screen (owner, 2026-10-10, from Stacy: they stayed small, so she couldn't judge them)
-    const thumbs = insp.map((q, k) => '<span ' + on(() => setState({ zoom: { photos: insp.map(x => x.url), i: k } })) + ' aria-label="View photo ' + (k + 1) + '" style="position:relative;flex:0 0 52px;width:52px;height:52px;border-radius:12px;cursor:zoom-in;background:#2b303a ' + bg(q.url) + '">' +
-      '<span ' + on(() => dropInspo(k)) + ' aria-label="Remove photo" style="position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:999px;background:rgba(13,17,23,.55);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(9, '#fff', 3.4) + '</span></span>').join('');
-    const cam = insp.length >= 3 ? '' : '<label data-cp-inspo style="flex:0 0 52px;width:52px;height:52px;box-sizing:border-box;border-radius:12px;border:1.5px dashed #b9bcc4;display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(20, stroke('#9aa0ac', 2.2), CAMERA) +
-      '<input type="file" accept="image/*" multiple aria-label="Add inspo photos" ' + onInput(e => { if (e.type !== 'change') return; const f = Array.from(e.target.files || []); e.target.value = ''; addInspo(f); }) + ' style="display:none"></label>';
-    const descCard = '<div data-cp-desc style="' + (detOn ? WC : GC) + '"><div style="position:relative">' +
-        '<textarea class="cp-fld" maxlength="' + DESC_MAX + '" aria-label="Event description" placeholder="What’s the plan?" ' + onInput(e => { if (e.type === 'input') setState({ evDesc: e.target.value.slice(0, DESC_MAX) }); }) +
-          ' style="display:block;width:100%;box-sizing:border-box;min-height:132px;margin:0;padding:14px 56px 14px 16px;border:0;background:transparent;outline:none;resize:none;font-family:inherit;font-size:16px;line-height:1.45;font-weight:500;color:#2a2f38;overflow:hidden;field-sizing:content">' + esc(desc) + '</textarea>' +
-        '<span style="position:absolute;right:14px;bottom:8px;font-size:11.5px;font-weight:700;color:#9aa0ac">' + desc.length + '/' + DESC_MAX + '</span></div>' +
-      '<div style="display:flex;align-items:center;gap:8px;padding:12px 16px;border-top:1px solid ' + (detOn ? '#f0f1f4' : '#d3d6dc') + '">' + thumbs + cam +
-        (insp.length ? '' : '<span aria-hidden="true" style="flex:0 0 52px;height:52px;box-sizing:border-box;border-radius:12px;border:1.5px dashed #b9bcc4"></span><span aria-hidden="true" style="flex:0 0 52px;height:52px;box-sizing:border-box;border-radius:12px;border:1.5px dashed #b9bcc4"></span>' +
-          '<span style="margin-left:4px;font-size:13.5px;font-weight:700;color:#6b7280">Add inspo photos</span>') + '</div></div>';
+    // EVENT DESCRIPTION (Design v8-18, 1 + 1b): the formatting toolbar, the text, and a footer row with Add photos /
+    // Add another (Up to 3 / 2 more / 1 more; gone at 3). The photos sit under the card, 3 square tiles across; a tap opens
+    // one full screen (owner, 2026-10-10), the × takes it off. Max 3 (the database keeps 3 mood photos)
+    const desc = st.evDesc || '', insp = st.evInspo || [], detOn = white('desc', !!descPlain(desc).trim() || insp.length > 0);
+    const addPh = insp.length >= 3 ? '' : '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-top:1px solid #f2f3f6">' +
+      '<label data-cp-inspo class="hov-grey-chip" style="display:flex;align-items:center;gap:7px;height:34px;padding:0 13px;box-sizing:border-box;border-radius:999px;background:#f2f3f6;color:#454b55;font-size:14px;font-weight:800;cursor:pointer">' + svg(16, stroke('currentColor', 2.2), '<rect x="3.5" y="5" width="17" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.6"/><path d="m20.5 16-5-5-7.5 8"/>') +
+        (insp.length ? 'Add another' : 'Add photos') +
+        '<input type="file" accept="image/*" multiple aria-label="Add photos" ' + onInput(e => { if (e.type !== 'change') return; const f = Array.from(e.target.files || []); e.target.value = ''; addInspo(f); }) + ' style="display:none"></label>' +
+      '<span style="font-size:13px;font-weight:600;color:#9aa0ac">' + (insp.length ? (3 - insp.length) + ' more' : 'Up to 3') + '</span></div>';
+    const descCard = '<div data-cp-desc style="' + (detOn ? WC : GC) + ';overflow:hidden;transition:background .2s, box-shadow .2s">' + rteBox(desc, (v) => setState({ evDesc: v })) + addPh + '</div>' +
+      (insp.length ? '<div data-cp-photos style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">' + insp.map((q, k) =>
+        '<span ' + on(() => setState({ zoom: { photos: insp.map(x => x.url), i: k } })) + ' aria-label="View photo ' + (k + 1) + '" style="position:relative;aspect-ratio:1;border-radius:16px;cursor:zoom-in;background:#2b303a ' + bg(q.url) + '">' +
+          '<span ' + on((e) => { stop(e); dropInspo(k); }) + ' aria-label="Remove photo" style="position:absolute;top:6px;right:6px;width:26px;height:26px;border-radius:999px;background:rgba(13,17,23,.6);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(10, '#fff', 3.2) + '</span></span>').join('') + '</div>' : '');
     // HOW TO PARTICIPATE: the jobs (Edit, remove) and + Add a job, which opens the kinds pop-up
     const needs = st.evNeeds || [];
     const jobRows = needs.map((j, k) => { const edit = () => openJob(k, JSON.parse(JSON.stringify(j)));
@@ -10088,43 +10266,44 @@
     // The jobs in a white card; under them (or alone) the event page's dashed + Add ways people can help or participate,
     // which opens + Add (owner, 2026-10-08; was a grey card, Need people to bring things or help out? and a white + Add)
     const addBox = (attr) => '<div ' + on(() => openJob(null, blankJob(''))) + ' data-cp-add-job ' + (attr || '') + ' class="hov-tint2" style="padding:14px 16px;border-radius:18px;border:1.5px dashed #c9ccd3;font-size:14.5px;font-weight:700;color:#6b7280;cursor:pointer">+ Add another sign-up</div>';
-    // The empty box shows two greyed examples above + Add a sign-up, so people see what a sign-up is (Q46 4a)
-    // Empty (Design v8-17 clarity pass, 8): one dashed box leading with Need guests to bring or do things?, the LIKE THIS
-    // examples, then a white + Ask guests for something
+    // Empty (Design v8-18, 1e + 1o): one dashed box, EXAMPLES: and two greyed examples, then a centred white Add a sign up
+    // chip (a grey + in a 32px circle)
     const example = (name, spots) => '<div aria-hidden="true" style="display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700;color:#9aa0ac"><span style="width:7px;height:7px;border-radius:999px;background:#f2b896"></span><span style="flex:1">' + name + '</span><span style="font-size:13px">' + spots + '</span></div>';
-    const examples = '<div data-cp-examples data-cp-add-job-box style="border-radius:18px;border:1.5px dashed #c9ccd3;padding:14px 16px;display:flex;flex-direction:column;gap:8px"><span style="font-size:16px;font-weight:900;color:#0d1117">Need guests to bring or do things?</span>' +
-      '<span style="font-size:12px;font-weight:800;letter-spacing:.8px;color:#9aa0ac">LIKE THIS</span>' + example('Bring a carton of eggs', '10 spots') + example('Help set up the tent', '3 spots') +
-      '<span ' + on(() => openJob(null, blankJob(''))) + ' role="button" data-cp-add-job class="hov-tint2" style="margin-top:4px;display:flex;align-items:center;justify-content:center;min-height:44px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.1);color:#5b4ae8;font-size:15px;font-weight:800;cursor:pointer">+ Ask guests for something</span></div>';
+    const examples = '<div data-cp-examples data-cp-add-job-box style="border-radius:18px;border:1.5px dashed #c9ccd3;padding:14px 16px;display:flex;flex-direction:column;gap:8px">' +
+      '<span style="font-size:12px;font-weight:800;letter-spacing:.8px;color:#9aa0ac">EXAMPLES:</span>' + example('Bring a carton of eggs', '10 spots') + example('Help set up the tent', '3 spots') +
+      '<span ' + on(() => openJob(null, blankJob(''))) + ' role="button" data-cp-add-job class="cp-add-chip" style="align-self:center;margin-top:6px;display:flex;align-items:center;gap:10px;height:44px;padding:0 18px 0 6px;box-sizing:border-box;border-radius:999px;background:#fff;box-shadow:0 2px 6px rgba(15,18,25,.14);color:#0d1117;font-size:15px;font-weight:800;cursor:pointer;transition:box-shadow .15s">' +
+        '<span aria-hidden="true" style="flex:0 0 32px;width:32px;height:32px;border-radius:999px;background:#e8eaee;display:flex;align-items:center;justify-content:center">' + I.plus(16, '#454b55', 2.6) + '</span>Add a sign up</span></div>';
     const helpCard = needs.length
       ? '<div style="display:flex;flex-direction:column;gap:10px"><div data-cp-help style="' + WC + '"><div style="padding:4px 16px 4px;display:flex;flex-direction:column">' + jobRows + '</div></div>' + addBox() + '</div>'
       : '<div data-cp-help style="display:flex;flex-direction:column;gap:10px">' + examples + '</div>';
-    // VISIBILITY: Post to (a centred pop-up), Public / Private, People can invite friends
-    const groups = evGroupIds(st), g0 = groupById(groups[0]);
-    const sum = !groups.length ? 'Pick a group' : groups.length === 1 ? (g0 || {}).name : groups.length === 2 ? groups.map(id => (groupById(id) || {}).name).join(' & ') : (g0 || {}).name + ' + ' + (groups.length - 1) + ' more';
-    const postTo = '<div ' + on(() => setState({ evGrpPop: true })) + ' data-post-to role="button" aria-label="Post to: ' + esc(sum) + '" style="' + WC + ';display:flex;align-items:center;gap:12px;min-height:56px;padding:2px 14px;cursor:pointer">' +
-      '<span aria-hidden="true" style="flex:0 0 36px;width:36px;height:36px;border-radius:10px;background:' + (g0 ? thumbBg(null, g0) : '#f2f3f6') + '"></span>' +
-      '<div style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:12px;font-weight:800;letter-spacing:.8px;color:#6b7280">POST TO</span><span style="font-size:15px;font-weight:800;color:' + (groups.length ? '#0d1117' : '#9b1c31') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(sum) + '</span></div>' +
-      '<span style="display:flex;color:#6b7280">' + chev6(14, '#6b7280', false) + '</span></div>';
+    // VISIBILITY: Post to (a centred pop-up), Public / Private, People can invite friends, Limit RSVPs. Picking a group
+    // turns the whole section white at once (Design v8-18, 1m)
+    const groups = evGroupIds(st), visOn = groups.length > 0;
+    ['post', 'vis', 'inv', 'cap'].forEach(k => white(k, visOn));
+    const postTo = postToRow(groups, () => { touch('post'); setState({ evGrpPop: true }); }, W.post ? WC : GC);
     const radio = (priv, name, sub, icon, k) => { const onIt = !!st.evPriv === priv;
-      return '<div ' + on(() => setState({ evPriv: priv, evNoGuestInv: null }), 'radio') + ' aria-checked="' + onIt + '" aria-label="' + name + ': ' + sub + '" style="display:flex;align-items:center;gap:12px;min-height:52px;border-top:' + (k ? '1px solid #eef0f3' : '0') + ';cursor:pointer">' +
+      return '<div ' + on(() => setState({ evPriv: priv, evNoGuestInv: null, cpWhite: Object.assign({}, W, { vis: true }) }), 'radio') + ' aria-checked="' + onIt + '" aria-label="' + name + ': ' + sub + '" style="display:flex;align-items:center;gap:12px;min-height:52px;border-top:' + (k ? '1px solid #eef0f3' : '0') + ';cursor:pointer">' +
         '<span style="flex:0 0 22px;display:flex;justify-content:center;color:' + (onIt ? P : '#6b7280') + '">' + svg(18, stroke('currentColor', 2.2), icon) + '</span>' +
         '<div style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:14.5px;font-weight:' + (onIt ? 800 : 700) + ';color:' + (onIt ? '#0d1117' : '#454b55') + '">' + name + '</span><span style="font-size:12.5px;font-weight:600;color:#6b7280">' + sub + '</span></div>' +
         '<span aria-hidden="true" style="flex:0 0 22px;width:22px;height:22px;box-sizing:border-box;border-radius:999px;border:' + (onIt ? '6px solid ' + P : '1.5px solid #c9ccd3') + '"></span></div>'; };
-    const vis = '<div role="radiogroup" aria-label="Who can see it" style="' + WC + ';padding:0 14px">' + radio(false, 'Public', groups.length > 1 ? 'Anyone in these groups' : 'Anyone in this group', PEOPLE_IC, 0) + radio(true, 'Private', 'Only people you invite', LOCK_IC, 1) + '</div>';
+    const TR = ';transition:background .2s, box-shadow .2s';
+    const vis = '<div role="radiogroup" aria-label="Who can see it" data-cp-vis style="' + (W.vis ? WC : GC) + TR + ';padding:0 14px">' + radio(false, 'Public', groups.length > 1 ? 'Anyone in these groups' : 'Anyone in this group', PEOPLE_IC, 0) + radio(true, 'Private', 'Only people you invite', LOCK_IC, 1) + '</div>';
     const gi = evGuestInv(st);
-    const inv = '<div ' + on(() => setState({ evNoGuestInv: gi }), 'switch') + ' aria-checked="' + gi + '" aria-label="People can invite friends" style="' + WC + ';display:flex;align-items:center;gap:12px;min-height:52px;padding:0 14px;cursor:pointer">' +
+    const inv = '<div ' + on(() => setState({ evNoGuestInv: gi, cpWhite: Object.assign({}, W, { inv: true }) }), 'switch') + ' aria-checked="' + gi + '" aria-label="People can invite friends" data-cp-inv style="' + (W.inv ? WC : GC) + TR + ';display:flex;align-items:center;gap:12px;min-height:52px;padding:0 14px;cursor:pointer">' +
       '<span style="display:flex;color:#6b7280">' + svg(18, stroke('currentColor', 2.2), CP_INV) + '</span><span style="flex:1;min-width:0;font-size:14.5px;font-weight:800;color:#0d1117">People can invite friends</span>' +
       '<span aria-hidden="true" style="flex:0 0 46px;width:46px;height:28px;border-radius:999px;position:relative;transition:background 160ms;background:' + (gi ? P : '#dcdfe6') + '"><span style="position:absolute;top:3px;left:' + (gi ? 21 : 3) + 'px;width:22px;height:22px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:left 160ms"></span></span></div>';
+    const capRow = capCard(st.evCap, (v) => setState({ evCap: v, cpWhite: Object.assign({}, W, { cap: true }) }), (W.cap || st.evCap ? WC : GC) + TR);
     // Post it: grey until there's a title and a date (a tap then says which is missing); Save draft under it
     const busy = st.busy === 'post';
     const post = () => { if (busy) return; if (!cleanTitle(title)) { toast('Add a title first'); return; } if (!hasD) { toast('Add a date first'); return; }
+      if (descPlain(st.evDesc).length > DESC_MAX) { toast('The description is over ' + DESC_MAX + ' characters'); return; }
       if (wErr) { toast(wErr); const f = document.querySelector('[data-cp-row="when"]'); if (f) f.scrollIntoView({ block: 'center', behavior: 'smooth' }); return; }
       if (!groups.length) { setState({ evGrpPop: true }); toast('Pick at least one group'); return; } createEvent(); };
     return '<div class="overlay-screen compose-sheet" data-screen-label="New spark"><div data-screen-label="Create event (1a)" style="position:relative;min-height:100%;display:flex;flex-direction:column;background:#e8eaee">' +
       '<div style="position:sticky;top:0;z-index:8;height:0"><span ' + on(close) + ' aria-label="Close" style="position:absolute;top:14px;right:12px;width:36px;height:36px;border-radius:999px;background:rgba(13,17,23,.28);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(14, '#fff', 2.6) + '</span></div>' +
       hero +
       '<div style="flex:1 1 auto;padding:16px 14px 0;display:flex;flex-direction:column;gap:12px">' +
-        label('WHEN &amp; WHERE', 0, ['#149a4b', P6.cal]) + ww + label('EVENT DESCRIPTION', true, ['#5b4ae8', PENCIL]) + descCard + label('SIGN UP', true, ['#e8661c', PEOPLE_IC]) + helpCard + label('VISIBILITY', false, ['#2f7ed8', LOCK_IC]) + postTo + vis + inv +
+        label('WHEN &amp; WHERE', 0) + ww + label('EVENT DESCRIPTION', true) + descCard + label('SIGN UP', true) + helpCard + label('VISIBILITY', false) + postTo + vis + inv + capRow +
       '</div>' +
       '<div style="padding:20px 16px 24px"><button type="button" ' + on(post) + ' data-post aria-disabled="' + !ready + '" style="width:100%;min-height:54px;border:0;border-radius:999px;font-family:inherit;font-size:17px;font-weight:900;color:#fff;cursor:' + (busy ? 'wait' : 'pointer') + ';' +
           (ready ? 'background:' + P + ';box-shadow:0 8px 20px rgba(91,74,232,.35)' + (busy ? ';opacity:.72' : '') : 'background:#c9ccd3') + '">' + (busy ? 'Posting…' : 'Post it') + '</button>' +
@@ -10135,16 +10314,19 @@
   // blank. Thought partner stays (owner's call, 2026-10-05)
   const centredPop = (label, close, inner, z) => '<div class="modal-scrim" data-scrim="' + reg(close) + '" style="z-index:' + (z || 36) + ';padding:0 16px;animation:scrimIn 180ms ease-out both">' +
     '<div role="dialog" aria-modal="true" aria-label="' + esc(label) + '" data-screen-label="' + esc(label) + '" style="position:relative;width:100%;box-sizing:border-box;max-height:88%;overflow-y:auto;background:#fff;border-radius:24px;padding:20px 18px 18px;display:flex;flex-direction:column;gap:12px;box-shadow:0 20px 50px rgba(13,17,23,.3);animation:popIn 200ms cubic-bezier(.22,.9,.28,1) both">' + inner + '</div></div>';
-  // + Add (owner, 2026-10-08: the starters pop-up and the item sheet are one): the starters over a blank name field. A
-  // starter puts its words in the field and the cursor after them; Write your own clears it
+  // + Add a sign up (Design v8-18, 1d): the name field first, then the starters under it. A starter puts its word in
+  // front of the text in purple (tap again to clear); typing in the field is writing your own
+  const JOB_STARTERS = [['Bring', 'Bring', 'snacks, chairs, ice…'], ['Help', 'Help with', 'parking, the kids’ table…'], ['Set up', 'Set up', 'tables, the tent…'], ['Clean up', 'Clean up', 'trash, the kitchen…'], ['Coordinate', 'Coordinate', 'carpools, the music…']];
+  const jobPre = (item) => { const t = (item || '').replace(/^\s+/, '');
+    const s = JOB_STARTERS.find(([, l]) => t.toLowerCase() === l.toLowerCase() || t.toLowerCase().indexOf(l.toLowerCase() + ' ') === 0);
+    return s ? { label: s[1], hint: s[2], rest: t.slice(s[1].length).replace(/^\s/, '') } : { label: '', hint: '', rest: item || '' }; };
   const addStarters = (r, set) => {
-    const go = (pre) => { set({ item: pre }); setTimeout(() => { const f = document.querySelector('[data-job-name]'); if (f) { f.focus(); const n = f.value.length; try { f.setSelectionRange(n, n); } catch (e) { /* ignore */ } } }, 30); };
-    const chip = (k, l, pre) => { const onIt = (r.item || '').trim().toLowerCase() === pre.trim().toLowerCase() && !!pre;
-      return '<span ' + on(() => go(pre)) + ' data-job-chip="' + k + '" class="hov-chip" style="display:flex;align-items:center;gap:5px;min-height:32px;padding:0 11px;border-radius:999px;background:' + (onIt ? '#ebe8fd' : '#f2f3f6') + ';font-size:13.5px;font-weight:800;color:' + (onIt ? '#4a3ad4' : '#0d1117') + ';cursor:pointer">' + l +
-        '<span aria-hidden="true" style="width:16px;height:2px;margin-top:8px;border-radius:2px;background:#9aa0ac"></span></span>'; };
-    return '<div data-add-starters style="display:flex;flex-wrap:wrap;gap:6px">' +
-      [['Bring', 'Bring', 'Bring '], ['Help', 'Help with', 'Help with '], ['Set up', 'Set up', 'Set up '], ['Clean up', 'Clean up', 'Clean up '], ['Coordinate', 'Coordinate', 'Coordinate ']].map(([k, l, pre]) => chip(k, l, pre)).join('') +
-      '<span ' + on(() => go('')) + ' data-job-chip="Other" class="hov-chip" style="display:flex;align-items:center;gap:5px;min-height:32px;padding:0 11px;box-sizing:border-box;border-radius:999px;background:#fff;border:1.5px dashed #b9bcc4;font-size:13.5px;font-weight:800;color:#0d1117;cursor:pointer">' + svg(12, stroke('#5b4ae8', 2.4), '<path d="M4 20h4L19 9l-4-4L4 16v4Z"/>') + 'Write your own</span></div>';
+    const p = jobPre(r.item);
+    const go = (l) => { set({ item: p.label === l ? p.rest : l + ' ' + p.rest }); setTimeout(() => { const f = document.querySelector('[data-job-name]'); if (f) f.focus(); }, 30); };
+    const chip = (k, l) => { const onIt = p.label === l;
+      return '<span ' + on(() => go(l)) + ' data-job-chip="' + k + '" aria-pressed="' + onIt + '" class="hov-chip" style="display:flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:999px;background:' + (onIt ? '#ebe8fd' : '#f2f3f6') + ';font-size:13.5px;font-weight:800;color:' + (onIt ? '#4a3ad4' : '#0d1117') + ';cursor:pointer">' + l +
+        '<span aria-hidden="true" style="display:inline-block;width:16px;height:2px;margin-top:8px;border-radius:2px;background:' + (onIt ? '#9b8ff0' : '#b9bcc4') + '"></span></span>'; };
+    return '<div data-add-starters style="display:flex;flex-wrap:wrap;gap:8px">' + JOB_STARTERS.map(([k, l]) => chip(k, l)).join('') + '</div>';
   };
   function viewJobKindPop() {
     const close = () => setState({ evJobPop: false });
@@ -10512,8 +10694,9 @@
         setState({ evNeeds: list, needSheet: null, evHelpNone: false });
       };
       // One sheet for every item (one kind of sign-up, owner 2026-10-07): name, details, times, options
-      return centredPop(ns.i != null ? 'Edit sign-up' : 'Add a sign-up', close,   // v8-14: a centred pop-up (it was a bottom sheet)
-        sheetHead('', ns.i != null ? 'Edit sign-up' : 'Add a sign-up', '', close) + (ns.i == null ? addStarters(r, set) : '') + jobFields(r, set, null, (() => { const c = whenCols(evWhen()).schedule; return c && c.kind === 'days' ? c.days.map(x => x.d) : null; })()) +
+      // Titled Add a sign up / Edit sign up, no eyebrow (Design v8-18, 1f)
+      return centredPop(ns.i != null ? 'Edit sign up' : 'Add a sign up', close,   // v8-14: a centred pop-up (it was a bottom sheet)
+        sheetHead('', ns.i != null ? 'Edit sign up' : 'Add a sign up', '', close) + jobFields(r, set, null, (() => { const c = whenCols(evWhen()).schedule; return c && c.kind === 'days' ? c.days.map(x => x.d) : null; })()) +
         // Save stays in view while the times grow (create flow audit)
         '<div style="position:sticky;bottom:-18px;z-index:2;margin:0 -18px -18px;padding:10px 18px 18px;background:#fff;display:flex;flex-direction:column">' + saveBtn(r.kind ? partReady(r) : jobNamed(r.item), save) + '</div>', 36);
     }
@@ -10547,9 +10730,17 @@
       '<input class="fld" type="text" maxlength="60"' + (idx == null ? ' data-job-name' : '') + ' aria-label="Job name' + tag + '" placeholder="What you need" value="' + esc(r.item) + '" ' + onInput(e => { if (e.type === 'input') set({ item: e.target.value.slice(0, 60) }); }) + ' style="' + BIG + ';min-height:52px;font-size:' + (idx == null ? 17 : 16) + 'px">' +
       (verb ? '<span aria-hidden="true" data-job-filler style="position:absolute;left:18px;right:18px;top:0;bottom:0;display:flex;align-items:center;pointer-events:none;white-space:pre;overflow:hidden;font-size:17px;font-weight:800"><span style="visibility:hidden">' + esc(r.item) + (/\s$/.test(r.item) ? '' : ' ') + '</span><span style="font-style:italic;font-weight:400;color:#b9bcc4">' + esc(JOB_FILL[verb][0]) + '</span></span>' : '') + '</div>' +
       '';   // no suggestion chips under the name (v8); the gray filler after the verb stays
-    if (fresh) return '<div style="display:flex;flex-direction:column;gap:10px">' + nameFld + dayPick +
-      '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><span ' + on(() => setState({ jobMore: true })) + ' role="button" data-job-more style="display:flex;align-items:center;gap:6px;min-height:40px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(14, 'currentColor', 2.6) + 'Add details, times or options</span>' +
-        stepper(r.need, (n) => set({ need: n }), 'how many people') + '</div></div>';
+    // The quick pop-up (Design v8-18, 1d): the name (a starter's word in purple in front), the starters under it, then
+    // + Add details (the full editor, details open) and the count. No autofocus; a purple ring when it has focus
+    if (fresh) { const p = jobPre(r.item);
+      return '<div style="display:flex;flex-direction:column;gap:12px">' +
+        '<label data-job-name-box style="display:flex;align-items:center;gap:8px;height:52px;padding:0 16px;box-sizing:border-box;border:1.5px solid #dcdfe6;border-radius:16px;background:#fff;cursor:text">' +
+          (p.label ? '<span data-job-pre style="flex:0 0 auto;font-size:16px;font-weight:800;color:#4a3ad4">' + esc(p.label) + '</span>' : '') +
+          '<input type="text" maxlength="60" data-job-name aria-label="Sign-up name" placeholder="' + esc(p.hint || 'What you need') + '" value="' + esc(p.rest) + '" ' + onInput(e => { if (e.type === 'input') set({ item: ((p.label ? p.label + ' ' : '') + e.target.value).slice(0, 60) }); }) +
+            ' style="flex:1;min-width:0;margin:0;padding:0;border:0;outline:none;background:transparent;font-family:inherit;font-size:16px;font-weight:700;color:#0d1117"></label>' +
+        addStarters(r, set) + dayPick +
+        '<div style="display:flex;align-items:center;gap:10px;padding-top:2px"><span ' + on(() => set({ item: (r.item || '').trim() }) || setState({ jobMore: true })) + ' role="button" data-job-more style="flex:1;min-width:0;display:flex;align-items:center;gap:6px;min-height:40px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer"><span aria-hidden="true" style="font-size:17px;line-height:1;font-weight:700">+</span><span>Add details</span></span>' +
+          stepper(r.need || 1, (n) => set({ need: n || 1 }), 'how many people') + '</div></div>'; }
     return '<div style="display:flex;flex-direction:column;gap:10px">' + nameFld +
       '<textarea class="fld" rows="2" maxlength="400" aria-label="Details' + tag + '" placeholder="Details (optional)" ' + onInput(e => { if (e.type === 'input') set({ desc: e.target.value.slice(0, 400) }); }) + ' style="' + BIG + ';min-height:52px;padding:12px 16px;font-size:16px;font-weight:500;line-height:1.4;resize:none">' + esc(r.desc || '') + '</textarea>' + dayPick +
       (r.shifts
@@ -11510,6 +11701,8 @@
     }
     if (from.nodeType !== 1) return;
     morphAttrs(from, to);
+    // A rich text box (Design v8-18, 1b) keeps what's typed in it while it has focus
+    if (from.hasAttribute('data-rte')) { if (document.activeElement !== from && from.innerHTML !== to.innerHTML) from.innerHTML = to.innerHTML; return; }
 
     if (from.nodeName === 'TEXTAREA') {
       const v = to.textContent;
@@ -11763,6 +11956,8 @@
   root.addEventListener('pointerup', phUp);
   root.addEventListener('pointercancel', phUp);
   root.addEventListener('input', onField);
+  // The formatting buttons keep the cursor in the description (Design v8-18, 1b)
+  root.addEventListener('mousedown', (e) => { if (e.target.closest && e.target.closest('[data-rte-btn]')) e.preventDefault(); });
   root.addEventListener('change', onField);
 
   // ---------------------------------------------------------------------------
@@ -11826,7 +12021,7 @@
   // Realtime (20261121020000_realtime.sql): Supabase says "something changed" and the app reloads, so other people's changes
   // show up in a second without polling. The reload is cheap when nothing visible changed (loadAll skips the redraw).
   // If the connection isn't up, the 30-second poll carries on as before.
-  const RT_TABLES = ['sparks', 'rsvps', 'event_comments', 'post_likes', 'plan_updates', 'signup_items', 'signup_claims', 'signup_waits', 'date_options', 'date_votes',
+  const RT_TABLES = ['sparks', 'rsvps', 'event_comments', 'post_likes', 'plan_updates', 'signup_items', 'signup_claims', 'signup_waits', 'event_waits', 'date_options', 'date_votes',
     'spot_options', 'spot_votes', 'interests', 'offers', 'lead_asks', 'lead_offers', 'job_asks', 'cohosts', 'album_photos', 'reactions', 'event_invites', 'spark_groups', 'memberships'];
   let rtChannel = null, rtFor = '', rtTimer = null;
   const rtChanged = () => {
