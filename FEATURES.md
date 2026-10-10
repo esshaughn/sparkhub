@@ -324,6 +324,7 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 243 | **Reported content, for the reporter** (Design v8-22 4a–4d): one grey line for a reported event in lists, blurred photos with *Show anyway*, a hidden profile with *Undo report*, a line with *Undo* on the event page | Test |
 | 244 | **Notification rules** (owner, 2026-10-10): *Can't go* reaches only the lead who invited that person; a sign-up reaches the hosts on Done in *You're signed up!* (`tell_later`, `tell_hosts_signup()`) | Test |
 | 245 | **Design round v8-22, smaller items**: titles keep *!*; jobs start at *Any* and read *N slots* / *No limit*; one rich box for Edit What to expect; Get started step 5 *Install Spark Hub app*; address-only calendar location; View as attendee; COMING UP rule; My tasks 1e + empty 1d; Me headings; Notifications 1a; the Google heads-up line | Test |
+| 246 | **Group invites** (Design v8-22, `20261127000000_group_invites.sql`): owners and admins invite a friend or someone they share a group with from their profile (*Invite to a group*, groups they run); the person invited gets a push, a bell row (Join / See group), a card on My groups (Join · N members / Not now) and Get started's Join a group row; joining shows NEW · YOU JOINED (Say hi), and joining by link or code shows *Welcome to {Group}, {first}*; Members shows owners and admins who's INVITED (Send a reminder once a day, Take back invite). Not now hides an invite for good and tells no one | Test | Owner Q22 + Q33 |
 
 ## Removed in this rebuild
 

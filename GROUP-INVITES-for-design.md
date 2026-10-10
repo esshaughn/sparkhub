@@ -1,6 +1,6 @@
 # Group invites: brief for Claude Design
 
-For Claude Design, 2026-10-05. **Not built, on purpose:** v8-1 draws an invite card on My groups (8c, *Hana invited you to Mueller Pickleball*, Join / Not now), but the build has no group invites, so there's nothing to show (HANDOFF-to-DESIGN §4). This brief says what the card needs behind it. How it looks and where it sits are Design's call.
+For Claude Design, 2026-10-05. **Built 2026-10-10 from Design v8-22** (see HANDOFF-to-DESIGN → *Group invites*); this brief is kept for its history. Before that, not built, on purpose: v8-1 draws an invite card on My groups (8c, *Hana invited you to Mueller Pickleball*, Join / Not now), but the build has no group invites, so there's nothing to show (HANDOFF-to-DESIGN §4). This brief says what the card needs behind it. How it looks and where it sits are Design's call.
 
 ---
 

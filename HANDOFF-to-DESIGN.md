@@ -6,7 +6,7 @@
 - **Source:** github.com/esshaughn/sparkhub (`index.html`, `js/sparks.js`, `css/sparks.css`, `privacy.html`, `supabase/templates/`)
 - **Baseline:** Claude Design's **round v8-17** (`design/spark-hub/HANDOFF-to-CODE.md` and `Spark Hub App Version 8.dc.html`, 2026-10-09), built in full (with your v8-16 clarity pass): see *Round v8-17 in short*. Rows 212–227 are new since v8-15.
 - **Build version:** **v8** (v7 from owner, 2026-10-02): a lead is a choice. Since v8-8 an idea is led from the start (*Who leads it · Me*) or floated (*I'll decide*), and both use the new idea page.
-- **As of:** 2026-10-10. **Round v8-22 is built on `test`** except the group invite screens, which a second session is building (see *Round v8-22 in short*; not live yet). **Round v8-21 (with v8-20) is built on `test`** (see *Round v8-21 in short*; not live yet). **Round v8-19 (and v8-18's added items 1t–1cc) is built on `test`** (see *Round v8-19 in short*; not live yet). **Round v8-18 is built on `test`** (see *Round v8-18 in short*; not live yet). **Round v8-17 is live** (main `09658ae`, v=389). Also live since your last file: rows 224–227 (guests sign up with a phone or an email, taking yourself off asks first, the pinned Month that follows its list, a chosen photo opens full screen), Add to calendar as a sheet (Google Calendar · Apple Calendar · Outlook and other), and the event's ⋯ menu with Member view. Questions for you are in §5 (Q44).
+- **As of:** 2026-10-10. **Round v8-22 is built on `test`**, group invites included (see *Round v8-22 in short* and *Group invites (round v8-22)*; not live yet). **Round v8-21 (with v8-20) is built on `test`** (see *Round v8-21 in short*; not live yet). **Round v8-19 (and v8-18's added items 1t–1cc) is built on `test`** (see *Round v8-19 in short*; not live yet). **Round v8-18 is built on `test`** (see *Round v8-18 in short*; not live yet). **Round v8-17 is live** (main `09658ae`, v=389). Also live since your last file: rows 224–227 (guests sign up with a phone or an email, taking yourself off asks first, the pinned Month that follows its list, a chosen photo opens full screen), Add to calendar as a sheet (Google Calendar · Apple Calendar · Outlook and other), and the event's ⋯ menu with Member view. Questions for you are in §5 (Q44).
 
 ## Start here (2026-10-10): HANDOFF-to-DESIGN-10
 
@@ -117,7 +117,23 @@ None of these are built. They come from the owner's own list and the pilot group
 | Sign-in heads-up (6b) | Done under all three *Continue with Google* buttons (Welcome in white 72%, the sign-in pop-up and the invite landing in grey). The custom sign-in domain (6c) needs the live Supabase project on a paid plan; it's with the owner |
 | Notifications 1a | Done: one list, **Today** / **This week**, no filter chips. Rows that need an answer (an invite to an event you haven't answered, a job ask, a lead ask or offer, a friend request, a moved time) are pale purple; a friend request answers in place (**Accept** / *Not now*, which declines quietly as on Friends). Job and lead asks open the event as before (no *Take it* / *Can't this time* in the row yet). Unread is the 6px purple dot at the far left |
 | Vibe board (7a) | Nothing to change: photos only |
-| Group invite screens (1a, 2a, 4a, 4b, Members INVITED) and the *Join* pill | **Being built in a separate session** (it needs invites to a person, which don't exist yet). Until it lands, Get started's *Join a group* opens the code/link pop-up |
+| Group invite screens (1a, 2a, 4a, 4b, Members INVITED) and the *Join* pill | Built in its own session: see *Group invites (round v8-22)* below |
+
+## Group invites (round v8-22)
+
+*Built 2026-10-10 on its own branch for `test`, not live yet. One new table, `group_invites` (`20261127000000_group_invites.sql`). Answers Q22 + Q33 as decided in v8-8.*
+
+| v8-22 item | Status |
+|---|---|
+| 1a. Invite to a group (profile) | Done as drawn: the purple *Invite to a group* link under the profile pop-up's buttons, for owners and admins, on a friend's profile or someone you share a group with. The slide-up lists only groups you run (*N members · you're the owner / an admin*), *Member* (greyed) or *Invited* (purple) where it can't be ticked, *Send invite · N*, toast *Invited Darnell to {group}* (*to N groups* for more than one) |
+| 2a. Bell rows | Done: *Ada O. invited you to {group}* with **Join** and **See group**, then *You joined {group}* · *Ada O. invited you* (green ✓). **Changed:** the bell's **Join** joins straight away (the prototype opened the pop-up from both buttons; a Join that doesn't join read wrong); *See group* and tapping the row open the invite pop-up. They sit under the *New* chip and follow the *Friends* notification switch |
+| 4a. Welcome to {Group}, {first} | Done as drawn after joining by **link or code**, once per group. **It replaces the old Welcome to {group} screen** (the three numbered rows and *See what's coming up*). The inviter's face and *{Name} invited you. They'll know you're here.* show only when an invite to that group was waiting (joining by link answers it); otherwise the line reads *You're a member now.* NEXT UP shows the group's next plan when there is one (a tap opens it), or nothing |
+| 4b. NEW · YOU JOINED | Done as drawn at the top of My groups after joining from an invite, until × or *See the group* (kept on the account), for 7 days at most. **Say hi to {first}** sends the inviter one push and bell line (*Darnell says hi from {group} 👋*); toast *We told Ada you said hi*; the button goes after that |
+| Members INVITED | Done as drawn for owners and admins, above MEMBERS (hidden while searching): *Invited by you / by Hana · 2h ago*, ⋯ → *Send a reminder* (one a day: *You already sent Dee a reminder today*) · *Take back invite* (toast *Invite taken back*; nobody is told). **Not built:** the *Your invite link* row (*Shared Oct 3 · 2 joined from it* / *Turn off this link*): the build doesn't record when a link was shared or who joined through it. Owners still get a new link from Edit group |
+| Get started's Join a group | Done as drawn (v8-21 item 7): with an invite waiting the row turns pale purple, *You have N invites ›*, **Join** (one) or **See** (two or more) opening the invite pop-up or *You have N invites* list. The pop-up's *Not now* only closes it; the list's *Not now* turns that invite down |
+| My groups invite card | Done as drawn (*Ada invited you to {group}*, **Join · N members**, *Not now*), one card per invite waiting. *Not now* there and in the list hides it for good, silently |
+
+**Invented:** the joiner's inviter is told when they join (bell line *Darnell joined {group}. You invited them.* and a push). Turned-down invites still show as waiting to the group's admins (so *Not now* stays silent), and can't be sent again. **Not built yet:** *Add friends* and *You've invited* in the group's Invite people sheet (the second way to send invites); only the profile's *Invite to a group* sends them for now.
 
 ## Round v8-21 in short
 
@@ -546,8 +562,7 @@ Never cleared on a reset. These are places where the owner chose differently fro
 ## 4. Designed but not built or not working
 
 - **Store safety (v8-18 1s), not built:** *Before you post* (owner, 2026-10-10: no first-post reminder); the 3-day escalation is only the OVERDUE tag in All reports (no push to anyone when a report is filed or goes overdue).
-- **Decided in HANDOFF-to-CODE v8-8 but not built yet** (next): group invites (Q22 + Q33); Invite link 1b (Q4); showing sparkhub.wereallneighbors.org (Q8); NO DATE YET (Q23 3a); dropping Place (Q28); retiring `#/own` (Q29); Morning · Afternoon · Evening start times (Q34, waits on the prototype).
-- **Get started's invite states (v8-21 item 7):** *You have 1 invite* / *You have N invites*, the Join / See pill and both invite pop-ups wait on group invites to a person, which aren't built (next line). Until then *Join a group* opens the code pop-up.
+- **Decided in HANDOFF-to-CODE v8-8 but not built yet** (next): Invite link 1b (Q4); showing sparkhub.wereallneighbors.org (Q8); NO DATE YET (Q23 3a); dropping Place (Q28); retiring `#/own` (Q29); Morning · Afternoon · Evening start times (Q34, waits on the prototype).
 - **Guest text reminders** (*Take part*): not built, no SMS service yet (owner, 2026-10-05).
 - **Leading filtered to a group** is built, but nothing opens it that way.
 - **Maybe's pale-green tile chip** shows on the strip only.
