@@ -6855,13 +6855,22 @@
     const patch = {}, c = whenCols(ss), sameSched = JSON.stringify(c.schedule) === JSON.stringify(s.sched ? whenCols(whenModelOf(s)).schedule : null);
     if (c.day_date !== s.startDate || c.day_time !== s.startTime || c.day_end !== s.startEnd || !sameSched) Object.assign(patch, { day_date: c.day_date, day_time: c.day_time, day_end: c.day_end }, sameSched ? {} : { schedule: c.schedule });
     const p = cleanTitle(state.offerText).slice(0, 80), pl = state.offerPlace && state.offerPlace.name === p ? state.offerPlace : null;
-    if (p !== (s.spot || '')) {
+    // Location name (owner, 2026-10-10): with an address, the name is the location and the address stays. The database
+    // clears the address when only the name changes (clear_stale_spot_place), so the address goes back on in a second step
+    let keepAddr = null;
+    const addr = secAddr(s), nm = ss.locName != null ? cleanTitle(ss.locName).slice(0, 80) : null;
+    if (addr && nm != null && nm !== nameFrom(s.spot, s.spotAddress)) {
+      const pt = pl ? { lat: pl.lat, lon: pl.lon } : p === (s.spot || '') && s.spotPoint ? { lat: s.spotPoint[0], lon: s.spotPoint[1] } : { lat: null, lon: null };
+      Object.assign(patch, { spot: (nm || addrHead(addr)).slice(0, 80), spot_open: false, spot_address: null, spot_lat: null, spot_lon: null });
+      keepAddr = { spot_address: addr, spot_lat: pt.lat, spot_lon: pt.lon };
+    } else if (p !== (s.spot || '')) {
       Object.assign(patch, { spot: p || null, spot_open: !p, spot_address: pl ? pl.address : null, spot_lat: pl ? pl.lat : null, spot_lon: pl ? pl.lon : null });
     }
     if (!Object.keys(patch).length) { setState({ sec: null }); return; }
     const tell = send;
     run(async () => {
       must(await sb.from('sparks').update(patch).eq('id', s.id));
+      if (keepAddr) must(await sb.from('sparks').update(keepAddr).eq('id', s.id));   // the address back, under the new name
       if (patch.day_date && s.dateOpts.length) must(await sb.from('date_options').delete().eq('spark_id', s.id));
       if (patch.spot && s.spotOpts.length) must(await sb.from('spot_options').delete().eq('spark_id', s.id));
       if (tell) await sendUpdate(s, msg);
@@ -7015,7 +7024,11 @@
       // The same Date & time fields as Plan an event, with How long is it? (v8-7)
       body = '<div style="display:flex;flex-direction:column;gap:8px"><div style="display:flex;align-items:center;gap:6px">' + label('Date & time') + dayTypeBtn(ss, 'sec') + '</div>' +
         whenFields(ss, secWhenSet, { k: 'sec', anyDay: phaseOf(s) === 'done' }) + '</div>' +
-        '<div style="display:flex;flex-direction:column;gap:8px">' + label('Location') + placeField('offer', { placeholder: 'Search a place or address', style: BIG }) + '</div>' +
+        '<div style="display:flex;flex-direction:column;gap:8px">' + label('Location') + placeField('offer', { placeholder: 'Search a place or address', style: BIG }) +
+          // A name for a location that has an address (owner, 2026-10-10: add one to an event after posting), as in Plan an event
+          (secAddr(s) ? '<label style="display:flex;align-items:center;min-height:52px;padding:0 16px;border-radius:14px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;cursor:text">' +
+            '<input type="text" maxlength="80" autocomplete="off" data-loc-name aria-label="Location name" placeholder="Location name (optional)" value="' + esc(ss.locName != null ? ss.locName : nameFrom(s.spot, s.spotAddress)) + '" ' +
+              onInput(e => { if (e.type === 'input') set({ locName: e.target.value.slice(0, 80) }); }) + ' style="flex:1;min-width:0;border:0;padding:0;background:transparent;font-family:inherit;font-size:16px;font-weight:800;color:#0d1117;outline:none"></label>' : '') + '</div>' +
         // A plan keeps its date; taking it off turns the plan back into an idea (the host's call, with a confirm)
         // (Turn it back into an idea sits under Save: Design v8-8 prototype secBackIdeaOn)
         (s.planned && isLead(s) ? (ss.d ? '' : '<span data-needs-date style="font-size:13.5px;line-height:1.4;font-weight:600;color:' + AMBER_INK + '">A Plan needs a date. To take it off, turn it back into an Idea.</span>') : '');
@@ -9632,6 +9645,10 @@
   // With no name, the location is the address's first part (the street line) and the address the whole of it
   const addrHead = (a) => cleanTitle((a || '').split(',')[0] || '');
   // Editing or repeating an event: a location that is only its address's first part had no name of its own
+  // Edit date, time & location: the address the location has right now (a new pick's, or the saved one while the
+  // place box still shows the saved location), or ''
+  const secAddr = (s) => { const t = cleanTitle(state.offerText || ''), pl = state.offerPlace;
+    return pl && pl.name === t ? pl.address || '' : t === (s.spot || '') ? s.spotAddress || '' : ''; };
   const nameFrom = (spot, addr) => spot && addr && spot === addrHead(addr) ? '' : spot || '';
   // What a post saves for the location: the typed address wins; a picked place's address (and point) otherwise
   const evSpotCols = (st) => { const typed = cleanTitle(st.locAddr || '').slice(0, 120), spot = (cleanTitle(st.locText) || addrHead(typed)).slice(0, 80) || null, p = spot && st.locPlace ? st.locPlace : null;

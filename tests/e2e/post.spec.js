@@ -817,3 +817,36 @@ test('Float an idea: the Float sheet, a draft, and the starter’s slide-up', as
     await host.context.close();
   }
 });
+
+// A location name added after posting (owner, 2026-10-10): the address stays, and the page shows the name over it
+test('Edit date, time & location: add a location name to an event that only has its address', async ({ browser }) => {
+  const host = await newLead(browser, 1, 'Hope');
+  const H = host.page;
+  let id;
+  try {
+    id = await asUser(H, async (c, _C, { title, day }) => {
+      const me = (await c.auth.getUser()).data.user.id;
+      const g = (await c.from('groups').select('id').eq('name', 'Torrez Fitness').single()).data.id;
+      const r = await c.from('sparks').insert({ group_id: g, author_name: 'Hope', lead_name: 'Hope', lead_id: me, created_by: me, text: title, planned: true, day_date: day, day_time: '18:00',
+        spot: '11409 Hunters Lane', spot_address: '11409 Hunters Lane, Austin, TX 78753', spot_lat: 30.37, spot_lon: -97.68 }).select('id').single();
+      return r.error ? r.error.message : r.data.id;
+    }, { title: uniqueTitle('Porch hang'), day: inDays(6) });
+    expect(id).toMatch(/^[0-9a-f-]{36}$/);
+    await openIdea(H, id);
+    await H.getByLabel('Edit date, time and location').click();
+    const when = H.getByRole('dialog', { name: 'Date, time & location' });
+    await expect(when.getByLabel('Location name')).toHaveValue('');   // the location was only its street line
+    await when.getByLabel('Location name').fill('Hub on Hunters');
+    await when.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(when).toHaveCount(0);
+    const P = H.locator('[data-screen-label="Plan page"]');
+    await expect(P).toContainText('Hub on Hunters');
+    await expect(P).toContainText('11409 Hunters Lane, Austin, TX 78753');
+    const row = await asUser(H, async (c, _C, id) => (await c.from('sparks').select('spot,spot_address,spot_lat').eq('id', id).single()).data, id);
+    expect(row).toEqual({ spot: 'Hub on Hunters', spot_address: '11409 Hunters Lane, Austin, TX 78753', spot_lat: 30.37 });
+    expect(host.errors).toEqual([]);
+  } finally {
+    if (id) await asUser(H, async (c, _C, id) => { await c.from('sparks').delete().eq('id', id); }, id).catch(() => {});
+    await host.context.close();
+  }
+});
