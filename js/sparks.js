@@ -9905,7 +9905,8 @@
       '<div data-cp-row="where" style="display:flex;flex-direction:column;gap:8px">' + whereIn + '</div></div>';
     // EVENT DESCRIPTION: one growing box (200) and up to 3 inspo photos (the event's mood photos; the database keeps 3)
     const desc = st.evDesc || '', insp = st.evInspo || [], detOn = !!desc.trim() || insp.length > 0;
-    const thumbs = insp.map((q, k) => '<span style="position:relative;flex:0 0 52px;width:52px;height:52px;border-radius:12px;background:#2b303a ' + bg(q.url) + '">' +
+    // Tapping a photo opens it full screen (owner, 2026-10-10, from Stacy: they stayed small, so she couldn't judge them)
+    const thumbs = insp.map((q, k) => '<span ' + on(() => setState({ zoom: { photos: insp.map(x => x.url), i: k } })) + ' aria-label="View photo ' + (k + 1) + '" style="position:relative;flex:0 0 52px;width:52px;height:52px;border-radius:12px;cursor:zoom-in;background:#2b303a ' + bg(q.url) + '">' +
       '<span ' + on(() => dropInspo(k)) + ' aria-label="Remove photo" style="position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:999px;background:rgba(13,17,23,.55);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(9, '#fff', 3.4) + '</span></span>').join('');
     const cam = insp.length >= 3 ? '' : '<label data-cp-inspo style="flex:0 0 52px;width:52px;height:52px;box-sizing:border-box;border-radius:12px;border:1.5px dashed #b9bcc4;display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(20, stroke('#9aa0ac', 2.2), CAMERA) +
       '<input type="file" accept="image/*" multiple aria-label="Add inspo photos" ' + onInput(e => { if (e.type !== 'change') return; const f = Array.from(e.target.files || []); e.target.value = ''; addInspo(f); }) + ' style="display:none"></label>';
