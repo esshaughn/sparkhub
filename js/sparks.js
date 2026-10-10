@@ -8214,7 +8214,7 @@
   const ideaDraftKey = () => 'spark-hub-idea-draft-' + (state.me || 'guest');
   const readIdeaDraft = () => { try { return JSON.parse(localStorage.getItem(ideaDraftKey())); } catch (e) { return null; } };
   const writeIdeaDraft = (d) => { try { if (d) localStorage.setItem(ideaDraftKey(), JSON.stringify(d)); else localStorage.removeItem(ideaDraftKey()); return true; } catch (e) { return false; } };
-  const QI_WHY = OV_MAX;   // Float page 1's QUICK DESCRIPTION: Design v8-18 (1r) draws 120; the owner's 200 for every short description stands until they say
+  const QI_WHY = OV_MAX;   // Float page 1's QUICK DESCRIPTION: 200 like every short description (owner, 2026-10-10: keep 200; Design v8-18 1r drew 120)
   const qiBlank = () => ({ draftId: null, page: 1, title: '', why: '', photo: null, more: false, date: null, dpoll: null, loc: null, lpoll: null, groups: currentGroup() ? [currentGroup().id] : myGroups().slice(0, 1).map(g => g.id), gOpen: false, talk: false, rule: 'me', priv: false, fromCompose: false });   // I'll lead it is the default (Design v8-18, 1k)
   const openFloat = (pre) => needSignIn(() => {
     if (!myGroups().length) { if (state.loaded) openJoin(); return; }
