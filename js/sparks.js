@@ -11085,9 +11085,10 @@
           (p.label ? '<span data-job-pre style="flex:0 0 auto;font-size:16px;font-weight:700;color:#0d1117;white-space:pre">' + esc(p.label) + ' </span>' : '') +
           '<input type="text" maxlength="60" data-job-name' + (p.label ? ' autocapitalize="none"' : '') + ' aria-label="Sign-up name" placeholder="' + esc(p.hint || 'What you need') + '" value="' + esc(p.rest) + '" ' + onInput(e => { if (e.type === 'input') set({ item: ((p.label ? p.label + ' ' : '') + e.target.value).slice(0, 60) }); }) +
             ' style="flex:1;min-width:0;margin:0;padding:0;border:0;outline:none;background:transparent;font-family:inherit;font-size:16px;font-weight:700;color:#0d1117"></label>' +
-        // + Add details and the count sit right under the name, above the starters (owner, 2026-10-10)
-        '<div style="display:flex;align-items:center;gap:10px"><span ' + on(() => set({ item: (r.item || '').trim() }) || setState({ jobMore: true })) + ' role="button" data-job-more style="flex:1;min-width:0;display:flex;align-items:center;gap:6px;min-height:40px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer"><span aria-hidden="true" style="font-size:17px;line-height:1;font-weight:700">+</span><span>Add details</span></span>' +
-          stepper(r.need || null, (n) => set({ need: n || null }), 'how many people') + '</div>' +
+        // The count and + Add details sit right under the name, above the starters: the count on the left, Add details on
+        // the right (owner, 2026-10-10)
+        '<div style="display:flex;align-items:center;gap:10px">' + stepper(r.need || null, (n) => set({ need: n || null }), 'how many people') +
+          '<span ' + on(() => set({ item: (r.item || '').trim() }) || setState({ jobMore: true })) + ' role="button" data-job-more style="flex:1;min-width:0;display:flex;align-items:center;justify-content:flex-end;gap:6px;min-height:40px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer"><span aria-hidden="true" style="font-size:17px;line-height:1;font-weight:700">+</span><span>Add details</span></span></div>' +
         addStarters(r, set) + dayPick + '</div>'; }
     return '<div style="display:flex;flex-direction:column;gap:10px">' + nameFld +
       '<textarea class="fld" rows="2" maxlength="400" aria-label="Details' + tag + '" placeholder="Details (optional)" ' + onInput(e => { if (e.type === 'input') set({ desc: e.target.value.slice(0, 400) }); }) + ' style="' + BIG + ';min-height:52px;padding:12px 16px;font-size:16px;font-weight:500;line-height:1.4;resize:none">' + esc(r.desc || '') + '</textarea>' + dayPick +
