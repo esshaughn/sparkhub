@@ -4516,6 +4516,30 @@
             (mine ? '<span style="color:#8a6510"> · ✓ You voted</span>' : '') + '</div></div>' +
         '<span style="flex:0 0 auto;font-size:13px;font-weight:800;color:#8a6510">Vote ›</span></div>'; };
     const pencilled = dayHolds.length ? '<div style="padding:6px 4px 0;font-size:12px;font-weight:900;letter-spacing:1px;color:#8a6510">PENCILLED IN</div>' + dayHolds.map(holdRow).join('') : '';
+    // Coming up (owner, 2026-10-10, from Stacy): on My calendar the list under the chosen day goes on with what's next, day by
+    // day, through the rest of the month and into the next ones (a month name where it changes), so the month need not be
+    // flipped. Upcoming days only, up to six months ahead and 60 events
+    const ahead = () => {
+      if (o.mode !== 'mine') return '';
+      const seen = {}, rows = [];
+      for (let k = 0; k < 6; k++) {
+        const x = new Date(y, m - 1 + k, 1), mk = x.getFullYear() + '-' + pad2(x.getMonth() + 1);
+        calDays(list0, true, mk).forEach(s => {
+          if (!s.dayDate || s.dayDate <= sel || s.dayDate < today) return;
+          const key = s.id + '@' + s.dayDate;
+          if (!seen[key]) { seen[key] = 1; rows.push(s); }
+        });
+      }
+      if (!rows.length) return '';
+      rows.sort((p1, p2) => p1.dayDate === p2.dayDate ? (p1.dayTime || '') < (p2.dayTime || '') ? -1 : 1 : p1.dayDate < p2.dayDate ? -1 : 1);
+      let out = '', curDay = '', curMon = cm;
+      rows.slice(0, 60).forEach(s => {
+        if (s.dayDate.slice(0, 7) !== curMon) { curMon = s.dayDate.slice(0, 7); out += '<div style="padding-top:8px">' + monthHead(new Date(s.dayDate + 'T12:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })) + '</div>'; }
+        if (s.dayDate !== curDay) { curDay = s.dayDate; out += '<div data-ahead-day style="padding:6px 4px 0;font-size:15px;font-weight:900;color:#0d1117">' + esc(new Date(s.dayDate + 'T12:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })) + '</div>'; }
+        out += o.card(s);
+      });
+      return '<div data-ahead style="display:flex;flex-direction:column;gap:10px;margin-top:6px"><div style="padding:6px 4px 0;font-size:12px;font-weight:900;letter-spacing:1px;color:#6b7280">COMING UP</div>' + out + '</div>';
+    };
     return '<div style="display:flex;flex-direction:column;gap:10px">' +
       '<div style="display:flex;align-items:center;gap:8px;padding:0 4px"><h2 style="flex:1;margin:0;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:#0d1117">' + esc(start.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })) + '</h2>' +
         navBtn(shift(-1), 'Previous month', I.chevL(15, '#0d1117', 2.6)) + navBtn(shift(1), 'Next month', I.chevR(15, '#0d1117', 2.6)) + o.menu + '</div>' +
@@ -4532,6 +4556,7 @@
         // (a day already gone keeps the one line)
         : o.mode === 'group' && sel >= today ? '<div ' + on(() => goCompose({ evDate: sel })) + ' role="button" style="display:flex;align-items:center;justify-content:center;gap:6px;min-height:52px;border-radius:16px;border:1.5px dashed #c9ccd3;color:#454b55;font-size:15px;font-weight:800;cursor:pointer"><span style="color:#5b4ae8;font-size:18px;line-height:1">+</span>Create a Plan on ' + esc(new Date(sel + 'T12:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })) + '</div>'
         : '<div style="background:#fff;border-radius:16px;padding:14px 16px;font-size:14.5px;font-weight:600;color:#6b7280">' + (o.mode === 'group' ? 'Nothing on this day.' : 'Nothing on this day. Pick a day with a dot.') + '</div>') +
+      ahead() +
       // Undated events stay out of the grid; on a group page the strip comes after the day's list and opens the list at
       // "Date TBD" (Design v8: My calendar and All groups have no strip)
       (undatedN && o.mode === 'group' ? '<div ' + on(() => { o.toTbd(); setTimeout(() => { const el = document.querySelector('[data-sec-tbd]'); if (el) el.scrollIntoView({ block: 'start' }); }, 0); }) + ' data-no-date role="button" style="display:flex;align-items:center;gap:10px;min-height:48px;padding:0 14px;border-radius:14px;background:#fef7dd;color:#8f6405;font-size:14.5px;font-weight:800;cursor:pointer">' +

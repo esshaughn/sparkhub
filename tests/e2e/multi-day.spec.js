@@ -3,7 +3,7 @@
 // will you attend?, a job on one day (WHICH DAY) that adds that day to your RSVP, Who's coming's day tags, and a
 // recurring event set from the event's Edit.
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newLead, startPost, pickDate, timeBox, closeAskFirst, ideaIdFromUrl, openIdea, deleteIdea, asUser, donePlus, newMember, rsvpTap } = require('./helpers');
+const { uniqueTitle, newLead, startPost, pickDate, timeBox, closeAskFirst, ideaIdFromUrl, openIdea, deleteIdea, asUser, donePlus, newMember, rsvpTap, pickView } = require('./helpers');
 
 const inDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
 const wk = (iso, long) => new Date(iso + 'T12:00').toLocaleDateString('en-US', { weekday: long ? 'long' : 'short' });
@@ -237,5 +237,39 @@ test('multi-day: a row per upcoming day, dates for repeated weekdays, past days,
     if (id) await deleteIdea(H, id);
     await host.context.close();
     await member.context.close();
+  }
+});
+
+// My calendar's Month goes on listing what's next under the chosen day, into the following months (owner, 2026-10-10,
+// from Stacy): a Coming up list, day by day, with a month name where it changes
+test('my calendar month: the list under the chosen day goes on into the next months', async ({ browser }) => {
+  const host = await newLead(browser, 1, 'Marisol');
+  const H = host.page;
+  const soon = uniqueTitle('Soon block party'), later = uniqueTitle('Later harvest supper'), d1 = inDays(2), d2 = inDays(45);
+  const ids = [];
+  try {
+    for (const [text, day] of [[soon, d1], [later, d2]]) {
+      const id = await asUser(H, async (c, _C, f) => {
+        const me = (await c.auth.getUser()).data.user.id;
+        const g = (await c.from('groups').select('id').eq('name', 'Torrez Fitness').single()).data.id;
+        const r = await c.from('sparks').insert(Object.assign({ group_id: g, author_name: 'Marisol', lead_name: 'Marisol', lead_id: me, created_by: me, planned: true }, f)).select('id').single();
+        return r.error ? r.error.message : r.data.id;
+      }, { text, day_date: day, day_time: '18:00', day_end: '19:00' });
+      expect(id).toMatch(/^[0-9a-f-]{36}$/);
+      ids.push(id);
+    }
+    await H.goto('/#/');
+    await expect(H.locator('html[data-loaded=true]')).toHaveCount(1);
+    const yc = H.locator('[data-screen-label="Your calendar"]');
+    await pickView(yc, 'Month');
+    // both are on the page: the sooner one under the chosen day or in Coming up, the later one in Coming up under its month
+    await expect(yc.locator('[data-plan="' + soon + '"]')).toHaveCount(1);
+    await expect(yc.locator('[data-ahead] [data-plan="' + later + '"]')).toHaveCount(1);
+    await expect(yc.locator('[data-ahead]')).toContainText(new Date(d2 + 'T12:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }));
+    await expect(yc.locator('[data-ahead]')).toContainText('COMING UP');
+    expect(host.errors).toEqual([]);
+  } finally {
+    for (const id of ids) await deleteIdea(H, id);
+    await host.context.close();
   }
 });
