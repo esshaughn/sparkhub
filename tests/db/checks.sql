@@ -1494,3 +1494,130 @@ update sparks set mood = '{}' where id = t.id('pf');
 select t.check('…then the home group''s photo', t.preview_photo() = 'photos/share-hub.jpg');
 update groups set photo = null where id = t.id('pg');
 select t.check('…and none when there''s none of the three', t.preview_photo() is null);
+
+-- Community memory (20261121030000_event_memory.sql): the journal and summaries hold facts that outlive the event ---
+select t.person('mem_lead'); select t.person('mem_a'); select t.person('mem_b');
+insert into groups (id, name, code, created_by) values (gen_random_uuid(), 'Memory group', 'MEMO22', t.id('mem_lead'));
+insert into t.ids select 'mem_g', id from groups where code = 'MEMO22';
+insert into memberships (group_id, user_id, role) values (t.id('mem_g'), t.id('mem_a'), 'member'), (t.id('mem_g'), t.id('mem_b'), 'member')
+  on conflict do nothing;
+create function t.jn(p_name text, p_kind text) returns bigint language sql as $$
+  select count(*) from private.event_journal where spark_id = t.id(p_name) and kind = p_kind $$;
+
+-- no client role reads or writes either table
+set role authenticated;
+select t.must_refuse('a signed-in person reads the journal', 'select * from private.event_journal');
+select t.must_refuse('a signed-in person reads the summaries', 'select * from private.event_summaries');
+select t.must_refuse('a signed-in person writes the journal', $$insert into private.event_journal (spark_id, kind) values (gen_random_uuid(), 'x')$$);
+select t.must_refuse('a signed-in person runs close_out_events', 'select private.close_out_events()');
+set role anon;
+select t.must_refuse('a visitor reads the journal', 'select * from private.event_journal');
+select t.must_refuse('a visitor reads the summaries', 'select * from private.event_summaries');
+reset role;
+
+-- event types
+select t.check('pickleball night is pickleball', private.guess_event_type('Pickleball Night 2') = 'pickleball');
+select t.check('chili cook-off is a potluck', private.guess_event_type('Chili Cook-Off') = 'potluck');
+select t.check('halloween walk is a walk', private.guess_event_type('Halloween Walk') = 'walk');
+select t.check('street cleanup is volunteering', private.guess_event_type('Street cleanup') = 'volunteer');
+select t.check('an odd title is other', private.guess_event_type('Zzz') = 'other');
+select t.check('titles group together', private.title_key('Pickleball Night 2') = private.title_key('pickleball night')
+  and private.title_key('Oct 12 Pickleball Night!') = 'pickleball night');
+
+-- a real event: posted, edited, claimed, released, cancelled
+insert into sparks (id, group_id, author_name, lead_name, lead_id, created_by, text, visibility, planned, day_date, day_time)
+values (gen_random_uuid(), t.id('mem_g'), 'Lead', 'Lead', t.id('mem_lead'), t.id('mem_lead'), 'Pickleball Night 7', 'group', true, current_date + 4, '18:00');
+insert into t.ids select 'mem_ev', id from sparks where text = 'Pickleball Night 7';
+select t.check('the event type is filled in', (select event_type from sparks where id = t.id('mem_ev')) = 'pickleball');
+select t.check('posting writes a journal row', t.jn('mem_ev', 'posted') = 1);
+insert into signup_items (spark_id, item, need, created_by) values (t.id('mem_ev'), 'Bring nets', 2, t.id('mem_lead'));
+insert into t.ids select 'mem_job', id from signup_items where spark_id = t.id('mem_ev');
+select t.check('adding a job is recorded', t.jn('mem_ev', 'job_added') = 1);
+update signup_items set need = 3 where id = t.id('mem_job');
+select t.check('changing the spots is recorded', t.jn('mem_ev', 'job_spots_changed') = 1);
+insert into signup_claims (item_id, user_id) values (t.id('mem_job'), t.id('mem_a')), (t.id('mem_job'), t.id('mem_b'));
+select t.check('claims are recorded', t.jn('mem_ev', 'job_claimed') = 2);
+delete from signup_claims where user_id = t.id('mem_b');
+select t.check('a released claim is recorded', t.jn('mem_ev', 'job_released') = 1);
+update sparks set day_time = '19:00', spot = 'The park' where id = t.id('mem_ev');
+select t.check('a new time is recorded', t.jn('mem_ev', 'date_changed') = 1);
+select t.check('a new place is recorded, without the place', t.jn('mem_ev', 'spot_changed') = 1
+  and not exists (select 1 from private.event_journal where data::text like '%park%'));
+-- removing a job on its own logs the removal (with its claim count) but not its claims as released
+insert into signup_items (spark_id, item, need, created_by) values (t.id('mem_ev'), 'Snacks', 2, t.id('mem_lead'));
+insert into t.ids select 'mem_snack', id from signup_items where item = 'Snacks' and spark_id = t.id('mem_ev');
+insert into signup_claims (item_id, user_id) values (t.id('mem_snack'), t.id('mem_a'));
+delete from signup_items where id = t.id('mem_snack');
+select t.check('removing a job is recorded once with its claim count, and releases nothing',
+  (select count(*) from private.event_journal where spark_id = t.id('mem_ev') and kind = 'job_removed' and (data ->> 'claimed')::int = 1) = 1
+  and t.jn('mem_ev', 'job_released') = 1);
+
+update sparks set cancelled_at = now(), cancel_reason = 'Rain, sorry' where id = t.id('mem_ev');
+select t.check('a cancel is recorded with the reason''s length only', t.jn('mem_ev', 'cancelled') = 1
+  and (select (data ->> 'reason_len')::int = 11 and (data ->> 'reason_given')::boolean from private.event_journal
+        where spark_id = t.id('mem_ev') and kind = 'cancelled')
+  and not exists (select 1 from private.event_journal where data::text ilike '%rain%'));
+select t.check('the journal holds no user id', not exists (select 1 from private.event_journal j, auth.users u
+  where j.data::text like '%' || u.id::text || '%'));
+
+-- a deleted event does not log each claim as released
+insert into sparks (id, group_id, author_name, lead_name, lead_id, created_by, text, visibility, planned, day_date, day_time)
+values (gen_random_uuid(), t.id('mem_g'), 'Lead', 'Lead', t.id('mem_lead'), t.id('mem_lead'), 'Potluck supper', 'group', true, current_date + 4, '18:00');
+insert into t.ids select 'mem_pot', id from sparks where text = 'Potluck supper';
+insert into signup_items (spark_id, item, need, created_by) values (t.id('mem_pot'), 'Salad', 2, t.id('mem_lead'));
+insert into t.ids select 'mem_salad', id from signup_items where spark_id = t.id('mem_pot');
+insert into signup_claims (item_id, user_id) values (t.id('mem_salad'), t.id('mem_a'));
+select t.login('mem_lead');
+select public.delete_event(t.id('mem_pot'), false, null);
+select t.check('deleting an event logs no per-claim release or job removal', t.jn('mem_pot', 'job_released') = 0 and t.jn('mem_pot', 'job_removed') = 0);
+select t.check('a normal delete writes a deleted row', t.jn('mem_pot', 'deleted') = 1);
+select t.check('a normal delete keeps the summary without the title', exists (select 1 from private.event_summaries
+  where spark_id = t.id('mem_pot') and title_key is null and event_type = 'potluck' and cancelled and jobs -> 0 ->> 'name' = 'Salad'));
+
+-- a quiet delete discards everything
+insert into sparks (id, group_id, author_name, lead_name, lead_id, created_by, text, visibility, planned, day_date, day_time)
+values (gen_random_uuid(), t.id('mem_g'), 'Lead', 'Lead', t.id('mem_lead'), t.id('mem_lead'), 'Oops party', 'group', true, current_date + 4, '18:00');
+insert into t.ids select 'mem_oops', id from sparks where text = 'Oops party';
+select t.check('the mistake was journaled first', t.jn('mem_oops', 'posted') = 1);
+select public.delete_event(t.id('mem_oops'), true, null);
+select t.check('a quiet delete leaves no journal rows', t.jn('mem_oops', 'posted') = 0 and t.jn('mem_oops', 'deleted') = 0);
+select t.check('a quiet delete leaves no summary', not exists (select 1 from private.event_summaries where spark_id = t.id('mem_oops')));
+
+-- test, demo and [E2E] events write nothing
+insert into sparks (group_id, author_name, lead_name, lead_id, created_by, text, visibility, planned, day_date, day_time, test)
+values (t.id('mem_g'), 'Lead', 'Lead', t.id('mem_lead'), t.id('mem_lead'), 'A test event', 'group', true, current_date + 4, '18:00', true);
+insert into sparks (group_id, author_name, lead_name, lead_id, created_by, text, visibility, planned, day_date, day_time)
+values (t.id('mem_g'), 'Lead', 'Lead', t.id('mem_lead'), t.id('mem_lead'), '[E2E] walk 123', 'group', true, current_date + 4, '18:00');
+insert into signup_items (spark_id, item, need, created_by) select id, 'Chairs', 1, t.id('mem_lead') from sparks where text in ('A test event', '[E2E] walk 123');
+insert into signup_claims (item_id, user_id) select i.id, t.id('mem_a') from signup_items i join sparks s on s.id = i.spark_id where s.text in ('A test event', '[E2E] walk 123');
+select t.check('test and [E2E] events write no journal rows', not exists (select 1 from private.event_journal j join sparks s on s.id = j.spark_id
+  where s.text in ('A test event', '[E2E] walk 123')));
+select t.check('…and are never closed out', (select private.close_out_events()) is not null
+  and not exists (select 1 from private.event_summaries m join sparks s on s.id = m.spark_id where s.text in ('A test event', '[E2E] walk 123')));
+select set_config('request.jwt.claims', '{"role":"service_role"}', false), set_config('request.jwt.claim.role', 'service_role', false);
+insert into sparks (group_id, author_name, lead_name, lead_id, created_by, text, visibility, planned, day_date, day_time, demo)
+values (t.id('mem_g'), 'Lead', 'Lead', t.id('mem_lead'), t.id('mem_lead'), 'A demo event', 'group', true, current_date + 4, '18:00', true);
+select set_config('request.jwt.claims', '', false), set_config('request.jwt.claim.role', '', false);
+select t.check('demo events write nothing', exists (select 1 from sparks where text = 'A demo event' and demo) and not exists (select 1 from private.event_journal j join sparks s on s.id = j.spark_id where s.text = 'A demo event'));
+
+-- close out: only events that ended a day ago, once
+insert into sparks (id, group_id, author_name, lead_name, lead_id, created_by, text, visibility, planned, day_date, day_time, day_end)
+values (gen_random_uuid(), t.id('mem_g'), 'Lead', 'Lead', t.id('mem_lead'), t.id('mem_lead'), 'Game night 3', 'group', true, current_date + 3, '18:00', '20:30');
+insert into t.ids select 'mem_past', id from sparks where text = 'Game night 3';
+insert into signup_items (spark_id, item, need, created_by, created_at) values (t.id('mem_past'), 'Snacks', 2, t.id('mem_lead'), now() - interval '10 days');
+insert into t.ids select 'mem_psnack', id from signup_items where spark_id = t.id('mem_past');
+insert into signup_claims (item_id, user_id, created_at) values (t.id('mem_psnack'), t.id('mem_a'), now() - interval '9 days'), (t.id('mem_psnack'), t.id('mem_b'), now() - interval '8 days');
+insert into rsvps (spark_id, user_id, status) values
+  (t.id('mem_past'), t.id('mem_a'), 'going'), (t.id('mem_past'), t.id('mem_b'), 'going');
+update sparks set day_date = current_date - 2 where id = t.id('mem_past');
+update rsvps set attended = true where spark_id = t.id('mem_past') and user_id = t.id('mem_a');
+select t.check('a future event is not closed out yet', private.close_out_events() >= 1
+  and not exists (select 1 from private.event_summaries where spark_id = t.id('mem_ev')));
+select t.check('the summary has the counts', exists (select 1 from private.event_summaries where spark_id = t.id('mem_past')
+  and event_type = 'game_night' and title_key = 'game night' and going = 3 and came = 1 and not cancelled and duration_min = 150
+  and start_time = '18:00' and jobs -> 0 ->> 'name' = 'Snacks' and (jobs -> 0 ->> 'claimed')::int = 2 and (jobs -> 0 ->> 'hours_to_fill')::numeric = 48.0
+  and lead_days is not null and dow is not null));
+select t.check('close_out_events twice writes one summary', private.close_out_events() = 0
+  and (select count(*) from private.event_summaries where spark_id = t.id('mem_past')) = 1);
+select t.check('the summary holds no user id', not exists (select 1 from private.event_summaries s, auth.users u
+  where s::text like '%' || u.id::text || '%'));
