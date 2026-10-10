@@ -99,16 +99,16 @@ test('a group end to end: edit group, cover, rename, invite, pin, admin edits, r
     await expect(join).toContainText('That code didn’t match a group. Check it with your organiser.');
     await expect(join.getByRole('button', { name: 'Join' })).toHaveAttribute('aria-disabled', 'true');
     await join.getByRole('button', { name: 'Close' }).click();
-    // Signed in before the tap: one confirm (E3), then Welcome to {group} (4) → its Plans tab
+    // Signed in before the tap: one confirm (E3), then Welcome to {Group}, {first} (v8-22 4a) → the group
     await B.goto('/#/join/' + code);
     const joinAsk = B.getByRole('dialog', { name: 'Join ' + groupName + '?' });
     await expect(joinAsk).toContainText('You’ll join as:');
     await expect(joinAsk).not.toContainText(code);   // the code is never shown
     await joinAsk.getByRole('button', { name: /^Join as / }).click();
-    const welcome = B.locator('[data-screen-label="Welcome to group"]');
-    await expect(welcome).toContainText('Welcome to' + groupName);
-    await expect(welcome).toContainText('Nothing planned yet. Start the first one?');
-    await welcome.getByRole('button', { name: 'See what’s coming up' }).click();
+    const welcome = B.locator('[data-screen-label="Welcome to the group"]');
+    await expect(welcome).toContainText('Welcome to ' + groupName + ', Bo');
+    await expect(welcome).toContainText('You’re a member now.');   // no invite waiting, so no one to name
+    await welcome.getByRole('button', { name: 'See the group' }).click();
     await expect(B.locator('[data-screen-label=Browse]')).toContainText(groupName);
     // The link again, already a member (E2): the group page and a toast, no Welcome
     await B.goto('/#/join/' + code);

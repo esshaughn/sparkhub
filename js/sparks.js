@@ -340,7 +340,7 @@
     pe: null, confirm: null, interestList: false, thanksList: false, guestList: null, cohostPick: null, leadAsk: null, leadsSheet: null, takeDown: null, albumEdit: null,
     gpCode: '', gpMembers: null, gpFail: false, sf: null, sfShow: {}, voteAll: null, justAdded: null, offerVote: true,
     // v6 Update 13: Your people (Groups · Friends), friend requests, the friend link, inviting friends
-    fr: { friends: [], incoming: [], outgoing: [], invites: [], loaded: false }, pplTab: 'groups', pplSearch: false, pplQ: '', pplAdd: false, frSel: [], frInvite: false, frAll: false, frAllQ: '',
+    fr: { friends: [], incoming: [], outgoing: [], invites: [], gInv: [], loaded: false }, pplTab: 'groups', pplSearch: false, pplQ: '', pplAdd: false, frSel: [], frInvite: false, frAll: false, frAllQ: '',
     frAdd: null, myFriendCode: null, person: null,
     // v6: Profile / Notifications are sheets; Your tasks' "View all", expansions, the RSVP ask
     profSheet: false, notifSheet: false, dashAll: null, dashOpen: {}, schedOpen: {}, tkCat: 'all', tkView: prefs.tkView === 'dense' ? 'dense' : 'time', iaView: prefs.iaLay === 'grid' ? 'grid' : 'full', iaSort: ['new', 'close'].indexOf(prefs.iaSort) > -1 ? prefs.iaSort : 'interest', iaGrps: keepGrps(prefs.iaGrps) || [], ideaSeen: prefs.ideaSeen || null, frList: null, frListEd: null, meImp: null, meList: null, shiftPick: null, banner: null,
@@ -802,9 +802,13 @@
     const fr = fd ? {
       friends: (fd.friends || []).map(f => ({ id: f.id, name: f.name || '', avatar: PHOTO_PATH.test(f.avatar || '') ? f.avatar : null, since: Date.parse(f.since) || 0, groups: f.groups || [] })),
       incoming: (fd.incoming || []).map(f => ({ id: f.id, name: f.name || '', avatar: PHOTO_PATH.test(f.avatar || '') ? f.avatar : null, group: f.group || '', at: Date.parse(f.at) || 0 })),
-      outgoing: fd.outgoing || [], invites: (fd.invites || []).map(i => ({ spark: i.spark, by: i.by, at: Date.parse(i.at) || 0, note: i.note || '' })), loaded: true
-    } : state.viewAs ? { friends: [], incoming: [], outgoing: [], invites: [], loaded: true } : state.fr;
+      outgoing: fd.outgoing || [], invites: (fd.invites || []).map(i => ({ spark: i.spark, by: i.by, at: Date.parse(i.at) || 0, note: i.note || '' })),
+      // Group invites (20261127000000_group_invites.sql): waiting for you, and joined in the last 7 days
+      gInv: (fd.group_invites || []).map(i => ({ id: i.id, group: i.group, name: i.name || '', photo: i.photo || null, members: i.members || 0, next: i.next || null, by: i.by || null,
+        byName: i.by_name || 'Someone', byAvatar: PHOTO_PATH.test(i.by_avatar || '') ? i.by_avatar : null, status: i.status, at: Date.parse(i.at) || 0, answered: Date.parse(i.answered) || 0, hi: !!i.hi })), loaded: true
+    } : state.viewAs ? { friends: [], incoming: [], outgoing: [], invites: [], gInv: [], loaded: true } : state.fr;
     fr.friends.concat(fr.incoming).forEach(f => { if (!profiles[f.id]) profiles[f.id] = { name: f.name, avatar: f.avatar, place: '', bio: '' }; });
+    (fr.gInv || []).forEach(i => { if (i.by && !profiles[i.by]) profiles[i.by] = { name: i.byName, avatar: i.byAvatar, place: '', bio: '' }; });
     // Nothing changed since the last load: no redraw and no cache write (both are heavy on a phone and made scrolling stick every
     // 30 seconds). Compared with the last answer from the server; an optimistic tap since then (tapSeq) forces the redraw, so
     // one the server turned down still gets put right.
@@ -1246,11 +1250,11 @@
     const g = groupById(state.gpId);
     if (state.gpFrom === 'browse' && g) go('browse', { groupId: g.id }); else go('groups');
   };
-  const openMembers = () => { setState({ membersOpen: state.gpId, membersQ: '', blockedList: null }); const g = groupById(state.gpId); if (g && runs(g)) loadBlocked(g.id); };
+  const openMembers = () => { setState({ membersOpen: state.gpId, membersQ: '', blockedList: null, gInvWaiting: null }); const g = groupById(state.gpId); if (g && runs(g)) { loadBlocked(g.id); loadGInvWaiting(g.id); } };
   // v6 Update 13: every member can open the list (to add friends); admins also get emails and role actions
   const openMembersOf = (g) => {
-    setState({ membersOpen: g.id, membersQ: '', memberOpen: null, membersList: null, blockedList: null });
-    if (runs(g)) loadBlocked(g.id);
+    setState({ membersOpen: g.id, membersQ: '', memberOpen: null, membersList: null, blockedList: null, gInvWaiting: null });
+    if (runs(g)) { loadBlocked(g.id); loadGInvWaiting(g.id); }
     sb.rpc(runs(g) ? 'group_members' : 'group_people', { p_group: g.id })
       .then(r => { if (r.error) throw r.error; if (state.membersOpen === g.id) setState({ membersList: r.data || [] }); })
       .catch(e => { console.error(e); setState({ membersOpen: null }); toast(failed(e)); });
@@ -1380,7 +1384,8 @@
       if (before.indexOf(res.data) < 0) calAfterJoin(res.data, before, false);
       const g = groupById(res.data);
       setState({ busy: null, joinOpen: false, joinCode: '', joinRaw: null, joinFound: null });
-      openGroup(g);
+      // New to the group: Welcome to {Group}, {first} (v8-22 4a), once per group; otherwise the group page
+      if (g && before.indexOf(g.id) < 0 && welcomedIds().indexOf(g.id) < 0) { markWelcomed(g.id); showNw(g.id); } else openGroup(g);
     } catch (e) {
       console.error(e);
       setState({ busy: null });
@@ -1454,9 +1459,9 @@
   // ---- Invite links (/join/CODE; design handoff "Invite flow", 2026-09-29) ------------------------
   // The group's name and photo lead every screen; the code itself is never shown. Signed out: the invite
   // landing (Google, or a 6-digit email code in a pop-up), then the join runs by itself. Signed in before
-  // the tap: one confirm (it may be the wrong account). Then Welcome to {group} (once per group) → its
-  // Plans tab. state.inv = { code, group (undefined while loading, null if the code matches nothing),
-  // step: land · confirm · joining · neterr · welcome · bad, busy, gid, copied }.
+  // the tap: one confirm (it may be the wrong account). Then Welcome to {Group}, {first} (once per group, v8-22 4a:
+  // state.nw, showNw). state.inv = { code, group (undefined while loading, null if the code matches nothing),
+  // step: land · confirm · joining · neterr · bad, busy, gid, copied }.
   const PENDING_INVITE = 'pendingInvite', WELCOMED = 'spark-hub-welcomed-groups';
   const IN_APP = /Instagram|FBAN|FBAV|FB_IAB|FBIOS|Messenger|Line\/|TikTok|Snapchat|LinkedInApp|Twitter|Pinterest|Discord|Slack|GSA\/|; wv\)/i.test(navigator.userAgent);   // first-encounter audit 8: more in-app browsers
   const DEVICE = /iPhone|iPod|Android/i.test(navigator.userAgent) ? 'phone' : 'device';   // "this phone" reads wrong on a computer or tablet
@@ -1549,20 +1554,13 @@
         return;
       }
       markWelcomed(id);
-      setState({ inv: { code, gid: id, group, step: 'welcome' }, screen: 'sched' });
-      const sc = scroller();
-      if (sc) sc.scrollTop = 0;
+      setState({ inv: null, screen: 'sched' });
+      showNw(id);   // Welcome to {Group}, {first} (v8-22 4a)
     } catch (e) {
       clearTimeout(slow);
       console.error(e);
       setInv({ busy: false, step: 'neterr' });
     }
-  };
-  // Leaving Welcome for the group page; the Add to Home Screen pop-up follows 1.2s later
-  const leaveWelcome = (tab) => {
-    const g = groupById(state.inv && state.inv.gid);
-    setState({ inv: null });
-    if (g) { markSeen(g); go('browse', { groupId: g.id, phaseTab: tab }); } else go('sched');
   };
   // Signed out on the landing: email → a code in pop-up 2; Google → a full-page trip, back into the join
   const invSendCode = () => {
@@ -3080,41 +3078,6 @@
     '</div>';
   }
 
-  // 4: Welcome to {group}, once per group joined by link
-  function viewInvWelcome() {
-    const st = state, inv = st.inv, g = inv.group, gid = inv.gid;
-    const next = state.sparks.filter(s => inGroup(s, gid) && phaseOf(s) === 'plan' && s.dayDate).sort(byWhen)[0];
-    const rows = [['#5b4ae8', 'Plans', 'see what’s coming up and RSVP'], ['#e8a317', 'Ideas', 'float one, see who’s up for it'], ['#1f8a4c', 'Pitch in', 'bring something or lend a hand']];
-    let card;
-    if (next) {
-      const f = signupFill(next), n = headN(next);
-      const rsvp = () => { const s = next; leaveWelcome('plan'); if (myRsvp(s) !== 'going') setRsvp(s, 'going'); };
-      card = '<div style="margin-top:22px;display:flex;align-items:center;gap:12px;border-radius:22px;padding:16px 18px;color:#fff;background:' +
-          (next.photoPaths[0] ? 'linear-gradient(rgba(13,17,23,.5),rgba(13,17,23,.72)),' + photoBg(next) : 'linear-gradient(180deg,#a57a1c,#4a3a1a)') + '">' +
-        '<div style="flex:1;min-width:0">' +
-          '<div style="font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;opacity:.9">Next up · ' + esc(when6(next)) + '</div>' +
-          '<div style="margin-top:2px;font-size:20px;line-height:1.2;font-weight:900;overflow-wrap:break-word">' + esc(next.text) + '</div>' +
-          '<div style="margin-top:2px;font-size:14px;opacity:.85">' + esc((f.open > 0 ? f.open + (f.open === 1 ? ' spot left · ' : ' spots left · ') : '') + n + ' going') + '</div></div>' +
-        '<button type="button" ' + on(rsvp) + ' style="flex:0 0 auto;border:0;border-radius:999px;background:#fff;color:#11131f;padding:10px 18px;font-family:inherit;font-size:15px;font-weight:800;cursor:pointer">' + (myRsvp(next) === 'going' ? 'Going' : 'RSVP') + '</button></div>';
-    } else {
-      card = '<div style="margin-top:22px;display:flex;align-items:center;gap:12px;border-radius:22px;padding:16px 18px;background:#fff;border:2px solid #e3e5ec">' +
-        '<div style="flex:1;min-width:0;font-size:16px;line-height:1.35;font-weight:700;color:#11131f">Nothing planned yet. Start the first one?</div>' +
-        '<button type="button" ' + on(() => { leaveWelcome('idea'); goCompose(); }) + ' style="flex:0 0 auto;border:0;border-radius:999px;background:#5b4ae8;color:#fff;padding:10px 18px;font-family:inherit;font-size:15px;font-weight:800;cursor:pointer">Create a Plan</button></div>';
-    }
-    return '<div data-screen-label="Welcome to group" style="position:relative;min-height:100%;display:flex;flex-direction:column;background:#f0f1f5">' +
-      '<div style="position:relative;flex:0 0 auto">' + invPhoto(g, 'calc(240px + var(--pt))', 80) + statusFade + '</div>' +
-      '<div style="position:relative;flex:1 0 auto;margin-top:-28px;border-radius:28px 28px 0 0;background:#fff;padding:26px 24px calc(24px + env(safe-area-inset-bottom, 0px))">' +
-        '<span aria-hidden="true" style="position:absolute;top:-28px;right:24px;width:56px;height:56px;border-radius:999px;background:#1f8a4c;box-shadow:0 0 0 5px #fff;display:flex;align-items:center;justify-content:center">' + I.check(26, '#fff', 3.2) + '</span>' +
-        '<div style="' + INV_EYEBROW + ';color:#1f8a4c">You’re in</div>' +
-        '<h1 style="margin:6px 0 0;font-size:34px;line-height:1.05;font-weight:900;letter-spacing:-.025em;color:#11131f;overflow-wrap:break-word">Welcome to<br>' + invName(g) + '</h1>' +
-        '<div style="margin-top:20px;display:flex;flex-direction:column;gap:14px">' + rows.map(([c, b, t], i) =>
-          '<div style="display:flex;align-items:flex-start;gap:14px"><span aria-hidden="true" style="flex:0 0 34px;width:34px;height:34px;border-radius:999px;background:' + c + ';color:#fff;font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center">' + (i + 1) + '</span>' +
-          '<span style="padding-top:5px;font-size:16px;line-height:1.35;color:#5f6475"><b style="font-weight:800;color:#11131f">' + b + '</b> — ' + t + '</span></div>').join('') + '</div>' +
-        card +
-        '<button type="button" ' + on(() => leaveWelcome('plan')) + ' style="margin-top:14px;' + invPrimary(true, 56) + '">See what’s coming up</button>' +
-      '</div></div>';
-  }
-
   // E1: a mistyped, rotated or deleted link (one message for all three). v7 Update 15: a centred white card on gray,
   // a broken-link icon in a gray circle
   function viewInvBad() {
@@ -3513,7 +3476,7 @@
       : nextCard + (!groups.length ? none : big.map(bigCard).join('')) + (rest.length ? '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">' + rest.map(tile).join('') + '</div>' : '') + allCard +
         '<span ' + on(() => setState({ pplAdd: true })) + ' data-add-group aria-label="Join or add a group" style="display:flex;align-items:center;justify-content:center;gap:6px;min-height:48px;color:#454b55;font-size:15px;font-weight:800;cursor:pointer">' + I.plus(16, 'currentColor', 2.6) + 'Join or add a group</span>';
     return '<div data-screen-label="Groups">' + tabHead('My groups', openPplSearch, 'Search your groups') +
-      '<div style="padding:14px 14px 26px;display:flex;flex-direction:column;gap:12px">' + pplSearchField('Search your groups') + goneCard() + body + '</div>' +
+      '<div style="padding:14px 14px 26px;display:flex;flex-direction:column;gap:12px">' + pplSearchField('Search your groups') + gInvCards() + goneCard() + body + '</div>' +
       '<div style="height:var(--nav-h)"></div>' +
     '</div>';
   }
@@ -3790,7 +3753,10 @@
             '<div data-person-groups style="align-self:stretch;padding:12px 14px;border-radius:14px;background:#f7f7f9;font-size:14px;line-height:1.45;font-weight:600;color:#454b55">' +
               (p.groups.length ? '<span style="font-size:12px;font-weight:900;letter-spacing:.6px;text-transform:uppercase;color:#8a909b">' + (p.self ? 'In' : 'Both in') + '</span><br>' + esc(namesList(p.groups))
                 : 'You’re not in a group together.') + '</div>' + going +
-            (friendRow ? '<div style="align-self:stretch;display:flex;flex-direction:column;gap:8px">' + friendRow + '</div>' : '') + sfPersonLinks(p)) +
+            (friendRow ? '<div style="align-self:stretch;display:flex;flex-direction:column;gap:8px">' + friendRow + '</div>' : '') +
+            // Invite to a group (v8-22 1a): owners and admins, for a friend or someone they share a group with
+            (!p.self && !st.viewAs && (f || p.groups.length) && myGroups().some(runs) ? '<span ' + on(() => openGpi(p.id, name)) + ' role="button" data-person-ginv style="align-self:center;display:flex;align-items:center;gap:6px;min-height:40px;padding:0 10px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">' +
+              svg(16, stroke('currentColor', 2.3), '<circle cx="9" cy="8" r="3.4"/><path d="M3 20a6 6 0 0 1 12 0M18 8v6M15 11h6"/>') + 'Invite to a group</span>' : '') + sfPersonLinks(p)) +
       '</div>', { z: 45, max: 360 });
   }
 
@@ -4974,6 +4940,8 @@
     lead: { bg: '#7b6ef0', glyph: '★', cat: 'hosting', topic: 'hosting' },
     note: { bg: '#9b1c31', glyph: '!', cat: 'updates', topic: 'updates' },   // an event or job was taken down (dark red, Design v8)
     friendreq: { bg: '#5b4ae8', glyph: '+', cat: 'invites', topic: 'friends' },   // v6 Update 13
+    ginv: { bg: '#5b4ae8', glyph: '+', cat: 'invites', topic: 'friends' },        // invited you to a group (v8-22 2a)
+    gjoined: { bg: '#149a4b', glyph: '✓', cat: 'invites', topic: 'friends' },     // you joined from an invite
     invited: { bg: '#5b4ae8', glyph: '✉', cat: 'invites', topic: 'friends' },
     leadask: { bg: '#7b6ef0', glyph: '★', cat: 'invites', topic: 'friends' },   // someone asked you to lead an idea
     jobask: { bg: '#e8a71c', glyph: '✋', cat: 'invites', topic: 'friends' },   // someone asked you to take a job
@@ -5060,6 +5028,11 @@
       const s = state.sparks.find(x => x.id === i.spark);
       if (s && phaseOf(s) !== 'done') add({ key: 'fi:' + i.spark + ':' + i.by, type: 'invited', s, t: i.at, uid: i.by, who: nameOf(i.by), text: 'invited you to', sub: s.dayDate ? dayLabel(s.dayDate, s.dayTime) : '', rsvp: s.planned && !s.cancelledAt, quote: i.note || '' });
     });
+    // Group invites (v8-22 2a): waiting ones (Join / See group), then You joined … · {Name} invited you
+    (state.fr.gInv || []).forEach(i => {
+      if (i.status === 'pending' && gInvPending().indexOf(i) > -1) add({ key: 'gi:' + i.id, type: 'ginv', s: null, t: i.at, uid: i.by, who: nameOf(i.by, i.byName), text: 'invited you to', inv: i });
+      if (i.status === 'joined' && i.answered) add({ key: 'gj:' + i.id, type: 'gjoined', s: null, t: i.answered, uid: i.by, who: 'You', text: 'joined', inv: i, sub: nameOf(i.by, i.byName) + ' invited you' });
+    });
     const topics = state.notif.topics || {};
     return out.filter(n => topics[N_TYPES[n.type].topic] !== false).sort((a, b) => b.t - a.t);
   };
@@ -5079,7 +5052,7 @@
   const markRead = (n) => { if (isUnread(n)) saveNotif({ read: state.notif.read.concat([n.key]) }); };
   // Everything shown counts, even an item stamped a little ahead of this device's clock
   const markAllRead = () => saveNotif({ allReadAt: Math.max(Date.now(), ...notifList().map(n => n.t)), read: [] });
-  const openNotif = (n) => { markRead(n); if (n.type === 'hold') openToSection(n.s, 'sec-when'); else if (n.s) openSpark(n.s); else if (n.type === 'friendreq') go('friends'); };
+  const openNotif = (n) => { markRead(n); if (n.type === 'hold') openToSection(n.s, 'sec-when'); else if (n.s) openSpark(n.s); else if (n.type === 'friendreq') go('friends'); else if (n.type === 'ginv') openGInv(n.inv); else if (n.type === 'gjoined') { const g = groupById(n.inv.group); if (g) openGroup(g); } };
   const rsvpFromFeed = (n, status) => (e) => { stop(e); markRead(n); setRsvp(n.s, status); };
 
   // ---- Web push: phone notifications (the service worker is /sw.js; the database decides who
@@ -5517,6 +5490,7 @@
         : n.type === 'newevent' ? '<b style="font-weight:800;color:#0d1117">' + (n.idea ? 'New Idea:' : 'New:') + '</b> ' + what   // bold (Design v8)
         : n.type === 'reminder'
         ? '<b style="font-weight:800;color:#0d1117">' + esc(n.who) + '</b> ' + what + esc(n.after)
+        : n.inv ? '<b style="font-weight:800;color:#0d1117">' + esc(n.who) + '</b> ' + esc(n.text) + ' <b style="font-weight:800;color:#0d1117">' + esc(n.inv.name) + '</b>'
         : '<b style="font-weight:800;color:#0d1117">' + esc(n.who) + '</b> ' + esc(n.text) + ' ' +
           (n.item ? '<b style="font-weight:800;color:#0d1117">' + esc(n.item) + '</b>' + (n.joiner ? esc(n.joiner) + what : ' on ' + what) : what);
       return '<div ' + on(() => openNotif(n)) + ' data-notif="' + esc(n.type) + '" style="display:flex;align-items:flex-start;gap:12px;padding:14px;border-top:' + (k ? '1px solid #f2f3f6' : '0') + ';background:' + (unr ? '#faf9ff' : '#fff') + ';cursor:pointer">' +
@@ -5531,6 +5505,10 @@
           (n.sub ? '<div style="font-size:14px;line-height:1.35;font-weight:600;color:#5c6270">' + esc(n.sub) + '</div>' : '') +
           (n.quote ? '<div data-notif-quote style="border-radius:4px 12px 12px 12px;background:#f2f3f6;padding:8px 10px;font-size:14px;line-height:1.4;font-weight:500;color:#2b303a">' + esc(n.quote) + '</div>' : '') +
           '<div style="font-size:12.5px;font-weight:700;color:#8a909b">' + esc(ago(n.t) + (g ? ' · ' + g.name : '')) + '</div></div>' +
+          // A group invite: Join (joins) and See group (the invite pop-up)
+          (n.type === 'ginv' ? '<div style="margin-top:10px;display:flex;gap:8px">' +
+              '<span ' + on((e) => { stop(e); markRead(n); gInvAnswer(n.inv, true); }) + ' data-ginv-join style="display:flex;align-items:center;min-height:36px;padding:0 14px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:13.5px;font-weight:800;cursor:pointer">Join</span>' +
+              '<span ' + on((e) => { stop(e); markRead(n); openGInv(n.inv); }) + ' style="display:flex;align-items:center;min-height:36px;padding:0 14px;border-radius:999px;background:#fff;color:#0d1117;box-shadow:inset 0 0 0 1.5px #dcdfe6;font-size:13.5px;font-weight:800;cursor:pointer">See group</span></div>' : '') +
           // I'm going / Maybe only on a friend's invite (Design v8: not on New: rows)
           (n.rsvp && n.type === 'invited' && !myRsvp(n.s) && !n.s.cancelledAt && phaseOf(n.s) === 'plan'
             ? '<div style="margin-top:10px;display:flex;gap:8px">' +
@@ -5736,7 +5714,7 @@
   const groupLink = async (g) => { if (!groupCodes[g.id]) groupCodes[g.id] = must(await sb.rpc('group_code', { p_group: g.id })).data; if (!groupCodes[g.id]) throw new Error('no code'); return inviteLink(groupCodes[g.id]); };
   const primeGroupLink = (g) => { if (g && runs(g) && !groupCodes[g.id] && !state.viewAs && sb) groupLink(g).catch(() => {}); };
   // Invite (⋯ round and the header's person+) opens the Invite people sheet (Design v8 prototype): the link with Copy and
-  // Share, and Show QR code. Its Add friends and You've invited rows wait on group invites (HANDOFF §4, not built)
+  // Share, and Show QR code. Its Add friends and You've invited rows aren't built yet (group invites go out from a profile, v8-22 1a)
   const groupInvite = (g) => {
     setState({ gMenu: null, gInv: { id: g.id, copied: false } });
     if (!groupCodes[g.id]) groupLink(g).then(() => { if (state.gInv && state.gInv.id === g.id) render(); }, e => { console.error(e); toast(failed(e)); if (state.gInv && state.gInv.id === g.id) setState({ gInv: null }); });
@@ -11179,6 +11157,198 @@
       { z: 31, max: 353 });
   }
 
+  // ---- Group invites (Design v8-22: 1a, 2a, 4a, 4b, Members INVITED; 20261127000000_group_invites.sql) -------------
+  // Owners and admins invite someone to the groups they run from that person's profile (Invite to a group, 1a). The
+  // person invited gets a push, a bell row (Join / See group, 2a), a card on My groups (Join · N members / Not now) and
+  // Get started's Join a group row; the invite pop-up (one) or the list (two or more) joins. Not now hides an invite for
+  // good and tells no one. After joining from an invite: NEW · YOU JOINED on My groups (4b); after joining by link or
+  // code: Welcome to {Group}, {first} (4a). Members shows owners and admins who's INVITED, to remind or take back.
+  // friend_state() carries your invites (state.fr.gInv): waiting ones, and ones you joined in the last 7 days.
+  const gInvPending = () => (state.fr.gInv || []).filter(i => i.status === 'pending' && !(state.gInvGone || {})[i.id] && !(groupById(i.group) || {}).role);
+  const gInvPhoto = (i, size, radius, extra) => '<span aria-hidden="true" style="flex:0 0 ' + size + 'px;width:' + size + 'px;height:' + size + 'px;border-radius:' + radius + 'px;background:' + thumbBg(null, { photo: i.photo }) + ';' + (extra || '') + '"></span>';
+  const gInvMembers = (n) => n + (n === 1 ? ' member' : ' members');
+  const gInvNext = (i) => i.next && i.next.text ? 'Next up: ' + i.next.text + (i.next.day ? ', ' + fmtDay(i.next.day) : '') : '';
+  const NGX_KEY = 'spark-hub-ngx';   // NEW · YOU JOINED cards closed (device + account)
+  const ngClosed = () => { let d = []; try { d = JSON.parse(localStorage.getItem(NGX_KEY) || '[]') || []; } catch (e) { /* fine */ } return d.concat((seenAcct && seenAcct.ngx) || []); };
+  const ngClose = (id) => { if (!id) return; const ids = ngClosed().filter(x => x !== id).concat(id).slice(-30); try { localStorage.setItem(NGX_KEY, JSON.stringify(ids)); } catch (e) { /* the account still has it */ } setSeen('ngx', ids); };
+  // The person invited: Join (true) or Not now (false). Joining from the list keeps it open for the rest
+  const gInvAnswer = async (inv, join) => {
+    if (state.viewAs) { toast('You’re viewing as ' + firstName(state.viewAs.name) + ', so nothing changes. Exit to make changes.'); return; }
+    if (state.busy) return;
+    const gone = Object.assign({}, state.gInvGone, { [inv.id]: true }), list = state.gInvPop === 'list';
+    setState({ busy: 'ginv', gInvGone: gone });
+    try {
+      const before = myGroups().map(g => g.id);
+      const id = must(await sb.rpc('answer_group_invite', { p_invite: inv.id, p_join: !!join })).data;
+      if (join && !id) { await loadFresh(); setState({ busy: null, gInvPop: null }); toast('That invite isn’t open any more'); return; }
+      if (join) { gsMark('join'); await loadFresh(); calAfterJoin(id, before, false); }
+      setState({ busy: null, gInvPop: list && gInvPending().length ? 'list' : null });
+      if (join) toast('You joined ' + inv.name, true);
+    } catch (e) {
+      console.error(e);
+      const back = Object.assign({}, state.gInvGone); delete back[inv.id];
+      setState({ busy: null, gInvGone: back });
+      toast(failed(e));
+    }
+  };
+  // One invite → its pop-up; two or more → the list
+  const openGInv = (inv) => setState({ gInvPop: inv ? inv.id : gInvPending().length > 1 ? 'list' : (gInvPending()[0] || {}).id || null });
+  function viewGInvPop() {
+    const st = state, close = () => setState({ gInvPop: null }), L = gInvPending(), busy = st.busy === 'ginv';
+    if (st.gInvPop === 'list') {
+      if (!L.length) return '';
+      const row = (i) => '<div data-ginv-row="' + esc(i.name) + '" style="display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid #f2f3f6">' + gInvPhoto(i, 52, 14) +
+        '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-size:16px;font-weight:900;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(i.name) + '</span>' +
+          '<span style="font-size:13px;font-weight:600;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(nameOf(i.by, i.byName) + ' invited you · ' + gInvMembers(i.members)) + '</span>' +
+          '<span ' + on(() => gInvAnswer(i, false)) + ' style="align-self:flex-start;margin-top:2px;font-size:13px;font-weight:800;color:#9aa0ac;cursor:pointer">Not now</span></div>' +
+        '<span ' + on(() => gInvAnswer(i, true)) + ' aria-label="Join ' + esc(i.name) + '" class="hov-primary" style="flex:0 0 auto;height:36px;padding:0 16px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:14.5px;font-weight:800;display:flex;align-items:center;cursor:pointer">Join</span></div>';
+      return popCard('Your invites', close, 'You have ' + L.length + (L.length === 1 ? ' invite' : ' invites'), 'Join any or all of them.', '<div>' + L.map(row).join('') + '</div>', 46);
+    }
+    const i = L.find(x => x.id === st.gInvPop);
+    if (!i) return '';
+    const face = avatarSpan(i.by, i.byName, i.byAvatar ? photoUrl(i.byAvatar) : avatarOf(i.by), 22);
+    return popCard('Group invite', close, '',  '',
+      '<div style="display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;padding-top:6px">' + gInvPhoto(i, 84, 22, 'box-shadow:0 0 0 4px #fff,0 6px 16px rgba(13,17,23,.2)') +
+        '<span style="font-size:22px;font-weight:900;letter-spacing:-.4px;color:#0d1117;overflow-wrap:anywhere">' + esc(i.name) + '</span>' +
+        '<span style="display:flex;align-items:center;gap:6px;font-size:14.5px;font-weight:600;color:#454b55">' + face + esc(nameOf(i.by, i.byName) + ' invited you · ' + gInvMembers(i.members)) + '</span>' +
+        (gInvNext(i) ? '<span style="font-size:14px;font-weight:600;line-height:1.4;color:#6b7280">' + esc(gInvNext(i)) + '</span>' : '') + '</div>' +
+      '<button type="button" ' + on(() => gInvAnswer(i, true)) + ' aria-disabled="' + busy + '" class="hov-primary" style="' + primary(!busy) + ';height:52px;padding:0">' + (busy ? 'Joining…' : 'Join the group') + '</button>' +
+      '<span ' + on(close) + ' role="button" style="align-self:center;padding:4px 10px;font-size:14.5px;font-weight:800;color:#6b7280;cursor:pointer">Not now</span>', 46);
+  }
+  // My groups: a card per waiting invite (Join · N members / Not now), and NEW · YOU JOINED after joining from one (4b)
+  const gInvCards = () => {
+    if (!state.email || state.viewAs || !state.loaded) return '';
+    const closed = ngClosed();
+    const joined = (state.fr.gInv || []).filter(i => i.status === 'joined' && closed.indexOf(i.id) < 0 && groupById(i.group));
+    const hi = (i) => run(async () => { must(await sb.rpc('group_invite_hi', { p_invite: i.id })); }).then(ok => { if (ok) toast('We told ' + firstName(i.byName) + ' you said hi', true); });
+    const ng = joined.map(i => '<div data-screen-label="New group joined" data-ng="' + esc(i.name) + '" style="position:relative;background:#fff;border-radius:20px;box-shadow:0 1px 3px rgba(15,18,25,.08);padding:14px;display:flex;flex-direction:column;gap:12px">' +
+        '<span ' + on(() => { ngClose(i.id); render(); }) + ' role="button" aria-label="Dismiss" style="position:absolute;top:8px;right:8px;width:28px;height:28px;border-radius:999px;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(11, '#9aa0ac', 3) + '</span>' +
+        '<div style="display:flex;align-items:center;gap:12px;padding-right:24px">' + gInvPhoto(i, 48, 12) +
+          '<div style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:12px;font-weight:900;letter-spacing:.8px;color:#149a4b">NEW · YOU JOINED</span>' +
+            '<span style="font-size:17px;font-weight:900;color:#0d1117;overflow-wrap:anywhere">' + esc(i.name) + '</span>' +
+            '<span style="font-size:13px;font-weight:600;color:#6b7280">' + esc('Invited by ' + nameOf(i.by, i.byName) + ' · ' + gInvMembers(state.sizes[i.group] || i.members)) + '</span></div></div>' +
+        '<div style="display:flex;gap:8px"><span ' + on(() => { ngClose(i.id); openGroup(groupById(i.group)); }) + ' role="button" class="hov-primary" style="flex:1;height:42px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:14.5px;font-weight:800;display:flex;align-items:center;justify-content:center;cursor:pointer">See the group</span>' +
+          (i.hi || !i.by ? '' : '<span ' + on(() => hi(i)) + ' role="button" class="hov-outline" style="height:42px;padding:0 14px;border-radius:999px;box-shadow:inset 0 0 0 1.5px #dcdfe6;color:#0d1117;font-size:14.5px;font-weight:800;display:flex;align-items:center;cursor:pointer">Say hi to ' + esc(firstName(i.byName)) + '</span>') + '</div></div>').join('');
+    const cards = gInvPending().map(i => '<div data-screen-label="Group invite" data-ginv-card="' + esc(i.name) + '" style="display:flex;flex-direction:column;gap:12px;padding:14px;border-radius:20px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08)">' +
+        '<div ' + on(() => openGInv(i)) + ' role="button" style="display:flex;align-items:center;gap:12px;cursor:pointer"><span style="position:relative;flex:0 0 48px;display:flex">' + gInvPhoto(i, 48, 14) +
+          avatarSpan(i.by, i.byName, i.byAvatar ? photoUrl(i.byAvatar) : avatarOf(i.by), 26, 'position:absolute;right:-6px;bottom:-6px;box-shadow:0 0 0 2.5px #fff') + '</span>' +
+          '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px"><span style="font-size:15px;font-weight:600;color:#454b55"><span style="font-weight:800;color:#0d1117">' + esc(firstName(i.byName)) + '</span> invited you to</span>' +
+            '<span style="font-size:17px;font-weight:900;letter-spacing:-.3px;color:#0d1117;overflow-wrap:anywhere">' + esc(i.name) + '</span></div></div>' +
+        '<div style="display:flex;gap:8px"><span ' + on(() => gInvAnswer(i, true)) + ' role="button" class="hov-primary" style="flex:1;display:flex;align-items:center;justify-content:center;min-height:44px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:15px;font-weight:800;cursor:pointer">Join · ' + gInvMembers(i.members) + '</span>' +
+          '<span ' + on(() => gInvAnswer(i, false)) + ' role="button" class="hov-outline" style="flex:0 0 auto;display:flex;align-items:center;justify-content:center;min-height:44px;padding:0 18px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;color:#0d1117;font-size:15px;font-weight:800;cursor:pointer">Not now</span></div></div>').join('');
+    return ng + cards;
+  };
+  // Get started's Join a group row with invites waiting (v8-21 item 7): pale purple, You have N invites ›, Join / See
+  const gsJoinInv = (tick, label) => {
+    const L = gInvPending(), n = L.length;
+    return '<div ' + on(() => openGInv()) + ' role="button" data-gs-step="join" data-gs-invites="' + n + '" style="display:flex;align-items:center;gap:12px;min-height:64px;padding:8px 16px;border-top:1px solid #f2f3f6;box-sizing:border-box;background:#f7f6ff;cursor:pointer">' + tick +
+      '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px"><span style="font-size:15.5px;font-weight:800;color:#0d1117">' + label + '</span>' +
+        '<span style="display:flex;align-items:center;gap:2px;font-size:13px;font-weight:800;color:#4a3ad4">You have ' + n + (n === 1 ? ' invite' : ' invites') + I.chevR(12, '#4a3ad4', 3) + '</span></div>' +
+      '<span ' + on((e) => { stop(e); openGInv(); }) + ' role="button" class="hov-primary" style="flex:0 0 auto;height:34px;padding:0 16px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:14px;font-weight:800;display:flex;align-items:center;cursor:pointer">' + (n === 1 ? 'Join' : 'See') + '</span></div>';
+  };
+
+  // 1a: a profile's Invite to a group (owners and admins): the groups you run, each Member, Invited or a tick box
+  const openGpi = (uid, name) => {
+    if (state.viewAs) return;
+    setState({ person: null, gpi: { id: uid, name, rows: null, sel: [] } });
+    sb.rpc('group_invite_options', { p_user: uid })
+      .then(r => { if (r.error) throw r.error; if (state.gpi && state.gpi.id === uid) setState({ gpi: Object.assign({}, state.gpi, { rows: r.data || [] }) }); })
+      .catch(e => { console.error(e); setState({ gpi: null }); toast(failed(e)); });
+  };
+  const sendGpi = async () => {
+    const q = state.gpi;
+    if (!q || !q.sel.length || state.busy) return;
+    const names = (q.rows || []).filter(r => q.sel.indexOf(r.group_id) > -1).map(r => r.name), first = firstName(q.name) || 'them';
+    setState({ busy: 'gpi' });
+    try {
+      await ensureSession();
+      must(await sb.rpc('send_group_invites', { p_groups: q.sel, p_users: [q.id] }));
+      setState({ busy: null, gpi: null });
+      toast('Invited ' + first + ' to ' + (names.length === 1 ? names[0] : names.length + ' groups'), true);
+    } catch (e) { console.error(e); setState({ busy: null }); toast(failed(e)); }
+  };
+  function viewGpi() {
+    const st = state, q = st.gpi, close = () => setState({ gpi: null });
+    if (!q) return '';
+    const n = q.sel.length, busy = st.busy === 'gpi';
+    const row = (r) => {
+      const can = !r.state, picked = q.sel.indexOf(r.group_id) > -1;
+      const pick = () => { if (!can) return; setState({ gpi: Object.assign({}, q, { sel: picked ? q.sel.filter(x => x !== r.group_id) : q.sel.concat([r.group_id]) }) }); };
+      return '<div ' + on(pick, 'checkbox') + ' aria-checked="' + picked + '" aria-label="' + esc(r.name) + '" data-gpi-row="' + esc(r.name) + '" style="display:flex;align-items:center;gap:12px;min-height:60px;border-top:1px solid #f2f3f6;cursor:' + (can ? 'pointer' : 'default') + ';opacity:' + (r.state === 'member' ? .55 : 1) + '">' +
+        gInvPhoto({ photo: r.photo }, 40, 11) +
+        '<div style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:15.5px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(r.name) + '</span>' +
+          '<span style="font-size:12.5px;font-weight:600;color:#6b7280">' + esc(gInvMembers(r.members) + ' · you’re ' + (r.role === 'owner' ? 'the owner' : 'an admin')) + '</span></div>' +
+        (can ? '<span style="flex:0 0 26px;width:26px;height:26px;border-radius:999px;display:flex;align-items:center;justify-content:center;' + (picked ? 'background:#5b4ae8' : 'background:#fff;box-shadow:inset 0 0 0 2px #c9ccd3') + '">' + (picked ? svg(13, stroke('#fff', 3.4), '<path d="M5 12.5l4.5 4.5L19 7.5"/>') : '') + '</span>'
+          : '<span data-gpi-state style="font-size:13px;font-weight:800;color:' + (r.state === 'member' ? '#9aa0ac' : '#5b4ae8') + '">' + (r.state === 'member' ? 'Member' : 'Invited') + '</span>') + '</div>';
+    };
+    return '<div class="v6-scrim" data-scrim="' + reg(close) + '" style="z-index:46">' +
+      '<div role="dialog" aria-modal="true" aria-label="Invite to a group" data-screen-label="Invite to a group" style="position:absolute;left:0;right:0;bottom:0;max-height:88%;overflow-y:auto;box-sizing:border-box;background:#fff;border-radius:24px 24px 0 0;padding:12px 18px calc(26px + env(safe-area-inset-bottom, 0px));display:flex;flex-direction:column;gap:10px;animation:sheetUp 260ms cubic-bezier(.2,.8,.2,1) both">' +
+        '<span aria-hidden="true" style="align-self:center;width:40px;height:5px;border-radius:999px;background:#dcdfe6"></span>' +
+        '<div style="display:flex;align-items:flex-start;gap:10px"><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-size:22px;font-weight:900;letter-spacing:-.4px;color:#0d1117;text-wrap:balance">Invite ' + esc(firstName(q.name) || 'them') + ' to a group</span>' +
+          '<span style="font-size:14px;font-weight:600;color:#6b7280">Groups you run</span></div>' + closeX(close, 'flex:0 0 36px;width:36px;height:36px') + '</div>' +
+        '<div>' + (q.rows ? q.rows.map(row).join('') : '<div style="padding:18px 0;text-align:center;font-size:15px;font-weight:600;color:#8a909b">Loading…</div>') + '</div>' +
+        '<span ' + on(sendGpi) + ' role="button" aria-disabled="' + (!n || busy) + '" data-gpi-send style="display:flex;align-items:center;justify-content:center;height:52px;border-radius:999px;font-size:16px;font-weight:800;' + (n && !busy ? 'background:#5b4ae8;color:#fff;cursor:pointer' : 'background:#dcdfe6;color:#8a909b') + '">' + (busy ? 'Sending…' : n ? 'Send invite · ' + n : 'Send invite') + '</span>' +
+        '<span style="text-align:center;font-size:12.5px;font-weight:600;color:#9aa0ac">Only groups where you’re an owner or admin show here.</span>' +
+      '</div></div>';
+  }
+
+  // Members → INVITED · N (owners and admins): ⋯ → Send a reminder / Take back invite
+  const loadGInvWaiting = (gid) => sb.rpc('group_invites_waiting', { p_group: gid })
+    .then(r => { if (!r.error && state.membersOpen === gid) setState({ gInvWaiting: { gid, list: r.data || [] } }); }, () => {});
+  const gInvWaitingBlock = (g) => {
+    const w = state.gInvWaiting, list = w && w.gid === g.id ? w.list : [];
+    if (!list.length) return '';
+    const remind = async (x) => {
+      if (state.viewAs || state.busy) return;
+      try { const r = must(await sb.rpc('remind_group_invite', { p_invite: x.id })); setState({ gInvOpen: null }); toast(r.data ? 'Reminder sent to ' + firstName(x.name) : 'You already sent ' + firstName(x.name) + ' a reminder today', !!r.data); }
+      catch (e) { console.error(e); toast(failed(e)); }
+    };
+    const back = (x) => run(async () => { must(await sb.rpc('take_back_group_invite', { p_invite: x.id })); await loadGInvWaiting(g.id); }, { gInvOpen: null })
+      .then(ok => { if (ok) toast('Invite taken back', true); });
+    const row = (x) => { const open = state.gInvOpen === x.id;
+      return '<div data-invited="' + esc(x.name) + '" style="display:flex;flex-direction:column;border-bottom:1px solid #f2f3f6">' +
+        '<div style="display:flex;align-items:center;gap:12px;min-height:56px;padding:0 6px">' + memberFace(x, 38) +
+          '<div style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:15.5px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(x.name) + '</span>' +
+            '<span style="font-size:12.5px;font-weight:600;color:#6b7280">' + esc('Invited by ' + (x.invited_by === state.me ? 'you' : firstName(x.by_name)) + ' · ' + ago(Date.parse(x.created_at)).replace('Just now', 'just now')) + '</span></div>' +
+          '<span ' + on(() => setState({ gInvOpen: open ? null : x.id })) + ' role="button" aria-label="More for ' + esc(x.name) + '" aria-expanded="' + open + '" style="width:36px;height:36px;border-radius:999px;display:flex;align-items:center;justify-content:center;color:#6b7280;cursor:pointer;font-size:18px;font-weight:900">⋯</span></div>' +
+        (open ? '<div style="display:flex;gap:8px;padding:0 0 12px 56px">' +
+          '<span ' + on(() => remind(x)) + ' role="button" style="height:34px;padding:0 13px;border-radius:999px;background:#f2f3f6;color:#0d1117;font-size:13.5px;font-weight:800;display:flex;align-items:center;cursor:pointer">Send a reminder</span>' +
+          '<span ' + on(() => back(x)) + ' role="button" style="height:34px;padding:0 13px;border-radius:999px;background:#fdecef;color:#c0263d;font-size:13.5px;font-weight:800;display:flex;align-items:center;cursor:pointer">Take back invite</span></div>' : '') + '</div>'; };
+    return '<div data-screen-label="Invited" style="padding:4px 0 10px"><span style="display:block;padding:4px 6px 6px;font-size:12.5px;font-weight:900;letter-spacing:1px;color:#6b7280">INVITED · ' + list.length + '</span>' + list.map(row).join('') +
+      '<span style="display:block;padding:14px 6px 0;font-size:12.5px;font-weight:900;letter-spacing:1px;color:#6b7280">MEMBERS</span></div>';
+  };
+
+  // 4a: after joining by link or code, a full-screen Welcome to {Group}, {first}, once per group. Names whoever invited
+  // you when an invite to that group was waiting (joining answers it)
+  const showNw = (gid) => {
+    const inv = (state.fr.gInv || []).find(i => i.group === gid && i.status === 'joined');
+    if (inv) ngClose(inv.id);   // the welcome covers it: no NEW · YOU JOINED card as well
+    setState({ nw: { gid, by: inv ? inv.byName : '', byId: inv ? inv.by : null, byAvatar: inv ? inv.byAvatar : null }, joinOpen: false, joinRaw: null });
+  };
+  function viewNw() {
+    const st = state, w = st.nw, g = w && groupById(w.gid);
+    if (!g) return '';
+    const close = (fn) => () => { setState({ nw: null }); fn(); };
+    const next = st.sparks.filter(s => inGroup(s, g.id) && !s.cancelledAt && phaseOf(s) === 'plan' && s.dayDate && s.dayDate >= todayISO()).sort(byWhen)[0];
+    const faceUrl = w.byAvatar ? photoUrl(w.byAvatar) : w.byId ? avatarOf(w.byId) : null;
+    return '<div data-screen-label="Welcome to the group" role="dialog" aria-modal="true" aria-label="Welcome to ' + esc(g.name) + '" style="position:absolute;inset:0;z-index:90;background:linear-gradient(160deg,#5b4ae8 0%,#a64bd6 50%,#e2558f 85%,#f5b428 120%);display:flex;flex-direction:column;overflow-y:auto;animation:fadeUp 260ms ease-out both">' +
+      '<div style="padding:calc(80px + var(--pt)) 24px 0;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;color:#fff">' +
+        '<div style="display:flex;align-items:flex-end"><span aria-hidden="true" style="width:76px;height:76px;border-radius:20px;background:' + thumbBg(null, g) + ';box-shadow:0 0 0 4px rgba(255,255,255,.9)"></span>' +
+          (w.byId ? avatarSpan(w.byId, w.by, faceUrl, 44, 'margin-left:-14px;box-shadow:0 0 0 3px #fff') : '') + '</div>' +
+        '<span style="font-size:14px;font-weight:800;letter-spacing:1px;opacity:.9">YOU’RE IN</span>' +
+        '<h1 style="margin:0;font-size:30px;font-weight:900;letter-spacing:-.7px;line-height:1.05;text-wrap:balance;overflow-wrap:anywhere">Welcome to ' + esc(g.name) + (firstName(st.myName) ? ', ' + esc(firstName(st.myName)) : '') + '</h1>' +
+        '<span data-nw-line style="font-size:15.5px;font-weight:600;opacity:.95">' + (w.by ? esc(firstName(w.by)) + ' invited you. They’ll know you’re here.' : 'You’re a member now.') + '</span></div>' +
+      '<div style="margin-top:auto;padding:24px 16px calc(34px + env(safe-area-inset-bottom, 0px));display:flex;flex-direction:column;gap:10px">' +
+        (next ? '<div ' + on(close(() => openSpark(next))) + ' role="button" data-nw-next style="background:#fff;border-radius:20px;padding:12px;display:flex;align-items:center;gap:12px;cursor:pointer">' +
+            '<span aria-hidden="true" style="flex:0 0 52px;width:52px;height:52px;border-radius:12px;background:' + thumbBg(next) + '"></span>' +
+            '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px"><span style="font-size:12px;font-weight:900;letter-spacing:.6px;color:#149a4b">NEXT UP · ' + esc(fmtDay(next.dayDate).toUpperCase()) + '</span>' +
+              '<span style="font-size:15.5px;font-weight:900;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(next.text) + '</span></div>' + I.chevR(16, '#9aa0ac', 2.6) + '</div>' : '') +
+        '<span ' + on(close(() => openGroup(g))) + ' role="button" style="display:flex;align-items:center;justify-content:center;height:52px;border-radius:999px;background:#fff;color:#5b4ae8;font-size:16px;font-weight:800;cursor:pointer">See the group</span>' +
+        '<span ' + on(close(() => go('sched'))) + ' role="button" style="align-self:center;padding:6px 12px;font-size:14px;font-weight:800;color:#fff;opacity:.9;cursor:pointer">Go to My calendar</span>' +
+      '</div></div>';
+  }
+  const viewGInv = () => (state.email && state.gpi ? viewGpi() : '') + (state.email && state.gInvPop ? viewGInvPop() : '') + (state.email && state.nw ? viewNw() : '');
+
   function viewProfileEdit() {
     const st = state, pe = st.pe, busy = st.busy === 'profile';
     const close = () => setState({ pe: null });
@@ -11351,6 +11521,7 @@
       if (d) return '<div data-gs-step="' + k + '" data-done style="' + st + '">' + tick + label + '</div>';
       if (k === 'profile') return '<label data-gs-step="' + k + '" class="hov-row" style="' + st + '">' + tick + label +
         '<input type="file" accept="image/*" aria-label="Pick a profile photo" ' + onInput(e => { if (e.type !== 'change') return; const fl = Array.from(e.target.files || []); e.target.value = ''; gsPhoto(fl); }) + ' style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none"></label>';
+      if (k === 'join' && gInvPending().length) return gsJoinInv(tick, name);   // invites waiting (v8-21 item 7, v8-22)
       const go1 = { join: () => openJoin(), rsvp: () => go('sched'), idea: gsFloat }[k];
       return '<div ' + on(go1) + ' role="button" data-gs-step="' + k + '" class="hov-row" style="' + st + '">' + tick + label + '</div>';
     };
@@ -11484,7 +11655,7 @@
       '<div style="flex:1;overflow:auto;padding:0 14px 22px">' +
         (st.membersList == null
           ? '<div style="padding:28px 8px;text-align:center;font-size:15px;font-weight:600;color:#8a909b">Loading…</div>'
-          : rows.map(row).join('') +
+          : (admin && !q ? gInvWaitingBlock(g) : '') + rows.map(row).join('') +
             (rows.length ? '' : '<div style="padding:28px 8px;text-align:center;font-size:15px;font-weight:600;color:#8a909b">No one by that name.</div>')) +
         (admin && (st.blockedList || []).length && !q ? '<div data-blocked style="margin-top:18px;display:flex;flex-direction:column">' +
           '<span style="padding:0 6px 6px;font-size:12px;font-weight:900;letter-spacing:.6px;text-transform:uppercase;color:#8a909b">Blocked</span>' +
@@ -12048,7 +12219,7 @@
     // An invite link's full-screen steps take the place of the screen
     if (invFull()) {
       const k = st.inv.step;
-      main = k === 'land' ? viewInvLanding() : k === 'welcome' ? viewInvWelcome() : k === 'bad' ? viewInvBad() : viewInvJoining();
+      main = k === 'land' ? viewInvLanding() : k === 'bad' ? viewInvBad() : viewInvJoining();
     }
 
     return '<div class="ptr" aria-hidden="true"><span class="ptr-spin"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v4.5h-4.5"/></svg></span></div>' +
@@ -12090,7 +12261,7 @@
       (st.guestOpen ? viewGuest() : '') +
       (st.nameAsk ? viewName() : '') +
       (st.pe ? viewProfileEdit() : '') +
-      (st.joinOpen ? viewJoin() : '') +
+      (st.joinOpen ? viewJoin() : '') + viewGInv() +
       (st.nSettings && st.email ? viewNotifSettings() : '') +
       (st.membersOpen ? viewMembers() : '') +
       (st.email && st.pplAdd ? viewPplAdd() : '') +
@@ -12325,7 +12496,7 @@
     hadNoNav = noNav;
     // Screens that start with a photo run it up under the iPhone status bar (Your people has a white header since 2026-10-03)
     const sc = state.screen, photoTop = sc === 'browse' || (sc === 'detail' && !!subject()) || sc === 'calendar' || welcomeShown() || (!state.email && sc === 'compose') ||
-      (invFull() && (state.inv.step === 'land' || state.inv.step === 'welcome'));
+      (invFull() && state.inv.step === 'land');
     root.classList.toggle('photo-top', photoTop);
     syncBadge();
     placeInvPop();

@@ -24,6 +24,8 @@ test('Get started: join with a code, the four steps tick, × hides it everywhere
     await join.getByRole('button', { name: 'Join Torrez Fitness' }).click();
     await expect(join).toHaveCount(0);
     await saved(page);
+    // Welcome to Torrez Fitness, Gia (v8-22 4a)
+    await page.locator('[data-screen-label="Welcome to the group"]').getByRole('button', { name: 'Go to My calendar' }).click();
 
     // In a group now: the banner, with Join a group already ticked (1 of 4)
     await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Calendar', exact: true }).click();
