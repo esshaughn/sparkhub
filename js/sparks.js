@@ -337,7 +337,7 @@
     notif: { allReadAt: 0, read: [], topics: {}, email: true, loaded: false }, nFilter: 'all', nSettings: false, demoAdmin: false, back: null, myPlace: '', myBio: '', memberSince: null, ownGrp: null, sizes: {}, membersQ: '', gpRename: null, gpDel: null, ph: null,
     startName: null, phaseTab: 'plan', blast: null, updAll: null, invite: null,
     pe: null, confirm: null, interestList: false, thanksList: false, guestList: null, cohostPick: null, leadAsk: null, leadsSheet: null, takeDown: null, albumEdit: null,
-    gpCode: '', gpMembers: null, gpFail: false, acctDel: null, voteAll: null, justAdded: null, offerVote: true,
+    gpCode: '', gpMembers: null, gpFail: false, sf: null, sfShow: {}, voteAll: null, justAdded: null, offerVote: true,
     // v6 Update 13: Your people (Groups · Friends), friend requests, the friend link, inviting friends
     fr: { friends: [], incoming: [], outgoing: [], invites: [], loaded: false }, pplTab: 'groups', pplSearch: false, pplQ: '', pplAdd: false, frSel: [], frInvite: false, frAll: false, frAllQ: '',
     frAdd: null, myFriendCode: null, person: null,
@@ -1099,7 +1099,9 @@
               svg(18, stroke('#fff', 2.3), '<rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16M9 3v4M15 3v4"/>') + 'Add to calendar</button>' : '') +
             '<div data-plus-links style="display:flex;align-items:center;justify-content:center;gap:8px;font-size:14px;font-weight:700;color:#6b7280">' +
               '<span ' + on(change) + ' role="button" data-plus-change style="display:flex;align-items:center;min-height:44px;cursor:pointer">Change RSVP</span><span aria-hidden="true" style="color:#c4c8d0">·</span>' +
-              '<span data-plus-signin role="button" ' + on(() => { setState(Object.assign({ plusPop: null }, clearPlus(s.id))); openLogin('reminder', () => setTimeout(askReminders, 500)); }) + ' style="display:flex;align-items:center;min-height:44px;color:#5b4ae8;cursor:pointer">Create account</span></div></div>' : '') +
+              '<span data-plus-signin role="button" ' + on(() => { setState(Object.assign({ plusPop: null }, clearPlus(s.id))); openLogin('reminder', () => setTimeout(askReminders, 500)); }) + ' style="display:flex;align-items:center;min-height:44px;color:#5b4ae8;cursor:pointer">Create account</span></div>' +
+            // Remove my sign-ups (v8-18 1s): the reply, any spots, and the name and contact, after a confirm
+            '<span ' + on(() => removeMySignups(s)) + ' role="button" data-remove-signups style="align-self:center;min-height:34px;display:flex;align-items:center;font-size:13.5px;font-weight:800;color:#c0263d;cursor:pointer">Remove my sign-ups</span></div>' : '') +
         (guest ? '' : '<button type="button" data-plus-done ' + on(plusDone) + ' style="height:50px;margin-top:2px;border:0;border-radius:999px;background:' + (guest ? '#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;color:#0d1117' : '#149a4b;color:#fff') + ';font-family:inherit;font-size:16px;font-weight:800;cursor:pointer">Done</button>') +
         (guest ? '' : '<div style="display:flex;align-items:center;justify-content:center;gap:10px;font-size:14.5px;font-weight:800">' +
           (guest ? ''
@@ -2576,6 +2578,7 @@
     await forgetPush();   // this phone stops getting the old account's notifications
     clearCache();
     forgetComments();
+    forgetSafety();
     await sb.auth.signOut().catch(() => {});
     setState({ email: '', isGoogle: false, myName: '', myAvatar: null, myPlace: '', myBio: '', guest: null, groups: [], sparks: [], drafts: [], notes: [], profiles: {}, sizes: {},
       notif: { allReadAt: 0, read: [], topics: {}, email: true, loaded: false }, demoAdmin: false, back: null, subjectId: null, gpId: null, joinCode: '', myFriendCode: null,
@@ -2924,8 +2927,9 @@
         '<button type="button" class="hov-white-line" ' + on(email) + ' style="width:100%;min-height:54px;display:flex;align-items:center;justify-content:center;gap:10px;background:transparent;border:1.5px solid rgba(255,255,255,.3);border-radius:999px;font-family:inherit;font-size:16px;font-weight:800;color:#fff;cursor:pointer">' +
           svg(19, stroke('currentColor', 2.1), '<rect x="3" y="5.5" width="18" height="13" rx="2.5"/><path d="m4 7.5 8 6 8-6"/>') + 'Continue with email</button>' +
         // The installed app keeps its own sign-in (iPhone): say so, so it doesn't read as "start over"
-        (STANDALONE ? '<p data-app-welcome style="margin:6px 0 0;text-align:center;font-size:14px;line-height:1.45;font-weight:700;color:#dfe2e8">Sign in once to pick up where you left off.</p>'
-          : '<p style="margin:6px 0 0;text-align:center;font-size:13.5px;line-height:1.45;font-weight:600;color:#8a909b">' + (GOOGLE_ON ? 'New here? Either creates an account' : 'New here? This creates your account.') + '</p>') + inAppTip(true) +
+        (STANDALONE ? '<p data-app-welcome style="margin:6px 0 0;text-align:center;font-size:14px;line-height:1.45;font-weight:700;color:#dfe2e8">Sign in once to pick up where you left off.</p>' : '') +
+        // Terms (v8-18 1s): replaces "New here? Either creates an account"; the link opens Community rules
+        termsLine('#8a909b', '#c9c3ff') + inAppTip(true) +
       '</div>' +
     '</div>';
   }
@@ -2977,7 +2981,7 @@
             '<div style="display:flex;align-items:center;gap:14px;margin:16px 0"><span style="flex:1;height:1px;background:#e3e5ec"></span><span style="font-size:12px;font-weight:800;letter-spacing:.12em;color:#8a8fa0">OR</span><span style="flex:1;height:1px;background:#e3e5ec"></span></div>'
           : '<div style="height:22px"></div>') +
         email +
-        '<p style="margin:14px 0 0;text-align:center;font-size:14px;color:#6b7080">New here? Either creates an account</p>' +
+        termsLine('#6b7080', '#5b4ae8', 'margin:14px 0 0') +   // v8-18 1s, as on Welcome
         privacy;   // joining is when the group's admins start seeing your email (sign-in audit M1, owner 2026-10-07)
     return '<div data-screen-label="Invite" style="position:relative;min-height:100%;display:flex;flex-direction:column;background:#fff">' +
       '<div style="position:relative;flex:0 0 auto">' + invPhoto(g, 'calc(' + photoH + 'px + var(--pt))', 96) + statusFade + brandPill + '</div>' +
@@ -3746,7 +3750,7 @@
             '<div data-person-groups style="align-self:stretch;padding:12px 14px;border-radius:14px;background:#f7f7f9;font-size:14px;line-height:1.45;font-weight:600;color:#454b55">' +
               (p.groups.length ? '<span style="font-size:12px;font-weight:900;letter-spacing:.6px;text-transform:uppercase;color:#8a909b">' + (p.self ? 'In' : 'Both in') + '</span><br>' + esc(namesList(p.groups))
                 : 'You’re not in a group together.') + '</div>' + going +
-            (friendRow ? '<div style="align-self:stretch;display:flex;flex-direction:column;gap:8px">' + friendRow + '</div>' : '')) +
+            (friendRow ? '<div style="align-self:stretch;display:flex;flex-direction:column;gap:8px">' + friendRow + '</div>' : '') + sfPersonLinks(p)) +
       '</div>', { z: 45, max: 360 });
   }
 
@@ -5706,9 +5710,10 @@
       '</div></div>';
   }
   const openGroupMenu = (g) => {
-    setState({ gMenu: g.id, gMenuPeople: null, gMenuBlocked: 0, menu: null });
+    setState({ gMenu: g.id, gMenuPeople: null, gMenuBlocked: 0, gMenuReports: 0, menu: null });
     sb.rpc('group_people', { p_group: g.id }).then(r => { if (!r.error && state.gMenu === g.id) setState({ gMenuPeople: r.data || [] }); });
     if (runs(g)) sb.rpc('group_blocked', { p_group: g.id }).then(r => { if (!r.error && state.gMenu === g.id) setState({ gMenuBlocked: (r.data || []).length }); });
+    if (runs(g)) sb.rpc('list_reports', { p_group: g.id }).then(r => { if (!r.error && state.gMenu === g.id) setState({ gMenuReports: (r.data || []).length }); });   // the red count (v8-18 1s)
   };
   function viewGroupMenu() {
     const g = groupById(state.gMenu);
@@ -5740,6 +5745,9 @@
           '<div style="border-radius:16px;background:#f7f7f9;display:flex;flex-direction:column">' +
             row('Edit group', then(() => openGroupPage(g.id, false, 'browse')), '', true) +
             row('Invite link &amp; code', then(() => openGroupPage(g.id, false, 'browse'))) +
+            // Reports (v8-18 1s): open reports about this group's posts and members, with a red count
+            '<div ' + on(() => openReports(g.id)) + ' role="button" data-group-reports style="min-height:48px;padding:0 14px;border-top:1px solid #eceef2;display:flex;align-items:center;gap:12px;font-size:15.5px;font-weight:800;color:#0d1117;cursor:pointer">' +
+              '<span style="flex:1">Reports</span>' + (state.gMenuReports ? '<span data-reports-count style="font-size:14px;font-weight:700;color:#c0263d">' + state.gMenuReports + '</span>' : '') + I.chevR(13, '#b9bcc4', 3) + '</div>' +
             (state.gMenuBlocked ? row('Blocked', then(() => openMembersOf(g)), String(state.gMenuBlocked)) : '') +
           '</div></div>' : '') +
         (g.role ? '<span ' + on(then(() => leaveGroup(g))) + ' role="button" data-leave-group style="min-height:44px;display:flex;align-items:center;font-size:15px;font-weight:800;color:#9b1c31;cursor:pointer">Leave group</span>' : '') +
@@ -6317,6 +6325,8 @@
           // Member view (owner, 2026-10-10): this event the way a member sees it, look only
           (hostRole(s) ? '<div ' + on(() => { setState({ evMenu: null }); startAsMember(s); }, 'menuitem') + ' data-as-member class="hov-fill-grey" style="' + MENU_ROW + '">' +
             svg(18, stroke('#0d1117', 2.3), '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/>') + 'Member view</div>' : '') +
+          // Everyone else signed in: Share link · Report this event / idea (v8-18 1s, owner 2026-10-10: ⋯ in place of Share)
+          (!hostRole(s) && state.email ? sfEventRow(s, MENU_ROW) : '') +
         '</div></div>' : '') + '</span>';
   };
   const phaseHeader = (s, height, scrim, inner, share) => {
@@ -6333,7 +6343,8 @@
         (canEdit(s) && !s.cancelledAt ? '<span ' + on(() => openSec(s, 'title')) + ' aria-label="' + (s.planned ? 'Edit event' : 'Edit Idea') + '" class="hov-fill-grey" style="' + ROUND_BTN + '">' + svg(18, stroke('#0d1117', 2.4), PENCIL) + '</span>'
           : share ? '' : '<span style="flex:0 0 44px;width:44px"></span>') +
         // Share stays on a cancelled plan (Design v8)
-        (share ? '<span ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' aria-label="Share" class="hov-fill-grey" style="' + ROUND_BTN + '">' + svg(18, stroke('#0d1117', 2.4), P5.share) + '</span>' : '')) +
+        (share && state.email && !hostRole(s) ? evMenu(s) :   // signed in: ⋯ (Share link · Report this event), v8-18 1s
+          share ? '<span ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' aria-label="Share" class="hov-fill-grey" style="' + ROUND_BTN + '">' + svg(18, stroke('#0d1117', 2.4), P5.share) + '</span>' : '')) +
       '</div>' + inner +
       // (No chip over the photo after an action, owner 2026-10-01: the page already shows what changed)
     '</div>';
@@ -7646,6 +7657,7 @@
   // then comments newest first; past 3 posts, Show N more. Replies stay folded until opened
   function discussionSec(s) {
     loadComments(s.id);
+    loadSafety();   // what you blocked and reported, to fold those comments (v8-18 1s)
     if (discMissing(s)) return '';
     // Signed out, guests who RSVP'd without an account too: a count card that opens sign-in (v8-8, short links spec)
     if (!state.email) { const n = (comments[s.id] || {}).count || 0;
@@ -7697,11 +7709,11 @@
           (x.kind === 'cmt' ? delOwn(x, false) : '') + '</div>';
       }
       return '<div style="display:flex;flex-direction:column;gap:8px">' +
-        rs.map(r => '<div data-reply-row style="display:flex;align-items:flex-start;gap:8px">' + avatarSpan(r.by, nameOf(r.by), avatarOf(r.by), 24) +
+        rs.map(r => sfFold(r.id, r.by, '4px 0') || '<div data-reply-row style="display:flex;align-items:flex-start;gap:8px">' + avatarSpan(r.by, nameOf(r.by), avatarOf(r.by), 24) +
           '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;padding-top:2px"><span style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:13.5px;font-weight:800;color:#0d1117">' + esc(nameOf(r.by)) +
             (hosts.indexOf(r.by) > -1 ? '<span style="font-size:10px;font-weight:900;letter-spacing:.6px;color:' + AC + '">LEAD</span>' : '') + '<span style="font-size:12px;font-weight:600;color:#8a909b">· ' + esc(ago(r.created)) + '</span></span>' +
             '<span style="font-size:14px;line-height:1.4;font-weight:500;color:#2a2f38;white-space:pre-line;overflow-wrap:anywhere">' + esc(r.body) + '</span>' + ytBox(r.body, 'r:' + r.id) + '</div>' +
-          (r.by === st.me || lead ? '<span ' + on(() => askDeleteComment(s, { id: r.id, reply: true })) + ' aria-label="Delete this reply" style="flex:0 0 28px;height:28px;display:flex;align-items:center;justify-content:center;color:#b9bcc4;cursor:pointer">' + I.x(11, 'currentColor', 2.6) + '</span>' : '') + '</div>').join('') +
+          (r.by === st.me || lead ? '<span ' + on(() => askDeleteComment(s, { id: r.id, reply: true })) + ' aria-label="Delete this reply" style="flex:0 0 28px;height:28px;display:flex;align-items:center;justify-content:center;color:#b9bcc4;cursor:pointer">' + I.x(11, 'currentColor', 2.6) + '</span>' : '') + sfDots(r.id, r.by) + '</div>').join('') +
         '<div style="display:flex;align-items:center;gap:16px">' + heart(x.id) +
           (can ? lnk(op ? 'Cancel' : 'Reply', () => flag('discOpen', key, !op), AC, 'data-reply') : '') +
           (rs.length ? lnk('Hide replies', () => setState({ discExp: Object.assign({}, st.discExp, { [key]: false }), discOpen: Object.assign({}, st.discOpen, { [key]: false }) }), '#6b7280') : '') +
@@ -7712,12 +7724,12 @@
             sendBtn(ok, send, 'Send reply', 36) + '</div>' : '') +
       '</div>';
     };
-    const post = (x, inPanel) => '<div data-post-row="' + x.kind + '" style="display:flex;gap:10px;padding:' + (inPanel ? '12px 2px' : '10px 14px 12px') + '">' +
+    const post = (x, inPanel) => (x.kind === 'cmt' && sfFold(x.id, x.by, inPanel ? '12px 2px' : '12px 14px')) || '<div data-post-row="' + x.kind + '" style="display:flex;gap:10px;padding:' + (inPanel ? '12px 2px' : '10px 14px 12px') + '">' +
       '<div style="display:flex;flex-direction:column;align-items:center;gap:6px">' + avatarSpan(x.by, x.name, avatarOf(x.by), 36) +
         (x.replies.length ? '<span aria-hidden="true" style="flex:1;width:1.5px;min-height:12px;margin-bottom:4px;border-radius:1px;background:' + (inPanel ? '#dcdfe6' : '#e3e5ea') + '"></span>' : '') + '</div>' +
       '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:5px">' +
         '<div style="display:flex;align-items:flex-start;gap:6px"><span style="flex:1;min-width:0;display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:14px;font-weight:800;color:#0d1117">' + esc(x.name) + tag(x) +
-          '<span style="font-size:12.5px;font-weight:600;color:#8a909b">· ' + esc(ago(x.created)) + '</span></span>' + (x.kind === 'upd' ? updMore(s, x.u) : '') + '</div>' +
+          '<span style="font-size:12.5px;font-weight:600;color:#8a909b">· ' + esc(ago(x.created)) + '</span></span>' + (x.kind === 'upd' ? updMore(s, x.u) : sfDots(x.id, x.by)) + '</div>' +
         '<span ' + (x.kind === 'upd' ? 'data-update ' : 'data-comment ') + 'style="font-size:15px;line-height:1.4;font-weight:500;color:#2a2f38;white-space:pre-line;overflow-wrap:anywhere;text-wrap:pretty">' + esc(x.body) + '</span>' + ytBox(x.body, x.kind + ':' + x.id) +
         thread(x, inPanel) + '</div></div>';
     const ups = shown.filter(x => x.kind === 'upd'), cms = shown.filter(x => x.kind === 'cmt');
@@ -7928,7 +7940,9 @@
       deleteLink(s, true) + '</div>';
   function viewDone(s) {
     const st = state, dp = dateParts(s.dayDate), n = cameCount(s);
-    const album = s.album.map(a => photoUrl(a.path));
+    loadSafety();
+    // Photos from someone you blocked, or that you reported, don't show for you (v8-18 1s)
+    const album = s.album.filter(a => !sfBlocked(a.createdBy) && !sfReported('photo', a.path)).map(a => photoUrl(a.path));
     const removable = s.album.filter(a => a.createdBy === st.me || isLead(s)), editing = st.albumEdit === s.id && removable.length > 0;
     const tileAt = (src, extra) => '<span style="position:relative;border-radius:12px;background:' + (src ? bg(src) : '#e4e7ec') + ';' + (extra || '') + '"></span>';
     return '<div data-screen-label="It happened">' +
@@ -8719,7 +8733,8 @@
       '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(13,17,23,.4),rgba(13,17,23,.15))"></div>' +
       '<div style="position:absolute;top:calc(var(--safe-top, 0px) + 54px);left:16px;right:16px;display:flex;justify-content:space-between">' +
         '<span ' + on(goBack) + ' aria-label="Back" style="width:44px;height:44px;border-radius:999px;background:rgba(255,255,255,.92);display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(18, stroke('#0d1117', 2.6), '<path d="M15 5l-7 7 7 7"/>') + '</span>' +
-        '<span ' + on(() => share8(s)) + ' aria-label="Share" style="width:44px;height:44px;border-radius:999px;background:rgba(255,255,255,.92);display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(18, stroke('#0d1117', 2.4), '<path d="M12 3v12M7 8l5-5 5 5M5 14v6h14v-6"/>') + '</span></div></div>';
+        (state.email && !hostRole(s) && !isStarter(s) ? evMenu(s) :   // signed in: ⋯ (Share link · Report this idea), v8-18 1s
+        '<span ' + on(() => share8(s)) + ' aria-label="Share" style="width:44px;height:44px;border-radius:999px;background:rgba(255,255,255,.92);display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(18, stroke('#0d1117', 2.4), '<path d="M12 3v12M7 8l5-5 5 5M5 14v6h14v-6"/>') + '</span>') + '</div></div>';
     return '<div data-screen-label="Idea page (8b)" style="position:relative;display:flex;flex-direction:column;background:#e8eaee;min-height:100%">' + head +
       '<div style="position:relative;margin-top:-22px;border-radius:22px 22px 0 0;background:#e8eaee;display:flex;flex-direction:column;gap:12px;padding:18px 14px 0">' +
         '<div id="sec-details" style="display:flex;flex-direction:column;gap:8px;padding:0 4px">' +
@@ -8986,8 +9001,14 @@
       '<div style="background:#fff;border-radius:20px;box-shadow:0 1px 3px rgba(15,18,25,.08);overflow:hidden">' + meSettingsRows() + '</div>' +
       '<span style="padding:4px 6px 0;font-size:12.5px;font-weight:900;letter-spacing:1px;color:#6b7280">ACCOUNT</span>' +
       '<div style="background:#fff;border-radius:20px;box-shadow:0 1px 3px rgba(15,18,25,.08);overflow:hidden">' + meAccountRows() + '</div>' +
+      // Safety (v8-18 1s): Blocked people · Community rules, and All reports for the app owner only (owner, 2026-10-10)
+      '<div data-screen-label="Safety settings" style="background:#fff;border-radius:20px;box-shadow:0 1px 3px rgba(15,18,25,.08);overflow:hidden">' +
+        [['Blocked people', () => setState({ meSet: false, sf: { v: 'blocked' } }), 'data-blocked-people'], ['Community rules', () => setState({ meSet: false, sf: { v: 'rules' } }), 'data-community-rules']]
+          .concat(state.demoAdmin ? [['All reports', () => openReports(null), 'data-all-reports']] : [])
+          .map(([label, fn, attr], k) => '<div ' + on(fn) + ' ' + attr + ' class="hov-row" style="display:flex;align-items:center;gap:12px;min-height:54px;padding:0 14px;' + (k ? 'border-top:1px solid #f2f3f6;' : '') + 'cursor:pointer">' +
+            '<span style="flex:1;font-size:15.5px;font-weight:800;color:#0d1117">' + label + '</span>' + I.chevR(14, '#b9bcc4', 2.6) + '</div>').join('') + '</div>' +
       '<div style="display:flex;justify-content:center;padding:8px 0 4px"><span ' + on(() => { setState({ meSet: false }); signOut(); }) + ' data-sign-out style="min-height:44px;display:flex;align-items:center;font-size:15px;font-weight:800;color:#c0283f;cursor:pointer">Sign out</span></div>' +
-      (state.demoAdmin ? '' : '<span ' + on(() => setState({ meSet: false, acctDel: '' })) + ' data-delete-account style="align-self:center;display:flex;align-items:center;min-height:36px;padding:0 10px;font-size:13.5px;font-weight:700;color:#6b7280;text-decoration:underline;text-underline-offset:3px;cursor:pointer">Delete my account</span>') +
+      (state.demoAdmin ? '' : '<span ' + on(openDelAcct) + ' data-delete-account style="align-self:center;display:flex;align-items:center;min-height:36px;padding:0 10px;font-size:13.5px;font-weight:700;color:#6b7280;text-decoration:underline;text-underline-offset:3px;cursor:pointer">Delete my account</span>') +
       '</div></div>';
   }
 
@@ -11042,39 +11063,298 @@
       '</div>');
   }
 
-  // Delete {Name}?: type DELETE to confirm (owners)
-  // Delete your own account (owner, 2026-10-02): the same typed DELETE as a group. delete_my_account() refuses while
-  // you're the only owner of a group other people are in.
-  const deleteAccount = async () => {
-    if ((state.acctDel || '').trim() !== 'DELETE' || state.busy) return;
-    if (state.viewAs) { toast('You’re viewing as ' + firstName(state.viewAs.name) + ', so nothing changes. Exit to make changes.'); return; }
+  // ---- Store safety (Design v8-18 item 1s; 20261124000000_store_safety.sql) ---------------------------------------
+  // Report (comments, events and ideas, photos, people) → What's wrong? → Thanks for telling us; Block → a red confirm;
+  // Settings → Safety (Blocked people · Community rules · All reports for the app owner); Group ⋯ → Reports (owners and
+  // admins); and Delete my account: what happens → each group you own alone → the events you lead → a code from your email.
+  // Everything here is one overlay, state.sf ({ v: 'menu' | 'report' | 'sent' | 'block' | 'blocked' | 'inbox' | 'rules' |
+  // 'del1' | 'delGroup' | 'delEvents' | 'delCode' | 'delDone', …}), drawn by viewSafety().
+  // What you blocked and reported (still open) comes from my_safety(), once a session, when something needs it
+  let safety = null, safetyLoading = false;
+  const termsLine = (ink, link, m) => '<p data-terms-line style="' + (m || 'margin:6px 0 0') + ';text-align:center;font-size:12.5px;line-height:1.45;font-weight:600;color:' + ink + ';text-wrap:pretty">By continuing you agree to the ' +
+    '<span ' + on((e) => { stop(e); setState({ sf: { v: 'rules' } }); }) + ' data-terms-link style="color:' + link + ';font-weight:800;cursor:pointer">Terms &amp; community rules</span> and confirm you’re 13 or older.</p>';
+  const loadSafety = (force) => {
+    if (!state.email || safetyLoading || (safety && !force)) return;
+    safetyLoading = true;
+    ensureSession().then(() => sb.rpc('my_safety')).then(r => {
+      safetyLoading = false;
+      if (r.error) { if (r.error.code !== 'PGRST202') console.error(r.error); safety = safety || { blocks: [], reports: {} }; return; }
+      const d = r.data || {}, rep = {};
+      (d.reports || []).forEach(x => { rep[x.kind + ':' + x.target] = true; });
+      safety = { blocks: d.blocks || [], reports: rep };
+      render();
+    }).catch(e => { safetyLoading = false; console.error(e); });
+  };
+  const forgetSafety = () => { safety = null; };
+  const sfBlocked = (uid) => !!(safety && uid && safety.blocks.some(b => b.id === uid));
+  const sfReported = (kind, target) => !!(safety && safety.reports[kind + ':' + target]);
+  const SF_FLAG = '<path d="M5 21V4"/><path d="M5 4h12l-2.5 4.5L17 13H5"/>';
+  const SF_BLOCK = '<circle cx="12" cy="12" r="8.5"/><path d="M6 6l12 12"/>';
+  const sfLook = () => { if (!state.viewAs) return false; toast('You’re viewing as ' + firstName(state.viewAs.name) + ', so nothing changes. Exit to make changes.'); return true; };
+  const sfSet = (o) => setState({ sf: Object.assign({}, state.sf, o) });
+  // The ⋯ sheet: a comment (Report comment · Block {name}) or a person (Report · Block)
+  const sfMenu = (kind, o) => {
+    const nm = o.who ? firstName(nameOf(o.who)) || 'them' : '';
+    setState({ sf: Object.assign({ v: 'menu', kind, title: kind === 'comment' ? nm + '’s comment' : nm,
+      rows: [['report', kind === 'comment' ? 'Report comment' : 'Report ' + nm], ['block', 'Block ' + nm]] }, o) });
+  };
+  const sfReport = (kind, target, label, extra) => { if (!state.email) return; loadSafety(); setState({ zoom: null, person: null, evMenu: null, sf: Object.assign({ v: 'report', kind, target, label, reason: null, note: '' }, extra || {}) }); };
+  const sfBlockAsk = (who) => setState({ person: null, sf: { v: 'block', who, name: nameOf(who) } });
+  const sendReport = () => {
+    const f = state.sf; if (!f || !f.reason || state.busy || sfLook()) return;
+    setState({ busy: 'report' });
+    ensureSession().then(() => sb.rpc('report_content', { p_kind: f.kind, p_target: String(f.target), p_reason: f.reason, p_note: (f.note || '').trim() || null }))
+      .then(r => { if (r.error) throw r.error;
+        if (safety) safety.reports[f.kind + ':' + f.target] = true; else loadSafety(true);
+        setState({ busy: null, sf: { v: 'sent' } }); })
+      .catch(e => { console.error(e); setState({ busy: null }); toast(failed(e)); });
+  };
+  const undoReport = (kind, target) => {
+    if (sfLook()) return;
+    if (safety) delete safety.reports[kind + ':' + target];
+    render();
+    ensureSession().then(() => sb.rpc('withdraw_report', { p_kind: kind, p_target: String(target) }))
+      .then(r => { if (r.error) throw r.error; })
+      .catch(e => { console.error(e); loadSafety(true); toast(failed(e)); });
+  };
+  const doBlock = () => {
+    const f = state.sf; if (!f || !f.who || state.busy || sfLook()) return;
+    setState({ busy: 'block' });
+    ensureSession().then(() => sb.rpc('block_user', { p_user: f.who }))
+      .then(r => { if (r.error) throw r.error;
+        setState({ busy: null, sf: null }); toast('Blocked ' + (f.name || 'them'), true); loadSafety(true);
+        if (isFriend(f.who)) loadAll().catch(() => {}); })   // you're no longer friends
+      .catch(e => { console.error(e); setState({ busy: null }); toast(failed(e)); });
+  };
+  const doUnblock = (b) => {
+    if (sfLook()) return;
+    safety.blocks = safety.blocks.filter(x => x.id !== b.id); render();
+    ensureSession().then(() => sb.rpc('unblock_user', { p_user: b.id }))
+      .then(r => { if (r.error) throw r.error; toast('Unblocked ' + b.name, true); })
+      .catch(e => { console.error(e); loadSafety(true); toast(failed(e)); });
+  };
+  // A comment or reply you reported, or from someone you blocked, folds to one grey line (Design v8-18)
+  const sfFold = (id, by, pad) => {
+    const rep = sfReported('comment', id), blk = !rep && sfBlocked(by) && !((state.sfShow || {})[id]);
+    if (!rep && !blk) return '';
+    return '<div data-sf-fold="' + (rep ? 'reported' : 'blocked') + '" style="display:flex;align-items:center;gap:10px;padding:' + (pad || '12px 14px') + '">' +
+      '<span style="flex:0 0 32px;width:32px;height:32px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center">' + svg(16, stroke('#9aa0ac', 2.2), rep ? SF_FLAG : SF_BLOCK) + '</span>' +
+      '<span style="flex:1;min-width:0;font-size:14px;font-weight:700;color:#6b7280">' + (rep ? 'You reported this' : 'Comment from someone you blocked') + '</span>' +
+      '<span ' + on(() => rep ? undoReport('comment', id) : setState({ sfShow: Object.assign({}, state.sfShow, { [id]: true }) })) + ' data-sf-fold-act style="display:flex;align-items:center;min-height:32px;font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">' + (rep ? 'Undo' : 'Show') + '</span></div>';
+  };
+  // ⋯ on someone else's comment or reply, for signed-in people (never on your own)
+  const sfDots = (id, by) => !state.email || !by || by === state.me ? '' :
+    '<span ' + on(() => { loadSafety(); sfMenu('comment', { who: by, target: id, label: firstName(nameOf(by)) + '’s comment' }); }) + ' aria-label="More" data-comment-more style="flex:0 0 30px;width:30px;height:24px;margin-left:auto;display:flex;align-items:center;justify-content:center;border-radius:999px;color:#9aa0ac;cursor:pointer">' +
+      svg(16, 'fill="currentColor"', '<circle cx="5.5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="18.5" cy="12" r="1.8"/>') + '</span>';
+  // The full-screen viewer's Report pill: our own storage photos only, not your own, signed in
+  const sfPhotoPath = (url) => { const m = /\/storage\/v1\/object\/public\/[^/]+\/([0-9a-f-]{36}\/[0-9a-f-]{36}\.jpg)$/.exec(url || ''); return m && PHOTO_PATH.test(m[1]) ? m[1] : null; };
+  const sfPhotoPill = (url) => { const p = sfPhotoPath(url);
+    if (!state.email || !p || p.split('/')[0] === state.me) return '';
+    return '<span ' + on((e) => { stop(e); sfReport('photo', p, 'This photo'); }) + ' data-photo-report style="position:absolute;top:max(14px, env(safe-area-inset-top));left:14px;height:40px;padding:0 14px;border-radius:999px;background:rgba(255,255,255,.16);display:flex;align-items:center;gap:6px;color:#fff;font-size:14px;font-weight:800;cursor:pointer">' +
+      svg(15, stroke('#fff', 2.2), SF_FLAG) + 'Report</span>'; };
+  // Report · Block under someone's profile pop-up
+  const sfPersonLinks = (p) => !state.email || p.self || p.loading ? '' :
+    '<div data-person-safety style="display:flex;justify-content:center;gap:22px;padding-top:2px">' +
+      '<span ' + on(() => sfReport('profile', p.id, (p.name || nameOf(p.id)) + '’s profile', { who: p.id })) + ' data-person-report style="min-height:36px;display:flex;align-items:center;gap:6px;font-size:13.5px;font-weight:700;color:#6b7280;cursor:pointer">' + svg(14, stroke('currentColor', 2.2), SF_FLAG) + 'Report</span>' +
+      '<span ' + on(() => sfBlockAsk(p.id)) + ' data-person-block style="min-height:36px;display:flex;align-items:center;gap:6px;font-size:13.5px;font-weight:700;color:#c0263d;cursor:pointer">' + svg(14, stroke('currentColor', 2.2), SF_BLOCK) + 'Block</span></div>';
+  // The event/idea ⋯ row for everyone who doesn't run it: Report this event / Report this idea
+  const sfEventRow = (s, row) => '<div ' + on(() => sfReport('event', s.id, s.planned ? 'This event' : 'This idea'), 'menuitem') + ' data-report-event class="hov-fill-grey" style="' + row + '">' +
+    svg(18, stroke('#0d1117', 2.3), SF_FLAG) + (s.planned ? 'Report this event' : 'Report this idea') + '</div>';
+  // Guests: Remove my sign-ups (the reply, any spots, and their name and contact), with a confirm
+  const removeMySignups = (s) => setState({ plusPop: null, confirm: { title: 'Remove your sign-ups?', body: 'We’ll take your name off the RSVP and any spots, and delete your name and contact.', cta: 'Remove', keep: 'Keep them', danger: true, z: 60,
+    run: () => { setState({ confirm: null, busy: 'save' });
+      ensureSession().then(() => sb.rpc('remove_my_signups', { p_spark: s.id }))
+        .then(r => { if (r.error) throw r.error; setState({ busy: null }); toast('Removed. The hosts no longer see your name or contact.', true); return loadAll(); })
+        .catch(e => { console.error(e); setState({ busy: null }); toast(failed(e)); }); } } });
+  // Reports inbox: one group's (Group ⋯ → Reports) or all (Settings → All reports, the app owner)
+  const openReports = (gid) => { setState({ meSet: false, gMenu: null, sf: { v: 'inbox', group: gid || null, list: null } }); loadReports(); };
+  const loadReports = () => { const f = state.sf; if (!f || f.v !== 'inbox') return;
+    ensureSession().then(() => sb.rpc('list_reports', { p_group: f.group }))
+      .then(r => { if (r.error) throw r.error; if (state.sf && state.sf.v === 'inbox') sfSet({ list: r.data || [] }); })
+      .catch(e => { console.error(e); if (state.sf && state.sf.v === 'inbox') sfSet({ list: [] }); toast(failed(e)); }); };
+  const actOnReport = (q, act, msg) => {
+    if (state.busy || sfLook()) return;
+    setState({ busy: 'report' });
+    ensureSession().then(() => sb.rpc('resolve_report', { p_id: q.id, p_action: act }))
+      .then(r => { if (r.error) throw r.error; setState({ busy: null }); toast(msg, true); loadReports();
+        if (q.spark_id && comments[q.spark_id]) loadComments(q.spark_id, true);
+        if (act !== 'dismiss') loadAll().catch(() => {}); })
+      .catch(e => { console.error(e); setState({ busy: null }); toast(failed(e)); });
+  };
+  // Delete my account (Design v8-18): the steps, then the 6-digit code from the sign-in email (the only email we send)
+  const openDelAcct = () => { if (sfLook()) return; setState({ meSet: false, sf: { v: 'del1' } }); };
+  const delNextAfter = (f) => {   // after a group: the next group, then the events, then the code
+    const plan = f.plan, gi = f.v === 'delGroup' ? f.gi + 1 : f.v === 'del1' ? 0 : plan.groups.length;
+    if (gi < plan.groups.length) return { v: 'delGroup', gi };
+    if (f.v !== 'delEvents' && plan.events.length) return { v: 'delEvents' };
+    return { v: 'delCode', code: '' };
+  };
+  const delGo = (o) => { const n = Object.assign({}, state.sf, o || {}), next = delNextAfter(n); sfSet(Object.assign(o || {}, next)); if (next.v === 'delCode') sendDelCode(); };
+  const delStart = () => {
+    if (state.busy || sfLook()) return;
+    setState({ busy: 'save' });
+    ensureSession().then(() => sb.rpc('delete_account_plan'))
+      .then(r => { if (r.error) throw r.error; setState({ busy: null }); const plan = r.data || { groups: [], events: [] };
+        delGo({ plan: { groups: plan.groups || [], events: plan.events || [] }, picks: {}, evc: {} }); })
+      .catch(e => { console.error(e); setState({ busy: null }); toast(failed(e)); });
+  };
+  const sendDelCode = (again) => {
+    ensureSession().then(() => sb.auth.signInWithOtp({ email: state.email, options: { shouldCreateUser: false } }))
+      .then(r => { if (r.error) throw r.error; if (again) toast('Sent a new code', true); })
+      .catch(e => { console.error(e); toast(/rate|seconds/i.test((e && e.message) || '') ? 'Wait a minute, then ask for a new code.' : failed(e)); });
+  };
+  const delFinish = async () => {
+    const f = state.sf; if (!f || (f.code || '').length !== 6 || state.busy || sfLook()) return;
     setState({ busy: 'save' });
     try {
-      await ensureSession();
+      const v = await sb.auth.verifyOtp({ email: state.email, token: f.code, type: 'email' });
+      if (v.error) { setState({ busy: null }); toast('That code didn’t work. Check it, or ask for a new one.'); return; }
+      const groups = (f.plan.groups || []).map(g => { const p = (f.picks || {})[g.id] || ((g.people || [])[0] || {}).id; return p === 'delete' ? { id: g.id, delete: true } : { id: g.id, to: p }; });
+      const events = (f.plan.events || []).map(e => ({ id: e.id, act: (f.evc || {})[e.id] || 'pass' }));
       await forgetPush().catch(() => {});
-      must(await sb.rpc('delete_my_account'));
-      setState({ busy: null, acctDel: null });
+      must(await sb.rpc('delete_my_account', { p_groups: groups, p_events: events }));
+      setState({ busy: null, sf: { v: 'delDone' } });
+      forgetSafety();
       await signOut();
-      toast('Your account is deleted', true);
     } catch (e) {
       console.error(e);
-      const m = /only owner of: (.+)$/.exec(e.message || '');
-      setState({ busy: null, acctDel: m ? null : state.acctDel });
-      toast(m ? 'You’re the only owner of ' + m[1] + '. Make someone else an owner first (Edit group → Members), or delete the group.' : failed(e));
+      setState({ busy: null });
+      toast(failed(e));
     }
   };
-  function viewDeleteAccount() {
-    const st = state, close = () => setState({ acctDel: null }), ok = st.acctDel.trim() === 'DELETE' && !st.busy;
-    return modal('Delete account', close,
-      h3Html('Delete your account?') +
-      paraHtml('This removes ' + esc(st.email) + ' from Spark Hub: your groups, replies, sign-ups and friends. Events you lead pass to a co-lead, or are deleted if there isn’t one. It can’t be undone.') +
-      '<label style="display:flex;flex-direction:column;gap:6px"><span style="' + LABEL + '">Type <strong style="font-weight:900;color:#9b1c31">DELETE</strong> to confirm</span>' +
-        '<input class="fld fld-danger" type="text" autocomplete="off" autocapitalize="characters" aria-label="Type DELETE to confirm" placeholder="DELETE" value="' + esc(st.acctDel) + '" ' +
-          onInput(e => { const v = e.target.value.toUpperCase().slice(0, 12); if (e.target.value !== v) e.target.value = v; setState({ acctDel: v }); }) + ' style="' + FIELD + ';font-weight:800;letter-spacing:1px"></label>' +
-      '<button type="button" data-enter ' + on(deleteAccount) + ' aria-disabled="' + !ok + '" style="' + primary(ok) + ';box-shadow:none;background:' + (ok ? '#9b1c31' : '#b9bcc4') + '">' + (st.busy === 'save' ? 'Deleting…' : 'Delete my account') + '</button>' +
-      '<button type="button" class="hov-outline" ' + on(close) + ' style="' + SECONDARY + '">Keep it</button>',
-      { z: 60 });
+
+  function viewSafety() {
+    const st = state, f = st.sf, v = f.v, close = () => setState({ sf: null }), P = '#5b4ae8', LN = '#f2f3f6';
+    const btn = (label, fn, bg, ink, attr) => '<span ' + on(fn) + ' ' + (attr || '') + ' style="display:flex;align-items:center;justify-content:center;min-height:50px;border-radius:999px;font-size:16px;font-weight:900;background:' + bg + ';color:' + ink + ';cursor:pointer">' + label + '</span>';
+    const off = (label, attr) => '<span ' + (attr || '') + ' aria-disabled="true" style="display:flex;align-items:center;justify-content:center;min-height:50px;border-radius:999px;font-size:16px;font-weight:900;background:#e2e4e9;color:#9aa0ac">' + label + '</span>';
+    const x36 = '<span ' + on(close) + ' aria-label="Close" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:' + LN + ';display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(13, '#0d1117', 2.8) + '</span>';
+    const head = (t, sub) => '<div style="display:flex;align-items:flex-start;gap:10px"><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px">' +
+      '<span style="font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">' + esc(t) + '</span>' + (sub ? '<span style="font-size:14px;line-height:1.35;font-weight:600;color:#6b7280">' + esc(sub) + '</span>' : '') + '</div>' + x36 + '</div>';
+    const face = (id, name, url, size) => avatarSpan(id, name, url ? (PHOTO_PATH.test(url) ? photoUrl(url) : url) : avatarOf(id), size);
+    const radio = (on_) => '<span style="flex:0 0 22px;width:22px;height:22px;box-sizing:border-box;border-radius:999px;border:' + (on_ ? '7px solid ' + P : '2px solid #c9ccd3') + '"></span>';
+    // Bottom sheets: the ⋯ menu, What's wrong?, Thanks for telling us, Block {name}?
+    if (['menu', 'report', 'sent', 'block'].indexOf(v) > -1) {
+      let inner = '';
+      if (v === 'menu') inner = head(f.title) + '<div style="display:flex;flex-direction:column">' + f.rows.map(([act, label], k) =>
+        '<div ' + on(() => act === 'report' ? sfSet({ v: 'report', reason: null, note: '' }) : sfSet({ v: 'block', name: nameOf(f.who) }), 'menuitem') + ' data-sf-row="' + act + '" style="display:flex;align-items:center;gap:12px;min-height:52px;border-top:' + (k ? '1px solid ' + LN : '0') + ';font-size:16px;font-weight:800;color:#0d1117;cursor:pointer">' +
+          '<span style="display:flex;color:#454b55">' + svg(20, stroke('currentColor', 2.2), act === 'report' ? SF_FLAG : SF_BLOCK) + '</span>' + esc(label) + '</div>').join('') + '</div>';
+      else if (v === 'report') { const R = ['Spam', 'Harassment', 'Inappropriate', 'Unsafe', 'Something else'];
+        inner = head('What’s wrong?', f.label) + '<div role="radiogroup" style="display:flex;flex-direction:column">' + R.map(x => { const sel = f.reason === x;
+          return '<div ' + on(() => sfSet({ reason: x }), 'radio') + ' aria-checked="' + sel + '" data-sf-reason="' + x + '" style="display:flex;align-items:center;gap:12px;min-height:44px;cursor:pointer">' + radio(sel) +
+            '<span style="font-size:15.5px;font-weight:' + (sel ? 900 : 700) + ';color:#0d1117">' + x + '</span></div>'; }).join('') + '</div>' +
+          '<textarea class="fld" rows="2" maxlength="280" aria-label="Note" placeholder="Add a note (optional)" data-sf-note ' + onInput(e => { if (e.type === 'input') state.sf = Object.assign({}, state.sf, { note: e.target.value.slice(0, 280) }); }) +
+            ' style="display:block;width:100%;box-sizing:border-box;border:0;border-radius:14px;box-shadow:inset 0 0 0 1.5px #dcdfe6;padding:12px 14px;font-family:inherit;font-size:16px;font-weight:500;color:#0d1117;outline:none;resize:none">' + esc(f.note || '') + '</textarea>' +
+          (f.reason ? btn(st.busy === 'report' ? 'Sending…' : 'Send report', sendReport, P, '#fff', 'data-sf-send') : off('Send report', 'data-sf-send')); }
+      else if (v === 'sent') inner = '<div data-sf-sent style="display:flex;flex-direction:column;gap:12px;padding-top:6px">' +
+        '<span style="align-self:center;width:52px;height:52px;border-radius:999px;background:#e7f6ec;display:flex;align-items:center;justify-content:center">' + svg(24, stroke('#149a4b', 3), '<path d="M5 12.5 9.5 17 19 7"/>') + '</span>' +
+        '<span style="text-align:center;font-size:20px;font-weight:900;color:#0d1117">Thanks for telling us</span>' +
+        '<span style="text-align:center;font-size:14.5px;line-height:1.45;font-weight:600;color:#454b55">A group lead will look at this, and we review reports within 48 hours.</span>' +
+        btn('Done', close, LN, '#0d1117', 'data-sf-done') + '</div>';
+      else inner = '<div style="display:flex;flex-direction:column;gap:12px">' + face(f.who, f.name, null, 56) +
+        '<span style="font-size:21px;font-weight:900;color:#0d1117">Block ' + esc(firstName(f.name) || 'them') + '?</span>' +
+        '<span style="font-size:14.5px;line-height:1.45;font-weight:600;color:#454b55">They won’t be able to send you friend requests, and you won’t see their comments or photos.</span>' +
+        btn(st.busy === 'block' ? 'Blocking…' : 'Block', doBlock, '#c0263d', '#fff', 'data-sf-block-go') + btn('Cancel', close, LN, '#0d1117') + '</div>';
+      return '<div class="sheet-scrim" data-scrim="' + reg(close) + '" style="z-index:58"><div role="dialog" aria-modal="true" aria-label="' + (v === 'report' ? 'What’s wrong?' : v === 'sent' ? 'Thanks for telling us' : v === 'block' ? 'Block' : esc(f.title)) + '" data-screen-label="Safety sheet" class="sheet" style="' + SHEET_PAD + ';background:#fff;animation:sheetUp 260ms cubic-bezier(.2,.8,.2,1) both">' +
+        '<span aria-hidden="true" style="align-self:center;width:40px;height:5px;border-radius:999px;background:#dcdfe6"></span>' + inner + '</div></div>';
+    }
+    // Full pages: Blocked people, Reports, Community rules, and the Delete account steps
+    const card = (inner, extra) => '<div style="' + CARD + ';padding:14px;display:flex;flex-direction:column;' + (extra || 'gap:10px') + '">' + inner + '</div>';
+    const plan = f.plan || { groups: [], events: [] }, g = v === 'delGroup' ? plan.groups[f.gi] : null;
+    const title = { blocked: 'Blocked people', inbox: f.group ? 'Reports · ' + ((groupById(f.group) || {}).name || 'Your group') : 'All reports', rules: 'Community rules',
+      del1: 'Delete account', delGroup: g ? g.name : '', delEvents: 'Your events', delCode: 'Check your email', delDone: '' }[v] || '';
+    const back = () => setState({ sf: v === 'delGroup' && f.gi > 0 ? Object.assign({}, f, { gi: f.gi - 1 }) : ['delGroup', 'delEvents', 'delCode'].indexOf(v) > -1 ? { v: 'del1' } : f.back ? { v: f.back } : null });
+    let body = '';
+    if (v === 'blocked') {
+      loadSafety(); const B = safety ? safety.blocks : null;
+      body = card('<span style="font-size:13.5px;line-height:1.4;font-weight:600;color:#6b7280">People you block can’t send you friend requests, and you won’t see what they post.</span>' +
+        (!B ? '<span style="padding:10px 0 4px;font-size:15px;font-weight:700;color:#9aa0ac">Loading…</span>' : !B.length ? '<span data-sf-none style="padding:10px 0 4px;font-size:15px;font-weight:700;color:#9aa0ac">No one yet.</span>' : '') +
+        (B || []).map(b => '<div data-blocked-person="' + esc(b.name) + '" style="display:flex;align-items:center;gap:12px;min-height:58px;border-top:1px solid ' + LN + '">' + face(b.id, b.name, b.avatar, 36) +
+          '<div style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:15.5px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(b.name) + '</span><span style="font-size:12.5px;font-weight:600;color:#6b7280">Blocked</span></div>' +
+          '<span ' + on(() => doUnblock(b)) + ' data-unblock style="display:flex;align-items:center;height:34px;padding:0 13px;border-radius:999px;background:' + LN + ';font-size:13.5px;font-weight:800;color:#0d1117;cursor:pointer">Unblock</span></div>').join(''), 'gap:0');
+    } else if (v === 'inbox') {
+      const L = f.list, all = !f.group;
+      const chip = (label, dark) => '<span style="height:32px;padding:0 11px;display:flex;align-items:center;border-radius:999px;font-size:12.5px;font-weight:800;background:' + (dark ? '#0d1117' : '#fff') + ';color:' + (dark ? '#fff' : '#454b55') + ';box-shadow:' + (dark ? 'none' : 'inset 0 0 0 1.5px #dcdfe6') + '">' + label + '</span>';
+      const act = (q, label, a, msg, dark) => '<span ' + on(() => actOnReport(q, a, msg)) + ' data-report-act="' + a + '" style="height:30px;padding:0 9px;display:flex;align-items:center;border-radius:999px;font-size:12px;font-weight:800;background:' + (dark ? '#0d1117' : LN) + ';color:' + (dark ? '#fff' : '#454b55') + ';cursor:pointer">' + label + '</span>';
+      const what = (q) => q.kind === 'comment' ? 'Comment by ' + q.subject_name + (q.title ? ' on ' + q.title : '')
+        : q.kind === 'event' ? (q.title || q.excerpt || 'An event') + ' · by ' + q.subject_name
+        : q.kind === 'photo' ? 'Photo by ' + q.subject_name + (q.title ? ' on ' + q.title : '') : q.subject_name + '’s profile';
+      const thumb = (q) => { const u = q.kind === 'photo' ? photoUrl(q.target) : null;
+        return '<span aria-hidden="true" style="flex:0 0 40px;width:40px;height:40px;border-radius:10px;background:' + (u ? '#2b303a ' + bg(u) : LN) + ';display:flex;align-items:center;justify-content:center">' + (u ? '' : svg(18, stroke('#9aa0ac', 2.2), q.kind === 'profile' ? '<circle cx="12" cy="8.5" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/>' : q.kind === 'event' ? '<rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16M9 3v4M15 3v4"/>' : '<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/>')) + '</span>'; };
+      body = (all && L ? '<div style="display:flex;flex-wrap:wrap;gap:6px">' + chip('Open · ' + L.length, true) + chip('Overdue · ' + L.filter(q => q.overdue).length) + chip('About a lead · ' + L.filter(q => q.about_lead).length) + '</div>' : '') +
+        card('<span style="font-size:13px;font-weight:900;color:#0d1117">' + (L ? L.length + ' open' : '') + '</span>' +
+          (!L ? '<span style="padding:10px 0 4px;font-size:15px;font-weight:700;color:#9aa0ac">Loading…</span>' : !L.length ? '<span data-reports-none style="padding:10px 0 4px;font-size:15px;font-weight:700;color:#9aa0ac">Nothing to look at. Nice.</span>' : '') +
+          (L || []).map(q => '<div data-report-row="' + esc(q.kind) + '" style="display:flex;flex-direction:column;gap:8px;padding:12px 0;border-top:1px solid ' + LN + '">' +
+            '<div style="display:flex;align-items:flex-start;gap:10px">' + thumb(q) +
+              '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px"><span style="font-size:14.5px;line-height:1.3;font-weight:800;color:#0d1117;overflow-wrap:anywhere">' + esc(what(q) + (all && q.group_name ? ' · ' + q.group_name : '')) + '</span>' +
+                (q.kind === 'comment' && q.excerpt ? '<span data-report-excerpt style="font-size:13.5px;line-height:1.35;font-weight:500;color:#454b55;overflow-wrap:anywhere">“' + esc(q.excerpt) + '”</span>' : '') +
+                (q.note ? '<span style="font-size:13px;line-height:1.35;font-weight:600;font-style:italic;color:#6b7280;overflow-wrap:anywhere">' + esc(q.note) + '</span>' : '') +
+                '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span style="padding:3px 8px;border-radius:999px;background:#fde8ec;font-size:11.5px;font-weight:900;color:#9b1c31">' + esc(q.reason) + '</span>' +
+                  '<span style="font-size:12px;font-weight:600;color:#6b7280">' + esc((q.reporter_name ? q.reporter_name + ' · ' : 'Reported ') + ago(Date.parse(q.created_at))) + '</span></div></div>' +
+              (all && (q.about_lead || q.overdue) ? '<span style="padding:3px 8px;border-radius:999px;font-size:11.5px;font-weight:900;background:' + (q.about_lead ? P : '#fde8ec') + ';color:' + (q.about_lead ? '#fff' : '#9b1c31') + '">' + (q.about_lead ? 'LEAD' : 'OVERDUE') + '</span>' : '') + '</div>' +
+            '<div style="display:flex;gap:6px;flex-wrap:wrap">' + act(q, 'Dismiss', 'dismiss', 'Report dismissed') +
+              act(q, 'Remove content', 'remove', 'Removed. We told the person who posted it.', true) +
+              (q.group_id && q.subject_member ? act(q, 'Remove member', 'remove_member', 'Removed from the group') + act(q, 'Block', 'block', 'Blocked from the group') : '') + '</div></div>').join(''), 'gap:0');
+    } else if (v === 'rules') {
+      const RULES = [['13 or older', 'You need to be at least 13 to use Spark Hub.'], ['Be kind', 'No harassment, hate or threats.'], ['Keep it safe', 'No nudity, violence or anything unsafe.'],
+        ['Group leads keep it tidy', 'Group leads can remove posts and members of their group.'], ['Tell us', 'Report anything that’s wrong. We look within 48 hours.']];
+      const link = (label, href) => '<a href="' + href + '" target="_blank" rel="noopener" style="min-height:36px;display:flex;align-items:center;font-size:14px;font-weight:800;color:' + P + ';text-decoration:none">' + label + ' ›</a>';
+      body = card('<span style="padding-bottom:4px;font-size:14.5px;line-height:1.4;font-weight:600;color:#454b55">Spark Hub is for planning things with your people. Keep it friendly.</span>' +
+        RULES.map(([t, d], k) => '<div data-rule-row style="display:flex;align-items:flex-start;gap:12px;padding:10px 0;' + (k ? 'border-top:1px solid ' + LN : '') + '">' +
+          '<span style="flex:0 0 30px;width:30px;height:30px;border-radius:999px;background:#f1effd;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;color:' + P + '">' + (k + 1) + '</span>' +
+          '<div style="flex:1;display:flex;flex-direction:column;gap:1px"><span style="font-size:15px;font-weight:900;color:#0d1117">' + t + '</span><span style="font-size:13px;line-height:1.35;font-weight:600;color:#6b7280">' + d + '</span></div></div>').join(''), 'gap:0') +
+        link('Full terms of use', '/terms.html') + link('Privacy policy', '/privacy.html');
+    } else if (v === 'del1') {
+      const dot = (t) => '<div style="display:flex;align-items:baseline;gap:10px"><span style="flex:0 0 6px;width:6px;height:6px;border-radius:999px;background:#c0263d;transform:translateY(-2px)"></span><span style="font-size:14.5px;line-height:1.4;font-weight:600;color:#454b55">' + t + '</span></div>';
+      body = card('<span style="font-size:20px;font-weight:900;color:#0d1117">Delete your account?</span>' + dot('Your profile, photos and comments are removed.') + dot('Events you led are passed on or cancelled. You choose next.') + dot('This can’t be undone.')) +
+        btn(st.busy === 'save' ? 'One moment…' : 'Continue', delStart, '#c0263d', '#fff', 'data-del-continue') + btn('Keep my account', close, LN, '#0d1117');
+    } else if (v === 'delGroup' && g) {
+      const people = g.people || [], pick = (f.picks || {})[g.id] && f.picks[g.id] !== 'delete' ? f.picks[g.id] : (people[0] || {}).id, who = people.find(p => p.id === pick) || people[0] || {};
+      const setPick = (id) => sfSet({ picks: Object.assign({}, f.picks, { [g.id]: id }) });
+      body = '<span style="font-size:16px;line-height:1.35;font-weight:900;color:#0d1117">You’re the only owner of ' + esc(g.name) + '. Who should have it?</span>' +
+        card('<span style="padding-bottom:6px;font-size:11.5px;font-weight:900;letter-spacing:1px;color:#6b7280">HAND IT TO</span>' +
+          '<div style="max-height:300px;overflow:auto">' + people.map(p => '<div ' + on(() => setPick(p.id), 'radio') + ' aria-checked="' + (p.id === pick) + '" data-hand-to="' + esc(p.name) + '" style="display:flex;align-items:center;gap:12px;min-height:52px;border-top:1px solid ' + LN + ';cursor:pointer">' + radio(p.id === pick) + face(p.id, p.name, null, 32) +
+            '<div style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:15px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(p.name) + '</span><span style="font-size:12px;font-weight:600;color:#6b7280">' + (p.role === 'admin' ? 'Admin' : 'Member') + '</span></div></div>').join('') + '</div>', 'gap:0') +
+        '<span style="text-align:center;font-size:13px;font-weight:700;color:#9aa0ac">or</span>' +
+        '<div ' + on(() => delGo({ picks: Object.assign({}, f.picks, { [g.id]: 'delete' }) })) + ' data-del-group-too style="' + CARD + ';padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer">' + svg(20, stroke('#c0263d', 2.2), '<path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13"/>') +
+          '<div style="flex:1;display:flex;flex-direction:column"><span style="font-size:15px;font-weight:800;color:#c0263d">Delete the group too</span><span style="font-size:12.5px;font-weight:600;color:#6b7280">Its events and ideas go with it</span></div>' + I.chevR(14, '#b9bcc4', 2.6) + '</div>' +
+        btn('Hand it to ' + esc(firstName(who.name) || 'them'), () => delGo({ picks: Object.assign({}, f.picks, { [g.id]: who.id }) }), P, '#fff', 'data-hand-go');
+    } else if (v === 'delEvents') {
+      const ch = f.evc || {}, seg = (sel) => 'height:30px;padding:0 10px;display:flex;align-items:center;border-radius:999px;font-size:12.5px;font-weight:800;background:' + (sel ? '#fff' : 'transparent') + ';color:' + (sel ? '#0d1117' : '#6b7280') + ';box-shadow:' + (sel ? '0 1px 3px rgba(13,17,23,.12)' : 'none') + ';cursor:pointer';
+      body = '<span style="font-size:16px;font-weight:900;color:#0d1117">What should happen to these?</span>' +
+        card(plan.events.map((e, k) => { const c = ch[e.id] || 'pass', set = (a) => sfSet({ evc: Object.assign({}, ch, { [e.id]: a }) });
+          return '<div data-del-event="' + esc(e.text) + '" style="display:flex;align-items:center;gap:10px;min-height:60px;' + (k ? 'border-top:1px solid ' + LN : '') + '">' +
+            '<div style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:15px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(e.text) + '</span>' +
+              '<span style="font-size:12.5px;font-weight:600;color:#6b7280">' + esc(e.planned ? [e.day ? fmtDay(e.day) : '', e.count + ' going'].filter(Boolean).join(' · ') : 'Idea · ' + e.count + ' interested') + '</span></div>' +
+            '<div role="radiogroup" style="display:flex;gap:3px;padding:3px;border-radius:999px;background:#e8eaee">' +
+              '<span ' + on(() => set('pass'), 'radio') + ' aria-checked="' + (c === 'pass') + '" data-ev-pass style="' + seg(c === 'pass') + '">Pass on</span>' +
+              '<span ' + on(() => set('cancel'), 'radio') + ' aria-checked="' + (c === 'cancel') + '" data-ev-cancel style="' + seg(c === 'cancel') + '">Cancel</span></div></div>'; }).join(''), 'gap:0;padding:4px 14px') +
+        '<span style="font-size:12.5px;line-height:1.4;font-weight:600;color:#6b7280">Pass on goes to your co-lead, or we ask the group. Cancel tells everyone going.</span>' +
+        btn('Next', () => delGo(), P, '#fff', 'data-del-events-next');
+    } else if (v === 'delCode') {
+      const ok = (f.code || '').length === 6, em = st.email || '', masked = em.replace(/^(.)[^@]*/, '$1•••');
+      body = '<div style="display:flex;flex-direction:column;gap:14px;padding-top:10px">' +
+        '<span style="align-self:center;width:52px;height:52px;border-radius:999px;background:#f1effd;display:flex;align-items:center;justify-content:center">' + svg(24, stroke(P, 2.2), '<rect x="3.5" y="5.5" width="17" height="13" rx="2.5"/><path d="m4.5 7 7.5 6 7.5-6"/>') + '</span>' +
+        '<span style="text-align:center;font-size:15px;line-height:1.4;font-weight:700;color:#454b55">We sent a 6-digit code to ' + esc(masked) + '</span>' +
+        '<input class="fld" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="••••••" aria-label="6-digit code" data-del-code value="' + esc(f.code || '') + '" ' +
+          onInput(e => { const c = e.target.value.replace(/\D/g, '').slice(0, 6); if (e.target.value !== c) e.target.value = c; if ((state.sf.code || '') !== c) sfSet({ code: c }); }) +
+          ' style="align-self:center;width:220px;box-sizing:border-box;height:56px;border:0;border-radius:14px;box-shadow:inset 0 0 0 2px #dcdfe6;background:#fff;text-align:center;font-family:inherit;font-size:26px;font-weight:900;letter-spacing:10px;color:#0d1117;outline:none">' +
+        (ok ? btn(st.busy === 'save' ? 'Deleting…' : 'Delete my account', delFinish, '#c0263d', '#fff', 'data-del-go') : off('Delete my account', 'data-del-go')) +
+        '<span ' + on(() => sendDelCode(true)) + ' style="text-align:center;min-height:36px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:' + P + ';cursor:pointer">Resend code</span></div>';
+    } else if (v === 'delDone') {
+      body = '<div data-del-done style="display:flex;flex-direction:column;gap:12px;padding:90px 6px 30px">' +
+        '<span style="align-self:center;width:52px;height:52px;border-radius:999px;background:' + LN + ';display:flex;align-items:center;justify-content:center">' + svg(24, stroke('#454b55', 2.4), '<path d="M5 12.5 9.5 17 19 7"/>') + '</span>' +
+        '<span style="text-align:center;font-size:21px;font-weight:900;color:#0d1117">Your account is deleted</span>' +
+        '<span style="text-align:center;font-size:14.5px;line-height:1.45;font-weight:600;color:#454b55">Thanks for being part of it. You can come back anytime with a new account.</span>' +
+        btn('Close', close, LN, '#0d1117', 'data-del-close') + '</div>';
+    }
+    return '<div role="dialog" aria-modal="true" aria-label="' + esc(title || 'Delete account') + '" data-screen-label="Safety page" data-sf-page="' + v + '" style="position:absolute;inset:0;z-index:58;background:#e8eaee;overflow-y:auto;display:flex;flex-direction:column;animation:fadeUp 220ms ease-out both">' +
+      (v === 'delDone' ? '' : '<div style="position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:10px;padding:calc(12px + var(--sat)) 14px 10px;background:#e8eaee">' +
+        '<span ' + on(back) + ' aria-label="Back" style="flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.1);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.chevL(16, '#0d1117', 2.6) + '</span>' +
+        '<span style="flex:1;min-width:0;font-size:19px;font-weight:900;letter-spacing:-.3px;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(title) + '</span></div>') +
+      '<div style="padding:6px 14px 40px;display:flex;flex-direction:column;gap:12px;width:100%;max-width:560px;box-sizing:border-box;align-self:center">' + body + '</div></div>';
   }
+
+  // Delete {Name}?: type DELETE to confirm (owners)
   function viewDeleteGroup() {
     const st = state, g = groupById(st.gpId), close = () => setState({ gpDel: null });
     if (!g || g.role !== 'owner') return '';
@@ -11301,6 +11581,7 @@
     return '<div role="dialog" aria-modal="true" aria-label="Photo" data-scrim="' + reg(close) + '" style="position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.94);display:flex;align-items:center;justify-content:center;animation:fadeIn 160ms ease both;cursor:zoom-out">' +
       '<img data-on="' + reg(close) + '" src="' + esc(z.photos[z.i]) + '" alt="Photo ' + (z.i + 1) + ' of ' + n + '" style="max-width:100%;max-height:100%;object-fit:contain;display:block">' +
       '<span ' + on(close) + ' aria-label="Close" style="position:absolute;top:max(14px, env(safe-area-inset-top));right:14px;width:40px;height:40px;border-radius:999px;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(16, '#fff', 2.6) + '</span>' +
+      sfPhotoPill(z.photos[z.i]) +   // Report (v8-18 1s)
       (n > 1
         ? arrow(-1, 'Previous photo', I.chevL(18, '#fff', 2.4)) + arrow(1, 'Next photo', I.chevR(18, '#fff', 2.4)) +
           '<span style="position:absolute;bottom:max(18px, env(safe-area-inset-bottom));left:0;right:0;text-align:center;font-size:13px;font-weight:700;color:rgba(255,255,255,.75)">' + (z.i + 1) + ' / ' + n + '</span>'
@@ -11391,7 +11672,6 @@
       (st.email && st.person ? viewPerson() : '') +
       (st.frAdd ? viewFrAdd() : '') +
       (st.gpDel != null && s === 'groupPage' ? viewDeleteGroup() : '') +
-      (st.acctDel != null && st.email ? viewDeleteAccount() : '') +
       (st.invite ? viewInvite() : '') +
       (st.sec && subj ? viewSecSheet() : '') +
       (st.ph ? viewPositioner() : '') +   // above Edit event, which can open it
@@ -11407,6 +11687,7 @@
       (st.inv && st.inv.step === 'confirm' && st.email ? viewInvConfirm() : '') +
       (st.dayPick ? viewDayPick() : '') +
       (st.dayTypePop ? viewDayType() : '') +
+      (st.sf ? viewSafety() : '') +   // Store safety (v8-18 1s): its sheets and pages
       (st.confirm ? viewConfirm() : '') +
       (st.zoom ? viewZoom() : '') +
       (st.fbOpen && st.demoAdmin ? viewFbInbox() : '') +
@@ -11693,7 +11974,7 @@
       if (state.startName != null) return setState({ startName: null });
       if (state.blast) return setState({ blast: null });
       if (state.updAll) return setState({ updAll: null });
-      if (state.acctDel != null) return setState({ acctDel: null });
+      if (state.sf) return setState({ sf: null });
       if (state.gpDel != null) return setState({ gpDel: null });
       if (state.gpRename != null) return setState({ gpRename: null });
       if (state.nSettings) return setState({ nSettings: false });

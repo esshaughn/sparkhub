@@ -428,9 +428,34 @@ async function rsvpTap(scope, label) {
 }
 const rsvpBar = (scope, k) => scope.locator('[data-rsvp-bar="' + k + '"]');
 
+
+// A throwaway signed-in account (local Supabase only, E2E_DB=local): made with the service key, signed in with an
+// email code read from the admin API (there's no inbox to read), so tests can delete it (Design v8-18 1s)
+const LOCAL_SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qhwxSOqurc8w3ehjK5eO0c';   // every local Supabase's demo key
+async function adminApi(method, url, body) {
+  if (process.env.E2E_DB !== 'local') throw new Error('adminApi is for the local Supabase only');
+  const key = process.env.E2E_SERVICE_KEY || LOCAL_SERVICE_KEY;
+  const r = await fetch(CONFIG.supabaseUrl + url, { method, signal: AbortSignal.timeout(20000),
+    headers: { apikey: key, Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+  const data = await r.json().catch(() => null);
+  if (!r.ok) throw new Error((data && (data.msg || data.message || data.error_description)) || 'HTTP ' + r.status);
+  return data;
+}
+// A fresh 6-digit sign-in code for an email, as the sign-in email would carry it
+const emailCode = async (email) => (await adminApi('POST', '/auth/v1/admin/generate_link', { type: 'magiclink', email })).email_otp;
+async function newAccount(browser, name) {
+  const email = 'e2e-throwaway-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6) + '@example.com';
+  await adminApi('POST', '/auth/v1/admin/users', { email, email_confirm: true, user_metadata: { name, display_name: name } });
+  const session = await api('POST', '/auth/v1/verify', null, { type: 'email', email, token: await emailCode(email) });
+  await api('POST', '/rest/v1/rpc/rename_me', session.access_token, { p_name: name });
+  if (!session.expires_at) session.expires_at = Math.floor(Date.now() / 1000) + session.expires_in;
+  const m = await newMember(browser, '/', [{ name: SESSION_KEY, value: JSON.stringify(session) }]);
+  return Object.assign(m, { email, id: session.user.id });
+}
+
 module.exports = { pickPostTo,
   addJob1a,
   rsvpTap, rsvpBar,
   TAG, TORREZ, PNG, leadEmail, uniqueTitle, startPost, startFloat, openTasks, openAllGroups, openProfile, saved, pickView, mockPlaces, stubPhotos, trackErrors, expectConnected, newMember, newLead, button,
-  postIdea, postEvent, closeAskFirst, pickDate, pickTime, timeBox, pickKind, addJob, answerNamePrompt, answerGuestPrompt, donePlus, ideaIdFromUrl, openIdea, confirm, deleteIdea, asUser
+  newAccount, emailCode, postIdea, postEvent, closeAskFirst, pickDate, pickTime, timeBox, pickKind, addJob, answerNamePrompt, answerGuestPrompt, donePlus, ideaIdFromUrl, openIdea, confirm, deleteIdea, asUser
 };
