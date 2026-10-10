@@ -2339,10 +2339,10 @@
       '<span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px"><span style="font-size:16px;font-weight:800;color:#0d1117">' + title + '</span><span style="font-size:12.5px;line-height:1.3;font-weight:600;color:#6b7280">' + sub + '</span></span>' +
       I.chevR(16, '#b9bcc4', 2.6) + '</' + tag + '>';
     const file = (key, title, sub) => row(key, title, sub, 'span', on(() => { close(); downloadIcs(s); }));
+    // Google Calendar first for everyone (owner, 2026-10-10), then Apple's (with the iOS hint on an iPhone), then the plain file
     const rows = [
-      IS_APPLE ? file('apple', 'Apple Calendar', 'On the next screen, tap Add To Calendar at the bottom.') : '',
       gUrl ? row('google', 'Google Calendar', 'Opens Google Calendar with it filled in.', 'a', 'href="' + esc(gUrl) + '" target="_blank" rel="noopener noreferrer" data-on="' + reg(() => setTimeout(close, 50)) + '"') : '',
-      IS_APPLE ? '' : file('apple', 'Apple Calendar', 'Opens it in your calendar app.'),
+      file('apple', 'Apple Calendar', IS_APPLE ? 'On the next screen, tap Add To Calendar at the bottom.' : 'Opens it in your calendar app.'),
       file('other', 'Outlook and other', 'Downloads a calendar file.')
     ].filter(Boolean);
     return sheet('Add to calendar', close, SHEET_PAD,

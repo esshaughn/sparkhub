@@ -68,9 +68,10 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     await expect(G.getByText('You’re going. See you there!')).toBeVisible();
     // A dated event: the banner offers Add to calendar right away (research review, 2026-10-01)
     await G.locator('[data-banner="going"]').getByRole('button', { name: 'Add to calendar' }).click();
-    // A sheet of three rows (owner, 2026-10-10): Google Calendar's link first on a computer, then the .ics for Apple and Outlook
+    // A sheet of three rows (owner, 2026-10-10): Google Calendar's link first, then the .ics for Apple and Outlook
     const calSheet = G.getByRole('dialog', { name: 'Add to calendar' });
     await expect(calSheet.locator('[data-cal-row]')).toHaveCount(3);
+    await expect(calSheet.locator('[data-cal-row]').first()).toHaveAttribute('data-cal-row', 'google');   // first for everyone
     await expect(calSheet.locator('[data-cal-row="google"]')).toHaveAttribute('href', /^https:\/\/calendar\.google\.com\/calendar\/render\?action=TEMPLATE&text=.+&dates=\d{8}(T\d{6})?\/\d{8}(T\d{6})?/);
     const calDownload = G.waitForEvent('download');
     await calSheet.locator('[data-cal-row="other"]').click();
