@@ -1,0 +1,22 @@
+<!-- @dsCard group="Components" viewport="700x300" name="Chips & filter pills" subtitle="Choice chips, filter row, pickers, status tags" -->
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
+<script src="../../components/load.js"></script>
+<style>body{background:var(--surface-page);padding:18px;margin:0}</style>
+</head><body><div id="root"></div>
+<script type="text/babel">
+const R = ({children,gap=10,col}) => <div style={{display:'flex',flexDirection:col?'column':'row',flexWrap:'wrap',gap,alignItems:col?'stretch':'center'}}>{children}</div>;
+const PH = '../../assets/photos/';
+loadSparkHub('../../').then(NS => { const {Icon,Sparkles,Sparkle,Wordmark,Button,IconButton,Fab,PlusMenuPill,Chip,ChipRow,FilterPill,Tag,Face,FaceStack,Card,SectionLabel,ListRow,NextUpCard,EventCard,IdeaCard,GradientCard,BottomSheet,Popup,Toast,Menu,NotePaper,Snapshot,GraphPaper,RsvpTiles,RsvpStatus,TabBar,ScreenHeader,Field,Toggle,Checkbox,ICON_NAMES} = NS;
+ReactDOM.createRoot(document.getElementById('root')).render(<div style={{display:'flex',flexDirection:'column',gap:14}}>
+    <R gap={8}><Chip selected>Ask a question</Chip><Chip>Something’s broken</Chip><Chip>Share an idea</Chip><Chip dashed>+ Date</Chip><Chip dashed>+ Location</Chip></R>
+    <ChipRow><Chip size="sm" selected>All</Chip><Chip size="sm">Outdoors · 3</Chip><Chip size="sm">Food · 2</Chip><Chip size="sm">Kids &amp; family · 2</Chip><Chip size="sm">Hangout · 1</Chip><Chip size="sm">Music &amp; arts · 1</Chip></ChipRow>
+    <R gap={8}><Chip size="xs" tone="purple" selected>Any time</Chip><Chip size="xs">Set time</Chip><Chip size="xs">Morning</Chip><Chip size="xs">Afternoon</Chip><Chip size="xs">Evening</Chip></R>
+    <R><FilterPill label="All groups" thumbs={[PH+'torrez-group.jpg',PH+'pickleball.jpg',PH+'mutual-aid.jpg']} /><FilterPill label="2 groups" /><FilterPill quiet label="Newest" /></R>
+    <R gap={8}><Tag kind="request" /><Tag kind="beta" /><Tag kind="idea" /><Tag kind="ideaPaper" /><Tag kind="update" /><Tag kind="lead" /><Tag kind="plan" /><Tag kind="private" /><Tag kind="count">7</Tag><Tag kind="cancelled" /><span style={{display:'flex',gap:8,padding:8,borderRadius:12,background:'var(--ink-photo) url('+PH+'trail-cleanup.jpg) center/cover'}}><Tag kind="frosted">In 3 days</Tag><Tag kind="frosted" icon="lock">Private</Tag><Tag kind="today" /></span></R>
+  </div>);}).catch(e=>{document.body.insertAdjacentHTML("beforeend","<pre>"+(e&&e.stack||e)+"</pre>")});
+</script></body></html>

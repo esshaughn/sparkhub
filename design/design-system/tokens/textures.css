@@ -1,0 +1,41 @@
+/* Textures + gradients. Exact strings from v8. */
+:root {
+  /* The Spark gradient: purple → pink → amber */
+  --grad-spark: linear-gradient(115deg,#5b4ae8 0%,#a03bc8 45%,#d6246e 75%,#f5b428 120%);      /* All groups card */
+  --grad-spark-soft: linear-gradient(115deg,#5b4ae8 0%,#a64bd6 45%,#e2558f 72%,#f5b428 100%);  /* Start here card */
+  --grad-spark-header: linear-gradient(135deg,#5b4ae8,#8a6ff0 55%,#e8a71c);                    /* create header with no photo */
+  --grad-spark-cta: linear-gradient(120deg,#5b4ae8 0%,#7a4fe0 45%,#b04fc4 80%,#d6246e 100%);   /* Make it a Plan! button */
+  --grad-impact: linear-gradient(100deg,#5b4ae8,#a43ad0 45%,#d6246e 75%,#e8661c);              /* Your impact pill */
+  --grad-spark-tint: linear-gradient(115deg,rgba(91,74,232,.55) 0%,rgba(160,59,200,.35) 40%,rgba(214,36,110,.3) 70%,rgba(245,180,40,.35) 110%); /* over a photo */
+  --grad-spark-pale: linear-gradient(115deg,#ece9fd 0%,#f6e6f5 50%,#fdeaf2 75%,#fff4dc 115%);
+  --grad-gold-band: linear-gradient(160deg,#fde39a 0%,#fbd56b 55%,#f8c94f 100%);
+
+  /* Photo scrims */
+  --scrim-photo-bottom: linear-gradient(to top, rgba(13,17,23,.92) 0%, rgba(13,17,23,.4) 45%, rgba(13,17,23,0) 75%);
+  --scrim-photo-header: linear-gradient(to bottom, rgba(13,17,23,.68) 0%, rgba(13,17,23,.18) 40%, rgba(13,17,23,.18) 70%, rgba(13,17,23,.45) 100%);
+  --scrim-welcome: linear-gradient(to bottom, rgba(13,17,23,.4) 0%, rgba(13,17,23,.18) 25%, rgba(13,17,23,.62) 48%, rgba(13,17,23,.92) 70%, #0d1117 100%);
+
+  /* Graph paper — idea planning sheets */
+  --tex-graph: linear-gradient(#dfeaf7 1px, transparent 1px), linear-gradient(90deg, #dfeaf7 1px, transparent 1px);
+  --tex-graph-bg: #f5f9fe;
+  --tex-graph-board: linear-gradient(#dde1e8 1px, transparent 1px), linear-gradient(90deg, #dde1e8 1px, transparent 1px); /* Ideas tab page */
+  --tex-graph-board-bg: #eceef2;
+  --tex-graph-size: 18px 18px;
+
+  /* Note paper — idea cards + slide-up tops */
+  --tex-note: repeating-linear-gradient(#fffdf5 0 21px,#ece6d2 21px 22px);
+  --tex-note-soft: repeating-linear-gradient(#fffdf5 0 21px,#f2eee1 21px 22px);
+
+  /* Hatches */
+  --hatch-maybe: repeating-linear-gradient(-45deg,#f7fcf9 0 5px,#e9f6ee 5px 10px);
+  --hatch-gold: repeating-linear-gradient(-45deg,#fdf1d6 0 5px,#f9e4b0 5px 10px);
+  --hatch-gold-strong: repeating-linear-gradient(-45deg,#e8a71c 0 5px,#f1bb45 5px 10px);
+  --hatch-placeholder: repeating-linear-gradient(135deg,#eef0f3 0 10px,#e7e9ed 10px 20px);
+
+  /* Torn edge — bottom of every note-paper top. Use as clip-path. */
+  --torn-edge: polygon(0 0,100% 0,100% calc(100% - 6px),97.23% calc(100% - 11.6px),95.25% calc(100% - 6.4px),93.80% calc(100% - 10.8px),91.28% calc(100% - 4.8px),87.98% calc(100% - 2.8px),86.03% calc(100% - 8.7px),83.03% calc(100% - 6.9px),81.67% calc(100% - 11.4px),80.09% calc(100% - 6.4px),78.28% calc(100% - 6.2px),74.93% calc(100% - 4.8px),70.58% calc(100% - 6.5px),67.63% calc(100% - 5.3px),63.96% calc(100% - 5.5px),62.50% calc(100% - 11.3px),58.47% calc(100% - 6.7px),55.34% calc(100% - 6.0px),52.05% calc(100% - 3.4px),49.41% calc(100% - 6.9px),46.89% calc(100% - 8.8px),42.64% calc(100% - 5.2px),39.85% calc(100% - 6.4px),37.21% calc(100% - 6.4px),35.25% calc(100% - 13.4px),33.18% calc(100% - 9.7px),28.89% calc(100% - 11.3px),25.29% calc(100% - 8.4px),24.02% calc(100% - 5.2px),22.13% calc(100% - 5.9px),18.57% calc(100% - 4.7px),17.35% calc(100% - 5.6px),14.73% calc(100% - 2.9px),12.07% calc(100% - 10.7px),9.37% calc(100% - 3.3px),5.31% calc(100% - 8.6px),3.61% calc(100% - 9.1px),0.30% calc(100% - 10.7px),0.00% calc(100% - 7.7px));
+}
+.sh-graph-paper { background-color: var(--tex-graph-bg); background-image: var(--tex-graph); background-size: var(--tex-graph-size); }
+.sh-graph-board { background-color: var(--tex-graph-board-bg); background-image: var(--tex-graph-board); background-size: var(--tex-graph-size); }
+.sh-note-paper { background-color: var(--paper); background-image: var(--tex-note); }
+.sh-torn { clip-path: var(--torn-edge); filter: drop-shadow(0 1px 1px rgba(13,17,23,.08)); }

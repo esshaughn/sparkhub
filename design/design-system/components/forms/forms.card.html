@@ -1,0 +1,16 @@
+<!-- @dsCard group="Components" viewport="700x300" name="Forms" subtitle="Field, toggle, checkboxes" -->
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
+<script src="../../components/load.js"></script>
+<style>body{background:var(--surface-page);padding:18px;margin:0}</style>
+</head><body><div id="root"></div>
+<script type="text/babel">
+const R = ({children,gap=10,col}) => <div style={{display:'flex',flexDirection:col?'column':'row',flexWrap:'wrap',gap,alignItems:col?'stretch':'center'}}>{children}</div>;
+const PH = '../../assets/photos/';
+loadSparkHub('../../').then(NS => { const {Icon,Sparkles,Sparkle,Wordmark,Button,IconButton,Fab,PlusMenuPill,Chip,ChipRow,FilterPill,Tag,Face,FaceStack,Card,SectionLabel,ListRow,NextUpCard,EventCard,IdeaCard,GradientCard,BottomSheet,Popup,Toast,Menu,NotePaper,Snapshot,GraphPaper,RsvpTiles,RsvpStatus,TabBar,ScreenHeader,Field,Toggle,Checkbox,ICON_NAMES} = NS;
+ReactDOM.createRoot(document.getElementById('root')).render(<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}><div style={{display:'flex',flexDirection:'column',gap:18}}><Field label="EVENT TITLE" placeholder="Fall cleanup day" counter="0/40" /><Field label="EVENT DESCRIPTION" optional multiline placeholder="What’s the plan?" counter="0/500" height={110} /></div><Card gap={14}><div style={{display:'flex',alignItems:'center',gap:12}}><span style={{flex:1,fontSize:16,fontWeight:800}}>People can invite friends</span><Toggle on /></div><div style={{display:'flex',alignItems:'center',gap:12}}><span style={{flex:1,fontSize:16,fontWeight:800}}>Open to ideas</span><Toggle /></div><div style={{display:'flex',alignItems:'center',gap:10}}><Checkbox checked /><span style={{fontSize:15,fontWeight:700}}>Torrez Neighbors</span></div><div style={{display:'flex',alignItems:'center',gap:10}}><Checkbox checked tone="gold" size={30} /><span style={{fontSize:16,fontWeight:900}}>Sat, Oct 24</span><span style={{fontSize:13,fontWeight:700,color:'var(--gold-700)'}}>You + 6 · most votes</span></div></Card></div>);}).catch(e=>{document.body.insertAdjacentHTML("beforeend","<pre>"+(e&&e.stack||e)+"</pre>")});
+</script></body></html>

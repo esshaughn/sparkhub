@@ -1,0 +1,16 @@
+/* Motion: quick, springy-out, no bounce except the + pills and the swipe chevron */
+:root {
+  --ease-out: cubic-bezier(.2,.8,.2,1);
+  --ease-pop: cubic-bezier(.22,.9,.28,1);
+  --ease-spring: cubic-bezier(.2,1.4,.4,1);
+  --ease-sheet: cubic-bezier(.32,.72,0,1);
+  --dur-fast: 150ms; --dur-base: 200ms; --dur-pop: 220ms; --dur-sheet: 260ms; --dur-expand: 420ms;
+}
+@keyframes popIn { from { opacity: 0; transform: translateY(10px) scale(.96); } to { opacity: 1; transform: none; } }
+@keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes scrimIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes plusPop { from { opacity: 0; transform: translateY(16px) scale(.6); } to { opacity: 1; transform: none; } }
+@keyframes swipeBounce { 0%,100% { transform: translateY(0); } 45% { transform: translateY(-7px); } 60% { transform: translateY(0); } 72% { transform: translateY(-3px); } 84% { transform: translateY(0); } }
+@keyframes skPulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+@media (prefers-reduced-motion: reduce) { * { animation-duration: .01ms !important; } }

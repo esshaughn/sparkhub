@@ -1,0 +1,54 @@
+<!-- @dsCard group="Spark Hub app" viewport="393x852" name="Spark Hub app" subtitle="Click-through: Groups, Ideas + slide-up, event page, Me" -->
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spark Hub · UI kit</title>
+<link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
+<script src="../../components/load.js"></script>
+<style>body{margin:0;background:var(--desk);min-height:100vh;display:flex;align-items:center;justify-content:center}</style>
+</head><body><div id="root"></div>
+<script type="text/babel" src="GroupsScreen.jsx"></script>
+<script type="text/babel" src="IdeasScreen.jsx"></script>
+<script type="text/babel" src="EventScreen.jsx"></script>
+<script type="text/babel" src="MeScreen.jsx"></script>
+<script type="text/babel">
+function App() {
+  const { TabBar, Fab, PlusMenuPill, Toast, BottomSheet, Chip, Field, Button } = window.SH;
+  const [tab, setTab] = React.useState(() => localStorage.getItem('sh-kit-tab') || 'groups');
+  const [screen, setScreen] = React.useState(null); const [idea, setIdea] = React.useState(null);
+  const [plus, setPlus] = React.useState(false); const [t, setT] = React.useState(null); const [fb, setFb] = React.useState(false); const [kind, setKind] = React.useState('q');
+  const toast = (m) => { if (!m) return; setT(m); clearTimeout(window.__tt); window.__tt = setTimeout(() => setT(null), 2200); };
+  const goTab = (k) => { setTab(k); setScreen(null); setPlus(false); localStorage.setItem('sh-kit-tab', k); };
+  const scrollRef = React.useRef(null);
+  React.useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = 0; }, [tab, screen]);
+  const body = screen === 'event' ? <EventScreen back={() => setScreen(null)} toast={toast} />
+    : tab === 'ideas' ? <IdeasScreen openIdea={setIdea} />
+    : tab === 'me' ? <MeScreen openFeedback={() => setFb(true)} toast={toast} />
+    : tab === 'groups' ? <GroupsScreen go={setScreen} />
+    : <div style={{ padding: 40, textAlign: 'center', fontSize: 15, fontWeight: 600, color: 'var(--grey-600)' }}>Not part of this kit — see Spark Hub App Version 8.</div>;
+  const K = { q: ['Ask a question', 'What can I help with?', 'Ask anything about how Spark Hub works. I usually reply the same day.'], bug: ['Something’s broken', 'What went wrong?', 'Tell me what you tapped and what happened. A screenshot helps.'], idea: ['Share an idea', 'What do you think so far?', 'Tell me honestly: what’s working and what would make it better?'] };
+  const tm = t && t.startsWith('soon:') ? ['soon', t.slice(5)] : ['ok', t];
+  return (
+    <div style={{ width: 393, height: 852, borderRadius: 30, overflow: 'hidden', position: 'relative', background: 'var(--surface-page)' }}>
+      <div ref={scrollRef} style={{ position: 'absolute', inset: 0, overflow: 'auto', scrollbarWidth: 'none' }}>{body}</div>
+      {!screen ? <>
+        {plus ? <><div onClick={() => setPlus(false)} style={{ position: 'absolute', inset: 0, zIndex: 8, background: 'rgba(13,17,23,.35)', animation: 'scrimIn 180ms ease-out both' }} />
+          <div style={{ position: 'absolute', right: 18, bottom: 160, zIndex: 10 }}><PlusMenuPill kind="idea" onClick={() => { setPlus(false); toast('Float an Idea opens here'); }} /></div>
+          <div style={{ position: 'absolute', right: 78, bottom: 98, zIndex: 10 }}><PlusMenuPill kind="plan" onClick={() => { setPlus(false); toast('Create a Plan opens here'); }} /></div></> : null}
+        {tab === 'ideas' ? <Fab variant="idea" floating onClick={() => toast('Float an Idea opens here')} /> : tab !== 'me' ? <span style={{ position: 'absolute', right: 18, bottom: 100, zIndex: 10 }}><Fab open={plus} onClick={() => setPlus(!plus)} /></span> : null}
+        <TabBar active={tab} onChange={goTab} floating dots={{ ideas: tab !== 'ideas' }} />
+      </> : null}
+      {idea ? <IdeaSheet idea={idea} onClose={() => setIdea(null)} toast={toast} /> : null}
+      <BottomSheet open={fb} title={K[kind][1]} eyebrow="FEEDBACK & QUESTIONS" onClose={() => setFb(false)} footer={<Button full onClick={() => { setFb(false); toast('Sent to Eric. Thanks!'); }}>Send to Eric</Button>}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>{Object.keys(K).map(k => <Chip key={k} selected={k === kind} onClick={() => setKind(k)}>{K[k][0]}</Chip>)}</div>
+        <span style={{ fontSize: 15, lineHeight: 1.4, fontWeight: 500, color: 'var(--grey-700)' }}>{K[kind][2]}</span>
+        <Field multiline placeholder="Write as much or as little as you like." />
+      </BottomSheet>
+      {t ? <Toast floating kind={tm[0]}>{tm[1]}</Toast> : null}
+    </div>);
+}
+loadSparkHub('../../').then(ns => { window.SH = ns; ReactDOM.createRoot(document.getElementById('root')).render(<App />); })
+  .catch(e => document.body.insertAdjacentHTML('beforeend', '<pre>' + (e && e.stack || e) + '</pre>'));
+</script></body></html>

@@ -1,0 +1,7 @@
+/* Base resets used by every v8 screen */
+*, *::before, *::after { box-sizing: border-box; }
+body { margin: 0; font-family: var(--font-sans); -webkit-font-smoothing: antialiased; color: var(--ink); }
+a { color: var(--purple-500); text-decoration: none; }
+a:hover { color: var(--purple-600); }
+textarea, input, button { font-family: inherit; }
+input::placeholder, textarea::placeholder { color: var(--grey-400); font-weight: 400; font-style: italic; opacity: 1; }

@@ -1,0 +1,33 @@
+/* Figtree — the only typeface. Loaded from Google Fonts (no local binaries in the source project). */
+@import url('https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,300;1,400&display=swap');
+:root {
+  --font-sans: Figtree, system-ui, sans-serif;
+  --fw-light: 300; --fw-regular: 400; --fw-medium: 500; --fw-semibold: 600; --fw-bold: 700; --fw-heavy: 800; --fw-black: 900;
+
+  /* Scale — exact values from v8 */
+  --fs-display: 42px;   --lh-display: .98;  --ls-display: -1.4px;  /* Welcome headline */
+  --fs-hero: 40px;      --ls-hero: -1px;                          /* event title typed in the 360px header */
+  --fs-idea-title: 34px;                                          /* idea slide-up title */
+  --fs-screen: 30px;    --lh-screen: 1;     --ls-screen: -1px;    /* Ideas, My tasks, event title */
+  --fs-section: 26px;   --ls-section: -.6px;                      /* When?, Where?, Help make this a plan */
+  --fs-sheet: 22px;     --ls-sheet: -.4px;                        /* pop-up + sheet titles, empty-state heads */
+  --fs-card-lg: 20px;                                             /* NEEDS A LEAD line */
+  --fs-overview: 18px;                                            /* overview under event title */
+  --fs-card: 17px;      --ls-card: -.3px;                         /* card titles, row titles */
+  --fs-body-lg: 16px;                                             /* inputs (never smaller), buttons */
+  --fs-body: 15px;      --lh-body: 1.4;                           /* body copy, comment text */
+  --fs-row: 14.5px;                                               /* list rows, toasts, secondary links */
+  --fs-chip: 14px;
+  --fs-small: 13.5px;
+  --fs-meta: 13px;
+  --fs-meta-sm: 12.5px;
+  --fs-tiny: 12px;
+  --fs-tab: 11.5px;
+  --fs-eyebrow: 11px;   --ls-eyebrow: .8px;                       /* NEXT UP · date */
+  --fs-micro: 10.5px;   --ls-micro: .6px;                         /* REQUEST, BETA, badges */
+
+  /* Semantic */
+  --text-title-weight: 900;
+  --text-label-weight: 800;
+  --text-body-weight: 500;
+}

@@ -1,0 +1,16 @@
+<!-- @dsCard group="Components" viewport="700x200" name="Brand mark + sparkles" subtitle="Wordmark with BETA, sparkle presets" -->
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
+<script src="../../components/load.js"></script>
+<style>body{background:var(--surface-page);padding:18px;margin:0}</style>
+</head><body><div id="root"></div>
+<script type="text/babel">
+const R = ({children,gap=10,col}) => <div style={{display:'flex',flexDirection:col?'column':'row',flexWrap:'wrap',gap,alignItems:col?'stretch':'center'}}>{children}</div>;
+const PH = '../../assets/photos/';
+loadSparkHub('../../').then(NS => { const {Icon,Sparkles,Sparkle,Wordmark,Button,IconButton,Fab,PlusMenuPill,Chip,ChipRow,FilterPill,Tag,Face,FaceStack,Card,SectionLabel,ListRow,NextUpCard,EventCard,IdeaCard,GradientCard,BottomSheet,Popup,Toast,Menu,NotePaper,Snapshot,GraphPaper,RsvpTiles,RsvpStatus,TabBar,ScreenHeader,Field,Toggle,Checkbox,ICON_NAMES} = NS;
+ReactDOM.createRoot(document.getElementById('root')).render(<R gap={18}><div style={{padding:'18px 22px',borderRadius:16,background:'var(--ink)'}}><Wordmark /></div><Wordmark tone="light" /><div style={{padding:'16px 22px',borderRadius:16,background:'var(--ink)'}}><Wordmark stacked /></div><div style={{position:'relative',overflow:'hidden',width:160,height:90,borderRadius:20,background:'var(--grad-spark)'}}><Sparkles preset="card" /></div><Sparkle size={28} /><Sparkle size={20} color="var(--pink-500)" /><Sparkle size={14} color="var(--purple-500)" /></R>);}).catch(e=>{document.body.insertAdjacentHTML("beforeend","<pre>"+(e&&e.stack||e)+"</pre>")});
+</script></body></html>

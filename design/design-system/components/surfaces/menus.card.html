@@ -1,0 +1,16 @@
+<!-- @dsCard group="Components" viewport="700x220" name="Menus" subtitle="Dropdowns: sort, group picker" -->
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
+<script src="../../components/load.js"></script>
+<style>body{background:var(--surface-page);padding:18px;margin:0}</style>
+</head><body><div id="root"></div>
+<script type="text/babel">
+const R = ({children,gap=10,col}) => <div style={{display:'flex',flexDirection:col?'column':'row',flexWrap:'wrap',gap,alignItems:col?'stretch':'center'}}>{children}</div>;
+const PH = '../../assets/photos/';
+loadSparkHub('../../').then(NS => { const {Icon,Sparkles,Sparkle,Wordmark,Button,IconButton,Fab,PlusMenuPill,Chip,ChipRow,FilterPill,Tag,Face,FaceStack,Card,SectionLabel,ListRow,NextUpCard,EventCard,IdeaCard,GradientCard,BottomSheet,Popup,Toast,Menu,NotePaper,Snapshot,GraphPaper,RsvpTiles,RsvpStatus,TabBar,ScreenHeader,Field,Toggle,Checkbox,ICON_NAMES} = NS;
+ReactDOM.createRoot(document.getElementById('root')).render(<R gap={16}><Menu width={170} options={[{label:'Newest',selected:true},{label:'Popular'},{label:'Almost a Plan'}]} /><Menu multi width={240} onDone={()=>{}} options={[{label:'All groups',selected:true,count:24},{label:'Torrez Neighbors',selected:true,count:14},{label:'Mueller Pickleball',count:6}]} /><Menu options={[{label:'Share link',icon:'link'},{label:'QR code',icon:'qr'}]} /></R>);}).catch(e=>{document.body.insertAdjacentHTML("beforeend","<pre>"+(e&&e.stack||e)+"</pre>")});
+</script></body></html>

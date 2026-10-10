@@ -1,0 +1,16 @@
+<!-- @dsCard group="Components" viewport="700x400" name="Event & idea cards" subtitle="Event photo card with role strip; idea tile + grid" -->
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
+<script src="../../components/load.js"></script>
+<style>body{background:var(--surface-page);padding:18px;margin:0}</style>
+</head><body><div id="root"></div>
+<script type="text/babel">
+const R = ({children,gap=10,col}) => <div style={{display:'flex',flexDirection:col?'column':'row',flexWrap:'wrap',gap,alignItems:col?'stretch':'center'}}>{children}</div>;
+const PH = '../../assets/photos/';
+loadSparkHub('../../').then(NS => { const {Icon,Sparkles,Sparkle,Wordmark,Button,IconButton,Fab,PlusMenuPill,Chip,ChipRow,FilterPill,Tag,Face,FaceStack,Card,SectionLabel,ListRow,NextUpCard,EventCard,IdeaCard,GradientCard,BottomSheet,Popup,Toast,Menu,NotePaper,Snapshot,GraphPaper,RsvpTiles,RsvpStatus,TabBar,ScreenHeader,Field,Toggle,Checkbox,ICON_NAMES} = NS;
+ReactDOM.createRoot(document.getElementById('root')).render(<div style={{display:'grid',gridTemplateColumns:'1.1fr 1fr',gap:16,alignItems:'start'}}><div style={{display:'flex',flexDirection:'column',gap:12}}><EventCard photo={PH+'trail-cleanup.jpg'} role="going" dateLine="SAT, OCT 10 · 9AM" title="Trail cleanup" place="Torrez Trail" countdown="In 3 days" stripLeft="3 ways to help ›" stripRight="Change RSVP" height={150} /><EventCard photo={PH+'pickleball.jpg'} role="lead" today priv dateLine="FRI, NOV 6 · 8PM" title="Pickleball night" place="Mueller courts" stripLeft="Leading" stripRight="Leading" height={120} /></div><div className="sh-graph-board" style={{padding:12,borderRadius:16,display:'flex',flexDirection:'column',gap:14}}><IdeaCard title="Cul-de-sac movie night" description="Projector, blankets, popcorn. Kids welcome." by="by Hana M." count={7} photo={PH+'welcome-picnic.jpg'} /><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,alignItems:'start'}}><IdeaCard variant="grid" title="Tool library" by="by Dee R." count={4} rotate={-1.5} /><IdeaCard variant="grid" priv title="Pumpkin carving" by="by Sam" count={12} photo={PH+'pumpkin-nights.jpg'} rotate={1.2} /></div></div></div>);}).catch(e=>{document.body.insertAdjacentHTML("beforeend","<pre>"+(e&&e.stack||e)+"</pre>")});
+</script></body></html>

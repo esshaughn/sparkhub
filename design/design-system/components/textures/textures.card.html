@@ -1,0 +1,19 @@
+<!-- @dsCard group="Components" viewport="700x380" name="Paper textures" subtitle="Note paper + torn edge, graph paper, snapshot" -->
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
+<script src="../../components/load.js"></script>
+<style>body{background:var(--surface-page);padding:18px;margin:0}</style>
+</head><body><div id="root"></div>
+<script type="text/babel">
+const R = ({children,gap=10,col}) => <div style={{display:'flex',flexDirection:col?'column':'row',flexWrap:'wrap',gap,alignItems:col?'stretch':'center'}}>{children}</div>;
+const PH = '../../assets/photos/';
+loadSparkHub('../../').then(NS => { const {Icon,Sparkles,Sparkle,Wordmark,Button,IconButton,Fab,PlusMenuPill,Chip,ChipRow,FilterPill,Tag,Face,FaceStack,Card,SectionLabel,ListRow,NextUpCard,EventCard,IdeaCard,GradientCard,BottomSheet,Popup,Toast,Menu,NotePaper,Snapshot,GraphPaper,RsvpTiles,RsvpStatus,TabBar,ScreenHeader,Field,Toggle,Checkbox,ICON_NAMES} = NS;
+ReactDOM.createRoot(document.getElementById('root')).render(<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20,alignItems:'start'}}>
+    <div style={{background:'var(--surface-page)',borderRadius:20,overflow:'hidden'}}><NotePaper handle><Snapshot src={PH+'welcome-picnic.jpg'} width={140} height={96} rotate={-2} /><span style={{alignSelf:'flex-start'}}><Tag kind="ideaPaper" /></span><span style={{fontSize:28,lineHeight:1.05,fontWeight:900,letterSpacing:'-.8px'}}>Cul-de-sac movie night</span><span style={{fontSize:13.5,fontWeight:700,color:'var(--grey-600)'}}>Floated by Hana M. · 2 days ago</span></NotePaper><div style={{height:24}} /></div>
+    <div style={{padding:12}}><GraphPaper><span style={{fontSize:26,fontWeight:900,letterSpacing:'-.6px'}}>Help make this a plan</span>{['Invite a friend','Vote on a date','Suggest a location'].map(t=><div key={t} style={{display:'flex',alignItems:'center',gap:10,minHeight:46,fontSize:17,fontWeight:700,borderTop:'1.5px dashed var(--graph-rule)'}}><span style={{flex:1}}>{t}</span><Icon name="chevron-right" size={16} color="var(--grey-400)" /></div>)}</GraphPaper></div>
+  </div>);}).catch(e=>{document.body.insertAdjacentHTML("beforeend","<pre>"+(e&&e.stack||e)+"</pre>")});
+</script></body></html>

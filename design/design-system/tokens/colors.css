@@ -1,0 +1,120 @@
+/* Spark Hub v8 — colour tokens. Source: Spark Hub App Version 8.dc.html + CLAUDE.md. */
+:root {
+  /* Purple — the app colour: leading, primary actions, links in-app, active tab */
+  --purple-500: #5b4ae8;
+  --purple-600: #4a3ad4;      /* hover / pressed; also lead text on tint */
+  --purple-ink: #2a1f8f;
+  --purple-300: #9d93f7;      /* "your people." on dark Welcome */
+  --purple-250: #c9c3ff;      /* links on dark */
+  --purple-200: #cfc9ff;      /* lead date on photo tiles */
+  --purple-100: #ece9fd;
+  --purple-50:  #f3f1fe;      /* You're leading bar, guest Keep card */
+  --purple-25:  #f7f6ff;      /* Leading strip / picked row */
+
+  /* Ink + neutrals */
+  --ink: #0d1117;             /* titles, dark buttons, toasts, picked chips */
+  --ink-2: #2a2f38;           /* comment body */
+  --ink-photo: #2b303a;       /* photo placeholder fill */
+  --grey-700: #454b55;        /* secondary text, field labels */
+  --grey-650: #5c6270;
+  --grey-600: #6b7280;        /* tertiary text, inactive tabs */
+  --grey-550: #8a909b;
+  --grey-500: #9aa0ac;        /* quiet meta, group names inline */
+  --grey-400: #b9bcc4;        /* placeholders, row chevrons */
+  --grey-350: #c3c7d0;
+  --grey-300: #c9ccd3;        /* Drafts role bar */
+  --grey-250: #d5d8df;        /* disabled button fill */
+  --grey-200: #dcdfe6;        /* field + chip outline, grab handle */
+  --grey-150: #e6e7eb;
+  --grey-100: #e8eaee;        /* PAGE BACKGROUND */
+  --grey-75:  #eceef2;
+  --grey-50:  #f2f3f6;        /* round icon buttons, inset panels */
+  --grey-25:  #fafafb;
+  --desk: #dcdfe4;            /* behind the phone frame */
+  --white: #ffffff;
+
+  /* Green — going, done, success, NEXT UP, Today */
+  --green-500: #149a4b;
+  --green-700: #0f7a3c;       /* text on green tint */
+  --green-50:  #e7f6ec;
+  --green-25:  #f3fbf6;
+  --green-200: #b9dfc4;
+  --green-photo: #9eecbc;
+
+  /* Gold / amber — ideas, Maybe, REQUEST */
+  --gold-500: #f5b428;
+  --gold-550: #e9a815;        /* gold hover */
+  --gold-600: #e8a71c;        /* idea role bar / dot */
+  --gold-edge: #f0b93a;       /* idea card edge */
+  --gold-mark: #f3c55a;       /* spark bolt in wordmark */
+  --gold-icon: #b07a0a;       /* icons on gold surfaces */
+  --gold-700: #8f6405;        /* gold text */
+  --gold-ink: #2a1d00;        /* text ON gold */
+  --gold-ink-2: #3d2a00;
+  --gold-100: #fdf1d6;        /* soft gold fill */
+  --gold-75:  #fdf6e3;
+  --gold-50:  #fff4dc;        /* REQUEST chip */
+  --gold-ring: #f3dc9e;
+  --gold-photo: #ffd77a;
+
+  /* Orange — helping (replaced teal/sky, 14a) */
+  --orange-500: #e8661c;
+  --orange-700: #b8480c;
+  --orange-50:  #fff1e8;
+  --orange-25:  #fff6f0;
+  --orange-ring: #f5b48a;
+  --orange-photo: #ffb98a;
+
+  /* Pink — updates, likes, Shared with you */
+  --pink-500: #d6246e;
+  --pink-50:  #fdf0f5;
+  --pink-100: #fbe1ec;
+
+  /* Blue — links / info (no longer the idea colour) + graph paper */
+  --blue-500: #1f5fa8;
+  --blue-50:  #eaf3fc;
+  --graph-bg: #f5f9fe;
+  --graph-line: #dfeaf7;
+  --graph-rule: #d3e2f3;      /* dashed rules on paper */
+
+  /* Note paper */
+  --paper: #fffdf5;
+  --paper-rule: #ece6d2;
+  --paper-rule-soft: #f2eee1;
+  --paper-handle: #d8d2bd;
+
+  /* Error / alert */
+  --red-700: #9b1c31;
+  --red-50:  #fdeef0;
+  --red-200: #f5c2cb;
+  --badge: #e2556b;
+
+  /* ROLE ALIASES — one colour per relationship to an event */
+  --role-lead: var(--purple-500);    --role-lead-text: var(--purple-600);  --role-lead-bg: var(--purple-25);
+  --role-going: var(--green-500);    --role-going-text: var(--green-700);  --role-going-bg: var(--green-50);
+  --role-maybe: var(--gold-500);     --role-maybe-text: var(--gold-700);   --role-maybe-bg: var(--gold-100);
+  --role-helping: var(--orange-500); --role-helping-text: var(--orange-700); --role-helping-bg: var(--orange-50);
+  --role-idea: var(--gold-600);      --role-idea-text: var(--gold-700);    --role-idea-bg: #fefaef;
+  --role-update: var(--pink-500);    --role-update-bg: var(--pink-50);
+  --role-cant: var(--grey-700);      --role-cant-bg: var(--grey-50);
+  --role-draft: var(--grey-300);     --role-past: var(--grey-600);
+
+  /* SEMANTIC ALIASES */
+  --surface-page: var(--grey-100);
+  --surface-card: var(--white);
+  --surface-inset: var(--grey-50);
+  --surface-empty: #dfe2e7;          /* empty create-page sections */
+  --surface-dark: var(--ink);
+  --text-strong: var(--ink);
+  --text-body: var(--grey-700);
+  --text-muted: var(--grey-600);
+  --text-quiet: var(--grey-500);
+  --text-placeholder: var(--grey-400);
+  --text-on-accent: var(--white);
+  --text-link: var(--purple-500);
+  --border-field: var(--grey-200);
+  --border-hairline: #eceef1;
+  --action-primary: var(--purple-500);
+  --action-primary-hover: var(--purple-600);
+  --action-disabled: var(--grey-250);
+}

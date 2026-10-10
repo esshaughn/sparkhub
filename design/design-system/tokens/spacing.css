@@ -1,0 +1,58 @@
+/* Spacing, radii, elevation, sizes */
+:root {
+  --space-2: 2px; --space-4: 4px; --space-6: 6px; --space-8: 8px; --space-10: 10px; --space-12: 12px;
+  --space-14: 14px; --space-16: 16px; --space-18: 18px; --space-20: 20px; --space-22: 22px; --space-24: 24px; --space-26: 26px;
+  --gutter: 14px;            /* screen side padding (lists) */
+  --gutter-form: 16px;       /* forms, sheets */
+  --stack-section: 18px;     /* between cards on event page */
+
+  /* Radii */
+  --radius-pill: 999px;      /* buttons, chips, icon buttons, inputs-as-pills */
+  --radius-paper: 6px;       /* graph-paper sheet */
+  --radius-chip-sq: 8px;     /* IDEA chip on paper */
+  --radius-sm: 10px;         /* menu options, thumbs */
+  --radius-md: 12px;         /* inputs inside pop-ups, inspo thumbs */
+  --radius-field: 14px;      /* fields, toast, small cards */
+  --radius-menu: 16px;       /* dropdown menus */
+  --radius-card: 18px;       /* RSVP card, event cards */
+  --radius-card-lg: 20px;    /* Next up, NEEDS A LEAD, gradient cards */
+  --radius-tile: 22px;       /* group photo tiles */
+  --radius-popup: 24px;      /* centred pop-ups */
+  --radius-sheet: 24px 24px 0 0;
+  --radius-phone: 30px;
+
+  /* Elevation */
+  --shadow-card: 0 1px 3px rgba(15,18,25,.08);
+  --shadow-card-hover: 0 2px 8px rgba(15,18,25,.12);
+  --shadow-ring: inset 0 0 0 1.5px var(--grey-200);
+  --shadow-focus: 0 0 0 4px rgba(91,74,232,.16);
+  --shadow-menu: 0 18px 44px rgba(15,18,25,.2);
+  --shadow-popover: 0 12px 32px rgba(15,18,25,.18), 0 0 0 1px #e6e7eb;
+  --shadow-popup: 0 20px 50px rgba(13,17,23,.35);
+  --shadow-toast: 0 12px 30px rgba(15,18,25,.3);
+  --shadow-sheet: 0 -10px 30px rgba(13,17,23,.25);
+  --shadow-paper: 0 4px 14px rgba(13,17,23,.14);
+  --shadow-snapshot: 0 3px 10px rgba(13,17,23,.14);
+  --shadow-fab: 0 8px 20px rgba(91,74,232,.38), 0 2px 6px rgba(13,17,23,.18);
+  --shadow-fab-white: 0 6px 18px rgba(13,17,23,.14), 0 1px 3px rgba(13,17,23,.1);
+  --shadow-frosted-btn: 0 2px 10px rgba(0,0,0,.25);
+  --shadow-gradient-card: 0 6px 18px rgba(160,59,200,.22);
+
+  /* Scrims + frost */
+  --scrim: rgba(13,17,23,.45);
+  --scrim-popup: rgba(13,17,23,.5);
+  --frost-dark: rgba(13,17,23,.4);   /* + blur(8px): countdown / Private chips on photos */
+  --frost-light: rgba(255,255,255,.94);
+  --blur-frost: blur(8px);
+  --blur-bar: blur(12px);
+
+  /* Sizes */
+  --h-btn-lg: 54px; --h-btn: 50px; --h-btn-md: 48px; --h-btn-sm: 36px;
+  --h-field: 46px; --h-field-lg: 52px;
+  --h-chip: 38px; --h-chip-sm: 32px; --h-tag: 22px;
+  --h-row: 48px; --h-row-people: 52px; --h-row-lg: 64px;
+  --size-icon-btn: 44px; --size-close: 40px; --size-fab: 48px; --size-face: 28px;
+  --h-tabbar: 84px;
+  --w-popup: 353px;
+  --phone-w: 393px; --phone-h: 852px;
+}
