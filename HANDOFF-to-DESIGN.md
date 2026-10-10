@@ -6,20 +6,18 @@
 - **Source:** github.com/esshaughn/sparkhub (`index.html`, `js/sparks.js`, `css/sparks.css`, `privacy.html`, `supabase/templates/`)
 - **Baseline:** Claude Design's **round v8-17** (`design/spark-hub/HANDOFF-to-CODE.md` and `Spark Hub App Version 8.dc.html`, 2026-10-09), built in full (with your v8-16 clarity pass): see *Round v8-17 in short*. Rows 212–227 are new since v8-15.
 - **Build version:** **v8** (v7 from owner, 2026-10-02): a lead is a choice. Since v8-8 an idea is led from the start (*Who leads it · Me*) or floated (*I'll decide*), and both use the new idea page.
-- **As of:** 2026-10-10. **Round v8-22 is built on `test`**, group invites included (see *Round v8-22 in short* and *Group invites (round v8-22)*; not live yet). **Round v8-21 (with v8-20) is built on `test`** (see *Round v8-21 in short*; not live yet). **Round v8-19 (and v8-18's added items 1t–1cc) is built on `test`** (see *Round v8-19 in short*; not live yet). **Round v8-18 is built on `test`** (see *Round v8-18 in short*; not live yet). **Round v8-17 is live** (main `09658ae`, v=389). Also live since your last file: rows 224–227 (guests sign up with a phone or an email, taking yourself off asks first, the pinned Month that follows its list, a chosen photo opens full screen), Add to calendar as a sheet (Google Calendar · Apple Calendar · Outlook and other), and the event's ⋯ menu with Member view. Questions for you are in §5 (Q44).
+- **As of:** 2026-10-10. **Everything through round v8-22 is live** (main `e05eddf`, v=400): rounds v8-18, v8-19, v8-21 (with v8-20) and v8-22, group invites included, plus the owner's fixes in rows 248–250. Questions for you are in §5.
 
-## Start here (2026-10-10): HANDOFF-to-DESIGN-10
+## Start here (2026-10-10): HANDOFF-to-DESIGN-17
 
-**Your v8-17 caught up with *HANDOFF-to-DESIGN-9*. v8-17 is now built in full and live** (main `09658ae`, v=389). *Round v8-17 in short* lists each item and anywhere it differs from the prototype. This file is the reply: call it *HANDOFF-to-DESIGN-10*. Where this doc and the design files disagree, **this doc is correct**.
+**Your v8-22 caught up with *HANDOFF-to-DESIGN-15*. This file is the reply: call it *HANDOFF-to-DESIGN-17*** (the owner's numbering; there is no -16). Where this doc and the design files disagree, **this doc is correct**. Everything below is live (main `e05eddf`, v=400).
 
-**New since -9, all live (redraw these in the prototype):**
-- **Your v8-15 answers as built** (§1 rows 212–219): your own sign-up card gets an orange ring and a solid green *✓ You're in*; there are no polls in Plan an event (a Plan needs a date); *Post to* has square checkboxes with *Done · N groups*; Plan an event's section labels get coloured icon tiles; Discussion has hearts and an emoji button; *Leading this Idea* is one sheet; an Idea's link preview reads *Help plan: {title}*.
-- **Things that move by themselves** (rows 220–223): Add to calendar on Android opens Google Calendar; Discussion refreshes while open; other people's changes arrive within about a second; a YouTube link in a comment shows a picture.
-- **From the pilot groups** (rows 224–227): guests sign up with a phone *or* an email; taking yourself off a job or spot asks first; My calendar's and All groups' Month stays pinned and follows the list; a photo you've chosen opens full screen when tapped.
-- **Invented by the build** (§2): the event's **⋯ menu with Member view** (hosts see the event as a member does) and the **Add to calendar sheet** (Google Calendar · Apple Calendar · Outlook and other). Please draw both properly.
-- **Nothing to see** (§3): event memory, an anonymous history of each event kept for later.
-
-**Questions for you (§5):** where a lead sets an attendance cap (Q49), whether an offer to lead carries a note (Q50), and the event type chip (Q44, still open).
+**New since -15 (redraw these in the prototype):**
+- **Round v8-22 as built:** see *Round v8-22 in short*, which lists each item and where it differs. Not built yet: the per-day ⋯ menu and moving a cancelled day's sign-ups (3c), the separate *Edit sign up* sheet (3a), *Take it* / *Can't this time* in job-ask bell rows (§4).
+- **Group invites (1a, 2a, 4a, 4b, Members INVITED):** see *Group invites (round v8-22)*, with what changed and what the build invented.
+- **Owner calls this round** (*Owner calls that stand*): *Install Spark Hub app* is Get started's step 5 (it overrides row 154); a job reads **N slots**, or **No limit**; the visitor's *Shared with you* card loses *You can RSVP and sign up without joining anything.*
+- **Rows 248–250:** a location name can be added to a posted event (Edit date, time & location); *You're going both days · Change* sits on one row under the dates; the Dashboard gets **TOOLS** (View as a user, Freeze log), which answers Q51.
+- **Rounds v8-18, v8-19 and v8-21** (each in its own *in short* section) went live with this round.
 
 **The design system.** The design system you made from v8-17 now lives in the Claude Design project *Design System*, with a copy in the repo at `design/design-system/`. When a round changes colours, components or wording rules, please update it there too: copy what changed and don't redesign anything.
 
