@@ -4,9 +4,9 @@
 
 - **Built (test):** https://gosparkhub-git-test-eric-5958s-projects.vercel.app · **Live:** https://sparkhub.wereallneighbors.org (gosparkhub.vercel.app redirects there)
 - **Source:** github.com/esshaughn/sparkhub (`index.html`, `js/sparks.js`, `css/sparks.css`, `privacy.html`, `supabase/templates/`)
-- **Baseline:** Claude Design's **round v8-15** (`design/spark-hub/HANDOFF-to-CODE.md` and `Spark Hub App Version 8.dc.html`, 2026-10-09). Design approved rows 106–211 and every owner call below; **rows 212–219 are new since**.
+- **Baseline:** Claude Design's **round v8-17** (`design/spark-hub/HANDOFF-to-CODE.md` and `Spark Hub App Version 8.dc.html`, 2026-10-09), built in full (with your v8-16 clarity pass): see *Round v8-17 in short*. Rows 212–227 are new since v8-15.
 - **Build version:** **v8** (v7 from owner, 2026-10-02): a lead is a choice. Since v8-8 an idea is led from the start (*Who leads it · Me*) or floated (*I'll decide*), and both use the new idea page.
-- **As of:** 2026-10-09 (**round v8-17 built, on `test`**, see *Round v8-17 in short*; before that v8-15 picks built, on `test`; the live build is v=374, main `6a822b9`). Latest: rows 212–219, Design's v8-15 picks (green You're in, hearts and emoji in Discussion, Post to squares, no polls in a Plan, Leading this Idea, Help plan: link titles). Before that: Plan an event's WHEN & WHERE filled in place and descriptions as text (rows 209–210), Google Places suggestions (row 211). The date-by-date history is in git (`git log -- HANDOFF-to-DESIGN.md`); the by-area summary is *Start here* below.
+- **As of:** 2026-10-10. **Round v8-17 is live** (main `09658ae`, v=389). Also live since your last file: rows 224–227 (guests sign up with a phone or an email, taking yourself off asks first, the pinned Month that follows its list, a chosen photo opens full screen), Add to calendar as a sheet (Google Calendar · Apple Calendar · Outlook and other), and the event's ⋯ menu with Member view. Questions for you are at the end of *Round v8-17 in short*.
 
 ## Start here (2026-10-09): the big catch-up
 
