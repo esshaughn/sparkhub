@@ -615,7 +615,7 @@ select t.check('the new lead is Going', exists (select 1 from rsvps where spark_
 select t.check('the old lead gets a note', exists (select 1 from notes where user_id = t.id('host') and body like '% is leading Handover walk now. You’re a co-lead.'));
 select t.check('the offer is gone', not exists (select 1 from lead_offers where spark_id = (select id from sparks where text = 'Handover walk')));
 
--- The starter picks a lead from the people who offered (20261122000000_pick_lead.sql) -------------------------------
+-- The starter picks a lead from the people who offered (20261122030000_pick_lead.sql) -------------------------------
 select t.login('host'); set role authenticated;
 insert into sparks (id, group_id, author_name, lead_name, lead_id, created_by, text, wants_host)
 values (gen_random_uuid(), t.id('g'), 'Host', 'Host', t.id('host'), t.id('host'), 'Pick walk', true);
@@ -638,7 +638,7 @@ select t.login('host'); set role authenticated;
 select t.must_refuse('picking again once it has a lead', format($$select public.pick_lead((select id from sparks where text = 'Pick walk'), %L)$$, t.id('helper')));
 reset role;
 
--- Hand it to a co-lead in one tap (20261122020000_hand_to_colead.sql) ------------------------------------------------
+-- Hand it to a co-lead in one tap (20261122050000_hand_to_colead.sql) ------------------------------------------------
 select t.login('host'); set role authenticated;
 insert into sparks (id, group_id, author_name, lead_name, lead_id, created_by, text)
 values (gen_random_uuid(), t.id('g'), 'Host', 'Host', t.id('host'), t.id('host'), 'Colead walk');
