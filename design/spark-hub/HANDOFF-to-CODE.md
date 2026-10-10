@@ -1,4 +1,60 @@
-# Spark Hub v8 · HANDOFF-to-CODE (round v8-19)
+# Spark Hub v8 · HANDOFF-to-CODE (round v8-21)
+
+**Caught up with the build's `HANDOFF-to-DESIGN-15.md` (v8-17 live, main `09658ae`, v=389) as of Oct 10, 2026.** v8-21 = v8-20 below, updated in place with the later Get started work: Update your profile first; Join a group via invites (1 · 2+) or a pasted code (8a + 8b); four-piece step counter; each step ticks the moment it's done; Float lands on the Ideas tab; new accounts land with it open; Tweak `invites`. Also: My calendar's group selector lost its grey ring (icon + chevron only, light grey hover). If you already built v8-20, re-read item 7 and Tweaks.
+
+# Round v8-20
+
+**Caught up with the build's `HANDOFF-to-DESIGN-15.md` (v8-17 live, main `09658ae`, v=389) as of Oct 10, 2026.** This round answers what was still open in -15: Q44 (event type), Q26 (welcome tour → Get started), §4 (what led Ideas lost), the drag-to-close cue (§2), and two owner calls the prototype had wrong. It also adds Privacy and some Me tidy-ups. v8-19 and v8-18 are below and still stand. Options files: `Open Questions 12 Options`, `Drag to Close Options`, `Start Here Options`, `Get Started Expand Options`. Prototype: `Spark Hub App Version 8.dc.html`.
+
+## New since v8-19 (Oct 10)
+
+### Answers to HANDOFF-to-DESIGN-15
+1. **Q44, event type → 1c: keep it hidden.** Keep guessing the type behind the scenes for event memory, but show nothing for now. Categories (v8-17 item 19) stay on hold. Revisit once the guess drives something visible (e.g. suggested sign-ups).
+2. **Q44 part 2, "Anything to change for next time?" → 2a + 2b.**
+   - **2a (on the past event, lead only):** a white card at the top of a past event's page, above the album: **Anything to change for next time?** (18/900) · *Only you see this. It shows again when you plan the next one.* (13.5/600 #6b7280). Chips (36px, white with a #dcdfe6 ring; picked #f1effd / 2px #5b4ae8 / #4a3ad4): More chairs · Start earlier · More helpers · Bigger place · More food · Better signs. Then a 46px *Something else…* field (16px). **Save note** (purple, grey until something's picked or typed) · **Not now** (grey text; hides the card for this event). Once saved: a 34px green tick circle, **YOUR NOTE FOR NEXT TIME** (12.5/900 caps grey), the picks joined with " · ", and **Edit** (purple). Co-leads: same card. Store per event per lead.
+   - **2b (when planning again):** in Plan an event, once the title matches a past event you led or went to (by the guessed type, or by keyword in the prototype), a pale-gold card (#fff8e6, 18px corners) sits above EVENT DESCRIPTION: **LAST TIME · SEP 20** (12.5/900 #8f6405) + *See it ›*, a line (*{Title}, which you led. 22 went.*, 15/700 #2a1d00), and *Your note: More chairs · Start earlier* (14/600 #6b5418) when there is one. Prefer the most recent event you led. *See it* opens that past event.
+3. **Q26, welcome tour → the Get started banner** (supersedes *Start here!* and the 3c card on Me). See item 7.
+4. **§4, what led Ideas lost → 4a: let them go.** No vibe board on Ideas (Plans keep it). No quick details on Ideas; the 200-character description does that job, and the gold-dot lines go. **Delete** moves into **Leading this Idea**: a quiet grey **Delete it for good** (13.5/700 #9aa0ac) under the red *Cancel this Idea*. It confirms *Delete this idea?* · *It comes down for everyone, along with its dates, votes and Discussion. Cancel tells the people interested; this doesn't. It can't be undone.* (red Delete it / Keep it). Group admins keep their own Delete link.
+5. **Drag to close cue (§2) → 1a** (`Drag to Close Options.dc.html`). Past the close point: the sheet narrows to ~92% width (centred) and drops to ~88% opacity, the scrim lightens to about half its strength, and the handle turns purple #5b4ae8 and grows to 56×6. No words. It springs back if released before the point. Keep the buzz where the phone allows it. iPhone can't buzz from the web, so this is the only cue there. (Not in the prototype; the prototype has no drag.)
+
+### Owner calls the prototype had wrong (now fixed in it; the build already matches)
+6. **Up next task strips** always start closed, even on the day. **Share for guests** and anyone who can't invite opens the centred Share link pop-up directly. Lead job rows on Tasks: see item 10.
+
+### New: Get started banner (5a + 7c + 2b icon, `Get Started Expand Options` / `Start Here Options`)
+7. Replaces *Start here!*. It shows on **My calendar, Friends and Me** (top of each; on Me above everything under the header) for signed-in people in a group, until all four steps are done or × is tapped.
+   - **Closed:** gradient banner (`linear-gradient(115deg,#5b4ae8 0%,#a64bd6 45%,#e2558f 72%,#f5b428 100%)`, 20px corners, 16px 14px padding, three small white ✦ sparkles). Left: a 40px white tile (12px corners) with a tiny three-step checklist (gold #f5b428 ticked dot, orange #e8661c ring, purple #5b4ae8 ring, grey #c9ccd3 lines). Then **Get started** (22/900 white, −0.4 tracking) with a 17px white ⌄ right after it. Under the title, always: four step segments (26×6px each, 4px gaps, 999px corners; done = solid white, not yet = 32% white) + **1 of 4** (13/800). × top right: 22px circle, 25% white fill (40% on hover), 9px white ×, 7px from the corner. No sub-line.
+   - **Tap = open/close in place (5a).** The gradient becomes the lid of one white card (shared 20px corners, 0 1px 3px shadow), the ⌄ flips to ⌃, and four 52px rows unfold downward from under the lid (height grows from 0 with a slight 10px ease-down and fade, ~280ms): **Update your profile · Join a group · RSVP to something · Float your first Idea**. Each row: a 26px circle (open = white with 1.5px #c9ccd3 ring; done = green #149a4b with a white tick), the label (15.5/800 ink; done = 700 #9aa0ac struck through), › on open rows. It starts closed.
+   - **Order:** Update your profile · Join a group · RSVP to something · Float your first Idea.
+   - **Ticking:** a step ticks (green circle, struck-through label, segment fills) the moment it's done anywhere in the app: Edit profile saved with a change; joining a group (invite or code); picking or changing any RSVP; posting a new Idea.
+   - **Row taps:** **Join a group:** with a pending group invite, the row turns pale purple (#f7f6ff, 64px) with *You have 1 invite ›* (13/800 #4a3ad4; *You have 2 invites* etc.) under the label and a purple **Join** pill (joins at once; with 2+ the pill reads **See**). With 2+ invites, the row or See opens a centred **You have N invites** pop-up (*Join any or all of them.*): one row per invite, 52px group photo, name (16/900), *{Name} invited you · N members*, quiet grey *Not now*, purple **Join** (36px); joining one keeps the list open for the rest; the step ticks on the first join. With 1 invite, tapping the row opens the invite pop-up (group photo 84px, *Mueller Pickleball*, *Hana M. invited you · 23 members*, next plan, **Join the group** / *Not now*). With no invite, the row opens a centred **Join a group** pop-up: *Paste the invite link or code someone sent you.*, INVITE LINK OR CODE field (16px, grey **Paste** chip inside), *✓ {Group} · N members* once recognised, **Join {Group}** (grey until recognised), *No invite? **Request a group*** (the request flow). Joining any group ticks the step (8a + 8b in `Get Started Expand Options`); RSVP → My calendar; Float your first Idea → switches to the Ideas tab, then the Float sheet slides up over it (~300ms later); **Update your profile opens the photo picker directly** and saves it as your profile photo (toast *Profile photo updated*), with no Edit profile sheet in between.
+   - **All 4 done:** the title reads **All done!**, the ⌄ hides, the card opens by itself and confetti (small gold/orange/purple/pink/green pieces) falls from the top of the white part over **You're all set!** (19/900), *You've joined, RSVP'd, floated an Idea and set up your profile. Welcome to Spark Hub.* and a purple **Done** (46px). Done hides it for good (toast *Nice work. Enjoy Spark Hub!*).
+   - **×** hides it on all three screens for good (no toast).
+   - **First sign-in:** a new account lands on My calendar with Get started already open (rows showing), so the first thing they see is the checklist.
+   - **Your impact pill on Me** is hidden while the banner shows. If you close the banner while on Me, the pill stays hidden until the next time you open Me (so it doesn't jump in under your thumb).
+   - Completion is per account (server). Steps count once done, even if undone later.
+
+### Me and Settings
+8. **Privacy** (was REQUEST): Settings → **Privacy** (*Who sees what*) opens a slide-up (back ‹ to Settings, ×):
+   - **WHO SEES WHAT:** one white card, five rows, each with a 30px #f1effd tile and purple icon, 14.5px text with the lead-in in 800 ink:
+     - **Groups are private.** Only members see a group's plans, ideas and people.
+     - **A shared link shows the event only:** no group name, members or other events.
+     - **Your phone or email on a sign-up** is seen only by the hosts.
+     - **Discussion is for people signed in.** Visitors only see how many posts there are.
+     - **People see your first name and last initial** (Hana M.). Your full name shows only on your profile.
+   - **YOUR CONTROLS:** Blocked people › · Download my data (REQUEST) › · **Delete my account** (red) ›, opening the existing flows.
+   - **Read the full privacy policy ↗** (purple), opening sparkhub.wereallneighbors.org/privacy.
+9. **Me header:** the *About you* line is gone from the header (it stays on your profile). The *Give Eric feedback* card is gone from Me (Feedback & questions stays under Help & info).
+
+### Tasks
+10. **Lead job rows (5c):** the job name (bold) + a grey count chip **2 open** (22px, #f2f3f6 / #454b55, 12/800) + a pale-purple **Ask** pill (32px, #f1effd / #5b4ae8, 14/800). **See list** is the same pill. No NEED, no "(2)", no "Fill 2 spots:". Same in Condensed (26px pills).
+
+### Tweaks
+- New `gsAllDonePreview` (default off): shows the Get started *All done!* state.
+- New `invites` (0 · 1 · 2, default 1): how many group invites are waiting, for the Join a group row.
+
+---
+
+# Round v8-19
 
 **Caught up with the build's `HANDOFF-to-DESIGN-14.md` (v8-17 live, main `09658ae`, v=389) as of Oct 10, 2026.** Small round: the super admin dashboard and the feedback sheet chips. v8-18 is below and still stands. Prototype: `Spark Hub App Version 8.dc.html` (set the `viewAs` Tweak to *admin*, signed in as eric@ericscott-creative.com, to see item 1).
 
