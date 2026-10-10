@@ -2186,6 +2186,13 @@
   // the hosts (tell_hosts_signup). A database without the column takes the claim as before (the hosts hear at once)
   let laterOk = true;
   const laterClaim = (row) => laterOk ? Object.assign({ tell_later: true }, row) : row;
+  const insertLater = async (rows) => {
+    const list = [].concat(rows);
+    const r = await sb.from('signup_claims').insert(list.map(laterClaim));
+    if (!r.error || !laterOk || !(r.error.code === 'PGRST204' || r.error.code === '42703')) return r;
+    laterOk = false;   // no tell_later column yet: sign up the old way
+    return sb.from('signup_claims').insert(list);
+  };
   const closeOnIt = () => {
     const b = state.onIt; setState({ onIt: null });
     if (!b || !b.undo || !laterOk || !(b.undo.items || []).length || b.undo.del) return;
@@ -2258,7 +2265,7 @@
       quick(s, Object.assign(withClaim(s, [it.id], !mine), mine ? {} : goingToo(s, jobOf(s, it).day)), async () => {
         await saveGuestContact(s.id);
         if (mine) must(await sb.from('signup_claims').delete().eq('item_id', it.id).eq('user_id', state.me));
-        else { must(await sb.from('signup_claims').insert(laterClaim({ item_id: it.id, user_id: state.me }))); await goingWithJob(s, jobOf(s, it).day); }
+        else { must(await insertLater({ item_id: it.id, user_id: state.me })); await goingWithJob(s, jobOf(s, it).day); }
       }, (ok) => { if (!ok) { clearTimeout(bannerTimer); setState({ banner: null, onIt: null }); } });
     });
   };
@@ -2287,7 +2294,7 @@
     quick(s, Object.assign(added, add.length ? goingToo(s, job.day) : {}), async () => {
       await saveGuestContact(s.id);
       if (drop.length) must(await sb.from('signup_claims').delete().in('item_id', drop).eq('user_id', state.me));
-      if (add.length) { must(await sb.from('signup_claims').insert(add.map(id => laterClaim({ item_id: id, user_id: state.me, note })))); await goingWithJob(s, job.day); }
+      if (add.length) { must(await insertLater(add.map(id => ({ item_id: id, user_id: state.me, note })))); await goingWithJob(s, job.day); }
       if (keep.length && noteChanged) must(await sb.from('signup_claims').update({ note }).in('item_id', keep).eq('user_id', state.me));
     }, (ok) => { if (!ok) { clearTimeout(bannerTimer); setState({ banner: null, onIt: null }); } });
   };
@@ -4894,7 +4901,7 @@
     if (!state.viewAs) onItBanner(s, { items: [it.id], was });
     quick(s, Object.assign(withClaim(s, [it.id], true), goingToo(s, jobOf(s, it).day)), async () => {
       await saveGuestContact(s.id);
-      must(await sb.from('signup_claims').insert(laterClaim({ item_id: it.id, user_id: state.me })));
+      must(await insertLater({ item_id: it.id, user_id: state.me }));
       await goingWithJob(s, jobOf(s, it).day);
     }, (ok) => { if (!ok) { clearTimeout(bannerTimer); setState({ banner: null, onIt: null }); } }); }));
 
@@ -6550,7 +6557,7 @@
     quick(s, Object.assign(withPart(s, u.id, x => Object.assign({}, x, { claims: x.claims.concat([{ userId: state.me, created: Date.now() }]), waits: x.waits.filter(w => w !== state.me) })),
       job ? withClaim(s, [u.id], true) : {}, goingToo(s, day)), async () => {
       await savePartGuest(s);
-      must(await sb.from('signup_claims').insert(laterClaim({ item_id: u.id, user_id: state.me })));
+      must(await insertLater({ item_id: u.id, user_id: state.me }));
       await goingWithJob(s, day);
     }, (ok) => { if (!ok) setState({ onIt: null }); });
   });
