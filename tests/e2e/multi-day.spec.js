@@ -291,7 +291,7 @@ test('my calendar month: the list under the chosen day goes on into the next mon
   }
 });
 
-// View as a member (owner, 2026-10-10): a host checks one event the way a member sees it. Read-only, and leaving ends it
+// Member view (owner, 2026-10-10; in the ⋯ menu): a host checks one event the way a member sees it. Read-only, and leaving ends it
 test('view as a member: a host sees no host tools, nothing changes, and Exit brings them back', async ({ browser }) => {
   const host = await newLead(browser, 1, 'Marisol');
   const H = host.page;
@@ -308,10 +308,11 @@ test('view as a member: a host sees no host tools, nothing changes, and Exit bri
     await openIdea(H, id);
     const page = H.locator('[data-screen-label="Plan page"]');
     await expect(H.getByRole('button', { name: 'Edit event' }).first()).toBeVisible();   // the host has Edit
-    await H.getByRole('button', { name: 'View as a member' }).click();
+    await H.locator('[data-ev-menu]').click();   // the ⋯ menu
+    await H.getByRole('menuitem', { name: 'Member view' }).click();
     await expect(H.locator('[data-preview]')).toContainText('Viewing as a member');
     await expect(H.getByRole('button', { name: 'Edit event' })).toHaveCount(0);   // no host tools
-    await expect(H.getByRole('button', { name: 'View as a member' })).toHaveCount(0);
+    await expect(H.locator('[data-ev-menu]')).toHaveCount(0);   // a member's page has Share, no menu
     await expect(page).toBeVisible();
     await H.locator('[data-as-member-exit]').click();
     await expect(H.locator('[data-preview]')).toHaveCount(0);
