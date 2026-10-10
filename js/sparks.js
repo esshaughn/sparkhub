@@ -4489,15 +4489,17 @@
   let calPin = null;   // { list0, set, menu }: what the pinned grid draws from, set at each render of My calendar's Month
   const calPinHtml = (mk, iso) => {
     const today = todayISO(), [y, m] = mk.split('-').map(Number), start = new Date(y, m - 1, 1), nDays = new Date(y, m, 0).getDate();
-    const evs = calDays(calPin.list0, true, mk).filter(s => s.dayDate && s.dayDate.slice(0, 7) === mk);
+    const evs = calDays(calPin.list0, calPin.mine, mk).filter(s => s.dayDate && s.dayDate.slice(0, 7) === mk), holds = calPin.holds;
     const cells = [];
     for (let i = 0; i < start.getDay(); i++) cells.push('<span></span>');
     for (let d = 1; d <= nDays; d++) {
-      const dd = mk + '-' + pad2(d), onIt = dd === iso, day = evs.filter(s => s.dayDate === dd);
-      const dot = (s) => { const P = partOf(s, false); return onIt ? '#fff' : P.k === 'open' ? '#9aa0ac' : P.R.dot; };
-      cells.push('<span data-cal-day="' + dd + '" role="button" tabindex="0" aria-label="' + esc(fmtDay(dd) + (day.length ? ', ' + day.length + (day.length === 1 ? ' event' : ' events') : '')) + '" aria-pressed="' + onIt + '" style="height:40px;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;background:' + (onIt ? '#0d1117' : 'transparent') + '">' +
+      const dd = mk + '-' + pad2(d), onIt = dd === iso, day = evs.filter(s => s.dayDate === dd), held = holds.filter(h => h.o.dayDate === dd);
+      const dot = (s) => { const P = partOf(s, calPin.cal); return onIt ? '#fff' : P.k === 'open' ? '#9aa0ac' : P.R.dot; };
+      cells.push('<span data-cal-day="' + dd + '" role="button" tabindex="0" aria-label="' + esc(fmtDay(dd) + (day.length ? ', ' + day.length + (day.length === 1 ? ' event' : ' events') : '') + (held.length ? ', ' + held.length + ' pencilled in' : '')) + '" aria-pressed="' + onIt + '" style="height:40px;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;background:' + (onIt ? '#0d1117' : 'transparent') + '">' +
         '<span style="font-size:15px;font-weight:' + (day.length || onIt ? 900 : 700) + ';color:' + (onIt ? '#fff' : dd === today ? '#5b4ae8' : day.length ? '#0d1117' : '#9aa0ac') + '">' + d + '</span>' +
-        '<span style="display:flex;gap:3px;height:5px">' + day.slice(0, 3).map(s => '<span style="width:5px;height:5px;border-radius:999px;background:' + dot(s) + '"></span>').join('') + '</span></span>');
+        // a hold is a hollow gold dot after the plans' dots
+        '<span style="display:flex;gap:3px;height:5px">' + day.slice(0, 3).map(s => '<span style="width:5px;height:5px;border-radius:999px;background:' + dot(s) + '"></span>').join('') +
+          held.slice(0, Math.max(0, 3 - Math.min(3, day.length))).map(() => '<span data-hold-dot style="width:5px;height:5px;border-radius:999px;box-sizing:border-box;border:1.3px solid ' + (onIt ? '#ecc56a' : '#e8a71c') + '"></span>').join('') + '</span></span>');
     }
     while (cells.length < 42) cells.push('<span></span>');
     const nav = (delta, label, icon) => '<span data-cal-nav="' + delta + '" role="button" tabindex="0" aria-label="' + label + '" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + icon + '</span>';
@@ -4505,7 +4507,11 @@
       nav(-1, 'Previous month', I.chevL(15, '#0d1117', 2.6)) + nav(1, 'Next month', I.chevR(15, '#0d1117', 2.6)) + calPin.menu + '</div>' +
       '<div style="' + CARD + ';padding:8px 8px">' +
         '<div aria-hidden="true" style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));padding-bottom:2px">' + ['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(x => '<span style="text-align:center;font-size:11px;font-weight:900;letter-spacing:.6px;color:#8a909b">' + x + '</span>').join('') + '</div>' +
-        '<div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px">' + cells.join('') + '</div></div>';
+        '<div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px">' + cells.join('') + '</div>' +
+        // the key shows whenever anything is pencilled in, in every month, so the grid keeps one height
+        (holds.length ? '<div data-hold-key style="display:flex;align-items:center;justify-content:center;gap:14px;padding:6px 0 0;font-size:12.5px;font-weight:700;color:#6b7280">' +
+          '<span style="display:flex;align-items:center;gap:6px"><span style="width:6px;height:6px;border-radius:999px;background:#9aa0ac"></span>Plan</span>' +
+          '<span style="display:flex;align-items:center;gap:6px"><span style="width:6px;height:6px;border-radius:999px;box-sizing:border-box;border:1.3px solid #9aa0ac"></span>Pencilled in</span></div>' : '') + '</div>';
   };
   // The day at the top of the list (the last day heading above the pinned grid's lower edge) sets the grid's month and day
   const calPinSync = () => {
@@ -4544,8 +4550,8 @@
     const firstDay = inMonth.map(s => s.dayDate).sort()[0];
     // This month opens on the first day with events from today on, or today itself (owner, 2026-10-07, multi-day audit, U3: it opened on the 1st)
     const sel = o.day && o.day.slice(0, 7) === cm ? o.day : cm === today.slice(0, 7) ? (inMonth.map(s => s.dayDate).filter(d => d >= today).sort()[0] || today) : (firstDay || cm + '-01');
-    const pinned = o.mode === 'mine';
-    if (pinned) calPin = { list0, set: o.set, menu: o.menu };
+    const pinned = o.mode === 'mine' || o.mode === 'all';   // My calendar and All groups (owner, 2026-10-10); a group page keeps its plain grid
+    if (pinned) calPin = { list0, set: o.set, menu: o.menu, mine: o.mode === 'mine', cal: !!o.cal, holds };
     const shift = (d) => () => { const x = new Date(y, m - 1 + d, 1); o.set(x.getFullYear() + '-' + pad2(x.getMonth() + 1), null); };
     const navBtn = (fn, label, icon) => '<span ' + on(fn) + ' aria-label="' + label + '" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + icon + '</span>';
     const cells = [];
@@ -4572,23 +4578,27 @@
     // day, through the rest of the month and into the next ones (a month name where it changes), so the month need not be
     // flipped. Upcoming days only, up to six months ahead and 60 events
     const ahead = () => {
-      if (o.mode !== 'mine') return '';
-      const seen = {}, rows = [];
+      if (!pinned) return '';
+      const seen = {}, rows = [], heldAhead = holds.filter(h => h.o.dayDate > sel && h.o.dayDate >= today);
       for (let k = 0; k < 6; k++) {
         const x = new Date(y, m - 1 + k, 1), mk = x.getFullYear() + '-' + pad2(x.getMonth() + 1);
-        calDays(list0, true, mk).forEach(s => {
+        calDays(list0, o.mode === 'mine', mk).forEach(s => {
           if (!s.dayDate || s.dayDate <= sel || s.dayDate < today) return;
           const key = s.id + '@' + s.dayDate;
           if (!seen[key]) { seen[key] = 1; rows.push(s); }
         });
       }
-      if (!rows.length) return '';
+      if (!rows.length && !heldAhead.length) return '';
       rows.sort((p1, p2) => p1.dayDate === p2.dayDate ? (p1.dayTime || '') < (p2.dayTime || '') ? -1 : 1 : p1.dayDate < p2.dayDate ? -1 : 1);
-      let out = '', curDay = '', curMon = cm;
-      rows.slice(0, 60).forEach(s => {
-        if (s.dayDate.slice(0, 7) !== curMon) { curMon = s.dayDate.slice(0, 7); out += '<div style="padding-top:8px">' + monthHead(new Date(s.dayDate + 'T12:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })) + '</div>'; }
-        if (s.dayDate !== curDay) { curDay = s.dayDate; out += '<div data-ahead-day data-list-day="' + s.dayDate + '" style="padding:6px 4px 0;font-size:15px;font-weight:900;color:#0d1117">' + esc(new Date(s.dayDate + 'T12:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })) + '</div>'; }
-        out += o.card(s);
+      const days = {};
+      rows.slice(0, 60).forEach(s => { (days[s.dayDate] = days[s.dayDate] || { ev: [], hd: [] }).ev.push(s); });
+      heldAhead.forEach(h => { (days[h.o.dayDate] = days[h.o.dayDate] || { ev: [], hd: [] }).hd.push(h); });
+      let out = '', curMon = cm;
+      Object.keys(days).sort().forEach(dd => {
+        if (dd.slice(0, 7) !== curMon) { curMon = dd.slice(0, 7); out += '<div style="padding-top:8px">' + monthHead(new Date(dd + 'T12:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })) + '</div>'; }
+        out += '<div data-ahead-day data-list-day="' + dd + '" style="padding:6px 4px 0;font-size:15px;font-weight:900;color:#0d1117">' + esc(new Date(dd + 'T12:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })) + '</div>';
+        out += days[dd].ev.map(o.card).join('');
+        if (days[dd].hd.length) out += '<div style="padding:6px 4px 0;font-size:12px;font-weight:900;letter-spacing:1px;color:#8a6510">PENCILLED IN</div>' + days[dd].hd.map(holdRow).join('');
       });
       return '<div data-ahead style="display:flex;flex-direction:column;gap:10px;margin-top:6px"><div style="padding:6px 4px 0;font-size:12px;font-weight:900;letter-spacing:1px;color:#6b7280">COMING UP</div>' + out + '</div>';
     };

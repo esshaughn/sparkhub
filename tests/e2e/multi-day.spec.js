@@ -3,7 +3,7 @@
 // will you attend?, a job on one day (WHICH DAY) that adds that day to your RSVP, Who's coming's day tags, and a
 // recurring event set from the event's Edit.
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newLead, startPost, pickDate, timeBox, closeAskFirst, ideaIdFromUrl, openIdea, deleteIdea, asUser, donePlus, newMember, rsvpTap, pickView } = require('./helpers');
+const { uniqueTitle, newLead, startPost, pickDate, timeBox, closeAskFirst, ideaIdFromUrl, openIdea, deleteIdea, asUser, donePlus, newMember, rsvpTap, pickView, openAllGroups } = require('./helpers');
 
 const inDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
 const wk = (iso, long) => new Date(iso + 'T12:00').toLocaleDateString('en-US', { weekday: long ? 'long' : 'short' });
@@ -240,8 +240,8 @@ test('multi-day: a row per upcoming day, dates for repeated weekdays, past days,
   }
 });
 
-// My calendar's Month goes on listing what's next under the chosen day, into the following months (owner, 2026-10-10,
-// from Stacy): a Coming up list, day by day, with a month name where it changes
+// My calendar's and All groups' Month stay pinned and go on listing what's next under the chosen day, into the following
+// months (owner, 2026-10-10, from Stacy): a Coming up list, day by day, with a month name where it changes
 test('my calendar month: the list under the chosen day goes on into the next months', async ({ browser }) => {
   const host = await newLead(browser, 1, 'Marisol');
   const H = host.page;
@@ -277,6 +277,13 @@ test('my calendar month: the list under the chosen day goes on into the next mon
     await pin.locator('[data-cal-day="' + d2 + '"]').click();
     await expect(yc.locator('[data-list-day="' + d2 + '"]').first()).toContainText(new Date(d2 + 'T12:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }));
     await expect(yc.locator('[data-plan="' + later + '"]')).toHaveCount(1);
+    // All groups' Month does the same
+    await openAllGroups(H);
+    const ag = H.locator('[data-screen-label="All groups"]');
+    await pickView(ag, 'Month');
+    await expect(ag.locator('[data-cal-pin]')).toBeVisible();
+    await expect(ag.locator('[data-ahead]')).toContainText('COMING UP');
+    await expect(ag.locator('[data-plan="' + later + '"]')).toHaveCount(1);
     expect(host.errors).toEqual([]);
   } finally {
     for (const id of ids) await deleteIdea(H, id);
