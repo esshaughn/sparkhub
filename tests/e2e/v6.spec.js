@@ -202,7 +202,8 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     await openAllGroups(O);
     await cal.getByRole('button', { name: /^Notifications/ }).click();
     const notifs = O.getByRole('dialog', { name: 'Notifications' });
-    await expect(notifs.getByRole('radio', { name: 'All' })).toBeVisible();
+    await expect(notifs.getByRole('heading', { name: 'Notifications' })).toBeVisible();
+    await expect(notifs.getByRole('radio')).toHaveCount(0);   // no filter chips (Notifications 1a, v8-22)
     await shot(O, '11-notifications-sheet');
     await notifs.getByRole('button', { name: 'Close' }).click();
     await expect(notifs).toHaveCount(0);
@@ -212,7 +213,7 @@ test('v6: Your tasks, Your schedule, the community Calendar and the RSVP ask', a
     await H.reload();
     await expect(H.locator('html[data-loaded=true]')).toHaveCount(1);
     await openTasks(H);
-    await expect(lead).toContainText('Folding chairs 1 open');   // Hal took Ice and one of the chairs
+    await expect(lead).toContainText('Folding chairs · 1 open');   // Hal took Ice and one of the chairs
     await expect(lead).not.toContainText('Ice (');
 
     expect(host.errors).toEqual([]);
