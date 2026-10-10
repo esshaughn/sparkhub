@@ -1051,7 +1051,7 @@
   function viewOnIt() {
     const b = state.onIt, s = state.sparks.find(x => x.id === b.id);
     if (!s) return '';
-    const close = () => setState({ onIt: null });
+    const close = closeOnIt;   // Done, ×, or a tap outside: now the lead hears
     // a job or shift (s.signups), or a spot's row (s.parts: its spot's name, the row's time)
     const when = (u) => [u.day && s.days ? dayWord(s, u.day) : '', u.time ? slotTime(u.time) + (u.endTime ? '–' + slotTime(u.endTime) : '') : ''].filter(Boolean).join(' · ');
     const unitOf = (id) => { const j = s.signups.find(u => u.id === id); if (j) return { item: j.item, when: when(j) };
@@ -1073,7 +1073,7 @@
         (state.email ? '' : '<div data-onit-push style="display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:14px;background:#f1effd">' +
           '<span style="font-size:15.5px;line-height:1.3;font-weight:900;color:#0d1117">Keep track of this in one place</span>' +
           '<span style="font-size:13.5px;line-height:1.4;font-weight:600;color:#454b55">A free account puts all your jobs and spots together, sends you reminders, and lets the hosts reach you in the app.</span>' +
-          '<button type="button" data-onit-account ' + on(() => { setState({ onIt: null }); openLogin('reminder', () => setTimeout(askReminders, 500)); }) + ' style="height:50px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16px;font-weight:800;cursor:pointer">Create a free account</button></div>') +
+          '<button type="button" data-onit-account ' + on(() => { closeOnIt(); openLogin('reminder', () => setTimeout(askReminders, 500)); }) + ' style="height:50px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16px;font-weight:800;cursor:pointer">Create a free account</button></div>') +
         '<button type="button" data-onit-done ' + on(close) + ' style="height:' + (state.email ? '50' : '44') + 'px;border:0;border-radius:999px;background:' + (state.email ? '#149a4b;color:#fff' : '#f2f3f6;color:#0d1117') + ';font-family:inherit;font-size:16px;font-weight:800;cursor:pointer">' + (state.email ? 'Done' : 'Not now') + '</button>' +
         '<div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:-8px"><button type="button" ' + on(() => { if (!state.busy) undoClaim(b); }) + ' style="min-height:32px;padding:0 6px;border:0;background:none;font-family:inherit;font-size:13.5px;font-weight:700;color:#9aa0a8;cursor:pointer">Undo</button></div>' +
       '</div></div>';
@@ -2181,6 +2181,18 @@
   // Signing up opens a centred "You're signed up!" pop-up recapping the job (owner, 2026-10-07: the green banner was too
   // easy to miss); Undo lives in it, and it stays until Done or ×
   const onItBanner = (s, undo) => { clearTimeout(bannerTimer); setState({ banner: null, onIt: { kind: 'on', id: s.id, undo } }); };
+  // The lead hears about a sign-up only once the person taps Done on (or closes) You're signed up!, so Undo there never
+  // reaches them (owner, 2026-10-10; 20261126000000): the claim goes in with tell_later, and closing the pop-up tells
+  // the hosts (tell_hosts_signup). A database without the column takes the claim as before (the hosts hear at once)
+  let laterOk = true;
+  const laterClaim = (row) => laterOk ? Object.assign({ tell_later: true }, row) : row;
+  const closeOnIt = () => {
+    const b = state.onIt; setState({ onIt: null });
+    if (!b || !b.undo || !laterOk || !(b.undo.items || []).length || b.undo.del) return;
+    const items = b.undo.items.slice();
+    quickChain = quickChain.then(() => sb.rpc('tell_hosts_signup', { p_items: items }))
+      .then(r => { if (r && r.error && r.error.code === 'PGRST202') laterOk = false; else if (r && r.error) console.error(r.error); }, e => console.error(e));
+  };
   // back: the claims just removed, so Undo can put them back (with their note)
   const offIt = (s, job, back) => isLead(s) ? toast('Removed you from ' + job.item.toLowerCase(), true) : showBanner({ kind: 'off', id: s.id, job: job.item, back }, 7000);
   const redoClaim = (b) => {
@@ -2246,7 +2258,7 @@
       quick(s, Object.assign(withClaim(s, [it.id], !mine), mine ? {} : goingToo(s, jobOf(s, it).day)), async () => {
         await saveGuestContact(s.id);
         if (mine) must(await sb.from('signup_claims').delete().eq('item_id', it.id).eq('user_id', state.me));
-        else { must(await sb.from('signup_claims').insert({ item_id: it.id, user_id: state.me })); await goingWithJob(s, jobOf(s, it).day); }
+        else { must(await sb.from('signup_claims').insert(laterClaim({ item_id: it.id, user_id: state.me }))); await goingWithJob(s, jobOf(s, it).day); }
       }, (ok) => { if (!ok) { clearTimeout(bannerTimer); setState({ banner: null, onIt: null }); } });
     });
   };
@@ -2275,7 +2287,7 @@
     quick(s, Object.assign(added, add.length ? goingToo(s, job.day) : {}), async () => {
       await saveGuestContact(s.id);
       if (drop.length) must(await sb.from('signup_claims').delete().in('item_id', drop).eq('user_id', state.me));
-      if (add.length) { must(await sb.from('signup_claims').insert(add.map(id => ({ item_id: id, user_id: state.me, note })))); await goingWithJob(s, job.day); }
+      if (add.length) { must(await sb.from('signup_claims').insert(add.map(id => laterClaim({ item_id: id, user_id: state.me, note })))); await goingWithJob(s, job.day); }
       if (keep.length && noteChanged) must(await sb.from('signup_claims').update({ note }).in('item_id', keep).eq('user_id', state.me));
     }, (ok) => { if (!ok) { clearTimeout(bannerTimer); setState({ banner: null, onIt: null }); } });
   };
@@ -4882,7 +4894,7 @@
     if (!state.viewAs) onItBanner(s, { items: [it.id], was });
     quick(s, Object.assign(withClaim(s, [it.id], true), goingToo(s, jobOf(s, it).day)), async () => {
       await saveGuestContact(s.id);
-      must(await sb.from('signup_claims').insert({ item_id: it.id, user_id: state.me }));
+      must(await sb.from('signup_claims').insert(laterClaim({ item_id: it.id, user_id: state.me })));
       await goingWithJob(s, jobOf(s, it).day);
     }, (ok) => { if (!ok) { clearTimeout(bannerTimer); setState({ banner: null, onIt: null }); } }); }));
 
@@ -5101,7 +5113,9 @@
       // A job sign-up marks you Going: the sign-up's row covers it, so that automatic Going isn't its own row
       const claimAt = {};
       s.signups.concat(...(s.parts || []).map(p => p.rows)).forEach(it => it.claims.forEach(c => { if (c.created) claimAt[c.userId] = Math.max(claimAt[c.userId] || 0, c.created); }));
-      s.rsvps.filter(r => r.userId !== me && !(r.status === 'going' && claimAt[r.userId] && Math.abs(r.created - claimAt[r.userId]) < 120000)).forEach(r => add({ key: 'rv:' + s.id + ':' + r.userId, type: 'rsvp', s, t: r.created, uid: r.userId, who: personName(s, r.userId),
+      // Can't go reaches you only from someone you invited (owner, 2026-10-10; the push follows the same rule)
+      s.rsvps.filter(r => r.userId !== me && !(r.status === 'going' && claimAt[r.userId] && Math.abs(r.created - claimAt[r.userId]) < 120000) &&
+        (r.status !== 'no' || (s.invites || []).some(i => i.userId === r.userId && i.by === me))).forEach(r => add({ key: 'rv:' + s.id + ':' + r.userId, type: 'rsvp', s, t: r.created, uid: r.userId, who: personName(s, r.userId),
         text: r.status === 'going' ? 'is going to' : r.status === 'maybe' ? 'might come to' : 'can’t make it to' }));
       s.signups.forEach(it => it.claims.filter(c => c.userId !== me && c.created).forEach(c => add({ key: 's:' + it.id + ':' + c.userId, type: 'signup', s, t: c.created, uid: c.userId, who: personName(s, c.userId), text: 'signed up to bring', item: it.item })));
       // Take part (v8-2): "Dee claimed 9:00am court time"
@@ -5574,13 +5588,18 @@
   function viewNotifSheet() {
     // Notifications 1a (Design v8-22): one list by day, Today / This week, in white cards, no filter chips. Rows that need
     // an answer are pale purple (#f7f6ff), with the answer inline where there is one; unread is a 6px purple dot far left
+    loadMoves();
     const st = state, all = notifList(), shown = all, unread = all.filter(isUnread).length;
     const todayStart = midnight(todayISO());
     const secs = [['Today', shown.filter(n => n.t >= todayStart)], ['This week', shown.filter(n => n.t < todayStart)]].filter(x => x[1].length);
     const pill = (fn, label, solid) => '<span ' + on(fn) + ' role="button" style="display:flex;align-items:center;min-height:36px;padding:0 14px;border-radius:999px;font-size:13.5px;font-weight:800;cursor:pointer;' +
       (solid ? 'background:' + solid + ';color:#fff' : 'background:#fff;color:#0d1117;box-shadow:inset 0 0 0 1.5px #dcdfe6') + '">' + label + '</span>';
+    // A "{item} moved: … → … ({event})." note for a time you still hold and haven't kept
+    const movedOf = (n) => { if (n.type !== 'note' || !moves) return null; const m = /^(.+) moved: .+ → .+ \((.+)\)\.$/.exec(n.body || ''); if (!m) return null;
+      for (const s of state.sparks.filter(x => x.text === m[2])) { const hit = myMoves(s).find(x => x.u.part.item === m[1]); if (hit) return { s, u: hit.u }; }
+      return null; };
     const frOf = (n) => n.type === 'friendreq' && (state.fr.incoming || []).find(x => x.id === n.uid);
-    const asks = (n) => n.type === 'jobask' || n.type === 'leadask' || n.type === 'leadoffer' || !!frOf(n) ||
+    const asks = (n) => !!movedOf(n) || n.type === 'jobask' || n.type === 'leadask' || n.type === 'leadoffer' || !!frOf(n) ||
       (n.type === 'invited' && n.s && !myRsvp(n.s) && !n.s.cancelledAt && phaseOf(n.s) === 'plan');
     const row = (n, k) => {
       const T = N_TYPES[n.type], g = n.s && groupById(n.s.groupId), unr = isUnread(n), face = n.uid ? avatarOf(n.uid) : null;
@@ -5592,7 +5611,7 @@
         ? '<b style="font-weight:800;color:#0d1117">' + esc(n.who) + '</b> ' + what + esc(n.after)
         : '<b style="font-weight:800;color:#0d1117">' + esc(n.who) + '</b> ' + esc(n.text) + ' ' +
           (n.item ? '<b style="font-weight:800;color:#0d1117">' + esc(n.item) + '</b>' + (n.joiner ? esc(n.joiner) + what : ' on ' + what) : what);
-      const fr = frOf(n);
+      const fr = frOf(n), mv = movedOf(n);
       return '<div ' + on(() => openNotif(n)) + ' data-notif="' + esc(n.type) + '"' + (asks(n) ? ' data-notif-ask' : '') + ' style="position:relative;display:flex;align-items:flex-start;gap:12px;padding:14px 14px 14px 16px;border-top:' + (k ? '1px solid #f2f3f6' : '0') + ';background:' + (asks(n) ? '#f7f6ff' : '#fff') + ';cursor:pointer">' +
         (unr ? '<span aria-label="Unread" data-unread style="position:absolute;left:5px;top:31px;width:6px;height:6px;border-radius:999px;background:#5b4ae8"></span>' : '') +
         (n.type === 'hold'   // a dashed gold pencil tile, with the ★ badge (Design, soft holds)
@@ -5611,6 +5630,8 @@
             ? '<div style="margin-top:10px;display:flex;gap:8px">' + pill(rsvpFromFeed(n, 'going'), 'I’m going', '#149a4b') + pill(rsvpFromFeed(n, 'maybe'), 'Maybe') + '</div>'
             // A friend request answers here (1a): Accept · Not now (declines quietly, as the ✕ on Friends does)
             : fr ? '<div style="margin-top:10px;display:flex;gap:8px">' + pill((e) => { stop(e); markRead(n); answerRequest(fr, true); }, 'Accept', '#5b4ae8') + pill((e) => { stop(e); markRead(n); answerRequest(fr, false); }, 'Not now') + '</div>'
+            // Your time moved (3b-2): the same choice as on the event page; Pick another opens the event
+            : mv ? '<div data-moved-row style="margin-top:10px;display:flex;gap:8px">' + pill((e) => { stop(e); markRead(n); keepMoved(mv.u); }, 'Keep it', '#149a4b') + pill((e) => { stop(e); markRead(n); setState({ notifSheet: false }); openToSection(mv.s, 'sec-tasks'); }, 'Pick another') + '</div>'
             : '') +
         '</div>' +
       '</div>';
@@ -6529,7 +6550,7 @@
     quick(s, Object.assign(withPart(s, u.id, x => Object.assign({}, x, { claims: x.claims.concat([{ userId: state.me, created: Date.now() }]), waits: x.waits.filter(w => w !== state.me) })),
       job ? withClaim(s, [u.id], true) : {}, goingToo(s, day)), async () => {
       await savePartGuest(s);
-      must(await sb.from('signup_claims').insert({ item_id: u.id, user_id: state.me }));
+      must(await sb.from('signup_claims').insert(laterClaim({ item_id: u.id, user_id: state.me })));
       await goingWithJob(s, day);
     }, (ok) => { if (!ok) setState({ onIt: null }); });
   });
@@ -6556,6 +6577,39 @@
       must(await sb.from('signup_claims').delete().eq('item_id', u.id).eq('user_id', state.me));
     });
   };
+  // Your time moved (Design v8-22, 3b): when a lead moves a time you hold, your claim keeps where it was (moved_from,
+  // 20261126000000) until you keep it. Read with one small query, only when a "… moved: …" note comes in. ✓ Keep clears
+  // it; Pick another takes you off (with Undo) so you can pick again; silence = keep
+  let moves = null, movesKey = '';
+  const loadMoves = () => {
+    if (!state.email || state.viewAs || !sb) return;
+    const key = (state.notes || []).filter(n => / moved: /.test(n.body)).map(n => n.id).join(',');
+    if (!key || key === movesKey) return;
+    movesKey = key;
+    sb.from('signup_claims').select('item_id,moved_from,moved_by').eq('user_id', state.me).not('moved_from', 'is', null).then(r => {
+      if (r.error) { if (r.error.code !== '42703') console.error(r.error); return; }
+      moves = {}; (r.data || []).forEach(m => { moves[m.item_id] = { from: m.moved_from, by: m.moved_by }; }); render();
+    }, e => console.error(e));
+  };
+  const unitById = (s, id) => { for (const p of s.items || []) { const u = p.rows.find(x => x.id === id); if (u) return u; } return null; };
+  const myMoves = (s) => { loadMoves(); if (!moves) return [];
+    return Object.keys(moves).map(id => { const u = unitById(s, id); return u && u.claims.some(c => c.userId === state.me) ? { u, m: moves[id] } : null; }).filter(Boolean); };
+  const keepMoved = (u, quiet) => {
+    if (sfLook()) return;
+    delete moves[u.id]; render();
+    if (!quiet) toast('Kept ' + slotTime(u.time), true);
+    ensureSession().then(() => sb.rpc('keep_moved', { p_item: u.id })).then(r => { if (r.error) throw r.error; }).catch(e => { console.error(e); toast(failed(e)); });
+  };
+  const movedCards = (s) => myMoves(s).map(({ u, m }) => {
+    const now = [u.day && s.days ? dayWord(s, u.day) : '', slotTime(u.time)].filter(Boolean).join(' '), by = m.by ? firstName(nameOf(m.by)) : '';
+    return '<div data-time-moved="' + esc(u.part.item) + '" style="display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:18px;background:#fff1e8;box-shadow:inset 0 0 0 1.5px #f5b48a">' +
+      '<div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:12px;font-weight:900;letter-spacing:.8px;color:#b8480c">' + esc(u.part.item.toUpperCase()) + '</span>' +
+        '<span style="font-size:17px;font-weight:900;color:#0d1117">Your time moved</span>' +
+        '<span style="font-size:15px;font-weight:700;color:#454b55"><s style="color:#9aa0ac">' + esc(m.from) + '</s> → <b style="font-weight:900;color:#0d1117">' + esc(now) + '</b>' + (by ? ' · ' + esc(by) + ' changed it' : '') + '</span></div>' +
+      '<div style="display:flex;gap:8px"><span ' + on(() => keepMoved(u)) + ' role="button" data-keep-moved class="hov-bright" style="display:flex;align-items:center;gap:6px;min-height:42px;padding:0 16px;border-radius:999px;background:#149a4b;color:#fff;font-size:14.5px;font-weight:800;cursor:pointer">' + I.check(14, '#fff', 3) + 'Keep ' + esc(slotTime(u.time)) + '</span>' +
+        '<span ' + on(() => { keepMoved(u, true); doGiveUp(s, u); }) + ' role="button" data-pick-another class="hov-outline" style="display:flex;align-items:center;min-height:42px;padding:0 16px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #f5b48a;color:#b8480c;font-size:14.5px;font-weight:800;cursor:pointer">Pick another</span></div>' +
+      '<span style="font-size:13px;font-weight:600;color:#8a5a3a">If you don’t answer, you keep ' + esc(slotTime(u.time)) + '.</span></div>';
+  }).join('');
   const joinWait = (s0, u0) => partGate(s0, u0, 'wait', () => {
     const [s, u] = freshRow(s0, u0);
     if (overCap(u.part, true)) return;
@@ -6864,8 +6918,14 @@
     rows: (s.items || []).map(p => { const multi = p.kind === 'time' || p.rows.length > 1 || p.rows[0].id !== p.id;
       const base = Object.assign({ id: p.id, item: p.item, desc: p.desc, day: p.day || null, waitlist: p.waitlist, perPerson: p.perPerson, guests: p.guests,
         n: [].concat(...p.rows.map(u => u.claims)).length }, p.kind !== 'job' ? { kind: p.kind } : {});
-      return multi ? Object.assign(base, { shifts: p.rows.map(u => ({ id: u.id, time: u.time || '', end: u.endTime || '', need: u.need || null, n: u.claims.length })) })
-        : Object.assign(base, { time: p.time || '', end: p.endTime || '', need: p.need || null, shifts: null }); }) } });
+      return multi ? Object.assign(base, { shifts: p.rows.map(u => ({ id: u.id, time: u.time || '', t0: u.time || '', end: u.endTime || '', need: u.need || null, n: u.claims.length })) })
+        : Object.assign(base, { time: p.time || '', t0: p.time || '', end: p.endTime || '', need: p.need || null, shifts: null }); }) } });
+  // Saving moves a time people hold: the button says who hears (Design v8-22, 3a: Save and tell N people)
+  // A time people hold (3a): a pale-orange note under it
+  const heldTime = (n) => '<span data-held style="display:block;padding:8px 10px;border-radius:10px;background:#fff1e8;font-size:13px;line-height:1.4;font-weight:600;color:#b8480c">' +
+    (n === 1 ? '1 person holds' : n + ' people hold') + ' this time. We’ll tell them it moved and they can keep it or give it up.</span>';
+  const needTellN = (ed) => ed.rows.filter(r => r.id).reduce((z, r) => z + (r.shifts ? r.shifts.filter(q => q.id && q.n && q.time && q.time !== q.t0).reduce((a, q) => a + q.n, 0)
+    : r.n && r.time && r.time !== r.t0 ? r.n : 0), 0);
   const saveNeeds = (s) => {
     const ed = state.needEd;
     if (!ed || state.busy) return;
@@ -6879,9 +6939,14 @@
     const goneTimes = [].concat(...ed.rows.filter(r => r.id && r.kind === 'time').map(r => { const o = orig.find(j => j.id === r.id), kept = (r.shifts || []).filter(q => q.id && q.time).map(q => q.id);
       return o ? (o.shifts || []).filter(u => known(u.id) && kept.indexOf(u.id) < 0 && u.claims.some(c => c.userId !== state.me)).map(u => slotTime(u.time) + ' ' + o.item.toLowerCase()) : []; }));
     if (goneTimes.length && !off && !ed.sure) {
-      setState({ confirm: { title: 'Remove ' + (goneTimes.length === 1 ? goneTimes[0] : goneTimes.length + ' times') + '?', danger: true, cta: 'Remove and save', keep: 'Go back',
-        body: 'People have ' + (goneTimes.length === 1 ? 'that time' : 'those times') + '. They’ll get a note that it was removed.',
-        run: () => { setState({ confirm: null, needEd: Object.assign({}, state.needEd, { sure: true }) }); saveNeeds(s); } } });
+      // Design v8-22 3a-2: name who holds it; an optional note goes into their note and push
+      const holders = [].concat(...ed.rows.filter(r => r.id && r.kind === 'time').map(r => { const o = orig.find(j => j.id === r.id), kept = (r.shifts || []).filter(q => q.id && q.time).map(q => q.id);
+        return o ? [].concat(...(o.shifts || []).filter(u => known(u.id) && kept.indexOf(u.id) < 0).map(u => u.claims.map(c => c.userId))) : []; })).filter((u, i, a) => u !== state.me && a.indexOf(u) === i);
+      const names = holders.map(u => shortName(nameOf(u)) || 'Someone');
+      confirmNote = '';
+      setState({ confirm: { title: 'Remove ' + (goneTimes.length === 1 ? goneTimes[0].replace(/ .*$/, '') : goneTimes.length + ' times') + '?', danger: true, cta: 'Remove and tell them', keep: 'Keep it',
+        body: namesList(names) + (names.length === 1 ? ' holds it. They’ll' : ' hold ' + (goneTimes.length === 1 ? 'it' : 'them') + '. They’ll') + ' get a note and can pick another time if there’s room.', note: 'Sorry, the court’s booked late.',
+        run: () => { setState({ confirm: null, needEd: Object.assign({}, state.needEd, { sure: true, removeNote: confirmNote.trim().slice(0, 140) }) }); saveNeeds(s); } } });
       return;
     }
     if (off && !ed.sure) {
@@ -6909,7 +6974,7 @@
         }
         must(await sb.from('signup_items').update(Object.assign({ item, descr, time: null, end_time: null, need: null }, partCols)).eq('id', r.id));
         const kept = shifts.filter(q => q.id).map(q => q.id), dropped = oldShifts.filter(id => kept.indexOf(id) < 0);
-        for (const id of dropped) must(await sb.rpc('remove_signup', { p_item: id }));   // tells the people on that shift
+        for (const id of dropped) must(await sb.rpc('remove_signup', Object.assign({ p_item: id }, ed.removeNote ? { p_note: ed.removeNote } : {})));   // tells the people on that shift (with the lead's note, 3a-2)
         for (const q of shifts) {
           const row = Object.assign({ item, time: q.time, end_time: q.end && q.end > q.time ? q.end : null, need: q.need || null }, r.day || o.day ? { day: r.day || null } : {});
           if (q.id) must(await sb.from('signup_items').update(row).eq('id', q.id));
@@ -7027,7 +7092,7 @@
         '</div>' +
         '<div style="padding:12px 18px calc(24px + env(safe-area-inset-bottom, 0px));border-top:1px solid #f2f3f6;display:flex;gap:10px">' +
           '<button type="button" ' + on(close) + ' style="flex:0 0 auto;min-height:52px;padding:0 22px;background:#fff;border:1.5px solid #dcdfe6;border-radius:999px;font-family:inherit;font-size:15.5px;font-weight:800;color:#0d1117;cursor:pointer">Cancel</button>' +
-          '<button type="button" ' + on(() => saveNeeds(s)) + ' style="flex:1 1 auto;min-height:52px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16px;font-weight:800;cursor:pointer">' + (state.busy === 'save' ? 'Saving…' : 'Save changes') + '</button>' +
+          '<button type="button" ' + on(() => saveNeeds(s)) + ' style="flex:1 1 auto;min-height:52px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16px;font-weight:800;cursor:pointer">' + (state.busy === 'save' ? 'Saving…' : needTellN(ed) ? 'Save and tell ' + needTellN(ed) + (needTellN(ed) === 1 ? ' person' : ' people') : 'Save changes') + '</button>' +
         '</div></div></div>';
   }
 
@@ -8042,7 +8107,7 @@
         '</div>', true) +
       tab +
       '<div style="padding:16px 14px 26px;display:flex;flex-direction:column;gap:18px">' +
-        reportedEvLine(s) + cancelledCard(s) +
+        reportedEvLine(s) + movedCards(s) + cancelledCard(s) +
         (discMissing(s) ? updatesCard(s) : discBanner(s)) +   // v8: the banner; the updates live in Discussion
         // Keep this event: the page's 18px above and below (owner, 2026-10-07; was 8px under the RSVP card, Design v8-8 prototype 976)
         rsvpBlock + guestNudge + takePartLine(s) +
@@ -10282,8 +10347,20 @@
         (!M.d ? green('Pick a start date first') : whenErr(M) ? red(whenErr(M)) : green(n + ' days · ' + wkDay(M.d) + ' to ' + wkDay(M.endD)));
     } else if (type === 'days') {
       const setDay = (j) => (patch, extra) => set({ days: days.map((x, q) => q === j ? Object.assign({}, x, patch) : x) }, extra);
-      out = cap('DAY 1') + dayRow({ d: M.d, t: M.t, e: M.e }, 0, 'Date', '', (patch, extra) => set(Object.assign({}, patch.d !== undefined ? { d: patch.d } : {}, patch.t !== undefined ? { t: patch.t } : {}, patch.e !== undefined ? { e: patch.e, eOn: true } : {}), extra)) +
-        days.map((r, j) => cap('DAY ' + (j + 2), j > 0 ? '<span ' + on(() => set({ days: days.filter((_, q) => q !== j) })) + ' aria-label="Remove day ' + (j + 2) + '" style="width:28px;height:28px;margin:-6px 0;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.1);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(10, '#6b7280', 2.8) + '</span>' : '') +
+      // A posted event's days (Design v8-22, 3c): each day says how many are going and holding sign-ups that day; taking off
+      // a day people are going to asks first, naming only that day's people (they get the day-removed note)
+      const ps = k === 'sec' && state.sec ? state.sparks.find(x => x.id === state.sec.id) : null;
+      const goingOn = (d) => !ps || !d ? [] : ps.rsvps.filter(r => r.status === 'going' && (ps.daysEach ? (rsvpDays(ps, r.userId) || { go: [] }).go.indexOf(d) > -1 : (ps.days || []).some(x => x.d === d))).map(r => r.userId);
+      const signedOn = (d) => !ps || !d ? 0 : [].concat(...(ps.items || []).map(p => p.rows)).filter(u => u.day === d).reduce((z, u) => z + u.claims.length, 0);
+      const dayN = (d) => { const g = goingOn(d).length, n = signedOn(d); return ps && (g || n) ? '<span data-day-count style="flex:1;text-align:right;font-size:12.5px;font-weight:700;color:#8a909b">' + [g ? g + ' going' : '', n ? n + (n === 1 ? ' sign-up' : ' sign-ups') : ''].filter(Boolean).join(' · ') + '</span>' : ''; };
+      const dropDay = (j, d) => { const g = goingOn(d).filter(u => u !== state.me).length, go = () => set({ days: days.filter((_, q) => q !== j) });
+        if (!g || !d) return go();
+        const wd = wkDay(d, true), others = [M.d].concat(days.map(x => x.d)).filter(x => x && x !== d);
+        setState({ confirm: { title: 'Cancel ' + wd + '?', danger: true, cta: 'Cancel ' + wd + ' and tell ' + g, keep: 'Never mind', z: 60,
+          body: (g === 1 ? '1 person is' : g + ' people are') + ' going that day. Only they get a note.' + (others.length === 1 ? ' ' + wkDay(others[0], true) + ' stays as it is.' : '') + ' It’s saved when you tap Save.',
+          run: () => { setState({ confirm: null }); go(); } } }); };
+      out = cap('DAY 1', dayN(M.d)) + dayRow({ d: M.d, t: M.t, e: M.e }, 0, 'Date', '', (patch, extra) => set(Object.assign({}, patch.d !== undefined ? { d: patch.d } : {}, patch.t !== undefined ? { t: patch.t } : {}, patch.e !== undefined ? { e: patch.e, eOn: true } : {}), extra)) +
+        days.map((r, j) => cap('DAY ' + (j + 2), dayN(r.d) + (j > 0 ? '<span ' + on(() => dropDay(j, r.d)) + ' aria-label="Remove day ' + (j + 2) + '" style="width:28px;height:28px;margin:-6px 0;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.1);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(10, '#6b7280', 2.8) + '</span>' : '')) +
           dayRow(r, j + 1, 'Day ' + (j + 2) + ' date', plusDays((j ? days[j - 1].d : M.d) || todayISO(), (j ? days[j - 1].d : M.d) ? 1 : 0), setDay(j))).join('') +
         (M.d && whenErr(M) ? red(whenErr(M)) : '') +
         (days.length < 29 ? '<span ' + on(() => { const last = days.length ? days[days.length - 1].d : M.d; set({ days: days.concat([{ d: last ? plusDays(last, 1) : '', t: M.t || '', e: M.e || '' }]) }); }) + ' data-add-day style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:36px;padding:0 4px;font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(13, 'currentColor', 2.6) + 'Add another day</span>' : '') +
@@ -11008,7 +11085,7 @@
               '<span aria-hidden="true" style="font-weight:800;color:#9aa0ac">–</span>' +
               jobTime('e' + k, q.end, EV_TIMES.filter(v => !q.time || v > q.time), 'End', (v) => setShift(k, { end: v }), 'Time ' + (k + 1) + ' end', 'No end time') +
               (held && r.shifts.length === 1 ? '' : '<span ' + on(() => set({ shifts: r.shifts.length > 1 ? r.shifts.filter((_, j) => j !== k) : null, time: r.shifts.length > 1 ? r.time : q.time, need: r.shifts.length > 1 ? r.need : q.need })) + ' aria-label="Remove time ' + (k + 1) + '" style="flex:0 0 28px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(13, '#6b7280', 2.8) + '</span>') + '</div>' +
-            (q.n ? heldNote(q.n + (q.n === 1 ? ' person is' : ' people are') + ' signed up for this time. Removing it lets them know.') : '') +
+            (q.n ? heldTime(q.n) : '') +
             '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><span style="font-size:13px;font-weight:800;color:#6b7280">People needed</span>' + stepper(q.need, (n) => setShift(k, { need: n }), 'time ' + (k + 1)) + '</div></div>').join('') +
           '<span ' + on(() => set({ shifts: r.shifts.concat([{ time: '', end: '', need: 1 }]) })) + ' style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:36px;font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(14, 'currentColor', 2.6) + 'Add a time</span>' +
           (held ? heldNote('People are signed up for these times, so they stay as separate times.') : '<span ' + on(() => set({ shifts: null, time: r.shifts[0].time, need: r.shifts[0].need || 1 })) + ' style="align-self:flex-start;display:flex;align-items:center;min-height:32px;font-size:13.5px;font-weight:700;color:#6b7280;cursor:pointer">Use one time instead</span>')
@@ -11053,7 +11130,7 @@
             tf('e' + k, q.end, EV_TIMES.filter(v => !q.time || v > q.time), 'End', (v) => setShift(k, { end: v }), 'Time ' + (k + 1) + ' end', 'No end time') +
             count(q.need, (n) => setShift(k, { need: n }), 'time ' + (k + 1)) +
             (r.shifts.length > 1 ? '<span ' + on(() => set({ shifts: r.shifts.filter((_, j) => j !== k) })) + ' aria-label="Remove time ' + (k + 1) + '" style="flex:0 0 24px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(12, '#9aa0ac', 2.8) + '</span>' : '<span style="flex:0 0 24px"></span>') + '</div>' +
-            (q.n ? held(q.n + (q.n === 1 ? ' person has' : ' people have') + ' this time. Removing it lets them know.') : '') + '</div>').join('') +
+            (q.n ? heldTime(q.n) : '') + '</div>').join('') +
         '<span ' + on(() => set({ shifts: (r.shifts || []).concat([{ time: nextStart, end: nextStart ? addMins(nextStart, len > 0 ? len : 30) : '', need: last ? last.need || 4 : 4 }]) })) + ' data-part-add-time style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:36px;font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(14, 'currentColor', 2.6) + 'Add a time' +
           (nextStart ? '<span style="font-weight:600;color:#8a909b">· starts ' + esc(slotTime(nextStart)) + '</span>' : '') + '</span>'
       : '<div style="display:flex;align-items:center;gap:10px">' + tf('', r.time, EV_TIMES, 'Time (optional)', (v) => set({ time: v }), 'Time' + tag, 'No time') + '</div>' +
@@ -11341,12 +11418,16 @@
       (gst ? '<div data-guest-email style="display:flex;gap:8px">' + ['Sign in', 'Create account'].map(t => '<button type="button" ' + on(() => { setState({ dayPick: null }); openLogin('guest', () => {}); }) + ' style="flex:1 1 0;min-height:44px;border:0;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;font-family:inherit;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">' + t + '</button>').join('') + '</div>' : ''), 60);   // as the RSVP pop-up (owner, 2026-10-07)
   }
   // icon: a tile above the title; x: a × close; soft: the action is a pink outline and Keep the purple button (Leave group)
+  let confirmNote = '';
   function viewConfirm() {
     const c = state.confirm, keepFn = () => { if (state.busy) return; if (c.alt) c.alt(); else setState({ confirm: null }); };
     return modal(c.title, c.x ? () => { if (!state.busy) setState({ confirm: null }); } : null,
       (c.icon || '') +
       '<h3 style="margin:0;' + (c.x ? 'padding-right:24px;' : '') + 'font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117;text-wrap:balance">' + esc(c.title) + '</h3>' +
       '<p style="margin:0;font-size:15px;line-height:1.45;font-weight:500;color:' + (c.soft ? '#5c6270' : '#454b55') + ';text-wrap:pretty">' + esc(c.body) + '</p>' +
+      // An optional note that goes with it (Remove this time, Design v8-22 3a-2): kept as typed, read by c.run
+      (c.note ? '<label style="display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;font-weight:900;letter-spacing:1px;color:#6b7280">ADD A NOTE (OPTIONAL)</span>' +
+        '<input class="fld" type="text" maxlength="140" data-confirm-note aria-label="Add a note (optional)" placeholder="' + esc(c.note) + '" ' + onInput(e => { confirmNote = e.target.value; }) + ' style="min-height:48px;padding:0 14px;border-radius:14px;font-size:16px"></label>' : '') +
       '<div style="margin-top:4px;display:flex;flex-direction:column;gap:8px">' +
         (c.soft
           ? '<button type="button" ' + on(() => { if (!state.busy) c.run(); }) + ' class="hov-danger" style="min-height:52px;border:1.5px solid #f5c2cb;border-radius:999px;background:#fff;color:#9b1c31;font-family:inherit;font-size:16px;font-weight:800;cursor:pointer">' + esc(c.cta) + '</button>' +
@@ -12484,7 +12565,7 @@
       if (state.about != null) return setState({ about: null });
       if (state.dayTypePop) return setState({ dayTypePop: null });
       if (state.dayPick) return setState({ dayPick: null });
-      if (state.onIt) return setState({ onIt: null });
+      if (state.onIt) return closeOnIt();
       if (state.zoom) return setState({ zoom: null });
       if (state.a2hs) return setState({ a2hs: false });
       if (state.fb) return setState({ fb: null });
