@@ -11109,11 +11109,13 @@
   const optSwitch = (v, fn, label, sub, attr) => '<div ' + on(fn, 'switch') + ' aria-checked="' + v + '" aria-label="' + esc(label) + '" ' + attr + ' style="display:flex;align-items:center;gap:12px;cursor:pointer">' +
     '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">' + esc(label) + '</div><div style="font-size:12.5px;font-weight:600;color:#6b7280">' + esc(sub) + '</div></div>' +
     '<span aria-hidden="true" style="flex:0 0 46px;width:46px;height:28px;border-radius:999px;position:relative;background:' + (v ? '#149a4b' : '#dcdfe6') + '"><span style="position:absolute;top:3px;left:' + (v ? 21 : 3) + 'px;width:22px;height:22px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2)"></span></span></div>';
+  // Most per person is hidden for now (owner, 2026-10-10); a cap already saved still applies and still shows on the card
+  const PER_PERSON = false;
   const jobOptions = (r, set) => '<div data-job-options style="display:flex;flex-direction:column;gap:12px;padding-top:6px;border-top:1px solid #e8eaee">' +
     optSwitch(r.waitlist !== false, () => set({ waitlist: r.waitlist === false }), 'Waitlist when full', 'First in line gets the next open spot', 'data-part-waitlist') +
-    '<div data-part-cap style="display:flex;align-items:center;gap:12px"><div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">Most per person</div>' +
+    (PER_PERSON ? '<div data-part-cap style="display:flex;align-items:center;gap:12px"><div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">Most per person</div>' +
       '<div style="font-size:12.5px;font-weight:600;color:#6b7280">' + (r.perPerson ? 'Each person can sign up for up to ' + r.perPerson : 'People can sign up for as many as they like') + '</div></div>' +
-      stepper(r.perPerson, (v) => set({ perPerson: v ? Math.min(20, v) : null }), 'most per person') + '</div>' +
+      stepper(r.perPerson, (v) => set({ perPerson: v ? Math.min(20, v) : null }), 'most per person') + '</div>' : '') +   // hidden for now (owner, 2026-10-10)
     optSwitch(r.guests !== false, () => set({ guests: r.guests === false }), 'Guests can sign up', 'People without an account, with a name and a phone or email', 'data-job-guests') +
     '</div>';
 
@@ -11153,9 +11155,9 @@
       times +
       '<div style="height:1px;background:#e8eaee;margin:4px 0"></div>' +
       sw(r.waitlist !== false, () => set({ waitlist: r.waitlist === false }), 'Waitlist when full', 'First in line gets the next open spot') +
-      '<div data-part-cap style="display:flex;align-items:center;gap:12px"><div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">Most per person</div>' +
+      (PER_PERSON ? '<div data-part-cap style="display:flex;align-items:center;gap:12px"><div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">Most per person</div>' +
         '<div style="font-size:12.5px;font-weight:600;color:#6b7280">' + (r.perPerson ? 'Each person can claim up to ' + r.perPerson : 'People can claim as many as they like') + '</div></div>' +
-        stepper(r.perPerson, (v) => set({ perPerson: v ? Math.min(20, v) : null }), 'most per person') + '</div>' +
+        stepper(r.perPerson, (v) => set({ perPerson: v ? Math.min(20, v) : null }), 'most per person') + '</div>' : '') +   // hidden for now (owner, 2026-10-10)
     '</div>';
   };
   // The green eyebrow and title over Take part's sheet
