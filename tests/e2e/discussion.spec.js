@@ -60,7 +60,10 @@ test('discussion: the new-update banner, comments, replies, Send an update and d
     // A heart first in the Reply row: pink with a count once liked, tap again to undo (Design v8-15, Q42)
     const heart = od.locator('[data-post-row="cmt"] [data-like]').first();
     await expect(heart).toHaveAttribute('aria-pressed', 'false');
+    // The heart turns pink before the like is saved: wait for the save, or the reload below can cut it off (TEST is slow)
+    const saved = O.waitForResponse(r => r.url().includes('/rest/v1/post_likes') && r.request().method() === 'POST');
     await heart.click();
+    expect((await saved).ok()).toBe(true);
     await expect(heart).toHaveAttribute('aria-pressed', 'true');
     await expect(heart.locator('[data-like-n]')).toHaveText('1');
     await O.reload();
