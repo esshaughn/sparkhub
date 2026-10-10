@@ -115,6 +115,7 @@ None of these are built. They come from the owner's own list and the pilot group
 | 1r. Float page 1 | Done: YOUR IDEA (one line, 60) and QUICK DESCRIPTION, each with the gold ring once filled, and *Add more details ›* / *Fewer details ⌃*. **The description takes 200 characters, not 120** (owner, 2026-10-10: keep 200, like every short description; see *Owner calls that stand*) |
 | 2–3. Limit RSVPs and the waitlist | Done as specced in Plan an event and Edit event's *Who can see it* (new `20261123000000_cap_waitlist_offer_note.sql`). The database enforces the cap; hosts count toward it but are never refused. *Join waitlist* needs an account (guests see the Full chip but can't join yet). In line, the folded line is *Waitlist · 3rd in line* · Change, and Change shows **Leave waitlist** in the dark tile. Moving up gives a bell line *A spot opened: you're going to {event}.* and a push *A spot opened: you're going* |
 | 4. Offer to lead with a note | Done: the pop-up as drawn; the note shows in italics under the name on the starter's Pick line and at the end of the push (*Dee offered to lead Porch concert: "…"*). Offering again without a note clears the old one |
+| Web pages' BETA chip (owner, 2026-10-10) | The terms and privacy pages' top bar has the app's lavender **BETA** chip (#f3f1fe / #5b4ae8, 10.5px/900) beside the bolt and *Spark Hub*, like the /delete page |
 | 5. Drawn to match the build | Thanks. Rows 220–227 and §2's Member view and Add to calendar can come off our lists at the next reset |
 
 ## Round v8-17 in short
