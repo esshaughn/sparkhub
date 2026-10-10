@@ -23,6 +23,7 @@ test('discussion: the new-update banner, comments, replies, Send an update and d
     await expect(hd.getByLabel('Write a comment')).toHaveAttribute('placeholder', 'Start the discussion…');
     await hd.locator('[data-disc-mode="update"]').click();
     await expect(hd.locator('[data-disc-mode="update"]')).toHaveAttribute('aria-selected', 'true');
+    await expect(hd.locator('[data-disc-mode="update"]')).toHaveAttribute('role', 'tab');   // a tab to a screen reader, not a button
     await expect(hd.getByLabel('Write an update')).toHaveAttribute('placeholder', 'Update everyone going…');
     await expect(hd.locator('[data-post-update]')).toHaveAttribute('aria-disabled', 'true');
     await hd.locator('[data-disc-mode="comment"]').click();

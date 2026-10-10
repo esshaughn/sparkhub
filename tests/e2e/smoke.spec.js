@@ -116,6 +116,7 @@ test('Give feedback (Update 9): a Help & info tile opens the sheet; Send to Eric
     // Design v8-19 item 2: four chips, Questions / comments picked first
     await expect(box.locator('[data-fb-topic]')).toHaveText(['Questions / comments', 'Report a glitch', 'Make a suggestion', 'Love note']);
     await expect(box.locator('[data-fb-topic="q"]')).toHaveAttribute('aria-selected', 'true');
+    await expect(box.getByRole('tablist').getByRole('tab')).toHaveCount(4);   // tabs to a screen reader, not buttons
     await expect(box).toContainText('What’s on your mind?');
     await expect(box).toContainText('Ask anything about how Spark Hub works, or just tell me what you think.');
     await expect(box).not.toContainText('How useful does it feel?');
