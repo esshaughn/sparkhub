@@ -6,9 +6,24 @@
 - **Source:** github.com/esshaughn/sparkhub (`index.html`, `js/sparks.js`, `css/sparks.css`, `privacy.html`, `supabase/templates/`)
 - **Baseline:** Claude Design's **round v8-17** (`design/spark-hub/HANDOFF-to-CODE.md` and `Spark Hub App Version 8.dc.html`, 2026-10-09), built in full (with your v8-16 clarity pass): see *Round v8-17 in short*. Rows 212–227 are new since v8-15.
 - **Build version:** **v8** (v7 from owner, 2026-10-02): a lead is a choice. Since v8-8 an idea is led from the start (*Who leads it · Me*) or floated (*I'll decide*), and both use the new idea page.
-- **As of:** 2026-10-10. **Round v8-17 is live** (main `09658ae`, v=389). Also live since your last file: rows 224–227 (guests sign up with a phone or an email, taking yourself off asks first, the pinned Month that follows its list, a chosen photo opens full screen), Add to calendar as a sheet (Google Calendar · Apple Calendar · Outlook and other), and the event's ⋯ menu with Member view. Questions for you are at the end of *Round v8-17 in short*.
+- **As of:** 2026-10-10. **Round v8-17 is live** (main `09658ae`, v=389). Also live since your last file: rows 224–227 (guests sign up with a phone or an email, taking yourself off asks first, the pinned Month that follows its list, a chosen photo opens full screen), Add to calendar as a sheet (Google Calendar · Apple Calendar · Outlook and other), and the event's ⋯ menu with Member view. Questions for you are in §5 (Q44, Q49, Q50).
 
-## Start here (2026-10-09): the big catch-up
+## Start here (2026-10-10): HANDOFF-to-DESIGN-10
+
+**Your v8-17 caught up with *HANDOFF-to-DESIGN-9*. v8-17 is now built in full and live** (main `09658ae`, v=389). *Round v8-17 in short* lists each item and anywhere it differs from the prototype. This file is the reply: call it *HANDOFF-to-DESIGN-10*. Where this doc and the design files disagree, **this doc is correct**.
+
+**New since -9, all live (redraw these in the prototype):**
+- **Your v8-15 answers as built** (§1 rows 212–219): your own sign-up card gets an orange ring and a solid green *✓ You're in*; there are no polls in Plan an event (a Plan needs a date); *Post to* has square checkboxes with *Done · N groups*; Plan an event's section labels get coloured icon tiles; Discussion has hearts and an emoji button; *Leading this Idea* is one sheet; an Idea's link preview reads *Help plan: {title}*.
+- **Things that move by themselves** (rows 220–223): Add to calendar on Android opens Google Calendar; Discussion refreshes while open; other people's changes arrive within about a second; a YouTube link in a comment shows a picture.
+- **From the pilot groups** (rows 224–227): guests sign up with a phone *or* an email; taking yourself off a job or spot asks first; My calendar's and All groups' Month stays pinned and follows the list; a photo you've chosen opens full screen when tapped.
+- **Invented by the build** (§2): the event's **⋯ menu with Member view** (hosts see the event as a member does) and the **Add to calendar sheet** (Google Calendar · Apple Calendar · Outlook and other). Please draw both properly.
+- **Nothing to see** (§3): event memory, an anonymous history of each event kept for later.
+
+**Questions for you (§5):** where a lead sets an attendance cap (Q49), whether an offer to lead carries a note (Q50), and the event type chip (Q44, still open).
+
+**The design system.** The design system you made from v8-17 now lives in the Claude Design project *Design System*, with a copy in the repo at `design/design-system/`. When a round changes colours, components or wording rules, please update it there too: copy what changed and don't redesign anything.
+
+## Catch-up from HANDOFF-to-DESIGN-9 (2026-10-09; you answered it in v8-17)
 
 **Your last file from us was round v8-14 (2026-10-06, evening), and you had not yet answered *HANDOFF-to-DESIGN-8*.** Since then the build has had ~137 commits in three days (Oct 7–9), nearly all from the owner's own use of the app, two audits of it (sign-in/first encounter, jobs, multi-day, ideas) and the pilot groups' feedback. Everything below is **live** at sparkhub.wereallneighbors.org (build v=374, 2026-10-09) unless it says otherwise. The prototype `Spark Hub App Version 8.dc.html` is now behind in many places; this section tells you where, and §1 has every detail (rows 106–211, the new ones are 134–211).
 
@@ -19,7 +34,7 @@
 4. **Round tables v8-7 → v8-14**: what was built as drawn and every place it differs.
 5. **§4 / §5**: what's designed but not built, and the open questions (Q41–Q48 are new today).
 
-Where this doc and the design files disagree, **this doc is correct**. One file per side: please keep sending `HANDOFF-to-CODE.md`; this file is the reply (call it *HANDOFF-to-DESIGN-9*).
+One file per side: please keep sending `HANDOFF-to-CODE.md`.
 
 ### What changed, by area
 
@@ -437,24 +452,14 @@ Never cleared on a reset. These are places where the owner chose differently fro
 
 ## 5. Open questions for the next round
 
-(Numbers kept from before the reset; v8-8 answered 4, 8, 18, 21, 22, 23, 28, 29, 31, 33, 34 and 35; v8-15 answered 37–40 and 42–48.)
+(Numbers kept from before the reset. v8-8 answered 4, 8, 18, 21, 22, 23, 28, 29, 31, 33, 34 and 35; v8-15 answered 37–40 and 42–48; v8-17 answered 1, 9, 10, 12, 15, 16, 19, 24, 32, 36, 41 and 43. Q44 here is the newer event-type question.)
 
-1. Everything in the README's **Open / not designed yet** list still stands (categories, first-run view for an empty group, Suggest vs Offer wording, first vs full names).
 6. **Google's sign-in screen** says "continue to …supabase.co" until Spark Hub has its own sign-in domain.
 7. **Video on the vibe board** is parked (needs a ~20 s / 25 MB cap).
-9. **Give feedback:** *Ask a question* as a separate thing, and whether feedback should also be reachable from Welcome or the invite landing.
-10. **Your place, bio and "member since"** aren't shown anywhere for yourself. A public profile view, or somewhere on Me?
-12. **How Spark Hub works** (Me, SOON): the copy still needs a home now that the screen is gone (Design's Q12).
-15. **Consistency audit, held by the owner (2026-10-01):** one sort and filter control on every list, the same view names and order, one date style, one undated wording, one empty-state button label.
-16. **Test events:** they share the seeded content's *DEMO* pill, and the host can't switch one to real after posting.
-19. **Pop-up heights:** one rule for pop-ups with drop-downs?
-24. **Joseph and Cynthia's feedback:** (e) *Start here* stays parked; (f) telling people an event link works without joining the group; (g) later: a per-event chat for on-the-day changes.
-26. **A welcome tour** (parked by the owner): `WELCOME-TOUR-for-design.md`.
-32. **Lead it / Offer to lead** for members (was row 82) and the starter's *Pick* (was row 83) are the build's stand-ins. Please draw them with BRIEF-float-the-idea, including what the person who offered sees while they wait.
-36. **Recurring events (v8-7):** one RSVP covers every date and jobs aren't per date. Should people answer date by date (like Each day), and should a weekly event show on My calendar's Up next more than once?
-41. **Resource library (the owner's idea, 2026-10-08; `BACKLOG.md`):** a short card per thing a person can offer (*10 electric candles*, *a truck anyone can use*, a yard, a skill: what · how many · who · which groups · optional when it's free), no open feed. Shown on a group's *What we have* page, as suggestions when a lead adds a sign-up (*Roxy has electric candles. Ask?*) and as places in the location field. Where does it live, and how does an offer look next to a sign-up? Cautions: stays inside a person's groups, no leaderboards or points.
-43. **Event cards say *6 spots left · 1 going* · RSVP**, which reads like a cap on how many can come, when it counts open sign-ups. By case: capped event → *6 spots left*; open sign-ups → *Needs help · 6* or *6 ways to help*; neither → *N going*. Which wording? The same card also shortens an address badly (*Austin, TX 78…*).
-44. **Event type chip (for the memory work, 2026-10-09):** every event now gets a guessed type (pickleball, potluck, walk, game night, party, workout, class, volunteer, meeting, other) that only the lead can change. Should the lead see and correct it somewhere (a chip on Plan an event, or a quiet *Looks like a potluck · change*), and should *Anything to change for next time?* (more chairs, start earlier) appear after an event? Both need new UI. Nothing is built.
+26. **Welcome tour:** you chose 2c, a *Get started* checklist in place of *Start here!*. We're waiting on your drawing; nothing is built.
+44. **Event type chip (for the memory work, 2026-10-09):** every event now gets a guessed type (pickleball, potluck, walk, game night, party, workout, class, volunteer, meeting, other) that only the lead can change. Should the lead see and correct it somewhere (a chip on Plan an event, or a quiet *Looks like a potluck · change*), and should *Anything to change for next time?* (more chairs, start earlier) appear after an event? Both need new UI. Nothing is built. (Categories, your item 19, are on hold; say if the two should become one thing.)
+49. **Attendance cap (your clarity pass, item 1):** cards show *N spots left* and *Full* only for an event with a cap, and the build has the `cap` field, but nothing sets it yet. Where does a lead set the cap: Plan an event, Edit, or both? At the cap, should RSVPs stop (with a waitlist, like sign-ups) or should the card just say *Full*?
+50. **A note with an offer to lead (v8-17 items 2 and 11):** your *Pick* lines show each person's note, but the *Offer to lead* card has no note field, so the build shows no note. Should the offer get an optional note, or should *Pick* drop the note line?
 
 ## 6. Design tokens
 
