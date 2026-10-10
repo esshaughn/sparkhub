@@ -267,6 +267,16 @@ test('my calendar month: the list under the chosen day goes on into the next mon
     await expect(yc.locator('[data-ahead] [data-plan="' + later + '"]')).toHaveCount(1);
     await expect(yc.locator('[data-ahead]')).toContainText(new Date(d2 + 'T12:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }));
     await expect(yc.locator('[data-ahead]')).toContainText('COMING UP');
+    // The grid is pinned at the top and follows the list: scroll to the end and it turns to the later month (or beyond)
+    const pin = yc.locator('[data-cal-pin]');
+    await expect(pin).toBeVisible();
+    await H.evaluate(() => { const sc = document.querySelector('.scroller'); sc.scrollTop = sc.scrollHeight; });
+    await expect.poll(async () => (await pin.getAttribute('data-mon')) >= d2.slice(0, 7)).toBe(true);
+    await expect(pin).toBeVisible();   // still there, scrolled to the bottom
+    // Tapping a day in the grid starts the list at that day
+    await pin.locator('[data-cal-day="' + d2 + '"]').click();
+    await expect(yc.locator('[data-list-day="' + d2 + '"]').first()).toContainText(new Date(d2 + 'T12:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }));
+    await expect(yc.locator('[data-plan="' + later + '"]')).toHaveCount(1);
     expect(host.errors).toEqual([]);
   } finally {
     for (const id of ids) await deleteIdea(H, id);

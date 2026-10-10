@@ -4482,6 +4482,56 @@
       CVIEWS.map(k => [k, VIEW_NAMES[k], icon(k, '#6b7280')]), state.cView, (k) => setState({ cView: k, menu: null, cMon: null, cDay: null }));
   };
 
+  // My calendar's Month stays pinned at the top while the list under it scrolls (owner, 2026-10-10, from Stacy), and
+  // follows the list: the month and the highlighted day are those of the day heading at the top of the list, so scrolling
+  // into November turns the grid to November. Six rows always (the list doesn't jump when the month changes). Taps use
+  // data attributes, not the handler registry, since the grid is redrawn on scroll
+  let calPin = null;   // { list0, set, menu }: what the pinned grid draws from, set at each render of My calendar's Month
+  const calPinHtml = (mk, iso) => {
+    const today = todayISO(), [y, m] = mk.split('-').map(Number), start = new Date(y, m - 1, 1), nDays = new Date(y, m, 0).getDate();
+    const evs = calDays(calPin.list0, true, mk).filter(s => s.dayDate && s.dayDate.slice(0, 7) === mk);
+    const cells = [];
+    for (let i = 0; i < start.getDay(); i++) cells.push('<span></span>');
+    for (let d = 1; d <= nDays; d++) {
+      const dd = mk + '-' + pad2(d), onIt = dd === iso, day = evs.filter(s => s.dayDate === dd);
+      const dot = (s) => { const P = partOf(s, false); return onIt ? '#fff' : P.k === 'open' ? '#9aa0ac' : P.R.dot; };
+      cells.push('<span data-cal-day="' + dd + '" role="button" tabindex="0" aria-label="' + esc(fmtDay(dd) + (day.length ? ', ' + day.length + (day.length === 1 ? ' event' : ' events') : '')) + '" aria-pressed="' + onIt + '" style="height:40px;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;background:' + (onIt ? '#0d1117' : 'transparent') + '">' +
+        '<span style="font-size:15px;font-weight:' + (day.length || onIt ? 900 : 700) + ';color:' + (onIt ? '#fff' : dd === today ? '#5b4ae8' : day.length ? '#0d1117' : '#9aa0ac') + '">' + d + '</span>' +
+        '<span style="display:flex;gap:3px;height:5px">' + day.slice(0, 3).map(s => '<span style="width:5px;height:5px;border-radius:999px;background:' + dot(s) + '"></span>').join('') + '</span></span>');
+    }
+    while (cells.length < 42) cells.push('<span></span>');
+    const nav = (delta, label, icon) => '<span data-cal-nav="' + delta + '" role="button" tabindex="0" aria-label="' + label + '" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + icon + '</span>';
+    return '<div style="display:flex;align-items:center;gap:8px;padding:0 4px"><h2 style="flex:1;margin:0;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:#0d1117">' + esc(start.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })) + '</h2>' +
+      nav(-1, 'Previous month', I.chevL(15, '#0d1117', 2.6)) + nav(1, 'Next month', I.chevR(15, '#0d1117', 2.6)) + calPin.menu + '</div>' +
+      '<div style="' + CARD + ';padding:8px 8px">' +
+        '<div aria-hidden="true" style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));padding-bottom:2px">' + ['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(x => '<span style="text-align:center;font-size:11px;font-weight:900;letter-spacing:.6px;color:#8a909b">' + x + '</span>').join('') + '</div>' +
+        '<div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px">' + cells.join('') + '</div></div>';
+  };
+  // The day at the top of the list (the last day heading above the pinned grid's lower edge) sets the grid's month and day
+  const calPinSync = () => {
+    const pin = document.querySelector('[data-cal-pin]');
+    if (!pin || !calPin) return;
+    const heads = document.querySelectorAll('[data-list-day]');
+    if (!heads.length) return;
+    const edge = pin.getBoundingClientRect().bottom + 6;
+    let cur = heads[0];
+    for (const h of heads) { if (h.getBoundingClientRect().top <= edge) cur = h; else break; }
+    const iso = cur.getAttribute('data-list-day');
+    if (iso === pin.getAttribute('data-iso')) return;
+    pin.setAttribute('data-iso', iso); pin.setAttribute('data-mon', iso.slice(0, 7));
+    pin.innerHTML = calPinHtml(iso.slice(0, 7), iso);
+  };
+  // After a tap on the grid: the list starts again at that day, right under the grid
+  const calPinToList = () => setTimeout(() => {
+    const sc = scroller(), pin = document.querySelector('[data-cal-pin]'), h = document.querySelector('[data-list-day]');
+    if (sc && pin && h) sc.scrollTop += h.getBoundingClientRect().top - pin.getBoundingClientRect().bottom - 6;
+  }, 0);
+  let calPinRaf = 0;
+  document.addEventListener('scroll', (e) => {
+    if (!calPin || calPinRaf || !(e.target.classList && e.target.classList.contains('scroller'))) return;
+    calPinRaf = requestAnimationFrame(() => { calPinRaf = 0; calPinSync(); });
+  }, true);
+
   // Month grid, then the chosen day's events (the Calendar, and Your schedule since v6 Update 9)
   // o.mode (Design v8): 'mine' (My calendar), 'all' (All groups) or 'group' (a group page)
   const monthBody = (list0, o) => {
@@ -4494,6 +4544,8 @@
     const firstDay = inMonth.map(s => s.dayDate).sort()[0];
     // This month opens on the first day with events from today on, or today itself (owner, 2026-10-07, multi-day audit, U3: it opened on the 1st)
     const sel = o.day && o.day.slice(0, 7) === cm ? o.day : cm === today.slice(0, 7) ? (inMonth.map(s => s.dayDate).filter(d => d >= today).sort()[0] || today) : (firstDay || cm + '-01');
+    const pinned = o.mode === 'mine';
+    if (pinned) calPin = { list0, set: o.set, menu: o.menu };
     const shift = (d) => () => { const x = new Date(y, m - 1 + d, 1); o.set(x.getFullYear() + '-' + pad2(x.getMonth() + 1), null); };
     const navBtn = (fn, label, icon) => '<span ' + on(fn) + ' aria-label="' + label + '" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + icon + '</span>';
     const cells = [];
@@ -4535,22 +4587,23 @@
       let out = '', curDay = '', curMon = cm;
       rows.slice(0, 60).forEach(s => {
         if (s.dayDate.slice(0, 7) !== curMon) { curMon = s.dayDate.slice(0, 7); out += '<div style="padding-top:8px">' + monthHead(new Date(s.dayDate + 'T12:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })) + '</div>'; }
-        if (s.dayDate !== curDay) { curDay = s.dayDate; out += '<div data-ahead-day style="padding:6px 4px 0;font-size:15px;font-weight:900;color:#0d1117">' + esc(new Date(s.dayDate + 'T12:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })) + '</div>'; }
+        if (s.dayDate !== curDay) { curDay = s.dayDate; out += '<div data-ahead-day data-list-day="' + s.dayDate + '" style="padding:6px 4px 0;font-size:15px;font-weight:900;color:#0d1117">' + esc(new Date(s.dayDate + 'T12:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })) + '</div>'; }
         out += o.card(s);
       });
       return '<div data-ahead style="display:flex;flex-direction:column;gap:10px;margin-top:6px"><div style="padding:6px 4px 0;font-size:12px;font-weight:900;letter-spacing:1px;color:#6b7280">COMING UP</div>' + out + '</div>';
     };
     return '<div style="display:flex;flex-direction:column;gap:10px">' +
-      '<div style="display:flex;align-items:center;gap:8px;padding:0 4px"><h2 style="flex:1;margin:0;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:#0d1117">' + esc(start.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })) + '</h2>' +
+      (pinned ? '<div data-cal-pin data-iso="' + sel + '" data-mon="' + cm + '" style="position:sticky;top:0;z-index:6;margin:0 -14px;padding:4px 14px 8px;background:#e8eaee;display:flex;flex-direction:column;gap:8px">' + calPinHtml(cm, sel) + '</div>' : ''
+        + (!pinned ? ('<div style="display:flex;align-items:center;gap:8px;padding:0 4px"><h2 style="flex:1;margin:0;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:#0d1117">' + esc(start.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })) + '</h2>' +
         navBtn(shift(-1), 'Previous month', I.chevL(15, '#0d1117', 2.6)) + navBtn(shift(1), 'Next month', I.chevR(15, '#0d1117', 2.6)) + o.menu + '</div>' +
       '<div style="' + CARD + ';padding:10px 8px">' +
         '<div aria-hidden="true" style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));padding-bottom:4px">' + ['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(x => '<span style="text-align:center;font-size:11px;font-weight:900;letter-spacing:.6px;color:#8a909b">' + x + '</span>').join('') + '</div>' +   // (Design v8 prototype)
         '<div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px">' + cells.join('') + '</div>' +
         (monthHolds ? '<div data-hold-key style="display:flex;align-items:center;justify-content:center;gap:14px;padding:8px 0 2px;font-size:12.5px;font-weight:700;color:#6b7280">' +
           '<span style="display:flex;align-items:center;gap:6px"><span style="width:6px;height:6px;border-radius:999px;background:#9aa0ac"></span>Plan</span>' +
-          '<span style="display:flex;align-items:center;gap:6px"><span style="width:6px;height:6px;border-radius:999px;box-sizing:border-box;border:1.3px solid #9aa0ac"></span>Pencilled in</span></div>' : '') + '</div>' +
+          '<span style="display:flex;align-items:center;gap:6px"><span style="width:6px;height:6px;border-radius:999px;box-sizing:border-box;border:1.3px solid #9aa0ac"></span>Pencilled in</span></div>' : '') + '</div>') : '')) +
       // the chosen day's heading, 15px (Design v8 prototype)
-      '<div style="padding:4px 4px 0;font-size:15px;font-weight:900;color:#0d1117">' + esc(new Date(sel + 'T12:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })) + '</div>' +
+      '<div' + (pinned ? ' data-list-day="' + sel + '"' : '') + ' style="padding:4px 4px 0;font-size:15px;font-weight:900;color:#0d1117">' + esc(new Date(sel + 'T12:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })) + '</div>' +
       (dayList.length || dayHolds.length ? dayList.map(o.card).join('') + pencilled
         // An empty day (Design v8): one line on My calendar and All groups; a group page offers a dashed + Start an event on {day}
         // (a day already gone keeps the one line)
@@ -11379,6 +11432,7 @@
     root.classList.toggle('photo-top', photoTop);
     syncBadge();
     placeInvPop();
+    if (calPin) requestAnimationFrame(calPinSync);   // My calendar's pinned month follows the list
     const took = performance.now() - t0;
     diagNote('redraw (' + Math.round(took) + 'ms)');
     if (took > 150) diag('slow redraw', took);
@@ -11389,6 +11443,14 @@
   // ---------------------------------------------------------------------------
 
   root.addEventListener('click', (e) => {
+    // My calendar's pinned month grid (day cells and month arrows), drawn without the handler registry
+    const pinTap = calPin && e.target.closest('[data-cal-day],[data-cal-nav]');
+    if (pinTap) {
+      if (pinTap.hasAttribute('data-cal-day')) { const d = pinTap.getAttribute('data-cal-day'); calPin.set(d.slice(0, 7), d); }
+      else { const pin = document.querySelector('[data-cal-pin]'), [py, pm] = ((pin && pin.getAttribute('data-mon')) || todayISO().slice(0, 7)).split('-').map(Number), x = new Date(py, pm - 1 + +pinTap.getAttribute('data-cal-nav'), 1); calPin.set(x.getFullYear() + '-' + pad2(x.getMonth() + 1), null); }
+      calPinToList();
+      return;
+    }
     // Resolve the handler before any re-render can change indexes
     const scrim = e.target.closest('[data-scrim]');
     const el = e.target.closest('[data-on]');
@@ -11407,6 +11469,7 @@
   });
 
   root.addEventListener('keydown', (e) => {
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('[data-cal-day],[data-cal-nav]')) { e.preventDefault(); e.target.click(); return; }
     if ((e.key === 'Enter' || e.key === 'Escape') && e.target.matches && e.target.matches('[data-title-inline]')) { e.preventDefault(); evTitleDone(); return; }
     if (e.key === 'Enter' && e.target.matches && e.target.matches('[data-time-type]')) { e.preventDefault(); e.target.blur(); return; }
     if (e.key === 'Enter' && !e.isComposing && e.target.matches && e.target.matches('[data-comment-input], [data-reply-input]')) {
