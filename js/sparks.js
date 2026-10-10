@@ -8004,7 +8004,7 @@
         '<span aria-hidden="true" style="flex:0 0 30px;width:30px;height:30px;border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center">' +
           '<svg width="16" height="16" viewBox="0 0 24 24"><path d="M13.2 2.2 7.2 13.1l3.9-.35-.9 8.8 6.9-11.2-4.1.4z" fill="#e8a71c" stroke="#e8a71c" stroke-width="1.7" stroke-linejoin="round"/></svg></span>' +
         '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">' +
-          '<span style="font-size:14px;line-height:1.45;font-weight:600;color:#5c4148;text-wrap:pretty">Shared with you on <b style="font-weight:800;color:#3d1f27">Spark Hub</b>, where people turn ideas into plans. You can RSVP and sign up without joining anything.</span>' +
+          '<span style="font-size:14px;line-height:1.45;font-weight:600;color:#5c4148;text-wrap:pretty">Shared with you on <b style="font-weight:800;color:#3d1f27">Spark Hub</b>, where people turn ideas into plans.</span>' +
           '<span ' + on(() => openAbout()) + ' role="button" data-about-link style="align-self:flex-start;display:flex;align-items:center;gap:2px;min-height:28px;font-size:13px;font-weight:700;color:#9b6b77;cursor:pointer">What’s Spark Hub? ' + I.chevR(11, '#9b6b77', 2.6) + '</span></div>' +
         '<span ' + on(hideVisitor) + ' role="button" aria-label="Close" data-visitor-x style="position:absolute;top:8px;right:8px;width:28px;height:28px;border-radius:999px;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(12, '#9b6b77', 2.6) + '</span>' +
       '</div>';
