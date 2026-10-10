@@ -965,6 +965,11 @@
     if (state.email || !state.guest || !sparkId) return;
     must(await sb.from('guest_contacts').upsert({ spark_id: sparkId, user_id: state.me, name: state.guest.name }, { onConflict: 'spark_id,user_id' }));   // a phone left for Take part stays
   };
+  // A guest's way for the hosts to reach them: a phone number or an email (guest_contacts.phone holds either;
+  // 20261121000000_guest_email.sql). The same shapes the database checks.
+  const isEmail = (v) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v || '');
+  const contactOk = (v) => { v = (v || '').trim(); return isEmail(v) ? v.length <= 120 : /^[0-9 ()+.-]{10,20}$/.test(v) && v.replace(/\D/g, '').length >= 10; };
+  const contactLink = (v) => '<a href="' + (isEmail(v) ? 'mailto:' + esc(v) : 'tel:' + esc(v.replace(/[^\d+]/g, ''))) + '" style="flex:0 0 auto;min-width:0;max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;font-weight:800;color:#5b4ae8">' + esc(v) + '</a>';
   // Bringing others (Design v8-11, 6a): how many come along (0-10) and, optionally, who. While someone picks, the
   // numbers live in state.plusN / plusNote per event; otherwise they're the saved reply's
   const myPlus = (s) => { const r = s.rsvps.find(x => x.userId === state.me); return { n: r ? r.plus || 0 : 0, note: r ? r.plusNote || '' : '' }; };
@@ -1025,10 +1030,13 @@
           units.map(u => '<div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:16px;line-height:1.3;font-weight:900;color:#0d1117">' + esc(u.item) + '</span>' +
             (u.when ? '<span style="font-size:13.5px;font-weight:700;color:#454b55">' + esc(u.when) + '</span>' : '') + '</div>').join('') +
           '<span style="font-size:13.5px;font-weight:600;color:#6b7280">for ' + esc(s.text) + '</span>' + (s.planned ? chip : '') + '</div>' +
-        '<button type="button" data-onit-done ' + on(close) + ' style="height:50px;border:0;border-radius:999px;background:#149a4b;color:#fff;font-family:inherit;font-size:16px;font-weight:800;cursor:pointer">Done</button>' +
-        // a guest (a spot: guests can't take jobs) gets Create account beside Undo, for reminders (jobs audit M5, owner 2026-10-07)
-        '<div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:-8px"><button type="button" ' + on(() => { if (!state.busy) undoClaim(b); }) + ' style="min-height:32px;padding:0 6px;border:0;background:none;font-family:inherit;font-size:13.5px;font-weight:700;color:#9aa0a8;cursor:pointer">Undo</button>' +
-          (state.email ? '' : '<span aria-hidden="true" style="color:#c4c8d0">·</span><button type="button" data-onit-account ' + on(() => { setState({ onIt: null }); openLogin('reminder', () => setTimeout(askReminders, 500)); }) + ' style="min-height:32px;padding:0 6px;border:0;background:none;font-family:inherit;font-size:13.5px;font-weight:800;color:#5b4ae8;cursor:pointer">Create account for a reminder</button>') + '</div>' +
+        // a guest gets a real push for an account (owner, 2026-10-10): jobs and reminders in one place, hosts reach them in the app
+        (state.email ? '' : '<div data-onit-push style="display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:14px;background:#f1effd">' +
+          '<span style="font-size:15.5px;line-height:1.3;font-weight:900;color:#0d1117">Keep track of this in one place</span>' +
+          '<span style="font-size:13.5px;line-height:1.4;font-weight:600;color:#454b55">A free account puts all your jobs and spots together, sends you reminders, and lets the hosts reach you in the app.</span>' +
+          '<button type="button" data-onit-account ' + on(() => { setState({ onIt: null }); openLogin('reminder', () => setTimeout(askReminders, 500)); }) + ' style="height:50px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16px;font-weight:800;cursor:pointer">Create a free account</button></div>') +
+        '<button type="button" data-onit-done ' + on(close) + ' style="height:' + (state.email ? '50' : '44') + 'px;border:0;border-radius:999px;background:' + (state.email ? '#149a4b;color:#fff' : '#f2f3f6;color:#0d1117') + ';font-family:inherit;font-size:16px;font-weight:800;cursor:pointer">' + (state.email ? 'Done' : 'Not now') + '</button>' +
+        '<div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:-8px"><button type="button" ' + on(() => { if (!state.busy) undoClaim(b); }) + ' style="min-height:32px;padding:0 6px;border:0;background:none;font-family:inherit;font-size:13.5px;font-weight:700;color:#9aa0a8;cursor:pointer">Undo</button></div>' +
       '</div></div>';
   }
   // "You're going!" (members, after Going) and "You're on the list, {name}!" (guests, after Going or Maybe, once saved): Design v8-11 6a / 2b
@@ -6340,6 +6348,7 @@
     const person = (u, id) => '<div data-roster-person style="display:flex;align-items:center;gap:10px;min-height:44px">' + face(id, personName(s, id), 32) +
       '<span style="flex:1;min-width:0;display:flex;align-items:center;gap:8px;font-size:15.5px;font-weight:800;color:#0d1117"><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(personName(s, id)) + '</span>' +
         (isGuest(id) ? '<span style="flex:0 0 auto;padding:2px 7px;border-radius:999px;background:#eef0f3;font-size:11px;font-weight:900;letter-spacing:.6px;color:#6b7280">GUEST</span>' : '') + '</span>' +
+      (isGuest(id) ? contactLink(s.contacts.find(c => c.user_id === id).phone) : '') +
       (id === state.me ? '' : '<span ' + on(() => removeFromPart(s, u, id)) + ' data-roster-remove role="button" style="flex:0 0 auto;min-height:36px;display:flex;align-items:center;font-size:14px;font-weight:700;color:#8a909b;cursor:pointer">Remove</span>') + '</div>';
     const block = (u) => { const open = Math.max(0, (u.need || 0) - u.claims.length), live = phaseOf(s) !== 'done';
       return '<div data-roster-row style="display:flex;flex-direction:column;gap:2px;padding:10px 0;border-top:1px solid #f2f3f6">' +
@@ -6361,11 +6370,11 @@
     (s && s.items || []).forEach(p => p.rows.forEach(x => { if (x.id === g.row) u = x; }));
     if (!s || !u) return '';
     const close = () => setState({ partGuest: null }), set = (patch) => setState({ partGuest: Object.assign({}, state.partGuest, patch) });
-    const name = cleanTitle(g.name || '').slice(0, 40), phone = (g.phone || '').trim(), ok = !!name && phone.replace(/\D/g, '').length >= 7 && !state.busy;
+    const name = cleanTitle(g.name || '').slice(0, 40), phone = (g.phone || '').trim(), ok = !!name && contactOk(phone) && !state.busy;
     const when = u.time ? slotTime(u.time) : '', wait = g.act === 'wait';
     const go = () => {
       if (!ok) return;
-      state.partGuestSaved = { id: s.id, phone: phone.slice(0, 30) };
+      state.partGuestSaved = { id: s.id, phone };
       setState({ partGuest: null, guest: { name }, guestName: name });
       if (!state.myName) saveName(name).catch(() => {});
       if (wait) joinWait(s, u); else claimPart(s, u);
@@ -6376,11 +6385,13 @@
       '<div style="display:flex;align-items:flex-start;gap:10px"><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:800;letter-spacing:1.2px;color:#149a4b">' + esc((u.part.item + (when ? ' · ' + when : '')).toUpperCase()) + '</div>' +
         '<div style="margin-top:2px;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.4px;color:#0d1117">' + (wait ? 'Join the waitlist' : 'Sign up') + '</div></div>' + closeX(close) + '</div>' +
       '<input class="fld" type="text" maxlength="40" autocomplete="name" data-autofocus aria-label="Your name" placeholder="Your name" value="' + esc(g.name || '') + '" ' + onInput(e => { if (e.type === 'input') set({ name: e.target.value.slice(0, 40) }); }) + ' style="' + fld + '">' +
-      '<input class="fld" type="tel" maxlength="30" autocomplete="tel" aria-label="Phone number" placeholder="Phone number" value="' + esc(g.phone || '') + '" ' + onInput(e => { if (e.type === 'input') set({ phone: e.target.value.slice(0, 30) }); }) + ' style="' + fld + '">' +
-      '<p style="margin:0;font-size:13px;line-height:1.4;font-weight:600;color:#6b7280">Only the hosts see your number.' + (wait ? ' Without an account we can’t tell you when a spot opens.' : '') + '</p>' +   // jobs audit M5
+      '<input class="fld" type="text" inputmode="email" maxlength="120" autocomplete="email" autocapitalize="off" spellcheck="false" aria-label="Phone number or email" placeholder="Phone number or email" value="' + esc(g.phone || '') + '" ' + onInput(e => { if (e.type === 'input') set({ phone: e.target.value.slice(0, 120) }); }) + ' style="' + fld + '">' +
+      '<p style="margin:0;font-size:13px;line-height:1.4;font-weight:600;color:#6b7280">Only the hosts see your phone or email.' + (wait ? ' Without an account we can’t tell you when a spot opens.' : '') + '</p>' +   // jobs audit M5
       '<button type="button" data-enter ' + on(go) + ' aria-disabled="' + !ok + '" style="min-height:52px;border:0;border-radius:999px;font-family:inherit;font-size:16px;font-weight:800;color:#fff;background:' + (ok ? '#149a4b' : '#c9ccd3') + ';cursor:' + (ok ? 'pointer' : 'default') + '">' +
         (wait ? 'Join the waitlist' : 'Sign up' + (when ? ' for ' + when : '')) + '</button>' +
-      '<span ' + on(signIn) + ' role="button" style="align-self:center;min-height:36px;display:flex;align-items:center;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">Have an account? Sign in</span>', 36);
+      // Owner, 2026-10-10: push for an account here too; one place for all your jobs and reminders
+      '<p data-guest-why style="margin:0;text-align:center;font-size:13.5px;line-height:1.4;font-weight:600;color:#454b55">With a free account, all your jobs and reminders are in one place, and the hosts can reach you in the app.</p>' +
+      '<span ' + on(signIn) + ' data-guest-account role="button" style="align-self:center;min-height:36px;display:flex;align-items:center;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">Create a free account or sign in</span>', 36);
   }
 
   // Participate (owner, 2026-10-07: one kind of sign-up; was Take part and Help out): every item through takePart's
@@ -10262,7 +10273,7 @@
     '<div data-part-cap style="display:flex;align-items:center;gap:12px"><div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">Most per person</div>' +
       '<div style="font-size:12.5px;font-weight:600;color:#6b7280">' + (r.perPerson ? 'Each person can sign up for up to ' + r.perPerson : 'People can sign up for as many as they like') + '</div></div>' +
       stepper(r.perPerson, (v) => set({ perPerson: v ? Math.min(20, v) : null }), 'most per person') + '</div>' +
-    optSwitch(r.guests !== false, () => set({ guests: r.guests === false }), 'Guests can sign up', 'People without an account, with a name and phone', 'data-job-guests') +
+    optSwitch(r.guests !== false, () => set({ guests: r.guests === false }), 'Guests can sign up', 'People without an account, with a name and a phone or email', 'data-job-guests') +
     '</div>';
 
   // Take part's fields (Design v8-2, 1b): a name and details, then Claim time's rows (start – end and a count each,
@@ -10812,7 +10823,7 @@
     const close = () => setState({ interestList: false }), lead = isLead(s), list = fans(s);
     return modal('Who’s interested', close,
       h3Html('Who’s interested') +
-      (lead && s.contacts.some(c => c.phone && s.interested.indexOf(c.user_id) > -1) ? paraHtml('Only you see phone numbers. They’re from people who took part without an account.') : '') +
+      (lead && s.contacts.some(c => c.phone && s.interested.indexOf(c.user_id) > -1) ? paraHtml('Only you see phone numbers and emails. They’re from people who took part without an account.') : '') +
       '<div style="display:flex;flex-direction:column">' +
         (list.length ? '' : '<span data-interested-none style="padding:6px 0;font-size:15px;font-weight:600;color:#6b7280">No one yet. Share it to find people.</span>') +   // the starter's row opens it at 0 too
         list.map((u, i) => {
@@ -10823,7 +10834,7 @@
             '<span style="flex:1 1 auto;min-width:0;font-size:15.5px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(name) + '</span>' +
             (u === s.leadId ? '<span data-lead-chip style="flex:0 0 auto;padding:3px 9px;border-radius:999px;background:#f5b428;font-size:12px;font-weight:800;color:#2a1d00">' + (s.wantsHost ? 'Floated it' : 'Leading') + '</span>' : '') +
             (s.canHelp.indexOf(u) > -1 ? '<span data-can-help-chip style="flex:0 0 auto;padding:3px 9px;border-radius:999px;background:#fdf1d6;font-size:12px;font-weight:800;color:#8f6405">Offered to lead</span>' : '') +
-            (c && c.phone ? '<a href="tel:' + esc(c.phone.replace(/[^\d+]/g, '')) + '" style="flex:0 0 auto;font-size:14px;font-weight:800;color:#5b4ae8">' + esc(c.phone) + '</a>' : c ? '<span style="flex:0 0 auto;padding:3px 9px;border-radius:999px;background:#f2f3f6;font-size:12px;font-weight:800;color:#6b7280">Guest</span>' : '') +
+            (c && c.phone ? contactLink(c.phone) : c ? '<span style="flex:0 0 auto;padding:3px 9px;border-radius:999px;background:#f2f3f6;font-size:12px;font-weight:800;color:#6b7280">Guest</span>' : '') +
           '</div>';
         }).join('') +
       '</div>');
@@ -10848,7 +10859,7 @@
         (sub ? '<span data-guest-sub style="flex:0 1 auto;min-width:0;font-size:13px;font-weight:700;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(sub) + '</span>' : '') +
         // Each day events (v8-7 item 6): a small green tag with their days ("Both days", "Sat", "Sat · Maybe Sun")
         (s.daysEach && daysTag(s, rsvpDays(s, u)) ? '<span data-day-tag style="flex:0 0 auto;padding:3px 9px;border-radius:999px;background:#e6f5ec;font-size:12px;font-weight:800;color:#0f6b35;white-space:nowrap">' + esc(daysTag(s, rsvpDays(s, u))) + '</span>' : '') +
-        (c && c.phone ? '<a href="tel:' + esc(c.phone.replace(/[^\d+]/g, '')) + '" style="flex:0 0 auto;font-size:14px;font-weight:800;color:#5b4ae8">' + esc(c.phone) + '</a>' : c ? '<span style="flex:0 0 auto;padding:3px 9px;border-radius:999px;background:#f2f3f6;font-size:12px;font-weight:800;color:#6b7280">Guest</span>' : '') + '</div>';
+        (c && c.phone ? contactLink(c.phone) : c ? '<span style="flex:0 0 auto;padding:3px 9px;border-radius:999px;background:#f2f3f6;font-size:12px;font-weight:800;color:#6b7280">Guest</span>' : '') + '</div>';
     };
     // GOING · N counts the people they're bringing too (v8-11)
     const section = (k, label, ink, ids, rowFn) => !ids.length ? '' : '<div data-guest-part="' + k + '" style="display:flex;flex-direction:column;gap:2px"><span style="font-size:12px;font-weight:900;letter-spacing:1px;color:' + ink + '">' + label + ' · ' + (k === 'going' ? headN(s) : ids.length) + '</span>' +
@@ -10870,7 +10881,7 @@
     // The lead's Guest list (with guests' numbers, Can't and Haven't replied); everyone else sees who's going and who might
     return modal(lead ? 'Who’s coming' : 'Who’s going', close,
       h3Html(lead ? 'Who’s coming' : 'Who’s going') +
-      (any ? (lead && s.contacts.some(c => c.phone && s.rsvps.some(r => r.userId === c.user_id)) ? paraHtml('Phone numbers are from people who RSVP’d without an account. Only you see them.') : '') +
+      (any ? (lead && s.contacts.some(c => c.phone && s.rsvps.some(r => r.userId === c.user_id)) ? paraHtml('Phone numbers and emails are from people who RSVP’d without an account. Only you see them.') : '') +
         '<div style="display:flex;flex-direction:column;gap:14px">' + part('going', 'GOING', '#0f7a3c') + part('maybe', 'MAYBE', '#b07a0a') + (lead ? part('no', 'CAN’T', '#6b7280') : '') +
           section('none', 'HAVEN’T REPLIED', '#5b4ae8', quiet, nudgeRow) + '</div>'
         : paraHtml(lead ? 'Nobody has replied yet. Share the link to get the word out.' : 'Nobody yet. Be the first.')));
