@@ -6227,7 +6227,14 @@
       else must(await sb.from('rsvps').delete().eq('spark_id', sparkId).eq('user_id', state.me));
     }
   }, { toast: null }).then(ok => { if (ok) toast('Okay, it’s open again', true); });
+  // Taking yourself off asks first (owner, 2026-10-10): are you sure, then the usual You're off it banner with Undo
   const giveUpPart = (s0, u0) => {
+    const [s, u] = freshRow(s0, u0);
+    if (state.viewAs) return doGiveUp(s0, u0);
+    setState({ confirm: { title: 'Take yourself off ' + (u.part.kind === 'job' ? u.part.item : partLabel(u)) + '?', danger: true, cta: 'Yes, remove me', keep: 'Keep it',
+      body: 'You’re about to remove yourself from this. Is that really what you want?', run: () => { setState({ confirm: null }); doGiveUp(s0, u0); } } });
+  };
+  const doGiveUp = (s0, u0) => {
     const [s, u] = freshRow(s0, u0), mine = u.claims.find(c => c.userId === state.me) || {};
     // You're off it (Undo, Find a replacement), as for a job (owner, 2026-10-07: one kind of sign-up; was a toast)
     if (!state.viewAs) offIt(s, { item: u.part.kind === 'job' ? u.part.item : partLabel(u) }, { items: [u.id], note: mine.note || null });

@@ -179,6 +179,7 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     await expect(GP.locator('[data-signup="Lemonade"]')).toContainText('You’re in');
     // Taking yourself off later: "You're off it" with Find a replacement
     await GP.locator('[data-signup="Lemonade"]').getByLabel('You’re in. Tap to take yourself off').click();
+    await confirm(G, 'Yes, remove me');   // asks first (owner, 2026-10-10)
     const off = G.locator('[data-banner="off"]');
     await expect(off).toContainText('You’re off it');
     await expect(off.getByRole('button', { name: 'Undo' })).toBeVisible();   // takes you straight back on
@@ -304,6 +305,7 @@ test('Sign up: More details, time ranges and a job’s most per person', async (
     await expect(O.getByText('Up to 1 per person for coat check table')).toBeVisible();
     await expect(late.getByRole('button', { name: 'Sign up' })).toBeVisible();
     await early.getByLabel('You’re in. Tap to take yourself off').click();
+    await confirm(O, 'Yes, remove me');   // asks first (owner, 2026-10-10)
     await expect(O.locator('[data-banner="off"]')).toContainText('You’re off it');
     await O.locator('[data-banner="off"]').getByLabel('Dismiss').click();
     await late.getByRole('button', { name: 'Sign up' }).click();
@@ -327,6 +329,7 @@ test('Sign up: More details, time ranges and a job’s most per person', async (
     await expect(needs.getByText('Use one time instead')).toHaveCount(0);
     await needs.getByRole('button', { name: 'Close' }).click();
     await late.getByLabel('You’re in. Tap to take yourself off').click();
+    await confirm(O, 'Yes, remove me');   // asks first (owner, 2026-10-10)
     await expect(O.locator('[data-banner="off"]')).toContainText('We’ll let Hope know');
     await expect(late).toContainText('1 open');
 

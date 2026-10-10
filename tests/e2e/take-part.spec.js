@@ -101,6 +101,8 @@ test('take part: set up spots, claim, waitlist, guest, roster and giving up', as
     // Theo gives 9:00am up: Sam moves up (the database does it)
     await M.reload();
     await MP.locator('[data-part-row="9:00am"] [data-part-give-up]').click();
+    await expect(M.getByRole('alertdialog')).toContainText('Is that really what you want?');   // asks first (owner, 2026-10-10)
+    await confirm(M, 'Yes, remove me');
     await expect(M.locator('[data-banner="off"]')).toContainText('You’re off it');   // as for a job (2026-10-07)
     await G.reload();
     await expect(GP.locator('[data-part-row="9:00am"]')).toContainText('You’re in');
