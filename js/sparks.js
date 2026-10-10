@@ -11075,17 +11075,18 @@
       '<input class="fld" type="text" maxlength="60"' + (idx == null ? ' data-job-name' : '') + ' aria-label="Job name' + tag + '" placeholder="What you need" value="' + esc(r.item) + '" ' + onInput(e => { if (e.type === 'input') set({ item: e.target.value.slice(0, 60) }); }) + ' style="' + BIG + ';min-height:52px;font-size:' + (idx == null ? 17 : 16) + 'px">' +
       (verb ? '<span aria-hidden="true" data-job-filler style="position:absolute;left:18px;right:18px;top:0;bottom:0;display:flex;align-items:center;pointer-events:none;white-space:pre;overflow:hidden;font-size:17px;font-weight:800"><span style="visibility:hidden">' + esc(r.item) + (/\s$/.test(r.item) ? '' : ' ') + '</span><span style="font-style:italic;font-weight:400;color:#b9bcc4">' + esc(JOB_FILL[verb][0]) + '</span></span>' : '') + '</div>' +
       '';   // no suggestion chips under the name (v8); the gray filler after the verb stays
-    // The quick pop-up (Design v8-18, 1d): the name (a starter's word in purple in front), the starters under it, then
-    // + Add details (the full editor, details open) and the count. No autofocus; a purple ring when it has focus
+    // The quick pop-up (Design v8-18, 1d): the name (a starter's word in purple in front), then + Add details (the full
+    // editor, details open) and the count, then the starters (owner, 2026-10-10: the count above the starters). No autofocus; a purple ring when it has focus
     if (fresh) { const p = jobPre(r.item);
       return '<div style="display:flex;flex-direction:column;gap:12px">' +
         '<label data-job-name-box style="display:flex;align-items:center;gap:8px;height:52px;padding:0 16px;box-sizing:border-box;border:1.5px solid #dcdfe6;border-radius:16px;background:#fff;cursor:text">' +
           (p.label ? '<span data-job-pre style="flex:0 0 auto;font-size:16px;font-weight:800;color:#4a3ad4">' + esc(p.label) + '</span>' : '') +
           '<input type="text" maxlength="60" data-job-name aria-label="Sign-up name" placeholder="' + esc(p.hint || 'What you need') + '" value="' + esc(p.rest) + '" ' + onInput(e => { if (e.type === 'input') set({ item: ((p.label ? p.label + ' ' : '') + e.target.value).slice(0, 60) }); }) +
             ' style="flex:1;min-width:0;margin:0;padding:0;border:0;outline:none;background:transparent;font-family:inherit;font-size:16px;font-weight:700;color:#0d1117"></label>' +
-        addStarters(r, set) + dayPick +
-        '<div style="display:flex;align-items:center;gap:10px;padding-top:2px"><span ' + on(() => set({ item: (r.item || '').trim() }) || setState({ jobMore: true })) + ' role="button" data-job-more style="flex:1;min-width:0;display:flex;align-items:center;gap:6px;min-height:40px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer"><span aria-hidden="true" style="font-size:17px;line-height:1;font-weight:700">+</span><span>Add details</span></span>' +
-          stepper(r.need || null, (n) => set({ need: n || null }), 'how many people') + '</div></div>'; }
+        // + Add details and the count sit right under the name, above the starters (owner, 2026-10-10)
+        '<div style="display:flex;align-items:center;gap:10px"><span ' + on(() => set({ item: (r.item || '').trim() }) || setState({ jobMore: true })) + ' role="button" data-job-more style="flex:1;min-width:0;display:flex;align-items:center;gap:6px;min-height:40px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer"><span aria-hidden="true" style="font-size:17px;line-height:1;font-weight:700">+</span><span>Add details</span></span>' +
+          stepper(r.need || null, (n) => set({ need: n || null }), 'how many people') + '</div>' +
+        addStarters(r, set) + dayPick + '</div>'; }
     return '<div style="display:flex;flex-direction:column;gap:10px">' + nameFld +
       '<textarea class="fld" rows="2" maxlength="400" aria-label="Details' + tag + '" placeholder="Details (optional)" ' + onInput(e => { if (e.type === 'input') set({ desc: e.target.value.slice(0, 400) }); }) + ' style="' + BIG + ';min-height:52px;padding:12px 16px;font-size:16px;font-weight:500;line-height:1.4;resize:none">' + esc(r.desc || '') + '</textarea>' + dayPick +
       (r.shifts
