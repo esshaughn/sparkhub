@@ -7046,8 +7046,7 @@
       ok = !(s.planned && !ss.d) && !whenErr(ss);
     } else if (ss.kind === 'details') {
       body = '<div style="display:flex;flex-direction:column;gap:12px">' +   // v8-12: no "Both parts are optional."
-        (ss.desc != null ? wteDesc(ss.ov || '', (v) => set({ ov: v }), ss.desc, (v) => set({ desc: v }))
-          : wteFields(ss.ov || '', (v) => set({ ov: v }), ss.bits, (k, v) => { const b = state.sec.bits.slice(); b[k] = v; set({ bits: b }); })) +
+        wteDesc(ss.ov || '', (v) => set({ ov: v }), ss.desc || '', (v) => set({ desc: v })) +   // one box everywhere (owner, 2026-10-11)
         (!s.planned && isLead(s) ? needRow(ss.need, (n) => set({ need: n })) : '') + '</div>';
     } else {
       const tile = (priv, name, sub) => { const onIt = ss.priv === priv;
@@ -7523,7 +7522,7 @@
             (ov ? '<div data-overview style="font-size:18px;line-height:1.4;font-weight:500;color:#0d1117;text-wrap:pretty">' + esc(ov) + '</div>' : '') +
             (descText(s) ? descHtml(descText(s), 'padding:4px 0;font-size:17px;line-height:1.45;font-weight:500;color:#0d1117')
               : bits.map(t => '<div style="display:flex;align-items:baseline;gap:10px;padding:4px 0"><span style="flex:0 0 7px;width:7px;height:7px;border-radius:999px;background:#149a4b;transform:translateY(-3px)"></span><span style="font-size:17px;line-height:1.4;font-weight:500;color:#0d1117;text-wrap:pretty">' + esc(t) + '</span></div>').join('')) + '</div>'
-        : '<div ' + on(() => openSec(s, 'details')) + ' style="padding:14px 16px;border-radius:18px;border:1.5px dashed #c9ccd3;font-size:14.5px;font-weight:700;color:#6b7280;cursor:pointer">' + (s.overview ? 'Add up to three quick notes.' : 'Add a one-line overview and up to three quick notes.') + '</div>') +
+        : '<div ' + on(() => openSec(s, 'details')) + ' style="padding:14px 16px;border-radius:18px;border:1.5px dashed #c9ccd3;font-size:14.5px;font-weight:700;color:#6b7280;cursor:pointer">' + 'Add a description of what to expect.' + '</div>') +
       // The way in to a plan's first Inspo photo (owner, 2026-10-05: Inspo stays hidden on a plan until it has one)
       (isLead(s) && s.planned && !s.cancelledAt && !s.mood.length ? '<label data-add-inspo class="hov-fill-grey"' + (state.busy ? ' aria-busy="true"' : '') + ' style="margin-top:8px;align-self:flex-start;display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 4px;font-size:14px;font-weight:800;color:#5b4ae8;cursor:' + (state.busy ? 'wait;opacity:.6' : 'pointer') + '">' +
           svg(15, stroke('currentColor', 2.2), '<rect x="3.5" y="5" width="17" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.6"/><path d="m20.5 16-5-5-8 8"/>') + (state.busy ? 'Adding…' : 'Add inspo photos') +
@@ -9729,7 +9728,6 @@
   // (no lead card; Float an idea is the + menu's own sheet). 'when' and 'where' are page 1's parts, and Review's pop-ups
   const EV_STEPS = ['title', 'details', 'help'];
   const EV_NAMES = { title: 'Title, date & location', when: 'Date & time', where: 'Location', details: 'What to expect', help: 'Sign up', review: 'Review' };
-  const BIT_PH = ['Meet by the front desk', 'Coffee and donuts at 9:30', 'Kids and dogs welcome'];   // no "e.g." in placeholders (v8)
   const EV_GRAD = 'linear-gradient(135deg,#5b4ae8,#8a6ff0 55%,#e8a71c)';
   const AMBER_INK = '#8f6405';
   const BIG = 'display:block;box-sizing:border-box;width:100%;min-width:0;min-height:58px;margin:0;border:2px solid #dcdfe6;border-radius:16px;padding:0 16px;font-family:inherit;font-size:17px;font-weight:800;color:#0d1117;background:#fff;outline:none';
@@ -9812,12 +9810,12 @@
   const evPhotoUrl = (st) => st.photos[0] ? st.photos[0].url : (PHOTO_PATH.test(st.evPhotoPath || '') ? photoUrl(st.evPhotoPath) : null);
   // Page 1 needs a title and a date (or a date poll), v8-6
   const evFilled = (st) => ({ title: !!cleanTitle(st.activity) && !!st.evDate, when: !!st.evDate, where: !!cleanTitle(st.locText) || !!cleanTitle(st.locAddr || '') || !!st.evSpotPoll,
-    details: st.evBits.some(b => b.trim()) || !!(st.evOverview || '').trim() || (MIN_PEOPLE && !st.evDate && st.evNeed > 0), help: st.evNeeds.length > 0 || st.evIdeaJobs.length > 0, lead: true });   // leading it is already picked
+    details: !!descPlain(st.evDesc || '').trim() || !!(st.evOverview || '').trim() || (MIN_PEOPLE && !st.evDate && st.evNeed > 0), help: st.evNeeds.length > 0 || st.evIdeaJobs.length > 0, lead: true });   // leading it is already picked
   // "Sat, Oct 24 · 10am", "Sat, Oct 24 · 10am – 12pm"
   const dayLabel = (d, t, e) => d ? fmtDay(d) + (t ? ' · ' + (e ? spanTime({ time: t, endTime: e }) : fmtTime(t)) : '') : '';
   const jobMeta = (j) => j.kind ? partMeta(j) : (j.day ? dayWord(whenCols(evWhen()).schedule, j.day) + ' · ' : '') + (j.shifts ? (j.shifts.length === 1 ? fmtTime(j.shifts[0].time) : j.shifts.length + ' times from ' + fmtTime(j.shifts[0].time)) + (j.shifts.every(q => q.need && q.need === j.shifts[0].need) ? ' · ' + j.shifts[0].need + ' each' : '')
     : (j.need ? j.need + (j.need === 1 ? ' slot' : ' slots') : 'No limit') + (j.time ? ' · ' + fmtTime(j.time) : ''));
-  const evStarted = (st) => !!(cleanTitle(st.activity) || st.evDate || cleanTitle(st.locText) || cleanTitle(st.locAddr || '') || st.evBits.some(b => b.trim()) || !!(st.evOverview || '').trim() || st.evNeeds.length || !!(st.evDesc || '').trim() || (st.evInspo || []).length);
+  const evStarted = (st) => !!(cleanTitle(st.activity) || st.evDate || cleanTitle(st.locText) || cleanTitle(st.locAddr || '') || !!(st.evOverview || '').trim() || st.evNeeds.length || !!(st.evDesc || '').trim() || (st.evInspo || []).length);
   // People can invite friends (v8-14): on by default for Public, off for Private; switching it sticks until Public / Private changes
   const evGuestInv = (st) => st.evNoGuestInv == null ? !st.evPriv : !st.evNoGuestInv;
   const evGroupIds = (st) => {
@@ -9976,7 +9974,7 @@
     // A date that has passed asks for a new one (owner, 2026-10-07; it used to move to the same day next year)
     if (d && d < todayISO()) { toast('That date has passed. Pick a new one.'); if (useIdea8(s)) openPick(s, 'd'); else openSec(s, 'when'); return; }
     go('compose', Object.assign(composeReset(), {
-      activity: s.text, evOverview: s.overview || '', evDate: d, evTime: d && s.dayTime ? s.dayTime : '', locText: nameFrom(s.spot, s.spotAddress),
+      activity: s.text, evOverview: s.overview || '', evDesc: descDraft(s), evDate: d, evTime: d && s.dayTime ? s.dayTime : '', locText: nameFrom(s.spot, s.spotAddress),
       locPlace: s.spot && s.spotAddress ? { name: s.spot, address: s.spotAddress, lat: s.spotPoint ? s.spotPoint[0] : null, lon: s.spotPoint ? s.spotPoint[1] : null } : null, locAddr: s.spotAddress || '',
       evPhotoPath: s.photoPaths[0] || null, coverPos: s.coverPos || null, evGroups: s.groupIds.slice(), evPriv: s.visibility === 'invite',
       evStep: d ? 'review' : 'title', evFromIdea: s.id, evIdeaJobs: (s.jobs || s.signups).concat(s.parts || []).map(j => cleanTitle(j.item || '')).filter(Boolean),
@@ -9996,7 +9994,7 @@
         const cover = await evCover(st);
         const c = whenCols(evWhen()); if (!c.schedule) c.schedule = null;
         must(await sb.from('sparks').update(Object.assign({
-          text: cleanTitle(st.activity).slice(0, TITLE_MAX), hopes: st.evBits.map(b => b.trim().slice(0, 60)).filter(Boolean), overview: (st.evOverview || '').trim().slice(0, OV_MAX) || null,
+          text: cleanTitle(st.activity).slice(0, TITLE_MAX), hopes: [], vision: (st.evDesc || '').trim().slice(0, DESC_DB) || null, overview: (st.evOverview || '').trim().slice(0, OV_MAX) || null,
           ...evSpotCols(st),
           visibility: st.evPriv ? 'invite' : 'group', guest_invites: evGuestInv(st), tags: (st.evTags || []).slice(0, 2),
           cover_pos: cover && st.coverPos ? posOf(st.coverPos, IDEA_POS) : null
@@ -10038,7 +10036,7 @@
         const row = {
           group_id: groups[0], author_name: st.myName, text: cleanTitle(st.activity).slice(0, TITLE_MAX),
           // v8-14: the one-page description (200) is the event's details text, shown whole under What to expect
-          hopes: (st.evDesc || '').trim() ? [] : st.evBits.map(b => b.trim().slice(0, 60)).filter(Boolean), vision: (st.evDesc || '').trim().slice(0, DESC_DB) || null, overview: (st.evOverview || '').trim().slice(0, OV_MAX) || null,
+          hopes: [], vision: (st.evDesc || '').trim().slice(0, DESC_DB) || null, overview: (st.evOverview || '').trim().slice(0, OV_MAX) || null,
           mood: insp.paths, photos: cover ? [cover.path] : [], cat: 'events', answers: {}, lead_id: st.me, lead_name: st.myName, created_by: st.me,
           ...evSpotCols(st),
           ...(() => { const c = whenCols(evWhen()); if (!c.schedule) delete c.schedule; return c; })(),   // multi-day: day_date is the first day, schedule the rest (v8-7)
@@ -10440,23 +10438,8 @@
     '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">How many people do you want?</div>' +
       '<div style="margin-top:1px;font-size:12.5px;line-height:1.35;font-weight:600;color:#6b7280;text-wrap:pretty">' + (n ? 'It’s a go once ' + n + (n === 1 ? ' person is' : ' people are') + ' in.' : 'What’s the minimum number that would make this feel like a success?') + '</div></div>' +
     stepper(n, set, 'how many people needed') + '</div>';
-  const bitRows = (bits, set) => bits.map((v, k) => '<label style="display:flex;align-items:center;gap:10px;min-height:58px;padding:0 16px;border-radius:16px;background:#fff;box-shadow:inset 0 0 0 2px #dcdfe6;cursor:text">' +
-    '<span aria-hidden="true" style="flex:0 0 7px;width:7px;height:7px;border-radius:999px;background:' + (v.trim() ? '#0f7a3c' : '#c9ccd3') + '"></span>' +
-    '<input class="bit-fld" type="text" maxlength="60" aria-label="Details, line ' + (k + 1) + '" placeholder="' + esc(BIT_PH[k]) + '" value="' + esc(v) + '" ' + onInput(e => { if (e.type === 'input') set(k, e.target.value.slice(0, 60)); }) +
-      ' style="flex:1 1 auto;min-width:0;border:0;padding:0;background:transparent;font-family:inherit;font-size:17px;font-weight:500;color:#0d1117;outline:none">' +
-    '<span style="font-size:11.5px;font-weight:700;color:#9aa0ac">' + v.length + '/60</span></label>').join('');
   // What to expect (Design 8a/10a, 2026-10-03): two numbered parts, both optional: a short overview (120, owner 2026-10-07) and up to three details (60 each)
   const OVERVIEW_PH = 'An evening of backyard games and food with whoever shows up';
-  // v8-12: the purple 1 / 2 number circles are gone; the labels and Optional tags stay
-  const wtePart = (n, label, inner) => '<div style="display:flex;flex-direction:column;gap:8px">' +
-    '<div style="display:flex;align-items:center;gap:10px">' +
-      '<span style="flex:1;display:flex;align-items:baseline;gap:8px;font-size:17px;font-weight:900;color:#0d1117">' + label + '<span style="font-size:13.5px;font-weight:600;color:#9aa0ac">Optional</span></span></div>' + inner + '</div>';
-  const wteFields = (ov, setOv, bits, setBit) => '<div data-wte style="display:flex;flex-direction:column;gap:10px">' +   // 10px apart (Design v8)
-    wtePart(1, 'One-line overview', '<label style="display:flex;align-items:center;gap:10px;min-height:58px;padding:0 16px;border-radius:16px;background:#fff;box-shadow:inset 0 0 0 2px #dcdfe6;cursor:text">' +
-      '<input class="bit-fld" type="text" maxlength="' + OV_MAX + '" data-overview-input aria-label="One-line overview" placeholder="' + esc(OVERVIEW_PH) + '" value="' + esc(ov) + '" ' + onInput(e => { if (e.type === 'input') setOv(e.target.value.slice(0, OV_MAX)); }) +
-        ' style="flex:1 1 auto;min-width:0;border:0;padding:0;background:transparent;font-family:inherit;font-size:18px;font-weight:500;color:#0d1117;outline:none">' +
-      '<span style="font-size:11.5px;font-weight:700;color:#9aa0ac">' + ov.length + '/' + OV_MAX + '</span></label>') +
-    wtePart(2, 'Up to three details', '<div style="display:flex;flex-direction:column;gap:8px">' + bitRows(bits, setBit) + '</div>') + '</div>';
   // An event posted from the one-page Plan an event (v8-14) has a description, not quick details. Editing it is the one
   // formatted box, as in Plan an event (Design v8-22): EVENT DESCRIPTION · Optional, B · I · bullets · numbers, 500. The
   // quick overview stays as it is (Edit event has it)
@@ -10760,14 +10743,14 @@
       // What to expect and Join in, with Edit or Add opening that step in a centred pop-up), then Post to with the groups
       // and Public / Private radio rows, then Post it
       const edit = (k) => setState({ evPop: k, timeOpen: null, dateOpen: null, menu: null, evTitleEd: false });
-      const bits = st.evBits.map(b => b.trim()).filter(Boolean), ov = (st.evOverview || '').trim(), place = cleanTitle(st.locText);
+      const dsc = descPlain(st.evDesc || '').replace(/\s+/g, ' ').trim(), ov = (st.evOverview || '').trim(), place = cleanTitle(st.locText);
       const more = (list) => list.length > 1 ? ' + ' + (list.length - 1) + ' more' : '';
       const jobNames = st.evIdeaJobs.concat(st.evNeeds.map(j => cleanTitle(j.item)).filter(Boolean));
       const chk = [
         ['when', 'Date & time', st.evDatePoll ? 'Voting on ' + st.evDatePoll.length + ' dates' : st.evDate ? whenLabel(evWhen()) : ''],
         ['where', 'Location', st.evSpotPoll ? 'Voting on ' + st.evSpotPoll.length + ' locations' : place, !st.evSpotPoll && place ? evSpotCols(st).spot_address : ''],
-        // The overview first, then + N more for the quick details (+ 1 detail when there's one) (Design v8 prototype, Review)
-        ['details', 'What to expect', ov ? ov + (bits.length ? ' + ' + bits.length + (bits.length === 1 ? ' detail' : ' more') : '') : bits.length ? bits[0] + more(bits) : ''],
+        // The overview, + description when there's one too, else the description's start (one box, owner 2026-10-11)
+        ['details', 'What to expect', ov ? ov + (dsc ? ' + description' : '') : dsc.length > 60 ? dsc.slice(0, 60).trim() + '…' : dsc],
         ['help', 'Sign up', jobNames.length ? jobNames.slice(0, 2).join(', ') + (jobNames.length > 2 ? ' + ' + (jobNames.length - 2) + ' more' : '') : '']
       ];
       const nDone = chk.filter(c => c[2]).length;
@@ -10919,13 +10902,12 @@
     } else if (cur === 'where') {   // Review's Location pop-up
       body = (st.evSpotPoll ? '' : sec('', false, pollLink('where'))) + wherePart();
     } else if (cur === 'details') {
-      // What to expect (v8-6, 7b): Overview (optional), then a dashed + Add quick details · Up to 3 that opens the three
-      // Quick details fields; they show straight away once any is filled
+      // What to expect (v8-6, 7b): Overview (optional), then the event description
       const lab = (t) => '<div style="padding-left:2px;display:flex;align-items:baseline;gap:8px;font-size:16.5px;font-weight:800;letter-spacing:-.2px;color:#0d1117">' + t + '<span style="font-size:13.5px;font-weight:600;color:#9aa0ac">(optional)</span></div>';
       const fld = (inner, v, max) => '<label style="display:flex;align-items:center;gap:10px;min-height:46px;padding:0 14px;box-sizing:border-box;border-radius:14px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;cursor:text">' + inner +
         '<span style="font-size:11.5px;font-weight:700;color:#9aa0ac">' + v.length + '/' + max + '</span></label>';
       const inp = 'flex:1 1 auto;min-width:0;border:0;padding:0;background:transparent;font-family:inherit;font-size:16px;font-weight:500;color:#0d1117;outline:none';
-      const ov = st.evOverview || '', open = st.evDetOpen || st.evBits.some(b => b.trim());
+      const ov = st.evOverview || '';
       body = head('What to expect', 'Give people the basic idea and the vibe.') +
         '<div data-wte style="padding:16px 16px 0;display:flex;flex-direction:column;gap:8px">' + lab('Overview') +
           // Overview grows with what's typed: a one-row textarea, the count bottom right (Design v8 prototype, evOverview)
@@ -10933,12 +10915,9 @@
             '<textarea class="bit-fld" rows="1" maxlength="' + OV_MAX + '" data-overview-input aria-label="Overview" placeholder="' + esc(OVERVIEW_PH) + '" ' + onInput(e => { if (e.type === 'input') { const v = e.target.value.replace(/\n/g, ' ').slice(0, OV_MAX); if (v !== e.target.value) e.target.value = v; setState({ evOverview: v }); } }) +
               ' style="flex:1 1 auto;min-width:0;border:0;padding:0;margin:0;background:transparent;font-family:inherit;font-size:16px;line-height:22px;font-weight:500;color:#0d1117;outline:none;resize:none;field-sizing:content;min-height:22px;overflow:hidden">' + esc(ov) + '</textarea>' +
             '<span style="align-self:flex-end;font-size:11.5px;font-weight:700;color:#9aa0ac">' + ov.length + '/' + OV_MAX + '</span></label>' +
-          (open
-            ? '<div data-quick-details style="margin-top:8px;display:flex;flex-direction:column;gap:8px">' + lab('Quick details') + st.evBits.map((v, k) => fld(
-                '<span aria-hidden="true" style="flex:0 0 7px;width:7px;height:7px;border-radius:999px;background:' + (v.trim() ? '#0f7a3c' : '#c9ccd3') + '"></span>' +
-                '<input class="bit-fld" type="text" maxlength="60" aria-label="Details, line ' + (k + 1) + '" placeholder="' + esc(BIT_PH[k]) + '" value="' + esc(v) + '" ' + onInput(e => { if (e.type === 'input') { const b = state.evBits.slice(); b[k] = e.target.value.slice(0, 60); setState({ evBits: b }); } }) + ' style="' + inp + '">', v, 60)).join('') + '</div>'
-            : '<div ' + on(() => { setState({ evDetOpen: true }); focusSoon('[aria-label="Details, line 1"]'); }) + ' data-add-details style="margin-top:12px;display:flex;align-items:center;gap:12px;min-height:52px;padding:0 14px;border-radius:14px;border:1.5px dashed #c3c7d0;color:#454b55;font-size:15px;font-weight:800;cursor:pointer">' +
-                I.plus(16, 'currentColor', 2.6) + '<span style="flex:1">Add quick details</span><span style="font-size:13px;font-weight:600;color:#9aa0ac">Up to 3</span></div>') +
+          // then the one description box, as everywhere else (owner, 2026-10-11; it was up to three Quick details)
+          '<div style="margin-top:8px;display:flex;flex-direction:column;gap:8px">' + lab('Event description') +
+            '<div data-wte-desc style="border-radius:14px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;overflow:hidden">' + rteBox(st.evDesc || '', (v) => setState({ evDesc: v })) + '</div></div>' +
         '</div>';
     } else if (cur === 'help') {
       // Join in (v8): HELP chips, Bring · Set up · Help · Clean up · Coordinate · Other; once there's a job, the list and
