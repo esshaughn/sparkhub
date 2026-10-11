@@ -91,6 +91,17 @@ None of these are built. They come from the owner's own list and the pilot group
 
 ---
 
+## Rounds v8-23 and v8-24 in short
+
+*Built from HANDOFF-to-CODE v8-24 (with v8-23) on 2026-10-10, on `test`, not live yet. The prototype was diffed against v8-22's too.*
+
+| Item | Status |
+|---|---|
+| v8-23: Get started is 4 steps | Done: **Install Spark Hub app** first, then Join a group · RSVP to something · Float your first Idea; *Update your profile* is gone; the banner reads *N of 4*. The All done line reads *You've installed the app, joined, RSVP'd and floated an Idea. Welcome to Spark Hub.* |
+| v8-23: the install step knows the device | Done as drawn for 1a iPhone Safari, 1b iPhone Chrome, 1c Android Chrome (**Install** fires Chrome's own prompt; the step ticks on *appinstalled*; with no prompt ready the button toasts *Tap ⋮ at the top right, then Install app.*), 1d other Android browsers, 1e in-app browsers (**Copy link instead** copies the page's link), 1h opened from the home screen (ticked, green *Installed*). Unknown phones get 1a plus the Android line. **Changed, 1f computer:** the QR pop-up's button is **Copy link**, not *Text me the link*: Spark Hub sends no texts (owner). 1g (hiding the step on computers) isn't used. Chrome's own install banner is left alone (the build doesn't cancel it) |
+| v8-23: the bell's Join opens the invite preview | Done (Build Differences 1a): **Join** and *See group* both open the invite pop-up; **Join the group** there joins |
+| v8-23: titles keep *!* | Already done in v8-22 |
+
 ## Round v8-22 in short
 
 *Built from HANDOFF-to-CODE v8-22 on 2026-10-10, on `test`, not live yet. The prototype was diffed against v8-21's too. One migration, `20261126000000_v8_22_changes_and_rules.sql`.*

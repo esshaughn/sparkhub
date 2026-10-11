@@ -5617,9 +5617,10 @@
           (n.sub ? '<div style="font-size:14px;line-height:1.35;font-weight:600;color:#5c6270">' + esc(n.sub) + '</div>' : '') +
           (n.quote ? '<div data-notif-quote style="border-radius:4px 12px 12px 12px;background:#f2f3f6;padding:8px 10px;font-size:14px;line-height:1.4;font-weight:500;color:#2b303a">' + esc(n.quote) + '</div>' : '') +
           '<div style="font-size:12.5px;font-weight:700;color:#8a909b">' + esc(ago(n.t) + (g ? ' · ' + g.name : '')) + '</div></div>' +
-          // A group invite: Join (joins) and See group (the invite pop-up)
+          // A group invite: Join and See group both open the invite pop-up, so you see the group before joining (Design
+          // v8-23, Build Differences 1a: Join had joined straight from the bell)
           (n.type === 'ginv' ? '<div style="margin-top:10px;display:flex;gap:8px">' +
-              '<span ' + on((e) => { stop(e); markRead(n); gInvAnswer(n.inv, true); }) + ' data-ginv-join style="display:flex;align-items:center;min-height:36px;padding:0 14px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:13.5px;font-weight:800;cursor:pointer">Join</span>' +
+              '<span ' + on((e) => { stop(e); markRead(n); openGInv(n.inv); }) + ' data-ginv-join style="display:flex;align-items:center;min-height:36px;padding:0 14px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:13.5px;font-weight:800;cursor:pointer">Join</span>' +
               '<span ' + on((e) => { stop(e); markRead(n); openGInv(n.inv); }) + ' style="display:flex;align-items:center;min-height:36px;padding:0 14px;border-radius:999px;background:#fff;color:#0d1117;box-shadow:inset 0 0 0 1.5px #dcdfe6;font-size:13.5px;font-weight:800;cursor:pointer">See group</span></div>' : '') +
           // I'm going / Maybe only on a friend's invite (Design v8: not on New: rows)
           (n.rsvp && n.type === 'invited' && !myRsvp(n.s) && !n.s.cancelledAt && phaseOf(n.s) === 'plan'
@@ -11660,9 +11661,24 @@
   // anywhere: they're kept on the account (notif_state.seen.gs) and on the device, and count once done
   const START_FROM = Date.parse('2026-10-07T05:00:00Z');   // midnight in Austin, the day Start here shipped
   const GS_KEY = 'spark-hub-gs-';
-  // Step 5, Install Spark Hub app (Design v8-22; owner 2026-10-10: a go, over row 154's no Add to Home Screen of our own):
-  // a slide-up of the three Safari steps and an Android line; I added it ticks it, and so does opening the installed app
-  const GS_STEPS = [['profile', 'Update your profile'], ['join', 'Join a group'], ['rsvp', 'RSVP to something'], ['idea', 'Float your first Idea'], ['app', 'Install Spark Hub app']];
+  // Four steps (Design v8-23): Install Spark Hub app first (owner 2026-10-10: a go, over row 154's no Add to Home Screen
+  // of our own), then Join a group, RSVP to something, Float your first Idea. Update your profile is gone. The install
+  // step's slide-up knows the device (installDevice); I added it ticks it, and so does opening the installed app
+  const GS_STEPS = [['app', 'Install Spark Hub app'], ['join', 'Join a group'], ['rsvp', 'RSVP to something'], ['idea', 'Float your first Idea']];
+  // Install Step Options 1a–1h (Design v8-23): which install help this browser gets
+  const installDevice = () => {
+    const ua = navigator.userAgent || '';
+    if (STANDALONE) return 'installed';
+    if (IN_APP) return 'inapp';
+    if (IS_IOS) return /CriOS/.test(ua) ? 'iphone-chrome' : /FxiOS|EdgiOS|OPiOS/.test(ua) ? 'unknown' : 'iphone-safari';
+    if (/Android/.test(ua)) return /Chrome/.test(ua) && !/SamsungBrowser|Firefox|EdgA|OPR/.test(ua) ? 'android-chrome' : 'android-other';
+    return /Mobi/.test(ua) ? 'unknown' : 'desktop';
+  };
+  // Android Chrome's own install prompt (1c), kept for the Install button. Not cancelled, so Chrome can still offer
+  // its own Install as before
+  let installEvt = null;
+  window.addEventListener('beforeinstallprompt', (e) => { installEvt = e; });
+  window.addEventListener('appinstalled', () => { installEvt = null; if (state.email && !gsGet().app) { gsSet({ app: Date.now() }); render(); } });
   const gsGet = () => { const a = (seenAcct && seenAcct.gs) || {}; let d = {}; try { d = JSON.parse(localStorage.getItem(GS_KEY + state.me) || '{}') || {}; } catch (e) { /* fine */ } return Object.assign({}, d, a); };
   const gsSet = (patch) => {
     if (!state.email || state.viewAs) return;
@@ -11672,25 +11688,6 @@
   };
   const gsMark = (k) => { if (!state.email || state.viewAs || gsGet()[k]) return; gsSet({ [k]: Date.now() }); render(); };
   const gsShown = () => { const g = gsGet(); return !!state.email && !state.viewAs && state.loaded && myGroups().length > 0 && !!state.joinedAt && state.joinedAt >= START_FROM && !g.x && !g.fin; };
-  // Update your profile opens the photo picker straight away and saves the pick as your profile photo
-  const gsPhoto = async (fileList) => {
-    const f = (fileList || [])[0];
-    if (!f || state.busy) return;
-    if (state.viewAs) { toast('You’re viewing as ' + firstName(state.viewAs.name) + ', so nothing changes. Exit to make changes.'); return; }
-    setState({ busy: 'gsPhoto' });
-    try {
-      let blob; try { blob = await shrinkImage(f, 400); } catch (e) { setState({ busy: null }); toast(BAD_PHOTO); return; }
-      const old = state.myAvatar;
-      await ensureSession();
-      const path = await uploadBlob(blob);
-      must(await sb.from('profiles').upsert({ id: state.me, avatar_path: path, updated_at: new Date().toISOString() }, { onConflict: 'id' }));
-      await loadFresh();
-      if (old) deletePhotos([old]);
-      setState({ busy: null });
-      gsMark('profile');
-      toast('Profile photo updated', true);
-    } catch (e) { console.error(e); setState({ busy: null }); toast(failed(e)); }
-  };
   const gsFloat = () => { go('ideas'); setTimeout(() => openFloat(), 300); };
   const GS_SPARK = '<path d="M12 0c.8 6.4 5.6 11.2 12 12-6.4.8-11.2 5.6-12 12-.8-6.4-5.6-11.2-12-12C6.4 11.2 11.2 6.4 12 0Z" fill="#fff"/>';
   const gsCard = (margin) => {
@@ -11712,11 +11709,11 @@
       '<span ' + on((e) => { stop(e); gsSet({ x: Date.now() }); setState({ gsOpen: false, impWait: state.screen === 'me' }); }) + ' role="button" aria-label="Hide Get started" data-gs-x class="hov-gs-x" style="position:absolute;top:7px;right:7px;width:22px;height:22px;border-radius:999px;background:rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(9, '#fff', 3.2) + '</span></div>';
     const row = ([k, name]) => {
       const d = !!g[k], tick = '<span style="flex:0 0 26px;width:26px;height:26px;border-radius:999px;display:flex;align-items:center;justify-content:center;' + (d ? 'background:#149a4b' : 'background:#fff;box-shadow:inset 0 0 0 1.5px #c9ccd3') + '">' + (d ? svg(13, stroke('#fff', 3.4), '<path d="M5 12.5l4.5 4.5L19 7.5"/>') : '') + '</span>';
-      const label = '<span style="flex:1;font-size:15.5px;font-weight:' + (d ? '700;color:#9aa0ac;text-decoration:line-through' : '800;color:#0d1117') + '">' + name + '</span>' + (d ? '' : I.chevR(16, '#b9bcc4', 2.6));
+      // Opened from the home screen (1h): the step ticks itself with a green Installed tag, no slide-up
+      const tag = k === 'app' && STANDALONE ? '<span data-gs-installed style="font-size:12px;font-weight:800;color:#149a4b">Installed</span>' : '';
+      const label = '<span style="flex:1;min-width:0;display:flex;align-items:center;gap:8px"><span style="font-size:15.5px;font-weight:' + (d ? '700;color:#9aa0ac;text-decoration:line-through' : '800;color:#0d1117') + '">' + name + '</span>' + tag + '</span>' + (d ? '' : I.chevR(16, '#b9bcc4', 2.6));
       const st = 'display:flex;align-items:center;gap:12px;min-height:52px;padding:0 16px;border-top:1px solid #f2f3f6;box-sizing:border-box;' + (d ? '' : 'cursor:pointer');
       if (d) return '<div data-gs-step="' + k + '" data-done style="' + st + '">' + tick + label + '</div>';
-      if (k === 'profile') return '<label data-gs-step="' + k + '" class="hov-row" style="' + st + '">' + tick + label +
-        '<input type="file" accept="image/*" aria-label="Pick a profile photo" ' + onInput(e => { if (e.type !== 'change') return; const fl = Array.from(e.target.files || []); e.target.value = ''; gsPhoto(fl); }) + ' style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none"></label>';
       if (k === 'join' && gInvPending().length) return gsJoinInv(tick, name);   // invites waiting (v8-21 item 7, v8-22)
       const go1 = { join: () => openJoin(), rsvp: () => go('sched'), idea: gsFloat, app: () => setState({ a2hs: true }) }[k];
       return '<div ' + on(go1) + ' role="button" data-gs-step="' + k + '" class="hov-row" style="' + st + '">' + tick + label + '</div>';
@@ -11725,27 +11722,69 @@
       .map(([x, c, r, t, big]) => '<span aria-hidden="true" style="position:absolute;left:' + x + '%;top:-6px;width:' + (big ? 9 : 7) + 'px;height:' + (big ? 12 : 7) + 'px;border-radius:' + r + 'px;background:' + c + ';animation:gsConf 1.6s ' + t + 'ms cubic-bezier(.2,.7,.3,1) both"></span>').join('');
     const fin = !all ? '' : '<div data-screen-label="Get started done" style="position:relative;overflow:hidden;border-top:1px solid #f2f3f6;padding:18px 16px 16px;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center">' + conf +
       '<span style="font-size:19px;font-weight:900;letter-spacing:-.3px;color:#0d1117">You’re all set!</span>' +
-      '<span style="font-size:14.5px;font-weight:600;line-height:1.4;color:#454b55;text-wrap:pretty">You’ve joined, RSVP’d, floated an Idea and set up your profile. Welcome to Spark Hub.</span>' +
+      '<span style="font-size:14.5px;font-weight:600;line-height:1.4;color:#454b55;text-wrap:pretty">You’ve installed the app, joined, RSVP’d and floated an Idea. Welcome to Spark Hub.</span>' +
       '<span ' + on(() => { gsSet({ fin: Date.now() }); setState({ gsOpen: false, impWait: state.screen === 'me' }); toast('Nice work. Enjoy Spark Hub!', true); }) + ' role="button" data-gs-done class="hov-primary" style="margin-top:4px;display:flex;align-items:center;justify-content:center;min-height:46px;padding:0 26px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:15.5px;font-weight:800;cursor:pointer">Done</span></div>';
     return '<div data-get-started data-screen-label="Get started" style="' + (margin || '') + 'border-radius:20px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08)">' + lid +
       (open && !all ? '<div style="overflow:hidden;animation:gsDrop 280ms cubic-bezier(.2,.8,.2,1) both">' + GS_STEPS.map(row).join('') + '</div>' : '') + fin + '</div>';
   };
+  // Install Spark Hub on your phone's home screen (Design v8-23, Install Step Options 1a–1f): the steps for this browser.
+  // Unknown phones get the iPhone steps plus the Android line; a computer gets a QR code to open it on the phone
   function viewA2hs() {
-    const close = () => setState({ a2hs: false });
-    const BLUE = '#1f5fa8', step = (n, text, end, k) => '<div style="display:flex;align-items:center;gap:12px;min-height:52px;border-top:1px solid #f2f3f6">' +
-      '<span style="flex:0 0 28px;width:28px;height:28px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:14px;font-weight:900;display:flex;align-items:center;justify-content:center">' + n + '</span>' +
-      '<span style="flex:1;font-size:16px;font-weight:600;color:#0d1117">' + text + '</span>' + end + '</div>';
+    const close = () => setState({ a2hs: false }), dv = installDevice();
+    const added = () => { gsSet({ app: Date.now() }); setState({ a2hs: false }); toast('Spark Hub is on your home screen', true); };
+    const BLUE = '#1f5fa8', SITE = SHARE_ORIGIN.replace(/^https?:\/\//, '');
     const tile = (path) => '<span aria-hidden="true" style="flex:0 0 36px;width:36px;height:36px;border-radius:10px;background:#f2f3f6;display:flex;align-items:center;justify-content:center">' + svg(20, stroke(BLUE, 2.1), path) + '</span>';
-    return sheet('Add Spark Hub to your home screen', close, SHEET_PAD + ';gap:12px',
-      '<div data-screen-label="Add to home screen" style="display:flex;align-items:flex-start;gap:10px"><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">' +
-        '<span style="font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.4px;color:#0d1117">Add Spark Hub to your home screen</span>' +
-        '<span style="font-size:15px;font-weight:500;line-height:1.4;color:#454b55">It opens like an app, one tap away.</span></div>' + closeX(close) + '</div>' +
-      '<div style="display:flex;flex-direction:column">' +
-        step(1, 'Tap <b>Share</b> at the bottom of Safari', tile('<path d="M12 3v12M7.5 7.5 12 3l4.5 4.5"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/>')) +
-        step(2, 'Scroll down, tap <b>Add to Home Screen</b>', tile('<rect x="4" y="4" width="16" height="16" rx="3.5"/><path d="M12 8.5v7M8.5 12h7"/>')) +
-        step(3, 'Tap <b>Add</b> in the top right', '<span aria-hidden="true" style="flex:0 0 auto;padding:0 6px;font-size:16px;font-weight:800;color:' + BLUE + '">Add</span>') + '</div>' +
-      '<span style="font-size:13px;font-weight:600;color:#6b7280">On Android: tap ⋮ in Chrome, then <b>Add to Home screen</b>.</span>' +
-      '<span ' + on(() => { gsSet({ app: Date.now() }); setState({ a2hs: false }); toast('Spark Hub is on your home screen', true); }) + ' role="button" data-a2hs-done class="hov-primary" style="display:flex;align-items:center;justify-content:center;height:52px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:16px;font-weight:800;cursor:pointer">I added it</span>', 60);
+    const IC = {
+      share: tile('<path d="M12 3v12M7.5 7.5 12 3l4.5 4.5"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/>'),
+      plus: tile('<rect x="4" y="4" width="16" height="16" rx="3.5"/><path d="M12 8.5v7M8.5 12h7"/>'),
+      dots: tile('<circle cx="12" cy="5" r="1.4" fill="' + BLUE + '"/><circle cx="12" cy="12" r="1.4" fill="' + BLUE + '"/><circle cx="12" cy="19" r="1.4" fill="' + BLUE + '"/>'),
+      compass: tile('<circle cx="12" cy="12" r="8.5"/><path d="m15.5 8.5-2 5-5 2 2-5 5-2Z"/>'),
+      add: '<span aria-hidden="true" style="flex:0 0 auto;padding:0 6px;font-size:16px;font-weight:800;color:' + BLUE + '">Add</span>' };
+    const step = (n, pre, b, post, k) => '<div style="display:flex;align-items:center;gap:12px;min-height:52px;border-top:1px solid #f2f3f6">' +
+      '<span style="flex:0 0 28px;width:28px;height:28px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:14px;font-weight:900;display:flex;align-items:center;justify-content:center">' + n + '</span>' +
+      '<span style="flex:1;font-size:16px;font-weight:600;line-height:1.3;color:#0d1117">' + pre + '<b style="font-weight:800">' + b + '</b>' + post + '</span>' + IC[k] + '</div>';
+    const btn = (fn, label, solid, attr) => '<span ' + on(fn) + ' role="button" ' + attr + ' class="' + (solid ? 'hov-primary' : 'hov-grey-fill') + '" style="display:flex;align-items:center;justify-content:center;gap:8px;height:52px;border-radius:999px;font-size:16px;font-weight:800;cursor:pointer;' +
+      (solid ? 'background:#5b4ae8;color:#fff' : 'background:#fff;color:#0d1117;box-shadow:inset 0 0 0 1.5px #dcdfe6') + '">' + label + '</span>';
+    const note = (t) => '<span style="text-align:center;font-size:13px;font-weight:600;color:#6b7280">' + t + '</span>';
+    if (dv === 'desktop') {
+      // 1f: on a computer. Design's Text me the link is Copy link here: Spark Hub sends no texts (owner)
+      return modal('Open Spark Hub on your phone', close,
+        '<div style="display:flex;flex-direction:column;align-items:center;gap:12px;padding-top:34px;text-align:center">' +
+          '<span style="font-size:22px;font-weight:900;letter-spacing:-.4px;color:#0d1117">Open Spark Hub on your phone</span>' +
+          '<span style="font-size:15px;font-weight:500;line-height:1.4;color:#454b55">Scan this with your phone’s camera. It’ll show you how to add it to your home screen.</span>' +
+          '<div data-a2hs-qr style="padding:12px;border-radius:16px;box-shadow:inset 0 0 0 1.5px #e8eaee">' + qrSvg(SHARE_ORIGIN + '/', 150) + '</div>' +
+          '<span style="font-size:13px;font-weight:700;color:#6b7280">' + esc(SITE) + '</span>' +
+          '<span ' + on(() => copy(SHARE_ORIGIN + '/', 'Link copied')) + ' role="button" data-a2hs-copy style="align-self:stretch;display:flex;align-items:center;justify-content:center;height:52px;border-radius:999px;font-size:16px;font-weight:800;cursor:pointer;background:#fff;color:#5b4ae8;box-shadow:inset 0 0 0 1.5px #c9c2fb">Copy link</span></div>', { z: 60, max: 360 });
+    }
+    let sub = 'It opens like an app, one tap away.', steps = [], foot = '', main = btn(added, 'I added it', true, 'data-a2hs-done'), extra = '';
+    if (dv === 'iphone-chrome') steps = [step(1, 'Tap ', 'Share', ' at the top right, next to the address', 'share'), step(2, 'Tap ', 'Add to Home Screen', '', 'plus'), step(3, 'Tap ', 'Add', '', 'add')];
+    else if (dv === 'android-other') steps = [step(1, 'Tap the menu ', '⋮', ' or ☰', 'dots'), step(2, 'Tap ', 'Add to Home screen', ' (or Add page to)', 'plus'), step(3, 'Tap ', 'Add', ' or Install', 'add')];
+    else if (dv === 'inapp') {
+      sub = 'This screen can’t add apps. Open Spark Hub in Safari or Chrome first.';
+      steps = [step(1, 'Tap ', '⋯', ' at the top right', 'dots'), step(2, 'Tap ', 'Open in Safari', ' (or Open in browser)', 'compass')];
+      main = btn(() => { close(); copy(location.href, 'Link copied. Paste it into Safari or Chrome.'); }, 'Copy link instead', false, 'data-a2hs-copy');
+      extra = note('Then come back to this step.');
+    } else if (dv === 'android-chrome') {
+      // 1c: one Install button for Chrome's own prompt; the step ticks when Chrome says it's installed (appinstalled)
+      sub = 'One tap. Your phone will ask you to confirm.';
+      extra = note('Nothing pops up? Tap ⋮ at the top right, then <b>Install app</b>.');
+      main = btn(async () => {
+        if (!installEvt) { toast('Tap ⋮ at the top right, then Install app.'); return; }
+        const ev = installEvt; installEvt = null;
+        try { ev.prompt(); const r = await ev.userChoice; if (r && r.outcome === 'accepted') added(); } catch (e) { toast('Tap ⋮ at the top right, then Install app.'); }
+      }, svg(18, stroke('#fff', 2.6), '<path d="M12 4v11M7 10.5l5 5 5-5M5 20h14"/>') + 'Install', true, 'data-a2hs-install');
+    } else {
+      steps = [step(1, 'Tap ', 'Share', ' at the bottom of the screen', 'share'), step(2, 'Scroll down, tap ', 'Add to Home Screen', '', 'plus'), step(3, 'Tap ', 'Add', ' in the top right', 'add')];
+      if (dv !== 'iphone-safari') foot = '<span style="font-size:13px;font-weight:600;color:#6b7280">On Android: tap ⋮ in Chrome, then <b>Add to Home screen</b>.</span>';
+    }
+    const app = dv !== 'android-chrome' ? '' : '<div style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:16px;background:#f7f6ff">' +
+      '<img src="/icons/icon-192.png" alt="" style="flex:0 0 48px;width:48px;height:48px;border-radius:12px">' +
+      '<div style="display:flex;flex-direction:column"><span style="font-size:16px;font-weight:900;color:#0d1117">Spark Hub</span><span style="font-size:13px;font-weight:600;color:#6b7280">' + esc(SITE) + '</span></div></div>';
+    return sheet('Install Spark Hub', close, SHEET_PAD + ';gap:12px',
+      '<div data-a2hs="' + dv + '" style="display:flex;align-items:flex-start;gap:10px"><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">' +
+        '<span style="font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.4px;color:#0d1117;text-wrap:balance">Install Spark Hub on your phone’s home screen</span>' +
+        '<span style="font-size:15px;font-weight:500;line-height:1.4;color:#454b55">' + sub + '</span></div>' + closeX(close) + '</div>' +
+      (steps.length ? '<div style="display:flex;flex-direction:column">' + steps.join('') + '</div>' : '') + app + foot + main + extra, 60);
   }
   // Panel 1's three fanned phones (owner, 2026-10-07: real screenshots of Groups, Ideas, Calendar; mockup variant A):
   // Groups in front, Ideas and Calendar tilted ±11° behind it, fading out at the bottom

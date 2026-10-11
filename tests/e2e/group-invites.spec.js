@@ -52,7 +52,7 @@ test('Invite to a group from a profile, then Join from the bell and NEW · YOU J
     await expect(gpi.locator('[data-gpi-row="' + groupName + '"] [data-gpi-state]')).toHaveText('Invited');
     await gpi.getByRole('button', { name: 'Close' }).click();
 
-    // 2a: the bell row with Join / See group; See group opens the invite pop-up, Join joins
+    // 2a: the bell row with Join / See group; both open the invite pop-up (v8-23 1a), where Join the group joins
     await B.reload();
     await expect(B.locator('html[data-loaded=true]')).toHaveCount(1);
     const bell = await openBell(B);
@@ -65,6 +65,8 @@ test('Invite to a group from a profile, then Join from the bell and NEW · YOU J
     await pop.getByRole('button', { name: 'Not now' }).click();   // the pop-up's Not now only closes it
     await expect(pop).toHaveCount(0);
     await row.locator('[data-ginv-join]').click();
+    await expect(pop).toContainText(groupName);
+    await pop.getByRole('button', { name: 'Join the group' }).click();
     await expect(B.getByRole('status').getByText('You joined ' + groupName)).toBeVisible();
     await expect(bell.locator('[data-notif=ginv]')).toHaveCount(0);
     await expect(bell.locator('[data-notif=gjoined]')).toContainText('You joined ' + groupName);

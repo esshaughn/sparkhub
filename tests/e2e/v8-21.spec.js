@@ -2,7 +2,7 @@
 // on a past event (and LAST TIME in Plan an event), the Privacy slide-up, Me without the About line or the feedback card,
 // Delete it for good on an Idea, and the lead's job rows on My tasks.
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newLead, newAccount, openIdea, deleteIdea, asUser, startPost, openProfile, saved, PNG } = require('./helpers');
+const { uniqueTitle, newLead, newAccount, openIdea, deleteIdea, asUser, startPost, openProfile, saved } = require('./helpers');
 
 const inDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 
@@ -27,28 +27,26 @@ test('Get started: join with a code, the four steps tick, × hides it everywhere
     // Welcome to Torrez Fitness, Gia (v8-22 4a)
     await page.locator('[data-screen-label="Welcome to the group"]').getByRole('button', { name: 'Go to My calendar' }).click();
 
-    // In a group now: the banner, with Join a group already ticked (1 of 5: Install Spark Hub app came in v8-22)
+    // In a group now: the banner, with Join a group already ticked (1 of 4: Install Spark Hub app first, no profile step, v8-23)
     await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Calendar', exact: true }).click();
     const gs = page.locator('[data-screen-label="Your calendar"] [data-get-started]');
     await expect(gs).toContainText('Get started');
-    await expect(gs.locator('[data-gs-count]')).toHaveText('1 of 5');
+    await expect(gs.locator('[data-gs-count]')).toHaveText('1 of 4');
     await expect(gs.locator('[data-gs-step]')).toHaveCount(0);   // closed
     await gs.locator('[data-gs-toggle]').click();
-    await expect(gs.locator('[data-gs-step]')).toHaveCount(5);
+    await expect(gs.locator('[data-gs-step]')).toHaveCount(4);
+    await expect(gs.locator('[data-gs-step]').first()).toHaveAttribute('data-gs-step', 'app');
     await expect(gs.locator('[data-gs-step="join"]')).toHaveAttribute('data-done', '');
 
-    // Update your profile opens the photo picker straight away and saves it as the profile photo
-    await gs.locator('[data-gs-step="profile"] input[type=file]').setInputFiles({ name: 'me.png', mimeType: 'image/png', buffer: PNG });
-    await expect(page.getByText('Profile photo updated')).toBeVisible();
-    await expect(gs.locator('[data-gs-count]')).toHaveText('2 of 5');
-
-    // Install Spark Hub app (v8-22): the three Safari steps; I added it ticks it
+    // Install Spark Hub app (v8-23 1c, Android Chrome on the Pixel): one Install button; Chrome's appinstalled ticks it
     await gs.locator('[data-gs-step="app"]').click();
-    const a2 = page.getByRole('dialog', { name: 'Add Spark Hub to your home screen' });
-    await expect(a2).toContainText('Add to Home Screen');
-    await a2.getByRole('button', { name: 'I added it' }).click();
-    await expect(a2).toHaveCount(0);
-    await expect(gs.locator('[data-gs-count]')).toHaveText('3 of 5');
+    const a2 = page.getByRole('dialog', { name: 'Install Spark Hub' });
+    await expect(a2).toContainText('Install Spark Hub on your phone’s home screen');
+    await expect(a2.locator('[data-a2hs="android-chrome"]')).toHaveCount(1);
+    await expect(a2.getByRole('button', { name: 'Install' })).toBeVisible();
+    await a2.getByRole('button', { name: 'Close' }).click();
+    await page.evaluate(() => window.dispatchEvent(new Event('appinstalled')));
+    await expect(gs.locator('[data-gs-count]')).toHaveText('2 of 4');
     await expect(gs.locator('[data-gs-step="app"]')).toHaveAttribute('data-done', '');
 
     // Float your first Idea goes to the Ideas tab and opens the Float sheet
