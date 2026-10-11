@@ -281,6 +281,14 @@ test('Plan an event is one page (v8-14): Post it waits for a title and a date; t
     await expect(zoomed).toBeVisible();
     await zoomed.getByRole('button', { name: 'Close' }).click();
     await expect(zoomed).toHaveCount(0);
+    // A thumb drag down closes it too (owner, 2026-10-11)
+    await flow.getByRole('button', { name: 'View photo 1' }).click();
+    await page.locator('[data-zoom-img]').evaluate((el) => {
+      const at = (type, y) => { const t = new Touch({ identifier: 1, target: el, clientX: 150, clientY: y });
+        el.dispatchEvent(new TouchEvent(type, { bubbles: true, cancelable: true, touches: type === 'touchend' ? [] : [t], changedTouches: [t] })); };
+      at('touchstart', 200); at('touchmove', 260); at('touchmove', 380); at('touchend', 380);
+    });
+    await expect(zoomed).toHaveCount(0);
     await flow.getByRole('button', { name: 'Remove photo' }).click();   // back to none, the rest of the flow is unchanged
     await expect(flow.getByRole('switch', { name: 'People can invite friends' })).toHaveAttribute('aria-checked', 'true');   // on for Public
     // Post it stays grey until there's a title and a date; a tap says which is missing

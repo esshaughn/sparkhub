@@ -12405,13 +12405,40 @@
       svg(22, stroke('#fff', 2.8), '<path d="M12 5v14M5 12h14"/>') + '</div>';
   }
 
-  // Full-screen photo (the vibe photos): tap anywhere or ✕ to close, arrows between them
+  // Full-screen photo (the vibe photos): tap anywhere or ✕ to close, arrows between them; a thumb drag up or down
+  // closes it (the photo follows and the black fades), a sideways swipe goes to the next or previous one (owner, 2026-10-11)
+  let zmT = null;
+  document.addEventListener('touchstart', (e) => {
+    const box = state.zoom && e.touches.length === 1 && e.target.closest && e.target.closest('[data-zoom]');
+    zmT = box && !e.target.closest('[role=button],[aria-label=Close],[data-photo-report],[data-reported-photo]') ? { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now(), dir: null } : null;
+  }, { passive: true });
+  document.addEventListener('touchmove', (e) => {
+    if (!zmT || !state.zoom) return;
+    if (e.touches.length > 1) { zmT = null; return; }   // pinching: leave it alone
+    const dx = e.touches[0].clientX - zmT.x, dy = e.touches[0].clientY - zmT.y;
+    if (!zmT.dir && Math.abs(dx) + Math.abs(dy) > 10) zmT.dir = Math.abs(dy) > Math.abs(dx) ? 'y' : 'x';
+    const box = document.querySelector('[data-zoom]'), img = box && box.querySelector('[data-zoom-img]');
+    if (!img) return;
+    if (zmT.dir === 'y') { img.style.transform = 'translateY(' + dy + 'px) scale(' + Math.max(.85, 1 - Math.abs(dy) / 1500) + ')'; box.style.background = 'rgba(0,0,0,' + (0.94 * Math.max(.2, 1 - Math.abs(dy) / 400)) + ')'; }
+    else if (zmT.dir === 'x' && state.zoom.photos.length > 1) img.style.transform = 'translateX(' + dx + 'px)';
+  }, { passive: true });
+  document.addEventListener('touchend', (e) => {
+    if (!zmT || !state.zoom) return;
+    const z = state.zoom, n = z.photos.length, d = zmT, dx = e.changedTouches[0].clientX - d.x, dy = e.changedTouches[0].clientY - d.y, fast = Date.now() - d.t < 300;
+    zmT = null;
+    const box = document.querySelector('[data-zoom]'), img = box && box.querySelector('[data-zoom-img]');
+    if (d.dir === 'y' && (Math.abs(dy) > 110 || (fast && Math.abs(dy) > 50))) { e.preventDefault(); return setState({ zoom: null }); }
+    if (d.dir === 'x' && n > 1 && (Math.abs(dx) > 70 || (fast && Math.abs(dx) > 40))) { e.preventDefault(); return setState({ zoom: { photos: z.photos, i: (z.i + (dx < 0 ? 1 : -1) + n) % n } }); }
+    if (d.dir) e.preventDefault();   // a drag that didn't go far snaps back and doesn't count as a tap
+    if (img) { img.style.transition = 'transform 180ms ease'; img.style.transform = ''; setTimeout(() => { img.style.transition = ''; }, 200); }
+    if (box) box.style.background = 'rgba(0,0,0,.94)';
+  });
   function viewZoom() {
     const z = state.zoom, n = z.photos.length, close = () => setState({ zoom: null });
     const step = (d) => (e) => { stop(e); setState({ zoom: { photos: z.photos, i: (z.i + d + n) % n } }); };
     const arrow = (d, label, path) => '<span ' + on(step(d)) + ' aria-label="' + label + '" style="position:absolute;top:50%;' + (d < 0 ? 'left' : 'right') + ':12px;transform:translateY(-50%);width:44px;height:44px;border-radius:999px;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;cursor:pointer">' + path + '</span>';
-    return '<div role="dialog" aria-modal="true" aria-label="Photo" data-scrim="' + reg(close) + '" style="position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.94);display:flex;align-items:center;justify-content:center;animation:fadeIn 160ms ease both;cursor:zoom-out">' +
-      '<img data-on="' + reg(close) + '" src="' + esc(z.photos[z.i]) + '" alt="Photo ' + (z.i + 1) + ' of ' + n + '" style="max-width:100%;max-height:100%;object-fit:contain;display:block' + (sfHidPhoto(z.photos[z.i]) ? ';filter:blur(28px) brightness(.6)' : '') + '">' +
+    return '<div role="dialog" aria-modal="true" aria-label="Photo" data-zoom data-scrim="' + reg(close) + '" style="position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.94);touch-action:pinch-zoom;display:flex;align-items:center;justify-content:center;animation:fadeIn 160ms ease both;cursor:zoom-out">' +
+      '<img data-zoom-img data-on="' + reg(close) + '" src="' + esc(z.photos[z.i]) + '" alt="Photo ' + (z.i + 1) + ' of ' + n + '" style="max-width:100%;max-height:100%;object-fit:contain;display:block' + (sfHidPhoto(z.photos[z.i]) ? ';filter:blur(28px) brightness(.6)' : '') + '">' +
       (sfHidPhoto(z.photos[z.i]) ? sfPhotoVeil(z.photos[z.i]) : '') +
       '<span ' + on(close) + ' aria-label="Close" style="position:absolute;top:max(14px, env(safe-area-inset-top));right:14px;width:40px;height:40px;border-radius:999px;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(16, '#fff', 2.6) + '</span>' +
       sfPhotoPill(z.photos[z.i]) +   // Report (v8-18 1s)
