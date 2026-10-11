@@ -93,7 +93,7 @@ None of these are built. They come from the owner's own list and the pilot group
 
 ## Rounds v8-23 and v8-24 in short
 
-*Built from HANDOFF-to-CODE v8-24 (with v8-23) on 2026-10-10, on `test`, not live yet. The prototype was diffed against v8-22's too. One migration, `20261129000000_members_can_invite.sql`.*
+*Built from HANDOFF-to-CODE v8-24 (with v8-23) on 2026-10-10, on `test`, not live yet. The prototype was diffed against v8-22's too. One migration, `20261130000000_members_can_invite.sql`.*
 
 | Item | Status |
 |---|---|

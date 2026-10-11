@@ -688,7 +688,7 @@
     const [mem, grp, sp, of, it, gc, rs, dop, dvo, sop, svo, sui, scl, upd, org, alb, prp, rct, sgr, drf, nts, las, inv, jas, lof, swt, tlk, ewt] = await Promise.all([
       sb.from('memberships').select('group_id,role,last_seen_at,pinned'),
       sb.from('groups').select('id,name,photo,photo_pos,demo,members_can_invite')
-        .then(r => r.error && r.error.code === '42703' ? sb.from('groups').select('id,name,photo,photo_pos,demo') : r),   // members_can_invite: 20261129000000
+        .then(r => r.error && r.error.code === '42703' ? sb.from('groups').select('id,name,photo,photo_pos,demo') : r),   // members_can_invite: 20261130000000
       sb.from('sparks').select('*').order('created_at', { ascending: false }),
       sb.from('offers').select('*').order('created_at'),
       sb.from('interests').select('spark_id,user_id,created_at,can_help,offer_note')

@@ -329,7 +329,7 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 248 | **Get started, 4 steps** (Design v8-23): *Install Spark Hub app* first with help for each device (iPhone Safari/Chrome, Android Chrome's own Install, other Android, in-app browsers, a QR on computers, ticked when opened from the home screen); *Update your profile* gone; the bell's *Join* opens the invite preview | Test |
 | 249 | **Tab headers** (Design v8-24 item 1): one size on Ideas, My calendar, My friends, My groups; a short line under Ideas' and My calendar's titles for the first 3 app opens, × hides it (`notif_state.seen.hd`) | Test |
 | 250 | **Bell count clears once you've looked** (Design v8-24 item 2): ~0.8s on the open list; later ones bring it back (`notif_state.seen.bell`); the app badge follows it | Test |
-| 251 | **Members can invite people** (Design v8-24 item 3, `20261129000000_members_can_invite.sql`): a per-group switch for owners and admins, off by default; when on, members get Invite, the link and QR, and send invites | Test |
+| 251 | **Members can invite people** (Design v8-24 item 3, `20261130000000_members_can_invite.sql`): a per-group switch for owners and admins, off by default; when on, members get Invite, the link and QR, and send invites | Test |
 | 252 | **Invite people sheets** (Design v8-24 items 4–6): group and event sheets share one template (Search friends, FRIENDS, Send · N, Copy link · Share · QR code); someone going who isn't leading gets an outlined *Invite people* | Test |
 | 253 | **Ways to participate** (Design v8-24 item 7): You're going! lists up to 3 open jobs with *Sign up* | Test |
 

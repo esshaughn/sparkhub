@@ -1911,7 +1911,7 @@ select t.login('member'); set role authenticated;
 select t.must_refuse('a member saving the description through admin_edit_spark', format($$select public.admin_edit_spark(%L, 'Poll idea', '{}', null, 'Mine now')$$, t.id('poll_idea')));
 reset role;
 
--- Members can invite people (20261129000000_members_can_invite.sql, Design v8-24 item 3): off by default; owners and
+-- Members can invite people (20261130000000_members_can_invite.sql, Design v8-24 item 3): off by default; owners and
 -- admins turn it on per group; then any member reads the link and invites friends ---------------------------------
 reset role;
 select private.make_friends(t.id('gi_mem'), t.id('gi_two'));
