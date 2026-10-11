@@ -35,7 +35,7 @@ test('groups, idea links, guests and leads: the database refuses what the app ne
       interest: (await c.from('interests').insert({ spark_id: id, user_id: me })).error ? 'refused' : 'ALLOWED',
       photo: (await c.rpc('set_group_photo', { p_group: g, p_photo: me + '/00000000-0000-4000-8000-000000000000.jpg' })).error ? 'refused' : 'ALLOWED',
       photoDirect: (await c.from('groups').update({ photo: 'photos/welcome.jpg' }).eq('id', g).select('id')).data?.length ? 'ALLOWED' : 'refused',
-      adminEdit: (await c.rpc('admin_edit_spark', { p_spark: id, p_text: '[E2E] hijacked', p_hopes: [] })).error ? 'refused' : 'ALLOWED'
+      adminEdit: (await c.rpc('admin_edit_spark', { p_spark: id, p_text: '[E2E] hijacked' })).error ? 'refused' : 'ALLOWED'
     }), { g: group.id, id: sparkId, me: otherUid });
     expect(outsider).toEqual({ sparks: 0, groups: 0, post: 'refused', selfJoin: 'refused', code: null, members: null, offer: 'refused', interest: 'refused', photo: 'refused', photoDirect: 'refused', adminEdit: 'refused' });
 
@@ -840,11 +840,12 @@ test('hosts and who came: only an idea looking for a host can change hands, and 
     const added = await asUser(L, async (c, _C, { soon, other }) => (await c.rpc('add_cohost', { p_spark: soon, p_user: other })).error?.message || 'ok', { soon: m.soon, other: otherUid });
     expect(added).toBe('ok');
     const co = await asUser(O, async (c, _C, soon) => ({
-      edit: (await c.from('sparks').update({ hopes: ['Bring water'] }).eq('id', soon).select('id')).data?.length ?? 'refused',
+      edit: (await c.from('sparks').update({ vision: 'Bring water.' }).eq('id', soon).select('id')).data?.length ?? 'refused',
+      lines: (await c.from('sparks').update({ hopes: ['Bring water'] }).eq('id', soon)).error ? 'refused' : 'ALLOWED',   // quick details are retired (20261129000000)
       remove: (await c.from('sparks').delete().eq('id', soon).select('id')).data?.length ?? 'refused',
       cancel: (await c.rpc('cancel_event', { p_spark: soon })).error ? 'refused' : 'ALLOWED'
     }), m.soon);
-    expect(co).toEqual({ edit: 1, remove: 0, cancel: 'refused' });
+    expect(co).toEqual({ edit: 1, lines: 'refused', remove: 0, cancel: 'refused' });
   } finally {
     if (m) {
       await asUser(O, async (c, _C, id) => { await c.from('sparks').delete().eq('id', id); }, m.idea).catch(() => {});
