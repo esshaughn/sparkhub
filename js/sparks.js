@@ -4029,7 +4029,8 @@
   // pill: markup that sits on the title row right after the title (My calendar's group switcher, Design v8)
   const head6 = (title, left, sw, grp, pill) => {
     const h1 = sw ? titleSwitch(title) : '<h1 style="' + (pill != null ? '' : 'flex:1 1 0;') + 'min-width:0;margin:0;font-size:30px;line-height:1;font-weight:900;letter-spacing:-1px;color:#0d1117">' + esc(title) + '</h1>';
-    return '<header style="position:relative;z-index:5;background:#fff;padding:' + (grp != null || pill != null ? '14px 16px 10px' : '14px 16px') + ';display:flex;align-items:center;gap:12px">' + (left || '') +
+    // z-index 5, above the page; 9 while the title row's menu is open, so it drops over My calendar's pinned month (z 6)
+    return '<header style="position:relative;z-index:' + (pill && state.menu ? 9 : 5) + ';background:#fff;padding:' + (grp != null || pill != null ? '14px 16px 10px' : '14px 16px') + ';display:flex;align-items:center;gap:12px">' + (left || '') +
     (pill != null ? '<div style="flex:1 1 0;min-width:0;display:flex;align-items:center;gap:8px">' + h1 + pill + '</div>' : grp ? '<div style="flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:1px">' + h1 + grp + '</div>' : h1) +
     // Search and the bell 12px apart (Design v8)
     '<div style="flex:0 0 auto;display:flex;gap:12px">' + (state.email ? searchBtn() : '') + bellBtn() + '</div></header>';
