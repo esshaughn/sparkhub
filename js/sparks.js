@@ -8497,7 +8497,8 @@
         '<span aria-hidden="true" style="flex:0 0 22px;width:22px;height:22px;box-sizing:border-box;border-radius:999px;border:' + (onIt ? '6px solid #f5b428' : '1.5px solid #c9ccd3') + '"></span></div>'; };
     return '<div role="radiogroup" aria-label="Who can see it" style="padding:0 14px;' + (top || '') + '">' + radio(false, 'Public', nGroups > 1 ? 'Anyone in these groups' : 'Anyone in this group', PEOPLE_IC, 0) + radio(true, 'Private', 'Only people you invite', LOCK_IC, 1) + '</div>'; };
   // The Private chip on an idea's note (the board's cards and the idea page): dark ink on the paper
-  const ideaPrivChip = (s) => s.visibility !== 'invite' ? '' : '<span data-private-chip style="flex:0 0 auto;align-self:flex-start;display:flex;align-items:center;gap:4px;height:22px;padding:0 8px 0 7px;border-radius:999px;background:rgba(13,17,23,.08);color:#2a2f38;font-size:11.5px;font-weight:800">' +
+  // over: a position for the chip on an Ideas card's photo (owner, 2026-10-11), on a white pill so it reads on any photo
+  const ideaPrivChip = (s, over) => s.visibility !== 'invite' ? '' : '<span data-private-chip style="' + (over ? 'position:absolute;z-index:1;' + over + ';background:rgba(255,255,255,.9);box-shadow:0 1px 3px rgba(13,17,23,.15);' : 'background:rgba(13,17,23,.08);') + 'flex:0 0 auto;align-self:flex-start;display:flex;align-items:center;gap:4px;height:22px;padding:0 8px 0 7px;border-radius:999px;color:#2a2f38;font-size:11.5px;font-weight:800">' +
     svg(11, stroke('currentColor', 2.6), '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>') + 'Private</span>';
   const sectionLabel = (t) => '<span style="font-size:12.5px;font-weight:900;letter-spacing:1px;color:#454b55">' + t + '</span>';
   const visLabel = '<span style="padding:0 4px;font-size:13px;font-weight:900;letter-spacing:1.2px;color:#0d1117">VISIBILITY</span>';
@@ -9286,16 +9287,20 @@
         // A thin gold top edge on grid cards (owner, 2026-10-07)
         '<span aria-hidden="true" data-idea-strip style="position:absolute;left:0;right:0;top:0;height:5px;background:#f0b93a;z-index:2"></span>' +
         (P0 ? '<div aria-hidden="true" style="position:absolute;left:0;right:0;top:0;height:92px;background:' + bg(P0, posAt(s.coverPos, IDEA_POS)) + ';-webkit-mask-image:' + MASK + ';-webkit-mask-composite:source-in;mask-image:' + MASK + ';mask-composite:intersect"></div>' : '') +
+        // Private sits up in the photo, so the title starts where every card's does (owner, 2026-10-11)
+        (P0 ? ideaPrivChip(s, 'top:14px;left:10px') : '') +
         '<div style="position:relative;padding:' + (P0 ? 56 : 12) + 'px 10px 12px;display:flex;flex-direction:column;gap:6px">' +
-          ideaPrivChip(s) + '<span style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:16px;line-height:1.3;font-weight:900;color:#0d1117;text-wrap:balance">' + esc(s.text) + '</span>' +
+          (P0 ? '' : ideaPrivChip(s)) + '<span style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:16px;line-height:1.3;font-weight:900;color:#0d1117;text-wrap:balance">' + esc(s.text) + '</span>' +
           '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:2px">' + by(s, 12) + tag(s) + '</div></div></div>'; };
     const full = (s, k) => { const P0 = ideaPics(s)[0];
       return '<div ' + on(() => openIdeaSheet(s)) + ' role="button" data-idea-card="' + esc(s.text) + '"' + newAttr(s) + ' style="position:relative;display:flex;min-height:' + (P0 ? 96 : 0) + 'px;border-radius:4px;overflow:hidden;' + NOTE_BG + ';box-shadow:0 3px 10px rgba(13,17,23,.14);transform:rotate(' + ROTF[k % 4] + 'deg);cursor:pointer;padding-left:' + (P0 ? 0 : 8) + 'px">' +
         // Tiles: the thin gold edge runs down the left side (owner, 2026-10-07; grid cards keep it on top)
         '<span aria-hidden="true" data-idea-strip style="position:absolute;left:0;top:0;bottom:0;width:5px;background:#f0b93a;z-index:2"></span>' +
         (P0 ? '<div aria-hidden="true" style="position:relative;flex:0 0 36%;background:' + bg(P0, posAt(s.coverPos, IDEA_POS)) + ';-webkit-mask-image:linear-gradient(to right,#000 40%,transparent 100%);mask-image:linear-gradient(to right,#000 40%,transparent 100%)"></div>' : '') +
+        // Private sits on the photo, level with the title's first line (owner, 2026-10-11)
+        (P0 ? ideaPrivChip(s, 'top:10px;left:13px') : '') +
         '<div style="position:relative;flex:1;min-width:0;padding:10px 12px 10px 6px;display:flex;flex-direction:column;gap:4px">' +
-          ideaPrivChip(s) + '<span style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:17px;line-height:1.25;font-weight:900;color:#0d1117;text-wrap:balance">' + esc(s.text) + '</span>' +
+          (P0 ? '' : ideaPrivChip(s)) + '<span style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:17px;line-height:1.25;font-weight:900;color:#0d1117;text-wrap:balance">' + esc(s.text) + '</span>' +
           (s.overview ? '<span style="display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;font-size:13px;line-height:1.4;font-weight:600;color:#6b7280">' + esc(s.overview) + '</span>' : '') +
           '<div style="margin-top:auto;padding-top:4px;display:flex;align-items:center;justify-content:space-between;gap:8px">' + by(s, 12.5) + tag(s) + '</div></div></div>'; };
     const SORTS = [['new', 'Newest'], ['interest', 'Popular'], ['close', 'Almost a Plan']];   // "Closest" read as distance
