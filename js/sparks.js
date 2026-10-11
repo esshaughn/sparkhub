@@ -326,7 +326,7 @@
     groups: [], sparks: [], profiles: {},
 
     drafts: [], notes: [], pushOn: false, pushCardHidden: (() => { try { return localStorage.getItem('spark-hub-push-card') === 'hidden'; } catch (e) { return false; } })(),
-    fb: null, sec: null, needEd: null, share: null, partMore: {}, partRoster: null, partGuest: null, calSheet: null, asMember: null,
+    fb: null, sec: null, needEd: null, share: null, partMore: {}, partRoster: null, partGuest: null, calSheet: null, asMember: null, adminOn: null,
 
     loginStep: null, loginFrom: 'default', loginThen: null, loginMode: 'link', loginEmail: '', loginCode: '',
     resent: false, mergeToken: null, googleFailed: false,
@@ -433,6 +433,7 @@
   const go = (screen, extra) => {
     const sc = scroller();
     if (state.asMember) { previewing = false; state.asMember = null; state.viewAs = null; }   // leaving the event ends View as a member
+    if (state.adminOn && !(screen === 'detail' && extra && extra.subjectId === state.adminOn)) state.adminOn = null;   // and Admin view (reopening the same event keeps it)
     // The Ideas tab always opens on Newest, whatever sort was picked last time (owner, 2026-10-07)
     if (screen === 'ideas' && state.screen !== 'ideas') state.iaSort = 'new';
     if (screen === 'me' && state.screen !== 'me') state.impWait = false;   // Your impact comes back on the next visit (Get started)
@@ -516,7 +517,12 @@
   const isLead = (s) => isTheLead(s) || isCohost(s);
   const hostIds = (s) => [s.leadId].concat(s.cohosts || []);
   // The lead, or an admin of the idea's group, can edit or delete it
-  const isGroupAdmin = (s) => { const g = s && groupById(s.groupId); return runs(g) && !asMemberOf(s); };
+  // Admin view (owner, 2026-10-11): an owner or admin of the event's group who doesn't host it sees it as a member does;
+  // ⋯ → Admin view turns their edit and take-down tools on for that event until they leave it. Hosts keep theirs.
+  const hostsIt = (s) => !!s && !!state.me && (s.leadId === state.me || (s.cohosts || []).indexOf(state.me) > -1);
+  const adminOnly = (s) => !!s && runs(groupById(s.groupId)) && !hostsIt(s);
+  const adminViewOf = (s) => !!s && state.adminOn === s.id;
+  const isGroupAdmin = (s) => { const g = s && groupById(s.groupId); return runs(g) && !asMemberOf(s) && (hostsIt(s) || adminViewOf(s)); };
   const canEdit = (s) => isLead(s) || isGroupAdmin(s);
   const canTakeDown = (s) => isTheLead(s) || isGroupAdmin(s);   // delete or cancel: not co-hosts
   // First name and last initial wherever a person is named (Design v8-17, 9b): Hana M. The full name is only on their
@@ -6459,7 +6465,10 @@
           (isLead(s) ? '<div ' + on(() => setState({ evMenu: null, share: { id: s.id, copied: false, pop: 'qr', solo: true } }), 'menuitem') + ' class="hov-fill-grey" style="' + MENU_ROW + '">' +
             svg(18, 'fill="none" stroke="#0d1117" stroke-width="2.2"', '<rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><path d="M14 14h2v2h-2zM18 18h2v2h-2z"/>') + 'QR code</div>' : '') +
           // View as attendee (Design v8-18 1l, renamed v8-22; was Member view, owner 2026-10-10): this event as a person going sees it, look only
-          (hostRole(s) ? '<div ' + on(() => { setState({ evMenu: null }); startAsMember(s); }, 'menuitem') + ' data-as-member class="hov-fill-grey" style="' + MENU_ROW + '">' +
+          // Admin view (owner, 2026-10-11): a group owner or admin who doesn't host it turns their tools on here
+          (adminOnly(s) && !state.viewAs ? '<div ' + on(() => { setState({ evMenu: null, adminOn: adminViewOf(s) ? null : s.id }); toast(adminViewOf(s) ? 'Admin view on' : 'Back to the member view', true); }, 'menuitem') + ' data-admin-view class="hov-fill-grey" style="' + MENU_ROW + '">' +
+            svg(18, stroke('#0d1117', 2.3), '<path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6z"/>') + (adminViewOf(s) ? 'Exit admin view' : 'Admin view') + '</div>' : '') +
+          (hostRole(s) && (!adminOnly(s) || adminViewOf(s)) ? '<div ' + on(() => { setState({ evMenu: null }); startAsMember(s); }, 'menuitem') + ' data-as-member class="hov-fill-grey" style="' + MENU_ROW + '">' +
             svg(18, stroke('#0d1117', 2.3), '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/>') + 'View as attendee</div>' : '') +
           // Everyone else signed in: Share link · Report this event / idea (v8-18 1s, owner 2026-10-10: ⋯ in place of Share)
           (!hostRole(s) && state.email ? sfEventRow(s, MENU_ROW) : '') +
@@ -6479,7 +6488,7 @@
         (canEdit(s) && !s.cancelledAt ? '<span ' + on(() => openSec(s, 'title')) + ' aria-label="' + (s.planned ? 'Edit event' : 'Edit Idea') + '" class="hov-fill-grey" style="' + ROUND_BTN + '">' + svg(18, stroke('#0d1117', 2.4), PENCIL) + '</span>'
           : share ? '' : '<span style="flex:0 0 44px;width:44px"></span>') +
         // Share stays on a cancelled plan (Design v8)
-        (share && state.email && !hostRole(s) ? evMenu(s) :   // signed in: ⋯ (Share link · Report this event), v8-18 1s
+        (share && state.email && (!hostRole(s) || adminOnly(s)) ? evMenu(s) :   // signed in: ⋯ (Share link · Report this event), v8-18 1s
           share ? '<span ' + on(() => setState({ share: { id: s.id, copied: false } })) + ' aria-label="Share" class="hov-fill-grey" style="' + ROUND_BTN + '">' + svg(18, stroke('#0d1117', 2.4), P5.share) + '</span>' : '')) +
       '</div>' + inner +
       // (No chip over the photo after an action, owner 2026-10-01: the page already shows what changed)
@@ -9088,7 +9097,7 @@
       '<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(13,17,23,.4),rgba(13,17,23,.15))"></div>' +
       '<div style="position:absolute;top:calc(var(--safe-top, 0px) + 54px);left:16px;right:16px;display:flex;justify-content:space-between">' +
         '<span ' + on(goBack) + ' aria-label="Back" style="width:44px;height:44px;border-radius:999px;background:rgba(255,255,255,.92);display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(18, stroke('#0d1117', 2.6), '<path d="M15 5l-7 7 7 7"/>') + '</span>' +
-        (state.email && !hostRole(s) && !isStarter(s) ? evMenu(s) :   // signed in: ⋯ (Share link · Report this idea), v8-18 1s
+        (state.email && (adminOnly(s) || (!hostRole(s) && !isStarter(s))) ? evMenu(s) :   // signed in: ⋯ (Share link · Report this idea), v8-18 1s
         '<span ' + on(() => share8(s)) + ' aria-label="Share" style="width:44px;height:44px;border-radius:999px;background:rgba(255,255,255,.92);display:flex;align-items:center;justify-content:center;cursor:pointer">' + svg(18, stroke('#0d1117', 2.4), '<path d="M12 3v12M7 8l5-5 5 5M5 14v6h14v-6"/>') + '</span>') + '</div></div>';
     return '<div data-screen-label="Idea page (8b)" style="position:relative;display:flex;flex-direction:column;background:#e8eaee;min-height:100%">' + head +
       '<div style="position:relative;margin-top:-22px;border-radius:22px 22px 0 0;background:#e8eaee;display:flex;flex-direction:column;gap:12px;padding:18px 14px 0">' +

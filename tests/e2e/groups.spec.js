@@ -142,6 +142,10 @@ test('a group end to end: edit group, cover, rename, invite, pin, admin edits, r
     ideaId = await postIdea(B, { title: uniqueTitle('Tempo run') });
     await openIdea(A, ideaId);
     const detail = A.locator('[data-screen-label="Idea page (8b)"]');
+    // An admin sees it as a member until ⋯ → Admin view (owner, 2026-10-11)
+    await expect(detail.locator('[data-idea-edit]')).toHaveCount(0);
+    await detail.locator('[data-ev-menu]').click();
+    await A.getByRole('menuitem', { name: 'Admin view' }).click();
     await detail.locator('[data-idea-edit]').click();   // an admin gets Edit too (the title only, v8-8's idea page); an idea's pop-up says idea
     const sec = A.getByRole('dialog', { name: 'Edit Idea' });
     await expect(sec.locator('[data-edit-photo]')).toHaveCount(0);               // only the lead changes the photo
