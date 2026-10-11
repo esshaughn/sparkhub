@@ -1894,3 +1894,19 @@ select t.login('gi_far'); set role authenticated;
 select t.check('joining by code', public.join_group('INVT27') = t.id('gi_g'));
 reset role;
 select t.check('…answers the waiting invite', (select status from group_invites where user_id = t.id('gi_far') and group_id = t.id('gi_g')) = 'joined');
+
+-- One description (20261128000000_one_description.sql): an admin saves the description whole, which clears the old
+-- lines; the older calls (no p_vision) leave the description alone; members still can't -----------------------------
+reset role;
+update sparks set hopes = '{"Bring water","Kids welcome"}', vision = null where id = t.id('poll_idea');
+select t.login('admin'); set role authenticated;
+select t.must_allow('an admin saves the description', format($$select public.admin_edit_spark(%L, 'Poll idea', '{}', null, 'Bring water. Kids welcome.')$$, t.id('poll_idea')));
+reset role;
+select t.check('…which replaces the lines', (select vision = 'Bring water. Kids welcome.' and cardinality(hopes) = 0 from sparks where id = t.id('poll_idea')));
+select t.login('admin'); set role authenticated;
+select t.must_allow('an admin renames it the old way', format($$select public.admin_edit_spark(%L, 'Poll idea', '{}')$$, t.id('poll_idea')));
+reset role;
+select t.check('…which keeps the description', (select vision = 'Bring water. Kids welcome.' from sparks where id = t.id('poll_idea')));
+select t.login('member'); set role authenticated;
+select t.must_refuse('a member saving the description through admin_edit_spark', format($$select public.admin_edit_spark(%L, 'Poll idea', '{}', null, 'Mine now')$$, t.id('poll_idea')));
+reset role;

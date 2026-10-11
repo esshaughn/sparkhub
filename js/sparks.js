@@ -6783,8 +6783,9 @@
   const openSec = (s, kind) => {
     // v8-14: a host edits the description whole. An older event's three detail lines come in joined as one paragraph
     // (owner, 2026-10-07: "Bring water", "Kids welcome" → "Bring water. Kids welcome."), so saving moves it to the new
-    // format; 3 lines of 60 always fit in 200. A group admin who isn't a host still edits the lines (admin_edit_spark)
-    const desc = isLead(s) ? descDraft(s) : null;
+    // format; 3 lines of 60 always fit in 200. A group admin who isn't a host edits it whole too (owner, 2026-10-11;
+    // admin_edit_spark's p_vision, 20261128000000_one_description.sql, which also moved every older event's lines over)
+    const desc = descDraft(s);
     const bits = desc != null ? ['', '', ''] : basicsOf(s).slice(0, 3).map(b => b.slice(0, 60));
     while (bits.length < 3) bits.push('');
     setState({ sec: { id: s.id, kind, title: s.text, ...whenModelOf(s), bits, desc, ov: s.overview || '', need: s.minPeople || null, tags: (s.tags || []).slice(), priv: s.visibility === 'invite', guestInv: s.guestInvites !== false, cap: s.cap || null, groups: gIds(s).slice() },
@@ -6838,7 +6839,7 @@
       run(async () => {
         const desc = ss.desc != null ? ss.desc.trim().slice(0, DESC_DB) : null;
         if (lead) must(await sb.from('sparks').update(Object.assign({ hopes: desc != null ? [] : hopes, overview: overview || null, vision: desc || null, tags: (ss.tags || []).slice(0, 2) }, s.planned ? {} : { min_people: ss.need || null })).eq('id', s.id));
-        else must(await sb.rpc('admin_edit_spark', { p_spark: s.id, p_text: s.text, p_hopes: hopes, p_overview: overview }));
+        else must(await sb.rpc('admin_edit_spark', { p_spark: s.id, p_text: s.text, p_hopes: [], p_overview: overview, p_vision: desc || '' }));
         if (send) await sendUpdate(s, msg);
       }, { sec: null }).then(ok => { if (ok) toast(send ? sentNote(s) : note, true); });
       return;
