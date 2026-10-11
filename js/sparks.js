@@ -2723,6 +2723,10 @@
     if (!r.draft) return {};
     const d = r.draft, out = {};
     DRAFT_KEYS.forEach(k => { if (k in d) out[k] = d[k]; });
+    // A draft parked with quick-detail lines (before 2026-10-11) brings them as the one description, joined like descDraft
+    const lines = (d.evBits || []).map(b => String(b || '').trim()).filter(Boolean);
+    if (lines.length && !String(d.evDesc || '').trim()) out.evDesc = lines.map(b => /[.!?]$/.test(b) ? b : b + '.').join(' ').slice(0, DESC_DB);
+    out.evBits = ['', '', ''];
     out.photos = (d.photos || []).map(u => { const blob = dataUrlToBlob(u); return { blob, url: URL.createObjectURL(blob) }; });
     return Object.assign(out, { screen: 'compose', evStep: 'review' });
   };
