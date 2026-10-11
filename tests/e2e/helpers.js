@@ -242,7 +242,7 @@ async function postIdea(page, { title, location, date, time, basics = [] }) {
     const g = JSON.parse(localStorage.getItem('spark-hub-prefs') || '{}').groupId || (await c.from('groups').select('id').eq('name', 'Torrez Fitness').single()).data.id;
     const name = (await c.from('profiles').select('name').eq('id', me).single()).data.name || 'Tester';
     const r = await c.from('sparks').insert({ group_id: g, author_name: name, lead_name: name, lead_id: me, created_by: me, text: title.charAt(0).toUpperCase() + title.slice(1),
-      hopes: basics.map(b => b.charAt(0).toUpperCase() + b.slice(1)), spot: location || null, spot_open: !location, day_date: date || null, day_time: date && time ? time : null }).select('id').single();
+      vision: basics.map(b => b.charAt(0).toUpperCase() + b.slice(1)).map(b => /[.!?]$/.test(b) ? b : b + '.').join(' ') || null, spot: location || null, spot_open: !location, day_date: date || null, day_time: date && time ? time : null }).select('id').single();
     return r.error ? r.error.message : r.data.id;
   }, { title, location, date, time, basics });
   if (!/^[0-9a-f-]{36}$/.test(id)) throw new Error('Couldn’t make the idea: ' + id);

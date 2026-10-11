@@ -1895,22 +1895,38 @@ select t.check('joining by code', public.join_group('INVT27') = t.id('gi_g'));
 reset role;
 select t.check('…answers the waiting invite', (select status from group_invites where user_id = t.id('gi_far') and group_id = t.id('gi_g')) = 'joined');
 
--- One description (20261128000000_one_description.sql): an admin saves the description whole, which clears the old
--- lines; the older calls (no p_vision) leave the description alone; members still can't -----------------------------
+-- One description (20261128000000_one_description.sql): an admin saves the description whole; the older calls (no
+-- p_vision) leave it alone; members still can't ---------------------------------------------------------------------
 reset role;
-update sparks set hopes = '{"Bring water","Kids welcome"}', vision = null where id = t.id('poll_idea');
+update sparks set vision = null where id = t.id('poll_idea');
 select t.login('admin'); set role authenticated;
-select t.must_allow('an admin saves the description', format($$select public.admin_edit_spark(%L, 'Poll idea', '{}', null, 'Bring water. Kids welcome.')$$, t.id('poll_idea')));
+select t.must_allow('an admin saves the description', format($$select public.admin_edit_spark(%L, 'Poll idea', p_vision => 'Bring water. Kids welcome.')$$, t.id('poll_idea')));
 reset role;
-select t.check('…which replaces the lines', (select vision = 'Bring water. Kids welcome.' and cardinality(hopes) = 0 from sparks where id = t.id('poll_idea')));
+select t.check('…which is the description', (select vision = 'Bring water. Kids welcome.' from sparks where id = t.id('poll_idea')));
 select t.login('admin'); set role authenticated;
 select t.must_allow('an admin renames it the old way', format($$select public.admin_edit_spark(%L, 'Poll idea', '{}')$$, t.id('poll_idea')));
 reset role;
 select t.check('…which keeps the description', (select vision = 'Bring water. Kids welcome.' from sparks where id = t.id('poll_idea')));
 select t.login('member'); set role authenticated;
-select t.must_refuse('a member saving the description through admin_edit_spark', format($$select public.admin_edit_spark(%L, 'Poll idea', '{}', null, 'Mine now')$$, t.id('poll_idea')));
+select t.must_refuse('a member saving the description through admin_edit_spark', format($$select public.admin_edit_spark(%L, 'Poll idea', p_vision => 'Mine now')$$, t.id('poll_idea')));
 reset role;
 
+-- Quick details retired (20261129000000_retire_quick_details.sql): nobody writes sparks.hopes any more ----------------
+select t.login('admin'); set role authenticated;
+select t.must_allow('an older app''s admin edit, sending lines', format($$select public.admin_edit_spark(%L, 'Poll idea', '{"Bring water"}', null, null)$$, t.id('poll_idea')));
+reset role;
+select t.check('…saves the title but no lines, and keeps the description',
+  (select cardinality(hopes) = 0 and vision = 'Bring water. Kids welcome.' from sparks where id = t.id('poll_idea')));
+select t.login('host'); set role authenticated;
+select t.must_refuse('the lead writing quick-detail lines', format($$update sparks set hopes = '{"Bring water"}' where id = %L$$, t.id('poll_idea')));
+select t.must_allow('an older app''s What to expect save, which sends hopes: []', format($$update sparks set hopes = '{}', vision = 'Bring water. Kids welcome.' where id = %L$$, t.id('poll_idea')));
+select t.must_refuse('posting with quick-detail lines',
+  format($$insert into sparks (group_id, author_name, lead_name, lead_id, created_by, text, hopes) values (%L, 'Host', 'Host', %L, %L, 'With lines', '{"Bring water"}')$$, t.id('g'), t.id('host'), t.id('host')));
+select t.must_allow('an older app posting hopes: [] still works',
+  format($$insert into sparks (group_id, author_name, lead_name, lead_id, created_by, text, hopes) values (%L, 'Host', 'Host', %L, %L, 'Empty lines', '{}')$$, t.id('g'), t.id('host'), t.id('host')));
+reset role;
+select t.must_refuse('no row can hold a line, even by hand', format($$update sparks set hopes = '{"Bring water"}' where id = %L$$, t.id('poll_idea')));
+delete from sparks where text = 'Empty lines';
 -- Members can invite people (20261130000000_members_can_invite.sql, Design v8-24 item 3): off by default; owners and
 -- admins turn it on per group; then any member reads the link and invites friends ---------------------------------
 reset role;

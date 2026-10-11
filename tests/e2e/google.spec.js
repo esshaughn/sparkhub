@@ -61,9 +61,10 @@ test('coming back signed in posts the saved draft', async ({ browser }) => {
     const detail = page.locator('[data-screen-label="Idea page (8b)"]');
     await expect(detail).toContainText(title.charAt(0).toUpperCase() + title.slice(1));
     id = page.url().match(/#\/idea\/([0-9a-f-]{36})$/)[1];
-    // A led Idea shows no description (Design v8-21 4a), so check what was saved: the draft's line went up with it
-    const saved = await asUser(page, async (c, _C, id) => (await c.from('sparks').select('vision,hopes').eq('id', id).single()).data, id);
-    expect((saved.vision || '') + (saved.hopes || []).join(' ')).toContain('Bring snacks');
+    // A led Idea shows no description (Design v8-21 4a), so check what was saved: the draft's old detail line
+    // (parked before 2026-10-11) went up as its description
+    const saved = await asUser(page, async (c, _C, id) => (await c.from('sparks').select('vision').eq('id', id).single()).data, id);
+    expect(saved.vision).toBe('Bring snacks.');
     expect(new URL(page.url()).search).toBe('');
     expect(await readResume(page)).toBeNull();
     expect(errors.filter(e => !/code|pkce|verifier/i.test(e))).toEqual([]);

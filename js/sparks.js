@@ -307,7 +307,7 @@
     evDate: '', evTime: '', evEnd: '', evEndOn: false, timeOpen: null, dateOpen: null, calMonth: null,
     evDayType: 'one', evRepeat: 'week', evRepeatUntil: '', evEndDate: '', evEndDateT: '', evDays: [], evDaysEach: false, dayTypePop: null,   // how long it is (v8-7)
     locText: '', locPlace: null, locSuggest: [], locAddr: '',   // v8-8 item 8: Location name + Address
-    evBits: ['', '', ''], evOverview: '', evNeed: null, evTags: [], evNeeds: [], evDatePoll: null, evSpotPoll: null, evLater: {}, evHelpNone: false,
+    evOverview: '', evNeed: null, evTags: [], evNeeds: [], evDatePoll: null, evSpotPoll: null, evLater: {}, evHelpNone: false,
     evDesc: '', evInspo: [], evJobPop: false, evGrpPop: false, evCap: null, cpWhite: null,   // v8-14 Plan an event on one page: description, inspo photos, its two pop-ups; v8-18: Limit RSVPs, which cards have turned white
     evPriv: false, evNoGuestInv: null, evTest: null, evFloat: false, evGrpNone: false, evTitleEd: false, evDetOpen: false, evPop: null, evGroups: null, evDraftId: null, evLeave: false, evLeaveTo: null, evFrom: null, pollSheet: null, needSheet: null, evFromReview: false,
     evFromIdea: null, evIdeaJobs: []   // Make it a plan! on an idea (v8-8): Post it turns that idea into the event, its jobs and spots stay
@@ -617,7 +617,7 @@
   const toSpark = (row, offers, interests, contacts, x) => ({
     id: row.id, groupId: row.group_id, text: row.text,
     groupIds: [row.group_id].concat((x.groups[row.id] || []).map(g => g.group_id).filter(g => g !== row.group_id)),
-    hopes: (row.hopes || []).filter(Boolean), overview: row.overview || '', cap: row.cap || null,   // an attendance cap (null: none); cards say N spots left and Full
+    overview: row.overview || '', cap: row.cap || null,   // an attendance cap (null: none); cards say N spots left and Full
     createdBy: row.created_by, created: Date.parse(row.created_at),
     leadId: row.lead_id, leadName: row.lead_name || row.author_name || 'Someone',
     spot: row.spot || '', spotAddress: row.spot_address || '',
@@ -2721,7 +2721,7 @@
   const GOOGLE_ON = !!CFG.googleSignIn && !IN_APP;   // Google refuses sign-in inside in-app browsers: email only there, with inAppTip()
   const inAppTip = (dark) => !IN_APP || !CFG.googleSignIn ? '' : '<p data-in-app-tip style="margin:4px 0 0;text-align:center;font-size:13px;line-height:1.45;font-weight:600;color:' + (dark ? '#aab0bb' : '#6b7280') + '">Want to use Google? Open this page in your browser first: tap ··· then Open in browser.</p>';
   const RESUME_KEY = 'spark-hub-google-resume';
-  const DRAFT_KEYS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'locText', 'locPlace', 'locAddr', 'evBits', 'evOverview', 'evDesc', 'evCap', 'evNeed', 'evTags', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evNoGuestInv', 'evTest', 'evFloat', 'evHelpNone', 'evGroups', 'coverPos', 'evPhotoPath', 'evDraftId'];
+  const DRAFT_KEYS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'locText', 'locPlace', 'locAddr', 'evOverview', 'evDesc', 'evCap', 'evNeed', 'evTags', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evNoGuestInv', 'evTest', 'evFloat', 'evHelpNone', 'evGroups', 'coverPos', 'evPhotoPath', 'evDraftId'];
   const readResume = () => {
     try {
       const r = JSON.parse(sessionStorage.getItem(RESUME_KEY));
@@ -2777,10 +2777,7 @@
     if (!r.draft) return {};
     const d = r.draft, out = {};
     DRAFT_KEYS.forEach(k => { if (k in d) out[k] = d[k]; });
-    // A draft parked with quick-detail lines (before 2026-10-11) brings them as the one description, joined like descDraft
-    const lines = (d.evBits || []).map(b => String(b || '').trim()).filter(Boolean);
-    if (lines.length && !String(d.evDesc || '').trim()) out.evDesc = lines.map(b => /[.!?]$/.test(b) ? b : b + '.').join(' ').slice(0, DESC_DB);
-    out.evBits = ['', '', ''];
+    if (!String(d.evDesc || '').trim() && oldLinesDesc(d.evBits)) out.evDesc = oldLinesDesc(d.evBits);
     out.photos = (d.photos || []).map(u => { const blob = dataUrlToBlob(u); return { blob, url: URL.createObjectURL(blob) }; });
     return Object.assign(out, { screen: 'compose', evStep: 'review' });
   };
@@ -4049,7 +4046,7 @@
     return [
       { label: 'Lead', icon: 'person', p: s.wantsHost ? 0 : 1, todo: 'Find a lead', done: 'Has a lead', sec: 'sec-lead' },
       { label: 'Location', icon: 'pin', p: s.spot ? 1 : s.spotOpts.length ? .5 : 0, todo: 'Pick a location', done: 'Location set', sec: 'sec-when' },
-      { label: 'Details', icon: 'roles', p: basicsOf(s).length || s.overview ? 1 : 0, todo: 'Add details', done: 'Details added', sec: 'sec-details' },
+      { label: 'Details', icon: 'roles', p: descText(s) || s.overview ? 1 : 0, todo: 'Add details', done: 'Details added', sec: 'sec-details' },
       // Design 23C1 (2026-10-03): the same five steps as the idea's gold strip
       { label: 'Jobs', icon: 'clip', p: s.signups.length || s.noHelp ? 1 : 0, todo: 'Add jobs, or say no help needed', done: s.signups.length ? 'Jobs added' : 'No help needed', sec: 'sec-tasks' },
       { label: 'Date', icon: 'cal', p: s.dayDate ? (s.dayDate >= todayISO() ? 1 : 0) : top ? .5 : 0, todo: 'Pick a date', done: 'Date set', sec: 'sec-when' }
@@ -6918,14 +6915,10 @@
 
   // ---- v6 Update 6: the host edits one section at a time in a small sheet (the full-screen editor is retired)
   const openSec = (s, kind) => {
-    // v8-14: a host edits the description whole. An older event's three detail lines come in joined as one paragraph
-    // (owner, 2026-10-07: "Bring water", "Kids welcome" → "Bring water. Kids welcome."), so saving moves it to the new
-    // format; 3 lines of 60 always fit in 200. A group admin who isn't a host edits it whole too (owner, 2026-10-11;
+    // v8-14: a host edits the description whole. A group admin who isn't a host edits it whole too (owner, 2026-10-11;
     // admin_edit_spark's p_vision, 20261128000000_one_description.sql, which also moved every older event's lines over)
     const desc = descDraft(s);
-    const bits = desc != null ? ['', '', ''] : basicsOf(s).slice(0, 3).map(b => b.slice(0, 60));
-    while (bits.length < 3) bits.push('');
-    setState({ sec: { id: s.id, kind, title: s.text, ...whenModelOf(s), bits, desc, ov: s.overview || '', need: s.minPeople || null, tags: (s.tags || []).slice(), priv: s.visibility === 'invite', guestInv: s.guestInvites !== false, cap: s.cap || null, groups: gIds(s).slice() },
+    setState({ sec: { id: s.id, kind, title: s.text, ...whenModelOf(s), desc, ov: s.overview || '', need: s.minPeople || null, tags: (s.tags || []).slice(), priv: s.visibility === 'invite', guestInv: s.guestInvites !== false, cap: s.cap || null, groups: gIds(s).slice() },
       offerText: kind === 'when' ? s.spot || '' : '', offerPlace: s.spot && s.spotPoint ? { name: s.spot, address: s.spotAddress, lat: s.spotPoint[0], lon: s.spotPoint[1] } : null, offerSuggest: [], timeOpen: null, menu: null });
   };
   // Round 65a: what an edit would tell people. Since 2026-10-04 (owner, Design 30) saving an edit tells no one (secSends),
@@ -6933,9 +6926,9 @@
   const secMessage = (s, ss) => {
     if (ss.kind === 'title') return '';   // renaming saves quietly
     if (ss.kind === 'details') {
-      const was = s.hopes || [], hopes = ss.bits.map(b => b.trim().slice(0, 60)).filter(Boolean), ov = (ss.ov || '').trim().slice(0, OV_MAX);
-      if (hopes.join('\n') === was.join('\n') && ov === (s.overview || '')) return '';
-      const line = (ov !== (s.overview || '') && ov) || hopes.find(h => was.indexOf(h) < 0) || hopes[0];
+      const was = descText(s), desc = (ss.desc || '').trim().slice(0, DESC_DB), ov = (ss.ov || '').trim().slice(0, OV_MAX);
+      if (desc === was && ov === (s.overview || '')) return '';
+      const line = (ov !== (s.overview || '') && ov) || descPlain(desc).trim().split('\n')[0];
       return line ? 'What to expect: ' + line : '';
     }
     if (ss.kind !== 'when') return '';
@@ -6966,17 +6959,16 @@
       const planOv = phaseOf(s) === 'plan', overview = (ss.ov || '').trim().slice(0, OV_MAX), ovNew = planOv && overview !== (s.overview || '');
       run(async () => {
         if (lead) { if (text !== s.text || ovNew) must(await sb.from('sparks').update(Object.assign({ text }, ovNew ? { overview: overview || null } : {})).eq('id', s.id)); }
-        else must(await sb.rpc('admin_edit_spark', Object.assign({ p_spark: s.id, p_text: text, p_hopes: s.hopes }, ovNew ? { p_overview: overview } : {})));
+        else must(await sb.rpc('admin_edit_spark', Object.assign({ p_spark: s.id, p_text: text }, ovNew ? { p_overview: overview } : {})));
         if (send) await sendUpdate(s, msg);
       }, { sec: null }).then(ok => { if (ok) toast(send ? sentNote(s) : note, true); });
       return;
     }
     if (ss.kind === 'details') {
-      const hopes = ss.bits.map(b => b.trim().slice(0, 60)).filter(Boolean), overview = (ss.ov || '').trim().slice(0, OV_MAX);
+      const overview = (ss.ov || '').trim().slice(0, OV_MAX), desc = (ss.desc || '').trim().slice(0, DESC_DB);
       run(async () => {
-        const desc = ss.desc != null ? ss.desc.trim().slice(0, DESC_DB) : null;
-        if (lead) must(await sb.from('sparks').update(Object.assign({ hopes: desc != null ? [] : hopes, overview: overview || null, vision: desc || null, tags: (ss.tags || []).slice(0, 2) }, s.planned ? {} : { min_people: ss.need || null })).eq('id', s.id));
-        else must(await sb.rpc('admin_edit_spark', { p_spark: s.id, p_text: s.text, p_hopes: [], p_overview: overview, p_vision: desc || '' }));
+        if (lead) must(await sb.from('sparks').update(Object.assign({ overview: overview || null, vision: desc || null, tags: (ss.tags || []).slice(0, 2) }, s.planned ? {} : { min_people: ss.need || null })).eq('id', s.id));
+        else must(await sb.rpc('admin_edit_spark', { p_spark: s.id, p_text: s.text, p_overview: overview, p_vision: desc }));
         if (send) await sendUpdate(s, msg);
       }, { sec: null }).then(ok => { if (ok) toast(send ? sentNote(s) : note, true); });
       return;
@@ -7644,18 +7636,17 @@
         (s.spot ? '<a href="' + esc(directionsUrl(s)) + '" target="_blank" rel="noopener noreferrer" style="' + pill + '">' + svg(18, stroke('#5b4ae8', 2.2), '<path d="M12 2.8 21.2 12 12 21.2 2.8 12Z"/><path d="M9 14.5V12a1.5 1.5 0 0 1 1.5-1.5H15"/><path d="m13 8.5 2 2-2 2"/>') + 'Directions</a>' : '') + '</div>' : '') +
     '</div>';
   };
-  // What to expect (Design 8a, 2026-10-03; was Details): the one-line overview, then the bullets. No dividers, nothing bold
+  // What to expect (Design 8a, 2026-10-03; was Details): the one-line overview, then the description. No dividers
   const basicDetailsSec = (s) => {
-    const bits = basicsOf(s), edit = canEdit(s) && !s.cancelledAt;
+    const desc = descText(s), edit = canEdit(s) && !s.cancelledAt;
     const ov = s.planned ? '' : s.overview || '';   // v8-13: a plan's overview is in the header
-    if (!bits.length && !ov && !edit) return '';
+    if (!desc && !ov && !edit) return '';
     return '<section id="sec-details" data-basics><div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 4px;margin-bottom:8px"><h2 style="margin:0;font-size:24px;line-height:1.1;font-weight:900;letter-spacing:-.6px;color:#0d1117">What to expect</h2>' +
         (edit ? '<span ' + on(() => openSec(s, 'details')) + ' aria-label="Edit what to expect" style="display:flex;align-items:center;gap:5px;min-height:36px;padding:0 2px;color:#6b7280;font-size:14px;font-weight:700;cursor:pointer">' + svg(13, stroke('currentColor', 2.4), PENCIL) + 'Edit</span>' : '') + '</div>' +
-      (bits.length || ov
+      (desc || ov
         ? '<div style="' + CARD + ';padding:16px 18px;display:flex;flex-direction:column;gap:6px">' +
             (ov ? '<div data-overview style="font-size:18px;line-height:1.4;font-weight:500;color:#0d1117;text-wrap:pretty">' + esc(ov) + '</div>' : '') +
-            (descText(s) ? descHtml(descText(s), 'padding:4px 0;font-size:17px;line-height:1.45;font-weight:500;color:#0d1117')
-              : bits.map(t => '<div style="display:flex;align-items:baseline;gap:10px;padding:4px 0"><span style="flex:0 0 7px;width:7px;height:7px;border-radius:999px;background:#149a4b;transform:translateY(-3px)"></span><span style="font-size:17px;line-height:1.4;font-weight:500;color:#0d1117;text-wrap:pretty">' + esc(t) + '</span></div>').join('')) + '</div>'
+            (desc ? descHtml(desc, 'padding:4px 0;font-size:17px;line-height:1.45;font-weight:500;color:#0d1117') : '') + '</div>'
         : '<div ' + on(() => openSec(s, 'details')) + ' style="padding:14px 16px;border-radius:18px;border:1.5px dashed #c9ccd3;font-size:14.5px;font-weight:700;color:#6b7280;cursor:pointer">' + 'Add a description of what to expect.' + '</div>') +
       // The way in to a plan's first Inspo photo (owner, 2026-10-05: Inspo stays hidden on a plan until it has one)
       (isLead(s) && s.planned && !s.cancelledAt && !s.mood.length ? '<label data-add-inspo class="hov-fill-grey"' + (state.busy ? ' aria-busy="true"' : '') + ' style="margin-top:8px;align-self:flex-start;display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 4px;font-size:14px;font-weight:800;color:#5b4ae8;cursor:' + (state.busy ? 'wait;opacity:.6' : 'pointer') + '">' +
@@ -8739,7 +8730,7 @@
         await ensureSession();
         const freshPhoto = !!(q.photo && !q.photo.path);
         if (q.photo) path = q.photo.path || await uploadBlob(q.photo.blob);
-        const row = { group_id: groups[0], author_name: st.myName, text: title, hopes: [], vision: null, overview: q.why.trim().slice(0, OV_MAX) || null,
+        const row = { group_id: groups[0], author_name: st.myName, text: title, vision: null, overview: q.why.trim().slice(0, OV_MAX) || null,
           photos: path ? [path] : [], cat: 'events', answers: {}, lead_id: st.me, lead_name: st.myName, created_by: st.me, spot: setLoc, spot_open: !setLoc, day_date: setD ? setD.d : null, day_time: setD && /^\d\d:\d\d$/.test(setD.t || '') ? setD.t : null,
           planned: false, visibility: q.priv ? 'invite' : 'group', wants_host: q.rule !== 'me', talk: !!q.talk, lead_rule: 'me' };   // Who leads it (v8-8): Me leads from the start; I'll decide looks for a lead and the starter picks (Anyone is gone)
         try { id = must(await sb.from('sparks').insert(row).select('id').single()).data.id; } catch (e) { if (path && freshPhoto) deletePhotos([path]); throw e; }
@@ -9901,15 +9892,14 @@
   const PEOPLE_IC = '<circle cx="9" cy="8.5" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><circle cx="17" cy="9.5" r="2.5"/><path d="M16 14.2a4.5 4.5 0 0 1 5 4.8"/>';
   const LOCK_IC = '<rect x="5" y="11" width="14" height="9.5" rx="2.5"/><path d="M8.5 11V8a3.5 3.5 0 0 1 7 0v3"/>';
 
-  // Older events kept several sentences in one line, or a paragraph in `vision` (the retired "What you're picturing";
-  // only demo events have one): one bullet per sentence. Saving Basic details moves it into the bullets.
-  const splitBits = (arr) => [].concat(...(arr || []).map(b => String(b || '').split(/(?<=[.!?])\s+/))).map(x => x.trim()).filter(Boolean);
-  const basicsOf = (s) => s.hopes.length ? s.hopes.map(x => String(x || '').trim()).filter(Boolean) : s.vision && s.vision.trim() ? [s.vision.trim()] : [];   // v8-14: a description is one paragraph   // a line is never split at its sentences (owner, 2026-10-01)
-  // A description (one paragraph in `vision`, no quick-detail lines) is text, not a bullet: it keeps its line breaks
-  // (owner, 2026-10-09). Older events' quick details (`hopes`) stay bullets
-  const descText = (s) => !s.hopes.length && s.vision && s.vision.trim() ? s.vision.trim() : '';
-  // What Edit starts from: the description as typed, or older events' lines joined into sentences
-  const descDraft = (s) => (descText(s) || basicsOf(s).map(b => /[.!?]$/.test(b) ? b : b + '.').join(' ')).slice(0, DESC_DB);
+  // An event's description: one paragraph of light Markdown in `vision`, kept with its line breaks (owner, 2026-10-09).
+  // The old up-to-three quick-detail lines (`hopes`) were all moved into it (20261128000000_one_description.sql) and
+  // can't be written any more (20261129000000_retire_quick_details.sql)
+  const descText = (s) => s.vision && s.vision.trim() ? s.vision.trim() : '';
+  const descDraft = (s) => descText(s).slice(0, DESC_DB);
+  // A draft saved before 2026-10-11 may still carry quick-detail lines (evBits): they come in as the description,
+  // joined the way the migration joined events' lines
+  const oldLinesDesc = (bits) => (Array.isArray(bits) ? bits : []).map(b => String(b || '').trim()).filter(Boolean).map(b => /[.!?]$/.test(b) ? b : b + '.').join(' ').slice(0, DESC_DB);
   // Description formatting (Design v8-18, 1b): stored in `vision` as light Markdown, **bold**, *italic*, and lines that
   // start "- " (bulleted) or "1. " (numbered); a typed * is saved as \*. descPlain() is the text for the 500 count,
   // cards and previews; descHtml() draws it, escaping the text first, so only b, i, ul, ol, li and div come out
@@ -10149,7 +10139,7 @@
         const cover = await evCover(st);
         const c = whenCols(evWhen()); if (!c.schedule) c.schedule = null;
         must(await sb.from('sparks').update(Object.assign({
-          text: cleanTitle(st.activity).slice(0, TITLE_MAX), hopes: [], vision: (st.evDesc || '').trim().slice(0, DESC_DB) || null, overview: (st.evOverview || '').trim().slice(0, OV_MAX) || null,
+          text: cleanTitle(st.activity).slice(0, TITLE_MAX), vision: (st.evDesc || '').trim().slice(0, DESC_DB) || null, overview: (st.evOverview || '').trim().slice(0, OV_MAX) || null,
           ...evSpotCols(st),
           visibility: st.evPriv ? 'invite' : 'group', guest_invites: evGuestInv(st), tags: (st.evTags || []).slice(0, 2),
           cover_pos: cover && st.coverPos ? posOf(st.coverPos, IDEA_POS) : null
@@ -10191,7 +10181,7 @@
         const row = {
           group_id: groups[0], author_name: st.myName, text: cleanTitle(st.activity).slice(0, TITLE_MAX),
           // v8-14: the one-page description (200) is the event's details text, shown whole under What to expect
-          hopes: [], vision: (st.evDesc || '').trim().slice(0, DESC_DB) || null, overview: (st.evOverview || '').trim().slice(0, OV_MAX) || null,
+          vision: (st.evDesc || '').trim().slice(0, DESC_DB) || null, overview: (st.evOverview || '').trim().slice(0, OV_MAX) || null,
           mood: insp.paths, photos: cover ? [cover.path] : [], cat: 'events', answers: {}, lead_id: st.me, lead_name: st.myName, created_by: st.me,
           ...evSpotCols(st),
           ...(() => { const c = whenCols(evWhen()); if (!c.schedule) delete c.schedule; return c; })(),   // multi-day: day_date is the first day, schedule the rest (v8-7)
@@ -10242,7 +10232,7 @@
   };
 
   // Drafts: the flow's own fields, saved to your account (only you see them)
-  const DRAFT_FIELDS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'evDayType', 'evRepeat', 'evRepeatUntil', 'evEndDate', 'evEndDateT', 'evDays', 'evDaysEach', 'locText', 'locPlace', 'locAddr', 'evBits', 'evOverview', 'evDesc', 'evCap', 'evNeed', 'evTags', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evNoGuestInv', 'evTest', 'evFloat', 'evHelpNone', 'evGroups', 'coverPos'];
+  const DRAFT_FIELDS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'evDayType', 'evRepeat', 'evRepeatUntil', 'evEndDate', 'evEndDateT', 'evDays', 'evDaysEach', 'locText', 'locPlace', 'locAddr', 'evOverview', 'evDesc', 'evCap', 'evNeed', 'evTags', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evNoGuestInv', 'evTest', 'evFloat', 'evHelpNone', 'evGroups', 'coverPos'];
   const saveDraft = () => {
     const st = state;
     if (st.busy) return;
@@ -10283,8 +10273,8 @@
       activity: str(x.activity).slice(0, TITLE_MAX), evStep: x.evStep === 'lead' ? 'review' : EV_STEPS.concat('review').indexOf(x.evStep) > -1 ? x.evStep : 'title',   // an older draft on When or Where opens on page 1
       evDate: /^\d{4}-\d{2}-\d{2}$/.test(x.evDate || '') && x.evDate >= todayISO() ? x.evDate : '', evTime: str(x.evTime), evEnd: str(x.evEnd), evEndOn: !!x.evEndOn,
       locText: str(x.locText).slice(0, 80), locPlace: x.locPlace && typeof x.locPlace === 'object' ? x.locPlace : null, locAddr: str(x.locAddr).slice(0, 120),
-      evBits: ['', '', ''], evOverview: str(x.evOverview).slice(0, OV_MAX),
-      evDesc: (str(x.evDesc) || [0, 1, 2].map(i => str((x.evBits || [])[i]).trim()).filter(Boolean).map(b => /[.!?]$/.test(b) ? b : b + '.').join(' ')).slice(0, DESC_DB),
+      evOverview: str(x.evOverview).slice(0, OV_MAX),
+      evDesc: (str(x.evDesc).trim() ? str(x.evDesc) : oldLinesDesc(x.evBits)).slice(0, DESC_DB),
       evCap: Number.isInteger(x.evCap) && x.evCap >= 2 && x.evCap <= 500 ? x.evCap : null,
       evInspo: (arr(x.evInspo) || []).filter(q => PHOTO_PATH.test(q || '')).slice(0, 3).map(path => ({ path, url: photoUrl(path) })), evNeed: Number.isInteger(x.evNeed) && x.evNeed > 0 ? Math.min(x.evNeed, 99) : null, evTags: (arr(x.evTags) || []).filter(k => TYPES6.some(t => t[0] === k)).slice(0, 2), evNeeds: arr(x.evNeeds) || [],
       evDatePoll: null, evSpotPoll: null, evLater: x.evLater && typeof x.evLater === 'object' ? x.evLater : {},
@@ -10861,7 +10851,7 @@
   function viewCompose() {
     if (!state.evFromIdea) return viewCreate1a();
     const st = state, cur = st.evStep, i = EV_STEPS.indexOf(cur), filled = evFilled(st), url = evPhotoUrl(st), title = cleanTitle(st.activity);
-    const CLEAR = { when: { evDate: '', evTime: '', evEnd: '', evEndOn: false, evDatePoll: null, evDayType: 'one', evEndDate: '', evEndDateT: '', evDays: [], evRepeatUntil: '' }, where: { locText: '', locPlace: null, locSuggest: [], locAddr: '', evSpotPoll: null }, details: { evBits: ['', '', ''], evOverview: '' }, help: { evNeeds: [] } };
+    const CLEAR = { when: { evDate: '', evTime: '', evEnd: '', evEndOn: false, evDatePoll: null, evDayType: 'one', evEndDate: '', evEndDateT: '', evDays: [], evRepeatUntil: '' }, where: { locText: '', locPlace: null, locSuggest: [], locAddr: '', evSpotPoll: null }, details: { evDesc: '', evOverview: '' }, help: { evNeeds: [] } };
     const nextOf = (k) => EV_STEPS[EV_STEPS.indexOf(k) + 1] || 'review';
     const close = () => { if (evStarted(st) && !st.evFromIdea) setState({ evLeave: true, timeOpen: null }); else evExit(); };
     const later = (k) => Object.assign({}, st.evLater, { [k]: false });
