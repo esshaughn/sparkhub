@@ -30,9 +30,7 @@ test('Going: Ways to participate signs you up; Invite people opens the new sheet
     await M.getByRole('button', { name: /^Notifications/ }).first().click();
     const bell = M.getByRole('dialog', { name: 'Notifications' });
     await expect(bell.locator('[data-notif=newevent]').filter({ hasText: title })).toBeVisible();
-    await bell.locator('.v6-sheet-body').hover();
-    await M.mouse.wheel(0, 300);
-    await M.waitForTimeout(1200);
+    await M.waitForTimeout(1400);   // just having it open clears the count (owner, 2026-10-11)
     await expect(bell.locator('[data-notif=newevent]').filter({ hasText: title }).getByLabel('Unread')).toBeVisible();
     await bell.getByRole('button', { name: 'Close' }).first().click();
     await expect(M.getByRole('button', { name: /^Notifications, \d+ new$/ })).toHaveCount(0);

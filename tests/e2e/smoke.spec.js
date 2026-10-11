@@ -84,7 +84,7 @@ test('web push: a push-only service worker registers, and Notifications offers p
 
 // No Add to Home Screen of our own (owner, 2026-10-09): nothing intercepts Chrome's install offer, so Android shows its own,
 // and the app has no install pop-up, Me banner or Settings row
-test('Install: Chrome’s own install offer goes through; no install pop-up, banner or Settings row', async ({ browser }) => {
+test('Install: Chrome’s own install offer goes through; no install pop-up or Settings row; Me’s install alert', async ({ browser }) => {
   const m = await newLead(browser, 1, 'Ivy');
   try {
     const page = m.page;
@@ -95,6 +95,15 @@ test('Install: Chrome’s own install offer goes through; no install pop-up, ban
     await expect(page.getByRole('dialog', { name: 'Add to Home Screen' })).toHaveCount(0);
     await openProfile(page);
     await expect(page.locator('[data-screen-label="Me"]')).not.toContainText('Get the Spark Hub app');
+    // Me's install alert (owner 2026-10-11, the v8-24 prototype): opens the install help; × puts it away for good
+    const alert = page.locator('[data-me-install]');
+    await expect(alert).toContainText('Install Spark Hub on your phone’s home screen');
+    await alert.getByText('Open it like an app, one tap away.').click();
+    const inst = page.getByRole('dialog', { name: 'Install Spark Hub' });
+    await expect(inst).toBeVisible();
+    await inst.getByRole('button', { name: 'Close' }).click();
+    await alert.getByRole('button', { name: 'Dismiss' }).click();
+    await expect(page.locator('[data-me-install]')).toHaveCount(0);
     await page.locator('[data-me-settings]').click();
     await expect(page.getByRole('dialog', { name: 'Settings' })).not.toContainText('Get the Spark Hub app');
     expect(m.errors).toEqual([]);

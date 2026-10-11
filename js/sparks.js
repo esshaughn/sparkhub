@@ -4077,7 +4077,7 @@
   // ring: a white ring round the badge (Me, Design v8)
   const bellBtn = (frosted, px, ring) => {
     const n = state.email ? bellCount() : 0, z = px || 44;
-    return '<span ' + on(() => { setState({ notifSheet: true, menu: null }); bellLook(false); }) + ' aria-label="' + (n ? 'Notifications, ' + n + ' new' : 'Notifications') + '" style="position:relative;flex:0 0 ' + z + 'px;width:' + z + 'px;height:' + z + 'px;border-radius:999px;display:flex;align-items:center;justify-content:center;cursor:pointer;' +
+    return '<span ' + on(() => { setState({ notifSheet: true, menu: null }); bellLook(); }) + ' aria-label="' + (n ? 'Notifications, ' + n + ' new' : 'Notifications') + '" style="position:relative;flex:0 0 ' + z + 'px;width:' + z + 'px;height:' + z + 'px;border-radius:999px;display:flex;align-items:center;justify-content:center;cursor:pointer;' +
       (frosted ? 'background:rgba(255,255,255,.18);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff' : 'background:#f2f3f6;color:#0d1117') + '">' + ic6('bell', 21, 'currentColor', 1.9) +
       (n ? '<span aria-hidden="true" style="position:absolute;top:-3px;right:-4px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#e2556b;color:#fff;font-size:10.5px;font-weight:900;display:flex;align-items:center;justify-content:center;box-sizing:border-box' + (ring ? ';box-shadow:0 0 0 2px #fff' : '') + '">' + (n > 9 ? '9+' : n) + '</span>' : '') + '</span>';
   };
@@ -5195,22 +5195,21 @@
   };
   const isUnread = (n) => n.t > (state.notif.allReadAt || 0) && state.notif.read.indexOf(n.key) < 0;
   const unreadCount = () => notifList().filter(isUnread).length;
-  // The bell's red count clears once you've looked (Design v8-24 item 2): scrolling the open list for ~0.8s (or 0.8s
-  // open when there's nothing to scroll) marks everything there as seen; rows stay unread until opened or answered.
+  // The bell's red count clears once you've looked (Design v8-24 item 2; owner 2026-10-11: just opening it should do
+  // it, not only a scroll): ~1s with the list open marks everything there as seen; rows stay unread until opened or answered.
   // Later ones bring the count back with just them. Kept on the account (notif_state.seen.bell = newest seen time)
   const bellSeenT = () => { let d = 0; try { d = +localStorage.getItem('spark-hub-bell-' + state.me) || 0; } catch (e) { /* fine */ } return Math.max(+(seenAcct.bell || 0), d); };
   const bellCount = () => notifList().filter(n => isUnread(n) && n.t > bellSeenT()).length;
   let bellTimer = null;
-  const bellLook = (scrolled) => {
+  const bellLook = () => {
     if (bellTimer || !state.notifSheet || !bellCount()) return;
     bellTimer = setTimeout(() => {
       bellTimer = null;
-      const sc = document.querySelector('[data-screen-label="Notifications"] .v6-sheet-body');
-      if (!state.notifSheet || (!scrolled && sc && sc.scrollHeight > sc.clientHeight + 4)) return;
+      if (!state.notifSheet) return;
       const t = Math.max(bellSeenT(), ...notifList().map(n => n.t));
       try { localStorage.setItem('spark-hub-bell-' + state.me, String(t)); } catch (e) { /* the account still has it */ }
       setSeen('bell', t); render();
-    }, 800);
+    }, 1000);
   };
 
   // Saving read state and settings (one row per person)
@@ -5654,6 +5653,7 @@
     // Notifications 1a (Design v8-22): one list by day, Today / This week, in white cards, no filter chips. Rows that need
     // an answer are pale purple (#f7f6ff), with the answer inline where there is one; unread is a 6px purple dot far left
     loadMoves();
+    if (!bellTimer) setTimeout(bellLook, 0);   // however it was opened (the bell, a push, a group's Alerts)
     const st = state, all = notifList(), shown = all, unread = all.filter(isUnread).length;
     const todayStart = midnight(todayISO());
     const secs = [['Today', shown.filter(n => n.t >= todayStart)], ['This week', shown.filter(n => n.t < todayStart)]].filter(x => x[1].length);
@@ -8559,6 +8559,18 @@
   const meVisits = () => +(meAlertGet('visits') || 0);
   let meVisitCounted = false;
   const countMeVisit = () => { if (meVisitCounted) return; meVisitCounted = true; try { localStorage.setItem(ME_ALERT_KEY + 'visits', String(meVisits() + 1)); } catch (e) { /* not counted */ } };
+  // Install Spark Hub on your phone's home screen (Design v8-24 prototype; owner 2026-10-11: it comes back): a lavender
+  // alert on Me, under Get started, until it's installed, the Get started step is done, or × (kept on the account)
+  const meInstallAlert = () => {
+    if (!state.email || state.viewAs || STANDALONE || gsGet().app || meAlertGet('a2hs') === 'x') return '';
+    return '<div data-screen-label="Me alerts" style="padding:12px 14px 0;display:flex;flex-direction:column;gap:8px">' +
+      '<div data-me-install style="display:flex;align-items:center;gap:12px;padding:10px 10px 10px 12px;border-radius:14px;background:#f3f1fe">' +
+        '<div ' + on(() => setState({ a2hs: true })) + ' style="flex:1;min-width:0;display:flex;align-items:center;gap:12px;cursor:pointer">' +
+          '<span aria-hidden="true" style="flex:0 0 36px;width:36px;height:36px;border-radius:11px;background:#fff;color:#5b4ae8;display:flex;align-items:center;justify-content:center">' + svg(18, stroke('currentColor', 2.2), '<rect x="6" y="2.5" width="12" height="19" rx="3"/><path d="M12 9v6M9 12h6"/>') + '</span>' +
+          '<div style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:14.5px;font-weight:800;color:#0d1117">Install Spark Hub on your phone’s home screen</span>' +
+            '<span style="font-size:12.5px;font-weight:600;color:#5c6270">Open it like an app, one tap away.</span></div></div>' +
+        '<span ' + on(() => meAlertSet('a2hs', 'x')) + ' aria-label="Dismiss" class="hov-head-x" style="flex:0 0 32px;width:32px;height:32px;margin-right:-4px;border-radius:999px;display:flex;align-items:center;justify-content:center;color:#8a909b;cursor:pointer">' + I.x(13, 'currentColor', 2.6) + '</span></div></div>';
+  };
   const openFeedback = () => setState({ fb: { text: '', topic: 'q', nudge: !!state.fbHint }, fbHint: false });
 
   const GRAPH_BG = 'background-color:#f5f9fe;background-image:linear-gradient(#dfeaf7 1px,transparent 1px),linear-gradient(90deg,#dfeaf7 1px,transparent 1px);background-size:18px 18px';
@@ -9410,7 +9422,7 @@
     if (r.top + r.height / 2 < bottom && r.bottom > 0) { setState({ ideaSeen: el.getAttribute('data-new-idea') }); setSeen('ideaSeen', state.ideaSeen); }
   };
   document.addEventListener('scroll', () => ideaSeenCheck(), { capture: true, passive: true });
-  document.addEventListener('scroll', (e) => { if (state.notifSheet && e.target && e.target.closest && e.target.closest('[data-screen-label="Notifications"]')) bellLook(true); }, { capture: true, passive: true });
+  document.addEventListener('scroll', (e) => { if (state.notifSheet && e.target && e.target.closest && e.target.closest('[data-screen-label="Notifications"]')) bellLook(); }, { capture: true, passive: true });
   // The Ideas board's cards, sort and view picker (Tiles · Grid), shared by the Ideas tab and a group's Ideas (owner,
   // 2026-10-07: the group board had kept the older v6 cards). `newAttr` marks the newest Idea for the Ideas tab's dot
   function ideaKit(list, newAttr) {
@@ -9628,7 +9640,7 @@
       row('<circle cx="12" cy="12" r="8.75"/><path d="M9.6 9.3a2.5 2.5 0 0 1 4.8 1c0 1.7-2.4 2.1-2.4 3.4M12 16.6h.01"/>', 'How Spark Hub works', '', () => setState({ about: 1, aboutFull: false, menu: null }), 1));
     // Privacy (v8-21 item 8): Settings › ACCOUNT › Privacy · Who sees what opens its own slide-up over Settings
     meAccountRows = () => row('<path d="M12 3 5 6v5c0 4.4 3 8.3 7 9.5 4-1.2 7-5.1 7-9.5V6z"/>', 'Privacy', 'Who sees what', () => setState({ privSheet: true }), 0);
-    return '<div data-screen-label="Me">' + head + gsCard('margin:14px 14px 0;') + yourStuff +
+    return '<div data-screen-label="Me">' + head + gsCard('margin:14px 14px 0;') + meInstallAlert() + yourStuff +
       '<div style="padding:16px 14px 26px;display:flex;flex-direction:column;gap:10px">' +
         help +
         // View as a user and the Freeze log live in the Dashboard (owner, 2026-10-10); while viewing as someone, Me keeps the Exit card
