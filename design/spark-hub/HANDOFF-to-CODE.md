@@ -1,12 +1,64 @@
+# Spark Hub v8 · HANDOFF-to-CODE (round v8-24)
+
+**Caught up with the build's `HANDOFF-to-DESIGN-17.md` (v8-22 live, main `e05eddf`, v=400) as of Oct 10, 2026.** v8-24 = the *New since v8-23* list below. v8-23 and older rounds stand unchanged. Options files: `options/Group Invite Sheet Options.dc.html` (1a + 1b) and `options/Sign Up Nudge Options.dc.html` (1a). Prototype: `Spark Hub App Version 8.dc.html`.
+
+## New since v8-23 (Oct 10, late)
+
+### 1. Tab headers: one size, plus a short description
+- **Same header on Ideas, My calendar, My friends and My groups:** white, padding 20px top · 16px sides · 16px bottom, 0 1px 0 #e8eaef bottom line. The title row is 44px tall (title 30/900, −1px tracking, then 44px search + bell circles, 12px gaps). The Ideas gold icon tile shrinks to **40px** (12px corners, −6° tilt, 20px bulb, shadow 0 3px 8px rgba(245,180,40,.4)).
+- **Description line under the title** (Ideas and My calendar only), running full width under the icon too, 14/600 #6b7280, 1.35 line height, 6px under the title row:
+  - Ideas: *Things people want to do. Pitch in to make them a Plan.*
+  - My calendar: *Everything you’re going to, leading or helping with.*
+  - The text stops 66px short of the 32px ×, so it never runs under the search or bell buttons. The × (14px, #9aa0aa, 32px tap area, sits under the bell) hides that page's line for good. Each page is separate.
+  - **The lines show for the first 3 app opens only** (one open = one session; reloads in the same session don't count). After that they're gone, × or not. Store the open count and the hidden pages per account (the prototype uses localStorage `sh-opens` / `sh-hd-hide`).
+- **Get started banner** sits exactly 14px under the header on My calendar, My friends and Me (it was 12 / 14 / 12 plus an empty alerts strip on Me), so switching tabs doesn't jump. On Me it now sits straight under the profile header, above the alerts.
+
+### 2. Bell badge clears once you've looked
+- Opening Notifications and scrolling the list for ~0.8s clears the red count on the bell. Rows inside stay highlighted as unread until acted on or opened (unchanged).
+- New notifications after that bring the badge back with only the new count (badge = unread − unread-when-last-seen). Store *last seen* per account on the server.
+
+### 3. Group invites: owners and admins choose whether members can invite
+- Group ⋯ → ADMINS ONLY gets a switch row under *Invite link & code*: **Members can invite people** (15.5/800), line under it *Off: only owners and admins can invite* / *On: anyone in the group can invite people* (13/600 #6b7280). 46×28 switch (#5b4ae8 on, #c3c7d0 off). **Off by default**, per group. Toasts *Members can invite people now* / *Only owners and admins can invite now*.
+- When on, regular members get everything owners/admins get for inviting: the invite icon in the group header and **Invite** in the group ⋯ menu, both opening the full Invite people sheet (friends, link, QR). The build's invite permission check becomes `owner || admin || (group.membersCanInvite)`. Updates the Oct 5 rule "Owners and admins only".
+
+### 4. Invite people sheet (group): 1a list + 1b footer (`Group Invite Sheet Options.dc.html`)
+- Slide-up, white, 22px top corners, padding 10px 18px 22px, gap 14px, height fits content (max 88%). Handle, then the group name eyebrow (12/800 caps #6b7280) over **Invite people** (22/900) and a 40px grey × circle.
+- **Search friends** pill (46px, #f2f3f6, 16px text) filters the list as you type.
+- **FRIENDS** (12/800 caps) list, **6 rows visible, then it scrolls** (list max-height 362px). 56px rows with a 1px #f2f3f6 line: 40px face, name (16/800), a 26px round tick on the right (open = 2px #c3c7d0 ring; picked = solid #5b4ae8 with a white tick). Members (*Member*, faded) and people already invited (*Invited* / *Joined*) sort to the end with a tag instead of a tick. **No "From {other group}" section** on this sheet.
+- Full-width **Send invites · N** (54px, #5b4ae8; grey #e2e4e9 with #9aa0ac text until someone's picked). Toast *Invited Hana and Darnell*.
+- Then a thin divider with *Not on Spark Hub yet?* (13/700 #6b7280) and three equal tiles (16px corners, #f2f3f6, 20px icon over 13.5/800 label, 12px padding): **Copy link** (→ *✓ Copied*) · **Share** (system share) · **QR code** (full-screen QR, as before).
+- *You’ve invited N · M joined ›* stays under the tiles once invites are out.
+- Replaces the old Invite friends row / Share your invite link card / Show QR code row.
+
+### 5. Invite people sheet (events) uses the same template
+- The event Invite people slide-up (lead ⋯ → Invite people, the RSVP card's Invite people, You're going! → Invite others) now matches item 4: the **event title** as the eyebrow over **Invite people** + ×; *Search friends*; FRIENDS list (6 visible, scrolls; rows keep their existing extras: *Going* tag, *✓ Invited*); full-width **Send · N**; *Not on Spark Hub yet?* + **Copy link · Share · QR code** tiles (QR tile only for leads, so non-leads see two tiles). The old link/QR icon buttons beside Send and *See N more* are gone. The gold version (on Ideas) keeps its gold ticks and button with the same layout.
+- People who can't invite (People can invite friends off) still get the plain Share link pop-up.
+
+### 6. Invite people button for people who aren't leading
+- In the RSVP card, once you're **Going** to a Plan you don't lead, a purple-outline **Invite people** button (48px, 2px #d9d3fb ring, #4a3ad4 text, person-plus icon, hover #f7f6ff) sits under the faces row. Shows only when the lead allows *People can invite friends* (or you're a group owner/admin). Opens the item 5 sheet. Leads keep their solid purple Invite people.
+
+### 7. Ways to participate on the You're going! pop-up (`Sign Up Nudge Options.dc.html` 1a)
+- When a signed-in member (not the lead, not a guest) taps Going on a Plan with open sign-ups, the You're going! pop-up adds a **Ways to participate** section (16.5/900) between *Bringing anyone?* and **Done**.
+- One card (16px corners, 1.5px #e8eaee ring) of up to **3** open sign-ups, most-needed first, No limit ones last; ones you already hold or that are full are left out. Each 56px row: the sign-up name (15/800) over an orange line (12.5/700 #b8480c): *N slots open* / *1 slot open* / *No limit · N signed up* / *N times to pick from*; then a purple-outline **Sign up** pill (36px, 2px #5b4ae8 ring).
+- **Sign up** closes the pop-up and runs the normal sign-up (the *You're signed up!* recap; the time picker for sign-ups with times). Lead notification rules from v8-22 apply (only after Done on the recap).
+- No section when there are no open sign-ups, for guests, or for the lead.
+
 # Spark Hub v8 · HANDOFF-to-CODE (round v8-21)
 
 **Caught up with the build's `HANDOFF-to-DESIGN-15.md` (v8-17 live, main `09658ae`, v=389) as of Oct 10, 2026.** v8-21 = v8-20 below, updated in place with the later Get started work: Update your profile first; Join a group via invites (1 · 2+) or a pasted code (8a + 8b); four-piece step counter; each step ticks the moment it's done; Float lands on the Ideas tab; new accounts land with it open; Tweak `invites`. Also: My calendar's group selector lost its grey ring (icon + chevron only, light grey hover). If you already built v8-20, re-read item 7 and Tweaks.
 
-# Spark Hub v8 · HANDOFF-to-CODE (round v8-22)
+# Spark Hub v8 · HANDOFF-to-CODE (round v8-23)
+
+**Caught up with the build’s `HANDOFF-to-DESIGN-17.md` (v8-22 live, main `e05eddf`, v=400) as of Oct 10, 2026.** v8-23 = the *New since v8-21* list below, minus anything -17 already reports as done. Build next: the install step per device, Get started as 4 steps, the bell row’s Join opening the preview (1a), and N slots / No limit, Location name, the days row and Dashboard TOOLS (already in the build; the prototype now matches).
+
+# Round v8-22
 
 **Caught up with the build's `HANDOFF-to-DESIGN-15.md` (v8-17 live, v=389) as of Oct 10, 2026.** v8-22 = everything below under *New since v8-21*, then v8-21 and older rounds unchanged.
 
 ## New since v8-21 (Oct 10)
+- **Install step knows the device** (Oct 10, all of `Install Step Options.dc.html`): **1a** iPhone Safari (Share at the bottom · Add to Home Screen · Add) · **1b** iPhone Chrome (Share top right by the address) · **1c** Android Chrome: one **Install** button that fires the browser's own install prompt (`beforeinstallprompt`), step ticks on `appinstalled`; hint *Nothing pops up? Tap ⋮ … Install app.* · **1d** other Android browsers: ⋮ / ☰ → Add to Home screen → Add · **1e** in-app browsers (Instagram, Facebook, Gmail/GSA): *Open in Safari* steps + **Copy link instead** · **1f** computer: centred *Open Spark Hub on your phone* with a QR code to the site + **Text me the link** · **1g** (alternative for computers) hide the step, list is 3 · **1h** opened from the home screen (`display-mode: standalone` / `navigator.standalone`): step ticks itself with a green *Installed* tag, no sheet. Unknown device: 1a + the Android line. Slide-up title *Install Spark Hub on your phone’s home screen*. Prototype Tweak `installDevice` previews each (auto · iphone-safari · iphone-chrome · android-chrome · android-other · inapp · desktop · desktop-hide · installed).
+- **Get started is 4 steps:** *Update your profile* is gone; **Install Spark Hub app** is now step 1 (slide-up titled *Install Spark Hub on your phone’s home screen*), then Join a group · RSVP to something · Float your first Idea. Banner reads *N of 4*.
+- **Build differences, owner picks (Oct 10, `Build Differences Options.dc.html`):** **1a** the bell row's **Join** opens the invite preview, like See group (please change the build back: you see the group first, then Join in the pop-up). **2b** keep the build: Welcome to {Group} names the inviter only when an invite was waiting; otherwise *You're a member now.* **3b** keep the build: NEW · YOU JOINED hides itself after 7 days.
 - **Bug: “!” stripped from titles.** The prototype’s `cleanTitle` trimmed trailing `. ! , ;` from every title (events, Ideas, jobs, locations), so *Pumpkin party!* saved as *Pumpkin party*. Now it trims only trailing `. , ;` and keeps `!` and `?`. Check the build’s equivalent (title/job-name sanitiser or validation regex) does the same, and that no input rejects `!` outright.
 - **Job sign-up count defaults to Any** (need 0 = no limit) instead of 1; stepper reads *Any*, − from 1 returns to Any. Lists and the event page already treat no need as unlimited (*N signed up*). Take-part spots unchanged.
 - **Edit “What to expect”** on a posted event opens the one rich description box (B · I · bullets · numbers, 500 chars), same as Plan an event.
