@@ -344,4 +344,6 @@ html.tall-fix .app { bottom: auto; height: var(--true-h); }
 @keyframes gsDrop { from { max-height: 0; opacity: 0; transform: translateY(-10px); } to { max-height: 320px; opacity: 1; transform: none; } }
 @keyframes gsConf { 0% { opacity: 0; transform: translateY(0) rotate(0); } 15% { opacity: 1; } 100% { opacity: 0; transform: translateY(120px) rotate(320deg); } }
 @media (hover: hover) { .hov-gs-x:hover { background: rgba(255, 255, 255, .4) !important; } }
+@media (hover: hover) { .hov-inv-out:hover { background: #f7f6ff !important; } }
+@media (hover: hover) { .hov-head-x:hover { background: #f2f3f6 !important; color: #454b55 !important; } }
 @media (prefers-reduced-motion: reduce) { [data-get-started] * { animation: none !important; } }

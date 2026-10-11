@@ -93,7 +93,7 @@ None of these are built. They come from the owner's own list and the pilot group
 
 ## Rounds v8-23 and v8-24 in short
 
-*Built from HANDOFF-to-CODE v8-24 (with v8-23) on 2026-10-10, on `test`, not live yet. The prototype was diffed against v8-22's too.*
+*Built from HANDOFF-to-CODE v8-24 (with v8-23) on 2026-10-10, on `test`, not live yet. The prototype was diffed against v8-22's too. One migration, `20261129000000_members_can_invite.sql`.*
 
 | Item | Status |
 |---|---|
@@ -101,6 +101,14 @@ None of these are built. They come from the owner's own list and the pilot group
 | v8-23: the install step knows the device | Done as drawn for 1a iPhone Safari, 1b iPhone Chrome, 1c Android Chrome (**Install** fires Chrome's own prompt; the step ticks on *appinstalled*; with no prompt ready the button toasts *Tap ⋮ at the top right, then Install app.*), 1d other Android browsers, 1e in-app browsers (**Copy link instead** copies the page's link), 1h opened from the home screen (ticked, green *Installed*). Unknown phones get 1a plus the Android line. **Changed, 1f computer:** the QR pop-up's button is **Copy link**, not *Text me the link*: Spark Hub sends no texts (owner). 1g (hiding the step on computers) isn't used. Chrome's own install banner is left alone (the build doesn't cancel it) |
 | v8-23: the bell's Join opens the invite preview | Done (Build Differences 1a): **Join** and *See group* both open the invite pop-up; **Join the group** there joins |
 | v8-23: titles keep *!* | Already done in v8-22 |
+| v8-24 1: tab headers | Done: one size on Ideas, My calendar, My friends, My groups (and My tasks), with the 40px gold tile on Ideas. The short lines under Ideas' and My calendar's titles show for the first 3 app opens (counted once per session, kept on the account, not the device only); × hides that page's line for good. Get started sits 14px under the header on My calendar, My friends and Me. Ideas' sparkles stay on the title row so they don't sit on the line |
+| v8-24 2: bell count | Done: ~0.8s of scrolling the open list clears the red count (and the home-screen app badge); rows stay unread. **Invented:** when the list is too short to scroll, 0.8s open clears it. Later ones bring the count back with just them. *Last seen* is kept on the account |
+| v8-24 3: Members can invite people | Done as drawn under *Invite link & code* (switch, both lines, both toasts). When on, members get the header's invite icon, ⋯ → **Invite**, the group page's *Invite people* row and a profile's *Invite to a group* (where the group reads *you're a member*). Members INVITED and reminders stay with owners and admins |
+| v8-24 4: group Invite people | Done as drawn: Search friends, FRIENDS (6 rows, then it scrolls; *Member* faded, *Invited*, *Joined*), **Send invites · N**, *Not on Spark Hub yet?* with Copy link · Share · QR code, and *You've invited N · M joined*, which opens Members for owners and admins (plain text for members). An empty list reads *No friends on Spark Hub yet.*; a search with no match *No one matches "…"* |
+| v8-24 5: event Invite people | Done on the same template. **Changed:** the build's list also has the people in the event's groups, so they sit under a second heading, **FROM YOUR GROUPS**, each with their group's name; Search friends searches both. **Send · N** stays (it says *Send invites* on the group sheet). People who can't invite still get the Share link pop-up |
+| v8-24 6: Invite people for someone going | Done as drawn, under the faces row, for anyone going who doesn't lead it, when the lead allows invites (or they run one of its groups) |
+| v8-24 7: Ways to participate | Done as drawn. **Jobs only:** a spot to take part (times, seats) still opens from the event page. A job with times reads *N times to pick from* and **Sign up** opens its time picker |
+| Me's install alert (prototype) | **Not built, needs an owner call:** the prototype's Me still has *Install Spark Hub on your phone's home screen* as an alert. The owner removed our own Add to Home Screen prompts on 2026-10-09 and only brought the Get started step back (2026-10-10) |
 
 ## Round v8-22 in short
 

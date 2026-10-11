@@ -49,10 +49,17 @@ test('Get started: join with a code, the four steps tick, × hides it everywhere
     await expect(gs.locator('[data-gs-count]')).toHaveText('2 of 4');
     await expect(gs.locator('[data-gs-step="app"]')).toHaveAttribute('data-done', '');
 
+    // A new account's first opens: the short line under My calendar's title (v8-24 item 1); × hides it for good
+    const calDesc = page.locator('[data-head-desc="cal"]');
+    await expect(calDesc).toContainText('Everything you’re going to, leading or helping with.');
+    await calDesc.getByRole('button', { name: 'Hide this' }).click();
+    await expect(calDesc).toHaveCount(0);
+
     // Float your first Idea goes to the Ideas tab and opens the Float sheet
     await gs.locator('[data-gs-step="idea"]').click();
     await expect(page.getByRole('dialog', { name: 'Float an Idea' })).toBeVisible();
     await page.getByRole('dialog', { name: 'Float an Idea' }).getByRole('button', { name: 'Close' }).first().click();
+    await expect(page.locator('[data-head-desc="ideas"]')).toContainText('Things people want to do. Pitch in to make them a Plan.');   // each page its own
 
     // Me: the banner above everything under the header, and Your impact hidden while it shows
     await openProfile(page);

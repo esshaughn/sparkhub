@@ -29,16 +29,31 @@ test('a group end to end: edit group, cover, rename, invite, pin, admin edits, r
     // A new group's Plans tab (Update 9, 80a): the calendar fan, No plans yet, Create a plan
     await expect(A.locator('[data-group-start]')).toContainText('Nothing here yet');   // Design v8-17, 7a: three ways to get it going
     await expect(A.locator('[data-group-start]').locator('[data-start-plan]')).toBeVisible();
-    // ⋯ → Invite (owners and admins; Design v8 prototype: three rounds, no Copy link / QR code) → the Invite people sheet
-    // with the link, then Show QR code: the purple Scan to join screen, then the poster step
-    const qm = await groupMenu(A);
+    // ⋯ → ADMINS ONLY → Members can invite people (v8-24 item 3): off by default, then on and off again
+    let qm = await groupMenu(A);
+    const mi = qm.getByRole('switch', { name: 'Members can invite people' });
+    await expect(mi).toHaveAttribute('aria-checked', 'false');
+    await expect(mi).toContainText('Off: only owners and admins can invite');
+    await mi.click();
+    await expect(A.getByText('Members can invite people now')).toBeVisible();
+    await expect(mi).toHaveAttribute('aria-checked', 'true');
+    await expect(mi).toContainText('On: anyone in the group can invite people');
+    await mi.click();
+    await expect(mi).toHaveAttribute('aria-checked', 'false');
+    // ⋯ → Invite (Design v8 prototype: three rounds, no Copy link / QR code) → the Invite people sheet (v8-24 item 4):
+    // Search friends, FRIENDS, Send invites, then Copy link · Share · QR code; QR code: the purple Scan to join screen,
+    // then the poster step
     await expect(qm.getByRole('button', { name: 'Copy link' })).toHaveCount(0);
     await expect(qm.getByRole('button', { name: 'QR code' })).toHaveCount(0);
     await qm.getByRole('button', { name: 'Invite', exact: true }).click();
     const inv = A.getByRole('dialog', { name: 'Invite people' });
-    await expect(inv).toContainText('Share your invite link');
-    await expect(inv.locator('[data-group-inv-link]')).toContainText('/join/');
-    await inv.getByRole('button', { name: 'Show QR code' }).click();
+    await expect(inv.locator('[data-inv-eyebrow]')).toHaveText(groupName);
+    await expect(inv.getByRole('searchbox', { name: 'Search friends' })).toBeVisible();
+    await expect(inv).toContainText('FRIENDS');
+    await expect(inv.locator('[data-send-ginv]')).toHaveAttribute('aria-disabled', 'true');
+    await expect(inv).toContainText('Not on Spark Hub yet?');
+    await expect(inv.getByRole('button', { name: 'Share' })).toBeVisible();
+    await inv.getByRole('button', { name: 'QR code' }).click();
     const qr = A.getByRole('dialog', { name: 'Group QR' });
     await expect(qr).toContainText('Scan to join');
     await expect(qr.locator('[data-group-qr] svg[aria-label="QR code"]')).toBeVisible();

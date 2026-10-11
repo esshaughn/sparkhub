@@ -157,16 +157,16 @@ test('post an event with every step filled, then edit it in the pop-ups and dele
     await expect(P.locator('[data-signup="Bring cold water"]')).toContainText('4 of 4 open');
     await expect(P.locator('[data-signup="Folding chairs"]')).toContainText('2 of 2 open');
 
-    // Invite people (one sheet): v8-11's footer is a round Share link, a round QR code (leads) and Send; Share link carries the ready message
+    // Invite people (one sheet, v8-24 item 5): Send, then Copy link · Share · QR code (leads) tiles; Share carries the ready message
     await P.getByRole('button', { name: /Invite people/ }).click();
     const share = page.getByRole('dialog', { name: 'Invite people' });
-    const link = share.getByRole('button', { name: 'Share link' });
+    const link = share.getByRole('button', { name: 'Share', exact: true });
     const msg = await link.getAttribute('data-share-msg');
     expect(msg).toMatch(/· \w{3}, \w{3} \d+ http:\/\/127\.0\.0\.1:\d+\/e\/[a-z0-9]{8}|· \w{3}, \w{3} \d+ https?:\/\/[^ ]+\/e\/[a-z0-9]{8}/);   // "{title} · {day} {link}", the short link (v8-8)
     expect(msg).not.toContain('Torrez');
     const short = msg.split(' ').pop();
     await expect(share.getByRole('link', { name: 'WhatsApp' })).toHaveCount(0);   // no share circles in the sheet itself (v8-10)
-    // v8-11: Share link opens a pop-up: the link preview, Messages · WhatsApp · Email · More, and Copy link
+    // v8-11: Share opens the Share link pop-up: the link preview, Messages · WhatsApp · Email · More, and Copy link
     await link.click();
     const pop = page.getByRole('dialog', { name: 'Share link' });
     await expect(pop.locator('[data-link-preview]')).toContainText(short.replace(/^https?:\/\//, ''));
@@ -177,7 +177,7 @@ test('post an event with every step filled, then edit it in the pop-ups and dele
     await pop.getByRole('button', { name: 'Copy link' }).click();
     await expect(page.getByText('Link copied')).toBeVisible();
     await expect(pop.getByRole('button', { name: /Copied/ })).toContainText('✓ Copied');
-    expect(await share.getByRole('button', { name: 'Share link' }).getAttribute('data-share-msg')).toBe(msg);
+    expect(await share.getByRole('button', { name: 'Share', exact: true }).getAttribute('data-share-msg')).toBe(msg);
     await pop.getByRole('button', { name: 'Close' }).click();
     await expect(pop).toHaveCount(0);
     // The lead's QR code (item 5): a real QR of the link; Show title and date adds the caption; Transparent drops the white

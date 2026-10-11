@@ -1910,3 +1910,27 @@ select t.check('…which keeps the description', (select vision = 'Bring water. 
 select t.login('member'); set role authenticated;
 select t.must_refuse('a member saving the description through admin_edit_spark', format($$select public.admin_edit_spark(%L, 'Poll idea', '{}', null, 'Mine now')$$, t.id('poll_idea')));
 reset role;
+
+-- Members can invite people (20261129000000_members_can_invite.sql, Design v8-24 item 3): off by default; owners and
+-- admins turn it on per group; then any member reads the link and invites friends ---------------------------------
+reset role;
+select private.make_friends(t.id('gi_mem'), t.id('gi_two'));
+select t.login('gi_mem'); set role authenticated;
+select t.check('off: a member can''t read the link', public.group_code(t.id('gi_g')) is null);
+select t.must_refuse('off: a member inviting someone', format($$select public.send_group_invites(array['%s']::uuid[], array['%s']::uuid[])$$, t.id('gi_g'), t.id('gi_two')));
+select t.must_refuse('a member turning the switch on', format($$select public.set_members_can_invite('%s', true)$$, t.id('gi_g')));
+select t.check('off: a member sees no one invited', (select count(*) from public.group_invite_people(t.id('gi_g'))) = 0);
+reset role;
+select t.login('gi_own'); set role authenticated;
+select t.must_allow('the owner turns it on', format($$select public.set_members_can_invite('%s', true)$$, t.id('gi_g')));
+reset role;
+select t.login('gi_mem'); set role authenticated;
+select t.check('on: a member reads the link', public.group_code(t.id('gi_g')) = 'INVT27');
+select t.check('on: the group is in the member''s Invite to a group list', exists (select 1 from public.group_invite_options(t.id('gi_two')) where group_id = t.id('gi_g')));
+select t.check('on: a member invites a friend', public.send_group_invites(array[t.id('gi_g')], array[t.id('gi_two')]) = 1);
+select t.check('…and sees it, as theirs', (select mine from public.group_invite_people(t.id('gi_g')) where user_id = t.id('gi_two')));
+select t.check('on: Members INVITED stays with owners and admins', (select count(*) from public.group_invites_waiting(t.id('gi_g'))) = 0);
+reset role;
+select t.login('gi_two'); set role authenticated;
+select t.check('someone outside the group still can''t read the link', public.group_code(t.id('gi_g')) is null);
+reset role;
