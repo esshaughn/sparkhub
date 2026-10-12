@@ -689,9 +689,10 @@
     // v6 Update 13: friends, requests and the invites you've had (a database without them still loads)
     const frP = state.email && !state.viewAs ? sb.rpc('friend_state').then(r => r, () => ({ error: true })) : Promise.resolve({ data: null });
     const [mem, grp, sp, of, it, gc, rs, dop, dvo, sop, svo, sui, scl, upd, org, alb, prp, rct, sgr, drf, nts, las, inv, jas, lof, swt, tlk, ewt] = await Promise.all([
-      sb.from('memberships').select('group_id,role,last_seen_at,pinned'),
-      sb.from('groups').select('id,name,photo,photo_pos,demo,members_can_invite,place_name,place_kind,place_lat,place_lon,place_radius_m,purpose,plan,sponsored')
-        .then(r => r.error && r.error.code === '42703' ? sb.from('groups').select('id,name,photo,photo_pos,demo,members_can_invite') : r)   // place…sponsored: 20261202020000
+      sb.from('memberships').select('group_id,role,last_seen_at,pinned,connection')
+        .then(r => r.error && r.error.code === '42703' ? sb.from('memberships').select('group_id,role,last_seen_at,pinned') : r),   // connection: 20261202030000
+      sb.from('groups').select('id,name,photo,photo_pos,demo,members_can_invite,place_name,place_kind,place_lat,place_lon,place_radius_m,purpose,plan,sponsored,join_rule')
+        .then(r => r.error && r.error.code === '42703' ? sb.from('groups').select('id,name,photo,photo_pos,demo,members_can_invite') : r)   // place…sponsored: 20261202020000, join_rule: 20261202030000
         .then(r => r.error && r.error.code === '42703' ? sb.from('groups').select('id,name,photo,photo_pos,demo') : r),   // members_can_invite: 20261130000000
       sb.from('sparks').select('*').order('created_at', { ascending: false }),
       sb.from('offers').select('*').order('created_at'),
@@ -791,11 +792,14 @@
     };
 
     const roles = {};
-    d.memberships.forEach(m => { roles[m.group_id] = { role: m.role, lastSeen: Date.parse(m.last_seen_at), pinned: !!m.pinned }; });
+    d.memberships.forEach(m => { roles[m.group_id] = { role: m.role, lastSeen: Date.parse(m.last_seen_at), pinned: !!m.pinned, connection: m.connection || null }; });
     const va = state.viewAs;
     const drafts = va ? [] : d.event_drafts.map(d => ({ id: d.id, data: d.data || {}, saved: Date.parse(d.updated_at) }));
     const notes = va ? [] : d.notes.map(n => ({ id: n.id, body: n.body, createdBy: n.created_by, created: Date.parse(n.created_at) }));
-    const groups = d.groups.map(g => Object.assign({ id: g.id, name: g.name, photo: g.photo, photoPos: g.photo_pos || null, demo: !!g.demo, membersCanInvite: !!g.members_can_invite, role: null, lastSeen: 0, pinned: false }, (va ? va.roles : roles)[g.id] || {}))
+    const groups = d.groups.map(g => Object.assign({ id: g.id, name: g.name, photo: g.photo, photoPos: g.photo_pos || null, demo: !!g.demo, membersCanInvite: !!g.members_can_invite, role: null, lastSeen: 0, pinned: false,
+      // A group's place, plan and who can join (20261202020000, 20261202030000)
+      place: g.place_name ? { name: g.place_name, kind: g.place_kind || null, lat: g.place_lat, lon: g.place_lon, radius: g.place_radius_m || null, purpose: g.purpose || '' } : null,
+      plan: g.plan || 'seed', sponsored: !!g.sponsored, joinRule: g.join_rule || 'everyone', connection: null }, (va ? va.roles : roles)[g.id] || {}))
       .filter(g => !va || va.roles[g.id])
       .sort((a, b) => runs(b) - runs(a) || a.name.localeCompare(b.name));
 
@@ -1592,19 +1596,40 @@
       if (x && state.inv && state.inv.code === code) setInv({ land: { members: x.members, week: x.week, byName: x.by_name || '', byAvatar: x.by_avatar || null } });
     } catch (e) { console.error(e); }
   };
+  // Where the group is and who can join (owner, 2026-10-12): shown before joining, from group_place() (anyone with the
+  // code). null = no place and anyone can join (or an older database); undefined = still loading
+  const loadInvitePlace = async (code) => {
+    let pl = null;
+    try {
+      const r = await sb.rpc('group_place', { p_code: code });
+      if (r.error) { if (r.error.code !== 'PGRST202') console.error(r.error); }
+      else {
+        const x = (r.data || [])[0];
+        if (x) pl = { name: x.place_name || '', kind: x.place_kind || null, lat: x.place_lat, lon: x.place_lon, radius: x.place_radius_m || null, purpose: x.purpose || '', rule: x.join_rule || 'everyone' };
+      }
+    } catch (e) { console.error(e); }
+    if (state.inv && state.inv.code === code) setInv({ place: pl });
+    return pl;
+  };
   // Opening the link: signed in already → the confirm pop-up over their Calendar; otherwise the landing
   const startInvite = (code, step, by) => {
     by = by || (pendingInvite() === code ? pendingBy() : '');
     setPending(code, by);
-    setState({ inv: { code, by, group: undefined, step: step || (state.email ? 'confirm' : 'land') }, screen: 'sched', joinOpen: false, loginStep: null, menu: null });
+    setState({ inv: { code, by, group: undefined, place: undefined, conn: null, step: step || (state.email ? 'confirm' : 'land') }, screen: 'sched', joinOpen: false, loginStep: null, menu: null });
     loadInviteGroup(code);
+    loadInvitePlace(code);
   };
   const closeInvite = () => { setPending(''); setState({ inv: null }); };
 
   // Join as soon as there's a session: no confirm (E3 had it). Under 400ms, skip the Joining screen.
   const inviteJoin = async () => {
+    if (!state.inv || state.inv.busy) return;
+    const code0 = state.inv.code;
+    if (state.inv.place === undefined) await loadInvitePlace(code0);
+    if (!state.inv || state.inv.code !== code0 || state.inv.busy) return;
+    // A group with a place, or a rule about who can join: say how you're connected first (the pop-up below)
+    if (needsConn(state.inv.place) && !state.inv.conn) { setInv({ step: 'confirm' }); return; }
     const inv = state.inv;
-    if (!inv || inv.busy) return;
     const code = inv.code;
     setInv({ busy: true, step: inv.step === 'neterr' ? 'joining' : inv.step });
     const slow = setTimeout(() => { if (state.inv && state.inv.busy) setInv({ step: 'joining' }); }, 400);
@@ -1612,8 +1637,14 @@
       const session = await ensureSession();
       if (state.fromCache || !state.loaded) await loadFresh();
       const before = myGroups().map(g => g.id);
-      const id = must(await sb.rpc('join_group', { p_code: code })).data;
+      let jr = await sb.rpc('join_group', { p_code: code, p_connection: inv.conn || null });
+      if (jr.error && jr.error.code === 'PGRST202') jr = await sb.rpc('join_group', { p_code: code });   // a database before 20261202030000
       clearTimeout(slow);
+      if (jr.error && jr.error.code === '23514' && /join rule/.test(jr.error.message || '')) {   // the rule changed, or the answer doesn't fit it
+        setInv({ busy: false, step: 'confirm', ruleErr: (inv.place && RULE_LINE[inv.place.rule]) || 'This group can’t take new members like that.' });
+        return;
+      }
+      const id = must(jr).data;
       setPending('');
       if (!id) { setState({ inv: { code, group: null, step: 'bad' } }); return; }
       gsMark('join');
@@ -1663,11 +1694,11 @@
   };
   // E3: sign out, keep the invite, and show the landing
   const invOtherAccount = async () => {
-    const { code, group, by, land } = state.inv;
-    setState({ inv: { code, by, land, group, step: 'land' } });
+    const { code, group, by, land, place } = state.inv;
+    setState({ inv: { code, by, land, group, place, conn: null, step: 'land' } });
     await signOut();
     setPending(code, by);
-    setState({ inv: { code, by, land, group, step: 'land' } });
+    setState({ inv: { code, by, land, group, place, conn: null, step: 'land' } });
   };
   const invCopyLink = () => {
     const url = SHARE_ORIGIN + '/join/' + state.inv.code;
@@ -2849,7 +2880,8 @@
     const back = Object.assign(restoreDraft(r), r.subjectId && r.screen === 'detail' ? { screen: 'detail', subjectId: r.subjectId } : {});
     if ((!session || session.user.is_anonymous) && r.from === 'invite' && r.joinCode) {
       // Back on the invite landing, not the sign-in pop-up
-      setState({ inv: { code: r.joinCode, group: state.inv ? state.inv.group : undefined, step: 'land' } });
+      setState({ inv: { code: r.joinCode, group: state.inv ? state.inv.group : undefined, place: state.inv ? state.inv.place : undefined, conn: null, step: 'land' } });
+      if (state.inv.place === undefined) loadInvitePlace(r.joinCode);
       toast('Google sign-in didn’t finish. Try again, or use your email.');
       await loadFresh().catch(() => {});
       return false;
@@ -3096,6 +3128,51 @@
     : g && g.photo ? '<div aria-hidden="true" data-inv-photo style="height:' + h + ';background:' + bg(photoUrl(g.photo)) + '"></div>'
     : '<div aria-hidden="true" style="height:' + h + ';background:#e8a71c;display:flex;align-items:center;justify-content:center;font-size:' + initialSize + 'px;font-weight:900;color:#fff">' + esc(initialOf(g && g.name)) + '</div>';
   const invThumb = (g, size, ring) => '<span aria-hidden="true" style="flex:0 0 ' + size + 'px;width:' + size + 'px;height:' + size + 'px;border-radius:999px;overflow:hidden;display:block' + (ring ? ';box-shadow:' + ring : '') + '">' + invPhoto(g, size + 'px', Math.round(size * 0.45)) + '</span>';
+  // A group's place on a small map (owner, 2026-10-12): Geoapify's static map with the area drawn as a 24-point polygon
+  // (its circle's radius unit isn't documented clearly; a polygon's corners are plain coordinates). Off our sites the key
+  // gets a 403, and the image takes itself out (the capture listener below)
+  const placeMapUrl = (pl, w, h) => {
+    if (!PLACES || !PLACES.key || pl.lat == null || pl.lon == null) return '';
+    const r = pl.radius || 400, lat = +pl.lat, lon = +pl.lon, cos = Math.cos(lat * Math.PI / 180), pts = [];
+    for (let i = 0; i <= 24; i++) { const a = i / 24 * 2 * Math.PI; pts.push((lon + r * Math.cos(a) / (111320 * cos)).toFixed(6), (lat + r * Math.sin(a) / 110540).toFixed(6)); }
+    const zoom = Math.max(10, Math.min(17, Math.floor(Math.log2(156543.03 * cos * Math.min(w, h) / (r * 3.3)))));
+    return 'https://maps.geoapify.com/v1/staticmap?style=osm-bright-smooth&width=' + w + '&height=' + h + '&center=lonlat:' + lon.toFixed(6) + ',' + lat.toFixed(6) + '&zoom=' + zoom +
+      '&geometry=polygon:' + pts.join(',') + ';linecolor:%235b4ae8;linewidth:3;fillcolor:%235b4ae8;fillopacity:0.15&apiKey=' + encodeURIComponent(PLACES.key);
+  };
+  document.addEventListener('error', (e) => { const t = e.target; if (t && t.matches && t.matches('img[data-place-map]')) t.remove(); }, true);
+  const PLACE_KIND = { neighborhood: 'Neighborhood', school: 'School', building: 'Building', park: 'Park' };
+  const MAP_PIN = (c) => svg(16, stroke(c, 2.4), '<path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Z"/><circle cx="12" cy="10" r="2.4"/>');
+  // The place card: the map, the place's name and kind, and its purpose; ask = "Is this the one you want to join?"
+  const placeCard = (pl, ask) => {
+    if (!pl || !pl.name) return '';
+    const url = placeMapUrl(pl, 640, 260), kind = PLACE_KIND[pl.kind] || '';
+    return '<div data-place-card style="margin-top:14px;border-radius:18px;overflow:hidden;background:#f4f5f8">' +
+      (url ? '<img data-place-map src="' + esc(url) + '" alt="Map of ' + esc(pl.name) + '" width="640" height="260" style="display:block;width:100%;height:auto;aspect-ratio:64/26;object-fit:cover;background:#e3e5ec">' : '') +
+      '<div style="padding:12px 14px;display:flex;flex-direction:column;gap:4px">' +
+        '<span style="display:flex;align-items:center;gap:6px;font-size:15.5px;font-weight:800;color:#11131f">' + MAP_PIN('#5b4ae8') + esc(pl.name) +
+          (kind ? '<span style="font-size:13px;font-weight:700;color:#6b7280">· ' + kind + '</span>' : '') + '</span>' +
+        (pl.purpose ? '<span style="font-size:14px;line-height:1.4;font-weight:500;color:#454b55">' + esc(pl.purpose) + '</span>' : '') +
+        (ask ? '<span style="font-size:14px;font-weight:700;color:#5f6475">Is this the one you want to join?</span>' : '') +
+      '</div></div>';
+  };
+  // How you're connected (here / nearby / visiting); the group's rule greys out what it doesn't take
+  const CONN = [['here', 'I live here'], ['nearby', 'I live nearby'], ['visiting', 'Just visiting']];
+  const CONN_LABEL = { here: 'Lives here', nearby: 'Lives nearby', visiting: 'Visiting' };
+  const RULE_LINE = { neighbors: 'This group is for people who live here.', nearby: 'This group is for people who live here or nearby.' };
+  const connOk = (rule, c) => rule === 'neighbors' ? c === 'here' : rule === 'nearby' ? c !== 'visiting' : true;
+  const needsConn = (pl) => !!pl && (!!pl.name || (!!pl.rule && pl.rule !== 'everyone'));
+  const connPicker = (pl) => {
+    const rule = pl.rule || 'everyone', cur = state.inv.conn, err = state.inv.ruleErr;
+    return '<div role="radiogroup" aria-label="How are you connected to ' + esc(pl.name || 'this place') + '?" style="margin-top:14px;display:flex;flex-direction:column;gap:8px">' +
+      '<span style="font-size:14.5px;font-weight:800;color:#11131f">How are you connected' + (pl.name ? ' to ' + esc(pl.name) : '') + '?</span>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:8px">' + CONN.map(([k, label]) => {
+        const ok = connOk(rule, k), onIt = cur === k;
+        return '<span ' + (ok ? on(() => setInv({ conn: k, ruleErr: '' }), 'radio') : 'role="radio" aria-disabled="true"') + ' aria-checked="' + onIt + '" data-conn="' + k + '" style="display:flex;align-items:center;min-height:42px;padding:0 15px;border-radius:999px;font-size:14.5px;font-weight:800;cursor:' + (ok ? 'pointer' : 'default') + ';' +
+          (onIt ? 'background:#5b4ae8;color:#fff' : ok ? 'background:#fff;color:#11131f;box-shadow:inset 0 0 0 1.5px #dcdfe6' : 'background:#f0f1f5;color:#b4b8c2') + '">' + label + '</span>';
+      }).join('') + '</div>' +
+      (RULE_LINE[rule] ? '<span style="font-size:13.5px;font-weight:600;color:#6b7280">' + RULE_LINE[rule] + '</span>' : '') +
+      (err ? '<span role="alert" style="font-size:13.5px;font-weight:700;color:#c0263d">' + esc(err) + '</span>' : '') + '</div>';
+  };
   const invName = (g) => g && g.name ? esc(g.name) : g ? 'this group' : '';   // g with no name: the preview couldn't load
   const invNameSize = (g) => g && g.name && g.name.length > 16 ? 34 : 38;
   const statusFade = '<div aria-hidden="true" style="position:absolute;left:0;right:0;top:0;height:calc(120px + var(--pt));background:linear-gradient(rgba(0,0,0,.45),transparent)"></div>';
@@ -3124,6 +3201,7 @@
           (meta ? '<span data-inv-meta style="font-size:14.5px;font-weight:600;color:rgba(255,255,255,.88)">' + esc(meta) + '</span>' : '') + '</div></div>' +
       '<div style="flex:1 0 auto;padding:24px 20px calc(34px + env(safe-area-inset-bottom, 0px));display:flex;flex-direction:column;gap:14px">' +
         '<span style="font-size:16.5px;line-height:1.5;font-weight:500;color:#2a2f38;text-wrap:pretty">Spark Hub is where ' + esc(gName) + ' plans get-togethers. Join to RSVP, sign up to help or float an idea.</span>' +
+        placeCard(st.inv.place, false).replace('margin-top:14px', 'margin-top:0') +
         '<button type="button" ' + on(toSignIn) + ' data-inv-join class="hov-primary" style="margin-top:6px;min-height:54px;border:0;border-radius:999px;background:#5b4ae8;font-family:inherit;font-size:16.5px;font-weight:900;color:#fff;cursor:pointer">Join ' + esc(g && g.name ? g.name : 'the group') + '</button>' +
         '<span style="align-self:center;display:flex;gap:5px;font-size:14.5px;font-weight:600;color:#6b7280">Already on Spark Hub?<span ' + on(toSignIn) + ' role="button" data-inv-signin style="font-weight:800;color:#5b4ae8;cursor:pointer">Sign in</span></span>' +
         '<span style="margin-top:auto;align-self:center;font-size:12.5px;font-weight:600;color:#8a909b">' + esc(SHARE_ORIGIN.replace(/^https?:\/\//, '') + '/join/' + st.inv.code) + '</span>' +
@@ -3160,7 +3238,7 @@
     return '<div data-screen-label="Invite" style="position:relative;min-height:100%;display:flex;flex-direction:column;background:#fff">' +
       '<div style="position:relative;flex:0 0 auto">' + invPhoto(g, 'calc(' + photoH + 'px + var(--pt))', 96) + statusFade + brandPill + '</div>' +
       '<div style="position:relative;flex:1 0 auto;margin-top:-28px;border-radius:28px 28px 0 0;background:#fff;padding:26px 24px calc(24px + env(safe-area-inset-bottom, 0px));display:flex;flex-direction:column">' +
-        '<div style="' + INV_EYEBROW + ';color:#5b4ae8">You’re invited to</div>' + nameBlock + body +
+        '<div style="' + INV_EYEBROW + ';color:#5b4ae8">You’re invited to</div>' + nameBlock + placeCard(st.inv.place, false) + body +
       '</div></div>';
   }
 
@@ -3236,18 +3314,20 @@
 
   // E3: signed in before the tap — join as this account, or switch
   function viewInvConfirm() {
-    const st = state, g = st.inv.group, busy = !!st.inv.busy, first = firstName(st.myName) || 'me';
+    const st = state, g = st.inv.group, pl = st.inv.place, need = needsConn(pl), busy = !!st.inv.busy || pl === undefined, first = firstName(st.myName) || 'me';
+    const ready = !busy && g !== undefined && (!need || !!st.inv.conn);
     return '<div class="modal-scrim" data-scrim="' + reg(closeInvite) + '" style="z-index:32;background:rgba(17,19,31,.55);padding:18px">' +
       '<div role="dialog" aria-modal="true" aria-label="Join ' + esc(g && g.name ? g.name : 'this group') + '?" style="position:relative;width:100%;max-width:420px;background:#fff;border-radius:32px;padding:26px 22px 22px;box-shadow:0 24px 60px rgba(17,19,31,.3);animation:popIn 260ms cubic-bezier(.22,.9,.28,1) both">' +
         '<span ' + on(closeInvite) + ' aria-label="Close" style="position:absolute;top:16px;right:16px;width:40px;height:40px;border-radius:999px;background:#f0f1f5;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(16, '#11131f', 2.4) + '</span>' +
         invThumb(g, 64) +
         '<h2 style="margin:16px 0 0;padding-right:40px;font-size:28px;line-height:1.1;font-weight:900;letter-spacing:-.02em;color:#11131f;overflow-wrap:break-word">' + (g && g.name ? 'Join ' + invName(g) + '?' : 'Join this group?') + '</h2>' +
-        '<p style="margin:10px 0 0;font-size:16px;color:#5f6475">You’ll join as:</p>' +
+        placeCard(pl, true) + (need ? connPicker(pl) : '') +
+        '<p style="margin:' + (need ? 16 : 10) + 'px 0 0;font-size:16px;color:#5f6475">You’ll join as:</p>' +
         '<div style="margin-top:10px;display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:18px;background:#f0f1f5">' +
           face(st.me, st.myName || st.email, 40, '#5b4ae8') +
           '<div style="min-width:0"><div style="font-size:16px;font-weight:700;color:#11131f">' + esc(st.myName || st.email) + '</div>' +
           '<div style="font-size:14px;color:#6b7080;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(st.email) + '</div></div></div>' +
-        '<button type="button" ' + on(() => { if (!busy && g !== undefined) inviteJoin(); }) + ' style="margin-top:18px;' + invPrimary(!busy && g !== undefined) + '">' + (busy ? 'Joining…' : 'Join as ' + esc(first)) + '</button>' +
+        '<button type="button" data-inv-confirm-join ' + on(() => { if (ready) inviteJoin(); }) + ' aria-disabled="' + !ready + '" style="margin-top:18px;' + invPrimary(ready) + '">' + (st.inv.busy ? 'Joining…' : 'Join as ' + esc(first)) + '</button>' +
         '<div ' + on(invOtherAccount) + ' style="margin-top:14px;text-align:center;font-size:15px;font-weight:700;color:#5b4ae8;cursor:pointer">Use a different account</div>' +
       '</div></div>';
   }
@@ -6035,6 +6115,25 @@
     if (runs(g)) sb.rpc('group_blocked', { p_group: g.id }).then(r => { if (!r.error && state.gMenu === g.id) setState({ gMenuBlocked: (r.data || []).length }); });
     if (runs(g)) sb.rpc('list_reports', { p_group: g.id }).then(r => { if (!r.error && state.gMenu === g.id) setState({ gMenuReports: (r.data || []).length }); });   // the red count (v8-18 1s)
   };
+  // Who can join (owner, 2026-10-12): three choices, changeable any time; a change affects new joins only
+  const RULE_SHORT = { everyone: 'Everyone', nearby: 'Nearby neighbors', neighbors: 'Neighbors' };
+  const RULE_OPTS = [['neighbors', 'Neighbors', 'People who say they live here'], ['nearby', 'Nearby neighbors', 'People who live here or nearby'], ['everyone', 'Everyone', 'Anyone with the link or QR code']];
+  const setJoinRule = async (g, rule) => {
+    if (rule === g.joinRule || state.busy) return setState({ joinRuleFor: null });
+    if (await run(async () => { must(await sb.rpc('set_join_rule', { p_group: g.id, p_rule: rule })); }, { joinRuleFor: null })) toast('Who can join: ' + RULE_SHORT[rule], true);
+  };
+  function viewJoinRule() {
+    const g = groupById(state.joinRuleFor), close = () => setState({ joinRuleFor: null });
+    if (!g) return '';
+    return modal('Who can join ' + g.name + '?', close,
+      h3Html('Who can join ' + esc(g.name) + '?') +
+      '<div style="margin-top:-6px;font-size:14px;line-height:1.4;font-weight:600;color:#6b7280">Everyone already in stays. When they join, people say how they’re connected, on their honor.</div>' +
+      '<div role="radiogroup" aria-label="Who can join" style="display:flex;flex-direction:column;gap:8px">' + RULE_OPTS.map(([k, label, sub]) => { const onIt = (g.joinRule || 'everyone') === k;
+        return '<div ' + on(() => setJoinRule(g, k), 'radio') + ' aria-checked="' + onIt + '" data-join-rule="' + k + '" style="display:flex;flex-direction:column;gap:2px;padding:12px 14px;border-radius:14px;cursor:pointer;' +
+          (onIt ? 'background:#f3f1fe;box-shadow:inset 0 0 0 2px #5b4ae8' : 'background:#fff;box-shadow:inset 0 0 0 1.5px #e3e5ec') + '">' +
+          '<span style="font-size:15.5px;font-weight:800;color:' + (onIt ? '#4a3ad4' : '#0d1117') + '">' + label + '</span><span style="font-size:13.5px;font-weight:600;color:#6b7280">' + sub + '</span></div>'; }).join('') + '</div>',
+      { z: 40 });
+  }
   function viewGroupMenu() {
     const g = groupById(state.gMenu);
     if (!g) return '';
@@ -6071,6 +6170,8 @@
               '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-size:15.5px;font-weight:800;color:#0d1117">Members can invite people</span>' +
                 '<span style="font-size:13px;line-height:1.35;font-weight:600;color:#6b7280">' + (g.membersCanInvite ? 'On: anyone in the group can invite people' : 'Off: only owners and admins can invite') + '</span></div>' +
               '<span aria-hidden="true" style="flex:0 0 46px;width:46px;height:28px;border-radius:999px;position:relative;transition:background .2s;background:' + (g.membersCanInvite ? '#5b4ae8' : '#c3c7d0') + '"><span style="position:absolute;top:3px;left:' + (g.membersCanInvite ? 21 : 3) + 'px;width:22px;height:22px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:left .2s"></span></span></div>' +
+            // Who can join (owner, 2026-10-12): owners pick, admins see it
+            row('Who can join', then(() => g.role === 'owner' ? setState({ joinRuleFor: g.id }) : toast('Only the group’s owners can change who can join')), RULE_SHORT[g.joinRule] || RULE_SHORT.everyone) +
             // Reports (v8-18 1s): open reports about this group's posts and members, with a red count
             '<div ' + on(() => openReports(g.id)) + ' role="button" data-group-reports style="min-height:48px;padding:0 14px;border-top:1px solid #eceef2;display:flex;align-items:center;gap:12px;font-size:15.5px;font-weight:800;color:#0d1117;cursor:pointer">' +
               '<span style="flex:1">Reports</span>' + (state.gMenuReports ? '<span data-reports-count style="font-size:14px;font-weight:700;color:#c0263d">' + state.gMenuReports + '</span>' : '') + I.chevR(13, '#b9bcc4', 3) + '</div>' +
@@ -12167,7 +12268,7 @@
       '<div style="display:flex;flex-direction:column;gap:3px;font-size:14px;font-weight:600;color:#454b55">' +
         (admin ? '<div style="display:flex;align-items:center;gap:8px;min-width:0"><span style="flex:0 0 auto;font-size:12px;font-weight:900;letter-spacing:.6px;text-transform:uppercase;color:#8a909b">Email</span>' +
           (m.email ? '<a href="mailto:' + esc(m.email) + '" style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#4a3ad4;font-weight:700;text-decoration:none">' + esc(m.email) + '</a>' : '<span style="color:#8a909b">Not shared</span>') + '</div>' : '') +
-        (m.joined_at ? '<div style="font-size:13px;color:#6b7280">Joined ' + esc(joined(m.joined_at)) + '</div>' : '') + '</div>' +
+        (m.joined_at ? '<div style="font-size:13px;color:#6b7280">Joined ' + esc(joined(m.joined_at)) + (m.connection && CONN_LABEL[m.connection] ? ' · ' + CONN_LABEL[m.connection] : '') + '</div>' : '') + '</div>' +
       (friendBtn(m) || actions(m) || m.user_id !== st.me ? '<div style="display:flex;flex-wrap:wrap;gap:8px">' + friendBtn(m) +
         (m.user_id !== st.me ? pill('See profile', () => openPerson(m.user_id)) : '') + actions(m) + '</div>' : '') + '</div>';
     const row = (m) => { const open = st.memberOpen === m.user_id;
@@ -12810,6 +12911,7 @@
       (s === 'browse' && st.loaded && currentGroup() && !st.gSearch && !st.gMenu ? swipeHints() : '') +
       (st.email && st.gSearch && s === 'browse' ? viewGroupSearch() : '') +
       (st.gMenu && s === 'browse' ? viewGroupMenu() : '') +
+      (st.joinRuleFor ? viewJoinRule() : '') +
       (st.gInv && s === 'browse' ? viewGroupInv() : '') +
       (st.gQr && s === 'browse' ? viewGroupQr() : '') +
       (st.shiftPick ? viewShiftSheet() : '') +
@@ -13602,8 +13704,9 @@
   // Back from Google in the middle of an invite: the Joining screen straight away
   const inviteTrip = sb && AUTH_RETURN.any && readResume();
   if (inviteTrip && inviteTrip.from === 'invite' && inviteTrip.joinCode) {
-    state.inv = { code: inviteTrip.joinCode, by: pendingBy(), group: undefined, step: 'joining' };
+    state.inv = { code: inviteTrip.joinCode, by: pendingBy(), group: undefined, place: undefined, conn: null, step: 'joining' };
     loadInviteGroup(inviteTrip.joinCode);
+    loadInvitePlace(inviteTrip.joinCode);
   }
   const oldLink = IDEA_PATH.test(location.pathname);
   if (oldLink) history.replaceState(null, '', '/#/idea/' + location.pathname.match(IDEA_PATH)[1]);
@@ -13632,8 +13735,9 @@
   if (bootInvite && sb && !state.inv) {
     history.replaceState(null, '', '/');
     setPending(bootInvite, bootBy);
-    state.inv = { code: bootInvite, by: bootBy, group: undefined, step: bootUser ? 'confirm' : 'land' };
+    state.inv = { code: bootInvite, by: bootBy, group: undefined, place: undefined, conn: null, step: bootUser ? 'confirm' : 'land' };
     loadInviteGroup(bootInvite);
+    loadInvitePlace(bootInvite);
   }
   // Back from Google: keep the splash (index.html) up until init() has the session, or Welcome flashed before the
   // signed-in app (owner, 2026-10-07). A cancelled trip still lands on Welcome with sign-in open, a moment later.

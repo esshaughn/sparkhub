@@ -5,6 +5,8 @@
   try {
     if (location.pathname !== '/' || location.search || (location.hash && location.hash !== '#' && location.hash !== '#/')) return;
     if (navigator.standalone || (window.matchMedia && matchMedia('(display-mode: standalone)').matches)) return;
+    // Mid-invite, mid-friend-link or mid-Google sign-in: the app cleared its address already, so stay in it
+    try { if (sessionStorage.getItem('pendingInvite') || sessionStorage.getItem('pendingFriend') || sessionStorage.getItem('spark-hub-google-resume')) return; } catch (e) { return; }
     for (var i = 0; i < localStorage.length; i++) {
       var k = localStorage.key(i);
       if (!/^sb-.+-auth-token$/.test(k)) continue;

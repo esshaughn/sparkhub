@@ -100,6 +100,15 @@ None of these are built. They come from the owner's own list and the pilot group
 - **The front door:** signed out, the bare address now opens `/welcome` instead of the app's Welcome; the app's Welcome still shows for **Sign in** (`/#/signin`) and invite links.
 - **Wording the owner chose:** the app keeps **Groups**; the website says *neighborhood group* where it helps. *Lead* and *co-lead* name a group's two required owners on the website. Never "Coming soon": the paid tiers say *Free during the beta*.
 
+## Where the group is, and who can join (2026-10-12, branch `structure-v1`)
+
+*Invented by the build, from the owner's direction; please redraw.*
+
+- **Before joining** (the invite landing and the signed-in *Join {group}?* pop-up): a place card under the group's name: a 640×260 map (Geoapify, `osm-bright-smooth`, the group's area as a purple `#5b4ae8` circle at 15% fill), then a pin icon, **{place}** · *Neighborhood*, the group's purpose, and *Is this the one you want to join?* on a `#f4f5f8` card, radius 18.
+- **How are you connected to {place}?** Three pills (*I live here* · *I live nearby* · *Just visiting*): white with a grey ring, purple when picked, pale grey and inactive when the group's rule doesn't take it, with the rule in grey under them (*This group is for people who live here or nearby.*). **Join as {name}** stays grey until one is picked. If the rule changed meanwhile, a red line says why.
+- **Who can join** (group ⋯ → Admins only, a row with the current value): a pop-up with three cards (Neighbors · Nearby neighbors · Everyone) and *Everyone already in stays…*; only owners can change it.
+- **Members:** *Joined October 2026 · Lives nearby* in a member's panel (admins).
+
 ## Round v8-26 in short
 
 *Built from HANDOFF-to-CODE v8-26 on 2026-10-11, on `test`, not live yet. One migration, `20261201000000_v8_26.sql` (`sparks.contact`, `rsvps.repick`, `group_invite_landing()`). The prototype was diffed against v8-25's: nothing changed beyond items 3, 6, 7 and 8.*
