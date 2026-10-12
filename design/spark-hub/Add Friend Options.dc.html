@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+<style>body{margin:0;background:#d9dce2;font-family:Figtree,system-ui,sans-serif;color:#0d1117}a{color:#5b4ae8;text-decoration:none}a:hover{color:#4a3ad4}</style>
+</helmet>
+
+<section style="padding:48px 48px 24px;display:flex;flex-direction:column;gap:20px">
+  <div style="display:flex;flex-direction:column;gap:6px;max-width:900px">
+    <span style="font-size:13px;font-weight:900;letter-spacing:1.2px;color:#6b7280">2 · FRIENDS PAGE</span>
+    <h2 style="margin:0;font-size:34px;font-weight:900;letter-spacing:-.8px">People in your groups you’re not friends with yet</h2>
+    <p style="margin:0;font-size:17px;line-height:1.5;font-weight:500;color:#454b55;text-wrap:pretty">Same Add / Requested / Accept states as the Members list. People you’ve blocked, and people who declined you, never show here. Hidden while searching.</p>
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:40px;align-items:flex-start">
+
+    <div id="2a" style="display:flex;flex-direction:column;gap:14px;width:393px">
+      <div style="display:flex;align-items:center;gap:10px"><span style="padding:4px 10px;border-radius:8px;background:#0d1117;color:#fff;font-size:15px;font-weight:900">2a</span><span style="font-size:18px;font-weight:900">Swipeable cards, above Your friends</span></div>
+      <div style="position:relative;width:393px;height:852px;border-radius:44px;overflow:hidden;background:#e8eaee;box-shadow:0 20px 50px rgba(15,18,25,.18)">
+        <div style="padding:60px 16px 0;display:flex;flex-direction:column;gap:14px">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:0 4px"><span style="font-size:30px;font-weight:900;letter-spacing:-.8px">Friends</span><span style="width:40px;height:40px;border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0d1117" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg></span></div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;align-items:baseline;justify-content:space-between;padding:0 6px"><span style="font-size:13px;font-weight:900;letter-spacing:1px;color:#6b7280">FROM YOUR GROUPS</span><span style="font-size:15px;font-weight:800;color:#5b4ae8">See all 14 ›</span></div>
+            <div style="display:flex;gap:10px;overflow:hidden;margin-right:-16px">
+              <sc-for list="{{ cards }}" as="c" hint-placeholder-count="3">
+                <div style="flex:0 0 136px;background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08);padding:16px 12px 12px;display:flex;flex-direction:column;align-items:center;gap:8px;position:relative">
+                  <span style="position:absolute;top:8px;right:8px;width:24px;height:24px;display:flex;align-items:center;justify-content:center;color:#9aa0ac;font-size:15px;font-weight:800">×</span>
+                  <sc-if value="{{ c.photo }}" hint-placeholder-val="{{ true }}"><img src="{{ c.photo }}" alt="" style="width:64px;height:64px;border-radius:999px;object-fit:cover"></sc-if>
+                  <sc-if value="{{ c.noPhoto }}" hint-placeholder-val="{{ false }}"><span style="width:64px;height:64px;border-radius:999px;background:#ece9fd;color:#4a3ad4;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:900">{{ c.ini }}</span></sc-if>
+                  <div style="display:flex;flex-direction:column;align-items:center;gap:1px;text-align:center"><span style="font-size:16px;font-weight:900">{{ c.name }}</span><span style="font-size:12.5px;line-height:1.3;font-weight:600;color:#6b7280">{{ c.sub }}</span></div>
+                  <sc-if value="{{ c.isAdd }}" hint-placeholder-val="{{ true }}"><span style="align-self:stretch;min-height:38px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:14px;font-weight:800;display:flex;align-items:center;justify-content:center">Add friend</span></sc-if>
+                  <sc-if value="{{ c.isReq }}" hint-placeholder-val="{{ false }}"><span style="align-self:stretch;min-height:38px;border-radius:999px;background:#f2f3f6;color:#6b7280;font-size:14px;font-weight:800;display:flex;align-items:center;justify-content:center">Requested</span></sc-if>
+                  <sc-if value="{{ c.isAcc }}" hint-placeholder-val="{{ false }}"><span style="align-self:stretch;min-height:38px;border-radius:999px;background:#149a4b;color:#fff;font-size:14px;font-weight:800;display:flex;align-items:center;justify-content:center">Accept</span></sc-if>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <span style="padding:6px 6px 0;font-size:13px;font-weight:900;letter-spacing:1px;color:#6b7280">YOUR FRIENDS</span>
+          <div style="background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08);display:flex;flex-direction:column">
+            <sc-for list="{{ friends }}" as="f" hint-placeholder-count="4">
+              <div style="display:flex;align-items:center;gap:12px;min-height:60px;padding:0 14px;border-top:1px solid #f2f3f6">
+                <sc-if value="{{ f.photo }}" hint-placeholder-val="{{ true }}"><img src="{{ f.photo }}" alt="" style="width:40px;height:40px;border-radius:999px;object-fit:cover"></sc-if>
+                <sc-if value="{{ f.noPhoto }}" hint-placeholder-val="{{ false }}"><span style="width:40px;height:40px;border-radius:999px;background:#ece9fd;color:#4a3ad4;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:900">{{ f.ini }}</span></sc-if>
+                <div style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:16px;font-weight:800">{{ f.name }}</span><span style="font-size:13.5px;font-weight:600;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ f.next }}</span></div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+      <p style="margin:0;font-size:15px;line-height:1.5;font-weight:500;color:#454b55;text-wrap:pretty">Shows first, like “Your lists”. Most shared groups first, then most shared events. × hides one person from this strip only. See all opens the full list (as 2b’s sheet).</p>
+    </div>
+
+    <div id="2b" style="display:flex;flex-direction:column;gap:14px;width:393px">
+      <div style="display:flex;align-items:center;gap:10px"><span style="padding:4px 10px;border-radius:8px;background:#0d1117;color:#fff;font-size:15px;font-weight:900">2b</span><span style="font-size:18px;font-weight:900">Short list, under Your friends</span></div>
+      <div style="position:relative;width:393px;height:852px;border-radius:44px;overflow:hidden;background:#e8eaee;box-shadow:0 20px 50px rgba(15,18,25,.18)">
+        <div style="padding:60px 16px 0;display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:0 4px 4px"><span style="font-size:30px;font-weight:900;letter-spacing:-.8px">Friends</span><span style="width:40px;height:40px;border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0d1117" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg></span></div>
+          <span style="padding:6px 6px 0;font-size:13px;font-weight:900;letter-spacing:1px;color:#6b7280">YOUR FRIENDS</span>
+          <div style="background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08);display:flex;flex-direction:column">
+            <sc-for list="{{ friends3 }}" as="f" hint-placeholder-count="3">
+              <div style="display:flex;align-items:center;gap:12px;min-height:60px;padding:0 14px;border-top:1px solid #f2f3f6">
+                <sc-if value="{{ f.photo }}" hint-placeholder-val="{{ true }}"><img src="{{ f.photo }}" alt="" style="width:40px;height:40px;border-radius:999px;object-fit:cover"></sc-if>
+                <sc-if value="{{ f.noPhoto }}" hint-placeholder-val="{{ false }}"><span style="width:40px;height:40px;border-radius:999px;background:#ece9fd;color:#4a3ad4;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:900">{{ f.ini }}</span></sc-if>
+                <div style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:16px;font-weight:800">{{ f.name }}</span><span style="font-size:13.5px;font-weight:600;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ f.next }}</span></div>
+              </div>
+            </sc-for>
+            <div style="min-height:46px;border-top:1px solid #f2f3f6;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:#5b4ae8">See all 9 ›</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:2px;padding:14px 6px 2px"><span style="font-size:13px;font-weight:900;letter-spacing:1px;color:#6b7280">PEOPLE IN YOUR GROUPS</span><span style="font-size:14px;font-weight:600;color:#6b7280">Not friends yet</span></div>
+          <div style="background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08);display:flex;flex-direction:column">
+            <sc-for list="{{ suggest }}" as="m" hint-placeholder-count="4">
+              <div style="display:flex;align-items:center;gap:12px;min-height:62px;padding:0 14px;border-top:1px solid #f2f3f6">
+                <sc-if value="{{ m.photo }}" hint-placeholder-val="{{ true }}"><img src="{{ m.photo }}" alt="" style="width:40px;height:40px;border-radius:999px;object-fit:cover"></sc-if>
+                <sc-if value="{{ m.noPhoto }}" hint-placeholder-val="{{ false }}"><span style="width:40px;height:40px;border-radius:999px;background:#ece9fd;color:#4a3ad4;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:900">{{ m.ini }}</span></sc-if>
+                <div style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:16px;font-weight:800">{{ m.name }}</span><span style="font-size:13.5px;font-weight:600;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ m.sub }}</span></div>
+                <sc-if value="{{ m.isAdd }}" hint-placeholder-val="{{ true }}"><span style="flex:0 0 auto;min-height:36px;padding:0 14px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:14px;font-weight:800;display:flex;align-items:center">Add</span></sc-if>
+                <sc-if value="{{ m.isReq }}" hint-placeholder-val="{{ false }}"><span style="flex:0 0 auto;min-height:36px;padding:0 12px;border-radius:999px;background:#f2f3f6;color:#6b7280;font-size:14px;font-weight:800;display:flex;align-items:center">Requested</span></sc-if>
+                <sc-if value="{{ m.isAcc }}" hint-placeholder-val="{{ false }}"><span style="flex:0 0 auto;min-height:36px;padding:0 14px;border-radius:999px;background:#149a4b;color:#fff;font-size:14px;font-weight:800;display:flex;align-items:center">Accept</span></sc-if>
+              </div>
+            </sc-for>
+            <div style="min-height:46px;border-top:1px solid #f2f3f6;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:#5b4ae8">See all 14 ›</div>
+          </div>
+        </div>
+      </div>
+      <p style="margin:0;font-size:15px;line-height:1.5;font-weight:500;color:#454b55;text-wrap:pretty">Quietest. Friends stay on top; the shared group is the sub-line (“Mueller Pickleball · 3 events together”). See all opens a slide-up with search and the same rows.</p>
+    </div>
+
+    <div id="2c" style="display:flex;flex-direction:column;gap:14px;width:393px">
+      <div style="display:flex;align-items:center;gap:10px"><span style="padding:4px 10px;border-radius:8px;background:#0d1117;color:#fff;font-size:15px;font-weight:900">2c</span><span style="font-size:18px;font-weight:900">One row per group</span></div>
+      <div style="position:relative;width:393px;height:852px;border-radius:44px;overflow:hidden;background:#e8eaee;box-shadow:0 20px 50px rgba(15,18,25,.18)">
+        <div style="padding:60px 16px 0;display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:0 4px 4px"><span style="font-size:30px;font-weight:900;letter-spacing:-.8px">Friends</span><span style="width:40px;height:40px;border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0d1117" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg></span></div>
+          <span style="padding:6px 6px 0;font-size:13px;font-weight:900;letter-spacing:1px;color:#6b7280">YOUR FRIENDS</span>
+          <div style="background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08);display:flex;flex-direction:column">
+            <sc-for list="{{ friends3 }}" as="f" hint-placeholder-count="3">
+              <div style="display:flex;align-items:center;gap:12px;min-height:60px;padding:0 14px;border-top:1px solid #f2f3f6">
+                <sc-if value="{{ f.photo }}" hint-placeholder-val="{{ true }}"><img src="{{ f.photo }}" alt="" style="width:40px;height:40px;border-radius:999px;object-fit:cover"></sc-if>
+                <sc-if value="{{ f.noPhoto }}" hint-placeholder-val="{{ false }}"><span style="width:40px;height:40px;border-radius:999px;background:#ece9fd;color:#4a3ad4;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:900">{{ f.ini }}</span></sc-if>
+                <div style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:16px;font-weight:800">{{ f.name }}</span><span style="font-size:13.5px;font-weight:600;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ f.next }}</span></div>
+              </div>
+            </sc-for>
+            <div style="min-height:46px;border-top:1px solid #f2f3f6;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:#5b4ae8">See all 9 ›</div>
+          </div>
+          <span style="padding:14px 6px 0;font-size:13px;font-weight:900;letter-spacing:1px;color:#6b7280">FIND FRIENDS IN YOUR GROUPS</span>
+          <div style="background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,18,25,.08);display:flex;flex-direction:column">
+            <sc-for list="{{ groups }}" as="g" hint-placeholder-count="3">
+              <div style="display:flex;align-items:center;gap:12px;min-height:68px;padding:0 14px;border-top:1px solid #f2f3f6">
+                <img src="{{ g.photo }}" alt="" style="width:44px;height:44px;border-radius:12px;object-fit:cover">
+                <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px"><span style="font-size:16px;font-weight:800">{{ g.name }}</span><span style="font-size:13.5px;font-weight:600;color:#6b7280">{{ g.sub }}</span></div>
+                <div style="display:flex"><sc-for list="{{ g.faces }}" as="p" hint-placeholder-count="3"><img src="{{ p }}" alt="" style="width:28px;height:28px;border-radius:999px;object-fit:cover;border:2px solid #fff;margin-left:-8px"></sc-for></div>
+                <span style="font-size:20px;font-weight:800;color:#9aa0ac">›</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+      <p style="margin:0;font-size:15px;line-height:1.5;font-weight:500;color:#454b55;text-wrap:pretty">No names on the Friends page itself. A row opens that group’s Members list filtered to “Not friends yet”, with the row buttons from turn 1 and Add several.</p>
+    </div>
+  </div>
+</section>
+
+<section style="padding:24px 48px 64px;display:flex;flex-direction:column;gap:20px">
+  <div style="display:flex;flex-direction:column;gap:6px;max-width:900px">
+    <span style="font-size:13px;font-weight:900;letter-spacing:1.2px;color:#6b7280">1 · GROUP MEMBERS LIST</span>
+    <h2 style="margin:0;font-size:34px;font-weight:900;letter-spacing:-.8px">Add a friend from the Members list in one tap</h2>
+    <p style="margin:0;font-size:17px;line-height:1.5;font-weight:500;color:#454b55;text-wrap:pretty">Today: tap a row, it opens, then Add friend (2 taps). Rows here keep that tap-to-open for email, See profile and admin tools. A request still needs approval; a declined request stays “Requested” to the sender (they’re never told). Blocked people show no button. 30 requests an hour.</p>
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:40px;align-items:flex-start">
+
+    <div id="1a" style="display:flex;flex-direction:column;gap:14px;width:393px">
+      <div style="display:flex;align-items:center;gap:10px"><span style="padding:4px 10px;border-radius:8px;background:#0d1117;color:#fff;font-size:15px;font-weight:900">1a</span><span style="font-size:18px;font-weight:900">Text pill on each row</span></div>
+      <div style="position:relative;width:393px;height:852px;border-radius:44px;overflow:hidden;background:#e8eaee;box-shadow:0 20px 50px rgba(15,18,25,.18)">
+        <div style="position:absolute;inset:0;background:rgba(15,18,25,.45)"></div>
+        <div style="position:absolute;left:0;right:0;bottom:0;height:84%;background:#fff;border-radius:24px 24px 0 0;display:flex;flex-direction:column">
+          <div style="padding:10px 14px 0">
+            <div style="width:40px;height:5px;border-radius:999px;background:#dcdfe6;margin:0 auto 12px"></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:0 6px 12px"><div style="display:flex;align-items:baseline;gap:8px"><span style="font-size:22px;font-weight:900;letter-spacing:-.5px">Members</span><span style="font-size:15px;font-weight:700;color:#8a909b">24</span></div><span style="width:40px;height:40px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0d1117" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"></path></svg></span></div>
+            <div style="min-height:44px;margin:0 2px 8px;border-radius:12px;background:#f2f3f6;display:flex;align-items:center;padding:0 14px;font-size:16px;font-weight:600;color:#9aa0ac">Search members</div>
+          </div>
+          <div style="flex:1;overflow:hidden;padding:0 14px">
+            <sc-for list="{{ members }}" as="m" hint-placeholder-count="7">
+              <div style="display:flex;align-items:center;gap:12px;min-height:56px;padding:4px 6px;border-bottom:1px solid #f2f3f6">
+                <sc-if value="{{ m.photo }}" hint-placeholder-val="{{ true }}"><img src="{{ m.photo }}" alt="" style="width:36px;height:36px;border-radius:999px;object-fit:cover"></sc-if>
+                <sc-if value="{{ m.noPhoto }}" hint-placeholder-val="{{ false }}"><span style="width:36px;height:36px;border-radius:999px;background:#ece9fd;color:#4a3ad4;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:900">{{ m.ini }}</span></sc-if>
+                <div style="flex:1;min-width:0;display:flex;align-items:center;gap:6px"><span style="font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ m.name }}</span><sc-if value="{{ m.you }}" hint-placeholder-val="{{ false }}"><span style="font-size:14px;font-weight:600;color:#8a909b">(you)</span></sc-if><sc-if value="{{ m.owner }}" hint-placeholder-val="{{ false }}"><span style="border-radius:999px;padding:3px 9px;background:#ece9fd;color:#4a3ad4;font-size:11px;font-weight:900;letter-spacing:.6px">OWNER</span></sc-if></div>
+                <sc-if value="{{ m.isAdd }}" hint-placeholder-val="{{ true }}"><span style="flex:0 0 auto;min-height:34px;padding:0 13px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #5b4ae8;color:#5b4ae8;font-size:14px;font-weight:800;display:flex;align-items:center;gap:5px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>Add</span></sc-if>
+                <sc-if value="{{ m.isReq }}" hint-placeholder-val="{{ false }}"><span style="flex:0 0 auto;min-height:34px;padding:0 12px;border-radius:999px;background:#f2f3f6;color:#6b7280;font-size:14px;font-weight:800;display:flex;align-items:center">Requested</span></sc-if>
+                <sc-if value="{{ m.isFr }}" hint-placeholder-val="{{ false }}"><span style="flex:0 0 auto;padding:0 4px;color:#149a4b;font-size:14px;font-weight:800;display:flex;align-items:center;gap:4px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"></path></svg>Friends</span></sc-if>
+                <sc-if value="{{ m.isAcc }}" hint-placeholder-val="{{ false }}"><span style="flex:0 0 auto;min-height:34px;padding:0 13px;border-radius:999px;background:#149a4b;color:#fff;font-size:14px;font-weight:800;display:flex;align-items:center">Accept</span></sc-if>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+      <p style="margin:0;font-size:15px;line-height:1.5;font-weight:500;color:#454b55;text-wrap:pretty">Clearest. Purple-outline <b>+ Add</b> → grey <b>Requested</b> (tap again: “Cancel request?”). Green tick <b>Friends</b> is text, not a button. If they asked you first: green <b>Accept</b>.</p>
+    </div>
+
+    <div id="1b" style="display:flex;flex-direction:column;gap:14px;width:393px">
+      <div style="display:flex;align-items:center;gap:10px"><span style="padding:4px 10px;border-radius:8px;background:#0d1117;color:#fff;font-size:15px;font-weight:900">1b</span><span style="font-size:18px;font-weight:900">Icon button on each row</span></div>
+      <div style="position:relative;width:393px;height:852px;border-radius:44px;overflow:hidden;background:#e8eaee;box-shadow:0 20px 50px rgba(15,18,25,.18)">
+        <div style="position:absolute;inset:0;background:rgba(15,18,25,.45)"></div>
+        <div style="position:absolute;left:0;right:0;bottom:0;height:84%;background:#fff;border-radius:24px 24px 0 0;display:flex;flex-direction:column">
+          <div style="padding:10px 14px 0">
+            <div style="width:40px;height:5px;border-radius:999px;background:#dcdfe6;margin:0 auto 12px"></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:0 6px 12px"><div style="display:flex;align-items:baseline;gap:8px"><span style="font-size:22px;font-weight:900;letter-spacing:-.5px">Members</span><span style="font-size:15px;font-weight:700;color:#8a909b">24</span></div><span style="width:40px;height:40px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0d1117" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"></path></svg></span></div>
+            <div style="min-height:44px;margin:0 2px 8px;border-radius:12px;background:#f2f3f6;display:flex;align-items:center;padding:0 14px;font-size:16px;font-weight:600;color:#9aa0ac">Search members</div>
+          </div>
+          <div style="flex:1;overflow:hidden;padding:0 14px">
+            <sc-for list="{{ members }}" as="m" hint-placeholder-count="7">
+              <div style="display:flex;align-items:center;gap:12px;min-height:56px;padding:4px 6px;border-bottom:1px solid #f2f3f6">
+                <sc-if value="{{ m.photo }}" hint-placeholder-val="{{ true }}"><img src="{{ m.photo }}" alt="" style="width:36px;height:36px;border-radius:999px;object-fit:cover"></sc-if>
+                <sc-if value="{{ m.noPhoto }}" hint-placeholder-val="{{ false }}"><span style="width:36px;height:36px;border-radius:999px;background:#ece9fd;color:#4a3ad4;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:900">{{ m.ini }}</span></sc-if>
+                <div style="flex:1;min-width:0;display:flex;flex-direction:column"><div style="display:flex;align-items:center;gap:6px"><span style="font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ m.name }}</span><sc-if value="{{ m.you }}" hint-placeholder-val="{{ false }}"><span style="font-size:14px;font-weight:600;color:#8a909b">(you)</span></sc-if><sc-if value="{{ m.owner }}" hint-placeholder-val="{{ false }}"><span style="border-radius:999px;padding:3px 9px;background:#ece9fd;color:#4a3ad4;font-size:11px;font-weight:900;letter-spacing:.6px">OWNER</span></sc-if></div><span style="font-size:13px;font-weight:600;color:#6b7280">{{ m.state }}</span></div>
+                <sc-if value="{{ m.isAdd }}" hint-placeholder-val="{{ true }}"><span aria-label="Add friend" style="flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:#f3f1fe;color:#5b4ae8;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="4"></circle><path d="M2 21c0-3.9 3.1-7 7-7s7 3.1 7 7"></path><path d="M19 8v6M16 11h6"></path></svg></span></sc-if>
+                <sc-if value="{{ m.isReq }}" hint-placeholder-val="{{ false }}"><span aria-label="Requested" style="flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:#f2f3f6;color:#9aa0ac;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="4"></circle><path d="M2 21c0-3.9 3.1-7 7-7s7 3.1 7 7"></path><circle cx="19" cy="11" r="3.4"></circle><path d="M19 9.6V11l1 .8"></path></svg></span></sc-if>
+                <sc-if value="{{ m.isFr }}" hint-placeholder-val="{{ false }}"><span aria-label="Friends" style="flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:#e7f6ec;color:#149a4b;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="4"></circle><path d="M2 21c0-3.9 3.1-7 7-7s7 3.1 7 7"></path><path d="m16 11 2 2 4-4"></path></svg></span></sc-if>
+                <sc-if value="{{ m.isAcc }}" hint-placeholder-val="{{ false }}"><span style="flex:0 0 auto;min-height:36px;padding:0 13px;border-radius:999px;background:#149a4b;color:#fff;font-size:14px;font-weight:800;display:flex;align-items:center">Accept</span></sc-if>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+      <p style="margin:0;font-size:15px;line-height:1.5;font-weight:500;color:#454b55;text-wrap:pretty">Quieter row, so admin tags and names get the room. The words move to a grey sub-line (“Friends” · “Requested” · “Asked to be your friend”). Accept stays a word: an icon isn’t clear enough there.</p>
+    </div>
+
+    <div id="1c" style="display:flex;flex-direction:column;gap:14px;width:393px">
+      <div style="display:flex;align-items:center;gap:10px"><span style="padding:4px 10px;border-radius:8px;background:#0d1117;color:#fff;font-size:15px;font-weight:900">1c</span><span style="font-size:18px;font-weight:900">Add several at once</span></div>
+      <div style="position:relative;width:393px;height:852px;border-radius:44px;overflow:hidden;background:#e8eaee;box-shadow:0 20px 50px rgba(15,18,25,.18)">
+        <div style="position:absolute;inset:0;background:rgba(15,18,25,.45)"></div>
+        <div style="position:absolute;left:0;right:0;bottom:0;height:84%;background:#fff;border-radius:24px 24px 0 0;display:flex;flex-direction:column">
+          <div style="padding:10px 14px 0">
+            <div style="width:40px;height:5px;border-radius:999px;background:#dcdfe6;margin:0 auto 12px"></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:0 6px 4px"><span style="font-size:22px;font-weight:900;letter-spacing:-.5px">Add friends</span><span style="font-size:15px;font-weight:800;color:#5b4ae8">Cancel</span></div>
+            <span style="display:block;padding:0 6px 12px;font-size:14.5px;font-weight:600;color:#6b7280">They’ll each get a request to accept.</span>
+          </div>
+          <div style="flex:1;overflow:hidden;padding:0 14px">
+            <span style="display:block;padding:4px 6px 6px;font-size:12.5px;font-weight:900;letter-spacing:1px;color:#6b7280">NOT FRIENDS YET · 5</span>
+            <sc-for list="{{ pick }}" as="m" hint-placeholder-count="5">
+              <div style="display:flex;align-items:center;gap:12px;min-height:56px;padding:4px 6px;border-bottom:1px solid #f2f3f6">
+                <sc-if value="{{ m.on }}" hint-placeholder-val="{{ false }}"><span style="flex:0 0 26px;width:26px;height:26px;border-radius:999px;background:#5b4ae8;display:flex;align-items:center;justify-content:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"></path></svg></span></sc-if>
+                <sc-if value="{{ m.off }}" hint-placeholder-val="{{ true }}"><span style="flex:0 0 26px;width:26px;height:26px;border-radius:999px;box-shadow:inset 0 0 0 2px #c9cdd5"></span></sc-if>
+                <sc-if value="{{ m.photo }}" hint-placeholder-val="{{ true }}"><img src="{{ m.photo }}" alt="" style="width:36px;height:36px;border-radius:999px;object-fit:cover"></sc-if>
+                <sc-if value="{{ m.noPhoto }}" hint-placeholder-val="{{ false }}"><span style="width:36px;height:36px;border-radius:999px;background:#ece9fd;color:#4a3ad4;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:900">{{ m.ini }}</span></sc-if>
+                <div style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:16px;font-weight:700">{{ m.name }}</span><span style="font-size:13px;font-weight:600;color:#6b7280">{{ m.sub }}</span></div>
+              </div>
+            </sc-for>
+            <span style="display:block;padding:16px 6px 6px;font-size:12.5px;font-weight:900;letter-spacing:1px;color:#6b7280">ALREADY FRIENDS OR ASKED · 18</span>
+            <div style="display:flex;align-items:center;gap:12px;min-height:52px;padding:4px 6px;opacity:.55"><span style="flex:0 0 26px;width:26px;height:26px;border-radius:999px;background:#e7f6ec;display:flex;align-items:center;justify-content:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#149a4b" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"></path></svg></span><img src="photos/web/faces/hana.jpg" alt="" style="width:36px;height:36px;border-radius:999px;object-fit:cover"><span style="flex:1;font-size:16px;font-weight:700">Hana M.</span><span style="font-size:13px;font-weight:700;color:#149a4b">Friends</span></div>
+          </div>
+          <div style="padding:12px 16px 30px;border-top:1px solid #f2f3f6;background:#fff"><div style="min-height:52px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:16.5px;font-weight:800;display:flex;align-items:center;justify-content:center">Send friend requests · 3</div></div>
+        </div>
+      </div>
+      <p style="margin:0;font-size:15px;line-height:1.5;font-weight:500;color:#454b55;text-wrap:pretty">Goes with 1a or 1b: a quiet <b>Add several</b> link sits beside the Members count. Ticks like the Ask sheet. Toast: “Sent 3 friend requests”. Past 30 in an hour: “You can send more in a bit.”</p>
+    </div>
+  </div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    const F = 'photos/web/faces/';
+    const p = (o) => ({ ...o, noPhoto: !o.photo, ini: o.name[0] });
+    const st = (o, s) => ({ ...o, isAdd: s === 'add', isReq: s === 'req', isFr: s === 'fr', isAcc: s === 'acc', state: { add: '', req: 'Requested', fr: 'Friends', acc: 'Asked to be your friend' }[s] });
+    const members = [
+      st(p({ name: 'Eric S.', photo: F + 'eric.jpg', you: true }), ''),
+      st(p({ name: 'Darnell K.', photo: F + 'darnell.jpg', owner: true }), 'add'),
+      st(p({ name: 'Hana M.', photo: F + 'hana.jpg' }), 'fr'),
+      st(p({ name: 'Dee R.', photo: F + 'dee.jpg' }), 'req'),
+      st(p({ name: 'Marisol P.', photo: F + 'marisol.jpg' }), 'acc'),
+      st(p({ name: 'Luis G.' }), 'add'),
+      st(p({ name: 'Theo B.' }), 'fr'),
+      st(p({ name: 'Priya N.' }), 'add'),
+    ];
+    const pick = [
+      { name: 'Darnell K.', photo: F + 'darnell.jpg', sub: 'Owner', on: true },
+      { name: 'Luis G.', sub: '2 events together', on: true },
+      { name: 'Priya N.', sub: 'Joined Sep 2026', on: true },
+      { name: 'Sam T.', sub: 'Joined Aug 2026' },
+      { name: 'Ana V.', sub: '1 event together' },
+    ].map(o => ({ ...p(o), on: !!o.on, off: !o.on }));
+    const friends = [
+      { name: 'Hana M.', photo: F + 'hana.jpg', next: 'Activate · Thu, Oct 15' },
+      { name: 'Theo B.', next: 'Fall cleanup day · Sat, Oct 24' },
+      { name: 'Rosa L.', next: 'Pickleball night · Fri, Nov 6' },
+      { name: 'Joseph A.', next: 'Activate · Thu, Oct 15' },
+    ].map(p);
+    const suggest = [
+      st(p({ name: 'Darnell K.', photo: F + 'darnell.jpg', sub: 'Mueller Pickleball · 3 events together' }), 'add'),
+      st(p({ name: 'Marisol P.', photo: F + 'marisol.jpg', sub: 'Asked to be your friend' }), 'acc'),
+      st(p({ name: 'Dee R.', photo: F + 'dee.jpg', sub: 'Activate · 2 events together' }), 'req'),
+      st(p({ name: 'Luis G.', sub: 'Mueller Pickleball, Activate' }), 'add'),
+    ];
+    const cards = [
+      st(p({ name: 'Darnell K.', photo: F + 'darnell.jpg', sub: 'Mueller Pickleball · 3 events' }), 'add'),
+      st(p({ name: 'Marisol P.', photo: F + 'marisol.jpg', sub: 'Asked to be your friend' }), 'acc'),
+      st(p({ name: 'Dee R.', photo: F + 'dee.jpg', sub: 'Activate · 2 events' }), 'req'),
+    ];
+    const groups = [
+      { name: 'Mueller Pickleball', photo: 'photos/web/pickleball.jpg', sub: '8 people not friends yet', faces: [F + 'darnell.jpg', F + 'marisol.jpg', F + 'dee.jpg'] },
+      { name: 'Activate', photo: 'photos/web/activate.jpg', sub: '4 people not friends yet', faces: [F + 'dee.jpg', F + 'hana.jpg'] },
+      { name: 'Mutual Aid', photo: 'photos/web/mutual-aid.jpg', sub: '2 people not friends yet', faces: [F + 'marisol.jpg'] },
+    ];
+    return { members, pick, friends, friends3: friends.slice(0, 3), suggest, cards, groups };
+  }
+}
+</script>
+</body>
+</html>
