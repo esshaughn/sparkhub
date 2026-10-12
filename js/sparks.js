@@ -404,6 +404,7 @@
     if (h === '#/how') return { screen: 'how' };
     if (h === '#/calendar' || h === '#/explore') return { screen: 'calendar' };
     if (h === '#/schedule') return { screen: 'sched' };
+    if (h === '#/signin') return { screen: 'sched' };   // the website's Sign in (signed out: Welcome; signed in: the calendar)
     if (h === '#/tasks') return { screen: 'home' };
     if (h === '#/own') return { screen: 'own' };
     if (h === '#/groups') return { screen: 'groups' };

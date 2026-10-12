@@ -6,7 +6,7 @@
 - **Source:** github.com/esshaughn/sparkhub (`index.html`, `js/sparks.js`, `css/sparks.css`, `privacy.html`, `supabase/templates/`)
 - **Baseline:** Claude Design's **round v8-17** (`design/spark-hub/HANDOFF-to-CODE.md` and `Spark Hub App Version 8.dc.html`, 2026-10-09), built in full (with your v8-16 clarity pass): see *Round v8-17 in short*. Rows 212–227 are new since v8-15.
 - **Build version:** **v8** (v7 from owner, 2026-10-02): a lead is a choice. Since v8-8 an idea is led from the start (*Who leads it · Me*) or floated (*I'll decide*), and both use the new idea page.
-- **As of:** 2026-10-11 (round v8-26 built on `test`). **Everything through round v8-25 is live** (main `1dfc43f`, v=416). Questions for you are in §5.
+- **As of:** 2026-10-12 (the website around the app drafted on branch `structure-v1`; round v8-26 built on `test`). **Everything through round v8-25 is live** (main `1dfc43f`, v=416). Questions for you are in §5.
 
 ## Start here (2026-10-10): HANDOFF-to-DESIGN-17
 
@@ -90,6 +90,15 @@ None of these are built. They come from the owner's own list and the pilot group
 - **Event cards that say *6 spots left*** (Q43) read like an RSVP cap.
 
 ---
+
+## The website around the app (2026-10-12, branch `structure-v1`, not on `test` yet)
+
+*Things the build had to invent: the owner asked for a website people can land on before the app. Drafted from the design system (Figtree, ink, purple, the Spark gradient once as a glow on the welcome hero); please redraw it properly when you can.*
+
+- **Pages:** `/welcome` (hero *Plans with your people.* on ink with the picnic photo, *BETA · FREE WHILE WE TEST IT*, **Bring it to your neighborhood** + **Sign in**; How it works in 3 steps; For neighborhoods / For friends cards; *Less scrolling. More showing up.* on ink; a pale-purple beta band), `/how-it-works` (groups belong to a place, joining by link or QR only, who can join, ideas, plans, pitching in, keeping it safe; friends: lists and private events up to 20; guests; on your phone), `/pricing` (four tier cards: Friends $0, Seed group $0, Neighborhood and Active *Free during the beta* / *Paid after the beta*; Launch help; five questions), `/neighborhoods` (*Bring Spark Hub to your neighborhood*: Draft it. Build the team. Open it. in four steps; a lead, a co-lead (required) and a team of admins (recommended); associations first; what leads agree to) and `/beta`.
+- **Every page:** a white sticky bar with the bolt, **Spark Hub** and the **BETA** chip, links (How it works · Pricing · For neighborhoods · The beta) and a purple **Sign in** pill; under 720px the links move to a scrolling row under the bar. Footer: *Spark Hub · Beta · Made in Austin* and the links. No operator is named until WAN's board votes.
+- **The front door:** signed out, the bare address now opens `/welcome` instead of the app's Welcome; the app's Welcome still shows for **Sign in** (`/#/signin`) and invite links.
+- **Wording the owner chose:** the app keeps **Groups**; the website says *neighborhood group* where it helps. *Lead* and *co-lead* name a group's two required owners on the website. Never "Coming soon": the paid tiers say *Free during the beta*.
 
 ## Round v8-26 in short
 
