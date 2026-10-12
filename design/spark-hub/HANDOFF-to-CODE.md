@@ -1,8 +1,58 @@
-# Spark Hub v8 · HANDOFF-to-CODE (round v8-24)
+# Spark Hub v8 · HANDOFF-to-CODE (round v8-25)
 
-**Caught up with the build's `HANDOFF-to-DESIGN-17.md` (v8-22 live, main `e05eddf`, v=400) as of Oct 10, 2026.** v8-24 = the *New since v8-23* list below. v8-23 and older rounds stand unchanged. Options files: `options/Group Invite Sheet Options.dc.html` (1a + 1b) and `options/Sign Up Nudge Options.dc.html` (1a). Prototype: `Spark Hub App Version 8.dc.html`.
+**Caught up with the build's `HANDOFF-to-DESIGN-18.md` (v8-22 live, v8-23 + v8-24 on test; rows up to 257) as of Oct 11, 2026.** v8-25 = the *New since v8-24* list below: items 1–2 redraw the build's changes and owner calls (nothing to build), items 3–5 are new to build. v8-24 and older rounds stand unchanged. Prototype: `Spark Hub App Version 8.dc.html`.
 
-## New since v8-23 (Oct 10, late)
+## New since v8-24 (Oct 11)
+
+All of this was drawn to match the build (HANDOFF-to-DESIGN-18). **Nothing here needs building** unless it says *Build*.
+
+### 1. Drawn to match v8-23 / v8-24 as built
+- **Bell count** clears about 1s after the list opens, scrolled or not (was: after scrolling). Rows stay unread.
+- **Event Invite people** has a second heading, **FROM YOUR GROUPS**, under FRIENDS, with each person's group name; *Search friends* searches both lists.
+- **Group Invite people:** *You’ve invited N · M joined* is a link (opens Members) for owners and admins, plain grey text for members. Empty list reads *No friends on Spark Hub yet.*; a search with no match reads *No one matches "…"*.
+- **Install on a computer (1f):** the QR pop-up's button reads **Copy link** (toast *Link copied*); no texts.
+- **Ways to participate:** jobs only (spots stay on the event page); a job with times reads *N times to pick from* (already so).
+
+### 2. Rows 251–257 drawn into the prototype
+- **251 · 253 Add a sign up:** name field, then one row with the − *Any* + count on the left and **+ Add details** on the right, then the starter chips, then Save. A picked starter sits in the field in the typing's own style (16/700 #0d1117), so it reads as one line. The count starts at *Any* here too.
+- **252:** *Most per person* row removed from a sign-up's options (Waitlist when full · Guests can sign up remain).
+- **254 Admin view:** an owner or admin of the home group who doesn't host gets the member's page and the member ⋯ (*Share link* · **Admin view** with the shield · *Report this event*). Admin view on → toast *Admin view on*, the pencil and the host ⋯ appear; the host ⋯ then ends with **Exit admin view** (toast *Back to the member view*). Leaving the event turns it off. **Design call on the on-state:** no pill; the pencil plus the *Exit admin view* row in the ⋯ is enough. Please add *Exit admin view* to the host ⋯ when it's on, if the build only has it in the member ⋯.
+- **255 Swipe a photo away:** up/down drag follows the finger (shrinks to ~86%, black fades), closes past 110px or on a flick; sideways swipes between photos; short drags spring back (220ms, cubic-bezier(.2,.8,.2,1)). A tap on the photo closes it too.
+- **256:** empty What to expect reads *Add a description of what to expect.*
+- **257 Private chip on the photo:** white pill (rgba(255,255,255,.9), 0 1px 4px rgba(13,17,23,.18)) on the photo; Grid 14px from top / 10px from left; Tiles top left of the photo, level with the title. Cards without a photo keep it above the title.
+
+### 3. Build: a held job card, cleaner (4a in `Sign Up Others Options.dc.html`)
+- When you hold a job (not a lead, not a job with times), the card stays **white** (no orange ring; jobs with times keep theirs).
+- **Title row:** the title, and at the right a small solid green **✓ You're in** tag (30px, 13.5/800; tap = *Take yourself off…?* as now).
+- **Meta line** under the title (14.5/600 #6b7280, clock icon when there's a time): the time, then what's left: **1 open slot** / **N open slots** / **Full** / **No limit** (e.g. *8:30am · 2 open slots*). No "N signed up".
+- **Description** right under it (15/500 #454b55), no *Hide details* bar. It keeps the writer's **line breaks** (`white-space: pre-line`, everywhere a job description shows). Past 2 lines (90+ characters or 3+ lines) it clamps to 2 with a quiet grey **More ⌄** / **Less ⌃** (13.5/800 #6b7280).
+- **Footer** (1px #f2f3f6 line on top, card-edge to card-edge, 8px 16px): up to **two faces** (you first, 30px, −8px overlap, white ring), a **white dotted circle** with a grey + while there's room, and a grey **›**; faces + › are one tap target that opens Who's signed up. At the right, a very quiet **Invite** (13/700 #9aa0ac, person-plus icon, purple on hover) that opens the event's Invite people sheet (or the Share link pop-up when *People can invite friends* is off). No dotted seat and no Invite when it's Full.
+
+### 4. Build: *On this page* card under the RSVP (2a, styled as 3a, in `Jump Card Options.dc.html`)
+- Replaces both the pink **"N new updates · View ↓"** banner and the purple text line (*2 ways to help · 5 posts ›*).
+- **3a styling:** no white card and no shadow; the rows sit on the grey page inside a thin outline (18px corners, inset 1.5px #d5d8df), right under the RSVP card, 2px top/bottom padding, one **46px row** per section, 14px sides, 1px #d5d8df line between rows. Icon tiles are **white**:
+  - **Sign up** row (only with open sign-ups): 30px white tile with the orange clipboard-check icon, **Sign up** (15.5/800) then grey *N ways to participate* (14/600 #6b7280), grey ›. Tap scrolls to Sign up.
+  - **Discussion** row (only with posts): 30px white tile with the pink speech-bubble icon, **Discussion** then grey *N posts*, then, when there are updates you haven't seen, a solid pink pill **N new** (22px, #d6246e, white 12/900), then ›. Tap marks updates seen and scrolls to Discussion. Leads never get the pink pill.
+- No card when there's nothing in either.
+
+### 5. Build: Helping / Your tasks bars under the event photo
+- Both bars (someone helping; a lead) now **start open** and sit flush on the bottom of the photo: square top corners, 24px bottom corners, same −22px overlap as before.
+- **Bar:** 48px, 16px sides, just the word, no clipboard icon: **Helping** (#fff6f0 / #b8480c, 15.5/800) or **Your tasks** (#f5f3fe / #4a3ad4). Chevron at the right (the count shows only when closed).
+- **Rows:** white, 52px, 10px 16px, 12px gap: an 8px dot (#e8661c helping, #5b4ae8 lead), the job (16.5/700 #2a2f38), and on the right the time (helping: 15/800 #b8480c) or the lead's existing purple pill.
+- **Open/close** slides: grid-template-rows 0fr ⇄ 1fr, 240ms cubic-bezier(.2,.8,.2,1); chevron turns in 200ms.
+
+### 6. Answers
+- **Q51:** answered by row 250 (Dashboard › TOOLS); already drawn.
+- **Q6** (sign-in domain) stays with the owner; **Q7** (video on the vibe board) stays parked.
+- §2 inventions (store-safety loading states, Admin view row, Add to calendar sheet, Make it a plan errors) are all approved as built.
+
+---
+
+**Caught up with HANDOFF-to-DESIGN-18 as of Oct 11, 2026.**
+
+---
+
+## v8-24: New since v8-23 (Oct 10, late)
 
 ### 1. Tab headers: one size, plus a short description
 - **Same header on Ideas, My calendar, My friends and My groups:** white, padding 20px top · 16px sides · 16px bottom, 0 1px 0 #e8eaef bottom line. The title row is 44px tall (title 30/900, −1px tracking, then 44px search + bell circles, 12px gaps). The Ideas gold icon tile shrinks to **40px** (12px corners, −6° tilt, 20px bulb, shadow 0 3px 8px rgba(245,180,40,.4)).
@@ -14,7 +64,7 @@
 - **Get started banner** sits exactly 14px under the header on My calendar, My friends and Me (it was 12 / 14 / 12 plus an empty alerts strip on Me), so switching tabs doesn't jump. On Me it now sits straight under the profile header, above the alerts.
 
 ### 2. Bell badge clears once you've looked
-- Opening Notifications and scrolling the list for ~0.8s clears the red count on the bell. Rows inside stay highlighted as unread until acted on or opened (unchanged).
+- (Superseded in v8-25: clears ~1s after the list opens, no scroll needed.) Opening Notifications and scrolling the list for ~0.8s clears the red count on the bell. Rows inside stay highlighted as unread until acted on or opened (unchanged).
 - New notifications after that bring the badge back with only the new count (badge = unread − unread-when-last-seen). Store *last seen* per account on the server.
 
 ### 3. Group invites: owners and admins choose whether members can invite
