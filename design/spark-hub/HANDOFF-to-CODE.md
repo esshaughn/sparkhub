@@ -1,4 +1,17 @@
-# Spark Hub v8 · HANDOFF-to-CODE (round v8-25)
+# Spark Hub v8 · HANDOFF-to-CODE (round v8-26)
+
+## New since v8-25 (Oct 11, late)
+All **Build**. Details in the sections below.
+- **Job cards (item 3):** the footer reads **N signed up** (*Nobody yet* at 0) after the faces, before ›.
+- **Questions? Contact {Lead} (item 6):** quiet line on the right of the Sign up heading; opens the *Contacting the leads isn't here yet* pop-up (same as Led by → Contact).
+- **People can contact you (item 7):** new switch, last in Plan an event → Visibility (1b, with a line that follows it), and in Edit event → Who can see it. Off hides both contact links.
+- **Decided but never drawn (item 8):** guest sign-up for Take part spots, the 1b invite-link landing, lead editing days after posting.
+
+**Caught up with HANDOFF-to-DESIGN-18 as of Oct 11, 2026.** v8-25 below stands.
+
+---
+
+# Round v8-25
 
 **Caught up with the build's `HANDOFF-to-DESIGN-18.md` (v8-22 live, v8-23 + v8-24 on test; rows up to 257) as of Oct 11, 2026.** v8-25 = the *New since v8-24* list below: items 1–2 redraw the build's changes and owner calls (nothing to build), items 3–5 are new to build. v8-24 and older rounds stand unchanged. Prototype: `Spark Hub App Version 8.dc.html`.
 
@@ -21,8 +34,9 @@ All of this was drawn to match the build (HANDOFF-to-DESIGN-18). **Nothing here 
 - **256:** empty What to expect reads *Add a description of what to expect.*
 - **257 Private chip on the photo:** white pill (rgba(255,255,255,.9), 0 1px 4px rgba(13,17,23,.18)) on the photo; Grid 14px from top / 10px from left; Tiles top left of the photo, level with the title. Cards without a photo keep it above the title.
 
-### 3. Build: a held job card, cleaner (4a in `Sign Up Others Options.dc.html`)
-- When you hold a job (not a lead, not a job with times), the card stays **white** (no orange ring; jobs with times keep theirs).
+### 3. Build: one job card for everyone who isn't leading (4a + 5a in `Sign Up Others Options.dc.html`)
+- Every job card a non-lead sees (not jobs with times) uses this layout, signed up or not. When you hold it, the card stays **white** (no orange ring; jobs with times keep theirs). The old grey inner box with seats, *N signed up* and the big Sign up is gone.
+- **Before you sign up (5a):** the top-right spot holds a small **Sign up** (30px, white, inset 2px #5b4ae8 ring, #4a3ad4 13.5/800, hover #f7f6ff); a full job shows a grey **Full** chip there (#eef0f3 / #6b7280). Everything else below is the same as when you hold it.
 - **Title row:** the title, and at the right a small solid green **✓ You're in** tag (30px, 13.5/800; tap = *Take yourself off…?* as now).
 - **Meta line** under the title (14.5/600 #6b7280, clock icon when there's a time): the time, then what's left: **1 open slot** / **N open slots** / **Full** / **No limit** (e.g. *8:30am · 2 open slots*). No "N signed up".
 - **Description** right under it (15/500 #454b55), no *Hide details* bar. It keeps the writer's **line breaks** (`white-space: pre-line`, everywhere a job description shows). Past 2 lines (90+ characters or 3+ lines) it clamps to 2 with a quiet grey **More ⌄** / **Less ⌃** (13.5/800 #6b7280).
@@ -41,7 +55,22 @@ All of this was drawn to match the build (HANDOFF-to-DESIGN-18). **Nothing here 
 - **Rows:** white, 52px, 10px 16px, 12px gap: an 8px dot (#e8661c helping, #5b4ae8 lead), the job (16.5/700 #2a2f38), and on the right the time (helping: 15/800 #b8480c) or the lead's existing purple pill.
 - **Open/close** slides: grid-template-rows 0fr ⇄ 1fr, 240ms cubic-bezier(.2,.8,.2,1); chevron turns in 200ms.
 
-### 6. Answers
+### 6. Build: *Questions? Contact {Lead}* on the Sign up heading
+- On the **Sign up** heading row, right-aligned: grey *Questions?* (13.5/600 #9aa0ac) then a quiet underlined **Contact {lead's first name}** (700 #6b7280, underline #c3c7d0). Hidden for the lead.
+- Tapping it opens the same pop-up as Contact on the Led by card: *Contacting the leads isn't here yet* · Request it / Not now.
+
+### 7. Build: *People can contact you* switch in Plan an event
+- In the Visibility section, right under *Limit RSVPs* (last row), the same switch row (1b in `Contact Switch Options.dc.html`): speech-bubble icon, **People can contact you** with a grey line under it (12.5/600 #6b7280) that follows the switch: *They can message you from the event page* (on) / *Only you can reach out* (off); purple switch. **On** by default.
+- Off hides *Questions? Contact {Lead}* on the Sign up heading and the **Contact** pill on the Led by card for that event. Stored as `contact` on the event.
+- **Edit event → Who can see it** gets the same switch (grey #f4f5f7 row, like *People going can invite friends*, right under it), leads only, so it can be turned off or on after posting.
+
+### 8. Build: items that were decided but never drawn into the prototype
+- **Guest sign-up for Take part spots:** signed out, tapping **Sign up** or **Waitlist** on a time or seat now opens the same guest sheet as job sign-ups (*Sign up as a guest*: first name + *Phone number or email*, *Only the hosts see your phone or email.*), not the sign-in page. Supersedes the old name + required phone sheet.
+- **1b named invite landing** (Tweak *Arrived from an invite link*): signed out from a named link, a full page first: 300px group photo with dark fade, Spark Hub + BETA top left, the inviter's face + *Hana M. invited you*, group name (30/900), *31 members · 2 events this week*; a short line on what the group does; purple **Join Mueller Pickleball**; *Already on Spark Hub?* **Sign in**; the link in small grey at the bottom. Both buttons go to sign-in, then the join step with the code (as today), then the named Welcome.
+- **Lead edits days after posting** (Separate days events): Edit event → Date, time & location shows a **DAYS** list instead of the single date: *Day N* label, date + start-time fields per day, **Remove** on Day 3+, *+ Add another day*, and a grey note *If you move or remove a day, people going that day get a push and pick their days again.* Saving checks every day has a date and they're in order (*Add a date for each day* / *Days need to be in order*). Toast when days changed: *Saved. People going on a changed day will be asked to pick again.* The build sends the push and reopens *When will you attend?* for them.
+- Already in the prototype (nothing new): the profile *Invite to a group* picker, *Your invite link* in Members → Invited, lead editing or removing spots (Edit sign-ups + Who's signed up → Remove).
+
+### 9. Answers
 - **Q51:** answered by row 250 (Dashboard › TOOLS); already drawn.
 - **Q6** (sign-in domain) stays with the owner; **Q7** (video on the vibe board) stays parked.
 - §2 inventions (store-safety loading states, Admin view row, Add to calendar sheet, Make it a plan errors) are all approved as built.
