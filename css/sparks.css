@@ -346,5 +346,7 @@ html.tall-fix .app { bottom: auto; height: var(--true-h); }
 @media (hover: hover) { .hov-gs-x:hover { background: rgba(255, 255, 255, .4) !important; } }
 @media (hover: hover) { .hov-inv-out:hover { background: #f7f6ff !important; } }
 @media (hover: hover) { .hov-held-inv:hover { color: #5b4ae8 !important; } }
+@media (hover: hover) { .hov-job-sign:hover { background: #f7f6ff !important; } }
 @media (hover: hover) { .hov-head-x:hover { background: #f2f3f6 !important; color: #454b55 !important; } }
 @media (prefers-reduced-motion: reduce) { [data-get-started] * { animation: none !important; } }
+@media (hover: hover) { .hov-su-ask:hover { color: #0d1117 !important; } }

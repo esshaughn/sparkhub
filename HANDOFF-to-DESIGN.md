@@ -6,7 +6,7 @@
 - **Source:** github.com/esshaughn/sparkhub (`index.html`, `js/sparks.js`, `css/sparks.css`, `privacy.html`, `supabase/templates/`)
 - **Baseline:** Claude Design's **round v8-17** (`design/spark-hub/HANDOFF-to-CODE.md` and `Spark Hub App Version 8.dc.html`, 2026-10-09), built in full (with your v8-16 clarity pass): see *Round v8-17 in short*. Rows 212–227 are new since v8-15.
 - **Build version:** **v8** (v7 from owner, 2026-10-02): a lead is a choice. Since v8-8 an idea is led from the start (*Who leads it · Me*) or floated (*I'll decide*), and both use the new idea page.
-- **As of:** 2026-10-11 (round v8-25 built on `test`). **Everything through round v8-22 is live** (main `e05eddf`, v=400): rounds v8-18, v8-19, v8-21 (with v8-20) and v8-22, group invites included, plus the owner's fixes in rows 248–250. Questions for you are in §5.
+- **As of:** 2026-10-11 (round v8-26 built on `test`). **Everything through round v8-25 is live** (main `1dfc43f`, v=416). Questions for you are in §5.
 
 ## Start here (2026-10-10): HANDOFF-to-DESIGN-17
 
@@ -90,6 +90,19 @@ None of these are built. They come from the owner's own list and the pilot group
 - **Event cards that say *6 spots left*** (Q43) read like an RSVP cap.
 
 ---
+
+## Round v8-26 in short
+
+*Built from HANDOFF-to-CODE v8-26 on 2026-10-11, on `test`, not live yet. One migration, `20261201000000_v8_26.sql` (`sparks.contact`, `rsvps.repick`, `group_invite_landing()`). The prototype was diffed against v8-25's: nothing changed beyond items 3, 6, 7 and 8.*
+
+| Item | Status |
+|---|---|
+| 3: one job card for everyone who isn't leading (4a + 5a) | Done as drawn, for every job with no times a non-host sees, signed up or not; the footer reads **N signed up** / *Nobody yet* before the ›. **Added:** a full job with *Waitlist when full* shows a small white **Waitlist** pill (1.5px #dcdfe6 ring) where *Full* would go; once you're in line it's a **Leave** pill and the meta line reads *You're 1st in line*. *Full · N waiting* when people are waiting. Signed out, the small Sign up opens the guest sheet (item 8) |
+| 6: *Questions? Contact {Lead}* | Done as drawn, for everyone but the event's hosts, on a live event with a lead (not on a floated idea still looking for one). It opens the same *Contacting the leads isn't here yet* pop-up |
+| 7: *People can contact you* | Done as drawn in Plan an event (last in Visibility, on by default; the card turns white with the rest of the section) and in Edit event → Who can see it (leads only, on a Plan, right under *People can invite friends*). Off hides both contact links. Stored as `sparks.contact` |
+| 8: guest sign-up for spots | Times and seats already used the job guest sheet (since v8-15, one kind of sign-up). The sheet is now titled **Sign up as a guest**, the name field says *Your first name*, and the button reads **Sign me up** (*Join the waitlist* from a waitlist). The item's name stays as the green eyebrow |
+| 8: 1b named invite landing | Done as drawn, **for named links**: every group link a signed-in member copies, shares or shows as a QR code now ends in `?by=` and a short piece of their id. Signed out, that link opens the 1b page with their first name and photo (only while they're in the group), *N members · N events this week* (public plans in the next 7 days; the second half is left out at 0), the line *Spark Hub is where {Group} plans get-togethers. Join to RSVP, sign up to help or float an idea.*, **Join {Group}** and *Already on Spark Hub?* **Sign in**. Both open the existing sign-in landing (1a), then the join, then Welcome, which reads *{Name} invited you. You're a member now.* A link without `?by=` (older links, codes typed in) still opens 1a straight away |
+| 8: lead edits days after posting | The *Days* list was already in Edit event (v8-22 3c: Day N, date + start + end, × on Day 3+, *Add another day*, *N going · N sign-ups* per day, and a confirm before taking off a day people are going to). **Added now:** the grey note *If you move or remove a day, people going that day get a push and pick their days again.*; Save checks *Add a date for each day* / *Days need to be in order*; the toast *Saved. People going on a changed day will be asked to pick again.* On an Each day event, people who'd picked a day that moved or went get the note *{Event}: Sat, Oct 24 was taken off the schedule. Pick your days again.* (a push), and *When will you attend?* opens for them once the next time they open the event |
 
 ## Round v8-25 in short
 
@@ -616,8 +629,7 @@ Never cleared on a reset. These are places where the owner chose differently fro
 
 6. **Google's sign-in screen** says "continue to …supabase.co" until Spark Hub has its own sign-in domain.
 7. **Video on the vibe board** is parked (needs a ~20 s / 25 MB cap).
-51. **The owner's other cards on Me** (v8-19 item 1): *View as a user* (pick a tester and see the app as them) and the temporary *Freeze log* still sit on the owner's Me, because the Dashboard has no row for them. Should they move into the Dashboard, and how should they look there?
-(Q49 and Q50 were answered in v8-18: see *Round v8-18 in short*. Q26 and Q44 were answered in v8-20/v8-21: see *Round v8-21 in short*.)
+(Q51 was answered in v8-26 by row 250. Q49 and Q50 were answered in v8-18: see *Round v8-18 in short*. Q26 and Q44 were answered in v8-20/v8-21: see *Round v8-21 in short*.)
 
 ## 6. Design tokens
 

@@ -53,7 +53,7 @@ test('Going: Ways to participate signs you up; Invite people opens the new sheet
     await expect(recap).toContainText('Trash bags');
     await recap.locator('[data-onit-done]').click();
     await expect(recap).toHaveCount(0);
-    await expect(P.locator('[data-signup="Trash bags"]')).toContainText('2 of 3');
+    await expect(P.locator('[data-signup="Trash bags"]')).toContainText('2 open slots');
 
     // Going to a Plan they don't lead: the outlined Invite people, opening the template (the event title over Invite people)
     await P.locator('[data-invite-people-out]').click();

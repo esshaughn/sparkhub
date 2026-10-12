@@ -103,7 +103,7 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     // Undo takes it straight back
     await onIt.getByRole('button', { name: 'Undo' }).click();
     await expect(G.getByText('Okay, you’re off it')).toBeVisible();
-    await expect(GP.locator('[data-signup="Folding chairs"]')).toContainText('2 of 2 open');
+    await expect(GP.locator('[data-signup="Folding chairs"]')).toContainText('2 open slots');
     await GP.locator('[data-signup="Folding chairs"]').getByRole('button', { name: 'Sign up' }).click();
     await onIt.locator('[data-onit-done]').click();
     await expect(onIt).toHaveCount(0);
@@ -162,7 +162,7 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     await expect(gSheet).toContainText('Only the hosts see your phone or email.');
     await expect(gSheet).toContainText('Create a free account or sign in');
     await gSheet.getByRole('button', { name: 'Close' }).click();
-    await expect(VP.locator('[data-signup="Folding chairs"]')).toContainText('1 of 2 open');   // still just Gus
+    await expect(VP.locator('[data-signup="Folding chairs"]')).toContainText('1 open slot');   // still just Gus
     // The answer is still there when they come back (this event only)
     await V.reload();
     await expect(rsvpBar(vCard, 'going')).toBeVisible();
@@ -296,10 +296,10 @@ test('Sign up: More details, time ranges and a job’s most per person', async (
     const OP = O.locator('[data-screen-label="Plan page"]');
     const sort = OP.locator('[data-signup="Sort kids’ sizes"]');
     await expect(sort).toContainText('5:00 – 6:00pm');
-    await expect(sort).toContainText('3 of 3 open');   // Design 7g: a seat per spot and the count
-    await expect(sort).not.toContainText('pile coats by size');
-    await sort.getByRole('button', { name: /More details/ }).click();   // the bar opens the lead's note
-    await expect(sort.getByRole('button', { name: /Hide details/ })).toHaveAttribute('aria-expanded', 'true');
+    await expect(sort).toContainText('3 open slots');   // one job card for members (v8-26 5a)
+    await expect(sort.locator('[data-job-note]')).toHaveCSS('-webkit-line-clamp', '2');   // clamped to 2 lines
+    await sort.getByRole('button', { name: /More/ }).click();   // More opens the rest
+    await expect(sort.getByRole('button', { name: /Less/ })).toHaveAttribute('aria-expanded', 'true');
     await expect(sort).toContainText('pile coats by size');
     const coat = OP.locator('[data-signup="Coat check table"]');
     await expect(coat).toContainText('2 times');

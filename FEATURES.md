@@ -332,6 +332,10 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 251 | **Members can invite people** (Design v8-24 item 3, `20261130000000_members_can_invite.sql`): a per-group switch for owners and admins, off by default; when on, members get Invite, the link and QR, and send invites | Test |
 | 252 | **Invite people sheets** (Design v8-24 items 4–6): group and event sheets share one template (Search friends, FRIENDS, Send · N, Copy link · Share · QR code); someone going who isn't leading gets an outlined *Invite people* | Test |
 | 253 | **Ways to participate** (Design v8-24 item 7): You're going! lists up to 3 open jobs with *Sign up* | Test |
+| 254 | **One job card for non-hosts** (Design v8-25 item 3, v8-26 4a + 5a): small Sign up / Full / Waitlist / ✓ You're in at the top right, time · open slots, a 2-line description with More, faces + *N signed up* opening Who's signed up, a quiet Invite | Test |
+| 255 | **People can contact you** (Design v8-26 items 6–7, `20261201000000_v8_26.sql`): a per-event switch (Plan an event, Edit event), on by default; *Questions? Contact {Lead}* on Sign up and Led by's Contact hide when off | Test |
+| 256 | **Named invite links** (Design v8-26 item 8, 1b): members' group links carry `?by=`; signed out they open on the group with who shared it, members · events this week, Join / Sign in (`group_invite_landing()`) | Test |
+| 257 | **Pick your days again** (Design v8-26 item 8): moving or removing a day of an Each day event asks the people who'd picked it to pick again (`rsvps.repick`); Edit checks every day has a date, in order | Test |
 
 ## Removed in this rebuild
 

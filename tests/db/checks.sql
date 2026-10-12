@@ -1478,7 +1478,20 @@ reset role;
 select t.check('the removed day leaves a reply''s picks, the rest stay', (select days = array[current_date + 10] and maybe_days = array[current_date + 11] from rsvps where spark_id = t.id('fair') and user_id = t.id('a14')));
 select t.check('a reply left with no days stands for the whole event (still Going)', (select days is null and maybe_days is null and status = 'going' from rsvps where spark_id = t.id('fair') and user_id = t.id('b14')));
 select t.check('a job on the removed day is for the whole event now', (select day is null from signup_items where item = 'Pack books'));
-select t.check('the people who lose a day are told', (select count(distinct user_id) = 3 from notes where body = 'Book fair: ' || to_char(current_date + 12, 'Dy, Mon FMDD') || ' was taken off the schedule.'));
+select t.check('the people who lose a day are told', (select count(distinct user_id) = 3 from notes where body like 'Book fair: ' || to_char(current_date + 12, 'Dy, Mon FMDD') || ' was taken off the schedule.%'));
+-- v8-26 item 8: people who'd picked that day pick again (the note says so); the job holder only hears about the day
+select t.check('…people who''d picked it are asked to pick again', (select count(*) = 2 from rsvps where spark_id = t.id('fair') and repick));
+select t.check('…their note says so', (select count(*) = 2 from notes where body like 'Book fair:%taken off the schedule. Pick your days again.'));
+select t.check('…the job holder''s doesn''t', exists (select 1 from notes where user_id = t.id('c14') and body = 'Book fair: ' || to_char(current_date + 12, 'Dy, Mon FMDD') || ' was taken off the schedule.'));
+select t.login('a14'); set role authenticated;
+select t.must_allow('they pick their days again', format($$update rsvps set days = array[current_date + 10, current_date + 11], maybe_days = null where spark_id = %L and user_id = %L$$, t.id('fair'), t.id('a14')));
+select t.must_refuse('they can''t set repick themselves', format($$update rsvps set repick = true where spark_id = %L and user_id = %L$$, t.id('fair'), t.id('a14')));
+reset role;
+select t.check('…which clears it', (select not repick from rsvps where spark_id = t.id('fair') and user_id = t.id('a14')));
+select t.login('b14'); set role authenticated;
+select t.must_allow('keeping the same days clears it too', format($$select public.clear_repick(%L)$$, t.id('fair')));
+reset role;
+select t.check('…for them only', (select not repick from rsvps where spark_id = t.id('fair') and user_id = t.id('b14')));
 select t.check('…not the lead', not exists (select 1 from notes where user_id = t.id('lead14') and body like 'Book fair:%'));
 select t.login('lead14'); set role authenticated;
 select t.must_allow('the lead turns Each day off', format($$update sparks set schedule = jsonb_set(schedule, '{each}', 'false') where id = %L$$, t.id('fair')));
@@ -1949,4 +1962,17 @@ select t.check('on: Members INVITED stays with owners and admins', (select count
 reset role;
 select t.login('gi_two'); set role authenticated;
 select t.check('someone outside the group still can''t read the link', public.group_code(t.id('gi_g')) is null);
+reset role;
+-- Design v8-26 (20261201000000_v8_26.sql): People can contact you, and the named invite landing ------------------------
+select t.check('contact is on by default', (select contact from sparks where id = t.id('poll_idea')));
+select t.login('host'); set role authenticated;
+select t.must_allow('the lead turns People can contact you off', format($$update sparks set contact = false where id = %L$$, t.id('poll_idea')));
+reset role;
+select t.check('…and it stays off', (select not contact from sparks where id = t.id('poll_idea')));
+set role anon;
+select t.check('a visitor sees the group, its count and the member who shared the link',
+  (select name = 'Invite group' and members >= 3 and week = 0 and by_name is not null from public.group_invite_landing('invt27', left(t.id('gi_mem')::text, 8))));
+select t.check('…but no name for someone outside the group', (select by_name is null and by_avatar is null from public.group_invite_landing('INVT27', left(t.id('gi_two')::text, 8))));
+select t.check('…and nothing for a wrong code', not exists (select 1 from public.group_invite_landing('NOPE99', left(t.id('gi_mem')::text, 8))));
+select t.check('…and no name for a malformed by', (select by_name is null from public.group_invite_landing('INVT27', '%')));
 reset role;
