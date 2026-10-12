@@ -119,6 +119,15 @@ None of these are built. They come from the owner's own list and the pilot group
 - **The person asked:** a card with a purple ring at the top: *{Name} asked you to be co-lead*, the role's line, **Yes, I’m in** / **Not now** (then *You’re in.*).
 - **States:** In review (pale gold card, *Take it back to edit*); Open (pale green, the owner's note, **Go to the group**); Not approved (pale red, the note, *Edit and send again*). The app owner's YOUR REVIEW card: a note box, **Approve** / **Decline**.
 
+## Just people I invite, and lists in the account (2026-10-12, branch `structure-v1`)
+
+*Invented by the build from the owner's direction (events no longer have to live in a group); please redraw.*
+
+- **Post to pop-up:** a first row **Just people I invite**: a 36px black circle with a white lock, the name (800) and *Friends, no group. Private.* (12.5px grey), a square tick; then a hairline and the groups. Ticking it unticks every group and the other way round. *Done* has no count with it.
+- **Plan an event with it picked:** the Post to row shows a small black lock circle and *Just people I invite*; Visibility becomes one white row: lock, **Private**, *Only the people you invite. Up to 20.* (no Public / Private radios). Posting opens Invite people as usual.
+- **Cards:** where a card names the group, a personal event reads *Just invited*.
+- **Lists:** unchanged on screen; they now follow you between devices.
+
 ## Round v8-26 in short
 
 *Built from HANDOFF-to-CODE v8-26 on 2026-10-11, on `test`, not live yet. One migration, `20261201000000_v8_26.sql` (`sparks.contact`, `rsvps.repick`, `group_invite_landing()`). The prototype was diffed against v8-25's: nothing changed beyond items 3, 6, 7 and 8.*

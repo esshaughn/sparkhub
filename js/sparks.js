@@ -309,7 +309,7 @@
     locText: '', locPlace: null, locSuggest: [], locAddr: '',   // v8-8 item 8: Location name + Address
     evOverview: '', evNeed: null, evTags: [], evNeeds: [], evDatePoll: null, evSpotPoll: null, evLater: {}, evHelpNone: false,
     evDesc: '', evInspo: [], evJobPop: false, evGrpPop: false, evCap: null, cpWhite: null,   // v8-14 Plan an event on one page: description, inspo photos, its two pop-ups; v8-18: Limit RSVPs, which cards have turned white
-    evPriv: false, evNoGuestInv: null, evNoContact: false, evTest: null, evFloat: false, evGrpNone: false, evTitleEd: false, evDetOpen: false, evPop: null, evGroups: null, evDraftId: null, evLeave: false, evLeaveTo: null, evFrom: null, pollSheet: null, needSheet: null, evFromReview: false,
+    evPriv: false, evNoGuestInv: null, evNoContact: false, evTest: null, evFloat: false, evPersonal: false, evGrpNone: false, evTitleEd: false, evDetOpen: false, evPop: null, evGroups: null, evDraftId: null, evLeave: false, evLeaveTo: null, evFrom: null, pollSheet: null, needSheet: null, evFromReview: false,
     evFromIdea: null, evIdeaJobs: []   // Make it a plan! on an idea (v8-8): Post it turns that idea into the event, its jobs and spots stay
   });
   const state = Object.assign({
@@ -622,7 +622,8 @@
   };
   const toSpark = (row, offers, interests, contacts, x) => ({
     id: row.id, groupId: row.group_id, text: row.text,
-    groupIds: [row.group_id].concat((x.groups[row.id] || []).map(g => g.group_id).filter(g => g !== row.group_id)),
+    groupIds: (row.group_id ? [row.group_id] : []).concat((x.groups[row.id] || []).map(g => g.group_id).filter(g => g !== row.group_id)),
+    personal: !row.group_id,   // no group: only its lead, co-hosts and the people it's shared with (20261202000000)
     overview: row.overview || '', cap: row.cap || null,   // an attendance cap (null: none); cards say N spots left and Full
     createdBy: row.created_by, created: Date.parse(row.created_at),
     leadId: row.lead_id, leadName: row.lead_name || row.author_name || 'Someone',
@@ -2778,7 +2779,7 @@
   const GOOGLE_ON = !!CFG.googleSignIn && !IN_APP;   // Google refuses sign-in inside in-app browsers: email only there, with inAppTip()
   const inAppTip = (dark) => !IN_APP || !CFG.googleSignIn ? '' : '<p data-in-app-tip style="margin:4px 0 0;text-align:center;font-size:13px;line-height:1.45;font-weight:600;color:' + (dark ? '#aab0bb' : '#6b7280') + '">Want to use Google? Open this page in your browser first: tap ··· then Open in browser.</p>';
   const RESUME_KEY = 'spark-hub-google-resume';
-  const DRAFT_KEYS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'locText', 'locPlace', 'locAddr', 'evOverview', 'evDesc', 'evCap', 'evNeed', 'evTags', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evNoGuestInv', 'evNoContact', 'evTest', 'evFloat', 'evHelpNone', 'evGroups', 'coverPos', 'evPhotoPath', 'evDraftId'];
+  const DRAFT_KEYS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'locText', 'locPlace', 'locAddr', 'evOverview', 'evDesc', 'evCap', 'evNeed', 'evTags', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evNoGuestInv', 'evNoContact', 'evTest', 'evFloat', 'evHelpNone', 'evGroups', 'evPersonal', 'coverPos', 'evPhotoPath', 'evDraftId'];
   const readResume = () => {
     try {
       const r = JSON.parse(sessionStorage.getItem(RESUME_KEY));
@@ -3363,7 +3364,7 @@
   const TBD_ON_PHOTO = '#ffd98a', TBD_INK = '#8f6405';
   const tbdSpan = (t, color) => '<span style="color:' + (color || TBD_INK) + '">' + esc(t) + '</span>';
   // Events posted to several groups: "Torrez Fitness +1"
-  const groupsLabel = (s) => { const n = (s.groupIds || [s.groupId]).map(id => groupById(id)).filter(g => g && g.role).map(g => g.name); return n.length ? n[0] + (n.length > 1 ? ' +' + (n.length - 1) : '') : ((groupById(s.groupId) || {}).name || ''); };
+  const groupsLabel = (s) => { const n = (s.groupIds || [s.groupId]).map(id => groupById(id)).filter(g => g && g.role).map(g => g.name); return n.length ? n[0] + (n.length > 1 ? ' +' + (n.length - 1) : '') : s.personal ? 'Just invited' : ((groupById(s.groupId) || {}).name || ''); };
   // Multi-day and repeating events by their schedule, "Oct 16–18", "Thursdays · 7am" (owner, 2026-10-07, multi-day audit, M1)
   const shortWhen = (s) => !s.dayDate ? 'No date yet' : schedLabel(s) ? schedLabel(s) + (s.repeat && s.dayTime ? ' · ' + fmtTime(s.dayTime) : '') : fmtDay(s.dayDate) + (s.dayTime ? ' · ' + fmtTime(s.dayTime) : '');
   const signupFill = (s) => {
@@ -3707,7 +3708,35 @@
   // ---- My friends (v8): requests, Your lists (4a), then your friends with the next thing they're going to
   // Private friend lists live on this device only (v8: "lists persist in the browser"), per account
   const FR_LISTS_KEY = 'spark-hub-friend-lists-';
+  // Lists live in the account since 20261202010000 (owner, 2026-10-12): loaded once per account, and any lists still on
+  // this device are copied up the first time (then taken off the device). A database without the table keeps them local
+  const loadFrLists = async () => {
+    if (!state.email || state.viewAs || state.frListsLoading) return;
+    const me = state.me;
+    state.frListsLoading = true;
+    try {
+      await ensureSession();
+      let r = await sb.from('lists').select('id,name,people,created_at').is('group_id', null).order('created_at');
+      if (r.error && (r.error.code === '42P01' || r.error.code === 'PGRST205')) { state.frListsDb = { me, off: true }; return; }
+      if (r.error) throw r.error;
+      let local = [];
+      try { local = JSON.parse(localStorage.getItem(FR_LISTS_KEY + me) || '[]'); } catch (e) { local = []; }
+      local = (Array.isArray(local) ? local : []).filter(l => l && typeof l.name === 'string' && l.name.trim() && Array.isArray(l.people));
+      if (local.length) {
+        const have = (r.data || []).map(l => l.name);
+        const up = local.filter(l => have.indexOf(l.name.trim().slice(0, 32)) < 0).map(l => ({ name: l.name.trim().slice(0, 32), people: l.people.filter(x => typeof x === 'string').slice(0, 100) }));
+        if (up.length) must(await sb.from('lists').insert(up));
+        try { localStorage.removeItem(FR_LISTS_KEY + me); } catch (e) { /* fine */ }
+        r = must(await sb.from('lists').select('id,name,people,created_at').is('group_id', null).order('created_at'));
+      }
+      if (state.me === me) setState({ frListsDb: { me, lists: (r.data || []).map(l => ({ id: l.id, name: l.name, people: l.people || [] })) } });
+    } catch (e) { console.error(e); }
+    finally { state.frListsLoading = false; }
+  };
+  const frListsInDb = () => !!state.frListsDb && state.frListsDb.me === state.me && !state.frListsDb.off;
   const frLists = () => {
+    if (frListsInDb()) return state.frListsDb.lists;
+    if (state.email && !state.viewAs && (!state.frListsDb || state.frListsDb.me !== state.me) && !state.frListsLoading) setTimeout(loadFrLists, 0);
     if (state.frListsMem && state.frListsMem.me === state.me) return state.frListsMem.lists;
     let v = [];
     try { v = JSON.parse(localStorage.getItem(FR_LISTS_KEY + state.me) || '[]'); } catch (e) { v = []; }
@@ -3812,7 +3841,18 @@
     const toggle = (id) => setState({ frListEd: Object.assign({}, state.frListEd, { people: ed.people.indexOf(id) > -1 ? ed.people.filter(x => x !== id) : ed.people.concat(id) }) });
     const save = () => {
       if (!ok) return;
-      const lists = frLists().slice(), item = { id: ed.id || String(Date.now()), name: ed.name.trim().slice(0, 32), people: ed.people.slice() };
+      const item = { id: ed.id || String(Date.now()), name: ed.name.trim().slice(0, 32), people: ed.people.slice() };
+      if (frListsInDb()) {   // in the account (20261202010000): the database keeps only people who are still friends
+        run(async () => {
+          const r = isEdit ? must(await sb.from('lists').update({ name: item.name, people: item.people }).eq('id', ed.id).select('id').single())
+            : must(await sb.from('lists').insert({ name: item.name, people: item.people }).select('id').single());
+          state.frListsDb = null;
+          await loadFrLists();
+          item.id = r.data.id;
+        }, () => ({ frListEd: null, frList: item.id })).then(ok => { if (ok) toast(isEdit ? 'List saved' : 'List made', true); });
+        return;
+      }
+      const lists = frLists().slice();
       const k = lists.findIndex(x => x.id === ed.id);
       if (k > -1) lists[k] = item; else lists.push(item);
       saveFrLists(lists);
@@ -3820,7 +3860,9 @@
       toast(isEdit ? 'List saved' : 'List made', true);
     };
     const del = () => setState({ confirm: { z: 60, title: 'Delete “' + ed.name.trim() + '”?', body: 'The people stay your friends. Only the list goes away.', cta: 'Delete list', keep: 'Keep it', danger: true,
-      run: () => { saveFrLists(frLists().filter(x => x.id !== ed.id)); setState({ frListEd: null, confirm: null }); toast('List deleted', true); } } });
+      run: () => {
+        if (frListsInDb()) return run(async () => { must(await sb.from('lists').delete().eq('id', ed.id)); state.frListsDb = null; await loadFrLists(); }, { frListEd: null, frList: null, confirm: null }).then(ok => { if (ok) toast('List deleted', true); });
+        saveFrLists(frLists().filter(x => x.id !== ed.id)); setState({ frListEd: null, confirm: null }); toast('List deleted', true); } } });
     const rows = state.fr.friends.map((f, i) => { const onIt = ed.people.indexOf(f.id) > -1;
       return '<div ' + on(() => toggle(f.id), 'checkbox') + ' aria-checked="' + onIt + '" aria-label="' + esc(f.name) + '" class="hov-row" style="display:flex;align-items:center;gap:12px;min-height:56px;padding:0 14px;border-top:' + (i ? '1px solid #f2f3f6' : '0') + ';cursor:pointer">' + frFace(f, 36) +
         '<span style="flex:1;min-width:0;font-size:15.5px;font-weight:800;color:#0d1117">' + esc(f.name) + '</span>' +
@@ -10410,8 +10452,8 @@
   };
   const postEvent = () => {
     if (state.evFromIdea) { planIdea(); return; }
-    const st = state, groups = evGroupIds(st);
-    if (!groups.length || st.busy || !cleanTitle(st.activity)) return;
+    const st = state, pers = !!st.evPersonal, groups = pers ? [] : evGroupIds(st);
+    if ((!groups.length && !pers) || st.busy || !cleanTitle(st.activity)) return;
     if (st.evDate && st.evDate < todayISO()) { setState({ evPop: 'when' }); toast('That date has passed. Pick a new one.'); return; }
     const place = st.locPlace && cleanTitle(st.locText) ? st.locPlace : null, spot = cleanTitle(st.locText).slice(0, 80) || null;
     const who = (st.myName || 'Someone').slice(0, 40), dated = !!st.evDate, float = !!st.evFloat, plan = dated && !float;   // a date posts it as a plan; without one, or floated (no lead yet), it's an idea
@@ -10423,13 +10465,13 @@
         cover = await evCover(st);
         insp = await inspoUp(st);
         const row = {
-          group_id: groups[0], author_name: st.myName, text: cleanTitle(st.activity).slice(0, TITLE_MAX),
+          group_id: pers ? null : groups[0], author_name: st.myName, text: cleanTitle(st.activity).slice(0, TITLE_MAX),   // no group: a personal event (20261202000000)
           // v8-14: the one-page description (200) is the event's details text, shown whole under What to expect
           vision: (st.evDesc || '').trim().slice(0, DESC_DB) || null, overview: (st.evOverview || '').trim().slice(0, OV_MAX) || null,
           mood: insp.paths, photos: cover ? [cover.path] : [], cat: 'events', answers: {}, lead_id: st.me, lead_name: st.myName, created_by: st.me,
           ...evSpotCols(st),
           ...(() => { const c = whenCols(evWhen()); if (!c.schedule) delete c.schedule; return c; })(),   // multi-day: day_date is the first day, schedule the rest (v8-7)
-          planned: plan, visibility: st.evPriv ? 'invite' : 'group', guest_invites: evGuestInv(st), ...(st.evNoContact ? { contact: false } : {}), min_people: dated || !MIN_PEOPLE ? null : st.evNeed || null, tags: (st.evTags || []).slice(0, 2),
+          planned: plan, visibility: st.evPriv || pers ? 'invite' : 'group', guest_invites: evGuestInv(st), ...(st.evNoContact ? { contact: false } : {}), min_people: dated || !MIN_PEOPLE ? null : st.evNeed || null, tags: (st.evTags || []).slice(0, 2),
           cover_pos: cover && st.coverPos ? posOf(st.coverPos, IDEA_POS) : null,
           ...(st.evCap ? { cap: st.evCap } : {})   // Limit RSVPs (Design v8-18, 2)
         };
@@ -10476,7 +10518,7 @@
   };
 
   // Drafts: the flow's own fields, saved to your account (only you see them)
-  const DRAFT_FIELDS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'evDayType', 'evRepeat', 'evRepeatUntil', 'evEndDate', 'evEndDateT', 'evDays', 'evDaysEach', 'locText', 'locPlace', 'locAddr', 'evOverview', 'evDesc', 'evCap', 'evNeed', 'evTags', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evNoGuestInv', 'evNoContact', 'evTest', 'evFloat', 'evHelpNone', 'evGroups', 'coverPos'];
+  const DRAFT_FIELDS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'evDayType', 'evRepeat', 'evRepeatUntil', 'evEndDate', 'evEndDateT', 'evDays', 'evDaysEach', 'locText', 'locPlace', 'locAddr', 'evOverview', 'evDesc', 'evCap', 'evNeed', 'evTags', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evNoGuestInv', 'evNoContact', 'evTest', 'evFloat', 'evHelpNone', 'evGroups', 'evPersonal', 'coverPos'];
   const saveDraft = () => {
     const st = state;
     if (st.busy) return;
@@ -10523,7 +10565,7 @@
       evInspo: (arr(x.evInspo) || []).filter(q => PHOTO_PATH.test(q || '')).slice(0, 3).map(path => ({ path, url: photoUrl(path) })), evNeed: Number.isInteger(x.evNeed) && x.evNeed > 0 ? Math.min(x.evNeed, 99) : null, evTags: (arr(x.evTags) || []).filter(k => TYPES6.some(t => t[0] === k)).slice(0, 2), evNeeds: arr(x.evNeeds) || [],
       evDatePoll: null, evSpotPoll: null, evLater: x.evLater && typeof x.evLater === 'object' ? x.evLater : {},
       evPriv: !!x.evPriv, evNoGuestInv: x.evNoGuestInv == null ? null : !!x.evNoGuestInv, evNoContact: !!x.evNoContact, evTest: typeof x.evTest === 'boolean' ? x.evTest : null, evFloat: false,   // v8-6: the maker always leads it
-      evHelpNone: !!x.evHelpNone, evGroups: arr(x.evGroups), coverPos: x.coverPos || null,
+      evHelpNone: !!x.evHelpNone, evGroups: arr(x.evGroups), evPersonal: !!x.evPersonal, coverPos: x.coverPos || null,
       // How long it is (v8-7)
       evDayType: ['one', 'repeat', 'span', 'days'].indexOf(x.evDayType) > -1 ? x.evDayType : 'one', evRepeat: REPEATS[x.evRepeat] ? x.evRepeat : 'week',
       evRepeatUntil: ISO_DAY.test(x.evRepeatUntil || '') ? x.evRepeatUntil : '', evEndDate: ISO_DAY.test(x.evEndDate || '') ? x.evEndDate : '', evEndDateT: HHMM.test(x.evEndDateT || '') ? x.evEndDateT : '',
@@ -11012,16 +11054,23 @@
       : '<div data-cp-help style="display:flex;flex-direction:column;gap:10px">' + examples + '</div>';
     // VISIBILITY: Post to (a centred pop-up), Public / Private, People can invite friends, Limit RSVPs. Picking a group
     // turns the whole section white at once (Design v8-18, 1m)
-    const groups = evGroupIds(st), visOn = groups.length > 0;
+    const groups = evGroupIds(st), pers = !!st.evPersonal, visOn = groups.length > 0 || pers;
     ['post', 'vis', 'inv', 'cap', 'ct'].forEach(k => white(k, visOn));
-    const postTo = postToRow(groups, () => { touch('post'); setState({ evGrpPop: true }); }, W.post ? WC : GC);
+    const postTo = pers
+      ? '<div ' + on(() => { touch('post'); setState({ evGrpPop: true }); }) + ' data-post-to aria-label="Post to: Just people I invite" style="' + WC + ';display:flex;align-items:center;gap:12px;min-height:56px;padding:0 14px;cursor:pointer">' +
+          '<span style="flex:0 0 auto;font-size:14.5px;font-weight:800;color:#0d1117">Post to</span><span style="flex:1;min-width:0;display:flex;align-items:center;justify-content:flex-end;gap:8px">' +
+          '<span aria-hidden="true" style="flex:0 0 26px;width:26px;height:26px;border-radius:999px;background:#0d1117;display:flex;align-items:center;justify-content:center">' + svg(13, stroke('#fff', 2.4), LOCK_IC) + '</span>' +
+          '<span data-post-sum style="font-size:14.5px;font-weight:700;color:#454b55;white-space:nowrap">Just people I invite</span><span style="display:flex">' + chev6(14, '#9aa0ac', false) + '</span></span></div>'
+      : postToRow(groups, () => { touch('post'); setState({ evGrpPop: true }); }, W.post ? WC : GC);
     const radio = (priv, name, sub, icon, k) => { const onIt = !!st.evPriv === priv;
       return '<div ' + on(() => setState({ evPriv: priv, evNoGuestInv: null, cpWhite: Object.assign({}, W, { vis: true }) }), 'radio') + ' aria-checked="' + onIt + '" aria-label="' + name + ': ' + sub + '" style="display:flex;align-items:center;gap:12px;min-height:52px;border-top:' + (k ? '1px solid #eef0f3' : '0') + ';cursor:pointer">' +
         '<span style="flex:0 0 22px;display:flex;justify-content:center;color:' + (onIt ? P : '#6b7280') + '">' + svg(18, stroke('currentColor', 2.2), icon) + '</span>' +
         '<div style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:14.5px;font-weight:' + (onIt ? 800 : 700) + ';color:' + (onIt ? '#0d1117' : '#454b55') + '">' + name + '</span><span style="font-size:12.5px;font-weight:600;color:#6b7280">' + sub + '</span></div>' +
         '<span aria-hidden="true" style="flex:0 0 22px;width:22px;height:22px;box-sizing:border-box;border-radius:999px;border:' + (onIt ? '6px solid ' + P : '1.5px solid #c9ccd3') + '"></span></div>'; };
     const TR = ';transition:background .2s, box-shadow .2s';
-    const vis = '<div role="radiogroup" aria-label="Who can see it" data-cp-vis style="' + (W.vis ? WC : GC) + TR + ';padding:0 14px">' + radio(false, 'Public', groups.length > 1 ? 'Anyone in these groups' : 'Anyone in this group', PEOPLE_IC, 0) + radio(true, 'Private', 'Only people you invite', LOCK_IC, 1) + '</div>';
+    const vis = pers ? '<div data-cp-vis style="' + WC + ';display:flex;align-items:center;gap:12px;min-height:52px;padding:0 14px"><span style="flex:0 0 22px;display:flex;justify-content:center;color:' + P + '">' + svg(18, stroke('currentColor', 2.2), LOCK_IC) + '</span>' +
+        '<div style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:14.5px;font-weight:800;color:#0d1117">Private</span><span style="font-size:12.5px;font-weight:600;color:#6b7280">Only the people you invite. Up to 20.</span></div></div>'
+      : '<div role="radiogroup" aria-label="Who can see it" data-cp-vis style="' + (W.vis ? WC : GC) + TR + ';padding:0 14px">' + radio(false, 'Public', groups.length > 1 ? 'Anyone in these groups' : 'Anyone in this group', PEOPLE_IC, 0) + radio(true, 'Private', 'Only people you invite', LOCK_IC, 1) + '</div>';
     const gi = evGuestInv(st);
     const inv = '<div ' + on(() => setState({ evNoGuestInv: gi, cpWhite: Object.assign({}, W, { inv: true }) }), 'switch') + ' aria-checked="' + gi + '" aria-label="People can invite friends" data-cp-inv style="' + (W.inv ? WC : GC) + TR + ';display:flex;align-items:center;gap:12px;min-height:52px;padding:0 14px;cursor:pointer">' +
       '<span style="display:flex;color:#6b7280">' + svg(18, stroke('currentColor', 2.2), CP_INV) + '</span><span style="flex:1;min-width:0;font-size:14.5px;font-weight:800;color:#0d1117">People can invite friends</span>' +
@@ -11039,7 +11088,7 @@
     const post = () => { if (busy) return; if (!cleanTitle(title)) { toast('Add a title first'); return; } if (!hasD) { toast('Add a date first'); return; }
       if (descPlain(st.evDesc).length > DESC_MAX) { toast('The description is over ' + DESC_MAX + ' characters'); return; }
       if (wErr) { toast(wErr); const f = document.querySelector('[data-cp-row="when"]'); if (f) f.scrollIntoView({ block: 'center', behavior: 'smooth' }); return; }
-      if (!groups.length) { setState({ evGrpPop: true }); toast('Pick at least one group'); return; } createEvent(); };
+      if (!groups.length && !pers) { setState({ evGrpPop: true }); toast('Pick a group, or Just people I invite'); return; } createEvent(); };
     return '<div class="overlay-screen compose-sheet" data-screen-label="New spark"><div data-screen-label="Create event (1a)" style="position:relative;min-height:100%;display:flex;flex-direction:column;background:#e8eaee">' +
       '<div style="position:sticky;top:0;z-index:8;height:0"><span ' + on(close) + ' aria-label="Close" style="position:absolute;top:14px;right:12px;width:36px;height:36px;border-radius:999px;background:rgba(13,17,23,.28);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(14, '#fff', 2.6) + '</span></div>' +
       hero +
@@ -11089,14 +11138,21 @@
   // Post to (v8-14): a centred pop-up of the groups with round ticks (nothing below moves), Done
   function viewGrpPop() {
     const st = state, groups = evGroupIds(st), close = () => setState({ evGrpPop: false });
+    // Just people I invite (owner, 2026-10-12; 20261202000000): no group, private, for the friends you invite. It and the
+    // groups exclude each other
+    const pers = !!st.evPersonal;
+    const personal = '<div ' + on(() => setState(pers ? { evPersonal: false } : { evPersonal: true, evGroups: [], evGrpNone: true, evPriv: true, evNoGuestInv: null }), 'checkbox') + ' aria-checked="' + pers + '" aria-label="Just people I invite" data-post-personal class="' + (pers ? '' : 'hov-row') + '" style="display:flex;align-items:center;gap:12px;min-height:56px;padding:6px 14px;border-radius:14px;cursor:pointer;' + (pers ? 'background:#f3f1fe' : '') + '">' +
+        '<span aria-hidden="true" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#0d1117;display:flex;align-items:center;justify-content:center">' + svg(17, stroke('#fff', 2.2), LOCK_IC) + '</span>' +
+        '<span style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:15.5px;font-weight:800;color:' + (pers ? '#4a3ad4' : '#0d1117') + '">Just people I invite</span><span style="font-size:12.5px;font-weight:600;color:#6b7280">Friends, no group. Private.</span></span>' +
+        '<span aria-hidden="true" style="flex:0 0 22px;width:22px;height:22px;box-sizing:border-box;border-radius:7px;display:flex;align-items:center;justify-content:center;' + (pers ? 'background:#5b4ae8' : 'border:1.5px solid #c9ccd3;background:#fff') + '">' + (pers ? I.check(12, '#fff', 3.4) : '') + '</span></div>';
     const row = (g) => { const onIt = groups.indexOf(g.id) > -1;
-      return '<div ' + on(() => { const nx = onIt ? groups.filter(x => x !== g.id) : groups.concat(g.id); setState({ evGroups: nx, evGrpNone: !nx.length }); }, 'checkbox') + ' aria-checked="' + onIt + '" aria-label="Post to ' + esc(g.name) + '" class="' + (onIt ? '' : 'hov-row') + '" style="display:flex;align-items:center;gap:12px;min-height:56px;padding:0 10px;border-radius:14px;cursor:pointer;background:' + (onIt ? '#f3f1fe' : 'transparent') + '">' +
+      return '<div ' + on(() => { const nx = onIt ? groups.filter(x => x !== g.id) : groups.concat(g.id); setState({ evGroups: nx, evGrpNone: !nx.length, evPersonal: false }); }, 'checkbox') + ' aria-checked="' + onIt + '" aria-label="Post to ' + esc(g.name) + '" class="' + (onIt ? '' : 'hov-row') + '" style="display:flex;align-items:center;gap:12px;min-height:56px;padding:0 10px;border-radius:14px;cursor:pointer;background:' + (onIt ? '#f3f1fe' : 'transparent') + '">' +
         '<span aria-hidden="true" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:' + thumbBg(null, g) + '"></span>' +
         '<span style="flex:1;min-width:0;font-size:15.5px;font-weight:800;color:' + (onIt ? '#4a3ad4' : '#0d1117') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(g.name) + '</span>' +
         '<span aria-hidden="true" style="flex:0 0 22px;width:22px;height:22px;box-sizing:border-box;border-radius:7px;display:flex;align-items:center;justify-content:center;' + (onIt ? 'background:#5b4ae8' : 'border:1.5px solid #c9ccd3;background:#fff') + '">' + (onIt ? I.check(12, '#fff', 3.4) : '') + '</span></div>'; };   // squares: pick several (Design v8-15, Q44 2a)
     return centredPop('Post to', close,
       '<div style="padding:0 8px 4px"><span style="display:block;font-size:22px;font-weight:900;letter-spacing:-.4px;color:#0d1117">Post to</span><span style="display:block;margin-top:2px;font-size:14px;font-weight:600;color:#6b7280">Choose all that apply</span></div>' +
-      '<div style="display:flex;flex-direction:column;gap:4px;margin:0 -6px">' + groupsInOrder().map(row).join('') + '</div>' +
+      '<div style="display:flex;flex-direction:column;gap:4px;margin:0 -6px">' + personal + (groupsInOrder().length ? '<div aria-hidden="true" style="height:1px;margin:2px 14px;background:#eceef2"></div>' : '') + groupsInOrder().map(row).join('') + '</div>' +
       '<button type="button" ' + on(close) + ' class="hov-primary" style="margin-top:6px;min-height:50px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16px;font-weight:900;cursor:pointer">Done' + (groups.length ? ' · ' + groups.length + (groups.length === 1 ? ' group' : ' groups') : '') + '</button>', 38);
   }
 
