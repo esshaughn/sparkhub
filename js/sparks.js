@@ -2773,7 +2773,6 @@
   // ---------------------------------------------------------------------------
   // "Continue with Google" (Supabase OAuth, a full-page trip to Google). Under each button, a heads-up line (Design v8-22,
   // 6b), since Google's account picker names our sign-in service until the custom sign-in domain is on (BRIEF 6c)
-  const gHeadsUp = (color, top) => '<p data-google-heads-up style="margin:' + top + 'px 0 0;text-align:center;font-size:12.5px;line-height:1.4;font-weight:600;color:' + color + ';text-wrap:pretty">Google may show “supabase.co”. That’s our sign-in service. It’s safe.</p>';
   // ---------------------------------------------------------------------------
   // The page reloads on the way back, so anything in progress is parked in
   // sessionStorage first: the draft (photos as data URLs), a merge token, the
@@ -3109,7 +3108,7 @@
         (st.joinCode ? '<div style="text-align:center;font-size:14.5px;font-weight:700;color:#dfe2e8">Sign in to join the group <strong style="font-weight:900;letter-spacing:1px;color:#fff">' + esc(st.joinCode) + '</strong></div>' : '') +
         (GOOGLE_ON
           ? '<button type="button" class="hov-fill-grey" ' + on(google) + ' style="width:100%;min-height:54px;display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;border:0;border-radius:999px;font-family:inherit;font-size:16px;font-weight:800;color:#0d1117;cursor:pointer">' +
-              I.google + (st.busy === 'google' ? 'Opening Google…' : 'Continue with Google') + '</button>' + gHeadsUp('rgba(255,255,255,.72)', -2)
+              I.google + (st.busy === 'google' ? 'Opening Google…' : 'Continue with Google') + '</button>'
           : '') +
         '<button type="button" class="hov-white-line" ' + on(email) + ' style="width:100%;min-height:54px;display:flex;align-items:center;justify-content:center;gap:10px;background:transparent;border:1.5px solid rgba(255,255,255,.3);border-radius:999px;font-family:inherit;font-size:16px;font-weight:800;color:#fff;cursor:pointer">' +
           svg(19, stroke('currentColor', 2.1), '<rect x="3" y="5.5" width="18" height="13" rx="2.5"/><path d="m4 7.5 8 6 8-6"/>') + 'Continue with email</button>' +
@@ -3191,7 +3190,7 @@
             (st.inv.copied ? 'Copied. Paste it in ' + (/Android/i.test(navigator.userAgent) ? 'Chrome' : 'Safari') + '.' : 'Copy link') + '</span></div>'
       : '<p style="margin:10px 0 0;font-size:16px;line-height:1.4;color:#5f6475">This is where the group plans get-togethers. See what’s coming up and RSVP in a tap.</p>' +
         (GOOGLE_ON
-          ? '<button type="button" ' + on(invGoogle) + ' style="margin-top:22px;' + INV_OUTLINE + ';opacity:' + (busy && busy !== 'google' ? '.5' : '1') + '">' + I.google + (busy === 'google' ? 'Opening Google…' : 'Continue with Google') + '</button>' + gHeadsUp('#6b7280', 8) +
+          ? '<button type="button" ' + on(invGoogle) + ' style="margin-top:22px;' + INV_OUTLINE + ';opacity:' + (busy && busy !== 'google' ? '.5' : '1') + '">' + I.google + (busy === 'google' ? 'Opening Google…' : 'Continue with Google') + '</button>' +
             '<div style="display:flex;align-items:center;gap:14px;margin:16px 0"><span style="flex:1;height:1px;background:#e3e5ec"></span><span style="font-size:12px;font-weight:800;letter-spacing:.12em;color:#8a8fa0">OR</span><span style="flex:1;height:1px;background:#e3e5ec"></span></div>'
           : '<div style="height:22px"></div>') +
         email +
@@ -11602,7 +11601,7 @@
           : '') +
         (withGoogle
           ? '<button type="button" class="hov-grey" ' + on(googleSignIn) + ' style="width:100%;min-height:54px;display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;border:2px solid #dcdfe6;border-radius:999px;font-family:inherit;font-size:16px;font-weight:800;color:#0d1117;cursor:' + (busy === 'google' ? 'wait' : 'pointer') + ';opacity:' + (busy && busy !== 'google' ? '.5' : '1') + '">' +
-              I.google + (busy === 'google' ? 'Opening Google…' : 'Continue with Google') + '</button>' + gHeadsUp('#6b7280', -4) + orDivider()
+              I.google + (busy === 'google' ? 'Opening Google…' : 'Continue with Google') + '</button>' + orDivider()
           : '') +
         '<input class="fld" type="email" inputmode="email" maxlength="80" autocomplete="email" autocapitalize="off" spellcheck="false" aria-label="Email" placeholder="you@example.com" value="' + esc(st.loginEmail) + '" ' +
           onInput(e => setState({ loginEmail: e.target.value.slice(0, 80) })) + ' style="' + FIELD + '">' +
@@ -12338,7 +12337,7 @@
   // What you blocked and reported (still open) comes from my_safety(), once a session, when something needs it
   let safety = null, safetyLoading = false;
   const termsLine = (ink, link, m) => '<p data-terms-line style="' + (m || 'margin:6px 0 0') + ';text-align:center;font-size:12.5px;line-height:1.45;font-weight:600;color:' + ink + ';text-wrap:pretty">By continuing you agree to the ' +
-    '<span ' + on((e) => { stop(e); setState({ sf: { v: 'rules' } }); }) + ' data-terms-link style="color:' + link + ';font-weight:800;cursor:pointer">Terms &amp; community rules</span> and confirm you’re 13 or older.</p>';
+    '<span ' + on((e) => { stop(e); setState({ sf: { v: 'rules' } }); }) + ' data-terms-link style="color:' + link + ';font-weight:800;cursor:pointer">Terms &amp; community rules</span>.</p>';
   const loadSafety = (force) => {
     if (!state.email || safetyLoading || (safety && !force)) return;
     safetyLoading = true;

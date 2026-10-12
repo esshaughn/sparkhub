@@ -196,7 +196,7 @@ test('Welcome: the terms line opens Community rules', async ({ browser }) => {
   const { page, context, errors } = await newMember(browser);
   try {
     const line = page.locator('[data-terms-line]');
-    await expect(line).toHaveText('By continuing you agree to the Terms & community rules and confirm you’re 13 or older.');
+    await expect(line).toHaveText('By continuing you agree to the Terms & community rules.');
     await expect(page.getByText('New here? Either creates an account')).toHaveCount(0);
     await line.locator('[data-terms-link]').click();
     const rules = page.getByRole('dialog', { name: 'Community rules' });
