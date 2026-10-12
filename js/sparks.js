@@ -5053,7 +5053,7 @@
     return sheet('Pick a shift', close, 'padding:10px 16px calc(22px + env(safe-area-inset-bottom, 0px));display:flex;flex-direction:column;gap:10px',
       '<div style="display:flex;align-items:center;gap:10px"><h2 style="flex:1;min-width:0;margin:0;font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117">' + esc(job.item) + '</h2>' + closeX(close) + '</div>' +
       '<div style="margin-top:-4px;font-size:14px;font-weight:700;color:#6b7280">' + esc([s.dayDate ? fmtDay(s.dayDate) : '', 'you can pick more than one'].filter(Boolean).join(' · ')) + '</div>' +
-      (job.desc ? '<p style="margin:0;font-size:14.5px;line-height:1.45;font-weight:500;color:#454b55">' + esc(job.desc) + '</p>' : '') +
+      (job.desc ? '<p style="margin:0;font-size:14.5px;line-height:1.45;font-weight:500;color:#454b55;white-space:pre-line">' + esc(job.desc) + '</p>' : '') +
       job.shifts.map(row).join('') +
       '<input class="fld" type="text" maxlength="60" aria-label="Add a note, if you want" placeholder="Add a note, if you want" value="' + esc(p.note) + '" ' + onInput(e => { if (e.type === 'input') state.shiftPick = Object.assign({}, state.shiftPick, { note: e.target.value.slice(0, 60) }); }) + ' style="width:100%;min-height:48px;border:1.5px solid #dcdfe6;border-radius:14px;padding:10px 14px;font-family:inherit;font-size:16px;font-weight:600;color:#0d1117;background:#fff;outline:none">' +
       '<button type="button" class="hov-primary" ' + on(() => { if (!state.busy) saveShifts(s, job); }) + ' style="min-height:52px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16px;font-weight:800;cursor:pointer">Done</button>', 36);
@@ -6587,6 +6587,8 @@
   // (owner, 2026-10-07: Invite people left it, the solid button under the RSVP card does that; v8-12 had one ⋯ with Edit event in it); tap outside closes it
   const LINK_IC = '<path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1"/>';   // the chain link (Share menu, Share link)
   const MENU_ROW = 'display:flex;align-items:center;gap:12px;min-height:48px;padding:0 16px;border-top:1px solid #f2f3f6;font-size:15.5px;font-weight:800;color:#0d1117;cursor:pointer';
+  const adminRow = (s) => '<div ' + on(() => { setState({ evMenu: null, adminOn: adminViewOf(s) ? null : s.id }); toast(adminViewOf(s) ? 'Admin view on' : 'Back to the member view', true); }, 'menuitem') + ' data-admin-view class="hov-fill-grey" style="' + MENU_ROW + '">' +
+    svg(18, stroke('#0d1117', 2.3), '<path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6z"/>') + (adminViewOf(s) ? 'Exit admin view' : 'Admin view') + '</div>';
   const evMenu = (s) => {
     const open = state.evMenu === s.id, shut = () => setState({ evMenu: null });
     return '<span style="position:relative;flex:0 0 44px">' +
@@ -6600,11 +6602,12 @@
           (isLead(s) ? '<div ' + on(() => setState({ evMenu: null, share: { id: s.id, copied: false, pop: 'qr', solo: true } }), 'menuitem') + ' class="hov-fill-grey" style="' + MENU_ROW + '">' +
             svg(18, 'fill="none" stroke="#0d1117" stroke-width="2.2"', '<rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><path d="M14 14h2v2h-2zM18 18h2v2h-2z"/>') + 'QR code</div>' : '') +
           // View as attendee (Design v8-18 1l, renamed v8-22; was Member view, owner 2026-10-10): this event as a person going sees it, look only
-          // Admin view (owner, 2026-10-11): a group owner or admin who doesn't host it turns their tools on here
-          (adminOnly(s) && !state.viewAs ? '<div ' + on(() => { setState({ evMenu: null, adminOn: adminViewOf(s) ? null : s.id }); toast(adminViewOf(s) ? 'Admin view on' : 'Back to the member view', true); }, 'menuitem') + ' data-admin-view class="hov-fill-grey" style="' + MENU_ROW + '">' +
-            svg(18, stroke('#0d1117', 2.3), '<path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6z"/>') + (adminViewOf(s) ? 'Exit admin view' : 'Admin view') + '</div>' : '') +
+          // Admin view (owner, 2026-10-11): a group owner or admin who doesn't host it turns their tools on here; once it's on,
+          // Exit admin view ends the host ⋯ (Design v8-25, row 254)
+          (adminOnly(s) && !state.viewAs && !adminViewOf(s) ? adminRow(s) : '') +
           (hostRole(s) && (!adminOnly(s) || adminViewOf(s)) ? '<div ' + on(() => { setState({ evMenu: null }); startAsMember(s); }, 'menuitem') + ' data-as-member class="hov-fill-grey" style="' + MENU_ROW + '">' +
             svg(18, stroke('#0d1117', 2.3), '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/>') + 'View as attendee</div>' : '') +
+          (adminOnly(s) && !state.viewAs && adminViewOf(s) ? adminRow(s) : '') +
           // Everyone else signed in: Share link · Report this event / idea (v8-18 1s, owner 2026-10-10: ⋯ in place of Share)
           (!hostRole(s) && state.email ? sfEventRow(s, MENU_ROW) : '') +
         '</div></div>' : '') + '</span>';
@@ -6804,6 +6807,35 @@
         '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px">' + top +
           '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;min-width:0">' + seats(u, canClaim, claim) + count + '</div>' + who + '</div>' + btn + '</div>';
     };
+    // A job you hold (Design v8-25 item 3, 4a): a white card (no orange ring), the title with a small green ✓ You're in tag,
+    // a meta line (time · N open slots / Full / No limit), the description clamped to 2 lines with More / Less, and a
+    // footer: up to two faces (you first) and a dotted seat while there's room, opening Who's signed up, and a quiet Invite
+    const heldCard = (p, u) => {
+      const ids = u.claims.map(c => c.userId), left = u.need ? Math.max(0, u.need - ids.length) : -1, full = left === 0, open = !!st.descOpen[p.id];
+      const room = !u.need ? 'No limit' : full ? 'Full' : left + (left === 1 ? ' open slot' : ' open slots');
+      const meta = [p.day && s.days ? dayWord(s, p.day) : '', rowTime(u) || (p.time ? slotTime(p.time) : ''), room].filter(Boolean).join(' · ');
+      const desc = (p.desc || '').trim(), long = desc.length > 90 || desc.split('\n').length > 2;
+      const ppl = ids.slice().sort((a, b) => (b === st.me) - (a === st.me)).slice(0, 2);
+      const invite = () => setState({ share: canInviteTo(s) ? { id: s.id, copied: false } : { id: s.id, copied: false, pop: 'link', solo: true } });
+      return '<div data-part="' + esc(p.item) + '" data-signup="' + esc(p.item) + '" data-mine data-held style="' + CARD + ';overflow:hidden;padding:14px 16px;display:flex;flex-direction:column;gap:8px">' +
+        '<div style="display:flex;align-items:flex-start;gap:10px"><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">' +
+          '<div style="font-size:18px;line-height:1.25;font-weight:900;letter-spacing:-.3px;color:#0d1117;text-wrap:pretty">' + esc(p.item) + '</div>' +
+          '<div data-held-meta style="display:flex;align-items:center;gap:5px;font-size:14.5px;font-weight:600;color:#6b7280">' + (rowTime(u) || p.time ? svg(14, stroke('currentColor', 2.3) + ' style="flex:0 0 14px"', '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>') : '') + '<span>' + esc(meta) + '</span></div></div>' +
+          '<span ' + on(() => giveUpPart(s, u)) + ' role="button" data-part-give-up aria-label="You’re in. Tap to take yourself off" style="flex:0 0 auto;display:flex;align-items:center;gap:5px;height:30px;padding:0 11px;border-radius:999px;background:#149a4b;color:#fff;font-size:13.5px;font-weight:800;white-space:nowrap;cursor:pointer">' +
+            svg(12, stroke('#fff', 3.2), P6.check) + 'You’re in</span></div>' +
+        (desc ? '<div style="display:flex;flex-direction:column;gap:2px"><p data-job-note style="margin:0;font-size:15px;line-height:1.45;font-weight:500;color:#454b55;text-wrap:pretty;white-space:pre-line' +
+            (long && !open ? ';display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden' : '') + '">' + esc(desc) + '</p>' +
+          (long ? '<span ' + on(() => setState({ descOpen: Object.assign({}, st.descOpen, { [p.id]: !open }) })) + ' role="button" aria-expanded="' + open + '" data-held-more style="align-self:flex-start;display:flex;align-items:center;gap:4px;min-height:28px;font-size:13.5px;font-weight:800;color:#6b7280;cursor:pointer">' +
+            (open ? 'Less' : 'More') + '<span style="display:flex;transform:' + (open ? 'rotate(180deg)' : 'none') + '">' + I.chevD(13, 'currentColor', 2.8) + '</span></span>' : '') + '</div>' : '') +
+        '<div style="display:flex;align-items:center;gap:10px;margin:2px -16px -14px;padding:8px 16px;border-top:1px solid #f2f3f6">' +
+          '<div ' + on(() => setState({ partRoster: { id: s.id, part: p.id } })) + ' role="button" data-held-who aria-label="Who’s signed up" style="flex:0 1 auto;min-width:0;display:flex;align-items:center;gap:8px;min-height:36px;cursor:pointer">' +
+            '<span style="display:flex;align-items:center">' + ppl.map((id, k) => '<span style="display:flex;border-radius:999px;box-shadow:0 0 0 2px #fff' + (k ? ';margin-left:-8px' : '') + '">' + face(id, personName(s, id), 30) + '</span>').join('') +
+              (full ? '' : '<span aria-hidden="true" style="flex:0 0 30px;width:30px;height:30px;' + (ppl.length ? 'margin-left:-8px;' : '') + 'box-sizing:border-box;border-radius:999px;border:2px dashed #c9ccd3;background:#fff;box-shadow:0 0 0 2px #fff;display:flex;align-items:center;justify-content:center">' + I.plus(12, '#9aa0ac', 2.8) + '</span>') + '</span>' +
+            I.chevR(14, '#9aa0ac', 2.6) + '</div>' +
+          (full ? '' : '<span ' + on(invite) + ' role="button" data-held-invite class="hov-held-inv" style="margin-left:auto;flex:0 0 auto;display:flex;align-items:center;gap:5px;min-height:36px;font-size:13px;font-weight:700;color:#9aa0ac;cursor:pointer">' +
+            svg(15, stroke('currentColor', 2.2), '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M19 8v6M16 11h6"/>') + 'Invite</span>') +
+        '</div></div>';
+    };
     const card = (p) => {
       const single = p.rows.length === 1 && p.kind !== 'time', u0 = p.rows[0], more = !!st.partMore[p.id];
       const mineAny = p.rows.some(u => u.claims.some(c => c.userId === st.me));
@@ -6822,7 +6854,7 @@
         (lead && live ? '<span ' + on(() => openNeeds(s, p.id)) + ' data-edit-jobs data-edit-parts aria-label="Edit ' + esc(p.item) + '" style="flex:0 0 32px;width:32px;height:32px;margin:-4px -6px 0 0;display:flex;align-items:center;justify-content:center;color:#9aa0ac;cursor:pointer">' + svg(15, stroke('currentColor', 2.3), PENCIL) + '</span>' : '') + '</div>';
       // Details: hosts see them; everyone else opens them from the More details bar
       const open = !!st.descOpen[p.id];
-      const note = p.desc && (lead || open) ? '<p data-job-note style="margin:0;font-size:14.5px;line-height:1.45;font-weight:500;color:#454b55;text-wrap:pretty">' + esc(p.desc) + '</p>' : '';
+      const note = p.desc && (lead || open) ? '<p data-job-note style="margin:0;font-size:14.5px;line-height:1.45;font-weight:500;color:#454b55;text-wrap:pretty;white-space:pre-line">' + esc(p.desc) + '</p>' : '';
       const moreBar = !p.desc || lead ? '' : '<div ' + on(() => setState({ descOpen: Object.assign({}, st.descOpen, { [p.id]: !open }) })) + ' aria-expanded="' + open + '" style="margin:0 -16px -14px;height:44px;border-top:1px solid #f2f3f6;display:flex;align-items:center;justify-content:center;gap:6px;font-size:13.5px;font-weight:800;color:#6b7280;cursor:pointer">' +
         (open ? 'Hide details ⌃' : 'More details ⌄') + '</div>';
       const toggle = !single && p.rows.length > 3 ? '<span ' + on(() => setState({ partMore: Object.assign({}, st.partMore, { [p.id]: !more }) })) + ' aria-expanded="' + more + '" data-part-more style="align-self:center;min-height:32px;display:flex;align-items:center;font-size:13.5px;font-weight:800;color:#6b7280;cursor:pointer">' +
@@ -6832,6 +6864,7 @@
       const ask = !lead || !live || !anyOpen ? ''
         : asks.length >= 2 ? '<span style="font-size:13.5px;font-weight:700;color:#8a909b">Two asked. Wait for an answer, or withdraw one.</span>'
         : '<span ' + on(() => single ? openJobAsk(s, { id: u0.id }) : setState({ partRoster: { id: s.id, part: p.id } })) + ' data-ask-job data-ask-part role="button" style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:36px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(14, '#5b4ae8', 2.8) + 'Ask someone</span>';
+      if (single && mineAny && !lead && live && p.kind === 'job') return heldCard(p, u0);
       return '<div data-part="' + esc(p.item) + '" data-signup="' + esc(p.item) + '"' + (mineAny ? ' data-mine' : '') + ' style="' + CARD + ';overflow:hidden;padding:14px 16px;display:flex;flex-direction:column;gap:10px">' +
         head + (single ? row(u0, true) : '<div style="display:flex;flex-direction:column;gap:8px">' + shown.map(u => row(u, false)).join('') + '</div>') + toggle + note + ask + moreBar + '</div>';
     };
@@ -6846,24 +6879,25 @@
   function viewPartRoster() {
     const r = state.partRoster, s = state.sparks.find(x => x.id === r.id), p = s && (s.items || []).find(x => x.id === r.part);
     if (!s || !p) return '';
-    const close = () => setState({ partRoster: null });
+    // Someone holding a job opens it from their card's faces (v8-25): the same sheet, to look at only
+    const host = isLead(s), close = () => setState({ partRoster: null });
     const total = p.rows.every(u => u.need) ? p.rows.reduce((a, u) => a + u.need, 0) : 0, have = p.rows.reduce((a, u) => a + u.claims.length, 0);
     const isGuest = (id) => s.contacts.some(c => c.user_id === id && c.phone);
     const person = (u, id) => '<div data-roster-person style="display:flex;align-items:center;gap:10px;min-height:44px">' + face(id, personName(s, id), 32) +
       '<span style="flex:1;min-width:0;display:flex;align-items:center;gap:8px;font-size:15.5px;font-weight:800;color:#0d1117"><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(personName(s, id)) + '</span>' +
         (isGuest(id) ? '<span style="flex:0 0 auto;padding:2px 7px;border-radius:999px;background:#eef0f3;font-size:11px;font-weight:900;letter-spacing:.6px;color:#6b7280">GUEST</span>' : '') + '</span>' +
-      (isGuest(id) ? contactLink(s.contacts.find(c => c.user_id === id).phone) : '') +
-      (id === state.me ? '' : '<span ' + on(() => removeFromPart(s, u, id)) + ' data-roster-remove role="button" style="flex:0 0 auto;min-height:36px;display:flex;align-items:center;font-size:14px;font-weight:700;color:#8a909b;cursor:pointer">Remove</span>') + '</div>';
+      (host && isGuest(id) ? contactLink(s.contacts.find(c => c.user_id === id).phone) : '') +
+      (id === state.me || !host ? '' : '<span ' + on(() => removeFromPart(s, u, id)) + ' data-roster-remove role="button" style="flex:0 0 auto;min-height:36px;display:flex;align-items:center;font-size:14px;font-weight:700;color:#8a909b;cursor:pointer">Remove</span>') + '</div>';
     const block = (u) => { const open = Math.max(0, (u.need || 0) - u.claims.length), live = phaseOf(s) !== 'done';
       return '<div data-roster-row style="display:flex;flex-direction:column;gap:2px;padding:10px 0;border-top:1px solid #f2f3f6">' +
         '<div style="font-size:14px;font-weight:600;color:#6b7280"><b style="font-weight:900;color:#0d1117">' + esc(u.time ? slotTime(u.time) : p.item) + '</b> · ' + (!u.need ? u.claims.length + ' signed up' : open ? open + ' open' : 'full') + (u.waits.length ? ' · ' + u.waits.length + ' waiting' : '') + '</div>' +
         u.claims.map(c => person(u, c.userId)).join('') +
-        ((open || !u.need) && live ? '<span ' + on(() => { setState({ partRoster: null }); openJobAsk(s, { id: u.id }); }) + ' data-roster-ask role="button" style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:36px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(14, '#5b4ae8', 2.8) + 'Ask someone</span>' : '') +
+        ((open || !u.need) && live && host ? '<span ' + on(() => { setState({ partRoster: null }); openJobAsk(s, { id: u.id }); }) + ' data-roster-ask role="button" style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:36px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(14, '#5b4ae8', 2.8) + 'Ask someone</span>' : '') +
         (u.waits.length ? '<div data-roster-waiting style="font-size:13.5px;font-weight:700;color:#6b7280">Waiting: ' + esc(u.waits.map(id => firstName(personName(s, id))).join(', then ')) + '</div>' : '') + '</div>'; };
     return sheet('Who’s signed up', close, SHEET_PAD,
       '<div style="display:flex;align-items:flex-start;gap:10px"><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:800;letter-spacing:1.2px;color:#5b4ae8">' + esc(p.item.toUpperCase()) + '</div>' +
         '<div style="margin-top:2px;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.4px;color:#0d1117">' + have + (total ? ' of ' + total : '') + ' signed up</div></div>' +
-        '<span ' + on(() => { setState({ partRoster: null }); openNeeds(s); }) + ' role="button" style="flex:0 0 auto;min-height:36px;display:flex;align-items:center;gap:5px;font-size:14px;font-weight:800;color:#6b7280;cursor:pointer">' + svg(13, stroke('currentColor', 2.3), PENCIL) + 'Edit</span>' + closeX(close) + '</div>' +
+        (host ? '<span ' + on(() => { setState({ partRoster: null }); openNeeds(s); }) + ' role="button" style="flex:0 0 auto;min-height:36px;display:flex;align-items:center;gap:5px;font-size:14px;font-weight:800;color:#6b7280;cursor:pointer">' + svg(13, stroke('currentColor', 2.3), PENCIL) + 'Edit</span>' : '') + closeX(close) + '</div>' +
       '<div style="display:flex;flex-direction:column">' + p.rows.map(block).join('') + '</div>', 36);
   }
 
@@ -7979,14 +8013,6 @@
     render();
     setTimeout(() => { const el = document.querySelector('[data-discussion]'), sc = scroller(); if (el && sc) sc.scrollTo({ top: sc.scrollTop + el.getBoundingClientRect().top - sc.getBoundingClientRect().top - 60, behavior: 'smooth' }); }, 30);
   };
-  // The new-updates banner near the top, for people coming (leads never see it): "2 new updates · View ↓"
-  const discBanner = (s) => {
-    if (isLead(s) || s.cancelledAt || ['going', 'maybe'].indexOf(myRsvp(s)) < 0) return '';
-    const n = newUpdates(s);
-    return !n ? '' : '<div ' + on(() => seeDiscussion(s)) + ' data-screen-label="New updates banner" data-upd-banner style="display:flex;align-items:center;gap:12px;min-height:56px;padding:0 14px 0 16px;border-radius:18px;background:' + MAG.strong + ';color:#fff;box-shadow:0 6px 18px rgba(214,36,110,.25);cursor:pointer">' +
-      svg(20, stroke('currentColor', 2.2), BULLHORN) + '<span style="flex:1;min-width:0;font-size:16px;font-weight:900;letter-spacing:-.2px">' + n + (n === 1 ? ' new update' : ' new updates') + '</span>' +
-      '<span style="display:flex;align-items:center;gap:4px;font-size:13.5px;font-weight:800;color:#ffe3ee">View' + I.chevD(12, '#ffe3ee', 3) + '</span></div>';
-  };
   const SEND_IC = '<path d="M12 19V5M6 11l6-6 6 6"/>';
   // Discussion, above Led by: the writing box (a lead's Comment · Update switch above it), the lead's updates together in a gray panel,
   // then comments newest first; past 3 posts, Show N more. Replies stay folded until opened
@@ -8119,19 +8145,23 @@
       jobActs(s, (fn) => fn).map(a => ({ job: a.job, open: a.open, asked: a.asked, item: a.act, cta: a.cta, act: a.go })),
       myJobs.map(j => ({ item: j.item, meta: myTime(j) })));
     const tKey = (lead ? 'h:' : '') + s.id, tOpen = st.jobsOpen[tKey] == null ? true : !!st.jobsOpen[tKey];
-    const T = lead ? { bar: '#f5f3fe', ink: '#4a3ad4', dot: '#7b6ef0', row: '#fdfcff', word: 'Your tasks' } : { bar: '#fff1e8', ink: '#b8480c', dot: '#e8661c', row: '#fffbf8', word: 'You’re helping' };
+    // Design v8-25 item 5: both bars start open and sit flush on the photo's bottom (square top, 24px bottom corners); just
+    // the word (Helping / Your tasks), no clipboard; white 52px rows with an 8px dot; the rows slide open (grid rows 0fr ⇄ 1fr)
+    const T = lead ? { bar: '#f5f3fe', ink: '#4a3ad4', dot: '#5b4ae8', word: 'Your tasks' } : { bar: '#fff6f0', ink: '#b8480c', dot: '#e8661c', word: 'Helping' };
     const tab = !tasks.length || s.cancelledAt ? '' :
-      '<div data-screen-label="' + T.word + '" style="position:relative;z-index:2;margin-top:-22px;background:#fff;border-radius:22px 22px 24px 24px;overflow:hidden;box-shadow:0 1px 3px rgba(15,18,25,.08)">' +
-        '<div ' + on(() => setState({ jobsOpen: Object.assign({}, st.jobsOpen, { [tKey]: !tOpen }) })) + ' aria-expanded="' + tOpen + '" data-' + (lead ? 'host-tasks' : 'helping') + '-bar style="display:flex;align-items:center;gap:8px;min-height:48px;padding:0 18px;background:' + T.bar + ';color:' + T.ink + ';font-size:15.5px;font-weight:800;cursor:pointer">' +
-          ic6('clip', 18, T.ink, 2.2) + '<span style="flex:1">' + T.word + '</span>' +
+      '<div data-screen-label="' + T.word + '" style="position:relative;z-index:2;margin-top:-22px;background:#fff;border-radius:0 0 24px 24px;overflow:hidden;box-shadow:0 1px 3px rgba(15,18,25,.08)">' +
+        '<div ' + on(() => setState({ jobsOpen: Object.assign({}, st.jobsOpen, { [tKey]: !tOpen }) })) + ' role="button" aria-expanded="' + tOpen + '" data-' + (lead ? 'host-tasks' : 'helping') + '-bar style="display:flex;align-items:center;gap:6px;min-height:48px;padding:0 16px;background:' + T.bar + ';color:' + T.ink + ';font-size:15.5px;font-weight:800;cursor:pointer">' +
+          '<span style="flex:1">' + T.word + '</span>' +
           (tOpen ? '' : '<span style="font-size:14.5px;font-weight:800">' + tasks.length + (tasks.length === 1 ? ' task' : ' tasks') + '</span>') +
-          '<span style="display:flex;transition:transform .15s;transform:' + (tOpen ? 'rotate(180deg)' : 'none') + '">' + I.chevD(14, T.ink, 2.8) + '</span></div>' +
-        (tOpen ? tasks.map(t => '<div ' + (t.act ? on(t.act) + ' ' : '') + 'data-task-row style="display:flex;align-items:center;gap:12px;min-height:52px;padding:10px 18px;background:' + T.row + (t.act ? ';cursor:pointer' : '') + '">' +
-            '<span style="flex:0 0 7px;width:7px;height:7px;border-radius:999px;background:' + T.dot + '"></span>' +
-            '<span style="flex:1;min-width:0;font-size:16px;font-weight:700;color:#2a2f38;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (t.job ? jobLine(t) : esc(t.item)) + '</span>' +
+          '<span style="display:flex;transition:transform .2s;transform:' + (tOpen ? 'rotate(180deg)' : 'none') + '">' + I.chevD(14, T.ink, 2.8) + '</span></div>' +
+        '<div data-task-rows style="display:grid;grid-template-rows:' + (tOpen ? '1fr' : '0fr') + ';transition:grid-template-rows 240ms cubic-bezier(.2,.8,.2,1)"><div style="min-height:0;overflow:hidden' + (tOpen ? '' : ';visibility:hidden;transition:visibility 240ms') + '">' +   // hidden once shut: out of reach, and of tests
+          tasks.map(t => '<div ' + (t.act ? on(t.act) + ' ' : '') + 'data-task-row style="display:flex;align-items:center;gap:12px;min-height:52px;padding:10px 16px;background:#fff' + (t.act ? ';cursor:pointer' : '') + '">' +
+            '<span style="flex:0 0 8px;width:8px;height:8px;border-radius:999px;background:' + T.dot + '"></span>' +
+            '<span style="flex:1;min-width:0;font-size:16.5px;font-weight:700;color:#2a2f38;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (t.job ? jobLine(t) : esc(t.item)) + '</span>' +
             // a job to fill ends in its Ask (or Share) pill, like Your tasks (owner, 2026-10-03)
             (t.cta ? '<span data-todo-cta style="flex:0 0 auto;display:flex;align-items:center;min-height:30px;padding:0 13px;border-radius:999px;background:#f3f1fe;color:' + T.ink + ';font-size:14px;font-weight:800">' + esc(t.cta) + '</span>' : '') +
-            (t.meta ? '<span style="flex:0 0 auto;font-size:14.5px;font-weight:800;color:' + T.ink + '">' + esc(t.meta) + '</span>' : '') + '</div>').join('') : '') +
+            (t.meta ? '<span style="flex:0 0 auto;font-size:15px;font-weight:800;color:' + T.ink + '">' + esc(t.meta) + '</span>' : '') + '</div>').join('') +
+        '</div></div>' +
       '</div>';
 
     // RSVP: three buttons, no checkmarks; tapping your pick again clears it
@@ -8249,9 +8279,9 @@
       tab +
       '<div style="padding:16px 14px 26px;display:flex;flex-direction:column;gap:18px">' +
         reportedEvLine(s) + movedCards(s) + cancelledCard(s) +
-        (discMissing(s) ? updatesCard(s) : discBanner(s)) +   // v8: the banner; the updates live in Discussion
+        (discMissing(s) ? updatesCard(s) : '') +   // v8: the updates live in Discussion; On this page flags new ones (v8-25)
         // Keep this event: the page's 18px above and below (owner, 2026-10-07; was 8px under the RSVP card, Design v8-8 prototype 976)
-        rsvpBlock + guestNudge + takePartLine(s) +
+        rsvpBlock + guestNudge + onThisPage(s) +
         visitorLine +   // a visitor's Shared with you card: under the RSVP, 12px above and below (owner, 2026-10-07)
         whenWhereCard(s) +
         basicDetailsSec(s) +
@@ -8267,20 +8297,28 @@
     '</div>';
   }
 
-  // Jobs with spots still open, "ways to help" on the cards and the event page alike (Design v8-17 clarity pass, 1d)
+  // Jobs with spots still open, "ways to participate" on the cards and the event page alike (Design v8-17 clarity pass, 1d; v8-24 wording)
   const openJobs = (s) => s.signups.filter(i => i.need && i.claims.length < i.need).length;
-  // Under the RSVP card, one quiet purple line (Design v8-17 clarity pass, 5a): 3 ways to help · 2 posts ›; each part
-  // scrolls to its section. Hidden when there's nothing
-  const takePartLine = (s) => {
+  // On this page (Design v8-25 item 4, 2a styled as 3a): under the RSVP card, one 46px row per section inside a thin outline
+  // on the grey page: Sign up (N ways to participate) and Discussion (N posts, a pink "N new" pill for updates you haven't
+  // seen; leads never get it). Each row scrolls to its section. It replaced the pink "N new updates" banner and the purple
+  // "3 ways to help · 2 posts" line. Hidden when there's nothing in either
+  const onThisPage = (s) => {
     if (phaseOf(s) !== 'plan' || s.cancelledAt) return '';
-    const c = comments[s.id] || {}, posts = c.list ? c.list.length : c.count || 0, jobs = openJobs(s);
+    const c = comments[s.id] || {}, posts = (c.list ? c.list.length : c.count || 0) + (s.updates || []).length, jobs = openJobs(s);
     if (!jobs && !posts) return '';
+    const nNew = isLead(s) || ['going', 'maybe'].indexOf(myRsvp(s)) < 0 ? 0 : newUpdates(s);
     const jump = (sel) => () => { const el = document.querySelector(sel), sc = scroller(); if (el && sc) sc.scrollTo({ top: sc.scrollTop + el.getBoundingClientRect().top - sc.getBoundingClientRect().top - 60, behavior: 'smooth' }); };
-    return '<div data-take-part-line style="margin-top:-6px;display:flex;align-items:center;flex-wrap:wrap;gap:6px;padding:0 6px;font-size:14px;font-weight:800;color:#4a3ad4">' +
-      (jobs ? '<span ' + on(jump('#sec-tasks')) + ' role="button" data-tp-help style="cursor:pointer">' + jobs + (jobs === 1 ? ' way to help' : ' ways to help') + '</span>' : '') +
-      (jobs && posts ? '<span style="color:#b9bcc4">·</span>' : '') +
-      (posts ? '<span ' + on(jump('[data-discussion]')) + ' role="button" data-tp-posts style="cursor:pointer">' + posts + (posts === 1 ? ' post' : ' posts') + '</span>' : '') +
-      I.chevR(13, '#4a3ad4', 2.8) + '</div>';
+    const row = (go, data, top, icon, word, sub, pill) => '<div ' + on(go) + ' role="button" ' + data + ' class="hov-fill-grey" style="display:flex;align-items:center;gap:12px;min-height:46px;padding:0 14px;' + (top ? 'border-top:1px solid #d5d8df;' : '') + 'cursor:pointer">' +
+      '<span aria-hidden="true" style="flex:0 0 30px;width:30px;height:30px;border-radius:10px;background:#fff;display:flex;align-items:center;justify-content:center">' + icon + '</span>' +
+      '<span style="flex:1;min-width:0;display:flex;align-items:baseline;gap:8px;white-space:nowrap;overflow:hidden"><span style="font-size:15.5px;font-weight:800;color:#0d1117">' + word + '</span>' +
+        '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;font-size:14px;font-weight:600;color:#6b7280">' + sub + '</span></span>' +
+      (pill || '') + I.chevR(15, '#9aa0ac', 2.6) + '</div>';
+    return '<div data-screen-label="On this page" data-on-page style="margin-top:-6px;display:flex;flex-direction:column;padding:2px 0;border-radius:18px;box-shadow:inset 0 0 0 1.5px #d5d8df;overflow:hidden">' +
+      (jobs ? row(jump('#sec-tasks'), 'data-op-signup', false, svg(16, stroke('#e8661c', 2.3), P6.clip), 'Sign up', jobs + (jobs === 1 ? ' way to participate' : ' ways to participate')) : '') +
+      (posts ? row(nNew ? () => seeDiscussion(s) : jump('[data-discussion]'), 'data-op-disc', !!jobs, svg(16, stroke(MAG.strong, 2.3), '<path d="M5 18.5V7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H8l-3 2.5Z"/>'), 'Discussion', posts + (posts === 1 ? ' post' : ' posts'),
+        nNew ? '<span data-upd-new style="flex:0 0 auto;height:22px;padding:0 8px;border-radius:999px;background:' + MAG.strong + ';color:#fff;font-size:12px;font-weight:900;display:flex;align-items:center">' + nNew + ' new</span>' : '') : '') +
+    '</div>';
   };
 
   // Once the date has passed, the host can still move it (a wrong date, or it got pushed) or take it down

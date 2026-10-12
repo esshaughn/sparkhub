@@ -107,18 +107,24 @@ test('a plan: RSVPs, a guest, sign-ups, an update, the host’s notes, then clea
     await GP.locator('[data-signup="Folding chairs"]').getByRole('button', { name: 'Sign up' }).click();
     await onIt.locator('[data-onit-done]').click();
     await expect(onIt).toHaveCount(0);
-    // "You're helping": under the photo, open to start with the jobs below it (Design 27); its header collapses it to a count
-    const bar = GP.locator('[data-helping-bar]');
-    await expect(GP.locator('[data-screen-label="You’re helping"]')).toContainText('Folding chairs');
+    // "Helping": under the photo, open to start with the jobs below it (Design 27, v8-25); its header slides it shut to a count
+    const bar = GP.locator('[data-helping-bar]'), helpRow = GP.locator('[data-screen-label="Helping"] [data-task-row]', { hasText: 'Folding chairs' });
+    await expect(helpRow).toBeVisible();
     await bar.click();
     await expect(bar).toContainText('1 task');
-    await expect(GP.locator('[data-screen-label="You’re helping"]')).not.toContainText('Folding chairs');
+    await expect(helpRow).toBeHidden();
     await bar.click();
-    await expect(GP.locator('[data-screen-label="You’re helping"]')).toContainText('Folding chairs');
-    await expect(GP.locator('[data-signup="Folding chairs"]')).toContainText('1 of 2 open');
-    await expect(GP.locator('[data-signup="Folding chairs"]')).toContainText('You’re in');
-    await expect(GP.locator('[data-signup="Folding chairs"]')).toContainText('1 of 2 open');
-    await expect(GP.locator('[data-signup="Folding chairs"] [data-who]')).toContainText('You');
+    await expect(helpRow).toBeVisible();
+    // A job you hold (Design v8-25 4a): white, a ✓ You're in tag, what's left on the meta line, faces opening Who's signed up
+    const held = GP.locator('[data-signup="Folding chairs"][data-held]');
+    await expect(held).toContainText('You’re in');
+    await expect(held.locator('[data-held-meta]')).toHaveText('1 open slot');
+    await expect(held.locator('[data-held-invite]')).toBeVisible();
+    await held.locator('[data-held-who]').click();
+    const whoSheet = G.getByRole('dialog', { name: 'Who’s signed up' });
+    await expect(whoSheet).toContainText('1 of 2 signed up');
+    await expect(whoSheet.locator('[data-roster-remove]')).toHaveCount(0);   // to look at only
+    await whoSheet.getByLabel('Close').click();
     // The host sees who's on each job, and taps Going for the guest list with the guest's number
     await H.reload();
     await expect(H.locator('html[data-loaded=true]')).toHaveCount(1);

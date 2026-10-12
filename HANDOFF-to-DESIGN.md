@@ -6,7 +6,7 @@
 - **Source:** github.com/esshaughn/sparkhub (`index.html`, `js/sparks.js`, `css/sparks.css`, `privacy.html`, `supabase/templates/`)
 - **Baseline:** Claude Design's **round v8-17** (`design/spark-hub/HANDOFF-to-CODE.md` and `Spark Hub App Version 8.dc.html`, 2026-10-09), built in full (with your v8-16 clarity pass): see *Round v8-17 in short*. Rows 212–227 are new since v8-15.
 - **Build version:** **v8** (v7 from owner, 2026-10-02): a lead is a choice. Since v8-8 an idea is led from the start (*Who leads it · Me*) or floated (*I'll decide*), and both use the new idea page.
-- **As of:** 2026-10-11. **Everything through round v8-22 is live** (main `e05eddf`, v=400): rounds v8-18, v8-19, v8-21 (with v8-20) and v8-22, group invites included, plus the owner's fixes in rows 248–250. Questions for you are in §5.
+- **As of:** 2026-10-11 (round v8-25 built on `test`). **Everything through round v8-22 is live** (main `e05eddf`, v=400): rounds v8-18, v8-19, v8-21 (with v8-20) and v8-22, group invites included, plus the owner's fixes in rows 248–250. Questions for you are in §5.
 
 ## Start here (2026-10-10): HANDOFF-to-DESIGN-17
 
@@ -90,6 +90,18 @@ None of these are built. They come from the owner's own list and the pilot group
 - **Event cards that say *6 spots left*** (Q43) read like an RSVP cap.
 
 ---
+
+## Round v8-25 in short
+
+*Built from HANDOFF-to-CODE v8-25 on 2026-10-11, on `test`, not live yet. No migration. The prototype was diffed against v8-24's: everything else it changed (items 1–2, rows 251–257) was already built.*
+
+| Item | Status |
+|---|---|
+| 1–2: redraws of v8-23 / v8-24 and rows 251–257 | Already built; nothing to change |
+| 254: *Exit admin view* in the host ⋯ | Done: with Admin view on, *Exit admin view* is now the **last** row of the host ⋯ (after *View as attendee*); with it off, *Admin view* sits after *Share link* in the member ⋯ as before |
+| 3: a held job card (4a) | Done as drawn, for a job with no times that you hold and don't lead. **Who's signed up** opens for the person holding it too, as a look-only sheet: no *Edit*, *Remove*, *Ask someone* or guest phone numbers (those stay with hosts). The meta line puts the day first on a multi-day event (*Sat · 8:30am · 2 open slots*). Job descriptions keep their line breaks everywhere they show in full (the cards, Pick a shift); the one-line summaries in the editors stay one line |
+| 4: *On this page* (2a styled as 3a) | Done as drawn; the pink *N new updates* banner and the purple *ways to help · posts* line are gone. **Changed:** *N posts* counts the lead's updates as well as comments, so a Discussion with only an update still gets its row (and its pink pill). The pill shows for people going or maybe, as the banner did |
+| 5: Helping / Your tasks bars | Done as drawn: flush on the photo, just the word, white 52px rows with the 8px dot, the 240ms slide. Shut rows are hidden from taps and screen readers once the slide ends |
 
 ## Rounds v8-23 and v8-24 in short
 

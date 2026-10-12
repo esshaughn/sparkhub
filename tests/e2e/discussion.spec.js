@@ -36,12 +36,13 @@ test('discussion: the new-update banner, comments, replies, Send an update and d
     const OP = O.locator('[data-screen-label="Plan page"]'), od = OP.locator('[data-discussion]');
     await expect(od.locator('[data-update]')).toHaveText('Moved to the back porch');
     await expect(od.getByLabel('Write a comment')).toHaveCount(0);
-    await expect(OP.locator('[data-upd-banner]')).toHaveCount(0);
+    await expect(OP.locator('[data-upd-new]')).toHaveCount(0);
     await rsvpTap(OP.locator('[data-rsvp]'), 'Going');
     await donePlus(O);
-    await expect(OP.locator('[data-upd-banner]')).toHaveText(/1 new update/);
-    await OP.locator('[data-upd-banner]').click();
-    await expect(OP.locator('[data-upd-banner]')).toHaveCount(0);   // seen on this device
+    // On this page (v8-25): the Discussion row's pink pill; tapping the row marks it seen and scrolls down
+    await expect(OP.locator('[data-op-disc] [data-upd-new]')).toHaveText('1 new');
+    await OP.locator('[data-op-disc]').click();
+    await expect(OP.locator('[data-upd-new]')).toHaveCount(0);   // seen on this device
     await od.getByLabel('Write a comment').fill('Can I bring my dog?');
     await od.getByLabel('Write a comment').press('Enter');
     await expect(od.locator('[data-comment]')).toHaveText(['Can I bring my dog?']);

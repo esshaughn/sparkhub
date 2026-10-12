@@ -49,7 +49,7 @@ test('post an event with every step filled, then edit it in the pop-ups and dele
       await expect(upd.locator('[data-update]').first()).toHaveText(text);
     }
     await expect(upd.locator('[data-update]')).toHaveCount(3);
-    await expect(P.locator('[data-upd-banner]')).toHaveCount(0);   // leads never get the banner
+    await expect(P.locator('[data-upd-new]')).toHaveCount(0);   // leads never get the new-updates pill
     await upd.locator('[data-post-row="upd"]', { hasText: 'Parking' }).getByRole('button', { name: 'Delete this update' }).click();
     await page.getByRole('alertdialog').getByRole('button', { name: 'Delete update' }).click();
     await expect(upd.locator('[data-update]')).toHaveText(['Meet at the big oak', 'Bring a headlamp, it gets dark early']);
@@ -78,7 +78,7 @@ test('post an event with every step filled, then edit it in the pop-ups and dele
     await expect(P.locator('[data-screen-label="Your tasks"]')).toContainText('Bring water 3 open');
     await bar.click();
     await expect(bar).toContainText('1 task');
-    await expect(P.locator('[data-screen-label="Your tasks"]')).not.toContainText('Bring water');
+    await expect(P.locator('[data-screen-label="Your tasks"] [data-task-row]', { hasText: 'Bring water' })).toBeHidden();   // slid shut (v8-25)
 
     // A lead's top right: a pencil (Edit event) and a Share icon whose menu is Share link · QR code (Invite people left it, owner 2026-10-07)
     // (owner, 2026-10-07; v8-12 had one ⋯ with Edit event in it). No pencil after the title and the title isn't a button (Design 31)
