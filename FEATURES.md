@@ -336,6 +336,10 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 255 | **People can contact you** (Design v8-26 items 6–7, `20261201000000_v8_26.sql`): a per-event switch (Plan an event, Edit event), on by default; *Questions? Contact {Lead}* on Sign up and Led by's Contact hide when off | Test |
 | 256 | **Named invite links** (Design v8-26 item 8, 1b): members' group links carry `?by=`; signed out they open on the group with who shared it, members · events this week, Join / Sign in (`group_invite_landing()`) | Test |
 | 257 | **Pick your days again** (Design v8-26 item 8): moving or removing a day of an Each day event asks the people who'd picked it to pick again (`rsvps.repick`); Edit checks every day has a date, in order | Test |
+| 263 | **Add friends from Members** (Design v8-27 item 1): a round Add / Requested / Friends button or a green Accept on each member row, a grey state line, Everyone · Not friends yet · N; Requested → Cancel request | Test |
+| 264 | **Find friends in your groups** (Design v8-27 item 2): on Friends, one row per group with people you aren't friends with yet, opening its Members list on Not friends yet | Test |
+| 265 | **View as a member** (Design v8-27 item 3): owners and admins see a group as a plain member does (Group ⋯ → ADMINS ONLY), with a dark pill and Exit | Test |
+| 266 | **Sign-up notes** (Design v8-27 items 4–5): ADD A NOTE on You're signed up!, notes on the job card with Edit / + Add a note, notes in Who's signed up (now a centred pop-up) | Test |
 
 ## Removed in this rebuild
 

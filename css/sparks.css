@@ -220,6 +220,8 @@ html.tall-fix .app { bottom: auto; height: var(--true-h); }
 
 /* ---- Pseudo-states from the design's style-hover / style-focus ---- */
 .hov-primary:hover { background: #4a3ad4 !important; }
+.hov-fradd:hover { background: #e9e5fd !important; }
+.hov-note-add:hover { background: #f7f6ff !important; }
 .hov-gold:hover { background: #e8a71c !important; }
 .hov-gold-out:hover { background: #fffaf0 !important; }
 .hov-outline:hover { border-color: #5b4ae8 !important; color: #5b4ae8 !important; }

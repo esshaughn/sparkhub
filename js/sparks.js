@@ -313,7 +313,7 @@
     evFromIdea: null, evIdeaJobs: []   // Make it a plan! on an idea (v8-8): Post it turns that idea into the event, its jobs and spots stay
   });
   const state = Object.assign({
-    screen: 'sched', menu: null, subjectId: null, gpId: null, zoom: null, membersOpen: null, membersList: null,
+    screen: 'sched', menu: null, subjectId: null, gpId: null, zoom: null, membersOpen: null, membersList: null, grpMV: null,
     sort: SORTS.some(s => s[0] === prefs.sort) ? prefs.sort : 'popular',
     view: VIEWS.indexOf(prefs.view) > -1 ? prefs.view : 'tiles',                 // a group's page (before v7)
     gView: GROUP_VIEWS.indexOf(prefs.gView) > -1 ? prefs.gView : prefs.view === 'month' ? 'month' : 'next',   // v7: an old List or Tiles opens Up next
@@ -1076,6 +1076,15 @@
       for (const p of s.parts || []) { const u = p.rows.find(x => x.id === id); if (u) return { item: p.item, when: when(u.time ? u : p) }; }
       return null; };
     const units = (b.undo.items || []).map(unitOf).filter(Boolean);
+    // ADD A NOTE (Design v8-27 item 4): the job just taken only, not a spot to take part. Saves as you type; Done closes
+    const jobIds = (b.undo.items || []).filter(id => isJobRow(s, id));
+    const noteVal = b.note != null ? b.note : myNoteOf(s, jobIds[0]);
+    const noteField = !jobIds.length || b.undo.del ? '' : '<label data-onit-note style="display:flex;flex-direction:column;gap:6px">' +
+      '<span style="display:flex;align-items:baseline;gap:6px;padding:0 2px"><span style="flex:0 0 auto;white-space:nowrap;font-size:12.5px;font-weight:900;letter-spacing:1px;color:#6b7280">ADD A NOTE</span><span style="font-size:12.5px;font-weight:500;color:#9aa0ac">Optional</span></span>' +
+      '<input class="fld" type="text" maxlength="' + NOTE_MAX + '" aria-label="Add a note" placeholder="Say what you’re bringing or doing" value="' + esc(noteVal) + '" ' +
+        onInput(e => { if (e.type !== 'input' || !state.onIt) return; const v = e.target.value.slice(0, NOTE_MAX); setState({ onIt: Object.assign({}, state.onIt, { note: v }) }); saveMyNote(s.id, jobIds, v, 700); }) +
+        ' style="width:100%;box-sizing:border-box;min-height:48px;padding:0 14px;border:0;border-radius:12px;background:#f2f3f6;font-family:inherit;font-size:16px;font-weight:600;color:#0d1117;outline:none">' +
+      '<span style="display:flex;justify-content:space-between;gap:8px;padding:0 2px;font-size:12.5px;font-weight:600;color:#6b7280"><span>Everyone going sees this.</span><span data-note-count style="color:#9aa0ac">' + noteVal.length + '/' + NOTE_MAX + '</span></span></label>';
     const chip = '<span style="align-self:flex-start;display:flex;align-items:center;height:26px;padding:0 10px;border-radius:999px;background:#e7f6ec;color:#0f7a3c;font-size:13px;font-weight:800">Going' + (s.dayDate ? ' · ' + fmtDay(s.dayDate) : '') + '</span>';
     return '<div class="modal-scrim" data-scrim="' + reg(close) + '" style="z-index:45">' +
       '<div role="dialog" aria-modal="true" aria-label="You’re signed up" data-banner="on" data-screen-label="You’re signed up" style="position:relative;width:100%;max-width:360px;box-sizing:border-box;background:#fff;border-radius:24px;padding:22px 20px 8px;display:flex;flex-direction:column;gap:14px;box-shadow:0 20px 50px rgba(13,17,23,.35);animation:popIn 260ms cubic-bezier(.22,.9,.28,1) both">' +
@@ -1087,6 +1096,7 @@
           units.map(u => '<div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:16px;line-height:1.3;font-weight:900;color:#0d1117">' + esc(u.item) + '</span>' +
             (u.when ? '<span style="font-size:13.5px;font-weight:700;color:#454b55">' + esc(u.when) + '</span>' : '') + '</div>').join('') +
           '<span style="font-size:13.5px;font-weight:600;color:#6b7280">for ' + esc(s.text) + '</span>' + (s.planned ? chip : '') + '</div>' +
+        noteField +
         // a guest gets a real push for an account (owner, 2026-10-10): jobs and reminders in one place, hosts reach them in the app
         (state.email ? '' : '<div data-onit-push style="display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:14px;background:#f1effd">' +
           '<span style="font-size:15.5px;line-height:1.3;font-weight:900;color:#0d1117">Keep track of this in one place</span>' +
@@ -1291,10 +1301,11 @@
     const g = groupById(state.gpId);
     if (state.gpFrom === 'browse' && g) go('browse', { groupId: g.id }); else go('groups');
   };
-  const openMembers = () => { setState({ membersOpen: state.gpId, membersQ: '', blockedList: null, gInvWaiting: null }); const g = groupById(state.gpId); if (g && runs(g)) { loadBlocked(g.id); loadGInvWaiting(g.id); } };
+  const openMembers = () => { loadSafety(); setState({ membersOpen: state.gpId, membersQ: '', membersNf: false, blockedList: null, gInvWaiting: null }); const g = groupById(state.gpId); if (g && runs(g)) { loadBlocked(g.id); loadGInvWaiting(g.id); } };
   // v6 Update 13: every member can open the list (to add friends); admins also get emails and role actions
-  const openMembersOf = (g) => {
-    setState({ membersOpen: g.id, membersQ: '', memberOpen: null, membersList: null, blockedList: null, gInvWaiting: null });
+  const openMembersOf = (g, notFriends) => {
+    loadSafety();
+    setState({ membersOpen: g.id, membersQ: '', membersNf: !!notFriends, memberOpen: null, membersList: null, blockedList: null, gInvWaiting: null });
     if (runs(g)) { loadBlocked(g.id); loadGInvWaiting(g.id); }
     sb.rpc(runs(g) ? 'group_members' : 'group_people', { p_group: g.id })
       .then(r => { if (r.error) throw r.error; if (state.membersOpen === g.id) setState({ membersList: r.data || [] }); })
@@ -2271,8 +2282,39 @@
     laterOk = false;   // no tell_later column yet: sign up the old way
     return sb.from('signup_claims').insert(list);
   };
+  // Sign-up notes (Design v8-27 item 4): your note on a job you hold (signup_claims.note, 60 characters), for everyone
+  // going: on the job card and in Who's signed up. Drafts live in state (onIt.note, noteEd) so a reload mid-typing
+  // can't reset the field; the save waits for the claim's own save (quickChain)
+  const NOTE_MAX = 60;
+  const myNoteOf = (s, rowId) => { for (const p of (s && s.items) || []) for (const u of p.rows) if (u.id === rowId) { const c = u.claims.find(x => x.userId === state.me); return c ? c.note || '' : ''; } return ''; };
+  const isJobRow = (s, id) => (s.signups || []).some(u => u.id === id);
+  let noteTimer = null;
+  const saveMyNote = (sid, rowIds, note, wait, done) => {
+    clearTimeout(noteTimer);
+    if (state.viewAs || !rowIds.length) return;
+    const v = (note || '').trim().slice(0, NOTE_MAX);
+    const send = () => {
+      const s = state.sparks.find(x => x.id === sid);
+      if (s) {   // on screen at once, in each shape the event keeps its claims in
+        const fix = (u) => rowIds.indexOf(u.id) < 0 ? u : Object.assign({}, u, { claims: u.claims.map(c => c.userId === state.me ? Object.assign({}, c, { note: v }) : c) });
+        const parts = (list) => (list || []).map(p => p.rows.some(u => rowIds.indexOf(u.id) > -1) ? Object.assign({}, p, { rows: p.rows.map(fix) }) : p);
+        patchSpark(sid, { items: parts(s.items), parts: parts(s.parts), signups: s.signups.map(fix),
+          jobs: (s.jobs || []).map(j => { if (!j.shifts) return fix(j); const shifts = j.shifts.map(fix); return Object.assign({}, j, { shifts, claims: [].concat(...shifts.map(u => u.claims)) }); }) });
+      }
+      quickChain = quickChain.then(() => ensureSession()).then(() => sb.from('signup_claims').update({ note: v || null }).eq('user_id', state.me).in('item_id', rowIds))
+        .then(r => { if (r.error) throw r.error; if (done) done(v); }).catch(e => { console.error(e); toast(failed(e)); });
+    };
+    if (wait) noteTimer = setTimeout(send, wait); else send();
+  };
+  // The job card's own editor (2a): + Add a note or ✎ Edit turns into the field; Enter saves, Esc cancels
+  const noteSave = () => { const ne = state.noteEd; if (!ne) return; setState({ noteEd: null });
+    const had = myNoteOf(state.sparks.find(x => x.id === ne.sid), ne.rid), v = (ne.val || '').trim();
+    if (v === had) return;
+    saveMyNote(ne.sid, [ne.rid], v, 0, (x) => toast(x ? 'Note saved' : 'Note removed', true)); };
   const closeOnIt = () => {
     const b = state.onIt; setState({ onIt: null });
+    if (b && b.note != null) { const s = state.sparks.find(x => x.id === b.id), ids = s ? (b.undo.items || []).filter(id => isJobRow(s, id)) : [];
+      if (s && ids.length && b.note.trim() !== myNoteOf(s, ids[0])) saveMyNote(b.id, ids, b.note, 0); }
     if (!b || !b.undo || !laterOk || !(b.undo.items || []).length || b.undo.del) return;
     const items = b.undo.items.slice();
     quickChain = quickChain.then(() => sb.rpc('tell_hosts_signup', { p_items: items }))
@@ -2288,7 +2330,7 @@
     }, { banner: null }).then(ok => { if (ok) toast('You’re back on it', true); else setState({ banner: null }); });
   };
   const undoClaim = (b) => {
-    clearTimeout(bannerTimer);
+    clearTimeout(bannerTimer); clearTimeout(noteTimer);
     run(async () => {
       await quickChain;   // the sign-up being undone may still be saving
       if (b.undo.del) must(await sb.from('signup_items').delete().eq('id', b.undo.del));
@@ -3484,6 +3526,14 @@
       if (r.data === 'friends') loadFresh().catch(e => console.error(e));
     }).catch(e => { console.error(e); setState({ fr }); toast(failed(e)); });
   };
+  // Design v8-27 item 1: Requested → Cancel request. remove_friend() also drops your request; they're never told
+  const cancelRequest = (uid) => {
+    if (state.viewAs) return run(async () => {});
+    const fr = state.fr;
+    setState({ fr: Object.assign({}, fr, { outgoing: fr.outgoing.filter(x => x !== uid) }) });
+    ensureSession().then(() => sb.rpc('remove_friend', { p_other: uid })).then(r => { if (r.error) throw r.error; toast('Request cancelled', true); })
+      .catch(e => { console.error(e); setState({ fr }); toast(failed(e)); });
+  };
   const removeFriend = (f) => setState({ confirm: { z: 60, title: 'Remove ' + firstName(f.name) + ' as a friend?', body: 'They won’t be told. You’ll still see each other in any groups you share.', cta: 'Remove friend', keep: 'Keep friend', danger: true,
     run: () => run(async () => {
       must(await sb.rpc('remove_friend', { p_other: f.id }));
@@ -3642,6 +3692,32 @@
   const shortDay = (iso) => new Date(iso + 'T12:00').toLocaleDateString('en-US', { weekday: 'short' }) + ' ' + +iso.slice(8);
   const inviteOne = (ids) => setState({ frSel: ids.slice(), frInvite: true, frEvPick: null, frList: null, frAll: false });
 
+  // Design v8-27 item 2: FIND FRIENDS IN YOUR GROUPS. Each of your groups' group_people, fetched when Friends opens
+  // (again after a minute), so the card can count who you aren't friends with yet
+  let frGrp = { at: 0, busy: false, lists: {} };
+  const loadFrGroups = () => {
+    if (!state.email || state.viewAs || frGrp.busy || Date.now() - frGrp.at < 60000) return;
+    const gs = myGroups(); frGrp.busy = true;
+    Promise.all(gs.map(g => sb.rpc('group_people', { p_group: g.id }).then(r => [g.id, r.error ? null : r.data || []], () => [g.id, null])))
+      .then(all => { const lists = {}; all.forEach(([id, l]) => { if (l) lists[id] = l; }); frGrp = { at: Date.now(), busy: false, lists }; if (state.screen === 'friends') render(); })
+      .catch(e => { console.error(e); frGrp.busy = false; });
+  };
+  const frGroupsCard = () => {
+    const st = state, fr = st.fr;
+    if (!fr.loaded || pplQ()) return '';
+    loadFrGroups();
+    const rows = myGroups().map(g => ({ g, L: (frGrp.lists[g.id] || []).filter(m => m.user_id !== st.me && !isFriend(m.user_id) && !sfBlocked(m.user_id)) }))
+      .filter(x => x.L.length).sort((a, b) => b.L.length - a.L.length);
+    if (!rows.length) return '';
+    const row = ({ g, L }, k) => '<div ' + on(() => openMembersOf(g, true)) + ' data-find-friends="' + esc(g.name) + '" aria-label="' + esc(g.name) + ', ' + L.length + ' not friends yet" class="hov-row" style="display:flex;align-items:center;gap:12px;min-height:68px;padding:0 14px;border-top:' + (k ? '1px solid #f2f3f6' : '0') + ';cursor:pointer">' +
+      '<span aria-hidden="true" style="flex:0 0 44px;width:44px;height:44px;border-radius:12px;background:' + groupBg(g, '#dcdfe6') + '"></span>' +
+      '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px"><span style="font-size:15.5px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(g.name) + '</span>' +
+        '<span style="font-size:13px;font-weight:600;color:#6b7280">' + L.length + (L.length === 1 ? ' person' : ' people') + ' not friends yet</span></div>' +
+      '<span aria-hidden="true" style="flex:none;display:flex;padding-left:8px">' + L.slice(0, 3).map(m => '<span style="display:flex;border-radius:999px;box-shadow:0 0 0 2px #fff;margin-left:-8px">' + memberFace(m, 28) + '</span>').join('') + '</span>' +
+      I.chevR(12, '#9aa0ac', 2.8) + '</div>';
+    return '<div data-screen-label="Find friends in your groups" style="display:flex;flex-direction:column;gap:8px"><span style="padding:6px 6px 0;font-size:13px;font-weight:900;letter-spacing:1px;color:#6b7280">FIND FRIENDS IN YOUR GROUPS</span>' +
+      '<div data-find-friends-card style="background:#fff;border-radius:20px;box-shadow:0 1px 3px rgba(15,18,25,.08);overflow:hidden">' + rows.map(row).join('') + '</div></div>';
+  };
   function viewFriends() {
     const st = state, fr = st.fr, q = pplQ();
     const shown = !fr.loaded ? [] : q ? fr.friends.filter(f => f.name.toLowerCase().includes(q) || (f.groups || []).some(g => g.toLowerCase().includes(q))) : fr.friends;
@@ -3701,7 +3777,7 @@
     // No + Add a friend link under the list once you have friends (Design v8 prototype)
     return '<div data-screen-label="Friends">' + tabHead('My friends', openPplSearch, 'Search your friends') +
       '<div style="padding:14px 14px 26px;display:flex;flex-direction:column;gap:12px">' + gsCard() + pplSearchField('Search your friends') +
-        (!fr.loaded ? skeleton(2, 120) : (q ? '' : fr.incoming.map(req).join('')) + goingSec + listsSec + friendsSec + empty) +
+        (!fr.loaded ? skeleton(2, 120) : (q ? '' : fr.incoming.map(req).join('')) + goingSec + listsSec + friendsSec + empty + frGroupsCard()) +
       '</div><div style="height:var(--nav-h)"></div></div>';
   }
 
@@ -6027,6 +6103,16 @@
     const v = !g.membersCanInvite;
     if (await run(async () => { must(await sb.rpc('set_members_can_invite', { p_group: g.id, p_on: v })); })) toast(v ? 'Members can invite people now' : 'Only owners and admins can invite now', true);
   };
+  // Group ⋯ → View as a member (Design v8-27 item 3): the app draws that group as a plain member sees it (role 'member'
+  // in render only; see render()), with a dark pill above the tab bar until Exit. Unlike View as attendee, taps work.
+  const EYE = '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3"/>';
+  const viewAsGroupMember = (g) => { setState({ grpMV: g.id, menu: null }); go('browse', { groupId: g.id }); toast('This is what members of ' + g.name + ' see', true); };
+  const exitGroupMV = () => { setState({ grpMV: null }); toast('Back to your admin view', true); };
+  const gmvBar = () => { const g = state.groups.find(x => x.id === state.grpMV); if (!g) return '';
+    return '<div role="status" data-group-member-view style="position:fixed;z-index:90;bottom:94px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:10px;max-width:calc(100% - 28px);padding:6px 6px 6px 14px;border-radius:999px;background:#0d1117;box-shadow:0 10px 26px rgba(13,17,23,.35);white-space:nowrap">' +
+      svg(18, stroke('#fff', 2.2) + ' style="flex:0 0 auto"', EYE) +
+      '<span style="min-width:0;display:flex;flex-direction:column;line-height:1.15"><span style="font-size:14.5px;font-weight:800;color:#fff">Viewing as a member</span><span style="font-size:12px;font-weight:600;color:#c4c8d0;overflow:hidden;text-overflow:ellipsis">' + esc(g.name) + '</span></span>' +
+      '<span ' + on(exitGroupMV) + ' data-group-member-view-exit style="flex:0 0 auto;display:flex;align-items:center;min-height:34px;padding:0 16px;border-radius:999px;background:#f5b428;color:#2a1d00;font-size:14px;font-weight:900;cursor:pointer">Exit</span></div>'; };
   const openGroupMenu = (g) => {
     setState({ gMenu: g.id, gMenuPeople: null, gMenuBlocked: 0, gMenuReports: 0, menu: null });
     sb.rpc('group_people', { p_group: g.id }).then(r => { if (!r.error && state.gMenu === g.id) setState({ gMenuPeople: r.data || [] }); });
@@ -6062,7 +6148,10 @@
           '<span style="flex:1;font-size:15px;font-weight:800;color:#0d1117">Members</span><span style="font-size:14px;font-weight:800;color:#5b4ae8">' + (n ? 'See all ' + n : 'See all') + '</span></div>' +
         (admin ? '<div style="align-self:stretch;display:flex;flex-direction:column;gap:6px;padding-top:12px;border-top:1px solid #f2f3f6"><span style="padding:0 4px;font-size:12px;font-weight:900;letter-spacing:1px;color:#6b7280">ADMINS ONLY</span>' +
           '<div style="border-radius:16px;background:#f7f7f9;display:flex;flex-direction:column">' +
-            row('Edit group', then(() => openGroupPage(g.id, false, 'browse')), '', true) +
+            // View as a member (Design v8-27 item 3): first under ADMINS ONLY
+            '<div ' + on(then(() => viewAsGroupMember(g))) + ' role="button" data-view-as-member style="min-height:48px;padding:0 14px;display:flex;align-items:center;gap:12px;font-size:15.5px;font-weight:800;color:#0d1117;cursor:pointer">' +
+              svg(18, stroke('#6b7280', 2.2), EYE) + '<span style="flex:1">View as a member</span>' + I.chevR(13, '#b9bcc4', 3) + '</div>' +
+            row('Edit group', then(() => openGroupPage(g.id, false, 'browse'))) +
             row('Invite link &amp; code', then(() => openGroupPage(g.id, false, 'browse'))) +
             // Members can invite people (v8-24 item 3): off by default, per group
             '<div ' + on(() => setMembersInv(g), 'switch') + ' aria-checked="' + !!g.membersCanInvite + '" aria-label="Members can invite people" data-members-inv style="min-height:60px;padding:10px 14px;border-top:1px solid #eceef2;display:flex;align-items:center;gap:12px;cursor:pointer">' +
@@ -6888,6 +6977,24 @@
       const desc = (p.desc || '').trim(), long = desc.length > 90 || desc.split('\n').length > 2;
       const ppl = ids.slice().sort((a, b) => (b === st.me) - (a === st.me)).slice(0, 2);
       const invite = () => setState({ share: canInviteTo(s) ? { id: s.id, copied: false } : { id: s.id, copied: false, pop: 'link', solo: true } });
+      // Sign-up notes (v8-27 item 4): everyone's notes above the footer, yours first with ✎ Edit; + Add a note when you
+      // hold it without one; either opens the field in the card (2a)
+      const editing = !!(mine && st.noteEd && st.noteEd.sid === s.id && st.noteEd.rid === u.id);
+      const myN = mine ? (u.claims.find(c => c.userId === st.me).note || '').trim() : '';
+      const noted = u.claims.filter(c => (c.note || '').trim() && !(c.userId === st.me && editing)).sort((a, b) => (b.userId === st.me) - (a.userId === st.me));
+      const openNote = () => { setState({ noteEd: { sid: s.id, rid: u.id, val: myN } }); setTimeout(() => { const el = document.querySelector('[data-note-edit]'); if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); } }, 30); };
+      const notesHtml = !noted.length ? '' : '<div data-job-notes style="display:flex;flex-direction:column;gap:6px;padding:2px 0 4px">' + noted.map(c => { const me = c.userId === st.me;
+        return '<div data-job-note-row style="display:flex;align-items:flex-start;gap:8px"><span style="display:flex;flex:0 0 22px">' + face(c.userId, personName(s, c.userId), 22) + '</span>' +
+          '<span style="flex:1;min-width:0;font-size:14px;line-height:1.4;font-weight:500;color:#2a2f38;text-wrap:pretty"><b style="font-weight:800;color:#0d1117">' + esc(me ? 'You' : firstName(personName(s, c.userId))) + '</b> · ' + esc(c.note.trim()) + '</span>' +
+          (me ? '<span ' + on(openNote) + ' data-note-edit-btn style="flex:0 0 auto;display:flex;align-items:center;gap:4px;min-height:32px;margin:-6px 0;padding:0 4px;font-size:13.5px;font-weight:800;color:#5b4ae8;cursor:pointer">' + svg(13, stroke('currentColor', 2.4), '<path d="M4 20h4L19 9l-4-4L4 16v4Z"/>') + 'Edit</span>' : '') + '</div>'; }).join('') + '</div>';
+      const addNote = mine && !myN && !editing ? '<span ' + on(openNote) + ' data-note-add class="hov-note-add" style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:34px;padding:0 12px;border-radius:999px;box-shadow:inset 0 0 0 1.5px #c9c2fb;color:#4a3ad4;font-size:14px;font-weight:800;cursor:pointer">' + I.plus(13, 'currentColor', 3) + 'Add a note</span>' : '';
+      const editor = !editing ? '' : '<div data-note-editor style="display:flex;flex-direction:column;gap:8px">' +
+        '<input class="fld" type="text" data-note-edit maxlength="' + NOTE_MAX + '" aria-label="Your note" placeholder="Say what you’re bringing or doing" value="' + esc(st.noteEd.val || '') + '" ' +
+          onInput(e => { if (e.type === 'input' && state.noteEd) setState({ noteEd: Object.assign({}, state.noteEd, { val: e.target.value.slice(0, NOTE_MAX) }) }); }) +
+          ' style="width:100%;box-sizing:border-box;min-height:48px;padding:0 14px;border:0;border-radius:12px;background:#f2f3f6;box-shadow:inset 0 0 0 2px #5b4ae8;font-family:inherit;font-size:16px;font-weight:600;color:#0d1117;outline:none">' +
+        '<div style="display:flex;align-items:center;gap:8px"><span style="flex:1;min-width:0;font-size:12.5px;font-weight:600;color:#6b7280">Everyone going sees this. · ' + (st.noteEd.val || '').length + '/' + NOTE_MAX + '</span>' +
+          '<span ' + on(() => setState({ noteEd: null })) + ' data-note-cancel style="display:flex;align-items:center;min-height:36px;padding:0 10px;font-size:14px;font-weight:800;color:#6b7280;cursor:pointer">Cancel</span>' +
+          '<span ' + on(noteSave) + ' data-note-save class="hov-primary" style="display:flex;align-items:center;min-height:36px;padding:0 16px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:14px;font-weight:800;cursor:pointer">Save</span></div></div>';
       const tag = 'flex:0 0 auto;display:flex;align-items:center;gap:5px;height:30px;padding:0 13px;border-radius:999px;font-size:13.5px;font-weight:800;white-space:nowrap;';
       // Before you sign up (5a): a small Sign up; a full job a grey Full chip, or Waitlist when it has one (build); in line: Leave
       const top = mine ? '<span ' + on(() => giveUpPart(s, u)) + ' role="button" data-part-give-up aria-label="You’re in. Tap to take yourself off" style="' + tag + 'padding:0 11px;background:#149a4b;color:#fff;cursor:pointer">' +
@@ -6905,6 +7012,7 @@
             (long && !open ? ';display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden' : '') + '">' + esc(desc) + '</p>' +
           (long ? '<span ' + on(() => setState({ descOpen: Object.assign({}, st.descOpen, { [p.id]: !open }) })) + ' role="button" aria-expanded="' + open + '" data-held-more style="align-self:flex-start;display:flex;align-items:center;gap:4px;min-height:28px;font-size:13.5px;font-weight:800;color:#6b7280;cursor:pointer">' +
             (open ? 'Less' : 'More') + '<span style="display:flex;transform:' + (open ? 'rotate(180deg)' : 'none') + '">' + I.chevD(13, 'currentColor', 2.8) + '</span></span>' : '') + '</div>' : '') +
+        addNote + notesHtml + editor +
         '<div style="display:flex;align-items:center;gap:10px;margin:2px -16px -14px;padding:8px 16px;border-top:1px solid #f2f3f6">' +
           '<div ' + on(() => setState({ partRoster: { id: s.id, part: p.id } })) + ' role="button" data-held-who aria-label="Who’s signed up" style="flex:0 1 auto;min-width:0;display:flex;align-items:center;gap:8px;min-height:36px;cursor:pointer">' +
             '<span style="display:flex;align-items:center">' + ppl.map((id, k) => '<span style="display:flex;border-radius:999px;box-shadow:0 0 0 2px #fff' + (k ? ';margin-left:-8px' : '') + '">' + face(id, personName(s, id), 30) + '</span>').join('') +
@@ -6962,22 +7070,27 @@
     const host = isLead(s), close = () => setState({ partRoster: null });
     const total = p.rows.every(u => u.need) ? p.rows.reduce((a, u) => a + u.need, 0) : 0, have = p.rows.reduce((a, u) => a + u.claims.length, 0);
     const isGuest = (id) => s.contacts.some(c => c.user_id === id && c.phone);
-    const person = (u, id) => '<div data-roster-person style="display:flex;align-items:center;gap:10px;min-height:44px">' + face(id, personName(s, id), 32) +
-      '<span style="flex:1;min-width:0;display:flex;align-items:center;gap:8px;font-size:15.5px;font-weight:800;color:#0d1117"><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(personName(s, id)) + '</span>' +
+    // the person's sign-up note under their name (Design v8-27 item 4)
+    const person = (u, id) => { const n = ((u.claims.find(c => c.userId === id) || {}).note || '').trim();
+      return '<div data-roster-person style="display:flex;align-items:center;gap:10px;min-height:44px">' + face(id, personName(s, id), 32) +
+      '<span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px"><span style="display:flex;align-items:center;gap:8px;min-width:0;font-size:15.5px;font-weight:800;color:#0d1117"><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(personName(s, id)) + '</span>' +
         (isGuest(id) ? '<span style="flex:0 0 auto;padding:2px 7px;border-radius:999px;background:#eef0f3;font-size:11px;font-weight:900;letter-spacing:.6px;color:#6b7280">GUEST</span>' : '') + '</span>' +
+        (n ? '<span data-roster-note style="font-size:13.5px;line-height:1.35;font-weight:500;color:#454b55;text-wrap:pretty">' + esc(n) + '</span>' : '') + '</span>' +
       (host && isGuest(id) ? contactLink(s.contacts.find(c => c.user_id === id).phone) : '') +
-      (id === state.me || !host ? '' : '<span ' + on(() => removeFromPart(s, u, id)) + ' data-roster-remove role="button" style="flex:0 0 auto;min-height:36px;display:flex;align-items:center;font-size:14px;font-weight:700;color:#8a909b;cursor:pointer">Remove</span>') + '</div>';
+      (id === state.me || !host ? '' : '<span ' + on(() => removeFromPart(s, u, id)) + ' data-roster-remove role="button" style="flex:0 0 auto;min-height:36px;display:flex;align-items:center;font-size:14px;font-weight:700;color:#8a909b;cursor:pointer">Remove</span>') + '</div>'; };
     const block = (u) => { const open = Math.max(0, (u.need || 0) - u.claims.length), live = phaseOf(s) !== 'done';
       return '<div data-roster-row style="display:flex;flex-direction:column;gap:2px;padding:10px 0;border-top:1px solid #f2f3f6">' +
         '<div style="font-size:14px;font-weight:600;color:#6b7280"><b style="font-weight:900;color:#0d1117">' + esc(u.time ? slotTime(u.time) : p.item) + '</b> · ' + (!u.need ? u.claims.length + ' signed up' : open ? open + ' open' : 'full') + (u.waits.length ? ' · ' + u.waits.length + ' waiting' : '') + '</div>' +
         u.claims.map(c => person(u, c.userId)).join('') +
         ((open || !u.need) && live && host ? '<span ' + on(() => { setState({ partRoster: null }); openJobAsk(s, { id: u.id }); }) + ' data-roster-ask role="button" style="align-self:flex-start;display:flex;align-items:center;gap:6px;min-height:36px;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(14, '#5b4ae8', 2.8) + 'Ask someone</span>' : '') +
         (u.waits.length ? '<div data-roster-waiting style="font-size:13.5px;font-weight:700;color:#6b7280">Waiting: ' + esc(u.waits.map(id => firstName(personName(s, id))).join(', then ')) + '</div>' : '') + '</div>'; };
-    return sheet('Who’s signed up', close, SHEET_PAD,
+    // A centred pop-up like You're signed up! (Design v8-27 item 5; was a slide-up): 360px, 24px corners, scrolls past 88%
+    return '<div class="modal-scrim" data-scrim="' + reg(close) + '" style="z-index:36">' +
+      '<div role="dialog" aria-modal="true" aria-label="Who’s signed up" data-screen-label="Who’s signed up" data-who-signed-up style="position:relative;width:100%;max-width:360px;max-height:88%;overflow-y:auto;box-sizing:border-box;background:#fff;border-radius:24px;padding:22px 18px 18px;display:flex;flex-direction:column;gap:12px;box-shadow:0 20px 50px rgba(13,17,23,.35);animation:popIn 240ms cubic-bezier(.22,.9,.28,1) both">' +
       '<div style="display:flex;align-items:flex-start;gap:10px"><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:800;letter-spacing:1.2px;color:#5b4ae8">' + esc(p.item.toUpperCase()) + '</div>' +
         '<div style="margin-top:2px;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.4px;color:#0d1117">' + have + (total ? ' of ' + total : '') + ' signed up</div></div>' +
         (host ? '<span ' + on(() => { setState({ partRoster: null }); openNeeds(s); }) + ' role="button" style="flex:0 0 auto;min-height:36px;display:flex;align-items:center;gap:5px;font-size:14px;font-weight:800;color:#6b7280;cursor:pointer">' + svg(13, stroke('currentColor', 2.3), PENCIL) + 'Edit</span>' : '') + closeX(close) + '</div>' +
-      '<div style="display:flex;flex-direction:column">' + p.rows.map(block).join('') + '</div>', 36);
+      '<div style="display:flex;flex-direction:column">' + p.rows.map(block).join('') + '</div></div></div>';
   }
 
   // A guest claiming (or joining a waitlist): a first name and a phone or email, for the hosts only. No text reminder yet
@@ -12133,7 +12246,11 @@
     if (!g || !g.role) return '';
     const admin = runs(g), owner = g.role === 'owner', list = st.membersList || [], owners = list.filter(m => m.role === 'owner').length;
     const q = st.membersQ.trim().toLowerCase();
-    const rows = list.filter(m => m.user_id === st.me).concat(list.filter(m => m.user_id !== st.me)).filter(m => !q || m.name.toLowerCase().includes(q));
+    // Design v8-27 item 1: Everyone · Not friends yet · N (anyone but you who isn't a friend and isn't blocked)
+    const nfOk = (m) => m.user_id !== st.me && st.fr.loaded && !isFriend(m.user_id) && !sfBlocked(m.user_id), nf = !!st.membersNf && st.fr.loaded;
+    const nfN = list.filter(nfOk).length;
+    const rows = list.filter(m => m.user_id === st.me).concat(list.filter(m => m.user_id !== st.me)).filter(m => (!q || m.name.toLowerCase().includes(q)) && (!nf || nfOk(m)));
+    const fchip = (label, act, fn, attr) => '<span ' + on(fn) + ' aria-pressed="' + act + '" ' + attr + ' style="flex:0 0 auto;display:flex;align-items:center;min-height:34px;padding:0 14px;border-radius:999px;background:' + (act ? '#0d1117' : '#f2f3f6') + ';color:' + (act ? '#fff' : '#454b55') + ';font-size:14px;font-weight:800;cursor:pointer;white-space:nowrap">' + label + '</span>';
     const chip = (role) => role === 'member' ? '' : roleBadge(role, 'padding:3px 9px');
     const pill = (label, fn) => '<span ' + on(fn) + ' class="hov-outline" style="flex:0 0 auto;display:flex;align-items:center;min-height:36px;padding:0 14px;border:1.5px solid #dcdfe6;border-radius:999px;background:#fff;font-size:13.5px;font-weight:800;color:#0d1117;cursor:pointer">' + label + '</span>';
     const redBtn = (label, fn) => '<span ' + on(fn) + ' class="hov-danger" style="flex:0 0 auto;display:flex;align-items:center;min-height:36px;padding:0 14px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #f5c2cb;font-size:13.5px;font-weight:800;color:#9b1c31;cursor:pointer">' + label + '</span>';
@@ -12150,31 +12267,38 @@
       if (admin && !mine && (owner || m.role === 'member')) out.push(redBtn('Remove from group', () => removeMember(g, m)), redBtn('Remove and block', () => removeMember(g, m, true)));
       return out.join('');
     };
-    // v6 Update 13: friend requests start here (you share this group)
+    // Design v8-27 item 1: each row (not you) ends in a 40px round friend button; a grey line under the name says the state.
+    // f friends · a they asked you (green Accept) · r you asked (tap to cancel) · n add. Blocked people get no button.
+    const frKey = (m) => m.user_id === st.me || !st.fr.loaded || sfBlocked(m.user_id) ? '' : isFriend(m.user_id) ? 'f' : st.fr.incoming.some(f => f.id === m.user_id) ? 'a' : st.fr.outgoing.indexOf(m.user_id) > -1 ? 'r' : 'n';
+    const PERSON = '<circle cx="9" cy="8" r="4"/><path d="M2 21c0-3.9 3.1-7 7-7s7 3.1 7 7"/>';
+    const round = (bg, ink, paths, label, fn, attr) => '<span ' + (fn ? on((e) => { stop(e); fn(); }, 'button') + ' ' : '') + 'aria-label="' + label + '" ' + attr + ' style="flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:' + bg + ';display:flex;align-items:center;justify-content:center;' + (fn ? 'cursor:pointer' : '') + '"' + (fn && bg === '#f3f1fe' ? ' class="hov-fradd"' : '') + '>' + svg(20, stroke(ink, 2.2), PERSON + paths) + '</span>';
     const friendBtn = (m) => {
-      if (m.user_id === st.me || !st.fr.loaded) return '';
-      const asked = st.fr.incoming.find(f => f.id === m.user_id);
-      if (isFriend(m.user_id)) return '<span data-friend-state style="flex:0 0 auto;display:flex;align-items:center;gap:6px;min-height:36px;padding:0 14px;border-radius:999px;background:#e7f6ec;font-size:13.5px;font-weight:800;color:#0f7a3c">' + I.check(12, '#0f7a3c', 3.2) + 'Friends</span>';
-      if (asked) return '<span ' + on(() => answerRequest(asked, true)) + ' class="hov-primary" style="flex:0 0 auto;display:flex;align-items:center;min-height:36px;padding:0 14px;border-radius:999px;background:#5b4ae8;font-size:13.5px;font-weight:800;color:#fff;cursor:pointer">Accept friend request</span>';
-      if (st.fr.outgoing.indexOf(m.user_id) > -1) return '<span data-friend-state style="flex:0 0 auto;display:flex;align-items:center;min-height:36px;padding:0 14px;border-radius:999px;background:#f2f3f6;font-size:13.5px;font-weight:800;color:#6b7280">Requested</span>';
-      return '<span ' + on(() => sendRequest(m.user_id, m.name)) + ' class="hov-primary" style="flex:0 0 auto;display:flex;align-items:center;gap:6px;min-height:36px;padding:0 14px;border-radius:999px;background:#5b4ae8;font-size:13.5px;font-weight:800;color:#fff;cursor:pointer">' +
-        svg(14, stroke('#fff', 2.6), '<circle cx="9.5" cy="8" r="3.5"/><path d="M3 20a6.5 6.5 0 0 1 13 0"/><path d="M19 8v6M16 11h6"/>') + 'Add friend</span>';
+      const k = frKey(m), first = firstName(m.name) || m.name;
+      if (k === 'f') return round('#e7f6ec', '#149a4b', '<path d="m16 11 2 2 4-4"/>', 'Friends', null, 'data-friend-state="friends"');
+      if (k === 'a') { const asked = st.fr.incoming.find(f => f.id === m.user_id);
+        return '<span ' + on((e) => { stop(e); answerRequest(asked, true); }, 'button') + ' data-friend-state="accept" style="flex:0 0 auto;display:flex;align-items:center;min-height:36px;padding:0 13px;border-radius:999px;background:#149a4b;font-size:14px;font-weight:800;color:#fff;cursor:pointer">Accept</span>'; }
+      if (k === 'r') return round('#f2f3f6', '#9aa0ac', '<circle cx="19" cy="11" r="3.4"/><path d="M19 9.6V11l1 .8"/>', 'Requested', () => setState({ confirm: { title: 'Cancel your request to ' + first + '?', body: first + ' won’t be told.', cta: 'Cancel request', keep: 'Keep it', danger: true,
+        run: () => { setState({ confirm: null }); cancelRequest(m.user_id); } } }), 'data-friend-state="requested"');
+      if (k === 'n') return round('#f3f1fe', '#5b4ae8', '<path d="M19 8v6M16 11h6"/>', 'Add friend', () => sendRequest(m.user_id, m.name), 'data-friend-state="add"');
+      return '';
     };
+    const frLine = (m) => ({ f: 'Friends', r: 'Requested', a: 'Asked to be your friend' })[frKey(m)] || '';
     const joined = (t) => t ? new Date(t).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '';
     const panel = (m) => '<div data-member-panel style="margin:0 6px 10px;padding:12px 14px;border-radius:14px;background:#f7f7f9;display:flex;flex-direction:column;gap:10px">' +
       '<div style="display:flex;flex-direction:column;gap:3px;font-size:14px;font-weight:600;color:#454b55">' +
         (admin ? '<div style="display:flex;align-items:center;gap:8px;min-width:0"><span style="flex:0 0 auto;font-size:12px;font-weight:900;letter-spacing:.6px;text-transform:uppercase;color:#8a909b">Email</span>' +
           (m.email ? '<a href="mailto:' + esc(m.email) + '" style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#4a3ad4;font-weight:700;text-decoration:none">' + esc(m.email) + '</a>' : '<span style="color:#8a909b">Not shared</span>') + '</div>' : '') +
         (m.joined_at ? '<div style="font-size:13px;color:#6b7280">Joined ' + esc(joined(m.joined_at)) + '</div>' : '') + '</div>' +
-      (friendBtn(m) || actions(m) || m.user_id !== st.me ? '<div style="display:flex;flex-wrap:wrap;gap:8px">' + friendBtn(m) +
+      (actions(m) || m.user_id !== st.me ? '<div style="display:flex;flex-wrap:wrap;gap:8px">' +
         (m.user_id !== st.me ? pill('See profile', () => openPerson(m.user_id)) : '') + actions(m) + '</div>' : '') + '</div>';
     const row = (m) => { const open = st.memberOpen === m.user_id;
       return '<div data-member="' + esc(m.name) + '" style="border-bottom:1px solid #f2f3f6">' +
         '<div ' + on(() => setState({ memberOpen: open ? null : m.user_id })) + ' aria-expanded="' + open + '" aria-label="' + esc(m.name) + (m.user_id === st.me ? ' (you)' : '') + '" style="display:flex;align-items:center;gap:12px;min-height:58px;padding:6px;cursor:pointer">' +
           memberFace(m, 40) +
-          '<div style="flex:1;min-width:0;display:flex;align-items:center;gap:6px"><span style="font-size:16px;font-weight:700;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(m.name) + '</span>' +
+          '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px"><div style="display:flex;align-items:center;gap:6px;min-width:0"><span style="font-size:16px;font-weight:700;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(m.name) + '</span>' +
             (m.user_id === st.me ? '<span style="font-size:14px;font-weight:600;color:#8a909b">(you)</span>' : '') + '</div>' +
-          chip(m.role) +
+            (frLine(m) ? '<span data-friend-line style="font-size:13px;font-weight:600;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + frLine(m) + '</span>' : '') + '</div>' +
+          chip(m.role) + friendBtn(m) +
           '<span aria-hidden="true" style="flex:0 0 auto;display:flex;transition:transform .15s;transform:' + (open ? 'rotate(180deg)' : 'none') + '">' + I.chevD(14, '#9aa0ac', 2.8) + '</span>' +
         '</div>' + (open ? panel(m) : '') + '</div>'; };
     return sheet('Members', close, 'height:84%;display:flex;flex-direction:column;padding:10px 0 0',
@@ -12189,13 +12313,14 @@
           '<input class="fld" type="search" aria-label="Search members" placeholder="Search members" value="' + esc(st.membersQ) + '" ' + onInput(e => { if (e.type === 'input') setState({ membersQ: e.target.value.slice(0, 40) }); }) + ' style="flex:1;min-width:0;border:0;outline:none;background:transparent;font-family:inherit;font-size:16px;font-weight:600;color:#0d1117">' +
           (st.membersQ ? '<span ' + on(() => setState({ membersQ: '' })) + ' aria-label="Clear search" style="flex:0 0 24px;width:24px;height:24px;border-radius:999px;background:#c3c7d0;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(10, '#fff', 4) + '</span>' : '') +
         '</label>' +
+        (st.fr.loaded && st.email ? '<div data-members-chips style="display:flex;gap:8px;padding:2px 2px 10px">' + fchip('Everyone', !nf, () => setState({ membersNf: false }), 'data-members-all') + fchip('Not friends yet · ' + nfN, nf, () => setState({ membersNf: true }), 'data-members-nf') + '</div>' : '') +
       '</div>' +
       '<div style="flex:1;overflow:auto;padding:0 14px 22px">' +
         (st.membersList == null
           ? '<div style="padding:28px 8px;text-align:center;font-size:15px;font-weight:600;color:#8a909b">Loading…</div>'
-          : (admin && !q ? gInvWaitingBlock(g) : '') + rows.map(row).join('') +
-            (rows.length ? '' : '<div style="padding:28px 8px;text-align:center;font-size:15px;font-weight:600;color:#8a909b">No one by that name.</div>')) +
-        (admin && (st.blockedList || []).length && !q ? '<div data-blocked style="margin-top:18px;display:flex;flex-direction:column">' +
+          : (admin && !q && !nf ? gInvWaitingBlock(g) : '') + rows.map(row).join('') +
+            (rows.length ? '' : '<div style="padding:28px 8px;text-align:center;font-size:15px;font-weight:600;color:#8a909b">' + (nf && !q ? 'You’re friends with everyone here.' : 'No one by that name.') + '</div>')) +
+        (admin && (st.blockedList || []).length && !q && !nf ? '<div data-blocked style="margin-top:18px;display:flex;flex-direction:column">' +
           '<span style="padding:0 6px 6px;font-size:12px;font-weight:900;letter-spacing:.6px;text-transform:uppercase;color:#8a909b">Blocked</span>' +
           st.blockedList.map(b => '<div data-blocked-row="' + esc(b.name) + '" style="display:flex;align-items:center;gap:12px;min-height:58px;padding:6px;border-bottom:1px solid #f2f3f6">' +
             memberFace(b, 40) +
@@ -12796,7 +12921,7 @@
 
     return '<div class="ptr" aria-hidden="true"><span class="ptr-spin"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v4.5h-4.5"/></svg></span></div>' +
       '<div class="scroller"' + (under ? ' inert aria-hidden="true"' : '') + '>' + main + '</div>' +
-      (st.viewAs ? previewBar() : '') +
+      (st.viewAs ? previewBar() : st.grpMV ? gmvBar() : '') +
       // v6 sheets sit under the pop-ups they open (Edit profile, Notification settings, sign-in, guest info)
       // My tasks (v8-9) first: its Search and bell open their sheets over it
       (st.email && st.tkSheet && s === 'me' ? viewTasksSheet() : '') +
@@ -13055,7 +13180,15 @@
     H = [];
     GEN++;
     FLOAT = '';
-    const html = view() + FLOAT;   // an open time list or calendar, over everything
+    // View as a member (v8-27 item 3): draw that group with role 'member', then put the real role back, even if a
+    // setState during the draw swapped state (its groups are mapped back by id)
+    const mvG = state.grpMV && state.groups.find(g => g.id === state.grpMV && runs(g));
+    let html;
+    if (mvG) {
+      const realRole = mvG.role, back = (gs) => gs.map(g => g._mv ? Object.assign({}, g, { role: realRole, _mv: undefined }) : g);
+      state.groups = state.groups.map(g => g === mvG ? Object.assign({}, g, { role: 'member', _mv: true }) : g);
+      try { html = view() + FLOAT; } finally { state.groups = back(state.groups); }
+    } else html = view() + FLOAT;   // an open time list or calendar, over everything
     handlers = H;
     tpl.innerHTML = html;
     morphChildren(root, tpl.content);
@@ -13113,6 +13246,7 @@
     if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('[data-cal-day],[data-cal-nav]')) { e.preventDefault(); e.target.click(); return; }
     if ((e.key === 'Enter' || e.key === 'Escape') && e.target.matches && e.target.matches('[data-title-inline]')) { e.preventDefault(); evTitleDone(); return; }
     if (e.key === 'Enter' && e.target.matches && e.target.matches('[data-time-type]')) { e.preventDefault(); e.target.blur(); return; }
+    if ((e.key === 'Enter' || e.key === 'Escape') && !e.isComposing && e.target.matches && e.target.matches('[data-note-edit]')) { e.preventDefault(); if (e.key === 'Enter') noteSave(); else setState({ noteEd: null }); return; }
     if (e.key === 'Enter' && !e.isComposing && e.target.matches && e.target.matches('[data-comment-input], [data-reply-input]')) {
       e.preventDefault(); const b = e.target.parentElement.querySelector('[aria-disabled="false"]'); if (b) b.click(); return;
     }

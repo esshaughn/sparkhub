@@ -6,7 +6,7 @@
 - **Source:** github.com/esshaughn/sparkhub (`index.html`, `js/sparks.js`, `css/sparks.css`, `privacy.html`, `supabase/templates/`)
 - **Baseline:** Claude Design's **round v8-17** (`design/spark-hub/HANDOFF-to-CODE.md` and `Spark Hub App Version 8.dc.html`, 2026-10-09), built in full (with your v8-16 clarity pass): see *Round v8-17 in short*. Rows 212–227 are new since v8-15.
 - **Build version:** **v8** (v7 from owner, 2026-10-02): a lead is a choice. Since v8-8 an idea is led from the start (*Who leads it · Me*) or floated (*I'll decide*), and both use the new idea page.
-- **As of:** 2026-10-11 (round v8-26 built on `test`). **Everything through round v8-25 is live** (main `1dfc43f`, v=416). Questions for you are in §5.
+- **As of:** 2026-10-12 (round v8-27 built on its own branch, `v8-27`). **Everything through round v8-26 is live** (main `8a4269d`, v=417). Questions for you are in §5.
 
 ## Start here (2026-10-10): HANDOFF-to-DESIGN-17
 
@@ -90,6 +90,18 @@ None of these are built. They come from the owner's own list and the pilot group
 - **Event cards that say *6 spots left*** (Q43) read like an RSVP cap.
 
 ---
+
+## Round v8-27 in short
+
+*Built from HANDOFF-to-CODE v8-27 on 2026-10-12, not live yet. No migration: friend requests, blocks and `signup_claims.note` (60 characters) were already in the database. The prototype was diffed against v8-26's: nothing changed beyond items 1–5.*
+
+| Item | Status |
+|---|---|
+| 1: add friends from a group's Members list (1b) | Done as drawn: the 40px round button on every row but yours (Add · Requested · Friends · a green **Accept** pill), the grey state line under the name, and **Everyone · Not friends yet · N** under the search (opening on Everyone). The Add friend pill inside the opened row is gone. **Build details:** cancelling a request toasts *Request cancelled*; Not friends yet with nobody left reads *You're friends with everyone here.*; while Not friends yet is on, the admin-only Invited and Blocked blocks are hidden. **Blocks:** the app knows only who *you* blocked (those people get no button and are left out of the count). Someone who blocked you still shows Add; the request is dropped quietly by the database, so it reads *Requested* to you, like a declined one |
+| 2: FIND FRIENDS IN YOUR GROUPS (2c) | Done as drawn, under Your friends (and under the empty *No friends here yet* card when you have none). The counts come from each of your groups' member lists, fetched when Friends opens and again at most once a minute. A row opens that group's Members list on *Not friends yet*; closing it leaves you on Friends (Members is a sheet over Friends, so there's no separate back) |
+| 3: Group ⋯ → View as a member | Done as drawn: first row under ADMINS ONLY, the toast, the dark pill 94px up with gold Exit, and taps work. It changes only how that group is drawn (you're a plain member in it everywhere, the event pages included) until Exit; reloading the app also ends it. The per-event *Admin view* (row 254) is separate and unchanged |
+| 4: sign-up notes | Done as drawn: **ADD A NOTE** on *You're signed up!* (jobs and their shifts, not spots to take part; the shift picker's own note field fills it), saved as you type; the notes above the job card's footer, yours first with **✎ Edit**; **+ Add a note** under the description when you hold the job without one; the in-card field with Cancel / Save, Enter / Esc, *Note saved* / *Note removed*; notes under each name in Who's signed up (hosts see them there too). Notes show on the one-row job card (people who aren't hosting); a job with several times and the host's card don't list them, only Who's signed up does |
+| 5: Who's signed up is a centred pop-up | Done as drawn (360px, 24px corners, popIn, scrolls past 88%). The close is the usual 40px grey round × in the header row, not a 36px one pinned to the corner |
 
 ## Round v8-26 in short
 
