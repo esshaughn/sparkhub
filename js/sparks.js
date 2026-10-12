@@ -689,7 +689,8 @@
     const frP = state.email && !state.viewAs ? sb.rpc('friend_state').then(r => r, () => ({ error: true })) : Promise.resolve({ data: null });
     const [mem, grp, sp, of, it, gc, rs, dop, dvo, sop, svo, sui, scl, upd, org, alb, prp, rct, sgr, drf, nts, las, inv, jas, lof, swt, tlk, ewt] = await Promise.all([
       sb.from('memberships').select('group_id,role,last_seen_at,pinned'),
-      sb.from('groups').select('id,name,photo,photo_pos,demo,members_can_invite')
+      sb.from('groups').select('id,name,photo,photo_pos,demo,members_can_invite,place_name,place_kind,place_lat,place_lon,place_radius_m,purpose,plan,sponsored')
+        .then(r => r.error && r.error.code === '42703' ? sb.from('groups').select('id,name,photo,photo_pos,demo,members_can_invite') : r)   // place…sponsored: 20261202020000
         .then(r => r.error && r.error.code === '42703' ? sb.from('groups').select('id,name,photo,photo_pos,demo') : r),   // members_can_invite: 20261130000000
       sb.from('sparks').select('*').order('created_at', { ascending: false }),
       sb.from('offers').select('*').order('created_at'),
