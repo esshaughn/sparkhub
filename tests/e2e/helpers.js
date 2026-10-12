@@ -136,7 +136,7 @@ async function newMember(browser, path, stored) {
     const orig = page[m].bind(page);
     page[m] = async (...a) => { await othersSaved(page); return orig(...a); };
   }
-  await page.goto(path || '/');
+  await page.goto(path || '/#/schedule');   // the bare address sends a first-time visitor to the website (js/front.js)
   await expectConnected(page, errors);
   return { context, page, errors };
 }

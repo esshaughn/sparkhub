@@ -109,6 +109,16 @@ None of these are built. They come from the owner's own list and the pilot group
 - **Who can join** (group ⋯ → Admins only, a row with the current value): a pop-up with three cards (Neighbors · Nearby neighbors · Everyone) and *Everyone already in stays…*; only owners can change it.
 - **Members:** *Joined October 2026 · Lives nearby* in a member's panel (admins).
 
+## Starting a group: a draft, a team and a review (2026-10-12, branch `structure-v1`)
+
+*Invented by the build from the owner's direction (a group starts like an event: draft it, find your team, then it opens); please redraw. It replaces the *Groups start by request* pop-up and its feedback form.*
+
+- **Start a group** (`#/request`, a white header like How this works, grey page): a card with *Starting a group is a big deal*, a paragraph on responsibility, three numbered steps on purple circles, a grey line on associations, **Start a draft**; then white list cards (*WAITING FOR YOUR REVIEW* for the owner, *YOU’RE ASKED ONTO*, *YOUR REQUESTS*), each row the name, a grey line and a status chip (DRAFT grey, IN REVIEW gold, OPEN green, NOT APPROVED red).
+- **A draft** (`#/request/<id>`, header = the group's name or *New group*): the status chip, then white section cards with grey eyebrows: THE GROUP (Name; The place + *It doesn’t have to match a map*; kind pills; *Where’s the middle of it?* search + Find + results; *How big is it?* ¼ mile · ½ mile · 1 mile · 2 miles; the place card with the map; What it’s for), HOW IT’LL RUN (Who can join pills; association pills and its name), WHY, AND HOW IT’LL SPREAD (two text boxes), THE TEAM (rows: face, You / name, Lead · responsible for the group / Co-lead / Admin / Ambassador, an In / Asked / Not now chip, ✕; outlined **+ A co-lead**, **+ An admin**, **+ An ambassador** pills), WHAT LEADING MEANS (five green ✓ lines and a *We’ll take this on together* checkbox row), then *Still needed: …*, **Send for review** and a red *Delete draft*.
+- **Asking someone:** a pop-up *Ask a co-lead* with the role's line and your friends with **Ask**; no friends yet → *Add them as a friend first*.
+- **The person asked:** a card with a purple ring at the top: *{Name} asked you to be co-lead*, the role's line, **Yes, I’m in** / **Not now** (then *You’re in.*).
+- **States:** In review (pale gold card, *Take it back to edit*); Open (pale green, the owner's note, **Go to the group**); Not approved (pale red, the note, *Edit and send again*). The app owner's YOUR REVIEW card: a note box, **Approve** / **Decline**.
+
 ## Round v8-26 in short
 
 *Built from HANDOFF-to-CODE v8-26 on 2026-10-11, on `test`, not live yet. One migration, `20261201000000_v8_26.sql` (`sparks.contact`, `rsvps.repick`, `group_invite_landing()`). The prototype was diffed against v8-25's: nothing changed beyond items 3, 6, 7 and 8.*

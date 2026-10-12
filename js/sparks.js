@@ -361,6 +361,7 @@
       return code && location.pathname === '/e/' + code ? '' : '#/idea/' + state.subjectId;
     }
     if (s === 'groupPage' && state.gpId) return '#/group/' + state.gpId;
+    if (s === 'request') return '#/request' + (state.reqId ? '/' + state.reqId : '');
     if (s === 'compose') return '#/new';   // its own history entry, so the phone's Back stays in the flow (followUrl)
     // Your calendar is the home screen (v7 Update 16, owner 2026-10-03; the Calendar, now Explore, was until then)
     const plain = { calendar: '#/explore', home: '#/tasks', sched: '', ideas: '#/ideas', browse: '#/browse', how: '#/how', own: '#/own', groups: '#/groups', friends: '#/friends', me: '#/me' };
@@ -402,6 +403,8 @@
     if (h === '#/ideas') return { screen: 'ideas' };   // the Ideas tab (v8-4); until then #/ideas was a group's Ideas · Plans · Past
     if (h === '#/browse') return { screen: 'browse' };
     if (h === '#/how') return { screen: 'how' };
+    m = h.match(/^#\/request(?:\/([0-9a-f-]{36}))?$/);   // starting a group (20261202040000)
+    if (m) return { screen: 'request', reqId: m[1] || null };
     if (h === '#/calendar' || h === '#/explore') return { screen: 'calendar' };
     if (h === '#/schedule') return { screen: 'sched' };
     if (h === '#/signin') return { screen: 'sched' };   // the website's Sign in (signed out: Welcome; signed in: the calendar)
@@ -417,7 +420,7 @@
   };
 
   const setState = (patch) => {
-    const prevStep = state.evStep, prevScreen = state.screen, prevSubj = state.subjectId, prevGp = state.gpId;
+    const prevStep = state.evStep, prevScreen = state.screen, prevSubj = state.subjectId, prevGp = state.gpId, prevReq = state.reqId;
     Object.assign(state, patch);
     savePrefs();
     if (state.screen === 'compose') keepCompose();
@@ -426,7 +429,7 @@
       const ov = document.querySelector('.overlay-screen');
       if (ov) ov.scrollTop = 0;
     }
-    if (state.screen !== prevScreen || state.subjectId !== prevSubj || state.gpId !== prevGp) syncHash(prevScreen);
+    if (state.screen !== prevScreen || state.subjectId !== prevSubj || state.gpId !== prevGp || state.reqId !== prevReq) syncHash(prevScreen);
     if (state.screen === 'browse' && prevScreen !== 'browse') hintVisit();   // the swipe arrows' first visits
   };
 
@@ -1396,7 +1399,8 @@
   const REQ_CHIP = '<span data-request-chip style="display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:999px;background:#fff4dc;color:#8f6405;font-size:10.5px;font-weight:900;letter-spacing:.6px">REQUEST</span>';
   const requestFeature = (name, plural) => setState({ menu: null, dayTypePop: null, confirm: { title: name + (plural ? ' aren’t' : ' isn’t') + ' here yet', body: 'Spark Hub is still new, and we build what people ask for. Want this one? Let Eric know.',
     cta: 'Request it', run: () => setState({ confirm: null, fb: { text: '', kind: 'feature', feature: name } }), keep: 'Not now', x: true, z: 52 } });
-  const startGroup = () => setState({ menu: null, pplAdd: false, joinOpen: false, confirm: { title: 'Groups start by request', body: 'Spark Hub is still new, and we’re building it as we go. Tell us who your group is for and Eric will take a look. You can join any group with its code or link.', cta: 'Request a group', run: askForGroup, keep: 'Not now', x: true } });
+  // Groups start with a draft, a team and a review (owner, 2026-10-12): Start a group opens #/request
+  const startGroup = () => openRequest();
   const submitStartGroup = async () => {
     const name = titleCase(state.startName || '').slice(0, 40);
     if (name.length < 2 || state.busy) return;
@@ -11731,7 +11735,7 @@
       (f && f.name ? '<div data-join-found style="display:flex;align-items:center;gap:8px;font-size:14.5px;font-weight:800;color:#0f7a3c">' + svg(16, stroke('#149a4b', 3), '<path d="M5 12.5l4.5 4.5L19 7.5"/>') + esc(f.name) + (f.n ? ' · ' + f.n + (f.n === 1 ? ' member' : ' members') : '') + '</div>' : '') +
       (st.joinBad ? '<div role="alert" style="font-size:14px;line-height:1.4;font-weight:700;color:#9b1c31">That code didn’t match a group. Check it with your organiser.</div>' : '') +
       '<button type="button" data-enter ' + on(() => { if (ok) submitJoin(); }) + ' aria-disabled="' + !ok + '" style="' + primary(ok) + '">' + (st.busy === 'join' ? 'Joining…' : f && f.name ? 'Join ' + esc(f.name) : 'Join') + '</button>' +
-      '<p style="margin:0;text-align:center;font-size:14px;line-height:1.45;font-weight:600;color:#6b7280">No invite? <span ' + on(() => { setState({ joinOpen: false, joinRaw: null }); askForGroup(); }) + ' role="button" data-request-group style="font-weight:800;color:#5b4ae8;cursor:pointer">Request a group</span></p>',
+      '<p style="margin:0;text-align:center;font-size:14px;line-height:1.45;font-weight:600;color:#6b7280">No invite? <span ' + on(() => { setState({ joinOpen: false, joinRaw: null }); openRequest(); }) + ' role="button" data-request-group style="font-weight:800;color:#5b4ae8;cursor:pointer">Request a group</span></p>',
       { z: 31, max: 353 });
   }
 
@@ -12867,6 +12871,230 @@
     '</div>';
   }
 
+  // ---- Starting a group: a draft, a team and a review (owner, 2026-10-12; 20261202040000_group_drafts.sql) ----------
+  // #/request lists your drafts and the ones you're asked onto (the app owner also sees requests waiting for review);
+  // #/request/<id> opens one. The starter fills it in (saved as they type), asks a co-lead (required), admins and
+  // ambassadors onto the team (friends; they say yes in the app), agrees to what leading means and sends it for review.
+  // The app owner approves it (the group opens with the team in their roles) or declines it, from the same page.
+  const ROLE_NAME = { colead: 'Co-lead', admin: 'Admin', ambassador: 'Ambassador' };
+  const ROLE_LINE = { colead: 'Shares the responsibility with you. Required.', admin: 'Helps run the group. One to three is ideal.', ambassador: 'Spreads the word around the neighborhood.' };
+  const ASSOC = [['none', 'There’s no association'], ['member', 'There is, and I’m part of it'], ['not_member', 'There is, and I’m not part of it'], ['hoa', 'It’s an HOA'], ['unsure', 'Not sure']];
+  const RADII = [[400, '¼ mile'], [800, '½ mile'], [1600, '1 mile'], [3200, '2 miles']];
+  const DRAFT_STATUS = { draft: ['DRAFT', '#f2f3f6', '#454b55'], submitted: ['IN REVIEW', '#fff4dc', '#8f6405'], approved: ['OPEN', '#e8f6ee', '#0f7a3c'], declined: ['NOT APPROVED', '#fdecef', '#9b1c31'] };
+  const loadDrafts = async () => {
+    state.gDraftsBusy = true;
+    try {
+      await ensureSession();
+      const [d, t] = await Promise.all([sb.from('group_drafts').select('*').order('updated_at', { ascending: false }), sb.from('group_draft_team').select('*').order('invited_at')]);
+      if (d.error && (d.error.code === '42P01' || d.error.code === 'PGRST205')) return setState({ gDrafts: [], gDraftTeam: [], gDraftsOff: true, gDraftsBusy: false });
+      if (d.error) throw d.error;
+      if (t.error) throw t.error;
+      setState({ gDrafts: d.data || [], gDraftTeam: t.data || [], gDraftsBusy: false });
+    } catch (e) { console.error(e); setState({ gDraftsBusy: false, gDrafts: state.gDrafts || [] }); toast(failed(e)); }
+  };
+  const openRequest = (id) => { setState({ menu: null, confirm: null, pplAdd: false, joinOpen: false }); needSignIn(() => { go('request', { reqId: id || null, reqPick: null, reqFind: null }); if (state.loaded && !state.fromCache) loadDrafts(); }, 'profile'); };
+  const draftOf = (id) => (state.gDrafts || []).find(d => d.id === id) || null;
+  const teamOf = (id) => (state.gDraftTeam || []).filter(t => t.draft_id === id);
+  const teamName = (uid) => { const f = (state.fr.friends || []).find(x => x.id === uid); return f ? shortName(f.name) : nameOf(uid, 'Someone'); };
+  // Typing saves after a pause; picks save straight away
+  let draftTimer = null, draftPending = {};
+  const draftSet = (id, patch, now) => {
+    state.gDrafts = (state.gDrafts || []).map(d => d.id === id ? Object.assign({}, d, patch) : d);
+    Object.assign(draftPending, patch);
+    clearTimeout(draftTimer);
+    const flush = async () => {
+      const p = draftPending; draftPending = {};
+      if (!Object.keys(p).length) return;
+      const r = await sb.from('group_drafts').update(p).eq('id', id);
+      if (r.error) { console.error(r.error); toast(failed(r.error)); }
+    };
+    if (now) flush(); else draftTimer = setTimeout(flush, 700);
+    render();
+  };
+  const newDraft = async () => {
+    if (state.busy) return;
+    setState({ busy: 'save' });
+    try {
+      const r = must(await sb.from('group_drafts').insert({ join_rule: 'everyone' }).select('id').single());
+      await loadDrafts();
+      setState({ busy: null });
+      go('request', { reqId: r.data.id });
+    } catch (e) { console.error(e); setState({ busy: null }); toast(/up to 3/.test(e.message || '') ? 'You have 3 drafts going. Finish or delete one first.' : failed(e)); }
+  };
+  const draftCall = async (fn, args, ok, after) => {
+    if (state.busy) return;
+    setState({ busy: 'save' });
+    try { must(await sb.rpc(fn, args)); await loadDrafts(); setState(Object.assign({ busy: null }, after || {})); if (ok) toast(ok, true); }
+    catch (e) { console.error(e); setState({ busy: null }); toast(e && e.code === '23514' || e && e.code === '22023' ? String(e.message || '').replace(/^./, c => c.toUpperCase()) : failed(e)); }
+  };
+  // Looking up the middle of the area: Geoapify (its results may be kept; Google's may not)
+  const findCenter = async (q) => {
+    if (!PLACES || !PLACES.key || q.trim().length < 3) return;
+    setState({ reqFind: { q, busy: true, list: [] } });
+    try {
+      const url = 'https://api.geoapify.com/v1/geocode/autocomplete?format=json&limit=5&lang=en&text=' + encodeURIComponent(q.trim()) +
+        '&bias=proximity:' + PLACES.lon + ',' + PLACES.lat + '&apiKey=' + encodeURIComponent(PLACES.key);
+      const j = await fetch(url).then(r => r.json());
+      const list = (j.results || []).filter(x => typeof x.lat === 'number' && typeof x.lon === 'number').map(x => ({ label: x.formatted || x.address_line1 || '', lat: x.lat, lon: x.lon }));
+      if (state.reqFind && state.reqFind.q === q) setState({ reqFind: { q, busy: false, list } });
+    } catch (e) { console.error(e); setState({ reqFind: { q, busy: false, list: [], err: true } }); }
+  };
+
+  function viewRequest() {
+    const st = state;
+    if (!st.email) return '<div data-screen-label="Start a group" style="background:#fff;min-height:100%">' + head6('Start a group', backBtn6(() => go('groups'))) +
+      '<section style="padding:20px">' + paraHtml('Sign in to start a request for your neighborhood.') + '<button type="button" ' + on(() => openRequest(st.reqId)) + ' style="margin-top:16px;' + primary(true) + '">Sign in</button></section></div>';
+    // Drafts load once the app's own first load is in (before it, the session may not be ready and the list comes back empty)
+    if (st.gDrafts === undefined && !st.gDraftsBusy && st.loaded && !st.fromCache) setTimeout(loadDrafts, 0);
+    const d = st.reqId ? draftOf(st.reqId) : null;
+    if (st.reqId && !d) return '<div data-screen-label="Group request" style="background:#fff;min-height:100%">' + head6('Group request', backBtn6(() => go('request', { reqId: null }))) +
+      '<section style="padding:20px">' + (st.gDrafts === undefined || st.gDraftsBusy || !st.loaded || st.fromCache ? skeleton() : paraHtml('This request isn’t here any more, or it isn’t yours to see.')) + '</section></div>';
+    return d ? viewDraft(d) : viewDraftList();
+  }
+
+  function viewDraftList() {
+    const st = state, ds = st.gDrafts || [], team = st.gDraftTeam || [];
+    const mine = ds.filter(d => d.created_by === st.me);
+    const asked = ds.filter(d => d.created_by !== st.me && team.some(t => t.draft_id === d.id && t.user_id === st.me));
+    const review = st.demoAdmin ? ds.filter(d => d.status === 'submitted' && d.created_by !== st.me) : [];
+    const chip = (s) => { const c = DRAFT_STATUS[s] || DRAFT_STATUS.draft; return '<span style="flex:0 0 auto;padding:3px 8px;border-radius:999px;background:' + c[1] + ';color:' + c[2] + ';font-size:10.5px;font-weight:900;letter-spacing:.8px">' + c[0] + '</span>'; };
+    const row = (d, sub) => '<div ' + on(() => go('request', { reqId: d.id })) + ' role="button" data-draft-row style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-top:1px solid #f0f1f4;cursor:pointer">' +
+      '<div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(d.name || 'Untitled group') + '</div>' +
+      '<div style="font-size:13.5px;font-weight:600;color:#6b7280">' + esc(sub) + '</div></div>' + chip(d.status) + I.chevR(13, '#b9bcc4', 3) + '</div>';
+    const list = (label, items, sub) => items.length ? '<div style="' + CARD + ';overflow:hidden"><div style="padding:14px 16px 4px;' + EYEBROW + '">' + label + '</div>' + items.map(d => row(d, sub(d))).join('') + '</div>' : '';
+    const roleOf = (d) => (team.find(t => t.draft_id === d.id && t.user_id === st.me) || {});
+    return '<div data-screen-label="Start a group" style="background:#e8eaee;min-height:100%">' +
+      head6('Start a group', backBtn6(() => go('groups'))) +
+      '<section style="padding:16px;display:flex;flex-direction:column;gap:14px">' +
+        '<div style="' + CARD + ';padding:20px 18px;display:flex;flex-direction:column;gap:10px">' +
+          '<h2 style="margin:0;font-size:24px;line-height:1.1;font-weight:900;letter-spacing:-.6px;color:#0d1117;text-wrap:balance">Starting a group is a big deal</h2>' +
+          paraHtml('A group belongs to a real place and the people around it. Whoever starts it gets a real say, and real responsibility: who’s in, what’s okay, and answering reports. Nobody should carry that alone.') +
+          '<div style="display:flex;flex-direction:column;gap:6px;margin-top:2px">' +
+            ['Draft it: the place, what it’s for and how it’ll run', 'Ask a co-lead (required), admins and people to spread the word', 'Send it for review. We get in touch, and it opens when it’s ready'].map((t, i) =>
+              '<div style="display:flex;gap:10px;align-items:flex-start"><span style="flex:0 0 22px;width:22px;height:22px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center">' + (i + 1) + '</span><span style="font-size:14.5px;line-height:1.4;font-weight:600;color:#2b303a">' + t + '</span></div>').join('') + '</div>' +
+          paraHtml('If your neighborhood has an association or HOA, it’s best to start there. A resident can start a group and hand it over later.', '#6b7280') +
+          (mine.filter(d => d.status === 'draft' || d.status === 'submitted').length < 3
+            ? '<button type="button" data-new-draft ' + on(newDraft) + ' style="margin-top:6px;' + primary(!st.busy) + '">' + (st.busy === 'save' ? 'Starting…' : 'Start a draft') + '</button>'
+            : '<span style="font-size:14px;font-weight:700;color:#6b7280">You have 3 drafts going. Finish or delete one to start another.</span>') +
+        '</div>' +
+        (st.gDrafts === undefined ? skeleton() : '') +
+        list('Waiting for your review', review, d => (d.place_name || '') + ' · sent ' + new Date(d.submitted_at || d.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })) +
+        list('You’re asked onto', asked, d => (ROLE_NAME[roleOf(d).role] || 'Team') + ' · ' + ({ invited: 'waiting for you', accepted: 'you’re in', declined: 'you said not now' }[roleOf(d).status] || '')) +
+        list('Your requests', mine, d => d.place_name || 'No place yet') +
+      '</section><div style="height:92px"></div></div>';
+  }
+
+  function viewDraft(d) {
+    const st = state, mine = d.created_by === st.me, edit = mine && d.status === 'draft', team = teamOf(d.id);
+    const meOn = team.find(t => t.user_id === st.me), owner = !!st.demoAdmin;
+    const back = () => go('request', { reqId: null, reqPick: null, reqFind: null });
+    const lbl = (t, sub) => '<div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:15px;font-weight:800;color:#0d1117">' + t + '</span>' + (sub ? '<span style="font-size:13px;line-height:1.35;font-weight:600;color:#6b7280">' + sub + '</span>' : '') + '</div>';
+    const fld = (key, ph, max, rows) => rows
+      ? '<textarea class="fld" data-draft-' + key + ' rows="' + rows + '" maxlength="' + max + '" placeholder="' + esc(ph) + '" ' + onInput(e => draftSet(d.id, { [key]: e.target.value.slice(0, max) })) + ' style="width:100%;border:2px solid #e3e5ec;border-radius:14px;padding:12px 14px;font-family:inherit;font-size:16px;line-height:1.4;color:#0d1117;resize:vertical">' + esc(d[key] || '') + '</textarea>'
+      : '<input class="fld" data-draft-' + key + ' maxlength="' + max + '" placeholder="' + esc(ph) + '" value="' + esc(d[key] || '') + '" ' + onInput(e => draftSet(d.id, { [key]: e.target.value.slice(0, max) })) + ' style="width:100%;height:50px;border:2px solid #e3e5ec;border-radius:14px;padding:0 14px;font-family:inherit;font-size:16px;color:#0d1117">';
+    const chips = (key, opts, cur) => '<div role="radiogroup" style="display:flex;flex-wrap:wrap;gap:8px">' + opts.map(([k, label]) => { const onIt = cur === k;
+      return '<span ' + on(() => draftSet(d.id, { [key]: k }, true), 'radio') + ' aria-checked="' + onIt + '" data-draft-pick="' + key + ':' + k + '" style="display:flex;align-items:center;min-height:40px;padding:0 14px;border-radius:999px;font-size:14px;font-weight:800;cursor:pointer;' +
+        (onIt ? 'background:#5b4ae8;color:#fff' : 'background:#fff;color:#0d1117;box-shadow:inset 0 0 0 1.5px #dcdfe6') + '">' + label + '</span>'; }).join('') + '</div>';
+    const sec = (title, inner) => '<div style="' + CARD + ';padding:18px 16px;display:flex;flex-direction:column;gap:12px"><div style="' + EYEBROW + '">' + title + '</div>' + inner + '</div>';
+    const ro = (label, v) => v ? '<div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:12.5px;font-weight:800;color:#6b7280">' + label + '</span><span style="font-size:15px;line-height:1.4;font-weight:600;color:#0d1117;white-space:pre-line;overflow-wrap:anywhere">' + esc(v) + '</span></div>' : '';
+    const pl = d.place_name ? { name: d.place_name, kind: d.place_kind, lat: d.place_lat, lon: d.place_lon, radius: d.place_radius_m, purpose: d.purpose || '' } : null;
+    const c = DRAFT_STATUS[d.status] || DRAFT_STATUS.draft;
+    // Status
+    let banner = '';
+    if (d.status === 'submitted') banner = '<div style="' + CARD + ';padding:16px;background:#fff8e8;display:flex;flex-direction:column;gap:8px"><b style="font-size:16px;color:#5c4510">Sent for review</b>' +
+      paraHtml(mine ? 'We’ll get in touch soon. You can take it back to change something.' : 'Waiting for review.', '#5c4510') +
+      (mine ? '<span ' + on(() => draftCall('withdraw_group_draft', { p_draft: d.id }, 'Back to a draft')) + ' role="button" style="align-self:flex-start;font-size:14.5px;font-weight:800;color:#8f6405;cursor:pointer">Take it back to edit</span>' : '') + '</div>';
+    if (d.status === 'approved') banner = '<div style="' + CARD + ';padding:16px;background:#eaf7ef;display:flex;flex-direction:column;gap:8px"><b style="font-size:16px;color:#0f5a2f">' + esc(d.name || 'The group') + ' is open</b>' +
+      (d.review_note ? paraHtml('“' + esc(d.review_note) + '”', '#0f5a2f') : '') +
+      (d.group_id && groupById(d.group_id) ? '<button type="button" ' + on(() => openGroupPage(d.group_id, false, 'groups')) + ' style="' + primary(true) + '">Go to the group</button>' : '') + '</div>';
+    if (d.status === 'declined') banner = '<div style="' + CARD + ';padding:16px;background:#fdf1f3;display:flex;flex-direction:column;gap:8px"><b style="font-size:16px;color:#9b1c31">Not approved this time</b>' +
+      (d.review_note ? paraHtml('“' + esc(d.review_note) + '”', '#9b1c31') : '') +
+      (mine ? '<span ' + on(() => draftCall('withdraw_group_draft', { p_draft: d.id }, 'Back to a draft')) + ' role="button" style="align-self:flex-start;font-size:14.5px;font-weight:800;color:#9b1c31;cursor:pointer">Edit and send again</span>' : '') + '</div>';
+    // Asked onto the team
+    const askCard = meOn && !mine && (d.status === 'draft' || d.status === 'submitted') ? '<div data-draft-ask style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:10px;box-shadow:0 0 0 2px #5b4ae8">' +
+      '<b style="font-size:16.5px;color:#0d1117">' + esc(teamName(d.created_by)) + ' asked you to be ' + (meOn.role === 'admin' ? 'an admin' : meOn.role === 'ambassador' ? 'an ambassador' : 'co-lead') + '</b>' +
+      paraHtml(ROLE_LINE[meOn.role] || '') +
+      (meOn.status === 'invited'
+        ? '<div style="display:flex;gap:8px"><button type="button" data-draft-yes ' + on(() => draftCall('answer_draft_invite', { p_draft: d.id, p_yes: true }, 'You’re on the team')) + ' style="flex:1;' + primary(!st.busy) + '">Yes, I’m in</button>' +
+            '<button type="button" ' + on(() => draftCall('answer_draft_invite', { p_draft: d.id, p_yes: false }, 'We told them')) + ' style="flex:1;' + SECONDARY + '">Not now</button></div>'
+        : '<span style="font-size:14px;font-weight:700;color:' + (meOn.status === 'accepted' ? '#0f7a3c' : '#6b7280') + '">' + (meOn.status === 'accepted' ? 'You’re in.' : 'You said not now.') + '</span>' +
+          (meOn.status === 'declined' ? '<span ' + on(() => draftCall('answer_draft_invite', { p_draft: d.id, p_yes: true }, 'You’re on the team')) + ' role="button" style="font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">Changed your mind? I’m in</span>' : '')) + '</div>' : '';
+    // The group and its place
+    const find = st.reqFind || {};
+    const center = edit ? '<div style="display:flex;flex-direction:column;gap:8px">' + lbl('Where’s the middle of it?', 'A street, park or school near the center. It puts the area on the map neighbors see before joining.') +
+      '<div style="display:flex;gap:8px"><input class="fld" data-draft-center maxlength="80" placeholder="Search for a street or place" value="' + esc(find.q || '') + '" ' + onInput(e => { if (e.type === 'input') state.reqFind = Object.assign({}, state.reqFind, { q: e.target.value }); }) + ' style="flex:1;min-width:0;height:46px;border:2px solid #e3e5ec;border-radius:14px;padding:0 14px;font-family:inherit;font-size:16px;color:#0d1117">' +
+        '<button type="button" ' + on(() => findCenter((state.reqFind && state.reqFind.q) || '')) + ' style="flex:0 0 auto;min-height:46px;padding:0 16px;border:0;border-radius:999px;background:#0d1117;color:#fff;font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer">' + (find.busy ? '…' : 'Find') + '</button></div>' +
+      (find.list && find.list.length ? '<div style="display:flex;flex-direction:column;border-radius:14px;overflow:hidden;box-shadow:inset 0 0 0 1.5px #e3e5ec">' + find.list.map(x => '<span ' + on(() => { setState({ reqFind: null }); draftSet(d.id, { place_lat: x.lat, place_lon: x.lon, place_radius_m: d.place_radius_m || 800 }, true); }) + ' role="button" style="padding:12px 14px;border-top:1px solid #f0f1f4;font-size:14.5px;font-weight:600;color:#0d1117;cursor:pointer">' + esc(x.label) + '</span>').join('') + '</div>'
+        : find.err ? '<span style="font-size:13.5px;color:#c0263d;font-weight:700">Couldn’t search just now. Try again.</span>' : find.q && !find.busy && find.list ? '<span style="font-size:13.5px;color:#6b7280;font-weight:600">Nothing found. Try a street name.</span>' : '') +
+      (d.place_lat != null ? lbl('How big is it?') + chips('place_radius_m', RADII, d.place_radius_m || 800) : '') + '</div>' : '';
+    const groupSec = edit ? sec('The group',
+        lbl('Name') + fld('name', 'Walnut Creek Neighbors', 40) +
+        lbl('The place', 'What neighbors call it. It doesn’t have to match a map.') + fld('place_name', 'Walnut Creek', 60) +
+        chips('place_kind', Object.keys(PLACE_KIND).map(k => [k, PLACE_KIND[k]]).concat([['other', 'Other']]), d.place_kind) +
+        center + (pl && pl.lat != null ? placeCard(pl, false) : '') +
+        lbl('What it’s for', 'One line neighbors see before they join.') + fld('purpose', 'Neighbors getting together, helping out and meeting each other', 200, 2))
+      : sec('The group', ro('Name', d.name) + ro('The place', d.place_name && d.place_name + (PLACE_KIND[d.place_kind] ? ' · ' + PLACE_KIND[d.place_kind] : '')) + (pl && pl.lat != null ? placeCard(pl, false) : '') + ro('What it’s for', d.purpose));
+    const runSec = edit ? sec('How it’ll run',
+        lbl('Who can join', 'You can change this any time after it opens.') + chips('join_rule', RULE_OPTS.map(([k, l]) => [k, l]), d.join_rule || 'everyone') +
+        lbl('Is there a neighborhood association or HOA?') + chips('association', ASSOC, d.association) +
+        (d.association && d.association !== 'none' ? fld('association_name', 'Its name', 80) : ''))
+      : sec('How it’ll run', ro('Who can join', RULE_SHORT[d.join_rule]) + ro('Association', (ASSOC.find(a => a[0] === d.association) || [])[1]) + ro('Its name', d.association_name));
+    const whySec = edit ? sec('Why, and how it’ll spread',
+        lbl('Why do you want to start it?') + fld('why', 'What’s happening in the neighborhood, and what you hope this changes', 1000, 3) +
+        lbl('How will neighbors hear about it?', 'Flyers, a newsletter, a sign at the park, knocking on doors. We can help with this.') + fld('spread', 'Your plan for the first few weeks', 1000, 3))
+      : (d.why || d.spread ? sec('Why, and how it’ll spread', ro('Why', d.why) + ro('Spreading the word', d.spread)) : '');
+    // The team
+    const tag = (s) => ({ invited: ['Asked', '#f2f3f6', '#454b55'], accepted: ['In', '#e8f6ee', '#0f7a3c'], declined: ['Not now', '#fdecef', '#9b1c31'] }[s]);
+    const teamRows = [['_lead', d.created_by]].concat(team.map(t => [t.role, t.user_id, t.status])).map(([role, uid, s]) => { const tg = s ? tag(s) : ['Lead', '#efedfd', '#4a3ad4'];
+      return '<div data-team-row style="display:flex;align-items:center;gap:12px;padding:8px 0">' + face(uid, teamName(uid), 36) +
+        '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">' + esc(uid === st.me ? 'You' : teamName(uid)) + '</div><div style="font-size:13px;font-weight:600;color:#6b7280">' + (role === '_lead' ? 'Lead · responsible for the group' : ROLE_NAME[role]) + '</div></div>' +
+        '<span style="padding:3px 9px;border-radius:999px;background:' + tg[1] + ';color:' + tg[2] + ';font-size:12px;font-weight:800">' + tg[0] + '</span>' +
+        (edit && role !== '_lead' ? '<span ' + on(() => draftCall('draft_uninvite', { p_draft: d.id, p_user: uid })) + ' role="button" aria-label="Take ' + esc(teamName(uid)) + ' off the team" style="flex:0 0 32px;width:32px;height:32px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(11, '#454b55', 2.6) + '</span>' : '') + '</div>'; }).join('');
+    const askBtns = edit ? '<div style="display:flex;flex-wrap:wrap;gap:8px">' + ['colead', 'admin', 'ambassador'].map(r => '<span ' + on(() => setState({ reqPick: r })) + ' role="button" data-ask-role="' + r + '" style="display:flex;align-items:center;gap:6px;min-height:40px;padding:0 14px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;font-size:14px;font-weight:800;color:#0d1117;cursor:pointer">+ ' + (r === 'colead' ? 'A co-lead' : r === 'admin' ? 'An admin' : 'An ambassador') + '</span>').join('') + '</div>' : '';
+    const teamSec = sec('The team', paraHtml('At least two people: you and a co-lead. A few admins and ambassadors make it much more likely to take off.') + teamRows + askBtns);
+    // Agreeing to lead
+    const agreed = !!d.agreed_at;
+    const agreeSec = edit ? sec('What leading means', '<div style="display:flex;flex-direction:column;gap:6px">' +
+        ['Answer reports and keep the group kind and safe', 'Keep it open to the neighborhood, not a private club', 'No selling or political campaigning in the group', 'Make decisions together with your co-lead and team', 'Follow the community rules'].map(t => '<div style="display:flex;gap:8px;font-size:14.5px;line-height:1.4;font-weight:600;color:#2b303a"><span style="color:#149a4b;font-weight:900">✓</span>' + t + '</div>').join('') + '</div>' +
+        '<div ' + on(() => draftSet(d.id, { agreed_at: agreed ? null : new Date().toISOString() }, true), 'checkbox') + ' aria-checked="' + agreed + '" data-draft-agree style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;background:' + (agreed ? '#f3f1fe' : '#f7f7f9') + ';cursor:pointer">' +
+          '<span aria-hidden="true" style="flex:0 0 24px;width:24px;height:24px;border-radius:7px;display:flex;align-items:center;justify-content:center;' + (agreed ? 'background:#5b4ae8' : 'background:#fff;box-shadow:inset 0 0 0 2px #c3c7d0') + '">' + (agreed ? I.check(14, '#fff', 3) : '') + '</span>' +
+          '<span style="font-size:15px;font-weight:800;color:#0d1117">We’ll take this on together</span></div>') : '';
+    // Sending it
+    const missing = [!d.name && 'a name', !d.place_name && 'the place', !d.purpose && 'what it’s for', !d.association && 'the association question',
+      !team.some(t => t.role === 'colead' && t.status === 'accepted') && 'a co-lead who has said yes', !agreed && 'agreeing to what leading means'].filter(Boolean);
+    const sendSec = edit ? '<div style="display:flex;flex-direction:column;gap:8px">' +
+        (missing.length ? '<span style="font-size:14px;line-height:1.4;font-weight:600;color:#6b7280">Still needed: ' + missing.join(', ') + '.</span>' : '') +
+        '<button type="button" data-draft-send ' + on(() => { if (!missing.length) draftCall('submit_group_draft', { p_draft: d.id }, 'Sent for review'); }) + ' aria-disabled="' + !!missing.length + '" style="' + primary(!missing.length && !st.busy) + '">Send for review</button>' +
+        '<span ' + on(() => setState({ confirm: { title: 'Delete this draft?', body: 'The team you asked won’t see it any more.', cta: 'Delete draft', keep: 'Keep it', danger: true,
+          run: async () => { setState({ confirm: null }); const r = await sb.from('group_drafts').delete().eq('id', d.id); if (r.error) return toast(failed(r.error)); await loadDrafts(); go('request', { reqId: null }); toast('Draft deleted', true); } } })) + ' role="button" style="align-self:center;min-height:40px;display:flex;align-items:center;font-size:14.5px;font-weight:800;color:#9b1c31;cursor:pointer">Delete draft</span></div>' : '';
+    // The app owner's review
+    const reviewSec = owner && d.status === 'submitted' ? sec('Your review',
+        paraHtml('Talk to them first. Approving opens the group with the starter and co-leads as owners, admins as admins and ambassadors as members.') +
+        '<textarea class="fld" data-draft-note rows="2" maxlength="500" placeholder="A note for them (optional)" ' + onInput(e => { if (e.type === 'input') state.reqNote = e.target.value.slice(0, 500); }) + ' style="width:100%;border:2px solid #e3e5ec;border-radius:14px;padding:12px 14px;font-family:inherit;font-size:16px;color:#0d1117">' + esc(st.reqNote || '') + '</textarea>' +
+        '<div style="display:flex;gap:8px"><button type="button" data-draft-approve ' + on(() => draftCall('approve_group_draft', { p_draft: d.id, p_note: state.reqNote || null }, (d.name || 'The group') + ' is open', { reqNote: '' })) + ' style="flex:1;' + primary(!st.busy) + '">Approve</button>' +
+        '<button type="button" ' + on(() => draftCall('decline_group_draft', { p_draft: d.id, p_note: state.reqNote || '' }, 'Declined', { reqNote: '' })) + ' style="flex:1;' + SECONDARY + '">Decline</button></div>') : '';
+    return '<div data-screen-label="Group request" style="background:#e8eaee;min-height:100%">' +
+      head6(d.name || 'New group', backBtn6(back)) +
+      '<section style="padding:16px;display:flex;flex-direction:column;gap:14px">' +
+        '<span style="align-self:flex-start;padding:4px 10px;border-radius:999px;background:' + c[1] + ';color:' + c[2] + ';font-size:11px;font-weight:900;letter-spacing:.8px">' + c[0] + '</span>' +
+        askCard + banner + reviewSec + groupSec + runSec + whySec + teamSec + agreeSec + sendSec +
+      '</section><div style="height:92px"></div>' +
+      (st.reqPick && edit ? viewDraftPick(d) : '') + '</div>';
+  }
+
+  // Ask someone onto the team: your friends, minus anyone already asked
+  function viewDraftPick(d) {
+    const st = state, role = st.reqPick, close = () => setState({ reqPick: null });
+    const taken = teamOf(d.id).filter(t => t.status !== 'declined').map(t => t.user_id);
+    const fr = (st.fr.friends || []).filter(f => taken.indexOf(f.id) < 0);
+    return modal('Ask ' + (role === 'colead' ? 'a co-lead' : role === 'admin' ? 'an admin' : 'an ambassador'), close,
+      h3Html('Ask ' + (role === 'colead' ? 'a co-lead' : role === 'admin' ? 'an admin' : 'an ambassador')) + paraHtml(ROLE_LINE[role] + ' They’ll get a notification and say yes in the app.') +
+      (fr.length ? '<div style="display:flex;flex-direction:column;max-height:50vh;overflow-y:auto">' + fr.map(f => '<div ' + on(() => draftCall('draft_invite', { p_draft: d.id, p_user: f.id, p_role: role }, 'Asked ' + shortName(f.name), { reqPick: null })) + ' role="button" data-pick-friend style="display:flex;align-items:center;gap:12px;padding:10px 4px;border-top:1px solid #f0f1f4;cursor:pointer">' +
+          avatarSpan(f.id, f.name, PHOTO_PATH.test(f.avatar || '') ? photoUrl(f.avatar) : null, 36) + '<span style="flex:1;font-size:15px;font-weight:800;color:#0d1117">' + esc(shortName(f.name)) + '</span><span style="font-size:14px;font-weight:800;color:#5b4ae8">Ask</span></div>').join('') + '</div>'
+        : paraHtml('Add them as a friend first: share your friend link from My friends, then ask them here.')),
+      { z: 40 });
+  }
+
   // Welcome is what signed-out visitors see for Home (and Profile / a group page, which need an account)
   const welcomeShown = () => !state.email && ['home', 'sched', 'groupPage', 'calendar', 'own', 'groups', 'friends', 'me', 'ideas'].indexOf(state.screen) > -1;
 
@@ -12879,6 +13107,7 @@
     const sc = under || s;
     if (sc === 'browse') main = viewBrowse();
     else if (sc === 'how') main = viewHow();
+    else if (sc === 'request') main = viewRequest();
     else if (sc === 'sched') main = st.email ? viewSched() : home();
     else if (sc === 'groupPage') main = st.email ? viewGroupPage() : home();
     else if (sc === 'calendar') main = st.email ? viewCalendar() : home();

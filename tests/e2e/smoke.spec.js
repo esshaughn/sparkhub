@@ -2,6 +2,32 @@
 const { test, expect, devices } = require('@playwright/test');
 const { newMember, newLead, button, asUser, pickView, openProfile, postIdea, uniqueTitle, PNG, openAllGroups } = require('./helpers');
 
+// The website around the app (owner, 2026-10-12): a first-time visitor to the bare address lands on /welcome; the pages
+// carry BETA and link to each other and into the app. (The test server has no clean URLs, so the pages load as .html.)
+test('the front door: first visit goes to the website; its pages say BETA and lead into the app', async ({ browser }) => {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  try {
+    await page.route('**/welcome', r => r.fulfill({ status: 200, contentType: 'text/html', body: '<p data-site-welcome>welcome</p>' }));
+    await page.goto('/');
+    await expect(page).toHaveURL(/\/welcome$/);
+    for (const p of ['welcome', 'how-it-works', 'pricing', 'neighborhoods', 'beta']) {
+      await page.goto('/' + p + '.html');
+      await expect(page.locator('.bar .beta')).toHaveText('BETA');
+      await expect(page.locator('.bar').getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/#/signin');
+      await expect(page.locator('footer')).toContainText('Spark Hub · Beta');
+    }
+    await expect(page.locator('main')).toContainText('Early, free, and still changing.');
+    await page.goto('/pricing.html');
+    await expect(page.locator('main')).not.toContainText(/\$\d{2,}/);   // no prices yet (owner, 2026-10-12)
+    await page.goto('/neighborhoods.html');
+    await expect(page.getByRole('link', { name: 'Start a request' })).toHaveAttribute('href', '/#/request');
+    // Signing in from the website opens the app's Welcome, not the website again
+    await page.goto('/#/signin');
+    await expect(page.locator('[data-screen-label=Welcome]')).toBeVisible();
+  } finally { await context.close(); }
+});
+
 test('visitors land on Welcome (no tab bar there) and sign in from there', async ({ browser }) => {
   const { page, context, errors } = await newMember(browser);
   try {
@@ -356,19 +382,12 @@ test('members: Your tasks, Your schedule, Calendar, view and sort menus', async 
     for (const name of ['Join a group', 'Start a group']) await expect(add.getByRole('button', { name })).toBeVisible();
     await expect(add.getByRole('button', { name: 'Add a friend' })).toHaveCount(0);
     await add.getByRole('button', { name: 'Start a group' }).click();
-    // Groups start by request (owner, 2026-10-07): Request a group opens Give feedback as a group request
-    const soon = page.getByRole('alertdialog', { name: 'Groups start by request' });
-    await expect(soon).toContainText('Spark Hub is still new');
-    await soon.getByRole('button', { name: 'Request a group' }).click();
-    await expect(soon).toHaveCount(0);
-    const askBox = page.getByRole('dialog', { name: 'Give feedback' });
-    await expect(askBox).toContainText('GROUP REQUEST');
-    await expect(askBox).toContainText('Who’s the group for?');
-    await expect(askBox.getByLabel('Your feedback')).toHaveValue('I’d like a group for ');
-    await expect(askBox.locator('[data-fb-add-shot]')).toHaveCount(0);   // no screenshot or Sent with line on a request
-    await expect(askBox.locator('[data-fb-sent-with]')).toHaveCount(0);
-    await askBox.getByRole('button', { name: 'Close' }).click();
-    await expect(askBox).toHaveCount(0);
+    // Groups start with a draft, a team and a review (owner, 2026-10-12): Start a group opens #/request
+    const startPage = page.locator('[data-screen-label="Start a group"]');
+    await expect(startPage.getByRole('heading', { name: 'Starting a group is a big deal' })).toBeVisible();
+    await expect(startPage.locator('[data-new-draft]')).toBeVisible();
+    await startPage.getByRole('button', { name: 'Back' }).click();
+    await expect(startPage).toHaveCount(0);
     await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Groups', exact: true })).toHaveAttribute('aria-current', 'page');
     await expect(groups.getByRole('button', { name: 'Torrez Fitness', exact: true })).toContainText(/members/);   // tiles show the member count too (Update 13)
     // Search filters the side that's showing
@@ -658,7 +677,7 @@ test('a Spark Hub loading screen shows until the app is ready', async ({ browser
   try {
     let release; const gate = new Promise(r => { release = r; });
     await page.route('**/js/sparks.js*', async (route) => { await gate; await route.continue(); });
-    await page.goto('/', { waitUntil: 'commit' });
+    await page.goto('/#/schedule', { waitUntil: 'commit' });   // the bare address sends a first visit to the website
     await expect(page.getByRole('status', { name: 'Loading Spark Hub' })).toBeVisible();
     release();
     await expect(page.locator('[data-screen-label=Welcome]')).toBeVisible();
