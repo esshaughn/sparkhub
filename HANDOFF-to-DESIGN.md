@@ -6,7 +6,7 @@
 - **Source:** github.com/esshaughn/sparkhub (`index.html`, `js/sparks.js`, `css/sparks.css`, `privacy.html`, `supabase/templates/`)
 - **Baseline:** Claude Design's **round v8-17** (`design/spark-hub/HANDOFF-to-CODE.md` and `Spark Hub App Version 8.dc.html`, 2026-10-09), built in full (with your v8-16 clarity pass): see *Round v8-17 in short*. Rows 212–227 are new since v8-15.
 - **Build version:** **v8** (v7 from owner, 2026-10-02): a lead is a choice. Since v8-8 an idea is led from the start (*Who leads it · Me*) or floated (*I'll decide*), and both use the new idea page.
-- **As of:** 2026-10-12 (round v8-27 built on its own branch, `v8-27`). **Everything through round v8-26 is live** (main `8a4269d`, v=417). Questions for you are in §5.
+- **As of:** 2026-10-12 (round v8-27 live, v=426). **Everything through round v8-27 is live**. Questions for you are in §5.
 
 ## Start here (2026-10-10): HANDOFF-to-DESIGN-17
 
