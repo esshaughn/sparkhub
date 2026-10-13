@@ -112,6 +112,26 @@
     {
       "source": "/privacy",
       "destination": "/privacy.html"
+    },
+    {
+      "source": "/welcome",
+      "destination": "/welcome.html"
+    },
+    {
+      "source": "/how-it-works",
+      "destination": "/how-it-works.html"
+    },
+    {
+      "source": "/pricing",
+      "destination": "/pricing.html"
+    },
+    {
+      "source": "/neighborhoods",
+      "destination": "/neighborhoods.html"
+    },
+    {
+      "source": "/beta",
+      "destination": "/beta.html"
     }
   ]
 }

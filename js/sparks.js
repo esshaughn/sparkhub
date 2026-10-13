@@ -309,7 +309,7 @@
     locText: '', locPlace: null, locSuggest: [], locAddr: '',   // v8-8 item 8: Location name + Address
     evOverview: '', evNeed: null, evTags: [], evNeeds: [], evDatePoll: null, evSpotPoll: null, evLater: {}, evHelpNone: false,
     evDesc: '', evInspo: [], evJobPop: false, evGrpPop: false, evCap: null, cpWhite: null,   // v8-14 Plan an event on one page: description, inspo photos, its two pop-ups; v8-18: Limit RSVPs, which cards have turned white
-    evPriv: false, evNoGuestInv: null, evNoContact: false, evTest: null, evFloat: false, evGrpNone: false, evTitleEd: false, evDetOpen: false, evPop: null, evGroups: null, evDraftId: null, evLeave: false, evLeaveTo: null, evFrom: null, pollSheet: null, needSheet: null, evFromReview: false,
+    evPriv: false, evNoGuestInv: null, evNoContact: false, evTest: null, evFloat: false, evPersonal: false, evGrpNone: false, evTitleEd: false, evDetOpen: false, evPop: null, evGroups: null, evDraftId: null, evLeave: false, evLeaveTo: null, evFrom: null, pollSheet: null, needSheet: null, evFromReview: false,
     evFromIdea: null, evIdeaJobs: []   // Make it a plan! on an idea (v8-8): Post it turns that idea into the event, its jobs and spots stay
   });
   const state = Object.assign({
@@ -361,6 +361,7 @@
       return code && location.pathname === '/e/' + code ? '' : '#/idea/' + state.subjectId;
     }
     if (s === 'groupPage' && state.gpId) return '#/group/' + state.gpId;
+    if (s === 'request') return '#/request' + (state.reqId ? '/' + state.reqId : '');
     if (s === 'compose') return '#/new';   // its own history entry, so the phone's Back stays in the flow (followUrl)
     // Your calendar is the home screen (v7 Update 16, owner 2026-10-03; the Calendar, now Explore, was until then)
     const plain = { calendar: '#/explore', home: '#/tasks', sched: '', ideas: '#/ideas', browse: '#/browse', how: '#/how', own: '#/own', groups: '#/groups', friends: '#/friends', me: '#/me' };
@@ -402,8 +403,11 @@
     if (h === '#/ideas') return { screen: 'ideas' };   // the Ideas tab (v8-4); until then #/ideas was a group's Ideas · Plans · Past
     if (h === '#/browse') return { screen: 'browse' };
     if (h === '#/how') return { screen: 'how' };
+    m = h.match(/^#\/request(?:\/([0-9a-f-]{36}))?$/);   // starting a group (20261202040000)
+    if (m) return { screen: 'request', reqId: m[1] || null };
     if (h === '#/calendar' || h === '#/explore') return { screen: 'calendar' };
     if (h === '#/schedule') return { screen: 'sched' };
+    if (h === '#/signin') return { screen: 'sched' };   // the website's Sign in (signed out: Welcome; signed in: the calendar)
     if (h === '#/tasks') return { screen: 'home' };
     if (h === '#/own') return { screen: 'own' };
     if (h === '#/groups') return { screen: 'groups' };
@@ -416,7 +420,7 @@
   };
 
   const setState = (patch) => {
-    const prevStep = state.evStep, prevScreen = state.screen, prevSubj = state.subjectId, prevGp = state.gpId;
+    const prevStep = state.evStep, prevScreen = state.screen, prevSubj = state.subjectId, prevGp = state.gpId, prevReq = state.reqId;
     Object.assign(state, patch);
     savePrefs();
     if (state.screen === 'compose') keepCompose();
@@ -425,7 +429,7 @@
       const ov = document.querySelector('.overlay-screen');
       if (ov) ov.scrollTop = 0;
     }
-    if (state.screen !== prevScreen || state.subjectId !== prevSubj || state.gpId !== prevGp) syncHash(prevScreen);
+    if (state.screen !== prevScreen || state.subjectId !== prevSubj || state.gpId !== prevGp || state.reqId !== prevReq) syncHash(prevScreen);
     if (state.screen === 'browse' && prevScreen !== 'browse') hintVisit();   // the swipe arrows' first visits
   };
 
@@ -618,7 +622,8 @@
   };
   const toSpark = (row, offers, interests, contacts, x) => ({
     id: row.id, groupId: row.group_id, text: row.text,
-    groupIds: [row.group_id].concat((x.groups[row.id] || []).map(g => g.group_id).filter(g => g !== row.group_id)),
+    groupIds: (row.group_id ? [row.group_id] : []).concat((x.groups[row.id] || []).map(g => g.group_id).filter(g => g !== row.group_id)),
+    personal: !row.group_id,   // no group: only its lead, co-hosts and the people it's shared with (20261202000000)
     overview: row.overview || '', cap: row.cap || null,   // an attendance cap (null: none); cards say N spots left and Full
     createdBy: row.created_by, created: Date.parse(row.created_at),
     leadId: row.lead_id, leadName: row.lead_name || row.author_name || 'Someone',
@@ -688,8 +693,10 @@
     // v6 Update 13: friends, requests and the invites you've had (a database without them still loads)
     const frP = state.email && !state.viewAs ? sb.rpc('friend_state').then(r => r, () => ({ error: true })) : Promise.resolve({ data: null });
     const [mem, grp, sp, of, it, gc, rs, dop, dvo, sop, svo, sui, scl, upd, org, alb, prp, rct, sgr, drf, nts, las, inv, jas, lof, swt, tlk, ewt] = await Promise.all([
-      sb.from('memberships').select('group_id,role,last_seen_at,pinned'),
-      sb.from('groups').select('id,name,photo,photo_pos,demo,members_can_invite')
+      sb.from('memberships').select('group_id,role,last_seen_at,pinned,connection')
+        .then(r => r.error && r.error.code === '42703' ? sb.from('memberships').select('group_id,role,last_seen_at,pinned') : r),   // connection: 20261202030000
+      sb.from('groups').select('id,name,photo,photo_pos,demo,members_can_invite,place_name,place_kind,place_lat,place_lon,place_radius_m,purpose,plan,sponsored,join_rule')
+        .then(r => r.error && r.error.code === '42703' ? sb.from('groups').select('id,name,photo,photo_pos,demo,members_can_invite') : r)   // place…sponsored: 20261202020000, join_rule: 20261202030000
         .then(r => r.error && r.error.code === '42703' ? sb.from('groups').select('id,name,photo,photo_pos,demo') : r),   // members_can_invite: 20261130000000
       sb.from('sparks').select('*').order('created_at', { ascending: false }),
       sb.from('offers').select('*').order('created_at'),
@@ -789,11 +796,14 @@
     };
 
     const roles = {};
-    d.memberships.forEach(m => { roles[m.group_id] = { role: m.role, lastSeen: Date.parse(m.last_seen_at), pinned: !!m.pinned }; });
+    d.memberships.forEach(m => { roles[m.group_id] = { role: m.role, lastSeen: Date.parse(m.last_seen_at), pinned: !!m.pinned, connection: m.connection || null }; });
     const va = state.viewAs;
     const drafts = va ? [] : d.event_drafts.map(d => ({ id: d.id, data: d.data || {}, saved: Date.parse(d.updated_at) }));
     const notes = va ? [] : d.notes.map(n => ({ id: n.id, body: n.body, createdBy: n.created_by, created: Date.parse(n.created_at) }));
-    const groups = d.groups.map(g => Object.assign({ id: g.id, name: g.name, photo: g.photo, photoPos: g.photo_pos || null, demo: !!g.demo, membersCanInvite: !!g.members_can_invite, role: null, lastSeen: 0, pinned: false }, (va ? va.roles : roles)[g.id] || {}))
+    const groups = d.groups.map(g => Object.assign({ id: g.id, name: g.name, photo: g.photo, photoPos: g.photo_pos || null, demo: !!g.demo, membersCanInvite: !!g.members_can_invite, role: null, lastSeen: 0, pinned: false,
+      // A group's place, plan and who can join (20261202020000, 20261202030000)
+      place: g.place_name ? { name: g.place_name, kind: g.place_kind || null, lat: g.place_lat, lon: g.place_lon, radius: g.place_radius_m || null, purpose: g.purpose || '' } : null,
+      plan: g.plan || 'seed', sponsored: !!g.sponsored, joinRule: g.join_rule || 'everyone', connection: null }, (va ? va.roles : roles)[g.id] || {}))
       .filter(g => !va || va.roles[g.id])
       .sort((a, b) => runs(b) - runs(a) || a.name.localeCompare(b.name));
 
@@ -1401,7 +1411,8 @@
   const REQ_CHIP = '<span data-request-chip style="display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:999px;background:#fff4dc;color:#8f6405;font-size:10.5px;font-weight:900;letter-spacing:.6px">REQUEST</span>';
   const requestFeature = (name, plural) => setState({ menu: null, dayTypePop: null, confirm: { title: name + (plural ? ' aren’t' : ' isn’t') + ' here yet', body: 'Spark Hub is still new, and we build what people ask for. Want this one? Let Eric know.',
     cta: 'Request it', run: () => setState({ confirm: null, fb: { text: '', kind: 'feature', feature: name } }), keep: 'Not now', x: true, z: 52 } });
-  const startGroup = () => setState({ menu: null, pplAdd: false, joinOpen: false, confirm: { title: 'Groups start by request', body: 'Spark Hub is still new, and we’re building it as we go. Tell us who your group is for and Eric will take a look. You can join any group with its code or link.', cta: 'Request a group', run: askForGroup, keep: 'Not now', x: true } });
+  // Groups start with a draft, a team and a review (owner, 2026-10-12): Start a group opens #/request
+  const startGroup = () => openRequest();
   const submitStartGroup = async () => {
     const name = titleCase(state.startName || '').slice(0, 40);
     if (name.length < 2 || state.busy) return;
@@ -1601,19 +1612,40 @@
       if (x && state.inv && state.inv.code === code) setInv({ land: { members: x.members, week: x.week, byName: x.by_name || '', byAvatar: x.by_avatar || null } });
     } catch (e) { console.error(e); }
   };
+  // Where the group is and who can join (owner, 2026-10-12): shown before joining, from group_place() (anyone with the
+  // code). null = no place and anyone can join (or an older database); undefined = still loading
+  const loadInvitePlace = async (code) => {
+    let pl = null;
+    try {
+      const r = await sb.rpc('group_place', { p_code: code });
+      if (r.error) { if (r.error.code !== 'PGRST202') console.error(r.error); }
+      else {
+        const x = (r.data || [])[0];
+        if (x) pl = { name: x.place_name || '', kind: x.place_kind || null, lat: x.place_lat, lon: x.place_lon, radius: x.place_radius_m || null, purpose: x.purpose || '', rule: x.join_rule || 'everyone' };
+      }
+    } catch (e) { console.error(e); }
+    if (state.inv && state.inv.code === code) setInv({ place: pl });
+    return pl;
+  };
   // Opening the link: signed in already → the confirm pop-up over their Calendar; otherwise the landing
   const startInvite = (code, step, by) => {
     by = by || (pendingInvite() === code ? pendingBy() : '');
     setPending(code, by);
-    setState({ inv: { code, by, group: undefined, step: step || (state.email ? 'confirm' : 'land') }, screen: 'sched', joinOpen: false, loginStep: null, menu: null });
+    setState({ inv: { code, by, group: undefined, place: undefined, conn: null, step: step || (state.email ? 'confirm' : 'land') }, screen: 'sched', joinOpen: false, loginStep: null, menu: null });
     loadInviteGroup(code);
+    loadInvitePlace(code);
   };
   const closeInvite = () => { setPending(''); setState({ inv: null }); };
 
   // Join as soon as there's a session: no confirm (E3 had it). Under 400ms, skip the Joining screen.
   const inviteJoin = async () => {
+    if (!state.inv || state.inv.busy) return;
+    const code0 = state.inv.code;
+    if (state.inv.place === undefined) await loadInvitePlace(code0);
+    if (!state.inv || state.inv.code !== code0 || state.inv.busy) return;
+    // A group with a place, or a rule about who can join: say how you're connected first (the pop-up below)
+    if (needsConn(state.inv.place) && !state.inv.conn) { setInv({ step: 'confirm' }); return; }
     const inv = state.inv;
-    if (!inv || inv.busy) return;
     const code = inv.code;
     setInv({ busy: true, step: inv.step === 'neterr' ? 'joining' : inv.step });
     const slow = setTimeout(() => { if (state.inv && state.inv.busy) setInv({ step: 'joining' }); }, 400);
@@ -1621,8 +1653,14 @@
       const session = await ensureSession();
       if (state.fromCache || !state.loaded) await loadFresh();
       const before = myGroups().map(g => g.id);
-      const id = must(await sb.rpc('join_group', { p_code: code })).data;
+      let jr = await sb.rpc('join_group', { p_code: code, p_connection: inv.conn || null });
+      if (jr.error && jr.error.code === 'PGRST202') jr = await sb.rpc('join_group', { p_code: code });   // a database before 20261202030000
       clearTimeout(slow);
+      if (jr.error && jr.error.code === '23514' && /join rule/.test(jr.error.message || '')) {   // the rule changed, or the answer doesn't fit it
+        setInv({ busy: false, step: 'confirm', ruleErr: (inv.place && RULE_LINE[inv.place.rule]) || 'This group can’t take new members like that.' });
+        return;
+      }
+      const id = must(jr).data;
       setPending('');
       if (!id) { setState({ inv: { code, group: null, step: 'bad' } }); return; }
       gsMark('join');
@@ -1672,11 +1710,11 @@
   };
   // E3: sign out, keep the invite, and show the landing
   const invOtherAccount = async () => {
-    const { code, group, by, land } = state.inv;
-    setState({ inv: { code, by, land, group, step: 'land' } });
+    const { code, group, by, land, place } = state.inv;
+    setState({ inv: { code, by, land, group, place, conn: null, step: 'land' } });
     await signOut();
     setPending(code, by);
-    setState({ inv: { code, by, land, group, step: 'land' } });
+    setState({ inv: { code, by, land, group, place, conn: null, step: 'land' } });
   };
   const invCopyLink = () => {
     const url = SHARE_ORIGIN + '/join/' + state.inv.code;
@@ -2782,7 +2820,7 @@
   const GOOGLE_ON = !!CFG.googleSignIn && !IN_APP;   // Google refuses sign-in inside in-app browsers: email only there, with inAppTip()
   const inAppTip = (dark) => !IN_APP || !CFG.googleSignIn ? '' : '<p data-in-app-tip style="margin:4px 0 0;text-align:center;font-size:13px;line-height:1.45;font-weight:600;color:' + (dark ? '#aab0bb' : '#6b7280') + '">Want to use Google? Open this page in your browser first: tap ··· then Open in browser.</p>';
   const RESUME_KEY = 'spark-hub-google-resume';
-  const DRAFT_KEYS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'locText', 'locPlace', 'locAddr', 'evOverview', 'evDesc', 'evCap', 'evNeed', 'evTags', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evNoGuestInv', 'evNoContact', 'evTest', 'evFloat', 'evHelpNone', 'evGroups', 'coverPos', 'evPhotoPath', 'evDraftId'];
+  const DRAFT_KEYS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'locText', 'locPlace', 'locAddr', 'evOverview', 'evDesc', 'evCap', 'evNeed', 'evTags', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evNoGuestInv', 'evNoContact', 'evTest', 'evFloat', 'evHelpNone', 'evGroups', 'evPersonal', 'coverPos', 'evPhotoPath', 'evDraftId'];
   const readResume = () => {
     try {
       const r = JSON.parse(sessionStorage.getItem(RESUME_KEY));
@@ -2888,7 +2926,8 @@
     const back = Object.assign(restoreDraft(r), r.subjectId && r.screen === 'detail' ? { screen: 'detail', subjectId: r.subjectId } : {});
     if ((!session || session.user.is_anonymous) && r.from === 'invite' && r.joinCode) {
       // Back on the invite landing, not the sign-in pop-up
-      setState({ inv: { code: r.joinCode, group: state.inv ? state.inv.group : undefined, step: 'land' } });
+      setState({ inv: { code: r.joinCode, group: state.inv ? state.inv.group : undefined, place: state.inv ? state.inv.place : undefined, conn: null, step: 'land' } });
+      if (state.inv.place === undefined) loadInvitePlace(r.joinCode);
       toast('Google sign-in didn’t finish. Try again, or use your email.');
       await loadFresh().catch(() => {});
       return false;
@@ -3135,6 +3174,51 @@
     : g && g.photo ? '<div aria-hidden="true" data-inv-photo style="height:' + h + ';background:' + bg(photoUrl(g.photo)) + '"></div>'
     : '<div aria-hidden="true" style="height:' + h + ';background:#e8a71c;display:flex;align-items:center;justify-content:center;font-size:' + initialSize + 'px;font-weight:900;color:#fff">' + esc(initialOf(g && g.name)) + '</div>';
   const invThumb = (g, size, ring) => '<span aria-hidden="true" style="flex:0 0 ' + size + 'px;width:' + size + 'px;height:' + size + 'px;border-radius:999px;overflow:hidden;display:block' + (ring ? ';box-shadow:' + ring : '') + '">' + invPhoto(g, size + 'px', Math.round(size * 0.45)) + '</span>';
+  // A group's place on a small map (owner, 2026-10-12): Geoapify's static map with the area drawn as a 24-point polygon
+  // (its circle's radius unit isn't documented clearly; a polygon's corners are plain coordinates). Off our sites the key
+  // gets a 403, and the image takes itself out (the capture listener below)
+  const placeMapUrl = (pl, w, h) => {
+    if (!PLACES || !PLACES.key || pl.lat == null || pl.lon == null) return '';
+    const r = pl.radius || 400, lat = +pl.lat, lon = +pl.lon, cos = Math.cos(lat * Math.PI / 180), pts = [];
+    for (let i = 0; i <= 24; i++) { const a = i / 24 * 2 * Math.PI; pts.push((lon + r * Math.cos(a) / (111320 * cos)).toFixed(6), (lat + r * Math.sin(a) / 110540).toFixed(6)); }
+    const zoom = Math.max(10, Math.min(17, Math.floor(Math.log2(156543.03 * cos * Math.min(w, h) / (r * 3.3)))));
+    return 'https://maps.geoapify.com/v1/staticmap?style=osm-bright-smooth&width=' + w + '&height=' + h + '&center=lonlat:' + lon.toFixed(6) + ',' + lat.toFixed(6) + '&zoom=' + zoom +
+      '&geometry=polygon:' + pts.join(',') + ';linecolor:%235b4ae8;linewidth:3;fillcolor:%235b4ae8;fillopacity:0.15&apiKey=' + encodeURIComponent(PLACES.key);
+  };
+  document.addEventListener('error', (e) => { const t = e.target; if (t && t.matches && t.matches('img[data-place-map]')) t.remove(); }, true);
+  const PLACE_KIND = { neighborhood: 'Neighborhood', school: 'School', building: 'Building', park: 'Park' };
+  const MAP_PIN = (c) => svg(16, stroke(c, 2.4), '<path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Z"/><circle cx="12" cy="10" r="2.4"/>');
+  // The place card: the map, the place's name and kind, and its purpose; ask = "Is this the one you want to join?"
+  const placeCard = (pl, ask) => {
+    if (!pl || !pl.name) return '';
+    const url = placeMapUrl(pl, 640, 260), kind = PLACE_KIND[pl.kind] || '';
+    return '<div data-place-card style="margin-top:14px;border-radius:18px;overflow:hidden;background:#f4f5f8">' +
+      (url ? '<img data-place-map src="' + esc(url) + '" alt="Map of ' + esc(pl.name) + '" width="640" height="260" style="display:block;width:100%;height:auto;aspect-ratio:64/26;object-fit:cover;background:#e3e5ec">' : '') +
+      '<div style="padding:12px 14px;display:flex;flex-direction:column;gap:4px">' +
+        '<span style="display:flex;align-items:center;gap:6px;font-size:15.5px;font-weight:800;color:#11131f">' + MAP_PIN('#5b4ae8') + esc(pl.name) +
+          (kind ? '<span style="font-size:13px;font-weight:700;color:#6b7280">· ' + kind + '</span>' : '') + '</span>' +
+        (pl.purpose ? '<span style="font-size:14px;line-height:1.4;font-weight:500;color:#454b55">' + esc(pl.purpose) + '</span>' : '') +
+        (ask ? '<span style="font-size:14px;font-weight:700;color:#5f6475">Is this the one you want to join?</span>' : '') +
+      '</div></div>';
+  };
+  // How you're connected (here / nearby / visiting); the group's rule greys out what it doesn't take
+  const CONN = [['here', 'I live here'], ['nearby', 'I live nearby'], ['visiting', 'Just visiting']];
+  const CONN_LABEL = { here: 'Lives here', nearby: 'Lives nearby', visiting: 'Visiting' };
+  const RULE_LINE = { neighbors: 'This group is for people who live here.', nearby: 'This group is for people who live here or nearby.' };
+  const connOk = (rule, c) => rule === 'neighbors' ? c === 'here' : rule === 'nearby' ? c !== 'visiting' : true;
+  const needsConn = (pl) => !!pl && (!!pl.name || (!!pl.rule && pl.rule !== 'everyone'));
+  const connPicker = (pl) => {
+    const rule = pl.rule || 'everyone', cur = state.inv.conn, err = state.inv.ruleErr;
+    return '<div role="radiogroup" aria-label="How are you connected to ' + esc(pl.name || 'this place') + '?" style="margin-top:14px;display:flex;flex-direction:column;gap:8px">' +
+      '<span style="font-size:14.5px;font-weight:800;color:#11131f">How are you connected' + (pl.name ? ' to ' + esc(pl.name) : '') + '?</span>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:8px">' + CONN.map(([k, label]) => {
+        const ok = connOk(rule, k), onIt = cur === k;
+        return '<span ' + (ok ? on(() => setInv({ conn: k, ruleErr: '' }), 'radio') : 'role="radio" aria-disabled="true"') + ' aria-checked="' + onIt + '" data-conn="' + k + '" style="display:flex;align-items:center;min-height:42px;padding:0 15px;border-radius:999px;font-size:14.5px;font-weight:800;cursor:' + (ok ? 'pointer' : 'default') + ';' +
+          (onIt ? 'background:#5b4ae8;color:#fff' : ok ? 'background:#fff;color:#11131f;box-shadow:inset 0 0 0 1.5px #dcdfe6' : 'background:#f0f1f5;color:#b4b8c2') + '">' + label + '</span>';
+      }).join('') + '</div>' +
+      (RULE_LINE[rule] ? '<span style="font-size:13.5px;font-weight:600;color:#6b7280">' + RULE_LINE[rule] + '</span>' : '') +
+      (err ? '<span role="alert" style="font-size:13.5px;font-weight:700;color:#c0263d">' + esc(err) + '</span>' : '') + '</div>';
+  };
   const invName = (g) => g && g.name ? esc(g.name) : g ? 'this group' : '';   // g with no name: the preview couldn't load
   const invNameSize = (g) => g && g.name && g.name.length > 16 ? 34 : 38;
   const statusFade = '<div aria-hidden="true" style="position:absolute;left:0;right:0;top:0;height:calc(120px + var(--pt));background:linear-gradient(rgba(0,0,0,.45),transparent)"></div>';
@@ -3163,6 +3247,7 @@
           (meta ? '<span data-inv-meta style="font-size:14.5px;font-weight:600;color:rgba(255,255,255,.88)">' + esc(meta) + '</span>' : '') + '</div></div>' +
       '<div style="flex:1 0 auto;padding:24px 20px calc(34px + env(safe-area-inset-bottom, 0px));display:flex;flex-direction:column;gap:14px">' +
         '<span style="font-size:16.5px;line-height:1.5;font-weight:500;color:#2a2f38;text-wrap:pretty">Spark Hub is where ' + esc(gName) + ' plans get-togethers. Join to RSVP, sign up to help or float an idea.</span>' +
+        placeCard(st.inv.place, false).replace('margin-top:14px', 'margin-top:0') +
         '<button type="button" ' + on(toSignIn) + ' data-inv-join class="hov-primary" style="margin-top:6px;min-height:54px;border:0;border-radius:999px;background:#5b4ae8;font-family:inherit;font-size:16.5px;font-weight:900;color:#fff;cursor:pointer">Join ' + esc(g && g.name ? g.name : 'the group') + '</button>' +
         '<span style="align-self:center;display:flex;gap:5px;font-size:14.5px;font-weight:600;color:#6b7280">Already on Spark Hub?<span ' + on(toSignIn) + ' role="button" data-inv-signin style="font-weight:800;color:#5b4ae8;cursor:pointer">Sign in</span></span>' +
         '<span style="margin-top:auto;align-self:center;font-size:12.5px;font-weight:600;color:#8a909b">' + esc(SHARE_ORIGIN.replace(/^https?:\/\//, '') + '/join/' + st.inv.code) + '</span>' +
@@ -3199,7 +3284,7 @@
     return '<div data-screen-label="Invite" style="position:relative;min-height:100%;display:flex;flex-direction:column;background:#fff">' +
       '<div style="position:relative;flex:0 0 auto">' + invPhoto(g, 'calc(' + photoH + 'px + var(--pt))', 96) + statusFade + brandPill + '</div>' +
       '<div style="position:relative;flex:1 0 auto;margin-top:-28px;border-radius:28px 28px 0 0;background:#fff;padding:26px 24px calc(24px + env(safe-area-inset-bottom, 0px));display:flex;flex-direction:column">' +
-        '<div style="' + INV_EYEBROW + ';color:#5b4ae8">You’re invited to</div>' + nameBlock + body +
+        '<div style="' + INV_EYEBROW + ';color:#5b4ae8">You’re invited to</div>' + nameBlock + placeCard(st.inv.place, false) + body +
       '</div></div>';
   }
 
@@ -3275,18 +3360,20 @@
 
   // E3: signed in before the tap — join as this account, or switch
   function viewInvConfirm() {
-    const st = state, g = st.inv.group, busy = !!st.inv.busy, first = firstName(st.myName) || 'me';
+    const st = state, g = st.inv.group, pl = st.inv.place, need = needsConn(pl), busy = !!st.inv.busy || pl === undefined, first = firstName(st.myName) || 'me';
+    const ready = !busy && g !== undefined && (!need || !!st.inv.conn);
     return '<div class="modal-scrim" data-scrim="' + reg(closeInvite) + '" style="z-index:32;background:rgba(17,19,31,.55);padding:18px">' +
       '<div role="dialog" aria-modal="true" aria-label="Join ' + esc(g && g.name ? g.name : 'this group') + '?" style="position:relative;width:100%;max-width:420px;background:#fff;border-radius:32px;padding:26px 22px 22px;box-shadow:0 24px 60px rgba(17,19,31,.3);animation:popIn 260ms cubic-bezier(.22,.9,.28,1) both">' +
         '<span ' + on(closeInvite) + ' aria-label="Close" style="position:absolute;top:16px;right:16px;width:40px;height:40px;border-radius:999px;background:#f0f1f5;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(16, '#11131f', 2.4) + '</span>' +
         invThumb(g, 64) +
         '<h2 style="margin:16px 0 0;padding-right:40px;font-size:28px;line-height:1.1;font-weight:900;letter-spacing:-.02em;color:#11131f;overflow-wrap:break-word">' + (g && g.name ? 'Join ' + invName(g) + '?' : 'Join this group?') + '</h2>' +
-        '<p style="margin:10px 0 0;font-size:16px;color:#5f6475">You’ll join as:</p>' +
+        placeCard(pl, true) + (need ? connPicker(pl) : '') +
+        '<p style="margin:' + (need ? 16 : 10) + 'px 0 0;font-size:16px;color:#5f6475">You’ll join as:</p>' +
         '<div style="margin-top:10px;display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:18px;background:#f0f1f5">' +
           face(st.me, st.myName || st.email, 40, '#5b4ae8') +
           '<div style="min-width:0"><div style="font-size:16px;font-weight:700;color:#11131f">' + esc(st.myName || st.email) + '</div>' +
           '<div style="font-size:14px;color:#6b7080;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(st.email) + '</div></div></div>' +
-        '<button type="button" ' + on(() => { if (!busy && g !== undefined) inviteJoin(); }) + ' style="margin-top:18px;' + invPrimary(!busy && g !== undefined) + '">' + (busy ? 'Joining…' : 'Join as ' + esc(first)) + '</button>' +
+        '<button type="button" data-inv-confirm-join ' + on(() => { if (ready) inviteJoin(); }) + ' aria-disabled="' + !ready + '" style="margin-top:18px;' + invPrimary(ready) + '">' + (st.inv.busy ? 'Joining…' : 'Join as ' + esc(first)) + '</button>' +
         '<div ' + on(invOtherAccount) + ' style="margin-top:14px;text-align:center;font-size:15px;font-weight:700;color:#5b4ae8;cursor:pointer">Use a different account</div>' +
       '</div></div>';
   }
@@ -3318,7 +3405,7 @@
   const TBD_ON_PHOTO = '#ffd98a', TBD_INK = '#8f6405';
   const tbdSpan = (t, color) => '<span style="color:' + (color || TBD_INK) + '">' + esc(t) + '</span>';
   // Events posted to several groups: "Torrez Fitness +1"
-  const groupsLabel = (s) => { const n = (s.groupIds || [s.groupId]).map(id => groupById(id)).filter(g => g && g.role).map(g => g.name); return n.length ? n[0] + (n.length > 1 ? ' +' + (n.length - 1) : '') : ((groupById(s.groupId) || {}).name || ''); };
+  const groupsLabel = (s) => { const n = (s.groupIds || [s.groupId]).map(id => groupById(id)).filter(g => g && g.role).map(g => g.name); return n.length ? n[0] + (n.length > 1 ? ' +' + (n.length - 1) : '') : s.personal ? 'Just invited' : ((groupById(s.groupId) || {}).name || ''); };
   // Multi-day and repeating events by their schedule, "Oct 16–18", "Thursdays · 7am" (owner, 2026-10-07, multi-day audit, M1)
   const shortWhen = (s) => !s.dayDate ? 'No date yet' : schedLabel(s) ? schedLabel(s) + (s.repeat && s.dayTime ? ' · ' + fmtTime(s.dayTime) : '') : fmtDay(s.dayDate) + (s.dayTime ? ' · ' + fmtTime(s.dayTime) : '');
   const signupFill = (s) => {
@@ -3670,7 +3757,35 @@
   // ---- My friends (v8): requests, Your lists (4a), then your friends with the next thing they're going to
   // Private friend lists live on this device only (v8: "lists persist in the browser"), per account
   const FR_LISTS_KEY = 'spark-hub-friend-lists-';
+  // Lists live in the account since 20261202010000 (owner, 2026-10-12): loaded once per account, and any lists still on
+  // this device are copied up the first time (then taken off the device). A database without the table keeps them local
+  const loadFrLists = async () => {
+    if (!state.email || state.viewAs || state.frListsLoading) return;
+    const me = state.me;
+    state.frListsLoading = true;
+    try {
+      await ensureSession();
+      let r = await sb.from('lists').select('id,name,people,created_at').is('group_id', null).order('created_at');
+      if (r.error && (r.error.code === '42P01' || r.error.code === 'PGRST205')) { state.frListsDb = { me, off: true }; return; }
+      if (r.error) throw r.error;
+      let local = [];
+      try { local = JSON.parse(localStorage.getItem(FR_LISTS_KEY + me) || '[]'); } catch (e) { local = []; }
+      local = (Array.isArray(local) ? local : []).filter(l => l && typeof l.name === 'string' && l.name.trim() && Array.isArray(l.people));
+      if (local.length) {
+        const have = (r.data || []).map(l => l.name);
+        const up = local.filter(l => have.indexOf(l.name.trim().slice(0, 32)) < 0).map(l => ({ name: l.name.trim().slice(0, 32), people: l.people.filter(x => typeof x === 'string').slice(0, 100) }));
+        if (up.length) must(await sb.from('lists').insert(up));
+        try { localStorage.removeItem(FR_LISTS_KEY + me); } catch (e) { /* fine */ }
+        r = must(await sb.from('lists').select('id,name,people,created_at').is('group_id', null).order('created_at'));
+      }
+      if (state.me === me) setState({ frListsDb: { me, lists: (r.data || []).map(l => ({ id: l.id, name: l.name, people: l.people || [] })) } });
+    } catch (e) { console.error(e); }
+    finally { state.frListsLoading = false; }
+  };
+  const frListsInDb = () => !!state.frListsDb && state.frListsDb.me === state.me && !state.frListsDb.off;
   const frLists = () => {
+    if (frListsInDb()) return state.frListsDb.lists;
+    if (state.email && !state.viewAs && (!state.frListsDb || state.frListsDb.me !== state.me) && !state.frListsLoading) setTimeout(loadFrLists, 0);
     if (state.frListsMem && state.frListsMem.me === state.me) return state.frListsMem.lists;
     let v = [];
     try { v = JSON.parse(localStorage.getItem(FR_LISTS_KEY + state.me) || '[]'); } catch (e) { v = []; }
@@ -3801,7 +3916,18 @@
     const toggle = (id) => setState({ frListEd: Object.assign({}, state.frListEd, { people: ed.people.indexOf(id) > -1 ? ed.people.filter(x => x !== id) : ed.people.concat(id) }) });
     const save = () => {
       if (!ok) return;
-      const lists = frLists().slice(), item = { id: ed.id || String(Date.now()), name: ed.name.trim().slice(0, 32), people: ed.people.slice() };
+      const item = { id: ed.id || String(Date.now()), name: ed.name.trim().slice(0, 32), people: ed.people.slice() };
+      if (frListsInDb()) {   // in the account (20261202010000): the database keeps only people who are still friends
+        run(async () => {
+          const r = isEdit ? must(await sb.from('lists').update({ name: item.name, people: item.people }).eq('id', ed.id).select('id').single())
+            : must(await sb.from('lists').insert({ name: item.name, people: item.people }).select('id').single());
+          state.frListsDb = null;
+          await loadFrLists();
+          item.id = r.data.id;
+        }, () => ({ frListEd: null, frList: item.id })).then(ok => { if (ok) toast(isEdit ? 'List saved' : 'List made', true); });
+        return;
+      }
+      const lists = frLists().slice();
       const k = lists.findIndex(x => x.id === ed.id);
       if (k > -1) lists[k] = item; else lists.push(item);
       saveFrLists(lists);
@@ -3809,7 +3935,9 @@
       toast(isEdit ? 'List saved' : 'List made', true);
     };
     const del = () => setState({ confirm: { z: 60, title: 'Delete “' + ed.name.trim() + '”?', body: 'The people stay your friends. Only the list goes away.', cta: 'Delete list', keep: 'Keep it', danger: true,
-      run: () => { saveFrLists(frLists().filter(x => x.id !== ed.id)); setState({ frListEd: null, confirm: null }); toast('List deleted', true); } } });
+      run: () => {
+        if (frListsInDb()) return run(async () => { must(await sb.from('lists').delete().eq('id', ed.id)); state.frListsDb = null; await loadFrLists(); }, { frListEd: null, frList: null, confirm: null }).then(ok => { if (ok) toast('List deleted', true); });
+        saveFrLists(frLists().filter(x => x.id !== ed.id)); setState({ frListEd: null, confirm: null }); toast('List deleted', true); } } });
     const rows = state.fr.friends.map((f, i) => { const onIt = ed.people.indexOf(f.id) > -1;
       return '<div ' + on(() => toggle(f.id), 'checkbox') + ' aria-checked="' + onIt + '" aria-label="' + esc(f.name) + '" class="hov-row" style="display:flex;align-items:center;gap:12px;min-height:56px;padding:0 14px;border-top:' + (i ? '1px solid #f2f3f6' : '0') + ';cursor:pointer">' + frFace(f, 36) +
         '<span style="flex:1;min-width:0;font-size:15.5px;font-weight:800;color:#0d1117">' + esc(f.name) + '</span>' +
@@ -6118,6 +6246,25 @@
     if (runs(g)) sb.rpc('group_blocked', { p_group: g.id }).then(r => { if (!r.error && state.gMenu === g.id) setState({ gMenuBlocked: (r.data || []).length }); });
     if (runs(g)) sb.rpc('list_reports', { p_group: g.id }).then(r => { if (!r.error && state.gMenu === g.id) setState({ gMenuReports: (r.data || []).length }); });   // the red count (v8-18 1s)
   };
+  // Who can join (owner, 2026-10-12): three choices, changeable any time; a change affects new joins only
+  const RULE_SHORT = { everyone: 'Everyone', nearby: 'Nearby neighbors', neighbors: 'Neighbors' };
+  const RULE_OPTS = [['neighbors', 'Neighbors', 'People who say they live here'], ['nearby', 'Nearby neighbors', 'People who live here or nearby'], ['everyone', 'Everyone', 'Anyone with the link or QR code']];
+  const setJoinRule = async (g, rule) => {
+    if (rule === g.joinRule || state.busy) return setState({ joinRuleFor: null });
+    if (await run(async () => { must(await sb.rpc('set_join_rule', { p_group: g.id, p_rule: rule })); }, { joinRuleFor: null })) toast('Who can join: ' + RULE_SHORT[rule], true);
+  };
+  function viewJoinRule() {
+    const g = groupById(state.joinRuleFor), close = () => setState({ joinRuleFor: null });
+    if (!g) return '';
+    return modal('Who can join ' + g.name + '?', close,
+      h3Html('Who can join ' + esc(g.name) + '?') +
+      '<div style="margin-top:-6px;font-size:14px;line-height:1.4;font-weight:600;color:#6b7280">Everyone already in stays. When they join, people say how they’re connected, on their honor.</div>' +
+      '<div role="radiogroup" aria-label="Who can join" style="display:flex;flex-direction:column;gap:8px">' + RULE_OPTS.map(([k, label, sub]) => { const onIt = (g.joinRule || 'everyone') === k;
+        return '<div ' + on(() => setJoinRule(g, k), 'radio') + ' aria-checked="' + onIt + '" data-join-rule="' + k + '" style="display:flex;flex-direction:column;gap:2px;padding:12px 14px;border-radius:14px;cursor:pointer;' +
+          (onIt ? 'background:#f3f1fe;box-shadow:inset 0 0 0 2px #5b4ae8' : 'background:#fff;box-shadow:inset 0 0 0 1.5px #e3e5ec') + '">' +
+          '<span style="font-size:15.5px;font-weight:800;color:' + (onIt ? '#4a3ad4' : '#0d1117') + '">' + label + '</span><span style="font-size:13.5px;font-weight:600;color:#6b7280">' + sub + '</span></div>'; }).join('') + '</div>',
+      { z: 40 });
+  }
   function viewGroupMenu() {
     const g = groupById(state.gMenu);
     if (!g) return '';
@@ -6157,6 +6304,8 @@
               '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-size:15.5px;font-weight:800;color:#0d1117">Members can invite people</span>' +
                 '<span style="font-size:13px;line-height:1.35;font-weight:600;color:#6b7280">' + (g.membersCanInvite ? 'On: anyone in the group can invite people' : 'Off: only owners and admins can invite') + '</span></div>' +
               '<span aria-hidden="true" style="flex:0 0 46px;width:46px;height:28px;border-radius:999px;position:relative;transition:background .2s;background:' + (g.membersCanInvite ? '#5b4ae8' : '#c3c7d0') + '"><span style="position:absolute;top:3px;left:' + (g.membersCanInvite ? 21 : 3) + 'px;width:22px;height:22px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:left .2s"></span></span></div>' +
+            // Who can join (owner, 2026-10-12): owners pick, admins see it
+            row('Who can join', then(() => g.role === 'owner' ? setState({ joinRuleFor: g.id }) : toast('Only the group’s owners can change who can join')), RULE_SHORT[g.joinRule] || RULE_SHORT.everyone) +
             // Reports (v8-18 1s): open reports about this group's posts and members, with a red count
             '<div ' + on(() => openReports(g.id)) + ' role="button" data-group-reports style="min-height:48px;padding:0 14px;border-top:1px solid #eceef2;display:flex;align-items:center;gap:12px;font-size:15.5px;font-weight:800;color:#0d1117;cursor:pointer">' +
               '<span style="flex:1">Reports</span>' + (state.gMenuReports ? '<span data-reports-count style="font-size:14px;font-weight:700;color:#c0263d">' + state.gMenuReports + '</span>' : '') + I.chevR(13, '#b9bcc4', 3) + '</div>' +
@@ -10415,8 +10564,8 @@
   };
   const postEvent = () => {
     if (state.evFromIdea) { planIdea(); return; }
-    const st = state, groups = evGroupIds(st);
-    if (!groups.length || st.busy || !cleanTitle(st.activity)) return;
+    const st = state, pers = !!st.evPersonal, groups = pers ? [] : evGroupIds(st);
+    if ((!groups.length && !pers) || st.busy || !cleanTitle(st.activity)) return;
     if (st.evDate && st.evDate < todayISO()) { setState({ evPop: 'when' }); toast('That date has passed. Pick a new one.'); return; }
     const place = st.locPlace && cleanTitle(st.locText) ? st.locPlace : null, spot = cleanTitle(st.locText).slice(0, 80) || null;
     const who = (st.myName || 'Someone').slice(0, 40), dated = !!st.evDate, float = !!st.evFloat, plan = dated && !float;   // a date posts it as a plan; without one, or floated (no lead yet), it's an idea
@@ -10428,13 +10577,13 @@
         cover = await evCover(st);
         insp = await inspoUp(st);
         const row = {
-          group_id: groups[0], author_name: st.myName, text: cleanTitle(st.activity).slice(0, TITLE_MAX),
+          group_id: pers ? null : groups[0], author_name: st.myName, text: cleanTitle(st.activity).slice(0, TITLE_MAX),   // no group: a personal event (20261202000000)
           // v8-14: the one-page description (200) is the event's details text, shown whole under What to expect
           vision: (st.evDesc || '').trim().slice(0, DESC_DB) || null, overview: (st.evOverview || '').trim().slice(0, OV_MAX) || null,
           mood: insp.paths, photos: cover ? [cover.path] : [], cat: 'events', answers: {}, lead_id: st.me, lead_name: st.myName, created_by: st.me,
           ...evSpotCols(st),
           ...(() => { const c = whenCols(evWhen()); if (!c.schedule) delete c.schedule; return c; })(),   // multi-day: day_date is the first day, schedule the rest (v8-7)
-          planned: plan, visibility: st.evPriv ? 'invite' : 'group', guest_invites: evGuestInv(st), ...(st.evNoContact ? { contact: false } : {}), min_people: dated || !MIN_PEOPLE ? null : st.evNeed || null, tags: (st.evTags || []).slice(0, 2),
+          planned: plan, visibility: st.evPriv || pers ? 'invite' : 'group', guest_invites: evGuestInv(st), ...(st.evNoContact ? { contact: false } : {}), min_people: dated || !MIN_PEOPLE ? null : st.evNeed || null, tags: (st.evTags || []).slice(0, 2),
           cover_pos: cover && st.coverPos ? posOf(st.coverPos, IDEA_POS) : null,
           ...(st.evCap ? { cap: st.evCap } : {})   // Limit RSVPs (Design v8-18, 2)
         };
@@ -10481,7 +10630,7 @@
   };
 
   // Drafts: the flow's own fields, saved to your account (only you see them)
-  const DRAFT_FIELDS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'evDayType', 'evRepeat', 'evRepeatUntil', 'evEndDate', 'evEndDateT', 'evDays', 'evDaysEach', 'locText', 'locPlace', 'locAddr', 'evOverview', 'evDesc', 'evCap', 'evNeed', 'evTags', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evNoGuestInv', 'evNoContact', 'evTest', 'evFloat', 'evHelpNone', 'evGroups', 'coverPos'];
+  const DRAFT_FIELDS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'evDayType', 'evRepeat', 'evRepeatUntil', 'evEndDate', 'evEndDateT', 'evDays', 'evDaysEach', 'locText', 'locPlace', 'locAddr', 'evOverview', 'evDesc', 'evCap', 'evNeed', 'evTags', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evNoGuestInv', 'evNoContact', 'evTest', 'evFloat', 'evHelpNone', 'evGroups', 'evPersonal', 'coverPos'];
   const saveDraft = () => {
     const st = state;
     if (st.busy) return;
@@ -10528,7 +10677,7 @@
       evInspo: (arr(x.evInspo) || []).filter(q => PHOTO_PATH.test(q || '')).slice(0, 3).map(path => ({ path, url: photoUrl(path) })), evNeed: Number.isInteger(x.evNeed) && x.evNeed > 0 ? Math.min(x.evNeed, 99) : null, evTags: (arr(x.evTags) || []).filter(k => TYPES6.some(t => t[0] === k)).slice(0, 2), evNeeds: arr(x.evNeeds) || [],
       evDatePoll: null, evSpotPoll: null, evLater: x.evLater && typeof x.evLater === 'object' ? x.evLater : {},
       evPriv: !!x.evPriv, evNoGuestInv: x.evNoGuestInv == null ? null : !!x.evNoGuestInv, evNoContact: !!x.evNoContact, evTest: typeof x.evTest === 'boolean' ? x.evTest : null, evFloat: false,   // v8-6: the maker always leads it
-      evHelpNone: !!x.evHelpNone, evGroups: arr(x.evGroups), coverPos: x.coverPos || null,
+      evHelpNone: !!x.evHelpNone, evGroups: arr(x.evGroups), evPersonal: !!x.evPersonal, coverPos: x.coverPos || null,
       // How long it is (v8-7)
       evDayType: ['one', 'repeat', 'span', 'days'].indexOf(x.evDayType) > -1 ? x.evDayType : 'one', evRepeat: REPEATS[x.evRepeat] ? x.evRepeat : 'week',
       evRepeatUntil: ISO_DAY.test(x.evRepeatUntil || '') ? x.evRepeatUntil : '', evEndDate: ISO_DAY.test(x.evEndDate || '') ? x.evEndDate : '', evEndDateT: HHMM.test(x.evEndDateT || '') ? x.evEndDateT : '',
@@ -11017,16 +11166,23 @@
       : '<div data-cp-help style="display:flex;flex-direction:column;gap:10px">' + examples + '</div>';
     // VISIBILITY: Post to (a centred pop-up), Public / Private, People can invite friends, Limit RSVPs. Picking a group
     // turns the whole section white at once (Design v8-18, 1m)
-    const groups = evGroupIds(st), visOn = groups.length > 0;
+    const groups = evGroupIds(st), pers = !!st.evPersonal, visOn = groups.length > 0 || pers;
     ['post', 'vis', 'inv', 'cap', 'ct'].forEach(k => white(k, visOn));
-    const postTo = postToRow(groups, () => { touch('post'); setState({ evGrpPop: true }); }, W.post ? WC : GC);
+    const postTo = pers
+      ? '<div ' + on(() => { touch('post'); setState({ evGrpPop: true }); }) + ' data-post-to aria-label="Post to: Just people I invite" style="' + WC + ';display:flex;align-items:center;gap:12px;min-height:56px;padding:0 14px;cursor:pointer">' +
+          '<span style="flex:0 0 auto;font-size:14.5px;font-weight:800;color:#0d1117">Post to</span><span style="flex:1;min-width:0;display:flex;align-items:center;justify-content:flex-end;gap:8px">' +
+          '<span aria-hidden="true" style="flex:0 0 26px;width:26px;height:26px;border-radius:999px;background:#0d1117;display:flex;align-items:center;justify-content:center">' + svg(13, stroke('#fff', 2.4), LOCK_IC) + '</span>' +
+          '<span data-post-sum style="font-size:14.5px;font-weight:700;color:#454b55;white-space:nowrap">Just people I invite</span><span style="display:flex">' + chev6(14, '#9aa0ac', false) + '</span></span></div>'
+      : postToRow(groups, () => { touch('post'); setState({ evGrpPop: true }); }, W.post ? WC : GC);
     const radio = (priv, name, sub, icon, k) => { const onIt = !!st.evPriv === priv;
       return '<div ' + on(() => setState({ evPriv: priv, evNoGuestInv: null, cpWhite: Object.assign({}, W, { vis: true }) }), 'radio') + ' aria-checked="' + onIt + '" aria-label="' + name + ': ' + sub + '" style="display:flex;align-items:center;gap:12px;min-height:52px;border-top:' + (k ? '1px solid #eef0f3' : '0') + ';cursor:pointer">' +
         '<span style="flex:0 0 22px;display:flex;justify-content:center;color:' + (onIt ? P : '#6b7280') + '">' + svg(18, stroke('currentColor', 2.2), icon) + '</span>' +
         '<div style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:14.5px;font-weight:' + (onIt ? 800 : 700) + ';color:' + (onIt ? '#0d1117' : '#454b55') + '">' + name + '</span><span style="font-size:12.5px;font-weight:600;color:#6b7280">' + sub + '</span></div>' +
         '<span aria-hidden="true" style="flex:0 0 22px;width:22px;height:22px;box-sizing:border-box;border-radius:999px;border:' + (onIt ? '6px solid ' + P : '1.5px solid #c9ccd3') + '"></span></div>'; };
     const TR = ';transition:background .2s, box-shadow .2s';
-    const vis = '<div role="radiogroup" aria-label="Who can see it" data-cp-vis style="' + (W.vis ? WC : GC) + TR + ';padding:0 14px">' + radio(false, 'Public', groups.length > 1 ? 'Anyone in these groups' : 'Anyone in this group', PEOPLE_IC, 0) + radio(true, 'Private', 'Only people you invite', LOCK_IC, 1) + '</div>';
+    const vis = pers ? '<div data-cp-vis style="' + WC + ';display:flex;align-items:center;gap:12px;min-height:52px;padding:0 14px"><span style="flex:0 0 22px;display:flex;justify-content:center;color:' + P + '">' + svg(18, stroke('currentColor', 2.2), LOCK_IC) + '</span>' +
+        '<div style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:14.5px;font-weight:800;color:#0d1117">Private</span><span style="font-size:12.5px;font-weight:600;color:#6b7280">Only the people you invite. Up to 20.</span></div></div>'
+      : '<div role="radiogroup" aria-label="Who can see it" data-cp-vis style="' + (W.vis ? WC : GC) + TR + ';padding:0 14px">' + radio(false, 'Public', groups.length > 1 ? 'Anyone in these groups' : 'Anyone in this group', PEOPLE_IC, 0) + radio(true, 'Private', 'Only people you invite', LOCK_IC, 1) + '</div>';
     const gi = evGuestInv(st);
     const inv = '<div ' + on(() => setState({ evNoGuestInv: gi, cpWhite: Object.assign({}, W, { inv: true }) }), 'switch') + ' aria-checked="' + gi + '" aria-label="People can invite friends" data-cp-inv style="' + (W.inv ? WC : GC) + TR + ';display:flex;align-items:center;gap:12px;min-height:52px;padding:0 14px;cursor:pointer">' +
       '<span style="display:flex;color:#6b7280">' + svg(18, stroke('currentColor', 2.2), CP_INV) + '</span><span style="flex:1;min-width:0;font-size:14.5px;font-weight:800;color:#0d1117">People can invite friends</span>' +
@@ -11044,7 +11200,7 @@
     const post = () => { if (busy) return; if (!cleanTitle(title)) { toast('Add a title first'); return; } if (!hasD) { toast('Add a date first'); return; }
       if (descPlain(st.evDesc).length > DESC_MAX) { toast('The description is over ' + DESC_MAX + ' characters'); return; }
       if (wErr) { toast(wErr); const f = document.querySelector('[data-cp-row="when"]'); if (f) f.scrollIntoView({ block: 'center', behavior: 'smooth' }); return; }
-      if (!groups.length) { setState({ evGrpPop: true }); toast('Pick at least one group'); return; } createEvent(); };
+      if (!groups.length && !pers) { setState({ evGrpPop: true }); toast('Pick a group, or Just people I invite'); return; } createEvent(); };
     return '<div class="overlay-screen compose-sheet" data-screen-label="New spark"><div data-screen-label="Create event (1a)" style="position:relative;min-height:100%;display:flex;flex-direction:column;background:#e8eaee">' +
       '<div style="position:sticky;top:0;z-index:8;height:0"><span ' + on(close) + ' aria-label="Close" style="position:absolute;top:14px;right:12px;width:36px;height:36px;border-radius:999px;background:rgba(13,17,23,.28);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(14, '#fff', 2.6) + '</span></div>' +
       hero +
@@ -11094,14 +11250,21 @@
   // Post to (v8-14): a centred pop-up of the groups with round ticks (nothing below moves), Done
   function viewGrpPop() {
     const st = state, groups = evGroupIds(st), close = () => setState({ evGrpPop: false });
+    // Just people I invite (owner, 2026-10-12; 20261202000000): no group, private, for the friends you invite. It and the
+    // groups exclude each other
+    const pers = !!st.evPersonal;
+    const personal = '<div ' + on(() => setState(pers ? { evPersonal: false } : { evPersonal: true, evGroups: [], evGrpNone: true, evPriv: true, evNoGuestInv: null }), 'checkbox') + ' aria-checked="' + pers + '" aria-label="Just people I invite" data-post-personal class="' + (pers ? '' : 'hov-row') + '" style="display:flex;align-items:center;gap:12px;min-height:56px;padding:6px 14px;border-radius:14px;cursor:pointer;' + (pers ? 'background:#f3f1fe' : '') + '">' +
+        '<span aria-hidden="true" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#0d1117;display:flex;align-items:center;justify-content:center">' + svg(17, stroke('#fff', 2.2), LOCK_IC) + '</span>' +
+        '<span style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:15.5px;font-weight:800;color:' + (pers ? '#4a3ad4' : '#0d1117') + '">Just people I invite</span><span style="font-size:12.5px;font-weight:600;color:#6b7280">Friends, no group. Private.</span></span>' +
+        '<span aria-hidden="true" style="flex:0 0 22px;width:22px;height:22px;box-sizing:border-box;border-radius:7px;display:flex;align-items:center;justify-content:center;' + (pers ? 'background:#5b4ae8' : 'border:1.5px solid #c9ccd3;background:#fff') + '">' + (pers ? I.check(12, '#fff', 3.4) : '') + '</span></div>';
     const row = (g) => { const onIt = groups.indexOf(g.id) > -1;
-      return '<div ' + on(() => { const nx = onIt ? groups.filter(x => x !== g.id) : groups.concat(g.id); setState({ evGroups: nx, evGrpNone: !nx.length }); }, 'checkbox') + ' aria-checked="' + onIt + '" aria-label="Post to ' + esc(g.name) + '" class="' + (onIt ? '' : 'hov-row') + '" style="display:flex;align-items:center;gap:12px;min-height:56px;padding:0 10px;border-radius:14px;cursor:pointer;background:' + (onIt ? '#f3f1fe' : 'transparent') + '">' +
+      return '<div ' + on(() => { const nx = onIt ? groups.filter(x => x !== g.id) : groups.concat(g.id); setState({ evGroups: nx, evGrpNone: !nx.length, evPersonal: false }); }, 'checkbox') + ' aria-checked="' + onIt + '" aria-label="Post to ' + esc(g.name) + '" class="' + (onIt ? '' : 'hov-row') + '" style="display:flex;align-items:center;gap:12px;min-height:56px;padding:0 10px;border-radius:14px;cursor:pointer;background:' + (onIt ? '#f3f1fe' : 'transparent') + '">' +
         '<span aria-hidden="true" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:' + thumbBg(null, g) + '"></span>' +
         '<span style="flex:1;min-width:0;font-size:15.5px;font-weight:800;color:' + (onIt ? '#4a3ad4' : '#0d1117') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(g.name) + '</span>' +
         '<span aria-hidden="true" style="flex:0 0 22px;width:22px;height:22px;box-sizing:border-box;border-radius:7px;display:flex;align-items:center;justify-content:center;' + (onIt ? 'background:#5b4ae8' : 'border:1.5px solid #c9ccd3;background:#fff') + '">' + (onIt ? I.check(12, '#fff', 3.4) : '') + '</span></div>'; };   // squares: pick several (Design v8-15, Q44 2a)
     return centredPop('Post to', close,
       '<div style="padding:0 8px 4px"><span style="display:block;font-size:22px;font-weight:900;letter-spacing:-.4px;color:#0d1117">Post to</span><span style="display:block;margin-top:2px;font-size:14px;font-weight:600;color:#6b7280">Choose all that apply</span></div>' +
-      '<div style="display:flex;flex-direction:column;gap:4px;margin:0 -6px">' + groupsInOrder().map(row).join('') + '</div>' +
+      '<div style="display:flex;flex-direction:column;gap:4px;margin:0 -6px">' + personal + (groupsInOrder().length ? '<div aria-hidden="true" style="height:1px;margin:2px 14px;background:#eceef2"></div>' : '') + groupsInOrder().map(row).join('') + '</div>' +
       '<button type="button" ' + on(close) + ' class="hov-primary" style="margin-top:6px;min-height:50px;border:0;border-radius:999px;background:#5b4ae8;color:#fff;font-family:inherit;font-size:16px;font-weight:900;cursor:pointer">Done' + (groups.length ? ' · ' + groups.length + (groups.length === 1 ? ' group' : ' groups') : '') + '</button>', 38);
   }
 
@@ -11740,7 +11903,7 @@
       (f && f.name ? '<div data-join-found style="display:flex;align-items:center;gap:8px;font-size:14.5px;font-weight:800;color:#0f7a3c">' + svg(16, stroke('#149a4b', 3), '<path d="M5 12.5l4.5 4.5L19 7.5"/>') + esc(f.name) + (f.n ? ' · ' + f.n + (f.n === 1 ? ' member' : ' members') : '') + '</div>' : '') +
       (st.joinBad ? '<div role="alert" style="font-size:14px;line-height:1.4;font-weight:700;color:#9b1c31">That code didn’t match a group. Check it with your organiser.</div>' : '') +
       '<button type="button" data-enter ' + on(() => { if (ok) submitJoin(); }) + ' aria-disabled="' + !ok + '" style="' + primary(ok) + '">' + (st.busy === 'join' ? 'Joining…' : f && f.name ? 'Join ' + esc(f.name) : 'Join') + '</button>' +
-      '<p style="margin:0;text-align:center;font-size:14px;line-height:1.45;font-weight:600;color:#6b7280">No invite? <span ' + on(() => { setState({ joinOpen: false, joinRaw: null }); askForGroup(); }) + ' role="button" data-request-group style="font-weight:800;color:#5b4ae8;cursor:pointer">Request a group</span></p>',
+      '<p style="margin:0;text-align:center;font-size:14px;line-height:1.45;font-weight:600;color:#6b7280">No invite? <span ' + on(() => { setState({ joinOpen: false, joinRaw: null }); openRequest(); }) + ' role="button" data-request-group style="font-weight:800;color:#5b4ae8;cursor:pointer">Request a group</span></p>',
       { z: 31, max: 353 });
   }
 
@@ -12287,7 +12450,7 @@
       '<div style="display:flex;flex-direction:column;gap:3px;font-size:14px;font-weight:600;color:#454b55">' +
         (admin ? '<div style="display:flex;align-items:center;gap:8px;min-width:0"><span style="flex:0 0 auto;font-size:12px;font-weight:900;letter-spacing:.6px;text-transform:uppercase;color:#8a909b">Email</span>' +
           (m.email ? '<a href="mailto:' + esc(m.email) + '" style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#4a3ad4;font-weight:700;text-decoration:none">' + esc(m.email) + '</a>' : '<span style="color:#8a909b">Not shared</span>') + '</div>' : '') +
-        (m.joined_at ? '<div style="font-size:13px;color:#6b7280">Joined ' + esc(joined(m.joined_at)) + '</div>' : '') + '</div>' +
+        (m.joined_at ? '<div style="font-size:13px;color:#6b7280">Joined ' + esc(joined(m.joined_at)) + (m.connection && CONN_LABEL[m.connection] ? ' · ' + CONN_LABEL[m.connection] : '') + '</div>' : '') + '</div>' +
       (actions(m) || m.user_id !== st.me ? '<div style="display:flex;flex-wrap:wrap;gap:8px">' +
         (m.user_id !== st.me ? pill('See profile', () => openPerson(m.user_id)) : '') + actions(m) + '</div>' : '') + '</div>';
     const row = (m) => { const open = st.memberOpen === m.user_id;
@@ -12888,6 +13051,230 @@
     '</div>';
   }
 
+  // ---- Starting a group: a draft, a team and a review (owner, 2026-10-12; 20261202040000_group_drafts.sql) ----------
+  // #/request lists your drafts and the ones you're asked onto (the app owner also sees requests waiting for review);
+  // #/request/<id> opens one. The starter fills it in (saved as they type), asks a co-lead (required), admins and
+  // ambassadors onto the team (friends; they say yes in the app), agrees to what leading means and sends it for review.
+  // The app owner approves it (the group opens with the team in their roles) or declines it, from the same page.
+  const ROLE_NAME = { colead: 'Co-lead', admin: 'Admin', ambassador: 'Ambassador' };
+  const ROLE_LINE = { colead: 'Shares the responsibility with you. Required.', admin: 'Helps run the group. One to three is ideal.', ambassador: 'Spreads the word around the neighborhood.' };
+  const ASSOC = [['none', 'There’s no association'], ['member', 'There is, and I’m part of it'], ['not_member', 'There is, and I’m not part of it'], ['hoa', 'It’s an HOA'], ['unsure', 'Not sure']];
+  const RADII = [[400, '¼ mile'], [800, '½ mile'], [1600, '1 mile'], [3200, '2 miles']];
+  const DRAFT_STATUS = { draft: ['DRAFT', '#f2f3f6', '#454b55'], submitted: ['IN REVIEW', '#fff4dc', '#8f6405'], approved: ['OPEN', '#e8f6ee', '#0f7a3c'], declined: ['NOT APPROVED', '#fdecef', '#9b1c31'] };
+  const loadDrafts = async () => {
+    state.gDraftsBusy = true;
+    try {
+      await ensureSession();
+      const [d, t] = await Promise.all([sb.from('group_drafts').select('*').order('updated_at', { ascending: false }), sb.from('group_draft_team').select('*').order('invited_at')]);
+      if (d.error && (d.error.code === '42P01' || d.error.code === 'PGRST205')) return setState({ gDrafts: [], gDraftTeam: [], gDraftsOff: true, gDraftsBusy: false });
+      if (d.error) throw d.error;
+      if (t.error) throw t.error;
+      setState({ gDrafts: d.data || [], gDraftTeam: t.data || [], gDraftsBusy: false });
+    } catch (e) { console.error(e); setState({ gDraftsBusy: false, gDrafts: state.gDrafts || [] }); toast(failed(e)); }
+  };
+  const openRequest = (id) => { setState({ menu: null, confirm: null, pplAdd: false, joinOpen: false }); needSignIn(() => { go('request', { reqId: id || null, reqPick: null, reqFind: null }); if (state.loaded && !state.fromCache) loadDrafts(); }, 'profile'); };
+  const draftOf = (id) => (state.gDrafts || []).find(d => d.id === id) || null;
+  const teamOf = (id) => (state.gDraftTeam || []).filter(t => t.draft_id === id);
+  const teamName = (uid) => { const f = (state.fr.friends || []).find(x => x.id === uid); return f ? shortName(f.name) : nameOf(uid, 'Someone'); };
+  // Typing saves after a pause; picks save straight away
+  let draftTimer = null, draftPending = {};
+  const draftSet = (id, patch, now) => {
+    state.gDrafts = (state.gDrafts || []).map(d => d.id === id ? Object.assign({}, d, patch) : d);
+    Object.assign(draftPending, patch);
+    clearTimeout(draftTimer);
+    const flush = async () => {
+      const p = draftPending; draftPending = {};
+      if (!Object.keys(p).length) return;
+      const r = await sb.from('group_drafts').update(p).eq('id', id);
+      if (r.error) { console.error(r.error); toast(failed(r.error)); }
+    };
+    if (now) flush(); else draftTimer = setTimeout(flush, 700);
+    render();
+  };
+  const newDraft = async () => {
+    if (state.busy) return;
+    setState({ busy: 'save' });
+    try {
+      const r = must(await sb.from('group_drafts').insert({ join_rule: 'everyone' }).select('id').single());
+      await loadDrafts();
+      setState({ busy: null });
+      go('request', { reqId: r.data.id });
+    } catch (e) { console.error(e); setState({ busy: null }); toast(/up to 3/.test(e.message || '') ? 'You have 3 drafts going. Finish or delete one first.' : failed(e)); }
+  };
+  const draftCall = async (fn, args, ok, after) => {
+    if (state.busy) return;
+    setState({ busy: 'save' });
+    try { must(await sb.rpc(fn, args)); await loadDrafts(); setState(Object.assign({ busy: null }, after || {})); if (ok) toast(ok, true); }
+    catch (e) { console.error(e); setState({ busy: null }); toast(e && e.code === '23514' || e && e.code === '22023' ? String(e.message || '').replace(/^./, c => c.toUpperCase()) : failed(e)); }
+  };
+  // Looking up the middle of the area: Geoapify (its results may be kept; Google's may not)
+  const findCenter = async (q) => {
+    if (!PLACES || !PLACES.key || q.trim().length < 3) return;
+    setState({ reqFind: { q, busy: true, list: [] } });
+    try {
+      const url = 'https://api.geoapify.com/v1/geocode/autocomplete?format=json&limit=5&lang=en&text=' + encodeURIComponent(q.trim()) +
+        '&bias=proximity:' + PLACES.lon + ',' + PLACES.lat + '&apiKey=' + encodeURIComponent(PLACES.key);
+      const j = await fetch(url).then(r => r.json());
+      const list = (j.results || []).filter(x => typeof x.lat === 'number' && typeof x.lon === 'number').map(x => ({ label: x.formatted || x.address_line1 || '', lat: x.lat, lon: x.lon }));
+      if (state.reqFind && state.reqFind.q === q) setState({ reqFind: { q, busy: false, list } });
+    } catch (e) { console.error(e); setState({ reqFind: { q, busy: false, list: [], err: true } }); }
+  };
+
+  function viewRequest() {
+    const st = state;
+    if (!st.email) return '<div data-screen-label="Start a group" style="background:#fff;min-height:100%">' + head6('Start a group', backBtn6(() => go('groups'))) +
+      '<section style="padding:20px">' + paraHtml('Sign in to start a request for your neighborhood.') + '<button type="button" ' + on(() => openRequest(st.reqId)) + ' style="margin-top:16px;' + primary(true) + '">Sign in</button></section></div>';
+    // Drafts load once the app's own first load is in (before it, the session may not be ready and the list comes back empty)
+    if (st.gDrafts === undefined && !st.gDraftsBusy && st.loaded && !st.fromCache) setTimeout(loadDrafts, 0);
+    const d = st.reqId ? draftOf(st.reqId) : null;
+    if (st.reqId && !d) return '<div data-screen-label="Group request" style="background:#fff;min-height:100%">' + head6('Group request', backBtn6(() => go('request', { reqId: null }))) +
+      '<section style="padding:20px">' + (st.gDrafts === undefined || st.gDraftsBusy || !st.loaded || st.fromCache ? skeleton() : paraHtml('This request isn’t here any more, or it isn’t yours to see.')) + '</section></div>';
+    return d ? viewDraft(d) : viewDraftList();
+  }
+
+  function viewDraftList() {
+    const st = state, ds = st.gDrafts || [], team = st.gDraftTeam || [];
+    const mine = ds.filter(d => d.created_by === st.me);
+    const asked = ds.filter(d => d.created_by !== st.me && team.some(t => t.draft_id === d.id && t.user_id === st.me));
+    const review = st.demoAdmin ? ds.filter(d => d.status === 'submitted' && d.created_by !== st.me) : [];
+    const chip = (s) => { const c = DRAFT_STATUS[s] || DRAFT_STATUS.draft; return '<span style="flex:0 0 auto;padding:3px 8px;border-radius:999px;background:' + c[1] + ';color:' + c[2] + ';font-size:10.5px;font-weight:900;letter-spacing:.8px">' + c[0] + '</span>'; };
+    const row = (d, sub) => '<div ' + on(() => go('request', { reqId: d.id })) + ' role="button" data-draft-row style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-top:1px solid #f0f1f4;cursor:pointer">' +
+      '<div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(d.name || 'Untitled group') + '</div>' +
+      '<div style="font-size:13.5px;font-weight:600;color:#6b7280">' + esc(sub) + '</div></div>' + chip(d.status) + I.chevR(13, '#b9bcc4', 3) + '</div>';
+    const list = (label, items, sub) => items.length ? '<div style="' + CARD + ';overflow:hidden"><div style="padding:14px 16px 4px;' + EYEBROW + '">' + label + '</div>' + items.map(d => row(d, sub(d))).join('') + '</div>' : '';
+    const roleOf = (d) => (team.find(t => t.draft_id === d.id && t.user_id === st.me) || {});
+    return '<div data-screen-label="Start a group" style="background:#e8eaee;min-height:100%">' +
+      head6('Start a group', backBtn6(() => go('groups'))) +
+      '<section style="padding:16px;display:flex;flex-direction:column;gap:14px">' +
+        '<div style="' + CARD + ';padding:20px 18px;display:flex;flex-direction:column;gap:10px">' +
+          '<h2 style="margin:0;font-size:24px;line-height:1.1;font-weight:900;letter-spacing:-.6px;color:#0d1117;text-wrap:balance">Starting a group is a big deal</h2>' +
+          paraHtml('A group belongs to a real place and the people around it. Whoever starts it gets a real say, and real responsibility: who’s in, what’s okay, and answering reports. Nobody should carry that alone.') +
+          '<div style="display:flex;flex-direction:column;gap:6px;margin-top:2px">' +
+            ['Draft it: the place, what it’s for and how it’ll run', 'Ask a co-lead (required), admins and people to spread the word', 'Send it for review. We get in touch, and it opens when it’s ready'].map((t, i) =>
+              '<div style="display:flex;gap:10px;align-items:flex-start"><span style="flex:0 0 22px;width:22px;height:22px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center">' + (i + 1) + '</span><span style="font-size:14.5px;line-height:1.4;font-weight:600;color:#2b303a">' + t + '</span></div>').join('') + '</div>' +
+          paraHtml('If your neighborhood has an association or HOA, it’s best to start there. A resident can start a group and hand it over later.', '#6b7280') +
+          (mine.filter(d => d.status === 'draft' || d.status === 'submitted').length < 3
+            ? '<button type="button" data-new-draft ' + on(newDraft) + ' style="margin-top:6px;' + primary(!st.busy) + '">' + (st.busy === 'save' ? 'Starting…' : 'Start a draft') + '</button>'
+            : '<span style="font-size:14px;font-weight:700;color:#6b7280">You have 3 drafts going. Finish or delete one to start another.</span>') +
+        '</div>' +
+        (st.gDrafts === undefined ? skeleton() : '') +
+        list('Waiting for your review', review, d => (d.place_name || '') + ' · sent ' + new Date(d.submitted_at || d.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })) +
+        list('You’re asked onto', asked, d => (ROLE_NAME[roleOf(d).role] || 'Team') + ' · ' + ({ invited: 'waiting for you', accepted: 'you’re in', declined: 'you said not now' }[roleOf(d).status] || '')) +
+        list('Your requests', mine, d => d.place_name || 'No place yet') +
+      '</section><div style="height:92px"></div></div>';
+  }
+
+  function viewDraft(d) {
+    const st = state, mine = d.created_by === st.me, edit = mine && d.status === 'draft', team = teamOf(d.id);
+    const meOn = team.find(t => t.user_id === st.me), owner = !!st.demoAdmin;
+    const back = () => go('request', { reqId: null, reqPick: null, reqFind: null });
+    const lbl = (t, sub) => '<div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:15px;font-weight:800;color:#0d1117">' + t + '</span>' + (sub ? '<span style="font-size:13px;line-height:1.35;font-weight:600;color:#6b7280">' + sub + '</span>' : '') + '</div>';
+    const fld = (key, ph, max, rows) => rows
+      ? '<textarea class="fld" data-draft-' + key + ' rows="' + rows + '" maxlength="' + max + '" placeholder="' + esc(ph) + '" ' + onInput(e => draftSet(d.id, { [key]: e.target.value.slice(0, max) })) + ' style="width:100%;border:2px solid #e3e5ec;border-radius:14px;padding:12px 14px;font-family:inherit;font-size:16px;line-height:1.4;color:#0d1117;resize:vertical">' + esc(d[key] || '') + '</textarea>'
+      : '<input class="fld" data-draft-' + key + ' maxlength="' + max + '" placeholder="' + esc(ph) + '" value="' + esc(d[key] || '') + '" ' + onInput(e => draftSet(d.id, { [key]: e.target.value.slice(0, max) })) + ' style="width:100%;height:50px;border:2px solid #e3e5ec;border-radius:14px;padding:0 14px;font-family:inherit;font-size:16px;color:#0d1117">';
+    const chips = (key, opts, cur) => '<div role="radiogroup" style="display:flex;flex-wrap:wrap;gap:8px">' + opts.map(([k, label]) => { const onIt = cur === k;
+      return '<span ' + on(() => draftSet(d.id, { [key]: k }, true), 'radio') + ' aria-checked="' + onIt + '" data-draft-pick="' + key + ':' + k + '" style="display:flex;align-items:center;min-height:40px;padding:0 14px;border-radius:999px;font-size:14px;font-weight:800;cursor:pointer;' +
+        (onIt ? 'background:#5b4ae8;color:#fff' : 'background:#fff;color:#0d1117;box-shadow:inset 0 0 0 1.5px #dcdfe6') + '">' + label + '</span>'; }).join('') + '</div>';
+    const sec = (title, inner) => '<div style="' + CARD + ';padding:18px 16px;display:flex;flex-direction:column;gap:12px"><div style="' + EYEBROW + '">' + title + '</div>' + inner + '</div>';
+    const ro = (label, v) => v ? '<div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:12.5px;font-weight:800;color:#6b7280">' + label + '</span><span style="font-size:15px;line-height:1.4;font-weight:600;color:#0d1117;white-space:pre-line;overflow-wrap:anywhere">' + esc(v) + '</span></div>' : '';
+    const pl = d.place_name ? { name: d.place_name, kind: d.place_kind, lat: d.place_lat, lon: d.place_lon, radius: d.place_radius_m, purpose: d.purpose || '' } : null;
+    const c = DRAFT_STATUS[d.status] || DRAFT_STATUS.draft;
+    // Status
+    let banner = '';
+    if (d.status === 'submitted') banner = '<div style="' + CARD + ';padding:16px;background:#fff8e8;display:flex;flex-direction:column;gap:8px"><b style="font-size:16px;color:#5c4510">Sent for review</b>' +
+      paraHtml(mine ? 'We’ll get in touch soon. You can take it back to change something.' : 'Waiting for review.', '#5c4510') +
+      (mine ? '<span ' + on(() => draftCall('withdraw_group_draft', { p_draft: d.id }, 'Back to a draft')) + ' role="button" style="align-self:flex-start;font-size:14.5px;font-weight:800;color:#8f6405;cursor:pointer">Take it back to edit</span>' : '') + '</div>';
+    if (d.status === 'approved') banner = '<div style="' + CARD + ';padding:16px;background:#eaf7ef;display:flex;flex-direction:column;gap:8px"><b style="font-size:16px;color:#0f5a2f">' + esc(d.name || 'The group') + ' is open</b>' +
+      (d.review_note ? paraHtml('“' + esc(d.review_note) + '”', '#0f5a2f') : '') +
+      (d.group_id && groupById(d.group_id) ? '<button type="button" ' + on(() => openGroupPage(d.group_id, false, 'groups')) + ' style="' + primary(true) + '">Go to the group</button>' : '') + '</div>';
+    if (d.status === 'declined') banner = '<div style="' + CARD + ';padding:16px;background:#fdf1f3;display:flex;flex-direction:column;gap:8px"><b style="font-size:16px;color:#9b1c31">Not approved this time</b>' +
+      (d.review_note ? paraHtml('“' + esc(d.review_note) + '”', '#9b1c31') : '') +
+      (mine ? '<span ' + on(() => draftCall('withdraw_group_draft', { p_draft: d.id }, 'Back to a draft')) + ' role="button" style="align-self:flex-start;font-size:14.5px;font-weight:800;color:#9b1c31;cursor:pointer">Edit and send again</span>' : '') + '</div>';
+    // Asked onto the team
+    const askCard = meOn && !mine && (d.status === 'draft' || d.status === 'submitted') ? '<div data-draft-ask style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:10px;box-shadow:0 0 0 2px #5b4ae8">' +
+      '<b style="font-size:16.5px;color:#0d1117">' + esc(teamName(d.created_by)) + ' asked you to be ' + (meOn.role === 'admin' ? 'an admin' : meOn.role === 'ambassador' ? 'an ambassador' : 'co-lead') + '</b>' +
+      paraHtml(ROLE_LINE[meOn.role] || '') +
+      (meOn.status === 'invited'
+        ? '<div style="display:flex;gap:8px"><button type="button" data-draft-yes ' + on(() => draftCall('answer_draft_invite', { p_draft: d.id, p_yes: true }, 'You’re on the team')) + ' style="flex:1;' + primary(!st.busy) + '">Yes, I’m in</button>' +
+            '<button type="button" ' + on(() => draftCall('answer_draft_invite', { p_draft: d.id, p_yes: false }, 'We told them')) + ' style="flex:1;' + SECONDARY + '">Not now</button></div>'
+        : '<span style="font-size:14px;font-weight:700;color:' + (meOn.status === 'accepted' ? '#0f7a3c' : '#6b7280') + '">' + (meOn.status === 'accepted' ? 'You’re in.' : 'You said not now.') + '</span>' +
+          (meOn.status === 'declined' ? '<span ' + on(() => draftCall('answer_draft_invite', { p_draft: d.id, p_yes: true }, 'You’re on the team')) + ' role="button" style="font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">Changed your mind? I’m in</span>' : '')) + '</div>' : '';
+    // The group and its place
+    const find = st.reqFind || {};
+    const center = edit ? '<div style="display:flex;flex-direction:column;gap:8px">' + lbl('Where’s the middle of it?', 'A street, park or school near the center. It puts the area on the map neighbors see before joining.') +
+      '<div style="display:flex;gap:8px"><input class="fld" data-draft-center maxlength="80" placeholder="Search for a street or place" value="' + esc(find.q || '') + '" ' + onInput(e => { if (e.type === 'input') state.reqFind = Object.assign({}, state.reqFind, { q: e.target.value }); }) + ' style="flex:1;min-width:0;height:46px;border:2px solid #e3e5ec;border-radius:14px;padding:0 14px;font-family:inherit;font-size:16px;color:#0d1117">' +
+        '<button type="button" ' + on(() => findCenter((state.reqFind && state.reqFind.q) || '')) + ' style="flex:0 0 auto;min-height:46px;padding:0 16px;border:0;border-radius:999px;background:#0d1117;color:#fff;font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer">' + (find.busy ? '…' : 'Find') + '</button></div>' +
+      (find.list && find.list.length ? '<div style="display:flex;flex-direction:column;border-radius:14px;overflow:hidden;box-shadow:inset 0 0 0 1.5px #e3e5ec">' + find.list.map(x => '<span ' + on(() => { setState({ reqFind: null }); draftSet(d.id, { place_lat: x.lat, place_lon: x.lon, place_radius_m: d.place_radius_m || 800 }, true); }) + ' role="button" style="padding:12px 14px;border-top:1px solid #f0f1f4;font-size:14.5px;font-weight:600;color:#0d1117;cursor:pointer">' + esc(x.label) + '</span>').join('') + '</div>'
+        : find.err ? '<span style="font-size:13.5px;color:#c0263d;font-weight:700">Couldn’t search just now. Try again.</span>' : find.q && !find.busy && find.list ? '<span style="font-size:13.5px;color:#6b7280;font-weight:600">Nothing found. Try a street name.</span>' : '') +
+      (d.place_lat != null ? lbl('How big is it?') + chips('place_radius_m', RADII, d.place_radius_m || 800) : '') + '</div>' : '';
+    const groupSec = edit ? sec('The group',
+        lbl('Name') + fld('name', 'Walnut Creek Neighbors', 40) +
+        lbl('The place', 'What neighbors call it. It doesn’t have to match a map.') + fld('place_name', 'Walnut Creek', 60) +
+        chips('place_kind', Object.keys(PLACE_KIND).map(k => [k, PLACE_KIND[k]]).concat([['other', 'Other']]), d.place_kind) +
+        center + (pl && pl.lat != null ? placeCard(pl, false) : '') +
+        lbl('What it’s for', 'One line neighbors see before they join.') + fld('purpose', 'Neighbors getting together, helping out and meeting each other', 200, 2))
+      : sec('The group', ro('Name', d.name) + ro('The place', d.place_name && d.place_name + (PLACE_KIND[d.place_kind] ? ' · ' + PLACE_KIND[d.place_kind] : '')) + (pl && pl.lat != null ? placeCard(pl, false) : '') + ro('What it’s for', d.purpose));
+    const runSec = edit ? sec('How it’ll run',
+        lbl('Who can join', 'You can change this any time after it opens.') + chips('join_rule', RULE_OPTS.map(([k, l]) => [k, l]), d.join_rule || 'everyone') +
+        lbl('Is there a neighborhood association or HOA?') + chips('association', ASSOC, d.association) +
+        (d.association && d.association !== 'none' ? fld('association_name', 'Its name', 80) : ''))
+      : sec('How it’ll run', ro('Who can join', RULE_SHORT[d.join_rule]) + ro('Association', (ASSOC.find(a => a[0] === d.association) || [])[1]) + ro('Its name', d.association_name));
+    const whySec = edit ? sec('Why, and how it’ll spread',
+        lbl('Why do you want to start it?') + fld('why', 'What’s happening in the neighborhood, and what you hope this changes', 1000, 3) +
+        lbl('How will neighbors hear about it?', 'Flyers, a newsletter, a sign at the park, knocking on doors. We can help with this.') + fld('spread', 'Your plan for the first few weeks', 1000, 3))
+      : (d.why || d.spread ? sec('Why, and how it’ll spread', ro('Why', d.why) + ro('Spreading the word', d.spread)) : '');
+    // The team
+    const tag = (s) => ({ invited: ['Asked', '#f2f3f6', '#454b55'], accepted: ['In', '#e8f6ee', '#0f7a3c'], declined: ['Not now', '#fdecef', '#9b1c31'] }[s]);
+    const teamRows = [['_lead', d.created_by]].concat(team.map(t => [t.role, t.user_id, t.status])).map(([role, uid, s]) => { const tg = s ? tag(s) : ['Lead', '#efedfd', '#4a3ad4'];
+      return '<div data-team-row style="display:flex;align-items:center;gap:12px;padding:8px 0">' + face(uid, teamName(uid), 36) +
+        '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">' + esc(uid === st.me ? 'You' : teamName(uid)) + '</div><div style="font-size:13px;font-weight:600;color:#6b7280">' + (role === '_lead' ? 'Lead · responsible for the group' : ROLE_NAME[role]) + '</div></div>' +
+        '<span style="padding:3px 9px;border-radius:999px;background:' + tg[1] + ';color:' + tg[2] + ';font-size:12px;font-weight:800">' + tg[0] + '</span>' +
+        (edit && role !== '_lead' ? '<span ' + on(() => draftCall('draft_uninvite', { p_draft: d.id, p_user: uid })) + ' role="button" aria-label="Take ' + esc(teamName(uid)) + ' off the team" style="flex:0 0 32px;width:32px;height:32px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(11, '#454b55', 2.6) + '</span>' : '') + '</div>'; }).join('');
+    const askBtns = edit ? '<div style="display:flex;flex-wrap:wrap;gap:8px">' + ['colead', 'admin', 'ambassador'].map(r => '<span ' + on(() => setState({ reqPick: r })) + ' role="button" data-ask-role="' + r + '" style="display:flex;align-items:center;gap:6px;min-height:40px;padding:0 14px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;font-size:14px;font-weight:800;color:#0d1117;cursor:pointer">+ ' + (r === 'colead' ? 'A co-lead' : r === 'admin' ? 'An admin' : 'An ambassador') + '</span>').join('') + '</div>' : '';
+    const teamSec = sec('The team', paraHtml('At least two people: you and a co-lead. A few admins and ambassadors make it much more likely to take off.') + teamRows + askBtns);
+    // Agreeing to lead
+    const agreed = !!d.agreed_at;
+    const agreeSec = edit ? sec('What leading means', '<div style="display:flex;flex-direction:column;gap:6px">' +
+        ['Answer reports and keep the group kind and safe', 'Keep it open to the neighborhood, not a private club', 'No selling or political campaigning in the group', 'Make decisions together with your co-lead and team', 'Follow the community rules'].map(t => '<div style="display:flex;gap:8px;font-size:14.5px;line-height:1.4;font-weight:600;color:#2b303a"><span style="color:#149a4b;font-weight:900">✓</span>' + t + '</div>').join('') + '</div>' +
+        '<div ' + on(() => draftSet(d.id, { agreed_at: agreed ? null : new Date().toISOString() }, true), 'checkbox') + ' aria-checked="' + agreed + '" data-draft-agree style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;background:' + (agreed ? '#f3f1fe' : '#f7f7f9') + ';cursor:pointer">' +
+          '<span aria-hidden="true" style="flex:0 0 24px;width:24px;height:24px;border-radius:7px;display:flex;align-items:center;justify-content:center;' + (agreed ? 'background:#5b4ae8' : 'background:#fff;box-shadow:inset 0 0 0 2px #c3c7d0') + '">' + (agreed ? I.check(14, '#fff', 3) : '') + '</span>' +
+          '<span style="font-size:15px;font-weight:800;color:#0d1117">We’ll take this on together</span></div>') : '';
+    // Sending it
+    const missing = [!d.name && 'a name', !d.place_name && 'the place', !d.purpose && 'what it’s for', !d.association && 'the association question',
+      !team.some(t => t.role === 'colead' && t.status === 'accepted') && 'a co-lead who has said yes', !agreed && 'agreeing to what leading means'].filter(Boolean);
+    const sendSec = edit ? '<div style="display:flex;flex-direction:column;gap:8px">' +
+        (missing.length ? '<span style="font-size:14px;line-height:1.4;font-weight:600;color:#6b7280">Still needed: ' + missing.join(', ') + '.</span>' : '') +
+        '<button type="button" data-draft-send ' + on(() => { if (!missing.length) draftCall('submit_group_draft', { p_draft: d.id }, 'Sent for review'); }) + ' aria-disabled="' + !!missing.length + '" style="' + primary(!missing.length && !st.busy) + '">Send for review</button>' +
+        '<span ' + on(() => setState({ confirm: { title: 'Delete this draft?', body: 'The team you asked won’t see it any more.', cta: 'Delete draft', keep: 'Keep it', danger: true,
+          run: async () => { setState({ confirm: null }); const r = await sb.from('group_drafts').delete().eq('id', d.id); if (r.error) return toast(failed(r.error)); await loadDrafts(); go('request', { reqId: null }); toast('Draft deleted', true); } } })) + ' role="button" style="align-self:center;min-height:40px;display:flex;align-items:center;font-size:14.5px;font-weight:800;color:#9b1c31;cursor:pointer">Delete draft</span></div>' : '';
+    // The app owner's review
+    const reviewSec = owner && d.status === 'submitted' ? sec('Your review',
+        paraHtml('Talk to them first. Approving opens the group with the starter and co-leads as owners, admins as admins and ambassadors as members.') +
+        '<textarea class="fld" data-draft-note rows="2" maxlength="500" placeholder="A note for them (optional)" ' + onInput(e => { if (e.type === 'input') state.reqNote = e.target.value.slice(0, 500); }) + ' style="width:100%;border:2px solid #e3e5ec;border-radius:14px;padding:12px 14px;font-family:inherit;font-size:16px;color:#0d1117">' + esc(st.reqNote || '') + '</textarea>' +
+        '<div style="display:flex;gap:8px"><button type="button" data-draft-approve ' + on(() => draftCall('approve_group_draft', { p_draft: d.id, p_note: state.reqNote || null }, (d.name || 'The group') + ' is open', { reqNote: '' })) + ' style="flex:1;' + primary(!st.busy) + '">Approve</button>' +
+        '<button type="button" ' + on(() => draftCall('decline_group_draft', { p_draft: d.id, p_note: state.reqNote || '' }, 'Declined', { reqNote: '' })) + ' style="flex:1;' + SECONDARY + '">Decline</button></div>') : '';
+    return '<div data-screen-label="Group request" style="background:#e8eaee;min-height:100%">' +
+      head6(d.name || 'New group', backBtn6(back)) +
+      '<section style="padding:16px;display:flex;flex-direction:column;gap:14px">' +
+        '<span style="align-self:flex-start;padding:4px 10px;border-radius:999px;background:' + c[1] + ';color:' + c[2] + ';font-size:11px;font-weight:900;letter-spacing:.8px">' + c[0] + '</span>' +
+        askCard + banner + reviewSec + groupSec + runSec + whySec + teamSec + agreeSec + sendSec +
+      '</section><div style="height:92px"></div>' +
+      (st.reqPick && edit ? viewDraftPick(d) : '') + '</div>';
+  }
+
+  // Ask someone onto the team: your friends, minus anyone already asked
+  function viewDraftPick(d) {
+    const st = state, role = st.reqPick, close = () => setState({ reqPick: null });
+    const taken = teamOf(d.id).filter(t => t.status !== 'declined').map(t => t.user_id);
+    const fr = (st.fr.friends || []).filter(f => taken.indexOf(f.id) < 0);
+    return modal('Ask ' + (role === 'colead' ? 'a co-lead' : role === 'admin' ? 'an admin' : 'an ambassador'), close,
+      h3Html('Ask ' + (role === 'colead' ? 'a co-lead' : role === 'admin' ? 'an admin' : 'an ambassador')) + paraHtml(ROLE_LINE[role] + ' They’ll get a notification and say yes in the app.') +
+      (fr.length ? '<div style="display:flex;flex-direction:column;max-height:50vh;overflow-y:auto">' + fr.map(f => '<div ' + on(() => draftCall('draft_invite', { p_draft: d.id, p_user: f.id, p_role: role }, 'Asked ' + shortName(f.name), { reqPick: null })) + ' role="button" data-pick-friend style="display:flex;align-items:center;gap:12px;padding:10px 4px;border-top:1px solid #f0f1f4;cursor:pointer">' +
+          avatarSpan(f.id, f.name, PHOTO_PATH.test(f.avatar || '') ? photoUrl(f.avatar) : null, 36) + '<span style="flex:1;font-size:15px;font-weight:800;color:#0d1117">' + esc(shortName(f.name)) + '</span><span style="font-size:14px;font-weight:800;color:#5b4ae8">Ask</span></div>').join('') + '</div>'
+        : paraHtml('Add them as a friend first: share your friend link from My friends, then ask them here.')),
+      { z: 40 });
+  }
+
   // Welcome is what signed-out visitors see for Home (and Profile / a group page, which need an account)
   const welcomeShown = () => !state.email && ['home', 'sched', 'groupPage', 'calendar', 'own', 'groups', 'friends', 'me', 'ideas'].indexOf(state.screen) > -1;
 
@@ -12900,6 +13287,7 @@
     const sc = under || s;
     if (sc === 'browse') main = viewBrowse();
     else if (sc === 'how') main = viewHow();
+    else if (sc === 'request') main = viewRequest();
     else if (sc === 'sched') main = st.email ? viewSched() : home();
     else if (sc === 'groupPage') main = st.email ? viewGroupPage() : home();
     else if (sc === 'calendar') main = st.email ? viewCalendar() : home();
@@ -12932,6 +13320,7 @@
       (s === 'browse' && st.loaded && currentGroup() && !st.gSearch && !st.gMenu ? swipeHints() : '') +
       (st.email && st.gSearch && s === 'browse' ? viewGroupSearch() : '') +
       (st.gMenu && s === 'browse' ? viewGroupMenu() : '') +
+      (st.joinRuleFor ? viewJoinRule() : '') +
       (st.gInv && s === 'browse' ? viewGroupInv() : '') +
       (st.gQr && s === 'browse' ? viewGroupQr() : '') +
       (st.shiftPick ? viewShiftSheet() : '') +
@@ -13733,8 +14122,9 @@
   // Back from Google in the middle of an invite: the Joining screen straight away
   const inviteTrip = sb && AUTH_RETURN.any && readResume();
   if (inviteTrip && inviteTrip.from === 'invite' && inviteTrip.joinCode) {
-    state.inv = { code: inviteTrip.joinCode, by: pendingBy(), group: undefined, step: 'joining' };
+    state.inv = { code: inviteTrip.joinCode, by: pendingBy(), group: undefined, place: undefined, conn: null, step: 'joining' };
     loadInviteGroup(inviteTrip.joinCode);
+    loadInvitePlace(inviteTrip.joinCode);
   }
   const oldLink = IDEA_PATH.test(location.pathname);
   if (oldLink) history.replaceState(null, '', '/#/idea/' + location.pathname.match(IDEA_PATH)[1]);
@@ -13763,8 +14153,9 @@
   if (bootInvite && sb && !state.inv) {
     history.replaceState(null, '', '/');
     setPending(bootInvite, bootBy);
-    state.inv = { code: bootInvite, by: bootBy, group: undefined, step: bootUser ? 'confirm' : 'land' };
+    state.inv = { code: bootInvite, by: bootBy, group: undefined, place: undefined, conn: null, step: bootUser ? 'confirm' : 'land' };
     loadInviteGroup(bootInvite);
+    loadInvitePlace(bootInvite);
   }
   // Back from Google: keep the splash (index.html) up until init() has the session, or Welcome flashed before the
   // signed-in app (owner, 2026-10-07). A cancelled trip still lands on Welcome with sign-in open, a moment later.

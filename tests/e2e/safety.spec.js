@@ -1,7 +1,7 @@
 // Store safety (Design v8-18 item 1s, 20261124000000_store_safety.sql): reporting and blocking from a comment, the
 // member's ⋯ on an event, a group's Reports inbox, Delete my account end to end, and a guest's Remove my sign-ups.
 const { test, expect } = require('@playwright/test');
-const { uniqueTitle, newLead, newMember, newAccount, emailCode, postEvent, openIdea, deleteIdea, asUser, donePlus, rsvpTap, openProfile, answerGuestPrompt } = require('./helpers');
+const { uniqueTitle, newLead, newMember, newAccount, startGroupFor, emailCode, postEvent, openIdea, deleteIdea, asUser, donePlus, rsvpTap, openProfile, answerGuestPrompt } = require('./helpers');
 
 const inDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
 
@@ -158,7 +158,7 @@ test('Delete my account: hand on the group, cancel an event, enter the emailed c
   const name = '[E2E] Leaving ' + Date.now().toString(36);
   let gid;
   try {
-    const g = await asUser(L, async (c, _C, n) => (await c.rpc('create_group', { p_name: n })).data[0], name);
+    const g = await startGroupFor(leaver.id, name);   // groups start by request (20261202040000): set up as an approved one
     gid = g.id;
     await asUser(H, async (c, _C, code) => c.rpc('join_group', { p_code: code }), g.code);
     const evId = await asUser(L, async (c, _C, { gid, title, day }) => { const me = (await c.auth.getUser()).data.user.id; return (await c.from('sparks').insert({ lead_id: me, created_by: me, group_id: gid, text: title, author_name: 'Lee', lead_name: 'Lee', planned: true, day_date: day, visibility: 'group' }).select('id').single()).data.id; },

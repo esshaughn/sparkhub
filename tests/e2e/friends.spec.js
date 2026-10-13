@@ -121,6 +121,8 @@ test('friends: request, accept, invite to an event, remove, and the friend link'
   } finally {
     if (aId && bId) await unfriend(A, bId);
     if (id) await deleteIdea(A, id).catch(() => {});
+    // Lists live in the account since 20261202010000_lists.sql: don't leave Trail crew for the next run
+    await asUser(B, async (c) => c.from('lists').delete().eq('name', 'Trail crew')).catch(() => {});
     await a.context.close();
     await b.context.close();
   }

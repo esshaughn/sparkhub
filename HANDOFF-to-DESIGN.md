@@ -6,7 +6,7 @@
 - **Source:** github.com/esshaughn/sparkhub (`index.html`, `js/sparks.js`, `css/sparks.css`, `privacy.html`, `supabase/templates/`)
 - **Baseline:** Claude Design's **round v8-17** (`design/spark-hub/HANDOFF-to-CODE.md` and `Spark Hub App Version 8.dc.html`, 2026-10-09), built in full (with your v8-16 clarity pass): see *Round v8-17 in short*. Rows 212–227 are new since v8-15.
 - **Build version:** **v8** (v7 from owner, 2026-10-02): a lead is a choice. Since v8-8 an idea is led from the start (*Who leads it · Me*) or floated (*I'll decide*), and both use the new idea page.
-- **As of:** 2026-10-12 (round v8-27 built on its own branch, `v8-27`). **Everything through round v8-26 is live** (main `8a4269d`, v=417). Questions for you are in §5.
+- **As of:** 2026-10-13 (round v8-27 and the website / group drafts / Just people I invite from `structure-v1` built on `test`). **Everything through round v8-26 is live** (main `8a4269d`, v=417). Questions for you are in §5.
 
 ## Start here (2026-10-10): HANDOFF-to-DESIGN-17
 
@@ -102,6 +102,43 @@ None of these are built. They come from the owner's own list and the pilot group
 | 3: Group ⋯ → View as a member | Done as drawn: first row under ADMINS ONLY, the toast, the dark pill 94px up with gold Exit, and taps work. It changes only how that group is drawn (you're a plain member in it everywhere, the event pages included) until Exit; reloading the app also ends it. The per-event *Admin view* (row 254) is separate and unchanged |
 | 4: sign-up notes | Done as drawn: **ADD A NOTE** on *You're signed up!* (jobs and their shifts, not spots to take part; the shift picker's own note field fills it), saved as you type; the notes above the job card's footer, yours first with **✎ Edit**; **+ Add a note** under the description when you hold the job without one; the in-card field with Cancel / Save, Enter / Esc, *Note saved* / *Note removed*; notes under each name in Who's signed up (hosts see them there too). Notes show on the one-row job card (people who aren't hosting); a job with several times and the host's card don't list them, only Who's signed up does |
 | 5: Who's signed up is a centred pop-up | Done as drawn (360px, 24px corners, popIn, scrolls past 88%). The close is the usual 40px grey round × in the header row, not a 36px one pinned to the corner |
+
+## The website around the app (2026-10-12, branch `structure-v1`, not on `test` yet)
+
+*Things the build had to invent: the owner asked for a website people can land on before the app. Drafted from the design system (Figtree, ink, purple, the Spark gradient once as a glow on the welcome hero); please redraw it properly when you can.*
+
+- **Pages:** `/welcome` (hero *Plans with your people.* on ink with the picnic photo, *BETA · FREE WHILE WE TEST IT*, **Bring it to your neighborhood** + **Sign in**; How it works in 3 steps; For neighborhoods / For friends cards; *Less scrolling. More showing up.* on ink; a pale-purple beta band), `/how-it-works` (groups belong to a place, joining by link or QR only, who can join, ideas, plans, pitching in, keeping it safe; friends: lists and private events up to 20; guests; on your phone), `/pricing` (four tier cards: Friends $0, Seed group $0, Neighborhood and Active *Free during the beta* / *Paid after the beta*; Launch help; five questions), `/neighborhoods` (*Bring Spark Hub to your neighborhood*: Draft it. Build the team. Open it. in four steps; a lead, a co-lead (required) and a team of admins (recommended); associations first; what leads agree to) and `/beta`.
+- **Every page:** a white sticky bar with the bolt, **Spark Hub** and the **BETA** chip, links (How it works · Pricing · For neighborhoods · The beta) and a purple **Sign in** pill; under 720px the links move to a scrolling row under the bar. Footer: *Spark Hub · Beta · Made in Austin* and the links. No operator is named until WAN's board votes.
+- **The front door:** signed out, the bare address now opens `/welcome` instead of the app's Welcome; the app's Welcome still shows for **Sign in** (`/#/signin`) and invite links.
+- **Wording the owner chose:** the app keeps **Groups**; the website says *neighborhood group* where it helps. *Lead* and *co-lead* name a group's two required owners on the website. Never "Coming soon": the paid tiers say *Free during the beta*.
+
+## Where the group is, and who can join (2026-10-12, branch `structure-v1`)
+
+*Invented by the build, from the owner's direction; please redraw.*
+
+- **Before joining** (the invite landing and the signed-in *Join {group}?* pop-up): a place card under the group's name: a 640×260 map (Geoapify, `osm-bright-smooth`, the group's area as a purple `#5b4ae8` circle at 15% fill), then a pin icon, **{place}** · *Neighborhood*, the group's purpose, and *Is this the one you want to join?* on a `#f4f5f8` card, radius 18.
+- **How are you connected to {place}?** Three pills (*I live here* · *I live nearby* · *Just visiting*): white with a grey ring, purple when picked, pale grey and inactive when the group's rule doesn't take it, with the rule in grey under them (*This group is for people who live here or nearby.*). **Join as {name}** stays grey until one is picked. If the rule changed meanwhile, a red line says why.
+- **Who can join** (group ⋯ → Admins only, a row with the current value): a pop-up with three cards (Neighbors · Nearby neighbors · Everyone) and *Everyone already in stays…*; only owners can change it.
+- **Members:** *Joined October 2026 · Lives nearby* in a member's panel (admins).
+
+## Starting a group: a draft, a team and a review (2026-10-12, branch `structure-v1`)
+
+*Invented by the build from the owner's direction (a group starts like an event: draft it, find your team, then it opens); please redraw. It replaces the *Groups start by request* pop-up and its feedback form.*
+
+- **Start a group** (`#/request`, a white header like How this works, grey page): a card with *Starting a group is a big deal*, a paragraph on responsibility, three numbered steps on purple circles, a grey line on associations, **Start a draft**; then white list cards (*WAITING FOR YOUR REVIEW* for the owner, *YOU’RE ASKED ONTO*, *YOUR REQUESTS*), each row the name, a grey line and a status chip (DRAFT grey, IN REVIEW gold, OPEN green, NOT APPROVED red).
+- **A draft** (`#/request/<id>`, header = the group's name or *New group*): the status chip, then white section cards with grey eyebrows: THE GROUP (Name; The place + *It doesn’t have to match a map*; kind pills; *Where’s the middle of it?* search + Find + results; *How big is it?* ¼ mile · ½ mile · 1 mile · 2 miles; the place card with the map; What it’s for), HOW IT’LL RUN (Who can join pills; association pills and its name), WHY, AND HOW IT’LL SPREAD (two text boxes), THE TEAM (rows: face, You / name, Lead · responsible for the group / Co-lead / Admin / Ambassador, an In / Asked / Not now chip, ✕; outlined **+ A co-lead**, **+ An admin**, **+ An ambassador** pills), WHAT LEADING MEANS (five green ✓ lines and a *We’ll take this on together* checkbox row), then *Still needed: …*, **Send for review** and a red *Delete draft*.
+- **Asking someone:** a pop-up *Ask a co-lead* with the role's line and your friends with **Ask**; no friends yet → *Add them as a friend first*.
+- **The person asked:** a card with a purple ring at the top: *{Name} asked you to be co-lead*, the role's line, **Yes, I’m in** / **Not now** (then *You’re in.*).
+- **States:** In review (pale gold card, *Take it back to edit*); Open (pale green, the owner's note, **Go to the group**); Not approved (pale red, the note, *Edit and send again*). The app owner's YOUR REVIEW card: a note box, **Approve** / **Decline**.
+
+## Just people I invite, and lists in the account (2026-10-12, branch `structure-v1`)
+
+*Invented by the build from the owner's direction (events no longer have to live in a group); please redraw.*
+
+- **Post to pop-up:** a first row **Just people I invite**: a 36px black circle with a white lock, the name (800) and *Friends, no group. Private.* (12.5px grey), a square tick; then a hairline and the groups. Ticking it unticks every group and the other way round. *Done* has no count with it.
+- **Plan an event with it picked:** the Post to row shows a small black lock circle and *Just people I invite*; Visibility becomes one white row: lock, **Private**, *Only the people you invite. Up to 20.* (no Public / Private radios). Posting opens Invite people as usual.
+- **Cards:** where a card names the group, a personal event reads *Just invited*.
+- **Lists:** unchanged on screen; they now follow you between devices.
 
 ## Round v8-26 in short
 

@@ -277,10 +277,13 @@ reset role;
 -- Demo roster by group id; demo groups' names are reserved ----------------------------------------------
 insert into groups (id, name, code, created_by, demo) values (gen_random_uuid(), 'Demo Street', 'DEMO22', t.id('host'), true);
 insert into t.ids select 'demo_g', id from groups where code = 'DEMO22';
+-- Groups start by request since 20261202040000: these checks start groups as a test lead would (rate_exempt)
+insert into private.rate_exempt (user_id) values (t.id('outsider')) on conflict do nothing;
 select t.login('outsider'); set role authenticated;
 select t.must_refuse('starting a group with a demo group''s name', $$select public.create_group('demo street')$$);
 select t.must_refuse('renaming your group to a demo group''s name', format($$select public.rename_group(%L, 'Demo Street')$$, (select id from public.create_group('Copycat'))));
 reset role;
+delete from private.rate_exempt where user_id = t.id('outsider');
 insert into demo_roster (email, group_id, role) values ('newtester@example.org', t.id('demo_g'), 'admin');
 insert into groups (name, code, created_by) values ('Demo Street', 'FAKE22', t.id('outsider'));   -- a look-alike from before the rule
 do $$ declare u uuid := gen_random_uuid(); begin
@@ -752,6 +755,7 @@ select t.check('the Maybe is interested and got the stepped-back note',
 
 -- Your own account, a cover photo, deleting your only group (20261102010000_my_account_and_cover.sql) ----------------
 select t.person('solo'), t.person('leaver'), t.person('heir');
+insert into private.rate_exempt (user_id) values (t.id('solo')), (t.id('leaver')) on conflict do nothing;   -- they start groups (see above)
 select t.login('solo'); set role authenticated;
 select * from public.create_group('Solo crew');
 select t.must_allow('the only owner deletes their only group', $$select public.delete_group((select id from groups where name = 'Solo crew'))$$);
@@ -1976,3 +1980,216 @@ select t.check('…but no name for someone outside the group', (select by_name i
 select t.check('…and nothing for a wrong code', not exists (select 1 from public.group_invite_landing('NOPE99', left(t.id('gi_mem')::text, 8))));
 select t.check('…and no name for a malformed by', (select by_name is null from public.group_invite_landing('INVT27', '%')));
 reset role;
+-- Events without a group (20261202000000_events_without_groups.sql): a personal event has no group and is always
+-- invite-only; its lead, the people it's shared with and anyone who replied see it ---------------------------------------
+select t.person('pe_lead'), t.person('pe_pal'), t.person('pe_pal2'), t.person('pe_stranger'), t.person('pe_member');
+select private.make_friends(t.id('pe_lead'), t.id('pe_pal'));
+select private.make_friends(t.id('pe_lead'), t.id('pe_pal2'));
+insert into memberships (group_id, user_id, role) values (t.id('g'), t.id('pe_lead'), 'member'), (t.id('g'), t.id('pe_member'), 'member');
+select t.login('pe_lead'); set role authenticated;
+select t.must_refuse('a personal event shown to "the whole group" (there is none)',
+  $$insert into sparks (author_name, lead_name, lead_id, created_by, text, visibility) values ('Lee', 'Lee', auth.uid(), auth.uid(), 'Personal open', 'group')$$);
+select t.must_allow('a personal event, invite-only, with no group',
+  $$insert into sparks (author_name, lead_name, lead_id, created_by, text, visibility, planned, day_date) values ('Lee', 'Lee', auth.uid(), auth.uid(), 'Personal dinner', 'invite', true, current_date + 3)$$);
+reset role;
+insert into t.ids select 'pe', id from sparks where text = 'Personal dinner';
+select t.login('pe_lead'); set role authenticated;
+select t.check('the lead sees their personal event', exists (select 1 from sparks where id = t.id('pe')));
+select t.check('…and it''s in their load_all', public.load_all() -> 'sparks' @> jsonb_build_array(jsonb_build_object('id', t.id('pe'))));
+select t.check('inviting a friend and a stranger invites only the friend',
+  (select r -> 'invited' = jsonb_build_array(t.id('pe_pal')) from (select public.invite_friends(t.id('pe'), array[t.id('pe_pal'), t.id('pe_stranger')]) r) x));
+select t.check('…a second friend too', (select jsonb_array_length(r -> 'invited') = 1 from (select public.invite_friends(t.id('pe'), array[t.id('pe_pal2')]) r) x));
+select t.must_refuse('the lead opening it to "the whole group"', format($$update sparks set visibility = 'group' where id = %L$$, t.id('pe')));
+select t.must_refuse('the lead posting it to a group they''re in', format($$insert into spark_groups (spark_id, group_id) values (%L, %L)$$, t.id('pe'), t.id('g')));
+select t.must_refuse('a co-host who isn''t among its people', format($$select public.add_cohost(%L, %L)$$, t.id('pe'), t.id('pe_stranger')));
+reset role;
+select t.login('pe_stranger'); set role authenticated;
+select t.check('a stranger doesn''t see it', not exists (select 1 from sparks where id = t.id('pe')));
+select t.must_refuse('a stranger replying', format($$insert into rsvps (spark_id, user_id, status) values (%L, auth.uid(), 'going')$$, t.id('pe')));
+reset role;
+select t.login('pe_member'); set role authenticated;
+select t.check('a member of the lead''s group doesn''t see it either', not exists (select 1 from sparks where id = t.id('pe')));
+reset role;
+select t.login('pe_pal'); set role authenticated;
+select t.check('the friend it was shared with sees it', exists (select 1 from sparks where id = t.id('pe')));
+select t.must_allow('…and says they''re going', format($$insert into rsvps (spark_id, user_id, status) values (%L, auth.uid(), 'going')$$, t.id('pe')));
+reset role;
+select t.check('"hasn''t replied" reaches the second friend, not the one going',
+  private.update_recipients(t.id('pe'), 'noreply', t.id('pe_lead')) = array[t.id('pe_pal2')]);
+select t.login('pe_lead'); set role authenticated;
+select t.must_allow('a friend it was shared with becomes a co-host', format($$select public.add_cohost(%L, %L)$$, t.id('pe'), t.id('pe_pal')));
+reset role;
+select set_config('t.pe_code', (select link_code from sparks where id = t.id('pe')), false);
+select t.login('pe_stranger'); set role authenticated;
+select t.check('someone given the link opens it', public.open_event(current_setting('t.pe_code')) = t.id('pe'));
+select t.check('…and then sees it', exists (select 1 from sparks where id = t.id('pe')));
+reset role;
+select t.login('pe_member'); set role authenticated;
+select t.must_allow('a group event still posts as before', format($$insert into sparks (group_id, author_name, lead_name, lead_id, created_by, text) values (%L, 'Mo', 'Mo', auth.uid(), auth.uid(), 'Group potluck')$$, t.id('g')));
+reset role;
+select t.login('pe_stranger'); set role authenticated;
+select t.must_refuse('…but not into a group you aren''t in', format($$insert into sparks (group_id, author_name, lead_name, lead_id, created_by, text) values (%L, 'Sy', 'Sy', auth.uid(), auth.uid(), 'Gatecrash')$$, t.id('g')));
+reset role;
+delete from sparks where text = 'Group potluck';
+
+-- Lists (20261202010000_lists.sql): private to their owner; a friends list holds friends, a community list holds members --
+select t.login('pe_lead'); set role authenticated;
+select t.must_allow('a friends list', format($$insert into lists (name, people) values (' Dinner crew ', array[%L, %L, %L]::uuid[])$$, t.id('pe_pal'), t.id('pe_stranger'), t.id('pe_lead')));
+select t.check('…keeps only the friend, and trims the name',
+  (select people = array[t.id('pe_pal')] and name = 'Dinner crew' from lists where owner_id = t.id('pe_lead') and group_id is null));
+select t.must_allow('a list inside a community', format($$insert into lists (name, group_id, people) values ('Block 4', %L, array[%L, %L]::uuid[])$$, t.id('g'), t.id('pe_member'), t.id('pe_pal')));
+select t.check('…keeps only members of it', (select people = array[t.id('pe_member')] from lists where owner_id = t.id('pe_lead') and group_id = t.id('g')));
+select t.must_refuse('moving a list to someone else', format($$update lists set owner_id = %L where owner_id = auth.uid()$$, t.id('pe_pal')));
+select t.must_refuse('moving a list to another community', format($$update lists set group_id = null where group_id = %L$$, t.id('g')));
+reset role;
+select t.login('pe_pal'); set role authenticated;
+select t.check('someone on a list can''t see it', not exists (select 1 from lists));
+select t.must_refuse('…or change it', $$update lists set name = 'Mine' where true$$);
+select t.must_refuse('…or delete it', $$delete from lists where true$$);
+select t.must_refuse('a list in a community you aren''t in', format($$insert into lists (name, group_id) values ('Sneaky', %L)$$, t.id('g')));
+reset role;
+set role anon;
+select t.must_refuse('a visitor reading lists', $$select 1 from lists$$);
+reset role;
+
+-- Communities (20261202020000_communities.sql): place and purpose by admins; plan only by WAN; stats are counts --------
+select t.login('admin'); set role authenticated;
+select t.must_allow('an admin sets the place and purpose',
+  format($$select public.set_community_place(%L, 'Woodcliff', 'neighborhood', 30.27, -97.74, 800, 'Neighbors getting together')$$, t.id('g')));
+select t.check('…and admins see counts, with private gatherings as a number only',
+  (select members >= 5 and plan = 'seed' and not sponsored and private_gatherings_30d >= 1 from public.community_stats(t.id('g'))));
+reset role;
+select t.login('pe_member'); set role authenticated;
+select t.check('a member reads the place', (select place_name = 'Woodcliff' and place_radius_m = 800 from groups where id = t.id('g')));
+select t.check('…which comes with load_all', public.load_all() -> 'groups' @> jsonb_build_array(jsonb_build_object('id', t.id('g'), 'place_name', 'Woodcliff', 'plan', 'seed')));
+select t.must_refuse('a member setting the place', format($$select public.set_community_place(%L, 'Elsewhere')$$, t.id('g')));
+select t.must_refuse('a member reading the stats', format($$select * from public.community_stats(%L)$$, t.id('g')));
+select t.must_refuse('a member upgrading the plan', format($$update groups set plan = 'active' where id = %L$$, t.id('g')));
+select t.must_refuse('…or marking it sponsored', format($$update groups set sponsored = true where id = %L$$, t.id('g')));
+select t.must_refuse('a member reading the beta numbers', $$select * from public.beta_metrics()$$);
+reset role;
+select t.login('admin'); set role authenticated;
+select t.must_refuse('a pin with only one coordinate', format($$select public.set_community_place(%L, 'Woodcliff', null, 30.27, null)$$, t.id('g')));
+select t.must_refuse('even an admin upgrading the plan directly', format($$update groups set plan = 'active' where id = %L$$, t.id('g')));
+reset role;
+insert into demo_admins (user_id) values (t.id('pe_stranger')) on conflict do nothing;
+select t.login('pe_stranger'); set role authenticated;
+select t.check('the app owner reads the beta numbers', (select count(*) = 6 from public.beta_metrics()));
+select t.check('…which count the personal event', (select sum(personal_events) >= 1 from public.beta_metrics()));
+reset role;
+delete from demo_admins where user_id = t.id('pe_stranger');
+
+-- Who can join, and how you're connected (20261202030000_join_rules.sql) ----------------------------------------------
+select t.person('jr_owner'), t.person('jr_here'), t.person('jr_near'), t.person('jr_visit'), t.person('jr_old');
+insert into groups (id, name, code, created_by, place_name) values (gen_random_uuid(), 'Rule group', 'RULE42', t.id('jr_owner'), 'Walnut Creek');
+insert into t.ids select 'jr_g', id from groups where code = 'RULE42';
+insert into memberships (group_id, user_id, role) values (t.id('jr_g'), t.id('jr_owner'), 'owner'), (t.id('jr_g'), t.id('jr_old'), 'admin');
+set role anon;
+select t.check('a visitor with the code sees the place and the rule', (select place_name = 'Walnut Creek' and join_rule = 'everyone' from public.group_place('rule42')));
+select t.check('…and nothing for a wrong code', not exists (select 1 from public.group_place('NOPE42')));
+reset role;
+select t.login('jr_old'); set role authenticated;
+select t.must_refuse('an admin who isn''t an owner changing who can join', format($$select public.set_join_rule(%L, 'neighbors')$$, t.id('jr_g')));
+reset role;
+select t.login('jr_owner'); set role authenticated;
+select t.must_allow('the owner sets it to neighbors only', format($$select public.set_join_rule(%L, 'neighbors')$$, t.id('jr_g')));
+select t.must_refuse('…but not to something made up', format($$select public.set_join_rule(%L, 'friends')$$, t.id('jr_g')));
+reset role;
+select t.login('jr_near'); set role authenticated;
+select t.must_refuse('neighbors only: someone nearby joining', $$select public.join_group('RULE42', 'nearby')$$);
+select t.must_refuse('neighbors only: joining without saying', $$select public.join_group('RULE42')$$);
+reset role;
+select t.login('jr_here'); set role authenticated;
+select t.check('neighbors only: someone who lives here joins', public.join_group('rule42', 'here') = t.id('jr_g'));
+select t.must_refuse('an answer that isn''t one of the three', $$select public.join_group('RULE42', 'owner')$$);
+reset role;
+select t.check('…and their answer is saved', (select connection = 'here' from memberships where group_id = t.id('jr_g') and user_id = t.id('jr_here')));
+select t.login('jr_owner'); set role authenticated;
+select t.must_allow('the owner opens it to nearby', format($$select public.set_join_rule(%L, 'nearby')$$, t.id('jr_g')));
+reset role;
+select t.login('jr_near'); set role authenticated;
+select t.check('nearby: someone nearby joins', public.join_group('RULE42', 'nearby') = t.id('jr_g'));
+reset role;
+select t.login('jr_visit'); set role authenticated;
+select t.must_refuse('nearby: a visitor joining', $$select public.join_group('RULE42', 'visiting')$$);
+reset role;
+select t.login('jr_owner'); set role authenticated;
+select t.must_allow('the owner opens it to everyone', format($$select public.set_join_rule(%L, 'everyone')$$, t.id('jr_g')));
+reset role;
+select t.login('jr_visit'); set role authenticated;
+select t.check('everyone: a visitor joins', public.join_group('RULE42', 'visiting') = t.id('jr_g'));
+select t.must_allow('a member changes their own answer', format($$select public.set_my_connection(%L, 'nearby')$$, t.id('jr_g')));
+select t.must_refuse('…but can''t set it in a group they''re not in', format($$select public.set_my_connection(%L, 'here')$$, t.id('g')));
+select t.check('a member reads their own answer in load_all', public.load_all() -> 'memberships' @> jsonb_build_array(jsonb_build_object('group_id', t.id('jr_g'), 'connection', 'nearby')));
+select t.check('…and the rule with the group', public.load_all() -> 'groups' @> jsonb_build_array(jsonb_build_object('id', t.id('jr_g'), 'join_rule', 'everyone')));
+select t.must_refuse('a member writing their answer directly', format($$update memberships set connection = 'here' where group_id = %L and user_id = auth.uid()$$, t.id('jr_g')));
+reset role;
+select t.login('jr_owner'); set role authenticated;
+select t.must_allow('the owner sets it back to neighbors only', format($$select public.set_join_rule(%L, 'neighbors')$$, t.id('jr_g')));
+select t.check('tightening it keeps everyone already in', (select count(*) = 5 from public.group_members(t.id('jr_g'))));
+select t.check('admins see each member''s answer', (select connection = 'nearby' from public.group_members(t.id('jr_g')) where user_id = t.id('jr_visit')));
+reset role;
+select t.login('jr_visit'); set role authenticated;
+select t.check('someone already in can still open the link', public.join_group('RULE42') = t.id('jr_g'));
+select t.check('…without losing their answer', (select connection = 'nearby' from memberships where group_id = t.id('jr_g') and user_id = auth.uid()));
+reset role;
+
+-- Group drafts (20261202040000_group_drafts.sql): draft, team, review --------------------------------------------------
+select t.person('gd_lead'), t.person('gd_co'), t.person('gd_amb'), t.person('gd_far'), t.person('gd_wan');
+select private.make_friends(t.id('gd_lead'), t.id('gd_co'));
+select private.make_friends(t.id('gd_lead'), t.id('gd_amb'));
+insert into demo_admins (user_id) values (t.id('gd_wan')) on conflict do nothing;
+select t.login('gd_lead'); set role authenticated;
+select t.must_refuse('an ordinary account starting a group directly', $$select * from public.create_group('My own group')$$);
+select t.must_allow('starting a draft', $$insert into group_drafts (name, place_name) values ('  Walnut   Creek  ', 'Walnut Creek')$$);
+reset role;
+insert into t.ids select 'gd', id from group_drafts where created_by = t.id('gd_lead');
+select t.check('…its name is tidied', (select name = 'Walnut Creek' from group_drafts where id = t.id('gd')));
+select t.login('gd_lead'); set role authenticated;
+select t.must_refuse('setting its status by hand', format($$update group_drafts set status = 'approved' where id = %L$$, t.id('gd')));
+select t.must_refuse('sending it before it''s ready', format($$select public.submit_group_draft(%L)$$, t.id('gd')));
+select t.must_allow('filling it in', format($$update group_drafts set purpose = 'Neighbors getting together', association = 'none', join_rule = 'nearby', agreed_at = now() where id = %L$$, t.id('gd')));
+select t.must_refuse('asking a stranger onto the team', format($$select public.draft_invite(%L, %L, 'colead')$$, t.id('gd'), t.id('gd_far')));
+select t.must_refuse('a role that doesn''t exist', format($$select public.draft_invite(%L, %L, 'boss')$$, t.id('gd'), t.id('gd_co')));
+select t.must_allow('asking a friend to co-lead', format($$select public.draft_invite(%L, %L, 'colead')$$, t.id('gd'), t.id('gd_co')));
+select t.must_allow('asking a friend to be an ambassador', format($$select public.draft_invite(%L, %L, 'ambassador')$$, t.id('gd'), t.id('gd_amb')));
+select t.must_refuse('sending it before the co-lead says yes', format($$select public.submit_group_draft(%L)$$, t.id('gd')));
+select t.must_refuse('writing the team by hand', format($$update group_draft_team set status = 'accepted' where draft_id = %L$$, t.id('gd')));
+reset role;
+select t.check('the co-lead got a bell line', exists (select 1 from notes where user_id = t.id('gd_co') and body like '%co-lead of Walnut Creek%'));
+select t.login('gd_far'); set role authenticated;
+select t.check('someone not on it can''t see the draft', not exists (select 1 from group_drafts where id = t.id('gd')));
+select t.must_refuse('…or answer for it', format($$select public.answer_draft_invite(%L, true)$$, t.id('gd')));
+reset role;
+select t.login('gd_co'); set role authenticated;
+select t.check('the co-lead sees the draft and the team', exists (select 1 from group_drafts where id = t.id('gd')) and (select count(*) = 2 from group_draft_team where draft_id = t.id('gd')));
+select t.must_refuse('…but can''t edit it', format($$update group_drafts set name = 'Mine' where id = %L$$, t.id('gd')));
+select t.must_allow('the co-lead says yes', format($$select public.answer_draft_invite(%L, true)$$, t.id('gd')));
+reset role;
+select t.login('gd_amb'); set role authenticated;
+select t.must_allow('the ambassador says yes', format($$select public.answer_draft_invite(%L, true)$$, t.id('gd')));
+reset role;
+select t.login('gd_lead'); set role authenticated;
+select t.must_allow('sending it for review', format($$select public.submit_group_draft(%L)$$, t.id('gd')));
+select t.must_refuse('editing it while it''s in review', format($$update group_drafts set name = 'Changed' where id = %L$$, t.id('gd')));
+select t.must_refuse('approving your own request', format($$select public.approve_group_draft(%L)$$, t.id('gd')));
+reset role;
+select t.check('the app owner heard about it', exists (select 1 from notes where user_id = t.id('gd_wan') and body like 'New group request: Walnut Creek%'));
+select t.login('gd_wan'); set role authenticated;
+select t.check('the app owner sees it', exists (select 1 from group_drafts where id = t.id('gd') and status = 'submitted'));
+select t.check('the app owner approves it, opening the group', public.approve_group_draft(t.id('gd'), 'Welcome!') is not null);
+reset role;
+select t.check('…with the place and rule', (select g.place_name = 'Walnut Creek' and g.join_rule = 'nearby' and g.created_by = t.id('gd_lead') from groups g join group_drafts d on d.group_id = g.id where d.id = t.id('gd')));
+select t.check('…the starter and co-lead as owners, the ambassador a member',
+  (select count(*) filter (where role = 'owner') = 2 and count(*) filter (where role = 'member' and user_id = t.id('gd_amb')) = 1
+     from memberships m join group_drafts d on d.group_id = m.group_id where d.id = t.id('gd')));
+select t.check('…and the team heard', (select count(*) = 3 from notes where user_id in (t.id('gd_lead'), t.id('gd_co'), t.id('gd_amb')) and body like 'Walnut Creek is open%'));
+select t.login('gd_lead'); set role authenticated;
+select t.must_refuse('deleting an approved draft', format($$delete from group_drafts where id = %L$$, t.id('gd')));
+select t.must_allow('a second draft', $$insert into group_drafts (name) values ('Second')$$);
+select t.must_allow('a third', $$insert into group_drafts (name) values ('Third')$$);
+select t.must_allow('a fourth (the approved one doesn''t count)', $$insert into group_drafts (name) values ('Fourth')$$);
+select t.must_refuse('a fifth open draft', $$insert into group_drafts (name) values ('Fifth')$$);
+select t.must_allow('deleting a draft', $$delete from group_drafts where name = 'Fourth'$$);
+reset role;
+delete from demo_admins where user_id = t.id('gd_wan');

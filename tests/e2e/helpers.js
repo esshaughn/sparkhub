@@ -136,7 +136,7 @@ async function newMember(browser, path, stored) {
     const orig = page[m].bind(page);
     page[m] = async (...a) => { await othersSaved(page); return orig(...a); };
   }
-  await page.goto(path || '/');
+  await page.goto(path || '/#/schedule');   // the bare address sends a first-time visitor to the website (js/front.js)
   await expectConnected(page, errors);
   return { context, page, errors };
 }
@@ -439,17 +439,25 @@ const localServiceKey = () => serviceKey || (serviceKey = (() => {
   if (!m) throw new Error('No service key from supabase status (run tests/local/start.sh)');
   return m[1];
 })());
-async function adminApi(method, url, body) {
+async function adminApi(method, url, body, extra) {
   if (process.env.E2E_DB !== 'local') throw new Error('adminApi is for the local Supabase only');
   const key = process.env.E2E_SERVICE_KEY || localServiceKey();
   const r = await fetch(CONFIG.supabaseUrl + url, { method, signal: AbortSignal.timeout(20000),
-    headers: { apikey: key, Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+    headers: Object.assign({ apikey: key, Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' }, extra || {}), body: body ? JSON.stringify(body) : undefined });
   const data = await r.json().catch(() => null);
   if (!r.ok) throw new Error((data && (data.msg || data.message || data.error_description)) || 'HTTP ' + r.status);
   return data;
 }
 // A fresh 6-digit sign-in code for an email, as the sign-in email would carry it
 const emailCode = async (email) => (await adminApi('POST', '/auth/v1/admin/generate_link', { type: 'magiclink', email })).email_otp;
+// A group started for someone, as an approved group request would (local Supabase only): since 20261202040000 only the
+// app owner and the e2e leads start groups directly
+async function startGroupFor(userId, name) {
+  const code = Math.random().toString(36).slice(2, 8).toUpperCase().replace(/[^A-Z0-9]/g, 'X').padEnd(6, 'Q');
+  const g = (await adminApi('POST', '/rest/v1/groups?select=id,code', { name, code, created_by: userId }, { Prefer: 'return=representation' }))[0];
+  await adminApi('POST', '/rest/v1/memberships', { group_id: g.id, user_id: userId, role: 'owner' });
+  return g;
+}
 async function newAccount(browser, name) {
   const email = 'e2e-throwaway-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6) + '@example.com';
   await adminApi('POST', '/auth/v1/admin/users', { email, email_confirm: true, user_metadata: { name, display_name: name } });
@@ -464,5 +472,5 @@ module.exports = { pickPostTo,
   addJob1a,
   rsvpTap, rsvpBar,
   TAG, TORREZ, PNG, leadEmail, uniqueTitle, startPost, startFloat, openTasks, openAllGroups, openProfile, saved, pickView, mockPlaces, stubPhotos, trackErrors, expectConnected, newMember, newLead, button,
-  newAccount, emailCode, postIdea, postEvent, closeAskFirst, pickDate, pickTime, timeBox, pickKind, addJob, answerNamePrompt, answerGuestPrompt, donePlus, ideaIdFromUrl, openIdea, confirm, deleteIdea, asUser
+  newAccount, startGroupFor, emailCode, postIdea, postEvent, closeAskFirst, pickDate, pickTime, timeBox, pickKind, addJob, answerNamePrompt, answerGuestPrompt, donePlus, ideaIdFromUrl, openIdea, confirm, deleteIdea, asUser
 };
