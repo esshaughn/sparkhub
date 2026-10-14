@@ -2058,12 +2058,15 @@ select t.must_allow('an admin sets the place and purpose',
   format($$select public.set_community_place(%L, 'Woodcliff', 'neighborhood', 30.27, -97.74, 800, 'Neighbors getting together')$$, t.id('g')));
 select t.check('…and admins see counts, with private gatherings as a number only',
   (select members >= 5 and plan = 'seed' and not sponsored and private_gatherings_30d >= 1 from public.community_stats(t.id('g'))));
+select t.check('an admin reads the community''s months, this month last',
+  (select count(*) = 6 and (array_agg(members order by month))[6] >= 5 and (array_agg(private_gatherings order by month))[6] >= 1 from public.community_months(t.id('g'))));
 reset role;
 select t.login('pe_member'); set role authenticated;
 select t.check('a member reads the place', (select place_name = 'Woodcliff' and place_radius_m = 800 from groups where id = t.id('g')));
 select t.check('…which comes with load_all', public.load_all() -> 'groups' @> jsonb_build_array(jsonb_build_object('id', t.id('g'), 'place_name', 'Woodcliff', 'plan', 'seed')));
 select t.must_refuse('a member setting the place', format($$select public.set_community_place(%L, 'Elsewhere')$$, t.id('g')));
 select t.must_refuse('a member reading the stats', format($$select * from public.community_stats(%L)$$, t.id('g')));
+select t.must_refuse('…or the months', format($$select * from public.community_months(%L)$$, t.id('g')));
 select t.must_refuse('a member upgrading the plan', format($$update groups set plan = 'active' where id = %L$$, t.id('g')));
 select t.must_refuse('…or marking it sponsored', format($$update groups set sponsored = true where id = %L$$, t.id('g')));
 select t.must_refuse('a member reading the beta numbers', $$select * from public.beta_metrics()$$);

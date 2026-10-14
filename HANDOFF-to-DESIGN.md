@@ -6,7 +6,7 @@
 - **Source:** github.com/esshaughn/sparkhub (`index.html`, `js/sparks.js`, `css/sparks.css`, `privacy.html`, `supabase/templates/`)
 - **Baseline:** Claude Design's **round v8-17** (`design/spark-hub/HANDOFF-to-CODE.md` and `Spark Hub App Version 8.dc.html`, 2026-10-09), built in full (with your v8-16 clarity pass): see *Round v8-17 in short*. Rows 212–227 are new since v8-15.
 - **Build version:** **v8** (v7 from owner, 2026-10-02): a lead is a choice. Since v8-8 an idea is led from the start (*Who leads it · Me*) or floated (*I'll decide*), and both use the new idea page.
-- **As of:** 2026-10-13 (round v8-27 and the website / group drafts / Just people I invite from `structure-v1` built on `test`). **Everything through round v8-26 is live** (main `8a4269d`, v=417). Questions for you are in §5.
+- **As of:** 2026-10-14 (a list's page, list chips on Invite people, a group's Place & purpose and Dashboard, from `structure-v1`; round v8-27 and the website / group drafts / Just people I invite from `structure-v1` built on `test`). **Everything through round v8-26 is live** (main `8a4269d`, v=417). Questions for you are in §5.
 
 ## Start here (2026-10-10): HANDOFF-to-DESIGN-17
 
@@ -139,6 +139,19 @@ None of these are built. They come from the owner's own list and the pilot group
 - **Plan an event with it picked:** the Post to row shows a small black lock circle and *Just people I invite*; Visibility becomes one white row: lock, **Private**, *Only the people you invite. Up to 20.* (no Public / Private radios). Posting opens Invite people as usual.
 - **Cards:** where a card names the group, a personal event reads *Just invited*.
 - **Lists:** unchanged on screen; they now follow you between devices.
+
+## A list's page, list chips, a group's place and dashboard (2026-10-14, branch `structure-v1`)
+
+*Invented by the build, plain on purpose (owner, 2026-10-14: build plain versions now, Design draws them once the friends questions are settled). Please redraw the list page and the group dashboard; the rest reuses existing pieces.*
+
+- **A list's page** (My friends → a list): the sheet now has, under the name and *N people · only you can see this list*, a full-width purple **+ Plan something**; then COMING UP: the next event as a card (110px photo or colour, NEXT · {DAY · TIME} in purple 11.5px 900, the title 19px 900, *N going* or *An idea*), the rest as 58px rows (40px thumb, title, day), *N past events*; empty: a white card *Nothing planned with {list} yet.*; then PEOPLE (unchanged) and *Invite all N to an event…*, now an outlined button (white, 2px #d9d3fb ring, #4a3ad4 text).
+- **Plan something** opens Plan an event with Just people I invite picked; the Post to row shows the list's name instead of *Just people I invite*. After posting, Invite people opens with the list's people ticked.
+- **List cards** on My friends: the second line is the next event (*Taco night · Sun 18*) when there is one, else the head count.
+- **Invite people (events):** under Search friends, a scrolling row of list chips (38px, grey #f2f3f6; picked: the sheet's fill with a white tick), each *{list} {N}* where N is who on it can still be invited. Hidden while searching.
+- **Group ⋯ → ADMINS ONLY** gains two rows after View as a member / Edit group / Invite link / Members can invite: **Dashboard** and **Place & purpose** (right side: the place's name, or *Not set*).
+- **Place & purpose** sheet: eyebrow = the group's name, title *Place & purpose*, *Neighbors see this before they join.*; The place (name field + kind chips), Where's the middle of it? (search field + black **Find**, results as rows), How big is it? (¼ mile … 2 miles chips), the place card with the map, What it's for (2 lines, 200), **Save**.
+- **Group dashboard** sheet: eyebrow = the group's name, title *Dashboard*, *Only owners and admins see this.*; three grey tiles (members · active in the last 30 days · private gatherings, 30 days), PEOPLE GOING, BY MONTH as six purple bars, a table MONTH · JOINED · EVENTS · GOING · HELPED (newest first), and a grey footnote on what active means and that private gatherings are counted, never shown.
+- **The owner's Dashboard** (only the app owner): two more rows, **Group requests** (green, *N waiting for review*, counted in the pill) and **Beta numbers** (two plain tables by month). No redraw needed.
 
 ## Round v8-26 in short
 

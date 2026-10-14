@@ -347,6 +347,11 @@ As of 2026-09-25: the Spark Hub rebuild from "Spark Torrez - Full Site 3", updat
 | 266 | **Find friends in your groups** (Design v8-27 item 2): on Friends, one row per group with people you aren't friends with yet, opening its Members list on Not friends yet | Test |
 | 267 | **View as a member** (Design v8-27 item 3): owners and admins see a group as a plain member does (Group ⋯ → ADMINS ONLY), with a dark pill and Exit | Test |
 | 268 | **Sign-up notes** (Design v8-27 items 4–5): ADD A NOTE on You're signed up!, notes on the job card with Edit / + Add a note, notes in Who's signed up (now a centred pop-up) | Test |
+| 269 | **A list's page** (owner, 2026-10-14; `20261202050000_list_events.sql`): events remember the list they went to (`sparks.list_id`, the lead's own list); a list on My friends shows its next event (else its head count); its page has **Plan something** (a Just people I invite event from the list, its people picked on Invite people), COMING UP (the next one as a card, then the rest, then *N past events*), PEOPLE, and *Invite all N to an event…* (which also links the event to the list) | Test |
+| 270 | **List chips on Invite people** (owner, 2026-10-14): your lists as chips under Search friends; one tap picks everyone on it who can still be invited, again un-picks; Send links a lead's unlisted event to the list | Test |
+| 271 | **Place & purpose** (owner, 2026-10-14): Group ⋯ → ADMINS ONLY → *Place & purpose* (the place's name and kind, Find the middle, how big, the map card, what it's for; `set_community_place`) | Test |
+| 272 | **Group dashboard** (owner, 2026-10-14; `community_stats`, `community_months`): Group ⋯ → ADMINS ONLY → *Dashboard*: members, active in 30 days, private gatherings (a count), people going by month as bars, and a six-month table (joined, events, going, helped) | Test |
+| 273 | **Group requests and Beta numbers on the owner's Dashboard** (owner, 2026-10-14): *Group requests* (N waiting, counted in the pill) opens Start a group, where the YOUR REVIEW card approves or declines; *Beta numbers* shows `beta_metrics` and `friend_usage` (private hosts per month, avg / p90 / max, over 4 and over 8, invited, from lists) | Test |
 
 ## Removed in this rebuild
 

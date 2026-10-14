@@ -66,3 +66,36 @@ begin
 end $$;
 revoke all on function public.friend_usage(integer) from public, anon;
 grant execute on function public.friend_usage(integer) to authenticated;
+
+-- A community's months (owner, 2026-10-12: engagement month over month is part of what a community gets). For the
+-- group's owners and admins, per month: who joined, how many members by the month's end (people who left aren't
+-- counted back), its events that month (on the group's calendar: home or posted to it; dated by their day, or when
+-- posted if undated), how many went and how many helped, and the private gatherings among members (a count only).
+create or replace function public.community_months(p_group uuid, p_months integer default 6)
+returns table (month date, joined integer, members integer, events integer, going integer, helpers integer, private_gatherings integer)
+language plpgsql stable security definer set search_path = public as $$
+begin
+  if not public.is_admin(p_group) then raise exception 'not allowed' using errcode = '42501'; end if;
+  return query
+  with months as (
+    select generate_series(date_trunc('month', now()) - make_interval(months => greatest(1, least(p_months, 24)) - 1),
+                           date_trunc('month', now()), interval '1 month')::date as m
+  ), ev as (
+    select date_trunc('month', coalesce(s.day_date::timestamptz, s.created_at))::date as m, s.id, s.visibility, s.group_id
+      from sparks s
+     where not s.test and not s.demo and s.cancelled_at is null
+       and (s.group_id = p_group or exists (select 1 from spark_groups g where g.spark_id = s.id and g.group_id = p_group))
+  )
+  select months.m,
+         (select count(*)::int from memberships x where x.group_id = p_group and date_trunc('month', x.joined_at)::date = months.m),
+         (select count(*)::int from memberships x where x.group_id = p_group and x.joined_at < months.m + interval '1 month'),
+         (select count(*)::int from ev where ev.m = months.m and ev.visibility = 'group'),
+         (select coalesce(sum(1 + coalesce(r.plus_count, 0)), 0)::int from ev join rsvps r on r.spark_id = ev.id and r.status = 'going'
+           where ev.m = months.m and ev.visibility = 'group'),
+         (select count(distinct c.user_id)::int from ev join signup_items t on t.spark_id = ev.id join signup_claims c on c.item_id = t.id
+           where ev.m = months.m and ev.visibility = 'group'),
+         (select count(*)::int from ev where ev.m = months.m and ev.visibility = 'invite' and ev.group_id = p_group)
+    from months order by months.m;
+end $$;
+revoke all on function public.community_months(uuid, integer) from public, anon;
+grant execute on function public.community_months(uuid, integer) to authenticated;

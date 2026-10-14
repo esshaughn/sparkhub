@@ -6302,6 +6302,77 @@
           '<span style="font-size:15.5px;font-weight:800;color:' + (onIt ? '#4a3ad4' : '#0d1117') + '">' + label + '</span><span style="font-size:13.5px;font-weight:600;color:#6b7280">' + sub + '</span></div>'; }).join('') + '</div>',
       { z: 40 });
   }
+  // ---- Place & purpose (owner, 2026-10-14; set_community_place, owners and admins): the place's name and kind, the middle
+  // of it on the map and how big it is, and one line on what it's for. An invention (HANDOFF §2): it reuses the Start a
+  // group request's place fields until Design draws it
+  const openPlaceEd = (g) => { const pl = g.place || {};
+    setState({ gMenu: null, reqFind: null, placeEd: { id: g.id, name: pl.name || '', kind: pl.kind || null, lat: pl.lat != null ? pl.lat : null, lon: pl.lon != null ? pl.lon : null, radius: pl.radius || 800, purpose: pl.purpose || '' } }); };
+  const placeEdSet = (patch) => setState({ placeEd: Object.assign({}, state.placeEd, patch) });
+  const savePlaceEd = async () => {
+    const e = state.placeEd, g = e && groupById(e.id);
+    if (!g || state.busy) return;
+    if (await run(async () => { must(await sb.rpc('set_community_place', { p_group: g.id, p_name: e.name.trim(), p_kind: e.name.trim() ? e.kind : null,
+      p_lat: e.name.trim() ? e.lat : null, p_lon: e.name.trim() ? e.lon : null, p_radius_m: e.name.trim() && e.lat != null ? e.radius : null, p_purpose: e.purpose.trim() })); }, { placeEd: null, reqFind: null })) toast('Place saved', true);
+  };
+  function viewPlaceEd() {
+    const e = state.placeEd, g = groupById(e.id), close = () => setState({ placeEd: null, reqFind: null });
+    if (!g) return '';
+    const lbl = (t, sub) => '<div style="display:flex;flex-direction:column;gap:2px;padding:0 4px"><span style="font-size:15px;font-weight:800;color:#0d1117">' + t + '</span>' + (sub ? '<span style="font-size:13px;line-height:1.35;font-weight:600;color:#6b7280">' + sub + '</span>' : '') + '</div>';
+    const fld = (k, ph, max, rows) => rows
+      ? '<textarea class="fld" data-place-' + k + ' rows="' + rows + '" maxlength="' + max + '" placeholder="' + esc(ph) + '" ' + onInput(ev => { if (ev.type === 'input') state.placeEd = Object.assign({}, state.placeEd, { [k]: ev.target.value.slice(0, max) }); }) + ' style="' + FIELD + ';min-height:72px;padding:12px 14px;resize:none;line-height:1.4">' + esc(e[k] || '') + '</textarea>'
+      : '<input class="fld" type="text" data-place-' + k + ' maxlength="' + max + '" placeholder="' + esc(ph) + '" value="' + esc(e[k] || '') + '" ' + onInput(ev => { if (ev.type === 'input') state.placeEd = Object.assign({}, state.placeEd, { [k]: ev.target.value.slice(0, max) }); }) + ' style="' + FIELD + '">';
+    const chips = (k, opts) => '<div role="radiogroup" style="display:flex;flex-wrap:wrap;gap:8px">' + opts.map(([v, label]) => { const onIt = e[k] === v;
+      return '<span ' + on(() => placeEdSet({ [k]: v }), 'radio') + ' aria-checked="' + onIt + '" data-place-pick="' + k + ':' + v + '" style="display:flex;align-items:center;min-height:38px;padding:0 14px;border-radius:999px;font-size:14px;font-weight:800;cursor:pointer;' +
+        (onIt ? 'background:#5b4ae8;color:#fff' : 'background:#f2f3f6;color:#0d1117') + '">' + label + '</span>'; }).join('') + '</div>';
+    const find = state.reqFind || {};
+    const results = find.list && find.list.length ? '<div style="display:flex;flex-direction:column;border-radius:14px;overflow:hidden;box-shadow:inset 0 0 0 1.5px #e3e5ec">' +
+        find.list.map(x => '<span ' + on(() => { state.reqFind = null; placeEdSet({ lat: x.lat, lon: x.lon }); }) + ' role="button" data-place-result style="padding:12px 14px;border-top:1px solid #f0f1f4;font-size:14.5px;font-weight:600;color:#0d1117;cursor:pointer">' + esc(x.label) + '</span>').join('') + '</div>'
+      : find.err ? '<span style="font-size:13.5px;color:#c0263d;font-weight:700">Couldn’t search just now. Try again.</span>' : find.q && !find.busy && find.list ? '<span style="font-size:13.5px;color:#6b7280;font-weight:600">Nothing found. Try a street name.</span>' : '';
+    const pl = { name: e.name.trim(), kind: e.kind, lat: e.lat, lon: e.lon, radius: e.radius, purpose: e.purpose.trim() };
+    return sheet('Place and purpose', close, SHEET_PAD,
+      sheetHead(g.name, 'Place & purpose', 'Neighbors see this before they join.', close) +
+      lbl('The place', 'What neighbors call it. It doesn’t have to match a map. Leave it empty for a group without a place.') + fld('name', 'Walnut Creek', 60) +
+      chips('kind', Object.keys(PLACE_KIND).map(k => [k, PLACE_KIND[k]]).concat([['other', 'Other']])) +
+      lbl('Where’s the middle of it?', 'A street, park or school near the center.') +
+      '<div style="display:flex;gap:8px"><input class="fld" data-place-center maxlength="80" placeholder="Search for a street or place" value="' + esc(find.q || '') + '" ' + onInput(ev => { if (ev.type === 'input') state.reqFind = Object.assign({}, state.reqFind, { q: ev.target.value }); }) + ' style="flex:1;min-width:0;' + FIELD + '">' +
+        '<button type="button" data-place-find ' + on(() => findCenter((state.reqFind && state.reqFind.q) || '')) + ' style="flex:0 0 auto;min-height:46px;padding:0 16px;border:0;border-radius:999px;background:#0d1117;color:#fff;font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer">' + (find.busy ? '…' : 'Find') + '</button></div>' + results +
+      (e.lat != null ? lbl('How big is it?') + chips('radius', RADII) : '') +
+      (pl.name && pl.lat != null ? placeCard(pl, false) : '') +
+      lbl('What it’s for', 'One line neighbors see before they join.') + fld('purpose', 'Neighbors getting together, helping out and meeting each other', 200, 2) +
+      '<button type="button" data-place-save ' + on(savePlaceEd) + ' style="' + primary(!state.busy) + '">' + (state.busy === 'save' ? 'Saving…' : 'Save') + '</button>', 40);
+  }
+
+  // ---- The group's dashboard (owner, 2026-10-12: engagement month over month is part of what a community gets): owners
+  // and admins see members, active members, private gatherings (a count, never who or what) and six months of joins,
+  // events, people going and helpers (community_stats, community_months). An invention (HANDOFF §2): plain cards for now
+  const openCommDash = (g) => {
+    setState({ gMenu: null, commDash: { id: g.id, stats: null, months: null } });
+    Promise.all([sb.rpc('community_stats', { p_group: g.id }), sb.rpc('community_months', { p_group: g.id, p_months: 6 })]).then(([a, b]) => {
+      if (!state.commDash || state.commDash.id !== g.id) return;
+      setState({ commDash: { id: g.id, stats: a.error ? false : (a.data || [])[0] || false, months: b.error ? false : b.data || [] } });
+    }, () => { if (state.commDash && state.commDash.id === g.id) setState({ commDash: { id: g.id, stats: false, months: false } }); });
+  };
+  function viewCommDash() {
+    const d = state.commDash, g = groupById(d.id), close = () => setState({ commDash: null });
+    if (!g) return '';
+    const st = d.stats, M = d.months || [];
+    const tile = (k, n, label) => '<div data-comm-stat="' + k + '" style="display:flex;flex-direction:column;gap:2px;padding:14px;border-radius:16px;background:#f7f7f9"><span style="font-size:26px;font-weight:900;letter-spacing:-.5px;color:#0d1117">' + n + '</span><span style="font-size:13px;line-height:1.3;font-weight:700;color:#6b7280">' + label + '</span></div>';
+    const mon = (iso) => new Date(iso + 'T12:00').toLocaleDateString('en-US', { month: 'short' });
+    const top = Math.max(1, ...M.map(m => m.going));
+    const bars = M.length ? '<div data-comm-chart aria-hidden="true" style="display:grid;grid-template-columns:repeat(' + M.length + ',minmax(0,1fr));gap:8px;align-items:end;height:110px;padding:0 2px">' +
+      M.map(m => '<div style="display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:4px;height:100%"><span style="font-size:11.5px;font-weight:800;color:#454b55">' + (m.going || '') + '</span>' +
+        '<span style="width:100%;max-width:34px;height:' + Math.max(3, Math.round(70 * m.going / top)) + 'px;border-radius:8px 8px 3px 3px;background:' + (m.going ? '#5b4ae8' : '#e3e5ea') + '"></span></div>').join('') + '</div>' +
+      '<div aria-hidden="true" style="display:grid;grid-template-columns:repeat(' + M.length + ',minmax(0,1fr));gap:8px;padding:0 2px">' + M.map(m => '<span style="text-align:center;font-size:12px;font-weight:700;color:#6b7280">' + mon(m.month) + '</span>').join('') + '</div>' : '';
+    const th = 'padding:8px 6px;font-size:11.5px;font-weight:900;letter-spacing:.6px;color:#6b7280;text-align:right', td = 'padding:9px 6px;border-top:1px solid #f0f1f4;font-size:14px;font-weight:700;color:#0d1117;text-align:right';
+    const table = M.length ? '<table data-comm-months style="width:100%;border-collapse:collapse"><thead><tr><th style="' + th + ';text-align:left">MONTH</th><th style="' + th + '">JOINED</th><th style="' + th + '">EVENTS</th><th style="' + th + '">GOING</th><th style="' + th + '">HELPED</th></tr></thead><tbody>' +
+      M.slice().reverse().map(m => '<tr><td style="' + td + ';text-align:left">' + mon(m.month) + '</td><td style="' + td + '">' + m.joined + '</td><td style="' + td + '">' + m.events + '</td><td style="' + td + '">' + m.going + '</td><td style="' + td + '">' + m.helpers + '</td></tr>').join('') + '</tbody></table>' : '';
+    const body = st === null || d.months === null ? paraHtml('Loading…')
+      : st === false || d.months === false ? paraHtml('Couldn’t load the numbers just now.')
+      : '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">' + tile('members', st.members, st.members === 1 ? 'member' : 'members') + tile('active', st.active_members, 'active in the last 30 days') + tile('private', st.private_gatherings_30d, 'private gatherings, 30 days') + '</div>' +
+        '<span style="padding:6px 4px 0;font-size:12.5px;font-weight:900;letter-spacing:1px;color:#6b7280">PEOPLE GOING, BY MONTH</span>' + bars + table +
+        '<span style="font-size:13px;line-height:1.4;font-weight:600;color:#6b7280">Active means they opened the group, replied, said they’re interested or signed up for something. Private gatherings are counted, never shown.</span>';
+    return sheet('Group dashboard', close, SHEET_PAD, sheetHead(g.name, 'Dashboard', 'Only owners and admins see this.', close) + body, 40);
+  }
   function viewGroupMenu() {
     const g = groupById(state.gMenu);
     if (!g) return '';
@@ -6341,6 +6412,8 @@
               '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-size:15.5px;font-weight:800;color:#0d1117">Members can invite people</span>' +
                 '<span style="font-size:13px;line-height:1.35;font-weight:600;color:#6b7280">' + (g.membersCanInvite ? 'On: anyone in the group can invite people' : 'Off: only owners and admins can invite') + '</span></div>' +
               '<span aria-hidden="true" style="flex:0 0 46px;width:46px;height:28px;border-radius:999px;position:relative;transition:background .2s;background:' + (g.membersCanInvite ? '#5b4ae8' : '#c3c7d0') + '"><span style="position:absolute;top:3px;left:' + (g.membersCanInvite ? 21 : 3) + 'px;width:22px;height:22px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:left .2s"></span></span></div>' +
+            row('Dashboard', () => openCommDash(g)) +
+            row('Place &amp; purpose', () => openPlaceEd(g), g.place && g.place.name ? esc(g.place.name) : 'Not set') +
             // Who can join (owner, 2026-10-12): owners pick, admins see it
             row('Who can join', then(() => g.role === 'owner' ? setState({ joinRuleFor: g.id }) : toast('Only the group’s owners can change who can join')), RULE_SHORT[g.joinRule] || RULE_SHORT.everyone) +
             // Reports (v8-18 1s): open reports about this group's posts and members, with a red count
@@ -8942,15 +9015,39 @@
   const loadOwnReports = () => ensureSession().then(() => sb.rpc('list_reports', { p_group: null }))
     .then(r => { if (!r.error) setState({ ownReports: r.data || [] }); }, () => {});
   const dashShown = () => !!state.demoAdmin && !state.viewAs;
-  const dashTotal = () => (state.ownReports || []).length + fbUnread() + acctUnread();
-  const openDash = () => { setState({ ownDash: true }); loadOwnReports(); loadFeedback(); loadAccounts(); };
+  const dashTotal = () => (state.ownReports || []).length + fbUnread() + acctUnread() + reqWaiting();
+  const openDash = () => { setState({ ownDash: true }); loadOwnReports(); loadFeedback(); loadAccounts(); if (state.loaded && !state.fromCache) loadDrafts(); };
+  const reqWaiting = () => (state.gDrafts || []).filter(d => d.status === 'submitted' && d.created_by !== state.me).length;
+  // WAN's numbers (owner, 2026-10-14; beta_metrics, friend_usage; app owner only): counts by month, never who. An invention
+  // (HANDOFF §2), plain tables, since only the owner sees it
+  const openNumbers = () => {
+    setState({ ownNums: { beta: null, fr: null } });
+    Promise.all([sb.rpc('beta_metrics', { p_months: 6 }), sb.rpc('friend_usage', { p_months: 6 })]).then(([a, b]) => {
+      if (state.ownNums) setState({ ownNums: { beta: a.error ? false : a.data || [], fr: b.error ? false : b.data || [] } }); },
+      () => { if (state.ownNums) setState({ ownNums: { beta: false, fr: false } }); });
+  };
+  function viewNumbers() {
+    const n = state.ownNums, close = () => setState({ ownNums: null });
+    const mon = (iso) => new Date(iso + 'T12:00').toLocaleDateString('en-US', { month: 'short' });
+    const v = (x) => x == null ? '–' : String(x);
+    const th = 'padding:8px 5px;font-size:11px;font-weight:900;letter-spacing:.4px;color:#6b7280;text-align:right;vertical-align:bottom', td = 'padding:8px 5px;border-top:1px solid #f0f1f4;font-size:13.5px;font-weight:700;color:#0d1117;text-align:right';
+    const table = (k, rows, cols) => rows === null ? paraHtml('Loading…') : rows === false ? paraHtml('Couldn’t load these just now.') :
+      '<div style="overflow-x:auto;margin:0 -4px"><table data-numbers="' + k + '" style="width:100%;border-collapse:collapse"><thead><tr><th style="' + th + ';text-align:left">MONTH</th>' + cols.map(c => '<th style="' + th + '">' + c[1] + '</th>').join('') + '</tr></thead><tbody>' +
+        rows.slice().reverse().map(r => '<tr><td style="' + td + ';text-align:left">' + mon(r.month) + '</td>' + cols.map(c => '<td style="' + td + '">' + v(r[c[0]]) + '</td>').join('') + '</tr>').join('') + '</tbody></table></div>';
+    const lbl = (t, sub) => '<div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:12.5px;font-weight:900;letter-spacing:1px;color:#6b7280">' + t + '</span>' + (sub ? '<span style="font-size:13px;line-height:1.35;font-weight:600;color:#6b7280">' + sub + '</span>' : '') + '</div>';
+    return sheet('Beta numbers', close, SHEET_PAD, sheetHead('Only you see this', 'Beta numbers', 'Counts by month. Never who.', close) +
+      lbl('EVENTS', 'Group events, private events inside a group, and Just people I invite.') +
+      table('beta', n.beta, [['community_events', 'GROUP'], ['community_private', 'PRIVATE IN GROUP'], ['personal_events', 'JUST INVITED'], ['private_going_avg', 'GOING AVG'], ['private_going_max', 'MAX'], ['lists', 'NEW LISTS']]) +
+      lbl('PRIVATE EVENT HOSTS', 'How many people host private events, and how many each. Over 4 and over 8 are possible caps.') +
+      table('friends', n.fr, [['hosts', 'HOSTS'], ['per_host_avg', 'EACH AVG'], ['per_host_p90', 'P90'], ['per_host_max', 'MAX'], ['hosts_over_4', 'OVER 4'], ['hosts_over_8', 'OVER 8'], ['invited_avg', 'INVITED AVG'], ['from_lists', 'FROM LISTS']]), 40);
+  }
   const viewDashPill = () => { const n = dashTotal();
     return '<div ' + on(openDash) + ' role="button" aria-label="Dashboard' + (n ? ', ' + n + ' need you' : '') + '" data-dash-pill class="dash-pill">' +
       svg(18, 'fill="#fff"', '<rect x="3" y="3" width="8" height="8" rx="2.2"/><rect x="13" y="3" width="8" height="8" rx="2.2"/><rect x="3" y="13" width="8" height="8" rx="2.2"/><rect x="13" y="13" width="8" height="8" rx="2.2"/>') +
       '<span style="font-size:15px;font-weight:900;color:#fff">Dashboard</span>' +
       (n ? '<span style="flex:0 0 26px;width:26px;height:26px;border-radius:999px;background:#e2556b;color:#fff;font-size:12.5px;font-weight:900;display:flex;align-items:center;justify-content:center">' + (n > 9 ? '9+' : n) + '</span>' : '') + '</div>'; };
   function viewDash() {
-    const close = () => setState({ ownDash: false }), R = state.ownReports || [], od = R.filter(q => q.overdue).length, fu = fbUnread(), au = acctUnread(), n = R.length + fu + au;
+    const close = () => setState({ ownDash: false }), R = state.ownReports || [], od = R.filter(q => q.overdue).length, fu = fbUnread(), au = acctUnread(), n = R.length + fu + au + reqWaiting();
     const fbN = (state.fbInbox || []).length, acN = Array.isArray(state.accts) ? state.accts.length : 0;
     const row = (k, icon, bg, ink, title, sub, count, fn) => '<div ' + on(fn) + ' role="button" data-dash-row="' + k + '" aria-label="' + esc(title.replace(/&amp;/g, '&')) + (count ? ', ' + count + ' new' : '') + '" class="hov-row" style="display:flex;align-items:center;gap:12px;min-height:72px;padding:0 14px;' + (k !== 'reports' ? 'border-top:1px solid #f2f3f6;' : '') + 'cursor:pointer">' +
       '<span style="flex:0 0 42px;width:42px;height:42px;border-radius:12px;background:' + bg + ';display:flex;align-items:center;justify-content:center">' + svg(20, stroke(ink, 2.2), icon) + '</span>' +
@@ -8968,6 +9065,8 @@
         row('reports', SF_FLAG, '#fde8ec', '#9b1c31', 'Reports', R.length ? R.length + ' open' + (od ? ' · ' + od + ' overdue' : '') : 'Nothing reported', R.length, () => openReports(null)) +
         row('feedback', '<path d="M4 5h16v11H9l-5 4V5Z"/>', '#fdf1d6', '#8f6405', 'Feedback &amp; questions', fbN ? fbN + (fbN === 1 ? ' note' : ' notes') + ' from testers' : 'Notes from testers land here', fu, () => { setState({ fbOpen: true }); loadFeedback(); }) +
         row('accounts', '<circle cx="10" cy="8" r="4"/><path d="M3 20a7 7 0 0 1 14 0M19 8v6M16 11h6"/>', '#ece9fd', '#4a3ad4', 'New accounts', acN + (acN === 1 ? ' account so far' : ' accounts so far'), au, () => { setState({ acctOpen: true }); loadAccounts(); }) +
+        row('requests', '<path d="M12 5v14M5 12h14"/>', '#e7f6ec', '#0f7a3c', 'Group requests', reqWaiting() ? reqWaiting() + ' waiting for review' : 'Nothing waiting', reqWaiting(), () => { setState({ ownDash: false }); openRequest(); }) +
+        row('numbers', '<path d="M5 20V10M12 20V4M19 20v-7"/>', '#f2f3f6', '#0d1117', 'Beta numbers', 'Events, private hosts and lists by month', 0, openNumbers) +
       '</div>' +
         // TOOLS (owner, 2026-10-10): View as a user and the Freeze log, moved here from the bottom of Me
         '<div data-dash-tools style="margin-top:22px;display:flex;flex-direction:column;gap:12px"><span style="padding:0 6px;font-size:13px;font-weight:900;letter-spacing:1px;color:#6b7280">TOOLS</span>' +
@@ -13376,7 +13475,7 @@
       (s === 'browse' && st.loaded && currentGroup() && !st.gSearch && !st.gMenu ? swipeHints() : '') +
       (st.email && st.gSearch && s === 'browse' ? viewGroupSearch() : '') +
       (st.gMenu && s === 'browse' ? viewGroupMenu() : '') +
-      (st.joinRuleFor ? viewJoinRule() : '') +
+      (st.joinRuleFor ? viewJoinRule() : '') + (st.placeEd ? viewPlaceEd() : '') + (st.commDash ? viewCommDash() : '') +
       (st.gInv && s === 'browse' ? viewGroupInv() : '') +
       (st.gQr && s === 'browse' ? viewGroupQr() : '') +
       (st.shiftPick ? viewShiftSheet() : '') +
@@ -13433,7 +13532,8 @@
       (st.inv && st.inv.step === 'confirm' && st.email ? viewInvConfirm() : '') +
       (st.dayPick ? viewDayPick() : '') +
       (st.dayTypePop ? viewDayType() : '') +
-      (st.ownDash && st.screen === 'me' && dashShown() ? viewDash() : '') +   // the owner's Dashboard (v8-19 item 1b), under its sheets
+      (st.ownDash && st.screen === 'me' && dashShown() ? viewDash() : '') +
+      (st.ownNums && st.ownDash && dashShown() ? viewNumbers() : '') +   // the owner's Dashboard (v8-19 item 1b), under its sheets
       (st.sf ? viewSafety() : '') +   // Store safety (v8-18 1s): its sheets and pages
       (st.confirm ? viewConfirm() : '') +
       (st.zoom ? viewZoom() : '') +
