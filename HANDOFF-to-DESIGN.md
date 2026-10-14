@@ -6,18 +6,38 @@
 - **Source:** github.com/esshaughn/sparkhub (`index.html`, `js/sparks.js`, `css/sparks.css`, `privacy.html`, `supabase/templates/`)
 - **Baseline:** Claude Design's **round v8-17** (`design/spark-hub/HANDOFF-to-CODE.md` and `Spark Hub App Version 8.dc.html`, 2026-10-09), built in full (with your v8-16 clarity pass): see *Round v8-17 in short*. Rows 212–227 are new since v8-15.
 - **Build version:** **v8** (v7 from owner, 2026-10-02): a lead is a choice. Since v8-8 an idea is led from the start (*Who leads it · Me*) or floated (*I'll decide*), and both use the new idea page.
-- **As of:** 2026-10-14 (a list's page, list chips on Invite people, a group's Place & purpose and Dashboard, from `structure-v1`; round v8-27 and the website / group drafts / Just people I invite from `structure-v1` built on `test`). **Everything through round v8-26 is live** (main `8a4269d`, v=417). Questions for you are in §5.
+- **As of:** 2026-10-14 (a list's page, list chips on Invite people, a group's Place & purpose and Dashboard, from `structure-v1`; round v8-27 and the website / group drafts / Just people I invite from `structure-v1` built on `test`). **Everything through round v8-27 is live** (main `b5bd0d0`, v=426). Questions for you are in §5 (Q52–Q56 are new).
 
-## Start here (2026-10-10): HANDOFF-to-DESIGN-17
+## Start here (2026-10-14): HANDOFF-to-DESIGN-19
 
-**Your v8-22 caught up with *HANDOFF-to-DESIGN-15*. This file is the reply: call it *HANDOFF-to-DESIGN-17*** (the owner's numbering; there is no -16). Where this doc and the design files disagree, **this doc is correct**. Everything below is live (main `e05eddf`, v=400).
+**This is *HANDOFF-to-DESIGN-19*, the reply to your v8-27.** Where this doc and the design files disagree, **this doc is correct**. Live is still round v8-27 alone (main `b5bd0d0`). Everything else below is on `test` only (the preview link above), so you can click through it there.
 
-**New since -15 (redraw these in the prototype):**
-- **Round v8-22 as built:** see *Round v8-22 in short*, which lists each item and where it differs. Not built yet: the per-day ⋯ menu and moving a cancelled day's sign-ups (3c), the separate *Edit sign up* sheet (3a), *Take it* / *Can't this time* in job-ask bell rows (§4).
-- **Group invites (1a, 2a, 4a, 4b, Members INVITED):** see *Group invites (round v8-22)*, with what changed and what the build invented.
-- **Owner calls this round** (*Owner calls that stand*): *Install Spark Hub app* is Get started's step 5 (it overrides row 154); a job reads **N slots**, or **No limit**; the visitor's *Shared with you* card loses *You can RSVP and sign up without joining anything.*
-- **Rows 248–250:** a location name can be added to a posted event (Edit date, time & location); *You're going both days · Change* sits on one row under the dates; the Dashboard gets **TOOLS** (View as a user, Freeze log), which answers Q51.
-- **Rounds v8-18, v8-19 and v8-21** (each in its own *in short* section) went live with this round.
+**Two kinds of change since -18:**
+1. **Your rounds v8-25, v8-26 and v8-27, as built.** Small differences only. See *Round v8-25 in short*, *Round v8-26 in short* and *Round v8-27 in short*.
+2. **A new structure the owner asked for (2026-10-12 to 10-14).** None of it was in a design round. The build drew it plainly from the design system, and it needs you. It comes from one decision: **Spark Hub is for two kinds of community only: your friends, and the place you live** (a neighborhood, a school, a building). Interest groups of strangers are out (no "North Austin Pickleball"). Events no longer have to live in a group.
+
+**What's new, and the section with the details:**
+- **A website around the app.** `/welcome`, `/how-it-works`, `/pricing`, `/neighborhoods` and `/beta`. Signed out, the bare address now lands on `/welcome`. See *The website around the app*.
+- **Groups belong to a place.** Before joining, people see a map card (*Is this the one you want to join?*) and say how they're connected (*I live here · I live nearby · Just visiting*). Owners set **Who can join**. See *Where the group is, and who can join*.
+- **Starting a group is a request.** You draft it, ask a co-lead (required), admins and ambassadors, then send it for review; the owner approves or declines it. Anyone can still join by link. See *Starting a group: a draft, a team and a review*.
+- **Events without a group.** *Just people I invite* in Post to makes a private event for friends, and lists now live in the account. See *Just people I invite, and lists in the account*.
+- **A list's page, list chips, a group's Place & purpose and Dashboard (2026-10-14).** See the section with that name.
+
+**What to draw first:**
+1. **The website** (five pages). It's the first thing a new person sees, and the build's draft is plain.
+2. **The join moment**: the place card, the map and *How are you connected?*, on the invite landing and in *Join {group}?*.
+3. **Starting a group** (`#/request`): the list, the draft, Ask a co-lead, the person asked, In review, Open and Not approved. It should feel like a big deal (the owner's words: a privilege and a real responsibility, done together), but warm and not bureaucratic.
+4. **A group's Place & purpose** and **its Dashboard** (for owners and admins).
+5. **A list's page** and **list chips on Invite people.** **Draw these loosely for now.** The owner hasn't settled what a friend group is yet: a list only you see, or a shared space whose members see it (a name, a photo, a standing calendar, maybe a thread with the next plan pinned on top). Q52 asks for both directions, so the owner can choose by looking.
+
+**Wording the owner chose:**
+- The app keeps **Groups**.
+- The website says *neighborhood group*, and *friends and neighbors*.
+- Public copy speaks to what people want, *Do fun & meaningful stuff with your friends and neighbors*. Inside the product, never use "leadership" or "move up" language. The next step shows up only as a gentle nudge (for example, after you've hosted a few things with friends: *Get involved where you live*).
+- **BETA** goes beside the logo wherever the logo appears in the app (not on every page), and everywhere on the website. No prices yet: the paid tiers say *Free during the beta*.
+- **No operator is named** (We're All Neighbors) until its board votes.
+
+**Parked, so please don't draw them:** private homes opened to the public ("host homes", like Hub on Hunters); a public map, directory or search of groups (groups are never discoverable; joining stays by link, QR code or invite); prices.
 
 **The design system.** The design system you made from v8-17 now lives in the Claude Design project *Design System*, with a copy in the repo at `design/design-system/`. When a round changes colours, components or wording rules, please update it there too: copy what changed and don't redesign anything.
 
@@ -93,7 +113,7 @@ None of these are built. They come from the owner's own list and the pilot group
 
 ## Round v8-27 in short
 
-*Built from HANDOFF-to-CODE v8-27 on 2026-10-12, not live yet. No migration: friend requests, blocks and `signup_claims.note` (60 characters) were already in the database. The prototype was diffed against v8-26's: nothing changed beyond items 1–5.*
+*Built from HANDOFF-to-CODE v8-27 on 2026-10-12, live 2026-10-13 (main `b5bd0d0`). No migration: friend requests, blocks and `signup_claims.note` (60 characters) were already in the database. The prototype was diffed against v8-26's: nothing changed beyond items 1–5.*
 
 | Item | Status |
 |---|---|
@@ -103,7 +123,7 @@ None of these are built. They come from the owner's own list and the pilot group
 | 4: sign-up notes | Done as drawn: **ADD A NOTE** on *You're signed up!* (jobs and their shifts, not spots to take part; the shift picker's own note field fills it), saved as you type; the notes above the job card's footer, yours first with **✎ Edit**; **+ Add a note** under the description when you hold the job without one; the in-card field with Cancel / Save, Enter / Esc, *Note saved* / *Note removed*; notes under each name in Who's signed up (hosts see them there too). Notes show on the one-row job card (people who aren't hosting); a job with several times and the host's card don't list them, only Who's signed up does |
 | 5: Who's signed up is a centred pop-up | Done as drawn (360px, 24px corners, popIn, scrolls past 88%). The close is the usual 40px grey round × in the header row, not a 36px one pinned to the corner |
 
-## The website around the app (2026-10-12, branch `structure-v1`, not on `test` yet)
+## The website around the app (2026-10-12, on `test`, not live)
 
 *Things the build had to invent: the owner asked for a website people can land on before the app. Drafted from the design system (Figtree, ink, purple, the Spark gradient once as a glow on the welcome hero); please redraw it properly when you can.*
 
@@ -112,7 +132,7 @@ None of these are built. They come from the owner's own list and the pilot group
 - **The front door:** signed out, the bare address now opens `/welcome` instead of the app's Welcome; the app's Welcome still shows for **Sign in** (`/#/signin`) and invite links.
 - **Wording the owner chose:** the app keeps **Groups**; the website says *neighborhood group* where it helps. *Lead* and *co-lead* name a group's two required owners on the website. Never "Coming soon": the paid tiers say *Free during the beta*.
 
-## Where the group is, and who can join (2026-10-12, branch `structure-v1`)
+## Where the group is, and who can join (2026-10-12, on `test`, not live)
 
 *Invented by the build, from the owner's direction; please redraw.*
 
@@ -121,7 +141,7 @@ None of these are built. They come from the owner's own list and the pilot group
 - **Who can join** (group ⋯ → Admins only, a row with the current value): a pop-up with three cards (Neighbors · Nearby neighbors · Everyone) and *Everyone already in stays…*; only owners can change it.
 - **Members:** *Joined October 2026 · Lives nearby* in a member's panel (admins).
 
-## Starting a group: a draft, a team and a review (2026-10-12, branch `structure-v1`)
+## Starting a group: a draft, a team and a review (2026-10-12, on `test`, not live)
 
 *Invented by the build from the owner's direction (a group starts like an event: draft it, find your team, then it opens); please redraw. It replaces the *Groups start by request* pop-up and its feedback form.*
 
@@ -131,7 +151,7 @@ None of these are built. They come from the owner's own list and the pilot group
 - **The person asked:** a card with a purple ring at the top: *{Name} asked you to be co-lead*, the role's line, **Yes, I’m in** / **Not now** (then *You’re in.*).
 - **States:** In review (pale gold card, *Take it back to edit*); Open (pale green, the owner's note, **Go to the group**); Not approved (pale red, the note, *Edit and send again*). The app owner's YOUR REVIEW card: a note box, **Approve** / **Decline**.
 
-## Just people I invite, and lists in the account (2026-10-12, branch `structure-v1`)
+## Just people I invite, and lists in the account (2026-10-12, on `test`, not live)
 
 *Invented by the build from the owner's direction (events no longer have to live in a group); please redraw.*
 
@@ -140,7 +160,7 @@ None of these are built. They come from the owner's own list and the pilot group
 - **Cards:** where a card names the group, a personal event reads *Just invited*.
 - **Lists:** unchanged on screen; they now follow you between devices.
 
-## A list's page, list chips, a group's place and dashboard (2026-10-14, branch `structure-v1`)
+## A list's page, list chips, a group's place and dashboard (2026-10-14, on `test`, not live)
 
 *Invented by the build, plain on purpose (owner, 2026-10-14: build plain versions now, Design draws them once the friends questions are settled). Please redraw the list page and the group dashboard; the rest reuses existing pieces.*
 
@@ -155,7 +175,7 @@ None of these are built. They come from the owner's own list and the pilot group
 
 ## Round v8-26 in short
 
-*Built from HANDOFF-to-CODE v8-26 on 2026-10-11, on `test`, not live yet. One migration, `20261201000000_v8_26.sql` (`sparks.contact`, `rsvps.repick`, `group_invite_landing()`). The prototype was diffed against v8-25's: nothing changed beyond items 3, 6, 7 and 8.*
+*Built from HANDOFF-to-CODE v8-26 on 2026-10-11, live 2026-10-12. One migration, `20261201000000_v8_26.sql` (`sparks.contact`, `rsvps.repick`, `group_invite_landing()`). The prototype was diffed against v8-25's: nothing changed beyond items 3, 6, 7 and 8.*
 
 | Item | Status |
 |---|---|
@@ -168,7 +188,7 @@ None of these are built. They come from the owner's own list and the pilot group
 
 ## Round v8-25 in short
 
-*Built from HANDOFF-to-CODE v8-25 on 2026-10-11, on `test`, not live yet. No migration. The prototype was diffed against v8-24's: everything else it changed (items 1–2, rows 251–257) was already built.*
+*Built from HANDOFF-to-CODE v8-25 on 2026-10-11, live 2026-10-11. No migration. The prototype was diffed against v8-24's: everything else it changed (items 1–2, rows 251–257) was already built.*
 
 | Item | Status |
 |---|---|
@@ -691,6 +711,11 @@ Never cleared on a reset. These are places where the owner chose differently fro
 
 6. **Google's sign-in screen** says "continue to …supabase.co" until Spark Hub has its own sign-in domain.
 7. **Video on the vibe board** is parked (needs a ~20 s / 25 MB cap).
+52. **A friend group: two directions to compare.** The owner is choosing between (a) **a list only you see**, as built: a name, its people, Plan something, Coming up; and (b) **a shared friend group** whose members all see it: a name and maybe a photo, a standing calendar, the next plan pinned on top of a simple thread, and anyone in it can plan something. Please draw both at the same level, from the Friends tab through to the list's or group's page, so the owner can choose by looking. Keep it to friends (people who know each other), never interest groups of strangers.
+53. **The group dashboard.** What should a neighborhood's lead see first? Built now: members, active in the last 30 days, private gatherings (a count, never who or what), people going by month, and joins, events, going and helped per month. It's meant to show a community it's growing (and, later, what a paid plan buys). Your call on the charts and what leads.
+54. **Website and app front door.** Signed out, `/welcome` is the front door, and the app's own Welcome still shows for Sign in and invite links. Should they look like one thing? Please redraw the five pages in the design system.
+55. **Place & purpose.** The build uses a circle (¼ mile to 2 miles) around a searched middle. Later, neighborhoods may come from the City of Austin's boundary map as real shapes. Draw the circle version, and leave room for a drawn shape.
+56. **The next-step nudges.** Where and how should the app suggest the next way to take part, without saying "leadership" or "level up"? For example: someone who has hosted three things with friends sees *Is there a group where you live?*, and a neighbor who keeps showing up sees *Ask a couple of people to plan something together*.
 (Q51 was answered in v8-26 by row 250. Q49 and Q50 were answered in v8-18: see *Round v8-18 in short*. Q26 and Q44 were answered in v8-20/v8-21: see *Round v8-21 in short*.)
 
 ## 6. Design tokens
