@@ -28,10 +28,12 @@ test('friends: request, accept, invite to an event, remove, and the friend link'
     await A.getByRole('dialog', { name: 'Group options' }).getByRole('button', { name: 'Members, see all' }).click();
     const members = A.getByRole('dialog', { name: 'Members' });
     await members.getByLabel('Search members').fill('Gus Friendly');
-    await members.getByRole('button', { name: 'Gus Friendly', exact: true }).click();
-    await members.locator('[data-member-panel]').getByRole('button', { name: 'Add friend' }).click();
+    // v8-27 item 1: the round button at the end of the row (it doesn't open the row); the grey line says Requested
+    const gus = members.locator('[data-member="Gus Friendly"]');
+    await gus.getByRole('button', { name: 'Add friend' }).click();
     await expect(A.getByText('Friend request sent to Gus')).toBeVisible();
-    await expect(members.locator('[data-member-panel]')).toContainText('Requested');
+    await expect(gus.locator('[data-friend-line]')).toHaveText('Requested');
+    await expect(gus.locator('[data-member-panel]')).toHaveCount(0);
     await members.getByRole('button', { name: 'Close' }).click();
 
     // B sees it on My friends (v8: its own tab, with a dot while a request waits) and accepts
@@ -119,6 +121,8 @@ test('friends: request, accept, invite to an event, remove, and the friend link'
   } finally {
     if (aId && bId) await unfriend(A, bId);
     if (id) await deleteIdea(A, id).catch(() => {});
+    // Lists live in the account since 20261202010000_lists.sql: don't leave Trail crew for the next run
+    await asUser(B, async (c) => c.from('lists').delete().eq('name', 'Trail crew')).catch(() => {});
     await a.context.close();
     await b.context.close();
   }

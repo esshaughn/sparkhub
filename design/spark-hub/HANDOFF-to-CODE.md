@@ -1,4 +1,44 @@
-# Spark Hub v8 · HANDOFF-to-CODE (round v8-26)
+# Spark Hub v8 · HANDOFF-to-CODE (round v8-27)
+
+## New since v8-26 (Oct 12)
+All **Build**. Prototype: `Spark Hub App Version 8.dc.html`.
+
+### 1. Add friends from a group's Members list (1b in `Add Friend Options.dc.html`)
+- Each row (not you) ends in a **40px round icon button**:
+  - **Add:** #f3f1fe circle, purple #5b4ae8 person-plus. Tap sends a request, toast *Friend request sent to {first}*.
+  - **Requested:** #f2f3f6 circle, grey #9aa0ac person + clock. Tap opens *Cancel your request to {first}?* (*{first} won't be told.*, red Cancel request / Keep it).
+  - **Friends:** #e7f6ec circle, green #149a4b person + tick. Not a button.
+  - **Accept:** a green #149a4b pill (36px, white 14/800) when they asked you first. Tap = friends, toast *You and {first} are friends*.
+- A grey line under the name says the state (*Friends* · *Requested* · *Asked to be your friend*); nothing for Add.
+- The old Add friend pill inside the opened row is gone. Tapping the row still opens email, See profile and admin tools; the button doesn't open the row.
+- Chips under the search: **Everyone** · **Not friends yet · N** (34px, active #0d1117 / white, else #f2f3f6 / #454b55). Members ⋯ opens on Everyone.
+- **Rules (owner, Oct 12):** requests need approval; a declined request stays *Requested* for the sender (never told); 30 requests an hour; blocked pairs see no button and are left out of Not friends yet; no hiding from the list yet; friends are app-wide (found through groups).
+
+### 2. Friends page: FIND FRIENDS IN YOUR GROUPS (2c)
+- Under Your friends: grey caps heading, then one white card (20px corners), one **68px row** per group with anyone you're not friends with: 44px photo (12px corners), name (15.5/800), grey *N people not friends yet*, up to 3 faces (28px, −8px, white ring), grey ›. Most first. Groups where you know everyone are left out; no card if none.
+- A row opens that group's Members list on **Not friends yet**; back returns to Friends.
+- Hidden while searching friends.
+- Later, not now: the event-based suggestion ("You and Dee were both at…").
+
+### 3. Group ⋯ → View as a member
+- First row under ADMINS ONLY (owners and admins): eye icon + **View as a member** ›.
+- Opens the group as a plain member sees it (no admin chips, menus or tools), toast *This is what members of {group} see*.
+- Dark pill above the tab bar (like *Viewing as attendee*): eye icon, **Viewing as a member** over the group name (12/600 #c4c8d0), gold **Exit** (toast *Back to your admin view*). Unlike View as attendee, taps work as normal.
+
+### 4. Sign-up note (tester feedback; mockup `Sign Up Note Mockup.dc.html`)
+- *You're signed up!* pop-up, under the recap, for the **job just taken** only (not Take part spots): **ADD A NOTE** (12.5/900 caps #6b7280, nowrap) + light *Optional*, a 48px #f2f3f6 field (16px text), placeholder *Say what you're bringing or doing*, 60 characters, under it *Everyone going sees this.* and *N/60*. Saves as you type to that person's sign-up `note`; Done just closes.
+- **Job card:** each note shows above the footer: 22px face, **{first}** (800) · note (14/500 #2a2f38), so people see what's coming before they pick.
+- **Who's signed up:** the note under each name (13.5/500 #454b55).
+- **Add or change it later (2a in `Sign Up Note Mockup.dc.html`):** on a job you hold, your note sits first in the card's notes with a purple **✎ Edit** (13.5/800 #5b4ae8). No note yet: a small outlined **+ Add a note** pill (34px, inset 1.5px #c9c2fb, #4a3ad4 14/800) under the description. Either turns into the field right in the card (48px, purple 2px ring, autofocus), with *Everyone going sees this. · N/60*, grey **Cancel** and a purple **Save** pill. Enter saves, Esc cancels. Toast *Note saved*; a cleared field removes it (*Note removed*).
+
+### 5. Who's signed up is a centred pop-up
+- Was a slide-up. Now centred like *You're signed up!*: max 360px wide, 24px corners, 22px 18px 18px padding, round grey × top right, popIn 240ms; scrolls past 88% height. Same contents (caps job name, *N of N signed up*, rows with notes, host Remove + its confirm in place).
+
+**Caught up with HANDOFF-to-DESIGN-18 as of Oct 12, 2026.** v8-26 below stands.
+
+---
+
+# Round v8-26
 
 ## New since v8-25 (Oct 11, late)
 All **Build**. Details in the sections below.
