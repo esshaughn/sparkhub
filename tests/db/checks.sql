@@ -2067,6 +2067,7 @@ select t.must_refuse('a member reading the stats', format($$select * from public
 select t.must_refuse('a member upgrading the plan', format($$update groups set plan = 'active' where id = %L$$, t.id('g')));
 select t.must_refuse('…or marking it sponsored', format($$update groups set sponsored = true where id = %L$$, t.id('g')));
 select t.must_refuse('a member reading the beta numbers', $$select * from public.beta_metrics()$$);
+select t.must_refuse('…or the friends usage', $$select * from public.friend_usage()$$);
 reset role;
 select t.login('admin'); set role authenticated;
 select t.must_refuse('a pin with only one coordinate', format($$select public.set_community_place(%L, 'Woodcliff', null, 30.27, null)$$, t.id('g')));
@@ -2076,6 +2077,8 @@ insert into demo_admins (user_id) values (t.id('pe_stranger')) on conflict do no
 select t.login('pe_stranger'); set role authenticated;
 select t.check('the app owner reads the beta numbers', (select count(*) = 6 from public.beta_metrics()));
 select t.check('…which count the personal event', (select sum(personal_events) >= 1 from public.beta_metrics()));
+select t.check('friends usage counts the private event''s host and its two invites',
+  (select hosts >= 1 and per_host_max >= 1 and invited_max >= 2 from public.friend_usage(1)));
 reset role;
 delete from demo_admins where user_id = t.id('pe_stranger');
 
@@ -2193,3 +2196,26 @@ select t.must_refuse('a fifth open draft', $$insert into group_drafts (name) val
 select t.must_allow('deleting a draft', $$delete from group_drafts where name = 'Fourth'$$);
 reset role;
 delete from demo_admins where user_id = t.id('gd_wan');
+
+-- Events remember their list (20261202050000_list_events.sql): only the lead's own list, a community list only on
+-- that community's events; deleting the list leaves the event ----------------------------------------------------------
+reset role;
+select t.login('pe_lead'); set role authenticated;
+select t.must_allow('the lead saves their friends list on the personal event',
+  format($$update sparks set list_id = (select id from lists where name = 'Dinner crew') where id = %L$$, t.id('pe')));
+select t.must_refuse('…not a community list on a personal event',
+  format($$update sparks set list_id = (select id from lists where name = 'Block 4') where id = %L$$, t.id('pe')));
+select t.must_allow('a community list on that community''s event',
+  format($$insert into sparks (group_id, author_name, lead_name, lead_id, created_by, text, list_id) values (%L, 'Lee', 'Lee', auth.uid(), auth.uid(), 'Block 4 dinner', (select id from lists where name = 'Block 4'))$$, t.id('g')));
+reset role;
+insert into t.ids select 'pe_list', id from lists where name = 'Dinner crew' and owner_id = t.id('pe_lead');
+select t.login('pe_pal'); set role authenticated;
+select t.must_allow('a friend makes their own list', format($$insert into lists (name, people) values ('Mine', array[%L]::uuid[])$$, t.id('pe_lead')));
+select t.must_refuse('…but can''t put someone else''s list on an event', format($$insert into sparks (author_name, lead_name, lead_id, created_by, text, visibility, list_id) values ('Pa', 'Pa', auth.uid(), auth.uid(), 'Borrowed list', 'invite', %L)$$, t.id('pe_list')));
+select t.must_allow('…their own works', $$insert into sparks (author_name, lead_name, lead_id, created_by, text, visibility, list_id) values ('Pa', 'Pa', auth.uid(), auth.uid(), 'Own list', 'invite', (select id from lists where name = 'Mine'))$$);
+reset role;
+select t.login('pe_lead'); set role authenticated;
+select t.must_allow('deleting the list', format($$delete from lists where id = %L$$, t.id('pe_list')));
+select t.check('…leaves the event, unlinked', (select list_id is null from sparks where id = t.id('pe')));
+reset role;
+delete from sparks where text in ('Block 4 dinner', 'Own list');

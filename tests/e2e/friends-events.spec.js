@@ -97,3 +97,52 @@ test('lists live in the account: a list left on this device moves up, and a new 
     await host.context.close(); await pal.context.close();
   }
 });
+
+test('a list plans its own event: Plan something, its people come picked, and the list shows what’s next', async ({ browser }) => {
+  test.setTimeout(90000);
+  const host = await newLead(browser, 1, 'Ada');
+  const pal = await newLead(browser, 2, 'Bo');
+  const A = host.page;
+  const title = uniqueTitle('Crew night');
+  let id;
+  try {
+    await friends(A, pal.page);
+    const palId = await asUser(pal.page, async (c) => (await c.auth.getUser()).data.user.id);
+    await asUser(A, async (c, _C, p) => { await c.from('lists').delete().is('group_id', null); await c.from('lists').insert({ name: 'Dinner crew', people: [p] }); }, palId);
+    await A.reload();
+    await expect(A.locator('html[data-loaded=true]')).toHaveCount(1);
+    await A.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Friends', exact: true }).click();
+    await A.locator('[data-friend-list="Dinner crew"]').click();
+    const sheet = A.getByRole('dialog', { name: 'Dinner crew' });
+    await expect(sheet.locator('[data-list-coming]')).toContainText('Nothing planned with Dinner crew yet.');
+    await sheet.locator('[data-list-plan]').click();
+
+    const flow = A.locator('[data-screen-label="New spark"]');
+    await expect(flow.locator('[data-post-to]')).toContainText('Dinner crew');
+    await flow.getByLabel('Event title').fill(title);
+    await pickDate(flow.locator('[data-cp-row="when"]'), inDays(5));
+    await flow.locator('[data-post]').click();
+    await expect(A.locator('[data-screen-label="Plan page"]')).toBeVisible();
+    id = await A.evaluate(() => location.hash.split('/').pop());
+
+    // Invite people opens with the list picked
+    const inv = A.getByRole('dialog', { name: 'Invite people' });
+    await expect(inv.locator('[data-inv-list="Dinner crew"]')).toHaveAttribute('aria-checked', 'true');
+    await inv.getByRole('button', { name: 'Send · 1' }).click();
+    await expect(inv).toHaveCount(0);
+    const listId = await asUser(A, async (c) => (await c.from('lists').select('id').eq('name', 'Dinner crew').single()).data.id);
+    expect(await asUser(A, async (c, _C, s) => (await c.from('sparks').select('group_id,list_id').eq('id', s).single()).data, id))
+      .toEqual({ group_id: null, list_id: listId });
+
+    // The list now shows it next
+    await A.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Friends', exact: true }).click();
+    await expect(A.locator('[data-friend-list="Dinner crew"] [data-list-sub]')).toContainText(title);
+    await A.locator('[data-friend-list="Dinner crew"]').click();
+    await expect(A.getByRole('dialog', { name: 'Dinner crew' }).locator('[data-list-next]')).toContainText(title);
+  } finally {
+    if (id) await asUser(A, async (c, _C, s) => c.rpc('delete_event', { p_spark: s, p_quiet: true }), id).catch(() => {});
+    await asUser(A, async (c) => { await c.from('lists').delete().is('group_id', null); }).catch(() => {});
+    await unfriend(A, /^Bo/);
+    await host.context.close(); await pal.context.close();
+  }
+});
