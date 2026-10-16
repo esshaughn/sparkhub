@@ -112,6 +112,11 @@ test('a list plans its own event: Plan something, its people come picked, and th
     await A.reload();
     await expect(A.locator('html[data-loaded=true]')).toHaveCount(1);
     await A.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Friends', exact: true }).click();
+    // YOUR CREWS sits above YOUR LISTS (Design v9-1 5b); starting one is a REQUEST this round
+    await expect(A.locator('[data-crews]')).toContainText('YOUR CREWS');
+    await A.locator('[data-crew-start]').click();
+    await expect(A.getByRole('alertdialog', { name: 'Crews aren’t here yet' })).toBeVisible();
+    await A.getByRole('alertdialog', { name: 'Crews aren’t here yet' }).getByRole('button', { name: 'Not now' }).click();
     await A.locator('[data-friend-list="Dinner crew"]').click();
     const sheet = A.getByRole('dialog', { name: 'Dinner crew' });
     await expect(sheet.locator('[data-list-coming]')).toContainText('Nothing planned with Dinner crew yet.');
@@ -128,6 +133,7 @@ test('a list plans its own event: Plan something, its people come picked, and th
     // Invite people opens with the list picked
     const inv = A.getByRole('dialog', { name: 'Invite people' });
     await expect(inv.locator('[data-inv-list="Dinner crew"]')).toHaveAttribute('aria-checked', 'true');
+    await expect(inv.locator('[data-inv-list="Dinner crew"]')).toHaveText('Dinner crew');   // picked: a tick, no count (5c)
     await inv.getByRole('button', { name: 'Send · 1' }).click();
     await expect(inv).toHaveCount(0);
     const listId = await asUser(A, async (c) => (await c.from('lists').select('id').eq('name', 'Dinner crew').single()).data.id);

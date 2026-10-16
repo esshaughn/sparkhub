@@ -3869,6 +3869,10 @@
     const firstList = '<div ' + on(() => setState({ frListEd: { id: null, name: '', people: [] } })) + ' data-friend-list-new style="flex:0 0 150px;display:flex;flex-direction:column;gap:6px;padding:14px;border-radius:18px;background:#f4f5f7;box-shadow:inset 0 0 0 1.5px #dcdfe6;cursor:pointer">' +
       '<span style="width:30px;height:30px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;display:flex;align-items:center;justify-content:center">' + I.plus(14, '#454b55', 2.6) + '</span>' +
       '<span style="font-size:15px;font-weight:900;color:#0d1117">Make a list</span><span style="font-size:12.5px;line-height:1.3;font-weight:600;color:#6b7280">People you invite together. Only you see it.</span></div>';
+    // YOUR CREWS (Design v9-1 5b, Q52; working name, owner to confirm): a shared page for a group of friends, above Your
+    // lists. Not built in this round: + Start one carries the gold REQUEST chip and opens Crews aren't here yet
+    const crewsSec = q || !fr.friends.length ? '' : '<div data-screen-label="Your crews" data-crews style="display:flex;flex-direction:column;gap:8px">' +
+      label('YOUR CREWS', '<span ' + on(() => requestFeature('Crews', true)) + ' role="button" data-crew-start style="display:flex;align-items:center;gap:6px;min-height:32px;font-size:13.5px;font-weight:800;color:#5b4ae8;cursor:pointer">+ Start one' + REQ_CHIP + '</span>') + '</div>';
     const listsSec = q || !fr.friends.length ? '' : '<div data-screen-label="Your lists" style="display:flex;flex-direction:column;gap:8px">' +
       label('YOUR LISTS', '<span ' + on(() => setState({ frListEd: { id: null, name: '', people: [] } })) + ' data-new-list style="display:flex;align-items:center;gap:4px;min-height:32px;font-size:13.5px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(13, 'currentColor', 2.8) + 'New list</span>') +
       '<div class="snap-row" style="margin:0 -14px;padding:2px 14px 4px;gap:10px;scroll-padding:0 14px">' + (lists.length ? lists.map(listCard).join('') : firstList) + '</div></div>';
@@ -3892,7 +3896,7 @@
     // No + Add a friend link under the list once you have friends (Design v8 prototype)
     return '<div data-screen-label="Friends">' + tabHead('My friends', openPplSearch, 'Search your friends') +
       '<div style="padding:14px 14px 26px;display:flex;flex-direction:column;gap:12px">' + gsCard() + pplSearchField('Search your friends') +
-        (!fr.loaded ? skeleton(2, 120) : (q ? '' : fr.incoming.map(req).join('')) + goingSec + listsSec + friendsSec + empty + frGroupsCard()) +
+        (!fr.loaded ? skeleton(2, 120) : (q ? '' : fr.incoming.map(req).join('')) + goingSec + crewsSec + listsSec + friendsSec + empty + frGroupsCard()) +
       '</div><div style="height:var(--nav-h)"></div></div>';
   }
 
@@ -7860,8 +7864,9 @@
         : { picked: picked.concat(ids.filter(x => picked.indexOf(x) < 0)), lists: usedLists.concat(l.id) }) }); };
     const listChips = !myLists.length || q ? '' : '<div data-inv-lists style="flex:0 0 auto;display:flex;gap:8px;overflow-x:auto;padding:2px 0 10px;margin:0 -2px;scrollbar-width:none">' +
       myLists.map(x => { const on_ = usedLists.indexOf(x.l.id) > -1;
+        // Design v9-1 5c: #f2f3f6 with ink, {name} {N}; picked #5b4ae8 with a ✓ and no count
         return '<span ' + on(() => toggleList(x), 'checkbox') + ' aria-checked="' + on_ + '" aria-label="Invite ' + esc(x.l.name) + '" data-inv-list="' + esc(x.l.name) + '" style="flex:0 0 auto;display:flex;align-items:center;gap:6px;min-height:38px;padding:0 14px;border-radius:999px;font-size:14px;font-weight:800;white-space:nowrap;cursor:pointer;' +
-          (on_ ? 'background:' + A.fill + ';color:' + A.ink : 'background:#f2f3f6;color:#0d1117') + '">' + (on_ ? I.check(12, A.ink, 3) : I.plus(12, 'currentColor', 2.8)) + esc(x.l.name) + '<span style="font-weight:700;opacity:.7">' + x.ids.length + '</span></span>'; }).join('') + '</div>';
+          (on_ ? 'background:#5b4ae8;color:#fff' : 'background:#f2f3f6;color:#0d1117') + '">' + (on_ ? I.check(12, '#fff', 3) : '') + esc(x.l.name) + (on_ ? '' : '<span style="font-weight:700;opacity:.7">' + x.ids.length + '</span>') + '</span>'; }).join('') + '</div>';
     const list = !canList ? '' :
       invSearch(sh.q, (v) => setState({ share: Object.assign({}, state.share, { q: v }) })) + listChips +
       invList(sh.loading || !sh.people ? paraHtml('Loading…')
