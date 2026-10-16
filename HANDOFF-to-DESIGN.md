@@ -6,7 +6,7 @@
 - **Source:** github.com/esshaughn/sparkhub (`index.html`, `js/sparks.js`, `css/sparks.css`, `privacy.html`, `supabase/templates/`)
 - **Baseline:** Claude Design's **round v8-17** (`design/spark-hub/HANDOFF-to-CODE.md` and `Spark Hub App Version 8.dc.html`, 2026-10-09), built in full (with your v8-16 clarity pass): see *Round v8-17 in short*. Rows 212–227 are new since v8-15.
 - **Build version:** **v8** (v7 from owner, 2026-10-02): a lead is a choice. Since v8-8 an idea is led from the start (*Who leads it · Me*) or floated (*I'll decide*), and both use the new idea page.
-- **As of:** 2026-10-14 (a list's page, list chips on Invite people, a group's Place & purpose and Dashboard, from `structure-v1`; round v8-27 and the website / group drafts / Just people I invite from `structure-v1` built on `test`). **Everything through round v8-27 is live** (main `b5bd0d0`, v=426). Questions for you are in §5 (Q52–Q56 are new).
+- **As of:** 2026-10-16 (a brief for after the event, `POST-EVENT-for-design.md`, Q57; before that, 2026-10-14: a list's page, list chips on Invite people, a group's Place & purpose and Dashboard, from `structure-v1`; round v8-27 and the website / group drafts / Just people I invite from `structure-v1` built on `test`). **Everything through round v8-27 is live** (main `b5bd0d0`, v=426). Questions for you are in §5 (Q52–Q57 are new).
 
 ## Start here (2026-10-14): HANDOFF-to-DESIGN-19
 
@@ -22,6 +22,7 @@
 - **Starting a group is a request.** You draft it, ask a co-lead (required), admins and ambassadors, then send it for review; the owner approves or declines it. Anyone can still join by link. See *Starting a group: a draft, a team and a review*.
 - **Events without a group.** *Just people I invite* in Post to makes a private event for friends, and lists now live in the account. See *Just people I invite, and lists in the account*.
 - **A list's page, list chips, a group's Place & purpose and Dashboard (2026-10-14).** See the section with that name.
+- **After the event, joy first (2026-10-16, not built).** A brief from the owner: `POST-EVENT-for-design.md`, with a clickable sketch in `design/post-event/`. See Q57.
 
 **What to draw first:**
 1. **The website** (five pages). It's the first thing a new person sees, and the build's draft is plain.
@@ -716,6 +717,7 @@ Never cleared on a reset. These are places where the owner chose differently fro
 54. **Website and app front door.** Signed out, `/welcome` is the front door, and the app's own Welcome still shows for Sign in and invite links. Should they look like one thing? Please redraw the five pages in the design system.
 55. **Place & purpose.** The build uses a circle (¼ mile to 2 miles) around a searched middle. Later, neighborhoods may come from the City of Austin's boundary map as real shapes. Draw the circle version, and leave room for a drawn shape.
 56. **The next-step nudges.** Where and how should the app suggest the next way to take part, without saying "leadership" or "level up"? For example: someone who has hosted three things with friends sees *Is there a group where you live?*, and a neighbor who keeps showing up sees *Ask a couple of people to plan something together*.
+57. **After the event, joy first.** The owner wants the past event page to stay the full event page with photos, thanks and the debrief on top, a push during the event (take a photo) and after it (photos and what you valued), and a debrief that always starts with joy and appreciation before *what would give me more joy next time* (starting with *what could I do differently*). Not built: please draw it from `POST-EVENT-for-design.md` (§5 lists the screens, §6 what's still open) and `design/post-event/Joy First Debrief Mockup.html`.
 (Q51 was answered in v8-26 by row 250. Q49 and Q50 were answered in v8-18: see *Round v8-18 in short*. Q26 and Q44 were answered in v8-20/v8-21: see *Round v8-21 in short*.)
 
 ## 6. Design tokens

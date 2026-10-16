@@ -1,0 +1,304 @@
+<title>Joy-First Debrief</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: notification timeline on the left, a phone showing the past event page on the right; stacks on narrow screens. Single light look, matching the Spark Hub app. */
+:root {
+  --bg: #eceaf6; --card: #ffffff; --ink: #0d1117; --muted: #6b7280; --line: #e6e7eb;
+  --purple: #5b4ae8; --purple-soft: #f1effd; --purple-ink: #4a3ad4;
+  --gold: #e8a71c; --gold-soft: #fff8e6; --gold-ink: #8f6405;
+  --green: #149a4b; --dark: #22196e;
+  --f: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f); margin: 0;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 48px; }
+.wrap { max-width: 1040px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr) 390px; gap: 36px; align-items: start; }
+@media (max-width: 860px) { .wrap { grid-template-columns: minmax(0, 1fr); } .phone { margin: 0 auto; } }
+h1 { margin: 0; font-size: 30px; line-height: 1.05; font-weight: 900; letter-spacing: -1px; text-wrap: balance; }
+.lede { margin: 10px 0 0; font-size: 15px; line-height: 1.5; color: #3d4350; max-width: 60ch; }
+.eyebrow { font-size: 12px; font-weight: 900; letter-spacing: 1.2px; color: var(--muted); text-transform: uppercase; }
+.side { display: flex; flex-direction: column; gap: 22px; min-width: 0; }
+.seg { display: inline-flex; background: #fff; border-radius: 999px; padding: 4px; box-shadow: inset 0 0 0 1.5px var(--line); }
+.seg button { border: 0; background: none; font: inherit; font-size: 14px; font-weight: 800; color: var(--muted); padding: 9px 16px; border-radius: 999px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--purple); color: #fff; }
+.tl { display: flex; flex-direction: column; gap: 10px; }
+.push { display: grid; grid-template-columns: 78px minmax(0, 1fr); gap: 12px; align-items: start; text-align: left; border: 0; font: inherit; color: inherit;
+  background: #fff; border-radius: 16px; padding: 12px 14px; cursor: pointer; box-shadow: 0 1px 0 rgba(13,17,23,.04); }
+.push:hover, .push:focus-visible { box-shadow: inset 0 0 0 2px var(--purple); outline: none; }
+.push .when { font-size: 12.5px; font-weight: 800; color: var(--purple-ink); line-height: 1.3; }
+.push .t { font-size: 14.5px; font-weight: 800; }
+.push .b { margin-top: 2px; font-size: 13.5px; line-height: 1.4; color: #3d4350; }
+.push .who { margin-top: 6px; font-size: 12px; font-weight: 700; color: var(--muted); }
+.push.off { opacity: .45; }
+.rules { background: #fff; border-radius: 16px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; font-size: 14px; line-height: 1.45; color: #3d4350; }
+.rules b { color: var(--ink); }
+
+/* phone */
+.phone { width: 100%; max-width: 390px; height: 800px; border-radius: 44px; background: #f4f4f8; box-shadow: 0 0 0 10px #15131f, 0 24px 60px rgba(20,16,60,.35); overflow: hidden; position: relative; }
+.screen { position: absolute; inset: 0; overflow-y: auto; scrollbar-width: none; }
+.screen::-webkit-scrollbar { display: none; }
+.hero { position: relative; height: 230px; background: linear-gradient(to bottom, rgba(13,17,23,.35), rgba(13,17,23,0) 35%, rgba(34,25,110,.94)), linear-gradient(135deg, #7fb069, #3d8bff 60%, #5b4ae8); color: #fff; }
+.hero .back { position: absolute; top: 18px; left: 16px; width: 38px; height: 38px; border-radius: 999px; background: rgba(13,17,23,.4); display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 900; }
+.hero .stamp { position: absolute; top: 24px; right: 18px; padding: 7px 14px; border-radius: 999px; background: var(--purple); transform: rotate(-7deg); font-size: 14px; font-weight: 900; box-shadow: 0 6px 16px rgba(15,18,25,.3); }
+.hero .bot { position: absolute; left: 20px; right: 20px; bottom: 16px; }
+.hero .meta { font-size: 12.5px; font-weight: 900; letter-spacing: 1.2px; color: #d6d1ff; }
+.hero h2 { margin: 6px 0 0; font-size: 28px; line-height: 1.02; font-weight: 900; letter-spacing: -.8px; }
+.body { padding: 14px 14px 30px; display: flex; flex-direction: column; gap: 12px; }
+.card { background: var(--card); border-radius: 18px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.row { display: flex; align-items: center; gap: 8px; }
+.row .eyebrow { flex: 1; }
+.link { font-size: 13.5px; font-weight: 800; color: var(--purple); cursor: pointer; background: none; border: 0; font-family: inherit; padding: 0; }
+.album { display: grid; grid-template-columns: 2fr 1fr; grid-template-rows: 88px 88px; gap: 6px; }
+.album span { border-radius: 12px; }
+.album span:first-child { grid-row: span 2; }
+.joyband { border-radius: 18px; padding: 16px; background: linear-gradient(135deg, #fff4dc, #fde6f0); display: flex; flex-direction: column; gap: 10px; }
+.joyband h3 { margin: 0; font-size: 19px; font-weight: 900; letter-spacing: -.3px; color: #3d2a00; }
+.joyband p { margin: 0; font-size: 14px; line-height: 1.4; font-weight: 600; color: #6b5418; }
+.btn { border: 0; font-family: inherit; font-size: 15.5px; font-weight: 800; min-height: 48px; padding: 0 18px; border-radius: 999px; cursor: pointer; }
+.btn.gold { background: var(--gold); color: #fff; }
+.btn.purple { background: var(--purple); color: #fff; width: 100%; }
+.btn.ghost { background: none; color: var(--muted); min-height: 40px; }
+.btn:focus-visible, .chip:focus-visible, .face:focus-visible { outline: 3px solid #b7adff; outline-offset: 2px; }
+.loved { display: flex; flex-direction: column; gap: 7px; }
+.bar { display: grid; grid-template-columns: minmax(0, 1fr) 28px; gap: 8px; align-items: center; font-size: 14px; font-weight: 700; }
+.bar .track { position: relative; height: 30px; border-radius: 9px; background: #f4f2fd; overflow: hidden; }
+.bar .fill { position: absolute; inset: 0 auto 0 0; background: #e3defc; border-radius: 9px; }
+.bar .lbl { position: relative; z-index: 1; line-height: 30px; padding-left: 10px; color: var(--purple-ink); }
+.bar .n { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+.quote { margin: 0; padding: 10px 12px; border-radius: 12px; background: #f7f7f9; font-size: 14px; line-height: 1.4; font-weight: 600; color: #2b303a; }
+.quote cite { display: block; margin-top: 3px; font-style: normal; font-size: 12.5px; font-weight: 700; color: var(--muted); }
+.thanks { display: flex; flex-wrap: wrap; gap: 6px; }
+.tpill { display: flex; align-items: center; gap: 6px; padding: 5px 11px 5px 5px; border-radius: 999px; background: var(--gold-soft); font-size: 13.5px; font-weight: 800; color: var(--gold-ink); }
+.av { width: 26px; height: 26px; border-radius: 999px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 900; color: #fff; flex: 0 0 auto; }
+.commit { font-size: 14px; font-weight: 700; color: #1d5b36; background: #e8f6ee; border-radius: 12px; padding: 10px 12px; line-height: 1.4; }
+.plain h4 { margin: 0; font-size: 17px; font-weight: 900; }
+.plain p { margin: 0; font-size: 14.5px; line-height: 1.45; color: #3d4350; }
+.job { display: flex; align-items: center; gap: 10px; font-size: 14.5px; font-weight: 700; padding: 8px 0; border-top: 1px solid var(--line); }
+.job:first-of-type { border-top: 0; }
+.job .who2 { margin-left: auto; display: flex; }
+.job .who2 .av { width: 24px; height: 24px; margin-left: -6px; box-shadow: 0 0 0 2px #fff; font-size: 11px; }
+.disc .c { display: flex; gap: 10px; font-size: 14px; line-height: 1.4; }
+.disc .c b { font-weight: 800; }
+.compose { min-height: 44px; border-radius: 999px; background: #f4f5f7; display: flex; align-items: center; padding: 0 16px; font-size: 14.5px; font-weight: 600; color: #8a909b; }
+.digest { background: var(--dark); color: #fff; }
+.digest .eyebrow { color: #cfc9ff; }
+.digest h3 { margin: 0; font-size: 19px; font-weight: 900; }
+.digest .sub { font-size: 13.5px; line-height: 1.4; color: #d6d1ff; font-weight: 600; }
+.digest .part { background: rgba(255,255,255,.08); border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; line-height: 1.45; }
+.digest .part b { font-size: 12px; letter-spacing: 1px; color: #ffd57a; }
+.private { font-size: 12.5px; font-weight: 700; color: var(--muted); }
+
+/* sheet */
+.scrim { position: absolute; inset: 0; background: rgba(13,17,23,.45); display: flex; align-items: flex-end; z-index: 5; }
+.sheet { width: 100%; max-height: 92%; overflow-y: auto; background: #fff; border-radius: 26px 26px 0 0; padding: 10px 18px 24px; display: flex; flex-direction: column; gap: 14px; }
+.grab { width: 40px; height: 5px; border-radius: 9px; background: #dcdfe6; margin: 0 auto 4px; }
+.steps { display: flex; gap: 6px; }
+.steps i { flex: 1; height: 5px; border-radius: 9px; background: #e6e7eb; }
+.steps i.on { background: var(--gold); }
+.sheet h3 { margin: 0; font-size: 22px; line-height: 1.15; font-weight: 900; letter-spacing: -.4px; text-wrap: balance; }
+.sheet .hint { margin: -6px 0 0; font-size: 14px; line-height: 1.4; font-weight: 600; color: var(--muted); }
+.q { font-size: 12.5px; font-weight: 900; letter-spacing: 1.1px; color: var(--muted); text-transform: uppercase; }
+.chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.chip { border: 0; font-family: inherit; min-height: 38px; padding: 0 14px; border-radius: 999px; background: #fff; box-shadow: inset 0 0 0 1.5px #dcdfe6; font-size: 14px; font-weight: 700; color: #2b303a; cursor: pointer; }
+.chip[aria-pressed="true"] { background: var(--purple-soft); box-shadow: inset 0 0 0 2px var(--purple); color: var(--purple-ink); }
+.chip.green[aria-pressed="true"] { background: #e8f6ee; box-shadow: inset 0 0 0 2px var(--green); color: #1d5b36; }
+.faces { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 2px; }
+.face { border: 0; background: none; font-family: inherit; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; padding: 2px; flex: 0 0 auto; }
+.face .av { width: 50px; height: 50px; font-size: 18px; position: relative; }
+.face[aria-pressed="true"] .av { box-shadow: 0 0 0 3px #fff, 0 0 0 5px var(--gold); }
+.face[aria-pressed="true"] .av::after { content: "🙏"; position: absolute; right: -6px; bottom: -4px; font-size: 16px; }
+.face small { font-size: 12.5px; font-weight: 800; color: #2b303a; }
+.face em { font-style: normal; font-size: 11px; font-weight: 700; color: var(--muted); }
+textarea { width: 100%; border: 0; border-radius: 14px; background: #f4f5f7; padding: 12px 14px; font-family: inherit; font-size: 15px; line-height: 1.4; resize: none; min-height: 64px; color: var(--ink); }
+textarea:focus { outline: 2px solid var(--purple); }
+.unlock { border-radius: 14px; background: var(--gold-soft); padding: 12px 14px; font-size: 14px; line-height: 1.4; font-weight: 700; color: var(--gold-ink); }
+.toast { position: absolute; left: 50%; bottom: 28px; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 12px 18px; border-radius: 999px; font-size: 14px; font-weight: 700; z-index: 9; white-space: nowrap; }
+.sample { font-size: 12.5px; font-weight: 700; color: var(--muted); }
+@media (prefers-reduced-motion: no-preference) { .sheet { animation: up .22s ease-out; } @keyframes up { from { transform: translateY(40px); opacity: .6; } } }
+</style>
+
+<div class="wrap">
+  <div class="side">
+    <div>
+      <div class="eyebrow">Spark Hub · post-event mockup</div>
+      <h1 style="margin-top:6px">Joy first, then next time</h1>
+      <p class="lede">A past event keeps its full event page, with how it felt moved to the top. Everyone who went gets one card: joy and thanks first. "Next time" opens only after you've shared your joy, and it asks what <em>you</em> could do before what would give you more joy. Tap the notifications to jump to each moment.</p>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <span class="eyebrow">See it as</span>
+      <div class="seg" role="group" aria-label="See it as">
+        <button id="asGuest" aria-pressed="true">Someone who went</button>
+        <button id="asHost" aria-pressed="false">The lead</button>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <span class="eyebrow">The notifications</span>
+      <div class="tl" id="tl"></div>
+    </div>
+    <div class="rules">
+      <span class="eyebrow">The rules that keep it joy-first</span>
+      <span><b>One card, in order.</b> You can't reach "next time" without first tapping what gave you joy. Joy alone counts as a full answer.</span>
+      <span><b>"I could…" before "more joy from…".</b> Your own part comes first, so it reads as reflection, not homework for the lead.</span>
+      <span><b>Joy is public. Wishes go to the hosts.</b> The lead gets them grouped and counted on day 2, after the celebration.</span>
+      <span><b>At most three pushes</b> per person who went, and the day-2 nudge only if they did nothing.</span>
+    </div>
+    <span class="sample">Sample event and people, for the mockup only.</span>
+  </div>
+
+  <div class="phone"><div class="screen" id="screen"></div><div id="overlay"></div></div>
+</div>
+
+<script>
+(() => {
+  const PEOPLE = {
+    dee: { n: 'Dee', c: '#e2556b', role: 'Led it' },
+    marco: { n: 'Marco', c: '#1f7ab8', role: 'Brought water' },
+    priya: { n: 'Priya', c: '#149a4b', role: 'Set up' },
+    sam: { n: 'Sam', c: '#e8a71c', role: 'Went' },
+    lin: { n: 'Lin', c: '#8a5cf0', role: 'Went' },
+    jo: { n: 'Jo', c: '#ff8a3d', role: 'Went' }
+  };
+  const JOY = ['The people', 'Meeting someone new', 'Laughing', 'Moving my body', 'Being outside', 'Learning something', 'The music', 'Helping out'];
+  const ICOULD = ['Bring a friend', 'Help with a job', 'Come early to set up', 'Take photos', 'Lead part of it', 'Stay to clean up'];
+  const MORE = ['More time to talk', 'A different time', 'Something for kids', 'More people', 'Food after', 'A longer route'];
+  const base = { loved: { 'The people': 9, 'Being outside': 7, 'Moving my body': 6, 'Laughing': 4, 'Meeting someone new': 3 },
+    quotes: [['Running the hill with everyone cheering at the top.', 'Lin'], ['I came alone and left with three new running buddies.', 'Jo']],
+    thanks: { dee: 8, marco: 4, priya: 3 }, could: { 'Bring a friend': 5, 'Help with a job': 3, 'Take photos': 2 },
+    more: { 'More time to talk': 4, 'Food after': 3, 'A different time': 1 }, wishes: ['A coffee stop at the end would be perfect.', 'Maybe a slower group for first-timers?'] };
+
+  const st = { as: 'guest', moment: 'after', sheet: null, joy: [], thank: [], line: '', could: [], more: [], wish: '', done: false, skipped2: false, toast: '' };
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const av = (k) => '<span class="av" style="background:' + PEOPLE[k].c + '">' + PEOPLE[k].n[0] + '</span>';
+
+  const PUSHES = [
+    { k: 'during', when: 'Sat 9:40am<br>during', t: '📸 Park Loop Run is happening', b: 'Snap a photo for the album.', who: 'Everyone going' },
+    { k: 'after', when: 'Sat 11:30am<br>1h after', t: 'How was Park Loop Run?', b: 'What gave you joy? Thank Dee and the helpers.', who: 'Everyone who went', host: 'Thank your helpers, add photos, and share what gave you joy.' },
+    { k: 'nudge', when: 'Mon 10am<br>day 2', t: 'Still time to thank Dee', b: 'Add your photos from Park Loop Run.', who: 'Only people who did nothing yet' },
+    { k: 'digest', when: 'Mon 6pm<br>day 2', t: 'What people loved at Park Loop Run', b: '9 loved the people. 5 want to bring a friend next time.', who: 'Hosts only' }
+  ];
+
+  function drawTimeline() {
+    $('tl').innerHTML = PUSHES.map(p => {
+      const off = (st.as === 'host' && p.k === 'nudge') || (st.as === 'guest' && p.k === 'digest');
+      return '<button class="push' + (off ? ' off' : '') + '" data-k="' + p.k + '"><span class="when">' + p.when + '</span><span style="min-width:0"><span class="t">' + p.t + '</span><div class="b">' + (st.as === 'host' && p.host ? p.host : p.b) + '</div><div class="who">' + p.who + '</div></span></button>';
+    }).join('');
+    $('tl').querySelectorAll('.push').forEach(b => b.onclick = () => openMoment(b.dataset.k));
+  }
+
+  function openMoment(k) {
+    if (k === 'digest') { st.as = 'host'; st.sheet = null; }
+    else if (k === 'during') { st.sheet = 'photo'; }
+    else { if (st.as === 'host' && k === 'nudge') st.as = 'guest'; st.sheet = st.done ? null : 1; if (st.done) flash('You already shared. Thanks!'); }
+    st.moment = k; draw();
+    $('screen').scrollTop = 0;
+  }
+  function flash(t) { st.toast = t; draw(); clearTimeout(flash.h); flash.h = setTimeout(() => { st.toast = ''; draw(); }, 2200); }
+
+  function counts() {
+    const c = { loved: Object.assign({}, base.loved), thanks: Object.assign({}, base.thanks), could: Object.assign({}, base.could), more: Object.assign({}, base.more) };
+    if (st.done) { st.joy.forEach(j => c.loved[j] = (c.loved[j] || 0) + 1); st.thank.forEach(t => c.thanks[t] = (c.thanks[t] || 0) + 1);
+      st.could.forEach(j => c.could[j] = (c.could[j] || 0) + 1); st.more.forEach(j => c.more[j] = (c.more[j] || 0) + 1); }
+    return c;
+  }
+  const sorted = (o) => Object.entries(o).sort((a, b) => b[1] - a[1]);
+
+  function bars(o, max) {
+    const top = sorted(o).slice(0, max || 4), hi = top.length ? top[0][1] : 1;
+    return '<div class="loved">' + top.map(([k, n]) => '<div class="bar"><span class="track"><span class="fill" style="width:' + Math.round(n / hi * 100) + '%"></span><span class="lbl">' + esc(k) + '</span></span><span class="n">' + n + '</span></div>').join('') + '</div>';
+  }
+
+  function page() {
+    const c = counts(), host = st.as === 'host';
+    const quotes = (st.done && st.line.trim() ? [[st.line.trim(), 'You']] : []).concat(base.quotes);
+    const digest = host ? '<div class="card digest">' +
+      '<span class="eyebrow">For you and your co-hosts · day 2</span><h3>Here’s what people loved</h3>' +
+      '<div class="part"><b>WHAT GAVE THEM JOY</b>' + sorted(c.loved).slice(0, 3).map(([k, n]) => n + ' · ' + esc(k)).join('<br>') + '</div>' +
+      '<div class="part"><b>WHAT THEY’LL DO NEXT TIME</b>' + sorted(c.could).map(([k, n]) => n + ' · ' + esc(k)).join('<br>') + '<span class="sub">3 said they’d help with a job. They’ll be asked first when you post the next one.</span></div>' +
+      '<div class="part"><b>WHAT WOULD GIVE THEM MORE JOY</b>' + sorted(c.more).map(([k, n]) => n + ' · ' + esc(k)).join('<br>') +
+        base.wishes.concat(st.done && st.wish.trim() ? [st.wish.trim()] : []).map(w => '<span class="sub">“' + esc(w) + '”</span>').join('') + '</div>' +
+      '<span class="sub">Only hosts see this part. It shows again on your Last time card when you plan the next one.</span></div>' : '';
+    const cta = st.done
+      ? '<div class="joyband"><h3>Thanks for sharing your joy</h3><p>' + (st.skipped2 ? 'You can still add ideas for next time.' : 'Dee will see your ideas for next time.') + '</p>' + (st.skipped2 ? '<button class="btn gold" id="open2" style="align-self:flex-start">Add ideas for next time</button>' : '') + '</div>'
+      : '<div class="joyband"><h3>' + (host ? 'How did it feel to lead it?' : 'What gave you joy?') + '</h3><p>' + (host ? 'Share your joy and thank your helpers. Then a private note for next time.' : 'Tap what you loved and thank the people who made it happen. Takes 10 seconds.') + '</p><button class="btn gold" id="open1" style="align-self:flex-start">Share your joy</button></div>';
+    return '<div class="hero"><span class="back">‹</span><span class="stamp">🥳 It happened!</span><div class="bot"><div class="meta">SAT, OCT 10 · 18 CAME · 23 PHOTOS</div><h2>Park Loop Run</h2></div></div>' +
+      '<div class="body">' + digest + cta +
+      '<div class="card"><div class="row"><span class="eyebrow">The album · 23</span><label class="link">+ Add yours<input id="pick" type="file" accept="image/*" multiple style="display:none"></label></div>' +
+        '<div class="album"><span style="background:linear-gradient(135deg,#ffb347,#ff6f91)"></span><span style="background:linear-gradient(135deg,#1fb86a,#1f9ec8)"></span><span style="background:linear-gradient(135deg,#7b6ef0,#e05fc4)"></span></div></div>' +
+      '<div class="card"><span class="eyebrow">How it felt</span>' + bars(c.loved) + quotes.slice(0, 3).map(([q, w]) => '<p class="quote">“' + esc(q) + '”<cite>' + esc(w) + '</cite></p>').join('') + '</div>' +
+      '<div class="card"><span class="eyebrow">Thanks given</span><div class="thanks">' + sorted(c.thanks).map(([k, n]) => '<span class="tpill">' + av(k) + PEOPLE[k].n + ' · 🙏 ' + n + '</span>').join('') + '</div>' +
+        '<div class="commit">Next time: ' + sorted(c.could).slice(0, 2).map(([k, n]) => n + ' will ' + esc(k.toLowerCase())).join(', ') + '.</div></div>' +
+      '<div class="card disc"><span class="eyebrow">Discussion</span>' +
+        '<div class="c">' + av('dee') + '<span><b>Dee</b> Thank you all for showing up in the cold! Marco, the water table saved us.</span></div>' +
+        '<div class="c">' + av('sam') + '<span><b>Sam</b> Best Saturday in a while.</span></div>' +
+        '<div class="compose">What gave you joy?</div></div>' +
+      '<div class="card plain"><span class="eyebrow">What it was</span><h4>Park Loop Run</h4><p>A friendly 5K loop around Zilker, all paces welcome. We meet at the big oak by the parking lot and end with stretches on the grass.</p><p style="font-weight:700;color:var(--ink)">Sat, Oct 10 · 8:30–10:30am · Zilker Park</p></div>' +
+      '<div class="card"><span class="eyebrow">Who helped</span>' +
+        '<div class="job">Water table<span class="who2">' + av('marco') + '</span></div>' +
+        '<div class="job">Set up cones<span class="who2">' + av('priya') + av('sam') + '</span></div>' +
+        '<div class="job">Sweep runner<span class="who2">' + av('lin') + '</span></div></div>' +
+      '<div class="card"><div class="row"><span class="eyebrow">Who came · 18</span></div><div class="thanks">' + Object.keys(PEOPLE).map(k => '<span class="tpill" style="background:#f4f5f7;color:#2b303a">' + av(k) + PEOPLE[k].n + '</span>').join('') + '<span class="tpill" style="background:#f4f5f7;color:#6b7280">+12</span></div></div>' +
+      '<div style="border-radius:18px;background:#fdf1d6;padding:16px;display:flex;align-items:center;gap:12px"><div style="flex:1"><div style="font-size:16px;font-weight:900;color:#3d2a00">Do it again?</div><div style="font-size:13.5px;font-weight:600;color:#6b5418">Starts a new event with the details filled in.</div></div><button class="btn gold">Do it again</button></div>' +
+      '</div>';
+  }
+
+  function chips(list, key, green) {
+    return '<div class="chips">' + list.map(x => '<button class="chip' + (green ? ' green' : '') + '" data-set="' + key + '" data-v="' + esc(x) + '" aria-pressed="' + (st[key].indexOf(x) > -1) + '">' + esc(x) + '</button>').join('') + '</div>';
+  }
+
+  function sheet() {
+    const host = st.as === 'host';
+    if (st.sheet === 'photo') return '<div class="scrim" id="scrim"><div class="sheet"><div class="grab"></div><h3>📸 Snap one for the album</h3><p class="hint">Park Loop Run is happening now. Anyone going can add photos.</p>' +
+      '<label class="btn purple" style="display:flex;align-items:center;justify-content:center">Take a photo<input type="file" accept="image/*" style="display:none" id="snap"></label><button class="btn ghost" id="close">Not now</button></div></div>';
+    if (st.sheet === 1) {
+      const ok = st.joy.length > 0;
+      const thankable = host ? ['marco', 'priya', 'lin', 'sam'] : ['dee', 'marco', 'priya', 'lin', 'sam'];
+      return '<div class="scrim" id="scrim"><div class="sheet"><div class="grab"></div><div class="steps"><i class="on"></i><i></i></div>' +
+        '<h3>What gave you joy at Park Loop Run?</h3><p class="hint">Tap any that fit.</p>' + chips(JOY, 'joy') +
+        '<span class="q">' + (host ? 'Thank your helpers' : 'Thank someone') + '</span><div class="faces">' + thankable.map(k => '<button class="face" data-thank="' + k + '" aria-pressed="' + (st.thank.indexOf(k) > -1) + '">' + av(k) + '<small>' + PEOPLE[k].n + '</small><em>' + PEOPLE[k].role + '</em></button>').join('') + '</div>' +
+        '<span class="q">A moment you loved (optional)</span><textarea id="line" maxlength="140" placeholder="Running the hill with everyone cheering…">' + esc(st.line) + '</textarea>' +
+        '<button class="btn purple" id="next1" ' + (ok ? '' : 'aria-disabled="true" style="opacity:.45"') + '>' + (ok ? 'Share my joy' : 'Tap what gave you joy') + '</button><button class="btn ghost" id="close">Not now</button></div></div>';
+    }
+    if (st.sheet === 2) return '<div class="scrim" id="scrim"><div class="sheet"><div class="grab"></div><div class="steps"><i class="on"></i><i class="on"></i></div>' +
+      '<div class="unlock">Thanks! ' + (st.thank.length ? st.thank.map(k => PEOPLE[k].n).join(' and ') + ' will see your thanks. ' : '') + 'One more, if you want.</div>' +
+      '<h3>If we do this again…</h3>' +
+      '<span class="q">Next time, I could…</span>' + chips(ICOULD, 'could', true) +
+      '<span class="q">What would give you more joy?</span>' + chips(MORE, 'more') +
+      '<textarea id="wish" maxlength="140" placeholder="If we do this again, what would make it even better for you?">' + esc(st.wish) + '</textarea>' +
+      '<span class="private">' + (host ? 'Only you and your co-hosts see this. It shows again when you plan the next one.' : 'Only Dee and the co-hosts see what would give you more joy. "I could…" counts show on the page.') + '</span>' +
+      '<button class="btn purple" id="done2">Done</button><button class="btn ghost" id="skip2">Skip this part</button></div></div>';
+    return '';
+  }
+
+  function draw() {
+    $('asGuest').setAttribute('aria-pressed', st.as === 'guest'); $('asHost').setAttribute('aria-pressed', st.as === 'host');
+    drawTimeline();
+    const top = $('screen').scrollTop;
+    $('screen').innerHTML = page(); $('screen').scrollTop = top;
+    $('overlay').innerHTML = sheet() + (st.toast ? '<div class="toast">' + esc(st.toast) + '</div>' : '');
+    wire();
+  }
+
+  function wire() {
+    const q = (id) => document.getElementById(id);
+    if (q('open1')) q('open1').onclick = () => { st.sheet = 1; draw(); };
+    if (q('open2')) q('open2').onclick = () => { st.sheet = 2; draw(); };
+    if (q('close')) q('close').onclick = () => { st.sheet = null; draw(); };
+    if (q('scrim')) q('scrim').onclick = (e) => { if (e.target.id === 'scrim') { st.sheet = null; draw(); } };
+    document.querySelectorAll('[data-set]').forEach(b => b.onclick = () => { const a = st[b.dataset.set], v = b.dataset.v, i = a.indexOf(v); i > -1 ? a.splice(i, 1) : a.push(v); draw(); });
+    document.querySelectorAll('[data-thank]').forEach(b => b.onclick = () => { const i = st.thank.indexOf(b.dataset.thank); i > -1 ? st.thank.splice(i, 1) : st.thank.push(b.dataset.thank); draw(); });
+    if (q('line')) q('line').oninput = (e) => { st.line = e.target.value; };
+    if (q('wish')) q('wish').oninput = (e) => { st.wish = e.target.value; };
+    if (q('next1')) q('next1').onclick = () => { if (!st.joy.length) return; st.sheet = 2; draw(); };
+    if (q('done2')) q('done2').onclick = () => { st.done = true; st.skipped2 = false; st.sheet = null; flash('Shared. Thank you!'); };
+    if (q('skip2')) q('skip2').onclick = () => { st.done = true; st.skipped2 = true; st.sheet = null; flash('Your joy is shared.'); };
+    if (q('snap')) q('snap').onchange = () => { st.sheet = null; flash('Added to the album'); };
+    if (q('pick')) q('pick').onchange = () => flash('Added to the album');
+  }
+
+  $('asGuest').onclick = () => { st.as = 'guest'; st.sheet = null; draw(); };
+  $('asHost').onclick = () => { st.as = 'host'; st.sheet = null; draw(); };
+  draw();
+})();
+</script>
