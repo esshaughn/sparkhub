@@ -6,11 +6,45 @@
 - **Source:** github.com/esshaughn/sparkhub (`index.html`, `js/sparks.js`, `css/sparks.css`, `privacy.html`, `supabase/templates/`)
 - **Baseline:** Claude Design's **round v8-17** (`design/spark-hub/HANDOFF-to-CODE.md` and `Spark Hub App Version 8.dc.html`, 2026-10-09), built in full (with your v8-16 clarity pass): see *Round v8-17 in short*. Rows 212–227 are new since v8-15.
 - **Build version:** **v8** (v7 from owner, 2026-10-02): a lead is a choice. Since v8-8 an idea is led from the start (*Who leads it · Me*) or floated (*I'll decide*), and both use the new idea page.
-- **As of:** 2026-10-16 (a brief for after the event, `POST-EVENT-for-design.md`, Q57; before that, 2026-10-14: a list's page, list chips on Invite people, a group's Place & purpose and Dashboard, from `structure-v1`; round v8-27 and the website / group drafts / Just people I invite from `structure-v1` built on `test`). **Everything through round v8-27 is live** (main `b5bd0d0`, v=426). Questions for you are in §5 (Q52–Q57 are new).
+- **As of:** 2026-10-16, *HANDOFF-to-DESIGN-20* (a brief for after the event, `POST-EVENT-for-design.md`, Q57, with the owner's answers; nothing new built; before that, 2026-10-14: a list's page, list chips on Invite people, a group's Place & purpose and Dashboard, from `structure-v1`; round v8-27 and the website / group drafts / Just people I invite from `structure-v1` built on `test`). **Everything through round v8-27 is live** (main `b5bd0d0`, v=426). Questions for you are in §5 (Q52–Q57 are new).
 
-## Start here (2026-10-14): HANDOFF-to-DESIGN-19
+## Start here (2026-10-16): HANDOFF-to-DESIGN-20
 
-**This is *HANDOFF-to-DESIGN-19*, the reply to your v8-27.** Where this doc and the design files disagree, **this doc is correct**. Live is still round v8-27 alone (main `b5bd0d0`). Everything else below is on `test` only (the preview link above), so you can click through it there.
+**This is *HANDOFF-to-DESIGN-20*.** Nothing new is built since -19. It adds one brief: **after the event, joy first** (Q57). The owner wants it drawn **before the build starts**, so this round is yours first. Upload these three files with it:
+- `POST-EVENT-for-design.md`: the brief. §3 has the owner's decisions, and their answers to the open questions; §5 lists the screens; §6 what's still open.
+- `Joy First Debrief Mockup.html` (from `design/post-event/`): a clickable sketch with a sample event and people. It shows the flow, not a visual direction. Redraw it in the design system.
+- This file.
+
+**The idea in one paragraph.** A past event today switches to a separate *It happened* page that loses the description, the sign-ups, who went and Discussion. The owner wants the past event page to **stay the event page**, with what came at the end (photos, thanks, how it felt, the debrief) **moved to the top**. People who went get a short debrief that **always starts with joy**: what gave you joy, thank someone, *I'd come again*. Only after that comes *if we do this again, what would give you more joy?*, starting with *what could I do differently*. Two pushes frame it: one **during** the event (snap a photo) and one **the morning after** (what you valued). The aim is for hosts to feel appreciated, for people to pay it forward, and for the next event to be likelier and easier. A tester, Joseph, adds that it must not feel like a task, a couple of people sharing first sets the tone, and the host's thank-you matters most.
+
+**The owner's calls (2026-10-16):**
+- **One card, two steps, one sitting.** The order is the gate: step 2 (*next time*) opens only after step 1 (joy). It never comes back as a second visit or a second push.
+- **Step 1, the short version:** joy chips; **Thank someone**, with **the lead's face pre-picked** (one tap undoes it); *A moment you loved* (optional); **I'd come again · invite me next time**.
+- ***I'd come again* is a list of names for the next lead.** Whoever plans the next similar event (*Do it again*, the *Last time* card) sees who asked to be invited.
+- **The after-event push goes the morning after**, about 9–10am Central. By then the event is past, so it opens the past page.
+- **Joy is public** on the page: counts, a few moments, who was thanked, *I could…* as a celebration (*5 will bring a friend*).
+- **Wishes (*more joy next time*) are public too, from day 2**, grouped and counted, never a stream. Hosts see them first, in a day-2 digest that opens with what people loved.
+- **Guests without an account can fill it on the page.** They get no push.
+- **The lead does the same card.** Their step 2 is private and replaces today's *Anything to change for next time?* card.
+- **Voice notes to the host: later.** Leave room for one.
+- **The list of past events doesn't change.**
+
+**What to draw (the brief's §5):**
+1. **The past event page:** the full event page, reordered, with the after-the-event part on top. How does it say *this already happened* without becoming a different page?
+2. **The debrief card**, both steps, for someone who went, for the lead, and for a guest, including step 2 opening, *Skip this part*, and how the page looks once you're done.
+3. **How it felt** on the page (counts, quotes, thanks, wishes from day 2), so it reads as a celebration and not survey results. Try showing the first few people's joy to set the tone (*Dee and Sam loved the people*).
+4. **The host's day-2 digest:** celebration first, then *I could…*, then wishes.
+5. **The photo moment during the event:** what the push opens.
+6. **A thanked helper:** what they receive.
+7. **The notification settings switch** for these pushes.
+
+**Still open, so draw them as options:** the chip wording (the owner will edit it; include Joseph's *how it felt* chips: *The pace · Room to just talk · Laughing · Easy, not over-planned · The quiet moments*); whether *Next time, I could… Help with a job* becomes a real ask on the next event; whether the counts show the next lead *Last time people loved…*
+
+Below is -19's *Start here*, unchanged; it all still stands.
+
+## Start here from -19 (2026-10-14)
+
+**This was *HANDOFF-to-DESIGN-19*, the reply to your v8-27.** Where this doc and the design files disagree, **this doc is correct**. Live is still round v8-27 alone (main `b5bd0d0`). Everything else below is on `test` only (the preview link above), so you can click through it there.
 
 **Two kinds of change since -18:**
 1. **Your rounds v8-25, v8-26 and v8-27, as built.** Small differences only. See *Round v8-25 in short*, *Round v8-26 in short* and *Round v8-27 in short*.
