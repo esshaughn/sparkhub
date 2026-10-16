@@ -6268,10 +6268,12 @@
       '<span style="min-width:0;display:flex;flex-direction:column;line-height:1.15"><span style="font-size:14.5px;font-weight:800;color:#fff">Viewing as a member</span><span style="font-size:12px;font-weight:600;color:#c4c8d0;overflow:hidden;text-overflow:ellipsis">' + esc(g.name) + '</span></span>' +
       '<span ' + on(exitGroupMV) + ' data-group-member-view-exit style="flex:0 0 auto;display:flex;align-items:center;min-height:34px;padding:0 16px;border-radius:999px;background:#f5b428;color:#2a1d00;font-size:14px;font-weight:900;cursor:pointer">Exit</span></div>'; };
   const openGroupMenu = (g) => {
-    setState({ gMenu: g.id, gMenuPeople: null, gMenuBlocked: 0, gMenuReports: 0, menu: null });
+    setState({ gMenu: g.id, gMenuPeople: null, gMenuBlocked: 0, gMenuReports: 0, gMenuJoined: null, menu: null });
     sb.rpc('group_people', { p_group: g.id }).then(r => { if (!r.error && state.gMenu === g.id) setState({ gMenuPeople: r.data || [] }); });
     if (runs(g)) sb.rpc('group_blocked', { p_group: g.id }).then(r => { if (!r.error && state.gMenu === g.id) setState({ gMenuBlocked: (r.data || []).length }); });
     if (runs(g)) sb.rpc('list_reports', { p_group: g.id }).then(r => { if (!r.error && state.gMenu === g.id) setState({ gMenuReports: (r.data || []).length }); });   // the red count (v8-18 1s)
+    // Dashboard's right side (Design v9-1 4a): +N this month, who joined since the 1st
+    if (runs(g)) sb.rpc('community_months', { p_group: g.id, p_months: 1 }).then(r => { if (!r.error && state.gMenu === g.id) setState({ gMenuJoined: ((r.data || [])[0] || {}).joined || 0 }); });
   };
   // Who can join (owner, 2026-10-12): three choices, changeable any time; a change affects new joins only
   const RULE_SHORT = { everyone: 'Everyone', nearby: 'Nearby neighbors', neighbors: 'Neighbors' };
@@ -6292,9 +6294,9 @@
           '<span style="font-size:15.5px;font-weight:800;color:' + (onIt ? '#4a3ad4' : '#0d1117') + '">' + label + '</span><span style="font-size:13.5px;font-weight:600;color:#6b7280">' + sub + '</span></div>'; }).join('') + '</div>',
       { z: 40 });
   }
-  // ---- Place & purpose (owner, 2026-10-14; set_community_place, owners and admins): the place's name and kind, the middle
-  // of it on the map and how big it is, and one line on what it's for. An invention (HANDOFF §2): it reuses the Start a
-  // group request's place fields until Design draws it
+  // ---- Place & purpose (owner, 2026-10-14; set_community_place, owners and admins; Design v9-1 4b): the place and its kind
+  // (picked = ink), The area as A circle (City map shape is a REQUEST for now, Q55: real boundaries later, the same card),
+  // the middle (search + Find) and its size, the place card, What it's for (200, with a count), Save
   const openPlaceEd = (g) => { const pl = g.place || {};
     setState({ gMenu: null, reqFind: null, placeEd: { id: g.id, name: pl.name || '', kind: pl.kind || null, lat: pl.lat != null ? pl.lat : null, lon: pl.lon != null ? pl.lon : null, radius: pl.radius || 800, purpose: pl.purpose || '' } }); };
   const placeEdSet = (patch) => setState({ placeEd: Object.assign({}, state.placeEd, patch) });
@@ -6302,65 +6304,93 @@
     const e = state.placeEd, g = e && groupById(e.id);
     if (!g || state.busy) return;
     if (await run(async () => { must(await sb.rpc('set_community_place', { p_group: g.id, p_name: e.name.trim(), p_kind: e.name.trim() ? e.kind : null,
-      p_lat: e.name.trim() ? e.lat : null, p_lon: e.name.trim() ? e.lon : null, p_radius_m: e.name.trim() && e.lat != null ? e.radius : null, p_purpose: e.purpose.trim() })); }, { placeEd: null, reqFind: null })) toast('Place saved', true);
+      p_lat: e.name.trim() ? e.lat : null, p_lon: e.name.trim() ? e.lon : null, p_radius_m: e.name.trim() && e.lat != null ? e.radius : null, p_purpose: e.purpose.trim() })); }, { placeEd: null, reqFind: null })) toast('Saved', true);
   };
   function viewPlaceEd() {
     const e = state.placeEd, g = groupById(e.id), close = () => setState({ placeEd: null, reqFind: null });
     if (!g) return '';
-    const lbl = (t, sub) => '<div style="display:flex;flex-direction:column;gap:2px;padding:0 4px"><span style="font-size:15px;font-weight:800;color:#0d1117">' + t + '</span>' + (sub ? '<span style="font-size:13px;line-height:1.35;font-weight:600;color:#6b7280">' + sub + '</span>' : '') + '</div>';
-    const fld = (k, ph, max, rows) => rows
-      ? '<textarea class="fld" data-place-' + k + ' rows="' + rows + '" maxlength="' + max + '" placeholder="' + esc(ph) + '" ' + onInput(ev => { if (ev.type === 'input') state.placeEd = Object.assign({}, state.placeEd, { [k]: ev.target.value.slice(0, max) }); }) + ' style="' + FIELD + ';min-height:72px;padding:12px 14px;resize:none;line-height:1.4">' + esc(e[k] || '') + '</textarea>'
-      : '<input class="fld" type="text" data-place-' + k + ' maxlength="' + max + '" placeholder="' + esc(ph) + '" value="' + esc(e[k] || '') + '" ' + onInput(ev => { if (ev.type === 'input') state.placeEd = Object.assign({}, state.placeEd, { [k]: ev.target.value.slice(0, max) }); }) + ' style="' + FIELD + '">';
-    const chips = (k, opts) => '<div role="radiogroup" style="display:flex;flex-wrap:wrap;gap:8px">' + opts.map(([v, label]) => { const onIt = e[k] === v;
-      return '<span ' + on(() => placeEdSet({ [k]: v }), 'radio') + ' aria-checked="' + onIt + '" data-place-pick="' + k + ':' + v + '" style="display:flex;align-items:center;min-height:38px;padding:0 14px;border-radius:999px;font-size:14px;font-weight:800;cursor:pointer;' +
-        (onIt ? 'background:#5b4ae8;color:#fff' : 'background:#f2f3f6;color:#0d1117') + '">' + label + '</span>'; }).join('') + '</div>';
+    const lbl = (t, right) => '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px"><span style="font-size:14px;font-weight:800;color:#0d1117">' + t + '</span>' + (right || '') + '</div>';
+    const RING = 'width:100%;border:0;border-radius:14px;box-shadow:inset 0 0 0 1.5px #dcdfe6;background:#fff;font-family:inherit;font-size:16px;color:#0d1117;outline:none;';
+    const kinds = ['neighborhood', 'school', 'building'].concat(e.kind && ['neighborhood', 'school', 'building'].indexOf(e.kind) < 0 ? [e.kind] : []);
+    const pill = (attr, label, onIt, fn, ink, h) => '<span ' + on(fn, 'radio') + ' aria-checked="' + onIt + '" ' + attr + ' style="display:inline-flex;align-items:center;min-height:' + (h || 36) + 'px;padding:0 ' + (h ? 12 : 13) + 'px;border-radius:999px;font-size:' + (h ? 13 : 14) + 'px;font-weight:800;cursor:pointer;' +
+      (onIt ? 'background:' + (ink ? '#0d1117' : '#5b4ae8') + ';color:#fff' : 'background:#fff;color:#454b55;box-shadow:inset 0 0 0 1.5px #dcdfe6') + '">' + label + '</span>';
     const find = state.reqFind || {};
     const results = find.list && find.list.length ? '<div style="display:flex;flex-direction:column;border-radius:14px;overflow:hidden;box-shadow:inset 0 0 0 1.5px #e3e5ec">' +
         find.list.map(x => '<span ' + on(() => { state.reqFind = null; placeEdSet({ lat: x.lat, lon: x.lon }); }) + ' role="button" data-place-result style="padding:12px 14px;border-top:1px solid #f0f1f4;font-size:14.5px;font-weight:600;color:#0d1117;cursor:pointer">' + esc(x.label) + '</span>').join('') + '</div>'
       : find.err ? '<span style="font-size:13.5px;color:#c0263d;font-weight:700">Couldn’t search just now. Try again.</span>' : find.q && !find.busy && find.list ? '<span style="font-size:13.5px;color:#6b7280;font-weight:600">Nothing found. Try a street name.</span>' : '';
-    const pl = { name: e.name.trim(), kind: e.kind, lat: e.lat, lon: e.lon, radius: e.radius, purpose: e.purpose.trim() };
+    const name = e.name.trim(), size = (RADII.find(r => r[0] === e.radius) || [])[1] || '';
+    const url = name && e.lat != null ? placeMapUrl({ lat: e.lat, lon: e.lon, radius: e.radius }, 640, 272) : '';
+    const card = name ? '<div data-place-card style="background:#f4f5f8;border-radius:18px;overflow:hidden">' +
+        (url ? '<img data-place-map src="' + esc(url) + '" alt="Map of ' + esc(name) + '" style="display:block;width:100%;height:150px;object-fit:cover;background:#e3e7ec">' : '') +
+        '<div style="padding:10px 14px 12px;display:flex;align-items:center;gap:6px;min-width:0">' + MAP_PIN('#5b4ae8') + '<span style="font-size:15px;font-weight:900;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(name) + '</span>' +
+          '<span style="flex:0 0 auto;font-size:13px;font-weight:600;color:#6b7280">' + esc([PLACE_KIND[e.kind] || (e.kind ? 'Other' : ''), e.lat != null ? size : ''].filter(Boolean).map(x => '· ' + x).join(' ')) + '</span></div></div>' : '';
+    const n = (e.purpose || '').length;
     return sheet('Place and purpose', close, SHEET_PAD,
       sheetHead(g.name, 'Place & purpose', 'Neighbors see this before they join.', close) +
-      lbl('The place', 'What neighbors call it. It doesn’t have to match a map. Leave it empty for a group without a place.') + fld('name', 'Walnut Creek', 60) +
-      chips('kind', Object.keys(PLACE_KIND).map(k => [k, PLACE_KIND[k]]).concat([['other', 'Other']])) +
-      lbl('Where’s the middle of it?', 'A street, park or school near the center.') +
-      '<div style="display:flex;gap:8px"><input class="fld" data-place-center maxlength="80" placeholder="Search for a street or place" value="' + esc(find.q || '') + '" ' + onInput(ev => { if (ev.type === 'input') state.reqFind = Object.assign({}, state.reqFind, { q: ev.target.value }); }) + ' style="flex:1;min-width:0;' + FIELD + '">' +
-        '<button type="button" data-place-find ' + on(() => findCenter((state.reqFind && state.reqFind.q) || '')) + ' style="flex:0 0 auto;min-height:46px;padding:0 16px;border:0;border-radius:999px;background:#0d1117;color:#fff;font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer">' + (find.busy ? '…' : 'Find') + '</button></div>' + results +
-      (e.lat != null ? lbl('How big is it?') + chips('radius', RADII) : '') +
-      (pl.name && pl.lat != null ? placeCard(pl, false) : '') +
-      lbl('What it’s for', 'One line neighbors see before they join.') + fld('purpose', 'Neighbors getting together, helping out and meeting each other', 200, 2) +
-      '<button type="button" data-place-save ' + on(savePlaceEd) + ' style="' + primary(!state.busy) + '">' + (state.busy === 'save' ? 'Saving…' : 'Save') + '</button>', 40);
+      '<div style="display:flex;flex-direction:column;gap:6px">' + lbl('The place') +
+        '<input class="fld" type="text" data-place-name maxlength="60" placeholder="Walnut Creek" value="' + esc(e.name || '') + '" ' + onInput(ev => { if (ev.type === 'input') state.placeEd = Object.assign({}, state.placeEd, { name: ev.target.value.slice(0, 60) }); else render(); }) + ' style="' + RING + 'height:50px;padding:0 14px;font-weight:600">' +
+        '<div role="radiogroup" style="display:flex;flex-wrap:wrap;gap:6px">' + kinds.map(k => pill('data-place-pick="kind:' + k + '"', PLACE_KIND[k] || 'Other', e.kind === k, () => placeEdSet({ kind: k }), true)).join('') + '</div></div>' +
+      '<div style="display:flex;flex-direction:column;gap:8px">' + lbl('The area') +
+        '<div role="radiogroup" aria-label="The area" style="display:flex;background:#f2f3f6;border-radius:999px;padding:4px;gap:4px">' +
+          '<span role="radio" aria-checked="true" data-area="circle" style="flex:1;min-height:36px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.1);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#0d1117">A circle</span>' +
+          '<span ' + on(() => requestFeature('City map shapes', true), 'radio') + ' aria-checked="false" data-area="shape" style="flex:1;min-height:36px;border-radius:999px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:14px;font-weight:800;color:#6b7280;cursor:pointer">City map shape' +
+            '<span data-request-chip style="font-size:9.5px;font-weight:900;letter-spacing:.6px;padding:3px 6px;border-radius:999px;background:#fff4dc;color:#8f6405">REQUEST</span></span></div>' +
+        '<div style="display:flex;gap:8px"><label style="flex:1;min-width:0;min-height:46px;border-radius:999px;background:#f2f3f6;padding:0 14px;display:flex;align-items:center;gap:8px">' + svg(16, stroke('#9aa0ac', 2.4), '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>') +
+          '<input class="fld" data-place-center maxlength="80" placeholder="Where’s the middle of it?" aria-label="Where’s the middle of it?" value="' + esc(find.q || '') + '" ' + onInput(ev => { if (ev.type === 'input') state.reqFind = Object.assign({}, state.reqFind, { q: ev.target.value }); }) + ' style="flex:1;min-width:0;border:0;background:transparent;font-family:inherit;font-size:16px;font-weight:600;color:#0d1117;outline:none"></label>' +
+          '<button type="button" data-place-find ' + on(() => findCenter((state.reqFind && state.reqFind.q) || '')) + ' style="flex:0 0 auto;min-height:46px;padding:0 18px;border:0;border-radius:999px;background:#0d1117;color:#fff;font-family:inherit;font-size:15px;font-weight:800;cursor:pointer">' + (find.busy ? '…' : 'Find') + '</button></div>' + results +
+        (e.lat != null ? '<div role="radiogroup" aria-label="How big is it?" style="display:flex;flex-wrap:wrap;gap:6px">' + RADII.map(([v, l]) => pill('data-place-pick="radius:' + v + '"', l, e.radius === v, () => placeEdSet({ radius: v }), false, 32)).join('') + '</div>' : '') + '</div>' +
+      card +
+      '<div style="display:flex;flex-direction:column;gap:6px">' + lbl('What it’s for', '<span data-place-count style="font-size:12.5px;font-weight:600;color:#9aa0ac">' + n + ' / 200</span>') +
+        '<textarea class="fld" data-place-purpose rows="2" maxlength="200" placeholder="Block parties, cleanups, a hand when someone needs one…" ' + onInput(ev => { if (ev.type === 'input') { state.placeEd = Object.assign({}, state.placeEd, { purpose: ev.target.value.slice(0, 200) }); const c = document.querySelector('[data-place-count]'); if (c) c.textContent = state.placeEd.purpose.length + ' / 200'; } }) + ' style="' + RING + 'min-height:64px;padding:12px 14px;resize:none;line-height:1.4;font-weight:500">' + esc(e.purpose || '') + '</textarea></div>' +
+      '<button type="button" data-place-save ' + on(savePlaceEd) + ' style="width:100%;min-height:54px;border:0;border-radius:999px;background:#5b4ae8;font-family:inherit;font-size:16.5px;font-weight:900;color:#fff;cursor:pointer">' + (state.busy === 'save' ? 'Saving…' : 'Save') + '</button>', 40);
   }
 
-  // ---- The group's dashboard (owner, 2026-10-12: engagement month over month is part of what a community gets): owners
-  // and admins see members, active members, private gatherings (a count, never who or what) and six months of joins,
-  // events, people going and helpers (community_stats, community_months). An invention (HANDOFF §2): plain cards for now
+  // ---- The group's dashboard (owner, 2026-10-12; Design v9-1 4d, Q53: lead with one plain sentence, not a chart): owners
+  // and admins see how this month is going in a green card, members, active members and private get-togethers (a count,
+  // never who or what), six months of people going as bars, and the same months as a table; a bar or a row picks a month
   const openCommDash = (g) => {
-    setState({ gMenu: null, commDash: { id: g.id, stats: null, months: null } });
+    setState({ gMenu: null, commDash: { id: g.id, stats: null, months: null, sel: null } });
     Promise.all([sb.rpc('community_stats', { p_group: g.id }), sb.rpc('community_months', { p_group: g.id, p_months: 6 })]).then(([a, b]) => {
       if (!state.commDash || state.commDash.id !== g.id) return;
-      setState({ commDash: { id: g.id, stats: a.error ? false : (a.data || [])[0] || false, months: b.error ? false : b.data || [] } });
+      setState({ commDash: { id: g.id, stats: a.error ? false : (a.data || [])[0] || false, months: b.error ? false : b.data || [], sel: null } });
     }, () => { if (state.commDash && state.commDash.id === g.id) setState({ commDash: { id: g.id, stats: false, months: false } }); });
   };
   function viewCommDash() {
     const d = state.commDash, g = groupById(d.id), close = () => setState({ commDash: null });
     if (!g) return '';
     const st = d.stats, M = d.months || [];
-    const tile = (k, n, label) => '<div data-comm-stat="' + k + '" style="display:flex;flex-direction:column;gap:2px;padding:14px;border-radius:16px;background:#f7f7f9"><span style="font-size:26px;font-weight:900;letter-spacing:-.5px;color:#0d1117">' + n + '</span><span style="font-size:13px;line-height:1.3;font-weight:700;color:#6b7280">' + label + '</span></div>';
-    const mon = (iso) => new Date(iso + 'T12:00').toLocaleDateString('en-US', { month: 'short' });
+    const mon = (iso, long) => new Date(iso + 'T12:00').toLocaleDateString('en-US', { month: long ? 'long' : 'short' });
+    const sel = d.sel != null && d.sel < M.length ? d.sel : M.length - 1, pick = (i) => setState({ commDash: Object.assign({}, state.commDash, { sel: i }) });
+    const now = M[M.length - 1] || { going: 0, joined: 0, helpers: 0 }, last = M[M.length - 2];
+    // The sentence: more than last month says by how much; otherwise just the number, no percentage
+    const pct = last && last.going > 0 && now.going > last.going ? Math.round((now.going - last.going) * 100 / last.going) : 0;
+    const said = now.going === 0 ? 'Nobody’s been to anything yet this month.'
+      : (now.going === 1 ? '1 person went to something' : now.going + ' people went to something') + (pct ? '. That’s ' + pct + '% more than ' + mon(last.month, true) + '.' : ' this month.');
+    const tile = (k, n, label) => '<div data-comm-stat="' + k + '" style="background:#f2f3f6;border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:2px"><span style="font-size:24px;font-weight:900;letter-spacing:-.6px;color:#0d1117">' + n + '</span><span style="font-size:12.5px;line-height:1.25;font-weight:700;color:#6b7280">' + label + '</span></div>';
     const top = Math.max(1, ...M.map(m => m.going));
-    const bars = M.length ? '<div data-comm-chart aria-hidden="true" style="display:grid;grid-template-columns:repeat(' + M.length + ',minmax(0,1fr));gap:8px;align-items:end;height:110px;padding:0 2px">' +
-      M.map(m => '<div style="display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:4px;height:100%"><span style="font-size:11.5px;font-weight:800;color:#454b55">' + (m.going || '') + '</span>' +
-        '<span style="width:100%;max-width:34px;height:' + Math.max(3, Math.round(70 * m.going / top)) + 'px;border-radius:8px 8px 3px 3px;background:' + (m.going ? '#5b4ae8' : '#e3e5ea') + '"></span></div>').join('') + '</div>' +
-      '<div aria-hidden="true" style="display:grid;grid-template-columns:repeat(' + M.length + ',minmax(0,1fr));gap:8px;padding:0 2px">' + M.map(m => '<span style="text-align:center;font-size:12px;font-weight:700;color:#6b7280">' + mon(m.month) + '</span>').join('') + '</div>' : '';
-    const th = 'padding:8px 6px;font-size:11.5px;font-weight:900;letter-spacing:.6px;color:#6b7280;text-align:right', td = 'padding:9px 6px;border-top:1px solid #f0f1f4;font-size:14px;font-weight:700;color:#0d1117;text-align:right';
-    const table = M.length ? '<table data-comm-months style="width:100%;border-collapse:collapse"><thead><tr><th style="' + th + ';text-align:left">MONTH</th><th style="' + th + '">JOINED</th><th style="' + th + '">EVENTS</th><th style="' + th + '">GOING</th><th style="' + th + '">HELPED</th></tr></thead><tbody>' +
-      M.slice().reverse().map(m => '<tr><td style="' + td + ';text-align:left">' + mon(m.month) + '</td><td style="' + td + '">' + m.joined + '</td><td style="' + td + '">' + m.events + '</td><td style="' + td + '">' + m.going + '</td><td style="' + td + '">' + m.helpers + '</td></tr>').join('') + '</tbody></table>' : '';
+    const cap = (t) => '<span style="font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#6b7280">' + t + '</span>';
+    const cur = M[sel];
+    const bars = M.length ? '<div style="display:flex;flex-direction:column;gap:10px"><div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px">' + cap('People going, by month') +
+        '<span data-comm-sel style="font-size:13px;font-weight:700;color:#0d1117">' + (cur ? mon(cur.month) + ': ' + cur.going + ' going · ' + cur.events + (cur.events === 1 ? ' event' : ' events') : '') + '</span></div>' +
+      '<div data-comm-chart style="height:150px;display:flex;align-items:flex-end;gap:10px;padding:0 2px;box-shadow:inset 0 -1px 0 #e6e7eb">' +
+        M.map((m, i) => '<div ' + on(() => pick(i)) + ' role="button" aria-label="' + mon(m.month, true) + '" aria-pressed="' + (i === sel) + '" style="flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px;cursor:pointer">' +
+          '<span style="font-size:12px;font-weight:800;color:' + (i === sel ? '#0d1117' : '#9aa0ac') + '">' + m.going + '</span>' +
+          '<span style="width:100%;height:' + Math.max(2, Math.round(m.going / top * 82)) + '%;border-radius:8px 8px 3px 3px;background:' + (i === sel ? '#5b4ae8' : '#cfc9ff') + ';transition:background .18s"></span></div>').join('') + '</div>' +
+      '<div aria-hidden="true" style="display:flex;gap:10px;padding:0 2px">' + M.map(m => '<span style="flex:1;text-align:center;font-size:12px;font-weight:700;color:#6b7280">' + mon(m.month) + '</span>').join('') + '</div></div>' : '';
+    const GRID = 'display:grid;grid-template-columns:1.2fr repeat(4,minmax(0,1fr));padding:9px 12px';
+    const table = M.length ? '<div style="display:flex;flex-direction:column;gap:8px">' + cap('Month by month') + '<div data-comm-months style="background:#f4f5f8;border-radius:16px;overflow:hidden">' +
+        '<div style="' + GRID + ';font-size:11px;font-weight:900;letter-spacing:.6px;color:#6b7280;box-shadow:inset 0 -1px 0 #e6e7eb"><span>MONTH</span><span style="text-align:right">JOINED</span><span style="text-align:right">EVENTS</span><span style="text-align:right">GOING</span><span style="text-align:right">HELPED</span></div>' +
+        M.map((m, i) => [m, i]).reverse().map(([m, i]) => '<div ' + on(() => pick(i)) + ' role="button" data-comm-row="' + mon(m.month) + '" aria-pressed="' + (i === sel) + '" style="' + GRID + ';font-size:14px;font-weight:700;color:#0d1117;cursor:pointer;background:' + (i === sel ? '#ece9fd' : 'transparent') + '">' +
+          '<span style="font-weight:800">' + mon(m.month) + '</span><span style="text-align:right">' + m.joined + '</span><span style="text-align:right">' + m.events + '</span><span style="text-align:right">' + m.going + '</span><span style="text-align:right">' + m.helpers + '</span></div>').join('') + '</div></div>' : '';
     const body = st === null || d.months === null ? paraHtml('Loading…')
       : st === false || d.months === false ? paraHtml('Couldn’t load the numbers just now.')
-      : '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">' + tile('members', st.members, st.members === 1 ? 'member' : 'members') + tile('active', st.active_members, 'active in the last 30 days') + tile('private', st.private_gatherings_30d, 'private gatherings, 30 days') + '</div>' +
-        '<span style="padding:6px 4px 0;font-size:12.5px;font-weight:900;letter-spacing:1px;color:#6b7280">PEOPLE GOING, BY MONTH</span>' + bars + table +
-        '<span style="font-size:13px;line-height:1.4;font-weight:600;color:#6b7280">Active means they opened the group, replied, said they’re interested or signed up for something. Private gatherings are counted, never shown.</span>';
+      : '<div data-comm-lead style="background:#e7f6ec;border-radius:20px;padding:16px 16px 14px;display:flex;flex-direction:column;gap:4px">' +
+          '<span style="font-size:12px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:#0f7a3c">' + mon(now.month || todayISO(), true) + ' so far</span>' +
+          '<span data-comm-said style="font-size:23px;line-height:1.12;font-weight:900;letter-spacing:-.6px;color:#0d1117;text-wrap:balance">' + said + '</span>' +
+          '<span style="font-size:13.5px;font-weight:600;color:#0f7a3c">' + now.joined + ' joined · ' + now.helpers + ' helped out</span></div>' +
+        '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">' + tile('members', st.members, st.members === 1 ? 'member' : 'members') + tile('active', st.active_members, 'active, last 30 days') + tile('private', st.private_gatherings_30d, 'private get-togethers, 30 days') + '</div>' +
+        bars + table +
+        '<p style="margin:0;font-size:12.5px;line-height:1.45;font-weight:600;color:#9aa0ac;text-wrap:pretty">Active means opened the group, or went to, signed up for or was interested in something. Private get-togethers are counted, never shown: you won’t see who or what.</p>';
     return sheet('Group dashboard', close, SHEET_PAD, sheetHead(g.name, 'Dashboard', 'Only owners and admins see this.', close) + body, 40);
   }
   function viewGroupMenu() {
@@ -6402,7 +6432,7 @@
               '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-size:15.5px;font-weight:800;color:#0d1117">Members can invite people</span>' +
                 '<span style="font-size:13px;line-height:1.35;font-weight:600;color:#6b7280">' + (g.membersCanInvite ? 'On: anyone in the group can invite people' : 'Off: only owners and admins can invite') + '</span></div>' +
               '<span aria-hidden="true" style="flex:0 0 46px;width:46px;height:28px;border-radius:999px;position:relative;transition:background .2s;background:' + (g.membersCanInvite ? '#5b4ae8' : '#c3c7d0') + '"><span style="position:absolute;top:3px;left:' + (g.membersCanInvite ? 21 : 3) + 'px;width:22px;height:22px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:left .2s"></span></span></div>' +
-            row('Dashboard', () => openCommDash(g)) +
+            row('Dashboard', () => openCommDash(g), state.gMenuJoined ? '+' + state.gMenuJoined + ' this month' : '') +
             row('Place &amp; purpose', () => openPlaceEd(g), g.place && g.place.name ? esc(g.place.name) : 'Not set') +
             // Who can join (owner, 2026-10-12): owners pick, admins see it
             row('Who can join', then(() => g.role === 'owner' ? setState({ joinRuleFor: g.id }) : toast('Only the group’s owners can change who can join')), RULE_SHORT[g.joinRule] || RULE_SHORT.everyone) +
