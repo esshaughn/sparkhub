@@ -37,38 +37,52 @@ test('Draft a group, ask a co-lead, they say yes, send it for review', async ({ 
     await draft.locator('[data-draft-pick="join_rule:nearby"]').click();
     await draft.locator('[data-draft-pick="association:none"]').click();
     await draft.locator('[data-draft-agree]').click();
+    // Design v9-1 3b: an empty card is grey and turns white once filled
+    const why = draft.locator('[data-draft-sec="Why, and how it’ll spread"]');
+    await expect(why).toHaveAttribute('data-filled', 'false');
+    await draft.locator('[data-draft-why]').fill('Nothing brings the block together yet.');
+    await draft.locator('[data-draft-spread]').fill('Flyers and a porch party.');
+    await expect(why).toHaveAttribute('data-filled', 'true');
     await expect(draft.locator('[data-draft-send]')).toHaveAttribute('aria-disabled', 'true');
-    await expect(draft).toContainText('Still needed: a co-lead who has said yes.');
+    await expect(draft.locator('[data-still-needed]')).toHaveText('Still needed: a co-lead');
 
     // Ask the friend to co-lead
     await draft.locator('[data-ask-role=colead]').click();
     const pick = A.getByRole('dialog', { name: 'Ask a co-lead' });
-    await pick.locator('[data-pick-friend]').filter({ hasText: 'Bo' }).first().click();
-    await expect(A.getByText('Asked Bo')).toBeVisible();
-    await expect(draft.locator('[data-team-row]').filter({ hasText: 'Co-lead' })).toContainText('Asked');
+    await expect(pick).toContainText('A co-lead runs the group with you');
+    await pick.locator('[data-pick-friend]').filter({ hasText: 'Bo' }).first().getByRole('button', { name: 'Ask' }).click();
+    await expect(A.getByText('Asked Bo to co-lead')).toBeVisible();
+    await expect(draft.locator('[data-team-row]').filter({ hasText: 'Co-lead' })).toContainText('ASKED');
+    await expect(draft.locator('[data-ask-role=colead]')).toHaveCount(0);   // + A co-lead goes once one is asked
+    await expect(draft.locator('[data-still-needed]')).toHaveText('Still needed: Bo’s yes');
 
     // The saved draft has everything typed (saving waits for a pause in typing)
     await expect.poll(() => asUser(A, async (c, _C, d) => (await c.from('group_drafts').select('name,place_name,purpose,join_rule,association,agreed_at').eq('id', d).single()).data, id))
       .toMatchObject({ name, place_name: 'Walnut Creek', purpose: 'Neighbors getting together', join_rule: 'nearby', association: 'none' });
 
-    // The co-lead opens it and says yes
-    await B.goto('/#/request/' + id);
+    // The co-lead finds the ask at the top of Start a group (3d) and says yes
+    await B.goto('/#/request');
     await expect(B.locator('html[data-loaded=true]')).toHaveCount(1);
     const ask = B.locator('[data-draft-ask]');
     await expect(ask).toContainText('asked you to be co-lead');
+    await expect(ask).toContainText(name);
     await ask.locator('[data-draft-yes]').click();
-    await expect(B.getByText('You’re on the team')).toBeVisible();
-    await expect(ask).toContainText('You’re in.');
+    await expect(B.getByText('You’re co-lead of ' + name)).toBeVisible();
+    await expect(ask.locator('[data-draft-in]')).toHaveText('✓ You’re in. We told Ada.');
+    await ask.locator('[data-see-draft]').click();
     await expect(B.locator('[data-draft-send]')).toHaveCount(0);   // only the starter sends it
 
     // Back to the starter: Send for review, now in review with Take it back
     await A.reload();
     await expect(A.locator('html[data-loaded=true]')).toHaveCount(1);
-    await expect(draft.locator('[data-team-row]').filter({ hasText: 'Co-lead' })).toContainText('In');
+    await expect(draft.locator('[data-team-row]').filter({ hasText: 'Co-lead' })).toContainText('IN');
+    await expect(draft.locator('[data-still-needed]')).toHaveText('Ready when you are.');
     await expect(draft.locator('[data-draft-send]')).toHaveAttribute('aria-disabled', 'false');
     await draft.locator('[data-draft-send]').click();
-    await expect(draft).toContainText('IN REVIEW');
-    await expect(draft).toContainText('Take it back to edit');
+    await expect(draft.locator('header [data-status-chip]')).toHaveText('IN REVIEW');
+    await expect(draft.locator('[data-draft-state]')).toContainText('Sent. We’ll look it over.');
+    await expect(draft.locator('[data-draft-state]')).toContainText('We’ll tell you and Bo either way.');
+    await expect(draft.locator('[data-draft-unsend]')).toHaveText('Take it back to edit');
     await expect(draft.locator('[data-draft-name]')).toHaveCount(0);   // read-only while it's in review
   } finally {
     if (id) await asUser(A, async (c, _C, d) => { await c.rpc('withdraw_group_draft', { p_draft: d }); await c.from('group_drafts').delete().eq('id', d); }, id).catch(() => {});

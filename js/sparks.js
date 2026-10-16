@@ -1401,12 +1401,6 @@
   // Start a group (V5 brings it back): name it, then land on its Edit group page with the code
   // Starting groups is coming soon everywhere (owner, 2026-10-03): every Start a group says so. The naming pop-up
   // (startName) stays for when it comes back: setState({ startName: '' }) behind needSignIn(…, 'profile')
-  // Groups start by request while Spark Hub is in beta (owner, 2026-10-07): Request a group opens Give feedback as a group
-  // request (its own heading, the first words written), signing in first if needed; Eric reviews each one
-  const askForGroup = () => {
-    const ask = () => setState({ confirm: null, fb: { text: 'I’d like a group for ', kind: 'group' } });
-    if (state.email) ask(); else { setState({ confirm: null }); openLogin('profile', ask); }
-  };
   // Not built yet → REQUEST (owner, 2026-10-07; it was a SOON chip and a Coming soon toast): the gold chip, and a tap opens
   // "{Feature} isn't here yet" with Request it, which opens Give feedback as a feature request
   const REQ_CHIP = '<span data-request-chip style="display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:999px;background:#fff4dc;color:#8f6405;font-size:10.5px;font-weight:900;letter-spacing:.6px">REQUEST</span>';
@@ -13208,10 +13202,14 @@
   // ambassadors onto the team (friends; they say yes in the app), agrees to what leading means and sends it for review.
   // The app owner approves it (the group opens with the team in their roles) or declines it, from the same page.
   const ROLE_NAME = { colead: 'Co-lead', admin: 'Admin', ambassador: 'Ambassador' };
-  const ROLE_LINE = { colead: 'Shares the responsibility with you. Required.', admin: 'Helps run the group. One to three is ideal.', ambassador: 'Spreads the word around the neighborhood.' };
+  // Design v9-1 3c/3d: the role's line on Ask a co-lead (and for the person asked)
+  const ROLE_LINE = { colead: 'A co-lead runs the group with you: welcoming people, planning things, keeping it safe. Every group needs one.', admin: 'An admin helps run the group: planning things and welcoming people. One to three is ideal.', ambassador: 'An ambassador spreads the word around the neighborhood.' };
+  const ROLE_ASKED = { colead: 'You’d run it together: welcoming people, planning things, keeping it safe. It can’t open without you.', admin: 'You’d help run it: planning things and welcoming people.', ambassador: 'You’d help spread the word around the neighborhood.' };
   const ASSOC = [['none', 'There’s no association'], ['member', 'There is, and I’m part of it'], ['not_member', 'There is, and I’m not part of it'], ['hoa', 'It’s an HOA'], ['unsure', 'Not sure']];
   const RADII = [[400, '¼ mile'], [800, '½ mile'], [1600, '1 mile'], [3200, '2 miles']];
-  const DRAFT_STATUS = { draft: ['DRAFT', '#f2f3f6', '#454b55'], submitted: ['IN REVIEW', '#fff4dc', '#8f6405'], approved: ['OPEN', '#e8f6ee', '#0f7a3c'], declined: ['NOT APPROVED', '#fdecef', '#9b1c31'] };
+  const DRAFT_STATUS = { draft: ['DRAFT', '#eceef2', '#454b55'], submitted: ['IN REVIEW', '#fff4dc', '#8f6405'], approved: ['OPEN', '#e7f6ec', '#0f7a3c'], declined: ['NOT APPROVED', '#fdeef0', '#9b1c31'] };
+  const statusChip = (t, bgc, fg) => '<span data-status-chip style="flex:0 0 auto;padding:5px 9px;border-radius:999px;background:' + bgc + ';color:' + fg + ';font-size:11px;line-height:1;font-weight:900;letter-spacing:.6px">' + t + '</span>';
+  const draftChip = (st) => { const c = DRAFT_STATUS[st] || DRAFT_STATUS.draft; return statusChip(c[0], c[1], c[2]); };
   const loadDrafts = async () => {
     state.gDraftsBusy = true;
     try {
@@ -13220,7 +13218,11 @@
       if (d.error && (d.error.code === '42P01' || d.error.code === 'PGRST205')) return setState({ gDrafts: [], gDraftTeam: [], gDraftsOff: true, gDraftsBusy: false });
       if (d.error) throw d.error;
       if (t.error) throw t.error;
+      const was = state.gDraftTeam || [];
       setState({ gDrafts: d.data || [], gDraftTeam: t.data || [], gDraftsBusy: false });
+      // Design v9-1 3c: when someone you asked says yes, a toast (Hana said yes. She's co-lead.)
+      const yes = (t.data || []).find(x => x.status === 'accepted' && was.some(w => w.draft_id === x.draft_id && w.user_id === x.user_id && w.status === 'invited') && (draftOf(x.draft_id) || {}).created_by === state.me);
+      if (yes) toast(teamName(yes.user_id) + ' said yes to ' + (ROLE_NAME[yes.role] || 'the team').toLowerCase() + '.', true);
     } catch (e) { console.error(e); setState({ gDraftsBusy: false, gDrafts: state.gDrafts || [] }); toast(failed(e)); }
   };
   const openRequest = (id) => { setState({ menu: null, confirm: null, pplAdd: false, joinOpen: false }); needSignIn(() => { go('request', { reqId: id || null, reqPick: null, reqFind: null }); if (state.loaded && !state.fromCache) loadDrafts(); }, 'profile'); };
@@ -13283,35 +13285,84 @@
     return d ? viewDraft(d) : viewDraftList();
   }
 
+  // Design v9-1 3a–3e: a white header (back, the name, the status chip), section cards with grey caps eyebrows on the grey page
+  const reqHead = (title, back, chip) => '<header style="position:relative;z-index:5;background:#fff;box-shadow:0 1px 0 #e8eaef;padding:14px 14px 12px;display:flex;align-items:center;gap:10px">' +
+    '<span ' + on(back) + ' aria-label="Back" style="flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.chevL(18, '#0d1117', 2.6) + '</span>' +
+    '<h1 style="flex:1;min-width:0;margin:0;font-size:20px;line-height:1.15;font-weight:900;letter-spacing:-.4px;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(title) + '</h1>' + (chip || '') + '</header>';
+  const REQ_EYEBROW = 'font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#6b7280';
+  const REQ_CARD = 'background:#fff;border-radius:22px;box-shadow:0 1px 3px rgba(15,18,25,.08)';
+  const reqBtn = (ok, bgc) => 'width:100%;min-height:54px;border:0;border-radius:999px;display:flex;align-items:center;justify-content:center;font-family:inherit;font-size:16.5px;font-weight:900;color:#fff;background:' + (ok ? bgc || '#5b4ae8' : '#d5d8df') + ';cursor:' + (ok ? 'pointer' : 'default');
+  const reqDay = (iso) => iso ? new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+  const reqEdited = (iso) => { if (!iso) return ''; const d = dayDiff(new Date(iso).toLocaleDateString('en-CA')); return d === 0 ? 'edited today' : d === -1 ? 'edited yesterday' : 'edited ' + reqDay(iso); };
+  const reqPlaceLine = (d) => [d.place_name, PLACE_KIND[d.place_kind], (RADII.find(r => r[0] === d.place_radius_m) || [])[1]].filter(Boolean).join(' · ');
+
+  // 3d: the person asked, at the top of the list: a white card with a purple top inset, the asker's face, the group in a
+  // grey box, the role's line, See the draft, Yes, I'm in / Not now; after Yes a green row
+  const reqAskedCard = (d, me) => {
+    const who = teamName(d.created_by), first = firstName(who) || who;
+    return '<div data-draft-ask style="' + REQ_CARD.replace('box-shadow:', 'box-shadow:inset 0 4px 0 #5b4ae8,') + ';padding:22px 18px 18px;display:flex;flex-direction:column;gap:14px">' +
+      '<div style="display:flex;align-items:center;gap:12px">' + face(d.created_by, who, 44) +
+        '<span style="flex:1;font-size:19px;line-height:1.15;font-weight:900;letter-spacing:-.5px;color:#0d1117;text-wrap:balance">' + esc(who) + ' asked you to be ' + (me.role === 'admin' ? 'an admin' : me.role === 'ambassador' ? 'an ambassador' : 'co-lead') + '</span></div>' +
+      '<div style="background:#f4f5f8;border-radius:16px;padding:12px 14px;display:flex;flex-direction:column;gap:3px"><span style="font-size:15.5px;font-weight:900;color:#0d1117">' + esc(d.name || 'A new group') + '</span>' +
+        (reqPlaceLine(d) ? '<span style="display:flex;align-items:center;gap:5px;font-size:13px;font-weight:600;color:#6b7280">' + MAP_PIN('#5b4ae8') + esc(reqPlaceLine(d)) + '</span>' : '') + '</div>' +
+      '<p style="margin:0;font-size:14.5px;line-height:1.4;font-weight:500;color:#454b55;text-wrap:pretty">' + (ROLE_ASKED[me.role] || '') + '</p>' +
+      '<span ' + on(() => go('request', { reqId: d.id })) + ' role="button" data-see-draft style="align-self:flex-start;font-size:14.5px;font-weight:800;color:#5b4ae8;cursor:pointer">See the draft ›</span>' +
+      (me.status === 'invited'
+        ? '<div style="display:flex;gap:8px"><button type="button" data-draft-yes ' + on(() => draftCall('answer_draft_invite', { p_draft: d.id, p_yes: true }, 'You’re ' + (me.role === 'colead' ? 'co-lead of ' : 'on the team for ') + (d.name || 'the group'))) + ' style="flex:1;min-height:48px;border:0;border-radius:999px;background:#5b4ae8;font-family:inherit;font-size:15.5px;font-weight:800;color:#fff;cursor:pointer">Yes, I’m in</button>' +
+            '<button type="button" data-draft-no ' + on(() => draftCall('answer_draft_invite', { p_draft: d.id, p_yes: false }, 'We told ' + first + '. No hard feelings.')) + ' style="flex:1;min-height:48px;border:0;border-radius:999px;background:#f2f3f6;font-family:inherit;font-size:15.5px;font-weight:800;color:#0d1117;cursor:pointer">Not now</button></div>'
+        : me.status === 'accepted'
+          ? '<div data-draft-in style="min-height:48px;border-radius:14px;background:#e7f6ec;padding:0 14px;display:flex;align-items:center;font-size:15px;font-weight:800;color:#0f7a3c">✓ You’re in. We told ' + esc(first) + '.</div>'
+          : '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><span style="font-size:14px;font-weight:700;color:#6b7280">You said not now.</span><span ' + on(() => draftCall('answer_draft_invite', { p_draft: d.id, p_yes: true }, 'You’re on the team')) + ' role="button" style="font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">Changed your mind? I’m in</span></div>') +
+      '</div>';
+  };
+
   function viewDraftList() {
     const st = state, ds = st.gDrafts || [], team = st.gDraftTeam || [];
     const mine = ds.filter(d => d.created_by === st.me);
-    const asked = ds.filter(d => d.created_by !== st.me && team.some(t => t.draft_id === d.id && t.user_id === st.me));
+    const meOn = (d) => team.find(t => t.draft_id === d.id && t.user_id === st.me);
+    // Asked onto: open drafts (not yet opened or turned down) you were asked onto and didn't turn down
+    const asked = ds.filter(d => d.created_by !== st.me && (d.status === 'draft' || d.status === 'submitted') && meOn(d) && meOn(d).status !== 'declined');
     const review = st.demoAdmin ? ds.filter(d => d.status === 'submitted' && d.created_by !== st.me) : [];
-    const chip = (s) => { const c = DRAFT_STATUS[s] || DRAFT_STATUS.draft; return '<span style="flex:0 0 auto;padding:3px 8px;border-radius:999px;background:' + c[1] + ';color:' + c[2] + ';font-size:10.5px;font-weight:900;letter-spacing:.8px">' + c[0] + '</span>'; };
-    const row = (d, sub) => '<div ' + on(() => go('request', { reqId: d.id })) + ' role="button" data-draft-row style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-top:1px solid #f0f1f4;cursor:pointer">' +
-      '<div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(d.name || 'Untitled group') + '</div>' +
-      '<div style="font-size:13.5px;font-weight:600;color:#6b7280">' + esc(sub) + '</div></div>' + chip(d.status) + I.chevR(13, '#b9bcc4', 3) + '</div>';
-    const list = (label, items, sub) => items.length ? '<div style="' + CARD + ';overflow:hidden"><div style="padding:14px 16px 4px;' + EYEBROW + '">' + label + '</div>' + items.map(d => row(d, sub(d))).join('') + '</div>' : '';
-    const roleOf = (d) => (team.find(t => t.draft_id === d.id && t.user_id === st.me) || {});
+    const sub = (d) => {
+      if (d.status === 'submitted') return 'Sent ' + reqDay(d.submitted_at || d.updated_at);
+      if (d.status === 'approved') return 'Opened ' + reqDay(d.reviewed_at || d.updated_at);
+      if (d.status === 'declined') return 'Sent ' + reqDay(d.submitted_at || d.updated_at);
+      const wait = teamOf(d.id).find(t => t.role === 'colead' && t.status === 'invited');
+      const e = reqEdited(d.updated_at);
+      return wait ? 'Waiting on ' + firstName(teamName(wait.user_id)) + (e ? ' · ' + e : '') : e.replace(/^e/, 'E');
+    };
+    const row = (d, line) => '<div ' + on(() => go('request', { reqId: d.id })) + ' role="button" data-draft-row style="min-height:64px;padding:10px 14px 10px 16px;display:flex;align-items:center;gap:10px;box-shadow:inset 0 -1px 0 #f2f3f6;cursor:pointer">' +
+      '<div style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:15.5px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(d.name || 'Untitled group') + '</span>' +
+      '<span style="font-size:13px;font-weight:600;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(line) + '</span></div>' + draftChip(d.status) + I.chevR(13, '#b9bcc4', 3) + '</div>';
+    const list = (label, items, line) => items.length ? '<div style="display:flex;flex-direction:column;gap:8px"><span style="' + REQ_EYEBROW + ';padding:0 4px">' + label + '</span>' +
+      '<div style="' + REQ_CARD.replace('22px', '20px') + ';overflow:hidden">' + items.map(d => row(d, line(d))).join('') + '</div></div>' : '';
+    const open = mine.filter(d => d.status === 'draft');
+    const canNew = mine.filter(d => d.status === 'draft' || d.status === 'submitted').length < 3;
+    const SPARK = (sz, c) => svg(sz, 'fill="' + c + '"', '<path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z"/>');
+    const steps = [['Draft it', 'The place, what it’s for, who can join.'], ['Build the team', 'A co-lead, and admins if you can.'], ['Open it', 'We review it, then you share the link.']];
     return '<div data-screen-label="Start a group" style="background:#e8eaee;min-height:100%">' +
-      head6('Start a group', backBtn6(() => go('groups'))) +
-      '<section style="padding:16px;display:flex;flex-direction:column;gap:14px">' +
-        '<div style="' + CARD + ';padding:20px 18px;display:flex;flex-direction:column;gap:10px">' +
-          '<h2 style="margin:0;font-size:24px;line-height:1.1;font-weight:900;letter-spacing:-.6px;color:#0d1117;text-wrap:balance">Starting a group is a big deal</h2>' +
-          paraHtml('A group belongs to a real place and the people around it. Whoever starts it gets a real say, and real responsibility: who’s in, what’s okay, and answering reports. Nobody should carry that alone.') +
-          '<div style="display:flex;flex-direction:column;gap:6px;margin-top:2px">' +
-            ['Draft it: the place, what it’s for and how it’ll run', 'Ask a co-lead (required), admins and people to spread the word', 'Send it for review. We get in touch, and it opens when it’s ready'].map((t, i) =>
-              '<div style="display:flex;gap:10px;align-items:flex-start"><span style="flex:0 0 22px;width:22px;height:22px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center">' + (i + 1) + '</span><span style="font-size:14.5px;line-height:1.4;font-weight:600;color:#2b303a">' + t + '</span></div>').join('') + '</div>' +
-          paraHtml('If your neighborhood has an association or HOA, it’s best to start there. A resident can start a group and hand it over later.', '#6b7280') +
-          (mine.filter(d => d.status === 'draft' || d.status === 'submitted').length < 3
-            ? '<button type="button" data-new-draft ' + on(newDraft) + ' style="margin-top:6px;' + primary(!st.busy) + '">' + (st.busy === 'save' ? 'Starting…' : 'Start a draft') + '</button>'
-            : '<span style="font-size:14px;font-weight:700;color:#6b7280">You have 3 drafts going. Finish or delete one to start another.</span>') +
-        '</div>' +
+      reqHead('Start a group', () => go('groups')) +
+      '<section style="padding:14px 14px 40px;display:flex;flex-direction:column;gap:18px">' +
+        asked.map(d => reqAskedCard(d, meOn(d))).join('') +
+        // 3a: the intro card, the screen's one use of the Spark gradient
+        '<div data-req-intro style="' + REQ_CARD + ';overflow:hidden">' +
+          '<div style="position:relative;background:linear-gradient(115deg,#5b4ae8 0%,#a64bd6 45%,#e2558f 72%,#f5b428 100%);padding:22px 20px 20px;color:#fff;display:flex;flex-direction:column;gap:6px">' +
+            '<span aria-hidden="true" style="position:absolute;right:22px;top:16px;opacity:.9">' + SPARK(16, '#fff') + '</span><span aria-hidden="true" style="position:absolute;right:46px;top:38px;opacity:.9">' + SPARK(10, '#ffe7a8') + '</span>' +
+            '<span style="font-size:12px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;opacity:.92">A group for where you live</span>' +
+            '<h2 style="margin:0;padding-right:44px;font-size:26px;line-height:1.08;font-weight:900;letter-spacing:-.8px;color:#fff;text-wrap:balance">Starting a group is a big deal</h2></div>' +
+          '<div style="padding:16px 18px 18px;display:flex;flex-direction:column;gap:14px">' +
+            '<p style="margin:0;font-size:15px;line-height:1.45;font-weight:500;color:#454b55;text-wrap:pretty">It’s a real responsibility for the people who join, so nobody does it alone. You and a co-lead start it together, and we look it over before it opens.</p>' +
+            '<div style="display:flex;flex-direction:column;gap:10px">' + steps.map(([t, b], i) => '<div style="display:flex;gap:12px;align-items:flex-start"><span style="flex:0 0 28px;height:28px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:14px;font-weight:900;display:flex;align-items:center;justify-content:center">' + (i + 1) + '</span>' +
+              '<div style="display:flex;flex-direction:column"><span style="font-size:15.5px;font-weight:800;color:#0d1117">' + t + '</span><span style="font-size:13.5px;font-weight:600;color:#6b7280">' + b + '</span></div></div>').join('') + '</div>' +
+            '<p style="margin:0;font-size:13px;font-weight:600;color:#6b7280;text-wrap:pretty">Part of a neighborhood association? Say so in the draft. Associations go first.</p>' +
+            (open.length
+              ? '<button type="button" data-new-draft ' + on(() => go('request', { reqId: open[0].id })) + ' style="' + reqBtn(true) + '">Open your draft</button>'
+              : canNew ? '<button type="button" data-new-draft ' + on(newDraft) + ' style="' + reqBtn(!st.busy) + '">' + (st.busy === 'save' ? 'Starting…' : 'Start a draft') + '</button>'
+              : '<span style="font-size:14px;font-weight:700;color:#6b7280">You have 3 requests going. Wait for one to come back to start another.</span>') +
+          '</div></div>' +
         (st.gDrafts === undefined ? skeleton() : '') +
-        list('Waiting for your review', review, d => (d.place_name || '') + ' · sent ' + new Date(d.submitted_at || d.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })) +
-        list('You’re asked onto', asked, d => (ROLE_NAME[roleOf(d).role] || 'Team') + ' · ' + ({ invited: 'waiting for you', accepted: 'you’re in', declined: 'you said not now' }[roleOf(d).status] || '')) +
-        list('Your requests', mine, d => d.place_name || 'No place yet') +
+        list('Waiting for your review', review, d => (d.place_name || '') + ' · sent ' + reqDay(d.submitted_at || d.updated_at)) +
+        list('Your requests', mine, sub) +
       '</section><div style="height:92px"></div></div>';
   }
 
@@ -13319,111 +13370,126 @@
     const st = state, mine = d.created_by === st.me, edit = mine && d.status === 'draft', team = teamOf(d.id);
     const meOn = team.find(t => t.user_id === st.me), owner = !!st.demoAdmin;
     const back = () => go('request', { reqId: null, reqPick: null, reqFind: null });
-    const lbl = (t, sub) => '<div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:15px;font-weight:800;color:#0d1117">' + t + '</span>' + (sub ? '<span style="font-size:13px;line-height:1.35;font-weight:600;color:#6b7280">' + sub + '</span>' : '') + '</div>';
-    const fld = (key, ph, max, rows) => rows
-      ? '<textarea class="fld" data-draft-' + key + ' rows="' + rows + '" maxlength="' + max + '" placeholder="' + esc(ph) + '" ' + onInput(e => draftSet(d.id, { [key]: e.target.value.slice(0, max) })) + ' style="width:100%;border:2px solid #e3e5ec;border-radius:14px;padding:12px 14px;font-family:inherit;font-size:16px;line-height:1.4;color:#0d1117;resize:vertical">' + esc(d[key] || '') + '</textarea>'
-      : '<input class="fld" data-draft-' + key + ' maxlength="' + max + '" placeholder="' + esc(ph) + '" value="' + esc(d[key] || '') + '" ' + onInput(e => draftSet(d.id, { [key]: e.target.value.slice(0, max) })) + ' style="width:100%;height:50px;border:2px solid #e3e5ec;border-radius:14px;padding:0 14px;font-family:inherit;font-size:16px;color:#0d1117">';
-    const chips = (key, opts, cur) => '<div role="radiogroup" style="display:flex;flex-wrap:wrap;gap:8px">' + opts.map(([k, label]) => { const onIt = cur === k;
-      return '<span ' + on(() => draftSet(d.id, { [key]: k }, true), 'radio') + ' aria-checked="' + onIt + '" data-draft-pick="' + key + ':' + k + '" style="display:flex;align-items:center;min-height:40px;padding:0 14px;border-radius:999px;font-size:14px;font-weight:800;cursor:pointer;' +
-        (onIt ? 'background:#5b4ae8;color:#fff' : 'background:#fff;color:#0d1117;box-shadow:inset 0 0 0 1.5px #dcdfe6') + '">' + label + '</span>'; }).join('') + '</div>';
-    const sec = (title, inner) => '<div style="' + CARD + ';padding:18px 16px;display:flex;flex-direction:column;gap:12px"><div style="' + EYEBROW + '">' + title + '</div>' + inner + '</div>';
-    const ro = (label, v) => v ? '<div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:12.5px;font-weight:800;color:#6b7280">' + label + '</span><span style="font-size:15px;line-height:1.4;font-weight:600;color:#0d1117;white-space:pre-line;overflow-wrap:anywhere">' + esc(v) + '</span></div>' : '';
+    const lbl = (t, sub) => '<div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:14px;font-weight:800;color:#0d1117">' + t + '</span>' + (sub ? '<span style="font-size:13px;line-height:1.35;font-weight:600;color:#6b7280">' + sub + '</span>' : '') + '</div>';
+    const FLD = 'width:100%;border:0;border-radius:14px;font-family:inherit;font-size:16px;color:#0d1117;outline:none;';
+    // On a grey (empty) card a field is plain white; on a white card it has a 1.5px ring
+    const fld = (key, ph, max, rows, onGrey) => { const look = onGrey ? 'background:#fff;' : 'background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;';
+      return rows
+        ? '<textarea class="fld" data-draft-' + key + ' rows="' + rows + '" maxlength="' + max + '" placeholder="' + esc(ph) + '" ' + onInput(e => draftSet(d.id, { [key]: e.target.value.slice(0, max) })) + ' style="' + FLD + look + 'min-height:66px;padding:12px 14px;line-height:1.4;font-weight:500;resize:vertical">' + esc(d[key] || '') + '</textarea>'
+        : '<input class="fld" data-draft-' + key + ' maxlength="' + max + '" placeholder="' + esc(ph) + '" value="' + esc(d[key] || '') + '" ' + onInput(e => draftSet(d.id, { [key]: e.target.value.slice(0, max) })) + ' style="' + FLD + look + 'height:50px;padding:0 14px;font-weight:600">'; };
+    const field = (label, inner, sub) => '<div style="display:flex;flex-direction:column;gap:6px">' + lbl(label) + inner + (sub ? '<span style="font-size:13px;font-weight:600;color:#6b7280">' + sub + '</span>' : '') + '</div>';
+    // Chips: ink when picked (the place's kind), or purple with a tick (size, who can join, association)
+    const chips = (key, opts, cur, ink) => '<div role="radiogroup" style="display:flex;flex-wrap:wrap;gap:6px">' + opts.map(([k, label]) => { const onIt = cur === k;
+      return '<span ' + on(() => draftSet(d.id, { [key]: k }, true), 'radio') + ' aria-checked="' + onIt + '" data-draft-pick="' + key + ':' + k + '" style="display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 13px;border-radius:999px;font-size:14px;font-weight:800;cursor:pointer;' +
+        (onIt ? (ink ? 'background:#0d1117;color:#fff' : 'background:#5b4ae8;color:#fff') : 'background:#fff;color:#454b55;box-shadow:inset 0 0 0 1.5px #dcdfe6') + '">' + (onIt && !ink ? svg(13, stroke('#fff', 3.2), '<path d="M5 12.5l4.5 4.5L19 7.5"/>') : '') + label + '</span>'; }).join('') + '</div>';
+    // An empty card is #dfe2e7 with no shadow and turns white once filled (as on Plan an event)
+    const sec = (title, inner, filled, sub) => '<div data-draft-sec="' + esc(title) + '" data-filled="' + !!filled + '" style="border-radius:22px;padding:18px 16px;display:flex;flex-direction:column;gap:14px;' + (filled ? 'background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08)' : 'background:#dfe2e7') + '">' +
+      (sub ? '<div style="display:flex;flex-direction:column;gap:2px"><span style="' + REQ_EYEBROW + '">' + title + '</span><span style="font-size:13.5px;font-weight:600;color:#6b7280">' + sub + '</span></div>' : '<span style="' + REQ_EYEBROW + '">' + title + '</span>') + inner + '</div>';
+    const ro = (label, v) => v ? '<div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:13px;font-weight:800;color:#6b7280">' + label + '</span><span style="font-size:15px;line-height:1.4;font-weight:600;color:#0d1117;white-space:pre-line;overflow-wrap:anywhere">' + esc(v) + '</span></div>' : '';
     const pl = d.place_name ? { name: d.place_name, kind: d.place_kind, lat: d.place_lat, lon: d.place_lon, radius: d.place_radius_m, purpose: d.purpose || '' } : null;
-    const c = DRAFT_STATUS[d.status] || DRAFT_STATUS.draft;
-    // Status
+    const coWait = team.find(t => t.role === 'colead' && t.status === 'invited'), coName = (() => { const c = team.find(t => t.role === 'colead' && t.status !== 'declined'); return c ? firstName(teamName(c.user_id)) : ''; })();
+    // 3e: the states, as a card at the top of the draft
+    const stCard = (bgc, title, inner) => '<div data-draft-state style="background:' + bgc + ';border-radius:22px;padding:18px;display:flex;flex-direction:column;gap:10px"><span style="font-size:19px;font-weight:900;letter-spacing:-.4px;color:#0d1117">' + title + '</span>' + inner + '</div>';
+    const note = d.review_note ? '<div style="background:#fff;border-radius:14px;padding:10px 12px;font-size:14.5px;line-height:1.4;font-weight:500;color:#2a2f38;overflow-wrap:anywhere">“' + esc(d.review_note) + '”</div>' : '';
     let banner = '';
-    if (d.status === 'submitted') banner = '<div style="' + CARD + ';padding:16px;background:#fff8e8;display:flex;flex-direction:column;gap:8px"><b style="font-size:16px;color:#5c4510">Sent for review</b>' +
-      paraHtml(mine ? 'We’ll get in touch soon. You can take it back to change something.' : 'Waiting for review.', '#5c4510') +
-      (mine ? '<span ' + on(() => draftCall('withdraw_group_draft', { p_draft: d.id }, 'Back to a draft')) + ' role="button" style="align-self:flex-start;font-size:14.5px;font-weight:800;color:#8f6405;cursor:pointer">Take it back to edit</span>' : '') + '</div>';
-    if (d.status === 'approved') banner = '<div style="' + CARD + ';padding:16px;background:#eaf7ef;display:flex;flex-direction:column;gap:8px"><b style="font-size:16px;color:#0f5a2f">' + esc(d.name || 'The group') + ' is open</b>' +
-      (d.review_note ? paraHtml('“' + esc(d.review_note) + '”', '#0f5a2f') : '') +
-      (d.group_id && groupById(d.group_id) ? '<button type="button" ' + on(() => openGroupPage(d.group_id, false, 'groups')) + ' style="' + primary(true) + '">Go to the group</button>' : '') + '</div>';
-    if (d.status === 'declined') banner = '<div style="' + CARD + ';padding:16px;background:#fdf1f3;display:flex;flex-direction:column;gap:8px"><b style="font-size:16px;color:#9b1c31">Not approved this time</b>' +
-      (d.review_note ? paraHtml('“' + esc(d.review_note) + '”', '#9b1c31') : '') +
-      (mine ? '<span ' + on(() => draftCall('withdraw_group_draft', { p_draft: d.id }, 'Back to a draft')) + ' role="button" style="align-self:flex-start;font-size:14.5px;font-weight:800;color:#9b1c31;cursor:pointer">Edit and send again</span>' : '') + '</div>';
-    // Asked onto the team
-    const askCard = meOn && !mine && (d.status === 'draft' || d.status === 'submitted') ? '<div data-draft-ask style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:10px;box-shadow:0 0 0 2px #5b4ae8">' +
-      '<b style="font-size:16.5px;color:#0d1117">' + esc(teamName(d.created_by)) + ' asked you to be ' + (meOn.role === 'admin' ? 'an admin' : meOn.role === 'ambassador' ? 'an ambassador' : 'co-lead') + '</b>' +
-      paraHtml(ROLE_LINE[meOn.role] || '') +
-      (meOn.status === 'invited'
-        ? '<div style="display:flex;gap:8px"><button type="button" data-draft-yes ' + on(() => draftCall('answer_draft_invite', { p_draft: d.id, p_yes: true }, 'You’re on the team')) + ' style="flex:1;' + primary(!st.busy) + '">Yes, I’m in</button>' +
-            '<button type="button" ' + on(() => draftCall('answer_draft_invite', { p_draft: d.id, p_yes: false }, 'We told them')) + ' style="flex:1;' + SECONDARY + '">Not now</button></div>'
-        : '<span style="font-size:14px;font-weight:700;color:' + (meOn.status === 'accepted' ? '#0f7a3c' : '#6b7280') + '">' + (meOn.status === 'accepted' ? 'You’re in.' : 'You said not now.') + '</span>' +
-          (meOn.status === 'declined' ? '<span ' + on(() => draftCall('answer_draft_invite', { p_draft: d.id, p_yes: true }, 'You’re on the team')) + ' role="button" style="font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">Changed your mind? I’m in</span>' : '')) + '</div>' : '';
-    // The group and its place
+    if (d.status === 'submitted') banner = stCard('#fff8e6', 'Sent. We’ll look it over.',
+      '<span style="font-size:14.5px;line-height:1.4;font-weight:500;color:#454b55;text-wrap:pretty">Usually within two days. We’ll tell you' + (coName ? ' and ' + esc(coName) : '') + ' either way.</span>' +
+      (mine ? '<span ' + on(() => draftCall('withdraw_group_draft', { p_draft: d.id }, 'Back to a draft')) + ' role="button" data-draft-unsend style="align-self:flex-start;font-size:14.5px;font-weight:800;color:#8f6405;cursor:pointer">Take it back to edit</span>' : ''));
+    if (d.status === 'approved') banner = stCard('#e7f6ec', esc(d.name || 'The group') + ' is open', note +
+      (d.group_id && groupById(d.group_id) ? '<button type="button" data-draft-go ' + on(() => openGroupPage(d.group_id, false, 'groups')) + ' style="' + reqBtn(true, '#149a4b') + '">Go to the group</button>' : ''));
+    if (d.status === 'declined') banner = stCard('#fdeef0', 'Not this time', note +
+      (mine ? '<button type="button" data-draft-again ' + on(() => draftCall('withdraw_group_draft', { p_draft: d.id }, 'Back to a draft')) + ' style="width:100%;min-height:54px;border:0;border-radius:999px;background:#fff;font-family:inherit;font-size:16.5px;font-weight:900;color:#9b1c31;cursor:pointer">Edit and send again</button>' : ''));
+    // The person asked sees their card first
+    const askCard = meOn && !mine && (d.status === 'draft' || d.status === 'submitted') ? reqAskedCard(d, meOn) : '';
+    // THE GROUP
     const find = st.reqFind || {};
-    const center = edit ? '<div style="display:flex;flex-direction:column;gap:8px">' + lbl('Where’s the middle of it?', 'A street, park or school near the center. It puts the area on the map neighbors see before joining.') +
-      '<div style="display:flex;gap:8px"><input class="fld" data-draft-center maxlength="80" placeholder="Search for a street or place" value="' + esc(find.q || '') + '" ' + onInput(e => { if (e.type === 'input') state.reqFind = Object.assign({}, state.reqFind, { q: e.target.value }); }) + ' style="flex:1;min-width:0;height:46px;border:2px solid #e3e5ec;border-radius:14px;padding:0 14px;font-family:inherit;font-size:16px;color:#0d1117">' +
-        '<button type="button" ' + on(() => findCenter((state.reqFind && state.reqFind.q) || '')) + ' style="flex:0 0 auto;min-height:46px;padding:0 16px;border:0;border-radius:999px;background:#0d1117;color:#fff;font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer">' + (find.busy ? '…' : 'Find') + '</button></div>' +
+    const center = edit ? '<div style="display:flex;flex-direction:column;gap:6px">' + lbl('Where’s the middle of it?') +
+      '<div style="display:flex;gap:8px"><label style="flex:1;min-width:0;min-height:48px;border-radius:999px;background:#f2f3f6;padding:0 14px;display:flex;align-items:center;gap:8px">' + svg(16, stroke('#9aa0ac', 2.4), '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>') +
+        '<input class="fld" data-draft-center maxlength="80" placeholder="A street, park or school" value="' + esc(find.q || '') + '" ' + onInput(e => { if (e.type === 'input') state.reqFind = Object.assign({}, state.reqFind, { q: e.target.value }); }) + ' style="flex:1;min-width:0;border:0;background:transparent;font-family:inherit;font-size:16px;font-weight:600;color:#0d1117;outline:none"></label>' +
+        '<button type="button" ' + on(() => findCenter((state.reqFind && state.reqFind.q) || '')) + ' style="flex:0 0 auto;min-height:48px;padding:0 18px;border:0;border-radius:999px;background:#0d1117;color:#fff;font-family:inherit;font-size:15px;font-weight:800;cursor:pointer">' + (find.busy ? '…' : 'Find') + '</button></div>' +
       (find.list && find.list.length ? '<div style="display:flex;flex-direction:column;border-radius:14px;overflow:hidden;box-shadow:inset 0 0 0 1.5px #e3e5ec">' + find.list.map(x => '<span ' + on(() => { setState({ reqFind: null }); draftSet(d.id, { place_lat: x.lat, place_lon: x.lon, place_radius_m: d.place_radius_m || 800 }, true); }) + ' role="button" style="padding:12px 14px;border-top:1px solid #f0f1f4;font-size:14.5px;font-weight:600;color:#0d1117;cursor:pointer">' + esc(x.label) + '</span>').join('') + '</div>'
-        : find.err ? '<span style="font-size:13.5px;color:#c0263d;font-weight:700">Couldn’t search just now. Try again.</span>' : find.q && !find.busy && find.list ? '<span style="font-size:13.5px;color:#6b7280;font-weight:600">Nothing found. Try a street name.</span>' : '') +
-      (d.place_lat != null ? lbl('How big is it?') + chips('place_radius_m', RADII, d.place_radius_m || 800) : '') + '</div>' : '';
+        : find.err ? '<span style="font-size:13.5px;color:#c0263d;font-weight:700">Couldn’t search just now. Try again.</span>' : find.q && !find.busy && find.list ? '<span style="font-size:13.5px;color:#6b7280;font-weight:600">Nothing found. Try a street name.</span>' : '') + '</div>' +
+      (d.place_lat != null ? field('How big is it?', chips('place_radius_m', RADII, d.place_radius_m || 800)) : '') : '';
+    const kinds = ['neighborhood', 'school', 'building'].concat(d.place_kind && ['neighborhood', 'school', 'building'].indexOf(d.place_kind) < 0 ? [d.place_kind] : []).map(k => [k, PLACE_KIND[k] || 'Other']);
+    const groupFilled = !!(d.name && d.place_name && d.purpose);
     const groupSec = edit ? sec('The group',
-        lbl('Name') + fld('name', 'Walnut Creek Neighbors', 40) +
-        lbl('The place', 'What neighbors call it. It doesn’t have to match a map.') + fld('place_name', 'Walnut Creek', 60) +
-        chips('place_kind', Object.keys(PLACE_KIND).map(k => [k, PLACE_KIND[k]]).concat([['other', 'Other']]), d.place_kind) +
-        center + (pl && pl.lat != null ? placeCard(pl, false) : '') +
-        lbl('What it’s for', 'One line neighbors see before they join.') + fld('purpose', 'Neighbors getting together, helping out and meeting each other', 200, 2))
-      : sec('The group', ro('Name', d.name) + ro('The place', d.place_name && d.place_name + (PLACE_KIND[d.place_kind] ? ' · ' + PLACE_KIND[d.place_kind] : '')) + (pl && pl.lat != null ? placeCard(pl, false) : '') + ro('What it’s for', d.purpose));
+        field('Name', fld('name', 'Walnut Creek Neighbors', 40, 0, !groupFilled)) +
+        field('The place', fld('place_name', 'Walnut Creek', 60, 0, !groupFilled), 'It doesn’t have to match a map.') +
+        chips('place_kind', kinds, d.place_kind, true) +
+        center + (pl && pl.lat != null ? placeCard(pl, false, 136).replace('margin-top:14px', 'margin-top:0') : '') +
+        field('What it’s for', fld('purpose', 'Block parties, park cleanups and a hand when someone needs one.', 200, 2, !groupFilled)), groupFilled)
+      : sec('The group', ro('Name', d.name) + ro('The place', d.place_name && d.place_name + (PLACE_KIND[d.place_kind] ? ' · ' + PLACE_KIND[d.place_kind] : '')) + (pl && pl.lat != null ? placeCard(pl, false, 136).replace('margin-top:14px', 'margin-top:0') : '') + ro('What it’s for', d.purpose), true);
+    // HOW IT'LL RUN
+    const RULE_SUB = { neighbors: 'People who live here.', nearby: 'People who live here or nearby.', everyone: 'Anyone with the link.' };
+    const runFilled = !!d.association;
     const runSec = edit ? sec('How it’ll run',
-        lbl('Who can join', 'You can change this any time after it opens.') + chips('join_rule', RULE_OPTS.map(([k, l]) => [k, l]), d.join_rule || 'everyone') +
-        lbl('Is there a neighborhood association or HOA?') + chips('association', ASSOC, d.association) +
-        (d.association && d.association !== 'none' ? fld('association_name', 'Its name', 80) : ''))
-      : sec('How it’ll run', ro('Who can join', RULE_SHORT[d.join_rule]) + ro('Association', (ASSOC.find(a => a[0] === d.association) || [])[1]) + ro('Its name', d.association_name));
+        field('Who can join', chips('join_rule', [['neighbors', 'Neighbors'], ['nearby', 'Nearby neighbors'], ['everyone', 'Everyone']], d.join_rule || 'everyone'), RULE_SUB[d.join_rule || 'everyone']) +
+        field('Part of an association?', chips('association', ASSOC, d.association) + (d.association && d.association !== 'none' && d.association !== 'unsure' ? fld('association_name', 'Its name', 80, 0, !runFilled) : '')), runFilled)
+      : sec('How it’ll run', ro('Who can join', RULE_SHORT[d.join_rule]) + ro('Association', (ASSOC.find(a => a[0] === d.association) || [])[1]) + ro('Its name', d.association_name), true);
+    // WHY, AND HOW IT'LL SPREAD
+    const whyFilled = !!((d.why || '').trim() && (d.spread || '').trim());
     const whySec = edit ? sec('Why, and how it’ll spread',
-        lbl('Why do you want to start it?') + fld('why', 'What’s happening in the neighborhood, and what you hope this changes', 1000, 3) +
-        lbl('How will neighbors hear about it?', 'Flyers, a newsletter, a sign at the park, knocking on doors. We can help with this.') + fld('spread', 'Your plan for the first few weeks', 1000, 3))
-      : (d.why || d.spread ? sec('Why, and how it’ll spread', ro('Why', d.why) + ro('Spreading the word', d.spread)) : '');
-    // The team
-    const tag = (s) => ({ invited: ['Asked', '#f2f3f6', '#454b55'], accepted: ['In', '#e8f6ee', '#0f7a3c'], declined: ['Not now', '#fdecef', '#9b1c31'] }[s]);
-    const teamRows = [['_lead', d.created_by]].concat(team.map(t => [t.role, t.user_id, t.status])).map(([role, uid, s]) => { const tg = s ? tag(s) : ['Lead', '#efedfd', '#4a3ad4'];
-      return '<div data-team-row style="display:flex;align-items:center;gap:12px;padding:8px 0">' + face(uid, teamName(uid), 36) +
-        '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:#0d1117">' + esc(uid === st.me ? 'You' : teamName(uid)) + '</div><div style="font-size:13px;font-weight:600;color:#6b7280">' + (role === '_lead' ? 'Lead · responsible for the group' : ROLE_NAME[role]) + '</div></div>' +
-        '<span style="padding:3px 9px;border-radius:999px;background:' + tg[1] + ';color:' + tg[2] + ';font-size:12px;font-weight:800">' + tg[0] + '</span>' +
-        (edit && role !== '_lead' ? '<span ' + on(() => draftCall('draft_uninvite', { p_draft: d.id, p_user: uid })) + ' role="button" aria-label="Take ' + esc(teamName(uid)) + ' off the team" style="flex:0 0 32px;width:32px;height:32px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(11, '#454b55', 2.6) + '</span>' : '') + '</div>'; }).join('');
-    const askBtns = edit ? '<div style="display:flex;flex-wrap:wrap;gap:8px">' + ['colead', 'admin', 'ambassador'].map(r => '<span ' + on(() => setState({ reqPick: r })) + ' role="button" data-ask-role="' + r + '" style="display:flex;align-items:center;gap:6px;min-height:40px;padding:0 14px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;font-size:14px;font-weight:800;color:#0d1117;cursor:pointer">+ ' + (r === 'colead' ? 'A co-lead' : r === 'admin' ? 'An admin' : 'An ambassador') + '</span>').join('') + '</div>' : '';
-    const teamSec = sec('The team', paraHtml('At least two people: you and a co-lead. A few admins and ambassadors make it much more likely to take off.') + teamRows + askBtns);
-    // Agreeing to lead
+        field('Why this group?', fld('why', 'What’s missing where you live…', 1000, 3, !whyFilled)) +
+        field('How will people hear about it?', fld('spread', 'Flyers, the HOA list, a porch party…', 1000, 3, !whyFilled)), whyFilled)
+      : (d.why || d.spread ? sec('Why, and how it’ll spread', ro('Why', d.why) + ro('Spreading the word', d.spread), true) : '');
+    // THE TEAM
+    const TAG = { invited: ['ASKED', '#fff4dc', '#8f6405'], accepted: ['IN', '#e7f6ec', '#0f7a3c'], declined: ['NOT NOW', '#eceef2', '#6b7280'] };
+    const teamRows = [['_lead', d.created_by, 'accepted']].concat(team.map(t => [t.role, t.user_id, t.status])).map(([role, uid, s2], i, all) => { const tg = TAG[s2] || TAG.invited;
+      return '<div data-team-row style="min-height:60px;display:flex;align-items:center;gap:12px;' + (i < all.length - 1 ? 'box-shadow:inset 0 -1px 0 #f2f3f6' : '') + '">' + face(uid, teamName(uid), 40) +
+        '<div style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:15.5px;font-weight:800;color:#0d1117">' + esc(uid === st.me ? 'You' : teamName(uid)) + '</span><span style="font-size:13px;font-weight:600;color:#6b7280">' + (role === '_lead' ? 'Lead · responsible for the group' : ROLE_NAME[role]) + '</span></div>' +
+        statusChip(tg[0], tg[1], tg[2]) +
+        (edit && role !== '_lead' ? '<span ' + on(() => draftCall('draft_uninvite', { p_draft: d.id, p_user: uid })) + ' role="button" aria-label="Take ' + esc(teamName(uid)) + ' off the team" style="flex:0 0 28px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(14, '#9aa0ac', 2.6) + '</span>' : '') + '</div>'; }).join('');
+    const coAsked = team.some(t => t.role === 'colead' && t.status !== 'declined');
+    const pill = (r, label, purple) => '<span ' + on(() => setState({ reqPick: r })) + ' role="button" data-ask-role="' + r + '" style="display:inline-flex;align-items:center;min-height:32px;padding:0 12px;border-radius:999px;font-size:13px;font-weight:800;cursor:pointer;' +
+      (purple ? 'color:#5b4ae8;box-shadow:inset 0 0 0 1.5px #c9c3ff' : 'color:#454b55;box-shadow:inset 0 0 0 1.5px #dcdfe6') + '">' + label + '</span>';
+    const askBtns = edit ? '<div style="display:flex;flex-wrap:wrap;gap:6px">' + (coAsked ? '' : pill('colead', '+ A co-lead', true)) + pill('admin', '+ An admin') + pill('ambassador', '+ An ambassador') + '</div>' : '';
+    const teamSec = sec('The team', '<div style="display:flex;flex-direction:column;margin-top:-4px">' + teamRows + '</div>' + askBtns, true, 'A lead and a co-lead are required. Admins help a lot.');
+    // WHAT LEADING MEANS (our wording, for the owner to check)
     const agreed = !!d.agreed_at;
-    const agreeSec = edit ? sec('What leading means', '<div style="display:flex;flex-direction:column;gap:6px">' +
-        ['Answer reports and keep the group kind and safe', 'Keep it open to the neighborhood, not a private club', 'No selling or political campaigning in the group', 'Make decisions together with your co-lead and team', 'Follow the community rules'].map(t => '<div style="display:flex;gap:8px;font-size:14.5px;line-height:1.4;font-weight:600;color:#2b303a"><span style="color:#149a4b;font-weight:900">✓</span>' + t + '</div>').join('') + '</div>' +
-        '<div ' + on(() => draftSet(d.id, { agreed_at: agreed ? null : new Date().toISOString() }, true), 'checkbox') + ' aria-checked="' + agreed + '" data-draft-agree style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;background:' + (agreed ? '#f3f1fe' : '#f7f7f9') + ';cursor:pointer">' +
-          '<span aria-hidden="true" style="flex:0 0 24px;width:24px;height:24px;border-radius:7px;display:flex;align-items:center;justify-content:center;' + (agreed ? 'background:#5b4ae8' : 'background:#fff;box-shadow:inset 0 0 0 2px #c3c7d0') + '">' + (agreed ? I.check(14, '#fff', 3) : '') + '</span>' +
-          '<span style="font-size:15px;font-weight:800;color:#0d1117">We’ll take this on together</span></div>') : '';
-    // Sending it
-    const missing = [!d.name && 'a name', !d.place_name && 'the place', !d.purpose && 'what it’s for', !d.association && 'the association question',
-      !team.some(t => t.role === 'colead' && t.status === 'accepted') && 'a co-lead who has said yes', !agreed && 'agreeing to what leading means'].filter(Boolean);
-    const sendSec = edit ? '<div style="display:flex;flex-direction:column;gap:8px">' +
-        (missing.length ? '<span style="font-size:14px;line-height:1.4;font-weight:600;color:#6b7280">Still needed: ' + missing.join(', ') + '.</span>' : '') +
-        '<button type="button" data-draft-send ' + on(() => { if (!missing.length) draftCall('submit_group_draft', { p_draft: d.id }, 'Sent for review'); }) + ' aria-disabled="' + !!missing.length + '" style="' + primary(!missing.length && !st.busy) + '">Send for review</button>' +
+    const MEANS = ['Keep it friendly and safe for everyone.', 'Welcome new people when they join.', 'Plan something, or help plan it, most months.', 'Look at reports within three days.', 'Hand it on if you need to step back.'];
+    const agreeSec = edit ? sec('What leading means', '<div style="display:flex;flex-direction:column;gap:9px;margin-top:-2px">' +
+        MEANS.map(t => '<div style="display:flex;gap:10px;align-items:flex-start;font-size:15px;line-height:1.35;font-weight:500;color:#0d1117"><span style="flex:0 0 16px;margin-top:2px">' + svg(16, stroke('#149a4b', 3), '<path d="M5 12.5l4.5 4.5L19 7.5"/>') + '</span>' + t + '</div>').join('') + '</div>' +
+        '<div ' + on(() => draftSet(d.id, { agreed_at: agreed ? null : new Date().toISOString() }, true), 'checkbox') + ' aria-checked="' + agreed + '" data-draft-agree style="min-height:52px;border-radius:14px;padding:0 14px;display:flex;align-items:center;gap:12px;cursor:pointer;background:' + (agreed ? '#e7f6ec' : '#f2f3f6') + '">' +
+          '<span aria-hidden="true" style="flex:0 0 24px;width:24px;height:24px;border-radius:7px;display:flex;align-items:center;justify-content:center;' + (agreed ? 'background:#149a4b' : 'background:#fff;box-shadow:inset 0 0 0 2px #c9ccd3') + '">' + (agreed ? I.check(14, '#fff', 3) : '') + '</span>' +
+          '<span style="font-size:15.5px;font-weight:800;color:#0d1117">We’ll take this on together</span></div>', true) : '';
+    // Still needed, then Send for review (grey until nothing's needed) and Delete draft
+    const missing = [!d.name && 'a name', !d.place_name && 'the place', !d.purpose && 'what it’s for', !coAsked && 'a co-lead', coWait && firstName(teamName(coWait.user_id)) + '’s yes',
+      !whyFilled && 'why, and how it’ll spread', !d.association && 'the association question', !agreed && 'the checkbox'].filter(Boolean);
+    const sendSec = edit ? '<div style="display:flex;flex-direction:column;gap:10px;padding:0 2px">' +
+        '<span data-still-needed style="font-size:13.5px;font-weight:600;color:#6b7280;text-align:center;text-wrap:pretty">' + (missing.length ? 'Still needed: ' + esc(missing.join(' · ')) : 'Ready when you are.') + '</span>' +
+        '<button type="button" data-draft-send ' + on(() => { if (!missing.length) draftCall('submit_group_draft', { p_draft: d.id }, 'Sent for review'); }) + ' aria-disabled="' + !!missing.length + '" style="' + reqBtn(!missing.length && !st.busy) + '">Send for review</button>' +
         '<span ' + on(() => setState({ confirm: { title: 'Delete this draft?', body: 'The team you asked won’t see it any more.', cta: 'Delete draft', keep: 'Keep it', danger: true,
-          run: async () => { setState({ confirm: null }); const r = await sb.from('group_drafts').delete().eq('id', d.id); if (r.error) return toast(failed(r.error)); await loadDrafts(); go('request', { reqId: null }); toast('Draft deleted', true); } } })) + ' role="button" style="align-self:center;min-height:40px;display:flex;align-items:center;font-size:14.5px;font-weight:800;color:#9b1c31;cursor:pointer">Delete draft</span></div>' : '';
-    // The app owner's review
+          run: async () => { setState({ confirm: null }); const r = await sb.from('group_drafts').delete().eq('id', d.id); if (r.error) return toast(failed(r.error)); await loadDrafts(); go('request', { reqId: null }); toast('Draft deleted', true); } } })) + ' role="button" data-draft-delete style="align-self:center;min-height:44px;display:flex;align-items:center;font-size:15px;font-weight:800;color:#c0263d;cursor:pointer">Delete draft</span></div>' : '';
+    // 3f: the app owner's review (drawing only; the build's YOUR REVIEW card)
     const reviewSec = owner && d.status === 'submitted' ? sec('Your review',
-        paraHtml('Talk to them first. Approving opens the group with the starter and co-leads as owners, admins as admins and ambassadors as members.') +
-        '<textarea class="fld" data-draft-note rows="2" maxlength="500" placeholder="A note for them (optional)" ' + onInput(e => { if (e.type === 'input') state.reqNote = e.target.value.slice(0, 500); }) + ' style="width:100%;border:2px solid #e3e5ec;border-radius:14px;padding:12px 14px;font-family:inherit;font-size:16px;color:#0d1117">' + esc(st.reqNote || '') + '</textarea>' +
-        '<div style="display:flex;gap:8px"><button type="button" data-draft-approve ' + on(() => draftCall('approve_group_draft', { p_draft: d.id, p_note: state.reqNote || null }, (d.name || 'The group') + ' is open', { reqNote: '' })) + ' style="flex:1;' + primary(!st.busy) + '">Approve</button>' +
-        '<button type="button" ' + on(() => draftCall('decline_group_draft', { p_draft: d.id, p_note: state.reqNote || '' }, 'Declined', { reqNote: '' })) + ' style="flex:1;' + SECONDARY + '">Decline</button></div>') : '';
+        '<textarea class="fld" data-draft-note rows="3" maxlength="500" placeholder="A note for ' + esc([firstName(teamName(d.created_by)), coName].filter(Boolean).join(' and ')) + '…" ' + onInput(e => { if (e.type === 'input') state.reqNote = e.target.value.slice(0, 500); }) + ' style="' + FLD + 'background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;min-height:88px;padding:12px 14px;font-weight:500">' + esc(st.reqNote || '') + '</textarea>' +
+        '<div style="display:flex;gap:8px"><button type="button" data-draft-approve ' + on(() => draftCall('approve_group_draft', { p_draft: d.id, p_note: state.reqNote || null }, (d.name || 'The group') + ' is open', { reqNote: '' })) + ' style="flex:1;' + reqBtn(!st.busy, '#149a4b') + '">Approve</button>' +
+        '<button type="button" ' + on(() => draftCall('decline_group_draft', { p_draft: d.id, p_note: state.reqNote || '' }, 'Declined', { reqNote: '' })) + ' style="flex:1;min-height:54px;border:0;border-radius:999px;background:#f2f3f6;font-family:inherit;font-size:16.5px;font-weight:900;color:#0d1117;cursor:pointer">Decline</button></div>', true) : '';
     return '<div data-screen-label="Group request" style="background:#e8eaee;min-height:100%">' +
-      head6(d.name || 'New group', backBtn6(back)) +
-      '<section style="padding:16px;display:flex;flex-direction:column;gap:14px">' +
-        '<span style="align-self:flex-start;padding:4px 10px;border-radius:999px;background:' + c[1] + ';color:' + c[2] + ';font-size:11px;font-weight:900;letter-spacing:.8px">' + c[0] + '</span>' +
+      reqHead(d.name || 'New group', back, draftChip(d.status)) +
+      '<section style="padding:14px 14px 40px;display:flex;flex-direction:column;gap:18px">' +
         askCard + banner + reviewSec + groupSec + runSec + whySec + teamSec + agreeSec + sendSec +
       '</section><div style="height:92px"></div>' +
       (st.reqPick && edit ? viewDraftPick(d) : '') + '</div>';
   }
 
-  // Ask someone onto the team: your friends, minus anyone already asked
+  // 3c: Ask a co-lead (or an admin, an ambassador): a centred pop-up; the group's name over the title, the role's line,
+  // your friends (minus anyone already asked) with a purple Ask pill, and Not on your list? Add them as a friend first.
   function viewDraftPick(d) {
     const st = state, role = st.reqPick, close = () => setState({ reqPick: null });
+    const title = 'Ask ' + (role === 'colead' ? 'a co-lead' : role === 'admin' ? 'an admin' : 'an ambassador');
     const taken = teamOf(d.id).filter(t => t.status !== 'declined').map(t => t.user_id);
     const fr = (st.fr.friends || []).filter(f => taken.indexOf(f.id) < 0);
-    return modal('Ask ' + (role === 'colead' ? 'a co-lead' : role === 'admin' ? 'an admin' : 'an ambassador'), close,
-      h3Html('Ask ' + (role === 'colead' ? 'a co-lead' : role === 'admin' ? 'an admin' : 'an ambassador')) + paraHtml(ROLE_LINE[role] + ' They’ll get a notification and say yes in the app.') +
-      (fr.length ? '<div style="display:flex;flex-direction:column;max-height:50vh;overflow-y:auto">' + fr.map(f => '<div ' + on(() => draftCall('draft_invite', { p_draft: d.id, p_user: f.id, p_role: role }, 'Asked ' + shortName(f.name), { reqPick: null })) + ' role="button" data-pick-friend style="display:flex;align-items:center;gap:12px;padding:10px 4px;border-top:1px solid #f0f1f4;cursor:pointer">' +
-          avatarSpan(f.id, f.name, PHOTO_PATH.test(f.avatar || '') ? photoUrl(f.avatar) : null, 36) + '<span style="flex:1;font-size:15px;font-weight:800;color:#0d1117">' + esc(shortName(f.name)) + '</span><span style="font-size:14px;font-weight:800;color:#5b4ae8">Ask</span></div>').join('') + '</div>'
-        : paraHtml('Add them as a friend first: share your friend link from My friends, then ask them here.')),
-      { z: 40 });
+    return '<div class="modal-scrim" data-scrim="' + reg(close) + '" style="z-index:40;background:rgba(13,17,23,.5);padding:20px">' +
+      '<div role="dialog" aria-modal="true" aria-label="' + title + '" style="position:relative;width:100%;max-width:353px;max-height:88%;overflow-y:auto;background:#fff;border-radius:24px;padding:22px 18px 18px;display:flex;flex-direction:column;gap:14px;box-shadow:0 24px 60px rgba(15,18,25,.3);animation:popIn 240ms cubic-bezier(.22,.9,.28,1) both">' +
+        '<div style="display:flex;align-items:flex-start;gap:10px"><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px"><span style="' + REQ_EYEBROW + ';overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(d.name || 'New group') + '</span>' +
+          '<span style="font-size:22px;font-weight:900;letter-spacing:-.5px;color:#0d1117">' + title + '</span></div>' + closeX(close) + '</div>' +
+        '<p style="margin:0;font-size:14.5px;line-height:1.4;font-weight:500;color:#454b55;text-wrap:pretty">' + ROLE_LINE[role] + '</p>' +
+        (fr.length ? '<div style="display:flex;flex-direction:column">' + fr.map((f, i) => '<div data-pick-friend style="min-height:58px;display:flex;align-items:center;gap:12px;' + (i < fr.length - 1 ? 'box-shadow:inset 0 -1px 0 #f2f3f6' : '') + '">' +
+            avatarSpan(f.id, f.name, PHOTO_PATH.test(f.avatar || '') ? photoUrl(f.avatar) : null, 40) + '<span style="flex:1;min-width:0;font-size:16px;font-weight:800;color:#0d1117;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(shortName(f.name)) + '</span>' +
+            '<span ' + on(() => draftCall('draft_invite', { p_draft: d.id, p_user: f.id, p_role: role }, 'Asked ' + firstName(shortName(f.name)) + ' to ' + (role === 'colead' ? 'co-lead' : role === 'admin' ? 'be an admin' : 'be an ambassador'), { reqPick: null })) + ' role="button" class="hov-primary" style="flex:0 0 auto;min-height:36px;padding:0 16px;border-radius:999px;background:#5b4ae8;color:#fff;display:flex;align-items:center;font-size:14.5px;font-weight:800;cursor:pointer">Ask</span></div>').join('') + '</div>' : '') +
+        '<span style="font-size:13.5px;font-weight:600;color:#6b7280;text-align:center">Not on your list? <span ' + on(() => { close(); go('friends'); }) + ' role="button" style="font-weight:800;color:#5b4ae8;cursor:pointer">Add them as a friend first ›</span></span>' +
+      '</div></div>';
   }
 
   // Welcome is what signed-out visitors see for Home (and Profile / a group page, which need an account)
