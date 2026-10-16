@@ -31,6 +31,21 @@ The one thing it must never become: a place where people dump everything that we
 | Framing of *next time* | Always positive: *If and when we do this again, what would give you more joy?* Lead with **what I could do differently**, before anything aimed at the organisers. |
 | Friction | Low. Not many touchpoints. Both steps should be quick. |
 
+### The owner's answers to the open questions (2026-10-16, later the same day)
+
+| | Decision |
+|---|---|
+| Building | **Waits for this round.** Nothing is built until Design draws it. |
+| The gate | **Order only.** One sitting: *next time* opens right after you share joy. No time gate, no second push for it. |
+| The after-event push | **The morning after** (Joseph's timing), about 9–10am Central. By then the event is past, so the push opens the past event page. |
+| Who sees what | **Joy is public** on the page (counts, moments, who was thanked, *I could…*). ***More joy next time* wishes are public too, from day 2**, grouped and counted (not a stream); hosts see them first, in their digest. |
+| Thanks for the host | **The lead's face is pre-picked** under *Thank someone* in step 1; one tap undoes it. |
+| *I'd come again* | One tap in step 1: **I'd come again · invite me next time.** It builds **a list of names for the next lead**: whoever plans the next similar event (*Do it again*, the *Last time* card) sees who asked to be invited. |
+| Guests without an account | **Can fill the card on the page** (from the event link). They get no push. |
+| Voice notes | **Later, not v1.** Leave room for one (e.g. beside *A moment you loved*). |
+
+Still the owner's to edit: the chip wording (both lists, plus Joseph's *how it felt* chips), and whether the counts feed event memory.
+
 ## 4. The flow the build sketched with the owner (please challenge it)
 
 **One card, two steps, one sitting.** The order is the gate, so there's no second visit.
@@ -42,10 +57,10 @@ The one thing it must never become: a place where people dump everything that we
    - **Skip this part** is always there.
 3. **The lead does the same card.** Step 1 thanks their helpers; step 2 is private and replaces today's *Anything to change for next time?* card, still feeding the *Last time* card when they plan the next one.
 
-**Who sees what:**
+**Who sees what** (see the answers in §3: wishes are public from day 2):
 - **Joy is public**, at the top of the event page in a *How it felt* section: the album, counts (*9 loved the people · 7 loved being outside*), a few quoted moments, and who was thanked.
 - ***I could…* is public as a celebration**: *5 will bring a friend next time.*
-- ***More joy next time* goes to the hosts only**, grouped and counted, never as a stream, and not before day 2. The host's digest opens with what people loved, then what they'll do next time, then their wishes.
+- ***More joy next time*** is grouped and counted, never a stream, and shows from day 2: to the hosts in their digest, and on the page for everyone (the owner, §3). The host's digest opens with what people loved, then what they'll do next time, then their wishes.
 
 **Discussion on a past event:** for the first two days its box asks *What gave you joy?*. A nudge, not a lock.
 
@@ -54,7 +69,7 @@ The one thing it must never become: a place where people dump everything that we
 | When | Who | Copy (draft) | Opens |
 |---|---|---|---|
 | ~30–45 min after the start | Going | *📸 {Event} is happening · Snap a photo for the album.* | The event, photo picker ready |
-| ~1 hour after the end (10am next day if it ends late) | Who went | *How was {Event}? · What gave you joy? Thank {Lead} and the helpers.* | The joy card |
+| The morning after, ~9–10am Central (the owner, §3) | Who went | *How was {Event}? · What gave you joy? Thank {Lead} and the helpers.* | The joy card |
 | Same | The lead and co-hosts | *Thank your helpers, add photos, and share what gave you joy.* | The joy card |
 | Day 2, only if they did nothing | Who went | *Still time to thank {Lead} · Add your photos from {Event}.* (joy only) | The joy card |
 | Day 2, evening | Hosts | *What people loved at {Event} · 9 loved the people. 5 want to bring a friend next time.* | The digest |
@@ -72,9 +87,7 @@ Each goes once per event (once per day for an *Each day* event), skips cancelled
 
 ## 6. Still open (the owner hasn't decided)
 
-- Are *more joy next time* wishes **hosts only** (the build's suggestion) or public after day 2?
-- Do **guests without an account** get the card? They can fill it on the page, but a push needs a device.
-- **The chip lists**: their wording is the tone of the whole thing. The owner will edit them.
+- **The chip lists**: their wording is the tone of the whole thing. The owner will edit them. Please draw with Joseph's *how it felt* chips too (*The pace · Room to just talk · Laughing · Easy, not over-planned · The quiet moments*).
 - Does *Next time, I could… Help with a job* become **a real ask** when the next similar event is posted, or stay a count?
 - Should the counts feed **event memory** (`event_summaries`), so the next lead of a similar event sees *Last time people loved the people and being outside*?
 
@@ -86,4 +99,4 @@ Each goes once per event (once per day for an *Each day* event), skips cancelled
 - **Habit comes from repetition**, so the prompt should look and arrive the same way every time.
 - **What to capture:** the small things that made it work: the pace, room for silence and laughter, structure without too much structure.
 
-What this suggests for the drawing (the owner hasn't decided yet): the joy push arrives **the morning after**; step 1 includes **I'd come again · invite me next time**; the card shows the first few people's joy to set the tone; *how it felt* chips such as *The pace · Room to just talk · Easy, not over-planned*; thanks for the host comes first. Voice notes are a later idea; leave room for one.
+What the owner took from it (§3, answers): the joy push arrives **the morning after**; step 1 has **I'd come again · invite me next time** (a list for the next lead); thanks for the host comes first (the lead's face pre-picked); voice notes later, with room left for one. Still for Design to try: the card showing the first few people's joy to set the tone (*Dee and Sam loved the people*), and the *how it felt* chips.

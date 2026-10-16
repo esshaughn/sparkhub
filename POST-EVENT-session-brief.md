@@ -89,6 +89,9 @@ The morning after also fits the code: the event has turned `done` by then (`phas
 
 ## 5. Decisions to get from the owner before building
 
+**Answered 2026-10-16 (owner, on their computer):** 1 **wait for Design** (build nothing until Q57 comes back); 2 order only; 3 the morning after; 4 **wishes public from day 2** (not hosts only), joy public; 5 the lead's face pre-picked; 6 a list for the next lead; 7 guests can fill it on the page; 9 voice notes later. Still open: 8 (chip wording) and 10 (event memory). All recorded in `POST-EVENT-for-design.md` §3. When Design's round arrives, start at §6 Phase 1.
+
+
 Ask these together (AskUserQuestion), recommendation first:
 
 1. **Build now as owner calls, or wait for Design's round?** (`POST-EVENT-for-design.md` / Q57 is with Design.) If building now, record each in `HANDOFF-to-DESIGN.md` → *Owner calls that stand* and §2.
