@@ -77,3 +77,13 @@ Each goes once per event (once per day for an *Each day* event), skips cancelled
 - **The chip lists**: their wording is the tone of the whole thing. The owner will edit them.
 - Does *Next time, I could… Help with a job* become **a real ask** when the next similar event is posted, or stay a count?
 - Should the counts feed **event memory** (`event_summaries`), so the next lead of a similar event sees *Last time people loved the people and being outside*?
+
+## 7. Joseph's input (a tester, voice notes 2026-10-16)
+
+- People are always on to the next thing and rarely stop to say what went well. He wants **each person's** experience, since people get different things from the same night. After Stacy's sit-down dinner he sent her a recap **voice message**, and she valued it.
+- It **can't feel like a task**: a short version for most people (*Would you do this again? What did you get out of it?*), **a couple of people sharing first to set the tone**, and asking whether they **want to be invited to the next one**.
+- **The host should feel appreciated.** A small thank-you makes them likelier to host again and gives them confidence.
+- **Habit comes from repetition**, so the prompt should look and arrive the same way every time.
+- **What to capture:** the small things that made it work: the pace, room for silence and laughter, structure without too much structure.
+
+What this suggests for the drawing (the owner hasn't decided yet): the joy push arrives **the morning after**; step 1 includes **I'd come again · invite me next time**; the card shows the first few people's joy to set the tone; *how it felt* chips such as *The pace · Room to just talk · Easy, not over-planned*; thanks for the host comes first. Voice notes are a later idea; leave room for one.
