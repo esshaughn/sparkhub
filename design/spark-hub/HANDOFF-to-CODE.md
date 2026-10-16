@@ -1,3 +1,80 @@
+# Spark Hub v9 · HANDOFF-to-CODE (round v9-1)
+
+**Reply to HANDOFF-to-DESIGN-19 and -20 (Oct 16, 2026).** Everything below is **Build** unless it says otherwise. Prototype: `Spark Hub App Version 9.dc.html` (all app pieces merged in). Reference drawings: `Spark Hub Landing Page.dc.html` (website), `Spark Hub Join and Start a Group.dc.html` (2a–3f), `Spark Hub Place and Dashboard.dc.html` (4a–4d), `Spark Hub Friend Groups.dc.html` (5a–5c, 5b picked), `Spark Hub Joy First Debrief.dc.html` + `Joy First Debrief Options.dc.html` (Q57). Colours, type and radii are the design system's; nothing new was added to it.
+
+**Drawn but not clickable in the app file** (see the reference drawings): 2c rule-changed line · 3f owner's review · 4b *Where's the middle* search + Find · 4c city shape · the thanked helper's bell line and Me row · the three notification switches.
+
+## 1. The website (Q54)
+- **One long page** at `/welcome` with five sections in this order: Welcome · How it works · Pricing · For neighborhoods · The beta. The sticky bar's links (How it works · Pricing · For neighborhoods · The beta) scroll to each section and highlight the one in view. The old five paths (`/how-it-works`, `/pricing`, `/neighborhoods`, `/beta`) redirect to the section anchors (`#how-it-works`, `#pricing`, `#neighborhoods`, `#beta`).
+- The Welcome hero headline breaks as **Plans with / your people.** The beta band shows **only** in its own section (not repeated under Welcome).
+- **Q54 answer:** the app's own Welcome (Sign in, invite links) keeps its current look for now. Revisit once the website is live.
+
+## 2. The join moment (2a–2c)
+- **Place card** (invite landing and *Join {group}?*): #f4f5f8 card, 18px corners. The map on top (118px on the landing, 104px in the pop-up; the group's area as a #5b4ae8 circle at 15% fill with a 2px #5b4ae8 ring), then a row: purple pin · **{place}** (15.5/900) · grey *· Neighborhood* (13/600 #6b7280); the purpose (14/500 #454b55); *Is this the one you want to join?* (13.5/700 ink).
+- **How are you connected to {place}?** (17/900 on the landing, 15.5/900 in the pop-up). Three 38px pills: white with a 1.5px #dcdfe6 ring; picked: #5b4ae8 with white text and a ✓; not allowed by the rule: #f2f3f6 with #b9bcc4 text, not tappable. The rule line in grey under them (*This group is for people who live here or nearby.*).
+- **Join** stays grey (#d5d8df) until a pill is picked. Landing: **Join {group}**; signed-in pop-up: **Join as {first name}**.
+- **Rule changed meanwhile (2c):** a #fdeef0 box (14px corners, #9b1c31 13.5/700, info icon): *The group just changed who can join. Nearby isn't open any more.*; the pill turns inactive, Join goes grey.
+- **Join by code** now opens the *Join {group}?* pop-up with the card and the question before joining (prototype: any 6-digit code except 000000).
+- Interest-group names in the demo are renamed (*Mueller Neighbors*, *Barton Hills Neighbors*).
+
+## 3. Starting a group (3a–3f)
+- Every *Start a group* entry opens `#/request` (replaces the *Groups start by request* pop-up).
+- **Intro card:** white, 22px corners. Top band in the Spark gradient (`--grad-spark-soft`) with two ✦: eyebrow *A GROUP FOR WHERE YOU LIVE* and **Starting a group is a big deal** (26/900). Then the responsibility paragraph, three steps on 28px purple circles (**Draft it** · **Build the team** · **Open it**, each with a grey line), the associations line, and **Start a draft** (54px purple; *Open your draft* once one exists). This is the screen's one use of the gradient.
+- **Asked onto (the person asked):** at the top of the list, a white card with a 4px #5b4ae8 top inset: the asker's 44px face, **{Name} asked you to be co-lead** (19/900), a #f4f5f8 box (group name, pin, place · kind · size), the role line, **Yes, I'm in** (purple) / **Not now** (#f2f3f6). After Yes: a #e7f6ec row *✓ You're in. We told {Name}.*
+- **YOUR REQUESTS:** 64px rows, name (15.5/800) · grey line · status chip (11/900, .6 tracking): DRAFT #eceef2/#454b55 · IN REVIEW #fff4dc/#8f6405 · OPEN #e7f6ec/#0f7a3c · NOT APPROVED #fdeef0/#9b1c31.
+- **The draft:** a white header with the group name and the status chip, then section cards with grey caps eyebrows: THE GROUP · HOW IT'LL RUN · WHY, AND HOW IT'LL SPREAD · THE TEAM · WHAT LEADING MEANS. As on Plan an event, an **empty card is #dfe2e7 with no shadow and turns white once filled**.
+  - THE TEAM rows (60px): 40px face, name, role (*Lead · responsible for the group*, *Co-lead*, *Admin*, *Ambassador*), chip IN / ASKED / NOT NOW, ✕ to remove. Pills: **+ A co-lead** (purple ring, shown until one is asked) · **+ An admin** · **+ An ambassador**.
+  - WHAT LEADING MEANS: five lines with green ✓ (our wording, please check with the owner): *Keep it friendly and safe for everyone. · Welcome new people when they join. · Plan something, or help plan it, most months. · Look at reports within three days. · Hand it on if you need to step back.* Then a 52px #f2f3f6 checkbox row **We'll take this on together** (green when ticked).
+  - *Still needed: a co-lead · Hana's yes · why, and how it'll spread · the checkbox* (13.5/600 grey, centred), **Send for review** (grey until nothing's needed), red **Delete draft**.
+- **Ask a co-lead:** centred pop-up (353px, 24px corners): eyebrow = the group name, **Ask a co-lead**, the role line, friends as 58px rows with a purple **Ask** pill, and *Not on your list? Add them as a friend first.* Toast *Asked Hana to co-lead*; when they accept, toast *Hana said yes. She's co-lead.*
+- **States:** In review: a #fff8e6 card at the top of the draft: **Sent. We'll look it over.** · *Usually within two days. We'll tell you and {co-lead} either way.* · **Take it back to edit** (#8f6405). Open: #e7f6ec card, **{Group} is open**, the owner's note in a white box, green **Go to the group**. Not approved: #fdeef0 card, **Not this time**, the note, **Edit and send again** (white, #9b1c31).
+- **The app owner's review (3f, drawing only):** the request's place card and team summary, a YOUR REVIEW card with a note field and **Approve** (green) / **Decline** (#f2f3f6).
+
+## 4. Place & purpose and the Dashboard (4a–4d; Q53, Q55)
+- **Group ⋯ → ADMINS ONLY** gains **Dashboard** (right: *+N this month*) and **Place & purpose** (right: the place, or *Not set*), after *Members can invite people*, before Reports.
+- **Place & purpose sheet:** slide-up. Eyebrow = the group name, **Place & purpose**, *Neighbors see this before they join.* The place (field + Neighborhood / School / Building chips, picked = ink). **The area:** a two-way switch **A circle** · **City map shape** with a gold REQUEST chip (**Q55:** room left for real boundaries; when built, the same card shows the outline at the same 15% purple and nothing else changes, see 4c). Search the middle + black **Find**; size chips ¼ mile · ½ mile · 1 mile · 2 miles (the circle resizes with a 260ms ease). The place card. What it's for (200 characters, counter). **Save** (toast *Saved*).
+- **Dashboard sheet (Q53 answer):** lead with one plain sentence, not a chart. A #e7f6ec card: eyebrow *OCTOBER SO FAR* (green caps), **{N} people went to something. That's {X}% more than {last month}.** (23–24/900), then *{joined} joined · {helped} helped out* (#0f7a3c). Under it, three #f2f3f6 tiles (members · active, last 30 days · private get-togethers, 30 days), then PEOPLE GOING, BY MONTH: six bars (#cfc9ff, picked #5b4ae8, value above each), month labels under. Tapping a bar or a row of the MONTH BY MONTH table (#f4f5f8, MONTH · JOINED · EVENTS · GOING · HELPED, newest first) highlights that month in both (#ece9fd row). Footnote in #9aa0ac on what active means and that private get-togethers are counted, never shown. When last month was bigger, the sentence says so plainly (*{N} people went to something this month.*) with no percentage.
+
+## 5. Friend groups: **5b, a shared group** (Q52 answer, owner Oct 16)
+- **Working name: crew** (*Your crews*, *+ Start one*). Owner, please confirm or rename.
+- **My friends → YOUR CREWS** sits above YOUR LISTS. Each crew is a 150px photo card (20px corners, dark bottom fade): name (21/900 white), *NEXT · {DAY} · {title}* in #cfc9ff, up to three faces, a pink unread count. *+ Start one* carries a gold REQUEST chip in this round.
+- **The crew's page:** a 210px photo header (back button on a dark blurred circle, name 28/900, *{N} friends · everyone here sees this*, faces), then on the grey page:
+  - **The next plan, pinned** (white, 20px corners: 64px thumb, *PINNED · NEXT UP · {DAY}* in green 11/900, the title, *{time} · N going*, an inline **Going?** pill, ✓ Going on #e7f6ec).
+  - **The standing calendar** (*Every other Sunday*): four 1fr date tiles, the next one green with its plan name, open ones white *Open*, the last outlined *Skip?*.
+  - **A simple thread:** face + white bubble (4px top-left corner), name · time, text.
+  - A fixed bottom bar (white .96, blur 12px): *Say something to the crew…* field and a 46px purple send button.
+- Lists stay for now (they're still how *Invite people* picks people, 5c). Retire them once crews ship, or keep them as a private shortcut; owner's call.
+- **List/crew chips on Invite people (5c):** a scrolling row under Search friends, 38px pills (#f2f3f6, ink; picked #5b4ae8 with ✓), *{name} {N}* where N is who on it can still be invited. Hidden while searching.
+
+## 6. After the event, joy first (Q57; picks 1a · 2b · 3a · 4c · 6b · 7c; 5 left out for now)
+- **The past event page is still the event page.** Order: the photo with the tilted **🥳 It happened!** stamp (as built) → the **joy card** → **How it felt** → *I'd come again* → the album → **What to expect** (description, date · place) → **Who helped** (each sign-up with up to three faces) → **Who came · N** (N = the same number as the hero's *N went*) → **Discussion** → *Do it again?* → *Wrong date? / Delete*.
+- **Joy card (2b + 7c):** white, 20px corners, **3px #f5b428 top inset**. **What gave you joy?** (lead: **How did it feel to lead it?**), a line, then **the first moment someone shared** in a #fdf6e3 box (28px face, quote 14.5/600 #2a1d00, name #8f6405) to set the tone, then a 48px gold **Share your joy** (#f5b428, text #2a1d00). After: *Thanks for sharing your joy* with a 🙏 tile; if they skipped step 2, **Add ideas for next time ›**.
+- **How it felt (4c, quotes first):** up to three quotes (32px face, 16/700 ink, name under), then a quiet *Most loved: {top three, lower case}* (13.5/600 grey). Under a hairline: THANKS GIVEN pills (#fff8e6, 26px face, *{Name} · 🙏 N*, #8f6405), then a #e7f6ec line *Next time: 5 will bring a friend, 3 will help with a job.* **From day 2:** a #f7f6ff box *MORE JOY NEXT TIME* with the wishes grouped and counted (*More time to talk · 4 · Food after · 3*), no names, no stream.
+- **I'd come again row:** faces + **{N} would come again** · *Whoever plans the next one sees who asked.* (lead: *They'll be on your invite list when you do it again.*).
+- **The card, step 1** (slide-up, two gold step bars): **What made {Event} good?** · *Tap any that fit.* Chips (**6b**, Joseph's wording, still the owner's to edit): *The pace · Room to just talk · Laughing · Easy, not over-planned · The quiet moments* plus **+ Write your own** (opens a 40-character field; the text then shows as a picked chip). Picked: #f3f1fe, 2px #5b4ae8 ring, #4a3ad4.
+  - **Thank someone** (lead: *Thank your helpers*): 50px faces with name and what they did; **the lead is pre-picked** (someone who went); picked = a 3px white + 2px #e8a71c ring and a 🙏 (**3a**).
+  - *A moment you loved · optional* (140 characters) with **Voice note** + gold REQUEST chip beside the label (room for later).
+  - **I'd come again · Invite me next time** (56px row, green when ticked; not shown to the lead).
+  - Guests without an account also get *Your first name* (*So {Lead} knows who it's from*).
+  - Button: *Tap what gave you joy* (grey) until one chip or own text, then **Share my joy**. *Not now*.
+- **Step 2** (same sheet, both bars gold): a #fff8e6 line *Thanks! {Names} will see your thanks. One more, if you want.*, **If we do this again…**, NEXT TIME, I COULD… (green-picked chips: *Bring a friend · Help with a job · Come early to set up · Take photos · Lead part of it · Stay to clean up*), WHAT WOULD GIVE YOU MORE JOY? (*More time to talk · A different time · Something for kids · More people · Food after*) + optional line, the privacy line, **Done** and **Skip this part**. Toasts *Shared. Thank you!* / *Your joy is shared*.
+  - **The lead's step 2 is private** and replaces *Anything to change for next time?* (that card is now hidden): the field reads *Anything to change for next time?* and the line *Only you and your co-leads see this. It shows again when you plan the next one.*
+- **The photo moment (during):** a slide-up: *HAPPENING NOW* (green 11.5/900), **📸 Snap one for the album**, *{Event} is happening now. Snap one while it's going.*, three tiles (the photos so far, then *Yours goes here*), **Take a photo** (opens the camera), *Not now*, and *Anyone going can add photos. They go up on the event once it's over.*
+- **Pushes and the bell** (each once per event, none for guests, skip cancelled/test/demo):
+  - ~40 min in · everyone going · *📸 {Event} is happening · Snap a photo for the album.* → the event with the photo sheet open (bell glyph ◉ on #5b4ae8).
+  - The morning after, ~9:30am Central · who went · *How was {Event}? · What gave you joy? Thank {Lead} and the helpers.* → the past event with step 1 open (bell glyph ✦ on #f5b428).
+  - Same time · the lead and co-leads · *Thank your helpers for {Event} · Add photos and share what gave you joy.*
+  - Day 2, 10am · only who did nothing yet · *Still time to thank {Lead} · Add your photos from {Event}.* (goes away once they share).
+- **A thanked helper gets:** one grouped bell line per event (*{Name} and N others thanked you for {job} 🙏*), one push, and a *Thanks you've had · N* row on Me under Your impact.
+- **Notification settings:** three switches: *Photo reminder during events* · *How was it?* (*The morning after an event you went to*) · *When someone thanks you* (*One push per event, grouped*).
+- **Not in this round:** the lead's day-2 digest (piece 5). Still the owner's: the chip wording; whether *Help with a job* becomes a real ask next time; whether the counts feed event memory.
+
+## 7. Still open
+- **Q56 (next-step nudges):** not drawn yet.
+- Owner: the name *crew*; lists after crews; the five *What leading means* lines; the joy chip wording.
+
+---
+
 # Spark Hub v8 · HANDOFF-to-CODE (round v8-27)
 
 ## New since v8-26 (Oct 12)

@@ -4,115 +4,247 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Spark Hub (beta) · Plans with your people</title>
-<meta name="description" content="Spark Hub helps neighbors and friends get things off the ground: float an idea, find someone to lead it, and let everyone pitch in. Free during the beta.">
+<meta name="description" content="Do fun &amp; meaningful stuff with your friends and neighbors. Spark Hub is free during the beta.">
 <meta property="og:site_name" content="Spark Hub">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://sparkhub.wereallneighbors.org/welcome">
 <meta property="og:title" content="Spark Hub (beta) · Plans with your people">
-<meta property="og:description" content="Float an idea, find someone to lead it, and let everyone pitch in. Free during the beta.">
+<meta property="og:description" content="Do fun &amp; meaningful stuff with your friends and neighbors. Free during the beta.">
 <meta property="og:image" content="https://sparkhub.wereallneighbors.org/icons/share.jpg">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="/icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/css/site.css?v=1">
+<link rel="stylesheet" href="/css/site.css?v=2">
+<script src="/js/site.js?v=1" defer></script>
 </head>
 <body>
 <header class="bar">
   <div class="bar-in">
-    <a class="logo" href="/welcome" aria-label="Spark Hub beta, home">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="#e8a71c" aria-hidden="true"><path d="M13.2 2.2 7.2 13.1l3.9-.35-.9 8.8 6.9-11.2-4.1.4z"/></svg>
+    <a class="logo" href="#top" aria-label="Spark Hub, beta">
+      <svg viewBox="0 0 22 26" width="20" height="24" aria-hidden="true"><path d="M13 0 1 15h8l-2 11L21 10h-8l2-10z" fill="#f5b428"/></svg>
       <b>Spark Hub</b><span class="beta">BETA</span>
     </a>
-    <nav class="nav" aria-label="Site">
-      <a href="/how-it-works">How it works</a>
-      <a href="/pricing">Pricing</a>
-      <a href="/neighborhoods">For neighborhoods</a>
-      <a href="/beta">The beta</a>
-      <a class="btn btn-primary" href="/#/signin">Sign in</a>
+    <nav class="nav" aria-label="Pages" data-site-nav>
+      <a href="#how-it-works">How it works</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#neighborhoods">For neighborhoods</a>
+      <a href="#beta">The beta</a>
     </nav>
+    <a class="signin" href="/#/signin">Sign in</a>
   </div>
-  <nav class="subnav" aria-label="Site, small screens">
-    <a href="/how-it-works">How it works</a><a href="/pricing">Pricing</a><a href="/neighborhoods">For neighborhoods</a><a href="/beta">The beta</a>
-  </nav>
 </header>
 
 <main>
-  <section class="hero">
-    <div class="hero-glow" aria-hidden="true"></div>
-    <div class="hero-text">
-      <div class="eyebrow">Beta · Free while we test it</div>
-      <h1 class="h1">Plans with your people.</h1>
-      <p class="lede">Spark Hub helps neighbors and friends get things off the ground. Float an idea, find someone to lead it, and let everyone pitch in.</p>
-      <div class="row" style="margin-top:6px">
-        <a class="btn btn-primary" href="/neighborhoods">Bring it to your neighborhood</a>
-        <a class="btn btn-light" href="/#/signin">Sign in</a>
+  <!-- 1 · Welcome -->
+  <section id="top" class="wrap hero" data-section>
+    <div>
+      <p class="eyebrow">Beta · Free while we test it</p>
+      <h1><span>Plans with</span><span>your people.</span></h1>
+      <p class="lede">Do fun &amp; meaningful stuff with your friends and neighbors.</p>
+      <div class="ctas">
+        <a class="btn" href="#neighborhoods">Bring it to your neighborhood</a>
+        <a class="btn btn-line" href="/#/signin">Sign in</a>
       </div>
-      <p class="small" style="color:rgba(255,255,255,.7)">Got an invite link from your group? Just open it.</p>
     </div>
-    <div class="hero-photo" style="background-image:url('/photos/welcome.jpg')" role="img" aria-label="Neighbors at a picnic in a park"></div>
-  </section>
-
-  <section class="card stack" aria-labelledby="h-how">
-    <div class="eyebrow">How it works</div>
-    <h2 class="h2" id="h-how">From "we should…" to it happened.</h2>
-    <div class="grid3 steps" style="margin-top:10px">
-      <div class="step"><span class="step-n">1</span><h3 class="h3">Float an idea</h3><p>A street cleanup, a potluck, a Saturday walk. Post it and see who's interested.</p></div>
-      <div class="step"><span class="step-n">2</span><h3 class="h3">Someone leads it</h3><p>A lead picks the date and the place, or puts it to a vote, and makes it a plan.</p></div>
-      <div class="step"><span class="step-n">3</span><h3 class="h3">Everyone pitches in</h3><p>People say they're coming, sign up for jobs, bring something, and share photos after.</p></div>
+    <div class="hero-pics" data-pics>
+      <div class="phone back"><div><img src="/photos/site/past-torrez.jpg" alt="A group's Past tab: Sunset run and tacos, 34 showed up"></div></div>
+      <div class="phone front"><div><img src="/photos/site/calendar.jpg" alt="Calendar: upcoming events across four groups"></div></div>
+      <div class="hero-photo" style="background-image:url('/photos/welcome.jpg')" role="img" aria-label="Neighbors at a picnic in a park" hidden></div>
     </div>
   </section>
 
-  <section class="grid2" aria-label="Who it's for">
-    <div class="card stack">
-      <div class="eyebrow">For neighborhoods</div>
-      <h2 class="h2">A home for your neighborhood's plans.</h2>
-      <p>One group for your neighborhood, school or building: a shared calendar, a board of ideas, volunteer sign-ups, and a team that runs it.</p>
-      <ul class="ticks">
-        <li>Ideas anyone can float and back</li>
-        <li>Jobs and shifts people sign up for</li>
-        <li>Reminders on people's phones</li>
-        <li>Neighbors can RSVP without an account</li>
-      </ul>
-      <a href="/neighborhoods" style="font-weight:800">Bring Spark Hub to your neighborhood ›</a>
-    </div>
-    <div class="card stack">
-      <div class="eyebrow">For friends</div>
-      <h2 class="h2">Your own plans, in the same place.</h2>
-      <p>Keep lists of the friends you plan with, and make private events just for them. They sit on the same calendar as your neighborhood's.</p>
-      <ul class="ticks">
-        <li>Private events for up to 20 people</li>
-        <li>Lists of friends to invite in one tap</li>
-        <li>One calendar for everything you're going to</li>
-        <li>Free</li>
-      </ul>
-      <a href="/how-it-works#friends" style="font-weight:800">How friends use it ›</a>
+  <section class="rule">
+    <div class="wrap block">
+      <div class="stack-12"><p class="eyebrow">How it works</p><h2 class="h-big">Anyone makes a plan. Everyone can pitch in.</h2></div>
+      <div class="steps">
+        <div><div class="phone" style="transform:rotate(-2deg)"><div><img src="/photos/site/ideas.jpg" alt="Ideas tab"></div></div>
+          <div class="numrow"><span class="num">1</span><div><h3>Float an Idea</h3><p>Say what you'd like to do. People who are interested say so.</p></div></div></div>
+        <div><div class="phone" style="transform:rotate(2deg)"><div><img src="/photos/site/schedule.jpg" alt="Your schedule as photo tiles"></div></div>
+          <div class="numrow"><span class="num">2</span><div><h3>Make it a Plan</h3><p>Pick a date and a location. Everyone who was interested hears about it.</p></div></div></div>
+        <div><div class="phone" style="transform:rotate(-1.5deg)"><div><img src="/photos/site/help-out.jpg" alt="Help out: jobs and things to bring"></div></div>
+          <div class="numrow"><span class="num">3</span><div><h3>Pitch in</h3><p>RSVP, bring something, or grab a job. Then show up.</p></div></div></div>
+      </div>
     </div>
   </section>
 
-  <section class="card dark stack" aria-labelledby="h-why">
-    <div class="eyebrow" style="color:#f3c55a">Made for meeting in person</div>
-    <h2 class="h2" id="h-why">Less scrolling. More showing up.</h2>
-    <div class="grid3" style="margin-top:6px">
-      <p><b style="color:#fff">No feed to scroll.</b> Spark Hub shows what's coming up and what needs a hand, then gets out of the way.</p>
-      <p><b style="color:#fff">No ads.</b> Nothing is sold to you, and nobody pays to reach you.</p>
-      <p><b style="color:#fff">Your data stays yours.</b> We don't sell it, and we don't share it with advertisers. <a href="/privacy" style="color:#c9c1ff">Privacy</a></p>
+  <section class="rule">
+    <div class="wrap two">
+      <a class="tile" href="#neighborhoods">
+        <div class="tile-pic"><img src="/photos/welcome.jpg" alt="Neighbors at a picnic in the park"><p style="color:#cfc9ff">For neighborhoods</p></div>
+        <div class="tile-body"><h3>A neighborhood group, led by people who live there.</h3><p>A group belongs to a place. People join by link or QR code, and say how they're connected.</p><span>Bring it to your neighborhood ›</span></div>
+      </a>
+      <a class="tile" href="#how-it-works">
+        <div class="tile-pic"><img src="/photos/torrez-group.jpg" alt="Friends flexing together after a workout" style="object-position:center 30%"><p style="color:#ffd77a">For friends</p></div>
+        <div class="tile-body"><h3>Just the people you invite.</h3><p>Keep lists of friends and plan private events for up to 20 people. No group needed.</p><span>See how it works ›</span></div>
+      </a>
     </div>
   </section>
 
-  <section class="band" aria-label="The beta">
-    <p>Spark Hub is in beta. Everything is free while we test it with a few neighborhoods in Austin. Things will change, some things will break, and we want to hear about both.</p>
-    <a class="btn btn-light" href="/beta">About the beta</a>
+  <section class="dark">
+    <div class="wrap">
+      <h2>Less scrolling. <span>More showing up.</span></h2>
+      <p>No feed and no ads. Just what's coming up, who's going, and how you can help.</p>
+    </div>
+  </section>
+
+  <!-- 2 · How it works -->
+  <section id="how-it-works" class="rule" data-section>
+    <div class="wrap open">
+      <div><p class="eyebrow">How it works</p><h2 class="h-sec">Ideas in. <span class="br">Plans out.</span></h2></div>
+      <p class="say">Spark Hub is for two kinds of people: the neighbors on your block, and the friends you already make plans with.</p>
+    </div>
+  </section>
+  <section class="rule">
+    <div class="wrap how">
+      <div class="how-head"><p class="eyebrow" style="color:#5b4ae8">Neighborhood groups</p><h2>A group belongs to a place.</h2></div>
+      <div class="how-items">
+        <div class="card"><h3>Groups belong to a place</h3><p>Each group has a middle and an area around it, so you know it's the one for your block.</p></div>
+        <div class="card"><h3>Join by link or QR code</h3><p>Groups aren't listed or searchable. Someone shares a link, or you scan a code at an event.</p></div>
+        <div class="card"><h3>Who can join</h3><p>Before joining, you say how you’re connected. Leads decide who the group is for.</p><div class="chips"><span>I live here</span><span>I live nearby</span><span>Just visiting</span></div></div>
+        <div class="card"><h3>Keeping it safe</h3><p>Every group has a lead and a co-lead. Anyone can report a post, and we review reports within 72 hours.</p></div>
+      </div>
+    </div>
+  </section>
+  <section class="rule">
+    <div class="wrap how">
+      <div class="how-head"><p class="eyebrow" style="color:#b07d00">Ideas and plans</p><h2>From “we should” to “we did.”</h2></div>
+      <div class="how-items">
+        <div class="card"><h3>Ideas</h3><p>Float an Idea and see who’s interested. Lead it yourself, or let someone offer to.</p></div>
+        <div class="card"><h3>Plans</h3><p>An Idea becomes a Plan with a date and a location. Everyone interested hears about it.</p></div>
+        <div class="card"><h3>Pitching in</h3><p>Plans list jobs and things to bring. Sign up for one, or offer to help lead.</p></div>
+        <div class="card"><h3>Past events</h3><p>Photos, thank-yous and “Let’s do it again.”</p></div>
+      </div>
+    </div>
+  </section>
+  <section class="rule">
+    <div class="wrap how">
+      <div class="how-head"><p class="eyebrow" style="color:#e8661c">Friends and guests</p><h2>Not everything needs a group.</h2></div>
+      <div class="how-items">
+        <div class="card"><h3>Friends</h3><p>Keep lists of friends and plan private events for up to 20 people. Only the people you invite see them.</p></div>
+        <div class="card"><h3>Guests</h3><p>Invite someone without an account. They can RSVP and sign up to bring something.</p></div>
+        <div class="card"><h3>On your phone</h3><p>Open it in your browser and add it to your Home Screen. There’s nothing to download.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 · Pricing -->
+  <section id="pricing" class="rule" data-section>
+    <div class="wrap open col">
+      <p class="eyebrow">Pricing</p>
+      <h2 class="h-sec">Free <span class="br">during the beta.</span></h2>
+      <p class="say">Friends and new groups stay free. Bigger neighborhood groups will pay later, and we'll tell you well before that happens.</p>
+    </div>
+    <div class="wrap tiers">
+      <div class="tier" style="border-top-color:#e8661c"><p class="who">For friends</p><h3>Friends</h3><div class="price"><b>$0</b><span>Always</span></div><p>Lists of friends and private events for up to 20 people.</p></div>
+      <div class="tier" style="border-top-color:#149a4b"><p class="who">For new groups</p><h3>Seed group</h3><div class="price"><b>$0</b><span>Always</span></div><p>A new neighborhood group finding its first people.</p></div>
+      <div class="tier" style="border-top-color:#5b4ae8"><p class="who">For neighborhoods</p><h3>Neighborhood</h3><div class="price"><b class="long">Free during the beta</b><span>Paid after the beta</span></div><p>A neighborhood group with regular events and a full team.</p></div>
+      <div class="tier" style="border-top-color:#d6246e"><p class="who">For busy groups</p><h3>Active</h3><div class="price"><b class="long">Free during the beta</b><span>Paid after the beta</span></div><p>Larger groups running lots of events every month.</p></div>
+    </div>
+  </section>
+  <section class="rule">
+    <div class="wrap qa-wrap">
+      <aside class="launch"><span class="tag">Launch help</span><h3>Starting a neighborhood group? We'll help you open it.</h3><p>A call to set it up, a printed QR code for your block, and help planning your first event.</p></aside>
+      <div class="faq">
+        <h2>Questions</h2>
+        <div>
+          <details><summary>When does the beta end?<span class="plus"><span>+</span></span></summary><p>We don’t have a date yet. Leads will hear from us well before anything changes.</p></details>
+          <details><summary>Will Friends and Seed groups stay free?<span class="plus"><span>+</span></span></summary><p>Yes. Making plans with your friends and starting a group are free.</p></details>
+          <details><summary>Who pays for a neighborhood group?<span class="plus"><span>+</span></span></summary><p>The group, not its people. Joining a group, RSVPing and signing up are always free.</p></details>
+          <details><summary>What happens to our events if we don’t pay?<span class="plus"><span>+</span></span></summary><p>Nothing gets deleted. Your events, photos and people stay put.</p></details>
+          <details><summary>Do you sell our information or show ads?<span class="plus"><span>+</span></span></summary><p>No. There are no ads, and we don’t sell anything about you.</p></details>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 · For neighborhoods -->
+  <section id="neighborhoods" class="rule" data-section>
+    <div class="wrap open center">
+      <div>
+        <p class="eyebrow">For neighborhoods</p>
+        <h2 class="h-sec">Bring Spark Hub <span>to your neighborhood.</span></h2>
+        <p class="say after">Starting a group is a big deal. You're making a place where your neighbors can show up for each other.</p>
+        <div class="ctas"><a class="btn" href="/#/request">Start a group</a></div>
+      </div>
+      <div class="side-phone"><div class="phone" style="transform:rotate(-2deg)"><div><img src="/photos/site/groups.jpg" alt="Groups list: Torrez Fitness, Hub on Hunters, Woodcliff and Walnut Creek"></div></div></div>
+    </div>
+  </section>
+  <section class="purple">
+    <div class="wrap four">
+      <div class="stack-12"><p class="eyebrow">Four steps</p><h2>Draft it. Build the team. Open it.</h2></div>
+      <ol>
+        <li class="numrow"><span class="num">1</span><div><h3>Draft it</h3><p>Name the group, set its place, and say who it’s for.</p></div></li>
+        <li class="numrow"><span class="num">2</span><div><h3>Build the team</h3><p>Ask a co-lead (required), then admins and ambassadors.</p></div></li>
+        <li class="numrow"><span class="num">3</span><div><h3>Send it for review</h3><p>We read every request and get back to you.</p></div></li>
+        <li class="numrow"><span class="num">4</span><div><h3>Open it</h3><p>Share the link and the QR code. Plan your first event.</p></div></li>
+      </ol>
+    </div>
+  </section>
+  <section>
+    <div class="wrap block" style="gap:32px">
+      <div class="stack-12"><p class="eyebrow">The team</p><h2 class="h-big">No one runs it alone.</h2></div>
+      <div class="roles">
+        <div class="card"><span class="chip">Required</span><h3>A lead</h3><p>You. You start the group and look after it.</p></div>
+        <div class="card"><span class="chip">Required</span><h3>A co-lead</h3><p>Someone who shares the work and can step in when you’re away.</p></div>
+        <div class="card"><span class="chip rec">Recommended</span><h3>A team of admins</h3><p>A few neighbors who help plan events, welcome people and keep it friendly.</p></div>
+      </div>
+    </div>
+  </section>
+  <section class="rule">
+    <div class="wrap assoc">
+      <div class="assoc-head"><p class="eyebrow">Associations first</p><h2>Got a neighborhood association? Start there.</h2><p>If your neighborhood already has one, we'll ask them first. A group that works with the people already doing the work lasts longer.</p></div>
+      <div class="agree">
+        <h3>What leads agree to</h3>
+        <ul>
+          <li><span class="tick"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><span>Keep it open to the neighborhood, not just your friends.</span></li>
+          <li><span class="tick"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><span>Follow the community rules, and help others follow them.</span></li>
+          <li><span class="tick"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><span>Look at reports in your group.</span></li>
+          <li><span class="tick"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><span>Hand the group to someone else if you step away.</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 · The beta -->
+  <section id="beta" class="rule" data-section>
+    <div class="wrap open center">
+      <div>
+        <p class="eyebrow">The beta · Feedback wanted</p>
+        <h2 class="h-sec">It's early. <span class="br">Come help.</span></h2>
+        <p class="say after">Spark Hub is free while we test it with a few groups in Austin.</p>
+      </div>
+      <div class="side-phone"><div class="phone" style="transform:rotate(2.5deg)"><div><img src="/photos/site/help-out.jpg" alt="Help out: jobs like Sort kids' sizes and Bring hangers"></div></div></div>
+    </div>
+  </section>
+  <section class="purple">
+    <div class="wrap help">
+      <div>
+        <div class="stack-12"><p class="eyebrow">How to help</p><h2>Try it out.</h2></div>
+        <ol>
+          <li class="numrow"><span class="num">1</span><div><h3>Poke around</h3><p>Start a test event, RSVP to one, grab a job.</p></div></li>
+          <li class="numrow"><span class="num">2</span><div><h3>Tell us what you think</h3><ul><li>Does it make sense?</li><li>Is it interesting?</li><li>Would you actually use it?</li></ul></div></li>
+        </ol>
+        <p class="note">Send feedback from Me › Feedback inside the app. I usually reply the same day.</p>
+      </div>
+      <div class="demo">
+        <div class="demo-pic"><img src="/photos/torrez-group.jpg" alt="Torrez Fitness members together under the Activate sign"><div><p>Try the demo group</p><h3>Torrez Fitness</h3></div></div>
+        <div class="demo-qr"><img src="/photos/site/qr-torrez.svg" alt="QR code to join Torrez Fitness"><div><h4>Scan to join on your phone</h4><p>Spark Hub works best from your Home Screen.</p></div></div>
+        <div class="demo-foot"><span>No phone handy?</span><a href="/join/TORREZ">Join on this computer ›</a></div>
+      </div>
+    </div>
+  </section>
+  <section>
+    <div class="wrap ps-wrap"><p class="ps"><b>P.S.</b> This is still a work in progress. You'll run into a few glitches and missing pieces. Sorry in advance.</p></div>
   </section>
 </main>
 
 <footer>
-  <div class="foot">
-    <span>Spark Hub · Beta · Made in Austin</span>
-    <nav aria-label="Footer">
-      <a href="/how-it-works">How it works</a><a href="/pricing">Pricing</a><a href="/neighborhoods">For neighborhoods</a><a href="/beta">The beta</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/#/signin">Sign in</a>
-    </nav>
+  <div class="wrap foot">
+    <svg viewBox="0 0 22 26" width="30" height="36" aria-hidden="true"><path d="M13 0 1 15h8l-2 11L21 10h-8l2-10z" fill="#f5b428"/></svg>
+    <p>Spark Hub · Beta · Made in Austin</p>
+    <nav aria-label="Footer"><a href="#how-it-works">How it works</a><a href="#pricing">Pricing</a><a href="#neighborhoods">For neighborhoods</a><a href="#beta">The beta</a><a href="/terms">Terms</a><a href="/privacy">Privacy</a></nav>
   </div>
 </footer>
 </body>

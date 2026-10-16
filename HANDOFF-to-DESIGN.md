@@ -146,6 +146,14 @@ None of these are built. They come from the owner's own list and the pilot group
 
 ---
 
+## Round v9-1 in short
+
+*Built from HANDOFF-to-CODE v9-1 (reply to -19 and -20) on 2026-10-16, branch `v9-1`, on `test` once pushed, not live. The prototype (`Spark Hub App Version 9.dc.html`) was diffed against Version 8: nothing changed beyond the listed items.*
+
+| Item | Status |
+|---|---|
+| 1: the website (Q54) | Done as drawn: one long page at `/welcome` (Welcome · How it works · Pricing · For neighborhoods · The beta), the bar's links scroll and highlight the section in view (on a phone the link row scrolls to keep it showing), the hero breaks *Plans with / your people.*, no beta band under Welcome. `/how-it-works`, `/pricing`, `/neighborhoods` and `/beta` redirect to `/welcome#…`. **Not in the zip:** the phone screenshots (`web/past-torrez.png`, `calendar.jpg`, `ideas.jpg`, `schedule.jpg`, `help-out.png`, `groups.jpg`); the page expects them at `/photos/site/*.jpg` and hides a phone frame until its picture is there (the hero shows the picnic photo meanwhile). Please send them. The QR code is generated from the Torrez link. The footer leaves out *Community rules*: there's no such page yet (§4) |
+
 ## Round v8-27 in short
 
 *Built from HANDOFF-to-CODE v8-27 on 2026-10-12, live 2026-10-13 (main `b5bd0d0`). No migration: friend requests, blocks and `signup_claims.note` (60 characters) were already in the database. The prototype was diffed against v8-26's: nothing changed beyond items 1–5.*
@@ -158,9 +166,9 @@ None of these are built. They come from the owner's own list and the pilot group
 | 4: sign-up notes | Done as drawn: **ADD A NOTE** on *You're signed up!* (jobs and their shifts, not spots to take part; the shift picker's own note field fills it), saved as you type; the notes above the job card's footer, yours first with **✎ Edit**; **+ Add a note** under the description when you hold the job without one; the in-card field with Cancel / Save, Enter / Esc, *Note saved* / *Note removed*; notes under each name in Who's signed up (hosts see them there too). Notes show on the one-row job card (people who aren't hosting); a job with several times and the host's card don't list them, only Who's signed up does |
 | 5: Who's signed up is a centred pop-up | Done as drawn (360px, 24px corners, popIn, scrolls past 88%). The close is the usual 40px grey round × in the header row, not a 36px one pinned to the corner |
 
-## The website around the app (2026-10-12, on `test`, not live)
+## The website around the app (2026-10-12, on `test`, not live; **redrawn by you in v9-1**, see *Round v9-1 in short*)
 
-*Things the build had to invent: the owner asked for a website people can land on before the app. Drafted from the design system (Figtree, ink, purple, the Spark gradient once as a glow on the welcome hero); please redraw it properly when you can.*
+*Things the build had to invent (superseded by v9-1): the owner asked for a website people can land on before the app. Drafted from the design system (Figtree, ink, purple, the Spark gradient once as a glow on the welcome hero); please redraw it properly when you can.*
 
 - **Pages:** `/welcome` (hero *Plans with your people.* on ink with the picnic photo, *BETA · FREE WHILE WE TEST IT*, **Bring it to your neighborhood** + **Sign in**; How it works in 3 steps; For neighborhoods / For friends cards; *Less scrolling. More showing up.* on ink; a pale-purple beta band), `/how-it-works` (groups belong to a place, joining by link or QR only, who can join, ideas, plans, pitching in, keeping it safe; friends: lists and private events up to 20; guests; on your phone), `/pricing` (four tier cards: Friends $0, Seed group $0, Neighborhood and Active *Free during the beta* / *Paid after the beta*; Launch help; five questions), `/neighborhoods` (*Bring Spark Hub to your neighborhood*: Draft it. Build the team. Open it. in four steps; a lead, a co-lead (required) and a team of admins (recommended); associations first; what leads agree to) and `/beta`.
 - **Every page:** a white sticky bar with the bolt, **Spark Hub** and the **BETA** chip, links (How it works · Pricing · For neighborhoods · The beta) and a purple **Sign in** pill; under 720px the links move to a scrolling row under the bar. Footer: *Spark Hub · Beta · Made in Austin* and the links. No operator is named until WAN's board votes.

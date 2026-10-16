@@ -2,26 +2,28 @@
 const { test, expect, devices } = require('@playwright/test');
 const { newMember, newLead, button, asUser, pickView, openProfile, postIdea, uniqueTitle, PNG, openAllGroups } = require('./helpers');
 
-// The website around the app (owner, 2026-10-12): a first-time visitor to the bare address lands on /welcome; the pages
-// carry BETA and link to each other and into the app. (The test server has no clean URLs, so the pages load as .html.)
-test('the front door: first visit goes to the website; its pages say BETA and lead into the app', async ({ browser }) => {
+// The website around the app (owner, 2026-10-12; one long page since Design v9-1): a first-time visitor to the bare
+// address lands on /welcome, which carries BETA, its five sections in order and the bar's links to them, and leads into
+// the app. (The test server has no clean URLs, so the page loads as .html; the old paths' redirects are vercel.json's.)
+test('the front door: first visit goes to the website; its one page says BETA and leads into the app', async ({ browser }) => {
   const context = await browser.newContext();
   const page = await context.newPage();
   try {
     await page.route('**/welcome', r => r.fulfill({ status: 200, contentType: 'text/html', body: '<p data-site-welcome>welcome</p>' }));
     await page.goto('/');
     await expect(page).toHaveURL(/\/welcome$/);
-    for (const p of ['welcome', 'how-it-works', 'pricing', 'neighborhoods', 'beta']) {
-      await page.goto('/' + p + '.html');
-      await expect(page.locator('.bar .beta')).toHaveText('BETA');
-      await expect(page.locator('.bar').getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/#/signin');
-      await expect(page.locator('footer')).toContainText('Spark Hub · Beta');
-    }
-    await expect(page.locator('main')).toContainText('Early, free, and still changing.');
-    await page.goto('/pricing.html');
+    await page.goto('/welcome.html');
+    await expect(page.locator('.bar .beta')).toHaveText('BETA');
+    await expect(page.locator('.bar').getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/#/signin');
+    await expect(page.locator('footer')).toContainText('Spark Hub · Beta');
+    await expect(page.locator('h1')).toHaveText('Plans withyour people.');
+    expect(await page.locator('[data-section]').evaluateAll(els => els.map(e => e.id))).toEqual(['top', 'how-it-works', 'pricing', 'neighborhoods', 'beta']);
+    await expect(page.locator('[data-site-nav] a')).toHaveText(['How it works', 'Pricing', 'For neighborhoods', 'The beta']);
     await expect(page.locator('main')).not.toContainText(/\$\d{2,}/);   // no prices yet (owner, 2026-10-12)
-    await page.goto('/neighborhoods.html');
-    await expect(page.getByRole('link', { name: 'Start a request' })).toHaveAttribute('href', '/#/request');
+    await expect(page.locator('#neighborhoods').getByRole('link', { name: 'Start a group' })).toHaveAttribute('href', '/#/request');
+    // The bar's links scroll to their section and mark it
+    await page.locator('[data-site-nav]').getByRole('link', { name: 'Pricing' }).click();
+    await expect(page.locator('[data-site-nav] a[aria-current=true]')).toHaveText('Pricing');
     // Signing in from the website opens the app's Welcome, not the website again
     await page.goto('/#/signin');
     await expect(page.locator('[data-screen-label=Welcome]')).toBeVisible();

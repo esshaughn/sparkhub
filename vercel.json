@@ -82,6 +82,26 @@
       ],
       "destination": "https://sparkhub.wereallneighbors.org/$1",
       "permanent": true
+    },
+    {
+      "source": "/how-it-works",
+      "destination": "/welcome#how-it-works",
+      "permanent": false
+    },
+    {
+      "source": "/pricing",
+      "destination": "/welcome#pricing",
+      "permanent": false
+    },
+    {
+      "source": "/neighborhoods",
+      "destination": "/welcome#neighborhoods",
+      "permanent": false
+    },
+    {
+      "source": "/beta",
+      "destination": "/welcome#beta",
+      "permanent": false
     }
   ],
   "rewrites": [
@@ -116,22 +136,6 @@
     {
       "source": "/welcome",
       "destination": "/welcome.html"
-    },
-    {
-      "source": "/how-it-works",
-      "destination": "/how-it-works.html"
-    },
-    {
-      "source": "/pricing",
-      "destination": "/pricing.html"
-    },
-    {
-      "source": "/neighborhoods",
-      "destination": "/neighborhoods.html"
-    },
-    {
-      "source": "/beta",
-      "destination": "/beta.html"
     }
   ]
 }
