@@ -117,7 +117,7 @@ test('a group end to end: edit group, cover, rename, invite, pin, admin edits, r
     // Signed in before the tap: one confirm (E3), then Welcome to {Group}, {first} (v8-22 4a) → the group
     await B.goto('/#/join/' + code);
     const joinAsk = B.getByRole('dialog', { name: 'Join ' + groupName + '?' });
-    await expect(joinAsk).toContainText('You’ll join as:');
+    await expect(joinAsk.locator('[data-inv-other]')).toHaveText('Use a different account');   // v9-1 2b: no You’ll join as box
     await expect(joinAsk).not.toContainText(code);   // the code is never shown
     await joinAsk.getByRole('button', { name: /^Join as / }).click();
     const welcome = B.locator('[data-screen-label="Welcome to the group"]');

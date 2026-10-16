@@ -1435,26 +1435,12 @@
     setState({ menu: null });
     needSignIn(() => { const c = code || ''; setState({ joinOpen: true, joinCode: c, joinRaw: c, joinFound: null, joinBad: false }); if (c) lookJoin(c); }, 'join');
   };
-  const submitJoin = async () => {
+  // Join by code opens the Join {group}? pop-up (the place card and How are you connected?) before joining (Design v9-1)
+  const submitJoin = () => {
     const code = state.joinCode;
     if (code.length !== 6 || state.busy) return;
-    setState({ busy: 'join' });
-    try {
-      const before = myGroups().map(g => g.id);
-      const res = must(await sb.rpc('join_group', { p_code: code }));
-      if (!res.data) { setState({ busy: null, joinBad: true }); return; }
-      gsMark('join');
-      await loadFresh();
-      if (before.indexOf(res.data) < 0) calAfterJoin(res.data, before, false);
-      const g = groupById(res.data);
-      setState({ busy: null, joinOpen: false, joinCode: '', joinRaw: null, joinFound: null });
-      // New to the group: Welcome to {Group}, {first} (v8-22 4a), once per group; otherwise the group page
-      if (g && before.indexOf(g.id) < 0 && welcomedIds().indexOf(g.id) < 0) { markWelcomed(g.id); showNw(g.id); } else openGroup(g);
-    } catch (e) {
-      console.error(e);
-      setState({ busy: null });
-      toast(failed(e));
-    }
+    setState({ joinOpen: false, joinCode: '', joinRaw: null, joinFound: null });
+    startInvite(code, 'confirm', '', true);
   };
 
   // ---- Friend links (/add/CODE; v6 Update 13) ----------------------------------------------------
@@ -1629,10 +1615,10 @@
     return pl;
   };
   // Opening the link: signed in already → the confirm pop-up over their Calendar; otherwise the landing
-  const startInvite = (code, step, by) => {
+  const startInvite = (code, step, by, keepScreen) => {
     by = by || (pendingInvite() === code ? pendingBy() : '');
     setPending(code, by);
-    setState({ inv: { code, by, group: undefined, place: undefined, conn: null, step: step || (state.email ? 'confirm' : 'land') }, screen: 'sched', joinOpen: false, loginStep: null, menu: null });
+    setState(Object.assign({ inv: { code, by, group: undefined, place: undefined, conn: null, step: step || (state.email ? 'confirm' : 'land') }, joinOpen: false, loginStep: null, menu: null }, keepScreen ? {} : { screen: 'sched' }));
     loadInviteGroup(code);
     loadInvitePlace(code);
   };
@@ -1658,7 +1644,9 @@
       if (jr.error && jr.error.code === 'PGRST202') jr = await sb.rpc('join_group', { p_code: code });   // a database before 20261202030000
       clearTimeout(slow);
       if (jr.error && jr.error.code === '23514' && /join rule/.test(jr.error.message || '')) {   // the rule changed, or the answer doesn't fit it
-        setInv({ busy: false, step: 'confirm', ruleErr: (inv.place && RULE_LINE[inv.place.rule]) || 'This group can’t take new members like that.' });
+        const was = inv.conn, pl = await loadInvitePlace(code);
+        const changed = pl && was && !connOk(pl.rule || 'everyone', was);
+        setInv({ busy: false, step: 'confirm', conn: changed ? null : inv.conn, ruleErr: changed ? 'The group just changed who can join. ' + CONN_SHORT[was] + ' isn’t open any more.' : 'This group can’t take new members like that.' });
         return;
       }
       const id = must(jr).data;
@@ -3189,36 +3177,42 @@
   document.addEventListener('error', (e) => { const t = e.target; if (t && t.matches && t.matches('img[data-place-map]')) t.remove(); }, true);
   const PLACE_KIND = { neighborhood: 'Neighborhood', school: 'School', building: 'Building', park: 'Park' };
   const MAP_PIN = (c) => svg(16, stroke(c, 2.4), '<path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Z"/><circle cx="12" cy="10" r="2.4"/>');
-  // The place card: the map, the place's name and kind, and its purpose; ask = "Is this the one you want to join?"
-  const placeCard = (pl, ask) => {
+  // The place card (Design v9-1 2a/2b): #f4f5f8, 18px corners; the map on top (118px on the landing, 104px in the pop-up),
+  // then pin · {place} · Neighborhood, the purpose, and (ask) "Is this the one you want to join?"
+  const placeCard = (pl, ask, mapH) => {
     if (!pl || !pl.name) return '';
-    const url = placeMapUrl(pl, 640, 260), kind = PLACE_KIND[pl.kind] || '';
+    const h = mapH || 118, url = placeMapUrl(pl, 640, Math.round(640 * h / 353)), kind = PLACE_KIND[pl.kind] || '';
     return '<div data-place-card style="margin-top:14px;border-radius:18px;overflow:hidden;background:#f4f5f8">' +
-      (url ? '<img data-place-map src="' + esc(url) + '" alt="Map of ' + esc(pl.name) + '" width="640" height="260" style="display:block;width:100%;height:auto;aspect-ratio:64/26;object-fit:cover;background:#e3e5ec">' : '') +
-      '<div style="padding:12px 14px;display:flex;flex-direction:column;gap:4px">' +
-        '<span style="display:flex;align-items:center;gap:6px;font-size:15.5px;font-weight:800;color:#11131f">' + MAP_PIN('#5b4ae8') + esc(pl.name) +
-          (kind ? '<span style="font-size:13px;font-weight:700;color:#6b7280">· ' + kind + '</span>' : '') + '</span>' +
+      (url ? '<img data-place-map src="' + esc(url) + '" alt="Map of ' + esc(pl.name) + '" style="display:block;width:100%;height:' + h + 'px;object-fit:cover;background:#e3e7ec">' : '') +
+      '<div style="padding:12px 14px 14px;display:flex;flex-direction:column;gap:4px">' +
+        '<span style="display:flex;align-items:center;gap:6px;font-size:15.5px;font-weight:900;color:#0d1117">' + MAP_PIN('#5b4ae8') + esc(pl.name) +
+          (kind ? '<span style="font-size:13px;font-weight:600;color:#6b7280">· ' + kind + '</span>' : '') + '</span>' +
         (pl.purpose ? '<span style="font-size:14px;line-height:1.4;font-weight:500;color:#454b55">' + esc(pl.purpose) + '</span>' : '') +
-        (ask ? '<span style="font-size:14px;font-weight:700;color:#5f6475">Is this the one you want to join?</span>' : '') +
+        (ask ? '<span data-place-ask style="margin-top:4px;font-size:13.5px;font-weight:700;color:#0d1117">Is this the one you want to join?</span>' : '') +
       '</div></div>';
   };
-  // How you're connected (here / nearby / visiting); the group's rule greys out what it doesn't take
+  // How you're connected (here / nearby / visiting); the group's rule greys out what it doesn't take. big = the landing (17px
+  // question), else the pop-up (15.5px). Pills 38px: white with a #dcdfe6 ring; picked #5b4ae8 with a tick; not allowed #f2f3f6
   const CONN = [['here', 'I live here'], ['nearby', 'I live nearby'], ['visiting', 'Just visiting']];
   const CONN_LABEL = { here: 'Lives here', nearby: 'Lives nearby', visiting: 'Visiting' };
+  const CONN_SHORT = { here: 'Living here', nearby: 'Nearby', visiting: 'Just visiting' };
   const RULE_LINE = { neighbors: 'This group is for people who live here.', nearby: 'This group is for people who live here or nearby.' };
   const connOk = (rule, c) => rule === 'neighbors' ? c === 'here' : rule === 'nearby' ? c !== 'visiting' : true;
   const needsConn = (pl) => !!pl && (!!pl.name || (!!pl.rule && pl.rule !== 'everyone'));
-  const connPicker = (pl) => {
+  const INFO_IC = (c) => svg(16, stroke(c, 2.2), '<circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 7.5h.01"/>');
+  const connPicker = (pl, big) => {
     const rule = pl.rule || 'everyone', cur = state.inv.conn, err = state.inv.ruleErr;
-    return '<div role="radiogroup" aria-label="How are you connected to ' + esc(pl.name || 'this place') + '?" style="margin-top:14px;display:flex;flex-direction:column;gap:8px">' +
-      '<span style="font-size:14.5px;font-weight:800;color:#11131f">How are you connected' + (pl.name ? ' to ' + esc(pl.name) : '') + '?</span>' +
-      '<div style="display:flex;flex-wrap:wrap;gap:8px">' + CONN.map(([k, label]) => {
-        const ok = connOk(rule, k), onIt = cur === k;
-        return '<span ' + (ok ? on(() => setInv({ conn: k, ruleErr: '' }), 'radio') : 'role="radio" aria-disabled="true"') + ' aria-checked="' + onIt + '" data-conn="' + k + '" style="display:flex;align-items:center;min-height:42px;padding:0 15px;border-radius:999px;font-size:14.5px;font-weight:800;cursor:' + (ok ? 'pointer' : 'default') + ';' +
-          (onIt ? 'background:#5b4ae8;color:#fff' : ok ? 'background:#fff;color:#11131f;box-shadow:inset 0 0 0 1.5px #dcdfe6' : 'background:#f0f1f5;color:#b4b8c2') + '">' + label + '</span>';
+    return '<div role="radiogroup" aria-label="How are you connected to ' + esc(pl.name || 'this place') + '?" style="margin-top:' + (big ? 18 : 14) + 'px;display:flex;flex-direction:column;gap:' + (big ? 10 : 8) + 'px">' +
+      '<span style="font-size:' + (big ? '17px;letter-spacing:-.3px' : '15.5px') + ';font-weight:900;color:#0d1117">How are you connected' + (pl.name ? ' to ' + esc(pl.name) : '') + '?</span>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:6px">' + CONN.map(([k, label]) => {
+        const ok = connOk(rule, k), onIt = ok && cur === k;
+        return '<span ' + (ok ? on(() => setInv({ conn: k, ruleErr: '' }), 'radio') : 'role="radio" aria-disabled="true"') + ' aria-checked="' + onIt + '" data-conn="' + k + '" style="display:inline-flex;align-items:center;gap:6px;min-height:38px;padding:0 14px;border-radius:999px;font-size:14px;font-weight:800;cursor:' + (ok ? 'pointer' : 'default') + ';' +
+          (onIt ? 'background:#5b4ae8;color:#fff' : ok ? 'background:#fff;color:#454b55;box-shadow:inset 0 0 0 1.5px #dcdfe6' : 'background:#f2f3f6;color:#b9bcc4') + '">' +
+          (onIt ? svg(14, stroke('#fff', 3.2), '<path d="M5 12.5l4.5 4.5L19 7.5"/>') : '') + label + '</span>';
       }).join('') + '</div>' +
-      (RULE_LINE[rule] ? '<span style="font-size:13.5px;font-weight:600;color:#6b7280">' + RULE_LINE[rule] + '</span>' : '') +
-      (err ? '<span role="alert" style="font-size:13.5px;font-weight:700;color:#c0263d">' + esc(err) + '</span>' : '') + '</div>';
+      (RULE_LINE[rule] ? '<span style="font-size:13px;font-weight:600;color:#6b7280">' + RULE_LINE[rule] + '</span>' : '') +
+      (err ? '<div role="alert" data-rule-changed style="display:flex;gap:8px;align-items:flex-start;background:#fdeef0;border-radius:14px;padding:10px 12px;color:#9b1c31">' + INFO_IC('#9b1c31') +
+        '<span style="font-size:13.5px;font-weight:700;line-height:1.35;text-wrap:pretty">' + esc(err) + '</span></div>' : '') + '</div>';
   };
   const invName = (g) => g && g.name ? esc(g.name) : g ? 'this group' : '';   // g with no name: the preview couldn't load
   const invNameSize = (g) => g && g.name && g.name.length > 16 ? 34 : 38;
@@ -3232,7 +3226,8 @@
   // shared it, the name, members · events this week, a line on what it's for, Join {Group} and Already on Spark Hub?
   // Sign in. Both open the sign-in landing below (1a), then the join (as before), then the Welcome naming them
   function viewInvNamed() {
-    const st = state, g = st.inv.group, l = st.inv.land || {}, gName = g && g.name ? g.name : 'the group';
+    const st = state, g = st.inv.group, l = st.inv.land || {}, gName = g && g.name ? g.name : 'the group', pl = st.inv.place;
+    const canJoin = !needsConn(pl) || !!st.inv.conn;
     const toSignIn = () => { setInv({ signIn: true }); const sc = document.querySelector('.scroller'); if (sc) sc.scrollTop = 0; };
     const meta = [l.members ? l.members + (l.members === 1 ? ' member' : ' members') : '', l.week ? l.week + (l.week === 1 ? ' event' : ' events') + ' this week' : ''].filter(Boolean).join(' · ');
     const byFace = l.byAvatar && PHOTO_PATH.test(l.byAvatar) ? '<span aria-hidden="true" style="flex:0 0 30px;width:30px;height:30px;border-radius:999px;background:#2b303a ' + bg(photoUrl(l.byAvatar)) + ';box-shadow:0 0 0 2px #fff"></span>'
@@ -3247,9 +3242,12 @@
             : '<h1 style="margin:0;font-size:30px;line-height:1.05;font-weight:900;letter-spacing:-.8px;color:#fff;overflow-wrap:break-word">' + invName(g) + '</h1>') +
           (meta ? '<span data-inv-meta style="font-size:14.5px;font-weight:600;color:rgba(255,255,255,.88)">' + esc(meta) + '</span>' : '') + '</div></div>' +
       '<div style="flex:1 0 auto;padding:24px 20px calc(34px + env(safe-area-inset-bottom, 0px));display:flex;flex-direction:column;gap:14px">' +
-        '<span style="font-size:16.5px;line-height:1.5;font-weight:500;color:#2a2f38;text-wrap:pretty">Spark Hub is where ' + esc(gName) + ' plans get-togethers. Join to RSVP, sign up to help or float an idea.</span>' +
-        placeCard(st.inv.place, false).replace('margin-top:14px', 'margin-top:0') +
-        '<button type="button" ' + on(toSignIn) + ' data-inv-join class="hov-primary" style="margin-top:6px;min-height:54px;border:0;border-radius:999px;background:#5b4ae8;font-family:inherit;font-size:16.5px;font-weight:900;color:#fff;cursor:pointer">Join ' + esc(g && g.name ? g.name : 'the group') + '</button>' +
+        // Design v9-1 2a: with a place (or a rule), the place card and How are you connected? replace the line, and Join
+        // stays grey (#d5d8df) until a pill is picked; the answer rides through sign-in into the join
+        (pl && needsConn(pl)
+          ? placeCard(pl, true).replace('margin-top:14px', 'margin-top:0') + connPicker(pl, true).replace('margin-top:18px', 'margin-top:4px')
+          : '<span style="font-size:16.5px;line-height:1.5;font-weight:500;color:#2a2f38;text-wrap:pretty">Spark Hub is where ' + esc(gName) + ' plans get-togethers. Join to RSVP, sign up to help or float an idea.</span>') +
+        '<button type="button" ' + on(() => { if (canJoin) toSignIn(); }) + ' data-inv-join aria-disabled="' + !canJoin + '"' + (canJoin ? ' class="hov-primary"' : '') + ' style="margin-top:6px;min-height:54px;border:0;border-radius:999px;background:' + (canJoin ? '#5b4ae8' : '#d5d8df') + ';font-family:inherit;font-size:16.5px;font-weight:900;color:#fff;cursor:' + (canJoin ? 'pointer' : 'default') + '">Join ' + esc(g && g.name ? g.name : 'the group') + '</button>' +
         '<span style="align-self:center;display:flex;gap:5px;font-size:14.5px;font-weight:600;color:#6b7280">Already on Spark Hub?<span ' + on(toSignIn) + ' role="button" data-inv-signin style="font-weight:800;color:#5b4ae8;cursor:pointer">Sign in</span></span>' +
         '<span style="margin-top:auto;align-self:center;font-size:12.5px;font-weight:600;color:#8a909b">' + esc(SHARE_ORIGIN.replace(/^https?:\/\//, '') + '/join/' + st.inv.code) + '</span>' +
       '</div></div>';
@@ -3285,7 +3283,7 @@
     return '<div data-screen-label="Invite" style="position:relative;min-height:100%;display:flex;flex-direction:column;background:#fff">' +
       '<div style="position:relative;flex:0 0 auto">' + invPhoto(g, 'calc(' + photoH + 'px + var(--pt))', 96) + statusFade + brandPill + '</div>' +
       '<div style="position:relative;flex:1 0 auto;margin-top:-28px;border-radius:28px 28px 0 0;background:#fff;padding:26px 24px calc(24px + env(safe-area-inset-bottom, 0px));display:flex;flex-direction:column">' +
-        '<div style="' + INV_EYEBROW + ';color:#5b4ae8">You’re invited to</div>' + nameBlock + placeCard(st.inv.place, false) + body +
+        '<div style="' + INV_EYEBROW + ';color:#5b4ae8">You’re invited to</div>' + nameBlock + placeCard(st.inv.place, true) + body +
       '</div></div>';
   }
 
@@ -3359,23 +3357,21 @@
         '</div></div></div>';
   }
 
-  // E3: signed in before the tap — join as this account, or switch
+  // E3: signed in before the tap. Design v9-1 2b: Join {group}? (353px, 24px corners): the title with a round ×, the place
+  // card (104px map), How are you connected?, Join as {first} (grey until a pill is picked). 2c: if the rule changed
+  // meanwhile, the pill that no longer fits goes inactive with a red line (inviteJoin). Join by code opens it too.
+  // Build: a quiet "Not {first}? Use a different account" under the button keeps the account switch
   function viewInvConfirm() {
     const st = state, g = st.inv.group, pl = st.inv.place, need = needsConn(pl), busy = !!st.inv.busy || pl === undefined, first = firstName(st.myName) || 'me';
     const ready = !busy && g !== undefined && (!need || !!st.inv.conn);
-    return '<div class="modal-scrim" data-scrim="' + reg(closeInvite) + '" style="z-index:32;background:rgba(17,19,31,.55);padding:18px">' +
-      '<div role="dialog" aria-modal="true" aria-label="Join ' + esc(g && g.name ? g.name : 'this group') + '?" style="position:relative;width:100%;max-width:420px;background:#fff;border-radius:32px;padding:26px 22px 22px;box-shadow:0 24px 60px rgba(17,19,31,.3);animation:popIn 260ms cubic-bezier(.22,.9,.28,1) both">' +
-        '<span ' + on(closeInvite) + ' aria-label="Close" style="position:absolute;top:16px;right:16px;width:40px;height:40px;border-radius:999px;background:#f0f1f5;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(16, '#11131f', 2.4) + '</span>' +
-        invThumb(g, 64) +
-        '<h2 style="margin:16px 0 0;padding-right:40px;font-size:28px;line-height:1.1;font-weight:900;letter-spacing:-.02em;color:#11131f;overflow-wrap:break-word">' + (g && g.name ? 'Join ' + invName(g) + '?' : 'Join this group?') + '</h2>' +
-        placeCard(pl, true) + (need ? connPicker(pl) : '') +
-        '<p style="margin:' + (need ? 16 : 10) + 'px 0 0;font-size:16px;color:#5f6475">You’ll join as:</p>' +
-        '<div style="margin-top:10px;display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:18px;background:#f0f1f5">' +
-          face(st.me, st.myName || st.email, 40, '#5b4ae8') +
-          '<div style="min-width:0"><div style="font-size:16px;font-weight:700;color:#11131f">' + esc(st.myName || st.email) + '</div>' +
-          '<div style="font-size:14px;color:#6b7080;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(st.email) + '</div></div></div>' +
-        '<button type="button" data-inv-confirm-join ' + on(() => { if (ready) inviteJoin(); }) + ' aria-disabled="' + !ready + '" style="margin-top:18px;' + invPrimary(ready) + '">' + (st.inv.busy ? 'Joining…' : 'Join as ' + esc(first)) + '</button>' +
-        '<div ' + on(invOtherAccount) + ' style="margin-top:14px;text-align:center;font-size:15px;font-weight:700;color:#5b4ae8;cursor:pointer">Use a different account</div>' +
+    return '<div class="modal-scrim" data-scrim="' + reg(closeInvite) + '" style="z-index:32;background:rgba(13,17,23,.5);padding:20px">' +
+      '<div role="dialog" aria-modal="true" data-screen-label="Join {group}?" aria-label="Join ' + esc(g && g.name ? g.name : 'this group') + '?" style="position:relative;width:100%;max-width:353px;background:#fff;border-radius:24px;padding:22px 18px 18px;display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(15,18,25,.3);animation:popIn 260ms cubic-bezier(.22,.9,.28,1) both">' +
+        '<div style="display:flex;align-items:flex-start;gap:10px">' +
+          '<h2 style="flex:1;margin:0;font-size:22px;line-height:1.1;font-weight:900;letter-spacing:-.5px;color:#0d1117;text-wrap:balance;overflow-wrap:break-word">' + (g && g.name ? 'Join ' + invName(g) + '?' : 'Join this group?') + '</h2>' +
+          '<span ' + on(closeInvite) + ' aria-label="Close" style="flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;cursor:pointer">' + I.x(16, '#0d1117', 2.6) + '</span></div>' +
+        (pl && pl.name && !st.inv.ruleErr ? placeCard(pl, true, 104) : '') + (need ? connPicker(pl) : '') +
+        '<button type="button" data-inv-confirm-join ' + on(() => { if (ready) inviteJoin(); }) + ' aria-disabled="' + !ready + '" style="margin-top:14px;' + INV_BTN + 'min-height:54px;border:0;color:#fff;background:' + (ready ? '#5b4ae8' : '#d5d8df') + ';cursor:' + (ready ? 'pointer' : 'default') + '">' + (st.inv.busy ? 'Joining…' : 'Join as ' + esc(first)) + '</button>' +
+        '<div style="margin-top:12px;text-align:center;font-size:13px;font-weight:600;color:#9aa0ac">Not ' + esc(first) + '? <span ' + on(invOtherAccount) + ' role="button" data-inv-other style="font-weight:800;color:#5b4ae8;cursor:pointer">Use a different account</span></div>' +
       '</div></div>';
   }
 

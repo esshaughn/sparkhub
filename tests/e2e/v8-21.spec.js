@@ -23,6 +23,8 @@ test('Get started: join with a code, the four steps tick, × hides it everywhere
     await expect(join.locator('[data-join-found]')).toContainText('members');
     await join.getByRole('button', { name: 'Join Torrez Fitness' }).click();
     await expect(join).toHaveCount(0);
+    // v9-1: the code opens Join {group}? before joining
+    await page.getByRole('dialog', { name: 'Join Torrez Fitness?' }).getByRole('button', { name: 'Join as Gia' }).click();
     await saved(page);
     // Welcome to Torrez Fitness, Gia (v8-22 4a)
     await page.locator('[data-screen-label="Welcome to the group"]').getByRole('button', { name: 'Go to My calendar' }).click();
