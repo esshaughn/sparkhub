@@ -2,6 +2,150 @@
 
 Parked work. Newest first. When you pick something up, move it to a branch and delete it here once it ships.
 
+## Joseph on a post-event debrief (voice notes, 2026-10-16)
+
+Two voice notes from Joseph after Stacy's sit-down dinner, about what the app could do *after* an event. Notes only; nothing decided, and Joseph says he's still thinking on it ("I don't want to open too many new tabs").
+- **The need, in his words:** we're always on to the next thing and rarely stop to say *that went well, and if not, what could change?* After a big event he never takes a second to appreciate it. Hearing **each person's experience** is the valuable part (people connect and get different things from the same night).
+- **What he did:** he sent Stacy a recap voice message (he does this in the car after school drop-off). Stacy valued hearing what each person got out of it.
+- **The hard part: it must not feel like a task.** Everyone cares and wants to add to the event, but a feedback form is a chore. Options he floated: a **simplified version** for most people (*Would you do this again? What did you get out of it?*); **a couple of people lead the pack** by sharing first (*I really enjoyed this because…*), which makes others likelier to share; asking whether they want to be **invited to the next one** and whether they're excited for another.
+- **The second goal: the host feels appreciated.** Anyone who risks hosting wants to feel they did a good job. A small pat on the back (a thank-you, a voice note, a reply) makes the host likelier to do it again, and gives them confidence for the next (Thanksgiving, Christmas, New Year's). Joseph says it's partly selfish: it inspired him, and he hopes she does more.
+- **Teaching it is about reps:** voice notes feel like a lot at first and get easier and more casual (his weekly online check-ins). He notes **not enough events are happening** for the habit to form yet.
+- **Track what made it work:** the many small things (who sat where, the pace, room for silence and laughter, structure without too much structure), not only whether people liked it.
+- **Already in the app that this touches:** thank-you reactions on a past event (heart, praise, party, thanks, *Let's do it again!*), the lead's post-event *next time* notes (picks and a short note, private to the lead), and the Wrapped and photo-nudge ideas filed on 10-09.
+- **Questions for later:** is it a short prompt to everyone who came (*Would you do this again? One thing you loved*) the morning after, shown to the host only or to the group; a voice-note option; a *Say thanks to the host* nudge, separate from feedback; does *I'd come again* feed the *invite me to the next one* list; how does it relate to the lead's private *next time* note and to community memory (what to change next time)?
+
+## Auburn on the direction: friends vs communities, and the nonprofit (2026-10-12)
+
+Not feedback on the current app. It is Auburn's reaction to the direction being worked out: how to split **friends** from **communities**, and the nonprofit plan (We're All Neighbors; see the 2026-10-11 notes). Notes only; nothing decided.
+- **Her gut reaction: it started to sound like Meetup.** She said Meetup isn't bad (she made friends through it when she moved to Austin), but the direction felt like it was *missing the point*, and she couldn't say why at first. Her shoulders dropped at the Meetup angle.
+- **What she thinks the point is: hyper-local.** What she finds beautiful is that you're a community member of *Walnut Creek* and so you know what's happening *because you live there*, not because you share an interest. A pickleball group in North Austin can be found on Google anywhere; a place-based community feels more like a mission. She doesn't see it as interest-based (my board game group, my pickleball group); those exist already. She asked the owner directly whether that is the point: *we're all neighbors, and I know what's happening because this is where I live*.
+- **Her example is the dance troupe:** its members aren't the most obvious group of friends and music brought them together, but *proximity* is what let them make deeper connections and develop more ideas, because they're literally neighbors.
+- **Money, her aside (she says her knowledge is limited):** if it ever costs something, cover your bases with a classic *suggested donation*, or a way to apply for a *scholarship* (a lower cost), and different levels of what's free versus paid. She notes that adds administrative load, and that nonprofits can do for-profit things.
+- **How it lines up with what's already decided:** the 2026-10-11 notes define a community as a physical place plus a common good, neighborhoods first, with friends using personal lists and private events rather than shared friend groups. Her point supports putting the place at the centre and keeping the friends side separate. It also sharpens two open questions there: whether an interest group with no place anchor (Torrez Fitness) counts as a community, and how much of the friends side the nonprofit should carry.
+- **Questions for later:** if place is the point, where does a pickleball or board-game group fit (a list inside a neighbourhood, or outside the nonprofit)? Is a suggested-donation or scholarship model wanted when community tiers are decided?
+
+## See everyone in a group and add them as friends (owner's idea, 2026-10-12)
+
+Notes only, not decided or scheduled. Make it possible, or easier, for group members to see all the other members of their group and quickly add them as friends.
+- **Where it stands:** members can already open a group's people list (`group_people()` gives any member the names, photos, roles and join dates, no emails), and a friend request can be sent to anyone you share a group with (`send_friend_request()`, 30 an hour; it makes you friends if they had already asked you). Today the *Add friend* button is on a member's profile (you open the person first, then add), so what's missing is a one-tap add from the list itself. I haven't checked how the list looks or how many taps it takes in the live app.
+- **Ideas to explore:** an *Add friend* button on each row of the group's People list; *Add* on a person's profile card; a state per row (*Add* · *Requested* · *Friends*); a way to add several people at once (tick a few, or *Add everyone I know*); a suggestion line after an event (*You and Dee were both at Pickleball night. Add her?*).
+- **Questions for later:** whether being added should need approval (today a request does, and a declined one can't be sent again); the 30-an-hour limit if people add many at once; privacy (should a member be able to hide from the list, or from friend requests); how it fits the nonprofit plan, where a version-one community has no shared friend groups and friends use personal lists; and the Block rules (a blocked pair shouldn't see Add).
+
+## Timeline on a plan (owner's idea, 2026-10-10)
+
+Notes only, not decided or scheduled. Needs a Design mockup first.
+- **An *Add a timeline* option in Plan an event, under the event description.** Each entry has a **time**, a **title** and a small **description**. A first version could be **time and title only**, with the description optional or added later.
+- **For Design to explore:** where it sits on the one-page create form and on the plan page (a collapsed *Add a timeline* row that opens entries), how entries are added and reordered, and how it reads to guests (a simple schedule list: *6:00 Doors · 6:30 Potluck · 7:30 Games*).
+- **Questions for later:** whether it works with multi-day events (entries per day), whether a change to an entry notifies people going (the *Send an update* path exists), whether the lead's co-leads can edit it, and how it differs from sign-up jobs that have their own times (a job with a time vs a timeline entry).
+
+## Stacy's two notes (2026-10-10)
+
+Notes only, not decided or scheduled.
+- **A private scratchpad before posting an idea.** Even a title feels intimidating: people will see it. She wants a journal-style place to collect your own ideas in the moment that stays completely private, and converts easily into an idea or a plan when you're ready (never before). Related: the build already has *Save draft* on the float sheet (needs a title), private ideas, and `event_drafts` (one JSON row per draft, 20 max, only its owner can read). Questions for later: where it lives (Me, or a first step on *+*), whether a note can be a single line with no title, how it syncs across devices, whether it reminds you, and whether *Share with one friend first* is wanted.
+- **Photos: private to the group, with consent for reuse.** Encourage people to upload their photos for an event and maybe tag others, but it must feel private to the group. Add a consent choice: these can be used in the year-end Wrapped; these can be used to market other events (and the default means doing nothing). Notes: the photo reel in Wrapped and photo nudges are already filed (*Filed from chat 2026-10-09*). Questions for later: Wrapped as opt-out and marketing as opt-in per photo; a person's default in Me (*Photos I'm in*); a tagged person approves before a photo shows on their page or in Wrapped, and can untag; people in a photo who aren't the uploader also matter for marketing use; the privacy page and the store's content rules (reporting a photo, blocking) both apply.
+
+## Community memory and playbooks (owner's notes, 2026-10-09)
+
+Thinking only, not scheduled. The owner wants Spark Hub to get smarter as a community uses it, so each event is easier to set up than the last, quietly and optionally. Not AI: counting and recency.
+
+**Decided (owner, 2026-10-09):** playbooks are **shared between groups** (a group can publish one, like *Torrez's Pickleball Night*, and another can borrow it); **no AI for now**; and a group with little history for an event type starts from **both its own history and a shared playbook, its own history first** (the shared playbook fills in what the group hasn't done).
+
+- **Three layers of memory:** you (your habits), your group (how this community does things; the one to start with), everyone (anonymous patterns across groups, only when at least three groups show the same pattern; never names, guest phones or private events).
+- **A ladder of cleverness:** copy last time (*Do it again* exists) → recall by event type (place, time, description, sign-ups) → patterns across several (the usual spot count, typical day, lead time) → outcomes (what filled, what sat empty, who came versus who said Going) → people (*Roxy brought candles twice; ask her?*, linked to the gifts card and resource library).
+- **How it shows up, quietly:** chips and ghost text at the point of need (*Last time: bring extra paddles · set up the net*), never pop-ups; at most three, shown after a pattern appears twice; always dismissible (and a dismissal teaches); show where it came from (*from your last 3 pickleball nights*). A **Start from…** entry on the first create screen (*Pumpkin Night · Pickleball · Potluck*), the biggest win for first-time leads.
+- **Learning without forms:** by-products of use, plus one optional post-event *Anything to change for next time?* (*more chairs · start earlier · fewer jobs*), and a group page of *our usual* that leads can star.
+- **Cold start:** starter playbooks written from real events (potluck, walk, game night, chili cook-off, Halloween walk); the group's own history takes over once it has some. The *Walktober templates* idea in the market-review section, grown up.
+- **Start recording now** (cheap now, impossible to rebuild later): when each sign-up was claimed (time-to-fill); who came and the final count (exists); a normalized event type per event; why an event was cancelled and what the lead changed after posting; the optional *next time* note.
+- **Risks:** small groups have thin history; stale suggestions entrench habits (weight recent events, let people edit); too many suggestions feels like nagging; success is the **share of events started from memory** and less typing per post, not how clever it looks.
+
+## Build-only fixes: no Design needed (filed 2026-10-09)
+
+Pulled out of the Steven and Joseph section below so they can go straight to a build session. First check each on the live app (some may already be fixed).
+1. **Add to calendar on Android** downloads an .ics file instead of opening the calendar. Ask whether it can go straight into Google Calendar. On Joseph's iPhone, Apple's own sheet confused him (the blue checkmark didn't add, *Add to Calendar* at the bottom did): check which kind of event file we send and whether we can make it open straight to the add screen.
+2. **Discussion comments didn't show until the owner restarted the app** *Can't reproduce, 2026-10-10: the discussion and idea-collaboration specs pass on a local database (your own comment shows at once, others' show by themselves and after a refresh). Not tried on an installed iPhone, where the app has its own storage.*  (he couldn't see a comment he'd just made). Reproduce: post a comment, see if it appears without a restart; check the comments load and the cache.
+3. **Picking a date on an idea didn't update the page** *Can't reproduce, 2026-10-10: with two people on one idea and no reloads, a suggested date and a lead's pick both updated the other person's open page ("Lena picked it"). Not tried on an installed iPhone.*  (the header still said *When · Suggest a date* until a refresh; Joseph's view didn't update either). Check the idea page refreshes after a pick, for the picker and for everyone else.
+
+## Filed from chat 2026-10-09: sessions with Steven and Joseph, Auburn, Stacy, and the owner's own ideas
+
+All notes, none decided or scheduled unless marked. Lessons are in LEARNINGS.md (*What the pilot says*). Check each against the current build before starting: several things shipped after these sessions (see the git log).
+
+**Steven and Joseph's session (2026-10-06)**
+- **RSVP buttons change your answer when you only wanted to see who's going.** Joseph, Steven and Stacy all did it. The owner's fix: take the counts off *Going* / *Maybe* and show who's going separately; after answering, collapse to *You're going · Change* (built 2026-10-06; check the counts are off the buttons).
+- **Picking a date on an idea didn't update the page** *Can't reproduce, 2026-10-10: with two people on one idea and no reloads, a suggested date and a lead's pick both updated the other person's open page ("Lena picked it"). Not tried on an installed iPhone.*  (the header still said *When · Suggest a date* until a refresh; Joseph's view didn't update either). Check it's fixed.
+- **Discussion comments didn't show for the owner until he restarted the app.** *Can't reproduce, 2026-10-10: the discussion and idea-collaboration specs pass on a local database (your own comment shows at once, others' show by themselves and after a refresh). Not tried on an installed iPhone, where the app has its own storage.*
+- **Add to calendar:** Android downloads an .ics file (Steven suggested asking whether it can go straight into Google Calendar); on Joseph's iPhone Apple's sheet confused him (the blue checkmark didn't add, *Add to Calendar* at the bottom did): check what kind of event file the app sends.
+- **Location search (Geoapify) was glitchy when typing** (moved to Google Places 2026-10-09).
+- **"The swipe thing"** the owner said he must fix (not described in the recording; ask).
+- **Text size:** date labels (*Friday 9*, *Tuesday*) and titles in empty boxes are too small; Steven's eye goes month → divider → title → date. Both like the big photo but want the date, what it is and *Going* without scrolling.
+- **A summary at the top of the event page** (*4 discussions · 3 jobs need help · 1 vote*) so people find where to take part; Discussion sits at the bottom.
+- **"Make a plan" doesn't feel real** (Joseph, Auburn, then Steven): idea → event → past; wording like *Create the event* or *Lock it in*. Three people said it.
+- **Following an idea:** Joseph wasn't told when TJ became interested (only the lead hears). A toggle to follow ideas you're interested in; Steven's caution: with 50 people that's a lot of notifications.
+- **Date narrowing** is in the Ideas audit section below.
+- **An ideas quota and support others** (Steven): e.g. 3 ideas a week, or fewer after 3 successful events, with a nudge to support someone else's (*these 3 people have never posted an idea*). The owner's measure of success: more people leading things.
+- **The moment to watch:** a week before, the lead thinks *I don't have my stuff together*. Remind both the lead and the co-lead a few days before and when nothing has moved; a short checklist three days out.
+- **Money question:** a deck of cards ~ $20 a person; Steven suggested *How much would you chip in?* (a question, not payments; LEARNINGS says no payments).
+- **Later:** a heat-map grid for dates, a private "my availability" calendar the app can check without showing others (Steven: misuse risk in big groups), and Steven's caution not to solve scheduling: find the minimum a lead needs.
+
+**Auburn's session (2026-10-06)**
+- **Group picker:** a group was pre-selected and she couldn't remove it (fixed: *Post to* picks none by default).
+- **Date/time pop-ups glitchy and the page scroll jumped** on the one-page *Plan an event*; she'd type times (*7* → *7:00 am · 7:30 am · 7:00 pm*) (typed in place since 2026-10-07; check).
+- **The invite pop-up appeared right after posting**: too aggressive.
+- **Unclear on the float path:** *Who leads it?* (what it means for her); *Talk it through* feels like a big ask: try *Open to feedback* or *Open to ideas*, or comments on ideas so a thought partner rises from the discussion; she typed a task instead of the description.
+- **Urgent vs nice-to-have tasks** (from her egg-hunt doc): only urgent ones nag the lead and show in the task list; the rest stay on the event, with a toggle.
+- **Inviting people who aren't on the app:** *so I have to text everybody?* Today it's a link or QR code; she'd expect email (against the no-email rule).
+- **Ask someone:** limited to two with an *I thought of you because…* line; Jeni felt a larger group is safer (see Jeni's section).
+
+**Stacy's session (2026-10-06)**
+- **When is an idea "happening"?** She asked: when does it hit critical mass, and how can I help it get there? Show progress toward happening plainly (the incubator) and make *share with a friend* a way to help.
+- **Plan an event as one page**, like Partiful (built); the overview right under the title; drop *Quick details* for now (done: description 500).
+- **Sign-up section naming:** *Claim a time / seat* confusing; *Join in* reads as intensity; she prefers *Participate* or *Contribute*; *Help out* is fine; she first thought she was signing up herself (frame as *What do you want guests to sign up for?*). (Now called *Sign up*; check the framing.)
+- **Naming:** *Lists* didn't mean anything; she suggested *communities* with *groups* inside.
+- **Moderation:** how does someone get into *Hub on Hunters*? Owners and admins control the invite link; the owner won't build group-wide messaging because he'd then moderate everyone's posts (Joseph pushes the other way).
+- **Month view with a linked list:** the grid on top and a scrolling list of the whole month under it; scrolling the list moves the highlighted day, tapping a day jumps the list, scrolling past the month moves the grid to the next. (Stacy: she uses Google Calendar on monthly.) Open: skip empty days, shrink the grid to a week row while scrolling, pencilled-in idea dates in the list.
+- **Creating events is "a laptop activity"** for her: supports the computer-as-web-page direction.
+- **The owner's own notes:** Calendar and Ideas are definitely main tabs; Groups and Friends maybe not; Me as a command centre with a year in review; the sparkles where there's magic; a *resource library* (logged below).
+
+**Owner's ideas and brainstorms from chat**
+- **Idea decay, "fan the spark"** (owner, from the Claude audit's item 6: *floated ideas can die unseen*): ideas carry heat that fades; real steps add it back; the board sorts by heat and rests ideas that go cold, without deleting them.
+  - **States:** New (first 7 days), Glowing, Cooling (~14 days without a real step, small ember), Embers (a countdown, last week), Resting (~30 days; off the board, kept on a *Resting ideas* shelf; anyone can rekindle).
+  - **Big steps reset the clock** (a lead or co-lead, a window or date, a poll, a place, a job); small steps add a few days (a new interested person, a vote, someone else's comment). *Keep it going* (the starter, lead or co-lead) adds 14 days, once without other progress.
+  - **Everyone shares responsibility:** each person sees one next step for them (starter: set a rough window; thought partner: the same; interested: vote or bring a friend; anyone: *Fan this spark*). A thought partner is prompted at the third interested person.
+  - **Safety nets in widening rings:** starter and co-lead, then the interested, then a *Could use a spark* lane and opted-in champions, then one weekly group digest (never one per idea), then a kind note when it rests. At most one nudge per idea per person per week.
+  - **Numbers to argue with:** 7 / 14 / 7 / 30 days; the audit suggested ~60 days to archive; an idea with a window rests the day after it closes.
+  - **Builds on:** soft holds (7-day, *Keep holding*), the daily push job, one-nudge-then-replace notes. Fits LEARNINGS' *slow and digest-first* rule.
+- **Photo nudges and a year-end Wrapped** (owner, with Joseph's idea):
+  - **During the event:** one push to everyone Going partway through: *📸 Snap a photo of {event} and add it here* (opens the album, camera ready). Skip test events; for events without an end time, send an hour after the start.
+  - **After:** next morning, only to people who came and haven't added a photo; a slightly different version for leads.
+  - **Wrapped:** for a group (*{Group}'s 2026*: events, people who came, first-time leads, the most-loved event, the busiest month, a photo reel) and per person (attended, helped, led, your photos); shareable as a card.
+  - **Open:** let people keep their photos out of Wrapped; a way to turn off photo nudges; December or each group's anniversary.
+- **One-way announcements** (owner, from the chat discussion): the lead's *Send everyone an update* shown as an *Updates* strip on the event page, a composer with quick-start chips (*Running late · We're here: ___ · Moved to ___ · Cancelled*) and a *Going* / *Going and Maybe* choice; optional *👍 Got it*; test events don't push. Joseph says one-way blasts may not be worth it without replies: lean is this plus a chat link on the event (lead pastes a WhatsApp or group-text link, shown to people Going; no phone numbers). Full event chat is a later version (the rules and Supabase limits are in the chat notes in LEARNINGS.md's conflicts line).
+- **Early access, then public** (owner, lower priority): keep an event private for a set time (3, 5 or 7 days) to a chosen list for first dibs, then it opens to the group automatically; people see a countdown. Pairs with limited spots. And **private friend lists** (*core friends*, *poker night*) for inviting or early access.
+- **Basic vs organizer** (owner's idea): don't make people skip complicated steps: a quick path (what, when, where, group) with *Set up more ›*, and an organizer panel on the event after posting (jobs, sign-ups, chat, early access, polls). Related to the idea/plan choice already on the first screen.
+- **Event cards:** *6 spots left* vs *RSVP* wording is filed below; **Post to** title *choose all* is filed below.
+- **Tab bar and Me:** reorganization briefs (A: five questions; B: group first) were sent to Design; Joseph likes the Groups page (it feels like belonging) and dislikes Tasks; see the reorganization section further down. *Start here* stays parked.
+
+## Resource library and asset-based community development (owner's notes, 2026-10-08)
+
+Not decided, not scheduled. The owner wants asset-based community development (ABCD) infused more deeply, and has talked about a **resource library**: a shorthand list of what people can offer (*10 electric candles*, *a truck anyone can use*, a yard, a skill). Brainstorm in chat 2026-10-08; fuller ideas are in LEARNINGS.md's pilot section (Jeni's helper pool, skills to give and get, Roxy's curtains and candles, the lawnmower).
+
+- **Shape (lean):** one short card per offer, structured, no open text feed: *what* · *how many* · *who* · *the group(s) it's shown to* · optional *when it's free*. A skill is the same card (*Teach knitting · Thursdays*).
+- **Where it shows:** a group's *What we have* page; as **suggestions when a lead adds a sign-up** (*Roxy has electric candles. Ask?*); and as spaces in the location field (*Jeni's yard*).
+- **Connected ideas:** a three-tap gifts card on Me (hands · head · heart, chips not text); *What do you already have for this?* when floating an idea; a language pass off deficit words (*Needs help* → *Ways to pitch in*); recognizing connectors (people who bring others in); *gifts given* in Wrapped.
+- **Cautions:** keep offers inside a person's groups; no leaderboards or points; lending carries risk (the app only connects people); stay clear of LEARNINGS' *Don't build: neighbourhood feed* by keeping offers as cards tied to groups and events, without comments.
+- **Open:** who can edit a group's list (anyone for their own items?), whether an item can be *reserved* for an event (and released after), and where it lives in the tab bar (a group page section first).
+
+## Discussion: comment layout, emoji, likes (owner, 2026-10-08)
+
+From a screenshot of a comment thread (Carmen's comment with Eric's reply under it):
+- **Spacing:** the top-level comment sits too high; center it in the space between the top of the thread and the Reply / Hide replies / Delete row (more room above it, less crowding against its reply).
+- **Emoji:** add a way to put emoji in a comment (an emoji button by the box, or the phone's emoji keyboard made easy to reach). Emoji already display fine in comments.
+- **GIFs, eventually** (owner): not now. Notes for later: a GIF picker means a third-party service (Giphy or Tenor; check current terms and pricing, since Tenor's API has been winding down), a CSP change in `vercel.json` for its images, and a content-safety setting (G-rated only). A group-moderation question comes with it: leads can already delete a comment, so that covers removal.
+- **A like button** on comments (a heart or thumbs-up with a small count, tap again to undo). Check the Kevin rule about minimizing free-text drama first; likes are a light reply that needs no words. Likes would be a new table with the same visibility rules as comments, and a quiet push or none at all (decide).
+
+## Event cards: "6 spots left" reads like an RSVP cap (owner, 2026-10-08)
+
+Woodcliff Halloween's card in the list reads *6 spots left · 1 going* · RSVP. The owner thinks *spots left* counts open sign-ups (jobs), but beside *going* and RSVP it reads as a limit on how many can come. Decide what's most useful on a card, or show one or the other by case: e.g. a capped event (Take part seats, a size limit) → *6 spots left*; open sign-ups → *Needs help · 6* or *6 ways to help*; neither → just *N going*. Same card also shows *Austin, TX 78…* (the address-shortening item in the Plan an event list below).
+
 ## Plan an event page: owner's polish list (2026-10-07)
 
 **Location**
@@ -13,6 +157,8 @@ Parked work. Newest first. When you pick something up, move it to a branch and d
 
 **Date and time**
 - **Type it in place, no pop-up** (Auburn also expected to type: "7" → *7:00 am · 7:30 am · 7:00 pm*).
+
+**Post to pop-up** (owner, 2026-10-08): the title should say you can pick several, e.g. *Post to · choose all that apply* (owner's words: "choose all"). Today it reads just *Post to* over round radio-style circles, which look single-choice.
 
 **Copy and look**
 - *Optional* tags: lighter gray.
