@@ -60,3 +60,85 @@ test('the join moment: Join by code opens Join {group}? with the place and the q
     await other.context.close();
   }
 });
+
+// Q57, after the event, joy first: the past event keeps the event page with joy on top; someone who went shares joy
+// (step 1: chips, the lead pre-picked to thank, a moment, I'd come again), then step 2; the page celebrates it; the lead
+// sees the thanks in the bell and on Me. #/idea/<id>/photo opens the photo moment
+const inDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+test('after the event: share your joy in two steps, How it felt celebrates it, the lead is thanked', async ({ browser }) => {
+  test.setTimeout(120000);
+  const host = await newLead(browser, 1, 'Ada');
+  const guest = await newLead(browser, 2, 'Bo');
+  const A = host.page, B = guest.page, title = uniqueTitle('Taco night');
+  let id;
+  try {
+    id = await asUser(A, async (c, _C, { title, day }) => {
+      const me = (await c.auth.getUser()).data.user.id;
+      const g = (await c.from('groups').select('id').eq('name', 'Torrez Fitness').single()).data.id;
+      const r = await c.from('sparks').insert({ group_id: g, author_name: 'Ada', lead_name: 'Ada', lead_id: me, created_by: me, text: title, planned: true, day_date: day, day_time: '18:00', spot: 'Pease Park', vision: 'Bring a dish.' }).select('id').single();
+      return r.error ? r.error.message : r.data.id;
+    }, { title, day: inDays(-1) });
+    expect(id).toMatch(/^[0-9a-f-]{36}$/);
+    const rs = await asUser(B, async (c, _C, sid) => { const me = (await c.auth.getUser()).data.user.id; const r = await c.from('rsvps').insert({ spark_id: sid, user_id: me, status: 'going' }); return r.error ? r.error.message : 'ok'; }, id);
+    expect(rs).toBe('ok');
+
+    // Bo opens it: still the event page, joy first
+    await B.goto('/#/idea/' + id);
+    await expect(B.locator('html[data-loaded=true]')).toHaveCount(1);
+    const page = B.locator('[data-screen-label="It happened"]');
+    await expect(page).toContainText('It happened!');
+    await expect(page.locator('[data-past-expect]')).toContainText('Bring a dish.');
+    await expect(page.locator('[data-who-came]')).toContainText('Who came · 2');
+    const card = page.locator('[data-joy-card]');
+    await expect(card).toContainText('What gave you joy?');
+    await card.locator('[data-joy-share]').click();
+    const sheet = B.getByRole('dialog', { name: 'Share your joy' });
+    await expect(sheet).toContainText('What made ' + title + ' good?');
+    await expect(sheet.locator('[data-joy-thank="Ada"]')).toHaveAttribute('aria-checked', 'true');   // the lead, pre-picked
+    const next = sheet.locator('[data-joy-next]');
+    await expect(next).toHaveText('Tap what gave you joy');
+    await expect(next).toHaveAttribute('aria-disabled', 'true');
+    await sheet.locator('[data-joy-chip="Laughing"]').click();
+    await sheet.locator('[data-joy-own]').click();
+    await sheet.locator('[data-joy-own-text]').fill('The tacos');
+    await sheet.locator('[data-joy-line]').fill('Everyone stayed way longer than planned.');
+    await sheet.locator('[data-joy-again-tick]').click();
+    await expect(next).toHaveText('Share my joy');
+    await next.click();
+    // Step 2 opens right after, in the same sheet
+    await expect(sheet.locator('[data-joy-unlock]')).toHaveText('Thanks! Ada will see your thanks. One more, if you want.');
+    await sheet.locator('[data-joy-could-chip="Bring a friend"]').click();
+    await sheet.locator('[data-joy-more-chip="Food after"]').click();
+    await sheet.locator('[data-joy-done]').click();
+    await expect(B.getByText('Shared. Thank you!'), guest.errors.join(' / ')).toBeVisible();
+    await expect(card).toContainText('Thanks for sharing your joy');
+    const felt = page.locator('[data-how-felt]');
+    await expect(felt.locator('[data-joy-quote]')).toContainText('Everyone stayed way longer than planned.');
+    await expect(felt.locator('[data-most-loved]')).toHaveText('Most loved: laughing · the tacos');
+    await expect(felt.locator('[data-thanks-given]')).toContainText('Ada · 🙏 1');
+    await expect(felt.locator('[data-joy-could]')).toHaveText('Next time: 1 will bring a friend.');
+    await expect(felt.locator('[data-joy-wishes]')).toHaveCount(0);   // wishes show from day 2
+    await expect(page.locator('[data-joy-again]')).toContainText('1 would come again');
+
+    // The photo moment from its push link
+    await B.goto('/#/idea/' + id + '/photo');
+    const snap = B.getByRole('dialog', { name: 'Snap a photo' });
+    await expect(snap).toContainText('Snap one for the album');
+    await expect(snap.locator('[data-photo-tiles]')).toContainText('Yours goes here');
+    await snap.getByRole('button', { name: 'Not now' }).click();
+
+    // Ada, the lead: the thanks in the bell and on Me; her own card asks how it felt to lead it
+    await A.reload();
+    await expect(A.locator('html[data-loaded=true]')).toHaveCount(1);
+    await A.goto('/#/idea/' + id);
+    await expect(A.locator('[data-joy-card]')).toContainText('How did it feel to lead it?');
+    await expect(A.locator('[data-how-felt] [data-joy-quote]')).toContainText('Everyone stayed way longer than planned.');
+    await A.goto('/#/me');
+    await expect(A.locator('[data-me-thanks]')).toContainText('Thanks you’ve had');
+    await A.locator('[data-me-thanks]').click();
+    await expect(A.locator('[data-notif=thanks]').first()).toContainText('Bo thanked you for leading ' + title + ' 🙏');
+  } finally {
+    if (id) await asUser(A, async (c, _C, sid) => { await c.from('sparks').delete().eq('id', sid); }, id).catch(() => {});
+    await host.context.close(); await guest.context.close();
+  }
+});

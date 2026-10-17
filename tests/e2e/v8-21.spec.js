@@ -82,7 +82,7 @@ test('Get started: join with a code, the four steps tick, × hides it everywhere
   }
 });
 
-test('Anything to change for next time: the lead saves a note, and Plan an event shows it as LAST TIME', async ({ browser }) => {
+test('Next time: the lead’s private step 2 of the joy card is saved, and Plan an event shows it as LAST TIME', async ({ browser }) => {
   test.setTimeout(120000);
   const host = await newLead(browser, 1, 'Hope');
   const H = host.page, title = uniqueTitle('Bocce evening');
@@ -96,21 +96,25 @@ test('Anything to change for next time: the lead saves a note, and Plan an event
     }, { title, day: inDays(-4) });
     expect(past).toMatch(/^[0-9a-f-]{36}$/);
     await openIdea(H, past);
-    const card = H.locator('[data-screen-label="It happened"] [data-next-time]');
-    await expect(card).toContainText('Anything to change for next time?');
-    await expect(card).toContainText('Only you see this. It shows again when you plan the next one.');
-    await expect(card.locator('[data-nt-save]')).toHaveAttribute('aria-disabled', 'true');
-    await card.locator('[data-nt-chip="More chairs"]').click();
-    await card.locator('[data-nt-chip="Start earlier"]').click();
-    await card.getByLabel('Something else').fill('Bring a speaker');
-    await card.locator('[data-nt-save]').click();
-    await expect(H.getByText('Saved for next time')).toBeVisible();
-    await expect(card).toContainText('YOUR NOTE FOR NEXT TIME');
-    await expect(card.locator('[data-next-time-note]')).toHaveText('More chairs · Start earlier · Bring a speaker');
+    // Design v9-1 (Q57): the lead's private note for next time is now step 2 of the joy card, which replaces the old card
+    await expect(H.locator('[data-screen-label="It happened"] [data-next-time]')).toHaveCount(0);
+    const card = H.locator('[data-joy-card]');
+    await expect(card).toContainText('How did it feel to lead it?');
+    await card.locator('[data-joy-share]').click();
+    const sheet = H.getByRole('dialog', { name: 'Share your joy' });
+    await expect(sheet.locator('[data-joy-again-tick]')).toHaveCount(0);   // not for the lead
+    await sheet.locator('[data-joy-chip="The pace"]').click();
+    await sheet.locator('[data-joy-next]').click();
+    await expect(sheet).toContainText('Only you and your co-leads see this. It shows again when you plan the next one.');
+    await sheet.locator('[data-joy-could-chip="Come early to set up"]').click();
+    await sheet.locator('[data-joy-more-chip="Food after"]').click();
+    await sheet.getByLabel('Anything to change for next time?').fill('Bring a speaker');
+    await sheet.locator('[data-joy-done]').click();
+    await expect(H.getByText('Shared. Thank you!')).toBeVisible();
+    await expect(card).toContainText('Your note shows again when you plan the next one.');
     // It's on the account, not just the screen
-    await H.reload();
-    await expect(H.locator('html[data-loaded=true]')).toHaveCount(1);
-    await expect(H.locator('[data-next-time-note]')).toHaveText('More chairs · Start earlier · Bring a speaker');
+    await expect.poll(() => asUser(H, async (c, _C, id) => (await c.from('next_time_notes').select('picks,note').eq('spark_id', id).maybeSingle()).data, past))
+      .toEqual({ picks: ['Come early to set up', 'Food after'], note: 'Bring a speaker' });
 
     // Planning the next one: a title with the same word brings up LAST TIME and the note
     await startPost(H, { group: false });
@@ -120,7 +124,7 @@ test('Anything to change for next time: the lead saves a note, and Plan an event
     const last = flow.locator('[data-last-time]');
     await expect(last).toContainText('LAST TIME · ');
     await expect(last).toContainText(title + ', which you led.');
-    await expect(last.locator('[data-last-time-note]')).toHaveText('Your note: More chairs · Start earlier · Bring a speaker');
+    await expect(last.locator('[data-last-time-note]')).toHaveText('Your note: Come early to set up · Food after · Bring a speaker');
     expect(host.errors).toEqual([]);
   } finally {
     if (past) await asUser(H, async (c, _C, id) => { await c.from('sparks').delete().eq('id', id); }, past).catch(() => {});

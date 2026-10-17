@@ -389,7 +389,10 @@
   const eventLink = (s) => SHARE_ORIGIN + (s.linkCode ? '/e/' + s.linkCode : '/i/' + s.id);
   const fromUrl = () => {
     const h = location.hash;
-    let m = h.match(/^#\/idea\/([0-9a-f-]{36})$/) || (!h && location.pathname.match(IDEA_PATH));
+    // A push after the event (Design v9-1): #/idea/<id>/joy opens the joy card's step 1, #/idea/<id>/photo the photo moment
+    let m = h.match(/^#\/idea\/([0-9a-f-]{36})\/(joy|photo)$/);
+    if (m) { history.replaceState(null, '', location.pathname + '#/idea/' + m[1]); return m[2] === 'photo' ? { screen: 'detail', subjectId: m[1], joySheet: { id: m[1], k: 'photo' } } : { screen: 'detail', subjectId: m[1], joyWant: m[1] }; }
+    m = h.match(/^#\/idea\/([0-9a-f-]{36})$/) || (!h && location.pathname.match(IDEA_PATH));
     if (m) return { screen: 'detail', subjectId: m[1] };
     m = !h && location.pathname.match(E_PATH);
     if (m) return { screen: 'detail', subjectId: null, linkCode: m[1] };
@@ -5379,6 +5382,10 @@
     leadask: { bg: '#7b6ef0', glyph: '★', cat: 'invites', topic: 'friends' },   // someone asked you to lead an idea
     jobask: { bg: '#e8a71c', glyph: '✋', cat: 'invites', topic: 'friends' },   // someone asked you to take a job
     leadoffer: { bg: '#7b6ef0', glyph: '★', cat: 'invites', topic: 'friends' },   // the lead asked you to take over
+    // After the event, joy first (Design v9-1): the photo moment (◉), How was it? (✦) and thanks you got (🙏)
+    photo: { bg: '#5b4ae8', glyph: '◉', cat: 'updates', topic: 'joyphoto' },
+    joy: { bg: '#f5b428', glyph: '✦', cat: 'updates', topic: 'joyask' },
+    thanks: { bg: '#e8a71c', glyph: '🙏', cat: 'updates', topic: 'thanks' },
     hold: { bg: '#7b6ef0', glyph: '★', cat: 'hosting', topic: 'hosting' }   // soft holds: Lock it in? / stop holding tomorrow (the daily job pushes them too)
   };
   const N_TOPICS = [
@@ -5386,7 +5393,11 @@
     ['updates', 'Updates from leads', 'Changes to events you’re in'],
     ['reminders', 'Reminders', 'The day before and the morning of anything you’re going to or helping with'],
     ['hosting', 'Things you’re leading', 'Replies, interest, sign-ups and suggestions'],
-    ['friends', 'Friends', 'Friend requests, and friends inviting you to events']   // Design v8's lines
+    ['friends', 'Friends', 'Friend requests, and friends inviting you to events'],   // Design v8's lines
+    // After the event, joy first (Design v9-1)
+    ['joyphoto', 'Photo reminder during events', 'About 40 minutes into an event you’re going to'],
+    ['joyask', 'How was it?', 'The morning after an event you went to'],
+    ['thanks', 'When someone thanks you', 'One push per event, grouped']
   ];
   // A guest's name comes from what they left the lead; everyone else from their profile
   const personName = (s, uid) => {
@@ -5456,6 +5467,28 @@
         s.spotOpts.filter(o => o.createdBy !== me && o.created).forEach(o => add({ key: 'p:' + o.id, type: 'vote', s, t: o.created, uid: o.createdBy, who: o.who, text: 'suggested', item: o.name, joiner: ' for ' }));
       }
     });
+    // After the event, joy first (Design v9-1), the same moments as the pushes: ~40 minutes in (Going), the morning
+    // after (who went, and the hosts), and thanks you got, one line per event
+    const nowT = Date.now(), today = todayISO();
+    state.sparks.forEach(s => {
+      if (!s.planned || s.cancelledAt || s.test) return;
+      const lead = isLead(s), went = s.rsvps.some(r => r.userId === me && (r.status === 'going' || r.attended));
+      if (s.dayDate === today && s.dayTime && myRsvp(s) === 'going') {
+        const t = Date.parse(s.dayDate + 'T' + s.dayTime) + 40 * 60000;
+        if (nowT >= t && nowT < t + 4 * 3600000) add({ key: 'jp:' + s.id + ':' + s.dayDate, type: 'photo', s, t, body: '📸 ' + s.text + ' is happening · Snap a photo for the album.' });
+      }
+      if (phaseOf(s) === 'done' && (lead || went) && s.dayDate) {
+        const t = Date.parse(isoAdd(s.dayDate, 1) + 'T09:30');
+        if (nowT >= t && nowT < t + 7 * 864e5) add({ key: 'ja:' + s.id, type: 'joy', s, t, body: lead ? 'Thank your helpers for ' + s.text + ' · Add photos and share what gave you joy.'
+          : 'How was ' + s.text + '? · What gave you joy? Thank ' + firstName(nameOf(s.leadId, s.leadName)) + ' and the helpers.' });
+      }
+    });
+    const thx = {}; myThanks().forEach(x => { (thx[x.spark_id] = thx[x.spark_id] || []).push(x); });
+    Object.keys(thx).forEach(sid => { const s = state.sparks.find(x => x.id === sid), list = thx[sid]; if (!s) return;
+      const job = (s.jobs || s.signups).find(j => (j.shifts ? [].concat(...j.shifts.map(u => u.claims)) : j.claims).some(c => c.userId === me));
+      const first = nameOf(list[list.length - 1].from_user, 'Someone'), others = list.length - 1;
+      add({ key: 'th:' + sid + ':' + list.length, type: 'thanks', s, t: Date.parse(list[0].created_at), uid: list[list.length - 1].from_user, who: first,
+        body: firstName(first) + (others ? ' and ' + others + (others === 1 ? ' other' : ' others') : '') + ' thanked you for ' + (job ? job.item : isLead(s) ? 'leading ' + s.text : s.text) + ' 🙏' }); });
     (state.notes || []).forEach(x => add({ key: 'n:' + x.id, type: 'note', s: null, t: x.created, uid: x.createdBy, who: nameOf(x.createdBy, 'The lead'), body: x.body }));
     // v6 Update 13: friend requests (bell only, no push) and friends' invites (bell and push)
     state.fr.incoming.forEach(f => add({ key: 'fr:' + f.id + ':' + f.at, type: 'friendreq', s: null, t: f.at, uid: f.id, who: f.name, text: 'wants to be friends', sub: f.group ? 'You’re both in ' + f.group : '' }));
@@ -5503,7 +5536,10 @@
   const markRead = (n) => { if (isUnread(n)) saveNotif({ read: state.notif.read.concat([n.key]) }); };
   // Everything shown counts, even an item stamped a little ahead of this device's clock
   const markAllRead = () => saveNotif({ allReadAt: Math.max(Date.now(), ...notifList().map(n => n.t)), read: [] });
-  const openNotif = (n) => { markRead(n); if (n.type === 'hold') openToSection(n.s, 'sec-when'); else if (n.s) openSpark(n.s); else if (n.type === 'friendreq') go('friends'); else if (n.type === 'ginv') openGInv(n.inv); else if (n.type === 'gjoined') { const g = groupById(n.inv.group); if (g) openGroup(g); } };
+  const openNotif = (n) => { markRead(n);
+    if (n.type === 'photo') { openSpark(n.s); setState({ joySheet: { id: n.s.id, k: 'photo' } }); return; }
+    if (n.type === 'joy') { openSpark(n.s); setState({ joyWant: n.s.id }); return; }
+    if (n.type === 'hold') openToSection(n.s, 'sec-when'); else if (n.s) openSpark(n.s); else if (n.type === 'friendreq') go('friends'); else if (n.type === 'ginv') openGInv(n.inv); else if (n.type === 'gjoined') { const g = groupById(n.inv.group); if (g) openGroup(g); } };
   const rsvpFromFeed = (n, status) => (e) => { stop(e); markRead(n); setRsvp(n.s, status); };
 
   // ---- Web push: phone notifications (the service worker is /sw.js; the database decides who
@@ -5947,7 +5983,7 @@
     const row = (n, k) => {
       const T = N_TYPES[n.type], g = n.s && groupById(n.s.groupId), unr = isUnread(n), face = n.uid ? avatarOf(n.uid) : null;
       const what = n.s ? '<b style="font-weight:800;color:#0d1117">' + esc(n.s.text) + '</b>' : '';
-      const line = n.type === 'note' ? '<b style="font-weight:800;color:#0d1117">' + esc(n.body) + '</b>'
+      const line = n.type === 'note' || n.type === 'photo' || n.type === 'joy' || n.type === 'thanks' ? '<b style="font-weight:800;color:#0d1117">' + esc(n.body) + '</b>'
         : n.type === 'hold' ? what + ' · ' + esc(n.body)
         : n.type === 'newevent' ? '<b style="font-weight:800;color:#0d1117">' + (n.idea ? 'New Idea:' : 'New:') + '</b> ' + what   // bold (Design v8)
         : n.type === 'reminder'
@@ -5961,7 +5997,7 @@
         (n.type === 'hold'   // a dashed gold pencil tile, with the ★ badge (Design, soft holds)
           ? '<span aria-hidden="true" style="position:relative;flex:0 0 44px;width:44px;height:44px;border-radius:999px;box-sizing:border-box;border:1.5px dashed #d9c58a;background:#fdf6dc;display:flex;align-items:center;justify-content:center">' + svg(19, stroke('#8a6510', 2.2), PENCIL_IC) +
               '<span style="position:absolute;right:-3px;bottom:-3px;width:20px;height:20px;border-radius:999px;border:2px solid #fff;background:' + T.bg + ';color:#fff;font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center;line-height:1">' + T.glyph + '</span></span>'
-          : avatarSpan(n.type === 'reminder' ? n.s.id : n.uid, n.type === 'reminder' ? n.s.text : n.who, face, 44, 'position:relative',
+          : avatarSpan(n.type === 'reminder' || n.type === 'photo' || n.type === 'joy' ? n.s.id : n.uid, n.type === 'reminder' || n.type === 'photo' || n.type === 'joy' ? n.s.text : n.who, n.type === 'photo' || n.type === 'joy' ? null : face, 44, 'position:relative',
           '<span style="position:absolute;right:-3px;bottom:-3px;width:20px;height:20px;border-radius:999px;border:2px solid #fff;background:' + T.bg + ';color:#fff;font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center;line-height:1">' + T.glyph + '</span>')) +
         '<div style="flex:1;min-width:0">' +
           // Design v8: 14.5px text, a quote (an update too) in a gray chat bubble, the meta at 12.5/700
@@ -6332,7 +6368,7 @@
     return sheet('Place and purpose', close, SHEET_PAD,
       sheetHead(g.name, 'Place & purpose', 'Neighbors see this before they join.', close) +
       '<div style="display:flex;flex-direction:column;gap:6px">' + lbl('The place') +
-        '<input class="fld" type="text" data-place-name maxlength="60" placeholder="Walnut Creek" value="' + esc(e.name || '') + '" ' + onInput(ev => { if (ev.type === 'input') state.placeEd = Object.assign({}, state.placeEd, { name: ev.target.value.slice(0, 60) }); else render(); }) + ' style="' + RING + 'height:50px;padding:0 14px;font-weight:600">' +
+        '<input class="fld" type="text" data-place-name maxlength="60" placeholder="Walnut Creek" value="' + esc(e.name || '') + '" ' + onInput(ev => { if (ev.type === 'input') state.placeEd = Object.assign({}, state.placeEd, { name: ev.target.value.slice(0, 60) }); }) + ' style="' + RING + 'height:50px;padding:0 14px;font-weight:600">' +
         '<div role="radiogroup" style="display:flex;flex-wrap:wrap;gap:6px">' + kinds.map(k => pill('data-place-pick="kind:' + k + '"', PLACE_KIND[k] || 'Other', e.kind === k, () => placeEdSet({ kind: k }), true)).join('') + '</div></div>' +
       '<div style="display:flex;flex-direction:column;gap:8px">' + lbl('The area') +
         '<div role="radiogroup" aria-label="The area" style="display:flex;background:#f2f3f6;border-radius:999px;padding:4px;gap:4px">' +
@@ -8848,7 +8884,7 @@
     if (!state.email || state.viewAs || !sb) return {};
     if (ntFor !== state.me) {
       ntFor = state.me; state.ntNotes = {};
-      sb.from('next_time_notes').select('spark_id,picks,note,skipped').then(r => {
+      sb.from('next_time_notes').select('spark_id,picks,note,skipped').eq('user_id', state.me).then(r => {   // co-leads' notes are readable too (v9-1); yours only here
         if (r.error || ntFor !== state.me) return;
         const m = {}; (r.data || []).forEach(x => { m[x.spark_id] = { picks: x.picks || [], note: x.note || '', skipped: !!x.skipped }; });
         setState({ ntNotes: m });
@@ -8857,11 +8893,11 @@
     return state.ntNotes || {};
   };
   const ntParts = (n) => n ? (n.picks || []).concat(n.note ? [n.note] : []) : [];
-  const ntSave = (s, row) => {
+  const ntSave = (s, row, quiet) => {
     const prev = ntNotes()[s.id];
     setState({ ntNotes: Object.assign({}, state.ntNotes, { [s.id]: row }), ntDraft: null });
     sb.from('next_time_notes').upsert({ spark_id: s.id, user_id: state.me, picks: row.picks, note: row.note || null, skipped: row.skipped, updated_at: new Date().toISOString() }, { onConflict: 'spark_id,user_id' })
-      .then(r => { if (r.error) throw r.error; if (!row.skipped) toast('Saved for next time', true); })
+      .then(r => { if (r.error) throw r.error; if (!row.skipped && !quiet) toast('Saved for next time', true); })
       .catch(e => { setState({ ntNotes: Object.assign({}, state.ntNotes, { [s.id]: prev }) }); toast(failed(e)); });
   };
   // 2a: a white card at the top of the past event, for its lead and co-leads; Not now hides it for this event
@@ -8911,8 +8947,263 @@
       '<span style="font-size:15px;line-height:1.35;font-weight:700;color:#2a1d00">' + esc(p.text) + (isTheLead(p) ? ', which you led' : '') + (n ? '. ' + n + ' went.' : '.') + '</span>' +
       (parts.length ? '<span data-last-time-note style="font-size:14px;line-height:1.35;font-weight:600;color:#6b5418">Your note: ' + esc(parts.join(' · ')) + '</span>' : '') + '</div>';
   };
+  // ---- After the event, joy first (Design v9-1 item 6, Q57; 20261203000000_joy_first.sql) -----------------------------
+  // The past event stays the event page: the photo with It happened!, the joy card, How it felt, I'd come again, the
+  // album, then What to expect, Who helped, Who came, Discussion. Someone who went (or a host) shares their joy in a
+  // slide-up: step 1 (what made it good, thank someone, a moment, I'd come again), then step 2 if they want (what they
+  // could do, what would give them more joy). A lead's step 2 is private (next_time_notes). Read per event when the page
+  // opens, not in load_all(); a database without the tables shows nothing new.
+  const JOY_CHIPS = ['The pace', 'Room to just talk', 'Laughing', 'Easy, not over-planned', 'The quiet moments'];
+  const COULD_CHIPS = ['Bring a friend', 'Help with a job', 'Come early to set up', 'Take photos', 'Lead part of it', 'Stay to clean up'];
+  const MORE_CHIPS = ['More time to talk', 'A different time', 'Something for kids', 'More people', 'Food after'];
+  const joyData = {};   // spark id → { rows, thanks, mine, counts, at, loading, off }
+  const loadJoy = (sid, force) => {
+    const j = joyData[sid];
+    if (!state.me || !sb || (j && (j.loading || (!force && Date.now() - (j.at || 0) < 15000)))) return;
+    joyData[sid] = Object.assign({ rows: [], thanks: [], counts: [], mine: null }, j, { loading: true });
+    Promise.all([
+      sb.from('event_joy').select('user_id,joy,line,again,could,step2,created_at').eq('spark_id', sid).order('created_at'),
+      sb.from('event_thanks').select('from_user,to_user,created_at').eq('spark_id', sid),
+      sb.from('event_joy_more').select('user_id,more,wish').eq('spark_id', sid).eq('user_id', state.me),
+      sb.rpc('joy_more_counts', { p_spark: sid })
+    ]).then(([a, b, c, d]) => {
+      const off = !!a.error && ['42P01', 'PGRST205', '42501'].indexOf(a.error.code) > -1;
+      if (a.error && !off) console.error(a.error);
+      joyData[sid] = { rows: a.error ? [] : a.data || [], thanks: b.error ? [] : b.data || [], mine: c.error ? null : (c.data || [])[0] || null, counts: d.error ? [] : d.data || [], at: Date.now(), off };
+      render();
+    }, (e) => { console.error(e); joyData[sid] = Object.assign({}, joyData[sid], { loading: false, at: Date.now() }); });
+  };
+  const joyOf = (s) => { loadJoy(s.id); return joyData[s.id] || { rows: [], thanks: [], counts: [], mine: null }; };
+  const wentTo = (s) => s.rsvps.some(r => r.userId === state.me && (r.status === 'going' || r.attended));
+  const canJoy = (s) => !!state.me && !state.viewAs && phaseOf(s) === 'done' && !s.cancelledAt && (isLead(s) || wentTo(s)) && !(joyData[s.id] || {}).off;
+  const myJoy = (s) => (joyOf(s).rows || []).find(r => r.user_id === state.me) || null;
+  const joyFirst = (s) => firstName(nameOf(s.leadId, s.leadName)) || 'the lead';
+  const joyFace = (uid, s, size) => avatarSpan(uid, personName(s, uid), avatarOf(uid), size);
+  // Faces to thank: the lead (pre-picked for someone who went), co-hosts, helpers with what they did, then who came
+  const joyPeople = (s) => {
+    const out = [], seen = {}, add = (uid, role) => { if (!uid || uid === state.me || seen[uid]) return; seen[uid] = 1; out.push({ uid, role }); };
+    add(s.leadId, 'Led it');
+    (s.cohosts || []).forEach(u => add(u, 'Co-led'));
+    (s.jobs || s.signups).forEach(j => (j.shifts ? [].concat(...j.shifts.map(u => u.claims)) : j.claims).forEach(c => add(c.userId, j.item)));
+    s.rsvps.filter(r => r.status === 'going' || r.attended).forEach(r => add(r.userId, 'Came'));
+    return out.slice(0, 16);
+  };
+  const openJoy = (s, step) => {
+    if (!canJoy(s)) return;
+    const mine = myJoy(s), j = joyOf(s), lead = isLead(s);
+    const own = mine ? (mine.joy || []).filter(x => JOY_CHIPS.indexOf(x) < 0)[0] || '' : '';
+    const thank = mine ? j.thanks.filter(t => t.from_user === state.me).map(t => t.to_user) : (!lead && s.leadId && s.leadId !== state.me ? [s.leadId] : []);
+    const nt = lead ? (ntNotes()[s.id] || {}) : {};
+    const contact = s.contacts.find(c => c.user_id === state.me);
+    setState({ joySheet: { id: s.id, k: step || 1 }, joyDraft: {
+      id: s.id, joy: mine ? (mine.joy || []).filter(x => JOY_CHIPS.indexOf(x) > -1) : [], own, writeOwn: false, thank, line: mine ? mine.line || '' : '',
+      again: mine ? !!mine.again : false, could: lead ? (nt.picks || []).filter(x => COULD_CHIPS.indexOf(x) > -1) : mine ? mine.could || [] : [],
+      more: lead ? (nt.picks || []).filter(x => MORE_CHIPS.indexOf(x) > -1) : (j.mine && j.mine.more) || [], wish: lead ? nt.note || '' : (j.mine && j.mine.wish) || '',
+      name: !state.email && contact ? contact.name || '' : '' } });
+  };
+  const joySet = (patch) => setState({ joyDraft: Object.assign({}, state.joyDraft, patch) });
+  const joyTog = (arr, x) => arr.indexOf(x) > -1 ? arr.filter(y => y !== x) : arr.concat(x);
+  // Step 1: the joy row, then thanks added and taken back to match the faces picked
+  const joySave1 = async (s) => {
+    const d = state.joyDraft, lead = isLead(s), j = joyOf(s);
+    const joy = d.joy.concat(d.own.trim() ? [d.own.trim().slice(0, 40)] : []);
+    if (!joy.length || state.busy) return;
+    setState({ busy: 'joy' });
+    try {
+      const mine = myJoy(s);
+      const row = { spark_id: s.id, user_id: state.me, joy, line: d.line.trim().slice(0, 140) || null, again: lead ? false : !!d.again };
+      must(mine ? await sb.from('event_joy').update(Object.assign({}, row, { updated_at: new Date().toISOString() })).eq('spark_id', s.id).eq('user_id', state.me)
+        : await sb.from('event_joy').insert(row));
+      const had = j.thanks.filter(t => t.from_user === state.me).map(t => t.to_user);
+      const add = d.thank.filter(u => had.indexOf(u) < 0), drop = had.filter(u => d.thank.indexOf(u) < 0);
+      if (add.length) must(await sb.from('event_thanks').insert(add.map(u => ({ spark_id: s.id, to_user: u }))));
+      if (drop.length) must(await sb.from('event_thanks').delete().eq('spark_id', s.id).eq('from_user', state.me).in('to_user', drop));
+      // A guest's first name goes on their own guest contact, so the lead knows who it's from
+      const c = s.contacts.find(x => x.user_id === state.me);
+      if (!state.email && c && d.name.trim() && d.name.trim() !== c.name) await sb.from('guest_contacts').update({ name: d.name.trim().slice(0, 40) }).eq('spark_id', s.id).eq('user_id', state.me);
+      loadJoy(s.id, true);
+      setState({ busy: null, joySheet: { id: s.id, k: 2 }, joyDraft: Object.assign({}, state.joyDraft, { writeOwn: false }) });
+    } catch (e) { console.error(e); setState({ busy: null }); toast(failed(e)); }
+  };
+  // Step 2: someone who went: I could… on the joy row, wishes in event_joy_more; a lead: next_time_notes (private)
+  const joySave2 = async (s, skip) => {
+    const d = state.joyDraft, lead = isLead(s);
+    if (state.busy) return;
+    setState({ busy: 'joy' });
+    try {
+      if (lead) {
+        if (!skip) ntSave(s, { picks: d.could.concat(d.more).slice(0, 12), note: d.wish.trim().slice(0, 140), skipped: false }, true);
+        must(await sb.from('event_joy').update({ step2: skip ? 'skipped' : 'done', updated_at: new Date().toISOString() }).eq('spark_id', s.id).eq('user_id', state.me));
+      } else {
+        must(await sb.from('event_joy').update({ could: skip ? (myJoy(s) || {}).could || [] : d.could, step2: skip ? 'skipped' : 'done', updated_at: new Date().toISOString() }).eq('spark_id', s.id).eq('user_id', state.me));
+        // Update or insert (an upsert would also need update rights on the key columns, which nobody gets)
+        const wishes = { more: d.more, wish: d.wish.trim().slice(0, 140) || null };
+        if (!skip) must(joyOf(s).mine ? await sb.from('event_joy_more').update(Object.assign({ updated_at: new Date().toISOString() }, wishes)).eq('spark_id', s.id).eq('user_id', state.me)
+          : await sb.from('event_joy_more').insert(Object.assign({ spark_id: s.id, user_id: state.me }, wishes)));
+      }
+      loadJoy(s.id, true);
+      setState({ busy: null, joySheet: null, joyDraft: null });
+      toast(skip ? 'Your joy is shared' : 'Shared. Thank you!', true);
+    } catch (e) { console.error(e); setState({ busy: null }); toast(failed(e)); }
+  };
+
+  // The joy card (2b + 7c): white, a 3px gold top inset; the first moment someone shared sets the tone; Share your joy
+  const joyCard = (s) => {
+    if (!canJoy(s)) return '';
+    const j = joyOf(s), lead = isLead(s), mine = myJoy(s);
+    const W = 'border-radius:20px;background:#fff;box-shadow:inset 0 3px 0 #f5b428,0 1px 3px rgba(15,18,25,.08);display:flex;flex-direction:column';
+    if (mine) return '<div data-joy-card data-joy-done data-screen-label="Joy card" style="' + W + ';padding:16px;gap:10px"><div style="display:flex;align-items:center;gap:10px">' +
+        '<span aria-hidden="true" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#fff8e6;display:flex;align-items:center;justify-content:center;font-size:18px">🙏</span>' +
+        '<span style="flex:1;display:flex;flex-direction:column"><span style="font-size:17px;font-weight:900;color:#0d1117">Thanks for sharing your joy</span>' +
+          '<span style="font-size:13.5px;font-weight:600;color:#6b7280">' + (mine.step2 !== 'done' ? 'You can still add ideas for next time.' : lead ? 'Your note shows again when you plan the next one.' : esc(joyFirst(s)) + ' will see your ideas.') + '</span></span></div>' +
+      (mine.step2 !== 'done' ? '<span ' + on(() => openJoy(s, 2)) + ' role="button" data-joy-more style="align-self:flex-start;font-size:14.5px;font-weight:800;color:#8f6405;cursor:pointer">Add ideas for next time ›</span>' : '') + '</div>';
+    const tone = (j.rows || []).find(r => r.line && r.user_id !== state.me);
+    return '<div data-joy-card data-screen-label="Joy card" style="' + W + ';padding:18px 16px 16px;gap:12px">' +
+      '<span style="font-size:19px;font-weight:900;letter-spacing:-.3px;color:#0d1117">' + (lead ? 'How did it feel to lead it?' : 'What gave you joy?') + '</span>' +
+      '<span style="font-size:14.5px;line-height:1.4;font-weight:500;color:#454b55">' + (lead ? 'Thank your helpers first. Then a private note for next time.' : 'Tap what you loved and thank the people who made it happen.') + '</span>' +
+      (tone ? '<div data-joy-tone style="display:flex;gap:10px;align-items:flex-start;background:#fdf6e3;border-radius:14px;padding:10px 12px">' + joyFace(tone.user_id, s, 28) +
+        '<span style="flex:1;font-size:14.5px;line-height:1.35;font-weight:600;color:#2a1d00;overflow-wrap:anywhere">“' + esc(tone.line) + '” <span style="color:#8f6405;font-weight:700">' + esc(firstName(personName(s, tone.user_id))) + '</span></span></div>' : '') +
+      '<button type="button" data-joy-share ' + on(() => openJoy(s, 1)) + ' style="min-height:48px;border:0;border-radius:999px;background:#f5b428;font-family:inherit;font-size:15.5px;font-weight:800;color:#2a1d00;cursor:pointer">Share your joy</button></div>';
+  };
+  const joyCount = (rows, key) => { const m = {}; rows.forEach(r => (r[key] || []).forEach(x => { m[x] = (m[x] || 0) + 1; })); return Object.keys(m).map(k => [k, m[k]]).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])); };
+  // How it felt (4c, quotes first): up to three moments, Most loved, THANKS GIVEN, Next time…, and from day 2 MORE JOY
+  const howItFelt = (s) => {
+    const j = joyOf(s), rows = j.rows || [], quotes = rows.filter(r => r.line).slice(0, 3), loved = joyCount(rows, 'joy').slice(0, 3);
+    const th = {}; (j.thanks || []).forEach(t => { th[t.to_user] = (th[t.to_user] || 0) + 1; });
+    const thanks = Object.keys(th).sort((a, b) => th[b] - th[a]);
+    const could = joyCount(rows, 'could').slice(0, 2), more = j.counts || [];
+    if (!quotes.length && !loved.length && !thanks.length) return '';
+    const cap = (t) => '<span style="font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#6b7280">' + t + '</span>';
+    return '<div data-how-felt data-screen-label="How it felt" style="background:#fff;border-radius:20px;padding:16px;box-shadow:0 1px 3px rgba(15,18,25,.08);display:flex;flex-direction:column;gap:12px">' + cap('How it felt') +
+      quotes.map(q => '<div data-joy-quote style="display:flex;gap:10px;align-items:flex-start">' + joyFace(q.user_id, s, 32) +
+        '<span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-size:16px;line-height:1.35;font-weight:700;color:#0d1117;overflow-wrap:anywhere">“' + esc(q.line) + '”</span>' +
+        '<span style="font-size:12.5px;font-weight:700;color:#6b7280">' + esc(q.user_id === state.me ? 'You' : firstName(personName(s, q.user_id))) + '</span></span></div>').join('') +
+      (loved.length ? '<span data-most-loved style="font-size:13.5px;font-weight:600;color:#6b7280">Most loved: ' + esc(loved.map(x => x[0].toLowerCase()).join(' · ')) + '</span>' : '') +
+      (thanks.length ? '<div style="height:1px;background:#f2f3f6"></div>' + cap('Thanks given') + '<div data-thanks-given style="display:flex;flex-wrap:wrap;gap:6px">' +
+        thanks.map(u => '<span style="display:flex;align-items:center;gap:6px;padding:4px 11px 4px 4px;border-radius:999px;background:#fff8e6;font-size:13.5px;font-weight:800;color:#8f6405">' + joyFace(u, s, 26) + esc(u === state.me ? 'You' : firstName(personName(s, u))) + ' · 🙏 ' + th[u] + '</span>').join('') + '</div>' : '') +
+      (could.length ? '<div data-joy-could style="background:#e7f6ec;border-radius:12px;padding:10px 12px;font-size:14px;line-height:1.4;font-weight:700;color:#0f7a3c">Next time: ' + esc(could.map(([k, n]) => n + ' will ' + k.charAt(0).toLowerCase() + k.slice(1)).join(', ')) + '.</div>' : '') +
+      (more.length ? '<div data-joy-wishes style="display:flex;flex-direction:column;gap:6px;background:#f7f6ff;border-radius:12px;padding:10px 12px"><span style="font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#4a3ad4">More joy next time</span>' +
+        '<span style="font-size:14px;line-height:1.4;font-weight:700;color:#0d1117">' + esc(more.map(m => m.wish + ' · ' + m.n).join('  ·  ')) + '</span></div>' : '') + '</div>';
+  };
+  // I'd come again: faces and how many; whoever plans the next one sees who asked
+  const againRow = (s) => {
+    const who = (joyOf(s).rows || []).filter(r => r.again);
+    if (!who.length) return '';
+    return '<div data-joy-again style="background:#fff;border-radius:20px;padding:14px 16px;box-shadow:0 1px 3px rgba(15,18,25,.08);display:flex;align-items:center;gap:12px">' +
+      '<span aria-hidden="true" style="display:flex;padding-left:8px">' + who.slice(0, 3).map(r => '<span style="display:flex;margin-left:-8px;border-radius:999px;box-shadow:0 0 0 2px #fff">' + joyFace(r.user_id, s, 30) + '</span>').join('') + '</span>' +
+      '<span style="flex:1;display:flex;flex-direction:column"><span style="font-size:15px;font-weight:800;color:#0d1117">' + who.length + ' would come again</span>' +
+      '<span style="font-size:12.5px;font-weight:600;color:#6b7280">' + (isLead(s) ? 'They’ll be on your invite list when you do it again.' : 'Whoever plans the next one sees who asked.') + '</span></span></div>';
+  };
+  // What to expect, Who helped, Who came · N, on the past page
+  const pastExpect = (s) => {
+    const desc = descText(s) || s.overview || '', dp = dateParts(s.dayDate), ww = [s.dayDate ? fmtDay(s.dayDate) : '', s.spot || ''].filter(Boolean).join(' · ');
+    if (!desc && !ww) return '';
+    return '<div data-past-expect style="background:#fff;border-radius:20px;padding:16px;box-shadow:0 1px 3px rgba(15,18,25,.08);display:flex;flex-direction:column;gap:8px">' +
+      '<span style="font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#6b7280">What to expect</span>' +
+      (descText(s) ? descHtml(descText(s), 'font-size:15px;line-height:1.45;font-weight:500;color:#454b55') : s.overview ? '<span style="font-size:15px;line-height:1.45;font-weight:500;color:#454b55">' + esc(s.overview) + '</span>' : '') +
+      (ww ? '<span style="font-size:14.5px;font-weight:700;color:#0d1117">' + esc(ww) + '</span>' : '') + '</div>';
+  };
+  const pastHelped = (s) => {
+    const rows = (s.jobs || s.signups).map(j => ({ item: j.item, ids: Array.from(new Set((j.shifts ? [].concat(...j.shifts.map(u => u.claims)) : j.claims).map(c => c.userId))) })).filter(r => r.ids.length);
+    if (!rows.length) return '';
+    return '<div data-who-helped data-screen-label="Who helped (past)" style="background:#fff;border-radius:20px;padding:16px;box-shadow:0 1px 3px rgba(15,18,25,.08);display:flex;flex-direction:column;gap:2px">' +
+      '<span style="font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#6b7280;margin-bottom:6px">Who helped</span>' +
+      rows.map((r, i) => '<div style="min-height:48px;display:flex;align-items:center;gap:10px;' + (i < rows.length - 1 ? 'box-shadow:inset 0 -1px 0 #f2f3f6' : '') + '"><span style="flex:1;min-width:0;font-size:15px;font-weight:700;color:#0d1117;overflow-wrap:anywhere">' + esc(r.item) + '</span>' +
+        '<span aria-label="' + esc(r.ids.map(u => personName(s, u)).join(', ')) + '" style="display:flex;padding-left:6px">' + r.ids.slice(0, 3).map(u => '<span style="display:flex;margin-left:-6px;border-radius:999px;box-shadow:0 0 0 2px #fff">' + joyFace(u, s, 28) + '</span>').join('') + '</span></div>').join('') + '</div>';
+  };
+  const pastCame = (s) => {
+    const ids = (checkedIn(s) ? s.rsvps.filter(r => r.attended) : going(s)).map(r => r.userId), n = cameCount(s);
+    if (!ids.length) return '';
+    const names = ids.slice(0, 3).map(u => u === state.me ? 'You' : firstName(personName(s, u)));
+    return '<div data-who-came data-screen-label="Who came (past)" style="background:#fff;border-radius:20px;padding:16px;box-shadow:0 1px 3px rgba(15,18,25,.08);display:flex;flex-direction:column;gap:10px">' +
+      '<span style="font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#6b7280">Who came · ' + n + '</span>' +
+      '<div style="display:flex;align-items:center;gap:10px"><span aria-hidden="true" style="display:flex;padding-left:8px">' + ids.slice(0, 5).map(u => '<span style="display:flex;margin-left:-8px;border-radius:999px;box-shadow:0 0 0 2px #fff">' + joyFace(u, s, 32) + '</span>').join('') + '</span>' +
+        '<span style="min-width:0;font-size:13.5px;font-weight:600;color:#6b7280">' + esc(names.join(', ') + (n > 3 ? ' +' + (n - names.length) : '')) + '</span></div></div>';
+  };
+
+  // The joy sheet: step 1, step 2, or the photo moment during the event
+  function viewJoySheet() {
+    const js = state.joySheet, s = state.sparks.find(x => x.id === js.id), close = () => setState({ joySheet: null, joyDraft: null });
+    if (!s) return '';
+    const busy = state.busy === 'joy';
+    if (js.k === 'photo') {
+      const mineN = s.album.filter(a => a.createdBy === state.me).length, pics = s.album.slice(-2).map(a => photoUrl(a.path));
+      const tiles = pics.map(src => '<span style="height:92px;border-radius:12px;background:#f2f3f6 ' + bg(src) + '"></span>').concat(['<span style="height:92px;border-radius:12px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;text-align:center;padding:6px;font-size:12.5px;font-weight:700;color:#6b7280">' + (mineN ? mineN + ' from you' : 'Yours goes here') + '</span>']).slice(-3);
+      return sheet('Snap a photo', close, SHEET_PAD + ';gap:14px',
+        '<div style="display:flex;align-items:flex-start;gap:10px"><div style="flex:1;display:flex;flex-direction:column;gap:4px"><span style="font-size:11.5px;font-weight:900;letter-spacing:.8px;color:#149a4b">HAPPENING NOW</span>' +
+          '<span style="font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.4px;color:#0d1117">📸 Snap one for the album</span>' +
+          '<span style="font-size:14.5px;line-height:1.4;font-weight:500;color:#454b55">' + esc(s.text) + ' is happening now. Snap one while it’s going.</span></div>' + closeX(close) + '</div>' +
+        '<div data-photo-tiles style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px">' + tiles.join('') + '</div>' +
+        '<label data-take-photo style="min-height:54px;border-radius:999px;background:#5b4ae8;color:#fff;display:flex;align-items:center;justify-content:center;gap:8px;font-size:16.5px;font-weight:900;cursor:pointer">' +
+          svg(20, stroke('#fff', 2.2), '<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>') + 'Take a photo' +
+          '<input type="file" accept="image/*" capture="environment" aria-label="Take a photo" style="display:none" ' + onInput(e => { if (e.type !== 'change') return; const f = Array.from(e.target.files || []); e.target.value = ''; setState({ joySheet: null }); addAlbumPhoto(s, f); }) + '></label>' +
+        '<span ' + on(close) + ' role="button" style="align-self:center;min-height:40px;display:flex;align-items:center;font-size:15px;font-weight:800;color:#6b7280;cursor:pointer">Not now</span>' +
+        '<span style="font-size:12.5px;font-weight:600;color:#9aa0ac;text-align:center">Anyone going can add photos. They go up on the event once it’s over.</span>', 36);
+    }
+    const d = state.joyDraft || {}, lead = isLead(s), step = js.k;
+    const bars = '<div aria-hidden="true" style="display:flex;gap:6px;margin-top:-4px"><span style="flex:1;height:4px;border-radius:9px;background:#f5b428"></span><span style="flex:1;height:4px;border-radius:9px;background:' + (step === 2 ? '#f5b428' : '#eceef2') + '"></span></div>';
+    const chip = (attr, t, onIt, fn, green) => '<span ' + on(fn, 'checkbox') + ' aria-checked="' + onIt + '" ' + attr + ' style="display:inline-flex;align-items:center;min-height:38px;padding:0 14px;border-radius:999px;font-size:14px;font-weight:800;cursor:pointer;' +
+      (onIt ? (green ? 'background:#e7f6ec;color:#0f7a3c;box-shadow:inset 0 0 0 2px #149a4b' : 'background:#f3f1fe;color:#4a3ad4;box-shadow:inset 0 0 0 2px #5b4ae8') : 'background:#fff;color:#454b55;box-shadow:inset 0 0 0 1.5px #dcdfe6') + '">' + esc(t) + '</span>';
+    const cap = (t, extra) => '<span style="font-size:12.5px;font-weight:900;letter-spacing:1.1px;text-transform:uppercase;color:#6b7280">' + t + (extra || '') + '</span>';
+    const FLD = 'width:100%;min-height:48px;border:0;border-radius:14px;box-shadow:inset 0 0 0 1.5px #dcdfe6;padding:0 14px;font-family:inherit;font-size:16px;font-weight:600;color:#0d1117;outline:none';
+    const tick = (on_) => '<span aria-hidden="true" style="flex:0 0 24px;width:24px;height:24px;border-radius:7px;display:flex;align-items:center;justify-content:center;' + (on_ ? 'background:#149a4b' : 'background:#fff;box-shadow:inset 0 0 0 2px #c9ccd3') + '">' + (on_ ? I.check(14, '#fff', 3) : '') + '</span>';
+    if (step === 1) {
+      const ok = d.joy.length > 0 || !!(d.own || '').trim();
+      const people = joyPeople(s);
+      return sheet('Share your joy', close, SHEET_PAD + ';gap:16px', bars +
+        '<div style="display:flex;align-items:flex-start;gap:10px"><div style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.4px;color:#0d1117;text-wrap:balance">What made ' + esc(s.text) + ' good?</span>' +
+          '<span style="font-size:14px;font-weight:600;color:#6b7280">Tap any that fit.</span></div>' + closeX(close) + '</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:7px">' + JOY_CHIPS.map(t => chip('data-joy-chip="' + esc(t) + '"', t, d.joy.indexOf(t) > -1, () => joySet({ joy: joyTog(d.joy, t) }))).join('') +
+          chip('data-joy-own', d.own.trim() && !d.writeOwn ? d.own.trim() : '+ Write your own', !!d.writeOwn || !!d.own.trim(), () => joySet({ writeOwn: !d.writeOwn })) + '</div>' +
+        (d.writeOwn ? '<input class="fld" type="text" maxlength="40" data-joy-own-text aria-label="In your words" placeholder="In your words…" value="' + esc(d.own) + '" ' + onInput(e => { if (e.type === 'input') { state.joyDraft = Object.assign({}, state.joyDraft, { own: e.target.value.slice(0, 40) }); const b = document.querySelector('[data-joy-next]'); const y = state.joyDraft.joy.length > 0 || !!state.joyDraft.own.trim(); if (b) { b.textContent = y ? 'Share my joy' : 'Tap what gave you joy'; b.style.background = y ? '#5b4ae8' : '#d5d8df'; b.setAttribute('aria-disabled', String(!y)); } } }) + ' style="' + FLD + '">' : '') +
+        (people.length ? cap(lead ? 'Thank your helpers' : 'Thank someone') + '<div data-joy-faces style="display:flex;gap:12px;overflow-x:auto;scrollbar-width:none;padding:4px 2px 2px;margin-top:-6px">' + people.map(p => { const onIt = d.thank.indexOf(p.uid) > -1;
+          return '<div ' + on(() => joySet({ thank: joyTog(d.thank, p.uid) }), 'checkbox') + ' aria-checked="' + onIt + '" aria-label="Thank ' + esc(personName(s, p.uid)) + '" data-joy-thank="' + esc(firstName(personName(s, p.uid))) + '" style="flex:0 0 auto;width:64px;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer">' +
+            '<span style="position:relative;display:flex;border-radius:999px;box-shadow:' + (onIt ? '0 0 0 3px #fff,0 0 0 5px #e8a71c' : 'none') + '">' + joyFace(p.uid, s, 50) +
+              (onIt ? '<span aria-hidden="true" style="position:absolute;right:-4px;bottom:-4px;width:22px;height:22px;border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;box-shadow:0 1px 3px rgba(0,0,0,.15)">🙏</span>' : '') + '</span>' +
+            '<span style="max-width:64px;font-size:13px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(firstName(personName(s, p.uid))) + '</span>' +
+            '<span style="max-width:64px;font-size:11.5px;font-weight:600;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(p.role) + '</span></div>'; }).join('') + '</div>' : '') +
+        '<div style="display:flex;flex-direction:column;gap:8px"><div style="display:flex;align-items:center;gap:8px"><span style="flex:1">' + cap('A moment you loved', ' <span style="font-weight:700;letter-spacing:0;text-transform:none;color:#9aa0ac">· optional</span>') + '</span>' +
+            '<span ' + on(() => requestFeature('Voice notes', true)) + ' role="button" data-voice-note style="display:flex;align-items:center;gap:5px;font-size:12.5px;font-weight:800;color:#6b7280;cursor:pointer">' + svg(14, stroke('#6b7280', 2.2), '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>') + 'Voice note' + REQ_CHIP + '</span></div>' +
+          '<input class="fld" type="text" maxlength="140" data-joy-line aria-label="A moment you loved" placeholder="Everyone stayed way longer than planned." value="' + esc(d.line) + '" ' + onInput(e => { if (e.type === 'input') state.joyDraft = Object.assign({}, state.joyDraft, { line: e.target.value.slice(0, 140) }); }) + ' style="' + FLD + '"></div>' +
+        (lead ? '' : '<div ' + on(() => joySet({ again: !d.again }), 'checkbox') + ' aria-checked="' + !!d.again + '" data-joy-again-tick style="min-height:56px;border-radius:14px;padding:0 14px;display:flex;align-items:center;gap:12px;cursor:pointer;background:' + (d.again ? '#e7f6ec' : '#f2f3f6') + '">' + tick(d.again) +
+          '<span style="display:flex;flex-direction:column"><span style="font-size:15.5px;font-weight:800;color:#0d1117">I’d come again</span><span style="font-size:13px;font-weight:600;color:#6b7280">Invite me next time</span></span></div>') +
+        (!state.email && s.contacts.some(c => c.user_id === state.me) ? '<label style="display:flex;flex-direction:column;gap:6px">' + cap('Your first name') +
+          '<input class="fld" type="text" maxlength="40" data-joy-name autocomplete="given-name" value="' + esc(d.name) + '" ' + onInput(e => { if (e.type === 'input') state.joyDraft = Object.assign({}, state.joyDraft, { name: e.target.value.slice(0, 40) }); }) + ' style="' + FLD + '">' +
+          '<span style="font-size:13px;font-weight:600;color:#6b7280">So ' + esc(joyFirst(s)) + ' knows who it’s from</span></label>' : '') +
+        '<button type="button" data-joy-next ' + on(() => { const dd = state.joyDraft; if (dd.joy.length || dd.own.trim()) joySave1(s); }) + ' aria-disabled="' + !ok + '" style="width:100%;min-height:54px;border:0;border-radius:999px;font-family:inherit;font-size:16.5px;font-weight:900;color:#fff;cursor:' + (ok ? 'pointer' : 'default') + ';background:' + (ok ? '#5b4ae8' : '#d5d8df') + '">' + (busy ? 'Sharing…' : ok ? 'Share my joy' : 'Tap what gave you joy') + '</button>' +
+        '<span ' + on(close) + ' role="button" style="align-self:center;margin-top:-6px;min-height:40px;display:flex;align-items:center;font-size:15px;font-weight:800;color:#6b7280;cursor:pointer">Not now</span>', 36);
+    }
+    const names = (joyOf(s).thanks || []).filter(t => t.from_user === state.me).map(t => firstName(personName(s, t.to_user)));
+    const nameList = names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] : names[0] || '';
+    return sheet('Share your joy', close, SHEET_PAD + ';gap:16px', bars +
+      '<div data-joy-unlock style="border-radius:14px;background:#fff8e6;padding:12px 14px;font-size:14px;line-height:1.4;font-weight:700;color:#8f6405">Thanks! ' + (nameList ? esc(nameList) + ' will see your thanks. ' : '') + 'One more, if you want.</div>' +
+      '<span style="font-size:22px;line-height:1.15;font-weight:900;letter-spacing:-.4px;color:#0d1117">If we do this again…</span>' +
+      cap('Next time, I could…') + '<div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:-6px">' + COULD_CHIPS.map(t => chip('data-joy-could-chip="' + esc(t) + '"', t, d.could.indexOf(t) > -1, () => joySet({ could: joyTog(d.could, t) }), true)).join('') + '</div>' +
+      cap('What would give you more joy?') + '<div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:-6px">' + MORE_CHIPS.map(t => chip('data-joy-more-chip="' + esc(t) + '"', t, d.more.indexOf(t) > -1, () => joySet({ more: joyTog(d.more, t) }))).join('') + '</div>' +
+      '<input class="fld" type="text" maxlength="140" data-joy-wish aria-label="' + (lead ? 'Anything to change for next time?' : 'If we do this again') + '" placeholder="' + (lead ? 'Anything to change for next time?' : 'If we do this again, what would make it even better for you?') + '" value="' + esc(d.wish) + '" ' + onInput(e => { if (e.type === 'input') state.joyDraft = Object.assign({}, state.joyDraft, { wish: e.target.value.slice(0, 140) }); }) + ' style="' + FLD + '">' +
+      '<span style="font-size:12.5px;line-height:1.4;font-weight:700;color:#6b7280">' + (lead ? 'Only you and your co-leads see this. It shows again when you plan the next one.' : '“I could…” counts show on the page now. What would give you more joy shows from day 2, grouped and counted, no names.') + '</span>' +
+      '<button type="button" data-joy-done ' + on(() => joySave2(s, false)) + ' style="width:100%;min-height:54px;border:0;border-radius:999px;background:#5b4ae8;font-family:inherit;font-size:16.5px;font-weight:900;color:#fff;cursor:pointer">' + (busy ? 'Saving…' : 'Done') + '</button>' +
+      '<span ' + on(() => joySave2(s, true)) + ' role="button" data-joy-skip style="align-self:center;margin-top:-6px;min-height:40px;display:flex;align-items:center;font-size:15px;font-weight:800;color:#6b7280;cursor:pointer">Skip this part</span>', 36);
+  }
+
+  // The thanked person (Design v9-1): one bell line per event and a Thanks you've had row on Me. Read once per account
+  // when it's needed, then at most every five minutes
+  let thxFor = null, thxAt = 0;
+  const myThanks = () => {
+    if (!state.email || state.viewAs || !sb) return [];
+    if (thxFor !== state.me || Date.now() - thxAt > 300000) {
+      thxFor = state.me; thxAt = Date.now();
+      sb.from('event_thanks').select('spark_id,from_user,created_at').eq('to_user', state.me).order('created_at', { ascending: false }).limit(200).then(r => {
+        if (r.error || thxFor !== state.me) return;
+        setState({ myThx: r.data || [] });
+      }, () => {});
+    }
+    return state.myThx || [];
+  };
   function viewDone(s) {
     const st = state, dp = dateParts(s.dayDate), n = cameCount(s);
+    // Opened from the morning-after push or the bell (#/idea/<id>/joy): step 1 once the joy data is in
+    if (st.joyWant === s.id && joyData[s.id] && !joyData[s.id].loading) { setTimeout(() => { if (state.joyWant !== s.id) return; state.joyWant = null; if (!state.joySheet && canJoy(s)) openJoy(s, myJoy(s) ? 2 : 1); }, 0); }
     loadSafety();
     // Photos from someone you blocked don't show for you (v8-18 1s); one you reported blurs, with Show anyway (v8-22 4b)
     const album = s.album.filter(a => !sfBlocked(a.createdBy)).map(a => photoUrl(a.path));
@@ -8924,7 +9215,9 @@
         '<div style="position:absolute;left:20px;right:20px;bottom:18px;color:#fff"><div style="font-size:13px;font-weight:900;letter-spacing:1.2px;color:#cfc9ff">' + dp.dow + ', ' + dp.md + ' · ' + n + (checkedIn(s) ? ' CAME' : ' SAID YES') + '</div>' +
           '<h1 style="margin:6px 0 0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:' + titleFs(s.text, 32) + 'px;line-height:1.02;font-weight:900;letter-spacing:-1px;text-wrap:balance">' + esc(s.text) + demoTag(s, false, true) + '</h1></div>', true) +
       '<div style="padding:14px 14px 26px;display:flex;flex-direction:column;gap:12px">' +
-        nextTimeCard(s) +
+        // Design v9-1 item 6 (Q57): joy first, then the album, then the event page's own sections. The lead's step 2 in the
+        // joy card replaces Anything to change for next time? (nextTimeCard is no longer shown)
+        joyCard(s) + howItFelt(s) + againRow(s) +
         '<div style="' + CARD + ';padding:16px;display:flex;flex-direction:column;gap:10px">' +
           eyebrowRow('The album' + (album.length ? ' · ' + album.length : ''),
             '<span style="display:flex;align-items:center;gap:14px">' +
@@ -8944,6 +9237,7 @@
             : '<p style="margin:0;font-size:14px;line-height:1.45;font-weight:500;color:#5c6270">No photos yet. Anyone who went can add theirs.</p>') +
         '</div>' +
         reactionsCard(s) +
+        pastExpect(s) + pastHelped(s) + pastCame(s) + discussionSec(s) +
         // Do it again? above Wrong date and Delete (owner, 2026-10-01)
         '<div style="border-radius:18px;background:#fdf1d6;padding:16px;display:flex;align-items:center;gap:12px">' +
           '<div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:900;color:#3d2a00">Do it again?</div><div style="margin-top:2px;font-size:13.5px;line-height:1.4;font-weight:600;color:#6b5418">Starts a new event with the place and details filled in.</div></div>' +
@@ -10185,7 +10479,12 @@
       I.chevR(16, '#9aa0ac', 2.8) + '</div>';
     // No YOUR STUFF heading (v8-9): the impact pill, My tasks, then the rows card
     // Your impact hides while Get started shows, and stays hidden until Me is opened again once it's closed here (v8-21)
-    const yourStuff = '<div style="padding:14px 14px 0"><div style="display:flex;flex-direction:column;gap:10px">' + (gsShown() || st.impWait ? '' : impact) + tasksRow +
+    // Thanks you've had · N (Design v9-1): under Your impact once anyone has thanked you; opens the bell, where they're grouped
+    const thxN = myThanks().length;
+    const thxRow = !thxN ? '' : '<div ' + on(() => setState({ notifSheet: true, nSettings: false })) + ' role="button" data-me-thanks class="hov-row" style="display:flex;align-items:center;gap:12px;min-height:54px;padding:8px 14px;border-radius:18px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
+      '<span aria-hidden="true" style="flex:0 0 34px;width:34px;height:34px;border-radius:10px;background:#fff8e6;display:flex;align-items:center;justify-content:center;font-size:17px">🙏</span>' +
+      '<span style="flex:1;font-size:15.5px;font-weight:800;color:#0d1117">Thanks you’ve had</span><span style="font-size:15px;font-weight:800;color:#8f6405">' + thxN + '</span>' + I.chevR(14, '#b9bcc4', 2.6) + '</div>';
+    const yourStuff = '<div style="padding:14px 14px 0"><div style="display:flex;flex-direction:column;gap:10px">' + (gsShown() || st.impWait ? '' : impact) + thxRow + tasksRow +
       // Two headed cards (Design v8-22): YOUR PLANS & IDEAS (Drafts · Ideas · Leading), PAST EVENTS (Led & attended)
       meHead('YOUR PLANS &amp; IDEAS') + meCard(stuff('draft', '#c9ccd3', 'Drafts', L.drafts.length, 0) + stuff('idea', '#f5b428', 'Ideas', L.ideas.length, 1) +
         stuff('lead', '#5b4ae8', 'Leading', L.lead.length, 3)) +
@@ -13265,7 +13564,7 @@
   const teamOf = (id) => (state.gDraftTeam || []).filter(t => t.draft_id === id);
   const teamName = (uid) => { const f = (state.fr.friends || []).find(x => x.id === uid); return f ? shortName(f.name) : nameOf(uid, 'Someone'); };
   // Typing saves after a pause; picks save straight away
-  let draftTimer = null, draftPending = {};
+  let draftTimer = null, draftPending = {}, draftFlush = null;
   const draftSet = (id, patch, now) => {
     state.gDrafts = (state.gDrafts || []).map(d => d.id === id ? Object.assign({}, d, patch) : d);
     Object.assign(draftPending, patch);
@@ -13276,7 +13575,8 @@
       const r = await sb.from('group_drafts').update(p).eq('id', id);
       if (r.error) { console.error(r.error); toast(failed(r.error)); }
     };
-    if (now) flush(); else draftTimer = setTimeout(flush, 700);
+    draftFlush = () => { clearTimeout(draftTimer); draftFlush = null; return flush(); };
+    if (now) draftFlush(); else draftTimer = setTimeout(() => { draftFlush = null; flush(); }, 700);
     render();
   };
   const newDraft = async () => {
@@ -13292,7 +13592,8 @@
   const draftCall = async (fn, args, ok, after) => {
     if (state.busy) return;
     setState({ busy: 'save' });
-    try { must(await sb.rpc(fn, args)); await loadDrafts(); setState(Object.assign({ busy: null }, after || {})); if (ok) toast(ok, true); }
+    try { if (draftFlush) await draftFlush();   // typing still waiting to save goes first, or the reload below would undo it
+      must(await sb.rpc(fn, args)); await loadDrafts(); setState(Object.assign({ busy: null }, after || {})); if (ok) toast(ok, true); }
     catch (e) { console.error(e); setState({ busy: null }); toast(e && e.code === '23514' || e && e.code === '22023' ? String(e.message || '').replace(/^./, c => c.toUpperCase()) : failed(e)); }
   };
   // Looking up the middle of the area: Geoapify (its results may be kept; Google's may not)
@@ -13576,6 +13877,7 @@
       (st.gInv && s === 'browse' ? viewGroupInv() : '') +
       (st.gQr && s === 'browse' ? viewGroupQr() : '') +
       (st.shiftPick ? viewShiftSheet() : '') +
+      (st.joySheet && (st.joySheet.k === 'photo' || st.joyDraft) ? viewJoySheet() : '') +   // after the event, joy first (Design v9-1)
       (st.banner ? viewBanner() : '') +
       (s === 'compose' ? (st.email ? '<div class="compose-scrim" aria-hidden="true"></div>' : '') + viewCompose() : '') +
       (st.qi && st.email ? viewFloat() : '') +

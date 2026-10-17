@@ -572,7 +572,7 @@ test('looking for a lead: the lead steps back, someone else takes the lead', asy
     await openIdea(H, past);
     const done = H.locator('[data-screen-label="It happened"]');
     await expect(done).toContainText('2 SAID YES');
-    await expect(done.locator('[data-who-came]')).toHaveCount(0);   // Who came? is off the page for now (owner, 2026-10-01)
+    await expect(done.locator('[data-who-came]')).toContainText('Who came · 2');   // back on the past page (Design v9-1, Q57; was off since 2026-10-01)
     expect(host.errors).toEqual([]);
   } finally {
     await asUser(O, async (c, _C, id) => { await c.from('sparks').delete().eq('id', id); }, ids[0]).catch(() => {});

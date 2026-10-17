@@ -855,3 +855,41 @@ test('hosts and who came: only an idea looking for a host can change hands, and 
     await other.context.close();
   }
 });
+
+// After the event, joy first (20261203000000_joy_first.sql): only someone who went (or a host) shares joy or thanks, and
+// only for themself; wishes are read by their writer and the hosts, never by others
+test('joy first: only people who went share joy and thanks; others can’t read wishes', async ({ browser }) => {
+  const lead = await newLead(browser, 1, 'Lee'), other = await newLead(browser, 2, 'Oz');
+  const L = lead.page, O = other.page;
+  let id;
+  try {
+    const day = (() => { const d = new Date(); d.setDate(d.getDate() - 1); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); })();
+    id = await asUser(L, async (c, _C, { day, title }) => {
+      const me = (await c.auth.getUser()).data.user.id;
+      const g = (await c.from('groups').select('id').eq('name', 'Torrez Fitness').single()).data.id;
+      return (await c.from('sparks').insert({ group_id: g, author_name: 'Lee', lead_name: 'Lee', lead_id: me, created_by: me, text: title, planned: true, day_date: day }).select('id').single()).data.id;
+    }, { day, title: uniqueTitle('Joy rules') });
+    const leadUid = await asUser(L, async (c) => (await c.auth.getUser()).data.user.id);
+    // Oz didn't go: no joy, no thanks
+    const notWent = await asUser(O, async (c, _C, { id, leadUid }) => ({
+      joy: (await c.from('event_joy').insert({ spark_id: id, joy: ['Laughing'] })).error ? 'refused' : 'ALLOWED',
+      thanks: (await c.from('event_thanks').insert({ spark_id: id, to_user: leadUid })).error ? 'refused' : 'ALLOWED'
+    }), { id, leadUid });
+    expect(notWent).toEqual({ joy: 'refused', thanks: 'refused' });
+    // The lead shares, with a wish; Oz can see the event's joy but not the wish
+    const led = await asUser(L, async (c, _C, id) => ({
+      joy: (await c.from('event_joy').insert({ spark_id: id, joy: ['The pace'] })).error?.message || 'ok',
+      wish: (await c.from('event_joy_more').insert({ spark_id: id, more: ['Food after'], wish: 'Tacos' })).error?.message || 'ok'
+    }), id);
+    expect(led).toEqual({ joy: 'ok', wish: 'ok' });
+    const seen = await asUser(O, async (c, _C, id) => ({
+      joy: (await c.from('event_joy').select('joy').eq('spark_id', id)).data.length,
+      wishes: (await c.from('event_joy_more').select('wish').eq('spark_id', id)).data.length,
+      counts: ((await c.rpc('joy_more_counts', { p_spark: id })).data || []).length   // not before day 2
+    }), id);
+    expect(seen).toEqual({ joy: 1, wishes: 0, counts: 0 });
+  } finally {
+    if (id) await asUser(L, async (c, _C, id) => { await c.from('sparks').delete().eq('id', id); }, id).catch(() => {});
+    await lead.context.close(); await other.context.close();
+  }
+});

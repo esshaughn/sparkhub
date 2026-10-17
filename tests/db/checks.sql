@@ -1801,9 +1801,10 @@ select t.check('the lead saves a next-time note and reads it back', (select pick
 select t.must_refuse('writing a next-time note as someone else', format($$insert into public.next_time_notes (spark_id, user_id, picks) values ('%s', '%s', '{More food}')$$, t.id('gw'), t.id('rep_adm')));
 reset role;
 select t.login('rep_adm'); set role authenticated;
-select t.check('a co-lead doesn''t see the lead''s note', (select count(*) from next_time_notes) = 0);
+select t.check('a co-lead reads the lead''s note (Design v9-1: only you and your co-leads)', (select count(*) from next_time_notes) = 1);
 insert into public.next_time_notes (spark_id, skipped) values (t.id('gw'), true);
-select t.check('a co-lead keeps a note of their own (Not now)', (select skipped from next_time_notes where spark_id = t.id('gw')));
+select t.check('a co-lead keeps a note of their own (Not now)', (select skipped from next_time_notes where spark_id = t.id('gw') and user_id = auth.uid()));
+select t.must_refuse('…and can''t change the lead''s', format($$update next_time_notes set note = 'x' where spark_id = %L and user_id <> auth.uid()$$, t.id('gw')));
 reset role;
 select t.login('rep_m'); set role authenticated;
 select t.must_refuse('a member writing a next-time note on someone else''s event', format($$insert into public.next_time_notes (spark_id, picks) values ('%s', '{More food}')$$, t.id('gw')));
@@ -2222,3 +2223,49 @@ select t.must_allow('deleting the list', format($$delete from lists where id = %
 select t.check('…leaves the event, unlinked', (select list_id is null from sparks where id = t.id('pe')));
 reset role;
 delete from sparks where text in ('Block 4 dinner', 'Own list');
+
+-- After the event, joy first (20261203000000_joy_first.sql): who shares, who reads what, thanks, the day-2 counts ------
+reset role;
+select t.person('jy_lead'), t.person('jy_went'), t.person('jy_maybe'), t.person('jy_other'), t.person('jy_guest', true);
+insert into memberships (group_id, user_id, role) values (t.id('g'), t.id('jy_lead'), 'member'), (t.id('g'), t.id('jy_went'), 'member'),
+  (t.id('g'), t.id('jy_maybe'), 'member'), (t.id('g'), t.id('jy_other'), 'member');
+insert into sparks (id, group_id, author_name, lead_name, lead_id, created_by, text, visibility, planned, day_date)
+values (gen_random_uuid(), t.id('g'), 'Jo', 'Jo', t.id('jy_lead'), t.id('jy_lead'), 'Joy picnic', 'group', true, (now() at time zone 'America/Chicago')::date - 1);
+insert into t.ids select 'jy', id from sparks where text = 'Joy picnic';
+insert into sparks (id, group_id, author_name, lead_name, lead_id, created_by, text, visibility, planned, day_date)
+values (gen_random_uuid(), t.id('g'), 'Jo', 'Jo', t.id('jy_lead'), t.id('jy_lead'), 'Joy later', 'group', true, (now() at time zone 'America/Chicago')::date + 3);
+insert into t.ids select 'jy_later', id from sparks where text = 'Joy later';
+insert into rsvps (spark_id, user_id, status) values (t.id('jy'), t.id('jy_went'), 'going'), (t.id('jy'), t.id('jy_maybe'), 'maybe'), (t.id('jy_later'), t.id('jy_went'), 'going');
+insert into guest_contacts (spark_id, user_id, name) values (t.id('jy'), t.id('jy_guest'), 'Vi');
+insert into rsvps (spark_id, user_id, status) values (t.id('jy'), t.id('jy_guest'), 'going');
+select t.login('jy_went'); set role authenticated;
+select t.must_allow('someone who went shares their joy', format($$insert into event_joy (spark_id, joy, line, again, could) values (%L, '{The pace,Laughing}', 'Stayed late', true, '{Bring a friend}')$$, t.id('jy')));
+select t.must_refuse('…not before the event has started', format($$insert into event_joy (spark_id, joy) values (%L, '{Laughing}')$$, t.id('jy_later')));
+select t.must_refuse('…not as someone else', format($$insert into event_joy (spark_id, user_id, joy) values (%L, %L, '{Laughing}')$$, t.id('jy'), t.id('jy_maybe')));
+select t.must_refuse('…not a chip longer than 40', format($$update event_joy set joy = array[repeat('x', 41)] where spark_id = %L$$, t.id('jy')));
+select t.must_allow('wishes for next time', format($$insert into event_joy_more (spark_id, more, wish) values (%L, '{More time to talk,Food after}', 'Tacos')$$, t.id('jy')));
+select t.must_allow('thanks the lead', format($$insert into event_thanks (spark_id, to_user) values (%L, %L)$$, t.id('jy'), t.id('jy_lead')));
+select t.must_refuse('…not someone who wasn''t there', format($$insert into event_thanks (spark_id, to_user) values (%L, %L)$$, t.id('jy'), t.id('jy_other')));
+select t.must_refuse('…not themself', format($$insert into event_thanks (spark_id, to_user) values (%L, auth.uid())$$, t.id('jy')));
+select t.check('the wish counts wait for day 2', (select count(*) from public.joy_more_counts(t.id('jy'))) = 0);
+reset role;
+select t.login('jy_maybe'); set role authenticated;
+select t.must_refuse('a Maybe can''t share joy', format($$insert into event_joy (spark_id, joy) values (%L, '{Laughing}')$$, t.id('jy')));
+reset role;
+select t.login('jy_guest'); set role authenticated;
+select t.must_allow('a guest who went can share on the page', format($$insert into event_joy (spark_id, joy) values (%L, '{Laughing}')$$, t.id('jy')));
+reset role;
+select t.login('jy_other'); set role authenticated;
+select t.check('a member of the group reads the joy and the thanks', (select count(*) from event_joy where spark_id = t.id('jy')) = 2 and (select count(*) from event_thanks where spark_id = t.id('jy')) = 1);
+select t.check('…but not anyone''s wishes', (select count(*) from event_joy_more) = 0);
+reset role;
+select t.login('jy_lead'); set role authenticated;
+select t.check('the lead reads the wishes', (select wish from event_joy_more where spark_id = t.id('jy')) = 'Tacos');
+reset role;
+update sparks set day_date = (now() at time zone 'America/Chicago')::date - 2 where id = t.id('jy');
+select t.login('jy_other'); set role authenticated;
+select t.check('from day 2 everyone sees the wishes, grouped and counted', (select n from public.joy_more_counts(t.id('jy')) where wish = 'Food after') = 1);
+reset role;
+select private.push_joy();
+select t.check('the joy pushes run (one marker at most per event, kind and day)', (select count(*) from private.joy_pushes where spark_id = t.id('jy')) <= 1);
+delete from sparks where id in (t.id('jy'), t.id('jy_later'));
