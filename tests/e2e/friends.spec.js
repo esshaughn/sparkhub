@@ -46,21 +46,6 @@ test('friends: request, accept, invite to an event, remove, and the friend link'
     await req.getByRole('button', { name: 'Accept Fay Friendly' }).click();
     await expect(B.getByText('You and Fay are friends')).toBeVisible();
     await expect(people.locator('[data-friend-row="Fay Friendly"]')).toBeVisible();
-    // Your lists (4a): a private list, kept on this device; Make list waits for a name and someone
-    await people.locator('[data-new-list]').click();
-    const ed = B.getByRole('dialog', { name: 'New list' });
-    await expect(ed.getByRole('button', { name: 'Make list' })).toHaveAttribute('aria-disabled', 'true');
-    await ed.getByLabel('LIST NAME').fill('Trail crew');
-    await ed.getByRole('checkbox', { name: 'Fay Friendly' }).click();
-    await ed.getByRole('button', { name: 'Make list' }).click();
-    const list = B.getByRole('dialog', { name: 'Trail crew' });
-    await expect(list).toContainText('1 person · only you can see this list');
-    await expect(list).toContainText('Invite Fay to an event…');
-    await B.keyboard.press('Escape');
-    await expect(people.locator('[data-friend-list="Trail crew"]')).toContainText('1 person');
-    await B.reload();
-    await expect(people.locator('[data-friend-list="Trail crew"]')).toBeVisible();   // still there after a reload
-
     // A invites B to an event: Invite › on Gus's row, then pick the event
     const title = uniqueTitle('Friends night');
     id = await postEvent(A, { title, date: inDays(9), time: '18:00' });

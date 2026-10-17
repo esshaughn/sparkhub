@@ -309,7 +309,7 @@
     locText: '', locPlace: null, locSuggest: [], locAddr: '',   // v8-8 item 8: Location name + Address
     evOverview: '', evNeed: null, evTags: [], evNeeds: [], evDatePoll: null, evSpotPoll: null, evLater: {}, evHelpNone: false,
     evDesc: '', evInspo: [], evJobPop: false, evGrpPop: false, evCap: null, cpWhite: null,   // v8-14 Plan an event on one page: description, inspo photos, its two pop-ups; v8-18: Limit RSVPs, which cards have turned white
-    evPriv: false, evNoGuestInv: null, evNoContact: false, evTest: null, evFloat: false, evPersonal: false, evList: null, evGrpNone: false, evTitleEd: false, evDetOpen: false, evPop: null, evGroups: null, evDraftId: null, evLeave: false, evLeaveTo: null, evFrom: null, pollSheet: null, needSheet: null, evFromReview: false,
+    evPriv: false, evNoGuestInv: null, evNoContact: false, evTest: null, evFloat: false, evPersonal: false, evList: null, evCrew: null, evGrpNone: false, evTitleEd: false, evDetOpen: false, evPop: null, evGroups: null, evDraftId: null, evLeave: false, evLeaveTo: null, evFrom: null, pollSheet: null, needSheet: null, evFromReview: false,
     evFromIdea: null, evIdeaJobs: []   // Make it a plan! on an idea (v8-8): Post it turns that idea into the event, its jobs and spots stay
   });
   const state = Object.assign({
@@ -343,7 +343,7 @@
     fr: { friends: [], incoming: [], outgoing: [], invites: [], gInv: [], loaded: false }, pplTab: 'groups', pplSearch: false, pplQ: '', pplAdd: false, frSel: [], frInvite: false, frFromList: null, frAll: false, frAllQ: '',
     frAdd: null, myFriendCode: null, person: null,
     // v6: Profile / Notifications are sheets; Your tasks' "View all", expansions, the RSVP ask
-    profSheet: false, notifSheet: false, dashAll: null, dashOpen: {}, schedOpen: {}, tkCat: 'all', tkView: prefs.tkView === 'dense' ? 'dense' : 'time', iaView: prefs.iaLay === 'grid' ? 'grid' : 'full', iaSort: ['new', 'close'].indexOf(prefs.iaSort) > -1 ? prefs.iaSort : 'interest', iaGrps: keepGrps(prefs.iaGrps) || [], ideaSeen: prefs.ideaSeen || null, frList: null, frListEd: null, meImp: null, meList: null, shiftPick: null, banner: null,
+    profSheet: false, notifSheet: false, dashAll: null, dashOpen: {}, schedOpen: {}, tkCat: 'all', tkView: prefs.tkView === 'dense' ? 'dense' : 'time', iaView: prefs.iaLay === 'grid' ? 'grid' : 'full', iaSort: ['new', 'close'].indexOf(prefs.iaSort) > -1 ? prefs.iaSort : 'interest', iaGrps: keepGrps(prefs.iaGrps) || [], ideaSeen: prefs.ideaSeen || null, frList: null, frListEd: null, crews: null, crewOpen: null, crewThread: null, crewDraft: '', crewMenu: null, crewDay: null, crewEd: null, meImp: null, meList: null, shiftPick: null, banner: null,
     // v6 Calendar: search, filters, sort, view, month, discovery cards
     cq: '', cSearch: false, cGrps: keepGrps(prefs.cGrps), tGrps: keepGrps(prefs.tGrps), sGrps: keepGrps(prefs.sGrps), cTypes: [], cKind: 'plan', cSort: 'soon', cView: 'month',
     cMon: null, cDay: null, cWildHidden: false, cNeedsHidden: false, cHandSheet: false, hMon: null, hDay: null, gMon: null, gDay: null,
@@ -415,6 +415,8 @@
     if (h === '#/own') return { screen: 'own' };
     if (h === '#/groups') return { screen: 'groups' };
     if (h === '#/friends') return { screen: 'friends' };
+    m = h.match(/^#\/crew\/([0-9a-f-]{36})$/);   // a crew's push (20261204000000): its page over My friends
+    if (m) { history.replaceState(null, '', location.pathname + '#/friends'); return { screen: 'friends', crewOpen: m[1] }; }
     if (h === '#/new') { history.replaceState(null, '', location.pathname + location.search); return { screen: 'sched' }; }   // a post flow left behind by a reload
     // v6: Profile and Notifications are sheets over the opening screen
     if (h === '#/notifications') return { screen: 'sched', notifSheet: true };
@@ -454,7 +456,7 @@
     // All groups' Back goes to the screen you came from, e.g. My calendar after Find more events (Design v8 prototype, _calFrom)
     if (screen === 'calendar' && state.screen !== 'calendar') state.calFrom = ORIGINS.indexOf(state.screen) > -1 ? { screen: state.screen, groupId: state.groupId, phaseTab: state.phaseTab } : null;
     // Going anywhere closes the v6 sheets (Profile, Notifications, View all, Could use a hand, Search)
-    setState(Object.assign({ screen, menu: null, plusMenu: false, ip: null, ipPop: null, ipEd: null, zoom: null, sec: null, needEd: null, share: null, cohostPick: null, leadAsk: null, leadsSheet: null, pollSheet: null, profSheet: false, notifSheet: false, dashAll: null, cHandSheet: false, cSearch: false, cq: '', gSearch: false, gq: '', gTry: null, pplAdd: false, frInvite: false, frList: null, frListEd: null, meImp: null, meList: null, meSet: false, pplSearch: false, pplQ: '', person: null, fbNudge: null, gMenu: null, gQr: null, gInv: null, jobAsk: null, handOff: null, partRoster: null, partGuest: null, calSheet: null, dayPick: null, rsvpEdit: null }, extra || {}));
+    setState(Object.assign({ screen, menu: null, plusMenu: false, ip: null, ipPop: null, ipEd: null, zoom: null, sec: null, needEd: null, share: null, cohostPick: null, leadAsk: null, leadsSheet: null, pollSheet: null, profSheet: false, notifSheet: false, dashAll: null, cHandSheet: false, cSearch: false, cq: '', gSearch: false, gq: '', gTry: null, pplAdd: false, frInvite: false, frList: null, frListEd: null, crewOpen: null, crewMenu: null, crewDay: null, crewEd: null, meImp: null, meList: null, meSet: false, pplSearch: false, pplQ: '', person: null, fbNudge: null, gMenu: null, gQr: null, gInv: null, jobAsk: null, handOff: null, partRoster: null, partGuest: null, calSheet: null, dayPick: null, rsvpEdit: null }, extra || {}));
     if (sc) sc.scrollTop = 0;
   };
 
@@ -628,6 +630,7 @@
     groupIds: (row.group_id ? [row.group_id] : []).concat((x.groups[row.id] || []).map(g => g.group_id).filter(g => g !== row.group_id)),
     personal: !row.group_id,   // no group: only its lead, co-hosts and the people it's shared with (20261202000000)
     listId: row.list_id || null,   // the lead's list it went to (20261202050000)
+    crewId: row.crew_id || null,   // a crew's plan (20261204000000)
     overview: row.overview || '', cap: row.cap || null,   // an attendance cap (null: none); cards say N spots left and Full
     createdBy: row.created_by, created: Date.parse(row.created_at),
     leadId: row.lead_id, leadName: row.lead_name || row.author_name || 'Someone',
@@ -2806,7 +2809,7 @@
   const GOOGLE_ON = !!CFG.googleSignIn && !IN_APP;   // Google refuses sign-in inside in-app browsers: email only there, with inAppTip()
   const inAppTip = (dark) => !IN_APP || !CFG.googleSignIn ? '' : '<p data-in-app-tip style="margin:4px 0 0;text-align:center;font-size:13px;line-height:1.45;font-weight:600;color:' + (dark ? '#aab0bb' : '#6b7280') + '">Want to use Google? Open this page in your browser first: tap ··· then Open in browser.</p>';
   const RESUME_KEY = 'spark-hub-google-resume';
-  const DRAFT_KEYS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'locText', 'locPlace', 'locAddr', 'evOverview', 'evDesc', 'evCap', 'evNeed', 'evTags', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evNoGuestInv', 'evNoContact', 'evTest', 'evFloat', 'evHelpNone', 'evGroups', 'evPersonal', 'evList', 'coverPos', 'evPhotoPath', 'evDraftId'];
+  const DRAFT_KEYS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'locText', 'locPlace', 'locAddr', 'evOverview', 'evDesc', 'evCap', 'evNeed', 'evTags', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evNoGuestInv', 'evNoContact', 'evTest', 'evFloat', 'evHelpNone', 'evGroups', 'evPersonal', 'evList', 'evCrew', 'coverPos', 'evPhotoPath', 'evDraftId'];
   const readResume = () => {
     try {
       const r = JSON.parse(sessionStorage.getItem(RESUME_KEY));
@@ -3808,6 +3811,267 @@
     sb.from('sparks').update({ list_id: list }).eq('id', s.id).then(r => { if (r.error) { console.error(r.error); patchSpark(s.id, { listId: null }); } });
   };
 
+  // ---- Crews (Design v9-1 5b, Q52; 20261204000000_crews.sql). Owner 2026-10-17: the name is crew, and lists retire in
+  // the app (the lists table stays). A crew is a shared page for a group of friends: its people, its next plan pinned,
+  // a standing calendar, a thread. my_crews() is read when My friends or a crew opens (again after 30 seconds), not in
+  // load_all(); a crew's plans are ordinary events with crew_id, shared with its members by the database
+  const crewsOn = () => !!state.email && !state.viewAs;   // previewing someone: my_crews() is the caller's own
+  let crewsAt = 0, crewsBusy = false;
+  const loadCrews = async (force) => {
+    if (!crewsOn() || crewsBusy || (!force && state.crews && state.crews.me === state.me && Date.now() - crewsAt < 30000)) return;
+    const me = state.me;
+    crewsBusy = true;
+    try {
+      await ensureSession();
+      const r = await sb.rpc('my_crews');
+      if (r.error && r.error.code === 'PGRST202') { setState({ crews: { me, off: true, list: [] } }); return; }   // a database without crews
+      if (r.error) throw r.error;
+      crewsAt = Date.now();
+      const list = (r.data || []).map(c => ({ id: c.id, name: c.name, photo: PHOTO_PATH.test(c.photo || '') ? c.photo : null, every: c.every || null, from: c.every_from || null,
+        skips: c.skips || [], createdBy: c.created_by, unread: c.unread || 0,
+        people: (c.people || []).map(p => ({ id: p.id, name: p.name || 'Someone', avatar: PHOTO_PATH.test(p.avatar || '') ? p.avatar : null })) }));
+      if (state.me === me) setState({ crews: { me, list } });
+    } catch (e) { console.error(e); }
+    finally { crewsBusy = false; }
+  };
+  // null until loaded (screens show a skeleton)
+  const myCrews = () => {
+    if (!crewsOn()) return [];
+    const c = state.crews;
+    if (!c || c.me !== state.me || Date.now() - crewsAt > 30000) setTimeout(loadCrews, 0);
+    return c && c.me === state.me ? c.list : null;
+  };
+  const crewById = (id) => (myCrews() || []).find(c => c.id === id) || null;
+  const crewFace = (p, size) => avatarSpan(p.id, p.name, p.avatar ? photoUrl(p.avatar) : null, size);
+  const crewFaces = (ppl, size, ring) => '<span aria-hidden="true" style="display:flex;flex:none;padding-left:8px">' + ppl.map(p => '<span style="display:flex;border-radius:999px;margin-left:-8px;box-shadow:0 0 0 2px ' + (ring || '#fff') + '">' + crewFace(p, size) + '</span>').join('') + '</span>';
+  // The crew's plans, and the next one (pinned on its page and named on its card): the soonest upcoming, uncancelled event
+  const crewEvents = (c) => state.sparks.filter(s => s.crewId === c.id && !s.cancelledAt);
+  const crewNext = (c) => { const t = todayISO(); return crewEvents(c).filter(s => s.dayDate && s.dayDate >= t).sort(byWhen)[0] || null; };
+  // The photo: the crew's own, else its next plan's, else the Spark Hub park
+  const crewBg = (c) => { const nx = crewNext(c); return c.photo ? bg(photoUrl(c.photo)) : nx && photoBg(nx).indexOf('url(') === 0 ? photoBg(nx) : bg('/photos/welcome-park-2.jpg'); };
+  // The standing calendar: every week, every other week, or the same weekday once a month (its nth week, up to the 4th)
+  const CREW_EVERY = [['week', 'Every week'], ['2weeks', 'Every other week'], ['month', 'Once a month']];
+  const NTH = ['First', 'Second', 'Third', 'Fourth'];
+  const crewNth = (iso) => Math.min(4, Math.ceil(+iso.slice(8) / 7));
+  const crewEveryLabel = (c) => { if (!c.every || !c.from) return '';
+    const dow = new Date(c.from + 'T12:00').toLocaleDateString('en-US', { weekday: 'long' });
+    return c.every === 'week' ? 'Every ' + dow : c.every === '2weeks' ? 'Every other ' + dow : NTH[crewNth(c.from) - 1] + ' ' + dow + ' of the month'; };
+  const crewDates = (c, n) => {
+    if (!c.every || !c.from) return [];
+    const out = [], today = todayISO(), d = new Date(c.from + 'T12:00'), iso = (x) => isoOf(x.getFullYear(), x.getMonth(), x.getDate());
+    if (c.every === 'month') {
+      const dow = d.getDay(), nth = crewNth(c.from);
+      for (let k = 0; out.length < n && k < 40; k++) {
+        const first = new Date(d.getFullYear(), d.getMonth() + k, 1, 12);
+        const x = new Date(first.getFullYear(), first.getMonth(), 1 + ((dow - first.getDay() + 7) % 7) + (nth - 1) * 7, 12);
+        if (iso(x) >= today) out.push(iso(x));
+      }
+    } else {
+      const step = c.every === 'week' ? 7 : 14;
+      while (iso(d) < today) d.setDate(d.getDate() + step);
+      while (out.length < n) { out.push(iso(d)); d.setDate(d.getDate() + step); }
+    }
+    return out;
+  };
+  const openCrew = (id) => { setState({ crewOpen: id, crewThread: null, crewMenu: null }); loadCrews(true); loadCrewThread(id); };
+  const closeCrew = () => { stopCrewPoll(); setState({ crewOpen: null, crewThread: null, crewMenu: null, crewDay: null }); };
+  // The thread: the last 100 messages, read when the page opens and every 20 seconds while it's open and on screen
+  let crewPoll = null;
+  const stopCrewPoll = () => { if (crewPoll) clearInterval(crewPoll); crewPoll = null; };
+  const loadCrewThread = async (id) => {
+    if (!crewsOn()) return;
+    if (!crewPoll) crewPoll = setInterval(() => { if (!state.crewOpen) return stopCrewPoll(); if (!document.hidden) loadCrewThread(state.crewOpen); }, 20000);
+    try {
+      await ensureSession();
+      const r = await sb.rpc('crew_thread', { p_crew: id });
+      if (r.error) throw r.error;
+      if (state.crewOpen !== id) return;
+      const before = state.crewThread && state.crewThread.id === id ? state.crewThread.msgs.length : -1;
+      const msgs = (r.data || []).map(m => ({ id: m.id, userId: m.user_id, body: m.body, at: Date.parse(m.created_at), name: m.name || 'Someone', avatar: PHOTO_PATH.test(m.avatar || '') ? m.avatar : null }));
+      setState({ crewThread: { id, msgs } });
+      if (msgs.length !== before) crewToEnd();
+      const c = crewById(id);
+      if (c && c.unread) { c.unread = 0; sb.rpc('crew_read', { p_crew: id }).then(x => { if (x.error) console.error(x.error); }); }
+    } catch (e) { console.error(e); if (state.crewOpen === id && !state.crewThread) setState({ crewThread: { id, msgs: [], failed: true } }); }
+  };
+  const crewToEnd = () => setTimeout(() => { const el = document.querySelector('[data-crew-scroll]'); if (el) el.scrollTop = el.scrollHeight; }, 30);
+  const sendCrewMsg = () => {
+    const c = crewById(state.crewOpen), body = (state.crewDraft || '').trim().slice(0, 500);
+    if (!c || !body) return;
+    if (state.viewAs) return run(async () => {});
+    const th = state.crewThread && state.crewThread.id === c.id ? state.crewThread : { id: c.id, msgs: [] };
+    const tmp = { id: 'tmp' + Date.now(), userId: state.me, body, at: Date.now(), name: state.myName || 'You', avatar: null, sending: true };
+    setState({ crewDraft: '', crewThread: { id: c.id, msgs: th.msgs.concat(tmp) } });
+    crewToEnd();
+    (async () => {
+      try { await ensureSession(); must(await sb.from('crew_messages').insert({ crew_id: c.id, body })); loadCrewThread(c.id); }
+      catch (e) { console.error(e); toast(failed(e));
+        if (state.crewThread && state.crewThread.id === c.id) setState({ crewDraft: body, crewThread: { id: c.id, msgs: state.crewThread.msgs.filter(m => m.id !== tmp.id) } }); }
+    })();
+  };
+  // Plan something for the crew: a Just people I invite event in the crew (crew_id); the database shares it with everyone
+  const planForCrew = (c, day) => { closeCrew(); goCompose(Object.assign({ evPersonal: true, evCrew: c.id, evList: null, evGroups: [], evGrpNone: true, evPriv: true, evNoGuestInv: null }, day ? { evDate: day } : {})); };
+  const evCrewOf = (st) => st.evPersonal && st.evCrew ? crewById(st.evCrew) : null;
+  // The pinned plan's Going? answers right there (the usual Going, with its pop-ups); a second tap opens the plan
+  const crewGoing = (s) => { if (myRsvp(s) === 'going' || isLead(s)) { closeCrew(); openSpark(s); return; } setRsvp(s, 'going'); };
+
+  // YOUR CREWS on My friends: a 150px photo card per crew, then + Start one
+  const crewCard = (c) => {
+    const nx = crewNext(c), others = c.people.filter(p => p.id !== state.me);
+    return '<div ' + on(() => openCrew(c.id)) + ' role="button" data-crew-card="' + esc(c.name) + '" aria-label="' + esc(c.name) + (c.unread ? ', ' + c.unread + ' new' : '') + '" class="hov-lift" style="position:relative;flex:0 0 auto;height:150px;border-radius:20px;overflow:hidden;background:#3a3f48 ' + crewBg(c) + ';box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
+      '<div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(13,17,23,0) 30%,rgba(13,17,23,.78) 100%)"></div>' +
+      (c.unread ? '<span data-crew-unread style="position:absolute;top:12px;right:12px;min-width:22px;height:22px;padding:0 7px;box-sizing:border-box;border-radius:999px;background:#d6246e;color:#fff;font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center">' + (c.unread > 99 ? '99+' : c.unread) + '</span>' : '') +
+      '<div style="position:absolute;left:14px;right:14px;bottom:12px;display:flex;align-items:flex-end;gap:10px;color:#fff;text-shadow:0 1px 8px rgba(0,0,0,.35)"><div style="flex:1;min-width:0;display:flex;flex-direction:column">' +
+        '<span style="font-size:21px;font-weight:900;letter-spacing:-.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(c.name) + '</span>' +
+        '<span data-crew-next style="font-size:13px;font-weight:700;color:#cfc9ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (nx ? esc('NEXT · ' + shortDay(nx.dayDate).toUpperCase() + ' · ' + nx.text) : esc(crewEveryLabel(c) || (others.length + 1) + ' friends')) + '</span></div>' +
+        crewFaces(others.slice(0, 3), 26) + '</div></div>';
+  };
+  const crewsSection = (label) => {
+    const crews = myCrews();
+    if (crews && !crews.length && state.crews && state.crews.off) return '';
+    const start = '<span ' + on(() => setState({ crewEd: { id: null, name: '', people: [] } })) + ' role="button" data-crew-start style="display:flex;align-items:center;gap:4px;min-height:32px;font-size:13.5px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(13, 'currentColor', 2.8) + 'Start one</span>';
+    // No crews yet: one dashed card that starts the first (an invention: Design draws the section with a sample crew)
+    const first = '<div ' + on(() => setState({ crewEd: { id: null, name: '', people: [] } })) + ' role="button" data-crew-first style="display:flex;align-items:center;gap:12px;padding:14px;border-radius:20px;background:#f4f5f7;box-shadow:inset 0 0 0 1.5px #dcdfe6;cursor:pointer">' +
+      '<span style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;display:flex;align-items:center;justify-content:center">' + I.plus(15, '#454b55', 2.6) + '</span>' +
+      '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-size:15.5px;font-weight:900;color:#0d1117">Start a crew</span><span style="font-size:13px;line-height:1.35;font-weight:600;color:#6b7280">A shared page for friends you do things with: your next plan, a standing day, a chat.</span></div></div>';
+    return '<div data-screen-label="Your crews" data-crews style="display:flex;flex-direction:column;gap:8px">' + label('YOUR CREWS', start) +
+      (!crews ? skeleton(1, 150) : crews.length ? crews.map(crewCard).join('') : first) + '</div>';
+  };
+
+  // The crew's page (Design v9-1 5b): a 210px photo header, then on the grey page the next plan pinned, the standing
+  // calendar, the thread, and a fixed bottom bar to write. Over the screen (and the tab bar), under its own sheets
+  function viewCrew() {
+    const crews = myCrews(), c = crewById(state.crewOpen);
+    const shell = (inner) => '<div data-screen-label="Crew page" role="region" aria-label="' + esc(c ? c.name : 'Crew') + '" style="position:absolute;inset:0;z-index:29;background:#e8eaee;display:flex;flex-direction:column;overflow:hidden">' + inner + '</div>';
+    const backBtn = '<span ' + on(closeCrew) + ' role="button" aria-label="Back" style="position:absolute;top:calc(var(--sat) + 12px);left:14px;width:40px;height:40px;border-radius:999px;background:rgba(13,17,23,.4);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;cursor:pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 5.5 8 12l6.5 6.5"/></svg></span>';
+    if (!c) {
+      if (crews) setTimeout(() => { if (state.crewOpen && crews === myCrews() && !crewById(state.crewOpen)) { closeCrew(); toast('That crew isn’t yours any more.'); } }, 0);
+      return shell('<div style="position:relative;flex:0 0 210px;background:#3a3f48">' + backBtn + '</div><div style="padding:14px">' + skeleton(2, 90) + '</div>');
+    }
+    const me = state.me, others = c.people.filter(p => p.id !== me), nx = crewNext(c), today = todayISO();
+    const th = state.crewThread && state.crewThread.id === c.id ? state.crewThread : null;
+    if (!th && !crewPoll) setTimeout(() => loadCrewThread(c.id), 0);   // opened from a push (#/crew/<id>)
+    const header = '<div style="position:relative;flex:0 0 210px;height:210px;background:#3a3f48 ' + crewBg(c) + '"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(13,17,23,.4) 0%,rgba(13,17,23,0) 35%,rgba(13,17,23,.8) 100%)"></div>' + backBtn +
+      '<span ' + on(() => setState({ crewMenu: true })) + ' role="button" aria-label="Crew options" data-crew-more style="position:absolute;top:calc(var(--sat) + 12px);right:14px;width:40px;height:40px;border-radius:999px;background:rgba(13,17,23,.4);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;gap:3px;cursor:pointer">' + '<span style="width:4px;height:4px;border-radius:999px;background:#fff"></span>'.repeat(3) + '</span>' +
+      '<div style="position:absolute;left:16px;right:16px;bottom:34px;display:flex;align-items:flex-end;gap:10px;color:#fff;text-shadow:0 1px 8px rgba(0,0,0,.35)"><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">' +
+        '<span data-crew-name style="font-size:28px;font-weight:900;letter-spacing:-.9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(c.name) + '</span>' +
+        '<span style="font-size:13px;font-weight:700">' + others.length + (others.length === 1 ? ' friend' : ' friends') + ' · everyone here sees this</span></div>' + crewFaces(others.slice(0, 4), 28) + '</div></div>';
+    // PINNED · NEXT UP: thumb, title, time and going, an inline Going? (✓ Going on green)
+    const goingN = (s) => going(s).reduce((a, r) => a + 1 + (r.plus || 0), 0);
+    const mine = nx ? myRsvp(nx) === 'going' || isLead(nx) : false;
+    const pinned = nx ? '<div ' + on(() => { closeCrew(); openSpark(nx); }) + ' role="button" data-crew-pinned="' + esc(nx.text) + '" style="background:#fff;border-radius:20px;box-shadow:0 1px 3px rgba(15,18,25,.08);padding:12px;display:flex;gap:12px;align-items:center;cursor:pointer">' +
+        '<span aria-hidden="true" style="flex:0 0 64px;width:64px;height:64px;border-radius:14px;background:' + thumbBg(nx) + '"></span>' +
+        '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px"><span style="font-size:11px;font-weight:900;letter-spacing:.8px;color:#149a4b">PINNED · NEXT UP · ' + esc(shortDay(nx.dayDate).toUpperCase()) + '</span>' +
+          '<span style="font-size:17px;font-weight:900;letter-spacing:-.3px;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(nx.text) + '</span>' +
+          '<span style="font-size:13px;font-weight:600;color:#6b7280">' + esc([timeLabel(nx.dayTime), nx.planned ? goingN(nx) + ' going' : 'An idea'].filter(Boolean).join(' · ')) + '</span></div>' +
+        (nx.planned ? '<span ' + on((e) => { stop(e); crewGoing(nx); }) + ' role="button" data-crew-going aria-pressed="' + mine + '" style="flex:none;min-height:34px;padding:0 12px;border-radius:999px;background:' + (mine ? '#e7f6ec' : '#5b4ae8') + ';color:' + (mine ? '#0f7a3c' : '#fff') + ';font-size:13px;font-weight:800;display:flex;align-items:center;cursor:pointer;white-space:nowrap">' + (mine ? '✓ Going' : 'Going?') + '</span>' : '') + '</div>'
+      : '<div data-crew-none style="background:#fff;border-radius:20px;box-shadow:0 1px 3px rgba(15,18,25,.08);padding:14px;display:flex;align-items:center;gap:12px"><span style="flex:1;font-size:15px;line-height:1.35;font-weight:700;color:#454b55">Nothing planned yet.</span>' +
+        '<span ' + on(() => planForCrew(c)) + ' role="button" data-crew-plan class="hov-primary" style="flex:none;display:flex;align-items:center;gap:6px;min-height:40px;padding:0 16px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:14.5px;font-weight:800;cursor:pointer">' + I.plus(13, '#fff', 2.8) + 'Plan something</span></div>';
+    // The standing calendar: four tiles; a day with a plan is green with its name, a skipped one outlined, the rest Open
+    const days = crewDates(c, 4), evs = crewEvents(c);
+    const tile = (d) => { const p = dateParts(d), ev = evs.filter(s => s.dayDate === d).sort(byWhen)[0], skip = c.skips.indexOf(d) > -1;
+      const k = ev ? { bg: '#149a4b', fg: '#fff', sub: '#e7f6ec', ring: 'none', note: ev.text } : skip ? { bg: 'transparent', fg: '#9aa0ac', sub: '#9aa0ac', ring: 'inset 0 0 0 1.5px #d5d8df', note: 'Skipped' } : { bg: '#fff', fg: '#0d1117', sub: '#6b7280', ring: 'none', note: 'Open' };
+      return '<div ' + on(() => ev ? (closeCrew(), openSpark(ev)) : setState({ crewDay: d })) + ' role="button" data-crew-day="' + d + '" aria-label="' + esc(fmtDay(d) + ', ' + k.note) + '" style="flex:1;min-width:0;background:' + k.bg + ';border-radius:14px;padding:8px 6px;display:flex;flex-direction:column;align-items:center;gap:1px;box-shadow:' + k.ring + ';cursor:pointer">' +
+        '<span style="font-size:11px;font-weight:900;letter-spacing:.6px;color:' + k.sub + '">' + p.mon + '</span><span style="font-size:20px;font-weight:900;color:' + k.fg + '">' + p.day + '</span>' +
+        '<span style="max-width:100%;font-size:11px;font-weight:700;color:' + k.sub + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(k.note) + '</span></div>'; };
+    const standing = days.length ? '<div data-crew-standing style="display:flex;flex-direction:column;gap:8px"><div style="display:flex;align-items:center;padding:0 4px"><span style="flex:1;font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#6b7280">' + esc(crewEveryLabel(c)) + '</span></div>' +
+        '<div style="display:flex;gap:8px">' + days.map(tile).join('') + '</div></div>'
+      : '<span ' + on(() => setState({ crewEd: crewEdFrom(c, true) })) + ' role="button" data-crew-set-day style="align-self:flex-start;padding:0 4px;min-height:32px;display:flex;align-items:center;gap:6px;font-size:14px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(13, 'currentColor', 2.8) + 'Set a standing day</span>';
+    // The thread: face, a white bubble (4px top-left corner), name · time, text
+    const msg = (m) => '<div data-crew-msg style="display:flex;gap:10px;align-items:flex-start;' + (m.sending ? 'opacity:.6' : '') + '">' + avatarSpan(m.userId, m.name, m.avatar ? photoUrl(m.avatar) : m.userId === me ? avatarOf(me) : null, 32) +
+      '<div style="flex:1;min-width:0;background:#fff;border-radius:4px 16px 16px 16px;padding:8px 12px;display:flex;flex-direction:column;gap:2px"><span style="font-size:13px;font-weight:800;color:#0d1117">' + esc(m.userId === me ? 'You' : shortName(m.name)) + ' <span style="font-weight:600;color:#9aa0ac">· ' + esc(m.sending ? 'sending' : ago(m.at).replace(' ago', '')) + '</span></span>' +
+        '<span style="font-size:14.5px;font-weight:500;line-height:1.35;color:#2a2f38;white-space:pre-wrap;overflow-wrap:anywhere">' + esc(m.body) + '</span></div></div>';
+    const thread = !th ? skeleton(2, 50) : th.failed ? '<span style="padding:0 4px;font-size:14px;font-weight:600;color:#6b7280">Couldn’t load the chat. Pull down to try again.</span>'
+      : th.msgs.length ? th.msgs.map(msg).join('') : '<span data-crew-quiet style="padding:6px 4px;font-size:14px;line-height:1.4;font-weight:600;color:#6b7280;text-align:center">No messages yet. Say hi to the crew.</span>';
+    const draft = state.crewDraft || '', ok = !!draft.trim();
+    const bar = '<div style="position:absolute;left:0;right:0;bottom:0;padding:10px 14px calc(14px + env(safe-area-inset-bottom, 0px));background:rgba(255,255,255,.96);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:0 -1px 0 #e8eaef;display:flex;gap:8px;align-items:center">' +
+      '<input data-crew-input maxlength="500" enterkeyhint="send" aria-label="Say something to the crew" placeholder="Say something to the crew…" value="' + esc(draft) + '" ' + onInput(e => { if (e.type === 'input') setState({ crewDraft: e.target.value.slice(0, 500) }); }) + ' style="flex:1;min-width:0;min-height:46px;border:0;border-radius:999px;background:#f2f3f6;padding:0 16px;font-family:inherit;font-size:16px;font-weight:500;color:#0d1117;outline:none">' +
+      '<span ' + on(sendCrewMsg) + ' role="button" aria-label="Send" aria-disabled="' + !ok + '" data-crew-send style="flex:0 0 46px;width:46px;height:46px;border-radius:999px;background:' + (ok ? '#5b4ae8' : '#c9c2fb') + ';display:flex;align-items:center;justify-content:center;cursor:' + (ok ? 'pointer' : 'default') + '"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></span></div>';
+    return shell(header + '<div data-crew-scroll style="margin-top:-22px;position:relative;flex:1;overflow-y:auto;scrollbar-width:none;background:#e8eaee;border-radius:22px 22px 0 0;padding:14px 14px calc(96px + env(safe-area-inset-bottom, 0px));display:flex;flex-direction:column;gap:14px">' +
+      pinned + standing + '<div data-crew-thread style="display:flex;flex-direction:column;gap:10px">' + thread + '</div></div>' + bar);
+  }
+
+  // The crew's ⋯ (an invention): Plan something · Edit crew · Leave crew
+  function viewCrewMenu() {
+    const c = crewById(state.crewOpen), close = () => setState({ crewMenu: null });
+    if (!c) return '';
+    const row = (label, fn, attr, color) => '<div ' + on(fn) + ' role="button" ' + attr + ' class="hov-row" style="display:flex;align-items:center;min-height:54px;padding:0 6px;border-top:1px solid #f2f3f6;font-size:16px;font-weight:800;color:' + (color || '#0d1117') + ';cursor:pointer">' + label + '</div>';
+    return sheet(c.name, close, 'padding:10px 18px calc(18px + env(safe-area-inset-bottom, 0px))',
+      '<h3 style="margin:0 6px 8px;font-size:20px;font-weight:900;letter-spacing:-.4px;color:#0d1117">' + esc(c.name) + '</h3>' +
+      row('Plan something', () => planForCrew(c), 'data-crew-menu-plan') +
+      row('Edit crew', () => setState({ crewMenu: null, crewEd: crewEdFrom(c) }), 'data-crew-menu-edit') +
+      row('Leave crew', () => setState({ crewMenu: null, confirm: { title: 'Leave ' + c.name + '?', body: 'You won’t see its chat or its plans any more. Someone in it can add you back.', cta: 'Leave crew', keep: 'Not now', danger: true, run: () => leaveCrew(c) } }), 'data-crew-menu-leave', '#c0263d'));
+  }
+  const leaveCrew = (c) => run(async () => { must(await sb.rpc('crew_leave', { p_crew: c.id })); crewsAt = 0; await loadCrews(true); }, { confirm: null, crewOpen: null, crewThread: null })
+    .then(ok => { if (ok) { stopCrewPoll(); toast('You left ' + c.name, true); } });
+
+  // A standing date: Plan something that day, or skip it (or take the skip back)
+  function viewCrewDay() {
+    const c = crewById(state.crewOpen), d = state.crewDay, close = () => setState({ crewDay: null });
+    if (!c || !d) return '';
+    const skip = c.skips.indexOf(d) > -1;
+    const setSkip = (on_) => run(async () => { must(await sb.rpc('crew_skip', { p_crew: c.id, p_day: d, p_skip: on_ })); await loadCrews(true); }, { crewDay: null })
+      .then(ok => { if (ok) toast(on_ ? 'Skipping ' + fmtDay(d) : 'Back on: ' + fmtDay(d), true); });
+    return sheet(fmtDay(d), close, 'padding:10px 18px calc(18px + env(safe-area-inset-bottom, 0px));display:flex;flex-direction:column;gap:10px',
+      '<div style="display:flex;flex-direction:column;gap:2px;padding:0 4px"><span style="font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#6b7280">' + esc(crewEveryLabel(c)) + '</span>' +
+        '<h3 style="margin:0;font-size:22px;font-weight:900;letter-spacing:-.5px;color:#0d1117">' + esc(new Date(d + 'T12:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })) + '</h3></div>' +
+      '<span ' + on(() => { setState({ crewDay: null }); planForCrew(c, d); }) + ' role="button" data-crew-day-plan class="hov-primary" style="display:flex;align-items:center;justify-content:center;gap:7px;min-height:52px;border-radius:999px;background:#5b4ae8;color:#fff;font-size:16px;font-weight:800;cursor:pointer">' + I.plus(15, '#fff', 2.8) + 'Plan something that day</span>' +
+      '<span ' + on(() => setSkip(!skip)) + ' role="button" data-crew-day-skip style="display:flex;align-items:center;justify-content:center;min-height:52px;border-radius:999px;background:#f2f3f6;color:#0d1117;font-size:16px;font-weight:800;cursor:pointer">' + (skip ? 'Don’t skip it' : 'Skip this one') + '</span>');
+  }
+
+  // Start a crew / Edit crew: CREW NAME, the standing day, FRIENDS ticks (editing: add friends; people already in it
+  // are ticked and fixed), then Start crew / Save. An invention (HANDOFF §2): Design shows only + Start one
+  const crewEdFrom = (c, dayOnly) => ({ id: c.id, name: c.name, people: [], every: c.every || '', from: c.from || null, dayOnly: !!dayOnly });
+  const DOW_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  // The first date of a weekday from today (the standing calendar counts from it)
+  const nextDow = (dow) => { const d = new Date(); d.setHours(12); d.setDate(d.getDate() + ((dow - d.getDay() + 7) % 7)); return isoOf(d.getFullYear(), d.getMonth(), d.getDate()); };
+  function viewCrewEd() {
+    const ed = state.crewEd, close = () => setState({ crewEd: null }), isEdit = !!ed.id, c = isEdit ? crewById(ed.id) : null;
+    if (isEdit && !c) return '';
+    const set = (p) => setState({ crewEd: Object.assign({}, state.crewEd, p) });
+    const inIt = (id) => !!c && c.people.some(p => p.id === id);
+    const friends = state.fr.friends.filter(f => !sfBlocked(f.id));
+    const ok = !!ed.name.trim() && (isEdit || ed.people.length > 0) && (!ed.every || !!ed.from);
+    const dow = ed.from ? new Date(ed.from + 'T12:00').getDay() : null;
+    const chip = (on_, label, fn, attr) => '<span ' + on(fn, 'radio') + ' aria-checked="' + on_ + '" ' + attr + ' style="flex:0 0 auto;display:flex;align-items:center;min-height:38px;padding:0 14px;border-radius:999px;font-size:14px;font-weight:800;white-space:nowrap;cursor:pointer;' + (on_ ? 'background:#0d1117;color:#fff' : 'background:#f2f3f6;color:#0d1117') + '">' + label + '</span>';
+    const lbl = (t) => '<span style="padding:0 4px;font-size:12.5px;font-weight:900;letter-spacing:1px;color:#6b7280">' + t + '</span>';
+    const everyRow = '<div style="display:flex;gap:8px;flex-wrap:wrap">' + chip(!ed.every, 'No set day', () => set({ every: '', from: null }), 'data-crew-every=""') +
+      CREW_EVERY.map(([k, l]) => chip(ed.every === k, l, () => set({ every: k, from: ed.from || nextDow(0) }), 'data-crew-every="' + k + '"')).join('') + '</div>' +
+      (ed.every ? '<div style="display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:0 -2px;padding:2px">' + DOW_LONG.map((n, i) => chip(dow === i, n.slice(0, 3), () => set({ from: nextDow(i) }), 'data-crew-dow="' + i + '" aria-label="' + n + '"')).join('') + '</div>' +
+        '<span data-crew-every-sum style="padding:0 4px;font-size:13.5px;font-weight:700;color:#454b55">' + esc(crewEveryLabel({ every: ed.every, from: ed.from })) + ', from ' + esc(fmtDay(ed.from)) + '</span>' : '');
+    const save = () => {
+      if (!ok) return;
+      const name = ed.name.trim().slice(0, 32);
+      if (isEdit) run(async () => {
+        must(await sb.rpc('crew_edit', { p_crew: ed.id, p_name: name, p_every: ed.every || '', p_every_from: ed.every ? ed.from : null }));
+        if (ed.people.length) must(await sb.rpc('crew_add', { p_crew: ed.id, p_people: ed.people }));
+        await loadCrews(true);
+      }, { crewEd: null }).then(ok_ => { if (ok_) toast('Crew saved', true); });
+      else {
+        let id = null;
+        run(async () => {
+          id = must(await sb.rpc('start_crew', { p_name: name, p_people: ed.people })).data;
+          if (ed.every) must(await sb.rpc('crew_edit', { p_crew: id, p_every: ed.every, p_every_from: ed.from }));
+          await loadCrews(true);
+        }, { crewEd: null }).then(ok_ => { if (ok_ && id) { toast(name + ' is started', true); openCrew(id); } });
+      }
+    };
+    const friendRow = (f, i) => { const fixed = inIt(f.id), t = fixed || ed.people.indexOf(f.id) > -1;
+      return '<div ' + (fixed ? '' : on(() => set({ people: t ? ed.people.filter(x => x !== f.id) : ed.people.concat(f.id) }), 'checkbox')) + ' aria-checked="' + t + '" aria-label="' + esc(f.name) + (fixed ? ', in the crew' : '') + '" data-crew-pick="' + esc(f.name) + '" style="display:flex;align-items:center;gap:12px;min-height:56px;padding:0 4px;border-top:' + (i ? '1px solid #f2f3f6' : '0') + ';cursor:' + (fixed ? 'default' : 'pointer') + '">' + frFace(f, 36) +
+        '<span style="flex:1;min-width:0;font-size:15.5px;font-weight:800;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(f.name) + '</span>' +
+        (fixed ? '<span style="font-size:13px;font-weight:800;color:#6b7280">In the crew</span>' : '<span style="flex:0 0 26px;width:26px;height:26px;border-radius:999px;display:flex;align-items:center;justify-content:center;' + (t ? 'background:#5b4ae8' : 'box-shadow:inset 0 0 0 2px #d5d8df') + '">' + (t ? I.check(12, '#fff', 3) : '') + '</span>') + '</div>'; };
+    const n = ed.people.length;
+    return sheet(isEdit ? 'Edit crew' : 'Start a crew', close, 'max-height:90%;overflow-y:auto;padding:10px 18px calc(18px + env(safe-area-inset-bottom, 0px));display:flex;flex-direction:column;gap:12px',
+      '<div style="display:flex;align-items:flex-start;gap:10px"><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><h3 style="margin:0;font-size:22px;font-weight:900;letter-spacing:-.5px;color:#0d1117">' + (isEdit ? 'Edit crew' : 'Start a crew') + '</h3>' +
+        '<span style="font-size:13.5px;line-height:1.35;font-weight:600;color:#6b7280">Friends you do things with. Everyone in it sees its plans and chat.</span></div>' + closeX(close) + '</div>' +
+      lbl('CREW NAME') + '<input class="fld" data-crew-name-input maxlength="32" aria-label="Crew name" placeholder="Taco crew, Sunday runners…" value="' + esc(ed.name) + '" ' + onInput(e => { if (e.type === 'input') set({ name: e.target.value.slice(0, 32) }); }) + ' style="' + FIELD + '">' +
+      lbl('A STANDING DAY') + everyRow +
+      (ed.dayOnly ? '' : lbl(isEdit ? 'ADD FRIENDS' : 'FRIENDS') + (friends.length ? '<div style="display:flex;flex-direction:column">' + friends.map(friendRow).join('') + '</div>'
+        : '<span style="padding:0 4px;font-size:14px;font-weight:600;color:#6b7280">Add friends first: crews are only for friends.</span>')) +
+      '<div style="display:flex;gap:10px;margin-top:4px"><span ' + on(close) + ' role="button" style="flex:1;display:flex;align-items:center;justify-content:center;min-height:52px;border-radius:999px;background:#f2f3f6;font-size:16px;font-weight:800;color:#0d1117;cursor:pointer">Cancel</span>' +
+        '<span ' + on(save) + ' role="button" data-crew-save data-enter aria-disabled="' + !ok + '" style="flex:1;display:flex;align-items:center;justify-content:center;min-height:52px;border-radius:999px;background:' + (ok ? '#5b4ae8' : '#d5d8df') + ';color:#fff;font-size:16px;font-weight:800;cursor:' + (ok ? 'pointer' : 'default') + '">' + (isEdit ? (n ? 'Save · add ' + n : 'Save') : 'Start crew') + '</span></div>', 46);
+  }
+
 
   // Design v8-27 item 2: FIND FRIENDS IN YOUR GROUPS. Each of your groups' group_people, fetched when Friends opens
   // (again after a minute), so the card can count who you aren't friends with yet
@@ -3861,24 +4125,9 @@
             '<span style="min-width:0;font-size:13px;font-weight:600;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(names + (fs.length === 1 ? ' is going' : ' are going')) + '</span></div></div></div>'; };
     const goingSec = !goingEvs.length ? '' : '<div data-screen-label="Friends are going" style="display:flex;flex-direction:column;gap:8px"><span style="padding:6px 6px 0;font-size:13px;font-weight:900;letter-spacing:1px;color:#6b7280">FRIENDS ARE GOING</span>' +
       '<div class="snap-row" style="margin:0 -14px;padding:0 14px 4px;gap:10px;scroll-padding:0 14px">' + goingEvs.map(goingCard).join('') + '</div></div>';
-    // Your lists (4a): swipe cards, + New list
-    const lists = frLists();
-    const listCard = (l) => { const ppl = listPeople(l), today = todayISO();
-      const nx = listEvents(l).filter(s => s.dayDate && s.dayDate >= today && phaseOf(s) === 'plan').sort(byWhen)[0];   // the next thing with them, else the head count
-      return '<div ' + on(() => setState({ frList: l.id })) + ' data-friend-list="' + esc(l.name) + '" class="hov-lift" style="flex:0 0 150px;scroll-snap-align:start;display:flex;flex-direction:column;gap:12px;padding:14px;border-radius:18px;background:#fff;box-shadow:0 1px 3px rgba(15,18,25,.08);cursor:pointer">' +
-        '<span aria-hidden="true" style="display:flex;min-height:30px">' + ppl.slice(0, 4).map((f, i) => '<span style="display:flex;border-radius:999px;box-shadow:0 0 0 2px #fff;' + (i ? 'margin-left:-8px' : '') + '">' + frFace(f, 30) + '</span>').join('') + '</span>' +
-        '<div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:15.5px;font-weight:900;letter-spacing:-.2px;color:#0d1117;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(l.name) + '</span><span data-list-sub style="font-size:13px;font-weight:600;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (nx ? esc(nx.text + (nx.dayDate ? ' · ' + shortDay(nx.dayDate) : '')) : ppl.length + (ppl.length === 1 ? ' person' : ' people')) + '</span></div></div>'; };
-    // No lists yet: one dashed card that makes the first (Design shows lists only with sample ones)
-    const firstList = '<div ' + on(() => setState({ frListEd: { id: null, name: '', people: [] } })) + ' data-friend-list-new style="flex:0 0 150px;display:flex;flex-direction:column;gap:6px;padding:14px;border-radius:18px;background:#f4f5f7;box-shadow:inset 0 0 0 1.5px #dcdfe6;cursor:pointer">' +
-      '<span style="width:30px;height:30px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px #dcdfe6;display:flex;align-items:center;justify-content:center">' + I.plus(14, '#454b55', 2.6) + '</span>' +
-      '<span style="font-size:15px;font-weight:900;color:#0d1117">Make a list</span><span style="font-size:12.5px;line-height:1.3;font-weight:600;color:#6b7280">People you invite together. Only you see it.</span></div>';
-    // YOUR CREWS (Design v9-1 5b, Q52; working name, owner to confirm): a shared page for a group of friends, above Your
-    // lists. Not built in this round: + Start one carries the gold REQUEST chip and opens Crews aren't here yet
-    const crewsSec = q || !fr.friends.length ? '' : '<div data-screen-label="Your crews" data-crews style="display:flex;flex-direction:column;gap:8px">' +
-      label('YOUR CREWS', '<span ' + on(() => requestFeature('Crews', true)) + ' role="button" data-crew-start style="display:flex;align-items:center;gap:6px;min-height:32px;font-size:13.5px;font-weight:800;color:#5b4ae8;cursor:pointer">+ Start one' + REQ_CHIP + '</span>') + '</div>';
-    const listsSec = q || !fr.friends.length ? '' : '<div data-screen-label="Your lists" style="display:flex;flex-direction:column;gap:8px">' +
-      label('YOUR LISTS', '<span ' + on(() => setState({ frListEd: { id: null, name: '', people: [] } })) + ' data-new-list style="display:flex;align-items:center;gap:4px;min-height:32px;font-size:13.5px;font-weight:800;color:#5b4ae8;cursor:pointer">' + I.plus(13, 'currentColor', 2.8) + 'New list</span>') +
-      '<div class="snap-row" style="margin:0 -14px;padding:2px 14px 4px;gap:10px;scroll-padding:0 14px">' + (lists.length ? lists.map(listCard).join('') : firstList) + '</div></div>';
+    // YOUR CREWS (Design v9-1 5b, Q52; owner 2026-10-17: the name is crew): photo cards, + Start one
+    const crewsSec = q || !fr.friends.length ? '' : crewsSection(label);
+    // YOUR LISTS retired when crews shipped (owner, 2026-10-17); the lists table and its screens' code stay for now
     // Your friends: 5 rows, then See all N
     const row = (f, k) => { const nx = friendNext(f);
       return '<div ' + on(() => openPerson(f.id)) + ' data-friend-row="' + esc(f.name) + '" aria-label="' + esc(f.name) + '" class="hov-row" style="display:flex;align-items:center;gap:12px;min-height:60px;padding:8px 14px;border-top:' + (k ? '1px solid #f2f3f6' : '0') + ';cursor:pointer">' + frFace(f, 40) +
@@ -3899,7 +4148,7 @@
     // No + Add a friend link under the list once you have friends (Design v8 prototype)
     return '<div data-screen-label="Friends">' + tabHead('My friends', openPplSearch, 'Search your friends') +
       '<div style="padding:14px 14px 26px;display:flex;flex-direction:column;gap:12px">' + gsCard() + pplSearchField('Search your friends') +
-        (!fr.loaded ? skeleton(2, 120) : (q ? '' : fr.incoming.map(req).join('')) + goingSec + crewsSec + listsSec + friendsSec + empty + frGroupsCard()) +
+        (!fr.loaded ? skeleton(2, 120) : (q ? '' : fr.incoming.map(req).join('')) + goingSec + crewsSec + friendsSec + empty + frGroupsCard()) +
       '</div><div style="height:var(--nav-h)"></div></div>';
   }
 
@@ -7890,18 +8139,18 @@
       : invited.indexOf(p.id) > -1 ? '<span aria-label="' + esc(p.name) + ' is invited" style="flex:0 0 auto;font-size:13.5px;font-weight:800;color:' + A.text + '">✓ Invited</span>'
       : invTick(picked.indexOf(p.id) > -1, () => setState({ share: Object.assign({}, state.share, { picked: picked.indexOf(p.id) > -1 ? picked.filter(x => x !== p.id) : picked.concat(p.id) }) }), p.name, A.fill, A.ink);
     const row = (p) => invRow(p.id, p.name, p.avatar, right(p), false, p.friend ? '' : p.sub);
-    // Your lists as chips (owner, 2026-10-14): one tap picks everyone on it who can still be invited; again un-picks them.
-    // An invention (HANDOFF §2): the chips reuse the sheet's colours until Design draws them
+    // Your crews as chips (Design v9-1 5c; they were your lists until crews shipped, owner 2026-10-17): one tap picks
+    // everyone in it who can still be invited; again un-picks them
     const pickable = (id) => (sh.people || []).some(p => p.id === id) && !answer(id) && invited.indexOf(id) < 0;
-    const myLists = !sh.people ? [] : frLists().map(l => ({ l, ids: l.people.filter(pickable) })).filter(x => x.ids.length);
+    const myLists = !sh.people ? [] : (myCrews() || []).map(c => ({ l: c, ids: c.people.map(p => p.id).filter(pickable) })).filter(x => x.ids.length);
     const usedLists = sh.lists || [];
     const toggleList = ({ l, ids }) => { const on_ = usedLists.indexOf(l.id) > -1;
       setState({ share: Object.assign({}, state.share, on_ ? { picked: picked.filter(x => ids.indexOf(x) < 0), lists: usedLists.filter(x => x !== l.id) }
         : { picked: picked.concat(ids.filter(x => picked.indexOf(x) < 0)), lists: usedLists.concat(l.id) }) }); };
-    const listChips = !myLists.length || q ? '' : '<div data-inv-lists style="flex:0 0 auto;display:flex;gap:8px;overflow-x:auto;padding:2px 0 10px;margin:0 -2px;scrollbar-width:none">' +
+    const listChips = !myLists.length || q ? '' : '<div data-inv-crews style="flex:0 0 auto;display:flex;gap:8px;overflow-x:auto;padding:2px 0 10px;margin:0 -2px;scrollbar-width:none">' +
       myLists.map(x => { const on_ = usedLists.indexOf(x.l.id) > -1;
         // Design v9-1 5c: #f2f3f6 with ink, {name} {N}; picked #5b4ae8 with a ✓ and no count
-        return '<span ' + on(() => toggleList(x), 'checkbox') + ' aria-checked="' + on_ + '" aria-label="Invite ' + esc(x.l.name) + '" data-inv-list="' + esc(x.l.name) + '" style="flex:0 0 auto;display:flex;align-items:center;gap:6px;min-height:38px;padding:0 14px;border-radius:999px;font-size:14px;font-weight:800;white-space:nowrap;cursor:pointer;' +
+        return '<span ' + on(() => toggleList(x), 'checkbox') + ' aria-checked="' + on_ + '" aria-label="Invite ' + esc(x.l.name) + '" data-inv-crew="' + esc(x.l.name) + '" style="flex:0 0 auto;display:flex;align-items:center;gap:6px;min-height:38px;padding:0 14px;border-radius:999px;font-size:14px;font-weight:800;white-space:nowrap;cursor:pointer;' +
           (on_ ? 'background:#5b4ae8;color:#fff' : 'background:#f2f3f6;color:#0d1117') + '">' + (on_ ? I.check(12, '#fff', 3) : '') + esc(x.l.name) + (on_ ? '' : '<span style="font-weight:700;opacity:.7">' + x.ids.length + '</span>') + '</span>'; }).join('') + '</div>';
     const list = !canList ? '' :
       invSearch(sh.q, (v) => setState({ share: Object.assign({}, state.share, { q: v }) })) + listChips +
@@ -11043,7 +11292,7 @@
     if (state.evFromIdea) { planIdea(); return; }
     const st = state, pers = !!st.evPersonal, groups = pers ? [] : evGroupIds(st);
     if ((!groups.length && !pers) || st.busy || !cleanTitle(st.activity)) return;
-    const fromList = evListOf(st);   // read now: posting resets the compose state
+    const fromList = evListOf(st), crew = evCrewOf(st);   // read now: posting resets the compose state
     if (st.evDate && st.evDate < todayISO()) { setState({ evPop: 'when' }); toast('That date has passed. Pick a new one.'); return; }
     const place = st.locPlace && cleanTitle(st.locText) ? st.locPlace : null, spot = cleanTitle(st.locText).slice(0, 80) || null;
     const who = (st.myName || 'Someone').slice(0, 40), dated = !!st.evDate, float = !!st.evFloat, plan = dated && !float;   // a date posts it as a plan; without one, or floated (no lead yet), it's an idea
@@ -11064,7 +11313,8 @@
           planned: plan, visibility: st.evPriv || pers ? 'invite' : 'group', guest_invites: evGuestInv(st), ...(st.evNoContact ? { contact: false } : {}), min_people: dated || !MIN_PEOPLE ? null : st.evNeed || null, tags: (st.evTags || []).slice(0, 2),
           cover_pos: cover && st.coverPos ? posOf(st.coverPos, IDEA_POS) : null,
           ...(st.evCap ? { cap: st.evCap } : {}),   // Limit RSVPs (Design v8-18, 2)
-          ...(fromList ? { list_id: fromList.id } : {})   // posted from a list: the event remembers it (20261202050000)
+          ...(fromList ? { list_id: fromList.id } : {}),   // posted from a list: the event remembers it (20261202050000)
+          ...(crew ? { crew_id: crew.id } : {})   // a crew's plan: the database shares it with the crew (20261204000000)
         };
         if (float) row.wants_host = true;
         if (st.evHelpNone && !st.evNeeds.length) row.no_help = true;   // No help needed counts as the Jobs step (Design 23C1)   // Just float the idea: it goes up looking for a lead, and the group gets no push (20261102020000_float_and_ask.sql)
@@ -11099,7 +11349,8 @@
         // anyone else sees it makes the event far more likely to happen. Not for "Just testing" events
         // A floated idea just opens its page (Jeni Wade's demo, owner 2026-10-05: no Ask someone to lead pop-up; the page's
         // + Ask someone to lead stays)
-        go('detail', Object.assign({ subjectId: id }, float ? {} : { share: Object.assign({ id, copied: false, ask: true }, fromList ? { list: fromList.id } : {}) }));
+        go('detail', Object.assign({ subjectId: id }, float || crew ? {} : { share: Object.assign({ id, copied: false, ask: true }, fromList ? { list: fromList.id } : {}) }));
+        if (crew) toast('Shared with ' + crew.name, true);
       } catch (e) {
         console.error(e);
         setState({ busy: null });
@@ -11109,7 +11360,7 @@
   };
 
   // Drafts: the flow's own fields, saved to your account (only you see them)
-  const DRAFT_FIELDS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'evDayType', 'evRepeat', 'evRepeatUntil', 'evEndDate', 'evEndDateT', 'evDays', 'evDaysEach', 'locText', 'locPlace', 'locAddr', 'evOverview', 'evDesc', 'evCap', 'evNeed', 'evTags', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evNoGuestInv', 'evNoContact', 'evTest', 'evFloat', 'evHelpNone', 'evGroups', 'evPersonal', 'evList', 'coverPos'];
+  const DRAFT_FIELDS = ['activity', 'evStep', 'evDate', 'evTime', 'evEnd', 'evEndOn', 'evDayType', 'evRepeat', 'evRepeatUntil', 'evEndDate', 'evEndDateT', 'evDays', 'evDaysEach', 'locText', 'locPlace', 'locAddr', 'evOverview', 'evDesc', 'evCap', 'evNeed', 'evTags', 'evNeeds', 'evDatePoll', 'evSpotPoll', 'evLater', 'evPriv', 'evNoGuestInv', 'evNoContact', 'evTest', 'evFloat', 'evHelpNone', 'evGroups', 'evPersonal', 'evList', 'evCrew', 'coverPos'];
   const saveDraft = () => {
     const st = state;
     if (st.busy) return;
@@ -11156,7 +11407,7 @@
       evInspo: (arr(x.evInspo) || []).filter(q => PHOTO_PATH.test(q || '')).slice(0, 3).map(path => ({ path, url: photoUrl(path) })), evNeed: Number.isInteger(x.evNeed) && x.evNeed > 0 ? Math.min(x.evNeed, 99) : null, evTags: (arr(x.evTags) || []).filter(k => TYPES6.some(t => t[0] === k)).slice(0, 2), evNeeds: arr(x.evNeeds) || [],
       evDatePoll: null, evSpotPoll: null, evLater: x.evLater && typeof x.evLater === 'object' ? x.evLater : {},
       evPriv: !!x.evPriv, evNoGuestInv: x.evNoGuestInv == null ? null : !!x.evNoGuestInv, evNoContact: !!x.evNoContact, evTest: typeof x.evTest === 'boolean' ? x.evTest : null, evFloat: false,   // v8-6: the maker always leads it
-      evHelpNone: !!x.evHelpNone, evGroups: arr(x.evGroups), evPersonal: !!x.evPersonal, evList: typeof x.evList === 'string' ? x.evList : null, coverPos: x.coverPos || null,
+      evHelpNone: !!x.evHelpNone, evGroups: arr(x.evGroups), evPersonal: !!x.evPersonal, evList: typeof x.evList === 'string' ? x.evList : null, evCrew: typeof x.evCrew === 'string' ? x.evCrew : null, coverPos: x.coverPos || null,
       // How long it is (v8-7)
       evDayType: ['one', 'repeat', 'span', 'days'].indexOf(x.evDayType) > -1 ? x.evDayType : 'one', evRepeat: REPEATS[x.evRepeat] ? x.evRepeat : 'week',
       evRepeatUntil: ISO_DAY.test(x.evRepeatUntil || '') ? x.evRepeatUntil : '', evEndDate: ISO_DAY.test(x.evEndDate || '') ? x.evEndDate : '', evEndDateT: HHMM.test(x.evEndDateT || '') ? x.evEndDateT : '',
@@ -11651,7 +11902,7 @@
       ? '<div ' + on(() => { touch('post'); setState({ evGrpPop: true }); }) + ' data-post-to aria-label="Post to: Just people I invite" style="' + WC + ';display:flex;align-items:center;gap:12px;min-height:56px;padding:0 14px;cursor:pointer">' +
           '<span style="flex:0 0 auto;font-size:14.5px;font-weight:800;color:#0d1117">Post to</span><span style="flex:1;min-width:0;display:flex;align-items:center;justify-content:flex-end;gap:8px">' +
           '<span aria-hidden="true" style="flex:0 0 26px;width:26px;height:26px;border-radius:999px;background:#0d1117;display:flex;align-items:center;justify-content:center">' + svg(13, stroke('#fff', 2.4), LOCK_IC) + '</span>' +
-          '<span data-post-sum style="min-width:0;font-size:14.5px;font-weight:700;color:#454b55;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (evListOf(st) ? esc(evListOf(st).name) : 'Just people I invite') + '</span><span style="display:flex">' + chev6(14, '#9aa0ac', false) + '</span></span></div>'
+          '<span data-post-sum style="min-width:0;font-size:14.5px;font-weight:700;color:#454b55;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (evCrewOf(st) ? esc(evCrewOf(st).name) : evListOf(st) ? esc(evListOf(st).name) : 'Just people I invite') + '</span><span style="display:flex">' + chev6(14, '#9aa0ac', false) + '</span></span></div>'
       : postToRow(groups, () => { touch('post'); setState({ evGrpPop: true }); }, W.post ? WC : GC);
     const radio = (priv, name, sub, icon, k) => { const onIt = !!st.evPriv === priv;
       return '<div ' + on(() => setState({ evPriv: priv, evNoGuestInv: null, cpWhite: Object.assign({}, W, { vis: true }) }), 'radio') + ' aria-checked="' + onIt + '" aria-label="' + name + ': ' + sub + '" style="display:flex;align-items:center;gap:12px;min-height:52px;border-top:' + (k ? '1px solid #eef0f3' : '0') + ';cursor:pointer">' +
@@ -11732,12 +11983,12 @@
     // Just people I invite (owner, 2026-10-12; 20261202000000): no group, private, for the friends you invite. It and the
     // groups exclude each other
     const pers = !!st.evPersonal;
-    const personal = '<div ' + on(() => setState(pers ? { evPersonal: false, evList: null } : { evPersonal: true, evGroups: [], evGrpNone: true, evPriv: true, evNoGuestInv: null }), 'checkbox') + ' aria-checked="' + pers + '" aria-label="Just people I invite" data-post-personal class="' + (pers ? '' : 'hov-row') + '" style="display:flex;align-items:center;gap:12px;min-height:56px;padding:6px 14px;border-radius:14px;cursor:pointer;' + (pers ? 'background:#f3f1fe' : '') + '">' +
+    const personal = '<div ' + on(() => setState(pers ? { evPersonal: false, evList: null, evCrew: null } : { evPersonal: true, evGroups: [], evGrpNone: true, evPriv: true, evNoGuestInv: null }), 'checkbox') + ' aria-checked="' + pers + '" aria-label="Just people I invite" data-post-personal class="' + (pers ? '' : 'hov-row') + '" style="display:flex;align-items:center;gap:12px;min-height:56px;padding:6px 14px;border-radius:14px;cursor:pointer;' + (pers ? 'background:#f3f1fe' : '') + '">' +
         '<span aria-hidden="true" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#0d1117;display:flex;align-items:center;justify-content:center">' + svg(17, stroke('#fff', 2.2), LOCK_IC) + '</span>' +
         '<span style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:15.5px;font-weight:800;color:' + (pers ? '#4a3ad4' : '#0d1117') + '">Just people I invite</span><span style="font-size:12.5px;font-weight:600;color:#6b7280">Friends, no group. Private.</span></span>' +
         '<span aria-hidden="true" style="flex:0 0 22px;width:22px;height:22px;box-sizing:border-box;border-radius:7px;display:flex;align-items:center;justify-content:center;' + (pers ? 'background:#5b4ae8' : 'border:1.5px solid #c9ccd3;background:#fff') + '">' + (pers ? I.check(12, '#fff', 3.4) : '') + '</span></div>';
     const row = (g) => { const onIt = groups.indexOf(g.id) > -1;
-      return '<div ' + on(() => { const nx = onIt ? groups.filter(x => x !== g.id) : groups.concat(g.id); setState({ evGroups: nx, evGrpNone: !nx.length, evPersonal: false, evList: null }); }, 'checkbox') + ' aria-checked="' + onIt + '" aria-label="Post to ' + esc(g.name) + '" class="' + (onIt ? '' : 'hov-row') + '" style="display:flex;align-items:center;gap:12px;min-height:56px;padding:0 10px;border-radius:14px;cursor:pointer;background:' + (onIt ? '#f3f1fe' : 'transparent') + '">' +
+      return '<div ' + on(() => { const nx = onIt ? groups.filter(x => x !== g.id) : groups.concat(g.id); setState({ evGroups: nx, evGrpNone: !nx.length, evPersonal: false, evList: null, evCrew: null }); }, 'checkbox') + ' aria-checked="' + onIt + '" aria-label="Post to ' + esc(g.name) + '" class="' + (onIt ? '' : 'hov-row') + '" style="display:flex;align-items:center;gap:12px;min-height:56px;padding:0 10px;border-radius:14px;cursor:pointer;background:' + (onIt ? '#f3f1fe' : 'transparent') + '">' +
         '<span aria-hidden="true" style="flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:' + thumbBg(null, g) + '"></span>' +
         '<span style="flex:1;min-width:0;font-size:15.5px;font-weight:800;color:' + (onIt ? '#4a3ad4' : '#0d1117') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(g.name) + '</span>' +
         '<span aria-hidden="true" style="flex:0 0 22px;width:22px;height:22px;box-sizing:border-box;border-radius:7px;display:flex;align-items:center;justify-content:center;' + (onIt ? 'background:#5b4ae8' : 'border:1.5px solid #c9ccd3;background:#fff') + '">' + (onIt ? I.check(12, '#fff', 3.4) : '') + '</span></div>'; };   // squares: pick several (Design v8-15, Q44 2a)
@@ -13934,6 +14185,8 @@
       (st.ownDash && st.screen === 'me' && dashShown() ? viewDash() : '') +
       (st.ownNums && st.ownDash && dashShown() ? viewNumbers() : '') +   // the owner's Dashboard (v8-19 item 1b), under its sheets
       (st.sf ? viewSafety() : '') +   // Store safety (v8-18 1s): its sheets and pages
+      // Crews (Design v9-1 5b): the crew's page over the screen and the tab bar, then its sheets
+      (st.email && st.crewOpen ? viewCrew() : '') + (st.email && st.crewOpen && st.crewMenu ? viewCrewMenu() : '') + (st.email && st.crewOpen && st.crewDay ? viewCrewDay() : '') + (st.email && st.crewEd ? viewCrewEd() : '') +
       (st.confirm ? viewConfirm() : '') +
       (st.zoom ? viewZoom() : '') +
       (st.fbOpen && st.demoAdmin ? viewFbInbox() : '') +
@@ -13942,7 +14195,7 @@
       (st.about != null ? viewAbout() : '') +
       (st.notifAsk ? viewNotifAsk() : '') +
       // no tab bar on Welcome, the invite screens, or for a guest on an event (it only led to sign-in)
-      (welcomeShown() || invFull() || (!state.email && state.screen === 'detail') ? '' : viewAddFab() + viewNav()) +
+      (welcomeShown() || invFull() || (!state.email && state.screen === 'detail') || (state.email && st.crewOpen) ? '' : viewAddFab() + viewNav()) +
       (st.fbNudge && st.screen !== 'me' && !st.fb ? viewFbNudge() : '') +   // above the tab bar
       (st.fbTip && !st.fbNudge ? viewFbTip() : '') +                   // pointing at Profile
       // Last (it sits on top by z-index anyway): the morph matches nodes by position, so a toast going away earlier in
@@ -14190,7 +14443,7 @@
     if ((e.key === 'Enter' || e.key === 'Escape') && e.target.matches && e.target.matches('[data-title-inline]')) { e.preventDefault(); evTitleDone(); return; }
     if (e.key === 'Enter' && e.target.matches && e.target.matches('[data-time-type]')) { e.preventDefault(); e.target.blur(); return; }
     if ((e.key === 'Enter' || e.key === 'Escape') && !e.isComposing && e.target.matches && e.target.matches('[data-note-edit]')) { e.preventDefault(); if (e.key === 'Enter') noteSave(); else setState({ noteEd: null }); return; }
-    if (e.key === 'Enter' && !e.isComposing && e.target.matches && e.target.matches('[data-comment-input], [data-reply-input]')) {
+    if (e.key === 'Enter' && !e.isComposing && e.target.matches && e.target.matches('[data-comment-input], [data-reply-input], [data-crew-input]')) {
       e.preventDefault(); const b = e.target.parentElement.querySelector('[aria-disabled="false"]'); if (b) b.click(); return;
     }
     if (e.key === 'Escape') {
@@ -14328,7 +14581,7 @@
       if (composeBack()) { history.pushState(null, '', '#/new'); return; }   // stay in the flow
       leaving = composeReset();
     }
-    if (target.screen === state.screen && target.subjectId === state.subjectId && target.gpId === state.gpId) return;
+    if (target.screen === state.screen && target.subjectId === state.subjectId && target.gpId === state.gpId && !target.crewOpen) return;
     setState(Object.assign(leaving, { menu: null, offerKind: null, nameAsk: null, confirm: null, loginStep: null, loginThen: null, interestList: false, thanksList: false, guestList: null, back: null,
       profSheet: false, notifSheet: false, dashAll: null, cHandSheet: false, cSearch: false, cq: '', gSearch: false, gq: '', gTry: null }, target));
     const sc = scroller();

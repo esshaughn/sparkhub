@@ -893,3 +893,29 @@ test('joy first: only people who went share joy and thanks; others can’t read 
     await lead.context.close(); await other.context.close();
   }
 });
+
+test('crews: only the people in a crew see it, its chat and its plans; nobody joins by writing rows', async ({ browser }) => {
+  const lead = await newLead(browser, 1, 'Lee'), other = await newLead(browser, 2, 'Oz');
+  const L = lead.page, O = other.page;
+  let crew;
+  try {
+    // Lee starts a crew alone (Oz isn't Lee's friend here, so start_crew leaves Oz out even when named)
+    const ozId = await uid(O);
+    await asUser(L, async (c, _C, oz) => c.rpc('remove_friend', { p_other: oz }), ozId);   // not friends, whatever an earlier test left
+    crew = await asUser(L, async (c, _C, oz) => (await c.rpc('start_crew', { p_name: 'Rules crew', p_people: [oz] })).data, ozId);
+    await asUser(L, async (c, _C, id) => c.from('crew_messages').insert({ crew_id: id, body: 'Just us' }), crew);
+    expect(await asUser(L, async (c, _C, id) => (await c.from('crew_members').select('user_id').eq('crew_id', id)).data.length, crew)).toBe(1);
+    const tried = await asUser(O, async (c, _C, { id, oz }) => ({
+      crews: (await c.from('crews').select('id').eq('id', id)).data.length,
+      chat: (await c.from('crew_messages').select('id').eq('crew_id', id)).data.length,
+      thread: ((await c.rpc('crew_thread', { p_crew: id })).data || []).length,
+      join: (await c.from('crew_members').insert({ crew_id: id, user_id: oz })).error ? 'refused' : 'ALLOWED',
+      add: (await c.rpc('crew_add', { p_crew: id, p_people: [oz] })).error ? 'refused' : 'ALLOWED',
+      post: (await c.from('crew_messages').insert({ crew_id: id, body: 'hi' })).error ? 'refused' : 'ALLOWED'
+    }), { id: crew, oz: ozId });
+    expect(tried).toEqual({ crews: 0, chat: 0, thread: 0, join: 'refused', add: 'refused', post: 'refused' });
+  } finally {
+    if (crew) await asUser(L, async (c, _C, id) => c.rpc('crew_leave', { p_crew: id }), crew).catch(() => {});
+    await lead.context.close(); await other.context.close();
+  }
+});

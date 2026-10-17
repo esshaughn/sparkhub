@@ -2269,3 +2269,64 @@ reset role;
 select private.push_joy();
 select t.check('the joy pushes run (one marker at most per event, kind and day)', (select count(*) from private.joy_pushes where spark_id = t.id('jy')) <= 1);
 delete from sparks where id in (t.id('jy'), t.id('jy_later'));
+
+-- Crews (20261204000000_crews.sql): invite-only between friends; members see the crew, its people, its thread and its
+-- plans; nobody else does -------------------------------------------------------------------------------------------
+select t.person('cr_a'), t.person('cr_b'), t.person('cr_c'), t.person('cr_out'), t.person('cr_anon', true);
+select private.make_friends(t.id('cr_a'), t.id('cr_b'));
+select private.make_friends(t.id('cr_b'), t.id('cr_c'));
+select t.login('cr_a'); set role authenticated;
+select t.check('a crew starts with your friends only (a stranger is left out)',
+  (select public.start_crew(' Taco crew ', array[t.id('cr_b'), t.id('cr_c'), t.id('cr_out')]::uuid[])) is not null);
+reset role;
+insert into t.ids select 'crew', id from crews where name = 'Taco crew';
+select t.check('…named without the spaces, with its starter and the friend', (select count(*) from crew_members where crew_id = t.id('crew')) = 2 and exists (select 1 from crew_members where crew_id = t.id('crew') and user_id = t.id('cr_b')));
+select t.check('…and the friend has a quiet bell line', exists (select 1 from notes where user_id = t.id('cr_b') and quiet and body like '% added you to Taco crew.'));
+select t.login('cr_a'); set role authenticated;
+select t.must_refuse('writing crews directly', $$insert into crews (name) values ('Sneaky')$$);
+select t.must_refuse('adding a member directly', format($$insert into crew_members (crew_id, user_id) values (%L, %L)$$, t.id('crew'), t.id('cr_out')));
+select t.must_refuse('renaming directly', $$update crews set name = 'X' where true$$);
+select t.must_refuse('a photo from someone else''s folder', format($$select public.crew_edit(%L, null, %L)$$, t.id('crew'), t.id('cr_b') || '/' || gen_random_uuid() || '.jpg'));
+select t.must_allow('the standing calendar: every other week', format($$select public.crew_edit(%L, null, null, '2weeks', current_date + 3)$$, t.id('crew')));
+select t.must_allow('a message to the crew', format($$insert into crew_messages (crew_id, body) values (%L, ' Tacos Sunday? ')$$, t.id('crew')));
+select t.must_refuse('…not as someone else', format($$insert into crew_messages (crew_id, user_id, body) values (%L, %L, 'hi')$$, t.id('crew'), t.id('cr_b')));
+select t.must_allow('a crew plan', $$insert into sparks (group_id, author_name, lead_name, lead_id, created_by, text, visibility, crew_id) values (null, 'A', 'A', auth.uid(), auth.uid(), 'Taco night', 'invite', (select id from crews where name = 'Taco crew'))$$);
+reset role;
+insert into t.ids select 'crew_plan', id from sparks where text = 'Taco night';
+select t.check('the crew''s members get the plan (via crew)', exists (select 1 from link_access where spark_id = t.id('crew_plan') and user_id = t.id('cr_b') and via = 'crew'));
+select t.login('cr_b'); set role authenticated;
+select t.check('a member reads the crew, its people and the calendar', (select every from crews where id = t.id('crew')) = '2weeks' and (select count(*) from crew_members where crew_id = t.id('crew')) = 2);
+select t.check('…sees the plan', exists (select 1 from sparks where id = t.id('crew_plan')));
+select t.check('…has one unread message, trimmed', (select (c->>'unread')::int from jsonb_array_elements(public.my_crews()) c) = 1 and (select body from public.crew_thread(t.id('crew'))) = 'Tacos Sunday?');
+select public.crew_read(t.id('crew'));
+select t.check('…reading clears it', (select (c->>'unread')::int from jsonb_array_elements(public.my_crews()) c) = 0);
+select t.must_refuse('…can''t delete someone else''s message', $$delete from crew_messages where true$$);
+select t.must_allow('…skips a standing date', format($$select public.crew_skip(%L, current_date + 17, true)$$, t.id('crew')));
+select t.must_allow('…adds their own friend', format($$select public.crew_add(%L, array[%L]::uuid[])$$, t.id('crew'), t.id('cr_c')));
+select t.must_refuse('…a member can''t put a plan in a crew they''re not in', $$insert into sparks (group_id, author_name, lead_name, lead_id, created_by, text, visibility, crew_id) values (null, 'B', 'B', auth.uid(), auth.uid(), 'Sneaky', 'invite', gen_random_uuid())$$);
+reset role;
+select t.check('the friend added later is in the crew and gets the upcoming plan', exists (select 1 from crew_members where crew_id = t.id('crew') and user_id = t.id('cr_c')) and exists (select 1 from link_access where spark_id = t.id('crew_plan') and user_id = t.id('cr_c') and via = 'crew'));
+select t.check('the skip is kept', (select skips from crews where id = t.id('crew')) = array[current_date + 17]);
+select t.login('cr_out'); set role authenticated;
+select t.check('someone outside sees no crew, no people, no thread, no plan',
+  not exists (select 1 from crews) and not exists (select 1 from crew_members) and not exists (select 1 from crew_messages)
+  and not exists (select 1 from sparks where id = t.id('crew_plan')) and public.my_crews() = '[]'::jsonb and not exists (select 1 from public.crew_thread(t.id('crew'))));
+select t.must_refuse('…can''t write to the thread', format($$insert into crew_messages (crew_id, body) values (%L, 'hi')$$, t.id('crew')));
+select t.must_refuse('…can''t add themself', format($$select public.crew_add(%L, array[auth.uid()])$$, t.id('crew')));
+select t.must_refuse('…can''t change the crew', format($$select public.crew_edit(%L, 'Mine')$$, t.id('crew')));
+reset role;
+select t.login('cr_anon'); set role authenticated;
+select t.must_refuse('a guest can''t start a crew', $$select public.start_crew('Guests', '{}')$$);
+reset role;
+select t.login('cr_c'); set role authenticated;
+select public.crew_leave(t.id('crew'));
+reset role;
+select t.check('leaving takes the crew''s plans away', not exists (select 1 from link_access where spark_id = t.id('crew_plan') and user_id = t.id('cr_c')));
+select t.login('cr_a'); set role authenticated;
+select public.crew_leave(t.id('crew'));
+reset role;
+select t.login('cr_b'); set role authenticated;
+select public.crew_leave(t.id('crew'));
+reset role;
+select t.check('the last one out deletes the crew (its plan stays, out of the crew)', not exists (select 1 from crews where id = t.id('crew')) and (select crew_id from sparks where id = t.id('crew_plan')) is null);
+delete from sparks where id = t.id('crew_plan');
